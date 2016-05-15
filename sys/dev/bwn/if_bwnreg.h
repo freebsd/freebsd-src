@@ -41,21 +41,60 @@
 #define	PCI_VENDOR_BROADCOM		0x14e4
 #define	PCI_VENDOR_LINKSYS		0x1737
 
-#define	BWN_BFL_BTCOEXIST		0x0001
-#define	BWN_BFL_PACTRL			0x0002
-#define	BWN_BFL_RSSI			0x0008
-#define	BWN_BFL_CRYSTAL_NOSLOW		0x0020
-#define	BWN_BFL_FEM			0x0800
-#define	BWN_BFL_EXTLNA			0x1000
-#define	BWN_BFL_HGPA			0x2000	/* had high gain PA */
-#define	BWN_BFL_BTCMOD			0x4000
-#define	BWN_BFL_ALTIQ			0x8000
+/* SPROM flags */
+#define	BWN_BFL_BTCOEXIST		0x0001  /* implements Bluetooth coexistance */
+#define	BWN_BFL_PACTRL			0x0002  /* GPIO 9 controlling the PA */
+#define	BWN_BFL_AIRLINEMODE		0x0004  /* implements GPIO 13 radio disable indication */
+#define	BWN_BFL_RSSI			0x0008  /* software calculates nrssi slope. */
+#define	BWN_BFL_ENETSPI			0x0010  /* has ephy roboswitch spi */
+#define	BWN_BFL_CRYSTAL_NOSLOW		0x0020  /* no slow clock available */
+#define	BWN_BFL_CCKHIPWR		0x0040  /* can do high power CCK transmission */
+#define	BWN_BFL_ENETADM			0x0080  /* has ADMtek switch */
+#define	BWN_BFL_ENETVLAN		0x0100  /* can do vlan */
+#define	BWN_BFL_AFTERBURNER		0x0200  /* supports Afterburner mode */
+#define	BWN_BFL_NOPCI			0x0400  /* leaves PCI floating */
+#define	BWN_BFL_FEM			0x0800  /* supports the Front End Module */
+#define	BWN_BFL_EXTLNA			0x1000  /* has an external LNA */
+#define	BWN_BFL_HGPA			0x2000  /* had high gain PA */
+#define	BWN_BFL_BTCMOD			0x4000  /* BFL_BTCOEXIST is given in alternate GPIOs */
+#define	BWN_BFL_ALTIQ			0x8000  /* alternate I/Q settings */
 
-#define	BWN_BFH_NOPA			0x0001
-#define	BWN_BFH_RSSIINV			0x0002
-#define	BWN_BFH_LDO_PAREF		0x0004
-#define	BWN_BFH_FEM_BT			0x0040
+/* SPROM boardflags_hi values */
+#define	BWN_BFH_NOPA			0x0001  /* has no PA */
+#define	BWN_BFH_RSSIINV			0x0002  /* RSSI uses positive slope (not TSSI) */
+#define	BWN_BFH_LDO_PAREF		0x0004  /* uses the PARef LDO */
+#define	BWN_BFH_3TSWITCH		0x0008  /* uses a triple throw switch shared
+						 * with bluetooth */
+#define	BWN_BFH_PHASESHIFT		0x0010  /* can support phase shifter */
+#define	BWN_BFH_BUCKBOOST		0x0020  /* has buck/booster */
+#define	BWN_BFH_FEM_BT			0x0040  /* has FEM and switch to share antenna
+						 * with bluetooth */
+#define	BWN_BFH_NOCBUCK			0x0080
+#define	BWN_BFH_PALDO			0x0200
+#define	BWN_BFH_EXTLNA_5GHZ		0x1000  /* has an external LNA (5GHz mode) */
 
+/* SPROM boardflags2_lo values */
+#define	BWN_BFL2_RXBB_INT_REG_DIS	0x0001  /* external RX BB regulator present */
+#define	BWN_BFL2_APLL_WAR		0x0002  /* alternative A-band PLL settings implemented */
+#define	BWN_BFL2_TXPWRCTRL_EN		0x0004  /* permits enabling TX Power Control */
+#define	BWN_BFL2_2X4_DIV		0x0008  /* 2x4 diversity switch */
+#define	BWN_BFL2_5G_PWRGAIN		0x0010  /* supports 5G band power gain */
+#define	BWN_BFL2_PCIEWAR_OVR		0x0020  /* overrides ASPM and Clkreq settings */
+#define	BWN_BFL2_CAESERS_BRD		0x0040  /* is Caesers board (unused) */
+#define	BWN_BFL2_BTC3WIRE		0x0080  /* used 3-wire bluetooth coexist */
+#define	BWN_BFL2_SKWRKFEM_BRD		0x0100  /* 4321mcm93 uses Skyworks FEM */
+#define	BWN_BFL2_SPUR_WAR		0x0200  /* has a workaround for clock-harmonic spurs */
+#define	BWN_BFL2_GPLL_WAR		0x0400  /* altenative G-band PLL settings implemented */
+#define	BWN_BFL2_SINGLEANT_CCK		0x1000
+#define	BWN_BFL2_2G_SPUR_WAR		0x2000
+
+/* SPROM boardflags2_hi values */
+#define	BWN_BFH2_GPLL_WAR2		0x0001
+#define	BWN_BFH2_IPALVLSHIFT_3P3	0x0002
+#define	BWN_BFH2_INTERNDET_TXIQCAL	0x0004
+#define	BWN_BFH2_XTALBUFOUTEN		0x0008
+
+/* SIBA control registers */
 #define	BWN_TGSLOW_PHYCLOCK_ENABLE	0x00040000
 #define	BWN_TGSLOW_PHYRESET		0x00080000
 #define	BWN_TMSLOW_MACPHYCLKEN		0x00100000      /* MAC PHY Clock Control Enable (rev >= 5) */
