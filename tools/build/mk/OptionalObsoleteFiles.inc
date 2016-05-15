@@ -76,6 +76,9 @@ OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
 .if ${MK_ATM} == no
+OLD_FILES+=etc/rc.d/atm1
+OLD_FILES+=etc/rc.d/atm2
+OLD_FILES+=etc/rc.d/atm3
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig
 OLD_FILES+=usr/bin/sscop
