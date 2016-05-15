@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/module.h>
 #include <machine/bus.h>
 
@@ -100,7 +99,6 @@ static struct ofw_compat_data compat_data[] = {
 
 static struct resource_spec rsb_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
 
@@ -125,12 +123,11 @@ static const struct {
 };
 
 struct rsb_softc {
-	struct resource	*res[2];
+	struct resource	*res;
 	struct mtx	mtx;
 	clk_t		clk;
 	hwreset_t	rst;
 	device_t	iicbus;
-	void		*ih;
 	int		busy;
 	uint32_t	status;
 	uint16_t	cur_addr;
@@ -141,8 +138,8 @@ struct rsb_softc {
 #define	RSB_LOCK(sc)			mtx_lock(&(sc)->mtx)
 #define	RSB_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
 #define	RSB_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED)
-#define	RSB_READ(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	RSB_WRITE(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define	RSB_READ(sc, reg)		bus_read_4((sc)->res, (reg))
+#define	RSB_WRITE(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
 
 static phandle_t
 rsb_get_node(device_t bus, device_t dev)
@@ -202,43 +199,30 @@ static int
 rsb_start(device_t dev)
 {
 	struct rsb_softc *sc;
-	int error, retry, polling;
+	int error, retry;
 
 	sc = device_get_softc(dev);
-	polling = cold || !THREAD_CAN_SLEEP();
 
 	RSB_ASSERT_LOCKED(sc);
-
-	/* Enable interrupts */
-	if (!polling)
-		RSB_WRITE(sc, RSB_INTE, INT_MASK);
 
 	/* Start the transfer */
 	RSB_WRITE(sc, RSB_CTRL, GLOBAL_INT_ENB | START_TRANS);
 
 	/* Wait for transfer to complete */
-	if (polling) {
-		error = ETIMEDOUT;
-		for (retry = RSB_I2C_TIMEOUT; retry > 0; retry--) {
-			sc->status |= RSB_READ(sc, RSB_INTS);
-			if ((sc->status & INT_TRANS_OVER) != 0) {
-				error = 0;
-				break;
-			}
-			DELAY((1000 * hz) / RSB_I2C_TIMEOUT);
+	error = ETIMEDOUT;
+	for (retry = RSB_I2C_TIMEOUT; retry > 0; retry--) {
+		sc->status |= RSB_READ(sc, RSB_INTS);
+		if ((sc->status & INT_TRANS_OVER) != 0) {
+			error = 0;
+			break;
 		}
-	} else {
-		error = mtx_sleep(sc, &sc->mtx, 0, "i2ciowait",
-		    RSB_I2C_TIMEOUT);
+		DELAY((1000 * hz) / RSB_I2C_TIMEOUT);
 	}
 	if (error == 0 && (sc->status & INT_TRANS_OVER) == 0) {
 		device_printf(dev, "transfer error, status 0x%08x\n",
 		    sc->status);
 		error = EIO;
 	}
-
-	/* Disable interrupts */
-	RSB_WRITE(sc, RSB_INTE, 0);
 
 	return (error);
 
@@ -389,23 +373,6 @@ done:
 	return (error);
 }
 
-static void
-rsb_intr(void *arg)
-{
-	struct rsb_softc *sc;
-	uint32_t val;
-
-	sc = arg;
-
-	RSB_LOCK(sc);
-	val = RSB_READ(sc, RSB_INTS);
-	RSB_WRITE(sc, RSB_INTS, val);
-	sc->status |= val;
-	if ((sc->status & INT_MASK) != 0)
-		wakeup(sc);
-	RSB_UNLOCK(sc);
-}
-
 static int
 rsb_probe(device_t dev)
 {
@@ -443,16 +410,9 @@ rsb_attach(device_t dev)
 		}
 	}
 
-	if (bus_alloc_resources(dev, rsb_spec, sc->res) != 0) {
+	if (bus_alloc_resources(dev, rsb_spec, &sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, rsb_intr, sc, &sc->ih);
-	if (error != 0) {
-		device_printf(dev, "cannot setup interrupt handler\n");
 		goto fail;
 	}
 
@@ -468,9 +428,7 @@ rsb_attach(device_t dev)
 	return (0);
 
 fail:
-	if (sc->ih != NULL)
-		bus_teardown_intr(dev, sc->res[1], sc->ih);
-	bus_release_resources(dev, rsb_spec, sc->res);
+	bus_release_resources(dev, rsb_spec, &sc->res);
 	if (sc->rst != NULL)
 		hwreset_release(sc->rst);
 	if (sc->clk != NULL)
