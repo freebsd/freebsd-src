@@ -421,7 +421,7 @@ caddr_t data;
 		if ((sp->is_p == st.is_p) && (sp->is_v == st.is_v) &&
 		    !bcmp((caddr_t)&sp->is_src, (caddr_t)&st.is_src,
 			  sizeof(st.is_src)) &&
-		    !bcmp((caddr_t)&sp->is_dst, (caddr_t)&st.is_src,
+		    !bcmp((caddr_t)&sp->is_dst, (caddr_t)&st.is_dst,
 			  sizeof(st.is_dst)) &&
 		    !bcmp((caddr_t)&sp->is_ps, (caddr_t)&st.is_ps,
 			  sizeof(st.is_ps))) {
