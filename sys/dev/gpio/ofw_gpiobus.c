@@ -569,7 +569,7 @@ static device_method_t ofw_gpiobus_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ofwgpiobus_devclass;
+devclass_t ofwgpiobus_devclass;
 
 DEFINE_CLASS_1(gpiobus, ofw_gpiobus_driver, ofw_gpiobus_methods,
     sizeof(struct gpiobus_softc), gpiobus_driver);
