@@ -185,6 +185,18 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
+
+		sid: eeprom@01c14000 {
+			compatible = "allwinner,sun8i-a83t-sid";
+			reg = <0x01c14000 0x400>;
+		};
+
+		rtp: rtp@01f04000 {
+			compatible = "allwinner,sun8i-a83t-ts";
+			reg = <0x01f04000 0x400>;
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+			#thermal-sensor-cells = <0>;
+		};
 	};
 };
 
