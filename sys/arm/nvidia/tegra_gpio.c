@@ -895,4 +895,7 @@ EARLY_DRIVER_MODULE(tegra_gpio, simplebus, tegra_gpio_driver,
 extern devclass_t ofwgpiobus_devclass;
 extern driver_t ofw_gpiobus_driver;
 EARLY_DRIVER_MODULE(ofw_gpiobus, tegra_gpio, ofw_gpiobus_driver,
-ofwgpiobus_devclass, 0, 0, BUS_PASS_BUS);
+    ofwgpiobus_devclass, 0, 0, BUS_PASS_BUS);
+extern devclass_t gpioc_devclass;
+extern driver_t gpioc_driver;
+DRIVER_MODULE(gpioc, tegra_gpio, gpioc_driver, gpioc_devclass, 0, 0);
