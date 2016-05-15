@@ -763,17 +763,16 @@ snmp_import_object(struct snmp_toolinfo *snmptoolctx)
 		return (-1);
 
 	if ((oid2str = calloc(1, sizeof(struct snmp_oid2str))) == NULL) {
-		syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
+		syslog(LOG_ERR, "calloc() failed: %s", strerror(errno));
 		return (-1);
 	}
 
-	if ((string = malloc(strlen(nexttok) + 1)) == NULL) {
-		syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
+	if ((string = strdup(nexttok)) == NULL) {
+		syslog(LOG_ERR, "strdup() failed: %s", strerror(errno));
 		free(oid2str);
 		return (-1);
 	}
 
-	strlcpy(string, nexttok, nitems(string));
 	oid2str->string = string;
 	oid2str->strlen = strlen(nexttok);
 
