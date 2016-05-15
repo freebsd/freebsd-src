@@ -5,6 +5,7 @@
 
 # PROVIDE: zfs
 # REQUIRE: mountcritlocal
+# BEFORE: FILESYSTEMS var
 
 . /etc/rc.subr
 
