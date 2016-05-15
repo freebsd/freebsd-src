@@ -251,7 +251,7 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 			return (0);
 	}
 
-	if ((fstring = malloc(strlen(filename) + 1)) == NULL) {
+	if ((fstring = strdup(filename)) == NULL) {
 		warnx("malloc() failed - %s", strerror(errno));
 		return (-1);
 	}
@@ -264,7 +264,6 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 
 	if (cut != NULL)
 		asn_append_oid(&(entry->cut), cut);
-	strlcpy(fstring, filename, nitems(fstring));
 	entry->name = fstring;
 	entry->done = done;
 	SLIST_INSERT_HEAD(&snmptoolctx->filelist, entry, link);
