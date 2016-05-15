@@ -404,7 +404,7 @@ rsu_attach(device_t self)
 	struct rsu_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	int error;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	uint8_t iface_index;
 	struct usb_interface *iface;
 	const char *rft;
@@ -521,7 +521,9 @@ rsu_attach(device_t self)
 
 		/* Enable basic HT */
 		ic->ic_htcaps = IEEE80211_HTC_HT |
+#if 0
 		    IEEE80211_HTC_AMPDU |
+#endif
 		    IEEE80211_HTC_AMSDU |
 		    IEEE80211_HTCAP_MAXAMSDU_3839 |
 		    IEEE80211_HTCAP_SMPS_OFF;

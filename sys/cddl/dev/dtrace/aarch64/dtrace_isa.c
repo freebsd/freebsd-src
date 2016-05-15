@@ -57,6 +57,7 @@
  */
 #define	MAX_FUNCTION_SIZE 0x10000
 #define	MAX_PROLOGUE_SIZE 0x100
+#define	MAX_USTACK_DEPTH  2048
 
 uint8_t dtrace_fuword8_nocheck(void *);
 uint16_t dtrace_fuword16_nocheck(void *);
@@ -111,11 +112,127 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	}
 }
 
+static int
+dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
+    uintptr_t fp)
+{
+	volatile uint16_t *flags =
+	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
+	int ret = 0;
+	uintptr_t oldfp;
+
+	ASSERT(pcstack == NULL || pcstack_limit > 0);
+
+	while (pc != 0) {
+		/*
+		 * We limit the number of times we can go around this
+		 * loop to account for a circular stack.
+		 */
+		if (ret++ >= MAX_USTACK_DEPTH) {
+			*flags |= CPU_DTRACE_BADSTACK;
+			cpu_core[curcpu].cpuc_dtrace_illval = fp;
+			break;
+		}
+
+		if (pcstack != NULL) {
+			*pcstack++ = (uint64_t)pc;
+			pcstack_limit--;
+			if (pcstack_limit <= 0)
+				break;
+		}
+
+		if (fp == 0)
+			break;
+
+		pc = dtrace_fuword64((void *)(fp +
+		    offsetof(struct arm64_frame, f_retaddr)));
+		fp = dtrace_fuword64((void *)fp);
+
+		if (fp == oldfp) {
+			*flags |= CPU_DTRACE_BADSTACK;
+			cpu_core[curcpu].cpuc_dtrace_illval = fp;
+			break;
+		}
+
+		/*
+		 * ARM64TODO:
+		 *     This workaround might not be necessary. It needs to be
+		 *     revised and removed from all architectures if found
+		 *     unwanted. Leaving the original x86 comment for reference.
+		 *
+		 * This is totally bogus:  if we faulted, we're going to clear
+		 * the fault and break.  This is to deal with the apparently
+		 * broken Java stacks on x86.
+		 */
+		if (*flags & CPU_DTRACE_FAULT) {
+			*flags &= ~CPU_DTRACE_FAULT;
+			break;
+		}
+	}
+
+	return (ret);
+}
+
 void
 dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 {
+	proc_t *p = curproc;
+	struct trapframe *tf;
+	uintptr_t pc, sp, fp;
+	volatile uint16_t *flags =
+	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
+	int n;
 
-	printf("IMPLEMENT ME: %s\n", __func__);
+	if (*flags & CPU_DTRACE_FAULT)
+		return;
+
+	if (pcstack_limit <= 0)
+		return;
+
+	/*
+	 * If there's no user context we still need to zero the stack.
+	 */
+	if (p == NULL || (tf = curthread->td_frame) == NULL)
+		goto zero;
+
+	*pcstack++ = (uint64_t)p->p_pid;
+	pcstack_limit--;
+
+	if (pcstack_limit <= 0)
+		return;
+
+	pc = tf->tf_elr;
+	sp = tf->tf_sp;
+	fp = tf->tf_x[29];
+
+	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
+		/*
+		 * In an entry probe.  The frame pointer has not yet been
+		 * pushed (that happens in the function prologue).  The
+		 * best approach is to add the current pc as a missing top
+		 * of stack and back the pc up to the caller, which is stored
+		 * at the current stack pointer address since the call
+		 * instruction puts it there right before the branch.
+		 */
+
+		*pcstack++ = (uint64_t)pc;
+		pcstack_limit--;
+		if (pcstack_limit <= 0)
+			return;
+
+		pc = tf->tf_lr;
+	}
+
+	n = dtrace_getustack_common(pcstack, pcstack_limit, pc, fp);
+	ASSERT(n >= 0);
+	ASSERT(n <= pcstack_limit);
+
+	pcstack += n;
+	pcstack_limit -= n;
+
+zero:
+	while (pcstack_limit-- > 0)
+		*pcstack++ = 0;
 }
 
 int

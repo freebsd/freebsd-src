@@ -1072,7 +1072,7 @@ umcs7840_set_baudrate(struct umcs7840_softc *sc, uint8_t portno, uint32_t rate)
 
 /* Maximum speeds for standard frequences, when PLL is not used */
 static const uint32_t umcs7840_baudrate_divisors[] = {0, 115200, 230400, 403200, 460800, 806400, 921600, 1572864, 3145728,};
-static const uint8_t umcs7840_baudrate_divisors_len = sizeof(umcs7840_baudrate_divisors) / sizeof(umcs7840_baudrate_divisors[0]);
+static const uint8_t umcs7840_baudrate_divisors_len = nitems(umcs7840_baudrate_divisors);
 
 static usb_error_t
 umcs7840_calc_baudrate(uint32_t rate, uint16_t *divisor, uint8_t *clk)

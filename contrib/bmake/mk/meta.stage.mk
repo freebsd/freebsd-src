@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.43 2016/02/24 18:46:32 sjg Exp $
+# $Id: meta.stage.mk,v 1.44 2016/03/16 18:21:23 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -58,7 +58,7 @@ GENDIRDEPS_FILTER += Nnot-empty-is-important \
 
 LN_CP_SCRIPT = LnCp() { \
   rm -f $$2 2> /dev/null; \
-  ln $$1 $$2 2> /dev/null || \
+  { [ -z "$$mode" ] && ln $$1 $$2 2> /dev/null; } || \
   cp -p $$1 $$2; }
 
 # a staging conflict should cause an error

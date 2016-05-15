@@ -376,7 +376,7 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	char param[16];
 	const char *prov;
 	u_char *sector;
-	int *nargs, *boot, *noboot, *trim, *notrim;
+	int *nargs, *boot, *noboot, *trim, *notrim, *geliboot, *nogeliboot;
 	int zero, error, changed;
 	u_int i;
 
@@ -419,6 +419,19 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*trim || *notrim)
+		changed = 1;
+
+	geliboot = gctl_get_paraml(req, "geliboot", sizeof(*geliboot));
+	if (geliboot == NULL)
+		geliboot = &zero;
+	nogeliboot = gctl_get_paraml(req, "nogeliboot", sizeof(*nogeliboot));
+	if (nogeliboot == NULL)
+		nogeliboot = &zero;
+	if (*geliboot && *nogeliboot) {
+		gctl_error(req, "Options -g and -G are mutually exclusive.");
+		return;
+	}
+	if (*geliboot || *nogeliboot)
 		changed = 1;
 
 	if (!changed) {
@@ -469,6 +482,16 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			continue;
 		}
 
+		if (*geliboot && (sc->sc_flags & G_ELI_FLAG_GELIBOOT)) {
+			G_ELI_DEBUG(1, "GELIBOOT flag already configured for %s.",
+			    prov);
+			continue;
+		} else if (*nogeliboot && !(sc->sc_flags & G_ELI_FLAG_GELIBOOT)) {
+			G_ELI_DEBUG(1, "GELIBOOT flag not configured for %s.",
+			    prov);
+			continue;
+		}
+
 		if (!(sc->sc_flags & G_ELI_FLAG_ONETIME)) {
 			/*
 			 * ONETIME providers don't write metadata to
@@ -502,6 +525,14 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		} else if (*trim) {
 			md.md_flags &= ~G_ELI_FLAG_NODELETE;
 			sc->sc_flags &= ~G_ELI_FLAG_NODELETE;
+		}
+
+		if (*geliboot) {
+			md.md_flags |= G_ELI_FLAG_GELIBOOT;
+			sc->sc_flags |= G_ELI_FLAG_GELIBOOT;
+		} else if (*nogeliboot) {
+			md.md_flags &= ~G_ELI_FLAG_GELIBOOT;
+			sc->sc_flags &= ~G_ELI_FLAG_GELIBOOT;
 		}
 
 		if (sc->sc_flags & G_ELI_FLAG_ONETIME) {

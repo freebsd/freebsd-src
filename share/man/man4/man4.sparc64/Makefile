@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=runtime-manuals
+
 MAN=	auxio.4 \
 	central.4 \
 	clkbrd.4 \

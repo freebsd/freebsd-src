@@ -317,6 +317,27 @@ struct ieee80211_wme_param {
 } __packed;
 
 /*
+ * WME U-APSD qos info field defines
+ */
+#define	WME_CAPINFO_UAPSD_EN                    0x00000080
+#define	WME_CAPINFO_UAPSD_VO                    0x00000001
+#define	WME_CAPINFO_UAPSD_VI                    0x00000002
+#define	WME_CAPINFO_UAPSD_BK                    0x00000004
+#define	WME_CAPINFO_UAPSD_BE                    0x00000008
+#define	WME_CAPINFO_UAPSD_ACFLAGS_SHIFT         0
+#define	WME_CAPINFO_UAPSD_ACFLAGS_MASK          0xF
+#define	WME_CAPINFO_UAPSD_MAXSP_SHIFT           5
+#define	WME_CAPINFO_UAPSD_MAXSP_MASK            0x3
+#define	WME_CAPINFO_IE_OFFSET                   8
+#define	WME_UAPSD_MAXSP(_qosinfo)				\
+	    (((_qosinfo) >> WME_CAPINFO_UAPSD_MAXSP_SHIFT) &	\
+	    WME_CAPINFO_UAPSD_MAXSP_MASK)
+#define	WME_UAPSD_AC_ENABLED(_ac, _qosinfo)			\
+	    ((1 << (3 - (_ac))) & (				\
+	    ((_qosinfo) >> WME_CAPINFO_UAPSD_ACFLAGS_SHIFT) &	\
+	    WME_CAPINFO_UAPSD_ACFLAGS_MASK))
+
+/*
  * Management Notification Frame
  */
 struct ieee80211_mnf {
@@ -346,6 +367,7 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_MESH	13	/* Mesh */
 #define	IEEE80211_ACTION_CAT_SELF_PROT	15	/* Self-protected */
 /* 16 - 125 reserved */
+#define	IEEE80211_ACTION_VHT		21
 #define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/
@@ -695,6 +717,151 @@ struct ieee80211_ie_htinfo {
 #define	IEEE80211_HTINFO_BASIC_STBCMCS_S 0
 #define	IEEE80211_HTINFO_DUALPROTECTED	0x80
 
+
+/*
+ * 802.11ac definitions - 802.11ac-2013 .
+ */
+
+/* VHT opmode bits */
+#define	IEEE80211_VHT_OPMODE_CHANWIDTH_MASK	3
+#define	IEEE80211_VHT_OPMODE_CHANWIDTH_20MHZ	0
+#define	IEEE80211_VHT_OPMODE_CHANWIDTH_40MHZ	1
+#define	IEEE80211_VHT_OPMODE_CHANWIDTH_80MHZ	2
+#define	IEEE80211_VHT_OPMODE_CHANWIDTH_160MHZ	3
+#define	IEEE80211_VHT_OPMODE_RX_NSS_MASK	0x70
+#define	IEEE80211_VHT_OPMODE_RX_NSS_SHIFT	4
+#define	IEEE80211_VHT_OPMODE_RX_NSS_TYPE_BF	0x80
+
+/*
+ * Maximum length of A-MPDU that the STA can RX in VHT.
+ * Length = 2 ^ (13 + max_ampdu_length_exp) - 1 (octets)
+ */
+#define	IEEE80211_VHTCAP_MAX_AMPDU_8K		0
+#define	IEEE80211_VHTCAP_MAX_AMPDU_16K		1
+#define	IEEE80211_VHTCAP_MAX_AMPDU_32K		2
+#define	IEEE80211_VHTCAP_MAX_AMPDU_64K		3
+#define	IEEE80211_VHTCAP_MAX_AMPDU_128K		4
+#define	IEEE80211_VHTCAP_MAX_AMPDU_256K		5
+#define	IEEE80211_VHTCAP_MAX_AMPDU_512K		6
+#define	IEEE80211_VHTCAP_MAX_AMPDU_1024K	7
+
+/*
+ * VHT MCS information.
+ * + rx_highest/tx_highest: optional; maximum long GI VHT PPDU
+ *    data rate.  1Mbit/sec units.
+ * + rx_mcs_map/tx_mcs_map: bitmap of per-stream supported MCS;
+ *    2 bits each.
+ */
+#define	IEEE80211_VHT_MCS_SUPPORT_0_7		0	/* MCS0-7 */
+#define	IEEE80211_VHT_MCS_SUPPORT_0_8		1	/* MCS0-8 */
+#define	IEEE80211_VHT_MCS_SUPPORT_0_9		2	/* MCS0-9 */
+#define	IEEE80211_VHT_MCS_NOT_SUPPORTED		3	/* not supported */
+
+struct ieee80211_vht_mcs_info {
+	uint16_t rx_mcs_map;
+	uint16_t rx_highest;
+	uint16_t tx_mcs_map;
+	uint16_t tx_highest;
+} __packed;
+
+/* VHT capabilities element: 802.11ac-2013 8.4.2.160 */
+struct ieee80211_ie_vhtcap {
+	uint8_t ie;
+	uint8_t len;
+	uint32_t vht_cap_info;
+	struct ieee80211_vht_mcs_info supp_mcs;
+} __packed;
+
+#define	IEEE80211_VHT_CHANWIDTH_USE_HT		0	/* Use HT IE for chw */
+#define	IEEE80211_VHT_CHANWIDTH_80MHZ		1	/* 80MHz */
+#define	IEEE80211_VHT_CHANWIDTH_160MHZ		2	/* 160MHz */
+#define	IEEE80211_VHT_CHANWIDTH_80P80MHZ	3	/* 80+80MHz */
+
+/* VHT operation IE - 802.11ac-2013 8.4.2.161 */
+struct ieee80211_ie_vht_operation {
+	uint8_t ie;
+	uint8_t len;
+	uint8_t chan_width;
+	uint8_t center_freq_seg1_idx;
+	uint8_t center_freq_seg2_idx;
+	uint16_t basic_mcs_set;
+} __packed;
+
+/* 802.11ac VHT Capabilities */
+#define	IEEE80211_VHTCAP_MAX_MPDU_LENGTH_3895	0x00000000
+#define	IEEE80211_VHTCAP_MAX_MPDU_LENGTH_7991	0x00000001
+#define	IEEE80211_VHTCAP_MAX_MPDU_LENGTH_11454	0x00000002
+#define	IEEE80211_VHTCAP_MAX_MPDU_MASK		0x00000003
+#define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_160MHZ	0x00000004
+#define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ	0x00000008
+#define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK	0x0000000C
+#define	IEEE80211_VHTCAP_RXLDPC		0x00000010
+#define	IEEE80211_VHTCAP_SHORT_GI_80		0x00000020
+#define	IEEE80211_VHTCAP_SHORT_GI_160		0x00000040
+#define	IEEE80211_VHTCAP_TXSTBC		0x00000080
+#define	IEEE80211_VHTCAP_RXSTBC_1		0x00000100
+#define	IEEE80211_VHTCAP_RXSTBC_2		0x00000200
+#define	IEEE80211_VHTCAP_RXSTBC_3		0x00000300
+#define	IEEE80211_VHTCAP_RXSTBC_4		0x00000400
+#define	IEEE80211_VHTCAP_RXSTBC_MASK		0x00000700
+#define	IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE	0x00000800
+#define	IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE	0x00001000
+#define	IEEE80211_VHTCAP_BEAMFORMEE_STS_SHIFT	13
+#define	IEEE80211_VHTCAP_BEAMFORMEE_STS_MASK \
+	    (7 << IEEE80211_VHTCAP_BEAMFORMEE_STS_SHIFT)
+#define	IEEE80211_VHTCAP_SOUNDING_DIMENSIONS_SHIFT	16
+#define	IEEE80211_VHTCAP_SOUNDING_DIMENSIONS_MASK \
+	    (7 << IEEE80211_VHTCAP_SOUNDING_DIMENSIONS_SHIFT)
+#define	IEEE80211_VHTCAP_MU_BEAMFORMER_CAPABLE	0x00080000
+#define	IEEE80211_VHTCAP_MU_BEAMFORMEE_CAPABLE	0x00100000
+#define	IEEE80211_VHTCAP_VHT_TXOP_PS		0x00200000
+#define	IEEE80211_VHTCAP_HTC_VHT		0x00400000
+#define	IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT	23
+#define	IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK \
+	    (7 << IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT)
+#define	IEEE80211_VHTCAP_VHT_LINK_ADAPTATION_VHT_UNSOL_MFB	0x08000000
+#define	IEEE80211_VHTCAP_VHT_LINK_ADAPTATION_VHT_MRQ_MFB	0x0c000000
+#define	IEEE80211_VHTCAP_RX_ANTENNA_PATTERN	0x10000000
+#define	IEEE80211_VHTCAP_TX_ANTENNA_PATTERN	0x20000000
+
+/*
+ * VHT Transmit Power Envelope element - 802.11ac-2013 8.4.2.164
+ *
+ * This defines the maximum transmit power for various bandwidths.
+ */
+/*
+ * Count is how many elements follow and what they're for:
+ *
+ * 0 - 20 MHz
+ * 1 - 20+40 MHz
+ * 2 - 20+40+80 MHz
+ * 3 - 20+40+80+(160, 80+80) MHz
+ */
+#define	IEEE80211_VHT_TXPWRENV_INFO_COUNT_SHIFT	0
+#define	IEEE80211_VHT_TXPWRENV_INFO_COUNT_MASK	0x07
+
+/*
+ * Unit is the tx power representation.  It should be EIRP for now;
+ * other values are reserved.
+ */
+#define	IEEE80211_VHT_TXPWRENV_UNIT_MASK	0x38
+#define	IEEE80211_VHT_TXPWRENV_UNIT_SHIFT	3
+
+/* This value is within the unit mask/shift above */
+#define	IEEE80211_VHT_TXPWRENV_UNIT_EIRP	0
+
+struct ieee80211_ie_vht_txpwrenv {
+	uint8_t ie;
+	uint8_t len;
+	uint8_t tx_info;
+	int8_t tx_elem[0];	/* TX power elements, 1/2 dB, signed */
+};
+
+/* VHT action codes */
+#define	WLAN_ACTION_VHT_COMPRESSED_BF		0
+#define	WLAN_ACTION_VHT_GROUPID_MGMT		1
+#define	WLAN_ACTION_VHT_OPMODE_NOTIF		2
+
 /*
  * Management information element payloads.
  */
@@ -709,6 +876,8 @@ enum {
 	IEEE80211_ELEMID_IBSSPARMS	= 6,
 	IEEE80211_ELEMID_COUNTRY	= 7,
 	IEEE80211_ELEMID_BSSLOAD	= 11,
+	IEEE80211_ELEMID_TSPEC		= 13,
+	IEEE80211_ELEMID_TCLAS		= 14,
 	IEEE80211_ELEMID_CHALLENGE	= 16,
 	/* 17-31 reserved for challenge text extension */
 	IEEE80211_ELEMID_PWRCNSTR	= 32,
@@ -728,6 +897,17 @@ enum {
 	IEEE80211_ELEMID_XRATES		= 50,
 	IEEE80211_ELEMID_APCHANREP	= 51,
 	IEEE80211_ELEMID_HTINFO		= 61,
+	IEEE80211_ELEMID_SECCHAN_OFFSET	= 62,
+	IEEE80211_ELEMID_RRM_ENACAPS	= 70,
+	IEEE80211_ELEMID_MULTIBSSID	= 71,
+	IEEE80211_ELEMID_COEX_2040	= 72,
+	IEEE80211_ELEMID_INTOL_CHN_REPORT	= 73,
+	IEEE80211_ELEMID_OVERLAP_BSS_SCAN_PARAM = 74,
+	IEEE80211_ELEMID_TSF_REQ	= 91,
+	IEEE80211_ELEMID_TSF_RESP	= 92,
+	IEEE80211_ELEMID_WNM_SLEEP_MODE	= 93,
+	IEEE80211_ELEMID_TIM_BCAST_REQ	= 94,
+	IEEE80211_ELEMID_TIM_BCAST_RESP	= 95,
 	IEEE80211_ELEMID_TPC		= 150,
 	IEEE80211_ELEMID_CCKM		= 156,
 	IEEE80211_ELEMID_VENDOR		= 221,	/* vendor private */
@@ -751,7 +931,7 @@ enum {
 	IEEE80211_ELEMID_MESHGANN	= 125,
 	IEEE80211_ELEMID_MESHRANN	= 126,
 	/* 127 Extended Capabilities */
-	IEEE80211_ELEMID_MESHEXTCAP	= 127,
+	IEEE80211_ELEMID_EXTCAP		= 127,
 	/* 128-129 reserved */
 	IEEE80211_ELEMID_MESHPREQ	= 130,
 	IEEE80211_ELEMID_MESHPREP	= 131,
@@ -760,6 +940,11 @@ enum {
 	IEEE80211_ELEMID_MESHPXU	= 137,
 	IEEE80211_ELEMID_MESHPXUC	= 138,
 	IEEE80211_ELEMID_MESHAH		= 60, /* XXX: remove */
+
+	/* 802.11ac */
+	IEEE80211_ELEMID_VHT_CAP	= 191,
+	IEEE80211_ELEMID_VHT_OPMODE	= 192,
+	IEEE80211_ELEMID_VHT_PWR_ENV	= 195,
 };
 
 struct ieee80211_tim_ie {

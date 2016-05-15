@@ -117,12 +117,17 @@ struct devreq {
 #define	DEV_SUSPEND	_IOW('D', 5, struct devreq)
 #define	DEV_RESUME	_IOW('D', 6, struct devreq)
 #define	DEV_SET_DRIVER	_IOW('D', 7, struct devreq)
+#define	DEV_RESCAN	_IOW('D', 9, struct devreq)
+#define	DEV_DELETE	_IOW('D', 10, struct devreq)
 
 /* Flags for DEV_DETACH and DEV_DISABLE. */
 #define	DEVF_FORCE_DETACH	0x0000001
 
 /* Flags for DEV_SET_DRIVER. */
 #define	DEVF_SET_DRIVER_DETACH	0x0000001	/* Detach existing driver. */
+
+/* Flags for DEV_DELETE. */
+#define	DEVF_FORCE_DELETE	0x0000001
 
 #ifdef _KERNEL
 
@@ -141,6 +146,7 @@ void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
+void devctl_safe_quote(char *__dst, const char *__src, size_t len);
 
 /**
  * Device name parsers.  Hook to allow device enumerators to map
@@ -266,6 +272,16 @@ enum intr_polarity {
 	INTR_POLARITY_LOW = 2
 };
 
+/**
+ * CPU sets supported by bus_get_cpus().  Note that not all sets may be
+ * supported for a given device.  If a request is not supported by a
+ * device (or its parents), then bus_get_cpus() will fail with EINVAL.
+ */
+enum cpu_sets {
+	LOCAL_CPUS = 0,
+	INTR_CPUS
+};
+
 typedef int (*devop_t)(void);
 
 /**
@@ -382,6 +398,8 @@ int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
+int	bus_generic_get_cpus(device_t dev, device_t child, enum cpu_sets op,
+			     size_t setsize, struct _cpuset *cpuset);
 bus_dma_tag_t
 	bus_generic_get_dma_tag(device_t dev, device_t child);
 bus_space_tag_t
@@ -424,6 +442,7 @@ int	bus_generic_teardown_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 			       uintptr_t value);
+int	bus_null_rescan(device_t dev);
 
 /*
  * Wrapper functions for the BUS_*_RESOURCE methods to make client code
@@ -450,6 +469,8 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
+int	bus_get_cpus(device_t dev, enum cpu_sets op, size_t setsize,
+		     struct _cpuset *cpuset);
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
 bus_space_tag_t bus_get_bus_tag(device_t dev);
 int	bus_get_domain(device_t dev, int *domain);
@@ -523,6 +544,7 @@ int	device_is_attached(device_t dev);	/* did attach succeed? */
 int	device_is_enabled(device_t dev);
 int	device_is_suspended(device_t dev);
 int	device_is_quiet(device_t dev);
+device_t device_lookup_by_name(const char *name);
 int	device_print_prettyname(device_t dev);
 int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
 int	device_probe(device_t dev);

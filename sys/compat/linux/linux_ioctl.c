@@ -2902,7 +2902,7 @@ linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
 		vw->clips = NULL;
 		ppvc = &(vw->clips);
 		while (clipcount-- > 0) {
-			if (plvc == 0) {
+			if (plvc == NULL) {
 				error = EFAULT;
 				break;
 			} else {

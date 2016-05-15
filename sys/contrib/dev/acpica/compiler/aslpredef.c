@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -259,7 +259,7 @@ ApCheckPredefinedReturnValue (
      */
     Gbl_AllExceptionsDisabled = TRUE;
     Index = ApCheckForPredefinedName (MethodInfo->Op,
-                MethodInfo->Op->Asl.NameSeg);
+        MethodInfo->Op->Asl.NameSeg);
     Gbl_AllExceptionsDisabled = FALSE;
 
     switch (Index)
@@ -454,8 +454,8 @@ ApCheckForPredefinedName (
 
     if (Name[0] == 0)
     {
-        AcpiOsPrintf ("Found a null name, external = %s\n",
-            Op->Asl.ExternalName);
+        AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, Op,
+            "zero length name found");
     }
 
     /* All reserved names are prefixed with a single underscore */
@@ -571,7 +571,8 @@ ApCheckForSpecialName (
          * warning and force the user to manually change the names. So, we
          * will issue a remark instead.
          */
-        AslError (ASL_REMARK, ASL_MSG_COMPILER_RESERVED, Op, Op->Asl.ExternalName);
+        AslError (ASL_REMARK, ASL_MSG_COMPILER_RESERVED,
+            Op, Op->Asl.ExternalName);
         return (ACPI_COMPILER_RESERVED_NAME);
     }
 
@@ -580,8 +581,8 @@ ApCheckForSpecialName (
      * warning, since the entire namespace starting with an underscore is
      * reserved by the ACPI spec.
      */
-    AslError (ASL_WARNING, ASL_MSG_UNKNOWN_RESERVED_NAME, Op,
-        Op->Asl.ExternalName);
+    AslError (ASL_WARNING, ASL_MSG_UNKNOWN_RESERVED_NAME,
+        Op, Op->Asl.ExternalName);
 
     return (ACPI_NOT_RESERVED_NAME);
 }

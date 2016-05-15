@@ -29,8 +29,10 @@
 #ifndef _MACHINE_INTR_H_
 #define	_MACHINE_INTR_H_
 
-int	arm_config_intr(u_int, enum intr_trigger, enum intr_polarity);
-void	arm_cpu_intr(struct trapframe *);
+int	intr_irq_config(u_int, enum intr_trigger, enum intr_polarity);
+void	intr_irq_handler(struct trapframe *);
+int	intr_irq_remove_handler(device_t, u_int, void *);
+
 void	arm_dispatch_intr(u_int, struct trapframe *);
 int	arm_enable_intr(void);
 void	arm_mask_irq(u_int);
@@ -44,12 +46,12 @@ int	arm_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 int	arm_map_msix(device_t, device_t, int, uint64_t *, uint32_t *);
 int	arm_setup_intr(const char *, driver_filter_t *, driver_intr_t,
 				void *, u_int, enum intr_type, void **);
-int	arm_teardown_intr(void *);
 void	arm_unmask_irq(u_int);
 
 #ifdef SMP
+int	intr_irq_bind(u_int, int);
+
 void	arm_init_secondary(void);
-int	arm_intr_bind(u_int, int);
 void	arm_setup_ipihandler(driver_filter_t *, u_int);
 void	arm_unmask_ipi(u_int);
 #endif

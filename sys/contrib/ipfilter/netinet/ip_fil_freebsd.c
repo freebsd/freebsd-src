@@ -738,7 +738,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	*/
 	if (M_WRITABLE(m) == 0) {
 		m0 = m_dup(m, M_NOWAIT);
-		if (m0 != 0) {
+		if (m0 != NULL) {
 			FREE_MB_T(m);
 			m = m0;
 			*mpp = m;
@@ -885,7 +885,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 #else
 		MGET(m, M_NOWAIT, MT_HEADER);
 #endif
-		if (m == 0) {
+		if (m == NULL) {
 			m = m0;
 			error = ENOBUFS;
 			goto bad;
@@ -1091,6 +1091,7 @@ ipf_checkv4sum(fin)
 	    CSUM_IP_CHECKED) {
 		fin->fin_cksum = FI_CK_BAD;
 		fin->fin_flx |= FI_BAD;
+		DT2(ipf_fi_bad_checkv4sum_csum_ip_checked, fr_info_t *, fin, u_int, m->m_pkthdr.csum_flags & (CSUM_IP_CHECKED|CSUM_IP_VALID));
 		return -1;
 	}
 	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
@@ -1120,6 +1121,7 @@ ipf_checkv4sum(fin)
 		if (sum != 0) {
 			fin->fin_cksum = FI_CK_BAD;
 			fin->fin_flx |= FI_BAD;
+			DT2(ipf_fi_bad_checkv4sum_sum, fr_info_t *, fin, u_int, sum);
 		} else {
 			fin->fin_cksum = FI_CK_SUMOK;
 			return 0;
@@ -1143,12 +1145,14 @@ skipauto:
 	if (manual != 0) {
 		if (ipf_checkl4sum(fin) == -1) {
 			fin->fin_flx |= FI_BAD;
+			DT2(ipf_fi_bad_checkv4sum_manual, fr_info_t *, fin, u_int, manual);
 			return -1;
 		}
 	}
 #else
 	if (ipf_checkl4sum(fin) == -1) {
 		fin->fin_flx |= FI_BAD;
+		DT2(ipf_fi_bad_checkv4sum_checkl4sum, fr_info_t *, fin, u_int, -1);
 		return -1;
 	}
 #endif
@@ -1162,16 +1166,20 @@ ipf_checkv6sum(fin)
 	fr_info_t *fin;
 {
 	if ((fin->fin_flx & FI_NOCKSUM) != 0)
+		DT(ipf_checkv6sum_fi_nocksum);
 		return 0;
 
 	if ((fin->fin_flx & FI_SHORT) != 0)
+		DT(ipf_checkv6sum_fi_short);
 		return 1;
 
 	if (fin->fin_cksum != FI_CK_NEEDED)
+		DT(ipf_checkv6sum_fi_ck_needed);
 		return (fin->fin_cksum > FI_CK_NEEDED) ? 0 : -1;
 
 	if (ipf_checkl4sum(fin) == -1) {
 		fin->fin_flx |= FI_BAD;
+		DT2(ipf_fi_bad_checkv6sum_checkl4sum, fr_info_t *, fin, u_int, -1);
 		return -1;
 	}
 	return 0;

@@ -711,6 +711,7 @@ dt_module_load_proc(dtrace_hdl_t *dtp, dt_module_t *dmp)
 	arg.dpa_count = 0;
 	if (Pobject_iter_resolved(p, dt_module_load_proc_count, &arg) != 0) {
 		dt_dprintf("failed to iterate objects\n");
+		dt_proc_unlock(dtp, p);
 		dt_proc_release(dtp, p);
 		return (dt_set_errno(dtp, EDT_CANTLOAD));
 	}

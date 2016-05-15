@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/frame.h>
 
@@ -84,8 +85,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
-	td2->td_pcb->pcb_l1addr =
-	    vtophys(vmspace_pmap(td2->td_proc->p_vmspace)->pm_l1);
+	td2->td_pcb->pcb_l0addr =
+	    vtophys(vmspace_pmap(td2->td_proc->p_vmspace)->pm_l0);
 
 	tf = (struct trapframe *)STACKALIGN((struct trapframe *)pcb2 - 1);
 	bcopy(td1->td_frame, tf, sizeof(*tf));
@@ -256,5 +257,6 @@ void
 swi_vm(void *v)
 {
 
-	/* Nothing to do here - busdma bounce buffers are not implemented. */
+	if (busdma_swi_pending != 0)
+		busdma_swi();
 }

@@ -490,7 +490,7 @@ getchannels(struct ath_hal *ah,
 			break;
 		default:
 			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-			    "%s: Unkonwn HAL mode 0x%x\n", __func__, cm->mode);
+			    "%s: Unknown HAL mode 0x%x\n", __func__, cm->mode);
 			continue;
 		}
 		if (isChanBitMaskZero(channelBM))

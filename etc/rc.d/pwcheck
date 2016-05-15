@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="pwcheck"
+desc="Check password file correctness"
 start_cmd="pwcheck_start"
 stop_cmd=":"
 

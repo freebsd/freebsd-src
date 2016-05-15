@@ -1,0 +1,43 @@
+#
+# Kernel configuration file for lowRISC.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+include		GENERIC
+ident		LOWRISC
+
+hints		"LOWRISC.hints"
+
+options		ROOTDEVNAME=\"ufs:mmcsd0s2\"
+
+# MMC/SD
+device		mmc
+device		mmcsd
+# device	mmc_spi
+
+# SPI
+device		spibus
+device		xilinx_spi
+
+# Serial (COM) ports
+device		uart		# Generic UART driver
+device		uart_ns8250	# ns8250-type UART driver
+
+# RISCVTODO: This needs to be done via loader (when it's available).
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=lowrisc.dts

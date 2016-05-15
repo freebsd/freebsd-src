@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.78 2016/02/18 18:29:14 christos Exp $	*/
+/*	$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: suff.c,v 1.78 2016/02/18 18:29:14 christos Exp $";
+static char rcsid[] = "$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)suff.c	8.4 (Berkeley) 3/21/94";
 #else
-__RCSID("$NetBSD: suff.c,v 1.78 2016/02/18 18:29:14 christos Exp $");
+__RCSID("$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1894,6 +1894,7 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
 	TARGET,	    	    /* Must be first */
 	PREFIX,	    	    /* Must be second */
     };
+    LstNode 	ln, nln;    /* Next suffix node to check */
     int	    	i;  	    /* Index into copy and vals */
     Suff    	*ms;	    /* Suffix descriptor for member */
     char    	*name;	    /* Start of member's name */
@@ -1955,6 +1956,20 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
     Var_Set(MEMBER, name, gn, 0);
     Var_Set(ARCHIVE, gn->name, gn, 0);
 
+    /*
+     * Set $@ for compatibility with other makes
+     */
+    Var_Set(TARGET, gn->name, gn, 0);
+
+    /*
+     * Now we've got the important local variables set, expand any sources
+     * that still contain variables or wildcards in their names.
+     */
+    for (ln = Lst_First(gn->children); ln != NULL; ln = nln) {
+	nln = Lst_Succ(ln);
+	SuffExpandChildren(ln, gn);
+    }
+
     if (ms != NULL) {
 	/*
 	 * Member has a known suffix, so look for a transformation rule from
@@ -1962,7 +1977,6 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
 	 * through the entire list, we just look at suffixes to which the
 	 * member's suffix may be transformed...
 	 */
-	LstNode		ln;
 	SuffixCmpData	sd;		/* Search string data */
 
 	/*
@@ -2002,9 +2016,10 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
 
     /*
      * Flag the member as such so we remember to look in the archive for
-     * its modification time.
+     * its modification time. The OP_JOIN | OP_MADE is needed because this
+     * target should never get made.
      */
-    mem->type |= OP_MEMBER;
+    mem->type |= OP_MEMBER | OP_JOIN | OP_MADE;
 }
 
 /*-

@@ -77,18 +77,6 @@ __FBSDID("$FreeBSD$");
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
-/* unalligned little endian access */     
-#define LE_WRITE_2(p, v) do {				\
-	((uint8_t *)(p))[0] = (v) & 0xff;		\
-	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
-} while (0)
-#define LE_WRITE_4(p, v) do {				\
-	((uint8_t *)(p))[0] = (v) & 0xff;		\
-	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
-	((uint8_t *)(p))[2] = ((v) >> 16) & 0xff;	\
-	((uint8_t *)(p))[3] = ((v) >> 24) & 0xff;	\
-} while (0)
-
 static int ieee80211_fragment(struct ieee80211vap *, struct mbuf *,
 	u_int hdrsize, u_int ciphdrsize, u_int mtu);
 static	void ieee80211_tx_mgt_cb(struct ieee80211_node *, void *, int);
@@ -133,7 +121,9 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	int len, mcast;
+#ifdef IEEE80211_SUPPORT_SUPERG
+	int mcast;
+#endif
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -173,8 +163,9 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * interface it (might have been) received on.
 	 */
 	m->m_pkthdr.rcvif = (void *)ni;
+#ifdef IEEE80211_SUPPORT_SUPERG
 	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1: 0;
-	len = m->m_pkthdr.len;
+#endif
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
 
@@ -191,51 +182,68 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * otherwise unable to establish a BA stream.
 	 */
 	if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
-	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX) &&
-	    (m->m_flags & M_EAPOL) == 0) {
-		int tid = WME_AC_TO_TID(M_WME_GETAC(m));
-		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
+	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX)) {
+		if ((m->m_flags & M_EAPOL) == 0) {
+			int tid = WME_AC_TO_TID(M_WME_GETAC(m));
+			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
 
-		ieee80211_txampdu_count_packet(tap);
-		if (IEEE80211_AMPDU_RUNNING(tap)) {
-			/*
-			 * Operational, mark frame for aggregation.
-			 *
-			 * XXX do tx aggregation here
-			 */
-			m->m_flags |= M_AMPDU_MPDU;
-		} else if (!IEEE80211_AMPDU_REQUESTED(tap) &&
-		    ic->ic_ampdu_enable(ni, tap)) {
-			/*
-			 * Not negotiated yet, request service.
-			 */
-			ieee80211_ampdu_request(ni, tap);
-			/* XXX hold frame for reply? */
+			ieee80211_txampdu_count_packet(tap);
+			if (IEEE80211_AMPDU_RUNNING(tap)) {
+				/*
+				 * Operational, mark frame for aggregation.
+				 *
+				 * XXX do tx aggregation here
+				 */
+				m->m_flags |= M_AMPDU_MPDU;
+			} else if (!IEEE80211_AMPDU_REQUESTED(tap) &&
+			    ic->ic_ampdu_enable(ni, tap)) {
+				/*
+				 * Not negotiated yet, request service.
+				 */
+				ieee80211_ampdu_request(ni, tap);
+				/* XXX hold frame for reply? */
+			}
 		}
 	}
 
-	/*
-	 * XXX If we aren't doing AMPDU TX then we /could/ do
-	 * fast-frames encapsulation, however right now this
-	 * output logic doesn't handle that case.
-	 *
-	 * So we'll be limited to "fast-frames" xmit for non-11n STA
-	 * and "no fast frames" xmit for 11n STAs.
-	 * It'd be nice to eventually test fast-frames out by
-	 * gracefully falling from failing A-MPDU transmission
-	 * (driver says no, fail to negotiate it with peer) to
-	 * using fast-frames.
-	 *
-	 * Note: we can actually put A-MSDU's inside an A-MPDU,
-	 * so hopefully we can figure out how to make that particular
-	 * combination work right.
-	 */
 #ifdef IEEE80211_SUPPORT_SUPERG
-	else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
-		m = ieee80211_ff_check(ni, m);
-		if (m == NULL) {
-			/* NB: any ni ref held on stageq */
-			return (0);
+	/*
+	 * Check for AMSDU/FF; queue for aggregation
+	 *
+	 * Note: we don't bother trying to do fast frames or
+	 * A-MSDU encapsulation for 802.3 drivers.  Now, we
+	 * likely could do it for FF (because it's a magic
+	 * atheros tunnel LLC type) but I don't think we're going
+	 * to really need to.  For A-MSDU we'd have to set the
+	 * A-MSDU QoS bit in the wifi header, so we just plain
+	 * can't do it.
+	 *
+	 * Strictly speaking, we could actually /do/ A-MSDU / FF
+	 * with A-MPDU together which for certain circumstances
+	 * is beneficial (eg A-MSDU of TCK ACKs.)  However,
+	 * I'll ignore that for now so existing behaviour is maintained.
+	 * Later on it would be good to make "amsdu + ampdu" configurable.
+	 */
+	else if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
+		if ((! mcast) && ieee80211_amsdu_tx_ok(ni)) {
+			m = ieee80211_amsdu_check(ni, m);
+			if (m == NULL) {
+				/* NB: any ni ref held on stageq */
+				IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
+				    "%s: amsdu_check queued frame\n",
+				    __func__);
+				return (0);
+			}
+		} else if ((! mcast) && IEEE80211_ATH_CAP(vap, ni,
+		    IEEE80211_NODE_FF)) {
+			m = ieee80211_ff_check(ni, m);
+			if (m == NULL) {
+				/* NB: any ni ref held on stageq */
+				IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
+				    "%s: ff_check queued frame\n",
+				    __func__);
+				return (0);
+			}
 		}
 	}
 #endif /* IEEE80211_SUPPORT_SUPERG */
@@ -799,9 +807,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT | IEEE80211_MSG_DOTH,
 		    ni, "block %s frame in CAC state",
-			ieee80211_mgt_subtype_name[
-			    (type & IEEE80211_FC0_SUBTYPE_MASK) >>
-				IEEE80211_FC0_SUBTYPE_SHIFT]);
+			ieee80211_mgt_subtype_name(type));
 		vap->iv_stats.is_tx_badstate++;
 		ieee80211_free_node(ni);
 		m_freem(m);
@@ -836,9 +842,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	    ieee80211_msg_dumppkts(vap)) {
 		printf("[%s] send %s on channel %u\n",
 		    ether_sprintf(wh->i_addr1),
-		    ieee80211_mgt_subtype_name[
-			(type & IEEE80211_FC0_SUBTYPE_MASK) >>
-				IEEE80211_FC0_SUBTYPE_SHIFT],
+		    ieee80211_mgt_subtype_name(type),
 		    ieee80211_chan2ieee(ic, ic->ic_curchan));
 	}
 #endif
@@ -1229,6 +1233,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	ieee80211_seq seqno;
 	int meshhdrsize, meshae;
 	uint8_t *qos;
+	int is_amsdu = 0;
 	
 	IEEE80211_TX_LOCK_ASSERT(ic);
 
@@ -1383,9 +1388,19 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	} else {
 #ifdef IEEE80211_SUPPORT_SUPERG
 		/*
-		 * Aggregated frame.
+		 * Aggregated frame.  Check if it's for AMSDU or FF.
+		 *
+		 * XXX TODO: IEEE80211_NODE_AMSDU* isn't implemented
+		 * anywhere for some reason.  But, since 11n requires
+		 * AMSDU RX, we can just assume "11n" == "AMSDU".
 		 */
-		m = ieee80211_ff_encap(vap, m, hdrspace + meshhdrsize, key);
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG, "%s: called; M_FF\n", __func__);
+		if (ieee80211_amsdu_tx_ok(ni)) {
+			m = ieee80211_amsdu_encap(vap, m, hdrspace + meshhdrsize, key);
+			is_amsdu = 1;
+		} else {
+			m = ieee80211_ff_encap(vap, m, hdrspace + meshhdrsize, key);
+		}
 		if (m == NULL)
 #endif
 			goto bad;
@@ -1490,7 +1505,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		}
 		mc->mc_ttl = ms->ms_ttl;
 		ms->ms_seq++;
-		LE_WRITE_4(mc->mc_seq, ms->ms_seq);
+		le32enc(mc->mc_seq, ms->ms_seq);
 		break;
 #endif
 	case IEEE80211_M_WDS:		/* NB: is4addr should always be true */
@@ -1521,6 +1536,13 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			qos[1] = 0;
 		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS;
 
+		/*
+		 * If this is an A-MSDU then ensure we set the
+		 * relevant field.
+		 */
+		if (is_amsdu)
+			qos[0] |= IEEE80211_QOS_AMSDU;
+
 		if ((m->m_flags & M_AMPDU_MPDU) == 0) {
 			/*
 			 * NB: don't assign a sequence # to potential
@@ -1544,6 +1566,14 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		*(uint16_t *)wh->i_seq =
 		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 		M_SEQNO_SET(m, seqno);
+
+		/*
+		 * XXX TODO: we shouldn't allow EAPOL, etc that would
+		 * be forced to be non-QoS traffic to be A-MSDU encapsulated.
+		 */
+		if (is_amsdu)
+			printf("%s: XXX ERROR: is_amsdu set; not QoS!\n",
+			    __func__);
 	}
 
 
@@ -1800,7 +1830,7 @@ static uint8_t *
 ieee80211_add_cfparms(uint8_t *frm, struct ieee80211com *ic)
 {
 #define	ADDSHORT(frm, v) do {	\
-	LE_WRITE_2(frm, v);	\
+	le16enc(frm, v);	\
 	frm += 2;		\
 } while (0)
 	*frm++ = IEEE80211_ELEMID_CFPARMS;
@@ -1855,7 +1885,7 @@ ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme)
 {
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 #define	ADDSHORT(frm, v) do {	\
-	LE_WRITE_2(frm, v);	\
+	le16enc(frm, v);	\
 	frm += 2;		\
 } while (0)
 	/* NB: this works 'cuz a param has an info at the front */
@@ -2055,7 +2085,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	struct ieee80211com *ic = ni->ni_ic;
 	const struct ieee80211_txparam *tp;
 	struct ieee80211_bpf_params params;
-	struct ieee80211_frame *wh;
 	const struct ieee80211_rateset *rs;
 	struct mbuf *m;
 	uint8_t *frm;
@@ -2125,7 +2154,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	}
 
 	IEEE80211_TX_LOCK(ic);
-	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
 	     IEEE80211_NONQOS_TID, sa, da, bssid);
@@ -2286,7 +2314,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	case IEEE80211_FC0_SUBTYPE_DEAUTH:
 		IEEE80211_NOTE(vap, IEEE80211_MSG_AUTH, ni,
-		    "send station deauthenticate (reason %d)", arg);
+		    "send station deauthenticate (reason: %d (%s))", arg,
+		    ieee80211_reason_to_string(arg));
 		m = ieee80211_getmgtframe(&frm,
 			ic->ic_headroom + sizeof(struct ieee80211_frame),
 			sizeof(uint16_t));
@@ -2506,7 +2535,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
-		    "send station disassociate (reason %d)", arg);
+		    "send station disassociate (reason: %d (%s))", arg,
+		    ieee80211_reason_to_string(arg));
 		m = ieee80211_getmgtframe(&frm,
 			ic->ic_headroom + sizeof(struct ieee80211_frame),
 			sizeof(uint16_t));
@@ -2720,7 +2750,6 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 {
 	struct ieee80211_node *bss = vap->iv_bss;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_frame *wh;
 	struct mbuf *m;
 	int ret;
 
@@ -2752,7 +2781,6 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	KASSERT(m != NULL, ("no room for header"));
 
 	IEEE80211_TX_LOCK(ic);
-	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(bss, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP,
 	     IEEE80211_NONQOS_TID, vap->iv_myaddr, da, bss->ni_bssid);
@@ -2865,7 +2893,7 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 
 	/*
 	 * Frame transmit completed; arrange timer callback.  If
-	 * transmit was successfuly we wait for response.  Otherwise
+	 * transmit was successfully we wait for response.  Otherwise
 	 * we arrange an immediate callback instead of doing the
 	 * callback directly since we don't know what state the driver
 	 * is in (e.g. what locks it is holding).  This work should
@@ -3202,10 +3230,10 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 		struct ieee80211_wme_state *wme = &ic->ic_wme;
 
 		/*
-		 * Check for agressive mode change.  When there is
+		 * Check for aggressive mode change.  When there is
 		 * significant high priority traffic in the BSS
 		 * throttle back BE traffic by using conservative
-		 * parameters.  Otherwise BE uses agressive params
+		 * parameters.  Otherwise BE uses aggressive params
 		 * to optimize performance of legacy/non-QoS traffic.
 		 */
 		if (wme->wme_flags & WME_F_AGGRMODE) {

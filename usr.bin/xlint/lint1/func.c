@@ -517,7 +517,7 @@ label(int typ, sym_t *sym, tnode_t *tn)
 			ci->c_default = 1;
 		}
 		break;
-	};
+	}
 	reached = 1;
 }
 

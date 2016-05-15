@@ -212,6 +212,9 @@ cpu_mp_unleash(void *dummy)
 
 	cpus = 0;
 	smp_cpus = 0;
+#ifdef BOOKE
+	tlb1_ap_prep();
+#endif
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
 		if (!pc->pc_bsp) {

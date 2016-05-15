@@ -124,10 +124,10 @@ getether(ifname, eap)
 	char *eap;					/* Ether address (output) */
 {
 	int fd, rc = -1;
-	register int n;
+	int n;
 	struct ifreq ibuf[16];
 	struct ifconf ifc;
-	register struct ifreq *ifrp, *ifend;
+	struct ifreq *ifrp, *ifend;
 
 	/* Fetch the interface configuration */
 	fd = socket(AF_INET, SOCK_DGRAM, 0);

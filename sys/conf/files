@@ -9,6 +9,16 @@ acpi_quirks.h			optional acpi				   \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
+bhnd_nvram_map.h		optional bhndbus | bhnd			   \
+	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
+	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"bhnd_nvram_map.h"
+bhnd_nvram_map_data.h		optional bhndbus | bhnd			   \
+	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
+	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -d" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"bhnd_nvram_map_data.h"
 #
 # The 'fdt_dtb_file' target covers an actual DTB file name, which is derived
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
@@ -47,6 +57,10 @@ pccarddevs.h			standard				   \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
+kbdmuxmap.h			optional	kbdmux_dflt_keymap 	   \
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${KBDMUX_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > kbdmuxmap.h" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"kbdmuxmap.h"
 teken_state.h		optional sc | vt				   \
 	dependency	"$S/teken/gensequences $S/teken/sequences" \
 	compile-with	"${AWK} -f $S/teken/gensequences $S/teken/sequences > teken_state.h" \
@@ -64,6 +78,7 @@ usbdevs_data.h			optional usb				   \
 	clean		"usbdevs_data.h"
 cam/cam.c			optional scbus
 cam/cam_compat.c		optional scbus
+cam/cam_iosched.c		optional scbus
 cam/cam_periph.c		optional scbus
 cam/cam_queue.c			optional scbus
 cam/cam_sim.c			optional scbus
@@ -283,7 +298,6 @@ contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbconvert.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbexec.c		optional acpi acpi_debug
-contrib/dev/acpica/components/debugger/dbfileio.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbhistry.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbinput.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbmethod.c	optional acpi acpi_debug
@@ -334,6 +348,7 @@ contrib/dev/acpica/components/events/evxface.c		optional acpi
 contrib/dev/acpica/components/events/evxfevnt.c		optional acpi
 contrib/dev/acpica/components/events/evxfgpe.c		optional acpi
 contrib/dev/acpica/components/events/evxfregn.c		optional acpi
+contrib/dev/acpica/components/executer/exconcat.c	optional acpi
 contrib/dev/acpica/components/executer/exconfig.c	optional acpi
 contrib/dev/acpica/components/executer/exconvrt.c	optional acpi
 contrib/dev/acpica/components/executer/excreate.c	optional acpi
@@ -357,6 +372,7 @@ contrib/dev/acpica/components/executer/exstore.c	optional acpi
 contrib/dev/acpica/components/executer/exstoren.c	optional acpi
 contrib/dev/acpica/components/executer/exstorob.c	optional acpi
 contrib/dev/acpica/components/executer/exsystem.c	optional acpi
+contrib/dev/acpica/components/executer/extrace.c	optional acpi
 contrib/dev/acpica/components/executer/exutils.c	optional acpi
 contrib/dev/acpica/components/hardware/hwacpi.c		optional acpi
 contrib/dev/acpica/components/hardware/hwesleep.c	optional acpi
@@ -425,6 +441,7 @@ contrib/dev/acpica/components/tables/tbxfload.c		optional acpi
 contrib/dev/acpica/components/tables/tbxfroot.c		optional acpi
 contrib/dev/acpica/components/utilities/utaddress.c	optional acpi
 contrib/dev/acpica/components/utilities/utalloc.c	optional acpi
+contrib/dev/acpica/components/utilities/utascii.c	optional acpi
 contrib/dev/acpica/components/utilities/utbuffer.c	optional acpi
 contrib/dev/acpica/components/utilities/utcache.c	optional acpi
 contrib/dev/acpica/components/utilities/utcopy.c	optional acpi
@@ -1102,9 +1119,37 @@ dev/ath/ath_rate/sample/sample.c	optional ath_rate_sample \
 dev/ath/ath_dfs/null/dfs_null.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 #
-dev/bce/if_bce.c		optional bce
-dev/bfe/if_bfe.c		optional bfe
-dev/bge/if_bge.c		optional bge
+dev/bce/if_bce.c			optional bce
+dev/bfe/if_bfe.c			optional bfe
+dev/bge/if_bge.c			optional bge
+dev/bhnd/bhnd.c				optional bhndbus | bhnd
+dev/bhnd/bhnd_subr.c			optional bhndbus | bhnd
+dev/bhnd/bhnd_bus_if.m			optional bhndbus | bhnd
+dev/bhnd/bhndb/bhndb.c			optional bhndbus | bhndb
+dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndbus | bhndb
+dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndbus | bhndb
+dev/bhnd/bhndb/bhndb_if.m		optional bhndbus | bhndb
+dev/bhnd/bhndb/bhndb_pci.c		optional bhndbus pci | bhndb pci
+dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndbus pci | bhndb pci
+dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndbus pci | bhndb pci
+dev/bhnd/bhndb/bhndb_subr.c		optional bhndbus pci | bhndb
+dev/bhnd/bcma/bcma.c			optional bhndbus | bcma
+dev/bhnd/bcma/bcma_bhndb.c		optional bhndbus | bcma bhndb
+dev/bhnd/bcma/bcma_erom.c		optional bhndbus | bcma
+dev/bhnd/bcma/bcma_subr.c		optional bhndbus | bcma
+dev/bhnd/cores/chipc/chipc.c		optional bhndbus | bhnd
+dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhndbus | bhnd
+dev/bhnd/cores/pci/bhnd_pci.c		optional bhndbus pci | bhnd pci
+dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
+dev/bhnd/nvram/bhnd_nvram_if.m		optional bhndbus | bhnd
+dev/bhnd/nvram/bhnd_sprom.c		optional bhndbus | bhnd
+dev/bhnd/nvram/nvram_subr.c		optional bhndbus | bhnd
+dev/bhnd/siba/siba.c			optional bhndbus | siba
+dev/bhnd/siba/siba_bhndb.c		optional bhndbus | siba bhndb
+dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba
+dev/bhnd/siba/siba_subr.c		optional bhndbus | siba
+#
 dev/bktr/bktr_audio.c		optional bktr pci
 dev/bktr/bktr_card.c		optional bktr pci
 dev/bktr/bktr_core.c		optional bktr pci
@@ -1125,6 +1170,14 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/if_bwn_pci.c		optional bwn pci bhnd | bwn pci bhndbus
+dev/bwn/if_bwn_phy_common.c	optional bwn siba_bwn
+dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/if_bwn_util.c		optional bwn siba_bwn
+dev/bwn/bwn_mac.c		optional bwn bhnd | bwn bhndbus
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -1212,7 +1265,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.15.28.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.15.37.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1236,7 +1289,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.15.28.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.15.37.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1413,12 +1466,20 @@ dev/exca/exca.c			optional cbb
 dev/extres/clk/clk.c		optional ext_resources clk
 dev/extres/clk/clkdev_if.m	optional ext_resources clk
 dev/extres/clk/clknode_if.m	optional ext_resources clk
+dev/extres/clk/clk_bus.c	optional ext_resources clk fdt
 dev/extres/clk/clk_div.c	optional ext_resources clk
 dev/extres/clk/clk_fixed.c	optional ext_resources clk
 dev/extres/clk/clk_gate.c	optional ext_resources clk
 dev/extres/clk/clk_mux.c	optional ext_resources clk
+dev/extres/phy/phy.c		optional ext_resources phy
+dev/extres/phy/phy_if.m		optional ext_resources phy
 dev/extres/hwreset/hwreset.c	optional ext_resources hwreset
 dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset
+dev/extres/regulator/regdev_if.m	optional ext_resources regulator
+dev/extres/regulator/regnode_if.m	optional ext_resources regulator
+dev/extres/regulator/regulator.c	optional ext_resources regulator
+dev/extres/regulator/regulator_bus.c	optional ext_resources regulator fdt
+dev/extres/regulator/regulator_fixed.c	optional ext_resources regulator
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
@@ -1430,7 +1491,7 @@ dev/fdt/fdt_pinctrl.c		optional fdt fdt_pinctrl
 dev/fdt/fdt_pinctrl_if.m	optional fdt fdt_pinctrl
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand | fdt mx25l
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
-	dependency	"$S/boot/fdt/dts/${MACHINE}/${FDT_DTS_FILE}"
+	dependency	"fdt_dtb_file"
 dev/fdt/simplebus.c		optional fdt
 dev/fe/if_fe.c			optional fe
 dev/fe/if_fe_pccard.c		optional fe pccard
@@ -1454,6 +1515,8 @@ dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
 dev/gem/if_gem_sbus.c		optional gem sbus
 dev/gpio/gpiobacklight.c	optional gpiobacklight fdt
+dev/gpio/gpiokeys.c		optional gpiokeys fdt
+dev/gpio/gpiokeys_codes.c	optional gpiokeys fdt
 dev/gpio/gpiobus.c		optional gpio				\
 	dependency	"gpiobus_if.h"
 dev/gpio/gpioc.c		optional gpio				\
@@ -1560,10 +1623,10 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
-dev/iscsi/icl.c			optional iscsi | ctl 
-dev/iscsi/icl_conn_if.m		optional iscsi | ctl 
+dev/iscsi/icl.c			optional iscsi | ctl
+dev/iscsi/icl_conn_if.m		optional iscsi | ctl
 dev/iscsi/icl_proxy.c		optional iscsi | ctl
-dev/iscsi/icl_soft.c		optional iscsi | ctl 
+dev/iscsi/icl_soft.c		optional iscsi | ctl
 dev/iscsi/iscsi.c		optional iscsi scbus
 dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
@@ -2381,11 +2444,11 @@ dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
-dev/siba/siba.c			optional siba
 dev/siba/siba_bwn.c		optional siba_bwn pci
-dev/siba/siba_cc.c		optional siba
-dev/siba/siba_core.c		optional siba | siba_bwn pci
-dev/siba/siba_pcib.c		optional siba pci
+dev/siba/siba_cc.c		optional siba_s5 !bhnd !bhndbus
+dev/siba/siba_core.c		optional siba_s5 | siba_bwn pci
+dev/siba/siba_mips.c		optional siba_s5 !bhnd !bhndbus
+dev/siba/siba_pcib.c		optional siba_s5 pci !bhnd !bhndbus
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
@@ -2547,11 +2610,12 @@ dev/uart/uart_bus_puc.c		optional uart puc
 dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
 dev/uart/uart_dbg.c		optional uart gdb
-dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250
+dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
 dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532
 dev/uart/uart_dev_sab82532.c	optional uart scc
+dev/uart/uart_dev_snps.c	optional uart uart_snps
 dev/uart/uart_dev_z8530.c	optional uart uart_z8530
 dev/uart/uart_dev_z8530.c	optional uart scc
 dev/uart/uart_if.m		optional uart
@@ -2670,50 +2734,6 @@ dev/usb/wlan/if_uath.c		optional uath
 dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
-dev/usb/wlan/if_urtwn.c		optional urtwn
-urtwn-rtl8188eufw.c		optional urtwn-rtl8188eufw | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8188eufw.fw:urtwn-rtl8188eufw:111 -murtwn-rtl8188eufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8188eufw.c"
-urtwn-rtl8188eufw.fwo		optional urtwn-rtl8188eufw | urtwnfw	\
-	dependency	"urtwn-rtl8188eufw.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8188eufw.fwo"
-urtwn-rtl8188eufw.fw		optional urtwn-rtl8188eufw | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8188eufw.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8188eufw.fw"
-urtwn-rtl8192cfwT.c		optional urtwn-rtl8192cfwT | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwT.fw:urtwn-rtl8192cfwT:111 -murtwn-rtl8192cfwT -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8192cfwT.c"
-urtwn-rtl8192cfwT.fwo		optional urtwn-rtl8192cfwT | urtwnfw	\
-	dependency	"urtwn-rtl8192cfwT.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwT.fwo"
-urtwn-rtl8192cfwT.fw		optional urtwn-rtl8192cfwT | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwT.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwT.fw"
-urtwn-rtl8192cfwU.c		optional urtwn-rtl8192cfwU | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwU.fw:urtwn-rtl8192cfwU:111 -murtwn-rtl8192cfwU -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8192cfwU.c"
-urtwn-rtl8192cfwU.fwo		optional urtwn-rtl8192cfwU | urtwnfw	\
-	dependency	"urtwn-rtl8192cfwU.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwU.fwo"
-urtwn-rtl8192cfwU.fw		optional urtwn-rtl8192cfwU | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwU.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwU.fw"
-
 dev/usb/wlan/if_zyd.c		optional zyd
 #
 # USB serial and parallel port drivers
@@ -3442,6 +3462,7 @@ libkern/strndup.c		standard
 libkern/strlcat.c		standard
 libkern/strlcpy.c		standard
 libkern/strlen.c		standard
+libkern/strncat.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/strnlen.c		standard
@@ -3779,6 +3800,7 @@ netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_eaction.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_pfil.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_sockopt.c	optional inet ipfirewall

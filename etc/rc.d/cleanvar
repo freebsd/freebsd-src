@@ -9,6 +9,7 @@
 . /etc/rc.subr
 
 name="cleanvar"
+desc="Purge /var directory"
 rcvar="cleanvar_enable"
 
 start_precmd="${name}_prestart"

@@ -138,7 +138,7 @@ qla_rx_intr(qla_host_t *ha, uint64_t data, uint32_t sds_idx,
 	}
 
 	if (lro->lro_cnt && (tcp_lro_rx(lro, mp, 0) == 0)) {
-		/* LRO packet has been successfuly queued */
+		/* LRO packet has been successfully queued */
 	} else {
 		(*ifp->if_input)(ifp, mp);
 	}
@@ -267,7 +267,6 @@ qla_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 	uint32_t comp_idx, desc_count;
 	q80_stat_desc_t *sdesc;
 	struct lro_ctrl *lro;
-	struct lro_entry *queued;
 	uint32_t ret = 0;
 
 	dev = ha->pci_dev;
@@ -324,11 +323,7 @@ qla_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 		}
 	}
 
-	while((!SLIST_EMPTY(&lro->lro_active))) {
-		queued = SLIST_FIRST(&lro->lro_active);
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(lro);
 
 	if (hw->sds[sds_idx].sdsr_next != comp_idx) {
 		QL_UPDATE_SDS_CONSUMER_INDEX(ha, sds_idx, comp_idx);

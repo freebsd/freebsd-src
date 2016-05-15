@@ -364,7 +364,7 @@ fe_probe_fmv(device_t dev)
  *	u_short const * func (struct fe_softc * sc, u_char const * eeprom);
  *
  * where eeprom is a pointer to an array of 32 byte data read from the
- * config EEPROM on the board.  It retuns an IRQ mapping table for the
+ * config EEPROM on the board.  It returns an IRQ mapping table for the
  * board, when the corresponding implementation is detected.  It
  * returns a NULL otherwise.
  * 

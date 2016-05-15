@@ -33,6 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <machine/setjmp.h>
+#include <machine/param.h>
+#include <machine/vmparam.h>
 
 #include "assym.s"
 
@@ -290,3 +292,38 @@ ENTRY(longjmp)
 	mov	x0, x1
 	ret
 END(longjmp)
+
+/*
+ * pagezero, simple implementation
+ */
+ENTRY(pagezero_simple)
+	add	x1, x0, #PAGE_SIZE
+
+1:
+	stp	xzr, xzr, [x0], #0x10
+	stp	xzr, xzr, [x0], #0x10
+	stp	xzr, xzr, [x0], #0x10
+	stp	xzr, xzr, [x0], #0x10
+	cmp	x0, x1
+	b.ne	1b
+	ret
+
+END(pagezero_simple)
+
+/*
+ * pagezero, cache assisted
+ */
+ENTRY(pagezero_cache)
+	add	x1, x0, #PAGE_SIZE
+
+	ldr	x2, =dczva_line_size
+	ldr	x2, [x2]
+
+1:
+	dc	zva, x0
+	add	x0, x0, x2
+	cmp	x0, x1
+	b.ne	1b
+	ret
+
+END(pagezero_cache)

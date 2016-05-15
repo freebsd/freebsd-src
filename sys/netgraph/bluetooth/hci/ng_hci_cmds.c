@@ -369,7 +369,7 @@ complete_command(ng_hci_unit_p unit, int opcode, struct mbuf **cp)
 	 * and return command parameters. ng_hci_command_untimeout will
 	 * drop NG_HCI_UNIT_COMMAND_PENDING flag.
 	 * Note: if ng_hci_command_untimeout() fails (returns non-zero)
-	 * then timeout aready happened and timeout message went info node
+	 * then timeout already happened and timeout message went info node
 	 * queue. In this case we ignore command completion and pretend
 	 * there is a timeout.
 	 */

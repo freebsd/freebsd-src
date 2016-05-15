@@ -45,6 +45,7 @@ fdt_platform_load_dtb(void)
 	struct fdt_header *hdr;
 	const char *s;
 	char *p;
+	int rv;
 
 	/*
 	 * If the U-boot environment contains a variable giving the address of a
@@ -68,6 +69,8 @@ fdt_platform_load_dtb(void)
 		}
 	}
 
+	rv = 1;
+
 	/*
 	 * Try to get FDT filename first from loader env and then from u-boot env
 	 */
@@ -79,11 +82,21 @@ fdt_platform_load_dtb(void)
 	if (s != NULL && *s != '\0') {
 		if (fdt_load_dtb_file(s) == 0) {
 			printf("Loaded DTB from file '%s'.\n", s);
-			return (0);
+			rv = 0;
 		}
 	}
 
-	return (1);
+	if (rv == 0) {
+		s = getenv("fdt_overlays");
+		if (s == NULL)
+			s = ub_env_get("fdt_overlays");
+		if (s != NULL && *s != '\0') {
+			printf("Loading DTB overlays: '%s'\n", s);
+			fdt_load_dtb_overlays(s);
+		}
+	}
+
+	return (rv);
 }
 
 void
@@ -98,6 +111,9 @@ fdt_platform_fixups(void)
 	env = NULL;
 	eth_no = 0;
 	ethstr = NULL;
+
+	/* Apply overlays before anything else */
+	fdt_apply_overlays();
 
 	/* Acquire sys_info */
 	si = ub_get_sys_info();
@@ -141,7 +157,7 @@ fdt_platform_fixups(void)
 
 			if (n != 0) {
 				/*
-				 * Find the lenght of the interface id by
+				 * Find the length of the interface id by
 				 * taking in to account the first 3 and
 				 * last 4 characters.
 				 */

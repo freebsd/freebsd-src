@@ -60,10 +60,11 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
 	memset(filter, 0, sizeof(*filter));
 	for (i = VLAN_FLTR_SIZE - 1; i >= 0; i--) {
 		entry = 0;
-		for (j = 0; j < 32; j++)
+		for (j = 0; j < 32; j++) {
 			if (test_bit(index, priv->active_vlans))
 				entry |= 1 << j;
-                        index++;
+			index++;
+		}
 		filter->entry[i] = cpu_to_be32(entry);
 	}
 	err = mlx4_cmd(dev, mailbox->dma, priv->port, 0, MLX4_CMD_SET_VLAN_FLTR,

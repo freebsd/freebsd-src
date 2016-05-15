@@ -119,7 +119,7 @@ static void	res_dprintf(const char *, ...) ISC_FORMAT_PRINTF(1, 2);
  * notes:
  *\li	this function calls res_nsend() which means it depends on correctly
  *	functioning recursive nameservers (usually defined in /etc/resolv.conf
- *	or its local equivilent).
+ *	or its local equivalent).
  *
  *\li	we start by asking for an SOA<dname,class>.  if we get one as an
  *	answer, that just means <dname,class> is a zone top, which is fine.

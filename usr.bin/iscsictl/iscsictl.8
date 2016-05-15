@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd May 6, 2016
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -39,9 +39,12 @@
 .Fl p Ar portal Fl t Ar target
 .Op Fl u Ar user Fl s Ar secret
 .Op Fl w Ar timeout
+.Op Fl r
 .Nm
 .Fl A
-.Fl d Ar discovery-host Op Fl u Ar user Fl s Ar secret
+.Fl d Ar discovery-host
+.Op Fl u Ar user Fl s Ar secret
+.Op Fl r
 .Nm
 .Fl A
 .Fl a Op Fl c Ar path
@@ -115,6 +118,8 @@ Session ID, as displayed by
 The "nickname" of session defined in the configuration file.
 .It Fl p
 Target portal - host name or address - for statically defined targets.
+.It Fl r
+Use iSER (iSCSI over RDMA) instead of plain iSCSI over TCP/IP.
 .It Fl s
 CHAP secret.
 .It Fl t

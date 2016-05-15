@@ -466,9 +466,9 @@ send_request(s)
  */
 int
 printfn(s, ep)
-	register u_char *s, *ep;
+	u_char *s, *ep;
 {
-	register u_char c;
+	u_char c;
 
 	putchar('"');
 	while ((c = *s++) != '\0') {

@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
@@ -994,6 +995,21 @@ vnode_locked:
 	if (hardfault) {
 		PCPU_INC(cnt.v_io_faults);
 		curthread->td_ru.ru_majflt++;
+#ifdef RACCT
+		if (racct_enable && fs.object->type == OBJT_VNODE) {
+			PROC_LOCK(curproc);
+			if ((fault_type & (VM_PROT_COPY | VM_PROT_WRITE)) != 0) {
+				racct_add_force(curproc, RACCT_WRITEBPS,
+				    PAGE_SIZE + behind * PAGE_SIZE);
+				racct_add_force(curproc, RACCT_WRITEIOPS, 1);
+			} else {
+				racct_add_force(curproc, RACCT_READBPS,
+				    PAGE_SIZE + ahead * PAGE_SIZE);
+				racct_add_force(curproc, RACCT_READIOPS, 1);
+			}
+			PROC_UNLOCK(curproc);
+		}
+#endif
 	} else 
 		curthread->td_ru.ru_minflt++;
 

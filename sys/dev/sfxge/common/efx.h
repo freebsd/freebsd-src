@@ -34,6 +34,7 @@
 #define	_SYS_EFX_H
 
 #include "efsys.h"
+#include "efx_check.h"
 #include "efx_phy_ids.h"
 
 #ifdef	__cplusplus
@@ -58,7 +59,7 @@ typedef __success(return == 0) int efx_rc_t;
 
 typedef enum efx_family_e {
 	EFX_FAMILY_INVALID,
-	EFX_FAMILY_FALCON,
+	EFX_FAMILY_FALCON,	/* Obsolete and not supported */
 	EFX_FAMILY_SIENA,
 	EFX_FAMILY_HUNTINGTON,
 	EFX_FAMILY_MEDFORD,
@@ -71,10 +72,6 @@ efx_family(
 	__in		uint16_t devid,
 	__out		efx_family_t *efp);
 
-extern	__checkReturn	efx_rc_t
-efx_infer_family(
-	__in		efsys_bar_t *esbp,
-	__out		efx_family_t *efp);
 
 #define	EFX_PCI_VENID_SFC			0x1924
 
@@ -147,19 +144,6 @@ efx_nic_create(
 extern	__checkReturn	efx_rc_t
 efx_nic_probe(
 	__in		efx_nic_t *enp);
-
-#if EFSYS_OPT_PCIE_TUNE
-
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_tune(
-	__in		efx_nic_t *enp,
-	unsigned int	nlanes);
-
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp);
-
-#endif	/* EFSYS_OPT_PCIE_TUNE */
 
 extern	__checkReturn	efx_rc_t
 efx_nic_init(
@@ -262,7 +246,6 @@ efx_mcdi_fini(
 
 /* INTR */
 
-#define	EFX_NINTR_FALCON 64
 #define	EFX_NINTR_SIENA 1024
 
 typedef enum efx_intr_type_e {
@@ -557,9 +540,6 @@ efx_mac_stats_update(
 
 typedef enum efx_mon_type_e {
 	EFX_MON_INVALID = 0,
-	EFX_MON_NULL,
-	EFX_MON_LM87,
-	EFX_MON_MAX6647,
 	EFX_MON_SFC90X0,
 	EFX_MON_SFC91X0,
 	EFX_MON_SFC92X0,
@@ -583,7 +563,7 @@ efx_mon_init(
 #define	EFX_MON_STATS_PAGE_SIZE 0x100
 #define	EFX_MON_MASK_ELEMENT_SIZE 32
 
-/* START MKCONFIG GENERATED MonitorHeaderStatsBlock c09b13f732431f23 */
+/* START MKCONFIG GENERATED MonitorHeaderStatsBlock 5d4ee5185e419abe */
 typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_2_5V,
 	EFX_MON_STAT_VCCP1,
@@ -660,6 +640,8 @@ typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_PHY0_VCC,
 	EFX_MON_STAT_PHY1_VCC,
 	EFX_MON_STAT_CONTROLLER_TDIODE_TEMP,
+	EFX_MON_STAT_BOARD_FRONT_TEMP,
+	EFX_MON_STAT_BOARD_BACK_TEMP,
 	EFX_MON_NSTATS
 } efx_mon_stat_t;
 
@@ -700,15 +682,6 @@ efx_mon_fini(
 	__in	efx_nic_t *enp);
 
 /* PHY */
-
-#define	PMA_PMD_MMD	1
-#define	PCS_MMD		3
-#define	PHY_XS_MMD	4
-#define	DTE_XS_MMD	5
-#define	AN_MMD		7
-#define	CL22EXT_MMD	29
-
-#define	MAXMMD		((1 << 5) - 1)
 
 extern	__checkReturn	efx_rc_t
 efx_phy_verify(
@@ -961,33 +934,6 @@ efx_phy_stats_update(
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
-#if EFSYS_OPT_PHY_PROPS
-
-#if EFSYS_OPT_NAMES
-
-extern		const char *
-efx_phy_prop_name(
-	__in	efx_nic_t *enp,
-	__in	unsigned int id);
-
-#endif	/* EFSYS_OPT_NAMES */
-
-#define	EFX_PHY_PROP_DEFAULT	0x00000001
-
-extern	__checkReturn	efx_rc_t
-efx_phy_prop_get(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t flags,
-	__out		uint32_t *valp);
-
-extern	__checkReturn	efx_rc_t
-efx_phy_prop_set(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t val);
-
-#endif	/* EFSYS_OPT_PHY_PROPS */
 
 #if EFSYS_OPT_BIST
 
@@ -1124,9 +1070,6 @@ typedef struct efx_nic_cfg_s {
 #if EFSYS_OPT_PHY_STATS
 	uint64_t		enc_phy_stat_mask;
 #endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_PHY_PROPS
-	unsigned int		enc_phy_nprops;
-#endif	/* EFSYS_OPT_PHY_PROPS */
 #if EFSYS_OPT_SIENA
 	uint8_t			enc_mcdi_mdio_channel;
 #if EFSYS_OPT_PHY_STATS
@@ -1382,11 +1325,10 @@ efx_nvram_set_version(
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4]);
 
-/* Validate contents of TLV formatted partition */
 extern	__checkReturn		efx_rc_t
-efx_nvram_tlv_validate(
+efx_nvram_validate(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
+	__in			efx_nvram_type_t type,
 	__in_bcount(partn_size)	caddr_t partn_data,
 	__in			size_t partn_size);
 

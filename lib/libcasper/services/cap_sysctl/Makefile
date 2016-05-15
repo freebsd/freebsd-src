@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=libcasper
 LIB=	cap_sysctl
 
 SHLIB_MAJOR=	0

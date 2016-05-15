@@ -287,8 +287,6 @@ fwmem_open(struct cdev *dev, int flags, int fmt, fw_proc *td)
 		FW_GUNLOCK(sc->fc);
 		dev->si_drv1 = malloc(sizeof(struct fwmem_softc),
 		    M_FWMEM, M_WAITOK);
-		if (dev->si_drv1 == NULL)
-			return (ENOMEM);
 		dev->si_iosize_max = DFLTPHYS;
 		fms = dev->si_drv1;
 		bcopy(&fwmem_eui64, &fms->eui, sizeof(struct fw_eui64));

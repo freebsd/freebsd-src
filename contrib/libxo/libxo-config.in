@@ -77,34 +77,34 @@ while test $# -gt 0; do
 	;;
 
     --cflags)
-       	echo -I@LIBXO_INCLUDEDIR@ @LIBXO_CFLAGS@
+       	echo -I@XO_INCLUDEDIR@ @XO_CFLAGS@
        	;;
 
 
     --share)
-       	echo @LIBXO_SHAREDIR@
+       	echo @XO_SHAREDIR@
        	;;
 
     --bindir)
-       	echo @LIBXO_BINDIR@
+       	echo @XO_BINDIR@
        	;;
 
     --libdir)
-       	echo @LIBXO_LIBDIR@
+       	echo @XO_LIBDIR@
        	;;
 
 
     --libs)
         if [ "`uname`" = "Linux" ]
 	then
-	    if [ "@LIBXO_LIBDIR@" = "-L/usr/lib" -o "@LIBXO_LIBDIR@" = "-L/usr/lib64" ]
+	    if [ "@XO_LIBDIR@" = "-L/usr/lib" -o "@XO_LIBDIR@" = "-L/usr/lib64" ]
 	    then
-		echo @LIBXO_LIBS@ 
+		echo @XO_LIBS@ 
 	    else
-		echo -L@LIBXO_LIBDIR@ @LIBXO_LIBS@ 
+		echo -L@XO_LIBDIR@ @XO_LIBS@ 
 	    fi
 	else
-	    echo -L@LIBXO_LIBDIR@ @LIBXO_LIBS@ @WIN32_EXTRA_LIBADD@
+	    echo -L@XO_LIBDIR@ @XO_LIBS@
 	fi
        	;;
 

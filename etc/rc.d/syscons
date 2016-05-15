@@ -34,6 +34,7 @@
 . /etc/rc.subr
 
 name="syscons"
+desc="Configure the system console"
 extra_commands="setkeyboard"
 setkeyboard_cmd="syscons_setkeyboard"
 start_precmd="syscons_precmd"

@@ -34,6 +34,7 @@
 . /etc/network.subr
 
 name="netif"
+desc="Network interface setup"
 rcvar="${name}_enable"
 start_cmd="netif_start"
 stop_cmd="netif_stop"

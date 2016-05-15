@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2010-2012 Citrix Inc.
  * Copyright (c) 2012 NetApp Inc.
  * All rights reserved.
@@ -405,8 +405,7 @@ hv_rf_send_offload_request(struct hv_device *device,
 	}
 
 cleanup:
-	if (request)
-		hv_put_rndis_request(rndis_dev, request);
+	hv_put_rndis_request(rndis_dev, request);
 
 	return (ret);
 }
@@ -445,6 +444,8 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
 	ndis_8021q_info *rppi_vlan_info;
 	uint32_t data_offset;
 	rndis_tcp_ip_csum_info *csum_info = NULL;
+	const struct rndis_hash_info *hash_info;
+	const struct rndis_hash_value *hash_value;
 	device_t dev = device->net_dev->dev->device;
 
 	rndis_pkt = &message->msg.packet;
@@ -477,7 +478,9 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
 	}
 
 	csum_info = hv_get_ppi_data(rndis_pkt, tcpip_chksum_info);
-	netvsc_recv(chan, pkt, csum_info);
+	hash_value = hv_get_ppi_data(rndis_pkt, nbl_hash_value);
+	hash_info = hv_get_ppi_data(rndis_pkt, nbl_hash_info);
+	netvsc_recv(chan, pkt, csum_info, hash_info, hash_value);
 }
 
 /*
@@ -907,10 +910,8 @@ hv_rf_halt_device(rndis_device *device)
 	}
 
 	device->state = RNDIS_DEV_UNINITIALIZED;
-	
-	if (request != NULL) {
-		hv_put_rndis_request(device, request);
-	}
+
+	hv_put_rndis_request(device, request);
 
 	return (0);
 }

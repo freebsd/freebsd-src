@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -208,9 +208,7 @@ AcpiHwClearGpe (
      */
     RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo);
 
-    Status = AcpiHwWrite (RegisterBit,
-                    &GpeRegisterInfo->StatusAddress);
-
+    Status = AcpiHwWrite (RegisterBit, &GpeRegisterInfo->StatusAddress);
     return (Status);
 }
 
@@ -251,7 +249,7 @@ AcpiHwGetGpeStatus (
     /* GPE currently handled? */
 
     if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) !=
-            ACPI_GPE_DISPATCH_NONE)
+        ACPI_GPE_DISPATCH_NONE)
     {
         LocalEventStatus |= ACPI_EVENT_FLAG_HAS_HANDLER;
     }
@@ -333,8 +331,8 @@ AcpiHwGpeEnableWrite (
 
 
     GpeRegisterInfo->EnableMask = EnableMask;
-    Status = AcpiHwWrite (EnableMask, &GpeRegisterInfo->EnableAddress);
 
+    Status = AcpiHwWrite (EnableMask, &GpeRegisterInfo->EnableAddress);
     return (Status);
 }
 
@@ -459,7 +457,7 @@ AcpiHwEnableRuntimeGpeBlock (
         /* Enable all "runtime" GPEs in this register */
 
         Status = AcpiHwGpeEnableWrite (GpeRegisterInfo->EnableForRun,
-                    GpeRegisterInfo);
+            GpeRegisterInfo);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -506,7 +504,7 @@ AcpiHwEnableWakeupGpeBlock (
          * remaining ones.
          */
         Status = AcpiHwGpeEnableWrite (GpeRegisterInfo->EnableForWake,
-                    GpeRegisterInfo);
+            GpeRegisterInfo);
         if (ACPI_FAILURE (Status))
         {
             return (Status);

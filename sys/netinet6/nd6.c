@@ -127,7 +127,7 @@ static int nd6_is_new_addr_neighbor(const struct sockaddr_in6 *,
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
 static int regen_tmpaddr(struct in6_ifaddr *);
-static void nd6_free(struct llentry *, int);
+static void nd6_free(struct llentry **, int);
 static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void nd6_llinfo_settimer_locked(struct llentry *, long);
@@ -142,6 +142,7 @@ static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
 
 VNET_DEFINE(struct callout, nd6_timer_ch);
+#define	V_nd6_timer_ch			VNET(nd6_timer_ch)
 
 static void
 nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
@@ -213,10 +214,13 @@ nd6_init(void)
 	/* initialization of the default router list */
 	TAILQ_INIT(&V_nd_defrouter);
 
-	/* start timer */
+	/* Start timers. */
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
+
+	callout_init(&V_nd6_timer_ch, 0);
+	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, curvnet);
 
 	nd6_dad_init();
 	if (IS_DEFAULT_VNET(curvnet)) {
@@ -475,7 +479,7 @@ nd6_options(union nd_opts *ndopts)
 		default:
 			/*
 			 * Unknown options must be silently ignored,
-			 * to accomodate future extension to the protocol.
+			 * to accommodate future extension to the protocol.
 			 */
 			nd6log((LOG_DEBUG,
 			    "nd6_options: unsupported option %d - "
@@ -723,12 +727,16 @@ nd6_llinfo_timer(void *arg)
 	struct llentry *ln;
 	struct in6_addr *dst, *pdst, *psrc, src;
 	struct ifnet *ifp;
-	struct nd_ifinfo *ndi = NULL;
+	struct nd_ifinfo *ndi;
 	int do_switch, send_ns;
 	long delay;
 
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
+	ifp = lltable_get_ifp(ln->lle_tbl);
+	CURVNET_SET(ifp->if_vnet);
+
+	ND6_RLOCK();
 	LLE_WLOCK(ln);
 	if (callout_pending(&ln->lle_timer)) {
 		/*
@@ -748,10 +756,10 @@ nd6_llinfo_timer(void *arg)
 		 * would have been 1.
 		 */
 		LLE_WUNLOCK(ln);
+		ND6_RUNLOCK();
+		CURVNET_RESTORE();
 		return;
 	}
-	ifp = ln->lle_tbl->llt_ifp;
-	CURVNET_SET(ifp->if_vnet);
 	ndi = ND_IFINFO(ifp);
 	send_ns = 0;
 	dst = &ln->r_l3addr.addr6;
@@ -773,8 +781,7 @@ nd6_llinfo_timer(void *arg)
 	}
 
 	if (ln->la_flags & LLE_DELETED) {
-		nd6_free(ln, 0);
-		ln = NULL;
+		nd6_free(&ln, 0);
 		goto done;
 	}
 
@@ -799,9 +806,7 @@ nd6_llinfo_timer(void *arg)
 				ln->la_hold = m0;
 				clear_llinfo_pqueue(ln);
 			}
-			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_TIMEDOUT);
-			nd6_free(ln, 0);
-			ln = NULL;
+			nd6_free(&ln, 0);
 			if (m != NULL)
 				icmp6_error2(m, ICMP6_DST_UNREACH,
 				    ICMP6_DST_UNREACH_ADDR, 0, ifp);
@@ -830,12 +835,8 @@ nd6_llinfo_timer(void *arg)
 			 * GC timer has ended and entry hasn't been used.
 			 * Run Garbage collector (RFC 4861, 5.3)
 			 */
-			if (!ND6_LLINFO_PERMANENT(ln)) {
-				EVENTHANDLER_INVOKE(lle_event, ln,
-				    LLENTRY_EXPIRED);
-				nd6_free(ln, 1);
-				ln = NULL;
-			}
+			if (!ND6_LLINFO_PERMANENT(ln))
+				nd6_free(&ln, 1);
 			break;
 		}
 
@@ -857,9 +858,7 @@ nd6_llinfo_timer(void *arg)
 			ln->la_asked++;
 			send_ns = 1;
 		} else {
-			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
-			nd6_free(ln, 0);
-			ln = NULL;
+			nd6_free(&ln, 0);
 		}
 		break;
 	default:
@@ -867,6 +866,8 @@ nd6_llinfo_timer(void *arg)
 		    __func__, ln->ln_state);
 	}
 done:
+	if (ln != NULL)
+		ND6_RUNLOCK();
 	if (send_ns != 0) {
 		nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
 		psrc = nd6_llinfo_get_holdsrc(ln, &src);
@@ -1096,8 +1097,8 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 }
 
 /*
- * Nuke neighbor cache/prefix/default router management table, right before
- * ifp goes away.
+ * Remove prefix and default router list entries corresponding to ifp. Neighbor
+ * cache entries are freed in in6_domifdetach().
  */
 void
 nd6_purge(struct ifnet *ifp)
@@ -1146,14 +1147,6 @@ nd6_purge(struct ifnet *ifp)
 			 */
 			pr->ndpr_refcnt = 0;
 
-			/*
-			 * Previously, pr->ndpr_addr is removed as well,
-			 * but I strongly believe we don't have to do it.
-			 * nd6_purge() is only called from in6_ifdetach(),
-			 * which removes all the associated interface addresses
-			 * by itself.
-			 * (jinmei@kame.net 20010129)
-			 */
 			prelist_remove(pr);
 		}
 	}
@@ -1166,14 +1159,6 @@ nd6_purge(struct ifnet *ifp)
 		/* Refresh default router list. */
 		defrouter_select();
 	}
-
-	/* XXXXX
-	 * We do not nuke the neighbor cache entries here any more
-	 * because the neighbor cache is kept in if_afdata[AF_INET6].
-	 * nd6_purge() is invoked by in6_ifdetach() which is called
-	 * from if_detach() where everything gets purged. So let
-	 * in6_domifdetach() do the actual L2 table purging work.
-	 */
 }
 
 /* 
@@ -1363,12 +1348,27 @@ nd6_is_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
  * Set noinline to be dtrace-friendly
  */
 static __noinline void
-nd6_free(struct llentry *ln, int gc)
+nd6_free(struct llentry **lnp, int gc)
 {
-	struct nd_defrouter *dr;
 	struct ifnet *ifp;
+	struct llentry *ln;
+	struct nd_defrouter *dr;
+
+	ln = *lnp;
+	*lnp = NULL;
 
 	LLE_WLOCK_ASSERT(ln);
+	ND6_RLOCK_ASSERT();
+
+	ifp = lltable_get_ifp(ln->lle_tbl);
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) != 0)
+		dr = defrouter_lookup_locked(&ln->r_l3addr.addr6, ifp);
+	else
+		dr = NULL;
+	ND6_RUNLOCK();
+
+	if ((ln->la_flags & LLE_DELETED) == 0)
+		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
 
 	/*
 	 * we used to have pfctlinput(PRC_HOSTDEAD) here.
@@ -1378,11 +1378,7 @@ nd6_free(struct llentry *ln, int gc)
 	/* cancel timer */
 	nd6_llinfo_settimer_locked(ln, -1);
 
-	dr = NULL;
-	ifp = ln->lle_tbl->llt_ifp;
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
-		dr = defrouter_lookup(&ln->r_l3addr.addr6, ifp);
-
 		if (dr != NULL && dr->expire &&
 		    ln->ln_state == ND6_LLINFO_STALE && gc) {
 			/*
@@ -1592,7 +1588,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	case SIOCSIFINFO_IN6:
 		/*
 		 * used to change host variables from userland.
-		 * intented for a use on router to reflect RA configurations.
+		 * intended for a use on router to reflect RA configurations.
 		 */
 		/* 0 means 'unspecified' */
 		if (ND.linkmtu != 0) {
@@ -2340,8 +2336,7 @@ nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
 	/*
 	 * There is a neighbor cache entry, but no ethernet address
 	 * response yet.  Append this latest packet to the end of the
-	 * packet queue in the mbuf, unless the number of the packet
-	 * does not exceed nd6_maxqueuelen.  When it exceeds nd6_maxqueuelen,
+	 * packet queue in the mbuf.  When it exceeds nd6_maxqueuelen,
 	 * the oldest packet in the queue will be removed.
 	 */
 

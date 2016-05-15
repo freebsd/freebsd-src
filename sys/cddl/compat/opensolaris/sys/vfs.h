@@ -54,17 +54,6 @@ typedef	struct mount	vfs_t;
 #define	VFS_NOSETUID	MNT_NOSUID
 #define	VFS_NOEXEC	MNT_NOEXEC
 
-#define	VFS_HOLD(vfsp)	do {						\
-	MNT_ILOCK(vfsp);						\
-	MNT_REF(vfsp);							\
-	MNT_IUNLOCK(vfsp);						\
-} while (0)
-#define	VFS_RELE(vfsp)	do {						\
-	MNT_ILOCK(vfsp);						\
-	MNT_REL(vfsp);							\
-	MNT_IUNLOCK(vfsp);						\
-} while (0)
-
 #define	fs_vscan(vp, cr, async)	(0)
 
 #define	VROOT		VV_ROOT

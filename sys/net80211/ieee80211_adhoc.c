@@ -371,10 +371,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		/*
 		 * Validate the bssid.
 		 */
-		if (!(type == IEEE80211_FC0_TYPE_MGT &&
-		     (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
-		      subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) &&
-		    !IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
+		if (!IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
 		    !IEEE80211_ADDR_EQ(bssid, ifp->if_broadcastaddr)) {
 			/* not interested in */
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
@@ -616,8 +613,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		if ((ieee80211_msg_debug(vap) && doprint(vap, subtype)) ||
 		    ieee80211_msg_dumppkts(vap)) {
 			if_printf(ifp, "received %s from %s rssi %d\n",
-			    ieee80211_mgt_subtype_name[subtype >>
-				IEEE80211_FC0_SUBTYPE_SHIFT],
+			    ieee80211_mgt_subtype_name(subtype),
 			    ether_sprintf(wh->i_addr2), rssi);
 		}
 #endif
@@ -678,7 +674,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_channel *rxchan = ic->ic_curchan;
 	struct ieee80211_frame *wh;
-	uint8_t *frm, *efrm, *sfrm;
+	uint8_t *frm, *efrm;
 	uint8_t *ssid, *rates, *xrates;
 #if 0
 	int ht_state_change = 0;
@@ -779,7 +775,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 *
 			 * Since there's no (current) way to inform
 			 * the driver that a channel width change has
-			 * occured for a single node, just stub this
+			 * occurred for a single node, just stub this
 			 * out.
 			 */
 #if 0
@@ -813,7 +809,6 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 *	[tlv] extended supported rates
 		 */
 		ssid = rates = xrates = NULL;
-		sfrm = frm;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -858,7 +853,8 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 	case IEEE80211_FC0_SUBTYPE_ACTION:
 	case IEEE80211_FC0_SUBTYPE_ACTION_NOACK:
-		if (ni == vap->iv_bss) {
+		if ((ni == vap->iv_bss) &&
+		    !IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_macaddr)) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 			    wh, NULL, "%s", "unknown node");
 			vap->iv_stats.is_rx_mgtdiscard++;

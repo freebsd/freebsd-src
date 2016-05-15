@@ -649,6 +649,138 @@ ATF_TC_BODY(aio_md_test, tc)
 	aio_md_cleanup(&arg);
 }
 
+ATF_TC_WITHOUT_HEAD(aio_large_read_test);
+ATF_TC_BODY(aio_large_read_test, tc)
+{
+	char pathname[PATH_MAX];
+	struct aiocb cb, *cbp;
+	ssize_t nread;
+	size_t len;
+	int fd;
+#ifdef __LP64__
+	int clamped;
+#endif
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
+
+#ifdef __LP64__
+	len = sizeof(clamped);
+	if (sysctlbyname("debug.iosize_max_clamp", &clamped, &len, NULL, 0) ==
+	    -1)
+		atf_libc_error(errno, "Failed to read debug.iosize_max_clamp");
+#endif
+
+	/* Determine the maximum supported read(2) size. */
+	len = SSIZE_MAX;
+#ifdef __LP64__
+	if (clamped)
+		len = INT_MAX;
+#endif
+
+	strcpy(pathname, PATH_TEMPLATE);
+	fd = mkstemp(pathname);
+	ATF_REQUIRE_MSG(fd != -1, "mkstemp failed: %s", strerror(errno));
+
+	unlink(pathname);
+
+	memset(&cb, 0, sizeof(cb));
+	cb.aio_nbytes = len;
+	cb.aio_fildes = fd;
+	cb.aio_buf = NULL;
+	if (aio_read(&cb) == -1)
+		atf_tc_fail("aio_read() of maximum read size failed: %s",
+		    strerror(errno));
+
+	nread = aio_waitcomplete(&cbp, NULL);
+	if (nread == -1)
+		atf_tc_fail("aio_waitcomplete() failed: %s", strerror(errno));
+	if (nread != 0)
+		atf_tc_fail("aio_read() from empty file returned data: %zd",
+		    nread);
+
+	memset(&cb, 0, sizeof(cb));
+	cb.aio_nbytes = len + 1;
+	cb.aio_fildes = fd;
+	cb.aio_buf = NULL;
+	if (aio_read(&cb) == -1) {
+		if (errno == EINVAL)
+			goto finished;
+		atf_tc_fail("aio_read() of too large read size failed: %s",
+		    strerror(errno));
+	}
+
+	nread = aio_waitcomplete(&cbp, NULL);
+	if (nread == -1) {
+		if (errno == EINVAL)
+			goto finished;
+		atf_tc_fail("aio_waitcomplete() failed: %s", strerror(errno));
+	}
+	atf_tc_fail("aio_read() of too large read size returned: %zd", nread);
+
+finished:
+	close(fd);
+}
+
+/*
+ * This tests for a bug where arriving socket data can wakeup multiple
+ * AIO read requests resulting in an uncancellable request.
+ */
+ATF_TC_WITHOUT_HEAD(aio_socket_two_reads);
+ATF_TC_BODY(aio_socket_two_reads, tc)
+{
+	struct ioreq {
+		struct aiocb iocb;
+		char buffer[1024];
+	} ioreq[2];
+	struct aiocb *iocb;
+	unsigned i;
+	int s[2];
+	char c;
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+#if __FreeBSD_version < 1100101
+	aft_tc_skip("kernel version %d is too old (%d required)",
+	    __FreeBSD_version, 1100101);
+#endif
+
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, s) != -1);
+
+	/* Queue two read requests. */
+	memset(&ioreq, 0, sizeof(ioreq));
+	for (i = 0; i < nitems(ioreq); i++) {
+		ioreq[i].iocb.aio_nbytes = sizeof(ioreq[i].buffer);
+		ioreq[i].iocb.aio_fildes = s[0];
+		ioreq[i].iocb.aio_buf = ioreq[i].buffer;
+		ATF_REQUIRE(aio_read(&ioreq[i].iocb) == 0);
+	}
+
+	/* Send a single byte.  This should complete one request. */
+	c = 0xc3;
+	ATF_REQUIRE(write(s[1], &c, sizeof(c)) == 1);
+
+	ATF_REQUIRE(aio_waitcomplete(&iocb, NULL) == 1);
+
+	/* Determine which request completed and verify the data was read. */
+	if (iocb == &ioreq[0].iocb)
+		i = 0;
+	else
+		i = 1;
+	ATF_REQUIRE(ioreq[i].buffer[0] == c);
+
+	i ^= 1;
+
+	/*
+	 * Try to cancel the other request.  On broken systems this
+	 * will fail and the process will hang on exit.
+	 */
+	ATF_REQUIRE(aio_error(&ioreq[i].iocb) == EINPROGRESS);
+	ATF_REQUIRE(aio_cancel(s[0], &ioreq[i].iocb) == AIO_CANCELED);
+
+	close(s[1]);
+	close(s[0]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -658,6 +790,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, aio_pty_test);
 	ATF_TP_ADD_TC(tp, aio_pipe_test);
 	ATF_TP_ADD_TC(tp, aio_md_test);
+	ATF_TP_ADD_TC(tp, aio_large_read_test);
+	ATF_TP_ADD_TC(tp, aio_socket_two_reads);
 
 	return (atf_no_error());
 }

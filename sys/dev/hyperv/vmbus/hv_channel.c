@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -118,21 +118,21 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
 	devch_sysctl = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "channel", CTLFLAG_RD, 0, "");
+		    OID_AUTO, "channel", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	/* This creates dev.DEVNAME.DEVUNIT.channel.CHANID tree */
 	snprintf(name, sizeof(name), "%d", ch_id);
 	devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
 	    	    SYSCTL_CHILDREN(devch_sysctl),
-	    	    OID_AUTO, name, CTLFLAG_RD, 0, "");
+	    	    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 	if (primary_ch != NULL) {
 		devch_sub_sysctl = SYSCTL_ADD_NODE(ctx,
 			SYSCTL_CHILDREN(devch_id_sysctl),
-			OID_AUTO, "sub", CTLFLAG_RD, 0, "");
+			OID_AUTO, "sub", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 		snprintf(name, sizeof(name), "%d", sub_ch_id);
 		devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
 			SYSCTL_CHILDREN(devch_sub_sysctl),
-			OID_AUTO, name, CTLFLAG_RD, 0, "");
+			OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
 		    OID_AUTO, "chanid", CTLFLAG_RD,
@@ -141,20 +141,20 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
 	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
-	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD, channel, 0,
-	    vmbus_channel_sysctl_monalloc, "I",
+	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    channel, 0, vmbus_channel_sysctl_monalloc, "I",
 	    "is monitor allocated to this channel");
 
 	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
                     SYSCTL_CHILDREN(devch_id_sysctl),
                     OID_AUTO,
 		    "in",
-		    CTLFLAG_RD, 0, "");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	devch_id_out_sysctl = SYSCTL_ADD_NODE(ctx,
                     SYSCTL_CHILDREN(devch_id_sysctl),
                     OID_AUTO,
 		    "out",
-		    CTLFLAG_RD, 0, "");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	hv_ring_buffer_stat(ctx,
 		SYSCTL_CHILDREN(devch_id_in_sysctl),
 		&(channel->inbound),
@@ -270,12 +270,12 @@ hv_vmbus_channel_open(
 	if (user_data_len)
 		memcpy(open_msg->user_data, user_data, user_data_len);
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_INSERT_TAIL(
 		&hv_vmbus_g_connection.channel_msg_anchor,
 		open_info,
 		msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	ret = hv_vmbus_post_message(
 		open_msg, sizeof(hv_vmbus_channel_open_channel));
@@ -302,12 +302,12 @@ hv_vmbus_channel_open(
 	}
 
 	cleanup:
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_REMOVE(
 		&hv_vmbus_g_connection.channel_msg_anchor,
 		open_info,
 		msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 	sema_destroy(&open_info->wait_sema);
 	free(open_info, M_DEVBUF);
 
@@ -496,13 +496,13 @@ hv_vmbus_channel_establish_gpadl(
 	gpadl_msg->child_rel_id = channel->offer_msg.child_rel_id;
 	gpadl_msg->gpadl = next_gpadl_handle;
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_INSERT_TAIL(
 		&hv_vmbus_g_connection.channel_msg_anchor,
 		msg_info,
 		msg_list_entry);
 
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	ret = hv_vmbus_post_message(
 		gpadl_msg,
@@ -541,10 +541,10 @@ hv_vmbus_channel_establish_gpadl(
 
 cleanup:
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_REMOVE(&hv_vmbus_g_connection.channel_msg_anchor,
 		msg_info, msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	sema_destroy(&msg_info->wait_sema);
 	free(msg_info, M_DEVBUF);
@@ -583,10 +583,10 @@ hv_vmbus_channel_teardown_gpdal(
 	msg->child_rel_id = channel->offer_msg.child_rel_id;
 	msg->gpadl = gpadl_handle;
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_INSERT_TAIL(&hv_vmbus_g_connection.channel_msg_anchor,
 			info, msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	ret = hv_vmbus_post_message(msg,
 			sizeof(hv_vmbus_channel_gpadl_teardown));
@@ -599,10 +599,10 @@ cleanup:
 	/*
 	 * Received a torndown response
 	 */
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_REMOVE(&hv_vmbus_g_connection.channel_msg_anchor,
 			info, msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 	sema_destroy(&info->wait_sema);
 	free(info, M_DEVBUF);
 
@@ -618,7 +618,6 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	hv_vmbus_channel_msg_info* info;
 
 	channel->state = HV_CHANNEL_OPEN_STATE;
-	channel->sc_creation_callback = NULL;
 
 	/*
 	 * set rxq to NULL to avoid more requests be scheduled

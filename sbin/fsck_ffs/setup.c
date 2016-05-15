@@ -245,8 +245,7 @@ setup(char *dev)
 		goto badsb;
 	}
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
-		size = sblock.fs_cssize - i < sblock.fs_bsize ?
-		    sblock.fs_cssize - i : sblock.fs_bsize;
+		size = MIN(sblock.fs_cssize - i, sblock.fs_bsize);
 		readcnt[sblk.b_type]++;
 		if (blread(fsreadfd, (char *)sblock.fs_csp + i,
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),

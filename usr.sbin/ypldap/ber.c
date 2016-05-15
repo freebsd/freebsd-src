@@ -726,7 +726,7 @@ ber_scanf_elements(struct ber_element *ber, char *fmt, ...)
 			continue;
 		case '}':
 		case ')':
-			if (parent[level] == NULL)
+			if (level < 0 || parent[level] == NULL)
 				goto fail;
 			ber = parent[level--];
 			ret++;
@@ -1082,6 +1082,15 @@ ber_read_element(struct ber *ber, struct ber_element *elm)
 		return -1;
 	DPRINTF("ber read element size %zd\n", len);
 	totlen += r + len;
+
+	/*
+	 * If using an external buffer and the total size of the element
+	 * is larger, then the external buffer don't bother to continue.
+	 */
+	if (ber->fd == -1 && len > ber->br_rend - ber->br_rptr) {
+		errno = ECANCELED;
+		return -1;
+	}
 
 	elm->be_type = type;
 	elm->be_len = len;

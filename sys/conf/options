@@ -90,6 +90,7 @@ COMPAT_LINUXKPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
+DEVICE_NUMA
 EXT_RESOURCES	opt_global.h
 DIRECTIO
 FILEMON		opt_dontuse.h
@@ -176,6 +177,7 @@ NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
+PCI_HP		opt_pci.h
 PCI_IOV		opt_global.h
 PPC_DEBUG	opt_ppc.h
 PPC_PROBE_CHIPSET	opt_ppc.h
@@ -328,6 +330,7 @@ CAM_DEBUG_TARGET	opt_cam.h
 CAM_DEBUG_LUN		opt_cam.h
 CAM_DEBUG_FLAGS		opt_cam.h
 CAM_BOOT_DELAY		opt_cam.h
+CAM_NETFLIX_IOSCHED	opt_cam.h
 SCSI_DELAY		opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
@@ -603,6 +606,7 @@ VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
+VM_NUMA_ALLOC		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
@@ -616,6 +620,7 @@ DEBUG_MEMGUARD		opt_vm.h
 DEBUG_REDZONE		opt_vm.h
 
 # Standard SMP options
+EARLY_AP_STARTUP	opt_global.h
 SMP			opt_global.h
 
 # Size of the kernel message buffer
@@ -801,6 +806,8 @@ KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
 
+KBDMUX_DFLT_KEYMAP	opt_kbdmux.h
+
 # options for the Atheros driver
 ATH_DEBUG		opt_ath.h
 ATH_TXBUF		opt_ath.h
@@ -817,7 +824,7 @@ ATH_KTR_INTR_DEBUG	opt_ath.h
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
 # XXX For now, this breaks non-AR9130 chipsets, so only use it
-# XXX when actually targetting AR9130.
+# XXX when actually targeting AR9130.
 AH_SUPPORT_AR9130	opt_ah.h
 
 # This is required for AR933x SoC support
@@ -846,6 +853,9 @@ AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h
 BWI_DEBUG_VERBOSE	opt_bwi.h
+
+# options for the Brodacom BCM43xx driver (bwn)
+BWN_DEBUG		opt_bwn.h
 
 # options for the Marvell 8335 wireless driver
 MALO_DEBUG		opt_malo.h

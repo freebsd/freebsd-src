@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -123,6 +123,8 @@ typedef uint8_t	hv_bool_uint8_t;
 typedef struct hv_guid {
 	 unsigned char data[16];
 } __packed hv_guid;
+
+int snprintf_hv_guid(char *, size_t, const hv_guid *);
 
 #define HV_NIC_GUID							\
 	.data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,	\
@@ -689,7 +691,6 @@ typedef struct {
 } hv_vmbus_ring_buffer_info;
 
 typedef void (*hv_vmbus_pfn_channel_callback)(void *context);
-typedef void (*hv_vmbus_sc_creation_callback)(void *context);
 
 typedef enum {
 	HV_CHANNEL_OFFER_STATE,
@@ -782,7 +783,7 @@ typedef struct hv_vmbus_channel {
 
 	/*
 	 * From Win8, this field specifies the target virtual process
-	 * on which to deliver the interupt from the host to guest.
+	 * on which to deliver the interrupt from the host to guest.
 	 * Before Win8, all channel interrupts would only be
 	 * delivered on cpu 0. Setting this value to 0 would preserve
 	 * the earlier behavior.
@@ -802,13 +803,6 @@ typedef struct hv_vmbus_channel {
 	 * response on the same channel.
 	 */
 
-	/*
-	 * Multi-channel creation callback. This callback will be called in
-	 * process context when a Multi-channel offer is received from the host.
-	 * The guest can open the Multi-channel in the context of this callback.
-	 */
-	hv_vmbus_sc_creation_callback	sc_creation_callback;
-
 	struct mtx			sc_lock;
 
 	/*
@@ -816,6 +810,7 @@ typedef struct hv_vmbus_channel {
 	 */
 	TAILQ_HEAD(, hv_vmbus_channel)	sc_list_anchor;
 	TAILQ_ENTRY(hv_vmbus_channel)	sc_list_entry;
+	int				subchan_cnt;
 
 	/*
 	 * The primary channel this sub-channle belongs to.
@@ -912,6 +907,9 @@ int		hv_vmbus_channel_teardown_gpdal(
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
 void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
+struct hv_vmbus_channel **
+		vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
+void		vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt);
 
 /**
  * @brief Get physical address from virtual

@@ -398,7 +398,6 @@ struct uart_class uart_ns8250_class = {
 static struct ofw_compat_data compat_data[] = {
 	{"ns16550",		(uintptr_t)&uart_ns8250_class},
 	{"ns16550a",		(uintptr_t)&uart_ns8250_class},
-	{"snps,dw-apb-uart",	(uintptr_t)&uart_ns8250_class},
 	{NULL,			(uintptr_t)NULL},
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
@@ -451,19 +450,9 @@ ns8250_bus_attach(struct uart_softc *sc)
 	pcell_t cell;
 #endif
 
-	ns8250->busy_detect = 0;
-
 #ifdef FDT
-	/* 
-	 * Check whether uart requires to read USR reg when IIR_BUSY and 
-	 * has broken txfifo. 
-	 */
-	ns8250->busy_detect = ofw_bus_is_compatible(sc->sc_dev, "snps,dw-apb-uart");
+	/* Check whether uart has a broken txfifo. */
 	node = ofw_bus_get_node(sc->sc_dev);
-	/* XXX: This is kept for a short time for compatibility with older device trees */
-	if ((OF_getencprop(node, "busy-detect", &cell, sizeof(cell))) > 0
-	    && cell != 0)
-		ns8250->busy_detect = 1;
 	if ((OF_getencprop(node, "broken-txfifo", &cell, sizeof(cell))) > 0)
 		broken_txfifo =  cell ? 1 : 0;
 #endif
@@ -576,7 +565,7 @@ ns8250_bus_getsig(struct uart_softc *sc)
 	 * when capturing PPS pulses which are too narrow for software detection
 	 * to see the edges.  Hardware delta for RI doesn't work like the
 	 * others, so always use software for it.  Other threads may be changing
-	 * other (non-MSR) bits in sc_hwsig, so loop until it can succesfully
+	 * other (non-MSR) bits in sc_hwsig, so loop until it can successfully
 	 * update without other changes happening.  Note that the SIGCHGxx()
 	 * macros carefully preserve the delta bits when we have to loop several
 	 * times and a signal transitions between iterations.
@@ -893,7 +882,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 #if 0
 	/*
 	 * XXX there are some issues related to hardware flow control and
-	 * it's likely that uart(4) is the cause. This basicly needs more
+	 * it's likely that uart(4) is the cause. This basically needs more
 	 * investigation, but we avoid using for hardware flow control
 	 * until then.
 	 */
@@ -1007,7 +996,7 @@ ns8250_bus_grab(struct uart_softc *sc)
 	/*
 	 * turn off all interrupts to enter polling mode. Leave the
 	 * saved mask alone. We'll restore whatever it was in ungrab.
-	 * All pending interupt signals are reset when IER is set to 0.
+	 * All pending interrupt signals are reset when IER is set to 0.
 	 */
 	uart_lock(sc->sc_hwmtx);
 	ier = uart_getreg(bas, REG_IER);

@@ -132,6 +132,7 @@
 #include <sys/multilist.h>
 #ifdef _KERNEL
 #include <sys/dnlc.h>
+#include <sys/racct.h>
 #endif
 #include <sys/callb.h>
 #include <sys/kstat.h>
@@ -562,6 +563,7 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_l2_compress_successes;
 	kstat_named_t arcstat_l2_compress_zeros;
 	kstat_named_t arcstat_l2_compress_failures;
+	kstat_named_t arcstat_l2_padding_needed;
 	kstat_named_t arcstat_l2_write_trylock_fail;
 	kstat_named_t arcstat_l2_write_passed_headroom;
 	kstat_named_t arcstat_l2_write_spa_mismatch;
@@ -663,6 +665,7 @@ static arc_stats_t arc_stats = {
 	{ "l2_compress_successes",	KSTAT_DATA_UINT64 },
 	{ "l2_compress_zeros",		KSTAT_DATA_UINT64 },
 	{ "l2_compress_failures",	KSTAT_DATA_UINT64 },
+	{ "l2_padding_needed",		KSTAT_DATA_UINT64 },
 	{ "l2_write_trylock_fail",	KSTAT_DATA_UINT64 },
 	{ "l2_write_passed_headroom",	KSTAT_DATA_UINT64 },
 	{ "l2_write_spa_mismatch",	KSTAT_DATA_UINT64 },
@@ -836,7 +839,7 @@ typedef struct l1arc_buf_hdr {
 	refcount_t		b_refcnt;
 
 	arc_callback_t		*b_acb;
-	/* temporary buffer holder for in-flight compressed data */
+	/* temporary buffer holder for in-flight compressed or padded data */
 	void			*b_tmp_cdata;
 } l1arc_buf_hdr_t;
 
@@ -1097,6 +1100,7 @@ typedef struct l2arc_read_callback {
 	zbookmark_phys_t	l2rcb_zb;		/* original bookmark */
 	int			l2rcb_flags;		/* original flags */
 	enum zio_compress	l2rcb_compress;		/* applied compress */
+	void			*l2rcb_data;		/* temporary buffer */
 } l2arc_read_callback_t;
 
 typedef struct l2arc_write_callback {
@@ -1127,7 +1131,7 @@ static uint32_t arc_bufc_to_flags(arc_buf_contents_t);
 static boolean_t l2arc_write_eligible(uint64_t, arc_buf_hdr_t *);
 static void l2arc_read_done(zio_t *);
 
-static boolean_t l2arc_compress_buf(arc_buf_hdr_t *);
+static boolean_t l2arc_transform_buf(arc_buf_hdr_t *, boolean_t);
 static void l2arc_decompress_zio(zio_t *, arc_buf_hdr_t *, enum zio_compress);
 static void l2arc_release_cdata_buf(arc_buf_hdr_t *);
 
@@ -2214,6 +2218,8 @@ arc_buf_data_free(arc_buf_t *buf, void (*free_func)(void *, size_t))
 static void
 arc_buf_l2_cdata_free(arc_buf_hdr_t *hdr)
 {
+	size_t align, asize, len;
+
 	ASSERT(HDR_HAS_L2HDR(hdr));
 	ASSERT(MUTEX_HELD(&hdr->b_l2hdr.b_dev->l2ad_mtx));
 
@@ -2235,16 +2241,15 @@ arc_buf_l2_cdata_free(arc_buf_hdr_t *hdr)
 	}
 
 	/*
-	 * The header does not have compression enabled. This can be due
-	 * to the buffer not being compressible, or because we're
-	 * freeing the buffer before the second phase of
-	 * l2arc_write_buffer() has started (which does the compression
-	 * step). In either case, b_tmp_cdata does not point to a
-	 * separately compressed buffer, so there's nothing to free (it
-	 * points to the same buffer as the arc_buf_t's b_data field).
+	 * The bufer has been chosen for writing to L2ARC, but it's
+	 * not being written just yet.  In other words,
+	 * b_tmp_cdata points to exactly the same buffer as b_data,
+	 * l2arc_transform_buf hasn't been called.
 	 */
-	if (hdr->b_l2hdr.b_compress == ZIO_COMPRESS_OFF) {
-		hdr->b_l1hdr.b_tmp_cdata = NULL;
+	if (hdr->b_l2hdr.b_daddr == L2ARC_ADDR_UNSET) {
+		ASSERT3P(hdr->b_l1hdr.b_tmp_cdata, ==,
+		    hdr->b_l1hdr.b_buf->b_data);
+		ASSERT3U(hdr->b_l2hdr.b_compress, ==, ZIO_COMPRESS_OFF);
 		return;
 	}
 
@@ -2257,12 +2262,18 @@ arc_buf_l2_cdata_free(arc_buf_hdr_t *hdr)
 		return;
 	}
 
-	ASSERT(L2ARC_IS_VALID_COMPRESS(hdr->b_l2hdr.b_compress));
-
-	arc_buf_free_on_write(hdr->b_l1hdr.b_tmp_cdata,
-	    hdr->b_size, zio_data_buf_free);
+	/*
+	 * Nothing to do if the temporary buffer was not required.
+	 */
+	if (hdr->b_l1hdr.b_tmp_cdata == NULL)
+		return;
 
 	ARCSTAT_BUMP(arcstat_l2_cdata_free_on_write);
+	len = hdr->b_size;
+	align = (size_t)1 << hdr->b_l2hdr.b_dev->l2ad_vdev->vdev_ashift;
+	asize = P2ROUNDUP(len, align);
+	arc_buf_free_on_write(hdr->b_l1hdr.b_tmp_cdata, asize,
+	    zio_data_buf_free);
 	hdr->b_l1hdr.b_tmp_cdata = NULL;
 }
 
@@ -4503,6 +4514,14 @@ top:
 		    demand, prefetch, !HDR_ISTYPE_METADATA(hdr),
 		    data, metadata, misses);
 #ifdef _KERNEL
+#ifdef RACCT
+		if (racct_enable) {
+			PROC_LOCK(curproc);
+			racct_add_force(curproc, RACCT_READBPS, size);
+			racct_add_force(curproc, RACCT_READIOPS, 1);
+			PROC_UNLOCK(curproc);
+		}
+#endif /* RACCT */
 		curthread->td_ru.ru_inblock++;
 #endif
 
@@ -4525,6 +4544,7 @@ top:
 			    !HDR_L2_WRITING(hdr) && !HDR_L2_EVICTED(hdr) &&
 			    !(l2arc_noprefetch && HDR_PREFETCH(hdr))) {
 				l2arc_read_callback_t *cb;
+				void* b_data;
 
 				DTRACE_PROBE1(l2arc__hit, arc_buf_hdr_t *, hdr);
 				ARCSTAT_BUMP(arcstat_l2_hits);
@@ -4537,6 +4557,14 @@ top:
 				cb->l2rcb_zb = *zb;
 				cb->l2rcb_flags = zio_flags;
 				cb->l2rcb_compress = b_compress;
+				if (b_asize > hdr->b_size) {
+					ASSERT3U(b_compress, ==,
+					    ZIO_COMPRESS_OFF);
+					b_data = zio_data_buf_alloc(b_asize);
+					cb->l2rcb_data = b_data;
+				} else {
+					b_data = buf->b_data;
+				}
 
 				ASSERT(addr >= VDEV_LABEL_START_SIZE &&
 				    addr + size < vd->vdev_psize -
@@ -4549,6 +4577,7 @@ top:
 				 * was squashed to zero size by compression.
 				 */
 				if (b_compress == ZIO_COMPRESS_EMPTY) {
+					ASSERT3U(b_asize, ==, 0);
 					rzio = zio_null(pio, spa, vd,
 					    l2arc_read_done, cb,
 					    zio_flags | ZIO_FLAG_DONT_CACHE |
@@ -4557,7 +4586,7 @@ top:
 					    ZIO_FLAG_DONT_RETRY);
 				} else {
 					rzio = zio_read_phys(pio, vd, addr,
-					    b_asize, buf->b_data,
+					    b_asize, b_data,
 					    ZIO_CHECKSUM_OFF,
 					    l2arc_read_done, cb, priority,
 					    zio_flags | ZIO_FLAG_DONT_CACHE |
@@ -6042,6 +6071,32 @@ l2arc_read_done(zio_t *zio)
 	ASSERT3P(hash_lock, ==, HDR_LOCK(hdr));
 
 	/*
+	 * If the data was read into a temporary buffer,
+	 * move it and free the buffer.
+	 */
+	if (cb->l2rcb_data != NULL) {
+		ASSERT3U(hdr->b_size, <, zio->io_size);
+		ASSERT3U(cb->l2rcb_compress, ==, ZIO_COMPRESS_OFF);
+		if (zio->io_error == 0)
+			bcopy(cb->l2rcb_data, buf->b_data, hdr->b_size);
+
+		/*
+		 * The following must be done regardless of whether
+		 * there was an error:
+		 * - free the temporary buffer
+		 * - point zio to the real ARC buffer
+		 * - set zio size accordingly
+		 * These are required because zio is either re-used for
+		 * an I/O of the block in the case of the error
+		 * or the zio is passed to arc_read_done() and it
+		 * needs real data.
+		 */
+		zio_data_buf_free(cb->l2rcb_data, zio->io_size);
+		zio->io_size = zio->io_orig_size = hdr->b_size;
+		zio->io_data = zio->io_orig_data = buf->b_data;
+	}
+
+	/*
 	 * If the buffer was compressed, decompress it first.
 	 */
 	if (cb->l2rcb_compress != ZIO_COMPRESS_OFF)
@@ -6325,6 +6380,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 			kmutex_t *hash_lock;
 			uint64_t buf_sz;
 			uint64_t buf_a_sz;
+			size_t align;
 
 			if (arc_warm == B_FALSE)
 				hdr_prev = multilist_sublist_next(mls, hdr);
@@ -6362,7 +6418,8 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 			 * disk block size.
 			 */
 			buf_sz = hdr->b_size;
-			buf_a_sz = vdev_psize_to_asize(dev->l2ad_vdev, buf_sz);
+			align = (size_t)1 << dev->l2ad_vdev->vdev_ashift;
+			buf_a_sz = P2ROUNDUP(buf_sz, align);
 
 			if ((write_asize + buf_a_sz) > target_sz) {
 				full = B_TRUE;
@@ -6466,26 +6523,15 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 	mutex_enter(&dev->l2ad_mtx);
 
 	/*
-	 * Note that elsewhere in this file arcstat_l2_asize
-	 * and the used space on l2ad_vdev are updated using b_asize,
-	 * which is not necessarily rounded up to the device block size.
-	 * Too keep accounting consistent we do the same here as well:
-	 * stats_size accumulates the sum of b_asize of the written buffers,
-	 * while write_asize accumulates the sum of b_asize rounded up
-	 * to the device block size.
-	 * The latter sum is used only to validate the corectness of the code.
-	 */
-	uint64_t stats_size = 0;
-	write_asize = 0;
-
-	/*
 	 * Now start writing the buffers. We're starting at the write head
 	 * and work backwards, retracing the course of the buffer selector
 	 * loop above.
 	 */
+	write_asize = 0;
 	for (hdr = list_prev(&dev->l2ad_buflist, head); hdr;
 	    hdr = list_prev(&dev->l2ad_buflist, hdr)) {
 		uint64_t buf_sz;
+		boolean_t compress;
 
 		/*
 		 * We rely on the L1 portion of the header below, so
@@ -6504,22 +6550,26 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 		 */
 		hdr->b_l2hdr.b_daddr = dev->l2ad_hand;
 
-		if ((HDR_L2COMPRESS(hdr)) &&
-		    hdr->b_l2hdr.b_asize >= buf_compress_minsz) {
-			if (l2arc_compress_buf(hdr)) {
-				/*
-				 * If compression succeeded, enable headroom
-				 * boost on the next scan cycle.
-				 */
-				*headroom_boost = B_TRUE;
-			}
+		/*
+		 * Save a pointer to the original buffer data we had previously
+		 * stashed away.
+		 */
+		buf_data = hdr->b_l1hdr.b_tmp_cdata;
+
+		compress = HDR_L2COMPRESS(hdr) &&
+		    hdr->b_l2hdr.b_asize >= buf_compress_minsz;
+		if (l2arc_transform_buf(hdr, compress)) {
+			/*
+			 * If compression succeeded, enable headroom
+			 * boost on the next scan cycle.
+			 */
+			*headroom_boost = B_TRUE;
 		}
 
 		/*
-		 * Pick up the buffer data we had previously stashed away
-		 * (and now potentially also compressed).
+		 * Get the new buffer size that accounts for compression
+		 * and padding.
 		 */
-		buf_data = hdr->b_l1hdr.b_tmp_cdata;
 		buf_sz = hdr->b_l2hdr.b_asize;
 
 		/*
@@ -6531,8 +6581,12 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 
 		/* Compression may have squashed the buffer to zero length. */
 		if (buf_sz != 0) {
-			uint64_t buf_a_sz;
-
+			/*
+			 * If the data was padded or compressed, then it
+			 * it is in a new buffer.
+			 */
+			if (hdr->b_l1hdr.b_tmp_cdata != NULL)
+				buf_data = hdr->b_l1hdr.b_tmp_cdata;
 			wzio = zio_write_phys(pio, dev->l2ad_vdev,
 			    dev->l2ad_hand, buf_sz, buf_data, ZIO_CHECKSUM_OFF,
 			    NULL, NULL, ZIO_PRIORITY_ASYNC_WRITE,
@@ -6542,14 +6596,8 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 			    zio_t *, wzio);
 			(void) zio_nowait(wzio);
 
-			stats_size += buf_sz;
-
-			/*
-			 * Keep the clock hand suitably device-aligned.
-			 */
-			buf_a_sz = vdev_psize_to_asize(dev->l2ad_vdev, buf_sz);
-			write_asize += buf_a_sz;
-			dev->l2ad_hand += buf_a_sz;
+			write_asize += buf_sz;
+			dev->l2ad_hand += buf_sz;
 		}
 	}
 
@@ -6559,8 +6607,8 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 	ARCSTAT_BUMP(arcstat_l2_writes_sent);
 	ARCSTAT_INCR(arcstat_l2_write_bytes, write_asize);
 	ARCSTAT_INCR(arcstat_l2_size, write_sz);
-	ARCSTAT_INCR(arcstat_l2_asize, stats_size);
-	vdev_space_update(dev->l2ad_vdev, stats_size, 0, 0);
+	ARCSTAT_INCR(arcstat_l2_asize, write_asize);
+	vdev_space_update(dev->l2ad_vdev, write_asize, 0, 0);
 
 	/*
 	 * Bump device hand to the device start if it is approaching the end.
@@ -6579,12 +6627,18 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 }
 
 /*
- * Compresses an L2ARC buffer.
+ * Transforms, possibly compresses and pads, an L2ARC buffer.
  * The data to be compressed must be prefilled in l1hdr.b_tmp_cdata and its
  * size in l2hdr->b_asize. This routine tries to compress the data and
  * depending on the compression result there are three possible outcomes:
- * *) The buffer was incompressible. The original l2hdr contents were left
- *    untouched and are ready for writing to an L2 device.
+ * *) The buffer was incompressible. The buffer size was already ashift aligned.
+ *    The original hdr contents were left untouched except for b_tmp_cdata,
+ *    which is reset to NULL. The caller must keep a pointer to the original
+ *    data.
+ * *) The buffer was incompressible. The buffer size was not ashift aligned.
+ *    b_tmp_cdata was replaced with a temporary data buffer which holds a padded
+ *    (aligned) copy of the data. Once writing is done, invoke
+ *    l2arc_release_cdata_buf on this hdr to free the temporary buffer.
  * *) The buffer was all-zeros, so there is no need to write it to an L2
  *    device. To indicate this situation b_tmp_cdata is NULL'ed, b_asize is
  *    set to zero and b_compress is set to ZIO_COMPRESS_EMPTY.
@@ -6598,10 +6652,11 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
  * buffer was incompressible).
  */
 static boolean_t
-l2arc_compress_buf(arc_buf_hdr_t *hdr)
+l2arc_transform_buf(arc_buf_hdr_t *hdr, boolean_t compress)
 {
 	void *cdata;
-	size_t csize, len, rounded;
+	size_t align, asize, csize, len, rounded;
+
 	ASSERT(HDR_HAS_L2HDR(hdr));
 	l2arc_buf_hdr_t *l2hdr = &hdr->b_l2hdr;
 
@@ -6610,14 +6665,19 @@ l2arc_compress_buf(arc_buf_hdr_t *hdr)
 	ASSERT(hdr->b_l1hdr.b_tmp_cdata != NULL);
 
 	len = l2hdr->b_asize;
-	cdata = zio_data_buf_alloc(len);
+	align = (size_t)1 << l2hdr->b_dev->l2ad_vdev->vdev_ashift;
+	asize = P2ROUNDUP(len, align);
+	cdata = zio_data_buf_alloc(asize);
 	ASSERT3P(cdata, !=, NULL);
-	csize = zio_compress_data(ZIO_COMPRESS_LZ4, hdr->b_l1hdr.b_tmp_cdata,
-	    cdata, l2hdr->b_asize);
+	if (compress)
+		csize = zio_compress_data(ZIO_COMPRESS_LZ4,
+		    hdr->b_l1hdr.b_tmp_cdata, cdata, len);
+	else
+		csize = len;
 
 	if (csize == 0) {
 		/* zero block, indicate that there's nothing to write */
-		zio_data_buf_free(cdata, len);
+		zio_data_buf_free(cdata, asize);
 		l2hdr->b_compress = ZIO_COMPRESS_EMPTY;
 		l2hdr->b_asize = 0;
 		hdr->b_l1hdr.b_tmp_cdata = NULL;
@@ -6625,8 +6685,8 @@ l2arc_compress_buf(arc_buf_hdr_t *hdr)
 		return (B_TRUE);
 	}
 
-	rounded = P2ROUNDUP(csize,
-	    (size_t)1 << l2hdr->b_dev->l2ad_vdev->vdev_ashift);
+	rounded = P2ROUNDUP(csize, align);
+	ASSERT3U(rounded, <=, asize);
 	if (rounded < len) {
 		/*
 		 * Compression succeeded, we'll keep the cdata around for
@@ -6643,11 +6703,32 @@ l2arc_compress_buf(arc_buf_hdr_t *hdr)
 		return (B_TRUE);
 	} else {
 		/*
-		 * Compression failed, release the compressed buffer.
-		 * l2hdr will be left unmodified.
+		 * Compression did not save space.
 		 */
-		zio_data_buf_free(cdata, len);
-		ARCSTAT_BUMP(arcstat_l2_compress_failures);
+		if (P2PHASE(len, align) != 0) {
+			/*
+			 * Use compression buffer for a copy of data padded to
+			 * the proper size.  Compression algorithm remains set
+			 * to ZIO_COMPRESS_OFF.
+			 */
+			ASSERT3U(len, <, asize);
+			bcopy(hdr->b_l1hdr.b_tmp_cdata, cdata, len);
+			bzero((char *)cdata + len, asize - len);
+			l2hdr->b_asize = asize;
+			hdr->b_l1hdr.b_tmp_cdata = cdata;
+			ARCSTAT_BUMP(arcstat_l2_padding_needed);
+		} else {
+			ASSERT3U(len, ==, asize);
+			/*
+			 * The original buffer is good as is,
+			 * release the compressed buffer.
+			 * l2hdr will be left unmodified except for b_tmp_cdata.
+			 */
+			zio_data_buf_free(cdata, asize);
+			hdr->b_l1hdr.b_tmp_cdata = NULL;
+		}
+		if (compress)
+			ARCSTAT_BUMP(arcstat_l2_compress_failures);
 		return (B_FALSE);
 	}
 }
@@ -6716,44 +6797,30 @@ l2arc_decompress_zio(zio_t *zio, arc_buf_hdr_t *hdr, enum zio_compress c)
 
 /*
  * Releases the temporary b_tmp_cdata buffer in an l2arc header structure.
- * This buffer serves as a temporary holder of compressed data while
+ * This buffer serves as a temporary holder of compressed or padded data while
  * the buffer entry is being written to an l2arc device. Once that is
  * done, we can dispose of it.
  */
 static void
 l2arc_release_cdata_buf(arc_buf_hdr_t *hdr)
 {
-	ASSERT(HDR_HAS_L2HDR(hdr));
+	size_t align, asize, len;
 	enum zio_compress comp = hdr->b_l2hdr.b_compress;
 
+	ASSERT(HDR_HAS_L2HDR(hdr));
 	ASSERT(HDR_HAS_L1HDR(hdr));
 	ASSERT(comp == ZIO_COMPRESS_OFF || L2ARC_IS_VALID_COMPRESS(comp));
 
-	if (comp == ZIO_COMPRESS_OFF) {
-		/*
-		 * In this case, b_tmp_cdata points to the same buffer
-		 * as the arc_buf_t's b_data field. We don't want to
-		 * free it, since the arc_buf_t will handle that.
-		 */
+	if (hdr->b_l1hdr.b_tmp_cdata != NULL) {
+		ASSERT(comp != ZIO_COMPRESS_EMPTY);
+		len = hdr->b_size;
+		align = (size_t)1 << hdr->b_l2hdr.b_dev->l2ad_vdev->vdev_ashift;
+		asize = P2ROUNDUP(len, align);
+		zio_data_buf_free(hdr->b_l1hdr.b_tmp_cdata, asize);
 		hdr->b_l1hdr.b_tmp_cdata = NULL;
-	} else if (comp == ZIO_COMPRESS_EMPTY) {
-		/*
-		 * In this case, b_tmp_cdata was compressed to an empty
-		 * buffer, thus there's nothing to free and b_tmp_cdata
-		 * should have been set to NULL in l2arc_write_buffers().
-		 */
-		ASSERT3P(hdr->b_l1hdr.b_tmp_cdata, ==, NULL);
 	} else {
-		/*
-		 * If the data was compressed, then we've allocated a
-		 * temporary buffer for it, so now we need to release it.
-		 */
-		ASSERT(hdr->b_l1hdr.b_tmp_cdata != NULL);
-		zio_data_buf_free(hdr->b_l1hdr.b_tmp_cdata,
-		    hdr->b_size);
-		hdr->b_l1hdr.b_tmp_cdata = NULL;
+		ASSERT(comp == ZIO_COMPRESS_OFF || comp == ZIO_COMPRESS_EMPTY);
 	}
-
 }
 
 /*

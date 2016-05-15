@@ -26,6 +26,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
@@ -40,6 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <geom/geom_disk.h>
 
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#endif
+
 #include <dev/spibus/spi.h>
 #include "spibus_if.h"
 
@@ -48,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #define	FL_NONE			0x00
 #define	FL_ERASE_4K		0x01
 #define	FL_ERASE_32K		0x02
+#define	FL_ENABLE_4B_ADDR	0x04
+#define	FL_DISABLE_4B_ADDR	0x08
 
 /*
  * Define the sectorsize to be a smaller size rather than the flash
@@ -105,6 +115,7 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "mx25ll32",	0xc2, 0x2016, 64 * 1024, 64, FL_NONE },
 	{ "mx25ll64",	0xc2, 0x2017, 64 * 1024, 128, FL_NONE },
 	{ "mx25ll128",	0xc2, 0x2018, 64 * 1024, 256, FL_ERASE_4K | FL_ERASE_32K },
+	{ "mx25ll256",	0xc2, 0x2019, 64 * 1024, 512, FL_ERASE_4K | FL_ERASE_32K | FL_ENABLE_4B_ADDR },
 	{ "s25fl032",	0x01, 0x0215, 64 * 1024, 64, FL_NONE },
 	{ "s25fl064",	0x01, 0x0216, 64 * 1024, 128, FL_NONE },
 	{ "s25fl128",	0x01, 0x2018, 64 * 1024, 256, FL_NONE },
@@ -178,7 +189,7 @@ mx25l_get_device_ident(struct mx25l_softc *sc)
 	dev_id = (rxBuf[2] << 8) | (rxBuf[3]);
 
 	for (i = 0; 
-	    i < sizeof(flash_devices)/sizeof(struct mx25l_flash_ident); i++) {
+	    i < nitems(flash_devices); i++) {
 		if ((flash_devices[i].manufacturer_id == manufacturer_id) &&
 		    (flash_devices[i].device_id == dev_id))
 			return &flash_devices[i];
@@ -211,9 +222,12 @@ mx25l_set_writable(device_t dev, int writable)
 static void
 mx25l_erase_cmd(device_t dev, off_t sector, uint8_t ecmd)
 {
-	uint8_t txBuf[4], rxBuf[4];
+	struct mx25l_softc *sc;
+	uint8_t txBuf[5], rxBuf[5];
 	struct spi_command cmd;
 	int err;
+
+	sc = device_get_softc(dev);
 
 	mx25l_wait_for_device_ready(dev);
 	mx25l_set_writable(dev, 1);
@@ -225,11 +239,20 @@ mx25l_erase_cmd(device_t dev, off_t sector, uint8_t ecmd)
 	txBuf[0] = ecmd;
 	cmd.tx_cmd = txBuf;
 	cmd.rx_cmd = rxBuf;
-	cmd.rx_cmd_sz = 4;
-	cmd.tx_cmd_sz = 4;
-	txBuf[1] = ((sector >> 16) & 0xff);
-	txBuf[2] = ((sector >> 8) & 0xff);
-	txBuf[3] = (sector & 0xff);
+	if (sc->sc_flags & FL_ENABLE_4B_ADDR) {
+		cmd.rx_cmd_sz = 5;
+		cmd.tx_cmd_sz = 5;
+		txBuf[1] = ((sector >> 24) & 0xff);
+		txBuf[2] = ((sector >> 16) & 0xff);
+		txBuf[3] = ((sector >> 8) & 0xff);
+		txBuf[4] = (sector & 0xff);
+	} else {
+		cmd.rx_cmd_sz = 4;
+		cmd.tx_cmd_sz = 4;
+		txBuf[1] = ((sector >> 16) & 0xff);
+		txBuf[2] = ((sector >> 8) & 0xff);
+		txBuf[3] = (sector & 0xff);
+	}
 	err = SPIBUS_TRANSFER(device_get_parent(dev), dev, &cmd);
 }
 
@@ -247,8 +270,13 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 	pdev = device_get_parent(dev);
 	sc = device_get_softc(dev);
 
-	cmd.tx_cmd_sz = 4;
-	cmd.rx_cmd_sz = 4;
+	if (sc->sc_flags & FL_ENABLE_4B_ADDR) {
+		cmd.tx_cmd_sz = 5;
+		cmd.rx_cmd_sz = 5;
+	} else {
+		cmd.tx_cmd_sz = 4;
+		cmd.rx_cmd_sz = 4;
+	}
 
 	bytes_writen = 0;
 	write_offset = offset;
@@ -282,9 +310,16 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 			mx25l_erase_cmd(dev, offset + bytes_writen, CMD_SECTOR_ERASE);
 
 		txBuf[0] = CMD_PAGE_PROGRAM;
-		txBuf[1] = ((write_offset >> 16) & 0xff);
-		txBuf[2] = ((write_offset >> 8) & 0xff);
-		txBuf[3] = (write_offset & 0xff);
+		if (sc->sc_flags & FL_ENABLE_4B_ADDR) {
+			txBuf[1] = ((write_offset >> 24) & 0xff);
+			txBuf[2] = ((write_offset >> 16) & 0xff);
+			txBuf[3] = ((write_offset >> 8) & 0xff);
+			txBuf[4] = (write_offset & 0xff);
+		} else {
+			txBuf[1] = ((write_offset >> 16) & 0xff);
+			txBuf[2] = ((write_offset >> 8) & 0xff);
+			txBuf[3] = (write_offset & 0xff);
+		}
 
 		bytes_to_write = MIN(FLASH_PAGE_SIZE,
 		    count - bytes_writen);
@@ -336,14 +371,26 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 		return (EIO);
 
 	txBuf[0] = CMD_FAST_READ;
-	cmd.tx_cmd_sz = 5;
-	cmd.rx_cmd_sz = 5;
+	if (sc->sc_flags & FL_ENABLE_4B_ADDR) {
+		cmd.tx_cmd_sz = 6;
+		cmd.rx_cmd_sz = 6;
 
-	txBuf[1] = ((offset >> 16) & 0xff);
-	txBuf[2] = ((offset >> 8) & 0xff);
-	txBuf[3] = (offset & 0xff);
-	/* Dummy byte */
-	txBuf[4] = 0;
+		txBuf[1] = ((offset >> 24) & 0xff);
+		txBuf[2] = ((offset >> 16) & 0xff);
+		txBuf[3] = ((offset >> 8) & 0xff);
+		txBuf[4] = (offset & 0xff);
+		/* Dummy byte */
+		txBuf[5] = 0;
+	} else {
+		cmd.tx_cmd_sz = 5;
+		cmd.rx_cmd_sz = 5;
+
+		txBuf[1] = ((offset >> 16) & 0xff);
+		txBuf[2] = ((offset >> 8) & 0xff);
+		txBuf[3] = (offset & 0xff);
+		/* Dummy byte */
+		txBuf[4] = 0;
+	}
 
 	cmd.tx_cmd = txBuf;
 	cmd.rx_cmd = rxBuf;
@@ -358,9 +405,67 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 }
 
 static int
+mx25l_set_4b_mode(device_t dev, uint8_t command)
+{
+	uint8_t txBuf[1], rxBuf[1];
+	struct spi_command cmd;
+	device_t pdev;
+	int err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	memset(txBuf, 0, sizeof(txBuf));
+	memset(rxBuf, 0, sizeof(rxBuf));
+
+	pdev = device_get_parent(dev);
+
+	cmd.tx_cmd_sz = cmd.rx_cmd_sz = 1;
+
+	cmd.tx_cmd = txBuf;
+	cmd.rx_cmd = rxBuf;
+
+	txBuf[0] = command;
+
+	err = SPIBUS_TRANSFER(pdev, dev, &cmd);
+
+	mx25l_wait_for_device_ready(dev);
+
+	return (err);
+}
+
+#ifdef	FDT
+static struct ofw_compat_data compat_data[] = {
+	{ "st,m25p",		1 },
+	{ "jedec,spi-nor",	1 },
+	{ NULL,			0 },
+};
+#endif
+
+static int
 mx25l_probe(device_t dev)
 {
+#ifdef FDT
+	int i;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	/* First try to match the compatible property to the compat_data */
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 1)
+		goto found;
+
+	/*
+	 * Next, try to find a compatible device using the names in the
+	 * flash_devices structure
+	 */
+	for (i = 0; i < nitems(flash_devices); i++)
+		if (ofw_bus_is_compatible(dev, flash_devices[i].name))
+			goto found;
+
+	return (ENXIO);
+found:
+#endif
 	device_set_desc(dev, "M25Pxx Flash Family");
+
 	return (0);
 }
 
@@ -396,6 +501,12 @@ mx25l_attach(device_t dev)
 	/* Sectorsize for erase operations */
 	sc->sc_sectorsize =  ident->sectorsize;
 	sc->sc_flags = ident->flags;
+
+	if (sc->sc_flags & FL_ENABLE_4B_ADDR)
+		mx25l_set_4b_mode(dev, CMD_ENTER_4B_MODE);
+
+	if (sc->sc_flags & FL_DISABLE_4B_ADDR)
+		mx25l_set_4b_mode(dev, CMD_EXIT_4B_MODE);
 
         /* NB: use stripesize to hold the erase/region size for RedBoot */
 	sc->sc_disk->d_stripesize = ident->sectorsize;

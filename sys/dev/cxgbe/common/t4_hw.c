@@ -381,7 +381,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 			/*
 			 * Retrieve the command reply and release the mailbox.
 			 */
-			get_mbox_rpl(adap, cmd_rpl, size/8, data_reg);
+			get_mbox_rpl(adap, cmd_rpl, MBOX_LEN/8, data_reg);
 			t4_write_reg(adap, ctl_reg, V_MBOWNER(X_MBOWNER_NONE));
 
 			CH_DUMP_MBOX(adap, mbox, data_reg);
@@ -607,8 +607,8 @@ int t4_mem_read(struct adapter *adap, int mtype, u32 addr, u32 len,
 	 * need to round down the start and round up the end.  We'll start
 	 * copying out of the first line at (addr - start) a word at a time.
 	 */
-	start = addr & ~(64-1);
-	end = (addr + len + 64-1) & ~(64-1);
+	start = rounddown2(addr, 64);
+	end = roundup2(addr + len, 64);
 	offset = (addr - start)/sizeof(__be32);
 
 	for (pos = start; pos < end; pos += 64, offset = 0) {
@@ -2706,7 +2706,7 @@ int t4_seeprom_read(struct adapter *adapter, u32 addr, u32 *data)
 	}
 
 	/*
-	 * Grab the returned data, swizzle it into our endianess and
+	 * Grab the returned data, swizzle it into our endianness and
 	 * return success.
 	 */
 	t4_os_pci_read_cfg4(adapter, base + PCI_VPD_DATA, data);
@@ -5615,12 +5615,15 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
 	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 stat_ctl;
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
 	(is_t4(adap) ? PORT_REG(idx, A_MPS_PORT_STAT_##name##_L) : \
 	T5_PORT_REG(idx, A_MPS_PORT_STAT_##name##_L)))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
+
+	stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 
 	p->tx_pause		= GET_STAT(TX_PORT_PAUSE);
 	p->tx_octets		= GET_STAT(TX_PORT_BYTES);
@@ -5645,6 +5648,12 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->tx_ppp5		= GET_STAT(TX_PORT_PPP5);
 	p->tx_ppp6		= GET_STAT(TX_PORT_PPP6);
 	p->tx_ppp7		= GET_STAT(TX_PORT_PPP7);
+
+	if (stat_ctl & F_COUNTPAUSESTATTX) {
+		p->tx_frames -= p->tx_pause;
+		p->tx_octets -= p->tx_pause * 64;
+		p->tx_mcast_frames -= p->tx_pause;
+	}
 
 	p->rx_pause		= GET_STAT(RX_PORT_PAUSE);
 	p->rx_octets		= GET_STAT(RX_PORT_BYTES);
@@ -5673,6 +5682,12 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ppp5		= GET_STAT(RX_PORT_PPP5);
 	p->rx_ppp6		= GET_STAT(RX_PORT_PPP6);
 	p->rx_ppp7		= GET_STAT(RX_PORT_PPP7);
+
+	if (stat_ctl & F_COUNTPAUSESTATRX) {
+		p->rx_frames -= p->rx_pause;
+		p->rx_octets -= p->rx_pause * 64;
+		p->rx_mcast_frames -= p->rx_pause;
+	}
 
 	p->rx_ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_MAC_DROP_FRAME) : 0;
 	p->rx_ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_DROP_FRAME) : 0;
@@ -7724,7 +7739,7 @@ static void read_filter_mode_and_ingress_config(struct adapter *adap)
 
 	/*
 	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
-	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 * represents the presence of an Outer VLAN instead of a VNIC ID.
 	 */
 	if ((tpp->ingress_config & F_VNIC) == 0)
 		tpp->vnic_shift = -1;
@@ -9106,7 +9121,7 @@ int t4_config_watchdog(struct adapter *adapter, unsigned int mbox,
 	/*
 	 * The watchdog command expects a timeout in units of 10ms so we need
 	 * to convert it here (via rounding) and force a minimum of one 10ms
-	 * "tick" if the timeout is non-zero but the convertion results in 0
+	 * "tick" if the timeout is non-zero but the conversion results in 0
 	 * ticks.
 	 */
 	ticks = (timeout + 5)/10;

@@ -452,7 +452,7 @@ more:
 		++pageout_count;
 		++ib;
 		/*
-		 * alignment boundry, stop here and switch directions.  Do
+		 * alignment boundary, stop here and switch directions.  Do
 		 * not clear ib.
 		 */
 		if ((pindex - (ib - 1)) % vm_pageout_page_count == 0)
@@ -483,7 +483,7 @@ more:
 
 	/*
 	 * If we exhausted our forward scan, continue with the reverse scan
-	 * when possible, even past a page boundry.  This catches boundry
+	 * when possible, even past a page boundary.  This catches boundary
 	 * conditions.
 	 */
 	if (ib && pageout_count < vm_pageout_page_count)
@@ -1824,7 +1824,7 @@ static void
 vm_pageout(void)
 {
 	int error;
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	int i;
 #endif
 
@@ -1833,7 +1833,7 @@ vm_pageout(void)
 	    0, 0, "laundry: dom0");
 	if (error != 0)
 		panic("starting laundry for domain 0, error %d", error);
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	for (i = 1; i < vm_ndomains; i++) {
 		error = kthread_add(vm_pageout_worker, (void *)(uintptr_t)i,
 		    curproc, NULL, 0, 0, "dom%d", i);

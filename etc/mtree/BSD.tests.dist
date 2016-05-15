@@ -261,6 +261,8 @@
                 data
                 ..
             ..
+            iconv
+            ..
             inet
             ..
             locale
@@ -460,6 +462,8 @@
         ..
         posixshm
         ..
+        sys
+        ..
         vfs
         ..
         vm
@@ -568,6 +572,8 @@
                 ..
             ..
         ..
+	bsdcat
+	..
         calendar
         ..
         cmp
@@ -608,6 +614,8 @@
         ..
         printf
         ..
+        sdiff
+        ..
         sed
             regress.multitest.out
             ..
@@ -630,6 +638,8 @@
         ..
         xargs
         ..
+        xinstall
+        ..
         xo
         ..
         yacc
@@ -639,6 +649,8 @@
     ..
     usr.sbin
         etcupdate
+        ..
+        extattr
         ..
         fstyp
         ..

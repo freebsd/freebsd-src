@@ -1,3 +1,20 @@
+2016-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160315
+	  Merge with NetBSD make, pick up
+	  o fix handling of archive members
+
+2016-03-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): rename variable to avoid interference
+	  with checks for ${MAKE_VERSION}
+
+2016-03-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160310
+	  Merge with NetBSD make, pick up
+	  o meta.c: treat missing Read file same as Write, incase we Delete it.
+
 2016-03-07  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20160307

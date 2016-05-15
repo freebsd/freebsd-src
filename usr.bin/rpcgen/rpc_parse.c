@@ -329,7 +329,7 @@ def_union(definition *defp)
 				*tailp = cases;
 				tailp = &cases->next;
 				cases = XALLOC(case_list);
-			};
+			}
 
 		get_declaration(&dec, DEF_UNION);
 		cases->case_decl = dec;

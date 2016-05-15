@@ -21,7 +21,7 @@
 
 #include <machine/pcb.h>
 
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 # define MIPS_IPI_COUNT 	1
 # define INTR_IPI_COUNT 	MIPS_IPI_COUNT
 #endif

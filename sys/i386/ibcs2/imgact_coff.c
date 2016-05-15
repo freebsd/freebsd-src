@@ -69,7 +69,7 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 	vm_offset_t map_offset;
 	vm_offset_t map_addr;
 	int error;
-	unsigned char *data_buf = 0;
+	unsigned char *data_buf = NULL;
 	size_t copy_len;
 
 	map_offset = trunc_page(offset);
@@ -163,7 +163,7 @@ coff_load_file(struct thread *td, char *name)
   	struct filehdr *fhdr;
   	struct aouthdr *ahdr;
   	struct scnhdr *scns;
-  	char *ptr = 0;
+  	char *ptr = NULL;
   	int nscns;
   	unsigned long text_offset = 0, text_address = 0, text_size = 0;
   	unsigned long data_offset = 0, data_address = 0, data_size = 0;
@@ -363,7 +363,7 @@ exec_coff_imgact(imgp)
 	    	/* .bss section */
 	    	bss_size = scns[i].s_size;
 	  } else if (scns[i].s_flags & STYP_LIB) {
-	    	char *buf = 0;
+	    	char *buf = NULL;
 	    	int foff = trunc_page(scns[i].s_scnptr);
 	    	int off = scns[i].s_scnptr - foff;
 	    	int len = round_page(scns[i].s_size + PAGE_SIZE);

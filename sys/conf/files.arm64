@@ -1,5 +1,4 @@
 # $FreeBSD$
-arm/arm/devmap.c		standard
 arm/arm/generic_timer.c		standard
 arm/arm/pmu.c			standard
 arm64/acpica/acpi_machdep.c	optional	acpi
@@ -12,6 +11,7 @@ arm64/arm64/bus_machdep.c	standard
 arm64/arm64/bus_space_asm.S	standard
 arm64/arm64/busdma_bounce.c	standard
 arm64/arm64/busdma_machdep.c	standard
+arm64/arm64/bzero.S		standard
 arm64/arm64/clock.c		standard
 arm64/arm64/copyinout.S		standard
 arm64/arm64/copystr.c		standard
@@ -66,6 +66,7 @@ dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
 dev/mmc/host/dwmmc.c		optional	dwmmc
 dev/mmc/host/dwmmc_hisi.c	optional	dwmmc soc_hisi_hi6220
 dev/ofw/ofw_cpu.c		optional	fdt
+dev/ofw/ofwpci.c		optional 	fdt pci
 dev/pci/pci_host_generic.c	optional	pci fdt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm64.S		optional	psci
@@ -82,6 +83,7 @@ dev/vnic/thunder_mdio_fdt.c	optional	vnic fdt
 dev/vnic/thunder_mdio.c		optional	vnic
 dev/vnic/lmac_if.m		optional	vnic
 kern/kern_clocksource.c		standard
+kern/subr_devmap.c		standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard

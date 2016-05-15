@@ -3957,7 +3957,7 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 	 * (Selective ACK). We could optionally validate the SACK values
 	 * against the current ACK window, either forwards or backwards, but
 	 * I'm not confident that SACK has been implemented properly
-	 * everywhere. It wouldn't surprise me if several stacks accidently
+	 * everywhere. It wouldn't surprise me if several stacks accidentally
 	 * SACK too far backwards of previously ACKed data. There really aren't
 	 * any security implications of bad SACKing unless the target stack
 	 * doesn't validate the option length correctly. Someone trying to
@@ -6192,11 +6192,13 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	 * We do need to be careful about bridges. If the
 	 * net.link.bridge.pfil_bridge sysctl is set we can be filtering on a
 	 * bridge, so if the input interface is a bridge member and the output
-	 * interface is its bridge we're not actually forwarding but bridging.
+	 * interface is its bridge or a member of the same bridge we're not
+	 * actually forwarding but bridging.
 	 */
-	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif
-	    && (m->m_pkthdr.rcvif->if_bridge == NULL
-	        || m->m_pkthdr.rcvif->if_bridge != ifp->if_softc))
+	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif &&
+	    (m->m_pkthdr.rcvif->if_bridge == NULL ||
+	    (m->m_pkthdr.rcvif->if_bridge != ifp->if_softc &&
+	    m->m_pkthdr.rcvif->if_bridge != ifp->if_bridge)))
 		fwdir = PF_FWD;
 
 	if (!V_pf_status.running)

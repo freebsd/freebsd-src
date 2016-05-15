@@ -117,7 +117,10 @@ set_controller(ig4iic_softc_t *sc, uint32_t ctl)
 			error = 0;
 			break;
 		}
-		mtx_sleep(sc, &sc->io_lock, 0, "i2cslv", 1);
+		if (cold)
+			DELAY(1000);
+		else
+			mtx_sleep(sc, &sc->io_lock, 0, "i2cslv", 1);
 	}
 	return (error);
 }
@@ -656,7 +659,7 @@ ig4iic_smb_callback(device_t dev, int index, void *data)
 /*
  * Quick command.  i.e. START + cmd + R/W + STOP and no data.  It is
  * unclear to me how I could implement this with the intel i2c controller
- * because the controler sends STARTs and STOPs automatically with data.
+ * because the controller sends STARTs and STOPs automatically with data.
  */
 int
 ig4iic_smb_quick(device_t dev, u_char slave, int how)

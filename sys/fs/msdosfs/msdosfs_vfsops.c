@@ -606,9 +606,8 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	} else {
 		pmp->pm_rootdirblk = pmp->pm_fatblk +
 			(pmp->pm_FATs * pmp->pm_FATsecs);
-		pmp->pm_rootdirsize = (pmp->pm_RootDirEnts * sizeof(struct direntry)
-				       + DEV_BSIZE - 1)
-			/ DEV_BSIZE; /* in blocks */
+		pmp->pm_rootdirsize = howmany(pmp->pm_RootDirEnts *
+			sizeof(struct direntry), DEV_BSIZE); /* in blocks */
 		pmp->pm_firstcluster = pmp->pm_rootdirblk + pmp->pm_rootdirsize;
 	}
 

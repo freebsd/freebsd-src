@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/sched.h>
@@ -51,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_sched.h"
 
 #ifdef SMP
+MALLOC_DEFINE(M_TOPO, "toponodes", "SMP topology data");
+
 volatile cpuset_t stopped_cpus;
 volatile cpuset_t started_cpus;
 volatile cpuset_t suspended_cpus;
@@ -556,7 +559,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rendezvous_cpus(all_cpus, setup_func, action_func, teardown_func, arg);
 }
 
-static struct cpu_group group[MAXCPU];
+static struct cpu_group group[MAXCPU * MAX_CACHE_LEVELS + 1];
 
 struct cpu_group *
 smp_topo(void)
@@ -613,6 +616,17 @@ smp_topo(void)
 		    top, cpusetobj_strprint(cpusetbuf, &top->cg_mask),
 		    cpusetobj_strprint(cpusetbuf2, &all_cpus));
 	return (top);
+}
+
+struct cpu_group *
+smp_topo_alloc(u_int count)
+{
+	static u_int index;
+	u_int curr;
+
+	curr = index;
+	index += count;
+	return (&group[curr]);
 }
 
 struct cpu_group *
@@ -860,4 +874,267 @@ sysctl_kern_smp_active(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &active, sizeof(active));
 	return (error);
 }
+
+
+#ifdef SMP
+void
+topo_init_node(struct topo_node *node)
+{
+
+	bzero(node, sizeof(*node));
+	TAILQ_INIT(&node->children);
+}
+
+void
+topo_init_root(struct topo_node *root)
+{
+
+	topo_init_node(root);
+	root->type = TOPO_TYPE_SYSTEM;
+}
+
+/*
+ * Add a child node with the given ID under the given parent.
+ * Do nothing if there is already a child with that ID.
+ */
+struct topo_node *
+topo_add_node_by_hwid(struct topo_node *parent, int hwid,
+    topo_node_type type, uintptr_t subtype)
+{
+	struct topo_node *node;
+
+	TAILQ_FOREACH_REVERSE(node, &parent->children,
+	    topo_children, siblings) {
+		if (node->hwid == hwid
+		    && node->type == type && node->subtype == subtype) {
+			return (node);
+		}
+	}
+
+	node = malloc(sizeof(*node), M_TOPO, M_WAITOK);
+	topo_init_node(node);
+	node->parent = parent;
+	node->hwid = hwid;
+	node->type = type;
+	node->subtype = subtype;
+	TAILQ_INSERT_TAIL(&parent->children, node, siblings);
+	parent->nchildren++;
+
+	return (node);
+}
+
+/*
+ * Find a child node with the given ID under the given parent.
+ */
+struct topo_node *
+topo_find_node_by_hwid(struct topo_node *parent, int hwid,
+    topo_node_type type, uintptr_t subtype)
+{
+
+	struct topo_node *node;
+
+	TAILQ_FOREACH(node, &parent->children, siblings) {
+		if (node->hwid == hwid
+		    && node->type == type && node->subtype == subtype) {
+			return (node);
+		}
+	}
+
+	return (NULL);
+}
+
+/*
+ * Given a node change the order of its parent's child nodes such
+ * that the node becomes the firt child while preserving the cyclic
+ * order of the children.  In other words, the given node is promoted
+ * by rotation.
+ */
+void
+topo_promote_child(struct topo_node *child)
+{
+	struct topo_node *next;
+	struct topo_node *node;
+	struct topo_node *parent;
+
+	parent = child->parent;
+	next = TAILQ_NEXT(child, siblings);
+	TAILQ_REMOVE(&parent->children, child, siblings);
+	TAILQ_INSERT_HEAD(&parent->children, child, siblings);
+
+	while (next != NULL) {
+		node = next;
+		next = TAILQ_NEXT(node, siblings);
+		TAILQ_REMOVE(&parent->children, node, siblings);
+		TAILQ_INSERT_AFTER(&parent->children, child, node, siblings);
+		child = node;
+	}
+}
+
+/*
+ * Iterate to the next node in the depth-first search (traversal) of
+ * the topology tree.
+ */
+struct topo_node *
+topo_next_node(struct topo_node *top, struct topo_node *node)
+{
+	struct topo_node *next;
+
+	if ((next = TAILQ_FIRST(&node->children)) != NULL)
+		return (next);
+
+	if ((next = TAILQ_NEXT(node, siblings)) != NULL)
+		return (next);
+
+	while ((node = node->parent) != top)
+		if ((next = TAILQ_NEXT(node, siblings)) != NULL)
+			return (next);
+
+	return (NULL);
+}
+
+/*
+ * Iterate to the next node in the depth-first search of the topology tree,
+ * but without descending below the current node.
+ */
+struct topo_node *
+topo_next_nonchild_node(struct topo_node *top, struct topo_node *node)
+{
+	struct topo_node *next;
+
+	if ((next = TAILQ_NEXT(node, siblings)) != NULL)
+		return (next);
+
+	while ((node = node->parent) != top)
+		if ((next = TAILQ_NEXT(node, siblings)) != NULL)
+			return (next);
+
+	return (NULL);
+}
+
+/*
+ * Assign the given ID to the given topology node that represents a logical
+ * processor.
+ */
+void
+topo_set_pu_id(struct topo_node *node, cpuid_t id)
+{
+
+	KASSERT(node->type == TOPO_TYPE_PU,
+	    ("topo_set_pu_id: wrong node type: %u", node->type));
+	KASSERT(CPU_EMPTY(&node->cpuset) && node->cpu_count == 0,
+	    ("topo_set_pu_id: cpuset already not empty"));
+	node->id = id;
+	CPU_SET(id, &node->cpuset);
+	node->cpu_count = 1;
+	node->subtype = 1;
+
+	while ((node = node->parent) != NULL) {
+		KASSERT(!CPU_ISSET(id, &node->cpuset),
+		    ("logical ID %u is already set in node %p", id, node));
+		CPU_SET(id, &node->cpuset);
+		node->cpu_count++;
+	}
+}
+
+/*
+ * Check if the topology is uniform, that is, each package has the same number
+ * of cores in it and each core has the same number of threads (logical
+ * processors) in it.  If so, calculate the number of package, the number of
+ * cores per package and the number of logical processors per core.
+ * 'all' parameter tells whether to include administratively disabled logical
+ * processors into the analysis.
+ */
+int
+topo_analyze(struct topo_node *topo_root, int all,
+    int *pkg_count, int *cores_per_pkg, int *thrs_per_core)
+{
+	struct topo_node *pkg_node;
+	struct topo_node *core_node;
+	struct topo_node *pu_node;
+	int thrs_per_pkg;
+	int cpp_counter;
+	int tpc_counter;
+	int tpp_counter;
+
+	*pkg_count = 0;
+	*cores_per_pkg = -1;
+	*thrs_per_core = -1;
+	thrs_per_pkg = -1;
+	pkg_node = topo_root;
+	while (pkg_node != NULL) {
+		if (pkg_node->type != TOPO_TYPE_PKG) {
+			pkg_node = topo_next_node(topo_root, pkg_node);
+			continue;
+		}
+		if (!all && CPU_EMPTY(&pkg_node->cpuset)) {
+			pkg_node = topo_next_nonchild_node(topo_root, pkg_node);
+			continue;
+		}
+
+		(*pkg_count)++;
+
+		cpp_counter = 0;
+		tpp_counter = 0;
+		core_node = pkg_node;
+		while (core_node != NULL) {
+			if (core_node->type == TOPO_TYPE_CORE) {
+				if (!all && CPU_EMPTY(&core_node->cpuset)) {
+					core_node =
+					    topo_next_nonchild_node(pkg_node,
+					        core_node);
+					continue;
+				}
+
+				cpp_counter++;
+
+				tpc_counter = 0;
+				pu_node = core_node;
+				while (pu_node != NULL) {
+					if (pu_node->type == TOPO_TYPE_PU &&
+					    (all || !CPU_EMPTY(&pu_node->cpuset)))
+						tpc_counter++;
+					pu_node = topo_next_node(core_node,
+					    pu_node);
+				}
+
+				if (*thrs_per_core == -1)
+					*thrs_per_core = tpc_counter;
+				else if (*thrs_per_core != tpc_counter)
+					return (0);
+
+				core_node = topo_next_nonchild_node(pkg_node,
+				    core_node);
+			} else {
+				/* PU node directly under PKG. */
+				if (core_node->type == TOPO_TYPE_PU &&
+			           (all || !CPU_EMPTY(&core_node->cpuset)))
+					tpp_counter++;
+				core_node = topo_next_node(pkg_node,
+				    core_node);
+			}
+		}
+
+		if (*cores_per_pkg == -1)
+			*cores_per_pkg = cpp_counter;
+		else if (*cores_per_pkg != cpp_counter)
+			return (0);
+		if (thrs_per_pkg == -1)
+			thrs_per_pkg = tpp_counter;
+		else if (thrs_per_pkg != tpp_counter)
+			return (0);
+
+		pkg_node = topo_next_nonchild_node(topo_root, pkg_node);
+	}
+
+	KASSERT(*pkg_count > 0,
+		("bug in topology or analysis"));
+	if (*cores_per_pkg == 0) {
+		KASSERT(*thrs_per_core == -1 && thrs_per_pkg > 0,
+			("bug in topology or analysis"));
+		*thrs_per_core = thrs_per_pkg;
+	}
+
+	return (1);
+}
+#endif /* SMP */
 

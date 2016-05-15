@@ -568,9 +568,11 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 				p->additional_length = 31;
 				p->flags = SID_WBus16|SID_Sync|SID_CmdQue;
 				/* OEM Vendor defines */
-				strcpy(p->vendor,"Adaptec ");
-				strcpy(p->product,"Array           ");
-				strcpy(p->revision,"V1.0");
+				strncpy(p->vendor, "Adaptec ", sizeof(p->vendor));
+				strncpy(p->product, "Array           ",
+				    sizeof(p->product));
+				strncpy(p->revision, "V1.0",
+				    sizeof(p->revision));
 			}	
 		} else {
 			if (inq->page_code == SVPD_SUPPORTED_PAGE_LIST) {
@@ -1179,7 +1181,7 @@ aac_cam_complete(struct aac_command *cm)
 	} else {
 		/*
 		 * The SRB error codes just happen to match the CAM error
-		 * codes.  How convienient!
+		 * codes.  How convenient!
 		 */
 		ccb->ccb_h.status = srbr->srb_status;
 

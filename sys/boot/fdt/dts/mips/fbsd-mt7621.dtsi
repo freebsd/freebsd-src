@@ -1,0 +1,73 @@
+/* $FreeBSD$ */
+
+/ {
+	/* Specify alias for serial0 so we have a working console */
+	aliases {
+		serial0 = "/palmbus@1E000000/uartlite@c00";
+	};
+
+	/*
+	 * OpenWRT doesn't define a clock controller, but we currently need one
+	 */
+	clkctrl: cltctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	palmbus@1E000000 {
+		uartlite@c00 { clock-frequency = <50000000>; };
+
+		gpio@600 {
+			/*
+			 * Mark gpio as compatible to simple-bus and override
+			 * its #size-cells and provide a default ranges property
+			 * so we can attach instances of our mtk_gpio_v2 driver
+			 * to it for now. Provide exactly the same resources to
+			 * the instances of mtk_gpio_v2.
+			 */
+			compatible = "simple-bus";
+			ranges = <0x0 0x600 0x100>;
+			#size-cells = <1>;
+
+			interrupt-parent = <&gic>;
+
+			gpio0: bank@0 {
+				reg = <0x0 0x100>;
+				interrupts = <0 6 4>;
+			};
+
+			gpio1: bank@1 {
+				reg = <0x0 0x100>;
+				interrupts = <0 6 4>;
+			};
+
+			gpio2: bank@2 {
+				reg = <0x0 0x100>;
+				interrupts = <0 6 4>;
+			};
+		};
+	};
+
+	xhci@1E1C0000 {
+		/*
+		 * A slightly different value for reg size is needed by our
+		 * driver for the moment
+		 */
+		reg = <0x1e1c0000 0x20000>;
+	};
+
+	pcie@1e140000 {
+		/*
+		 * Our driver is different that OpenWRT's, so we need slightly
+		 * different values for the reg property
+		 */
+		reg = <0x1e140000 0x10000>;
+
+		/*
+		 * Also, we need resets and clocks defined, so we can properly
+		 * initialize the PCIe
+		 */
+		resets = <&rstctrl 24>, <&rstctrl 25>, <&rstctrl 26>;
+		clocks = <&clkctrl 24>, <&clkctrl 25>, <&clkctrl 26>;
+	};
+};

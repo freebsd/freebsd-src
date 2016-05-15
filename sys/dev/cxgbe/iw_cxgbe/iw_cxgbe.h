@@ -157,7 +157,7 @@ static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
 
 static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 {
-	return min((int)T4_MAX_NUM_STAG, (int)(rdev->adap->vres.stag.size >> 5));
+	return (int)(rdev->adap->vres.stag.size >> 5);
 }
 
 #define C4IW_WR_TO (10*HZ)
@@ -435,6 +435,7 @@ struct c4iw_qp {
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	struct timer_list timer;
+	int sq_sig_all;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -712,7 +713,8 @@ enum c4iw_ep_flags {
 	ABORT_REQ_IN_PROGRESS	= 1,
 	RELEASE_RESOURCES	= 2,
 	CLOSE_SENT		= 3,
-	TIMEOUT                 = 4
+	TIMEOUT                 = 4,
+	QP_REFERENCED		= 5
 };
 
 enum c4iw_ep_history {
@@ -737,7 +739,13 @@ enum c4iw_ep_history {
         EP_DISC_ABORT           = 18,
         CONN_RPL_UPCALL         = 19,
         ACT_RETRY_NOMEM         = 20,
-        ACT_RETRY_INUSE         = 21
+        ACT_RETRY_INUSE         = 21,
+        CLOSE_CON_RPL           = 22,
+        EP_DISC_FAIL            = 24,
+        QP_REFED                = 25,
+        QP_DEREFED              = 26,
+        CM_ID_REFED             = 27,
+        CM_ID_DEREFED           = 28
 };
 
 struct c4iw_ep_common {
@@ -995,43 +1003,6 @@ gen_pool_destroy(struct gen_pool *gp)
 #else
 #define L1_CACHE_BYTES 32
 #endif
-
-static inline
-int idr_for_each(struct idr *idp,
-                 int (*fn)(int id, void *p, void *data), void *data)
-{
-        int n, id, max, error = 0;
-        struct idr_layer *p;
-        struct idr_layer *pa[MAX_LEVEL];
-        struct idr_layer **paa = &pa[0];
-
-        n = idp->layers * IDR_BITS;
-        p = idp->top;
-        max = 1 << n;
-
-        id = 0;
-        while (id < max) {
-                while (n > 0 && p) {
-                        n -= IDR_BITS;
-                        *paa++ = p;
-                        p = p->ary[(id >> n) & IDR_MASK];
-                }
-
-                if (p) {
-                        error = fn(id, (void *)p, data);
-                        if (error)
-                                break;
-                }
-
-                id += 1 << n;
-                while (n < fls(id)) {
-                        n += IDR_BITS;
-                        p = *--paa;
-                }
-        }
-
-        return error;
-}
 
 void c4iw_cm_init_cpl(struct adapter *);
 void c4iw_cm_term_cpl(struct adapter *);

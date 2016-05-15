@@ -605,9 +605,6 @@ p4_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	p4c = malloc(sizeof(struct p4_cpu), M_PMC, M_WAITOK|M_ZERO);
 
-	if (p4c == NULL)
-		return (ENOMEM);
-
 	pc = pmc_pcpu[cpu];
 
 	KASSERT(pc != NULL, ("[p4,%d] cpu %d null per-cpu", __LINE__, cpu));

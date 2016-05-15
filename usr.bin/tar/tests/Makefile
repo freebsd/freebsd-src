@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
@@ -28,11 +30,13 @@ TESTS_SRCS=	\
 	test_extract_tar_gz.c			\
 	test_extract_tar_lrz.c			\
 	test_extract_tar_lz.c			\
+	test_extract_tar_lz4.c			\
 	test_extract_tar_lzma.c			\
 	test_extract_tar_lzo.c			\
 	test_extract_tar_xz.c			\
 	test_format_newc.c			\
 	test_help.c				\
+	test_leading_slash.c			\
 	test_option_C_upper.c			\
 	test_option_H_upper.c			\
 	test_option_L_upper.c			\
@@ -50,12 +54,14 @@ TESTS_SRCS=	\
 	test_option_k.c				\
 	test_option_keep_newer_files.c		\
 	test_option_lrzip.c			\
+	test_option_lz4.c			\
 	test_option_lzma.c			\
 	test_option_lzop.c			\
 	test_option_n.c				\
 	test_option_newer_than.c		\
 	test_option_nodump.c			\
 	test_option_older_than.c		\
+	test_option_passphrase.c		\
 	test_option_q.c				\
 	test_option_r.c				\
 	test_option_s.c				\
@@ -87,20 +93,23 @@ list.h: ${TESTS_SRCS} Makefile
 
 CLEANFILES+=	list.h list.h.tmp
 
-FILES+=	test_extract.tar.Z.uu
-FILES+=	test_extract.tar.bz2.uu
-FILES+=	test_extract.tar.grz.uu
-FILES+=	test_extract.tar.gz.uu
-FILES+=	test_extract.tar.lrz.uu
-FILES+=	test_extract.tar.lz.uu
-FILES+=	test_extract.tar.lzma.uu
-FILES+=	test_extract.tar.lzo.uu
-FILES+=	test_extract.tar.xz.uu
-FILES+=	test_option_keep_newer_files.tar.Z.uu
-FILES+=	test_option_s.tar.Z.uu
-FILES+=	test_patterns_2.tar.uu
-FILES+=	test_patterns_3.tar.uu
-FILES+=	test_patterns_4.tar.uu
-FILES+=	test_print_longpath.tar.Z.uu
+${PACKAGE}FILES+=	test_extract.tar.Z.uu
+${PACKAGE}FILES+=	test_extract.tar.bz2.uu
+${PACKAGE}FILES+=	test_extract.tar.grz.uu
+${PACKAGE}FILES+=	test_extract.tar.gz.uu
+${PACKAGE}FILES+=	test_extract.tar.lrz.uu
+${PACKAGE}FILES+=	test_extract.tar.lz.uu
+${PACKAGE}FILES+=	test_extract.tar.lz4.uu
+${PACKAGE}FILES+=	test_extract.tar.lzma.uu
+${PACKAGE}FILES+=	test_extract.tar.lzo.uu
+${PACKAGE}FILES+=	test_extract.tar.xz.uu
+${PACKAGE}FILES+=	test_leading_slash.tar.uu
+${PACKAGE}FILES+=	test_option_keep_newer_files.tar.Z.uu
+${PACKAGE}FILES+=	test_option_passphrase.zip.uu
+${PACKAGE}FILES+=	test_option_s.tar.Z.uu
+${PACKAGE}FILES+=	test_patterns_2.tar.uu
+${PACKAGE}FILES+=	test_patterns_3.tar.uu
+${PACKAGE}FILES+=	test_patterns_4.tar.uu
+${PACKAGE}FILES+=	test_print_longpath.tar.Z.uu
 
 .include <bsd.test.mk>

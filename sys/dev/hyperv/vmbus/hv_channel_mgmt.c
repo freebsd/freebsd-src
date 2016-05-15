@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -27,7 +27,10 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 
 #include "hv_vmbus_priv.h"
 
@@ -91,6 +94,14 @@ typedef struct hv_work_item {
 	void		(*callback)(void *);
 	void*		context;
 } hv_work_item;
+
+static struct mtx	vmbus_chwait_lock;
+MTX_SYSINIT(vmbus_chwait_lk, &vmbus_chwait_lock, "vmbus primarych wait lock",
+    MTX_DEF);
+static uint32_t		vmbus_chancnt;
+static uint32_t		vmbus_devcnt;
+
+#define VMBUS_CHANCNT_DONE	0x80000000
 
 /**
  * Implementation of the work abstraction.
@@ -163,13 +174,10 @@ hv_vmbus_free_vmbus_channel(hv_vmbus_channel* channel)
 static void
 vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 {
-	boolean_t		f_new;
 	hv_vmbus_channel*	channel;
 	int			ret;
 	uint32_t                relid;
 
-	f_new = TRUE;
-	channel = NULL;
 	relid = new_channel->offer_msg.child_rel_id;
 	/*
 	 * Make sure this is a new offer
@@ -178,31 +186,24 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	hv_vmbus_g_connection.channels[relid] = new_channel;
 
 	TAILQ_FOREACH(channel, &hv_vmbus_g_connection.channel_anchor,
-	    list_entry)
-	{
+	    list_entry) {
 		if (memcmp(&channel->offer_msg.offer.interface_type,
 		    &new_channel->offer_msg.offer.interface_type,
 		    sizeof(hv_guid)) == 0 &&
 		    memcmp(&channel->offer_msg.offer.interface_instance,
 		    &new_channel->offer_msg.offer.interface_instance,
-		    sizeof(hv_guid)) == 0) {
-			f_new = FALSE;
+		    sizeof(hv_guid)) == 0)
 			break;
-		}
 	}
 
-	if (f_new) {
-		/* Insert at tail */
-		TAILQ_INSERT_TAIL(
-		    &hv_vmbus_g_connection.channel_anchor,
-		    new_channel,
-		    list_entry);
+	if (channel == NULL) {
+		/* Install the new primary channel */
+		TAILQ_INSERT_TAIL(&hv_vmbus_g_connection.channel_anchor,
+		    new_channel, list_entry);
 	}
 	mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 
-	/*XXX add new channel to percpu_list */
-
-	if (!f_new) {
+	if (channel != NULL) {
 		/*
 		 * Check if this is a sub channel.
 		 */
@@ -213,16 +214,18 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			new_channel->primary_channel = channel;
 			new_channel->device = channel->device;
 			mtx_lock(&channel->sc_lock);
-			TAILQ_INSERT_TAIL(
-			    &channel->sc_list_anchor,
-			    new_channel,
-			    sc_list_entry);
+			TAILQ_INSERT_TAIL(&channel->sc_list_anchor,
+			    new_channel, sc_list_entry);
 			mtx_unlock(&channel->sc_lock);
 
+			if (bootverbose) {
+				printf("VMBUS get multi-channel offer, "
+				    "rel=%u, sub=%u\n",
+				    new_channel->offer_msg.child_rel_id,
+				    new_channel->offer_msg.offer.sub_channel_index);	
+			}
+
 			/* Insert new channel into channel_anchor. */
-			printf("VMBUS get multi-channel offer, rel=%u,sub=%u\n",
-			    new_channel->offer_msg.child_rel_id,
-			    new_channel->offer_msg.offer.sub_channel_index);	
 			mtx_lock(&hv_vmbus_g_connection.channel_lock);
 			TAILQ_INSERT_TAIL(&hv_vmbus_g_connection.channel_anchor,
 			    new_channel, list_entry);				
@@ -233,17 +236,25 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 				    "its primary channel is <%p>.\n",
 				    new_channel, new_channel->primary_channel);
 
-			/*XXX add it to percpu_list */
-
 			new_channel->state = HV_CHANNEL_OPEN_STATE;
-			if (channel->sc_creation_callback != NULL) {
-				channel->sc_creation_callback(new_channel);
-			}
+
+			/*
+			 * Bump up sub-channel count and notify anyone that is
+			 * interested in this sub-channel, after this sub-channel
+			 * is setup.
+			 */
+			mtx_lock(&channel->sc_lock);
+			channel->subchan_cnt++;
+			mtx_unlock(&channel->sc_lock);
+			wakeup(channel);
+
 			return;
 		}
 
-	    hv_vmbus_free_vmbus_channel(new_channel);
-	    return;
+		printf("VMBUS: duplicated primary channel%u\n",
+		    new_channel->offer_msg.child_rel_id);
+		hv_vmbus_free_vmbus_channel(new_channel);
+		return;
 	}
 
 	new_channel->state = HV_CHANNEL_OPEN_STATE;
@@ -265,13 +276,16 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	ret = hv_vmbus_child_device_register(new_channel->device);
 	if (ret != 0) {
 		mtx_lock(&hv_vmbus_g_connection.channel_lock);
-		TAILQ_REMOVE(
-		    &hv_vmbus_g_connection.channel_anchor,
-		    new_channel,
-		    list_entry);
+		TAILQ_REMOVE(&hv_vmbus_g_connection.channel_anchor,
+		    new_channel, list_entry);
 		mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 		hv_vmbus_free_vmbus_channel(new_channel);
 	}
+
+	mtx_lock(&vmbus_chwait_lock);
+	vmbus_devcnt++;
+	mtx_unlock(&vmbus_chwait_lock);
+	wakeup(&vmbus_devcnt);
 }
 
 void
@@ -364,12 +378,6 @@ vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
 
 	offer = (hv_vmbus_channel_offer_channel*) hdr;
 
-	hv_guid *guidType;
-	hv_guid *guidInstance;
-
-	guidType = &offer->offer.interface_type;
-	guidInstance = &offer->offer.interface_instance;
-
 	// copy offer data
 	copied = malloc(sizeof(*copied), M_DEVBUF, M_NOWAIT);
 	if (copied == NULL) {
@@ -379,6 +387,11 @@ vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
 
 	memcpy(copied, hdr, sizeof(*copied));
 	hv_queue_work_item(vmbus_channel_on_offer_internal, copied);
+
+	mtx_lock(&vmbus_chwait_lock);
+	if ((vmbus_chancnt & VMBUS_CHANCNT_DONE) == 0)
+		vmbus_chancnt++;
+	mtx_unlock(&vmbus_chwait_lock);
 }
 
 static void
@@ -470,6 +483,11 @@ vmbus_channel_on_offer_rescind_internal(void *context)
 static void
 vmbus_channel_on_offers_delivered(hv_vmbus_channel_msg_header* hdr)
 {
+
+	mtx_lock(&vmbus_chwait_lock);
+	vmbus_chancnt |= VMBUS_CHANCNT_DONE;
+	mtx_unlock(&vmbus_chwait_lock);
+	wakeup(&vmbus_chancnt);
 }
 
 /**
@@ -492,7 +510,7 @@ vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr)
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
 	    msg_list_entry) {
@@ -510,7 +528,7 @@ vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr)
 		}
 	    }
 	}
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 }
 
@@ -534,7 +552,7 @@ vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr)
 	/* Find the establish msg, copy the result and signal/unblock
 	 * the wait event
 	 */
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
 		msg_list_entry) {
 	    request_header = (hv_vmbus_channel_msg_header*) msg_info->msg;
@@ -553,7 +571,7 @@ vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr)
 		}
 	    }
 	}
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 }
 
 /**
@@ -578,7 +596,7 @@ vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr)
 	 * wait event.
 	 */
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
 		msg_list_entry) {
@@ -598,7 +616,7 @@ vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr)
 		}
 	    }
 	}
-    mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+    mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 }
 
 /**
@@ -618,7 +636,7 @@ vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr)
 
 	versionResponse = (hv_vmbus_channel_version_response*)hdr;
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
 	    msg_list_entry) {
 	    requestHeader = (hv_vmbus_channel_msg_header*) msg_info->msg;
@@ -632,7 +650,7 @@ vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr)
 		sema_post(&msg_info->wait_sema);
 	    }
 	}
-    mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+    mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 }
 
@@ -746,4 +764,57 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 	}
 
 	return(outgoing_channel);
+}
+
+void
+vmbus_scan(void)
+{
+	uint32_t chancnt;
+
+	mtx_lock(&vmbus_chwait_lock);
+	while ((vmbus_chancnt & VMBUS_CHANCNT_DONE) == 0)
+		mtx_sleep(&vmbus_chancnt, &vmbus_chwait_lock, 0, "waitch", 0);
+	chancnt = vmbus_chancnt & ~VMBUS_CHANCNT_DONE;
+
+	while (vmbus_devcnt != chancnt)
+		mtx_sleep(&vmbus_devcnt, &vmbus_chwait_lock, 0, "waitdev", 0);
+	mtx_unlock(&vmbus_chwait_lock);
+}
+
+struct hv_vmbus_channel **
+vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
+{
+	struct hv_vmbus_channel **ret, *chan;
+	int i;
+
+	ret = malloc(subchan_cnt * sizeof(struct hv_vmbus_channel *), M_TEMP,
+	    M_WAITOK);
+
+	mtx_lock(&pri_chan->sc_lock);
+
+	while (pri_chan->subchan_cnt < subchan_cnt)
+		mtx_sleep(pri_chan, &pri_chan->sc_lock, 0, "subch", 0);
+
+	i = 0;
+	TAILQ_FOREACH(chan, &pri_chan->sc_list_anchor, sc_list_entry) {
+		/* TODO: refcnt chan */
+		ret[i] = chan;
+
+		++i;
+		if (i == subchan_cnt)
+			break;
+	}
+	KASSERT(i == subchan_cnt, ("invalid subchan count %d, should be %d",
+	    pri_chan->subchan_cnt, subchan_cnt));
+
+	mtx_unlock(&pri_chan->sc_lock);
+
+	return ret;
+}
+
+void
+vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
+{
+
+	free(subchan, M_TEMP);
 }

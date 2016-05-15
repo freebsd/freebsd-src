@@ -1202,7 +1202,6 @@ xn_rxeof(struct netfront_rxq *rxq)
 	struct netfront_info *np = rxq->info;
 #if (defined(INET) || defined(INET6))
 	struct lro_ctrl *lro = &rxq->lro;
-	struct lro_entry *queued;
 #endif
 	struct netfront_rx_info rinfo;
 	struct netif_rx_response *rx = &rinfo.rx;
@@ -1296,11 +1295,7 @@ xn_rxeof(struct netfront_rxq *rxq)
 		/*
 		 * Flush any outstanding LRO work
 		 */
-		while (!SLIST_EMPTY(&lro->lro_active)) {
-			queued = SLIST_FIRST(&lro->lro_active);
-			SLIST_REMOVE_HEAD(&lro->lro_active, next);
-			tcp_lro_flush(lro, queued);
-		}
+		tcp_lro_flush_all(lro);
 #endif
 
 		xn_alloc_rx_buffers(rxq);
@@ -2021,7 +2016,7 @@ xn_query_features(struct netfront_info *np)
 	device_printf(np->xbdev, "backend features:");
 
 	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
-		"feature-sg", NULL, "%d", &val) < 0)
+		"feature-sg", NULL, "%d", &val) != 0)
 		val = 0;
 
 	np->maxfrags = 1;
@@ -2031,7 +2026,7 @@ xn_query_features(struct netfront_info *np)
 	}
 
 	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
-		"feature-gso-tcpv4", NULL, "%d", &val) < 0)
+		"feature-gso-tcpv4", NULL, "%d", &val) != 0)
 		val = 0;
 
 	np->xn_ifp->if_capabilities &= ~(IFCAP_TSO4|IFCAP_LRO);

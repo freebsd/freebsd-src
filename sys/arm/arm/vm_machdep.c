@@ -148,7 +148,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;;
+	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;
 #if __ARM_ARCH >= 6
 	td2->td_md.md_tp = td1->td_md.md_tp;
 #else
@@ -191,11 +191,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		register_t code = ap[_QUAD_LOWWORD];
 		if (td->td_proc->p_sysent->sv_mask)
 			code &= td->td_proc->p_sysent->sv_mask;
-		fixup = (
-#if defined(COMPAT_FREEBSD6) && defined(SYS_freebsd6_lseek)
-		    code != SYS_freebsd6_lseek &&
-#endif
-		    code != SYS_lseek) ? 1 : 0;
+		fixup = (code != SYS_lseek);
 	}
 #endif
 

@@ -238,7 +238,7 @@ int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 int	aio_mlock(struct aiocb *);
 
 #ifdef __BSD_VISIBLE
-int	aio_waitcomplete(struct aiocb **, struct timespec *);
+ssize_t	aio_waitcomplete(struct aiocb **, struct timespec *);
 #endif
 
 int	aio_fsync(int op, struct aiocb *aiocbp);

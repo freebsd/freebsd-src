@@ -285,6 +285,16 @@ main(int argc, char *const *argv)
 		err(EX_NOPERM, "setuid() failed");
 	uid = getuid();
 
+	if (ssend < 0) {
+		errno = ssend_errno;
+		err(EX_OSERR, "ssend socket");
+	}
+
+	if (srecv < 0) {
+		errno = srecv_errno;
+		err(EX_OSERR, "srecv socket");
+	}
+
 	alarmtimeout = df = preload = tos = 0;
 
 	outpack = outpackhdr + sizeof(struct ip);
@@ -625,16 +635,6 @@ main(int argc, char *const *argv)
 	}
 #endif
 
-	if (ssend < 0) {
-		errno = ssend_errno;
-		err(EX_OSERR, "ssend socket");
-	}
-
-	if (srecv < 0) {
-		errno = srecv_errno;
-		err(EX_OSERR, "srecv socket");
-	}
-
 	if (connect(ssend, (struct sockaddr *)&whereto, sizeof(whereto)) != 0)
 		err(1, "connect");
 
@@ -794,7 +794,7 @@ main(int argc, char *const *argv)
 #endif
 	if (sweepmax) {
 		if (sweepmin > sweepmax)
-			errx(EX_USAGE, "Maximum packet size must be no less than the minimum packet size");                                  
+			errx(EX_USAGE, "Maximum packet size must be no less than the minimum packet size");
 
 		if (datalen != DEFDATALEN)
 			errx(EX_USAGE, "Packet size and ping sweep are mutually exclusive");
@@ -1201,7 +1201,7 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timeval *tv)
 			if (options & F_MASK) {
 				/* Just prentend this cast isn't ugly */
 				(void)printf(" mask=%s",
-					pr_addr(*(struct in_addr *)&(icp->icmp_mask)));
+					inet_ntoa(*(struct in_addr *)&(icp->icmp_mask)));
 			}
 			if (options & F_TIME) {
 				(void)printf(" tso=%s", pr_ntime(icp->icmp_otime));

@@ -1,10 +1,9 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.bin/bmake
+PACKAGE=	tests
 
-FILESDIR=	${TESTSDIR}
-FILES=		common.sh
-FILES+=		test-new.mk
+${PACKAGE}FILES+=	common.sh
+${PACKAGE}FILES+=	test-new.mk
 
 TESTS_SUBDIRS=	archives
 TESTS_SUBDIRS+=	basic

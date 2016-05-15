@@ -479,7 +479,9 @@ g_eli_worker(void *arg)
 
 	wr = arg;
 	sc = wr->w_softc;
-#ifdef SMP
+#ifdef EARLY_AP_STARTUP
+	MPASS(!sc->sc_cpubind || smp_started);
+#elif defined(SMP)
 	/* Before sched_bind() to a CPU, wait for all CPUs to go on-line. */
 	if (sc->sc_cpubind) {
 		while (!smp_started)
@@ -1181,6 +1183,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		ADD_FLAG(G_ELI_FLAG_DESTROY, "DESTROY");
 		ADD_FLAG(G_ELI_FLAG_RO, "READ-ONLY");
 		ADD_FLAG(G_ELI_FLAG_NODELETE, "NODELETE");
+		ADD_FLAG(G_ELI_FLAG_GELIBOOT, "GELIBOOT");
 #undef  ADD_FLAG
 	}
 	sbuf_printf(sb, "</Flags>\n");

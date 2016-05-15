@@ -315,8 +315,8 @@ errfin:
 }
 
 /* protoent_check_ambiguity() is needed when one port+proto is associated with
- * more than one peice (these cases are usually marked as PROBLEM in
- * /etc/peices. This functions is needed also when one peice+proto is
+ * more than one piece (these cases are usually marked as PROBLEM in
+ * /etc/peices. This functions is needed also when one piece+proto is
  * associated with several ports. We have to check all the protoent structures
  * to make sure that pe really exists and correct */
 static int

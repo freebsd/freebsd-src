@@ -33,6 +33,7 @@
 . /etc/rc.subr
 
 name="tmp"
+desc="Configure tmpfs"
 stop_cmd=':'
 
 load_rc_config $name

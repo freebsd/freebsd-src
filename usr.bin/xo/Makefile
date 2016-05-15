@@ -12,7 +12,10 @@ MAN=	xo.1
 # XXX For xoversion.h
 CFLAGS+=-I${LIBXOSRC}/libxo
 
-LIBADD=	xo
+# XXX For xo_config.h
+CFLAGS+=-I${SRCTOP}/lib/libxo
+
+LIBADD=	xo util
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests

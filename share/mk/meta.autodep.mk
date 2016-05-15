@@ -19,7 +19,7 @@ _this ?= ${.PARSEFILE}
 .if !target(__${_this}__)
 __${_this}__: .NOTMAIN
 
-.-include "local.autodep.mk"
+.-include <local.autodep.mk>
 
 .if defined(SRCS)
 # it would be nice to be able to query .SUFFIXES
@@ -55,6 +55,21 @@ _OBJDIR ?= ${.OBJDIR}
 _OBJTOP ?= ${OBJTOP}
 _OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
 _DEPENDFILE := ${_CURDIR}/${.MAKE.DEPENDFILE:T}
+
+.if ${.MAKE.LEVEL} > 0 || ${BUILD_AT_LEVEL0:Uyes:tl} == "yes"
+# do not allow auto update if we ever built this dir without filemon
+NO_FILEMON_COOKIE = .nofilemon
+CLEANFILES += ${NO_FILEMON_COOKIE}
+.if ${.MAKE.MODE:Uno:Mnofilemon} != ""
+UPDATE_DEPENDFILE = NO
+all: ${NO_FILEMON_COOKIE}
+${NO_FILEMON_COOKIE}: .NOMETA
+	@echo UPDATE_DEPENDFILE=NO > ${.TARGET}
+.elif exists(${NO_FILEMON_COOKIE})
+UPDATE_DEPENDFILE = NO
+.warning ${RELDIR} built with nofilemon; UPDATE_DEPENDFILE=NO
+.endif
+.endif
 
 .if ${.MAKE.LEVEL} == 0
 .if ${BUILD_AT_LEVEL0:Uyes:tl} == "no"

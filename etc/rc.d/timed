@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="timed"
+desc="Time server daemon"
 rcvar="timed_enable"
 command="/usr/sbin/${name}"
 

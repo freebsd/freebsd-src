@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 static u_long digi_validio[] = {
 	0x100, 0x110, 0x120, 0x200, 0x220, 0x300, 0x320
 };
-#define DIGI_NVALIDIO	(sizeof(digi_validio) / sizeof(digi_validio[0]))
+#define	DIGI_NVALIDIO	nitems(digi_validio)
 #define	IO_SIZE		0x04
 
 static u_long digi_validmem[] = {
@@ -68,7 +68,7 @@ static u_long digi_validmem[] = {
 	0xf6000000, 0xf7000000, 0xf8000000, 0xf9000000, 0xfa000000, 0xfb000000,
 	0xfc000000, 0xfd000000, 0xfe000000, 0xff000000
 };
-#define DIGI_NVALIDMEM	(sizeof(digi_validmem) / sizeof(digi_validmem[0]))
+#define	DIGI_NVALIDMEM	nitems(digi_validmem)
 
 static u_char *
 digi_isa_setwin(struct digi_softc *sc, unsigned int addr)

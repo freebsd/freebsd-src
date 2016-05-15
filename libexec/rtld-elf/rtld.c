@@ -519,7 +519,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    rtld_die();
     }
 
-    if (aux_info[AT_EXECPATH] != 0) {
+    if (aux_info[AT_EXECPATH] != NULL) {
 	    char *kexecpath;
 	    char buf[MAXPATHLEN];
 
@@ -822,7 +822,7 @@ origin_subst_one(Obj_Entry *obj, char *real, const char *kw,
 	kw_len = strlen(kw);
 
 	/*
-	 * First, count the number of the keyword occurences, to
+	 * First, count the number of the keyword occurrences, to
 	 * preallocate the final string.
 	 */
 	for (p = real, subst_count = 0;; p = p1 + kw_len, subst_count++) {

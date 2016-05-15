@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ldconfig"
+desc="Configure the shared library cache"
 ldconfig_command="/sbin/ldconfig"
 start_cmd="ldconfig_start"
 stop_cmd=":"

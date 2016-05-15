@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_enc.h>
 
 #include "eltsub.h"
@@ -273,6 +272,7 @@ sesled(int argc, char **argv, bool setfault)
 				}
 			}
 		}
+		free(objp);
 		close(fd);
 	}
 	globfree(&g);
@@ -425,6 +425,7 @@ objmap(int argc, char **argv __unused)
 			sbuf_delete(extra);
 			free(e_devname.elm_devnames);
 		}
+		free(e_ptr);
 		close(fd);
 	}
 	globfree(&g);

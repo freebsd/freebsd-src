@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
@@ -36,6 +38,7 @@ TESTS_SRCS=	\
 	test_extract_cpio_gz.c			\
 	test_extract_cpio_lrz.c			\
 	test_extract_cpio_lz.c			\
+	test_extract_cpio_lz4.c			\
 	test_extract_cpio_lzma.c		\
 	test_extract_cpio_lzo.c			\
 	test_extract_cpio_xz.c			\
@@ -56,9 +59,11 @@ TESTS_SRCS=	\
 	test_option_help.c			\
 	test_option_l.c				\
 	test_option_lrzip.c			\
+	test_option_lz4.c			\
 	test_option_lzma.c			\
 	test_option_lzop.c			\
 	test_option_m.c				\
+	test_option_passphrase.c		\
 	test_option_t.c				\
 	test_option_u.c				\
 	test_option_uuencode.c			\
@@ -87,27 +92,29 @@ list.h: ${TESTS_SRCS} Makefile
 
 CLEANFILES+=	list.h list.h.tmp
 
-FILES+= test_extract.cpio.Z.uu
-FILES+= test_extract.cpio.bz2.uu
-FILES+= test_extract.cpio.grz.uu
-FILES+= test_extract.cpio.gz.uu
-FILES+= test_extract.cpio.lrz.uu
-FILES+= test_extract.cpio.lz.uu
-FILES+= test_extract.cpio.lzma.uu
-FILES+= test_extract.cpio.lzo.uu
-FILES+= test_extract.cpio.xz.uu
-FILES+= test_gcpio_compat_ref.bin.uu
-FILES+= test_gcpio_compat_ref.crc.uu
-FILES+= test_gcpio_compat_ref.newc.uu
-FILES+= test_gcpio_compat_ref.ustar.uu
-FILES+= test_gcpio_compat_ref_nosym.bin.uu
-FILES+= test_gcpio_compat_ref_nosym.crc.uu
-FILES+= test_gcpio_compat_ref_nosym.newc.uu
-FILES+= test_gcpio_compat_ref_nosym.ustar.uu
-FILES+= test_option_f.cpio.uu
-FILES+= test_option_m.cpio.uu
-FILES+= test_option_t.cpio.uu
-FILES+= test_option_t.stdout.uu
-FILES+= test_option_tv.stdout.uu
+${PACKAGE}FILES+= test_extract.cpio.Z.uu
+${PACKAGE}FILES+= test_extract.cpio.bz2.uu
+${PACKAGE}FILES+= test_extract.cpio.grz.uu
+${PACKAGE}FILES+= test_extract.cpio.gz.uu
+${PACKAGE}FILES+= test_extract.cpio.lrz.uu
+${PACKAGE}FILES+= test_extract.cpio.lz.uu
+${PACKAGE}FILES+= test_extract.cpio.lz4.uu
+${PACKAGE}FILES+= test_extract.cpio.lzma.uu
+${PACKAGE}FILES+= test_extract.cpio.lzo.uu
+${PACKAGE}FILES+= test_extract.cpio.xz.uu
+${PACKAGE}FILES+= test_gcpio_compat_ref.bin.uu
+${PACKAGE}FILES+= test_gcpio_compat_ref.crc.uu
+${PACKAGE}FILES+= test_gcpio_compat_ref.newc.uu
+${PACKAGE}FILES+= test_gcpio_compat_ref.ustar.uu
+${PACKAGE}FILES+= test_gcpio_compat_ref_nosym.bin.uu
+${PACKAGE}FILES+= test_gcpio_compat_ref_nosym.crc.uu
+${PACKAGE}FILES+= test_gcpio_compat_ref_nosym.newc.uu
+${PACKAGE}FILES+= test_gcpio_compat_ref_nosym.ustar.uu
+${PACKAGE}FILES+= test_option_f.cpio.uu
+${PACKAGE}FILES+= test_option_m.cpio.uu
+${PACKAGE}FILES+= test_option_passphrase.zip.uu
+${PACKAGE}FILES+= test_option_t.cpio.uu
+${PACKAGE}FILES+= test_option_t.stdout.uu
+${PACKAGE}FILES+= test_option_tv.stdout.uu
 
 .include <bsd.test.mk>

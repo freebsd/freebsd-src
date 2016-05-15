@@ -438,7 +438,9 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      suffixes declared with ..SSUUFFFFIIXXEESS or it will not be recog-
                      nized.
 
-           _._T_A_R_G_E_T   The name of the target; also known as `_@'.
+           _._T_A_R_G_E_T   The name of the target; also known as `_@'.  For compati-
+                     bility with other makes this is an alias for ..AARRCCHHIIVVEE in
+                     archive member rules.
 
      The shorter forms (`_>', `_!', `_<', `_%', `_?', `_*', and `_@') are permitted
      for backward compatibility with historical makefiles and legacy POSIX

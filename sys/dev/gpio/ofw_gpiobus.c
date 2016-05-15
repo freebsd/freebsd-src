@@ -56,21 +56,17 @@ static int ofw_gpiobus_parse_gpios_impl(device_t, phandle_t, char *,
  *
  */
 static int
-gpio_pin_get_by_ofw_impl(device_t consumer_dev, char *prop_name, int idx,
-    gpio_pin_t *out_pin)
+gpio_pin_get_by_ofw_impl(device_t consumer, phandle_t cnode,
+    char *prop_name, int idx, gpio_pin_t *out_pin)
 {
-	phandle_t cnode, xref;
+	phandle_t xref;
 	pcell_t *cells;
 	device_t busdev;
 	struct gpiobus_pin pin;
 	int ncells, rv;
 
-	cnode = ofw_bus_get_node(consumer_dev);
-	if (cnode <= 0) {
-		device_printf(consumer_dev,
-		    "%s called on not ofw based device\n", __func__);
-		return (ENXIO);
-	}
+	KASSERT(consumer != NULL && cnode > 0,
+	    ("both consumer and cnode required"));
 
 	rv = ofw_bus_parse_xref_list_alloc(cnode, prop_name, "#gpio-cells",
 	    idx, &xref, &ncells, &cells);
@@ -80,32 +76,28 @@ gpio_pin_get_by_ofw_impl(device_t consumer_dev, char *prop_name, int idx,
 	/* Translate provider to device. */
 	pin.dev = OF_device_from_xref(xref);
 	if (pin.dev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 
 	/* Test if GPIO bus already exist. */
 	busdev = GPIO_GET_BUS(pin.dev);
 	if (busdev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 
 	/* Map GPIO pin. */
 	rv = gpio_map_gpios(pin.dev, cnode, OF_node_from_xref(xref), ncells,
 	    cells, &pin.pin, &pin.flags);
-	free(cells, M_OFWPROP);
-	if (rv != 0) {
-		device_printf(consumer_dev, "Cannot map the gpio property.\n");
+	OF_prop_free(cells);
+	if (rv != 0)
 		return (ENXIO);
-	}
 
 	/* Reserve GPIO pin. */
 	rv = gpiobus_map_pin(busdev, pin.pin);
-	if (rv != 0) {
-		device_printf(consumer_dev, "Cannot reserve gpio pin.\n");
+	if (rv != 0)
 		return (EBUSY);
-	}
 
 	*out_pin = malloc(sizeof(struct gpiobus_pin), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -114,43 +106,49 @@ gpio_pin_get_by_ofw_impl(device_t consumer_dev, char *prop_name, int idx,
 }
 
 int
-gpio_pin_get_by_ofw_idx(device_t consumer_dev, int idx, gpio_pin_t *pin)
+gpio_pin_get_by_ofw_idx(device_t consumer, phandle_t node,
+    int idx, gpio_pin_t *pin)
 {
 
-	return (gpio_pin_get_by_ofw_impl(consumer_dev, "gpios", idx, pin));
+	return (gpio_pin_get_by_ofw_impl(consumer, node, "gpios", idx, pin));
 }
 
 int
-gpio_pin_get_by_ofw_property(device_t consumer_dev, char *name, gpio_pin_t *pin)
+gpio_pin_get_by_ofw_property(device_t consumer, phandle_t node,
+    char *name, gpio_pin_t *pin)
 {
 
-	return (gpio_pin_get_by_ofw_impl(consumer_dev, name, 0, pin));
+	return (gpio_pin_get_by_ofw_impl(consumer, node, name, 0, pin));
 }
 
 int
-gpio_pin_get_by_ofw_name(device_t consumer_dev, char *name, gpio_pin_t *pin)
+gpio_pin_get_by_ofw_name(device_t consumer, phandle_t node,
+    char *name, gpio_pin_t *pin)
 {
 	int rv, idx;
-	phandle_t cnode;
 
-	cnode = ofw_bus_get_node(consumer_dev);
-	if (cnode <= 0) {
-		device_printf(consumer_dev,
-		    "%s called on not ofw based device\n",  __func__);
-		return (ENXIO);
-	}
-	rv = ofw_bus_find_string_index(cnode, "gpio-names", name, &idx);
+	KASSERT(consumer != NULL && node > 0,
+	    ("both consumer and node required"));
+
+	rv = ofw_bus_find_string_index(node, "gpio-names", name, &idx);
 	if (rv != 0)
 		return (rv);
-	return (gpio_pin_get_by_ofw_idx(consumer_dev, idx, pin));
+	return (gpio_pin_get_by_ofw_idx(consumer, node, idx, pin));
 }
 
 void
 gpio_pin_release(gpio_pin_t gpio)
 {
+	device_t busdev;
 
 	if (gpio == NULL)
 		return;
+
+	KASSERT(gpio->dev != NULL, ("invalid pin state"));
+
+	busdev = GPIO_GET_BUS(gpio->dev);
+	if (busdev != NULL)
+		gpiobus_release_pin(busdev, gpio->pin);
 
 	/* XXXX Unreserve pin. */
 	free(gpio, M_DEVBUF);
@@ -388,7 +386,7 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 		    sizeof(gpiocells)) < 0) {
 			device_printf(consumer,
 			    "gpio reference is not a gpio-controller.\n");
-			free(gpios, M_OFWPROP);
+			OF_prop_free(gpios);
 			return (-1);
 		}
 		if (ncells - i < gpiocells + 1) {
@@ -403,13 +401,13 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 		if (npins == 0)
 			device_printf(consumer, "no pin specified in %s.\n",
 			    pname);
-		free(gpios, M_OFWPROP);
+		OF_prop_free(gpios);
 		return (npins);
 	}
 	*pins = malloc(sizeof(struct gpiobus_pin) * npins, M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (*pins == NULL) {
-		free(gpios, M_OFWPROP);
+		OF_prop_free(gpios);
 		return (-1);
 	}
 	/* Decode the gpio specifier on the second pass. */
@@ -464,12 +462,12 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 		j++;
 		i += gpiocells + 1;
 	}
-	free(gpios, M_OFWPROP);
+	OF_prop_free(gpios);
 
 	return (npins);
 
 fail:
-	free(gpios, M_OFWPROP);
+	OF_prop_free(gpios);
 	free(*pins, M_DEVBUF);
 	return (-1);
 }
@@ -575,6 +573,7 @@ static devclass_t ofwgpiobus_devclass;
 
 DEFINE_CLASS_1(gpiobus, ofw_gpiobus_driver, ofw_gpiobus_methods,
     sizeof(struct gpiobus_softc), gpiobus_driver);
-DRIVER_MODULE(ofw_gpiobus, gpio, ofw_gpiobus_driver, ofwgpiobus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ofw_gpiobus, gpio, ofw_gpiobus_driver, ofwgpiobus_devclass,
+    0, 0, BUS_PASS_BUS);
 MODULE_VERSION(ofw_gpiobus, 1);
 MODULE_DEPEND(ofw_gpiobus, gpiobus, 1, 1, 1);

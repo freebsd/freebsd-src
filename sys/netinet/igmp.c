@@ -1103,9 +1103,9 @@ out_locked:
 }
 
 /*
- * Process a recieved IGMPv3 group-specific or group-and-source-specific
+ * Process a received IGMPv3 group-specific or group-and-source-specific
  * query.
- * Return <0 if any error occured. Currently this is ignored.
+ * Return <0 if any error occurred. Currently this is ignored.
  */
 static int
 igmp_input_v3_group_query(struct in_multi *inm, struct igmp_ifsoftc *igi,
@@ -1469,7 +1469,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 	else
 		minlen += IGMP_MINLEN;
 	if ((!M_WRITABLE(m) || m->m_len < minlen) &&
-	    (m = m_pullup(m, minlen)) == 0) {
+	    (m = m_pullup(m, minlen)) == NULL) {
 		IGMPSTAT_INC(igps_rcv_tooshort);
 		return (IPPROTO_DONE);
 	}

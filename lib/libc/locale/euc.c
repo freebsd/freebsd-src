@@ -132,7 +132,7 @@ _EUC_CN_init(struct xlocale_ctype *l, _RuneLocale *rl)
 
 	l->runes = rl;
 	l->__mb_cur_max = 4;
-	l->__mb_sb_limit = 256;
+	l->__mb_sb_limit = 128;
 	return (0);
 }
 
@@ -226,7 +226,7 @@ _EUC_JP_init(struct xlocale_ctype *l, _RuneLocale *rl)
 
 	l->runes = rl;
 	l->__mb_cur_max = 3;
-	l->__mb_sb_limit = 196;
+	l->__mb_sb_limit = 128;
 	return (0);
 }
 
@@ -273,7 +273,7 @@ _EUC_TW_init(struct xlocale_ctype *l, _RuneLocale *rl)
 
 	l->runes = rl;
 	l->__mb_cur_max = 4;
-	l->__mb_sb_limit = 256;
+	l->__mb_sb_limit = 128;
 	return (0);
 }
 

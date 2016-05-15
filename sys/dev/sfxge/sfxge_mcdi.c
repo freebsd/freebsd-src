@@ -250,10 +250,6 @@ sfxge_mcdi_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ip)
 	}
 
 	mcdibuf = malloc(SFXGE_MCDI_MAX_PAYLOAD, M_TEMP, M_WAITOK | M_ZERO);
-	if (mcdibuf == NULL) {
-		rc = ENOMEM;
-		goto fail4;
-	}
 	if ((rc = copyin(ip->u.mcdi.payload, mcdibuf, ip->u.mcdi.len)) != 0) {
 		goto fail5;
 	}
@@ -292,7 +288,6 @@ sfxge_mcdi_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ip)
 fail6:
 fail5:
 	free(mcdibuf, M_TEMP);
-fail4:
 fail3:
 fail2:
 fail1:

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2014
+.Dd March 14, 2016
 .Dt COUNTER 9
 .Os
 .Sh NAME
@@ -54,6 +54,8 @@
 .In sys/sysctl.h
 .Fn SYSCTL_COUNTER_U64 parent nbr name access ptr descr
 .Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
+.Fn SYSCTL_COUNTER_U64_ARRAY parent nbr name access ptr len descr
+.Fn SYSCTL_ADD_COUNTER_U64_ARRAY ctx parent nbr name access ptr len descr
 .Sh DESCRIPTION
 .Nm
 is a generic facility to create counters
@@ -78,7 +80,7 @@ update faster than simple arithmetic on the global variable.
 Thus
 .Nm
 is considered suitable for accounting in the performance-critical
-code pathes.
+code paths.
 .Bl -tag -width indent
 .It Fn counter_u64_alloc wait
 Allocate a new 64-bit unsigned counter.
@@ -150,6 +152,40 @@ argument should be a pointer to allocated
 A read of the oid returns value obtained through
 .Fn counter_u64_fetch .
 Any write to the oid zeroes it.
+.It Fn SYSCTL_COUNTER_U64_ARRAY parent nbr name access ptr len descr
+Declare a static
+.Xr sysctl  
+oid that would represent an array of
+.Nm .
+The
+.Fa ptr
+argument should be a pointer to allocated array of
+.Vt counter_u64_t's .
+The
+.Fa len
+argument should specify number of elements in the array.
+A read of the oid returns len-sized array of
+.Vt uint64_t
+values  obtained through
+.Fn counter_u64_fetch .
+Any write to the oid zeroes all array elements.
+.It Fn SYSCTL_ADD_COUNTER_U64_ARRAY ctx parent nbr name access ptr len descr
+Create a
+.Xr sysctl
+oid that would represent an array of 
+.Nm .
+The
+.Fa ptr
+argument should be a pointer to allocated array of
+.Vt counter_u64_t's .
+The
+.Fa len
+argument should specify number of elements in the array.
+A read of the oid returns len-sized array of 
+.Vt uint64_t 
+values  obtained through
+.Fn counter_u64_fetch .
+Any write to the oid zeroes all array elements.
 .El
 .Sh IMPLEMENTATION DETAILS
 On all architectures
@@ -179,6 +215,16 @@ amd64 single-instruction implementation.
 On some architectures updating a counter require a
 .Xr critical 9
 section.
+.Sh EXAMPLES
+The following example creates a static counter array exported to
+userspace through a sysctl:
+.Bd -literal -offset indent
+#define MY_SIZE 8
+static counter_u64_t array[MY_SIZE];
+SYSCTL_COUNTER_U64_ARRAY(_debug, OID_AUTO, counter_array, CTLFLAG_RW,
+    &array[0], MY_SIZE, "Test counter array");
+.Ed
+.Pp
 .Sh SEE ALSO
 .Xr atomic 9 ,
 .Xr critical 9 ,

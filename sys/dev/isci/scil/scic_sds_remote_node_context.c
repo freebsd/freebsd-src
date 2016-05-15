@@ -302,7 +302,7 @@ void scic_sds_remote_node_context_setup_to_resume(
 
 /**
 * This method will setup the remote node context object so it will
-* transistion to its final state.
+* transition to its final state.
 *
 * @param[in] this_rnc
 * @param[in] the_callback

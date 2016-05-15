@@ -33,11 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/reboot.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
@@ -58,7 +58,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 
 static uint32_t gpio1_node;
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 /*
  * Work around the linux workaround for imx6 erratum 006687, in which some
  * ethernet interrupts don't go to the GPC and thus won't wake the system from
@@ -166,7 +166,7 @@ static vm_offset_t
 imx6_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 static int
@@ -220,9 +220,9 @@ imx6_devmap_init(platform_t plat)
 	const uint32_t IMX6_AIPS2_PHYS = 0x02100000;
 	const uint32_t IMX6_AIPS2_SIZE = 0x00100000;
 
-	arm_devmap_add_entry(IMX6_ARMMP_PHYS, IMX6_ARMMP_SIZE);
-	arm_devmap_add_entry(IMX6_AIPS1_PHYS, IMX6_AIPS1_SIZE);
-	arm_devmap_add_entry(IMX6_AIPS2_PHYS, IMX6_AIPS2_SIZE);
+	devmap_add_entry(IMX6_ARMMP_PHYS, IMX6_ARMMP_SIZE);
+	devmap_add_entry(IMX6_AIPS1_PHYS, IMX6_AIPS1_SIZE);
+	devmap_add_entry(IMX6_AIPS2_PHYS, IMX6_AIPS2_SIZE);
 
 	return (0);
 }
@@ -287,7 +287,7 @@ u_int imx_soc_type()
 		    IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT;
 		/*printf("digprog = 0x%08x\n", digprog);*/
 		if (hwsoc == HWSOC_MX6DL) {
-			pcr = arm_devmap_ptov(SCU_CONFIG_PHYSADDR, 4);
+			pcr = devmap_ptov(SCU_CONFIG_PHYSADDR, 4);
 			if (pcr != NULL) {
 				/*printf("scu config = 0x%08x\n", *pcr);*/
 				if ((*pcr & 0x03) == 0) {
@@ -354,6 +354,6 @@ static platform_method_t imx6_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF2(imx6, imx6s, "i.MX6 Solo", 0, "fsl,imx6s");
-FDT_PLATFORM_DEF2(imx6, imx6d, "i.MX6 Dual", 0, "fsl,imx6d");
-FDT_PLATFORM_DEF2(imx6, imx6q, "i.MX6 Quad", 0, "fsl,imx6q");
+FDT_PLATFORM_DEF2(imx6, imx6s, "i.MX6 Solo", 0, "fsl,imx6s", 0);
+FDT_PLATFORM_DEF2(imx6, imx6d, "i.MX6 Dual", 0, "fsl,imx6d", 0);
+FDT_PLATFORM_DEF2(imx6, imx6q, "i.MX6 Quad", 0, "fsl,imx6q", 0);

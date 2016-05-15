@@ -3,9 +3,10 @@
 
 .include <src.opts.mk>
 
+FILESGROUPS=	FILES
+
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
-
 SUBDIR=	\
 	newsyslog.conf.d
 
@@ -82,7 +83,7 @@ BIN1+= apmd.conf
 .endif
 
 .if ${MK_AUTOFS} != "no"
-BIN1+= auto_master
+BIN1+=	auto_master
 .endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"

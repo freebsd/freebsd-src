@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/fdt/fdt_common.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #endif
 
@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #define	MPIC_INT_ERR			4
 #define	MPIC_INT_MSI			96
 
-#define	IRQ_MASK		0x3ff
+#define	MPIC_IRQ_MASK		0x3ff
 
 #define	MPIC_CTRL		0x0
 #define	MPIC_SOFT_INT		0x4
@@ -98,6 +98,13 @@ __FBSDID("$FreeBSD$");
 
 #define	MPIC_PPI	32
 
+#ifdef INTRNG
+struct mv_mpic_irqsrc {
+	struct intr_irqsrc	mmi_isrc;
+	u_int			mmi_irq;
+};
+#endif
+
 struct mv_mpic_softc {
 	device_t		sc_dev;
 	struct resource	*	mpic_res[4];
@@ -108,8 +115,9 @@ struct mv_mpic_softc {
 	bus_space_tag_t		drbl_bst;
 	bus_space_handle_t	drbl_bsh;
 	struct mtx		mtx;
-
-	struct intr_irqsrc **	mpic_isrcs;
+#ifdef INTRNG
+	struct mv_mpic_irqsrc *	mpic_isrcs;
+#endif
 	int			nirqs;
 	void *			intr_hand;
 };
@@ -143,7 +151,7 @@ static void	mpic_mask_irq_err(uintptr_t nb);
 static void	mpic_unmask_irq_err(uintptr_t nb);
 static int	mpic_intr(void *arg);
 static void	mpic_unmask_msi(void);
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static void	arm_mask_irq_err(uintptr_t);
 static void	arm_unmask_irq_err(uintptr_t);
 #endif
@@ -177,6 +185,40 @@ mv_mpic_probe(device_t dev)
 	return (0);
 }
 
+#ifdef INTRNG
+static int
+mv_mpic_register_isrcs(struct mv_mpic_softc *sc)
+{
+	int error;
+	uint32_t irq;
+	struct intr_irqsrc *isrc;
+	const char *name;
+
+	sc->mpic_isrcs = malloc(sc->nirqs * sizeof (*sc->mpic_isrcs), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
+
+	name = device_get_nameunit(sc->sc_dev);
+	for (irq = 0; irq < sc->nirqs; irq++) {
+		sc->mpic_isrcs[irq].mmi_irq = irq;
+
+		isrc = &sc->mpic_isrcs[irq].mmi_isrc;
+		if (irq < MPIC_PPI) {
+			error = intr_isrc_register(isrc, sc->sc_dev,
+			    INTR_ISRCF_PPI, "%s", name);
+		} else {
+			error = intr_isrc_register(isrc, sc->sc_dev, 0, "%s",
+			    name);
+		}
+		if (error != 0) {
+			/* XXX call intr_isrc_deregister() */
+			device_printf(sc->sc_dev, "%s failed", __func__);
+			return (error);
+		}
+	}
+	return (0);
+}
+#endif
+
 static int
 mv_mpic_attach(device_t dev)
 {
@@ -199,7 +241,7 @@ mv_mpic_attach(device_t dev)
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	if (sc->mpic_res[3] == NULL)
 		device_printf(dev, "No interrupt to use.\n");
 	else
@@ -226,10 +268,12 @@ mv_mpic_attach(device_t dev)
 	val = MPIC_READ(mv_mpic_sc, MPIC_CTRL);
 	sc->nirqs = MPIC_CTRL_NIRQS(val);
 
-#ifdef ARM_INTRNG
-	sc->mpic_isrcs = malloc(sc->nirqs * sizeof (*sc->mpic_isrcs), M_DEVBUF,
-	    M_WAITOK | M_ZERO);
-
+#ifdef INTRNG
+	if (mv_mpic_register_isrcs(sc) != 0) {
+		device_printf(dev, "could not register PIC ISRCs\n");
+		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
+		return (ENXIO);
+	}
 	if (intr_pic_register(dev, OF_xref_from_device(dev)) != 0) {
 		device_printf(dev, "could not register PIC\n");
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
@@ -242,19 +286,16 @@ mv_mpic_attach(device_t dev)
 	return (0);
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int
 mpic_intr(void *arg)
 {
 	struct mv_mpic_softc *sc;
-	struct trapframe *tf;
-	struct intr_irqsrc *isrc;
 	uint32_t cause, irqsrc;
 	unsigned int irq;
 	u_int cpuid;
 
 	sc = arg;
-	tf = curthread->td_intr_frame;
 	cpuid = PCPU_GET(cpuid);
 	irq = 0;
 
@@ -264,117 +305,68 @@ mpic_intr(void *arg)
 			irqsrc = MPIC_READ(sc, MPIC_INT_CTL(irq));
 			if ((irqsrc & MPIC_INT_IRQ_FIQ_MASK(cpuid)) == 0)
 				continue;
-			isrc = sc->mpic_isrcs[irq];
-			if (isrc == NULL) {
-				device_printf(sc->sc_dev, "Stray interrupt %u detected\n", irq);
+			if (intr_isrc_dispatch(&sc->mpic_isrcs[irq].mmi_isrc,
+			    curthread->td_intr_frame) != 0) {
 				mpic_mask_irq(irq);
-				continue;
+				device_printf(sc->sc_dev, "Stray irq %u "
+				    "disabled\n", irq);
 			}
-			intr_irq_dispatch(isrc, tf);
 		}
 	}
 
 	return (FILTER_HANDLED);
 }
 
-static int
-mpic_attach_isrc(struct mv_mpic_softc *sc, struct intr_irqsrc *isrc, u_int irq)
-{
-	const char *name;
-
-	mtx_lock_spin(&sc->mtx);
-	if (sc->mpic_isrcs[irq] != NULL) {
-		mtx_unlock_spin(&sc->mtx);
-		return (sc->mpic_isrcs[irq] == isrc ? 0 : EEXIST);
-	}
-	sc->mpic_isrcs[irq] = isrc;
-	isrc->isrc_data = irq;
-	mtx_unlock_spin(&sc->mtx);
-
-	name = device_get_nameunit(sc->sc_dev);
-	intr_irq_set_name(isrc, "%s", name);
-
-	return (0);
-}
-
-#ifdef FDT
-static int
-mpic_map_fdt(struct mv_mpic_softc *sc, struct intr_irqsrc *isrc, u_int *irqp)
-{
-	u_int irq;
-	int error;
-
-	if (isrc->isrc_ncells != 1)
-		return (EINVAL);
-
-	irq = isrc->isrc_cells[0];
-
-	error = mpic_attach_isrc(sc, isrc, irq);
-	if (error != 0)
-		return (error);
-
-	isrc->isrc_nspc_num = irq;
-	isrc->isrc_trig = INTR_TRIGGER_CONFORM;
-	isrc->isrc_pol = INTR_POLARITY_CONFORM;
-	isrc->isrc_nspc_type = INTR_IRQ_NSPC_PLAIN;
-
-	*irqp = irq;
-
-	return (0);
-}
-#endif
-
-static int
-mpic_register(device_t dev, struct intr_irqsrc *isrc, boolean_t *is_percpu)
-{
-	struct mv_mpic_softc *sc;
-	int error;
-	u_int irq = 0;
-
-	sc = device_get_softc(dev);
-
-#ifdef FDT
-	if (isrc->isrc_type == INTR_ISRCT_FDT)
-		error = mpic_map_fdt(sc, isrc, &irq);
-	else
-#endif
-		error = EINVAL;
-
-	if (error == 0)
-		*is_percpu = irq < MPIC_PPI;
-
-	return (error);
-}
-
 static void
-mpic_disable_source(device_t dev, struct intr_irqsrc *isrc)
+mpic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	u_int irq;
 
-	irq = isrc->isrc_data;
+	irq = ((struct mv_mpic_irqsrc *)isrc)->mmi_irq;
 	mpic_mask_irq(irq);
 }
 
 static void
-mpic_enable_source(device_t dev, struct intr_irqsrc *isrc)
+mpic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	u_int irq;
 
-	irq = isrc->isrc_data;
+	irq = ((struct mv_mpic_irqsrc *)isrc)->mmi_irq;
 	mpic_unmask_irq(irq);
 }
+
+static int
+mpic_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct intr_map_data_fdt *daf;
+	struct mv_mpic_softc *sc;
+
+	if (data->type != INTR_MAP_DATA_FDT)
+		return (ENOTSUP);
+
+	sc = device_get_softc(dev);
+	daf = (struct intr_map_data_fdt *)data;
+
+	if (daf->ncells !=1 || daf->cells[0] >= sc->nirqs)
+		return (EINVAL);
+
+	*isrcp = &sc->mpic_isrcs[daf->cells[0]].mmi_isrc;
+	return (0);
+}
+
 static void
 mpic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 
-	mpic_disable_source(dev, isrc);
+	mpic_disable_intr(dev, isrc);
 }
 
 static void
 mpic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 
-	mpic_enable_source(dev, isrc);
+	mpic_enable_intr(dev, isrc);
 }
 #endif
 
@@ -382,10 +374,10 @@ static device_method_t mv_mpic_methods[] = {
 	DEVMETHOD(device_probe,		mv_mpic_probe),
 	DEVMETHOD(device_attach,	mv_mpic_attach),
 
-#ifdef ARM_INTRNG
-	DEVMETHOD(pic_register,		mpic_register),
-	DEVMETHOD(pic_disable_source,	mpic_disable_source),
-	DEVMETHOD(pic_enable_source,	mpic_enable_source),
+#ifdef INTRNG
+	DEVMETHOD(pic_disable_intr,	mpic_disable_intr),
+	DEVMETHOD(pic_enable_intr,	mpic_enable_intr),
+	DEVMETHOD(pic_map_intr,		mpic_map_intr),
 	DEVMETHOD(pic_post_ithread,	mpic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mpic_pre_ithread),
 #endif
@@ -403,16 +395,16 @@ static devclass_t mv_mpic_devclass;
 EARLY_DRIVER_MODULE(mpic, simplebus, mv_mpic_driver, mv_mpic_devclass, 0, 0,
     BUS_PASS_INTERRUPT);
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 int
 arm_get_next_irq(int last)
 {
 	u_int irq, next = -1;
 
-	irq = mv_mpic_get_cause() & IRQ_MASK;
+	irq = mv_mpic_get_cause() & MPIC_IRQ_MASK;
 	CTR2(KTR_INTR, "%s: irq:%#x", __func__, irq);
 
-	if (irq != IRQ_MASK) {
+	if (irq != MPIC_IRQ_MASK) {
 		if (irq == MPIC_INT_ERR)
 			irq = mv_mpic_get_cause_err();
 		if (irq == MPIC_INT_MSI)
@@ -576,7 +568,7 @@ mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
 
 	node = ofw_bus_get_node(mv_mpic_sc->sc_dev);
 
-	/* Get physical addres of register space */
+	/* Get physical address of register space */
 	error = fdt_get_range(OF_parent(node), 0, &phys, &size);
 	if (error) {
 		printf("%s: Cannot get register physical address, err:%d",

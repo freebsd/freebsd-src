@@ -930,7 +930,7 @@ vxlan_socket_init(struct vxlan_socket *vso, struct ifnet *ifp)
 	}
 
 	error = udp_set_kernel_tunneling(vso->vxlso_sock,
-	    vxlan_rcv_udp_packet, vso);
+	    vxlan_rcv_udp_packet, NULL, vso);
 	if (error) {
 		if_printf(ifp, "cannot set tunneling function: %d\n", error);
 		return (error);

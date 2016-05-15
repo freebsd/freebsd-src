@@ -77,6 +77,7 @@ GH_PAGES_PACKAGE_DIR = ${GH_PAGES_DIR}/${GH_PACKAGING_DIR}
 packages:
 	@-[ -d ${GH_PAGES_DIR} ] && set -x \
 		&& echo "Updating packages on gh-pages ..." \
+                && mkdir -p ${GH_PAGES_DIR}/${GH_PACKAGING_DIR} \
 		&& SHA1="`openssl sha1 ${PACKAGE_FILE} | awk '{print $$2}'`" \
 		&& SHA256="`openssl sha256 ${PACKAGE_FILE} | awk '{print $$2}'`" \
 		&& SIZE="`ls -l ${PACKAGE_FILE} | awk '{print $$5}'`" \

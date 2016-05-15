@@ -161,7 +161,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	struct inode *ip;
 	struct vnode *vp;
 	struct buf *sbp, *ebp;
-	uint32_t *bap, *sbap, *ebap = 0;
+	uint32_t *bap, *sbap, *ebap;
 	struct ext2mount *ump;
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
@@ -231,6 +231,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	/*
 	 * If the block range spans two block maps, get the second map.
 	 */
+	ebap = NULL;
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
@@ -406,10 +407,8 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 
 	/*
 	 * Set up a new generation number for this inode.
-	 * XXX check if this makes sense in ext2
 	 */
-	if (ip->i_gen == 0 || ++ip->i_gen == 0)
-		ip->i_gen = random() / 2 + 1;
+	ip->i_gen = arc4random();
 
 	vfs_timestamp(&ts);
 	ip->i_birthtime = ts.tv_sec;

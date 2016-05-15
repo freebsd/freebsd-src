@@ -174,8 +174,8 @@
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
 	&man.src.conf.5; option has been removed.</para>
 
-      <para revision="285169">The <application>ntp</application> suite
-	has been updated to version 4.2.8p3.</para>
+      <para revision="298695">The <application>ntp</application> suite
+	has been updated to version 4.2.8p7.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -460,8 +460,8 @@
       <para revision="260445">&man.byacc.1; has been updated to
 	version 20140101.</para>
 
-      <para revision="261320"><application>OpenSSH</application> has
-	been updated to 6.5p1.</para>
+      <para revision="296633"><application>OpenSSH</application> has
+	been updated to 7.2p2.</para>
 
       <para revision="261344"><application>mdocml</application> has
 	been updated to version 1.12.3.</para>
@@ -585,21 +585,21 @@
       <para revision="288303">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.8 version.</para>
 
-      <para revision="288943"><application>Clang</application> has
-	been updated to version 3.7.0.</para>
+      <para revision="296417"><application>Clang</application> has
+	been updated to version 3.8.0.</para>
 
-      <para revision="288943"><application>LLVM</application> has
-	been updated to version 3.7.0.</para>
+      <para revision="296417"><application>LLVM</application> has
+	been updated to version 3.8.0.</para>
 
-      <para revision="288943"><application>LLDB</application> has
-	been updated to version 3.7.0.</para>
+      <para revision="296417"><application>LLDB</application> has
+	been updated to version 3.8.0.</para>
 
-      <para revision="288943"><application>libc++</application> has
-	been updated to version 3.7.0.</para>
+      <para revision="296417"><application>libc++</application> has
+	been updated to version 3.8.0.</para>
 
-      <para revision="288943">The
+      <para revision="296417">The
 	<application>compiler_rt</application> utility has been
-	updated to version 3.7.0.</para>
+	updated to version 3.8.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -1168,6 +1168,11 @@
 
       <para revision="288310">The &man.ctl.4; driver has been updated
 	to support CD-ROM and removable devices.</para>
+
+      <para contrib="sponsor" sponsor="&ix;">The &man.isp.4; driver has
+	been updated and improved: added support for 16Gbps FC cards,
+	improved target mode support, completed Multi-ID (NPIV)
+	functionality.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">

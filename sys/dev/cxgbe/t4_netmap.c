@@ -1119,7 +1119,7 @@ ncxgbe_attach(device_t dev)
 	 * freelist, and not the number of entries in the iq.  (These two are
 	 * not exactly the same due to the space taken up by the status page).
 	 */
-	na.num_rx_desc = (vi->qsize_rxq / 8) * 8;
+	na.num_rx_desc = rounddown(vi->qsize_rxq, 8);
 	na.nm_txsync = cxgbe_netmap_txsync;
 	na.nm_rxsync = cxgbe_netmap_rxsync;
 	na.nm_register = cxgbe_netmap_reg;

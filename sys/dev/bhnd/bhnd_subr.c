@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 
@@ -183,6 +184,8 @@ bhnd_port_type_name(bhnd_port_type port_type)
 		return ("bridge");
 	case BHND_PORT_AGENT:
 		return ("agent");
+	default:
+		return "unknown";
 	}
 }
 
@@ -412,16 +415,38 @@ bhnd_core_matches(const struct bhnd_core_info *core,
 
 	if (!bhnd_hwrev_matches(core->hwrev, &desc->hwrev))
 		return (false);
-		
-	if (desc->hwrev.end != BHND_HWREV_INVALID &&
-	    desc->hwrev.end < core->hwrev)
-		return (false);
 
 	if (desc->class != BHND_DEVCLASS_INVALID &&
 	    desc->class != bhnd_core_class(core))
 		return (false);
 
 	return true;
+}
+
+/**
+ * Return true if the @p chip matches @p desc.
+ * 
+ * @param chip A bhnd chip identifier.
+ * @param desc A match descriptor to compare against @p chip.
+ * 
+ * @retval true if @p chip matches @p match
+ * @retval false if @p chip does not match @p match.
+ */
+bool
+bhnd_chip_matches(const struct bhnd_chipid *chip,
+    const struct bhnd_chip_match *desc)
+{
+	if (desc->match_id && chip->chip_id != desc->chip_id)
+		return (false);
+
+	if (desc->match_pkg && chip->chip_pkg != desc->chip_pkg)
+		return (false);
+
+	if (desc->match_rev &&
+	    !bhnd_hwrev_matches(chip->chip_rev, &desc->chip_rev))
+		return (false);
+
+	return (true);
 }
 
 /**
@@ -468,6 +493,116 @@ bhnd_device_matches(device_t dev, const struct bhnd_core_match *desc)
 
 	return bhnd_core_matches(&ci, desc);
 }
+
+/**
+ * Search @p table for an entry matching @p dev.
+ * 
+ * @param dev A bhnd device to match against @p table.
+ * @param table The device table to search.
+ * @param entry_size The @p table entry size, in bytes.
+ * 
+ * @retval bhnd_device the first matching device, if any.
+ * @retval NULL if no matching device is found in @p table.
+ */
+const struct bhnd_device *
+bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
+    size_t entry_size)
+{
+	const struct bhnd_device	*entry;
+	device_t			 hostb, parent;
+
+	parent = device_get_parent(dev);
+	hostb = bhnd_find_hostb_device(parent);
+
+	for (entry = table; entry->desc != NULL; entry =
+	    (const struct bhnd_device *) ((const char *) entry + entry_size))
+	{
+		/* match core info */
+		if (!bhnd_device_matches(dev, &entry->core))
+			continue;
+
+		/* match device flags */
+		if (entry->device_flags & BHND_DF_HOSTB) {			
+			if (dev != hostb)
+				continue;
+		}
+
+		/* device found */
+		return (entry);
+	}
+
+	/* not found */
+	return (NULL);
+}
+
+/**
+ * Scan @p table for all quirk flags applicable to @p dev's chip identifier
+ * (as returned by bhnd_get_chipid).
+ * 
+ * @param dev A bhnd device.
+ * @param table The chip quirk table to search.
+ * 
+ * @return returns all matching quirk flags.
+ */
+uint32_t
+bhnd_chip_quirks(device_t dev, const struct bhnd_chip_quirk *table)
+{
+	const struct bhnd_chipid	*cid;
+	const struct bhnd_chip_quirk	*qent;
+	uint32_t			 quirks;
+	
+	cid = bhnd_get_chipid(dev);
+	quirks = 0;
+
+	for (qent = table; !BHND_CHIP_QUIRK_IS_END(qent); qent++) {
+		if (bhnd_chip_matches(cid, &qent->chip))
+			quirks |= qent->quirks;
+	}
+
+	return (quirks);
+}
+
+/**
+ * Scan @p table for all quirk flags applicable to @p dev.
+ * 
+ * @param dev A bhnd device to match against @p table.
+ * @param table The device table to search.
+ * @param entry_size The @p table entry size, in bytes.
+ * 
+ * @return returns all matching quirk flags.
+ */
+uint32_t
+bhnd_device_quirks(device_t dev, const struct bhnd_device *table,
+    size_t entry_size)
+{
+	const struct bhnd_device	*dent;
+	const struct bhnd_device_quirk	*qtable, *qent;
+	uint32_t			 quirks;
+	uint16_t			 hwrev;
+
+	hwrev = bhnd_get_hwrev(dev);
+	quirks = 0;
+
+	/* Find the quirk table */
+	if ((dent = bhnd_device_lookup(dev, table, entry_size)) == NULL) {
+		/* This is almost certainly a (caller) implementation bug */
+		device_printf(dev, "quirk lookup did not match any device\n");
+		return (0);
+	}
+
+	/* Quirks aren't a mandatory field */
+	if ((qtable = dent->quirks_table) == NULL)
+		return (0);
+
+	/* Collect matching quirk entries */
+	for (qent = qtable; !BHND_DEVICE_QUIRK_IS_END(qent); qent++) {
+		if (bhnd_hwrev_matches(hwrev, &qent->hwrev))
+			quirks |= qent->quirks;
+	}
+
+	return (quirks);
+}
+
 
 /**
  * Allocate bhnd(4) resources defined in @p rs from a parent bus.
@@ -619,25 +754,21 @@ cleanup:
 }
 
 /**
- * Using the bhnd(4) bus-level core information, populate @p dev's device
- * description.
+ * Using the bhnd(4) bus-level core information and a custom core name,
+ * populate @p dev's device description.
  * 
  * @param dev A bhnd-bus attached device.
+ * @param dev_name The core's name (e.g. "SDIO Device Core")
  */
 void
-bhnd_set_generic_core_desc(device_t dev)
+bhnd_set_custom_core_desc(device_t dev, const char *dev_name)
 {
-	const char *dev_name;
 	const char *vendor_name;
 	char *desc;
 
 	vendor_name = bhnd_get_vendor_name(dev);
-	dev_name = bhnd_get_device_name(dev);
-
-	asprintf(&desc, M_BHND, "%s %s, rev %hhu",
-		bhnd_get_vendor_name(dev),
-		bhnd_get_device_name(dev),
-		bhnd_get_hwrev(dev));
+	asprintf(&desc, M_BHND, "%s %s, rev %hhu", vendor_name, dev_name,
+	    bhnd_get_hwrev(dev));
 
 	if (desc != NULL) {
 		device_set_desc_copy(dev, desc);
@@ -646,3 +777,154 @@ bhnd_set_generic_core_desc(device_t dev)
 		device_set_desc(dev, dev_name);
 	}
 }
+
+/**
+ * Using the bhnd(4) bus-level core information, populate @p dev's device
+ * description.
+ * 
+ * @param dev A bhnd-bus attached device.
+ */
+void
+bhnd_set_default_core_desc(device_t dev)
+{
+	bhnd_set_custom_core_desc(dev, bhnd_get_device_name(dev));
+}
+
+/**
+ * Helper function for implementing BHND_BUS_IS_HW_DISABLED().
+ * 
+ * If a parent device is available, this implementation delegates the
+ * request to the BHND_BUS_IS_HW_DISABLED() method on the parent of @p dev.
+ * 
+ * If no parent device is available (i.e. on a the bus root), the hardware
+ * is assumed to be usable and false is returned.
+ */
+bool
+bhnd_bus_generic_is_hw_disabled(device_t dev, device_t child)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_IS_HW_DISABLED(device_get_parent(dev), child));
+
+	return (false);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_GET_CHIPID().
+ * 
+ * This implementation delegates the request to the BHND_BUS_GET_CHIPID()
+ * method on the parent of @p dev. If no parent exists, the implementation
+ * will panic.
+ */
+const struct bhnd_chipid *
+bhnd_bus_generic_get_chipid(device_t dev, device_t child)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_GET_CHIPID(device_get_parent(dev), child));
+
+	panic("missing BHND_BUS_GET_CHIPID()");
+}
+
+/**
+ * Helper function for implementing BHND_BUS_ALLOC_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ALLOC_RESOURCE() delegates allocation
+ * of the underlying resource to BUS_ALLOC_RESOURCE(), and activation
+ * to @p dev's BHND_BUS_ACTIVATE_RESOURCE().
+ */
+struct bhnd_resource *
+bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
+	int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
+	u_int flags)
+{
+	struct bhnd_resource	*br;
+	struct resource		*res;
+	int			 error;
+
+	br = NULL;
+	res = NULL;
+
+	/* Allocate the real bus resource (without activating it) */
+	res = BUS_ALLOC_RESOURCE(dev, child, type, rid, start, end, count,
+	    (flags & ~RF_ACTIVE));
+	if (res == NULL)
+		return (NULL);
+
+	/* Allocate our bhnd resource wrapper. */
+	br = malloc(sizeof(struct bhnd_resource), M_BHND, M_NOWAIT);
+	if (br == NULL)
+		goto failed;
+	
+	br->direct = false;
+	br->res = res;
+
+	/* Attempt activation */
+	if (flags & RF_ACTIVE) {
+		error = BHND_BUS_ACTIVATE_RESOURCE(dev, child, type, *rid, br);
+		if (error)
+			goto failed;
+	}
+
+	return (br);
+	
+failed:
+	if (res != NULL)
+		BUS_RELEASE_RESOURCE(dev, child, type, *rid, res);
+
+	free(br, M_BHND);
+	return (NULL);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_RELEASE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_RELEASE_RESOURCE() delegates release of
+ * the backing resource to BUS_RELEASE_RESOURCE().
+ */
+int
+bhnd_bus_generic_release_resource(device_t dev, device_t child, int type,
+    int rid, struct bhnd_resource *r)
+{
+	int error;
+
+	if ((error = BUS_RELEASE_RESOURCE(dev, child, type, rid, r->res)))
+		return (error);
+
+	free(r, M_BHND);
+	return (0);
+}
+
+
+/**
+ * Helper function for implementing BHND_BUS_ACTIVATE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
+ * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
+ */
+int
+bhnd_bus_generic_activate_resource(device_t dev, device_t child, int type,
+    int rid, struct bhnd_resource *r)
+{
+	/* Try to delegate to the parent */
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
+		    child, type, rid, r));
+
+	return (EINVAL);
+};
+
+/**
+ * Helper function for implementing BHND_BUS_DEACTIVATE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
+ * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
+ */
+int
+bhnd_bus_generic_deactivate_resource(device_t dev, device_t child,
+    int type, int rid, struct bhnd_resource *r)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_DEACTIVATE_RESOURCE(device_get_parent(dev),
+		    child, type, rid, r));
+
+	return (EINVAL);
+};

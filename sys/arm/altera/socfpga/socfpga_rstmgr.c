@@ -145,7 +145,7 @@ rstmgr_sysctl(SYSCTL_HANDLER_ARGS)
 		break;
 	default:
 		return (1);
-	};
+	}
 
 	reg = READ4(sc, RSTMGR_BRGMODRST);
 	enable = reg & bit ? 0 : 1;

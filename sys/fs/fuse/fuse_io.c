@@ -209,7 +209,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 	         * buffer based on an EOF condition we need to hold
 	         * nfs_rslock() through obtaining the buffer to prevent
 	         * a potential writer-appender from messing with n_size.
-	         * Otherwise we may accidently truncate the buffer and
+	         * Otherwise we may accidentally truncate the buffer and
 	         * lose dirty data.
 	         *
 	         * Note that bcount is *not* DEV_BSIZE aligned.
@@ -546,7 +546,7 @@ again:
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
 			/*
 	                 * Yes, we mean it. Write out everything to "storage"
-	                 * immediatly, without hesitation. (Apart from other
+	                 * immediately, without hesitation. (Apart from other
 	                 * reasons: the only way to know if a write is valid
 	                 * if its actually written out.)
 	                 */

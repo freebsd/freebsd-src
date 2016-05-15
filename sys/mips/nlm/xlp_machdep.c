@@ -441,11 +441,10 @@ static vm_paddr_t xlp_mem_excl[] = {
 static int
 mem_exclude_add(vm_paddr_t *avail, vm_paddr_t mstart, vm_paddr_t mend)
 {
-	int nreg = sizeof(xlp_mem_excl)/sizeof(xlp_mem_excl[0]);
 	int i, pos;
 
 	pos = 0;
-	for (i = 0; i < nreg; i += 2) {
+	for (i = 0; i < nitems(xlp_mem_excl); i += 2) {
 		if (mstart > xlp_mem_excl[i + 1])
 			continue;
 		if (mstart < xlp_mem_excl[i]) {

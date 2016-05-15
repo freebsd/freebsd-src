@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/hypervisor.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/vcpu.h>
+#include <xen/error.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -62,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/pvclock.h>
 
 #include <dev/xen/timer/timer.h>
+
+#include <isa/rtc.h>
 
 #include "clock_if.h"
 
@@ -74,9 +77,12 @@ static devclass_t xentimer_devclass;
 
 /* Xen timers may fire up to 100us off */
 #define	XENTIMER_MIN_PERIOD_IN_NSEC	100*NSEC_IN_USEC
-#define	XENCLOCK_RESOLUTION		10000000
 
-#define	ETIME	62	/* Xen "bad time" error */
+/*
+ * The real resolution of the PV clock is 1ns, but the highest
+ * resolution that FreeBSD supports is 1us, so just use that.
+ */
+#define	XENCLOCK_RESOLUTION		1
 
 #define	XENTIMER_QUALITY	950
 
@@ -213,11 +219,32 @@ xen_fetch_uptime(struct timespec *ts)
 static int
 xentimer_settime(device_t dev __unused, struct timespec *ts)
 {
+	struct xen_platform_op settime;
+	int ret;
+
 	/*
 	 * Don't return EINVAL here; just silently fail if the domain isn't
 	 * privileged enough to set the TOD.
 	 */
-	return (0);
+	if (!xen_initial_domain())
+		return (0);
+
+	/* Set the native RTC. */
+	atrtc_set(ts);
+
+	settime.cmd = XENPF_settime64;
+	settime.u.settime64.mbz = 0;
+	settime.u.settime64.secs = ts->tv_sec;
+	settime.u.settime64.nsecs = ts->tv_nsec;
+	settime.u.settime64.system_time =
+		xen_fetch_vcpu_time(DPCPU_GET(vcpu_info));
+
+	ret = HYPERVISOR_platform_op(&settime);
+	ret = ret != 0 ? xen_translate_error(ret) : 0;
+	if (ret != 0 && bootverbose)
+		device_printf(dev, "failed to set Xen PV clock: %d\n", ret);
+
+	return (ret);
 }
 
 /**
@@ -267,7 +294,8 @@ xentimer_vcpu_start_timer(int vcpu, uint64_t next_time)
 	struct vcpu_set_singleshot_timer single;
 
 	single.timeout_abs_ns = next_time;
-	single.flags          = VCPU_SSHOTTMR_future;
+	/* Get an event anyway, even if the timeout is already expired */
+	single.flags          = 0;
 	return (HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, vcpu, &single));
 }
 
@@ -294,7 +322,7 @@ static int
 xentimer_et_start(struct eventtimer *et,
     sbintime_t first, sbintime_t period)
 {
-	int error = 0, i = 0;
+	int error;
 	struct xentimer_softc *sc = et->et_priv;
 	int cpu = PCPU_GET(vcpu_id);
 	struct xentimer_pcpu_data *pcpu = DPCPU_PTR(xentimer_pcpu);
@@ -311,21 +339,8 @@ xentimer_et_start(struct eventtimer *et,
 	first_in_ns = (((first >> 32) * NSEC_IN_SEC) +
 	               (((uint64_t)NSEC_IN_SEC * (uint32_t)first) >> 32));
 
-	/*
-	 * Retry any timer scheduling failures, where the hypervisor
-	 * returns -ETIME.  Sometimes even a 100us timer period isn't large
-	 * enough, but larger period instances are relatively uncommon.
-	 *
-	 * XXX Remove the panics once et_start() and its consumers are
-	 *     equipped to deal with start failures.
-	 */
-	do {
-		if (++i == 60)
-			panic("can't schedule timer");
-		next_time = xen_fetch_vcpu_time(vcpu) + first_in_ns;
-		error = xentimer_vcpu_start_timer(cpu, next_time);
-	} while (error == -ETIME);
-
+	next_time = xen_fetch_vcpu_time(vcpu) + first_in_ns;
+	error = xentimer_vcpu_start_timer(cpu, next_time);
 	if (error)
 		panic("%s: Error %d setting singleshot timer to %"PRIu64"\n",
 		    device_get_nameunit(sc->dev), error, next_time);
@@ -461,9 +476,6 @@ xentimer_resume(device_t dev)
 
 	/* Reset the last uptime value */
 	pvclock_resume();
-
-	/* Reset the RTC clock */
-	inittodr(time_second);
 
 	/* Kick the timers on all CPUs */
 	smp_rendezvous(NULL, xentimer_percpu_resume, NULL, dev);

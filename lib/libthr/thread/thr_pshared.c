@@ -252,3 +252,17 @@ __thr_pshared_destroy(void *key)
 	pshared_clean(key, val);
 	pshared_gc(curthread);
 }
+
+void
+__thr_pshared_atfork_pre(void)
+{
+
+	_thr_rwl_rdlock(&pshared_lock);
+}
+
+void
+__thr_pshared_atfork_post(void)
+{
+
+	_thr_rwl_unlock(&pshared_lock);
+}

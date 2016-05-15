@@ -66,7 +66,7 @@ struct aibs_sensor {
 };
 
 struct aibs_softc {
-	struct device		*sc_dev;
+	device_t		sc_dev;
 	ACPI_HANDLE		sc_ah;
 
 	struct aibs_sensor	*sc_asens_volt;

@@ -114,7 +114,14 @@ static struct {
 	WHOIS_REFERRAL("Whois Server:"),
 	WHOIS_REFERRAL("Registrar WHOIS Server:"), /* corporatedomains.com */
 	WHOIS_REFERRAL("ReferralServer:  whois://"), /* ARIN */
+	WHOIS_REFERRAL("descr:          region. Please query"), /* AfriNIC */
 	{ NULL, 0 }
+};
+
+static const char *actually_arin[] = {
+	"netname:        ERX-NETBLOCK\n", /* APNIC */
+	"netname:        NON-RIPE-NCC-MANAGED-ADDRESS-BLOCK\n",
+	NULL
 };
 
 static const char *port = DEFAULT_PORT;
@@ -278,19 +285,15 @@ s_asprintf(char **ret, const char *format, ...)
 	va_end(ap);
 }
 
-static void
-whois(const char *query, const char *hostname, int flags)
+static int
+connect_to_any_host(struct addrinfo *hostres)
 {
-	FILE *fp;
-	struct addrinfo *hostres, *res;
-	char *buf, *host, *nhost, *p;
-	int s = -1, f;
+	struct addrinfo *res;
 	nfds_t i, j;
-	size_t len, count;
+	size_t count;
 	struct pollfd *fds;
-	int timeout = 180;
+	int timeout = 180, s = -1;
 
-	hostres = gethostinfo(hostname, 1);
 	for (res = hostres, count = 0; res; res = res->ai_next)
 		count++;
 	fds = calloc(count, sizeof(*fds));
@@ -313,6 +316,11 @@ whois(const char *query, const char *hostname, int flags)
 				fds[i].fd = s;
 				fds[i].events = POLLERR | POLLHUP |
 						POLLIN | POLLOUT;
+				/*
+				 * From here until a socket connects, the
+				 * socket fd is owned by the fds[] poll array.
+				 */
+				s = -1;
 				count++;
 				i++;
 			} else {
@@ -354,7 +362,7 @@ whois(const char *query, const char *hostname, int flags)
 				 * after a new host have been added.
 				 */
 				if (timeout >= 3)
-					timeout <<= 1;
+					timeout >>= 1;
 
 				break;
 			} else if (n < 0) {
@@ -374,7 +382,7 @@ whois(const char *query, const char *hostname, int flags)
 				    fds[j].revents == 0)
 					continue;
 				if (fds[j].revents & ~(POLLIN | POLLOUT)) {
-					close(s);
+					close(fds[j].fd);
 					fds[j].fd = -1;
 					fds[j].events = 0;
 					count--;
@@ -382,6 +390,7 @@ whois(const char *query, const char *hostname, int flags)
 				} else if (fds[j].revents & (POLLIN | POLLOUT)) {
 					/* Connect succeeded. */
 					s = fds[j].fd;
+					fds[j].fd = -1;
 
 					goto done;
 				}
@@ -394,15 +403,29 @@ whois(const char *query, const char *hostname, int flags)
 	s = -1;
 	if (count == 0)
 		errno = ETIMEDOUT;
-done:
-	if (s == -1)
-		err(EX_OSERR, "connect()");
 
+done:
 	/* Close all watched fds except the succeeded one */
 	for (j = 0; j < i; j++)
-		if (fds[j].fd != s && fds[j].fd != -1)
+		if (fds[j].fd != -1)
 			close(fds[j].fd);
 	free(fds);
+	return (s);
+}
+
+static void
+whois(const char *query, const char *hostname, int flags)
+{
+	FILE *fp;
+	struct addrinfo *hostres;
+	char *buf, *host, *nhost, *p;
+	int s, f;
+	size_t len, i;
+
+	hostres = gethostinfo(hostname, 1);
+	s = connect_to_any_host(hostres);
+	if (s == -1)
+		err(EX_OSERR, "connect()");
 
 	/* Restore default blocking behavior.  */
 	if ((f = fcntl(s, F_GETFL)) == -1)
@@ -431,9 +454,13 @@ done:
 	else if ((flags & WHOIS_SPAM_ME) ||
 		 strchr(query, ' ') != NULL)
 		fprintf(fp, "%s\r\n", query);
-	else if (strcasecmp(hostname, ANICHOST) == 0)
-		fprintf(fp, "+ %s\r\n", query);
-	else if (strcasecmp(hostres->ai_canonname, VNICHOST) == 0)
+	else if (strcasecmp(hostname, ANICHOST) == 0) {
+		if (strncasecmp(query, "AS", 2) == 0 &&
+		    strspn(query+2, "0123456789") == strlen(query+2))
+			fprintf(fp, "+ a %s\r\n", query+2);
+		else
+			fprintf(fp, "+ %s\r\n", query);
+	} else if (strcasecmp(hostres->ai_canonname, VNICHOST) == 0)
 		fprintf(fp, "domain %s\r\n", query);
 	else
 		fprintf(fp, "%s\r\n", query);
@@ -464,6 +491,12 @@ done:
 					s_asprintf(&nhost, "%.*s",
 						   (int)(p - host), host);
 				break;
+			}
+			for (i = 0; actually_arin[i] != NULL; i++) {
+				if (strncmp(buf, actually_arin[i], len) == 0) {
+					s_asprintf(&nhost, "%s", ANICHOST);
+					break;
+				}
 			}
 		}
 		/* Verisign etc. */

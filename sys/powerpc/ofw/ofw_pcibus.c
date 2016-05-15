@@ -59,8 +59,10 @@ typedef uint32_t ofw_pci_intr_t;
 /* Methods */
 static device_probe_t ofw_pcibus_probe;
 static device_attach_t ofw_pcibus_attach;
+static pci_alloc_devinfo_t ofw_pcibus_alloc_devinfo;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
+static bus_child_deleted_t ofw_pcibus_child_deleted;
 static int ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child,
     char *buf, size_t buflen);
 
@@ -73,9 +75,12 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(device_attach,	ofw_pcibus_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	ofw_pcibus_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_child_pnpinfo_str_method),
+	DEVMETHOD(bus_rescan,		bus_null_rescan),
 
 	/* PCI interface */
+	DEVMETHOD(pci_alloc_devinfo,	ofw_pcibus_alloc_devinfo),
 	DEVMETHOD(pci_assign_interrupt, ofw_pcibus_assign_interrupt),
 
 	/* ofw_bus interface */
@@ -142,6 +147,15 @@ ofw_pcibus_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+struct pci_devinfo *
+ofw_pcibus_alloc_devinfo(device_t dev)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+
+	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	return (&dinfo->opd_dinfo);
+}
+
 static void
 ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 {
@@ -183,8 +197,8 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 		 * to the PCI bus.
 		 */
 
-		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
-		    domain, busno, slot, func, sizeof(*dinfo));
+		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib, dev,
+		    domain, busno, slot, func);
 		if (dinfo == NULL)
 			continue;
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
@@ -242,7 +256,7 @@ ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno)
 				continue;
 
 			dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(
-			    pcib, domain, busno, s, f, sizeof(*dinfo));
+			    pcib, dev, domain, busno, s, f);
 			if (dinfo == NULL)
 				continue;
 
@@ -267,6 +281,16 @@ ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno)
 			pci_add_child(dev, (struct pci_devinfo *)dinfo);
 		}
 	}
+}
+
+static void
+ofw_pcibus_child_deleted(device_t dev, device_t child)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
+	pci_child_deleted(dev, child);
 }
 
 static int

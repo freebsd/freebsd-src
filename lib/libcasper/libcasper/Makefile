@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=${LIB}
 LIB=	casper
 
 SHLIB_MAJOR=	0

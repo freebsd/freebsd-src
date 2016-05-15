@@ -348,8 +348,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
 	acg.cg_niblk = sblock.fs_ipg;
-	acg.cg_initediblk = sblock.fs_ipg < 2 * INOPB(&sblock) ?
-	    sblock.fs_ipg : 2 * INOPB(&sblock);
+	acg.cg_initediblk = MIN(sblock.fs_ipg, 2 * INOPB(&sblock));
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
@@ -1331,7 +1330,7 @@ getdev(const char *name)
 		return (name);
 
 	cp = strrchr(name, '/');
-	if (cp == 0) {
+	if (cp == NULL) {
 		snprintf(device, sizeof(device), "%s%s", _PATH_DEV, name);
 		if (is_dev(device))
 			return (device);
@@ -1541,12 +1540,12 @@ main(int argc, char **argv)
 		humanize_number(newsizebuf, sizeof(newsizebuf),
 		    sblock.fs_size * sblock.fs_fsize,
 		    "B", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-		printf(" from %s to %s? [Yes/No] ", oldsizebuf, newsizebuf);
+		printf(" from %s to %s? [yes/no] ", oldsizebuf, newsizebuf);
 		fflush(stdout);
 		fgets(reply, (int)sizeof(reply), stdin);
-		if (strcasecmp(reply, "Yes\n")){
-			printf("\nNothing done\n");
-			exit (0);
+		if (strcasecmp(reply, "yes\n")){
+			printf("Response other than \"yes\"; aborting\n");
+			exit(0);
 		}
 	}
 

@@ -67,7 +67,7 @@
  *        queue.   Pointers in this implementation never == NULL.
  *
  *        Definitions:
- *        - anchor : This is ths list container and has a
+ *        - anchor : This is the list container and has a
  *                   pointer to both the head and tail of the
  *                   list elements
  *        - element: This is the list element not the actual

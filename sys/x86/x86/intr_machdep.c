@@ -77,7 +77,7 @@ static struct mtx intr_table_lock;
 static struct mtx intrcnt_lock;
 static TAILQ_HEAD(pics_head, pic) pics;
 
-#ifdef SMP
+#if defined(SMP) && !defined(EARLY_AP_STARTUP)
 static int assign_cpu;
 #endif
 
@@ -320,11 +320,16 @@ intr_assign_cpu(void *arg, int cpu)
 	struct intsrc *isrc;
 	int error;
 
+#ifdef EARLY_AP_STARTUP
+	MPASS(mp_ncpus == 1 || smp_started);
+	if (cpu != NOCPU) {
+#else
 	/*
 	 * Don't do anything during early boot.  We will pick up the
 	 * assignment once the APs are started.
 	 */
 	if (assign_cpu && cpu != NOCPU) {
+#endif
 		isrc = arg;
 		mtx_lock(&intr_table_lock);
 		error = isrc->is_pic->pic_assign_cpu(isrc, cpu_apic_ids[cpu]);
@@ -392,6 +397,21 @@ intr_init(void *dummy __unused)
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+
+static void
+intr_init_final(void *dummy __unused)
+{
+
+	/*
+	 * Enable interrupts on the BSP after all of the interrupt
+	 * controllers are initialized.  Device interrupts are still
+	 * disabled in the interrupt controllers until interrupt
+	 * handlers are registered.  Interrupts are enabled on each AP
+	 * after their first context switch.
+	 */
+	enable_intr();
+}
+SYSINIT(intr_init_final, SI_SUB_INTR, SI_ORDER_ANY, intr_init_final, NULL);
 
 #ifndef DEV_ATPIC
 /* Initialize the two 8259A's to a known-good shutdown state. */
@@ -475,7 +495,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
  * allocate CPUs round-robin.
  */
 
-static cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
+cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu;
 
 /*
@@ -487,9 +507,13 @@ intr_next_cpu(void)
 {
 	u_int apic_id;
 
+#ifdef EARLY_AP_STARTUP
+	MPASS(mp_ncpus == 1 || smp_started);
+#else
 	/* Leave all interrupts on the BSP during boot. */
 	if (!assign_cpu)
 		return (PCPU_GET(apic_id));
+#endif
 
 	mtx_lock_spin(&icu_lock);
 	apic_id = cpu_apic_ids[current_cpu];
@@ -531,6 +555,7 @@ intr_add_cpu(u_int cpu)
 	CPU_SET(cpu, &intr_cpus);
 }
 
+#ifndef EARLY_AP_STARTUP
 /*
  * Distribute all the interrupt sources among the available CPUs once the
  * AP's have been launched.
@@ -571,6 +596,7 @@ intr_shuffle_irqs(void *arg __unused)
 }
 SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
     NULL);
+#endif
 #else
 /*
  * Always route interrupts to the current processor in the UP case.

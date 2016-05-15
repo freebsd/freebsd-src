@@ -35,4 +35,10 @@
 #define MINOR(dev)      minor((dev))
 #define MKDEV(ma, mi)   makedev((ma), (mi))
 
+static inline uint16_t
+old_encode_dev(dev_t dev)
+{
+	return ((MAJOR(dev) << 8) | MINOR(dev));
+}
+
 #endif	/* _LINUX_KDEV_T_H_ */

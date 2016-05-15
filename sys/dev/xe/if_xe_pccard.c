@@ -140,7 +140,7 @@ xe_cemfix(device_t dev)
 
 	DEVPRINTF(2, (dev, "cemfix\n"));
 
-	DEVPRINTF(1, (dev, "CEM I/O port 0x%0lx, size 0x%0lx\n",
+	DEVPRINTF(1, (dev, "CEM I/O port 0x%0jx, size 0x%0jx\n",
 		bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
 		bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 

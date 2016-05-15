@@ -45,7 +45,7 @@ struct fdt_sense_level {
 	enum intr_polarity	pol;
 };
 
-#if defined(__arm__) && !defined(ARM_INTRNG)
+#if defined(__arm__) && !defined(INTRNG)
 typedef int (*fdt_pic_decode_t)(phandle_t, pcell_t *, int *, int *, int *);
 extern fdt_pic_decode_t fdt_pic_table[];
 #endif
@@ -100,5 +100,6 @@ int fdt_parent_addr_cells(phandle_t);
 int fdt_reg_to_rl(phandle_t, struct resource_list *);
 int fdt_pm(phandle_t);
 int fdt_get_unit(device_t);
+int fdt_get_chosen_bootargs(char *bootargs, size_t max_size);
 
 #endif /* _FDT_COMMON_H_ */

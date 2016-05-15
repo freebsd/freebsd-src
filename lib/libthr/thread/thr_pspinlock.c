@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2003 David Xu <davidxu@freebsd.org>
+ * Copyright (c) 2016 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,9 +26,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
@@ -33,6 +38,9 @@
 #include "un-namespace.h"
 
 #include "thr_private.h"
+
+_Static_assert(sizeof(struct pthread_spinlock) <= PAGE_SIZE,
+    "pthread_spinlock is too large for off-page");
 
 #define SPIN_COUNT 100000
 
@@ -46,93 +54,100 @@ int
 _pthread_spin_init(pthread_spinlock_t *lock, int pshared)
 {
 	struct pthread_spinlock	*lck;
-	int ret;
 
-	if (lock == NULL || pshared != PTHREAD_PROCESS_PRIVATE)
-		ret = EINVAL;
-	else if ((lck = malloc(sizeof(struct pthread_spinlock))) == NULL)
-		ret = ENOMEM;
-	else {
-		_thr_umutex_init(&lck->s_lock);
+	if (lock == NULL)
+		return (EINVAL);
+	if (pshared == PTHREAD_PROCESS_PRIVATE) {
+		lck = malloc(sizeof(struct pthread_spinlock));
+		if (lck == NULL)
+			return (ENOMEM);
 		*lock = lck;
-		ret = 0;
+	} else if (pshared == PTHREAD_PROCESS_SHARED) {
+		lck = __thr_pshared_offpage(lock, 1);
+		if (lck == NULL)
+			return (EFAULT);
+		*lock = THR_PSHARED_PTR;
+	} else {
+		return (EINVAL);
 	}
-
-	return (ret);
+	_thr_umutex_init(&lck->s_lock);
+	return (0);
 }
 
 int
 _pthread_spin_destroy(pthread_spinlock_t *lock)
 {
+	void *l;
 	int ret;
 
-	if (lock == NULL || *lock == NULL)
+	if (lock == NULL || *lock == NULL) {
 		ret = EINVAL;
-	else {
+	} else if (*lock == THR_PSHARED_PTR) {
+		l = __thr_pshared_offpage(lock, 0);
+		if (l != NULL)
+			__thr_pshared_destroy(l);
+		ret = 0;
+	} else {
 		free(*lock);
 		*lock = NULL;
 		ret = 0;
 	}
-
 	return (ret);
 }
 
 int
 _pthread_spin_trylock(pthread_spinlock_t *lock)
 {
-	struct pthread *curthread = _get_curthread();
 	struct pthread_spinlock	*lck;
-	int ret;
 
-	if (lock == NULL || (lck = *lock) == NULL)
-		ret = EINVAL;
-	else
-		ret = THR_UMUTEX_TRYLOCK(curthread, &lck->s_lock);
-	return (ret);
+	if (lock == NULL || *lock == NULL)
+		return (EINVAL);
+	lck = *lock == THR_PSHARED_PTR ? __thr_pshared_offpage(lock, 0) : *lock;
+	if (lck == NULL)
+		return (EINVAL);
+	return (THR_UMUTEX_TRYLOCK(_get_curthread(), &lck->s_lock));
 }
 
 int
 _pthread_spin_lock(pthread_spinlock_t *lock)
 {
-	struct pthread *curthread = _get_curthread();
+	struct pthread *curthread;
 	struct pthread_spinlock	*lck;
-	int ret, count;
+	int count;
 
-	if (lock == NULL || (lck = *lock) == NULL)
-		ret = EINVAL;
-	else {
-		count = SPIN_COUNT;
-		while ((ret = THR_UMUTEX_TRYLOCK(curthread, &lck->s_lock)) != 0) {
-			while (lck->s_lock.m_owner) {
-				if (!_thr_is_smp) {
+	if (lock == NULL)
+		return (EINVAL);
+	lck = *lock == THR_PSHARED_PTR ? __thr_pshared_offpage(lock, 0) : *lock;
+	if (lck == NULL)
+		return (EINVAL);
+
+	curthread = _get_curthread();
+	count = SPIN_COUNT;
+	while (THR_UMUTEX_TRYLOCK(curthread, &lck->s_lock) != 0) {
+		while (lck->s_lock.m_owner) {
+			if (!_thr_is_smp) {
+				_pthread_yield();
+			} else {
+				CPU_SPINWAIT;
+				if (--count <= 0) {
+					count = SPIN_COUNT;
 					_pthread_yield();
-				} else {
-					CPU_SPINWAIT;
-
-					if (--count <= 0) {
-						count = SPIN_COUNT;
-						_pthread_yield();
-					}
 				}
 			}
 		}
-		ret = 0;
 	}
-
-	return (ret);
+	return (0);
 }
 
 int
 _pthread_spin_unlock(pthread_spinlock_t *lock)
 {
-	struct pthread *curthread = _get_curthread();
 	struct pthread_spinlock	*lck;
-	int ret;
 
-	if (lock == NULL || (lck = *lock) == NULL)
-		ret = EINVAL;
-	else {
-		ret = THR_UMUTEX_UNLOCK(curthread, &lck->s_lock);
-	}
-	return (ret);
+	if (lock == NULL)
+		return (EINVAL);
+	lck = *lock == THR_PSHARED_PTR ? __thr_pshared_offpage(lock, 0) : *lock;
+	if (lck == NULL)
+		return (EINVAL);
+	return (THR_UMUTEX_UNLOCK(_get_curthread(), &lck->s_lock));
 }

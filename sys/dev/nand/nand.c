@@ -811,7 +811,7 @@ nand_erase_blocks(struct nand_chip *chip, off_t offset, size_t len)
 			err = ENXIO;
 
 		block++;
-	};
+	}
 
 	NANDBUS_UNLOCK(nandbus);
 

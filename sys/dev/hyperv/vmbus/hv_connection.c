@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -96,26 +96,26 @@ hv_vmbus_negotiate_version(hv_vmbus_channel_msg_info *msg_info,
 	 * Add to list before we send the request since we may receive the
 	 * response before returning from this routine
 	 */
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	TAILQ_INSERT_TAIL(
 		&hv_vmbus_g_connection.channel_msg_anchor,
 		msg_info,
 		msg_list_entry);
 
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	ret = hv_vmbus_post_message(
 		msg,
 		sizeof(hv_vmbus_channel_initiate_contact));
 
 	if (ret != 0) {
-		mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+		mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 		TAILQ_REMOVE(
 			&hv_vmbus_g_connection.channel_msg_anchor,
 			msg_info,
 			msg_list_entry);
-		mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+		mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 		return (ret);
 	}
 
@@ -124,12 +124,12 @@ hv_vmbus_negotiate_version(hv_vmbus_channel_msg_info *msg_info,
 	 */
 	ret = sema_timedwait(&msg_info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_REMOVE(
 		&hv_vmbus_g_connection.channel_msg_anchor,
 		msg_info,
 		msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	/**
 	 * Check if successful
@@ -166,7 +166,7 @@ hv_vmbus_connect(void) {
 
 	TAILQ_INIT(&hv_vmbus_g_connection.channel_msg_anchor);
 	mtx_init(&hv_vmbus_g_connection.channel_msg_lock, "vmbus channel msg",
-		NULL, MTX_SPIN);
+		NULL, MTX_DEF);
 
 	TAILQ_INIT(&hv_vmbus_g_connection.channel_anchor);
 	mtx_init(&hv_vmbus_g_connection.channel_lock, "vmbus channel",
@@ -305,14 +305,18 @@ hv_vmbus_on_events(int cpu)
 	KASSERT(cpu <= mp_maxid, ("VMBUS: hv_vmbus_on_events: "
 	    "cpu out of range!"));
 
+	page_addr = hv_vmbus_g_context.syn_ic_event_page[cpu];
+	event = (hv_vmbus_synic_event_flags *)
+	    page_addr + HV_VMBUS_MESSAGE_SINT;
 	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
 	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
 		maxdword = HV_MAX_NUM_CHANNELS_SUPPORTED >> 5;
 		/*
 		 * receive size is 1/2 page and divide that by 4 bytes
 		 */
-		recv_interrupt_page =
-		    hv_vmbus_g_connection.recv_interrupt_page;
+		if (synch_test_and_clear_bit(0, &event->flags32[0]))
+			recv_interrupt_page =
+			    hv_vmbus_g_connection.recv_interrupt_page;
 	} else {
 		/*
 		 * On Host with Win8 or above, the event page can be
@@ -320,9 +324,6 @@ hv_vmbus_on_events(int cpu)
 		 * that has the pending interrupt.
 		 */
 		maxdword = HV_EVENT_FLAGS_DWORD_COUNT;
-		page_addr = hv_vmbus_g_context.syn_ic_event_page[cpu];
-		event = (hv_vmbus_synic_event_flags *)
-		    page_addr + HV_VMBUS_MESSAGE_SINT;
 		recv_interrupt_page = event->flags32;
 	}
 
@@ -364,31 +365,35 @@ hv_vmbus_on_events(int cpu)
 /**
  * Send a msg on the vmbus's message connection
  */
-int hv_vmbus_post_message(void *buffer, size_t bufferLen) {
-	int ret = 0;
+int hv_vmbus_post_message(void *buffer, size_t bufferLen)
+{
 	hv_vmbus_connection_id connId;
-	unsigned retries = 0;
+	sbintime_t time = SBT_1MS;
+	int retries;
+	int ret;
 
-	/* NetScaler delays from previous code were consolidated here */
-	static int delayAmount[] = {100, 100, 100, 500, 500, 5000, 5000, 5000};
+	connId.as_uint32_t = 0;
+	connId.u.id = HV_VMBUS_MESSAGE_CONNECTION_ID;
 
-	/* for(each entry in delayAmount) try to post message,
-	 *  delay a little bit before retrying
+	/*
+	 * We retry to cope with transient failures caused by host side's
+	 * insufficient resources. 20 times should suffice in practice.
 	 */
-	for (retries = 0;
-	    retries < sizeof(delayAmount)/sizeof(delayAmount[0]); retries++) {
-	    connId.as_uint32_t = 0;
-	    connId.u.id = HV_VMBUS_MESSAGE_CONNECTION_ID;
-	    ret = hv_vmbus_post_msg_via_msg_ipc(connId, 1, buffer, bufferLen);
-	    if (ret != HV_STATUS_INSUFFICIENT_BUFFERS)
-		break;
-	    /* TODO: KYS We should use a blocking wait call */
-	    DELAY(delayAmount[retries]);
+	for (retries = 0; retries < 20; retries++) {
+		ret = hv_vmbus_post_msg_via_msg_ipc(connId, 1, buffer,
+						    bufferLen);
+		if (ret == HV_STATUS_SUCCESS)
+			return (0);
+
+		pause_sbt("pstmsg", time, 0, C_HARDCLOCK);
+		if (time < SBT_1S * 2)
+			time *= 2;
 	}
 
-	KASSERT(ret == 0, ("Error VMBUS: Message Post Failed\n"));
+	KASSERT(ret == HV_STATUS_SUCCESS,
+		("Error VMBUS: Message Post Failed, ret=%d\n", ret));
 
-	return (ret);
+	return (EAGAIN);
 }
 
 /**

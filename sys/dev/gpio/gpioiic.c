@@ -157,7 +157,7 @@ gpioiic_callback(device_t dev, int index, caddr_t data)
 	int error, how;
 
 	how = GPIOBUS_DONTWAIT;
-	if (data != NULL && (int)*data == IIC_WAIT)
+	if (data != NULL && *(int*)data == IIC_WAIT)
 		how = GPIOBUS_WAIT;
 	error = 0;
 	switch (index) {
@@ -272,7 +272,7 @@ static device_method_t gpioiic_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	gpioiic_get_node),
 #endif
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t gpioiic_driver = {

@@ -287,8 +287,6 @@ static const struct netisr_dispatch_table_entry netisr_dispatch_table[] = {
 	{ NETISR_DISPATCH_HYBRID, "hybrid" },
 	{ NETISR_DISPATCH_DIRECT, "direct" },
 };
-static const u_int netisr_dispatch_table_len =
-    (sizeof(netisr_dispatch_table) / sizeof(netisr_dispatch_table[0]));
 
 static void
 netisr_dispatch_policy_to_str(u_int dispatch_policy, char *buffer,
@@ -299,7 +297,7 @@ netisr_dispatch_policy_to_str(u_int dispatch_policy, char *buffer,
 	u_int i;
 
 	str = "unknown";
-	for (i = 0; i < netisr_dispatch_table_len; i++) {
+	for (i = 0; i < nitems(netisr_dispatch_table); i++) {
 		ndtep = &netisr_dispatch_table[i];
 		if (ndtep->ndte_policy == dispatch_policy) {
 			str = ndtep->ndte_policy_str;
@@ -315,7 +313,7 @@ netisr_dispatch_policy_from_str(const char *str, u_int *dispatch_policyp)
 	const struct netisr_dispatch_table_entry *ndtep;
 	u_int i;
 
-	for (i = 0; i < netisr_dispatch_table_len; i++) {
+	for (i = 0; i < nitems(netisr_dispatch_table); i++) {
 		ndtep = &netisr_dispatch_table[i];
 		if (strcmp(ndtep->ndte_policy_str, str) == 0) {
 			*dispatch_policyp = ndtep->ndte_policy;
@@ -1121,6 +1119,10 @@ netisr_start_swi(u_int cpuid, struct pcpu *pc)
 static void
 netisr_init(void *arg)
 {
+#ifdef EARLY_AP_STARTUP
+	struct pcpu *pc;
+#endif
+
 	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
 
 	NETISR_LOCK_INIT();
@@ -1151,10 +1153,20 @@ netisr_init(void *arg)
 		netisr_bindthreads = 0;
 	}
 #endif
+
+#ifdef EARLY_AP_STARTUP
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (nws_count >= netisr_maxthreads)
+			break;
+		netisr_start_swi(pc->pc_cpuid, pc);
+	}
+#else
 	netisr_start_swi(curcpu, pcpu_find(curcpu));
+#endif
 }
 SYSINIT(netisr_init, SI_SUB_SOFTINTR, SI_ORDER_FIRST, netisr_init, NULL);
 
+#ifndef EARLY_AP_STARTUP
 /*
  * Start worker threads for additional CPUs.  No attempt to gracefully handle
  * work reassignment, we don't yet support dynamic reconfiguration.
@@ -1167,9 +1179,6 @@ netisr_start(void *arg)
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (nws_count >= netisr_maxthreads)
 			break;
-		/* XXXRW: Is skipping absent CPUs still required here? */
-		if (CPU_ABSENT(pc->pc_cpuid))
-			continue;
 		/* Worker will already be present for boot CPU. */
 		if (pc->pc_netisr != NULL)
 			continue;
@@ -1177,6 +1186,7 @@ netisr_start(void *arg)
 	}
 }
 SYSINIT(netisr_start, SI_SUB_SMP, SI_ORDER_MIDDLE, netisr_start, NULL);
+#endif
 
 /*
  * Sysctl monitoring for netisr: query a list of registered protocols.

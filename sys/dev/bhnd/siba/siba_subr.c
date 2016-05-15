@@ -187,6 +187,11 @@ siba_dinfo_get_port(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 		return (NULL);
 	case BHND_PORT_AGENT:
 		return (NULL);
+	default:
+		printf("%s: unknown port_type (%d)\n",
+		    __func__,
+		    port_type);
+		return (NULL);
 	}
 }
 
@@ -337,7 +342,7 @@ siba_admatch_offset(uint8_t addrspace)
  * @param[out] size The parsed size.
  * 
  * @retval 0 success
- * @retval non-zero a parse error occured.
+ * @retval non-zero a parse error occurred.
  */
 int
 siba_parse_admatch(uint32_t am, uint32_t *addr, uint32_t *size)

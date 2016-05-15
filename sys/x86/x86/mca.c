@@ -104,7 +104,8 @@ SYSCTL_INT(_hw_mca, OID_AUTO, intel6h_HSD131, CTLFLAG_RDTUN, &intel6h_HSD131, 0,
     "Administrative toggle for logging of spurious corrected errors");
 
 int workaround_erratum383;
-SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RD, &workaround_erratum383, 0,
+SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RDTUN,
+    &workaround_erratum383, 0,
     "Is the workaround for Erratum 383 on AMD Family 10h processors enabled?");
 
 static STAILQ_HEAD(, mca_internal) mca_freelist;
@@ -725,7 +726,11 @@ mca_startup(void *dummy)
 
 	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan, NULL);
 }
+#ifdef EARLY_AP_STARTUP
+SYSINIT(mca_startup, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, mca_startup, NULL);
+#else
 SYSINIT(mca_startup, SI_SUB_SMP, SI_ORDER_ANY, mca_startup, NULL);
+#endif
 
 #ifdef DEV_APIC
 static void

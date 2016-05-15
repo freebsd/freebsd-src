@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: audio,v 1.73 2015/03/15 23:21:42 christos Exp $
+# $File: audio,v 1.75 2016/02/08 17:30:11 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -585,7 +585,7 @@
 0	string		SC68\ Music-file\ /\ (c)\ (BeN)jami	sc68 Atari ST music
 
 # musepak support From: "Jiri Pejchal" <jiri.pejchal@gmail.com>
-0       string          MP+     Musepack audio
+0       string          MP+     Musepack audio (MP+)
 !:mime	audio/x-musepack
 >3      byte            255     \b, SV pre8
 >3      byte&0xF        0x6     \b, SV 6
@@ -618,6 +618,9 @@
 >>27    byte            113     \b, Alpha 1.13
 >>27    byte            114     \b, Beta 1.14
 >>27    byte            115     \b, Alpha 1.15
+
+0       string          MPCK    Musepack audio (MPCK)
+!:mime	audio/x-musepack
 
 # IMY
 # from http://filext.com/detaillist.php?extdetail=IMY
@@ -714,4 +717,42 @@
 
 0	string	ZBOT
 >4	byte	0xc5	GVOX Encore music, version < 5.0
+
+# Summary:	Garmin Voice Processing Module (WAVE audios)
+# From:		Joerg Jenderek
+# URL:		http://www.garmin.com/
+# Reference:	http://turboccc.wikispaces.com/share/view/28622555
+# NOTE:		there exist 2 other Garmin VPM formats
+0		string	AUDIMG		
+# skip text files starting with string "AUDIMG"
+>13		ubyte		<13	Garmin Voice Processing Module
+!:mime	audio/x-vpm-wav-garmin
+!:ext	vpm
+# 3 bytes indicating the voice version (200,220)
+>>6		string		x	\b, version %3.3s
+# day of release (01-31)
+>>12		ubyte		x	\b, %.2d
+# month of release (01-12)
+>>13		ubyte		x	\b.%.2d
+# year of release (like 2006, 2007, 2008)
+>>14		uleshort	x	\b.%.4d
+# hour of release (0-23)
+>>11		ubyte		x	%.2d
+# minute of release (0-59)
+>>10		ubyte		x	\b:%.2d
+# second of release (0-59)
+>>9		ubyte		x	\b:%.2d
+# if you select a language like german on your garmin device
+# you can only select voice modules with correponding language byte ID like 1 
+>>18		ubyte		x	\b, language ID %d
+# pointer to 1st audio WAV sample
+>>16		uleshort	>0	
+>>>(16.s)	ulelong		>0	\b, at offset 0x%x
+# WAV length
+>>>>(16.s+4)	ulelong		>0	%d Bytes
+# look for magic
+>>>>>(&-8.l)	string		RIFF	
+# determine type by ./riff
+>>>>>>&-4	indirect	x	\b 
+# 2 - ~ 131 WAV samples following same way
 

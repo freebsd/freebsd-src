@@ -103,6 +103,40 @@ escape_blanks(char *str)
   return str;
 }
 
+#define is_hex(c) (((c) >= '0' && (c) <= '9') || ((c) >= 'A' && (c) <= 'F'))
+#define hex_to_int(c) ((c) < '9' ? (c) - '0' : (c) - 'A' + 10)
+ 
+/* Modify STR in-place.  '%', CR and LF are always percent escaped,
+   other characters may be percent escaped, always using uppercase
+   hex, see https://www.gnupg.org/documentation/manuals/assuan.pdf */
+static char *
+unescape_assuan(char *str)
+{
+  char *s = str;
+
+  while (s[0])
+    {
+      if (s[0] == '%' && is_hex(s[1]) && is_hex(s[2]))
+        {
+          char *s2 = s;
+          char val = hex_to_int(s[1]) * 16 + hex_to_int(s[2]);
+
+          s2[0] = val;
+          ++s2;
+
+          while (s2[2])
+            {
+              s2[0] = s2[2];
+              ++s2;
+            }
+          s2[0] = '\0';
+        }
+      ++s;
+    }
+
+  return str;
+}
+
 /* Generate the string CACHE_ID_P based on the REALMSTRING allocated in
  * RESULT_POOL using SCRATCH_POOL for temporary allocations.  This is similar
  * to other password caching mechanisms. */
@@ -379,7 +413,7 @@ password_get_gpg_agent(svn_boolean_t *done,
                        apr_pool_t *pool)
 {
   int sd;
-  const char *p = NULL;
+  char *p = NULL;
   char *ep = NULL;
   char *buffer;
   const char *request = NULL;
@@ -452,7 +486,7 @@ password_get_gpg_agent(svn_boolean_t *done,
   if (ep != NULL)
     *ep = '\0';
 
-  *password = p;
+  *password = unescape_assuan(p);
 
   *done = TRUE;
   return SVN_NO_ERROR;

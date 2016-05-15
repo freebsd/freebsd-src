@@ -1,4 +1,5 @@
 # $FreeBSD$
+PACKAGE=lib${LIB}
 LIB=	vgl
 SHLIB_MAJOR= 6
 CFLAGS+=-Wall -I${.CURDIR}

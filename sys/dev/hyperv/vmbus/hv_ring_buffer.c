@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -76,7 +76,7 @@ hv_ring_buffer_stat(
 {
 	SYSCTL_ADD_PROC(ctx, tree_node, OID_AUTO,
 	    "ring_buffer_stats",
-	    CTLTYPE_STRING|CTLFLAG_RD, rbi, 0,
+	    CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE, rbi, 0,
 	    hv_rbi_sysctl_stats, "A", desc);
 }
 /**

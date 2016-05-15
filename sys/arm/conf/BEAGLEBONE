@@ -28,6 +28,8 @@ include 	"../ti/am335x/std.am335x"
 
 makeoptions	MODULES_EXTRA="dtb/am335x am335x_dmtpps"
 
+options 	INTRNG
+
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
@@ -86,6 +88,10 @@ device		random			# Entropy device
 device		gpio
 device		gpioled
 device		gpiobacklight
+
+# SPI
+device		ti_spi
+device		spibus
 
 # ADC support
 device		ti_adc

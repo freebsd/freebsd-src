@@ -1177,7 +1177,7 @@ vtcon_port_enable_intr(struct vtcon_port *port)
 {
 
 	/*
-	 * NOTE: The out virtqueue is always polled, so its interupt
+	 * NOTE: The out virtqueue is always polled, so its interrupt
 	 * kept disabled.
 	 */
 	virtqueue_enable_intr(port->vtcport_invq);

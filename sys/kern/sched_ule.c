@@ -2288,13 +2288,11 @@ sched_clock(struct thread *td)
 	}
 }
 
-/*
- * Called once per hz tick.
- */
-void
-sched_tick(int cnt)
+u_int
+sched_estcpu(struct thread *td __unused)
 {
 
+	return (0);
 }
 
 /*

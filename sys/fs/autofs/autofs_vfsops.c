@@ -42,6 +42,7 @@
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/vnode.h>
 
 #include <fs/autofs/autofs.h>
@@ -158,10 +159,10 @@ autofs_unmount(struct mount *mp, int mntflags)
 	/*
 	 * Not terribly efficient, but at least not recursive.
 	 */
-	while (!TAILQ_EMPTY(&amp->am_root->an_children)) {
-		anp = TAILQ_FIRST(&amp->am_root->an_children);
-		while (!TAILQ_EMPTY(&anp->an_children))
-			anp = TAILQ_FIRST(&anp->an_children);
+	while (!RB_EMPTY(&amp->am_root->an_children)) {
+		anp = RB_MIN(autofs_node_tree, &amp->am_root->an_children);
+		while (!RB_EMPTY(&anp->an_children))
+			anp = RB_MIN(autofs_node_tree, &anp->an_children);
 		autofs_node_delete(anp);
 	}
 	autofs_node_delete(amp->am_root);

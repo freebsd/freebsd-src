@@ -102,6 +102,7 @@ device		cpufreq
 
 # Standard busses
 device		pci
+options 	PCI_HP			# PCI-Express native HotPlug
 device		agp
 
 # ATA controllers

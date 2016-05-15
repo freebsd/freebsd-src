@@ -58,6 +58,11 @@ typedef	__ssize_t	ssize_t;
 #endif
 #endif
 
+#ifndef _OFF64_T_DECLARED
+#define	_OFF64_T_DECLARED
+typedef	__off64_t	off64_t;
+#endif
+
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #ifndef _VA_LIST_DECLARED
 typedef	__va_list	va_list;
@@ -426,6 +431,18 @@ FILE	*funopen(const void *,
 	    int (*)(void *));
 #define	fropen(cookie, fn) funopen(cookie, fn, 0, 0, 0)
 #define	fwopen(cookie, fn) funopen(cookie, 0, fn, 0, 0)
+
+typedef __ssize_t cookie_read_function_t(void *, char *, size_t);
+typedef __ssize_t cookie_write_function_t(void *, const char *, size_t);
+typedef int cookie_seek_function_t(void *, off64_t *, int);
+typedef int cookie_close_function_t(void *);
+typedef struct {
+	cookie_read_function_t	*read;
+	cookie_write_function_t	*write;
+	cookie_seek_function_t	*seek;
+	cookie_close_function_t	*close;
+} cookie_io_functions_t;
+FILE	*fopencookie(void *, const char *, cookie_io_functions_t);
 
 /*
  * Portability hacks.  See <sys/types.h>.

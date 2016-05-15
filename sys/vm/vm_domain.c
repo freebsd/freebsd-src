@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 #include <sys/proc.h>
 #endif
 #include <sys/queue.h>
@@ -61,10 +61,10 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_domain.h>
 
+#ifdef VM_NUMA_ALLOC
 static __inline int
 vm_domain_rr_selectdomain(int skip_domain)
 {
-#if MAXMEMDOM > 1
 	struct thread *td;
 
 	td = curthread;
@@ -82,10 +82,8 @@ vm_domain_rr_selectdomain(int skip_domain)
 		td->td_dom_rr_idx %= vm_ndomains;
 	}
 	return (td->td_dom_rr_idx);
-#else
-	return (0);
-#endif
 }
+#endif
 
 /*
  * This implements a very simple set of VM domain memory allocation
@@ -188,8 +186,13 @@ vm_domain_policy_validate(const struct vm_domain_policy *vp)
 		return (-1);
 	case VM_POLICY_FIXED_DOMAIN:
 	case VM_POLICY_FIXED_DOMAIN_ROUND_ROBIN:
+#ifdef VM_NUMA_ALLOC
 		if (vp->p.domain >= 0 && vp->p.domain < vm_ndomains)
 			return (0);
+#else
+		if (vp->p.domain == 0)
+			return (0);
+#endif
 		return (-1);
 	default:
 		return (-1);
@@ -221,6 +224,7 @@ vm_domain_iterator_set(struct vm_domain_iterator *vi,
     vm_domain_policy_type_t vt, int domain)
 {
 
+#ifdef VM_NUMA_ALLOC
 	switch (vt) {
 	case VM_POLICY_FIXED_DOMAIN:
 		vi->policy = VM_POLICY_FIXED_DOMAIN;
@@ -249,6 +253,10 @@ vm_domain_iterator_set(struct vm_domain_iterator *vi,
 		vi->n = vm_ndomains;
 		break;
 	}
+#else
+	vi->domain = 0;
+	vi->n = 1;
+#endif
 	return (0);
 }
 
@@ -259,6 +267,8 @@ static inline void
 _vm_domain_iterator_set_policy(struct vm_domain_iterator *vi,
     const struct vm_domain_policy *vt)
 {
+
+#ifdef VM_NUMA_ALLOC
 	/*
 	 * Initialise the iterator.
 	 *
@@ -300,6 +310,10 @@ _vm_domain_iterator_set_policy(struct vm_domain_iterator *vi,
 		vi->n = vm_ndomains;
 		break;
 	}
+#else
+	vi->domain = 0;
+	vi->n = 1;
+#endif
 }
 
 void
@@ -334,6 +348,7 @@ vm_domain_iterator_run(struct vm_domain_iterator *vi, int *domain)
 	if (vi->n <= 0)
 		return (-1);
 
+#ifdef VM_NUMA_ALLOC
 	switch (vi->policy) {
 	case VM_POLICY_FIXED_DOMAIN:
 	case VM_POLICY_FIRST_TOUCH:
@@ -358,6 +373,10 @@ vm_domain_iterator_run(struct vm_domain_iterator *vi, int *domain)
 		vi->n--;
 		break;
 	}
+#else
+	*domain = 0;
+	vi->n--;
+#endif
 
 	return (0);
 }

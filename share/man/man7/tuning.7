@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2012
+.Dd May 9, 2016
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -451,12 +451,6 @@ of a slow-start TCP connection.
 While we are not sure we believe that
 the several FAQs related to packages such as SAMBA and SQUID which advise
 turning off delayed acks may be referring to the slow-start issue.
-In
-.Fx ,
-it would be more beneficial to increase the slow-start flightsize via
-the
-.Va net.inet.tcp.slowstart_flightsize
-sysctl rather than disable delayed acks.
 .Pp
 The
 .Va net.inet.ip.portrange.*

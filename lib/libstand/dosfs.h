@@ -96,8 +96,6 @@ typedef union {
 
 typedef struct {
     struct open_file *fd;       /* file descriptor */
-    u_char *buf;                /* buffer */
-    u_int bufsec;               /* buffered sector */
     u_int links;                /* active links to structure */
     u_int spc;                  /* sectors per cluster */
     u_int bsize;                /* cluster size in bytes */

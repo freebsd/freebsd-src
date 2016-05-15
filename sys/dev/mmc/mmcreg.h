@@ -85,8 +85,11 @@ struct mmc_command {
 #define	MMC_RSP_R1B	(MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE | MMC_RSP_BUSY)
 #define	MMC_RSP_R2	(MMC_RSP_PRESENT | MMC_RSP_136 | MMC_RSP_CRC)
 #define	MMC_RSP_R3	(MMC_RSP_PRESENT)
-#define	MMC_RSP_R6	(MMC_RSP_PRESENT | MMC_RSP_CRC)
-#define	MMC_RSP_R7	(MMC_RSP_PRESENT | MMC_RSP_CRC)
+#define	MMC_RSP_R4	(MMC_RSP_PRESENT)
+#define	MMC_RSP_R5	(MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE)
+#define	MMC_RSP_R5B	(MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE | MMC_RSP_BUSY)
+#define	MMC_RSP_R6	(MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE)
+#define	MMC_RSP_R7	(MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE)
 #define	MMC_RSP(x)	((x) & MMC_RSP_MASK)
 	uint32_t	retries;
 	uint32_t	error;
@@ -438,7 +441,7 @@ struct mmc_sd_status
  * Older versions of the MMC standard had a variable sector size.  However,
  * I've been able to find no old MMC or SD cards that have a non 512
  * byte sector size anywhere, so we assume that such cards are very rare
- * and only note their existance in passing here...
+ * and only note their existence in passing here...
  */
 #define MMC_SECTOR_SIZE	512
 

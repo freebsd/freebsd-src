@@ -715,13 +715,15 @@ ses_cache_clone(enc_softc_t *enc, enc_cache_t *src, enc_cache_t *dst)
 	 * The element map is independent even though it starts out
 	 * pointing to the same constant page data.
 	 */
-	dst->elm_map = ENC_MALLOCZ(dst->nelms * sizeof(enc_element_t));
+	dst->elm_map = malloc(dst->nelms * sizeof(enc_element_t),
+	    M_SCSIENC, M_WAITOK);
 	memcpy(dst->elm_map, src->elm_map, dst->nelms * sizeof(enc_element_t));
 	for (dst_elm = dst->elm_map, src_elm = src->elm_map,
 	     last_elm = &src->elm_map[src->nelms];
 	     src_elm != last_elm; src_elm++, dst_elm++) {
 
-		dst_elm->elm_private = ENC_MALLOCZ(sizeof(ses_element_t));
+		dst_elm->elm_private = malloc(sizeof(ses_element_t),
+		    M_SCSIENC, M_WAITOK);
 		memcpy(dst_elm->elm_private, src_elm->elm_private,
 		       sizeof(ses_element_t));
 	}
@@ -1066,11 +1068,7 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 	cdai.buftype = CDAI_TYPE_SCSI_DEVID;
 	cdai.bufsiz = CAM_SCSI_DEVID_MAXLEN;
-	cdai.buf = devid = ENC_MALLOCZ(cdai.bufsiz);
-	if (devid == NULL) {
-		ret = ENOMEM;
-		goto out;
-	}
+	cdai.buf = devid = malloc(cdai.bufsiz, M_SCSIENC, M_WAITOK|M_ZERO);
 	cam_periph_lock(enc->periph);
 	xpt_action((union ccb *)&cdai);
 	if ((cdai.ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -1370,12 +1368,8 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * Now waltz through all the subenclosures summing the number of
 	 * types available in each.
 	 */
-	subencs = ENC_MALLOCZ(ses_cfg_page_get_num_subenc(cfg_page)
-			    * sizeof(*subencs));
-	if (subencs == NULL) {
-		err = ENOMEM;
-		goto out;
-	}
+	subencs = malloc(ses_cfg_page_get_num_subenc(cfg_page)
+	    * sizeof(*subencs), M_SCSIENC, M_WAITOK|M_ZERO);
 	/*
 	 * Sub-enclosure data is const after construction (i.e. when
 	 * accessed via our cache object.
@@ -1413,11 +1407,8 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	}
 
 	/* Process the type headers. */
-	ses_types = ENC_MALLOCZ(ntype * sizeof(*ses_types));
-	if (ses_types == NULL) {
-		err = ENOMEM;
-		goto out;
-	}
+	ses_types = malloc(ntype * sizeof(*ses_types),
+	    M_SCSIENC, M_WAITOK|M_ZERO);
 	/*
 	 * Type data is const after construction (i.e. when accessed via
 	 * our cache object.
@@ -1454,11 +1445,8 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	}
 
 	/* Create the object map. */
-	enc_cache->elm_map = ENC_MALLOCZ(nelm * sizeof(enc_element_t));
-	if (enc_cache->elm_map == NULL) {
-		err = ENOMEM;
-		goto out;
-	}
+	enc_cache->elm_map = malloc(nelm * sizeof(enc_element_t),
+	    M_SCSIENC, M_WAITOK|M_ZERO);
 	enc_cache->nelms = nelm;
 
 	ses_iter_init(enc, enc_cache, &iter);
@@ -1472,11 +1460,8 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 		element->subenclosure = thdr->etype_subenc;
 		element->enctype = thdr->etype_elm_type;
 		element->overall_status_elem = iter.type_element_index == 0;
-		element->elm_private = ENC_MALLOCZ(sizeof(ses_element_t));
-		if (element->elm_private == NULL) {
-			err = ENOMEM;
-			goto out;
-		}
+		element->elm_private = malloc(sizeof(ses_element_t),
+		    M_SCSIENC, M_WAITOK|M_ZERO);
 		ENC_DLOG(enc, "%s: creating elmpriv %d(%d,%d) subenc %d "
 		    "type 0x%x\n", __func__, iter.global_element_index,
 		    iter.type_index, iter.type_element_index,

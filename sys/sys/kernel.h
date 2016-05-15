@@ -118,7 +118,10 @@ enum sysinit_sub_id {
 	SI_SUB_SCHED_IDLE	= 0x2600000,	/* required idle procs */
 	SI_SUB_MBUF		= 0x2700000,	/* mbuf subsystem */
 	SI_SUB_INTR		= 0x2800000,	/* interrupt threads */
-	SI_SUB_SOFTINTR		= 0x2800001,	/* start soft interrupt thread */
+#ifdef EARLY_AP_STARTUP
+	SI_SUB_SMP		= 0x2900000,	/* start the APs*/
+#endif
+	SI_SUB_SOFTINTR		= 0x2A00000,	/* start soft interrupt thread */
 	SI_SUB_DEVFS		= 0x2F00000,	/* devfs ready for devices */
 	SI_SUB_INIT_IF		= 0x3000000,	/* prep for net interfaces */
 	SI_SUB_NETGRAPH		= 0x3010000,	/* Let Netgraph initialize */
@@ -154,7 +157,9 @@ enum sysinit_sub_id {
 	SI_SUB_KTHREAD_BUF	= 0xea00000,	/* buffer daemon*/
 	SI_SUB_KTHREAD_UPDATE	= 0xec00000,	/* update daemon*/
 	SI_SUB_KTHREAD_IDLE	= 0xee00000,	/* idle procs*/
+#ifndef EARLY_AP_STARTUP
 	SI_SUB_SMP		= 0xf000000,	/* start the APs*/
+#endif	
 	SI_SUB_RACCTD		= 0xf100000,	/* start racctd*/
 	SI_SUB_LAST		= 0xfffffff	/* final initialization */
 };
@@ -315,6 +320,44 @@ struct tunable_ulong {
 	    &__CONCAT(__tunable_ulong_, __LINE__))
 
 #define	TUNABLE_ULONG_FETCH(path, var)	getenv_ulong((path), (var))
+
+/*
+ * int64_t
+ */
+extern void tunable_int64_init(void *);
+struct tunable_int64 {
+	const char *path;
+	int64_t *var;
+};
+#define	TUNABLE_INT64(path, var)				\
+	static struct tunable_int64 __CONCAT(__tunable_int64_, __LINE__) = { \
+		(path),						\
+		(var),						\
+	};							\
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_int64_init, \
+	    &__CONCAT(__tunable_int64_, __LINE__))
+
+#define	TUNABLE_INT64_FETCH(path, var)	getenv_int64((path), (var))
+
+/*
+ * uint64_t
+ */
+extern void tunable_uint64_init(void *);
+struct tunable_uint64 {
+	const char *path;
+	uint64_t *var;
+};
+#define	TUNABLE_UINT64(path, var)				\
+	static struct tunable_ulong __CONCAT(__tunable_uint64_, __LINE__) = { \
+		(path),						\
+		(var),						\
+	};							\
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_uint64_init, \
+	    &__CONCAT(__tunable_uint64_, __LINE__))
+
+#define	TUNABLE_UINT64_FETCH(path, var)	getenv_uint64((path), (var))
 
 /*
  * quad

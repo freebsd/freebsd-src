@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -202,7 +202,7 @@ typedef struct acpi_evaluate_info
     /* The first 3 elements are passed by the caller to AcpiNsEvaluate */
 
     ACPI_NAMESPACE_NODE             *PrefixNode;        /* Input: starting node */
-    char                            *RelativePathname;  /* Input: path relative to PrefixNode */
+    const char                      *RelativePathname;  /* Input: path relative to PrefixNode */
     ACPI_OPERAND_OBJECT             **Parameters;       /* Input: argument list */
 
     ACPI_NAMESPACE_NODE             *Node;              /* Resolved node (PrefixNode:RelativePathname) */

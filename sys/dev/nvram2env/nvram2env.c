@@ -127,7 +127,7 @@ nvram2env_probe(device_t dev)
 		    ivar == 0)
 			continue;
 
-		sc->addr = MIPS_PHYS_TO_KSEG1(ivar);
+		sc->addr = ivar;
 
 		if (bootverbose)
 			device_printf(dev, "base=0x%08x sig=0x%08x "

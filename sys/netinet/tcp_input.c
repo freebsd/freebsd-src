@@ -235,16 +235,39 @@ VNET_DEFINE(struct inpcbhead, tcb);
 VNET_DEFINE(struct inpcbinfo, tcbinfo);
 
 /*
- * TCP statistics are stored in an "array" of counter(9)s.
+ * TCP statistics are stored in an array of counter(9)s, which size matches
+ * size of struct tcpstat.  TCP running connection count is a regular array.
  */
 VNET_PCPUSTAT_DEFINE(struct tcpstat, tcpstat);
-VNET_PCPUSTAT_SYSINIT(tcpstat);
 SYSCTL_VNET_PCPUSTAT(_net_inet_tcp, TCPCTL_STATS, stats, struct tcpstat,
     tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
+VNET_DEFINE(counter_u64_t, tcps_states[TCP_NSTATES]);
+SYSCTL_COUNTER_U64_ARRAY(_net_inet_tcp, TCPCTL_STATES, states, CTLFLAG_RD |
+    CTLFLAG_VNET, &VNET_NAME(tcps_states)[0], TCP_NSTATES,
+    "TCP connection counts by TCP state");
+
+static void
+tcp_vnet_init(const void *unused)
+{
+
+	COUNTER_ARRAY_ALLOC(VNET(tcps_states), TCP_NSTATES, M_WAITOK);
+	VNET_PCPUSTAT_ALLOC(tcpstat, M_WAITOK);
+}
+VNET_SYSINIT(tcp_vnet_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    tcp_vnet_init, NULL);
 
 #ifdef VIMAGE
-VNET_PCPUSTAT_SYSUNINIT(tcpstat);
+static void
+tcp_vnet_uninit(const void *unused)
+{
+
+	COUNTER_ARRAY_FREE(VNET(tcps_states), TCP_NSTATES);
+	VNET_PCPUSTAT_FREE(tcpstat);
+}
+VNET_SYSUNINIT(tcp_vnet_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    tcp_vnet_uninit, NULL);
 #endif /* VIMAGE */
+
 /*
  * Kernel module interface for updating tcpstat.  The argument is an index
  * into tcpstat treated as an array.
@@ -342,7 +365,7 @@ cc_conn_init(struct tcpcb *tp)
 		/*
 		 * There's some sort of gateway or interface
 		 * buffer limit on the path.  Use this to set
-		 * the slow start threshhold, but set the
+		 * the slow start threshold, but set the
 		 * threshold to no less than 2*mss.
 		 */
 		tp->snd_ssthresh = max(2 * maxseg, metrics.rmx_ssthresh);
@@ -2510,7 +2533,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * change and FIN isn't set),
 				 * the ack is the biggest we've
 				 * seen and we've seen exactly our rexmt
-				 * threshhold of them, assume a packet
+				 * threshold of them, assume a packet
 				 * has been dropped and retransmit it.
 				 * Kludge snd_nxt & the congestion
 				 * window so we send only this one
@@ -2731,6 +2754,9 @@ process_ACK:
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
 		acked = BYTES_THIS_ACK(tp, th);
+		KASSERT(acked >= 0, ("%s: acked unexepectedly negative "
+		    "(tp->snd_una=%u, th->th_ack=%u, tp=%p, m=%p)", __func__,
+		    tp->snd_una, th->th_ack, tp, m));
 		TCPSTAT_INC(tcps_rcvackpack);
 		TCPSTAT_ADD(tcps_rcvackbyte, acked);
 
@@ -2800,13 +2826,19 @@ process_ACK:
 
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > sbavail(&so->so_snd)) {
-			tp->snd_wnd -= sbavail(&so->so_snd);
+			if (tp->snd_wnd >= sbavail(&so->so_snd))
+				tp->snd_wnd -= sbavail(&so->so_snd);
+			else
+				tp->snd_wnd = 0;
 			mfree = sbcut_locked(&so->so_snd,
 			    (int)sbavail(&so->so_snd));
 			ourfinisacked = 1;
 		} else {
 			mfree = sbcut_locked(&so->so_snd, acked);
-			tp->snd_wnd -= acked;
+			if (tp->snd_wnd >= (u_long) acked)
+				tp->snd_wnd -= acked;
+			else
+				tp->snd_wnd = 0;
 			ourfinisacked = 0;
 		}
 		/* NB: sowwakeup_locked() does an implicit unlock. */

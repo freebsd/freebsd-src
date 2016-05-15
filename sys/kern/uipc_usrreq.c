@@ -337,7 +337,7 @@ static struct domain localdomain = {
 	.dom_externalize =	unp_externalize,
 	.dom_dispose =		unp_dispose_so,
 	.dom_protosw =		localsw,
-	.dom_protoswNPROTOSW =	&localsw[sizeof(localsw)/sizeof(localsw[0])]
+	.dom_protoswNPROTOSW =	&localsw[nitems(localsw)]
 };
 DOMAIN_SET(local);
 

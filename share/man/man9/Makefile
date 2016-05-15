@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime-manuals
+
 MAN=	accept_filter.9 \
 	accf_data.9 \
 	accf_dns.9 \
@@ -40,10 +42,12 @@ MAN=	accept_filter.9 \
 	bus_generic_print_child.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
+	BUS_GET_CPUS.9 \
 	bus_get_resource.9 \
 	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
+	BUS_RESCAN.9 \
 	bus_release_resource.9 \
 	bus_set_pass.9 \
 	bus_set_resource.9 \
@@ -499,6 +503,7 @@ MLINKS+=bus_dma.9 busdma.9 \
 	bus_dma.9 bus_dma_tag_create.9 \
 	bus_dma.9 bus_dma_tag_destroy.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
+MLINKS+=BUS_GET_CPUS.9 bus_get_cpus.9
 MLINKS+=BUS_READ_IVAR.9 BUS_WRITE_IVAR.9
 MLINKS+=BUS_SETUP_INTR.9 bus_setup_intr.9 \
 	BUS_SETUP_INTR.9 BUS_TEARDOWN_INTR.9 \
@@ -639,7 +644,11 @@ MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 counter_exit.9 \
 	counter.9 counter_u64_add_protected.9 \
 	counter.9 counter_u64_fetch.9 \
-	counter.9 counter_u64_zero.9
+	counter.9 counter_u64_zero.9 \
+	counter.9 SYSCTL_COUNTER_U64.9 \
+	counter.9 SYSCTL_ADD_COUNTER_U64.9 \
+	counter.9 SYSCTL_COUNTER_U64_ARRAY.9 \
+	counter.9 SYSCTL_ADD_COUNTER_U64_ARRAY.9
 MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
 	cpuset.9 CPUSET_FSET.9 \
 	cpuset.9 CPU_CLR.9 \

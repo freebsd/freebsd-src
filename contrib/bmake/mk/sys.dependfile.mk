@@ -1,4 +1,4 @@
-# $Id: sys.dependfile.mk,v 1.7 2016/02/20 01:57:39 sjg Exp $
+# $Id: sys.dependfile.mk,v 1.8 2016/03/11 01:34:13 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -48,7 +48,7 @@ _e := ${.MAKE.DEPENDFILE_PREFERENCE:@m@${exists($m):?$m:}@}
 # MACHINE specific depend files are supported, but *not* default.
 # If any already exist, we should follow suit.
 _aml = ${ALL_MACHINE_LIST:Uarm amd64 i386 powerpc:N${MACHINE}} ${MACHINE}
-# MACHINE must be the last entry in _aml ;-)
+# make sure we restore MACHINE
 _m := ${MACHINE}
 _e := ${_aml:@MACHINE@${.MAKE.DEPENDFILE_PREFERENCE:@m@${exists($m):?$m:}@}@}
 MACHINE := ${_m}

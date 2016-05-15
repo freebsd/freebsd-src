@@ -594,7 +594,6 @@ struct sf_hdtr {
 #define	SF_FLAGS(rh, flags)	(((rh) << 16) | (flags))
 
 #ifdef _KERNEL
-#define	SFK_COMPAT	0x00000001
 #define	SF_READAHEAD(flags)	((flags) >> 16)
 #endif /* _KERNEL */
 

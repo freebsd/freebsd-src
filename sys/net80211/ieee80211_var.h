@@ -148,7 +148,8 @@ struct ieee80211com {
 	uint32_t		ic_htcaps;	/* HT capabilities */
 	uint32_t		ic_htextcaps;	/* HT extended capabilities */
 	uint32_t		ic_cryptocaps;	/* crypto capabilities */
-	uint8_t			ic_modecaps[2];	/* set of mode capabilities */
+						/* set of mode capabilities */
+	uint8_t			ic_modecaps[IEEE80211_MODE_BYTES];
 	uint8_t			ic_promisc;	/* vap's needing promisc mode */
 	uint8_t			ic_allmulti;	/* vap's needing all multicast*/
 	uint8_t			ic_nrunning;	/* vap's marked running */
@@ -362,7 +363,8 @@ struct ieee80211vap {
 
 	TAILQ_ENTRY(ieee80211vap) iv_next;	/* list of vap instances */
 	struct ieee80211com	*iv_ic;		/* back ptr to common state */
-	const uint8_t		*iv_myaddr;	/* MAC address: ifp or ic */
+	/* MAC address: ifp or ic */
+	uint8_t			iv_myaddr[IEEE80211_ADDR_LEN];
 	uint32_t		iv_debug;	/* debug msg flags */
 	struct ieee80211_stats	iv_stats;	/* statistics */
 
@@ -647,6 +649,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_C_DFS		0x00020000	/* CAPABILITY: DFS/radar avail*/
 #define	IEEE80211_C_MBSS	0x00040000	/* CAPABILITY: MBSS available */
 #define	IEEE80211_C_SWSLEEP	0x00080000	/* CAPABILITY: do sleep here */
+#define	IEEE80211_C_SWAMSDUTX	0x00100000	/* CAPABILITY: software A-MSDU TX */
 /* 0x7c0000 available */
 #define	IEEE80211_C_WPA1	0x00800000	/* CAPABILITY: WPA1 avail */
 #define	IEEE80211_C_WPA2	0x01000000	/* CAPABILITY: WPA2 avail */
@@ -721,6 +724,14 @@ int	ieee80211_mhz2ieee(u_int, u_int);
 int	ieee80211_chan2ieee(struct ieee80211com *,
 		const struct ieee80211_channel *);
 u_int	ieee80211_ieee2mhz(u_int, u_int);
+int	ieee80211_add_channel(struct ieee80211_channel[], int, int *,
+	    uint8_t, uint16_t, int8_t, uint32_t, const uint8_t[]);
+int	ieee80211_add_channel_ht40(struct ieee80211_channel[], int, int *,
+	    uint8_t, int8_t, uint32_t);
+int	ieee80211_add_channel_list_2ghz(struct ieee80211_channel[], int, int *,
+	    const uint8_t[], int, const uint8_t[], int);
+int	ieee80211_add_channel_list_5ghz(struct ieee80211_channel[], int, int *,
+	    const uint8_t[], int, const uint8_t[], int);
 struct ieee80211_channel *ieee80211_find_channel(struct ieee80211com *,
 		int freq, int flags);
 struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,

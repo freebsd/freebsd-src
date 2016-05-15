@@ -108,6 +108,7 @@ ucl_parse_csexp (struct ucl_parser *parser)
 			if (st->obj == NULL) {
 				ucl_create_err (&parser->err, "no memory");
 				state = parse_err;
+				free (st);
 				continue;
 			}
 
@@ -205,6 +206,7 @@ ucl_parse_csexp (struct ucl_parser *parser)
 			}
 
 			free (st);
+			st = NULL;
 			p++;
 			NEXT_STATE;
 			break;

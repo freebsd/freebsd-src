@@ -1896,7 +1896,7 @@ retry:
 		 * dopersistence sysctl-setable flag to decide on the
 		 * persistence needed for file content data.
 		 */
-		if (savedcbp != 0) {
+		if (savedcbp != NULL) {
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if ((vtype == VDIR || dopersistence) &&
@@ -2388,7 +2388,7 @@ ffs_copyonwrite(devvp, bp)
 		 * dopersistence sysctl-setable flag to decide on the
 		 * persistence needed for file content data.
 		 */
-		if (savedcbp != 0) {
+		if (savedcbp != NULL) {
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if ((devvp == bp->b_vp || bp->b_vp->v_type == VDIR ||

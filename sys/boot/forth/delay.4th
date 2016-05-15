@@ -66,7 +66,7 @@ only forth definitions also delay-processing
 
 	false delay_showdots ! \ reset to zero and read from environment
 	s" delay_showdots" getenv dup -1 <> if
-		2drop \ don't need the value, just existance
+		2drop \ don't need the value, just existence
 		true delay_showdots !
 	else
 		drop

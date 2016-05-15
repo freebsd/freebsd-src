@@ -194,6 +194,14 @@ uint8_t		ieee80211_plcp2rate(uint8_t, enum ieee80211_phytype);
  */
 uint8_t		ieee80211_rate2plcp(int, enum ieee80211_phytype);
 
+/*
+ * 802.11n rate manipulation.
+ */
+
+#define	IEEE80211_HT_RC_2_MCS(_rc)	((_rc) & 0x1f)
+#define	IEEE80211_HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
+#define	IEEE80211_IS_HT_RATE(_rc)		( (_rc) & IEEE80211_RATE_MCS)
+
 uint32_t	ieee80211_compute_duration_ht(uint32_t frameLen,
 			uint16_t rate, int streams, int isht40,
 			int isShortGI);

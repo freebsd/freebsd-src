@@ -35,16 +35,8 @@
 #include "bhnd_pcivar.h"
 
 /* PCI bridge driver-specific state */
-#define	BHND_PCIB_MAX_RES	2
-#define	BHND_PCIB_MAX_RSPEC	(BHND_PCIB_MAX_RES+1)
 struct bhnd_pcib_softc {
-	device_t		 dev;		/**< pci device */
-	struct bhnd_resource	*core;		/**< core registers. */
-	bhnd_pci_regfmt_t	 regfmt;	/**< device register format */
-
-	struct resource_spec	 rspec[BHND_PCIB_MAX_RSPEC];
-	struct bhnd_resource	*res[BHND_PCIB_MAX_RES];
-
+	struct bhnd_pci_softc	sc_common;
 };
 
 #endif /* _BHND_CORES_PCI_BHND_PCIBVAR_H_ */
