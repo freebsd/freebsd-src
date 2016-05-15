@@ -205,6 +205,8 @@ trace_close(int zap_stdio)
 			fclose(ftrace);
 		ftrace = NULL;
 		fd = open(_PATH_DEVNULL, O_RDWR);
+		if (fd < 0)
+			return;
 		if (isatty(STDIN_FILENO))
 			(void)dup2(fd, STDIN_FILENO);
 		if (isatty(STDOUT_FILENO))
@@ -439,9 +441,12 @@ addrname(naddr	addr,			/* in network byte order */
 	} bufs[NUM_BUFS];
 	char *s, *sp;
 	naddr dmask;
+	size_t l;
 	int i;
 
-	s = strcpy(bufs[bufno].str, naddr_ntoa(addr));
+	strlcpy(bufs[bufno].str, naddr_ntoa(addr), sizeof(bufs[bufno].str));
+	s = bufs[bufno].str;
+	l = sizeof(bufs[bufno].str);
 	bufno = (bufno+1) % NUM_BUFS;
 
 	if (force == 1 || (force == 0 && mask != std_mask(addr))) {
@@ -451,10 +456,11 @@ addrname(naddr	addr,			/* in network byte order */
 		if (mask + dmask == 0) {
 			for (i = 0; i != 32 && ((1<<i) & mask) == 0; i++)
 				continue;
-			(void)sprintf(sp, "/%d", 32-i);
+			(void)snprintf(sp, s + l - sp, "/%d", 32-i);
 
 		} else {
-			(void)sprintf(sp, " (mask %#x)", (u_int)mask);
+			(void)snprintf(sp, s + l - sp, " (mask %#x)",
+			    (u_int)mask);
 		}
 	}
 
