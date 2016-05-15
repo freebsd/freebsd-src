@@ -104,5 +104,23 @@
 		reg = <0x3a3>;
 		interrupt-parent = <&nmi_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		gpio-controller;
+		#gpio-cells = <1>;
+	};
+};
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+
+		green_led {
+			gpios = <&axp81x 0>;	/* AXP PMIC GPIO0 */
+			label = "green_led";
+		};
+
+		blue_led {
+			gpios = <&axp81x 1>;	/* AXP PMIC GPIO1 */
+			label = "blue_led";
+		};
 	};
 };
