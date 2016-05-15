@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/reboot.h>
-#include <sys/proc.h>
 #include <sys/gpio.h>
 #include <sys/module.h>
 #include <machine/bus.h>
@@ -246,7 +245,6 @@ axp81x_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	sc = device_get_softc(dev);
 
 	AXP_LOCK(sc);
-	THREAD_SLEEPING_OK();
 	error = axp81x_read(dev, axp81x_pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
 		func = (data & AXP_GPIO_FUNC) >> AXP_GPIO_FUNC_SHIFT;
@@ -258,7 +256,6 @@ axp81x_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 		else
 			*flags = 0;
 	}
-	THREAD_NO_SLEEPING();
 	AXP_UNLOCK(sc);
 
 	return (error);
@@ -277,7 +274,6 @@ axp81x_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	sc = device_get_softc(dev);
 
 	AXP_LOCK(sc);
-	THREAD_SLEEPING_OK();
 	error = axp81x_read(dev, axp81x_pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
 		data &= ~AXP_GPIO_FUNC;
@@ -287,7 +283,6 @@ axp81x_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		}
 		error = axp81x_write(dev, axp81x_pins[pin].ctrl_reg, data);
 	}
-	THREAD_NO_SLEEPING();
 	AXP_UNLOCK(sc);
 
 	return (error);
@@ -306,7 +301,6 @@ axp81x_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	sc = device_get_softc(dev);
 
 	AXP_LOCK(sc);
-	THREAD_SLEEPING_OK();
 	error = axp81x_read(dev, axp81x_pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
 		func = (data & AXP_GPIO_FUNC) >> AXP_GPIO_FUNC_SHIFT;
@@ -327,7 +321,6 @@ axp81x_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 			break;
 		}
 	}
-	THREAD_NO_SLEEPING();
 	AXP_UNLOCK(sc);
 
 	return (error);
@@ -346,7 +339,6 @@ axp81x_gpio_pin_set(device_t dev, uint32_t pin, unsigned int val)
 	sc = device_get_softc(dev);
 
 	AXP_LOCK(sc);
-	THREAD_SLEEPING_OK();
 	error = axp81x_read(dev, axp81x_pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
 		func = (data & AXP_GPIO_FUNC) >> AXP_GPIO_FUNC_SHIFT;
@@ -363,7 +355,6 @@ axp81x_gpio_pin_set(device_t dev, uint32_t pin, unsigned int val)
 	}
 	if (error == 0)
 		error = axp81x_write(dev, axp81x_pins[pin].ctrl_reg, data);
-	THREAD_NO_SLEEPING();
 	AXP_UNLOCK(sc);
 
 	return (error);
@@ -383,7 +374,6 @@ axp81x_gpio_pin_toggle(device_t dev, uint32_t pin)
 	sc = device_get_softc(dev);
 
 	AXP_LOCK(sc);
-	THREAD_SLEEPING_OK();
 	error = axp81x_read(dev, axp81x_pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
 		func = (data & AXP_GPIO_FUNC) >> AXP_GPIO_FUNC_SHIFT;
@@ -403,7 +393,6 @@ axp81x_gpio_pin_toggle(device_t dev, uint32_t pin)
 	}
 	if (error == 0)
 		error = axp81x_write(dev, axp81x_pins[pin].ctrl_reg, data);
-	THREAD_NO_SLEEPING();
 	AXP_UNLOCK(sc);
 
 	return (error);
