@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/module.h>
 #include <machine/bus.h>
 
@@ -201,21 +202,22 @@ static int
 rsb_start(device_t dev)
 {
 	struct rsb_softc *sc;
-	int error, retry;
+	int error, retry, polling;
 
 	sc = device_get_softc(dev);
+	polling = cold || !THREAD_CAN_SLEEP();
 
 	RSB_ASSERT_LOCKED(sc);
 
 	/* Enable interrupts */
-	if (!cold)
+	if (!polling)
 		RSB_WRITE(sc, RSB_INTE, INT_MASK);
 
 	/* Start the transfer */
 	RSB_WRITE(sc, RSB_CTRL, GLOBAL_INT_ENB | START_TRANS);
 
 	/* Wait for transfer to complete */
-	if (cold) {
+	if (polling) {
 		error = ETIMEDOUT;
 		for (retry = RSB_I2C_TIMEOUT; retry > 0; retry--) {
 			sc->status |= RSB_READ(sc, RSB_INTS);
@@ -481,6 +483,17 @@ static device_method_t rsb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		rsb_probe),
 	DEVMETHOD(device_attach,	rsb_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 
 	/* OFW methods */
 	DEVMETHOD(ofw_bus_get_node,	rsb_get_node),
