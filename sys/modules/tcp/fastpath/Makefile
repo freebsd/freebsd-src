@@ -7,7 +7,7 @@
 KMOD=	fastpath
 SRCS=	fastpath.c
 
-SRCS+=	opt_ipfw.h opt_inet.h opt_inet6.h opt_ipsec.h opt_kdtrace.h
+SRCS+=	opt_ipfw.h opt_inet.h opt_inet6.h opt_ipsec.h
 SRCS+=	opt_tcpdebug.h
 
 #
