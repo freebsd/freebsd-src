@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: var
-# REQUIRE: mountcritlocal zfs
+# REQUIRE: mountcritlocal
 
 # NFS /var is not supported, unless NFS /var is part of diskless NFS /
 
