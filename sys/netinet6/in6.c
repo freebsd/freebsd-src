@@ -697,9 +697,8 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		 * that is, this address might make other addresses detached.
 		 */
 		pfxlist_onlink_check();
+
 aifaddr_out:
-		if (error != 0 || ia == NULL)
-			break;
 		/*
 		 * Try to clear the flag when a new IPv6 address is added
 		 * onto an IFDISABLED interface and it succeeds.
