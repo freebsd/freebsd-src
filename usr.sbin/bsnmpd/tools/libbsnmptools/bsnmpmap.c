@@ -269,12 +269,12 @@ enum_pair_insert(struct enum_pairs *headp, int32_t enum_val, char *enum_str)
 	struct enum_pair *e_new;
 
 	if ((e_new = calloc(1, sizeof(struct enum_pair))) == NULL) {
-		syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
+		syslog(LOG_ERR, "calloc() failed: %s", strerror(errno));
 		return (-1);
 	}
 
 	if ((e_new->enum_str = strdup(enum_str)) == NULL) {
-		syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
+		syslog(LOG_ERR, "strdup() failed: %s", strerror(errno));
 		free(e_new);
 		return (-1);
 	}
