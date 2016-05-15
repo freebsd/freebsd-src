@@ -222,7 +222,7 @@ call_driver(unsigned long cmd, struct iohdr *iohdr)
 {
   int error = 0;
 
-  strncpy(iohdr->ifname, ifname, sizeof(iohdr->ifname));
+  strlcpy(iohdr->ifname, ifname, sizeof(iohdr->ifname));
   iohdr->cookie = NGM_LMC_COOKIE;
   iohdr->iohdr = iohdr;
 
