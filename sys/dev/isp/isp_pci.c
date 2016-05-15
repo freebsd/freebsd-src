@@ -1593,11 +1593,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
 	len = isp->isp_maxcmds * sizeof (struct isp_pcmd);
 	isp->isp_osinfo.pcmd_pool = (struct isp_pcmd *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (isp->isp_osinfo.pcmd_pool == NULL) {
-		isp_prt(isp, ISP_LOGERR, "cannot allocate pcmds");
-		ISP_LOCK(isp);
-		return (1);
-	}
 
 	if (isp->isp_osinfo.sixtyfourbit) {
 		nsegs = ISP_NSEG64_MAX;
@@ -1614,12 +1609,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
 	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
 	isp->isp_xflist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (isp->isp_xflist == NULL) {
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		ISP_LOCK(isp);
-		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
-		return (1);
-	}
 	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
 		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
 	}
