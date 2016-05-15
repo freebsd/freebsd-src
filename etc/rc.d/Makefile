@@ -2,9 +2,8 @@
 
 .include <src.opts.mk>
 
+BINDIR=		/etc/rc.d
 FILESGROUPS=	FILES
-FILESDIR=	/etc/rc.d
-FILESMODE=	${BINMODE}
 
 FILES=	DAEMON \
 	FILESYSTEMS \
@@ -135,18 +134,14 @@ FILES=	DAEMON \
 .if ${MK_ACCT} != "no"
 FILESGROUPS+=	ACCT
 ACCT+=		accounting
-.endif
-ACCTDIR=	/etc/rc.d
-ACCTMODE=	${BINMODE}
 ACCTPACKAGE=	acct
+.endif
 
 .if ${MK_ACPI} != "no"
 FILESGROUPS+=	ACPI
 ACPI=		power_profile
-.endif
-ACPIDIR=	/etc/rc.d
-ACPIMODE=	${BINMODE}
 ACPIPACKAGE=	acpi
+.endif
 
 .if ${MK_ACPI} != "no" || ${MK_APM} != "no"
 FILES+=		powerd
@@ -155,19 +150,15 @@ FILES+=		powerd
 .if ${MK_AMD} != "no"
 FILESGROUPS+=	AMD
 AMD+=		amd
-.endif
-AMDDIR=		/etc/rc.d
-AMDMODE=	${BINMODE}
 AMDPACKAGE=	amd
+.endif
 
 .if ${MK_APM} != "no"
 FILESGROUPS+=	APM
 APM+=		apm
 APM+=		apmd
-.endif
-APMDIR=		/etc/rc.d
-APMMODE=	${BINMODE}
 APMPACKAGE=	apm
+.endif
 
 .if ${MK_AUTOFS} != "no"
 FILES+=		automount
@@ -191,10 +182,8 @@ FILES+=		bootparams
 .if ${MK_BSNMP} != "no"
 FILESGROUPS+=	BSNMP
 BSNMP+=		bsnmpd
-.endif
-BSNMPDIR=	/etc/rc.d
-BSNMPMODE=	${BINMODE}
 BSNMPPACKAGE=	bsnmp
+.endif
 
 .if ${MK_CCD} != "no"
 FILES+=		ccd
@@ -207,10 +196,8 @@ FILES+=		ftpd
 .if ${MK_HAST} != "no"
 FILESGROUPS+=	HAST
 HAST=		hastd
-.endif
-HASTDIR=	/etc/rc.d
-HASTMODE=	${BINMODE}
 HASTPACKAGE=	hast
+.endif
 
 .if ${MK_INETD} != "no"
 FILES+=		inetd
@@ -224,10 +211,8 @@ FILES+=		iscsid
 .if ${MK_JAIL} != "no"
 FILESGROUPS+=	JAIL
 JAIL+=		jail
-.endif
-JAILDIR=	/etc/rc.d
-JAILMODE=	${BINMODE}
 JAILPACKAGE=	jail
+.endif
 
 .if ${MK_LEGACY_CONSOLE} != "no"
 FILES+=		moused
@@ -270,10 +255,8 @@ FILES+=		keyserv
 .if ${MK_OPENSSH} != "no"
 FILESGROUPS+=	SSH
 SSH=		sshd
-.endif
-SSHDIR=		/etc/rc.d
-SSHMODE=	${BINMODE}
 SSHPACKAGE=	ssh
+.endif
 
 .if ${MK_PF} != "no"
 FILES+=		ftp-proxy
@@ -282,10 +265,8 @@ FILES+=		ftp-proxy
 .if ${MK_RCMDS} != "no"
 FILESGROUPS+=	RCMDS
 RCMDS+=		rwho
-.endif
-RCMDSDIR=	/etc/rc.d
-RCMDSMODE=	${BINMODE}
 RCMDSPACKAGE=	rcmds
+.endif
 
 .if ${MK_ROUTED} != "no"
 FILES+=		routed
@@ -294,10 +275,8 @@ FILES+=		routed
 .if ${MK_SENDMAIL} != "no"
 FILESGROUPS+=	SMRCD
 SMRCD=		sendmail
-.endif
-SMRCDDIR=	/etc/rc.d
-SMRCDMODE=	${BINMODE}
 SMRCDPACKAGE=	sendmail
+.endif
 
 .if ${MK_TIMED} != "no"
 FILES+=		timed
@@ -306,10 +285,8 @@ FILES+=		timed
 .if ${MK_UNBOUND} != "no"
 FILESGROUPS+=	UNBOUND
 UNBOUND+=	local_unbound
-.endif
-UNBOUNDDIR=	/etc/rc.d
-UNBOUNDMODE=	${BINMODE}
 UNBOUNDPACKAGE=	unbound
+.endif
 
 .if ${MK_UTMPX} != "no"
 _utx=		utx
@@ -318,14 +295,16 @@ _utx=		utx
 .if ${MK_VI} != "no"
 FILESGROUPS+=	VI
 VI+=		virecover
-.endif
-VIDIR=		/etc/rc.d
-VIMODE=		${BINMODE}
 VIPACKAGE=	vi
+.endif
 
 .if ${MK_WIRELESS} != "no"
 FILES+=		hostapd
 FILES+=		wpa_supplicant
 .endif
+
+.for fg in ${FILESGROUPS}
+${fg}MODE?=	${BINMODE}
+.endfor
 
 .include <bsd.prog.mk>
