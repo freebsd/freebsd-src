@@ -883,7 +883,7 @@ static device_method_t tegra_gpio_methods[] = {
 };
 
 static driver_t tegra_gpio_driver = {
-	"gpio",
+	"tegra_gpio",
 	tegra_gpio_methods,
 	sizeof(struct tegra_gpio_softc),
 };
@@ -891,3 +891,8 @@ static devclass_t tegra_gpio_devclass;
 
 EARLY_DRIVER_MODULE(tegra_gpio, simplebus, tegra_gpio_driver,
     tegra_gpio_devclass, 0, 0, 70);
+
+extern devclass_t ofwgpiobus_devclass;
+extern driver_t ofw_gpiobus_driver;
+EARLY_DRIVER_MODULE(ofw_gpiobus, tegra_gpio, ofw_gpiobus_driver,
+ofwgpiobus_devclass, 0, 0, BUS_PASS_BUS);
