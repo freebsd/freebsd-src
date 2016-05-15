@@ -128,8 +128,6 @@ FILES=	DAEMON \
 	ypset \
 	ypupdated \
 	ypxfrd \
-	zfs \
-	zvol
 
 .if ${MK_ACCT} != "no"
 FILESGROUPS+=	ACCT
@@ -301,6 +299,13 @@ VIPACKAGE=	vi
 .if ${MK_WIRELESS} != "no"
 FILES+=		hostapd
 FILES+=		wpa_supplicant
+.endif
+
+.if ${MK_ZFS} != "no"
+FILESGROUPS+=	ZFS
+ZFS+=		zfs
+ZFS+=		zvol
+ZFSPACKAGE=	zfs
 .endif
 
 .for fg in ${FILESGROUPS}
