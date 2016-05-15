@@ -76,7 +76,7 @@ struct ofw_iicbus_devinfo {
 	struct ofw_bus_devinfo	opd_obdinfo;
 };
 
-static devclass_t ofwiicbus_devclass;
+devclass_t ofwiicbus_devclass;
 
 DEFINE_CLASS_1(iicbus, ofw_iicbus_driver, ofw_iicbus_methods,
     sizeof(struct iicbus_softc), iicbus_driver);
