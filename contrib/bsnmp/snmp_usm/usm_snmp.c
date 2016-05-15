@@ -262,7 +262,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 			if (ctx->scratch->ptr1 == NULL)
 				return (SNMP_ERR_GENERR);
 			memcpy(ctx->scratch->ptr1, uuser->suser.priv_key,
-			    SNMP_PRIV_KEY_SIZ);
+			    sizeof(uuser->suser.priv_key));
 			memcpy(uuser->suser.priv_key, val->v.octetstring.octets,
 			    val->v.octetstring.len);
 			break;
@@ -286,7 +286,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 				uuser->user_public_len = val->v.octetstring.len;
 			} else {
 				memset(uuser->user_public, 0,
-				    SNMP_ADM_STR32_SIZ);
+				    sizeof(uuser->user_public));
 				uuser->user_public_len = 0;
 			}
 			break;
@@ -351,7 +351,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 		case LEAF_usmUserAuthKeyChange:
 		case LEAF_usmUserOwnAuthKeyChange:
 			memcpy(uuser->suser.auth_key, ctx->scratch->ptr1,
-			    SNMP_AUTH_KEY_SIZ);
+			    sizeof(uuser->suser.auth_key));
 			free(ctx->scratch->ptr1);
 			break;
 		case LEAF_usmUserPrivProtocol:
@@ -360,7 +360,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 		case LEAF_usmUserPrivKeyChange:
 		case LEAF_usmUserOwnPrivKeyChange:
 			memcpy(uuser->suser.priv_key, ctx->scratch->ptr1,
-			    SNMP_PRIV_KEY_SIZ);
+			    sizeof(uuser->suser.priv_key));
 			free(ctx->scratch->ptr1);
 			break;
 		case LEAF_usmUserPublic:
@@ -371,7 +371,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 				free(ctx->scratch->ptr2);
 			} else {
 				memset(uuser->user_public, 0,
-				    SNMP_ADM_STR32_SIZ);
+				    sizeof(uuser->user_public));
 				uuser->user_public_len = 0;
 			}
 			break;
