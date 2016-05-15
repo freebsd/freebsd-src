@@ -16,7 +16,6 @@ XSYM=	snmpMIB begemotSnmpdModuleTable begemotSnmpd begemotTrapSinkTable \
 	freeBSD freeBSDVersion
 CLEANFILES= oid.h tree.c tree.h
 MAN=	bsnmpd.1 snmpmod.3
-NO_WERROR=
 
 FILESGROUPS= BMIBS DEFS
 
@@ -47,5 +46,7 @@ tree.c tree.h: tree.def
 MANFILTER=	sed -e 's%@MODPATH@%${LIBDIR}/%g'		\
 		    -e 's%@DEFPATH@%${DEFSDIR}/%g'		\
 		    -e 's%@MIBSPATH@%${BMIBSDIR}/%g'
+
+WARNS?=		6
 
 .include <bsd.prog.mk>
