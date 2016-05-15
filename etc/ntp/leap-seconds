@@ -46,7 +46,7 @@
 #	by the International Bureau of Weights and Measures
 #	(BIPM). See www.bipm.fr for more information.
 #
-#	3. The current defintion of the relationship between UTC 
+#	3. The current definition of the relationship between UTC 
 #	and TAI dates from 1 January 1972. A number of different 
 #	time scales were in use before than epoch, and it can be 
 #	quite difficult to compute precise timestamps and time 

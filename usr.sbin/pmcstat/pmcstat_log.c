@@ -1361,7 +1361,7 @@ pmcstat_analyze_log(void)
 	assert(args.pa_flags & FLAG_DO_ANALYSIS);
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
-		err(EX_UNAVAILABLE, "Elf library intialization failed");
+		err(EX_UNAVAILABLE, "Elf library initialization failed");
 
 	while (pmclog_read(args.pa_logparser, &ev) == 0) {
 		assert(ev.pl_state == PMCLOG_OK);
