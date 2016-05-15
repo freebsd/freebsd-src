@@ -893,7 +893,7 @@ class DwarfdumpParser(Parser):
             offset = int(tag.args['DW_AT_low_pc'], 16)
             if self.offsetmap.has_key(offset):
                 raise ValueError("Dwarf dump parse error: " +
-                        "symbol is aleady defined at offset 0x%x" % offset)
+                        "symbol is already defined at offset 0x%x" % offset)
             self.offsetmap[offset] = tag
         if len(self.stack) > 0:
             prev = self.stack.pop()
