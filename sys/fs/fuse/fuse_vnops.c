@@ -1153,7 +1153,7 @@ fuse_vnop_open(struct vop_open_args *ap)
 			fuse_open_flags = FOPEN_DIRECT_IO;
 	}
 
-	if (fuse_filehandle_valid(vp, fufh_type)) {
+	if (fuse_filehandle_validrw(vp, fufh_type) != FUFH_INVALID) {
 		fuse_vnode_open(vp, fuse_open_flags, td);
 		return 0;
 	}
