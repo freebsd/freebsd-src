@@ -104,18 +104,19 @@ static VNET_DEFINE(int, icmpmaskrepl) = 0;
 #define	V_icmpmaskrepl			VNET(icmpmaskrepl)
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmpmaskrepl), 0,
-	"Reply to ICMP Address Mask Request packets.");
+	"Reply to ICMP Address Mask Request packets");
 
 static VNET_DEFINE(u_int, icmpmaskfake) = 0;
 #define	V_icmpmaskfake			VNET(icmpmaskfake)
 SYSCTL_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmpmaskfake), 0,
-	"Fake reply to ICMP Address Mask Request packets.");
+	"Fake reply to ICMP Address Mask Request packets");
 
 VNET_DEFINE(int, drop_redirect) = 0;
 #define	V_drop_redirect			VNET(drop_redirect)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(drop_redirect), 0, "Ignore ICMP redirects");
+	&VNET_NAME(drop_redirect), 0,
+	"Ignore ICMP redirects");
 
 static VNET_DEFINE(int, log_redirect) = 0;
 #define	V_log_redirect			VNET(log_redirect)
@@ -127,7 +128,7 @@ static VNET_DEFINE(char, reply_src[IFNAMSIZ]);
 #define	V_reply_src			VNET(reply_src)
 SYSCTL_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(reply_src), IFNAMSIZ,
-	"icmp reply source for non-local packets.");
+	"ICMP reply source for non-local packets");
 
 static VNET_DEFINE(int, icmp_rfi) = 0;
 #define	V_icmp_rfi			VNET(icmp_rfi)
@@ -141,19 +142,17 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmp_quotelen), 0,
 	"Number of bytes from original packet to quote in ICMP reply");
 
-/*
- * ICMP broadcast echo sysctl
- */
 static VNET_DEFINE(int, icmpbmcastecho) = 0;
 #define	V_icmpbmcastecho		VNET(icmpbmcastecho)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmpbmcastecho), 0,
-	"");
+	"Reply to multicast ICMP Echo Request and Timestamp packets");
 
 static VNET_DEFINE(int, icmptstamprepl) = 1;
 #define	V_icmptstamprepl		VNET(icmptstamprepl)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, tstamprepl, CTLFLAG_RW,
-	&VNET_NAME(icmptstamprepl), 0, "Respond to ICMP Timestamp packets");
+	&VNET_NAME(icmptstamprepl), 0,
+	"Respond to ICMP Timestamp packets");
 
 #ifdef ICMPPRINTFS
 int	icmpprintfs = 0;
