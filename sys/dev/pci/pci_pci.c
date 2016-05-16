@@ -59,7 +59,8 @@ static int		pcib_suspend(device_t dev);
 static int		pcib_resume(device_t dev);
 static int		pcib_power_for_sleep(device_t pcib, device_t dev,
 			    int *pstate);
-static uint16_t		pcib_ari_get_rid(device_t pcib, device_t dev);
+static int		pcib_ari_get_id(device_t pcib, device_t dev,
+    enum pci_id_type type, uintptr_t *id);
 static uint32_t		pcib_read_config(device_t dev, u_int b, u_int s,
     u_int f, u_int reg, int width);
 static void		pcib_write_config(device_t dev, u_int b, u_int s,
@@ -114,7 +115,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
     DEVMETHOD(pcib_map_msi,		pcib_map_msi),
     DEVMETHOD(pcib_power_for_sleep,	pcib_power_for_sleep),
-    DEVMETHOD(pcib_get_rid,		pcib_ari_get_rid),
+    DEVMETHOD(pcib_get_id,		pcib_ari_get_id),
     DEVMETHOD(pcib_try_enable_ari,	pcib_try_enable_ari),
     DEVMETHOD(pcib_ari_enabled,		pcib_ari_enabled),
     DEVMETHOD(pcib_decode_rid,		pcib_ari_decode_rid),
@@ -2574,11 +2575,15 @@ pcib_ari_enabled(device_t pcib)
 	return ((sc->flags & PCIB_ENABLE_ARI) != 0);
 }
 
-static uint16_t
-pcib_ari_get_rid(device_t pcib, device_t dev)
+static int
+pcib_ari_get_id(device_t pcib, device_t dev, enum pci_id_type type,
+    uintptr_t *id)
 {
 	struct pcib_softc *sc;
 	uint8_t bus, slot, func;
+
+	if (type != PCI_ID_RID)
+		return (ENXIO);
 
 	sc = device_get_softc(pcib);
 
@@ -2586,14 +2591,16 @@ pcib_ari_get_rid(device_t pcib, device_t dev)
 		bus = pci_get_bus(dev);
 		func = pci_get_function(dev);
 
-		return (PCI_ARI_RID(bus, func));
+		*id = (PCI_ARI_RID(bus, func));
 	} else {
 		bus = pci_get_bus(dev);
 		slot = pci_get_slot(dev);
 		func = pci_get_function(dev);
 
-		return (PCI_RID(bus, slot, func));
+		*id = (PCI_RID(bus, slot, func));
 	}
+
+	return (0);
 }
 
 /*
