@@ -45,9 +45,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <dev/pci/pci_host_generic.h>
+#include <dev/pci/pcib_private.h>
 
 #include "thunder_pcie_common.h"
+
+#include "pcib_if.h"
 
 #ifdef THUNDERX_PASS_1_1_ERRATA
 static struct resource * thunder_pcie_fdt_alloc_resource(device_t, device_t,
@@ -55,6 +61,8 @@ static struct resource * thunder_pcie_fdt_alloc_resource(device_t, device_t,
 #endif
 static int thunder_pcie_fdt_attach(device_t);
 static int thunder_pcie_fdt_probe(device_t);
+static int thunder_pcie_fdt_get_id(device_t, device_t, enum pci_id_type,
+    uintptr_t *);
 
 static device_method_t thunder_pcie_fdt_methods[] = {
 	/* Device interface */
@@ -63,6 +71,9 @@ static device_method_t thunder_pcie_fdt_methods[] = {
 #ifdef THUNDERX_PASS_1_1_ERRATA
 	DEVMETHOD(bus_alloc_resource,	thunder_pcie_fdt_alloc_resource),
 #endif
+
+	/* pcib interface */
+	DEVMETHOD(pcib_get_id,		thunder_pcie_fdt_get_id),
 
 	/* End */
 	DEVMETHOD_END
@@ -110,6 +121,26 @@ thunder_pcie_fdt_attach(device_t dev)
 	thunder_pcie_identify_ecam(dev, &sc->ecam);
 
 	return (pci_host_generic_attach(dev));
+}
+
+static int
+thunder_pcie_fdt_get_id(device_t pci, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	phandle_t node;
+	int bsf;
+
+	if (type != PCI_ID_MSI)
+		return (pcib_get_id(pci, child, type, id));
+
+	node = ofw_bus_get_node(pci);
+	if (OF_hasprop(node, "msi-map"))
+		return (generic_pcie_get_id(pci, child, type, id));
+
+	bsf = pci_get_rid(child);
+	*id = (pci_get_domain(child) << PCI_RID_DOMAIN_SHIFT) | bsf;
+
+	return (0);
 }
 
 #ifdef THUNDERX_PASS_1_1_ERRATA

@@ -369,6 +369,9 @@ The following flags are supported:
 .Bl -hang -width ".Dv PCI_ID_RID"
 .It Dv PCI_ID_RID
 Read the routing identifier for the device.
+.It Dv PCI_ID_MSI
+Read the MSI routing ID.
+This is needed by some interrupt controllers to route MSI and MSI-X interrupts.
 .El
 .Pp
 The

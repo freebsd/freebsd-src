@@ -58,6 +58,7 @@ HEADER {
 
 	enum pci_id_type {
 	    PCI_ID_RID,
+	    PCI_ID_MSI,
 	};
 }
 

@@ -247,12 +247,10 @@ struct gic_v3_its_softc {
 
 /* Stuff that is specific to the vendor's implementation */
 typedef uint32_t (*its_devbits_func_t)(device_t);
-typedef uint32_t (*its_devid_func_t)(device_t);
 
 struct its_quirks {
 	uint64_t		cpuid;
 	uint64_t		cpuid_mask;
-	its_devid_func_t	devid_func;
 	its_devbits_func_t	devbits_func;
 };
 

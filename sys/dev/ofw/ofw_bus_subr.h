@@ -76,6 +76,9 @@ int	ofw_bus_lookup_imap(phandle_t, struct ofw_bus_iinfo *, void *, int,
 int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
 	    void *, void *, int, phandle_t *);
 
+/* Routines for processing msi maps */
+int ofw_bus_msimap(phandle_t, uint16_t, phandle_t *, uint32_t *);
+
 /* Routines for parsing device-tree data into resource lists. */
 int ofw_bus_reg_to_rl(device_t, phandle_t, pcell_t, pcell_t,
     struct resource_list *);

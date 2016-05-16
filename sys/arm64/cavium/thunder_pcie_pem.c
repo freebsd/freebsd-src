@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pci_host_generic.h>
+#include <dev/pci/pcib_private.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -131,6 +132,8 @@ static int thunder_pem_release_msi(device_t, device_t, int, int *);
 static int thunder_pem_alloc_msix(device_t, device_t, int *);
 static int thunder_pem_release_msix(device_t, device_t, int);
 static int thunder_pem_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
+static int thunder_pem_get_id(device_t, device_t, enum pci_id_type,
+    uintptr_t *);
 static int thunder_pem_attach(device_t);
 static int thunder_pem_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
@@ -182,6 +185,7 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(pcib_alloc_msi,		thunder_pem_alloc_msi),
 	DEVMETHOD(pcib_release_msi,		thunder_pem_release_msi),
 	DEVMETHOD(pcib_map_msi,			thunder_pem_map_msi),
+	DEVMETHOD(pcib_get_id,			thunder_pem_get_id),
 
 	DEVMETHOD_END
 };
@@ -369,6 +373,40 @@ thunder_pem_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
 
 	bus = device_get_parent(pci);
 	return (PCIB_MAP_MSI(device_get_parent(bus), child, irq, addr, data));
+}
+
+static int
+thunder_pem_get_id(device_t pci, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	int bsf;
+	int pem;
+
+	if (type != PCI_ID_MSI)
+		return (pcib_get_id(pci, child, type, id));
+
+	bsf = pci_get_rid(child);
+
+	/* PEM (PCIe MAC/root complex) number is equal to domain */
+	pem = pci_get_domain(child);
+
+	/*
+	 * Set appropriate device ID (passed by the HW along with
+	 * the transaction to memory) for different root complex
+	 * numbers using hard-coded domain portion for each group.
+	 */
+	if (pem < 3)
+		*id = (0x1 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 6)
+		*id = (0x3 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 9)
+		*id = (0x9 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 12)
+		*id = (0xB << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else
+		return (ENXIO);
+
+	return (0);
 }
 
 static int

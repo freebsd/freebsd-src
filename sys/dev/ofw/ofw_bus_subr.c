@@ -397,6 +397,57 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 }
 
 int
+ofw_bus_msimap(phandle_t node, uint16_t pci_rid, phandle_t *msi_parent,
+    uint32_t *msi_rid)
+{
+	pcell_t *map, mask, msi_base, rid_base, rid_length;
+	ssize_t len;
+	uint32_t masked_rid, rid;
+	int err, i;
+
+	/* TODO: This should be OF_searchprop_alloc if we had it */
+	len = OF_getencprop_alloc(node, "msi-map", sizeof(*map), (void **)&map);
+	if (len < 0) {
+		if (msi_parent != NULL) {
+			*msi_parent = 0;
+			OF_getencprop(node, "msi-parent", msi_parent,
+			    sizeof(*msi_parent));
+		}
+		if (msi_rid != NULL)
+			*msi_rid = pci_rid;
+		return (0);
+	}
+
+	err = ENOENT;
+	rid = 0;
+	mask = 0xffffffff;
+	OF_getencprop(node, "msi-map-mask", &mask, sizeof(mask));
+
+	masked_rid = pci_rid & mask;
+	for (i = 0; i < len; i += 4) {
+		rid_base = map[i + 0];
+		rid_length = map[i + 3];
+
+		if (masked_rid < rid_base ||
+		    masked_rid >= (rid_base + rid_length))
+			continue;
+
+		msi_base = map[i + 2];
+
+		if (msi_parent != NULL)
+			*msi_parent = map[i + 1];
+		if (msi_rid != NULL)
+			*msi_rid = masked_rid - rid_base + msi_base;
+		err = 0;
+		break;
+	}
+
+	free(map, M_OFWPROP);
+
+	return (err);
+}
+
+int
 ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
     struct resource_list *rl)
 {

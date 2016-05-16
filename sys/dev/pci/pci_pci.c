@@ -2580,10 +2580,13 @@ pcib_ari_get_id(device_t pcib, device_t dev, enum pci_id_type type,
     uintptr_t *id)
 {
 	struct pcib_softc *sc;
+	device_t bus_dev;
 	uint8_t bus, slot, func;
 
-	if (type != PCI_ID_RID)
-		return (ENXIO);
+	if (type != PCI_ID_RID) {
+		bus_dev = device_get_parent(pcib);
+		return (PCIB_GET_ID(device_get_parent(bus_dev), dev, type, id));
+	}
 
 	sc = device_get_softc(pcib);
 
