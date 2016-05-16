@@ -2675,11 +2675,15 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 		KASSERT(BWN_TXRING_SLOTS % BWN_TX_SLOTS_PER_FRAME == 0,
 		    ("%s:%d: fail", __func__, __LINE__));
 
-		dr->dr_txhdr_cache =
-		    malloc((dr->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
-			BWN_HDRSIZE(mac), M_DEVBUF, M_NOWAIT | M_ZERO);
-		KASSERT(dr->dr_txhdr_cache != NULL,
-		    ("%s:%d: fail", __func__, __LINE__));
+		dr->dr_txhdr_cache = contigmalloc(
+		    (dr->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
+		    BWN_HDRSIZE(mac), M_DEVBUF, M_ZERO,
+		    0, BUS_SPACE_MAXADDR, 8, 0);
+		if (dr->dr_txhdr_cache == NULL) {
+			device_printf(sc->sc_dev,
+			    "can't allocate TX header DMA memory\n");
+			goto fail1;
+		}
 
 		/*
 		 * Create TX ring DMA stuffs
@@ -2698,7 +2702,7 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 		if (error) {
 			device_printf(sc->sc_dev,
 			    "can't create TX ring DMA tag: TODO frees\n");
-			goto fail1;
+			goto fail2;
 		}
 
 		for (i = 0; i < dr->dr_numslots; i += 2) {
@@ -2713,7 +2717,7 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 			if (error) {
 				device_printf(sc->sc_dev,
 				     "can't create RX buf DMA map\n");
-				goto fail1;
+				goto fail2;
 			}
 
 			dr->getdesc(dr, i + 1, &desc, &mt);
@@ -2727,7 +2731,7 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 			if (error) {
 				device_printf(sc->sc_dev,
 				     "can't create RX buf DMA map\n");
-				goto fail1;
+				goto fail2;
 			}
 		}
 	} else {
@@ -2767,7 +2771,11 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 	return (dr);
 
 fail2:
-	free(dr->dr_txhdr_cache, M_DEVBUF);
+	if (dr->dr_txhdr_cache != NULL) {
+		contigfree(dr->dr_txhdr_cache,
+		    (dr->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
+		    BWN_HDRSIZE(mac), M_DEVBUF);
+	}
 fail1:
 	free(dr->dr_meta, M_DEVBUF);
 fail0:
@@ -2785,7 +2793,11 @@ bwn_dma_ringfree(struct bwn_dma_ring **dr)
 	bwn_dma_free_descbufs(*dr);
 	bwn_dma_free_ringmemory(*dr);
 
-	free((*dr)->dr_txhdr_cache, M_DEVBUF);
+	if ((*dr)->dr_txhdr_cache != NULL) {
+		contigfree((*dr)->dr_txhdr_cache,
+		    ((*dr)->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
+		    BWN_HDRSIZE((*dr)->dr_mac), M_DEVBUF);
+	}
 	free((*dr)->dr_meta, M_DEVBUF);
 	free(*dr, M_DEVBUF);
 
