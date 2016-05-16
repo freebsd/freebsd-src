@@ -407,7 +407,7 @@ readsamples(FILE *pfile)
 
     if (samples == 0) {
 	samples = (double *) calloc(nsamples, sizeof(double));
-	if (samples == 0)
+	if (samples == NULL)
 	    errx(0, "no room for %d sample pc's", nsamples);
     }
     for (i = 0; i < nsamples; i++) {
