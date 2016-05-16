@@ -337,15 +337,11 @@ hv_vmbus_on_events(int cpu)
 	        for (bit = 0; bit < HV_CHANNEL_DWORD_LEN; bit++) {
 	    	if (synch_test_and_clear_bit(bit,
 	    	    (uint32_t *) &recv_interrupt_page[dword])) {
-	    	    rel_id = (dword << 5) + bit;
-	    	    if (rel_id == 0) {
-	    		/*
-	    		 * Special case -
-	    		 * vmbus channel protocol msg.
-	    		 */
-	    		continue;
-	    	    } else {
-	    		hv_vmbus_channel * channel = hv_vmbus_g_connection.channels[rel_id];
+			struct hv_vmbus_channel *channel;
+
+			rel_id = (dword << 5) + bit;
+	    		channel = hv_vmbus_g_connection.channels[rel_id];
+
 	    		/* if channel is closed or closing */
 	    		if (channel == NULL || channel->rxq == NULL)
 	    			continue;
@@ -353,7 +349,6 @@ hv_vmbus_on_events(int cpu)
 	    		if (channel->batched_reading)
 	    			hv_ring_buffer_read_begin(&channel->inbound);
 	    		taskqueue_enqueue(channel->rxq, &channel->channel_task);
-	    	    }
 	    	}
 	        }
 	    }
