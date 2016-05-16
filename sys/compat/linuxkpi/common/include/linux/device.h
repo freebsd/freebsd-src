@@ -211,11 +211,11 @@ device_register(struct device *dev)
 	} else if (dev->parent == NULL) {
 		bsddev = devclass_get_device(dev->class->bsdclass, 0);
 	}
-
-	if (bsddev == NULL)
+	if (bsddev == NULL && dev->parent != NULL) {
 		bsddev = device_add_child(dev->parent->bsddev,
 		    dev->class->kobj.name, unit);
-	if (bsddev) {
+	}
+	if (bsddev != NULL) {
 		if (dev->devt == 0)
 			dev->devt = makedev(0, device_get_unit(bsddev));
 		device_set_softc(bsddev, dev);
