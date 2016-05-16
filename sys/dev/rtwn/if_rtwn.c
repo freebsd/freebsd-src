@@ -1789,7 +1789,6 @@ rtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 
 	if (rtwn_tx(sc, m, ni) != 0) {
-		m_freem(m);
 		RTWN_UNLOCK(sc);
 		return (EIO);
 	}
