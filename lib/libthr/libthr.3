@@ -118,7 +118,7 @@ environment variable.
 If both the spin and yield loops
 failed to acquire the lock, the thread is taken off the CPU and
 put to sleep in the kernel with the
-.Xr umtx 2
+.Xr _umtx_op 2
 syscall.
 The kernel wakes up a thread and hands the ownership of the lock to
 the woken thread when the lock becomes available.
@@ -236,7 +236,7 @@ logs.
 .Xr ld-elf.so.1 1 ,
 .Xr getrlimit 2 ,
 .Xr errno 2 ,
-.Xr umtx 2 ,
+.Xr _umtx_op 2 ,
 .Xr dlclose 3 ,
 .Xr dlopen 3 ,
 .Xr getenv 3 ,
