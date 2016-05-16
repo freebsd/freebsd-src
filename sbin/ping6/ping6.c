@@ -916,7 +916,7 @@ main(int argc, char *argv[])
 			errx(1, "can't initialize rthdr");
 #else  /* old advanced API */
 		if ((scmsgp = (struct cmsghdr *)inet6_rthdr_init(scmsgp,
-		    IPV6_RTHDR_TYPE_0)) == 0)
+		    IPV6_RTHDR_TYPE_0)) == NULL)
 			errx(1, "can't initialize rthdr");
 #endif /* USE_RFC2292BIS */
 
