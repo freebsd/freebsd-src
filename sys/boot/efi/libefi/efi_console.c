@@ -266,6 +266,8 @@ CL(int direction)
 	case 2:         /* entire line */
 		len = x;
 		break;
+	default:	/* NOTREACHED */
+		__unreachable();
 	}
 
 	if (cury == y - 1)
