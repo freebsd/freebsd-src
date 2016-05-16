@@ -1291,7 +1291,7 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
  */
 int
 netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
-    rndis_tcp_ip_csum_info *csum_info,
+    const rndis_tcp_ip_csum_info *csum_info,
     const struct rndis_hash_info *hash_info,
     const struct rndis_hash_value *hash_value)
 {
