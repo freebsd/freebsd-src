@@ -871,7 +871,9 @@ ef10_ev_mcdi(
 		 */
 		enp->en_reset_flags |= EFX_RESET_TXQ_ERR;
 
-		EFSYS_PROBE1(tx_descq_err, uint32_t, MCDI_EV_FIELD(eqp, DATA));
+		EFSYS_PROBE2(tx_descq_err,
+			    uint32_t, EFX_QWORD_FIELD(*eqp, EFX_DWORD_1),
+			    uint32_t, EFX_QWORD_FIELD(*eqp, EFX_DWORD_0));
 
 		/* Inform the driver that a reset is required. */
 		eecp->eec_exception(arg, EFX_EXCEPTION_TX_ERROR,
@@ -911,7 +913,9 @@ ef10_ev_mcdi(
 		 */
 		enp->en_reset_flags |= EFX_RESET_RXQ_ERR;
 
-		EFSYS_PROBE1(rx_descq_err, uint32_t, MCDI_EV_FIELD(eqp, DATA));
+		EFSYS_PROBE2(rx_descq_err,
+			    uint32_t, EFX_QWORD_FIELD(*eqp, EFX_DWORD_1),
+			    uint32_t, EFX_QWORD_FIELD(*eqp, EFX_DWORD_0));
 
 		/* Inform the driver that a reset is required. */
 		eecp->eec_exception(arg, EFX_EXCEPTION_RX_ERROR,
