@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #define	GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET	88
 
 #include "pic_if.h"
+#include "pcib_if.h"
 
 /* Device and PIC methods */
 static int gic_v3_its_attach(device_t);
@@ -150,7 +151,6 @@ const char *its_ptab_type[] = {
 
 /* Cavium ThunderX PCI devid acquire function */
 static uint32_t its_get_devbits_thunder(device_t);
-static uint32_t its_get_devid_thunder(device_t);
 
 static const struct its_quirks its_quirks[] = {
 	{
@@ -160,7 +160,6 @@ static const struct its_quirks its_quirks[] = {
 		 */
 		.cpuid =	CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0),
 		.cpuid_mask =	CPU_IMPL_MASK | CPU_PART_MASK,
-		.devid_func =	its_get_devid_thunder,
 		.devbits_func =	its_get_devbits_thunder,
 	},
 };
@@ -1569,46 +1568,6 @@ its_device_asign_lpi_locked(struct gic_v3_its_softc *sc,
  * Add vendor specific PCI devid function here.
  */
 static uint32_t
-its_get_devid_thunder(device_t pci_dev)
-{
-	int bsf;
-	int pem;
-	uint32_t bus;
-
-	bus = pci_get_bus(pci_dev);
-	bsf = pci_get_rid(pci_dev);
-
-	/* Check if accessing internal PCIe (low bus numbers) */
-	if (bus < GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET) {
-		return ((pci_get_domain(pci_dev) << PCI_RID_DOMAIN_SHIFT) |
-		    bsf);
-	/* PEM otherwise */
-	} else {
-		/* PEM (PCIe MAC/root complex) number is equal to domain */
-		pem = pci_get_domain(pci_dev);
-
-		/*
-		 * Set appropriate device ID (passed by the HW along with
-		 * the transaction to memory) for different root complex
-		 * numbers using hard-coded domain portion for each group.
-		 */
-		if (pem < 3)
-			return ((0x1 << PCI_RID_DOMAIN_SHIFT) | bsf);
-
-		if (pem < 6)
-			return ((0x3 << PCI_RID_DOMAIN_SHIFT) | bsf);
-
-		if (pem < 9)
-			return ((0x9 << PCI_RID_DOMAIN_SHIFT) | bsf);
-
-		if (pem < 12)
-			return ((0xB << PCI_RID_DOMAIN_SHIFT) | bsf);
-	}
-
-	return (0);
-}
-
-static uint32_t
 its_get_devbits_thunder(device_t dev)
 {
 	uint32_t devid_bits;
@@ -1670,28 +1629,15 @@ its_get_devbits(device_t dev)
 	return (its_get_devbits_default(dev));
 }
 
-static __inline uint32_t
-its_get_devid_default(device_t pci_dev)
-{
-
-	return (PCI_DEVID_GENERIC(pci_dev));
-}
-
 static uint32_t
 its_get_devid(device_t pci_dev)
 {
-	const struct its_quirks *quirk;
-	size_t i;
+	uintptr_t id;
 
-	for (i = 0; i < nitems(its_quirks); i++) {
-		quirk = &its_quirks[i];
-		if (CPU_MATCH_RAW(quirk->cpuid_mask, quirk->cpuid)) {
-			if (quirk->devid_func != NULL)
-				return ((*quirk->devid_func)(pci_dev));
-		}
-	}
+	if (pci_get_id(pci_dev, PCI_ID_MSI, &id) != 0)
+		panic("its_get_devid: Unable to get the MSI DeviceID");
 
-	return (its_get_devid_default(pci_dev));
+	return (id);
 }
 
 /*

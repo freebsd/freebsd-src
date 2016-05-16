@@ -744,6 +744,26 @@ generic_pcie_release_msix(device_t pci, device_t child, int irq)
 #endif
 }
 
+int
+generic_pcie_get_id(device_t pci, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	phandle_t node;
+	uint32_t rid;
+	uint16_t pci_rid;
+
+	if (type != PCI_ID_MSI)
+		return (pcib_get_id(pci, child, type, id));
+
+	node = ofw_bus_get_node(pci);
+	pci_rid = pci_get_rid(child);
+
+	ofw_bus_msimap(node, pci_rid, NULL, &rid);
+	*id = rid;
+
+	return (0);
+}
+
 static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(device_probe,			generic_pcie_probe),
 	DEVMETHOD(device_attach,		pci_host_generic_attach),
@@ -767,6 +787,7 @@ static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(pcib_alloc_msix,		generic_pcie_alloc_msix),
 	DEVMETHOD(pcib_release_msix,		generic_pcie_release_msix),
 	DEVMETHOD(pcib_map_msi,			generic_pcie_map_msi),
+	DEVMETHOD(pcib_get_id,			generic_pcie_get_id),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,		generic_pcie_ofw_get_devinfo),
