@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: xenix,v 1.9 2009/09/19 16:28:13 christos Exp $
+# $File: xenix,v 1.10 2016/04/19 18:14:19 christos Exp $
 # xenix:  file(1) magic for Microsoft Xenix
 #
 # "Middle model" stuff, and "Xenix 8086 relocatable or 80286 small
@@ -12,7 +12,26 @@
 # XXX - "x.out" collides with PDP-11 archives
 #
 0	string		core		core file (Xenix)
-0	byte		0x80		8086 relocatable (Microsoft)
+# URL: http://www.polarhome.com/service/man/?qf=86rel&tf=2&of=Xenix
+# Reference: http://www.azillionmonkeys.com/qed/Omfg.pdf
+# Update: Joerg Jenderek
+# recordtype~TranslatorHEADerRecord
+0	byte		0x80		
+# GRR: line above is too general as it catches also Extensible storage engine DataBase
+# skip examples like GENA.SND Switch.Snd by looking for record length maximal 1024-3
+>1	uleshort	<1022		
+# skip examples like GAME.PICTURE Strange.Pic by looking for positiv record length
+>>1	uleshort	>0		
+# skip examples like Xtable.Data FRACTAL.GEN SHR.VIEW by looking for positiv string length
+>>>3	ubyte		>0		
+# skip examples like OMBRE.6 with "UUUUUU" by looking for filename like "hello.c"
+>>>>4	regex	[a-zA-Z_/]{1,8}[.]	8086 relocatable (Microsoft)
+#!:mime	application/octet-stream
+!:mime	application/x-object
+!:ext	o/a
+>>>>>3	pstring		x		\b, "%s"
+# checksum
+#>>>>>(3.b+4)	ubyte	x		\b, checksum 0x%2.2x
 0	leshort		0xff65		x.out
 >2	string		__.SYMDEF	 randomized
 >0	byte		x		archive

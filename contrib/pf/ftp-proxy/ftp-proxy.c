@@ -103,7 +103,7 @@ void	client_read(struct bufferevent *, void *);
 int	drop_privs(void);
 void	end_session(struct session *);
 void	exit_daemon(void);
-int	getline(char *, size_t *);
+int	get_line(char *, size_t *);
 void	handle_connection(const int, short, void *);
 void	handle_signal(int, short, void *);
 struct session * init_session(void);
@@ -249,7 +249,7 @@ client_read(struct bufferevent *bufev, void *arg)
 		    buf_avail);
 		s->cbuf_valid += clientread;
 
-		while ((n = getline(s->cbuf, &s->cbuf_valid)) > 0) {
+		while ((n = get_line(s->cbuf, &s->cbuf_valid)) > 0) {
 			logmsg(LOG_DEBUG, "#%d client: %s", s->id, linebuf);
 			if (!client_parse(s)) {
 				end_session(s);
@@ -343,7 +343,7 @@ exit_daemon(void)
 }
 
 int
-getline(char *buf, size_t *valid)
+get_line(char *buf, size_t *valid)
 {
 	size_t i;
 
@@ -1087,7 +1087,7 @@ server_read(struct bufferevent *bufev, void *arg)
 		    buf_avail);
 		s->sbuf_valid += srvread;
 
-		while ((n = getline(s->sbuf, &s->sbuf_valid)) > 0) {
+		while ((n = get_line(s->sbuf, &s->sbuf_valid)) > 0) {
 			logmsg(LOG_DEBUG, "#%d server: %s", s->id, linebuf);
 			if (!server_parse(s)) {
 				end_session(s);

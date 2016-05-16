@@ -65,11 +65,14 @@ int
 mrsas_map_request(struct mrsas_softc *sc,
     struct mrsas_mpt_cmd *cmd, union ccb *ccb);
 int
-mrsas_build_ldio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
+mrsas_build_ldio_rw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
     union ccb *ccb);
 int
-mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
-    union ccb *ccb, struct cam_sim *sim);
+mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
+    union ccb *ccb);
+int
+mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
+    union ccb *ccb, struct cam_sim *sim, u_int8_t fp_possible);
 int
 mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
     union ccb *ccb, u_int32_t device_id,
@@ -121,6 +124,7 @@ mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
 extern u_int8_t
 megasas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
     u_int64_t block, u_int32_t count);
+extern int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 
 
 /*
@@ -341,7 +345,7 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				ccb->cpi.max_target = MRSAS_MAX_LD_IDS - 1;
 #if (__FreeBSD_version > 704000)
-			ccb->cpi.maxio = MRSAS_MAX_IO_SIZE;
+			ccb->cpi.maxio = sc->max_num_sge * MRSAS_PAGE_SIZE;
 #endif
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(ccb);
@@ -392,7 +396,7 @@ mrsas_scsiio_timeout(void *data)
 	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
 	    mrsas_scsiio_timeout, cmd);
 #endif
-	sc->do_timedout_reset = 1;
+	sc->do_timedout_reset = SCSIIO_TIMEOUT_OCR;
 	if (sc->ocr_thread_active)
 		wakeup(&sc->ocr_chan);
 }
@@ -415,6 +419,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	struct ccb_hdr *ccb_h = &(ccb->ccb_h);
 	struct ccb_scsiio *csio = &(ccb->csio);
 	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc;
+	u_int8_t cmd_type;
 
 	if ((csio->cdb_io.cdb_bytes[0]) == SYNCHRONIZE_CACHE) {
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -458,7 +463,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 		ccb_h->status = CAM_REQ_INVALID;
 		goto done;
 	case CAM_DATA_VADDR:
-		if (csio->dxfer_len > MRSAS_MAX_IO_SIZE) {
+		if (csio->dxfer_len > (sc->max_num_sge * MRSAS_PAGE_SIZE)) {
 			mrsas_release_mpt_cmd(cmd);
 			ccb_h->status = CAM_REQ_TOO_BIG;
 			goto done;
@@ -468,6 +473,11 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 			cmd->data = csio->data_ptr;
 		break;
 	case CAM_DATA_BIO:
+		if (csio->dxfer_len > (sc->max_num_sge * MRSAS_PAGE_SIZE)) {
+			mrsas_release_mpt_cmd(cmd);
+			ccb_h->status = CAM_REQ_TOO_BIG;
+			goto done;
+		}
 		cmd->length = csio->dxfer_len;
 		if (cmd->length)
 			cmd->data = csio->data_ptr;
@@ -479,7 +489,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 #else
 	if (!(ccb_h->flags & CAM_DATA_PHYS)) {	/* Virtual data address */
 		if (!(ccb_h->flags & CAM_SCATTER_VALID)) {
-			if (csio->dxfer_len > MRSAS_MAX_IO_SIZE) {
+			if (csio->dxfer_len > (sc->max_num_sge * MRSAS_PAGE_SIZE)) {
 				mrsas_release_mpt_cmd(cmd);
 				ccb_h->status = CAM_REQ_TOO_BIG;
 				goto done;
@@ -517,18 +527,43 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	mtx_lock(&sc->raidmap_lock);
 
 	/* Check for IO type READ-WRITE targeted for Logical Volume */
-	if (mrsas_find_io_type(sim, ccb) == READ_WRITE_LDIO) {
+	cmd_type = mrsas_find_io_type(sim, ccb);
+	switch (cmd_type) {
+	case READ_WRITE_LDIO:
 		/* Build READ-WRITE IO for Logical Volume  */
-		if (mrsas_build_ldio(sc, cmd, ccb)) {
-			device_printf(sc->mrsas_dev, "Build LDIO failed.\n");
+		if (mrsas_build_ldio_rw(sc, cmd, ccb)) {
+			device_printf(sc->mrsas_dev, "Build RW LDIO failed.\n");
 			mtx_unlock(&sc->raidmap_lock);
 			return (1);
 		}
-	} else {
-		if (mrsas_build_dcdb(sc, cmd, ccb, sim)) {
-			device_printf(sc->mrsas_dev, "Build DCDB failed.\n");
+		break;
+	case NON_READ_WRITE_LDIO:
+		/* Build NON READ-WRITE IO for Logical Volume  */
+		if (mrsas_build_ldio_nonrw(sc, cmd, ccb)) {
+			device_printf(sc->mrsas_dev, "Build NON-RW LDIO failed.\n");
 			mtx_unlock(&sc->raidmap_lock);
 			return (1);
+		}
+		break;
+	case READ_WRITE_SYSPDIO:
+	case NON_READ_WRITE_SYSPDIO:
+		if (sc->secure_jbod_support &&
+		    (cmd_type == NON_READ_WRITE_SYSPDIO)) {
+			/* Build NON-RW IO for JBOD */
+			if (mrsas_build_syspdio(sc, cmd, ccb, sim, 0)) {
+				device_printf(sc->mrsas_dev,
+				    "Build SYSPDIO failed.\n");
+				mtx_unlock(&sc->raidmap_lock);
+				return (1);
+			}
+		} else {
+			/* Build RW IO for JBOD */
+			if (mrsas_build_syspdio(sc, cmd, ccb, sim, 1)) {
+				device_printf(sc->mrsas_dev,
+				    "Build SYSPDIO failed.\n");
+				mtx_unlock(&sc->raidmap_lock);
+				return (1);
+			}
 		}
 	}
 	mtx_unlock(&sc->raidmap_lock);
@@ -614,7 +649,10 @@ mrsas_get_mpt_cmd(struct mrsas_softc *sc)
 	if (!TAILQ_EMPTY(&sc->mrsas_mpt_cmd_list_head)) {
 		cmd = TAILQ_FIRST(&sc->mrsas_mpt_cmd_list_head);
 		TAILQ_REMOVE(&sc->mrsas_mpt_cmd_list_head, cmd, next);
+	} else {
+		goto out;
 	}
+
 	memset((uint8_t *)cmd->io_request, 0, MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE);
 	cmd->data = NULL;
 	cmd->length = 0;
@@ -622,8 +660,9 @@ mrsas_get_mpt_cmd(struct mrsas_softc *sc)
 	cmd->error_code = 0;
 	cmd->load_balance = 0;
 	cmd->ccb_ptr = NULL;
-	mtx_unlock(&sc->mpt_cmd_pool_lock);
 
+out:
+	mtx_unlock(&sc->mpt_cmd_pool_lock);
 	return cmd;
 }
 
@@ -668,7 +707,7 @@ mrsas_get_request_desc(struct mrsas_softc *sc, u_int16_t index)
 }
 
 /*
- * mrsas_build_ldio:	Builds an LDIO command
+ * mrsas_build_ldio_rw:	Builds an LDIO command
  * input:				Adapter instance soft state
  * 						Pointer to command packet
  * 						Pointer to CCB
@@ -677,7 +716,7 @@ mrsas_get_request_desc(struct mrsas_softc *sc, u_int16_t index)
  * built successfully, otherwise it returns a 1.
  */
 int
-mrsas_build_ldio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
+mrsas_build_ldio_rw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
     union ccb *ccb)
 {
 	struct ccb_hdr *ccb_h = &(ccb->ccb_h);
@@ -701,12 +740,18 @@ mrsas_build_ldio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	io_request->DataLength = cmd->length;
 
 	if (mrsas_map_request(sc, cmd, ccb) == SUCCESS) {
-		if (cmd->sge_count > MRSAS_MAX_SGL) {
+		if (cmd->sge_count > sc->max_num_sge) {
 			device_printf(sc->mrsas_dev, "Error: sge_count (0x%x) exceeds"
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
 			return (FAIL);
 		}
+		/*
+		 * numSGE store lower 8 bit of sge_count. numSGEExt store
+		 * higher 8 bit of sge_count
+		 */
 		io_request->RaidContext.numSGE = cmd->sge_count;
+		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+
 	} else {
 		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
 		return (FAIL);
@@ -832,7 +877,10 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		cmd->request_desc->SCSIIO.RequestFlags =
 		    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+		if ((sc->device_id == MRSAS_INVADER) ||
+		    (sc->device_id == MRSAS_FURY) ||
+		    (sc->device_id == MRSAS_INTRUDER) ||
+		    (sc->device_id == MRSAS_INTRUDER_24)) {
 			if (io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 				    (MRSAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
@@ -861,7 +909,10 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		cmd->request_desc->SCSIIO.RequestFlags =
 		    (MRSAS_REQ_DESCRIPT_FLAGS_LD_IO <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+		if ((sc->device_id == MRSAS_INVADER) ||
+		    (sc->device_id == MRSAS_FURY) ||
+		    (sc->device_id == MRSAS_INTRUDER) ||
+		    (sc->device_id == MRSAS_INTRUDER_24)) {
 			if (io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 				    (MRSAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
@@ -879,76 +930,31 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 }
 
 /*
- * mrsas_build_dcdb:	Builds an DCDB command
+ * mrsas_build_ldio_nonrw:	Builds an LDIO command
  * input:				Adapter instance soft state
  * 						Pointer to command packet
  * 						Pointer to CCB
  *
- * This function builds the DCDB inquiry command.  It returns 0 if the command
- * is built successfully, otherwise it returns a 1.
+ * This function builds the LDIO command packet.  It returns 0 if the command is
+ * built successfully, otherwise it returns a 1.
  */
 int
-mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
-    union ccb *ccb, struct cam_sim *sim)
+mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
+    union ccb *ccb)
 {
 	struct ccb_hdr *ccb_h = &(ccb->ccb_h);
 	u_int32_t device_id;
-	MR_DRV_RAID_MAP_ALL *map_ptr;
 	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
 
 	io_request = cmd->io_request;
 	device_id = ccb_h->target_id;
-	map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
 
-	/*
-         * Check if this is RW for system PD or
-         * it's a NON RW for sys PD and there is NO secure jbod FW support
-         */
-	if (cam_sim_bus(sim) == 1 &&
-	    sc->pd_list[device_id].driveState == MR_PD_STATE_SYSTEM) {
-
-		io_request->DevHandle =
-		    map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
-		io_request->RaidContext.RAIDFlags =
-		    MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD <<
-		    MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
-		cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
-		cmd->request_desc->SCSIIO.MSIxIndex =
-		    sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
-
-		if (sc->secure_jbod_support && (mrsas_find_io_type(sim, ccb) == NON_READ_WRITE_SYSPDIO)) {
-			/* system pd firmware path */
-			io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
-			cmd->request_desc->SCSIIO.RequestFlags =
-			    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO << MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		} else {
-			/* system pd fast path */
-			io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
-			io_request->RaidContext.timeoutValue = map_ptr->raidMap.fpPdIoTimeoutSec;
-			io_request->RaidContext.regLockFlags = 0;
-			io_request->RaidContext.regLockRowLBA = 0;
-			io_request->RaidContext.regLockLength = 0;
-
-			cmd->request_desc->SCSIIO.RequestFlags =
-			    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
-			    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-
-			/*
-			 * NOTE - For system pd RW cmds only IoFlags will be FAST_PATH
-			 * Because the NON RW cmds will now go via FW Queue
-			 * and not the Exception queue
-			 */
-			if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
-				io_request->IoFlags |= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
-		}
-	} else {
-		/* FW path for SysPD or LD Non-RW (SCSI management commands) */
-		io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
-		io_request->DevHandle = device_id;
-		cmd->request_desc->SCSIIO.RequestFlags =
-		    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
-		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-	}
+	/* FW path for LD Non-RW (SCSI management commands) */
+	io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
+	io_request->DevHandle = device_id;
+	cmd->request_desc->SCSIIO.RequestFlags =
+	    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
+	    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 
 	io_request->RaidContext.VirtualDiskTgtId = device_id;
 	io_request->LUN[1] = ccb_h->target_lun & 0xF;
@@ -960,7 +966,120 @@ mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
 			return (1);
 		}
+		/*
+		 * numSGE store lower 8 bit of sge_count. numSGEExt store
+		 * higher 8 bit of sge_count
+		 */
 		io_request->RaidContext.numSGE = cmd->sge_count;
+		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+	} else {
+		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
+		return (1);
+	}
+	return (0);
+}
+
+/*
+ * mrsas_build_syspdio:	Builds an DCDB command
+ * input:				Adapter instance soft state
+ * 						Pointer to command packet
+ * 						Pointer to CCB
+ *
+ * This function builds the DCDB inquiry command.  It returns 0 if the command
+ * is built successfully, otherwise it returns a 1.
+ */
+int
+mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
+    union ccb *ccb, struct cam_sim *sim, u_int8_t fp_possible)
+{
+	struct ccb_hdr *ccb_h = &(ccb->ccb_h);
+	u_int32_t device_id;
+	MR_DRV_RAID_MAP_ALL *local_map_ptr;
+	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
+	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
+
+	pd_sync = (void *)sc->jbodmap_mem[(sc->pd_seq_map_id - 1) & 1];
+
+	io_request = cmd->io_request;
+	device_id = ccb_h->target_id;
+	local_map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
+	io_request->RaidContext.RAIDFlags = MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD
+	    << MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
+	io_request->RaidContext.regLockFlags = 0;
+	io_request->RaidContext.regLockRowLBA = 0;
+	io_request->RaidContext.regLockLength = 0;
+
+	/* If FW supports PD sequence number */
+	if (sc->use_seqnum_jbod_fp &&
+	    sc->pd_list[device_id].driveType == 0x00) {
+		//printf("Using Drv seq num\n");
+		io_request->RaidContext.VirtualDiskTgtId = device_id + 255;
+		io_request->RaidContext.configSeqNum = pd_sync->seq[device_id].seqNum;
+		io_request->DevHandle = pd_sync->seq[device_id].devHandle;
+		io_request->RaidContext.regLockFlags |=
+		    (MR_RL_FLAGS_SEQ_NUM_ENABLE | MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
+		io_request->RaidContext.Type = MPI2_TYPE_CUDA;
+		io_request->RaidContext.nseg = 0x1;
+	} else if (sc->fast_path_io) {
+		//printf("Using LD RAID map\n");
+		io_request->RaidContext.VirtualDiskTgtId = device_id;
+		io_request->RaidContext.configSeqNum = 0;
+		local_map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
+		io_request->DevHandle =
+		    local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+	} else {
+		//printf("Using FW PATH\n");
+		/* Want to send all IO via FW path */
+		io_request->RaidContext.VirtualDiskTgtId = device_id;
+		io_request->RaidContext.configSeqNum = 0;
+		io_request->DevHandle = 0xFFFF;
+	}
+
+	cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
+	cmd->request_desc->SCSIIO.MSIxIndex =
+	    sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
+
+	if (!fp_possible) {
+		/* system pd firmware path */
+		io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
+		cmd->request_desc->SCSIIO.RequestFlags =
+		    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
+		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+		io_request->RaidContext.timeoutValue =
+		    local_map_ptr->raidMap.fpPdIoTimeoutSec;
+		io_request->RaidContext.VirtualDiskTgtId = device_id;
+	} else {
+		/* system pd fast path */
+		io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
+		io_request->RaidContext.timeoutValue = local_map_ptr->raidMap.fpPdIoTimeoutSec;
+
+		/*
+		 * NOTE - For system pd RW cmds only IoFlags will be FAST_PATH
+		 * Because the NON RW cmds will now go via FW Queue
+		 * and not the Exception queue
+		 */
+		io_request->IoFlags |= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
+
+		cmd->request_desc->SCSIIO.RequestFlags =
+		    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
+		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+	}
+
+	io_request->LUN[1] = ccb_h->target_lun & 0xF;
+	io_request->DataLength = cmd->length;
+
+	if (mrsas_map_request(sc, cmd, ccb) == SUCCESS) {
+		if (cmd->sge_count > sc->max_num_sge) {
+			device_printf(sc->mrsas_dev, "Error: sge_count (0x%x) exceeds"
+			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
+			return (1);
+		}
+		/*
+		 * numSGE store lower 8 bit of sge_count. numSGEExt store
+		 * higher 8 bit of sge_count
+		 */
+		io_request->RaidContext.numSGE = cmd->sge_count;
+		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
 	} else {
 		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
 		return (1);
@@ -1069,7 +1188,10 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	io_request = cmd->io_request;
 	sgl_ptr = (pMpi25IeeeSgeChain64_t)&io_request->SGL;
 
-	if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+	if ((sc->device_id == MRSAS_INVADER) ||
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24)) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = sgl_ptr;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;
@@ -1080,7 +1202,10 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			sgl_ptr->Address = segs[i].ds_addr;
 			sgl_ptr->Length = segs[i].ds_len;
 			sgl_ptr->Flags = 0;
-			if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+			if ((sc->device_id == MRSAS_INVADER) ||
+			    (sc->device_id == MRSAS_FURY) ||
+			    (sc->device_id == MRSAS_INTRUDER) ||
+			    (sc->device_id == MRSAS_INTRUDER_24)) {
 				if (i == nseg - 1)
 					sgl_ptr->Flags = IEEE_SGE_FLAGS_END_OF_LIST;
 			}
@@ -1090,7 +1215,10 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			    (nseg > sc->max_sge_in_main_msg)) {
 				pMpi25IeeeSgeChain64_t sg_chain;
 
-				if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+				if ((sc->device_id == MRSAS_INVADER) ||
+				    (sc->device_id == MRSAS_FURY) ||
+				    (sc->device_id == MRSAS_INTRUDER) ||
+				    (sc->device_id == MRSAS_INTRUDER_24)) {
 					if ((cmd->io_request->IoFlags & MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
 					    != MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
 						cmd->io_request->ChainOffset = sc->chain_offset_io_request;
@@ -1099,7 +1227,10 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 				} else
 					cmd->io_request->ChainOffset = sc->chain_offset_io_request;
 				sg_chain = sgl_ptr;
-				if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
+				if ((sc->device_id == MRSAS_INVADER) ||
+				    (sc->device_id == MRSAS_FURY) ||
+				    (sc->device_id == MRSAS_INTRUDER) ||
+				    (sc->device_id == MRSAS_INTRUDER_24))
 					sg_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT;
 				else
 					sg_chain->Flags = (IEEE_SGE_FLAGS_CHAIN_ELEMENT | MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR);
@@ -1170,9 +1301,16 @@ mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd)
 static void
 mrsas_cam_poll(struct cam_sim *sim)
 {
+	int i;
 	struct mrsas_softc *sc = (struct mrsas_softc *)cam_sim_softc(sim);
 
-	mrsas_isr((void *)sc);
+	if (sc->msix_vectors != 0){
+		for (i=0; i<sc->msix_vectors; i++){
+			mrsas_complete_cmd(sc, i);
+		}
+	} else {
+		mrsas_complete_cmd(sc, 0);
+	}
 }
 
 /*

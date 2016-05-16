@@ -121,7 +121,9 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	int len, mcast;
+#ifdef IEEE80211_SUPPORT_SUPERG
+	int mcast;
+#endif
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -161,8 +163,9 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * interface it (might have been) received on.
 	 */
 	m->m_pkthdr.rcvif = (void *)ni;
+#ifdef IEEE80211_SUPPORT_SUPERG
 	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1: 0;
-	len = m->m_pkthdr.len;
+#endif
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
 
@@ -2082,7 +2085,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	struct ieee80211com *ic = ni->ni_ic;
 	const struct ieee80211_txparam *tp;
 	struct ieee80211_bpf_params params;
-	struct ieee80211_frame *wh;
 	const struct ieee80211_rateset *rs;
 	struct mbuf *m;
 	uint8_t *frm;
@@ -2152,7 +2154,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	}
 
 	IEEE80211_TX_LOCK(ic);
-	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
 	     IEEE80211_NONQOS_TID, sa, da, bssid);
@@ -2749,7 +2750,6 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 {
 	struct ieee80211_node *bss = vap->iv_bss;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_frame *wh;
 	struct mbuf *m;
 	int ret;
 
@@ -2781,7 +2781,6 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	KASSERT(m != NULL, ("no room for header"));
 
 	IEEE80211_TX_LOCK(ic);
-	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(bss, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP,
 	     IEEE80211_NONQOS_TID, vap->iv_myaddr, da, bss->ni_bssid);

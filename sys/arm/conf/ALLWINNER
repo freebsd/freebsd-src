@@ -1,5 +1,6 @@
 #
-# ALLWINNER -- Custom configuration for the Allwinner A20 and A31 ARM SoC
+# ALLWINNER -- Custom configuration for the Allwinner A20, A31, A31S, A83T,
+# and H3 ARM SoCs.
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -29,6 +30,7 @@ options 	SOC_ALLWINNER_A20
 options 	SOC_ALLWINNER_A31
 options 	SOC_ALLWINNER_A31S
 options 	SOC_ALLWINNER_A83T
+options 	SOC_ALLWINNER_H3
 
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
@@ -92,7 +94,9 @@ device		random			# Entropy device
 device		iicbus
 device		iic
 device		twsi
+device		rsb
 device		axp209			# AXP209 Power Management Unit
+device		axp81x			# AXP813/818 Power Management Unit
 
 # GPIO
 device		gpio

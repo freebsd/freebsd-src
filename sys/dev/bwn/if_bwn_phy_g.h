@@ -49,7 +49,7 @@ extern int bwn_phy_g_switch_channel(struct bwn_mac *mac, uint32_t newchan);
 extern uint32_t bwn_phy_g_get_default_chan(struct bwn_mac *mac);
 extern void bwn_phy_g_set_antenna(struct bwn_mac *mac, int antenna);
 extern int bwn_phy_g_im(struct bwn_mac *mac, int mode);
-extern int bwn_phy_g_recalc_txpwr(struct bwn_mac *mac, int ignore_tssi);
+extern bwn_txpwr_result_t bwn_phy_g_recalc_txpwr(struct bwn_mac *mac, int ignore_tssi);
 extern void bwn_phy_g_set_txpwr(struct bwn_mac *mac);
 extern void bwn_phy_g_task_15s(struct bwn_mac *mac);
 extern void bwn_phy_g_task_60s(struct bwn_mac *mac);

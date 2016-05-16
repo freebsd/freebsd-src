@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
@@ -575,7 +575,14 @@ zap_deref_leaf(zap_t *zap, uint64_t h, dmu_tx_t *tx, krw_t lt, zap_leaf_t **lp)
 
 	ASSERT(zap->zap_dbuf == NULL ||
 	    zap_f_phys(zap) == zap->zap_dbuf->db_data);
-	ASSERT3U(zap_f_phys(zap)->zap_magic, ==, ZAP_MAGIC);
+
+	/* Reality check for corrupt zap objects (leaf or header). */
+	if ((zap_f_phys(zap)->zap_block_type != ZBT_LEAF &&
+	    zap_f_phys(zap)->zap_block_type != ZBT_HEADER) ||
+	    zap_f_phys(zap)->zap_magic != ZAP_MAGIC) {
+		return (SET_ERROR(EIO));
+	}
+
 	idx = ZAP_HASH_IDX(h, zap_f_phys(zap)->zap_ptrtbl.zt_shift);
 	err = zap_idx_to_blk(zap, idx, &blk);
 	if (err != 0)
@@ -955,8 +962,8 @@ zap_create_link(objset_t *os, dmu_object_type_t ot, uint64_t parent_obj,
 	uint64_t new_obj;
 
 	VERIFY((new_obj = zap_create(os, ot, DMU_OT_NONE, 0, tx)) > 0);
-	VERIFY(zap_add(os, parent_obj, name, sizeof (uint64_t), 1, &new_obj,
-	    tx) == 0);
+	VERIFY0(zap_add(os, parent_obj, name, sizeof (uint64_t), 1, &new_obj,
+	    tx));
 
 	return (new_obj);
 }

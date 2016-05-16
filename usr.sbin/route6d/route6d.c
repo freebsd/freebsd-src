@@ -1592,7 +1592,7 @@ ifconfig1(const char *name,
 	if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) && !lflag)
 		return (-1);
 	ifr.ifr_addr = *sin6;
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCGIFNETMASK_IN6, (char *)&ifr) < 0) {
 		syslog(LOG_INFO, "ioctl: SIOCGIFNETMASK_IN6");
 		return (-1);
@@ -2598,8 +2598,10 @@ krtread(int again)
 			sleep(1);
 		retry++;
 		errmsg = NULL;
-		if (buf)
+		if (buf) {
 			free(buf);
+			buf = NULL;
+		}
 		if (sysctl(mib, 6, NULL, &msize, NULL, 0) < 0) {
 			errmsg = "sysctl estimate";
 			continue;

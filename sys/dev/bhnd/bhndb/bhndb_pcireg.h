@@ -205,13 +205,17 @@
 #define	BHNDB_PCI_SBIM_MASK_SERR	0x4	/* backplane SBErr interrupt mask */
 
 /* BHNDB_PCI_SPROM_CONTROL */
-#define	BHNDB_PCI_SPROM_SZ_MSK		0x02	/* SPROM Size Mask */
-#define	BHNDB_PCI_SPROM_LOCKED		0x08	/* SPROM Locked */
-#define	BHNDB_PCI_SPROM_BLANK		0x04	/* indicating a blank SPROM */
-#define	BHNDB_PCI_SPROM_WRITEEN		0x10	/* SPROM write enable */
-#define	BHNDB_PCI_SPROM_BOOTROM_WE	0x20	/* external bootrom write enable */
-#define	BHNDB_PCI_SPROM_BACKPLANE_EN	0x40	/* Enable indirect backplane access */
-#define	BHNDB_PCI_SPROM_OTPIN_USE	0x80	/* device OTP In use */
+#define	BHNDB_PCI_SPROM_SZ_MASK		0x03	/**< sprom size mask */
+#define	BHNDB_PCI_SPROM_SZ_1KB		0x00	/**< 1KB sprom size */
+#define	BHNDB_PCI_SPROM_SZ_4KB		0x01	/**< 4KB sprom size */
+#define	BHNDB_PCI_SPROM_SZ_16KB		0x02	/**< 16KB sprom size */
+#define	BHNDB_PCI_SPROM_SZ_RESERVED	0x03	/**< unsupported sprom size */
+#define	BHNDB_PCI_SPROM_LOCKED		0x08	/**< sprom locked */
+#define	BHNDB_PCI_SPROM_BLANK		0x04	/**< sprom blank */
+#define	BHNDB_PCI_SPROM_WRITEEN		0x10	/**< sprom write enable */
+#define	BHNDB_PCI_SPROM_BOOTROM_WE	0x20	/**< external bootrom write enable */
+#define	BHNDB_PCI_SPROM_BACKPLANE_EN	0x40	/**< enable indirect backplane access (BHNDB_PCI_BACKPLANE_*) */
+#define	BHNDB_PCI_SPROM_OTPIN_USE	0x80	/**< device OTP in use */
 
 
 /* PCI (non-PCIe) BHNDB_PCI_GPIO_OUTEN  */

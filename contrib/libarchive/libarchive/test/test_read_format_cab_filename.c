@@ -58,6 +58,8 @@ test_read_format_cab_filename_CP932_eucJP(const char *refname)
 	    "\xc9\xbd\xa4\xc0\xa4\xe8\x2f\xb4\xc1\xbb\xfa\x2e\x74\x78\x74",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -65,6 +67,8 @@ test_read_format_cab_filename_CP932_eucJP(const char *refname)
 	    "\xc9\xbd\xa4\xc0\xa4\xe8\x2f\xb0\xec\xcd\xf7\xc9\xbd\x2e\x74\x78\x74",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */
@@ -122,6 +126,8 @@ test_read_format_cab_filename_CP932_UTF8(const char *refname)
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
 #endif
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -139,6 +145,8 @@ test_read_format_cab_filename_CP932_UTF8(const char *refname)
 	    archive_entry_pathname(ae));
 #endif
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */

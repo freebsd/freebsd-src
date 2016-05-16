@@ -367,10 +367,10 @@ expand(char *name)
 		name = savestr(xname);
 	}
 	if (!strpbrk(name, "~{[*?$`'\"\\"))
-		return (name);
+		return (savestr(name));
 	if (pipe(pivec) < 0) {
 		warn("pipe");
-		return (name);
+		return (NULL);
 	}
 	(void)snprintf(cmdbuf, sizeof(cmdbuf), "echo %s", name);
 	if ((sh = value("SHELL")) == NULL)

@@ -415,16 +415,38 @@ bhnd_core_matches(const struct bhnd_core_info *core,
 
 	if (!bhnd_hwrev_matches(core->hwrev, &desc->hwrev))
 		return (false);
-		
-	if (desc->hwrev.end != BHND_HWREV_INVALID &&
-	    desc->hwrev.end < core->hwrev)
-		return (false);
 
 	if (desc->class != BHND_DEVCLASS_INVALID &&
 	    desc->class != bhnd_core_class(core))
 		return (false);
 
 	return true;
+}
+
+/**
+ * Return true if the @p chip matches @p desc.
+ * 
+ * @param chip A bhnd chip identifier.
+ * @param desc A match descriptor to compare against @p chip.
+ * 
+ * @retval true if @p chip matches @p match
+ * @retval false if @p chip does not match @p match.
+ */
+bool
+bhnd_chip_matches(const struct bhnd_chipid *chip,
+    const struct bhnd_chip_match *desc)
+{
+	if (desc->match_id && chip->chip_id != desc->chip_id)
+		return (false);
+
+	if (desc->match_pkg && chip->chip_pkg != desc->chip_pkg)
+		return (false);
+
+	if (desc->match_rev &&
+	    !bhnd_hwrev_matches(chip->chip_rev, &desc->chip_rev))
+		return (false);
+
+	return (true);
 }
 
 /**
@@ -486,7 +508,11 @@ const struct bhnd_device *
 bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
     size_t entry_size)
 {
-	const struct bhnd_device *entry;
+	const struct bhnd_device	*entry;
+	device_t			 hostb, parent;
+
+	parent = device_get_parent(dev);
+	hostb = bhnd_find_hostb_device(parent);
 
 	for (entry = table; entry->desc != NULL; entry =
 	    (const struct bhnd_device *) ((const char *) entry + entry_size))
@@ -496,8 +522,8 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 			continue;
 
 		/* match device flags */
-		if (entry->device_flags & BHND_DF_HOSTB) {
-			if (!bhnd_is_hostb_device(dev))
+		if (entry->device_flags & BHND_DF_HOSTB) {			
+			if (dev != hostb)
 				continue;
 		}
 
@@ -507,6 +533,33 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 
 	/* not found */
 	return (NULL);
+}
+
+/**
+ * Scan @p table for all quirk flags applicable to @p dev's chip identifier
+ * (as returned by bhnd_get_chipid).
+ * 
+ * @param dev A bhnd device.
+ * @param table The chip quirk table to search.
+ * 
+ * @return returns all matching quirk flags.
+ */
+uint32_t
+bhnd_chip_quirks(device_t dev, const struct bhnd_chip_quirk *table)
+{
+	const struct bhnd_chipid	*cid;
+	const struct bhnd_chip_quirk	*qent;
+	uint32_t			 quirks;
+	
+	cid = bhnd_get_chipid(dev);
+	quirks = 0;
+
+	for (qent = table; !BHND_CHIP_QUIRK_IS_END(qent); qent++) {
+		if (bhnd_chip_matches(cid, &qent->chip))
+			quirks |= qent->quirks;
+	}
+
+	return (quirks);
 }
 
 /**
@@ -735,24 +788,6 @@ void
 bhnd_set_default_core_desc(device_t dev)
 {
 	bhnd_set_custom_core_desc(dev, bhnd_get_device_name(dev));
-}
-
-/**
- * Helper function for implementing BHND_BUS_IS_HOSTB_DEVICE().
- * 
- * If a parent device is available, this implementation delegates the
- * request to the BHND_BUS_IS_HOSTB_DEVICE() method on the parent of @p dev.
- * 
- * If no parent device is available (i.e. on a the bus root), false
- * is returned.
- */
-bool
-bhnd_bus_generic_is_hostb_device(device_t dev, device_t child) {
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_IS_HOSTB_DEVICE(device_get_parent(dev),
-		    child));
-
-	return (false);
 }
 
 /**

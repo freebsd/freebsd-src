@@ -3610,7 +3610,7 @@ u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw)
  *  @vmdq: VMDq pool to assign
  *
  *  Puts an ethernet address into a receive address register, or
- *  finds the rar that it is aleady in; adds to the pool list
+ *  finds the rar that it is already in; adds to the pool list
  **/
 s32 ixgbe_insert_mac_addr_generic(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
 {

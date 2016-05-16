@@ -162,7 +162,7 @@ DECL_CMD_FUNC(clone_create, arg, d)
 static
 DECL_CMD_FUNC(clone_destroy, arg, d)
 {
-	(void) strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	(void) strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCIFDESTROY, &ifr) < 0)
 		err(1, "SIOCIFDESTROY");
 }

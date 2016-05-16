@@ -85,7 +85,6 @@ static const unsigned char flags[NOPT] = {
 };
 uint32_t opts;
 
-static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static char cmd[512];
@@ -399,7 +398,9 @@ probe_drive(struct dsk *dsk)
     struct gpt_ent *ent;
     unsigned part, entries_per_sec;
 #endif
+#ifdef LOADER_GELI_SUPPORT
     daddr_t slba, elba;
+#endif
     struct dos_partition *dp;
     char *sec;
     unsigned i;

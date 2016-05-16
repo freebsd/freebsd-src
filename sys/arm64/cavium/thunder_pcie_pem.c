@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pci_host_generic.h>
+#include <dev/pci/pcib_private.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -128,9 +129,11 @@ static struct resource * thunder_pem_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int thunder_pem_alloc_msi(device_t, device_t, int, int, int *);
 static int thunder_pem_release_msi(device_t, device_t, int, int *);
-static int thunder_pem_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 static int thunder_pem_alloc_msix(device_t, device_t, int *);
 static int thunder_pem_release_msix(device_t, device_t, int);
+static int thunder_pem_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
+static int thunder_pem_get_id(device_t, device_t, enum pci_id_type,
+    uintptr_t *);
 static int thunder_pem_attach(device_t);
 static int thunder_pem_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
@@ -177,11 +180,12 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(pcib_maxslots,		thunder_pem_maxslots),
 	DEVMETHOD(pcib_read_config,		thunder_pem_read_config),
 	DEVMETHOD(pcib_write_config,		thunder_pem_write_config),
-	DEVMETHOD(pcib_map_msi,			thunder_pem_map_msi),
 	DEVMETHOD(pcib_alloc_msix,		thunder_pem_alloc_msix),
 	DEVMETHOD(pcib_release_msix,		thunder_pem_release_msix),
 	DEVMETHOD(pcib_alloc_msi,		thunder_pem_alloc_msi),
 	DEVMETHOD(pcib_release_msi,		thunder_pem_release_msi),
+	DEVMETHOD(pcib_map_msi,			thunder_pem_map_msi),
+	DEVMETHOD(pcib_get_id,			thunder_pem_get_id),
 
 	DEVMETHOD_END
 };
@@ -327,37 +331,82 @@ static int
 thunder_pem_alloc_msi(device_t pci, device_t child, int count, int maxcount,
     int *irqs)
 {
+	device_t bus;
 
-	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
+	bus = device_get_parent(pci);
+	return (PCIB_ALLOC_MSI(device_get_parent(bus), child, count, maxcount,
+	    irqs));
 }
 
 static int
 thunder_pem_release_msi(device_t pci, device_t child, int count, int *irqs)
 {
+	device_t bus;
 
-	return (arm_release_msi(pci, child, count, irqs));
+	bus = device_get_parent(pci);
+	return (PCIB_RELEASE_MSI(device_get_parent(bus), child, count, irqs));
+}
+
+static int
+thunder_pem_alloc_msix(device_t pci, device_t child, int *irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pci);
+	return (PCIB_ALLOC_MSIX(device_get_parent(bus), child, irq));
+}
+
+static int
+thunder_pem_release_msix(device_t pci, device_t child, int irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pci);
+	return (PCIB_RELEASE_MSIX(device_get_parent(bus), child, irq));
 }
 
 static int
 thunder_pem_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
     uint32_t *data)
 {
+	device_t bus;
 
-	return (arm_map_msi(pci, child, irq, addr, data));
+	bus = device_get_parent(pci);
+	return (PCIB_MAP_MSI(device_get_parent(bus), child, irq, addr, data));
 }
 
 static int
-thunder_pem_alloc_msix(device_t pci, device_t child, int *irq)
+thunder_pem_get_id(device_t pci, device_t child, enum pci_id_type type,
+    uintptr_t *id)
 {
+	int bsf;
+	int pem;
 
-	return (arm_alloc_msix(pci, child, irq));
-}
+	if (type != PCI_ID_MSI)
+		return (pcib_get_id(pci, child, type, id));
 
-static int
-thunder_pem_release_msix(device_t pci, device_t child, int irq)
-{
+	bsf = pci_get_rid(child);
 
-	return (arm_release_msix(pci, child, irq));
+	/* PEM (PCIe MAC/root complex) number is equal to domain */
+	pem = pci_get_domain(child);
+
+	/*
+	 * Set appropriate device ID (passed by the HW along with
+	 * the transaction to memory) for different root complex
+	 * numbers using hard-coded domain portion for each group.
+	 */
+	if (pem < 3)
+		*id = (0x1 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 6)
+		*id = (0x3 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 9)
+		*id = (0x9 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 12)
+		*id = (0xB << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else
+		return (ENXIO);
+
+	return (0);
 }
 
 static int

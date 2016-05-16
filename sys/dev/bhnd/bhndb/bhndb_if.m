@@ -62,6 +62,12 @@ CODE {
 		panic("bhndb_init_full_config unimplemented");
 	}
 	
+	static device_t
+	bhndb_null_find_hostb_device(device_t dev, device_t child)
+	{
+		panic("bhndb_find_hostb_device unimplemented");
+	}
+	
 	static void
 	bhndb_null_suspend_resource(device_t dev, device_t child, int type,
 	    struct resource *r)
@@ -118,6 +124,17 @@ METHOD int init_full_config {
 	device_t child;
 	const struct bhndb_hw_priority *priority_table;
 } DEFAULT bhndb_null_init_full_config;
+
+/**
+ * Locate the active host bridge core for the attached bhnd bus.
+ *
+ * @param dev The bridge device.
+ * @param child The bhnd bus device attached to @p dev.
+ */
+METHOD device_t find_hostb_device {
+	device_t dev;
+	device_t child;
+} DEFAULT bhndb_null_find_hostb_device;
 
 /**
  * Mark a resource as 'suspended', gauranteeing to the bridge that no

@@ -52,7 +52,10 @@ typedef u_short		ushort_t;
 typedef u_long		ulong_t;
 typedef long long	longlong_t;  
 typedef unsigned long long u_longlong_t;
+#ifndef	_OFF64_T_DECLARED
+#define	_OFF64_T_DECLARED
 typedef off_t		off64_t;
+#endif
 typedef id_t		taskid_t;
 typedef id_t		projid_t;
 typedef id_t		poolid_t;

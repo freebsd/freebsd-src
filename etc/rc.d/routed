@@ -5,6 +5,7 @@
 
 # PROVIDE: routed
 # REQUIRE: netif routing
+# BEFORE: NETWORK
 # KEYWORD: nojail
 
 . /etc/rc.subr

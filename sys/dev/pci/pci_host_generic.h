@@ -60,6 +60,7 @@ struct generic_pcie_softc {
 	bus_space_handle_t	ioh;
 #ifdef FDT
 	struct ofw_bus_iinfo	pci_iinfo;
+	phandle_t		msi_parent;
 #endif
 };
 
@@ -69,5 +70,6 @@ DECLARE_CLASS(generic_pcie_driver);
 struct resource *pci_host_generic_alloc_resource(device_t,
     device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 int pci_host_generic_attach(device_t);
+int generic_pcie_get_id(device_t, device_t, enum pci_id_type, uintptr_t *);
 
 #endif /* __PCI_HOST_GENERIC_H_ */

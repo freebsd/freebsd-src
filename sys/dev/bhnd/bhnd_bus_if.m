@@ -55,10 +55,10 @@ CODE {
 		panic("bhnd_bus_get_chipid unimplemented");
 	}
 	
-	static bool
-	bhnd_bus_null_is_hostb_device(device_t dev, device_t child)
+	static device_t
+	bhnd_bus_null_find_hostb_device(device_t dev)
 	{
-		panic("bhnd_bus_is_hostb_device unimplemented");
+		panic("bhnd_bus_find_hostb_device unimplemented");
 	}
 
 	static bool
@@ -96,7 +96,7 @@ CODE {
 	}
 	
 	static int
-	bhnd_bus_null_read_nvram_var(device_t dev, device_t child,
+	bhnd_bus_null_get_nvram_var(device_t dev, device_t child,
 	    const char *name, void *buf, size_t *size)
 	{
 		return (ENOENT);
@@ -105,19 +105,16 @@ CODE {
 }
 
 /**
- * Returns true if @p child is serving as a host bridge for the bhnd
- * bus.
+ * Return the active host bridge core for the bhnd bus, if any.
  *
- * The default implementation will walk the parent device tree until
- * the root node is hit, returning false.
+ * @param dev The bhnd bus device.
  *
- * @param dev The device whose child is being examined.
- * @param child The child device.
+ * @retval device_t if a hostb device exists
+ * @retval NULL if no hostb device is found.
  */
-METHOD bool is_hostb_device {
+METHOD device_t find_hostb_device {
 	device_t dev;
-	device_t child;
-} DEFAULT bhnd_bus_null_is_hostb_device;
+} DEFAULT bhnd_bus_null_find_hostb_device;
 
 /**
  * Return true if the hardware components required by @p child are unpopulated
@@ -406,13 +403,13 @@ METHOD int get_region_addr {
  * @retval non-zero	If reading @p name otherwise fails, a regular unix
  *			error code will be returned.
  */
-METHOD int read_nvram_var {
+METHOD int get_nvram_var {
 	device_t	 dev;
 	device_t	 child;
 	const char	*name;
 	void		*buf;
 	size_t		*size;
-} DEFAULT bhnd_bus_null_read_nvram_var;
+} DEFAULT bhnd_bus_null_get_nvram_var;
 
 
 /** An implementation of bus_read_1() compatible with bhnd_resource */
@@ -464,6 +461,183 @@ METHOD void write_4 {
 	struct bhnd_resource *r;
 	bus_size_t offset;
 	uint32_t value;
+}
+
+/** An implementation of bus_read_stream_1() compatible with bhnd_resource */
+METHOD uint8_t read_stream_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+}
+
+/** An implementation of bus_read_stream_2() compatible with bhnd_resource */
+METHOD uint16_t read_stream_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+}
+
+/** An implementation of bus_read_stream_4() compatible with bhnd_resource */
+METHOD uint32_t read_stream_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+}
+
+/** An implementation of bus_write_stream_1() compatible with bhnd_resource */
+METHOD void write_stream_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t value;
+}
+
+/** An implementation of bus_write_stream_2() compatible with bhnd_resource */
+METHOD void write_stream_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t value;
+}
+
+/** An implementation of bus_write_stream_4() compatible with bhnd_resource */
+METHOD void write_stream_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t value;
+}
+
+/** An implementation of bus_read_multi_1() compatible with bhnd_resource */
+METHOD void read_multi_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_multi_2() compatible with bhnd_resource */
+METHOD void read_multi_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_multi_4() compatible with bhnd_resource */
+METHOD void read_multi_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_multi_1() compatible with bhnd_resource */
+METHOD void write_multi_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_multi_2() compatible with bhnd_resource */
+METHOD void write_multi_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_multi_4() compatible with bhnd_resource */
+METHOD void write_multi_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_multi_stream_1() compatible
+ *  bhnd_resource */
+METHOD void read_multi_stream_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_multi_stream_2() compatible
+ *  bhnd_resource */
+METHOD void read_multi_stream_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_multi_stream_4() compatible
+ *  bhnd_resource */
+METHOD void read_multi_stream_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_multi_stream_1() compatible
+ *  bhnd_resource */
+METHOD void write_multi_stream_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_multi_stream_2() compatible with
+ *  bhnd_resource */
+METHOD void write_multi_stream_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_multi_stream_4() compatible with
+ *  bhnd_resource */
+METHOD void write_multi_stream_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t *datap;
+	bus_size_t count;
 }
 
 /** An implementation of bus_barrier() compatible with bhnd_resource */

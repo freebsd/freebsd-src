@@ -157,7 +157,7 @@ SRCS+=	${KMOD:S/$/.c/}
 CLEANFILES+=	${KMOD:S/$/.c/}
 
 .for _firmw in ${FIRMWS}
-${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
+${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
@@ -169,7 +169,7 @@ ${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
 		rm ${_firmw:C/\:.*$//};				\
 	fi
 
-OBJS+=	${_firmw:C/\:.*$/.fwo/}
+OBJS+=	${_firmw:C/\:.*$/.fwo/:T}
 .endfor
 .endif
 
@@ -410,6 +410,26 @@ ${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 	${AWK} -f ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
+
+.if !empty(SRCS:Mbhnd_nvram_map.h)
+CLEANFILES+=	bhnd_nvram_map.h
+bhnd_nvram_map.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
+    ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map
+bhnd_nvram_map.h:
+	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -h
+.endif
+
+.if !empty(SRCS:Mbhnd_nvram_map_data.h)
+CLEANFILES+=	bhnd_nvram_map_data.h
+bhnd_nvram_map_data.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
+    ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map
+bhnd_nvram_map_data.h:
+	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -d
+.endif
 
 .if !empty(SRCS:Musbdevs.h)
 CLEANFILES+=	usbdevs.h

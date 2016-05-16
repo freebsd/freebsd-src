@@ -37,9 +37,7 @@
 #include "i40e_status.h"
 #include "i40e_alloc.h"
 #include "i40e_hmc.h"
-#ifndef I40E_NO_TYPE_HEADER
 #include "i40e_type.h"
-#endif
 
 /**
  * i40e_add_sd_table_entry - Adds a segment descriptor to the table

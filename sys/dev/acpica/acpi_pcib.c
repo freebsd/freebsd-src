@@ -265,3 +265,11 @@ acpi_pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
     acpi_device_pwr_for_sleep(acpi_dev, dev, pstate);
     return (0);
 }
+
+int
+acpi_pcib_get_cpus(device_t pcib, device_t dev, enum cpu_sets op,
+    size_t setsize, cpuset_t *cpuset)
+{
+
+	return (bus_get_cpus(pcib, op, setsize, cpuset));
+}

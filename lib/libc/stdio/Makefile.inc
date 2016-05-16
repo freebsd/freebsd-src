@@ -8,7 +8,8 @@ SRCS+=	_flock_stub.c asprintf.c clrerr.c dprintf.c \
 	fclose.c fcloseall.c fdopen.c \
 	feof.c ferror.c fflush.c fgetc.c fgetln.c fgetpos.c fgets.c fgetwc.c \
 	fgetwln.c fgetws.c \
-	fileno.c findfp.c flags.c fmemopen.c fopen.c fprintf.c fpurge.c \
+	fileno.c findfp.c flags.c fmemopen.c fopen.c \
+	fopencookie.c fprintf.c fpurge.c \
 	fputc.c fputs.c \
 	fputwc.c fputws.c fread.c freopen.c fscanf.c fseek.c fsetpos.c \
 	ftell.c funopen.c fvwrite.c fwalk.c fwide.c fwprintf.c fwscanf.c \
@@ -35,7 +36,7 @@ SYM_MAPS+=	${LIBC_SRCTOP}/stdio/Symbol.map
 
 MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetwln.3 fgetws.3 \
 	flockfile.3 \
-	fopen.3 fputs.3 \
+	fopen.3 fopencookie.3 fputs.3 \
 	fputws.3 fread.3 fseek.3 funopen.3 fwide.3 getc.3 \
 	getline.3 getwc.3 mktemp.3 open_memstream.3 \
 	printf.3 printf_l.3 putc.3 putwc.3 remove.3 scanf.3 scanf_l.3 setbuf.3 \

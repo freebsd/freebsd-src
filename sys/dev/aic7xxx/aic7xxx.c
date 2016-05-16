@@ -116,7 +116,7 @@ static const u_int num_phases = NUM_ELEMENTS(ahc_phase_table) - 1;
 
 /*
  * Valid SCSIRATE values.  (p. 3-17)
- * Provides a mapping of tranfer periods in ns to the proper value to
+ * Provides a mapping of transfer periods in ns to the proper value to
  * stick in the scsixfer reg.
  */
 static struct ahc_syncrate ahc_syncrates[] =
@@ -682,7 +682,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		 * that requires host assistance for completion.
 		 * While handling the message phase(s), we will be
 		 * notified by the sequencer after each byte is
-		 * transfered so we can track bus phase changes.
+		 * transferred so we can track bus phase changes.
 		 *
 		 * If this is the first time we've seen a HOST_MSG_LOOP
 		 * interrupt, initialize the state of the host message
@@ -925,7 +925,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		       scbptr, ahc_inb(ahc, ARG_1),
 		       ahc->scb_data->hscbs[scbptr].tag);
 		ahc_dump_card_state(ahc);
-		panic("for saftey");
+		panic("for safety");
 		break;
 	}
 	case OUT_OF_RANGE:
@@ -1171,7 +1171,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		/*
 		 * Although the driver does not care about the
 		 * 'Selection in Progress' status bit, the busy
-		 * LED does.  SELINGO is only cleared by a sucessfull
+		 * LED does.  SELINGO is only cleared by a successful
 		 * selection, so we must manually clear it to insure
 		 * the LED turns off just incase no future successful
 		 * selections occur (e.g. no devices on the bus).
@@ -1381,7 +1381,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 			if (lastphase != P_BUSFREE) {
 				/*
 				 * Renegotiate with this device at the
-				 * next oportunity just in case this busfree
+				 * next opportunity just in case this busfree
 				 * is due to a negotiation mismatch with the
 				 * device.
 				 */
@@ -1857,7 +1857,7 @@ ahc_validate_width(struct ahc_softc *ahc, struct ahc_initiator_tinfo *tinfo,
 
 /*
  * Update the bitmask of targets for which the controller should
- * negotiate with at the next convenient oportunity.  This currently
+ * negotiate with at the next convenient opportunity.  This currently
  * means the next time we send the initial identify messages for
  * a new transaction.
  */
@@ -3627,7 +3627,7 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 
 		/*
 		 * Requeue all tagged commands for this target
-		 * currently in our posession so they can be
+		 * currently in our possession so they can be
 		 * converted to untagged commands.
 		 */
 		ahc_search_qinfifo(ahc, SCB_GET_TARGET(ahc, scb),
@@ -4136,7 +4136,7 @@ ahc_shutdown(void *arg)
 /*
  * Reset the controller and record some information about it
  * that is only available just after a reset.  If "reinit" is
- * non-zero, this reset occured after initial configuration
+ * non-zero, this reset occurred after initial configuration
  * and the caller requests that the chip be fully reinitialized
  * to a runable state.  Chip interrupts are *not* enabled after
  * a reinitialization.  The caller must enable interrupts via
@@ -4458,7 +4458,7 @@ ahc_init_scbdata(struct ahc_softc *ahc)
 	ahc->next_queued_scb = ahc_get_scb(ahc);
 
 	/*
-	 * Note that we were successfull
+	 * Note that we were successful
 	 */
 	return (0); 
 
@@ -6543,7 +6543,7 @@ ahc_check_patch(struct ahc_softc *ahc, struct patch **start_patch,
 			cur_patch += cur_patch->skip_patch;
 		} else {
 			/* Accepted this patch.  Advance to the next
-			 * one and wait for our intruction pointer to
+			 * one and wait for our instruction pointer to
 			 * hit this point.
 			 */
 			cur_patch++;
@@ -7247,7 +7247,7 @@ bus_reset:
 				ahc_outb(ahc, SCBPTR, saved_scbptr);
 				aic_scb_timer_reset(scb, 2 * 1000);
 			} else {
-				/* Go "immediatly" to the bus reset */
+				/* Go "immediately" to the bus reset */
 				/* This shouldn't happen */
 				ahc_set_recoveryscb(ahc, scb);
 				ahc_print_path(ahc, scb);

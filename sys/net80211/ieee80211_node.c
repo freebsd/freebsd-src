@@ -73,12 +73,6 @@ CTASSERT((IEEE80211_NODE_HASHSIZE & (IEEE80211_NODE_HASHSIZE-1)) == 0);
 #define	IEEE80211_AID_ISSET(_vap, b) \
 	((_vap)->iv_aid_bitmap[IEEE80211_AID(b) / 32] & (1 << (IEEE80211_AID(b) % 32)))
 
-#ifdef IEEE80211_DEBUG_REFCNT
-#define REFCNT_LOC "%s (%s:%u) %p<%s> refcnt %d\n", __func__, func, line
-#else
-#define REFCNT_LOC "%s %p<%s> refcnt %d\n", __func__
-#endif
-
 static int ieee80211_sta_join1(struct ieee80211_node *);
 
 static struct ieee80211_node *node_alloc(struct ieee80211vap *,

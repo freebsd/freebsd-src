@@ -128,8 +128,8 @@ aw_cpuclk_attach(device_t dev)
 		goto fail;
 	}
 
-	free(__DECONST(char *, def.clkdef.parent_names), M_OFWPROP);
-	free(__DECONST(char *, def.clkdef.name), M_OFWPROP);
+	OF_prop_free(__DECONST(char *, def.clkdef.parent_names));
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
 
 	if (bootverbose)
 		clkdom_dump(clkdom);
@@ -137,7 +137,7 @@ aw_cpuclk_attach(device_t dev)
 	return (0);
 
 fail:
-	free(__DECONST(char *, def.clkdef.name), M_OFWPROP);
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
 	return (error);
 }
 
