@@ -442,19 +442,9 @@ gfs_lookup_dot(vnode_t **vpp, vnode_t *dvp, vnode_t *pvp, const char *nm)
 		*vpp = dvp;
 		return (0);
 	} else if (strcmp(nm, "..") == 0) {
-		if (pvp == NULL) {
-			ASSERT(dvp->v_flag & VROOT);
-			VN_HOLD(dvp);
-			*vpp = dvp;
-			ASSERT_VOP_ELOCKED(dvp, "gfs_lookup_dot: non-locked dvp");
-		} else {
-			ltype = VOP_ISLOCKED(dvp);
-			VOP_UNLOCK(dvp, 0);
-			VN_HOLD(pvp);
-			*vpp = pvp;
-			vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
-			vn_lock(dvp, ltype | LK_RETRY);
-		}
+		ASSERT(pvp != NULL);
+		VN_HOLD(pvp);
+		*vpp = pvp;
 		return (0);
 	}
 
