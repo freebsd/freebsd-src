@@ -82,6 +82,7 @@ HostInfo *find_host(char *hostname, int create)
   struct addrinfo *ai1, *ai2;
   int i;
 
+  ai2 = NULL;
   if (getaddrinfo(hostname, NULL, NULL, &ai1) != 0)
     ai1 = NULL;
   for (i = 0, hp = status_info->hosts; i < status_info->noOfHosts; i++, hp++)
@@ -91,7 +92,7 @@ HostInfo *find_host(char *hostname, int create)
       result = hp;
       break;
     }
-    if (hp->hostname[0] && 
+    if (hp->hostname[0] != '\0' &&
 	getaddrinfo(hp->hostname, NULL, NULL, &ai2) != 0)
       ai2 = NULL;
     if (ai1 && ai2)
@@ -113,8 +114,10 @@ HostInfo *find_host(char *hostname, int create)
        if (result)
 	 break;
     }
-    if (ai2)
+    if (ai2) {
       freeaddrinfo(ai2);
+      ai2 = NULL;
+    }
     if (!spare_slot && !hp->monList && !hp->notifyReqd)
       spare_slot = hp;
   }
@@ -134,9 +137,8 @@ HostInfo *find_host(char *hostname, int create)
     if (desired_size > status_file_len)
     {
       /* Extend file by writing 1 byte of junk at the desired end pos	*/
-      lseek(status_fd, desired_size - 1, SEEK_SET);
-      i = write(status_fd, &i, 1);
-      if (i < 1)
+      if (lseek(status_fd, desired_size - 1, SEEK_SET) == -1 ||
+          write(status_fd, "\0", 1) < 0)
       {
 	syslog(LOG_ERR, "Unable to extend status file");
 	return (NULL);
