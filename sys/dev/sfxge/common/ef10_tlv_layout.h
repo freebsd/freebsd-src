@@ -776,6 +776,39 @@ struct tlv_pcie_link_settings {
   uint16_t width; /* Number of lanes */
 };
 
+/* TX event merging config.
+ *
+ * Sets the global maximum number of events for the merging bins, and the
+ * global timeout configuration for the bins, and the global timeout for
+ * empty queues.
+ */
+#define TLV_TAG_TX_EVENT_MERGING_CONFIG    (0x10210000)
+struct tlv_tx_event_merging_config {
+  uint32_t  tag;
+  uint32_t  length;
+  uint32_t  max_events;
+#define TLV_TX_EVENT_MERGING_CONFIG_MAX_EVENTS_MAX ((1 << 4) - 1)
+  uint32_t  timeout_ns;
+  uint32_t  qempty_timeout_ns; /* Medford only */
+};
+#define TLV_TX_EVENT_MERGING_MAX_EVENTS_DEFAULT 7
+#define TLV_TX_EVENT_MERGING_TIMEOUT_NS_DEFAULT 1400
+#define TLV_TX_EVENT_MERGING_QEMPTY_TIMEOUT_NS_DEFAULT 700
+
+/* Tx vFIFO Low latency configuration 
+ * 
+ * To keep the desired booting behaviour for the switch, it just requires to
+ * know if the low latency mode is enabled.
+ */
+
+#define TLV_TAG_TX_VFIFO_ULL_MODE          (0x10220000)
+struct tlv_tx_vfifo_ull_mode {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  mode;
+#define TLV_TX_VFIFO_ULL_MODE_DEFAULT    0
+};
+
 #define TLV_TAG_LICENSE (0x30800000)
 
 typedef struct tlv_license {
@@ -783,5 +816,105 @@ typedef struct tlv_license {
   uint32_t  length;
   uint8_t   data[];
 } tlv_license_t;
+
+/* TSA NIC IP address configuration
+ *
+ * Sets the TSA NIC IP address statically via configuration tool or dynamically
+ * via DHCP via snooping based on the mode selection (0=Static, 1=DHCP, 2=Snoop)
+ *
+ * NOTE: This TAG is temporarily placed in the dynamic config partition and will
+ * be moved to a private partition during TSA development. It is not used in any
+ * released code yet.
+ */
+
+#define TLV_TAG_TMP_TSAN_CONFIG         (0x10220000)
+
+#define TLV_TSAN_IP_MODE_STATIC         (0)
+#define TLV_TSAN_IP_MODE_DHCP           (1)
+#define TLV_TSAN_IP_MODE_SNOOP          (2)
+typedef struct tlv_tsan_config {
+  uint32_t tag;
+  uint32_t length;
+  uint32_t mode;
+  uint32_t ip;
+  uint32_t netmask;
+  uint32_t gateway;
+  uint32_t port;
+  uint32_t bind_retry;
+  uint32_t bind_bkout;
+} tlv_tsan_config_t;
+
+/* TSA Controller IP address configuration
+ *
+ * Sets the TSA Controller IP address statically via configuration tool
+ *
+ * NOTE: This TAG is temporarily placed in the dynamic config partition and will
+ * be moved to a private partition during TSA development. It is not used in any
+ * released code yet.
+ */
+
+#define TLV_TAG_TMP_TSAC_CONFIG         (0x10230000)
+
+#define TLV_MAX_TSACS (4)
+typedef struct tlv_tsac_config {
+  uint32_t tag;
+  uint32_t length;
+  uint32_t num_tsacs;
+  uint32_t ip[TLV_MAX_TSACS];
+  uint32_t port[TLV_MAX_TSACS];
+} tlv_tsac_config_t;
+
+/* Binding ticket
+ *
+ * Sets the TSA NIC binding ticket used for binding process between the TSA NIC
+ * and the TSA Controller
+ *
+ * NOTE: This TAG is temporarily placed in the dynamic config partition and will
+ * be moved to a private partition during TSA development. It is not used in any
+ * released code yet.
+ */
+
+#define TLV_TAG_TMP_BINDING_TICKET      (0x10240000)
+
+typedef struct tlv_binding_ticket {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  bytes[];
+} tlv_binding_ticket_t;
+
+/* Solarflare private key
+ *
+ * Sets the Solareflare private key used for signing during the binding process
+ *
+ * NOTE: This TAG is temporarily placed in the dynamic config partition and will
+ * be moved to a private partition during TSA development. It is not used in any
+ * released code yet.
+ */
+
+#define TLV_TAG_TMP_PIK_SF              (0x10250000)
+
+typedef struct tlv_pik_sf {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  bytes[];
+} tlv_pik_sf_t;
+
+/* CA root certificate
+ *
+ * Sets the CA root certificate used for TSA Controller verfication during
+ * TLS connection setup between the TSA NIC and the TSA Controller
+ *
+ * NOTE: This TAG is temporarily placed in the dynamic config partition and will
+ * be moved to a private partition during TSA development. It is not used in any
+ * released code yet.
+ */
+
+#define TLV_TAG_TMP_CA_ROOT_CERT        (0x10260000)
+
+typedef struct tlv_ca_root_cert {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  bytes[];
+} tlv_ca_root_cert_t;
 
 #endif /* CI_MGMT_TLV_LAYOUT_H */
