@@ -295,6 +295,7 @@ main(int argc, char *argv[])
 				    "Cannot use both -p and -%c", cpio->mode);
 			cpio->mode = opt;
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
+			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS;
 			break;
 		case OPTION_PASSPHRASE:
 			cpio->passphrase = cpio->argument;
