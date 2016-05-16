@@ -196,15 +196,7 @@ void
 vnet_domain_uninit(void *arg)
 {
 	struct domain *dp = arg;
-	struct protosw *pr;
 
-	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-		if (pr->pr_destroy) {
-#ifdef INVARIANTS
-			printf("%s: pr %p called pr_destroy\n", __func__, pr);
-#endif
-			(*pr->pr_destroy)();
-		}
 	if (dp->dom_destroy)
 		(*dp->dom_destroy)();
 }
