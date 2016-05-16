@@ -344,6 +344,8 @@ OPENSSL_ia32_rdrand:
 	cmovel	%ecx,%eax
 	ret
 .size	OPENSSL_ia32_rdrand,.-.L_OPENSSL_ia32_rdrand_begin
+.hidden	OPENSSL_cpuid_setup
+.hidden	OPENSSL_ia32cap_P
 .comm	OPENSSL_ia32cap_P,8,4
 .section	.init
 	call	OPENSSL_cpuid_setup
@@ -679,6 +681,8 @@ OPENSSL_ia32_rdrand:
 	cmovel	%ecx,%eax
 	ret
 .size	OPENSSL_ia32_rdrand,.-.L_OPENSSL_ia32_rdrand_begin
+.hidden	OPENSSL_cpuid_setup
+.hidden	OPENSSL_ia32cap_P
 .comm	OPENSSL_ia32cap_P,8,4
 .section	.init
 	call	OPENSSL_cpuid_setup
