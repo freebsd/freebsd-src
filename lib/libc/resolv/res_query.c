@@ -135,12 +135,10 @@ again:
 	if (n > 0 && (statp->_flags & RES_F_EDNS0ERR) == 0 &&
 	    (statp->options & (RES_USE_EDNS0|RES_USE_DNSSEC|RES_NSID))) {
 		n = res_nopt(statp, n, buf, sizeof(buf), anslen);
-		if (n > 0) {
+		if (n > 0 && (statp->options & RES_NSID) != 0U) {
 			rdata = &buf[n];
-			if ((statp->options & RES_NSID) != 0U) {
-				n = res_nopt_rdata(statp, n, buf, sizeof(buf),
-						   rdata, NS_OPT_NSID, 0, NULL);
-			}
+			n = res_nopt_rdata(statp, n, buf, sizeof(buf), rdata,
+					   NS_OPT_NSID, 0, NULL);
 		}
 	}
 #endif
