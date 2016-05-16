@@ -461,14 +461,6 @@ typedef struct efx_nvram_ops_s {
 } efx_nvram_ops_t;
 #endif /* EFSYS_OPT_NVRAM */
 
-extern	__checkReturn		efx_rc_t
-efx_nvram_tlv_validate(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__in_bcount(partn_size)	caddr_t partn_data,
-	__in			size_t partn_size);
-
-
 #if EFSYS_OPT_VPD
 typedef struct efx_vpd_ops_s {
 	efx_rc_t	(*evpdo_init)(efx_nic_t *);
