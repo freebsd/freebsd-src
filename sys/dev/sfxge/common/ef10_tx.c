@@ -149,7 +149,7 @@ efx_mcdi_fini_txq(
 
 	MCDI_IN_SET_DWORD(req, FINI_TXQ_IN_INSTANCE, instance);
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if ((req.emr_rc != 0) && (req.emr_rc != MC_CMD_ERR_EALREADY)) {
 		rc = req.emr_rc;

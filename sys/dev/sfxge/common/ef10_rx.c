@@ -127,7 +127,7 @@ efx_mcdi_fini_rxq(
 
 	MCDI_IN_SET_DWORD(req, FINI_RXQ_IN_INSTANCE, instance);
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if ((req.emr_rc != 0) && (req.emr_rc != MC_CMD_ERR_EALREADY)) {
 		rc = req.emr_rc;
@@ -249,7 +249,7 @@ efx_mcdi_rss_context_free(
 
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_FREE_IN_RSS_CONTEXT_ID, rss_context);
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
