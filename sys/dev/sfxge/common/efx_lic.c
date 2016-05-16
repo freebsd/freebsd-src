@@ -1102,7 +1102,7 @@ fail1:
 
 /* V3 format uses Huntington TLV format partition. See SF-108797-SW */
 #define EFX_LICENSE_V3_KEY_LENGTH_MIN    (64)
-#define EFX_LICENSE_V3_KEY_LENGTH_MAX    (128)
+#define EFX_LICENSE_V3_KEY_LENGTH_MAX    (160)
 #define EFX_LICENSE_V3_HASH_LENGTH       (64)
 
 	__checkReturn		efx_rc_t
