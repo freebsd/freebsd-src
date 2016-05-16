@@ -1437,17 +1437,14 @@ efx_lic_app_state(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
 
-	if (elop->elo_app_state == NULL) {
-		rc = ENOTSUP;
-		goto fail1;
-	}
+	if (elop->elo_app_state == NULL)
+		return (ENOTSUP);
+
 	if ((rc = elop->elo_app_state(enp, app_id, licensedp)) != 0)
-		goto fail2;
+		goto fail1;
 
 	return (0);
 
-fail2:
-	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
@@ -1469,19 +1466,15 @@ efx_lic_get_id(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
 
-	if (elop->elo_get_id == NULL) {
-		rc = ENOTSUP;
-		goto fail1;
-	}
+	if (elop->elo_get_id == NULL)
+		return (ENOTSUP);
 
 	if ((rc = elop->elo_get_id(enp, buffer_size, typep,
 				    lengthp, bufferp)) != 0)
-		goto fail2;
+		goto fail1;
 
 	return (0);
 
-fail2:
-	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
