@@ -275,7 +275,9 @@ init_secondary(uint64_t cpu)
 	 */
 	identify_cpu();
 
-#ifndef INTRNG
+#ifdef INTRNG
+	intr_pic_init_secondary();
+#else
 	/* Configure the interrupt controller */
 	arm_init_secondary();
 
@@ -305,10 +307,6 @@ init_secondary(uint64_t cpu)
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
-
-#ifdef INTRNG
-	intr_pic_init_secondary();
-#endif
 
 	/* Enter the scheduler */
 	sched_throw(NULL);
