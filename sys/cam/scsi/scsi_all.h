@@ -3659,6 +3659,7 @@ int		scsi_devid_is_lun_eui64(uint8_t *bufp);
 int		scsi_devid_is_lun_naa(uint8_t *bufp);
 int		scsi_devid_is_lun_name(uint8_t *bufp);
 int		scsi_devid_is_lun_t10(uint8_t *bufp);
+int		scsi_devid_is_port_naa(uint8_t *bufp);
 struct scsi_vpd_id_descriptor *
 		scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
 			       scsi_devid_checkfn_t ck_fn);

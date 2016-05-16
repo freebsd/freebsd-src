@@ -5626,6 +5626,19 @@ scsi_devid_is_lun_name(uint8_t *bufp)
 	return 1;
 }
 
+int
+scsi_devid_is_port_naa(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_PORT)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_NAA)
+		return 0;
+	return 1;
+}
+
 struct scsi_vpd_id_descriptor *
 scsi_get_devid_desc(struct scsi_vpd_id_descriptor *desc, uint32_t len,
     scsi_devid_checkfn_t ck_fn)
