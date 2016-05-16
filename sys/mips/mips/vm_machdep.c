@@ -326,19 +326,6 @@ cpu_thread_alloc(struct thread *td)
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = &td->td_pcb->pcb_regs;
-
-#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
-	if (td->td_proc && SV_PROC_FLAG(td->td_proc, SV_ILP32)
-		td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE32;
-	else
-#endif
-#if defined (COMPAT_CHERIABI)
-	if (td->td_proc && SV_PROC_FLAG(td->td_proc, SV_CHERI))
-		td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE_C;
-	else
-#endif
-	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE;
-
 #ifdef KSTACK_LARGE_PAGE
 	/* Just one entry for one large kernel page. */
 	pte = pmap_pte(kernel_pmap, td->td_kstack);
@@ -602,6 +589,17 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
+#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
+	if (td->td_proc && SV_PROC_FLAG(td->td_proc, SV_ILP32)
+		td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE32;
+	else
+#endif
+#if defined (COMPAT_CHERIABI)
+	if (td->td_proc && SV_PROC_FLAG(td->td_proc, SV_CHERI))
+		td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE_C;
+	else
+#endif
+	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE;
 	td->td_md.md_tls = (char*)tls_base;
 	if (td == curthread && cpuinfo.userlocal_reg == true) {
 		mips_wr_userlocal((unsigned long)tls_base +
