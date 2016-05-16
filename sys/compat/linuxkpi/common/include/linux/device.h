@@ -333,10 +333,11 @@ device_unregister(struct device *dev)
 	bsddev = dev->bsddev;
 	dev->bsddev = NULL;
 
-	mtx_lock(&Giant);
-	if (bsddev != NULL)
+	if (bsddev != NULL) {
+		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
-	mtx_unlock(&Giant);
+		mtx_unlock(&Giant);
+	}
 	put_device(dev);
 }
 
@@ -348,10 +349,11 @@ device_del(struct device *dev)
 	bsddev = dev->bsddev;
 	dev->bsddev = NULL;
 
-	mtx_lock(&Giant);
-	if (bsddev != NULL)
+	if (bsddev != NULL) {
+		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
-	mtx_unlock(&Giant);
+		mtx_unlock(&Giant);
+	}
 }
 
 struct device *device_create(struct class *class, struct device *parent,
