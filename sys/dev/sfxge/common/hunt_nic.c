@@ -39,6 +39,65 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_HUNTINGTON
 
+#include "ef10_tlv_layout.h"
+
+static	__checkReturn	efx_rc_t
+hunt_nic_get_required_pcie_bandwidth(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *bandwidth_mbpsp)
+{
+	uint32_t port_modes;
+	uint32_t max_port_mode;
+	uint32_t bandwidth;
+	efx_rc_t rc;
+
+	/*
+	 * On Huntington, the firmware may not give us the current port mode, so
+	 * we need to go by the set of available port modes and assume the most
+	 * capable mode is in use.
+	 */
+
+	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes, NULL)) != 0) {
+		/* No port mode info available */
+		bandwidth = 0;
+		goto out;
+	}
+
+	if (port_modes & (1 << TLV_PORT_MODE_40G_40G)) {
+		/*
+		 * This needs the full PCIe bandwidth (and could use
+		 * more) - roughly 64 Gbit/s for 8 lanes of Gen3.
+		 */
+		if ((rc = efx_nic_calculate_pcie_link_bandwidth(8,
+			    EFX_PCIE_LINK_SPEED_GEN3, &bandwidth)) != 0)
+			goto fail1;
+	} else {
+		if (port_modes & (1 << TLV_PORT_MODE_40G)) {
+			max_port_mode = TLV_PORT_MODE_40G;
+		} else if (port_modes & (1 << TLV_PORT_MODE_10G_10G_10G_10G)) {
+			max_port_mode = TLV_PORT_MODE_10G_10G_10G_10G;
+		} else {
+			/* Assume two 10G ports */
+			max_port_mode = TLV_PORT_MODE_10G_10G;
+		}
+
+		if ((rc = ef10_nic_get_port_mode_bandwidth(max_port_mode,
+							    &bandwidth)) != 0)
+		    goto fail2;
+	}
+
+out:
+	*bandwidth_mbpsp = bandwidth;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
 
 	__checkReturn	efx_rc_t
 hunt_board_cfg(
@@ -57,6 +116,7 @@ hunt_board_cfg(
 	uint32_t flags;
 	uint32_t sysclk;
 	uint32_t base, nvec;
+	uint32_t bandwidth;
 	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_get_port_assignment(enp, &port)) != 0)
@@ -286,8 +346,17 @@ hunt_board_cfg(
 	 */
 	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
+	if ((rc = hunt_nic_get_required_pcie_bandwidth(enp, &bandwidth)) != 0)
+		goto fail15;
+	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
+
+	/* All Huntington devices have a PCIe Gen3, 8 lane connector */
+	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN3;
+
 	return (0);
 
+fail15:
+	EFSYS_PROBE(fail15);
 fail14:
 	EFSYS_PROBE(fail14);
 fail13:

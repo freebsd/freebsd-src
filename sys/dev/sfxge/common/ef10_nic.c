@@ -88,7 +88,8 @@ fail1:
 	__checkReturn	efx_rc_t
 efx_mcdi_get_port_modes(
 	__in		efx_nic_t *enp,
-	__out		uint32_t *modesp)
+	__out		uint32_t *modesp,
+	__out_opt	uint32_t *current_modep)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PORT_MODES_IN_LEN,
@@ -113,19 +114,31 @@ efx_mcdi_get_port_modes(
 	}
 
 	/*
-	 * Require only Modes and DefaultMode fields.
-	 * (CurrentMode field was added for Medford)
+	 * Require only Modes and DefaultMode fields, unless the current mode
+	 * was requested (CurrentMode field was added for Medford).
 	 */
 	if (req.emr_out_length_used <
 	    MC_CMD_GET_PORT_MODES_OUT_CURRENT_MODE_OFST) {
 		rc = EMSGSIZE;
 		goto fail2;
 	}
+	if ((current_modep != NULL) && (req.emr_out_length_used <
+	    MC_CMD_GET_PORT_MODES_OUT_CURRENT_MODE_OFST + 4)) {
+		rc = EMSGSIZE;
+		goto fail3;
+	}
 
 	*modesp = MCDI_OUT_DWORD(req, GET_PORT_MODES_OUT_MODES);
 
+	if (current_modep != NULL) {
+		*current_modep = MCDI_OUT_DWORD(req,
+					    GET_PORT_MODES_OUT_CURRENT_MODE);
+	}
+
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
@@ -134,6 +147,50 @@ fail1:
 	return (rc);
 }
 
+	__checkReturn	efx_rc_t
+ef10_nic_get_port_mode_bandwidth(
+	__in		uint32_t port_mode,
+	__out		uint32_t *bandwidth_mbpsp)
+{
+	uint32_t bandwidth;
+	efx_rc_t rc;
+
+	switch (port_mode) {
+	case TLV_PORT_MODE_10G:
+		bandwidth = 10000;
+		break;
+	case TLV_PORT_MODE_10G_10G:
+		bandwidth = 10000 * 2;
+		break;
+	case TLV_PORT_MODE_10G_10G_10G_10G:
+	case TLV_PORT_MODE_10G_10G_10G_10G_Q:
+	case TLV_PORT_MODE_10G_10G_10G_10G_Q2:
+		bandwidth = 10000 * 4;
+		break;
+	case TLV_PORT_MODE_40G:
+		bandwidth = 40000;
+		break;
+	case TLV_PORT_MODE_40G_40G:
+		bandwidth = 40000 * 2;
+		break;
+	case TLV_PORT_MODE_40G_10G_10G:
+	case TLV_PORT_MODE_10G_10G_40G:
+		bandwidth = 40000 + (10000 * 2);
+		break;
+	default:
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	*bandwidth_mbpsp = bandwidth;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
 
 static	__checkReturn		efx_rc_t
 efx_mcdi_vadaptor_alloc(
@@ -1090,7 +1147,7 @@ ef10_external_port_mapping(
 	uint32_t matches;
 	uint32_t stride = 1; /* default 1-1 mapping */
 
-	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes)) != 0) {
+	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes, NULL)) != 0) {
 		/* No port mode information available - use default mapping */
 		goto out;
 	}

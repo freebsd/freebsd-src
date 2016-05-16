@@ -964,3 +964,101 @@ fail1:
 }
 
 #endif /* EFSYS_OPT_LOOPBACK */
+
+	__checkReturn	efx_rc_t
+efx_nic_calculate_pcie_link_bandwidth(
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		uint32_t *bandwidth_mbpsp)
+{
+	uint32_t lane_bandwidth;
+	uint32_t total_bandwidth;
+	efx_rc_t rc;
+
+	if ((pcie_link_width == 0) || (pcie_link_width > 16) ||
+	    !ISP2(pcie_link_width)) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	switch (pcie_link_gen) {
+	case EFX_PCIE_LINK_SPEED_GEN1:
+		/* 2.5 Gb/s raw bandwidth with 8b/10b encoding */
+		lane_bandwidth = 2000;
+		break;
+	case EFX_PCIE_LINK_SPEED_GEN2:
+		/* 5.0 Gb/s raw bandwidth with 8b/10b encoding */
+		lane_bandwidth = 4000;
+		break;
+	case EFX_PCIE_LINK_SPEED_GEN3:
+		/* 8.0 Gb/s raw bandwidth with 128b/130b encoding */
+		lane_bandwidth = 7877;
+		break;
+	default:
+		rc = EINVAL;
+		goto fail2;
+	}
+
+	total_bandwidth = lane_bandwidth * pcie_link_width;
+	*bandwidth_mbpsp = total_bandwidth;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+
+	__checkReturn	efx_rc_t
+efx_nic_check_pcie_link_speed(
+	__in		efx_nic_t *enp,
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		efx_pcie_link_performance_t *resultp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t bandwidth;
+	efx_pcie_link_performance_t result;
+	efx_rc_t rc;
+
+	if ((encp->enc_required_pcie_bandwidth_mbps == 0) ||
+	    (pcie_link_width == 0) || (pcie_link_width == 32) ||
+	    (pcie_link_gen == 0)) {
+		/*
+		 * No usable info on what is required and/or in use. In virtual
+		 * machines, sometimes the PCIe link width is reported as 0 or
+		 * 32, or the speed as 0.
+		 */
+		result = EFX_PCIE_LINK_PERFORMANCE_UNKNOWN_BANDWIDTH;
+		goto out;
+	}
+
+	/* Calculate the available bandwidth in megabits per second */
+	rc = efx_nic_calculate_pcie_link_bandwidth(pcie_link_width,
+					    pcie_link_gen, &bandwidth);
+	if (rc != 0)
+		goto fail1;
+
+	if (bandwidth < encp->enc_required_pcie_bandwidth_mbps) {
+		result = EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_BANDWIDTH;
+	} else if (pcie_link_gen < encp->enc_max_pcie_link_gen) {
+		/* The link provides enough bandwidth but not optimal latency */
+		result = EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_LATENCY;
+	} else {
+		result = EFX_PCIE_LINK_PERFORMANCE_OPTIMAL;
+	}
+
+out:
+	*resultp = result;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
