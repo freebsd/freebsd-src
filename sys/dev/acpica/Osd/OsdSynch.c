@@ -188,6 +188,23 @@ AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Timeout)
 		}
 		break;
 	default:
+		if (cold) {
+			/*
+			 * Just spin polling the semaphore once a
+			 * millisecond.
+			 */
+			while (!ACPISEM_AVAIL(as, Units)) {
+				if (Timeout == 0) {
+					status = AE_TIME;
+					break;
+				}
+				Timeout--;
+				mtx_unlock(&as->as_lock);
+				DELAY(1000);
+				mtx_lock(&as->as_lock);
+			}
+			break;
+		}
 		tmo = timeout2hz(Timeout);
 		while (!ACPISEM_AVAIL(as, Units)) {
 			prevtick = ticks;
@@ -381,6 +398,23 @@ AcpiOsAcquireMutex(ACPI_MUTEX Handle, UINT16 Timeout)
 		}
 		break;
 	default:
+		if (cold) {
+			/*
+			 * Just spin polling the mutex once a
+			 * millisecond.
+			 */
+			while (!ACPIMTX_AVAIL(am)) {
+				if (Timeout == 0) {
+					status = AE_TIME;
+					break;
+				}
+				Timeout--;
+				mtx_unlock(&am->am_lock);
+				DELAY(1000);
+				mtx_lock(&am->am_lock);
+			}
+			break;
+		}
 		tmo = timeout2hz(Timeout);
 		while (!ACPIMTX_AVAIL(am)) {
 			prevtick = ticks;
