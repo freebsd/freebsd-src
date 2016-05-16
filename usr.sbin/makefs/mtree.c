@@ -150,7 +150,7 @@ mtree_file_path(fsnode *node)
 
 	depth = 0;
 	rp[depth] = node->name;
-	for (pnode = node->parent; pnode && depth < MAKEFS_MAX_TREE_DEPTH;
+	for (pnode = node->parent; pnode && depth < MAKEFS_MAX_TREE_DEPTH - 1;
 	     pnode = pnode->parent) {
 		if (strcmp(pnode->name, ".") == 0)
 			break;
