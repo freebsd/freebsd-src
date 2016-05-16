@@ -92,8 +92,7 @@ efx_mcdi_init_evq(
 	__in		unsigned int instance,
 	__in		efsys_mem_t *esmp,
 	__in		size_t nevs,
-	__in		uint32_t irq,
-	__out_opt	uint32_t *irqp)
+	__in		uint32_t irq)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[
@@ -175,8 +174,7 @@ efx_mcdi_init_evq(
 		goto fail3;
 	}
 
-	if (irqp != NULL)
-		*irqp = MCDI_OUT_DWORD(req, INIT_EVQ_OUT_IRQ);
+	/* NOTE: ignore the returned IRQ param as firmware does not set it. */
 
 	return (0);
 
@@ -275,12 +273,9 @@ ef10_ev_qcreate(
 	eep->ee_drv_gen	= ef10_ev_drv_gen;
 	eep->ee_mcdi	= ef10_ev_mcdi;
 
-	/*
-	 * Set up the event queue
-	 * NOTE: ignore the returned IRQ param as firmware does not set it.
-	 */
+	/* Set up the event queue */
 	irq = index;	/* INIT_EVQ expects function-relative vector number */
-	if ((rc = efx_mcdi_init_evq(enp, index, esmp, n, irq, NULL)) != 0)
+	if ((rc = efx_mcdi_init_evq(enp, index, esmp, n, irq)) != 0)
 		goto fail3;
 
 	return (0);
