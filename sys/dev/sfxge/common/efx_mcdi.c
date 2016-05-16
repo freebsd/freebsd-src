@@ -632,6 +632,8 @@ efx_mcdi_request_errcode(
 		return (EALREADY);
 
 		/* MCDI v2 */
+	case MC_CMD_ERR_EEXIST:
+		return (EEXIST);
 #ifdef MC_CMD_ERR_EAGAIN
 	case MC_CMD_ERR_EAGAIN:
 		return (EAGAIN);
