@@ -1290,6 +1290,7 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_find_extcap.9 \
 	pci.9 pci_find_htcap.9 \
 	pci.9 pci_find_pcie_root_port.9 \
+	pci.9 pci_get_id.9 \
 	pci.9 pci_get_max_read_req.9 \
 	pci.9 pci_get_powerstate.9 \
 	pci.9 pci_get_vpd_ident.9 \
