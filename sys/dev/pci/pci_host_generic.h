@@ -60,7 +60,6 @@ struct generic_pcie_softc {
 	bus_space_handle_t	ioh;
 #ifdef FDT
 	struct ofw_bus_iinfo	pci_iinfo;
-	phandle_t		msi_parent;
 #endif
 };
 
