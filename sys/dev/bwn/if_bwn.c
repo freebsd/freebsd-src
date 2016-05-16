@@ -128,7 +128,7 @@ static int	bwn_setup_channels(struct bwn_mac *, int, int);
 static void	bwn_shm_ctlword(struct bwn_mac *, uint16_t,
 		    uint16_t);
 static void	bwn_addchannels(struct ieee80211_channel [], int, int *,
-		    const struct bwn_channelinfo *, int);
+		    const struct bwn_channelinfo *, const uint8_t []);
 static int	bwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	bwn_updateslot(struct ieee80211com *);
@@ -1459,14 +1459,12 @@ error:
 	return (ENODEV);
 }
 
-#define	IEEE80211_CHAN_HTG	(IEEE80211_CHAN_HT | IEEE80211_CHAN_G)
-#define	IEEE80211_CHAN_HTA	(IEEE80211_CHAN_HT | IEEE80211_CHAN_A)
-
 static int
 bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct ieee80211com *ic = &sc->sc_ic;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 
 	memset(ic->ic_channels, 0, sizeof(ic->ic_channels));
 	ic->ic_nchans = 0;
@@ -1476,26 +1474,20 @@ bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 	    have_bg,
 	    have_a);
 
-	if (have_bg)
+	if (have_bg) {
+		memset(bands, 0, sizeof(bands));
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
 		bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
-		    &ic->ic_nchans, &bwn_chantable_bg, IEEE80211_CHAN_G);
-#if 0
-	if (mac->mac_phy.type == BWN_PHYTYPE_N) {
-		if (have_a)
-			bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
-			    &ic->ic_nchans, &bwn_chantable_n,
-			    IEEE80211_CHAN_HTA);
-	} else {
-		if (have_a)
-			bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
-			    &ic->ic_nchans, &bwn_chantable_a,
-			    IEEE80211_CHAN_A);
+		    &ic->ic_nchans, &bwn_chantable_bg, bands);
 	}
-#endif
-	if (have_a)
+
+	if (have_a) {
+		memset(bands, 0, sizeof(bands));
+		setbit(bands, IEEE80211_MODE_11A);
 		bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
-		    &ic->ic_nchans, &bwn_chantable_a,
-		    IEEE80211_CHAN_A);
+		    &ic->ic_nchans, &bwn_chantable_a, bands);
+	}
 
 	mac->mac_phy.supports_2ghz = have_bg;
 	mac->mac_phy.supports_5ghz = have_a;
@@ -1609,63 +1601,16 @@ bwn_shm_write_2(struct bwn_mac *mac, uint16_t way, uint16_t offset,
 }
 
 static void
-bwn_addchan(struct ieee80211_channel *c, int freq, int flags, int ieee,
-    int txpow)
-{
-
-	c->ic_freq = freq;
-	c->ic_flags = flags;
-	c->ic_ieee = ieee;
-	c->ic_minpower = 0;
-	c->ic_maxpower = 2 * txpow;
-	c->ic_maxregpower = txpow;
-}
-
-static void
 bwn_addchannels(struct ieee80211_channel chans[], int maxchans, int *nchans,
-    const struct bwn_channelinfo *ci, int flags)
+    const struct bwn_channelinfo *ci, const uint8_t bands[])
 {
-	struct ieee80211_channel *c;
-	int i;
+	int i, error;
 
-	c = &chans[*nchans];
+	for (i = 0, error = 0; i < ci->nchannels && error == 0; i++) {
+		const struct bwn_channel *hc = &ci->channels[i];
 
-	for (i = 0; i < ci->nchannels; i++) {
-		const struct bwn_channel *hc;
-
-		hc = &ci->channels[i];
-		if (*nchans >= maxchans)
-			break;
-		bwn_addchan(c, hc->freq, flags, hc->ieee, hc->maxTxPow);
-		c++, (*nchans)++;
-		if (flags == IEEE80211_CHAN_G || flags == IEEE80211_CHAN_HTG) {
-			/* g channel have a separate b-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[0] = c[-1];
-			c[-1].ic_flags = IEEE80211_CHAN_B;
-			c++, (*nchans)++;
-		}
-		if (flags == IEEE80211_CHAN_HTG) {
-			/* HT g channel have a separate g-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[-1].ic_flags = IEEE80211_CHAN_G;
-			c[0] = c[-1];
-			c[0].ic_flags &= ~IEEE80211_CHAN_HT;
-			c[0].ic_flags |= IEEE80211_CHAN_HT20;	/* HT20 */
-			c++, (*nchans)++;
-		}
-		if (flags == IEEE80211_CHAN_HTA) {
-			/* HT a channel have a separate a-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[-1].ic_flags = IEEE80211_CHAN_A;
-			c[0] = c[-1];
-			c[0].ic_flags &= ~IEEE80211_CHAN_HT;
-			c[0].ic_flags |= IEEE80211_CHAN_HT20;	/* HT20 */
-			c++, (*nchans)++;
-		}
+		error = ieee80211_add_channel(chans, maxchans, nchans,
+		    hc->ieee, hc->freq, hc->maxTxPow, 0, bands);
 	}
 }
 
