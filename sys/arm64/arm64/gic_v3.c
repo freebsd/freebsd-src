@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 2015 The FreeBSD Foundation
+ * Copyright (c) 2015-2016 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Andrew Turner under
+ * the sponsorship of the FreeBSD Foundation.
  *
  * This software was developed by Semihalf under
  * the sponsorship of the FreeBSD Foundation.
@@ -26,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -58,6 +63,28 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
+#ifdef INTRNG
+static pic_disable_intr_t gic_v3_disable_intr;
+static pic_enable_intr_t gic_v3_enable_intr;
+static pic_map_intr_t gic_v3_map_intr;
+static pic_setup_intr_t gic_v3_setup_intr;
+static pic_teardown_intr_t gic_v3_teardown_intr;
+static pic_post_filter_t gic_v3_post_filter;
+static pic_post_ithread_t gic_v3_post_ithread;
+static pic_pre_ithread_t gic_v3_pre_ithread;
+static pic_bind_intr_t gic_v3_bind_intr;
+#ifdef SMP
+static pic_init_secondary_t gic_v3_init_secondary;
+static pic_ipi_send_t gic_v3_ipi_send;
+static pic_ipi_setup_t gic_v3_ipi_setup;
+#endif
+
+static u_int gic_irq_cpu;
+#ifdef SMP
+static u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
+static u_int sgi_first_unused = GIC_FIRST_SGI;
+#endif
+#else
 /* Device and PIC methods */
 static int gic_v3_bind(device_t, u_int, u_int);
 static void gic_v3_dispatch(device_t, struct trapframe *);
@@ -68,11 +95,29 @@ static void gic_v3_unmask_irq(device_t, u_int);
 static void gic_v3_init_secondary(device_t);
 static void gic_v3_ipi_send(device_t, cpuset_t, u_int);
 #endif
+#endif
 
 static device_method_t gic_v3_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_detach,	gic_v3_detach),
 
+#ifdef INTRNG
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_disable_intr,	gic_v3_disable_intr),
+	DEVMETHOD(pic_enable_intr,	gic_v3_enable_intr),
+	DEVMETHOD(pic_map_intr,		gic_v3_map_intr),
+	DEVMETHOD(pic_setup_intr,	gic_v3_setup_intr),
+	DEVMETHOD(pic_teardown_intr,	gic_v3_teardown_intr),
+	DEVMETHOD(pic_post_filter,	gic_v3_post_filter),
+	DEVMETHOD(pic_post_ithread,	gic_v3_post_ithread),
+	DEVMETHOD(pic_pre_ithread,	gic_v3_pre_ithread),
+#ifdef SMP
+	DEVMETHOD(pic_bind_intr,	gic_v3_bind_intr),
+	DEVMETHOD(pic_init_secondary,	gic_v3_init_secondary),
+	DEVMETHOD(pic_ipi_send,		gic_v3_ipi_send),
+	DEVMETHOD(pic_ipi_setup,	gic_v3_ipi_setup),
+#endif
+#else
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		gic_v3_bind),
 	DEVMETHOD(pic_dispatch,		gic_v3_dispatch),
@@ -83,6 +128,8 @@ static device_method_t gic_v3_methods[] = {
 	DEVMETHOD(pic_init_secondary,	gic_v3_init_secondary),
 	DEVMETHOD(pic_ipi_send,		gic_v3_ipi_send),
 #endif
+#endif
+
 	/* End */
 	DEVMETHOD_END
 };
@@ -144,6 +191,10 @@ gic_v3_attach(device_t dev)
 	int rid;
 	int err;
 	size_t i;
+#ifdef INTRNG
+	u_int irq;
+	const char *name;
+#endif
 
 	sc = device_get_softc(dev);
 	sc->gic_registered = FALSE;
@@ -192,6 +243,36 @@ gic_v3_attach(device_t dev)
 	if (sc->gic_nirqs > GIC_I_NUM_MAX)
 		sc->gic_nirqs = GIC_I_NUM_MAX;
 
+#ifdef INTRNG
+	sc->gic_irqs = malloc(sizeof(*sc->gic_irqs) * sc->gic_nirqs,
+	    M_GIC_V3, M_WAITOK | M_ZERO);
+	name = device_get_nameunit(dev);
+	for (irq = 0; irq < sc->gic_nirqs; irq++) {
+		struct intr_irqsrc *isrc;
+
+		sc->gic_irqs[irq].gi_irq = irq;
+		sc->gic_irqs[irq].gi_pol = INTR_POLARITY_CONFORM;
+		sc->gic_irqs[irq].gi_trig = INTR_TRIGGER_CONFORM;
+
+		isrc = &sc->gic_irqs[irq].gi_isrc;
+		if (irq <= GIC_LAST_SGI) {
+			err = intr_isrc_register(isrc, sc->dev,
+			    INTR_ISRCF_IPI, "%s,i%u", name, irq - GIC_FIRST_SGI);
+		} else if (irq <= GIC_LAST_PPI) {
+			err = intr_isrc_register(isrc, sc->dev,
+			    INTR_ISRCF_PPI, "%s,p%u", name, irq - GIC_FIRST_PPI);
+		} else {
+			err = intr_isrc_register(isrc, sc->dev, 0,
+			    "%s,s%u", name, irq - GIC_FIRST_SPI);
+		}
+		if (err != 0) {
+			/* XXX call intr_isrc_deregister() */
+			free(irqs, M_DEVBUF);
+			return (err);
+		}
+	}
+#endif
+
 	/* Get the number of supported interrupt identifier bits */
 	sc->gic_idbits = GICD_TYPER_IDBITS(typer);
 
@@ -210,8 +291,10 @@ gic_v3_attach(device_t dev)
 	 * Full success.
 	 * Now register PIC to the interrupts handling layer.
 	 */
+#ifndef INTRNG
 	arm_register_root_pic(dev, sc->gic_nirqs);
 	sc->gic_registered = TRUE;
+#endif
 
 	return (0);
 }
@@ -244,6 +327,508 @@ gic_v3_detach(device_t dev)
 	return (0);
 }
 
+#ifdef INTRNG
+int
+arm_gic_v3_intr(void *arg)
+{
+	struct gic_v3_softc *sc = arg;
+	struct gic_v3_irqsrc *gi;
+	uint64_t active_irq;
+	struct trapframe *tf;
+	bool first;
+
+	first = true;
+
+	while (1) {
+		if (CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1) {
+			/*
+			 * Hardware:		Cavium ThunderX
+			 * Chip revision:	Pass 1.0 (early version)
+			 *			Pass 1.1 (production)
+			 * ERRATUM:		22978, 23154
+			 */
+			__asm __volatile(
+			    "nop;nop;nop;nop;nop;nop;nop;nop;	\n"
+			    "mrs %0, ICC_IAR1_EL1		\n"
+			    "nop;nop;nop;nop;			\n"
+			    "dsb sy				\n"
+			    : "=&r" (active_irq));
+		} else {
+			active_irq = gic_icc_read(IAR1);
+		}
+
+		if (__predict_false(active_irq >= sc->gic_nirqs))
+			return (FILTER_HANDLED);
+
+		tf = curthread->td_intr_frame;
+		gi = &sc->gic_irqs[active_irq];
+		if (active_irq <= GIC_LAST_SGI) {
+			/* Call EOI for all IPI before dispatch. */
+			gic_icc_write(EOIR1, (uint64_t)active_irq);
+#ifdef SMP
+			intr_ipi_dispatch(sgi_to_ipi[gi->gi_irq], tf);
+#else
+			device_printf(sc->dev, "SGI %u on UP system detected\n",
+			    active_irq - GIC_FIRST_SGI);
+#endif
+		} else if (active_irq >= GIC_FIRST_PPI &&
+		    active_irq <= GIC_LAST_SPI) {
+			if (gi->gi_pol == INTR_TRIGGER_EDGE)
+				gic_icc_write(EOIR1, gi->gi_irq);
+
+			if (intr_isrc_dispatch(&gi->gi_isrc, tf) != 0) {
+				if (gi->gi_pol != INTR_TRIGGER_EDGE)
+					gic_icc_write(EOIR1, gi->gi_irq);
+				gic_v3_disable_intr(sc->dev, &gi->gi_isrc);
+				device_printf(sc->dev,
+				    "Stray irq %lu disabled\n", active_irq);
+			}
+		}
+	}
+}
+
+#ifdef FDT
+static int
+gic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
+    enum intr_polarity *polp, enum intr_trigger *trigp)
+{
+	u_int irq;
+
+	if (ncells < 3)
+		return (EINVAL);
+
+	/*
+	 * The 1st cell is the interrupt type:
+	 *	0 = SPI
+	 *	1 = PPI
+	 * The 2nd cell contains the interrupt number:
+	 *	[0 - 987] for SPI
+	 *	[0 -  15] for PPI
+	 * The 3rd cell is the flags, encoded as follows:
+	 *   bits[3:0] trigger type and level flags
+	 *	1 = edge triggered
+	 *      2 = edge triggered (PPI only)
+	 *	4 = level-sensitive
+	 *	8 = level-sensitive (PPI only)
+	 */
+	switch (cells[0]) {
+	case 0:
+		irq = GIC_FIRST_SPI + cells[1];
+		/* SPI irq is checked later. */
+		break;
+	case 1:
+		irq = GIC_FIRST_PPI + cells[1];
+		if (irq > GIC_LAST_PPI) {
+			device_printf(dev, "unsupported PPI interrupt "
+			    "number %u\n", cells[1]);
+			return (EINVAL);
+		}
+		break;
+	default:
+		device_printf(dev, "unsupported interrupt type "
+		    "configuration %u\n", cells[0]);
+		return (EINVAL);
+	}
+
+	switch (cells[2] & 0xf) {
+	case 1:
+		*trigp = INTR_TRIGGER_EDGE;
+		*polp = INTR_POLARITY_HIGH;
+		break;
+	case 2:
+		*trigp = INTR_TRIGGER_EDGE;
+		*polp = INTR_POLARITY_LOW;
+		break;
+	case 4:
+		*trigp = INTR_TRIGGER_LEVEL;
+		*polp = INTR_POLARITY_HIGH;
+		break;
+	case 8:
+		*trigp = INTR_TRIGGER_LEVEL;
+		*polp = INTR_POLARITY_LOW;
+		break;
+	default:
+		device_printf(dev, "unsupported trigger/polarity "
+		    "configuration 0x%02x\n", cells[2]);
+		return (EINVAL);
+	}
+
+	/* Check the interrupt is valid */
+	if (irq >= GIC_FIRST_SPI && *polp != INTR_POLARITY_HIGH)
+		return (EINVAL);
+
+	*irqp = irq;
+	return (0);
+}
+#endif
+
+static int
+do_gic_v3_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
+    enum intr_polarity *polp, enum intr_trigger *trigp)
+{
+	struct gic_v3_softc *sc;
+	enum intr_polarity pol;
+	enum intr_trigger trig;
+#ifdef FDT
+	struct intr_map_data_fdt *daf;
+#endif
+	u_int irq;
+
+	sc = device_get_softc(dev);
+
+	switch (data->type) {
+#ifdef FDT
+	case INTR_MAP_DATA_FDT:
+		daf = (struct intr_map_data_fdt *)data;
+		if (gic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
+		    &trig) != 0)
+			return (EINVAL);
+		break;
+#endif
+	default:
+		return (EINVAL);
+	}
+
+	if (irq >= sc->gic_nirqs)
+		return (EINVAL);
+	switch (pol) {
+	case INTR_POLARITY_CONFORM:
+	case INTR_POLARITY_LOW:
+	case INTR_POLARITY_HIGH:
+		break;
+	default:
+		return (EINVAL);
+	}
+	switch (trig) {
+	case INTR_TRIGGER_CONFORM:
+	case INTR_TRIGGER_EDGE:
+	case INTR_TRIGGER_LEVEL:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	*irqp = irq;
+	if (polp != NULL)
+		*polp = pol;
+	if (trigp != NULL)
+		*trigp = trig;
+	return (0);
+}
+
+static int
+gic_v3_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct gic_v3_softc *sc;
+	int error;
+	u_int irq;
+
+	error = do_gic_v3_map_intr(dev, data, &irq, NULL, NULL);
+	if (error == 0) {
+		sc = device_get_softc(dev);
+		*isrcp = GIC_INTR_ISRC(sc, irq);
+	}
+	return (error);
+}
+
+static int
+gic_v3_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct gic_v3_softc *sc = device_get_softc(dev);
+	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
+	enum intr_trigger trig;
+	enum intr_polarity pol;
+	uint32_t reg;
+	u_int irq;
+	int error;
+
+	if (data == NULL)
+		return (ENOTSUP);
+
+	error = do_gic_v3_map_intr(dev, data, &irq, &pol, &trig);
+	if (error != 0)
+		return (error);
+
+	if (gi->gi_irq != irq || pol == INTR_POLARITY_CONFORM ||
+	    trig == INTR_TRIGGER_CONFORM)
+		return (EINVAL);
+
+	/* Compare config if this is not first setup. */
+	if (isrc->isrc_handlers != 0) {
+		if (pol != gi->gi_pol || trig != gi->gi_trig)
+			return (EINVAL);
+		else
+			return (0);
+	}
+
+	gi->gi_pol = pol;
+	gi->gi_trig = trig;
+
+	/*
+	 * XXX - In case that per CPU interrupt is going to be enabled in time
+	 *       when SMP is already started, we need some IPI call which
+	 *       enables it on others CPUs. Further, it's more complicated as
+	 *       pic_enable_source() and pic_disable_source() should act on
+	 *       per CPU basis only. Thus, it should be solved here somehow.
+	 */
+	if (isrc->isrc_flags & INTR_ISRCF_PPI)
+		CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+
+	if (irq >= GIC_FIRST_PPI && irq <= GIC_LAST_SPI) {
+		mtx_lock_spin(&sc->gic_mtx);
+
+		/* Set the trigger and polarity */
+		if (irq <= GIC_LAST_PPI)
+			reg = gic_r_read(sc, 4,
+			    GICR_SGI_BASE_SIZE + GICD_ICFGR(irq));
+		else
+			reg = gic_d_read(sc, 4, GICD_ICFGR(irq));
+		if (trig == INTR_TRIGGER_LEVEL)
+			reg &= ~(2 << ((irq % 16) * 2));
+		else
+			reg |= 2 << ((irq % 16) * 2);
+
+		if (irq <= GIC_LAST_PPI) {
+			gic_r_write(sc, 4,
+			    GICR_SGI_BASE_SIZE + GICD_ICFGR(irq), reg);
+			gic_v3_wait_for_rwp(sc, REDIST);
+		} else {
+			gic_d_write(sc, 4, GICD_ICFGR(irq), reg);
+			gic_v3_wait_for_rwp(sc, DIST);
+		}
+
+		mtx_unlock_spin(&sc->gic_mtx);
+
+		gic_v3_bind_intr(dev, isrc);
+	}
+
+	return (0);
+}
+
+static int
+gic_v3_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+
+	panic("gic_v3_teardown_intr");
+}
+
+static void
+gic_v3_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct gic_v3_softc *sc;
+	struct gic_v3_irqsrc *gi;
+	u_int irq;
+
+	sc = device_get_softc(dev);
+	gi = (struct gic_v3_irqsrc *)isrc;
+	irq = gi->gi_irq;
+
+	if (irq <= GIC_LAST_PPI) {
+		/* SGIs and PPIs in corresponding Re-Distributor */
+		gic_r_write(sc, 4, GICR_SGI_BASE_SIZE + GICD_ICENABLER(irq),
+		    GICD_I_MASK(irq));
+		gic_v3_wait_for_rwp(sc, REDIST);
+	} else if (irq >= GIC_FIRST_SPI && irq <= GIC_LAST_SPI) {
+		/* SPIs in distributor */
+		gic_d_write(sc, 4, GICD_ICENABLER(irq), GICD_I_MASK(irq));
+		gic_v3_wait_for_rwp(sc, DIST);
+	} else
+		panic("gic_v3_disable_intr");
+}
+
+static void
+gic_v3_enable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct gic_v3_softc *sc;
+	struct gic_v3_irqsrc *gi;
+	u_int irq;
+
+	sc = device_get_softc(dev);
+	gi = (struct gic_v3_irqsrc *)isrc;
+	irq = gi->gi_irq;
+
+	if (irq <= GIC_LAST_PPI) {
+		/* SGIs and PPIs in corresponding Re-Distributor */
+		gic_r_write(sc, 4, GICR_SGI_BASE_SIZE + GICD_ISENABLER(irq),
+		    GICD_I_MASK(irq));
+		gic_v3_wait_for_rwp(sc, REDIST);
+	} else if (irq >= GIC_FIRST_SPI && irq <= GIC_LAST_SPI) {
+		/* SPIs in distributor */
+		gic_d_write(sc, 4, GICD_ISENABLER(irq), GICD_I_MASK(irq));
+		gic_v3_wait_for_rwp(sc, DIST);
+	} else
+		panic("gic_v3_enable_intr");
+}
+
+static void
+gic_v3_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
+
+	gic_v3_disable_intr(dev, isrc);
+	gic_icc_write(EOIR1, gi->gi_irq);
+}
+
+static void
+gic_v3_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	gic_v3_enable_intr(dev, isrc);
+}
+
+static void
+gic_v3_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
+
+	if (gi->gi_pol == INTR_TRIGGER_EDGE)
+		return;
+
+	gic_icc_write(EOIR1, gi->gi_irq);
+}
+
+static int
+gic_v3_bind_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct gic_v3_softc *sc;
+	struct gic_v3_irqsrc *gi;
+	int cpu;
+
+	gi = (struct gic_v3_irqsrc *)isrc;
+	if (gi->gi_irq <= GIC_LAST_PPI)
+		return (EINVAL);
+
+	KASSERT(gi->gi_irq >= GIC_FIRST_SPI && gi->gi_irq <= GIC_LAST_SPI,
+	    ("%s: Attempting to bind an invalid IRQ", __func__));
+
+	sc = device_get_softc(dev);
+
+	if (CPU_EMPTY(&isrc->isrc_cpu)) {
+		gic_irq_cpu = intr_irq_next_cpu(gic_irq_cpu, &all_cpus);
+		CPU_SETOF(gic_irq_cpu, &isrc->isrc_cpu);
+		gic_d_write(sc, 4, GICD_IROUTER(gi->gi_irq),
+		    CPU_AFFINITY(gic_irq_cpu));
+	} else {
+		/*
+		 * We can only bind to a single CPU so select
+		 * the first CPU found.
+		 */
+		cpu = CPU_FFS(&isrc->isrc_cpu) - 1;
+		gic_d_write(sc, 4, GICD_IROUTER(gi->gi_irq), CPU_AFFINITY(cpu));
+	}
+
+	return (0);
+}
+
+#ifdef SMP
+static void
+gic_v3_init_secondary(device_t dev)
+{
+	struct gic_v3_softc *sc;
+	gic_v3_initseq_t *init_func;
+	struct intr_irqsrc *isrc;
+	u_int cpu, irq;
+	int err;
+
+	sc = device_get_softc(dev);
+	cpu = PCPU_GET(cpuid);
+
+	/* Train init sequence for boot CPU */
+	for (init_func = gic_v3_secondary_init; *init_func != NULL;
+	    init_func++) {
+		err = (*init_func)(sc);
+		if (err != 0) {
+			device_printf(dev,
+			    "Could not initialize GIC for CPU%u\n", cpu);
+			return;
+		}
+	}
+
+	/* Unmask attached SGI interrupts. */
+	for (irq = GIC_FIRST_SGI; irq <= GIC_LAST_SGI; irq++) {
+		isrc = GIC_INTR_ISRC(sc, irq);
+		if (intr_isrc_init_on_cpu(isrc, cpu))
+			gic_v3_enable_intr(dev, isrc);
+	}
+
+	/* Unmask attached PPI interrupts. */
+	for (irq = GIC_FIRST_PPI; irq <= GIC_LAST_PPI; irq++) {
+		isrc = GIC_INTR_ISRC(sc, irq);
+		if (intr_isrc_init_on_cpu(isrc, cpu))
+			gic_v3_enable_intr(dev, isrc);
+	}
+}
+
+static void
+gic_v3_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
+    u_int ipi)
+{
+	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
+	uint64_t aff, val, irq;
+	int i;
+
+#define	GIC_AFF_MASK	(CPU_AFF3_MASK | CPU_AFF2_MASK | CPU_AFF1_MASK)
+#define	GIC_AFFINITY(i)	(CPU_AFFINITY(i) & GIC_AFF_MASK)
+	aff = GIC_AFFINITY(0);
+	irq = gi->gi_irq;
+	val = 0;
+
+	/* Iterate through all CPUs in set */
+	for (i = 0; i < mp_ncpus; i++) {
+		/* Move to the next affinity group */
+		if (aff != GIC_AFFINITY(i)) {
+			/* Send the IPI */
+			if (val != 0) {
+				gic_icc_write(SGI1R, val);
+				val = 0;
+			}
+			aff = GIC_AFFINITY(i);
+		}
+
+		/* Send the IPI to this cpu */
+		if (CPU_ISSET(i, &cpus)) {
+#define	ICC_SGI1R_AFFINITY(aff)					\
+    (((uint64_t)CPU_AFF3(aff) << ICC_SGI1R_EL1_AFF3_SHIFT) |	\
+     ((uint64_t)CPU_AFF2(aff) << ICC_SGI1R_EL1_AFF2_SHIFT) |	\
+     ((uint64_t)CPU_AFF1(aff) << ICC_SGI1R_EL1_AFF1_SHIFT))
+			/* Set the affinity when the first at this level */
+			if (val == 0)
+				val = ICC_SGI1R_AFFINITY(aff) |
+				    irq << ICC_SGI1R_EL1_SGIID_SHIFT;
+			/* Set the bit to send the IPI to te CPU */
+			val |= 1 << CPU_AFF0(CPU_AFFINITY(i));
+		}
+	}
+
+	/* Send the IPI to the last cpu affinity group */
+	if (val != 0)
+		gic_icc_write(SGI1R, val);
+#undef GIC_AFF_MASK
+#undef GIC_AFFINITY
+}
+
+static int
+gic_v3_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc **isrcp)
+{
+	struct intr_irqsrc *isrc;
+	struct gic_v3_softc *sc = device_get_softc(dev);
+
+	if (sgi_first_unused > GIC_LAST_SGI)
+		return (ENOSPC);
+
+	isrc = GIC_INTR_ISRC(sc, sgi_first_unused);
+	sgi_to_ipi[sgi_first_unused++] = ipi;
+
+	CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+
+	*isrcp = isrc;
+	return (0);
+}
+#endif /* SMP */
+#else /* INTRNG */
 /*
  * PIC interface.
  */
@@ -451,6 +1036,7 @@ gic_v3_ipi_send(device_t dev, cpuset_t cpuset, u_int ipi)
 	}
 }
 #endif
+#endif /* !INTRNG */
 
 /*
  * Helper routines

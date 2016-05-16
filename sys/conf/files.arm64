@@ -28,8 +28,8 @@ arm64/arm64/exception.S		standard
 arm64/arm64/gic.c		optional	!intrng
 arm64/arm64/gic_acpi.c		optional	!intrng acpi
 arm64/arm64/gic_fdt.c		optional	!intrng fdt
-arm64/arm64/gic_v3.c		optional	!intrng
-arm64/arm64/gic_v3_fdt.c	optional	!intrng fdt
+arm64/arm64/gic_v3.c		standard
+arm64/arm64/gic_v3_fdt.c	optional	fdt
 arm64/arm64/gic_v3_its.c	optional	!intrng
 arm64/arm64/identcpu.c		standard
 arm64/arm64/intr_machdep.c	optional	!intrng
