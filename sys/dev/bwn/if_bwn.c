@@ -1147,15 +1147,32 @@ bwn_attach_core(struct bwn_mac *mac)
 	siba_powerup(sc->sc_dev, 0);
 
 	high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
+
+	/*
+	 * Guess at whether it has A-PHY or G-PHY.
+	 * This is just used for resetting the core to probe things;
+	 * we will re-guess once it's all up and working.
+	 *
+	 * XXX TODO: there's the TGSHIGH DUALPHY flag based on
+	 * the PHY revision.
+	 */
 	bwn_reset_core(mac, !!(high & BWN_TGSHIGH_HAVE_2GHZ));
+
+	/*
+	 * Get the PHY version.
+	 */
 	error = bwn_phy_getinfo(mac, high);
 	if (error)
 		goto fail;
 
-	/* XXX need bhnd */
+	/* XXX TODO need bhnd */
 	if (bwn_is_bus_siba(mac)) {
 		have_a = (high & BWN_TGSHIGH_HAVE_5GHZ) ? 1 : 0;
 		have_bg = (high & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
+		if (high & BWN_TGSHIGH_DUALPHY) {
+			have_bg = 1;
+			have_a = 1;
+		}
 	} else {
 		device_printf(sc->sc_dev, "%s: not siba; bailing\n", __func__);
 		error = ENXIO;
@@ -1175,7 +1192,8 @@ bwn_attach_core(struct bwn_mac *mac)
 
 	if (siba_get_pci_device(sc->sc_dev) != 0x4312 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4319 &&
-	    siba_get_pci_device(sc->sc_dev) != 0x4324) {
+	    siba_get_pci_device(sc->sc_dev) != 0x4324 &&
+	    siba_get_pci_device(sc->sc_dev) != 0x4328) {
 		have_a = have_bg = 0;
 		if (mac->mac_phy.type == BWN_PHYTYPE_A)
 			have_a = 1;
@@ -1187,9 +1205,17 @@ bwn_attach_core(struct bwn_mac *mac)
 			KASSERT(0 == 1, ("%s: unknown phy type (%d)", __func__,
 			    mac->mac_phy.type));
 	}
-	/* XXX turns off PHY A because it's not supported */
+
+	/*
+	 * XXX turns off PHY A because it's not supported.
+	 * Implement PHY-A support so we can use it for PHY-G
+	 * dual-band support.
+	 */
 	if (mac->mac_phy.type != BWN_PHYTYPE_LP &&
 	    mac->mac_phy.type != BWN_PHYTYPE_N) {
+		device_printf(sc->sc_dev,
+		    "%s: forcing 2GHz only; missing PHY-A support\n",
+		    __func__);
 		have_a = 0;
 		have_bg = 1;
 	}
