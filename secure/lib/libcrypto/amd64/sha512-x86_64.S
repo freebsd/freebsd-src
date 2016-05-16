@@ -1,4 +1,5 @@
 	# $FreeBSD$
+	# Do not modify. This file is auto-generated from sha512-x86_64.pl.
 .text	
 
 .globl	sha512_block_data_order

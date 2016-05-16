@@ -7,7 +7,6 @@ SUBDIR=		engines
 
 LIB=		crypto
 SHLIB_MAJOR=	7
-ALLOW_SHARED_TEXTREL=
 
 NO_LINT=
 
@@ -26,7 +25,7 @@ SRCS=	cpt_err.c cryptlib.c cversion.c ex_data.c mem.c mem_dbg.c o_dir.c \
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	x86_64cpuid.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	x86cpuid.s
+SRCS+=	x86cpuid.S
 .else
 SRCS+=	mem_clr.c
 .endif
@@ -38,7 +37,7 @@ SRCS+=	aes_cfb.c aes_ctr.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
 SRCS+=	aes-x86_64.S aesni-sha1-x86_64.S aesni-x86_64.S bsaes-x86_64.S \
 	vpaes-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	aes-586.s aesni-x86.s vpaes-x86.s
+SRCS+=	aes-586.S aesni-x86.S vpaes-x86.S
 .else
 SRCS+=	aes_cbc.c aes_core.c
 .endif
@@ -63,9 +62,9 @@ INCS+=	asn1.h asn1_mac.h asn1t.h
 SRCS+=	bf_cfb64.c bf_ecb.c bf_ofb64.c bf_skey.c
 .if ${MACHINE_CPUARCH} == "i386"
 .if ${MACHINE_CPU:Mi686}
-SRCS+=	bf-686.s
+SRCS+=	bf-686.S
 .else
-SRCS+=	bf-586.s
+SRCS+=	bf-586.S
 .endif
 .else
 SRCS+=	bf_enc.c
@@ -87,7 +86,7 @@ SRCS+=	bn_add.c bn_blind.c bn_const.c bn_ctx.c bn_depr.c bn_div.c bn_err.c \
 SRCS+=	modexp512-x86_64.S x86_64-gcc.c x86_64-gf2m.S x86_64-mont.S \
 	x86_64-mont5.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	bn-586.s co-586.s x86-gf2m.s x86-mont.s
+SRCS+=	bn-586.S co-586.S x86-gf2m.S x86-mont.S
 .else
 SRCS+=	bn_asm.c
 .endif
@@ -102,7 +101,7 @@ SRCS+=	cmll_cfb.c cmll_ctr.c cmll_ecb.c cmll_ofb.c cmll_utl.c
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	cmll_misc.c cmll-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	cmll-x86.s
+SRCS+=	cmll-x86.S
 .else
 SRCS+=	camellia.c cmll_cbc.c cmll_misc.c
 .endif
@@ -136,7 +135,7 @@ SRCS+=	cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c des_old.c \
 	fcrypt.c ofb64ede.c ofb64enc.c ofb_enc.c pcbc_enc.c qud_cksm.c \
 	rand_key.c read2pwd.c rpc_enc.c set_key.c str2key.c xcbc_enc.c
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	crypt586.s des-586.s
+SRCS+=	crypt586.S des-586.S
 .else
 SRCS+=	des_enc.c fcrypt_b.c
 .endif
@@ -219,7 +218,7 @@ SRCS+=	md5_dgst.c md5_one.c
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	md5-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	md5-586.s
+SRCS+=	md5-586.S
 .endif
 INCS+=	md5.h
 
@@ -232,7 +231,7 @@ SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ofb128.c xts128.c
 .if ${MACHINE_CPUARCH} == "amd64" 
 SRCS+=	ghash-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	ghash-x86.s
+SRCS+=	ghash-x86.S
 .endif
 INCS+=	modes.h
 
@@ -278,7 +277,7 @@ SRCS+=	rc4_utl.c
 .if ${MACHINE_CPUARCH} == "amd64" 
 SRCS+=	rc4-md5-x86_64.S rc4-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	rc4-586.s
+SRCS+=	rc4-586.S
 .else
 SRCS+=	rc4_enc.c rc4_skey.c
 .endif
@@ -287,7 +286,7 @@ INCS+=	rc4.h
 # rc5
 SRCS+=	rc5_ecb.c rc5_skey.c rc5cfb64.c rc5ofb64.c
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	rc5-586.s
+SRCS+=	rc5-586.S
 .else
 SRCS+=	rc5_enc.c
 .endif
@@ -296,7 +295,7 @@ INCS+=	rc5.h
 # ripemd
 SRCS+=	rmd_dgst.c rmd_one.c
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	rmd-586.s
+SRCS+=	rmd-586.S
 .endif
 INCS+=	ripemd.h
 
@@ -316,7 +315,7 @@ SRCS+=	sha1_one.c sha1dgst.c sha256.c sha512.c sha_dgst.c sha_one.c
 .if ${MACHINE_CPUARCH} == "amd64" 
 SRCS+=	sha1-x86_64.S sha256-x86_64.S sha512-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	sha1-586.s sha256-586.s sha512-586.s
+SRCS+=	sha1-586.S sha256-586.S sha512-586.S
 .endif
 INCS+=	sha.h
 
@@ -347,7 +346,7 @@ SRCS+=	wp_dgst.c
 .if ${MACHINE_CPUARCH} == "amd64" 
 SRCS+=	wp-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
-SRCS+=	wp-mmx.s wp_block.c
+SRCS+=	wp-mmx.S wp_block.c
 .else
 SRCS+=	wp_block.c
 .endif
@@ -379,9 +378,6 @@ CFLAGS+=	-I${LCRYPTO_SRC}/crypto/asn1
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/evp
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/modes
 
-.if !empty(SRCS:M*.s)
-AFLAGS+=	--noexecstack
-.endif
 .if !empty(SRCS:M*.S)
 ACFLAGS+=	-Wa,--noexecstack
 .endif

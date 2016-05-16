@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from aes-x86_64.pl.
 .text	
 .type	_x86_64_AES_encrypt,@function
 .align	16
