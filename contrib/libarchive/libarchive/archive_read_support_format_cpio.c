@@ -401,6 +401,11 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 
 	/* If this is a symlink, read the link contents. */
 	if (archive_entry_filetype(entry) == AE_IFLNK) {
+		if (cpio->entry_bytes_remaining > 1024 * 1024) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Rejecting malformed cpio archive: symlink contents exceed 1 megabyte");
+			return (ARCHIVE_FATAL);
+		}
 		h = __archive_read_ahead(a,
 			(size_t)cpio->entry_bytes_remaining, NULL);
 		if (h == NULL)
