@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2009 Yahoo! Inc.
  * Copyright (c) 2011-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,14 +92,11 @@ static __inline void mpr_complete_command(struct mpr_softc *sc,
     struct mpr_command *cm);
 static void mpr_dispatch_event(struct mpr_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *reply);
-static void mpr_config_complete(struct mpr_softc *sc,
-    struct mpr_command *cm);
+static void mpr_config_complete(struct mpr_softc *sc, struct mpr_command *cm);
 static void mpr_periodic(void *);
 static int mpr_reregister_events(struct mpr_softc *sc);
-static void mpr_enqueue_request(struct mpr_softc *sc,
-    struct mpr_command *cm);
-static int mpr_get_iocfacts(struct mpr_softc *sc,
-    MPI2_IOC_FACTS_REPLY *facts);
+static void mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm);
+static int mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts);
 static int mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag);
 SYSCTL_NODE(_hw, OID_AUTO, mpr, CTLFLAG_RD, 0, "MPR Driver Parameters");
 
@@ -444,6 +441,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	    (saved_facts.IOCCapabilities != sc->facts->IOCCapabilities) ||
 	    (saved_facts.IOCRequestFrameSize !=
 	    sc->facts->IOCRequestFrameSize) ||
+	    (saved_facts.IOCMaxChainSegmentSize !=
+	    sc->facts->IOCMaxChainSegmentSize) ||
 	    (saved_facts.MaxTargets != sc->facts->MaxTargets) ||
 	    (saved_facts.MaxSasExpanders != sc->facts->MaxSasExpanders) ||
 	    (saved_facts.MaxEnclosures != sc->facts->MaxEnclosures) ||
@@ -550,8 +549,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	error = mpr_transition_operational(sc);
 	if (error != 0) {
 		if (attaching) {
-			mpr_printf(sc, "%s failed to transition to "
-			    "operational with error %d\n", __func__, error);
+			mpr_printf(sc, "%s failed to transition to operational "
+			    "with error %d\n", __func__, error);
 			mpr_free(sc);
 			return (error);
 		} else {
@@ -685,7 +684,7 @@ mpr_reinit(struct mpr_softc *sc)
 
 	if (sc->mpr_flags & MPR_FLAGS_DIAGRESET) {
 		mpr_dprint(sc, MPR_INIT, "%s reset already in progress\n",
-			   __func__);
+		    __func__);
 		return 0;
 	}
 
@@ -1191,7 +1190,28 @@ mpr_alloc_requests(struct mpr_softc *sc)
         bus_dmamap_load(sc->req_dmat, sc->req_map, sc->req_frames, rsize,
 	    mpr_memaddr_cb, &sc->req_busaddr, 0);
 
-	rsize = sc->facts->IOCRequestFrameSize * sc->max_chains * 4;
+	/*
+	 * Gen3 and beyond uses the IOCMaxChainSegmentSize from IOC Facts to
+	 * get the size of a Chain Frame.  Previous versions use the size as a
+	 * Request Frame for the Chain Frame size.  If IOCMaxChainSegmentSize
+	 * is 0, use the default value.  The IOCMaxChainSegmentSize is the
+	 * number of 16-byte elelements that can fit in a Chain Frame, which is
+	 * the size of an IEEE Simple SGE.
+	 */
+	if (sc->facts->MsgVersion >= MPI2_VERSION_02_05) {
+		sc->chain_seg_size =
+		    htole16(sc->facts->IOCMaxChainSegmentSize);
+		if (sc->chain_seg_size == 0) {
+			sc->chain_frame_size = MPR_DEFAULT_CHAIN_SEG_SIZE *
+			    MPR_MAX_CHAIN_ELEMENT_SIZE;
+		} else {
+			sc->chain_frame_size = sc->chain_seg_size *
+			    MPR_MAX_CHAIN_ELEMENT_SIZE;
+		}
+	} else {
+		sc->chain_frame_size = sc->facts->IOCRequestFrameSize * 4;
+	}
+	rsize = sc->chain_frame_size * sc->max_chains;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -1249,9 +1269,9 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	for (i = 0; i < sc->max_chains; i++) {
 		chain = &sc->chains[i];
 		chain->chain = (MPI2_SGE_IO_UNION *)(sc->chain_frames +
-		    i * sc->facts->IOCRequestFrameSize * 4);
+		    i * sc->chain_frame_size);
 		chain->chain_busaddr = sc->chain_busaddr +
-		    i * sc->facts->IOCRequestFrameSize * 4;
+		    i * sc->chain_frame_size;
 		mpr_free_chain(sc, chain);
 		sc->chain_free_lowwater++;
 	}
@@ -1714,9 +1734,9 @@ mpr_complete_command(struct mpr_softc *sc, struct mpr_command *cm)
 
 	if (cm->cm_complete != NULL) {
 		mpr_dprint(sc, MPR_TRACE,
-			   "%s cm %p calling cm_complete %p data %p reply %p\n",
-			   __func__, cm, cm->cm_complete, cm->cm_complete_data,
-			   cm->cm_reply);
+		    "%s cm %p calling cm_complete %p data %p reply %p\n",
+		    __func__, cm, cm->cm_complete, cm->cm_complete_data,
+		    cm->cm_reply);
 		cm->cm_complete(sc, cm);
 	}
 
@@ -1773,10 +1793,9 @@ mpr_sas_log_info(struct mpr_softc *sc , u32 log_info)
 		break;
 	}
  
-	mpr_dprint(sc, MPR_INFO, "log_info(0x%08x): originator(%s), "
-	    "code(0x%02x), sub_code(0x%04x)\n", log_info,
-	    originator_str, sas_loginfo.dw.code,
-	    sas_loginfo.dw.subcode);
+	mpr_dprint(sc, MPR_LOG, "log_info(0x%08x): originator(%s), "
+	    "code(0x%02x), sub_code(0x%04x)\n", log_info, originator_str,
+	    sas_loginfo.dw.code, sas_loginfo.dw.subcode);
 }
 
 static void
@@ -1925,9 +1944,10 @@ mpr_intr_locked(void *data)
 					 */
 					rel_rep =
 					    (MPI2_DIAG_RELEASE_REPLY *)reply;
-					if (le16toh(rel_rep->IOCStatus) ==
+					if ((le16toh(rel_rep->IOCStatus) &
+					    MPI2_IOCSTATUS_MASK) ==
 					    MPI2_IOCSTATUS_DIAGNOSTIC_RELEASED)
-					    {
+					{
 						pBuffer =
 						    &sc->fw_diag_buffer_list[
 						    rel_rep->BufferType];
@@ -2175,7 +2195,7 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 	MPI2_REQUEST_HEADER *req;
 	MPI25_IEEE_SGE_CHAIN64 *ieee_sgc;
 	struct mpr_chain *chain;
-	int space, sgc_size, current_segs, rem_segs, segs_per_frame;
+	int sgc_size, current_segs, rem_segs, segs_per_frame;
 	uint8_t next_chain_offset = 0;
 
 	/*
@@ -2196,8 +2216,6 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 	chain = mpr_alloc_chain(cm->cm_sc);
 	if (chain == NULL)
 		return (ENOBUFS);
-
-	space = (int)cm->cm_sc->facts->IOCRequestFrameSize * 4;
 
 	/*
 	 * Note: a double-linked list is used to make it easier to walk for
@@ -2224,13 +2242,14 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 		 */
 		current_segs = (cm->cm_sglsize / sgc_size) - 1;
 		rem_segs = segsleft - current_segs;
-		segs_per_frame = space / sgc_size;
+		segs_per_frame = sc->chain_frame_size / sgc_size;
 		if (rem_segs > segs_per_frame) {
 			next_chain_offset = segs_per_frame - 1;
 		}
 	}
 	ieee_sgc = &((MPI25_SGE_IO_UNION *)cm->cm_sge)->IeeeChain;
-	ieee_sgc->Length = next_chain_offset ? htole32((uint32_t)space) :
+	ieee_sgc->Length = next_chain_offset ?
+	    htole32((uint32_t)sc->chain_frame_size) :
 	    htole32((uint32_t)rem_segs * (uint32_t)sgc_size);
 	ieee_sgc->NextChainOffset = next_chain_offset;
 	ieee_sgc->Flags = (MPI2_IEEE_SGE_FLAGS_CHAIN_ELEMENT |
@@ -2239,10 +2258,9 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 	ieee_sgc->Address.High = htole32(chain->chain_busaddr >> 32);
 	cm->cm_sge = &((MPI25_SGE_IO_UNION *)chain->chain)->IeeeSimple;
 	req = (MPI2_REQUEST_HEADER *)cm->cm_req;
-	req->ChainOffset = ((sc->facts->IOCRequestFrameSize * 4) -
-	    sgc_size) >> 4;
+	req->ChainOffset = (sc->chain_frame_size - sgc_size) >> 4;
 
-	cm->cm_sglsize = space;
+	cm->cm_sglsize = sc->chain_frame_size;
 	return (0);
 }
 
@@ -2465,10 +2483,9 @@ mpr_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * user they did the wrong thing.
 	 */
 	if ((cm->cm_max_segs != 0) && (nsegs > cm->cm_max_segs)) {
-		mpr_dprint(sc, MPR_ERROR,
-			   "%s: warning: busdma returned %d segments, "
-			   "more than the %d allowed\n", __func__, nsegs,
-			   cm->cm_max_segs);
+		mpr_dprint(sc, MPR_ERROR, "%s: warning: busdma returned %d "
+		    "segments, more than the %d allowed\n", __func__, nsegs,
+		    cm->cm_max_segs);
 	}
 
 	/*
@@ -2665,8 +2682,8 @@ mpr_request_polled(struct mpr_softc *sc, struct mpr_command *cm)
 	if (error) {
 		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s\n", __func__);
 		rc = mpr_reinit(sc);
-		mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ?
-		    "success" : "failed");
+		mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
+		    "failed");
 	}
 	return (error);
 }
