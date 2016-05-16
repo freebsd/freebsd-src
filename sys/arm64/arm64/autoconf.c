@@ -80,7 +80,13 @@ configure(void *dummy)
 static void
 configure_final(void *dummy)
 {
+
+#ifdef INTRNG
+	/* Enable interrupt reception on this CPU */
+	intr_enable();
+#else
 	arm_enable_intr();
+#endif
 	cninit_finish(); 
 
 	if (bootverbose)
