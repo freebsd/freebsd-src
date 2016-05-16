@@ -332,8 +332,11 @@ ef10_vpd_get(
 
 	/* And then from the provided data buffer */
 	if ((rc = efx_vpd_hunk_get(data, size, evvp->evv_tag,
-	    evvp->evv_keyword, &offset, &length)) != 0)
+	    evvp->evv_keyword, &offset, &length)) != 0) {
+		if (rc == ENOENT)
+			return (rc);
 		goto fail2;
+	}
 
 	evvp->evv_length = length;
 	memcpy(evvp->evv_value, data + offset, length);
