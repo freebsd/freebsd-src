@@ -568,6 +568,27 @@ typedef struct efx_lic_ops_s {
 	efx_rc_t	(*elo_app_state)(efx_nic_t *, uint64_t, boolean_t *);
 	efx_rc_t	(*elo_get_id)(efx_nic_t *, size_t, uint32_t *,
 				      size_t *, uint8_t *);
+	efx_rc_t	(*elo_find_start)
+				(efx_nic_t *, caddr_t, size_t, uint32_t *);
+	efx_rc_t	(*elo_find_end)(efx_nic_t *, caddr_t, size_t,
+				uint32_t , uint32_t *);
+	boolean_t	(*elo_find_key)(efx_nic_t *, caddr_t, size_t,
+				uint32_t, uint32_t *, uint32_t *);
+	boolean_t	(*elo_validate_key)(efx_nic_t *,
+				caddr_t, uint32_t);
+	efx_rc_t	(*elo_read_key)(efx_nic_t *,
+				caddr_t, size_t, uint32_t, uint32_t,
+				caddr_t, size_t, uint32_t *);
+	efx_rc_t	(*elo_write_key)(efx_nic_t *,
+				caddr_t, size_t, uint32_t,
+				caddr_t, uint32_t, uint32_t *);
+	efx_rc_t	(*elo_delete_key)(efx_nic_t *,
+				caddr_t, size_t, uint32_t,
+				uint32_t, uint32_t, uint32_t *);
+	efx_rc_t	(*elo_create_partition)(efx_nic_t *,
+				caddr_t, size_t);
+	efx_rc_t	(*elo_finish_partition)(efx_nic_t *,
+				caddr_t, size_t);
 } efx_lic_ops_t;
 
 #endif
