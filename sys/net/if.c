@@ -1401,7 +1401,7 @@ if_delgroups(struct ifnet *ifp)
 		strlcpy(groupname, ifgl->ifgl_group->ifg_group, IFNAMSIZ);
 
 		IF_ADDR_WLOCK(ifp);
-		TAILQ_REMOVE(&ifp->if_groups, ifgl, ifgl_next);		// <<<<
+		TAILQ_REMOVE(&ifp->if_groups, ifgl, ifgl_next);
 		IF_ADDR_WUNLOCK(ifp);
 
 		TAILQ_FOREACH(ifgm, &ifgl->ifgl_group->ifg_members, ifgm_next)
