@@ -29,6 +29,28 @@
 #ifndef _MACHINE_INTR_H_
 #define	_MACHINE_INTR_H_
 
+#ifdef INTRNG
+
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#endif
+
+#include <sys/intr.h>
+
+#ifndef NIRQ
+#define	NIRQ		1024	/* XXX - It should be an option. */
+#endif
+
+static inline void
+arm_irq_memory_barrier(uintptr_t irq)
+{
+}
+
+#ifdef SMP
+void intr_ipi_dispatch(u_int, struct trapframe *);
+#endif
+
+#else
 int	intr_irq_config(u_int, enum intr_trigger, enum intr_polarity);
 void	intr_irq_handler(struct trapframe *);
 int	intr_irq_remove_handler(device_t, u_int, void *);
@@ -54,6 +76,7 @@ int	intr_irq_bind(u_int, int);
 void	arm_init_secondary(void);
 void	arm_setup_ipihandler(driver_filter_t *, u_int);
 void	arm_unmask_ipi(u_int);
+#endif
 #endif
 
 #endif	/* _MACHINE_INTR_H */
