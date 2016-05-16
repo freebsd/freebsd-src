@@ -74,7 +74,7 @@ setnd6flags(const char *dummyaddr __unused,
 	int error;
 
 	memset(&nd, 0, sizeof(nd));
-	strncpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
+	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
 	error = ioctl(s, SIOCGIFINFO_IN6, &nd);
 	if (error) {
 		warn("ioctl(SIOCGIFINFO_IN6)");
@@ -99,7 +99,7 @@ setnd6defif(const char *dummyaddr __unused,
 	int error;
 
 	memset(&ndifreq, 0, sizeof(ndifreq));
-	strncpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
+	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
 
 	if (d < 0) {
 		if (isnd6defif(s)) {
@@ -126,7 +126,7 @@ isnd6defif(int s)
 	int error;
 
 	memset(&ndifreq, 0, sizeof(ndifreq));
-	strncpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
+	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
 
 	ifindex = if_nametoindex(ndifreq.ifname);
 	error = ioctl(s, SIOCGDEFIFACE_IN6, (caddr_t)&ndifreq);
@@ -146,7 +146,7 @@ nd6_status(int s)
 	int isdefif;
 
 	memset(&nd, 0, sizeof(nd));
-	strncpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
+	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
 	if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		if (errno != EAFNOSUPPORT && errno != EPROTONOSUPPORT)
 			warn("socket(AF_INET6, SOCK_DGRAM)");
