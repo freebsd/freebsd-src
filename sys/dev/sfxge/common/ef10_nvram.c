@@ -901,6 +901,7 @@ ef10_nvram_buffer_find_end(
 	// Read to end of partition
 	tlv_cursor_t cursor;
 	efx_rc_t rc;
+	uint32_t *segment_used;
 
 	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)bufferp,
 			buffer_size)) != 0) {
@@ -908,10 +909,31 @@ ef10_nvram_buffer_find_end(
 		goto fail1;
 	}
 
-	if ((rc = tlv_require_end(&cursor)) != 0)
-		goto fail2;
+	segment_used = cursor.block;
 
-	*endp = byte_offset(tlv_last_segment_end(&cursor)+1, cursor.block);
+	/*
+	 * Go through each segment and check that it has an end tag. If there
+	 * is no end tag then the previous segment was the last valid one,
+	 * so return the used space including that end tag.
+	 */
+	while (tlv_tag(&cursor) == TLV_TAG_PARTITION_HEADER) {
+		if (tlv_require_end(&cursor) != 0) {
+			if (segment_used == cursor.block) {
+				/*
+				 * First segment is corrupt, so there is
+				 * no valid data in partition.
+				 */
+				rc = EINVAL;
+				goto fail2;
+			}
+			break;
+		}
+		segment_used = cursor.end + 1;
+
+		cursor.current = segment_used;
+	}
+	/* Return space used (including the END tag) */
+	*endp = (segment_used - cursor.block) * sizeof (uint32_t);
 
 	return (0);
 
