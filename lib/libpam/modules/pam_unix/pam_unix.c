@@ -332,6 +332,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			 * XXX check PAM_DISALLOW_NULL_AUTHTOK
 			 */
 			old_pass = "";
+			retval = PAM_SUCCESS;
 		} else {
 			retval = pam_get_authtok(pamh,
 			    PAM_OLDAUTHTOK, &old_pass, NULL);
