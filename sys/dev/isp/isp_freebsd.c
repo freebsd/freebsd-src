@@ -1363,7 +1363,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		 * and status, don't do it again and do the status portion now.
 		 */
 		if (atp->sendst) {
-			isp_prt(isp, ISP_LOGTINFO, "[0x%x] now sending synthesized status orig_dl=%u xfered=%u bit=%u",
+			isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] now sending synthesized status orig_dl=%u xfered=%u bit=%u",
 			    cso->tag_id, atp->orig_datalen, atp->bytes_xfered, atp->bytes_in_transit);
 			xfrlen = 0;	/* we already did the data transfer */
 			atp->sendst = 0;
