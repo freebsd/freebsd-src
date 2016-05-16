@@ -241,9 +241,6 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 	cp->private = vd;
 	vd->vdev_tsd = cp;
 
-	/* Fetch initial physical path information for this device. */
-	vdev_geom_attrchanged(cp, "GEOM::physpath");
-	
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	return (cp);
 }
@@ -796,6 +793,10 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		}
 	}
 
+	/* Fetch initial physical path information for this device. */
+	if (cp != NULL)
+		vdev_geom_attrchanged(cp, "GEOM::physpath");
+	
 	g_topology_unlock();
 	PICKUP_GIANT();
 	if (cp == NULL) {
