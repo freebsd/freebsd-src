@@ -1103,7 +1103,6 @@ fail1:
 /* V3 format uses Huntington TLV format partition. See SF-108797-SW */
 #define EFX_LICENSE_V3_KEY_LENGTH_MIN    (64)
 #define EFX_LICENSE_V3_KEY_LENGTH_MAX    (160)
-#define EFX_LICENSE_V3_HASH_LENGTH       (64)
 
 	__checkReturn		efx_rc_t
 efx_lic_v3_find_start(
@@ -1169,16 +1168,17 @@ efx_lic_v3_validate_key(
 		goto fail1;
 	}
 
-	key_type = ((uint8_t*)keyp)[0];
-	key_length = ((uint8_t*)keyp)[1] + EFX_LICENSE_V3_HASH_LENGTH;
-
-	if(key_length > EFX_LICENSE_V3_KEY_LENGTH_MAX) {
+	if (length > EFX_LICENSE_V3_KEY_LENGTH_MAX) {
 		goto fail2;
 	}
+
+	key_type = ((uint8_t*)keyp)[0];
+	key_length = ((uint8_t*)keyp)[1];
+
 	if (key_type < 3) {
 		goto fail3;
 	}
-	if (key_length != length) {
+	if (key_length > length) {
 		goto fail4;
 	}
 	return (B_TRUE);
