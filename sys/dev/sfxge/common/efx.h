@@ -2311,6 +2311,97 @@ efx_lic_get_id(
 	__out_opt	uint8_t *bufferp);
 
 
+extern	__checkReturn		efx_rc_t
+efx_lic_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
 #endif	/* EFSYS_OPT_LICENSING */
 
 

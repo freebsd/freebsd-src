@@ -36,6 +36,104 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_LICENSING
 
+#include "ef10_tlv_layout.h"
+
+#if EFSYS_OPT_SIENA | EFSYS_OPT_HUNTINGTON
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	);
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_v1v2_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_v1v2_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
+#endif	/* EFSYS_OPT_HUNTINGTON | EFSYS_OPT_SIENA */
+
+
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
@@ -52,6 +150,15 @@ static const efx_lic_ops_t	__efx_lic_v1_ops = {
 	efx_mcdi_fc_license_get_key_stats,	/* elo_get_key_stats */
 	NULL,					/* elo_app_state */
 	NULL,					/* elo_get_id */
+	efx_lic_v1v2_find_start,		/* elo_find_start */
+	efx_lic_v1v2_find_end,			/* elo_find_end */
+	efx_lic_v1v2_find_key,			/* elo_find_key */
+	efx_lic_v1v2_validate_key,		/* elo_validate_key */
+	efx_lic_v1v2_read_key,			/* elo_read_key */
+	efx_lic_v1v2_write_key,			/* elo_write_key */
+	efx_lic_v1v2_delete_key,		/* elo_delete_key */
+	efx_lic_v1v2_create_partition,		/* elo_create_partition */
+	efx_lic_v1v2_finish_partition,		/* elo_finish_partition */
 };
 
 #endif	/* EFSYS_OPT_SIENA */
@@ -78,6 +185,15 @@ static const efx_lic_ops_t	__efx_lic_v2_ops = {
 	efx_mcdi_licensing_get_key_stats,	/* elo_get_key_stats */
 	efx_mcdi_licensed_app_state,		/* elo_app_state */
 	NULL,					/* elo_get_id */
+	efx_lic_v1v2_find_start,		/* elo_find_start */
+	efx_lic_v1v2_find_end,			/* elo_find_end */
+	efx_lic_v1v2_find_key,			/* elo_find_key */
+	efx_lic_v1v2_validate_key,		/* elo_validate_key */
+	efx_lic_v1v2_read_key,			/* elo_read_key */
+	efx_lic_v1v2_write_key,			/* elo_write_key */
+	efx_lic_v1v2_delete_key,		/* elo_delete_key */
+	efx_lic_v1v2_create_partition,		/* elo_create_partition */
+	efx_lic_v1v2_finish_partition,		/* elo_finish_partition */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON */
@@ -108,11 +224,111 @@ efx_mcdi_licensing_v3_get_id(
 	__out_bcount_part_opt(buffer_size, *lengthp)
 			uint8_t *bufferp);
 
+	__checkReturn		efx_rc_t
+efx_lic_v3_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	);
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_v3_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_v3_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
 static const efx_lic_ops_t	__efx_lic_v3_ops = {
 	efx_mcdi_licensing_v3_update_licenses,	/* elo_update_licenses */
 	efx_mcdi_licensing_v3_report_license,	/* elo_get_key_stats */
 	efx_mcdi_licensing_v3_app_state,	/* elo_app_state */
 	efx_mcdi_licensing_v3_get_id,		/* elo_get_id */
+	efx_lic_v3_find_start,			/* elo_find_start*/
+	efx_lic_v3_find_end,			/* elo_find_end */
+	efx_lic_v3_find_key,			/* elo_find_key */
+	efx_lic_v3_validate_key,		/* elo_validate_key */
+	efx_lic_v3_read_key,			/* elo_read_key */
+	efx_lic_v3_write_key,			/* elo_write_key */
+	efx_lic_v3_delete_key,			/* elo_delete_key */
+	efx_lic_v3_create_partition,		/* elo_create_partition */
+	efx_lic_v3_finish_partition,		/* elo_finish_partition */
 };
 
 #endif	/* EFSYS_OPT_MEDFORD */
@@ -222,6 +438,267 @@ fail1:
 }
 
 #endif	/* EFSYS_OPT_SIENA */
+
+/* V1 and V2 Partition format - based on a 16-bit TLV format */
+
+#if EFSYS_OPT_SIENA | EFSYS_OPT_HUNTINGTON
+
+/*
+ * V1/V2 format - defined in SF-108542-TC section 4.2:
+ *  Type (T):   16bit - revision/HMAC algorithm
+ *  Length (L): 16bit - value length in bytes
+ *  Value (V):  L bytes - payload
+ */
+#define EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX    (256)
+#define EFX_LICENSE_V1V2_HEADER_LENGTH         (2*sizeof(uint16_t))
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	)
+{
+	_NOTE(ARGUNUSED(enp, bufferp, buffer_size))
+
+	*startp = 0;
+	return (0);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	)
+{
+	_NOTE(ARGUNUSED(enp, bufferp, buffer_size))
+
+	*endp = offset + EFX_LICENSE_V1V2_HEADER_LENGTH;
+	return (0);
+}
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_v1v2_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	)
+{
+	boolean_t found;
+	uint16_t tlv_type;
+	uint16_t tlv_length;
+
+	_NOTE(ARGUNUSED(enp))
+
+	if((size_t)buffer_size - offset < EFX_LICENSE_V1V2_HEADER_LENGTH)
+		goto fail1;
+
+	tlv_type = __LE_TO_CPU_16(((uint16_t*)&bufferp[offset])[0]);
+	tlv_length = __LE_TO_CPU_16(((uint16_t*)&bufferp[offset])[1]);
+	if ((tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) ||
+	    (tlv_type == 0 && tlv_length == 0)) {
+		found = B_FALSE;
+	} else {
+		*startp = offset;
+		*lengthp = tlv_length + EFX_LICENSE_V1V2_HEADER_LENGTH;
+		found = B_TRUE;
+	}
+	return (found);
+
+fail1:
+	EFSYS_PROBE(fail1);
+
+	return (B_FALSE);
+}
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_v1v2_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	efx_rc_t rc;
+	uint16_t tlv_type;
+	uint16_t tlv_length;
+
+	_NOTE(ARGUNUSED(enp))
+
+	if (length < EFX_LICENSE_V1V2_HEADER_LENGTH) {
+		goto fail1;
+	}
+
+	tlv_type = __LE_TO_CPU_16(((uint16_t*)keyp)[0]);
+	tlv_length = __LE_TO_CPU_16(((uint16_t*)keyp)[1]);
+
+	if(tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) {
+		goto fail2;
+	}
+	if (tlv_type == 0) {
+		goto fail3;
+	}
+	if ((tlv_length + EFX_LICENSE_V1V2_HEADER_LENGTH) != length) {
+		goto fail4;
+	}
+
+	return (B_TRUE);
+
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE(fail1);
+
+	return (B_FALSE);
+}
+
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	)
+{
+	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(enp))
+	EFSYS_ASSERT(length <= (EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX +
+	    EFX_LICENSE_V1V2_HEADER_LENGTH));
+
+	if (key_max_size < length) {
+		rc = ENOSPC;
+		goto fail1;
+	}
+	memcpy(keyp, &bufferp[offset], length);
+
+	*lengthp = length;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	)
+{
+	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(enp))
+	EFSYS_ASSERT(length <= (EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX +
+	    EFX_LICENSE_V1V2_HEADER_LENGTH));
+
+	// Ensure space for terminator remains
+	if ((offset + length) >
+	    (buffer_size - EFX_LICENSE_V1V2_HEADER_LENGTH) ) {
+		rc = ENOSPC;
+		goto fail1;
+	}
+
+	memcpy(bufferp + offset, keyp, length);
+
+	*lengthp = length;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	)
+{
+	efx_rc_t rc;
+	uint32_t move_start = offset + length;
+	uint32_t move_length = end - move_start;
+
+	_NOTE(ARGUNUSED(enp))
+	EFSYS_ASSERT(end <= buffer_size);
+
+	// Shift everything after the key down
+	memmove(bufferp + offset, bufferp + move_start, move_length);
+
+	*deltap = length;
+
+	return (0);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	)
+{
+	_NOTE(ARGUNUSED(enp))
+	EFSYS_ASSERT(EFX_LICENSE_V1V2_HEADER_LENGTH <= buffer_size);
+
+	// Write terminator
+	memset(bufferp, '\0', EFX_LICENSE_V1V2_HEADER_LENGTH);
+	return (0);
+}
+
+
+	__checkReturn		efx_rc_t
+efx_lic_v1v2_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	)
+{
+	_NOTE(ARGUNUSED(enp, bufferp, buffer_size))
+
+	return (0);
+}
+
+#endif	/* EFSYS_OPT_HUNTINGTON | EFSYS_OPT_SIENA */
+
 
 /* V2 Licensing - used by Huntington family only. See SF-113611-TC */
 
@@ -575,7 +1052,7 @@ efx_mcdi_licensing_v3_get_id(
 		req.emr_in_buf = bufferp;
 		req.emr_in_length = MC_CMD_LICENSING_GET_ID_V3_IN_LEN;
 		req.emr_out_buf = bufferp;
-		req.emr_out_length = MIN(buffer_size, MC_CMD_LICENSING_GET_ID_V3_OUT_LENMIN);
+		req.emr_out_length = MIN(buffer_size, MC_CMD_LICENSING_GET_ID_V3_OUT_LENMAX);
 		(void) memset(bufferp, 0, req.emr_out_length);
 	}
 
@@ -605,6 +1082,228 @@ efx_mcdi_licensing_v3_get_id(
 		  bufferp+MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST,
 		  *lengthp);
 		memset(bufferp+(*lengthp), 0, MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST);
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+/* V3 format uses Huntington TLV format partition. See SF-108797-SW */
+#define EFX_LICENSE_V3_KEY_LENGTH_MIN    (64)
+#define EFX_LICENSE_V3_KEY_LENGTH_MAX    (128)
+#define EFX_LICENSE_V3_HASH_LENGTH       (64)
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	)
+{
+	_NOTE(ARGUNUSED(enp))
+
+	return ef10_nvram_buffer_find_item_start(bufferp, buffer_size, startp);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	)
+{
+	_NOTE(ARGUNUSED(enp))
+
+	return ef10_nvram_buffer_find_end(bufferp, buffer_size, offset, endp);
+}
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_v3_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	)
+{
+	_NOTE(ARGUNUSED(enp))
+
+	return ef10_nvram_buffer_find_item(bufferp, buffer_size,
+	    offset, startp, lengthp);
+}
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_v3_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	)
+{
+	// Check key is a valid V3 key
+	efx_rc_t rc;
+	uint8_t key_type;
+	uint8_t key_length;
+
+	_NOTE(ARGUNUSED(enp))
+
+	if (length < EFX_LICENSE_V3_KEY_LENGTH_MIN) {
+		goto fail1;
+	}
+
+	key_type = ((uint8_t*)keyp)[0];
+	key_length = ((uint8_t*)keyp)[1] + EFX_LICENSE_V3_HASH_LENGTH;
+
+	if(key_length > EFX_LICENSE_V3_KEY_LENGTH_MAX) {
+		goto fail2;
+	}
+	if (key_type < 3) {
+		goto fail3;
+	}
+	if (key_length != length) {
+		goto fail4;
+	}
+	return (B_TRUE);
+
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE(fail1);
+
+	return (B_FALSE);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	)
+{
+	_NOTE(ARGUNUSED(enp))
+
+	return ef10_nvram_buffer_get_item(bufferp, buffer_size,
+		    offset, length, keyp, key_max_size, lengthp);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	)
+{
+	_NOTE(ARGUNUSED(enp))
+	EFSYS_ASSERT(length <= EFX_LICENSE_V3_KEY_LENGTH_MAX);
+
+	return ef10_nvram_buffer_insert_item(bufferp, buffer_size,
+		    offset, keyp, length, lengthp);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	)
+{
+	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(enp))
+
+	if ((rc = ef10_nvram_buffer_delete_item(bufferp,
+			buffer_size, offset, length, end)) != 0) {
+		goto fail1;
+	}
+
+	*deltap = length;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	)
+{
+	efx_rc_t rc;
+
+	// Construct empty partition
+	if ((rc = ef10_nvram_buffer_create(enp,
+	    NVRAM_PARTITION_TYPE_LICENSE,
+	    bufferp, buffer_size)) != 0) {
+		rc = EFAULT;
+		goto fail1;
+	}
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_v3_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	)
+{
+	efx_rc_t rc;
+
+	if ((rc = ef10_nvram_buffer_finish(bufferp,
+			buffer_size)) != 0) {
+		goto fail1;
+	}
+
+	// Validate completed partition
+	if ((rc = ef10_nvram_buffer_validate(enp, NVRAM_PARTITION_TYPE_LICENSE,
+					bufferp, buffer_size)) != 0) {
+		goto fail2;
 	}
 
 	return (0);
@@ -783,6 +1482,259 @@ efx_lic_get_id(
 
 fail2:
 	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+/* Buffer management API - abstracts varying TLV format used for License partition */
+
+	__checkReturn		efx_rc_t
+efx_lic_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	if ((rc = elop->elo_find_start(enp, bufferp, buffer_size, startp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	if ((rc = elop->elo_find_end(enp, bufferp, buffer_size, offset, endp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	boolean_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	EFSYS_ASSERT(bufferp);
+	EFSYS_ASSERT(startp);
+	EFSYS_ASSERT(lengthp);
+
+	return (elop->elo_find_key(enp, bufferp, buffer_size, offset,
+				    startp, lengthp));
+}
+
+
+/* Validate that the buffer contains a single key in a recognised format.
+** An empty or terminator buffer is not accepted as a valid key.
+*/
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	boolean_t rc;
+	uint16_t tlv_type;
+	uint16_t tlv_length;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	if ((rc = elop->elo_validate_key(enp, keyp, length)) == B_FALSE)
+		goto fail1;
+
+	return (B_TRUE);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	if ((rc = elop->elo_read_key(enp, bufferp, buffer_size, offset,
+				    length, keyp, key_max_size, lengthp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	if ((rc = elop->elo_write_key(enp, bufferp, buffer_size, offset,
+				    keyp, length, lengthp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	if ((rc = elop->elo_delete_key(enp, bufferp, buffer_size, offset,
+				    length, end, deltap)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_lic_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	if ((rc = elop->elo_create_partition(enp, bufferp, buffer_size)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+
+	__checkReturn		efx_rc_t
+efx_lic_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	)
+{
+	const efx_lic_ops_t *elop = enp->en_elop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	if ((rc = elop->elo_finish_partition(enp, bufferp, buffer_size)) != 0)
+		goto fail1;
+
+	return (0);
+
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
