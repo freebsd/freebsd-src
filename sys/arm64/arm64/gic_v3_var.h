@@ -41,6 +41,15 @@ DECLARE_CLASS(gic_v3_driver);
 /* 1 bit per LPI + 1 KB more for the obligatory PPI, SGI, SPI stuff */
 #define	LPI_PENDTAB_SIZE	((LPI_CONFTAB_SIZE / 8) + 0x400)
 
+#ifdef INTRNG
+struct gic_v3_irqsrc {
+	struct intr_irqsrc	gi_isrc;
+	uint32_t		gi_irq;
+	enum intr_polarity	gi_pol;
+	enum intr_trigger	gi_trig;
+};
+#endif
+
 struct redist_lpis {
 	vm_offset_t		conf_base;
 	vm_offset_t		pend_base[MAXCPU];
@@ -75,13 +84,22 @@ struct gic_v3_softc {
 	u_int			gic_idbits;
 
 	boolean_t		gic_registered;
+
+#ifdef INTRNG
+	struct gic_v3_irqsrc	*gic_irqs;
+#endif
 };
+
+#ifdef INTRNG
+#define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
+#endif
 
 MALLOC_DECLARE(M_GIC_V3);
 
 /* Device methods */
 int gic_v3_attach(device_t dev);
 int gic_v3_detach(device_t dev);
+int arm_gic_v3_intr(void *);
 
 /*
  * ITS
