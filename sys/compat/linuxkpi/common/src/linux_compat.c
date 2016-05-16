@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/md_var.h>
+#endif
+
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -67,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
+#include <linux/kernel.h>
 
 #include <vm/vm_pager.h>
 
@@ -1362,12 +1367,19 @@ linux_irq_handler(void *ent)
 	irqe->handler(irqe->irq, irqe->arg);
 }
 
+#if defined(__i386__) || defined(__amd64__)
+bool linux_cpu_has_clflush;
+#endif
+
 static void
 linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 	int i;
 
+#if defined(__i386__) || defined(__amd64__)
+	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
+#endif
 	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
 
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
