@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from ghash-x86_64.pl.
 .text	
 
 .globl	gcm_gmult_4bit
