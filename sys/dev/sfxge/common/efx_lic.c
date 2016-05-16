@@ -408,7 +408,7 @@ efx_mcdi_fc_license_get_key_stats(
 	MCDI_IN_SET_DWORD(req, FC_IN_LICENSE_OP,
 	    MC_CMD_FC_IN_LICENSE_GET_KEY_STATS);
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
@@ -935,7 +935,7 @@ efx_mcdi_licensing_v3_report_license(
 	MCDI_IN_SET_DWORD(req, LICENSING_V3_IN_OP,
 	    MC_CMD_LICENSING_V3_IN_OP_REPORT_LICENSE);
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
@@ -1062,7 +1062,7 @@ efx_mcdi_licensing_v3_get_id(
 		(void) memset(bufferp, 0, req.emr_out_length);
 	}
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
