@@ -1011,6 +1011,7 @@ zfsctl_snapdir_lookup(ap)
 #endif
 	}
 
+relookup:
 	mutex_enter(&sdp->sd_lock);
 	search.se_name = (char *)nm;
 	if ((sep = avl_find(&sdp->sd_snaps, &search, &where)) != NULL) {
@@ -1085,7 +1086,16 @@ domount:
 	(void) snprintf(mountpoint, mountpoint_len,
 	    "%s/" ZFS_CTLDIR_NAME "/snapshot/%s",
 	    dvp->v_vfsp->mnt_stat.f_mntonname, nm);
-	VERIFY0(vn_lock(*vpp, LK_EXCLUSIVE));
+	mutex_exit(&sdp->sd_lock);
+
+	/*
+	 * The vnode may get reclaimed between dropping sd_lock and
+	 * getting the vnode lock.
+	 * */
+	err = vn_lock(*vpp, LK_EXCLUSIVE);
+	if (err == ENOENT)
+		goto relookup;
+	VERIFY0(err);
 	err = mount_snapshot(curthread, vpp, "zfs", mountpoint, snapname, 0);
 	kmem_free(mountpoint, mountpoint_len);
 	if (err == 0) {
@@ -1100,7 +1110,6 @@ domount:
 		VTOZ(*vpp)->z_zfsvfs->z_parent = zfsvfs;
 		(*vpp)->v_flag &= ~VROOT;
 	}
-	mutex_exit(&sdp->sd_lock);
 	ZFS_EXIT(zfsvfs);
 
 #ifdef illumos
