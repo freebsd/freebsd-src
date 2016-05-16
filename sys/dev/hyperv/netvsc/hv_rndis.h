@@ -1085,7 +1085,7 @@ typedef struct rndismp_rx_bufs_info_ {
 struct hv_vmbus_channel;
 
 int netvsc_recv(struct hv_vmbus_channel *chan,
-    netvsc_packet *packet, rndis_tcp_ip_csum_info *csum_info,
+    netvsc_packet *packet, const rndis_tcp_ip_csum_info *csum_info,
     const struct rndis_hash_info *hash_info,
     const struct rndis_hash_value *hash_value);
 void netvsc_channel_rollup(struct hv_vmbus_channel *chan);
