@@ -65,6 +65,8 @@ static int thunder_pem_fdt_alloc_msi(device_t, device_t, int, int, int *);
 static int thunder_pem_fdt_release_msi(device_t, device_t, int, int *);
 static int thunder_pem_fdt_map_msi(device_t, device_t, int, uint64_t *,
     uint32_t *);
+static int thunder_pem_fdt_get_id(device_t, device_t, enum pci_id_type,
+    uintptr_t *);
 
 static device_method_t thunder_pem_fdt_methods[] = {
 	/* Device interface */
@@ -76,6 +78,7 @@ static device_method_t thunder_pem_fdt_methods[] = {
 	DEVMETHOD(pcib_alloc_msi,	thunder_pem_fdt_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	thunder_pem_fdt_release_msi),
 	DEVMETHOD(pcib_map_msi,		thunder_pem_fdt_map_msi),
+	DEVMETHOD(pcib_get_id,		thunder_pem_fdt_get_id),
 
 	/* End */
 	DEVMETHOD_END
@@ -141,4 +144,24 @@ thunder_pem_fdt_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
 {
 
 	return (arm_map_msi(pci, child, irq, addr, data));
+}
+
+static int
+thunder_pem_fdt_get_id(device_t dev, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	phandle_t node;
+	uint32_t rid;
+	uint16_t pci_rid;
+
+	if (type != PCI_ID_MSI)
+		return (pcib_get_id(dev, child, type, id));
+
+	node = ofw_bus_get_node(dev);
+	pci_rid = pci_get_rid(child);
+
+	ofw_bus_msimap(node, pci_rid, NULL, &rid);
+	*id = rid;
+
+	return (0);
 }
