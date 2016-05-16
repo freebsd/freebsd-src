@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/rwlock.h>
 
+#if defined(INTRNG)
+#include <machine/intr.h>
+#endif
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -158,6 +162,7 @@ pci_host_generic_attach(device_t dev)
 	uint64_t phys_base;
 	uint64_t pci_base;
 	uint64_t size;
+	phandle_t node;
 	int error;
 	int tuple;
 	int rid;
@@ -227,8 +232,12 @@ pci_host_generic_attach(device_t dev)
 		}
 	}
 
-	ofw_bus_setup_iinfo(ofw_bus_get_node(dev), &sc->pci_iinfo,
-	    sizeof(cell_t));
+	node = ofw_bus_get_node(dev);
+	ofw_bus_setup_iinfo(node, &sc->pci_iinfo, sizeof(cell_t));
+
+	/* Find the MSI interrupt handler */
+	OF_searchencprop(node, "msi-parent", &sc->msi_parent,
+	    sizeof(sc->msi_parent));
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
@@ -661,8 +670,13 @@ static int
 generic_pcie_alloc_msi(device_t pci, device_t child, int count, int maxcount,
     int *irqs)
 {
+#if defined(INTRNG)
+	struct generic_pcie_softc *sc;
 
-#if defined(__aarch64__)
+	sc = device_get_softc(pci);
+	return (intr_alloc_msi(pci, child, sc->msi_parent, count, maxcount,
+	    irqs));
+#elif defined(__aarch64__)
 	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
 #else
 	return (ENXIO);
@@ -672,8 +686,12 @@ generic_pcie_alloc_msi(device_t pci, device_t child, int count, int maxcount,
 static int
 generic_pcie_release_msi(device_t pci, device_t child, int count, int *irqs)
 {
+#if defined(INTRNG)
+	struct generic_pcie_softc *sc;
 
-#if defined(__aarch64__)
+	sc = device_get_softc(pci);
+	return (intr_release_msi(pci, child, sc->msi_parent, count, irqs));
+#elif defined(__aarch64__)
 	return (arm_release_msi(pci, child, count, irqs));
 #else
 	return (ENXIO);
@@ -684,8 +702,12 @@ static int
 generic_pcie_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
     uint32_t *data)
 {
+#if defined(INTRNG)
+	struct generic_pcie_softc *sc;
 
-#if defined(__aarch64__)
+	sc = device_get_softc(pci);
+	return (intr_map_msi(pci, child, sc->msi_parent, irq, addr, data));
+#elif defined(__aarch64__)
 	return (arm_map_msi(pci, child, irq, addr, data));
 #else
 	return (ENXIO);
@@ -695,8 +717,12 @@ generic_pcie_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
 static int
 generic_pcie_alloc_msix(device_t pci, device_t child, int *irq)
 {
+#if defined(INTRNG)
+	struct generic_pcie_softc *sc;
 
-#if defined(__aarch64__)
+	sc = device_get_softc(pci);
+	return (intr_alloc_msix(pci, child, sc->msi_parent, irq));
+#elif defined(__aarch64__)
 	return (arm_alloc_msix(pci, child, irq));
 #else
 	return (ENXIO);
@@ -706,8 +732,12 @@ generic_pcie_alloc_msix(device_t pci, device_t child, int *irq)
 static int
 generic_pcie_release_msix(device_t pci, device_t child, int irq)
 {
+#if defined(INTRNG)
+	struct generic_pcie_softc *sc;
 
-#if defined(__aarch64__)
+	sc = device_get_softc(pci);
+	return (intr_release_msix(pci, child, sc->msi_parent, irq));
+#elif defined(__aarch64__)
 	return (arm_release_msix(pci, child, irq));
 #else
 	return (ENXIO);

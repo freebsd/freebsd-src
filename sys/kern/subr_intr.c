@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "pic_if.h"
+#include "msi_if.h"
 
 #define	INTRNAME_LEN	(2*MAXCOMLEN + 1)
 
@@ -97,6 +98,9 @@ struct intr_pic {
 	SLIST_ENTRY(intr_pic)	pic_next;
 	intptr_t		pic_xref;	/* hardware identification */
 	device_t		pic_dev;
+#define	FLAG_PIC	(1 << 0)
+#define	FLAG_MSI	(1 << 1)
+	u_int			pic_flags;
 };
 
 static struct mtx pic_list_lock;
@@ -168,6 +172,7 @@ intr_irq_init(void *dummy __unused)
 
 	SLIST_INIT(&pic_list);
 	mtx_init(&pic_list_lock, "intr pic list", NULL, MTX_DEF);
+
 	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
 }
 SYSINIT(intr_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_irq_init, NULL);
@@ -917,6 +922,8 @@ intr_pic_register(device_t dev, intptr_t xref)
 	if (pic == NULL)
 		return (ENOMEM);
 
+	pic->pic_flags |= FLAG_PIC;
+
 	debugf("PIC %p registered for %s <dev %p, xref %x>\n", pic,
 	    device_get_nameunit(dev), dev, xref);
 	return (0);
@@ -948,11 +955,18 @@ int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg, u_int ipicount)
 {
+	struct intr_pic *pic;
 
-	if (pic_lookup(dev, xref) == NULL) {
+	pic = pic_lookup(dev, xref);
+	if (pic == NULL) {
 		device_printf(dev, "not registered\n");
 		return (EINVAL);
 	}
+
+	KASSERT((pic->pic_flags & FLAG_PIC) != 0,
+	    ("%s: Found a non-PIC controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
 	if (filter == NULL) {
 		device_printf(dev, "filter missing\n");
 		return (EINVAL);
@@ -991,6 +1005,10 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 	pic = pic_lookup(dev, xref);
 	if (pic == NULL)
 		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_PIC) != 0,
+	    ("%s: Found a non-PIC controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
 
 	error = PIC_MAP_INTR(pic->pic_dev, data, &isrc);
 	if (error == 0)
@@ -1258,6 +1276,160 @@ intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask)
 	return (PCPU_GET(cpuid));
 }
 #endif
+
+/*
+ *  Register a MSI/MSI-X interrupt controller
+ */
+int
+intr_msi_register(device_t dev, intptr_t xref)
+{
+	struct intr_pic *pic;
+
+	if (dev == NULL)
+		return (EINVAL);
+	pic = pic_create(dev, xref);
+	if (pic == NULL)
+		return (ENOMEM);
+
+	pic->pic_flags |= FLAG_MSI;
+
+	debugf("PIC %p registered for %s <dev %p, xref %jx>\n", pic,
+	    device_get_nameunit(dev), dev, (uintmax_t)xref);
+	return (0);
+}
+
+int
+intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
+    int maxcount, int *irqs)
+{
+	struct intr_irqsrc **isrc;
+	struct intr_pic *pic;
+	device_t pdev;
+	int err, i;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
+	err = MSI_ALLOC_MSI(pic->pic_dev, child, count, maxcount, &pdev, isrc);
+	if (err == 0) {
+		for (i = 0; i < count; i++) {
+			irqs[i] = isrc[i]->isrc_irq;
+		}
+	}
+
+	free(isrc, M_INTRNG);
+
+	return (err);
+}
+
+int
+intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
+    int *irqs)
+{
+	struct intr_irqsrc **isrc;
+	struct intr_pic *pic;
+	int i, err;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
+
+	for (i = 0; i < count; i++) {
+		isrc[i] = isrc_lookup(irqs[i]);
+		if (isrc == NULL) {
+			free(isrc, M_INTRNG);
+			return (EINVAL);
+		}
+	}
+
+	err = MSI_RELEASE_MSI(pic->pic_dev, child, count, isrc);
+	free(isrc, M_INTRNG);
+	return (err);
+}
+
+int
+intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
+{
+	struct intr_irqsrc *isrc;
+	struct intr_pic *pic;
+	device_t pdev;
+	int err;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	err = MSI_ALLOC_MSIX(pic->pic_dev, child, &pdev, &isrc);
+	if (err != 0)
+		return (err);
+
+	*irq = isrc->isrc_irq;
+	return (0);
+}
+
+int
+intr_release_msix(device_t pci, device_t child, intptr_t xref, int irq)
+{
+	struct intr_irqsrc *isrc;
+	struct intr_pic *pic;
+	int err;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	isrc = isrc_lookup(irq);
+	if (isrc == NULL)
+		return (EINVAL);
+
+	err = MSI_RELEASE_MSIX(pic->pic_dev, child, isrc);
+	return (err);
+}
+
+int
+intr_map_msi(device_t pci, device_t child, intptr_t xref, int irq,
+    uint64_t *addr, uint32_t *data)
+{
+	struct intr_irqsrc *isrc;
+	struct intr_pic *pic;
+	int err;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	isrc = isrc_lookup(irq);
+	if (isrc == NULL)
+		return (EINVAL);
+
+	err = MSI_MAP_MSI(pic->pic_dev, child, isrc, addr, data);
+	return (err);
+}
+
 
 void dosoftints(void);
 void
