@@ -1725,7 +1725,7 @@ iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
 {
 	struct iwm_softc *sc = ic->ic_softc;
 	struct iwm_nvm_data *data = &sc->sc_nvm;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	memset(bands, 0, sizeof(bands));
 	/* 1-13: 11b/g channels. */
