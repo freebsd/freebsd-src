@@ -95,6 +95,38 @@ fail1:
 	return (rc);
 }
 
+static	__checkReturn	efx_rc_t
+medford_nic_get_required_pcie_bandwidth(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *bandwidth_mbpsp)
+{
+	uint32_t port_modes;
+	uint32_t current_mode;
+	uint32_t bandwidth;
+	efx_rc_t rc;
+
+	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes,
+				    &current_mode)) != 0) {
+		/* No port mode info available. */
+		bandwidth = 0;
+		goto out;
+	}
+
+	if ((rc = ef10_nic_get_port_mode_bandwidth(current_mode,
+						    &bandwidth)) != 0)
+		goto fail1;
+
+out:
+	*bandwidth_mbpsp = bandwidth;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 	__checkReturn	efx_rc_t
 medford_board_cfg(
 	__in		efx_nic_t *enp)
@@ -112,6 +144,7 @@ medford_board_cfg(
 	uint32_t sysclk;
 	uint32_t base, nvec;
 	uint32_t end_padding;
+	uint32_t bandwidth;
 	efx_rc_t rc;
 
 	/*
@@ -275,8 +308,16 @@ medford_board_cfg(
 	 */
 	encp->enc_vpd_is_global = B_TRUE;
 
+	rc = medford_nic_get_required_pcie_bandwidth(enp, &bandwidth);
+	if (rc != 0)
+		goto fail13;
+	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
+	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN3;
+
 	return (0);
 
+fail13:
+	EFSYS_PROBE(fail13);
 fail12:
 	EFSYS_PROBE(fail12);
 fail11:
