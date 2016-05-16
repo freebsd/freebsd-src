@@ -33,6 +33,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <machine/bus.h>
+#include <machine/atomic.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -313,7 +314,7 @@ hv_vmbus_on_events(int cpu)
 		/*
 		 * receive size is 1/2 page and divide that by 4 bytes
 		 */
-		if (synch_test_and_clear_bit(0, &event->flags32[0])) {
+		if (atomic_testandclear_int(&event->flags32[0], 0)) {
 			recv_interrupt_page =
 			    hv_vmbus_g_connection.recv_interrupt_page;
 		} else {
@@ -337,8 +338,8 @@ hv_vmbus_on_events(int cpu)
 			continue;
 
 	        for (bit = 0; bit < HV_CHANNEL_DWORD_LEN; bit++) {
-			if (synch_test_and_clear_bit(bit,
-			    (uint32_t *)&recv_interrupt_page[dword])) {
+			if (atomic_testandclear_int(
+			    &recv_interrupt_page[dword], bit)) {
 				struct hv_vmbus_channel *channel;
 
 				rel_id = (dword << 5) + bit;
