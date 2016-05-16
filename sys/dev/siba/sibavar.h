@@ -604,6 +604,7 @@ struct siba_softc {
 	bus_addr_t			siba_maddr;
 	bus_size_t			siba_msize;
 	uint8_t				siba_ncores;
+	uint32_t			siba_debug;
 
 	/*
 	 * the following variables are only used for siba_bwn bridge.

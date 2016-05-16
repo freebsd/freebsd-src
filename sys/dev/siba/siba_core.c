@@ -184,6 +184,8 @@ siba_core_attach(struct siba_softc *siba)
 
 	siba->siba_ops = &siba_pci_ops;
 
+	siba->siba_debug = SIBA_DEBUG_SCAN;
+
 	siba_pci_gpio(siba, SIBA_GPIO_CRYSTAL | SIBA_GPIO_PLL, 1);
 	siba_scan(siba);
 
@@ -332,7 +334,8 @@ siba_scan(struct siba_softc *siba)
 		DPRINTF(siba, SIBA_DEBUG_SCAN,
 		    "core %d (%s) found (cc %#xrev %#x vendor %#x)\n",
 		    i, siba_core_name(sd->sd_id.sd_device),
-		    sd->sd_id.sd_device, sd->sd_id.sd_rev, sd->sd_id.vendor);
+		    sd->sd_id.sd_device, sd->sd_id.sd_rev,
+		    sd->sd_id.sd_vendor);
 
 		switch (sd->sd_id.sd_device) {
 		case SIBA_DEVID_CHIPCOMMON:
