@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
  * the Sonics Silicon Backplane driver.
  */
 
+#include "opt_siba.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -60,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/siba/sibareg.h>
 #include <dev/siba/sibavar.h>
 
-#ifdef SIBA_DEBUG
 enum {
 	SIBA_DEBUG_SCAN		= 0x00000001,	/* scan */
 	SIBA_DEBUG_PMU		= 0x00000002,	/* PMU */
@@ -70,13 +71,16 @@ enum {
 	SIBA_DEBUG_CORE		= 0x00000020,	/* handling cores */
 	SIBA_DEBUG_ANY		= 0xffffffff
 };
-#define DPRINTF(siba, m, fmt, ...) do {			\
-	if (siba->siba_debug & (m))			\
-		printf(fmt, __VA_ARGS__);		\
+
+#ifdef SIBA_DEBUG
+#define DPRINTF(siba, m, ...) do {				\
+	if (siba->siba_debug & (m))				\
+		device_printf(siba->siba_dev, __VA_ARGS__);	\
 } while (0)
 #else
-#define DPRINTF(siba, m, fmt, ...) do { (void) siba; } while (0)
+#define DPRINTF(siba, m, ...) do { (void) siba; } while (0)
 #endif
+
 #define	N(a)			(sizeof(a) / sizeof(a[0]))
 
 static void	siba_pci_gpio(struct siba_softc *, uint32_t, int);
@@ -183,8 +187,6 @@ siba_core_attach(struct siba_softc *siba)
 	    ("unsupported BUS type (%#x)", siba->siba_type));
 
 	siba->siba_ops = &siba_pci_ops;
-
-	siba->siba_debug = SIBA_DEBUG_SCAN;
 
 	siba_pci_gpio(siba, SIBA_GPIO_CRYSTAL | SIBA_GPIO_PLL, 1);
 	siba_scan(siba);
