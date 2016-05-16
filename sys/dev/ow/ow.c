@@ -401,6 +401,8 @@ again:
 				if (++retries > 5)
 					return (EIO);
 				goto again;
+			default: /* NOTREACHED */
+				__unreachable();
 			}
 			if (dir) {
 				OWLL_WRITE_ONE(lldev, &timing_regular);
