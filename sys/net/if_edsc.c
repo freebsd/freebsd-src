@@ -336,7 +336,7 @@ vnet_edsc_uninit(const void *unused __unused)
 	 */
 	if_clone_detach(V_edsc_cloner);
 }
-VNET_SYSUNINIT(vnet_edsc_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_edsc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_edsc_uninit, NULL);
 
 /*
