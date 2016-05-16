@@ -154,4 +154,3 @@ device  	fdt_pinctrl
 # SoC-specific devices
 
 #device  	hwpmc
-#options 	HWPMC_HOOKS
