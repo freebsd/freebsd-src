@@ -104,7 +104,7 @@ static int	 checksum(int *);
 static void	 findinode(struct s_spcl *);
 static void	 findtapeblksize(void);
 static char	*setupextattr(int);
-static void	 xtrattr(char *, long);
+static void	 xtrattr(char *, size_t);
 static void	 set_extattr_link(char *, void *, int);
 static void	 set_extattr_fd(int, char *, void *, int);
 static int	 gethead(struct s_spcl *);
@@ -114,12 +114,12 @@ static u_long	 swabl(u_long);
 static u_char	*swablong(u_char *, int);
 static u_char	*swabshort(u_char *, int);
 static void	 terminateinput(void);
-static void	 xtrfile(char *, long);
-static void	 xtrlnkfile(char *, long);
-static void	 xtrlnkskip(char *, long);
-static void	 xtrmap(char *, long);
-static void	 xtrmapskip(char *, long);
-static void	 xtrskip(char *, long);
+static void	 xtrfile(char *, size_t);
+static void	 xtrlnkfile(char *, size_t);
+static void	 xtrlnkskip(char *, size_t);
+static void	 xtrmap(char *, size_t);
+static void	 xtrmapskip(char *, size_t);
+static void	 xtrskip(char *, size_t);
 
 /*
  * Set up an input source
@@ -564,7 +564,7 @@ printdumpinfo(void)
 int
 extractfile(char *name)
 {
-	int flags;
+	u_int flags;
 	uid_t uid;
 	gid_t gid;
 	mode_t mode;
@@ -931,13 +931,13 @@ skipfile(void)
  * to the skip function.
  */
 void
-getfile(void (*datafill)(char *, long), void (*attrfill)(char *, long),
-	void (*skip)(char *, long))
+getfile(void (*datafill)(char *, size_t), void (*attrfill)(char *, size_t),
+	void (*skip)(char *, size_t))
 {
 	int i;
-	off_t size;
+	volatile off_t size;
 	int curblk, attrsize;
-	void (*fillit)(char *, long);
+	void (*fillit)(char *, size_t);
 	static char clearedbuf[MAXBSIZE];
 	char buf[MAXBSIZE / TP_BSIZE][TP_BSIZE];
 	char junk[TP_BSIZE];
@@ -1066,7 +1066,7 @@ setupextattr(int extsize)
  * Extract the next block of extended attributes.
  */
 static void
-xtrattr(char *buf, long size)
+xtrattr(char *buf, size_t size)
 {
 
 	if (extloc + size > extbufsize)
@@ -1079,7 +1079,7 @@ xtrattr(char *buf, long size)
  * Write out the next block of a file.
  */
 static void
-xtrfile(char *buf, long	size)
+xtrfile(char *buf, size_t size)
 {
 
 	if (Nflag)
@@ -1096,7 +1096,7 @@ xtrfile(char *buf, long	size)
  */
 /* ARGSUSED */
 static void
-xtrskip(char *buf, long size)
+xtrskip(char *buf, size_t size)
 {
 
 	if (lseek(ofile, size, SEEK_CUR) == -1) {
@@ -1111,7 +1111,7 @@ xtrskip(char *buf, long size)
  * Collect the next block of a symbolic link.
  */
 static void
-xtrlnkfile(char *buf, long size)
+xtrlnkfile(char *buf, size_t size)
 {
 
 	pathlen += size;
@@ -1128,7 +1128,7 @@ xtrlnkfile(char *buf, long size)
  */
 /* ARGSUSED */
 static void
-xtrlnkskip(char *buf, long size)
+xtrlnkskip(char *buf, size_t size)
 {
 
 	fprintf(stderr, "unallocated block in symbolic link %s\n",
@@ -1140,7 +1140,7 @@ xtrlnkskip(char *buf, long size)
  * Collect the next block of a bit map.
  */
 static void
-xtrmap(char *buf, long size)
+xtrmap(char *buf, size_t size)
 {
 
 	memmove(map, buf, size);
@@ -1152,7 +1152,7 @@ xtrmap(char *buf, long size)
  */
 /* ARGSUSED */
 static void
-xtrmapskip(char *buf, long size)
+xtrmapskip(char *buf, size_t size)
 {
 
 	panic("hole in map\n");
@@ -1164,7 +1164,7 @@ xtrmapskip(char *buf, long size)
  */
 /* ARGSUSED */
 void
-xtrnull(char *buf, long size)
+xtrnull(char *buf, size_t size)
 {
 
 	return;
