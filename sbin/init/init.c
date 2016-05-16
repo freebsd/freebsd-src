@@ -328,7 +328,7 @@ invalid:
 	if (kenv(KENV_GET, "init_script", kenv_value, sizeof(kenv_value)) > 0) {
 		state_func_t next_transition;
 
-		if ((next_transition = run_script(kenv_value)) != 0)
+		if ((next_transition = run_script(kenv_value)) != NULL)
 			initial_transition = (state_t) next_transition;
 	}
 
@@ -909,7 +909,7 @@ single_user(void)
 			write_stderr(banner);
 			for (;;) {
 				clear = getpass("Password:");
-				if (clear == 0 || *clear == '\0')
+				if (clear == NULL || *clear == '\0')
 					_exit(0);
 				password = crypt(clear, pp->pw_passwd);
 				bzero(clear, _PASSWORD_LEN);
@@ -1022,7 +1022,7 @@ runcom(void)
 {
 	state_func_t next_transition;
 
-	if ((next_transition = run_script(_PATH_RUNCOM)) != 0)
+	if ((next_transition = run_script(_PATH_RUNCOM)) != NULL)
 		return next_transition;
 
 	runcom_mode = AUTOBOOT;		/* the default */
@@ -1208,7 +1208,7 @@ construct_argv(char *command)
 	char **argv = (char **) malloc(((strlen(command) + 1) / 2 + 1)
 						* sizeof (char *));
 
-	if ((argv[argc++] = strk(command)) == 0) {
+	if ((argv[argc++] = strk(command)) == NULL) {
 		free(argv);
 		return (NULL);
 	}
