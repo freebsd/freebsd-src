@@ -1,6 +1,8 @@
 .\"
 .\" Copyright (c) 2010 Spectra Logic Corporation
 .\" Copyright (c) 2014 LSI Corp
+.\" Copyright (c) 2016 Avago Technologies
+.\" Copyright (c) 2016 Broadcom Ltd.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,55 +33,62 @@
 .\" mpr driver man page.
 .\"
 .\" Author: Ken Merry <ken@FreeBSD.org>
-.\" Author: Stephen McConnell <stephen.mcconnell@lsi.com>
+.\" Author: Stephen McConnell <slm@FreeBSD.org>
 .\"
 .\" $Id$
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2014
+.Dd April 29, 2016
 .Dt MPR 4
 .Os
 .Sh NAME
 .Nm mpr
 .Nd "LSI Fusion-MPT 3 IT/IR 12Gb/s Serial Attached SCSI/SATA driver"
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following lines in your
-kernel configuration file:
+To compile this driver into the kernel, place these lines in the kernel
+configuration file:
 .Bd -ragged -offset indent
 .Cd "device pci"
 .Cd "device scbus"
 .Cd "device mpr"
 .Ed
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+The driver can be loaded as a module at boot time by placing this line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 mpr_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
-.Nm 
-driver provides support for LSI Fusion-MPT 3 IT/IR
+.Nm
+driver provides support for Broadcom Ltd./Avago Tech (LSI)
+Fusion-MPT 3 IT/IR
 .Tn SAS
 controllers.
 .Sh HARDWARE
-The following controllers are supported by the
+These controllers are supported by the
 .Nm
 driver:
 .Pp
 .Bl -bullet -compact
 .It
-LSI SAS 3004 (4 Port SAS)
+Broadcom Ltd./Avago Tech (LSI) SAS 3004 (4 Port SAS)
 .It
-LSI SAS 3008 (8 Port SAS)
+Broadcom Ltd./Avago Tech (LSI) SAS 3008 (8 Port SAS)
 .It
-LSI SAS 3108 (8 Port SAS)
+Broadcom Ltd./Avago Tech (LSI) SAS 3108 (8 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3216 (16 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3224 (24 Port SAS)
 .El
 .Sh CONFIGURATION
+.Pp
+In all tunable descriptions below, X represents the adapter number.
+.Pp
 To disable MSI interrupts for all
 .Nm
-driver instances, set the following tunable value in
+driver instances, set this tunable value in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 hw.mpr.disable_msi=1
@@ -87,17 +96,15 @@ hw.mpr.disable_msi=1
 .Pp
 To disable MSI interrupts for a specific
 .Nm
-driver instance, set the following tunable value in
+driver instance, set this tunable value in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 dev.mpr.X.disable_msi=1
 .Ed
 .Pp
-where X is the adapter number.
-.Pp
 To disable MSI-X interrupts for all
 .Nm
-driver instances, set the following tunable value in
+driver instances, set this tunable value in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 hw.mpr.disable_msix=1
@@ -105,73 +112,134 @@ hw.mpr.disable_msix=1
 .Pp
 To disable MSI-X interrupts for a specific
 .Nm
-driver instance, set the following tunable value in
+driver instance, set this tunable value in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 dev.mpr.X.disable_msix=1
 .Ed
 .Pp
 To set the maximum number of DMA chains allocated for all adapters, set
-the following variable in
+this tunable in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 hw.mpr.max_chains=NNNN
 .Ed
 .Pp
 To set the maximum number of DMA chains allocated for a specific adapter,
-set the following variable in
+set this tunable in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 dev.mpr.X.max_chains=NNNN
 .Ed
 .Pp
-This variable may also be viewed via
-.Xr sysctl 8
-to see the maximum set for a given adapter.
+The default max_chains value is 2048.
 .Pp
-The current number of free chain frames may be seen via the
+The current number of free chain frames is stored in the
 dev.mpr.X.chain_free
 .Xr sysctl 8
 variable.
 .Pp
-The lowest number of free chain frames may be seen via the
+The lowest number of free chain frames seen since boot is stored in the
 dev.mpr.X.chain_free_lowwater
 .Xr sysctl 8
 variable.
+.Pp
+The number of times that chain frame allocations have failed since boot is
+stored in the
+dev.mpr.X.chain_alloc_fail
+.Xr sysctl 8
+variable.
+This can be used to determine whether the max_chains tunable should be
+increased to help performance.
 .Pp
 The current number of active I/O commands is shown in the
 dev.mpr.X.io_cmds_active
 .Xr sysctl 8
 variable.
 .Pp
-The maximum number of active I/O commands seen since boot is shown in the
+The highest number of active I/O commands seen since boot is stored in the
 dev.mpr.X.io_cmds_highwater
 .Xr sysctl 8
 variable.
 .Pp
 Devices can be excluded from
 .Nm
-control for all adapters by setting the following variable in
+control for all adapters by setting this tunable in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 hw.mpr.exclude_ids=Y
 .Ed
 .Pp
-where Y is the target ID of the device.
-If more than one device is to be
-excluded, target ID's are separated by commas.
+Y represents the target ID of the device.
+If more than one device is to be excluded, target IDs are separated by commas.
 .Pp
 Devices can be excluded from
 .Nm
-control for a specific adapter by setting the following variable in
+control for a specific adapter by setting this tunable in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 dev.mpr.X.exclude_ids=Y
 .Ed
 .Pp
-where X is the adapter number and Y is the target ID of the device.
-If more
-than one device is to be excluded, target ID's are separated by commas.
+Y represents the target ID of the device.
+If more than one device is to be excluded, target IDs are separated by commas.
+.Pp
+The adapter can issue the
+.Sy StartStopUnit
+SCSI command to SATA direct-access devices during shutdown.
+This allows the device to quiesce powering down.
+To control this feature for all adapters, set the
+.Bd -literal -offset indent
+hw.mpr.enable_ssu
+.Ed
+.Pp
+tunable in
+.Xr loader.conf 5
+to one of these values:
+.Bl -tag -width 6n -offset indent
+.It 0
+Do not send SSU to either HDDs or SSDs.
+.It 1
+Send SSU to SSDs, but not to HDDs.
+This is the default value.
+.It 2
+Send SSU to HDDs, but not to SSDs.
+.It 3
+Send SSU to both HDDs and SSDs.
+.El
+.Pp
+To control the feature for a specific adapter, set this tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.enable_ssu
+.Ed
+.Pp
+The same set of values are valid when setting this tunable for all adapters.
+.Pp
+SATA disks that take several seconds to spin up and fail the SATA Identify
+command might not be discovered by the driver.
+This problem can sometimes be overcome by increasing the value of the spinup
+wait time in
+.Xr loader.conf 5 :
+with the
+.Bd -literal -offset indent
+hw.mpr.spinup_wait_time=NNNN
+.Ed
+.Pp
+tunable.
+NNNN represents the number of seconds to wait for SATA devices to spin up when
+the device fails the initial SATA Identify command.
+.Pp
+Spinup wait times can be set for specific adapters in
+.Xr loader.conf 5 :
+with the
+.Bd -literal -offset indent
+dev.mpr.X.spinup_wait_time=NNNN
+.Ed
+.Pp
+tunable.
+NNNN is the number of seconds to wait for SATA devices to spin up when they fail
+the initial SATA Identify command.
 .Sh DEBUGGING
 To enable debugging prints from the
 .Nm
@@ -180,21 +248,21 @@ driver, set the
 hw.mpr.X.debug_level
 .Ed
 .Pp
-variable, where X is the adapter number, either in
+tunable, either in
 .Xr loader.conf 5
-or via
+or by using  
 .Xr sysctl 8 .
-The following bits have the described effects:
+These bits have the described effects:
 .Bd -literal -offset indent
-0x0001 Enable informational prints.
-0x0002 Enable prints for driver faults.
+0x0001 Enable informational prints (set by default).
+0x0002 Enable prints for driver faults (set by default).
 0x0004 Enable prints for controller events.
 0x0008 Enable prints for controller logging.
 0x0010 Enable prints for tracing recovery operations.
 0x0020 Enable prints for parameter errors and programming bugs.
 0x0040 Enable prints for system initialization operations.
 0x0080 Enable prints for more detailed information.
-0x0100 Enable prints for user-generated commands.
+0x0100 Enable prints for user-generated commands (IOCTL).
 0x0200 Enable prints for device mapping.
 0x0400 Enable prints for tracing through driver functions.
 .Ed
@@ -220,10 +288,11 @@ The
 .Nm
 driver was originally written by
 .An -nosplit
-.An Scott Long Aq scottl@FreeBSD.org .
-It has been improved and tested by LSI Corporation.
+.An Scott Long Aq Mt scottl@FreeBSD.org .
+It has been improved and tested by LSI Corporation,
+Avago Technologies (formally LSI), and Broadcom Ltd. (formally Avago).
 .Pp
 This man page was written by
-.An Ken Merry Aq ken@FreeBSD.org
+.An Ken Merry Aq Mt ken@FreeBSD.org
 with additional input from
-.An Stephen McConnell Aq stephen.mcconnell@lsi.com .
+.An Stephen McConnell Aq Mt slm@FreeBSD.org .
