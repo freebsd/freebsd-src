@@ -33,12 +33,11 @@
 .Sh DESCRIPTION
 To link with
 .Nm
-use
+use "-lstatcounters" when compiling, or
 .Pp
--Wl,--whole-archive -lstatcounters -Wl,--no-whole-archive
+"-Wl,--whole-archive -lstatcounters -Wl,--no-whole-archive"
 .Pp
-as a linker flag.
-The library samples statcounters before and after
+when linking to automatically sample statcounters before and after
 .Fn main
 and outputs the difference.
 .Pp
@@ -47,6 +46,51 @@ and outputs the difference.
 .Pp
 .Nm STATCOUNTERS_FORMAT
 .Nd Environment variable specifying the desired output format. "csv" is supported, any other value will output in a human readable format
+.Sh API
+.Pp
+void
+.Fn zero_statcounters b
+.in +5
+.Fn zero_statcounters
+zeroes the statcounters_bank_t
+.Fa b .
+.in
+.Pp
+void
+.Fn sample_statcounters b
+.in +5
+.Fn sample_statcounters
+samples the hardware statcounters into statcounters_bank_t
+.Fa b .
+.in
+.Pp
+void
+.Fn diff_statcounters bs be bd
+.in +5
+.Fn diff_statcounters
+stores the difference between statcounters_bank_t
+.Fa bs
+and
+.Fa be
+in statcounters_bank_t
+.Fa bd .
+.in
+.Pp
+void
+.Fn dump_statcounters b fname fmt
+.in +5
+.Fn dump_statcounters
+dumps the statcounters_bank_t
+.Fa b
+content in file
+.Fa fname
+according to format
+.Fa fmt .
+The
+.Fa fname
+is a string  describing the path to the desired file. The supported value for the
+.Fa fmt
+string are "csv" for csv output, or anything else for human readable output.
 .Sh LIBRARY
 .Lb libstatcounters
 .Sh AUTHORS
