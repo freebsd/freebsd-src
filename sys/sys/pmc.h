@@ -264,7 +264,7 @@ enum pmc_disp {
 	__PMC_CAP(THRESHOLD,	4, "ignore events below a threshold")	\
 	__PMC_CAP(READ,		5, "read PMC counter")			\
 	__PMC_CAP(WRITE,	6, "reprogram PMC counter")		\
-	__PMC_CAP(INVERT,	7, "invert comparision sense")		\
+	__PMC_CAP(INVERT,	7, "invert comparison sense")		\
 	__PMC_CAP(QUALIFIER,	8, "further qualify monitored events")	\
 	__PMC_CAP(PRECISE,	9, "perform precise sampling")		\
 	__PMC_CAP(TAGGING,	10, "tag upstream events")		\
@@ -568,7 +568,7 @@ struct pmc_op_writelog {
 /*
  * OP GETMSR
  *
- * Retrieve the machine specific address assoicated with the allocated
+ * Retrieve the machine specific address associated with the allocated
  * PMC.  This number can be used subsequently with a read-performance-counter
  * instruction.
  */

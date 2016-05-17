@@ -301,7 +301,7 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 #define	SA_RECURSED		LA_RECURSED
 #define	SA_NOTRECURSED		LA_NOTRECURSED
 
-/* Backwards compatability. */
+/* Backwards compatibility. */
 #define	SX_LOCKED		LA_LOCKED
 #define	SX_SLOCKED		LA_SLOCKED
 #define	SX_XLOCKED		LA_XLOCKED

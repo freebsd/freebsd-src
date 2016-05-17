@@ -2405,7 +2405,7 @@ static void hptiop_post_req_itl(struct hpt_iop_hba *hba,
 		iop_req32 = BUS_SPACE_RD4_ITL(inbound_queue);
 
 		if (iop_req32 == IOPMU_QUEUE_EMPTY) {
-			device_printf(hba->pcidev, "invaild req offset\n");
+			device_printf(hba->pcidev, "invalid req offset\n");
 			ccb->ccb_h.status = CAM_BUSY;
 			bus_dmamap_unload(hba->io_dmat, srb->dma_map);
 			hptiop_free_srb(hba, srb);
