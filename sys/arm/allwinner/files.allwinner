@@ -24,6 +24,8 @@ arm/allwinner/if_awg.c			optional	awg
 arm/allwinner/if_emac.c			optional	emac
 arm/allwinner/sunxi_dma_if.m		standard
 dev/iicbus/twsi/a10_twsi.c		optional	twsi
+dev/usb/controller/generic_ohci.c	optional	ohci
+dev/usb/controller/generic_usb_if.m	optional	ohci
 arm/allwinner/aw_sid.c			standard
 arm/allwinner/aw_thermal.c		standard
 #arm/allwinner/console.c		standard
