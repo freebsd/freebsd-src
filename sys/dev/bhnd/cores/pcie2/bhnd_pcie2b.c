@@ -48,50 +48,51 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bhnd/bhnd.h>
 
-#include "bhnd_pcireg.h"
-#include "bhnd_pcibvar.h"
+#include "bhnd_pcie2_reg.h"
+#include "bhnd_pcie2b_var.h"
 
 static int
-bhnd_pcib_attach(device_t dev)
+bhnd_pcie2b_attach(device_t dev)
 {
 	// TODO
-	return (bhnd_pci_generic_attach(dev));
+	return (bhnd_pcie2_generic_attach(dev));
 }
 
 static int
-bhnd_pcib_detach(device_t dev)
+bhnd_pcie2b_detach(device_t dev)
 {
 	// TODO
-	return (bhnd_pci_generic_detach(dev));
+	return (bhnd_pcie2_generic_detach(dev));
 }
 
 static int
-bhnd_pcib_suspend(device_t dev)
+bhnd_pcie2b_suspend(device_t dev)
 {
-	return (bhnd_pci_generic_suspend(dev));
+	return (bhnd_pcie2_generic_suspend(dev));
 }
 
 static int
-bhnd_pcib_resume(device_t dev)
+bhnd_pcie2b_resume(device_t dev)
 {
-	return (bhnd_pci_generic_resume(dev));
+	return (bhnd_pcie2_generic_resume(dev));
 }
 
-static device_method_t bhnd_pcib_methods[] = {
+static device_method_t bhnd_pcie2b_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_attach,	bhnd_pcib_attach),
-	DEVMETHOD(device_detach,	bhnd_pcib_detach),
-	DEVMETHOD(device_suspend,	bhnd_pcib_suspend),
-	DEVMETHOD(device_resume,	bhnd_pcib_resume),
+	DEVMETHOD(device_attach,	bhnd_pcie2b_attach),
+	DEVMETHOD(device_detach,	bhnd_pcie2b_detach),
+	DEVMETHOD(device_suspend,	bhnd_pcie2b_suspend),
+	DEVMETHOD(device_resume,	bhnd_pcie2b_resume),
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pcib, bhnd_pcib_driver, bhnd_pcib_methods, sizeof(struct bhnd_pcib_softc), bhnd_pci_driver);
+DEFINE_CLASS_1(pcib, bhnd_pcie2b_driver, bhnd_pcie2b_methods,
+    sizeof(struct bhnd_pcie2b_softc), bhnd_pcie2_driver);
 
 static devclass_t pcib_devclass;
-DRIVER_MODULE(bhnd_pcib, bhnd, bhnd_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(bhnd_pcie2b, bhnd, bhnd_pcie2b_driver, pcib_devclass, 0, 0);
 
-MODULE_VERSION(bhnd_pcib, 1);
-MODULE_DEPEND(bhnd_pcib, bhnd, 1, 1, 1);
-MODULE_DEPEND(bhnd_pcib, bhnd_pci, 1, 1, 1);
-MODULE_DEPEND(bhnd_pcib, pci, 1, 1, 1);
+MODULE_VERSION(bhnd_pcie2b, 1);
+MODULE_DEPEND(bhnd_pcie2b, bhnd, 1, 1, 1);
+MODULE_DEPEND(bhnd_pcie2b, bhnd_pcie2, 1, 1, 1);
+MODULE_DEPEND(bhnd_pcie2b, pci, 1, 1, 1);

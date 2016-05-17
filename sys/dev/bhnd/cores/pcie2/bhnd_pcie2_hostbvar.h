@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,73 +25,48 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
+ * 
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _BHND_CORES_PCIE2_BHND_PCI_HOSTBVAR_H_
+#define _BHND_CORES_PCIE2_BHND_PCI_HOSTBVAR_H_
 
 /*
- * Broadcom PCI/PCIe-Gen1 Host-PCI bridge.
- * 
- * This driver handles all interactions with PCI bridge cores operating in
- * root complex mode.
+ * PCIe-Gen2 Host Bridge definitions.
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
 
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
+#include "bhnd_pcie2_var.h"
 
-#include <dev/bhnd/bhnd.h>
+DECLARE_CLASS(bhnd_pcie2_hostb_driver);
 
-#include "bhnd_pcireg.h"
-#include "bhnd_pcibvar.h"
 
-static int
-bhnd_pcib_attach(device_t dev)
-{
-	// TODO
-	return (bhnd_pci_generic_attach(dev));
-}
-
-static int
-bhnd_pcib_detach(device_t dev)
-{
-	// TODO
-	return (bhnd_pci_generic_detach(dev));
-}
-
-static int
-bhnd_pcib_suspend(device_t dev)
-{
-	return (bhnd_pci_generic_suspend(dev));
-}
-
-static int
-bhnd_pcib_resume(device_t dev)
-{
-	return (bhnd_pci_generic_resume(dev));
-}
-
-static device_method_t bhnd_pcib_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_attach,	bhnd_pcib_attach),
-	DEVMETHOD(device_detach,	bhnd_pcib_detach),
-	DEVMETHOD(device_suspend,	bhnd_pcib_suspend),
-	DEVMETHOD(device_resume,	bhnd_pcib_resume),
-	DEVMETHOD_END
+/* 
+ * PCIe-Gen2 endpoint-mode device quirks
+ */
+enum {
+	/**
+	 * The PCIe SerDes output should be configured with an amplitude of
+	 * 1214mVpp and a differential output de-emphasis of -8.46dB.
+	 *
+	 * The exact issue this workaround resolves is unknown.
+	 */
+	BHND_PCIE2_QUIRK_SERDES_TXDRV_DEEMPH	= (1<<0),
 };
 
-DEFINE_CLASS_1(pcib, bhnd_pcib_driver, bhnd_pcib_methods, sizeof(struct bhnd_pcib_softc), bhnd_pci_driver);
 
-static devclass_t pcib_devclass;
-DRIVER_MODULE(bhnd_pcib, bhnd, bhnd_pcib_driver, pcib_devclass, 0, 0);
+/**
+ * bhnd_pci_hostb driver instance state.
+ */
+struct bhnd_pcie2hb_softc {
+	struct bhnd_pcie2_softc	common;		/**< common bhnd_pcie2 state */
+	device_t		dev;
+	device_t		pci_dev;	/**< host PCI device */
+	uint32_t		quirks;		/**< hostb device quirks */
+};
 
-MODULE_VERSION(bhnd_pcib, 1);
-MODULE_DEPEND(bhnd_pcib, bhnd, 1, 1, 1);
-MODULE_DEPEND(bhnd_pcib, bhnd_pci, 1, 1, 1);
-MODULE_DEPEND(bhnd_pcib, pci, 1, 1, 1);
+
+#endif /* _BHND_CORES_PCIE2_BHND_PCI_HOSTBVAR_H_ */
