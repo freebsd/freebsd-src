@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160517	p42	FreeBSD-SA-16:18.atkbd
+
+	Fix buffer overflow in keyboard driver. [SA-16:18]
+
 20160504	p41	FreeBSD-SA-16:17.openssl
 			FreeBSD-EN-16:08.zfs
 
