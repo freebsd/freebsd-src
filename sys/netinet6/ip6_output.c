@@ -826,8 +826,10 @@ again:
 #endif
 			error = netisr_queue(NETISR_IPV6, m);
 			goto done;
-		} else
+		} else {
+			RO_RTFREE(ro);
 			needfiblookup = 1; /* Redo the routing table lookup. */
+		}
 	}
 	/* See if fib was changed by packet filter. */
 	if (fibnum != M_GETFIB(m)) {
