@@ -105,8 +105,8 @@ struct icl_listen	{
 
 static MALLOC_DEFINE(M_ICL_PROXY, "ICL_PROXY", "iSCSI common layer proxy");
 
-static int
-icl_conn_connect_tcp(struct icl_conn *ic, int domain, int socktype,
+int
+icl_soft_proxy_connect(struct icl_conn *ic, int domain, int socktype,
     int protocol, struct sockaddr *from_sa, struct sockaddr *to_sa)
 {
 	struct socket *so;
@@ -153,24 +153,11 @@ icl_conn_connect_tcp(struct icl_conn *ic, int domain, int socktype,
 		return (error);
 	}
 
-	error = icl_conn_handoff_sock(ic, so);
+	error = icl_soft_handoff_sock(ic, so);
 	if (error != 0)
 		soclose(so);
 
 	return (error);
-}
-
-int
-icl_conn_connect(struct icl_conn *ic, bool rdma, int domain, int socktype,
-    int protocol, struct sockaddr *from_sa, struct sockaddr *to_sa)
-{
-
-	if (rdma) {
-		ICL_DEBUG("RDMA not supported");
-		return (EOPNOTSUPP);
-	}
-
-	return (icl_conn_connect_tcp(ic, domain, socktype, protocol, from_sa, to_sa));
 }
 
 struct icl_listen *

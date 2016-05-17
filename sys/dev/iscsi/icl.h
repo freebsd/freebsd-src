@@ -139,12 +139,6 @@ struct sockaddr;
 struct icl_listen;
 
 /*
- * Initiator part.
- */
-int			icl_conn_connect(struct icl_conn *ic, bool rdma,
-			    int domain, int socktype, int protocol,
-			    struct sockaddr *from_sa, struct sockaddr *to_sa);
-/*
  * Target part.
  */
 struct icl_listen	*icl_listen_new(void (*accept_cb)(struct socket *,
@@ -156,9 +150,11 @@ int			icl_listen_add(struct icl_listen *il, bool rdma,
 int			icl_listen_remove(struct icl_listen *il, struct sockaddr *sa);
 
 /*
- * This one is not a public API; only to be used by icl_proxy.c.
+ * Those two are not a public API; only to be used between icl_soft.c and icl_proxy.c.
  */
-int			icl_conn_handoff_sock(struct icl_conn *ic, struct socket *so);
-
+int			icl_soft_handoff_sock(struct icl_conn *ic, struct socket *so);
+int			icl_soft_proxy_connect(struct icl_conn *ic, int domain,
+			    int socktype, int protocol, struct sockaddr *from_sa,
+			    struct sockaddr *to_sa);
 #endif /* ICL_KERNEL_PROXY */
 #endif /* !ICL_H */
