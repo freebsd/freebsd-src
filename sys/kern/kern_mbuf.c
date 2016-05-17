@@ -638,9 +638,16 @@ mb_free_ext(struct mbuf *m)
 	 * Check if the header is embedded in the cluster.  It is
 	 * important that we can't touch any of the mbuf fields
 	 * after we have freed the external storage, since mbuf
-	 * could have been embedded in it.
+	 * could have been embedded in it.  For now, the mbufs
+	 * embedded into the cluster are always of type EXT_EXTREF,
+	 * and for this type we won't free the mref.
 	 */
-	freembuf = (m->m_flags & M_NOFREE) ? 0 : 1;
+	if (m->m_flags & M_NOFREE) {
+		freembuf = 0;
+		KASSERT(m->m_ext.ext_type == EXT_EXTREF,
+		    ("%s: no-free mbuf %p has wrong type", __func__, m));
+	} else
+		freembuf = 1;
 
 	/* Free attached storage if this mbuf is the only reference to it. */
 	if (*refcnt == 1 || atomic_fetchadd_int(refcnt, -1) == 1) {
