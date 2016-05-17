@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwn_phy_common.h>
 #include <dev/bwn/if_bwn_phy_g.h>
 #include <dev/bwn/if_bwn_phy_lp.h>
+#include <dev/bwn/if_bwn_phy_n.h>
 
 static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
     "Broadcom driver parameters");
@@ -1223,6 +1224,8 @@ bwn_attach_core(struct bwn_mac *mac)
 		have_bg = 1;
 	}
 
+	mac->mac_phy.phy_n = NULL;
+
 	if (mac->mac_phy.type == BWN_PHYTYPE_G) {
 		mac->mac_phy.attach = bwn_phy_g_attach;
 		mac->mac_phy.detach = bwn_phy_g_detach;
@@ -1259,6 +1262,28 @@ bwn_attach_core(struct bwn_mac *mac)
 		mac->mac_phy.get_default_chan = bwn_phy_lp_get_default_chan;
 		mac->mac_phy.set_antenna = bwn_phy_lp_set_antenna;
 		mac->mac_phy.task_60s = bwn_phy_lp_task_60s;
+	} else if (mac->mac_phy.type == BWN_PHYTYPE_N) {
+		mac->mac_phy.attach = bwn_phy_n_attach;
+		mac->mac_phy.detach = bwn_phy_n_detach;
+		mac->mac_phy.prepare_hw = bwn_phy_n_prepare_hw;
+		mac->mac_phy.init_pre = bwn_phy_n_init_pre;
+		mac->mac_phy.init = bwn_phy_n_init;
+		mac->mac_phy.exit = bwn_phy_n_exit;
+		mac->mac_phy.phy_read = bwn_phy_n_read;
+		mac->mac_phy.phy_write = bwn_phy_n_write;
+		mac->mac_phy.rf_read = bwn_phy_n_rf_read;
+		mac->mac_phy.rf_write = bwn_phy_n_rf_write;
+		mac->mac_phy.use_hwpctl = bwn_phy_n_hwpctl;
+		mac->mac_phy.rf_onoff = bwn_phy_n_rf_onoff;
+		mac->mac_phy.switch_analog = bwn_phy_n_switch_analog;
+		mac->mac_phy.switch_channel = bwn_phy_n_switch_channel;
+		mac->mac_phy.get_default_chan = bwn_phy_n_get_default_chan;
+		mac->mac_phy.set_antenna = bwn_phy_n_set_antenna;
+		mac->mac_phy.set_im = bwn_phy_n_im;
+		mac->mac_phy.recalc_txpwr = bwn_phy_n_recalc_txpwr;
+		mac->mac_phy.set_txpwr = bwn_phy_n_set_txpwr;
+		mac->mac_phy.task_15s = bwn_phy_n_task_15s;
+		mac->mac_phy.task_60s = bwn_phy_n_task_60s;
 	} else {
 		device_printf(sc->sc_dev, "unsupported PHY type (%d)\n",
 		    mac->mac_phy.type);
