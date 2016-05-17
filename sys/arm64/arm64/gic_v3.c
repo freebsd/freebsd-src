@@ -267,7 +267,7 @@ gic_v3_attach(device_t dev)
 		}
 		if (err != 0) {
 			/* XXX call intr_isrc_deregister() */
-			free(irqs, M_DEVBUF);
+			free(sc->gic_irqs, M_DEVBUF);
 			return (err);
 		}
 	}
@@ -611,8 +611,14 @@ static int
 gic_v3_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
+	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
 
-	panic("gic_v3_teardown_intr");
+	if (isrc->isrc_handlers == 0) {
+		gi->gi_pol = INTR_POLARITY_CONFORM;
+		gi->gi_trig = INTR_TRIGGER_CONFORM;
+	}
+
+	return (0);
 }
 
 static void
@@ -636,7 +642,7 @@ gic_v3_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 		gic_d_write(sc, 4, GICD_ICENABLER(irq), GICD_I_MASK(irq));
 		gic_v3_wait_for_rwp(sc, DIST);
 	} else
-		panic("gic_v3_disable_intr");
+		panic("%s: Unsupported IRQ %u", __func__, irq);
 }
 
 static void
@@ -660,7 +666,7 @@ gic_v3_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 		gic_d_write(sc, 4, GICD_ISENABLER(irq), GICD_I_MASK(irq));
 		gic_v3_wait_for_rwp(sc, DIST);
 	} else
-		panic("gic_v3_enable_intr");
+		panic("%s: Unsupported IRQ %u", __func__, irq);
 }
 
 static void
