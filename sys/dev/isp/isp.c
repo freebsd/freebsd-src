@@ -3206,7 +3206,7 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 		case FC_PORTDB_STATE_DEAD:
 			lp->state = FC_PORTDB_STATE_NIL;
 			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
-			if (lp->autologin == 0) {
+			if ((lp->portid & 0xffff00) != 0) {
 				(void) isp_plogx(isp, chan, lp->handle,
 				    lp->portid,
 				    PLOGX_FLG_CMD_LOGO |
@@ -3304,7 +3304,6 @@ isp_pdb_add_update(ispsoftc_t *isp, int chan, isp_pdb_t *pdb)
 	}
 
 	ISP_MEMZERO(lp, sizeof (fcportdb_t));
-	lp->autologin = 1;
 	lp->probational = 0;
 	lp->state = FC_PORTDB_STATE_NEW;
 	lp->portid = lp->new_portid = pdb->portid;

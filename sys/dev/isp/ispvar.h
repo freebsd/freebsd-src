@@ -380,9 +380,6 @@ typedef struct {
 	uint16_t	handle;
 
 	/*
-	 * A device is 'autologin' if the firmware automatically logs into
-	 * it (re-logins as needed). Basically, local private loop devices.
-	 *
 	 * PRLI word 3 parameters contains role as well as other things.
 	 *
 	 * The state is the current state of this entry.
@@ -396,8 +393,7 @@ typedef struct {
 	 */
 	uint16_t	prli_word3;		/* PRLI parameters */
 	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
-	uint16_t			: 11,
-			autologin	: 1,	/* F/W does PLOGI/PLOGO */
+	uint16_t			: 12,
 			probational	: 1,
 			state		: 3;
 	uint32_t			: 6,

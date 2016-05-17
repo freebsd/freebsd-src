@@ -437,8 +437,8 @@ isp_dump_portdb(ispsoftc_t *isp, int chan)
 		}
 		isp_gen_role_str(buf1, sizeof (buf1), lp->prli_word3);
 		isp_gen_role_str(buf2, sizeof (buf2), lp->new_prli_word3);
-		isp_prt(isp, ISP_LOGALL, "Chan %d [%d]: hdl 0x%x %s al%d %s 0x%06x =>%s 0x%06x; WWNN 0x%08x%08x WWPN 0x%08x%08x",
-		    chan, i, lp->handle, dbs[lp->state], lp->autologin, buf1, lp->portid, buf2, lp->new_portid,
+		isp_prt(isp, ISP_LOGALL, "Chan %d [%d]: hdl 0x%x %s %s 0x%06x =>%s 0x%06x; WWNN 0x%08x%08x WWPN 0x%08x%08x",
+		    chan, i, lp->handle, dbs[lp->state], buf1, lp->portid, buf2, lp->new_portid,
 		    (uint32_t) (lp->node_wwn >> 32), (uint32_t) (lp->node_wwn), (uint32_t) (lp->port_wwn >> 32), (uint32_t) (lp->port_wwn));
 	}
 }
