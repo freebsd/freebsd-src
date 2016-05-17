@@ -304,7 +304,7 @@ vnet_destroy(struct vnet *vnet)
  * Boot time initialization and allocation of virtual network stacks.
  */
 static void
-vnet_init_prelink(void *arg)
+vnet_init_prelink(void *arg __unused)
 {
 
 	rw_init(&vnet_rwlock, "vnet_rwlock");
@@ -316,7 +316,7 @@ SYSINIT(vnet_init_prelink, SI_SUB_VNET_PRELINK, SI_ORDER_FIRST,
     vnet_init_prelink, NULL);
 
 static void
-vnet0_init(void *arg)
+vnet0_init(void *arg __unused)
 {
 
 	/* Warn people before take off - in case we crash early. */
@@ -333,7 +333,7 @@ vnet0_init(void *arg)
 SYSINIT(vnet0_init, SI_SUB_VNET, SI_ORDER_FIRST, vnet0_init, NULL);
 
 static void
-vnet_init_done(void *unused)
+vnet_init_done(void *unused __unused)
 {
 
 	curvnet = NULL;
