@@ -80,8 +80,12 @@ __weak_reference(_pthread_mutexattr_getpshared, pthread_mutexattr_getpshared);
 __weak_reference(_pthread_mutexattr_setpshared, pthread_mutexattr_setpshared);
 __weak_reference(_pthread_mutexattr_getprotocol, pthread_mutexattr_getprotocol);
 __weak_reference(_pthread_mutexattr_setprotocol, pthread_mutexattr_setprotocol);
-__weak_reference(_pthread_mutexattr_getprioceiling, pthread_mutexattr_getprioceiling);
-__weak_reference(_pthread_mutexattr_setprioceiling, pthread_mutexattr_setprioceiling);
+__weak_reference(_pthread_mutexattr_getprioceiling,
+    pthread_mutexattr_getprioceiling);
+__weak_reference(_pthread_mutexattr_setprioceiling,
+    pthread_mutexattr_setprioceiling);
+__weak_reference(_pthread_mutexattr_getrobust, pthread_mutexattr_getrobust);
+__weak_reference(_pthread_mutexattr_setrobust, pthread_mutexattr_setrobust);
 
 int
 _pthread_mutexattr_init(pthread_mutexattr_t *attr)
@@ -119,26 +123,28 @@ int
 _pthread_mutexattr_getkind_np(pthread_mutexattr_t attr)
 {
 	int	ret;
+
 	if (attr == NULL) {
 		errno = EINVAL;
 		ret = -1;
 	} else {
 		ret = attr->m_type;
 	}
-	return(ret);
+	return (ret);
 }
 
 int
 _pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
 {
 	int	ret;
+
 	if (attr == NULL || *attr == NULL || type >= PTHREAD_MUTEX_TYPE_MAX) {
 		ret = EINVAL;
 	} else {
 		(*attr)->m_type = type;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 int
@@ -153,7 +159,7 @@ _pthread_mutexattr_gettype(pthread_mutexattr_t *attr, int *type)
 		*type = (*attr)->m_type;
 		ret = 0;
 	}
-	return ret;
+	return (ret);
 }
 
 int
@@ -167,7 +173,7 @@ _pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 		*attr = NULL;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 int
@@ -198,12 +204,12 @@ _pthread_mutexattr_getprotocol(pthread_mutexattr_t *mattr, int *protocol)
 {
 	int ret = 0;
 
-	if ((mattr == NULL) || (*mattr == NULL))
+	if (mattr == NULL || *mattr == NULL)
 		ret = EINVAL;
 	else
 		*protocol = (*mattr)->m_protocol;
 
-	return(ret);
+	return (ret);
 }
 
 int
@@ -211,14 +217,14 @@ _pthread_mutexattr_setprotocol(pthread_mutexattr_t *mattr, int protocol)
 {
 	int ret = 0;
 
-	if ((mattr == NULL) || (*mattr == NULL) ||
-	    (protocol < PTHREAD_PRIO_NONE) || (protocol > PTHREAD_PRIO_PROTECT))
+	if (mattr == NULL || *mattr == NULL ||
+	    protocol < PTHREAD_PRIO_NONE || protocol > PTHREAD_PRIO_PROTECT)
 		ret = EINVAL;
 	else {
 		(*mattr)->m_protocol = protocol;
 		(*mattr)->m_ceiling = THR_MAX_RR_PRIORITY;
 	}
-	return(ret);
+	return (ret);
 }
 
 int
@@ -226,14 +232,14 @@ _pthread_mutexattr_getprioceiling(pthread_mutexattr_t *mattr, int *prioceiling)
 {
 	int ret = 0;
 
-	if ((mattr == NULL) || (*mattr == NULL))
+	if (mattr == NULL || *mattr == NULL)
 		ret = EINVAL;
 	else if ((*mattr)->m_protocol != PTHREAD_PRIO_PROTECT)
 		ret = EINVAL;
 	else
 		*prioceiling = (*mattr)->m_ceiling;
 
-	return(ret);
+	return (ret);
 }
 
 int
@@ -241,13 +247,44 @@ _pthread_mutexattr_setprioceiling(pthread_mutexattr_t *mattr, int prioceiling)
 {
 	int ret = 0;
 
-	if ((mattr == NULL) || (*mattr == NULL))
+	if (mattr == NULL || *mattr == NULL)
 		ret = EINVAL;
 	else if ((*mattr)->m_protocol != PTHREAD_PRIO_PROTECT)
 		ret = EINVAL;
 	else
 		(*mattr)->m_ceiling = prioceiling;
 
-	return(ret);
+	return (ret);
+}
+
+int
+_pthread_mutexattr_getrobust(pthread_mutexattr_t *mattr, int *robust)
+{
+	int ret;
+
+	if (mattr == NULL || *mattr == NULL) {
+		ret = EINVAL;
+	} else {
+		ret = 0;
+		*robust = (*mattr)->m_robust;
+	}
+	return (ret);
+}
+
+int
+_pthread_mutexattr_setrobust(pthread_mutexattr_t *mattr, int robust)
+{
+	int ret;
+
+	if (mattr == NULL || *mattr == NULL) {
+		ret = EINVAL;
+	} else if (robust != PTHREAD_MUTEX_STALLED &&
+	    robust != PTHREAD_MUTEX_ROBUST) {
+		ret = EINVAL;
+	} else {
+		ret = 0;
+		(*mattr)->m_robust = robust;
+	}
+	return (ret);
 }
 

@@ -164,6 +164,7 @@ vnode_destroy_vobject(struct vnode *vp)
 		return;
 	ASSERT_VOP_ELOCKED(vp, "vnode_destroy_vobject");
 	VM_OBJECT_WLOCK(obj);
+	umtx_shm_object_terminated(obj);
 	if (obj->ref_count == 0) {
 		/*
 		 * don't double-terminate the object

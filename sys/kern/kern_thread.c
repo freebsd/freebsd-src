@@ -950,6 +950,7 @@ thread_suspend_check(int return_instead)
 			 */
 			if (__predict_false(p->p_sysent->sv_thread_detach != NULL))
 				(p->p_sysent->sv_thread_detach)(td);
+			umtx_thread_exit(td);
 			kern_thr_exit(td);
 			panic("stopped thread did not exit");
 		}

@@ -26,7 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd May 1, 2000
+.Dd April 29, 2016
 .Dt PTHREAD_MUTEXATTR 3
 .Os
 .Sh NAME
@@ -36,6 +36,8 @@
 .Nm pthread_mutexattr_getprioceiling ,
 .Nm pthread_mutexattr_setprotocol ,
 .Nm pthread_mutexattr_getprotocol ,
+.Nm pthread_mutexattr_setrobust ,
+.Nm pthread_mutexattr_getrobust ,
 .Nm pthread_mutexattr_settype ,
 .Nm pthread_mutexattr_gettype
 .Nd mutex attribute operations
@@ -55,6 +57,10 @@
 .Fn pthread_mutexattr_setprotocol "pthread_mutexattr_t *attr" "int protocol"
 .Ft int
 .Fn pthread_mutexattr_getprotocol "pthread_mutexattr_t *attr" "int *protocol"
+.Ft int
+.Fn pthread_mutexattr_setrobust "pthread_mutexattr_t *attr" "int robust"
+.Ft int
+.Fn pthread_mutexattr_getrobust "pthread_mutexattr_t *attr" "int *robust"
 .Ft int
 .Fn pthread_mutexattr_settype "pthread_mutexattr_t *attr" "int type"
 .Ft int
@@ -165,6 +171,26 @@ function will fail if:
 Invalid value for
 .Fa attr .
 .El
+.Pp
+The
+.Fn pthread_mutexattr_setrobust
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr ,
+or invalid value for
+.Fa robust .
+.El
+.Pp
+The
+.Fn pthread_mutexattr_getrobust
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
 .Sh SEE ALSO
 .Xr pthread_mutex_init 3
 .Sh STANDARDS
@@ -184,4 +210,10 @@ The
 and
 .Fn pthread_mutexattr_gettype
 functions conform to
-.St -susv2
+.St -susv2 .
+The
+.Fn pthread_mutexattr_setrobust
+and
+.Fn pthread_mutexattr_getrobust
+functions conform to
+.St -susv4 .

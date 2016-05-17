@@ -188,46 +188,57 @@ _pthread_cond_destroy(pthread_cond_t *cond)
  */
 static int
 cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
-	const struct timespec *abstime, int cancel)
+    const struct timespec *abstime, int cancel)
 {
-	struct pthread	*curthread = _get_curthread();
-	int		recurse;
-	int		error, error2 = 0;
+	struct pthread *curthread;
+	int error, error2, recurse, robust;
+
+	curthread = _get_curthread();
+	robust = _mutex_enter_robust(curthread, mp);
 
 	error = _mutex_cv_detach(mp, &recurse);
-	if (error != 0)
+	if (error != 0) {
+		if (robust)
+			_mutex_leave_robust(curthread, mp);
 		return (error);
-
-	if (cancel) {
-		_thr_cancel_enter2(curthread, 0);
-		error = _thr_ucond_wait((struct ucond *)&cvp->__has_kern_waiters,
-			(struct umutex *)&mp->m_lock, abstime,
-			CVWAIT_ABSTIME|CVWAIT_CLOCKID);
-		_thr_cancel_leave(curthread, 0);
-	} else {
-		error = _thr_ucond_wait((struct ucond *)&cvp->__has_kern_waiters,
-			(struct umutex *)&mp->m_lock, abstime,
-			CVWAIT_ABSTIME|CVWAIT_CLOCKID);
 	}
+
+	if (cancel)
+		_thr_cancel_enter2(curthread, 0);
+	error = _thr_ucond_wait((struct ucond *)&cvp->__has_kern_waiters,
+	    (struct umutex *)&mp->m_lock, abstime, CVWAIT_ABSTIME |
+	    CVWAIT_CLOCKID);
+	if (cancel)
+		_thr_cancel_leave(curthread, 0);
 
 	/*
 	 * Note that PP mutex and ROBUST mutex may return
 	 * interesting error codes.
 	 */
 	if (error == 0) {
-		error2 = _mutex_cv_lock(mp, recurse);
+		error2 = _mutex_cv_lock(mp, recurse, true);
 	} else if (error == EINTR || error == ETIMEDOUT) {
-		error2 = _mutex_cv_lock(mp, recurse);
+		error2 = _mutex_cv_lock(mp, recurse, true);
+		/*
+		 * Do not do cancellation on EOWNERDEAD there.  The
+		 * cancellation cleanup handler will use the protected
+		 * state and unlock the mutex without making the state
+		 * consistent and the state will be unrecoverable.
+		 */
 		if (error2 == 0 && cancel)
 			_thr_testcancel(curthread);
+
 		if (error == EINTR)
 			error = 0;
 	} else {
 		/* We know that it didn't unlock the mutex. */
-		error2 = _mutex_cv_attach(mp, recurse);
-		if (error2 == 0 && cancel)
+		_mutex_cv_attach(mp, recurse);
+		if (cancel)
 			_thr_testcancel(curthread);
+		error2 = 0;
 	}
+	if (robust)
+		_mutex_leave_robust(curthread, mp);
 	return (error2 != 0 ? error2 : error);
 }
 
@@ -240,14 +251,13 @@ cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 static int
 cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
-	const struct timespec *abstime, int cancel)
+    const struct timespec *abstime, int cancel)
 {
-	struct pthread	*curthread = _get_curthread();
+	struct pthread *curthread;
 	struct sleepqueue *sq;
-	int	recurse;
-	int	error;
-	int	defered;
+	int deferred, error, error2, recurse;
 
+	curthread = _get_curthread();
 	if (curthread->wchan != NULL)
 		PANIC("thread was already on queue.");
 
@@ -260,32 +270,31 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 	 * us to check it without locking in pthread_cond_signal().
 	 */
 	cvp->__has_user_waiters = 1; 
-	defered = 0;
-	(void)_mutex_cv_unlock(mp, &recurse, &defered);
+	deferred = 0;
+	(void)_mutex_cv_unlock(mp, &recurse, &deferred);
 	curthread->mutex_obj = mp;
 	_sleepq_add(cvp, curthread);
 	for(;;) {
 		_thr_clear_wake(curthread);
 		_sleepq_unlock(cvp);
-		if (defered) {
-			defered = 0;
+		if (deferred) {
+			deferred = 0;
 			if ((mp->m_lock.m_owner & UMUTEX_CONTESTED) == 0)
-				(void)_umtx_op_err(&mp->m_lock, UMTX_OP_MUTEX_WAKE2,
-					 mp->m_lock.m_flags, 0, 0);
+				(void)_umtx_op_err(&mp->m_lock,
+				    UMTX_OP_MUTEX_WAKE2, mp->m_lock.m_flags,
+				    0, 0);
 		}
 		if (curthread->nwaiter_defer > 0) {
 			_thr_wake_all(curthread->defer_waiters,
-				curthread->nwaiter_defer);
+			    curthread->nwaiter_defer);
 			curthread->nwaiter_defer = 0;
 		}
 
-		if (cancel) {
+		if (cancel)
 			_thr_cancel_enter2(curthread, 0);
-			error = _thr_sleep(curthread, cvp->__clock_id, abstime);
+		error = _thr_sleep(curthread, cvp->__clock_id, abstime);
+		if (cancel)
 			_thr_cancel_leave(curthread, 0);
-		} else {
-			error = _thr_sleep(curthread, cvp->__clock_id, abstime);
-		}
 
 		_sleepq_lock(cvp);
 		if (curthread->wchan == NULL) {
@@ -293,25 +302,26 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 			break;
 		} else if (cancel && SHOULD_CANCEL(curthread)) {
 			sq = _sleepq_lookup(cvp);
-			cvp->__has_user_waiters = 
-				_sleepq_remove(sq, curthread);
+			cvp->__has_user_waiters = _sleepq_remove(sq, curthread);
 			_sleepq_unlock(cvp);
 			curthread->mutex_obj = NULL;
-			_mutex_cv_lock(mp, recurse);
+			error2 = _mutex_cv_lock(mp, recurse, false);
 			if (!THR_IN_CRITICAL(curthread))
 				_pthread_exit(PTHREAD_CANCELED);
 			else /* this should not happen */
-				return (0);
+				return (error2);
 		} else if (error == ETIMEDOUT) {
 			sq = _sleepq_lookup(cvp);
 			cvp->__has_user_waiters =
-				_sleepq_remove(sq, curthread);
+			    _sleepq_remove(sq, curthread);
 			break;
 		}
 	}
 	_sleepq_unlock(cvp);
 	curthread->mutex_obj = NULL;
-	_mutex_cv_lock(mp, recurse);
+	error2 = _mutex_cv_lock(mp, recurse, false);
+	if (error == 0)
+		error = error2;
 	return (error);
 }
 
@@ -338,12 +348,12 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 		return (error);
 
 	if (curthread->attr.sched_policy != SCHED_OTHER ||
-	    (mp->m_lock.m_flags & (UMUTEX_PRIO_PROTECT|UMUTEX_PRIO_INHERIT|
-		USYNC_PROCESS_SHARED)) != 0 ||
+	    (mp->m_lock.m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT |
+	    USYNC_PROCESS_SHARED)) != 0 ||
 	    (cvp->__flags & USYNC_PROCESS_SHARED) != 0)
-		return cond_wait_kernel(cvp, mp, abstime, cancel);
+		return (cond_wait_kernel(cvp, mp, abstime, cancel));
 	else
-		return cond_wait_user(cvp, mp, abstime, cancel);
+		return (cond_wait_user(cvp, mp, abstime, cancel));
 }
 
 int
@@ -420,15 +430,15 @@ cond_signal_common(pthread_cond_t *cond)
 	td = _sleepq_first(sq);
 	mp = td->mutex_obj;
 	cvp->__has_user_waiters = _sleepq_remove(sq, td);
-	if (mp->m_owner == TID(curthread)) {
+	if (PMUTEX_OWNER_ID(mp) == TID(curthread)) {
 		if (curthread->nwaiter_defer >= MAX_DEFER_WAITERS) {
 			_thr_wake_all(curthread->defer_waiters,
-					curthread->nwaiter_defer);
+			    curthread->nwaiter_defer);
 			curthread->nwaiter_defer = 0;
 		}
 		curthread->defer_waiters[curthread->nwaiter_defer++] =
-			&td->wake_addr->value;
-		mp->m_flags |= PMUTEX_FLAG_DEFERED;
+		    &td->wake_addr->value;
+		mp->m_flags |= PMUTEX_FLAG_DEFERRED;
 	} else {
 		waddr = &td->wake_addr->value;
 	}
@@ -452,15 +462,15 @@ drop_cb(struct pthread *td, void *arg)
 	struct pthread *curthread = ba->curthread;
 
 	mp = td->mutex_obj;
-	if (mp->m_owner == TID(curthread)) {
+	if (PMUTEX_OWNER_ID(mp) == TID(curthread)) {
 		if (curthread->nwaiter_defer >= MAX_DEFER_WAITERS) {
 			_thr_wake_all(curthread->defer_waiters,
-				curthread->nwaiter_defer);
+			    curthread->nwaiter_defer);
 			curthread->nwaiter_defer = 0;
 		}
 		curthread->defer_waiters[curthread->nwaiter_defer++] =
-			&td->wake_addr->value;
-		mp->m_flags |= PMUTEX_FLAG_DEFERED;
+		    &td->wake_addr->value;
+		mp->m_flags |= PMUTEX_FLAG_DEFERRED;
 	} else {
 		if (ba->count >= MAX_DEFER_WAITERS) {
 			_thr_wake_all(ba->waddrs, ba->count);
