@@ -1131,7 +1131,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		if (tvp != NULL)
 			VOP_UNLOCK(tvp, 0);
 		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
-		    IO_NORMAL | IO_SYNC, cr);
+		    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC), cr);
 		if (error != 0)
 			vprint("ufs_direnter: failed to truncate", dvp);
 #ifdef UFS_DIRHASH
