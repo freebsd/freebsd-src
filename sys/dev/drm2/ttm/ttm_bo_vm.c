@@ -299,7 +299,7 @@ ttm_bo_vm_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * acquired either in ttm_bo_mmap() or ttm_bo_vm_open(). It's
 	 * then released in ttm_bo_vm_close().
 	 *
-	 * Here, this function is called during mmap() intialization.
+	 * Here, this function is called during mmap() initialization.
 	 * Thus, the reference acquired in ttm_bo_mmap_single() is
 	 * sufficient.
 	 */

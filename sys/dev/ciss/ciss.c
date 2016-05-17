@@ -464,7 +464,7 @@ ciss_attach(device_t dev)
     ciss_initq_notify(sc);
 
     /*
-     * Initalize device sysctls.
+     * Initialize device sysctls.
      */
     ciss_init_sysctl(sc);
 
@@ -619,7 +619,7 @@ ciss_init_pci(struct ciss_softc *sc)
 	/*
 	 * XXX Big hammer, masks/unmasks all possible interrupts.  This should
 	 * work on all hardware variants.  Need to add code to handle the
-	 * "controller crashed" interupt bit that this unmasks.
+	 * "controller crashed" interrupt bit that this unmasks.
 	 */
 	sqmask = ~0;
     }
@@ -4499,7 +4499,7 @@ ciss_name_ldrive_org(int org)
     case CISS_LDRIVE_RAIDADG:
 	return("RAID ADG");
     }
-    return("unkown");
+    return("unknown");
 }
 
 /************************************************************************

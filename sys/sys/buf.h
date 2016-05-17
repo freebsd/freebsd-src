@@ -204,7 +204,7 @@ struct buf {
 #define	B_UNMAPPED	0x00000800	/* KVA is not mapped. */
 #define	B_KVAALLOC	0x00001000	/* But allocated. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
-#define	B_BARRIER	0x00004000	/* Write this and all preceeding first. */
+#define	B_BARRIER	0x00004000	/* Write this and all preceding first. */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */

@@ -491,7 +491,7 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	 * Next create a situation where write combining
 	 * or read prefetching could be initiated by the
 	 * CPU or host bridge.  Our device does not support
-	 * either, so look for data corruption and/or flaged
+	 * either, so look for data corruption and/or flagged
 	 * PCI errors.  First pause without causing another
 	 * chip reset.
 	 */
@@ -1013,7 +1013,7 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 			  |  AHD_FAINT_LED_BUG;
 
 		/*
-		 * IO Cell paramter setup.
+		 * IO Cell parameter setup.
 		 */
 		AHD_SET_PRECOMP(ahd, AHD_PRECOMP_CUTBACK_29);
 
@@ -1034,7 +1034,7 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 				  |  AHD_BUSFREEREV_BUG;
 
 		/*
-		 * IO Cell paramter setup.
+		 * IO Cell parameter setup.
 		 */
 		AHD_SET_PRECOMP(ahd, AHD_PRECOMP_CUTBACK_29);
 		AHD_SET_SLEWRATE(ahd, AHD_SLEWRATE_DEF_REVB);

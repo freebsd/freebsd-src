@@ -418,7 +418,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	    __ptr, 0, sysctl_handle_64, "QU", __DESCR(descr));		\
 })
 
-/* Oid for a CPU dependant variable */
+/* Oid for a CPU dependent variable */
 #define	SYSCTL_ADD_UAUTO(ctx, parent, nbr, name, access, ptr, descr)	\
 ({									\
 	struct sysctl_oid *__ret;					\
@@ -541,7 +541,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /*
- * A macro to generate a read-only sysctl to indicate the presense of optional
+ * A macro to generate a read-only sysctl to indicate the presence of optional
  * kernel features.
  */
 #define	FEATURE(name, desc)						\

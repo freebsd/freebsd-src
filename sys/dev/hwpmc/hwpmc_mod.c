@@ -1128,7 +1128,7 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 		pmclog_process_pmcdetach(pm, p->p_pid);
 
 	/*
-	 * If there are no PMCs targetting this process, we remove its
+	 * If there are no PMCs targeting this process, we remove its
 	 * descriptor from the target hash table and unset the P_HWPMC
 	 * flag in the struct proc.
 	 */
@@ -1237,7 +1237,7 @@ pmc_process_csw_in(struct thread *td)
 	    p->p_pid, p->p_comm, pp);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[pmc,%d] wierd CPU id %d", __LINE__, cpu));
+	    ("[pmc,%d] weird CPU id %d", __LINE__, cpu));
 
 	pc = pmc_pcpu[cpu];
 
@@ -1382,7 +1382,7 @@ pmc_process_csw_out(struct thread *td)
 	    p->p_pid, p->p_comm, pp);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[pmc,%d wierd CPU id %d", __LINE__, cpu));
+	    ("[pmc,%d weird CPU id %d", __LINE__, cpu));
 
 	pc = pmc_pcpu[cpu];
 
@@ -1912,7 +1912,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 		/*
 		 * Log the exec event to all monitoring owners.  Skip
-		 * owners who have already recieved the event because
+		 * owners who have already received the event because
 		 * they had system sampling PMCs active.
 		 */
 		for (ri = 0; ri < md->pmd_npmc; ri++)
@@ -1938,7 +1938,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		/*
 		 * If the newly exec()'ed process has a different credential
 		 * than before, allow it to be the target of a PMC only if
-		 * the PMC's owner has sufficient priviledge.
+		 * the PMC's owner has sufficient privilege.
 		 */
 
 		for (ri = 0; ri < md->pmd_npmc; ri++)
@@ -4424,7 +4424,7 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 	 * process, we would have context switched IN at some prior
 	 * point.  However, with PREEMPTION, kernel mode context
 	 * switches may happen any time, so we want to disable a
-	 * context switch OUT till we get any PMCs targetting this
+	 * context switch OUT till we get any PMCs targeting this
 	 * process off the hardware.
 	 *
 	 * We also need to atomically remove this process'
@@ -4527,7 +4527,7 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 
 		/*
 		 * Unlink this process from the PMCs that are
-		 * targetting it.  This will send a signal to
+		 * targeting it.  This will send a signal to
 		 * all PMC owner's whose PMCs are orphaned.
 		 *
 		 * Log PMC value at exit time if requested.
