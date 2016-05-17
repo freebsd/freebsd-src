@@ -564,6 +564,11 @@ bwn_attach(device_t dev)
 	else
 		device_printf(sc->sc_dev, "PIO\n");
 
+#ifdef	BWN_GPL_PHY
+	device_printf(sc->sc_dev,
+	    "Note: compiled with BWN_GPL_PHY; includes GPLv2 code\n");
+#endif
+
 	/*
 	 * setup PCI resources and interrupt.
 	 */
