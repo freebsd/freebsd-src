@@ -388,6 +388,11 @@ extern	__checkReturn	efx_rc_t
 siena_mac_reconfigure(
 	__in	efx_nic_t *enp);
 
+extern	__checkReturn	efx_rc_t
+siena_mac_pdu_get(
+	__in	efx_nic_t *enp,
+	__out	size_t *pdu);
+
 #if EFSYS_OPT_LOOPBACK
 
 extern	__checkReturn	efx_rc_t
