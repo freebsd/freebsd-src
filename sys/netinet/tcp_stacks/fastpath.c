@@ -2375,34 +2375,17 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 }
 
 struct tcp_function_block __tcp_fastslow = {
-	"fastslow",
-	tcp_output,
-	tcp_do_segment_fastslow,
-	tcp_default_ctloutput,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	0,
-	0
-
+	.tfb_tcp_block_name = "fastslow",
+	.tfb_tcp_output = tcp_output,
+	.tfb_tcp_do_segment = tcp_do_segment_fastslow,
+	.tfb_tcp_ctloutput = tcp_default_ctloutput,
 };
 
 struct tcp_function_block __tcp_fastack = {
-	"fastack",
-	tcp_output,
-	tcp_do_segment_fastack,
-	tcp_default_ctloutput,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	0,
-	0
+	.tfb_tcp_block_name = "fastack",
+	.tfb_tcp_output = tcp_output,
+	.tfb_tcp_do_segment = tcp_do_segment_fastack,
+	.tfb_tcp_ctloutput = tcp_default_ctloutput
 };
 
 static int
