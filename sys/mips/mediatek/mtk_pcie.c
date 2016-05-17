@@ -203,6 +203,7 @@ mtk_pci_ranges(phandle_t node, struct mtk_pci_range *io_space,
 static struct ofw_compat_data compat_data[] = {
 	{ "ralink,rt3883-pci",		MTK_SOC_RT3883 },
 	{ "mediatek,mt7620-pci",	MTK_SOC_MT7620A },
+	{ "mediatek,mt7628-pci",	MTK_SOC_MT7628 },
 	{ "mediatek,mt7621-pci",	MTK_SOC_MT7621 },
 	{ NULL,				MTK_SOC_UNKNOWN }
 };
