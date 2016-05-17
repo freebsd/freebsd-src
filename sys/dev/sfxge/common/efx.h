@@ -2314,6 +2314,10 @@ extern				void
 efx_lic_fini(
 	__in			efx_nic_t *enp);
 
+extern	__checkReturn	boolean_t
+efx_lic_check_support(
+	__in			efx_nic_t *enp);
+
 extern	__checkReturn	efx_rc_t
 efx_lic_update_licenses(
 	__in		efx_nic_t *enp);

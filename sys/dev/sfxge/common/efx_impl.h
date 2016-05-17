@@ -636,6 +636,7 @@ struct efx_nic_s {
 	uint32_t		en_vport_id;
 #if EFSYS_OPT_LICENSING
 	const efx_lic_ops_t	*en_elop;
+	boolean_t		en_licensing_supported;
 #endif
 	union {
 #if EFSYS_OPT_SIENA
