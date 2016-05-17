@@ -1,0 +1,7 @@
+# $FreeBSD$
+#
+
+machine		mips mipsel
+
+cpu		CPU_MIPS74K
+files		"../broadcom/files.broadcom"
