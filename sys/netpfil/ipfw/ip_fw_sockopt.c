@@ -851,6 +851,113 @@ ipfw_match_range(struct ip_fw *rule, ipfw_range_tlv *rt)
 	return (1);
 }
 
+struct manage_sets_args {
+	uint16_t	set;
+	uint8_t		new_set;
+};
+
+static int
+swap_sets_cb(struct namedobj_instance *ni, struct named_object *no,
+    void *arg)
+{
+	struct manage_sets_args *args;
+
+	args = (struct manage_sets_args *)arg;
+	if (no->set == (uint8_t)args->set)
+		no->set = args->new_set;
+	else if (no->set == args->new_set)
+		no->set = (uint8_t)args->set;
+	return (0);
+}
+
+static int
+move_sets_cb(struct namedobj_instance *ni, struct named_object *no,
+    void *arg)
+{
+	struct manage_sets_args *args;
+
+	args = (struct manage_sets_args *)arg;
+	if (no->set == (uint8_t)args->set)
+		no->set = args->new_set;
+	return (0);
+}
+
+static int
+test_sets_cb(struct namedobj_instance *ni, struct named_object *no,
+    void *arg)
+{
+	struct manage_sets_args *args;
+
+	args = (struct manage_sets_args *)arg;
+	if (no->set != (uint8_t)args->set)
+		return (0);
+	if (ipfw_objhash_lookup_name_type(ni, args->new_set,
+	    no->etlv, no->name) != NULL)
+		return (EEXIST);
+	return (0);
+}
+
+/*
+ * Generic function to handler moving and swapping sets.
+ */
+int
+ipfw_obj_manage_sets(struct namedobj_instance *ni, uint16_t type,
+    uint16_t set, uint8_t new_set, enum ipfw_sets_cmd cmd)
+{
+	struct manage_sets_args args;
+	struct named_object *no;
+
+	args.set = set;
+	args.new_set = new_set;
+	switch (cmd) {
+	case SWAP_ALL:
+		return (ipfw_objhash_foreach_type(ni, swap_sets_cb,
+		    &args, type));
+	case TEST_ALL:
+		return (ipfw_objhash_foreach_type(ni, test_sets_cb,
+		    &args, type));
+	case MOVE_ALL:
+		return (ipfw_objhash_foreach_type(ni, move_sets_cb,
+		    &args, type));
+	case COUNT_ONE:
+		/*
+		 * @set used to pass kidx.
+		 * When @new_set is zero - reset object counter,
+		 * otherwise increment it.
+		 */
+		no = ipfw_objhash_lookup_kidx(ni, set);
+		if (new_set != 0)
+			no->ocnt++;
+		else
+			no->ocnt = 0;
+		return (0);
+	case TEST_ONE:
+		/* @set used to pass kidx */
+		no = ipfw_objhash_lookup_kidx(ni, set);
+		/*
+		 * First check number of references:
+		 * when it differs, this mean other rules are holding
+		 * reference to given object, so it is not possible to
+		 * change its set. Note that refcnt may account references
+		 * to some going-to-be-added rules. Since we don't know
+		 * their numbers (and even if they will be added) it is
+		 * perfectly OK to return error here.
+		 */
+		if (no->ocnt != no->refcnt)
+			return (EBUSY);
+		if (ipfw_objhash_lookup_name_type(ni, new_set, type,
+		    no->name) != NULL)
+			return (EEXIST);
+		return (0);
+	case MOVE_ONE:
+		/* @set used to pass kidx */
+		no = ipfw_objhash_lookup_kidx(ni, set);
+		no->set = new_set;
+		return (0);
+	}
+	return (EINVAL);
+}
+
 /*
  * Delete rules matching range @rt.
  * Saves number of deleted rules in @ndel.
@@ -935,7 +1042,89 @@ delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 	return (0);
 }
 
-/*
+static int
+move_objects(struct ip_fw_chain *ch, ipfw_range_tlv *rt)
+{
+	struct opcode_obj_rewrite *rw;
+	struct ip_fw *rule;
+	ipfw_insn *cmd;
+	int cmdlen, i, l, c;
+	uint16_t kidx;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+
+	/* Stage 1: count number of references by given rules */
+	for (c = 0, i = 0; i < ch->n_rules - 1; i++) {
+		rule = ch->map[i];
+		if (ipfw_match_range(rule, rt) == 0)
+			continue;
+		if (rule->set == rt->new_set) /* nothing to do */
+			continue;
+		/* Search opcodes with named objects */
+		for (l = rule->cmd_len, cmdlen = 0, cmd = rule->cmd;
+		    l > 0; l -= cmdlen, cmd += cmdlen) {
+			cmdlen = F_LEN(cmd);
+			rw = find_op_rw(cmd, &kidx, NULL);
+			if (rw == NULL || rw->manage_sets == NULL)
+				continue;
+			/*
+			 * When manage_sets() returns non-zero value to
+			 * COUNT_ONE command, consider this as an object
+			 * doesn't support sets (e.g. disabled with sysctl).
+			 * So, skip checks for this object.
+			 */
+			if (rw->manage_sets(ch, kidx, 1, COUNT_ONE) != 0)
+				continue;
+			c++;
+		}
+	}
+	if (c == 0) /* No objects found */
+		return (0);
+	/* Stage 2: verify "ownership" */
+	for (c = 0, i = 0; (i < ch->n_rules - 1) && c == 0; i++) {
+		rule = ch->map[i];
+		if (ipfw_match_range(rule, rt) == 0)
+			continue;
+		if (rule->set == rt->new_set) /* nothing to do */
+			continue;
+		/* Search opcodes with named objects */
+		for (l = rule->cmd_len, cmdlen = 0, cmd = rule->cmd;
+		    l > 0 && c == 0; l -= cmdlen, cmd += cmdlen) {
+			cmdlen = F_LEN(cmd);
+			rw = find_op_rw(cmd, &kidx, NULL);
+			if (rw == NULL || rw->manage_sets == NULL)
+				continue;
+			/* Test for ownership and conflicting names */
+			c = rw->manage_sets(ch, kidx,
+			    (uint8_t)rt->new_set, TEST_ONE);
+		}
+	}
+	/* Stage 3: change set and cleanup */
+	for (i = 0; i < ch->n_rules - 1; i++) {
+		rule = ch->map[i];
+		if (ipfw_match_range(rule, rt) == 0)
+			continue;
+		if (rule->set == rt->new_set) /* nothing to do */
+			continue;
+		/* Search opcodes with named objects */
+		for (l = rule->cmd_len, cmdlen = 0, cmd = rule->cmd;
+		    l > 0; l -= cmdlen, cmd += cmdlen) {
+			cmdlen = F_LEN(cmd);
+			rw = find_op_rw(cmd, &kidx, NULL);
+			if (rw == NULL || rw->manage_sets == NULL)
+				continue;
+			/* cleanup object counter */
+			rw->manage_sets(ch, kidx,
+			    0 /* reset counter */, COUNT_ONE);
+			if (c != 0)
+				continue;
+			/* change set */
+			rw->manage_sets(ch, kidx,
+			    (uint8_t)rt->new_set, MOVE_ONE);
+		}
+	}
+	return (c);
+}/*
  * Changes set of given rule rannge @rt
  * with each other.
  *
@@ -956,11 +1145,9 @@ move_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 	 * by given rule subset only. Otherwise, we can't move
 	 * them to new set and have to return error.
 	 */
-	if (V_fw_tables_sets != 0) {
-		if (ipfw_move_tables_sets(chain, rt, rt->new_set) != 0) {
-			IPFW_UH_WUNLOCK(chain);
-			return (EBUSY);
-		}
+	if ((i = move_objects(chain, rt)) != 0) {
+		IPFW_UH_WUNLOCK(chain);
+		return (i);
 	}
 
 	/* XXX: We have to do swap holding WLOCK */
@@ -1156,24 +1343,48 @@ enable_sets(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 	IPFW_WUNLOCK(chain);
 }
 
-static void
+static int
 swap_sets(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int mv)
 {
+	struct opcode_obj_rewrite *rw;
 	struct ip_fw *rule;
 	int i;
 
 	IPFW_UH_WLOCK_ASSERT(chain);
 
+	if (rt->set == rt->new_set) /* nothing to do */
+		return (0);
+
+	if (mv != 0) {
+		/*
+		 * Berfore moving the rules we need to check that
+		 * there aren't any conflicting named objects.
+		 */
+		for (rw = ctl3_rewriters;
+		    rw < ctl3_rewriters + ctl3_rsize; rw++) {
+			if (rw->manage_sets == NULL)
+				continue;
+			i = rw->manage_sets(chain, (uint8_t)rt->set,
+			    (uint8_t)rt->new_set, TEST_ALL);
+			if (i != 0)
+				return (EEXIST);
+		}
+	}
 	/* Swap or move two sets */
 	for (i = 0; i < chain->n_rules - 1; i++) {
 		rule = chain->map[i];
-		if (rule->set == rt->set)
-			rule->set = rt->new_set;
-		else if (rule->set == rt->new_set && mv == 0)
-			rule->set = rt->set;
+		if (rule->set == (uint8_t)rt->set)
+			rule->set = (uint8_t)rt->new_set;
+		else if (rule->set == (uint8_t)rt->new_set && mv == 0)
+			rule->set = (uint8_t)rt->set;
 	}
-	if (V_fw_tables_sets != 0)
-		ipfw_swap_tables_sets(chain, rt->set, rt->new_set, mv);
+	for (rw = ctl3_rewriters; rw < ctl3_rewriters + ctl3_rsize; rw++) {
+		if (rw->manage_sets == NULL)
+			continue;
+		rw->manage_sets(chain, (uint8_t)rt->set,
+		    (uint8_t)rt->new_set, mv != 0 ? MOVE_ALL: SWAP_ALL);
+	}
+	return (0);
 }
 
 /*
@@ -1188,6 +1399,7 @@ manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	ipfw_range_header *rh;
+	int ret;
 
 	if (sd->valsize != sizeof(*rh))
 		return (EINVAL);
@@ -1196,12 +1408,17 @@ manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	if (rh->range.head.length != sizeof(ipfw_range_tlv))
 		return (1);
+	if (rh->range.set >= IPFW_MAX_SETS ||
+	    rh->range.new_set >= IPFW_MAX_SETS)
+		return (EINVAL);
 
+	ret = 0;
 	IPFW_UH_WLOCK(chain);
 	switch (op3->opcode) {
 	case IP_FW_SET_SWAP:
 	case IP_FW_SET_MOVE:
-		swap_sets(chain, &rh->range, op3->opcode == IP_FW_SET_MOVE);
+		ret = swap_sets(chain, &rh->range,
+		    op3->opcode == IP_FW_SET_MOVE);
 		break;
 	case IP_FW_SET_ENABLE:
 		enable_sets(chain, &rh->range);
@@ -1209,7 +1426,7 @@ manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 	IPFW_UH_WUNLOCK(chain);
 
-	return (0);
+	return (ret);
 }
 
 /**
@@ -1280,14 +1497,14 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 		break;
 	case 3: /* move rules from set "rulenum" to set "new_set" */
 		IPFW_UH_WLOCK(chain);
-		swap_sets(chain, &rt, 1);
+		error = swap_sets(chain, &rt, 1);
 		IPFW_UH_WUNLOCK(chain);
-		return (0);
+		return (error);
 	case 4: /* swap sets "rulenum" and "new_set" */
 		IPFW_UH_WLOCK(chain);
-		swap_sets(chain, &rt, 0);
+		error = swap_sets(chain, &rt, 0);
 		IPFW_UH_WUNLOCK(chain);
-		return (0);
+		return (error);
 	default:
 		return (ENOTSUP);
 	}
@@ -2526,11 +2743,8 @@ rewrite_rule_uidx(struct ip_fw_chain *chain, struct rule_check_info *ci)
 	type = 0;
 	memset(&ti, 0, sizeof(ti));
 
-	/*
-	 * Use default set for looking up tables (old way) or
-	 * use set rule is assigned to (new way).
-	 */
-	ti.set = (V_fw_tables_sets != 0) ? ci->krule->set : 0;
+	/* Use set rule is assigned to. */
+	ti.set = ci->krule->set;
 	if (ci->ctlv != NULL) {
 		ti.tlvs = (void *)(ci->ctlv + 1);
 		ti.tlen = ci->ctlv->head.length - sizeof(ipfw_obj_ctlv);
@@ -4248,6 +4462,23 @@ ipfw_objhash_count(struct namedobj_instance *ni)
 	return (ni->count);
 }
 
+uint32_t
+ipfw_objhash_count_type(struct namedobj_instance *ni, uint16_t type)
+{
+	struct named_object *no;
+	uint32_t count;
+	int i;
+
+	count = 0;
+	for (i = 0; i < ni->nn_size; i++) {
+		TAILQ_FOREACH(no, &ni->names[i], nn_next) {
+			if (no->etlv == type)
+				count++;
+		}
+	}
+	return (count);
+}
+
 /*
  * Runs @func for each found named object.
  * It is safe to delete objects from callback
@@ -4260,6 +4491,29 @@ ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f, void *arg)
 
 	for (i = 0; i < ni->nn_size; i++) {
 		TAILQ_FOREACH_SAFE(no, &ni->names[i], nn_next, no_tmp) {
+			ret = f(ni, no, arg);
+			if (ret != 0)
+				return (ret);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Runs @f for each found named object with type @type.
+ * It is safe to delete objects from callback
+ */
+int
+ipfw_objhash_foreach_type(struct namedobj_instance *ni, objhash_cb_t *f,
+    void *arg, uint16_t type)
+{
+	struct named_object *no, *no_tmp;
+	int i, ret;
+
+	for (i = 0; i < ni->nn_size; i++) {
+		TAILQ_FOREACH_SAFE(no, &ni->names[i], nn_next, no_tmp) {
+			if (no->etlv != type)
+				continue;
 			ret = f(ni, no, arg);
 			if (ret != 0)
 				return (ret);

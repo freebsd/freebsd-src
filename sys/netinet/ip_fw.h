@@ -791,9 +791,9 @@ typedef struct  _ipfw_obj_tlv {
 typedef struct _ipfw_obj_ntlv {
 	ipfw_obj_tlv	head;		/* TLV header			*/
 	uint16_t	idx;		/* Name index			*/
-	uint8_t		spare;		/* unused			*/
+	uint8_t		set;		/* set, if applicable		*/
 	uint8_t		type;		/* object type, if applicable	*/
-	uint32_t	set;		/* set, if applicable		*/
+	uint32_t	spare;		/* unused			*/
 	char		name[64];	/* Null-terminated name		*/
 } ipfw_obj_ntlv;
 
