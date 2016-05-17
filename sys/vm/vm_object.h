@@ -300,6 +300,7 @@ vm_object_cache_is_empty(vm_object_t object)
 
 void umtx_shm_object_init(vm_object_t object);
 void umtx_shm_object_terminated(vm_object_t object);
+extern int umtx_shm_vnobj_persistent;
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
