@@ -163,7 +163,7 @@ vhpet_counter(struct vhpet *vhpet, sbintime_t *nowptr)
 		/*
 		 * The sbinuptime corresponding to the 'countbase' is
 		 * meaningless when the counter is disabled. Make sure
-		 * that the the caller doesn't want to use it.
+		 * that the caller doesn't want to use it.
 		 */
 		KASSERT(nowptr == NULL, ("vhpet_counter: nowptr must be NULL"));
 	}
