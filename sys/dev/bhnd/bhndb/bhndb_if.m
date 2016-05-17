@@ -56,6 +56,13 @@ CODE {
 	}
 
 	static int
+	bhndb_null_populate_board_info(device_t dev, device_t child,
+	    struct bhnd_board_info *info)
+	{
+		panic("bhndb_populate_board_info unimplemented");
+	}
+
+	static int
 	bhndb_null_init_full_config(device_t dev, device_t child,
 	    const struct bhndb_hw_priority *priority_table)
 	{
@@ -100,6 +107,21 @@ METHOD const struct bhnd_chipid * get_chipid {
 	device_t dev;
 	device_t child;
 } DEFAULT bhndb_null_get_chipid;
+
+/**
+ * Populate @p info with board info known only to the bridge,
+ * deferring to any existing initialized fields in @p info.
+ *
+ * @param dev The parent device of @p child.
+ * @param child The bhndb-attached device.
+ * @param[in,out] info A board info structure previously initialized with any
+ * information available from NVRAM.
+ */
+METHOD int populate_board_info {
+	device_t dev;
+	device_t child;
+	struct bhnd_board_info *info;
+} DEFAULT bhndb_null_populate_board_info;
 
 /**
  * Perform final bridge hardware configuration after @p child has fully
