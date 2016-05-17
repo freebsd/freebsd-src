@@ -1179,6 +1179,7 @@ dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/if_bwn_phy_n.c		optional bwn siba_bwn
 dev/bwn/if_bwn_util.c		optional bwn siba_bwn
 dev/bwn/bwn_mac.c		optional bwn bhnd | bwn bhndbus
 dev/cardbus/cardbus.c		optional cardbus
