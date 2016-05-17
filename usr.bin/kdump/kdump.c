@@ -298,7 +298,7 @@ main(int argc, char *argv[])
 	m = malloc(size = 1025);
 	if (m == NULL)
 		errx(1, "%s", strerror(ENOMEM));
-	if (strcmp(tracefile, "-"))
+	if (strcmp(tracefile, "-") != 0)
 		if (!freopen(tracefile, "r", stdin))
 			err(1, "%s", tracefile);
 
