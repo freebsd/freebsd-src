@@ -191,7 +191,7 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
 
 /*
  * radeon_wb_*()
- * Writeback is the the method by which the the GPU updates special pages
+ * Writeback is the method by which the GPU updates special pages
  * in memory with the status of certain GPU events (fences, ring pointers,
  * etc.).
  */

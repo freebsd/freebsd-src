@@ -702,7 +702,7 @@ cbq_modify_class(acp)
  *
  * This function create a new traffic class in the CBQ class hierarchy of
  * given parameters.  The class that created is either the root, default,
- * or a new dynamic class.  If CBQ is not initilaized, the the root class
+ * or a new dynamic class.  If CBQ is not initilaized, the root class
  * will be created.
  */
 static int
