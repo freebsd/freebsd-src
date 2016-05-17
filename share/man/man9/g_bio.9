@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2016
+.Dd May 17, 2016
 .Dt G_BIO 9
 .Os
 .Sh NAME
@@ -213,27 +213,27 @@ The
 .Fn g_reset_bio
 function resets the given
 .Vt bio
-for reuse.
-Prior to
-.Fx 11
-a
-.Vt bio
-was reset for reuse with
-.Xr bzero 3 .
+structure back to its initial state.
 .Fn g_reset_bio
-preserves internal data structures, while resetting all
-user visible values.
-Its use is required for any
+preserves internal data structures, while setting all
+user visible fields to their initial values.
+When reusing a
 .Vt bio
-that has been returned by
+obtained from
 .Fn g_new_bio ,
 .Fn g_alloc_bio ,
 .Fn g_clone_bio ,
 or
-.Fn g_duplicate_bio .
-It may be used for a
+.Fn g_duplicate_bio
+for multiple transactions,
+.Fn g_reset_bio
+must be called between the transactions in lieu of
+.Fn bzero .
+While not strictly required for a
 .Vt bio
-created in another way, but that is not required.
+structure created by other means,
+.Fn g_reset_bio
+should be used to initialize it and between transactions.
 .Sh RETURN VALUES
 The
 .Fn g_new_bio

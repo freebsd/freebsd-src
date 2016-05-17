@@ -787,7 +787,8 @@ MLINKS+=g_bio.9 g_alloc_bio.9 \
 	g_bio.9 g_destroy_bio.9 \
 	g_bio.9 g_duplicate_bio.9 \
 	g_bio.9 g_new_bio.9 \
-	g_bio.9 g_print_bio.9
+	g_bio.9 g_print_bio.9 \
+	g_bio.9 g_reset_bio.9
 MLINKS+=g_consumer.9 g_destroy_consumer.9 \
 	g_consumer.9 g_new_consumer.9
 MLINKS+=g_data.9 g_read_data.9 \
