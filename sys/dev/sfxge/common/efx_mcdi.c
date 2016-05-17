@@ -519,6 +519,11 @@ efx_mcdi_request_poll(
 		if ((rc = efx_mcdi_poll_reboot(enp)) != 0) {
 			emip->emi_pending_req = NULL;
 			EFSYS_UNLOCK(enp->en_eslp, state);
+
+			/* Reboot/Assertion */
+			if (rc == EIO || rc == EINTR)
+				efx_mcdi_raise_exception(enp, emrp, rc);
+
 			goto fail1;
 		}
 	}
@@ -535,6 +540,9 @@ efx_mcdi_request_poll(
 	/* Request complete */
 	emip->emi_pending_req = NULL;
 
+	/* Ensure stale MCDI requests fail after an MC reboot. */
+	emip->emi_new_epoch = B_FALSE;
+
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
 	if ((rc = emrp->emr_rc) != 0)
@@ -549,10 +557,6 @@ fail2:
 fail1:
 	if (!emrp->emr_quiet)
 		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	/* Reboot/Assertion */
-	if (rc == EIO || rc == EINTR)
-		efx_mcdi_raise_exception(enp, emrp, rc);
 
 	return (B_TRUE);
 }

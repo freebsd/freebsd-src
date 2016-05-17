@@ -3206,7 +3206,7 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 		case FC_PORTDB_STATE_DEAD:
 			lp->state = FC_PORTDB_STATE_NIL;
 			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
-			if (lp->autologin == 0) {
+			if ((lp->portid & 0xffff00) != 0) {
 				(void) isp_plogx(isp, chan, lp->handle,
 				    lp->portid,
 				    PLOGX_FLG_CMD_LOGO |
@@ -3304,7 +3304,6 @@ isp_pdb_add_update(ispsoftc_t *isp, int chan, isp_pdb_t *pdb)
 	}
 
 	ISP_MEMZERO(lp, sizeof (fcportdb_t));
-	lp->autologin = 1;
 	lp->probational = 0;
 	lp->state = FC_PORTDB_STATE_NEW;
 	lp->portid = lp->new_portid = pdb->portid;
@@ -3807,6 +3806,9 @@ fail:
 				isp_dump_portdb(isp, chan);
 				goto fail;
 			}
+
+			if (lp->state == FC_PORTDB_STATE_ZOMBIE)
+				goto relogin;
 
 			/*
 			 * See if we're still logged into it.
@@ -6515,6 +6517,8 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 	{
 		const char *reason;
 		uint8_t sts = sp->req_completion_status & 0xff;
+		fcparam *fcp = FCPARAM(isp, 0);
+		fcportdb_t *lp;
 
 		/*
 		 * It was there (maybe)- treat as a selection timeout.
@@ -6532,8 +6536,8 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 		 * to force a re-login of this unit. If we're on fabric,
 		 * then we'll have to log in again as a matter of course.
 		 */
-		if (FCPARAM(isp, 0)->isp_topo == TOPO_NL_PORT ||
-		    FCPARAM(isp, 0)->isp_topo == TOPO_FL_PORT) {
+		if (fcp->isp_topo == TOPO_NL_PORT ||
+		    fcp->isp_topo == TOPO_FL_PORT) {
 			mbreg_t mbs;
 			MBSINIT(&mbs, MBOX_INIT_LIP, MBLOGALL, 0);
 			if (ISP_CAP_2KLOGIN(isp)) {
@@ -6542,7 +6546,12 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 			isp_mboxcmd_qnw(isp, &mbs, 1);
 		}
 		if (XS_NOERR(xs)) {
-			XS_SETERR(xs, HBA_SELTIMEOUT);
+			lp = &fcp->portdb[XS_TGT(xs)];
+			if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
+				*XS_STSP(xs) = SCSI_BUSY;
+				XS_SETERR(xs, HBA_TGTBSY);
+			} else
+				XS_SETERR(xs, HBA_SELTIMEOUT);
 		}
 		return;
 	}
@@ -6666,6 +6675,8 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, long *
 	{
 		const char *reason;
 		uint8_t sts = sp->req_completion_status & 0xff;
+		fcparam *fcp = FCPARAM(isp, XS_CHANNEL(xs));
+		fcportdb_t *lp;
 
 		/*
 		 * It was there (maybe)- treat as a selection timeout.
@@ -6683,7 +6694,12 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, long *
 		 * There is no MBOX_INIT_LIP for the 24XX.
 		 */
 		if (XS_NOERR(xs)) {
-			XS_SETERR(xs, HBA_SELTIMEOUT);
+			lp = &fcp->portdb[XS_TGT(xs)];
+			if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
+				*XS_STSP(xs) = SCSI_BUSY;
+				XS_SETERR(xs, HBA_TGTBSY);
+			} else
+				XS_SETERR(xs, HBA_SELTIMEOUT);
 		}
 		return;
 	}

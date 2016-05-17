@@ -242,7 +242,6 @@ NANDFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
-REISERFS	opt_dontuse.h
 SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
@@ -856,6 +855,10 @@ BWI_DEBUG_VERBOSE	opt_bwi.h
 
 # options for the Brodacom BCM43xx driver (bwn)
 BWN_DEBUG		opt_bwn.h
+BWN_GPL_PHY		opt_bwn.h
+
+# Options for the SIBA driver
+SIBA_DEBUG		opt_siba.h
 
 # options for the Marvell 8335 wireless driver
 MALO_DEBUG		opt_malo.h
@@ -976,3 +979,6 @@ RANDOM_ENABLE_UMA	opt_global.h
 
 # Intel em(4) driver
 EM_MULTIQUEUE	opt_em.h
+
+# BHND(4) driver
+BHND_LOGLEVEL	opt_global.h

@@ -234,7 +234,7 @@ random_fortuna_process_event(struct harvest_event *event)
 	pl = event->he_destination % RANDOM_FORTUNA_NPOOLS;
 	randomdev_hash_iterate(&fortuna_state.fs_pool[pl].fsp_hash, event, sizeof(*event));
 	/*-
-	 * Don't wrap the length. Doing the the hard way so as not to wrap at MAXUINT.
+	 * Don't wrap the length. Doing this the hard way so as not to wrap at MAXUINT.
 	 * This is a "saturating" add.
 	 * XXX: FIX!!: We don't actually need lengths for anything but fs_pool[0],
 	 * but it's been useful debugging to see them all.

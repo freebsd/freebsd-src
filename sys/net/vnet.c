@@ -297,7 +297,7 @@ vnet_destroy(struct vnet *vnet)
  * Boot time initialization and allocation of virtual network stacks.
  */
 static void
-vnet_init_prelink(void *arg)
+vnet_init_prelink(void *arg __unused)
 {
 
 	rw_init(&vnet_rwlock, "vnet_rwlock");

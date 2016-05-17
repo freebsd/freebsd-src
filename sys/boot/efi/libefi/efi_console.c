@@ -61,7 +61,7 @@ int efi_cons_poll(void);
 struct console efi_console = {
 	"efi",
 	"EFI console",
-	0,
+	C_WIDEOUT,
 	efi_cons_probe,
 	efi_cons_init,
 	efi_cons_putchar,
@@ -266,6 +266,8 @@ CL(int direction)
 	case 2:         /* entire line */
 		len = x;
 		break;
+	default:	/* NOTREACHED */
+		__unreachable();
 	}
 
 	if (cury == y - 1)

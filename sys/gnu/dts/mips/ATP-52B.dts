@@ -1,19 +1,10 @@
 /dts-v1/;
 
-/include/ "rt3050.dtsi"
+#include "rt3050.dtsi"
 
 / {
 	compatible = "ATP-52B", "ralink,rt3052-soc";
 	model = "Argus ATP-52B";
-
-	pinctrl {
-		state_default: pinctrl0 {
-			gpio {
-				ralink,group = "i2c", "jtag", "rgmii", "mdio", "uartf";
-				ralink,function = "gpio";
-			};
-		};
-	};
 
 	cfi@1f000000 {
 		compatible = "cfi-flash";
@@ -77,20 +68,30 @@
 			linux,code = <0x198>;
 		};
 	};
+};
 
-	ethernet@10100000 {
-		mtd-mac-address = <&factory 0x4>;
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
 	};
+};
 
-	esw@10110000 {
-		mediatek,portmap = <0x3e>;
-	};
 
-	wmac@10180000 {
-		ralink,mtd-eeprom = <&factory 0>;
-	};
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
 
-	otg@101c0000 {
-		status = "okay";
-	};
+&esw {
+	mediatek,portmap = <0x3e>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&otg {
+	status = "okay";
 };

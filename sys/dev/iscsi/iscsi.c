@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
@@ -172,7 +173,8 @@ static void	iscsi_poll(struct cam_sim *sim);
 static struct iscsi_outstanding	*iscsi_outstanding_find(struct iscsi_session *is,
 		    uint32_t initiator_task_tag);
 static struct iscsi_outstanding	*iscsi_outstanding_add(struct iscsi_session *is,
-		    union ccb *ccb, uint32_t *initiator_task_tagp);
+		    struct icl_pdu *request, union ccb *ccb,
+		    uint32_t *initiator_task_tagp);
 static void	iscsi_outstanding_remove(struct iscsi_session *is,
 		    struct iscsi_outstanding *io);
 
@@ -1558,7 +1560,7 @@ iscsi_ioctl_daemon_connect(struct iscsi_softc *sc,
 	is->is_timeout = 0;
 	ISCSI_SESSION_UNLOCK(is);
 
-	error = icl_conn_connect(is->is_conn, idc->idc_iser, idc->idc_domain,
+	error = icl_conn_connect(is->is_conn, idc->idc_domain,
 	    idc->idc_socktype, idc->idc_protocol, from_sa, to_sa);
 	free(from_sa, M_SONAME);
 	free(to_sa, M_SONAME);
@@ -1618,7 +1620,9 @@ iscsi_ioctl_daemon_send(struct iscsi_softc *sc,
 		KASSERT(error == 0, ("icl_pdu_append_data(..., M_WAITOK) failed"));
 		free(data, M_ISCSI);
 	}
+	ISCSI_SESSION_LOCK(is);
 	icl_pdu_queue(ip);
+	ISCSI_SESSION_UNLOCK(is);
 
 	return (0);
 }
@@ -2012,7 +2016,7 @@ iscsi_outstanding_find_ccb(struct iscsi_session *is, union ccb *ccb)
 }
 
 static struct iscsi_outstanding *
-iscsi_outstanding_add(struct iscsi_session *is,
+iscsi_outstanding_add(struct iscsi_session *is, struct icl_pdu *request,
     union ccb *ccb, uint32_t *initiator_task_tagp)
 {
 	struct iscsi_outstanding *io;
@@ -2027,7 +2031,7 @@ iscsi_outstanding_add(struct iscsi_session *is,
 		return (NULL);
 	}
 
-	error = icl_conn_task_setup(is->is_conn, &ccb->csio,
+	error = icl_conn_task_setup(is->is_conn, request, &ccb->csio,
 	    initiator_task_tagp, &io->io_icl_prv);
 	if (error != 0) {
 		ISCSI_SESSION_WARN(is,
@@ -2093,7 +2097,7 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 
 	initiator_task_tag = is->is_initiator_task_tag++;
 
-	io = iscsi_outstanding_add(is, NULL, &initiator_task_tag);
+	io = iscsi_outstanding_add(is, request, NULL, &initiator_task_tag);
 	if (io == NULL) {
 		icl_pdu_free(request);
 		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
@@ -2152,7 +2156,7 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 	}
 
 	initiator_task_tag = is->is_initiator_task_tag++;
-	io = iscsi_outstanding_add(is, ccb, &initiator_task_tag);
+	io = iscsi_outstanding_add(is, request, ccb, &initiator_task_tag);
 	if (io == NULL) {
 		icl_pdu_free(request);
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {

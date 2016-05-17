@@ -183,6 +183,7 @@ typedef struct efx_mac_ops_s {
 	efx_rc_t	(*emo_up)(efx_nic_t *, boolean_t *);
 	efx_rc_t	(*emo_addr_set)(efx_nic_t *);
 	efx_rc_t	(*emo_pdu_set)(efx_nic_t *);
+	efx_rc_t	(*emo_pdu_get)(efx_nic_t *, size_t *);
 	efx_rc_t	(*emo_reconfigure)(efx_nic_t *);
 	efx_rc_t	(*emo_multicast_list_set)(efx_nic_t *);
 	efx_rc_t	(*emo_filter_default_rxq_set)(efx_nic_t *,
@@ -636,6 +637,7 @@ struct efx_nic_s {
 	uint32_t		en_vport_id;
 #if EFSYS_OPT_LICENSING
 	const efx_lic_ops_t	*en_elop;
+	boolean_t		en_licensing_supported;
 #endif
 	union {
 #if EFSYS_OPT_SIENA

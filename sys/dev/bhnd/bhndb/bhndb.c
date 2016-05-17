@@ -1714,26 +1714,6 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 	return (dwa);
 }
 
-/**
- * Default bhndb(4) implementation of BHND_BUS_GET_NVRAM_VAR().
- */
-static int
-bhndb_get_nvram_var(device_t dev, device_t child, const char *name,
-    void *buf, size_t *size)
-{
-	device_t nvram;
-
-	/* Look for a directly-attached NVRAM child */
-	nvram = device_find_child(dev, devclass_get_name(bhnd_nvram_devclass),
-	    0);
-	if (nvram != NULL)
-		return (BHND_NVRAM_GETVAR(nvram, name, buf, size));
-
-	/* Otherwise, delegate to our parent */
-	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
-	    name, buf, size));
-}
-
 /*
  * BHND_BUS_(READ|WRITE_* implementations
  */
@@ -1961,7 +1941,7 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bhnd_bus_get_chipid,		bhndb_get_chipid),
 	DEVMETHOD(bhnd_bus_activate_resource,	bhndb_activate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_deactivate_resource,	bhndb_deactivate_bhnd_resource),
-	DEVMETHOD(bhnd_bus_get_nvram_var,	bhndb_get_nvram_var),
+	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_bus_generic_get_nvram_var),
 	DEVMETHOD(bhnd_bus_read_1,		bhndb_bus_read_1),
 	DEVMETHOD(bhnd_bus_read_2,		bhndb_bus_read_2),
 	DEVMETHOD(bhnd_bus_read_4,		bhndb_bus_read_4),
