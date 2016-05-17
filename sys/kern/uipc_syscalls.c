@@ -1787,6 +1787,9 @@ sockargs(mp, buf, buflen, type)
 	struct mbuf *m;
 	int error;
 
+	if (buflen < 0)
+		return (EINVAL);
+
 	if (buflen > MLEN) {
 #ifdef COMPAT_OLDSOCK
 		if (type == MT_SONAME && buflen <= 112)
