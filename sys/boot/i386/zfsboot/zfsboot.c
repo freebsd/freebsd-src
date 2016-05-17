@@ -397,10 +397,12 @@ probe_drive(struct dsk *dsk)
     struct gpt_hdr hdr;
     struct gpt_ent *ent;
     unsigned part, entries_per_sec;
+    daddr_t slba;
 #endif
-#ifdef LOADER_GELI_SUPPORT
-    daddr_t slba, elba;
+#if defined(GPT) || defined(LOADER_GELI_SUPPORT)
+    daddr_t elba;
 #endif
+
     struct dos_partition *dp;
     char *sec;
     unsigned i;
