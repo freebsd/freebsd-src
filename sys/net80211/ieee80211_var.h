@@ -714,6 +714,8 @@ void	ieee80211_drain(struct ieee80211com *);
 void	ieee80211_chan_init(struct ieee80211com *);
 struct ieee80211com *ieee80211_find_vap(const uint8_t mac[IEEE80211_ADDR_LEN]);
 struct ieee80211com *ieee80211_find_com(const char *name);
+typedef void ieee80211_com_iter_func(void *, struct ieee80211com *);
+void	ieee80211_iterate_coms(ieee80211_com_iter_func *, void *);
 int	ieee80211_media_change(struct ifnet *);
 void	ieee80211_media_status(struct ifnet *, struct ifmediareq *);
 int	ieee80211_ioctl(struct ifnet *, u_long, caddr_t);
