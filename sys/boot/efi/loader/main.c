@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
+#include <uuid.h>
+
 #include <bootstrap.h>
 #include <smbios.h>
 
@@ -336,11 +338,8 @@ main(int argc, CHAR16 *argv[])
 	printf("Image base: 0x%lx\n", (u_long)img->ImageBase);
 	printf("EFI version: %d.%02d\n", ST->Hdr.Revision >> 16,
 	    ST->Hdr.Revision & 0xffff);
-	printf("EFI Firmware: ");
-	/* printf doesn't understand EFI Unicode */
-	ST->ConOut->OutputString(ST->ConOut, ST->FirmwareVendor);
-	printf(" (rev %d.%02d)\n", ST->FirmwareRevision >> 16,
-	    ST->FirmwareRevision & 0xffff);
+	printf("EFI Firmware: %S (rev %d.%02d)\n", ST->FirmwareVendor,
+	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
@@ -394,6 +393,9 @@ main(int argc, CHAR16 *argv[])
 	}
 	}
 
+	snprintf(var, sizeof(var), "%d.%02d", ST->Hdr.Revision >> 16,
+	    ST->Hdr.Revision & 0xffff);
+	env_setenv("efi-version", EV_VOLATILE, var, env_noset, env_nounset);
 	setenv("LINES", "24", 1);	/* optional */
 
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
@@ -408,6 +410,19 @@ main(int argc, CHAR16 *argv[])
 
 	return (EFI_SUCCESS);		/* keep compiler happy */
 }
+
+/* XXX move to lib stand ? */
+static int
+wcscmp(CHAR16 *a, CHAR16 *b)
+{
+
+	while (*a && *b && *a == *b) {
+		a++;
+		b++;
+	}
+	return *a - *b;
+}
+
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
 
@@ -616,6 +631,7 @@ command_mode(int argc, char *argv[])
 }
 
 
+/* deprecated */
 COMMAND_SET(nvram, "nvram", "get or set NVRAM variables", command_nvram);
 
 static int
@@ -717,6 +733,186 @@ command_reloadbe(int argc, char *argv[])
 	return (CMD_OK);
 }
 #endif
+
+COMMAND_SET(efishow, "efi-show", "print some or all EFI variables", command_efi_printenv);
+
+static int
+efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
+{
+	UINTN		datasz;
+	EFI_STATUS	status;
+	UINT32		attr;
+	CHAR16		*data;
+	char		*str;
+	uint32_t	uuid_status;
+
+	datasz = 0;
+	status = RS->GetVariable(varnamearg, matchguid, &attr,
+	    &datasz, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL) {
+		printf("Can't get the variable: error %#lx\n", status);
+		return (CMD_ERROR);
+	}
+	data = malloc(datasz);
+	status = RS->GetVariable(varnamearg, matchguid, &attr,
+	    &datasz, data);
+	if (status != EFI_SUCCESS) {
+		printf("Can't get the variable: error %#lx\n", status);
+		return (CMD_ERROR);
+	}
+	uuid_to_string((uuid_t *)matchguid, &str, &uuid_status);
+	printf("%s %S=%S\n", str, varnamearg, data);
+	free(str);
+	free(data);
+	return (CMD_OK);
+}
+
+static int
+command_efi_printenv(int argc, char *argv[])
+{
+	/*
+	 * efi-printenv [-a]
+	 *	print all the env
+	 * efi-printenv -u UUID
+	 *	print all the env vars tagged with UUID
+	 * efi-printenv -v var
+	 *	search all the env vars and print the ones matching var
+	 * eif-printenv -u UUID -v var
+	 * eif-printenv UUID var
+	 *	print all the env vars that match UUID and var
+	 */
+	/* XXX We assume EFI_GUID is the same as uuid_t */
+	int		aflag = 0, gflag = 0, lflag = 0, vflag = 0;
+	int		ch;
+	unsigned	i;
+	EFI_STATUS	status;
+	EFI_GUID	varguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
+	EFI_GUID	matchguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
+	uint32_t	uuid_status;
+	CHAR16		varname[128];
+	CHAR16		varnamearg[128];
+	UINTN		varsz;
+
+	while ((ch = getopt(argc, argv, "ag:lv:")) != -1) {
+		switch (ch) {
+		case 'a':
+			aflag = 1;
+			break;
+		case 'g':
+			gflag = 1;
+			uuid_from_string(optarg, (uuid_t *)&matchguid,
+			    &uuid_status);
+			if (uuid_status != uuid_s_ok) {
+				printf("uid %s could not be parsed\n", optarg);
+				return (CMD_ERROR);
+			}
+			break;
+		case 'l':
+			lflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
+			if (strlen(optarg) >= nitems(varnamearg)) {
+				printf("Variable %s is longer than %zd characters\n",
+				    optarg, nitems(varnamearg));
+				return (CMD_ERROR);
+			}
+			for (i = 0; i < strlen(optarg); i++)
+				varnamearg[i] = optarg[i];
+			varnamearg[i] = 0;
+		default:
+			printf("Invalid argument %c\n", ch);
+			return (CMD_ERROR);
+		}
+	}
+
+	if (aflag && (gflag || vflag)) {
+		printf("-a isn't compatible with -v or -u\n");
+		return (CMD_ERROR);
+	}
+
+	if (aflag && optind < argc) {
+		printf("-a doesn't take any args");
+		return (CMD_ERROR);
+	}
+
+	if (optind == argc)
+		aflag = 1;
+
+	argc -= optind;
+	argv += optind;
+
+	if (vflag && gflag)
+		return efi_print_var(varnamearg, &matchguid, lflag);
+
+	if (argc == 2) {
+		optarg = argv[0];
+		if (strlen(optarg) >= nitems(varnamearg)) {
+			printf("Variable %s is longer than %zd characters\n",
+			    optarg, nitems(varnamearg));
+			return (CMD_ERROR);
+		}
+		for (i = 0; i < strlen(optarg); i++)
+			varnamearg[i] = optarg[i];
+		varnamearg[i] = 0;
+		optarg = argv[1];
+		uuid_from_string(optarg, (uuid_t *)&matchguid,
+		    &uuid_status);
+		if (uuid_status != uuid_s_ok) {
+			printf("uid %s could not be parsed\n", optarg);
+			return (CMD_ERROR);
+		}
+		return efi_print_var(varnamearg, &matchguid, lflag);
+	}
+
+	if (argc != 0) {
+		printf("Too many args\n");
+		return (CMD_ERROR);
+	}
+
+	/*
+	 * Initiate the search -- note the standard takes pain
+	 * to specify the initial call must be a poiner to a NULL
+	 * character.
+	 */
+	varsz = nitems(varname);
+	varname[0] = 0;
+	status = RS->GetNextVariableName(&varsz, varname, &varguid);
+	while (status != EFI_NOT_FOUND) {
+		status = RS->GetNextVariableName(&varsz, varname,
+		    &varguid);
+		if (aflag) {
+			efi_print_var(varname, &varguid, lflag);
+			continue;
+		}
+		if (vflag) {
+			if (wcscmp(varnamearg, varname) == 0)
+				efi_print_var(varname, &varguid, lflag);
+		}
+		if (gflag) {
+			if (memcmp(&varguid, &matchguid, sizeof(varguid)) == 0)
+				efi_print_var(varname, &varguid, lflag);
+		}
+	}
+	
+	return (CMD_OK);
+}
+
+COMMAND_SET(efiset, "efi-set", "set EFI variables", command_efi_set);
+
+static int
+command_efi_set(int argc, char *argv[])
+{
+	return (CMD_OK);
+}
+
+COMMAND_SET(efiunset, "efi-unset", "delete / unset EFI variables", command_efi_unset);
+
+static int
+command_efi_unset(int argc, char *argv[])
+{
+	return (CMD_OK);
+}
 
 #ifdef LOADER_FDT_SUPPORT
 extern int command_fdt_internal(int argc, char *argv[]);
