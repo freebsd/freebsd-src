@@ -89,6 +89,7 @@ SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
 static void
 init_amd(void)
 {
+	uint64_t msr;
 
 	/*
 	 * Work around Erratum 721 for Family 10h and 12h processors.
