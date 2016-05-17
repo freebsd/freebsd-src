@@ -138,22 +138,6 @@ int		icl_unregister(const char *offload);
 struct sockaddr;
 struct icl_listen;
 
-struct icl_listen_sock {
-	TAILQ_ENTRY(icl_listen_sock)	ils_next;
-	struct icl_listen		*ils_listen;
-	struct socket			*ils_socket;
-	bool				ils_running;
-	bool				ils_disconnecting;
-	int				ils_id;
-};
-
-struct icl_listen	{
-	TAILQ_HEAD(, icl_listen_sock)	il_sockets;
-	struct sx			il_lock;
-	void				(*il_accept)(struct socket *,
-					    struct sockaddr *, int);
-};
-
 /*
  * Initiator part.
  */
@@ -177,5 +161,4 @@ int			icl_listen_remove(struct icl_listen *il, struct sockaddr *sa);
 int			icl_conn_handoff_sock(struct icl_conn *ic, struct socket *so);
 
 #endif /* ICL_KERNEL_PROXY */
-
 #endif /* !ICL_H */
