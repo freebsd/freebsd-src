@@ -321,12 +321,8 @@
  * PCIe-G1 SerDes MDIO Registers (>= rev10)
  */
 #define BHND_PCIE_PHYADDR_SD		0x0	/* serdes PHY address */
-#define	BHND_PCIE_DEVAD_SD		0x1	/* serdes pseudo-devad (PMA) recognized by
-						   the bhnd_mdio_pcie driver */
 
 #define	BHND_PCIE_SD_ADDREXT		0x1F	/* serdes address extension register */
-#define	BHND_PCIE_SD_ADDREXT_BLK_MASK	0xFFF0	/* register block mask */
-#define	BHND_PCIE_SD_ADDREXT_REG_MASK	0x000F	/* register address mask */
 
 #define	BHND_PCIE_SD_REGS_IEEE0		0x0000	/* IEEE0 AN CTRL block */
 #define	BHND_PCIE_SD_REGS_IEEE1		0x0010	/* IEEE1 AN ADV block */
@@ -335,10 +331,30 @@
 #define	BHND_PCIE_SD_REGS_BLK2		0x8020	/* ??? */
 #define	BHND_PCIE_SD_REGS_BLK3		0x8030	/* ??? */
 #define	BHND_PCIE_SD_REGS_BLK4		0x8040	/* ??? */
-#define	BHND_PCIE_SD_REGS_TXPLL		0x8080	/* TXPLL register block */
-#define	BHND_PCIE_SD_REGS_TXCTRL0		0x8200	/* ??? */
-#define	BHND_PCIE_SD_REGS_SERDESID		0x8310	/* ??? */
-#define	BHND_PCIE_SD_REGS_RXCTRL0		0x8400	/* ??? */
+#define	BHND_PCIE_SD_REGS_PLL		0x8080	/* (?) PLL register block */
+#define	BHND_PCIE_SD_REGS_TX0		0x8200	/* (?) Transmit 0 block */
+#define	BHND_PCIE_SD_REGS_SERDESID	0x8310	/* ??? */
+#define	BHND_PCIE_SD_REGS_RX0		0x8400	/* (?) Receive 0 register block */
+
+/* The interpretation of these registers and values are just guesses based on
+ * the limited available documentation from other (likely similar) Broadcom
+ * SerDes IP. */
+#define	BHND_PCIE_SD_TX_DRIVER			0x17	/* TX transmit driver register */
+#define	  BHND_PCIE_SD_TX_DRIVER_IFIR_MASK	0x000E	/* unconfirmed */
+#define	  BHND_PCIE_SD_TX_DRIVER_IFIR_SHIFT	1	/* unconfirmed */
+#define	  BHND_PCIE_SD_TX_DRIVER_IPRE_MASK	0x00F0	/* unconfirmed */
+#define	  BHND_PCIE_SD_TX_DRIVER_IPRE_SHIFT	4	/* unconfirmed */
+#define	  BHND_PCIE_SD_TX_DRIVER_IDRIVER_MASK	0x0F00	/* unconfirmed */
+#define	  BHND_PCIE_SD_TX_DRIVER_IDRIVER_SHIFT	8	/* unconfirmed */
+#define	  BHND_PCIE_SD_TX_DRIVER_P2_COEFF_SHIFT	12	/* unconfirmed */
+#define	  BHND_PCIE_SD_TX_DRIVER_P2_COEFF_MASK	0xF000	/* unconfirmed */
+
+/* Constants used with host bridge quirk handling */
+#define	BHND_PCIE_APPLE_TX_P2_COEFF_MAX		0x7	/* 9.6dB pre-emphassis coeff (???) */ 
+#define	BHND_PCIE_APPLE_TX_IDRIVER_MAX		0xF	/* 1400mV voltage range (???) */
+
+#define	BHND_PCIE_APPLE_TX_P2_COEFF_700MV	0x7	/* 2.3dB pre-emphassis coeff (???) */ 
+#define	BHND_PCIE_APPLE_TX_IDRIVER_700MV	0x0	/* 670mV voltage range (???) */
 
 /*
  * PCIe-G1 SerDes-R9 MDIO Registers (<= rev9)
@@ -389,22 +405,11 @@
 #define	BHND_PCIE_SRSH_ASPM_L0s_ENB		0x8	/* bit 3 */
 #define	BHND_PCIE_SRSH_PCIE_MISC_CONFIG		10	/* word 5 */
 #define	BHND_PCIE_SRSH_L23READY_EXIT_NOPRST	0x8000	/* bit 15 */
-#define	BHND_PCIE_SRSH_CLKREQ_OFFSET_REV5	40	/* word 20 for srom rev <= 5 */
-#define	BHND_PCIE_SRSH_CLKREQ_OFFSET_REV8	104	/* word 52 for srom rev 8 */
+#define	BHND_PCIE_SRSH_CLKREQ_OFFSET_R5		40	/* word 20 for srom rev <= 5 */
+#define	BHND_PCIE_SRSH_CLKREQ_OFFSET_R8		104	/* word 52 for srom rev 8 */
 #define	BHND_PCIE_SRSH_CLKREQ_ENB		0x0800	/* bit 11 */
 #define	BHND_PCIE_SRSH_BD_OFFSET		12	/* word 6 */
 #define	BHND_PCIE_SRSH_AUTOINIT_OFFSET		36	/* auto initialization enable */
-
-/* Linkcontrol reg offset in PCIE Cap */
-#define	BHND_PCIE_CAP_LINKCTRL_OFFSET		16	/* linkctrl offset in pcie cap */
-#define	BHND_PCIE_CAP_LCREG_ASPML0s		0x01	/* ASPM L0s in linkctrl */
-#define	BHND_PCIE_CAP_LCREG_ASPML1		0x02	/* ASPM L1 in linkctrl */
-#define	BHND_PCIE_CLKREQ_ENAB			0x100	/* CLKREQ Enab in linkctrl */
-
-#define	BHND_PCIE_ASPM_ENAB			3	/* ASPM L0s & L1 in linkctrl */
-#define	BHND_PCIE_ASPM_L1_ENAB			2	/* ASPM L0s & L1 in linkctrl */
-#define	BHND_PCIE_ASPM_L0s_ENAB			1	/* ASPM L0s & L1 in linkctrl */
-#define	BHND_PCIE_ASPM_DISAB			0	/* ASPM L0s & L1 in linkctrl */
 
 /* Status reg PCIE_PLP_STATUSREG */
 #define	BHND_PCIE_PLP_POLARITY_INV		0x10	/* lane polarity is inverted */

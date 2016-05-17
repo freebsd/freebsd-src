@@ -489,20 +489,38 @@ chipc_nvram_setvar(device_t dev, const char *name, const void *buf,
 	return (ENODEV);
 }
 
+static void
+chipc_write_chipctrl(device_t dev, uint32_t value, uint32_t mask)
+{
+	struct chipc_softc	*sc;
+	uint32_t		 cctrl;
+
+	sc = device_get_softc(dev);
+
+	CHIPC_LOCK(sc);
+
+	cctrl = bhnd_bus_read_4(sc->core, CHIPC_CHIPCTRL);
+	cctrl = (cctrl & ~mask) | (value | mask);
+	bhnd_bus_write_4(sc->core, CHIPC_CHIPCTRL, cctrl);
+
+	CHIPC_UNLOCK(sc);
+}
+
 static device_method_t chipc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		chipc_probe),
-	DEVMETHOD(device_attach,	chipc_attach),
-	DEVMETHOD(device_detach,	chipc_detach),
-	DEVMETHOD(device_suspend,	chipc_suspend),
-	DEVMETHOD(device_resume,	chipc_resume),
+	DEVMETHOD(device_probe,			chipc_probe),
+	DEVMETHOD(device_attach,		chipc_attach),
+	DEVMETHOD(device_detach,		chipc_detach),
+	DEVMETHOD(device_suspend,		chipc_suspend),
+	DEVMETHOD(device_resume,		chipc_resume),
 	
 	/* ChipCommon interface */
-	DEVMETHOD(bhnd_chipc_nvram_src,	chipc_nvram_src),
+	DEVMETHOD(bhnd_chipc_nvram_src,		chipc_nvram_src),
+	DEVMETHOD(bhnd_chipc_write_chipctrl,	chipc_write_chipctrl),
 
 	/* NVRAM interface */
-	DEVMETHOD(bhnd_nvram_getvar,	chipc_nvram_getvar),
-	DEVMETHOD(bhnd_nvram_setvar,	chipc_nvram_setvar),
+	DEVMETHOD(bhnd_nvram_getvar,		chipc_nvram_getvar),
+	DEVMETHOD(bhnd_nvram_setvar,		chipc_nvram_setvar),
 
 	DEVMETHOD_END
 };

@@ -429,8 +429,7 @@ bhnd_pcie_mdio_read_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
     int reg)
 {
 	uint32_t	cmd;
-	uint16_t	blk, val;
-	uint8_t		blk_reg;
+	uint16_t	val;
 	int		error;
 
 	if (devaddr == MDIO_DEVADDR_NONE)
@@ -438,27 +437,23 @@ bhnd_pcie_mdio_read_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
 
 	/* Extended register access is only supported for the SerDes device,
 	 * using the non-standard C22 extended address mechanism */
-	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR))
+	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR) ||
+	    phy != BHND_PCIE_PHYADDR_SD)
+	{
 		return (~0U);	
-	if (phy != BHND_PCIE_PHYADDR_SD || devaddr != BHND_PCIE_DEVAD_SD)
-		return (~0U);
+	}
 
 	/* Enable MDIO access */
 	BHND_PCI_LOCK(sc);
 	bhnd_pcie_mdio_enable(sc);
 
-	/* Determine the block and register values */
-	blk = (reg & BHND_PCIE_SD_ADDREXT_BLK_MASK);
-	blk_reg = (reg & BHND_PCIE_SD_ADDREXT_REG_MASK);
-
 	/* Write the block address to the address extension register */
-	cmd = BHND_PCIE_MDIODATA_ADDR(phy, BHND_PCIE_SD_ADDREXT) |
-	    (blk & BHND_PCIE_MDIODATA_DATA_MASK);
+	cmd = BHND_PCIE_MDIODATA_ADDR(phy, BHND_PCIE_SD_ADDREXT) | devaddr;
 	if ((error = bhnd_pcie_mdio_cmd_write(sc, cmd)))
 		goto cleanup;
 
 	/* Issue the read */
-	cmd = BHND_PCIE_MDIODATA_ADDR(phy, blk_reg);
+	cmd = BHND_PCIE_MDIODATA_ADDR(phy, reg);
 	error = bhnd_pcie_mdio_cmd_read(sc, cmd, &val);
 
 cleanup:
@@ -476,8 +471,6 @@ bhnd_pcie_mdio_write_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
     int reg, int val)
 {	
 	uint32_t	cmd;
-	uint16_t	blk;
-	uint8_t		blk_reg;
 	int		error;
 
 	if (devaddr == MDIO_DEVADDR_NONE)
@@ -485,27 +478,23 @@ bhnd_pcie_mdio_write_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
 
 	/* Extended register access is only supported for the SerDes device,
 	 * using the non-standard C22 extended address mechanism */
-	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR))
+	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR) ||
+	    phy != BHND_PCIE_PHYADDR_SD)
+	{
 		return (~0U);	
-	if (phy != BHND_PCIE_PHYADDR_SD || devaddr != BHND_PCIE_DEVAD_SD)
-		return (~0U);
+	}
 
 	/* Enable MDIO access */
 	BHND_PCI_LOCK(sc);
 	bhnd_pcie_mdio_enable(sc);
 
-	/* Determine the block and register values */
-	blk = (reg & BHND_PCIE_SD_ADDREXT_BLK_MASK);
-	blk_reg = (reg & BHND_PCIE_SD_ADDREXT_REG_MASK);
-
 	/* Write the block address to the address extension register */
-	cmd = BHND_PCIE_MDIODATA_ADDR(phy, BHND_PCIE_SD_ADDREXT) |
-	    (blk & BHND_PCIE_MDIODATA_DATA_MASK);
+	cmd = BHND_PCIE_MDIODATA_ADDR(phy, BHND_PCIE_SD_ADDREXT) | devaddr;
 	if ((error = bhnd_pcie_mdio_cmd_write(sc, cmd)))
 		goto cleanup;
 
 	/* Issue the write */
-	cmd = BHND_PCIE_MDIODATA_ADDR(phy, blk_reg) |
+	cmd = BHND_PCIE_MDIODATA_ADDR(phy, reg) |
 	    (val & BHND_PCIE_MDIODATA_DATA_MASK);
 	error = bhnd_pcie_mdio_cmd_write(sc, cmd);
 

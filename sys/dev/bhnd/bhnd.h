@@ -318,8 +318,8 @@ struct bhnd_chip_match {
 	.match_bvendor = 1, .board_vendor = _vend
 
 /** Set the required board type within a bhnd_chip_match instance */
-#define	BHND_CHIP_BT(_btype)		\
-	.match_btype = 1, .board_type = BHND_BOARD_BCM ## _btype
+#define	BHND_CHIP_BTYPE(_btype)		\
+	.match_btype = 1, .board_type = BHND_BOARD_ ## _btype
 
 /** Set the required SROM revision range within a bhnd_chip_match instance */
 #define	BHND_CHIP_SROMREV(_rev)		\
@@ -331,7 +331,7 @@ struct bhnd_chip_match {
 
 /** Set the required board vendor and type within a bhnd_chip_match instance */
 #define	BHND_CHIP_BVT(_vend, _type)	\
-	BHND_CHIP_BVEND(_vend), BHND_CHIP_BTYPE(_type)
+	BHND_CHIP_BVENDOR(_vend), BHND_CHIP_BTYPE(_type)
 
 /** Set the required board vendor, type, and revision within a bhnd_chip_match
  *  instance */
@@ -428,6 +428,9 @@ device_t			 bhnd_match_child(device_t dev,
 
 device_t			 bhnd_find_child(device_t dev,
 				     bhnd_devclass_t class, int unit);
+
+device_t			 bhnd_find_bridge_root(device_t dev,
+				     devclass_t bus_class);
 
 const struct bhnd_core_info	*bhnd_match_core(
 				     const struct bhnd_core_info *cores,

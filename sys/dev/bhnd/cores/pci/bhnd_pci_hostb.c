@@ -56,28 +56,43 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bhnd/bhnd.h>
 
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+#include <dev/bhnd/cores/chipc/chipc.h>
+#include <dev/bhnd/cores/chipc/chipcreg.h>
+
 #include "bhnd_pcireg.h"
 #include "bhnd_pci_hostbvar.h"
 
-#define	BHND_PCI_ASSERT_QUIRK(_sc, _name)	\
-    KASSERT((_sc)->quirks & (_name), ("quirk " __STRING(_name) " not set"))
-
-#define	BHND_PCI_DEV(_core, _quirks, _chip_quirks)		\
-	BHND_DEVICE(_core, "", _quirks, _chip_quirks, BHND_DF_HOSTB)
-
 static const struct bhnd_device_quirk bhnd_pci_quirks[];
 static const struct bhnd_device_quirk bhnd_pcie_quirks[];
+static const struct bhnd_chip_quirk bhnd_pci_chip_quirks[];
 static const struct bhnd_chip_quirk bhnd_pcie_chip_quirks[];
 
+/* Device driver work-around variations */
+typedef enum {
+	BHND_PCI_WAR_ATTACH,	/**< apply attach workarounds */
+	BHND_PCI_WAR_RESUME,	/**< apply resume workarounds */
+	BHND_PCI_WAR_SUSPEND,	/**< apply suspend workarounds */
+	BHND_PCI_WAR_DETACH	/**< apply detach workarounds */
+} bhnd_pci_war_state;
+
 static int	bhnd_pci_wars_early_once(struct bhnd_pcihb_softc *sc);
-static int	bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc);
-static int	bhnd_pci_wars_hwdown(struct bhnd_pcihb_softc *sc);
+static int	bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc,
+		    bhnd_pci_war_state state);
+static int	bhnd_pci_wars_hwdown(struct bhnd_pcihb_softc *sc,
+		    bhnd_pci_war_state state);
 
 /*
  * device/quirk tables
  */
+
+#define	BHND_PCI_DEV(_core, _quirks, _chip_quirks)		\
+	BHND_DEVICE(_core, "", _quirks, _chip_quirks, BHND_DF_HOSTB)
+
 static const struct bhnd_device bhnd_pci_devs[] = {
-	BHND_PCI_DEV(PCI,	bhnd_pci_quirks,	NULL),
+	BHND_PCI_DEV(PCI,	bhnd_pci_quirks,	bhnd_pci_chip_quirks),
 	BHND_PCI_DEV(PCIE,	bhnd_pcie_quirks,	bhnd_pcie_chip_quirks),
 	BHND_DEVICE_END
 };
@@ -89,12 +104,22 @@ static const struct bhnd_device_quirk bhnd_pci_quirks[] = {
 	BHND_DEVICE_QUIRK_END
 };
 
+static const struct bhnd_chip_quirk bhnd_pci_chip_quirks[] = {
+	/* BCM4321CB2 boards that require 960ns latency timer override */
+	{{ BHND_CHIP_BTYPE(BCM4321CB2) },
+		BHND_PCI_QUIRK_960NS_LATTIM_OVR },
+	{{ BHND_CHIP_BTYPE(BCM4321CB2_AG) },
+		BHND_PCI_QUIRK_960NS_LATTIM_OVR },
+
+	BHND_CHIP_QUIRK_END
+};
+
 static const struct bhnd_device_quirk bhnd_pcie_quirks[] = {
 	{ BHND_HWREV_EQ		(0),	BHND_PCIE_QUIRK_SDR9_L0s_HANG },
-	{ BHND_HWREV_RANGE	(0, 1),	BHND_PCIE_QUIRK_UR_STATUS_FIX },
+	{ BHND_HWREV_RANGE	(0,1),	BHND_PCIE_QUIRK_UR_STATUS_FIX },
 	{ BHND_HWREV_EQ		(1),	BHND_PCIE_QUIRK_PCIPM_REQEN },
 
-	{ BHND_HWREV_RANGE	(3, 5),	BHND_PCIE_QUIRK_ASPM_OVR |
+	{ BHND_HWREV_RANGE	(3,5),	BHND_PCIE_QUIRK_ASPM_OVR |
 					BHND_PCIE_QUIRK_SDR9_POLARITY |
 					BHND_PCIE_QUIRK_SDR9_NO_FREQRETRY },
 
@@ -102,36 +127,49 @@ static const struct bhnd_device_quirk bhnd_pcie_quirks[] = {
 	{ BHND_HWREV_GTE	(6),	BHND_PCIE_QUIRK_SPROM_L23_PCI_RESET },
 	{ BHND_HWREV_EQ		(7),	BHND_PCIE_QUIRK_SERDES_NOPLLDOWN },
 	{ BHND_HWREV_GTE	(8),	BHND_PCIE_QUIRK_L1_TIMER_PERF },
-	{ BHND_HWREV_GTE	(10),	BHND_PCIE_QUIRK_SD_C22_EXTADDR },
+
+	{ BHND_HWREV_LTE	(17),	BHND_PCIE_QUIRK_MAX_MRRS_128 },
+
 	BHND_DEVICE_QUIRK_END
 };
 
 static const struct bhnd_chip_quirk bhnd_pcie_chip_quirks[] = {
 	/* Apple boards on which BHND_BFL2_PCIEWAR_OVR should be assumed
 	 * to be set. */
-	{{ BHND_CHIP_BVENDOR		(PCI_VENDOR_APPLE),
-	   BHND_CHIP_SROMREV		(HWREV_EQ(4)),
-	   BHND_CHIP_BREV		(HWREV_LTE(0x71)) },
-	   BHND_PCIE_QUIRK_BFL2_PCIEWAR_EN },
+	{{ BHND_CHIP_BVENDOR	(PCI_VENDOR_APPLE),
+	   BHND_CHIP_SROMREV	(HWREV_EQ(4)),
+	   BHND_CHIP_BREV	(HWREV_LTE(0x71)) },
+		BHND_PCIE_QUIRK_BFL2_PCIEWAR_EN		},
+
+	/* Apple BCM4322 boards that require 700mV SerDes TX drive strength. */
+	{{ BHND_CHIP_BVT	(PCI_VENDOR_APPLE,	BCM94322X9)	},
+		BHND_PCIE_QUIRK_SERDES_TXDRV_700MV	},
+
+	/* Apple BCM4331 board-specific quirks */
+#define	BHND_APPLE_4331_QUIRK(_board, ...)				\
+	{{ BHND_CHIP_ID		(4331),					\
+	   BHND_CHIP_BVT	(PCI_VENDOR_APPLE,	_board), },	\
+		__VA_ARGS__ }
+
+	BHND_APPLE_4331_QUIRK(BCM94331X19,
+	    BHND_PCIE_QUIRK_SERDES_TXDRV_MAX|BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
+
+	BHND_APPLE_4331_QUIRK(BCM94331X28,
+	    BHND_PCIE_QUIRK_SERDES_TXDRV_MAX|BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
+	BHND_APPLE_4331_QUIRK(BCM94331X28B, BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
+	  
+	BHND_APPLE_4331_QUIRK(BCM94331X29B,
+	    BHND_PCIE_QUIRK_SERDES_TXDRV_MAX|BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
+
+	BHND_APPLE_4331_QUIRK(BCM94331X19C,
+	    BHND_PCIE_QUIRK_SERDES_TXDRV_MAX|BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
+	    
+	BHND_APPLE_4331_QUIRK(BCM94331X29D, BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
+	BHND_APPLE_4331_QUIRK(BCM94331X33, BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
+#undef BHND_APPLE_4331_QUIRK
 
 	BHND_CHIP_QUIRK_END
 };
-
-// Quirk handling TODO
-// WARs for the following are not yet implemented:
-// - BHND_PCIE_QUIRK_ASPM_OVR
-// - BHND_PCIE_QUIRK_BFL2_PCIEWAR_EN
-// - BHND_PCIE_QUIRK_SERDES_NOPLLDOWN
-// Quirks (and WARs) for the following are not yet defined:
-// - Power savings via MDIO BLK1/PWR_MGMT3 on PCIe hwrev 15-20, 21-22
-// - WOWL PME enable/disable
-// - 4360 PCIe SerDes Tx amplitude/deemphasis (vendor Apple, boards
-//   BCM94360X51P2, BCM94360X51A).
-// - PCI latency timer (boards CB2_4321_BOARD, CB2_4321_AG_BOARD)
-// - Max SerDes TX drive strength (vendor Apple, pcie >= rev10,
-//   board BCM94322X9)
-// - 700mV SerDes TX drive strength (chipid BCM4331, boards BCM94331X19,
-//   BCM94331X28, BCM94331X29B, BCM94331X19C)
 
 #define	BHND_PCI_SOFTC(_sc)	(&((_sc)->common))
 
@@ -159,6 +197,13 @@ static const struct bhnd_chip_quirk bhnd_pcie_chip_quirks[] = {
 #define	BHND_PCI_MDIO_WRITE(_sc, _phy, _reg, _val)		\
 	bhnd_pcie_mdio_write(BHND_PCI_SOFTC(_sc), (_phy), (_reg), (_val))
 
+#define	BHND_PCI_MDIO_READ_EXT(_sc, _phy, _devaddr, _reg)		\
+	bhnd_pcie_mdio_read_ext(BHND_PCI_SOFTC(_sc), (_phy), (_devaddr), (_reg))
+
+#define	BHND_PCI_MDIO_WRITE_EXT(_sc, _phy, _devaddr, _reg, _val)	\
+	bhnd_pcie_mdio_write_ext(BHND_PCI_SOFTC(_sc), (_phy),		\
+	    (_devaddr), (_reg), (_val))
+
 #define	BPCI_REG_SET(_regv, _attr, _val)	\
 	BHND_PCI_REG_SET((_regv), BHND_ ## _attr, (_val))
 
@@ -180,26 +225,34 @@ bhnd_pci_hostb_attach(device_t dev)
 	int			 error;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 	sc->quirks = bhnd_device_quirks(dev, bhnd_pci_devs,
 	    sizeof(bhnd_pci_devs[0]));
 
+	/* Find the host PCI bridge device */
+	sc->pci_dev = bhnd_find_bridge_root(dev, devclass_find("pci"));
+	if (sc->pci_dev == NULL) {
+		device_printf(dev, "parent pci bridge device not found\n");
+		return (ENXIO);
+	}
+
+	/* Common setup */
 	if ((error = bhnd_pci_generic_attach(dev)))
 		return (error);
 
 	/* Apply early single-shot work-arounds */
-	if ((error = bhnd_pci_wars_early_once(sc))) {
-		bhnd_pci_generic_detach(dev);
-		return (error);
-	}
+	if ((error = bhnd_pci_wars_early_once(sc)))
+		goto failed;
 
 	/* Apply attach/resume work-arounds */
-	if ((error = bhnd_pci_wars_hwup(sc))) {
-		bhnd_pci_generic_detach(dev);
-		return (error);
-	}
-
+	if ((error = bhnd_pci_wars_hwup(sc, BHND_PCI_WAR_ATTACH)))
+		goto failed;
 
 	return (0);
+	
+failed:
+	bhnd_pci_generic_detach(dev);
+	return (error);
 }
 
 static int
@@ -211,7 +264,7 @@ bhnd_pci_hostb_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	/* Apply suspend/detach work-arounds */
-	if ((error = bhnd_pci_wars_hwdown(sc)))
+	if ((error = bhnd_pci_wars_hwdown(sc, BHND_PCI_WAR_DETACH)))
 		return (error);
 
 	return (bhnd_pci_generic_detach(dev));
@@ -226,7 +279,7 @@ bhnd_pci_hostb_suspend(device_t dev)
 	sc = device_get_softc(dev);
 
 	/* Apply suspend/detach work-arounds */
-	if ((error = bhnd_pci_wars_hwdown(sc)))
+	if ((error = bhnd_pci_wars_hwdown(sc, BHND_PCI_WAR_SUSPEND)))
 		return (error);
 
 	return (bhnd_pci_generic_suspend(dev));
@@ -244,7 +297,7 @@ bhnd_pci_hostb_resume(device_t dev)
 		return (error);
 
 	/* Apply attach/resume work-arounds */
-	if ((error = bhnd_pci_wars_hwup(sc))) {
+	if ((error = bhnd_pci_wars_hwup(sc, BHND_PCI_WAR_RESUME))) {
 		bhnd_pci_generic_detach(dev);
 		return (error);
 	}
@@ -263,6 +316,36 @@ bhnd_pci_hostb_resume(device_t dev)
 static int
 bhnd_pci_wars_early_once(struct bhnd_pcihb_softc *sc)
 {
+	int error;
+
+	/* Set PCI latency timer */
+	if (sc->quirks & BHND_PCI_QUIRK_960NS_LATTIM_OVR) {
+		pci_write_config(sc->pci_dev, PCIR_LATTIMER, 0x20 /* 960ns */,
+		    1); 
+	}
+
+	/* Determine whether ASPM/CLKREQ should be forced on, or forced off. */
+	if (sc->quirks & BHND_PCIE_QUIRK_ASPM_OVR) {
+		struct bhnd_board_info	board;
+		bool			aspm_en;
+
+		/* Fetch board info */
+		if ((error = bhnd_read_board_info(sc->dev, &board)))
+			return (error);
+		
+		/* Check board flags */
+		aspm_en = true;
+		if (board.board_flags2 & BHND_BFL2_PCIEWAR_OVR)
+			aspm_en = false;
+
+		/* Early Apple devices did not (but should have) set
+		 * BHND_BFL2_PCIEWAR_OVR in SPROM. */
+		if (sc->quirks & BHND_PCIE_QUIRK_BFL2_PCIEWAR_EN)
+			aspm_en = false;
+
+		sc->aspm_quirk_override.aspm_en = aspm_en;
+	}
+
 	/* Determine correct polarity by observing the attach-time PCIe PHY
 	 * link status. This is used later to reset/force the SerDes
 	 * polarity */
@@ -270,10 +353,21 @@ bhnd_pci_wars_early_once(struct bhnd_pcihb_softc *sc)
 		uint32_t st;
 		bool inv;
 
-
 		st = BHND_PCI_PROTO_READ_4(sc, BHND_PCIE_PLP_STATUSREG);
 		inv = ((st & BHND_PCIE_PLP_POLARITY_INV) != 0);
 		sc->sdr9_quirk_polarity.inv = inv;
+	}
+
+	/* Override maximum read request size */
+	if (bhnd_get_class(sc->dev) == BHND_DEVCLASS_PCIE) {
+		int	msize;
+
+		msize = 128; /* compatible with all PCIe-G1 core revisions */
+		if (sc->quirks & BHND_PCIE_QUIRK_DEFAULT_MRRS_512)
+			msize = 512;
+
+		if (pci_set_max_read_req(sc->pci_dev, msize) == 0)
+			panic("set mrrs on non-PCIe device");
 	}
 
 	return (0);
@@ -284,7 +378,7 @@ bhnd_pci_wars_early_once(struct bhnd_pcihb_softc *sc)
  * of the bridge device.
  */
 static int
-bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc)
+bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 {
 	/* Note that the order here matters; these work-arounds
 	 * should not be re-ordered without careful review of their
@@ -407,6 +501,47 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc)
 		BHND_PCI_PROTO_WRITE_4(sc, BHND_PCIE_DLLP_PMTHRESHREG, pmt);
 	}
 
+	/* Override ASPM/ECPM settings in SPROM shadow and PCIER_LINK_CTL */
+	if (sc->quirks & BHND_PCIE_QUIRK_ASPM_OVR) {
+		bus_size_t	reg;
+		uint16_t	cfg;
+
+		/* Set ASPM L1/L0s flags in SPROM shadow */
+		reg = BHND_PCIE_SPROM_SHADOW + BHND_PCIE_SRSH_ASPM_OFFSET;
+		cfg = BHND_PCI_READ_2(sc, reg);
+
+		if (sc->aspm_quirk_override.aspm_en)
+			cfg |= BHND_PCIE_SRSH_ASPM_ENB;
+		else
+			cfg &= ~BHND_PCIE_SRSH_ASPM_ENB;
+		
+		BHND_PCI_WRITE_2(sc, reg, cfg);
+
+
+		/* Set ASPM/ECPM (CLKREQ) flags in PCIe link control register */
+		cfg = pcie_read_config(sc->pci_dev, PCIER_LINK_CTL, 2);
+
+		if (sc->aspm_quirk_override.aspm_en)
+			cfg |= PCIEM_LINK_CTL_ASPMC;
+		else
+			cfg &= ~PCIEM_LINK_CTL_ASPMC;
+
+		cfg &= ~PCIEM_LINK_CTL_ECPM;		/* CLKREQ# */
+
+		pcie_write_config(sc->pci_dev, PCIER_LINK_CTL, cfg, 2); 
+
+		/* Set CLKREQ (ECPM) flags in SPROM shadow */
+		reg = BHND_PCIE_SPROM_SHADOW + BHND_PCIE_SRSH_CLKREQ_OFFSET_R5;
+		cfg = BHND_PCI_READ_2(sc, reg);
+		
+		if (sc->aspm_quirk_override.aspm_en)
+			cfg |= BHND_PCIE_SRSH_CLKREQ_ENB;
+		else
+			cfg &= ~BHND_PCIE_SRSH_CLKREQ_ENB;
+
+		BHND_PCI_WRITE_2(sc, reg, cfg);
+	}
+
 	/* Enable L23READY_EXIT_NOPRST if not already set in SPROM. */
 	if (sc->quirks & BHND_PCIE_QUIRK_SPROM_L23_PCI_RESET) {
 		bus_size_t	reg;
@@ -423,6 +558,54 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc)
 		}
 	}
 
+	/* Disable SerDes PLL down */
+	if (sc->quirks & BHND_PCIE_QUIRK_SERDES_NOPLLDOWN) {
+		device_t	bhnd, chipc;
+		bus_size_t	reg;
+		
+		bhnd = device_get_parent(sc->dev);
+		chipc = bhnd_find_child(bhnd, BHND_DEVCLASS_CC, 0);
+		KASSERT(chipc != NULL, ("missing chipcommon device"));
+
+		/* Write SerDes PLL disable flag to the ChipCommon core */
+		BHND_CHIPC_WRITE_CHIPCTRL(chipc, CHIPCTRL_4321_PLL_DOWN,
+		    CHIPCTRL_4321_PLL_DOWN);
+
+		/* Clear SPROM shadow backdoor register */
+		reg = BHND_PCIE_SPROM_SHADOW + BHND_PCIE_SRSH_BD_OFFSET;
+		BHND_PCI_WRITE_2(sc, reg, 0);
+	}
+
+	/* Adjust TX drive strength and pre-emphasis coefficient */
+	if (sc->quirks & BHND_PCIE_QUIRK_SERDES_TXDRV_ADJUST) {
+		uint16_t txdrv;
+
+		/* Fetch current TX driver parameters */
+		txdrv = BHND_PCI_MDIO_READ_EXT(sc, BHND_PCIE_PHYADDR_SD,
+		    BHND_PCIE_SD_REGS_TX0, BHND_PCIE_SD_TX_DRIVER);
+
+		/* Set 700mV drive strength */
+		if (sc->quirks & BHND_PCIE_QUIRK_SERDES_TXDRV_700MV) {
+			txdrv = BPCI_REG_SET(txdrv, PCIE_SD_TX_DRIVER_P2_COEFF,
+			    BHND_PCIE_APPLE_TX_P2_COEFF_700MV);
+
+			txdrv = BPCI_REG_SET(txdrv, PCIE_SD_TX_DRIVER_IDRIVER,
+			    BHND_PCIE_APPLE_TX_IDRIVER_700MV);
+		}
+
+		/* ... or, set max drive strength */
+		if (sc->quirks & BHND_PCIE_QUIRK_SERDES_TXDRV_MAX) {
+			txdrv = BPCI_REG_SET(txdrv, PCIE_SD_TX_DRIVER_P2_COEFF,
+			    BHND_PCIE_APPLE_TX_P2_COEFF_MAX);
+			
+			txdrv = BPCI_REG_SET(txdrv, PCIE_SD_TX_DRIVER_IDRIVER,
+			    BHND_PCIE_APPLE_TX_IDRIVER_MAX);
+		}
+
+		BHND_PCI_MDIO_WRITE_EXT(sc, BHND_PCIE_PHYADDR_SD,
+		    BHND_PCIE_SD_REGS_TX0, BHND_PCIE_SD_TX_DRIVER, txdrv);
+	}
+
 	return (0);
 }
 
@@ -431,8 +614,8 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc)
  * of the bridge device.
  */
 static int
-bhnd_pci_wars_hwdown(struct bhnd_pcihb_softc *sc)
-{	
+bhnd_pci_wars_hwdown(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
+{
 	/* Reduce L1 timer for better power savings.
 	 * TODO: We could enable/disable this on demand for better power
 	 * savings if we tie this to HT clock request handling */
@@ -441,6 +624,19 @@ bhnd_pci_wars_hwdown(struct bhnd_pcihb_softc *sc)
 		pmt = BHND_PCI_PROTO_READ_4(sc, BHND_PCIE_DLLP_PMTHRESHREG);
 		pmt &= ~BHND_PCIE_ASPMTIMER_EXTEND;
 		BHND_PCI_PROTO_WRITE_4(sc, BHND_PCIE_DLLP_PMTHRESHREG, pmt);
+	}
+
+	/* Enable CLKREQ (ECPM). If suspending, also disable ASPM L1 entry */
+	if (sc->quirks & BHND_PCIE_QUIRK_ASPM_OVR) {
+		uint16_t	lcreg;
+
+		lcreg = pcie_read_config(sc->pci_dev, PCIER_LINK_CTL, 2);
+
+		lcreg |= PCIEM_LINK_CTL_ECPM;	/* CLKREQ# */
+		if (state == BHND_PCI_WAR_SUSPEND)
+			lcreg &= ~PCIEM_LINK_CTL_ASPMC_L1;
+
+		pcie_write_config(sc->pci_dev, PCIER_LINK_CTL, lcreg, 2);
 	}
 
 	return (0);
@@ -456,10 +652,9 @@ static device_method_t bhnd_pci_hostb_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(bhnd_pci_hostb, bhnd_pci_hostb_driver, bhnd_pci_hostb_methods, 
+DEFINE_CLASS_1(bhnd_hostb, bhnd_pci_hostb_driver, bhnd_pci_hostb_methods, 
     sizeof(struct bhnd_pcihb_softc), bhnd_pci_driver);
-
-DRIVER_MODULE(bhnd_hostb, bhnd, bhnd_pci_hostb_driver, bhnd_hostb_devclass, 0, 0);
+DRIVER_MODULE(bhnd_pci_hostb, bhnd, bhnd_pci_hostb_driver, bhnd_hostb_devclass, 0, 0);
 
 MODULE_VERSION(bhnd_pci_hostb, 1);
 MODULE_DEPEND(bhnd_pci_hostb, bhnd, 1, 1, 1);

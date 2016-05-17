@@ -350,6 +350,56 @@ done:
 }
 
 /**
+ * Walk up the bhnd device hierarchy to locate the root device
+ * to which the bhndb bridge is attached.
+ * 
+ * This can be used from within bhnd host bridge drivers to locate the
+ * actual upstream host device.
+ * 
+ * @param dev A bhnd device.
+ * @param bus_class The expected bus (e.g. "pci") to which the bridge root
+ * should be attached.
+ * 
+ * @retval device_t if a matching parent device is found.
+ * @retval NULL @p dev is not attached via a bhndb bus
+ * @retval NULL no parent device is attached via @p bus_class.
+ */
+device_t
+bhnd_find_bridge_root(device_t dev, devclass_t bus_class)
+{
+	devclass_t	bhndb_class;
+	device_t	parent;
+
+	KASSERT(device_get_devclass(device_get_parent(dev)) == bhnd_devclass,
+	   ("%s not a bhnd device", device_get_nameunit(dev)));
+
+	bhndb_class = devclass_find("bhndb");
+
+	/* Walk the device tree until we hit a bridge */
+	parent = dev;
+	while ((parent = device_get_parent(parent)) != NULL) {
+		if (device_get_devclass(parent) == bhndb_class)
+			break;
+	}
+
+	/* No bridge? */
+	if (parent == NULL)
+		return (NULL);
+
+	/* Search for a parent attached to the expected bus class */
+	while ((parent = device_get_parent(parent)) != NULL) {
+		device_t bus;
+
+		bus = device_get_parent(parent);
+		if (bus != NULL && device_get_devclass(bus) == bus_class)
+			return (parent);
+	}
+
+	/* Not found */
+	return (NULL);
+}
+
+/**
  * Find the first core in @p cores that matches @p desc.
  * 
  * @param cores The table to search.
