@@ -862,7 +862,7 @@ devctl_safe_quote(char *dst, const char *src, size_t len)
 		return;
 	while (src != NULL && walker < ep)
 	{
-		if (*src == '"') {
+		if (*src == '"' || *src == '\\') {
 			if (ep - walker < 2)
 				break;
 			*walker++ = '\\';
