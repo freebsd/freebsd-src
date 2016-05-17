@@ -5770,13 +5770,25 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 			rssi = max(rxhdr->phy.n.power1, rxhdr->ps2.n.power2);
 		else
 			rssi = max(rxhdr->phy.n.power0, rxhdr->phy.n.power1);
+#if 0
+		DPRINTF(mac->mac_sc, BWN_DEBUG_RECV,
+		    "%s: power0=%d, power1=%d, power2=%d\n",
+		    __func__,
+		    rxhdr->phy.n.power0,
+		    rxhdr->phy.n.power1,
+		    rxhdr->ps2.n.power2);
+#endif
 		break;
 	default:
 		/* XXX TODO: implement rssi for other PHYs */
 		break;
 	}
 
+	/*
+	 * RSSI here is absolute, not relative to the noise floor.
+	 */
 	noise = mac->mac_stats.link_noise;
+	rssi = rssi - noise;
 
 	/* RX radio tap */
 	if (ieee80211_radiotap_active(ic))
