@@ -150,7 +150,8 @@ int			icl_listen_add(struct icl_listen *il, bool rdma,
 int			icl_listen_remove(struct icl_listen *il, struct sockaddr *sa);
 
 /*
- * Those two are not a public API; only to be used between icl_soft.c and icl_proxy.c.
+ * Those two are not a public API; only to be used between icl_soft.c
+ * and icl_soft_proxy.c.
  */
 int			icl_soft_handoff_sock(struct icl_conn *ic, struct socket *so);
 int			icl_soft_proxy_connect(struct icl_conn *ic, int domain,

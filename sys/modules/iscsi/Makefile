@@ -5,8 +5,8 @@ KMOD=	iscsi
 
 SRCS=	iscsi.c
 SRCS+=	icl.c
-SRCS+=	icl_proxy.c
 SRCS+=	icl_soft.c
+SRCS+=	icl_soft_proxy.c
 SRCS+=	opt_cam.h
 SRCS+=	bus_if.h
 SRCS+=	device_if.h
