@@ -124,7 +124,7 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
-static int	 syncache_respond(struct syncache *);
+static int	 syncache_respond(struct syncache *, const struct mbuf *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
 static int	 syncache_sysctl_count(SYSCTL_HANDLER_ARGS);
@@ -480,7 +480,7 @@ syncache_timer(void *xsch)
 			free(s, M_TCPLOG);
 		}
 
-		(void) syncache_respond(sc);
+		(void) syncache_respond(sc, NULL);
 		TCPSTAT_INC(tcps_sc_retransmitted);
 		syncache_timeout(sc, sch, 0);
 	}
@@ -1307,7 +1307,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (syncache_respond(sc) == 0) {
+		if (syncache_respond(sc, m) == 0) {
 			sc->sc_rxmits = 0;
 			syncache_timeout(sc, sch, 1);
 			TCPSTAT_INC(tcps_sndacks);
@@ -1476,7 +1476,7 @@ skip_alloc:
 	/*
 	 * Do a standard 3-way handshake.
 	 */
-	if (syncache_respond(sc) == 0) {
+	if (syncache_respond(sc, m) == 0) {
 		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
@@ -1506,8 +1506,12 @@ tfo_done:
 	return (rv);
 }
 
+/*
+ * Send SYN|ACK to the peer.  Either in response to the peer's SYN,
+ * i.e. m0 != NULL, or upon 3WHS ACK timeout, i.e. m0 == NULL.
+ */
 static int
-syncache_respond(struct syncache *sc)
+syncache_respond(struct syncache *sc, const struct mbuf *m0)
 {
 	struct ip *ip = NULL;
 	struct mbuf *m;
@@ -1664,6 +1668,15 @@ syncache_respond(struct syncache *sc)
 
 	M_SETFIB(m, sc->sc_inc.inc_fibnum);
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+	/*
+	 * If we have peer's SYN and it has a flowid, then let's assign it to
+	 * our SYN|ACK.  ip6_output() and ip_output() will not assign flowid
+	 * to SYN|ACK due to lack of inp here.
+	 */
+	if (m0 != NULL && M_HASHTYPE_GET(m0) != M_HASHTYPE_NONE) {
+		m->m_pkthdr.flowid = m0->m_pkthdr.flowid;
+		M_HASHTYPE_SET(m, M_HASHTYPE_GET(m0));
+	}
 #ifdef INET6
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
