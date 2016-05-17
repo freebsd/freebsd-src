@@ -1,19 +1,10 @@
 /dts-v1/;
 
-/include/ "WRTNODE2.dtsi"
+#include "WRTNODE2.dtsi"
 
 / {
 	compatible = "mediatek,wrtnode2p", "mediatek,mt7628an-soc";
 	model = "WRTnode2P";
-
-	pinctrl {
-		state_default: pinctrl0 {
-			gpio {
-				ralink,group = "i2c", "gpio", "jtag";
-				ralink,function = "gpio";
-			};
-		};
-	};
 
 	gpio-leds {
 		compatible = "gpio-leds";
@@ -25,3 +16,11 @@
 	}; 
 };
 
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "gpio", "jtag";
+			ralink,function = "gpio";
+		};
+	};
+};
