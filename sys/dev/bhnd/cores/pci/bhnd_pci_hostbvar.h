@@ -131,20 +131,27 @@ enum {
 	 *   clear ASPM L1 in the PCIER_LINK_CTL register.
 	 */
 	BHND_PCIE_QUIRK_ASPM_OVR		= (1<<9),
-	
+
+	/**
+	 * A subset of Apple devices did not set the BHND_BFL2_PCIEWAR_OVR
+	 * flag in SPROM; on these devices, the BHND_BFL2_PCIEWAR_OVR flag
+	 * should always be treated as if set.
+	 */
+	BHND_PCIE_QUIRK_BFL2_PCIEWAR_EN		= (1<<10),
+
 	/**
 	 * Fix SerDes polarity on SerDes <= rev9 devices.
 	 *
 	 * The SerDes polarity must be saved at device attachment, and
 	 * restored on suspend/resume.
 	 */
-	BHND_PCIE_QUIRK_SDR9_POLARITY		= (1<<10),
+	BHND_PCIE_QUIRK_SDR9_POLARITY		= (1<<11),
 
 	/**
 	 * SerDes PLL down flag must be manually disabled (by ChipCommon) on
 	 * resume.
 	 */
-	BHND_PCIE_QUIRK_SERDES_NOPLLDOWN	= (1<<11),
+	BHND_PCIE_QUIRK_SERDES_NOPLLDOWN	= (1<<12),
 
         /**
 	 * On attach and resume, consult the SPROM to determine whether
@@ -152,7 +159,7 @@ enum {
 	 *
 	 * If L23READY_EXIT_NOPRST is not already set in the SPROM, set it
 	 */
-	BHND_PCIE_QUIRK_SPROM_L23_PCI_RESET	= (1<<12),
+	BHND_PCIE_QUIRK_SPROM_L23_PCI_RESET	= (1<<13),
 	
 	/**
 	 * The PCIe SerDes supports non-standard extended MDIO register access.
@@ -160,7 +167,7 @@ enum {
 	 * The PCIe SerDes supports access to extended MDIO registers via
 	 * a non-standard Clause 22 address extension mechanism.
 	 */
-	BHND_PCIE_QUIRK_SD_C22_EXTADDR		= (1<<13),
+	BHND_PCIE_QUIRK_SD_C22_EXTADDR		= (1<<14),
 	
 	/**
 	 * The PCIe SerDes PLL must be configured to not retry the startup
@@ -168,7 +175,7 @@ enum {
 	 * 
 	 * The issue this workaround resolves has not be determined.
 	 */
-	BHND_PCIE_QUIRK_SDR9_NO_FREQRETRY	= (1<<14),
+	BHND_PCIE_QUIRK_SDR9_NO_FREQRETRY	= (1<<15),
 };
 
 /**

@@ -30,6 +30,60 @@
 # available ISC-licensed CIS and SROM code and associated headers.
 #
 
+# Board Info
+#
+
+u16 boardvendor	{}			# PCI vendor ID (SoC NVRAM-only)
+u16 subvid	{ srom >= 2	0x6 }	# PCI subvendor ID
+u16 devid	{ srom >= 8	0x60 }	# PCI device ID 
+
+u32 boardflags {
+	srom 1		u16 0x72
+	srom 2		u16 0x72 | u16 0x38 (<<16)
+	srom 3		u16 0x72 | u16 0x7A (<<16)
+	srom 4		0x44
+	srom 5-7	0x4A
+	srom >= 8	0x84
+}
+u32 boardflags2 {
+	srom 4		0x48
+	srom 5-7	0x4E
+	srom >= 8	0x88
+}
+u32 boardflags3 {
+	srom >= 11	0x8C
+}
+
+# Board serial number, independent of mac addr
+u16 boardnum {
+	srom 1-2	0x4C
+	srom 3		0x4E
+	srom 4		0x50
+	srom 5-7	0x56
+	srom 8-10	0x90
+	srom >= 11	0x94
+}
+
+# Board revision
+u16 boardrev {
+	srom 1-3	u8 0x5D
+	srom 4-7	0x42
+	srom >= 8	0x82
+}
+
+# Board type
+u16 boardtype {
+	srom >= 2	0x4
+}
+
+# SROM revision
+u8 sromrev {
+	srom 1-3	0x74
+	srom 4-9	0x1B6
+	srom 10		0x1CA
+	srom 11		0x1D2
+}
+
 # Antennas available
 u8 aa2g {
 	srom 1-3	0x5C (&0x30, >>4)
@@ -184,46 +238,6 @@ u8 aga2 {
 	srom >= 11	0xA7
 }
 
-# board flags
-u32 boardflags {
-	srom 1		u16 0x72
-	srom 2		u16 0x72 | u16 0x38 (<<16)
-	srom 3		u16 0x72 | u16 0x7A (<<16)
-	srom 4		0x44
-	srom 5-7	0x4A
-	srom >= 8	0x84
-}
-u32 boardflags2 {
-	srom 4		0x48
-	srom 5-7	0x4E
-	srom >= 8	0x88
-}
-u32 boardflags3 {
-	srom >= 11	0x8C
-}
-
-# board serial number, independent of mac addr
-u16 boardnum {
-	srom 1-2	0x4C
-	srom 3		0x4E
-	srom 4		0x50
-	srom 5-7	0x56
-	srom 8-10	0x90
-	srom >= 11	0x94
-}
-
-# One byte board revision
-u16 boardrev {
-	srom 1-3	u8 0x5D
-	srom 4-7	0x42
-	srom >= 8	0x82
-}
-
-# 2 bytes; boardtype
-u16 boardtype {
-	srom >= 2	0x4
-}
-
 # Default country code (sromrev == 1)
 u8 cc {
 	srom 1		0x5C (&0xF)
@@ -272,11 +286,6 @@ u16 antswitch {
 	srom 4-7	u8 0x7A
 	srom 8-10	u8 0xA2
 	srom >= 11	u8 0xA8
-}
-
-# PCI device id
-private u16 devid {
-	srom >= 8	u16 0x60
 }
 
 u8 elna2g {
@@ -1267,10 +1276,6 @@ u8 sar2g {
 u8 sar5g {
 	srom 9-10	0x1A8
 	srom >= 11	0x1BA
-}
-
-u16 subvid {
-	srom >= 2	0x6
 }
 
 u32[5] swctrlmap_2g {

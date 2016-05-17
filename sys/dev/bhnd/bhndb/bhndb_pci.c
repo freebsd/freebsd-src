@@ -474,6 +474,25 @@ bhndb_pci_fast_setregwin(struct bhndb_pci_softc *sc,
 	return (0);
 }
 
+static int
+bhndb_pci_populate_board_info(device_t dev, device_t child,
+    struct bhnd_board_info *info)
+{
+	struct bhndb_pci_softc	*sc;
+
+	sc = device_get_softc(dev);
+
+	/* If NVRAM did not supply vendor/type info, provide the PCI
+	 * subvendor/subdevice values. */
+	if (info->board_vendor == 0)
+		info->board_vendor = pci_get_subvendor(sc->parent);
+
+	if (info->board_type == 0)
+		info->board_type = pci_get_subdevice(sc->parent);
+
+	return (0);
+}
+
 /**
  * Enable externally managed clocks, if required.
  * 
@@ -572,6 +591,7 @@ static device_method_t bhndb_pci_methods[] = {
 	/* BHNDB interface */
 	DEVMETHOD(bhndb_init_full_config,	bhndb_pci_init_full_config),
 	DEVMETHOD(bhndb_set_window_addr,	bhndb_pci_set_window_addr),
+	DEVMETHOD(bhndb_populate_board_info,	bhndb_pci_populate_board_info),
 
 	DEVMETHOD_END
 };

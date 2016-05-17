@@ -166,6 +166,20 @@ siba_bhndb_resume_child(device_t dev, device_t child)
 	return (0);
 }
 
+static int
+siba_bhndb_read_board_info(device_t dev, device_t child,
+    struct bhnd_board_info *info)
+{
+	int	error;
+
+	/* Initialize with NVRAM-derived values */
+	if ((error = bhnd_bus_generic_read_board_info(dev, child, info)))
+		return (error);
+
+	/* Let the bridge fill in any additional data */
+	return (BHNDB_POPULATE_BOARD_INFO(device_get_parent(dev), dev, info));
+}
+
 static device_method_t siba_bhndb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			siba_bhndb_probe),
@@ -174,6 +188,9 @@ static device_method_t siba_bhndb_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_suspend_child,		siba_bhndb_suspend_child),
 	DEVMETHOD(bus_resume_child,		siba_bhndb_resume_child),
+
+	/* BHND interface */
+	DEVMETHOD(bhnd_bus_read_board_info,	siba_bhndb_read_board_info),
 
 	DEVMETHOD_END
 };

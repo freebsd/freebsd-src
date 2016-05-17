@@ -65,10 +65,11 @@ static const struct resource_spec chipc_rspec[CHIPC_MAX_RSPEC] = {
 };
 
 static struct bhnd_device_quirk chipc_quirks[];
+static struct bhnd_chip_quirk chipc_chip_quirks[];
 
 /* Supported device identifiers */
 static const struct bhnd_device chipc_devices[] = {
-	BHND_DEVICE(CC, "CC", chipc_quirks),
+	BHND_DEVICE(CC, "CC", chipc_quirks, chipc_chip_quirks),
 	BHND_DEVICE_END
 };
 
@@ -158,7 +159,6 @@ chipc_attach(device_t dev)
 	sc->dev = dev;
 	sc->quirks = bhnd_device_quirks(dev, chipc_devices,
 	    sizeof(chipc_devices[0]));
-	sc->quirks |= bhnd_chip_quirks(dev, chipc_chip_quirks);
 	
 	CHIPC_LOCK_INIT(sc);
 
