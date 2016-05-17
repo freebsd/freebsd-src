@@ -739,7 +739,7 @@ update_arptab(u_char *ep, in_addr_t ipaddr)
 
 	/* Get the type and interface index */
 	rt = &rtmsg.rthdr;
-	bzero(rt, sizeof(rtmsg));
+	bzero(&rtmsg, sizeof(rtmsg));
 	rt->rtm_version = RTM_VERSION;
 	rt->rtm_addrs = RTA_DST;
 	rt->rtm_type = RTM_GET;
