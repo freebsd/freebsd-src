@@ -1142,6 +1142,9 @@ dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhndbus | bhnd
 dev/bhnd/cores/pci/bhnd_pci.c		optional bhndbus pci | bhnd pci
 dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndbus pci | bhndb pci
 dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
+dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhndbus pci | bhnd pci
+dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/cores/pcie2/bhnd_pcie2b.c	optional bhnd_pcie2b bhnd pci
 dev/bhnd/nvram/bhnd_nvram_if.m		optional bhndbus | bhnd
 dev/bhnd/nvram/bhnd_sprom.c		optional bhndbus | bhnd
 dev/bhnd/nvram/nvram_subr.c		optional bhndbus | bhnd

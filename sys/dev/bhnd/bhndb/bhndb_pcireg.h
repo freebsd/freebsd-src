@@ -29,13 +29,13 @@
  * 
  * = MAJOR CORE REVISIONS =
  * 
- * There have been four revisions to the BAR0/BAR1 memory mappings used
+ * There have been four revisions to the BAR0 memory mappings used
  * in BHND PCI/PCIE bridge cores:
  * 
  * == PCI_V0 ==
  * Applies to:
  * -  PCI (cid=0x804, revision <= 12)
- * BAR size: 8KB
+ * BAR0 size: 8KB
  * Address Map:
  *	[offset+  size]	type	description
  * 	[0x0000+0x1000]	dynamic mapped backplane address space (window 0).
@@ -46,7 +46,7 @@
  * Applies to:
  * -  PCI (cid=0x804, revision >= 13)
  * -  PCIE (cid=0x820) with ChipCommon (revision <= 31)
- * BAR size: 16KB
+ * BAR0 size: 16KB
  * Address Map:
  *	[offset+  size]	type	description
  *	[0x0000+0x1000]	dynamic	mapped backplane address space (window 0).
@@ -57,7 +57,7 @@
  * == PCI_V2 ==
  * Applies to:
  * - PCIE (cid=0x820) with ChipCommon (revision >= 32)
- * BAR size: 16KB
+ * BAR0 size: 16KB
  * Address Map:
  *	[offset+  size]	type	description
  *	[0x0000+0x1000]	dynamic	mapped backplane address space (window 0).
@@ -68,7 +68,7 @@
  * == PCI_V3 ==
  * Applies to:
  * - PCIE Gen 2 (cid=0x83c)
- * BAR size: 32KB?
+ * BAR0 size: 32KB
  * Address Map:
  *	[offset+  size]	type	description
  *	[0x0000+0x1000]	dynamic	mapped backplane address space (window 0).
@@ -76,6 +76,12 @@
  *	[0x2000+0x1000]	fixed	pci/pcie core registers
  *	[0x3000+0x1000]	fixed	chipcommon core registers
  *	[???]
+ * BAR1 size: varies
+ * Address Map:
+ *	[offset+  size]	type	description
+ *	[0x0000+0x????]	fixed	ARM tightly-coupled memory (TCM).
+ *				While fullmac chipsets provided a fixed
+ *				4KB mapping, newer devices will vary.
  * 
  * = MINOR CORE REVISIONS =
  * 
@@ -86,28 +92,6 @@
  * == PCI/PCIE Cores Revision >= 14 ==
  * - Mapped the clock CSR into the PCI config space. Refer to
  *   BHND_PCI_CLK_CTL_ST
- * 
- * = Hardware Bugs =
- * == BAR1 ==
- * 
- * The BHND PCI(e) cores hypothetically support an additional memory mapping
- * of the backplane address space via BAR1, but this appears to be subject
- * to a hardware bug in which BAR1 is initially configured with a 4 byte
- * length.
- * 
- * A work-around for this bug may be possible by writing to the PCI core's
- * BAR1 config register (0x4e0), but this requires further research -- I've
- * found three sources for information on the BAR1 PCI core configuration that
- * may be relevant:
- * 	- The QLogix NetXTreme 10GB PCIe NIC seems to use the same PCIE
- * 	  core IP block as is used in other BHND devices. The bxe(4) driver
- * 	  contains example initialization code and register constants
- * 	  that may apply (e.g. GRC_BAR2_CONFIG/PCI_CONFIG_2_BAR2_SIZE).
- * 	- The publicly available Broadcom BCM440X data sheet (440X-PG02-R)
- * 	  appears to (partially) document a Broadcom PCI(e) core that has a
- * 	  seemingly compatible programming model.
- * 	- The Android bcmdhd driver sources include a possible work-around
- *	  implementation (writing to 0x4e0) in dhd_pcie.c
  */
 
 /* Common PCI/PCIE Config Registers */
@@ -181,12 +165,11 @@
 #define	BHNDB_PCI_V2_BAR0_CCREGS_OFFSET	0x3000	/* bar0 + 12K accesses chipc core registers */
 #define	BHNDB_PCI_V2_BAR0_CCREGS_SIZE	0x1000
 
-/* PCI_V3 */
+/* PCI_V3 (PCIe-G2) */
 #define	BHNDB_PCI_V3_BAR0_WIN0_CONTROL	0x80	/* backplane address space accessed by BAR0/WIN0 */
-#define	BHNDB_PCI_V3_BAR1_WIN0_CONTROL	0x84	/* backplane address space accessed by BAR1/WIN0. */
 #define BHNDB_PCI_V3_BAR0_WIN1_CONTROL	0x70	/* backplane address space accessed by BAR0/WIN1 */
 
-#define	BHNDB_PCI_V3_BAR0_SIZE		0x8000	/* 32KB BAR0 (?) */
+#define	BHNDB_PCI_V3_BAR0_SIZE		0x8000	/* 32KB BAR0 */
 #define	BHNDB_PCI_V3_BAR0_WIN0_OFFSET	0x0	/* bar0 + 0x0 accesses configurable 4K region of backplane address space */
 #define	BHNDB_PCI_V3_BAR0_WIN0_SIZE	0x1000
 #define	BHNDB_PCI_V3_BAR0_WIN1_OFFSET	0x1000	/* bar0 + 4K accesses second 4K window */
