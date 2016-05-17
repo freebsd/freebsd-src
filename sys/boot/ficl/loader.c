@@ -45,6 +45,7 @@
 #endif
 #include "bootstrap.h"
 #include <string.h>
+#include <uuid.h>
 #include "ficl.h"
 
 /*		FreeBSD's loader interaction words and extras
@@ -59,6 +60,8 @@
  * 		pnpdevices  ( -- addr )
  * 		pnphandlers ( -- addr )
  * 		ccall       ( [[...[p10] p9] ... p1] n addr -- result )
+ *		uuid-from-string ( addr n -- addr' )
+ *		uuid-to-string ( addr' -- addr n )
  * 		.#	    ( value -- )
  */
 
@@ -346,6 +349,75 @@ ficlCcall(FICL_VM *pVM)
 	    p[9]);
 
 	stackPushINT(pVM->pStack, result);
+
+	return;
+}
+
+void
+ficlUuidFromString(FICL_VM *pVM)
+{
+#ifndef	TESTMAIN
+	char	*uuid;
+	uint32_t status;
+#endif
+	char	*uuidp;
+	int	uuids;
+	uuid_t	*u;
+
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, 2, 0);
+#endif
+
+	uuids = stackPopINT(pVM->pStack);
+	uuidp = (char *) stackPopPtr(pVM->pStack);
+
+#ifndef	TESTMAIN
+	uuid = (char *)ficlMalloc(uuids + 1);
+	if (!uuid)
+		vmThrowErr(pVM, "Error: out of memory");
+	strncpy(uuid, uuidp, uuids);
+	uuid[uuids] = '\0';
+
+	u = (uuid_t *)ficlMalloc(sizeof (*u));
+
+	uuid_from_string(uuid, u, &status);
+	ficlFree(uuid);
+	if (status != uuid_s_ok) {
+		ficlFree(u);
+		u = NULL;
+	}
+#else
+	u = NULL;
+#endif
+	stackPushPtr(pVM->pStack, u);
+
+
+	return;
+}
+
+void
+ficlUuidToString(FICL_VM *pVM)
+{
+#ifndef	TESTMAIN
+	char	*uuid;
+	uint32_t status;
+#endif
+	uuid_t	*u;
+
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, 1, 0);
+#endif
+
+	u = (uuid_t *)stackPopPtr(pVM->pStack);
+
+#ifndef	TESTMAIN
+	uuid_to_string(u, &uuid, &status);
+	if (status != uuid_s_ok) {
+		stackPushPtr(pVM->pStack, uuid);
+		stackPushINT(pVM->pStack, strlen(uuid));
+	} else
+#endif
+		stackPushINT(pVM->pStack, -1);
 
 	return;
 }
@@ -920,6 +992,8 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "copyout",   ficlCopyout,    FW_DEFAULT);
     dictAppendWord(dp, "findfile",  ficlFindfile,   FW_DEFAULT);
     dictAppendWord(dp, "ccall",	    ficlCcall,	    FW_DEFAULT);
+    dictAppendWord(dp, "uuid-from-string", ficlUuidFromString, FW_DEFAULT);
+    dictAppendWord(dp, "uuid-to-string", ficlUuidToString, FW_DEFAULT);
 #ifndef TESTMAIN
 #ifdef __i386__
     dictAppendWord(dp, "outb",      ficlOutb,       FW_DEFAULT);
