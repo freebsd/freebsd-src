@@ -280,9 +280,13 @@ extern pt_entry_t pg_nx;
 struct	pv_entry;
 struct	pv_chunk;
 
+/*
+ * Locks
+ * (p) PV list lock
+ */
 struct md_page {
-	TAILQ_HEAD(,pv_entry)	pv_list;
-	int			pv_gen;
+	TAILQ_HEAD(, pv_entry)	pv_list;  /* (p) */
+	int			pv_gen;   /* (p) */
 	int			pat_mode;
 };
 
