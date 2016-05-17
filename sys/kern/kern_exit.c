@@ -350,7 +350,10 @@ exit1(struct thread *td, int rval, int signo)
 		KASSERT(!timevalisset(&p->p_realtimer.it_value),
 		    ("realtime timer is still armed"));
 	}
+
 	PROC_UNLOCK(p);
+
+	umtx_thread_exit(td);
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
@@ -595,7 +598,6 @@ exit1(struct thread *td, int rval, int signo)
 	wakeup(p->p_pptr);
 	cv_broadcast(&p->p_pwait);
 	sched_exit(p->p_pptr, td);
-	umtx_thread_exit(td);
 	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
