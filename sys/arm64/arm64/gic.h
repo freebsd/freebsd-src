@@ -49,6 +49,7 @@ struct arm_gic_softc {
 	uint8_t			ver;
 	struct mtx		mutex;
 	uint32_t		nirqs;
+	uint32_t		typer;
 };
 
 DECLARE_CLASS(arm_gicv2m_driver);

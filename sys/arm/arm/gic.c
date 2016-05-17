@@ -108,6 +108,11 @@ __FBSDID("$FreeBSD$");
 #define	GIC_LAST_PPI		31	/* core) peripheral interrupts. */
 #define	GIC_FIRST_SPI		32	/* Irqs 32+ are shared peripherals. */
 
+/* TYPER Registers */
+#define	GICD_TYPER_SECURITYEXT	0x400
+#define	GIC_SUPPORT_SECEXT(_sc)	\
+    ((_sc->typer & GICD_TYPER_SECURITYEXT) == GICD_TYPER_SECURITYEXT)
+
 /* First bit is a polarity bit (0 - low, 1 - high) */
 #define GICD_ICFGR_POL_LOW	(0 << 0)
 #define GICD_ICFGR_POL_HIGH	(1 << 0)
@@ -172,6 +177,7 @@ struct arm_gic_softc {
 	uint8_t			ver;
 	struct mtx		mutex;
 	uint32_t		nirqs;
+	uint32_t		typer;
 #ifdef GIC_DEBUG_SPURIOUS
 	uint32_t		last_irq[MAXCPU];
 #endif
@@ -299,7 +305,7 @@ arm_gic_init_secondary(device_t dev)
 		gic_d_write_4(sc, GICD_IPRIORITYR(irq >> 2), 0);
 
 	/* Set all the interrupts to be in Group 0 (secure) */
-	for (irq = 0; irq < sc->nirqs; irq += 32) {
+	for (irq = 0; GIC_SUPPORT_SECEXT(sc) && irq < sc->nirqs; irq += 32) {
 		gic_d_write_4(sc, GICD_IGROUPR(irq >> 5), 0);
 	}
 
@@ -336,7 +342,7 @@ arm_gic_init_secondary(device_t dev)
 		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
 
 	/* Set all the interrupts to be in Group 0 (secure) */
-	for (i = 0; i < sc->nirqs; i += 32) {
+	for (i = 0; GIC_SUPPORT_SECEXT(sc) && i < sc->nirqs; i += 32) {
 		gic_d_write_4(sc, GICD_IGROUPR(i >> 5), 0);
 	}
 
@@ -639,8 +645,8 @@ arm_gic_attach(device_t dev)
 	gic_d_write_4(sc, GICD_CTLR, 0x00);
 
 	/* Get the number of interrupts */
-	nirqs = gic_d_read_4(sc, GICD_TYPER);
-	nirqs = 32 * ((nirqs & 0x1f) + 1);
+	sc->typer = gic_d_read_4(sc, GICD_TYPER);
+	nirqs = 32 * ((sc->typer & 0x1f) + 1);
 
 #ifdef INTRNG
 	if (arm_gic_register_isrcs(sc, nirqs)) {
@@ -686,7 +692,7 @@ arm_gic_attach(device_t dev)
 	}
 
 	/* Set all the interrupts to be in Group 0 (secure) */
-	for (i = 0; i < sc->nirqs; i += 32) {
+	for (i = 0; GIC_SUPPORT_SECEXT(sc) && i < sc->nirqs; i += 32) {
 		gic_d_write_4(sc, GICD_IGROUPR(i >> 5), 0);
 	}
 
