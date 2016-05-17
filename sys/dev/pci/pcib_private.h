@@ -134,8 +134,6 @@ struct pcib_softc
     uint16_t	pcie_slot_sta;
     uint32_t	pcie_link_cap;
     uint32_t	pcie_slot_cap;
-    uint16_t	pcie_pending_link_ctl_mask;
-    uint16_t	pcie_pending_link_ctl_val;
     struct resource *pcie_irq;
     void	*pcie_ihand;
     struct task	pcie_hp_task;
