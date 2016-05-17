@@ -41,8 +41,17 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bhnd/cores/chipc/chipcreg.h>
 
+#include "nvram/bhnd_nvram.h"
+
+#include "bhnd_chipc_if.h"
+
+#include "bhnd_nvram_if.h"
+#include "bhnd_nvram_map.h"
+
 #include "bhndreg.h"
 #include "bhndvar.h"
+
+static device_t		find_nvram_child(device_t dev);
 
 /* BHND core device description table. */
 static const struct bhnd_core_desc {
@@ -427,6 +436,7 @@ bhnd_core_matches(const struct bhnd_core_info *core,
  * Return true if the @p chip matches @p desc.
  * 
  * @param chip A bhnd chip identifier.
+ * @param board The bhnd board info, or NULL if unavailable.
  * @param desc A match descriptor to compare against @p chip.
  * 
  * @retval true if @p chip matches @p match
@@ -434,8 +444,19 @@ bhnd_core_matches(const struct bhnd_core_info *core,
  */
 bool
 bhnd_chip_matches(const struct bhnd_chipid *chip,
+    const struct bhnd_board_info *board,
     const struct bhnd_chip_match *desc)
 {
+	/* Explicit wildcard match */
+	if (desc->match_any)
+		return (true);
+
+	/* If board_info is missing, but required, we cannot match. */
+	if (BHND_CHIP_MATCH_REQ_BOARD_INFO(desc) && board == NULL)
+		return (false);
+
+
+	/* Chip matching */
 	if (desc->match_id && chip->chip_id != desc->chip_id)
 		return (false);
 
@@ -445,6 +466,23 @@ bhnd_chip_matches(const struct bhnd_chipid *chip,
 	if (desc->match_rev &&
 	    !bhnd_hwrev_matches(chip->chip_rev, &desc->chip_rev))
 		return (false);
+
+
+	/* Board info matching */
+	if (desc->match_srom_rev &&
+	    !bhnd_hwrev_matches(board->board_srom_rev, &desc->board_srom_rev))
+		return (false);
+
+	if (desc->match_bvendor && board->board_vendor != desc->board_vendor)
+		return (false);
+
+	if (desc->match_btype && board->board_type != desc->board_type)
+		return (false);
+
+	if (desc->match_brev &&
+	    !bhnd_hwrev_matches(board->board_rev, &desc->board_rev))
+		return (false);
+
 
 	return (true);
 }
@@ -547,15 +585,43 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 uint32_t
 bhnd_chip_quirks(device_t dev, const struct bhnd_chip_quirk *table)
 {
+	struct bhnd_board_info		 bi, *board;
 	const struct bhnd_chipid	*cid;
 	const struct bhnd_chip_quirk	*qent;
 	uint32_t			 quirks;
-	
+	int				 error;
+	bool				 need_boardinfo;
+
 	cid = bhnd_get_chipid(dev);
 	quirks = 0;
+	need_boardinfo = 0;
+	board = NULL;
 
+	/* Determine whether quirk matching requires board_info; we want to
+	 * avoid fetching board_info for early devices (e.g. ChipCommon)
+	 * that are brought up prior to NVRAM being readable. */
 	for (qent = table; !BHND_CHIP_QUIRK_IS_END(qent); qent++) {
-		if (bhnd_chip_matches(cid, &qent->chip))
+		if (!BHND_CHIP_MATCH_REQ_BOARD_INFO(&qent->chip))
+			continue;
+
+		need_boardinfo = true;
+		break;
+	}
+
+	/* If required, fetch board info */
+	if (need_boardinfo) {
+		error = bhnd_read_board_info(dev, &bi);
+		if (!error) {
+			board = &bi;
+		} else {
+			device_printf(dev, "failed to read required board info "
+			    "during quirk matching: %d\n", error);
+		}
+	}
+
+	/* Apply all matching quirk flags */
+	for (qent = table; !BHND_CHIP_QUIRK_IS_END(qent); qent++) {
+		if (bhnd_chip_matches(cid, board, &qent->chip))
 			quirks |= qent->quirks;
 	}
 
@@ -590,15 +656,17 @@ bhnd_device_quirks(device_t dev, const struct bhnd_device *table,
 		return (0);
 	}
 
-	/* Quirks aren't a mandatory field */
-	if ((qtable = dent->quirks_table) == NULL)
-		return (0);
-
-	/* Collect matching quirk entries */
-	for (qent = qtable; !BHND_DEVICE_QUIRK_IS_END(qent); qent++) {
-		if (bhnd_hwrev_matches(hwrev, &qent->hwrev))
-			quirks |= qent->quirks;
+	/* Collect matching device quirk entries */
+	if ((qtable = dent->quirks_table) != NULL) {
+		for (qent = qtable; !BHND_DEVICE_QUIRK_IS_END(qent); qent++) {
+			if (bhnd_hwrev_matches(hwrev, &qent->hwrev))
+				quirks |= qent->quirks;
+		}
 	}
+
+	/* Collect matching chip quirk entries */
+	if (dent->chip_quirks_table != NULL)
+		quirks |= bhnd_chip_quirks(dev, dent->chip_quirks_table);
 
 	return (quirks);
 }
@@ -822,6 +890,130 @@ bhnd_bus_generic_get_chipid(device_t dev, device_t child)
 		return (BHND_BUS_GET_CHIPID(device_get_parent(dev), child));
 
 	panic("missing BHND_BUS_GET_CHIPID()");
+}
+
+/* nvram board_info population macros for bhnd_bus_generic_read_board_info() */
+#define	BHND_GV(_dest, _name)	\
+	bhnd_nvram_getvar(child, BHND_NVAR_ ## _name, &_dest, sizeof(_dest))
+
+#define	REQ_BHND_GV(_dest, _name)		do {			\
+	if ((error = BHND_GV(_dest, _name))) {				\
+		device_printf(dev,					\
+		    "error reading " __STRING(_name) ": %d\n", error);	\
+		return (error);						\
+	}								\
+} while(0)
+
+#define	OPT_BHND_GV(_dest, _name, _default)	do {			\
+	if ((error = BHND_GV(_dest, _name))) {				\
+		if (error != ENOENT) {					\
+			device_printf(dev,				\
+			    "error reading "				\
+			       __STRING(_name) ": %d\n", error);	\
+			return (error);					\
+		}							\
+		_dest = _default;					\
+	}								\
+} while(0)
+
+/**
+ * Helper function for implementing BHND_BUS_READ_BOARDINFO().
+ * 
+ * This implementation populates @p info with information from NVRAM,
+ * defaulting board_vendor and board_type fields to 0 if the
+ * requested variables cannot be found.
+ * 
+ * This behavior is correct for most SoCs, but must be overridden on
+ * bridged (PCI, PCMCIA, etc) devices to produce a complete bhnd_board_info
+ * result.
+ */
+int
+bhnd_bus_generic_read_board_info(device_t dev, device_t child,
+    struct bhnd_board_info *info)
+{
+	int	error;
+
+	OPT_BHND_GV(info->board_vendor,	BOARDVENDOR,	0);
+	OPT_BHND_GV(info->board_type,	BOARDTYPE,	0);	/* srom >= 2 */
+	REQ_BHND_GV(info->board_rev,	BOARDREV);
+	REQ_BHND_GV(info->board_srom_rev,SROMREV);
+	REQ_BHND_GV(info->board_flags,	BOARDFLAGS);
+	OPT_BHND_GV(info->board_flags2,	BOARDFLAGS2,	0);	/* srom >= 4 */
+	OPT_BHND_GV(info->board_flags3,	BOARDFLAGS3,	0);	/* srom >= 11 */
+
+	return (0);
+}
+
+#undef	BHND_GV
+#undef	BHND_GV_REQ
+#undef	BHND_GV_OPT
+
+
+/**
+ * Find an NVRAM child device on @p dev, if any.
+ * 
+ * @retval device_t An NVRAM device.
+ * @retval NULL If no NVRAM device is found.
+ */
+static device_t
+find_nvram_child(device_t dev)
+{
+	device_t	chipc, nvram;
+
+	/* Look for a directly-attached NVRAM child */
+	nvram = device_find_child(dev, "bhnd_nvram", 0);
+	if (nvram != NULL)
+		return (nvram);
+
+	/* Remaining checks are only applicable when searching a bhnd(4)
+	 * bus. */
+	if (device_get_devclass(dev) != bhnd_devclass)
+		return (NULL);
+
+	/* Look for a ChipCommon device */
+	if ((chipc = bhnd_find_child(dev, BHND_DEVCLASS_CC, -1)) != NULL) {
+		bhnd_nvram_src_t src;
+
+		/* Query the NVRAM source and determine whether it's
+		 * accessible via the ChipCommon device */
+		src = BHND_CHIPC_NVRAM_SRC(chipc);
+		if (BHND_NVRAM_SRC_CC(src))
+			return (chipc);
+	}
+
+	/* Not found */
+	return (NULL);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_GET_NVRAM_VAR().
+ * 
+ * This implementation searches @p dev for a usable NVRAM child device:
+ * - The first child device implementing the bhnd_nvram devclass is
+ *   returned, otherwise
+ * - If @p dev is a bhnd(4) bus, a ChipCommon core that advertises an
+ *   attached NVRAM source.
+ * 
+ * If no usable child device is found on @p dev, the request is delegated to
+ * the BHND_BUS_GET_NVRAM_VAR() method on the parent of @p dev.
+ */
+int
+bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
+    void *buf, size_t *size)
+{
+	device_t	nvram;
+	device_t	parent;
+
+	/* Try to find an NVRAM device applicable to @p child */
+	if ((nvram = find_nvram_child(dev)) != NULL)
+		return BHND_NVRAM_GETVAR(nvram, name, buf, size);
+
+	/* Try to delegate to parent */
+	if ((parent = device_get_parent(dev)) == NULL)
+		return (ENODEV);
+
+	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
+	    name, buf, size));
 }
 
 /**
