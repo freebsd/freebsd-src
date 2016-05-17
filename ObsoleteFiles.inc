@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160517: ReiserFS removed
+OLD_FILES+=usr/share/man/man5/reiserfs.5.gz
 # 20160430: kvm_getfiles(3) removed from kvm(3)
 OLD_LIBS+=usr/lib/libkvm.so.6
 OLD_FILES+=usr/share/man/man3/kvm_getfiles.3.gz
