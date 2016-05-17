@@ -84,6 +84,7 @@ METHOD void close {
 
 METHOD int task_setup {
 	struct icl_conn *_ic;
+	struct icl_pdu *_ip;
 	struct ccb_scsiio *_csio;
 	uint32_t *_task_tag;
 	void **_prvp;
