@@ -38,10 +38,10 @@ INTERFACE bhnd_bus;
 
 HEADER {
 	/* forward declarations */
+	struct bhnd_board_info;
 	struct bhnd_core_info;
 	struct bhnd_chipid;
 	struct bhnd_resource;
-	struct bhnd_bus_ctx;
 }
 
 CODE {
@@ -54,7 +54,14 @@ CODE {
 	{
 		panic("bhnd_bus_get_chipid unimplemented");
 	}
-	
+
+	static int
+	bhnd_bus_null_read_board_info(device_t dev, device_t child,
+	    struct bhnd_board_info *info)
+	{
+		panic("bhnd_bus_read_boardinfo unimplemented");
+	}
+
 	static device_t
 	bhnd_bus_null_find_hostb_device(device_t dev)
 	{
@@ -99,7 +106,7 @@ CODE {
 	bhnd_bus_null_get_nvram_var(device_t dev, device_t child,
 	    const char *name, void *buf, size_t *size)
 	{
-		return (ENOENT);
+		return (ENODEV);
 	}
 
 }
@@ -175,6 +182,28 @@ METHOD const struct bhnd_chipid * get_chipid {
 	device_t dev;
 	device_t child;
 } DEFAULT bhnd_bus_null_get_chipid;
+
+/**
+ * Attempt to read the BHND board identification from the parent bus.
+ *
+ * This relies on NVRAM access, and will fail if a valid NVRAM device cannot
+ * be found, or is not yet attached.
+ *
+ * @param dev The parent of @p child.
+ * @param child The bhnd device requesting board info.
+ * @param[out] info On success, will be populated with the bhnd(4) device's
+ * board information.
+ *
+ * @retval 0 success
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+METHOD int read_board_info {
+	device_t dev;
+	device_t child;
+	struct bhnd_board_info *info;
+} DEFAULT bhnd_bus_null_read_board_info;
 
 /**
  * Reset the device's hardware core.
@@ -400,6 +429,7 @@ METHOD int get_region_addr {
  * @retval ENOENT	The requested variable was not found.
  * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p size is too
  *			small to hold the requested value.
+ * @retval ENODEV	No valid NVRAM source could be found.
  * @retval non-zero	If reading @p name otherwise fails, a regular unix
  *			error code will be returned.
  */
