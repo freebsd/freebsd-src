@@ -135,4 +135,16 @@ icl_conn_transfer_done(struct icl_conn *ic, void *prv)
 	ICL_CONN_TRANSFER_DONE(ic, prv);
 }
 
+/*
+ * The function below is only used with ICL_KERNEL_PROXY.
+ */
+static inline int
+icl_conn_connect(struct icl_conn *ic, int domain, int socktype,
+    int protocol, struct sockaddr *from_sa, struct sockaddr *to_sa)
+{
+
+	return (ICL_CONN_CONNECT(ic, domain, socktype, protocol,
+	    from_sa, to_sa));
+}
+
 #endif /* !ICL_WRAPPERS_H */
