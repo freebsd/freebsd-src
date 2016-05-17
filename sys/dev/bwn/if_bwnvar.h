@@ -59,6 +59,7 @@ struct bwn_mac;
 #define	BWN_TSSI2DBM(num, den)						\
 	((int32_t)((num < 0) ? num / den : (num + den / 2) / den))
 #define	BWN_HDRSIZE(mac)	bwn_tx_hdrsize(mac)
+#define	BWN_MAXTXHDRSIZE	(112 + (sizeof(struct bwn_plcp6)))
 
 #define	BWN_PIO_COOKIE(tq, tp)						\
 	((uint16_t)((((uint16_t)tq->tq_index + 1) << 12) | tp->tp_index))
