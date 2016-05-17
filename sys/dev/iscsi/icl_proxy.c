@@ -84,32 +84,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <linux/types.h>
-#include <rdma/rdma_cm.h>
 
 #include <dev/iscsi/icl.h>
 
-static int debug = 1;
+struct icl_listen_sock {
+	TAILQ_ENTRY(icl_listen_sock)	ils_next;
+	struct icl_listen		*ils_listen;
+	struct socket			*ils_socket;
+	bool				ils_running;
+	bool				ils_disconnecting;
+	int				ils_id;
+};
 
-#define	ICL_DEBUG(X, ...)					\
-	if (debug > 1) {					\
-		printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
-	} while (0)
-
-#define	ICL_WARN(X, ...)					\
-	if (debug > 0) {					\
-		printf("WARNING: %s: " X "\n",			\
-		    __func__, ## __VA_ARGS__);			\
-	} while (0)
+struct icl_listen	{
+	TAILQ_HEAD(, icl_listen_sock)	il_sockets;
+	struct sx			il_lock;
+	void				(*il_accept)(struct socket *,
+					    struct sockaddr *, int);
+};
 
 static MALLOC_DEFINE(M_ICL_PROXY, "ICL_PROXY", "iSCSI common layer proxy");
-
-#ifdef ICL_RDMA
-static int	icl_conn_connect_rdma(struct icl_conn *ic, int domain, int socktype,
-    int protocol, struct sockaddr *from_sa, struct sockaddr *to_sa);
-static int	icl_listen_add_rdma(struct icl_listen *il, int domain, int socktype, int protocol,
-    struct sockaddr *sa);
-#endif /* ICL_RDMA */
 
 static int
 icl_conn_connect_tcp(struct icl_conn *ic, int domain, int socktype,
@@ -172,12 +166,8 @@ icl_conn_connect(struct icl_conn *ic, bool rdma, int domain, int socktype,
 {
 
 	if (rdma) {
-#ifdef ICL_RDMA
-		return (icl_conn_connect_rdma(ic, domain, socktype, protocol, from_sa, to_sa));
-#else
 		ICL_DEBUG("RDMA not supported");
 		return (EOPNOTSUPP);
-#endif
 	}
 
 	return (icl_conn_connect_tcp(ic, domain, socktype, protocol, from_sa, to_sa));
@@ -375,13 +365,8 @@ icl_listen_add(struct icl_listen *il, bool rdma, int domain, int socktype,
 {
 
 	if (rdma) {
-#ifndef ICL_RDMA
 		ICL_DEBUG("RDMA not supported");
 		return (EOPNOTSUPP);
-#else
-		return (icl_listen_add_rdma(il, domain, socktype, protocol,
-		    sa, portal_id));
-#endif
 	}
 
 
