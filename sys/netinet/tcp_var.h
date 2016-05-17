@@ -629,8 +629,9 @@ void	kmod_tcpstat_inc(int statnum);
  * Running TCP connection count by state.
  */
 VNET_DECLARE(counter_u64_t, tcps_states[TCP_NSTATES]);
-#define	TCPSTATES_INC(state)	counter_u64_add(VNET(tcps_states)[state], 1)
-#define	TCPSTATES_DEC(state)	counter_u64_add(VNET(tcps_states)[state], -1)
+#define	V_tcps_states	VNET(tcps_states)
+#define	TCPSTATES_INC(state)	counter_u64_add(V_tcps_states[state], 1)
+#define	TCPSTATES_DEC(state)	counter_u64_add(V_tcps_states[state], -1)
 
 /*
  * TCP specific helper hook point identifiers.
