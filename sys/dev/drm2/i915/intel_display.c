@@ -7971,7 +7971,7 @@ bool intel_set_mode(struct drm_crtc *crtc,
 		crtc->mode = *mode;
 
 	/* Only after disabling all output pipelines that will be changed can we
-	 * update the the output configuration. */
+	 * update the output configuration. */
 	intel_modeset_update_state(dev, prepare_pipes);
 
 	if (dev_priv->display.modeset_global_resources)

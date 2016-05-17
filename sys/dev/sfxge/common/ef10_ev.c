@@ -547,7 +547,7 @@ ef10_ev_rx(
 		flags |= EFX_PKT_PREFIX_LEN;
 	}
 
-	/* Calculate the index of the the last descriptor consumed */
+	/* Calculate the index of the last descriptor consumed */
 	last_used_id = (eersp->eers_rx_read_ptr - 1) & eersp->eers_rx_mask;
 
 	/* Check for errors that invalidate checksum and L3/L4 fields */

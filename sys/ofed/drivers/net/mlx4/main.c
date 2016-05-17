@@ -164,7 +164,7 @@ MODULE_PARM_DESC(fast_drop,
 int mlx4_enable_64b_cqe_eqe = 1;
 module_param_named(enable_64b_cqe_eqe, mlx4_enable_64b_cqe_eqe, int, 0644);
 MODULE_PARM_DESC(enable_64b_cqe_eqe,
-		 "Enable 64 byte CQEs/EQEs when the the FW supports this if non-zero (default: 1)");
+		 "Enable 64 byte CQEs/EQEs when the FW supports this if non-zero (default: 1)");
 
 #define HCA_GLOBAL_CAP_MASK            0
 

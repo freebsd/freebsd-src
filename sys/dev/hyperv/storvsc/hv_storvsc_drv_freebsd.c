@@ -304,7 +304,7 @@ MODULE_DEPEND(storvsc, vmbus, 1, 1, 1);
  * We address this issue by implementing a sequentially
  * consistent protocol:
  *
- * 1. Channel callback is invoked while holding the the channel lock
+ * 1. Channel callback is invoked while holding the channel lock
  *    and an unloading driver will reset the channel callback under
  *    the protection of this channel lock.
  *

@@ -844,7 +844,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 	}
 
 	/*
-	 * This keeps the the kernel stack of current thread from getting
+	 * This keeps the kernel stack of current thread from getting
 	 * swapped.  In low-memory situations where the kernel stack might
 	 * otherwise get swapped out, this holds it and allows the thread
 	 * to make progress and release the kernel mapped pages sooner.

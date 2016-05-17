@@ -117,7 +117,7 @@ bhnd_generic_attach(device_t dev)
 /**
  * Default bhnd(4) bus driver implementation of DEVICE_DETACH().
  *
- * This implementation calls device_detach() for each of the the device's
+ * This implementation calls device_detach() for each of the device's
  * children, in reverse bhnd probe order, terminating if any call to
  * device_detach() fails.
  */

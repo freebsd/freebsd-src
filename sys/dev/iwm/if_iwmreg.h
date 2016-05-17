@@ -3923,7 +3923,7 @@ enum iwm_tx_flags {
  *	cleared. Combination of IWM_RATE_MCS_*
  * @sta_id: index of destination station in FW station table
  * @sec_ctl: security control, IWM_TX_CMD_SEC_*
- * @initial_rate_index: index into the the rate table for initial TX attempt.
+ * @initial_rate_index: index into the rate table for initial TX attempt.
  *	Applied if IWM_TX_CMD_FLG_STA_RATE_MSK is set, normally 0 for data frames.
  * @key: security key
  * @next_frame_flags: IWM_TX_CMD_SEC_* and IWM_TX_CMD_NEXT_FRAME_*
@@ -4274,7 +4274,7 @@ struct iwm_beacon_notif {
 
 /**
  * enum iwm_dump_control - dump (flush) control flags
- * @IWM_DUMP_TX_FIFO_FLUSH: Dump MSDUs until the the FIFO is empty
+ * @IWM_DUMP_TX_FIFO_FLUSH: Dump MSDUs until the FIFO is empty
  *	and the TFD queues are empty.
  */
 enum iwm_dump_control {

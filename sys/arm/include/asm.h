@@ -79,7 +79,7 @@
 
 /*
  * EENTRY()/EEND() mark "extra" entry/exit points from a function.
- * LEENTRY()/LEEND() are the the same for local symbols.
+ * LEENTRY()/LEEND() are the same for local symbols.
  * The unwind info cannot handle the concept of a nested function, or a function
  * with multiple .fnstart directives, but some of our assembler code is written
  * with multiple labels to allow entry at several points.  The EENTRY() macro

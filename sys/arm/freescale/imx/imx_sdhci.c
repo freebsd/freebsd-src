@@ -625,7 +625,7 @@ imx_sdhci_intr(void *arg)
 	 * out of the hardware now so that we can present it later when the DAT0
 	 * line is released.
 	 *
-	 * If we need to wait for the the DAT0 line to be released, we set up a
+	 * If we need to wait for the DAT0 line to be released, we set up a
 	 * timeout point 250ms in the future.  This number comes from the SD
 	 * spec, which allows a command to take that long.  In the real world,
 	 * cards tend to take 10-20ms for a long-running command such as a write

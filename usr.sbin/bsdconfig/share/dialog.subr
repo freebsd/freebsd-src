@@ -1815,7 +1815,7 @@ f_dialog_inputstr_fetch()
 # f_dialog_input $var_to_set $prompt [$init [$hline]]
 #
 # Prompt the user with a dialog(1) inputbox to enter some value. The inputbox
-# remains until the the user presses ENTER or ESC, or otherwise ends the
+# remains until the user presses ENTER or ESC, or otherwise ends the
 # editing session (by selecting `Cancel' for example).
 #
 # If the user presses ENTER, the exit status is zero (success), otherwise if
