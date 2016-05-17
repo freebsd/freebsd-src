@@ -298,8 +298,9 @@ main(int argc, char *argv[])
 	m = malloc(size = 1025);
 	if (m == NULL)
 		errx(1, "%s", strerror(ENOMEM));
-	if (!freopen(tracefile, "r", stdin))
-		err(1, "%s", tracefile);
+	if (strcmp(tracefile, "-"))
+		if (!freopen(tracefile, "r", stdin))
+			err(1, "%s", tracefile);
 
 	strerror_init();
 	localtime_init();
