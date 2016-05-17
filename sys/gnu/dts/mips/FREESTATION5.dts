@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "rt3050.dtsi"
+#include "rt3050.dtsi"
 
 / {
 	compatible = "FREESTATION5", "ralink,rt3050-soc";
@@ -8,15 +8,6 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200";
-	};
-
-	pinctrl {
-		state_default: pinctrl0 {
-			gpio {
-				ralink,group = "spi", "i2c", "jtag", "rgmii", "mdio", "uartf";
-				ralink,function = "gpio";
-			};
-		};
 	};
 
 	cfi@1f000000 {
@@ -51,22 +42,6 @@
 		};
 	};
 
-	ethernet@10100000 {
-		mtd-mac-address = <&factory 0x4>;
-	};
-
-	esw@10110000 {
-		mediatek,portmap = <0x01>;
-	};
-
-	wmac@10180000 {
-		ralink,mtd-eeprom = <&factory 0>;
-	};
-
-	otg@101c0000 {
-		status = "okay";
-	};
-
 	gpio-export {
 		compatible = "gpio-export";
 
@@ -99,4 +74,29 @@
 			gpios = <&gpio0 14 1>;
 		};
 	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
+
+&esw {
+	mediatek,portmap = <0x01>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&otg {
+	status = "okay";
 };
