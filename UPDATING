@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20160517	p17	FreeBSD-SA-16:18.atkbd
+			FreeBSD-SA-16:19.sendmsg
+
+	Fix buffer overflow in keyboard driver. [SA-16:18]
+
+	Fix incorrect argument handling in sendmsg(2). [SA-16:19]
+
 20160504	p16	FreeBSD-SA-16:17.openssl
 			FreeBSD-EN-16:07.ipi
 			FreeBSD-EN-16:08.zfs
