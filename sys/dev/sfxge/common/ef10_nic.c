@@ -389,7 +389,8 @@ fail1:
 	__checkReturn	efx_rc_t
 efx_mcdi_get_clock(
 	__in		efx_nic_t *enp,
-	__out		uint32_t *sys_freqp)
+	__out		uint32_t *sys_freqp,
+	__out		uint32_t *dpcpu_freqp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CLOCK_IN_LEN,
@@ -423,9 +424,16 @@ efx_mcdi_get_clock(
 		rc = EINVAL;
 		goto fail3;
 	}
+	*dpcpu_freqp = MCDI_OUT_DWORD(req, GET_CLOCK_OUT_DPCPU_FREQ);
+	if (*dpcpu_freqp == 0) {
+		rc = EINVAL;
+		goto fail4;
+	}
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:

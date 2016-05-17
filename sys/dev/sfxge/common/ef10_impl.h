@@ -1061,7 +1061,9 @@ efx_mcdi_get_mac_address_vf(
 extern	__checkReturn	efx_rc_t
 efx_mcdi_get_clock(
 	__in		efx_nic_t *enp,
-	__out		uint32_t *sys_freqp);
+	__out		uint32_t *sys_freqp,
+	__out		uint32_t *dpcpu_freqp);
+
 
 extern	__checkReturn	efx_rc_t
 efx_mcdi_get_vector_cfg(

@@ -141,7 +141,7 @@ medford_board_cfg(
 	uint32_t pf;
 	uint32_t vf;
 	uint32_t mask;
-	uint32_t sysclk;
+	uint32_t sysclk, dpcpu_clk;
 	uint32_t base, nvec;
 	uint32_t end_padding;
 	uint32_t bandwidth;
@@ -231,15 +231,15 @@ medford_board_cfg(
 	/* Chained multicast is always enabled on Medford */
 	encp->enc_bug26807_workaround = B_TRUE;
 
-	/* Get sysclk frequency (in MHz). */
-	if ((rc = efx_mcdi_get_clock(enp, &sysclk)) != 0)
+	/* Get clock frequencies (in MHz). */
+	if ((rc = efx_mcdi_get_clock(enp, &sysclk, &dpcpu_clk)) != 0)
 		goto fail8;
 
 	/*
-	 * The timer quantum is 1536 sysclk cycles, documented for the
-	 * EV_TMR_VAL field of EV_TIMER_TBL. Scale for MHz and ns units.
+	 * The Medford timer quantum is 1536 dpcpu_clk cycles, documented for
+	 * the EV_TMR_VAL field of EV_TIMER_TBL. Scale for MHz and ns units.
 	 */
-	encp->enc_evq_timer_quantum_ns = 1536000UL / sysclk; /* 1536 cycles */
+	encp->enc_evq_timer_quantum_ns = 1536000UL / dpcpu_clk; /* 1536 cycles */
 	encp->enc_evq_timer_max_us = (encp->enc_evq_timer_quantum_ns <<
 		    FRF_CZ_TC_TIMER_VAL_WIDTH) / 1000;
 

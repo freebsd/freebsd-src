@@ -114,7 +114,7 @@ hunt_board_cfg(
 	uint32_t vf;
 	uint32_t mask;
 	uint32_t flags;
-	uint32_t sysclk;
+	uint32_t sysclk, dpcpu_clk;
 	uint32_t base, nvec;
 	uint32_t bandwidth;
 	efx_rc_t rc;
@@ -274,13 +274,13 @@ hunt_board_cfg(
 		goto fail10;
 	}
 
-	/* Get sysclk frequency (in MHz). */
-	if ((rc = efx_mcdi_get_clock(enp, &sysclk)) != 0)
+	/* Get clock frequencies (in MHz). */
+	if ((rc = efx_mcdi_get_clock(enp, &sysclk, &dpcpu_clk)) != 0)
 		goto fail11;
 
 	/*
-	 * The timer quantum is 1536 sysclk cycles, documented for the
-	 * EV_TMR_VAL field of EV_TIMER_TBL. Scale for MHz and ns units.
+	 * The Huntington timer quantum is 1536 sysclk cycles, documented for
+	 * the EV_TMR_VAL field of EV_TIMER_TBL. Scale for MHz and ns units.
 	 */
 	encp->enc_evq_timer_quantum_ns = 1536000UL / sysclk; /* 1536 cycles */
 	if (encp->enc_bug35388_workaround) {
