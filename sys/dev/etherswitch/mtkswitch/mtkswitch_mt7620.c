@@ -119,7 +119,6 @@ static uint32_t
 mtkswitch_reg_read32(struct mtkswitch_softc *sc, int reg)
 {
 
-	MTKSWITCH_LOCK_ASSERT(sc, MA_OWNED);
 	return (MTKSWITCH_READ(sc, reg));
 }
 
@@ -127,7 +126,6 @@ static uint32_t
 mtkswitch_reg_write32(struct mtkswitch_softc *sc, int reg, uint32_t val)
 {
 
-	MTKSWITCH_LOCK_ASSERT(sc, MA_OWNED);
 	MTKSWITCH_WRITE(sc, reg, val);
 	return (0);
 }
@@ -230,15 +228,21 @@ mtkswitch_port_init(struct mtkswitch_softc *sc, int port)
 	/* Called early and hence unlocked */
 
 	/* Set the port to secure mode */
-	sc->hal.mtkswitch_write(sc, MTKSWITCH_PCR(port), PCR_PORT_VLAN_SECURE);
+	val = sc->hal.mtkswitch_read(sc, MTKSWITCH_PCR(port));
+	val |= PCR_PORT_VLAN_SECURE;
+	sc->hal.mtkswitch_write(sc, MTKSWITCH_PCR(port), val);
 
 	/* Set port's vlan_attr to user port */
 	val = sc->hal.mtkswitch_read(sc, MTKSWITCH_PVC(port));
-	val &= PVC_VLAN_ATTR_MASK;
+	val &= ~PVC_VLAN_ATTR_MASK;
 	sc->hal.mtkswitch_write(sc, MTKSWITCH_PVC(port), val);
 
+	val = PMCR_CFG_DEFAULT;
+	if (port == sc->cpuport)
+		val |= PMCR_FORCE_LINK | PMCR_FORCE_DPX | PMCR_FORCE_SPD_1000 |
+		    PMCR_FORCE_MODE;
 	/* Set port's MAC to default settings */
-	sc->hal.mtkswitch_write(sc, MTKSWITCH_PMCR(port), PMCR_CFG_DEFAULT);
+	sc->hal.mtkswitch_write(sc, MTKSWITCH_PMCR(port), val);
 }
 
 static uint32_t
@@ -353,13 +357,12 @@ mtkswitch_vlan_init_hw(struct mtkswitch_softc *sc)
 
 	MTKSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
 	MTKSWITCH_LOCK(sc);
-
 	/* Reset all VLANs to defaults first */
 	for (i = 0; i < sc->info.es_nvlangroups; i++) {
 		mtkswitch_invalidate_vlan(sc, i);
 		if (sc->sc_switchtype == MTK_SWITCH_MT7620) {
 			val = sc->hal.mtkswitch_read(sc, MTKSWITCH_VTIM(i));
-			val &= (VTIM_MASK << VTIM_OFF(i));
+			val &= ~(VTIM_MASK << VTIM_OFF(i));
 			val |= ((i + 1) << VTIM_OFF(i));
 			sc->hal.mtkswitch_write(sc, MTKSWITCH_VTIM(i), val);
 		}
@@ -464,7 +467,7 @@ mtkswitch_vlan_setvgroup(struct mtkswitch_softc *sc, etherswitch_vlangroup_t *v)
 	if (sc->sc_switchtype == MTK_SWITCH_MT7620) {
 		val = sc->hal.mtkswitch_read(sc,
 		    MTKSWITCH_VTIM(v->es_vlangroup));
-		val &= (VTIM_MASK << VTIM_OFF(v->es_vlangroup));
+		val &= ~(VTIM_MASK << VTIM_OFF(v->es_vlangroup));
 		val |= ((v->es_vid & VTIM_MASK) << VTIM_OFF(v->es_vlangroup));
 		sc->hal.mtkswitch_write(sc, MTKSWITCH_VTIM(v->es_vlangroup),
 		    val);

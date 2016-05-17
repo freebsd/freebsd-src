@@ -85,13 +85,21 @@
 #define		PPBV_VID_MASK		0xfff
 
 #define	MTKSWITCH_PMCR(x)	MTKSWITCH_PORTREG(0x3000, (x))
+#define		PMCR_FORCE_LINK		(1u<<0)
+#define		PMCR_FORCE_DPX		(1u<<1)
+#define		PMCR_FORCE_SPD_1000	(2u<<2)
+#define		PMCR_FORCE_TX_FC	(1u<<4)
+#define		PMCR_FORCE_RX_FC	(1u<<5)
 #define		PMCR_BACKPR_EN		(1u<<8)
 #define		PMCR_BKOFF_EN		(1u<<9)
 #define		PMCR_MAC_RX_EN		(1u<<13)
 #define		PMCR_MAC_TX_EN		(1u<<14)
+#define		PMCR_FORCE_MODE		(1u<<15)
+#define		PMCR_RES_1		(1u<<16)
 #define		PMCR_IPG_CFG_RND	(1u<<18)
 #define		PMCR_CFG_DEFAULT	(PMCR_BACKPR_EN | PMCR_BKOFF_EN | \
-		    PMCR_MAC_RX_EN | PMCR_MAC_TX_EN | PMCR_IPG_CFG_RND)
+		    PMCR_MAC_RX_EN | PMCR_MAC_TX_EN | PMCR_IPG_CFG_RND |  \
+		    PMCR_FORCE_RX_FC | PMCR_FORCE_TX_FC | PMCR_RES_1)
 
 #define	MTKSWITCH_PMSR(x)	MTKSWITCH_PORTREG(0x3008, (x))
 #define		PMSR_MAC_LINK_STS	(1u<<0)
