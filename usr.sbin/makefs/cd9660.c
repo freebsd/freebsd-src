@@ -685,6 +685,9 @@ cd9660_finalize_PVD(void)
 	cd9660_time_8426(
 	    (unsigned char *)diskStructure.primaryDescriptor.effective_date,
 	    tim);
+	/* make this sane */
+	cd9660_time_915(diskStructure.rootNode->dot_record->isoDirRecord->date,
+			tim);
 }
 
 static void
