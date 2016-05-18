@@ -38,7 +38,8 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 /*
  * Globals
@@ -294,10 +295,10 @@ hv_vmbus_disconnect(void) {
 void
 hv_vmbus_on_events(int cpu)
 {
-	unsigned long *intr_page;
+	unsigned long *intr_flags;
 	hv_vmbus_synic_event_flags *event;
 	void *page_addr;
-	int page_cnt, pg;
+	int flag_cnt, f;
 
 	KASSERT(cpu <= mp_maxid, ("VMBUS: hv_vmbus_on_events: "
 	    "cpu out of range!"));
@@ -307,13 +308,13 @@ hv_vmbus_on_events(int cpu)
 	    page_addr + HV_VMBUS_MESSAGE_SINT;
 	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
 	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
-		page_cnt = HV_MAX_NUM_CHANNELS_SUPPORTED >>
+		flag_cnt = HV_MAX_NUM_CHANNELS_SUPPORTED >>
 		    HV_CHANNEL_ULONG_SHIFT;
 		/*
 		 * receive size is 1/2 page and divide that by 4 bytes
 		 */
 		if (atomic_testandclear_int(&event->flags32[0], 0))
-			intr_page = hv_vmbus_g_connection.recv_interrupt_page;
+			intr_flags = hv_vmbus_g_connection.recv_interrupt_page;
 		else
 			return;
 	} else {
@@ -322,23 +323,23 @@ hv_vmbus_on_events(int cpu)
 		 * checked directly to get the id of the channel
 		 * that has the pending interrupt.
 		 */
-		page_cnt = HV_EVENT_FLAGS_ULONG_COUNT;
-		intr_page = event->flagsul;
+		flag_cnt = VMBUS_PCPU_GET(event_flag_cnt, cpu);
+		intr_flags = event->flagsul;
 	}
 
 	/*
 	 * Check events
 	 */
-	for (pg = 0; pg < page_cnt; pg++) {
+	for (f = 0; f < flag_cnt; f++) {
 		uint32_t rel_id_base;
 		int bit;
 
-		if (intr_page[pg] == 0)
+		if (intr_flags[f] == 0)
 			continue;
 
-		rel_id_base = pg << HV_CHANNEL_ULONG_SHIFT;
+		rel_id_base = f << HV_CHANNEL_ULONG_SHIFT;
 		for (bit = 0; bit < HV_CHANNEL_ULONG_LEN; bit++) {
-			if (atomic_testandclear_long(&intr_page[pg], bit)) {
+			if (atomic_testandclear_long(&intr_flags[f], bit)) {
 				struct hv_vmbus_channel *channel;
 				uint32_t rel_id;
 
@@ -411,4 +412,31 @@ hv_vmbus_set_event(hv_vmbus_channel *channel) {
 	ret = hv_vmbus_signal_event(channel->signal_event_param);
 
 	return (ret);
+}
+
+void
+vmbus_on_channel_open(const struct hv_vmbus_channel *chan)
+{
+	volatile int *flag_cnt_ptr;
+	int flag_cnt;
+
+	flag_cnt = (chan->offer_msg.child_rel_id / HV_CHANNEL_ULONG_LEN) + 1;
+	flag_cnt_ptr = VMBUS_PCPU_PTR(event_flag_cnt, chan->target_cpu);
+
+	for (;;) {
+		int old_flag_cnt;
+
+		old_flag_cnt = *flag_cnt_ptr;
+		if (old_flag_cnt >= flag_cnt)
+			break;
+		if (atomic_cmpset_int(flag_cnt_ptr, old_flag_cnt, flag_cnt)) {
+			if (bootverbose) {
+				printf("VMBUS: channel%u update "
+				    "cpu%d flag_cnt to %d\n",
+				    chan->offer_msg.child_rel_id,
+				    chan->target_cpu, flag_cnt);
+			}
+			break;
+		}
+	}
 }

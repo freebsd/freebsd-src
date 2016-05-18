@@ -60,10 +60,13 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicvar.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
+
+struct vmbus_softc	*vmbus_sc;
 
 static device_t vmbus_devp;
 static int vmbus_inited;
@@ -517,7 +520,9 @@ vmbus_attach(device_t dev)
 {
 	if(bootverbose)
 		device_printf(dev, "VMBUS: attach dev: %p\n", dev);
+
 	vmbus_devp = dev;
+	vmbus_sc = device_get_softc(dev);
 
 #ifndef EARLY_AP_STARTUP
 	/* 
@@ -537,7 +542,7 @@ vmbus_attach(device_t dev)
 static void
 vmbus_init(void)
 {
-	if (vm_guest != VM_GUEST_HV)
+	if (vm_guest != VM_GUEST_HV || vmbus_get_softc() == NULL)
 		return;
 
 #ifndef EARLY_AP_STARTUP
@@ -646,9 +651,11 @@ static device_method_t vmbus_methods[] = {
 
 	{ 0, 0 } };
 
-static char driver_name[] = "vmbus";
-static driver_t vmbus_driver = { driver_name, vmbus_methods,0, };
-
+static driver_t vmbus_driver = {
+	"vmbus",
+	vmbus_methods,
+	sizeof(struct vmbus_softc)
+};
 
 devclass_t vmbus_devclass;
 

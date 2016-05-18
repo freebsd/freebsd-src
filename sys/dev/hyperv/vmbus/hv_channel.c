@@ -42,7 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 static int 	vmbus_channel_create_gpadl_header(
 			/* must be phys and virt contiguous*/
@@ -198,6 +199,8 @@ hv_vmbus_channel_open(
 
 	new_channel->on_channel_callback = pfn_on_channel_callback;
 	new_channel->channel_callback_context = context;
+
+	vmbus_on_channel_open(new_channel);
 
 	new_channel->rxq = hv_vmbus_g_context.hv_event_queue[new_channel->target_cpu];
 	TASK_INIT(&new_channel->channel_task, 0, VmbusProcessChannelEvent, new_channel);
