@@ -841,7 +841,7 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
  * mount system call
  * It seems a bit dumb to copyinstr() the host and path here and then
  * bcopy() them in mountnfs(), but I wanted to detect errors before
- * doing the sockargs() call because sockargs() allocates an mbuf and
+ * doing the getsockaddr() call because getsockaddr() allocates an mbuf and
  * an error after that means that I have to release the mbuf.
  */
 /* ARGSUSED */
@@ -1228,7 +1228,7 @@ nfs_mount(struct mount *mp)
 			goto out;
 		bzero(&hst[hstlen], MNAMELEN - hstlen);
 		args.hostname = hst;
-		/* sockargs() call must be after above copyin() calls */
+		/* getsockaddr() call must be after above copyin() calls */
 		error = getsockaddr(&nam, (caddr_t)args.addr,
 		    args.addrlen);
 		if (error != 0)
@@ -1332,7 +1332,7 @@ out:
  * mount system call
  * It seems a bit dumb to copyinstr() the host and path here and then
  * bcopy() them in mountnfs(), but I wanted to detect errors before
- * doing the sockargs() call because sockargs() allocates an mbuf and
+ * doing the getsockaddr() call because getsockaddr() allocates an mbuf and
  * an error after that means that I have to release the mbuf.
  */
 /* ARGSUSED */
