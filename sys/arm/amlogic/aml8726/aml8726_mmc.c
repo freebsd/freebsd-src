@@ -605,11 +605,11 @@ aml8726_mmc_attach(device_t dev)
 	else {
 		device_printf(dev, "unknown function attribute %.*s in FDT\n",
 		    len, function_name);
-		free(function_name, M_OFWPROP);
+		OF_prop_free(function_name);
 		return (ENXIO);
 	}
 
-	free(function_name, M_OFWPROP);
+	OF_prop_free(function_name);
 
 	sc->pwr_en.dev = NULL;
 
@@ -661,7 +661,7 @@ aml8726_mmc_attach(device_t dev)
 			device_printf(dev,
 			    "unknown voltage attribute %.*s in FDT\n",
 			    len, voltage);
-			free(voltages, M_OFWPROP);
+			OF_prop_free(voltages);
 			return (ENXIO);
 		}
 
@@ -678,7 +678,7 @@ aml8726_mmc_attach(device_t dev)
 		}
 	}
 
-	free(voltages, M_OFWPROP);
+	OF_prop_free(voltages);
 
 	sc->vselect.dev = NULL;
 
