@@ -21,16 +21,19 @@ CFLAGS+=	-fno-strict-aliasing
 TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
 
-.if ${TARGET_ARCH:Marm*hf*} != ""
+# Armv6 uses hard float abi, unless the CPUTYPE has soft in it.
+# arm (for armv4 and armv5 CPUs) always uses the soft float ABI.
+# For all other targets, we stick with 'unknown'.
+.if ${TARGET_ARCH:Marmv6*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 TARGET_ABI=	gnueabihf
-.elif ${TARGET_ARCH:Marm*} != ""
+.elif ${TARGET_ARCH:Marm*}
 TARGET_ABI=	gnueabi
 .else
 TARGET_ABI=	unknown
 .endif
 
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/:C/arm64/aarch64/}-${TARGET_ABI}-freebsd11.0
-BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/:C/arm64/aarch64/}-unknown-freebsd11.0
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-${TARGET_ABI}-freebsd11.0
+BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-unknown-freebsd11.0
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
