@@ -332,32 +332,32 @@ hv_vmbus_on_events(int cpu)
 	 */
 	for (f = 0; f < flag_cnt; f++) {
 		uint32_t rel_id_base;
+		unsigned long flags;
 		int bit;
 
 		if (intr_flags[f] == 0)
 			continue;
 
+		flags = atomic_swap_long(&intr_flags[f], 0);
 		rel_id_base = f << HV_CHANNEL_ULONG_SHIFT;
-		for (bit = 0; bit < HV_CHANNEL_ULONG_LEN; bit++) {
-			if (atomic_testandclear_long(&intr_flags[f], bit)) {
-				struct hv_vmbus_channel *channel;
-				uint32_t rel_id;
 
-				rel_id = rel_id_base + bit;
-				channel =
-				    hv_vmbus_g_connection.channels[rel_id];
+		while ((bit = ffsl(flags)) != 0) {
+			struct hv_vmbus_channel *channel;
+			uint32_t rel_id;
 
-				/* if channel is closed or closing */
-				if (channel == NULL || channel->rxq == NULL)
-					continue;
+			--bit;	/* NOTE: ffsl is 1-based */
+			flags &= ~(1UL << bit);
 
-				if (channel->batched_reading) {
-					hv_ring_buffer_read_begin(
-					    &channel->inbound);
-				}
-				taskqueue_enqueue(channel->rxq,
-				    &channel->channel_task);
-			}
+			rel_id = rel_id_base + bit;
+			channel = hv_vmbus_g_connection.channels[rel_id];
+
+			/* if channel is closed or closing */
+			if (channel == NULL || channel->rxq == NULL)
+				continue;
+
+			if (channel->batched_reading)
+				hv_ring_buffer_read_begin(&channel->inbound);
+			taskqueue_enqueue(channel->rxq, &channel->channel_task);
 		}
 	}
 }
