@@ -775,18 +775,17 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 	notify.nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
 	notify.nt_lreserved = aep;
 	sid = (aep->at_hdr.s_id[0] << 16) | (aep->at_hdr.s_id[1] <<  8) | (aep->at_hdr.s_id[2]);
-
-	/* Channel has to derived from D_ID */
 	did = (aep->at_hdr.d_id[0] << 16) | (aep->at_hdr.d_id[1] << 8) | aep->at_hdr.d_id[2];
-	for (chan = 0; chan < isp->isp_nchan; chan++) {
-		if (FCPARAM(isp, chan)->isp_portid == did) {
-			break;
+	if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
+		/* Channel has to be derived from D_ID */
+		isp_find_chan_by_did(isp, did, &chan);
+		if (chan == ISP_NOCHAN) {
+			isp_prt(isp, ISP_LOGWARN, "%s: D_ID 0x%x not found on any channel", __func__, did);
+			/* just drop on the floor */
+			return;
 		}
-	}
-	if (chan == isp->isp_nchan) {
-		isp_prt(isp, ISP_LOGWARN, "%s: D_ID 0x%x not found on any channel", __func__, did);
-		/* just drop on the floor */
-		return;
+	} else {
+		chan = 0;
 	}
 	notify.nt_nphdl = NIL_HANDLE; /* unknown here */
 	notify.nt_sid = sid;
