@@ -110,7 +110,7 @@ bool intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu);
 int intr_isrc_dispatch(struct intr_irqsrc *, struct trapframe *);
 u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 
-int intr_pic_register(device_t, intptr_t);
+struct intr_pic *intr_pic_register(device_t, intptr_t);
 int intr_pic_deregister(device_t, intptr_t);
 int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *, u_int);
 

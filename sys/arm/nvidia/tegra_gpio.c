@@ -452,8 +452,11 @@ tegra_gpio_pic_attach(struct tegra_gpio_softc *sc)
 		if (error != 0)
 			return (error); /* XXX deregister ISRCs */
 	}
-	return (intr_pic_register(sc->dev,
-	    OF_xref_from_node(ofw_bus_get_node(sc->dev))));
+	if (intr_pic_register(sc->dev,
+	    OF_xref_from_node(ofw_bus_get_node(sc->dev))) == NULL)
+		return (ENXIO);
+
+	return (0);
 }
 
 static int

@@ -220,6 +220,7 @@ ti_aintc_post_filter(device_t dev, struct intr_irqsrc *isrc)
 static int
 ti_aintc_pic_attach(struct ti_aintc_softc *sc)
 {
+	struct intr_pic *pic;
 	int error;
 	uint32_t irq;
 	const char *name;
@@ -236,9 +237,9 @@ ti_aintc_pic_attach(struct ti_aintc_softc *sc)
 	}
 
 	xref = OF_xref_from_node(ofw_bus_get_node(sc->sc_dev));
-	error = intr_pic_register(sc->sc_dev, xref);
-	if (error != 0)
-		return (error);
+	pic = intr_pic_register(sc->sc_dev, xref);
+	if (pic == NULL)
+		return (ENXIO);
 
 	return (intr_pic_claim_root(sc->sc_dev, xref, ti_aintc_intr, sc, 0));
 }

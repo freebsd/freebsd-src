@@ -274,7 +274,7 @@ mv_mpic_attach(device_t dev)
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
 		return (ENXIO);
 	}
-	if (intr_pic_register(dev, OF_xref_from_device(dev)) != 0) {
+	if (intr_pic_register(dev, OF_xref_from_device(dev)) == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
 		return (ENXIO);

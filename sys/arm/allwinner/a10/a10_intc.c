@@ -250,6 +250,7 @@ a10_intr(void *arg)
 static int
 a10_intr_pic_attach(struct a10_aintc_softc *sc)
 {
+	struct intr_pic *pic;
 	int error;
 	uint32_t irq;
 	const char *name;
@@ -266,9 +267,9 @@ a10_intr_pic_attach(struct a10_aintc_softc *sc)
 	}
 
 	xref = OF_xref_from_node(ofw_bus_get_node(sc->sc_dev));
-	error = intr_pic_register(sc->sc_dev, xref);
-	if (error != 0)
-		return (error);
+	pic = intr_pic_register(sc->sc_dev, xref);
+	if (pic == NULL)
+		return (ENXIO);
 
 	return (intr_pic_claim_root(sc->sc_dev, xref, a10_intr, sc, 0));
 }

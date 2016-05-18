@@ -362,7 +362,7 @@ aw_nmi_attach(device_t dev)
 	      device_get_nameunit(sc->dev), sc->intr.irq) != 0)
 		goto error;
 
-	if (intr_pic_register(dev, (intptr_t)xref) != 0) {
+	if (intr_pic_register(dev, (intptr_t)xref) == NULL) {
 		device_printf(dev, "could not register pic\n");
 		goto error;
 	}
