@@ -562,8 +562,8 @@ vmbus_init(void)
 		vmbus_bus_init();
 }
 
-static void
-vmbus_bus_exit(void)
+static int
+vmbus_detach(device_t dev)
 {
 	int i;
 
@@ -589,19 +589,6 @@ vmbus_bus_exit(void)
 
 	lapic_ipi_free(hv_vmbus_g_context.hv_cb_vector);
 
-	return;
-}
-
-static void
-vmbus_exit(void)
-{
-	vmbus_bus_exit();
-}
-
-static int
-vmbus_detach(device_t dev)
-{
-	vmbus_exit();
 	return (0);
 }
 
