@@ -1169,7 +1169,7 @@ recv_dgram(struct port_input *pi, struct in_addr *laddr)
 			memcpy(laddr, CMSG_DATA(cmsg), sizeof(struct in_addr));
 		if (cmsg->cmsg_level == SOL_SOCKET &&
 		    cmsg->cmsg_type == SCM_CREDS)
-			memcpy(cred, CMSG_DATA(cmsg), sizeof(struct sockcred));
+			cred = (struct sockcred *)CMSG_DATA(cmsg);
 	}
 
 	if (pi->cred)
@@ -1207,7 +1207,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 
 		ret = recv_stream(pi);
 	} else {
-		struct in_addr laddr;
+		struct in_addr *laddr;
 
 		memset(cbuf, 0, CMSG_SPACE(sizeof(struct in_addr)));
 		msg.msg_control = cbuf;
@@ -1216,11 +1216,11 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
 		cmsgp->cmsg_level = IPPROTO_IP;
 		cmsgp->cmsg_type = IP_SENDSRCADDR;
-		memcpy(&laddr, CMSG_DATA(cmsgp), sizeof(struct in_addr));
+		laddr = (struct in_addr *)CMSG_DATA(cmsgp);
 		
-		ret = recv_dgram(pi, &laddr);
+		ret = recv_dgram(pi, laddr);
 
-		if (laddr.s_addr == 0) {
+		if (laddr->s_addr == 0) {
 			msg.msg_control = NULL;
 			msg.msg_controllen = 0;
 		}
