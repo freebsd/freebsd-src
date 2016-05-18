@@ -690,25 +690,43 @@ vnet_log_recursion(struct vnet *old_vnet, const char *old_fn, int line)
  * DDB(4).
  */
 #ifdef DDB
-DB_SHOW_COMMAND(vnets, db_show_vnets)
+static void
+db_vnet_print(struct vnet *vnet)
+{
+
+	db_printf("vnet            = %p\n", vnet);
+	db_printf(" vnet_magic_n   = %#08x (%s, orig %#08x)\n",
+	    vnet->vnet_magic_n,
+	    (vnet->vnet_magic_n == VNET_MAGIC_N) ?
+		"ok" : "mismatch", VNET_MAGIC_N);
+	db_printf(" vnet_ifcnt     = %u\n", vnet->vnet_ifcnt);
+	db_printf(" vnet_sockcnt   = %u\n", vnet->vnet_sockcnt);
+	db_printf(" vnet_data_mem  = %p\n", vnet->vnet_data_mem);
+	db_printf(" vnet_data_base = %#jx\n",
+	    (uintmax_t)vnet->vnet_data_base);
+	db_printf("\n");
+}
+
+DB_SHOW_ALL_COMMAND(vnets, db_show_all_vnets)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	VNET_FOREACH(vnet_iter) {
-		db_printf("vnet            = %p\n", vnet_iter);
-		db_printf(" vnet_magic_n   = 0x%x (%s, orig 0x%x)\n",
-		    vnet_iter->vnet_magic_n,
-		    (vnet_iter->vnet_magic_n == VNET_MAGIC_N) ?
-			"ok" : "mismatch", VNET_MAGIC_N);
-		db_printf(" vnet_ifcnt     = %u\n", vnet_iter->vnet_ifcnt);
-		db_printf(" vnet_sockcnt   = %u\n", vnet_iter->vnet_sockcnt);
-		db_printf(" vnet_data_mem  = %p\n", vnet_iter->vnet_data_mem);
-		db_printf(" vnet_data_base = 0x%jx\n",
-		    (uintmax_t)vnet_iter->vnet_data_base);
-		db_printf("\n");
+		db_vnet_print(vnet_iter);
 		if (db_pager_quit)
 			break;
 	}
+}
+
+DB_SHOW_COMMAND(vnet, db_show_vnet)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show vnet <struct vnet *>\n");
+		return;
+	}
+
+	db_vnet_print((struct vnet *)addr);
 }
 
 static void
@@ -734,7 +752,7 @@ db_show_vnet_print_vs(struct vnet_sysinit *vs, int ddb)
 	sym = db_search_symbol((vm_offset_t)vs->func, DB_STGY_PROC, &offset);
 	db_symbol_values(sym, &funcname, NULL);
 	xprint("%s(%p)\n", (vsname != NULL) ? vsname : "", vs);
-	xprint("  0x%08x 0x%08x\n", vs->subsystem, vs->order);
+	xprint("  %#08x %#08x\n", vs->subsystem, vs->order);
 	xprint("  %p(%s)(%p)\n",
 	    vs->func, (funcname != NULL) ? funcname : "", vs->arg);
 #undef xprint
