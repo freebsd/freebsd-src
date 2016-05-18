@@ -865,7 +865,7 @@ int
 sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
-	struct thread *td, *tdn;
+	struct thread *td;
 	int wakeup_swapper;
 
 	CTR2(KTR_PROC, "sleepq_broadcast(%p, %d)", wchan, flags);
@@ -879,10 +879,9 @@ sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 
 	/* Resume all blocked threads on the sleep queue. */
 	wakeup_swapper = 0;
-	TAILQ_FOREACH_SAFE(td, &sq->sq_blocked[queue], td_slpq, tdn) {
+	while ((td = TAILQ_FIRST(&sq->sq_blocked[queue])) != NULL) {
 		thread_lock(td);
-		if (sleepq_resume_thread(sq, td, pri))
-			wakeup_swapper = 1;
+		wakeup_swapper |= sleepq_resume_thread(sq, td, pri);
 		thread_unlock(td);
 	}
 	return (wakeup_swapper);
