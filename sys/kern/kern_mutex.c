@@ -714,8 +714,10 @@ retry:
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+#ifdef KDTRACE_HOOKS
 	if (spin_time != 0)
 		LOCKSTAT_RECORD1(thread__spin, m, spin_time);
+#endif
 }
 
 struct mtx *
