@@ -192,7 +192,10 @@ map_object(int fd, const char *path, const struct stat *sb)
     base_vaddr = trunc_page(segs[0]->p_vaddr);
     base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
-    base_addr = cheri_setoffset(cheri_getdefault(), base_vaddr);
+    if (base_vaddr != 0)
+	base_addr = cheri_setoffset(cheri_getdefault(), base_vaddr);
+    else
+	base_addr = NULL;
     base_flags = MAP_PRIVATE | MAP_ANON | MAP_NOCORE;
     if (npagesizes > 1 && round_page(segs[0]->p_filesz) >= pagesizes[1])
 	base_flags |= MAP_ALIGNED_SUPER;
