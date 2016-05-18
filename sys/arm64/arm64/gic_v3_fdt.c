@@ -139,7 +139,7 @@ gic_v3_fdt_attach(device_t dev)
 
 #ifdef INTRNG
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
-	if (intr_pic_register(dev, xref) != 0) {
+	if (intr_pic_register(dev, xref) == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		goto error;
 	}
@@ -172,7 +172,7 @@ error:
 	/* Failure so free resources */
 	gic_v3_detach(dev);
 
-	return (err);
+	return (ENXIO);
 }
 
 /* OFW bus interface */
