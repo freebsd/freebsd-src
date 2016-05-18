@@ -570,9 +570,11 @@ hardclock_cnt(int cnt, int usermode)
 			flags |= TDF_PROFPEND | TDF_ASTPENDING;
 		PROC_ITIMUNLOCK(p);
 	}
-	thread_lock(td);
-	td->td_flags |= flags;
-	thread_unlock(td);
+	if (flags != 0) {
+		thread_lock(td);
+		td->td_flags |= flags;
+		thread_unlock(td);
+	}
 
 #ifdef	HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
