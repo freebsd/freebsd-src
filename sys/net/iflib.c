@@ -1534,7 +1534,6 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 
 	n  = count;
 	MPASS(n > 0);
-	MPASS(fl->ifl_credits >= 0);
 	MPASS(fl->ifl_credits + n <= fl->ifl_size);
 
 	if (pidx < fl->ifl_cidx)
@@ -1663,7 +1662,6 @@ iflib_fl_bufs_free(iflib_fl_t fl)
 	iflib_dma_info_t idi = fl->ifl_ifdi;
 	uint32_t i;
 
-	MPASS(fl->ifl_credits >= 0);
 	for (i = 0; i < fl->ifl_size; i++) {
 		iflib_rxsd_t d = &fl->ifl_sds[i];
 
