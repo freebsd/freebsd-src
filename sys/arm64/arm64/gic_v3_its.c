@@ -75,8 +75,10 @@ static device_method_t gic_v3_its_methods[] = {
 	 */
 	/* MSI-X */
 	DEVMETHOD(pic_alloc_msix,	gic_v3_its_alloc_msix),
+	DEVMETHOD(pic_release_msix,	gic_v3_its_release_msix),
 	/* MSI */
 	DEVMETHOD(pic_alloc_msi,	gic_v3_its_alloc_msi),
+	DEVMETHOD(pic_release_msi,	gic_v3_its_release_msi),
 	DEVMETHOD(pic_map_msi,		gic_v3_its_map_msi),
 
 	/* End */
@@ -882,6 +884,7 @@ retry:
 	bit_nset(bitmap, fclr, fclr + nvecs - 1);
 	lpic->lpi_base = fclr + GIC_FIRST_LPI;
 	lpic->lpi_num = nvecs;
+	lpic->lpi_busy = 0;
 	lpic->lpi_free = lpic->lpi_num;
 	lpic->lpi_col_ids = col_ids;
 	for (i = 0; i < lpic->lpi_num; i++) {
@@ -901,10 +904,9 @@ lpi_free_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic)
 {
 	int start, end;
 
-	KASSERT((lpic->lpi_free == lpic->lpi_num),
-	    ("Trying to free LPI chunk that is still in use.\n"));
-
 	mtx_lock_spin(&sc->its_dev_lock);
+	KASSERT((lpic->lpi_busy == 0),
+	    ("Trying to free LPI chunk that is still in use.\n"));
 	/* First bit of this chunk in a global bitmap */
 	start = lpic->lpi_base - GIC_FIRST_LPI;
 	/* and last bit of this chunk... */
@@ -1493,6 +1495,7 @@ its_device_alloc(struct gic_v3_its_softc *sc, device_t pci_dev,
     u_int nvecs)
 {
 	struct its_dev *newdev;
+	vm_offset_t itt_addr;
 	uint64_t typer;
 	uint32_t devid;
 	size_t esize;
@@ -1528,16 +1531,18 @@ its_device_alloc(struct gic_v3_its_softc *sc, device_t pci_dev,
 	 * Allocate ITT for this device.
 	 * PA has to be 256 B aligned. At least two entries for device.
 	 */
-	newdev->itt = (vm_offset_t)contigmalloc(
-	    roundup2(roundup2(nvecs, 2) * esize, 0x100), M_GIC_V3_ITS,
-	    (M_NOWAIT | M_ZERO), 0, ~0UL, 0x100, 0);
-	if (newdev->itt == 0) {
+	newdev->itt_size = roundup2(roundup2(nvecs, 2) * esize, 0x100);
+	itt_addr = (vm_offset_t)contigmalloc(
+	    newdev->itt_size, M_GIC_V3_ITS, (M_NOWAIT | M_ZERO),
+	    0, ~0UL, 0x100, 0);
+	if (itt_addr == 0) {
 		lpi_free_chunk(sc, &newdev->lpis);
 		free(newdev, M_GIC_V3_ITS);
 		return (NULL);
 	}
 
 	mtx_lock_spin(&sc->its_dev_lock);
+	newdev->itt = itt_addr;
 	TAILQ_INSERT_TAIL(&sc->its_dev_list, newdev, entry);
 	mtx_unlock_spin(&sc->its_dev_lock);
 
@@ -1545,6 +1550,50 @@ its_device_alloc(struct gic_v3_its_softc *sc, device_t pci_dev,
 	its_cmd_mapd(sc, newdev, 1);
 
 	return (newdev);
+}
+
+static void
+its_device_free(struct gic_v3_its_softc *sc, device_t pci_dev,
+    u_int nvecs)
+{
+	struct its_dev *odev;
+
+	mtx_lock_spin(&sc->its_dev_lock);
+	/* Find existing device if any */
+	odev = its_device_find_locked(sc, pci_dev, 0);
+	if (odev == NULL) {
+		mtx_unlock_spin(&sc->its_dev_lock);
+		return;
+	}
+
+	KASSERT((nvecs <= odev->lpis.lpi_num) && (nvecs <= odev->lpis.lpi_busy),
+	    ("Invalid number of LPI vectors to free %d (total %d) (busy %d)",
+	    nvecs, odev->lpis.lpi_num, odev->lpis.lpi_busy));
+	/* Just decrement number of busy LPIs in chunk */
+	odev->lpis.lpi_busy -= nvecs;
+	if (odev->lpis.lpi_busy != 0) {
+		mtx_unlock_spin(&sc->its_dev_lock);
+		return;
+	}
+
+	/*
+	 * At that point we know that there are no busy LPIs for this device.
+	 * Entire ITS device can now be removed.
+	 */
+	mtx_unlock_spin(&sc->its_dev_lock);
+	/* Unmap device in ITS */
+	its_cmd_mapd(sc, odev, 0);
+	/* Free ITT */
+	KASSERT(odev->itt != 0, ("Invalid ITT in valid ITS device"));
+	contigfree((void *)odev->itt, odev->itt_size, M_GIC_V3_ITS);
+	/* Free chunk */
+	lpi_free_chunk(sc, &odev->lpis);
+	/* Free device */
+	mtx_lock_spin(&sc->its_dev_lock);
+	TAILQ_REMOVE(&sc->its_dev_list, odev, entry);
+	mtx_unlock_spin(&sc->its_dev_lock);
+	free((void *)odev, M_GIC_V3_ITS);
+
 }
 
 static __inline void
@@ -1561,6 +1610,7 @@ its_device_asign_lpi_locked(struct gic_v3_its_softc *sc,
 	*irq = its_dev->lpis.lpi_base + (its_dev->lpis.lpi_num -
 	    its_dev->lpis.lpi_free);
 	its_dev->lpis.lpi_free--;
+	its_dev->lpis.lpi_busy++;
 }
 
 /*
@@ -1678,6 +1728,18 @@ gic_v3_its_alloc_msix(device_t dev, device_t pci_dev, int *irq)
 }
 
 int
+gic_v3_its_release_msix(device_t dev, device_t pci_dev, int irq __unused)
+{
+
+	struct gic_v3_its_softc *sc;
+
+	sc = device_get_softc(dev);
+	its_device_free(sc, pci_dev, 1);
+
+	return (0);
+}
+
+int
 gic_v3_its_alloc_msi(device_t dev, device_t pci_dev, int count, int *irqs)
 {
 	struct gic_v3_its_softc *sc;
@@ -1696,6 +1758,18 @@ gic_v3_its_alloc_msi(device_t dev, device_t pci_dev, int count, int *irqs)
 		irqs++;
 	}
 	mtx_unlock_spin(&sc->its_dev_lock);
+
+	return (0);
+}
+
+int
+gic_v3_its_release_msi(device_t dev, device_t pci_dev, int count,
+    int *irqs __unused)
+{
+	struct gic_v3_its_softc *sc;
+
+	sc = device_get_softc(dev);
+	its_device_free(sc, pci_dev, count);
 
 	return (0);
 }

@@ -112,9 +112,11 @@ DECLARE_CLASS(gic_v3_its_driver);
 /* LPI chunk owned by ITS device */
 struct lpi_chunk {
 	u_int	lpi_base;
-	u_int	lpi_num;
 	u_int	lpi_free;	/* First free LPI in set */
 	u_int	*lpi_col_ids;
+
+	u_int	lpi_num;	/* Total number of LPIs in chunk */
+	u_int	lpi_busy;	/* Number of busy LPIs in chink */
 };
 
 /* ITS device */
@@ -128,6 +130,7 @@ struct its_dev {
 	struct lpi_chunk	lpis;
 	/* Virtual address of ITT */
 	vm_offset_t		itt;
+	size_t			itt_size;
 };
 TAILQ_HEAD(its_dev_list, its_dev);
 
@@ -277,7 +280,9 @@ extern devclass_t gic_v3_its_devclass;
 int gic_v3_its_detach(device_t);
 
 int gic_v3_its_alloc_msix(device_t, device_t, int *);
+int gic_v3_its_release_msix(device_t, device_t, int);
 int gic_v3_its_alloc_msi(device_t, device_t, int, int *);
+int gic_v3_its_release_msi(device_t, device_t, int, int *);
 int gic_v3_its_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 
 int its_init_cpu(struct gic_v3_its_softc *);
