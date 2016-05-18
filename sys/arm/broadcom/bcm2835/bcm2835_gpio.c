@@ -1045,8 +1045,11 @@ bcm_gpio_pic_attach(struct bcm_gpio_softc *sc)
 		if (error != 0)
 			return (error); /* XXX deregister ISRCs */
 	}
-	return (intr_pic_register(sc->sc_dev,
-	    OF_xref_from_node(ofw_bus_get_node(sc->sc_dev))));
+	if (intr_pic_register(sc->sc_dev,
+	    OF_xref_from_node(ofw_bus_get_node(sc->sc_dev))) == NULL)
+		return (ENXIO);
+
+	return (0);
 }
 
 static int

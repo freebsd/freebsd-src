@@ -598,6 +598,7 @@ static int
 bcm_lintc_pic_attach(struct bcm_lintc_softc *sc)
 {
 	struct bcm_lintc_irqsrc *bisrcs;
+	struct intr_pic *pic;
 	int error;
 	u_int flags;
 	uint32_t irq;
@@ -653,9 +654,9 @@ bcm_lintc_pic_attach(struct bcm_lintc_softc *sc)
 	}
 
 	xref = OF_xref_from_node(ofw_bus_get_node(sc->bls_dev));
-	error = intr_pic_register(sc->bls_dev, xref);
-	if (error != 0)
-		return (error);
+	pic = intr_pic_register(sc->bls_dev, xref);
+	if (pic == NULL)
+		return (ENXIO);
 
 	return (intr_pic_claim_root(sc->bls_dev, xref, bcm_lintc_intr, sc, 0));
 }
