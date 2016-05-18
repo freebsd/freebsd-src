@@ -271,10 +271,29 @@ struct bwn_rxhdr4 {
 		} __packed ht;
 		uint16_t		phy_status2;
 	} __packed ps2;
-	uint16_t			phy_status3;
-	uint32_t			mac_status;
-	uint16_t			mac_time;
-	uint16_t			channel;
+	union {
+		struct {
+			uint16_t	phy_status3;
+		} __packed lp;
+		struct {
+			int8_t		phy_ht_power1;
+			int8_t		phy_ht_power2;
+		} __packed ht;
+	} __packed ps3;
+	union {
+		struct {
+			uint32_t	mac_status;
+			uint16_t	mac_time;
+			uint16_t	channel;
+		} __packed r351;
+		struct {
+			uint16_t	phy_status4;
+			uint16_t	phy_status5;
+			uint32_t	mac_status;
+			uint16_t	mac_time;
+			uint16_t	channel;
+		} __packed r598;
+	} __packed ps4;
 } __packed;
 
 struct bwn_txstatus {
@@ -765,8 +784,8 @@ struct bwn_txhdr {
 			uint8_t		rts_frame[16];
 			uint8_t		pad1[2];
 			struct bwn_plcp6	plcp;
-		} __packed old;
-		/* format > r410 */
+		} __packed r351;
+		/* format > r410 < r598 */
 		struct {
 			uint16_t	mimo_antenna;
 			uint16_t	preload_size;
@@ -777,7 +796,22 @@ struct bwn_txhdr {
 			uint8_t		rts_frame[16];
 			uint8_t		pad1[2];
 			struct bwn_plcp6	plcp;
-		} __packed new;
+		} __packed r410;
+		struct {
+			uint16_t	mimo_antenna;
+			uint16_t	preload_size;
+			uint8_t		pad0[2];
+			uint16_t	cookie;
+			uint16_t	tx_status;
+			uint16_t	max_n_mpdus;
+			uint16_t	max_a_bytes_mrt;
+			uint16_t	max_a_bytes_fbr;
+			uint16_t	min_m_bytes;
+			struct bwn_plcp6	rts_plcp;
+			uint8_t		rts_frame[16];
+			uint8_t		pad1[2];
+			struct bwn_plcp6	plcp;
+		} __packed r598;
 	} __packed body;
 } __packed;
 
