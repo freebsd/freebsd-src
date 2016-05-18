@@ -217,7 +217,7 @@ COMMAND_SET(commandlist, "?", "list commands", command_commandlist);
  * unconditionally prints some commands. This will lead to anomalous
  * behavior. There's no 'pager_output' binding to FORTH to allow
  * things to work right, so I'm documenting the bug rather than
- * fixnig it.
+ * fixing it.
  */
 static int
 command_commandlist(int argc, char *argv[])
