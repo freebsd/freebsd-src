@@ -605,39 +605,6 @@ vmbus_detach(device_t dev)
 	return (0);
 }
 
-static void
-vmbus_mod_load(void)
-{
-	if(bootverbose)
-		printf("VMBUS: load\n");
-}
-
-static void
-vmbus_mod_unload(void)
-{
-	if(bootverbose)
-		printf("VMBUS: unload\n");
-}
-
-static int
-vmbus_modevent(module_t mod, int what, void *arg)
-{
-	switch (what) {
-
-	case MOD_LOAD:
-#ifdef EARLY_AP_STARTUP
-		vmbus_init();
-#endif
-		vmbus_mod_load();
-		break;
-	case MOD_UNLOAD:
-		vmbus_mod_unload();
-		break;
-	}
-
-	return (0);
-}
-
 static device_method_t vmbus_methods[] = {
 	/** Device interface */
 	DEVMETHOD(device_probe, vmbus_probe),
@@ -664,7 +631,7 @@ static driver_t vmbus_driver = {
 
 devclass_t vmbus_devclass;
 
-DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, vmbus_modevent, 0);
+DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
 MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
 MODULE_VERSION(vmbus, 1);
 
