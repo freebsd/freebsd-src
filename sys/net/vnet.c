@@ -358,6 +358,16 @@ vnet_data_startup(void *dummy __unused)
 }
 SYSINIT(vnet_data, SI_SUB_KLD, SI_ORDER_FIRST, vnet_data_startup, 0);
 
+/* Dummy VNET_SYSINIT to make sure we always reach the final end state. */
+static void
+vnet_sysinit_done(void *unused __unused)
+{
+
+	return;
+}
+VNET_SYSINIT(vnet_sysinit_done, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    vnet_sysinit_done, NULL);
+
 /*
  * When a module is loaded and requires storage for a virtualized global
  * variable, allocate space from the modspace free list.  This interface
