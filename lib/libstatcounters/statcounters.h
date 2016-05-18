@@ -31,39 +31,6 @@
 #ifndef STATCOUNTERS_H
 #define STATCOUNTERS_H
 
-// exported libstatcounters API
-//////////////////////////////////////////////////////////////////////////////
-
-// statcounters_bank
-#define MAX_MOD_CNT 10
-typedef struct statcounters_bank
-{
-    uint64_t itlb_miss;
-    uint64_t dtlb_miss;
-    uint64_t cycle;
-    uint64_t inst;
-    uint64_t icache[MAX_MOD_CNT];
-    uint64_t dcache[MAX_MOD_CNT];
-    uint64_t l2cache[MAX_MOD_CNT];
-    uint64_t mipsmem[MAX_MOD_CNT];
-    uint64_t tagcache[MAX_MOD_CNT];
-} statcounters_bank_t;
-
-// zero a statcounters_bank
-void zero_statcounters (statcounters_bank_t * const cnt_bank);
-// sample hardware counters in a statcounters_bank
-void sample_statcounters (statcounters_bank_t * const cnt_bank);
-// diff two statcounters_banks into a third one
-void diff_statcounters (
-    const statcounters_bank_t * const bs,
-    const statcounters_bank_t * const be,
-    statcounters_bank_t * const bd);
-// dump a statcounters_bank in a file (csv or human readable)
-void dump_statcounters (
-    const statcounters_bank_t * const b,
-    const char * const fname,
-    const char * const fmt);
-
 // internals
 //////////////////////////////////////////////////////////////////////////////
 
@@ -108,13 +75,16 @@ static inline void resetStatCounters (void)
 }
 
 #include <inttypes.h>
-#define DEFINE_GET_STAT_COUNTER(name,X,Y)           \
-static inline uint64_t get_##name##_count (void)    \
-{                                                   \
-    uint64_t ret;                                   \
+#define DEFINE_GET_STAT_COUNTER(name,X,Y)   \
+inline uint64_t get_##name##_count (void)   \
+{                                           \
+    uint64_t ret;                           \
     __asm __volatile(".word (0x1f << 26) | (0x0 << 21) | (12 << 16) | ("#X" << 11) | ( "#Y"  << 6) | 0x3b\n\tmove %0,$12" : "=r" (ret) :: "$12"); \
-    return ret;                                     \
+    return ret;                             \
 }
+
+// exported libstatcounters API
+//////////////////////////////////////////////////////////////////////////////
 
 // Map to appropriate RDHWR indices
 
@@ -152,5 +122,38 @@ DEFINE_GET_STAT_COUNTER(tagcache_write_miss,12,1);
 DEFINE_GET_STAT_COUNTER(tagcache_read_hit,12,2);
 DEFINE_GET_STAT_COUNTER(tagcache_read_miss,12,3);
 DEFINE_GET_STAT_COUNTER(tagcache_evict,12,6);
+
+// statcounters_bank
+#define MAX_MOD_CNT 10
+typedef struct statcounters_bank
+{
+    uint64_t itlb_miss;
+    uint64_t dtlb_miss;
+    uint64_t cycle;
+    uint64_t inst;
+    uint64_t icache[MAX_MOD_CNT];
+    uint64_t dcache[MAX_MOD_CNT];
+    uint64_t l2cache[MAX_MOD_CNT];
+    uint64_t mipsmem[MAX_MOD_CNT];
+    uint64_t tagcache[MAX_MOD_CNT];
+} statcounters_bank_t;
+
+// reset statcounters XXX this literally resets the hardware counters (allowed
+// from user space for convenience but need not to be abused to be usefull)
+void reset_statcounters ();
+// zero a statcounters_bank
+void zero_statcounters (statcounters_bank_t * const cnt_bank);
+// sample hardware counters in a statcounters_bank
+void sample_statcounters (statcounters_bank_t * const cnt_bank);
+// diff two statcounters_banks into a third one
+void diff_statcounters (
+    const statcounters_bank_t * const bs,
+    const statcounters_bank_t * const be,
+    statcounters_bank_t * const bd);
+// dump a statcounters_bank in a file (csv or human readable)
+void dump_statcounters (
+    const statcounters_bank_t * const b,
+    const char * const fname,
+    const char * const fmt);
 
 #endif

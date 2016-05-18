@@ -40,6 +40,12 @@
 // libstatcounter API
 //////////////////////////////////////////////////////////////////////////////
 
+// reset the hardware statcounters
+void reset_statcounters ()
+{
+    resetStatCounters();
+}
+
 // zero a statcounters_bank
 void zero_statcounters (statcounters_bank_t * const cnt_bank)
 {

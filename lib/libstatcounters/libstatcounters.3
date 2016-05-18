@@ -48,24 +48,35 @@ and outputs the difference.
 .Nd Environment variable specifying the desired output format. "csv" is supported, any other value will output in a human readable format
 .Sh API
 .Pp
-void
-.Fn zero_statcounters b
+.Ft void
+.Fn reset_statcounters
+.in +5
+.Fn reset_statcounters
+resets the hardware statcounters. Avoid using this function and consider using
+.Fn sample_statcounters
+to populate two statcounters_bank_t and diff them using
+.Fn diff_statcounters
+instead.
+.in
+.Pp
+.Ft void
+.Fn zero_statcounters "statcounters_bank_t * const b"
 .in +5
 .Fn zero_statcounters
 zeroes the statcounters_bank_t
 .Fa b .
 .in
 .Pp
-void
-.Fn sample_statcounters b
+.Ft void
+.Fn sample_statcounters "statcounters_bank_t * const b"
 .in +5
 .Fn sample_statcounters
 samples the hardware statcounters into statcounters_bank_t
 .Fa b .
 .in
 .Pp
-void
-.Fn diff_statcounters bs be bd
+.Ft void
+.Fn diff_statcounters "const statcounters_bank_t * const bs" "const statcounters_bank_t * const be" "statcounters_bank_t * const bd"
 .in +5
 .Fn diff_statcounters
 stores the difference between statcounters_bank_t
@@ -76,8 +87,8 @@ in statcounters_bank_t
 .Fa bd .
 .in
 .Pp
-void
-.Fn dump_statcounters b fname fmt
+.Ft void
+.Fn dump_statcounters "const statcounters_bank_t * const b" "const char * const fname" "const char * const fmt"
 .in +5
 .Fn dump_statcounters
 dumps the statcounters_bank_t
