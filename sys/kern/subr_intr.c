@@ -911,22 +911,22 @@ pic_destroy(device_t dev, intptr_t xref)
 /*
  *  Register interrupt controller.
  */
-int
+struct intr_pic *
 intr_pic_register(device_t dev, intptr_t xref)
 {
 	struct intr_pic *pic;
 
 	if (dev == NULL)
-		return (EINVAL);
+		return (NULL);
 	pic = pic_create(dev, xref);
 	if (pic == NULL)
-		return (ENOMEM);
+		return (NULL);
 
 	pic->pic_flags |= FLAG_PIC;
 
 	debugf("PIC %p registered for %s <dev %p, xref %x>\n", pic,
 	    device_get_nameunit(dev), dev, xref);
-	return (0);
+	return (pic);
 }
 
 /*

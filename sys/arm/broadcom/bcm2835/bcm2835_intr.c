@@ -341,7 +341,10 @@ bcm_intc_pic_register(struct bcm_intc_softc *sc, intptr_t xref)
 		if (error != 0)
 			return (error);
 	}
-	return (intr_pic_register(sc->sc_dev, xref));
+	if (intr_pic_register(sc->sc_dev, xref) == NULL)
+		return (ENXIO);
+
+	return (0);
 }
 #endif
 
