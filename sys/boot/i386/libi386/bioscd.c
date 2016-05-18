@@ -183,11 +183,14 @@ bc_print(int verbose)
 	char line[80];
 	int i;
 
+	pager_open();
 	for (i = 0; i < nbcinfo; i++) {
 		sprintf(line, "    cd%d: Device 0x%x\n", i,
 		    bcinfo[i].bc_sp.sp_devicespec);
-		pager_output(line);
+		if (pager_output(line))
+			break;
 	}
+	pager_close();
 }
 
 /*

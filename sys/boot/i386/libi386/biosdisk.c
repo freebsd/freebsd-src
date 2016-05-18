@@ -313,11 +313,13 @@ bd_print(int verbose)
 	struct disk_devdesc dev;
 	int i;
 
+	pager_open();
 	for (i = 0; i < nbdinfo; i++) {
 		sprintf(line, "    disk%d:   BIOS drive %c:\n", i,
 		    (bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit):
 		    ('C' + bdinfo[i].bd_unit - 0x80));
-		pager_output(line);
+		if (pager_output(line))
+			break;
 		dev.d_dev = &biosdisk;
 		dev.d_unit = i;
 		dev.d_slice = -1;
@@ -332,6 +334,7 @@ bd_print(int verbose)
 			disk_close(&dev);
 		}
 	}
+	pager_close();
 }
 
 /*
