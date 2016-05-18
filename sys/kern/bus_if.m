@@ -530,8 +530,8 @@ METHOD int child_present {
 /**
  * @brief Returns the pnp info for this device.
  *
- * Return it as a string.  If the string is insufficient for the
- * storage, then return EOVERFLOW.
+ * Return it as a string.  If the storage is insufficient for the
+ * string, then return EOVERFLOW.
  *
  * The string must be formatted as a space-separated list of
  * name=value pairs.  Names may only contain alphanumeric characters,
@@ -556,8 +556,8 @@ METHOD int child_pnpinfo_str {
 /**
  * @brief Returns the location for this device.
  *
- * Return it as a string.  If the string is insufficient for the
- * storage, then return EOVERFLOW.
+ * Return it as a string.  If the storage is insufficient for the
+ * string, then return EOVERFLOW.
  *
  * The string must be formatted as a space-separated list of
  * name=value pairs.  Names may only contain alphanumeric characters,
