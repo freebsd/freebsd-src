@@ -501,8 +501,12 @@ hyperv_identify(void)
 static void
 hyperv_init(void *dummy __unused)
 {
-	if (!hyperv_identify())
+	if (!hyperv_identify()) {
+		/* Not Hyper-V; reset guest id to the generic one. */
+		if (vm_guest == VM_GUEST_HV)
+			vm_guest = VM_GUEST_VM;
 		return;
+	}
 
 	if (hyperv_features & HV_FEATURE_MSR_TIME_REFCNT) {
 		/* Register virtual timecount */
