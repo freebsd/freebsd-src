@@ -47,6 +47,7 @@ MANFILTER=	sed -e 's%@MODPATH@%${LIBDIR}/%g'		\
 		    -e 's%@DEFPATH@%${DEFSDIR}/%g'		\
 		    -e 's%@MIBSPATH@%${BMIBSDIR}/%g'
 
+NO_WCAST_ALIGN=	yes
 WARNS?=		6
 
 .include <bsd.prog.mk>
