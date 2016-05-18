@@ -376,7 +376,7 @@ ebus_pci_attach(device_t dev)
 		}
 	}
 	free(sc->sc_rinfo, M_DEVBUF);
-	free(sc->sc_range, M_OFWPROP);
+	OF_prop_free(sc->sc_range);
 	return (ENXIO);
 }
 
@@ -670,7 +670,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 		(void)resource_list_add(&edi->edi_rl, SYS_RES_MEMORY, i,
 		    start, start + regs[i].size - 1, regs[i].size);
 	}
-	free(regs, M_OFWPROP);
+	OF_prop_free(regs);
 
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
@@ -701,7 +701,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 		(void)resource_list_add(&edi->edi_rl, SYS_RES_IRQ, i, rintr,
 		    rintr, 1);
 	}
-	free(intrs, M_OFWPROP);
+	OF_prop_free(intrs);
 	return (edi);
 }
 

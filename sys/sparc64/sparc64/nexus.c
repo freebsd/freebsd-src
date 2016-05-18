@@ -559,7 +559,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, i,
 			    phys, phys + size - 1, size);
 	}
-	free(reg, M_OFWPROP);
+	OF_prop_free(reg);
 
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
@@ -568,7 +568,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 		    "upa-portid" : "portid", &ign, sizeof(ign)) <= 0) {
 			device_printf(dev, "<%s>: could not determine portid\n",
 			    ndi->ndi_obdinfo.obd_name);
-			free(intr, M_OFWPROP);
+			OF_prop_free(intr);
 			goto fail;
 		}
 
@@ -579,7 +579,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, i, intr[i],
 			    intr[i], 1);
 		}
-		free(intr, M_OFWPROP);
+		OF_prop_free(intr);
 	}
 
 	return (ndi);

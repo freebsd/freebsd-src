@@ -165,7 +165,7 @@ central_attach(device_t dev)
 			resource_list_add(&cdi->cdi_rl, SYS_RES_MEMORY, i,
 			    reg[i].sbr_offset, reg[i].sbr_offset +
 			    reg[i].sbr_size, reg[i].sbr_size);
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",

@@ -205,7 +205,7 @@ fhc_attach(device_t dev)
 	device_printf(dev, "board %d, ", board);
 	if (OF_getprop_alloc(node, "board-model", 1, (void **)&name) != -1) {
 		printf("model %s\n", name);
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 	} else
 		printf("model unknown\n");
 
@@ -297,7 +297,7 @@ fhc_attach(device_t dev)
 			resource_list_add(&fdi->fdi_rl, SYS_RES_MEMORY, j,
 			    reg[j].sbr_offset, reg[j].sbr_offset +
 			    reg[j].sbr_size, reg[j].sbr_size);
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 		if (central == 1) {
 			i = OF_getprop_alloc(child, "interrupts",
 			    sizeof(*intr), (void **)&intr);
@@ -307,7 +307,7 @@ fhc_attach(device_t dev)
 					resource_list_add(&fdi->fdi_rl,
 					    SYS_RES_IRQ, j, iv, iv, 1);
 				}
-				free(intr, M_OFWPROP);
+				OF_prop_free(intr);
 			}
 		}
 		cdev = device_add_child(dev, NULL, -1);

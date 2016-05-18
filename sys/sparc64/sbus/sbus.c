@@ -331,7 +331,7 @@ sbus_attach(device_t dev)
 		sc->sc_rd[i].rd_pend = phys + size;
 		sc->sc_rd[i].rd_res = res;
 	}
-	free(range, M_OFWPROP);
+	OF_prop_free(range);
 
 	/*
 	 * Get the SBus burst transfer size if burst transfers are supported.
@@ -495,7 +495,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			if (slot != -1 && slot != rslot) {
 				device_printf(dev, "<%s>: multiple slots\n",
 				    sdi->sdi_obdinfo.obd_name);
-				free(reg, M_OFWPROP);
+				OF_prop_free(reg);
 				goto fail;
 			}
 			slot = rslot;
@@ -503,7 +503,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			resource_list_add(&sdi->sdi_rl, SYS_RES_MEMORY, i,
 			    base, base + reg[i].sbr_size, reg[i].sbr_size);
 		}
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 	}
 	sdi->sdi_slot = slot;
 
@@ -525,7 +525,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			resource_list_add(&sdi->sdi_rl, SYS_RES_IRQ, i,
 			    iv, iv, 1);
 		}
-		free(intr, M_OFWPROP);
+		OF_prop_free(intr);
 	}
 	if (OF_getprop(node, "burst-sizes", &sdi->sdi_burstsz,
 	    sizeof(sdi->sdi_burstsz)) == -1)
