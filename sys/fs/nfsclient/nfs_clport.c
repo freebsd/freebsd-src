@@ -279,7 +279,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 }
 
 /*
- * Anothe variant of nfs_nget(). This one is only used by reopen. It
+ * Another variant of nfs_nget(). This one is only used by reopen. It
  * takes almost the same args as nfs_nget(), but only succeeds if an entry
  * exists in the cache. (Since files should already be "open" with a
  * vnode ref cnt on the node when reopen calls this, it should always
@@ -318,21 +318,24 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 		NFSVOPUNLOCK(nvp, 0);
 	} else if (error == EBUSY) {
 		/*
-		 * The LK_EXCLOTHER lock type tells nfs_lock1() to not try
-		 * and lock the vnode, but just get a v_usecount on it.
-		 * LK_NOWAIT is set so that when vget() returns ENOENT,
-		 * vfs_hash_get() fails instead of looping.
-		 * If this succeeds, it is safe so long as a vflush() with
+		 * It is safe so long as a vflush() with
 		 * FORCECLOSE has not been done. Since the Renew thread is
 		 * stopped and the MNTK_UNMOUNTF flag is set before doing
 		 * a vflush() with FORCECLOSE, we should be ok here.
 		 */
 		if ((mntp->mnt_kern_flag & MNTK_UNMOUNTF))
 			error = EINTR;
-		else
-			error = vfs_hash_get(mntp, hash,
-			    (LK_EXCLOTHER | LK_NOWAIT), td, &nvp,
-			    newnfs_vncmpf, nfhp);
+		else {
+			vfs_hash_ref(mntp, hash, td, &nvp, newnfs_vncmpf, nfhp);
+			if (nvp == NULL) {
+				error = ENOENT;
+			} else if ((nvp->v_iflag & VI_DOOMED) != 0) {
+				error = ENOENT;
+				vrele(nvp);
+			} else {
+				error = 0;
+			}
+		}
 	}
 	FREE(nfhp, M_NFSFH);
 	if (error)
