@@ -77,11 +77,9 @@ static char *vmbus_ids[] = { "VMBUS", NULL };
 static void
 vmbus_msg_swintr(void *arg, int pending __unused)
 {
-	int cpu;
 	hv_vmbus_message *msg;
 
-	cpu = (int)(long)arg;
-	msg = ((hv_vmbus_message *)hv_vmbus_g_context.syn_ic_msg_page[cpu]) +
+	msg = ((hv_vmbus_message *)hv_vmbus_g_context.syn_ic_msg_page[curcpu]) +
 	    HV_VMBUS_MESSAGE_SINT;
 	for (;;) {
 		const hv_vmbus_channel_msg_table_entry *entry;
@@ -136,11 +134,9 @@ static inline int
 hv_vmbus_isr(struct trapframe *frame)
 {
 	struct vmbus_softc *sc = vmbus_get_softc();
-	int cpu;
+	int cpu = curcpu;
 	hv_vmbus_message *msg;
 	void *page_addr;
-
-	cpu = PCPU_GET(cpuid);
 
 	/*
 	 * The Windows team has advised that we check for events
@@ -447,7 +443,7 @@ vmbus_bus_init(void)
 		taskqueue_start_threads_cpuset(&hv_vmbus_g_context.hv_msg_tq[j],
 		    1, PI_NET, &cpu_mask, "hvmsg%d", j);
 		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[j], 0,
-		    vmbus_msg_swintr, (void *)(long)j);
+		    vmbus_msg_swintr, NULL);
 
 		/*
 		 * Prepare the per cpu msg and event pages to be called on each cpu.
