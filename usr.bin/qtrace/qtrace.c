@@ -84,8 +84,8 @@ main(int argc, char **argv)
 		if (pid == 0) {
 			start_trace();
 			argv++;
-			if (execve(argv[0], argv, environ) == -1)
-				err(EX_OSERR, "execve");
+			if (execvp(argv[0], argv) == -1)
+				err(EX_OSERR, "execvp");
 		}
 
 		waitpid(pid, &status, 0);
