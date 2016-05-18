@@ -200,8 +200,9 @@ map_object(int fd, const char *path, const struct stat *sb)
     if (npagesizes > 1 && round_page(segs[0]->p_filesz) >= pagesizes[1])
 	base_flags |= MAP_ALIGNED_SUPER;
 
-    mapbase = mmap(base_addr, mapsize, PROT_NONE, base_flags, -1, 0);
-    if (mapbase == (caddr_t) -1) {
+    mapbase = mmap(base_addr, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC,
+	base_flags, -1, 0);
+    if (mapbase == MAP_FAILED) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
 	  path, rtld_strerror(errno));
 	goto error;
@@ -211,6 +212,8 @@ map_object(int fd, const char *path, const struct stat *sb)
 	  path, base_addr, mapbase);
 	goto error1;
     }
+    if (mprotect(mapbase, mapsize, PROT_NONE) != 0)
+	_rtld_error("%s: mprotect of region failed", path);
 
     for (i = 0; i <= nsegs; i++) {
 	/* Overlay the segment onto the proper region. */
