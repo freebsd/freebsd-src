@@ -294,13 +294,10 @@ hv_vmbus_disconnect(void) {
 void
 hv_vmbus_on_events(int cpu)
 {
-	int bit;
-	int dword;
-	void *page_addr;
-	uint32_t* recv_interrupt_page = NULL;
-	int rel_id;
-	int maxdword;
+	unsigned long *intr_page;
 	hv_vmbus_synic_event_flags *event;
+	void *page_addr;
+	int page_cnt, pg;
 
 	KASSERT(cpu <= mp_maxid, ("VMBUS: hv_vmbus_on_events: "
 	    "cpu out of range!"));
@@ -310,39 +307,42 @@ hv_vmbus_on_events(int cpu)
 	    page_addr + HV_VMBUS_MESSAGE_SINT;
 	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
 	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
-		maxdword = HV_MAX_NUM_CHANNELS_SUPPORTED >> 5;
+		page_cnt = HV_MAX_NUM_CHANNELS_SUPPORTED >>
+		    HV_CHANNEL_ULONG_SHIFT;
 		/*
 		 * receive size is 1/2 page and divide that by 4 bytes
 		 */
-		if (atomic_testandclear_int(&event->flags32[0], 0)) {
-			recv_interrupt_page =
-			    hv_vmbus_g_connection.recv_interrupt_page;
-		} else {
+		if (atomic_testandclear_int(&event->flags32[0], 0))
+			intr_page = hv_vmbus_g_connection.recv_interrupt_page;
+		else
 			return;
-		}
 	} else {
 		/*
 		 * On Host with Win8 or above, the event page can be
 		 * checked directly to get the id of the channel
 		 * that has the pending interrupt.
 		 */
-		maxdword = HV_EVENT_FLAGS_DWORD_COUNT;
-		recv_interrupt_page = event->flags32;
+		page_cnt = HV_EVENT_FLAGS_ULONG_COUNT;
+		intr_page = event->flagsul;
 	}
 
 	/*
 	 * Check events
 	 */
-	for (dword = 0; dword < maxdword; dword++) {
-		if (recv_interrupt_page[dword] == 0)
+	for (pg = 0; pg < page_cnt; pg++) {
+		uint32_t rel_id_base;
+		int bit;
+
+		if (intr_page[pg] == 0)
 			continue;
 
-	        for (bit = 0; bit < HV_CHANNEL_DWORD_LEN; bit++) {
-			if (atomic_testandclear_int(
-			    &recv_interrupt_page[dword], bit)) {
+		rel_id_base = pg << HV_CHANNEL_ULONG_SHIFT;
+		for (bit = 0; bit < HV_CHANNEL_ULONG_LEN; bit++) {
+			if (atomic_testandclear_long(&intr_page[pg], bit)) {
 				struct hv_vmbus_channel *channel;
+				uint32_t rel_id;
 
-				rel_id = (dword << 5) + bit;
+				rel_id = rel_id_base + bit;
 				channel =
 				    hv_vmbus_g_connection.channels[rel_id];
 
@@ -357,7 +357,7 @@ hv_vmbus_on_events(int cpu)
 				taskqueue_enqueue(channel->rxq,
 				    &channel->channel_task);
 			}
-	        }
+		}
 	}
 }
 
