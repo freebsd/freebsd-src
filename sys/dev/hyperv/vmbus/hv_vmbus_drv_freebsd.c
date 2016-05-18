@@ -346,7 +346,8 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 }
 
 static int
-vmbus_probe(device_t dev) {
+vmbus_probe(device_t dev)
+{
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
 	    device_get_unit(dev) != 0)
 		return (ENXIO);
