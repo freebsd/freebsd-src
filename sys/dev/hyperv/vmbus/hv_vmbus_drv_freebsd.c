@@ -74,28 +74,20 @@ static hv_setup_args setup_args; /* only CPU 0 supported at this time */
 
 static char *vmbus_ids[] = { "VMBUS", NULL };
 
-/**
- * @brief Software interrupt thread routine to handle channel messages from
- * the hypervisor.
- */
 static void
 vmbus_msg_swintr(void *arg, int pending __unused)
 {
-	int 			cpu;
-	void*			page_addr;
-	hv_vmbus_channel_msg_header	 *hdr;
-	hv_vmbus_channel_msg_table_entry *entry;
-	hv_vmbus_channel_msg_type msg_type;
-	hv_vmbus_message*	msg;
+	int cpu;
+	hv_vmbus_message *msg;
 
 	cpu = (int)(long)arg;
-	KASSERT(cpu <= mp_maxid, ("VMBUS: vmbus_msg_swintr: "
-	    "cpu out of range!"));
-
-	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
-	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
-
+	msg = ((hv_vmbus_message *)hv_vmbus_g_context.syn_ic_msg_page[cpu]) +
+	    HV_VMBUS_MESSAGE_SINT;
 	for (;;) {
+		const hv_vmbus_channel_msg_table_entry *entry;
+		hv_vmbus_channel_msg_header *hdr;
+		hv_vmbus_channel_msg_type msg_type;
+
 		if (msg->header.message_type == HV_MESSAGE_TYPE_NONE)
 			break; /* no message */
 
@@ -108,32 +100,29 @@ vmbus_msg_swintr(void *arg, int pending __unused)
 		}
 
 		entry = &g_channel_message_table[msg_type];
-
 		if (entry->messageHandler)
 			entry->messageHandler(hdr);
 handled:
-	    msg->header.message_type = HV_MESSAGE_TYPE_NONE;
-
-	    /*
-	     * Make sure the write to message_type (ie set to
-	     * HV_MESSAGE_TYPE_NONE) happens before we read the
-	     * message_pending and EOMing. Otherwise, the EOMing will
-	     * not deliver any more messages
-	     * since there is no empty slot
-	     *
-	     * NOTE:
-	     * mb() is used here, since atomic_thread_fence_seq_cst()
-	     * will become compiler fence on UP kernel.
-	     */
-	    mb();
-
-	    if (msg->header.message_flags.u.message_pending) {
+		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
+		/*
+		 * Make sure the write to message_type (ie set to
+		 * HV_MESSAGE_TYPE_NONE) happens before we read the
+		 * message_pending and EOMing. Otherwise, the EOMing will
+		 * not deliver any more messages
+		 * since there is no empty slot
+		 *
+		 * NOTE:
+		 * mb() is used here, since atomic_thread_fence_seq_cst()
+		 * will become compiler fence on UP kernel.
+		 */
+		mb();
+		if (msg->header.message_flags.u.message_pending) {
 			/*
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
 			 */
 			wrmsr(HV_X64_MSR_EOM, 0);
-	    }
+		}
 	}
 }
 
@@ -147,9 +136,9 @@ static inline int
 hv_vmbus_isr(struct trapframe *frame)
 {
 	struct vmbus_softc *sc = vmbus_get_softc();
-	int				cpu;
-	hv_vmbus_message*		msg;
-	void*				page_addr;
+	int cpu;
+	hv_vmbus_message *msg;
+	void *page_addr;
 
 	cpu = PCPU_GET(cpuid);
 
@@ -162,7 +151,7 @@ hv_vmbus_isr(struct trapframe *frame)
 
 	/* Check if there are actual msgs to be process */
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
-	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_TIMER_SINT;
+	msg = ((hv_vmbus_message *)page_addr) + HV_VMBUS_TIMER_SINT;
 
 	/* we call eventtimer process the message */
 	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
@@ -193,7 +182,7 @@ hv_vmbus_isr(struct trapframe *frame)
 		}
 	}
 
-	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
+	msg = ((hv_vmbus_message *)page_addr) + HV_VMBUS_MESSAGE_SINT;
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
 		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
 		    &hv_vmbus_g_context.hv_msg_task[cpu]);
