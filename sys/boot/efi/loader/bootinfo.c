@@ -422,7 +422,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	if (dtb_size)
 		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
 	else
-		pager_output("WARNING! Trying to fire up the kernel, but no "
+		printf("WARNING! Trying to fire up the kernel, but no "
 		    "device tree blob found!\n");
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);

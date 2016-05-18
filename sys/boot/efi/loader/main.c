@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/boot.h>
+#include <inttypes.h>
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
@@ -649,6 +650,7 @@ command_nvram(int argc, char *argv[])
 	/* Initiate the search */
 	status = RS->GetNextVariableName(&varsz, NULL, NULL);
 
+	pager_open();
 	for (; status != EFI_NOT_FOUND; ) {
 		status = RS->GetNextVariableName(&varsz, var, &varguid);
 		//if (EFI_ERROR(status))
@@ -671,10 +673,11 @@ command_nvram(int argc, char *argv[])
 					printf("\\x%02x", data[i]);
 			}
 		}
-		/* XXX */
-		pager_output("\n");
 		free(data);
+		if (pager_output("\n"))
+			break;
 	}
+	pager_close();
 
 	return (CMD_OK);
 }
@@ -761,9 +764,11 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 		return (CMD_ERROR);
 	}
 	uuid_to_string((uuid_t *)matchguid, &str, &uuid_status);
-	printf("%s %S=%S\n", str, varnamearg, data);
+	printf("%s %S=%S", str, varnamearg, data);
 	free(str);
 	free(data);
+	if (pager_output("\n"))
+		return (CMD_WARN);
 	return (CMD_OK);
 }
 
@@ -783,7 +788,7 @@ command_efi_printenv(int argc, char *argv[])
 	 */
 	/* XXX We assume EFI_GUID is the same as uuid_t */
 	int		aflag = 0, gflag = 0, lflag = 0, vflag = 0;
-	int		ch;
+	int		ch, rv;
 	unsigned	i;
 	EFI_STATUS	status;
 	EFI_GUID	varguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
@@ -842,14 +847,19 @@ command_efi_printenv(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (vflag && gflag)
-		return efi_print_var(varnamearg, &matchguid, lflag);
+	pager_open();
+	if (vflag && gflag) {
+		rv = efi_print_var(varnamearg, &matchguid, lflag);
+		pager_close();
+		return (rv);
+	}
 
 	if (argc == 2) {
 		optarg = argv[0];
 		if (strlen(optarg) >= nitems(varnamearg)) {
 			printf("Variable %s is longer than %zd characters\n",
 			    optarg, nitems(varnamearg));
+			pager_close();
 			return (CMD_ERROR);
 		}
 		for (i = 0; i < strlen(optarg); i++)
@@ -860,13 +870,17 @@ command_efi_printenv(int argc, char *argv[])
 		    &uuid_status);
 		if (uuid_status != uuid_s_ok) {
 			printf("uid %s could not be parsed\n", optarg);
+			pager_close();
 			return (CMD_ERROR);
 		}
-		return efi_print_var(varnamearg, &matchguid, lflag);
+		rv = efi_print_var(varnamearg, &matchguid, lflag);
+		pager_close();
+		return (rv);
 	}
 
 	if (argc != 0) {
 		printf("Too many args\n");
+		pager_close();
 		return (CMD_ERROR);
 	}
 
@@ -882,19 +896,23 @@ command_efi_printenv(int argc, char *argv[])
 		status = RS->GetNextVariableName(&varsz, varname,
 		    &varguid);
 		if (aflag) {
-			efi_print_var(varname, &varguid, lflag);
+			if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
+				break;
 			continue;
 		}
 		if (vflag) {
 			if (wcscmp(varnamearg, varname) == 0)
-				efi_print_var(varname, &varguid, lflag);
+				if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
+					break;
 		}
 		if (gflag) {
 			if (memcmp(&varguid, &matchguid, sizeof(varguid)) == 0)
-				efi_print_var(varname, &varguid, lflag);
+				if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
+					break;
 		}
 	}
-	
+	pager_close();
+
 	return (CMD_OK);
 }
 
