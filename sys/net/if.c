@@ -3900,6 +3900,19 @@ if_multiaddr_count(if_t ifp, int max)
 	return (count);
 }
 
+int
+if_multi_apply(struct ifnet *ifp, int (*filter)(void *, struct ifmultiaddr *, int), void *arg)
+{
+	struct ifmultiaddr *ifma;
+	int cnt = 0;
+
+	if_maddr_rlock(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+		cnt += filter(arg, ifma, cnt);
+	if_maddr_runlock(ifp);
+	return (cnt);
+}
+
 struct mbuf *
 if_dequeue(if_t ifp)
 {
