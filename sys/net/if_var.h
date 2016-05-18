@@ -628,6 +628,7 @@ int if_setupmultiaddr(if_t ifp, void *mta, int *cnt, int max);
 int if_multiaddr_array(if_t ifp, void *mta, int *cnt, int max);
 int if_multiaddr_count(if_t ifp, int max);
 
+int if_multi_apply(struct ifnet *ifp, int (*filter)(void *, struct ifmultiaddr *, int), void *arg);
 int if_getamcount(if_t ifp);
 struct ifaddr * if_getifaddr(if_t ifp);
 

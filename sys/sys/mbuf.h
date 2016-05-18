@@ -279,6 +279,8 @@ struct mbuf {
 #define	M_PROTO11	0x00400000 /* protocol-specific */
 #define	M_PROTO12	0x00800000 /* protocol-specific */
 
+#define MB_DTOR_SKIP	0x1	/* don't pollute the cache by touching a freed mbuf */
+
 /*
  * Flags to purge when crossing layers.
  */
@@ -401,6 +403,7 @@ struct mbuf {
  */
 #define	EXT_FLAG_EMBREF		0x000001	/* embedded ext_count */
 #define	EXT_FLAG_EXTREF		0x000002	/* external ext_cnt, notyet */
+
 #define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
 #define	EXT_FLAG_VENDOR1	0x010000	/* for vendor-internal use */
