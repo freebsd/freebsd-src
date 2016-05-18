@@ -36,6 +36,7 @@ struct vmbus_pcpu_data {
 } __aligned(CACHE_LINE_SIZE);
 
 struct vmbus_softc {
+	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 };
 
@@ -47,11 +48,15 @@ vmbus_get_softc(void)
 	return vmbus_sc;
 }
 
-#define VMBUS_PCPU_GET(field, cpu)	\
-	(vmbus_get_softc())->vmbus_pcpu[cpu].field
-#define VMBUS_PCPU_PTR(field, cpu)	\
-	&(vmbus_get_softc())->vmbus_pcpu[cpu].field
+#define VMBUS_SC_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
+#define VMBUS_SC_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
+#define VMBUS_PCPU_GET(field, cpu)		\
+	VMBUS_SC_PCPU_GET(vmbus_get_softc(), field, (cpu))
+#define VMBUS_PCPU_PTR(field, cpu)		\
+	VMBUS_SC_PCPU_PTR(vmbus_get_softc(), field, (cpu))
 
 void	vmbus_on_channel_open(const struct hv_vmbus_channel *);
+void	vmbus_event_proc(struct vmbus_softc *, int);
+void	vmbus_event_proc_compat(struct vmbus_softc *, int);
 
 #endif	/* !_VMBUS_VAR_H_ */

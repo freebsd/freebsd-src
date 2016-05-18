@@ -753,7 +753,6 @@ int			hv_vmbus_connect(void);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
-void			hv_vmbus_on_events(int cpu);
 
 /**
  * Event Timer interfaces

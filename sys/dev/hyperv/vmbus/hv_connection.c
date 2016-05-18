@@ -289,56 +289,20 @@ hv_vmbus_disconnect(void) {
 	return (ret);
 }
 
-/**
- * Handler for events
- */
-void
-hv_vmbus_on_events(int cpu)
+static __inline void
+vmbus_event_flags_proc(unsigned long *event_flags, int flag_cnt)
 {
-	unsigned long *intr_flags;
-	hv_vmbus_synic_event_flags *event;
-	void *page_addr;
-	int flag_cnt, f;
+	int f;
 
-	KASSERT(cpu <= mp_maxid, ("VMBUS: hv_vmbus_on_events: "
-	    "cpu out of range!"));
-
-	page_addr = hv_vmbus_g_context.syn_ic_event_page[cpu];
-	event = (hv_vmbus_synic_event_flags *)
-	    page_addr + HV_VMBUS_MESSAGE_SINT;
-	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
-	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
-		flag_cnt = HV_MAX_NUM_CHANNELS_SUPPORTED >>
-		    HV_CHANNEL_ULONG_SHIFT;
-		/*
-		 * receive size is 1/2 page and divide that by 4 bytes
-		 */
-		if (atomic_testandclear_int(&event->flags32[0], 0))
-			intr_flags = hv_vmbus_g_connection.recv_interrupt_page;
-		else
-			return;
-	} else {
-		/*
-		 * On Host with Win8 or above, the event page can be
-		 * checked directly to get the id of the channel
-		 * that has the pending interrupt.
-		 */
-		flag_cnt = VMBUS_PCPU_GET(event_flag_cnt, cpu);
-		intr_flags = event->flagsul;
-	}
-
-	/*
-	 * Check events
-	 */
-	for (f = 0; f < flag_cnt; f++) {
+	for (f = 0; f < flag_cnt; ++f) {
 		uint32_t rel_id_base;
 		unsigned long flags;
 		int bit;
 
-		if (intr_flags[f] == 0)
+		if (event_flags[f] == 0)
 			continue;
 
-		flags = atomic_swap_long(&intr_flags[f], 0);
+		flags = atomic_swap_long(&event_flags[f], 0);
 		rel_id_base = f << HV_CHANNEL_ULONG_SHIFT;
 
 		while ((bit = ffsl(flags)) != 0) {
@@ -359,6 +323,37 @@ hv_vmbus_on_events(int cpu)
 				hv_ring_buffer_read_begin(&channel->inbound);
 			taskqueue_enqueue(channel->rxq, &channel->channel_task);
 		}
+	}
+}
+
+void
+vmbus_event_proc(struct vmbus_softc *sc, int cpu)
+{
+	hv_vmbus_synic_event_flags *event;
+
+	event = ((hv_vmbus_synic_event_flags *)
+	    hv_vmbus_g_context.syn_ic_event_page[cpu]) + HV_VMBUS_MESSAGE_SINT;
+
+	/*
+	 * On Host with Win8 or above, the event page can be checked directly
+	 * to get the id of the channel that has the pending interrupt.
+	 */
+	vmbus_event_flags_proc(event->flagsul,
+	    VMBUS_SC_PCPU_GET(sc, event_flag_cnt, cpu));
+}
+
+void
+vmbus_event_proc_compat(struct vmbus_softc *sc __unused, int cpu)
+{
+	hv_vmbus_synic_event_flags *event;
+
+	event = ((hv_vmbus_synic_event_flags *)
+	    hv_vmbus_g_context.syn_ic_event_page[cpu]) + HV_VMBUS_MESSAGE_SINT;
+
+	if (atomic_testandclear_int(&event->flags32[0], 0)) {
+		vmbus_event_flags_proc(
+		    hv_vmbus_g_connection.recv_interrupt_page,
+		    HV_MAX_NUM_CHANNELS_SUPPORTED >> HV_CHANNEL_ULONG_SHIFT);
 	}
 }
 

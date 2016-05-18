@@ -146,6 +146,7 @@ handled:
 static inline int
 hv_vmbus_isr(struct trapframe *frame)
 {
+	struct vmbus_softc *sc = vmbus_get_softc();
 	int				cpu;
 	hv_vmbus_message*		msg;
 	void*				page_addr;
@@ -157,8 +158,7 @@ hv_vmbus_isr(struct trapframe *frame)
 	 * before checking for messages. This is the way they do it
 	 * in Windows when running as a guest in Hyper-V
 	 */
-
-	hv_vmbus_on_events(cpu);
+	sc->vmbus_event_proc(sc, cpu);
 
 	/* Check if there are actual msgs to be process */
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
@@ -388,6 +388,7 @@ extern inthand_t IDTVEC(hv_vmbus_callback);
 static int
 vmbus_bus_init(void)
 {
+	struct vmbus_softc *sc;
 	int i, j, n, ret;
 	char buf[MAXCOMLEN + 1];
 	cpuset_t cpu_mask;
@@ -396,6 +397,7 @@ vmbus_bus_init(void)
 		return (0);
 
 	vmbus_inited = 1;
+	sc = vmbus_get_softc();
 
 	ret = hv_vmbus_init();
 
@@ -481,6 +483,12 @@ vmbus_bus_init(void)
 	if (ret != 0)
 		goto cleanup1;
 
+	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
+	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)
+		sc->vmbus_event_proc = vmbus_event_proc_compat;
+	else
+		sc->vmbus_event_proc = vmbus_event_proc;
+
 	hv_vmbus_request_channel_offers();
 
 	vmbus_scan();
@@ -515,6 +523,11 @@ vmbus_bus_init(void)
 	return (ret);
 }
 
+static void
+vmbus_event_proc_dummy(struct vmbus_softc *sc __unused, int cpu __unused)
+{
+}
+
 static int
 vmbus_attach(device_t dev)
 {
@@ -523,6 +536,13 @@ vmbus_attach(device_t dev)
 
 	vmbus_devp = dev;
 	vmbus_sc = device_get_softc(dev);
+
+	/*
+	 * Event processing logic will be configured:
+	 * - After the vmbus protocol version negotiation.
+	 * - Before we request channel offers.
+	 */
+	vmbus_sc->vmbus_event_proc = vmbus_event_proc_dummy;
 
 #ifndef EARLY_AP_STARTUP
 	/* 
