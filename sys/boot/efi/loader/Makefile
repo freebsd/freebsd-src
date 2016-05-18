@@ -31,6 +31,13 @@ CWARNFLAGS.zfs.c+=	-Wno-array-bounds
 CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
 .endif
 
+# We implement a slightly non-stadard %S in that it always takes a
+# CHAR16 that's common in UEFI-land instaed of a wchar_t. This only
+# seems to matter on arm64 where wchar_t defaults to a int instead of
+# a short. There's no good cast to use here, so just ignore the
+# warnings for now.
+CWARNFLAGS.main.c+=	-Wno-format
+
 .PATH: ${.CURDIR}/arch/${MACHINE}
 # For smbios.c
 .PATH: ${.CURDIR}/../../i386/libi386
