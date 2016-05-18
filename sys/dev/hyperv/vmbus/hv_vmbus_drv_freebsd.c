@@ -593,22 +593,23 @@ vmbus_detach(device_t dev)
 }
 
 static device_method_t vmbus_methods[] = {
-	/** Device interface */
-	DEVMETHOD(device_probe, vmbus_probe),
-	DEVMETHOD(device_attach, vmbus_attach),
-	DEVMETHOD(device_detach, vmbus_detach),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-	DEVMETHOD(device_suspend, bus_generic_suspend),
-	DEVMETHOD(device_resume, bus_generic_resume),
+	/* Device interface */
+	DEVMETHOD(device_probe,			vmbus_probe),
+	DEVMETHOD(device_attach,		vmbus_attach),
+	DEVMETHOD(device_detach,		vmbus_detach),
+	DEVMETHOD(device_shutdown,		bus_generic_shutdown),
+	DEVMETHOD(device_suspend,		bus_generic_suspend),
+	DEVMETHOD(device_resume,		bus_generic_resume),
 
-	/** Bus interface */
-	DEVMETHOD(bus_add_child, bus_generic_add_child),
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar, vmbus_read_ivar),
-	DEVMETHOD(bus_write_ivar, vmbus_write_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str, vmbus_child_pnpinfo_str),
+	/* Bus interface */
+	DEVMETHOD(bus_add_child,		bus_generic_add_child),
+	DEVMETHOD(bus_print_child,		bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
+	DEVMETHOD(bus_write_ivar,		vmbus_write_ivar),
+	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
 
-	{ 0, 0 } };
+	DEVMETHOD_END
+};
 
 static driver_t vmbus_driver = {
 	"vmbus",
