@@ -352,7 +352,7 @@ vmbus_probe(device_t dev)
 	    device_get_unit(dev) != 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Vmbus Devices");
+	device_set_desc(dev, "Hyper-V Vmbus");
 
 	return (BUS_PROBE_DEFAULT);
 }
