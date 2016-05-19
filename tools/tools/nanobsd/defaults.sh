@@ -1018,10 +1018,11 @@ pprint ( ) (
 
 usage ( ) {
 	(
-	echo "Usage: $0 [-bfiKknqvw] [-c config_file]"
+	echo "Usage: $0 [-bfhiKknqvwX] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
 	echo "	-f	suppress code slice extraction"
+	echo "	-h	print this help summary page"
 	echo "	-i	suppress disk image build"
 	echo "	-K	suppress installkernel"
 	echo "	-k	suppress buildkernel"
@@ -1029,6 +1030,7 @@ usage ( ) {
 	echo "	-q	make output more quiet"
 	echo "	-v	make output more verbose"
 	echo "	-w	suppress buildworld"
+	echo "	-X	make native-xtools"
 	) 1>&2
 	exit 2
 }
