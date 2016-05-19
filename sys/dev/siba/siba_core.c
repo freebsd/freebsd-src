@@ -945,6 +945,17 @@ siba_cc_pmu_init(struct siba_cc *scc)
 		siba_cc_pmu1_pll0_init(scc, 0 /* use default */);
 		/* use the default: min = 0xcbb max = 0x7ffff */
 		break;
+	case 0x4322:
+		if (scc->scc_pmu.rev == 2) {
+			DPRINTF(siba, SIBA_DEBUG_PMU, "%s: chipid 0x4322; PLLing\n",
+			    __func__);
+			SIBA_CC_WRITE32(scc, SIBA_CC_PLLCTL_ADDR, 0x0000000a);
+			SIBA_CC_WRITE32(scc, SIBA_CC_PLLCTL_DATA, 0x380005c0);
+		}
+		/* use the default: min = 0xcbb max = 0x7ffff */
+		break;
+	case 43222:
+		break;
 	case 0x4325:
 		siba_cc_pmu1_pll0_init(scc, 0 /* use default */);
 
