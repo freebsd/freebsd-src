@@ -483,9 +483,6 @@ __DEFAULT_NO_OPTIONS+=HYPERV
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
-.if defined(MK_${var})
-.error MK_${var} can't be set by a user.
-.endif
 .if defined(WITHOUT_${var})
 MK_${var}:=	no
 .else
@@ -500,9 +497,6 @@ MK_${var}:=	yes
 .for var in ${__DEFAULT_NO_OPTIONS}
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
-.endif
-.if defined(MK_${var})
-.error MK_${var} can't be set by a user.
 .endif
 .if defined(WITH_${var})
 MK_${var}:=	yes
@@ -621,9 +615,6 @@ MK_TESTS:= no
 .if defined(WITH_${var}_SUPPORT) && defined(WITHOUT_${var}_SUPPORT)
 .error WITH_${var}_SUPPORT and WITHOUT_${var}_SUPPORT can't both be set.
 .endif
-.if defined(MK_${var}_SUPPORT)
-.error MK_${var}_SUPPORT can't be set by a user.
-.endif
 .if defined(WITHOUT_${var}_SUPPORT) || ${MK_${var}} == "no"
 MK_${var}_SUPPORT:= no
 .else
@@ -639,9 +630,6 @@ MK_${var}_SUPPORT:= yes
     MAN_UTILS/MAN
 .if defined(WITH_${vv:H}) && defined(WITHOUT_${vv:H})
 .error WITH_${vv:H} and WITHOUT_${vv:H} can't both be set.
-.endif
-.if defined(MK_${vv:H})
-.error MK_${vv:H} can't be set by a user.
 .endif
 .if defined(WITH_${vv:H})
 MK_${vv:H}:=	yes
@@ -660,9 +648,6 @@ MK_${vv:H}:=	${MK_${vv:T}}
     LIBCPLUSPLUS
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
-.endif
-.if defined(MK_${var})
-.error MK_${var} can't be set by a user.
 .endif
 .if ${COMPILER_FEATURES:Mc++11}
 .if defined(WITHOUT_${var})
