@@ -157,6 +157,8 @@ struct ipw_softc {
 	uint32_t			rxcur;
 	int				txfree;
 
+	uint16_t			chanmask;
+
 	struct ipw_rx_radiotap_header	sc_rxtap;
 	struct ipw_tx_radiotap_header	sc_txtap;
 };
