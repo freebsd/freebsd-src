@@ -29,31 +29,13 @@
 #ifndef PATHS_H
 #define PATHS_H
 
-#ifndef _PATH_ELF_HINTS
+#undef _PATH_ELF_HINTS
+
 #define	_PATH_ELF_HINTS		"/var/run/ld-cheri-elf.so.hints"
-#endif
-
-#ifndef _PATH_LIBMAP_CONF
 #define	_PATH_LIBMAP_CONF	"/etc/libmap-cheri.conf"
-#endif
-
-#ifndef _PATH_RTLD
 #define	_PATH_RTLD		"/libexec/ld-cheri-elf.so.1"
-#endif
-
-#ifndef STANDARD_LIBRARY_PATH
-#define	STANDARD_LIBRARY_PATH	"/usr/libcheri"
-#endif
-
-#ifndef LD_
-#define	LD_			"LD_"
-#endif
-
-#define	_PATH_SOFT_ELF_HINTS	"/var/run/ld-cheri-elf-soft.so.hints"
-#define	_PATH_SOFT_LIBMAP_CONF	"/etc/libmap-cheri-soft.conf"
-#define	_PATH_SOFT_RTLD		"/libexec/ld-cheri-elf.so.1"
-#define	SOFT_STANDARD_LIBRARY_PATH "/usr/libsoft"
-#define	LD_SOFT_		"LD_SOFT_"
+#define	STANDARD_LIBRARY_PATH	"/libcheri:/usr/libcheri"
+#define	LD_			"LD_CHERI_"
 
 extern char *ld_elf_hints_default;
 extern char *ld_path_libmap_conf;
