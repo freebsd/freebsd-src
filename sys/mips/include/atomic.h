@@ -552,7 +552,7 @@ atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 		"move	%0, %3\n\t"		/* value to store */
 		"cscw	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* if it failed, spin */
-		"j 3f\n\t"
+		"b 3f\n\t"
 		"2:\n\t"
 		"li	%0, 0\n\t"
 		"3:\n"
