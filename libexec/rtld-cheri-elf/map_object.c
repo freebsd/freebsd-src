@@ -207,8 +207,8 @@ map_object(int fd, const char *path, const struct stat *sb)
 	  path, rtld_strerror(errno));
 	goto error;
     }
-    if (base_addr != NULL && mapbase != base_addr) {
-	_rtld_error("%s: mmap returned wrong address: wanted %p, got %p",
+    if (base_addr != NULL && (vaddr_t)mapbase != (vaddr_t)base_addr) {
+	_rtld_error("%s: mmap returned wrong address: wanted %#p, got %#p",
 	  path, base_addr, mapbase);
 	goto error1;
     }
