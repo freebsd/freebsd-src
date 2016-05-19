@@ -774,6 +774,13 @@ siba_cc_clock(struct siba_cc *scc, enum siba_clock clock)
 	if (sd == NULL)
 		return;
 	siba = sd->sd_bus;
+
+	/*
+	 * PMU controls clockmode; separate function is needed
+	 */
+	if (scc->scc_caps & SIBA_CC_CAPS_PMU)
+		return;
+
 	/*
 	 * chipcommon < r6 (no dynamic clock control)
 	 * chipcommon >= r10 (unknown)
@@ -930,6 +937,7 @@ siba_cc_pmu_init(struct siba_cc *scc)
 	DPRINTF(siba, SIBA_DEBUG_PMU, "PMU(r%u) found (caps %#x)\n",
 	    scc->scc_pmu.rev, pmucap);
 
+#if 0
 	if (scc->scc_pmu.rev >= 1) {
 		if (siba->siba_chiprev < 2 && siba->siba_chipid == 0x4325)
 			SIBA_CC_MASK32(scc, SIBA_CC_PMUCTL,
@@ -937,6 +945,12 @@ siba_cc_pmu_init(struct siba_cc *scc)
 		else
 			SIBA_CC_SET32(scc, SIBA_CC_PMUCTL,
 			    SIBA_CC_PMUCTL_NOILP);
+	}
+#endif
+	if (scc->scc_pmu.rev == 1) {
+		SIBA_CC_MASK32(scc, SIBA_CC_PMUCTL, ~SIBA_CC_PMUCTL_NOILP);
+	} else {
+		SIBA_CC_SET32(scc, SIBA_CC_PMUCTL, SIBA_CC_PMUCTL_NOILP);
 	}
 
 	/* initialize PLL & PMU resources */
@@ -1070,8 +1084,22 @@ siba_cc_powerup_delay(struct siba_cc *scc)
 	struct siba_softc *siba = scc->scc_dev->sd_bus;
 	int min;
 
-	if (siba->siba_type != SIBA_TYPE_PCI ||
-	    !(scc->scc_caps & SIBA_CC_CAPS_PWCTL))
+	if (siba->siba_type != SIBA_TYPE_PCI)
+		return;
+
+	if (scc->scc_caps & SIBA_CC_CAPS_PMU) {
+		if ((siba->siba_chipid == 0x4312) ||
+		    (siba->siba_chipid == 0x4322) ||
+		    (siba->siba_chipid == 0x4328)) {
+			scc->scc_powerup_delay = 7000;
+		} else {
+			/* 0x4325 is marked as TODO */
+			scc->scc_powerup_delay = 15000;
+		}
+		return;
+	}
+
+	if (!(scc->scc_caps & SIBA_CC_CAPS_PWCTL))
 		return;
 
 	min = siba_cc_clockfreq(scc, 0);
