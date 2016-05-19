@@ -891,24 +891,26 @@ command_efi_printenv(int argc, char *argv[])
 	 */
 	varsz = nitems(varname);
 	varname[0] = 0;
-	status = RS->GetNextVariableName(&varsz, varname, &varguid);
-	while (status != EFI_NOT_FOUND) {
-		status = RS->GetNextVariableName(&varsz, varname,
-		    &varguid);
+	while ((status = RS->GetNextVariableName(&varsz, varname, &varguid)) !=
+	    EFI_NOT_FOUND) {
 		if (aflag) {
 			if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
 				break;
 			continue;
 		}
 		if (vflag) {
-			if (wcscmp(varnamearg, varname) == 0)
+			if (wcscmp(varnamearg, varname) == 0) {
 				if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
 					break;
+				continue;
+			}
 		}
 		if (gflag) {
-			if (memcmp(&varguid, &matchguid, sizeof(varguid)) == 0)
+			if (memcmp(&varguid, &matchguid, sizeof(varguid)) == 0) {
 				if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
 					break;
+				continue;
+			}
 		}
 	}
 	pager_close();
