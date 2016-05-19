@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
  * The Broadcom Wireless LAN controller driver.
  */
 
+#include "opt_wlan.h"
+#include "opt_bwn.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
