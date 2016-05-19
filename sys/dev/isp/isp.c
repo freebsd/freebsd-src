@@ -4699,6 +4699,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			tmf->tmf_tidhi = lp->portid >> 16;
 			tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
 			isp_put_24xx_tmf(isp, tmf, isp->isp_iocb);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "TMF IOCB request", QENTRY_LEN, isp->isp_iocb);
 			MEMORYBARRIER(isp, SYNC_IFORDEV, 0, QENTRY_LEN, chan);
 			fcp->sendmarker = 1;
 
@@ -4715,6 +4717,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 				break;
 
 			MEMORYBARRIER(isp, SYNC_IFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "TMF IOCB response", QENTRY_LEN, &((isp24xx_statusreq_t *)isp->isp_iocb)[1]);
 			sp = (isp24xx_statusreq_t *) local;
 			isp_get_24xx_response(isp, &((isp24xx_statusreq_t *)isp->isp_iocb)[1], sp);
 			if (sp->req_completion_status == 0) {
@@ -4781,6 +4785,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			ab->abrt_tidhi = lp->portid >> 16;
 			ab->abrt_vpidx = ISP_GET_VPIDX(isp, chan);
 			isp_put_24xx_abrt(isp, ab, isp->isp_iocb);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "AB IOCB quest", QENTRY_LEN, isp->isp_iocb);
 			MEMORYBARRIER(isp, SYNC_IFORDEV, 0, 2 * QENTRY_LEN, chan);
 
 			ISP_MEMZERO(&mbs, sizeof (mbs));
@@ -4796,6 +4802,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 				break;
 
 			MEMORYBARRIER(isp, SYNC_IFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "AB IOCB response", QENTRY_LEN, &((isp24xx_abrt_t *)isp->isp_iocb)[1]);
 			isp_get_24xx_abrt(isp, &((isp24xx_abrt_t *)isp->isp_iocb)[1], ab);
 			if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY) {
 				return (0);
