@@ -25,8 +25,7 @@ RTLD_ARCH=	${MACHINE_ARCH}
 .else
 RTLD_ARCH=	${MACHINE_CPUARCH}
 .endif
-CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR} \
-		-I${.CURDIR}/../rtld-elf/${RTLD_ARCH} -I${.CURDIR}/../rtld-elf
+CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start
 WARNS?=		2
 INSTALLFLAGS=	-C -b
