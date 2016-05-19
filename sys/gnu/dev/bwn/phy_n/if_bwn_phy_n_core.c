@@ -6743,15 +6743,21 @@ bwn_nphy_op_software_rfkill(struct bwn_mac *mac, bool active)
 	    "%s: called; rev=%d, rf_on=%d, active=%d\n", __func__,
 	    phy->rev, mac->mac_phy.rf_on, active);
 
+	/*
+	 * XXX TODO: don't bother doing RF programming if it's
+	 * already done.  But, bwn(4) currently sets rf_on in the
+	 * PHY setup and leaves it on after startup, which causes
+	 * the below to not init the 2056/2057 radios.
+	 */
 	if (active) {
 		if (phy->rev >= 19) {
 			/* TODO */
 		} else if (phy->rev >= 7) {
-			if (!mac->mac_phy.rf_on)
+//			if (!mac->mac_phy.rf_on)
 				bwn_radio_2057_init(mac);
 			bwn_switch_channel(mac, bwn_get_chan(mac));
 		} else if (phy->rev >= 3) {
-			if (!mac->mac_phy.rf_on)
+//			if (!mac->mac_phy.rf_on)
 				bwn_radio_init2056(mac);
 			bwn_switch_channel(mac, bwn_get_chan(mac));
 		} else {
