@@ -5,6 +5,8 @@
 # used in COTS hardware including the ASUS RT-N12, RT-N16, RT-N53.
 #
 
+#NO_UNIVERSE
+
 ident		BCM
 
 hints		"BCM.hints"
