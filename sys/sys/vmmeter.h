@@ -186,7 +186,7 @@ int
 vm_paging_needed(void)
 {
     return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
-        vm_pageout_wakeup_thresh);
+        (u_int)vm_pageout_wakeup_thresh);
 }
 
 #endif
