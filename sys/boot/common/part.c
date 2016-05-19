@@ -829,7 +829,7 @@ ptable_getbestpart(const struct ptable *table, struct ptable_entry *part)
 	return (ENOENT);
 }
 
-void
+int
 ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 {
 	struct pentry *entry;
@@ -856,7 +856,9 @@ ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 		if (table->type == PTABLE_BSD)
 			sprintf(name, "%c", (u_char) 'a' +
 			    entry->part.index);
-		iter(arg, name, &entry->part);
+		if (iter(arg, name, &entry->part))
+			return 1;
 	}
+	return 0;
 }
 

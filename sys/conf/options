@@ -139,6 +139,7 @@ GEOM_VINUM	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
+IFLIB		opt_iflib.h
 KDTRACE_HOOKS	opt_global.h
 KDTRACE_FRAME	opt_kdtrace.h
 KN_HASHSIZE	opt_kqueue.h
@@ -590,7 +591,6 @@ MAXCPU			opt_global.h
 MAXMEMDOM		opt_global.h
 MAXPHYS			opt_global.h
 MCLSHIFT		opt_global.h
-MUTEX_DEBUG		opt_global.h
 MUTEX_NOINLINE		opt_global.h
 LOCK_PROFILING		opt_global.h
 LOCK_PROFILING_FAST	opt_global.h

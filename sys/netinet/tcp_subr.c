@@ -1643,7 +1643,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr == NULL) {
 		n = V_tcbinfo.ipi_count +
-		    counter_u64_fetch(VNET(tcps_states)[TCPS_SYN_RECEIVED]);
+		    counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
@@ -1660,7 +1660,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = V_tcbinfo.ipi_count;
 	INP_LIST_RUNLOCK(&V_tcbinfo);
 
-	m = counter_u64_fetch(VNET(tcps_states)[TCPS_SYN_RECEIVED]);
+	m = counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ (n + m) * sizeof(struct xtcpcb));

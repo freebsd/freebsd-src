@@ -219,14 +219,13 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		arm \
 		armeb/arm \
 		armv6/arm \
-		armv6hf/arm \
 		i386 \
 		i386/pc98 \
 		mips \
 		mipsel/mips \
 		mips64el/mips \
-		mips64/mips \
 		mipsn32el/mips \
+		mips64/mips \
 		mipsn32/mips \
 		powerpc \
 		powerpc64/powerpc \
@@ -461,7 +460,7 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${TARGET} == "arm"
-.if ${TARGET_ARCH:M*hf*} != ""
+.if ${TARGET_ARCH:Marmv6*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
 TARGET_ABI=	gnueabihf
 .else
 TARGET_ABI=	gnueabi
@@ -976,27 +975,19 @@ packageworld: .PHONY
 # and do a 'make reinstall' on the *client* to install new binaries from the
 # most recent server build.
 #
-reinstall: .MAKE .PHONY
+restage reinstall: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
 	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy
-	@echo
+.if make(restage)
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing everything"
-	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if defined(LIBCOMPAT)
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install${libcompat}
-.endif
-
-restage: .MAKE .PHONY
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making hierarchy"
+	@echo ">>> Making distribution"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
-	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy distribution
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} distribution
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything"

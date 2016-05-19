@@ -111,9 +111,9 @@ static int	bd_write(struct open_disk *od, daddr_t dblk, int blks,
 
 static int	bd_int13probe(struct bdinfo *bd);
 
-static void	bd_printslice(struct open_disk *od, struct pc98_partition *dp,
+static int	bd_printslice(struct open_disk *od, struct pc98_partition *dp,
 		    char *prefix, int verbose);
-static void	bd_printbsdslice(struct open_disk *od, daddr_t offset,
+static int	bd_printbsdslice(struct open_disk *od, daddr_t offset,
 		    char *prefix, int verbose);
 
 static int	bd_init(void);
@@ -252,15 +252,18 @@ bd_int13probe(struct bdinfo *bd)
 static void
 bd_print(int verbose)
 {
-    int				i, j;
+    int				i, j, done;
     char			line[80];
     struct i386_devdesc		dev;
     struct open_disk		*od;
     struct pc98_partition	*dptr;
     
-    for (i = 0; i < nbdinfo; i++) {
+    pager_open();
+    done = 0;
+    for (i = 0; i < nbdinfo && !done; i++) {
 	sprintf(line, "    disk%d:   BIOS drive %c:\n", i, 'A' + i);
-	pager_output(line);
+	if (pager_output(line))
+		break;
 
 	/* try to open the whole disk */
 	dev.d_unit = i;
@@ -276,12 +279,16 @@ bd_print(int verbose)
 		/* Check for a "dedicated" disk */
 		for (j = 0; j < od->od_nslices; j++) {
 		    sprintf(line, "      disk%ds%d", i, j + 1);
-		    bd_printslice(od, &dptr[j], line, verbose);
+		    if (bd_printslice(od, &dptr[j], line, verbose)) {
+			    done = 1;
+			    break;
+		    }
 		}
 	    }
 	    bd_closedisk(od);
 	}
     }
+    pager_close();
 }
 
 /* Given a size in 512 byte sectors, convert it to a human-readable number. */
@@ -311,7 +318,7 @@ display_size(uint64_t size)
  * Print information about slices on a disk.  For the size calculations we
  * assume a 512 byte sector.
  */
-static void
+static int
 bd_printslice(struct open_disk *od, struct pc98_partition *dp, char *prefix,
 	int verbose)
 {
@@ -331,10 +338,9 @@ bd_printslice(struct open_disk *od, struct pc98_partition *dp, char *prefix,
 
 	switch(dp->dp_mid & PC98_MID_MASK) {
 	case PC98_MID_386BSD:
-		bd_printbsdslice(od, start, prefix, verbose);
-		return;
+		return (bd_printbsdslice(od, start, prefix, verbose));
 	case 0x00:				/* unused partition */
-		return;
+		return (0);
 	case 0x01:
 		sprintf(line, "%s: FAT-12%s\n", prefix, stats);
 		break;
@@ -350,14 +356,14 @@ bd_printslice(struct open_disk *od, struct pc98_partition *dp, char *prefix,
 		sprintf(line, "%s: Unknown fs: 0x%x %s\n", prefix, dp->dp_mid,
 		    stats);
 	}
-	pager_output(line);
+	return (pager_output(line));
 }
 
 /*
  * Print out each valid partition in the disklabel of a FreeBSD slice.
  * For size calculations, we assume a 512 byte sector size.
  */
-static void
+static int
 bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
     int verbose)
 {
@@ -368,12 +374,11 @@ bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
 
     /* read disklabel */
     if (bd_read(od, offset + LABELSECTOR, 1, buf))
-	return;
+        return (0);
     lp =(struct disklabel *)(&buf[0]);
     if (lp->d_magic != DISKMAGIC) {
 	sprintf(line, "%s: FFS  bad disklabel\n", prefix);
-	pager_output(line);
-	return;
+	return (pager_output(line));
     }
     
     /* Print partitions */
@@ -404,9 +409,11 @@ bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
 		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : 
 		    (lp->d_partitions[i].p_fstype == FS_VINUM) ? "vinum" :
 		    "FFS");
-	    pager_output(line);
+	    if (pager_output(line))
+		    return (1);
 	}
     }
+    return (0);
 }
 
 

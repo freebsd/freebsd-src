@@ -350,7 +350,7 @@ vnet_data_startup(void *dummy __unused)
 }
 SYSINIT(vnet_data, SI_SUB_KLD, SI_ORDER_FIRST, vnet_data_startup, 0);
 
-/* Dummy VNET_SYSINIT to make sure we reach the final end state. */
+/* Dummy VNET_SYSINIT to make sure we always reach the final end state. */
 static void
 vnet_sysinit_done(void *unused __unused)
 {
@@ -699,14 +699,14 @@ db_vnet_print(struct vnet *vnet)
 {
 
 	db_printf("vnet            = %p\n", vnet);
-	db_printf(" vnet_magic_n   = 0x%x (%s, orig 0x%x)\n",
+	db_printf(" vnet_magic_n   = %#08x (%s, orig %#08x)\n",
 	    vnet->vnet_magic_n,
 	    (vnet->vnet_magic_n == VNET_MAGIC_N) ?
 		"ok" : "mismatch", VNET_MAGIC_N);
 	db_printf(" vnet_ifcnt     = %u\n", vnet->vnet_ifcnt);
 	db_printf(" vnet_sockcnt   = %u\n", vnet->vnet_sockcnt);
 	db_printf(" vnet_data_mem  = %p\n", vnet->vnet_data_mem);
-	db_printf(" vnet_data_base = 0x%jx\n",
+	db_printf(" vnet_data_base = %#jx\n",
 	    (uintmax_t)vnet->vnet_data_base);
 	db_printf(" vnet_state     = %#08x\n", vnet->vnet_state);
 	db_printf("\n");

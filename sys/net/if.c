@@ -407,7 +407,7 @@ vnet_if_return(const void *unused __unused)
 			if_vmove(ifp, ifp->if_home_vnet);
 	}
 }
-VNET_SYSUNINIT(vnet_if_return, SI_SUB_INIT_IF, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_if_return, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     vnet_if_return, NULL);
 #endif
 
@@ -4006,6 +4006,19 @@ if_multiaddr_count(if_t ifp, int max)
 	}
 	if_maddr_runlock(ifp);
 	return (count);
+}
+
+int
+if_multi_apply(struct ifnet *ifp, int (*filter)(void *, struct ifmultiaddr *, int), void *arg)
+{
+	struct ifmultiaddr *ifma;
+	int cnt = 0;
+
+	if_maddr_rlock(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+		cnt += filter(arg, ifma, cnt);
+	if_maddr_runlock(ifp);
+	return (cnt);
 }
 
 struct mbuf *

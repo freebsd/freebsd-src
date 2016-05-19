@@ -223,7 +223,7 @@ zfsctl_root_inode_cb(vnode_t *vp, int index)
 {
 	zfsvfs_t *zfsvfs = vp->v_vfsp->vfs_data;
 
-	ASSERT(index <= 2);
+	ASSERT(index < 2);
 
 	if (index == 0)
 		return (ZFSCTL_INO_SNAPDIR);
@@ -292,6 +292,22 @@ zfsctl_root(znode_t *zp)
 	ASSERT(zfs_has_ctldir(zp));
 	VN_HOLD(zp->z_zfsvfs->z_ctldir);
 	return (zp->z_zfsvfs->z_ctldir);
+}
+
+static int
+zfsctl_common_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	vnode_t *vp = ap->a_vp;
+	gfs_file_t *fp = vp->v_data;
+
+	printf("    parent = %p\n", fp->gfs_parent);
+	printf("    type = %d\n", fp->gfs_type);
+	printf("    index = %d\n", fp->gfs_index);
+	printf("    ino = %ju\n", (uintmax_t)fp->gfs_ino);
+	return (0);
 }
 
 /*
@@ -404,8 +420,6 @@ zfsctl_common_fid(ap)
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(ENOSPC));
 	}
-#else
-	fidp->fid_len = SHORT_FID_LEN;
 #endif
 
 	zfid = (zfid_short_t *)fidp;
@@ -542,6 +556,61 @@ zfsctl_root_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
 	return (err);
 }
 
+static int
+zfsctl_freebsd_root_lookup(ap)
+	struct vop_lookup_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
+		struct componentname *a_cnp;
+	} */ *ap;
+{
+	vnode_t *dvp = ap->a_dvp;
+	vnode_t **vpp = ap->a_vpp;
+	cred_t *cr = ap->a_cnp->cn_cred;
+	int flags = ap->a_cnp->cn_flags;
+	int lkflags = ap->a_cnp->cn_lkflags;
+	int nameiop = ap->a_cnp->cn_nameiop;
+	char nm[NAME_MAX + 1];
+	int err;
+
+	if ((flags & ISLASTCN) && (nameiop == RENAME || nameiop == CREATE))
+		return (EOPNOTSUPP);
+
+	ASSERT(ap->a_cnp->cn_namelen < sizeof(nm));
+	strlcpy(nm, ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen + 1);
+relookup:
+	err = zfsctl_root_lookup(dvp, nm, vpp, NULL, 0, NULL, cr, NULL, NULL, NULL);
+	if (err == 0 && (nm[0] != '.' || nm[1] != '\0')) {
+		if (flags & ISDOTDOT) {
+			VOP_UNLOCK(dvp, 0);
+			err = vn_lock(*vpp, lkflags);
+			if (err != 0) {
+				vrele(*vpp);
+				*vpp = NULL;
+			}
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+		} else {
+			err = vn_lock(*vpp, LK_EXCLUSIVE);
+			if (err != 0) {
+				VERIFY3S(err, ==, ENOENT);
+				goto relookup;
+			}
+		}
+	}
+	return (err);
+}
+
+static int
+zfsctl_root_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	printf("    .zfs node\n");
+	zfsctl_common_print(ap);
+	return (0);
+}
+
 #ifdef illumos
 static int
 zfsctl_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
@@ -577,48 +646,6 @@ static const fs_operation_def_t zfsctl_tops_root[] = {
 };
 #endif	/* illumos */
 
-/*
- * Special case the handling of "..".
- */
-/* ARGSUSED */
-int
-zfsctl_freebsd_root_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	vnode_t *dvp = ap->a_dvp;
-	vnode_t **vpp = ap->a_vpp;
-	cred_t *cr = ap->a_cnp->cn_cred;
-	int flags = ap->a_cnp->cn_flags;
-	int lkflags = ap->a_cnp->cn_lkflags;
-	int nameiop = ap->a_cnp->cn_nameiop;
-	char nm[NAME_MAX + 1];
-	int err;
-
-	if ((flags & ISLASTCN) && (nameiop == RENAME || nameiop == CREATE))
-		return (EOPNOTSUPP);
-
-	ASSERT(ap->a_cnp->cn_namelen < sizeof(nm));
-	strlcpy(nm, ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen + 1);
-	err = zfsctl_root_lookup(dvp, nm, vpp, NULL, 0, NULL, cr, NULL, NULL, NULL);
-	if (err == 0 && (nm[0] != '.' || nm[1] != '\0')) {
-		if (flags & ISDOTDOT)
-			VOP_UNLOCK(dvp, 0);
-		err = vn_lock(*vpp, lkflags);
-		if (err != 0) {
-			vrele(*vpp);
-			*vpp = NULL;
-		}
-		if (flags & ISDOTDOT)
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
-	}
-
-	return (err);
-}
-
 static struct vop_vector zfsctl_ops_root = {
 	.vop_default =	&default_vnodeops,
 	.vop_open =	zfsctl_common_open,
@@ -634,6 +661,7 @@ static struct vop_vector zfsctl_ops_root = {
 	.vop_pathconf =	zfsctl_pathconf,
 #endif
 	.vop_fid =	zfsctl_common_fid,
+	.vop_print =	zfsctl_root_print,
 };
 
 /*
@@ -1376,6 +1404,32 @@ zfsctl_snapdir_reclaim(ap)
 	return (0);
 }
 
+static int
+zfsctl_shares_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	printf("    .zfs/shares node\n");
+	zfsctl_common_print(ap);
+	return (0);
+}
+
+static int
+zfsctl_snapdir_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	vnode_t *vp = ap->a_vp;
+	zfsctl_snapdir_t *sdp = vp->v_data;
+
+	printf("    .zfs/snapshot node\n");
+	printf("    number of children = %lu\n", avl_numnodes(&sdp->sd_snaps));
+	zfsctl_common_print(ap);
+	return (0);
+}
+
 #ifdef illumos
 static const fs_operation_def_t zfsctl_tops_snapdir[] = {
 	{ VOPNAME_OPEN,		{ .vop_open = zfsctl_common_open }	},
@@ -1421,6 +1475,7 @@ static struct vop_vector zfsctl_ops_snapdir = {
 	.vop_inactive =	VOP_NULL,
 	.vop_reclaim =	zfsctl_snapdir_reclaim,
 	.vop_fid =	zfsctl_common_fid,
+	.vop_print =	zfsctl_snapdir_print,
 };
 
 static struct vop_vector zfsctl_ops_shares = {
@@ -1435,6 +1490,7 @@ static struct vop_vector zfsctl_ops_shares = {
 	.vop_inactive =	VOP_NULL,
 	.vop_reclaim =	gfs_vop_reclaim,
 	.vop_fid =	zfsctl_shares_fid,
+	.vop_print =	zfsctl_shares_print,
 };
 #endif	/* illumos */
 
@@ -1571,6 +1627,21 @@ zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
 	return (error);
 }
 
+static int
+zfsctl_snaphot_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	vnode_t *vp = ap->a_vp;
+	zfsctl_node_t *zcp = vp->v_data;
+
+	printf("    .zfs/snapshot/<snap> node\n");
+	printf("    id = %ju\n", (uintmax_t)zcp->zc_id);
+	zfsctl_common_print(ap);
+	return (0);
+}
+
 /*
  * These VP's should never see the light of day.  They should always
  * be covered.
@@ -1580,6 +1651,7 @@ static struct vop_vector zfsctl_ops_snapshot = {
 	.vop_inactive =	zfsctl_snapshot_inactive,
 	.vop_reclaim =	zfsctl_snapshot_reclaim,
 	.vop_vptocnp =	zfsctl_snapshot_vptocnp,
+	.vop_print =	zfsctl_snaphot_print,
 };
 
 int

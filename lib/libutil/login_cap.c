@@ -742,7 +742,7 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 
 /*
  * login_getcapbool()
- * From the login_cap_t <lc>, check for the existance of the capability
+ * From the login_cap_t <lc>, check for the existence of the capability
  * of <cap>.  Return <def> if <lc>->lc_cap is NULL, otherwise return
  * the whether or not <cap> exists there.
  */
