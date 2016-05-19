@@ -224,6 +224,7 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		mips \
 		mipsel/mips \
 		mips64el/mips \
+		mipsn32el/mips \
 		mips64/mips \
 		mipsn32/mips \
 		powerpc \
