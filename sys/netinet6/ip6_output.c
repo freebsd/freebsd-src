@@ -149,10 +149,10 @@ static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
 static int ip6_getpmtu(struct route_in6 *, int,
-	struct ifnet *, struct in6_addr *, u_long *, int *, u_int);
+	struct ifnet *, const struct in6_addr *, u_long *, int *, u_int);
 static int ip6_calcmtu(struct ifnet *, const struct in6_addr *, u_long,
 	u_long *, int *);
-static int ip6_getpmtu_ctl(u_int, struct in6_addr *, u_long *);
+static int ip6_getpmtu_ctl(u_int, const struct in6_addr *, u_long *);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -313,7 +313,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int alwaysfrag, dontfrag;
 	u_int32_t optlen = 0, plen = 0, unfragpartlen = 0;
 	struct ip6_exthdrs exthdrs;
-	struct in6_addr finaldst, src0, dst0;
+	struct in6_addr src0, dst0;
 	u_int32_t zone;
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
@@ -338,7 +338,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		}
 	}
 
-	finaldst = ip6->ip6_dst;
 	bzero(&exthdrs, sizeof(exthdrs));
 	if (opt) {
 		/* Hop-by-Hop options header */
@@ -727,8 +726,8 @@ again:
 		*ifpp = ifp;
 
 	/* Determine path MTU. */
-	if ((error = ip6_getpmtu(ro_pmtu, ro != ro_pmtu, ifp, &finaldst, &mtu,
-	    &alwaysfrag, fibnum)) != 0)
+	if ((error = ip6_getpmtu(ro_pmtu, ro != ro_pmtu, ifp, &ip6->ip6_dst,
+	    &mtu, &alwaysfrag, fibnum)) != 0)
 		goto bad;
 
 	/*
@@ -1239,7 +1238,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
  * Returns 0 on success.
  */
 static int
-ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
+ip6_getpmtu_ctl(u_int fibnum, const struct in6_addr *dst, u_long *mtup)
 {
 	struct nhop6_extended nh6;
 	struct in6_addr kdst;
@@ -1273,7 +1272,7 @@ ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
  */
 static int
 ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
-    struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
+    struct ifnet *ifp, const struct in6_addr *dst, u_long *mtup,
     int *alwaysfragp, u_int fibnum)
 {
 	struct nhop6_basic nh6;
