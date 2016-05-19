@@ -58,7 +58,15 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
-char		*_usrstack;
+/*
+ * The variable _usrstack is the address of the main thread's stack. It is not a
+ * valid pointer on CHERIABI, as sysctl kern.usrstack returns a virtual address
+ * and not a capability. However, we don't need to use it as a pointer anyway as
+ * there is no need to group stacks together and add guard pages on CHERABI.
+ * In CHERIABI _usrstack is only used to initialize stackaddr_attr for the main
+ * thread.
+ */
+vaddr_t		_usrstack;
 struct pthread	*_thr_initial;
 int		_libthr_debug;
 int		_thread_event_mask;
@@ -392,6 +400,15 @@ init_main_thread(struct pthread *thread)
 	thr_self(&thread->tid);
 	thread->attr = _pthread_attr_default;
 	/*
+	 * There is no need to allocate a red zone in CHERIABI as we are
+	 * protected through the use of capabilities.
+	 *
+	 * XXX-AR: If we decide to add it we will need to derive the correct
+	 * capability from somewhere else because _usrstack not a valid
+	 * capability.
+	 */
+#ifndef __CHERI_PURE_CAPABILITY__
+	/*
 	 * Set up the thread stack.
 	 *
 	 * Create a red zone below the main stack.  All other stacks
@@ -400,11 +417,12 @@ init_main_thread(struct pthread *thread)
 	 * resource limits, so this stack needs an explicitly mapped
 	 * red zone to protect the thread stack that is just beyond.
 	 */
-	if (mmap(_usrstack - _thr_stack_initial -
-	    _thr_guard_default, _thr_guard_default, 0, MAP_ANON,
+	/* XXX-AR: use PROT_NONE here */
+	if (mmap((void*)(_usrstack - _thr_stack_initial -
+	    _thr_guard_default), _thr_guard_default, 0, MAP_ANON,
 	    -1, 0) == MAP_FAILED)
 		PANIC("Cannot allocate red zone for initial thread");
-
+#endif
 	/*
 	 * Mark the stack as an application supplied stack so that it
 	 * isn't deallocated.
@@ -414,7 +432,14 @@ init_main_thread(struct pthread *thread)
 	 *       actually free() it; it just puts it in the free
 	 *       stack queue for later reuse.
 	 */
-	thread->attr.stackaddr_attr = _usrstack - _thr_stack_initial;
+
+	thread->attr.stackaddr_attr = (void*)(uintptr_t)(_usrstack -
+	    _thr_stack_initial);
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* In CHERIABI stackaddr_attr can't be dereferenced */
+	THR_ASSERT(cheri_gettag(thread->attr.stackaddr_attr) == 0,
+	    "thread->attr.stackaddr_attr should not be a capability");
+#endif
 	thread->attr.stacksize_attr = _thr_stack_initial;
 	thread->attr.guardsize_attr = _thr_guard_default;
 	thread->attr.flags |= THR_STACK_USER;
@@ -439,7 +464,7 @@ init_main_thread(struct pthread *thread)
 	thread->attr.prio = sched_param.sched_priority;
 
 #ifdef _PTHREAD_FORCED_UNWIND
-	thread->unwind_stackend = _usrstack;
+	thread->unwind_stackend = (void*)(uintptr_t)_usrstack;
 #endif
 
 	/* Others cleared to zero by thr_alloc() */
@@ -476,6 +501,10 @@ init_private(void)
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;
+		/*
+		 * The sysctl returns a vaddr_t and not a pointer so _usrstack
+		 * must not be a pointer on CHERIABI
+		 */
 		len = sizeof (_usrstack);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
 			PANIC("Cannot get kern.usrstack from sysctl");
@@ -490,7 +519,11 @@ init_private(void)
 		sysctlbyname("kern.smp.cpus", &_thr_is_smp, &len, NULL, 0);
 		_thr_is_smp = (_thr_is_smp > 1);
 		_thr_page_size = getpagesize();
+#ifndef __CHERI_PURE_CAPABILITY__
 		_thr_guard_default = _thr_page_size;
+#else
+		_thr_guard_default = 0; /* no need for red zone in CHERIABI */
+#endif
 		_pthread_attr_default.guardsize_attr = _thr_guard_default;
 		_pthread_attr_default.stacksize_attr = _thr_stack_default;
 		env = getenv("LIBPTHREAD_SPINLOOPS");

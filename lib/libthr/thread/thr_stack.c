@@ -62,6 +62,7 @@ static LIST_HEAD(, stack)	dstackq = LIST_HEAD_INITIALIZER(dstackq);
  */
 static LIST_HEAD(, stack)	mstackq = LIST_HEAD_INITIALIZER(mstackq);
 
+#ifndef __CHERI_PURE_CAPABILITY__
 /**
  * Base address of the last stack allocated (including its red zone, if
  * there is one).  Stacks are allocated contiguously, starting beyond the
@@ -113,11 +114,17 @@ static LIST_HEAD(, stack)	mstackq = LIST_HEAD_INITIALIZER(mstackq);
  *    |                                   |
  *    +-----------------------------------+ <-- start of main thread stack
  *                                              (USRSTACK)
- * high memory
+ * high memory.
+ *
+ * This is not used in CHERIABI, instead we let mmap() decide where to place the
+ * stacks for each of the threads as we do not need red zones here.
+ *
+ * XXX-AR: would it make sense to group the stacks together so that they can
+ * be found more easily by the debugger?
  *
  */
 static char *last_stack = NULL;
-
+#endif /* !defined(__CHERI_PURE_CAPABILITY__) */
 /*
  * Round size up to the nearest multiple of
  * _thr_page_size.
@@ -246,13 +253,20 @@ _thr_stack_alloc(struct pthread_attr *attr)
 		THREAD_LIST_UNLOCK(curthread);
 	}
 	else {
+#ifdef __CHERI_PURE_CAPABILITY__
+		/*
+		 * Grouping stacks together is not useful on CHERIABI, we let
+		 * let mmap() decide where to allocate
+		 */
+		stackaddr = NULL;
+#else /* !defined(__CHERI_PURE_CAPABILITY__) */
 		/*
 		 * Allocate a stack from or below usrstack, depending
 		 * on the LIBPTHREAD_BIGSTACK_MAIN env variable.
 		 */
 		if (last_stack == NULL)
-			last_stack = _usrstack - _thr_stack_initial -
-			    _thr_guard_default;
+			last_stack = (void*)(_usrstack - _thr_stack_initial -
+			    _thr_guard_default);
 
 		/* Allocate a new stack. */
 		stackaddr = last_stack - stacksize - guardsize;
@@ -265,22 +279,29 @@ _thr_stack_alloc(struct pthread_attr *attr)
 		 * the adjacent thread stack.
 		 */
 		last_stack -= (stacksize + guardsize);
+#endif /* !defined(__CHERI_PURE_CAPABILITY__) */
 
 		/* Release the lock before mmap'ing it. */
 		THREAD_LIST_UNLOCK(curthread);
 
 		/* Map the stack and guard page together, and split guard
 		   page from allocated space: */
-		if ((stackaddr = mmap(stackaddr, stacksize + guardsize,
-		     _rtld_get_stack_prot(), MAP_STACK,
-		     -1, 0)) != MAP_FAILED &&
-		    (guardsize == 0 ||
-		     mprotect(stackaddr, guardsize, PROT_NONE) == 0)) {
-			stackaddr += guardsize;
-		} else {
-			if (stackaddr != MAP_FAILED)
-				munmap(stackaddr, stacksize + guardsize);
+		stackaddr = mmap(stackaddr, stacksize + guardsize,
+		     _rtld_get_stack_prot(), MAP_STACK, -1, 0);
+		if (stackaddr == MAP_FAILED) {
 			stackaddr = NULL;
+		} else if (guardsize > 0) {
+#ifdef __CHERI_PURE_CAPABILITY__
+			stderr_debug("Requesting guard size of 0%lx bytes, this"
+			    "is not required on CHERIABI\n", guardsize);
+#endif
+			if (mprotect(stackaddr, guardsize, PROT_NONE) == 0) {
+				stackaddr += guardsize;
+			} else {
+				/* XXX-AR: add munmup return value check? */
+				munmap(stackaddr, stacksize + guardsize);
+				stackaddr = NULL;
+			}
 		}
 		attr->stackaddr_attr = stackaddr;
 	}

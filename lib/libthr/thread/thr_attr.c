@@ -290,6 +290,19 @@ _pthread_attr_getstack(const pthread_attr_t * __restrict attr,
 	else {
 		/* Return the stack address and size */
 		*stackaddr = (*attr)->stackaddr_attr;
+#ifdef __CHERI_PURE_CAPABILITY__
+		/*
+		 * Return an invalid capability to the threads stack as we don't
+		 * want other threads being able to write to arbitrary stacks.
+		 *
+		 * XXX-AR: maybe we should allow this and simply treat
+		 * pthread_attr_getstack() as an unsafe API.
+		 *
+		 * XXX-AR: we would also need to fix stackaddr to be a valid
+		 * capability for the main thread as asymmetric API would be bad
+		 */
+		cheri_cleartag(*stackaddr);
+#endif
 		*stacksize = (*attr)->stacksize_attr;
 		ret = 0;
 	}
@@ -309,6 +322,19 @@ _pthread_attr_getstackaddr(const pthread_attr_t *attr, void **stackaddr)
 	else {
 		/* Return the stack address: */
 		*stackaddr = (*attr)->stackaddr_attr;
+#ifdef __CHERI_PURE_CAPABILITY__
+		/*
+		 * Return an invalid capability to the threads stack as we don't
+		 * want other threads being able to write to arbitrary stacks.
+		 *
+		 * XXX-AR: maybe we should allow this and simply treat
+		 * pthread_attr_getstackaddr() as an unsafe API
+		 *
+		 * XXX-AR: we would also need to fix stackaddr to be a valid
+		 * capability for the main thread as asymmetric API would be bad
+		 */
+		cheri_cleartag(*stackaddr);
+#endif
 		ret = 0;
 	}
 	return(ret);

@@ -893,7 +893,9 @@ int
 cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base)
 {
 	int error;
+	/* XXX-AR: add a TLS alignment check here */
 
+	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE_C;
 	/*
 	 * Don't require any particular permissions or size and allow NULL.
 	 * If the caller passes nonsense, they just get nonsense results.
@@ -903,6 +905,10 @@ cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base)
 	if (error)
 		return (error);
 	cheri_capability_copy(&td->td_md.md_tls_cap, tls_base);
+	/*
+	 * XXX-AR: Why does MIPS cpu_set_user_tls also have a check for
+	 * curthread == td, but cheriabi_set_user_tls() doesn't
+	 */
 
 	/* XXX: should support a crdhwr version */
 	if (cpuinfo.userlocal_reg == true) {
