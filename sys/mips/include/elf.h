@@ -90,7 +90,11 @@
 #else
 #define ELF_TARG_DATA	ELFDATA2LSB
 #endif
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	ELF_TARG_MACH	EM_MIPS
+#else
+#define	ELF_TARG_MACH	EM_MIPS_CHERI
+#endif
 #define	ELF_TARG_VER	1
 
 /*
