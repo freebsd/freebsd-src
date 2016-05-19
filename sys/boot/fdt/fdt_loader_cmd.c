@@ -383,6 +383,8 @@ fdt_apply_overlays()
 	rv = fdt_open_into(fdtp, new_fdtp, new_fdtp_size);
 	if (rv != 0) {
 		printf("failed to open DTB blob for applying overlays\n");
+		free(new_fdtp);
+		free(overlay);
 		return;
 	}
 
