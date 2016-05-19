@@ -2103,7 +2103,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 			    "%s: [0x%x] no state pointer for lun %jx or wildcard",
 			    __func__, aep->at_rxid, (uintmax_t)lun);
 			if (lun == 0) {
-				isp_endcmd(isp, aep, nphdl, SCSI_STATUS_BUSY, 0);
+				isp_endcmd(isp, aep, nphdl, chan, SCSI_STATUS_BUSY, 0);
 			} else {
 				isp_endcmd(isp, aep, nphdl, chan, SCSI_STATUS_CHECK_COND | ECMD_SVALID | (0x5 << 12) | (0x25 << 16), 0);
 			}
