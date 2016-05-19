@@ -166,7 +166,7 @@ generic_ohci_attach(device_t dev)
 			    clk_get_name(clk));
 			goto error;
 		}
-		clkp = malloc(sizeof(clkp), M_DEVBUF, M_WAITOK | M_ZERO);
+		clkp = malloc(sizeof(*clkp), M_DEVBUF, M_WAITOK | M_ZERO);
 		clkp->clk = clk;
 		TAILQ_INSERT_TAIL(&sc->clk_list, clkp, next);
 	}
