@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="mountcritremote"
+desc="Mount critical remote filesystems"
 stop_cmd=":"
 start_cmd="mountcritremote_start"
 start_precmd="mountcritremote_precmd"
@@ -40,7 +41,7 @@ mountcritremote_start()
 	'')
 		;;
 	*)
-		echo -n 'Mounting NFS file systems:'
+		echo -n 'Mounting NFS filesystems:'
 		mount -a -t nfs
 		echo '.'
 		;;
@@ -63,7 +64,7 @@ mountcritremote_start()
 
 		case "`mount -d -a -t ${fstype}`" in
 		*mount_${fstype}*)
-			echo -n "Mounting ${fsdecr} file systems:"
+			echo -n "Mounting ${fsdecr} filesystems:"
 			mount -a -t ${fstype}
 			echo '.'
 			;;

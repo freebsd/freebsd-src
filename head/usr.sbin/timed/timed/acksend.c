@@ -90,7 +90,7 @@ acksend(struct tsp *message, struct sockaddr_in *addr, char *name,
 
 	msec = 200;
 	count = bad ? 1 : 5;	/* 5 packets in 6.4 seconds */
-	answer = 0;
+	answer = NULL;
 	do {
 		if (!answer) {
 			/* do not go crazy transmitting just because the
@@ -107,7 +107,7 @@ acksend(struct tsp *message, struct sockaddr_in *addr, char *name,
 
 		mstotvround(&twait, msec);
 		answer  = readmsg(ack, name, &twait, net);
-		if (answer != 0) {
+		if (answer != NULL) {
 			if (answer->tsp_seq != sequence) {
 				if (trace)
 					fprintf(fd,"acksend: seq # %u!=%u\n",

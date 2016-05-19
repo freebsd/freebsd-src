@@ -725,7 +725,7 @@ ndis_80211attach(struct ndis_softc *sc)
 	struct ndis_80211_nettype_list *ntl;
 	uint32_t		arg;
 	int			mode, i, r, len, nonettypes = 1;
-	uint8_t			bands[howmany(IEEE80211_MODE_MAX, 8)] = { 0 };
+	uint8_t			bands[IEEE80211_MODE_BYTES] = { 0 };
 
 	callout_init(&sc->ndis_scan_callout, 1);
 
@@ -1374,7 +1374,7 @@ ndis_rxeof_xfr_done(adapter, packet, status, len)
  * out-of-band portion of the ndis_packet has special meaning. In the
  * most common case, the underlying NDIS driver will set this field
  * to NDIS_STATUS_SUCCESS, which indicates that it's ok for us to
- * take posession of it. We then change the status field to
+ * take possession of it. We then change the status field to
  * NDIS_STATUS_PENDING to tell the driver that we now own the packet,
  * and that we will return it at some point in the future via the
  * return packet handler.

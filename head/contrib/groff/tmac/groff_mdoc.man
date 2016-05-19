@@ -2097,6 +2097,8 @@ X/Open
 .St -susv2
 .It Li \-susv3
 .St -susv3
+.It Li \-susv4
+.St -susv4
 .It Li \-svid4
 .St -svid4
 .It Li \-xbd5

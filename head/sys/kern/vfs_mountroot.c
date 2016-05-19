@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
  *
  * If the environment variable vfs.root.mountfrom is a space separated list,
  * each list element is tried in turn and the root filesystem will be mounted
- * from the first one that suceeds.
+ * from the first one that succeeds.
  *
  * The environment variable vfs.root.mountfrom.options is a comma delimited
  * set of string mount options.  These mount options must be parseable
@@ -347,9 +347,9 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 
-		if (error && bootverbose)
+		if (error)
 			printf("mountroot: unable to remount previous root "
-			    "under /.mount or /mnt (error %d).\n", error);
+			    "under /.mount or /mnt (error %d)\n", error);
 	}
 
 	/* Remount devfs under /dev */
@@ -373,9 +373,9 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 		} else
 			vput(vp);
 	}
-	if (error && bootverbose)
+	if (error)
 		printf("mountroot: unable to remount devfs under /dev "
-		    "(error %d).\n", error);
+		    "(error %d)\n", error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	if (mporoot == mpdevfs) {
@@ -383,7 +383,7 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 		/* Unlink the no longer needed /dev/dev -> / symlink */
 		error = kern_unlinkat(td, AT_FDCWD, "/dev/dev",
 		    UIO_SYSSPACE, 0);
-		if (error && bootverbose)
+		if (error)
 			printf("mountroot: unable to unlink /dev/dev "
 			    "(error %d)\n", error);
 	}

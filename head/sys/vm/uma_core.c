@@ -31,7 +31,7 @@
  *
  * This allocator is intended to replace the multitude of similar object caches
  * in the standard FreeBSD kernel.  The intent is to be flexible as well as
- * effecient.  A primary design goal is to return unused memory to the rest of
+ * efficient.  A primary design goal is to return unused memory to the rest of
  * the system.  This will make the system as a whole more flexible due to the
  * ability to move memory to subsystems which most need it instead of leaving
  * pools of reserved memory unused.
@@ -531,7 +531,7 @@ zone_timeout(uma_zone_t zone)
  *	hash  A new hash structure with the old hash size in uh_hashsize
  *
  * Returns:
- *	1 on sucess and 0 on failure.
+ *	1 on success and 0 on failure.
  */
 static int
 hash_alloc(struct uma_hash *hash)
@@ -2257,7 +2257,7 @@ zalloc_start:
 
 	/*
 	 * Now lets just fill a bucket and put it on the free list.  If that
-	 * works we'll restart the allocation from the begining and it
+	 * works we'll restart the allocation from the beginning and it
 	 * will use the just filled bucket.
 	 */
 	bucket = zone_alloc_bucket(zone, udata, flags);

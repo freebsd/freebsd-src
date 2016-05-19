@@ -619,7 +619,7 @@ struct xbb_softc {
 	 * There are situations where the back and front ends can
 	 * have a different, native abi (e.g. intel x86_64 and
 	 * 32bit x86 domains on the same machine).  The back-end
-	 * always accomodates the front-end's native abi.  That
+	 * always accommodates the front-end's native abi.  That
 	 * value is pulled from the XenStore and recorded here.
 	 */
 	int			  abi;
@@ -788,13 +788,13 @@ struct xbb_softc {
 	/** Number of requests we completed with an error status*/
 	uint64_t		  reqs_completed_with_error;
 
-	/** How many forced dispatches (i.e. without coalescing) have happend */
+	/** How many forced dispatches (i.e. without coalescing) have happened */
 	uint64_t		  forced_dispatch;
 
-	/** How many normal dispatches have happend */
+	/** How many normal dispatches have happened */
 	uint64_t		  normal_dispatch;
 
-	/** How many total dispatches have happend */
+	/** How many total dispatches have happened */
 	uint64_t		  total_dispatch;
 
 	/** How many times we have run out of KVA */
@@ -977,8 +977,8 @@ xbb_get_gntaddr(struct xbb_xen_reqlist *reqlist, int pagenr, int sector)
 static uint8_t *
 xbb_get_kva(struct xbb_softc *xbb, int nr_pages)
 {
-	intptr_t first_clear;
-	intptr_t num_clear;
+	int first_clear;
+	int num_clear;
 	uint8_t *free_kva;
 	int      i;
 
@@ -1027,7 +1027,7 @@ xbb_get_kva(struct xbb_softc *xbb, int nr_pages)
 				 first_clear + nr_pages - 1);
 
 			free_kva = xbb->kva +
-				(uint8_t *)(first_clear * PAGE_SIZE);
+				(uint8_t *)((intptr_t)first_clear * PAGE_SIZE);
 
 			KASSERT(free_kva >= (uint8_t *)xbb->kva &&
 				free_kva + (nr_pages * PAGE_SIZE) <=
@@ -1957,7 +1957,7 @@ xbb_run_queue(void *context, int pending)
 			 * we've already consumed all necessary data out
 			 * of the version of the request in the ring buffer
 			 * (for native mode).  We must update the consumer
-			 * index  before issueing back-end I/O so there is
+			 * index  before issuing back-end I/O so there is
 			 * no possibility that it will complete and a
 			 * response be generated before we make room in 
 			 * the queue for that response.
@@ -2967,10 +2967,6 @@ xbb_connect_ring(struct xbb_softc *xbb)
 	return 0;
 }
 
-/* Needed to make bit_alloc() macro work */
-#define	calloc(count, size) malloc((count)*(size), M_XENBLOCKBACK,	\
-				   M_NOWAIT|M_ZERO);
-
 /**
  * Size KVA and pseudo-physical address allocations based on negotiated
  * values for the size and number of I/O requests, and the size of our
@@ -2989,7 +2985,7 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 	xbb->kva_size = xbb->reqlist_kva_size +
 			(xbb->ring_config.ring_pages * PAGE_SIZE);
 
-	xbb->kva_free = bit_alloc(xbb->reqlist_kva_pages);
+	xbb->kva_free = bit_alloc(xbb->reqlist_kva_pages, M_XENBLOCKBACK, M_NOWAIT);
 	if (xbb->kva_free == NULL)
 		return (ENOMEM);
 
@@ -3062,7 +3058,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 	 * and the new value is outside of its allowed range.
 	 *
 	 * \note xs_gather() returns on the first encountered error, so
-	 *       we must use independant calls in order to guarantee
+	 *       we must use independent calls in order to guarantee
 	 *       we don't miss information in a sparsly populated front-end
 	 *       tree.
 	 *
@@ -3739,7 +3735,7 @@ xbb_attach(device_t dev)
  * 
  * \note A block back device may be detached at any time in its life-cycle,
  *       including part way through the attach process.  For this reason,
- *       initialization order and the intialization state checks in this
+ *       initialization order and the initialization state checks in this
  *       routine must be carefully coupled so that attach time failures
  *       are gracefully handled.
  */

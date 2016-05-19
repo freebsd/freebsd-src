@@ -1440,7 +1440,7 @@ mwl_hal_bastream_alloc(struct mwl_hal_vap *vap, int ba_policy,
 	sp->setup = 0;
 	sp->ba_policy = ba_policy;
 	MWL_HAL_UNLOCK(mh);
-	return sp != NULL ? &sp->public : NULL;
+	return &sp->public;
 }
 
 const MWL_HAL_BASTREAM *

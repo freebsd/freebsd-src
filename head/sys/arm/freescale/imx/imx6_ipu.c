@@ -872,7 +872,7 @@ ipu_init_buffer(struct ipu_softc *sc)
 
 	stride = sc->sc_mode->hdisplay * MODE_BPP / 8;
 
-	/* init channel paramters */
+	/* init channel parameters */
 	CH_PARAM_RESET(&param);
 	/* XXX: interlaced modes are not supported yet */
 	CH_PARAM_SET_FW(&param, sc->sc_mode->hdisplay - 1);

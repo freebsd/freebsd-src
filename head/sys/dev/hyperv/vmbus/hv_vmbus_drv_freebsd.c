@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -60,10 +60,13 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicvar.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
+
+struct vmbus_softc	*vmbus_sc;
 
 static device_t vmbus_devp;
 static int vmbus_inited;
@@ -71,28 +74,18 @@ static hv_setup_args setup_args; /* only CPU 0 supported at this time */
 
 static char *vmbus_ids[] = { "VMBUS", NULL };
 
-/**
- * @brief Software interrupt thread routine to handle channel messages from
- * the hypervisor.
- */
 static void
-vmbus_msg_swintr(void *arg, int pending __unused)
+vmbus_msg_task(void *arg __unused, int pending __unused)
 {
-	int 			cpu;
-	void*			page_addr;
-	hv_vmbus_channel_msg_header	 *hdr;
-	hv_vmbus_channel_msg_table_entry *entry;
-	hv_vmbus_channel_msg_type msg_type;
-	hv_vmbus_message*	msg;
+	hv_vmbus_message *msg;
 
-	cpu = (int)(long)arg;
-	KASSERT(cpu <= mp_maxid, ("VMBUS: vmbus_msg_swintr: "
-	    "cpu out of range!"));
-
-	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
-	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
-
+	msg = ((hv_vmbus_message *)hv_vmbus_g_context.syn_ic_msg_page[curcpu]) +
+	    HV_VMBUS_MESSAGE_SINT;
 	for (;;) {
+		const hv_vmbus_channel_msg_table_entry *entry;
+		hv_vmbus_channel_msg_header *hdr;
+		hv_vmbus_channel_msg_type msg_type;
+
 		if (msg->header.message_type == HV_MESSAGE_TYPE_NONE)
 			break; /* no message */
 
@@ -105,32 +98,29 @@ vmbus_msg_swintr(void *arg, int pending __unused)
 		}
 
 		entry = &g_channel_message_table[msg_type];
-
 		if (entry->messageHandler)
 			entry->messageHandler(hdr);
 handled:
-	    msg->header.message_type = HV_MESSAGE_TYPE_NONE;
-
-	    /*
-	     * Make sure the write to message_type (ie set to
-	     * HV_MESSAGE_TYPE_NONE) happens before we read the
-	     * message_pending and EOMing. Otherwise, the EOMing will
-	     * not deliver any more messages
-	     * since there is no empty slot
-	     *
-	     * NOTE:
-	     * mb() is used here, since atomic_thread_fence_seq_cst()
-	     * will become compiler fence on UP kernel.
-	     */
-	    mb();
-
-	    if (msg->header.message_flags.u.message_pending) {
+		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
+		/*
+		 * Make sure the write to message_type (ie set to
+		 * HV_MESSAGE_TYPE_NONE) happens before we read the
+		 * message_pending and EOMing. Otherwise, the EOMing will
+		 * not deliver any more messages
+		 * since there is no empty slot
+		 *
+		 * NOTE:
+		 * mb() is used here, since atomic_thread_fence_seq_cst()
+		 * will become compiler fence on UP kernel.
+		 */
+		mb();
+		if (msg->header.message_flags.u.message_pending) {
 			/*
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
 			 */
 			wrmsr(HV_X64_MSR_EOM, 0);
-	    }
+		}
 	}
 }
 
@@ -143,23 +133,21 @@ handled:
 static inline int
 hv_vmbus_isr(struct trapframe *frame)
 {
-	int				cpu;
-	hv_vmbus_message*		msg;
-	void*				page_addr;
-
-	cpu = PCPU_GET(cpuid);
+	struct vmbus_softc *sc = vmbus_get_softc();
+	int cpu = curcpu;
+	hv_vmbus_message *msg;
+	void *page_addr;
 
 	/*
 	 * The Windows team has advised that we check for events
 	 * before checking for messages. This is the way they do it
 	 * in Windows when running as a guest in Hyper-V
 	 */
-
-	hv_vmbus_on_events(cpu);
+	sc->vmbus_event_proc(sc, cpu);
 
 	/* Check if there are actual msgs to be process */
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
-	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_TIMER_SINT;
+	msg = ((hv_vmbus_message *)page_addr) + HV_VMBUS_TIMER_SINT;
 
 	/* we call eventtimer process the message */
 	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
@@ -190,7 +178,7 @@ hv_vmbus_isr(struct trapframe *frame)
 		}
 	}
 
-	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
+	msg = ((hv_vmbus_message *)page_addr) + HV_VMBUS_MESSAGE_SINT;
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
 		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
 		    &hv_vmbus_g_context.hv_msg_task[cpu]);
@@ -277,6 +265,9 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 	char guidbuf[40];
 	struct hv_device *dev_ctx = device_get_ivars(child);
 
+	if (dev_ctx == NULL)
+		return (0);
+
 	strlcat(buf, "classid=", buflen);
 	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->class_id);
 	strlcat(buf, guidbuf, buflen);
@@ -355,12 +346,13 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 }
 
 static int
-vmbus_probe(device_t dev) {
+vmbus_probe(device_t dev)
+{
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
 	    device_get_unit(dev) != 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Vmbus Devices");
+	device_set_desc(dev, "Hyper-V Vmbus");
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -382,6 +374,7 @@ extern inthand_t IDTVEC(hv_vmbus_callback);
 static int
 vmbus_bus_init(void)
 {
+	struct vmbus_softc *sc;
 	int i, j, n, ret;
 	char buf[MAXCOMLEN + 1];
 	cpuset_t cpu_mask;
@@ -390,6 +383,7 @@ vmbus_bus_init(void)
 		return (0);
 
 	vmbus_inited = 1;
+	sc = vmbus_get_softc();
 
 	ret = hv_vmbus_init();
 
@@ -450,7 +444,7 @@ vmbus_bus_init(void)
 		taskqueue_start_threads_cpuset(&hv_vmbus_g_context.hv_msg_tq[j],
 		    1, PI_NET, &cpu_mask, "hvmsg%d", j);
 		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[j], 0,
-		    vmbus_msg_swintr, (void *)(long)j);
+		    vmbus_msg_task, NULL);
 
 		/*
 		 * Prepare the per cpu msg and event pages to be called on each cpu.
@@ -474,6 +468,12 @@ vmbus_bus_init(void)
 
 	if (ret != 0)
 		goto cleanup1;
+
+	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
+	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)
+		sc->vmbus_event_proc = vmbus_event_proc_compat;
+	else
+		sc->vmbus_event_proc = vmbus_event_proc;
 
 	hv_vmbus_request_channel_offers();
 
@@ -509,13 +509,28 @@ vmbus_bus_init(void)
 	return (ret);
 }
 
+static void
+vmbus_event_proc_dummy(struct vmbus_softc *sc __unused, int cpu __unused)
+{
+}
+
 static int
 vmbus_attach(device_t dev)
 {
 	if(bootverbose)
 		device_printf(dev, "VMBUS: attach dev: %p\n", dev);
-	vmbus_devp = dev;
 
+	vmbus_devp = dev;
+	vmbus_sc = device_get_softc(dev);
+
+	/*
+	 * Event processing logic will be configured:
+	 * - After the vmbus protocol version negotiation.
+	 * - Before we request channel offers.
+	 */
+	vmbus_sc->vmbus_event_proc = vmbus_event_proc_dummy;
+
+#ifndef EARLY_AP_STARTUP
 	/* 
 	 * If the system has already booted and thread
 	 * scheduling is possible indicated by the global
@@ -523,17 +538,20 @@ vmbus_attach(device_t dev)
 	 * initialization directly.
 	 */
 	if (!cold)
+#endif
 		vmbus_bus_init();
 
+	bus_generic_probe(dev);
 	return (0);
 }
 
 static void
-vmbus_init(void)
+vmbus_sysinit(void *arg __unused)
 {
-	if (vm_guest != VM_GUEST_HV)
+	if (vm_guest != VM_GUEST_HV || vmbus_get_softc() == NULL)
 		return;
 
+#ifndef EARLY_AP_STARTUP
 	/* 
 	 * If the system has already booted and thread
 	 * scheduling is possible, as indicated by the
@@ -541,11 +559,12 @@ vmbus_init(void)
 	 * initialization directly.
 	 */
 	if (!cold) 
+#endif
 		vmbus_bus_init();
 }
 
-static void
-vmbus_bus_exit(void)
+static int
+vmbus_detach(device_t dev)
 {
 	int i;
 
@@ -571,80 +590,45 @@ vmbus_bus_exit(void)
 
 	lapic_ipi_free(hv_vmbus_g_context.hv_cb_vector);
 
-	return;
-}
-
-static void
-vmbus_exit(void)
-{
-	vmbus_bus_exit();
-}
-
-static int
-vmbus_detach(device_t dev)
-{
-	vmbus_exit();
-	return (0);
-}
-
-static void
-vmbus_mod_load(void)
-{
-	if(bootverbose)
-		printf("VMBUS: load\n");
-}
-
-static void
-vmbus_mod_unload(void)
-{
-	if(bootverbose)
-		printf("VMBUS: unload\n");
-}
-
-static int
-vmbus_modevent(module_t mod, int what, void *arg)
-{
-	switch (what) {
-
-	case MOD_LOAD:
-		vmbus_mod_load();
-		break;
-	case MOD_UNLOAD:
-		vmbus_mod_unload();
-		break;
-	}
-
 	return (0);
 }
 
 static device_method_t vmbus_methods[] = {
-	/** Device interface */
-	DEVMETHOD(device_probe, vmbus_probe),
-	DEVMETHOD(device_attach, vmbus_attach),
-	DEVMETHOD(device_detach, vmbus_detach),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-	DEVMETHOD(device_suspend, bus_generic_suspend),
-	DEVMETHOD(device_resume, bus_generic_resume),
+	/* Device interface */
+	DEVMETHOD(device_probe,			vmbus_probe),
+	DEVMETHOD(device_attach,		vmbus_attach),
+	DEVMETHOD(device_detach,		vmbus_detach),
+	DEVMETHOD(device_shutdown,		bus_generic_shutdown),
+	DEVMETHOD(device_suspend,		bus_generic_suspend),
+	DEVMETHOD(device_resume,		bus_generic_resume),
 
-	/** Bus interface */
-	DEVMETHOD(bus_add_child, bus_generic_add_child),
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar, vmbus_read_ivar),
-	DEVMETHOD(bus_write_ivar, vmbus_write_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str, vmbus_child_pnpinfo_str),
+	/* Bus interface */
+	DEVMETHOD(bus_add_child,		bus_generic_add_child),
+	DEVMETHOD(bus_print_child,		bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
+	DEVMETHOD(bus_write_ivar,		vmbus_write_ivar),
+	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
 
-	{ 0, 0 } };
+	DEVMETHOD_END
+};
 
-static char driver_name[] = "vmbus";
-static driver_t vmbus_driver = { driver_name, vmbus_methods,0, };
+static driver_t vmbus_driver = {
+	"vmbus",
+	vmbus_methods,
+	sizeof(struct vmbus_softc)
+};
 
+static devclass_t vmbus_devclass;
 
-devclass_t vmbus_devclass;
-
-DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, vmbus_modevent, 0);
+DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
 MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
 MODULE_VERSION(vmbus, 1);
 
-/* We want to be started after SMP is initialized */
-SYSINIT(vmb_init, SI_SUB_SMP + 1, SI_ORDER_FIRST, vmbus_init, NULL);
-
+#ifndef EARLY_AP_STARTUP
+/*
+ * NOTE:
+ * We have to start as the last step of SI_SUB_SMP, i.e. after SMP is
+ * initialized.
+ */
+SYSINIT(vmbus_initialize, SI_SUB_SMP, SI_ORDER_ANY, vmbus_sysinit, NULL);
+#endif

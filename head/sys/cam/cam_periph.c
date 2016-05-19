@@ -844,7 +844,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 	}
 
 	/*
-	 * This keeps the the kernel stack of current thread from getting
+	 * This keeps the kernel stack of current thread from getting
 	 * swapped.  In low-memory situations where the kernel stack might
 	 * otherwise get swapped out, this holds it and allows the thread
 	 * to make progress and release the kernel mapped pages sooner.
@@ -1604,7 +1604,7 @@ sense_error_done:
 
 /*
  * Generic error handler.  Peripheral drivers usually filter
- * out the errors that they handle in a unique mannor, then
+ * out the errors that they handle in a unique manner, then
  * call this function.
  */
 int
@@ -1876,6 +1876,7 @@ cam_periph_devctl_notify(union ccb *ccb)
 
 		if (cgd->ccb_h.status == CAM_REQ_CMP)
 			sbuf_bcat(&sb, cgd->serial_num, cgd->serial_num_len);
+		xpt_free_ccb((union ccb *)cgd);
 	}
 	sbuf_printf(&sb, "\" ");
 	sbuf_printf(&sb, "cam_status=\"0x%x\" ", ccb->ccb_h.status);

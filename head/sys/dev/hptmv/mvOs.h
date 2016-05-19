@@ -72,7 +72,7 @@ typedef enum mvBoolean{MV_FALSE, MV_TRUE} MV_BOOLEAN;
 #define NULL  0
 #endif
 
-/* System dependant typedefs */
+/* System dependent typedefs */
 typedef void			MV_VOID;
 typedef unsigned int 	MV_U32;
 typedef unsigned short	MV_U16;

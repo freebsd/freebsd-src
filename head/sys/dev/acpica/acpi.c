@@ -211,6 +211,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
     DEVMETHOD(bus_hint_device_unit,	acpi_hint_device_unit),
+    DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
     DEVMETHOD(bus_get_domain,		acpi_get_domain),
 
     /* ACPI bus */
@@ -1077,52 +1078,79 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 }
 
 /*
- * Fetch the VM domain for the given device 'dev'.
- *
- * Return 1 + domain if there's a domain, 0 if not found;
- * -1 upon an error.
+ * Fetch the NUMA domain for a device by mapping the value returned by
+ * _PXM to a NUMA domain.  If the device does not have a _PXM method,
+ * -2 is returned.  If any other error occurs, -1 is returned.
  */
-int
-acpi_parse_pxm(device_t dev, int *domain)
+static int
+acpi_parse_pxm(device_t dev)
 {
 #ifdef DEVICE_NUMA
-	ACPI_HANDLE h;
-	int d, pxm;
+	ACPI_HANDLE handle;
+	ACPI_STATUS status;
+	int pxm;
 
-	h = acpi_get_handle(dev);
-	if ((h != NULL) &&
-	    ACPI_SUCCESS(acpi_GetInteger(h, "_PXM", &pxm))) {
-		d = acpi_map_pxm_to_vm_domainid(pxm);
-		if (d < 0)
-			return (-1);
-		*domain = d;
-		return (1);
-	}
+	handle = acpi_get_handle(dev);
+	if (handle == NULL)
+		return (-2);
+	status = acpi_GetInteger(handle, "_PXM", &pxm);
+	if (ACPI_SUCCESS(status))
+		return (acpi_map_pxm_to_vm_domainid(pxm));
+	if (status == AE_NOT_FOUND)
+		return (-2);
 #endif
+	return (-1);
+}
 
-	return (0);
+int
+acpi_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
+    cpuset_t *cpuset)
+{
+	int d, error;
+
+	d = acpi_parse_pxm(child);
+	if (d < 0)
+		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+
+	switch (op) {
+	case LOCAL_CPUS:
+		if (setsize != sizeof(cpuset_t))
+			return (EINVAL);
+		*cpuset = cpuset_domain[d];
+		return (0);
+	case INTR_CPUS:
+		error = bus_generic_get_cpus(dev, child, op, setsize, cpuset);
+		if (error != 0)
+			return (error);
+		if (setsize != sizeof(cpuset_t))
+			return (EINVAL);
+		CPU_AND(cpuset, &cpuset_domain[d]);
+		return (0);
+	default:
+		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+	}
 }
 
 /*
- * Fetch the NUMA domain for the given device.
+ * Fetch the NUMA domain for the given device 'dev'.
  *
  * If a device has a _PXM method, map that to a NUMA domain.
- *
- * If none is found, then it'll call the parent method.
- * If there's no domain, return ENOENT.
+ * Otherwise, pass the request up to the parent.
+ * If there's no matching domain or the domain cannot be
+ * determined, return ENOENT.
  */
 int
 acpi_get_domain(device_t dev, device_t child, int *domain)
 {
-	int ret;
+	int d;
 
-	ret = acpi_parse_pxm(child, domain);
-	/* Error */
-	if (ret == -1)
-		return (ENOENT);
-	/* Found */
-	if (ret == 1)
+	d = acpi_parse_pxm(child);
+	if (d >= 0) {
+		*domain = d;
 		return (0);
+	}
+	if (d == -1)
+		return (ENOENT);
 
 	/* No _PXM node; go up a level */
 	return (bus_generic_get_domain(dev, child, domain));
@@ -1965,7 +1993,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * Since we scan from \, be sure to skip system scope objects.
 	     * \_SB_ and \_TZ_ are defined in ACPICA as devices to work around
 	     * BIOS bugs.  For example, \_SB_ is to allow \_SB_._INI to be run
-	     * during the intialization and \_TZ_ is to support Notify() on it.
+	     * during the initialization and \_TZ_ is to support Notify() on it.
 	     */
 	    if (strcmp(handle_str, "\\_SB_") == 0 ||
 		strcmp(handle_str, "\\_TZ_") == 0)
@@ -2482,10 +2510,12 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 
 ACPI_STATUS
 acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
-    uint32_t *caps)
+    uint32_t *caps_in, uint32_t *caps_out, bool query)
 {
-	ACPI_OBJECT arg[4];
+	ACPI_OBJECT arg[4], *ret;
 	ACPI_OBJECT_LIST arglist;
+	ACPI_BUFFER buf;
+	ACPI_STATUS status;
 
 	arglist.Pointer = arg;
 	arglist.Count = 4;
@@ -2497,9 +2527,25 @@ acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
 	arg[2].Type = ACPI_TYPE_INTEGER;
 	arg[2].Integer.Value = count;
 	arg[3].Type = ACPI_TYPE_BUFFER;
-	arg[3].Buffer.Length = count * sizeof(*caps);
-	arg[3].Buffer.Pointer = (uint8_t *)caps;
-	return (AcpiEvaluateObject(handle, "_OSC", &arglist, NULL));
+	arg[3].Buffer.Length = count * sizeof(*caps_in);
+	arg[3].Buffer.Pointer = (uint8_t *)caps_in;
+	caps_in[0] = query ? 1 : 0;
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	status = AcpiEvaluateObjectTyped(handle, "_OSC", &arglist, &buf,
+	    ACPI_TYPE_BUFFER);
+	if (ACPI_FAILURE(status))
+		return (status);
+	if (caps_out != NULL) {
+		ret = buf.Pointer;
+		if (ret->Buffer.Length != count * sizeof(*caps_out)) {
+			AcpiOsFree(buf.Pointer);
+			return (AE_BUFFER_OVERFLOW);
+		}
+		bcopy(ret->Buffer.Pointer, caps_out, ret->Buffer.Length);
+	}
+	AcpiOsFree(buf.Pointer);
+	return (status);
 }
 
 /*
@@ -2810,11 +2856,18 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     stop_all_proc();
     EVENTHANDLER_INVOKE(power_suspend);
 
+#ifdef EARLY_AP_STARTUP
+    MPASS(mp_ncpus == 1 || smp_started);
+    thread_lock(curthread);
+    sched_bind(curthread, 0);
+    thread_unlock(curthread);
+#else
     if (smp_started) {
 	thread_lock(curthread);
 	sched_bind(curthread, 0);
 	thread_unlock(curthread);
     }
+#endif
 
     /*
      * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
@@ -2945,11 +2998,17 @@ backout:
 
     mtx_unlock(&Giant);
 
+#ifdef EARLY_AP_STARTUP
+    thread_lock(curthread);
+    sched_unbind(curthread);
+    thread_unlock(curthread);
+#else
     if (smp_started) {
 	thread_lock(curthread);
 	sched_unbind(curthread);
 	thread_unlock(curthread);
     }
+#endif
 
     resume_all_proc();
 

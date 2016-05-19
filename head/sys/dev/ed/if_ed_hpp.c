@@ -214,7 +214,7 @@ ed_probe_HP_pclanp(device_t dev, int port_rid, int flags)
  	 * Check for impossible IRQ.
 	 */
 
-	if (irq >= (nitems(ed_hpp_intr_val)))
+	if (irq >= nitems(ed_hpp_intr_val))
 		return (ENXIO);
 
 	/* 

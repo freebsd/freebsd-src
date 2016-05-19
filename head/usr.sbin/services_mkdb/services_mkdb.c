@@ -40,12 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <netdb.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <libgen.h>
-#include <libutil.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stringlist.h>
@@ -235,7 +235,8 @@ add(DB *db, StringList *sl, size_t port, const char *proto, size_t *cnt,
 static StringList ***
 parseservices(const char *fname, StringList *sl)
 {
-	size_t len, line, pindex;
+	ssize_t len;
+	size_t linecap, line, pindex;
 	FILE *fp;
 	StringList ***svc, *s;
 	char *p, *ep;
@@ -243,17 +244,22 @@ parseservices(const char *fname, StringList *sl)
 	if ((fp = fopen(fname, "r")) == NULL)
 		err(1, "Cannot open `%s'", fname);
 
-	line = 0;
+	line = linecap = 0;
 	if ((svc = calloc(PMASK + 1, sizeof(StringList **))) == NULL)
 		err(1, "Cannot allocate %zu bytes", (size_t)(PMASK + 1));
 
-	/* XXX: change NULL to "\0\0#" when fparseln fixed */
-	for (; (p = fparseln(fp, &len, &line, NULL, 0)) != NULL; free(p)) {
+	p = NULL;
+	while ((len = getline(&p, &linecap, fp)) != -1) {
 		char	*name, *port, *proto, *aliases, *cp, *alias;
 		unsigned long pnum;
 
+		line++;
+
 		if (len == 0)
 			continue;
+
+		if (p[len - 1] == '\n')
+			p[len - 1] = '\0';
 
 		for (cp = p; *cp && isspace((unsigned char)*cp); cp++)
 			continue;

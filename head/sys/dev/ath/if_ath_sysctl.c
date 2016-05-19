@@ -1285,6 +1285,12 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_stbc",
 	    CTLFLAG_RD, &sc->sc_stats.ast_rx_stbc, 0,
 	    "Number of STBC frames received");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_stbc",
+	    CTLFLAG_RD, &sc->sc_stats.ast_tx_stbc, 0,
+	    "Number of STBC frames transmitted");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_ldpc",
+	    CTLFLAG_RD, &sc->sc_stats.ast_tx_ldpc, 0,
+	    "Number of LDPC frames transmitted");
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

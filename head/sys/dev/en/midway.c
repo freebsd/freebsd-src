@@ -1487,7 +1487,7 @@ en_init(struct en_softc *sc)
 		loc = sc->txslot[slot].cur = sc->txslot[slot].start;
 		loc = loc - MID_RAMOFF;
 		/* mask, cvt to words */
-		loc = (loc & ~((EN_TXSZ * 1024) - 1)) >> 2;
+		loc = rounddown2(loc, EN_TXSZ * 1024) >> 2;
 		/* top 11 bits */
 		loc = loc >> MIDV_LOCTOPSHFT;
 		en_write(sc, MIDX_PLACE(slot), MIDX_MKPLACE(en_k2sz(EN_TXSZ),
@@ -2992,7 +2992,7 @@ en_attach(struct en_softc *sc)
 		sc->rxslot[lcv].stop = ptr;
 		midvloc = midvloc - MID_RAMOFF;
 		/* mask, cvt to words */
-		midvloc = (midvloc & ~((EN_RXSZ*1024) - 1)) >> 2;
+		midvloc = rounddown2(midvloc, EN_RXSZ * 1024) >> 2;
 		/* we only want the top 11 bits */
 		midvloc = midvloc >> MIDV_LOCTOPSHFT;
 		midvloc = (midvloc & MIDV_LOCMASK) << MIDV_LOCSHIFT;

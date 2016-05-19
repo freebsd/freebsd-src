@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2010-2012 Citrix Inc.
  * Copyright (c) 2012 NetApp Inc.
  * All rights reserved.
@@ -617,6 +617,7 @@ typedef enum ndis_per_pkt_infotype_ {
 } ndis_per_pkt_infotype;
 
 #define nbl_hash_value	pkt_cancel_id
+#define nbl_hash_info	original_netbuf_list
 
 typedef struct ndis_8021q_info_ {
 	union {
@@ -629,10 +630,6 @@ typedef struct ndis_8021q_info_ {
 		uint32_t    value;
 	} u1;
 } ndis_8021q_info;
-
-struct ndis_hash_info {
-	uint32_t	hash;
-} __packed;
 
 struct rndis_object_header {
 	uint8_t type;
@@ -694,6 +691,28 @@ typedef struct rndis_tcp_ip_csum_info_ {
 	};
 } rndis_tcp_ip_csum_info;
 
+struct rndis_hash_value {
+	uint32_t	hash_value;
+} __packed;
+
+struct rndis_hash_info {
+	uint32_t	hash_info;
+} __packed;
+
+#define NDIS_HASH_FUNCTION_MASK		0x000000FF	/* see hash function */
+#define NDIS_HASH_TYPE_MASK		0x00FFFF00	/* see hash type */
+
+/* hash function */
+#define NDIS_HASH_FUNCTION_TOEPLITZ	0x00000001
+
+/* hash type */
+#define NDIS_HASH_IPV4			0x00000100
+#define NDIS_HASH_TCP_IPV4		0x00000200
+#define NDIS_HASH_IPV6			0x00000400
+#define NDIS_HASH_IPV6_EX		0x00000800
+#define NDIS_HASH_TCP_IPV6		0x00001000
+#define NDIS_HASH_TCP_IPV6_EX		0x00002000
+
 typedef struct rndis_tcp_tso_info_ {
 	union {
 		struct {
@@ -727,8 +746,8 @@ typedef struct rndis_tcp_tso_info_ {
 	};
 } rndis_tcp_tso_info;
 
-#define RNDIS_HASH_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
-				sizeof(struct ndis_hash_info))
+#define RNDIS_HASHVAL_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
+				sizeof(struct rndis_hash_value))
 
 #define RNDIS_VLAN_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
 				sizeof(ndis_8021q_info))
@@ -1066,10 +1085,10 @@ typedef struct rndismp_rx_bufs_info_ {
 struct hv_vmbus_channel;
 
 int netvsc_recv(struct hv_vmbus_channel *chan,
-    netvsc_packet *packet, rndis_tcp_ip_csum_info *csum_info);
+    netvsc_packet *packet, const rndis_tcp_ip_csum_info *csum_info,
+    const struct rndis_hash_info *hash_info,
+    const struct rndis_hash_value *hash_value);
 void netvsc_channel_rollup(struct hv_vmbus_channel *chan);
-void netvsc_subchan_callback(struct hn_softc *sc,
-    struct hv_vmbus_channel *chan);
 
 void* hv_set_rppi_data(rndis_msg *rndis_mesg,
     uint32_t rppi_size,

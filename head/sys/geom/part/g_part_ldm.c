@@ -1013,8 +1013,7 @@ ldm_vmdb_parse(struct ldm_db *db, struct g_consumer *cp)
 	int error;
 
 	pp = cp->provider;
-	size = (db->dh.last_seq * db->dh.size +
-	    pp->sectorsize - 1) / pp->sectorsize;
+	size = howmany(db->dh.last_seq * db->dh.size, pp->sectorsize);
 	size -= 1; /* one sector takes vmdb header */
 	for (n = 0; n < size; n += MAXPHYS / pp->sectorsize) {
 		offset = db->ph.db_offset + db->th.conf_offset + n + 1;
@@ -1221,7 +1220,7 @@ ldm_gpt_probe(struct g_part_table *basetable, struct g_consumer *cp)
 	int error;
 
 	/*
-	 * XXX: We use some knowlege about GEOM_PART_GPT internal
+	 * XXX: We use some knowledge about GEOM_PART_GPT internal
 	 * structures, but it is easier than parse GPT by himself.
 	 */
 	g_topology_lock();

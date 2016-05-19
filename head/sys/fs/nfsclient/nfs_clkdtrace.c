@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * dtnfscl is a DTrace provider that tracks the intent to perform RPCs
- * in the NFS client, as well as acess to and maintenance of the access and
+ * in the NFS client, as well as access to and maintenance of the access and
  * attribute caches.  This is not quite the same as RPCs, because NFS may
  * issue multiple RPC transactions in the event that authentication fails,
  * there's a jukebox error, or none at all if the access or attribute cache

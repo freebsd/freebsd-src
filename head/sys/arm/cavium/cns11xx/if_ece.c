@@ -1685,7 +1685,7 @@ ece_encap(struct ece_softc *sc, struct mbuf *m0)
 
 	/*
 	 * After all descriptors are set, we set the flags to start the
-	 * sending proces.
+	 * sending process.
 	 */
 	for (seg = 0; seg < nsegs; seg++) {
 		desc->cown = 0;

@@ -225,13 +225,15 @@ gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 {
 	int error;
 	u_int irq;
+	struct intr_map_data_fdt *daf;
 	struct imx51_gpio_softc *sc;
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
 
-	error = gpio_pic_map_fdt(dev, data->fdt.ncells, data->fdt.cells, &irq,
-	    NULL, NULL);
+	daf = (struct intr_map_data_fdt *)data;
+	error = gpio_pic_map_fdt(dev, daf->ncells, daf->cells, &irq, NULL,
+	    NULL);
 	if (error == 0) {
 		sc = device_get_softc(dev);
 		*isrcp = &sc->gpio_pic_irqsrc[irq].gi_isrc;
@@ -265,6 +267,7 @@ static int
 gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
+	struct intr_map_data_fdt *daf;
 	struct imx51_gpio_softc *sc;
 	struct gpio_irqsrc *gi;
 	int error, icfg;
@@ -278,8 +281,9 @@ gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	/* Get config for interrupt. */
 	if (data == NULL || data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
-	error = gpio_pic_map_fdt(dev, data->fdt.ncells, data->fdt.cells, &irq,
-	    &pol, &trig);
+	daf = (struct intr_map_data_fdt *)data;
+	error = gpio_pic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
+	    &trig);
 	if (error != 0)
 		return (error);
 	if (gi->gi_irq != irq)

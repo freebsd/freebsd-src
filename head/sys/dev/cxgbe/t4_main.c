@@ -4146,7 +4146,7 @@ vi_full_init(struct vi_info *vi)
 
 	if (extra) {
 		if_printf(ifp,
-		    "global RSS config (0x%x) cannot be accomodated.\n",
+		    "global RSS config (0x%x) cannot be accommodated.\n",
 		    hashconfig);
 	}
 	if (extra & RSS_HASHTYPE_RSS_IPV4)
@@ -4901,15 +4901,6 @@ t4_sysctls(struct adapter *sc)
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp", CTLFLAG_RW,
 		    &sc->tt.ddp, 0, "DDP allowed");
 
-		sc->tt.indsz = G_INDICATESIZE(t4_read_reg(sc, A_TP_PARA_REG5));
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "indsz", CTLFLAG_RW,
-		    &sc->tt.indsz, 0, "DDP max indicate size allowed");
-
-		sc->tt.ddp_thres =
-		    G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2));
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp_thres", CTLFLAG_RW,
-		    &sc->tt.ddp_thres, 0, "DDP threshold");
-
 		sc->tt.rx_coalesce = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_coalesce",
 		    CTLFLAG_RW, &sc->tt.rx_coalesce, 0, "receive coalescing");
@@ -5207,7 +5198,7 @@ cxgbe_sysctls(struct port_info *pi)
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, #name, CTLFLAG_RD, \
 	    &pi->stats.name, desc)
 
-	/* We get these from port_stats and they may be stale by upto 1s */
+	/* We get these from port_stats and they may be stale by up to 1s */
 	SYSCTL_ADD_T4_PORTSTAT(rx_ovflow0,
 	    "# drops due to buffer-group 0 overflows");
 	SYSCTL_ADD_T4_PORTSTAT(rx_ovflow1,

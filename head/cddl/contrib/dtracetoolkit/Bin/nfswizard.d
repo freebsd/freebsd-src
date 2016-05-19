@@ -1,1 +1,0 @@
-../Apps/nfswizard.d

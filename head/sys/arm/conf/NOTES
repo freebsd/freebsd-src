@@ -36,8 +36,6 @@ options 	SOC_MV_DISCOVERY
 options 	SOC_MV_KIRKWOOD
 options 	SOC_MV_ORION
 
-device		pci
-
 device		at91_board_bwct
 device		at91_board_ethernut5
 device		at91_board_hl200
@@ -82,9 +80,7 @@ nodevice	star_saver
 nodevice	warp_saver
 
 nodevice	cxgbe
-nodevice	pcii
 nodevice	snd_cmi
-nodevice	tnt4882
 
 #
 # Enable the kernel DTrace hooks which are required to load the DTrace

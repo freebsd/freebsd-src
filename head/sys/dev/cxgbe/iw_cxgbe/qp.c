@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 struct sge_iq;
 struct rss_header;
+struct cpl_set_tcb_rpl;
 #include <linux/types.h>
 #include "offload.h"
 #include "tom/t4_tom.h"

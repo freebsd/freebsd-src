@@ -826,7 +826,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			goto bypass;
 
 		/*
-		 * Loop thru IPv6 extended headers to get upper
+		 * Loop through IPv6 extended headers to get upper
 		 * layer header / frag.
 		 */
 		for (;;) {

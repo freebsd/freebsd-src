@@ -1163,7 +1163,7 @@ struct domain ngdomain = {
 	.dom_family =		AF_NETGRAPH,
 	.dom_name =		"netgraph",
 	.dom_protosw =		ngsw,
-	.dom_protoswNPROTOSW =	&ngsw[sizeof(ngsw) / sizeof(ngsw[0])]
+	.dom_protoswNPROTOSW =	&ngsw[nitems(ngsw)]
 };
 
 /*

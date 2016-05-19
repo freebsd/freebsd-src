@@ -62,16 +62,22 @@ __FBSDID("$FreeBSD$");
 enum aw_usbclk_type {
 	AW_A10_USBCLK = 1,
 	AW_A31_USBCLK,
+	AW_A83T_USBCLK,
+	AW_H3_USBCLK,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-usb-clk",	AW_A10_USBCLK },
 	{ "allwinner,sun6i-a31-usb-clk",	AW_A31_USBCLK },
+	{ "allwinner,sun8i-a83t-usb-clk",	AW_A83T_USBCLK },
+	{ "allwinner,sun8i-h3-usb-clk",		AW_H3_USBCLK },
 	{ NULL, 0 }
 };
 
 /* Clock indices for A10, as there is no clock-indices property in the DT */
 static uint32_t aw_usbclk_indices_a10[] = { 6, 7, 8 };
+/* Clock indices for H3, as there is no clock-indices property in the DT */
+static uint32_t aw_usbclk_indices_h3[] = { 8, 9, 10, 11, 16, 17, 18, 19 };
 
 struct aw_usbclk_softc {
 	bus_addr_t	reg;
@@ -162,10 +168,11 @@ aw_usbclk_attach(device_t dev)
 	struct aw_usbclk_softc *sc;
 	struct clkdom *clkdom;
 	const char **names;
+	const char *pname;
 	int index, nout, error;
 	enum aw_usbclk_type type;
 	uint32_t *indices;
-	clk_t clk_parent;
+	clk_t clk_parent, clk_parent_pll;
 	bus_size_t psize;
 	phandle_t node;
 
@@ -190,17 +197,29 @@ aw_usbclk_attach(device_t dev)
 
 	if (indices == NULL && type == AW_A10_USBCLK)
 		indices = aw_usbclk_indices_a10;
+	else if (indices == NULL && type == AW_H3_USBCLK)
+		indices = aw_usbclk_indices_h3;
 
 	error = clk_get_by_ofw_index(dev, 0, &clk_parent);
 	if (error != 0) {
 		device_printf(dev, "cannot parse clock parent\n");
 		return (ENXIO);
 	}
+	if (type == AW_A83T_USBCLK) {
+		error = clk_get_by_ofw_index(dev, 1, &clk_parent_pll);
+		if (error != 0) {
+			device_printf(dev, "cannot parse pll clock parent\n");
+			return (ENXIO);
+		}
+	}
 
 	for (index = 0; index < nout; index++) {
-		error = aw_usbclk_create(dev, sc->reg, clkdom,
-		    clk_get_name(clk_parent), names[index],
-		    indices != NULL ? indices[index] : index);
+		if (strcmp(names[index], "usb_hsic_pll") == 0)
+			pname = clk_get_name(clk_parent_pll);
+		else
+			pname = clk_get_name(clk_parent);
+		error = aw_usbclk_create(dev, sc->reg, clkdom, pname,
+		    names[index], indices != NULL ? indices[index] : index);
 		if (error)
 			goto fail;
 	}

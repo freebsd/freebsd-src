@@ -282,11 +282,6 @@ options 	EPSON_BOUNCEDMA
 options 	EPSON_MEMWIN
 
 #
-# PCI bus & PCI options:
-#
-device		pci
-
-#
 # AGP GART support
 device		agp
 

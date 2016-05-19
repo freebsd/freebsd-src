@@ -106,6 +106,17 @@ struct inpcb;
 struct sockopt;
 struct socket;
 
+/*
+ * If defining the optional tcp_timers, in the
+ * tfb_tcp_timer_stop call you must use the
+ * callout_async_drain() function with the
+ * tcp_timer_discard callback. You should check
+ * the return of callout_async_drain() and if 0
+ * increment tt_draincnt. Since the timer sub-system
+ * does not know your callbacks you must provide a
+ * stop_all function that loops through and calls
+ * tcp_timer_stop() with each of your defined timers.
+ */
 struct tcp_function_block {
 	char tfb_tcp_block_name[TCP_FUNCTION_NAME_LEN_MAX];
 	int	(*tfb_tcp_output)(struct tcpcb *);
@@ -120,11 +131,11 @@ struct tcp_function_block {
 	void	(*tfb_tcp_fb_fini)(struct tcpcb *);
 	/* Optional timers, must define all if you define one */
 	int	(*tfb_tcp_timer_stop_all)(struct tcpcb *);
-	int	(*tfb_tcp_timers_left)(struct tcpcb *);
 	void	(*tfb_tcp_timer_activate)(struct tcpcb *,
 			    uint32_t, u_int);
 	int	(*tfb_tcp_timer_active)(struct tcpcb *, uint32_t);
 	void	(*tfb_tcp_timer_stop)(struct tcpcb *, uint32_t);
+	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
 	volatile uint32_t tfb_refcnt;
 	uint32_t  tfb_flags;
 };
@@ -618,8 +629,9 @@ void	kmod_tcpstat_inc(int statnum);
  * Running TCP connection count by state.
  */
 VNET_DECLARE(counter_u64_t, tcps_states[TCP_NSTATES]);
-#define	TCPSTATES_INC(state)	counter_u64_add(VNET(tcps_states)[state], 1)
-#define	TCPSTATES_DEC(state)	counter_u64_add(VNET(tcps_states)[state], -1)
+#define	V_tcps_states	VNET(tcps_states)
+#define	TCPSTATES_INC(state)	counter_u64_add(V_tcps_states[state], 1)
+#define	TCPSTATES_DEC(state)	counter_u64_add(V_tcps_states[state], -1)
 
 /*
  * TCP specific helper hook point identifiers.

@@ -110,6 +110,7 @@ gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
 glewis [label="Greg Lewis\nglewis@FreeBSD.org\n2002/04/08"]
+gordon [label="Gordon Tetlow\ngordon@FreeBSD.org\n2014/10/14"]
 grembo [label="Michael Gmelin\ngrembo@FreeBSD.org\n2014/01/21"]
 gnn [label="George Neville-Neil\ngnn@FreeBSD.org\n2013/09/04"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
@@ -231,6 +232,7 @@ vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11"]
 vsevolod [label="Vsevolod Stakhov\nvsevolod@FreeBSD.org\n2005/07/22"]
 wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
 wg [label="William Grzybowski\nwg@FreeBSD.org\n2013/04/01"]
+woodsb02 [label="Ben Woods\nwoodsb02@FreeBSD.org\n2016/05/09"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
 xmj [label="Johannes Jost Meixner\nxmj@FreeBSD.org\n2014/04/07"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
@@ -247,6 +249,7 @@ adamw -> ahze
 adamw -> jylefort
 adamw -> mezz
 adamw -> pav
+adamw -> woodsb02
 
 ade -> jpaetzel
 
@@ -347,6 +350,7 @@ eik -> trhodes
 erwin -> brix
 erwin -> clement
 erwin -> gabor
+erwin -> gordon
 erwin -> lbr
 erwin -> lth
 erwin -> simon
@@ -416,6 +420,7 @@ knu -> nork
 
 koobs -> brnrd
 koobs -> kami
+koobs -> woodsb02
 koobs -> xmj
 
 krion -> brooks
@@ -456,7 +461,9 @@ makc -> rakuco
 
 mat -> bmah
 mat -> dvl
+mat -> gordon
 mat -> thierry
+mat -> woodsb02
 
 mezz -> tmclaugh
 

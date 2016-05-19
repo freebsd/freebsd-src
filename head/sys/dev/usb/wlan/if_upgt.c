@@ -243,7 +243,7 @@ upgt_attach(device_t dev)
 	struct upgt_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	uint8_t iface_index = UPGT_IFACE_INDEX;
 	int error;
 

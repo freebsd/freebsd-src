@@ -41,6 +41,15 @@ DECLARE_CLASS(gic_v3_driver);
 /* 1 bit per LPI + 1 KB more for the obligatory PPI, SGI, SPI stuff */
 #define	LPI_PENDTAB_SIZE	((LPI_CONFTAB_SIZE / 8) + 0x400)
 
+#ifdef INTRNG
+struct gic_v3_irqsrc {
+	struct intr_irqsrc	gi_isrc;
+	uint32_t		gi_irq;
+	enum intr_polarity	gi_pol;
+	enum intr_trigger	gi_trig;
+};
+#endif
+
 struct redist_lpis {
 	vm_offset_t		conf_base;
 	vm_offset_t		pend_base[MAXCPU];
@@ -75,13 +84,22 @@ struct gic_v3_softc {
 	u_int			gic_idbits;
 
 	boolean_t		gic_registered;
+
+#ifdef INTRNG
+	struct gic_v3_irqsrc	*gic_irqs;
+#endif
 };
+
+#ifdef INTRNG
+#define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
+#endif
 
 MALLOC_DECLARE(M_GIC_V3);
 
 /* Device methods */
 int gic_v3_attach(device_t dev);
 int gic_v3_detach(device_t dev);
+int arm_gic_v3_intr(void *);
 
 /*
  * ITS
@@ -94,9 +112,11 @@ DECLARE_CLASS(gic_v3_its_driver);
 /* LPI chunk owned by ITS device */
 struct lpi_chunk {
 	u_int	lpi_base;
-	u_int	lpi_num;
 	u_int	lpi_free;	/* First free LPI in set */
 	u_int	*lpi_col_ids;
+
+	u_int	lpi_num;	/* Total number of LPIs in chunk */
+	u_int	lpi_busy;	/* Number of busy LPIs in chink */
 };
 
 /* ITS device */
@@ -110,6 +130,7 @@ struct its_dev {
 	struct lpi_chunk	lpis;
 	/* Virtual address of ITT */
 	vm_offset_t		itt;
+	size_t			itt_size;
 };
 TAILQ_HEAD(its_dev_list, its_dev);
 
@@ -236,7 +257,7 @@ struct gic_v3_its_softc {
 
 	struct its_dev_list	its_dev_list;
 
-	unsigned long *		its_lpi_bitmap;
+	bitstr_t *		its_lpi_bitmap;
 	uint32_t		its_lpi_maxid;
 
 	struct mtx		its_dev_lock;
@@ -247,12 +268,10 @@ struct gic_v3_its_softc {
 
 /* Stuff that is specific to the vendor's implementation */
 typedef uint32_t (*its_devbits_func_t)(device_t);
-typedef uint32_t (*its_devid_func_t)(device_t);
 
 struct its_quirks {
 	uint64_t		cpuid;
 	uint64_t		cpuid_mask;
-	its_devid_func_t	devid_func;
 	its_devbits_func_t	devbits_func;
 };
 
@@ -261,7 +280,9 @@ extern devclass_t gic_v3_its_devclass;
 int gic_v3_its_detach(device_t);
 
 int gic_v3_its_alloc_msix(device_t, device_t, int *);
+int gic_v3_its_release_msix(device_t, device_t, int);
 int gic_v3_its_alloc_msi(device_t, device_t, int, int *);
+int gic_v3_its_release_msi(device_t, device_t, int, int *);
 int gic_v3_its_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 
 int its_init_cpu(struct gic_v3_its_softc *);

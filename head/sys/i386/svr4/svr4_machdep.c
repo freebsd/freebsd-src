@@ -159,7 +159,7 @@ svr4_getcontext(td, uc, mask, oonstack)
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
 	bsd_to_svr4_sigaltstack(sf, s);
 #else
-	s->ss_sp = (void *)(((u_long) tf->tf_esp) & ~(16384 - 1));
+	s->ss_sp = (void *)rounddown2((u_long)tf->tf_esp, 16384);
 	s->ss_size = 16384;
 	s->ss_flags = 0;
 #endif

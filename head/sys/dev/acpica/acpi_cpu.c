@@ -355,9 +355,6 @@ acpi_cpu_attach(device_t dev)
 	cpu_sysctl_tree = SYSCTL_ADD_NODE(&cpu_sysctl_ctx,
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO, "cpu",
 	    CTLFLAG_RD, 0, "node for CPU children");
-
-	/* Queue post cpu-probing task handler */
-	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cpu_startup, NULL);
     }
 
     /*
@@ -391,9 +388,9 @@ acpi_cpu_attach(device_t dev)
      * Intel Processor Vendor-Specific ACPI Interface Specification.
      */
     if (sc->cpu_features) {
-	cap_set[0] = 0;
 	cap_set[1] = sc->cpu_features;
-	status = acpi_EvaluateOSC(sc->cpu_handle, cpu_oscuuid, 1, 2, cap_set);
+	status = acpi_EvaluateOSC(sc->cpu_handle, cpu_oscuuid, 1, 2, cap_set,
+	    cap_set, false);
 	if (ACPI_SUCCESS(status)) {
 	    if (cap_set[0] != 0)
 		device_printf(dev, "_OSC returned status %#x\n", cap_set[0]);
@@ -423,17 +420,32 @@ acpi_cpu_postattach(void *unused __unused)
     device_t *devices;
     int err;
     int i, n;
+    int attached;
 
     err = devclass_get_devices(acpi_cpu_devclass, &devices, &n);
     if (err != 0) {
 	printf("devclass_get_devices(acpi_cpu_devclass) failed\n");
 	return;
     }
+    attached = 0;
+    for (i = 0; i < n; i++)
+	if (device_is_attached(devices[i]) &&
+	    device_get_driver(devices[i]) == &acpi_cpu_driver)
+	    attached = 1;
     for (i = 0; i < n; i++)
 	bus_generic_probe(devices[i]);
     for (i = 0; i < n; i++)
 	bus_generic_attach(devices[i]);
     free(devices, M_TEMP);
+
+    if (attached) {
+#ifdef EARLY_AP_STARTUP
+	acpi_cpu_startup(NULL);
+#else
+	/* Queue post cpu-probing task handler */
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cpu_startup, NULL);
+#endif
+    }
 }
 
 SYSINIT(acpi_cpu, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
@@ -633,7 +645,7 @@ acpi_cpu_shutdown(device_t dev)
     disable_idle(device_get_softc(dev));
 
     /*
-     * CPU devices are not truely detached and remain referenced,
+     * CPU devices are not truly detached and remain referenced,
      * so their resources are not freed.
      */
 

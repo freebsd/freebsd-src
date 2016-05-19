@@ -412,16 +412,8 @@ hostap_deliver_data(struct ieee80211vap *vap,
 				ieee80211_free_node(sta);
 			}
 		}
-		if (mcopy != NULL) {
-			int len, err;
-			len = mcopy->m_pkthdr.len;
-			err = ieee80211_vap_xmitpkt(vap, mcopy);
-			if (err) {
-				/* NB: IFQ_HANDOFF reclaims mcopy */
-			} else {
-				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-			}
-		}
+		if (mcopy != NULL && ieee80211_vap_xmitpkt(vap, mcopy) == 0)
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 	if (m != NULL) {
 		/*
@@ -1075,7 +1067,7 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		 */
 		ni->ni_flags |= IEEE80211_NODE_AREF;
 		/*
-		 * Mark the node as requiring a valid associatio id
+		 * Mark the node as requiring a valid association id
 		 * before outbound traffic is permitted.
 		 */
 		ni->ni_flags |= IEEE80211_NODE_ASSOCID;
@@ -1452,7 +1444,7 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 }
 
 /*
- * WPA/802.11i assocation request processing.
+ * WPA/802.11i association request processing.
  */
 static int
 wpa_assocreq(struct ieee80211_node *ni, struct ieee80211_rsnparms *rsnparms,
@@ -1798,7 +1790,6 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 *	[tlv] extended supported rates
 		 */
 		ssid = rates = xrates = NULL;
-		sfrm = frm;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {

@@ -96,7 +96,7 @@ void * scic_cb_timer_create(
 );
 
 /**
- * @brief This callback method asks the user to destory the supplied timer.
+ * @brief This callback method asks the user to destroy the supplied timer.
  *
  * @param[in]  controller This parameter specifies the controller with
  *             which this timer is to associated.
@@ -277,7 +277,7 @@ void scic_cb_task_request_complete(
  *            handle.
  * @param[in] io_request This parameter is the io request object handle
  *            for which the physical address is being requested.
- * @param[in] virtual_address This paramter is the virtual address which
+ * @param[in] virtual_address This parameter is the virtual address which
  *            is to be returned as a physical address.
  * @param[out] physical_address The physical address for the supplied virtual
  *        address.
@@ -294,14 +294,14 @@ void scic_cb_io_request_get_physical_address(
 
 /**
  * @brief This callback method asks the user to provide the number of
- *        bytes to be transfered as part of this request.
+ *        bytes to be transferred as part of this request.
  *
  * @param[in] scic_user_io_request This parameter points to the user's
  *            IO request object.  It is a cookie that allows the user to
  *            provide the necessary information for this callback.
  *
  * @return This method returns the number of payload data bytes to be
- *         transfered for this IO request.
+ *         transferred for this IO request.
  */
 U32 scic_cb_io_request_get_transfer_length(
    void * scic_user_io_request
@@ -1117,7 +1117,7 @@ void scic_cb_controller_error(
  *           the CDB address.
  * @param[in] scic_user_io_request
  *
- * @return The cdb adress.
+ * @return The cdb address.
  */
 void * scic_cb_stp_packet_io_request_get_cdb_address(
    void * scic_user_io_request

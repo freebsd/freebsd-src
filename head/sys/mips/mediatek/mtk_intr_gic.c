@@ -95,7 +95,6 @@ struct mtk_gic_softc {
 
 static struct resource_spec mtk_gic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Registers */
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Parent interrupt 1 */
 	{ -1, 0 }
 };
 
@@ -104,15 +103,8 @@ static struct ofw_compat_data compat_data[] = {
 	{ NULL,		0 }
 };
 
-#if 0
-#define	READ4(_sc, _reg)	\
-    bus_space_read_4((_sc)->bst, (_sc)->bsh, _reg)
-#define	WRITE4(_sc, _reg, _val) \
-    bus_space_write_4((_sc)->bst, (_sc)->bsh, _reg, _val)
-#else
 #define READ4(_sc, _reg)	bus_read_4((_sc)->gic_res[0], (_reg))
 #define WRITE4(_sc, _reg, _val)	bus_write_4((_sc)->gic_res[0], (_reg), (_val))
-#endif
 
 static int
 mtk_gic_probe(device_t dev)
@@ -221,17 +213,14 @@ mtk_gic_attach(device_t dev)
 	 * Now, when everything is initialized, it's right time to
 	 * register interrupt controller to interrupt framefork.
 	 */
-	if (intr_pic_register(dev, xref) != 0) {
+	if (intr_pic_register(dev, xref) == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		goto cleanup;
 	}
 
-	if (bus_setup_intr(dev, sc->gic_res[1], INTR_TYPE_CLK,
-	    mtk_gic_intr, NULL, sc, &sc->gic_intrhand)) {
-		device_printf(dev, "could not setup irq handler\n");
-		intr_pic_deregister(dev, xref);
-		goto cleanup;
-	}
+	cpu_establish_hardintr("gic", mtk_gic_intr, NULL, sc, 0, INTR_TYPE_CLK,
+	    NULL);
+
 	return (0);
 
 cleanup:
@@ -276,18 +265,22 @@ mtk_gic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 #ifdef FDT
+	struct intr_map_data_fdt *daf;
 	struct mtk_gic_softc *sc;
 
-	sc = device_get_softc(dev);
+	if (data->type != INTR_MAP_DATA_FDT)
+		return (ENOTSUP);
 
-	if (data == NULL || data->type != INTR_MAP_DATA_FDT ||
-	    data->fdt.ncells != 3 || data->fdt.cells[1] >= sc->nirqs)
+	sc = device_get_softc(dev);
+	daf = (struct intr_map_data_fdt *)data;
+
+	if (daf->ncells != 3 || daf->cells[1] >= sc->nirqs)
 		return (EINVAL);
 
-	*isrcp = GIC_INTR_ISRC(sc, data->fdt.cells[1]);
+	*isrcp = GIC_INTR_ISRC(sc, daf->cells[1]);
 	return (0);
 #else
-	return (EINVAL);
+	return (ENOTSUP);
 #endif
 }
 

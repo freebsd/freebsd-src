@@ -459,7 +459,7 @@ chkau(hte_t *hte, int n, sym_t *def, sym_t *decl, pos_t *pos1p,
 	promote = def != NULL && def->s_osdef;
 
 	/*
-	 * If we compair with a definition or declaration, we must perform
+	 * If we compare with a definition or declaration, we must perform
 	 * the same checks for qualifiers in indirected types as in
 	 * assignments.
 	 */

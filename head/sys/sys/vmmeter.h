@@ -141,7 +141,7 @@ vm_page_count_severe(void)
  * we can execute potentially very expensive code in terms of memory.  It
  * is also used by the pageout daemon to calculate when to sleep, when
  * to wake waiters up, and when (after making a pass) to become more
- * desparate.
+ * desperate.
  */
 
 static __inline 
@@ -186,7 +186,7 @@ int
 vm_paging_needed(void)
 {
     return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
-        vm_pageout_wakeup_thresh);
+        (u_int)vm_pageout_wakeup_thresh);
 }
 
 #endif

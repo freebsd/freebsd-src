@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "pic_if.h"
+#include "msi_if.h"
 
 #define	INTRNAME_LEN	(2*MAXCOMLEN + 1)
 
@@ -97,6 +98,9 @@ struct intr_pic {
 	SLIST_ENTRY(intr_pic)	pic_next;
 	intptr_t		pic_xref;	/* hardware identification */
 	device_t		pic_dev;
+#define	FLAG_PIC	(1 << 0)
+#define	FLAG_MSI	(1 << 1)
+	u_int			pic_flags;
 };
 
 static struct mtx pic_list_lock;
@@ -108,8 +112,6 @@ static struct intr_pic *pic_lookup(device_t dev, intptr_t xref);
 static struct mtx isrc_table_lock;
 static struct intr_irqsrc *irq_sources[NIRQ];
 u_int irq_next_free;
-
-#define IRQ_INVALID	nitems(irq_sources)
 
 /*
  *  XXX - All stuff around struct intr_dev_data is considered as temporary
@@ -130,7 +132,7 @@ struct intr_dev_data {
 	device_t		idd_dev;
 	intptr_t		idd_xref;
 	u_int			idd_irq;
-	struct intr_map_data	idd_data;
+	struct intr_map_data *	idd_data;
 	struct intr_irqsrc *	idd_isrc;
 };
 
@@ -138,7 +140,7 @@ static struct intr_dev_data *intr_ddata_tab[2 * NIRQ];
 static u_int intr_ddata_first_unused;
 
 #define IRQ_DDATA_BASE	10000
-CTASSERT(IRQ_DDATA_BASE > IRQ_INVALID);
+CTASSERT(IRQ_DDATA_BASE > nitems(irq_sources));
 
 #ifdef SMP
 static boolean_t irq_assign_cpu = FALSE;
@@ -170,6 +172,7 @@ intr_irq_init(void *dummy __unused)
 
 	SLIST_INIT(&pic_list);
 	mtx_init(&pic_list_lock, "intr pic list", NULL, MTX_DEF);
+
 	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
 }
 SYSINIT(intr_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_irq_init, NULL);
@@ -399,7 +402,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 		return (EINVAL);
 
 	irq_sources[isrc->isrc_irq] = NULL;
-	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	return (0);
 }
 
@@ -427,7 +430,7 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 
 	bzero(isrc, sizeof(struct intr_irqsrc));
 	isrc->isrc_dev = dev;
-	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	isrc->isrc_flags = flags;
 
 	va_start(ap, fmt);
@@ -497,8 +500,10 @@ static struct intr_dev_data *
 intr_ddata_alloc(u_int extsize)
 {
 	struct intr_dev_data *ddata;
+	size_t size;
 
-	ddata = malloc(sizeof(*ddata) + extsize, M_INTRNG, M_WAITOK | M_ZERO);
+	size = sizeof(*ddata);
+	ddata = malloc(size + extsize, M_INTRNG, M_WAITOK | M_ZERO);
 
 	mtx_lock(&isrc_table_lock);
 	if (intr_ddata_first_unused >= nitems(intr_ddata_tab)) {
@@ -509,6 +514,9 @@ intr_ddata_alloc(u_int extsize)
 	intr_ddata_tab[intr_ddata_first_unused] = ddata;
 	ddata->idd_irq = IRQ_DDATA_BASE + intr_ddata_first_unused++;
 	mtx_unlock(&isrc_table_lock);
+
+	ddata->idd_data = (struct intr_map_data *)((uintptr_t)ddata + size);
+	ddata->idd_data->size = extsize;
 	return (ddata);
 }
 
@@ -536,13 +544,13 @@ intr_ddata_lookup(u_int irq, struct intr_map_data **datap)
 	ddata = intr_ddata_tab[irq];
 	if (ddata->idd_isrc == NULL) {
 		error = intr_map_irq(ddata->idd_dev, ddata->idd_xref,
-		    &ddata->idd_data, &irq);
+		    ddata->idd_data, &irq);
 		if (error != 0)
 			return (NULL);
 		ddata->idd_isrc = isrc_lookup(irq);
 	}
 	if (datap != NULL)
-		*datap = &ddata->idd_data;
+		*datap = ddata->idd_data;
 	return (ddata->idd_isrc);
 }
 
@@ -556,17 +564,21 @@ u_int
 intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
     enum intr_trigger trig)
 {
+	struct intr_map_data_acpi *daa;
 	struct intr_dev_data *ddata;
 
-	ddata = intr_ddata_alloc(0);
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_acpi));
 	if (ddata == NULL)
-		return (0xFFFFFFFF);	/* no space left */
+		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_dev = dev;
-	ddata->idd_data.type = INTR_MAP_DATA_ACPI;
-	ddata->idd_data.acpi.irq = irq;
-	ddata->idd_data.acpi.pol = pol;
-	ddata->idd_data.acpi.trig = trig;
+	ddata->idd_data->type = INTR_MAP_DATA_ACPI;
+
+	daa = (struct intr_map_data_acpi *)ddata->idd_data;
+	daa->irq = irq;
+	daa->pol = pol;
+	daa->trig = trig;
+
 	return (ddata->idd_irq);
 }
 #endif
@@ -579,22 +591,48 @@ intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
 u_int
 intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 {
+	size_t cellsize;
 	struct intr_dev_data *ddata;
-	u_int cellsize;
+	struct intr_map_data_fdt *daf;
 
 	cellsize = ncells * sizeof(*cells);
-	ddata = intr_ddata_alloc(cellsize);
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_fdt) + cellsize);
 	if (ddata == NULL)
-		return (0xFFFFFFFF);	/* no space left */
+		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_xref = (intptr_t)node;
-	ddata->idd_data.type = INTR_MAP_DATA_FDT;
-	ddata->idd_data.fdt.ncells = ncells;
-	ddata->idd_data.fdt.cells = (pcell_t *)(ddata + 1);
-	memcpy(ddata->idd_data.fdt.cells, cells, cellsize);
+	ddata->idd_data->type = INTR_MAP_DATA_FDT;
+
+	daf = (struct intr_map_data_fdt *)ddata->idd_data;
+	daf->ncells = ncells;
+	memcpy(daf->cells, cells, cellsize);
 	return (ddata->idd_irq);
 }
 #endif
+
+/*
+ *  Store GPIO interrupt decription in framework and return unique interrupt
+ *  number (resource handle) associated with it.
+ */
+u_int
+intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags, u_int intr_mode)
+{
+	struct intr_dev_data *ddata;
+	struct intr_map_data_gpio *dag;
+
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_gpio));
+	if (ddata == NULL)
+		return (INTR_IRQ_INVALID);	/* no space left */
+
+	ddata->idd_dev = dev;
+	ddata->idd_data->type = INTR_MAP_DATA_GPIO;
+
+	dag = (struct intr_map_data_gpio *)ddata->idd_data;
+	dag->gpio_pin_num = pin_num;
+	dag->gpio_pin_flags = pin_flags;
+	dag->gpio_intr_mode = intr_mode;
+	return (ddata->idd_irq);
+}
 
 #ifdef INTR_SOLO
 /*
@@ -686,7 +724,7 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 	 * In NOCPU case, it's up to PIC to either leave ISRC on same CPU or
 	 * re-balance it to another CPU or enable it on more CPUs. However,
 	 * PIC is expected to change isrc_cpu appropriately to keep us well
-	 * informed if the call is successfull.
+	 * informed if the call is successful.
 	 */
 	if (irq_assign_cpu) {
 		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
@@ -838,6 +876,10 @@ pic_create(device_t dev, intptr_t xref)
 		return (pic);
 	}
 	pic = malloc(sizeof(*pic), M_INTRNG, M_NOWAIT | M_ZERO);
+	if (pic == NULL) {
+		mtx_unlock(&pic_list_lock);
+		return (NULL);
+	}
 	pic->pic_xref = xref;
 	pic->pic_dev = dev;
 	SLIST_INSERT_HEAD(&pic_list, pic, pic_next);
@@ -869,20 +911,22 @@ pic_destroy(device_t dev, intptr_t xref)
 /*
  *  Register interrupt controller.
  */
-int
+struct intr_pic *
 intr_pic_register(device_t dev, intptr_t xref)
 {
 	struct intr_pic *pic;
 
 	if (dev == NULL)
-		return (EINVAL);
+		return (NULL);
 	pic = pic_create(dev, xref);
 	if (pic == NULL)
-		return (ENOMEM);
+		return (NULL);
+
+	pic->pic_flags |= FLAG_PIC;
 
 	debugf("PIC %p registered for %s <dev %p, xref %x>\n", pic,
 	    device_get_nameunit(dev), dev, xref);
-	return (0);
+	return (pic);
 }
 
 /*
@@ -911,11 +955,18 @@ int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg, u_int ipicount)
 {
+	struct intr_pic *pic;
 
-	if (pic_lookup(dev, xref) == NULL) {
+	pic = pic_lookup(dev, xref);
+	if (pic == NULL) {
 		device_printf(dev, "not registered\n");
 		return (EINVAL);
 	}
+
+	KASSERT((pic->pic_flags & FLAG_PIC) != 0,
+	    ("%s: Found a non-PIC controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
 	if (filter == NULL) {
 		device_printf(dev, "filter missing\n");
 		return (EINVAL);
@@ -952,8 +1003,12 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 		return (EINVAL);
 
 	pic = pic_lookup(dev, xref);
-	if (pic == NULL || pic->pic_dev == NULL)
+	if (pic == NULL)
 		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_PIC) != 0,
+	    ("%s: Found a non-PIC controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
 
 	error = PIC_MAP_INTR(pic->pic_dev, data, &isrc);
 	if (error == 0)
@@ -1013,7 +1068,7 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 
 #ifdef INTR_SOLO
 	/*
-	 * Standard handling is done thru MI interrupt framework. However,
+	 * Standard handling is done through MI interrupt framework. However,
 	 * some interrupts could request solely own special handling. This
 	 * non standard handling can be used for interrupt controllers without
 	 * handler (filter only), so in case that interrupt controllers are
@@ -1221,6 +1276,160 @@ intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask)
 	return (PCPU_GET(cpuid));
 }
 #endif
+
+/*
+ *  Register a MSI/MSI-X interrupt controller
+ */
+int
+intr_msi_register(device_t dev, intptr_t xref)
+{
+	struct intr_pic *pic;
+
+	if (dev == NULL)
+		return (EINVAL);
+	pic = pic_create(dev, xref);
+	if (pic == NULL)
+		return (ENOMEM);
+
+	pic->pic_flags |= FLAG_MSI;
+
+	debugf("PIC %p registered for %s <dev %p, xref %jx>\n", pic,
+	    device_get_nameunit(dev), dev, (uintmax_t)xref);
+	return (0);
+}
+
+int
+intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
+    int maxcount, int *irqs)
+{
+	struct intr_irqsrc **isrc;
+	struct intr_pic *pic;
+	device_t pdev;
+	int err, i;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
+	err = MSI_ALLOC_MSI(pic->pic_dev, child, count, maxcount, &pdev, isrc);
+	if (err == 0) {
+		for (i = 0; i < count; i++) {
+			irqs[i] = isrc[i]->isrc_irq;
+		}
+	}
+
+	free(isrc, M_INTRNG);
+
+	return (err);
+}
+
+int
+intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
+    int *irqs)
+{
+	struct intr_irqsrc **isrc;
+	struct intr_pic *pic;
+	int i, err;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
+
+	for (i = 0; i < count; i++) {
+		isrc[i] = isrc_lookup(irqs[i]);
+		if (isrc == NULL) {
+			free(isrc, M_INTRNG);
+			return (EINVAL);
+		}
+	}
+
+	err = MSI_RELEASE_MSI(pic->pic_dev, child, count, isrc);
+	free(isrc, M_INTRNG);
+	return (err);
+}
+
+int
+intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
+{
+	struct intr_irqsrc *isrc;
+	struct intr_pic *pic;
+	device_t pdev;
+	int err;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	err = MSI_ALLOC_MSIX(pic->pic_dev, child, &pdev, &isrc);
+	if (err != 0)
+		return (err);
+
+	*irq = isrc->isrc_irq;
+	return (0);
+}
+
+int
+intr_release_msix(device_t pci, device_t child, intptr_t xref, int irq)
+{
+	struct intr_irqsrc *isrc;
+	struct intr_pic *pic;
+	int err;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	isrc = isrc_lookup(irq);
+	if (isrc == NULL)
+		return (EINVAL);
+
+	err = MSI_RELEASE_MSIX(pic->pic_dev, child, isrc);
+	return (err);
+}
+
+int
+intr_map_msi(device_t pci, device_t child, intptr_t xref, int irq,
+    uint64_t *addr, uint32_t *data)
+{
+	struct intr_irqsrc *isrc;
+	struct intr_pic *pic;
+	int err;
+
+	pic = pic_lookup(NULL, xref);
+	if (pic == NULL)
+		return (ESRCH);
+
+	KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+	    ("%s: Found a non-MSI controller: %s", __func__,
+	     device_get_name(pic->pic_dev)));
+
+	isrc = isrc_lookup(irq);
+	if (isrc == NULL)
+		return (EINVAL);
+
+	err = MSI_MAP_MSI(pic->pic_dev, child, isrc, addr, data);
+	return (err);
+}
+
 
 void dosoftints(void);
 void

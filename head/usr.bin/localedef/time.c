@@ -262,7 +262,7 @@ dump_time(void)
 	 * NOTE: If date_fmt is not specified, then we'll default to
 	 * using the %c for date.  This is reasonable for most
 	 * locales, although for reasons that I don't understand
-	 * Solaris historically has had a seperate format for date.
+	 * Solaris historically has had a separate format for date.
 	 */
 	if ((putl_category(tm.X_fmt, f) == EOF) ||
 	    (putl_category(tm.x_fmt, f) == EOF) ||

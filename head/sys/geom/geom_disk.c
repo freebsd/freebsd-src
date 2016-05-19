@@ -107,7 +107,7 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
 		/*
 		 * Allow decreasing access count even if disk is not
-		 * avaliable anymore.
+		 * available anymore.
 		 */
 		if (r <= 0 && w <= 0 && e <= 0)
 			return (0);
@@ -226,7 +226,11 @@ g_disk_done(struct bio *bp)
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
+
 	switch (bp->bio_cmd) {
+	case BIO_ZONE:
+		bcopy(&bp->bio_zone, &bp2->bio_zone, sizeof(bp->bio_zone));
+		/*FALLTHROUGH*/
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
@@ -514,6 +518,16 @@ g_disk_start(struct bio *bp)
 		if (!(dp->d_flags & DISKFLAG_CANFLUSHCACHE)) {
 			error = EOPNOTSUPP;
 			break;
+		}
+		/*FALLTHROUGH*/
+	case BIO_ZONE:
+		if (bp->bio_cmd == BIO_ZONE) {
+			if (!(dp->d_flags & DISKFLAG_CANZONE)) {
+				error = EOPNOTSUPP;
+				break;
+			}
+			g_trace(G_T_BIO, "g_disk_zone(%s)",
+			    bp->bio_to->name);
 		}
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
@@ -846,7 +860,8 @@ disk_attr_changed(struct disk *dp, const char *attr, int flag)
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
 			(void)g_attr_changed(pp, attr, flag);
-	snprintf(devnamebuf, 128, "devname=%s%d", dp->d_name, dp->d_unit);
+	snprintf(devnamebuf, sizeof(devnamebuf), "devname=%s%d", dp->d_name,
+	    dp->d_unit);
 	devctl_notify("GEOM", "disk", attr, devnamebuf);
 }
 

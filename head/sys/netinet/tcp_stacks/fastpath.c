@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -185,7 +184,7 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	short ostate = 0;
 #endif
         /*
-	 * The following if statment will be true if
+	 * The following if statement will be true if
 	 * we are doing the win_up_in_fp <and>
 	 * - We have more new data (SEQ_LT(tp->snd_wl1, th->th_seq)) <or>
 	 * - No more new data, but we have an ack for new data
@@ -1061,7 +1060,7 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * change and FIN isn't set),
 				 * the ack is the biggest we've
 				 * seen and we've seen exactly our rexmt
-				 * threshhold of them, assume a packet
+				 * threshold of them, assume a packet
 				 * has been dropped and retransmit it.
 				 * Kludge snd_nxt & the congestion
 				 * window so we send only this one
@@ -2376,36 +2375,17 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 }
 
 struct tcp_function_block __tcp_fastslow = {
-	"fastslow",
-	tcp_output,
-	tcp_do_segment_fastslow,
-	tcp_default_ctloutput,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	0,
-	0
-
+	.tfb_tcp_block_name = "fastslow",
+	.tfb_tcp_output = tcp_output,
+	.tfb_tcp_do_segment = tcp_do_segment_fastslow,
+	.tfb_tcp_ctloutput = tcp_default_ctloutput,
 };
 
 struct tcp_function_block __tcp_fastack = {
-	"fastack",
-	tcp_output,
-	tcp_do_segment_fastack,
-	tcp_default_ctloutput,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	0,
-	0
+	.tfb_tcp_block_name = "fastack",
+	.tfb_tcp_output = tcp_output,
+	.tfb_tcp_do_segment = tcp_do_segment_fastack,
+	.tfb_tcp_ctloutput = tcp_default_ctloutput
 };
 
 static int

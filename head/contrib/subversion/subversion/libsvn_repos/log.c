@@ -2127,7 +2127,7 @@ do_logs(svn_fs_t *fs,
               if (added_mergeinfo || deleted_mergeinfo)
                 {
                   svn_revnum_t *cur_rev =
-                    apr_pmemdup(pool, &current, sizeof(cur_rev));
+                    apr_pmemdup(pool, &current, sizeof(*cur_rev));
                   struct added_deleted_mergeinfo *add_and_del_mergeinfo =
                     apr_palloc(pool, sizeof(*add_and_del_mergeinfo));
 

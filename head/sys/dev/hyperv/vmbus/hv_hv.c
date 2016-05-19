@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -171,8 +171,6 @@ hv_vmbus_init(void)
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
 
-	hv_et_init();
-	
 	return (0);
 
 	cleanup:
@@ -503,8 +501,12 @@ hyperv_identify(void)
 static void
 hyperv_init(void *dummy __unused)
 {
-	if (!hyperv_identify())
+	if (!hyperv_identify()) {
+		/* Not Hyper-V; reset guest id to the generic one. */
+		if (vm_guest == VM_GUEST_HV)
+			vm_guest = VM_GUEST_VM;
 		return;
+	}
 
 	if (hyperv_features & HV_FEATURE_MSR_TIME_REFCNT) {
 		/* Register virtual timecount */

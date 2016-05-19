@@ -41,7 +41,8 @@ ISC_UNIX_SRCS= dir.c \
 	stdio.c \
 	stdtime.c \
 	strerror.c \
-	time.c
+	time.c \
+	tsmemcmp.c
 
 ISC_NLS_SRCS= msgcat.c
 

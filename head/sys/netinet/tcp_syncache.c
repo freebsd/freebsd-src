@@ -127,7 +127,8 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_VNET | CTLFLAG_RW,
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
-static int	 syncache_respond(struct syncache *, struct syncache_head *, int);
+static int	 syncache_respond(struct syncache *, struct syncache_head *, int,
+		    const struct mbuf *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
 static void	 syncache_timeout(struct syncache *sc, struct syncache_head *sch,
@@ -457,7 +458,7 @@ syncache_timer(void *xsch)
 			free(s, M_TCPLOG);
 		}
 
-		syncache_respond(sc, sch, 1);
+		syncache_respond(sc, sch, 1, NULL);
 		TCPSTAT_INC(tcps_sc_retransmitted);
 		syncache_timeout(sc, sch, 0);
 	}
@@ -1307,7 +1308,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (syncache_respond(sc, sch, 1) == 0) {
+		if (syncache_respond(sc, sch, 1, m) == 0) {
 			sc->sc_rxmits = 0;
 			syncache_timeout(sc, sch, 1);
 			TCPSTAT_INC(tcps_sndacks);
@@ -1418,7 +1419,7 @@ skip_alloc:
 			 * With the default maxsockbuf of 256K, a scale factor
 			 * of 3 will be chosen by this algorithm.  Those who
 			 * choose a larger maxsockbuf should watch out
-			 * for the compatiblity problems mentioned above.
+			 * for the compatibility problems mentioned above.
 			 *
 			 * RFC1323: The Window field in a SYN (i.e., a <SYN>
 			 * or <SYN,ACK>) segment itself is never scaled.
@@ -1474,7 +1475,7 @@ skip_alloc:
 	/*
 	 * Do a standard 3-way handshake.
 	 */
-	if (syncache_respond(sc, sch, 0) == 0) {
+	if (syncache_respond(sc, sch, 0, m) == 0) {
 		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
@@ -1504,8 +1505,13 @@ tfo_done:
 	return (rv);
 }
 
+/*
+ * Send SYN|ACK to the peer.  Either in response to the peer's SYN,
+ * i.e. m0 != NULL, or upon 3WHS ACK timeout, i.e. m0 == NULL.
+ */
 static int
-syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked)
+syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
+    const struct mbuf *m0)
 {
 	struct ip *ip = NULL;
 	struct mbuf *m;
@@ -1686,6 +1692,15 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked)
 
 	M_SETFIB(m, sc->sc_inc.inc_fibnum);
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+	/*
+	 * If we have peer's SYN and it has a flowid, then let's assign it to
+	 * our SYN|ACK.  ip6_output() and ip_output() will not assign flowid
+	 * to SYN|ACK due to lack of inp here.
+	 */
+	if (m0 != NULL && M_HASHTYPE_GET(m0) != M_HASHTYPE_NONE) {
+		m->m_pkthdr.flowid = m0->m_pkthdr.flowid;
+		M_HASHTYPE_SET(m, M_HASHTYPE_GET(m0));
+	}
 #ifdef INET6
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
@@ -1740,7 +1755,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked)
  * with the latter taking over when the former is exhausted.  When matching
  * syncache entry is found the syncookie is ignored.
  *
- * The only reliable information persisting the 3WHS is our inital sequence
+ * The only reliable information persisting the 3WHS is our initial sequence
  * number ISS of 32 bits.  Syncookies embed a cryptographically sufficient
  * strong hash (MAC) value and a few bits of TCP SYN options in the ISS
  * of our SYN|ACK.  The MAC can be recomputed when the ACK to our SYN|ACK

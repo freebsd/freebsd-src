@@ -16,6 +16,7 @@ SUBDIR=	alias \
 	banner \
 	basename \
 	brandelf \
+	bsdcat \
 	bsdiff \
 	bzip2 \
 	bzip2recover \
@@ -134,6 +135,7 @@ SUBDIR=	alias \
 	rusers \
 	rwall \
 	script \
+	sdiff \
 	sed \
 	send-pr \
 	seq \

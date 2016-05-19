@@ -76,7 +76,7 @@ static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 	if ((rdev->family == CHIP_RS100) ||
 	    (rdev->family == CHIP_RS200)) {
 		/* This is to workaround the asic bug for RMX, some versions
-		   of BIOS dosen't have this register initialized correctly. */
+		   of BIOS doesn't have this register initialized correctly. */
 		crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
 	}
 

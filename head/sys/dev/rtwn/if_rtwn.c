@@ -251,7 +251,7 @@ rtwn_attach(device_t dev)
 	struct rtwn_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t lcsr;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	int i, count, error, rid;
 
 	sc->sc_dev = dev;
@@ -1789,7 +1789,6 @@ rtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 
 	if (rtwn_tx(sc, m, ni) != 0) {
-		m_freem(m);
 		RTWN_UNLOCK(sc);
 		return (EIO);
 	}

@@ -266,8 +266,8 @@ prthumanval(int len, u_int64_t bytes)
 	/*
 	 * Limit the width to 5 bytes as that is what users expect.
 	 */
-	humanize_number(buf, sizeof(buf) < 5 ? sizeof(buf) : 5, bytes, "",
-	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+	humanize_number(buf, MIN(sizeof(buf), 5), bytes, "",
+			HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 
 	(void)printf(" %*s", len, buf);
 }

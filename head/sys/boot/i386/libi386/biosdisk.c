@@ -313,11 +313,13 @@ bd_print(int verbose)
 	struct disk_devdesc dev;
 	int i;
 
+	pager_open();
 	for (i = 0; i < nbdinfo; i++) {
 		sprintf(line, "    disk%d:   BIOS drive %c:\n", i,
 		    (bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit):
 		    ('C' + bdinfo[i].bd_unit - 0x80));
-		pager_output(line);
+		if (pager_output(line))
+			break;
 		dev.d_dev = &biosdisk;
 		dev.d_unit = i;
 		dev.d_slice = -1;
@@ -332,6 +334,7 @@ bd_print(int verbose)
 			disk_close(&dev);
 		}
 	}
+	pager_close();
 }
 
 /*
@@ -507,6 +510,18 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
     blks = size / BD(dev).bd_sectorsize;
     if (rsize)
 	*rsize = 0;
+
+    if (dblk >= BD(dev).bd_sectors) {
+	DEBUG("IO past disk end %llu", (unsigned long long)dblk);
+	return (EIO);
+    }
+
+    if (dblk + blks > BD(dev).bd_sectors) {
+	/* perform partial read */
+	blks = BD(dev).bd_sectors - dblk;
+	size = blks * BD(dev).bd_sectorsize;
+	DEBUG("short read %d", blks);
+    }
 
     switch(rw){
     case F_READ:

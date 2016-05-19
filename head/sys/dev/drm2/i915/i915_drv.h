@@ -1129,7 +1129,7 @@ struct drm_i915_gem_request {
 	/** GEM sequence number associated with this request. */
 	uint32_t seqno;
 
-	/** Postion in the ringbuffer of the end of the request */
+	/** Position in the ringbuffer of the end of the request */
 	u32 tail;
 
 	/** Time at which this request was emitted, in jiffies. */

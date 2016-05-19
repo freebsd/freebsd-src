@@ -2094,11 +2094,11 @@ static ssize_t __uverbs_modify_qp(struct ib_uverbs_file *file,
 		} else {
 			ret = rdma_addr_find_dmac_by_grh(&sgid, dgid,
 							 attr->ah_attr.dmac,
-							 &attr->vlan_id);
+							 &attr->vlan_id, -1U);
 			if (ret)
 				goto out;
 			ret = rdma_addr_find_smac_by_sgid(&sgid, attr->smac,
-							  NULL);
+							  NULL, -1U);
 			if (ret)
 				goto out;
 		}

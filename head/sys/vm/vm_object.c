@@ -476,7 +476,7 @@ vm_object_vndeallocate(vm_object_t object)
 	}
 #endif
 
-	if (object->ref_count == 1)
+	if (!umtx_shm_vnobj_persistent && object->ref_count == 1)
 		umtx_shm_object_terminated(object);
 
 	/*
@@ -2111,7 +2111,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 
 		/*
 		 * If prev_object was charged, then this mapping,
-		 * althought not charged now, may become writable
+		 * although not charged now, may become writable
 		 * later. Non-NULL cred in the object would prevent
 		 * swap reservation during enabling of the write
 		 * access, so reserve swap now. Failed reservation

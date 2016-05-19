@@ -464,7 +464,7 @@ ciss_attach(device_t dev)
     ciss_initq_notify(sc);
 
     /*
-     * Initalize device sysctls.
+     * Initialize device sysctls.
      */
     ciss_init_sysctl(sc);
 
@@ -619,7 +619,7 @@ ciss_init_pci(struct ciss_softc *sc)
 	/*
 	 * XXX Big hammer, masks/unmasks all possible interrupts.  This should
 	 * work on all hardware variants.  Need to add code to handle the
-	 * "controller crashed" interupt bit that this unmasks.
+	 * "controller crashed" interrupt bit that this unmasks.
 	 */
 	sqmask = ~0;
     }
@@ -1431,7 +1431,7 @@ ciss_init_logical(struct ciss_softc *sc)
 	goto out;
     }
 
-    for (i = 0; i <= sc->ciss_max_logical_bus; i++) {
+    for (i = 0; i < sc->ciss_max_logical_bus; i++) {
 	sc->ciss_logical[i] =
 	    malloc(sc->ciss_cfg->max_logical_supported *
 		   sizeof(struct ciss_ldrive),
@@ -2030,7 +2030,7 @@ ciss_free(struct ciss_softc *sc)
     if (sc->ciss_parent_dmat)
 	bus_dma_tag_destroy(sc->ciss_parent_dmat);
     if (sc->ciss_logical) {
-	for (i = 0; i <= sc->ciss_max_logical_bus; i++) {
+	for (i = 0; i < sc->ciss_max_logical_bus; i++) {
 	    for (j = 0; j < sc->ciss_cfg->max_logical_supported; j++) {
 		if (sc->ciss_logical[i][j].cl_ldrive)
 		    free(sc->ciss_logical[i][j].cl_ldrive, CISS_MALLOC_CLASS);
@@ -4487,7 +4487,7 @@ ciss_name_ldrive_org(int org)
     case CISS_LDRIVE_RAIDADG:
 	return("RAID ADG");
     }
-    return("unkown");
+    return("unknown");
 }
 
 /************************************************************************

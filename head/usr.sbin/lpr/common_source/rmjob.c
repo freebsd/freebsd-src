@@ -163,7 +163,7 @@ lockchk(struct printer *pp, char *slockf)
 			return(0);
 	}
 	PRIV_END
-	if (!getline(fp)) {
+	if (!get_line(fp)) {
 		(void) fclose(fp);
 		return(0);		/* no daemon present */
 	}
@@ -198,7 +198,7 @@ process(const struct printer *pp, char *file)
 	if ((cfp = fopen(file, "r")) == NULL)
 		fatal(pp, "cannot open %s", file);
 	PRIV_END
-	while (getline(cfp)) {
+	while (get_line(cfp)) {
 		switch (line[0]) {
 		case 'U':  /* unlink associated files */
 			if (strchr(line+1, '/') || strncmp(line+1, "df", 2))
@@ -251,7 +251,7 @@ chk(char *file)
 	if ((cfp = fopen(file, "r")) == NULL)
 		return(0);
 	PRIV_END
-	while (getline(cfp)) {
+	while (get_line(cfp)) {
 		if (line[0] == 'P')
 			break;
 	}

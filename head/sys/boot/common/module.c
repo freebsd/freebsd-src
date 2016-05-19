@@ -105,7 +105,7 @@ command_load(int argc, char *argv[])
     struct preloaded_file *fp;
     char	*typestr;
     int		dofile, dokld, ch, error;
-    
+
     dokld = dofile = 0;
     optind = 1;
     optreset = 1;
@@ -277,7 +277,8 @@ command_lsmod(int argc, char *argv[])
 	if (fp->f_args != NULL) {
 	    pager_output("    args: ");
 	    pager_output(fp->f_args);
-	    pager_output("\n");
+	    if (pager_output("\n"))
+		    break;
 	}
 	if (fp->f_modules) {
 	    pager_output("  modules: ");
@@ -285,13 +286,15 @@ command_lsmod(int argc, char *argv[])
 		sprintf(lbuf, "%s.%d ", mp->m_name, mp->m_version);
 		pager_output(lbuf);
 	    }
-	    pager_output("\n");
-	}
+	    if (pager_output("\n"))
+		    break;
+	    	}
 	if (verbose) {
 	    /* XXX could add some formatting smarts here to display some better */
 	    for (md = fp->f_metadata; md != NULL; md = md->md_next) {
 		sprintf(lbuf, "      0x%04x, 0x%lx\n", md->md_type, (long) md->md_size);
-		pager_output(lbuf);
+		if (pager_output(lbuf))
+			break;
 	    }
 	}
     }
@@ -516,7 +519,7 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 	sprintf(command_errbuf, "can't find '%s'", kldname);
 	return (ENOENT);
     }
-    /* 
+    /*
      * Check if KLD already loaded
      */
     fp = file_findfile(filename, NULL);
@@ -525,7 +528,7 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 	free(filename);
 	return (0);
     }
-    for (last_file = preloaded_files; 
+    for (last_file = preloaded_files;
 	 last_file != NULL && last_file->f_next != NULL;
 	 last_file = last_file->f_next)
 	;
@@ -584,7 +587,7 @@ file_findmodule(struct preloaded_file *fp, char *modname,
     if (fp == NULL) {
 	for (fp = preloaded_files; fp; fp = fp->f_next) {
 	    mp = file_findmodule(fp, modname, verinfo);
-    	    if (mp)
+	    if (mp)
 		return (mp);
 	}
 	return (NULL);
@@ -598,7 +601,7 @@ file_findmodule(struct preloaded_file *fp, char *modname,
 	    mver = mp->m_version;
 	    if (mver == verinfo->md_ver_preferred)
 		return (mp);
-	    if (mver >= verinfo->md_ver_minimum && 
+	    if (mver >= verinfo->md_ver_minimum &&
 		mver <= verinfo->md_ver_maximum &&
 		mver > bestver) {
 		best = mp;
@@ -744,7 +747,7 @@ file_search(const char *name, char **extlist)
 }
 
 #define	INT_ALIGN(base, ptr)	ptr = \
-	(base) + (((ptr) - (base) + sizeof(int) - 1) & ~(sizeof(int) - 1))
+	(base) + roundup2((ptr) - (base), sizeof(int))
 
 static char *
 mod_search_hints(struct moduledir *mdp, const char *modname,
@@ -784,7 +787,7 @@ mod_search_hints(struct moduledir *mdp, const char *modname,
 		found = 1;
 		break;
 	    }
-	    if (ival >= verinfo->md_ver_minimum && 
+	    if (ival >= verinfo->md_ver_minimum &&
 		ival <= verinfo->md_ver_maximum &&
 		ival > bestver) {
 		bestver = ival;
@@ -886,7 +889,7 @@ file_discard(struct preloaded_file *fp)
 	mp1 = mp;
 	mp = mp->m_next;
 	free(mp1);
-    }	
+    }
     if (fp->f_name != NULL)
 	free(fp->f_name);
     if (fp->f_type != NULL)
@@ -904,7 +907,7 @@ struct preloaded_file *
 file_alloc(void)
 {
     struct preloaded_file	*fp;
-    
+
     if ((fp = malloc(sizeof(struct preloaded_file))) != NULL) {
 	bzero(fp, sizeof(struct preloaded_file));
     }

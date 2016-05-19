@@ -325,7 +325,7 @@ ng_l2cap_con_by_handle(ng_l2cap_p l2cap, u_int16_t con_handle)
 } /* ng_l2cap_con_by_handle */
 
 /*
- * Allocate new L2CAP channel descriptor on "con" conection with "psm".
+ * Allocate new L2CAP channel descriptor on "con" connection with "psm".
  * Will link the channel to the l2cap node
  */
 

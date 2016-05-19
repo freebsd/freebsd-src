@@ -452,7 +452,7 @@ typedef struct _ag_card_info {
  
 /*
 ** Optional Adjustable Parameters Structures.
-** Not using pointer stucture for easy read and access tree structure.
+** Not using pointer structure for easy read and access tree structure.
 ** In the future if more layer of key tree involved, it might be a good
 ** idea to change the structure and program. 
 */
@@ -637,7 +637,7 @@ typedef struct _LINK_LIST
 {
   PLINK_NODE pHead;
   bit32   Count;
-  LINK_NODE  Head __cacheline_aligned; // allways one link to speed up insert&rm
+  LINK_NODE  Head __cacheline_aligned; // always one link to speed up insert&rm
 } LINK_LIST, * PLINK_LIST __cacheline_aligned;
 
 

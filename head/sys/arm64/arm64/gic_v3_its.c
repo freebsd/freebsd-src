@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #define	GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET	88
 
 #include "pic_if.h"
+#include "pcib_if.h"
 
 /* Device and PIC methods */
 static int gic_v3_its_attach(device_t);
@@ -74,8 +75,10 @@ static device_method_t gic_v3_its_methods[] = {
 	 */
 	/* MSI-X */
 	DEVMETHOD(pic_alloc_msix,	gic_v3_its_alloc_msix),
+	DEVMETHOD(pic_release_msix,	gic_v3_its_release_msix),
 	/* MSI */
 	DEVMETHOD(pic_alloc_msi,	gic_v3_its_alloc_msi),
+	DEVMETHOD(pic_release_msi,	gic_v3_its_release_msi),
 	DEVMETHOD(pic_map_msi,		gic_v3_its_map_msi),
 
 	/* End */
@@ -150,7 +153,6 @@ const char *its_ptab_type[] = {
 
 /* Cavium ThunderX PCI devid acquire function */
 static uint32_t its_get_devbits_thunder(device_t);
-static uint32_t its_get_devid_thunder(device_t);
 
 static const struct its_quirks its_quirks[] = {
 	{
@@ -160,7 +162,6 @@ static const struct its_quirks its_quirks[] = {
 		 */
 		.cpuid =	CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0),
 		.cpuid_mask =	CPU_IMPL_MASK | CPU_PART_MASK,
-		.devid_func =	its_get_devid_thunder,
 		.devbits_func =	its_get_devbits_thunder,
 	},
 };
@@ -852,7 +853,7 @@ lpi_alloc_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic,
 {
 	u_int *col_ids;
 	int fclr; /* First cleared bit */
-	uint8_t *bitmap;
+	bitstr_t *bitmap;
 	size_t nb, i;
 
 	col_ids = malloc(sizeof(*col_ids) * nvecs, M_GIC_V3_ITS,
@@ -861,7 +862,7 @@ lpi_alloc_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic,
 		return (ENOMEM);
 
 	mtx_lock_spin(&sc->its_dev_lock);
-	bitmap = (uint8_t *)sc->its_lpi_bitmap;
+	bitmap = sc->its_lpi_bitmap;
 
 	fclr = 0;
 retry:
@@ -883,6 +884,7 @@ retry:
 	bit_nset(bitmap, fclr, fclr + nvecs - 1);
 	lpic->lpi_base = fclr + GIC_FIRST_LPI;
 	lpic->lpi_num = nvecs;
+	lpic->lpi_busy = 0;
 	lpic->lpi_free = lpic->lpi_num;
 	lpic->lpi_col_ids = col_ids;
 	for (i = 0; i < lpic->lpi_num; i++) {
@@ -901,21 +903,17 @@ static void
 lpi_free_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic)
 {
 	int start, end;
-	uint8_t *bitmap;
-
-	bitmap = (uint8_t *)sc->its_lpi_bitmap;
-
-	KASSERT((lpic->lpi_free == lpic->lpi_num),
-	    ("Trying to free LPI chunk that is still in use.\n"));
 
 	mtx_lock_spin(&sc->its_dev_lock);
+	KASSERT((lpic->lpi_busy == 0),
+	    ("Trying to free LPI chunk that is still in use.\n"));
 	/* First bit of this chunk in a global bitmap */
 	start = lpic->lpi_base - GIC_FIRST_LPI;
 	/* and last bit of this chunk... */
 	end = start + lpic->lpi_num - 1;
 
 	/* Finally free this chunk */
-	bit_nclear(bitmap, start, end);
+	bit_nclear(sc->its_lpi_bitmap, start, end);
 	mtx_unlock_spin(&sc->its_dev_lock);
 
 	free(lpic->lpi_col_ids, M_GIC_V3_ITS);
@@ -1497,6 +1495,7 @@ its_device_alloc(struct gic_v3_its_softc *sc, device_t pci_dev,
     u_int nvecs)
 {
 	struct its_dev *newdev;
+	vm_offset_t itt_addr;
 	uint64_t typer;
 	uint32_t devid;
 	size_t esize;
@@ -1532,16 +1531,18 @@ its_device_alloc(struct gic_v3_its_softc *sc, device_t pci_dev,
 	 * Allocate ITT for this device.
 	 * PA has to be 256 B aligned. At least two entries for device.
 	 */
-	newdev->itt = (vm_offset_t)contigmalloc(
-	    roundup2(roundup2(nvecs, 2) * esize, 0x100), M_GIC_V3_ITS,
-	    (M_NOWAIT | M_ZERO), 0, ~0UL, 0x100, 0);
-	if (newdev->itt == 0) {
+	newdev->itt_size = roundup2(roundup2(nvecs, 2) * esize, 0x100);
+	itt_addr = (vm_offset_t)contigmalloc(
+	    newdev->itt_size, M_GIC_V3_ITS, (M_NOWAIT | M_ZERO),
+	    0, ~0UL, 0x100, 0);
+	if (itt_addr == 0) {
 		lpi_free_chunk(sc, &newdev->lpis);
 		free(newdev, M_GIC_V3_ITS);
 		return (NULL);
 	}
 
 	mtx_lock_spin(&sc->its_dev_lock);
+	newdev->itt = itt_addr;
 	TAILQ_INSERT_TAIL(&sc->its_dev_list, newdev, entry);
 	mtx_unlock_spin(&sc->its_dev_lock);
 
@@ -1549,6 +1550,50 @@ its_device_alloc(struct gic_v3_its_softc *sc, device_t pci_dev,
 	its_cmd_mapd(sc, newdev, 1);
 
 	return (newdev);
+}
+
+static void
+its_device_free(struct gic_v3_its_softc *sc, device_t pci_dev,
+    u_int nvecs)
+{
+	struct its_dev *odev;
+
+	mtx_lock_spin(&sc->its_dev_lock);
+	/* Find existing device if any */
+	odev = its_device_find_locked(sc, pci_dev, 0);
+	if (odev == NULL) {
+		mtx_unlock_spin(&sc->its_dev_lock);
+		return;
+	}
+
+	KASSERT((nvecs <= odev->lpis.lpi_num) && (nvecs <= odev->lpis.lpi_busy),
+	    ("Invalid number of LPI vectors to free %d (total %d) (busy %d)",
+	    nvecs, odev->lpis.lpi_num, odev->lpis.lpi_busy));
+	/* Just decrement number of busy LPIs in chunk */
+	odev->lpis.lpi_busy -= nvecs;
+	if (odev->lpis.lpi_busy != 0) {
+		mtx_unlock_spin(&sc->its_dev_lock);
+		return;
+	}
+
+	/*
+	 * At that point we know that there are no busy LPIs for this device.
+	 * Entire ITS device can now be removed.
+	 */
+	mtx_unlock_spin(&sc->its_dev_lock);
+	/* Unmap device in ITS */
+	its_cmd_mapd(sc, odev, 0);
+	/* Free ITT */
+	KASSERT(odev->itt != 0, ("Invalid ITT in valid ITS device"));
+	contigfree((void *)odev->itt, odev->itt_size, M_GIC_V3_ITS);
+	/* Free chunk */
+	lpi_free_chunk(sc, &odev->lpis);
+	/* Free device */
+	mtx_lock_spin(&sc->its_dev_lock);
+	TAILQ_REMOVE(&sc->its_dev_list, odev, entry);
+	mtx_unlock_spin(&sc->its_dev_lock);
+	free((void *)odev, M_GIC_V3_ITS);
+
 }
 
 static __inline void
@@ -1565,52 +1610,13 @@ its_device_asign_lpi_locked(struct gic_v3_its_softc *sc,
 	*irq = its_dev->lpis.lpi_base + (its_dev->lpis.lpi_num -
 	    its_dev->lpis.lpi_free);
 	its_dev->lpis.lpi_free--;
+	its_dev->lpis.lpi_busy++;
 }
 
 /*
  * ITS quirks.
  * Add vendor specific PCI devid function here.
  */
-static uint32_t
-its_get_devid_thunder(device_t pci_dev)
-{
-	int bsf;
-	int pem;
-	uint32_t bus;
-
-	bus = pci_get_bus(pci_dev);
-	bsf = pci_get_rid(pci_dev);
-
-	/* Check if accessing internal PCIe (low bus numbers) */
-	if (bus < GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET) {
-		return ((pci_get_domain(pci_dev) << PCI_RID_DOMAIN_SHIFT) |
-		    bsf);
-	/* PEM otherwise */
-	} else {
-		/* PEM (PCIe MAC/root complex) number is equal to domain */
-		pem = pci_get_domain(pci_dev);
-
-		/*
-		 * Set appropriate device ID (passed by the HW along with
-		 * the transaction to memory) for different root complex
-		 * numbers using hard-coded domain portion for each group.
-		 */
-		if (pem < 3)
-			return ((0x1 << PCI_RID_DOMAIN_SHIFT) | bsf);
-
-		if (pem < 6)
-			return ((0x3 << PCI_RID_DOMAIN_SHIFT) | bsf);
-
-		if (pem < 9)
-			return ((0x9 << PCI_RID_DOMAIN_SHIFT) | bsf);
-
-		if (pem < 12)
-			return ((0xB << PCI_RID_DOMAIN_SHIFT) | bsf);
-	}
-
-	return (0);
-}
-
 static uint32_t
 its_get_devbits_thunder(device_t dev)
 {
@@ -1673,28 +1679,15 @@ its_get_devbits(device_t dev)
 	return (its_get_devbits_default(dev));
 }
 
-static __inline uint32_t
-its_get_devid_default(device_t pci_dev)
-{
-
-	return (PCI_DEVID_GENERIC(pci_dev));
-}
-
 static uint32_t
 its_get_devid(device_t pci_dev)
 {
-	const struct its_quirks *quirk;
-	size_t i;
+	uintptr_t id;
 
-	for (i = 0; i < nitems(its_quirks); i++) {
-		quirk = &its_quirks[i];
-		if (CPU_MATCH_RAW(quirk->cpuid_mask, quirk->cpuid)) {
-			if (quirk->devid_func != NULL)
-				return ((*quirk->devid_func)(pci_dev));
-		}
-	}
+	if (pci_get_id(pci_dev, PCI_ID_MSI, &id) != 0)
+		panic("its_get_devid: Unable to get the MSI DeviceID");
 
-	return (its_get_devid_default(pci_dev));
+	return (id);
 }
 
 /*
@@ -1735,6 +1728,18 @@ gic_v3_its_alloc_msix(device_t dev, device_t pci_dev, int *irq)
 }
 
 int
+gic_v3_its_release_msix(device_t dev, device_t pci_dev, int irq __unused)
+{
+
+	struct gic_v3_its_softc *sc;
+
+	sc = device_get_softc(dev);
+	its_device_free(sc, pci_dev, 1);
+
+	return (0);
+}
+
+int
 gic_v3_its_alloc_msi(device_t dev, device_t pci_dev, int count, int *irqs)
 {
 	struct gic_v3_its_softc *sc;
@@ -1753,6 +1758,18 @@ gic_v3_its_alloc_msi(device_t dev, device_t pci_dev, int count, int *irqs)
 		irqs++;
 	}
 	mtx_unlock_spin(&sc->its_dev_lock);
+
+	return (0);
+}
+
+int
+gic_v3_its_release_msi(device_t dev, device_t pci_dev, int count,
+    int *irqs __unused)
+{
+	struct gic_v3_its_softc *sc;
+
+	sc = device_get_softc(dev);
+	its_device_free(sc, pci_dev, count);
 
 	return (0);
 }

@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Machine dependant functions for kernel setup
+ * Machine dependent functions for kernel setup
  *
  * Created      : 17/09/94
  * Updated	: 18/04/01 updated for new wscons
@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/ctype.h>
+#include <sys/devmap.h>
 #include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -100,7 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuinfo.h>
 #include <machine/debug_monitor.h>
 #include <machine/db_machdep.h>
-#include <machine/devmap.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
@@ -242,6 +242,10 @@ char atags[LBABI_MAX_COMMAND_LINE * 2];
 uint32_t memstart[LBABI_MAX_BANKS];
 uint32_t memsize[LBABI_MAX_BANKS];
 uint32_t membanks;
+#endif
+#ifdef MULTIDELAY
+static delay_func *delay_impl;
+static void *delay_arg;
 #endif
 
 static uint32_t board_revision;
@@ -455,7 +459,7 @@ cpu_startup(void *dummy)
 	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count) / mbyte);
 	if (bootverbose) {
 		arm_physmem_print_tables();
-		arm_devmap_print_table();
+		devmap_print_table();
 	}
 
 	bufinit();
@@ -549,6 +553,24 @@ arm_generic_initclocks(void)
 #endif
 }
 __weak_reference(arm_generic_initclocks, cpu_initclocks);
+
+#ifdef MULTIDELAY
+void
+arm_set_delay(delay_func *impl, void *arg)
+{
+
+	KASSERT(impl != NULL, ("No DELAY implementation"));
+	delay_impl = impl;
+	delay_arg = arg;
+}
+
+void
+DELAY(int usec)
+{
+
+	delay_impl(usec, delay_arg);
+}
+#endif
 
 int
 fill_regs(struct thread *td, struct reg *regs)
@@ -1692,7 +1714,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Establish static device mappings. */
 	err_devmap = platform_devmap_init();
-	arm_devmap_bootstrap(l1pagetable, NULL);
+	devmap_bootstrap(l1pagetable, NULL);
 	vm_max_kernel_address = platform_lastaddr();
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
@@ -1913,7 +1935,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Establish static device mappings. */
 	err_devmap = platform_devmap_init();
-	arm_devmap_bootstrap(0, NULL);
+	devmap_bootstrap(0, NULL);
 	vm_max_kernel_address = platform_lastaddr();
 
 	/*

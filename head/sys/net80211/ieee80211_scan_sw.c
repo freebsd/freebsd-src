@@ -80,23 +80,6 @@ struct scan_state {
  */
 #define	IEEE80211_SCAN_OFFCHANNEL	msecs_to_ticks(150)
 
-/*
- * Roaming-related defaults.  RSSI thresholds are as returned by the
- * driver (.5dBm).  Transmit rate thresholds are IEEE rate codes (i.e
- * .5M units) or MCS.
- */
-/* rssi thresholds */
-#define	ROAM_RSSI_11A_DEFAULT		14	/* 11a bss */
-#define	ROAM_RSSI_11B_DEFAULT		14	/* 11b bss */
-#define	ROAM_RSSI_11BONLY_DEFAULT	14	/* 11b-only bss */
-/* transmit rate thresholds */
-#define	ROAM_RATE_11A_DEFAULT		2*12	/* 11a bss */
-#define	ROAM_RATE_11B_DEFAULT		2*5	/* 11b bss */
-#define	ROAM_RATE_11BONLY_DEFAULT	2*1	/* 11b-only bss */
-#define	ROAM_RATE_HALF_DEFAULT		2*6	/* half-width 11a/g bss */
-#define	ROAM_RATE_QUARTER_DEFAULT	2*3	/* quarter-width 11a/g bss */
-#define	ROAM_MCS_11N_DEFAULT		(1 | IEEE80211_RATE_MCS) /* 11n bss */
-
 static	void scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static	void scan_mindwell(struct ieee80211_scan_state *);
 static	void scan_signal(struct ieee80211_scan_state *, int);
@@ -771,7 +754,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	/* XXX scan state can change! Re-validate scan state! */
 
 	/*
-	 * Since a cancellation may have occured during one of the
+	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
 	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
@@ -818,7 +801,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 		    "[ticks %u, dwell min %lu scanend %lu]\n",
 		    __func__,
 		    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
-		ss->ss_next = 0;	/* reset to begining */
+		ss->ss_next = 0;	/* reset to beginning */
 		if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 			vap->iv_stats.is_scan_active++;
 		else
@@ -840,7 +823,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
 
 	/*
-	 * Since a cancellation may have occured during one of the
+	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
 	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {

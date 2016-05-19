@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,8 @@
 
 /*
  *  Copyright (c) 2000-2015 LSI Corporation.
- *  Copyright (c) 2013-2015 Avago Technologies
+ *  Copyright (c) 2013-2016 Avago Technologies
+ *  All rights reserved.
  *
  *
  *           Name:  mpi2.h
@@ -43,7 +44,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.33
+ *  mpi2.h Version:  02.00.42
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -125,6 +126,22 @@
  *  04-17-13  02.00.31  Bumped MPI2_HEADER_VERSION_UNIT.
  *  08-19-13  02.00.32  Bumped MPI2_HEADER_VERSION_UNIT.
  *  12-05-13  02.00.33  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  01-08-14  02.00.34  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  06-13-14  02.00.35  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-18-14  02.00.36  Updated copyright information.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT.
+ *  03-16-15  02.00.37  Updated for MPI v2.6.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added Scratchpad registers to
+ *                      MPI2_SYSTEM_INTERFACE_REGS.
+ *                      Added MPI2_DIAG_SBR_RELOAD.
+ *                      Added MPI2_IOCSTATUS_INSUFFICIENT_POWER.
+ *  03-19-15  02.00.38  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  05-25-15  02.00.39  Bumped MPI2_HEADER_VERSION_UNIT
+ *  08-25-15  02.00.40  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added V7 HostDiagnostic register defines
+ *  12-15-15  02.00.41  Bumped MPI_HEADER_VERSION_UNIT
+ *  01-01-16  02.00.42  Bumped MPI_HEADER_VERSION_UNIT
  *  --------------------------------------------------------------------------
  */
 
@@ -160,8 +177,15 @@
 #define MPI2_VERSION_02_05                  (0x0205)
 
 
+/* minor version for MPI v2.6 compatible products */
+#define MPI26_VERSION_MINOR                 (0x06)
+#define MPI26_VERSION ((MPI2_VERSION_MAJOR << MPI2_VERSION_MAJOR_SHIFT) |   \
+                                      MPI26_VERSION_MINOR)
+#define MPI2_VERSION_02_06                  (0x0206)
+
+
 /* Unit and Dev versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x21)
+#define MPI2_HEADER_VERSION_UNIT            (0x2A)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -217,7 +241,8 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
     U32         HCBSize;                    /* 0x74 */
     U32         HCBAddressLow;              /* 0x78 */
     U32         HCBAddressHigh;             /* 0x7C */
-    U32         Reserved6[16];              /* 0x80 */
+    U32         Reserved6[12];              /* 0x80 */
+    U32         Scratchpad[4];              /* 0xB0 */
     U32         RequestDescriptorPostLow;   /* 0xC0 */
     U32         RequestDescriptorPostHigh;  /* 0xC4 */
     U32         Reserved7[14];              /* 0xC8 */
@@ -261,10 +286,17 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
  */
 #define MPI2_HOST_DIAGNOSTIC_OFFSET             (0x00000008)
 
+#define MPI2_DIAG_SBR_RELOAD                    (0x00002000)
+
 #define MPI2_DIAG_BOOT_DEVICE_SELECT_MASK       (0x00001800)
 #define MPI2_DIAG_BOOT_DEVICE_SELECT_DEFAULT    (0x00000000)
 #define MPI2_DIAG_BOOT_DEVICE_SELECT_HCDW       (0x00000800)
 
+/* Defines for V7A/V7R HostDiagnostic Register */
+#define MPI26_DIAG_BOOT_DEVICE_SELECT_FLASH64    (0x00000000)
+#define MPI26_DIAG_BOOT_DEVICE_SELECT_HCDW64     (0x00000800)
+#define MPI26_DIAG_BOOT_DEVICE_SELECT_FLASH32    (0x00001000)
+#define MPI26_DIAG_BOOT_DEVICE_SELECT_HCDW32     (0x00001800)
 #define MPI2_DIAG_CLEAR_FLASH_BAD_SIG           (0x00000400)
 #define MPI2_DIAG_FORCE_HCB_ON_RESET            (0x00000200)
 #define MPI2_DIAG_HCB_MODE                      (0x00000100)
@@ -335,7 +367,15 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
 #define MPI2_HCB_ADDRESS_HIGH_OFFSET            (0x0000007C)
 
 /*
- * Offsets for the Request Queue
+ * Offsets for the Scratchpad registers
+ */
+#define MPI26_SCRATCHPAD0_OFFSET                (0x000000B0)
+#define MPI26_SCRATCHPAD1_OFFSET                (0x000000B4)
+#define MPI26_SCRATCHPAD2_OFFSET                (0x000000B8)
+#define MPI26_SCRATCHPAD3_OFFSET                (0x000000BC)
+
+/*
+ * Offsets for the Request Descriptor Post Queue
  */
 #define MPI2_REQUEST_DESCRIPTOR_POST_LOW_OFFSET     (0x000000C0)
 #define MPI2_REQUEST_DESCRIPTOR_POST_HIGH_OFFSET    (0x000000C4)
@@ -367,7 +407,8 @@ typedef struct _MPI2_DEFAULT_REQUEST_DESCRIPTOR
   Mpi2DefaultRequestDescriptor_t, MPI2_POINTER pMpi2DefaultRequestDescriptor_t;
 
 /* defines for the RequestFlags field */
-#define MPI2_REQ_DESCRIPT_FLAGS_TYPE_MASK               (0x0E)
+#define MPI2_REQ_DESCRIPT_FLAGS_TYPE_MASK               (0x1E)
+#define MPI2_REQ_DESCRIPT_FLAGS_TYPE_RSHIFT             (1)    /* use carefully; values below are pre-shifted left */
 #define MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO                 (0x00)
 #define MPI2_REQ_DESCRIPT_FLAGS_SCSI_TARGET             (0x02)
 #define MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY           (0x06)
@@ -453,6 +494,10 @@ typedef union _MPI2_REQUEST_DESCRIPTOR_UNION
     U64                                         Words;
 } MPI2_REQUEST_DESCRIPTOR_UNION, MPI2_POINTER PTR_MPI2_REQUEST_DESCRIPTOR_UNION,
   Mpi2RequestDescriptorUnion_t, MPI2_POINTER pMpi2RequestDescriptorUnion_t;
+
+
+
+/* for the RequestFlags field, use the same defines as MPI2_DEFAULT_REQUEST_DESCRIPTOR */
 
 
 /* Reply Descriptors */
@@ -603,7 +648,8 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 #define MPI2_FUNCTION_TOOLBOX                       (0x17) /* Toolbox */
 #define MPI2_FUNCTION_SCSI_ENCLOSURE_PROCESSOR      (0x18) /* SCSI Enclosure Processor */
 #define MPI2_FUNCTION_SMP_PASSTHROUGH               (0x1A) /* SMP Passthrough */
-#define MPI2_FUNCTION_SAS_IO_UNIT_CONTROL           (0x1B) /* SAS IO Unit Control */
+#define MPI2_FUNCTION_SAS_IO_UNIT_CONTROL           (0x1B) /* SAS IO Unit Control */ /* for MPI v2.5 and earlier */
+#define MPI2_FUNCTION_IO_UNIT_CONTROL               (0x1B) /* IO Unit Control */     /* for MPI v2.6 and later */
 #define MPI2_FUNCTION_SATA_PASSTHROUGH              (0x1C) /* SATA Passthrough */
 #define MPI2_FUNCTION_DIAG_BUFFER_POST              (0x1D) /* Diagnostic Buffer Post */
 #define MPI2_FUNCTION_DIAG_RELEASE                  (0x1E) /* Diagnostic Release */
@@ -646,6 +692,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 #define MPI2_IOCSTATUS_INVALID_FIELD                (0x0007)
 #define MPI2_IOCSTATUS_INVALID_STATE                (0x0008)
 #define MPI2_IOCSTATUS_OP_STATE_NOT_SUPPORTED       (0x0009)
+#define MPI2_IOCSTATUS_INSUFFICIENT_POWER           (0x000A) /* MPI v2.6 and later */
 
 /****************************************************************************
 *  Config IOCStatus values
@@ -1123,7 +1170,7 @@ typedef union _MPI2_IEEE_SGE_CHAIN_UNION
 } MPI2_IEEE_SGE_CHAIN_UNION, MPI2_POINTER PTR_MPI2_IEEE_SGE_CHAIN_UNION,
   Mpi2IeeeSgeChainUnion_t, MPI2_POINTER pMpi2IeeeSgeChainUnion_t;
 
-/* MPI25_IEEE_SGE_CHAIN64 is for MPI v2.5 products only */
+/* MPI25_IEEE_SGE_CHAIN64 is for MPI v2.5 and later */
 typedef struct _MPI25_IEEE_SGE_CHAIN64
 {
     U64                     Address;
@@ -1181,15 +1228,22 @@ typedef union _MPI25_SGE_IO_UNION
 #define MPI2_IEEE_SGE_FLAGS_SIMPLE_ELEMENT      (0x00)
 #define MPI2_IEEE_SGE_FLAGS_CHAIN_ELEMENT       (0x80)
 
+/* Next Segment Format */
+
+#define MPI26_IEEE_SGE_FLAGS_NSF_MASK           (0x1C)
+#define MPI26_IEEE_SGE_FLAGS_NSF_MPI_IEEE       (0x00)
+
 /* Data Location Address Space */
 
 #define MPI2_IEEE_SGE_FLAGS_ADDR_MASK           (0x03)
-#define MPI2_IEEE_SGE_FLAGS_SYSTEM_ADDR         (0x00) /* for MPI v2.0, use in IEEE Simple Element only; for MPI v2.5, use in IEEE Simple or Chain element */
+#define MPI2_IEEE_SGE_FLAGS_SYSTEM_ADDR         (0x00) /* for MPI v2.0, use in IEEE Simple Element only; for MPI v2.5 and later, use in IEEE Simple or Chain element */
 #define MPI2_IEEE_SGE_FLAGS_IOCDDR_ADDR         (0x01) /* use in IEEE Simple Element only */
 #define MPI2_IEEE_SGE_FLAGS_IOCPLB_ADDR         (0x02)
 #define MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR      (0x03) /* for MPI v2.0, use in IEEE Simple Element only; for MPI v2.5, use in IEEE Simple or Chain element */
 #define MPI2_IEEE_SGE_FLAGS_SYSTEMPLBPCI_ADDR   (0x03) /* use in MPI v2.0 IEEE Chain Element only */
 #define MPI2_IEEE_SGE_FLAGS_SYSTEMPLBCPI_ADDR   (MPI2_IEEE_SGE_FLAGS_SYSTEMPLBPCI_ADDR) /* typo in name */
+
+#define MPI26_IEEE_SGE_FLAGS_IOCCTL_ADDR        (0x02) /* for MPI v2.6 only */
 
 /****************************************************************************
 *  IEEE SGE operation Macros
@@ -1246,8 +1300,9 @@ typedef union _MPI2_SGE_IO_UNION
 #define MPI2_SGLFLAGS_ADDRESS_SPACE_MASK            (0x0C)
 #define MPI2_SGLFLAGS_SYSTEM_ADDRESS_SPACE          (0x00)
 #define MPI2_SGLFLAGS_IOCDDR_ADDRESS_SPACE          (0x04)
-#define MPI2_SGLFLAGS_IOCPLB_ADDRESS_SPACE          (0x08)
-#define MPI2_SGLFLAGS_IOCPLBNTA_ADDRESS_SPACE       (0x0C)
+#define MPI2_SGLFLAGS_IOCPLB_ADDRESS_SPACE          (0x08) /* only for MPI v2.5 and earlier */
+#define MPI26_SGLFLAGS_IOCPLB_ADDRESS_SPACE         (0x08) /* only for MPI v2.6 */
+#define MPI2_SGLFLAGS_IOCPLBNTA_ADDRESS_SPACE       (0x0C) /* only for MPI v2.5 and earlier */
 /* values for SGL Type subfield */
 #define MPI2_SGLFLAGS_SGL_TYPE_MASK                 (0x03)
 #define MPI2_SGLFLAGS_SGL_TYPE_MPI                  (0x00)

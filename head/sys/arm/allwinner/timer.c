@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/machdep.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -100,10 +101,11 @@ static int	a10_timer_timer_stop(struct eventtimer *);
 
 static uint64_t timer_read_counter64(void);
 
-static int a10_timer_initialized = 0;
 static int a10_timer_hardclock(void *);
 static int a10_timer_probe(device_t);
 static int a10_timer_attach(device_t);
+
+static delay_func a10_timer_delay;
 
 static struct timecounter a10_timer_timecounter = {
 	.tc_name           = "a10_timer timer0",
@@ -209,8 +211,10 @@ a10_timer_attach(device_t dev)
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
 
-	if (device_get_unit(dev) == 0)
+	if (device_get_unit(dev) == 0) {
+		arm_set_delay(a10_timer_delay, sc);
 		a10_timer_sc = sc;
+	}
 
 	a10_timer_timecounter.tc_frequency = sc->timer0_freq;
 	tc_init(&a10_timer_timecounter);
@@ -223,8 +227,6 @@ a10_timer_attach(device_t dev)
 		device_printf(sc->sc_dev, "timecounter clock frequency %lld\n", 
 		    a10_timer_timecounter.tc_frequency);
 	}
-
-	a10_timer_initialized = 1;
 
 	return (0);
 }
@@ -352,23 +354,15 @@ static devclass_t a10_timer_devclass;
 EARLY_DRIVER_MODULE(a10_timer, simplebus, a10_timer_driver, a10_timer_devclass, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
-void
-DELAY(int usec)
+static void
+a10_timer_delay(int usec, void *arg)
 {
-	uint32_t counter;
+	struct a10_timer_softc *sc = arg;
 	uint64_t end, now;
 
-	if (!a10_timer_initialized) {
-		for (; usec > 0; usec--)
-			for (counter = 50; counter > 0; counter--)
-				cpufunc_nullop();
-		return;
-	}
-
 	now = timer_read_counter64();
-	end = now + (a10_timer_sc->timer0_freq / 1000000) * (usec + 1);
+	end = now + (sc->timer0_freq / 1000000) * (usec + 1);
 
 	while (now < end)
 		now = timer_read_counter64();
 }
-

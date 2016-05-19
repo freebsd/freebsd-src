@@ -4,9 +4,6 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libpthread/dlopen
 
 .include <bsd.own.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/lib/libthr/dlopen
 
 CFLAGS+=	-DTESTDIR=\"${TESTSDIR:Q}/\"

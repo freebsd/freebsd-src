@@ -2221,7 +2221,7 @@ storm_memset_eq_prod(struct bxe_softc *sc,
 /*
  * Post a slowpath command.
  *
- * A slowpath command is used to propogate a configuration change through
+ * A slowpath command is used to propagate a configuration change through
  * the controller in a controlled manner, allowing each STORM processor and
  * other H/W blocks to phase in the change.  The commands sent on the
  * slowpath are referred to as ramrods.  Depending on the ramrod used the
@@ -2454,14 +2454,11 @@ bxe_sp_post(struct bxe_softc *sc,
 static int
 bxe_probe(device_t dev)
 {
-    struct bxe_softc *sc;
     struct bxe_device_type *t;
     char *descbuf;
     uint16_t did, sdid, svid, vid;
 
     /* Find our device structure */
-    sc = device_get_softc(dev);
-    sc->dev = dev;
     t = bxe_devs;
 
     /* Get the data for the device to be probed. */
@@ -2469,10 +2466,6 @@ bxe_probe(device_t dev)
     did  = pci_get_device(dev);
     svid = pci_get_subvendor(dev);
     sdid = pci_get_subdevice(dev);
-
-    BLOGD(sc, DBG_LOAD,
-          "%s(); VID = 0x%04X, DID = 0x%04X, SVID = 0x%04X, "
-          "SDID = 0x%04X\n", __FUNCTION__, vid, did, svid, sdid);
 
     /* Look through the list of known devices for a match. */
     while (t->bxe_name != NULL) {
@@ -4248,7 +4241,7 @@ bxe_nic_unload(struct bxe_softc *sc,
 
     /*
      * Nothing to do during unload if previous bxe_nic_load()
-     * did not completed succesfully - all resourses are released.
+     * did not completed successfully - all resourses are released.
      */
     if ((sc->state == BXE_STATE_CLOSED) ||
         (sc->state == BXE_STATE_ERROR)) {
@@ -4429,115 +4422,6 @@ bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
     }
 }
 
-static int
-bxe_ioctl_nvram(struct bxe_softc *sc,
-                uint32_t         priv_op,
-                struct ifreq     *ifr)
-{
-    struct bxe_nvram_data nvdata_base;
-    struct bxe_nvram_data *nvdata;
-    int len;
-    int error = 0;
-
-    copyin(ifr->ifr_data, &nvdata_base, sizeof(nvdata_base));
-
-    len = (sizeof(struct bxe_nvram_data) +
-           nvdata_base.len -
-           sizeof(uint32_t));
-
-    if (len > sizeof(struct bxe_nvram_data)) {
-        if ((nvdata = (struct bxe_nvram_data *)
-                 malloc(len, M_DEVBUF,
-                        (M_NOWAIT | M_ZERO))) == NULL) {
-            BLOGE(sc, "BXE_IOC_RD_NVRAM malloc failed priv_op 0x%x "
-                " len = 0x%x\n", priv_op, len);
-            return (1);
-        }
-        memcpy(nvdata, &nvdata_base, sizeof(struct bxe_nvram_data));
-    } else {
-        nvdata = &nvdata_base;
-    }
-
-    if (priv_op == BXE_IOC_RD_NVRAM) {
-        BLOGD(sc, DBG_IOCTL, "IOC_RD_NVRAM 0x%x %d\n",
-              nvdata->offset, nvdata->len);
-        error = bxe_nvram_read(sc,
-                               nvdata->offset,
-                               (uint8_t *)nvdata->value,
-                               nvdata->len);
-        copyout(nvdata, ifr->ifr_data, len);
-    } else { /* BXE_IOC_WR_NVRAM */
-        BLOGD(sc, DBG_IOCTL, "IOC_WR_NVRAM 0x%x %d\n",
-              nvdata->offset, nvdata->len);
-        copyin(ifr->ifr_data, nvdata, len);
-        error = bxe_nvram_write(sc,
-                                nvdata->offset,
-                                (uint8_t *)nvdata->value,
-                                nvdata->len);
-    }
-
-    if (len > sizeof(struct bxe_nvram_data)) {
-        free(nvdata, M_DEVBUF);
-    }
-
-    return (error);
-}
-
-static int
-bxe_ioctl_stats_show(struct bxe_softc *sc,
-                     uint32_t         priv_op,
-                     struct ifreq     *ifr)
-{
-    const size_t str_size   = (BXE_NUM_ETH_STATS * STAT_NAME_LEN);
-    const size_t stats_size = (BXE_NUM_ETH_STATS * sizeof(uint64_t));
-    caddr_t p_tmp;
-    uint32_t *offset;
-    int i;
-
-    switch (priv_op)
-    {
-    case BXE_IOC_STATS_SHOW_NUM:
-        memset(ifr->ifr_data, 0, sizeof(union bxe_stats_show_data));
-        ((union bxe_stats_show_data *)ifr->ifr_data)->desc.num =
-            BXE_NUM_ETH_STATS;
-        ((union bxe_stats_show_data *)ifr->ifr_data)->desc.len =
-            STAT_NAME_LEN;
-        return (0);
-
-    case BXE_IOC_STATS_SHOW_STR:
-        memset(ifr->ifr_data, 0, str_size);
-        p_tmp = ifr->ifr_data;
-        for (i = 0; i < BXE_NUM_ETH_STATS; i++) {
-            strcpy(p_tmp, bxe_eth_stats_arr[i].string);
-            p_tmp += STAT_NAME_LEN;
-        }
-        return (0);
-
-    case BXE_IOC_STATS_SHOW_CNT:
-        memset(ifr->ifr_data, 0, stats_size);
-        p_tmp = ifr->ifr_data;
-        for (i = 0; i < BXE_NUM_ETH_STATS; i++) {
-            offset = ((uint32_t *)&sc->eth_stats +
-                      bxe_eth_stats_arr[i].offset);
-            switch (bxe_eth_stats_arr[i].size) {
-            case 4:
-                *((uint64_t *)p_tmp) = (uint64_t)*offset;
-                break;
-            case 8:
-                *((uint64_t *)p_tmp) = HILO_U64(*offset, *(offset + 1));
-                break;
-            default:
-                *((uint64_t *)p_tmp) = 0;
-            }
-            p_tmp += sizeof(uint64_t);
-        }
-        return (0);
-
-    default:
-        return (-1);
-    }
-}
-
 static void
 bxe_handle_chip_tq(void *context,
                    int  pending)
@@ -4578,8 +4462,6 @@ bxe_ioctl(if_t ifp,
 {
     struct bxe_softc *sc = if_getsoftc(ifp);
     struct ifreq *ifr = (struct ifreq *)data;
-    struct bxe_nvram_data *nvdata;
-    uint32_t priv_op;
     int mask = 0;
     int reinit = 0;
     int error = 0;
@@ -4768,36 +4650,6 @@ bxe_ioctl(if_t ifp,
         error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
         break;
 
-    case SIOCGPRIVATE_0:
-        copyin(ifr->ifr_data, &priv_op, sizeof(priv_op));
-
-        switch (priv_op)
-        {
-        case BXE_IOC_RD_NVRAM:
-        case BXE_IOC_WR_NVRAM:
-            nvdata = (struct bxe_nvram_data *)ifr->ifr_data;
-            BLOGD(sc, DBG_IOCTL,
-                  "Received Private NVRAM ioctl addr=0x%x size=%u\n",
-                  nvdata->offset, nvdata->len);
-            error = bxe_ioctl_nvram(sc, priv_op, ifr);
-            break;
-
-        case BXE_IOC_STATS_SHOW_NUM:
-        case BXE_IOC_STATS_SHOW_STR:
-        case BXE_IOC_STATS_SHOW_CNT:
-            BLOGD(sc, DBG_IOCTL, "Received Private Stats ioctl (%d)\n",
-                  priv_op);
-            error = bxe_ioctl_stats_show(sc, priv_op, ifr);
-            break;
-
-        default:
-            BLOGW(sc, "Received Private Unknown ioctl (%d)\n", priv_op);
-            error = EINVAL;
-            break;
-        }
-
-        break;
-
     default:
         BLOGD(sc, DBG_IOCTL, "Received Unknown Ioctl (cmd=%lu)\n",
               (command & 0xff));
@@ -4903,7 +4755,7 @@ bxe_dump_mbuf(struct bxe_softc *sc,
  * Checks to ensure the 13 bd sliding window is >= MSS for TSO.
  * Check that (13 total bds - 3 bds) = 10 bd window >= MSS.
  * The window: 3 bds are = 1 for headers BD + 2 for parse BD and last BD
- * The headers comes in a seperate bd in FreeBSD so 13-3=10.
+ * The headers comes in a separate bd in FreeBSD so 13-3=10.
  * Returns: 0 if OK to send, 1 if packet needs further defragmentation
  */
 static int
@@ -8131,7 +7983,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
             mask1 = REG_RD(sc, PXP2_REG_PXP2_INT_MASK_1);
             val0 = REG_RD(sc, PXP2_REG_PXP2_INT_STS_0);
             /*
-             * If the olny PXP2_EOP_ERROR_BIT is set in
+             * If the only PXP2_EOP_ERROR_BIT is set in
              * STS0 and STS1 - clear it
              *
              * probably we lose additional attentions between
@@ -10768,7 +10620,7 @@ bxe_set_234_gates(struct bxe_softc *sc,
                (!close) ? (val | HC_CONFIG_0_REG_BLOCK_DISABLE_0) :
                (val & ~(uint32_t)HC_CONFIG_0_REG_BLOCK_DISABLE_0));
     } else {
-        /* Prevent incomming interrupts in IGU */
+        /* Prevent incoming interrupts in IGU */
         val = REG_RD(sc, IGU_REG_BLOCK_CONFIGURATION);
 
         REG_WR(sc, IGU_REG_BLOCK_CONFIGURATION,

@@ -304,8 +304,14 @@
 /* The number of minutes in a DST adjustment */
 #define DSTMINUTES 60
 
+/* support dynamic interleave? */
+#define DYNAMIC_INTERLEAVE 0
+
 /* number of args to el_init() */
 #define EL_INIT_ARGS 4
+
+/* Provide the explicit 127.0.0.0/8 martian filter? */
+#define ENABLE_BUG3020_FIX 1
 
 /* nls support in libopts */
 /* #undef ENABLE_NLS */
@@ -832,7 +838,7 @@
 /* Define to 1 if you have the <stdatomic.h> header file. */
 #define HAVE_STDATOMIC_H 1
 
-/* Define to 1 if you have the <stdbool.h> header file. */
+/* Define to 1 if stdbool.h conforms to C99. */
 #define HAVE_STDBOOL_H 1
 
 /* Define to 1 if you have the <stddef.h> header file. */
@@ -1203,6 +1209,9 @@
 /* define if select implicitly yields */
 #define HAVE_YIELDING_SELECT 1
 
+/* Define to 1 if the system has the type `_Bool'. */
+#define HAVE__BOOL 1
+
 /* Define to 1 if you have the `_exit' function. */
 #define HAVE__EXIT 1
 
@@ -1349,6 +1358,9 @@
    initialization. */
 /* #undef MISSING_C99_STRUCT_INIT */
 
+/* having to fork the DNS worker early when doing chroot? */
+/* #undef NEED_EARLY_FORK */
+
 /* Do we need HPUX adjtime() library support? */
 /* #undef NEED_HPUX_ADJTIME */
 
@@ -1437,7 +1449,7 @@
 #define PACKAGE_NAME "ntp"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ntp 4.2.8p6"
+#define PACKAGE_STRING "ntp 4.2.8p7"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "ntp"
@@ -1446,7 +1458,7 @@
 #define PACKAGE_URL "http://www.ntp.org./"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.2.8p6"
+#define PACKAGE_VERSION "4.2.8p7"
 
 /* data dir */
 #define PERLLIBDIR "/usr/local/share/ntp/lib"
@@ -1487,7 +1499,7 @@
 /* Do we want the SCO clock hacks? */
 /* #undef SCO5_CLOCK */
 
-/* The size of `char*', as computed by sizeof. */
+/* The size of `char *', as computed by sizeof. */
 #ifdef __LP64__
 #define SIZEOF_CHARP 8
 #else
@@ -1627,7 +1639,7 @@ typedef unsigned int	uintptr_t;
 /* #undef USE_UDP_SIGPOLL */
 
 /* Version number of package */
-#define VERSION "4.2.8p6"
+#define VERSION "4.2.8p7"
 
 /* vsnprintf expands "%m" to strerror(errno) */
 /* #undef VSNPRINTF_PERCENT_M */
@@ -1804,5 +1816,5 @@ typedef union mpinfou {
 /*
  * FreeBSD specific: Explicitly specify date/time for reproducible build.
  */
-#define	MKREPRO_DATE "Jan 21 2016"
-#define	MKREPRO_TIME "01:03:28"
+#define	MKREPRO_DATE "Apr 27 2016"
+#define	MKREPRO_TIME "05:53:49"

@@ -356,7 +356,7 @@
                     BSDI code removed. Will be restored later.
 
 1.70   12 July 1999 Roger Hardiman <roger@freebsd.org>
-                    Reorganise OS device dependant parts (based on a port to
+                    Reorganise OS device dependent parts (based on a port to
                     linux by Brad Parker).
                     Make the driver compile on FreeBSD 2.2.x systems again.
                     Change number of VBI lines from 16 to 12 for NTSC formats.
@@ -368,7 +368,7 @@
                     Matt Brown <matt@dqc.org> added MSP3430G DBX initialisation.
 
 1.71    30 Aug 1999 Roger Hardiman <roger@freebsd.org>
-                    Small cleanup of OS dependant code. Remove NPCI usage.
+                    Small cleanup of OS dependent code. Remove NPCI usage.
                     Fix bug in AVerMedia detection.
 		    Update VBI support for the AleVT Teletext package. Parts
                     from Juha Nurmela's driver <Juha.Nurmela@quicknet.inet.fi>

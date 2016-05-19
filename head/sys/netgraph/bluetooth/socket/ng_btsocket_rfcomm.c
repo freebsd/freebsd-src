@@ -1475,7 +1475,7 @@ ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 			s->state = NG_BTSOCKET_RFCOMM_SESSION_CONNECTED;
 
 			/*
-			 * Adjust MTU on incomming connection. Reserve 5 bytes:
+			 * Adjust MTU on incoming connection. Reserve 5 bytes:
 			 * RFCOMM frame header, one extra byte for length and 
 			 * one extra byte for credits.
 			 */
@@ -2881,7 +2881,7 @@ ng_btsocket_rfcomm_receive_pn(ng_btsocket_rfcomm_session_p s, struct mbuf *m0)
 
 		mtx_unlock(&pcb->pcb_mtx);
 	} else if (RFCOMM_CR(hdr->type)) {
-		/* PN request to non-existing dlci - incomming connection */
+		/* PN request to non-existing dlci - incoming connection */
 		pcb = ng_btsocket_rfcomm_connect_ind(s,
 				RFCOMM_SRVCHANNEL(pn->dlci));
 		if (pcb != NULL) {

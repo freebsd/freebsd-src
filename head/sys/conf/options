@@ -139,6 +139,7 @@ GEOM_VINUM	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
+IFLIB		opt_iflib.h
 KDTRACE_HOOKS	opt_global.h
 KDTRACE_FRAME	opt_kdtrace.h
 KN_HASHSIZE	opt_kqueue.h
@@ -177,6 +178,7 @@ NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
+PCI_HP		opt_pci.h
 PCI_IOV		opt_global.h
 PPC_DEBUG	opt_ppc.h
 PPC_PROBE_CHIPSET	opt_ppc.h
@@ -241,7 +243,6 @@ NANDFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
-REISERFS	opt_dontuse.h
 SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
@@ -590,7 +591,6 @@ MAXCPU			opt_global.h
 MAXMEMDOM		opt_global.h
 MAXPHYS			opt_global.h
 MCLSHIFT		opt_global.h
-MUTEX_DEBUG		opt_global.h
 MUTEX_NOINLINE		opt_global.h
 LOCK_PROFILING		opt_global.h
 LOCK_PROFILING_FAST	opt_global.h
@@ -619,6 +619,7 @@ DEBUG_MEMGUARD		opt_vm.h
 DEBUG_REDZONE		opt_vm.h
 
 # Standard SMP options
+EARLY_AP_STARTUP	opt_global.h
 SMP			opt_global.h
 
 # Size of the kernel message buffer
@@ -822,7 +823,7 @@ ATH_KTR_INTR_DEBUG	opt_ath.h
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
 # XXX For now, this breaks non-AR9130 chipsets, so only use it
-# XXX when actually targetting AR9130.
+# XXX when actually targeting AR9130.
 AH_SUPPORT_AR9130	opt_ah.h
 
 # This is required for AR933x SoC support
@@ -851,6 +852,13 @@ AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h
 BWI_DEBUG_VERBOSE	opt_bwi.h
+
+# options for the Brodacom BCM43xx driver (bwn)
+BWN_DEBUG		opt_bwn.h
+BWN_GPL_PHY		opt_bwn.h
+
+# Options for the SIBA driver
+SIBA_DEBUG		opt_siba.h
 
 # options for the Marvell 8335 wireless driver
 MALO_DEBUG		opt_malo.h
@@ -971,3 +979,6 @@ RANDOM_ENABLE_UMA	opt_global.h
 
 # Intel em(4) driver
 EM_MULTIQUEUE	opt_em.h
+
+# BHND(4) driver
+BHND_LOGLEVEL	opt_global.h

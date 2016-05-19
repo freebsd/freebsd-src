@@ -78,6 +78,7 @@ static device_method_t acpi_pcib_pci_methods[] = {
 
     /* Bus interface */
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
+    DEVMETHOD(bus_get_cpus,		acpi_pcib_get_cpus),
 
     /* pcib interface */
     DEVMETHOD(pcib_route_interrupt,	acpi_pcib_pci_route_interrupt),
@@ -120,7 +121,9 @@ acpi_pcib_pci_attach(device_t dev)
     pcib_attach_common(dev);
     sc = device_get_softc(dev);
     sc->ap_handle = acpi_get_handle(dev);
-    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_pcibsc.bus.sec));
+    acpi_pcib_fetch_prt(dev, &sc->ap_prt);
+
+    return (pcib_attach_child(dev));
 }
 
 static int

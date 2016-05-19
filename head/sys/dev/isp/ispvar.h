@@ -356,9 +356,9 @@ typedef struct {
  * index to put it into the Database, but that's just an optimization. We mark
  * the entry VALID and make sure that the target index is updated and correct.
  *
- * When we get done searching the local loop, we then search similarily for
+ * When we get done searching the local loop, we then search similarly for
  * a list of devices we've gotten from the fabric name controller (if we're
- * on a fabric). VALID marking is also done similarily.
+ * on a fabric). VALID marking is also done similarly.
  *
  * When all of this is done, we can march through the database and clean up
  * any entry that is still PROBATIONAL (these represent devices which have
@@ -380,9 +380,6 @@ typedef struct {
 	uint16_t	handle;
 
 	/*
-	 * A device is 'autologin' if the firmware automatically logs into
-	 * it (re-logins as needed). Basically, local private loop devices.
-	 *
 	 * PRLI word 3 parameters contains role as well as other things.
 	 *
 	 * The state is the current state of this entry.
@@ -396,8 +393,7 @@ typedef struct {
 	 */
 	uint16_t	prli_word3;		/* PRLI parameters */
 	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
-	uint16_t			: 11,
-			autologin	: 1,	/* F/W does PLOGI/PLOGO */
+	uint16_t			: 12,
 			probational	: 1,
 			state		: 3;
 	uint32_t			: 6,
@@ -1040,7 +1036,7 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
  *	XS_STSP(xs)		gets a pointer to the SCSI status byte ""
  *	XS_SNSP(xs)		gets a pointer to the associate sense data
  *	XS_TOT_SNSLEN(xs)	gets the total length of sense data storage
- *	XS_CUR_SNSLEN(xs)	gets the currently used lenght of sense data storage
+ *	XS_CUR_SNSLEN(xs)	gets the currently used length of sense data storage
  *	XS_SNSKEY(xs)		dereferences XS_SNSP to get the current stored Sense Key
  *	XS_SNSASC(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code
  *	XS_SNSASCQ(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code Qualifier
@@ -1147,7 +1143,8 @@ int isp_target_put_atio(ispsoftc_t *, void *);
  */
 int isp_endcmd(ispsoftc_t *, ...);
 #define	ECMD_SVALID	0x100
-#define	ECMD_TERMINATE	0x200
+#define	ECMD_RVALID	0x200
+#define	ECMD_TERMINATE	0x400
 
 /*
  * Handle an asynchronous event

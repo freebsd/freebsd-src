@@ -185,24 +185,33 @@ OSRELDATE=	0
 .endif
 
 # Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
-.if !defined(VERSION)
-REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
-BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
+.if !defined(_REVISION)
+_REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
+.export _REVISION
+.endif
+.if !defined(_BRANCH)
+_BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
+.export _BRANCH
+.endif
+.if !defined(SRCRELDATE)
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
-VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
+.export SRCRELDATE
+.endif
+.if !defined(VERSION)
+VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .export VERSION
 .endif
 
 .if !defined(PKG_VERSION)
-.if ${BRANCH:MSTABLE*} || ${BRANCH:MCURRENT*}
+.if ${_BRANCH:MSTABLE*} || ${_BRANCH:MCURRENT*}
 TIMENOW=	%Y%m%d%H%M%S
 EXTRA_REVISION=	.s${TIMENOW:gmtime}
 .endif
-.if ${BRANCH:M*-p*}
-EXTRA_REVISION=	_${BRANCH:C/.*-p([0-9]+$)/\1/}
+.if ${_BRANCH:M*-p*}
+EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
-PKG_VERSION=	${REVISION}${EXTRA_REVISION}
+PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 
 KNOWN_ARCHES?=	aarch64/arm64 \
@@ -210,14 +219,13 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		arm \
 		armeb/arm \
 		armv6/arm \
-		armv6hf/arm \
 		i386 \
 		i386/pc98 \
 		mips \
 		mipsel/mips \
 		mips64el/mips \
-		mips64/mips \
 		mipsn32el/mips \
+		mips64/mips \
 		mipsn32/mips \
 		powerpc \
 		powerpc64/powerpc \
@@ -452,7 +460,7 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${TARGET} == "arm"
-.if ${TARGET_ARCH:M*hf*} != ""
+.if ${TARGET_ARCH:Marmv6*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
 TARGET_ABI=	gnueabihf
 .else
 TARGET_ABI=	gnueabi
@@ -522,6 +530,11 @@ IMAKE_MTREE=	MTREE_CMD="mtree ${MTREEFLAGS}"
 # kernel stage
 KMAKEENV=	${WMAKEENV}
 KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
+.if ${MK_META_MODE} == "yes"
+# meta mode normally is disallowed when building from curdir==objdir, but we
+# want to allow it for the kernel build.
+KMAKE+=	.MAKE.MODE="${.MAKE.MODE} curdirOk=yes"
+.endif
 
 #
 # buildworld
@@ -660,7 +673,7 @@ _libraries:
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
 	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
-everything:
+everything: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.3: building everything"
@@ -679,7 +692,7 @@ WMAKE_TGTS+=	everything
 WMAKE_TGTS+=	build${libcompat}
 .endif
 
-buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
+buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
 .ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
 buildworld_prologue: .PHONY
@@ -717,8 +730,8 @@ buildenv: .PHONY
 	    || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:Neverything:Nbuild${libcompat}}
-toolchain: ${TOOLCHAIN_TGTS}
-kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
+toolchain: ${TOOLCHAIN_TGTS} .PHONY
+kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries} .PHONY
 
 #
 # installcheck
@@ -824,7 +837,7 @@ DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,:S,tests,,}
 
 MTREE_MAGIC?=	mtree 2.0
 
-distributeworld installworld stageworld: _installcheck_world
+distributeworld installworld stageworld: _installcheck_world .PHONY
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
@@ -909,7 +922,7 @@ distributeworld installworld stageworld: _installcheck_world
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
-	@# a line containing only the filename will sort immediatly before
+	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	find ./${dist} | sort -u ${METALOG} - | \
@@ -919,7 +932,7 @@ distributeworld installworld stageworld: _installcheck_world
 .for dist in ${DEBUG_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
-	@# a line containing only the filename will sort immediatly before
+	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	find ./${dist}/usr/lib/debug | sort -u ${METALOG} - | \
@@ -962,12 +975,19 @@ packageworld: .PHONY
 # and do a 'make reinstall' on the *client* to install new binaries from the
 # most recent server build.
 #
-reinstall: .MAKE .PHONY
+restage reinstall: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
 	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy
+.if make(restage)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making distribution"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} distribution
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything"
@@ -975,21 +995,6 @@ reinstall: .MAKE .PHONY
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
 .if defined(LIBCOMPAT)
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install${libcompat}
-.endif
-
-restage: .MAKE .PHONY
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making hierarchy"
-	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
-	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy distribution
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing everything"
-	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
 redistribute: .MAKE .PHONY
@@ -1119,6 +1124,8 @@ buildkernel: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 .endfor
 
+NO_INSTALLEXTRAKERNELS?=	yes
+
 #
 # installkernel, etc.
 #
@@ -1138,7 +1145,7 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${_kernel}"
@@ -1169,7 +1176,7 @@ distributekernel distributekernel.debug: .PHONY
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if defined(NO_ROOT)
 	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
@@ -1200,7 +1207,7 @@ packagekernel: .PHONY
 	    tar cvf - --include '*/*/*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --exclude '*.debug' \
@@ -1221,7 +1228,7 @@ packagekernel: .PHONY
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --exclude '*.debug' . | \
@@ -1257,7 +1264,7 @@ packages: .PHONY
 
 package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
-	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${REVISION} \
+	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
 		PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} WSTAGEDIR=${WSTAGEDIR} \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
 
@@ -1331,7 +1338,7 @@ create-kernel-packages:	_pkgbootstrap .PHONY
 		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
 .for flavor in "" -debug

@@ -309,6 +309,7 @@ g_eli_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_GETATTR:
 	case BIO_FLUSH:
+	case BIO_ZONE:
 		break;
 	case BIO_DELETE:
 		/*
@@ -348,6 +349,7 @@ g_eli_start(struct bio *bp)
 	case BIO_GETATTR:
 	case BIO_FLUSH:
 	case BIO_DELETE:
+	case BIO_ZONE:
 		cbp->bio_done = g_std_done;
 		cp = LIST_FIRST(&sc->sc_geom->consumer);
 		cbp->bio_to = cp->provider;
@@ -479,7 +481,9 @@ g_eli_worker(void *arg)
 
 	wr = arg;
 	sc = wr->w_softc;
-#ifdef SMP
+#ifdef EARLY_AP_STARTUP
+	MPASS(!sc->sc_cpubind || smp_started);
+#elif defined(SMP)
 	/* Before sched_bind() to a CPU, wait for all CPUs to go on-line. */
 	if (sc->sc_cpubind) {
 		while (!smp_started)

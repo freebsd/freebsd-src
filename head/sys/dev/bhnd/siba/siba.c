@@ -55,15 +55,13 @@ int
 siba_attach(device_t dev)
 {
 	struct siba_devinfo	*dinfo;
+	struct siba_softc	*sc;
 	device_t		*devs;
 	int			 ndevs;
 	int			 error;
-
-	// TODO: We need to set the initiator timeout for the
-	// core that will be issuing requests to non-memory locations.
-	//
-	// In the case of a bridged device, this is the hostb core.
-	// On a non-bridged device, this will be the CPU.
+	
+	sc = device_get_softc(dev);
+	sc->dev = dev;
 
 	/* Fetch references to the siba SIBA_CFG* blocks for all
 	 * registered devices */
@@ -144,6 +142,18 @@ siba_detach(device_t dev)
 	return (bhnd_generic_detach(dev));
 }
 
+int
+siba_resume(device_t dev)
+{
+	return (bhnd_generic_resume(dev));
+}
+
+int
+siba_suspend(device_t dev)
+{
+	return (bhnd_generic_suspend(dev));
+}
+
 static int
 siba_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
@@ -214,6 +224,15 @@ siba_get_resource_list(device_t dev, device_t child)
 {
 	struct siba_devinfo *dinfo = device_get_ivars(child);
 	return (&dinfo->resources);
+}
+
+static device_t
+siba_find_hostb_device(device_t dev)
+{
+	struct siba_softc *sc = device_get_softc(dev);
+
+	/* This is set (or not) by the concrete siba driver subclass. */
+	return (sc->hostb_dev);
 }
 
 static int
@@ -420,7 +439,7 @@ siba_register_addrspaces(device_t dev, struct siba_devinfo *di,
 
 	/* Region numbers must be assigned in order, but our siba address
 	 * space IDs may be sparsely allocated; thus, we track
-	 * the region index seperately. */
+	 * the region index separately. */
 	region_num = 0;
 
 	/* Register the device address space entries */
@@ -654,6 +673,8 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(device_probe,			siba_probe),
 	DEVMETHOD(device_attach,		siba_attach),
 	DEVMETHOD(device_detach,		siba_detach),
+	DEVMETHOD(device_resume,		siba_resume),
+	DEVMETHOD(device_suspend,		siba_suspend),
 	
 	/* Bus interface */
 	DEVMETHOD(bus_child_deleted,		siba_child_deleted),
@@ -662,6 +683,7 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(bus_get_resource_list,	siba_get_resource_list),
 
 	/* BHND interface */
+	DEVMETHOD(bhnd_bus_find_hostb_device,	siba_find_hostb_device),
 	DEVMETHOD(bhnd_bus_reset_core,		siba_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	siba_suspend_core),
 	DEVMETHOD(bhnd_bus_get_port_count,	siba_get_port_count),

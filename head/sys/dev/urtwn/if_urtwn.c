@@ -356,6 +356,8 @@ static void		urtwn_update_slot(struct ieee80211com *);
 static void		urtwn_update_slot_cb(struct urtwn_softc *,
 			    union sec_param *);
 static void		urtwn_update_aifs(struct urtwn_softc *, uint8_t);
+static uint8_t		urtwn_get_multi_pos(const uint8_t[]);
+static void		urtwn_set_multi(struct urtwn_softc *);
 static void		urtwn_set_promisc(struct urtwn_softc *);
 static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
@@ -490,7 +492,7 @@ urtwn_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct urtwn_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	int error;
 
 	device_set_usb_desc(self);
@@ -1944,6 +1946,32 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 	return (0);
 }
 
+static __inline uint8_t
+rate2ridx(uint8_t rate)
+{
+	if (rate & IEEE80211_RATE_MCS) {
+		/* 11n rates start at idx 12 */
+		return ((rate & 0xf) + 12);
+	}
+	switch (rate) {
+	/* 11g */
+	case 12:	return 4;
+	case 18:	return 5;
+	case 24:	return 6;
+	case 36:	return 7;
+	case 48:	return 8;
+	case 72:	return 9;
+	case 96:	return 10;
+	case 108:	return 11;
+	/* 11b */
+	case 2:		return 0;
+	case 4:		return 1;
+	case 11:	return 2;
+	case 22:	return 3;
+	default:	return URTWN_RIDX_UNKNOWN;
+	}
+}
+
 /*
  * Initialize rate adaptation in firmware.
  */
@@ -1956,8 +1984,8 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	struct ieee80211_rateset *rs, *rs_ht;
 	struct r92c_fw_cmd_macid_cfg cmd;
 	uint32_t rates, basicrates;
-	uint8_t mode;
-	int maxrate, maxbasicrate, error, i, j;
+	uint8_t mode, ridx;
+	int maxrate, maxbasicrate, error, i;
 
 	ni = ieee80211_ref_node(vap->iv_bss);
 	rs = &ni->ni_rates;
@@ -1970,19 +1998,16 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	/* This is for 11bg */
 	for (i = 0; i < rs->rs_nrates; i++) {
 		/* Convert 802.11 rate to HW rate index. */
-		for (j = 0; j < nitems(ridx2rate); j++)
-			if ((rs->rs_rates[i] & IEEE80211_RATE_VAL) ==
-			    ridx2rate[j])
-				break;
-		if (j == nitems(ridx2rate))	/* Unknown rate, skip. */
+		ridx = rate2ridx(IEEE80211_RV(rs->rs_rates[i]));
+		if (ridx == URTWN_RIDX_UNKNOWN)	/* Unknown rate, skip. */
 			continue;
-		rates |= 1 << j;
-		if (j > maxrate)
-			maxrate = j;
+		rates |= 1 << ridx;
+		if (ridx > maxrate)
+			maxrate = ridx;
 		if (rs->rs_rates[i] & IEEE80211_RATE_BASIC) {
-			basicrates |= 1 << j;
-			if (j > maxbasicrate)
-				maxbasicrate = j;
+			basicrates |= 1 << ridx;
+			if (ridx > maxbasicrate)
+				maxbasicrate = ridx;
 		}
 	}
 
@@ -1992,12 +2017,12 @@ urtwn_ra_init(struct urtwn_softc *sc)
 			if ((rs_ht->rs_rates[i] & 0x7f) > 0xf)
 				continue;
 			/* 11n rates start at index 12 */
-			j = ((rs_ht->rs_rates[i]) & 0xf) + 12;
-			rates |= (1 << j);
+			ridx = ((rs_ht->rs_rates[i]) & 0xf) + 12;
+			rates |= (1 << ridx);
 
 			/* Guard against the rate table being oddly ordered */
-			if (j > maxrate)
-				maxrate = j;
+			if (ridx > maxrate)
+				maxrate = ridx;
 		}
 	}
 
@@ -2800,32 +2825,6 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 		rssi = ((le32toh(phy->phydw1) >> 1) & 0x7f) - 110;
 	}
 	return (rssi);
-}
-
-static __inline uint8_t
-rate2ridx(uint8_t rate)
-{
-	if (rate & IEEE80211_RATE_MCS) {
-		/* 11n rates start at idx 12 */
-		return ((rate & 0xf) + 12);
-	}
-	switch (rate) {
-	/* 11g */
-	case 12:	return 4;
-	case 18:	return 5;
-	case 24:	return 6;
-	case 36:	return 7;
-	case 48:	return 8;
-	case 72:	return 9;
-	case 96:	return 10;
-	case 108:	return 11;
-	/* 11b */
-	case 2:		return 0;
-	case 4:		return 1;
-	case 11:	return 2;
-	case 22:	return 3;
-	default:	return 0;
-	}
 }
 
 static int
@@ -4362,9 +4361,8 @@ urtwn_rxfilter_init(struct urtwn_softc *sc)
 
 	URTWN_ASSERT_LOCKED(sc);
 
-	/* Accept all multicast frames. */
-	urtwn_write_4(sc, R92C_MAR + 0, 0xffffffff);
-	urtwn_write_4(sc, R92C_MAR + 4, 0xffffffff);
+	/* Setup multicast filter. */
+	urtwn_set_multi(sc);
 
 	/* Filter for management frames. */
 	filter = 0x7f3f;
@@ -4825,6 +4823,67 @@ urtwn_update_aifs(struct urtwn_softc *sc, uint8_t slottime)
         }
 }
 
+static uint8_t
+urtwn_get_multi_pos(const uint8_t maddr[])
+{
+	uint64_t mask = 0x00004d101df481b4;
+	uint8_t pos = 0x27;	/* initial value */
+	int i, j;
+
+	for (i = 0; i < IEEE80211_ADDR_LEN; i++)
+		for (j = (i == 0) ? 1 : 0; j < 8; j++)
+			if ((maddr[i] >> j) & 1)
+				pos ^= (mask >> (i * 8 + j - 1));
+
+	pos &= 0x3f;
+
+	return (pos);
+}
+
+static void
+urtwn_set_multi(struct urtwn_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t mfilt[2];
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	/* general structure was copied from ath(4). */
+	if (ic->ic_allmulti == 0) {
+		struct ieee80211vap *vap;
+		struct ifnet *ifp;
+		struct ifmultiaddr *ifma;
+
+		/*
+		 * Merge multicast addresses to form the hardware filter.
+		 */
+		mfilt[0] = mfilt[1] = 0;
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+			ifp = vap->iv_ifp;
+			if_maddr_rlock(ifp);
+			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+				caddr_t dl;
+				uint8_t pos;
+
+				dl = LLADDR((struct sockaddr_dl *)
+				    ifma->ifma_addr);
+				pos = urtwn_get_multi_pos(dl);
+
+				mfilt[pos / 32] |= (1 << (pos % 32));
+			}
+			if_maddr_runlock(ifp);
+		}
+	} else
+		mfilt[0] = mfilt[1] = ~0;
+
+
+	urtwn_write_4(sc, R92C_MAR + 0, mfilt[0]);
+	urtwn_write_4(sc, R92C_MAR + 4, mfilt[1]);
+
+	URTWN_DPRINTF(sc, URTWN_DEBUG_STATE, "%s: MC filter %08x:%08x\n",
+	     __func__, mfilt[0], mfilt[1]);
+}
+
 static void
 urtwn_set_promisc(struct urtwn_softc *sc)
 {
@@ -4880,7 +4939,12 @@ urtwn_update_promisc(struct ieee80211com *ic)
 static void
 urtwn_update_mcast(struct ieee80211com *ic)
 {
-	/* XXX do nothing?  */
+	struct urtwn_softc *sc = ic->ic_softc;
+
+	URTWN_LOCK(sc);
+	if (sc->sc_flags & URTWN_RUNNING)
+		urtwn_set_multi(sc);
+	URTWN_UNLOCK(sc);
 }
 
 static struct ieee80211_node *

@@ -1363,7 +1363,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		 * and status, don't do it again and do the status portion now.
 		 */
 		if (atp->sendst) {
-			isp_prt(isp, ISP_LOGTINFO, "[0x%x] now sending synthesized status orig_dl=%u xfered=%u bit=%u",
+			isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] now sending synthesized status orig_dl=%u xfered=%u bit=%u",
 			    cso->tag_id, atp->orig_datalen, atp->bytes_xfered, atp->bytes_in_transit);
 			xfrlen = 0;	/* we already did the data transfer */
 			atp->sendst = 0;
@@ -2055,7 +2055,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 			 * It's a bit tricky here as we need to stash this command *somewhere*.
 			 */
 			GET_NANOTIME(&now);
-			if (NANOTIME_SUB(&isp->isp_init_time, &now) > 2000000000ULL) {
+			if (NANOTIME_SUB(&now, &isp->isp_init_time) > 2000000000ULL) {
 				isp_prt(isp, ISP_LOGWARN, "%s: [RX_ID 0x%x] D_ID %x not found on any channel- dropping", __func__, aep->at_rxid, did);
 				isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN, ECMD_TERMINATE, 0);
 				return;
@@ -2103,7 +2103,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 			    "%s: [0x%x] no state pointer for lun %jx or wildcard",
 			    __func__, aep->at_rxid, (uintmax_t)lun);
 			if (lun == 0) {
-				isp_endcmd(isp, aep, nphdl, SCSI_STATUS_BUSY, 0);
+				isp_endcmd(isp, aep, nphdl, chan, SCSI_STATUS_BUSY, 0);
 			} else {
 				isp_endcmd(isp, aep, nphdl, chan, SCSI_STATUS_CHECK_COND | ECMD_SVALID | (0x5 << 12) | (0x25 << 16), 0);
 			}

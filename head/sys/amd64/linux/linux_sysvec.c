@@ -346,7 +346,7 @@ linux_copyout_strings(struct image_params *imgp)
 	destp =	(caddr_t)arginfo - SPARE_USRSPACE -
 	    roundup(sizeof(canary), sizeof(char *)) -
 	    roundup(execpath_len, sizeof(char *)) -
-	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
+	    roundup(ARG_MAX - imgp->args->stringspace, sizeof(char *));
 
 	if (execpath_len != 0) {
 		imgp->execpathp = (uintptr_t)arginfo - execpath_len;

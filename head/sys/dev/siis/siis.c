@@ -856,7 +856,7 @@ siis_ch_intr(void *data)
 	/* Read command statuses. */
 	sstatus = ATA_INL(ch->r_mem, SIIS_P_SS);
 	ok = ch->rslots & ~sstatus;
-	/* Complete all successfull commands. */
+	/* Complete all successful commands. */
 	for (i = 0; i < SIIS_MAX_SLOTS; i++) {
 		if ((ok >> i) & 1)
 			siis_end_transaction(&ch->slot[i], SIIS_ERR_NONE);

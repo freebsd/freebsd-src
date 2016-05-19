@@ -85,7 +85,6 @@ static const unsigned char flags[NOPT] = {
 };
 uint32_t opts;
 
-static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static char cmd[512];
@@ -224,21 +223,18 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 
 	while (bytes > 0) {
 		nb = bytes / DEV_BSIZE;
-		if (nb > READ_BUF_SIZE / DEV_BSIZE)
-			nb = READ_BUF_SIZE / DEV_BSIZE;
 		/*
 		 * Ensure that the read size plus the leading offset does not
 		 * exceed the size of the read buffer.
 		 */
-		if (nb * DEV_BSIZE + diff > READ_BUF_SIZE)
-		    nb -= diff / DEV_BSIZE;
+		if (nb > (READ_BUF_SIZE - diff) / DEV_BSIZE)
+			nb = (READ_BUF_SIZE - diff) / DEV_BSIZE;
 		/*
 		 * Round the number of blocks to read up to the nearest multiple
 		 * of DEV_GELIBOOT_BSIZE.
 		 */
-		alignnb = nb + (diff / DEV_BSIZE) +
-		    (DEV_GELIBOOT_BSIZE / DEV_BSIZE - 1) & ~
-		    (unsigned int)(DEV_GELIBOOT_BSIZE / DEV_BSIZE - 1);
+		alignnb = roundup2(nb * DEV_BSIZE + diff, DEV_GELIBOOT_BSIZE)
+		    / DEV_BSIZE;
 
 		if (drvread(dsk, dmadat->rdbuf, alignlba, alignnb))
 			return -1;
@@ -401,8 +397,12 @@ probe_drive(struct dsk *dsk)
     struct gpt_hdr hdr;
     struct gpt_ent *ent;
     unsigned part, entries_per_sec;
+    daddr_t slba;
 #endif
-    daddr_t slba, elba;
+#if defined(GPT) || defined(LOADER_GELI_SUPPORT)
+    daddr_t elba;
+#endif
+
     struct dos_partition *dp;
     char *sec;
     unsigned i;
@@ -451,7 +451,7 @@ probe_drive(struct dsk *dsk)
     }
 
     /*
-     * Probe all GPT partitions for the presense of ZFS pools. We
+     * Probe all GPT partitions for the presence of ZFS pools. We
      * return the spa_t for the first we find (if requested). This
      * will have the effect of booting from the first pool on the
      * disk.

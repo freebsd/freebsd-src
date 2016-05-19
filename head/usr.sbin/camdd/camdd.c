@@ -446,7 +446,7 @@ static int need_status = 0;
 #endif
 
 
-/* Generically usefull offsets into the peripheral private area */
+/* Generically useful offsets into the peripheral private area */
 #define ppriv_ptr0 periph_priv.entries[0].ptr
 #define ppriv_ptr1 periph_priv.entries[1].ptr
 #define ppriv_field0 periph_priv.entries[0].field
@@ -1079,9 +1079,7 @@ camdd_probe_file(int fd, struct camdd_io_opts *io_opts, int retry_count,
 		retval = fstat(fd, &file_dev->sb);
 		if (retval != 0) {
 			warn("Cannot stat %s", dev->device_name);
-			goto bailout;
-			camdd_free_dev(dev);
-			dev = NULL;
+			goto bailout_error;
 		}
 		if (S_ISREG(file_dev->sb.st_mode)) {
 			file_dev->file_type = CAMDD_FILE_REG;
@@ -1383,6 +1381,11 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 	block_len = scsi_4btoul(rcaplong.length);
 
 rcap_done:
+	if (block_len == 0) {
+		warnx("Sector size for %s%u is 0, cannot continue",
+		    cam_dev->device_name, cam_dev->dev_unit_num);
+		goto bailout_error;
+	}
 
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));

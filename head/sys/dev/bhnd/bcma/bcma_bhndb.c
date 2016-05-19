@@ -65,14 +65,16 @@ bcma_bhndb_probe(device_t dev)
 static int
 bcma_bhndb_attach(device_t dev)
 {
+	struct bcma_softc		*sc;
 	const struct bhnd_chipid	*cid;
 	struct resource			*erom_res;
 	int				 error;
 	int				 rid;
 
-	cid = BHNDB_GET_CHIPID(device_get_parent(dev), dev);
+	sc = device_get_softc(dev);
 
 	/* Map the EROM resource and enumerate our children. */
+	cid = BHNDB_GET_CHIPID(device_get_parent(dev), dev);
 	rid = 0;
 	erom_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, cid->enum_addr,
 		cid->enum_addr + BCMA_EROM_TABLE_SIZE, BCMA_EROM_TABLE_SIZE,
@@ -94,6 +96,9 @@ bcma_bhndb_attach(device_t dev)
 	    bhndb_bcma_priority_table);
 	if (error)
 		return (error);
+
+	/* Ask our parent bridge to find the corresponding bridge core */
+	sc->hostb_dev = BHNDB_FIND_HOSTB_DEVICE(device_get_parent(dev), dev);
 
 	/* Call our superclass' implementation */
 	return (bcma_attach(dev));
@@ -161,6 +166,20 @@ bcma_bhndb_resume_child(device_t dev, device_t child)
 	return (0);
 }
 
+static int
+bcma_bhndb_read_board_info(device_t dev, device_t child,
+    struct bhnd_board_info *info)
+{
+	int	error;
+
+	/* Initialize with NVRAM-derived values */
+	if ((error = bhnd_bus_generic_read_board_info(dev, child, info)))
+		return (error);
+
+	/* Let the bridge fill in any additional data */
+	return (BHNDB_POPULATE_BOARD_INFO(device_get_parent(dev), dev, info));
+}
+
 static device_method_t bcma_bhndb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			bcma_bhndb_probe),
@@ -169,6 +188,9 @@ static device_method_t bcma_bhndb_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_suspend_child,		bcma_bhndb_suspend_child),
 	DEVMETHOD(bus_resume_child,		bcma_bhndb_resume_child),
+
+	/* BHND interface */
+	DEVMETHOD(bhnd_bus_read_board_info,	bcma_bhndb_read_board_info),
 
 	DEVMETHOD_END
 };
@@ -180,4 +202,5 @@ DRIVER_MODULE(bcma_bhndb, bhndb, bcma_bhndb_driver, bhnd_devclass, NULL, NULL);
  
 MODULE_VERSION(bcma_bhndb, 1);
 MODULE_DEPEND(bcma_bhndb, bcma, 1, 1, 1);
+MODULE_DEPEND(bcma_bhndb, bhnd, 1, 1, 1);
 MODULE_DEPEND(bcma_bhndb, bhndb, 1, 1, 1);

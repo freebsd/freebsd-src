@@ -1123,7 +1123,7 @@ rc_test(struct rc_softc *sc)
 
 	chipid = RC_FAKEID;
 
-	/* First, reset board to inital state */
+	/* First, reset board to initial state */
 	rc_hwreset(sc, chipid);
 
 	divs = RC_BRD(19200);

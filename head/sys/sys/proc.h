@@ -282,6 +282,9 @@ struct thread {
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
+	uintptr_t	td_rb_list;	/* (k) Robust list head. */
+	uintptr_t	td_rbp_list;	/* (k) Robust priv list head. */
+	uintptr_t	td_rb_inact;	/* (k) Current in-action mutex loc. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -426,7 +429,7 @@ do {									\
 #define	TDP_BUFNEED	0x00000008 /* Do not recurse into the buf flush */
 #define	TDP_COWINPROGRESS 0x00000010 /* Snapshot copy-on-write in progress. */
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
-#define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
+#define	TDP_DEADLKTREAT	0x00000040 /* Lock acquisition - deadlock treatment. */
 #define	TDP_NOFAULTING	0x00000080 /* Do not handle page faults. */
 #define	TDP_UNUSED9	0x00000100 /* --available-- */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */

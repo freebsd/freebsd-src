@@ -71,9 +71,12 @@ MAN=	aac.4 \
 	axe.4 \
 	axge.4 \
 	bce.4 \
+	bcma.4 \
 	bfe.4 \
 	bge.4 \
 	${_bhyve.4} \
+	bhnd.4 \
+	bhndb.4 \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
@@ -660,6 +663,8 @@ MLINKS+=lp.4 plip.4
 MLINKS+=malo.4 if_malo.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
+MLINKS+=mfi.4 mfi_linux.4 \
+	mfi.4 mfip.4
 MLINKS+=mlx5en.4 mce.4
 MLINKS+=mn.4 if_mn.4
 MLINKS+=mos.4 if_mos.4

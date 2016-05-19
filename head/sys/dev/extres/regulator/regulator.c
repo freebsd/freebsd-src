@@ -970,13 +970,13 @@ regulator_get_by_ofw_property(device_t cdev, char *name,  regulator_t *reg)
 	/* Translate xref to device */
 	regdev = OF_device_from_xref(cells[0]);
 	if (regdev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 
 	/* Map regulator to number */
 	rv = REGDEV_MAP(regdev, cells[0], ncells - 1, cells + 1, &id);
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 	if (rv != 0)
 		return (rv);
 	return (regulator_get_by_id(cdev, regdev, id, reg));

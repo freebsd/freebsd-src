@@ -2,12 +2,12 @@
 .\"     Title: JEMALLOC
 .\"    Author: Jason Evans
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 02/28/2016
+.\"      Date: 05/12/2016
 .\"    Manual: User Manual
-.\"    Source: jemalloc 4.1.0-1-g994da4232621dd1210fcf39bdf0d6454cefda473
+.\"    Source: jemalloc 4.2.0-1-gdc7ff6306d7a15b53479e2fb8e5546404b82e6fc
 .\"  Language: English
 .\"
-.TH "JEMALLOC" "3" "02/28/2016" "jemalloc 4.1.0-1-g994da4232621" "User Manual"
+.TH "JEMALLOC" "3" "05/12/2016" "jemalloc 4.2.0-1-gdc7ff6306d7a" "User Manual"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -31,7 +31,7 @@
 jemalloc \- general purpose memory allocation functions
 .SH "LIBRARY"
 .PP
-This manual describes jemalloc 4\&.1\&.0\-1\-g994da4232621dd1210fcf39bdf0d6454cefda473\&. More information can be found at the
+This manual describes jemalloc 4\&.2\&.0\-1\-gdc7ff6306d7a15b53479e2fb8e5546404b82e6fc\&. More information can be found at the
 \m[blue]\fBjemalloc website\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 The following configuration options are enabled in libc\*(Aqs built\-in jemalloc:
@@ -461,7 +461,8 @@ Memory is conceptually broken into equal\-sized chunks, where the chunk size is 
 Small objects are managed in groups by page runs\&. Each run maintains a bitmap to track which regions are in use\&. Allocation requests that are no more than half the quantum (8 or 16, depending on architecture) are rounded up to the nearest power of two that is at least
 sizeof(\fBdouble\fR)\&. All other object size classes are multiples of the quantum, spaced such that there are four size classes for each doubling in size, which limits internal fragmentation to approximately 20% for all but the smallest size classes\&. Small size classes are smaller than four times the page size, large size classes are smaller than the chunk size (see the
 "opt\&.lg_chunk"
-option), and huge size classes extend from the chunk size up to one size class less than the full address space size\&.
+option), and huge size classes extend from the chunk size up to the largest size class that does not exceed
+\fBPTRDIFF_MAX\fR\&.
 .PP
 Allocations are packed tightly together, which can be an issue for multi\-threaded applications\&. If you need to assure that allocations do not suffer from cacheline sharing, round your allocation requests up to the nearest multiple of the cacheline size, or specify cacheline alignment when allocating\&.
 .PP
@@ -513,6 +514,8 @@ l r l
 ^ r l
 ^ r l
 l r l
+^ r l
+^ r l
 ^ r l
 ^ r l
 ^ r l
@@ -644,6 +647,16 @@ T}
 \&.\&.\&.
 T}:T{
 \&.\&.\&.
+T}
+:T{
+512 PiB
+T}:T{
+[2560 PiB, 3 EiB, 3584 PiB, 4 EiB]
+T}
+:T{
+1 EiB
+T}:T{
+[5 EiB, 6 EiB, 7 EiB]
 T}
 .TE
 .sp 1
@@ -841,7 +854,7 @@ function\&. If
 is specified during configuration, this has the potential to cause deadlock for a multi\-threaded process that exits while one or more threads are executing in the memory allocation functions\&. Furthermore,
 \fBatexit\fR\fB\fR
 may allocate memory during application initialization and then deadlock internally when jemalloc in turn calls
-\fBatexit\fR\fB\fR, so this option is not univerally usable (though the application can register its own
+\fBatexit\fR\fB\fR, so this option is not universally usable (though the application can register its own
 \fBatexit\fR\fB\fR
 function with equivalent functionality)\&. Therefore, this option should only be used with care; it is primarily intended as a performance tuning aid during application development\&. This option is disabled by default\&.
 .RE
@@ -1007,7 +1020,7 @@ is controlled by the
 option\&. Note that
 \fBatexit\fR\fB\fR
 may allocate memory during application initialization and then deadlock internally when jemalloc in turn calls
-\fBatexit\fR\fB\fR, so this option is not univerally usable (though the application can register its own
+\fBatexit\fR\fB\fR, so this option is not universally usable (though the application can register its own
 \fBatexit\fR\fB\fR
 function with equivalent functionality)\&. This option is disabled by default\&.
 .RE
@@ -1111,6 +1124,14 @@ Trigger decay\-based purging of unused dirty pages for arena <i>, or for all are
 "arenas\&.narenas"\&. The proportion of unused dirty pages to be purged depends on the current time; see
 "opt\&.decay_time"
 for details\&.
+.RE
+.PP
+"arena\&.<i>\&.reset" (\fBvoid\fR) \-\-
+.RS 4
+Discard all of the arena\*(Aqs extant allocations\&. This interface can only be used with arenas created via
+"arenas\&.extend"\&. None of the arena\*(Aqs discarded/cached allocations may accessed afterward\&. As part of this requirement, all thread caches which were used to allocate/deallocate in conjunction with the arena must be flushed beforehand\&. This interface cannot be used if running inside Valgrind, nor if the
+quarantine
+size is non\-zero\&.
 .RE
 .PP
 "arena\&.<i>\&.dss" (\fBconst char *\fR) rw
@@ -1503,7 +1524,7 @@ Get the current sample rate (see
 .PP
 "prof\&.interval" (\fBuint64_t\fR) r\- [\fB\-\-enable\-prof\fR]
 .RS 4
-Average number of bytes allocated between inverval\-based profile dumps\&. See the
+Average number of bytes allocated between interval\-based profile dumps\&. See the
 "opt\&.lg_prof_interval"
 option for additional information\&.
 .RE
@@ -1545,6 +1566,15 @@ Maximum number of bytes in physically resident data pages mapped by the allocato
 Total number of bytes in active chunks mapped by the allocator\&. This is a multiple of the chunk size, and is larger than
 "stats\&.active"\&. This does not include inactive chunks, even those that contain unused dirty pages, which means that there is no strict ordering between this and
 "stats\&.resident"\&.
+.RE
+.PP
+"stats\&.retained" (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Total number of bytes in virtual memory mappings that were retained rather than being returned to the operating system via e\&.g\&.
+\fBmunmap\fR(2)\&. Retained virtual memory is typically untouched, decommitted, or purged, so it has no strongly associated physical memory (see
+chunk hooks
+for details)\&. Retained memory is excluded from mapped memory statistics, e\&.g\&.
+"stats\&.mapped"\&.
 .RE
 .PP
 "stats\&.arenas\&.<i>\&.dss" (\fBconst char *\fR) r\-
@@ -1590,6 +1620,13 @@ or similar has not been called\&.
 "stats\&.arenas\&.<i>\&.mapped" (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
 .RS 4
 Number of mapped bytes\&.
+.RE
+.PP
+"stats\&.arenas\&.<i>\&.retained" (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of retained bytes\&. See
+"stats\&.retained"
+for details\&.
 .RE
 .PP
 "stats\&.arenas\&.<i>\&.metadata\&.mapped" (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]

@@ -240,7 +240,7 @@ aml8726_mmc_start_command(struct aml8726_mmc_softc *sc, struct mmc_command *cmd)
 	 * Start and transmission bits are per section 4.7.2 of the:
 	 *
 	 *   SD Specifications Part 1
-	 *   Physicaly Layer Simplified Specification
+	 *   Physical Layer Simplified Specification
 	 *   Version 4.10
 	 */
 	cmdr = AML_MMC_CMD_START_BIT | AML_MMC_CMD_TRANS_BIT_HOST | cmd->opcode;
@@ -605,11 +605,11 @@ aml8726_mmc_attach(device_t dev)
 	else {
 		device_printf(dev, "unknown function attribute %.*s in FDT\n",
 		    len, function_name);
-		free(function_name, M_OFWPROP);
+		OF_prop_free(function_name);
 		return (ENXIO);
 	}
 
-	free(function_name, M_OFWPROP);
+	OF_prop_free(function_name);
 
 	sc->pwr_en.dev = NULL;
 
@@ -661,7 +661,7 @@ aml8726_mmc_attach(device_t dev)
 			device_printf(dev,
 			    "unknown voltage attribute %.*s in FDT\n",
 			    len, voltage);
-			free(voltages, M_OFWPROP);
+			OF_prop_free(voltages);
 			return (ENXIO);
 		}
 
@@ -678,7 +678,7 @@ aml8726_mmc_attach(device_t dev)
 		}
 	}
 
-	free(voltages, M_OFWPROP);
+	OF_prop_free(voltages);
 
 	sc->vselect.dev = NULL;
 

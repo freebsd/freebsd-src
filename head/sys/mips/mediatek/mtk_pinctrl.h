@@ -168,7 +168,7 @@ DECL_FUNC(mt7628_i2s_func) = {
 };
 
 DECL_FUNC(mt7628_uart0_func) = {
-	FUNC("uart", 0), FUNC("gpio", 1), FUNC("-", 2), FUNC("-", 3)
+	FUNC("uart0", 0), FUNC("gpio", 1), FUNC("-", 2), FUNC("-", 3)
 };
 
 DECL_FUNC(mt7628_sd_func) = {
@@ -188,11 +188,11 @@ DECL_FUNC(mt7628_i2c_func) = {
 };
 
 DECL_FUNC(mt7628_uart1_func) = {
-	FUNC("uart", 0), FUNC("gpio", 1), FUNC("pwm", 2), FUNC("sw r", 3)
+	FUNC("uart1", 0), FUNC("gpio", 1), FUNC("pwm", 2), FUNC("sw r", 3)
 };
 
 DECL_FUNC(mt7628_uart2_func) = {
-	FUNC("uart", 0), FUNC("gpio", 1), FUNC("pwm", 2), FUNC("sdxc", 3)
+	FUNC("uart2", 0), FUNC("gpio", 1), FUNC("pwm", 2), FUNC("sdxc", 3)
 };
 
 DECL_FUNC(mt7628_pwm0_func) = {

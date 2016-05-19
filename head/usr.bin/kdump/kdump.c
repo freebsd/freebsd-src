@@ -298,8 +298,9 @@ main(int argc, char *argv[])
 	m = malloc(size = 1025);
 	if (m == NULL)
 		errx(1, "%s", strerror(ENOMEM));
-	if (!freopen(tracefile, "r", stdin))
-		err(1, "%s", tracefile);
+	if (strcmp(tracefile, "-") != 0)
+		if (!freopen(tracefile, "r", stdin))
+			err(1, "%s", tracefile);
 
 	strerror_init();
 	localtime_init();
@@ -806,6 +807,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 			case SYS_chmod:
 			case SYS_fchmod:
 			case SYS_lchmod:
+			case SYS_fchmodat:
 				print_number(ip, narg, c);
 				putchar(',');
 				modename(*ip);

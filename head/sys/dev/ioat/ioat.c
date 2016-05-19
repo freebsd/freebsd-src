@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include "ioat_hw.h"
 #include "ioat_internal.h"
 
+#ifndef	BUS_SPACE_MAXADDR_40BIT
+#define	BUS_SPACE_MAXADDR_40BIT	0xFFFFFFFFFFULL
+#endif
 #define	IOAT_INTR_TIMO	(hz / 10)
 #define	IOAT_REFLK	(&ioat->submit_lock)
 
@@ -132,7 +135,7 @@ static device_method_t ioat_pci_methods[] = {
 	DEVMETHOD(device_probe,     ioat_probe),
 	DEVMETHOD(device_attach,    ioat_attach),
 	DEVMETHOD(device_detach,    ioat_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ioat_pci_driver = {
@@ -454,15 +457,13 @@ ioat3_attach(device_t device)
 	num_descriptors = 1 << ioat->ring_size_order;
 
 	bus_dma_tag_create(bus_get_dma_tag(ioat->device), 0x40, 0x0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXADDR_40BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct ioat_dma_hw_descriptor), 1,
 	    sizeof(struct ioat_dma_hw_descriptor), 0, NULL, NULL,
 	    &ioat->hw_desc_tag);
 
 	ioat->ring = malloc(num_descriptors * sizeof(*ring), M_IOAT,
 	    M_ZERO | M_WAITOK);
-	if (ioat->ring == NULL)
-		return (ENOMEM);
 
 	ring = ioat->ring;
 	for (i = 0; i < num_descriptors; i++) {
@@ -879,8 +880,8 @@ ioat_op_generic(struct ioat_softc *ioat, uint8_t op,
 
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
-	KASSERT((flags & ~DMA_ALL_FLAGS) == 0, ("Unrecognized flag(s): %#x",
-		flags & ~DMA_ALL_FLAGS));
+	KASSERT((flags & ~_DMA_GENERIC_FLAGS) == 0,
+	    ("Unrecognized flag(s): %#x", flags & ~_DMA_GENERIC_FLAGS));
 	if ((flags & DMA_NO_WAIT) != 0)
 		mflags = M_NOWAIT;
 	else
@@ -1005,6 +1006,164 @@ ioat_copy_8k_aligned(bus_dmaengine_t dmaengine, bus_addr_t dst1,
 	if (dst2 != dst1 + PAGE_SIZE) {
 		hw_desc->u.control.dest_page_break = 1;
 		hw_desc->next_dest_addr = dst2;
+	}
+
+	if (g_ioat_debug_level >= 3)
+		dump_descriptor(hw_desc);
+
+	ioat_submit_single(ioat);
+	return (&desc->bus_dmadesc);
+}
+
+struct bus_dmadesc *
+ioat_copy_crc(bus_dmaengine_t dmaengine, bus_addr_t dst, bus_addr_t src,
+    bus_size_t len, uint32_t *initialseed, bus_addr_t crcptr,
+    bus_dmaengine_callback_t callback_fn, void *callback_arg, uint32_t flags)
+{
+	struct ioat_crc32_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	struct ioat_softc *ioat;
+	uint32_t teststore;
+	uint8_t op;
+
+	CTR0(KTR_IOAT, __func__);
+	ioat = to_ioat_softc(dmaengine);
+
+	if ((ioat->capabilities & IOAT_DMACAP_MOVECRC) == 0) {
+		ioat_log_message(0, "%s: Device lacks MOVECRC capability\n",
+		    __func__);
+		return (NULL);
+	}
+	if (((src | dst) & (0xffffffull << 40)) != 0) {
+		ioat_log_message(0, "%s: High 24 bits of src/dst invalid\n",
+		    __func__);
+		return (NULL);
+	}
+	teststore = (flags & _DMA_CRC_TESTSTORE);
+	if (teststore == _DMA_CRC_TESTSTORE) {
+		ioat_log_message(0, "%s: TEST and STORE invalid\n", __func__);
+		return (NULL);
+	}
+	if (teststore == 0 && (flags & DMA_CRC_INLINE) != 0) {
+		ioat_log_message(0, "%s: INLINE invalid without TEST or STORE\n",
+		    __func__);
+		return (NULL);
+	}
+
+	switch (teststore) {
+	case DMA_CRC_STORE:
+		op = IOAT_OP_MOVECRC_STORE;
+		break;
+	case DMA_CRC_TEST:
+		op = IOAT_OP_MOVECRC_TEST;
+		break;
+	default:
+		KASSERT(teststore == 0, ("bogus"));
+		op = IOAT_OP_MOVECRC;
+		break;
+	}
+
+	if ((flags & DMA_CRC_INLINE) == 0 &&
+	    (crcptr & (0xffffffull << 40)) != 0) {
+		ioat_log_message(0,
+		    "%s: High 24 bits of crcptr invalid\n", __func__);
+		return (NULL);
+	}
+
+	desc = ioat_op_generic(ioat, op, len, src, dst, callback_fn,
+	    callback_arg, flags & ~_DMA_CRC_FLAGS);
+	if (desc == NULL)
+		return (NULL);
+
+	hw_desc = desc->u.crc32;
+
+	if ((flags & DMA_CRC_INLINE) == 0)
+		hw_desc->crc_address = crcptr;
+	else
+		hw_desc->u.control.crc_location = 1;
+
+	if (initialseed != NULL) {
+		hw_desc->u.control.use_seed = 1;
+		hw_desc->seed = *initialseed;
+	}
+
+	if (g_ioat_debug_level >= 3)
+		dump_descriptor(hw_desc);
+
+	ioat_submit_single(ioat);
+	return (&desc->bus_dmadesc);
+}
+
+struct bus_dmadesc *
+ioat_crc(bus_dmaengine_t dmaengine, bus_addr_t src, bus_size_t len,
+    uint32_t *initialseed, bus_addr_t crcptr,
+    bus_dmaengine_callback_t callback_fn, void *callback_arg, uint32_t flags)
+{
+	struct ioat_crc32_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	struct ioat_softc *ioat;
+	uint32_t teststore;
+	uint8_t op;
+
+	CTR0(KTR_IOAT, __func__);
+	ioat = to_ioat_softc(dmaengine);
+
+	if ((ioat->capabilities & IOAT_DMACAP_CRC) == 0) {
+		ioat_log_message(0, "%s: Device lacks CRC capability\n",
+		    __func__);
+		return (NULL);
+	}
+	if ((src & (0xffffffull << 40)) != 0) {
+		ioat_log_message(0, "%s: High 24 bits of src invalid\n",
+		    __func__);
+		return (NULL);
+	}
+	teststore = (flags & _DMA_CRC_TESTSTORE);
+	if (teststore == _DMA_CRC_TESTSTORE) {
+		ioat_log_message(0, "%s: TEST and STORE invalid\n", __func__);
+		return (NULL);
+	}
+	if (teststore == 0 && (flags & DMA_CRC_INLINE) != 0) {
+		ioat_log_message(0, "%s: INLINE invalid without TEST or STORE\n",
+		    __func__);
+		return (NULL);
+	}
+
+	switch (teststore) {
+	case DMA_CRC_STORE:
+		op = IOAT_OP_CRC_STORE;
+		break;
+	case DMA_CRC_TEST:
+		op = IOAT_OP_CRC_TEST;
+		break;
+	default:
+		KASSERT(teststore == 0, ("bogus"));
+		op = IOAT_OP_CRC;
+		break;
+	}
+
+	if ((flags & DMA_CRC_INLINE) == 0 &&
+	    (crcptr & (0xffffffull << 40)) != 0) {
+		ioat_log_message(0,
+		    "%s: High 24 bits of crcptr invalid\n", __func__);
+		return (NULL);
+	}
+
+	desc = ioat_op_generic(ioat, op, len, src, 0, callback_fn,
+	    callback_arg, flags & ~_DMA_CRC_FLAGS);
+	if (desc == NULL)
+		return (NULL);
+
+	hw_desc = desc->u.crc32;
+
+	if ((flags & DMA_CRC_INLINE) == 0)
+		hw_desc->crc_address = crcptr;
+	else
+		hw_desc->u.control.crc_location = 1;
+
+	if (initialseed != NULL) {
+		hw_desc->u.control.use_seed = 1;
+		hw_desc->seed = *initialseed;
 	}
 
 	if (g_ioat_debug_level >= 3)

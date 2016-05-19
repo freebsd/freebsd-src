@@ -59,10 +59,10 @@ int osd_register(u_int type, osd_destructor_t destructor,
 void osd_deregister(u_int type, u_int slot);
 
 int osd_set(u_int type, struct osd *osd, u_int slot, void *value);
-void *osd_reserve(u_int slot);
-int osd_set_reserved(u_int type, struct osd *osd, u_int slot, void *rsv,
+void **osd_reserve(u_int slot);
+int osd_set_reserved(u_int type, struct osd *osd, u_int slot, void **rsv,
     void *value);
-void osd_free_reserved(void *rsv);
+void osd_free_reserved(void **rsv);
 void *osd_get(u_int type, struct osd *osd, u_int slot);
 void osd_del(u_int type, struct osd *osd, u_int slot);
 int osd_call(u_int type, u_int method, void *obj, void *data);
