@@ -335,7 +335,7 @@ siba_scan(struct siba_softc *siba)
 		sd->sd_coreidx = i;
 
 		DPRINTF(siba, SIBA_DEBUG_SCAN,
-		    "core %d (%s) found (cc %#xrev %#x vendor %#x)\n",
+		    "core %d (%s) found (cc %#x rev %#x vendor %#x)\n",
 		    i, siba_core_name(sd->sd_id.sd_device),
 		    sd->sd_id.sd_device, sd->sd_id.sd_rev,
 		    sd->sd_id.sd_vendor);
@@ -430,6 +430,7 @@ siba_pci_switchcore_sub(struct siba_softc *siba, uint8_t idx)
 			return (0);
 		DELAY(10);
 	}
+	DPRINTF(siba, SIBA_DEBUG_SWITCHCORE, "%s: idx %d, failed\n", __func__, idx);
 	return (ENODEV);
 #undef RETRY_MAX
 }
@@ -2184,6 +2185,8 @@ siba_dma_translation(device_t dev)
 	KASSERT(siba->siba_type == SIBA_TYPE_PCI,
 	    ("unsupported bustype %d\n", siba->siba_type));
 #endif
+
+	/* Default */
 	return (SIBA_PCI_DMA);
 }
 
