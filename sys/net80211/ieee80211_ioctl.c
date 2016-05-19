@@ -2486,6 +2486,11 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 	 * Otherwise just invoke the scan machinery directly.
 	 */
 	IEEE80211_LOCK(ic);
+	if (ic->ic_nrunning == 0) {
+		IEEE80211_UNLOCK(ic);
+		return ENXIO;
+	}
+
 	if (vap->iv_state == IEEE80211_S_INIT) {
 		/* NB: clobbers previous settings */
 		vap->iv_scanreq_flags = sr->sr_flags;
