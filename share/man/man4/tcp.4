@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2016
+.Dd May 19, 2016
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -530,6 +530,17 @@ Defaults to 60 seconds.
 Enable support for TCP Explicit Congestion Notification (ECN).
 ECN allows a TCP sender to reduce the transmission rate in order to
 avoid packet drops.
+Settings:
+.Bl -tag -compact
+.It 0
+Disable ECN.
+.It 1
+Allow incoming connections to request ECN.
+Outgoing connections will request ECN.
+.It 2
+Allow incoming connections to request ECN.
+Outgoing connections will not request ECN.
+.El
 .It Va ecn.maxretries
 Number of retries (SYN or SYN/ACK retransmits) before disabling ECN on a
 specific connection.
