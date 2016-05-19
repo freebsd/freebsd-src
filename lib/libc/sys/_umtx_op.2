@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2016
+.Dd May 17, 2016
 .Dt _UMTX_OP 2
 .Os
 .Sh NAME
@@ -85,6 +85,7 @@ struct umutex {
 	volatile lwpid_t m_owner;
 	uint32_t         m_flags;
 	uint32_t         m_ceilings[2];
+	uintptr_t        m_rb_lnk;
 };
 .Ed
 .Pp
@@ -95,18 +96,24 @@ It contains either the thread identifier of the lock owner in the
 locked state, or zero when the lock is unowned.
 The highest bit set indicates that there is contention on the lock.
 The constants are defined for special values:
-.Bl -tag -width "Dv UMUTEX_CONTESTED"
+.Bl -tag -width "Dv UMUTEX_RB_OWNERDEAD"
 .It Dv UMUTEX_UNOWNED
 Zero, the value stored in the unowned lock.
 .It Dv UMUTEX_CONTESTED
 The contenion indicator.
+.It Dv UMUTEX_RB_OWNERDEAD
+A thread owning the robust mutex terminated.
+The mutex is in unlocked state.
+.It Dv UMUTEX_RB_NOTRECOV
+The robust mutex is in a non-recoverable state.
+It cannot be locked until reinitialized.
 .El
 .Pp
 The
 .Dv m_flags
 field may contain the following umutex-specific flags, in addition to
 the common flags:
-.Bl -tag -width "Dv UMUTEX_PRIO_INHERIT"
+.Bl -tag -width "Dv UMUTEX_NONCONSISTENT"
 .It Dv UMUTEX_PRIO_INHERIT
 Mutex implements
 .Em Priority Inheritance
@@ -115,6 +122,13 @@ protocol.
 Mutex implements
 .Em Priority Protection
 protocol.
+.It Dv UMUTEX_ROBUST
+Mutex is robust, as described in the
+.Sx ROBUST UMUTEXES
+section below.
+.It Dv UMUTEX_NONCONSISTENT
+Robust mutex is in a transient non-consistent state.
+Not used by kernel.
 .El
 .Pp
 In the manual page, mutexes not having
@@ -417,6 +431,75 @@ primitives, even when the physical address of the key is same.
 When waking up a limited number of threads from a given sleep queue,
 the highest priority threads that have been blocked for the longest on
 the queue are selected.
+.Ss ROBUST UMUTEXES
+The
+.Em robust umutexes
+are provided as a substrate for a userspace library to implement
+POSIX robust mutexes.
+A robust umutex must have the
+.Dv UMUTEX_ROBUST
+flag set.
+.Pp
+On thread termination, the kernel walks two lists of mutexes.
+The two lists head addresses must be provided by a prior call to
+.Dv UMTX_OP_ROBUST_LISTS
+request.
+The lists are singly-linked.
+The link to next element is provided by the
+.Dv m_rb_lnk
+member of the
+.Vt struct umutex .
+.Pp
+Robust list processing is aborted if the kernel finds a mutex
+with any of the following conditions:
+.Bl -dash -offset indent -compact
+.It
+the
+.Dv UMUTEX_ROBUST
+flag is not set
+.It
+not owned by the current thread, except when the mutex is pointed to
+by the
+.Dv robust_inactive
+member of the
+.Vt struct umtx_robust_lists_params ,
+registered for the current thread
+.It
+the combination of mutex flags is invalid
+.It
+read of the umutex memory faults
+.It
+the list length limit described in
+.Xr libthr 3
+ is reached.
+.El
+.Pp
+Every mutex in both lists is unlocked as if the
+.Dv UMTX_OP_MUTEX_UNLOCK
+request is performed on it, but instead of the
+.Dv UMUTEX_UNOWNED
+value, the
+.Dv m_owner
+field is written with the
+.Dv UMUTEX_RB_OWNERDEAD
+value.
+When a mutex in the
+.Dv UMUTEX_RB_OWNERDEAD
+state is locked by kernel due to the
+.Dv UMTX_OP_MUTEX_TRYLOCK
+and
+.Dv UMTX_OP_MUTEX_LOCK
+requests, the lock is granted and
+.Er EOWNERDEAD
+error is returned.
+.Pp
+Also, the kernel handles the
+.Dv UMUTEX_RB_NOTRECOV
+value of
+.Dv the m_owner
+field specially, always returning the
+.Er ENOTRECOVERABLE
+error for lock attempts, without granting the lock.
 .Ss OPERATIONS
 The following operations, requested by the
 .Fa op
@@ -582,12 +665,12 @@ The arguments to the request are:
 Pointer to the umutex.
 .It Fa val
 New ceiling value.
-.It Fa uaddr1
+.It Fa uaddr
 Address of a variable of type
 .Vt uint32_t .
 If not NULL, after the successful update the previous ceiling value is
 written to the location pointed to by
-.Fa uaddr1 .
+.Fa uaddr .
 .El
 .Pp
 The request locks the umutex pointed to by the
@@ -614,7 +697,7 @@ Pointer to the
 .Vt struct ucond .
 .It Fa val
 Request flags, see below.
-.It Fa uaddr1
+.It Fa uaddr
 Pointer to the umutex.
 .It Fa uaddr2
 Optional pointer to a
@@ -624,7 +707,7 @@ for timeout specification.
 .Pp
 The request must be issued by the thread owning the mutex pointed to
 by the
-.Fa uaddr1
+.Fa uaddr
 argument.
 The
 .Dv c_hash_waiters
@@ -633,7 +716,7 @@ member of the
 pointed to by the
 .Fa obj
 argument, is set to an arbitrary non-zero value, after which the
-.Fa uaddr1
+.Fa uaddr
 mutex is unlocked (following the appropriate protocol), and
 the current thread is put to sleep on the sleep queue keyed by
 the
@@ -651,7 +734,7 @@ the same sleep queue, the
 .Dv c_hash_waiters
 member is cleared.
 After wakeup, the
-.Fa uaddr1
+.Fa uaddr
 umutex is not relocked.
 .Pp
 The following flags are defined:
@@ -1084,6 +1167,58 @@ The
 argument specifies the virtual address, which backing physical memory
 byte identity is used as a key for the anonymous shared object
 creation or lookup.
+.It Dv UMTX_OP_ROBUST_LISTS
+Register the list heads for the current thread's robust mutex lists.
+The arguments to the request are:
+.Bl -tag -width "It Fa obj"
+.It Fa val
+Size of the structure passed in the
+.Fa uaddr
+argument.
+.It Fa uaddr
+Pointer to the structure of type
+.Vt struct umtx_robust_lists_params .
+.El
+.Pp
+The structure is defined as
+.Bd -literal
+struct umtx_robust_lists_params {
+	uintptr_t	robust_list_offset;
+	uintptr_t	robust_priv_list_offset;
+	uintptr_t	robust_inact_offset;
+};
+.Ed
+.Pp
+The
+.Dv robust_list_offset
+member contains address of the first element in the list of locked
+robust shared mutexes.
+The
+.Dv robust_priv_list_offset
+member contains address of the first element in the list of locked
+robust private mutexes.
+The private and shared robust locked lists are split to allow fast
+termination of the shared list on fork, in the child.
+.Pp
+The
+.Dv robust_inact_offset
+contains a pointer to the mutex which might be locked in nearby future,
+or might have been just unlocked.
+It is typically set by the lock or unlock mutex implementation code
+around the whole operation, since lists can be only changed race-free
+when the thread owns the mutex.
+The kernel inspects the
+.Dv robust_inact_offset
+in addition to walking the shared and private lists.
+Also, the mutex pointed to by
+.Dv robust_inact_offset
+is handled more loosly at the thread termination time,
+than other mutexes on the list.
+That mutex is allowed to be not owned by the current thread,
+in which case list processing is continued.
+See
+.Sx ROBUST UMUTEXES
+subsection for details.
 .El
 .Sh RETURN VALUES
 If successful,
@@ -1106,7 +1241,7 @@ variable is set to indicate the error.
 The
 .Fn _umtx_op
 operations will return the following errors:
-.Bl -tag -width Er
+.Bl -tag -width "Bq Er ENOTRECOVERABLE"
 .It Bq Er EFAULT
 One of the arguments point to invalid memory.
 .It Bq Er EINVAL
@@ -1145,7 +1280,7 @@ The
 argument specifies invalid operation.
 .It Bq Er EINVAL
 The
-.Fa uaddr1
+.Fa uaddr
 argument for the
 .Dv UMTX_OP_SHM
 request specifies invalid operation.
@@ -1162,6 +1297,21 @@ array during lock or unlock operations, is greater than
 .Dv RTP_PRIO_MAX .
 .It Bq Er EPERM
 Unlock attempted on an object not owned by the current thread.
+.It Bq Er EOWNERDEAD
+The lock was requested on an umutex where the
+.Dv m_owner
+field was set to the
+.Dv UMUTEX_RB_OWNERDEAD
+value, indicating terminated robust mutex.
+The lock was granted to the caller, so this error in fact
+indicates success with additional conditions.
+.It Bq Er ENOTRECOVERABLE
+The lock was requested on an umutex which
+.Dv m_owner
+field is equal to the
+.Dv UMUTEX_RB_NOTRECOV
+value, indicating abandoned robust mutex after termination.
+The lock was not granted to the caller.
 .It Bq Er ENOTTY
 The shared memory object, associated with the address passed to the
 .Dv UMTX_SHM_ALIVE
@@ -1197,7 +1347,7 @@ for read.
 A try mutex lock operation was not able to obtain the lock.
 .It Bq Er ETIMEDOUT
 The request specified a timeout in the
-.Fa uaddr1
+.Fa uaddr
 and
 .Fa uaddr2
 arguments, and timed out before obtaining the lock or being woken up.
@@ -1211,6 +1361,27 @@ Mutex lock requests without timeout specified are restartable.
 The error is typically not returned to userspace code, restart
 is handled by usual adjustment of the instruction counter.
 .El
+.Sh BUGS
+A window between a unlocking robust mutex and resetting the pointer in the
+.Dv robust_inact_offset
+member of the registered
+.Vt struct umtx_robust_lists_params
+allows another thread to destroy the mutex, thus making the kernel inspect
+freed or reused memory.
+The
+.Li libthr
+implementation is only vulnerable to this race when operating on
+a shared mutex.
+A possible fix for the current implementation is to strengthen the checks
+for shared mutexes before terminating them, in particular, verifying
+that the mutex memory is mapped from the POSIX shared object, allocated
+by the
+.Dv UMTX_OP_SHM
+request.
+This is not done because it is believed that the race is adequately
+covered by other consistency checks, while adding the check would
+prevent alternative implementations of
+.Li libpthread .
 .Sh SEE ALSO
 .Xr clock_gettime 2 ,
 .Xr mmap 2 ,
