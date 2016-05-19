@@ -1471,6 +1471,7 @@ db_print_bio_cmd(struct bio *bp)
 	case BIO_CMD0: db_printf("BIO_CMD0"); break;
 	case BIO_CMD1: db_printf("BIO_CMD1"); break;
 	case BIO_CMD2: db_printf("BIO_CMD2"); break;
+	case BIO_ZONE: db_printf("BIO_ZONE"); break;
 	default: db_printf("UNKNOWN"); break;
 	}
 	db_printf("\n");

@@ -110,18 +110,45 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x3f: return ("WRITE_LOG_EXT");
 	case 0x40: return ("READ_VERIFY");
 	case 0x42: return ("READ_VERIFY48");
+	case 0x44: return ("ZERO_EXT");
 	case 0x45:
 		switch (cmd->features) {
 		case 0x55: return ("WRITE_UNCORRECTABLE48 PSEUDO");
 		case 0xaa: return ("WRITE_UNCORRECTABLE48 FLAGGED");
 		}
 		return "WRITE_UNCORRECTABLE48";
+	case 0x47: return ("READ_LOG_DMA_EXT");
+	case 0x4a: return ("ZAC_MANAGEMENT_IN");
 	case 0x51: return ("CONFIGURE_STREAM");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
-	case 0x63: return ("NCQ_NON_DATA");
-	case 0x64: return ("SEND_FPDMA_QUEUED");
-	case 0x65: return ("RECEIVE_FPDMA_QUEUED");
+	case 0x63:
+		switch (cmd->features & 0xf) {
+		case 0x00: return ("NCQ_NON_DATA ABORT NCQ QUEUE");
+		case 0x01: return ("NCQ_NON_DATA DEADLINE HANDLING");
+		case 0x05: return ("NCQ_NON_DATA SET FEATURES");
+		/*
+		 * XXX KDM need common decoding between NCQ and non-NCQ
+		 * versions of SET FEATURES.
+		 */
+		case 0x06: return ("NCQ_NON_DATA ZERO EXT");
+		case 0x07: return ("NCQ_NON_DATA ZAC MANAGEMENT OUT");
+		}
+		return ("NCQ_NON_DATA");
+	case 0x64:
+		switch (cmd->sector_count_exp & 0xf) {
+		case 0x00: return ("SEND_FPDMA_QUEUED DATA SET MANAGEMENT");
+		case 0x02: return ("SEND_FPDMA_QUEUED WRITE LOG DMA EXT");
+		case 0x03: return ("SEND_FPDMA_QUEUED ZAC MANAGEMENT OUT");
+		case 0x04: return ("SEND_FPDMA_QUEUED DATA SET MANAGEMENT XL");
+		}
+		return ("SEND_FPDMA_QUEUED");
+	case 0x65:
+		switch (cmd->sector_count_exp & 0xf) {
+		case 0x01: return ("RECEIVE_FPDMA_QUEUED READ LOG DMA EXT");
+		case 0x02: return ("RECEIVE_FPDMA_QUEUED ZAC MANAGEMENT IN");
+		}
+		return ("RECEIVE_FPDMA_QUEUED");
 	case 0x67:
 		if (cmd->features == 0xec)
 			return ("SEP_ATTN IDENTIFY");
@@ -136,6 +163,7 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x87: return ("CFA_TRANSLATE_SECTOR");
 	case 0x90: return ("EXECUTE_DEVICE_DIAGNOSTIC");
 	case 0x92: return ("DOWNLOAD_MICROCODE");
+	case 0x9a: return ("ZAC_MANAGEMENT_OUT");
 	case 0xa0: return ("PACKET");
 	case 0xa1: return ("ATAPI_IDENTIFY");
 	case 0xa2: return ("SERVICE");
@@ -179,23 +207,44 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xec: return ("ATA_IDENTIFY");
 	case 0xed: return ("MEDIA_EJECT");
 	case 0xef:
+		/*
+		 * XXX KDM need common decoding between NCQ and non-NCQ
+		 * versions of SET FEATURES.
+		 */
 		switch (cmd->features) {
-		case 0x03: return ("SETFEATURES SET TRANSFER MODE");
-		case 0x02: return ("SETFEATURES ENABLE WCACHE");
-		case 0x82: return ("SETFEATURES DISABLE WCACHE");
-		case 0x06: return ("SETFEATURES ENABLE PUIS");
-		case 0x86: return ("SETFEATURES DISABLE PUIS");
-		case 0x07: return ("SETFEATURES SPIN-UP");
-		case 0x10: return ("SETFEATURES ENABLE SATA FEATURE");
-		case 0x90: return ("SETFEATURES DISABLE SATA FEATURE");
-		case 0xaa: return ("SETFEATURES ENABLE RCACHE");
-		case 0x55: return ("SETFEATURES DISABLE RCACHE");
+	        case 0x02: return ("SETFEATURES ENABLE WCACHE");
+	        case 0x03: return ("SETFEATURES SET TRANSFER MODE");
+		case 0x04: return ("SETFEATURES ENABLE APM");
+	        case 0x06: return ("SETFEATURES ENABLE PUIS");
+	        case 0x07: return ("SETFEATURES SPIN-UP");
+		case 0x0b: return ("SETFEATURES ENABLE WRITE READ VERIFY");
+		case 0x0c: return ("SETFEATURES ENABLE DEVICE LIFE CONTROL");
+	        case 0x10: return ("SETFEATURES ENABLE SATA FEATURE");
+		case 0x41: return ("SETFEATURES ENABLE FREEFALL CONTROL");
+		case 0x43: return ("SETFEATURES SET MAX HOST INT SECT TIMES");
+		case 0x45: return ("SETFEATURES SET RATE BASIS");
+		case 0x4a: return ("SETFEATURES EXTENDED POWER CONDITIONS");
+	        case 0x55: return ("SETFEATURES DISABLE RCACHE");
 		case 0x5d: return ("SETFEATURES ENABLE RELIRQ");
-		case 0xdd: return ("SETFEATURES DISABLE RELIRQ");
 		case 0x5e: return ("SETFEATURES ENABLE SRVIRQ");
+		case 0x62: return ("SETFEATURES LONG PHYS SECT ALIGN ERC");
+		case 0x63: return ("SETFEATURES DSN");
+		case 0x66: return ("SETFEATURES DISABLE DEFAULTS");
+	        case 0x82: return ("SETFEATURES DISABLE WCACHE");
+	        case 0x85: return ("SETFEATURES DISABLE APM");
+	        case 0x86: return ("SETFEATURES DISABLE PUIS");
+		case 0x8b: return ("SETFEATURES DISABLE WRITE READ VERIFY");
+		case 0x8c: return ("SETFEATURES DISABLE DEVICE LIFE CONTROL");
+	        case 0x90: return ("SETFEATURES DISABLE SATA FEATURE");
+	        case 0xaa: return ("SETFEATURES ENABLE RCACHE");
+		case 0xC1: return ("SETFEATURES DISABLE FREEFALL CONTROL");
+		case 0xC3: return ("SETFEATURES SENSE DATA REPORTING");
+		case 0xC4: return ("SETFEATURES NCQ SENSE DATA RETURN");
+		case 0xCC: return ("SETFEATURES ENABLE DEFAULTS");
+		case 0xdd: return ("SETFEATURES DISABLE RELIRQ");
 		case 0xde: return ("SETFEATURES DISABLE SRVIRQ");
-		}
-		return "SETFEATURES";
+	        }
+	        return "SETFEATURES";
 	case 0xf1: return ("SECURITY_SET_PASSWORD");
 	case 0xf2: return ("SECURITY_UNLOCK");
 	case 0xf3: return ("SECURITY_ERASE_PREPARE");
@@ -463,7 +512,8 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 	    cmd == ATA_WRITE_DMA_QUEUED48 ||
 	    cmd == ATA_WRITE_DMA_QUEUED_FUA48 ||
 	    cmd == ATA_WRITE_STREAM_DMA48 ||
-	    cmd == ATA_DATA_SET_MANAGEMENT)
+	    cmd == ATA_DATA_SET_MANAGEMENT ||
+	    cmd == ATA_READ_LOG_DMA_EXT)
 		ataio->cmd.flags |= CAM_ATAIO_DMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = features;
@@ -531,6 +581,36 @@ ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint32_t val)
 	ataio->cmd.lba_mid = val >> 16;
 	ataio->cmd.lba_high = val >> 24;
 	ataio->cmd.device = port & 0x0f;
+}
+
+void
+ata_read_log(struct ccb_ataio *ataio, uint32_t retries,
+	     void (*cbfcnp)(struct cam_periph *, union ccb *),
+	     uint32_t log_address, uint32_t page_number, uint16_t block_count,
+	     uint32_t protocol, uint8_t *data_ptr, uint32_t dxfer_len,
+	     uint32_t timeout)
+{
+	uint64_t lba;
+
+	cam_fill_ataio(ataio,
+	    /*retries*/ 1,
+	    /*cbfcnp*/ cbfcnp,
+	    /*flags*/ CAM_DIR_IN,
+	    /*tag_action*/ 0,
+	    /*data_ptr*/ data_ptr,
+	    /*dxfer_len*/ dxfer_len,
+	    /*timeout*/ timeout);
+
+	lba = (((uint64_t)page_number & 0xff00) << 32) |
+	      ((page_number & 0x00ff) << 8) |
+	      (log_address & 0xff);
+
+	ata_48bit_cmd(ataio,
+	    /*cmd*/ (protocol & CAM_ATAIO_DMA) ? ATA_READ_LOG_DMA_EXT :
+		     ATA_READ_LOG_EXT,
+	    /*features*/ 0,
+	    /*lba*/ lba,
+	    /*sector_count*/ block_count);
 }
 
 void
@@ -893,3 +973,148 @@ semb_write_buffer(struct ccb_ataio *ataio,
 	    length > 0 ? data_ptr[0] : 0, 0x80, length / 4);
 }
 
+
+void
+ata_zac_mgmt_out(struct ccb_ataio *ataio, uint32_t retries, 
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 int use_ncq, uint8_t zm_action, uint64_t zone_id,
+		 uint8_t zone_flags, uint16_t sector_count, uint8_t *data_ptr,
+		 uint32_t dxfer_len, uint32_t timeout)
+{
+	uint8_t command_out, ata_flags;
+	uint16_t features_out, sectors_out;
+	uint32_t auxiliary;
+
+	if (use_ncq == 0) {
+		command_out = ATA_ZAC_MANAGEMENT_OUT;
+		features_out = (zm_action & 0xf) | (zone_flags << 8);
+		if (dxfer_len == 0) {
+			ata_flags = 0;
+			sectors_out = 0;
+		} else {
+			ata_flags = CAM_ATAIO_DMA;
+			/* XXX KDM use sector count? */
+			sectors_out = ((dxfer_len >> 9) & 0xffff);
+		}
+		auxiliary = 0;
+	} else {
+		if (dxfer_len == 0) {
+			command_out = ATA_NCQ_NON_DATA;
+			features_out = ATA_NCQ_ZAC_MGMT_OUT;
+			sectors_out = 0;
+		} else {
+			command_out = ATA_SEND_FPDMA_QUEUED;
+
+			/* Note that we're defaulting to normal priority */
+			sectors_out = ATA_SFPDMA_ZAC_MGMT_OUT << 8;
+
+			/*
+			 * For SEND FPDMA QUEUED, the transfer length is
+			 * encoded in the FEATURE register, and 0 means
+			 * that 65536 512 byte blocks are to be tranferred.
+			 * In practice, it seems unlikely that we'll see
+			 * a transfer that large.
+			 */
+			if (dxfer_len == (65536 * 512)) {
+				features_out = 0;
+			} else {
+				/*
+				 * Yes, the caller can theoretically send a
+				 * transfer larger than we can handle.
+				 * Anyone using this function needs enough
+				 * knowledge to avoid doing that.
+				 */
+				features_out = ((dxfer_len >> 9) & 0xffff);
+			}
+		}
+		auxiliary = (zm_action & 0xf) | (zone_flags << 8);
+
+		ata_flags = CAM_ATAIO_FPDMA;
+	}
+
+	cam_fill_ataio(ataio,
+	    /*retries*/ retries,
+	    /*cbfcnp*/ cbfcnp,
+	    /*flags*/ (dxfer_len > 0) ? CAM_DIR_OUT : CAM_DIR_NONE,
+	    /*tag_action*/ 0,
+	    /*data_ptr*/ data_ptr,
+	    /*dxfer_len*/ dxfer_len,
+	    /*timeout*/ timeout);
+
+	ata_48bit_cmd(ataio,
+	    /*cmd*/ command_out,
+	    /*features*/ features_out,
+	    /*lba*/ zone_id,
+	    /*sector_count*/ sectors_out);
+
+	ataio->cmd.flags |= ata_flags;
+	if (auxiliary != 0) {
+		ataio->ata_flags |= ATA_FLAG_AUX;
+		ataio->aux = auxiliary;
+	}
+}
+
+void
+ata_zac_mgmt_in(struct ccb_ataio *ataio, uint32_t retries, 
+		void (*cbfcnp)(struct cam_periph *, union ccb *),
+		int use_ncq, uint8_t zm_action, uint64_t zone_id,
+		uint8_t zone_flags, uint8_t *data_ptr, uint32_t dxfer_len,
+		uint32_t timeout)
+{
+	uint8_t command_out, ata_flags;
+	uint16_t features_out, sectors_out;
+	uint32_t auxiliary;
+
+	if (use_ncq == 0) {
+		command_out = ATA_ZAC_MANAGEMENT_IN;
+		/* XXX KDM put a macro here */
+		features_out = (zm_action & 0xf) | (zone_flags << 8);
+		ata_flags = CAM_ATAIO_DMA;
+		sectors_out = ((dxfer_len >> 9) & 0xffff);
+		auxiliary = 0;
+	} else {
+		command_out = ATA_RECV_FPDMA_QUEUED;
+		sectors_out = ATA_RFPDMA_ZAC_MGMT_IN << 8;
+		auxiliary = (zm_action & 0xf) | (zone_flags << 8),
+		ata_flags = CAM_ATAIO_FPDMA;
+		/*
+		 * For RECEIVE FPDMA QUEUED, the transfer length is
+		 * encoded in the FEATURE register, and 0 means
+		 * that 65536 512 byte blocks are to be tranferred.
+		 * In practice, it is unlikely we will see a transfer that
+		 * large.
+		 */
+		if (dxfer_len == (65536 * 512)) {
+			features_out = 0;
+		} else {
+			/*
+			 * Yes, the caller can theoretically request a
+			 * transfer larger than we can handle.
+			 * Anyone using this function needs enough
+			 * knowledge to avoid doing that.
+			 */
+			features_out = ((dxfer_len >> 9) & 0xffff);
+		}
+	}
+
+	cam_fill_ataio(ataio,
+	    /*retries*/ retries,
+	    /*cbfcnp*/ cbfcnp,
+	    /*flags*/ CAM_DIR_IN,
+	    /*tag_action*/ 0,
+	    /*data_ptr*/ data_ptr,
+	    /*dxfer_len*/ dxfer_len,
+	    /*timeout*/ timeout);
+
+	ata_48bit_cmd(ataio,
+	    /*cmd*/ command_out,
+	    /*features*/ features_out,
+	    /*lba*/ zone_id,
+	    /*sector_count*/ sectors_out);
+
+	ataio->cmd.flags |= ata_flags;
+	if (auxiliary != 0) {
+		ataio->ata_flags |= ATA_FLAG_AUX;
+		ataio->aux = auxiliary;
+	}
+}

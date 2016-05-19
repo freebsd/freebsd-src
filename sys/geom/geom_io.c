@@ -218,6 +218,9 @@ g_clone_bio(struct bio *bp)
 		bp2->bio_ma_n = bp->bio_ma_n;
 		bp2->bio_ma_offset = bp->bio_ma_offset;
 		bp2->bio_attribute = bp->bio_attribute;
+		if (bp->bio_cmd == BIO_ZONE)
+			bcopy(&bp->bio_zone, &bp2->bio_zone,
+			    sizeof(bp->bio_zone));
 		/* Inherit classification info from the parent */
 		bp2->bio_classifier1 = bp->bio_classifier1;
 		bp2->bio_classifier2 = bp->bio_classifier2;
@@ -305,6 +308,34 @@ g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr)
 }
 
 int
+g_io_zonecmd(struct disk_zone_args *zone_args, struct g_consumer *cp)
+{
+	struct bio *bp;
+	int error;
+	
+	g_trace(G_T_BIO, "bio_zone(%d)", zone_args->zone_cmd);
+	bp = g_alloc_bio();
+	bp->bio_cmd = BIO_ZONE;
+	bp->bio_done = NULL;
+	/*
+	 * XXX KDM need to handle report zone data.
+	 */
+	bcopy(zone_args, &bp->bio_zone, sizeof(*zone_args));
+	if (zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES)
+		bp->bio_length =
+		    zone_args->zone_params.report.entries_allocated *
+		    sizeof(struct disk_zone_rep_entry);
+	else
+		bp->bio_length = 0;
+
+	g_io_request(bp, cp);
+	error = biowait(bp, "gzone");
+	bcopy(&bp->bio_zone, zone_args, sizeof(*zone_args));
+	g_destroy_bio(bp);
+	return (error);
+}
+
+int
 g_io_flush(struct g_consumer *cp)
 {
 	struct bio *bp;
@@ -347,6 +378,14 @@ g_io_check(struct bio *bp)
 	case BIO_DELETE:
 	case BIO_FLUSH:
 		if (cp->acw == 0)
+			return (EPERM);
+		break;
+	case BIO_ZONE:
+		if ((bp->bio_zone.zone_cmd == DISK_ZONE_REPORT_ZONES) ||
+		    (bp->bio_zone.zone_cmd == DISK_ZONE_GET_PARAMS)) {
+			if (cp->acr == 0)
+				return (EPERM);
+		} else if (cp->acw == 0)
 			return (EPERM);
 		break;
 	default:
@@ -988,6 +1027,35 @@ g_print_bio(struct bio *bp)
 		cmd = "FLUSH";
 		printf("%s[%s]", pname, cmd);
 		return;
+	case BIO_ZONE: {
+		char *subcmd = NULL;
+		cmd = "ZONE";
+		switch (bp->bio_zone.zone_cmd) {
+		case DISK_ZONE_OPEN:
+			subcmd = "OPEN";
+			break;
+		case DISK_ZONE_CLOSE:
+			subcmd = "CLOSE";
+			break;
+		case DISK_ZONE_FINISH:
+			subcmd = "FINISH";
+			break;
+		case DISK_ZONE_RWP:
+			subcmd = "RWP";
+			break;
+		case DISK_ZONE_REPORT_ZONES:
+			subcmd = "REPORT ZONES";
+			break;
+		case DISK_ZONE_GET_PARAMS:
+			subcmd = "GET PARAMS";
+			break;
+		default:
+			subcmd = "UNKNOWN";
+			break;
+		}
+		printf("%s[%s,%s]", pname, cmd, subcmd);
+		return;
+	}
 	case BIO_READ:
 		cmd = "READ";
 		break;

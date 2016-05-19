@@ -111,6 +111,7 @@ static void	fetchtableentries(int sense_key, int asc, int ascq,
 				  struct scsi_inquiry_data *,
 				  const struct sense_key_table_entry **,
 				  const struct asc_table_entry **);
+
 #ifdef _KERNEL
 static void	init_scsi_delay(void);
 static int	sysctl_scsi_delay(SYSCTL_HANDLER_ARGS);
@@ -502,9 +503,9 @@ static struct op_table_entry scsi_op_codes[] = {
 	/* 93   M              ERASE(16) */
 	{ 0x93,	T, "ERASE(16)" },
 	/* 94  O               ZBC OUT */
-	{ 0x94,	D, "ZBC OUT" },
-	/* 95  O               ZBC OUT */
-	{ 0x95,	D, "ZBC OUT" },
+	{ 0x94,	ALL, "ZBC OUT" },
+	/* 95  O               ZBC IN */
+	{ 0x95,	ALL, "ZBC IN" },
 	/* 96 */
 	/* 97 */
 	/* 98 */
@@ -520,7 +521,6 @@ static struct op_table_entry scsi_op_codes[] = {
 	/* XXX KDM ALL for this?  op-num.txt defines it for none.. */
 	/* 9E                  SERVICE ACTION IN(16) */
 	{ 0x9E, ALL, "SERVICE ACTION IN(16)" },
-	/* XXX KDM ALL for this?  op-num.txt defines it for ADC.. */
 	/* 9F              M   SERVICE ACTION OUT(16) */
 	{ 0x9F,	ALL, "SERVICE ACTION OUT(16)" },
 	/* A0  MMOOO OMMM OMO  REPORT LUNS */
@@ -671,6 +671,12 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 
 	/* RBC is 'Simplified' Direct Access Device */
 	if (pd_type == T_RBC)
+		pd_type = T_DIRECT;
+
+	/*
+	 * Host managed drives are direct access for the most part.
+	 */
+	if (pd_type == T_ZBC_HM)
 		pd_type = T_DIRECT;
 
 	/* Map NODEVICE to Direct Access Device to handle REPORT LUNS, etc. */
@@ -4259,6 +4265,7 @@ scsi_get_block_info(struct scsi_sense_data *sense_data, u_int sense_len,
 		switch (SID_TYPE(inq_data)) {
 		case T_DIRECT:
 		case T_RBC:
+		case T_ZBC_HM:
 			break;
 		default:
 			goto bailout;
@@ -5407,6 +5414,9 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 		break;
 	case T_ADC:
 		dtype = "Automation/Drive Interface";
+		break;
+	case T_ZBC_HM:
+		dtype = "Host Managed Zoned Block";
 		break;
 	case T_NODEVICE:
 		dtype = "Uninstalled";
@@ -8135,23 +8145,30 @@ scsi_ata_identify(struct ccb_scsiio *csio, u_int32_t retries,
 		  u_int16_t dxfer_len, u_int8_t sense_len,
 		  u_int32_t timeout)
 {
-	scsi_ata_pass_16(csio,
-			 retries,
-			 cbfcnp,
-			 /*flags*/CAM_DIR_IN,
-			 tag_action,
-			 /*protocol*/AP_PROTO_PIO_IN,
-			 /*ata_flags*/AP_FLAG_TDIR_FROM_DEV|
-				AP_FLAG_BYT_BLOK_BYTES|AP_FLAG_TLEN_SECT_CNT,
-			 /*features*/0,
-			 /*sector_count*/dxfer_len,
-			 /*lba*/0,
-			 /*command*/ATA_ATA_IDENTIFY,
-			 /*control*/0,
-			 data_ptr,
-			 dxfer_len,
-			 sense_len,
-			 timeout);
+	scsi_ata_pass(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*protocol*/AP_PROTO_PIO_IN,
+		      /*ata_flags*/AP_FLAG_TDIR_FROM_DEV |
+				   AP_FLAG_BYT_BLOK_BYTES |
+				   AP_FLAG_TLEN_SECT_CNT,
+		      /*features*/0,
+		      /*sector_count*/dxfer_len,
+		      /*lba*/0,
+		      /*command*/ATA_ATA_IDENTIFY,
+		      /*device*/ 0,
+		      /*icc*/ 0,
+		      /*auxiliary*/ 0,
+		      /*control*/0,
+		      data_ptr,
+		      dxfer_len,
+		      /*cdb_storage*/ NULL,
+		      /*cdb_storage_len*/ 0,
+		      /*minimum_cmd_size*/ 0,
+		      sense_len,
+		      timeout);
 }
 
 void
@@ -8177,6 +8194,248 @@ scsi_ata_trim(struct ccb_scsiio *csio, u_int32_t retries,
 			 dxfer_len,
 			 sense_len,
 			 timeout);
+}
+
+int
+scsi_ata_read_log(struct ccb_scsiio *csio, uint32_t retries,
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  uint8_t tag_action, uint32_t log_address,
+		  uint32_t page_number, uint16_t block_count,
+		  uint8_t protocol, uint8_t *data_ptr, uint32_t dxfer_len,
+		  uint8_t sense_len, uint32_t timeout)
+{
+	uint8_t command, protocol_out;
+	uint16_t count_out;
+	uint64_t lba;
+	int retval;
+
+	retval = 0;
+
+	switch (protocol) {
+	case AP_PROTO_DMA:
+		count_out = block_count;
+		command = ATA_READ_LOG_DMA_EXT;
+		protocol_out = AP_PROTO_DMA;
+		break;
+	case AP_PROTO_PIO_IN:
+	default:
+		count_out = block_count;
+		command = ATA_READ_LOG_EXT;
+		protocol_out = AP_PROTO_PIO_IN;
+		break;
+	}
+
+	lba = (((uint64_t)page_number & 0xff00) << 32) |
+	      ((page_number & 0x00ff) << 8) |
+	      (log_address & 0xff);
+
+	protocol_out |= AP_EXTEND;
+
+	retval = scsi_ata_pass(csio,
+			       retries,
+			       cbfcnp,
+			       /*flags*/CAM_DIR_IN,
+			       tag_action,
+			       /*protocol*/ protocol_out,
+			       /*ata_flags*/AP_FLAG_TLEN_SECT_CNT |
+					    AP_FLAG_BYT_BLOK_BLOCKS |
+					    AP_FLAG_TDIR_FROM_DEV,
+			       /*feature*/ 0,
+			       /*sector_count*/ count_out,
+			       /*lba*/ lba,
+			       /*command*/ command,
+			       /*device*/ 0,
+			       /*icc*/ 0,
+			       /*auxiliary*/ 0,
+			       /*control*/0,
+			       data_ptr,
+			       dxfer_len,
+			       /*cdb_storage*/ NULL,
+			       /*cdb_storage_len*/ 0,
+			       /*minimum_cmd_size*/ 0,
+			       sense_len,
+			       timeout);
+
+	return (retval);
+}
+
+/*
+ * Note! This is an unusual CDB building function because it can return
+ * an error in the event that the command in question requires a variable
+ * length CDB, but the caller has not given storage space for one or has not
+ * given enough storage space.  If there is enough space available in the
+ * standard SCSI CCB CDB bytes, we'll prefer that over passed in storage.
+ */
+int
+scsi_ata_pass(struct ccb_scsiio *csio, uint32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      uint32_t flags, uint8_t tag_action,
+	      uint8_t protocol, uint8_t ata_flags, uint16_t features,
+	      uint16_t sector_count, uint64_t lba, uint8_t command,
+	      uint8_t device, uint8_t icc, uint32_t auxiliary,
+	      uint8_t control, u_int8_t *data_ptr, uint32_t dxfer_len,
+	      uint8_t *cdb_storage, size_t cdb_storage_len,
+	      int minimum_cmd_size, u_int8_t sense_len, u_int32_t timeout)
+{
+	uint32_t cam_flags;
+	uint8_t *cdb_ptr;
+	int cmd_size;
+	int retval;
+	uint8_t cdb_len;
+
+	retval = 0;
+	cam_flags = flags;
+
+	/*
+	 * Round the user's request to the nearest command size that is at
+	 * least as big as what he requested.
+	 */
+	if (minimum_cmd_size <= 12)
+		cmd_size = 12;
+	else if (minimum_cmd_size > 16)
+		cmd_size = 32;
+	else
+		cmd_size = 16;
+
+	/*
+	 * If we have parameters that require a 48-bit ATA command, we have to
+	 * use the 16 byte ATA PASS-THROUGH command at least.
+	 */
+	if (((lba > ATA_MAX_28BIT_LBA) 
+	  || (sector_count > 255)
+	  || (features > 255)
+	  || (protocol & AP_EXTEND))
+	 && ((cmd_size < 16)
+	  || ((protocol & AP_EXTEND) == 0))) {
+		if (cmd_size < 16)
+			cmd_size = 16;
+		protocol |= AP_EXTEND;
+	}
+
+	/*
+	 * The icc and auxiliary ATA registers are only supported in the
+	 * 32-byte version of the ATA PASS-THROUGH command.
+	 */
+	if ((icc != 0)
+	 || (auxiliary != 0)) {
+		cmd_size = 32;
+		protocol |= AP_EXTEND;
+	}
+
+
+	if ((cmd_size > sizeof(csio->cdb_io.cdb_bytes))
+	 && ((cdb_storage == NULL)
+	  || (cdb_storage_len < cmd_size))) {
+		retval = 1;
+		goto bailout;
+	}
+
+	/*
+	 * At this point we know we have enough space to store the command
+	 * in one place or another.  We prefer the built-in array, but used
+	 * the passed in storage if necessary.
+	 */
+	if (cmd_size <= sizeof(csio->cdb_io.cdb_bytes))
+		cdb_ptr = csio->cdb_io.cdb_bytes;
+	else {
+		cdb_ptr = cdb_storage;
+		cam_flags |= CAM_CDB_POINTER;
+	}
+
+	if (cmd_size <= 12) {
+		struct ata_pass_12 *cdb;
+
+		cdb = (struct ata_pass_12 *)cdb_ptr;
+		cdb_len = sizeof(*cdb);
+		bzero(cdb, cdb_len);
+
+		cdb->opcode = ATA_PASS_12;
+		cdb->protocol = protocol;
+		cdb->flags = ata_flags;
+		cdb->features = features;
+		cdb->sector_count = sector_count;
+		cdb->lba_low = lba & 0xff;
+		cdb->lba_mid = (lba >> 8) & 0xff;
+		cdb->lba_high = (lba >> 16) & 0xff;
+		cdb->device = ((lba >> 24) & 0xf) | ATA_DEV_LBA;
+		cdb->command = command;
+		cdb->control = control;
+	} else if (cmd_size <= 16) {
+		struct ata_pass_16 *cdb;
+
+		cdb = (struct ata_pass_16 *)cdb_ptr;
+		cdb_len = sizeof(*cdb);
+		bzero(cdb, cdb_len);
+
+		cdb->opcode = ATA_PASS_16;
+		cdb->protocol = protocol;
+		cdb->flags = ata_flags;
+		cdb->features = features & 0xff;
+		cdb->sector_count = sector_count & 0xff;
+		cdb->lba_low = lba & 0xff;
+		cdb->lba_mid = (lba >> 8) & 0xff;
+		cdb->lba_high = (lba >> 16) & 0xff;
+		/*
+		 * If AP_EXTEND is set, we're sending a 48-bit command.
+		 * Otherwise it's a 28-bit command.
+		 */
+		if (protocol & AP_EXTEND) {
+			cdb->lba_low_ext = (lba >> 24) & 0xff;
+			cdb->lba_mid_ext = (lba >> 32) & 0xff;
+			cdb->lba_high_ext = (lba >> 40) & 0xff;
+			cdb->features_ext = (features >> 8) & 0xff;
+			cdb->sector_count_ext = (sector_count >> 8) & 0xff;
+			cdb->device = device | ATA_DEV_LBA;
+		} else {
+			cdb->lba_low_ext = (lba >> 24) & 0xf;
+			cdb->device = ((lba >> 24) & 0xf) | ATA_DEV_LBA;
+		}
+		cdb->command = command;
+		cdb->control = control;
+	} else {
+		struct ata_pass_32 *cdb;
+		uint8_t tmp_lba[8];
+
+		cdb = (struct ata_pass_32 *)cdb_ptr;
+		cdb_len = sizeof(*cdb);
+		bzero(cdb, cdb_len);
+		cdb->opcode = VARIABLE_LEN_CDB;
+		cdb->control = control;
+		cdb->length = sizeof(*cdb) - __offsetof(struct ata_pass_32,
+							service_action);
+		scsi_ulto2b(ATA_PASS_32_SA, cdb->service_action);
+		cdb->protocol = protocol;
+		cdb->flags = ata_flags;
+
+		if ((protocol & AP_EXTEND) == 0) {
+			lba &= 0x0fffffff;
+			cdb->device = ((lba >> 24) & 0xf) | ATA_DEV_LBA;
+			features &= 0xff;
+			sector_count &= 0xff;
+		} else {
+			cdb->device = device | ATA_DEV_LBA;
+		}
+		scsi_u64to8b(lba, tmp_lba);
+		bcopy(&tmp_lba[2], cdb->lba, sizeof(cdb->lba));
+		scsi_ulto2b(features, cdb->features);
+		scsi_ulto2b(sector_count, cdb->count);
+		cdb->command = command;
+		cdb->icc = icc;
+		scsi_ulto4b(auxiliary, cdb->auxiliary);
+	}
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      cam_flags,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      cmd_size,
+		      timeout);
+bailout:
+	return (retval);
 }
 
 void

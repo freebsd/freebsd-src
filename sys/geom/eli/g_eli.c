@@ -309,6 +309,7 @@ g_eli_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_GETATTR:
 	case BIO_FLUSH:
+	case BIO_ZONE:
 		break;
 	case BIO_DELETE:
 		/*
@@ -348,6 +349,7 @@ g_eli_start(struct bio *bp)
 	case BIO_GETATTR:
 	case BIO_FLUSH:
 	case BIO_DELETE:
+	case BIO_ZONE:
 		cbp->bio_done = g_std_done;
 		cp = LIST_FIRST(&sc->sc_geom->consumer);
 		cbp->bio_to = cp->provider;

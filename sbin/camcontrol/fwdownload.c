@@ -692,7 +692,7 @@ fw_check_device_ready(struct cam_device *dev, camcontrol_devtype devtype,
 		break;
 	case CC_DT_ATA_BEHIND_SCSI:
 	case CC_DT_ATA: {
-		build_ata_cmd(ccb,
+		retval = build_ata_cmd(ccb,
 			     /*retries*/ 1,
 			     /*flags*/ CAM_DIR_IN,
 			     /*tag_action*/ MSG_SIMPLE_Q_TAG,
@@ -704,12 +704,21 @@ fw_check_device_ready(struct cam_device *dev, camcontrol_devtype devtype,
 			     /*sector_count*/ (uint8_t) dxfer_len,
 			     /*lba*/ 0,
 			     /*command*/ ATA_ATA_IDENTIFY,
+			     /*auxiliary*/ 0,
 			     /*data_ptr*/ (uint8_t *)ptr,
 			     /*dxfer_len*/ dxfer_len,
+			     /*cdb_storage*/ NULL,
+			     /*cdb_storage_len*/ 0,
 			     /*sense_len*/ SSD_FULL_SIZE,
 			     /*timeout*/ timeout ? timeout : 30 * 1000,
 			     /*is48bit*/ 0,
 			     /*devtype*/ devtype);
+		if (retval != 0) {
+			retval = -1;
+			warnx("%s: build_ata_cmd() failed, likely "
+			    "programmer error", __func__);
+			goto bailout;
+		}
 		break;
 	}
 	default:
@@ -847,7 +856,7 @@ fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
 
 			off = (uint32_t)(pkt_ptr - buf);
 
-			build_ata_cmd(ccb,
+			retval = build_ata_cmd(ccb,
 			    /*retry_count*/ retry_count,
 			    /*flags*/ CAM_DIR_OUT | CAM_DEV_QFRZDIS,
 			    /*tag_action*/ CAM_TAG_ACTION_NONE,
@@ -859,12 +868,21 @@ fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
 			    /*sector_count*/ ATA_MAKE_SECTORS(pkt_size),
 			    /*lba*/ ATA_MAKE_LBA(off, pkt_size),
 			    /*command*/ ATA_DOWNLOAD_MICROCODE,
+			    /*auxiliary*/ 0,
 			    /*data_ptr*/ (uint8_t *)pkt_ptr,
 			    /*dxfer_len*/ pkt_size,
+			    /*cdb_storage*/ NULL,
+			    /*cdb_storage_len*/ 0,
 			    /*sense_len*/ SSD_FULL_SIZE,
 			    /*timeout*/ timeout ? timeout : WB_TIMEOUT,
 			    /*is48bit*/ 0,
 			    /*devtype*/ devtype);
+
+			if (retval != 0) {
+				warnx("%s: build_ata_cmd() failed, likely "
+				    "programmer error", __func__);
+				goto bailout;
+			}
 			break;
 		}
 		default:

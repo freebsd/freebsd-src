@@ -226,7 +226,11 @@ g_disk_done(struct bio *bp)
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
+
 	switch (bp->bio_cmd) {
+	case BIO_ZONE:
+		bcopy(&bp->bio_zone, &bp2->bio_zone, sizeof(bp->bio_zone));
+		/*FALLTHROUGH*/
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
@@ -514,6 +518,16 @@ g_disk_start(struct bio *bp)
 		if (!(dp->d_flags & DISKFLAG_CANFLUSHCACHE)) {
 			error = EOPNOTSUPP;
 			break;
+		}
+		/*FALLTHROUGH*/
+	case BIO_ZONE:
+		if (bp->bio_cmd == BIO_ZONE) {
+			if (!(dp->d_flags & DISKFLAG_CANZONE)) {
+				error = EOPNOTSUPP;
+				break;
+			}
+			g_trace(G_T_BIO, "g_disk_zone(%s)",
+			    bp->bio_to->name);
 		}
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {

@@ -101,7 +101,9 @@ typedef enum {
 	CAM_CMD_AAM		= 0x00000022,
 	CAM_CMD_ATTRIB		= 0x00000023,
 	CAM_CMD_OPCODES		= 0x00000024,
-	CAM_CMD_REPROBE		= 0x00000025
+	CAM_CMD_REPROBE		= 0x00000025,
+	CAM_CMD_ZONE		= 0x00000026,
+	CAM_CMD_EPC		= 0x00000027
 } cam_cmdmask;
 
 typedef enum {
@@ -230,6 +232,8 @@ static struct camcontrol_opts option_table[] = {
 	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ai:I:k:K:o:ps:ST:U"},
 	{"attrib", CAM_CMD_ATTRIB, CAM_ARG_NONE, "a:ce:F:p:r:s:T:w:V:"},
 	{"opcodes", CAM_CMD_OPCODES, CAM_ARG_NONE, "No:s:T"},
+	{"zone", CAM_CMD_ZONE, CAM_ARG_NONE, "ac:l:No:P:"},
+	{"epc", CAM_CMD_EPC, CAM_ARG_NONE, "c:dDeHp:Pr:sS:T:"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -5071,13 +5075,16 @@ bailout:
 	return (retval);
 }
 
-void
+int
 build_ata_cmd(union ccb *ccb, uint32_t retry_count, uint32_t flags,
     uint8_t tag_action, uint8_t protocol, uint8_t ata_flags, uint16_t features,
-    uint16_t sector_count, uint64_t lba, uint8_t command, uint8_t *data_ptr,
-    uint16_t dxfer_len, uint8_t sense_len, uint32_t timeout,
+    uint16_t sector_count, uint64_t lba, uint8_t command, uint32_t auxiliary,
+    uint8_t *data_ptr, uint32_t dxfer_len, uint8_t *cdb_storage,
+    size_t cdb_storage_len, uint8_t sense_len, uint32_t timeout,
     int is48bit, camcontrol_devtype devtype)
 {
+	int retval = 0;
+
 	if (devtype == CC_DT_ATA) {
 		cam_fill_ataio(&ccb->ataio,
 		    /*retries*/ retry_count,
@@ -5093,11 +5100,24 @@ build_ata_cmd(union ccb *ccb, uint32_t retry_count, uint32_t flags,
 		else
 			ata_28bit_cmd(&ccb->ataio, command, features, lba,
 			    sector_count);
+
+		if (auxiliary != 0) {
+			ccb->ataio.ata_flags |= ATA_FLAG_AUX;
+			ccb->ataio.aux = auxiliary;
+		}
+
+		if (ata_flags & AP_FLAG_CHK_COND)
+			ccb->ataio.cmd.flags |= CAM_ATAIO_NEEDRESULT;
+
+		if ((protocol & AP_PROTO_MASK) == AP_PROTO_DMA)
+			ccb->ataio.cmd.flags |= CAM_ATAIO_DMA;
+		else if ((protocol & AP_PROTO_MASK) == AP_PROTO_FPDMA)
+			ccb->ataio.cmd.flags |= CAM_ATAIO_FPDMA;
 	} else {
 		if (is48bit || lba > ATA_MAX_28BIT_LBA)
 			protocol |= AP_EXTEND;
 
-		scsi_ata_pass_16(&ccb->csio,
+		retval = scsi_ata_pass(&ccb->csio,
 		    /*retries*/ retry_count,
 		    /*cbfcnp*/ NULL,
 		    /*flags*/ flags,
@@ -5108,14 +5128,158 @@ build_ata_cmd(union ccb *ccb, uint32_t retry_count, uint32_t flags,
 		    /*sector_count*/ sector_count, 
 		    /*lba*/ lba,
 		    /*command*/ command,
+		    /*device*/ 0,
+		    /*icc*/ 0,
+		    /*auxiliary*/ auxiliary,
 		    /*control*/ 0,
 		    /*data_ptr*/ data_ptr,
 		    /*dxfer_len*/ dxfer_len,
+		    /*cdb_storage*/ cdb_storage,
+		    /*cdb_storage_len*/ cdb_storage_len,
+		    /*minimum_cmd_size*/ 0,
 		    /*sense_len*/ sense_len,
 		    /*timeout*/ timeout);
 	}
+
+	return (retval);
 }
 
+int
+get_ata_status(struct cam_device *dev, union ccb *ccb, uint8_t *error,
+	       uint16_t *count, uint64_t *lba, uint8_t *device, uint8_t *status)
+{
+	int retval = 0;
+
+	switch (ccb->ccb_h.func_code) {
+	case XPT_SCSI_IO: {
+		uint8_t opcode;
+		int error_code = 0, sense_key = 0, asc = 0, ascq = 0;
+
+		/*
+		 * In this case, we have SCSI ATA PASS-THROUGH command, 12
+		 * or 16 byte, and need to see what 
+		 */
+		if (ccb->ccb_h.flags & CAM_CDB_POINTER)
+			opcode = ccb->csio.cdb_io.cdb_ptr[0];
+		else
+			opcode = ccb->csio.cdb_io.cdb_bytes[0];
+		if ((opcode != ATA_PASS_12)
+		 && (opcode != ATA_PASS_16)) {
+			retval = 1;
+			warnx("%s: unsupported opcode %02x", __func__, opcode);
+			goto bailout;
+		}
+
+		retval = scsi_extract_sense_ccb(ccb, &error_code, &sense_key,
+						&asc, &ascq);
+		/* Note: the _ccb() variant returns 0 for an error */
+		if (retval == 0) {
+			retval = 1;
+			goto bailout;
+		} else
+			retval = 0;
+
+		switch (error_code) {
+		case SSD_DESC_CURRENT_ERROR:
+		case SSD_DESC_DEFERRED_ERROR: {
+			struct scsi_sense_data_desc *sense;
+			struct scsi_sense_ata_ret_desc *desc;
+			uint8_t *desc_ptr;
+
+			sense = (struct scsi_sense_data_desc *)
+			    &ccb->csio.sense_data;
+
+			desc_ptr = scsi_find_desc(sense, ccb->csio.sense_len -
+			    ccb->csio.sense_resid, SSD_DESC_ATA);
+			if (desc_ptr == NULL) {
+				cam_error_print(dev, ccb, CAM_ESF_ALL,
+				    CAM_EPF_ALL, stderr);
+				retval = 1;
+				goto bailout;
+			}
+			desc = (struct scsi_sense_ata_ret_desc *)desc_ptr;
+
+			*error = desc->error;
+			*count = (desc->count_15_8 << 8) |
+				  desc->count_7_0;
+			*lba = ((uint64_t)desc->lba_47_40 << 40) |
+			       ((uint64_t)desc->lba_39_32 << 32) |
+			       (desc->lba_31_24 << 24) |
+			       (desc->lba_23_16 << 16) |
+			       (desc->lba_15_8  <<  8) |
+			        desc->lba_7_0;
+			*device = desc->device;
+			*status = desc->status;
+
+			/*
+			 * If the extend bit isn't set, the result is for a
+			 * 12-byte ATA PASS-THROUGH command or a 16 or 32 byte
+			 * command without the extend bit set.  This means
+			 * that the device is supposed to return 28-bit
+			 * status.  The count field is only 8 bits, and the
+			 * LBA field is only 8 bits.
+			 */
+			if ((desc->flags & SSD_DESC_ATA_FLAG_EXTEND) == 0){
+				*count &= 0xff;
+				*lba &= 0x0fffffff;
+			}
+			break;
+		}
+		case SSD_CURRENT_ERROR:
+		case SSD_DEFERRED_ERROR: {
+#if 0
+			struct scsi_sense_data_fixed *sense;
+#endif
+			/*
+			 * XXX KDM need to support fixed sense data.
+			 */
+			warnx("%s: Fixed sense data not supported yet",
+			    __func__);
+			retval = 1;
+			goto bailout;
+			break; /*NOTREACHED*/
+		}
+		default:
+			retval = 1;
+			goto bailout;
+			break;
+		}
+
+		break;
+	}
+	case XPT_ATA_IO: {
+		struct ata_res *res;
+
+		/*
+		 * In this case, we have an ATA command, and we need to
+		 * fill in the requested values from the result register
+		 * set.
+		 */
+		res = &ccb->ataio.res;
+		*error = res->error;
+		*status = res->status;
+		*device = res->device; 
+		*count = res->sector_count;
+		*lba = (res->lba_high << 16) |
+		       (res->lba_mid << 8) |
+		       (res->lba_low);
+		if (res->flags & CAM_ATAIO_48BIT) {
+			*count |= (res->sector_count_exp << 8);
+			*lba |= (res->lba_low_exp << 24) |
+				((uint64_t)res->lba_mid_exp << 32) |
+				((uint64_t)res->lba_high_exp << 40);
+		} else {
+			*lba |= (res->device & 0xf) << 24;
+		}
+		break;
+	}
+	default:
+		retval = 1;
+		break;
+	}
+bailout:
+	return (retval);
+}
 
 static void
 cpi_print(struct ccb_pathinq *cpi)
@@ -8774,6 +8938,11 @@ usage(int printlong)
 "                              [-p part][-s start][-T type][-V vol]\n"
 "        camcontrol opcodes    [dev_id][generic args][-o opcode][-s SA]\n"
 "                              [-N][-T]\n"
+"        camcontrol zone       [dev_id][generic args]<-c cmd> [-a] [-l LBA]\n"
+"                              [-o rep_opts] [-P print_opts]\n"
+"        camcontrol epc        [dev_id][generic_args]<-c cmd> [-d] [-D] [-e]\n"
+"                              [-H] [-p power_cond] [-P] [-r rst_src] [-s]\n"
+"                              [-S power_src] [-T timer]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!printlong)
@@ -8816,6 +8985,8 @@ usage(int printlong)
 "persist     send the SCSI PERSISTENT RESERVE IN or OUT commands\n"
 "attrib      send the SCSI READ or WRITE ATTRIBUTE commands\n"
 "opcodes     send the SCSI REPORT SUPPORTED OPCODES command\n"
+"zone        manage Zoned Block (Shingled) devices\n"
+"epc         send ATA Extended Power Conditions commands\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -8986,6 +9157,27 @@ usage(int printlong)
 "-s service_action specify the service action for the opcode\n"
 "-N                do not return SCSI error for unsupported SA\n"
 "-T                request nominal and recommended timeout values\n"
+"zone arguments:\n"
+"-c cmd            required: rz, open, close, finish, or rwp\n"
+"-a                apply the action to all zones\n"
+"-l LBA            specify the zone starting LBA\n"
+"-o rep_opts       report zones options: all, empty, imp_open, exp_open,\n"
+"                  closed, full, ro, offline, reset, nonseq, nonwp\n"
+"-P print_opt      report zones printing:  normal, summary, script\n"
+"epc arguments:\n"
+"-c cmd            required: restore, goto, timer, state, enable, disable,\n"
+"                  source, status, list\n"
+"-d                disable power mode (timer, state)\n"
+"-D                delayed entry (goto)\n"
+"-e                enable power mode (timer, state)\n"
+"-H                hold power mode (goto)\n"
+"-p power_cond     Idle_a, Idle_b, Idle_c, Standby_y, Standby_z (timer,\n"
+"                  state, goto)\n"
+"-P                only display power mode (status)\n"
+"-r rst_src        restore settings from: default, saved (restore)\n"
+"-s                save mode (timer, state, restore)\n"
+"-S power_src      set power source: battery, nonbattery (source)\n"
+"-T timer          set timer, seconds, .1 sec resolution (timer)\n"
 );
 #endif /* MINIMALISTIC */
 }
@@ -9341,7 +9533,14 @@ main(int argc, char **argv)
 		case CAM_CMD_REPROBE:
 			error = scsireprobe(cam_dev);
 			break;
-
+		case CAM_CMD_ZONE:
+			error = zone(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout, arglist & CAM_ARG_VERBOSE);
+			break;
+		case CAM_CMD_EPC:
+			error = epc(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout, arglist & CAM_ARG_VERBOSE);
+			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:
 			usage(1);

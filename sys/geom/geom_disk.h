@@ -109,6 +109,7 @@ struct disk {
 #define DISKFLAG_CANFLUSHCACHE	0x8
 #define	DISKFLAG_UNMAPPED_BIO	0x10
 #define	DISKFLAG_DIRECT_COMPLETION	0x20
+#define	DISKFLAG_CANZONE	0x80
 
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);
