@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2010
+.Dd May 19, 2016
 .Dt NANOBSD 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 applications
 .Sh SYNOPSIS
 .Nm
-.Op Fl bhknw
+.Op Fl bfhiKknqvwX
 .Op Fl c Ar config-file
 .Sh DESCRIPTION
 The
@@ -53,8 +53,16 @@ The following options are available:
 Skip the build stages (both for kernel and world).
 .It Fl c Ar config-file
 Specify the configuration file to use.
+.It Fl f
+Skip the code slice extraction.
 .It Fl h
 Display usage information.
+.It Fl i
+Skip the disk image build stage.
+.It Fl K
+Skip the
+.Cm installkernel
+stage of the build.
 .It Fl k
 Skip the
 .Cm buildkernel
@@ -65,10 +73,17 @@ This suppresses the normal cleanup work done before the
 .Cm buildworld
 stage and adds -DNO_CLEAN to the make command line
 used for each build stage (world and kernel).
+.It Fl q
+Make output more quiet.
+.It Fl v
+Make output more verbose.
 .It Fl w
 Skip the
 .Cm buildworld
 stage of the build.
+.It Fl X
+Make
+.Cm native-xtools.
 .El
 .Pp
 The features of
