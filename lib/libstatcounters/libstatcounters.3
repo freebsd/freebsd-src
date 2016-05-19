@@ -31,15 +31,20 @@
 .Nm libstatcounters
 .Nd A library to gather BERI/CHERI's statcounters.
 .Sh DESCRIPTION
-To link with
 .Nm
-use "-lstatcounters" when compiling, or
+provides an API to the BERI/CHERI statcounters. To link with
+.Nm
+, use "-lstatcounters" when compiling. When linking statically, add
 .Pp
 "-Wl,--whole-archive -lstatcounters -Wl,--no-whole-archive"
 .Pp
-when linking to automatically sample statcounters before and after
+to the linking flags to still enable the automatic sampling of statcounters before and after
 .Fn main
-and outputs the difference.
+, and output of the difference (this is naturally available if not linking static). The behaviour of the automatic sampling is controlled through the
+.Nm STATCOUNTERS_OUTPUT
+and
+.Nm STATCOUNTERS_FORMAT
+environment variables.
 .Pp
 .Nm STATCOUNTERS_OUTPUT
 .Nd Environment variable specifying the file in which to output the statcounters'values
@@ -76,13 +81,13 @@ samples the hardware statcounters into statcounters_bank_t
 .in
 .Pp
 .Ft void
-.Fn diff_statcounters "const statcounters_bank_t * const bs" "const statcounters_bank_t * const be" "statcounters_bank_t * const bd"
+.Fn diff_statcounters "const statcounters_bank_t * const be" "const statcounters_bank_t * const bs" "statcounters_bank_t * const bd"
 .in +5
 .Fn diff_statcounters
 stores the difference between statcounters_bank_t
-.Fa bs
-and
 .Fa be
+and
+.Fa bs
 in statcounters_bank_t
 .Fa bd .
 .in

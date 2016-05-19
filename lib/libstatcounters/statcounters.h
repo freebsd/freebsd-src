@@ -69,6 +69,7 @@ enum {
 
 // Assembly primitives to access the hardware counters
 
+// TODO the itlbmiss/dtlbmiss/cycle/inst counters are not reset with that
 static inline void resetStatCounters (void)
 {
     __asm __volatile(".word (0x1F << 26) | (0x0 << 21) | (0x0 << 16) | (0x7 << 11) | (0x0 << 6) | (0x3B)");

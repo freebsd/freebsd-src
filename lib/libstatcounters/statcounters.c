@@ -171,26 +171,26 @@ void sample_statcounters (statcounters_bank_t * const cnt_bank)
 
 // diff two statcounters_banks into a third one
 void diff_statcounters (
-    const statcounters_bank_t * const bs,
     const statcounters_bank_t * const be,
+    const statcounters_bank_t * const bs,
     statcounters_bank_t * const bd)
 {
     if (bs == NULL || be == NULL || be == NULL)
         errno = -1;
     else
     {
-        bd->itlb_miss    = bs->itlb_miss - be->itlb_miss;
-        bd->dtlb_miss    = bs->dtlb_miss - be->dtlb_miss;
-        bd->cycle        = bs->cycle - be->cycle;
-        bd->inst         = bs->inst - be->inst;
+        bd->itlb_miss    = be->itlb_miss - bs->itlb_miss;
+        bd->dtlb_miss    = be->dtlb_miss - bs->dtlb_miss;
+        bd->cycle        = be->cycle - bs->cycle;
+        bd->inst         = be->inst - bs->inst;
         int i = 0;
         for (i = 0; i < MAX_MOD_CNT; i++)
         {
-            bd->icache[i]    = bs->icache[i] - be->icache[i];
-            bd->dcache[i]    = bs->dcache[i] - be->dcache[i];
-            bd->l2cache[i]   = bs->l2cache[i] - be->l2cache[i];
-            bd->mipsmem[i]   = bs->mipsmem[i] - be->mipsmem[i];
-            bd->tagcache[i]  = bs->tagcache[i] - be->tagcache[i];
+            bd->icache[i]    = be->icache[i] - bs->icache[i];
+            bd->dcache[i]    = be->dcache[i] - bs->dcache[i];
+            bd->l2cache[i]   = be->l2cache[i] - bs->l2cache[i];
+            bd->mipsmem[i]   = be->mipsmem[i] - bs->mipsmem[i];
+            bd->tagcache[i]  = be->tagcache[i] - bs->tagcache[i];
         }
     }
 }
@@ -351,7 +351,7 @@ static void start_sample (void)
 {
     atexit(end_sample);
     //printf("resetting stat counters\n");
-    resetStatCounters();
+    //resetStatCounters();
     //printf("initial sampling\n");
     sample_statcounters(&start_cnt);
 }
@@ -361,6 +361,6 @@ static void end_sample (void)
 {
     //printf("final sampling\n");
     sample_statcounters(&end_cnt); // TODO change the order of sampling to keep cycle sampled early
-    diff_statcounters(&start_cnt,&end_cnt,&diff_cnt);
+    diff_statcounters(&end_cnt,&start_cnt,&diff_cnt);
     dump_statcounters(&diff_cnt,getenv("STATCOUNTERS_OUTPUT"),getenv("STATCOUNTERS_FORMAT"));
 }
