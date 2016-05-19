@@ -1643,6 +1643,7 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 	int i, maxequalmcs, maxunequalmcs;
 
 	maxequalmcs = ic->ic_txstream * 8 - 1;
+	maxunequalmcs = 0;
 	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
 		if (ic->ic_txstream >= 2)
 			maxunequalmcs = 38;
@@ -1650,8 +1651,7 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 			maxunequalmcs = 52;
 		if (ic->ic_txstream >= 4)
 			maxunequalmcs = 76;
-	} else
-		maxunequalmcs = 0;
+	}
 
 	rs = &ni->ni_htrates;
 	memset(rs, 0, sizeof(*rs));

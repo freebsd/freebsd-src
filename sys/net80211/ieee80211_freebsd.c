@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 SYSCTL_NODE(_net, OID_AUTO, wlan, CTLFLAG_RD, 0, "IEEE 80211 parameters");
 
 #ifdef IEEE80211_DEBUG
-int	ieee80211_debug = 0;
+static int	ieee80211_debug = 0;
 SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 	    0, "debugging printfs");
 #endif

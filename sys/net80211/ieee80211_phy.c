@@ -563,7 +563,6 @@ ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
 	default:
 		panic("%s: unknown phy %u (rate %u)\n", __func__,
 		      rt->info[rix].phy, rate);
-		break;
 	}
 	return txTime;
 }

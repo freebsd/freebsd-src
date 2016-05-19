@@ -944,7 +944,6 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_hwmp_route *hrorig = NULL;
 	struct ieee80211_hwmp_route *hrtarg = NULL;
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
-	struct ieee80211_meshprep_ie prep;
 	ieee80211_hwmp_seq preqid;	/* last seen preqid for orig */
 	uint32_t metric = 0;
 
@@ -1057,6 +1056,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    IEEE80211_ADDR_EQ(vap->iv_myaddr, rttarg->rt_mesh_gate) &&
 	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY &&
 	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)) {
+		struct ieee80211_meshprep_ie prep;
+
 		/*
 		 * When we are the target we shall update our own HWMP seq
 		 * number with max of (current and preq->seq) + 1
@@ -1139,6 +1140,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 */
 		if ((rtorig->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 ||
 		    (preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_PP)) {
+			struct ieee80211_meshprep_ie prep;
+
 			prep.prep_flags = 0;
 			prep.prep_hopcount = 0;
 			prep.prep_ttl = ms->ms_ttl;

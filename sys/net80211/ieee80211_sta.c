@@ -154,7 +154,6 @@ sta_beacon_miss(struct ieee80211vap *vap)
 	vap->iv_stats.is_beacon_miss++;
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
 #ifdef IEEE80211_SUPPORT_SUPERG
-		struct ieee80211com *ic = vap->iv_ic;
 
 		/*
 		 * If we receive a beacon miss interrupt when using
