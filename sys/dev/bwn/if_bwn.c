@@ -1202,7 +1202,8 @@ bwn_attach_core(struct bwn_mac *mac)
 	if (siba_get_pci_device(sc->sc_dev) != 0x4312 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4319 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4324 &&
-	    siba_get_pci_device(sc->sc_dev) != 0x4328) {
+	    siba_get_pci_device(sc->sc_dev) != 0x4328 &&
+	    siba_get_pci_device(sc->sc_dev) != 0x432b) {
 		have_a = have_bg = 0;
 		if (mac->mac_phy.type == BWN_PHYTYPE_A)
 			have_a = 1;
