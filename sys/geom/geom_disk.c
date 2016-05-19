@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/bio.h>
+#include <sys/bus.h>
 #include <sys/ctype.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
@@ -861,11 +862,15 @@ disk_attr_changed(struct disk *dp, const char *attr, int flag)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
+	char devnamebuf[128];
 
 	gp = dp->d_geom;
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
 			(void)g_attr_changed(pp, attr, flag);
+	snprintf(devnamebuf, sizeof(devnamebuf), "devname=%s%d", dp->d_name,
+	    dp->d_unit);
+	devctl_notify("GEOM", "disk", attr, devnamebuf);
 }
 
 void
