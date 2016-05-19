@@ -1,4 +1,4 @@
-# $Id: Makefile 3385 2016-01-31 14:26:26Z jkoshy $
+# $Id: Makefile 3407 2016-02-14 17:47:23Z jkoshy $
 
 TOP=	..
 
@@ -44,8 +44,6 @@ LDADD=	-lelftc -ldwarf -lelf
 
 CFLAGS+= -I. -I${.CURDIR}
 YFLAGS=	-d
-
-NOMAN=
 
 .SUFFIXES:	.ld .c
 .ld.c:

@@ -19,6 +19,6 @@ Program Header[2]:
 
 Program Header[3]:
     p_vaddr:      0x1610c         p_flags:    [ PF_R ]
-    p_paddr:      0x1610c         p_type:     [ PT_NULL ]
+    p_paddr:      0x1610c         p_type:     [ PT_GNU_EH_FRAME ]
     p_filesz:     0x8             p_memsz:    0x8
     p_offset:     0x1610c         p_align:    0x4

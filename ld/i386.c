@@ -34,7 +34,7 @@
 #include "ld_utils.h"
 #include "i386.h"
 
-ELFTC_VCSID("$Id: i386.c 3391 2016-02-05 19:43:01Z emaste $");
+ELFTC_VCSID("$Id: i386.c 3419 2016-02-19 20:07:15Z emaste $");
 
 static void _create_plt_reloc(struct ld *ld, struct ld_symbol *lsb,
     uint64_t offset);
@@ -55,7 +55,6 @@ static uint64_t _get_max_page_size(struct ld *ld);
 static uint64_t _get_common_page_size(struct ld *ld);
 static void _process_reloc(struct ld *ld, struct ld_input_section *is,
     struct ld_reloc_entry *lre, struct ld_symbol *lsb, uint8_t *buf);
-static const char *_reloc2str(uint64_t r);
 static void _reserve_got_entry(struct ld *ld, struct ld_symbol *lsb, int num);
 static void _reserve_gotplt_entry(struct ld *ld, struct ld_symbol *lsb);
 static void _reserve_plt_entry(struct ld *ld, struct ld_symbol *lsb);
@@ -78,50 +77,6 @@ _get_common_page_size(struct ld *ld)
 
 	(void) ld;
 	return (0x1000);
-}
-
-static const char *
-_reloc2str(uint64_t r)
-{
-	static char s[32];
-
-	switch (r) {
-		case 0: return "R_386_NONE";
-		case 1: return "R_386_32";
-		case 2: return "R_386_PC32";
-		case 3: return "R_386_GOT32";
-		case 4: return "R_386_PLT32";
-		case 5: return "R_386_COPY";
-		case 6: return "R_386_GLOB_DAT";
-		case 7: return "R_386_JUMP_SLOT";
-		case 8: return "R_386_RELATIVE";
-		case 9: return "R_386_GOTOFF";
-		case 10: return "R_386_GOTPC";
-		case 14: return "R_386_TLS_TPOFF";
-		case 15: return "R_386_TLS_IE";
-		case 16: return "R_386_TLS_GOTI";
-		case 17: return "R_386_TLS_LE";
-		case 18: return "R_386_TLS_GD";
-		case 19: return "R_386_TLS_LDM";
-		case 24: return "R_386_TLS_GD_32";
-		case 25: return "R_386_TLS_GD_PUSH";
-		case 26: return "R_386_TLS_GD_CALL";
-		case 27: return "R_386_TLS_GD_POP";
-		case 28: return "R_386_TLS_LDM_32";
-		case 29: return "R_386_TLS_LDM_PUSH";
-		case 30: return "R_386_TLS_LDM_CALL";
-		case 31: return "R_386_TLS_LDM_POP";
-		case 32: return "R_386_TLS_LDO_32";
-		case 33: return "R_386_TLS_IE_32";
-		case 34: return "R_386_TLS_LE_32";
-		case 35: return "R_386_TLS_DTPMOD32";
-		case 36: return "R_386_TLS_DTPOFF32";
-		case 37: return "R_386_TLS_TPOFF32";
-
-	default:
-		snprintf(s, sizeof(s), "<unkown: %ju>", (uintmax_t) r);
-		return (s);
-	}
 }
 
 static int
@@ -154,10 +109,11 @@ _warn_pic(struct ld *ld, struct ld_reloc_entry *lre)
 	if (lsb->lsb_bind != STB_LOCAL)
 		ld_warn(ld, "relocation %s against `%s' can not be used"
 		    " by runtime linker; recompile with -fPIC",
-		    _reloc2str(lre->lre_type), lsb->lsb_name);
+		    elftc_reloc_type_str(EM_386, lre->lre_type), lsb->lsb_name);
 	else
 		ld_warn(ld, "relocation %s can not be used by runtime linker;"
-		    " recompile with -fPIC", _reloc2str(lre->lre_type));
+		    " recompile with -fPIC",
+		    elftc_reloc_type_str(EM_386, lre->lre_type));
 }
 
 static struct ld_input_section *

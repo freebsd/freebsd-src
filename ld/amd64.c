@@ -35,7 +35,7 @@
 #include "ld_utils.h"
 #include "amd64.h"
 
-ELFTC_VCSID("$Id: amd64.c 3390 2016-02-05 16:15:58Z emaste $");
+ELFTC_VCSID("$Id: amd64.c 3419 2016-02-19 20:07:15Z emaste $");
 
 static void _create_plt_reloc(struct ld *ld, struct ld_symbol *lsb,
     uint64_t offset);
@@ -59,7 +59,6 @@ static void _adjust_reloc(struct ld *ld, struct ld_input_section *is,
     struct ld_reloc_entry *lre, struct ld_symbol *lsb, uint8_t *buf);
 static void _process_reloc(struct ld *ld, struct ld_input_section *is,
     struct ld_reloc_entry *lre, struct ld_symbol *lsb, uint8_t *buf);
-static const char *_reloc2str(uint64_t r);
 static void _reserve_got_entry(struct ld *ld, struct ld_symbol *lsb, int num);
 static void _reserve_gotplt_entry(struct ld *ld, struct ld_symbol *lsb);
 static void _reserve_plt_entry(struct ld *ld, struct ld_symbol *lsb);
@@ -102,42 +101,6 @@ _get_common_page_size(struct ld *ld)
 	return (0x1000);
 }
 
-static const char *
-_reloc2str(uint64_t r)
-{
-	static char s[32];
-
-	switch (r) {
-		case 0: return "R_X86_64_NONE";
-		case 1: return "R_X86_64_64";
-		case 2: return "R_X86_64_PC32";
-		case 3: return "R_X86_64_GOT32";
-		case 4: return "R_X86_64_PLT32";
-		case 5: return "R_X86_64_COPY";
-		case 6: return "R_X86_64_GLOB_DAT";
-		case 7: return "R_X86_64_JUMP_SLOT";
-		case 8: return "R_X86_64_RELATIVE";
-		case 9: return "R_X86_64_GOTPCREL";
-		case 10: return "R_X86_64_32";
-		case 11: return "R_X86_64_32S";
-		case 12: return "R_X86_64_16";
-		case 13: return "R_X86_64_PC16";
-		case 14: return "R_X86_64_8";
-		case 15: return "R_X86_64_PC8";
-		case 16: return "R_X86_64_DTPMOD64";
-		case 17: return "R_X86_64_DTPOFF64";
-		case 18: return "R_X86_64_TPOFF64";
-		case 19: return "R_X86_64_TLSGD";
-		case 20: return "R_X86_64_TLSLD";
-		case 21: return "R_X86_64_DTPOFF32";
-		case 22: return "R_X86_64_GOTTPOFF";
-		case 23: return "R_X86_64_TPOFF32";
-	default:
-		snprintf(s, sizeof(s), "<unkown: %ju>", (uintmax_t) r);
-		return (s);
-	}
-}
-
 static int
 _is_absolute_reloc(uint64_t r)
 {
@@ -169,10 +132,12 @@ _warn_pic(struct ld *ld, struct ld_reloc_entry *lre)
 	if (lsb->lsb_bind != STB_LOCAL)
 		ld_warn(ld, "relocation %s against `%s' can not be used"
 		    " by runtime linker; recompile with -fPIC",
-		    _reloc2str(lre->lre_type), lsb->lsb_name);
+		    elftc_reloc_type_str(EM_X86_64,
+		    lre->lre_type), lsb->lsb_name);
 	else
 		ld_warn(ld, "relocation %s can not be used by runtime linker;"
-		    " recompile with -fPIC", _reloc2str(lre->lre_type));
+		    " recompile with -fPIC", elftc_reloc_type_str(EM_X86_64,
+		    lre->lre_type));
 }
 
 static struct ld_input_section *
@@ -1009,7 +974,7 @@ _process_reloc(struct ld *ld, struct ld_input_section *is,
 
 	default:
 		ld_warn(ld, "Relocation %s not supported",
-		    _reloc2str(lre->lre_type));
+		    elftc_reloc_type_str(EM_X86_64, lre->lre_type));
 		break;
 	}
 }

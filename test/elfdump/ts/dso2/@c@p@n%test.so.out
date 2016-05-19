@@ -32,7 +32,7 @@ entry: 2
 	p_align: 8
 
 entry: 3
-	p_type: PT_NULL
+	p_type: PT_GNU_EH_FRAME
 	p_offset: 2832
 	p_vaddr: 0xb10
 	p_paddr: 0xb10
@@ -42,7 +42,7 @@ entry: 3
 	p_align: 4
 
 entry: 4
-	p_type: PT_LOAD
+	p_type: PT_GNU_STACK
 	p_offset: 0
 	p_vaddr: 0
 	p_paddr: 0
