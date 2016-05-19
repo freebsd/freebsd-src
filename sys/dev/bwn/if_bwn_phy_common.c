@@ -186,9 +186,9 @@ bwn_mac_phy_clock_set(struct bwn_mac *mac, int enabled)
 	if (bwn_is_bus_siba(mac)) {
 		val = siba_read_4(sc->sc_dev, SIBA_TGSLOW);
 		if (enabled)
-			    val |= BWN_TMSLOW_MACPHYCLKEN;
+			    val |= BWN_TGSLOW_MACPHYCLKEN;
 		else
-			    val &= ~BWN_TMSLOW_MACPHYCLKEN;
+			    val &= ~BWN_TGSLOW_MACPHYCLKEN;
 		siba_write_4(sc->sc_dev, SIBA_TGSLOW, val);
 	}
 }

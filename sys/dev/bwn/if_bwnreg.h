@@ -97,8 +97,8 @@
 /* SIBA control registers */
 #define	BWN_TGSLOW_PHYCLOCK_ENABLE	0x00040000
 #define	BWN_TGSLOW_PHYRESET		0x00080000
-#define	BWN_TMSLOW_MACPHYCLKEN		0x00100000      /* MAC PHY Clock Control Enable (rev >= 5) */
-#define	BWN_TMSLOW_PLLREFSEL		0x00200000      /* PLL Frequency Reference Select (rev >= 5) */
+#define	BWN_TGSLOW_MACPHYCLKEN		0x00100000      /* MAC PHY Clock Control Enable (rev >= 5) */
+#define	BWN_TGSLOW_PLLREFSEL		0x00200000      /* PLL Frequency Reference Select (rev >= 5) */
 /* PHY_BANDWIDTH: N-PHY only */
 #define	BWN_TGSLOW_PHY_BANDWIDTH	0x00C00000
 #define	BWN_TGSLOW_PHY_BANDWIDTH_10MHZ	0x00000000
