@@ -1406,6 +1406,7 @@ static uint8_t bwn_radio_2056_rcal(struct bwn_mac *mac)
 
 	if (phy->rev != 3)
 		return 0;
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RF, "%s: called\n", __func__);
 
 	mast2 = BWN_RF_READ(mac, B2056_SYN_PLL_MAST2);
 	BWN_RF_WRITE(mac, B2056_SYN_PLL_MAST2, mast2 | 0x7);
@@ -1432,6 +1433,8 @@ static uint8_t bwn_radio_2056_rcal(struct bwn_mac *mac)
 
 static void bwn_radio_init2056_pre(struct bwn_mac *mac)
 {
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RF, "%s: called\n", __func__);
+
 	BWN_PHY_MASK(mac, BWN_NPHY_RFCTL_CMD,
 		     ~BWN_NPHY_RFCTL_CMD_CHIP0PU);
 	/* Maybe wl meant to reset and set (order?) RFCTL_CMD_OEPORFORCE? */
@@ -1445,6 +1448,8 @@ static void bwn_radio_init2056_pre(struct bwn_mac *mac)
 
 static void bwn_radio_init2056_post(struct bwn_mac *mac)
 {
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RF, "%s: called\n", __func__);
+
 	BWN_RF_SET(mac, B2056_SYN_COM_CTRL, 0xB);
 	BWN_RF_SET(mac, B2056_SYN_COM_PU, 0x2);
 	BWN_RF_SET(mac, B2056_SYN_COM_RESET, 0x2);
@@ -1462,6 +1467,8 @@ static void bwn_radio_init2056_post(struct bwn_mac *mac)
  */
 static void bwn_radio_init2056(struct bwn_mac *mac)
 {
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RF, "%s: called\n", __func__);
+
 	bwn_radio_init2056_pre(mac);
 	b2056_upload_inittabs(mac, 0, 0);
 	bwn_radio_init2056_post(mac);
@@ -6375,6 +6382,7 @@ static void bwn_nphy_pmu_spur_avoid(struct bwn_mac *mac, bool avoid)
 
 	/* XXX bhnd */
 	if (bwn_is_bus_siba(mac)) {
+		DPRINTF(sc, BWN_DEBUG_RESET, "%s: spuravoid %d\n", __func__, avoid);
 		siba_pmu_spuravoid_pllupdate(sc->sc_dev, avoid);
 	}
 }
@@ -6391,7 +6399,7 @@ static void bwn_nphy_channel_setup(struct bwn_mac *mac,
 	uint16_t tmp16;
 
 	if (bwn_channel_band(mac, new_channel) == BWN_BAND_5G) {
-		DPRINTF(sc, BWN_DEBUG_RESET, "%s: BAND_2G\n", __func__);
+		DPRINTF(sc, BWN_DEBUG_RESET, "%s: BAND_5G; chan=%d\n", __func__, ch);
 		/* Switch to 2 GHz for a moment to access BWN_PHY_B_BBCFG */
 		BWN_PHY_MASK(mac, BWN_NPHY_BANDCTL, ~BWN_NPHY_BANDCTL_5GHZ);
 
@@ -6403,7 +6411,7 @@ static void bwn_nphy_channel_setup(struct bwn_mac *mac,
 		BWN_WRITE_2(mac, BWN_PSM_PHY_HDR, tmp16);
 		BWN_PHY_SET(mac, BWN_NPHY_BANDCTL, BWN_NPHY_BANDCTL_5GHZ);
 	} else if (bwn_channel_band(mac, new_channel) == BWN_BAND_2G) {
-		DPRINTF(sc, BWN_DEBUG_RESET, "%s: BAND_2G\n", __func__);
+		DPRINTF(sc, BWN_DEBUG_RESET, "%s: BAND_2G; chan=%d\n", __func__, ch);
 		BWN_PHY_MASK(mac, BWN_NPHY_BANDCTL, ~BWN_NPHY_BANDCTL_5GHZ);
 		tmp16 = BWN_READ_2(mac, BWN_PSM_PHY_HDR);
 		BWN_WRITE_2(mac, BWN_PSM_PHY_HDR, tmp16 | 4);
@@ -6731,10 +6739,11 @@ bwn_nphy_op_software_rfkill(struct bwn_mac *mac, bool active)
 	if (BWN_READ_4(mac, BWN_MACCTL) & BWN_MACCTL_ON)
 		BWN_ERRPRINTF(mac->mac_sc, "MAC not suspended\n");
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET | BWN_DEBUG_PHY,
+	    "%s: called; rev=%d, rf_on=%d, active=%d\n", __func__,
+	    phy->rev, mac->mac_phy.rf_on, active);
+
 	if (active) {
-		DPRINTF(mac->mac_sc, BWN_DEBUG_RESET | BWN_DEBUG_PHY,
-		    "%s: called; rev=%d, rf_on=%d\n", __func__,
-		    phy->rev, mac->mac_phy.rf_on);
 		if (phy->rev >= 19) {
 			/* TODO */
 		} else if (phy->rev >= 7) {
