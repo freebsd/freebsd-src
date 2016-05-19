@@ -1359,13 +1359,15 @@ bwn_reset_core(struct bwn_mac *mac, int g_mode)
 
 	/* Take PHY out of reset */
 	low = (siba_read_4(sc->sc_dev, SIBA_TGSLOW) | SIBA_TGSLOW_FGC) &
-	    ~BWN_TGSLOW_PHYRESET;
+	    ~(BWN_TGSLOW_PHYRESET | BWN_TGSLOW_PHYCLOCK_ENABLE);
 	siba_write_4(sc->sc_dev, SIBA_TGSLOW, low);
 	siba_read_4(sc->sc_dev, SIBA_TGSLOW);
-	DELAY(1000);
-	siba_write_4(sc->sc_dev, SIBA_TGSLOW, low & ~SIBA_TGSLOW_FGC);
+	DELAY(2000);
+	low &= ~SIBA_TGSLOW_FGC;
+	low |= BWN_TGSLOW_PHYCLOCK_ENABLE;
+	siba_write_4(sc->sc_dev, SIBA_TGSLOW, low);
 	siba_read_4(sc->sc_dev, SIBA_TGSLOW);
-	DELAY(1000);
+	DELAY(2000);
 
 	if (mac->mac_phy.switch_analog != NULL)
 		mac->mac_phy.switch_analog(mac, 1);
