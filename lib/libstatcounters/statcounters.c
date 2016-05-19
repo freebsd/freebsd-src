@@ -76,7 +76,7 @@ DEFINE_GET_STAT_COUNTER(tagcache_read_miss,12,3);
 DEFINE_GET_STAT_COUNTER(tagcache_evict,12,6);
 
 // reset the hardware statcounters
-void reset_statcounters ()
+void reset_statcounters (void)
 {
     resetStatCounters();
 }

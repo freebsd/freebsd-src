@@ -142,7 +142,7 @@ typedef struct statcounters_bank
 
 // reset statcounters XXX this literally resets the hardware counters (allowed
 // from user space for convenience but need not to be abused to be usefull)
-void reset_statcounters ();
+void reset_statcounters (void);
 // zero a statcounters_bank
 void zero_statcounters (statcounters_bank_t * const cnt_bank);
 // sample hardware counters in a statcounters_bank
