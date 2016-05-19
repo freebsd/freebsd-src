@@ -713,6 +713,8 @@ iscsi_receive_callback(struct icl_pdu *response)
 
 	ISCSI_SESSION_LOCK(is);
 
+	iscsi_pdu_update_statsn(response);
+
 #ifdef ICL_KERNEL_PROXY
 	if (is->is_login_phase) {
 		if (is->is_login_pdu == NULL)
@@ -725,8 +727,6 @@ iscsi_receive_callback(struct icl_pdu *response)
 	}
 #endif
 
-	iscsi_pdu_update_statsn(response);
-	
 	/*
 	 * The handling routine is responsible for freeing the PDU
 	 * when it's no longer needed.
@@ -1620,9 +1620,7 @@ iscsi_ioctl_daemon_send(struct iscsi_softc *sc,
 		KASSERT(error == 0, ("icl_pdu_append_data(..., M_WAITOK) failed"));
 		free(data, M_ISCSI);
 	}
-	ISCSI_SESSION_LOCK(is);
-	icl_pdu_queue(ip);
-	ISCSI_SESSION_UNLOCK(is);
+	iscsi_pdu_queue(ip);
 
 	return (0);
 }
