@@ -504,6 +504,7 @@ __DEFAULT_NO_OPTIONS+=FDT
 # MK_* options which default to "yes".
 #
 .for var in ${__DEFAULT_YES_OPTIONS}
+.if !defined(MK_${var})
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -512,6 +513,7 @@ MK_${var}:=	no
 .else
 MK_${var}:=	yes
 .endif
+.endif	# !defined(MK_${var})
 .endfor
 .undef __DEFAULT_YES_OPTIONS
 
@@ -519,6 +521,7 @@ MK_${var}:=	yes
 # MK_* options which default to "no".
 #
 .for var in ${__DEFAULT_NO_OPTIONS}
+.if !defined(MK_${var})
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -527,6 +530,7 @@ MK_${var}:=	yes
 .else
 MK_${var}:=	no
 .endif
+.endif	# !defined(MK_${var})
 .endfor
 .undef __DEFAULT_NO_OPTIONS
 
