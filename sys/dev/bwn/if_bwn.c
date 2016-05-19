@@ -2008,6 +2008,8 @@ bwn_core_init(struct bwn_mac *mac)
 	KASSERT(mac->mac_status == BWN_MAC_STATUS_UNINIT,
 	    ("%s:%d: fail", __func__, __LINE__));
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: called\n", __func__);
+
 	siba_powerup(sc->sc_dev, 0);
 	if (!siba_dev_isup(sc->sc_dev))
 		bwn_reset_core(mac, mac->mac_phy.gmode);
@@ -2041,6 +2043,7 @@ bwn_core_init(struct bwn_mac *mac)
 		if (error)
 			goto fail0;
 	}
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: chip_init\n", __func__);
 	error = bwn_chip_init(mac);
 	if (error)
 		goto fail0;
@@ -2088,6 +2091,7 @@ bwn_core_init(struct bwn_mac *mac)
 	bwn_spu_setdelay(mac, 1);
 	bwn_bt_enable(mac);
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: powerup\n", __func__);
 	siba_powerup(sc->sc_dev,
 	    !(siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_CRYSTAL_NOSLOW));
 	bwn_set_macaddr(mac);
@@ -2097,12 +2101,14 @@ bwn_core_init(struct bwn_mac *mac)
 
 	mac->mac_status = BWN_MAC_STATUS_INITED;
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: done\n", __func__);
 	return (error);
 
 fail0:
 	siba_powerdown(sc->sc_dev);
 	KASSERT(mac->mac_status == BWN_MAC_STATUS_UNINIT,
 	    ("%s:%d: fail", __func__, __LINE__));
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: fail\n", __func__);
 	return (error);
 }
 
@@ -3716,6 +3722,9 @@ bwn_mac_suspend(struct bwn_mac *mac)
 	KASSERT(mac->mac_suspended >= 0,
 	    ("%s:%d: fail", __func__, __LINE__));
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: suspended=%d\n",
+	    __func__, mac->mac_suspended);
+
 	if (mac->mac_suspended == 0) {
 		bwn_psctl(mac, BWN_PS_AWAKE);
 		BWN_WRITE_4(mac, BWN_MACCTL,
@@ -3745,6 +3754,9 @@ bwn_mac_enable(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	uint16_t state;
+
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: suspended=%d\n",
+	    __func__, mac->mac_suspended);
 
 	state = bwn_shm_read_2(mac, BWN_SHARED,
 	    BWN_SHARED_UCODESTAT);
@@ -4783,12 +4795,15 @@ bwn_intr(void *arg)
 	    (sc->sc_flags & BWN_FLAG_INVALID))
 		return (FILTER_STRAY);
 
+	DPRINTF(sc, BWN_DEBUG_INTR, "%s: called\n", __func__);
+
 	reason = BWN_READ_4(mac, BWN_INTR_REASON);
 	if (reason == 0xffffffff)	/* shared IRQ */
 		return (FILTER_STRAY);
 	reason &= mac->mac_intr_mask;
 	if (reason == 0)
 		return (FILTER_HANDLED);
+	DPRINTF(sc, BWN_DEBUG_INTR, "%s: reason=0x%08x\n", __func__, reason);
 
 	mac->mac_reason[0] = BWN_READ_4(mac, BWN_DMA0_REASON) & 0x0001dc00;
 	mac->mac_reason[1] = BWN_READ_4(mac, BWN_DMA1_REASON) & 0x0000dc00;
