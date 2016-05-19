@@ -129,11 +129,13 @@ static void sta_flush_table(struct sta_table *);
 #define	MATCH_NOTSEEN		0x00080	/* not seen in recent scans */
 #define	MATCH_RSSI		0x00100	/* rssi deemed too low to use */
 #define	MATCH_CC		0x00200	/* country code mismatch */
+#ifdef IEEE80211_SUPPORT_TDMA
 #define	MATCH_TDMA_NOIE		0x00400	/* no TDMA ie */
 #define	MATCH_TDMA_NOTMASTER	0x00800	/* not TDMA master */
 #define	MATCH_TDMA_NOSLOT	0x01000	/* all TDMA slots occupied */
 #define	MATCH_TDMA_LOCAL	0x02000	/* local address */
 #define	MATCH_TDMA_VERSION	0x04000	/* protocol version mismatch */
+#endif
 #define	MATCH_MESH_NOID		0x10000	/* no MESHID ie */
 #define	MATCH_MESHID		0x20000	/* meshid mismatch */
 static int match_bss(struct ieee80211vap *,
@@ -1615,7 +1617,6 @@ notfound:
 			} else
 				chan = vap->iv_des_chan;
 			if (chan != NULL) {
-				struct ieee80211com *ic = vap->iv_ic;
 				/*
 				 * Create a HT capable IBSS; the per-node
 				 * probe request/response will result in
