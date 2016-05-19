@@ -3,7 +3,6 @@
 .include <src.opts.mk>
 
 SUBDIR=	${_dtrace} \
-	${_dtruss} \
 	${_lockstat} \
 	${_plockstat} \
 	${_tests} \
@@ -23,14 +22,12 @@ _zhack=	zhack
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _dtrace=	dtrace
-_dtruss=	dtruss
 _lockstat=	lockstat
 _plockstat=	plockstat
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 _dtrace=	dtrace
-_dtruss=	dtruss
 _lockstat=	lockstat
 .endif
 
@@ -40,7 +37,6 @@ _dtrace=	dtrace
 
 .if ${MACHINE_CPUARCH} == "powerpc"
 _dtrace=	dtrace
-_dtruss=	dtruss
 _lockstat=	lockstat
 .endif
 

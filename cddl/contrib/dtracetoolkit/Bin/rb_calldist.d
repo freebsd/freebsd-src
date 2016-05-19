@@ -1,1 +1,0 @@
-../Ruby/rb_calldist.d

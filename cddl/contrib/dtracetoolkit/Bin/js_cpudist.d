@@ -1,1 +1,0 @@
-../JavaScript/js_cpudist.d

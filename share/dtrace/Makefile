@@ -6,12 +6,6 @@
 
 .include <src.opts.mk>
 
-SUBDIR= ${_toolkit}
-
-.if ${MK_CDDL} != "no"
-_toolkit=	toolkit
-.endif
-
 SCRIPTS=	blocking \
 		disklatency \
 		disklatencycmd \
