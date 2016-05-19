@@ -2071,6 +2071,19 @@ bwn_core_init(struct bwn_mac *mac)
 	hf &= ~BWN_HF_SKIP_CFP_UPDATE;
 	bwn_hf_write(mac, hf);
 
+	/* Tell the firmware about the MAC capabilities */
+	if (siba_get_revid(sc->sc_dev) >= 13) {
+		uint32_t cap;
+		cap = BWN_READ_4(mac, BWN_MAC_HW_CAP);
+		DPRINTF(sc, BWN_DEBUG_RESET,
+		    "%s: hw capabilities: 0x%08x\n",
+		    __func__, cap);
+		bwn_shm_write_2(mac, BWN_SHARED, BWN_SHARED_MACHW_L,
+		    cap & 0xffff);
+		bwn_shm_write_2(mac, BWN_SHARED, BWN_SHARED_MACHW_H,
+		    (cap >> 16) & 0xffff);
+	}
+
 	bwn_set_txretry(mac, BWN_RETRY_SHORT, BWN_RETRY_LONG);
 	bwn_shm_write_2(mac, BWN_SHARED, BWN_SHARED_SHORT_RETRY_FALLBACK, 3);
 	bwn_shm_write_2(mac, BWN_SHARED, BWN_SHARED_LONG_RETRY_FALLBACK, 2);
