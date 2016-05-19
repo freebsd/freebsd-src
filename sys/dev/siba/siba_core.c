@@ -69,6 +69,7 @@ enum {
 	SIBA_DEBUG_SWITCHCORE	= 0x00000008,	/* switching core */
 	SIBA_DEBUG_SPROM	= 0x00000010,	/* SPROM */
 	SIBA_DEBUG_CORE		= 0x00000020,	/* handling cores */
+	SIBA_DEBUG_DMA		= 0x00000040,	/* DMA bits */
 	SIBA_DEBUG_ANY		= 0xffffffff
 };
 
