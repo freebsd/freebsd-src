@@ -114,7 +114,7 @@ static LIST_HEAD(, stack)	mstackq = LIST_HEAD_INITIALIZER(mstackq);
  *    |                                   |
  *    +-----------------------------------+ <-- start of main thread stack
  *                                              (USRSTACK)
- * high memory.
+ * high memory
  *
  * This is not used in CHERIABI, instead we let mmap() decide where to place the
  * stacks for each of the threads as we do not need red zones here.
@@ -125,6 +125,7 @@ static LIST_HEAD(, stack)	mstackq = LIST_HEAD_INITIALIZER(mstackq);
  */
 static char *last_stack = NULL;
 #endif /* !defined(__CHERI_PURE_CAPABILITY__) */
+
 /*
  * Round size up to the nearest multiple of
  * _thr_page_size.

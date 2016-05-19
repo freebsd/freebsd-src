@@ -59,12 +59,12 @@
 #include "thr_private.h"
 
 /*
- * The variable _usrstack is the address of the main thread's stack. It is not a
- * valid pointer on CHERIABI, as sysctl kern.usrstack returns a virtual address
- * and not a capability. However, we don't need to use it as a pointer anyway as
- * there is no need to group stacks together and add guard pages on CHERABI.
- * In CHERIABI _usrstack is only used to initialize stackaddr_attr for the main
- * thread.
+ * The variable _usrstack is the address of the main thread's stack. It
+ * is not a valid pointer on CHERIABI, as sysctl kern.usrstack returns a
+ * virtual address and not a capability. However, we don't need to use
+ * it as a pointer anyway as there is no need to group stacks together
+ * and add guard pages on CHERABI. In CHERIABI _usrstack is only used to
+ * initialize stackaddr_attr for the main thread.
  */
 vaddr_t		_usrstack;
 struct pthread	*_thr_initial;
@@ -423,6 +423,7 @@ init_main_thread(struct pthread *thread)
 	    -1, 0) == MAP_FAILED)
 		PANIC("Cannot allocate red zone for initial thread");
 #endif
+
 	/*
 	 * Mark the stack as an application supplied stack so that it
 	 * isn't deallocated.
