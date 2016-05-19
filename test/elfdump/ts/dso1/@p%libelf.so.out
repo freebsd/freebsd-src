@@ -32,7 +32,7 @@ entry: 2
 	p_align: 8
 
 entry: 3
-	p_type: PT_NULL
+	p_type: PT_GNU_EH_FRAME
 	p_offset: 90380
 	p_vaddr: 0x1610c
 	p_paddr: 0x1610c

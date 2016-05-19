@@ -1,0 +1,478 @@
+.\" Copyright (c) 2016 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by the author and contributors ``as is''
+.\" and any express or implied warranties, including, but not limited
+.\" to, the implied warranties of merchantability and fitness for a
+.\" particular purpose are disclaimed.  In no event shall the author or
+.\" contributors be liable for any direct, indirect, incidental, special,
+.\" exemplary, or consequential damages (including, but not limited to,
+.\" procurement of substitute goods or services; loss of use, data, or
+.\" profits; or business interruption) however caused and on any
+.\" theory of liability, whether in contract, strict liability, or
+.\" tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the
+.\" possibility of such damage.
+.\"
+.\" $Id$
+.\"
+.Dd February 14, 2016
+.Os
+.Dt LD 1
+.Sh NAME
+.Nm ld
+.Nd link editor
+.Sh SYNOPSIS
+.Nm
+.Op Fl \&(
+.Op Fl \&)
+.Op Fl Bdynamic
+.Op Fl Bshareable
+.Op Fl Bstatic
+.Op Fl I Ar file | Fl -dynamic-linker= Ns Ar file
+.Op Fl L Ar dir | Fl -library-path= Ns Ar dir
+.Op Fl M | Fl -print-map
+.Op Fl T Ar script-file | Fl -script= Ns Ar script-file
+.Op Fl V | Fl v | Fl -version
+.Op Fl a Ar linkmode
+.Op Fl b Ar input-format | Fl -format= Ns Ar input-format
+.Op Fl call_shared
+.Op Fl d | Fl dc | Fl dp
+.Op Fl dn
+.Op Fl dy
+.Op Fl e Ar symbol | Fl -entry= Ns Ar symbol
+.Op Fl h Ar name | Fl soname= Ns Ar name
+.Op Fl l Ar library | Fl -library= Ns Ar library
+.Op Fl o Ar output-file | Fl -output= Ns Ar output-file
+.Op Fl q | Fl -emit-relocs
+.Op Fl r | Fl -relocatable
+.Op Fl u Ar name | Fl -undefined= Ns Ar name
+.Op Fl z Ar keyword
+.Op Fl -as-needed
+.Op Fl -eh-frame-hdr
+.Op Fl -end-group
+.Op Fl -gc-sections
+.Op Fl -no-as-needed
+.Op Fl -no-define-common
+.Op Fl -no-gc-sections
+.Op Fl -no-print-gc-sections
+.Op Fl -no-whole-archive
+.Op Fl -oformat= Ns Ar format
+.Op Fl -pic-executable | Fl pie
+.Op Fl -print-gc-sections
+.Op Fl -rpath= Ns Ar dirs
+.Op Fl -rpath-link= Ns Ar dirs
+.Op Fl -start-group
+.Op Fl shared
+.Op Fl static
+.Op Fl -version-script= Ns Ar script
+.Op Fl -whole-archive
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility combines ELF objects and
+.Xr ar 1
+archives containing ELF objects into an executable or a partially
+relocated object.
+.Pp
+The
+.Nm
+utility processes options and files in the order presented on the
+command line.
+Unlike most
+.Ux
+utilities, options and file names may be interspersed.
+Options seen on the command line will generally apply to subsequent
+files, or till overridden by another option.
+.Sh OPTIONS
+.Pp
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width indent
+.It Xo
+.Fl \&(
+.Ar archives Ns ...
+.Fl \&)
+.Xc
+Start a group of archives that are to be searched repeatedly until no new
+undefined references are created.
+This option is used when there are circular references between one or
+more archives in the archive group.
+.Pp
+The files named by the arguments
+.Ar archives
+are expected to be archive files.
+.Pp
+Each use of the
+.Fl \&(
+option starts a new archive group that is ended by a matching
+.Fl \&)
+option.
+.It Fl Bdynamic
+Choose dynamic libraries for the libraries specified by subsequent
+.Fl l
+options.
+.It Fl Bshareable
+Create a shared library.
+.It Fl Bstatic
+Choose static libraries for the libraries specified by subsequent
+.Fl l
+options.
+.It Fl I Ar file | Fl -dynamic-linker= Ns Ar file
+Set the name of the dynamic linker when generating ELF executables.
+.It Fl L Ar dir | Fl -library-path= Ns Ar dir
+Add directory
+.Ar dir
+to the list of paths that
+.Nm
+will search for archive libraries.
+This option may be specified multiple times.
+User supplied directories are searched in the order specified on
+the command line.
+.It Fl M | Fl -print-map
+Print a link map to standard output.
+.It Fl T Ar script-file | Fl -script= Ns Ar script-file
+Use the file name by argument
+.Ar script-file
+as the linker script instead of the default.
+.It Fl V | Fl v | Fl version
+Print a version identifier for
+.Nm
+and exit.
+.It Fl a Ar linkmode
+Select linking mode.
+The value of the argument
+.Ar linkmode
+should be one of the following literals:
+.Bl -tag -width ".Li default" -compact
+.It Cm default
+Equivalent to specifying
+.Fl Bdynamic .
+.It Cm archive
+Equivalent to specifying
+.Fl Bstatic .
+.It Cm shared
+Equivalent to specifying
+.Fl Bdynamic .
+.El
+.It Fl b Ar input-format | Fl -format Ar input-format
+Set the input format to that specified by argument
+.Ar input-format .
+The legal values for the argument
+.Ar input-format
+are those supported by
+.Xr elftc_bfd_find_target 3 .
+.It Fl d | Fl dc | Fl dp
+Assign space for common symbols even if generating a relocatable object.
+.It Fl dn
+Equivalent to specifying option
+.Fl Bstatic .
+.It Fl dy
+Equivalent to specifying option
+.Fl Bdynamic .
+.It Fl e Ar entry | Fl -entry Ar entry
+Set execution to start at the symbol named by the argument
+.Ar entry .
+The argument should be the name of a symbol.
+.It Fl h Ar name | Fl soname Ar name
+Set the
+.Li DT_SONAME
+field in the object to that specified by the argument
+.Ar name .
+.It Fl l Ar name | Fl -library= Ns Ar name
+Add the archive library or shared library named by argument
+.Ar name
+to the set of files to link.
+This file is looked for in the list of directories specified by prior
+.Fl L
+options on the command line.
+.It Fl o Ar output-file | Fl -output= Ns Ar output-file
+Use the file specified by argument
+.Ar output-file
+for the output, instead of the default file name of
+.Sq a.out .
+.It Fl q | Fl -emit-relocs
+Preserve relocation information in executables, for use by post-link
+analysis tools.
+.It Fl r | Fl -relocatable
+Generate a relocatable output file that can be used as input for subsequent
+linker runs.
+.It Fl u Ar name | Fl -undefined= Ns Ar name
+Add the symbol specified by argument
+.Ar name
+to the output file as an undefined symbol.
+This option may be specified multiple times.
+.It Fl z Ar keyword
+Recognized keywords include:
+.Bl -tag -width ".Li defaultextract" -compact
+.It Cm execstack
+Require the object to use an executable stack.
+.It Cm noexecstack
+Do not require the object to use an executable stack.
+.El
+.It Fl -as-needed
+Add
+.Li DT_NEEDED
+tags for only those shared libraries that satisfy non-weak
+unresolved references from object files or other dynamic libraries
+seen so far on the command line.
+.It Fl call_shared
+Equivalent to specifying option
+.Fl Bdynamic .
+.It Fl -eh-frame-hdr
+Create a
+.Dq ".eh_frame_hdr"
+section, and a
+.Li PT_GNU_EH_FRAME
+segment header, containing exception handling information.
+.It Fl -end-group
+Equivalent to specifying option
+.Fl \&) .
+.It Fl -gc-sections
+Garbage collect unused input sections.
+.It Fl -no-as-needed
+Insert
+.Li DT_NEEDED
+tags for all shared libraries seen henceforth on the command line,
+irrespective of whether the shared library is needed to resolve an
+undefined symbol or not.
+This behavior is the default.
+.It Fl -no-define-common
+Do not assign addresses to common symbols.
+.It Fl -no-gc-sections
+Do not garbage collect input sections that contain unreferenced
+symbols.
+.It Fl -no-print-gc-sections
+Do not print the list of sections removed when the
+.Fl -gc-sections
+directive is active.
+.It Fl -no-whole-archive
+Only include objects in an archive that satisfy an unresolved reference
+in the link.
+This behavior is the default.
+.It Fl non_shared
+Equivalent to specifying option
+.Fl Bstatic .
+.It Fl -oformat= Ns Ar format
+Set the desired output format to that specified by the argument
+.Ar format .
+Supported values for argument
+.Ar format
+are those understood by
+.Xr elftc_bfd_find_target 3 .
+.It Fl -pic-executable | Fl pie
+Create a position-independent executable.
+.It Fl -print-gc-sections
+Print the list of sections removed when the
+.Fl -gc-sections
+directive is active.
+The output is printed to stderr.
+.It Fl -rpath= Ns Ar dirs
+Add the colon-separated list of directories named by the argument
+.Ar dirs
+to the runtime library search path and to the link-time search
+path.
+.It Fl -rpath-link= Ns Ar dirs
+Add the directories specified by the colon-separated list of directories
+in argument
+.Ar dirs
+to the link-time search path for libraries.
+The directories specified by this option are searched before those
+specified by
+.Fl -rpath
+options.
+.It Fl shared
+Equivalent to specifying option
+.Fl Bshareable .
+.It Fl -start-group
+Equivalent to specifying option
+.Fl \&( .
+.It Fl static
+Equivalent to specifying option
+.Fl Bstatic .
+.It Fl -version-script= Ns Ar script-file
+Use the version script in the file named by argument
+.Ar script-file .
+.It Fl -whole-archive
+Include the entire contents of every archive file encountered on the
+command line after this option in the link.
+.El
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr ranlib 1 ,
+.Xr archive 3 ,
+.Xr elf 3 ,
+.Xr elftc_bfd_find_target 3 ,
+.Xr dwarf 3
+.Sh IMPLEMENTATION NOTES
+The
+.Nm
+utility differs from its GNU equivalent in the following:
+.Bl -bullet
+.It
+The
+.Nm
+utility currently supports a limited range of output formats.
+.It
+The
+.Fl e
+and
+.Fl -entry
+options only accept a symbol name as an argument, and not a numeric
+address.
+.It
+The
+.Fl l
+option only searches files in the directories specified by
+prior
+.Fl L
+options.
+.It
+The
+.Fl T | Fl -script
+option does not search for script files in the directories specified
+by prior
+.Fl L
+options.
+.It
+The
+.Fl -rpath
+option accepts a colon-separated list of directories instead of
+single directory.
+.El
+.Pp
+The following options are recognized, but are currently unimplemented:
+.Fl Bgroup ,
+.Fl Bsymbolic ,
+.Fl Bsymbolic_functions ,
+.Fl E ,
+.Fl EB ,
+.Fl EL ,
+.Fl F ,
+.Fl Map ,
+.Fl N ,
+.Fl O ,
+.Fl Qy ,
+.Fl R ,
+.Fl S ,
+.Fl Tbss ,
+.Fl Tdata ,
+.Fl Ttext ,
+.Fl X ,
+.Fl Y ,
+.Fl Ur ,
+.Fl c ,
+.Fl f ,
+.Fl g ,
+.Fl i ,
+.Fl m ,
+.Fl n ,
+.Fl s ,
+.Fl t ,
+.Fl x ,
+.Fl y ,
+.Fl -accept-unknown-input-arch ,
+.Fl -allow-multiple-definition ,
+.Fl -allow-shlib-undefined ,
+.Fl -assert ,
+.Fl -auxiliary ,
+.Fl -build-id ,
+.Fl -check-sections ,
+.Fl -cref ,
+.Fl -defsym ,
+.Fl -demangle ,
+.Fl -disable-new-dtags ,
+.Fl -discard-all ,
+.Fl -discard-locals ,
+.Fl -error-unresolved-symbols ,
+.Fl -export-dynamic ,
+.Fl -emulation ,
+.Fl -enable-new-dtags ,
+.Fl -fatal-warnings ,
+.Fl -filter ,
+.Fl -fini ,
+.Fl -hash-style ,
+.Fl -help ,
+.Fl -init ,
+.Fl -just-symbols ,
+.Fl -mri-script ,
+.Fl -nmagic ,
+.Fl nostdlib ,
+.Fl -no-accept-unknown-input-arch ,
+.Fl -no-allow-shlib-undefined ,
+.Fl -no-assert ,
+.Fl -no-check-sections ,
+.Fl -no-demangle ,
+.Fl -no-keep-memory ,
+.Fl -no-omagic ,
+.Fl -no-undefined ,
+.Fl -no-undefined-version ,
+.Fl -no-warn-mismatch ,
+.Fl -omagic ,
+.Fl -qmagic ,
+.Fl -relax ,
+.Fl -retain-symbols-file ,
+.Fl -runpath ,
+.Fl -section-start ,
+.Fl -sort-common ,
+.Fl -split-by-file ,
+.Fl -split-by-reloc ,
+.Fl -stats ,
+.Fl -strip-all ,
+.Fl -strip-debug ,
+.Fl -trace ,
+.Fl -trace_symbol ,
+.Fl -traditional-format ,
+.Fl -unique ,
+.Fl -unresolved-symbols ,
+.Fl -verbose ,
+.Fl -warn-common ,
+.Fl -warn-constructors ,
+.Fl -warn-multiple-gp ,
+.Fl -warn-once ,
+.Fl -warn-section-align ,
+.Fl -warn-shared-textrel ,
+.Fl -warn-unresolved-symbols ,
+.Fl -wrap .
+.Pp
+The following keywords are recognized by the
+.Fl z
+option, but are currently unimplemented:
+.Cm allextract ,
+.Cm defaultextract ,
+.Cm defs ,
+.Cm ignore ,
+.Cm initfirst ,
+.Cm lazyload ,
+.Cm muldefs ,
+.Cm nodefaultlib ,
+.Cm nodefs ,
+.Cm nodelete ,
+.Cm nodlopen ,
+.Cm nolazyload ,
+.Cm now ,
+.Cm origin ,
+.Cm record ,
+.Cm systemlibrary ,
+.Cm weakextract .
+.Sh HISTORY
+A
+.Nm
+command first appeared in AT&T UNIX Version 1.
+.Pp
+The Elftoolchain implementation of
+.Nm
+was written by
+.An Kai Wang Aq Mt kaiwang27@gmail.com .

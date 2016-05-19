@@ -39,7 +39,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3399 2016-02-12 18:07:56Z emaste $");
+ELFTC_VCSID("$Id: main.c 3446 2016-05-03 01:31:17Z emaste $");
 
 enum options
 {
@@ -209,6 +209,7 @@ static struct {
 	{"openbsd", ELFOSABI_OPENBSD},
 	{"openvms", ELFOSABI_OPENVMS},
 	{"nsk", ELFOSABI_NSK},
+	{"cloudabi", ELFOSABI_CLOUDABI},
 	{"arm", ELFOSABI_ARM},
 	{"standalone", ELFOSABI_STANDALONE},
 	{NULL, 0}
@@ -235,7 +236,7 @@ static void	strip_main(struct elfcopy *ecp, int argc, char **argv);
 static void	strip_usage(void);
 
 /*
- * An ELF object usually has a sturcture described by the
+ * An ELF object usually has a structure described by the
  * diagram below.
  *  _____________
  * |             |
@@ -641,6 +642,18 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 	 * ELF object before processing.
 	 */
 	if (ecp->itf != ETF_ELF) {
+		/*
+		 * If the output object is not an ELF file, choose an arbitrary
+		 * ELF format for the intermediate file. srec, ihex and binary
+		 * formats are independent of class, endianness and machine
+		 * type so these choices do not affect the output.
+		 */
+		if (ecp->otf != ETF_ELF) {
+			if (ecp->oec == ELFCLASSNONE)
+				ecp->oec = ELFCLASS64;
+			if (ecp->oed == ELFDATANONE)
+				ecp->oed = ELFDATA2LSB;
+		}
 		create_tempfile(&elftemp, &efd);
 		if ((ecp->eout = elf_begin(efd, ELF_C_WRITE, NULL)) == NULL)
 			errx(EXIT_FAILURE, "elf_begin() failed: %s",
@@ -1434,7 +1447,7 @@ Usage: %s [options] infile [outfile]\n\
                                sections.\n\
   --only-keep-debug            Copy only debugging information.\n\
   --output-target=FORMAT       Use the specified format for the output.\n\
-  --pad-to=ADDRESS             Pad the output object upto the given address.\n\
+  --pad-to=ADDRESS             Pad the output object up to the given address.\n\
   --prefix-alloc-sections=STRING\n\
                                Prefix the section names of all the allocated\n\
                                sections with STRING.\n\

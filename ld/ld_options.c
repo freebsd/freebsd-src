@@ -32,7 +32,7 @@
 #include "ld_options.h"
 #include "ld_output.h"
 
-ELFTC_VCSID("$Id: ld_options.c 2926 2013-03-17 22:53:54Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_options.c 3406 2016-02-14 17:45:43Z jkoshy $");
 
 /*
  * Support routines for parsing command line options.
@@ -94,7 +94,7 @@ static struct ld_option ld_opts[] = {
 	{"no-define-common", KEY_NO_DEFINE_COMMON, ANY_DASH, NO_ARG},
 	{"no-demangle", KEY_NO_DEMANGLE, ANY_DASH, OPT_ARG},
 	{"no-gc-sections", KEY_NO_GC_SECTIONS, ANY_DASH, NO_ARG},
-	{"no-keep-memorg", KEY_NO_KEEP_MEMORY, ANY_DASH, NO_ARG},
+	{"no-keep-memory", KEY_NO_KEEP_MEMORY, ANY_DASH, NO_ARG},
 	{"no-omagic", KEY_NO_OMAGIC, ANY_DASH, NO_ARG},
 	{"no-print-gc-sections", KEY_NO_PRINT_GC_SECTIONS, ANY_DASH, NO_ARG},
 	{"no-undefined", KEY_Z_DEFS, ANY_DASH, NO_ARG},
@@ -118,7 +118,7 @@ static struct ld_option ld_opts[] = {
 	{"runpath", KEY_RUNPATH, ANY_DASH, REQ_ARG},
 	{"script", 'T', ANY_DASH, REQ_ARG},
 	{"section-start", KEY_SECTION_START, ANY_DASH, REQ_ARG},
-	{"shared", KEY_SHARED, ANY_DASH, NO_ARG},
+	{"shared", KEY_SHARED, ONE_DASH, NO_ARG},
 	{"soname", 'h', ONE_DASH, REQ_ARG},
 	{"sort-common", KEY_SORT_COMMON, ANY_DASH, NO_ARG},
 	{"split-by-file", KEY_SPLIT_BY_FILE, ANY_DASH, REQ_ARG},
@@ -134,8 +134,8 @@ static struct ld_option ld_opts[] = {
 	{"undefined", 'u', ANY_DASH, REQ_ARG},
 	{"unique", KEY_UNIQUE, ANY_DASH, OPT_ARG},
 	{"unresolved-symbols", KEY_UNRESOLVED_SYMBOLS, ANY_DASH, REQ_ARG},
-	{"verbose" , 'v', ANY_DASH, NO_ARG},
-	{"version", KEY_VERSION, ANY_DASH, NO_ARG},
+	{"verbose" , KEY_VERBOSE, ANY_DASH, NO_ARG},
+	{"version", 'V', ANY_DASH, NO_ARG},
 	{"version-script", KEY_VERSION_SCRIPT, ANY_DASH, REQ_ARG},
 	{"warn-common", KEY_WARN_COMMON, ANY_DASH, NO_ARG},
 	{"warn-constructors", KEY_WARN_CONSTRUCTORS, ANY_DASH, NO_ARG},
@@ -144,7 +144,7 @@ static struct ld_option ld_opts[] = {
 	{"warn-section-align", KEY_WARN_SECTION_ALIGN, ANY_DASH, NO_ARG},
 	{"warn-shared-textrel", KEY_WARN_SHARED_TEXTREL, ANY_DASH, NO_ARG},
 	{"warn-unresolved-symbols", KEY_WARN_UNRESOLVE_SYM, ANY_DASH, NO_ARG},
-	{"whole_archive", KEY_WHOLE_ARCHIVE, ANY_DASH, NO_ARG},
+	{"whole-archive", KEY_WHOLE_ARCHIVE, ANY_DASH, NO_ARG},
 	{"wrap", KEY_WRAP, ANY_DASH, REQ_ARG},
 	{"EB", KEY_EB, ONE_DASH, NO_ARG},
 	{"EL", KEY_EL, ONE_DASH, NO_ARG},

@@ -19,12 +19,12 @@ Program Header[2]:
 
 Program Header[3]:
     p_vaddr:      0xb10           p_flags:    [ PF_R ]
-    p_paddr:      0xb10           p_type:     [ PT_NULL ]
+    p_paddr:      0xb10           p_type:     [ PT_GNU_EH_FRAME ]
     p_filesz:     0x3c            p_memsz:    0x3c
     p_offset:     0xb10           p_align:    0x4
 
 Program Header[4]:
     p_vaddr:      0               p_flags:    [ PF_W|PF_R ]
-    p_paddr:      0               p_type:     [ PT_LOAD ]
+    p_paddr:      0               p_type:     [ PT_GNU_STACK ]
     p_filesz:     0               p_memsz:    0
     p_offset:     0               p_align:    0x8

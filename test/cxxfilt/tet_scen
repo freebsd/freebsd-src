@@ -1,0 +1,11 @@
+# $Id$
+
+all
+        "Starting Test Suite"
+	^misc
+        "Complete Test Suite"
+
+misc
+	"Starting noarg Test"
+	/ts/misc/tc
+	"Complete noarg Test"

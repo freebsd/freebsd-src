@@ -79,7 +79,7 @@ entry: 5
 	p_align: 4
 
 entry: 6
-	p_type: PT_NULL
+	p_type: PT_GNU_EH_FRAME
 	p_offset: 24892
 	p_vaddr: 0x40613c
 	p_paddr: 0x40613c

@@ -1,0 +1,15 @@
+# simple function
+
+"_Z1f", "f"
+"_Z1fi", "f(int)"
+"_Z1fic", "f(int, char)"
+
+# namespace
+
+"_ZN12elftoolchainE", "elftoolchain"
+"_ZN11elftoolchainE", "_ZN11elftoolchainE"
+"_ZN12elftoolchain", "_ZN12elftoolchain"
+"_ZN12elftoolchain3foo3barE", "elftoolchain::foo::bar"
+"_ZN12elftoolchain3foo3barEi", "elftoolchain::foo::bar(int)"
+"_ZN12elftoolchain3foo3barEic", "elftoolchain::foo::bar(int, char)"
+
