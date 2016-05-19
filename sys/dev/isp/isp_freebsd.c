@@ -2055,7 +2055,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 			 * It's a bit tricky here as we need to stash this command *somewhere*.
 			 */
 			GET_NANOTIME(&now);
-			if (NANOTIME_SUB(&isp->isp_init_time, &now) > 2000000000ULL) {
+			if (NANOTIME_SUB(&now, &isp->isp_init_time) > 2000000000ULL) {
 				isp_prt(isp, ISP_LOGWARN, "%s: [RX_ID 0x%x] D_ID %x not found on any channel- dropping", __func__, aep->at_rxid, did);
 				isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN, ECMD_TERMINATE, 0);
 				return;
