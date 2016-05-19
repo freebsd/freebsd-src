@@ -3774,8 +3774,11 @@ bwn_mac_enable(struct bwn_mac *mac)
 	state = bwn_shm_read_2(mac, BWN_SHARED,
 	    BWN_SHARED_UCODESTAT);
 	if (state != BWN_SHARED_UCODESTAT_SUSPEND &&
-	    state != BWN_SHARED_UCODESTAT_SLEEP)
-		device_printf(sc->sc_dev, "warn: firmware state (%d)\n", state);
+	    state != BWN_SHARED_UCODESTAT_SLEEP) {
+		DPRINTF(sc, BWN_DEBUG_FW,
+		    "%s: warn: firmware state (%d)\n",
+		    __func__, state);
+	}
 
 	mac->mac_suspended--;
 	KASSERT(mac->mac_suspended >= 0,
