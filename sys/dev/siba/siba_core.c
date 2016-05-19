@@ -1827,26 +1827,26 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 
 	/* FEM */
 	SIBA_SHIFTOUT(fem.ghz2.tssipos, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_TSSIPOS);
+	    SIBA_SROM8_FEM_TSSIPOS);
 	SIBA_SHIFTOUT(fem.ghz2.extpa_gain, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_EXTPA_GAIN);
+	    SIBA_SROM8_FEM_EXTPA_GAIN);
 	SIBA_SHIFTOUT(fem.ghz2.pdet_range, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_PDET_RANGE);
+	    SIBA_SROM8_FEM_PDET_RANGE);
 	SIBA_SHIFTOUT(fem.ghz2.tr_iso, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_TR_ISO);
+	    SIBA_SROM8_FEM_TR_ISO);
 	SIBA_SHIFTOUT(fem.ghz2.antswlut, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_ANTSWLUT);
+	    SIBA_SROM8_FEM_ANTSWLUT);
 
 	SIBA_SHIFTOUT(fem.ghz5.tssipos, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_TSSIPOS);
+	    SIBA_SROM8_FEM_TSSIPOS);
 	SIBA_SHIFTOUT(fem.ghz5.extpa_gain, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_EXTPA_GAIN);
+	    SIBA_SROM8_FEM_EXTPA_GAIN);
 	SIBA_SHIFTOUT(fem.ghz5.pdet_range, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_PDET_RANGE);
+	    SIBA_SROM8_FEM_PDET_RANGE);
 	SIBA_SHIFTOUT(fem.ghz5.tr_iso, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_TR_ISO);
+	    SIBA_SROM8_FEM_TR_ISO);
 	SIBA_SHIFTOUT(fem.ghz5.antswlut, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_ANTSWLUT);
+	    SIBA_SROM8_FEM_ANTSWLUT);
 
 	/* Extract cores power info info */
 	for (i = 0; i < nitems(pwr_info_offset); i++) {
