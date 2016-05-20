@@ -53,6 +53,9 @@ ELFTC_VCSID("$Id: readelf.c 3469 2016-05-15 23:16:09Z emaste $");
 #ifndef EM_IAMCU
 #define EM_IAMCU 6
 #endif
+#ifndef EM_RISCV
+#define EM_RISCV 243
+#endif
 #ifndef	STB_GNU_UNIQUE
 #define	STB_GNU_UNIQUE 10
 #endif

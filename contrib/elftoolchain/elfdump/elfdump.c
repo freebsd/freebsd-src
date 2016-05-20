@@ -56,6 +56,9 @@ ELFTC_VCSID("$Id: elfdump.c 3474 2016-05-17 20:44:53Z emaste $");
 #ifndef EM_IAMCU
 #define EM_IAMCU 6
 #endif
+#ifndef EM_RISCV
+#define EM_RISCV 243
+#endif
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
