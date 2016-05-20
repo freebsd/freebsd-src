@@ -1593,7 +1593,7 @@ ifconfig1(const char *name,
 	if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) && !lflag)
 		return (-1);
 	ifr.ifr_addr = *sin6;
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCGIFNETMASK_IN6, (char *)&ifr) < 0) {
 		syslog(LOG_INFO, "ioctl: SIOCGIFNETMASK_IN6");
 		return (-1);
