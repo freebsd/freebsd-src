@@ -634,7 +634,7 @@ getconfig_free_pfx:
 			exit(1);
 		}
 		memset(&ndi, 0, sizeof(ndi));
-		strncpy(ndi.ifname, ifi->ifi_ifname, sizeof(ndi.ifname));
+		strlcpy(ndi.ifname, ifi->ifi_ifname, sizeof(ndi.ifname));
 		if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&ndi) < 0)
 			syslog(LOG_INFO, "<%s> ioctl:SIOCGIFINFO_IN6 at %s: %s",
 			    __func__, ifi->ifi_ifname, strerror(errno));
