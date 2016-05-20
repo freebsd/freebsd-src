@@ -122,8 +122,10 @@ DEFINE_CLASS_0(thunder_mdio, thunder_mdio_driver, thunder_mdio_methods,
     sizeof(struct thunder_mdio_softc));
 
 DRIVER_MODULE(miibus, thunder_mdio, miibus_driver, miibus_devclass, 0, 0);
+MODULE_VERSION(thunder_mdio, 1);
 MODULE_DEPEND(thunder_mdio, ether, 1, 1, 1);
 MODULE_DEPEND(thunder_mdio, miibus, 1, 1, 1);
+MODULE_DEPEND(thunder_mdio, mrmlbus, 1, 1, 1);
 
 MALLOC_DEFINE(M_THUNDER_MDIO, "ThunderX MDIO",
     "Cavium ThunderX MDIO dynamic memory");
