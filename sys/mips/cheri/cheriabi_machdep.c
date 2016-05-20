@@ -905,13 +905,8 @@ cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base)
 	if (error)
 		return (error);
 	cheri_capability_copy(&td->td_md.md_tls_cap, tls_base);
-	/*
-	 * XXX-AR: Why does MIPS cpu_set_user_tls also have a check for
-	 * curthread == td, but cheriabi_set_user_tls() doesn't
-	 */
-
 	/* XXX: should support a crdhwr version */
-	if (cpuinfo.userlocal_reg == true) {
+	if (curthread == td && cpuinfo.userlocal_reg == true) {
 		/*
 		 * If there is an user local register implementation
 		 * (ULRI) update it as well.  Add the TLS and TCB
