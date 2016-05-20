@@ -36,7 +36,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: ascii.c 3177 2015-03-30 18:19:41Z emaste $");
+ELFTC_VCSID("$Id: ascii.c 3446 2016-05-03 01:31:17Z emaste $");
 
 static void append_data(struct section *s, const void *buf, size_t sz);
 static char hex_digit(uint8_t n);
@@ -187,7 +187,7 @@ create_srec(struct elfcopy *ecp, int ifd, int ofd, const char *ofn)
 	if (elferr != 0)
 		warnx("elf_nextscn failed: %s", elf_errmsg(elferr));
 
-	/* Generate S{7,8,9} end of block recrod. */
+	/* Generate S{7,8,9} end of block record. */
 	if (gelf_getehdr(e, &eh) == NULL)
 		errx(EXIT_FAILURE, "gelf_getehdr() failed: %s",
 		    elf_errmsg(-1));

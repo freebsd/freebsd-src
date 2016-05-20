@@ -44,7 +44,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: brandelf.c 3354 2016-01-18 21:50:15Z jkoshy $");
+ELFTC_VCSID("$Id: brandelf.c 3440 2016-04-07 14:51:47Z emaste $");
 
 static int elftype(const char *);
 static const char *iselftype(int);
@@ -62,6 +62,7 @@ static struct ELFtypes elftypes[] = {
 	{ "AIX",	ELFOSABI_AIX },
 	{ "ARM",	ELFOSABI_ARM },
 	{ "AROS",	ELFOSABI_AROS },
+	{ "CloudABI",	ELFOSABI_CLOUDABI },
 	{ "FreeBSD",	ELFOSABI_FREEBSD },
 	{ "GNU",	ELFOSABI_GNU },
 	{ "HP/UX",	ELFOSABI_HPUX},

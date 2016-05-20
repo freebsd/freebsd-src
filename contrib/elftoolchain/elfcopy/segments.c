@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 3397 2016-02-12 14:35:19Z emaste $");
+ELFTC_VCSID("$Id: segments.c 3449 2016-05-03 13:59:29Z emaste $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 
@@ -468,8 +468,7 @@ setup_phdr(struct elfcopy *ecp)
 {
 	struct segment	*seg;
 	GElf_Phdr	 iphdr;
-	size_t		 iphnum;
-	int		 i;
+	size_t		 iphnum, i;
 
 	if (elf_getphnum(ecp->ein, &iphnum) == 0)
 		errx(EXIT_FAILURE, "elf_getphnum failed: %s",
@@ -485,7 +484,7 @@ setup_phdr(struct elfcopy *ecp)
 		return;
 	}
 
-	for (i = 0; (size_t)i < iphnum; i++) {
+	for (i = 0; i < iphnum; i++) {
 		if (gelf_getphdr(ecp->ein, i, &iphdr) != &iphdr)
 			errx(EXIT_FAILURE, "gelf_getphdr failed: %s",
 			    elf_errmsg(-1));

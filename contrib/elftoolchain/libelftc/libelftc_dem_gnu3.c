@@ -36,7 +36,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_dem_gnu3.c 3291 2016-01-04 02:36:38Z emaste $");
+ELFTC_VCSID("$Id: libelftc_dem_gnu3.c 3447 2016-05-03 13:32:23Z emaste $");
 
 /**
  * @file cpp_demangle.c
@@ -553,7 +553,7 @@ cpp_demangle_push_type_qualifier(struct cpp_demangle_data *ddata,
 			free(buf);
 			++e_idx;
 			break;
-		};
+		}
 		--idx;
 	}
 
@@ -714,7 +714,7 @@ cpp_demangle_read_expr_primary(struct cpp_demangle_data *ddata)
 			return (cpp_demangle_push_str(ddata, "true", 4));
 		default:
 			return (0);
-		};
+		}
 
 	case 'd':
 		++ddata->cur;
@@ -764,7 +764,7 @@ cpp_demangle_read_expr_primary(struct cpp_demangle_data *ddata)
 
 	default:
 		return (0);
-	};
+	}
 }
 
 static int
@@ -1039,14 +1039,14 @@ cpp_demangle_read_expression(struct cpp_demangle_data *ddata)
 		/* operator sizeof */
 		ddata->cur += 2;
 		return (cpp_demangle_read_expression_unary(ddata, "sizeof", 6));
-	};
+	}
 
 	switch (*ddata->cur) {
 	case 'L':
 		return (cpp_demangle_read_expr_primary(ddata));
 	case 'T':
 		return (cpp_demangle_read_tmpl_param(ddata));
-	};
+	}
 
 	return (0);
 }
@@ -1421,7 +1421,7 @@ cpp_demangle_read_encoding(struct cpp_demangle_data *ddata)
 		if (*ddata->cur == '\0')
 			return (0);
 		break;
-	};
+	}
 
 	return (cpp_demangle_read_name(ddata));
 }
@@ -1493,7 +1493,7 @@ cpp_demangle_read_name(struct cpp_demangle_data *ddata)
 		return (cpp_demangle_read_nested_name(ddata));
 	case 'Z':
 		return (cpp_demangle_read_local_name(ddata));
-	};
+	}
 
 	if (!vector_str_init(&v))
 		return (0);
@@ -1594,7 +1594,7 @@ cpp_demangle_read_nested_name(struct cpp_demangle_data *ddata)
 		case 'K':
 			ddata->mem_cst = true;
 			break;
-		};
+		}
 		++ddata->cur;
 	}
 
@@ -1622,7 +1622,7 @@ cpp_demangle_read_nested_name(struct cpp_demangle_data *ddata)
 		default:
 			if (!cpp_demangle_read_uqname(ddata))
 				goto clean;
-		};
+		}
 
 		if ((subst_str = vector_str_substr(output, p_idx,
 		    output->size - 1, &subst_str_len)) == NULL)
@@ -1947,7 +1947,7 @@ cpp_demangle_read_subst(struct cpp_demangle_data *ddata)
 	case SIMPLE_HASH('S', 't'):
 		/* std:: */
 		return (cpp_demangle_read_subst_std(ddata));
-	};
+	}
 
 	if (*(++ddata->cur) == '\0')
 		return (0);
@@ -2095,7 +2095,7 @@ cpp_demangle_read_tmpl_arg(struct cpp_demangle_data *ddata)
 		return (cpp_demangle_read_expr_primary(ddata));
 	case 'X':
 		return (cpp_demangle_read_expression(ddata));
-	};
+	}
 
 	return (cpp_demangle_read_type(ddata, 0));
 }
@@ -2576,7 +2576,7 @@ again:
 			goto clean;
 		++ddata->cur;
 		goto rtn;
-	};
+	}
 
 	if (!cpp_demangle_read_name(ddata))
 		goto clean;
@@ -3040,7 +3040,7 @@ cpp_demangle_read_uqname(struct cpp_demangle_data *ddata)
 			return (0);
 		ddata->cur += 2;
 		return (1);
-	};
+	}
 
 	/* vendor extened operator */
 	if (*ddata->cur == 'v' && ELFTC_ISDIGIT(*(ddata->cur + 1))) {
@@ -3086,7 +3086,7 @@ cpp_demangle_read_uqname(struct cpp_demangle_data *ddata)
 			return (0);
 		ddata->cur +=2;
 		return (1);
-	};
+	}
 
 	/* source name */
 	if (ELFTC_ISDIGIT(*ddata->cur) != 0)
@@ -3449,7 +3449,7 @@ hex_to_dec(char c)
 		return (15);
 	default:
 		return (-1);
-	};
+	}
 }
 
 /**

@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _elftc.h 3244 2015-08-31 19:53:08Z emaste $
+ * $Id: _elftc.h 3446 2016-05-03 01:31:17Z emaste $
  */
 
 /**
- ** Miscellanous definitions needed by multiple components.
+ ** Miscellaneous definitions needed by multiple components.
  **/
 
 #ifndef	_ELFTC_H

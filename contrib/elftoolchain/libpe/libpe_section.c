@@ -33,7 +33,7 @@
 
 #include "_libpe.h"
 
-ELFTC_VCSID("$Id: libpe_section.c 3312 2016-01-10 09:23:51Z kaiwang27 $");
+ELFTC_VCSID("$Id: libpe_section.c 3446 2016-05-03 01:31:17Z emaste $");
 
 PE_Scn *
 libpe_alloc_scn(PE *pe)
@@ -486,7 +486,7 @@ libpe_write_sections(PE *pe, off_t off)
 		/*
 		 * Padding between sections. (padding always written
 		 * in case the the section headers or sections are
-		 * moved or shrinked.)
+		 * moved or shrunk.)
 		 */
 		assert(off <= sh->sh_rawptr);
 		if (off < sh->sh_rawptr)
