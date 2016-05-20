@@ -508,7 +508,6 @@ sprom_direct_read(struct bhnd_sprom *sc, size_t offset, void *buf,
     size_t nbytes, uint8_t *crc)
 {
 	bus_size_t	 res_offset;
-	size_t		 nread;
 	uint16_t	*p;
 
 	KASSERT(nbytes % sizeof(uint16_t) == 0, ("unaligned sprom size"));
@@ -520,15 +519,12 @@ sprom_direct_read(struct bhnd_sprom *sc, size_t offset, void *buf,
 		return (EINVAL);
 	}
 
+	/* Perform read and update CRC */
 	p = (uint16_t *)buf;
 	res_offset = sc->sp_res_off + offset;
 
-	/* Perform read */
-	for (nread = 0; nread < nbytes; nread += 2) {
-		*p = bhnd_bus_read_stream_2(sc->sp_res, res_offset+nread);
-		*crc = bhnd_nvram_crc8(p, sizeof(*p), *crc);
-		p++;
-	};
+	bhnd_bus_read_region_stream_2(sc->sp_res, res_offset, p, nbytes);
+	*crc = bhnd_nvram_crc8(p, nbytes, *crc);
 
 	return (0);
 }

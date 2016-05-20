@@ -1766,15 +1766,15 @@ bhndb_bus_write_ ## _name (device_t dev, device_t child,	\
 	BHNDB_IO_COMMON_TEARDOWN();				\
 }
 
-/* Defines a bhndb_bus_(read|write)_multi_* method implementation */
-#define	BHNDB_IO_MULTI(_type, _rw, _name)			\
+/* Defines a bhndb_bus_(read|write|set)_(multi|region)_* method */
+#define	BHNDB_IO_MISC(_type, _ptr, _op, _size)			\
 static void							\
-bhndb_bus_ ## _rw ## _multi_ ## _name (device_t dev,		\
+bhndb_bus_ ## _op ## _ ## _size (device_t dev,			\
     device_t child, struct bhnd_resource *r, bus_size_t offset,	\
-    _type *datap, bus_size_t count)				\
+    _type _ptr datap, bus_size_t count)				\
 {								\
 	BHNDB_IO_COMMON_SETUP(sizeof(_type) * count);		\
-	bus_ ## _rw ## _multi_ ## _name (io_res, io_offset,	\
+	bus_ ## _op ## _ ## _size (io_res, io_offset,		\
 	    datap, count);					\
 	BHNDB_IO_COMMON_TEARDOWN();				\
 }
@@ -1787,11 +1787,19 @@ bhndb_bus_ ## _rw ## _multi_ ## _name (device_t dev,		\
 	BHNDB_IO_READ(_type, stream_ ## _size)			\
 	BHNDB_IO_WRITE(_type, stream_ ## _size)			\
 								\
-	BHNDB_IO_MULTI(_type, read, _size)			\
-	BHNDB_IO_MULTI(_type, write, _size)			\
+	BHNDB_IO_MISC(_type, *, read_multi, _size)		\
+	BHNDB_IO_MISC(_type, *, write_multi, _size)		\
 								\
-	BHNDB_IO_MULTI(_type, read, stream_ ## _size)		\
-	BHNDB_IO_MULTI(_type, write, stream_ ## _size)
+	BHNDB_IO_MISC(_type, *, read_multi_stream, _size)	\
+	BHNDB_IO_MISC(_type, *, write_multi_stream, _size)	\
+								\
+	BHNDB_IO_MISC(_type,  , set_multi, _size)		\
+	BHNDB_IO_MISC(_type,  , set_region, _size)		\
+	BHNDB_IO_MISC(_type, *, read_region, _size)		\
+	BHNDB_IO_MISC(_type, *, write_region, _size)		\
+								\
+	BHNDB_IO_MISC(_type, *, read_region_stream, _size)	\
+	BHNDB_IO_MISC(_type, *, write_region_stream, _size)
 
 BHNDB_IO_METHODS(uint8_t, 1);
 BHNDB_IO_METHODS(uint16_t, 2);
@@ -1804,24 +1812,9 @@ static void
 bhndb_bus_barrier(device_t dev, device_t child, struct bhnd_resource *r,
     bus_size_t offset, bus_size_t length, int flags)
 {
-	bus_size_t remain;
-
 	BHNDB_IO_COMMON_SETUP(length);
 
-	/* TODO: It's unclear whether we need a barrier implementation,
-	 * and if we do, what it needs to actually do. This may need
-	 * revisiting once we have a better idea of requirements after
-	 * porting the core drivers. */
-	panic("implementation incorrect");
-
-	/* Use 4-byte reads where possible */
-	remain = length % sizeof(uint32_t);
-	for (bus_size_t i = 0; i < (length - remain); i += 4)
-		bus_read_4(io_res, io_offset + offset + i);
-
-	/* Use 1 byte reads for the remainder */
-	for (bus_size_t i = 0; i < remain; i++)
-		bus_read_1(io_res, io_offset + offset + length + i);
+	bus_barrier(io_res, io_offset + offset, length, flags);
 
 	BHNDB_IO_COMMON_TEARDOWN();
 }
@@ -1969,6 +1962,27 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bhnd_bus_write_multi_stream_1,bhndb_bus_write_multi_stream_1),
 	DEVMETHOD(bhnd_bus_write_multi_stream_2,bhndb_bus_write_multi_stream_2),
 	DEVMETHOD(bhnd_bus_write_multi_stream_4,bhndb_bus_write_multi_stream_4),
+
+	DEVMETHOD(bhnd_bus_set_multi_1,		bhndb_bus_set_multi_1),
+	DEVMETHOD(bhnd_bus_set_multi_2,		bhndb_bus_set_multi_2),
+	DEVMETHOD(bhnd_bus_set_multi_4,		bhndb_bus_set_multi_4),
+	DEVMETHOD(bhnd_bus_set_region_1,	bhndb_bus_set_region_1),
+	DEVMETHOD(bhnd_bus_set_region_2,	bhndb_bus_set_region_2),
+	DEVMETHOD(bhnd_bus_set_region_4,	bhndb_bus_set_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_1,	bhndb_bus_read_region_1),
+	DEVMETHOD(bhnd_bus_read_region_2,	bhndb_bus_read_region_2),
+	DEVMETHOD(bhnd_bus_read_region_4,	bhndb_bus_read_region_4),
+	DEVMETHOD(bhnd_bus_write_region_1,	bhndb_bus_write_region_1),
+	DEVMETHOD(bhnd_bus_write_region_2,	bhndb_bus_write_region_2),
+	DEVMETHOD(bhnd_bus_write_region_4,	bhndb_bus_write_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_stream_1,bhndb_bus_read_region_stream_1),
+	DEVMETHOD(bhnd_bus_read_region_stream_2,bhndb_bus_read_region_stream_2),
+	DEVMETHOD(bhnd_bus_read_region_stream_4,bhndb_bus_read_region_stream_4),
+	DEVMETHOD(bhnd_bus_write_region_stream_1,bhndb_bus_write_region_stream_1),
+	DEVMETHOD(bhnd_bus_write_region_stream_2,bhndb_bus_write_region_stream_2),
+	DEVMETHOD(bhnd_bus_write_region_stream_4,bhndb_bus_write_region_stream_4),
 
 	DEVMETHOD(bhnd_bus_barrier,		bhndb_bus_barrier),
 
