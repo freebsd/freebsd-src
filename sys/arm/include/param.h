@@ -59,12 +59,6 @@
 #define	_V6_SUFFIX ""
 #endif
 
-#ifdef __ARM_PCS_VFP
-#define	_HF_SUFFIX "hf"
-#else
-#define	_HF_SUFFIX ""
-#endif
-
 #ifdef __ARM_BIG_ENDIAN
 #define	_EB_SUFFIX "eb"
 #else
@@ -75,7 +69,7 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"arm" _V6_SUFFIX _HF_SUFFIX _EB_SUFFIX
+#define	MACHINE_ARCH	"arm" _V6_SUFFIX _EB_SUFFIX
 #endif
 
 #if defined(SMP) || defined(KLD_MODULE)
