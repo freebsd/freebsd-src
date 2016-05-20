@@ -1327,6 +1327,23 @@ icl_soft_conn_handoff(struct icl_conn *ic, int fd)
 
 	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
+#ifdef ICL_KERNEL_PROXY
+	/*
+	 * We're transitioning to Full Feature phase, and we don't
+	 * really care.
+	 */
+	if (fd == 0) {
+		ICL_CONN_LOCK(ic);
+		if (ic->ic_socket == NULL) {
+			ICL_CONN_UNLOCK(ic);
+			ICL_WARN("proxy handoff without connect"); 
+			return (EINVAL);
+		}
+		ICL_CONN_UNLOCK(ic);
+		return (0);
+	}
+#endif
+
 	/*
 	 * Steal the socket from userland.
 	 */
