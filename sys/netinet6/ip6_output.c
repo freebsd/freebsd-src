@@ -135,6 +135,8 @@ struct ip6_exthdrs {
 	struct mbuf *ip6e_dest2;
 };
 
+static MALLOC_DEFINE(M_IP6OPT, "ip6opt", "IPv6 options");
+
 static int ip6_pcbopt(int, u_char *, int, struct ip6_pktopts **,
 			   struct ucred *, int);
 static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *,
