@@ -6041,6 +6041,7 @@ set_init_index (tree first, tree last)
 void
 set_init_label (tree fieldname)
 {
+  tree anon = NULL_TREE;
   tree tail;
 
   if (set_designator (0))
@@ -6058,6 +6059,15 @@ set_init_label (tree fieldname)
   for (tail = TYPE_FIELDS (constructor_type); tail;
        tail = TREE_CHAIN (tail))
     {
+      if (DECL_NAME (tail) == NULL_TREE
+	  && (TREE_CODE (TREE_TYPE (tail)) == RECORD_TYPE
+	      || TREE_CODE (TREE_TYPE (tail)) == UNION_TYPE))
+	{
+	  anon = lookup_field (tail, fieldname);
+	  if (anon)
+	    break;
+	}
+
       if (DECL_NAME (tail) == fieldname)
 	break;
     }
