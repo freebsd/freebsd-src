@@ -1,4 +1,4 @@
-#	$Id: subdir.mk,v 1.14 2012/11/12 04:34:33 sjg Exp $
+#	$Id: subdir.mk,v 1.15 2016/04/05 15:58:37 sjg Exp $
 #	skip missing directories...
 
 #	$NetBSD: bsd.subdir.mk,v 1.11 1996/04/04 02:05:06 jtc Exp $
@@ -9,9 +9,7 @@
 # keep everyone happy
 _SUBDIRUSE:
 .elif !commands(_SUBDIRUSE) && !defined(NO_SUBDIR) && !defined(NOSUBDIR)
-.if exists(${.CURDIR}/Makefile.inc)
-.include "Makefile.inc"
-.endif
+.-include <${.CURDIR}/Makefile.inc>
 .if !target(.MAIN)
 .MAIN: all
 .endif
