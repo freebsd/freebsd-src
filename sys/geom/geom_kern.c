@@ -90,7 +90,6 @@ static void
 g_up_procbody(void *arg)
 {
 
-	mtx_assert(&Giant, MA_NOTOWNED);
 	thread_lock(g_up_td);
 	sched_prio(g_up_td, PRIBIO);
 	thread_unlock(g_up_td);
@@ -103,7 +102,6 @@ static void
 g_down_procbody(void *arg)
 {
 
-	mtx_assert(&Giant, MA_NOTOWNED);
 	thread_lock(g_down_td);
 	sched_prio(g_down_td, PRIBIO);
 	thread_unlock(g_down_td);
@@ -116,7 +114,6 @@ static void
 g_event_procbody(void *arg)
 {
 
-	mtx_assert(&Giant, MA_NOTOWNED);
 	thread_lock(g_event_td);
 	sched_prio(g_event_td, PRIBIO);
 	thread_unlock(g_event_td);
