@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160519: stale MLINK removed
+OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
 # 20160517: ReiserFS removed
 OLD_FILES+=usr/share/man/man5/reiserfs.5.gz
 # 20160430: kvm_getfiles(3) removed from kvm(3)
