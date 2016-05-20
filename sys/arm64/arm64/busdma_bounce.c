@@ -955,6 +955,9 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 	struct sync_list *sl, *end;
 	vm_offset_t datavaddr, tempvaddr;
 
+	if (op == BUS_DMASYNC_POSTWRITE)
+		return;
+
 	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 		/*
 		 * Wait for any DMA operations to complete before the bcopy.
