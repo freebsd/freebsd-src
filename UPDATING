@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160520:
+	The brk and sbrk functions have been removed from libc on arm64.
+	Binutils from ports has been updated to not link to these
+	functions and should be updated to the latest version before
+	installing a new libc.
+
 20160517:
 	The armv6 port now defaults to hard float ABI. Limited support
 	for running both hardfloat and soft float on the same system

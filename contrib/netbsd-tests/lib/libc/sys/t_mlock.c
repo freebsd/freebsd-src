@@ -176,7 +176,7 @@ ATF_TC_BODY(mlock_err, tc)
 	unsigned long vmin = 0;
 	size_t len = sizeof(vmin);
 #endif
-#ifndef __CHERI_PURE_CAPABILITY__
+#if defined(__aarch64__) || defined(__CHERI_PURE_CAPABILITY__)
 	void *invalid_ptr;
 #endif
 	int null_errno = ENOMEM;	/* error expected for NULL */
@@ -214,7 +214,7 @@ ATF_TC_BODY(mlock_err, tc)
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EINVAL, munlock((char *)-1, page) == -1);
 
-#ifndef __CHERI_PURE_CAPABILITY__
+#if defined(__aarch64__) || defined (__CHERI_PURE_CAPABILITY__)
 	/*
 	 * Try to create a pointer to an unmapped page - first after current
 	 * brk will likely do.
