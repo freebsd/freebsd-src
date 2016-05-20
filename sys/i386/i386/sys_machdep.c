@@ -315,8 +315,9 @@ i386_set_ioperm(td, uap)
 	struct thread *td;
 	struct i386_ioperm_args *uap;
 {
-	int i, error;
 	char *iomap;
+	u_int i;
+	int error;
 
 	if ((error = priv_check(td, PRIV_IO)) != 0)
 		return (error);
@@ -334,7 +335,8 @@ i386_set_ioperm(td, uap)
 			return (error);
 	iomap = (char *)td->td_pcb->pcb_ext->ext_iomap;
 
-	if (uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
+	if (uap->start > uap->start + uap->length ||
+	    uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
 	for (i = uap->start; i < uap->start + uap->length; i++) {

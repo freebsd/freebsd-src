@@ -344,7 +344,8 @@ amd64_set_ioperm(td, uap)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
-	if (uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
+	if (uap->start > uap->start + uap->length ||
+	    uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
 	/*
