@@ -632,57 +632,6 @@ command_mode(int argc, char *argv[])
 	return (CMD_OK);
 }
 
-
-/* deprecated */
-COMMAND_SET(nvram, "nvram", "get or set NVRAM variables", command_nvram);
-
-static int
-command_nvram(int argc, char *argv[])
-{
-	CHAR16 var[128];
-	CHAR16 *data;
-	EFI_STATUS status;
-	EFI_GUID varguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
-	UINTN varsz, datasz, i;
-	SIMPLE_TEXT_OUTPUT_INTERFACE *conout;
-
-	conout = ST->ConOut;
-
-	/* Initiate the search */
-	status = RS->GetNextVariableName(&varsz, NULL, NULL);
-
-	pager_open();
-	for (; status != EFI_NOT_FOUND; ) {
-		status = RS->GetNextVariableName(&varsz, var, &varguid);
-		//if (EFI_ERROR(status))
-			//break;
-
-		conout->OutputString(conout, var);
-		printf("=");
-		datasz = 0;
-		status = RS->GetVariable(var, &varguid, NULL, &datasz, NULL);
-		/* XXX: check status */
-		data = malloc(datasz);
-		status = RS->GetVariable(var, &varguid, NULL, &datasz, data);
-		if (EFI_ERROR(status))
-			printf("<error retrieving variable>");
-		else {
-			for (i = 0; i < datasz; i++) {
-				if (isalnum(data[i]) || isspace(data[i]))
-					printf("%c", data[i]);
-				else
-					printf("\\x%02x", data[i]);
-			}
-		}
-		free(data);
-		if (pager_output("\n"))
-			break;
-	}
-	pager_close();
-
-	return (CMD_OK);
-}
-
 #ifdef EFI_ZFS_BOOT
 COMMAND_SET(lszfs, "lszfs", "list child datasets of a zfs dataset",
     command_lszfs);
@@ -738,17 +687,18 @@ command_reloadbe(int argc, char *argv[])
 }
 #endif
 
-COMMAND_SET(efishow, "efi-show", "print some or all EFI variables", command_efi_printenv);
+COMMAND_SET(efishow, "efi-show", "print some or all EFI variables", command_efi_show);
 
 static int
 efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 {
-	UINTN		datasz;
+	UINTN		datasz, i;
 	EFI_STATUS	status;
 	UINT32		attr;
 	CHAR16		*data;
 	char		*str;
 	uint32_t	uuid_status;
+	int		is_ascii;
 
 	datasz = 0;
 	status = RS->GetVariable(varnamearg, matchguid, &attr,
@@ -765,8 +715,33 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 		return (CMD_ERROR);
 	}
 	uuid_to_string((uuid_t *)matchguid, &str, &uuid_status);
-	printf("%s %S=%S", str, varnamearg, data);
-	free(str);
+	if (lflag) {
+		printf("%s 0x%x %S", str, attr, varnamearg);
+	} else {
+		printf("%s 0x%x %S=", str, attr, varnamearg);
+		is_ascii = 1;
+		free(str);
+		str = (char *)data;
+		for (i = 0; i < datasz - 1; i++) {
+			/* Quick hack to see if this ascii-ish string printable range plus tab, cr and lf */
+			if ((str[i] < 32 || str[i] > 126) && str[i] != 9 && str[i] != 10 && str[i] != 13) {
+				is_ascii = 0;
+				break;
+			}
+		}
+		if (str[datasz - 1] != '\0')
+			is_ascii = 0;
+		if (is_ascii)
+			printf("%s", str);
+		else {
+			for (i = 0; i < datasz / 2; i++) {
+				if (isalnum(data[i]) || isspace(data[i]))
+					printf("%c", data[i]);
+				else
+					printf("\\x%02x", data[i]);
+			}
+		}
+	}
 	free(data);
 	if (pager_output("\n"))
 		return (CMD_WARN);
@@ -774,20 +749,20 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 }
 
 static int
-command_efi_printenv(int argc, char *argv[])
+command_efi_show(int argc, char *argv[])
 {
 	/*
-	 * efi-printenv [-a]
+	 * efi-show [-a]
 	 *	print all the env
-	 * efi-printenv -u UUID
+	 * efi-show -u UUID
 	 *	print all the env vars tagged with UUID
-	 * efi-printenv -v var
+	 * efi-show -v var
 	 *	search all the env vars and print the ones matching var
-	 * eif-printenv -u UUID -v var
-	 * eif-printenv UUID var
+	 * eif-show -u UUID -v var
+	 * eif-show UUID var
 	 *	print all the env vars that match UUID and var
 	 */
-	/* XXX We assume EFI_GUID is the same as uuid_t */
+	/* NB: We assume EFI_GUID is the same as uuid_t */
 	int		aflag = 0, gflag = 0, lflag = 0, vflag = 0;
 	int		ch, rv;
 	unsigned	i;
@@ -826,6 +801,7 @@ command_efi_printenv(int argc, char *argv[])
 			for (i = 0; i < strlen(optarg); i++)
 				varnamearg[i] = optarg[i];
 			varnamearg[i] = 0;
+			break;
 		default:
 			printf("Invalid argument %c\n", ch);
 			return (CMD_ERROR);
@@ -939,12 +915,12 @@ command_efi_set(int argc, char *argv[])
 	val = argv[3];
 	uuid_from_string(uuid, (uuid_t *)&guid, &status);
 	if (status != uuid_s_ok) {
-		printf("Invalid uuid %s\n", uuid);
+		printf("Invalid uuid %s %d\n", uuid, status);
 		return (CMD_ERROR);
 	}
 	cpy8to16(var, wvar, sizeof(wvar));
 	err = RS->SetVariable(wvar, &guid,
-	    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_RUNTIME_ACCESS,
+	    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
 	    strlen(val) + 1, val);
 	if (EFI_ERROR(err)) {
 		printf("Failed to set variable: error %d\n", EFI_ERROR_CODE(err));
