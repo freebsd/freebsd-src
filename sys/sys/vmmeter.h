@@ -125,13 +125,12 @@ extern int vm_pageout_wakeup_thresh;
  * This routine is typically used at the user<->system interface to determine
  * whether we need to block in order to avoid a low memory deadlock.
  */
-
-static __inline 
-int
+static inline int
 vm_page_count_severe(void)
 {
-    return (vm_cnt.v_free_severe > (vm_cnt.v_free_count +
-          vm_cnt.v_cache_count));
+
+	return (vm_cnt.v_free_severe > vm_cnt.v_free_count +
+	    vm_cnt.v_cache_count);
 }
 
 /*
@@ -143,50 +142,46 @@ vm_page_count_severe(void)
  * to wake waiters up, and when (after making a pass) to become more
  * desperate.
  */
-
-static __inline 
-int
+static inline int
 vm_page_count_min(void)
 {
-    return (vm_cnt.v_free_min > (vm_cnt.v_free_count + vm_cnt.v_cache_count));
+
+	return (vm_cnt.v_free_min > vm_cnt.v_free_count + vm_cnt.v_cache_count);
 }
 
 /*
  * Return TRUE if we have not reached our free page target during
  * free page recovery operations.
  */
-
-static __inline 
-int
+static inline int
 vm_page_count_target(void)
 {
-    return (vm_cnt.v_free_target > (vm_cnt.v_free_count +
-          vm_cnt.v_cache_count));
+
+	return (vm_cnt.v_free_target > vm_cnt.v_free_count +
+	    vm_cnt.v_cache_count);
 }
 
 /*
  * Return the number of pages we need to free-up or cache
  * A positive number indicates that we do not have enough free pages.
  */
-
-static __inline 
-int
+static inline int
 vm_paging_target(void)
 {
-    return (vm_cnt.v_free_target - (vm_cnt.v_free_count +
-          vm_cnt.v_cache_count));
+
+	return (vm_cnt.v_free_target - (vm_cnt.v_free_count +
+	    vm_cnt.v_cache_count));
 }
 
 /*
  * Returns TRUE if the pagedaemon needs to be woken up.
  */
-
-static __inline 
-int
+static inline int
 vm_paging_needed(void)
 {
-    return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
-        (u_int)vm_pageout_wakeup_thresh);
+
+	return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
+	    (u_int)vm_pageout_wakeup_thresh);
 }
 
 #endif
