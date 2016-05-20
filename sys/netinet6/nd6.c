@@ -85,6 +85,8 @@ __FBSDID("$FreeBSD$");
 
 #define SIN6(s) ((const struct sockaddr_in6 *)(s))
 
+MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
+
 /* timer values */
 VNET_DEFINE(int, nd6_prune)	= 1;	/* walk list every 1 seconds */
 VNET_DEFINE(int, nd6_delay)	= 5;	/* delay first probe time 5 second */
