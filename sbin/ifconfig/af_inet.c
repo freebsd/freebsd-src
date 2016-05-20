@@ -152,7 +152,7 @@ in_status_tunnel(int s)
 	const struct sockaddr *sa = (const struct sockaddr *) &ifr.ifr_addr;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, name, IFNAMSIZ);
+	strlcpy(ifr.ifr_name, name, IFNAMSIZ);
 
 	if (ioctl(s, SIOCGIFPSRCADDR, (caddr_t)&ifr) < 0)
 		return;
@@ -177,7 +177,7 @@ in_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 	struct in_aliasreq addreq;
 
 	memset(&addreq, 0, sizeof(addreq));
-	strncpy(addreq.ifra_name, name, IFNAMSIZ);
+	strlcpy(addreq.ifra_name, name, IFNAMSIZ);
 	memcpy(&addreq.ifra_addr, srcres->ai_addr, srcres->ai_addr->sa_len);
 	memcpy(&addreq.ifra_dstaddr, dstres->ai_addr, dstres->ai_addr->sa_len);
 
