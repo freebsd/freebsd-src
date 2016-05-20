@@ -71,6 +71,11 @@ int				 bhndb_add_resource_region(
 				     bhndb_priority_t priority,
 				     const struct bhndb_regwin *static_regwin);
 
+int				 bhndb_find_resource_limits(
+				     struct bhndb_resources *br,
+				     struct resource *r, rman_res_t *start,
+				     rman_res_t *end);
+
 struct bhndb_region		*bhndb_find_resource_region(
 				     struct bhndb_resources *br,
 				     bhnd_addr_t addr, bhnd_size_t size);
@@ -133,7 +138,7 @@ const struct bhndb_hw_priority	*bhndb_hw_priority_find_device(
  * Dynamic register window allocation reference.
  */
 struct bhndb_dw_rentry {
-	struct resource			*dw_res;		/**< child resource */
+	struct resource			*dw_res;	/**< child resource */
 	LIST_ENTRY(bhndb_dw_rentry)	 dw_link;
 };
 
