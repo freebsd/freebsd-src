@@ -111,20 +111,28 @@ LEAF(rtld_start)
 	nop
 END(rtld_start)
 
-#define	XCALLFRAME_SIZ		(12*SZREG)
-#define	XCALLFRAME_RA		(10*SZREG)
-#define	XCALLFRAME_GP		(9*SZREG)
-#define	XCALLFRAME_S0		(8*SZREG)
-#define	XCALLFRAME_A3		(7*SZREG)
-#define	XCALLFRAME_A2		(6*SZREG)
-#define	XCALLFRAME_A1		(5*SZREG)
-#define	XCALLFRAME_A0		(4*SZREG)
-#if defined(__mips_n32) || defined(__mips_n64)
-#define	XCALLFRAME_A7		(3*SZREG)
-#define	XCALLFRAME_A6		(2*SZREG)
-#define	XCALLFRAME_A5		(1*SZREG)
-#define	XCALLFRAME_A4		(0*SZREG)
-#endif
+#define	XCALLFRAME_CAPSIZ	(9*CHERICAP_SIZE)
+#define	XCALLFRAME_SIZ		(12*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_RA		(10*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_GP		(9*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_S0		(8*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_A3		(7*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_A2		(6*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_A1		(5*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_A0		(4*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_A7		(3*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_A6		(2*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_A5		(1*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_A4		(0*SZREG + XCALLFRAME_CAPSIZ)
+#define	XCALLFRAME_C3		(8*CHERICAP_SIZE)
+#define	XCALLFRAME_C4		(7*CHERICAP_SIZE)
+#define	XCALLFRAME_C5		(6*CHERICAP_SIZE)
+#define	XCALLFRAME_C6		(5*CHERICAP_SIZE)
+#define	XCALLFRAME_C7		(4*CHERICAP_SIZE)
+#define	XCALLFRAME_C8		(3*CHERICAP_SIZE)
+#define	XCALLFRAME_C9		(2*CHERICAP_SIZE)
+#define	XCALLFRAME_C10		(1*CHERICAP_SIZE)
+#define	XCALLFRAME_C17		(0*CHERICAP_SIZE)
 
 	.globl	_rtld_bind_start
 	.ent	_rtld_bind_start
@@ -132,17 +140,28 @@ _rtld_bind_start:
 	.frame	sp, XCALLFRAME_SIZ, $15
 	move	v1, gp			/* save old GP */
 	PTR_SUBU sp, XCALLFRAME_SIZ	/* save arguments and sp value in stack */
-	SETUP_GP64(XCALLFRAME_GP, _rtld_bind_start)
-	REG_S	a0,  XCALLFRAME_A0(sp)
-	REG_S	a1,  XCALLFRAME_A1(sp)
-	REG_S	a2,  XCALLFRAME_A2(sp)
-	REG_S	a3,  XCALLFRAME_A3(sp)
-	REG_S	a4,  XCALLFRAME_A4(sp)
-	REG_S	a5,  XCALLFRAME_A5(sp)
-	REG_S	a6,  XCALLFRAME_A6(sp)
-	REG_S	a7,  XCALLFRAME_A7(sp)
-	REG_S	$15,  XCALLFRAME_RA(sp)	/* ra is in t7/t3 */
-	REG_S	s0,  XCALLFRAME_S0(sp)
+	//SETUP_GP64(XCALLFRAME_GP, _rtld_bind_start)
+	csd	gp,  sp, XCALLFRAME_GP($c11)
+	csd	a0,  sp, XCALLFRAME_A0($c11)
+	csd	a1,  sp, XCALLFRAME_A1($c11)
+	csd	a2,  sp, XCALLFRAME_A2($c11)
+	csd	a3,  sp, XCALLFRAME_A3($c11)
+	csd	a4,  sp, XCALLFRAME_A4($c11)
+	csd	a5,  sp, XCALLFRAME_A5($c11)
+	csd	a6,  sp, XCALLFRAME_A6($c11)
+	csd	a7,  sp, XCALLFRAME_A7($c11)
+	csd	$15, sp, XCALLFRAME_RA($c11)	/* ra is in t7/t3 */
+	csd	s0,  sp, XCALLFRAME_S0($c11)
+	/* XXX-BD: What about ccall functions?  Do we need v0, c1, c2? */
+	csc	$c3, sp, XCALLFRAME_C3($c11)
+	csc	$c4, sp, XCALLFRAME_C4($c11)
+	csc	$c5, sp, XCALLFRAME_C5($c11)
+	csc	$c6, sp, XCALLFRAME_C6($c11)
+	csc	$c7, sp, XCALLFRAME_C7($c11)
+	csc	$c8, sp, XCALLFRAME_C8($c11)
+	csc	$c9, sp, XCALLFRAME_C9($c11)
+	csc	$c10, sp, XCALLFRAME_C10($c11)
+	csc	$c17, sp, XCALLFRAME_C17($c11)
 	move	s0, sp
 
 	move	a0, v1			/* old GP */
@@ -151,35 +170,47 @@ _rtld_bind_start:
 					/* $gp = .got + 0x7ff0, so	*/
 					/* .got = $gp - 0x7ff0		*/
 					/* Simple math as you can see.	*/
-#if defined(__mips_n64)
 	ld	a0, 8(a0)		/* object = pltgot[1] */
 	and	a0, a0, 0x7fffffffffffffff
-#else
-	lw	a0, 4(a0)		/* object = pltgot[1] & 0x7fffffff */
-	and	a0, a0, 0x7fffffff
-#endif
-	move	a1, t8			/* symbol index */
+	cgetdefault	$c3
+	csetoffset	$c3, $c3, a0
+	move	a0, t8			/* symbol index */
 
-	PTR_LA	t9, _C_LABEL(_mips_rtld_bind)
-	jalr	t9
+	/* XXX-BD: hacky PIC call */
+	dla		t0, 1f
+1:	cgetpcc		$c12
+	cgetoffset	t1, $c12
+	dsub		t0, t1, t0
+	csetoffset	$c12, $c12, t0
+	dla		t9, _C_LABEL(_mips_rtld_bind)
+	cincoffset	$c12, $c12, t9
+	cjalr	$c17, $c12
 	nop
+	cmove	$c12, $c3
 
 	move	sp, s0
-	REG_L	ra, XCALLFRAME_RA(sp)
-	REG_L	s0, XCALLFRAME_S0(sp)
-	REG_L	a0, XCALLFRAME_A0(sp)
-	REG_L	a1, XCALLFRAME_A1(sp)
-	REG_L	a2, XCALLFRAME_A2(sp)
-	REG_L	a3, XCALLFRAME_A3(sp)
-#if defined(__mips_n32) || defined(__mips_n64)
-	REG_L	a4, XCALLFRAME_A4(sp)
-	REG_L	a5, XCALLFRAME_A5(sp)
-	REG_L	a6, XCALLFRAME_A6(sp)
-	REG_L	a7, XCALLFRAME_A7(sp)
-#endif
-	RESTORE_GP64
+	clc	$c17, sp, XCALLFRAME_C17($c11)
+	clc	$c10, sp, XCALLFRAME_C10($c11)
+	clc	$c9, sp, XCALLFRAME_C9($c11)
+	clc	$c8, sp, XCALLFRAME_C8($c11)
+	clc	$c7, sp, XCALLFRAME_C7($c11)
+	clc	$c6, sp, XCALLFRAME_C6($c11)
+	clc	$c5, sp, XCALLFRAME_C5($c11)
+	clc	$c4, sp, XCALLFRAME_C4($c11)
+	clc	$c3, sp, XCALLFRAME_C3($c11)
+	cld	ra, sp, XCALLFRAME_RA($c11)
+	cld	s0, sp, XCALLFRAME_S0($c11)
+	cld	a0, sp, XCALLFRAME_A0($c11)
+	cld	a1, sp, XCALLFRAME_A1($c11)
+	cld	a2, sp, XCALLFRAME_A2($c11)
+	cld	a3, sp, XCALLFRAME_A3($c11)
+	cld	a4, sp, XCALLFRAME_A4($c11)
+	cld	a5, sp, XCALLFRAME_A5($c11)
+	cld	a6, sp, XCALLFRAME_A6($c11)
+	cld	a7, sp, XCALLFRAME_A7($c11)
+	cld	gp, sp, XCALLFRAME_GP($c11)
+	//RESTORE_GP64
 	PTR_ADDU sp, XCALLFRAME_SIZ
-	move	t9, v0
-	jr	t9
+	cjr	$c12
 	nop
 END(_rtld_bind_start)
