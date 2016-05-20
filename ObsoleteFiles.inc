@@ -39,11 +39,11 @@
 # done
 
 # 20160519: remove DTrace Toolkit from base
-OLD_FILES+=usr/share/dtrace/toolkit/execsnoop*
-OLD_FILES+=usr/share/dtrace/toolkit/hotkernel*
-OLD_FILES+=usr/share/dtrace/toolkit/hotuser*
-OLD_FILES+=usr/share/dtrace/toolkit/opensnoop*
-OLD_FILES+=usr/share/dtrace/toolkit/procsystime*
+OLD_FILES+=usr/share/dtrace/toolkit/execsnoop
+OLD_FILES+=usr/share/dtrace/toolkit/hotkernel
+OLD_FILES+=usr/share/dtrace/toolkit/hotuser
+OLD_FILES+=usr/share/dtrace/toolkit/opensnoop
+OLD_FILES+=usr/share/dtrace/toolkit/procsystime
 OLD_DIRS+=usr/share/dtrace/toolkit
 # 20160519: stale MLINK removed
 OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
