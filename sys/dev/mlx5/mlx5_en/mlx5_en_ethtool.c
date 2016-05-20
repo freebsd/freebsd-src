@@ -48,6 +48,42 @@ mlx5e_create_stats(struct sysctl_ctx_list *ctx,
 	}
 }
 
+static void
+mlx5e_ethtool_sync_tx_completion_fact(struct mlx5e_priv *priv)
+{
+	/*
+	 * Limit the maximum distance between completion events to
+	 * half of the currently set TX queue size.
+	 *
+	 * The maximum number of queue entries a single IP packet can
+	 * consume is given by MLX5_SEND_WQE_MAX_WQEBBS.
+	 *
+	 * The worst case max value is then given as below:
+	 */
+	uint64_t max = priv->params_ethtool.tx_queue_size /
+	    (2 * MLX5_SEND_WQE_MAX_WQEBBS);
+
+	/*
+	 * Update the maximum completion factor value in case the
+	 * tx_queue_size field changed. Ensure we don't overflow
+	 * 16-bits.
+	 */
+	if (max < 1)
+		max = 1;
+	else if (max > 65535)
+		max = 65535;
+	priv->params_ethtool.tx_completion_fact_max = max;
+
+	/*
+	 * Verify that the current TX completion factor is within the
+	 * given limits:
+	 */
+	if (priv->params_ethtool.tx_completion_fact < 1)
+		priv->params_ethtool.tx_completion_fact = 1;
+	else if (priv->params_ethtool.tx_completion_fact > max)
+		priv->params_ethtool.tx_completion_fact = max;
+}
+
 static int
 mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -205,6 +241,14 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			priv->params.cqe_zipping_en = false;
 			priv->params_ethtool.cqe_zipping = 0;
 		}
+	}
+
+	if (&priv->params_ethtool.arg[arg2] ==
+	    &priv->params_ethtool.tx_completion_fact ||
+	    &priv->params_ethtool.arg[arg2] ==
+	    &priv->params_ethtool.tx_queue_size) {
+		/* verify parameter */
+		mlx5e_ethtool_sync_tx_completion_fact(priv);
 	}
 	if (was_opened)
 		mlx5e_open_locked(priv->ifp);
@@ -475,6 +519,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	priv->params_ethtool.tx_coalesce_pkts = priv->params.tx_cq_moderation_pkts;
 	priv->params_ethtool.hw_lro = priv->params.hw_lro_en;
 	priv->params_ethtool.cqe_zipping = priv->params.cqe_zipping_en;
+	mlx5e_ethtool_sync_tx_completion_fact(priv);
 
 	/* create root node */
 	node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,

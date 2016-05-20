@@ -1185,24 +1185,82 @@ err_destroy_sq:
 }
 
 static void
-mlx5e_close_sq(struct mlx5e_sq *sq)
+mlx5e_sq_send_nops_locked(struct mlx5e_sq *sq, int can_sleep)
 {
-
-	/* ensure hw is notified of all pending wqes */
-	if (mlx5e_sq_has_room_for(sq, 1))
+	/* fill up remainder with NOPs */
+	while (sq->cev_counter != 0) {
+		while (!mlx5e_sq_has_room_for(sq, 1)) {
+			if (can_sleep != 0) {
+				mtx_unlock(&sq->lock);
+				msleep(4);
+				mtx_lock(&sq->lock);
+			} else {
+				goto done;
+			}
+		}
 		mlx5e_send_nop(sq, 1, true);
+	}
+done:
+	return;
+}
 
-	mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
+void
+mlx5e_sq_cev_timeout(void *arg)
+{
+	struct mlx5e_sq *sq = arg;
+
+	mtx_assert(&sq->lock, MA_OWNED);
+
+	/* check next state */
+	switch (sq->cev_next_state) {
+	case MLX5E_CEV_STATE_SEND_NOPS:
+		/* fill TX ring with NOPs, if any */
+		mlx5e_sq_send_nops_locked(sq, 0);
+
+		/* check if completed */
+		if (sq->cev_counter == 0) {
+			sq->cev_next_state = MLX5E_CEV_STATE_INITIAL;
+			return;
+		}
+		break;
+	default:
+		/* send NOPs on next timeout */
+		sq->cev_next_state = MLX5E_CEV_STATE_SEND_NOPS;
+		break;
+	}
+
+	/* restart timer */
+	callout_reset_curcpu(&sq->cev_callout, hz, mlx5e_sq_cev_timeout, sq);
 }
 
 static void
 mlx5e_close_sq_wait(struct mlx5e_sq *sq)
 {
+
+	mtx_lock(&sq->lock);
+	/* teardown event factor timer, if any */
+	sq->cev_next_state = MLX5E_CEV_STATE_HOLD_NOPS;
+	callout_stop(&sq->cev_callout);
+
+	/* send dummy NOPs in order to flush the transmit ring */
+	mlx5e_sq_send_nops_locked(sq, 1);
+	mtx_unlock(&sq->lock);
+
+	/* make sure it is safe to free the callout */
+	callout_drain(&sq->cev_callout);
+
+	/* error out remaining requests */
+	mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
+
 	/* wait till SQ is empty */
+	mtx_lock(&sq->lock);
 	while (sq->cc != sq->pc) {
+		mtx_unlock(&sq->lock);
 		msleep(4);
 		sq->cq.mcq.comp(&sq->cq.mcq);
+		mtx_lock(&sq->lock);
 	}
+	mtx_unlock(&sq->lock);
 
 	mlx5e_disable_sq(sq);
 	mlx5e_destroy_sq(sq);
@@ -1412,21 +1470,10 @@ mlx5e_open_sqs(struct mlx5e_channel *c,
 	return (0);
 
 err_close_sqs:
-	for (tc--; tc >= 0; tc--) {
-		mlx5e_close_sq(&c->sq[tc]);
+	for (tc--; tc >= 0; tc--)
 		mlx5e_close_sq_wait(&c->sq[tc]);
-	}
 
 	return (err);
-}
-
-static void
-mlx5e_close_sqs(struct mlx5e_channel *c)
-{
-	int tc;
-
-	for (tc = 0; tc < c->num_tc; tc++)
-		mlx5e_close_sq(&c->sq[tc]);
 }
 
 static void
@@ -1446,9 +1493,19 @@ mlx5e_chan_mtx_init(struct mlx5e_channel *c)
 	mtx_init(&c->rq.mtx, "mlx5rx", MTX_NETWORK_LOCK, MTX_DEF);
 
 	for (tc = 0; tc < c->num_tc; tc++) {
-		mtx_init(&c->sq[tc].lock, "mlx5tx", MTX_NETWORK_LOCK, MTX_DEF);
-		mtx_init(&c->sq[tc].comp_lock, "mlx5comp", MTX_NETWORK_LOCK,
+		struct mlx5e_sq *sq = c->sq + tc;
+
+		mtx_init(&sq->lock, "mlx5tx", MTX_NETWORK_LOCK, MTX_DEF);
+		mtx_init(&sq->comp_lock, "mlx5comp", MTX_NETWORK_LOCK,
 		    MTX_DEF);
+
+		callout_init_mtx(&sq->cev_callout, &sq->lock, 0);
+
+		sq->cev_factor = c->priv->params_ethtool.tx_completion_fact;
+
+		/* ensure the TX completion event factor is not zero */
+		if (sq->cev_factor == 0)
+			sq->cev_factor = 1;
 	}
 }
 
@@ -1529,7 +1586,6 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	return (0);
 
 err_close_sqs:
-	mlx5e_close_sqs(c);
 	mlx5e_close_sqs_wait(c);
 
 err_close_rx_cq:
@@ -1554,7 +1610,6 @@ mlx5e_close_channel(struct mlx5e_channel *volatile *pp)
 	if (c == NULL)
 		return;
 	mlx5e_close_rq(&c->rq);
-	mlx5e_close_sqs(c);
 }
 
 static void
