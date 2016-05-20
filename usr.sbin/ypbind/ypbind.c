@@ -199,14 +199,19 @@ rejecting.", *argp);
 			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
 			return (&res);
 		}
-		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
+		if (strlen(*argp) > YPMAXDOMAIN) {
+			syslog(LOG_WARNING, "domain %s too long", *argp);
+			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
+			return (&res);
+		}
+		ypdb = malloc(sizeof *ypdb);
 		if (ypdb == NULL) {
 			syslog(LOG_WARNING, "malloc: %m");
 			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
 			return (&res);
 		}
 		bzero(ypdb, sizeof *ypdb);
-		strncpy(ypdb->dom_domain, *argp, sizeof ypdb->dom_domain);
+		strlcpy(ypdb->dom_domain, *argp, sizeof ypdb->dom_domain);
 		ypdb->dom_vers = YPVERS;
 		ypdb->dom_alive = 0;
 		ypdb->dom_default = 0;
@@ -412,6 +417,9 @@ main(int argc, char *argv[])
 			errx(1, "unknown option: %s", argv[i]);
 	}
 
+	if (strlen(domain_name) > YPMAXDOMAIN)
+		warnx("truncating domain name %s", domain_name);
+
 	/* blow away everything in BINDINGDIR (if it exists) */
 
 	if ((dird = opendir(BINDINGDIR)) != NULL) {
@@ -448,11 +456,11 @@ main(int argc, char *argv[])
 		errx(1, "unable to register (YPBINDPROG, YPBINDVERS, tcp)");
 
 	/* build initial domain binding, make it "unsuccessful" */
-	ypbindlist = (struct _dom_binding *)malloc(sizeof *ypbindlist);
+	ypbindlist = malloc(sizeof *ypbindlist);
 	if (ypbindlist == NULL)
 		errx(1, "malloc");
 	bzero(ypbindlist, sizeof *ypbindlist);
-	strncpy(ypbindlist->dom_domain, domain_name, sizeof ypbindlist->dom_domain);
+	strlcpy(ypbindlist->dom_domain, domain_name, sizeof ypbindlist->dom_domain);
 	ypbindlist->dom_vers = YPVERS;
 	ypbindlist->dom_alive = 0;
 	ypbindlist->dom_lockfd = -1;
@@ -883,13 +891,17 @@ rpc_received(char *dom, struct sockaddr_in *raddrp, int force)
 	if (ypdb == NULL) {
 		if (force == 0)
 			return;
-		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
+		if (strlen(dom) > YPMAXDOMAIN) {
+			syslog(LOG_WARNING, "domain %s too long", dom);
+			return;
+		}
+		ypdb = malloc(sizeof *ypdb);
 		if (ypdb == NULL) {
 			syslog(LOG_WARNING, "malloc: %m");
 			return;
 		}
 		bzero(ypdb, sizeof *ypdb);
-		strncpy(ypdb->dom_domain, dom, sizeof ypdb->dom_domain);
+		strlcpy(ypdb->dom_domain, dom, sizeof ypdb->dom_domain);
 		ypdb->dom_lockfd = -1;
 		ypdb->dom_default = 0;
 		ypdb->dom_pnext = ypbindlist;
