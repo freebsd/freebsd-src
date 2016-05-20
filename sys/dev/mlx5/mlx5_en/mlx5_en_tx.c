@@ -41,7 +41,7 @@ mlx5e_do_send_cqe(struct mlx5e_sq *sq)
 }
 
 void
-mlx5e_send_nop(struct mlx5e_sq *sq, u32 ds_cnt, bool notify_hw)
+mlx5e_send_nop(struct mlx5e_sq *sq, u32 ds_cnt)
 {
 	u16 pi = sq->pc & sq->wq.sz_m1;
 	struct mlx5e_tx_wqe *wqe = mlx5_wq_cyc_get_wqe(&sq->wq, pi);
@@ -55,12 +55,13 @@ mlx5e_send_nop(struct mlx5e_sq *sq, u32 ds_cnt, bool notify_hw)
 	else
 		wqe->ctrl.fm_ce_se = 0;
 
+	/* Copy data for doorbell */
+	memcpy(sq->doorbell.d32, &wqe->ctrl, sizeof(sq->doorbell.d32));
+
 	sq->mbuf[pi].mbuf = NULL;
 	sq->mbuf[pi].num_bytes = 0;
 	sq->mbuf[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 	sq->pc += sq->mbuf[pi].num_wqebbs;
-	if (notify_hw)
-		mlx5e_tx_notify_hw(sq, wqe, 0);
 }
 
 #if (__FreeBSD_version >= 1100000)
@@ -221,7 +222,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	pi = ((~sq->pc) & sq->wq.sz_m1);
 	if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
 		/* Send one multi NOP message instead of many */
-		mlx5e_send_nop(sq, (pi + 1) * MLX5_SEND_WQEBB_NUM_DS, false);
+		mlx5e_send_nop(sq, (pi + 1) * MLX5_SEND_WQEBB_NUM_DS);
 		pi = ((~sq->pc) & sq->wq.sz_m1);
 		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
 			m_freem(mb);
@@ -360,6 +361,9 @@ skip_dma:
 	else
 		wqe->ctrl.fm_ce_se = 0;
 
+	/* Copy data for doorbell */
+	memcpy(sq->doorbell.d32, &wqe->ctrl, sizeof(sq->doorbell.d32));
+
 	/* Store pointer to mbuf */
 	sq->mbuf[pi].mbuf = mb;
 	sq->mbuf[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
@@ -368,8 +372,6 @@ skip_dma:
 	/* Make sure all mbuf data is written to RAM */
 	if (mb != NULL)
 		bus_dmamap_sync(sq->dma_tag, sq->mbuf[pi].dma_map, BUS_DMASYNC_PREWRITE);
-
-	mlx5e_tx_notify_hw(sq, wqe, 0);
 
 	sq->stats.packets++;
 	return (0);
@@ -473,6 +475,11 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 		drbr_advance(ifp, sq->br);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
+	}
+	/* Check if we need to write the doorbell */
+	if (likely(sq->doorbell.d64 != 0)) {
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		sq->doorbell.d64 = 0;
 	}
 	/*
 	 * Check if we need to start the event timer which flushes the
