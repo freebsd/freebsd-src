@@ -44,6 +44,7 @@
 #include <machine/cheri.h>
 #include <machine/cherireg.h>
 #include <machine/pcb.h>
+#include <machine/proc.h>
 #include <machine/sysarch.h>
 
 /*
@@ -116,6 +117,14 @@ static union {
 	struct chericap	ct_cap;
 	uint8_t		ct_bytes[32];
 } cheri_testunion __aligned(32);
+
+/*
+ * A set of compile-time assertions to ensure suitable alignment for
+ * capabilities embedded within other MIPS data structures.  Otherwise changes
+ * that work on other architectures might break alignment on CHERI.
+ */
+CTASSERT(offsetof(struct trapframe, ddc) % CHERICAP_SIZE == 0);
+CTASSERT(offsetof(struct mdthread, md_tls_cap) % CHERICAP_SIZE == 0);
 
 /*
  * For now, all we do is declare what we support, as most initialisation took
