@@ -81,7 +81,7 @@ static device_method_t pcib_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		pcib_probe),
     DEVMETHOD(device_attach,		pcib_attach),
-    DEVMETHOD(device_detach,		bus_generic_detach),
+    DEVMETHOD(device_detach,		pcib_detach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		pcib_suspend),
     DEVMETHOD(device_resume,		pcib_resume),
@@ -544,6 +544,42 @@ pcib_probe_windows(struct pcib_softc *sc)
 	}
 }
 
+static void
+pcib_release_window(struct pcib_softc *sc, struct pcib_window *w, int type)
+{
+	device_t dev;
+	int error, i;
+
+	if (!w->valid)
+		return;
+
+	dev = sc->dev;
+	error = rman_fini(&w->rman);
+	if (error) {
+		device_printf(dev, "failed to release %s rman\n", w->name);
+		return;
+	}
+	free(__DECONST(char *, w->rman.rm_descr), M_DEVBUF);
+
+	for (i = 0; i < w->count; i++) {
+		error = bus_free_resource(dev, type, w->res[i]);
+		if (error)
+			device_printf(dev,
+			    "failed to release %s resource: %d\n", w->name,
+			    error);
+	}
+	free(w->res, M_DEVBUF);
+}
+
+static void
+pcib_free_windows(struct pcib_softc *sc)
+{
+
+	pcib_release_window(sc, &sc->pmem, SYS_RES_MEMORY);
+	pcib_release_window(sc, &sc->mem, SYS_RES_MEMORY);
+	pcib_release_window(sc, &sc->io, SYS_RES_IOPORT);
+}
+
 #ifdef PCI_RES_BUS
 /*
  * Allocate a suitable secondary bus for this bridge if needed and
@@ -616,6 +652,24 @@ pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
 		bus->sec = rman_get_start(bus->res);
 		bus->sub = rman_get_end(bus->res);
 	}
+}
+
+void
+pcib_free_secbus(device_t dev, struct pcib_secbus *bus)
+{
+	int error;
+
+	error = rman_fini(&bus->rman);
+	if (error) {
+		device_printf(dev, "failed to release bus number rman\n");
+		return;
+	}
+	free(__DECONST(char *, bus->rman.rm_descr), M_DEVBUF);
+
+	error = bus_free_resource(dev, PCI_RES_BUS, bus->res);
+	if (error)
+		device_printf(dev,
+		    "failed to release bus numbers resource: %d\n", error);
 }
 
 static struct resource *
@@ -896,7 +950,8 @@ pcib_pcie_hotplug_command(struct pcib_softc *sc, uint16_t val, uint16_t mask)
 	if (new == ctl)
 		return;
 	pcie_write_config(dev, PCIER_SLOT_CTL, new, 2);
-	if (!(sc->pcie_slot_cap & PCIEM_SLOT_CAP_NCCS)) {
+	if (!(sc->pcie_slot_cap & PCIEM_SLOT_CAP_NCCS) &&
+	    (ctl & new) & PCIEM_SLOT_CTL_CCIE) {
 		sc->flags |= PCIB_HOTPLUG_CMD_PENDING;
 		if (!cold)
 			callout_reset(&sc->pcie_cc_timer, hz,
@@ -917,6 +972,7 @@ pcib_pcie_hotplug_command_completed(struct pcib_softc *sc)
 		return;
 	callout_stop(&sc->pcie_cc_timer);
 	sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
+	wakeup(sc);
 }
 
 /*
@@ -1153,16 +1209,22 @@ pcib_pcie_cc_timeout(void *arg)
 {
 	struct pcib_softc *sc;
 	device_t dev;
+	uint16_t sta;
 
 	sc = arg;
 	dev = sc->dev;
 	mtx_assert(&Giant, MA_OWNED);
-	if (sc->flags & PCIB_HOTPLUG_CMD_PENDING) {
+	sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
+	if (!(sta & PCIEM_SLOT_STA_CC)) {
 		device_printf(dev,
 		    "Hotplug Command Timed Out - forcing detach\n");
 		sc->flags &= ~(PCIB_HOTPLUG_CMD_PENDING | PCIB_DETACH_PENDING);
 		sc->flags |= PCIB_DETACHING;
 		pcib_pcie_hotplug_update(sc, 0, 0, true);
+	} else {
+		device_printf(dev,
+	    "Missed HotPlug interrupt waiting for Command Completion\n");
+		pcib_pcie_intr(sc);
 	}
 }
 
@@ -1242,6 +1304,22 @@ pcib_alloc_pcie_irq(struct pcib_softc *sc)
 	return (0);
 }
 
+static int
+pcib_release_pcie_irq(struct pcib_softc *sc)
+{
+	device_t dev;
+	int error;
+
+	dev = sc->dev;
+	error = bus_teardown_intr(dev, sc->pcie_irq, sc->pcie_ihand);
+	if (error)
+		return (error);
+	error = bus_free_resource(dev, SYS_RES_IRQ, sc->pcie_irq);
+	if (error)
+		return (error);
+	return (pci_release_msi(dev));
+}
+
 static void
 pcib_setup_hotplug(struct pcib_softc *sc)
 {
@@ -1260,6 +1338,9 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 
 	sc->pcie_link_sta = pcie_read_config(dev, PCIER_LINK_STA, 2);
 	sc->pcie_slot_sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
+
+	/* Clear any events previously pending. */
+	pcie_write_config(dev, PCIER_SLOT_STA, sc->pcie_slot_sta, 2);
 
 	/* Enable HotPlug events. */
 	mask = PCIEM_SLOT_CTL_DLLSCE | PCIEM_SLOT_CTL_HPIE |
@@ -1284,6 +1365,49 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 	}
 
 	pcib_pcie_hotplug_update(sc, val, mask, false);
+}
+
+static int
+pcib_detach_hotplug(struct pcib_softc *sc)
+{
+	uint16_t mask, val;
+	int error;
+
+	/* Disable the card in the slot and force it to detach. */
+	if (sc->flags & PCIB_DETACH_PENDING) {
+		sc->flags &= ~PCIB_DETACH_PENDING;
+		callout_stop(&sc->pcie_ab_timer);
+	}
+	sc->flags |= PCIB_DETACHING;
+
+	if (sc->flags & PCIB_HOTPLUG_CMD_PENDING) {
+		callout_stop(&sc->pcie_cc_timer);
+		tsleep(sc, 0, "hpcmd", hz);
+		sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
+	}
+
+	/* Disable HotPlug events. */
+	mask = PCIEM_SLOT_CTL_DLLSCE | PCIEM_SLOT_CTL_HPIE |
+	    PCIEM_SLOT_CTL_CCIE | PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_MRLSCE |
+	    PCIEM_SLOT_CTL_PFDE | PCIEM_SLOT_CTL_ABPE;
+	val = 0;
+
+	/* Turn the attention indicator off. */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_AIP) {
+		mask |= PCIEM_SLOT_CTL_AIC;
+		val |= PCIEM_SLOT_CTL_AI_OFF;
+	}
+
+	pcib_pcie_hotplug_update(sc, val, mask, false);
+	
+	error = pcib_release_pcie_irq(sc);
+	if (error)
+		return (error);
+	taskqueue_drain(taskqueue_thread, &sc->pcie_hp_task);
+	callout_drain(&sc->pcie_ab_timer);
+	callout_drain(&sc->pcie_cc_timer);
+	callout_drain(&sc->pcie_dll_timer);
+	return (0);
 }
 #endif
 
@@ -1568,6 +1692,39 @@ pcib_attach(device_t dev)
 
     pcib_attach_common(dev);
     return (pcib_attach_child(dev));
+}
+
+int
+pcib_detach(device_t dev)
+{
+#if defined(PCI_HP) || defined(NEW_PCIB)
+	struct pcib_softc *sc;
+#endif
+	int error;
+
+#if defined(PCI_HP) || defined(NEW_PCIB)
+	sc = device_get_softc(dev);
+#endif
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
+#ifdef PCI_HP
+	if (sc->flags & PCIB_HOTPLUG) {
+		error = pcib_detach_hotplug(sc);
+		if (error)
+			return (error);
+	}
+#endif
+	error = device_delete_children(dev);
+	if (error)
+		return (error);
+#ifdef NEW_PCIB
+	pcib_free_windows(sc);
+#ifdef PCI_RES_BUS
+	pcib_free_secbus(dev, &sc->bus);
+#endif
+#endif
+	return (0);
 }
 
 int

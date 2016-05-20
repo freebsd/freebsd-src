@@ -66,6 +66,7 @@ struct acpi_pcib_lookup_info {
 
 static int		acpi_pcib_pci_probe(device_t bus);
 static int		acpi_pcib_pci_attach(device_t bus);
+static int		acpi_pcib_pci_detach(device_t bus);
 static int		acpi_pcib_read_ivar(device_t dev, device_t child,
 			    int which, uintptr_t *result);
 static int		acpi_pcib_pci_route_interrupt(device_t pcib,
@@ -75,6 +76,7 @@ static device_method_t acpi_pcib_pci_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		acpi_pcib_pci_probe),
     DEVMETHOD(device_attach,		acpi_pcib_pci_attach),
+    DEVMETHOD(device_detach,		acpi_pcib_pci_detach),
 
     /* Bus interface */
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
@@ -124,6 +126,21 @@ acpi_pcib_pci_attach(device_t dev)
     acpi_pcib_fetch_prt(dev, &sc->ap_prt);
 
     return (pcib_attach_child(dev));
+}
+
+static int
+acpi_pcib_pci_detach(device_t dev)
+{
+    struct acpi_pcib_softc *sc;
+    int error;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    sc = device_get_softc(dev);
+    error = pcib_detach(dev);
+    if (error == 0)
+	    AcpiOsFree(sc->ap_prt.Pointer);
+    return (error);
 }
 
 static int

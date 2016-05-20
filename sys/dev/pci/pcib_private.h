@@ -158,6 +158,7 @@ int		pci_domain_release_bus(int domain, device_t dev, int rid,
 struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
 		    int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
 		    u_int flags);
+void		pcib_free_secbus(device_t dev, struct pcib_secbus *bus);
 void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
     int min_count);
 #endif
@@ -169,6 +170,7 @@ void		pcib_bridge_init(device_t dev);
 const char	*pcib_child_name(device_t child);
 #endif
 int		pcib_child_present(device_t dev, device_t child);
+int		pcib_detach(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
