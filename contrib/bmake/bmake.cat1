@@ -586,6 +586,10 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      The default list includes: `_/_d_e_v _/_e_t_c _/_p_r_o_c _/_t_m_p _/_v_a_r_/_r_u_n
                      _/_v_a_r_/_t_m_p'
 
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___P_A_T_T_E_R_N_S
+                     Provides a list of patterns to match against pathnames.
+                     Ignore any that match.
+
      _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X
                      Defines the message printed for each meta file updated in
                      "meta verbose" mode.  The default value is:
@@ -1471,4 +1475,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                     February 19, 2016                    NetBSD 5.1
+NetBSD 5.1                       May 10, 2016                       NetBSD 5.1

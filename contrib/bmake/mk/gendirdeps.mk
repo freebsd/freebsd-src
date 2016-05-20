@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.30 2016/02/27 00:20:39 sjg Exp $
+# $Id: gendirdeps.mk,v 1.32 2016/04/05 15:58:37 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -82,7 +82,7 @@ META_FILES := ${META_FILES:T:O:u}
 .export META_FILES
 
 # pickup customizations
-.-include "local.gendirdeps.mk"
+.-include <local.gendirdeps.mk>
 
 # these are actually prefixes that we'll skip
 # they should all be absolute paths
@@ -138,7 +138,8 @@ META2DEPS_CMD += -T ${TARGET_OBJ_SPEC}
 .endif
 META2DEPS_CMD += \
 	-R ${RELDIR} -H ${HOST_TARGET} \
-	${M2D_OBJROOTS:O:u:@o@-O $o@}
+	${M2D_OBJROOTS:O:u:@o@-O $o@} \
+	${M2D_EXCLUDES:O:u:@o@-X $o@} \
 
 
 M2D_OBJROOTS += ${OBJTOP} ${_OBJROOT} ${_objroot}
@@ -255,6 +256,7 @@ DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:C,//+,/,g:O:u}
 
 .if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
 .info ${RELDIR}: M2D_OBJROOTS=${M2D_OBJROOTS}
+.info ${RELDIR}: M2D_EXCLUDES=${M2D_EXCLUDES}
 .info ${RELDIR}: dir_list='${dir_list}'
 .info ${RELDIR}: dpadd_dir_list='${dpadd_dir_list}'
 .info ${RELDIR}: dirdep_list='${dirdep_list}'
