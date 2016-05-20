@@ -687,7 +687,7 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
     ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg)
 {
 	ipfw_dyn_rule *q;
-	int i, dir;
+	int i;
 
 	DEB(print_dyn_rule(&args->f_id, cmd->o.opcode, "install_state", "");)
 	
@@ -695,7 +695,7 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 
 	IPFW_BUCK_LOCK(i);
 
-	q = lookup_dyn_rule_locked(&args->f_id, i, &dir, NULL);
+	q = lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL);
 	if (q != NULL) {	/* should never occur */
 		DEB(
 		if (last_log != time_uptime) {
@@ -816,7 +816,7 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 		return (1);	/* Notify caller about failure */
 	}
 
-	dyn_update_proto_state(q, &args->f_id, NULL, dir);
+	dyn_update_proto_state(q, &args->f_id, NULL, MATCH_FORWARD);
 	IPFW_BUCK_UNLOCK(i);
 	return (0);
 }
