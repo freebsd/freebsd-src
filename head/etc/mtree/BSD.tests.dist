@@ -48,10 +48,6 @@
     cddl
         lib
         ..
-        sbin
-            zfsd
-            ..
-        ..
         usr.bin
         ..
         usr.sbin
@@ -216,6 +212,8 @@
                     version
                     ..
                 ..
+            ..
+            zfsd
             ..
         ..
     ..

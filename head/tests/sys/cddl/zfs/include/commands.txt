@@ -176,7 +176,7 @@
 /sbin/swapoff
 /sbin/swapctl
 /usr/bin/xargs
-/sbin/zfsd
+/usr/sbin/zfsd
  
 # ZFS Commands
 /usr/sbin/zdb

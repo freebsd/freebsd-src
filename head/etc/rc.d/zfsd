@@ -11,7 +11,7 @@
 
 name="zfsd"
 rcvar="zfsd_enable"
-command="/sbin/${name}"
+command="/usr/sbin/${name}"
 
 load_rc_config $name
 run_rc_command "$1"
