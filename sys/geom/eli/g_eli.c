@@ -1231,7 +1231,6 @@ g_eli_shutdown_pre_sync(void *arg, int howto)
 	int error;
 
 	mp = arg;
-	DROP_GIANT();
 	g_topology_lock();
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		sc = gp->softc;
@@ -1247,7 +1246,6 @@ g_eli_shutdown_pre_sync(void *arg, int howto)
 		}
 	}
 	g_topology_unlock();
-	PICKUP_GIANT();
 }
 
 static void

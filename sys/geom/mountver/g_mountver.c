@@ -611,12 +611,10 @@ g_mountver_shutdown_pre_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 
 	mp = arg;
-	DROP_GIANT();
 	g_topology_lock();
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2)
 		g_mountver_destroy(gp, 1);
 	g_topology_unlock();
-	PICKUP_GIANT();
 }
 
 static void
