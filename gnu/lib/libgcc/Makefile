@@ -186,7 +186,7 @@ COMMONHDRS=	tm.h tconfig.h options.h unwind.h gthr-default.h
 HIDE =  -fvisibility=hidden -DHIDE_EXPORTS
 CC_T =	${CC} -c ${CFLAGS} ${HIDE} -fPIC
 CC_P =	${CC} -c ${CFLAGS} ${HIDE} -p -fPIC
-CC_S =	${CC} -c ${CFLAGS} ${PICFLAG} -DSHARED
+CC_S =	${CC} -c ${CFLAGS} ${SHARED_CFLAGS} ${PICFLAG} -DSHARED
 
 #-----------------------------------------------------------------------
 #
