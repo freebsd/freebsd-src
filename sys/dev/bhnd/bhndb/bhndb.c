@@ -1144,10 +1144,15 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 {
 	struct bhndb_softc		*sc;
 	struct rman			*rm;
+	rman_res_t			 mstart, mend;
 	int				 error;
 	
 	sc = device_get_softc(dev);
 	error = 0;
+
+	/* Verify basic constraints */
+	if (end <= start)
+		return (EINVAL);
 
 	/* Fetch resource manager */
 	rm = bhndb_get_rman(sc, child, type);
@@ -1157,16 +1162,29 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 	if (!rman_is_region_manager(r, rm))
 		return (ENXIO);
 
-	/* If active, adjustment is limited by the assigned window. */
 	BHNDB_LOCK(sc);
 
-	// TODO: Currently unsupported
-	error = ENODEV;
+	/* If not active, allow any range permitted by the resource manager */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		goto done;
 
-	BHNDB_UNLOCK(sc);
+	/* Otherwise, the range is limited to the existing register window
+	 * mapping */
+	error = bhndb_find_resource_limits(sc->bus_res, r, &mstart, &mend);
+	if (error)
+		goto done;
+
+	if (start < mstart || end > mend) {
+		error = EINVAL;
+		goto done;
+	}
+
+	/* Fall through */
+done:
 	if (!error)
 		error = rman_adjust_resource(r, start, end);
 
+	BHNDB_UNLOCK(sc);
 	return (error);
 }
 
@@ -1536,7 +1554,8 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 	if (bhndb_get_addrspace(sc, child) == BHNDB_ADDRSPACE_BRIDGED) {
 		bhndb_priority_t r_prio;
 
-		region = bhndb_find_resource_region(sc->bus_res, r_start, r_size);
+		region = bhndb_find_resource_region(sc->bus_res, r_start,
+		    r_size);
 		if (region != NULL)
 			r_prio = region->priority;
 		else
