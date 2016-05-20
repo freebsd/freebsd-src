@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.30 2015/11/14 18:09:57 sjg Exp $
+# $Id: own.mk,v 1.32 2016/05/18 20:54:29 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -20,8 +20,8 @@ TARGET_OSTYPE?= ${HOST_OSTYPE}
 TARGET_HOST?= ${HOST_TARGET}
 
 # these may or may not exist
-.-include "${TARGET_HOST}.mk"
-.-include "config.mk"
+.-include <${TARGET_HOST}.mk>
+.-include <config.mk>
 
 RM?= rm
 LN?= ln
@@ -79,7 +79,7 @@ PRINTOBJDIR=	echo # prevent infinite recursion
 
 # we really like to have SRCTOP and OBJTOP defined...
 .if !defined(SRCTOP) || !defined(OBJTOP)
-.-include "srctop.mk"
+.-include <srctop.mk>
 .endif
 
 .if !defined(SRCTOP) || !defined(OBJTOP)
@@ -154,6 +154,7 @@ MANGRP?=	${BINGRP}
 MANOWN?=	${BINOWN}
 MANMODE?=	${NONBINMODE}
 
+INCLUDEDIR?=	${libprefix}/include
 LIBDIR?=	${libprefix}/lib
 SHLIBDIR?=	${libprefix}/lib
 .if ${USE_SHLIBDIR:Uno} == "yes"

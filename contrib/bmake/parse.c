@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.213 2016/03/11 13:54:47 matthias Exp $	*/
+/*	$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: parse.c,v 1.213 2016/03/11 13:54:47 matthias Exp $";
+static char rcsid[] = "$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: parse.c,v 1.213 2016/03/11 13:54:47 matthias Exp $");
+__RCSID("$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -809,11 +809,11 @@ ParseMessage(char *line)
 	return FALSE;
     }
 
-    while (isalpha((u_char)*line))
+    while (isalpha((unsigned char)*line))
 	line++;
-    if (!isspace((u_char)*line))
+    if (!isspace((unsigned char)*line))
 	return FALSE;			/* not for us */
-    while (isspace((u_char)*line))
+    while (isspace((unsigned char)*line))
 	line++;
 
     line = Var_Subst(NULL, line, VAR_CMD, VARF_WANTRES);
