@@ -44,6 +44,7 @@ MAN=	accept_filter.9 \
 	bus_generic_shutdown.9 \
 	BUS_GET_CPUS.9 \
 	bus_get_resource.9 \
+	bus_map_resource.9 \
 	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
@@ -504,6 +505,8 @@ MLINKS+=bus_dma.9 busdma.9 \
 	bus_dma.9 bus_dma_tag_destroy.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
 MLINKS+=BUS_GET_CPUS.9 bus_get_cpus.9
+MLINKS+=bus_map_resource.9 bus_unmap_resource.9 \
+	bus_map_resource.9 resource_init_map_request.9
 MLINKS+=BUS_READ_IVAR.9 BUS_WRITE_IVAR.9
 MLINKS+=BUS_SETUP_INTR.9 bus_setup_intr.9 \
 	BUS_SETUP_INTR.9 BUS_TEARDOWN_INTR.9 \
@@ -1381,6 +1384,7 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_get_device.9 \
 	rman.9 rman_get_end.9 \
 	rman.9 rman_get_flags.9 \
+	rman.9 rman_get_mapping.9 \
 	rman.9 rman_get_rid.9 \
 	rman.9 rman_get_size.9 \
 	rman.9 rman_get_start.9 \
@@ -1396,6 +1400,7 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_reserve_resource_bound.9 \
 	rman.9 rman_set_bushandle.9 \
 	rman.9 rman_set_bustag.9 \
+	rman.9 rman_set_mapping.9 \
 	rman.9 rman_set_rid.9 \
 	rman.9 rman_set_virtual.9
 MLINKS+=rmlock.9 rm_assert.9 \
