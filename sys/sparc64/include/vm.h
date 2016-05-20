@@ -31,5 +31,6 @@
 
 /* Memory attribute configuration is not (yet) implemented. */
 #define	VM_MEMATTR_DEFAULT	0
+#define	VM_MEMATTR_UNCACHEABLE	0
 
 #endif /* !_MACHINE_VM_H_ */

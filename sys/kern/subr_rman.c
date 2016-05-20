@@ -897,6 +897,27 @@ rman_get_bushandle(struct resource *r)
 }
 
 void
+rman_set_mapping(struct resource *r, struct resource_map *map)
+{
+
+	KASSERT(rman_get_size(r) == map->r_size,
+	    ("rman_set_mapping: size mismatch"));
+	rman_set_bustag(r, map->r_bustag);
+	rman_set_bushandle(r, map->r_bushandle);
+	rman_set_virtual(r, map->r_vaddr);
+}
+
+void
+rman_get_mapping(struct resource *r, struct resource_map *map)
+{
+
+	map->r_bustag = rman_get_bustag(r);
+	map->r_bushandle = rman_get_bushandle(r);
+	map->r_size = rman_get_size(r);
+	map->r_vaddr = rman_get_virtual(r);
+}
+
+void
 rman_set_rid(struct resource *r, int rid)
 {
 
