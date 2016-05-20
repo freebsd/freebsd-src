@@ -38,7 +38,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: size.c 3242 2015-08-07 12:47:11Z emaste $");
+ELFTC_VCSID("$Id: size.c 3458 2016-05-09 15:01:25Z emaste $");
 
 #define	BUF_SIZE			1024
 #define	ELF_ALIGN(val,x) (((val)+(x)-1) & ~((x)-1))
@@ -262,7 +262,7 @@ static void
 handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
     char **cmd_line)
 {
-	size_t max_size;
+	size_t max_size, segment_end;
 	uint64_t raw_size;
 	GElf_Off offset;
 	static pid_t pid;
@@ -276,7 +276,13 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 
 	data = elf_rawfile(elf, &max_size);
 	offset = phdr->p_offset;
-	while (data != NULL && offset < phdr->p_offset + phdr->p_filesz) {
+	if (offset >= max_size || phdr->p_filesz > max_size - offset) {
+		warnx("invalid PHDR offset");
+		return;
+	}
+	segment_end = phdr->p_offset + phdr->p_filesz;
+
+	while (data != NULL && offset + sizeof(Elf32_Nhdr) < segment_end) {
 		nhdr = (Elf32_Nhdr *)(uintptr_t)((char*)data + offset);
 		memset(&nhdr_l, 0, sizeof(Elf32_Nhdr));
 		if (!xlatetom(elf, elfhdr, &nhdr->n_type, &nhdr_l.n_type,
@@ -286,6 +292,13 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 		    !xlatetom(elf, elfhdr, &nhdr->n_namesz, &nhdr_l.n_namesz,
 			ELF_T_WORD, sizeof(Elf32_Word)))
 			break;
+
+		if (offset + sizeof(Elf32_Nhdr) +
+		    ELF_ALIGN(nhdr_l.n_namesz, 4) +
+		    ELF_ALIGN(nhdr_l.n_descsz, 4) >= segment_end) {
+			warnx("invalid note header");
+			return;
+		}
 
 		name = (char *)((char *)nhdr + sizeof(Elf32_Nhdr));
 		switch (nhdr_l.n_type) {
@@ -428,8 +441,8 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 }
 
 /*
- * Handles program headers except for PT_NOTE, when sysv output stlye is
- * choosen, prints out the segment name and length. For berkely output
+ * Handles program headers except for PT_NOTE, when sysv output style is
+ * chosen, prints out the segment name and length. For berkely output
  * style only PT_LOAD segments are handled, and text,
  * data, bss size is calculated for them.
  */
@@ -600,7 +613,7 @@ handle_elf(char const *name)
 			elf_cmd = elf_next(elf);
 			(void) elf_end(elf);
 			warnx("%s: File format not recognized",
-			    arhdr->ar_name);
+			    arhdr != NULL ? arhdr->ar_name : name);
 			continue;
 		}
 		/* Core dumps are handled separately */
@@ -739,7 +752,7 @@ berkeley_calc(GElf_Shdr *shdr)
 static void
 berkeley_totals(void)
 {
-	long unsigned int grand_total;
+	uint64_t grand_total;
 
 	grand_total = text_size_total + data_size_total + bss_size_total;
 	tbl_append();

@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_abbrev.c 3136 2014-12-24 16:04:38Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_abbrev.c 3420 2016-02-27 02:14:05Z emaste $");
 
 int
 _dwarf_abbrev_add(Dwarf_CU cu, uint64_t entry, uint64_t tag, uint8_t children,
@@ -115,9 +115,7 @@ _dwarf_abbrev_parse(Dwarf_Debug dbg, Dwarf_CU cu, Dwarf_Unsigned *offset,
 	assert(abp != NULL);
 
 	ds = _dwarf_find_section(dbg, ".debug_abbrev");
-	assert(ds != NULL);
-
-	if (*offset >= ds->ds_size)
+	if (ds == NULL || *offset >= ds->ds_size)
 		return (DW_DLE_NO_ENTRY);
 
 	aboff = *offset;
