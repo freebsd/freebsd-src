@@ -247,7 +247,9 @@ static int
 nicpf_detach(device_t dev)
 {
 	struct nicpf *nic;
+	int err;
 
+	err = 0;
 	nic = device_get_softc(dev);
 
 	callout_drain(&nic->check_link);
@@ -257,7 +259,12 @@ nicpf_detach(device_t dev)
 	nicpf_free_res(nic);
 	pci_disable_busmaster(dev);
 
-	return (0);
+#ifdef PCI_IOV
+	err = pci_iov_detach(dev);
+	if (err != 0)
+		device_printf(dev, "SR-IOV in use. Detach first.\n");
+#endif
+	return (err);
 }
 
 /*
@@ -1055,6 +1062,9 @@ nic_disable_msix(struct nicpf *nic)
 		nic->msix_enabled = 0;
 		nic->num_vec = 0;
 	}
+
+	bus_release_resource(nic->dev, SYS_RES_MEMORY,
+	    rman_get_rid(nic->msix_table_res), nic->msix_table_res);
 }
 
 static void
@@ -1071,7 +1081,7 @@ nic_free_all_interrupts(struct nicpf *nic)
 			    nic->msix_entries[irq].handle);
 		}
 
-		bus_release_resource(nic->dev, SYS_RES_IRQ, irq,
+		bus_release_resource(nic->dev, SYS_RES_IRQ, irq + 1,
 		    nic->msix_entries[irq].irq_res);
 	}
 }
