@@ -1,6 +1,6 @@
 #
 # RCSid:
-#	$Id: auto.dep.mk,v 1.4 2016/02/18 21:16:39 sjg Exp $
+#	$Id: auto.dep.mk,v 1.5 2016/04/05 15:58:37 sjg Exp $
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
 #
@@ -66,7 +66,7 @@ ${.MAKE.DEPENDFILE}: ${OBJS} ${POBJS} ${SOBJS}
 .if empty(_SKIP_BUILD)
 _all_objs = ${OBJS} ${POBJS} ${SOBJS}
 .for d in ${_all_objs:M*o:T:O:u:%=%.d}
-.dinclude "$d"
+.dinclude <$d>
 .endfor
 .endif
 

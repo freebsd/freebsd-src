@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.25 2013/07/18 05:46:24 sjg Exp $
+#	$Id: prog.mk,v 1.26 2016/03/22 20:45:14 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -66,17 +66,11 @@ CLEANFILES+=strings
 	@${CC} ${CFLAGS} -c x.c -o ${.TARGET}
 	@rm -f x.c
 
-.cc.o:
+${CXX_SUFFIXES:%=%.o}:
 	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
 	@mv -f x.c x.cc
 	@${CXX} ${CXXFLAGS} -c x.cc -o ${.TARGET}
 	@rm -f x.cc
-
-.C.o:
-	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
-	@mv -f x.c x.C
-	@${CXX} ${CXXFLAGS} -c x.C -o ${.TARGET}
-	@rm -f x.C
 .endif
 
 

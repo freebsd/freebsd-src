@@ -1,3 +1,26 @@
+2016-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160512
+	  Merge with NetBSD make, pick up
+	  o meta.c: ignore paths that match .MAKE.META.IGNORE_PATTERNS
+	    this is useful for gcov builds.
+	  o propagate errors from filemon(4).
+	
+2016-05-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160509
+	  Merge with NetBSD make, pick up
+	  o remove use of non-standard types u_int etc.
+	  o meta.c: apply realpath() before matching against metaIgnorePaths
+
+2016-04-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160404
+	  Merge with NetBSD make, pick up
+	  o allow makefile to set .MAKE.JOBS
+
+	* Makefile (PROG_NAME): use ${_MAKE_VERSION}
+
 2016-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20160315
