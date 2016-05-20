@@ -850,7 +850,6 @@ mlx5e_open_rq(struct mlx5e_channel *c,
     struct mlx5e_rq *rq)
 {
 	int err;
-	int i;
 
 	err = mlx5e_create_rq(c, param, rq);
 	if (err)
@@ -866,12 +865,6 @@ mlx5e_open_rq(struct mlx5e_channel *c,
 
 	c->rq.enabled = 1;
 
-	/*
-	 * Test send queues, which will trigger
-	 * "mlx5e_post_rx_wqes()":
-	 */
-	for (i = 0; i != c->num_tc; i++)
-		mlx5e_send_nop(&c->sq[i], 1, true);
 	return (0);
 
 err_disable_rq:
@@ -1198,9 +1191,16 @@ mlx5e_sq_send_nops_locked(struct mlx5e_sq *sq, int can_sleep)
 				goto done;
 			}
 		}
-		mlx5e_send_nop(sq, 1, true);
+		/* send a single NOP */
+		mlx5e_send_nop(sq, 1);
+		wmb();
 	}
 done:
+	/* Check if we need to write the doorbell */
+	if (likely(sq->doorbell.d64 != 0)) {
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		sq->doorbell.d64 = 0;
+	}
 	return;
 }
 
