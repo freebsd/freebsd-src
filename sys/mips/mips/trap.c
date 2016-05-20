@@ -111,6 +111,10 @@ int trap_debug = 0;
 SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
     &trap_debug, 0, "Debug information on all traps");
 #endif
+int stop_vm_trace_on_fault = 0;
+SYSCTL_INT(_machdep, OID_AUTO, stop_vm_trace_on_fault, CTLFLAG_RW,
+    &stop_vm_trace_on_fault, 0,
+    "Disable VM instruction tracing when a fault is logged");
 #ifdef CPU_CHERI
 int log_cheri_exceptions = 1;
 SYSCTL_INT(_machdep, OID_AUTO, log_cheri_exceptions, CTLFLAG_RW,
@@ -119,11 +123,6 @@ SYSCTL_INT(_machdep, OID_AUTO, log_cheri_exceptions, CTLFLAG_RW,
 int log_cheri_registers = 1;
 SYSCTL_INT(_machdep, OID_AUTO, log_cheri_registers, CTLFLAG_RW,
     &log_cheri_registers, 1, "Print CHERI registers for non-CHERI exceptions");
-
-int stop_vm_trace_on_fault = 0;
-SYSCTL_INT(_machdep, OID_AUTO, stop_vm_trace_on_fault, CTLFLAG_RW,
-    &stop_vm_trace_on_fault, 0,
-    "Disable VM instruction tracing when a fault is logged");
 #endif
 
 #define	lbu_macro(data, addr)						\
