@@ -28,8 +28,6 @@ FBSD_1.0 {
 	ntohl;
 	ntohs;
 	vfork;
-	brk;
-	sbrk;
 	makecontext;
 };
 
