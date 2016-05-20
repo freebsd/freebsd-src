@@ -75,20 +75,6 @@ EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 static void efi_zfs_probe(void);
 #endif
 
-/*
- * Need this because EFI uses UTF-16 unicode string constants, but we
- * use UTF-8. We can't use printf due to the possibility of \0 and we
- * don't support support wide characters either.
- */
-static void
-print_str16(const CHAR16 *str)
-{
-	int i;
-
-	for (i = 0; str[i]; i++)
-		printf("%c", (char)str[i]);
-}
-
 static void
 cp16to8(const CHAR16 *src, char *dst, size_t len)
 {
@@ -96,6 +82,8 @@ cp16to8(const CHAR16 *src, char *dst, size_t len)
 
 	for (i = 0; i < len && src[i]; i++)
 		dst[i] = (char)src[i];
+	if (i < len)
+		dst[i] = '\0';
 }
 
 static int
@@ -330,10 +318,8 @@ main(int argc, CHAR16 *argv[])
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
 	printf("Command line arguments:");
-	for (i = 0; i < argc; i++) {
-		printf(" ");
-		print_str16(argv[i]);
-	}
+	for (i = 0; i < argc; i++)
+		printf(" %S", argv[i]);
 	printf("\n");
 
 	printf("Image base: 0x%lx\n", (u_long)img->ImageBase);
