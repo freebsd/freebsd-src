@@ -129,10 +129,11 @@ static driver_t nicvf_driver = {
 
 static devclass_t nicvf_devclass;
 
-DRIVER_MODULE(nicvf, pci, nicvf_driver, nicvf_devclass, 0, 0);
-MODULE_DEPEND(nicvf, pci, 1, 1, 1);
-MODULE_DEPEND(nicvf, ether, 1, 1, 1);
-MODULE_DEPEND(nicvf, vnic_pf, 1, 1, 1);
+DRIVER_MODULE(vnicvf, pci, nicvf_driver, nicvf_devclass, 0, 0);
+MODULE_VERSION(vnicvf, 1);
+MODULE_DEPEND(vnicvf, pci, 1, 1, 1);
+MODULE_DEPEND(vnicvf, ether, 1, 1, 1);
+MODULE_DEPEND(vnicvf, vnicpf, 1, 1, 1);
 
 static int nicvf_allocate_misc_interrupt(struct nicvf *);
 static int nicvf_enable_misc_interrupt(struct nicvf *);

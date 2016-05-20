@@ -137,18 +137,19 @@ static device_method_t nicpf_methods[] = {
 	DEVMETHOD_END,
 };
 
-static driver_t nicpf_driver = {
+static driver_t vnicpf_driver = {
 	"vnicpf",
 	nicpf_methods,
 	sizeof(struct nicpf),
 };
 
-static devclass_t nicpf_devclass;
+static devclass_t vnicpf_devclass;
 
-DRIVER_MODULE(nicpf, pci, nicpf_driver, nicpf_devclass, 0, 0);
-MODULE_DEPEND(nicpf, pci, 1, 1, 1);
-MODULE_DEPEND(nicpf, ether, 1, 1, 1);
-MODULE_DEPEND(nicpf, thunder_bgx, 1, 1, 1);
+DRIVER_MODULE(vnicpf, pci, vnicpf_driver, vnicpf_devclass, 0, 0);
+MODULE_VERSION(vnicpf, 1);
+MODULE_DEPEND(vnicpf, pci, 1, 1, 1);
+MODULE_DEPEND(vnicpf, ether, 1, 1, 1);
+MODULE_DEPEND(vnicpf, thunder_bgx, 1, 1, 1);
 
 static int nicpf_alloc_res(struct nicpf *);
 static void nicpf_free_res(struct nicpf *);

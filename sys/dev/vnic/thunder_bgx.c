@@ -109,9 +109,10 @@ static driver_t thunder_bgx_driver = {
 static devclass_t thunder_bgx_devclass;
 
 DRIVER_MODULE(thunder_bgx, pci, thunder_bgx_driver, thunder_bgx_devclass, 0, 0);
+MODULE_VERSION(thunder_bgx, 1);
 MODULE_DEPEND(thunder_bgx, pci, 1, 1, 1);
 MODULE_DEPEND(thunder_bgx, ether, 1, 1, 1);
-MODULE_DEPEND(thunder_bgx, octeon_mdio, 1, 1, 1);
+MODULE_DEPEND(thunder_bgx, thunder_mdio, 1, 1, 1);
 
 static int
 thunder_bgx_probe(device_t dev)
