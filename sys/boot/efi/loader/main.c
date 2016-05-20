@@ -75,8 +75,23 @@ EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 static void efi_zfs_probe(void);
 #endif
 
+/*
+ * cpy8to16 copies a traditional C string into a CHAR16 string and
+ * 0 terminates it. len is the size of *dst in bytes.
+ */
 static void
-cp16to8(const CHAR16 *src, char *dst, size_t len)
+cpy8to16(const char *src, CHAR16 *dst, size_t len)
+{
+	len <<= 1;		/* Assume CHAR16 is 2 bytes */
+	while (len > 0 && *src) {
+		*dst++ = *src++;
+		len--;
+	}
+	*dst++ = (CHAR16)0;
+}
+
+static void
+cpy16to8(const CHAR16 *src, char *dst, size_t len)
 {
 	size_t i;
 
@@ -256,14 +271,14 @@ main(int argc, CHAR16 *argv[])
 						if (i + 1 == argc) {
 							setenv("comconsole_speed", "115200", 1);
 						} else {
-							cp16to8(&argv[i + 1][0], var,
+							cpy16to8(&argv[i + 1][0], var,
 							    sizeof(var));
 							setenv("comconsole_speedspeed", var, 1);
 						}
 						i++;
 						break;
 					} else {
-						cp16to8(&argv[i][j + 1], var,
+						cpy16to8(&argv[i][j + 1], var,
 						    sizeof(var));
 						setenv("comconsole_speed", var, 1);
 						break;
@@ -909,6 +924,32 @@ COMMAND_SET(efiset, "efi-set", "set EFI variables", command_efi_set);
 static int
 command_efi_set(int argc, char *argv[])
 {
+	char *uuid, *var, *val;
+	CHAR16 wvar[128];
+	EFI_GUID guid;
+	uint32_t status;
+	EFI_STATUS err;
+
+	if (argc != 4) {
+		printf("efi-set uuid var new-value\n");
+		return (CMD_ERROR);
+	}
+	uuid = argv[1];
+	var = argv[2];
+	val = argv[3];
+	uuid_from_string(uuid, (uuid_t *)&guid, &status);
+	if (status != uuid_s_ok) {
+		printf("Invalid uuid %s\n", uuid);
+		return (CMD_ERROR);
+	}
+	cpy8to16(var, wvar, sizeof(wvar));
+	err = RS->SetVariable(wvar, &guid,
+	    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_RUNTIME_ACCESS,
+	    strlen(val) + 1, val);
+	if (EFI_ERROR(err)) {
+		printf("Failed to set variable: error %d\n", EFI_ERROR_CODE(err));
+		return (CMD_ERROR);
+	}
 	return (CMD_OK);
 }
 
@@ -917,6 +958,29 @@ COMMAND_SET(efiunset, "efi-unset", "delete / unset EFI variables", command_efi_u
 static int
 command_efi_unset(int argc, char *argv[])
 {
+	char *uuid, *var;
+	CHAR16 wvar[128];
+	EFI_GUID guid;
+	uint32_t status;
+	EFI_STATUS err;
+
+	if (argc != 3) {
+		printf("efi-unset uuid var\n");
+		return (CMD_ERROR);
+	}
+	uuid = argv[1];
+	var = argv[2];
+	uuid_from_string(uuid, (uuid_t *)&guid, &status);
+	if (status != uuid_s_ok) {
+		printf("Invalid uuid %s\n", uuid);
+		return (CMD_ERROR);
+	}
+	cpy8to16(var, wvar, sizeof(wvar));
+	err = RS->SetVariable(wvar, &guid, 0, 0, NULL);
+	if (EFI_ERROR(err)) {
+		printf("Failed to unset variable: error %d\n", EFI_ERROR_CODE(err));
+		return (CMD_ERROR);
+	}
 	return (CMD_OK);
 }
 
