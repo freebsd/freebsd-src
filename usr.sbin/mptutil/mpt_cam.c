@@ -260,7 +260,6 @@ fetch_scsi_capacity(struct cam_device *dev, struct mpt_standalone_disk *disk)
 		cam_freeccb(ccb);
 		return (EIO);
 	}
-	cam_freeccb(ccb);
 
 	/*
 	 * A last block of 2^32-1 means that the true capacity is over 2TB,
@@ -269,6 +268,7 @@ fetch_scsi_capacity(struct cam_device *dev, struct mpt_standalone_disk *disk)
 	 */
 	if (scsi_4btoul(rcap.addr) != 0xffffffff) {
 		disk->maxlba = scsi_4btoul(rcap.addr);
+		cam_freeccb(ccb);
 		return (0);
 	}
 
