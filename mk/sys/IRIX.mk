@@ -10,7 +10,7 @@ ROOT_GROUP!=	sed -n /:0:/s/:.*//p /etc/group
 unix?=		We run ${OS}.
 .endif
 
-.SUFFIXES: .out .a .ln .o .s .S .c .cc .cpp .cxx .C .F .f .r .y .l .cl .p .h
+.SUFFIXES: .out .a .ln .o .s .S .c ${CXX_SUFFIXES} .F .f .r .y .l .cl .p .h
 .SUFFIXES: .sh .m4
 
 .LIBS:		.a
@@ -102,11 +102,11 @@ YACC.y?=	${YACC} ${YFLAGS}
 	${LINT} ${LINTFLAGS} ${CPPFLAGS:M-[IDU]*} -i ${.IMPSRC}
 
 # C++
-.cc .cpp .cxx .C:
+${CXX_SUFFIXES}:
 	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
-.cc.o .cpp.o .cxx.o .C.o:
+${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
-.cc.a .cpp.a .cxx.a .C.a:
+${CXX_SUFFIXES:%=%.a}:
 	${COMPILE.cc} ${.IMPSRC}
 	${AR} ${ARFLAGS} $@ $*.o
 	rm -f $*.o
