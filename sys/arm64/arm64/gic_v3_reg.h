@@ -67,7 +67,7 @@
 
 #define	GICD_TYPER		(0x0004)
 #define		GICD_TYPER_IDBITS(n)	((((n) >> 19) & 0x1F) + 1)
-#define		GICD_TYPER_I_NUM(n)	((((n) & 0xF1) + 1) * 32)
+#define		GICD_TYPER_I_NUM(n)	((((n) & 0x1F) + 1) * 32)
 
 #define	GICD_ISENABLER(n)	(0x0100 + (((n) >> 5) * 4))
 #define		GICD_I_PER_ISENABLERn	(32)
