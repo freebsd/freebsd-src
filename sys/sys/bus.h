@@ -294,6 +294,31 @@ struct driver {
 	KOBJ_CLASS_FIELDS;
 };
 
+/**
+ * @brief A resource mapping.
+ */
+struct resource_map {
+	bus_space_tag_t r_bustag;
+	bus_space_handle_t r_bushandle;
+	bus_size_t r_size;
+	void	*r_vaddr;
+};
+	
+/**
+ * @brief Optional properties of a resource mapping request.
+ */
+struct resource_map_request {
+	size_t	size;
+	rman_res_t offset;
+	rman_res_t length;
+	vm_memattr_t memattr;
+};
+
+void	resource_init_map_request_impl(struct resource_map_request *_args,
+	    size_t _sz);
+#define	resource_init_map_request(rmr) 					\
+	resource_init_map_request_impl((rmr), sizeof(*(rmr)))
+
 /*
  * Definitions for drivers which need to keep simple lists of resources
  * for their child devices.
@@ -407,6 +432,10 @@ bus_space_tag_t
 int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
+int	bus_generic_map_resource(device_t dev, device_t child, int type,
+				 struct resource *r,
+				 struct resource_map_request *args,
+				 struct resource_map *map);
 void	bus_generic_new_pass(device_t dev);
 int	bus_print_child_header(device_t dev, device_t child);
 int	bus_print_child_domain(device_t dev, device_t child);
@@ -440,6 +469,9 @@ int	bus_generic_suspend(device_t dev);
 int	bus_generic_suspend_child(device_t dev, device_t child);
 int	bus_generic_teardown_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie);
+int	bus_generic_unmap_resource(device_t dev, device_t child, int type,
+				   struct resource *r,
+				   struct resource_map *map);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 			       uintptr_t value);
 int	bus_null_rescan(device_t dev);
@@ -469,6 +501,11 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
+int	bus_map_resource(device_t dev, int type, struct resource *r,
+			 struct resource_map_request *args,
+			 struct resource_map *map);
+int	bus_unmap_resource(device_t dev, int type, struct resource *r,
+			   struct resource_map *map);
 int	bus_get_cpus(device_t dev, enum cpu_sets op, size_t setsize,
 		     struct _cpuset *cpuset);
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
