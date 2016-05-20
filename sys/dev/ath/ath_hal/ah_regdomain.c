@@ -424,7 +424,7 @@ addchan(struct ath_hal *ah, struct ieee80211_channel chans[],
 	struct ieee80211_channel *c;
 
 	if (*nchans >= maxchans)
-		return (ENOBUFS);
+		return (HAL_ENOMEM);
 
 	c = &chans[(*nchans)++];
 	c->ic_freq = freq;
@@ -443,10 +443,11 @@ copychan_prev(struct ath_hal *ah, struct ieee80211_channel chans[],
 {
 	struct ieee80211_channel *c;
 
-	KASSERT(*nchans > 0, ("channel list is empty\n"));
+	if (*nchans == 0)
+		return (HAL_EINVAL);
 
 	if (*nchans >= maxchans)
-		return (ENOBUFS);
+		return (HAL_ENOMEM);
 
 	c = &chans[(*nchans)++];
 	c[0] = c[-1];
@@ -632,8 +633,8 @@ getchannels(struct ath_hal *ah,
 		else if (cm->flags & IEEE80211_CHAN_2GHZ)
 			rd = rd2GHz;
 		else {
-			KASSERT(0, ("%s: Unkonwn HAL flags 0x%x\n",
-			    __func__, cm->flags));
+			ath_hal_printf(ah, "%s: Unkonwn HAL flags 0x%x\n",
+			    __func__, cm->flags);
 			return HAL_EINVAL;
 		}
 
