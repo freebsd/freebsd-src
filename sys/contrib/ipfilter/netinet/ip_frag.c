@@ -237,7 +237,6 @@ ipf_frag_soft_destroy(softc, arg)
 		softf->ipf_frag_tune = NULL;
 	}
 
-
 	KFREE(softf);
 }
 
