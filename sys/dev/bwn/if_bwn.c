@@ -1498,7 +1498,7 @@ bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	memset(ic->ic_channels, 0, sizeof(ic->ic_channels));
 	ic->ic_nchans = 0;
