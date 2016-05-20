@@ -2003,7 +2003,7 @@ noresrc:
 	ntp = isp_get_ntpd(isp, tptr);
 	if (ntp == NULL) {
 		rls_lun_statep(isp, tptr);
-		isp_endcmd(isp, aep, nphdl, 0, SCSI_STATUS_BUSY, 0);
+		isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
 		return;
 	}
 	memcpy(ntp->rd.data, aep, QENTRY_LEN);
