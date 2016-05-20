@@ -536,10 +536,6 @@ again:
 		else
 			ip6->ip6_hlim = V_ip6_defmcasthlim;
 	}
-
-	/* adjust pointer */
-	ip6 = mtod(m, struct ip6_hdr *);
-
 	/*
 	 * Validate route against routing table additions;
 	 * a better/more specific route might have been added.
@@ -798,6 +794,7 @@ again:
 	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
+	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	needfiblookup = 0;
