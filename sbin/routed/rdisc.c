@@ -758,7 +758,7 @@ send_rdisc(union ad_u *p,
 	if (rdisc_sock < 0)
 		get_rdisc_sock();
 
-	trace_rdisc(msg, ifp->int_addr, rsin.sin_addr.s_addr, ifp,
+	trace_rdisc(msg, (ifp ? ifp->int_addr : 0), rsin.sin_addr.s_addr, ifp,
 		    p, p_size);
 
 	if (0 > sendto(rdisc_sock, p, p_size, flags,

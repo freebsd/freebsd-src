@@ -98,7 +98,7 @@ options 	USB_DEBUG
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
 #device		uhci
-#device		ohci
+device		ohci
 device		ehci
 
 device		umass

@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
  * The Broadcom Wireless LAN controller driver.
  */
 
+#include "opt_bwn.h"
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -81,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwn_phy_common.h>
 #include <dev/bwn/if_bwn_phy_g.h>
 #include <dev/bwn/if_bwn_phy_lp.h>
+#include <dev/bwn/if_bwn_phy_n.h>
 
 static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
     "Broadcom driver parameters");
@@ -128,7 +132,7 @@ static int	bwn_setup_channels(struct bwn_mac *, int, int);
 static void	bwn_shm_ctlword(struct bwn_mac *, uint16_t,
 		    uint16_t);
 static void	bwn_addchannels(struct ieee80211_channel [], int, int *,
-		    const struct bwn_channelinfo *, int);
+		    const struct bwn_channelinfo *, const uint8_t []);
 static int	bwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	bwn_updateslot(struct ieee80211com *);
@@ -559,6 +563,11 @@ bwn_attach(device_t dev)
 		    mac->mac_method.dma.dmatype);
 	else
 		device_printf(sc->sc_dev, "PIO\n");
+
+#ifdef	BWN_GPL_PHY
+	device_printf(sc->sc_dev,
+	    "Note: compiled with BWN_GPL_PHY; includes GPLv2 code\n");
+#endif
 
 	/*
 	 * setup PCI resources and interrupt.
@@ -1147,15 +1156,32 @@ bwn_attach_core(struct bwn_mac *mac)
 	siba_powerup(sc->sc_dev, 0);
 
 	high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
+
+	/*
+	 * Guess at whether it has A-PHY or G-PHY.
+	 * This is just used for resetting the core to probe things;
+	 * we will re-guess once it's all up and working.
+	 *
+	 * XXX TODO: there's the TGSHIGH DUALPHY flag based on
+	 * the PHY revision.
+	 */
 	bwn_reset_core(mac, !!(high & BWN_TGSHIGH_HAVE_2GHZ));
+
+	/*
+	 * Get the PHY version.
+	 */
 	error = bwn_phy_getinfo(mac, high);
 	if (error)
 		goto fail;
 
-	/* XXX need bhnd */
+	/* XXX TODO need bhnd */
 	if (bwn_is_bus_siba(mac)) {
 		have_a = (high & BWN_TGSHIGH_HAVE_5GHZ) ? 1 : 0;
 		have_bg = (high & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
+		if (high & BWN_TGSHIGH_DUALPHY) {
+			have_bg = 1;
+			have_a = 1;
+		}
 	} else {
 		device_printf(sc->sc_dev, "%s: not siba; bailing\n", __func__);
 		error = ENXIO;
@@ -1175,7 +1201,9 @@ bwn_attach_core(struct bwn_mac *mac)
 
 	if (siba_get_pci_device(sc->sc_dev) != 0x4312 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4319 &&
-	    siba_get_pci_device(sc->sc_dev) != 0x4324) {
+	    siba_get_pci_device(sc->sc_dev) != 0x4324 &&
+	    siba_get_pci_device(sc->sc_dev) != 0x4328 &&
+	    siba_get_pci_device(sc->sc_dev) != 0x432b) {
 		have_a = have_bg = 0;
 		if (mac->mac_phy.type == BWN_PHYTYPE_A)
 			have_a = 1;
@@ -1187,12 +1215,20 @@ bwn_attach_core(struct bwn_mac *mac)
 			KASSERT(0 == 1, ("%s: unknown phy type (%d)", __func__,
 			    mac->mac_phy.type));
 	}
-	/* XXX turns off PHY A because it's not supported */
+
+	/*
+	 * XXX The PHY-G support doesn't do 5GHz operation.
+	 */
 	if (mac->mac_phy.type != BWN_PHYTYPE_LP &&
 	    mac->mac_phy.type != BWN_PHYTYPE_N) {
+		device_printf(sc->sc_dev,
+		    "%s: forcing 2GHz only; no dual-band support for PHY\n",
+		    __func__);
 		have_a = 0;
 		have_bg = 1;
 	}
+
+	mac->mac_phy.phy_n = NULL;
 
 	if (mac->mac_phy.type == BWN_PHYTYPE_G) {
 		mac->mac_phy.attach = bwn_phy_g_attach;
@@ -1230,6 +1266,28 @@ bwn_attach_core(struct bwn_mac *mac)
 		mac->mac_phy.get_default_chan = bwn_phy_lp_get_default_chan;
 		mac->mac_phy.set_antenna = bwn_phy_lp_set_antenna;
 		mac->mac_phy.task_60s = bwn_phy_lp_task_60s;
+	} else if (mac->mac_phy.type == BWN_PHYTYPE_N) {
+		mac->mac_phy.attach = bwn_phy_n_attach;
+		mac->mac_phy.detach = bwn_phy_n_detach;
+		mac->mac_phy.prepare_hw = bwn_phy_n_prepare_hw;
+		mac->mac_phy.init_pre = bwn_phy_n_init_pre;
+		mac->mac_phy.init = bwn_phy_n_init;
+		mac->mac_phy.exit = bwn_phy_n_exit;
+		mac->mac_phy.phy_read = bwn_phy_n_read;
+		mac->mac_phy.phy_write = bwn_phy_n_write;
+		mac->mac_phy.rf_read = bwn_phy_n_rf_read;
+		mac->mac_phy.rf_write = bwn_phy_n_rf_write;
+		mac->mac_phy.use_hwpctl = bwn_phy_n_hwpctl;
+		mac->mac_phy.rf_onoff = bwn_phy_n_rf_onoff;
+		mac->mac_phy.switch_analog = bwn_phy_n_switch_analog;
+		mac->mac_phy.switch_channel = bwn_phy_n_switch_channel;
+		mac->mac_phy.get_default_chan = bwn_phy_n_get_default_chan;
+		mac->mac_phy.set_antenna = bwn_phy_n_set_antenna;
+		mac->mac_phy.set_im = bwn_phy_n_im;
+		mac->mac_phy.recalc_txpwr = bwn_phy_n_recalc_txpwr;
+		mac->mac_phy.set_txpwr = bwn_phy_n_set_txpwr;
+		mac->mac_phy.task_15s = bwn_phy_n_task_15s;
+		mac->mac_phy.task_60s = bwn_phy_n_task_60s;
 	} else {
 		device_printf(sc->sc_dev, "unsupported PHY type (%d)\n",
 		    mac->mac_phy.type);
@@ -1301,13 +1359,15 @@ bwn_reset_core(struct bwn_mac *mac, int g_mode)
 
 	/* Take PHY out of reset */
 	low = (siba_read_4(sc->sc_dev, SIBA_TGSLOW) | SIBA_TGSLOW_FGC) &
-	    ~BWN_TGSLOW_PHYRESET;
+	    ~(BWN_TGSLOW_PHYRESET | BWN_TGSLOW_PHYCLOCK_ENABLE);
 	siba_write_4(sc->sc_dev, SIBA_TGSLOW, low);
 	siba_read_4(sc->sc_dev, SIBA_TGSLOW);
-	DELAY(1000);
-	siba_write_4(sc->sc_dev, SIBA_TGSLOW, low & ~SIBA_TGSLOW_FGC);
+	DELAY(2000);
+	low &= ~SIBA_TGSLOW_FGC;
+	low |= BWN_TGSLOW_PHYCLOCK_ENABLE;
+	siba_write_4(sc->sc_dev, SIBA_TGSLOW, low);
 	siba_read_4(sc->sc_dev, SIBA_TGSLOW);
-	DELAY(1000);
+	DELAY(2000);
 
 	if (mac->mac_phy.switch_analog != NULL)
 		mac->mac_phy.switch_analog(mac, 1);
@@ -1433,14 +1493,12 @@ error:
 	return (ENODEV);
 }
 
-#define	IEEE80211_CHAN_HTG	(IEEE80211_CHAN_HT | IEEE80211_CHAN_G)
-#define	IEEE80211_CHAN_HTA	(IEEE80211_CHAN_HT | IEEE80211_CHAN_A)
-
 static int
 bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct ieee80211com *ic = &sc->sc_ic;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 
 	memset(ic->ic_channels, 0, sizeof(ic->ic_channels));
 	ic->ic_nchans = 0;
@@ -1450,26 +1508,20 @@ bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 	    have_bg,
 	    have_a);
 
-	if (have_bg)
+	if (have_bg) {
+		memset(bands, 0, sizeof(bands));
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
 		bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
-		    &ic->ic_nchans, &bwn_chantable_bg, IEEE80211_CHAN_G);
-#if 0
-	if (mac->mac_phy.type == BWN_PHYTYPE_N) {
-		if (have_a)
-			bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
-			    &ic->ic_nchans, &bwn_chantable_n,
-			    IEEE80211_CHAN_HTA);
-	} else {
-		if (have_a)
-			bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
-			    &ic->ic_nchans, &bwn_chantable_a,
-			    IEEE80211_CHAN_A);
+		    &ic->ic_nchans, &bwn_chantable_bg, bands);
 	}
-#endif
-	if (have_a)
+
+	if (have_a) {
+		memset(bands, 0, sizeof(bands));
+		setbit(bands, IEEE80211_MODE_11A);
 		bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
-		    &ic->ic_nchans, &bwn_chantable_a,
-		    IEEE80211_CHAN_A);
+		    &ic->ic_nchans, &bwn_chantable_a, bands);
+	}
 
 	mac->mac_phy.supports_2ghz = have_bg;
 	mac->mac_phy.supports_5ghz = have_a;
@@ -1583,63 +1635,16 @@ bwn_shm_write_2(struct bwn_mac *mac, uint16_t way, uint16_t offset,
 }
 
 static void
-bwn_addchan(struct ieee80211_channel *c, int freq, int flags, int ieee,
-    int txpow)
-{
-
-	c->ic_freq = freq;
-	c->ic_flags = flags;
-	c->ic_ieee = ieee;
-	c->ic_minpower = 0;
-	c->ic_maxpower = 2 * txpow;
-	c->ic_maxregpower = txpow;
-}
-
-static void
 bwn_addchannels(struct ieee80211_channel chans[], int maxchans, int *nchans,
-    const struct bwn_channelinfo *ci, int flags)
+    const struct bwn_channelinfo *ci, const uint8_t bands[])
 {
-	struct ieee80211_channel *c;
-	int i;
+	int i, error;
 
-	c = &chans[*nchans];
+	for (i = 0, error = 0; i < ci->nchannels && error == 0; i++) {
+		const struct bwn_channel *hc = &ci->channels[i];
 
-	for (i = 0; i < ci->nchannels; i++) {
-		const struct bwn_channel *hc;
-
-		hc = &ci->channels[i];
-		if (*nchans >= maxchans)
-			break;
-		bwn_addchan(c, hc->freq, flags, hc->ieee, hc->maxTxPow);
-		c++, (*nchans)++;
-		if (flags == IEEE80211_CHAN_G || flags == IEEE80211_CHAN_HTG) {
-			/* g channel have a separate b-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[0] = c[-1];
-			c[-1].ic_flags = IEEE80211_CHAN_B;
-			c++, (*nchans)++;
-		}
-		if (flags == IEEE80211_CHAN_HTG) {
-			/* HT g channel have a separate g-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[-1].ic_flags = IEEE80211_CHAN_G;
-			c[0] = c[-1];
-			c[0].ic_flags &= ~IEEE80211_CHAN_HT;
-			c[0].ic_flags |= IEEE80211_CHAN_HT20;	/* HT20 */
-			c++, (*nchans)++;
-		}
-		if (flags == IEEE80211_CHAN_HTA) {
-			/* HT a channel have a separate a-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[-1].ic_flags = IEEE80211_CHAN_A;
-			c[0] = c[-1];
-			c[0].ic_flags &= ~IEEE80211_CHAN_HT;
-			c[0].ic_flags |= IEEE80211_CHAN_HT20;	/* HT20 */
-			c++, (*nchans)++;
-		}
+		error = ieee80211_add_channel(chans, maxchans, nchans,
+		    hc->ieee, hc->freq, hc->maxTxPow, 0, bands);
 	}
 }
 
@@ -2003,6 +2008,8 @@ bwn_core_init(struct bwn_mac *mac)
 	KASSERT(mac->mac_status == BWN_MAC_STATUS_UNINIT,
 	    ("%s:%d: fail", __func__, __LINE__));
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: called\n", __func__);
+
 	siba_powerup(sc->sc_dev, 0);
 	if (!siba_dev_isup(sc->sc_dev))
 		bwn_reset_core(mac, mac->mac_phy.gmode);
@@ -2036,6 +2043,7 @@ bwn_core_init(struct bwn_mac *mac)
 		if (error)
 			goto fail0;
 	}
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: chip_init\n", __func__);
 	error = bwn_chip_init(mac);
 	if (error)
 		goto fail0;
@@ -2063,6 +2071,19 @@ bwn_core_init(struct bwn_mac *mac)
 	hf &= ~BWN_HF_SKIP_CFP_UPDATE;
 	bwn_hf_write(mac, hf);
 
+	/* Tell the firmware about the MAC capabilities */
+	if (siba_get_revid(sc->sc_dev) >= 13) {
+		uint32_t cap;
+		cap = BWN_READ_4(mac, BWN_MAC_HW_CAP);
+		DPRINTF(sc, BWN_DEBUG_RESET,
+		    "%s: hw capabilities: 0x%08x\n",
+		    __func__, cap);
+		bwn_shm_write_2(mac, BWN_SHARED, BWN_SHARED_MACHW_L,
+		    cap & 0xffff);
+		bwn_shm_write_2(mac, BWN_SHARED, BWN_SHARED_MACHW_H,
+		    (cap >> 16) & 0xffff);
+	}
+
 	bwn_set_txretry(mac, BWN_RETRY_SHORT, BWN_RETRY_LONG);
 	bwn_shm_write_2(mac, BWN_SHARED, BWN_SHARED_SHORT_RETRY_FALLBACK, 3);
 	bwn_shm_write_2(mac, BWN_SHARED, BWN_SHARED_LONG_RETRY_FALLBACK, 2);
@@ -2083,6 +2104,7 @@ bwn_core_init(struct bwn_mac *mac)
 	bwn_spu_setdelay(mac, 1);
 	bwn_bt_enable(mac);
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: powerup\n", __func__);
 	siba_powerup(sc->sc_dev,
 	    !(siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_CRYSTAL_NOSLOW));
 	bwn_set_macaddr(mac);
@@ -2092,12 +2114,14 @@ bwn_core_init(struct bwn_mac *mac)
 
 	mac->mac_status = BWN_MAC_STATUS_INITED;
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: done\n", __func__);
 	return (error);
 
 fail0:
 	siba_powerdown(sc->sc_dev);
 	KASSERT(mac->mac_status == BWN_MAC_STATUS_UNINIT,
 	    ("%s:%d: fail", __func__, __LINE__));
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: fail\n", __func__);
 	return (error);
 }
 
@@ -2657,8 +2681,21 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 		dr->dr_curslot = -1;
 	} else {
 		if (dr->dr_index == 0) {
-			dr->dr_rx_bufsize = BWN_DMA0_RX_BUFFERSIZE;
-			dr->dr_frameoffset = BWN_DMA0_RX_FRAMEOFFSET;
+			switch (mac->mac_fw.fw_hdr_format) {
+			case BWN_FW_HDR_351:
+			case BWN_FW_HDR_410:
+				dr->dr_rx_bufsize =
+				    BWN_DMA0_RX_BUFFERSIZE_FW351;
+				dr->dr_frameoffset =
+				    BWN_DMA0_RX_FRAMEOFFSET_FW351;
+				break;
+			case BWN_FW_HDR_598:
+				dr->dr_rx_bufsize =
+				    BWN_DMA0_RX_BUFFERSIZE_FW598;
+				dr->dr_frameoffset =
+				    BWN_DMA0_RX_FRAMEOFFSET_FW598;
+				break;
+			}
 		} else
 			KASSERT(0 == 1, ("%s:%d: fail", __func__, __LINE__));
 	}
@@ -2675,11 +2712,15 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 		KASSERT(BWN_TXRING_SLOTS % BWN_TX_SLOTS_PER_FRAME == 0,
 		    ("%s:%d: fail", __func__, __LINE__));
 
-		dr->dr_txhdr_cache =
-		    malloc((dr->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
-			BWN_HDRSIZE(mac), M_DEVBUF, M_NOWAIT | M_ZERO);
-		KASSERT(dr->dr_txhdr_cache != NULL,
-		    ("%s:%d: fail", __func__, __LINE__));
+		dr->dr_txhdr_cache = contigmalloc(
+		    (dr->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
+		    BWN_MAXTXHDRSIZE, M_DEVBUF, M_ZERO,
+		    0, BUS_SPACE_MAXADDR, 8, 0);
+		if (dr->dr_txhdr_cache == NULL) {
+			device_printf(sc->sc_dev,
+			    "can't allocate TX header DMA memory\n");
+			goto fail1;
+		}
 
 		/*
 		 * Create TX ring DMA stuffs
@@ -2698,7 +2739,7 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 		if (error) {
 			device_printf(sc->sc_dev,
 			    "can't create TX ring DMA tag: TODO frees\n");
-			goto fail1;
+			goto fail2;
 		}
 
 		for (i = 0; i < dr->dr_numslots; i += 2) {
@@ -2713,7 +2754,7 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 			if (error) {
 				device_printf(sc->sc_dev,
 				     "can't create RX buf DMA map\n");
-				goto fail1;
+				goto fail2;
 			}
 
 			dr->getdesc(dr, i + 1, &desc, &mt);
@@ -2727,7 +2768,7 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 			if (error) {
 				device_printf(sc->sc_dev,
 				     "can't create RX buf DMA map\n");
-				goto fail1;
+				goto fail2;
 			}
 		}
 	} else {
@@ -2767,7 +2808,11 @@ bwn_dma_ringsetup(struct bwn_mac *mac, int controller_index,
 	return (dr);
 
 fail2:
-	free(dr->dr_txhdr_cache, M_DEVBUF);
+	if (dr->dr_txhdr_cache != NULL) {
+		contigfree(dr->dr_txhdr_cache,
+		    (dr->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
+		    BWN_MAXTXHDRSIZE, M_DEVBUF);
+	}
 fail1:
 	free(dr->dr_meta, M_DEVBUF);
 fail0:
@@ -2785,7 +2830,11 @@ bwn_dma_ringfree(struct bwn_dma_ring **dr)
 	bwn_dma_free_descbufs(*dr);
 	bwn_dma_free_ringmemory(*dr);
 
-	free((*dr)->dr_txhdr_cache, M_DEVBUF);
+	if ((*dr)->dr_txhdr_cache != NULL) {
+		contigfree((*dr)->dr_txhdr_cache,
+		    ((*dr)->dr_numslots / BWN_TX_SLOTS_PER_FRAME) *
+		    BWN_MAXTXHDRSIZE, M_DEVBUF);
+	}
 	free((*dr)->dr_meta, M_DEVBUF);
 	free(*dr, M_DEVBUF);
 
@@ -3686,6 +3735,9 @@ bwn_mac_suspend(struct bwn_mac *mac)
 	KASSERT(mac->mac_suspended >= 0,
 	    ("%s:%d: fail", __func__, __LINE__));
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: suspended=%d\n",
+	    __func__, mac->mac_suspended);
+
 	if (mac->mac_suspended == 0) {
 		bwn_psctl(mac, BWN_PS_AWAKE);
 		BWN_WRITE_4(mac, BWN_MACCTL,
@@ -3716,11 +3768,17 @@ bwn_mac_enable(struct bwn_mac *mac)
 	struct bwn_softc *sc = mac->mac_sc;
 	uint16_t state;
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: suspended=%d\n",
+	    __func__, mac->mac_suspended);
+
 	state = bwn_shm_read_2(mac, BWN_SHARED,
 	    BWN_SHARED_UCODESTAT);
 	if (state != BWN_SHARED_UCODESTAT_SUSPEND &&
-	    state != BWN_SHARED_UCODESTAT_SLEEP)
-		device_printf(sc->sc_dev, "warn: firmware state (%d)\n", state);
+	    state != BWN_SHARED_UCODESTAT_SLEEP) {
+		DPRINTF(sc, BWN_DEBUG_FW,
+		    "%s: warn: firmware state (%d)\n",
+		    __func__, state);
+	}
 
 	mac->mac_suspended--;
 	KASSERT(mac->mac_suspended >= 0,
@@ -3762,6 +3820,8 @@ bwn_psctl(struct bwn_mac *mac, uint32_t flags)
 			DELAY(10);
 		}
 	}
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: ucstat=%d\n", __func__,
+	    ucstat);
 }
 
 static int
@@ -4157,12 +4217,14 @@ bwn_fw_loaducode(struct bwn_mac *mac)
 	 * So, complain this is the case and exit out, rather
 	 * than attaching and then failing.
 	 */
+#if 0
 	if (mac->mac_fw.fw_hdr_format == BWN_FW_HDR_598) {
 		device_printf(sc->sc_dev,
 		    "firmware is too new (>=598); not supported\n");
 		error = EOPNOTSUPP;
 		goto error;
 	}
+#endif
 
 	mac->mac_fw.patch = bwn_shm_read_2(mac, BWN_SHARED,
 	    BWN_SHARED_UCODE_PATCH);
@@ -4749,12 +4811,15 @@ bwn_intr(void *arg)
 	    (sc->sc_flags & BWN_FLAG_INVALID))
 		return (FILTER_STRAY);
 
+	DPRINTF(sc, BWN_DEBUG_INTR, "%s: called\n", __func__);
+
 	reason = BWN_READ_4(mac, BWN_INTR_REASON);
 	if (reason == 0xffffffff)	/* shared IRQ */
 		return (FILTER_STRAY);
 	reason &= mac->mac_intr_mask;
 	if (reason == 0)
 		return (FILTER_HANDLED);
+	DPRINTF(sc, BWN_DEBUG_INTR, "%s: reason=0x%08x\n", __func__, reason);
 
 	mac->mac_reason[0] = BWN_READ_4(mac, BWN_DMA0_REASON) & 0x0001dc00;
 	mac->mac_reason[1] = BWN_READ_4(mac, BWN_DMA1_REASON) & 0x0000dc00;
@@ -5322,7 +5387,17 @@ bwn_dma_rxeof(struct bwn_dma_ring *dr, int *slot)
 		       len, dr->dr_rx_bufsize, cnt);
 		return;
 	}
-	macstat = le32toh(rxhdr->mac_status);
+
+	switch (mac->mac_fw.fw_hdr_format) {
+	case BWN_FW_HDR_351:
+	case BWN_FW_HDR_410:
+		macstat = le32toh(rxhdr->ps4.r351.mac_status);
+		break;
+	case BWN_FW_HDR_598:
+		macstat = le32toh(rxhdr->ps4.r598.mac_status);
+		break;
+	}
+
 	if (macstat & BWN_RX_MAC_FCSERR) {
 		if (!(mac->mac_sc->sc_filters & BWN_MACCTL_PASS_BADFCS)) {
 			device_printf(sc->sc_dev, "RX drop\n");
@@ -5423,7 +5498,16 @@ ready:
 		goto error;
 	}
 
-	macstat = le32toh(rxhdr.mac_status);
+	switch (mac->mac_fw.fw_hdr_format) {
+	case BWN_FW_HDR_351:
+	case BWN_FW_HDR_410:
+		macstat = le32toh(rxhdr.ps4.r351.mac_status);
+		break;
+	case BWN_FW_HDR_598:
+		macstat = le32toh(rxhdr.ps4.r598.mac_status);
+		break;
+	}
+
 	if (macstat & BWN_RX_MAC_FCSERR) {
 		if (!(mac->mac_sc->sc_filters & BWN_MACCTL_PASS_BADFCS)) {
 			device_printf(sc->sc_dev, "%s: FCS error", __func__);
@@ -5677,11 +5761,25 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 	BWN_ASSERT_LOCKED(sc);
 
 	phystat0 = le16toh(rxhdr->phy_status0);
-	phystat3 = le16toh(rxhdr->phy_status3);
 
-	/* XXX Note: mactime, macstat, chanstat need fixing for fw 598 */
-	macstat = le32toh(rxhdr->mac_status);
-	chanstat = le16toh(rxhdr->channel);
+	/*
+	 * XXX Note: phy_status3 doesn't exist for HT-PHY; it's only
+	 * used for LP-PHY.
+	 */
+	phystat3 = le16toh(rxhdr->ps3.lp.phy_status3);
+
+	switch (mac->mac_fw.fw_hdr_format) {
+	case BWN_FW_HDR_351:
+	case BWN_FW_HDR_410:
+		macstat = le32toh(rxhdr->ps4.r351.mac_status);
+		chanstat = le16toh(rxhdr->ps4.r351.channel);
+		break;
+	case BWN_FW_HDR_598:
+		macstat = le32toh(rxhdr->ps4.r598.mac_status);
+		chanstat = le16toh(rxhdr->ps4.r598.channel);
+		break;
+	}
+
 
 	phytype = chanstat & BWN_RX_CHAN_PHYTYPE;
 
@@ -5741,13 +5839,25 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 			rssi = max(rxhdr->phy.n.power1, rxhdr->ps2.n.power2);
 		else
 			rssi = max(rxhdr->phy.n.power0, rxhdr->phy.n.power1);
+#if 0
+		DPRINTF(mac->mac_sc, BWN_DEBUG_RECV,
+		    "%s: power0=%d, power1=%d, power2=%d\n",
+		    __func__,
+		    rxhdr->phy.n.power0,
+		    rxhdr->phy.n.power1,
+		    rxhdr->ps2.n.power2);
+#endif
 		break;
 	default:
 		/* XXX TODO: implement rssi for other PHYs */
 		break;
 	}
 
+	/*
+	 * RSSI here is absolute, not relative to the noise floor.
+	 */
 	noise = mac->mac_stats.link_noise;
+	rssi = rssi - noise;
 
 	/* RX radio tap */
 	if (ieee80211_radiotap_active(ic))
@@ -6140,10 +6250,22 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 		    m->m_pkthdr.len, rate, isshort);
 
 	/* XXX TX encryption */
-	bwn_plcp_genhdr(BWN_ISOLDFMT(mac) ?
-	    (struct bwn_plcp4 *)(&txhdr->body.old.plcp) :
-	    (struct bwn_plcp4 *)(&txhdr->body.new.plcp),
-	    m->m_pkthdr.len + IEEE80211_CRC_LEN, rate);
+
+	switch (mac->mac_fw.fw_hdr_format) {
+	case BWN_FW_HDR_351:
+		bwn_plcp_genhdr((struct bwn_plcp4 *)(&txhdr->body.r351.plcp),
+		    m->m_pkthdr.len + IEEE80211_CRC_LEN, rate);
+		break;
+	case BWN_FW_HDR_410:
+		bwn_plcp_genhdr((struct bwn_plcp4 *)(&txhdr->body.r410.plcp),
+		    m->m_pkthdr.len + IEEE80211_CRC_LEN, rate);
+		break;
+	case BWN_FW_HDR_598:
+		bwn_plcp_genhdr((struct bwn_plcp4 *)(&txhdr->body.r598.plcp),
+		    m->m_pkthdr.len + IEEE80211_CRC_LEN, rate);
+		break;
+	}
+
 	bwn_plcp_genhdr((struct bwn_plcp4 *)(&txhdr->plcp_fb),
 	    m->m_pkthdr.len + IEEE80211_CRC_LEN, rate_fb);
 
@@ -6202,9 +6324,22 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 		    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 
 		if (ic->ic_protmode == IEEE80211_PROT_CTSONLY) {
-			cts = (struct ieee80211_frame_cts *)(BWN_ISOLDFMT(mac) ?
-			    (txhdr->body.old.rts_frame) :
-			    (txhdr->body.new.rts_frame));
+
+			switch (mac->mac_fw.fw_hdr_format) {
+			case BWN_FW_HDR_351:
+				cts = (struct ieee80211_frame_cts *)
+				    txhdr->body.r351.rts_frame;
+				break;
+			case BWN_FW_HDR_410:
+				cts = (struct ieee80211_frame_cts *)
+				    txhdr->body.r410.rts_frame;
+				break;
+			case BWN_FW_HDR_598:
+				cts = (struct ieee80211_frame_cts *)
+				    txhdr->body.r598.rts_frame;
+				break;
+			}
+
 			mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr,
 			    protdur);
 			KASSERT(mprot != NULL, ("failed to alloc mbuf\n"));
@@ -6214,9 +6349,21 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 			macctl |= BWN_TX_MAC_SEND_CTSTOSELF;
 			len = sizeof(struct ieee80211_frame_cts);
 		} else {
-			rts = (struct ieee80211_frame_rts *)(BWN_ISOLDFMT(mac) ?
-			    (txhdr->body.old.rts_frame) :
-			    (txhdr->body.new.rts_frame));
+			switch (mac->mac_fw.fw_hdr_format) {
+			case BWN_FW_HDR_351:
+				rts = (struct ieee80211_frame_rts *)
+				    txhdr->body.r351.rts_frame;
+				break;
+			case BWN_FW_HDR_410:
+				rts = (struct ieee80211_frame_rts *)
+				    txhdr->body.r410.rts_frame;
+				break;
+			case BWN_FW_HDR_598:
+				rts = (struct ieee80211_frame_rts *)
+				    txhdr->body.r598.rts_frame;
+				break;
+			}
+
 			/* XXX rate/rate_fb is the hardware rate */
 			protdur += ieee80211_ack_duration(ic->ic_rt, rate,
 			    isshort);
@@ -6230,15 +6377,40 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 			len = sizeof(struct ieee80211_frame_rts);
 		}
 		len += IEEE80211_CRC_LEN;
-		bwn_plcp_genhdr((struct bwn_plcp4 *)((BWN_ISOLDFMT(mac)) ?
-		    &txhdr->body.old.rts_plcp :
-		    &txhdr->body.new.rts_plcp), len, rts_rate);
+
+		switch (mac->mac_fw.fw_hdr_format) {
+		case BWN_FW_HDR_351:
+			bwn_plcp_genhdr((struct bwn_plcp4 *)
+			    &txhdr->body.r351.rts_plcp, len, rts_rate);
+			break;
+		case BWN_FW_HDR_410:
+			bwn_plcp_genhdr((struct bwn_plcp4 *)
+			    &txhdr->body.r410.rts_plcp, len, rts_rate);
+			break;
+		case BWN_FW_HDR_598:
+			bwn_plcp_genhdr((struct bwn_plcp4 *)
+			    &txhdr->body.r598.rts_plcp, len, rts_rate);
+			break;
+		}
+
 		bwn_plcp_genhdr((struct bwn_plcp4 *)&txhdr->rts_plcp_fb, len,
 		    rts_rate_fb);
 
-		protwh = (struct ieee80211_frame *)(BWN_ISOLDFMT(mac) ?
-		    (&txhdr->body.old.rts_frame) :
-		    (&txhdr->body.new.rts_frame));
+		switch (mac->mac_fw.fw_hdr_format) {
+		case BWN_FW_HDR_351:
+			protwh = (struct ieee80211_frame *)
+			    &txhdr->body.r351.rts_frame;
+			break;
+		case BWN_FW_HDR_410:
+			protwh = (struct ieee80211_frame *)
+			    &txhdr->body.r410.rts_frame;
+			break;
+		case BWN_FW_HDR_598:
+			protwh = (struct ieee80211_frame *)
+			    &txhdr->body.r598.rts_frame;
+			break;
+		}
+
 		txhdr->rts_dur_fb = *(u_int16_t *)protwh->i_dur;
 
 		if (BWN_ISOFDMRATE(rts_rate)) {
@@ -6262,10 +6434,17 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 		txhdr->phyctl_1fb = htole16(bwn_set_txhdr_phyctl1(mac, rate_fb));
 	}
 
-	if (BWN_ISOLDFMT(mac))
-		txhdr->body.old.cookie = htole16(cookie);
-	else
-		txhdr->body.new.cookie = htole16(cookie);
+	switch (mac->mac_fw.fw_hdr_format) {
+	case BWN_FW_HDR_351:
+		txhdr->body.r351.cookie = htole16(cookie);
+		break;
+	case BWN_FW_HDR_410:
+		txhdr->body.r410.cookie = htole16(cookie);
+		break;
+	case BWN_FW_HDR_598:
+		txhdr->body.r598.cookie = htole16(cookie);
+		break;
+	}
 
 	txhdr->macctl = htole32(macctl);
 	txhdr->phyctl = htole16(phyctl);
@@ -6698,6 +6877,7 @@ bwn_rx_radiotap(struct bwn_mac *mac, struct mbuf *m,
 	const struct ieee80211_frame_min *wh;
 	uint64_t tsf;
 	uint16_t low_mactime_now;
+	uint16_t mt;
 
 	if (htole16(rxhdr->phy_status0) & BWN_RX_PHYST0_SHORTPRMBL)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
@@ -6709,8 +6889,19 @@ bwn_rx_radiotap(struct bwn_mac *mac, struct mbuf *m,
 	bwn_tsf_read(mac, &tsf);
 	low_mactime_now = tsf;
 	tsf = tsf & ~0xffffULL;
-	tsf += le16toh(rxhdr->mac_time);
-	if (low_mactime_now < le16toh(rxhdr->mac_time))
+
+	switch (mac->mac_fw.fw_hdr_format) {
+	case BWN_FW_HDR_351:
+	case BWN_FW_HDR_410:
+		mt = le16toh(rxhdr->ps4.r351.mac_time);
+		break;
+	case BWN_FW_HDR_598:
+		mt = le16toh(rxhdr->ps4.r598.mac_time);
+		break;
+	}
+
+	tsf += mt;
+	if (low_mactime_now < mt)
 		tsf -= 0x10000;
 
 	sc->sc_rx_th.wr_tsf = tsf;

@@ -30,6 +30,17 @@ CWARNFLAGS.zfs.c+=	-Wno-sign-compare
 CWARNFLAGS.zfs.c+=	-Wno-array-bounds
 CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
 .endif
+# In the loader, %S is for CHAR16 strings, not wchar_t strings. This
+# mismatch causes issues on some archs, so just ignore it for now.
+# The printf in libstand implements CHAR16 strings always.
+CWARNFLAGS.main.c+=	-Wno-format
+
+# We implement a slightly non-standard %S in that it always takes a
+# CHAR16 that's common in UEFI-land instead of a wchar_t. This only
+# seems to matter on arm64 where wchar_t defaults to an int instead
+# of a short. There's no good cast to use here so just ignore the
+# warnings for now.
+CWARNFLAGS.main.c+=	-Wno-format
 
 .PATH: ${.CURDIR}/arch/${MACHINE}
 # For smbios.c

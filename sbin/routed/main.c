@@ -303,11 +303,6 @@ usage:
 	pidfile(0);
 #endif
 	mypid = getpid();
-#ifdef __FreeBSD__
-	srandomdev();
-#else
-	srandom((int)(clk.tv_sec ^ clk.tv_usec ^ mypid));
-#endif
 
 	/* prepare socket connected to the kernel.
 	 */
@@ -826,8 +821,8 @@ intvl_random(struct timeval *tp,	/* put value here */
 {
 	tp->tv_sec = (time_t)(hi == lo
 			      ? lo
-			      : (lo + arc4random() % ((hi - lo))));
-	tp->tv_usec = arc4random() % 1000000;
+			      : (lo + arc4random_uniform(1 + hi - lo)));
+	tp->tv_usec = arc4random_uniform(1000000);
 }
 
 

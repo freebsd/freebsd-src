@@ -1228,7 +1228,7 @@ read_rt(void)
 			continue;	/* ignore compat message */
 #endif
 
-		strcpy(str, rtm_type_name(m.r.rtm.rtm_type));
+		strlcpy(str, rtm_type_name(m.r.rtm.rtm_type), sizeof(str));
 		strp = &str[strlen(str)];
 		if (m.r.rtm.rtm_type <= RTM_CHANGE)
 			strp += sprintf(strp," from pid %d",m.r.rtm.rtm_pid);

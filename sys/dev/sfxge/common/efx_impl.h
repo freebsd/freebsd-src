@@ -183,6 +183,7 @@ typedef struct efx_mac_ops_s {
 	efx_rc_t	(*emo_up)(efx_nic_t *, boolean_t *);
 	efx_rc_t	(*emo_addr_set)(efx_nic_t *);
 	efx_rc_t	(*emo_pdu_set)(efx_nic_t *);
+	efx_rc_t	(*emo_pdu_get)(efx_nic_t *, size_t *);
 	efx_rc_t	(*emo_reconfigure)(efx_nic_t *);
 	efx_rc_t	(*emo_multicast_list_set)(efx_nic_t *);
 	efx_rc_t	(*emo_filter_default_rxq_set)(efx_nic_t *,
@@ -461,14 +462,6 @@ typedef struct efx_nvram_ops_s {
 } efx_nvram_ops_t;
 #endif /* EFSYS_OPT_NVRAM */
 
-extern	__checkReturn		efx_rc_t
-efx_nvram_tlv_validate(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__in_bcount(partn_size)	caddr_t partn_data,
-	__in			size_t partn_size);
-
-
 #if EFSYS_OPT_VPD
 typedef struct efx_vpd_ops_s {
 	efx_rc_t	(*evpdo_init)(efx_nic_t *);
@@ -568,6 +561,27 @@ typedef struct efx_lic_ops_s {
 	efx_rc_t	(*elo_app_state)(efx_nic_t *, uint64_t, boolean_t *);
 	efx_rc_t	(*elo_get_id)(efx_nic_t *, size_t, uint32_t *,
 				      size_t *, uint8_t *);
+	efx_rc_t	(*elo_find_start)
+				(efx_nic_t *, caddr_t, size_t, uint32_t *);
+	efx_rc_t	(*elo_find_end)(efx_nic_t *, caddr_t, size_t,
+				uint32_t , uint32_t *);
+	boolean_t	(*elo_find_key)(efx_nic_t *, caddr_t, size_t,
+				uint32_t, uint32_t *, uint32_t *);
+	boolean_t	(*elo_validate_key)(efx_nic_t *,
+				caddr_t, uint32_t);
+	efx_rc_t	(*elo_read_key)(efx_nic_t *,
+				caddr_t, size_t, uint32_t, uint32_t,
+				caddr_t, size_t, uint32_t *);
+	efx_rc_t	(*elo_write_key)(efx_nic_t *,
+				caddr_t, size_t, uint32_t,
+				caddr_t, uint32_t, uint32_t *);
+	efx_rc_t	(*elo_delete_key)(efx_nic_t *,
+				caddr_t, size_t, uint32_t,
+				uint32_t, uint32_t, uint32_t *);
+	efx_rc_t	(*elo_create_partition)(efx_nic_t *,
+				caddr_t, size_t);
+	efx_rc_t	(*elo_finish_partition)(efx_nic_t *,
+				caddr_t, size_t);
 } efx_lic_ops_t;
 
 #endif
@@ -623,6 +637,7 @@ struct efx_nic_s {
 	uint32_t		en_vport_id;
 #if EFSYS_OPT_LICENSING
 	const efx_lic_ops_t	*en_elop;
+	boolean_t		en_licensing_supported;
 #endif
 	union {
 #if EFSYS_OPT_SIENA

@@ -210,7 +210,7 @@ omap4_wugen_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (intr_pic_register(dev, OF_xref_from_node(node)) != 0) {
+	if (intr_pic_register(dev, OF_xref_from_node(node)) == NULL) {
 		device_printf(dev, "can't register PIC\n");
 		goto fail;
 	}

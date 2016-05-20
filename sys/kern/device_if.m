@@ -62,6 +62,11 @@ CODE {
 	{
 	    return 0;
 	}
+
+	static void * null_register(device_t dev)
+	{
+		return NULL;
+	}
 };
 	
 /**
@@ -316,3 +321,24 @@ METHOD int resume {
 METHOD int quiesce {
 	device_t dev;
 } DEFAULT null_quiesce;
+
+/**
+ * @brief This is called when the driver is asked to register handlers.
+ *
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_register, foo_register)
+ * @endcode
+ *
+ * @param dev		the device for which handlers are being registered
+ *
+ * @retval NULL     method not implemented
+ * @retval non-NULL	a pointer to implementation specific static driver state
+ *
+ */
+METHOD void * register {
+	device_t dev;
+} DEFAULT null_register;

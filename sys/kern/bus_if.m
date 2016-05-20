@@ -530,8 +530,15 @@ METHOD int child_present {
 /**
  * @brief Returns the pnp info for this device.
  *
- * Return it as a string.  If the string is insufficient for the
- * storage, then return EOVERFLOW.
+ * Return it as a string.  If the storage is insufficient for the
+ * string, then return EOVERFLOW.
+ *
+ * The string must be formatted as a space-separated list of
+ * name=value pairs.  Names may only contain alphanumeric characters,
+ * underscores ('_') and hyphens ('-').  Values can contain any
+ * non-whitespace characters.  Values containing whitespace can be
+ * quoted with double quotes ('"').  Double quotes and backslashes in
+ * quoted values can be escaped with backslashes ('\').
  * 
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is being examined
@@ -549,9 +556,16 @@ METHOD int child_pnpinfo_str {
 /**
  * @brief Returns the location for this device.
  *
- * Return it as a string.  If the string is insufficient for the
- * storage, then return EOVERFLOW.
- * 
+ * Return it as a string.  If the storage is insufficient for the
+ * string, then return EOVERFLOW.
+ *
+ * The string must be formatted as a space-separated list of
+ * name=value pairs.  Names may only contain alphanumeric characters,
+ * underscores ('_') and hyphens ('-').  Values can contain any
+ * non-whitespace characters.  Values containing whitespace can be
+ * quoted with double quotes ('"').  Double quotes and backslashes in
+ * quoted values can be escaped with backslashes ('\').
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is being examined
  * @param _buf		the address of a buffer to receive the location

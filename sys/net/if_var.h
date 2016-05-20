@@ -535,7 +535,6 @@ void	if_dead(struct ifnet *);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
-void	if_vmove(struct ifnet *, struct vnet *);
 void	if_purgeaddrs(struct ifnet *);
 void	if_delallmulti(struct ifnet *);
 void	if_down(struct ifnet *);
@@ -628,6 +627,7 @@ int if_setupmultiaddr(if_t ifp, void *mta, int *cnt, int max);
 int if_multiaddr_array(if_t ifp, void *mta, int *cnt, int max);
 int if_multiaddr_count(if_t ifp, int max);
 
+int if_multi_apply(struct ifnet *ifp, int (*filter)(void *, struct ifmultiaddr *, int), void *arg);
 int if_getamcount(if_t ifp);
 struct ifaddr * if_getifaddr(if_t ifp);
 

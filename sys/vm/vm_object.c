@@ -476,7 +476,7 @@ vm_object_vndeallocate(vm_object_t object)
 	}
 #endif
 
-	if (object->ref_count == 1)
+	if (!umtx_shm_vnobj_persistent && object->ref_count == 1)
 		umtx_shm_object_terminated(object);
 
 	/*

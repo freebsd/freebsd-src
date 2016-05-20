@@ -110,7 +110,7 @@ bool intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu);
 int intr_isrc_dispatch(struct intr_irqsrc *, struct trapframe *);
 u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 
-int intr_pic_register(device_t, intptr_t);
+struct intr_pic *intr_pic_register(device_t, intptr_t);
 int intr_pic_deregister(device_t, intptr_t);
 int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *, u_int);
 
@@ -127,6 +127,14 @@ int intr_setup_irq(device_t, struct resource *, driver_filter_t, driver_intr_t,
 int intr_teardown_irq(device_t, struct resource *, void *);
 
 int intr_describe_irq(device_t, struct resource *, void *, const char *);
+
+/* MSI/MSI-X handling */
+int intr_msi_register(device_t, intptr_t);
+int intr_alloc_msi(device_t, device_t, intptr_t, int, int, int *);
+int intr_release_msi(device_t, device_t, intptr_t, int, int *);
+int intr_map_msi(device_t, device_t, intptr_t, int, uint64_t *, uint32_t *);
+int intr_alloc_msix(device_t, device_t, intptr_t, int *);
+int intr_release_msix(device_t, device_t, intptr_t, int);
 
 #ifdef DEV_ACPI
 u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,

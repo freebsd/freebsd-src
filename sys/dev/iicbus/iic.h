@@ -56,6 +56,8 @@ struct iic_rdwr_data {
 	uint32_t nmsgs;
 };
 
+#define IIC_RDRW_MAX_MSGS	42
+
 #define I2CSTART	_IOW('i', 1, struct iiccmd)	/* start condition */
 #define I2CSTOP		_IO('i', 2)			/* stop condition */
 #define I2CRSTCARD	_IOW('i', 3, struct iiccmd)	/* reset the card */

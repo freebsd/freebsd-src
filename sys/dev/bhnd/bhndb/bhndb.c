@@ -1144,10 +1144,15 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 {
 	struct bhndb_softc		*sc;
 	struct rman			*rm;
+	rman_res_t			 mstart, mend;
 	int				 error;
 	
 	sc = device_get_softc(dev);
 	error = 0;
+
+	/* Verify basic constraints */
+	if (end <= start)
+		return (EINVAL);
 
 	/* Fetch resource manager */
 	rm = bhndb_get_rman(sc, child, type);
@@ -1157,16 +1162,29 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 	if (!rman_is_region_manager(r, rm))
 		return (ENXIO);
 
-	/* If active, adjustment is limited by the assigned window. */
 	BHNDB_LOCK(sc);
 
-	// TODO: Currently unsupported
-	error = ENODEV;
+	/* If not active, allow any range permitted by the resource manager */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		goto done;
 
-	BHNDB_UNLOCK(sc);
+	/* Otherwise, the range is limited to the existing register window
+	 * mapping */
+	error = bhndb_find_resource_limits(sc->bus_res, r, &mstart, &mend);
+	if (error)
+		goto done;
+
+	if (start < mstart || end > mend) {
+		error = EINVAL;
+		goto done;
+	}
+
+	/* Fall through */
+done:
 	if (!error)
 		error = rman_adjust_resource(r, start, end);
 
+	BHNDB_UNLOCK(sc);
 	return (error);
 }
 
@@ -1536,7 +1554,8 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 	if (bhndb_get_addrspace(sc, child) == BHNDB_ADDRSPACE_BRIDGED) {
 		bhndb_priority_t r_prio;
 
-		region = bhndb_find_resource_region(sc->bus_res, r_start, r_size);
+		region = bhndb_find_resource_region(sc->bus_res, r_start,
+		    r_size);
 		if (region != NULL)
 			r_prio = region->priority;
 		else
@@ -1714,26 +1733,6 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 	return (dwa);
 }
 
-/**
- * Default bhndb(4) implementation of BHND_BUS_GET_NVRAM_VAR().
- */
-static int
-bhndb_get_nvram_var(device_t dev, device_t child, const char *name,
-    void *buf, size_t *size)
-{
-	device_t nvram;
-
-	/* Look for a directly-attached NVRAM child */
-	nvram = device_find_child(dev, devclass_get_name(bhnd_nvram_devclass),
-	    0);
-	if (nvram != NULL)
-		return (BHND_NVRAM_GETVAR(nvram, name, buf, size));
-
-	/* Otherwise, delegate to our parent */
-	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
-	    name, buf, size));
-}
-
 /*
  * BHND_BUS_(READ|WRITE_* implementations
  */
@@ -1786,15 +1785,15 @@ bhndb_bus_write_ ## _name (device_t dev, device_t child,	\
 	BHNDB_IO_COMMON_TEARDOWN();				\
 }
 
-/* Defines a bhndb_bus_(read|write)_multi_* method implementation */
-#define	BHNDB_IO_MULTI(_type, _rw, _name)			\
+/* Defines a bhndb_bus_(read|write|set)_(multi|region)_* method */
+#define	BHNDB_IO_MISC(_type, _ptr, _op, _size)			\
 static void							\
-bhndb_bus_ ## _rw ## _multi_ ## _name (device_t dev,		\
+bhndb_bus_ ## _op ## _ ## _size (device_t dev,			\
     device_t child, struct bhnd_resource *r, bus_size_t offset,	\
-    _type *datap, bus_size_t count)				\
+    _type _ptr datap, bus_size_t count)				\
 {								\
 	BHNDB_IO_COMMON_SETUP(sizeof(_type) * count);		\
-	bus_ ## _rw ## _multi_ ## _name (io_res, io_offset,	\
+	bus_ ## _op ## _ ## _size (io_res, io_offset,		\
 	    datap, count);					\
 	BHNDB_IO_COMMON_TEARDOWN();				\
 }
@@ -1807,11 +1806,19 @@ bhndb_bus_ ## _rw ## _multi_ ## _name (device_t dev,		\
 	BHNDB_IO_READ(_type, stream_ ## _size)			\
 	BHNDB_IO_WRITE(_type, stream_ ## _size)			\
 								\
-	BHNDB_IO_MULTI(_type, read, _size)			\
-	BHNDB_IO_MULTI(_type, write, _size)			\
+	BHNDB_IO_MISC(_type, *, read_multi, _size)		\
+	BHNDB_IO_MISC(_type, *, write_multi, _size)		\
 								\
-	BHNDB_IO_MULTI(_type, read, stream_ ## _size)		\
-	BHNDB_IO_MULTI(_type, write, stream_ ## _size)
+	BHNDB_IO_MISC(_type, *, read_multi_stream, _size)	\
+	BHNDB_IO_MISC(_type, *, write_multi_stream, _size)	\
+								\
+	BHNDB_IO_MISC(_type,  , set_multi, _size)		\
+	BHNDB_IO_MISC(_type,  , set_region, _size)		\
+	BHNDB_IO_MISC(_type, *, read_region, _size)		\
+	BHNDB_IO_MISC(_type, *, write_region, _size)		\
+								\
+	BHNDB_IO_MISC(_type, *, read_region_stream, _size)	\
+	BHNDB_IO_MISC(_type, *, write_region_stream, _size)
 
 BHNDB_IO_METHODS(uint8_t, 1);
 BHNDB_IO_METHODS(uint16_t, 2);
@@ -1824,24 +1831,9 @@ static void
 bhndb_bus_barrier(device_t dev, device_t child, struct bhnd_resource *r,
     bus_size_t offset, bus_size_t length, int flags)
 {
-	bus_size_t remain;
-
 	BHNDB_IO_COMMON_SETUP(length);
 
-	/* TODO: It's unclear whether we need a barrier implementation,
-	 * and if we do, what it needs to actually do. This may need
-	 * revisiting once we have a better idea of requirements after
-	 * porting the core drivers. */
-	panic("implementation incorrect");
-
-	/* Use 4-byte reads where possible */
-	remain = length % sizeof(uint32_t);
-	for (bus_size_t i = 0; i < (length - remain); i += 4)
-		bus_read_4(io_res, io_offset + offset + i);
-
-	/* Use 1 byte reads for the remainder */
-	for (bus_size_t i = 0; i < remain; i++)
-		bus_read_1(io_res, io_offset + offset + length + i);
+	bus_barrier(io_res, io_offset + offset, length, flags);
 
 	BHNDB_IO_COMMON_TEARDOWN();
 }
@@ -1961,7 +1953,7 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bhnd_bus_get_chipid,		bhndb_get_chipid),
 	DEVMETHOD(bhnd_bus_activate_resource,	bhndb_activate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_deactivate_resource,	bhndb_deactivate_bhnd_resource),
-	DEVMETHOD(bhnd_bus_get_nvram_var,	bhndb_get_nvram_var),
+	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_bus_generic_get_nvram_var),
 	DEVMETHOD(bhnd_bus_read_1,		bhndb_bus_read_1),
 	DEVMETHOD(bhnd_bus_read_2,		bhndb_bus_read_2),
 	DEVMETHOD(bhnd_bus_read_4,		bhndb_bus_read_4),
@@ -1989,6 +1981,27 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bhnd_bus_write_multi_stream_1,bhndb_bus_write_multi_stream_1),
 	DEVMETHOD(bhnd_bus_write_multi_stream_2,bhndb_bus_write_multi_stream_2),
 	DEVMETHOD(bhnd_bus_write_multi_stream_4,bhndb_bus_write_multi_stream_4),
+
+	DEVMETHOD(bhnd_bus_set_multi_1,		bhndb_bus_set_multi_1),
+	DEVMETHOD(bhnd_bus_set_multi_2,		bhndb_bus_set_multi_2),
+	DEVMETHOD(bhnd_bus_set_multi_4,		bhndb_bus_set_multi_4),
+	DEVMETHOD(bhnd_bus_set_region_1,	bhndb_bus_set_region_1),
+	DEVMETHOD(bhnd_bus_set_region_2,	bhndb_bus_set_region_2),
+	DEVMETHOD(bhnd_bus_set_region_4,	bhndb_bus_set_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_1,	bhndb_bus_read_region_1),
+	DEVMETHOD(bhnd_bus_read_region_2,	bhndb_bus_read_region_2),
+	DEVMETHOD(bhnd_bus_read_region_4,	bhndb_bus_read_region_4),
+	DEVMETHOD(bhnd_bus_write_region_1,	bhndb_bus_write_region_1),
+	DEVMETHOD(bhnd_bus_write_region_2,	bhndb_bus_write_region_2),
+	DEVMETHOD(bhnd_bus_write_region_4,	bhndb_bus_write_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_stream_1,bhndb_bus_read_region_stream_1),
+	DEVMETHOD(bhnd_bus_read_region_stream_2,bhndb_bus_read_region_stream_2),
+	DEVMETHOD(bhnd_bus_read_region_stream_4,bhndb_bus_read_region_stream_4),
+	DEVMETHOD(bhnd_bus_write_region_stream_1,bhndb_bus_write_region_stream_1),
+	DEVMETHOD(bhnd_bus_write_region_stream_2,bhndb_bus_write_region_stream_2),
+	DEVMETHOD(bhnd_bus_write_region_stream_4,bhndb_bus_write_region_stream_4),
 
 	DEVMETHOD(bhnd_bus_barrier,		bhndb_bus_barrier),
 

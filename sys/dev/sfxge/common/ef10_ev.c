@@ -92,8 +92,7 @@ efx_mcdi_init_evq(
 	__in		unsigned int instance,
 	__in		efsys_mem_t *esmp,
 	__in		size_t nevs,
-	__in		uint32_t irq,
-	__out_opt	uint32_t *irqp)
+	__in		uint32_t irq)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[
@@ -175,8 +174,7 @@ efx_mcdi_init_evq(
 		goto fail3;
 	}
 
-	if (irqp != NULL)
-		*irqp = MCDI_OUT_DWORD(req, INIT_EVQ_OUT_IRQ);
+	/* NOTE: ignore the returned IRQ param as firmware does not set it. */
 
 	return (0);
 
@@ -209,7 +207,7 @@ efx_mcdi_fini_evq(
 
 	MCDI_IN_SET_DWORD(req, FINI_EVQ_IN_INSTANCE, instance);
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
@@ -275,12 +273,9 @@ ef10_ev_qcreate(
 	eep->ee_drv_gen	= ef10_ev_drv_gen;
 	eep->ee_mcdi	= ef10_ev_mcdi;
 
-	/*
-	 * Set up the event queue
-	 * NOTE: ignore the returned IRQ param as firmware does not set it.
-	 */
+	/* Set up the event queue */
 	irq = index;	/* INIT_EVQ expects function-relative vector number */
-	if ((rc = efx_mcdi_init_evq(enp, index, esmp, n, irq, NULL)) != 0)
+	if ((rc = efx_mcdi_init_evq(enp, index, esmp, n, irq)) != 0)
 		goto fail3;
 
 	return (0);
@@ -552,7 +547,7 @@ ef10_ev_rx(
 		flags |= EFX_PKT_PREFIX_LEN;
 	}
 
-	/* Calculate the index of the the last descriptor consumed */
+	/* Calculate the index of the last descriptor consumed */
 	last_used_id = (eersp->eers_rx_read_ptr - 1) & eersp->eers_rx_mask;
 
 	/* Check for errors that invalidate checksum and L3/L4 fields */
@@ -871,7 +866,9 @@ ef10_ev_mcdi(
 		 */
 		enp->en_reset_flags |= EFX_RESET_TXQ_ERR;
 
-		EFSYS_PROBE1(tx_descq_err, uint32_t, MCDI_EV_FIELD(eqp, DATA));
+		EFSYS_PROBE2(tx_descq_err,
+			    uint32_t, EFX_QWORD_FIELD(*eqp, EFX_DWORD_1),
+			    uint32_t, EFX_QWORD_FIELD(*eqp, EFX_DWORD_0));
 
 		/* Inform the driver that a reset is required. */
 		eecp->eec_exception(arg, EFX_EXCEPTION_TX_ERROR,
@@ -911,7 +908,9 @@ ef10_ev_mcdi(
 		 */
 		enp->en_reset_flags |= EFX_RESET_RXQ_ERR;
 
-		EFSYS_PROBE1(rx_descq_err, uint32_t, MCDI_EV_FIELD(eqp, DATA));
+		EFSYS_PROBE2(rx_descq_err,
+			    uint32_t, EFX_QWORD_FIELD(*eqp, EFX_DWORD_1),
+			    uint32_t, EFX_QWORD_FIELD(*eqp, EFX_DWORD_0));
 
 		/* Inform the driver that a reset is required. */
 		eecp->eec_exception(arg, EFX_EXCEPTION_RX_ERROR,

@@ -105,6 +105,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -1725,7 +1727,7 @@ iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
 {
 	struct iwm_softc *sc = ic->ic_softc;
 	struct iwm_nvm_data *data = &sc->sc_nvm;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	memset(bands, 0, sizeof(bands));
 	/* 1-13: 11b/g channels. */
@@ -3836,6 +3838,7 @@ static void
 iwm_watchdog(void *arg)
 {
 	struct iwm_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
@@ -3843,8 +3846,8 @@ iwm_watchdog(void *arg)
 #ifdef IWM_DEBUG
 			iwm_nic_error(sc);
 #endif
-			iwm_stop(sc);
-			counter_u64_add(sc->sc_ic.ic_oerrors, 1);
+			ieee80211_restart_all(ic);
+			counter_u64_add(ic->ic_oerrors, 1);
 			return;
 		}
 	}

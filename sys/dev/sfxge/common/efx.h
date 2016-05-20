@@ -173,6 +173,30 @@ extern 		void
 efx_nic_destroy(
 	__in	efx_nic_t *enp);
 
+#define	EFX_PCIE_LINK_SPEED_GEN1		1
+#define	EFX_PCIE_LINK_SPEED_GEN2		2
+#define	EFX_PCIE_LINK_SPEED_GEN3		3
+
+typedef enum efx_pcie_link_performance_e {
+	EFX_PCIE_LINK_PERFORMANCE_UNKNOWN_BANDWIDTH,
+	EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_BANDWIDTH,
+	EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_LATENCY,
+	EFX_PCIE_LINK_PERFORMANCE_OPTIMAL
+} efx_pcie_link_performance_t;
+
+extern	__checkReturn	efx_rc_t
+efx_nic_calculate_pcie_link_bandwidth(
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		uint32_t *bandwidth_mbpsp);
+
+extern	__checkReturn	efx_rc_t
+efx_nic_check_pcie_link_speed(
+	__in		efx_nic_t *enp,
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		efx_pcie_link_performance_t *resultp);
+
 #if EFSYS_OPT_MCDI
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
@@ -418,16 +442,28 @@ typedef enum efx_link_mode_e {
 
 #define	EFX_MAC_SDU_MAX	9202
 
-#define	EFX_MAC_PDU(_sdu) 				\
-	P2ROUNDUP(((_sdu)				\
-		    + /* EtherII */ 14			\
-		    + /* VLAN */ 4			\
-		    + /* CRC */ 4			\
-		    + /* bug16011 */ 16),		\
-		    (1 << 3))
+#define	EFX_MAC_PDU_ADJUSTMENT					\
+	(/* EtherII */ 14					\
+	    + /* VLAN */ 4					\
+	    + /* CRC */ 4					\
+	    + /* bug16011 */ 16)				\
+
+#define	EFX_MAC_PDU(_sdu)					\
+	P2ROUNDUP((_sdu) + EFX_MAC_PDU_ADJUSTMENT, 8)
+
+/*
+ * Due to the P2ROUNDUP in EFX_MAC_PDU(), EFX_MAC_SDU_FROM_PDU() may give
+ * the SDU rounded up slightly.
+ */
+#define	EFX_MAC_SDU_FROM_PDU(_pdu)	((_pdu) - EFX_MAC_PDU_ADJUSTMENT)
 
 #define	EFX_MAC_PDU_MIN	60
 #define	EFX_MAC_PDU_MAX	EFX_MAC_PDU(EFX_MAC_SDU_MAX)
+
+extern	__checkReturn	efx_rc_t
+efx_mac_pdu_get(
+	__in		efx_nic_t *enp,
+	__out		size_t *pdu);
 
 extern	__checkReturn	efx_rc_t
 efx_mac_pdu_set(
@@ -1116,6 +1152,9 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_mcdi_max_payload_length;
 	/* VPD may be per-PF or global */
 	boolean_t		enc_vpd_is_global;
+	/* Minimum unidirectional bandwidth in Mb/s to max out all ports */
+	uint32_t		enc_required_pcie_bandwidth_mbps;
+	uint32_t		enc_max_pcie_link_gen;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
@@ -2287,6 +2326,10 @@ extern				void
 efx_lic_fini(
 	__in			efx_nic_t *enp);
 
+extern	__checkReturn	boolean_t
+efx_lic_check_support(
+	__in			efx_nic_t *enp);
+
 extern	__checkReturn	efx_rc_t
 efx_lic_update_licenses(
 	__in		efx_nic_t *enp);
@@ -2310,6 +2353,97 @@ efx_lic_get_id(
 	__out		size_t *lengthp,
 	__out_opt	uint8_t *bufferp);
 
+
+extern	__checkReturn		efx_rc_t
+efx_lic_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
 
 #endif	/* EFSYS_OPT_LICENSING */
 

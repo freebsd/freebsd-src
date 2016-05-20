@@ -1142,6 +1142,9 @@ dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhndbus | bhnd
 dev/bhnd/cores/pci/bhnd_pci.c		optional bhndbus pci | bhnd pci
 dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndbus pci | bhndb pci
 dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
+dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhndbus pci | bhnd pci
+dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/cores/pcie2/bhnd_pcie2b.c	optional bhnd_pcie2b bhnd pci
 dev/bhnd/nvram/bhnd_nvram_if.m		optional bhndbus | bhnd
 dev/bhnd/nvram/bhnd_sprom.c		optional bhndbus | bhnd
 dev/bhnd/nvram/nvram_subr.c		optional bhndbus | bhnd
@@ -1176,6 +1179,7 @@ dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/if_bwn_phy_n.c		optional bwn siba_bwn
 dev/bwn/if_bwn_util.c		optional bwn siba_bwn
 dev/bwn/bwn_mac.c		optional bwn bhnd | bwn bhndbus
 dev/cardbus/cardbus.c		optional cardbus
@@ -1625,8 +1629,8 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	clean		"ipw_monitor.fw"
 dev/iscsi/icl.c			optional iscsi | ctl
 dev/iscsi/icl_conn_if.m		optional iscsi | ctl
-dev/iscsi/icl_proxy.c		optional iscsi | ctl
 dev/iscsi/icl_soft.c		optional iscsi | ctl
+dev/iscsi/icl_soft_proxy.c	optional iscsi | ctl
 dev/iscsi/iscsi.c		optional iscsi scbus
 dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
@@ -3151,15 +3155,6 @@ fs/ext2fs/ext2_lookup.c		optional ext2fs
 fs/ext2fs/ext2_subr.c		optional ext2fs
 fs/ext2fs/ext2_vfsops.c		optional ext2fs
 fs/ext2fs/ext2_vnops.c		optional ext2fs
-gnu/fs/reiserfs/reiserfs_hashes.c	optional reiserfs \
-	warning "kernel contains GPL contaminated ReiserFS filesystem"
-gnu/fs/reiserfs/reiserfs_inode.c	optional reiserfs
-gnu/fs/reiserfs/reiserfs_item_ops.c	optional reiserfs
-gnu/fs/reiserfs/reiserfs_namei.c	optional reiserfs
-gnu/fs/reiserfs/reiserfs_prints.c	optional reiserfs
-gnu/fs/reiserfs/reiserfs_stree.c	optional reiserfs
-gnu/fs/reiserfs/reiserfs_vfsops.c	optional reiserfs
-gnu/fs/reiserfs/reiserfs_vnops.c	optional reiserfs
 #
 isa/isa_if.m			standard
 isa/isa_common.c		optional isa
@@ -3528,6 +3523,9 @@ net/if_tun.c			optional tun
 net/if_tap.c			optional tap
 net/if_vlan.c			optional vlan
 net/if_vxlan.c			optional vxlan inet | vxlan inet6
+net/ifdi_if.m                  optional ether pci
+net/iflib.c                    optional ether pci
+net/mp_ring.c                  optional ether
 net/mppcc.c			optional netgraph_mppc_compression
 net/mppcd.c			optional netgraph_mppc_compression
 net/netisr.c			standard

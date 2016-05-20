@@ -335,8 +335,9 @@ fuse_vnop_create(struct vop_create_args *ap)
 
 	/* XXX:	Will we ever want devices ? */
 	if ((vap->va_type != VREG)) {
-		MPASS(vap->va_type != VFIFO);
-		goto bringup;
+		printf("fuse_vnop_create: unsupported va_type %d\n",
+		    vap->va_type);
+		return (EINVAL);
 	}
 	debug_printf("parent nid = %ju, mode = %x\n", (uintmax_t)parentnid,
 	    mode);
@@ -364,7 +365,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		debug_printf("create: got err=%d from daemon\n", err);
 		goto out;
 	}
-bringup:
+
 	feo = fdip->answ;
 
 	if ((err = fuse_internal_checkentry(feo, VREG))) {
@@ -1153,7 +1154,7 @@ fuse_vnop_open(struct vop_open_args *ap)
 			fuse_open_flags = FOPEN_DIRECT_IO;
 	}
 
-	if (fuse_filehandle_valid(vp, fufh_type)) {
+	if (fuse_filehandle_validrw(vp, fufh_type) != FUFH_INVALID) {
 		fuse_vnode_open(vp, fuse_open_flags, td);
 		return 0;
 	}

@@ -70,6 +70,7 @@ bool ntb_link_is_up(struct ntb_softc *, enum ntb_speed *, enum ntb_width *);
 void ntb_link_event(struct ntb_softc *);
 int ntb_link_enable(struct ntb_softc *, enum ntb_speed, enum ntb_width);
 int ntb_link_disable(struct ntb_softc *);
+bool ntb_link_enabled(struct ntb_softc *);
 
 int ntb_set_ctx(struct ntb_softc *, void *, const struct ntb_ctx_ops *);
 void *ntb_get_ctx(struct ntb_softc *, const struct ntb_ctx_ops **);

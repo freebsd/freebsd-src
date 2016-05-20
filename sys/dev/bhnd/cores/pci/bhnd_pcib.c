@@ -86,8 +86,10 @@ static device_method_t bhnd_pcib_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(bhnd_pcib, bhnd_pcib_driver, bhnd_pcib_methods, sizeof(struct bhnd_pcib_softc), bhnd_pci_driver);
-DRIVER_MODULE(bhnd_pcib, bhnd, bhnd_pcib_driver, bhnd_hostb_devclass, 0, 0);
+DEFINE_CLASS_1(pcib, bhnd_pcib_driver, bhnd_pcib_methods, sizeof(struct bhnd_pcib_softc), bhnd_pci_driver);
+
+static devclass_t pcib_devclass;
+DRIVER_MODULE(bhnd_pcib, bhnd, bhnd_pcib_driver, pcib_devclass, 0, 0);
 
 MODULE_VERSION(bhnd_pcib, 1);
 MODULE_DEPEND(bhnd_pcib, bhnd, 1, 1, 1);

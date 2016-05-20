@@ -96,7 +96,8 @@ SUBDIR=	adduser \
 	wake \
 	watch \
 	watchdogd \
-	zic
+	zic \
+	zonectl
 
 # NB: keep these sorted by MK_* knobs
 
