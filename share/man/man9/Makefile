@@ -1510,10 +1510,12 @@ MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_append_phys.9 \
 	sglist.9 sglist_append_uio.9 \
 	sglist.9 sglist_append_user.9 \
+	sglist.9 sglist_append_vmpages.9 \
 	sglist.9 sglist_build.9 \
 	sglist.9 sglist_clone.9 \
 	sglist.9 sglist_consume_uio.9 \
 	sglist.9 sglist_count.9 \
+	sglist.9 sglist_count_vmpages.9 \
 	sglist.9 sglist_free.9 \
 	sglist.9 sglist_hold.9 \
 	sglist.9 sglist_init.9 \
