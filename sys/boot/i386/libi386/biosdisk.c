@@ -749,21 +749,29 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 		 * sectors cannot be decrypted. Round the requested LBA down to
 		 * nearest multiple of DEV_GELIBOOT_BSIZE bytes.
 		 */
-		alignlba = dblk &
-		    ~(daddr_t)((DEV_GELIBOOT_BSIZE / BIOSDISK_SECSIZE) - 1);
+		alignlba = rounddown2(dblk * BD(dev).bd_sectorsize,
+		    DEV_GELIBOOT_BSIZE) / BD(dev).bd_sectorsize;
 		/*
 		 * Round number of blocks to read up to nearest multiple of
 		 * DEV_GELIBOOT_BSIZE
 		 */
-		alignblks = blks + (dblk - alignlba) +
-		    ((DEV_GELIBOOT_BSIZE / BIOSDISK_SECSIZE) - 1) &
-		    ~(int)((DEV_GELIBOOT_BSIZE / BIOSDISK_SECSIZE) - 1);
-		diff = (dblk - alignlba) * BIOSDISK_SECSIZE;
+		diff = (dblk - alignlba) * BD(dev).bd_sectorsize;
+		alignblks = roundup2(blks * BD(dev).bd_sectorsize + diff,
+		    DEV_GELIBOOT_BSIZE) / BD(dev).bd_sectorsize;
+
 		/*
-		 * Use a temporary buffer here because the buffer provided by
-		 * the caller may be too small.
+		 * If the read is rounded up to a larger size, use a temporary
+		 * buffer here because the buffer provided by the caller may be
+		 * too small.
 		 */
-		tmpbuf = alloca(alignblks * BIOSDISK_SECSIZE);
+		if (diff == 0) {
+			tmpbuf = dest;
+		} else {
+			tmpbuf = malloc(alignblks * BD(dev).bd_sectorsize);
+			if (tmpbuf == NULL) {
+				return (-1);
+			}
+		}
 
 		err = bd_io(dev, alignlba, alignblks, tmpbuf, 0);
 		if (err)
@@ -779,12 +787,15 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 		/* GELI needs the offset relative to the partition start */
 		p_off = alignlba - dskp.start;
 
-		err = geli_read(&dskp, p_off * BIOSDISK_SECSIZE, tmpbuf,
-		    alignblks * BIOSDISK_SECSIZE);
+		err = geli_read(&dskp, p_off * BD(dev).bd_sectorsize, tmpbuf,
+		    alignblks * BD(dev).bd_sectorsize);
 		if (err)
 			return (err);
 
-		bcopy(tmpbuf + diff, dest, blks * BIOSDISK_SECSIZE);
+		if (tmpbuf != dest) {
+			bcopy(tmpbuf + diff, dest, blks * BD(dev).bd_sectorsize);
+			free(tmpbuf);
+		}
 		return (0);
 	}
 #endif /* LOADER_GELI_SUPPORT */
@@ -898,10 +909,10 @@ bios_read(void *vdev __unused, struct dsk *priv, off_t off, char *buf, size_t by
 	dev.d_partition = priv->part;
 	dev.d_offset = priv->start;
 
-	off = off / BIOSDISK_SECSIZE;
+	off = off / BD(&dev).bd_sectorsize;
 	/* GELI gives us the offset relative to the partition start */
 	off += dev.d_offset;
-	bytes = bytes / BIOSDISK_SECSIZE;
+	bytes = bytes / BD(&dev).bd_sectorsize;
 
 	return (bd_io(&dev, off, bytes, buf, 0));
 }
