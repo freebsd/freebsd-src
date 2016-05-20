@@ -234,10 +234,16 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		 * Get a refcnt (shared lock) on nfsd_suspend_lock.
 		 * NFSSVC_SUSPENDNFSD will take an exclusive lock on
 		 * nfsd_suspend_lock to suspend these threads.
+		 * The call to nfsv4_lock() that preceeds nfsv4_getref()
+		 * ensures that the acquisition of the exclusive lock
+		 * takes priority over acquisition of the shared lock by
+		 * waiting for any exclusive lock request to complete.
 		 * This must be done here, before the check of
 		 * nfsv4root exports by nfsvno_v4rootexport().
 		 */
 		NFSLOCKV4ROOTMUTEX();
+		nfsv4_lock(&nfsd_suspend_lock, 0, NULL, NFSV4ROOTLOCKMUTEXPTR,
+		    NULL);
 		nfsv4_getref(&nfsd_suspend_lock, NULL, NFSV4ROOTLOCKMUTEXPTR,
 		    NULL);
 		NFSUNLOCKV4ROOTMUTEX();
