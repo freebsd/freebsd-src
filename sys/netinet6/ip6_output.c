@@ -325,12 +325,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct m_tag *fwd_tag = NULL;
 	uint32_t id;
 
-	ip6 = mtod(m, struct ip6_hdr *);
-	if (ip6 == NULL) {
-		printf ("ip6 is NULL");
-		goto bad;
-	}
-
 	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		if ((flags & IP_NODEFAULTFLOWID) == 0) {
@@ -412,7 +406,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		hdrsplit++;
 	}
 
-	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* adjust mbuf packet header length */
