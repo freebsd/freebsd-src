@@ -389,6 +389,10 @@ SlowFault:
  * matching the form "sw ra, (off)sp" to figure out the address of the
  * calling function. So we must make sure that we save the exception
  * PC by staging it through 'ra' as opposed to any other register.
+ *
+ * XXXCHERI: Now that "struct trapframe" contains capabilities, we will need
+ * to more carefully adjust the alignment of the overall trap frame here,
+ * rather than just adjusting the capability-related bits as above.
  */
 #define	SAVE_CPU \
 	SAVE_REG(AT, AST, sp)		;\
