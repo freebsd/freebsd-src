@@ -38,10 +38,12 @@
 .Nm sglist_append_phys ,
 .Nm sglist_append_uio ,
 .Nm sglist_append_user ,
+.Nm sglist_append_vmpages ,
 .Nm sglist_build ,
 .Nm sglist_clone ,
 .Nm sglist_consume_uio ,
 .Nm sglist_count ,
+.Nm sglist_count_vmpages ,
 .Nm sglist_free ,
 .Nm sglist_hold ,
 .Nm sglist_init ,
@@ -68,6 +70,8 @@
 .Fn sglist_append_uio "struct sglist *sg" "struct uio *uio"
 .Ft int
 .Fn sglist_append_user "struct sglist *sg" "void *buf" "size_t len" "struct thread *td"
+.Ft int
+.Fn sglist_append_vmpages "struct sglist *sg" "vm_page_t *m" "size_t pgoff" "size_t len"
 .Ft struct sglist *
 .Fn sglist_build "void *buf" "size_t len" "int mflags"
 .Ft struct sglist *
@@ -76,6 +80,8 @@
 .Fn sglist_consume_uio "struct sglist *sg" "struct uio *uio" "size_t resid"
 .Ft int
 .Fn sglist_count "void *buf" "size_t len"
+.Ft int
+.Fn sglist_count_vmpages "vm_page_t *m" "size_t pgoff" "size_t len"
 .Ft void
 .Fn sglist_free "struct sglist *sg"
 .Ft struct sglist *
@@ -133,6 +139,18 @@ the physical address ranges mapped by a single kernel virtual address range.
 The kernel virtual address range starts at
 .Fa buf
 and is
+.Fa len
+bytes long.
+.Pp
+The
+.Nm sglist_count_vmpages
+function returns the number of scatter/gather list elements needed to describe
+the physical address ranges of a buffer backed by an array of virtual memory
+pages
+.Fa m .
+The buffer starts at an offset of
+.Fa pgoff
+bytes relative to the first page and is
 .Fa len
 bytes long.
 .Pp
@@ -260,6 +278,17 @@ bytes long.
 Note that it is the caller's responsibility to ensure that the pages backing
 the user buffer are wired for the lifetime of
 .Fa sg .
+.Pp
+The
+.Nm sglist_append_vmpages
+function appends the physical address ranges of a buffer backed by an array
+of virtual memory pages
+.Fa m .
+The buffer starts at an offset of
+.Fa pgoff
+bytes relative to the first page and is
+.Fa len
+bytes long.
 .Pp
 The
 .Nm sglist_consume_uio
@@ -421,7 +450,9 @@ functions return zero on success or an error on failure.
 .Pp
 The
 .Nm sglist_count
-function returns a count of scatter/gather list elements.
+and
+.Nm sglist_count_vmpages
+functions return a count of scatter/gather list elements.
 .Pp
 The
 .Nm sglist_length
