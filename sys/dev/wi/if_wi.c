@@ -691,7 +691,7 @@ wi_getradiocaps(struct ieee80211com *ic,
     int maxchans, int *nchans, struct ieee80211_channel chans[])
 {
 	struct wi_softc *sc = ic->ic_softc;
-	u_int8_t bands[IEEE80211_MODE_MAX];
+	u_int8_t bands[IEEE80211_MODE_BYTES];
 	int i;
 
 	memset(bands, 0, sizeof(bands));
