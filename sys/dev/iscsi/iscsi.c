@@ -1415,21 +1415,17 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 
 	ISCSI_SESSION_UNLOCK(is);
 
-#ifdef ICL_KERNEL_PROXY
-	if (handoff->idh_socket != 0) {
-#endif
-		/*
-		 * Handoff without using ICL proxy.
-		 */
-		error = icl_conn_handoff(ic, handoff->idh_socket);
-		if (error != 0) {
-			sx_sunlock(&sc->sc_lock);
-			iscsi_session_terminate(is);
-			return (error);
-		}
-#ifdef ICL_KERNEL_PROXY
+	/*
+	 * If we're going through the proxy, the idh_socket will be 0,
+	 * and the ICL module can simply ignore this call.  It can also
+	 * use it to determine it's no longer in the Login phase.
+	 */
+	error = icl_conn_handoff(ic, handoff->idh_socket);
+	if (error != 0) {
+		sx_sunlock(&sc->sc_lock);
+		iscsi_session_terminate(is);
+		return (error);
 	}
-#endif
 
 	sx_sunlock(&sc->sc_lock);
 
