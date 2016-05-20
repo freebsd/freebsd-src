@@ -563,8 +563,52 @@ bhndb_add_resource_region(struct bhndb_resources *br, bhnd_addr_t addr,
 	return (0);
 }
 
+
 /**
- * Find a bus region that maps @p size bytes at @p addr.
+ * Find the maximum start and end limits of the register window mapping
+ * resource @p r.
+ * 
+ * If the memory range is not mapped by an existing dynamic or static register
+ * window, ENOENT will be returned.
+ * 
+ * @param br The resource state to search.
+ * @param r The resource to search for in @p br.
+ * @param addr The requested starting address.
+ * @param size The requested size.
+ * 
+ * @retval bhndb_region A region that fully contains the requested range.
+ * @retval NULL If no mapping region can be found.
+ */
+int
+bhndb_find_resource_limits(struct bhndb_resources *br, struct resource *r,
+    rman_res_t *start, rman_res_t *end)
+{
+	struct bhndb_dw_alloc	*dynamic;
+	struct bhndb_region	*sregion;
+
+	/* Check for an enclosing dynamic register window */
+	if ((dynamic = bhndb_dw_find_resource(br, r))) {
+		*start = dynamic->target;
+		*end = dynamic->target + dynamic->win->win_size - 1;
+		return (0);
+	}
+
+	/* Check for a static region */
+	sregion = bhndb_find_resource_region(br, rman_get_start(r),
+	    rman_get_size(r));
+	if (sregion != NULL && sregion->static_regwin != NULL) {
+		*start = sregion->addr;
+		*end = sregion->addr + sregion->size - 1;
+
+		return (0);
+	}
+
+	/* Not found */
+	return (ENOENT);
+}
+
+/**
+ * Find the bus region that maps @p size bytes at @p addr.
  * 
  * @param br The resource state to search.
  * @param addr The requested starting address.
