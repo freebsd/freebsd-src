@@ -239,14 +239,12 @@ ffs_mount(struct mount *mp)
 			if ((error = ffs_flushfiles(mp, WRITECLOSE, td)) != 0 ||
 			    (error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0)
 				return (error);
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Return to normal read-only mode.
 			 */
 			error = g_access(ump->um_cp, 0, -1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			ump->um_fsckpid = 0;
 		}
 		if (fs->fs_ronly == 0 &&
@@ -294,14 +292,12 @@ ffs_mount(struct mount *mp)
 			}
 			if (MOUNTEDSOFTDEP(mp))
 				softdep_unmount(mp);
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Drop our write and exclusive access.
 			 */
 			g_access(ump->um_cp, 0, -1, -1);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			fs->fs_ronly = 1;
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_RDONLY;
@@ -359,14 +355,12 @@ ffs_mount(struct mount *mp)
 					return (EPERM);
 				}
 			}
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Request exclusive write access.
 			 */
 			error = g_access(ump->um_cp, 0, 1, 1);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			if (error)
 				return (error);
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
@@ -433,14 +427,12 @@ ffs_mount(struct mount *mp)
 			}
 			KASSERT(MOUNTEDSOFTDEP(mp) == 0,
 			    ("soft updates enabled on read-only file system"));
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Request write access.
 			 */
 			error = g_access(ump->um_cp, 0, 1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			if (error) {
 				vfs_mount_error(mp,
 				    "Checker activation failed on %s",
@@ -523,14 +515,12 @@ ffs_mount(struct mount *mp)
 			    ("soft updates enabled on read-only file system"));
 			ump = VFSTOUFS(mp);
 			fs = ump->um_fs;
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Request write access.
 			 */
 			error = g_access(ump->um_cp, 0, 1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			if (error) {
 				printf("WARNING: %s: Checker activation "
 				    "failed\n", fs->fs_fsmnt);
@@ -771,11 +761,9 @@ ffs_mountfs(devvp, mp, td)
 		VOP_UNLOCK(devvp, 0);
 		return (EBUSY);
 	}
-	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	if (error != 0) {
 		atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
 		VOP_UNLOCK(devvp, 0);
@@ -1090,11 +1078,9 @@ out:
 	if (bp)
 		brelse(bp);
 	if (cp != NULL) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 	}
 	if (ump) {
 		mtx_destroy(UFS_MTX(ump));
@@ -1280,7 +1266,6 @@ ffs_unmount(mp, mntflags)
 		taskqueue_drain_all(ump->um_trim_tq);
 		taskqueue_free(ump->um_trim_tq);
 	}
-	DROP_GIANT();
 	g_topology_lock();
 	if (ump->um_fsckpid > 0) {
 		/*
@@ -1291,7 +1276,6 @@ ffs_unmount(mp, mntflags)
 	}
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	atomic_store_rel_ptr((uintptr_t *)&ump->um_dev->si_mountpt, 0);
 	vrele(ump->um_devvp);
 	dev_rel(ump->um_dev);
