@@ -3189,7 +3189,7 @@ static int
 rand(void)
 {
 
-	return (random());
+	return (random() / 2 + 1);
 }
 
 static void
