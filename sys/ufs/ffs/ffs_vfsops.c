@@ -764,24 +764,30 @@ ffs_mountfs(devvp, mp, td)
 	cred = td ? td->td_ucred : NOCRED;
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
+	KASSERT(devvp->v_type == VCHR, ("reclaimed devvp"));
 	dev = devvp->v_rdev;
-	dev_ref(dev);
+	if (atomic_cmpset_acq_ptr((uintptr_t *)&dev->si_mountpt, 0,
+	    (uintptr_t)mp) == 0) {
+		VOP_UNLOCK(devvp, 0);
+		return (EBUSY);
+	}
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
 	g_topology_unlock();
 	PICKUP_GIANT();
+	if (error != 0) {
+		atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
+		VOP_UNLOCK(devvp, 0);
+		return (error);
+	}
+	dev_ref(dev);
+	devvp->v_bufobj.bo_ops = &ffs_ops;
 	VOP_UNLOCK(devvp, 0);
-	if (error)
-		goto out;
-	if (devvp->v_rdev->si_iosize_max != 0)
-		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
+	if (dev->si_iosize_max != 0)
+		mp->mnt_iosize_max = dev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
-
-	devvp->v_bufobj.bo_ops = &ffs_ops;
-	if (devvp->v_type == VCHR)
-		devvp->v_rdev->si_mountpt = mp;
 
 	fs = NULL;
 	sblockloc = 0;
@@ -1083,8 +1089,6 @@ ffs_mountfs(devvp, mp, td)
 out:
 	if (bp)
 		brelse(bp);
-	if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
-		devvp->v_rdev->si_mountpt = NULL;
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
@@ -1102,6 +1106,7 @@ out:
 		free(ump, M_UFSMNT);
 		mp->mnt_data = NULL;
 	}
+	atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
 	dev_rel(dev);
 	return (error);
 }
@@ -1287,8 +1292,7 @@ ffs_unmount(mp, mntflags)
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	if (ump->um_devvp->v_type == VCHR && ump->um_devvp->v_rdev != NULL)
-		ump->um_devvp->v_rdev->si_mountpt = NULL;
+	atomic_store_rel_ptr((uintptr_t *)&ump->um_dev->si_mountpt, 0);
 	vrele(ump->um_devvp);
 	dev_rel(ump->um_dev);
 	mtx_destroy(UFS_MTX(ump));
