@@ -232,7 +232,12 @@ TOOLSDIR?= ${HOST_OBJTOP}/tools
 .elif defined(STAGE_HOST_OBJTOP)
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
+# Only define if it exists in case user didn't run bootstrap-tools.  Otherwise
+# the tool will be built during the build.  Building it assumes it is
+# TARGET==MACHINE.
+.if exists(${HOST_OBJTOP}/tools${.CURDIR})
 BTOOLSPATH= ${HOST_OBJTOP}/tools${.CURDIR}
+.endif
 
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
