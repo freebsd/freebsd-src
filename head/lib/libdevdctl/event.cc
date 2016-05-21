@@ -41,7 +41,6 @@
 #include <sys/filio.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -50,6 +49,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <cinttypes>
 #include <cstdarg>
 #include <cstring>
 #include <iostream>
@@ -430,14 +430,13 @@ Event::TimestampEventString(std::string &eventString)
 		if (eventString.find("timestamp=") == string::npos) {
 			const size_t bufsize = 32;	// Long enough for a 64-bit int
 			timeval now;
-			struct tm* time_s;
 			char timebuf[bufsize];
 
 			size_t eventEnd(eventString.find_last_not_of('\n') + 1);
 			if (gettimeofday(&now, NULL) != 0)
 				err(1, "gettimeofday");
-			time_s = gmtime(&now.tv_sec);
-			strftime(timebuf, bufsize, " timestamp=%s", time_s);
+			snprintf(timebuf, bufsize, " timestamp=%"PRId64,
+				(int64_t) now.tv_sec);
 			eventString.insert(eventEnd, timebuf);
 		}
 	}
