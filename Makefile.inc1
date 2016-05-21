@@ -533,7 +533,7 @@ KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 .if ${MK_META_MODE} == "yes"
 # meta mode normally is disallowed when building from curdir==objdir, but we
 # want to allow it for the kernel build.
-KMAKE+=	.MAKE.MODE="${.MAKE.MODE} curdirOk=yes"
+KMAKEENV+=	META_MODE="${.MAKE.MODE} curdirOk=yes"
 .endif
 
 #
