@@ -1403,6 +1403,19 @@ This must be set in the environment, make command line, or
 .Pa /etc/src-env.conf ,
 not
 .Pa /etc/src.conf .
+.It Va WITH_SYSTEM_COMPILER
+.\" from FreeBSD: head/tools/build/options/WITH_SYSTEM_COMPILER 300354 2016-05-21 01:32:23Z bdrewery
+Set to opportunistically skip building a cross-compiler during the
+bootstrap phase of the build.
+If the currently installed compiler matches the planned bootstrap compiler
+type and revision, then it will not be built.
+This does not prevent a compiler from being built for installation though,
+only for building one for the build itself.
+The
+.Va WITHOUT_CLANG
+and
+.Va WITHOUT_GCC
+options control those.
 .It Va WITHOUT_TALK
 .\" from FreeBSD: head/tools/build/options/WITHOUT_TALK 277676 2015-01-25 04:37:44Z ngie
 Set to not build or install
