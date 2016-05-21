@@ -36,6 +36,8 @@
  */
 
 #include <sys/param.h>
+#include <machine/cheri.h>
+#include <machine/cheric.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -124,6 +126,7 @@ kvprintf(char const *fmt, struct snprintf_arg *arg, int radix, va_list ap)
 #define PCHAR(c) snprintf_func((c), arg)
 	char nbuf[MAXNBUF];
 	const char *p, *percent, *q;
+	void *ptr;
 	u_char *up;
 	int ch, n;
 	uintmax_t num;
@@ -280,10 +283,69 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			base = 8;
 			goto handle_nosign;
 		case 'p':
+			ptr = va_arg(ap, void *);
+			if (sharpflag) {
+				/* v:0 */
+				PCHAR('v'); PCHAR(':');
+				cheri_gettag(ptr) ? PCHAR('1') : PCHAR('0');
+				PCHAR(' ');
+
+				/* s:0 */
+				PCHAR('s'); PCHAR(':');
+				cheri_getsealed(ptr) ? PCHAR('1') : PCHAR('0');
+				PCHAR(' ');
+
+				/* p:00000000 */
+				PCHAR('p'); PCHAR(':');
+				q = ksprintn(nbuf, cheri_getperm(ptr), 16,
+				     &n, 0);
+				for (width = 8 - n; width > 0; width++)
+					PCHAR('0');
+				while (*q)
+					PCHAR(*q--);
+				PCHAR(' ');
+
+				/* b:0000000000000000 */
+				PCHAR('b'); PCHAR(':');
+				q = ksprintn(nbuf, cheri_getbase(ptr), 16,
+				     &n, 0);
+				for (width = 16 - n; width > 0; width++)
+					PCHAR('0');
+				while (*q)
+					PCHAR(*q--);
+				PCHAR(' ');
+
+				/* l:0000000000000000 */
+				PCHAR('l'); PCHAR(':');
+				q = ksprintn(nbuf, cheri_getlen(ptr), 16,
+				     &n, 0);
+				for (width = 16 - n; width > 0; width++)
+					PCHAR('0');
+				while (*q)
+					PCHAR(*q--);
+				PCHAR(' ');
+
+				/* o:0 */
+				PCHAR('o'); PCHAR(':');
+				q = ksprintn(nbuf, cheri_getoffset(ptr), 16,
+				     NULL, 0);
+				while (*q)
+					PCHAR(*q--);
+				PCHAR(' ');
+
+				/* t:0 */
+				PCHAR('t'); PCHAR(':');
+				q = ksprintn(nbuf, cheri_gettype(ptr), 16,
+				     NULL, 0);
+				while (*q)
+					PCHAR(*q--);
+
+				break;
+			}
 			base = 16;
 			sharpflag = (width == 0);
 			sign = 0;
-			num = (uintptr_t)va_arg(ap, void *);
+			num = (vaddr_t)ptr;
 			goto number;
 		case 'q':
 			qflag = 1;

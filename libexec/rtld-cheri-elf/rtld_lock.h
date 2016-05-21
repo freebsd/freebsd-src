@@ -1,6 +1,5 @@
 /*-
- * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
- * Copyright 2003 Alexander Kabaev <kan@FreeBSD.ORG>.
+ * Copyright 2003 Alexander Kabaev.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,21 +25,51 @@
  * $FreeBSD$
  */
 
-#ifndef PATHS_H
-#define PATHS_H
+#ifndef _RTLD_LOCK_H_
+#define	_RTLD_LOCK_H_
 
-#undef _PATH_ELF_HINTS
+#define	RTLI_VERSION	0x01
+#define	MAX_RTLD_LOCKS	8
 
-#define	_PATH_ELF_HINTS		"/var/run/ld-cheri-elf.so.hints"
-#define	_PATH_LIBMAP_CONF	"/etc/libmap-cheri.conf"
-#define	_PATH_RTLD		"/libexec/ld-cheri-elf.so.1"
-#define	STANDARD_LIBRARY_PATH	"/libcheri:/usr/libcheri"
-#define	LD_			"LD_CHERI_"
+struct RtldLockInfo
+{
+	unsigned int rtli_version;
+	void *(*lock_create)(void);
+	void  (*lock_destroy)(void *);
+	void  (*rlock_acquire)(void *);
+	void  (*wlock_acquire)(void *);
+	void  (*lock_release)(void *);
+	int   (*thread_set_flag)(int);
+	int   (*thread_clr_flag)(int);
+	void  (*at_fork)(void);
+};
 
-extern char *ld_elf_hints_default;
-extern char *ld_path_libmap_conf;
-extern char *ld_path_rtld;
-extern char *ld_standard_library_path;
-extern char *ld_env_prefix;
+extern void _rtld_thread_init(struct RtldLockInfo *) __exported;
+extern void _rtld_atfork_pre(int *) __exported;
+extern void _rtld_atfork_post(int *) __exported;
 
-#endif /* PATHS_H */
+#ifdef IN_RTLD
+
+struct rtld_lock;
+typedef struct rtld_lock *rtld_lock_t;
+
+extern rtld_lock_t	rtld_bind_lock;
+extern rtld_lock_t	rtld_libc_lock;
+extern rtld_lock_t	rtld_phdr_lock;
+
+#define	RTLD_LOCK_UNLOCKED	0
+#define	RTLD_LOCK_RLOCKED	1
+#define	RTLD_LOCK_WLOCKED	2
+
+struct Struct_RtldLockState;
+typedef struct Struct_RtldLockState RtldLockState;
+
+void	rlock_acquire(rtld_lock_t, RtldLockState *);
+void 	wlock_acquire(rtld_lock_t, RtldLockState *);
+void	lock_release(rtld_lock_t, RtldLockState *);
+void	lock_upgrade(rtld_lock_t, RtldLockState *);
+void	lock_restart_for_upgrade(RtldLockState *);
+
+#endif	/* IN_RTLD */
+
+#endif

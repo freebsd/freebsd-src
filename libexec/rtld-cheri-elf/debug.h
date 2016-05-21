@@ -1,6 +1,5 @@
 /*-
- * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
- * Copyright 2003 Alexander Kabaev <kan@FreeBSD.ORG>.
+ * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,21 +25,38 @@
  * $FreeBSD$
  */
 
-#ifndef PATHS_H
-#define PATHS_H
+/*
+ * Support for printing debugging messages.
+ */
 
-#undef _PATH_ELF_HINTS
+#ifndef DEBUG_H
+#define DEBUG_H 1
 
-#define	_PATH_ELF_HINTS		"/var/run/ld-cheri-elf.so.hints"
-#define	_PATH_LIBMAP_CONF	"/etc/libmap-cheri.conf"
-#define	_PATH_RTLD		"/libexec/ld-cheri-elf.so.1"
-#define	STANDARD_LIBRARY_PATH	"/libcheri:/usr/libcheri"
-#define	LD_			"LD_CHERI_"
+#include <sys/cdefs.h>
 
-extern char *ld_elf_hints_default;
-extern char *ld_path_libmap_conf;
-extern char *ld_path_rtld;
-extern char *ld_standard_library_path;
-extern char *ld_env_prefix;
+#include <string.h>
+#include <unistd.h>
 
-#endif /* PATHS_H */
+extern void debug_printf(const char *, ...) __printflike(1, 2);
+extern int debug;
+
+#ifdef DEBUG
+#define dbg(...)	debug_printf(__VA_ARGS__)
+#else
+#define dbg(...)	((void) 0)
+#endif
+
+#ifndef COMPAT_32BIT
+#define _MYNAME	"ld-elf.so.1"
+#else
+#define _MYNAME	"ld-elf32.so.1"
+#endif
+
+#define assert(cond)	((cond) ? (void) 0 :		\
+    (msg(_MYNAME ": assert failed: " __FILE__ ":"	\
+      __XSTRING(__LINE__) "\n"), abort()))
+#define msg(s)		write(STDOUT_FILENO, s, strlen(s))
+#define trace()		msg(_MYNAME ": " __XSTRING(__LINE__) "\n")
+
+
+#endif /* DEBUG_H */

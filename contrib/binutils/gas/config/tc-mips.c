@@ -9218,6 +9218,9 @@ do_msbd:
 		  if ((imm_expr.X_add_number  % 16) != 0)
 		    as_bad (_("immediate (%ld) not 16-byte aligned"),
 		      (long)imm_expr.X_add_number);
+		  if ((imm_expr.X_add_number > 1<<(10+4)) ||
+		     (imm_expr.X_add_number < 1-(1<<(10+4))))
+		    as_bad (_("immediate too large (or small) for immediate"));
 		  INSERT_OPERAND (CDELTA, *ip, imm_expr.X_add_number >> 4);
 		  imm_expr.X_op = O_absent;
 		  s = expr_end;

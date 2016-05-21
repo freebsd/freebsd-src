@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2016
+.Dd May 18, 2016
 .Dt QTRACE 1
 .Os
 .Sh NAME
@@ -58,7 +58,7 @@ commands start and stop logging when run.
 The
 .Dq exec
 command forks a child, starts logging, calls
-.Xr execve 2
+.Xr execvp 3
 to run the
 .Ar command
 and its arguments and stops logging when the child exits.
@@ -72,7 +72,7 @@ machine property so the results of running
 .Nm
 in multiple login are apt of be confusing.
 .Sh SEE ALSO
-.Xr execve 2
+.Xr execvp 3
 .\" .Sh HISTORY
 .\" The
 .\" .Nm

@@ -1,6 +1,5 @@
 /*-
- * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
- * Copyright 2003 Alexander Kabaev <kan@FreeBSD.ORG>.
+ * Copyright 2011 Konstantin Belousov <kib@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,21 +25,22 @@
  * $FreeBSD$
  */
 
-#ifndef PATHS_H
-#define PATHS_H
+#ifndef RTLD_PRINTF_H
+#define RTLD_PRINTF_H 1
 
-#undef _PATH_ELF_HINTS
+#include <sys/cdefs.h>
+#include <unistd.h>
 
-#define	_PATH_ELF_HINTS		"/var/run/ld-cheri-elf.so.hints"
-#define	_PATH_LIBMAP_CONF	"/etc/libmap-cheri.conf"
-#define	_PATH_RTLD		"/libexec/ld-cheri-elf.so.1"
-#define	STANDARD_LIBRARY_PATH	"/libcheri:/usr/libcheri"
-#define	LD_			"LD_CHERI_"
+int rtld_snprintf(char *buf, size_t bufsize, const char *fmt, ...)
+    __printflike(3, 4);
+int rtld_vsnprintf(char *buf, size_t bufsize, const char *fmt, va_list ap);
+int rtld_vfdprintf(int fd, const char *fmt, va_list ap);
+int rtld_fdprintf(int fd, const char *fmt, ...) __printflike(2, 3);
+void rtld_fdputstr(int fd, const char *str);
+void rtld_fdputchar(int fd, int c);
 
-extern char *ld_elf_hints_default;
-extern char *ld_path_libmap_conf;
-extern char *ld_path_rtld;
-extern char *ld_standard_library_path;
-extern char *ld_env_prefix;
+#define	rtld_printf(...) rtld_fdprintf(STDOUT_FILENO, __VA_ARGS__)
+#define	rtld_putstr(str) rtld_fdputstr(STDOUT_FILENO, (str))
+#define	rtld_putchar(c) rtld_fdputchar(STDOUT_FILENO, (c))
 
-#endif /* PATHS_H */
+#endif

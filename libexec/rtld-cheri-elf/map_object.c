@@ -192,22 +192,28 @@ map_object(int fd, const char *path, const struct stat *sb)
     base_vaddr = trunc_page(segs[0]->p_vaddr);
     base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
-    base_addr = cheri_setoffset(cheri_getdefault(), base_vaddr);
+    if (base_vaddr != 0)
+	base_addr = cheri_setoffset(cheri_getdefault(), base_vaddr);
+    else
+	base_addr = NULL;
     base_flags = MAP_PRIVATE | MAP_ANON | MAP_NOCORE;
     if (npagesizes > 1 && round_page(segs[0]->p_filesz) >= pagesizes[1])
 	base_flags |= MAP_ALIGNED_SUPER;
 
-    mapbase = mmap(base_addr, mapsize, PROT_NONE, base_flags, -1, 0);
-    if (mapbase == (caddr_t) -1) {
+    mapbase = mmap(base_addr, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC,
+	base_flags, -1, 0);
+    if (mapbase == MAP_FAILED) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
 	  path, rtld_strerror(errno));
 	goto error;
     }
-    if (base_addr != NULL && mapbase != base_addr) {
-	_rtld_error("%s: mmap returned wrong address: wanted %p, got %p",
+    if (base_addr != NULL && (vaddr_t)mapbase != (vaddr_t)base_addr) {
+	_rtld_error("%s: mmap returned wrong address: wanted %#p, got %#p",
 	  path, base_addr, mapbase);
 	goto error1;
     }
+    if (mprotect(mapbase, mapsize, PROT_NONE) != 0)
+	_rtld_error("%s: mprotect of region failed", path);
 
     for (i = 0; i <= nsegs; i++) {
 	/* Overlay the segment onto the proper region. */

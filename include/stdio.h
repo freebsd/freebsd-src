@@ -243,12 +243,12 @@ int	 fgetc(FILE *);
 int	 fgetpos(FILE * __restrict, fpos_t * __restrict);
 char	*fgets(char * __restrict, int, FILE * __restrict);
 FILE	*fopen(const char * __restrict, const char * __restrict);
-int	 fprintf(FILE * __restrict, const char * __restrict, ...);
+int	 fprintf(FILE * __restrict, const char * __restrict, ...) __printflike(2, 3);
 int	 fputc(int, FILE *);
 int	 fputs(const char * __restrict, FILE * __restrict);
 size_t	 fread(void * __restrict, size_t, size_t, FILE * __restrict);
 FILE	*freopen(const char * __restrict, const char * __restrict, FILE * __restrict);
-int	 fscanf(FILE * __restrict, const char * __restrict, ...);
+int	 fscanf(FILE * __restrict, const char * __restrict, ...) __scanflike(2, 3);;
 int	 fseek(FILE *, long, int);
 int	 fsetpos(FILE *, const fpos_t *);
 long	 ftell(FILE *);
@@ -257,18 +257,18 @@ int	 getc(FILE *);
 int	 getchar(void);
 char	*gets(char *);
 void	 perror(const char *);
-int	 printf(const char * __restrict, ...);
+int	 printf(const char * __restrict, ...) __printflike(1, 2);
 int	 putc(int, FILE *);
 int	 putchar(int);
 int	 puts(const char *);
 int	 remove(const char *);
 int	 rename(const char *, const char *);
 void	 rewind(FILE *);
-int	 scanf(const char * __restrict, ...);
+int	 scanf(const char * __restrict, ...) __scanflike(1, 2);
 void	 setbuf(FILE * __restrict, char * __restrict);
 int	 setvbuf(FILE * __restrict, char * __restrict, int, size_t);
-int	 sprintf(char * __restrict, const char * __restrict, ...);
-int	 sscanf(const char * __restrict, const char * __restrict, ...);
+int	 sprintf(char * __restrict, const char * __restrict, ...) __printflike(2, 3);
+int	 sscanf(const char * __restrict, const char * __restrict, ...) __scanflike(2, 3);
 FILE	*tmpfile(void);
 char	*tmpnam(char *);
 int	 ungetc(int, FILE *);
@@ -387,7 +387,7 @@ ssize_t	 getline(char ** __restrict, size_t * __restrict, FILE * __restrict);
 #endif
 
 #ifdef _WITH_DPRINTF
-int	 (dprintf)(int, const char * __restrict, ...);
+int	 (dprintf)(int, const char * __restrict, ...) __printflike(2, 3);
 #endif
 
 #endif /* __POSIX_VISIBLE >= 200809 */

@@ -31,6 +31,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <machine/cheri.h>
+
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,14 +54,14 @@ static inline void
 start_trace(void)
 {
 
-	__asm__ __volatile__("li $0, 0xbeef");
+	CHERI_START_TRACE;
 }
 
 static inline void
 stop_trace(void)
 {
 
-	__asm__ __volatile__("li $0, 0xdead");
+	CHERI_STOP_TRACE;
 }
 
 int
@@ -82,8 +84,8 @@ main(int argc, char **argv)
 		if (pid == 0) {
 			start_trace();
 			argv++;
-			if (execve(argv[0], argv, environ) == -1)
-				err(EX_OSERR, "execve");
+			if (execvp(argv[0], argv) == -1)
+				err(EX_OSERR, "execvp");
 		}
 
 		waitpid(pid, &status, 0);
