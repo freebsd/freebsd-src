@@ -98,7 +98,6 @@ void	taskqueue_set_callback(struct taskqueue *queue,
 
 #define TASK_INITIALIZER(priority, func, context)	\
 	{ .ta_pending = 0,				\
-	  .ta_flags = 0,				\
 	  .ta_priority = (priority),			\
 	  .ta_func = (func),				\
 	  .ta_context = (context) }
@@ -114,7 +113,6 @@ void	taskqueue_thread_enqueue(void *context);
  */
 #define TASK_INIT(task, priority, func, context) do {	\
 	(task)->ta_pending = 0;				\
-	(task)->ta_flags = 0;				\
 	(task)->ta_priority = (priority);		\
 	(task)->ta_func = (func);			\
 	(task)->ta_context = (context);			\
@@ -224,7 +222,6 @@ int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
 
 #define GTASK_INIT(task, priority, func, context) do {	\
 	(task)->ta_pending = 0;				\
-	(task)->ta_flags = TASK_SKIP_WAKEUP;		\
 	(task)->ta_priority = (priority);		\
 	(task)->ta_func = (func);			\
 	(task)->ta_context = (context);			\
