@@ -1552,6 +1552,10 @@ iscsi_ioctl_daemon_connect(struct iscsi_softc *sc,
 	}
 
 	ISCSI_SESSION_LOCK(is);
+	is->is_statsn = 0;
+	is->is_cmdsn = 0;
+	is->is_expcmdsn = 0;
+	is->is_maxcmdsn = 0;
 	is->is_waiting_for_iscsid = false;
 	is->is_login_phase = true;
 	is->is_timeout = 0;
