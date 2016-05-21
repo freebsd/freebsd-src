@@ -113,6 +113,7 @@ struct icl_conn {
 	size_t			ic_maxtags;
 	bool			ic_disconnecting;
 	bool			ic_iser;
+	bool			ic_unmapped;
 	const char		*ic_name;
 	const char		*ic_offload;
 
