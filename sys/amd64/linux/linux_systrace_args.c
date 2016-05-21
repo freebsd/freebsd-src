@@ -1178,7 +1178,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 142: {
 		struct linux_sched_setparam_args *p = params;
 		iarg[0] = p->pid; /* l_pid_t */
-		uarg[1] = (intptr_t) p->param; /* struct l_sched_param * */
+		uarg[1] = (intptr_t) p->param; /* struct sched_param * */
 		*n_args = 2;
 		break;
 	}
@@ -1186,7 +1186,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 143: {
 		struct linux_sched_getparam_args *p = params;
 		iarg[0] = p->pid; /* l_pid_t */
-		uarg[1] = (intptr_t) p->param; /* struct l_sched_param * */
+		uarg[1] = (intptr_t) p->param; /* struct sched_param * */
 		*n_args = 2;
 		break;
 	}
@@ -1195,7 +1195,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_sched_setscheduler_args *p = params;
 		iarg[0] = p->pid; /* l_pid_t */
 		iarg[1] = p->policy; /* l_int */
-		uarg[2] = (intptr_t) p->param; /* struct l_sched_param * */
+		uarg[2] = (intptr_t) p->param; /* struct sched_param * */
 		*n_args = 3;
 		break;
 	}
@@ -4209,7 +4209,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_pid_t";
 			break;
 		case 1:
-			p = "struct l_sched_param *";
+			p = "struct sched_param *";
 			break;
 		default:
 			break;
@@ -4222,7 +4222,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_pid_t";
 			break;
 		case 1:
-			p = "struct l_sched_param *";
+			p = "struct sched_param *";
 			break;
 		default:
 			break;
@@ -4238,7 +4238,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 2:
-			p = "struct l_sched_param *";
+			p = "struct sched_param *";
 			break;
 		default:
 			break;
