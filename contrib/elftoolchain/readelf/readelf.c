@@ -50,6 +50,9 @@
 ELFTC_VCSID("$Id: readelf.c 3469 2016-05-15 23:16:09Z emaste $");
 
 /* Backwards compatability for older FreeBSD releases. */
+#ifndef ELFOSABI_CLOUDABI
+#define ELFOSABI_CLOUDABI 17
+#endif
 #ifndef EM_IAMCU
 #define EM_IAMCU 6
 #endif
