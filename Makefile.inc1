@@ -56,6 +56,41 @@ LOCALBASE?=	/usr/local
 .include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
 CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
 .endif
+.if defined(CROSS_TOOLCHAIN_PREFIX)
+CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+.endif
+# If we do not have a bootstrap binutils (because the in-tree one does not
+# support the target architecture), provide a default cross-binutils prefix.
+# This allows aarch64 builds, for example, to automatically use the
+# aarch64-binutils port or package.
+.if !make(showconfig)
+.if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
+    !defined(CROSS_BINUTILS_PREFIX)
+CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
+.if !exists(${CROSS_BINUTILS_PREFIX})
+.error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
+.endif
+.endif
+.endif
+
+XCOMPILERS=	CC CXX CPP
+.for COMPILER in ${XCOMPILERS}
+.if defined(CROSS_COMPILER_PREFIX)
+X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
+.else
+X${COMPILER}?=	${${COMPILER}}
+.endif
+.endfor
+XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
+.for BINUTIL in ${XBINUTILS}
+.if defined(CROSS_BINUTILS_PREFIX) && \
+    exists(${CROSS_BINUTILS_PREFIX}${${BINUTIL}})
+X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
+.else
+X${BINUTIL}?=	${${BINUTIL}}
+.endif
+.endfor
 .include <bsd.compiler.mk>		# don't depend on src.opts.mk doing it
 .include "share/mk/src.opts.mk"	
 
@@ -404,42 +439,6 @@ HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
-.if defined(CROSS_TOOLCHAIN_PREFIX)
-CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
-CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
-.endif
-
-# If we do not have a bootstrap binutils (because the in-tree one does not
-# support the target architecture), provide a default cross-binutils prefix.
-# This allows aarch64 builds, for example, to automatically use the
-# aarch64-binutils port or package.
-.if !make(showconfig)
-.if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
-    !defined(CROSS_BINUTILS_PREFIX)
-CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
-.if !exists(${CROSS_BINUTILS_PREFIX})
-.error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
-.endif
-.endif
-.endif
-
-XCOMPILERS=	CC CXX CPP
-.for COMPILER in ${XCOMPILERS}
-.if defined(CROSS_COMPILER_PREFIX)
-X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
-.else
-X${COMPILER}?=	${${COMPILER}}
-.endif
-.endfor
-XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
-.for BINUTIL in ${XBINUTILS}
-.if defined(CROSS_BINUTILS_PREFIX) && \
-    exists(${CROSS_BINUTILS_PREFIX}${${BINUTIL}})
-X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
-.else
-X${BINUTIL}?=	${${BINUTIL}}
-.endif
-.endfor
 CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		CPP="${XCPP} ${XCFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
