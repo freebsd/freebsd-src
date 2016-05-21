@@ -89,36 +89,6 @@ using DevdCtl::EventList;
 using DevdCtl::Guid;
 using DevdCtl::ParseException;
 
-/*-------------------------- File-scoped classes ----------------------------*/
-/**
- * \brief Functor that operators on STL collections of CaseFiles
- *
- * Selectively calls ReEvaluate on the casefile, based on its pool GUID.
- */
-class CaseFileReEvaluator : public std::unary_function<CaseFile, bool>
-{
-public:
-	CaseFileReEvaluator(Guid guid, const ZfsEvent &event);
-
-	void operator() (CaseFile *casefile);
-
-private:
-	Guid		m_poolGUID;
-	const ZfsEvent &m_event;
-};
-
-CaseFileReEvaluator::CaseFileReEvaluator(Guid guid, const ZfsEvent &event)
- : m_poolGUID(guid), m_event(event)
-{
-}
-
-void
-CaseFileReEvaluator::operator() (CaseFile *casefile)
-{
-	if (m_poolGUID == casefile->PoolGUID())
-		casefile->ReEvaluate(m_event);
-}
-
 /*--------------------------------- CaseFile ---------------------------------*/
 //- CaseFile Static Data -------------------------------------------------------
 CaseFileList  CaseFile::s_activeCases;
@@ -170,8 +140,13 @@ CaseFile::Find(const string &physPath)
 void
 CaseFile::ReEvaluateByGuid(Guid poolGUID, const ZfsEvent &event)
 {
-	CaseFileReEvaluator reevaluator(poolGUID, event);
-	std::for_each(s_activeCases.begin(), s_activeCases.end(), reevaluator);
+	CaseFileList::iterator casefile;
+	for (casefile = s_activeCases.begin(); casefile != s_activeCases.end();){
+		CaseFileList::iterator next = std::next(casefile);
+		if (poolGUID == (*casefile)->PoolGUID())
+			(*casefile)->ReEvaluate(event);
+		casefile = next;
+	}
 }
 
 CaseFile &
