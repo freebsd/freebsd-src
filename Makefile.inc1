@@ -91,6 +91,12 @@ X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
 X${BINUTIL}?=	${${BINUTIL}}
 .endif
 .endfor
+# If a full path to an external cross compiler is given, don't build
+# a cross compiler.
+.if ${XCC:N${CCACHE_BIN}:M/*}
+MK_CROSS_COMPILER=	no
+.endif
+
 .include <bsd.compiler.mk>		# don't depend on src.opts.mk doing it
 .include "share/mk/src.opts.mk"	
 
@@ -454,7 +460,7 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
 
 # External compiler needs sysroot and target flags.
-.if ${XCC:N${CCACHE_BIN}:M/*} || ${MK_CROSS_COMPILER} == "no"
+.if ${MK_CROSS_COMPILER} == "no"
 .if !defined(CROSS_BINUTILS_PREFIX) || !exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
@@ -478,7 +484,7 @@ XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}
 .else
-.endif # ${XCC:M/*} || ${MK_CROSS_COMPILER} == "no"
+.endif # ${MK_CROSS_COMPILER} == "no"
 
 .if !empty(BFLAGS)
 XCFLAGS+=	${BFLAGS}
@@ -1714,9 +1720,7 @@ _elftctools=	lib/libelftc \
 		usr.bin/elfcopy
 .endif
 
-# If an full path to an external cross compiler is given, don't build
-# a cross compiler.
-.if ${XCC:N${CCACHE_BIN}:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
+.if ${MK_CROSS_COMPILER} != "no"
 .if ${MK_CLANG_BOOTSTRAP} != "no"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
