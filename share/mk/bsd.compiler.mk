@@ -14,6 +14,8 @@
 # against 30300 for gcc likely isn't  what you wanted (since versions of gcc
 # prior to 4.2 likely have no prayer of working).
 #
+# COMPILER_FREEBSD_VERSION is the compiler's __FreeBSD_cc_version value.
+#
 # COMPILER_FEATURES will contain one or more of the following, based on
 # compiler support for that feature:
 #
@@ -104,7 +106,8 @@ ccache-print-options: .PHONY
 # Try to import COMPILER_TYPE and COMPILER_VERSION from parent make.
 # The value is only used/exported for the same environment that impacts
 # CC and COMPILER_* settings here.
-_exported_vars=	${X_}COMPILER_TYPE ${X_}COMPILER_VERSION
+_exported_vars=	${X_}COMPILER_TYPE ${X_}COMPILER_VERSION \
+		${X_}COMPILER_FREEBSD_VERSION
 ${X_}_cc_hash=	${${cc}}${MACHINE}${PATH}
 ${X_}_cc_hash:=	${${X_}_cc_hash:hash}
 # Only import if none of the vars are set somehow else.
@@ -128,6 +131,7 @@ ${var}=	${${var}.${${X_}_cc_hash}}
 # generated files - thus there is no compiler.
 ${X_}COMPILER_TYPE= none
 ${X_}COMPILER_VERSION= 0
+${X_}COMPILER_FREEBSD_VERSION= 0
 .elif !defined(${X_}COMPILER_TYPE) || !defined(${X_}COMPILER_VERSION)
 _v!=	${${cc}} --version || echo 0.0.0
 
@@ -151,6 +155,15 @@ ${X_}COMPILER_VERSION!=echo "${_v:M[1-9].[0-9]*}" | awk -F. '{print $$1 * 10000 
 .endif
 .undef _v
 .endif
+.if !defined(${X_}COMPILER_FREEBSD_VERSION)
+${X_}COMPILER_FREEBSD_VERSION!=	{ echo "__FreeBSD_cc_version" | ${${cc}} -E - 2>/dev/null || echo __FreeBSD_cc_version; } | tail -n 1
+# If we get a literal "__FreeBSD_cc_version" back then the compiler
+# is a non-FreeBSD build that doesn't support it or some other error
+# occurred.
+.if ${${X_}COMPILER_FREEBSD_VERSION} == "__FreeBSD_cc_version"
+${X_}COMPILER_FREEBSD_VERSION=	unknown
+.endif
+.endif
 
 .if ${${X_}COMPILER_TYPE} == "clang" || \
 	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 40800)
@@ -163,6 +176,7 @@ ${X_}COMPILER_FEATURES=
 # Use CC's values
 X_COMPILER_TYPE=	${COMPILER_TYPE}
 X_COMPILER_VERSION=	${COMPILER_VERSION}
+X_COMPILER_FREEBSD_VERSION=	${COMPILER_FREEBSD_VERSION}
 X_COMPILER_FEATURES=	${COMPILER_FEATURES}
 .endif	# ${cc} == "CC" || (${cc} == "XCC" && ${XCC} != ${CC})
 
