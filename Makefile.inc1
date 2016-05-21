@@ -48,6 +48,7 @@
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
 
+SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
 # Cross toolchain changes must be in effect before bsd.compiler.mk
@@ -97,8 +98,59 @@ X${BINUTIL}?=	${${BINUTIL}}
 MK_CROSS_COMPILER=	no
 .endif
 
-.include <bsd.compiler.mk>		# don't depend on src.opts.mk doing it
-.include "share/mk/src.opts.mk"	
+# Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
+.include <bsd.compiler.mk>
+.include "share/mk/src.opts.mk"
+
+# Check if there is a local compiler that can satisfy as an external compiler.
+.if ${MK_SYSTEM_COMPILER} == "yes" && ${MK_CROSS_COMPILER} == "yes" && \
+    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
+    !make(showconfig)
+# Which compiler is expected to be used?
+.if ${MK_CLANG_BOOTSTRAP} == "yes"
+_expected_compiler_type=	clang
+.elif ${MK_GCC_BOOTSTRAP} == "yes"
+_expected_compiler_type=	gcc
+.endif
+# If the expected vs CC is different then we can't skip.
+# GCC cannot be used for cross-arch yet.  For clang we pass -target later if
+# TARGET_ARCH!=MACHINE_ARCH.
+.if ${_expected_compiler_type} == ${COMPILER_TYPE} && \
+    (${COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH})
+# It needs to be the same revision as we would build for the bootstrap.
+.if !defined(CROSS_COMPILER_FREEBSD_VERSION)
+.if ${_expected_compiler_type} == "clang"
+CROSS_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
+	${SRCDIR}/lib/clang/include/clang/Basic/Version.inc || echo unknown
+CROSS_COMPILER_VERSION!= \
+	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
+	${SRCDIR}/lib/clang/include/clang/Basic/Version.inc || echo unknown
+.elif ${_expected_compiler_type} == "gcc"
+CROSS_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
+	${SRCDIR}/gnu/usr.bin/cc/cc_tools/freebsd-native.h || echo unknown
+CROSS_COMPILER_VERSION!= \
+	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
+	${SRCDIR}/contrib/gcc/BASE-VER || echo unknown
+.endif
+.export CROSS_COMPILER_FREEBSD_VERSION CROSS_COMPILER_VERSION
+.endif	# !defined(CROSS_COMPILER_FREEBSD_VERSION)
+.if ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION} && \
+    ${COMPILER_FREEBSD_VERSION} == ${CROSS_COMPILER_FREEBSD_VERSION}
+# Everything matches, disable the bootstrap compiler.
+MK_CLANG_BOOTSTRAP=	no
+MK_GCC_BOOTSTRAP=	no
+CROSSENV+=	COMPILER_VERSION=${COMPILER_VERSION} \
+		COMPILER_TYPE=${COMPILER_TYPE} \
+		COMPILER_FREEBSD_VERSION=${COMPILER_FREEBSD_VERSION}
+.if make(buildworld)
+.info SYSTEM_COMPILER: Determined that CC=${CC} matches the source tree.  Not bootstrapping a cross-compiler.
+.endif
+.endif	# ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION}
+.endif	# ${_expected_compiler_type} == ${COMPILER_TYPE}
+.endif	# ${XCC:N${CCACHE_BIN}:M/*}
+
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
@@ -108,7 +160,6 @@ MK_CROSS_COMPILER=	no
 # This ordering is not a guarantee though.  The only guarantee of a working
 # system here would require fine-grained ordering of all components based
 # on their dependencies.
-SRCDIR?=	${.CURDIR}
 .if !empty(SUBDIR_OVERRIDE)
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
