@@ -90,16 +90,13 @@ void
 init_des_cipher(void)
 {
 #ifdef DES
-	int i;
-
 	des_ct = des_n = 0;
 
 	/* initialize the initialization vector */
 	MEMZERO(ivec, 8);
 
 	/* initialize the padding vector */
-	for (i = 0; i < 8; i++)
-		pvec[i] = (char)arc4random_uniform(256);
+	arc4random_buf(pvec, sizeof(pvec));
 #endif
 }
 
