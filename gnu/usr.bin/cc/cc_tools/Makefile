@@ -279,7 +279,7 @@ gengtype: gengtype.o gengtype-yacc+%DIKED.o gengtype-lex.o errors.o \
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 gtype-desc.h:	gengtype
-	./gengtype
+	${BTOOLSPATH:U.}/gengtype
 	touch ${.TARGET}
 
 gtype-desc.c:	gtype-desc.h
@@ -309,7 +309,7 @@ gencondmd:	gencondmd.o
 # Generated .md files.
 #
 insn-conditions.md:	gencondmd
-	./gencondmd > ${.TARGET}
+	${BTOOLSPATH:U.}/gencondmd > ${.TARGET}
 GENSRCS+=	insn-conditions.md
 
 #
@@ -318,35 +318,35 @@ GENSRCS+=	insn-conditions.md
 
 .for F in constants
 insn-$F.h:	gen$F ${MD_FILE}
-	./gen$F ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/gen$F ${MD_FILE} > ${.TARGET}
 GENSRCS+=	insn-$F.h
 .endfor
 
 .for F in attr codes config flags
 insn-$F.h:	gen$F ${MD_FILE} insn-conditions.md
-	./gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
+	${BTOOLSPATH:U.}/gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
 GENSRCS+=	insn-$F.h
 .endfor
 
 # Header files with irregular names.
 genrtl.h:	gengenrtl
-	./gengenrtl -h > ${.TARGET}
+	${BTOOLSPATH:U.}/gengenrtl -h > ${.TARGET}
 GENSRCS+=	genrtl.h
 
 tm-preds.h:	genpreds
-	./genpreds -h ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/genpreds -h ${MD_FILE} > ${.TARGET}
 GENSRCS+=	tm-preds.h
 
 tm-constrs.h:	genpreds
-	./genpreds -c ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/genpreds -c ${MD_FILE} > ${.TARGET}
 GENSRCS+=	tm-constrs.h
 
 tree-check.h:	gencheck
-	./gencheck > ${.TARGET}
+	${BTOOLSPATH:U.}/gencheck > ${.TARGET}
 GENSRCS+=	tree-check.h
 
 insn-modes.h:	genmodes
-	./genmodes -h > ${.TARGET}
+	${BTOOLSPATH:U.}/genmodes -h > ${.TARGET}
 GENSRCS+=	insn-modes.h
 
 #
@@ -354,31 +354,31 @@ GENSRCS+=	insn-modes.h
 #
 .for F in attrtab automata emit extract opinit output peep preds recog
 insn-$F.c:	gen$F ${MD_FILE} insn-conditions.md
-	./gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
+	${BTOOLSPATH:U.}/gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
 GENONLY+=	insn-$F.c
 .endfor
 
 .for F in conditions
 insn-$F.c:	gen$F ${MD_FILE}
-	./gen$F ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/gen$F ${MD_FILE} > ${.TARGET}
 GENSRCS+=	insn-$F.c
 .endfor
 
 # Source files with irregular names.
 insn-modes.c:	genmodes
-	./genmodes > ${.TARGET}
+	${BTOOLSPATH:U.}/genmodes > ${.TARGET}
 GENONLY+=	insn-modes.c
 
 min-insn-modes.c:	genmodes
-	./genmodes -m > ${.TARGET}
+	${BTOOLSPATH:U.}/genmodes -m > ${.TARGET}
 GENSRCS+=	min-insn-modes.c
 
 genrtl.c:	gengenrtl
-	./gengenrtl > ${.TARGET}
+	${BTOOLSPATH:U.}/gengenrtl > ${.TARGET}
 GENONLY+=	genrtl.c
 
 gencondmd.c:	genconditions ${MD_FILE}
-	./genconditions ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/genconditions ${MD_FILE} > ${.TARGET}
 GENSRCS+=	gencondmd.c
 
 #-----------------------------------------------------------------------
@@ -389,6 +389,7 @@ GNTOOLS+=	genattr genattrtab genautomata gencodes gencheck genchecksum \
 		genextract genflags gengenrtl gengtype genmodes genopinit \
 		genoutput genpeep genpreds genrecog
 
+${GNTOOLS:C,$,.o,} ${GNTOOLS}: ${BUILD_TOOLS_META}
 all: ${GNTOOLS} ${GENSRCS} ${GENONLY}
 beforedepend: ${GENONLY}
 
@@ -404,11 +405,11 @@ LIBIBERTY_SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \
 LIBIBERTY_OBJS=	${LIBIBERTY_SRCS:R:S/$/.o/g}
 
 .for _src in ${LIBIBERTY_SRCS}
-${_src:R:S/$/.o/}: ${_src}
+${_src:R:S/$/.o/}: ${_src} ${BUILD_TOOLS_META}
 	${CC} -c -I ${.CURDIR}/../libiberty ${CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 
-${LIBIBERTY}: ${LIBIBERTY_OBJS}
+${LIBIBERTY}: ${LIBIBERTY_OBJS} ${BUILD_TOOLS_META}
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
 	${RANLIB} ${.TARGET}
@@ -432,6 +433,7 @@ SRCS=		errors.c genattr.c genattrtab.c \
 SRCS+=		${GENSRCS}
 OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 GENOBJS+=	${GENSRCS:N*.h:R:S/$/.o/g}
+${OBJS} ${GENOBJS}: ${BUILD_TOOLS_META}
 CLEANFILES+=	${GENSRCS} ${GENONLY} ${GENOBJS} ${GNTOOLS}
 
 #-----------------------------------------------------------------------
