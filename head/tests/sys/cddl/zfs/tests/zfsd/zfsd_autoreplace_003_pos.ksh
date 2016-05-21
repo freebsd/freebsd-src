@@ -81,7 +81,7 @@ function verify_assertion
 	wait_until_resilvered
 
 	# Check that the spare is deactivated
-	log_must check_state $TESTPOOL "$SPARE_DISK" "AVAIL"
+	wait_for_pool_dev_state_change 20 "$SPARE_DISK" "AVAIL"
 }
 
 

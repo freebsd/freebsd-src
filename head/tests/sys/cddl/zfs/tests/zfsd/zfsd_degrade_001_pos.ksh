@@ -64,6 +64,7 @@ VDEV0=${TMPDIR}/file0.${TESTCASE_ID}
 VDEV1=${TMPDIR}/file1.${TESTCASE_ID}
 VDEVS="${VDEV0} ${VDEV1}"
 TESTFILE=/$TESTPOOL/testfile
+VDEV_SIZE=192m
 
 
 function cleanup
