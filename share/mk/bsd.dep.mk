@@ -216,6 +216,12 @@ afterdepend: beforedepend
     (!defined(_meta_filemon) && !exists(${.OBJDIR}/${DEPENDFILE}.${__obj}))
 ${__obj}: ${OBJS_DEPEND_GUESS}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.elif defined(_meta_filemon)
+# For meta mode we still need to know which file to depend on to avoid
+# ambiguous suffix transformation rules from .PATH.  Meta mode does not
+# use .depend files.  We really only need source files, not headers.
+${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}:N*.h}
 .endif
 .endfor
 
