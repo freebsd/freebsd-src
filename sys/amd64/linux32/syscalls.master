@@ -268,12 +268,12 @@
 152	AUE_MLOCKALL	NOPROTO	{ int mlockall(int how); }
 153	AUE_MUNLOCKALL	NOPROTO	{ int munlockall(void); }
 154	AUE_SCHED_SETPARAM	STD	{ int linux_sched_setparam(l_pid_t pid, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 155	AUE_SCHED_GETPARAM	STD	{ int linux_sched_getparam(l_pid_t pid, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 156	AUE_SCHED_SETSCHEDULER	STD { int linux_sched_setscheduler( \
 				    l_pid_t pid, l_int policy, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 157	AUE_SCHED_GETSCHEDULER	STD { int linux_sched_getscheduler( \
 				    l_pid_t pid); }
 158	AUE_NULL	NOPROTO	{ int sched_yield(void); }
