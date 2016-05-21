@@ -25,12 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_LIBZ
-static const int libz_enabled = 1;
-#else
-static const int libz_enabled = 0;
-#endif
-
 /*
  * Read a zip file that has a zip comment in the end of the central
  * directory record.
@@ -87,9 +81,10 @@ DEFINE_TEST(test_read_format_zip_mac_metadata)
 	/* Mac metadata can only be extracted with the seeking reader. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_set_option(a, "zip", "mac-ext", "1"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, p, s, 1));
 
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header(a, &ae));
 	} else {
@@ -99,10 +94,12 @@ DEFINE_TEST(test_read_format_zip_mac_metadata)
 		    "Unsupported ZIP compression method (deflation)");
 		assert(archive_errno(a) != 0);
 	}
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
 	failure("Mac metadata should be set");
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		const void *metadata;
 		if (assert((metadata = archive_entry_mac_metadata(ae, &s))
 		    != NULL)) {

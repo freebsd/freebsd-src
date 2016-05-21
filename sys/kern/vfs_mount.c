@@ -1298,7 +1298,8 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	 */
 	if ((flags & MNT_FORCE) &&
 	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
-		if (mp->mnt_vnodecovered != NULL)
+		if (mp->mnt_vnodecovered != NULL &&
+		    (mp->mnt_flag & MNT_IGNORE) == 0)
 			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
 			vrele(rootvnode);
@@ -1319,7 +1320,8 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	if (error && error != ENXIO) {
 		if ((flags & MNT_FORCE) &&
 		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
-			if (mp->mnt_vnodecovered != NULL)
+			if (mp->mnt_vnodecovered != NULL &&
+			    (mp->mnt_flag & MNT_IGNORE) == 0)
 				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
 				rootvnode = fsrootvp;

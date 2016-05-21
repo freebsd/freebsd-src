@@ -119,13 +119,20 @@ DEFINE_TEST(test_compat_pax_libarchive_2x)
 	    archive_read_open_filename(a, refname, 10240));
 
 	/* We cannot correctly read the filename. */
-	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	// This test used to look for WARN here coming from a
+	// character-conversion failure.  But: Newer iconv tables are
+	// more tolerant so we can't always detect the conversion
+	// failures.
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert(strcmp("\xd0\xd2\xc9\xd7\xc5\xd4",
 	    archive_entry_pathname(ae)) != 0);
 	assertEqualInt(6, archive_entry_size(ae));
 
 	/* We cannot correctly read the filename. */
-	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	// Same here:  The test is still valid (it sill verifies that
+	// the converted pathname is different), but we can no longer
+	// rely on WARN here.
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert(strcmp("\xf0\xf2\xe9\xf7\xe5\xf4",
 	    archive_entry_pathname(ae)) != 0);
 	assertEqualInt(6, archive_entry_size(ae));

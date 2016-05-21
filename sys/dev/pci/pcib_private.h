@@ -134,8 +134,6 @@ struct pcib_softc
     uint16_t	pcie_slot_sta;
     uint32_t	pcie_link_cap;
     uint32_t	pcie_slot_cap;
-    uint16_t	pcie_pending_link_ctl_mask;
-    uint16_t	pcie_pending_link_ctl_val;
     struct resource *pcie_irq;
     void	*pcie_ihand;
     struct task	pcie_hp_task;
@@ -190,7 +188,8 @@ int		pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs);
 int		pcib_alloc_msix(device_t pcib, device_t dev, int *irq);
 int		pcib_release_msix(device_t pcib, device_t dev, int irq);
 int		pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data);
-uint16_t	pcib_get_rid(device_t pcib, device_t dev);
+int		pcib_get_id(device_t pcib, device_t dev, enum pci_id_type type,
+		    uintptr_t *id);
 void		pcib_decode_rid(device_t pcib, uint16_t rid, int *bus, 
 		    int *slot, int *func);
 

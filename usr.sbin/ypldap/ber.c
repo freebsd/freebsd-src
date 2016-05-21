@@ -726,7 +726,7 @@ ber_scanf_elements(struct ber_element *ber, char *fmt, ...)
 			continue;
 		case '}':
 		case ')':
-			if (parent[level] == NULL)
+			if (level < 0 || parent[level] == NULL)
 				goto fail;
 			ber = parent[level--];
 			ret++;

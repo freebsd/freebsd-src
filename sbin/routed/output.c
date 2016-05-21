@@ -164,7 +164,7 @@ output(enum output_type type,
 					LOGERR("setsockopt(rip_sock, "
 					       "IP_MULTICAST_IF)");
 					errno = serrno;
-					ifp = 0;
+					ifp = NULL;
 					return -1;
 				}
 				rip_sock_mcast = ifp;
@@ -187,11 +187,11 @@ output(enum output_type type,
 	res = sendto(soc, buf, size, flags,
 		     (struct sockaddr *)&osin, sizeof(osin));
 	if (res < 0
-	    && (ifp == 0 || !(ifp->int_state & IS_BROKE))) {
+	    && (ifp == NULL || !(ifp->int_state & IS_BROKE))) {
 		serrno = errno;
 		msglog("%s sendto(%s%s%s.%d): %s", msg,
-		       ifp != 0 ? ifp->int_name : "",
-		       ifp != 0 ? ", " : "",
+		       ifp != NULL ? ifp->int_name : "",
+		       ifp != NULL ? ", " : "",
 		       inet_ntoa(osin.sin_addr),
 		       ntohs(osin.sin_port),
 		       strerror(errno));
@@ -214,10 +214,10 @@ find_auth(struct interface *ifp)
 	int i;
 
 
-	if (ifp == 0)
+	if (ifp == NULL)
 		return 0;
 
-	res = 0;
+	res = NULL;
 	ap = ifp->int_auth;
 	for (i = 0; i < MAX_AUTH_KEYS; i++, ap++) {
 		/* stop looking after the last key */
@@ -230,13 +230,13 @@ find_auth(struct interface *ifp)
 
 		if ((u_long)ap->end < (u_long)clk.tv_sec) {
 			/* note best expired password as a fall-back */
-			if (res == 0 || (u_long)ap->end > (u_long)res->end)
+			if (res == NULL || (u_long)ap->end > (u_long)res->end)
 				res = ap;
 			continue;
 		}
 
 		/* note key with the best future */
-		if (res == 0 || (u_long)res->end < (u_long)ap->end)
+		if (res == NULL || (u_long)res->end < (u_long)ap->end)
 			res = ap;
 	}
 	return res;
@@ -255,7 +255,7 @@ clr_ws_buf(struct ws_buf *wb,
 
 	/* (start to) install authentication if appropriate
 	 */
-	if (ap == 0)
+	if (ap == NULL)
 		return;
 
 	na = (struct netauth*)wb->n;
@@ -317,11 +317,11 @@ supply_write(struct ws_buf *wb)
 	case NO_OUT_RIPV2:
 		break;
 	default:
-		if (ws.a != 0 && ws.a->type == RIP_AUTH_MD5)
+		if (ws.a != NULL && ws.a->type == RIP_AUTH_MD5)
 			end_md5_auth(wb,ws.a);
 		if (output(wb->type, &ws.to, ws.ifp, wb->buf,
 			   ((char *)wb->n - (char*)wb->buf)) < 0
-		    && ws.ifp != 0)
+		    && ws.ifp != NULL)
 			if_sick(ws.ifp);
 		ws.npackets++;
 		break;
@@ -587,7 +587,7 @@ walk_supply(struct radix_node *rn,
 	 * to say every 30 seconds to help detect broken Ethernets or
 	 * other interfaces where one packet every 30 seconds costs nothing.
 	 */
-	if (ws.ifp != 0
+	if (ws.ifp != NULL
 	    && !(ws.state & WS_ST_QUERY)
 	    && (ws.state & WS_ST_TO_ON_NET)
 	    && (!(RT->rt_state & RS_IF)
@@ -680,7 +680,7 @@ supply(struct sockaddr_in *dst,
 	ws.to_std_mask = std_mask(ws.to.sin_addr.s_addr);
 	ws.to_std_net = ntohl(ws.to.sin_addr.s_addr) & ws.to_std_mask;
 
-	if (ifp != 0) {
+	if (ifp != NULL) {
 		ws.to_mask = ifp->int_mask;
 		ws.to_net = ifp->int_net;
 		if (on_net(ws.to.sin_addr.s_addr, ws.to_net, ws.to_mask))
@@ -698,7 +698,7 @@ supply(struct sockaddr_in *dst,
 	if (flash)
 		ws.state |= WS_ST_FLASH;
 
-	if ((ws.ifp = ifp) == 0) {
+	if ((ws.ifp = ifp) == NULL) {
 		ws.metric = 1;
 	} else {
 		/* Adjust the advertised metric by the outgoing interface
@@ -711,7 +711,7 @@ supply(struct sockaddr_in *dst,
 
 	switch (type) {
 	case OUT_MULTICAST:
-		if (ifp->int_if_flags & IFF_MULTICAST)
+		if (ifp != NULL && ifp->int_if_flags & IFF_MULTICAST)
 			v2buf.type = OUT_MULTICAST;
 		else
 			v2buf.type = NO_OUT_MULTICAST;
@@ -739,26 +739,26 @@ supply(struct sockaddr_in *dst,
 		if ((ws.state & WS_ST_QUERY)
 		    || !(ws.state & WS_ST_TO_ON_NET)) {
 			ws.state |= (WS_ST_AG | WS_ST_SUPER_AG);
-		} else if (ifp == 0 || !(ifp->int_state & IS_NO_AG)) {
+		} else if (ifp == NULL || !(ifp->int_state & IS_NO_AG)) {
 			ws.state |= WS_ST_AG;
 			if (type != OUT_BROADCAST
-			    && (ifp == 0
+			    && (ifp == NULL
 				|| !(ifp->int_state & IS_NO_SUPER_AG)))
 				ws.state |= WS_ST_SUPER_AG;
 		}
 	}
 
 	ws.a = (vers == RIPv2) ? find_auth(ifp) : 0;
-	if (!passwd_ok && ws.a != 0 && ws.a->type == RIP_AUTH_PW)
-		ws.a = 0;
+	if (!passwd_ok && ws.a != NULL && ws.a->type == RIP_AUTH_PW)
+		ws.a = NULL;
 	clr_ws_buf(&v12buf,ws.a);
 	clr_ws_buf(&v2buf,ws.a);
 
 	/*  Fake a default route if asked and if there is not already
 	 * a better, real default route.
 	 */
-	if (supplier && (def_metric = ifp->int_d_metric) != 0) {
-		if (0 == (rt = rtget(RIP_DEFAULT, 0))
+	if (supplier && ifp && (def_metric = ifp->int_d_metric) != 0) {
+		if ((rt = rtget(RIP_DEFAULT, 0)) == NULL 
 		    || rt->rt_metric+ws.metric >= def_metric) {
 			ws.state |= WS_ST_DEFAULT;
 			ag_check(0, 0, 0, 0, def_metric, def_metric,

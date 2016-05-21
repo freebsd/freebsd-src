@@ -42,6 +42,10 @@
 #include "config.h"
 #endif
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include "bsdtar_windows.h"
+#endif
+
 /* Get a real definition for __FBSDID if we can */
 #if HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
@@ -123,10 +127,6 @@
 #define	__LA_DEAD	__attribute__((__noreturn__))
 #else
 #define	__LA_DEAD
-#endif
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#include "bsdtar_windows.h"
 #endif
 
 #endif /* !BSDTAR_PLATFORM_H_INCLUDED */

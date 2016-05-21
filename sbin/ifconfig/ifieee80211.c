@@ -1984,10 +1984,6 @@ checkchan(const struct ieee80211req_chaninfo *avail, int freq, int flags)
 	 * everything below is to deal with channels that we
 	 * want to include but that are not explicitly listed.
 	 */
-	if (flags & IEEE80211_CHAN_HT40) {
-		/* NB: we use an HT40 channel center that matches HT20 */
-		flags = (flags &~ IEEE80211_CHAN_HT40) | IEEE80211_CHAN_HT20;
-	}
 	if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, flags) != NULL)
 		return 1;
 	if (flags & IEEE80211_CHAN_GSM) {
@@ -3370,7 +3366,7 @@ scan_and_wait(int s)
 		return;
 	}
 	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
+	(void) strlcpy(ireq.i_name, name, sizeof(ireq.i_name));
 	ireq.i_type = IEEE80211_IOC_SCAN_REQ;
 
 	memset(&sr, 0, sizeof(sr));
@@ -3757,6 +3753,7 @@ list_txpow(int s)
 		/* suppress duplicates as above */
 		if (isset(reported, c->ic_ieee) && !verbose) {
 			/* XXX we assume duplicates are adjacent */
+			assert(achans->ic_nchans > 0);
 			prev = &achans->ic_chans[achans->ic_nchans-1];
 			/* display highest power on channel */
 			if (c->ic_maxpower > prev->ic_maxpower)
@@ -3836,7 +3833,7 @@ get80211wme(int s, int param, int ac, int *val)
 	struct ieee80211req ireq;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
+	(void) strlcpy(ireq.i_name, name, sizeof(ireq.i_name));
 	ireq.i_type = param;
 	ireq.i_len = ac;
 	if (ioctl(s, SIOCG80211, &ireq) < 0) {
@@ -4017,7 +4014,7 @@ list_mac(int s)
 	char c;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name)); /* XXX ?? */
+	(void) strlcpy(ireq.i_name, name, sizeof(ireq.i_name)); /* XXX ?? */
 	ireq.i_type = IEEE80211_IOC_MACCMD;
 	ireq.i_val = IEEE80211_MACCMD_POLICY;
 	if (ioctl(s, SIOCG80211, &ireq) < 0) {
@@ -4123,7 +4120,7 @@ list_mesh(int s)
 	struct ieee80211req_mesh_route *rt;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
+	(void) strlcpy(ireq.i_name, name, sizeof(ireq.i_name));
 	ireq.i_type = IEEE80211_IOC_MESH_RTCMD;
 	ireq.i_val = IEEE80211_MESH_RTCMD_LIST;
 	ireq.i_data = &routes;
@@ -4205,7 +4202,7 @@ get80211opmode(int s)
 	struct ifmediareq ifmr;
 
 	(void) memset(&ifmr, 0, sizeof(ifmr));
-	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
+	(void) strlcpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
 
 	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0) {
 		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC) {
@@ -4351,7 +4348,7 @@ getid(int s, int ix, void *data, size_t len, int *plen, int mesh)
 	struct ieee80211req ireq;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
+	(void) strlcpy(ireq.i_name, name, sizeof(ireq.i_name));
 	ireq.i_type = (!mesh) ? IEEE80211_IOC_SSID : IEEE80211_IOC_MESH_ID;
 	ireq.i_val = ix;
 	ireq.i_data = data;

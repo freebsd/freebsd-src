@@ -300,9 +300,9 @@ tegra_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
-	gpio_pin_get_by_ofw_property(sc->dev, "cd-gpios", &sc->gpio_cd);
-	gpio_pin_get_by_ofw_property(sc->dev, "power-gpios", &sc->gpio_power);
-	gpio_pin_get_by_ofw_property(sc->dev, "wp-gpios", &sc->gpio_wp);
+	gpio_pin_get_by_ofw_property(sc->dev, node, "cd-gpios", &sc->gpio_cd);
+	gpio_pin_get_by_ofw_property(sc->dev, node, "power-gpios", &sc->gpio_power);
+	gpio_pin_get_by_ofw_property(sc->dev, node, "wp-gpios", &sc->gpio_wp);
 
 	rv = clk_get_by_ofw_index(dev, 0, &sc->clk);
 	if (rv != 0) {

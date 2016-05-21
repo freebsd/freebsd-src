@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 30, 2003
+.Dd April 29, 2016
 .Dt PTHREAD_MUTEX_TIMEDLOCK 3
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@ The
 .Fn pthread_mutex_timedlock
 function will fail if:
 .Bl -tag -width Er
-.It Bq Er EINVAL
+.It Bq "Er ENOTRECOVERABLE"
 The
 .Fa mutex
 was created with the protocol attribute having the
@@ -89,8 +89,20 @@ has been exceeded.
 .It Bq Er EDEADLK
 The current thread already owns the
 .Fa mutex .
+.It Bq Er EOWNERDEAD
+The argument
+.Fa mutex
+points to a robust mutex and the previous owning thread terminated
+while holding the mutex lock.
+The lock was granted to the caller and it is up to the new owner
+to make the state consistent.
+.It Bq Er ENOTRECOVERABLE
+The state protected by the
+.Fa mutex
+is not recoverable.
 .El
 .Sh SEE ALSO
+.Xr pthread_mutex_consistent 3 ,
 .Xr pthread_mutex_destroy 3 ,
 .Xr pthread_mutex_init 3 ,
 .Xr pthread_mutex_lock 3 ,

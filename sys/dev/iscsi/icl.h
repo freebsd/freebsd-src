@@ -138,28 +138,6 @@ int		icl_unregister(const char *offload);
 struct sockaddr;
 struct icl_listen;
 
-struct icl_listen_sock {
-	TAILQ_ENTRY(icl_listen_sock)	ils_next;
-	struct icl_listen		*ils_listen;
-	struct socket			*ils_socket;
-	bool				ils_running;
-	bool				ils_disconnecting;
-	int				ils_id;
-};
-
-struct icl_listen	{
-	TAILQ_HEAD(, icl_listen_sock)	il_sockets;
-	struct sx			il_lock;
-	void				(*il_accept)(struct socket *,
-					    struct sockaddr *, int);
-};
-
-/*
- * Initiator part.
- */
-int			icl_conn_connect(struct icl_conn *ic, bool rdma,
-			    int domain, int socktype, int protocol,
-			    struct sockaddr *from_sa, struct sockaddr *to_sa);
 /*
  * Target part.
  */
@@ -172,10 +150,12 @@ int			icl_listen_add(struct icl_listen *il, bool rdma,
 int			icl_listen_remove(struct icl_listen *il, struct sockaddr *sa);
 
 /*
- * This one is not a public API; only to be used by icl_proxy.c.
+ * Those two are not a public API; only to be used between icl_soft.c
+ * and icl_soft_proxy.c.
  */
-int			icl_conn_handoff_sock(struct icl_conn *ic, struct socket *so);
-
+int			icl_soft_handoff_sock(struct icl_conn *ic, struct socket *so);
+int			icl_soft_proxy_connect(struct icl_conn *ic, int domain,
+			    int socktype, int protocol, struct sockaddr *from_sa,
+			    struct sockaddr *to_sa);
 #endif /* ICL_KERNEL_PROXY */
-
 #endif /* !ICL_H */

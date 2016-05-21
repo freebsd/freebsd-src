@@ -159,7 +159,7 @@ struct rt2860_softc {
 
 	uint16_t			mac_ver;
 	uint16_t			mac_rev;
-	uint8_t				rf_rev;
+	uint16_t			rf_rev;
 	uint8_t				freq;
 	uint8_t				ntxchains;
 	uint8_t				nrxchains;

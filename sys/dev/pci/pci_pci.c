@@ -59,7 +59,8 @@ static int		pcib_suspend(device_t dev);
 static int		pcib_resume(device_t dev);
 static int		pcib_power_for_sleep(device_t pcib, device_t dev,
 			    int *pstate);
-static uint16_t		pcib_ari_get_rid(device_t pcib, device_t dev);
+static int		pcib_ari_get_id(device_t pcib, device_t dev,
+    enum pci_id_type type, uintptr_t *id);
 static uint32_t		pcib_read_config(device_t dev, u_int b, u_int s,
     u_int f, u_int reg, int width);
 static void		pcib_write_config(device_t dev, u_int b, u_int s,
@@ -114,7 +115,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
     DEVMETHOD(pcib_map_msi,		pcib_map_msi),
     DEVMETHOD(pcib_power_for_sleep,	pcib_power_for_sleep),
-    DEVMETHOD(pcib_get_rid,		pcib_ari_get_rid),
+    DEVMETHOD(pcib_get_id,		pcib_ari_get_id),
     DEVMETHOD(pcib_try_enable_ari,	pcib_try_enable_ari),
     DEVMETHOD(pcib_ari_enabled,		pcib_ari_enabled),
     DEVMETHOD(pcib_decode_rid,		pcib_ari_decode_rid),
@@ -873,8 +874,11 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 
 /*
  * Send a HotPlug command to the slot control register.  If this slot
- * uses command completion interrupts, these updates will be buffered
- * while a previous command is completing.
+ * uses command completion interrupts and a previous command is still
+ * in progress, then the command is dropped.  Once the previous
+ * command completes or times out, pcib_pcie_hotplug_update() will be
+ * invoked to post a new command based on the slot's state at that
+ * time.
  */
 static void
 pcib_pcie_hotplug_command(struct pcib_softc *sc, uint16_t val, uint16_t mask)
@@ -883,28 +887,20 @@ pcib_pcie_hotplug_command(struct pcib_softc *sc, uint16_t val, uint16_t mask)
 	uint16_t ctl, new;
 
 	dev = sc->dev;
-	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_NCCS) {
-		ctl = pcie_read_config(dev, PCIER_SLOT_CTL, 2);
-		new = (ctl & ~mask) | val;
-		if (new != ctl)
-			pcie_write_config(dev, PCIER_SLOT_CTL, new, 2);
-		return;
-	}
 
-	if (sc->flags & PCIB_HOTPLUG_CMD_PENDING) {
-		sc->pcie_pending_link_ctl_val &= ~mask;
-		sc->pcie_pending_link_ctl_val |= val;
-		sc->pcie_pending_link_ctl_mask |= mask;
-	} else {
-		ctl = pcie_read_config(dev, PCIER_SLOT_CTL, 2);
-		new = (ctl & ~mask) | val;
-		if (new != ctl) {
-			pcie_write_config(dev, PCIER_SLOT_CTL, ctl, 2);
-			sc->flags |= PCIB_HOTPLUG_CMD_PENDING;
-			if (!cold)
-				callout_reset(&sc->pcie_cc_timer, hz,
-				    pcib_pcie_cc_timeout, sc);
-		}
+	if (sc->flags & PCIB_HOTPLUG_CMD_PENDING)
+		return;
+
+	ctl = pcie_read_config(dev, PCIER_SLOT_CTL, 2);
+	new = (ctl & ~mask) | val;
+	if (new == ctl)
+		return;
+	pcie_write_config(dev, PCIER_SLOT_CTL, new, 2);
+	if (!(sc->pcie_slot_cap & PCIEM_SLOT_CAP_NCCS)) {
+		sc->flags |= PCIB_HOTPLUG_CMD_PENDING;
+		if (!cold)
+			callout_reset(&sc->pcie_cc_timer, hz,
+			    pcib_pcie_cc_timeout, sc);
 	}
 }
 
@@ -912,7 +908,6 @@ static void
 pcib_pcie_hotplug_command_completed(struct pcib_softc *sc)
 {
 	device_t dev;
-	uint16_t ctl, new;
 
 	dev = sc->dev;
 
@@ -920,23 +915,8 @@ pcib_pcie_hotplug_command_completed(struct pcib_softc *sc)
 		device_printf(dev, "Command Completed\n");
 	if (!(sc->flags & PCIB_HOTPLUG_CMD_PENDING))
 		return;
-	if (sc->pcie_pending_link_ctl_mask != 0) {
-		ctl = pcie_read_config(dev, PCIER_SLOT_CTL, 2);
-		new = ctl & ~sc->pcie_pending_link_ctl_mask;
-		new |= sc->pcie_pending_link_ctl_val;
-		if (new != ctl) {
-			pcie_write_config(dev, PCIER_SLOT_CTL, ctl, 2);
-			if (!cold)
-				callout_reset(&sc->pcie_cc_timer, hz,
-				    pcib_pcie_cc_timeout, sc);
-		} else
-			sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
-		sc->pcie_pending_link_ctl_mask = 0;
-		sc->pcie_pending_link_ctl_val = 0;
-	} else {
-		callout_stop(&sc->pcie_cc_timer);
-		sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
-	}
+	callout_stop(&sc->pcie_cc_timer);
+	sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
 }
 
 /*
@@ -1040,11 +1020,10 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	 * Interlock.
 	 */
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_EIP) {
+		mask |= PCIEM_SLOT_CTL_EIC;
 		if (card_inserted !=
-		    !(sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS)) {
-			mask |= PCIEM_SLOT_CTL_EIC;
+		    !(sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS))
 			val |= PCIEM_SLOT_CTL_EIC;
-		}
 	}
 
 	/*
@@ -2574,11 +2553,18 @@ pcib_ari_enabled(device_t pcib)
 	return ((sc->flags & PCIB_ENABLE_ARI) != 0);
 }
 
-static uint16_t
-pcib_ari_get_rid(device_t pcib, device_t dev)
+static int
+pcib_ari_get_id(device_t pcib, device_t dev, enum pci_id_type type,
+    uintptr_t *id)
 {
 	struct pcib_softc *sc;
+	device_t bus_dev;
 	uint8_t bus, slot, func;
+
+	if (type != PCI_ID_RID) {
+		bus_dev = device_get_parent(pcib);
+		return (PCIB_GET_ID(device_get_parent(bus_dev), dev, type, id));
+	}
 
 	sc = device_get_softc(pcib);
 
@@ -2586,14 +2572,16 @@ pcib_ari_get_rid(device_t pcib, device_t dev)
 		bus = pci_get_bus(dev);
 		func = pci_get_function(dev);
 
-		return (PCI_ARI_RID(bus, func));
+		*id = (PCI_ARI_RID(bus, func));
 	} else {
 		bus = pci_get_bus(dev);
 		slot = pci_get_slot(dev);
 		func = pci_get_function(dev);
 
-		return (PCI_RID(bus, slot, func));
+		*id = (PCI_RID(bus, slot, func));
 	}
+
+	return (0);
 }
 
 /*

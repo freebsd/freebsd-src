@@ -408,7 +408,7 @@ fdt_lbc_reg_decode(phandle_t node, struct lbc_softc *sc,
 	}
 	rv = 0;
 out:
-	free(regptr, M_OFWPROP);
+	OF_prop_free(regptr);
 	return (rv);
 }
 
@@ -650,11 +650,11 @@ lbc_attach(device_t dev)
 	 */
 	lbc_banks_enable(sc);
 
-	free(rangesptr, M_OFWPROP);
+	OF_prop_free(rangesptr);
 	return (bus_generic_attach(dev));
 
 fail:
-	free(rangesptr, M_OFWPROP);
+	OF_prop_free(rangesptr);
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mrid, sc->sc_mres);
 	return (error);
 }

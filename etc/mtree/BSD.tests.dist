@@ -261,6 +261,8 @@
                 data
                 ..
             ..
+            iconv
+            ..
             inet
             ..
             locale
@@ -570,6 +572,8 @@
                 ..
             ..
         ..
+	bsdcat
+	..
         calendar
         ..
         cmp

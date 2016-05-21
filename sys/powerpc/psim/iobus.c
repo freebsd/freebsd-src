@@ -232,7 +232,7 @@ iobus_attach(device_t dev)
 			iobus_add_reg(child, dinfo, sc->sc_addr);
                         device_set_ivars(cdev, dinfo);
                 } else {
-                        free(name, M_OFWPROP);
+                        OF_prop_free(name);
                 }
         }
 

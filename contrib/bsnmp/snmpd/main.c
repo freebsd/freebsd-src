@@ -648,11 +648,11 @@ decoded:
 	} else if (usm_user->suser.auth_proto != SNMP_AUTH_NOAUTH &&
 	     (pdu->engine.engine_boots == 0 || pdu->engine.engine_time == 0)) {
 		snmpd_usmstats.not_in_time_windows++;
-		ret = SNMP_CODE_FAILED;
+		ret = SNMPD_INPUT_FAILED;
 	}
 
 	if ((code = snmp_pdu_auth_access(pdu, ip)) != SNMP_CODE_OK)
-		ret = SNMP_CODE_FAILED;
+		ret = SNMPD_INPUT_FAILED;
 
 	return (ret);
 }
@@ -1169,7 +1169,7 @@ recv_dgram(struct port_input *pi, struct in_addr *laddr)
 			memcpy(laddr, CMSG_DATA(cmsg), sizeof(struct in_addr));
 		if (cmsg->cmsg_level == SOL_SOCKET &&
 		    cmsg->cmsg_type == SCM_CREDS)
-			cred = (struct sockcred *)CMSG_DATA(cmsg);
+			memcpy(cred, CMSG_DATA(cmsg), sizeof(struct sockcred));
 	}
 
 	if (pi->cred)
@@ -1207,7 +1207,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 
 		ret = recv_stream(pi);
 	} else {
-		struct in_addr *laddr;
+		struct in_addr laddr;
 
 		memset(cbuf, 0, CMSG_SPACE(sizeof(struct in_addr)));
 		msg.msg_control = cbuf;
@@ -1216,11 +1216,11 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
 		cmsgp->cmsg_level = IPPROTO_IP;
 		cmsgp->cmsg_type = IP_SENDSRCADDR;
-		laddr = (struct in_addr *)CMSG_DATA(cmsgp);
+		memcpy(&laddr, CMSG_DATA(cmsgp), sizeof(struct in_addr));
 		
-		ret = recv_dgram(pi, laddr);
+		ret = recv_dgram(pi, &laddr);
 
-		if (laddr->s_addr == 0) {
+		if (laddr.s_addr == 0) {
 			msg.msg_control = NULL;
 			msg.msg_controllen = 0;
 		}

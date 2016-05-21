@@ -135,6 +135,7 @@ struct tcp_function_block {
 			    uint32_t, u_int);
 	int	(*tfb_tcp_timer_active)(struct tcpcb *, uint32_t);
 	void	(*tfb_tcp_timer_stop)(struct tcpcb *, uint32_t);
+	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
 	volatile uint32_t tfb_refcnt;
 	uint32_t  tfb_flags;
 };
@@ -628,8 +629,9 @@ void	kmod_tcpstat_inc(int statnum);
  * Running TCP connection count by state.
  */
 VNET_DECLARE(counter_u64_t, tcps_states[TCP_NSTATES]);
-#define	TCPSTATES_INC(state)	counter_u64_add(VNET(tcps_states)[state], 1)
-#define	TCPSTATES_DEC(state)	counter_u64_add(VNET(tcps_states)[state], -1)
+#define	V_tcps_states	VNET(tcps_states)
+#define	TCPSTATES_INC(state)	counter_u64_add(V_tcps_states[state], 1)
+#define	TCPSTATES_DEC(state)	counter_u64_add(V_tcps_states[state], -1)
 
 /*
  * TCP specific helper hook point identifiers.

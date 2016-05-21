@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2012
+.Dd September 16, 2014
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -184,6 +184,10 @@ but before extracting entries from the archive.
 to the current directory after processing any
 .Fl C
 options and before extracting any files.
+.It Fl Fl clear-nochange-fflags
+(x mode only)
+Before removing file system objects to replace them, clear platform-specific
+file flags that might prevent removal.
 .It Fl Fl disable-copyfile
 Mac OS X specific.
 Disable the use of
@@ -256,6 +260,10 @@ Show usage.
 .It Fl Fl hfsCompression
 (x mode only)
 Mac OS X specific(v10.6 or later). Compress extracted regular files with HFS+ compression.
+.It Fl Fl ignore-zeros
+An alias of
+.Fl Fl options Cm read_concatenated_archives
+for compatibility with GNU tar.
 .It Fl Fl include Ar pattern
 Process only files or directories that match the specified pattern.
 Note that exclusions specified with
@@ -314,6 +322,11 @@ Issue a warning message unless all links to each file are archived.
 Compress the resulting archive with
 .Xr lrzip 1 .
 In extract or list modes, this option is ignored.
+.It Fl Fl lz4
+(c mode only)
+Compress the archive with lz4-compatible compression before writing it.
+In input mode, this option is ignored; lz4 compression is recognized
+automatically on input.
 .It Fl Fl lzma
 (c mode only) Compress the resulting archive with the original LZMA algorithm.
 Use of this option is discouraged and new archives should be created with
@@ -494,6 +507,20 @@ Supported values are bzip2, gzip, lzo (ultra fast),
 and zpaq (best, extremely slow).
 .It Cm lrzip:compression-level
 A decimal integer from 1 to 9 specifying the lrzip compression level.
+.It Cm lz4:compression-level
+A decimal integer from 1 to 9 specifying the lzop compression level.
+.It Cm lz4:stream-checksum
+Enable stream checksum. This is by default, use
+.Cm lz4:!stream-checksum
+to disable.
+.It Cm lz4:block-checksum
+Enable block checksum (Disabled by default).
+.It Cm lz4:block-size
+A decimal integer from 4 to 7 specifying the lz4 compression block size
+(7 is set by default).
+.It Cm lz4:block-dependence
+Use the previous block of the block being compressed for
+a compression dictionary to improve compression ratio.
 .It Cm lzop:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level
@@ -524,6 +551,21 @@ Use
 .Ar type
 as compression method.
 Supported values are store (uncompressed) and deflate (gzip algorithm).
+.It Cm zip:encryption
+Enable encryption using traditional zip encryption.
+.It Cm zip:encryption Ns = Ns Ar type
+Use
+.Ar type
+as encryption type.
+Supported values are zipcrypt (traditional zip encryption),
+aes128 (WinZip AES-128 encryption) and aes256 (WinZip AES-256 encryption).
+.It Cm read_concatenated_archives
+Ignore zeroed blocks in the archive, which occurs when multiple tar archives
+have been concatenated together.  Without this option, only the contents of
+the first concatenated archive would be read.  This option is comparable to
+the
+.Fl i , Fl Fl ignore-zeros
+option of GNU tar.
 .El
 If a provided option is not supported by any module, that
 is a fatal error.
@@ -549,6 +591,13 @@ is being run by root and can be overridden by also specifying
 .Fl Fl no-same-owner
 and
 .Fl Fl no-same-permissions .
+.It Fl Fl passphrase Ar passphrase
+The
+.Pa passphrase
+is used to extract or create an encrypted archive.
+Currently, zip is the only supported format that supports encryption.
+You shouldn't use this option unless you realize how insecure
+use of this option is.
 .It Fl Fl posix
 (c, r, u mode only)
 Synonym for
@@ -689,9 +738,9 @@ In list mode,
 .Nm
 will produce output similar to that of
 .Xr ls 1 .
-Additional
+An additional
 .Fl v
-options will provide additional detail.
+option will also provide ls-like details in create and extract mode.
 .It Fl Fl version
 Print version of
 .Nm
@@ -823,11 +872,13 @@ An input file in
 format can be used to create an output archive with arbitrary ownership,
 permissions, or names that differ from existing data on disk:
 .Pp
-.Dl $ cat input.mtree
-.Dl #mtree
-.Dl usr/bin uid=0 gid=0 mode=0755 type=dir
-.Dl usr/bin/ls uid=0 gid=0 mode=0755 type=file content=myls
-.Dl $ tar -cvf output.tar @input.mtree
+.Bd -literal -offset indent
+$ cat input.mtree
+#mtree
+usr/bin uid=0 gid=0 mode=0755 type=dir
+usr/bin/ls uid=0 gid=0 mode=0755 type=file content=myls
+$ tar -cvf output.tar @input.mtree
+.Ed
 .Pp
 The
 .Fl Fl newer
@@ -1115,8 +1166,7 @@ option is specified.
 There needs to be better support for file selection on both create
 and extract.
 .Pp
-There is not yet any support for multi-volume archives or for archiving
-sparse files.
+There is not yet any support for multi-volume archives.
 .Pp
 Converting between dissimilar archive formats (such as tar and cpio) using the
 .Cm @ Ns Pa -

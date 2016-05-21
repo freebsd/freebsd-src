@@ -439,8 +439,12 @@ acpi_cpu_postattach(void *unused __unused)
     free(devices, M_TEMP);
 
     if (attached) {
+#ifdef EARLY_AP_STARTUP
+	acpi_cpu_startup(NULL);
+#else
 	/* Queue post cpu-probing task handler */
 	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cpu_startup, NULL);
+#endif
     }
 }
 

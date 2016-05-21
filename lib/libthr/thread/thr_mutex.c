@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
  * Copyright (c) 2006 David Xu <davidxu@freebsd.org>.
- * Copyright (c) 2015 The FreeBSD Foundation
+ * Copyright (c) 2015, 2016 The FreeBSD Foundation
  *
  * All rights reserved.
  *
@@ -39,7 +39,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdbool.h>
 #include "namespace.h"
 #include <stdlib.h>
 #include <errno.h>
@@ -64,6 +63,7 @@ _Static_assert(sizeof(struct pthread_mutex) <= PAGE_SIZE,
 /*
  * Prototypes
  */
+int	__pthread_mutex_consistent(pthread_mutex_t *mutex);
 int	__pthread_mutex_init(pthread_mutex_t *mutex,
 		const pthread_mutexattr_t *mutex_attr);
 int	__pthread_mutex_trylock(pthread_mutex_t *mutex);
@@ -82,9 +82,13 @@ int	__pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
 static int	mutex_self_trylock(pthread_mutex_t);
 static int	mutex_self_lock(pthread_mutex_t,
 				const struct timespec *abstime);
-static int	mutex_unlock_common(struct pthread_mutex *, int, int *);
+static int	mutex_unlock_common(struct pthread_mutex *, bool, int *);
 static int	mutex_lock_sleep(struct pthread *, pthread_mutex_t,
 				const struct timespec *);
+static void	mutex_init_robust(struct pthread *curthread);
+static int	mutex_qidx(struct pthread_mutex *m);
+static bool	is_robust_mutex(struct pthread_mutex *m);
+static bool	is_pshared_mutex(struct pthread_mutex *m);
 
 __weak_reference(__pthread_mutex_init, pthread_mutex_init);
 __strong_reference(__pthread_mutex_init, _pthread_mutex_init);
@@ -94,6 +98,8 @@ __weak_reference(__pthread_mutex_timedlock, pthread_mutex_timedlock);
 __strong_reference(__pthread_mutex_timedlock, _pthread_mutex_timedlock);
 __weak_reference(__pthread_mutex_trylock, pthread_mutex_trylock);
 __strong_reference(__pthread_mutex_trylock, _pthread_mutex_trylock);
+__weak_reference(_pthread_mutex_consistent, pthread_mutex_consistent);
+__strong_reference(_pthread_mutex_consistent, __pthread_mutex_consistent);
 
 /* Single underscore versions provided for libc internal usage: */
 /* No difference between libc and application usage of these: */
@@ -125,23 +131,23 @@ mutex_init_link(struct pthread_mutex *m)
 }
 
 static void
-mutex_assert_is_owned(struct pthread_mutex *m)
+mutex_assert_is_owned(struct pthread_mutex *m __unused)
 {
 
 #if defined(_PTHREADS_INVARIANTS)
 	if (__predict_false(m->m_qe.tqe_prev == NULL)) {
 		char msg[128];
 		snprintf(msg, sizeof(msg),
-		    "mutex %p own %#x %#x is not on list %p %p",
-		    m, m->m_lock.m_owner, m->m_owner, m->m_qe.tqe_prev,
-		    m->m_qe.tqe_next);
+		    "mutex %p own %#x is not on list %p %p",
+		    m, m->m_lock.m_owner, m->m_qe.tqe_prev, m->m_qe.tqe_next);
 		PANIC(msg);
 	}
 #endif
 }
 
 static void
-mutex_assert_not_owned(struct pthread_mutex *m)
+mutex_assert_not_owned(struct pthread *curthread __unused,
+    struct pthread_mutex *m __unused)
 {
 
 #if defined(_PTHREADS_INVARIANTS)
@@ -149,19 +155,66 @@ mutex_assert_not_owned(struct pthread_mutex *m)
 	    m->m_qe.tqe_next != NULL)) {
 		char msg[128];
 		snprintf(msg, sizeof(msg),
-		    "mutex %p own %#x %#x is on list %p %p",
-		    m, m->m_lock.m_owner, m->m_owner, m->m_qe.tqe_prev,
-		    m->m_qe.tqe_next);
+		    "mutex %p own %#x is on list %p %p",
+		    m, m->m_lock.m_owner, m->m_qe.tqe_prev, m->m_qe.tqe_next);
+		PANIC(msg);
+	}
+	if (__predict_false(is_robust_mutex(m) &&
+	    (m->m_lock.m_rb_lnk != 0 || m->m_rb_prev != NULL ||
+	    (is_pshared_mutex(m) && curthread->robust_list ==
+	    (uintptr_t)&m->m_lock) ||
+	    (!is_pshared_mutex(m) && curthread->priv_robust_list ==
+	    (uintptr_t)&m->m_lock)))) {
+		char msg[128];
+		snprintf(msg, sizeof(msg),
+    "mutex %p own %#x is on robust linkage %p %p head %p phead %p",
+		    m, m->m_lock.m_owner, (void *)m->m_lock.m_rb_lnk,
+		    m->m_rb_prev, (void *)curthread->robust_list,
+		    (void *)curthread->priv_robust_list);
 		PANIC(msg);
 	}
 #endif
 }
 
-static int
+static bool
 is_pshared_mutex(struct pthread_mutex *m)
 {
 
 	return ((m->m_lock.m_flags & USYNC_PROCESS_SHARED) != 0);
+}
+
+static bool
+is_robust_mutex(struct pthread_mutex *m)
+{
+
+	return ((m->m_lock.m_flags & UMUTEX_ROBUST) != 0);
+}
+
+int
+_mutex_enter_robust(struct pthread *curthread, struct pthread_mutex *m)
+{
+
+#if defined(_PTHREADS_INVARIANTS)
+	if (__predict_false(curthread->inact_mtx != 0))
+		PANIC("inact_mtx enter");
+#endif
+	if (!is_robust_mutex(m))
+		return (0);
+
+	mutex_init_robust(curthread);
+	curthread->inact_mtx = (uintptr_t)&m->m_lock;
+	return (1);
+}
+
+void
+_mutex_leave_robust(struct pthread *curthread, struct pthread_mutex *m __unused)
+{
+
+#if defined(_PTHREADS_INVARIANTS)
+	if (__predict_false(curthread->inact_mtx != (uintptr_t)&m->m_lock))
+		PANIC("inact_mtx leave");
+#endif
+	curthread->inact_mtx = 0;
 }
 
 static int
@@ -178,12 +231,27 @@ mutex_check_attr(const struct pthread_mutex_attr *attr)
 }
 
 static void
+mutex_init_robust(struct pthread *curthread)
+{
+	struct umtx_robust_lists_params rb;
+
+	if (curthread == NULL)
+		curthread = _get_curthread();
+	if (curthread->robust_inited)
+		return;
+	rb.robust_list_offset = (uintptr_t)&curthread->robust_list;
+	rb.robust_priv_list_offset = (uintptr_t)&curthread->priv_robust_list;
+	rb.robust_inact_offset = (uintptr_t)&curthread->inact_mtx;
+	_umtx_op(NULL, UMTX_OP_ROBUST_LISTS, sizeof(rb), &rb, NULL);
+	curthread->robust_inited = 1;
+}
+
+static void
 mutex_init_body(struct pthread_mutex *pmutex,
     const struct pthread_mutex_attr *attr)
 {
 
 	pmutex->m_flags = attr->m_type;
-	pmutex->m_owner = 0;
 	pmutex->m_count = 0;
 	pmutex->m_spinloops = 0;
 	pmutex->m_yieldloops = 0;
@@ -205,7 +273,10 @@ mutex_init_body(struct pthread_mutex *pmutex,
 	}
 	if (attr->m_pshared == PTHREAD_PROCESS_SHARED)
 		pmutex->m_lock.m_flags |= USYNC_PROCESS_SHARED;
-
+	if (attr->m_robust == PTHREAD_MUTEX_ROBUST) {
+		mutex_init_robust(NULL);
+		pmutex->m_lock.m_flags |= UMUTEX_ROBUST;
+	}
 	if (PMUTEX_TYPE(pmutex->m_flags) == PTHREAD_MUTEX_ADAPTIVE_NP) {
 		pmutex->m_spinloops =
 		    _thr_spinloops ? _thr_spinloops: MUTEX_ADAPTIVE_SPINS;
@@ -262,7 +333,7 @@ set_inherited_priority(struct pthread *curthread, struct pthread_mutex *m)
 {
 	struct pthread_mutex *m2;
 
-	m2 = TAILQ_LAST(&curthread->mq[TMQ_NORM_PP], mutex_queue);
+	m2 = TAILQ_LAST(&curthread->mq[mutex_qidx(m)], mutex_queue);
 	if (m2 != NULL)
 		m->m_lock.m_ceilings[1] = m2->m_lock.m_ceilings[0];
 	else
@@ -277,7 +348,8 @@ shared_mutex_init(struct pthread_mutex *pmtx, const struct
 		.m_type = PTHREAD_MUTEX_DEFAULT,
 		.m_protocol = PTHREAD_PRIO_NONE,
 		.m_ceiling = 0,
-		.m_pshared = PTHREAD_PROCESS_SHARED
+		.m_pshared = PTHREAD_PROCESS_SHARED,
+		.m_robust = PTHREAD_MUTEX_STALLED,
 	};
 	bool done;
 
@@ -329,7 +401,7 @@ __pthread_mutex_init(pthread_mutex_t *mutex,
 	if (mutex_attr == NULL ||
 	    (*mutex_attr)->m_pshared == PTHREAD_PROCESS_PRIVATE) {
 		return (mutex_init(mutex, mutex_attr ? *mutex_attr : NULL,
-		   calloc));
+		    calloc));
 	}
 	pmtx = __thr_pshared_offpage(mutex, 1);
 	if (pmtx == NULL)
@@ -349,6 +421,7 @@ _pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
 		.m_protocol = PTHREAD_PRIO_NONE,
 		.m_ceiling = 0,
 		.m_pshared = PTHREAD_PROCESS_PRIVATE,
+		.m_robust = PTHREAD_MUTEX_STALLED,
 	};
 	int ret;
 
@@ -378,7 +451,6 @@ queue_fork(struct pthread *curthread, struct mutex_queue *q,
 	TAILQ_FOREACH(m, qp, m_pqe) {
 		TAILQ_INSERT_TAIL(q, m, m_qe);
 		m->m_lock.m_owner = TID(curthread) | bit;
-		m->m_owner = TID(curthread);
 	}
 }
 
@@ -390,6 +462,9 @@ _mutex_fork(struct pthread *curthread)
 	    &curthread->mq[TMQ_NORM_PRIV], 0);
 	queue_fork(curthread, &curthread->mq[TMQ_NORM_PP],
 	    &curthread->mq[TMQ_NORM_PP_PRIV], UMUTEX_CONTESTED);
+	queue_fork(curthread, &curthread->mq[TMQ_ROBUST_PP],
+	    &curthread->mq[TMQ_ROBUST_PP_PRIV], UMUTEX_CONTESTED);
+	curthread->robust_list = 0;
 }
 
 int
@@ -407,17 +482,18 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 		if (m == THR_PSHARED_PTR) {
 			m1 = __thr_pshared_offpage(mutex, 0);
 			if (m1 != NULL) {
-				mutex_assert_not_owned(m1);
+				mutex_assert_not_owned(_get_curthread(), m1);
 				__thr_pshared_destroy(mutex);
 			}
 			*mutex = THR_MUTEX_DESTROYED;
 			return (0);
 		}
-		if (m->m_owner != 0) {
+		if (PMUTEX_OWNER_ID(m) != 0 &&
+		    (uint32_t)m->m_lock.m_owner != UMUTEX_RB_NOTRECOV) {
 			ret = EBUSY;
 		} else {
 			*mutex = THR_MUTEX_DESTROYED;
-			mutex_assert_not_owned(m);
+			mutex_assert_not_owned(_get_curthread(), m);
 			free(m);
 			ret = 0;
 		}
@@ -432,31 +508,81 @@ mutex_qidx(struct pthread_mutex *m)
 
 	if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
 		return (TMQ_NORM);
-	return (TMQ_NORM_PP);
+	return (is_robust_mutex(m) ? TMQ_ROBUST_PP : TMQ_NORM_PP);
 }
 
+/*
+ * Both enqueue_mutex() and dequeue_mutex() operate on the
+ * thread-private linkage of the locked mutexes and on the robust
+ * linkage.
+ *
+ * Robust list, as seen by kernel, must be consistent even in the case
+ * of thread termination at arbitrary moment.  Since either enqueue or
+ * dequeue for list walked by kernel consists of rewriting a single
+ * forward pointer, it is safe.  On the other hand, rewrite of the
+ * back pointer is not atomic WRT the forward one, but kernel does not
+ * care.
+ */
 static void
-enqueue_mutex(struct pthread *curthread, struct pthread_mutex *m)
+enqueue_mutex(struct pthread *curthread, struct pthread_mutex *m,
+    int error)
 {
+	struct pthread_mutex *m1;
+	uintptr_t *rl;
 	int qidx;
 
-	m->m_owner = TID(curthread);
 	/* Add to the list of owned mutexes: */
-	mutex_assert_not_owned(m);
+	if (error != EOWNERDEAD)
+		mutex_assert_not_owned(curthread, m);
 	qidx = mutex_qidx(m);
 	TAILQ_INSERT_TAIL(&curthread->mq[qidx], m, m_qe);
 	if (!is_pshared_mutex(m))
 		TAILQ_INSERT_TAIL(&curthread->mq[qidx + 1], m, m_pqe);
+	if (is_robust_mutex(m)) {
+		rl = is_pshared_mutex(m) ? &curthread->robust_list :
+		    &curthread->priv_robust_list;
+		m->m_rb_prev = NULL;
+		if (*rl != 0) {
+			m1 = __containerof((void *)*rl,
+			    struct pthread_mutex, m_lock);
+			m->m_lock.m_rb_lnk = (uintptr_t)&m1->m_lock;
+			m1->m_rb_prev = m;
+		} else {
+			m1 = NULL;
+			m->m_lock.m_rb_lnk = 0;
+		}
+		*rl = (uintptr_t)&m->m_lock;
+	}
 }
 
 static void
 dequeue_mutex(struct pthread *curthread, struct pthread_mutex *m)
 {
+	struct pthread_mutex *mp, *mn;
 	int qidx;
 
-	m->m_owner = 0;
 	mutex_assert_is_owned(m);
 	qidx = mutex_qidx(m);
+	if (is_robust_mutex(m)) {
+		mp = m->m_rb_prev;
+		if (mp == NULL) {
+			if (is_pshared_mutex(m)) {
+				curthread->robust_list = m->m_lock.m_rb_lnk;
+			} else {
+				curthread->priv_robust_list =
+				    m->m_lock.m_rb_lnk;
+			}
+		} else {
+			mp->m_lock.m_rb_lnk = m->m_lock.m_rb_lnk;
+		}
+		if (m->m_lock.m_rb_lnk != 0) {
+			mn = __containerof((void *)m->m_lock.m_rb_lnk,
+			    struct pthread_mutex, m_lock);
+			mn->m_rb_prev = m->m_rb_prev;
+		}
+		m->m_lock.m_rb_lnk = 0;
+		m->m_rb_prev = NULL;
+	}
 	TAILQ_REMOVE(&curthread->mq[qidx], m, m_qe);
 	if (!is_pshared_mutex(m))
 		TAILQ_REMOVE(&curthread->mq[qidx + 1], m, m_pqe);
@@ -496,7 +622,7 @@ __pthread_mutex_trylock(pthread_mutex_t *mutex)
 	struct pthread *curthread;
 	struct pthread_mutex *m;
 	uint32_t id;
-	int ret;
+	int ret, robust;
 
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret != 0)
@@ -505,27 +631,32 @@ __pthread_mutex_trylock(pthread_mutex_t *mutex)
 	id = TID(curthread);
 	if (m->m_flags & PMUTEX_FLAG_PRIVATE)
 		THR_CRITICAL_ENTER(curthread);
+	robust = _mutex_enter_robust(curthread, m);
 	ret = _thr_umutex_trylock(&m->m_lock, id);
-	if (__predict_true(ret == 0)) {
-		enqueue_mutex(curthread, m);
-	} else if (m->m_owner == id) {
+	if (__predict_true(ret == 0) || ret == EOWNERDEAD) {
+		enqueue_mutex(curthread, m, ret);
+		if (ret == EOWNERDEAD)
+			m->m_lock.m_flags |= UMUTEX_NONCONSISTENT;
+	} else if (PMUTEX_OWNER_ID(m) == id) {
 		ret = mutex_self_trylock(m);
 	} /* else {} */
-	if (ret && (m->m_flags & PMUTEX_FLAG_PRIVATE))
+	if (robust)
+		_mutex_leave_robust(curthread, m);
+	if ((ret == 0 || ret == EOWNERDEAD) &&
+	    (m->m_flags & PMUTEX_FLAG_PRIVATE) != 0)
 		THR_CRITICAL_LEAVE(curthread);
 	return (ret);
 }
 
 static int
 mutex_lock_sleep(struct pthread *curthread, struct pthread_mutex *m,
-	const struct timespec *abstime)
+    const struct timespec *abstime)
 {
-	uint32_t	id, owner;
-	int	count;
-	int	ret;
+	uint32_t id, owner;
+	int count, ret;
 
 	id = TID(curthread);
-	if (m->m_owner == id)
+	if (PMUTEX_OWNER_ID(m) == id)
 		return (mutex_self_lock(m, abstime));
 
 	/*
@@ -534,10 +665,9 @@ mutex_lock_sleep(struct pthread *curthread, struct pthread_mutex *m,
 	 * the lock is likely to be released quickly and it is
 	 * faster than entering the kernel
 	 */
-	if (__predict_false(
-		(m->m_lock.m_flags & 
-		 (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) != 0))
-			goto sleep_in_kernel;
+	if (__predict_false((m->m_lock.m_flags & (UMUTEX_PRIO_PROTECT |
+	    UMUTEX_PRIO_INHERIT | UMUTEX_ROBUST | UMUTEX_NONCONSISTENT)) != 0))
+		goto sleep_in_kernel;
 
 	if (!_thr_is_smp)
 		goto yield_loop;
@@ -546,7 +676,8 @@ mutex_lock_sleep(struct pthread *curthread, struct pthread_mutex *m,
 	while (count--) {
 		owner = m->m_lock.m_owner;
 		if ((owner & ~UMUTEX_CONTESTED) == 0) {
-			if (atomic_cmpset_acq_32(&m->m_lock.m_owner, owner, id|owner)) {
+			if (atomic_cmpset_acq_32(&m->m_lock.m_owner, owner,
+			    id | owner)) {
 				ret = 0;
 				goto done;
 			}
@@ -560,7 +691,8 @@ yield_loop:
 		_sched_yield();
 		owner = m->m_lock.m_owner;
 		if ((owner & ~UMUTEX_CONTESTED) == 0) {
-			if (atomic_cmpset_acq_32(&m->m_lock.m_owner, owner, id|owner)) {
+			if (atomic_cmpset_acq_32(&m->m_lock.m_owner, owner,
+			    id | owner)) {
 				ret = 0;
 				goto done;
 			}
@@ -568,38 +700,46 @@ yield_loop:
 	}
 
 sleep_in_kernel:
-	if (abstime == NULL) {
+	if (abstime == NULL)
 		ret = __thr_umutex_lock(&m->m_lock, id);
-	} else if (__predict_false(
-		   abstime->tv_nsec < 0 ||
-		   abstime->tv_nsec >= 1000000000)) {
+	else if (__predict_false(abstime->tv_nsec < 0 ||
+	    abstime->tv_nsec >= 1000000000))
 		ret = EINVAL;
-	} else {
+	else
 		ret = __thr_umutex_timedlock(&m->m_lock, id, abstime);
-	}
 done:
-	if (ret == 0)
-		enqueue_mutex(curthread, m);
-
+	if (ret == 0 || ret == EOWNERDEAD) {
+		enqueue_mutex(curthread, m, ret);
+		if (ret == EOWNERDEAD)
+			m->m_lock.m_flags |= UMUTEX_NONCONSISTENT;
+	}
 	return (ret);
 }
 
 static inline int
-mutex_lock_common(struct pthread_mutex *m,
-	const struct timespec *abstime, int cvattach)
+mutex_lock_common(struct pthread_mutex *m, const struct timespec *abstime,
+    bool cvattach, bool rb_onlist)
 {
-	struct pthread *curthread  = _get_curthread();
-	int ret;
+	struct pthread *curthread;
+	int ret, robust;
 
+	curthread  = _get_curthread();
 	if (!cvattach && m->m_flags & PMUTEX_FLAG_PRIVATE)
 		THR_CRITICAL_ENTER(curthread);
-	if (_thr_umutex_trylock2(&m->m_lock, TID(curthread)) == 0) {
-		enqueue_mutex(curthread, m);
-		ret = 0;
+	if (!rb_onlist)
+		robust = _mutex_enter_robust(curthread, m);
+	ret = _thr_umutex_trylock2(&m->m_lock, TID(curthread));
+	if (ret == 0 || ret == EOWNERDEAD) {
+		enqueue_mutex(curthread, m, ret);
+		if (ret == EOWNERDEAD)
+			m->m_lock.m_flags |= UMUTEX_NONCONSISTENT;
 	} else {
 		ret = mutex_lock_sleep(curthread, m, abstime);
 	}
-	if (ret && (m->m_flags & PMUTEX_FLAG_PRIVATE) && !cvattach)
+	if (!rb_onlist && robust)
+		_mutex_leave_robust(curthread, m);
+	if (ret != 0 && ret != EOWNERDEAD &&
+	    (m->m_flags & PMUTEX_FLAG_PRIVATE) != 0 && !cvattach)
 		THR_CRITICAL_LEAVE(curthread);
 	return (ret);
 }
@@ -613,7 +753,7 @@ __pthread_mutex_lock(pthread_mutex_t *mutex)
 	_thr_check_init();
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
-		ret = mutex_lock_common(m, NULL, 0);
+		ret = mutex_lock_common(m, NULL, false, false);
 	return (ret);
 }
 
@@ -627,7 +767,7 @@ __pthread_mutex_timedlock(pthread_mutex_t *mutex,
 	_thr_check_init();
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
-		ret = mutex_lock_common(m, abstime, 0);
+		ret = mutex_lock_common(m, abstime, false, false);
 	return (ret);
 }
 
@@ -644,16 +784,16 @@ _pthread_mutex_unlock(pthread_mutex_t *mutex)
 	} else {
 		mp = *mutex;
 	}
-	return (mutex_unlock_common(mp, 0, NULL));
+	return (mutex_unlock_common(mp, false, NULL));
 }
 
 int
-_mutex_cv_lock(struct pthread_mutex *m, int count)
+_mutex_cv_lock(struct pthread_mutex *m, int count, bool rb_onlist)
 {
-	int	error;
+	int error;
 
-	error = mutex_lock_common(m, NULL, 1);
-	if (error == 0)
+	error = mutex_lock_common(m, NULL, true, rb_onlist);
+	if (error == 0 || error == EOWNERDEAD)
 		m->m_count = count;
 	return (error);
 }
@@ -667,16 +807,17 @@ _mutex_cv_unlock(struct pthread_mutex *m, int *count, int *defer)
 	 */
 	*count = m->m_count;
 	m->m_count = 0;
-	(void)mutex_unlock_common(m, 1, defer);
+	(void)mutex_unlock_common(m, true, defer);
         return (0);
 }
 
 int
 _mutex_cv_attach(struct pthread_mutex *m, int count)
 {
-	struct pthread *curthread = _get_curthread();
+	struct pthread *curthread;
 
-	enqueue_mutex(curthread, m);
+	curthread = _get_curthread();
+	enqueue_mutex(curthread, m, 0);
 	m->m_count = count;
 	return (0);
 }
@@ -684,12 +825,12 @@ _mutex_cv_attach(struct pthread_mutex *m, int count)
 int
 _mutex_cv_detach(struct pthread_mutex *mp, int *recurse)
 {
-	struct pthread *curthread = _get_curthread();
-	int     defered;
-	int     error;
+	struct pthread *curthread;
+	int deferred, error;
 
+	curthread = _get_curthread();
 	if ((error = _mutex_owned(curthread, mp)) != 0)
-                return (error);
+		return (error);
 
 	/*
 	 * Clear the count in case this is a recursive mutex.
@@ -699,15 +840,15 @@ _mutex_cv_detach(struct pthread_mutex *mp, int *recurse)
 	dequeue_mutex(curthread, mp);
 
 	/* Will this happen in real-world ? */
-        if ((mp->m_flags & PMUTEX_FLAG_DEFERED) != 0) {
-		defered = 1;
-		mp->m_flags &= ~PMUTEX_FLAG_DEFERED;
+        if ((mp->m_flags & PMUTEX_FLAG_DEFERRED) != 0) {
+		deferred = 1;
+		mp->m_flags &= ~PMUTEX_FLAG_DEFERRED;
 	} else
-		defered = 0;
+		deferred = 0;
 
-	if (defered)  {
+	if (deferred)  {
 		_thr_wake_all(curthread->defer_waiters,
-				curthread->nwaiter_defer);
+		    curthread->nwaiter_defer);
 		curthread->nwaiter_defer = 0;
 	}
 	return (0);
@@ -716,7 +857,7 @@ _mutex_cv_detach(struct pthread_mutex *mp, int *recurse)
 static int
 mutex_self_trylock(struct pthread_mutex *m)
 {
-	int	ret;
+	int ret;
 
 	switch (PMUTEX_TYPE(m->m_flags)) {
 	case PTHREAD_MUTEX_ERRORCHECK:
@@ -746,7 +887,7 @@ static int
 mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime)
 {
 	struct timespec	ts1, ts2;
-	int	ret;
+	int ret;
 
 	switch (PMUTEX_TYPE(m->m_flags)) {
 	case PTHREAD_MUTEX_ERRORCHECK:
@@ -812,11 +953,11 @@ mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime)
 }
 
 static int
-mutex_unlock_common(struct pthread_mutex *m, int cv, int *mtx_defer)
+mutex_unlock_common(struct pthread_mutex *m, bool cv, int *mtx_defer)
 {
-	struct pthread *curthread = _get_curthread();
+	struct pthread *curthread;
 	uint32_t id;
-	int defered, error;
+	int deferred, error, robust;
 
 	if (__predict_false(m <= THR_MUTEX_DESTROYED)) {
 		if (m == THR_MUTEX_DESTROYED)
@@ -824,34 +965,39 @@ mutex_unlock_common(struct pthread_mutex *m, int cv, int *mtx_defer)
 		return (EPERM);
 	}
 
+	curthread = _get_curthread();
 	id = TID(curthread);
 
 	/*
 	 * Check if the running thread is not the owner of the mutex.
 	 */
-	if (__predict_false(m->m_owner != id))
+	if (__predict_false(PMUTEX_OWNER_ID(m) != id))
 		return (EPERM);
 
 	error = 0;
-	if (__predict_false(
-		PMUTEX_TYPE(m->m_flags) == PTHREAD_MUTEX_RECURSIVE &&
-		m->m_count > 0)) {
+	if (__predict_false(PMUTEX_TYPE(m->m_flags) ==
+	    PTHREAD_MUTEX_RECURSIVE && m->m_count > 0)) {
 		m->m_count--;
 	} else {
-		if ((m->m_flags & PMUTEX_FLAG_DEFERED) != 0) {
-			defered = 1;
-			m->m_flags &= ~PMUTEX_FLAG_DEFERED;
+		if ((m->m_flags & PMUTEX_FLAG_DEFERRED) != 0) {
+			deferred = 1;
+			m->m_flags &= ~PMUTEX_FLAG_DEFERRED;
         	} else
-			defered = 0;
+			deferred = 0;
 
+		robust = _mutex_enter_robust(curthread, m);
 		dequeue_mutex(curthread, m);
 		error = _thr_umutex_unlock2(&m->m_lock, id, mtx_defer);
-
-		if (mtx_defer == NULL && defered)  {
-			_thr_wake_all(curthread->defer_waiters,
-				curthread->nwaiter_defer);
-			curthread->nwaiter_defer = 0;
+		if (deferred)  {
+			if (mtx_defer == NULL) {
+				_thr_wake_all(curthread->defer_waiters,
+				    curthread->nwaiter_defer);
+				curthread->nwaiter_defer = 0;
+			} else
+				*mtx_defer = 1;
 		}
+		if (robust)
+			_mutex_leave_robust(curthread, m);
 	}
 	if (!cv && m->m_flags & PMUTEX_FLAG_PRIVATE)
 		THR_CRITICAL_LEAVE(curthread);
@@ -887,7 +1033,7 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 	struct pthread *curthread;
 	struct pthread_mutex *m, *m1, *m2;
 	struct mutex_queue *q, *qp;
-	int ret;
+	int qidx, ret;
 
 	if (*mutex == THR_PSHARED_PTR) {
 		m = __thr_pshared_offpage(mutex, 0);
@@ -907,14 +1053,15 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 		return (ret);
 
 	curthread = _get_curthread();
-	if (m->m_owner == TID(curthread)) {
+	if (PMUTEX_OWNER_ID(m) == TID(curthread)) {
 		mutex_assert_is_owned(m);
 		m1 = TAILQ_PREV(m, mutex_queue, m_qe);
 		m2 = TAILQ_NEXT(m, m_qe);
 		if ((m1 != NULL && m1->m_lock.m_ceilings[0] > (u_int)ceiling) ||
 		    (m2 != NULL && m2->m_lock.m_ceilings[0] < (u_int)ceiling)) {
-			q = &curthread->mq[TMQ_NORM_PP];
-			qp = &curthread->mq[TMQ_NORM_PP_PRIV];
+			qidx = mutex_qidx(m);
+			q = &curthread->mq[qidx];
+			qp = &curthread->mq[qidx + 1];
 			TAILQ_REMOVE(q, m, m_qe);
 			if (!is_pshared_mutex(m))
 				TAILQ_REMOVE(qp, m, m_pqe);
@@ -1009,18 +1156,45 @@ _pthread_mutex_isowned_np(pthread_mutex_t *mutex)
 		if (m <= THR_MUTEX_DESTROYED)
 			return (0);
 	}
-	return (m->m_owner == TID(_get_curthread()));
+	return (PMUTEX_OWNER_ID(m) == TID(_get_curthread()));
 }
 
 int
 _mutex_owned(struct pthread *curthread, const struct pthread_mutex *mp)
 {
+
 	if (__predict_false(mp <= THR_MUTEX_DESTROYED)) {
 		if (mp == THR_MUTEX_DESTROYED)
 			return (EINVAL);
 		return (EPERM);
 	}
-	if (mp->m_owner != TID(curthread))
+	if (PMUTEX_OWNER_ID(mp) != TID(curthread))
 		return (EPERM);
 	return (0);                  
+}
+
+int
+_pthread_mutex_consistent(pthread_mutex_t *mutex)
+{
+	struct pthread_mutex *m;
+	struct pthread *curthread;
+
+	if (*mutex == THR_PSHARED_PTR) {
+		m = __thr_pshared_offpage(mutex, 0);
+		if (m == NULL)
+			return (EINVAL);
+		shared_mutex_init(m, NULL);
+	} else {
+		m = *mutex;
+		if (m <= THR_MUTEX_DESTROYED)
+			return (EINVAL);
+	}
+	curthread = _get_curthread();
+	if ((m->m_lock.m_flags & (UMUTEX_ROBUST | UMUTEX_NONCONSISTENT)) !=
+	    (UMUTEX_ROBUST | UMUTEX_NONCONSISTENT))
+		return (EINVAL);
+	if (PMUTEX_OWNER_ID(m) != TID(curthread))
+		return (EPERM);
+	m->m_lock.m_flags &= ~UMUTEX_NONCONSISTENT;
+	return (0);
 }

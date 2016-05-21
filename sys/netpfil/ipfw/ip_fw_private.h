@@ -315,9 +315,10 @@ struct named_object {
 	char			*name;	/* object name */
 	uint16_t		etlv;	/* Export TLV id */
 	uint8_t			subtype;/* object subtype within class */
-	uint8_t			spare[3];
+	uint8_t			set;	/* set object belongs to */
 	uint16_t		kidx;	/* object kernel index */
-	uint32_t		set;	/* set object belongs to */
+	uint16_t		spare;
+	uint32_t		ocnt;	/* object counter for internal use */
 	uint32_t		refcnt;	/* number of references */
 };
 TAILQ_HEAD(namedobjects_head, named_object);
@@ -571,6 +572,21 @@ typedef int (ipfw_obj_create_cb)(struct ip_fw_chain *ch, struct tid_info *ti,
  */
 typedef void (ipfw_obj_destroy_cb)(struct ip_fw_chain *ch,
     struct named_object *no);
+/*
+ * Sets handler callback. Handles moving and swaping set of named object.
+ *  SWAP_ALL moves all named objects from set `set' to `new_set' and vise versa;
+ *  TEST_ALL checks that there aren't any named object with conflicting names;
+ *  MOVE_ALL moves all named objects from set `set' to `new_set';
+ *  COUNT_ONE used to count number of references used by object with kidx `set';
+ *  TEST_ONE checks that named object with kidx `set' can be moved to `new_set`;
+ *  MOVE_ONE moves named object with kidx `set' to set `new_set'.
+ */
+enum ipfw_sets_cmd {
+	SWAP_ALL = 0, TEST_ALL, MOVE_ALL, COUNT_ONE, TEST_ONE, MOVE_ONE
+};
+typedef int (ipfw_obj_sets_cb)(struct ip_fw_chain *ch,
+    uint16_t set, uint8_t new_set, enum ipfw_sets_cmd cmd);
+
 
 struct opcode_obj_rewrite {
 	uint32_t		opcode;		/* Opcode to act upon */
@@ -581,6 +597,7 @@ struct opcode_obj_rewrite {
 	ipfw_obj_fidx_cb	*find_bykidx;	/* Find named object by kidx */
 	ipfw_obj_create_cb	*create_object;	/* Create named object */
 	ipfw_obj_destroy_cb	*destroy_object;/* Destroy named object */
+	ipfw_obj_sets_cb	*manage_sets;	/* Swap or move sets */
 };
 
 #define	IPFW_ADD_OBJ_REWRITER(f, c)	do {	\
@@ -675,8 +692,11 @@ int ipfw_objhash_same_name(struct namedobj_instance *ni, struct named_object *a,
 void ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no);
 void ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no);
 uint32_t ipfw_objhash_count(struct namedobj_instance *ni);
+uint32_t ipfw_objhash_count_type(struct namedobj_instance *ni, uint16_t type);
 int ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f,
     void *arg);
+int ipfw_objhash_foreach_type(struct namedobj_instance *ni, objhash_cb_t *f,
+    void *arg, uint16_t type);
 int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx);
 int ipfw_objhash_alloc_idx(void *n, uint16_t *pidx);
 void ipfw_objhash_set_funcs(struct namedobj_instance *ni,
@@ -698,6 +718,8 @@ int classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx);
 void ipfw_init_srv(struct ip_fw_chain *ch);
 void ipfw_destroy_srv(struct ip_fw_chain *ch);
 int ipfw_check_object_name_generic(const char *name);
+int ipfw_obj_manage_sets(struct namedobj_instance *ni, uint16_t type,
+    uint16_t set, uint8_t new_set, enum ipfw_sets_cmd cmd);
 
 /* In ip_fw_eaction.c */
 typedef int (ipfw_eaction_t)(struct ip_fw_chain *ch, struct ip_fw_args *args,

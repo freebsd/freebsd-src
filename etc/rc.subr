@@ -1954,6 +1954,37 @@ geli_make_list()
 	echo ${devices2}
 }
 
+# Originally, root mount hold had to be released before mounting
+# the root filesystem.  This delayed the boot, so it was changed
+# to only wait if the root device isn't readily available.  This
+# can result in rc scripts executing before all the devices - such
+# as graid(8), or USB disks - can be accessed.  This function can
+# be used to explicitly wait for root mount holds to be released.
+root_hold_wait()
+{
+	local wait waited holders
+
+	waited=0
+	while true; do
+		holders="$(sysctl -n vfs.root_mount_hold)"
+		if [ -z "${holders}" ]; then
+			break;
+		fi
+		if [ ${waited} -eq 0 ]; then
+			echo -n "Waiting ${root_hold_delay}s" \
+			"for the root mount holders: ${holders}"
+		else
+			echo -n .
+		fi
+		if [ ${waited} -ge ${root_hold_delay} ]; then
+			echo
+			break
+		fi
+		sleep 1
+		waited=$(($waited + 1))
+	done
+}
+
 # Find scripts in local_startup directories that use the old syntax
 #
 find_local_scripts_old() {

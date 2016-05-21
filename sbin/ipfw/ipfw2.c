@@ -2280,6 +2280,9 @@ ipfw_sets_handler(char *av[])
 		if (!isdigit(*(av[2])) || rt.new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
 		i = do_range_cmd(cmd, &rt);
+		if (i < 0)
+			err(EX_OSERR, "failed to move %s",
+			    cmd == IP_FW_SET_MOVE ? "set": "rule");
 	} else if (_substrcmp(*av, "disable") == 0 ||
 		   _substrcmp(*av, "enable") == 0 ) {
 		int which = _substrcmp(*av, "enable") == 0 ? 1 : 0;
@@ -5128,11 +5131,35 @@ static struct _s_x intcmds[] = {
       { NULL, 0 }
 };
 
+static struct _s_x otypes[] = {
+	{ "EACTION",	IPFW_TLV_EACTION },
+	{ NULL, 0 }
+};
+
+static const char*
+lookup_eaction_name(ipfw_obj_ntlv *ntlv, int cnt, uint16_t type)
+{
+	const char *name;
+	int i;
+
+	name = NULL;
+	for (i = 0; i < cnt; i++) {
+		if (ntlv[i].head.type != IPFW_TLV_EACTION)
+			continue;
+		if (IPFW_TLV_EACTION_NAME(ntlv[i].idx) != type)
+			continue;
+		name = ntlv[i].name;
+		break;
+	}
+	return (name);
+}
+
 static void
 ipfw_list_objects(int ac, char *av[])
 {
 	ipfw_obj_lheader req, *olh;
 	ipfw_obj_ntlv *ntlv;
+	const char *name;
 	size_t sz;
 	int i;
 
@@ -5158,8 +5185,17 @@ ipfw_list_objects(int ac, char *av[])
 		printf("There are no objects\n");
 	ntlv = (ipfw_obj_ntlv *)(olh + 1);
 	for (i = 0; i < olh->count; i++) {
-		printf(" kidx: %4d\ttype: %6d\tname: %s\n", ntlv->idx,
-		    ntlv->head.type, ntlv->name);
+		name = match_value(otypes, ntlv->head.type);
+		if (name == NULL)
+			name = lookup_eaction_name(
+			    (ipfw_obj_ntlv *)(olh + 1), olh->count,
+			    ntlv->head.type);
+		if (name == NULL)
+			printf(" kidx: %4d\ttype: %10d\tname: %s\n",
+			    ntlv->idx, ntlv->head.type, ntlv->name);
+		else
+			printf(" kidx: %4d\ttype: %10s\tname: %s\n",
+			    ntlv->idx, name, ntlv->name);
 		ntlv++;
 	}
 	free(olh);

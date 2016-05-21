@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160510:
+	Kernel modules compiled outside of a kernel build now default to
+	installing to /boot/modules instead of /boot/kernel.  Many kernel
+	modules built this way (such as those in ports) already overrode
+	KMODDIR explicitly to install into /boot/modules.  However,
+	manually building and installing a module from /sys/modules will
+	now install to /boot/modules instead of /boot/kernel.
+
 20160414:
 	The CAM I/O scheduler has been committed to the kernel. There should be
 	no user visible impact. This does enable NCQ Trim on ada SSDs. While the

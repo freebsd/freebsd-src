@@ -128,6 +128,14 @@ int intr_teardown_irq(device_t, struct resource *, void *);
 
 int intr_describe_irq(device_t, struct resource *, void *, const char *);
 
+/* MSI/MSI-X handling */
+int intr_msi_register(device_t, intptr_t);
+int intr_alloc_msi(device_t, device_t, intptr_t, int, int, int *);
+int intr_release_msi(device_t, device_t, intptr_t, int, int *);
+int intr_map_msi(device_t, device_t, intptr_t, int, uint64_t *, uint32_t *);
+int intr_alloc_msix(device_t, device_t, intptr_t, int *);
+int intr_release_msix(device_t, device_t, intptr_t, int);
+
 #ifdef DEV_ACPI
 u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
     enum intr_trigger);

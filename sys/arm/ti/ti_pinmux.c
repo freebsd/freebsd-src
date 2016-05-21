@@ -361,7 +361,7 @@ ti_pinmux_configure_pins(device_t dev, phandle_t cfgxref)
 		ti_pinmux_write_2(sc, cfg->reg, cfg->conf);
 	}
 
-	free(cfgtuples, M_OFWPROP);
+	OF_prop_free(cfgtuples);
 
 	return (0);
 }

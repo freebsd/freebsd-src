@@ -87,20 +87,20 @@ extern "C" {
 #include <limits.h>
 #include <strings.h>
 
-#define	JEMALLOC_VERSION "4.1.0-1-g994da4232621dd1210fcf39bdf0d6454cefda473"
+#define	JEMALLOC_VERSION "4.2.0-1-gdc7ff6306d7a15b53479e2fb8e5546404b82e6fc"
 #define	JEMALLOC_VERSION_MAJOR 4
-#define	JEMALLOC_VERSION_MINOR 1
+#define	JEMALLOC_VERSION_MINOR 2
 #define	JEMALLOC_VERSION_BUGFIX 0
 #define	JEMALLOC_VERSION_NREV 1
-#define	JEMALLOC_VERSION_GID "994da4232621dd1210fcf39bdf0d6454cefda473"
+#define	JEMALLOC_VERSION_GID "dc7ff6306d7a15b53479e2fb8e5546404b82e6fc"
 
 #  define MALLOCX_LG_ALIGN(la)	((int)(la))
 #  if LG_SIZEOF_PTR == 2
-#    define MALLOCX_ALIGN(a)	((int)(ffs(a)-1))
+#    define MALLOCX_ALIGN(a)	((int)(ffs((int)(a))-1))
 #  else
 #    define MALLOCX_ALIGN(a)						\
-       ((int)(((a) < (size_t)INT_MAX) ? ffs((int)(a))-1 :		\
-       ffs((int)((a)>>32))+31))
+       ((int)(((size_t)(a) < (size_t)INT_MAX) ? ffs((int)(a))-1 :	\
+       ffs((int)(((size_t)(a))>>32))+31))
 #  endif
 #  define MALLOCX_ZERO	((int)0x40)
 /*
@@ -112,7 +112,7 @@ extern "C" {
 /*
  * Bias arena index bits so that 0 encodes "use an automatically chosen arena".
  */
-#  define MALLOCX_ARENA(a)	((int)(((a)+1) << 20))
+#  define MALLOCX_ARENA(a)	((((int)(a))+1) << 20)
 
 #if defined(__cplusplus) && defined(JEMALLOC_USE_CXX_THROW)
 #  define JEMALLOC_CXX_THROW throw()

@@ -406,6 +406,17 @@ ieee80211_find_com(const char *name)
 	return (ic);
 }
 
+void
+ieee80211_iterate_coms(ieee80211_com_iter_func *f, void *arg)
+{
+	struct ieee80211com *ic;
+
+	mtx_lock(&ic_list_mtx);
+	LIST_FOREACH(ic, &ic_head, ic_next)
+		(*f)(arg, ic);
+	mtx_unlock(&ic_list_mtx);
+}
+
 /*
  * Default reset method for use with the ioctl support.  This
  * method is invoked after any state change in the 802.11

@@ -38,9 +38,9 @@ extern char bootprog_rev[];
 /* #define BFORTH_DEBUG */
 
 #ifdef BFORTH_DEBUG
-# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
+#define	DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
 #else
-# define DEBUG(fmt, args...)
+#define	DEBUG(fmt, args...)
 #endif
 
 /*

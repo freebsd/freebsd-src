@@ -529,11 +529,11 @@ aw_lcdclk_attach(device_t dev)
 	if (sc->type == AW_LCD_CH0)
 		hwreset_register_ofw_provider(dev);
 
-	free(parent_names, M_OFWPROP);
+	OF_prop_free(parent_names);
 	return (0);
 
 fail:
-	free(parent_names, M_OFWPROP);
+	OF_prop_free(parent_names);
 	return (error);
 }
 

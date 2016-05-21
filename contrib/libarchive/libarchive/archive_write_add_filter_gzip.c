@@ -119,7 +119,7 @@ archive_write_add_filter_gzip(struct archive *_a)
 	data->compression_level = Z_DEFAULT_COMPRESSION;
 	return (ARCHIVE_OK);
 #else
-	data->pdata = __archive_write_program_allocate();
+	data->pdata = __archive_write_program_allocate("gzip");
 	if (data->pdata == NULL) {
 		free(data);
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");

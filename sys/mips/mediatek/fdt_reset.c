@@ -90,7 +90,7 @@ assert_deassert_all(device_t consumer, boolean_t assert)
 			anyerrors = true;
 		}
 	}
-	free(resets, M_OFWPROP);
+	OF_prop_free(resets);
 	return (anyerrors ? ENXIO : 0);
 }
 

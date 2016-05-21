@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 struct write_lrzip {
 	struct archive_write_program_data *pdata;
 	int	compression_level;
-	enum { lzma = 0, bzip2, gzip, lzo, zpaq } compression;
+	enum { lzma = 0, bzip2, gzip, lzo, none, zpaq } compression;
 };
 
 static int archive_write_lrzip_open(struct archive_write_filter *);
@@ -69,7 +69,7 @@ archive_write_add_filter_lrzip(struct archive *_a)
 		archive_set_error(_a, ENOMEM, "Can't allocate memory");
 		return (ARCHIVE_FATAL);
 	}
-	data->pdata = __archive_write_program_allocate();
+	data->pdata = __archive_write_program_allocate("lrzip");
 	if (data->pdata == NULL) {
 		free(data);
 		archive_set_error(_a, ENOMEM, "Can't allocate memory");
@@ -107,6 +107,8 @@ archive_write_lrzip_options(struct archive_write_filter *f, const char *key,
 			data->compression = gzip;
 		else if (strcmp(value, "lzo") == 0)
 			data->compression = lzo;
+		else if (strcmp(value, "none") == 0)
+			data->compression = none;
 		else if (strcmp(value, "zpaq") == 0)
 			data->compression = zpaq;
 		else
@@ -147,6 +149,9 @@ archive_write_lrzip_open(struct archive_write_filter *f)
 		break;
 	case lzo:
 		archive_strcat(&as, " -l");
+		break;
+	case none:
+		archive_strcat(&as, " -n");
 		break;
 	case zpaq:
 		archive_strcat(&as, " -z");

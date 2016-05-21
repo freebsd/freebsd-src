@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,23 @@
 #define	ECOMM           ESTALE
 #define	ENODATA         ECONNREFUSED
 #define	ENOIOCTLCMD     ENOIOCTL
-#define	ERESTARTSYS     ERESTART
+/* Use same value as Linux, because BSD's ERESTART is negative */
+#define	ERESTARTSYS     512
 #define	ENOTSUPP        EOPNOTSUPP
 #define	ENONET          EHOSTDOWN
+
+#define	ERESTARTNOINTR	513
+#define	ERESTARTNOHAND	514
+#define	ERESTART_RESTARTBLOCK 516
+#define	EPROBE_DEFER	517
+#define	EOPENSTALE	518
+#define	EBADHANDLE	521
+#define	ENOTSYNC	522
+#define	EBADCOOKIE	523
+#define	ETOOSMALL	525
+#define	ESERVERFAULT	526
+#define	EBADTYPE	527
+#define	EJUKEBOX	528
+#define	EIOCBQUEUED	529
 
 #endif					/* _LINUX_ERRNO_H_ */

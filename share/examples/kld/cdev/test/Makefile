@@ -66,6 +66,8 @@
 #
 # $FreeBSD$
 #
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/kld/cdev/test
 PROG=	testcdev
 MAN=
 WARNS?=	5

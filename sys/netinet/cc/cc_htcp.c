@@ -346,8 +346,10 @@ htcp_mod_init(void)
 static void
 htcp_post_recovery(struct cc_var *ccv)
 {
+	int pipe;
 	struct htcp *htcp_data;
 
+	pipe = 0;
 	htcp_data = ccv->cc_data;
 
 	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
@@ -358,10 +360,13 @@ htcp_post_recovery(struct cc_var *ccv)
 		 *
 		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (SEQ_GT(ccv->curack + CCV(ccv, snd_ssthresh),
-		    CCV(ccv, snd_max)))
-			CCV(ccv, snd_cwnd) = CCV(ccv, snd_max) - ccv->curack +
-			    CCV(ccv, t_maxseg);
+		if (V_tcp_do_rfc6675_pipe)
+			pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+		else
+			pipe = CCV(ccv, snd_max) - ccv->curack;
+		
+		if (pipe < CCV(ccv, snd_ssthresh))
+			CCV(ccv, snd_cwnd) = pipe + CCV(ccv, t_maxseg);
 		else
 			CCV(ccv, snd_cwnd) = max(1, ((htcp_data->beta *
 			    htcp_data->prev_cwnd / CCV(ccv, t_maxseg))

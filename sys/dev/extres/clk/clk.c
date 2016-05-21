@@ -1241,7 +1241,7 @@ clk_get_by_ofw_index(device_t dev, int idx, clk_t *clk)
 
 done:
 	if (cells != NULL)
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 	return (rv);
 }
 
@@ -1297,8 +1297,8 @@ clk_parse_ofw_out_names(device_t dev, phandle_t node, const char ***out_names,
 	if (rv != name_items) {
 		device_printf(dev, " Size of 'clock-output-names' and "
 		    "'clock-indices' differs\n");
-		free(*out_names, M_OFWPROP);
-		free(*indices, M_OFWPROP);
+		OF_prop_free(*out_names);
+		OF_prop_free(*indices);
 		return (0);
 	}
 	return (name_items);
@@ -1325,12 +1325,12 @@ clk_parse_ofw_clk_name(device_t dev, phandle_t node, const char **name)
 	rv = ofw_bus_string_list_to_array(node, "clock-output-names",
 	    &out_names);
 	if (rv != 1) {
-		free(out_names, M_OFWPROP);
+		OF_prop_free(out_names);
 		device_printf(dev, "Malformed 'clock-output-names' property\n");
 		return (ENXIO);
 	}
 	*name = strdup(out_names[0], M_OFWPROP);
-	free(out_names, M_OFWPROP);
+	OF_prop_free(out_names);
 	return (0);
 }
 #endif

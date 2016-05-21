@@ -25,15 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_LIBZ
-static const int libz_enabled = 1;
-#else
-static const int libz_enabled = 0;
-#endif
-
 /* Copy this function for each test file and adjust it accordingly. */
-static void
-test_compat_zip_1(void)
+DEFINE_TEST(test_compat_zip_1)
 {
 	char name[] = "test_compat_zip_1.zip";
 	struct archive_entry *ae;
@@ -52,7 +45,7 @@ test_compat_zip_1(void)
 
 	/* Read second entry. */
 	r = archive_read_next_header(a, &ae);
-	if (r == ARCHIVE_FATAL && !libz_enabled) {
+	if (r == ARCHIVE_FATAL && archive_zlib_version() == NULL) {
 		skipping("Skipping ZIP compression check: %s",
 			archive_error_string(a));
 		goto finish;
@@ -76,8 +69,7 @@ finish:
  * junk is routinely introduced by some Zip writers when they manipulate
  * existing zip archives.
  */
-static void
-test_compat_zip_2(void)
+DEFINE_TEST(test_compat_zip_2)
 {
 	char name[] = "test_compat_zip_2.zip";
 	struct archive_entry *ae;
@@ -106,8 +98,7 @@ test_compat_zip_2(void)
  * Issue 185:  Test a regression that got in between 2.6 and 2.7 that
  * broke extraction of Zip entries with length-at-end.
  */
-static void
-test_compat_zip_3(void)
+DEFINE_TEST(test_compat_zip_3)
 {
 	const char *refname = "test_compat_zip_3.zip";
 	struct archive_entry *ae;
@@ -135,7 +126,7 @@ test_compat_zip_3(void)
 
 	/* Extract under a different name. */
 	archive_entry_set_pathname(ae, "test_3.txt");
-	if(libz_enabled) {
+	if(archive_zlib_version() != NULL) {
 		char *p;
 		size_t s;
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
@@ -156,8 +147,7 @@ test_compat_zip_3(void)
 /**
  * A file with leading garbage (similar to an SFX file).
  */
-static void
-test_compat_zip_4(void)
+DEFINE_TEST(test_compat_zip_4)
 {
 	const char *refname = "test_compat_zip_4.zip";
 	struct archive_entry *ae;
@@ -215,8 +205,7 @@ test_compat_zip_4(void)
  * believe in populating local file headers at all.  This
  * is only readable with the seeking reader.
  */
-static void
-test_compat_zip_5(void)
+DEFINE_TEST(test_compat_zip_5)
 {
 	const char *refname = "test_compat_zip_5.zip";
 	struct archive_entry *ae;
@@ -238,19 +227,19 @@ test_compat_zip_5(void)
 	assertEqualString("Metadata/Job_PT.xml", archive_entry_pathname(ae));
 	assertEqualInt(3559, archive_entry_size(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0666, archive_entry_perm(ae));
+	assertEqualInt(0664, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Metadata/MXDC_Empty_PT.xml", archive_entry_pathname(ae));
 	assertEqualInt(456, archive_entry_size(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0666, archive_entry_perm(ae));
+	assertEqualInt(0664, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Documents/1/Metadata/Page1_Thumbnail.JPG", archive_entry_pathname(ae));
 	assertEqualInt(1495, archive_entry_size(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0666, archive_entry_perm(ae));
+	assertEqualInt(0664, archive_entry_perm(ae));
 	/* TODO: Read some of the file data and verify it.
 	   The code to read uncompressed Zip entries with "file at end" semantics
 	   is tricky and should be verified more carefully. */
@@ -298,21 +287,21 @@ test_compat_zip_5(void)
 	assertEqualInt(0, archive_entry_size(ae));
 	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0666, archive_entry_perm(ae));
+	assertEqualInt(0664, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Metadata/MXDC_Empty_PT.xml", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0666, archive_entry_perm(ae));
+	assertEqualInt(0664, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Documents/1/Metadata/Page1_Thumbnail.JPG", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0666, archive_entry_perm(ae));
+	assertEqualInt(0664, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Documents/1/Pages/_rels/1.fpage.rels", archive_entry_pathname(ae));
@@ -373,8 +362,7 @@ compat_zip_6_verify(struct archive *a)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 }
 
-static void
-test_compat_zip_6(void)
+DEFINE_TEST(test_compat_zip_6)
 {
 	const char *refname = "test_compat_zip_6.zip";
 	struct archive *a;
@@ -404,8 +392,7 @@ test_compat_zip_6(void)
  * Issue 226: Try to reproduce hang when reading archives where the
  * length-at-end marker ends exactly on a block boundary.
  */
-static void
-test_compat_zip_7(void)
+DEFINE_TEST(test_compat_zip_7)
 {
 	const char *refname = "test_compat_zip_7.xps";
 	struct archive *a;
@@ -435,16 +422,3 @@ test_compat_zip_7(void)
 	}
 	free(p);
 }
-
-DEFINE_TEST(test_compat_zip)
-{
-	test_compat_zip_1();
-	test_compat_zip_2();
-	test_compat_zip_3();
-	test_compat_zip_4();
-	test_compat_zip_5();
-	test_compat_zip_6();
-	test_compat_zip_7();
-}
-
-

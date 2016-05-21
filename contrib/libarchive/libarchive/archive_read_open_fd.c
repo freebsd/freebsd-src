@@ -59,6 +59,7 @@ struct read_fd_data {
 
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
+static int64_t	file_seek(struct archive *, void *, int64_t request, int);
 static int64_t	file_skip(struct archive *, void *, int64_t request);
 
 int
@@ -102,6 +103,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 
 	archive_read_set_read_callback(a, file_read);
 	archive_read_set_skip_callback(a, file_skip);
+	archive_read_set_seek_callback(a, file_seek);
 	archive_read_set_close_callback(a, file_close);
 	archive_read_set_callback_data(a, mine);
 	return (archive_read_open1(a));
@@ -168,6 +170,33 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 	 */
 	archive_set_error(a, errno, "Error seeking");
 	return (-1);
+}
+
+/*
+ * TODO: Store the offset and use it in the read callback.
+ */
+static int64_t
+file_seek(struct archive *a, void *client_data, int64_t request, int whence)
+{
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
+	int64_t r;
+
+	/* We use off_t here because lseek() is declared that way. */
+	/* See above for notes about when off_t is less than 64 bits. */
+	r = lseek(mine->fd, request, whence);
+	if (r >= 0)
+		return r;
+
+	if (errno == ESPIPE) {
+		archive_set_error(a, errno,
+		    "A file descriptor(%d) is not seekable(PIPE)", mine->fd);
+		return (ARCHIVE_FAILED);
+	} else {
+		/* If the input is corrupted or truncated, fail. */
+		archive_set_error(a, errno,
+		    "Error seeking in a file descriptor(%d)", mine->fd);
+		return (ARCHIVE_FATAL);
+	}
 }
 
 static int

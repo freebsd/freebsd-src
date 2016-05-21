@@ -57,10 +57,18 @@ typedef uint16_t hv_vmbus_status;
 #define HV_EVENT_FLAGS_COUNT        (256 * 8)
 #define HV_EVENT_FLAGS_BYTE_COUNT   (256)
 #define HV_EVENT_FLAGS_DWORD_COUNT  (256 / sizeof(uint32_t))
+#define HV_EVENT_FLAGS_ULONG_COUNT  (256 / sizeof(unsigned long))
 
 /**
  * max channel count <== event_flags_dword_count * bit_of_dword
  */
+#ifdef __LP64__
+#define HV_CHANNEL_ULONG_LEN	    (64)
+#define HV_CHANNEL_ULONG_SHIFT	    (6)
+#else
+#define HV_CHANNEL_ULONG_LEN	    (32)
+#define HV_CHANNEL_ULONG_SHIFT	    (5)
+#endif
 #define HV_CHANNEL_DWORD_LEN        (32)
 #define HV_CHANNEL_MAX_COUNT        \
 	((HV_EVENT_FLAGS_DWORD_COUNT) * HV_CHANNEL_DWORD_LEN)
@@ -575,7 +583,9 @@ typedef struct {
 typedef union {
 	uint8_t		flags8[HV_EVENT_FLAGS_BYTE_COUNT];
 	uint32_t	flags32[HV_EVENT_FLAGS_DWORD_COUNT];
+	unsigned long	flagsul[HV_EVENT_FLAGS_ULONG_COUNT];
 } hv_vmbus_synic_event_flags;
+CTASSERT(sizeof(hv_vmbus_synic_event_flags) == HV_EVENT_FLAGS_BYTE_COUNT);
 
 #define HV_X64_CPUID_MIN	(0x40000005)
 #define HV_X64_CPUID_MAX	(0x4000ffff)
@@ -743,7 +753,6 @@ int			hv_vmbus_connect(void);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
-void			hv_vmbus_on_events(int cpu);
 
 /**
  * Event Timer interfaces
