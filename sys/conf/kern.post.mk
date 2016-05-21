@@ -247,6 +247,14 @@ beforebuild: kernel-depend
 ${__obj}: ${OBJS_DEPEND_GUESS}
 .endif
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.elif defined(_meta_filemon)
+# For meta mode we still need to know which file to depend on to avoid
+# ambiguous suffix transformation rules from .PATH.  Meta mode does not
+# use .depend files.  We really only need source files, not headers.
+.if ${SYSTEM_OBJS:M${__obj}}
+${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
+.endif
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}:N*.h}
 .endif
 .endfor
 
