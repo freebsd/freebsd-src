@@ -110,6 +110,7 @@ struct icl_conn {
 	bool			ic_send_running;
 	bool			ic_receive_running;
 	size_t			ic_max_data_segment_length;
+	size_t			ic_maxtags;
 	bool			ic_disconnecting;
 	bool			ic_iser;
 	const char		*ic_name;
