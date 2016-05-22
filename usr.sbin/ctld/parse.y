@@ -930,7 +930,7 @@ lun_device_id:	DEVICE_ID STR
 	}
 	;
 
-lun_device_type:	DEVICE_TYPE STR
+lun_device_type:	DEVICE_TYPE STR ADDRESS
 	{
 		uint64_t tmp;
 
@@ -944,6 +944,11 @@ lun_device_type:	DEVICE_TYPE STR
 		    strcasecmp($2, "dvd") == 0 ||
 		    strcasecmp($2, "dvdrom") == 0)
 			tmp = 5;
+		else if (strcasecmp($2, "pass")==0)
+		{
+			
+			tmp=19;	
+		}
 		else if (expand_number($2, &tmp) != 0 ||
 		    tmp > 15) {
 			yyerror("invalid numeric value");
