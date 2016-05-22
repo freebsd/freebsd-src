@@ -1608,10 +1608,10 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	} */ bsd_args;
 	l_timeval linux_tv;
 	struct timeval tv;
-	socklen_t tv_len, xulen;
+	socklen_t tv_len, xulen, len;
 	struct xucred xu;
 	struct l_ucred lxu;
-	int error, name;
+	int error, name, newval;
 
 	bsd_args.s = args->s;
 	bsd_args.level = linux_to_bsd_sockopt_level(args->level);
@@ -1650,6 +1650,15 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			return (copyout(&lxu, PTRIN(args->optval), sizeof(lxu)));
 			/* NOTREACHED */
 			break;
+		case SO_ERROR:
+			len = sizeof(newval);
+			error = kern_getsockopt(td, args->s, bsd_args.level,
+			    name, &newval, UIO_SYSSPACE, &len);
+			if (error)
+				return (error);
+			newval = -SV_ABI_ERRNO(td->td_proc, newval);
+			return (copyout(&newval, PTRIN(args->optval), len));
+			/* NOTREACHED */
 		default:
 			break;
 		}
