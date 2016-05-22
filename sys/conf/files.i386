@@ -309,6 +309,7 @@ dev/tpm/tpm_acpi.c		optional tpm acpi
 dev/tpm/tpm_isa.c		optional tpm isa
 dev/uart/uart_cpu_x86.c		optional uart
 dev/viawd/viawd.c		optional viawd
+dev/vmware/vmw_pvscsi/vmw_pvscsi.c	optional vmw_pvscsi
 dev/vmware/vmxnet3/if_vmx.c	optional vmx
 dev/acpica/acpi_if.m		standard
 dev/acpica/acpi_hpet.c		optional acpi
