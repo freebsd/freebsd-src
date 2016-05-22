@@ -139,11 +139,8 @@ pci_map_single_fn(void *va, size_t len)
 	bus_addr_t retval, lastb;
 
 	retval = virt_to_phys(va);
-	if (len) {
+	if (len != 0)
 		lastb = virt_to_phys((char *)va + len - 1);
-		KASSERT((lastb & ~PAGE_MASK) == (retval & ~PAGE_MASK),
-				("%lx %lx %p %zu", lastb, retval, va, len));
-	}
 
 	return retval;
 }

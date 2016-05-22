@@ -1792,7 +1792,7 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
 		pvscsi_free_sgls(adapter);
 		kfree(adapter->cmd_map);
 #else
-		KASSERT((adapter->cmd_map_size > 0), "adapter->");
+		KASSERT(adapter->cmd_map_size > 0, ("adapter->"));
 		pvscsi_free_sgls(adapter);
 		kfree(adapter->cmd_map, adapter->cmd_map_size);
 #endif
