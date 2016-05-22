@@ -325,8 +325,9 @@ static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
 
 static int sysctl_swap_async_max(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_vm, OID_AUTO, swap_async_max, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, sysctl_swap_async_max, "I", "Maximum running async swap ops");
+SYSCTL_PROC(_vm, OID_AUTO, swap_async_max, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_swap_async_max, "I",
+    "Maximum running async swap ops");
 
 static struct swblock **swhash;
 static int swhash_mask;
@@ -2356,7 +2357,8 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_INT(_vm, OID_AUTO, nswapdev, CTLFLAG_RD, &nswapdev, 0,
     "Number of swap devices");
-SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD, sysctl_vm_swap_info,
+SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    sysctl_vm_swap_info,
     "Swap statistics by device");
 
 /*
