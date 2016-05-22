@@ -41,8 +41,10 @@
 
 #if defined(CPU_CHERI128) || (defined(_MIPS_SZCAP) && (_MIPS_SZCAP == 128))
 #define	CHERICAP_SIZE   16
+#define	CHERICAP_SHIFT	4
 #else
 #define	CHERICAP_SIZE   32
+#define	CHERICAP_SHIFT	5
 #endif
 
 /*
