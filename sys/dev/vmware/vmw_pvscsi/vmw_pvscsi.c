@@ -2555,7 +2555,8 @@ pvscsi_pci_probe(device_t device)
 		return ENXIO;
 	}
 
-	device_set_desc(device, "VMware para-virtual SCSI driver v1.1.2.0");
+	device_set_desc(device,
+	    "VMware para-virtual SCSI driver " PVSCSI_DRIVER_VERSION_STRING);
 
 	return 0;
 }
