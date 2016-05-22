@@ -1163,7 +1163,7 @@ static int pvscsi_queue_locked(struct scsi_cmnd *cmd,
 		adapter->pvs_reset_target_on_timeout ?
 			pvscsi_abort_timeout: pvscsi_scsiio_timeout,
 		ctx);
-	cmd->qsc_csio->ccb_h.status |= CAM_SIM_QUEUED; 
+	cmd->qsc_csio->ccb_h.status |= CAM_SIM_QUEUED;
 
 #endif /* __FreeBSD__ */
 
@@ -1578,7 +1578,7 @@ static void pvscsi_msg_workqueue_handler(struct work_struct *data)
 
 static int pvscsi_setup_msg_workqueue(struct pvscsi_adapter *adapter)
 {
-	char name[32];
+	char name[32]; /* XXX: magic number */
 
 	if (!pvscsi_use_msg)
 		return 0;
@@ -1816,8 +1816,6 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
 		pci_free_consistent(adapter->dev,
 				    adapter->msg_pages * PAGE_SIZE,
 				    adapter->msg_ring, adapter->msgRingPA);
-	if (adapter->cmd_map) {
-	}
 
 #ifdef __FreeBSD__
 	/* Undo the memory-mapped register mapping */
@@ -2319,7 +2317,6 @@ pvscsi_action(struct cam_sim *psim, union ccb *pccb)
 			break;
 		}
 	}
-	return;
 }
 
 
@@ -2547,7 +2544,7 @@ out_release_resources:
 out_disable_device:
 	pci_disable_io(device, SYS_RES_MEMORY);
 	pci_disable_busmaster(device);
-	return -ENXIO;
+	return ENXIO;
 }
 
 static int
@@ -2569,7 +2566,7 @@ pvscsi_pci_methods[] = {
 	DEVMETHOD(device_probe,		pvscsi_pci_probe),
 	DEVMETHOD(device_attach,	pvscsi_pci_attach),
 	DEVMETHOD(device_detach,	pvscsi_pci_detach),
-	{ 0, 0 }
+	DEVMETHOD_END,
 };
 
 static driver_t pvscsi_pci_driver = {
