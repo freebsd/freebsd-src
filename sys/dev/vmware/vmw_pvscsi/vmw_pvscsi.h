@@ -1,5 +1,6 @@
-/* ************************************************************************
- * Copyright 2008 VMware, Inc.  All rights reserved.
+/*-
+ * Copyright 2008 VMware, Inc.
+ * Copyright 2014-2016 EMC Corp.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -19,7 +20,9 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ************************************************************************/
+ *
+ * $FreeBSD$
+ */
 
 #ifndef _VMW_PVSCSI_H_
 #define _VMW_PVSCSI_H_
@@ -28,10 +31,6 @@
 #include <linux/types.h>
 #else
 #include "compat_freebsd.h"
-
-#include <geom/isi_disk.h>
-#include <geom/isi_disk_if.h>
-#include <geom/isi_diskevt.h>
 #endif /* __FreeBSD__ */
 
 #define PVSCSI_DRIVER_VERSION_STRING   "1.0.1.0-k"
@@ -518,7 +517,6 @@ struct pvscsi_ctx {
 	bus_dmamap_t		dmap;
 	struct callout		calloutx;
 	bool			toed;
-	bool			debugerr_checked;
 	struct pvscsi_adapter	*adapter;
 #endif /* __FreeBSD__ */
 };
@@ -530,13 +528,6 @@ typedef struct pvscsitarg {
 } pvscsitarg_t;
 
 #include <sys/fail.h>
-
-struct pvscsi_dbgfail {
-	uint32_t		ctrl;	/* See sys/geom/isi_disk.h */
-	uint32_t		unit;
-	uint64_t		lba;
-	struct fail_point	rate;
-};
 
 /* Expects a pvscsinst_t *adapter has been initialized */
 #define PVSCSILCK mtx_lock(&((adapter)->pvs_camlock))
@@ -606,12 +597,10 @@ struct pvscsi_adapter {
 	pvscsitarg_t			*pvs_tarrg;
 	target_id_t			pvs_timeout_one_comm_targ;
 	uint32				pvs_reset_target_on_timeout;
-	struct pvscsi_dbgfail		*pvscsi_dbgfails;
-	int                             pvscsi_dbgfail_cnt;
 #endif /* __FreeBSD__ */
 };
 
 void pvscsi_complete_request(struct pvscsi_adapter *adapter,
     const struct PVSCSIRingCmpDesc *e);
-#include "isln_pvscsi.h"
+
 #endif /* _VMW_PVSCSI_H_ */

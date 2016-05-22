@@ -106,7 +106,7 @@ typedef struct pvscsi_adapter pvscsinst_t;
 #define MODNM pvscsi
 enum {
 	PVSCSI_MSIX_VEC0 = 0, /* Only one MSI-X interrupt required */
-	PVSCSI_NUM_MSIX 
+	PVSCSI_NUM_MSIX
 };
 
 MALLOC_DEFINE(M_PVSCSI, "pvscsi", "VMware's para-virtualized scsi driver");
@@ -237,7 +237,6 @@ pvscsi_acquire_context(struct pvscsi_adapter *adapter, struct scsi_cmnd *cmd)
 #else
 	ctx->cmd = cmd->qsc_csio;
 	ctx->toed = false;
-	ctx->debugerr_checked = false;
 #endif /* __FreeBSD__ */
 	list_del(&ctx->list);
 
@@ -524,64 +523,15 @@ static void pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 
 #ifdef __FreeBSD__
 	struct ccb_scsiio *csio = cmd->qsc_csio;
-	device_t device = pvscsi_dev(adapter);
-
 	ctx->e = e;
 	ctx->dmamapping_errno = 0;
 
-	switch(csio->ccb_h.flags & (CAM_DATA_PHYS|CAM_SCATTER_VALID)) {
-		case CAM_DATA_PHYS|CAM_SCATTER_VALID: {
-			pvscsi_queue_io(ctx,
-				   (struct bus_dma_segment *)csio->data_ptr,
-				   csio->sglist_cnt, 0);
-			LOG(0, "CAM_DATA_PHYS|CAM_SCATTER_VALID\n");
-			break;
-		}
+	int error;
 
-		case CAM_SCATTER_VALID: {
-			device_printf(device, "No support yet for list of VAs\n");
-			csio->ccb_h.status = CAM_REQ_CMP_ERR;
-			LOG(0, "CAM_SCATTER_VALID\n");
-			break;
-		}
-
-		case CAM_DATA_PHYS: {
-			struct bus_dma_segment seg;
-			seg.ds_addr = (bus_addr_t)(vm_offset_t)csio->data_ptr;
-			seg.ds_len = csio->dxfer_len;
-			pvscsi_queue_io(ctx, &seg, 1, 0);
-			LOG(0, "CAM_DATA_PHYS\n");
-			break;
-		}
-
-		case 0: {
-			int error;
-
-			if (csio->bio && !csio->data_ptr)
-				error = bus_dmamap_load_bio(adapter->pvs_dmat,
-						ctx->dmap, csio->bio,
-						pvscsi_queue_io, ctx,
-						BUS_DMA_NOWAIT);
-			else
-				error = bus_dmamap_load(adapter->pvs_dmat,
-						ctx->dmap, csio->data_ptr,
-						csio->dxfer_len,
-						pvscsi_queue_io, ctx,
-						BUS_DMA_NOWAIT);
-			if (error)
-				ctx->dmamapping_errno = error;
-
-			LOG(0, "single VA %p %p %lx\n", csio->bio,
-				csio->data_ptr, virt_to_phys(csio->data_ptr));
-			break;
-		}
-
-		default: {
-			panic("Unknown case %d",
-				(csio->ccb_h.flags &
-				 (CAM_DATA_PHYS|CAM_SCATTER_VALID)));
-		}
-	}
+	error = bus_dmamap_load_ccb(adapter->pvs_dmat, ctx->dmap,
+	    (union ccb *)csio, pvscsi_queue_io, ctx, BUS_DMA_NOWAIT);
+	if (error)
+		ctx->dmamapping_errno = error;
 
 	if (ctx->dmamapping_errno) {
 		if (ctx->dmamapping_errno == EFBIG)
@@ -654,10 +604,8 @@ static void pvscsi_unmap_buffers(const struct pvscsi_adapter *adapter,
 #else /* __FreeBSD__ */
 	struct ccb_scsiio *csio = ctx->cmd;
 
-	if (csio->dxfer_len &&
-		!(csio->ccb_h.flags & (CAM_DATA_PHYS|CAM_SCATTER_VALID))) {
+	if (csio->dxfer_len)
 		bus_dmamap_unload(adapter->pvs_dmat, ctx->dmap);
-	}
 #endif /* __FreeBSD__ */
 }
 
@@ -775,28 +723,15 @@ void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 	bool toed = false;
 	struct ccb_scsiio *cmd;
 	device_t device = pvscsi_dev(adapter);
-	int debugerr = 0;
 #endif /* __FreeBSD__ */
 	u32 btstat = e->hostStatus;
 	u32 sdstat = e->scsiStatus;
+	u64 edataLen = e->dataLen;
 
+	mtx_assert(&adapter->pvs_camlock, MA_OWNED);
 	ctx = pvscsi_get_context(adapter, e->context);
 	cmd = ctx->cmd;
 #ifdef __FreeBSD__
-	
-	/*
-	 * check debugerr failpoints now so that we can do nothing if we're
-	 * delaying the completion with a timer.  Only check them once per
-	 * command.
-	 */
-	if (!ctx->debugerr_checked) {
-		ctx->debugerr_checked = true; /* For when this very routine is
-					       * invoked from the FP callout */
-		debugerr = pvscsi_debugerr_check(adapter, ctx);
-		if (debugerr == PVSCSI_DEBUGERR_QUEUED)
-			return;
-	}
-
 	callout_stop(&ctx->calloutx); /* disables ABORT or SCSI IO callout */
 	toed = ctx->toed;
 	if (toed) {
@@ -857,7 +792,7 @@ void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 #else /* __FreeBSD__ */
 			cmd->scsi_status = sdstat;
 			cmd->ccb_h.status = CAM_DATA_RUN_ERR;
-			cmd->resid = cmd->dxfer_len - e->dataLen;
+			cmd->resid = cmd->dxfer_len - edataLen;
 #endif /* __FreeBSD__ */
 			break;
 
@@ -956,12 +891,6 @@ void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 
 	cmd->scsi_done(cmd);
 #else /* __FreeBSD__ */
-	if (debugerr != 0) {
-		/* inject an error */
-		union ccb *ccb = (union ccb *)cmd;
-		ccb->ccb_h.status = CAM_UNCOR_PARITY;
-		ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
-	}
 	xpt_done((union ccb *)cmd);
 #endif /* __FreeBSD__ */
 }
@@ -1000,43 +929,6 @@ static void pvscsi_process_completion_ring(struct pvscsi_adapter *adapter)
 		s->cmpConsIdx++;
 	}
 }
-
-static inline void
-PRINT_CTX(struct pvscsi_ctx *ctx)
-{
-	printf("pvscsi:ctx %p [0]>%lx [l]>%x %lx %lx %lx %d %p %p\n",
-		ctx->sgl,
-		ctx->sgl->sge[0].addr,
-		ctx->sgl->sge[0].length,
-		ctx->dataPA,
-		ctx->sensePA,
-		ctx->sglPA,
-		ctx->dmamapping_errno,
-		ctx->e,
-		ctx->dmap);
-}
-
-
-static inline void
-PRINT_REQ(struct PVSCSIRingReqDesc *e)
-{
-	printf("pvscsi:req cid>%lx dat>%lx dlen>%lx sns>%lx slen>%x fl>%x "
-		"c0>%u cl>%u lu>%u tg>%u b>%u trg>%u cpu>%u\n",
-		e->context,
-		e->dataAddr,
-		e->dataLen,
-		e->senseAddr,
-		e->senseLen,
-		e->flags,
-		e->cdb[0],
-		e->cdbLen,
-		e->lun[0],
-		e->tag,
-		e->bus,
-		e->target,
-		e->vcpuHint);
-}
-
 
 /*
  * Translate a Linux SCSI request into a request ring entry.
@@ -1261,7 +1153,6 @@ static int pvscsi_queue_locked(struct scsi_cmnd *cmd,
 
 	spin_unlock_irqrestore(&adapter->hw_lock, flags);
 #else /* __FreeBSD__ */
-	ctx->debugerr_checked = false;
 	ctx->toed = false;
 	if (adapter->pvs_timeout_one_comm_targ ==
 					cmd->qsc_csio->ccb_h.target_id) {
@@ -1537,8 +1428,6 @@ pvscsi_device_lost_or_found(pvscsinst_t *adapter, u32 bus, u32 trg, u8 lun,
 	struct cam_path *path;
 	struct ccb_getdev ccb = { };
 	cam_status err;
-	diskevt_event_t diskevent;
-	int eventnum = -1;
 
 	if (lun) {
 		device_printf(pvscsi_dev(adapter), "hotplug/removal event for "
@@ -1570,24 +1459,7 @@ pvscsi_device_lost_or_found(pvscsinst_t *adapter, u32 bus, u32 trg, u8 lun,
 	}
 	xpt_free_path(path);
 
-	if (adapter->pvs_camsim) {
-		eventnum = ISI_UNIT(IDSK_TYPE_DA,
-			CAM_BTL_2ISIUNIT(cam_sim_path(adapter->pvs_camsim), trg,
-									lun));
-	}
 	PVSCSIULCK;
-
-	if (eventnum >= 0) {
-		bzero(&diskevent, sizeof(diskevent));
-		diskevent.unitnum = eventnum;
-		diskevent.type = lost ? DISKEVT_DISK_ABSENT :
-							DISKEVT_DISK_PRESENT;
-		diskevt_cdev_notify_event(&diskevent);
-	} else {
-		device_printf(pvscsi_dev(adapter),
-			"Could'nt post drive %s DISKEVT.  e:t:l %d:%d:%d\n",
-				lost ? "remove" : "add", eventnum, trg, lun);
-	}
 }
 #endif /* __FreeBSD__ */
 
@@ -1722,7 +1594,7 @@ static int pvscsi_setup_msg_workqueue(struct pvscsi_adapter *adapter)
 #else
 	snprintf(name, sizeof name, "pvscsi_wq_%u",
 					device_get_unit(adapter->pvs_dev));
-#endif /*  */
+#endif /* __FreeBSD__ */
 
 	adapter->workqueue = create_singlethread_workqueue(name);
 	if (!adapter->workqueue) {
@@ -1831,43 +1703,43 @@ pvscsi_setup_intr(pvscsinst_t *adapter, void *isr, bool msix)
 		rid++; /* RID 1 in the interrupt space is for MSIX interrupts */
 
 		if (pci_msix_count(adapter->pvs_dev) < PVSCSI_NUM_MSIX) {
-			device_printf(device, "pci_msix_count():%d < "
-						      "PVSCSI_NUM_MSIX\n",
-				      pci_msix_count(adapter->pvs_dev));
+			device_printf(device,
+			    "pci_msix_count():%d < PVSCSI_NUM_MSIX\n",
+			    pci_msix_count(adapter->pvs_dev));
 			return false;
 		}
 
 		err = pci_alloc_msix(adapter->pvs_dev, &msix_vecs_needed);
-		if (err || (msix_vecs_needed < PVSCSI_NUM_MSIX)) {
-			device_printf(device, "retval>%d, "
-							"msix_vecs_needed>%d\n",
-				      err, msix_vecs_needed);
+		if (err != 0 || msix_vecs_needed < PVSCSI_NUM_MSIX) {
+			device_printf(device,
+			    "retval>%d, msix_vecs_needed>%d\n",
+			    err, msix_vecs_needed);
 			return false;
 		}
 	}
 
 	res = bus_alloc_resource_any(adapter->pvs_dev, SYS_RES_IRQ, &rid,
-								RF_ACTIVE);
-	if (!res) {
-		device_printf(device, "Could'nt allocate interrupt resource\n");
-		if (msix) pci_release_msi(adapter->pvs_dev);
+		RF_SHAREABLE|RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(device, "Couldn't allocate interrupt resource\n");
+		if (msix)
+			pci_release_msi(adapter->pvs_dev);
 		return false;
 	}
 
-	err = bus_setup_intr(adapter->pvs_dev, res, INTR_MPSAFE | INTR_TYPE_CAM,
-			     NULL, isr, adapter, &adapter->pvs_intcookie);
-	if (err) {
-		device_printf(device, "bus_setup_intr()>%d\n", err);
+	err = bus_setup_intr(adapter->pvs_dev, res, INTR_MPSAFE|INTR_TYPE_CAM,
+		NULL, isr, adapter, &adapter->pvs_intcookie);
+	if (err != 0) {
+		device_printf(device, "bus_setup_intr failed: %d\n", err);
 		bus_release_resource(adapter->pvs_dev, SYS_RES_IRQ, rid, res);
-		if (msix) pci_release_msi(adapter->pvs_dev);
+		if (msix)
+			pci_release_msi(adapter->pvs_dev);
 		return false;
 	}
 
 	adapter->pvs_intmsix = msix;
 	adapter->pvs_intres = res;
 	adapter->pvs_intrid = rid;
-
-	device_printf(device, "Interrupt successfully installed\n");
 
 	return true;
 }
@@ -1920,7 +1792,7 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
 		pvscsi_free_sgls(adapter);
 		kfree(adapter->cmd_map);
 #else
-		ASSERT(adapter->cmd_map_size);
+		KASSERT((adapter->cmd_map_size > 0), "adapter->");
 		pvscsi_free_sgls(adapter);
 		kfree(adapter->cmd_map, adapter->cmd_map_size);
 #endif
@@ -2343,9 +2215,9 @@ pvscsi_action(struct cam_sim *psim, union ccb *pccb)
 			else
 				cmd->cmnd = (void *)&csio->cdb_io.cdb_bytes;
 
-			ASSERT(!(csio->ccb_h.flags &
-				(CAM_SENSE_PHYS|CAM_SENSE_PTR)), "%x",
-				csio->ccb_h.flags); /* We expect a struct */
+			KASSERT(!(csio->ccb_h.flags &
+				(CAM_SENSE_PHYS|CAM_SENSE_PTR)), ("%x",
+				csio->ccb_h.flags)); /* We expect a struct */
 			cmd->sense_buffer = &csio->sense_data;
 
 			#define CSIODIR (csio->ccb_h.flags & CAM_DIR_MASK)
@@ -2410,7 +2282,7 @@ pvscsi_action(struct cam_sim *psim, union ccb *pccb)
 			target_id_t trg = pccb->ccb_h.target_id;
 
 			if (pccb->ccb_h.target_lun) {
-				device_printf(device, "Non-zero LU number %d\n",
+				device_printf(device, "Non-zero LU number %lu\n",
 						pccb->ccb_h.target_lun);
 				pccb->ccb_h.status = CAM_LUN_INVALID;
 				xpt_done(pccb);
@@ -2572,14 +2444,6 @@ pvscsi_pci_attach(device_t device)
 	if (!adapter->pvs_tarrg) {
 		goto out_reset_adapter;
 	}
-
-	adapter->pvscsi_dbgfail_cnt = 0;
-	adapter->pvscsi_dbgfails = malloc(sizeof(struct pvscsi_dbgfail) *
-			IDISKFP_DBGFAILCNT, M_PVSCSI,M_WAITOK|M_ZERO);
-	if (!adapter->pvscsi_dbgfails) {
-		goto out_free_pvs_tarrg;
-	}
-
 	mtx_init(&adapter->pvs_camlock, "pvscsi camlock", NULL, MTX_DEF);
 
 	INIT_LIST_HEAD(&adapter->cmd_pool);
@@ -2622,8 +2486,6 @@ pvscsi_pci_attach(device_t device)
 		&adapter->pvs_reset_target_on_timeout, 0U,
 		"Reset the target on I/O timing out(for test purposes)");
 
-	pvscsi_debugerr_add_sysctls(adapter);
-
 	/* Register with CAM as a SIM */
 	adapter->pvs_camdevq = cam_simq_alloc(adapter->req_depth);
 	if (!adapter->pvs_camdevq) {
@@ -2641,7 +2503,6 @@ pvscsi_pci_attach(device_t device)
 		device_printf(device, "cam_sim_alloc() failed\n");
 		goto out_cam_simq;
 	}
-	cam_sim_set_unmapped(adapter->pvs_camsim, 1);
 
 	PVSCSILCK;
 	if (xpt_bus_register(adapter->pvs_camsim, NULL, 0) != CAM_SUCCESS) {
@@ -2677,9 +2538,6 @@ out_cam_simq:
 out_delete_dmat:
 	bus_dma_tag_destroy(adapter->pvs_dmat);
 	mtx_destroy(&adapter->pvs_camlock);
-	free(adapter->pvscsi_dbgfails, M_PVSCSI);
-	adapter->pvscsi_dbgfails = NULL;
-out_free_pvs_tarrg:
 	free(adapter->pvs_tarrg, M_PVSCSI);
 	adapter->pvs_tarrg = NULL;
 out_reset_adapter:
