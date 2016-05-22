@@ -7,20 +7,15 @@
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *  Copyright (c) 2016, Randy Westlund
+ *
+ * $FreeBSD$
  */
+#ifndef COMMANDS_H
+#define COMMANDS_H
 
-/* prototypes for functions found in utils.c */
+void	show_errors(void);
+int	error_count(void);
+void	show_help(void);
 
-int atoiwi();
-char *itoa();
-char *itoa7();
-int digits();
-char *strecpy();
-char **argparse();
-long percentages();
-char *errmsg();
-char *format_time();
-char *format_k();
-char *format_k2(unsigned long long);
-int string_index(char *string, char **array);
-
+#endif /* COMMANDS_H */
