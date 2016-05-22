@@ -462,12 +462,16 @@ bsd_to_linux_sockaddr(struct sockaddr *arg)
 {
 	struct sockaddr sa;
 	size_t sa_len = sizeof(struct sockaddr);
-	int error;
+	int error, bdom;
 
 	if ((error = copyin(arg, &sa, sa_len)))
 		return (error);
 
-	*(u_short *)&sa = sa.sa_family;
+	bdom = bsd_to_linux_domain(sa.sa_family);
+	if (bdom == -1)
+		return (EAFNOSUPPORT);
+
+	*(u_short *)&sa = bdom;
 	return (copyout(&sa, arg, sa_len));
 }
 
@@ -476,12 +480,16 @@ linux_to_bsd_sockaddr(struct sockaddr *arg, int len)
 {
 	struct sockaddr sa;
 	size_t sa_len = sizeof(struct sockaddr);
-	int error;
+	int error, bdom;
 
 	if ((error = copyin(arg, &sa, sa_len)))
 		return (error);
 
-	sa.sa_family = *(sa_family_t *)&sa;
+	bdom = linux_to_bsd_domain(*(sa_family_t *)&sa);
+	if (bdom == -1)
+		return (EAFNOSUPPORT);
+
+	sa.sa_family = bdom;
 	sa.sa_len = len;
 	return (copyout(&sa, arg, sa_len));
 }
