@@ -511,6 +511,7 @@ nis_rpcent(void *retval, void *mdata, va_list ap)
 		    sizeof(char *)) {
 			*errnop = ERANGE;
 			rv = NS_RETURN;
+			free(resultbuf);
 			break;
 		}
 
@@ -520,6 +521,7 @@ nis_rpcent(void *retval, void *mdata, va_list ap)
 		if (aliases_size < 1) {
 			*errnop = ERANGE;
 			rv = NS_RETURN;
+			free(resultbuf);
 			break;
 		}
 
