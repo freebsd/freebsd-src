@@ -2838,17 +2838,13 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211_channel *chan;
 	struct ieee80211_frame *wh;
 	struct r92c_tx_desc *txd;
-	uint8_t macid, raid, rate, ridx, subtype, type, tid, qos, qsel;
+	uint8_t macid, raid, rate, ridx, type, tid, qos, qsel;
 	int hasqos, ismcast;
 
 	URTWN_ASSERT_LOCKED(sc);
 
-	/*
-	 * Software crypto.
-	 */
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 	hasqos = IEEE80211_QOS_HAS_SEQ(wh);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
