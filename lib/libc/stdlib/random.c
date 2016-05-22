@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include "un-namespace.h"
 
@@ -341,15 +340,12 @@ initstate(unsigned long seed, char *arg_state, long n)
 	char *ostate = (char *)(&state[-1]);
 	uint32_t *int_arg_state = (uint32_t *)arg_state;
 
+	if (n < BREAK_0)
+		return (NULL);
 	if (rand_type == TYPE_0)
 		state[-1] = rand_type;
 	else
 		state[-1] = MAX_TYPES * (rptr - state) + rand_type;
-	if (n < BREAK_0) {
-		(void)fprintf(stderr,
-		    "random: not enough state (%ld bytes); ignored.\n", n);
-		return (0);
-	}
 	if (n < BREAK_1) {
 		rand_type = TYPE_0;
 		rand_deg = DEG_0;
@@ -408,24 +404,23 @@ setstate(char *arg_state)
 	uint32_t rear = new_state[0] / MAX_TYPES;
 	char *ostate = (char *)(&state[-1]);
 
-	if (rand_type == TYPE_0)
-		state[-1] = rand_type;
-	else
-		state[-1] = MAX_TYPES * (rptr - state) + rand_type;
 	switch(type) {
 	case TYPE_0:
 	case TYPE_1:
 	case TYPE_2:
 	case TYPE_3:
 	case TYPE_4:
-		rand_type = type;
-		rand_deg = degrees[type];
-		rand_sep = seps[type];
 		break;
 	default:
-		(void)fprintf(stderr,
-		    "random: state info corrupted; not changed.\n");
+		return (NULL);
 	}
+	if (rand_type == TYPE_0)
+		state[-1] = rand_type;
+	else
+		state[-1] = MAX_TYPES * (rptr - state) + rand_type;
+	rand_type = type;
+	rand_deg = degrees[type];
+	rand_sep = seps[type];
 	state = new_state + 1;
 	if (rand_type != TYPE_0) {
 		rptr = &state[rear];
