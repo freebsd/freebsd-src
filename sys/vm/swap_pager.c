@@ -152,7 +152,7 @@ static TAILQ_HEAD(, swdevt) swtailq = TAILQ_HEAD_INITIALIZER(swtailq);
 static struct swdevt *swdevhd;	/* Allocate from here next */
 static int nswapdev;		/* Number of swap devices */
 int swap_pager_avail;
-static int swdev_syscall_active = 0; /* serialize swap(on|off) */
+static struct sx swdev_syscall_lock;	/* serialize swap(on|off) */
 
 static vm_ooffset_t swap_total;
 SYSCTL_QUAD(_vm, OID_AUTO, swap_total, CTLFLAG_RD, &swap_total, 0,
@@ -487,6 +487,7 @@ swap_pager_init(void)
 		TAILQ_INIT(&swap_pager_object_list[i]);
 	mtx_init(&sw_alloc_mtx, "swap_pager list", NULL, MTX_DEF);
 	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
+	sx_init(&swdev_syscall_lock, "swsysc");
 
 	/*
 	 * Device Stripe, in PAGE_SIZE'd blocks
@@ -1664,7 +1665,7 @@ swap_pager_swapoff(struct swdevt *sp)
 	struct swblock *swap;
 	int i, j, retries;
 
-	GIANT_REQUIRED;
+	sx_assert(&swdev_syscall_lock, SA_XLOCKED);
 
 	retries = 0;
 full_rescan:
@@ -2005,10 +2006,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 	if (error)
 		return (error);
 
-	mtx_lock(&Giant);
-	while (swdev_syscall_active)
-	    tsleep(&swdev_syscall_active, PUSER - 1, "swpon", 0);
-	swdev_syscall_active = 1;
+	sx_xlock(&swdev_syscall_lock);
 
 	/*
 	 * Swap metadata may not fit in the KVM if we have physical
@@ -2043,9 +2041,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 	if (error)
 		vrele(vp);
 done:
-	swdev_syscall_active = 0;
-	wakeup_one(&swdev_syscall_active);
-	mtx_unlock(&Giant);
+	sx_xunlock(&swdev_syscall_lock);
 	return (error);
 }
 
@@ -2175,10 +2171,7 @@ sys_swapoff(struct thread *td, struct swapoff_args *uap)
 	if (error)
 		return (error);
 
-	mtx_lock(&Giant);
-	while (swdev_syscall_active)
-	    tsleep(&swdev_syscall_active, PUSER - 1, "swpoff", 0);
-	swdev_syscall_active = 1;
+	sx_xlock(&swdev_syscall_lock);
 
 	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->name,
 	    td);
@@ -2200,9 +2193,7 @@ sys_swapoff(struct thread *td, struct swapoff_args *uap)
 	}
 	error = swapoff_one(sp, td->td_ucred);
 done:
-	swdev_syscall_active = 0;
-	wakeup_one(&swdev_syscall_active);
-	mtx_unlock(&Giant);
+	sx_xunlock(&swdev_syscall_lock);
 	return (error);
 }
 
@@ -2214,7 +2205,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	int error;
 #endif
 
-	mtx_assert(&Giant, MA_OWNED);
+	sx_assert(&swdev_syscall_lock, SA_XLOCKED);
 #ifdef MAC
 	(void) vn_lock(sp->sw_vp, LK_EXCLUSIVE | LK_RETRY);
 	error = mac_system_check_swapoff(cred, sp->sw_vp);
@@ -2276,10 +2267,7 @@ swapoff_all(void)
 	const char *devname;
 	int error;
 
-	mtx_lock(&Giant);
-	while (swdev_syscall_active)
-		tsleep(&swdev_syscall_active, PUSER - 1, "swpoff", 0);
-	swdev_syscall_active = 1;
+	sx_xlock(&swdev_syscall_lock);
 
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH_SAFE(sp, &swtailq, sw_list, spt) {
@@ -2299,9 +2287,7 @@ swapoff_all(void)
 	}
 	mtx_unlock(&sw_dev_mtx);
 
-	swdev_syscall_active = 0;
-	wakeup_one(&swdev_syscall_active);
-	mtx_unlock(&Giant);
+	sx_xunlock(&swdev_syscall_lock);
 }
 
 void
