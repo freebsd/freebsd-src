@@ -1,5 +1,33 @@
 /*	$OpenBSD: locore.S,v 1.18 1998/09/15 10:58:53 pefo Exp $	*/
 /*-
+ * Copyright (c) 2016 Robert N. M. Watson
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -359,30 +387,86 @@ SlowFault:
  *----------------------------------------------------------------------------
  */
 
-#define	SAVE_REG(reg, offs, base) \
-	REG_S	reg, (CALLFRAME_SIZ + (SZREG * offs)) (base)
+/*
+ * The kernel exception stack contains 40 general-purpose registers, hi/lo
+ * registers, and status register.  If CHERI is present, a further 28 CHERI
+ * registers are stored there.  We also set up linkage conventions.  The
+ * on-stack frame must match the binary layout of 'struct trapframe'.
+ *
+ * If we store capability registers on the stack, we need to adjust the stack
+ * pointer to provide suitable alignment.  We therefore allocate an additional
+ * CHERICAP_SIZE/2 to allow for that adjustment.  a0 will be set suitably to
+ * include that alignment.
+ */
+#define	KERN_REG_SIZE		(NUMSAVEREGS * SZREG)
+#ifdef CPU_CHERI
+#define	KERN_CREG_SIZE		(NUMCHERISAVEREGS * CHERICAP_SIZE)
+#define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE +	\
+				KERN_CREG_SIZE)
+#else
+#define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE)
+#endif
 
 #ifdef CPU_CHERI
 /*
- * Optionally save kernel-pertinent capability registers at the top end of the
- * trap frame.  Because the 'csc' immediate is quite small, we need a
- * temporary register to hold it in, against which small constant offsets can
- * be applied.  If we save more registers, SAVE_CREG() will become desirable.
- *
- * XXXRW: Notice run-time capability-alignment hack.
+ * CHERI requires 16- or 32-byte alignment of the trap frame, so adjust sp
+ * (or, whatever register is passed in via 'reg') down if required.  The
+ * previous value of sp should be saved prior to calling this macro --
+ * typically, in k1.  There are no free registers, so we do this using shift
+ * instructions.
  */
-#define	SAVE_CHERI(t0reg, t1reg, base)					\
-	daddiu	t0reg, base, KERN_CREG_BASE;				\
-	dli	t1reg, -CHERICAP_SIZE;					\
-	and	t0reg, t1reg, t0reg;					\
-	csc	$c11, t0reg, 0(CHERI_REG_KDC);				\
-	csc	$c12, t0reg, CHERICAP_SIZE(CHERI_REG_KDC)
+#define	CHERI_ADJUST_SP(reg)						\
+	dsrl	reg, reg, CHERICAP_SHIFT;				\
+	dsll	reg, reg, CHERICAP_SHIFT
 #else
-#define	SAVE_CHERI(t0reg, t1reg, base)
+#define	CHERI_ADJUST_SP(reg)
+#endif
+
+#ifdef CPU_CHERI
+/*
+ * Save CHERI registers on the stack to construct the kernel trap frame.
+ * Suitable alignment should already have been arranged by the caller.
+ */
+#define	SAVE_CREG(creg, regoffs, offs, cregbase)	\
+	csc	creg, regoffs, (CALLFRAME_SIZ + (SZREG * offs))(cregbase)
+
+#define	SAVE_CHERI						\
+	SAVE_CREG(CHERI_REG_DDC, sp, DDC, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C1, sp, C1, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C2, sp, C2, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C3, sp, C3, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C4, sp, C4, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C5, sp, C5, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C6, sp, C6, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C7, sp, C7, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C8, sp, C8, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C9, sp, C9, CHERI_REG_KDC);		\
+	SAVE_CREG(CHERI_REG_C10, sp, C10, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C11, sp, C11, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C12, sp, C12, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C13, sp, C13, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C14, sp, C14, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C15, sp, C15, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C16, sp, C16, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C17, sp, C17, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C18, sp, C18, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C19, sp, C19, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C20, sp, C20, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C21, sp, C21, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C22, sp, C22, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C23, sp, C23, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C24, sp, C24, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C25, sp, C25, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_C26, sp, C26, CHERI_REG_KDC);	\
+	SAVE_CREG(CHERI_REG_EPCC, sp, EPCC, CHERI_REG_KDC)
+#else
+#define	SAVE_CHERI
 #endif
 
 /*
  * Save CPU and CP0 register state when taking an exception in kernel mode.
+ * The caller will already have set up a stack pointer with suitable space and
+ * alignment.
  *
  * This is straightforward except for saving the exception program
  * counter. The ddb backtrace code looks for the first instruction
@@ -390,13 +474,20 @@ SlowFault:
  * calling function. So we must make sure that we save the exception
  * PC by staging it through 'ra' as opposed to any other register.
  *
- * XXXCHERI: Now that "struct trapframe" contains capabilities, we will need
- * to more carefully adjust the alignment of the overall trap frame here,
- * rather than just adjusting the capability-related bits as above.
+ * sp passes in the pointer to where we should place the call frame and trap
+ * frame on the stack.
+ * k1 passes in the preempted stack pointer (to be saved at SP).
+ * a0 returns a pointer to the trap frame.
+ * k0 is used as a temporary to hold the CP0 status register.
+ *
+ * sp and k1 may differ if we've had to re-align the stack for CHERI.
  */
+#define	SAVE_REG(reg, offs, base) \
+	REG_S	reg, (CALLFRAME_SIZ + (SZREG * offs)) (base)
+
 #define	SAVE_CPU \
 	SAVE_REG(AT, AST, sp)		;\
-	.set	at		        ; \
+	.set	at		        ;\
 	SAVE_REG(v0, V0, sp)		;\
 	SAVE_REG(v1, V1, sp)		;\
 	SAVE_REG(a0, A0, sp)		;\
@@ -434,41 +525,67 @@ SlowFault:
 	SAVE_REG(a0, SR, sp)		;\
 	SAVE_REG(a1, CAUSE, sp)		;\
 	SAVE_REG(a2, BADVADDR, sp)	;\
-	SAVE_CHERI(t0, t1, sp);		;\
+	SAVE_CHERI			;\
 	move	t0, ra			;\
 	move	ra, a3			;\
 	SAVE_REG(ra, PC, sp)		;\
 	move	ra, t0			;\
 	SAVE_REG(ra, RA, sp)		;\
-	PTR_ADDU v0, sp, KERN_EXC_FRAME_SIZE ;\
-	SAVE_REG(v0, SP, sp)		;\
+	SAVE_REG(k1, SP, sp)		/* Notice: k1 stored for sp. */	;\
 	CLEAR_STATUS			;\
-	PTR_ADDU a0, sp, CALLFRAME_SIZ	;\
+	PTR_ADDU a0, sp, CALLFRAME_SIZ	/* Make trap frame pointer. */	;\
 	ITLBNOPFIX
 
+#ifdef CPU_CHERI
+#define	RESTORE_CREG(creg, regoffs, offs, cregbase)	\
+	clc	creg, regoffs, (CALLFRAME_SIZ + (SZREG * offs))(cregbase)
+
+/*
+ * Restore CHERI registers from the on-stack kernel trap frame.
+ */
+#define	RESTORE_CHERI						\
+	RESTORE_CREG(CHERI_REG_DDC, sp, DDC, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C1, sp, C1, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C2, sp, C2, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C3, sp, C3, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C4, sp, C4, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C5, sp, C5, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C6, sp, C6, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C7, sp, C7, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C8, sp, C8, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C9, sp, C9, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C10, sp, C10, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C11, sp, C11, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C12, sp, C12, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C13, sp, C13, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C14, sp, C14, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C15, sp, C15, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C16, sp, C16, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C17, sp, C17, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C18, sp, C18, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C19, sp, C19, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C20, sp, C20, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C21, sp, C21, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C22, sp, C22, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C23, sp, C23, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C24, sp, C24, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C25, sp, C25, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_C26, sp, C26, CHERI_REG_KDC);	\
+	RESTORE_CREG(CHERI_REG_EPCC, sp, EPCC, CHERI_REG_KDC)
+#else
+#define	RESTORE_CHERI
+#endif
+
+/*
+ * Restore preempted kernel state following a kernel exception.  The caller
+ * will restore the original sp from k1 after RESTORE_CPU has ended.
+ */
 #define	RESTORE_REG(reg, offs, base) \
 	REG_L	reg, (CALLFRAME_SIZ + (SZREG * offs)) (base)
 
-#ifdef CPU_CHERI
-/*
- * Optionally restore kernel-pertinent capability registers.  See comment above
- * about SAVE_CHERI() for details.
- *
- * XXXRW: Notice run-time capability-alignment hack.
- */
-#define RESTORE_CHERI(t0reg, t1reg, base)				\
-	daddiu	t0reg, base, KERN_CREG_BASE;				\
-	dli	t1reg, -CHERICAP_SIZE;					\
-	and	t0reg, t1reg, t0reg;					\
-	clc	$c11, t0reg, 0(CHERI_REG_KDC);				\
-	clc	$c12, t0reg, CHERICAP_SIZE(CHERI_REG_KDC);
-#else
-#define	RESTORE_CHERI(t0reg, t1reg, base)
-#endif
-
 #define	RESTORE_CPU \
 	CLEAR_STATUS			;\
-	RESTORE_CHERI(t0, t1, sp);	;\
+	RESTORE_CHERI			;\
 	RESTORE_REG(k0, SR, sp)		;\
 	RESTORE_REG(t0, MULLO, sp)	;\
 	RESTORE_REG(t1, MULHI, sp)	;\
@@ -504,45 +621,25 @@ SlowFault:
 	RESTORE_REG(s8, S8, sp)	        ;\
 	RESTORE_REG(gp, GP, sp)		;\
 	RESTORE_REG(ra, RA, sp)		;\
-	PTR_ADDU sp, sp, KERN_EXC_FRAME_SIZE;\
+	RESTORE_REG(k1, SP, sp)		/* Notice: restored sp in k1. */ ;\
 	mtc0	k0, MIPS_COP_0_STATUS
-
-
-/*
- * The kernel exception stack contains 18 saved general registers,
- * the status register and the multiply lo and high registers.
- * In addition, we set this up for linkage conventions.
- *
- * Place two CHERI kernel micro-ABI registers directly above the regular MIPS
- * trap frame on the stack.
- *
- * XXXRW: Need NUMSAVECREGS and CHERICAP_SIZE in right header.
- *
- * XXXRW: The stack isn't guaranteed to have capability alignment, so allocate
- * (and later add/mask) an extra CHERICAP_SIZE/2 bytes so we can do run-time
- * adjustment.
- */
-#define	KERN_REG_SIZE		(NUMSAVEREGS * SZREG)
-#ifdef CPU_CHERI
-#define	KERN_CREG_SIZE		(2 * CHERICAP_SIZE + CHERICAP_SIZE/2)
-#define	KERN_CREG_BASE		(CALLFRAME_SIZ + KERN_REG_SIZE + 	\
-				    CHERICAP_SIZE/2)
-#define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE + \
-				    KERN_CREG_SIZE + CHERICAP_SIZE/2)
-#else
-#define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE + 16)
-#endif
 
 NESTED_NOPROFILE(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
+
+	/* Save exception sp in k1 to put on the stack later. */
+	move	k1, sp
 	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
+	CHERI_ADJUST_SP(sp)
 	.mask	0x80000000, (CALLFRAME_RA - KERN_EXC_FRAME_SIZE)
 /*
- *  Save CPU state, building 'frame'.
+ * Save CPU state, building 'frame'.  sp holds the location to save the trap
+ * frame, whereas k1 holds the value of sp to save in the trap frame.
  */
 	SAVE_CPU
 /*
- *  Call the exception handler. a0 points at the saved frame.
+ * Call the exception handler.  SAVE_CPU has left a0 pointing at the saved
+ * frame.
  */
 	PTR_LA	gp, _C_LABEL(_gp)
 	PTR_LA	t9, _C_LABEL(trap)
@@ -562,6 +659,9 @@ NESTED_NOPROFILE(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	RESTORE_CPU			# v0 contains the return address.
+
+	/* Restore preempted sp from k1 now we are done with the stack. */
+	move	sp, k1
 	sync
 
 #ifdef CPU_CHERI
@@ -714,8 +814,6 @@ END(mips_wait)
 
 NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
-	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
-	.mask	0x80000000, (CALLFRAME_RA - KERN_EXC_FRAME_SIZE)
 
 /*
  * Check for getting interrupts just before wait
@@ -734,12 +832,21 @@ NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	PTR_ADDU k1, 16			# skip over wait
 	MTC0	k1, MIPS_COP_0_EXC_PC
 1:
+
+	/* Save exception sp in k1 to put on the stack later. */
+	move	k1, sp
+	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
+	CHERI_ADJUST_SP(sp)
+	.mask	0x80000000, (CALLFRAME_RA - KERN_EXC_FRAME_SIZE)
+
 /*
- *  Save CPU state, building 'frame'.
+ * Save CPU state, building 'frame'.  sp holds the location to save the trap
+ * frame, whereas k1 holds the value of sp to save in the trap frame.
  */
 	SAVE_CPU
 /*
- *  Call the interrupt handler. a0 points at the saved frame.
+ * Call the interrupt handler.   SAVE_CPU has left a0 pointing at the saved
+ * frame.
  */
 	PTR_LA	gp, _C_LABEL(_gp)
 	PTR_LA	t9, _C_LABEL(cpu_intr)
@@ -760,6 +867,9 @@ NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	SAVE_REG(a1, SR, sp)
 	REG_L	v0, (CALLFRAME_RA + KERN_REG_SIZE)(sp)
 	RESTORE_CPU			# v0 contains the return address.
+
+	/* Restore preempted sp from k1 now we are done with the stack. */
+	move	sp, k1
 	sync
 #ifdef CPU_CHERI
 	CHERI_EXCEPTION_RETURN(k0)
@@ -1163,13 +1273,16 @@ tlb_insert_random:
 	PTR_ADDU	k0, k0, k1
 
 	/*
-	 * Stash the original value of 'sp' so we can update trapframe later.
-	 * We assume that SAVE_CPU does not trash 'k1'.
+	 * Convergence of interests: save the original 'sp' in 'k1' so that
+	 * SAVE_CPU can preserve that rather than our modified 'sp' used to
+	 * access the stack during the exception handler.  But also save it so
+	 * that we can restore it later.
 	 */
 	move	k1, sp
 
 	move	sp, k0
 	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
+	CHERI_ADJUST_SP(sp)
 
 	move	k0, ra
 	move	ra, zero
@@ -1178,10 +1291,9 @@ tlb_insert_random:
 	move	ra, k0
 
 	/*
-	 * XXXCHERI: This SAVE_CPU preserves a kernel register frame before
-	 * entering the kernel debugger on kernel stack overflow.  In the
-	 * future, we may want to do something with CHERI EPCC here (e.g.,
-	 * save it?).
+	 * Save CPU state, building 'frame'.  sp holds the location to save
+	 * the trap frame, whereas k1 holds the value of sp to save in the
+	 * trap frame.
 	 */
 	SAVE_CPU
 
