@@ -92,12 +92,7 @@ typedef u_int64_t __be64;
 
 typedef bus_addr_t dma_addr_t;
 
-static inline vm_paddr_t
-virt_to_phys(void *va)
-{
-	uintptr_t v = (uintptr_t)va;
-	return (vtophys(v & ~PAGE_MASK)+(v&PAGE_MASK));
-}
+#define	virt_to_phys(v)	vtophys(v)
 
 MALLOC_DECLARE(M_PVSCSI);
 MALLOC_DECLARE(M_PVSCSI_PCI);
