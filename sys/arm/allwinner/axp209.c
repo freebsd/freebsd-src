@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #define	AXP209_TEMPMON_L(a)	((a) & 0xf)
 #define	AXP209_TEMPMON_MIN	1447	/* -144.7C */
 
-#define	AXP209_0C_TO_K		2732
+#define	AXP209_0C_TO_K		2731
 
 struct axp209_softc {
 	uint32_t		addr;

@@ -73,6 +73,6 @@
 #define	DS3231_0250C			0x40
 #define	DS3231_MSB			0x8000
 #define	DS3231_NEG_BIT			DS3231_MSB
-#define	TZ_ZEROC			2732
+#define	TZ_ZEROC			2731
 
 #endif	/* _DS3231REG_H_ */

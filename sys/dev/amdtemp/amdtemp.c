@@ -505,7 +505,7 @@ amdtemp_sysctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-#define	AMDTEMP_ZERO_C_TO_K	2732
+#define	AMDTEMP_ZERO_C_TO_K	2731
 
 static int32_t
 amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)

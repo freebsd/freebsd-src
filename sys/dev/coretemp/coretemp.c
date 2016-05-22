@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 
-#define	TZ_ZEROC			2732
+#define	TZ_ZEROC			2731
 
 #define	THERM_STATUS_LOG		0x02
 #define	THERM_STATUS			0x01

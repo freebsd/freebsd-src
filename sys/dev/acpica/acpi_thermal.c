@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #define _COMPONENT	ACPI_THERMAL
 ACPI_MODULE_NAME("THERMAL")
 
-#define TZ_ZEROC	2732
+#define TZ_ZEROC	2731
 #define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), abs(((x) - TZ_ZEROC) % 10)
 
 #define TZ_NOTIFY_TEMPERATURE	0x80 /* Temperature changed. */

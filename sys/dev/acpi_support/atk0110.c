@@ -344,9 +344,9 @@ aibs_sysctl(SYSCTL_HANDLER_ARGS)
 	case AIBS_VOLT:
 		break;
 	case AIBS_TEMP:
-		v += 2732;
-		l += 2732;
-		h += 2732;
+		v += 2731;
+		l += 2731;
+		h += 2731;
 		break;
 	case AIBS_FAN:
 		break;
