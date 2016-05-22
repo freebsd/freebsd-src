@@ -33,24 +33,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 
-#include <sys/gpio.h>
-#include "gpiobus_if.h"
-
 #ifdef FDT
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
 #endif
 
 #include <dev/gpio/gpiobusvar.h>
-
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 
+#include "gpiobus_if.h"
 #include "iicbb_if.h"
 
 #define	GPIOIIC_SCL_DFLT	0
