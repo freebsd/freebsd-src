@@ -136,7 +136,6 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 		}
 	}
 
-
 	IICBUS_UNLOCK(sc);
 
 	return (error);
