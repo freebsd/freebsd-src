@@ -39,6 +39,7 @@
  * 27 user-context registers -- with names where appropriate.
  */
 #define	CHERI_REG_C0	$c0	/* MIPS legacy load/store capability. */
+#define	CHERI_REG_DDC	CHERI_REG_C0
 #define	CHERI_REG_C1	$c1
 #define	CHERI_REG_C2	$c2
 #define	CHERI_REG_C3	$c3
@@ -64,7 +65,8 @@
 #define	CHERI_REG_C23	$c23
 #define	CHERI_REG_C24	$c24
 #define	CHERI_REG_C25	$c25	/* Notionally reserved for exception-use. */
-#define	CHERI_REG_IDC	$c26	/* Invoked data capability. */
+#define	CHERI_REG_C26	$c26	/* Invoked data capability. */
+#define	CHERI_REG_IDC	CHERI_REG_C26
 
 /* 5 exception-context registers -- with names where appropriate. */
 #define	CHERI_REG_KR1C	$c27	/* Kernel exception handling capability (1). */
