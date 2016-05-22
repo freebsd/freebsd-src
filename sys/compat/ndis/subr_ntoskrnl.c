@@ -3196,8 +3196,6 @@ static void
 srand(unsigned int seed)
 {
 
-	if (seed == 0)
-		seed = 1;
 	srandom(seed);
 }
 
