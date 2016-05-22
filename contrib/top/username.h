@@ -7,20 +7,17 @@
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *  Copyright (c) 2016, Randy Westlund
+ *
+ * $FreeBSD$
  */
+#ifndef USERNAME_H
+#define USERNAME_H
 
-/* prototypes for functions found in utils.c */
+int	 enter_user(int uid, char *name, int wecare);
+int	 get_user(int uid);
+void	 init_hash(void);
+char 	*username(int uid);
+int 	 userid(char *username);
 
-int atoiwi();
-char *itoa();
-char *itoa7();
-int digits();
-char *strecpy();
-char **argparse();
-long percentages();
-char *errmsg();
-char *format_time();
-char *format_k();
-char *format_k2(unsigned long long);
-int string_index(char *string, char **array);
-
+#endif /* USERNAME_H */
