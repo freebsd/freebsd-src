@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013-2015 Allan Jude
+# Copyright (c) 2013-2016 Allan Jude
 # Copyright (c) 2013-2015 Devin Teske
 # All rights reserved.
 #
@@ -189,8 +189,10 @@ CHMOD_MODE='chmod %s "%s"'
 DD_WITH_OPTIONS='dd if="%s" of="%s" %s'
 ECHO_APPEND='echo "%s" >> "%s"'
 GELI_ATTACH='geli attach -j - -k "%s" "%s"'
+GELI_ATTACH_NOKEY='geli attach -j - "%s"'
 GELI_DETACH_F='geli detach -f "%s"'
 GELI_PASSWORD_INIT='geli init -b -B "%s" -e %s -J - -K "%s" -l 256 -s 4096 "%s"'
+GELI_PASSWORD_GELIBOOT_INIT='geli init -bg -e %s -J - -l 256 -s 4096 "%s"'
 GPART_ADD_ALIGN='gpart add %s -t %s "%s"'
 GPART_ADD_ALIGN_INDEX='gpart add %s -i %s -t %s "%s"'
 GPART_ADD_ALIGN_INDEX_WITH_SIZE='gpart add %s -i %s -t %s -s %s "%s"'
@@ -205,6 +207,7 @@ GPART_SET_ACTIVE='gpart set -a active -i %s "%s"'
 GPART_SET_LENOVOFIX='gpart set -a lenovofix "%s"'
 GPART_SET_PMBR_ACTIVE='gpart set -a active "%s"'
 GRAID_DELETE='graid delete "%s"'
+KLDLOAD='kldload %s'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
 MOUNT_TYPE='mount -t %s "%s" "%s"'
@@ -755,21 +758,6 @@ zfs_create_diskpart()
 	esac
 
 	#
-	# Enable boot pool if encryption is desired
-	#
-	[ "$ZFSBOOT_GELI_ENCRYPTION" ] && ZFSBOOT_BOOT_POOL=1
-
-	#
-	# ZFSBOOT_BOOT_POOL and BIOS+UEFI boot type are incompatible
-	#
-	if [ "$ZFSBOOT_BOOT_POOL" -a "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
-		f_dprintf "$funcname: ZFSBOOT_BOOT_POOL is incompatible with BIOS+UEFI boot type"
-		msg_error="$msg_error: $funcname" f_show_err \
-			"ZFSBOOT_BOOT_POOL is incompatible with BIOS+UEFI boot type"
-		return $FAILURE
-	fi
-
-	#
 	# Destroy whatever partition layout is currently on disk.
 	# NOTE: `-F' required to destroy if partitions still exist.
 	# NOTE: Failure is ok here, blank disk will have nothing to destroy.
@@ -821,9 +809,14 @@ zfs_create_diskpart()
 		fi
 
 		#
-		# 2. Add small freebsd-boot or efi partition
+		# 2. Add small freebsd-boot and/or efi partition
 		#
 		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
+			#
+			# Enable boot pool if encryption is desired
+			#
+			[ "$ZFSBOOT_GELI_ENCRYPTION" ] && ZFSBOOT_BOOT_POOL=1
+
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
 			             "$align_small" efiboot$index efi 800k $disk ||
@@ -915,6 +908,10 @@ zfs_create_diskpart()
 		;;
 
 	MBR) f_dprintf "$funcname: Creating MBR layout..."
+		#
+		# Enable boot pool if encryption is desired
+		#
+		[ "$ZFSBOOT_GELI_ENCRYPTION" ] && ZFSBOOT_BOOT_POOL=1
 		#
 		# 1. Create MBR layout (no labels)
 		#
@@ -1190,6 +1187,10 @@ zfs_create_boot()
 	# Create the geli(8) GEOMS
 	#
 	if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
+		#
+		# Load the AES-NI kernel module to accelerate encryption
+		#
+		f_eval_catch -d $funcname kldload "$KLDLOAD" "aesni"
 		# Prompt user for password (twice)
 		if ! msg_enter_new_password="$msg_geli_password" \
 			f_dialog_input_password
@@ -1203,27 +1204,51 @@ zfs_create_boot()
 		for disk in $disks; do
 			f_dialog_info "$msg_geli_setup" \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-			if ! echo "$pw_password" | f_eval_catch \
-				$funcname geli "$GELI_PASSWORD_INIT" \
-				"$bootpool/boot/$disk$targetpart.eli" \
-				AES-XTS "$bootpool/$zroot_key" \
-				$disk$targetpart
-			then
-				f_interactive || f_die
-				unset pw_password # Sensitive info
-				return $FAILURE
-			fi
-			if ! echo "$pw_password" | f_eval_catch \
-				$funcname geli "$GELI_ATTACH" \
-				"$bootpool/$zroot_key" $disk$targetpart
-			then
-				f_interactive || f_die
-				unset pw_password # Sensitive info
-				return $FAILURE
+			if [ "$ZFSBOOT_BOOT_POOL" ]; then
+				if ! echo "$pw_password" | f_eval_catch \
+					$funcname geli "$GELI_PASSWORD_INIT" \
+					"$bootpool/boot/$disk$targetpart.eli" \
+					AES-XTS "$bootpool/$zroot_key" \
+					$disk$targetpart
+				then
+					f_interactive || f_die
+					unset pw_password # Sensitive info
+					return $FAILURE
+				fi
+				if ! echo "$pw_password" | f_eval_catch \
+					$funcname geli "$GELI_ATTACH" \
+					"$bootpool/$zroot_key" $disk$targetpart
+				then
+					f_interactive || f_die
+					unset pw_password # Sensitive info
+					return $FAILURE
+				fi
+			else
+				# With no bootpool, there is no place to store
+				# the key files, use only a password
+				if ! echo "$pw_password" | f_eval_catch \
+					$funcname geli \
+					"$GELI_PASSWORD_GELIBOOT_INIT" AES-XTS \
+					$disk$targetpart
+				then
+					f_interactive || f_die
+					unset pw_password # Sensitive info
+					return $FAILURE
+				fi
+				if ! echo "$pw_password" | f_eval_catch \
+					$funcname geli "$GELI_ATTACH_NOKEY" \
+					$disk$targetpart
+				then
+					f_interactive || f_die
+					unset pw_password # Sensitive info
+					return $FAILURE
+				fi
 			fi
 		done
 		unset pw_password # Sensitive info
+	fi
 
+	if [ "$ZFSBOOT_BOOT_POOL" ]; then
 		# Clean up
 		f_eval_catch $funcname zfs "$ZFS_UNMOUNT" "$bootpool_name" ||
 			return $FAILURE
@@ -1369,29 +1394,6 @@ zfs_create_boot()
 		             return $FAILURE
 	fi
 
-	# We're all done unless we should go on for boot pool
-	[ "$ZFSBOOT_BOOT_POOL" ] || return $SUCCESS
-
-	# Set cachefile for boot pool so it auto-imports at system start
-	f_dprintf "$funcname: Configuring zpool.cache for boot pool..."
-	f_eval_catch $funcname zpool "$ZPOOL_SET" \
-	             "cachefile=\"$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\"" \
-	             "$bootpool_name" || return $FAILURE
-
-	# Some additional geli(8) requirements for loader.conf(5)
-	for option in \
-		'zpool_cache_load=\"YES\"' \
-		'zpool_cache_type=\"/boot/zfs/zpool.cache\"' \
-		'zpool_cache_name=\"/boot/zfs/zpool.cache\"' \
-	; do
-		f_eval_catch $funcname echo "$ECHO_APPEND" "$option" \
-		             $BSDINSTALL_TMPBOOT/loader.conf.zfs ||
-		             return $FAILURE
-	done
-	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
-		"\"zfs:$zroot_name/$zroot_bootfs\"" \
-		$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
-
 	# We're all done unless we should go on to do encryption
 	[ "$ZFSBOOT_GELI_ENCRYPTION" ] || return $SUCCESS
 
@@ -1403,9 +1405,10 @@ zfs_create_boot()
 		$BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_eli_load=\"YES\"' \
 		$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
-	f_eval_catch $funcname echo "$ECHO_APPEND" \
-		'geom_eli_passphrase_prompt=\"YES\"' \
-		$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
+
+	# We're all done unless we should go on for boot pool
+	[ "$ZFSBOOT_BOOT_POOL" ] || return $SUCCESS
+
 	for disk in $disks; do
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
 			geli_%s_keyfile0_load "$disk$targetpart YES" \
@@ -1422,6 +1425,27 @@ zfs_create_boot()
 			$BSDINSTALL_TMPBOOT/loader.conf.$disk$targetpart ||
 			return $FAILURE
 	done
+
+	# Set cachefile for boot pool so it auto-imports at system start
+	f_dprintf "$funcname: Configuring zpool.cache for boot pool..."
+	f_eval_catch $funcname zpool "$ZPOOL_SET" \
+	             "cachefile=\"$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\"" \
+	             "$bootpool_name" || return $FAILURE
+
+	# Some additional geli(8) requirements for loader.conf(5)
+	for option in \
+		'zpool_cache_load=\"YES\"' \
+		'zpool_cache_type=\"/boot/zfs/zpool.cache\"' \
+		'zpool_cache_name=\"/boot/zfs/zpool.cache\"' \
+		'geom_eli_passphrase_prompt=\"YES\"' \
+	; do
+		f_eval_catch $funcname echo "$ECHO_APPEND" "$option" \
+		             $BSDINSTALL_TMPBOOT/loader.conf.zfs ||
+		             return $FAILURE
+	done
+	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
+		"\"zfs:$zroot_name/$zroot_bootfs\"" \
+		$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
 
 	return $SUCCESS
 }
