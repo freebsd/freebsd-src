@@ -1164,7 +1164,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	}
 	/*
 	 * XXX all the SBS_CANTSENDMORE checks previously done could be out
-	 * of date.  We could have recived a reset packet in an interrupt or
+	 * of date.  We could have received a reset packet in an interrupt or
 	 * maybe we slept while doing page faults in uiomove() etc.  We could
 	 * probably recheck again inside the locking protection here, but
 	 * there are probably other places that this also happens.  We must
