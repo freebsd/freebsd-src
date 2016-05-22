@@ -70,7 +70,6 @@ static int gpioiic_attach(device_t);
 
 /* iicbb interface */
 static void gpioiic_reset_bus(device_t);
-static int gpioiic_callback(device_t, int, caddr_t);
 static void gpioiic_setsda(device_t, int);
 static void gpioiic_setscl(device_t, int);
 static int gpioiic_getsda(device_t);
@@ -161,30 +160,6 @@ gpioiic_reset_bus(device_t dev)
 	    GPIO_PIN_INPUT);
 }
 
-static int
-gpioiic_callback(device_t dev, int index, caddr_t data)
-{
-	struct gpioiic_softc	*sc = device_get_softc(dev);
-	int error, how;
-
-	how = GPIOBUS_DONTWAIT;
-	if (data != NULL && *(int*)data == IIC_WAIT)
-		how = GPIOBUS_WAIT;
-	error = 0;
-	switch (index) {
-	case IIC_REQUEST_BUS:
-		error = GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev, how);
-		break;
-	case IIC_RELEASE_BUS:
-		GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
-		break;
-	default:
-		error = EINVAL;
-	}
-
-	return (error);
-}
-
 static void
 gpioiic_setsda(device_t dev, int val)
 {
@@ -271,7 +246,6 @@ static device_method_t gpioiic_methods[] = {
 	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	/* iicbb interface */
-	DEVMETHOD(iicbb_callback,	gpioiic_callback),
 	DEVMETHOD(iicbb_setsda,		gpioiic_setsda),
 	DEVMETHOD(iicbb_setscl,		gpioiic_setscl),
 	DEVMETHOD(iicbb_getsda,		gpioiic_getsda),

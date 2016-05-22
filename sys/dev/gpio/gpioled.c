@@ -76,23 +76,15 @@ static int gpioled_detach(device_t);
 static void 
 gpioled_control(void *priv, int onoff)
 {
-	int error;
 	struct gpioled_softc *sc;
 
 	sc = (struct gpioled_softc *)priv;
 	GPIOLED_LOCK(sc);
-	error = GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev,
-	    GPIOBUS_DONTWAIT);
-	if (error != 0) {
-		GPIOLED_UNLOCK(sc);
-		return;
-	}
-	error = GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev,
-	    GPIOLED_PIN, GPIO_PIN_OUTPUT);
-	if (error == 0)
+	if (GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    GPIO_PIN_OUTPUT) == 0) {
 		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
 		    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
-	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
+	}
 	GPIOLED_UNLOCK(sc);
 }
 
