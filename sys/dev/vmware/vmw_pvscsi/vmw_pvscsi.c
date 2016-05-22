@@ -1100,7 +1100,7 @@ pvscsi_scsiio_timeout(void *data)
 
 	getmicrotime(&tv);
 	device_printf(pvscsi_dev(adapter), "SCSI IO TIMEOUT ctx>%p ccb>%p at "
-		"%ld.%06ld\n", ctx, ctx->cmd, tv.tv_sec, tv.tv_usec);
+		"%jd.%06ld\n", ctx, ctx->cmd, (intmax_t)tv.tv_sec, tv.tv_usec);
 
 	/* Update the targ_t from the targ array with the TO info */
 	targ = adapter->pvs_tarrg + ctx->cmd->ccb_h.target_id;
@@ -2280,8 +2280,8 @@ pvscsi_action(struct cam_sim *psim, union ccb *pccb)
 			target_id_t trg = pccb->ccb_h.target_id;
 
 			if (pccb->ccb_h.target_lun) {
-				device_printf(device, "Non-zero LU number %lu\n",
-						pccb->ccb_h.target_lun);
+				device_printf(device, "Non-zero LU number %ju\n",
+				    (uintmax_t)pccb->ccb_h.target_lun);
 				pccb->ccb_h.status = CAM_LUN_INVALID;
 				xpt_done(pccb);
 				break;
