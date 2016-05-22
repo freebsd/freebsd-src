@@ -126,7 +126,7 @@ set_cpu(int cpu, struct thread *td)
 	sched_bind(td, cpu);
 	thread_unlock(td);
 	KASSERT(td->td_oncpu == cpu,
-	    ("[cpuctl,%d]: cannot bind to target cpu %d", __LINE__, cpu));
+	    ("[cpuctl,%d]: cannot bind to target cpu %d on cpu %d", __LINE__, cpu, td->td_oncpu));
 }
 
 static void
