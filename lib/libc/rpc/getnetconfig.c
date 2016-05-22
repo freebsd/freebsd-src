@@ -722,6 +722,7 @@ dup_ncp(struct netconfig *ncp)
     if (p->nc_lookups == NULL) {
 	free(p->nc_netid);
 	free(p);
+	free(tmp);
 	return(NULL);
     }
     for (i=0; i < p->nc_nlookups; i++) {
