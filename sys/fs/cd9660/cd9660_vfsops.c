@@ -226,11 +226,9 @@ iso_mountfs(devvp, mp)
 
 	dev = devvp->v_rdev;
 	dev_ref(dev);
-	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
 		goto out;
@@ -481,11 +479,9 @@ out:
 	if (supbp != NULL)
 		brelse(supbp);
 	if (cp != NULL) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 	}
 	if (isomp) {
 		free(isomp, M_ISOFSMNT);
@@ -519,11 +515,9 @@ cd9660_unmount(mp, mntflags)
 		if (isomp->im_l2d)
 			cd9660_iconv->close(isomp->im_l2d);
 	}
-	DROP_GIANT();
 	g_topology_lock();
 	g_vfs_close(isomp->im_cp);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	vrele(isomp->im_devvp);
 	dev_rel(isomp->im_dev);
 	free(isomp, M_ISOFSMNT);
