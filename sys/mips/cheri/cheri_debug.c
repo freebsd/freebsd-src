@@ -52,7 +52,7 @@
  * as $c0.  As a result, we must move those values through a temporary
  * register that is hence overwritten.
  */
-DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
+DB_SHOW_COMMAND(cp2, ddb_dump_cp2)
 {
 	register_t cause;
 	uint8_t exccode, regnum;
@@ -107,10 +107,32 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 }
 
 /*
+ * Variation that prints register state from the trap frame provided by KDB.
+ */
+DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
+{
+	u_int i;
+
+	cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->ddc);
+	db_printf("DDC ");
+	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
+	cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->epcc);
+	db_printf("PCC ");
+	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
+	db_printf("\n");
+
+	/* Laboriously load and print each trapframe capability. */
+	for (i = 1; i < 27; i++) {
+		cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->c1 + i);
+		DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, i);
+	}
+}
+
+/*
  * Variation that prints the saved userspace CHERI register frame for a
  * thread.
  */
-DB_SHOW_COMMAND(cheriframe, ddb_dump_cheriframe)
+DB_SHOW_COMMAND(cheripcb, ddb_dump_cheripcb)
 {
 	struct thread *td;
 	struct cheri_frame *cfp;
@@ -125,16 +147,22 @@ DB_SHOW_COMMAND(cheriframe, ddb_dump_cheriframe)
 	db_printf("Thread %d at %p\n", td->td_tid, td);
 	db_printf("CHERI frame at %p\n", cfp);
 
-	/* Laboriously load and print each user capability. */
-	for (i = 0; i < 27; i++) {
-		cheri_capability_load(CHERI_CR_CTEMP0,
-		    (struct chericap *)&cfp->cf_c0 + i);
-		DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, i);
-	}
+	cheri_capability_load(CHERI_CR_CTEMP0,
+	    (struct chericap *)&cfp->cf_c0);
+	db_printf("DDC: ");
+	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 	cheri_capability_load(CHERI_CR_CTEMP0,
 	    (struct chericap *)&cfp->cf_c0 + CHERIFRAME_OFF_PCC);
 	db_printf("PCC ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
+	db_printf("\n");
+
+	/* Laboriously load and print each user capability. */
+	for (i = 1; i < 27; i++) {
+		cheri_capability_load(CHERI_CR_CTEMP0,
+		    (struct chericap *)&cfp->cf_c0 + i);
+		DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, i);
+	}
 }
 
 /*
