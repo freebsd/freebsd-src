@@ -54,12 +54,11 @@ __FBSDID("$FreeBSD$");
  */
 #define	GPIOLED_PIN	0
 
-#define GPIOLED_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	GPIOLED_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	GPIOLED_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define GPIOLED_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	    "gpioled", MTX_DEF)
-#define GPIOLED_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define	GPIOLED_LOCK_INIT(_sc)		mtx_init(&(_sc)->sc_mtx,	\
+    device_get_nameunit((_sc)->sc_dev), "gpioled", MTX_DEF)
+#define	GPIOLED_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
 struct gpioled_softc 
 {
@@ -159,7 +158,7 @@ gpioled_probe(device_t dev)
 #endif
 	device_set_desc(dev, "GPIO led");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
