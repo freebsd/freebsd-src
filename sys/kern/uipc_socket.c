@@ -550,7 +550,7 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
 /*
  * When an attempt at a new connection is noted on a socket which accepts
  * connections, sonewconn is called.  If the connection is possible (subject
- * to space constraints, etc.) then we allocate a new structure, propoerly
+ * to space constraints, etc.) then we allocate a new structure, properly
  * linked into the data structure of the original socket, and return this.
  * Connstatus may be 0, or SS_ISCONFIRMING, or SS_ISCONNECTED.
  *
@@ -1164,7 +1164,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	}
 	/*
 	 * XXX all the SBS_CANTSENDMORE checks previously done could be out
-	 * of date.  We could have received a reset packet in an interrupt or
+	 * of date.  We could have recived a reset packet in an interrupt or
 	 * maybe we slept while doing page faults in uiomove() etc.  We could
 	 * probably recheck again inside the locking protection here, but
 	 * there are probably other places that this also happens.  We must
@@ -2711,7 +2711,7 @@ sooptcopyout(struct sockopt *sopt, const void *buf, size_t len)
 	 * that we always tell the user precisely how much we copied, rather
 	 * than something useful like the total amount we had available for
 	 * her.  Note that this interface is not idempotent; the entire
-	 * answer must generated ahead of time.
+	 * answer must be generated ahead of time.
 	 */
 	valsize = min(len, sopt->sopt_valsize);
 	sopt->sopt_valsize = valsize;
