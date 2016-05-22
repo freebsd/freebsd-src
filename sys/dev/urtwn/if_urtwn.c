@@ -2838,7 +2838,7 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211_channel *chan;
 	struct ieee80211_frame *wh;
 	struct r92c_tx_desc *txd;
-	uint8_t macid, raid, rate, ridx, subtype, type, tid, qsel;
+	uint8_t macid, raid, rate, ridx, subtype, type, tid, qos, qsel;
 	int hasqos, ismcast;
 
 	URTWN_ASSERT_LOCKED(sc);
@@ -2854,10 +2854,12 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 
 	/* Select TX ring for this frame. */
 	if (hasqos) {
-		tid = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
-		tid &= IEEE80211_QOS_TID;
-	} else
+		qos = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+		tid = qos & IEEE80211_QOS_TID;
+	} else {
+		qos = 0;
 		tid = 0;
+	}
 
 	chan = (ni->ni_chan != IEEE80211_CHAN_ANYC) ?
 		ni->ni_chan : ic->ic_curchan;
@@ -2923,6 +2925,14 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		txd->txdw0 |= htole32(R92C_TXDW0_BMCAST);
 
 	if (!ismcast) {
+		/* Unicast frame, check if an ACK is expected. */
+		if (!qos || (qos & IEEE80211_QOS_ACKPOLICY) !=
+		    IEEE80211_QOS_ACKPOLICY_NOACK) {
+			txd->txdw5 |= htole32(R92C_TXDW5_RTY_LMT_ENA);
+			txd->txdw5 |= htole32(SM(R92C_TXDW5_RTY_LMT,
+			    tp->maxretry));
+		}
+
 		if (sc->chip & URTWN_CHIP_88E) {
 			struct urtwn_node *un = URTWN_NODE(ni);
 			macid = un->id;
@@ -3102,6 +3112,11 @@ urtwn_tx_raw(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		txd->txdw0 |= htole32(R92C_TXDW0_BMCAST);
 
+	if ((params->ibp_flags & IEEE80211_BPF_NOACK) == 0) {
+		txd->txdw5 |= htole32(R92C_TXDW5_RTY_LMT_ENA);
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_RTY_LMT,
+		    params->ibp_try0));
+	}
 	if (params->ibp_flags & IEEE80211_BPF_RTS)
 		txd->txdw4 |= htole32(R92C_TXDW4_RTSEN);
 	if (params->ibp_flags & IEEE80211_BPF_CTS)
