@@ -1310,10 +1310,6 @@ zfs_create_boot()
 		"mountpoint=/$zroot_name" "$zroot_name" ||
 		return $FAILURE
 
-	f_dprintf "$funcname: Set canmount=noauto for the root of the pool..."
-	f_eval_catch $funcname zfs "$ZFS_SET" "canmount=noauto" \
-		"$zroot_name/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
-
 	# Touch up permissions on the tmp directories
 	f_dprintf "$funcname: Modifying directory permissions..."
 	local dir
@@ -1338,17 +1334,17 @@ zfs_create_boot()
 		"bootfs=\"$zroot_name/$zroot_bootfs\"" "$zroot_name" ||
 		return $FAILURE
 
-	# Export the pool(s)
-	f_dprintf "$funcname: Temporarily exporting ZFS pool(s)..."
-	f_eval_catch $funcname zpool "$ZPOOL_EXPORT" "$zroot_name" ||
-	             return $FAILURE
-	if [ "$ZFSBOOT_BOOT_POOL" ]; then
-		f_eval_catch $funcname zpool "$ZPOOL_EXPORT" \
-		             "$bootpool_name" || return $FAILURE
-	fi
-
 	# MBR boot loader touch-up
 	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
+		# Export the pool(s)
+		f_dprintf "$funcname: Temporarily exporting ZFS pool(s)..."
+		f_eval_catch $funcname zpool "$ZPOOL_EXPORT" "$zroot_name" ||
+			     return $FAILURE
+		if [ "$ZFSBOOT_BOOT_POOL" ]; then
+			f_eval_catch $funcname zpool "$ZPOOL_EXPORT" \
+				     "$bootpool_name" || return $FAILURE
+		fi
+
 		f_dprintf "$funcname: Updating MBR boot loader on disks..."
 		# Stick the ZFS boot loader in the "convenient hole" after
 		# the ZFS internal metadata
@@ -1357,17 +1353,17 @@ zfs_create_boot()
 			             /boot/zfsboot /dev/$disk$bootpart \
 			             "skip=1 seek=1024" || return $FAILURE
 		done
-	fi
 
-	# Re-import the ZFS pool(s)
-	f_dprintf "$funcname: Re-importing ZFS pool(s)..."
-	f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-	             "-o altroot=\"$BSDINSTALL_CHROOT\"" "$zroot_name" ||
-	             return $FAILURE
-	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		# Re-import the ZFS pool(s)
+		f_dprintf "$funcname: Re-importing ZFS pool(s)..."
 		f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-		             "-o altroot=\"$BSDINSTALL_CHROOT\"" \
-		             "$bootpool_name" || return $FAILURE
+			     "-o altroot=\"$BSDINSTALL_CHROOT\"" "$zroot_name" ||
+			     return $FAILURE
+		if [ "$ZFSBOOT_BOOT_POOL" ]; then
+			f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
+				     "-o altroot=\"$BSDINSTALL_CHROOT\"" \
+				     "$bootpool_name" || return $FAILURE
+		fi
 	fi
 
 	# While this is apparently not needed, it seems to help MBR
@@ -1377,6 +1373,14 @@ zfs_create_boot()
 	f_eval_catch $funcname zpool "$ZPOOL_SET" \
 	             "cachefile=\"$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\"" \
 	             "$zroot_name" || return $FAILURE
+
+	#
+	# Set canmount=noauto so that the default Boot Environment (BE) does not
+	# get mounted if a different BE is selected from the beastie menu
+	#
+	f_dprintf "$funcname: Set canmount=noauto for the root of the pool..."
+	f_eval_catch $funcname zfs "$ZFS_SET" "canmount=noauto" \
+		"$zroot_name/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
 
 	# Last, but not least... required lines for rc.conf(5)/loader.conf(5)
 	# NOTE: We later concatenate these into their destination
