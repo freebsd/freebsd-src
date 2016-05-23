@@ -156,7 +156,7 @@ ${X_}COMPILER_VERSION!=echo "${_v:M[1-9].[0-9]*}" | awk -F. '{print $$1 * 10000 
 .undef _v
 .endif
 .if !defined(${X_}COMPILER_FREEBSD_VERSION)
-${X_}COMPILER_FREEBSD_VERSION!=	{ echo "__FreeBSD_cc_version" | ${${cc}} -E - 2>/dev/null || echo __FreeBSD_cc_version; } | tail -n 1
+${X_}COMPILER_FREEBSD_VERSION!=	{ echo "__FreeBSD_cc_version" | ${${cc}} -E - 2>/dev/null || echo __FreeBSD_cc_version; } | sed -n '$$p'
 # If we get a literal "__FreeBSD_cc_version" back then the compiler
 # is a non-FreeBSD build that doesn't support it or some other error
 # occurred.
