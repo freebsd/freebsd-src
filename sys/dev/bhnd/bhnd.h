@@ -561,6 +561,21 @@ bhnd_get_chipid(device_t dev) {
 };
 
 /**
+ * Return the BHND attachment type of the parent bhnd bus.
+ *
+ * @param dev A bhnd bus child device.
+ *
+ * @retval BHND_ATTACH_ADAPTER if the bus is resident on a bridged adapter,
+ * such as a WiFi chipset.
+ * @retval BHND_ATTACH_NATIVE if the bus provides hardware services (clock,
+ * CPU, etc) to a directly attached native host.
+ */
+static inline bhnd_attach_type
+bhnd_get_attach_type (device_t dev) {
+	return (BHND_BUS_GET_ATTACH_TYPE(device_get_parent(dev), dev));
+}
+
+/**
  * Attempt to read the BHND board identification from the bhnd bus.
  *
  * This relies on NVRAM access, and will fail if a valid NVRAM device cannot

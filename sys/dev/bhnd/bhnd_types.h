@@ -73,6 +73,15 @@ typedef enum {
 	BHND_PORT_AGENT		= 2,	/**< interconnect agent/wrapper */
 } bhnd_port_type;
 
+/**
+ * bhnd(4) attachment types.
+ */
+typedef enum {
+	BHND_ATTACH_ADAPTER	= 0,	/**< A bridged card, such as a PCI WiFi chipset  */
+	BHND_ATTACH_NATIVE	= 1	/**< A bus resident on the native host, such as
+					  *  the primary or secondary bus of an embedded
+					  *  SoC */
+} bhnd_attach_type;
 
 /** Evaluates to true if @p cls is a device class that can be configured
  *  as a host bridge device. */

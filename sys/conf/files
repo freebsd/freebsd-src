@@ -1125,6 +1125,7 @@ dev/bge/if_bge.c			optional bge
 dev/bhnd/bhnd.c				optional bhndbus | bhnd
 dev/bhnd/bhnd_subr.c			optional bhndbus | bhnd
 dev/bhnd/bhnd_bus_if.m			optional bhndbus | bhnd
+dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndbus | bhndb
 dev/bhnd/bhndb/bhndb.c			optional bhndbus | bhndb
 dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndbus | bhndb
 dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndbus | bhndb
