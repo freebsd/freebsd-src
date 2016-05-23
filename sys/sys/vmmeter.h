@@ -185,6 +185,18 @@ vm_paging_needed(void)
 	    (u_int)vm_pageout_wakeup_thresh);
 }
 
+/*
+ * Return the number of pages we need to launder.
+ * A positive number indicates that we have a shortfall of clean pages.
+ */
+static inline int
+vm_laundry_target(void)
+{
+
+	return (vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
+	    vm_paging_target());
+}
+
 #endif
 
 /* systemwide totals computed every five seconds */
