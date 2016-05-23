@@ -45,6 +45,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	and packages may fail or need manual intervention to run. New
 	packages will be needed.
 
+	To update an existing self-hosted armv6hf system, you must add
+	TARGET_ARCH=armv6 on the make command line for both the build 
+	and the install steps.
+
 20160510:
 	Kernel modules compiled outside of a kernel build now default to
 	installing to /boot/modules instead of /boot/kernel.  Many kernel
