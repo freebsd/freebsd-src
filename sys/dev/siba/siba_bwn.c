@@ -93,9 +93,9 @@ static const struct siba_dev {
 	{ PCI_VENDOR_BROADCOM, 0x4324,
 	  "Broadcom BCM4309 802.11a/b/g Wireless" },
 	{ PCI_VENDOR_BROADCOM, 0x4325, "Broadcom BCM4306 802.11b/g Wireless" },
-	{ PCI_VENDOR_BROADCOM, 0x4328, "Broadcom BCM4321 802.11a/b/g Wireless" },
+	{ PCI_VENDOR_BROADCOM, 0x4328, "Broadcom BCM4321 802.11a/b/g/n Wireless" },
 	{ PCI_VENDOR_BROADCOM, 0x4329, "Unknown" },
-	{ PCI_VENDOR_BROADCOM, 0x432b, "Unknown" }
+	{ PCI_VENDOR_BROADCOM, 0x432b, "Broadcom BCM4322 802.11a/b/g/n Wireless" }
 };
 
 int		siba_core_attach(struct siba_softc *);
