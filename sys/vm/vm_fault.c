@@ -705,7 +705,6 @@ vnode_locked:
 		 * Move on to the next object.  Lock the next object before
 		 * unlocking the current one.
 		 */
-		fs.pindex += OFF_TO_IDX(fs.object->backing_object_offset);
 		next_object = fs.object->backing_object;
 		if (next_object == NULL) {
 			/*
@@ -743,6 +742,8 @@ vnode_locked:
 			vm_object_pip_add(next_object, 1);
 			if (fs.object != fs.first_object)
 				vm_object_pip_wakeup(fs.object);
+			fs.pindex +=
+			    OFF_TO_IDX(fs.object->backing_object_offset);
 			VM_OBJECT_WUNLOCK(fs.object);
 			fs.object = next_object;
 		}

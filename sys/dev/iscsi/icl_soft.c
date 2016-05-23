@@ -1190,6 +1190,7 @@ icl_soft_new_conn(const char *name, struct mtx *lock)
 	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
 	ic->ic_name = name;
 	ic->ic_offload = "None";
+	ic->ic_unmapped = false;
 
 	return (ic);
 }
@@ -1326,6 +1327,23 @@ icl_soft_conn_handoff(struct icl_conn *ic, int fd)
 	int error;
 
 	ICL_CONN_LOCK_ASSERT_NOT(ic);
+
+#ifdef ICL_KERNEL_PROXY
+	/*
+	 * We're transitioning to Full Feature phase, and we don't
+	 * really care.
+	 */
+	if (fd == 0) {
+		ICL_CONN_LOCK(ic);
+		if (ic->ic_socket == NULL) {
+			ICL_CONN_UNLOCK(ic);
+			ICL_WARN("proxy handoff without connect"); 
+			return (EINVAL);
+		}
+		ICL_CONN_UNLOCK(ic);
+		return (0);
+	}
+#endif
 
 	/*
 	 * Steal the socket from userland.

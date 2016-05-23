@@ -216,6 +216,12 @@ bhnd_soc_is_hw_disabled(device_t dev, device_t child)
 	return false;
 }
 
+static int
+bhnd_soc_get_attach_type(device_t dev, device_t child)
+{
+	return (BHND_ATTACH_NATIVE);
+}
+
 /*
  * **************************** DRIVER METADATA ****************************
  */
@@ -247,6 +253,7 @@ static device_method_t bhnd_soc_methods[] = {
 	DEVMETHOD(bhnd_bus_activate_resource,	bhnd_soc_activate_resource),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_soc_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_soc_get_chipid),
+	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_soc_get_attach_type),
 
 	DEVMETHOD_END
 };

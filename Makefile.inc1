@@ -48,6 +48,7 @@
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
 
+SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
 # Cross toolchain changes must be in effect before bsd.compiler.mk
@@ -56,8 +57,100 @@ LOCALBASE?=	/usr/local
 .include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
 CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
 .endif
-.include <bsd.compiler.mk>		# don't depend on src.opts.mk doing it
-.include "share/mk/src.opts.mk"	
+.if defined(CROSS_TOOLCHAIN_PREFIX)
+CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+.endif
+# If we do not have a bootstrap binutils (because the in-tree one does not
+# support the target architecture), provide a default cross-binutils prefix.
+# This allows aarch64 builds, for example, to automatically use the
+# aarch64-binutils port or package.
+.if !make(showconfig)
+.if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
+    !defined(CROSS_BINUTILS_PREFIX)
+CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
+.if !exists(${CROSS_BINUTILS_PREFIX})
+.error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
+.endif
+.endif
+.endif
+
+XCOMPILERS=	CC CXX CPP
+.for COMPILER in ${XCOMPILERS}
+.if defined(CROSS_COMPILER_PREFIX)
+X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
+.else
+X${COMPILER}?=	${${COMPILER}}
+.endif
+.endfor
+XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
+.for BINUTIL in ${XBINUTILS}
+.if defined(CROSS_BINUTILS_PREFIX) && \
+    exists(${CROSS_BINUTILS_PREFIX}${${BINUTIL}})
+X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
+.else
+X${BINUTIL}?=	${${BINUTIL}}
+.endif
+.endfor
+# If a full path to an external cross compiler is given, don't build
+# a cross compiler.
+.if ${XCC:N${CCACHE_BIN}:M/*}
+MK_CROSS_COMPILER=	no
+.endif
+
+# Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
+.include <bsd.compiler.mk>
+.include "share/mk/src.opts.mk"
+
+# Check if there is a local compiler that can satisfy as an external compiler.
+.if ${MK_SYSTEM_COMPILER} == "yes" && ${MK_CROSS_COMPILER} == "yes" && \
+    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
+    !make(showconfig)
+# Which compiler is expected to be used?
+.if ${MK_CLANG_BOOTSTRAP} == "yes"
+_expected_compiler_type=	clang
+.elif ${MK_GCC_BOOTSTRAP} == "yes"
+_expected_compiler_type=	gcc
+.endif
+# If the expected vs CC is different then we can't skip.
+# GCC cannot be used for cross-arch yet.  For clang we pass -target later if
+# TARGET_ARCH!=MACHINE_ARCH.
+.if ${_expected_compiler_type} == ${COMPILER_TYPE} && \
+    (${COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH})
+# It needs to be the same revision as we would build for the bootstrap.
+.if !defined(CROSS_COMPILER_FREEBSD_VERSION)
+.if ${_expected_compiler_type} == "clang"
+CROSS_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
+	${SRCDIR}/lib/clang/include/clang/Basic/Version.inc || echo unknown
+CROSS_COMPILER_VERSION!= \
+	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
+	${SRCDIR}/lib/clang/include/clang/Basic/Version.inc || echo unknown
+.elif ${_expected_compiler_type} == "gcc"
+CROSS_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
+	${SRCDIR}/gnu/usr.bin/cc/cc_tools/freebsd-native.h || echo unknown
+CROSS_COMPILER_VERSION!= \
+	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
+	${SRCDIR}/contrib/gcc/BASE-VER || echo unknown
+.endif
+.export CROSS_COMPILER_FREEBSD_VERSION CROSS_COMPILER_VERSION
+.endif	# !defined(CROSS_COMPILER_FREEBSD_VERSION)
+.if ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION} && \
+    ${COMPILER_FREEBSD_VERSION} == ${CROSS_COMPILER_FREEBSD_VERSION}
+# Everything matches, disable the bootstrap compiler.
+MK_CLANG_BOOTSTRAP=	no
+MK_GCC_BOOTSTRAP=	no
+CROSSENV+=	COMPILER_VERSION=${COMPILER_VERSION} \
+		COMPILER_TYPE=${COMPILER_TYPE} \
+		COMPILER_FREEBSD_VERSION=${COMPILER_FREEBSD_VERSION}
+.if make(buildworld)
+.info SYSTEM_COMPILER: Determined that CC=${CC} matches the source tree.  Not bootstrapping a cross-compiler.
+.endif
+.endif	# ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION}
+.endif	# ${_expected_compiler_type} == ${COMPILER_TYPE}
+.endif	# ${XCC:N${CCACHE_BIN}:M/*}
+
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
@@ -67,7 +160,6 @@ CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
 # This ordering is not a guarantee though.  The only guarantee of a working
 # system here would require fine-grained ordering of all components based
 # on their dependencies.
-SRCDIR?=	${.CURDIR}
 .if !empty(SUBDIR_OVERRIDE)
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
@@ -404,42 +496,6 @@ HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
-.if defined(CROSS_TOOLCHAIN_PREFIX)
-CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
-CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
-.endif
-
-# If we do not have a bootstrap binutils (because the in-tree one does not
-# support the target architecture), provide a default cross-binutils prefix.
-# This allows aarch64 builds, for example, to automatically use the
-# aarch64-binutils port or package.
-.if !make(showconfig)
-.if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
-    !defined(CROSS_BINUTILS_PREFIX)
-CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
-.if !exists(${CROSS_BINUTILS_PREFIX})
-.error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
-.endif
-.endif
-.endif
-
-XCOMPILERS=	CC CXX CPP
-.for COMPILER in ${XCOMPILERS}
-.if defined(CROSS_COMPILER_PREFIX)
-X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
-.else
-X${COMPILER}?=	${${COMPILER}}
-.endif
-.endfor
-XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
-.for BINUTIL in ${XBINUTILS}
-.if defined(CROSS_BINUTILS_PREFIX) && \
-    exists(${CROSS_BINUTILS_PREFIX}${${BINUTIL}})
-X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
-.else
-X${BINUTIL}?=	${${BINUTIL}}
-.endif
-.endfor
 CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		CPP="${XCPP} ${XCFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
@@ -455,7 +511,8 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
 
 # External compiler needs sysroot and target flags.
-.if ${XCC:N${CCACHE_BIN}:M/*} || ${MK_CROSS_COMPILER} == "no"
+.if ${MK_CROSS_COMPILER} == "no" || \
+    (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
 .if !defined(CROSS_BINUTILS_PREFIX) || !exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
@@ -479,7 +536,7 @@ XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}
 .else
-.endif # ${XCC:M/*} || ${MK_CROSS_COMPILER} == "no"
+.endif # ${MK_CROSS_COMPILER} == "no"
 
 .if !empty(BFLAGS)
 XCFLAGS+=	${BFLAGS}
@@ -533,7 +590,7 @@ KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 .if ${MK_META_MODE} == "yes"
 # meta mode normally is disallowed when building from curdir==objdir, but we
 # want to allow it for the kernel build.
-KMAKE+=	.MAKE.MODE="${.MAKE.MODE} curdirOk=yes"
+KMAKEENV+=	META_MODE="${.MAKE.MODE} curdirOk=yes"
 .endif
 
 #
@@ -1715,9 +1772,7 @@ _elftctools=	lib/libelftc \
 		usr.bin/elfcopy
 .endif
 
-# If an full path to an external cross compiler is given, don't build
-# a cross compiler.
-.if ${XCC:N${CCACHE_BIN}:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
+.if ${MK_CROSS_COMPILER} != "no"
 .if ${MK_CLANG_BOOTSTRAP} != "no"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang

@@ -54,12 +54,11 @@ __FBSDID("$FreeBSD$");
  */
 #define	GPIOLED_PIN	0
 
-#define GPIOLED_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	GPIOLED_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	GPIOLED_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define GPIOLED_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	    "gpioled", MTX_DEF)
-#define GPIOLED_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define	GPIOLED_LOCK_INIT(_sc)		mtx_init(&(_sc)->sc_mtx,	\
+    device_get_nameunit((_sc)->sc_dev), "gpioled", MTX_DEF)
+#define	GPIOLED_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
 struct gpioled_softc 
 {
@@ -77,23 +76,15 @@ static int gpioled_detach(device_t);
 static void 
 gpioled_control(void *priv, int onoff)
 {
-	int error;
 	struct gpioled_softc *sc;
 
 	sc = (struct gpioled_softc *)priv;
 	GPIOLED_LOCK(sc);
-	error = GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev,
-	    GPIOBUS_DONTWAIT);
-	if (error != 0) {
-		GPIOLED_UNLOCK(sc);
-		return;
-	}
-	error = GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev,
-	    GPIOLED_PIN, GPIO_PIN_OUTPUT);
-	if (error == 0)
+	if (GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    GPIO_PIN_OUTPUT) == 0) {
 		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
 		    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
-	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
+	}
 	GPIOLED_UNLOCK(sc);
 }
 
@@ -159,7 +150,7 @@ gpioled_probe(device_t dev)
 #endif
 	device_set_desc(dev, "GPIO led");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

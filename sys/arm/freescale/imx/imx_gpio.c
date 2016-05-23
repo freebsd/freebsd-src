@@ -179,14 +179,14 @@ gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 	 */
 
 	if (ncells != 2) {
-		device_printf(sc->dev, "Invalid #interrupt-cells");
+		device_printf(sc->dev, "Invalid #interrupt-cells\n");
 		return (EINVAL);
 	}
 
 	irq = cells[0];
 	tripol = cells[1];
 	if (irq >= sc->gpio_npins) {
-		device_printf(sc->dev, "Invalid interrupt number %d", irq);
+		device_printf(sc->dev, "Invalid interrupt number %u\n", irq);
 		return (EINVAL);
 	}
 	switch (tripol) {
@@ -207,7 +207,7 @@ gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 		pol  = INTR_POLARITY_LOW;
 		break;
 	default:
-		device_printf(sc->dev, "unsupported trigger/polarity 0x%2x\n",
+		device_printf(sc->dev, "Unsupported trigger/polarity 0x%2x\n",
 		    tripol);
 		return (ENOTSUP);
 	}

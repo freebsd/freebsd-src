@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.54 2016/03/11 07:01:21 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.57 2016/05/12 20:28:34 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -66,6 +66,9 @@ static char *metaIgnorePathsStr;	/* string storage for the list */
 #ifndef MAKE_META_IGNORE_PATHS
 #define MAKE_META_IGNORE_PATHS ".MAKE.META.IGNORE_PATHS"
 #endif
+#ifndef MAKE_META_IGNORE_PATTERNS
+#define MAKE_META_IGNORE_PATTERNS ".MAKE.META.IGNORE_PATTERNS"
+#endif
 
 Boolean useMeta = FALSE;
 static Boolean useFilemon = FALSE;
@@ -73,6 +76,7 @@ static Boolean writeMeta = FALSE;
 static Boolean metaEnv = FALSE;		/* don't save env unless asked */
 static Boolean metaVerbose = FALSE;
 static Boolean metaIgnoreCMDs = FALSE;	/* ignore CMDs in .meta files */
+static Boolean metaIgnorePatterns = FALSE; /* do we need to do pattern matches */
 static Boolean metaCurdirOk = FALSE;	/* write .meta in .CURDIR Ok? */
 static Boolean metaSilent = FALSE;	/* if we have a .meta be SILENT */
 
@@ -157,28 +161,33 @@ filemon_open(BuildMon *pbm)
  * Read the build monitor output file and write records to the target's
  * metadata file.
  */
-static void
+static int
 filemon_read(FILE *mfp, int fd)
 {
     char buf[BUFSIZ];
     int n;
+    int error;
 
     /* Check if we're not writing to a meta data file.*/
     if (mfp == NULL) {
 	if (fd >= 0)
 	    close(fd);			/* not interested */
-	return;
+	return 0;
     }
     /* rewind */
     (void)lseek(fd, (off_t)0, SEEK_SET);
 
+    error = 0;
     fprintf(mfp, "\n-- filemon acquired metadata --\n");
 
     while ((n = read(fd, buf, sizeof(buf))) > 0) {
-	fwrite(buf, 1, n, mfp);
+	if ((int)fwrite(buf, 1, n, mfp) < n)
+	    error = EIO;
     }
     fflush(mfp);
-    close(fd);
+    if (close(fd) < 0)
+	error = errno;
+    return error;
 }
 #endif
 
@@ -620,6 +629,15 @@ meta_mode_init(const char *make_mode)
     if (metaIgnorePathsStr) {
 	str2Lst_Append(metaIgnorePaths, metaIgnorePathsStr, NULL);
     }
+
+    /*
+     * We ignore any paths that match ${.MAKE.META.IGNORE_PATTERNS}
+     */
+    cp = NULL;
+    if (Var_Value(MAKE_META_IGNORE_PATTERNS, VAR_GLOBAL, &cp)) {
+	metaIgnorePatterns = TRUE;
+	free(cp);
+    }
 }
 
 /*
@@ -744,27 +762,35 @@ meta_job_output(Job *job, char *cp, const char *nl)
     }
 }
 
-void
+int
 meta_cmd_finish(void *pbmp)
 {
+    int error = 0;
 #ifdef USE_FILEMON
     BuildMon *pbm = pbmp;
+    int x;
 
     if (!pbm)
 	pbm = &Mybm;
 
     if (pbm->filemon_fd >= 0) {
-	close(pbm->filemon_fd);
-	filemon_read(pbm->mfp, pbm->mon_fd);
+	if (close(pbm->filemon_fd) < 0)
+	    error = errno;
+	x = filemon_read(pbm->mfp, pbm->mon_fd);
+	if (error == 0 && x != 0)
+	    error = x;
 	pbm->filemon_fd = pbm->mon_fd = -1;
     }
 #endif
+    return error;
 }
 
-void
+int
 meta_job_finish(Job *job)
 {
     BuildMon *pbm;
+    int error = 0;
+    int x;
 
     if (job != NULL) {
 	pbm = &job->bm;
@@ -772,11 +798,14 @@ meta_job_finish(Job *job)
 	pbm = &Mybm;
     }
     if (pbm->mfp != NULL) {
-	meta_cmd_finish(pbm);
-	fclose(pbm->mfp);
+	error = meta_cmd_finish(pbm);
+	x = fclose(pbm->mfp);
+	if (error == 0 && x != 0)
+	    error = errno;
 	pbm->mfp = NULL;
 	pbm->meta_fname[0] = '\0';
     }
+    return error;
 }
 
 void
@@ -1209,14 +1238,35 @@ meta_oodate(GNode *gn, Boolean oodate)
 		     * be part of the dependencies because
 		     * they are _expected_ to change.
 		     */
-		    if (*p == '/' &&
-			Lst_ForEach(metaIgnorePaths, prefix_match, p)) {
+		    if (*p == '/') {
+			realpath(p, fname1); /* clean it up */
+			if (Lst_ForEach(metaIgnorePaths, prefix_match, fname1)) {
 #ifdef DEBUG_META_MODE
-			if (DEBUG(META))
-			    fprintf(debug_file, "meta_oodate: ignoring: %s\n",
-				    p);
+			    if (DEBUG(META))
+				fprintf(debug_file, "meta_oodate: ignoring path: %s\n",
+					p);
 #endif
-			break;
+			    break;
+			}
+		    }
+
+		    if (metaIgnorePatterns) {
+			char *pm;
+
+			snprintf(fname1, sizeof(fname1),
+				 "${%s:@m@${%s:L:M$m}@}",
+				 MAKE_META_IGNORE_PATTERNS, p);
+			pm = Var_Subst(NULL, fname1, gn, VARF_WANTRES);
+			if (*pm) {
+#ifdef DEBUG_META_MODE
+			    if (DEBUG(META))
+				fprintf(debug_file, "meta_oodate: ignoring pattern: %s\n",
+					p);
+#endif
+			    free(pm);
+			    break;
+			}
+			free(pm);
 		    }
 
 		    /*
