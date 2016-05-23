@@ -1553,15 +1553,35 @@ drop_page:
 			/* Dequeue to avoid later lock recursion. */
 			vm_page_dequeue_locked(m);
 #if 0
+			/*
+			 * This requires the object write lock.  It might be a
+			 * good idea during a page shortage, but might also
+			 * cause contention with a concurrent attempt to launder
+			 * pages from this object.
+			 */
 			if (m->object->ref_count != 0)
 				vm_page_test_dirty(m);
 #endif
-			if (m->dirty == 0) {
+			/*
+			 * When not short for inactive pages, let dirty pages go
+			 * through the inactive queue before moving to the
+			 * laundry queues.  This gives them some extra time to
+			 * be reactivated, potentially avoiding an expensive
+			 * pageout.  During a page shortage, the inactive queue
+			 * is necessarily small, so we may move dirty pages
+			 * directly to the laundry queue.
+			 */
+			if (page_shortage <= 0)
 				vm_page_deactivate(m);
-				page_shortage -= act_scan_laundry_weight;
-			} else {
-				vm_page_launder(m);
-				page_shortage--;
+			else {
+				if (m->dirty == 0) {
+					vm_page_deactivate(m);
+					page_shortage -=
+					    act_scan_laundry_weight;
+				} else {
+					vm_page_launder(m);
+					page_shortage--;
+				}
 			}
 		} else
 			vm_page_requeue_locked(m);

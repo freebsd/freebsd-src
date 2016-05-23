@@ -3273,14 +3273,13 @@ vm_page_advise(vm_page_t m, int advice)
 		vm_page_dirty(m);
 
 	/*
-	 * Place clean pages at the head of the inactive queue rather than the
-	 * tail, thus defeating the queue's LRU operation and ensuring that the
-	 * page will be reused quickly.
+	 * Place clean pages near the head of the inactive queue rather than
+	 * the tail, thus defeating the queue's LRU operation and ensuring that
+	 * the page will be reused quickly.  Dirty pages are given a chance to
+	 * cycle once through the inactive queue before becoming eligible for
+	 * laundering.
 	 */
-	if (m->dirty == 0)
-		_vm_page_deactivate(m, TRUE);
-	else
-		vm_page_launder(m);
+	_vm_page_deactivate(m, m->dirty == 0);
 }
 
 /*
