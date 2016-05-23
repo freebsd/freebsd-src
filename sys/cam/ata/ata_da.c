@@ -1639,11 +1639,6 @@ adaregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	/*
-	 * Set support flags based on the Identify data.
-	 */
-	adasetflags(softc, cgd);
-
 	periph->softc = softc;
 
 	/*
@@ -1683,6 +1678,12 @@ adaregister(struct cam_periph *periph, void *arg)
 	snprintf(announce_buf, sizeof(announce_buf),
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
+
+	/*
+	 * Set support flags based on the Identify data and quirks.
+	 */
+	adasetflags(softc, cgd);
+
 	/* Disable queue sorting for non-rotational media by default. */
 	if (cgd->ident_data.media_rotation_rate == ATA_RATE_NON_ROTATING) {
 		softc->rotating = 0;
