@@ -26,8 +26,6 @@ LIBADD.mqueue_test+=	rt
 # included in userland.  But as far as subr_unit_test goes, they're effectively
 # static.  So it's ok to disable -Wmissing-prototypes for this program.
 CFLAGS.subr_unit.c+=	-Wno-missing-prototypes
-# XXX: -Wno-sign-compare will be eliminated as part of D6004
-CFLAGS.subr_unit.c+=	-Wno-sign-compare
 SRCS.subr_unit_test+=	subr_unit.c
 
 WARNS?=	5
