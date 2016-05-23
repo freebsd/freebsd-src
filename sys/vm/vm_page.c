@@ -2910,7 +2910,8 @@ vm_page_free_wakeup(void)
 	 * lots of memory. this process will swapin processes.
 	 */
 	if (vm_pages_needed && !vm_page_count_min()) {
-		vm_pages_needed = 0;
+		if (!vm_paging_needed())
+			vm_pages_needed = 0;
 		wakeup(&vm_cnt.v_free_count);
 	}
 }
