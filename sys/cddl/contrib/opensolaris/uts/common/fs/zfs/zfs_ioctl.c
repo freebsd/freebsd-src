@@ -3804,7 +3804,7 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 #ifdef illumos
 		if (zc->zc_objset_type == DMU_OST_ZFS) {
 #else
-		if (zc->zc_objset_type == DMU_OST_ZFS && allow_mounted) {
+		if (zc->zc_objset_type == DMU_OST_ZFS && !allow_mounted) {
 #endif
 			error = dmu_objset_find(zc->zc_name,
 			    recursive_unmount, at + 1,
