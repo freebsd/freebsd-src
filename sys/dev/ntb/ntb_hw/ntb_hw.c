@@ -333,7 +333,7 @@ static inline void db_iowrite(struct ntb_softc *, uint64_t regoff, uint64_t);
 static inline void db_iowrite_raw(struct ntb_softc *, uint64_t regoff, uint64_t);
 static int ntb_create_msix_vec(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_free_msix_vec(struct ntb_softc *ntb);
-static void ntb_get_msix_info(struct ntb_softc *ntb, uint32_t num_vectors);
+static void ntb_get_msix_info(struct ntb_softc *ntb);
 static void ntb_exchange_msix(void *);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
 static void ntb_detect_max_mw(struct ntb_softc *ntb);
@@ -1067,10 +1067,18 @@ ntb_init_isr(struct ntb_softc *ntb)
 		ntb->db_vec_shift = XEON_DB_TOTAL_SHIFT;
 		rc = ntb_setup_legacy_interrupt(ntb);
 	} else {
+		if (num_vectors - 1 != XEON_NONLINK_DB_MSIX_BITS &&
+		    HAS_FEATURE(NTB_SB01BASE_LOCKUP)) {
+			device_printf(ntb->device,
+			    "Errata workaround expects %d doorbell bits\n",
+			    XEON_NONLINK_DB_MSIX_BITS);
+			return (EINVAL);
+		}
+
 		ntb_create_msix_vec(ntb, num_vectors);
 		rc = ntb_setup_msix(ntb, num_vectors);
 		if (rc == 0 && HAS_FEATURE(NTB_SB01BASE_LOCKUP))
-			ntb_get_msix_info(ntb, num_vectors);
+			ntb_get_msix_info(ntb);
 	}
 	if (rc != 0) {
 		device_printf(ntb->device,
@@ -1335,7 +1343,7 @@ ntb_free_msix_vec(struct ntb_softc *ntb)
 }
 
 static void
-ntb_get_msix_info(struct ntb_softc *ntb, uint32_t num_vectors)
+ntb_get_msix_info(struct ntb_softc *ntb)
 {
 	struct pci_devinfo *dinfo;
 	struct pcicfg_msix *msix;
@@ -1346,7 +1354,9 @@ ntb_get_msix_info(struct ntb_softc *ntb, uint32_t num_vectors)
 
 	laddr = data = 0;
 
-	for (i = 0; i < num_vectors; i++) {
+	CTASSERT(XEON_NONLINK_DB_MSIX_BITS == nitems(ntb->msix_data));
+
+	for (i = 0; i < XEON_NONLINK_DB_MSIX_BITS; i++) {
 		offset = msix->msix_table_offset + i * PCI_MSIX_ENTRY_SIZE;
 
 		laddr = bus_read_4(msix->msix_table_res, offset +
