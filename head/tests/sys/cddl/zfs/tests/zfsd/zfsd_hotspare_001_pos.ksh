@@ -117,8 +117,7 @@ function verify_assertion # type
 	# The standby spare should be in use, while the original spare should
 	# be faulted.
 	log_must check_state $TESTPOOL $standby_spare "online"
-	log_must check_state $TESTPOOL $standby_spare \
-		"INUSE     currently in use"
+	log_must check_state $TESTPOOL $standby_spare "INUSE"
 	log_mustnot check_state $TESTPOOL $fail_spare "online"
 
 	# The zpool history should log when a spare device becomes active
