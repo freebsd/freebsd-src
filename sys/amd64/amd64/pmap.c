@@ -3139,6 +3139,7 @@ retry:
  * Reference numbers for erratas are
  * 4th Gen Core: HSD146
  * 5th Gen Core: BDM85
+ * 6th Gen Core: SKL029
  */
 static int
 popcnt_pc_map_elem_pq(uint64_t elem)
