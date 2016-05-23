@@ -205,20 +205,6 @@ siba_bhndb_resume_child(device_t dev, device_t child)
 	return (0);
 }
 
-static int
-siba_bhndb_read_board_info(device_t dev, device_t child,
-    struct bhnd_board_info *info)
-{
-	int	error;
-
-	/* Initialize with NVRAM-derived values */
-	if ((error = bhnd_bus_generic_read_board_info(dev, child, info)))
-		return (error);
-
-	/* Let the bridge fill in any additional data */
-	return (BHNDB_POPULATE_BOARD_INFO(device_get_parent(dev), dev, info));
-}
-
 /* Work-around implementation for SIBA_QUIRK_PCIE_D11_SB_TIMEOUT */
 static int
 siba_bhndb_wars_pcie_clear_d11_timeout(struct siba_softc *sc)
@@ -285,14 +271,11 @@ static device_method_t siba_bhndb_methods[] = {
 	DEVMETHOD(bus_suspend_child,		siba_bhndb_suspend_child),
 	DEVMETHOD(bus_resume_child,		siba_bhndb_resume_child),
 
-	/* BHND interface */
-	DEVMETHOD(bhnd_bus_read_board_info,	siba_bhndb_read_board_info),
-
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(bhnd, siba_bhndb_driver, siba_bhndb_methods,
-    sizeof(struct siba_softc), siba_driver);
+DEFINE_CLASS_2(bhnd, siba_bhndb_driver, siba_bhndb_methods,
+    sizeof(struct siba_softc), bhnd_bhndb_driver, siba_driver);
 
 DRIVER_MODULE(siba_bhndb, bhndb, siba_bhndb_driver, bhnd_devclass, NULL, NULL);
  

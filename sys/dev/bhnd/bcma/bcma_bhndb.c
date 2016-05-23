@@ -166,20 +166,6 @@ bcma_bhndb_resume_child(device_t dev, device_t child)
 	return (0);
 }
 
-static int
-bcma_bhndb_read_board_info(device_t dev, device_t child,
-    struct bhnd_board_info *info)
-{
-	int	error;
-
-	/* Initialize with NVRAM-derived values */
-	if ((error = bhnd_bus_generic_read_board_info(dev, child, info)))
-		return (error);
-
-	/* Let the bridge fill in any additional data */
-	return (BHNDB_POPULATE_BOARD_INFO(device_get_parent(dev), dev, info));
-}
-
 static device_method_t bcma_bhndb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			bcma_bhndb_probe),
@@ -189,14 +175,11 @@ static device_method_t bcma_bhndb_methods[] = {
 	DEVMETHOD(bus_suspend_child,		bcma_bhndb_suspend_child),
 	DEVMETHOD(bus_resume_child,		bcma_bhndb_resume_child),
 
-	/* BHND interface */
-	DEVMETHOD(bhnd_bus_read_board_info,	bcma_bhndb_read_board_info),
-
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(bhnd, bcma_bhndb_driver, bcma_bhndb_methods,
-    sizeof(struct bcma_softc), bcma_driver);
+DEFINE_CLASS_2(bhnd, bcma_bhndb_driver, bcma_bhndb_methods,
+    sizeof(struct bcma_softc), bhnd_bhndb_driver, bcma_driver);
 
 DRIVER_MODULE(bcma_bhndb, bhndb, bcma_bhndb_driver, bhnd_devclass, NULL, NULL);
  

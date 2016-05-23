@@ -55,6 +55,12 @@ CODE {
 		panic("bhnd_bus_get_chipid unimplemented");
 	}
 
+	static bhnd_attach_type
+	bhnd_bus_null_get_attach_type(device_t dev, device_t child)
+	{
+		panic("bhnd_bus_get_attach_type unimplemented");
+	}
+
 	static int
 	bhnd_bus_null_read_board_info(device_t dev, device_t child,
 	    struct bhnd_board_info *info)
@@ -182,6 +188,22 @@ METHOD const struct bhnd_chipid * get_chipid {
 	device_t dev;
 	device_t child;
 } DEFAULT bhnd_bus_null_get_chipid;
+
+/**
+ * Return the BHND attachment type of the parent bus.
+ *
+ * @param dev The device whose child is being examined.
+ * @param child The child device.
+ *
+ * @retval BHND_ATTACH_ADAPTER if the bus is resident on a bridged adapter,
+ * such as a WiFi chipset.
+ * @retval BHND_ATTACH_NATIVE if the bus provides hardware services (clock,
+ * CPU, etc) to a directly attached native host.
+ */
+METHOD bhnd_attach_type get_attach_type {
+	device_t dev;
+	device_t child;
+} DEFAULT bhnd_bus_null_get_attach_type;
 
 /**
  * Attempt to read the BHND board identification from the parent bus.
