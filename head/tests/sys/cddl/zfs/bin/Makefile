@@ -1,9 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=	tests
 MAN=
-BINDIR=	${TESTSBASE}/sys/cddl/zfs/bin
+BINDIR=		${TESTSBASE}/sys/cddl/zfs/bin
 SCRIPTSDIR=	${TESTSBASE}/sys/cddl/zfs/bin
 
 SCRIPTS+=	bsddisks.ksh

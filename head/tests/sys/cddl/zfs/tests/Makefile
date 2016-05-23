@@ -1,7 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=	tests
 TESTSDIR=	${TESTSBASE}/sys/cddl/zfs/tests
 
 TESTS_SUBDIRS+=	acl

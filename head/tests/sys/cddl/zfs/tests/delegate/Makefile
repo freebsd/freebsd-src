@@ -1,14 +1,15 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/delegate
 FILESDIR=${TESTSDIR}
 
-FILES+=	delegate.cfg
-FILES+=	delegate_common.kshlib
-FILES+=	cleanup.ksh
-FILES+=	setup.ksh
+${PACKAGE}FILES+=	delegate.cfg
+${PACKAGE}FILES+=	delegate_common.kshlib
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	setup.ksh
 
 TESTS_SUBDIRS+=	zfs_allow
 TESTS_SUBDIRS+=	zfs_unallow

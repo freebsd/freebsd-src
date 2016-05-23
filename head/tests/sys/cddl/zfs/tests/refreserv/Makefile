@@ -1,19 +1,20 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/refreserv
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	refreserv_test
 
-FILES+=	refreserv_004_pos.ksh
-FILES+=	refreserv_005_pos.ksh
-FILES+=	refreserv_001_pos.ksh
-FILES+=	refreserv_003_pos.ksh
-FILES+=	cleanup.ksh
-FILES+=	setup.ksh
-FILES+=	refreserv.cfg
-FILES+=	refreserv_002_pos.ksh
+${PACKAGE}FILES+=	refreserv_004_pos.ksh
+${PACKAGE}FILES+=	refreserv_005_pos.ksh
+${PACKAGE}FILES+=	refreserv_001_pos.ksh
+${PACKAGE}FILES+=	refreserv_003_pos.ksh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	refreserv.cfg
+${PACKAGE}FILES+=	refreserv_002_pos.ksh
 
 .include <bsd.test.mk>

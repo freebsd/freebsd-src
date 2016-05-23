@@ -1,15 +1,16 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_property
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_property_test
 
-FILES+=	zfs_set_property_001_pos.ksh
-FILES+=	setup.ksh
-FILES+=	zfs_property.cfg
-FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	zfs_set_property_001_pos.ksh
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	zfs_property.cfg
+${PACKAGE}FILES+=	cleanup.ksh
 
 .include <bsd.test.mk>

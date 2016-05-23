@@ -1,17 +1,18 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zil
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zil_test
 
-FILES+=	zil_002_pos.ksh
-FILES+=	setup.ksh
-FILES+=	zil.cfg
-FILES+=	cleanup.ksh
-FILES+=	zil_001_pos.ksh
-FILES+=	zil.kshlib
+${PACKAGE}FILES+=	zil_002_pos.ksh
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	zil.cfg
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	zil_001_pos.ksh
+${PACKAGE}FILES+=	zil.kshlib
 
 .include <bsd.test.mk>

@@ -1,13 +1,14 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/remote
 FILESDIR=${TESTSDIR}
 
-FILES+=	remote_common.kshlib
-FILES+=	setup.ksh
-FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	remote_common.kshlib
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	cleanup.ksh
 
 TESTS_SUBDIRS+=	cross_endian
 TESTS_SUBDIRS+=	rebooting

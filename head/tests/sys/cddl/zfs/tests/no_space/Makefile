@@ -1,15 +1,16 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/no_space
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	no_space_test
 
-FILES+=	enospc.cfg
-FILES+=	cleanup.ksh
-FILES+=	setup.ksh
-FILES+=	enospc_001_pos.ksh
+${PACKAGE}FILES+=	enospc.cfg
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	enospc_001_pos.ksh
 
 .include <bsd.test.mk>

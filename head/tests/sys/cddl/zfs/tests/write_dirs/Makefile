@@ -1,16 +1,17 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/write_dirs
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	write_dirs_test
 
-FILES+=	write_dirs.cfg
-FILES+=	write_dirs_002_pos.ksh
-FILES+=	cleanup.ksh
-FILES+=	setup.ksh
-FILES+=	write_dirs_001_pos.ksh
+${PACKAGE}FILES+=	write_dirs.cfg
+${PACKAGE}FILES+=	write_dirs_002_pos.ksh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	write_dirs_001_pos.ksh
 
 .include <bsd.test.mk>

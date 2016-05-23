@@ -1,14 +1,15 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root
 FILESDIR=${TESTSDIR}
 
-FILES+=	cleanup.ksh
-FILES+=	cli.cfg
-FILES+=	cli_common.kshlib
-FILES+=	setup.ksh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	cli.cfg
+${PACKAGE}FILES+=	cli_common.kshlib
+${PACKAGE}FILES+=	setup.ksh
 
 TESTS_SUBDIRS+=	zdb
 

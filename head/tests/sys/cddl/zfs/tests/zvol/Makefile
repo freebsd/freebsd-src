@@ -1,12 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zvol
 FILESDIR=${TESTSDIR}
 
-FILES+=	zvol.cfg
-FILES+=	zvol_common.kshlib
+${PACKAGE}FILES+=	zvol.cfg
+${PACKAGE}FILES+=	zvol_common.kshlib
 
 TESTS_SUBDIRS+=	zvol_ENOSPC
 TESTS_SUBDIRS+=	zvol_swap

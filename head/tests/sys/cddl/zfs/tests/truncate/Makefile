@@ -1,16 +1,17 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/truncate
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	truncate_test
 
-FILES+=	truncate_001_pos.ksh
-FILES+=	setup.ksh
-FILES+=	cleanup.ksh
-FILES+=	truncate_002_pos.ksh
-FILES+=	truncate.cfg
+${PACKAGE}FILES+=	truncate_001_pos.ksh
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	truncate_002_pos.ksh
+${PACKAGE}FILES+=	truncate.cfg
 
 .include <bsd.test.mk>

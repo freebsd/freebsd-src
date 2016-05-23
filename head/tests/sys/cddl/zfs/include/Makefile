@@ -1,29 +1,32 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+PACKAGE=	tests
+
+TESTSDIR=${TESTSBASE}/sys/cddl/zfs/include
 
 STFSUITEDIR=${TESTSBASE}/sys/cddl/zfs
 
 MAN=
 FILESDIR=	${TESTSBASE}/sys/cddl/zfs/include
-FILES+=		constants.cfg
-FILES+=		libremote.kshlib
-FILES+=		libsas.kshlib
-FILES+=		logapi.kshlib
-FILES+=		libtest.kshlib
-FILES+=		stf.shlib
-FILES+=		testenv.kshlib
+${PACKAGE}FILES+=		constants.cfg
+${PACKAGE}FILES+=		libremote.kshlib
+${PACKAGE}FILES+=		libsas.kshlib
+${PACKAGE}FILES+=		logapi.kshlib
+${PACKAGE}FILES+=		libtest.kshlib
+${PACKAGE}FILES+=		stf.shlib
+${PACKAGE}FILES+=		testenv.kshlib
 
-FILES+=		commands.cfg
+${PACKAGE}FILES+=		commands.cfg
 CLEANFILES+=	commands.cfg
 commands.cfg:	translatecommands.awk commands.txt
 	awk -v stfsuitedir=${STFSUITEDIR} -f ${.ALLSRC} > ${.TARGET}
 
-FILES+=		default.cfg
+${PACKAGE}FILES+=		default.cfg
 CLEANFILES+=	default.cfg
 default.cfg:	default.cfg.in
 	sed "s:%%STFSUITEDIR%%:${STFSUITEDIR}:" ${.ALLSRC} > ${.TARGET}
 
-TESTSDIR=${TESTSBASE}/sys/cddl/zfs/include
 ATF_TESTS_KSH93+=	libtest_test
 .include <bsd.test.mk>

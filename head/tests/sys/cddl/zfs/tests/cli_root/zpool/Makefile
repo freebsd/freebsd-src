@@ -1,17 +1,18 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zpool
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_test
 
-FILES+=	zpool_001_neg.ksh
-FILES+=	cleanup.ksh
-FILES+=	zpool.cfg
-FILES+=	zpool_003_pos.ksh
-FILES+=	zpool_002_pos.ksh
-FILES+=	setup.ksh
+${PACKAGE}FILES+=	zpool_001_neg.ksh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	zpool.cfg
+${PACKAGE}FILES+=	zpool_003_pos.ksh
+${PACKAGE}FILES+=	zpool_002_pos.ksh
+${PACKAGE}FILES+=	setup.ksh
 
 .include <bsd.test.mk>

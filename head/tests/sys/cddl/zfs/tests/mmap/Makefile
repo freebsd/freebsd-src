@@ -1,10 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/mmap
-FILESDIR=${TESTSDIR}
-
 
 TESTS_SUBDIRS+=	mmap_read
 TESTS_SUBDIRS+=	mmap_write

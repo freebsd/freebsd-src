@@ -1,15 +1,16 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/link_count/
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	link_count_test
 
-FILES+=	link_count_001.ksh
-FILES+=	cleanup.ksh
-FILES+=	link_count.cfg
-FILES+=	setup.ksh
+${PACKAGE}FILES+=	link_count_001.ksh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	link_count.cfg
+${PACKAGE}FILES+=	setup.ksh
 
 .include <bsd.test.mk>

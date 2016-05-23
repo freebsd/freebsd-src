@@ -1,15 +1,16 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zvol/zvol_ENOSPC
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zvol_ENOSPC_test
 
-FILES+=	zvol_ENOSPC_001_pos.ksh
-FILES+=	setup.ksh
-FILES+=	zvol_ENOSPC.cfg
-FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	zvol_ENOSPC_001_pos.ksh
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	zvol_ENOSPC.cfg
+${PACKAGE}FILES+=	cleanup.ksh
 
 .include <bsd.test.mk>

@@ -1,16 +1,17 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/mount/
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	mount_test
 
-FILES+=	vars.cfg
-FILES+=	mounttest.ksh
-FILES+=	mount_test.sh
-FILES+=	cleanup.ksh
-FILES+=	setup.ksh
+${PACKAGE}FILES+=	vars.cfg
+${PACKAGE}FILES+=	mounttest.ksh
+${PACKAGE}FILES+=	mount_test.sh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	setup.ksh
 
 .include <bsd.test.mk>

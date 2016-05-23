@@ -1,14 +1,15 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/clean_mirror
 FILESDIR=${TESTSDIR}
 
-FILES+=	setup.ksh
-FILES+=	default.cfg
-FILES+=	cleanup.ksh
-FILES+=	clean_mirror_common.kshlib
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	default.cfg
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	clean_mirror_common.kshlib
 
 TESTS_SUBDIRS+=	assertion_001
 TESTS_SUBDIRS+=	assertion_002

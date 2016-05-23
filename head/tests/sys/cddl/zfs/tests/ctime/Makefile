@@ -1,14 +1,15 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/ctime
 FILESDIR=${TESTSDIR}
 BINDIR=${TESTSDIR}
 
-FILES+=	setup.ksh
-FILES+=	cleanup.ksh
-FILES+=	ctime.cfg
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	ctime.cfg
 
 PROG=	ctime_001_pos
 MAN=

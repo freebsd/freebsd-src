@@ -1,17 +1,18 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/exec/
 FILESDIR=${TESTSDIR}
 BINDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	exec_test
 
-FILES+=	exec_001_pos.ksh
-FILES+=	setup.ksh
-FILES+=	cleanup.ksh
-FILES+=	exec_002_neg.ksh
+${PACKAGE}FILES+=	exec_001_pos.ksh
+${PACKAGE}FILES+=	setup.ksh
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	exec_002_neg.ksh
 PROG=	mmap_exec
 MAN=
 
