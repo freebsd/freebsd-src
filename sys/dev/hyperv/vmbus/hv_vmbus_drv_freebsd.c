@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 struct vmbus_softc	*vmbus_sc;
 
-static device_t vmbus_devp;
 static int vmbus_inited;
 static hv_setup_args setup_args; /* only CPU 0 supported at this time */
 
@@ -324,7 +323,7 @@ hv_vmbus_child_device_register(struct hv_device *child_dev)
 		printf("VMBUS: Class ID: %s\n", name);
 	}
 
-	child = device_add_child(vmbus_devp, NULL, -1);
+	child = device_add_child(vmbus_get_device(), NULL, -1);
 	child_dev->device = child;
 	device_set_ivars(child, child_dev);
 
@@ -340,7 +339,7 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 	 * device_add_child()
 	 */
 	mtx_lock(&Giant);
-	ret = device_delete_child(vmbus_devp, child_dev->device);
+	ret = device_delete_child(vmbus_get_device(), child_dev->device);
 	mtx_unlock(&Giant);
 	return(ret);
 }
@@ -471,8 +470,8 @@ vmbus_bus_init(void)
 	hv_vmbus_request_channel_offers();
 
 	vmbus_scan();
-	bus_generic_attach(vmbus_devp);
-	device_printf(vmbus_devp, "device scan, probe and attach done\n");
+	bus_generic_attach(sc->vmbus_dev);
+	device_printf(sc->vmbus_dev, "device scan, probe and attach done\n");
 
 	return (ret);
 
@@ -508,11 +507,8 @@ vmbus_event_proc_dummy(struct vmbus_softc *sc __unused, int cpu __unused)
 static int
 vmbus_attach(device_t dev)
 {
-	if(bootverbose)
-		device_printf(dev, "VMBUS: attach dev: %p\n", dev);
-
-	vmbus_devp = dev;
 	vmbus_sc = device_get_softc(dev);
+	vmbus_sc->vmbus_dev = dev;
 
 	/*
 	 * Event processing logic will be configured:

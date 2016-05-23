@@ -38,6 +38,7 @@ struct vmbus_pcpu_data {
 struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
+	device_t		vmbus_dev;
 };
 
 extern struct vmbus_softc	*vmbus_sc;
@@ -46,6 +47,12 @@ static __inline struct vmbus_softc *
 vmbus_get_softc(void)
 {
 	return vmbus_sc;
+}
+
+static __inline device_t
+vmbus_get_device(void)
+{
+	return vmbus_sc->vmbus_dev;
 }
 
 #define VMBUS_SC_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
