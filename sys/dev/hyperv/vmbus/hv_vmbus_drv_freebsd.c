@@ -79,8 +79,9 @@ vmbus_msg_task(void *arg __unused, int pending __unused)
 {
 	hv_vmbus_message *msg;
 
-	msg = ((hv_vmbus_message *)hv_vmbus_g_context.syn_ic_msg_page[curcpu]) +
+	msg = hv_vmbus_g_context.syn_ic_msg_page[curcpu] +
 	    HV_VMBUS_MESSAGE_SINT;
+
 	for (;;) {
 		const hv_vmbus_channel_msg_table_entry *entry;
 		hv_vmbus_channel_msg_header *hdr;
@@ -134,9 +135,8 @@ static inline int
 hv_vmbus_isr(struct trapframe *frame)
 {
 	struct vmbus_softc *sc = vmbus_get_softc();
+	hv_vmbus_message *msg, *msg_base;
 	int cpu = curcpu;
-	hv_vmbus_message *msg;
-	void *page_addr;
 
 	/*
 	 * The Windows team has advised that we check for events
@@ -146,8 +146,8 @@ hv_vmbus_isr(struct trapframe *frame)
 	sc->vmbus_event_proc(sc, cpu);
 
 	/* Check if there are actual msgs to be process */
-	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
-	msg = ((hv_vmbus_message *)page_addr) + HV_VMBUS_TIMER_SINT;
+	msg_base = hv_vmbus_g_context.syn_ic_msg_page[cpu];
+	msg = msg_base + HV_VMBUS_TIMER_SINT;
 
 	/* we call eventtimer process the message */
 	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
@@ -178,7 +178,7 @@ hv_vmbus_isr(struct trapframe *frame)
 		}
 	}
 
-	msg = ((hv_vmbus_message *)page_addr) + HV_VMBUS_MESSAGE_SINT;
+	msg = msg_base + HV_VMBUS_MESSAGE_SINT;
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
 		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
 		    &hv_vmbus_g_context.hv_msg_task[cpu]);
