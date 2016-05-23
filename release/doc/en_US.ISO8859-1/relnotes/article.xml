@@ -540,8 +540,8 @@
       <para revision="285275">The &man.tcpdump.1; utility has been
 	updated to version 4.7.4.</para>
 
-      <para revision="285329"><application>OpenSSL</application> has
-	been updated to version 1.0.1p.</para>
+      <para revision="298998"><application>OpenSSL</application> has
+	been updated to version 1.0.2h.</para>
 
       <para revision="285642" contrib="sponsor" sponsor="&dell;">The
 	&man.ssh.1; utility has been updated to re-implement hostname
