@@ -143,7 +143,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 
 	# Boot Environment [BE] root and default boot dataset
 	/$ZFSBOOT_BEROOT_NAME				mountpoint=none
-	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/,canmount=noauto
+	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/
 
 	# Compress /tmp, allow exec but not setuid
 	/tmp		mountpoint=/tmp,exec=on,setuid=off
@@ -1309,6 +1309,10 @@ zfs_create_boot()
 	f_eval_catch $funcname zfs "$ZFS_SET" \
 		"mountpoint=/$zroot_name" "$zroot_name" ||
 		return $FAILURE
+
+	f_dprintf "$funcname: Set canmount=noauto for the root of the pool..."
+	f_eval_catch $funcname zfs "$ZFS_SET" "canmount=noauto" \
+		"$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
 
 	# Touch up permissions on the tmp directories
 	f_dprintf "$funcname: Modifying directory permissions..."
