@@ -83,7 +83,6 @@ static const unsigned char flags[NOPT] = {
 };
 uint32_t opts;
 
-static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static char cmd[512];
