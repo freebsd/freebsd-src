@@ -2738,7 +2738,10 @@ struct vm_pagequeue *
 vm_page_pagequeue(vm_page_t m)
 {
 
-	return (&vm_phys_domain(m)->vmd_pagequeues[m->queue]);
+	if (vm_page_in_laundry(m))
+		return (&vm_dom[0].vmd_pagequeues[m->queue]);
+	else
+		return (&vm_phys_domain(m)->vmd_pagequeues[m->queue]);
 }
 
 /*
@@ -2800,7 +2803,10 @@ vm_page_enqueue(uint8_t queue, vm_page_t m)
 	KASSERT(queue < PQ_COUNT,
 	    ("vm_page_enqueue: invalid queue %u request for page %p",
 	    queue, m));
-	pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
+	if (queue == PQ_LAUNDRY)
+		pq = &vm_dom[0].vmd_pagequeues[queue];
+	else
+		pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	m->queue = queue;
 	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
@@ -3182,7 +3188,9 @@ vm_page_deactivate_noreuse(vm_page_t m)
 }
 
 /*
- * XXX
+ * vm_page_launder
+ *
+ * 	Put a page in the laundry.
  */
 void
 vm_page_launder(vm_page_t m)
