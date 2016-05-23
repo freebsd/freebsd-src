@@ -323,6 +323,7 @@ static int sysctl_handle_link_status(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_register(SYSCTL_HANDLER_ARGS);
 
 static unsigned g_ntb_hw_debug_level;
+TUNABLE_INT("hw.ntb.debug_level", &g_ntb_hw_debug_level);
 SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
     &g_ntb_hw_debug_level, 0, "ntb_hw log level -- higher is more verbose");
 #define ntb_printf(lvl, ...) do {				\
@@ -338,6 +339,7 @@ SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 #define	_NTB_PAT_WB	6
 #define	_NTB_PAT_UCM	7
 static unsigned g_ntb_mw_pat = _NTB_PAT_UC;
+TUNABLE_INT("hw.ntb.default_mw_pat", &g_ntb_mw_pat);
 SYSCTL_UINT(_hw_ntb, OID_AUTO, default_mw_pat, CTLFLAG_RDTUN,
     &g_ntb_mw_pat, 0, "Configure the default memory window cache flags (PAT): "
     "UC: "  __XSTRING(_NTB_PAT_UC) ", "
@@ -396,6 +398,7 @@ ntb_vm_memattr_to_str(vm_memattr_t pat)
 }
 
 static int g_ntb_mw_idx = -1;
+TUNABLE_INT("hw.ntb.b2b_mw_idx", &g_ntb_mw_idx);
 SYSCTL_INT(_hw_ntb, OID_AUTO, b2b_mw_idx, CTLFLAG_RDTUN, &g_ntb_mw_idx,
     0, "Use this memory window to access the peer NTB registers.  A "
     "non-negative value starts from the first MW index; a negative value "
@@ -510,30 +513,38 @@ static struct ntb_b2b_addr xeon_b2b_dsd_addr = {
 SYSCTL_NODE(_hw_ntb, OID_AUTO, xeon_b2b, CTLFLAG_RW, 0,
     "B2B MW segment overrides -- MUST be the same on both sides");
 
+TUNABLE_QUAD("hw.ntb.usd_bar2_addr64", &xeon_b2b_usd_addr.bar2_addr64);
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar2_addr64, CTLFLAG_RDTUN,
     &xeon_b2b_usd_addr.bar2_addr64, 0, "If using B2B topology on Xeon "
     "hardware, use this 64-bit address on the bus between the NTB devices for "
     "the window at BAR2, on the upstream side of the link.  MUST be the same "
     "address on both sides.");
+TUNABLE_QUAD("hw.ntb.usd_bar4_addr64", &xeon_b2b_usd_addr.bar4_addr64);
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar4_addr64, CTLFLAG_RDTUN,
     &xeon_b2b_usd_addr.bar4_addr64, 0, "See usd_bar2_addr64, but BAR4.");
+TUNABLE_QUAD("hw.ntb.usd_bar4_addr32", &xeon_b2b_usd_addr.bar4_addr32);
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar4_addr32, CTLFLAG_RDTUN,
     &xeon_b2b_usd_addr.bar4_addr32, 0, "See usd_bar2_addr64, but BAR4 "
     "(split-BAR mode).");
+TUNABLE_QUAD("hw.ntb.usd_bar5_addr32", &xeon_b2b_usd_addr.bar5_addr32);
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar5_addr32, CTLFLAG_RDTUN,
     &xeon_b2b_usd_addr.bar5_addr32, 0, "See usd_bar2_addr64, but BAR5 "
     "(split-BAR mode).");
 
+TUNABLE_QUAD("hw.ntb.dsd_bar2_addr64", &xeon_b2b_dsd_addr.bar2_addr64);
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar2_addr64, CTLFLAG_RDTUN,
     &xeon_b2b_dsd_addr.bar2_addr64, 0, "If using B2B topology on Xeon "
     "hardware, use this 64-bit address on the bus between the NTB devices for "
     "the window at BAR2, on the downstream side of the link.  MUST be the same"
     " address on both sides.");
+TUNABLE_QUAD("hw.ntb.dsd_bar4_addr64", &xeon_b2b_dsd_addr.bar4_addr64);
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar4_addr64, CTLFLAG_RDTUN,
     &xeon_b2b_dsd_addr.bar4_addr64, 0, "See dsd_bar2_addr64, but BAR4.");
+TUNABLE_QUAD("hw.ntb.dsd_bar4_addr32", &xeon_b2b_dsd_addr.bar4_addr32);
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar4_addr32, CTLFLAG_RDTUN,
     &xeon_b2b_dsd_addr.bar4_addr32, 0, "See dsd_bar2_addr64, but BAR4 "
     "(split-BAR mode).");
+TUNABLE_QUAD("hw.ntb.dsd_bar5_addr32", &xeon_b2b_dsd_addr.bar5_addr32);
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar5_addr32, CTLFLAG_RDTUN,
     &xeon_b2b_dsd_addr.bar5_addr32, 0, "See dsd_bar2_addr64, but BAR5 "
     "(split-BAR mode).");
@@ -917,6 +928,7 @@ ntb_setup_msix(struct ntb_softc *ntb, uint32_t num_vectors)
  * when someone gets their hands on some Xeon hardware.
  */
 static int ntb_force_remap_mode;
+TUNABLE_INT("hw.ntb.force_remap_mode", &ntb_force_remap_mode);
 SYSCTL_INT(_hw_ntb, OID_AUTO, force_remap_mode, CTLFLAG_RDTUN,
     &ntb_force_remap_mode, 0, "If enabled, force MSI-X messages to be remapped"
     " to a smaller number of ithreads, even if the desired number are "
@@ -926,6 +938,7 @@ SYSCTL_INT(_hw_ntb, OID_AUTO, force_remap_mode, CTLFLAG_RDTUN,
  * In case it is NOT ok, give consumers an abort button.
  */
 static int ntb_prefer_intx;
+TUNABLE_INT("hw.ntb.prefer_intx_to_remap", &ntb_prefer_intx);
 SYSCTL_INT(_hw_ntb, OID_AUTO, prefer_intx_to_remap, CTLFLAG_RDTUN,
     &ntb_prefer_intx, 0, "If enabled, prefer to use legacy INTx mode rather "
     "than remapping MSI-X messages over available slots (match Linux driver "
@@ -1453,6 +1466,7 @@ configure_atom_secondary_side_bars(struct ntb_softc *ntb)
  * MW size is sufficiently large.
  */
 static unsigned int ntb_b2b_mw_share;
+TUNABLE_INT("hw.ntb.b2b_mw_share", &ntb_b2b_mw_share);
 SYSCTL_UINT(_hw_ntb, OID_AUTO, b2b_mw_share, CTLFLAG_RDTUN, &ntb_b2b_mw_share,
     0, "If enabled (non-zero), prefer to share half of the B2B peer register "
     "MW with higher level consumers.  Both sides of the NTB MUST set the same "

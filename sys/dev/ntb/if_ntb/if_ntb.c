@@ -96,6 +96,7 @@ enum ntb_link_event {
 static SYSCTL_NODE(_hw, OID_AUTO, if_ntb, CTLFLAG_RW, 0, "if_ntb");
 
 static unsigned g_if_ntb_debug_level;
+TUNABLE_INT("hw.if_ntb.debug_level", &g_if_ntb_debug_level);
 SYSCTL_UINT(_hw_if_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
     &g_if_ntb_debug_level, 0, "if_ntb log level -- higher is more verbose");
 #define ntb_printf(lvl, ...) do {			\
@@ -107,17 +108,20 @@ SYSCTL_UINT(_hw_if_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 static unsigned transport_mtu = IP_MAXPACKET + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 static uint64_t max_mw_size;
+TUNABLE_QUAD("hw.if_ntb.max_mw_size", &max_mw_size);
 SYSCTL_UQUAD(_hw_if_ntb, OID_AUTO, max_mw_size, CTLFLAG_RDTUN, &max_mw_size, 0,
     "If enabled (non-zero), limit the size of large memory windows. "
     "Both sides of the NTB MUST set the same value here.");
 
 static unsigned max_num_clients;
+TUNABLE_INT("hw.if_ntb.max_num_clients", &max_num_clients);
 SYSCTL_UINT(_hw_if_ntb, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
     &max_num_clients, 0, "Maximum number of NTB transport clients.  "
     "0 (default) - use all available NTB memory windows; "
     "positive integer N - Limit to N memory windows.");
 
 static unsigned enable_xeon_watchdog;
+TUNABLE_INT("hw.if_ntb.enable_xeon_watchdog", &enable_xeon_watchdog);
 SYSCTL_UINT(_hw_if_ntb, OID_AUTO, enable_xeon_watchdog, CTLFLAG_RDTUN,
     &enable_xeon_watchdog, 0, "If non-zero, write a register every second to "
     "keep a watchdog from tearing down the NTB link");
