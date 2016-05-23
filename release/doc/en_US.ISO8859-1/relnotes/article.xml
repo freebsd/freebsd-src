@@ -563,9 +563,9 @@
       <para revision="286505">The &man.svnlite.1; utility has been
 	updated to version 1.8.14.</para>
 
-      <para revision="286510">The <application>sqlite3</application>
+      <para revision="298161">The <application>sqlite3</application>
 	library used by &man.svnlite.1; and &man.kerberos.8; has been
-	updated to version 3.8.11.1.</para>
+	updated to version 3.12.1.</para>
 
       <para revision="286750">Timezone data files have been updated to
 	version 2015f.</para>
