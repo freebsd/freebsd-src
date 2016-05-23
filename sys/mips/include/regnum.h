@@ -188,8 +188,9 @@
 #define	C25		(CHERIBASE + 25 * CHERIREGOFFSIZE)
 #define	C26		(CHERIBASE + 26 * CHERIREGOFFSIZE)
 #define	EPCC		(CHERIBASE + 27 * CHERIREGOFFSIZE)
+#define	CAPCAUSE	(CHERIBASE + 28 * CHERIREGOFFSIZE)
 
-#define	NUMCHERISAVEREGS	28	/* Plenty of alignment already. */
+#define	NUMCHERISAVEREGS	29	/* Plenty of alignment already. */
 #endif
 
 /*
@@ -197,10 +198,12 @@
  * of the frame (i.e., including the general registers).
  */
 #ifdef CPU_CHERI
+/* NB: rounded up to nearest capability size over capcause; see frame.h. */
 #define	FPBASE	(NUMSAVEREGS + NUMCHERISAVEREGS * CHERIREGOFFSIZE)
 #else
 #define	FPBASE	NUMSAVEREGS
 #endif
+
 #define	F0	(FPBASE+0)
 #define	F1	(FPBASE+1)
 #define	F2	(FPBASE+2)

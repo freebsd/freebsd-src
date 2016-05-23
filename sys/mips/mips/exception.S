@@ -430,7 +430,11 @@ SlowFault:
 #define	SAVE_CREG(creg, regoffs, offs, cregbase)	\
 	csc	creg, regoffs, (CALLFRAME_SIZ + (SZREG * offs))(cregbase)
 
-#define	SAVE_CHERI						\
+#define	SAVE_CAPCAUSE(reg, treg, regoffs, offs, cregbase)		\
+	daddiu	treg, regoffs, (CALLFRAME_SIZ + (SZREG * offs));	\
+	csd	reg, treg, 0(cregbase)
+
+#define	SAVE_CHERI(treg0, treg1)				\
 	SAVE_CREG(CHERI_REG_DDC, sp, DDC, CHERI_REG_KDC);	\
 	SAVE_CREG(CHERI_REG_C1, sp, C1, CHERI_REG_KDC);		\
 	SAVE_CREG(CHERI_REG_C2, sp, C2, CHERI_REG_KDC);		\
@@ -458,9 +462,11 @@ SlowFault:
 	SAVE_CREG(CHERI_REG_C24, sp, C24, CHERI_REG_KDC);	\
 	SAVE_CREG(CHERI_REG_C25, sp, C25, CHERI_REG_KDC);	\
 	SAVE_CREG(CHERI_REG_C26, sp, C26, CHERI_REG_KDC);	\
-	SAVE_CREG(CHERI_REG_EPCC, sp, EPCC, CHERI_REG_KDC)
+	SAVE_CREG(CHERI_REG_EPCC, sp, EPCC, CHERI_REG_KDC);	\
+	cgetcause	treg0;					\
+	SAVE_CAPCAUSE(treg0, treg1, sp, CAPCAUSE, CHERI_REG_KDC)
 #else
-#define	SAVE_CHERI
+#define	SAVE_CHERI(treg0, treg1)
 #endif
 
 /*
@@ -525,7 +531,7 @@ SlowFault:
 	SAVE_REG(a0, SR, sp)		;\
 	SAVE_REG(a1, CAUSE, sp)		;\
 	SAVE_REG(a2, BADVADDR, sp)	;\
-	SAVE_CHERI			;\
+	SAVE_CHERI(t0, t1)		;\
 	move	t0, ra			;\
 	move	ra, a3			;\
 	SAVE_REG(ra, PC, sp)		;\
@@ -542,6 +548,8 @@ SlowFault:
 
 /*
  * Restore CHERI registers from the on-stack kernel trap frame.
+ *
+ * Notice: the capability cause register is saved, but not restored.
  */
 #define	RESTORE_CHERI						\
 	RESTORE_CREG(CHERI_REG_DDC, sp, DDC, CHERI_REG_KDC);	\

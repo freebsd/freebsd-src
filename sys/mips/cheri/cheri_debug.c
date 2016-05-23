@@ -111,7 +111,22 @@ DB_SHOW_COMMAND(cp2, ddb_dump_cp2)
  */
 DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 {
+	register_t cause;
+	uint8_t exccode, regnum;
 	u_int i;
+
+	cause = kdb_frame->capcause;
+	exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
+	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
+	regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
+	db_printf("CHERI cause: ExcCode: 0x%02x ", exccode);
+	if (regnum < 32)
+		db_printf("RegNum: $c%02d ", regnum);
+	else if (regnum == 255)
+		db_printf("RegNum: PCC ");
+	else
+		db_printf("RegNum: invalid (%d) ", regnum);
+	db_printf("(%s)\n", cheri_exccode_string(exccode));
 
 	cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->ddc);
 	db_printf("DDC ");
@@ -123,7 +138,7 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 
 	/* Laboriously load and print each trapframe capability. */
 	for (i = 1; i < 27; i++) {
-		cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->c1 + i);
+		cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->ddc + i);
 		DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, i);
 	}
 }

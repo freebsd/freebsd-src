@@ -142,6 +142,9 @@ struct trapframe {
 	 * NB: 40x 64-bit registers above, which is (conveniently) aligned to
 	 * 16 (or 32) bytes with respect to the capabilities that follow.  See
 	 * also compile-time assertions in cheri.c.
+	 *
+	 * NB: We round the size up to an even multiple of capability size;
+	 * this assumption can also be found in regnum.h.
 	 */
 #ifdef CPU_CHERI
 	struct chericap		ddc;
@@ -172,6 +175,12 @@ struct trapframe {
 	struct chericap		c25;
 	struct chericap		c26;	/* Sometimes known as idc. */
 	struct chericap		epcc;
+	register_t		capcause;  /* NB: Saved but not restored. */
+	register_t		_pad0;
+#if (CHERICAP_SIZE == 32)
+	register_t		_pad1;
+	register_t		_pad2;
+#endif
 #endif
 
 	/*
