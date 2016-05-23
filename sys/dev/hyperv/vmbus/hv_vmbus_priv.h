@@ -198,7 +198,6 @@ enum {
 #define HV_HYPERCALL_PARAM_ALIGN sizeof(uint64_t)
 
 typedef struct {
-	void*		hypercall_page;
 	hv_bool_uint8_t	syn_ic_initialized;
 
 	hv_vmbus_handle	syn_ic_msg_page[MAXCPU];
@@ -722,8 +721,6 @@ hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
 int			hv_vmbus_request_channel_offers(void);
 void			hv_vmbus_release_unattached_channels(void);
-int			hv_vmbus_init(void);
-void			hv_vmbus_cleanup(void);
 
 uint16_t		hv_vmbus_post_msg_via_msg_ipc(
 				hv_vmbus_connection_id	connection_id,

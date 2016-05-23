@@ -349,7 +349,7 @@ static int
 vmbus_probe(device_t dev)
 {
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
-	    device_get_unit(dev) != 0)
+	    device_get_unit(dev) != 0 || vm_guest != VM_GUEST_HV)
 		return (ENXIO);
 
 	device_set_desc(dev, "Hyper-V Vmbus");
@@ -385,14 +385,6 @@ vmbus_bus_init(void)
 	vmbus_inited = 1;
 	sc = vmbus_get_softc();
 
-	ret = hv_vmbus_init();
-
-	if (ret) {
-		if(bootverbose)
-			printf("Error VMBUS: Hypervisor Initialization Failed!\n");
-		return (ret);
-	}
-
 	/*
 	 * Find a free IDT slot for vmbus callback.
 	 */
@@ -401,6 +393,7 @@ vmbus_bus_init(void)
 		if(bootverbose)
 			printf("Error VMBUS: Cannot find free IDT slot for "
 			    "vmbus callback!\n");
+		ret = ENXIO;
 		goto cleanup;
 	}
 
@@ -504,8 +497,6 @@ vmbus_bus_init(void)
 	lapic_ipi_free(hv_vmbus_g_context.hv_cb_vector);
 
 	cleanup:
-	hv_vmbus_cleanup();
-
 	return (ret);
 }
 
@@ -577,8 +568,6 @@ vmbus_detach(device_t dev)
 		if (setup_args.page_buffers[i] != NULL)
 			free(setup_args.page_buffers[i], M_DEVBUF);
 	}
-
-	hv_vmbus_cleanup();
 
 	/* remove swi */
 	CPU_FOREACH(i) {
