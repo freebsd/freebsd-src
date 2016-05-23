@@ -139,7 +139,7 @@ linux_pci_attach(device_t dev)
 	if (rle)
 		pdev->dev.irq = rle->start;
 	else
-		pdev->dev.irq = 0;
+		pdev->dev.irq = 255;
 	pdev->irq = pdev->dev.irq;
 	mtx_unlock(&Giant);
 	spin_lock(&pci_lock);
