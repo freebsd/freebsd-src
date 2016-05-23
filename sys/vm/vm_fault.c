@@ -496,11 +496,13 @@ fast_failed:
 				goto readrest;
 			break;
 		}
+		KASSERT(fs.m == NULL, ("fs.m should be NULL, not %p", fs.m));
 
 		/*
-		 * Page is not resident.  If this is the search termination
-		 * or the pager might contain the page, allocate a new page.
-		 * Default objects are zero-fill, there is no real pager.
+		 * Page is not resident.  If the pager might contain the page
+		 * or this is the beginning of the search, allocate a new
+		 * page.  (Default objects are zero-fill, so there is no real
+		 * pager for them.)
 		 */
 		if (fs.object->type != OBJT_DEFAULT ||
 		    fs.object == fs.first_object) {
@@ -517,7 +519,6 @@ fast_failed:
 			 * there, and allocation can fail, causing
 			 * restart and new reading of the p_flag.
 			 */
-			fs.m = NULL;
 			if (!vm_page_count_severe() || P_KILLED(curproc)) {
 #if VM_NRESERVLEVEL > 0
 				vm_object_color(fs.object, atop(vaddr) -
@@ -541,14 +542,12 @@ fast_failed:
 
 readrest:
 		/*
-		 * We have found a valid page or we have allocated a new page.
-		 * The page thus may not be valid or may not be entirely 
-		 * valid.
+		 * We have either allocated a new page or found an existing
+		 * page that is only partially valid.
 		 *
 		 * Attempt to fault-in the page if there is a chance that the
 		 * pager has it, and potentially fault in additional pages
-		 * at the same time.  For default objects simply provide
-		 * zero-filled pages.
+		 * at the same time.
 		 */
 		if (fs.object->type != OBJT_DEFAULT) {
 			int rv;
