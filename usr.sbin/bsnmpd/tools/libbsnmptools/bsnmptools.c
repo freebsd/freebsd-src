@@ -256,13 +256,11 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 		return (-1);
 	}
 
-	if ((entry = malloc(sizeof(struct fname))) == NULL) {
+	if ((entry = calloc(1, sizeof(struct fname))) == NULL) {
 		warnx("malloc() failed - %s", strerror(errno));
 		free(fstring);
 		return (-1);
 	}
-
-	memset(entry, 0, sizeof(struct fname));
 
 	if (cut != NULL)
 		asn_append_oid(&(entry->cut), cut);
@@ -446,9 +444,10 @@ parse_flist(struct snmp_toolinfo *snmptoolctx, char *value, char *path,
 static int32_t
 parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
 {
-	int32_t alen, count, saved_errno, i;
-	uint32_t val;
 	char dptr[3];
+	size_t count;
+	int32_t alen, i, saved_errno;
+	uint32_t val;
 
 	/* Filter 0x at the beginning */
 	if ((alen = strlen(ascii)) > 2 && ascii[0] == '0' && ascii[1] == 'x')
@@ -483,7 +482,7 @@ parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
  * snmp_client structure.
  */
 int32_t
-parse_authentication(struct snmp_toolinfo *snmptoolctx, char *opt_arg)
+parse_authentication(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 {
 	int32_t count, subopt;
 	char *val, *option;
@@ -538,7 +537,7 @@ parse_authentication(struct snmp_toolinfo *snmptoolctx, char *opt_arg)
 }
 
 int32_t
-parse_privacy(struct snmp_toolinfo *snmptoolctx, char *opt_arg)
+parse_privacy(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 {
 	int32_t count, subopt;
 	char *val, *option;
@@ -591,7 +590,7 @@ parse_privacy(struct snmp_toolinfo *snmptoolctx, char *opt_arg)
 }
 
 int32_t
-parse_context(struct snmp_toolinfo *snmptoolctx, char *opt_arg)
+parse_context(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 {
 	int32_t count, subopt;
 	char *val, *option;
@@ -633,7 +632,7 @@ parse_context(struct snmp_toolinfo *snmptoolctx, char *opt_arg)
 }
 
 int32_t
-parse_user_security(struct snmp_toolinfo *snmptoolctx, char *opt_arg)
+parse_user_security(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 {
 	int32_t count, subopt, saved_errno;
 	char *val, *option;
@@ -1366,12 +1365,11 @@ snmp_object_add(struct snmp_toolinfo *snmptoolctx, snmp_verify_inoid_f func,
 		return (-1);
 	}
 
-	if ((obj = malloc(sizeof(struct snmp_object))) == NULL) {
+	if ((obj = calloc(1, sizeof(struct snmp_object))) == NULL) {
 		syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
 		return (-1);
 	}
 
-	memset(obj, 0, sizeof(struct snmp_object));
 	if (func(snmptoolctx, obj, string) < 0) {
 		warnx("Invalid OID - %s", string);
 		free(obj);
