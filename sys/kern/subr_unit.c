@@ -224,7 +224,8 @@ check_unrhdr(struct unrhdr *uh, int line)
 {
 	struct unr *up;
 	struct unrb *ub;
-	u_int x, y, z, w;
+	int w;
+	u_int y, z;
 
 	y = uh->first;
 	z = 0;
@@ -237,9 +238,7 @@ check_unrhdr(struct unrhdr *uh, int line)
 			    up->len, NBITS, line));
 			z++;
 			w = 0;
-			for (x = 0; x < up->len; x++)
-				if (bit_test(ub->map, x))
-					w++;
+			bit_count(ub->map, 0, up->len, &w);
 			y += w;
 		} else if (up->ptr != NULL) 
 			y += up->len;

@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" Copyright (c) 2014 Spectra Logic Corporation
+.\" Copyright (c) 2014,2016 Spectra Logic Corporation
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -58,12 +58,13 @@
 .\"     @(#)bitstring.3	8.1 (Berkeley) 7/19/93
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2016
+.Dd May 23, 2016
 .Dt BITSTRING 3
 .Os
 .Sh NAME
 .Nm bit_alloc ,
 .Nm bit_clear ,
+.Nm bit_count ,
 .Nm bit_decl ,
 .Nm bit_ffc ,
 .Nm bit_ffs ,
@@ -83,6 +84,8 @@
 .Fn bit_decl "bitstr_t *name" "int nbits"
 .Ft void
 .Fn bit_clear "bitstr_t *name" "int bit"
+.Ft void
+.Fn bit_count "bitstr_t *name" "int count" "int nbits" "int *value"
 .Ft void
 .Fn bit_ffc "bitstr_t *name" "int nbits" "int *value"
 .Ft void
@@ -224,6 +227,17 @@ If no bits are set after
 the location referenced by
 .Fa value
 is set to \-1.
+.Pp
+The
+.Fn bit_count
+function stores in the location referenced by
+.Fa value
+the number of bits set in the array of
+.Fa nbits
+bits referenced by
+.Fa name ,
+at or after the zero-based bit index
+.Fa start .
 .Pp
 The arguments in bit string macros are evaluated only once and may safely
 have side effects.

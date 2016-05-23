@@ -65,6 +65,7 @@
 #ifdef _KERNEL
 #include <sys/libkern.h>
 #include <sys/malloc.h>
+#include <sys/types.h>
 #endif
 
 typedef	unsigned long bitstr_t;
@@ -202,7 +203,7 @@ bit_ffs_at(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 			_test &= _bit_make_mask(_start, _BITSTR_BITS - 1);
 		while (_test == 0 && _curbitstr < _stopbitstr)
 			_test = *(++_curbitstr);
-		
+
 		_offset = ffsl(_test);
 		_value = ((_curbitstr - _bitstr) * _BITSTR_BITS) + _offset - 1;
 		if (_offset == 0 || _value >= _nbits)
@@ -231,7 +232,7 @@ bit_ffc_at(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 			_test |= _bit_make_mask(0, _start - 1);
 		while (_test == _BITSTR_MASK && _curbitstr < _stopbitstr)
 			_test = *(++_curbitstr);
-		
+
 		_offset = ffsl(~_test);
 		_value = ((_curbitstr - _bitstr) * _BITSTR_BITS) + _offset - 1;
 		if (_offset == 0 || _value >= _nbits)
@@ -254,6 +255,42 @@ static inline void
 bit_ffc(bitstr_t *_bitstr, int _nbits, int *_result)
 {
 	bit_ffc_at(_bitstr, /*start*/0, _nbits, _result);
+}
+
+/* Count the number of bits set in a bitstr of size _nbits at or after _start */
+static inline void
+bit_count(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
+{
+	bitstr_t *_curbitstr, mask;
+	int _value = 0, curbitstr_len;
+
+	if (_start >= _nbits)
+		goto out;
+
+	_curbitstr = _bitstr + _bit_idx(_start);
+	_nbits -= _BITSTR_BITS * _bit_idx(_start);
+	_start -= _BITSTR_BITS * _bit_idx(_start);
+
+	if (_start > 0) {
+		curbitstr_len = (int)_BITSTR_BITS < _nbits ?
+				(int)_BITSTR_BITS : _nbits;
+		mask = _bit_make_mask(_start, _bit_offset(curbitstr_len - 1));
+		_value += __bitcountl(*_curbitstr & mask);
+		_curbitstr++;
+		_nbits -= _BITSTR_BITS;
+	}
+	while (_nbits >= (int)_BITSTR_BITS) {
+		_value += __bitcountl(*_curbitstr);
+		_curbitstr++;
+		_nbits -= _BITSTR_BITS;
+	}
+	if (_nbits > 0) {
+		mask = _bit_make_mask(0, _bit_offset(_nbits - 1));
+		_value += __bitcountl(*_curbitstr & mask);
+	}
+
+out:
+	*_result = _value;
 }
 
 #endif	/* _SYS_BITSTRING_H_ */
