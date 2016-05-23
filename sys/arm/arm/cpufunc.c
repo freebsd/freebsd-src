@@ -886,7 +886,7 @@ arm9_setup(void)
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
 
-	/* Set the control register */
+	/* Set the control register (SCTLR)   */
 	cpu_control(cpuctrlmask, cpuctrl);
 
 }

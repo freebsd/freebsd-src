@@ -227,14 +227,14 @@ _startC(void)
 	    		 "bic %0, %0, #0xff000000\n"
 			 "and %1, %1, #0xff000000\n"
 			 "orr %0, %0, %1\n"
-			 "mrc p15, 0, %1, c1, c0, 0\n"
+			 "mrc p15, 0, %1, c1, c0, 0\n" /* CP15_SCTLR(%1)*/
 			 "bic %1, %1, #1\n" /* Disable MMU */
 			 "orr %1, %1, #(4 | 8)\n" /* Add DC enable,
 						     WBUF enable */
 			 "orr %1, %1, #0x1000\n" /* Add IC enable */
 			 "orr %1, %1, #(0x800)\n" /* BPRD enable */
 
-			 "mcr p15, 0, %1, c1, c0, 0\n"
+			 "mcr p15, 0, %1, c1, c0, 0\n" /* CP15_SCTLR(%1)*/
 			 "nop\n"
 			 "nop\n"
 			 "nop\n"
@@ -599,9 +599,9 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	__asm __volatile("mcr p15, 0, %0, c7, c5, 0\n"
 	    		 "mcr p15, 0, %0, c7, c10, 4\n"
 			 : : "r" (curaddr));
-	__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n"
+	__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n" /* CP15_SCTLR(%0)*/
 	    "bic %0, %0, #1\n" /* MMU_ENABLE */
-	    "mcr p15, 0, %0, c1, c0, 0\n"
+	    "mcr p15, 0, %0, c1, c0, 0\n" /* CP15_SCTLR(%0)*/
 	    : "=r" (ssym));
 	/* Jump to the entry point. */
 	((void(*)(void))(entry_point - KERNVIRTADDR + curaddr))();
@@ -643,9 +643,9 @@ setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend,
 	__asm __volatile("mcr p15, 0, %1, c2, c0, 0\n" /* set TTB */
 	    		 "mcr p15, 0, %1, c8, c7, 0\n" /* Flush TTB */
 			 "mcr p15, 0, %2, c3, c0, 0\n" /* Set DAR */
-			 "mrc p15, 0, %0, c1, c0, 0\n"
+			 "mrc p15, 0, %0, c1, c0, 0\n" /* CP15_SCTLR(%0)*/
 			 "orr %0, %0, #1\n" /* MMU_ENABLE */
-			 "mcr p15, 0, %0, c1, c0, 0\n"
+			 "mcr p15, 0, %0, c1, c0, 0\n" /* CP15_SCTLR(%0)*/
 			 "mrc p15, 0, %0, c2, c0, 0\n" /* CPWAIT */
 			 "mov r0, r0\n"
 			 "sub pc, pc, #4\n" :
@@ -700,9 +700,9 @@ __start(void)
 		 */
 		cpu_idcache_wbinv_all();
 		cpu_l2cache_wbinv_all();
-		__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n"
+		__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n" /* CP15_SCTLR(%0)*/
 		  "bic %0, %0, #1\n" /* MMU_DISABLE */
-		  "mcr p15, 0, %0, c1, c0, 0\n"
+		  "mcr p15, 0, %0, c1, c0, 0\n" /* CP15_SCTLR(%0)*/
 		  :"=r" (pt_addr));
 	} else
 #endif

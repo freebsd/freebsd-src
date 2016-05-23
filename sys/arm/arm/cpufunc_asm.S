@@ -68,7 +68,7 @@ ENTRY(cpu_ident)
 END(cpu_ident)
 
 ENTRY(cpu_get_control)
-	mrc	p15, 0, r0, c1, c0, 0
+	mrc	CP15_SCTLR(r0)
 	RET
 END(cpu_get_control)
 
@@ -98,13 +98,6 @@ END(cpu_faultaddress)
  * All other registers are CPU architecture specific
  */
 
-#if 0 /* See below. */
-ENTRY(cpufunc_control)
-	mcr	p15, 0, r0, c1, c0, 0
-	RET
-END(cpufunc_control)
-#endif
-
 ENTRY(cpu_domains)
 	mcr	p15, 0, r0, c3, c0, 0
 	RET
@@ -121,13 +114,13 @@ END(cpu_domains)
  */
 
 ENTRY(cpufunc_control)
-	mrc	p15, 0, r3, c1, c0, 0	/* Read the control register */
+	mrc	CP15_SCTLR(r3)		/* Read the control register */
 	bic	r2, r3, r0		/* Clear bits */
 	eor     r2, r2, r1		/* XOR bits */
 
 
 	teq	r2, r3			/* Only write if there is a change */
-	mcrne	p15, 0, r2, c1, c0, 0	/* Write new control register */
+	mcrne	CP15_SCTLR(r2)		/* Write new control register */
 	mov	r0, r3			/* Return old value */
 
 	RET
