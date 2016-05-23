@@ -15,6 +15,7 @@ SRCS=	consumer.cc		\
 INCSDIR= ${INCLUDEDIR}/devdctl
 
 WARNS?=	3
+PRIVATELIB=	true
 SHLIB_MAJOR=	0
 
 .include <bsd.lib.mk>
