@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005, 2016 Robert N. M. Watson
  * Copyright (c) 2015-2016 SRI International
  * All rights reserved.
  *
@@ -875,8 +875,8 @@ ktrccall(struct pcb *pcb)
 	if (req == NULL)
 		return;
 	kc = &req->ktr_data.ktr_ccall;
-	cheri_serialize(&kc->ktr_pcc, &pcb->pcb_cheriframe.cf_c1);
-	cheri_serialize(&kc->ktr_idc, &pcb->pcb_cheriframe.cf_c2);
+	cheri_serialize(&kc->ktr_pcc, &pcb->pcb_regs.c1);
+	cheri_serialize(&kc->ktr_idc, &pcb->pcb_regs.c2);
 	kc->ktr_method = pcb->pcb_regs.v0;
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
@@ -895,7 +895,7 @@ ktrcreturn(struct pcb *pcb)
 	if (req == NULL)
 		return;
 	kr = &req->ktr_data.ktr_creturn;
-	cheri_serialize(&kr->ktr_cret, &pcb->pcb_cheriframe.cf_c3);
+	cheri_serialize(&kr->ktr_cret, &pcb->pcb_regs.c3);
 	kr->ktr_iret = pcb->pcb_regs.v0;
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
@@ -904,16 +904,12 @@ ktrcreturn(struct pcb *pcb)
 void
 ktrcexception(struct trapframe *frame)
 {
-	struct cheri_frame *cheriframe;
 	struct thread *td = curthread;
 	struct ktr_request *req;
 	struct ktr_cexception *ke;
 	register_t cause;
 
-	/* XXXRW: awkward and unmaintainable pointer construction. */
-	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
-
-	cause = cheriframe->cf_capcause;
+	cause = frame->capcause;
 
 	req = ktr_getrequest(KTR_CEXCEPTION);
 	if (req == NULL)
@@ -922,34 +918,36 @@ ktrcexception(struct trapframe *frame)
 	ke->ktr_exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
 	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
 	ke->ktr_regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
+
+	/* XXXCHERI: What about PCC? */
 	cheri_serialize(&ke->ktr_cap,
-	    ke->ktr_regnum == CHERI_CR_C0 ? &cheriframe->cf_c0 :
-	    ke->ktr_regnum == CHERI_CR_C1 ? &cheriframe->cf_c1 :
-	    ke->ktr_regnum == CHERI_CR_C2 ? &cheriframe->cf_c2 :
-	    ke->ktr_regnum == CHERI_CR_C3 ? &cheriframe->cf_c3 :
-	    ke->ktr_regnum == CHERI_CR_C4 ? &cheriframe->cf_c4 :
-	    ke->ktr_regnum == CHERI_CR_C5 ? &cheriframe->cf_c5 :
-	    ke->ktr_regnum == CHERI_CR_C6 ? &cheriframe->cf_c6 :
-	    ke->ktr_regnum == CHERI_CR_C7 ? &cheriframe->cf_c7 :
-	    ke->ktr_regnum == CHERI_CR_C8 ? &cheriframe->cf_c8 :
-	    ke->ktr_regnum == CHERI_CR_C9 ? &cheriframe->cf_c9 :
-	    ke->ktr_regnum == CHERI_CR_C10 ? &cheriframe->cf_c10 :
-	    ke->ktr_regnum == CHERI_CR_C11 ? &cheriframe->cf_c11 :
-	    ke->ktr_regnum == CHERI_CR_C12 ? &cheriframe->cf_c12 :
-	    ke->ktr_regnum == CHERI_CR_C13 ? &cheriframe->cf_c13 :
-	    ke->ktr_regnum == CHERI_CR_C14 ? &cheriframe->cf_c14 :
-	    ke->ktr_regnum == CHERI_CR_C15 ? &cheriframe->cf_c15 :
-	    ke->ktr_regnum == CHERI_CR_C16 ? &cheriframe->cf_c16 :
-	    ke->ktr_regnum == CHERI_CR_C17 ? &cheriframe->cf_c17 :
-	    ke->ktr_regnum == CHERI_CR_C18 ? &cheriframe->cf_c18 :
-	    ke->ktr_regnum == CHERI_CR_C19 ? &cheriframe->cf_c19 :
-	    ke->ktr_regnum == CHERI_CR_C20 ? &cheriframe->cf_c20 :
-	    ke->ktr_regnum == CHERI_CR_C21 ? &cheriframe->cf_c21 :
-	    ke->ktr_regnum == CHERI_CR_C22 ? &cheriframe->cf_c22 :
-	    ke->ktr_regnum == CHERI_CR_C23 ? &cheriframe->cf_c23 :
-	    ke->ktr_regnum == CHERI_CR_C24 ? &cheriframe->cf_c24 :
-	    ke->ktr_regnum == CHERI_CR_C25 ? &cheriframe->cf_c25 :
-	    ke->ktr_regnum == CHERI_CR_IDC ? &cheriframe->cf_idc :
+	    ke->ktr_regnum == CHERI_CR_C0 ? &frame->ddc :
+	    ke->ktr_regnum == CHERI_CR_C1 ? &frame->c1 :
+	    ke->ktr_regnum == CHERI_CR_C2 ? &frame->c2 :
+	    ke->ktr_regnum == CHERI_CR_C3 ? &frame->c3 :
+	    ke->ktr_regnum == CHERI_CR_C4 ? &frame->c4 :
+	    ke->ktr_regnum == CHERI_CR_C5 ? &frame->c5 :
+	    ke->ktr_regnum == CHERI_CR_C6 ? &frame->c6 :
+	    ke->ktr_regnum == CHERI_CR_C7 ? &frame->c7 :
+	    ke->ktr_regnum == CHERI_CR_C8 ? &frame->c8 :
+	    ke->ktr_regnum == CHERI_CR_C9 ? &frame->c9 :
+	    ke->ktr_regnum == CHERI_CR_C10 ? &frame->c10 :
+	    ke->ktr_regnum == CHERI_CR_C11 ? &frame->c11 :
+	    ke->ktr_regnum == CHERI_CR_C12 ? &frame->c12 :
+	    ke->ktr_regnum == CHERI_CR_C13 ? &frame->c13 :
+	    ke->ktr_regnum == CHERI_CR_C14 ? &frame->c14 :
+	    ke->ktr_regnum == CHERI_CR_C15 ? &frame->c15 :
+	    ke->ktr_regnum == CHERI_CR_C16 ? &frame->c16 :
+	    ke->ktr_regnum == CHERI_CR_C17 ? &frame->c17 :
+	    ke->ktr_regnum == CHERI_CR_C18 ? &frame->c18 :
+	    ke->ktr_regnum == CHERI_CR_C19 ? &frame->c19 :
+	    ke->ktr_regnum == CHERI_CR_C20 ? &frame->c20 :
+	    ke->ktr_regnum == CHERI_CR_C21 ? &frame->c21 :
+	    ke->ktr_regnum == CHERI_CR_C22 ? &frame->c22 :
+	    ke->ktr_regnum == CHERI_CR_C23 ? &frame->c23 :
+	    ke->ktr_regnum == CHERI_CR_C24 ? &frame->c24 :
+	    ke->ktr_regnum == CHERI_CR_C25 ? &frame->c25 :
+	    ke->ktr_regnum == CHERI_CR_IDC ? &frame->c26 :
 	    NULL);
 
 	ktr_enqueuerequest(td, req);

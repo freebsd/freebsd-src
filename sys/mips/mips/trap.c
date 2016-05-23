@@ -1845,8 +1845,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * this is an emulated unaligned access for a kernel thread, then this
 	 * will not work.
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-	    &curthread->td_pcb->pcb_cheriframe.cf_pcc, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->epcc, 0);
 	CHERI_CLW(inst, 0, 0, CHERI_CR_CTEMP0);
 #else
 	inst = *((u_int32_t *)(intptr_t)pc);;

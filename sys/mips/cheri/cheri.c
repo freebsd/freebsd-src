@@ -350,18 +350,22 @@ cheri_capability_copy(struct chericap *cp_to, struct chericap *cp_from)
 }
 
 void
-cheri_context_copy(struct pcb *dst, struct pcb *src)
-{
-
-	cheri_memcpy(&dst->pcb_cheriframe, &src->pcb_cheriframe,
-	    sizeof(dst->pcb_cheriframe));
-}
-
-void
 cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 {
-	struct cheri_frame *cfp;
+	struct trapframe *frame;
 	struct cheri_signal *csigp;
+
+	/*
+	 * We assume that the caller has initialised the trapframe to zeroes
+	 * -- but do a quick assertion or two to catch programmer error.  We
+	 * might want to check this with a more thorough set of assertions in
+	 * the future.
+	 */
+	frame = &td->td_pcb->pcb_regs;
+	KASSERT(*(uint64_t *)&frame->ddc == 0, ("%s: non-zero initial DDC",
+	    __func__));
+	KASSERT(*(uint64_t *)&frame->epcc == 0, ("%s: non-zero initial EPCC",
+	    __func__));
 
 	/*
 	 * XXXRW: Experimental CHERI ABI initialises $c0 with full user
@@ -369,13 +373,11 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	 * no rights at all.  The runtime linker/compiler/application can
 	 * propagate around rights as required.
 	 */
-	cfp = &td->td_pcb->pcb_cheriframe;
-	bzero(cfp, sizeof(*cfp));
-	cheri_capability_set_user_c0(&cfp->cf_c0);
-	cheri_capability_set_user_stack(&cfp->cf_c11);
-	cheri_capability_set_user_idc(&cfp->cf_idc);
-	cheri_capability_set_user_pcc(&cfp->cf_pcc);
-	cheri_capability_set_user_entry(&cfp->cf_c12, entry_addr);
+	cheri_capability_set_user_c0(&frame->ddc);
+	cheri_capability_set_user_stack(&frame->c11);
+	cheri_capability_set_user_idc(&frame->c26);
+	cheri_capability_set_user_pcc(&frame->epcc);
+	cheri_capability_set_user_entry(&frame->c12, entry_addr);
 
 	/*
 	 * Also initialise signal-handling state; this can't yet be modified

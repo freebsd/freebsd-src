@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2013-2014, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -160,7 +160,6 @@ cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 	cause = pcb->pcb_regs.cause;
 	fsr = pcb->pcb_regs.fsr;
 	bzero(&pcb->pcb_regs, sizeof(pcb->pcb_regs));
-	bzero(&pcb->pcb_cheriframe, sizeof(pcb->pcb_cheriframe));
 	pcb->pcb_regs.sr = sr;
 	pcb->pcb_regs.badvaddr = badvaddr;
 	pcb->pcb_regs.cause = cause;
@@ -177,9 +176,9 @@ cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 	 * Pop IDC, PCC.
 	 */
 	cheri_capability_load(CHERI_CR_CTEMP0, &csfp->csf_idc);
-	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_cheriframe.cf_idc);
+	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_regs.c26);
 	cheri_capability_load(CHERI_CR_CTEMP0, &csfp->csf_pcc);
-	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_cheriframe.cf_pcc);
+	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_regs.epcc);
 
 	/*
 	 * Extract PCC.offset into PC.

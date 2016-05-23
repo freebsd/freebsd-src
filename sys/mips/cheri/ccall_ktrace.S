@@ -3,6 +3,7 @@
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2015 SRI International
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -93,8 +94,7 @@ NESTED_NOPROFILE(CHERICCallKtrace, CALLFRAME_SIZ, ra)
 	/*
 	 * Note: This saves EPCC, matching the explicit EPC save above.
 	 */
-	CGetCause	k0
-	SAVE_U_PCB_CHERIFRAME(k0, k1, t0)
+	SAVE_CREGS_TO_PCB(k1, t0)
 #endif
 	REG_S	a3, CALLFRAME_RA(sp)	# for debugging
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
@@ -149,7 +149,7 @@ NESTED_NOPROFILE(CHERICCallKtrace, CALLFRAME_SIZ, ra)
 	/*
 	 * Note: This restores EPCC, matching the explicit EPC restore below.
 	 */
-	RESTORE_U_PCB_CHERIFRAME(k1, t0)
+	RESTORE_CREGS_FROM_PCB(k1, t0)
 #endif
 	RESTORE_REGS_FROM_PCB(k1)
 
@@ -177,8 +177,7 @@ NESTED_NOPROFILE(CHERICReturnKtrace, CALLFRAME_SIZ, ra)
 	/*
 	 * Note: This saves EPCC, matching the explicit EPC save above.
 	 */
-	CGetCause	k0
-	SAVE_U_PCB_CHERIFRAME(k0, k1, t0)
+	SAVE_CREGS_TO_PCB(k1, t0)
 #endif
 	REG_S	a3, CALLFRAME_RA(sp)	# for debugging
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
@@ -233,7 +232,7 @@ NESTED_NOPROFILE(CHERICReturnKtrace, CALLFRAME_SIZ, ra)
 	/*
 	 * Note: This restores EPCC, matching the explicit EPC restore below.
 	 */
-	RESTORE_U_PCB_CHERIFRAME(k1, t0)
+	RESTORE_CREGS_FROM_PCB(k1, t0)
 #endif
 	RESTORE_REGS_FROM_PCB(k1)
 

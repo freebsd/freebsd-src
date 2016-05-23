@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2011-2014, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -73,8 +73,8 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 	 *
 	 * XXXRW: Possibly ECAPMODE should be EPROT or ESANDBOX?
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.epcc,
+	    0);
 	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
 	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {
 		atomic_add_int(&security_cheri_syscall_violations, 1);

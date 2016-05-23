@@ -74,12 +74,14 @@ struct cheri_object {
 #endif
 
 /*
- * Register frame to be preserved on context switching -- very similar to
- * struct mips_frame.  As with mips_frame, the order of save/restore is very
- * important for both reasons of correctness and security.
+ * In the past, struct cheri_frame was the in-kernel and kernel<->user
+ * structure holding CHERI register state for context switching.  It is now a
+ * public structure for kernel<->user interaction (e.g., signals), and struct
+ * trapframe is used within the kernel.  Regardless, correct preservation of
+ * state in this structure is critical to both correctness and security.
  *
  * Must match the register offset definitions (CHERIFRAME_OFF_*) in
- * cherireg.h.
+ * cherireg.h.   XXXRW: Those offsets can now possibly be garbage collected?
  */
 struct cheri_frame {
 	/* c0 has special properties for MIPS load/store instructions. */
@@ -880,20 +882,23 @@ void	*cheri_memcpy(void *dst, void *src, size_t len);
  */
 const char	*cheri_exccode_string(uint8_t exccode);
 void	cheri_exec_setregs(struct thread *td, u_long entry_addr);
-void	cheri_log_cheri_frame(struct cheri_frame *cheriframe);
+void	cheri_log_cheri_frame(struct trapframe *frame);
 void	cheri_log_exception(struct trapframe *frame, int trap_type);
 void	cheri_log_exception_registers(struct trapframe *frame);
 int	cheri_syscall_authorize(struct thread *td, u_int code,
 	    int nargs, register_t *args);
 int	cheri_signal_sandboxed(struct thread *td);
 void	cheri_sendsig(struct thread *td);
+void	cheri_trapframe_from_cheriframe(struct trapframe *frame,
+	    struct cheri_frame *cfp);
+void	cheri_trapframe_to_cheriframe(struct trapframe *frame,
+	    struct cheri_frame *cfp);
 
 /*
  * Functions to set up and manipulate CHERI contexts and stacks.
  */
 struct pcb;
 struct sysarch_args;
-void	cheri_context_copy(struct pcb *dst, struct pcb *src);
 void	cheri_signal_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_init(struct pcb *pcb);

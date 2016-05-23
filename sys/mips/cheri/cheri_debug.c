@@ -106,16 +106,15 @@ DB_SHOW_COMMAND(cp2, ddb_dump_cp2)
 	DB_CHERI_REG_PRINT(31, 31);
 }
 
-/*
- * Variation that prints register state from the trap frame provided by KDB.
- */
-DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
+static void
+db_show_cheri_trapframe(struct trapframe *frame)
 {
 	register_t cause;
 	uint8_t exccode, regnum;
 	u_int i;
 
-	cause = kdb_frame->capcause;
+	db_printf("Trapframe at %p\n", frame);
+	cause = frame->capcause;
 	exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
 	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
 	regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
@@ -128,19 +127,29 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 		db_printf("RegNum: invalid (%d) ", regnum);
 	db_printf("(%s)\n", cheri_exccode_string(exccode));
 
-	cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->ddc);
+	cheri_capability_load(CHERI_CR_CTEMP0, &frame->ddc);
 	db_printf("DDC ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
-	cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->epcc);
+	cheri_capability_load(CHERI_CR_CTEMP0, &frame->epcc);
 	db_printf("PCC ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 	db_printf("\n");
 
 	/* Laboriously load and print each trapframe capability. */
 	for (i = 1; i < 27; i++) {
-		cheri_capability_load(CHERI_CR_CTEMP0, &kdb_frame->ddc + i);
+		cheri_capability_load(CHERI_CR_CTEMP0, &frame->ddc + i);
 		DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, i);
 	}
+
+}
+
+/*
+ * Variation that prints register state from the trap frame provided by KDB.
+ */
+DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
+{
+
+	db_show_cheri_trapframe(kdb_frame);
 }
 
 /*
@@ -150,34 +159,16 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 DB_SHOW_COMMAND(cheripcb, ddb_dump_cheripcb)
 {
 	struct thread *td;
-	struct cheri_frame *cfp;
-	u_int i;
+	struct trapframe *frame;
 
 	if (have_addr)
 		td = db_lookup_thread(addr, TRUE);
 	else
 		td = curthread;
 
-	cfp = &td->td_pcb->pcb_cheriframe;
+	frame = &td->td_pcb->pcb_regs;
 	db_printf("Thread %d at %p\n", td->td_tid, td);
-	db_printf("CHERI frame at %p\n", cfp);
-
-	cheri_capability_load(CHERI_CR_CTEMP0,
-	    (struct chericap *)&cfp->cf_c0);
-	db_printf("DDC: ");
-	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
-	cheri_capability_load(CHERI_CR_CTEMP0,
-	    (struct chericap *)&cfp->cf_c0 + CHERIFRAME_OFF_PCC);
-	db_printf("PCC ");
-	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
-	db_printf("\n");
-
-	/* Laboriously load and print each user capability. */
-	for (i = 1; i < 27; i++) {
-		cheri_capability_load(CHERI_CR_CTEMP0,
-		    (struct chericap *)&cfp->cf_c0 + i);
-		DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, i);
-	}
+	db_show_cheri_trapframe(frame);
 }
 
 /*

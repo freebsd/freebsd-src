@@ -95,6 +95,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct proc *p;
 	struct thread *td;
 	struct trapframe *regs;
+	struct cheri_frame *cfp;
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
 	vm_offset_t sp;
@@ -219,7 +220,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sp = (vm_offset_t)regs->sp;
 	}
 #ifdef CPU_CHERI
-	cp2_len = sizeof(td->td_pcb->pcb_cheriframe);
+	cp2_len = sizeof(*cfp);
 	sp -= cp2_len;
 	sp &= ~(CHERICAP_SIZE - 1);
 	sf.sf_uc.uc_mcontext.mc_cp2state = sp;
@@ -260,14 +261,18 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Copy the sigframe out to the user's stack.
 	 */
 #ifdef CPU_CHERI
-	if (copyoutcap(&td->td_pcb->pcb_cheriframe,
+	cfp = malloc(sizeof(*cfp), M_TEMP, M_WAITOK);
+	cheri_trapframe_to_cheriframe(&td->td_pcb->pcb_regs, cfp);
+	if (copyoutcap(cfp,
 	    (void *)sf.sf_uc.uc_mcontext.mc_cp2state, cp2_len) != 0) {
+		free(cfp, M_TEMP);
 		PROC_LOCK(p);
 		printf("pid %d, tid %d: could not copy out cheriframe\n",
 		    td->td_proc->p_pid, td->td_tid);
 		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
+	free(cfp, M_TEMP);
 #endif
 	if (copyout(&sf, sfp, sizeof(struct sigframe)) != 0) {
 		/*
@@ -482,25 +487,28 @@ int
 set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 #ifdef CPU_CHERI
+	struct cheri_frame *cfp;
 	int error;
 #endif
 	struct trapframe *tp;
 
 #ifdef CPU_CHERI
 	if ((void *)mcp->mc_cp2state != NULL) {
-		if (mcp->mc_cp2state_len !=
-		    sizeof(td->td_pcb->pcb_cheriframe)) {
+		if (mcp->mc_cp2state_len != sizeof(*cfp)) {
 			printf("%s: invalid length\n", __func__);
 			return (EINVAL);
 		}
-		error = copyincap((void *)mcp->mc_cp2state,
-		    &td->td_pcb->pcb_cheriframe,
-		    sizeof(td->td_pcb->pcb_cheriframe));
+		cfp = malloc(sizeof(*cfp), M_TEMP, M_WAITOK);
+		error = copyincap((void *)mcp->mc_cp2state, cfp,
+		    sizeof(*cfp));
 		if (error) {
+			free(cfp, M_TEMP);
 			printf("%s: invalid pointer\n", __func__);
 			return (EINVAL);
 		}
-		td->td_pcb->pcb_cheriframe.cf_capcause = 0;
+		cheri_trapframe_from_cheriframe(&td->td_pcb->pcb_regs, cfp);
+		free(cfp, M_TEMP);
+		td->td_pcb->pcb_regs.capcause = 0;
 	}
 #endif
 
@@ -561,11 +569,19 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 int
 fill_capregs(struct thread *td, void *_capregs)
 {
+
 #ifdef CPU_CHERI128
-	memcpy(_capregs, &td->td_pcb->pcb_cheriframe, sizeof(struct cheri_frame));
+	cheri_trapframe_to_cheriframe(&td->td_pcb->pcb_regs,
+	    (struct cheri_frame *)_capregs);
 #else
-	uint64_t *dst = _capregs;
-	uint64_t *src = (uint64_t *)&td->td_pcb->pcb_cheriframe;
+	struct cheri_frame *cfp;
+	uint64_t *dst, *src;
+
+	cfp = malloc(sizeof(*cfp), M_TEMP, M_WAITOK);
+	cheri_trapframe_to_cheriframe(&td->td_pcb->pcb_regs, cfp);
+
+	dst = _capregs;
+	src = (uint64_t *)cfp;
 
 	/*
 	 * Merge the tag bit into the cap register state that is
@@ -574,6 +590,8 @@ fill_capregs(struct thread *td, void *_capregs)
 	 * compressed capabilities given the limited reserved space.
 	 *
 	 * XXXSS This needs to match 'struct cheri_frame' in cheri.h.
+	 *
+	 * XXXRW: This all seems a bit suspicious.
 	 */
 	CHERI_CAP_ADDTAG(dst, src);	/* 0 */
 	CHERI_CAP_ADDTAG(dst, src);
@@ -605,7 +623,7 @@ fill_capregs(struct thread *td, void *_capregs)
 	CHERI_CAP_ADDTAG(dst, src);
 
 	*dst = *src; /* capcause register */
-
+	free(cfp, M_TEMP);
 #endif /* ! CPU_CHERI128 */
 	return (0);
 }

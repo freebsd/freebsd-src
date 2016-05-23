@@ -126,15 +126,10 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	 * of the td_frame, for us that's not needed any
 	 * longer (this copy does them both) 
 	 */
+#ifndef CPU_CHERI
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
-
-#ifdef CPU_CHERI
-	/*
-	 * XXXRW: We're copying this memory twice -- once in the bcopy()
-	 * above, and once here using capabilities.  Once bcopy() is
-	 * capability-oblivious, we can lose this.
-	 */
-	cheri_context_copy(pcb2, td1->td_pcb);
+#else
+	cheri_bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 	cheri_signal_copy(pcb2, td1->td_pcb);
 	cheri_stack_copy(pcb2, td1->td_pcb);
 	cheri_typecap_copy(pcb2, td1->td_pcb);
@@ -443,17 +438,13 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * and gets copied when we copy the PCB. No separate copy
 	 * is needed.
 	 */
+#ifndef CPU_CHERI
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-
-#ifdef CPU_CHERI
-	/*
-	 * XXXRW: We're copying this memory twice -- once in the bcopy()
-	 * above, and once here using capabilities.  Once bcopy() is
-	 * capability-oblivious, we can lose this.
-	 */
-	cheri_context_copy(pcb2, td0->td_pcb);
+#else
+	cheri_bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	cheri_signal_copy(pcb2, td0->td_pcb);
 	cheri_stack_copy(pcb2, td0->td_pcb);
+	cheri_typecap_copy(pcb2, td0->td_pcb);
 #endif
 
 	/*

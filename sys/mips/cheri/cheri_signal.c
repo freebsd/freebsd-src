@@ -67,15 +67,15 @@ cheri_signal_copy(struct pcb *dst, struct pcb *src)
 void
 cheri_sendsig(struct thread *td)
 {
-	struct cheri_frame *cfp;
+	struct trapframe *frame;
 	struct cheri_signal *csigp;
 
-	cfp = &td->td_pcb->pcb_cheriframe;
+	frame = &td->td_pcb->pcb_regs;
 	csigp = &td->td_pcb->pcb_cherisignal;
-	cheri_capability_copy(&cfp->cf_c0, &csigp->csig_c0);
-	cheri_capability_copy(&cfp->cf_c11, &csigp->csig_c11);
-	cheri_capability_copy(&cfp->cf_idc, &csigp->csig_idc);
-	cheri_capability_copy(&cfp->cf_pcc, &csigp->csig_pcc);
+	cheri_capability_copy(&frame->ddc, &csigp->csig_c0);
+	cheri_capability_copy(&frame->c11, &csigp->csig_c11);
+	cheri_capability_copy(&frame->c26, &csigp->csig_idc);
+	cheri_capability_copy(&frame->epcc, &csigp->csig_pcc);
 }
 
 /*
@@ -91,8 +91,8 @@ cheri_signal_sandboxed(struct thread *td)
 {
 	uintmax_t c_perms;
 
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.epcc,
+	    0);
 	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
 	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {
 		atomic_add_int(&security_cheri_sandboxed_signals, 1);

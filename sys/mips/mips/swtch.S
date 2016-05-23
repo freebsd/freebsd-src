@@ -102,7 +102,7 @@ LEAF(fork_trampoline)
 	/*
 	 * Note: This restores EPCC, matching the explicit EPC restore below.
 	 */
-	RESTORE_U_PCB_CHERIFRAME(k1, t0)
+	RESTORE_CREGS_FROM_PCB(k1, t0)
 #endif
 	RESTORE_U_PCB_REG(t0, MULLO, k1)
 	RESTORE_U_PCB_REG(t1, MULHI, k1)
