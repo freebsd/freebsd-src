@@ -73,6 +73,12 @@ __flsl(long mask)
 	return (flsl(mask) - 1);
 }
 
+static inline uint32_t
+ror32(uint32_t word, unsigned int shift)
+{
+
+	return ((word >> shift) | (word << (32 - shift)));
+}
 
 #define	ffz(mask)	__ffs(~(mask))
 
