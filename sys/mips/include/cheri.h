@@ -79,9 +79,6 @@ struct cheri_object {
  * public structure for kernel<->user interaction (e.g., signals), and struct
  * trapframe is used within the kernel.  Regardless, correct preservation of
  * state in this structure is critical to both correctness and security.
- *
- * Must match the register offset definitions (CHERIFRAME_OFF_*) in
- * cherireg.h.   XXXRW: Those offsets can now possibly be garbage collected?
  */
 struct cheri_frame {
 	/* c0 has special properties for MIPS load/store instructions. */

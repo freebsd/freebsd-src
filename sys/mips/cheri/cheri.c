@@ -375,7 +375,7 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	 */
 	cheri_capability_set_user_c0(&frame->ddc);
 	cheri_capability_set_user_stack(&frame->c11);
-	cheri_capability_set_user_idc(&frame->c26);
+	cheri_capability_set_user_idc(&frame->idc);
 	cheri_capability_set_user_pcc(&frame->pcc);
 	cheri_capability_set_user_entry(&frame->c12, entry_addr);
 

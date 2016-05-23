@@ -947,7 +947,7 @@ ktrcexception(struct trapframe *frame)
 	    ke->ktr_regnum == CHERI_CR_C23 ? &frame->c23 :
 	    ke->ktr_regnum == CHERI_CR_C24 ? &frame->c24 :
 	    ke->ktr_regnum == CHERI_CR_C25 ? &frame->c25 :
-	    ke->ktr_regnum == CHERI_CR_IDC ? &frame->c26 :
+	    ke->ktr_regnum == CHERI_CR_IDC ? &frame->idc :
 	    NULL);
 
 	ktr_enqueuerequest(td, req);

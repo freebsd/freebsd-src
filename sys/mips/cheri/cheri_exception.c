@@ -169,7 +169,7 @@ cheri_trapframe_to_cheriframe(struct trapframe *frame,
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c24, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c25, 0);
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c25, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c26, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->idc, 0);
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_idc, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->pcc, 0);
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_pcc, 0);
@@ -238,7 +238,7 @@ cheri_trapframe_from_cheriframe(struct trapframe *frame,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c25, 0);
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c25, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_idc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c26, 0);
+	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->idc, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_pcc, 0);
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->pcc, 0);
 	frame->capcause = cfp->cf_capcause;
@@ -356,7 +356,7 @@ cheri_log_cheri_frame(struct trapframe *frame)
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 24);
 
 	/* C26 - IDC */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c26, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->idc, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 26);
 
 	/* C31 - saved PCC */
