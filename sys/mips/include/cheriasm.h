@@ -241,63 +241,55 @@
 /*
  * Macros saving capability state to, and restoring it from, voluntary kernel
  * context-switch storage in pcb.pcb_cherikframe.
- *
- * XXXRW: Due to scaled immediates, likely no longer need to use a temporary
- * register here.
  */
-#define	SAVE_U_PCB_CHERIKFRAME_CREG(creg, offs, base, treg)		\
-	PTR_ADDIU	treg, base, U_PCB_CHERIKFRAME;			\
-	csc		creg, treg, (CHERICAP_SIZE * offs)(CHERI_REG_KDC)
+#define	SAVE_U_PCB_CHERIKFRAME_CREG(creg, offs, base)			\
+	csc		creg, base, (U_PCB_CHERIKFRAME +		\
+			    CHERICAP_SIZE * offs)(CHERI_REG_KDC)
 
-#define	RESTORE_U_PCB_CHERIKFRAME_CREG(creg, offs, base, treg)		\
-	PTR_ADDIU	treg, base, U_PCB_CHERIKFRAME;			\
-	clc		creg, treg, (CHERICAP_SIZE * offs)(CHERI_REG_KDC)
+#define	RESTORE_U_PCB_CHERIKFRAME_CREG(creg, offs, base)		\
+	clc		creg, base, (U_PCB_CHERIKFRAME +		\
+			    CHERICAP_SIZE * offs)(CHERI_REG_KDC)
 
 /*
- * Macros saving a full voluntary kernel CHERI register frame.
+ * Macros to save (and restore) callee-save capability registers when
+ * performing a voluntary kernel context switch (the compiler will have saved,
+ * or will restore, caller-save registers).
  */
-#ifndef CPU_CHERI_CHERI0
-#define	SAVE_U_PCB_CHERIKFRAME(base, treg)				\
+#define	SAVE_U_PCB_CHERIKFRAME(base)					\
 	SAVE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C17, CHERIKFRAME_OFF_C17,	\
-	    base, treg);						\
+	    base);							\
 	SAVE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C18, CHERIKFRAME_OFF_C18,	\
-	    base, treg);						\
+	    base);							\
 	SAVE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C19, CHERIKFRAME_OFF_C19,	\
-	    base, treg);						\
+	    base);							\
 	SAVE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C20, CHERIKFRAME_OFF_C20,	\
-	    base, treg);						\
+	    base);							\
 	SAVE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C21, CHERIKFRAME_OFF_C21,	\
-	    base, treg);						\
+	    base);							\
 	SAVE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C22, CHERIKFRAME_OFF_C22,	\
-	    base, treg);						\
+	    base);							\
 	SAVE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C23, CHERIKFRAME_OFF_C23,	\
-	    base, treg);						\
+	    base);							\
 	SAVE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C24, CHERIKFRAME_OFF_C24,	\
-	    base, treg)
+	    base)
 
-#define	RESTORE_U_PCB_CHERIKFRAME(base, treg)				\
+#define	RESTORE_U_PCB_CHERIKFRAME(base)					\
 	RESTORE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C17,			\
-	    CHERIKFRAME_OFF_C17, base, treg);				\
+	    CHERIKFRAME_OFF_C17, base);					\
 	RESTORE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C18,			\
-	    CHERIKFRAME_OFF_C18, base, treg);				\
+	    CHERIKFRAME_OFF_C18, base);					\
 	RESTORE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C19,			\
-	    CHERIKFRAME_OFF_C19, base, treg);				\
+	    CHERIKFRAME_OFF_C19, base);					\
 	RESTORE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C20,			\
-	    CHERIKFRAME_OFF_C20, base, treg);				\
+	    CHERIKFRAME_OFF_C20, base);					\
 	RESTORE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C21,			\
-	    CHERIKFRAME_OFF_C21, base, treg);				\
+	    CHERIKFRAME_OFF_C21, base);					\
 	RESTORE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C22,			\
-	    CHERIKFRAME_OFF_C22, base, treg);				\
+	    CHERIKFRAME_OFF_C22, base);					\
 	RESTORE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C23,			\
-	    CHERIKFRAME_OFF_C23, base, treg);				\
+	    CHERIKFRAME_OFF_C23, base);					\
 	RESTORE_U_PCB_CHERIKFRAME_CREG(CHERI_REG_C24,			\
-	    CHERIKFRAME_OFF_C24, base, treg)
-#else
-#define	SAVE_U_PCB_CHERIKFRAME(base, treg)
-#define	RESTORE_U_PCB_CHERIKFRAME(base, treg)
-#endif
-
-#endif /* _MIPS_INCLUDE_CHERIASM_H_ */
+	    CHERIKFRAME_OFF_C24, base)
 
 /* This macro is just until assembler supports clearregs */
 #define CHERI_CLEARREGS(regset, mask) \
@@ -375,3 +367,5 @@
 
 /* Ensure that this is kept in sync with CHERI_REG_SEC0. */
 #define	CHERI_CLEAR_CAPHI_SEC0	CHERI_CLEAR_CAPHI_KR2C
+
+#endif /* _MIPS_INCLUDE_CHERIASM_H_ */

@@ -180,7 +180,7 @@ LEAF(savectx)
 	SAVE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
 
 #ifdef CPU_CHERI
-	SAVE_U_PCB_CHERIKFRAME(a0, t0);
+	SAVE_U_PCB_CHERIKFRAME(a0);
 #endif
 
 	move	v0, ra			/* save 'ra' before we trash it */
@@ -246,7 +246,7 @@ getpc:
 	SAVE_U_PCB_CONTEXT(ra, PCB_REG_PC, a0)		# save return address
 
 #ifdef CPU_CHERI
-	SAVE_U_PCB_CHERIKFRAME(a0, t0);
+	SAVE_U_PCB_CHERIKFRAME(a0);
 #endif
 
 #ifdef CPU_CNMIPS
@@ -451,7 +451,7 @@ sw2:
 	RESTORE_U_PCB_CONTEXT(s8, PCB_REG_S8, a0)
 
 #ifdef CPU_CHERI
-	RESTORE_U_PCB_CHERIKFRAME(a0, t0);
+	RESTORE_U_PCB_CHERIKFRAME(a0);
 #endif
 
 	mfc0	t0, MIPS_COP_0_STATUS
