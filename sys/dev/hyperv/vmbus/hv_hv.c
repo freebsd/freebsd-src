@@ -43,8 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/hyperv_reg.h>
 
 #define HV_NANOSECONDS_PER_SEC		1000000000L
 
@@ -79,6 +80,13 @@ __FBSDID("$FreeBSD$");
 	 (((uint64_t)__FreeBSD_version) << 16) |	\
 	 ((uint64_t)((id) & 0x00ffff)))
 
+struct hypercall_ctx {
+	void			*hc_addr;
+	struct hyperv_dma	hc_dma;
+};
+
+static struct hypercall_ctx	hypercall_context;
+
 static u_int hv_get_timecount(struct timecounter *tc);
 
 u_int	hyperv_features;
@@ -92,7 +100,6 @@ static u_int	hyperv_features3;
  */
 hv_vmbus_context hv_vmbus_g_context = {
 	.syn_ic_initialized = FALSE,
-	.hypercall_page = NULL,
 };
 
 static struct timecounter hv_timecounter = {
@@ -116,7 +123,7 @@ hv_vmbus_do_hypercall(uint64_t control, void* input, void* output)
 	uint64_t hv_status = 0;
 	uint64_t input_address = (input) ? hv_get_phys_addr(input) : 0;
 	uint64_t output_address = (output) ? hv_get_phys_addr(output) : 0;
-	volatile void* hypercall_page = hv_vmbus_g_context.hypercall_page;
+	volatile void *hypercall_page = hypercall_context.hc_addr;
 
 	__asm__ __volatile__ ("mov %0, %%r8" : : "r" (output_address): "r8");
 	__asm__ __volatile__ ("call *%3" : "=a"(hv_status):
@@ -134,7 +141,7 @@ hv_vmbus_do_hypercall(uint64_t control, void* input, void* output)
 	uint64_t output_address = (output) ? hv_get_phys_addr(output) : 0;
 	uint32_t output_address_high = output_address >> 32;
 	uint32_t output_address_low = output_address & 0xFFFFFFFF;
-	volatile void* hypercall_page = hv_vmbus_g_context.hypercall_page;
+	volatile void *hypercall_page = hypercall_context.hc_addr;
 
 	__asm__ __volatile__ ("call *%8" : "=d"(hv_status_high),
 				"=a"(hv_status_low) : "d" (control_high),
@@ -144,84 +151,6 @@ hv_vmbus_do_hypercall(uint64_t control, void* input, void* output)
 				"S"(output_address_low), "m" (hypercall_page));
 	return (hv_status_low | ((uint64_t)hv_status_high << 32));
 #endif /* __x86_64__ */
-}
-
-/**
- *  @brief Main initialization routine.
- *
- *  This routine must be called
- *  before any other routines in here are called
- */
-int
-hv_vmbus_init(void) 
-{
-	hv_vmbus_x64_msr_hypercall_contents	hypercall_msr;
-	void* 					virt_addr = NULL;
-
-	memset(
-	    hv_vmbus_g_context.syn_ic_event_page,
-	    0,
-	    sizeof(hv_vmbus_handle) * MAXCPU);
-
-	memset(
-	    hv_vmbus_g_context.syn_ic_msg_page,
-	    0,
-	    sizeof(hv_vmbus_handle) * MAXCPU);
-
-	if (vm_guest != VM_GUEST_HV)
-	    goto cleanup;
-
-	/*
-	 * See if the hypercall page is already set
-	 */
-	hypercall_msr.as_uint64_t = rdmsr(HV_X64_MSR_HYPERCALL);
-	virt_addr = malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
-
-	hypercall_msr.u.enable = 1;
-	hypercall_msr.u.guest_physical_address =
-	    (hv_get_phys_addr(virt_addr) >> PAGE_SHIFT);
-	wrmsr(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64_t);
-
-	/*
-	 * Confirm that hypercall page did get set up
-	 */
-	hypercall_msr.as_uint64_t = 0;
-	hypercall_msr.as_uint64_t = rdmsr(HV_X64_MSR_HYPERCALL);
-
-	if (!hypercall_msr.u.enable)
-	    goto cleanup;
-
-	hv_vmbus_g_context.hypercall_page = virt_addr;
-
-	return (0);
-
-	cleanup:
-	if (virt_addr != NULL) {
-	    if (hypercall_msr.u.enable) {
-		hypercall_msr.as_uint64_t = 0;
-		wrmsr(HV_X64_MSR_HYPERCALL,
-					hypercall_msr.as_uint64_t);
-	    }
-
-	    free(virt_addr, M_DEVBUF);
-	}
-	return (ENOTSUP);
-}
-
-/**
- * @brief Cleanup routine, called normally during driver unloading or exiting
- */
-void
-hv_vmbus_cleanup(void) 
-{
-	if (hv_vmbus_g_context.hypercall_page != NULL) {
-		hv_vmbus_x64_msr_hypercall_contents hypercall_msr;
-
-		hypercall_msr.as_uint64_t = 0;
-		wrmsr(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64_t);
-		free(hv_vmbus_g_context.hypercall_page, M_DEVBUF);
-		hv_vmbus_g_context.hypercall_page = NULL;
-	}
 }
 
 /**
@@ -303,9 +232,6 @@ hv_vmbus_synic_init(void *arg)
 	hv_setup_args* 		setup_args = (hv_setup_args *)arg;
 
 	cpu = PCPU_GET(cpuid);
-
-	if (hv_vmbus_g_context.hypercall_page == NULL)
-	    return;
 
 	/*
 	 * TODO: Check the version
@@ -536,4 +462,75 @@ hyperv_init(void *dummy __unused)
 	}
 }
 SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
+    NULL);
+
+static void
+hypercall_memfree(void)
+{
+	hyperv_dmamem_free(&hypercall_context.hc_dma,
+	    hypercall_context.hc_addr);
+	hypercall_context.hc_addr = NULL;
+}
+
+static void
+hypercall_create(void *arg __unused)
+{
+	uint64_t hc, hc_orig;
+
+	if (vm_guest != VM_GUEST_HV)
+		return;
+
+	hypercall_context.hc_addr = hyperv_dmamem_alloc(NULL, PAGE_SIZE, 0,
+	    PAGE_SIZE, &hypercall_context.hc_dma, BUS_DMA_WAITOK);
+	if (hypercall_context.hc_addr == NULL) {
+		printf("hyperv: Hypercall page allocation failed\n");
+		/* Can't perform any Hyper-V specific actions */
+		vm_guest = VM_GUEST_VM;
+		return;
+	}
+
+	/* Get the 'reserved' bits, which requires preservation. */
+	hc_orig = rdmsr(MSR_HV_HYPERCALL);
+
+	/*
+	 * Setup the Hypercall page.
+	 *
+	 * NOTE: 'reserved' bits MUST be preserved.
+	 */
+	hc = ((hypercall_context.hc_dma.hv_paddr >> PAGE_SHIFT) <<
+	    MSR_HV_HYPERCALL_PGSHIFT) |
+	    (hc_orig & MSR_HV_HYPERCALL_RSVD_MASK) |
+	    MSR_HV_HYPERCALL_ENABLE;
+	wrmsr(MSR_HV_HYPERCALL, hc);
+
+	/*
+	 * Confirm that Hypercall page did get setup.
+	 */
+	hc = rdmsr(MSR_HV_HYPERCALL);
+	if ((hc & MSR_HV_HYPERCALL_ENABLE) == 0) {
+		printf("hyperv: Hypercall setup failed\n");
+		hypercall_memfree();
+		/* Can't perform any Hyper-V specific actions */
+		vm_guest = VM_GUEST_VM;
+		return;
+	}
+	if (bootverbose)
+		printf("hyperv: Hypercall created\n");
+}
+SYSINIT(hypercall_ctor, SI_SUB_DRIVERS, SI_ORDER_FIRST, hypercall_create, NULL);
+
+static void
+hypercall_destroy(void *arg __unused)
+{
+	if (hypercall_context.hc_addr == NULL)
+		return;
+
+	/* Disable Hypercall */
+	wrmsr(MSR_HV_HYPERCALL, 0);
+	hypercall_memfree();
+
+	if (bootverbose)
+		printf("hyperv: Hypercall destroyed\n");
+}
+SYSUNINIT(hypercall_dtor, SI_SUB_DRIVERS, SI_ORDER_FIRST, hypercall_destroy,
     NULL);
