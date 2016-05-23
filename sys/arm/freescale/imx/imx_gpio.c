@@ -88,7 +88,14 @@ __FBSDID("$FreeBSD$");
 #define	IMX_GPIO_ISR_REG	0x018 /* Interrupt Status Register */
 #define	IMX_GPIO_EDGE_REG	0x01C /* Edge Detect Register */
 
+#ifdef INTRNG
+#define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | \
+    GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING | \
+    GPIO_INTR_EDGE_FALLING )
+#else
 #define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
+#endif
+
 #define	NGPIO		32
 
 #ifdef INTRNG
@@ -156,14 +163,11 @@ static int imx51_gpio_pin_toggle(device_t, uint32_t pin);
 
 #ifdef INTRNG
 static int
-gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
-    uint32_t *modep)
+gpio_pic_map_fdt(struct imx51_gpio_softc *sc, struct intr_map_data_fdt *daf,
+    u_int *irqp, uint32_t *modep)
 {
-	struct imx51_gpio_softc *sc;
-	u_int irq, tripol;
+	u_int irq;
 	uint32_t mode;
-
-	sc = device_get_softc(dev);
 
 	/*
 	 * From devicetree/bindings/gpio/fsl-imx-gpio.txt:
@@ -176,18 +180,17 @@ gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
          * We can do any single one of these modes, but nothing in combo.
 	 */
 
-	if (ncells != 2) {
+	if (daf->ncells != 2) {
 		device_printf(sc->dev, "Invalid #interrupt-cells\n");
 		return (EINVAL);
 	}
 
-	irq = cells[0];
-	tripol = cells[1];
+	irq = daf->cells[0];
 	if (irq >= sc->gpio_npins) {
 		device_printf(sc->dev, "Invalid interrupt number %u\n", irq);
 		return (EINVAL);
 	}
-	switch (tripol) {
+	switch (daf->cells[1]) {
 	case 1:
 		mode = GPIO_INTR_EDGE_RISING;
 		break;
@@ -202,7 +205,7 @@ gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 		break;
 	default:
 		device_printf(sc->dev, "Unsupported interrupt mode 0x%2x\n",
-		    tripol);
+		    daf->cells[1]);
 		return (ENOTSUP);
 	}
 	*irqp = irq;
@@ -212,23 +215,61 @@ gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 }
 
 static int
+gpio_pic_map_gpio(struct imx51_gpio_softc *sc, struct intr_map_data_gpio *dag,
+    u_int *irqp, uint32_t *modep)
+{
+	u_int irq;
+	uint32_t mode;
+
+	irq = dag->gpio_pin_num;
+	if (irq >= sc->gpio_npins) {
+		device_printf(sc->dev, "Invalid interrupt number %u\n", irq);
+		return (EINVAL);
+	}
+
+	mode = dag->gpio_intr_mode;
+	if (mode != GPIO_INTR_LEVEL_LOW && mode != GPIO_INTR_LEVEL_HIGH &&
+	    mode != GPIO_INTR_EDGE_RISING && mode != GPIO_INTR_EDGE_FALLING) {
+		device_printf(sc->dev, "Unsupported interrupt mode 0x%8x\n",
+		    mode);
+		return (EINVAL);
+	}
+
+	*irqp = irq;
+	if (modep != NULL)
+		*modep = mode;
+	return (0);
+}
+
+static int
+gpio_pic_map(struct imx51_gpio_softc *sc, struct intr_map_data *data,
+    u_int *irqp, uint32_t *modep)
+{
+
+	switch (data->type) {
+	case INTR_MAP_DATA_FDT:
+		return (gpio_pic_map_fdt(sc, (struct intr_map_data_fdt *)data,
+		    irqp, modep));
+	case INTR_MAP_DATA_GPIO:
+		return (gpio_pic_map_gpio(sc, (struct intr_map_data_gpio *)data,
+		    irqp, modep));
+	default:
+		return (ENOTSUP);
+	}
+}
+
+static int
 gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 	int error;
 	u_int irq;
-	struct intr_map_data_fdt *daf;
 	struct imx51_gpio_softc *sc;
 
-	if (data->type != INTR_MAP_DATA_FDT)
-		return (ENOTSUP);
-
-	daf = (struct intr_map_data_fdt *)data;
-	error = gpio_pic_map_fdt(dev, daf->ncells, daf->cells, &irq, NULL);
-	if (error == 0) {
-		sc = device_get_softc(dev);
+	sc = device_get_softc(dev);
+	error = gpio_pic_map(sc, data, &irq, NULL);
+	if (error == 0)
 		*isrcp = &sc->gpio_pic_irqsrc[irq].gi_isrc;
-	}
 	return (error);
 }
 
@@ -257,21 +298,20 @@ static int
 gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
-	struct intr_map_data_fdt *daf;
 	struct imx51_gpio_softc *sc;
 	struct gpio_irqsrc *gi;
 	int error, icfg;
 	u_int irq, reg, shift, wrk;
 	uint32_t mode;
 
+	if (data == NULL)
+		return (ENOTSUP);
+
 	sc = device_get_softc(dev);
 	gi = (struct gpio_irqsrc *)isrc;
 
 	/* Get config for interrupt. */
-	if (data == NULL || data->type != INTR_MAP_DATA_FDT)
-		return (ENOTSUP);
-	daf = (struct intr_map_data_fdt *)data;
-	error = gpio_pic_map_fdt(dev, daf->ncells, daf->cells, &irq, &mode);
+	error = gpio_pic_map(sc, data, &irq, &mode);
 	if (error != 0)
 		return (error);
 	if (gi->gi_irq != irq)
