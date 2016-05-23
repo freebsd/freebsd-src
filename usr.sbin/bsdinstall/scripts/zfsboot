@@ -1312,7 +1312,7 @@ zfs_create_boot()
 
 	f_dprintf "$funcname: Set canmount=noauto for the root of the pool..."
 	f_eval_catch $funcname zfs "$ZFS_SET" "canmount=noauto" \
-		"$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
+		"$zroot_name/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
 
 	# Touch up permissions on the tmp directories
 	f_dprintf "$funcname: Modifying directory permissions..."
