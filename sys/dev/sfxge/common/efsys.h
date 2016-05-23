@@ -1110,22 +1110,6 @@ typedef struct efsys_lock_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
-/* PREEMPT */
-
-#define	EFSYS_PREEMPT_DISABLE(_state)					\
-	do {								\
-		(_state) = (_state);					\
-		critical_enter();					\
-	_NOTE(CONSTANTCONDITION)					\
-	} while (B_FALSE)
-
-#define	EFSYS_PREEMPT_ENABLE(_state)					\
-	do {								\
-		(_state) = (_state);					\
-		critical_exit(_state);					\
-	_NOTE(CONSTANTCONDITION)					\
-	} while (B_FALSE)
-
 /* STAT */
 
 typedef uint64_t		efsys_stat_t;
