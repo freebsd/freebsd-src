@@ -2610,15 +2610,17 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 	if (req->newptr)
 		return (EPERM);
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
 	bzero(&p, sizeof(p));
 	p.origin = PR_ORIG_RA;
 	bzero(&s6, sizeof(s6));
 	s6.sin6_family = AF_INET6;
 	s6.sin6_len = sizeof(s6);
 
-	/*
-	 * XXX locking
-	 */
+	ND6_RLOCK();
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		p.prefix = pr->ndpr_prefix;
 		if (sa6_recoverscope(&p.prefix)) {
@@ -2651,7 +2653,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			p.advrtrs++;
 		error = SYSCTL_OUT(req, &p, sizeof(p));
 		if (error != 0)
-			return (error);
+			break;
 		LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
 			s6.sin6_addr = pfr->router->rtaddr;
 			if (sa6_recoverscope(&s6))
@@ -2660,8 +2662,9 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 				    ip6_sprintf(ip6buf, &pfr->router->rtaddr));
 			error = SYSCTL_OUT(req, &s6, sizeof(s6));
 			if (error != 0)
-				return (error);
+				break;
 		}
 	}
-	return (0);
+	ND6_RUNLOCK();
+	return (error);
 }
