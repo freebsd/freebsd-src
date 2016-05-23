@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 #define HV_NANOSECONDS_PER_SEC		1000000000L
 
@@ -220,8 +221,8 @@ hv_vmbus_signal_event(void *con_id)
  */
 void
 hv_vmbus_synic_init(void *arg)
-
 {
+	struct vmbus_softc *sc = vmbus_get_softc();
 	int			cpu;
 	uint64_t		hv_vcpu_index;
 	hv_vmbus_synic_simp	simp;
@@ -266,7 +267,7 @@ hv_vmbus_synic_init(void *arg)
 
 	/*HV_SHARED_SINT_IDT_VECTOR + 0x20; */
 	shared_sint.as_uint64_t = 0;
-	shared_sint.u.vector = setup_args->vector;
+	shared_sint.u.vector = sc->vmbus_idtvec;
 	shared_sint.u.masked = FALSE;
 	shared_sint.u.auto_eoi = TRUE;
 

@@ -39,6 +39,7 @@ struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 	device_t		vmbus_dev;
+	int			vmbus_idtvec;
 };
 
 extern struct vmbus_softc	*vmbus_sc;
