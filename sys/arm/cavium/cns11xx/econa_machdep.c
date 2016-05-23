@@ -272,6 +272,9 @@ initarm(struct arm_boot_params *abp)
 	mem_info = ((*ddr) >> 4) & 0x3;
 	memsize = (8<<mem_info)*1024*1024;
 
+        /* Enable MMU in system control register (SCTLR). */
+	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
+
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
@@ -280,8 +283,6 @@ initarm(struct arm_boot_params *abp)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
-	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
-
 	set_stackptrs(0);
 
 	/*

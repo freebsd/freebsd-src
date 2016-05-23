@@ -105,6 +105,7 @@ _RF0(cp15_midr_get, CP15_MIDR(%0))
 _RF0(cp15_ctr_get, CP15_CTR(%0))
 _RF0(cp15_tcmtr_get, CP15_TCMTR(%0))
 _RF0(cp15_tlbtr_get, CP15_TLBTR(%0))
+_RF0(cp15_sctlr_get, CP15_SCTLR(%0))
 
 #undef	_FX
 #undef	_RF0
