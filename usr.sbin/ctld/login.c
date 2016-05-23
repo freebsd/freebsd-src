@@ -754,10 +754,10 @@ login_wait_transition(struct connection *conn)
 		login_send_error(request, 0x02, 0x00);
 		log_errx(1, "got no \"T\" flag after answering AuthMethod");
 	}
-	pdu_delete(request);
 
 	log_debugx("got state transition request");
 	response = login_new_response(request);
+	pdu_delete(request);
 	login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	pdu_send(response);
 	pdu_delete(response);
