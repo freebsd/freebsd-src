@@ -364,7 +364,7 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	frame = &td->td_pcb->pcb_regs;
 	KASSERT(*(uint64_t *)&frame->ddc == 0, ("%s: non-zero initial DDC",
 	    __func__));
-	KASSERT(*(uint64_t *)&frame->epcc == 0, ("%s: non-zero initial EPCC",
+	KASSERT(*(uint64_t *)&frame->pcc == 0, ("%s: non-zero initial EPCC",
 	    __func__));
 
 	/*
@@ -376,7 +376,7 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	cheri_capability_set_user_c0(&frame->ddc);
 	cheri_capability_set_user_stack(&frame->c11);
 	cheri_capability_set_user_idc(&frame->c26);
-	cheri_capability_set_user_pcc(&frame->epcc);
+	cheri_capability_set_user_pcc(&frame->pcc);
 	cheri_capability_set_user_entry(&frame->c12, entry_addr);
 
 	/*

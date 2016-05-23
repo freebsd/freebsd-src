@@ -178,7 +178,7 @@ cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 	cheri_capability_load(CHERI_CR_CTEMP0, &csfp->csf_idc);
 	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_regs.c26);
 	cheri_capability_load(CHERI_CR_CTEMP0, &csfp->csf_pcc);
-	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_regs.epcc);
+	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_regs.pcc);
 
 	/*
 	 * Extract PCC.offset into PC.

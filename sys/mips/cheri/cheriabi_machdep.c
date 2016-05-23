@@ -873,7 +873,7 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &param->start_func, 0);
 	CHERI_CGETOFFSET(frame->pc, CHERI_CR_CTEMP0);
-	cheri_capability_copy(&frame->epcc, &param->start_func);
+	cheri_capability_copy(&frame->pcc, &param->start_func);
 	cheri_capability_copy(&frame->c12, &param->start_func);
 	cheri_capability_copy(&frame->c3, &param->arg);
 }

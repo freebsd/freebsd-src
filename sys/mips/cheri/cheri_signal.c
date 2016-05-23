@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2011-2014, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -75,7 +75,7 @@ cheri_sendsig(struct thread *td)
 	cheri_capability_copy(&frame->ddc, &csigp->csig_c0);
 	cheri_capability_copy(&frame->c11, &csigp->csig_c11);
 	cheri_capability_copy(&frame->c26, &csigp->csig_idc);
-	cheri_capability_copy(&frame->epcc, &csigp->csig_pcc);
+	cheri_capability_copy(&frame->pcc, &csigp->csig_pcc);
 }
 
 /*
@@ -91,7 +91,7 @@ cheri_signal_sandboxed(struct thread *td)
 {
 	uintmax_t c_perms;
 
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.epcc,
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.pcc,
 	    0);
 	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
 	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {

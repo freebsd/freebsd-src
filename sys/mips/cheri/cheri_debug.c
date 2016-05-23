@@ -130,7 +130,7 @@ db_show_cheri_trapframe(struct trapframe *frame)
 	cheri_capability_load(CHERI_CR_CTEMP0, &frame->ddc);
 	db_printf("DDC ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
-	cheri_capability_load(CHERI_CR_CTEMP0, &frame->epcc);
+	cheri_capability_load(CHERI_CR_CTEMP0, &frame->pcc);
 	db_printf("PCC ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 	db_printf("\n");

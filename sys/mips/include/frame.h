@@ -174,7 +174,7 @@ struct trapframe {
 	struct chericap		c24;
 	struct chericap		c25;
 	struct chericap		c26;	/* Sometimes known as idc. */
-	struct chericap		epcc;
+	struct chericap		pcc;
 	register_t		capcause;  /* NB: Saved but not restored. */
 	register_t		_pad0;
 #if (CHERICAP_SIZE == 32)

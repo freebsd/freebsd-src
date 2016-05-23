@@ -73,7 +73,7 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 	 *
 	 * XXXRW: Possibly ECAPMODE should be EPROT or ESANDBOX?
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.epcc,
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.pcc,
 	    0);
 	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
 	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {
