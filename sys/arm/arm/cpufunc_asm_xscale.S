@@ -117,7 +117,7 @@ ENTRY(xscale_control)
 
 	teq	r2, r3			/* Only write if there was a change */
 	mcrne	p15, 0, r0, c7, c5, 6	/* Invalidate the BTB */
-	mcrne	CP15_SCTLR(r3)		/* Write new control register */
+	mcrne	CP15_SCTLR(r2)		/* Write new control register */
 	mov	r0, r3			/* Return old value */
 
 	CPWAIT_AND_RETURN(r1)
