@@ -984,9 +984,9 @@ main(int argc, char **argv)
 	struct unrhdr *uh;
 	char *a;
 	long count = 10000;	/* Number of unrs to test */
-	long reps = 1;
+	long reps = 1, m;
 	int ch;
-	u_int i, x, m, j;
+	u_int i, x, j;
 
 	verbose = false;
 
@@ -1043,7 +1043,7 @@ main(int argc, char **argv)
 			print_unrhdr(uh);
 		check_unrhdr(uh, __LINE__);
 	}
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < (u_int)count; i++) {
 		if (a[i]) {
 			if (verbose) {
 				printf("C %u\n", i);
