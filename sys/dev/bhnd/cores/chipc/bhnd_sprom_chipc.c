@@ -31,10 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * BHNDB PCI SPROM driver.
- * 
- * Provides support for early PCI bridge cores that vend SPROM CSRs
- * via PCI configuration space.
+ * ChipCommon SPROM driver.
  */
 
 #include <sys/param.h>
@@ -45,31 +42,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/systm.h>
 
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-
 #include <dev/bhnd/bhnd.h>
-#include <dev/bhnd/cores/pci/bhnd_pci_hostbvar.h>
+#include <dev/bhnd/nvram/bhnd_nvram.h>
 #include <dev/bhnd/nvram/bhnd_spromvar.h>
 
+#include "bhnd_chipc_if.h"
 #include "bhnd_nvram_if.h"
 
-#include "bhndb_pcireg.h"
-#include "bhndb_pcivar.h"
-
 static int
-bhndb_pci_sprom_probe(device_t dev)
+chipc_sprom_probe(device_t dev)
 {
-	device_t	bridge, bus;
+	device_t	chipc;
 	int		error;
 
-	/* Our parent must be a PCI-BHND bridge with an attached bhnd bus */
-	bridge = device_get_parent(dev);
-	if (device_get_driver(bridge) != &bhndb_pci_driver)
-		return (ENXIO);
-	
-	bus = device_find_child(bridge, devclass_get_name(bhnd_devclass), 0);
-	if (bus == NULL)
+	chipc = device_get_parent(dev);
+
+	/* Only match on SPROM devices */
+	if (BHND_CHIPC_NVRAM_SRC(chipc) != BHND_NVRAM_SRC_SPROM)
 		return (ENXIO);
 
 	/* Defer to default driver implementation */
@@ -79,16 +68,34 @@ bhndb_pci_sprom_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
+static int
+chipc_sprom_attach(device_t dev)
+{
+	device_t	chipc;
+	int		error;
 
-static device_method_t bhndb_pci_sprom_methods[] = {
+	/* Request that ChipCommon enable access to SPROM hardware before
+	 * delegating attachment (and SPROM parsing) to the common driver */
+	chipc = device_get_parent(dev);
+	if ((error = BHND_CHIPC_ENABLE_SPROM(chipc)))
+		return (error);
+
+	error = bhnd_sprom_attach(dev);
+	BHND_CHIPC_DISABLE_SPROM(chipc);
+	return (error);
+}
+
+static device_method_t chipc_sprom_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			bhndb_pci_sprom_probe),
+	DEVMETHOD(device_probe,			chipc_sprom_probe),
+	DEVMETHOD(device_attach,		chipc_sprom_attach),
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(bhnd_nvram, bhndb_pci_sprom_driver, bhndb_pci_sprom_methods, sizeof(struct bhnd_sprom_softc), bhnd_sprom_driver);
+DEFINE_CLASS_1(bhnd_nvram, chipc_sprom_driver, chipc_sprom_methods, sizeof(struct bhnd_sprom_softc), bhnd_sprom_driver);
+DRIVER_MODULE(bhnd_chipc_sprom, bhnd_chipc, chipc_sprom_driver, bhnd_nvram_devclass, NULL, NULL);
 
-DRIVER_MODULE(bhndb_pci_sprom, bhndb, bhndb_pci_sprom_driver, bhnd_nvram_devclass, NULL, NULL);
-MODULE_DEPEND(bhndb_pci_sprom, bhnd, 1, 1, 1);
-MODULE_DEPEND(bhndb_pci_sprom, bhnd_sprom, 1, 1, 1);
-MODULE_VERSION(bhndb_pci_sprom, 1);
+MODULE_DEPEND(bhnd_chipc_sprom, bhnd, 1, 1, 1);
+MODULE_DEPEND(bhnd_chipc_sprom, bhnd_chipc, 1, 1, 1);
+MODULE_DEPEND(bhnd_chipc_sprom, bhnd_sprom, 1, 1, 1);
+MODULE_VERSION(bhnd_chipc_sprom, 1);
