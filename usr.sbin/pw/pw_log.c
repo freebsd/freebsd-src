@@ -29,40 +29,90 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <ctype.h>
+#include <err.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdarg.h>
 
 #include "pw.h"
 
-static FILE    *logfile = NULL;
+static FILE	*logfile = NULL;
 
 void
 pw_log(struct userconf * cnf, int mode, int which, char const * fmt,...)
 {
-	if (cnf->logfile && *cnf->logfile) {
-		if (logfile == NULL) {	/* With umask==0 we need to control file access modes on create */
-			int             fd = open(cnf->logfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
+	va_list		argp;
+	time_t		now;
+	const char	*cp, *name;
+	struct tm	*t;
+	int		fd, i, rlen;
+	char		nfmt[256], sname[32];
 
-			if (fd != -1)
-				logfile = fdopen(fd, "a");
-		}
-		if (logfile != NULL) {
-			va_list         argp;
-			time_t          now = time(NULL);
-			struct tm      *t = localtime(&now);
-			char            nfmt[256];
-			const char     *name;
+	if (cnf->logfile == NULL || cnf->logfile[0] == '\0') {
+		return;
+	}
 
-			if ((name = getenv("LOGNAME")) == NULL && (name = getenv("USER")) == NULL)
-				name = "unknown";
-			/* ISO 8601 International Standard Date format */
-			strftime(nfmt, sizeof nfmt, "%Y-%m-%d %T ", t);
-			sprintf(nfmt + strlen(nfmt), "[%s:%s%s] %s\n", name, Which[which], Modes[mode], fmt);
-			va_start(argp, fmt);
-			vfprintf(logfile, nfmt, argp);
-			va_end(argp);
-			fflush(logfile);
+	if (logfile == NULL) {
+		/* With umask==0 we need to control file access modes on create */
+		fd = open(cnf->logfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
+		if (fd == -1) {
+			return;
 		}
+		logfile = fdopen(fd, "a");
+		if (logfile == NULL) {
+			return;
+		}
+	}
+
+	if ((name = getenv("LOGNAME")) == NULL &&
+	    (name = getenv("USER")) == NULL) {
+		strcpy(sname, "unknown");
+	} else {
+		/*
+		 * Since "name" will be embedded in a printf-like format,
+		 * we must sanitize it:
+		 *
+		 *    Limit its length so other information in the message
+		 *    is not truncated
+		 *
+		 *    Squeeze out embedded whitespace for the benefit of
+		 *    log file parsers
+		 *
+		 *    Escape embedded % characters with another %
+		 */
+		for (i = 0, cp = name;
+		    *cp != '\0' && i < (int)sizeof(sname) - 1; cp++) {
+			if (*cp == '%') {
+				if (i < (int)sizeof(sname) - 2) {
+					sname[i++] = '%';
+					sname[i++] = '%';
+				} else {
+					break;
+				}
+			} else if (!isspace(*cp)) {
+				sname[i++] = *cp;
+			} /* else do nothing */
+		}
+		if (i == 0) {
+			strcpy(sname, "unknown");
+		} else {
+			sname[i] = '\0';
+		}
+	}
+	now = time(NULL);
+	t = localtime(&now);
+	/* ISO 8601 International Standard Date format */
+	strftime(nfmt, sizeof nfmt, "%Y-%m-%d %T ", t);
+	rlen = sizeof(nfmt) - strlen(nfmt);
+	if (rlen <= 0 || snprintf(nfmt + strlen(nfmt), rlen,
+	    "[%s:%s%s] %s\n", sname, Which[which], Modes[mode],
+	    fmt) >= rlen) {
+		warnx("log format overflow, user name=%s", sname);
+	} else {
+		va_start(argp, fmt);
+		vfprintf(logfile, nfmt, argp);
+		va_end(argp);
+		fflush(logfile);
 	}
 }
