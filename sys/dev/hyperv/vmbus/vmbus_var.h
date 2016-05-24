@@ -65,12 +65,8 @@ vmbus_get_device(void)
 	return vmbus_sc->vmbus_dev;
 }
 
-#define VMBUS_SC_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
-#define VMBUS_SC_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
-#define VMBUS_PCPU_GET(field, cpu)		\
-	VMBUS_SC_PCPU_GET(vmbus_get_softc(), field, (cpu))
-#define VMBUS_PCPU_PTR(field, cpu)		\
-	VMBUS_SC_PCPU_PTR(vmbus_get_softc(), field, (cpu))
+#define VMBUS_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
+#define VMBUS_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
 
 void	vmbus_on_channel_open(const struct hv_vmbus_channel *);
 void	vmbus_event_proc(struct vmbus_softc *, int);
