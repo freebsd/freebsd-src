@@ -1026,7 +1026,8 @@ vesa_bios_init(void)
 
 		++modes;
 	}
-	vesa_vmode[modes].vi_mode = EOT;
+	if (vesa_vmode != NULL)
+		vesa_vmode[modes].vi_mode = EOT;
 
 	if (bootverbose)
 		printf("VESA: %d mode(s) found\n", modes);
