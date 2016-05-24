@@ -431,6 +431,12 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 			taskqueue_free(hv_vmbus_g_context.hv_event_queue[cpu]);
 			hv_vmbus_g_context.hv_event_queue[cpu] = NULL;
 		}
+		if (hv_vmbus_g_context.hv_msg_tq[cpu] != NULL) {
+			taskqueue_drain(hv_vmbus_g_context.hv_msg_tq[cpu],
+			    &hv_vmbus_g_context.hv_msg_task[cpu]);
+			taskqueue_free(hv_vmbus_g_context.hv_msg_tq[cpu]);
+			hv_vmbus_g_context.hv_msg_tq[cpu] = NULL;
+		}
 	}
 	if (sc->vmbus_idtvec >= 0) {
 		lapic_ipi_free(sc->vmbus_idtvec);
