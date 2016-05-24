@@ -1017,10 +1017,13 @@ const struct bhndb_hw_priority *
 bhndb_hw_priority_find_device(const struct bhndb_hw_priority *table,
     device_t device)
 {
-	const struct bhndb_hw_priority *hp;
+	const struct bhndb_hw_priority	*hp;
+	struct bhnd_core_info		 ci;
+
+	ci = bhnd_get_core_info(device);
 
 	for (hp = table; hp->ports != NULL; hp++) {
-		if (bhnd_device_matches(device, &hp->match))
+		if (bhnd_core_matches(&ci, &hp->match))
 			return (hp);
 	}
 
