@@ -33,6 +33,7 @@
 
 struct vmbus_pcpu_data {
 	int		event_flag_cnt;	/* # of event flags */
+	u_long		*intr_cnt;
 } __aligned(CACHE_LINE_SIZE);
 
 struct vmbus_softc {
