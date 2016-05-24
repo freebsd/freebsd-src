@@ -120,7 +120,7 @@ void
 dtrace_toxic_ranges(void (*func)(uintptr_t base, uintptr_t limit))
 {
 
-	printf("IMPLEMENT ME: dtrace_toxic_ranges\n");
+	(*func)(0, (uintptr_t)VM_MIN_KERNEL_ADDRESS);
 }
 
 void
