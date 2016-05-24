@@ -26,7 +26,7 @@ _libzpool=	libzpool
 .endif
 .endif
 
-.if ${MACHINE_CPUARCH} != "sparc64" && ${MACHINE_CPUARCH} != "riscv"
+.if ${MACHINE_CPUARCH} != "sparc64"
 _drti=		drti
 _libdtrace=	libdtrace
 .endif
