@@ -19,7 +19,9 @@ The command to execute changes.
 .It
 The current working directory changes.
 .It
-The target's meta file is missing.
+The target's meta file is missing, if it had
+.Sy .META
+as a dependency.
 .It
 [requires
 .Xr filemon 4 ]
