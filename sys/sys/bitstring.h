@@ -65,8 +65,9 @@
 #ifdef _KERNEL
 #include <sys/libkern.h>
 #include <sys/malloc.h>
-#include <sys/types.h>
 #endif
+
+#include <sys/types.h>
 
 typedef	unsigned long bitstr_t;
 
