@@ -370,7 +370,7 @@ static int
 vmbus_bus_init(void)
 {
 	struct vmbus_softc *sc;
-	int i, j, n, ret;
+	int i, n, ret, cpu;
 	char buf[MAXCOMLEN + 1];
 	cpuset_t cpu_mask;
 
@@ -394,44 +394,49 @@ vmbus_bus_init(void)
 		    sc->vmbus_idtvec);
 	}
 
-	CPU_FOREACH(j) {
-		snprintf(buf, sizeof(buf), "cpu%d:hyperv", j);
-		intrcnt_add(buf, VMBUS_SC_PCPU_PTR(sc, intr_cnt, j));
+	CPU_FOREACH(cpu) {
+		snprintf(buf, sizeof(buf), "cpu%d:hyperv", cpu);
+		intrcnt_add(buf, VMBUS_SC_PCPU_PTR(sc, intr_cnt, cpu));
 
 		for (i = 0; i < 2; i++)
-			setup_args.page_buffers[2 * j + i] = NULL;
+			setup_args.page_buffers[2 * cpu + i] = NULL;
 	}
 
 	/*
 	 * Per cpu setup.
 	 */
-	CPU_FOREACH(j) {
+	CPU_FOREACH(cpu) {
 		/*
 		 * Setup taskqueue to handle events
 		 */
-		hv_vmbus_g_context.hv_event_queue[j] = taskqueue_create_fast("hyperv event", M_WAITOK,
-			taskqueue_thread_enqueue, &hv_vmbus_g_context.hv_event_queue[j]);
-		CPU_SETOF(j, &cpu_mask);
-		taskqueue_start_threads_cpuset(&hv_vmbus_g_context.hv_event_queue[j], 1, PI_NET, &cpu_mask,
-			"hvevent%d", j);
+		hv_vmbus_g_context.hv_event_queue[cpu] =
+		    taskqueue_create_fast("hyperv event", M_WAITOK,
+		    taskqueue_thread_enqueue,
+		    &hv_vmbus_g_context.hv_event_queue[cpu]);
+		CPU_SETOF(cpu, &cpu_mask);
+		taskqueue_start_threads_cpuset(
+		    &hv_vmbus_g_context.hv_event_queue[cpu], 1, PI_NET,
+		    &cpu_mask, "hvevent%d", cpu);
 
 		/*
 		 * Setup per-cpu tasks and taskqueues to handle msg.
 		 */
-		hv_vmbus_g_context.hv_msg_tq[j] = taskqueue_create_fast(
+		hv_vmbus_g_context.hv_msg_tq[cpu] = taskqueue_create_fast(
 		    "hyperv msg", M_WAITOK, taskqueue_thread_enqueue,
-		    &hv_vmbus_g_context.hv_msg_tq[j]);
-		CPU_SETOF(j, &cpu_mask);
-		taskqueue_start_threads_cpuset(&hv_vmbus_g_context.hv_msg_tq[j],
-		    1, PI_NET, &cpu_mask, "hvmsg%d", j);
-		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[j], 0,
+		    &hv_vmbus_g_context.hv_msg_tq[cpu]);
+		CPU_SETOF(cpu, &cpu_mask);
+		taskqueue_start_threads_cpuset(
+		    &hv_vmbus_g_context.hv_msg_tq[cpu], 1, PI_NET,
+		    &cpu_mask, "hvmsg%d", cpu);
+		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[cpu], 0,
 		    vmbus_msg_task, NULL);
 
 		/*
-		 * Prepare the per cpu msg and event pages to be called on each cpu.
+		 * Prepare the per cpu msg and event pages to be called on
+		 * each cpu.
 		 */
 		for(i = 0; i < 2; i++) {
-			setup_args.page_buffers[2 * j + i] =
+			setup_args.page_buffers[2 * cpu + i] =
 				malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 		}
 	}
@@ -475,10 +480,10 @@ vmbus_bus_init(void)
 	/*
 	 * remove swi and vmbus callback vector;
 	 */
-	CPU_FOREACH(j) {
-		if (hv_vmbus_g_context.hv_event_queue[j] != NULL) {
-			taskqueue_free(hv_vmbus_g_context.hv_event_queue[j]);
-			hv_vmbus_g_context.hv_event_queue[j] = NULL;
+	CPU_FOREACH(cpu) {
+		if (hv_vmbus_g_context.hv_event_queue[cpu] != NULL) {
+			taskqueue_free(hv_vmbus_g_context.hv_event_queue[cpu]);
+			hv_vmbus_g_context.hv_event_queue[cpu] = NULL;
 		}
 	}
 
