@@ -334,5 +334,12 @@
 # endif
 #endif /* EFSYS_OPT_LICENSING */
 
+/* Support adapters with missing static config (for factory use only) */
+#if EFSYS_OPT_ALLOW_UNCONFIGURED_NIC
+# if !EFSYS_OPT_MEDFORD
+#  error "ALLOW_UNCONFIGURED_NIC requires MEDFORD"
+# endif
+#endif /* EFSYS_OPT_ALLOW_UNCONFIGURED_NIC */
+
 
 #endif /* _SYS_EFX_CHECK_H */

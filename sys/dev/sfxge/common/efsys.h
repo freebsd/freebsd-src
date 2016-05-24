@@ -278,6 +278,8 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 
 #define	EFSYS_OPT_LICENSING 0
 
+#define	EFSYS_OPT_ALLOW_UNCONFIGURED_NIC 0
+
 /* ID */
 
 typedef struct __efsys_identifier_s	efsys_identifier_t;
