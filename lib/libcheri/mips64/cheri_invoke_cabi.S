@@ -235,6 +235,7 @@ set_cheri_errno:
 	#
 	# Get the address of the thread-local cherierrno variable.
 	#
+#ifdef HAVE_WORKING_TLS
 	lui	$at, %tprel_hi(cherierrno)
 	.set	push
 	.set	mips32r2
@@ -247,8 +248,20 @@ set_cheri_errno:
 
 	.end	cheri_invoke
 
+#else
+	#
+	# We currently don't have working TLS inside sandboxes, so set a global.
+	#
+	dla	$a2, cherierrno
+	b	cheri_invoke_restore_regs
+	csw	$a0, $a2, 0($c0)
+	.end	cheri_invoke
+#endif
+
 	.type	cherierrno,@object      # @cherierrno
+#ifdef HAVE_WORKING_TLS
 	.section	.tbss,"awT",@nobits
+#endif
 	.globl	cherierrno
 	.align	2
 cherierrno:
