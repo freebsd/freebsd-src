@@ -91,8 +91,9 @@ using DevdCtl::ParseException;
 
 /*--------------------------------- CaseFile ---------------------------------*/
 //- CaseFile Static Data -------------------------------------------------------
+
 CaseFileList  CaseFile::s_activeCases;
-const string  CaseFile::s_caseFilePath = "/etc/zfs/cases";
+const string  CaseFile::s_caseFilePath = "/var/db/zfsd/cases";
 const timeval CaseFile::s_removeGracePeriod = { 60 /*sec*/, 0 /*usec*/};
 
 //- CaseFile Static Public Methods ---------------------------------------------

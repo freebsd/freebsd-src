@@ -76,10 +76,6 @@
         ..
         ssl
         ..
-        zfs
-            cases
-            ..
-        ..
     ..
     lib
         casper
