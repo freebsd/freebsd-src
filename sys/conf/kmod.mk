@@ -164,7 +164,7 @@ SRCS+=	${KMOD:S/$/.c/}
 CLEANFILES+=	${KMOD:S/$/.c/}
 
 .for _firmw in ${FIRMWS}
-${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
+${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
 		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
@@ -176,7 +176,7 @@ ${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
 		rm ${_firmw:C/\:.*$//};				\
 	fi
 
-OBJS+=	${_firmw:C/\:.*$/.fwo/}
+OBJS+=	${_firmw:C/\:.*$/.fwo/:T}
 .endfor
 .endif
 
