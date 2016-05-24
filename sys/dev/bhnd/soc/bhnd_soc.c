@@ -216,7 +216,7 @@ bhnd_soc_is_hw_disabled(device_t dev, device_t child)
 	return false;
 }
 
-static int
+static bhnd_attach_type
 bhnd_soc_get_attach_type(device_t dev, device_t child)
 {
 	return (BHND_ATTACH_NATIVE);
