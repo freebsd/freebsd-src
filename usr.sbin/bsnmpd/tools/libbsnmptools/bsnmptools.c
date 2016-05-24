@@ -251,7 +251,7 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 			return (0);
 	}
 
-	if ((fstring = malloc(strlen(filename) + 1)) == NULL) {
+	if ((fstring = strdup(filename)) == NULL) {
 		warnx("malloc() failed - %s", strerror(errno));
 		return (-1);
 	}
@@ -264,7 +264,6 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 
 	if (cut != NULL)
 		asn_append_oid(&(entry->cut), cut);
-	strlcpy(fstring, filename, strlen(filename) + 1);
 	entry->name = fstring;
 	entry->done = done;
 	SLIST_INSERT_HEAD(&snmptoolctx->filelist, entry, link);
@@ -1060,7 +1059,7 @@ snmp_oid2asn_oid(struct snmp_toolinfo *snmptoolctx, char *str,
     struct asn_oid *oid)
 {
 	int32_t i;
-	char string[MAXSTR], *endptr;
+	char string[MAXSTR + 1], *endptr;
 	struct snmp_object obj;
 
 	for (i = 0; i < MAXSTR; i++)
@@ -1076,7 +1075,6 @@ snmp_oid2asn_oid(struct snmp_toolinfo *snmptoolctx, char *str,
 			return (NULL);
 	} else {
 		strlcpy(string, str, i + 1);
-		string[i] = '\0';
 		if (snmp_lookup_enumoid(snmptoolctx, &obj, string) < 0) {
 			warnx("Unknown string - %s", string);
 			return (NULL);
