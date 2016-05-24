@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/frame.h>
 #include <machine/trap.h>
+#include <machine/vmparam.h>
 #include <vm/pmap.h>
 
 extern dtrace_id_t	dtrace_probeid_error;
