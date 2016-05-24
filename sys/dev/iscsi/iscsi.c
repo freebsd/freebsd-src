@@ -1324,6 +1324,7 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 		    sizeof(request->idr_conf));
 		
 		error = icl_limits(is->is_conf.isc_offload,
+		    is->is_conf.isc_iser,
 		    &request->idr_limits.isl_max_data_segment_length);
 		if (error != 0) {
 			ISCSI_SESSION_WARN(is, "icl_limits for offload \"%s\" "
@@ -1773,7 +1774,7 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	}
 
 	is->is_conn = icl_new_conn(is->is_conf.isc_offload,
-	    "iscsi", &is->is_lock);
+	    is->is_conf.isc_iser, "iscsi", &is->is_lock);
 	if (is->is_conn == NULL) {
 		sx_xunlock(&sc->sc_lock);
 		free(is, M_ISCSI);
