@@ -95,6 +95,10 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/powerpc
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/powerpc
+.elif ${MACHINE_CPUARCH} == "riscv"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/riscv
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/riscv
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/riscv
 .elif ${MACHINE_CPUARCH} == "sparc64"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/sparc
