@@ -272,6 +272,7 @@ msg_not_enough_disks_selected="Not enough disks selected. (%u < %u minimum)"
 msg_null_disk_argument="NULL disk argument"
 msg_null_index_argument="NULL index argument"
 msg_null_poolname="NULL poolname"
+msg_odd_disk_selected="An even number of disks must be selected to create a RAID 1+0. (%u selected)"
 msg_ok="OK"
 msg_partition_scheme="Partition Scheme"
 msg_partition_scheme_help="Select partitioning scheme. GPT is recommended."
@@ -284,6 +285,8 @@ msg_pool_name_help="Customize the name of the zpool to be created (Required)"
 msg_pool_type_disks="Pool Type/Disks:"
 msg_pool_type_disks_help="Choose type of ZFS Virtual Device and disks to use (Required)"
 msg_processing_selection="Processing selection..."
+msg_raid10_desc="RAID 1+0 - n x 2-Way Mirrors"
+msg_raid10_help="[4+ Disks] Striped Mirrors provides the best performance, but the least storage"
 msg_raidz1_desc="RAID-Z1 - Single Redundant RAID"
 msg_raidz1_help="[3+ Disks] Withstand failure of 1 disk. Recommended for: 3, 5 or 9 disks"
 msg_raidz2_desc="RAID-Z2 - Double Redundant RAID"
@@ -478,6 +481,7 @@ dialog_menu_layout()
 	local vdev_menu_list="
 		'stripe' '$msg_stripe_desc' '$msg_stripe_help'
 		'mirror' '$msg_mirror_desc' '$msg_mirror_help'
+		'raid10' '$msg_raid10_desc' '$msg_raid10_help'
 		'raidz1' '$msg_raidz1_desc' '$msg_raidz1_help'
 		'raidz2' '$msg_raidz2_desc' '$msg_raidz2_help'
 		'raidz3' '$msg_raidz3_desc' '$msg_raidz3_help'
@@ -488,7 +492,7 @@ dialog_menu_layout()
 
 	# Warn the user if vdev type is not valid
 	case "$ZFSBOOT_VDEV_TYPE" in
-	stripe|mirror|raidz1|raidz2|raidz3) : known good ;;
+	stripe|mirror|raid10|raidz1|raidz2|raidz3) : known good ;;
 	*)
 		f_dprintf "%s: Invalid virtual device type \`%s'" \
 			  $funcname "$ZFSBOOT_VDEV_TYPE"
@@ -575,6 +579,7 @@ dialog_menu_layout()
 		case "$ZFSBOOT_VDEV_TYPE" in
 		stripe) want_disks=1 ;;
 		mirror) want_disks=2 ;;
+		raid10) want_disks=4 ;;
 		raidz1) want_disks=3 ;;
 		raidz2) want_disks=4 ;;
 		raidz3) want_disks=5 ;;
@@ -683,6 +688,21 @@ dialog_menu_layout()
 			          "$ZFSBOOT_DISKS"
 
 			f_count ndisks $ZFSBOOT_DISKS
+
+			if [ "$ZFSBOOT_VDEV_TYPE" == "raid10" ] &&
+			    [ $(( $ndisks % 2 )) -ne 0 ]; then
+				f_dprintf "$funcname: %s: %s (%u %% 2 = %u)" \
+					  "$ZFSBOOT_VDEV_TYPE" \
+					  "Number of disks not even:" \
+					  $ndisks $(( $ndisks % 2 ))
+				msg_yes="$msg_change_selection" \
+					msg_no="$msg_cancel" \
+					f_yesno "%s: $msg_odd_disk_selected" \
+						"$ZFSBOOT_VDEV_TYPE" $ndisks ||
+						break
+				continue
+			fi
+
 			[ $ndisks -ge $want_disks ] &&
 				breakout=break && break
 
@@ -1271,10 +1291,25 @@ zfs_create_boot()
 	#
 	f_dprintf "$funcname: Creating root pool..."
 	create_options="$ZFSBOOT_POOL_CREATE_OPTIONS"
-	f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
-		"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
-		"$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
-		return $FAILURE
+	if [ "$zroot_vdevtype" == "raid10" ]; then
+		raid10_vdevs=""
+		for vdev in $zroot_vdevs; do
+			f_count nvdev $raid10_vdevs
+			if [ $(( $nvdev % 3 )) -eq 0 ]; then
+				raid10_vdevs="$raid10_vdevs mirror"
+			fi
+			raid10_vdevs="$raid10_vdevs $vdev"
+		done
+		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
+			"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
+			"$zroot_name" "" "$raid10_vdevs" ||
+			return $FAILURE
+	else
+		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
+			"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
+			"$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
+			return $FAILURE
+	fi
 
 	#
 	# Create ZFS dataset layout within the new root pool
