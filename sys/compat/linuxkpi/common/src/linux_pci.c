@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/pci.h>
+#include <linux/compat.h>
 
 static device_probe_t linux_pci_probe;
 static device_attach_t linux_pci_attach;
@@ -120,8 +121,12 @@ linux_pci_attach(device_t dev)
 	struct pci_dev *pdev;
 	struct pci_driver *pdrv;
 	const struct pci_device_id *id;
+	struct task_struct t;
+	struct thread *td;
 	int error;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
 	pdev->dev.parent = &linux_root_device;
@@ -152,16 +157,21 @@ linux_pci_attach(device_t dev)
 		list_del(&pdev->links);
 		spin_unlock(&pci_lock);
 		put_device(&pdev->dev);
-		return (-error);
+		error = -error;
 	}
-	return (0);
+	linux_clear_current(td);
+	return (error);
 }
 
 static int
 linux_pci_detach(device_t dev)
 {
 	struct pci_dev *pdev;
+	struct task_struct t;
+	struct thread *td;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
 	mtx_unlock(&Giant);
 	pdev->pdrv->remove(pdev);
@@ -170,6 +180,7 @@ linux_pci_detach(device_t dev)
 	list_del(&pdev->links);
 	spin_unlock(&pci_lock);
 	put_device(&pdev->dev);
+	linux_clear_current(td);
 
 	return (0);
 }
@@ -179,13 +190,18 @@ linux_pci_suspend(device_t dev)
 {
 	struct pm_message pm = { };
 	struct pci_dev *pdev;
+	struct task_struct t;
+	struct thread *td;
 	int err;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
 	if (pdev->pdrv->suspend != NULL)
 		err = -pdev->pdrv->suspend(pdev, pm);
 	else
 		err = 0;
+	linux_clear_current(td);
 	return (err);
 }
 
@@ -193,13 +209,18 @@ static int
 linux_pci_resume(device_t dev)
 {
 	struct pci_dev *pdev;
+	struct task_struct t;
+	struct thread *td;
 	int err;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
 	if (pdev->pdrv->resume != NULL)
 		err = -pdev->pdrv->resume(pdev);
 	else
 		err = 0;
+	linux_clear_current(td);
 	return (err);
 }
 
@@ -207,13 +228,18 @@ static int
 linux_pci_shutdown(device_t dev)
 {
 	struct pci_dev *pdev;
+	struct task_struct t;
+	struct thread *td;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
 	if (pdev->pdrv->shutdown != NULL) {
 		DROP_GIANT();
 		pdev->pdrv->shutdown(pdev);
 		PICKUP_GIANT();
 	}
+	linux_clear_current(td);
 	return (0);
 }
 

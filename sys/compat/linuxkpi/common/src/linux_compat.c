@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/compat.h>
 
 #include <vm/vm_pager.h>
 
@@ -380,7 +381,7 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	return kobject_add_complete(kobj, parent);
 }
 
-static void
+void
 linux_set_current(struct thread *td, struct task_struct *t)
 {
 	memset(t, 0, sizeof(*t));
@@ -388,7 +389,7 @@ linux_set_current(struct thread *td, struct task_struct *t)
 	task_struct_set(td, t);
 }
 
-static void
+void
 linux_clear_current(struct thread *td)
 {
 	task_struct_set(td, NULL);
