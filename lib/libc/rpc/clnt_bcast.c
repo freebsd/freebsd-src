@@ -348,7 +348,6 @@ rpc_broadcast_exp(rpcprog_t prog, rpcvers_t vers, rpcproc_t proc,
 			udpbufsz = fdlist[fdlistno].dsize;
 			outbuf_pmap = reallocf(outbuf_pmap, udpbufsz);
 			if (outbuf_pmap == NULL) {
-				outbuf_pmap = NULL;
 				_close(fd);
 				stat = RPC_SYSTEMERROR;
 				goto done_broad;
