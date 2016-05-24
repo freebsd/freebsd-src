@@ -169,7 +169,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 		 * Check for and do something with commands whose
 		 * IULEN extends past a single queue entry.
 		 */
-		len = at7iop->at_ta_len & 0xfffff;
+		len = at7iop->at_ta_len & 0x0fff;
 		if (len > (QENTRY_LEN - 8)) {
 			len -= (QENTRY_LEN - 8);
 			isp_prt(isp, ISP_LOGINFO, "long IU length (%d) ignored", len);
