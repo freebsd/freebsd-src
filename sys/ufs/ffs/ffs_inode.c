@@ -562,7 +562,7 @@ extclean:
 		softdep_journal_freeblocks(ip, cred, length, IO_EXT);
 	else
 		softdep_setup_freeblocks(ip, length, IO_EXT);
-	return (ffs_update(vp, !DOINGASYNC(vp)));
+	return (ffs_update(vp, (flags & IO_SYNC) != 0 || !DOINGASYNC(vp)));
 }
 
 /*
