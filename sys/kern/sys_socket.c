@@ -721,6 +721,7 @@ soo_aio_cancel(struct kaiocb *job)
 {
 	struct socket *so;
 	struct sockbuf *sb;
+	long done;
 	int opcode;
 
 	so = job->fd_file->f_data;
@@ -739,7 +740,11 @@ soo_aio_cancel(struct kaiocb *job)
 		sb->sb_flags &= ~SB_AIO;
 	SOCKBUF_UNLOCK(sb);
 
-	aio_cancel(job);
+	done = job->uaiocb._aiocb_private.status;
+	if (done != 0)
+		aio_complete(job, done, 0);
+	else
+		aio_cancel(job);
 }
 
 static int
