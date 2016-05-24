@@ -648,11 +648,11 @@ decoded:
 	} else if (usm_user->suser.auth_proto != SNMP_AUTH_NOAUTH &&
 	     (pdu->engine.engine_boots == 0 || pdu->engine.engine_time == 0)) {
 		snmpd_usmstats.not_in_time_windows++;
-		ret = SNMP_CODE_FAILED;
+		ret = SNMPD_INPUT_FAILED;
 	}
 
 	if ((code = snmp_pdu_auth_access(pdu, ip)) != SNMP_CODE_OK)
-		ret = SNMP_CODE_FAILED;
+		ret = SNMPD_INPUT_FAILED;
 
 	return (ret);
 }
@@ -2730,7 +2730,7 @@ bsnmpd_get_usm_stats(void)
 void
 bsnmpd_reset_usm_stats(void)
 {
-	memset(&snmpd_usmstats, 0, sizeof(&snmpd_usmstats));
+	memset(&snmpd_usmstats, 0, sizeof(snmpd_usmstats));
 }
 
 struct usm_user *
