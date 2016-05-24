@@ -3752,6 +3752,9 @@ flashcard(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 			return ENOBUFS;
 		break;
 	case AIROFLSHGCHR:	/* Get char from aux */
+		if (l_ioctl->len > sizeof(sc->areq)) {
+			return -EINVAL;
+		}
 		AN_UNLOCK(sc);
 		status = copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
 		AN_LOCK(sc);
@@ -3763,6 +3766,9 @@ flashcard(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 		else
 			return -1;
 	case AIROFLSHPCHR:	/* Send char to card. */
+		if (l_ioctl->len > sizeof(sc->areq)) {
+			return -EINVAL;
+		}
 		AN_UNLOCK(sc);
 		status = copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
 		AN_LOCK(sc);
