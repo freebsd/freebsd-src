@@ -157,26 +157,19 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 	BHNDB_HW_MATCH("PCI/v0 WLAN", v0,
 		/* PCI Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_PCI,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHNDB_PCI_V0_MAX_PCI_HWREV
-			},
-			.class	= BHND_DEVCLASS_PCI,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_ID	(BHND_COREID_PCI),
+			BHND_MATCH_CORE_REV(
+			    HWREV_LTE		(BHNDB_PCI_V0_MAX_PCI_HWREV)),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_PCI),
+			BHND_MATCH_CORE_UNIT	(0)
 		},
 
 		/* 802.11 Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_INVALID,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_WLAN,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_WLAN),
+			BHND_MATCH_CORE_UNIT	(0)
 		}
 	),
 	
@@ -184,26 +177,19 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 	BHNDB_HW_MATCH("PCI/v1 WLAN", v1_pci,
 		/* PCI Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_PCI,
-			.hwrev	= { 
-				.start	= BHNDB_PCI_V1_MIN_PCI_HWREV,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_PCI,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_ID	(BHND_COREID_PCI),
+			BHND_MATCH_CORE_REV(
+			    HWREV_GTE		(BHNDB_PCI_V1_MIN_PCI_HWREV)),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_PCI),
+			BHND_MATCH_CORE_UNIT	(0)
 		},
 
 		/* 802.11 Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_INVALID,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_WLAN,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_WLAN),
+			BHND_MATCH_CORE_UNIT	(0)
 		}
 	),
 
@@ -211,38 +197,27 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 	BHNDB_HW_MATCH("PCIe/v1 WLAN", v1_pcie,
 		/* PCIe Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_PCIE,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_PCIE,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_ID	(BHND_COREID_PCIE),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_PCIE),
+			BHND_MATCH_CORE_UNIT	(0)
 		},
 
 		/* ChipCommon (revision <= 31) */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_CC,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHNDB_PCI_V1_MAX_CHIPC_HWREV
-			},
-			.class	= BHND_DEVCLASS_CC,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_ID	(BHND_COREID_CC),
+			BHND_MATCH_CORE_REV(
+			    HWREV_LTE		(BHNDB_PCI_V1_MAX_CHIPC_HWREV)),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_CC),
+			BHND_MATCH_CORE_UNIT	(0)
 		},
 
 		/* 802.11 Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_INVALID,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_WLAN,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_WLAN),
+			BHND_MATCH_CORE_UNIT	(0)
 		}
 	),
 
@@ -250,35 +225,27 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 	BHNDB_HW_MATCH("PCIe/v2 WLAN", v2,
 		/* PCIe Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_PCIE,
-			.hwrev	= { 0, BHND_HWREV_INVALID },
-			.class	= BHND_DEVCLASS_PCIE,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_ID	(BHND_COREID_PCIE),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_PCIE),
+			BHND_MATCH_CORE_UNIT	(0)
 		},
 
 		/* ChipCommon (revision >= 32) */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_CC,
-			.hwrev	= {
-				.start	= BHNDB_PCI_V2_MIN_CHIPC_HWREV,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_CC,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_ID	(BHND_COREID_CC),
+			BHND_MATCH_CORE_REV(
+			    HWREV_GTE		(BHNDB_PCI_V2_MIN_CHIPC_HWREV)),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_CC),
+			BHND_MATCH_CORE_UNIT	(0)
 		},
 
 		/* 802.11 Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_INVALID,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_WLAN,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_WLAN),
+			BHND_MATCH_CORE_UNIT	(0)
 		}
 	),
 
@@ -287,26 +254,17 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 	BHNDB_HW_MATCH("PCIe-Gen2/v3 WLAN", v3,
 		/* PCIe Gen2 Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_PCIE2,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_PCIE,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_ID	(BHND_COREID_PCIE2),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_PCIE),
+			BHND_MATCH_CORE_UNIT	(0)
 		},
 
 		/* 802.11 Core */
 		{
-			.vendor	= BHND_MFGID_BCM,
-			.device	= BHND_COREID_INVALID,
-			.hwrev	= {
-				.start	= 0,
-				.end	= BHND_HWREV_INVALID
-			},
-			.class	= BHND_DEVCLASS_WLAN,
-			.unit	= 0
+			BHND_MATCH_CORE_VENDOR	(BHND_MFGID_BCM),
+			BHND_MATCH_CORE_CLASS	(BHND_DEVCLASS_WLAN),
+			BHND_MATCH_CORE_UNIT	(0)
 		}
 	),
 

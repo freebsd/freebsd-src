@@ -55,24 +55,25 @@ __FBSDID("$FreeBSD$");
 }
 
 /*
- * Define a core priority record for all cores matching @p devclass and
- * @p unit.
- * 
- * If a devclass of BHNDB_DEVCLASS_INVALID is specified, this will match
- * on all device classes.
- * 
- * If a unit number of -1 is specified, this will match on all units.
+ * Define a core priority record for all cores matching @p devclass
  */
-#define	BHNDB_CLASS_PRIO(_devclass, _unit, _priority, ...) {		\
+#define	BHNDB_CLASS_PRIO(_devclass, _priority, ...) {		\
 	.match	= {							\
-		.vendor	= BHND_MFGID_INVALID,				\
-		.device	= BHND_COREID_INVALID,				\
-		.hwrev	= { BHND_HWREV_INVALID, BHND_HWREV_INVALID },	\
-		.class	= (BHND_DEVCLASS_ ## _devclass),		\
-		.unit	= (_unit)					\
+		BHND_MATCH_CORE_CLASS(BHND_DEVCLASS_ ## _devclass),	\
 	},								\
 	.priority = (BHNDB_PRIORITY_ ## _priority),		\
 	BHNDB_PORTS(__VA_ARGS__)					\
+}
+
+/*
+ * Define a default core priority record
+ */
+#define	BHNDB_DEFAULT_PRIO(...) {		\
+	.match	= {				\
+		BHND_MATCH_ANY	,		\
+	},					\
+	.priority = (BHNDB_PRIORITY_DEFAULT),	\
+	BHNDB_PORTS(__VA_ARGS__)		\
 }
 
 /* Define a port priority record for the type/port/region
@@ -100,10 +101,10 @@ const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 	 * Runtime access to these cores is not required, and no register
 	 * windows should be reserved for these device types.
 	 */
-	BHNDB_CLASS_PRIO(SOC_ROUTER,	-1,	NONE),
-	BHNDB_CLASS_PRIO(SOC_BRIDGE,	-1,	NONE),
-	BHNDB_CLASS_PRIO(EROM,		-1,	NONE),
-	BHNDB_CLASS_PRIO(OTHER,		-1,	NONE),
+	BHNDB_CLASS_PRIO(SOC_ROUTER,	NONE),
+	BHNDB_CLASS_PRIO(SOC_BRIDGE,	NONE),
+	BHNDB_CLASS_PRIO(EROM,		NONE),
+	BHNDB_CLASS_PRIO(OTHER,		NONE),
 
 	/*
 	 * Low priority device classes.
@@ -111,7 +112,7 @@ const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 	 * These devices do not sit in a performance-critical path and can be
 	 * treated as a low allocation priority.
 	 */
-	BHNDB_CLASS_PRIO(CC,		-1,	LOW,
+	BHNDB_CLASS_PRIO(CC,		LOW,
 		/* Device Block */
 		BHNDB_PORT0_PRIO(DEVICE,	LOW),
 
@@ -119,7 +120,7 @@ const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 		BHNDB_PORT0_PRIO(AGENT,		NONE)
 	),
 
-	BHNDB_CLASS_PRIO(PMU,		-1,	LOW,
+	BHNDB_CLASS_PRIO(PMU,		LOW,
 		/* Device Block */
 		BHNDB_PORT0_PRIO(DEVICE,	LOW),
 
@@ -133,7 +134,7 @@ const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 	 * All other cores are assumed to require efficient runtime access to
 	 * the default device port, and if supported by the bus, an agent port.
 	 */
-	BHNDB_CLASS_PRIO(INVALID,	-1,	DEFAULT,
+	BHNDB_DEFAULT_PRIO(
 		/* Device Block */
 		BHNDB_PORT0_PRIO(DEVICE,	HIGH),
 
@@ -155,10 +156,10 @@ const struct bhndb_hw_priority bhndb_siba_priority_table[] = {
 	 * Runtime access to these cores is not required, and no register
 	 * windows should be reserved for these device types.
 	 */
-	BHNDB_CLASS_PRIO(SOC_ROUTER,	-1,	NONE),
-	BHNDB_CLASS_PRIO(SOC_BRIDGE,	-1,	NONE),
-	BHNDB_CLASS_PRIO(EROM,		-1,	NONE),
-	BHNDB_CLASS_PRIO(OTHER,		-1,	NONE),
+	BHNDB_CLASS_PRIO(SOC_ROUTER,	NONE),
+	BHNDB_CLASS_PRIO(SOC_BRIDGE,	NONE),
+	BHNDB_CLASS_PRIO(EROM,		NONE),
+	BHNDB_CLASS_PRIO(OTHER,		NONE),
 
 	/*
 	 * Low priority device classes.
@@ -170,12 +171,12 @@ const struct bhndb_hw_priority bhndb_siba_priority_table[] = {
 	 * will be fully mappable via register windows shared with the
 	 * device0.0 port.
 	 */
-	BHNDB_CLASS_PRIO(CC,		-1,	LOW,
+	BHNDB_CLASS_PRIO(CC,		LOW,
 		/* Device Block */
 		BHNDB_PORT_PRIO(DEVICE,	0,	0,	LOW)
 	),
 
-	BHNDB_CLASS_PRIO(PMU,		-1,	LOW,
+	BHNDB_CLASS_PRIO(PMU,		LOW,
 		/* Device Block */
 		BHNDB_PORT_PRIO(DEVICE,	0,	0,	LOW)
 	),
@@ -186,7 +187,7 @@ const struct bhndb_hw_priority bhndb_siba_priority_table[] = {
 	 * All other cores are assumed to require efficient runtime access to
 	 * the device port.
 	 */
-	BHNDB_CLASS_PRIO(INVALID,	-1,	DEFAULT,
+	BHNDB_DEFAULT_PRIO(
 		/* Device Block */
 		BHNDB_PORT_PRIO(DEVICE,	0,	0,	HIGH)
 	),

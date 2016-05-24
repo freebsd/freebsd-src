@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 static int	siba_bhndb_wars_hwup(struct siba_softc *sc);
 
+/* Bridge-specific core device quirks */
 enum {
 	/** When PCIe-bridged, the D11 core's initiator request
 	 *  timeout must be disabled to prevent D11 from entering a
@@ -67,9 +68,13 @@ enum {
 	SIBA_QUIRK_PCIE_D11_SB_TIMEOUT	= (1<<0)
 };
 
-static struct bhnd_chip_quirk chip_quirks[] = {
-	{{ BHND_CHIP_IR(4311, HWREV_EQ(2)) }, SIBA_QUIRK_PCIE_D11_SB_TIMEOUT },
-	{{ BHND_CHIP_IR(4312, HWREV_EQ(0)) }, SIBA_QUIRK_PCIE_D11_SB_TIMEOUT },
+static struct bhnd_device_quirk bridge_quirks[] = {
+	BHND_CHIP_QUIRK(4311, HWREV_EQ(2), SIBA_QUIRK_PCIE_D11_SB_TIMEOUT),
+	BHND_CHIP_QUIRK(4312, HWREV_EQ(0), SIBA_QUIRK_PCIE_D11_SB_TIMEOUT),
+};
+
+static struct bhnd_device bridge_devs[] = {
+	BHND_DEVICE(PCI, NULL, bridge_quirks),
 };
 
 static int
@@ -218,12 +223,9 @@ siba_bhndb_wars_pcie_clear_d11_timeout(struct siba_softc *sc)
 		return (0);
 
 	/* Only applies if there's a D11 core */
-	d11 = bhnd_match_child(sc->dev, &(struct bhnd_core_match){
-		.vendor	= BHND_MFGID_BCM,
-		.device	= BHND_COREID_D11,
-		.hwrev	= BHND_HWREV_ANY,
-		.class	= BHND_DEVCLASS_INVALID,
-		.unit	= 0
+	d11 = bhnd_match_child(sc->dev, &(struct bhnd_core_match) {
+		BHND_MATCH_CORE(BHND_MFGID_BCM, BHND_COREID_D11),
+		BHND_MATCH_CORE_UNIT(0)
 	});
 	if (d11 == NULL)
 		return (0);
@@ -250,7 +252,8 @@ siba_bhndb_wars_hwup(struct siba_softc *sc)
 	uint32_t		 quirks;
 	int			 error;
 
-	quirks = bhnd_chip_quirks(sc->hostb_dev, chip_quirks);
+	quirks = bhnd_device_quirks(sc->hostb_dev, bridge_devs,
+	    sizeof(bridge_devs[0]));
 
 	if (quirks & SIBA_QUIRK_PCIE_D11_SB_TIMEOUT) {
 		if ((error = siba_bhndb_wars_pcie_clear_d11_timeout(sc)))

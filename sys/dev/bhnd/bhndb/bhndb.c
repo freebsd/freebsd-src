@@ -194,13 +194,15 @@ bhndb_hw_matches(device_t *devlist, int num_devs, const struct bhndb_hw *hw)
 {
 	for (u_int i = 0; i < hw->num_hw_reqs; i++) {
 		const struct bhnd_core_match	*match;
+		struct bhnd_core_info		 ci;
 		bool				 found;
 
 		match =  &hw->hw_reqs[i];
 		found = false;
 
 		for (int d = 0; d < num_devs; d++) {
-			if (!bhnd_device_matches(devlist[d], match))
+			ci = bhnd_get_core_info(devlist[d]);
+			if (!bhnd_core_matches(&ci, match))
 				continue;
 
 			found = true;
@@ -986,20 +988,17 @@ compare_core_index(const void *lhs, const void *rhs)
 static device_t
 bhndb_find_hostb_device(device_t dev, device_t child)
 {
-	struct bhndb_softc	*sc;
-	struct bhnd_core_match	 md;
-	device_t		 hostb_dev, *devlist;
-	int                      devcnt, error;
+	struct bhndb_softc		*sc;
+	struct bhnd_device_match	 md;
+	device_t			 hostb_dev, *devlist;
+	int				 devcnt, error;
 
 	sc = device_get_softc(dev);
 
-	/* Determine required device class and set up a match descriptor. */
-	md = (struct bhnd_core_match) {
-		.vendor = BHND_MFGID_BCM,
-		.device = BHND_COREID_INVALID,
-		.hwrev = { BHND_HWREV_INVALID, BHND_HWREV_INVALID },
-		.class = sc->bridge_class,
-		.unit = 0
+	/* Set up a match descriptor for the required device class. */
+	md = (struct bhnd_device_match) {
+		BHND_MATCH_CORE_CLASS(sc->bridge_class),
+		BHND_MATCH_CORE_UNIT(0)
 	};
 	
 	/* Must be the absolute first matching device on the bus. */

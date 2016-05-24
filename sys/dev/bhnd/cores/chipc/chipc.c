@@ -64,60 +64,38 @@ __FBSDID("$FreeBSD$");
 devclass_t bhnd_chipc_devclass;	/**< bhnd(4) chipcommon device class */
 
 static struct bhnd_device_quirk chipc_quirks[];
-static struct bhnd_chip_quirk chipc_chip_quirks[];
 
 /* Supported device identifiers */
 static const struct bhnd_device chipc_devices[] = {
-	BHND_DEVICE(CC, "CC", chipc_quirks, chipc_chip_quirks),
+	BHND_DEVICE(CC,	NULL,	chipc_quirks),
 	BHND_DEVICE_END
 };
 
 
 /* Device quirks table */
 static struct bhnd_device_quirk chipc_quirks[] = {
-	{ BHND_HWREV_GTE	(32),	CHIPC_QUIRK_SUPPORTS_SPROM },
-	{ BHND_HWREV_GTE	(35),	CHIPC_QUIRK_SUPPORTS_CAP_EXT },
-	{ BHND_HWREV_EQ		(38),	CHIPC_QUIRK_4706_NFLASH }, /*BCM5357 ?*/
-	{ BHND_HWREV_GTE	(49),	CHIPC_QUIRK_IPX_OTPLAYOUT_SIZE },
+	/* core revision quirks */
+	BHND_CORE_QUIRK	(HWREV_GTE(32),		CHIPC_QUIRK_SUPPORTS_SPROM),
+	BHND_CORE_QUIRK	(HWREV_GTE(35),		CHIPC_QUIRK_SUPPORTS_CAP_EXT),
+	BHND_CORE_QUIRK	(HWREV_GTE(49),		CHIPC_QUIRK_IPX_OTPLAYOUT_SIZE),
+
+	/* 4706 variant quirks */
+	BHND_CORE_QUIRK	(HWREV_EQ (38),		CHIPC_QUIRK_4706_NFLASH), /* BCM5357? */
+	BHND_CHIP_QUIRK	(4706,	HWREV_ANY,	CHIPC_QUIRK_4706_NFLASH),
+
+	/* 4331 quirks*/
+	BHND_CHIP_QUIRK	(4331,	HWREV_ANY,	CHIPC_QUIRK_4331_EXTPA_MUX_SPROM),
+	BHND_PKG_QUIRK	(4331,	TN,		CHIPC_QUIRK_4331_GPIO2_5_MUX_SPROM),
+	BHND_PKG_QUIRK	(4331,	TNA0,		CHIPC_QUIRK_4331_GPIO2_5_MUX_SPROM),
+	BHND_PKG_QUIRK	(4331,	TT,		CHIPC_QUIRK_4331_EXTPA2_MUX_SPROM),
+
+	/* 4360 quirks */
+	BHND_CHIP_QUIRK	(4352,	HWREV_LTE(2),	CHIPC_QUIRK_4360_FEM_MUX_SPROM),
+	BHND_CHIP_QUIRK	(43460,	HWREV_LTE(2),	CHIPC_QUIRK_4360_FEM_MUX_SPROM),
+	BHND_CHIP_QUIRK	(43462,	HWREV_LTE(2),	CHIPC_QUIRK_4360_FEM_MUX_SPROM),
+	BHND_CHIP_QUIRK	(43602,	HWREV_LTE(2),	CHIPC_QUIRK_4360_FEM_MUX_SPROM),
 
 	BHND_DEVICE_QUIRK_END
-};
-
-/* Chip-specific quirks table */
-static struct bhnd_chip_quirk chipc_chip_quirks[] = {
-	/* 4331 12x9 packages */
-	{{ BHND_CHIP_IP(4331, 4331TN) },
-		CHIPC_QUIRK_4331_GPIO2_5_MUX_SPROM
-	},
-	{{ BHND_CHIP_IP(4331, 4331TNA0) },
-		CHIPC_QUIRK_4331_GPIO2_5_MUX_SPROM
-	},
-
-	/* 4331 12x12 packages */
-	{{ BHND_CHIP_IPR(4331, 4331TT, HWREV_GTE(1)) },
-		CHIPC_QUIRK_4331_EXTPA2_MUX_SPROM
-	},
-
-	/* 4331 (all packages/revisions) */
-	{{ BHND_CHIP_ID(4331) },
-		CHIPC_QUIRK_4331_EXTPA_MUX_SPROM
-	},
-
-	/* 4360 family (all revs <= 2) */
-	{{ BHND_CHIP_IR(4352, HWREV_LTE(2)) },
-		CHIPC_QUIRK_4360_FEM_MUX_SPROM },
-	{{ BHND_CHIP_IR(43460, HWREV_LTE(2)) },
-		CHIPC_QUIRK_4360_FEM_MUX_SPROM },
-	{{ BHND_CHIP_IR(43462, HWREV_LTE(2)) },
-		CHIPC_QUIRK_4360_FEM_MUX_SPROM },
-	{{ BHND_CHIP_IR(43602, HWREV_LTE(2)) },
-		CHIPC_QUIRK_4360_FEM_MUX_SPROM },
-
-	/* BCM4706 */
-	{{ BHND_CHIP_ID(4306) },
-		CHIPC_QUIRK_4706_NFLASH },
-
-	BHND_CHIP_QUIRK_END
 };
 
 static int			 chipc_try_activate_resource(
@@ -316,7 +294,7 @@ chipc_read_caps(struct chipc_softc *sc, struct chipc_caps *caps)
 		caps->otp_size = CHIPC_GET_BITS(regval, CHIPC_OTPL_SIZE);
 	}
 
-	/* Determine flash type and paramters */
+	/* Determine flash type and parameters */
 	caps->cfi_width = 0;
 
 	switch (CHIPC_GET_BITS(cap_reg, CHIPC_CAP_FLASH)) {

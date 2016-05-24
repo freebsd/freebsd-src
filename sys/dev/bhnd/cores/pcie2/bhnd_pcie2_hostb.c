@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include "bhnd_pcie2_hostbvar.h"
 
 static const struct bhnd_device_quirk bhnd_pcie2_quirks[];
-static const struct bhnd_chip_quirk bhnd_pcie2_chip_quirks[];
 
 
 static int	bhnd_pcie2_wars_early_once(struct bhnd_pcie2hb_softc *sc);
@@ -83,27 +82,23 @@ static int	bhnd_pcie2_wars_hwdown(struct bhnd_pcie2hb_softc *sc);
  * device/quirk tables
  */
 
-#define	BHND_PCI_DEV(_core, _quirks, _chip_quirks)		\
-	BHND_DEVICE(_core, "", _quirks, _chip_quirks, BHND_DF_HOSTB)
+#define	BHND_PCI_DEV(_core, _quirks)		\
+	BHND_DEVICE(_core, NULL, _quirks, BHND_DF_HOSTB)
 
 static const struct bhnd_device bhnd_pcie2_devs[] = {
-	BHND_PCI_DEV(PCIE2,	bhnd_pcie2_quirks,	bhnd_pcie2_chip_quirks),
+	BHND_PCI_DEV(PCIE2,	bhnd_pcie2_quirks),
 	BHND_DEVICE_END
 };
 
 static const struct bhnd_device_quirk bhnd_pcie2_quirks[] = {
-	BHND_DEVICE_QUIRK_END
-};
-
-static const struct bhnd_chip_quirk bhnd_pcie2_chip_quirks[] = {
 	/* Apple BCM4360 boards that require adjusting TX amplitude and
 	 * differential output de-emphasis of the PCIe SerDes */
-	{{ BHND_CHIP_BVT	(PCI_VENDOR_APPLE,	BCM94360X51P2)	},
-		BHND_PCIE2_QUIRK_SERDES_TXDRV_DEEMPH	},
-	{{ BHND_CHIP_BVT	(PCI_VENDOR_APPLE,	BCM94360X51A)	},
-		BHND_PCIE2_QUIRK_SERDES_TXDRV_DEEMPH	},
+	{{ BHND_MATCH_BOARD(PCI_VENDOR_APPLE, BCM94360X51P2), },
+		BHND_PCIE2_QUIRK_SERDES_TXDRV_DEEMPH },
+	{{ BHND_MATCH_BOARD(PCI_VENDOR_APPLE, BCM94360X51A), },
+		BHND_PCIE2_QUIRK_SERDES_TXDRV_DEEMPH },
 
-	BHND_CHIP_QUIRK_END
+	BHND_DEVICE_QUIRK_END
 };
 
 static int

@@ -57,11 +57,11 @@ __FBSDID("$FreeBSD$");
 static struct bhnd_device_quirk bhnd_pcie2_quirks[];
 
 #define	BHND_PCIE_DEV(_core, _desc, ...)				\
-	BHND_DEVICE(_core, _desc, bhnd_pcie2_quirks, NULL, ## __VA_ARGS__)
+	BHND_DEVICE(_core, _desc, bhnd_pcie2_quirks, ## __VA_ARGS__)
 
 static const struct bhnd_device bhnd_pcie2_devs[] = {
 	BHND_PCIE_DEV(PCIE2,	"PCIe-G2 Host-PCI bridge",	BHND_DF_HOSTB),
-	BHND_PCIE_DEV(PCIE2,	"PCIe-G2 PCI-BHND bridge"),
+	BHND_PCIE_DEV(PCIE2,	"PCIe-G2 PCI-BHND bridge",	BHND_DF_SOC),
 
 	BHND_DEVICE_END
 };
