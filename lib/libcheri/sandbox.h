@@ -123,6 +123,19 @@ void	sandbox_object_destroy(struct sandbox_object *sbop);
  * API to query the object-capability pair for the sandbox itself
  */
 struct cheri_object	sandbox_object_getobject(struct sandbox_object *sbop);
+#if __has_feature(capabilities)
+/**
+ * Get the sandbox's global data capability.
+ */
+__capability void *
+sandbox_object_getsandboxdata(struct sandbox_object *sbop);
+/**
+ * Get the sandbox's stack.  This is a temporary API and should go away once
+ * libcheri is responsible for managing a pool of stacks and clearing them.
+ */
+__capability void *
+sandbox_object_getsandboxstack(struct sandbox_object *sbop);
+#endif
 
 /*
  * API to query system capabilities for use by sandboxes.

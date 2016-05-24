@@ -640,6 +640,22 @@ sandbox_object_getobject(struct sandbox_object *sbop)
 	return (sbop->sbo_cheri_object_invoke);
 }
 
+__capability void *
+sandbox_object_getsandboxdata(struct sandbox_object *sbop)
+{
+
+	return (cheri_unseal(sbop->sbo_cheri_object_invoke.co_datacap,
+			sbop->sbo_sandbox_classp->sbc_typecap));
+}
+
+__capability void *
+sandbox_object_getsandboxstack(struct sandbox_object *sbop)
+{
+
+	return (sbop->sbo_stackcap);
+}
+
+
 struct cheri_object
 sandbox_object_getsystemobject(struct sandbox_object *sbop)
 {
