@@ -604,7 +604,6 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
 	if (handle) {
-		mtx_lock(&Giant);
 		/*
 		 * Reference existing named region or allocate new one.  There
 		 * should not be a race here against swp_pager_meta_build()
@@ -617,7 +616,6 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			if (cred != NULL) {
 				if (!swap_reserve_by_cred(size, cred)) {
 					sx_xunlock(&sw_alloc_sx);
-					mtx_unlock(&Giant);
 					return (NULL);
 				}
 				crhold(cred);
@@ -633,7 +631,6 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			VM_OBJECT_WUNLOCK(object);
 		}
 		sx_xunlock(&sw_alloc_sx);
-		mtx_unlock(&Giant);
 	} else {
 		if (cred != NULL) {
 			if (!swap_reserve_by_cred(size, cred))
