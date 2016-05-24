@@ -79,20 +79,27 @@ SYSCTL_INT(_kern_icl, OID_AUTO, debug, CTLFLAG_RWTUN,
     &icl_debug, 0, "Enable debug messages");
 SYSCTL_PROC(_kern_icl, OID_AUTO, offloads,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_kern_icl_offloads, "A",
+    NULL, false, sysctl_kern_icl_offloads, "A",
     "List of ICL modules");
+SYSCTL_PROC(_kern_icl, OID_AUTO, iser_offloads,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, true, sysctl_kern_icl_offloads, "A",
+    "List of iSER ICL modules");
 
 static int
 sysctl_kern_icl_offloads(SYSCTL_HANDLER_ARGS)
 {
 	const struct icl_module *im;
 	struct sbuf sb;
+	bool iser = arg2;
 	int error;
 
 	sbuf_new(&sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
 
 	sx_slock(&sc->sc_lock);
 	TAILQ_FOREACH(im, &sc->sc_modules, im_next) {
+		if (im->im_iser != iser)
+			continue;
 		if (im != TAILQ_FIRST(&sc->sc_modules))
 			sbuf_putc(&sb, ' ');
 		sbuf_printf(&sb, "%s", im->im_name);
