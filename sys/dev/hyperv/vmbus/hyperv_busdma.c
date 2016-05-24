@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/include/hyperv_busdma.h>
 
-#define HYPERV_DMA_WAITMASK	(BUS_DMA_WAITOK | BUS_DMA_NOWAIT)
+#define HYPERV_DMA_MASK	(BUS_DMA_WAITOK | BUS_DMA_NOWAIT | BUS_DMA_ZERO)
 
 void
 hyperv_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -73,7 +73,7 @@ hyperv_dmamem_alloc(bus_dma_tag_t parent_dtag, bus_size_t alignment,
 		return NULL;
 
 	error = bus_dmamem_alloc(dma->hv_dtag, &ret,
-	    (flags & HYPERV_DMA_WAITMASK) | BUS_DMA_COHERENT, &dma->hv_dmap);
+	    (flags & HYPERV_DMA_MASK) | BUS_DMA_COHERENT, &dma->hv_dmap);
 	if (error) {
 		bus_dma_tag_destroy(dma->hv_dtag);
 		return NULL;
