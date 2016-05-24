@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Solarflare Communications Inc.
+ * Copyright (c) 2015-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by OKTET Labs under contract for
