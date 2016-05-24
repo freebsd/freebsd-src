@@ -780,6 +780,8 @@ ffs_mountfs(devvp, mp, td)
 		mp->mnt_iosize_max = MAXPHYS;
 
 	devvp->v_bufobj.bo_ops = &ffs_ops;
+	if (devvp->v_type == VCHR)
+		devvp->v_rdev->si_mountpt = mp;
 
 	fs = NULL;
 	sblockloc = 0;
@@ -1049,8 +1051,6 @@ ffs_mountfs(devvp, mp, td)
 			ffs_flushfiles(mp, FORCECLOSE, td);
 			goto out;
 		}
-		if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
-			devvp->v_rdev->si_mountpt = mp;
 		if (fs->fs_snapinum[0] != 0)
 			ffs_snapshot_mount(mp);
 		fs->fs_fmod = 1;
@@ -1083,6 +1083,8 @@ ffs_mountfs(devvp, mp, td)
 out:
 	if (bp)
 		brelse(bp);
+	if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
+		devvp->v_rdev->si_mountpt = NULL;
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
