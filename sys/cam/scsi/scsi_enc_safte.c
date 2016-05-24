@@ -292,11 +292,8 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	    cfg->DoorLock + cfg->Ntherm + cfg->Nspkrs + cfg->Ntstats + 1;
 	ENC_FREE_AND_NULL(enc->enc_cache.elm_map);
 	enc->enc_cache.elm_map =
-	    ENC_MALLOCZ(enc->enc_cache.nelms * sizeof(enc_element_t));
-	if (enc->enc_cache.elm_map == NULL) {
-		enc->enc_cache.nelms = 0;
-		return (ENOMEM);
-	}
+	    malloc(enc->enc_cache.nelms * sizeof(enc_element_t),
+	    M_SCSIENC, M_WAITOK|M_ZERO);
 
 	r = 0;
 	/*
