@@ -4712,11 +4712,9 @@ bwn_rf_turnoff(struct bwn_mac *mac)
 
 /*
  * SSB PHY reset.
- *
- * XXX TODO: BCMA PHY reset.
  */
 static void
-bwn_phy_reset(struct bwn_mac *mac)
+bwn_phy_reset_siba(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 
@@ -4727,6 +4725,17 @@ bwn_phy_reset(struct bwn_mac *mac)
 	siba_write_4(sc->sc_dev, SIBA_TGSLOW,
 	    (siba_read_4(sc->sc_dev, SIBA_TGSLOW) & ~SIBA_TGSLOW_FGC));
 	DELAY(1000);
+}
+
+static void
+bwn_phy_reset(struct bwn_mac *mac)
+{
+
+	if (bwn_is_bus_siba(mac)) {
+		bwn_phy_reset_siba(mac);
+	} else {
+		BWN_ERRPRINTF(mac->mac_sc, "%s: unknown bus!\n", __func__);
+	}
 }
 
 static int
