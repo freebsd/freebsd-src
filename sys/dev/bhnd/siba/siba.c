@@ -409,7 +409,7 @@ siba_get_region_addr(device_t dev, device_t child, bhnd_port_type port_type,
 			continue;
 
 		*addr = addrspace->sa_base;
-		*size = addrspace->sa_size;
+		*size = addrspace->sa_size - addrspace->sa_bus_reserved;
 		return (0);
 	}
 

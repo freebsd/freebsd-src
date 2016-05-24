@@ -797,11 +797,11 @@ bhnd_parse_chipid(uint32_t idreg, bhnd_addr_t enum_addr)
 	struct bhnd_chipid result;
 
 	/* Fetch the basic chip info */
-	result.chip_id = CHIPC_GET_ATTR(idreg, ID_CHIP);
-	result.chip_pkg = CHIPC_GET_ATTR(idreg, ID_PKG);
-	result.chip_rev = CHIPC_GET_ATTR(idreg, ID_REV);
-	result.chip_type = CHIPC_GET_ATTR(idreg, ID_BUS);
-	result.ncores = CHIPC_GET_ATTR(idreg, ID_NUMCORE);
+	result.chip_id = CHIPC_GET_BITS(idreg, CHIPC_ID_CHIP);
+	result.chip_pkg = CHIPC_GET_BITS(idreg, CHIPC_ID_PKG);
+	result.chip_rev = CHIPC_GET_BITS(idreg, CHIPC_ID_REV);
+	result.chip_type = CHIPC_GET_BITS(idreg, CHIPC_ID_BUS);
+	result.ncores = CHIPC_GET_BITS(idreg, CHIPC_ID_NUMCORE);
 
 	result.enum_addr = enum_addr;
 
@@ -1020,15 +1020,11 @@ find_nvram_child(device_t dev)
 	if (device_get_devclass(dev) != bhnd_devclass)
 		return (NULL);
 
-	/* Look for a ChipCommon device */
+	/* Look for a ChipCommon-attached NVRAM device */
 	if ((chipc = bhnd_find_child(dev, BHND_DEVCLASS_CC, -1)) != NULL) {
-		bhnd_nvram_src_t src;
-
-		/* Query the NVRAM source and determine whether it's
-		 * accessible via the ChipCommon device */
-		src = BHND_CHIPC_NVRAM_SRC(chipc);
-		if (BHND_NVRAM_SRC_CC(src))
-			return (chipc);
+		nvram = device_find_child(chipc, "bhnd_nvram", 0);
+		if (nvram != NULL)
+			return (nvram);
 	}
 
 	/* Not found */

@@ -29,9 +29,31 @@
  * $FreeBSD$
  */
 
-#ifndef _BHND_NVRAM_BHND_SPROM_H_
-#define _BHND_NVRAM_BHND_SPROM_H_
+#ifndef _BHND_NVRAM_BHND_SPROMVAR_H_
+#define _BHND_NVRAM_BHND_SPROMVAR_H_
 
+#include <dev/bhnd/bhnd.h>
+
+DECLARE_CLASS(bhnd_sprom_driver);
+struct bhnd_sprom;
+
+int	bhnd_sprom_probe(device_t dev);
+int	bhnd_sprom_attach(device_t dev);
+int	bhnd_sprom_resume(device_t dev);
+int	bhnd_sprom_suspend(device_t dev);
+int	bhnd_sprom_detach(device_t dev);
+
+int	bhnd_sprom_init(struct bhnd_sprom *sprom, struct bhnd_resource *r,
+	    bus_size_t offset);
+void	bhnd_sprom_fini(struct bhnd_sprom *sprom);
+int	bhnd_sprom_getvar(struct bhnd_sprom *sc, const char *name, void *buf,
+	    size_t *len);
+int	bhnd_sprom_setvar(struct bhnd_sprom *sc, const char *name,
+	    const void *buf, size_t len);
+
+/**
+ * bhnd sprom parser instance state.
+ */
 struct bhnd_sprom {
 	device_t		 dev;		/**< sprom parent device */
 
@@ -46,13 +68,17 @@ struct bhnd_sprom {
 	size_t			 sp_capacity;	/**< shadow buffer capacity */
 };
 
-int	bhnd_sprom_init(struct bhnd_sprom *sprom, struct bhnd_resource *r,
-	    bus_size_t offset);
-void	bhnd_sprom_fini(struct bhnd_sprom *sprom);
 
-int	bhnd_sprom_getvar(struct bhnd_sprom *sc, const char *name, void *buf,
-	    size_t *len);
-int	bhnd_sprom_setvar(struct bhnd_sprom *sc, const char *name,
-	    const void *buf, size_t len);
+/**
+ * bhnd_sprom driver instance state. Must be first member of all subclass
+ * softc structures.
+ */
+struct bhnd_sprom_softc {
+	device_t		 dev;
+	struct bhnd_resource	*sprom_res;	/**< SPROM resource */
+	int			 sprom_rid;	/**< SPROM RID */
+	struct bhnd_sprom	 shadow;	/**< SPROM shadow */
+	struct mtx		 mtx;		/**< SPROM shadow mutex */
+};
 
-#endif /* _BHND_NVRAM_BHND_SPROM_H_ */
+#endif /* _BHND_NVRAM_BHND_SPROMVAR_H_ */
