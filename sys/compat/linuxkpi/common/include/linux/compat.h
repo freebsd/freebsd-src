@@ -31,4 +31,10 @@
 #ifndef	_LINUX_COMPAT_H_
 #define	_LINUX_COMPAT_H_
 
+struct thread;
+struct task_struct;
+
+void linux_set_current(struct thread *td, struct task_struct *t);
+void linux_clear_current(struct thread *td);
+
 #endif	/* _LINUX_COMPAT_H_ */
