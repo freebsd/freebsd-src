@@ -93,7 +93,9 @@ __FBSDID("$FreeBSD$");
 
 .if \el == 1
 	/* Store kernel sp */
-	sd	sp, (TF_SP)(sp)
+	li	t1, TF_SIZE
+	add	t0, sp, t1
+	sd	t0, (TF_SP)(sp)
 .else
 	/* Store user sp */
 	csrr	t0, sscratch
