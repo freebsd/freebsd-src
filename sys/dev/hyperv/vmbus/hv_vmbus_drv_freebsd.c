@@ -208,6 +208,126 @@ hv_vector_handler(struct trapframe *trap_frame)
 	critical_exit();
 }
 
+static void
+vmbus_synic_setup(void *arg)
+{
+	struct vmbus_softc *sc = vmbus_get_softc();
+	int			cpu;
+	uint64_t		hv_vcpu_index;
+	hv_vmbus_synic_simp	simp;
+	hv_vmbus_synic_siefp	siefp;
+	hv_vmbus_synic_scontrol sctrl;
+	hv_vmbus_synic_sint	shared_sint;
+	uint64_t		version;
+	hv_setup_args* 		setup_args = (hv_setup_args *)arg;
+
+	cpu = PCPU_GET(cpuid);
+
+	/*
+	 * TODO: Check the version
+	 */
+	version = rdmsr(HV_X64_MSR_SVERSION);
+
+	hv_vmbus_g_context.syn_ic_msg_page[cpu] =
+	    setup_args->page_buffers[2 * cpu];
+	hv_vmbus_g_context.syn_ic_event_page[cpu] =
+	    setup_args->page_buffers[2 * cpu + 1];
+
+	/*
+	 * Setup the Synic's message page
+	 */
+
+	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
+	simp.u.simp_enabled = 1;
+	simp.u.base_simp_gpa = ((hv_get_phys_addr(
+	    hv_vmbus_g_context.syn_ic_msg_page[cpu])) >> PAGE_SHIFT);
+
+	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
+
+	/*
+	 * Setup the Synic's event page
+	 */
+	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
+	siefp.u.siefp_enabled = 1;
+	siefp.u.base_siefp_gpa = ((hv_get_phys_addr(
+	    hv_vmbus_g_context.syn_ic_event_page[cpu])) >> PAGE_SHIFT);
+
+	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
+
+	/*HV_SHARED_SINT_IDT_VECTOR + 0x20; */
+	shared_sint.as_uint64_t = 0;
+	shared_sint.u.vector = sc->vmbus_idtvec;
+	shared_sint.u.masked = FALSE;
+	shared_sint.u.auto_eoi = TRUE;
+
+	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
+	    shared_sint.as_uint64_t);
+
+	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT,
+	    shared_sint.as_uint64_t);
+
+	/* Enable the global synic bit */
+	sctrl.as_uint64_t = rdmsr(HV_X64_MSR_SCONTROL);
+	sctrl.u.enable = 1;
+
+	wrmsr(HV_X64_MSR_SCONTROL, sctrl.as_uint64_t);
+
+	hv_vmbus_g_context.syn_ic_initialized = TRUE;
+
+	/*
+	 * Set up the cpuid mapping from Hyper-V to FreeBSD.
+	 * The array is indexed using FreeBSD cpuid.
+	 */
+	hv_vcpu_index = rdmsr(HV_X64_MSR_VP_INDEX);
+	hv_vmbus_g_context.hv_vcpu_index[cpu] = (uint32_t)hv_vcpu_index;
+}
+
+static void
+vmbus_synic_teardown(void *arg)
+{
+	hv_vmbus_synic_sint	shared_sint;
+	hv_vmbus_synic_simp	simp;
+	hv_vmbus_synic_siefp	siefp;
+
+	if (!hv_vmbus_g_context.syn_ic_initialized)
+	    return;
+
+	shared_sint.as_uint64_t = rdmsr(
+	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT);
+
+	shared_sint.u.masked = 1;
+
+	/*
+	 * Disable the interrupt 0
+	 */
+	wrmsr(
+	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
+	    shared_sint.as_uint64_t);
+
+	shared_sint.as_uint64_t = rdmsr(
+	    HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT);
+
+	shared_sint.u.masked = 1;
+
+	/*
+	 * Disable the interrupt 1
+	 */
+	wrmsr(
+	    HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT,
+	    shared_sint.as_uint64_t);
+	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
+	simp.u.simp_enabled = 0;
+	simp.u.base_simp_gpa = 0;
+
+	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
+
+	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
+	siefp.u.siefp_enabled = 0;
+	siefp.u.base_siefp_gpa = 0;
+
+	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
+}
+
 static int
 vmbus_read_ivar(
 	device_t	dev,
@@ -445,7 +565,7 @@ vmbus_bus_init(void)
 		printf("VMBUS: Calling smp_rendezvous, smp_started = %d\n",
 		    smp_started);
 
-	smp_rendezvous(NULL, hv_vmbus_synic_init, NULL, &setup_args);
+	smp_rendezvous(NULL, vmbus_synic_setup, NULL, &setup_args);
 
 	/*
 	 * Connect to VMBus in the root partition
@@ -553,7 +673,7 @@ vmbus_detach(device_t dev)
 	hv_vmbus_release_unattached_channels();
 	hv_vmbus_disconnect();
 
-	smp_rendezvous(NULL, hv_vmbus_synic_cleanup, NULL, NULL);
+	smp_rendezvous(NULL, vmbus_synic_teardown, NULL, NULL);
 
 	for(i = 0; i < 2 * MAXCPU; i++) {
 		if (setup_args.page_buffers[i] != NULL)
