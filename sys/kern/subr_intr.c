@@ -317,7 +317,8 @@ intr_irq_handler(struct trapframe *tf)
 	td->td_intr_frame = oldframe;
 	critical_exit();
 #ifdef HWPMC_HOOKS
-	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+	if (pmc_hook && TRAPF_USERMODE(tf) &&
+	    (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
 		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
 #endif
 }
