@@ -146,12 +146,12 @@ linux_pci_attach(device_t dev)
 	else
 		pdev->dev.irq = 255;
 	pdev->irq = pdev->dev.irq;
-	mtx_unlock(&Giant);
+	DROP_GIANT();
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
 	spin_unlock(&pci_lock);
 	error = pdrv->probe(pdev, id);
-	mtx_lock(&Giant);
+	PICKUP_GIANT();
 	if (error) {
 		spin_lock(&pci_lock);
 		list_del(&pdev->links);
@@ -173,9 +173,9 @@ linux_pci_detach(device_t dev)
 	td = curthread;
 	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
-	mtx_unlock(&Giant);
+	DROP_GIANT();
 	pdev->pdrv->remove(pdev);
-	mtx_lock(&Giant);
+	PICKUP_GIANT();
 	spin_lock(&pci_lock);
 	list_del(&pdev->links);
 	spin_unlock(&pci_lock);
