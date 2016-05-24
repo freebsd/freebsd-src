@@ -1305,8 +1305,7 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 		goto bailout;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_read_capacity(&ccb->csio,
 			   /*retries*/ probe_retry_count,
@@ -1387,8 +1386,7 @@ rcap_done:
 		goto bailout_error;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cpi);
 
 	ccb->ccb_h.func_code = XPT_PATH_INQ;
 	ccb->ccb_h.flags = CAM_DIR_NONE;
@@ -2439,8 +2437,7 @@ camdd_pass_run(struct camdd_dev *dev)
 	data = &buf->buf_type_spec.data;
 
 	ccb = &data->ccb;
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	/*
 	 * In almost every case the number of blocks should be the device
