@@ -186,12 +186,11 @@ hv_vmbus_isr(struct trapframe *frame)
 	return (FILTER_HANDLED);
 }
 
-u_long *hv_vmbus_intr_cpu[MAXCPU];
-
 void
 hv_vector_handler(struct trapframe *trap_frame)
 {
-	int cpu;
+	struct vmbus_softc *sc = vmbus_get_softc();
+	int cpu = curcpu;
 
 	/*
 	 * Disable preemption.
@@ -201,8 +200,7 @@ hv_vector_handler(struct trapframe *trap_frame)
 	/*
 	 * Do a little interrupt counting.
 	 */
-	cpu = PCPU_GET(cpuid);
-	(*hv_vmbus_intr_cpu[cpu])++;
+	(*VMBUS_SC_PCPU_GET(sc, intr_cnt, cpu))++;
 
 	hv_vmbus_isr(trap_frame);
 
@@ -400,7 +398,7 @@ vmbus_bus_init(void)
 
 	CPU_FOREACH(j) {
 		snprintf(buf, sizeof(buf), "cpu%d:hyperv", j);
-		intrcnt_add(buf, &hv_vmbus_intr_cpu[j]);
+		intrcnt_add(buf, VMBUS_SC_PCPU_PTR(sc, intr_cnt, j));
 
 		for (i = 0; i < 2; i++)
 			setup_args.page_buffers[2 * j + i] = NULL;
