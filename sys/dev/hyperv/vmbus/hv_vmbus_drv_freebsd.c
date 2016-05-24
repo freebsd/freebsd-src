@@ -131,11 +131,9 @@ handled:
  * message to process - an event or a channel message.
  */
 static inline int
-hv_vmbus_isr(struct trapframe *frame)
+hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 {
-	struct vmbus_softc *sc = vmbus_get_softc();
 	hv_vmbus_message *msg, *msg_base;
-	int cpu = curcpu;
 
 	/*
 	 * The Windows team has advised that we check for events
@@ -202,7 +200,7 @@ hv_vector_handler(struct trapframe *trap_frame)
 	 */
 	(*VMBUS_SC_PCPU_GET(sc, intr_cnt, cpu))++;
 
-	hv_vmbus_isr(trap_frame);
+	hv_vmbus_isr(sc, trap_frame, cpu);
 
 	/*
 	 * Enable preemption.
