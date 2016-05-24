@@ -93,7 +93,7 @@ static char *snmp_oct2bits(uint32_t len, char *octets, char *buf);
 static char *snmp_bits2oct(char *str, struct asn_oid *oid);
 static int32_t parse_bits(struct snmp_value *value, char *string);
 
-struct snmp_text_conv {
+static struct snmp_text_conv {
 	enum snmp_tc	tc;
 	const char	*tc_str;
 	int32_t		len;
@@ -158,7 +158,7 @@ snmp_oct2tc(enum snmp_tc tc, uint32_t len, char *octets)
 	uint32_t tc_len;
 	char * buf;
 
-	if (tc < 0 || tc > SNMP_UNKNOWN)
+	if (tc > SNMP_UNKNOWN)
 		tc = SNMP_UNKNOWN;
 
 	if (text_convs[tc].len > 0)
@@ -183,7 +183,7 @@ snmp_oct2tc(enum snmp_tc tc, uint32_t len, char *octets)
 char *
 snmp_tc2oid(enum snmp_tc tc, char *str, struct asn_oid *oid)
 {
-	if (tc < 0 || tc > SNMP_UNKNOWN)
+	if (tc > SNMP_UNKNOWN)
 		tc = SNMP_UNKNOWN;
 
 	return (text_convs[tc].tc2oid(str, oid));
@@ -192,7 +192,7 @@ snmp_tc2oid(enum snmp_tc tc, char *str, struct asn_oid *oid)
 int32_t
 snmp_tc2oct(enum snmp_tc tc, struct snmp_value *value, char *string)
 {
-	if (tc < 0 || tc > SNMP_UNKNOWN)
+	if (tc > SNMP_UNKNOWN)
 		tc = SNMP_UNKNOWN;
 
 	return (text_convs[tc].tc2oct(value, string));
@@ -929,12 +929,11 @@ snmp_bridgeid2oct(char *str, struct asn_oid *oid)
 static int32_t
 parse_bridge_id(struct snmp_value *sv, char *string)
 {
-	char *ptr, *endptr;
+	char *endptr;
 	int32_t i, saved_errno;
 	uint32_t v;
 	uint8_t	bridge_id[SNMP_BRIDGEID_OCTETS];
 
-	ptr = string;
 	/* Read the priority. */
 	saved_errno = errno;
 	errno = 0;
@@ -1057,12 +1056,11 @@ snmp_bport_id2oct(char *str, struct asn_oid *oid)
 static int32_t
 parse_bport_id(struct snmp_value *value, char *string)
 {
-	char *ptr, *endptr;
+	char *endptr;
 	int saved_errno;
 	uint32_t v;
 	uint8_t	bport_id[SNMP_BPORT_OCTETS];
 
-	ptr = string;
 	/* Read the priority. */
 	saved_errno = errno;
 	errno = 0;
@@ -1175,13 +1173,13 @@ snmp_oct2inetaddr(uint32_t len, char *octets, char *buf)
 }
 
 static char *
-snmp_inetaddr2oct(char *str, struct asn_oid *oid)
+snmp_inetaddr2oct(char *str __unused, struct asn_oid *oid __unused)
 {
 	return (NULL);
 }
 
 static int32_t
-parse_inetaddr(struct snmp_value *value, char *string)
+parse_inetaddr(struct snmp_value *value __unused, char *string __unused)
 {
 	return (-1);
 }
