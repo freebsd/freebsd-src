@@ -3808,6 +3808,9 @@ fail:
 				goto fail;
 			}
 
+			if (lp->state == FC_PORTDB_STATE_ZOMBIE)
+				goto relogin;
+
 			/*
 			 * See if we're still logged into it.
 			 *
