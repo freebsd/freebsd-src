@@ -1575,6 +1575,7 @@ dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
 dev/iicbus/lm75.c		optional lm75
+dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/pcf8563.c		optional pcf8563
 dev/iicbus/s35390a.c		optional s35390a
 dev/iir/iir.c			optional iir
@@ -2174,7 +2175,6 @@ dev/ofw/ofw_bus_if.m		optional fdt
 dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_fdt.c		optional fdt
 dev/ofw/ofw_if.m		optional fdt
-dev/ofw/ofw_iicbus.c		optional fdt iicbus
 dev/ofw/ofw_subr.c		optional fdt
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
