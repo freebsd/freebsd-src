@@ -434,7 +434,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 		*(struct pf_fragment_cmp *)frag = *key;
 		frag->fr_flags = 0;
-		frag->fr_timeout = time_second;
+		frag->fr_timeout = time_uptime;
 		frag->fr_maxlen = frent->fe_len;
 		TAILQ_INIT(&frag->fr_queue);
 
