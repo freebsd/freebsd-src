@@ -251,16 +251,27 @@ efx_ev_qcreate(
 	eep->ee_mask = n - 1;
 	eep->ee_esmp = esmp;
 
-	if ((rc = eevop->eevo_qcreate(enp, index, esmp, n, id, eep)) != 0)
-		goto fail2;
-
+	/*
+	 * Set outputs before the queue is created because interrupts may be
+	 * raised for events immediately after the queue is created, before the
+	 * function call below returns. See bug58606.
+	 *
+	 * The eepp pointer passed in by the client must therefore point to data
+	 * shared with the client's event processing context.
+	 */
 	enp->en_ev_qcount++;
 	*eepp = eep;
+
+	if ((rc = eevop->eevo_qcreate(enp, index, esmp, n, id, eep)) != 0)
+		goto fail2;
 
 	return (0);
 
 fail2:
 	EFSYS_PROBE(fail2);
+
+	*eepp = NULL;
+	enp->en_ev_qcount--;
 	EFSYS_KMEM_FREE(enp->en_esip, sizeof (efx_evq_t), eep);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);

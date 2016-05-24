@@ -275,6 +275,11 @@ ef10_ev_qcreate(
 
 	/* Set up the event queue */
 	irq = index;	/* INIT_EVQ expects function-relative vector number */
+
+	/*
+	 * Interrupts may be raised for events immediately after the queue is
+	 * created. See bug58606.
+	 */
 	if ((rc = efx_mcdi_init_evq(enp, index, esmp, n, irq)) != 0)
 		goto fail3;
 
