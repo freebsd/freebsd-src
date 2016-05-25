@@ -132,6 +132,8 @@ int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
 #endif /* INET */
 
+extern	struct protosw inetsw[];
+
 u_long	rip_sendspace = 9216;
 SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
     &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
@@ -411,9 +413,11 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 			IPSTAT_INC(ips_delivered);
 		INP_RUNLOCK(last);
 	} else {
+		if (inetsw[ip_protox[ip->ip_p]].pr_input == rip_input) {
+			IPSTAT_INC(ips_noproto);
+			IPSTAT_DEC(ips_delivered);
+		}
 		m_freem(m);
-		IPSTAT_INC(ips_noproto);
-		IPSTAT_DEC(ips_delivered);
 	}
 	return (IPPROTO_DONE);
 }
