@@ -40,3 +40,8 @@ mips/mips/tick.c 			standard
 # Temporary Reset if
 mips/mediatek/fdt_reset.c 		standard
 mips/mediatek/fdt_reset_if.m 		standard
+
+# Switch
+dev/etherswitch/mtkswitch/mtkswitch.c 	optional mtkswitch
+dev/etherswitch/mtkswitch/mtkswitch_rt3050.c 	optional mtkswitch
+dev/etherswitch/mtkswitch/mtkswitch_mt7620.c 	optional mtkswitch
