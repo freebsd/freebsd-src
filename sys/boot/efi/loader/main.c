@@ -923,7 +923,7 @@ command_efi_set(int argc, char *argv[])
 	    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
 	    strlen(val) + 1, val);
 	if (EFI_ERROR(err)) {
-		printf("Failed to set variable: error %d\n", EFI_ERROR_CODE(err));
+		printf("Failed to set variable: error %lu\n", EFI_ERROR_CODE(err));
 		return (CMD_ERROR);
 	}
 	return (CMD_OK);
@@ -954,7 +954,7 @@ command_efi_unset(int argc, char *argv[])
 	cpy8to16(var, wvar, sizeof(wvar));
 	err = RS->SetVariable(wvar, &guid, 0, 0, NULL);
 	if (EFI_ERROR(err)) {
-		printf("Failed to unset variable: error %d\n", EFI_ERROR_CODE(err));
+		printf("Failed to unset variable: error %lu\n", EFI_ERROR_CODE(err));
 		return (CMD_ERROR);
 	}
 	return (CMD_OK);
