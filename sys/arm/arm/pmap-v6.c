@@ -3302,10 +3302,16 @@ pmap_update_pte1_action(void *arg)
  *  Change pte1 on current pmap.
  *  Note that kernel pte1 must be changed on all pmaps.
  *
- *  By ARM ARM manual, the behaviour is UNPREDICABLE when two or more TLB
- *  entries map same VA. It's a problem when either promotion or demotion
- *  is being done. The pte1 update and appropriate TLB flush must be done
- *  atomically in general.
+ *  According to the architecture reference manual published by ARM,
+ *  the behaviour is UNPREDICTABLE when two or more TLB entries map the same VA.
+ *  According to this manual, UNPREDICTABLE behaviours must never happen in
+ *  a viable system. In contrast, on x86 processors, it is not specified which
+ *  TLB entry mapping the virtual address will be used, but the MMU doesn't
+ *  generate a bogus translation the way it does on Cortex-A8 rev 2 (Beaglebone
+ *  Black).
+ *
+ *  It's a problem when either promotion or demotion is being done. The pte1
+ *  update and appropriate TLB flush must be done atomically in general.
  */
 static void
 pmap_change_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va,
@@ -3329,8 +3335,9 @@ pmap_change_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va,
 		 * Use break-before-make approach for changing userland
 		 * mappings. It can cause L1 translation aborts on other
 		 * cores in SMP case. So, special treatment is implemented
-		 * in pmap_fault(). Interrups are disabled here to make it
-		 * without any interruption as quick as possible.
+		 * in pmap_fault(). To reduce the likelihood that another core
+		 * will be affected by the broken mapping, disable interrupts
+		 * until the mapping change is completed.
 		 */
 		cspr = disable_interrupts(PSR_I | PSR_F);
 		pte1_clear(pte1p);
@@ -6355,9 +6362,9 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	PMAP_LOCK(pmap);
 #ifdef SMP
 	/*
-	 * Special treatment due to break-before-make approach done when
+	 * Special treatment is due to break-before-make approach done when
 	 * pte1 is updated for userland mapping during section promotion or
-	 * demotion. If not catched here, pmap_enter() can find a section
+	 * demotion. If not caught here, pmap_enter() can find a section
 	 * mapping on faulting address. That is not allowed.
 	 */
 	if (idx == FAULT_TRAN_L1 && usermode && cp15_ats1cur_check(far) == 0) {
