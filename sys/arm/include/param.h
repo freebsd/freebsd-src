@@ -46,7 +46,6 @@
  */
 
 #include <machine/_align.h>
-#include <machine/acle-compat.h>
 
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)

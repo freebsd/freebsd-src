@@ -81,7 +81,6 @@
 #include "assym.s"
 #include "opt_sched.h"
 
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
