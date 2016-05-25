@@ -101,6 +101,7 @@ static struct {
 	{ "-RIPE", RNICHOST },
 	/* Nominet's whois server doesn't return referrals to JANET */
 	{ ".ac.uk", "ac.uk" QNICHOST_TAIL },
+	{ ".gov.uk", "ac.uk" QNICHOST_TAIL },
 	{ "", IANAHOST }, /* default */
 	{ NULL, NULL } /* safety belt */
 };
