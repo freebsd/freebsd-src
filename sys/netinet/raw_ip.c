@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_mroute.h>
+#include <netinet/ip_icmp.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -416,8 +417,10 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		if (inetsw[ip_protox[ip->ip_p]].pr_input == rip_input) {
 			IPSTAT_INC(ips_noproto);
 			IPSTAT_DEC(ips_delivered);
+			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PROTOCOL, 0, 0);
+		} else {
+			m_freem(m);
 		}
-		m_freem(m);
 	}
 	return (IPPROTO_DONE);
 }
