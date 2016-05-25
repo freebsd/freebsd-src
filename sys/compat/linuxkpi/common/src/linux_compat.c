@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/cdev.h>
 #include <linux/file.h>
 #include <linux/sysfs.h>
@@ -76,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/compat.h>
 
 #include <vm/vm_pager.h>
+
+SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
