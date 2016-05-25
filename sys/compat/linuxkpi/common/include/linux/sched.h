@@ -91,7 +91,7 @@ CTASSERT(sizeof(((struct thread *)0)->td_retval[1]) >= sizeof(uintptr_t));
 do {									\
 	void *c;							\
 									\
-	if (cold)							\
+	if (cold || SCHEDULER_STOPPED())				\
 		break;							\
 	c = curthread;							\
 	sleepq_lock(c);							\
