@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -585,7 +586,7 @@ static caddr_t crashdumpmap;
 static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, struct rwlock **lockp);
-static int	popcnt_pc_map_elem_pq(uint64_t elem);
+static int	popcnt_pc_map_pq(uint64_t *map);
 static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void	reserve_pv_entries(pmap_t pmap, int needed,
 		    struct rwlock **lockp);
@@ -3126,7 +3127,7 @@ retry:
 }
 
 /*
- * Returns the number of one bits within the given PV chunk map element.
+ * Returns the number of one bits within the given PV chunk map.
  *
  * The erratas for Intel processors state that "POPCNT Instruction May
  * Take Longer to Execute Than Expected".  It is believed that the
@@ -3142,12 +3143,15 @@ retry:
  * 6th Gen Core: SKL029
  */
 static int
-popcnt_pc_map_elem_pq(uint64_t elem)
+popcnt_pc_map_pq(uint64_t *map)
 {
-	u_long result;
+	u_long result, tmp;
 
-	__asm __volatile("xorl %k0,%k0;popcntq %1,%0"
-	    : "=&r" (result) : "rm" (elem));
+	__asm __volatile("xorl %k0,%k0;popcntq %2,%0;"
+	    "xorl %k1,%k1;popcntq %3,%1;addl %k1,%k0;"
+	    "xorl %k1,%k1;popcntq %4,%1;addl %k1,%k0"
+	    : "=&r" (result), "=&r" (tmp)
+	    : "m" (map[0]), "m" (map[1]), "m" (map[2]));
 	return (result);
 }
 
@@ -3179,17 +3183,12 @@ retry:
 	avail = 0;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
 #ifndef __POPCNT__
-		if ((cpu_feature2 & CPUID2_POPCNT) == 0) {
-			free = bitcount64(pc->pc_map[0]);
-			free += bitcount64(pc->pc_map[1]);
-			free += bitcount64(pc->pc_map[2]);
-		} else
+		if ((cpu_feature2 & CPUID2_POPCNT) == 0)
+			bit_count((bitstr_t *)pc->pc_map, 0,
+			    sizeof(pc->pc_map) * NBBY, &free);
+		else
 #endif
-		{
-			free = popcnt_pc_map_elem_pq(pc->pc_map[0]);
-			free += popcnt_pc_map_elem_pq(pc->pc_map[1]);
-			free += popcnt_pc_map_elem_pq(pc->pc_map[2]);
-		}
+		free = popcnt_pc_map_pq(pc->pc_map);
 		if (free == 0)
 			break;
 		avail += free;
