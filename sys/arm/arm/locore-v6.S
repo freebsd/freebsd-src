@@ -30,7 +30,6 @@
 
 #include "assym.s"
 #include <sys/syscall.h>
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>

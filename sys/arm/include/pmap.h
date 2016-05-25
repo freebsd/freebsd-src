@@ -30,8 +30,6 @@
 #ifndef _MACHINE_PMAP_H_
 #define _MACHINE_PMAP_H_
 
-#include <machine/acle-compat.h>
-
 #if __ARM_ARCH >= 6
 #include <machine/pmap-v6.h>
 #else

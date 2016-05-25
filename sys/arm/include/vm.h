@@ -29,8 +29,6 @@
 #ifndef _MACHINE_VM_H_
 #define	_MACHINE_VM_H_
 
-#include <machine/acle-compat.h>
-
 #if __ARM_ARCH >= 6
 #define VM_MEMATTR_WB_WA		((vm_memattr_t)0)
 #define VM_MEMATTR_NOCACHE		((vm_memattr_t)1)

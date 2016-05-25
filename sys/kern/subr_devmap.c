@@ -37,9 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
-#ifdef __arm__
-#include <machine/acle-compat.h>
-#endif
 #include <machine/vmparam.h>
 
 static const struct devmap_entry *devmap_table;

@@ -80,9 +80,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#ifdef __arm__
-#include <machine/acle-compat.h>
-#endif
 
 #ifdef CPU_CHERI
 #include <cheri/cheri.h>

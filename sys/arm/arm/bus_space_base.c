@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <machine/bus.h>
-#include <machine/acle-compat.h>
 
 #include "opt_platform.h"
 

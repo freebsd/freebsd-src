@@ -37,7 +37,6 @@
 #ifndef _ARM_SYSARCH_H_
 #define _ARM_SYSARCH_H_
 
-#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 
 /*
