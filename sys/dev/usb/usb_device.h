@@ -314,6 +314,9 @@ void	usb_set_device_state(struct usb_device *, enum usb_dev_state);
 enum usb_dev_state usb_get_device_state(struct usb_device *);
 
 uint8_t	usbd_enum_lock(struct usb_device *);
+#if USB_HAVE_UGEN
+uint8_t	usbd_enum_lock_sig(struct usb_device *);
+#endif
 void	usbd_enum_unlock(struct usb_device *);
 void	usbd_sr_lock(struct usb_device *);
 void	usbd_sr_unlock(struct usb_device *);
