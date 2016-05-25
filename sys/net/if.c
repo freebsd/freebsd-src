@@ -115,7 +115,7 @@ SYSCTL_INT(_net_link, OID_AUTO, log_link_state_change, CTLFLAG_RW,
 /* Log promiscuous mode change events */
 static int log_promisc_mode_change = 1;
 
-SYSCTL_INT(_net_link, OID_AUTO, log_promisc_mode_change, CTLFLAG_RW,
+SYSCTL_INT(_net_link, OID_AUTO, log_promisc_mode_change, CTLFLAG_RDTUN,
 	&log_promisc_mode_change, 1,
 	"log promiscuous mode change events");
 
