@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/uma.h>
 
-#include <machine/acle-compat.h>
 #include <machine/cpuconf.h>
 #include <machine/cpufunc.h>
 

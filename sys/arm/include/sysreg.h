@@ -39,8 +39,6 @@
 #ifndef MACHINE_SYSREG_H
 #define	MACHINE_SYSREG_H
 
-#include <machine/acle-compat.h>
-
 /*
  * CP14 registers
  */

@@ -39,7 +39,6 @@
 #ifndef _MACHINE_ASM_H_
 #define _MACHINE_ASM_H_
 #include <sys/cdefs.h>
-#include <machine/acle-compat.h>
 #include <machine/sysreg.h>
 
 #define	_C_LABEL(x)	x
