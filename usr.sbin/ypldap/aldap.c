@@ -716,12 +716,19 @@ aldap_get_stringset(struct ber_element *elm)
 		return NULL;
 
 	for (a = elm, i = 0; a != NULL && a->be_type == BER_TYPE_OCTETSTRING;
-	    a = a->be_next, i++) {
+	    a = a->be_next) {
 
 		ber_get_string(a, &s);
 		ret[i] = utoa(s);
+		if (ret[i] != NULL)
+			i++;
+		
 	}
-	ret[i + 1] = NULL;
+	if (i == 0) {
+		free(ret);
+		return NULL;
+	}
+	ret[i] = NULL;
 
 	return ret;
 }
