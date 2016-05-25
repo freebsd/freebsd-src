@@ -143,7 +143,8 @@ CaseFile::ReEvaluateByGuid(Guid poolGUID, const ZfsEvent &event)
 {
 	CaseFileList::iterator casefile;
 	for (casefile = s_activeCases.begin(); casefile != s_activeCases.end();){
-		CaseFileList::iterator next = std::next(casefile);
+		CaseFileList::iterator next = casefile;
+		next++;
 		if (poolGUID == (*casefile)->PoolGUID())
 			(*casefile)->ReEvaluate(event);
 		casefile = next;

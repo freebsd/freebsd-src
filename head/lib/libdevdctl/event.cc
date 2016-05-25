@@ -44,12 +44,12 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <paths.h>
 #include <stdlib.h>
 #include <syslog.h>
 #include <unistd.h>
 
-#include <cinttypes>
 #include <cstdarg>
 #include <cstring>
 #include <iostream>
@@ -69,9 +69,7 @@ __FBSDID("$FreeBSD$");
 #define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
 
 /*============================ Namespace Control =============================*/
-using std::begin;
 using std::cout;
-using std::end;
 using std::endl;
 using std::string;
 using std::stringstream;
@@ -135,7 +133,8 @@ Event::DevName(std::string &name) const
 bool
 Event::IsDiskDev() const
 {
-	static const char *diskDevNames[] =
+	const int numDrivers = 2;
+	static const char *diskDevNames[numDrivers] =
 	{
 		"da",
 		"ada"
@@ -154,7 +153,8 @@ Event::IsDiskDev() const
 		find_start++;
 	}
 
-	for (dName = begin(diskDevNames); dName <= end(diskDevNames); dName++) {
+	for (dName = &diskDevNames[0];
+	     dName <= &diskDevNames[numDrivers - 1]; dName++) {
 
 		size_t loc(devName.find(*dName, find_start));
 		if (loc == find_start) {
