@@ -30,6 +30,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mthca_
+
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
