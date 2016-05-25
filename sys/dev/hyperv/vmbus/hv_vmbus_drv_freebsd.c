@@ -207,9 +207,9 @@ hv_vector_handler(struct trapframe *trap_frame)
 }
 
 static void
-vmbus_synic_setup(void *arg __unused)
+vmbus_synic_setup(void *xsc)
 {
-	struct vmbus_softc *sc = vmbus_get_softc();
+	struct vmbus_softc *sc = xsc;
 	int			cpu;
 	hv_vmbus_synic_simp	simp;
 	hv_vmbus_synic_siefp	siefp;
@@ -614,7 +614,7 @@ vmbus_bus_init(void)
 	 */
 	if (bootverbose)
 		device_printf(sc->vmbus_dev, "smp_started = %d\n", smp_started);
-	smp_rendezvous(NULL, vmbus_synic_setup, NULL, NULL);
+	smp_rendezvous(NULL, vmbus_synic_setup, NULL, sc);
 	sc->vmbus_flags |= VMBUS_FLAG_SYNIC;
 
 	/*
