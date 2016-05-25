@@ -224,7 +224,8 @@ check_unrhdr(struct unrhdr *uh, int line)
 {
 	struct unr *up;
 	struct unrb *ub;
-	u_int x, y, z, w;
+	int w;
+	u_int y, z;
 
 	y = uh->first;
 	z = 0;
@@ -237,9 +238,7 @@ check_unrhdr(struct unrhdr *uh, int line)
 			    up->len, NBITS, line));
 			z++;
 			w = 0;
-			for (x = 0; x < up->len; x++)
-				if (bit_test(ub->map, x))
-					w++;
+			bit_count(ub->map, 0, up->len, &w);
 			y += w;
 		} else if (up->ptr != NULL) 
 			y += up->len;
@@ -985,9 +984,9 @@ main(int argc, char **argv)
 	struct unrhdr *uh;
 	char *a;
 	long count = 10000;	/* Number of unrs to test */
-	long reps = 1;
+	long reps = 1, m;
 	int ch;
-	u_int i, x, m, j;
+	u_int i, x, j;
 
 	verbose = false;
 
@@ -1044,7 +1043,7 @@ main(int argc, char **argv)
 			print_unrhdr(uh);
 		check_unrhdr(uh, __LINE__);
 	}
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < (u_int)count; i++) {
 		if (a[i]) {
 			if (verbose) {
 				printf("C %u\n", i);

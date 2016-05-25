@@ -529,36 +529,36 @@ bhnd_generic_resume_child(device_t dev, device_t child)
 /*
  * Delegate all indirect I/O to the parent device. When inherited by
  * non-bridged bus implementations, resources will never be marked as
- * indirect, and these methods should never be called.
+ * indirect, and these methods will never be called.
  */
-#define	BHND_IO_READ(_type, _name, _method)			\
-static _type							\
-bhnd_read_ ## _name (device_t dev, device_t child,		\
-    struct bhnd_resource *r, bus_size_t offset)			\
-{								\
-	return (BHND_BUS_READ_ ## _method(			\
-		    device_get_parent(dev), child, r, offset));	\
+#define	BHND_IO_READ(_type, _name, _method)				\
+static _type								\
+bhnd_read_ ## _name (device_t dev, device_t child,			\
+    struct bhnd_resource *r, bus_size_t offset)				\
+{									\
+	return (BHND_BUS_READ_ ## _method(				\
+		    device_get_parent(dev), child, r, offset));		\
 }
 
-#define	BHND_IO_WRITE(_type, _name, _method)			\
-static void							\
-bhnd_write_ ## _name (device_t dev, device_t child,		\
-    struct bhnd_resource *r, bus_size_t offset, _type value)	\
-{								\
-	return (BHND_BUS_WRITE_ ## _method(			\
-		    device_get_parent(dev), child, r, offset,	\
+#define	BHND_IO_WRITE(_type, _name, _method)				\
+static void								\
+bhnd_write_ ## _name (device_t dev, device_t child,			\
+    struct bhnd_resource *r, bus_size_t offset, _type value)		\
+{									\
+	return (BHND_BUS_WRITE_ ## _method(				\
+		    device_get_parent(dev), child, r, offset,		\
 		    value));	\
 }
 
-#define	BHND_IO_MULTI(_type, _rw, _name, _method)			\
+#define	BHND_IO_MISC(_type, _op, _method)				\
 static void								\
-bhnd_ ## _rw ## _multi_ ## _name (device_t dev, device_t child,	\
-    struct bhnd_resource *r, bus_size_t offset, _type *datap,		\
+bhnd_ ## _op (device_t dev, device_t child,				\
+    struct bhnd_resource *r, bus_size_t offset, _type datap,		\
     bus_size_t count)							\
 {									\
 	BHND_BUS_ ## _method(device_get_parent(dev), child, r,		\
 	    offset, datap, count);					\
-}
+}	
 
 #define	BHND_IO_METHODS(_type, _size)					\
 	BHND_IO_READ(_type, _size, _size)				\
@@ -567,13 +567,28 @@ bhnd_ ## _rw ## _multi_ ## _name (device_t dev, device_t child,	\
 	BHND_IO_READ(_type, stream_ ## _size, STREAM_ ## _size)		\
 	BHND_IO_WRITE(_type, stream_ ## _size, STREAM_ ## _size)	\
 									\
-	BHND_IO_MULTI(_type, read, _size, READ_MULTI_ ## _size)		\
-	BHND_IO_MULTI(_type, write, _size, WRITE_MULTI_ ## _size)	\
+	BHND_IO_MISC(_type*, read_multi_ ## _size,			\
+	    READ_MULTI_ ## _size)					\
+	BHND_IO_MISC(_type*, write_multi_ ## _size,			\
+	    WRITE_MULTI_ ## _size)					\
 									\
-	BHND_IO_MULTI(_type, read, stream_ ## _size,			\
+	BHND_IO_MISC(_type*, read_multi_stream_ ## _size,		\
 	   READ_MULTI_STREAM_ ## _size)					\
-	BHND_IO_MULTI(_type, write, stream_ ## _size,			\
+	BHND_IO_MISC(_type*, write_multi_stream_ ## _size,		\
 	   WRITE_MULTI_STREAM_ ## _size)				\
+									\
+	BHND_IO_MISC(_type, set_multi_ ## _size, SET_MULTI_ ## _size)	\
+	BHND_IO_MISC(_type, set_region_ ## _size, SET_REGION_ ## _size)	\
+									\
+	BHND_IO_MISC(_type*, read_region_ ## _size,			\
+	    READ_REGION_ ## _size)					\
+	BHND_IO_MISC(_type*, write_region_ ## _size,			\
+	    WRITE_REGION_ ## _size)					\
+									\
+	BHND_IO_MISC(_type*, read_region_stream_ ## _size,		\
+	    READ_REGION_STREAM_ ## _size)				\
+	BHND_IO_MISC(_type*, write_region_stream_ ## _size,		\
+	    WRITE_REGION_STREAM_ ## _size)				\
 
 BHND_IO_METHODS(uint8_t, 1);
 BHND_IO_METHODS(uint16_t, 2);
@@ -627,12 +642,15 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bus_generic_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_bus_generic_get_nvram_var),
+
+	/* BHND interface (bus I/O) */
 	DEVMETHOD(bhnd_bus_read_1,		bhnd_read_1),
 	DEVMETHOD(bhnd_bus_read_2,		bhnd_read_2),
 	DEVMETHOD(bhnd_bus_read_4,		bhnd_read_4),
 	DEVMETHOD(bhnd_bus_write_1,		bhnd_write_1),
 	DEVMETHOD(bhnd_bus_write_2,		bhnd_write_2),
 	DEVMETHOD(bhnd_bus_write_4,		bhnd_write_4),
+
 	DEVMETHOD(bhnd_bus_read_stream_1,	bhnd_read_stream_1),
 	DEVMETHOD(bhnd_bus_read_stream_2,	bhnd_read_stream_2),
 	DEVMETHOD(bhnd_bus_read_stream_4,	bhnd_read_stream_4),
@@ -654,7 +672,29 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bhnd_bus_write_multi_stream_2,bhnd_write_multi_stream_2),
 	DEVMETHOD(bhnd_bus_write_multi_stream_4,bhnd_write_multi_stream_4),
 
-	DEVMETHOD(bhnd_bus_barrier,		bhnd_barrier),
+	DEVMETHOD(bhnd_bus_set_multi_1,		bhnd_set_multi_1),
+	DEVMETHOD(bhnd_bus_set_multi_2,		bhnd_set_multi_2),
+	DEVMETHOD(bhnd_bus_set_multi_4,		bhnd_set_multi_4),
+
+	DEVMETHOD(bhnd_bus_set_region_1,	bhnd_set_region_1),
+	DEVMETHOD(bhnd_bus_set_region_2,	bhnd_set_region_2),
+	DEVMETHOD(bhnd_bus_set_region_4,	bhnd_set_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_1,	bhnd_read_region_1),
+	DEVMETHOD(bhnd_bus_read_region_2,	bhnd_read_region_2),
+	DEVMETHOD(bhnd_bus_read_region_4,	bhnd_read_region_4),
+	DEVMETHOD(bhnd_bus_write_region_1,	bhnd_write_region_1),
+	DEVMETHOD(bhnd_bus_write_region_2,	bhnd_write_region_2),
+	DEVMETHOD(bhnd_bus_write_region_4,	bhnd_write_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_stream_1,bhnd_read_region_stream_1),
+	DEVMETHOD(bhnd_bus_read_region_stream_2,bhnd_read_region_stream_2),
+	DEVMETHOD(bhnd_bus_read_region_stream_4,bhnd_read_region_stream_4),
+	DEVMETHOD(bhnd_bus_write_region_stream_1, bhnd_write_region_stream_1),
+	DEVMETHOD(bhnd_bus_write_region_stream_2, bhnd_write_region_stream_2),
+	DEVMETHOD(bhnd_bus_write_region_stream_4, bhnd_write_region_stream_4),
+
+	DEVMETHOD(bhnd_bus_barrier,			bhnd_barrier),
 
 	DEVMETHOD_END
 };

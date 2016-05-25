@@ -842,8 +842,7 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 	}
 
 	/* cam_getccb cleans up the header, caller has to zero the payload */
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	inq_buf = (struct scsi_inquiry_data *)malloc(
 		sizeof(struct scsi_inquiry_data));
@@ -958,8 +957,7 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 	}
 
 	/* cam_getccb cleans up the header, caller has to zero the payload */
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	serial_buf = (struct scsi_vpd_unit_serial_number *)
 		malloc(sizeof(*serial_buf));
@@ -1051,8 +1049,7 @@ camxferrate(struct cam_device *device)
 		return(1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_trans_settings) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 
 	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	ccb->cts.type = CTS_TYPE_CURRENT_SETTINGS;
@@ -1605,8 +1602,7 @@ ata_do_pass_16(struct cam_device *device, union ccb *ccb, int retries,
 		ata_flags |= AP_FLAG_TLEN_NO_DATA;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_ata_pass_16(&ccb->csio,
 			 retries,
@@ -1667,8 +1663,7 @@ ata_do_28bit_cmd(struct cam_device *device, union ccb *ccb, int retries,
 				      timeout, quiet);
 	}
 
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_ataio) -
-	      sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->ataio);
 	cam_fill_ataio(&ccb->ataio,
 		       retries,
 		       NULL,
@@ -1737,8 +1732,7 @@ ata_do_cmd(struct cam_device *device, union ccb *ccb, int retries,
 		return (error);
 	}
 
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_ataio) -
-	      sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->ataio);
 	cam_fill_ataio(&ccb->ataio,
 		       retries,
 		       NULL,
@@ -3187,8 +3181,7 @@ rescan_or_reset_bus(path_id_t bus, int rescan)
 	 * no-op, sending a rescan to the xpt bus would result in a status of
 	 * CAM_REQ_INVALID.
 	 */
-	bzero(&(&matchccb.ccb_h)[1],
-	      sizeof(struct ccb_dev_match) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&matchccb.cdm);
 	matchccb.ccb_h.func_code = XPT_DEV_MATCH;
 	matchccb.ccb_h.path_id = CAM_BUS_WILDCARD;
 	bufsize = sizeof(struct dev_match_result) * 20;
@@ -3536,8 +3529,7 @@ next_batch:
 	 * cam_getccb() zeros the CCB header only.  So we need to zero the
 	 * payload portion of the ccb.
 	 */
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_read_defects(&ccb->csio,
 			  /*retries*/ retry_count,
@@ -3990,8 +3982,7 @@ mode_sense(struct cam_device *device, int mode_page, int page_control,
 	if (ccb == NULL)
 		errx(1, "mode_sense: couldn't allocate CCB");
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_mode_sense(&ccb->csio,
 			/* retries */ retry_count,
@@ -4040,8 +4031,7 @@ mode_select(struct cam_device *device, int save_pages, int retry_count,
 	if (ccb == NULL)
 		errx(1, "mode_select: couldn't allocate CCB");
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_mode_select(&ccb->csio,
 			 /* retries */ retry_count,
@@ -4158,8 +4148,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		return(1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -4660,8 +4649,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 	cam_path_string(device, pathstr, sizeof(pathstr));
 
 	if (numtags >= 0) {
-		bzero(&(&ccb->ccb_h)[1],
-		      sizeof(struct ccb_relsim) - sizeof(struct ccb_hdr));
+		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->crs);
 		ccb->ccb_h.func_code = XPT_REL_SIMQ;
 		ccb->ccb_h.flags = CAM_DEV_QFREEZE;
 		ccb->crs.release_flags = RELSIM_ADJUST_OPENINGS;
@@ -4688,8 +4676,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 				pathstr, ccb->crs.openings);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_getdevstats) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cgds);
 
 	ccb->ccb_h.func_code = XPT_GDEV_STATS;
 
@@ -4889,8 +4876,7 @@ get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
 		warnx("get_cpi: couldn't allocate CCB");
 		return(1);
 	}
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_pathinq) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cpi);
 	ccb->ccb_h.func_code = XPT_PATH_INQ;
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cpi: error sending Path Inquiry CCB");
@@ -4928,8 +4914,7 @@ get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
 		warnx("get_cgd: couldn't allocate CCB");
 		return(1);
 	}
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_pathinq) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cgd);
 	ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cgd: error sending Path Inquiry CCB");
@@ -4974,8 +4959,7 @@ dev_has_vpd_page(struct cam_device *dev, uint8_t page_id, int retry_count,
 	}
 	
 	/* cam_getccb cleans up the header, caller has to zero the payload */
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	bzero(&sup_pages, sizeof(sup_pages));
 
@@ -5449,8 +5433,7 @@ get_print_cts(struct cam_device *device, int user_settings, int quiet,
 		return(1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_trans_settings) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 
 	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 
@@ -5590,8 +5573,7 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			break;
 		}
 	}
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_pathinq) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cpi);
 	/*
 	 * Grab path inquiry information, so we can determine whether
 	 * or not the initiator is capable of the things that the user
@@ -5617,8 +5599,7 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		goto ratecontrol_bailout;
 	}
 	bcopy(&ccb->cpi, &cpi, sizeof(struct ccb_pathinq));
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_trans_settings) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 	if (quiet == 0) {
 		fprintf(stdout, "%s parameters:\n",
 		    user_settings ? "User" : "Current");
@@ -5871,8 +5852,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 		return(1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -6020,8 +6000,7 @@ doreport:
 	do {
 		cam_status status;
 
-		bzero(&(&ccb->ccb_h)[1],
-		      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 		/*
 		 * There's really no need to do error recovery or
@@ -6168,8 +6147,7 @@ scsisanitize(struct cam_device *device, int argc, char **argv,
 		return(1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -6430,8 +6408,7 @@ doreport:
 	do {
 		cam_status status;
 
-		bzero(&(&ccb->ccb_h)[1],
-		      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 		/*
 		 * There's really no need to do error recovery or
@@ -6573,8 +6550,7 @@ scsireportluns(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	countonly = 0;
 	lunsonly = 0;
@@ -6822,8 +6798,7 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -7027,8 +7002,7 @@ smpcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		return (1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -7221,8 +7195,7 @@ smpreportgeneral(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -7284,8 +7257,7 @@ try_long:
 	if ((response->long_response & SMP_RG_LONG_RESPONSE)
 	 && (long_response == 0)) {
 		ccb->ccb_h.status = CAM_REQ_INPROG;
-		bzero(&(&ccb->ccb_h)[1],
-		      sizeof(union ccb) - sizeof(struct ccb_hdr));
+		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 		long_response = 1;
 		goto try_long;
 	}
@@ -7367,8 +7339,7 @@ smpphycontrol(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -7625,8 +7596,7 @@ smpmaninfo(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -7720,8 +7690,7 @@ getdevid(struct cam_devitem *item)
 		goto bailout;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cdai);
 
 	/*
 	 * On the first try, we just probe for the size of the data, and
@@ -8006,8 +7975,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 	STAILQ_INIT(&devlist.dev_queue);
 
 	rgrequest = malloc(sizeof(*rgrequest));
@@ -8111,8 +8079,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		char tmpstr[256];
 		int j;
 
-		bzero(&(&ccb->ccb_h)[1],
-		      sizeof(union ccb) - sizeof(struct ccb_hdr));
+		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
@@ -8401,8 +8368,7 @@ scsigetopcodes(struct cam_device *device, int opcode_set, int opcode,
 	}
 
 	/* cam_getccb cleans up the header, caller has to zero the payload */
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	if (opcode_set != 0) {
 		options |= RSO_OPTIONS_OC;
@@ -8841,8 +8807,7 @@ scsireprobe(struct cam_device *device)
 		return (1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	ccb->ccb_h.func_code = XPT_REPROBE_LUN;
 

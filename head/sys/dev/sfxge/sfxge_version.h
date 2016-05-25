@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Solarflare Communications Inc.
+ * Copyright (c) 2015-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by OKTET Labs under contract for
@@ -36,6 +36,6 @@
 #ifndef _SFXGE_VERSION_H
 #define	_SFXGE_VERSION_H
 
-#define	SFXGE_VERSION_STRING	"v4.8.0.1019"
+#define	SFXGE_VERSION_STRING	"v4.8.0.1071"
 
 #endif	/* _SFXGE_DRIVER_VERSION_H */

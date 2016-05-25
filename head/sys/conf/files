@@ -1125,6 +1125,7 @@ dev/bge/if_bge.c			optional bge
 dev/bhnd/bhnd.c				optional bhndbus | bhnd
 dev/bhnd/bhnd_subr.c			optional bhndbus | bhnd
 dev/bhnd/bhnd_bus_if.m			optional bhndbus | bhnd
+dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndbus | bhndb
 dev/bhnd/bhndb/bhndb.c			optional bhndbus | bhndb
 dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndbus | bhndb
 dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndbus | bhndb
@@ -1138,7 +1139,9 @@ dev/bhnd/bcma/bcma_bhndb.c		optional bhndbus | bcma bhndb
 dev/bhnd/bcma/bcma_erom.c		optional bhndbus | bcma
 dev/bhnd/bcma/bcma_subr.c		optional bhndbus | bcma
 dev/bhnd/cores/chipc/chipc.c		optional bhndbus | bhnd
+dev/bhnd/cores/chipc/chipc_subr.c	optional bhndbus | bhnd
 dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhndbus | bhnd
+dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhndbus | bhnd
 dev/bhnd/cores/pci/bhnd_pci.c		optional bhndbus pci | bhnd pci
 dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndbus pci | bhndb pci
 dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
@@ -1147,6 +1150,7 @@ dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndbus pci | bhndb pci
 dev/bhnd/cores/pcie2/bhnd_pcie2b.c	optional bhnd_pcie2b bhnd pci
 dev/bhnd/nvram/bhnd_nvram_if.m		optional bhndbus | bhnd
 dev/bhnd/nvram/bhnd_sprom.c		optional bhndbus | bhnd
+dev/bhnd/nvram/bhnd_sprom_subr.c	optional bhndbus | bhnd
 dev/bhnd/nvram/nvram_subr.c		optional bhndbus | bhnd
 dev/bhnd/siba/siba.c			optional bhndbus | siba
 dev/bhnd/siba/siba_bhndb.c		optional bhndbus | siba bhndb
@@ -1571,6 +1575,7 @@ dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
 dev/iicbus/lm75.c		optional lm75
+dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/pcf8563.c		optional pcf8563
 dev/iicbus/s35390a.c		optional s35390a
 dev/iir/iir.c			optional iir
@@ -2170,7 +2175,6 @@ dev/ofw/ofw_bus_if.m		optional fdt
 dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_fdt.c		optional fdt
 dev/ofw/ofw_if.m		optional fdt
-dev/ofw/ofw_iicbus.c		optional fdt iicbus
 dev/ofw/ofw_subr.c		optional fdt
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt

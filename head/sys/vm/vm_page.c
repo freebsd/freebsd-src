@@ -1944,8 +1944,10 @@ retry:
 				    m < &m_ret[npages]; m++) {
 					if ((req & VM_ALLOC_WIRED) != 0)
 						m->wire_count = 0;
-					if (m >= m_tmp)
+					if (m >= m_tmp) {
 						m->object = NULL;
+						m->oflags |= VPO_UNMANAGED;
+					}
 					vm_page_free(m);
 				}
 				return (NULL);
@@ -3288,7 +3290,8 @@ vm_page_cache(vm_page_t m)
 	cache_was_empty = vm_radix_is_empty(&object->cache);
 	if (vm_radix_insert(&object->cache, m)) {
 		mtx_unlock(&vm_page_queue_free_mtx);
-		if (object->resident_page_count == 0)
+		if (object->type == OBJT_VNODE &&
+		    object->resident_page_count == 0)
 			vdrop(object->handle);
 		m->object = NULL;
 		vm_page_free(m);

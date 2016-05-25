@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 3376 2016-01-26 18:41:39Z emaste $");
+ELFTC_VCSID("$Id: symbols.c 3446 2016-05-03 01:31:17Z emaste $");
 
 /* Backwards compatibility for systems with older ELF definitions. */
 #ifndef STB_GNU_UNIQUE
@@ -168,7 +168,7 @@ is_needed_symbol(struct elfcopy *ecp, int i, GElf_Sym *s)
 	if (BIT_ISSET(ecp->v_rel, i))
 		return (1);
 
-	/* Symbols refered by COMDAT sections are needed. */
+	/* Symbols referred by COMDAT sections are needed. */
 	if (BIT_ISSET(ecp->v_grp, i))
 		return (1);
 
@@ -258,7 +258,7 @@ is_remove_symbol(struct elfcopy *ecp, size_t sc, int i, GElf_Sym *s,
 }
 
 /*
- * Mark symbols refered by relocation entries.
+ * Mark symbols referred by relocation entries.
  */
 static void
 mark_reloc_symbols(struct elfcopy *ecp, size_t sc)
@@ -1165,7 +1165,7 @@ lookup_symop_list(struct elfcopy *ecp, const char *name, unsigned int op)
 		if ((s->op & op) == 0)
 			continue;
 		if (name == NULL || !strcmp(name, s->name))
-				return (s);
+			return (s);
 		if ((ecp->flags & WILDCARD) == 0)
 			continue;
 

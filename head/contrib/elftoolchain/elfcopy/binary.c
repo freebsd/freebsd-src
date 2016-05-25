@@ -36,7 +36,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: binary.c 3270 2015-12-11 18:48:56Z emaste $");
+ELFTC_VCSID("$Id: binary.c 3445 2016-04-20 19:08:30Z emaste $");
 
 /*
  * Convert ELF object to `binary'. Sections with SHF_ALLOC flag set

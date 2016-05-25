@@ -13,7 +13,7 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/:C/riscv64/riscv/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/:C/riscv64/riscv/}
 .endif
 
 
@@ -46,7 +46,7 @@ __ENV_ONLY_OPTIONS:= \
 .sinclude <meta.sys.mk>
 .elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
 # verbose will show .MAKE.META.PREFIX for each target.
-META_MODE=	meta verbose
+META_MODE+=	meta verbose
 # silent will hide command output if a .meta file is created.
 .if !defined(NO_SILENT)
 META_MODE+=	silent=yes

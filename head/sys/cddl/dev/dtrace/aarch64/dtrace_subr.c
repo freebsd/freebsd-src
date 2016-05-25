@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/frame.h>
 #include <machine/trap.h>
+#include <machine/vmparam.h>
 #include <vm/pmap.h>
 
 extern dtrace_id_t	dtrace_probeid_error;
@@ -120,7 +121,7 @@ void
 dtrace_toxic_ranges(void (*func)(uintptr_t base, uintptr_t limit))
 {
 
-	printf("IMPLEMENT ME: dtrace_toxic_ranges\n");
+	(*func)(0, (uintptr_t)VM_MIN_KERNEL_ADDRESS);
 }
 
 void

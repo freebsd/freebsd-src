@@ -135,6 +135,8 @@ struct ip6_exthdrs {
 	struct mbuf *ip6e_dest2;
 };
 
+static MALLOC_DEFINE(M_IP6OPT, "ip6opt", "IPv6 options");
+
 static int ip6_pcbopt(int, u_char *, int, struct ip6_pktopts **,
 			   struct ucred *, int);
 static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *,
@@ -323,12 +325,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct m_tag *fwd_tag = NULL;
 	uint32_t id;
 
-	ip6 = mtod(m, struct ip6_hdr *);
-	if (ip6 == NULL) {
-		printf ("ip6 is NULL");
-		goto bad;
-	}
-
 	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		if ((flags & IP_NODEFAULTFLOWID) == 0) {
@@ -410,7 +406,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		hdrsplit++;
 	}
 
-	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* adjust mbuf packet header length */
@@ -541,10 +536,6 @@ again:
 		else
 			ip6->ip6_hlim = V_ip6_defmcasthlim;
 	}
-
-	/* adjust pointer */
-	ip6 = mtod(m, struct ip6_hdr *);
-
 	/*
 	 * Validate route against routing table additions;
 	 * a better/more specific route might have been added.
@@ -803,6 +794,7 @@ again:
 	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
+	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	needfiblookup = 0;

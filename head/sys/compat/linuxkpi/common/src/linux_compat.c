@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/compat.h>
 
 #include <vm/vm_pager.h>
 
@@ -379,7 +381,7 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	return kobject_add_complete(kobj, parent);
 }
 
-static void
+void
 linux_set_current(struct thread *td, struct task_struct *t)
 {
 	memset(t, 0, sizeof(*t));
@@ -387,7 +389,7 @@ linux_set_current(struct thread *td, struct task_struct *t)
 	task_struct_set(td, t);
 }
 
-static void
+void
 linux_clear_current(struct thread *td)
 {
 	task_struct_set(td, NULL);
@@ -1356,6 +1358,47 @@ unregister_inetaddr_notifier(struct notifier_block *nb)
             nb->tags[NETDEV_CHANGEIFADDR]);
 
         return (0);
+}
+
+struct list_sort_thunk {
+	int (*cmp)(void *, struct list_head *, struct list_head *);
+	void *priv;
+};
+
+static inline int
+linux_le_cmp(void *priv, const void *d1, const void *d2)
+{
+	struct list_head *le1, *le2;
+	struct list_sort_thunk *thunk;
+
+	thunk = priv;
+	le1 = *(__DECONST(struct list_head **, d1));
+	le2 = *(__DECONST(struct list_head **, d2));
+	return ((thunk->cmp)(thunk->priv, le1, le2));
+}
+
+void
+list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
+    struct list_head *a, struct list_head *b))
+{
+	struct list_sort_thunk thunk;
+	struct list_head **ar, *le;
+	size_t count, i;
+
+	count = 0;
+	list_for_each(le, head)
+		count++;
+	ar = malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
+	i = 0;
+	list_for_each(le, head)
+		ar[i++] = le;
+	thunk.cmp = cmp;
+	thunk.priv = priv;
+	qsort_r(ar, count, sizeof(struct list_head *), &thunk, linux_le_cmp);
+	INIT_LIST_HEAD(head);
+	for (i = 0; i < count; i++)
+		list_add_tail(ar[i], head);
+	free(ar, M_KMALLOC);
 }
 
 void

@@ -85,6 +85,8 @@ __FBSDID("$FreeBSD$");
 
 #define SIN6(s) ((const struct sockaddr_in6 *)(s))
 
+MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
+
 /* timer values */
 VNET_DEFINE(int, nd6_prune)	= 1;	/* walk list every 1 seconds */
 VNET_DEFINE(int, nd6_delay)	= 5;	/* delay first probe time 5 second */
@@ -2546,13 +2548,16 @@ clear_llinfo_pqueue(struct llentry *ln)
 
 static int nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS);
 static int nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS);
-#ifdef SYSCTL_DECL
+
 SYSCTL_DECL(_net_inet6_icmp6);
-#endif
-SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_DRLIST, nd6_drlist,
-	CTLFLAG_RD, nd6_sysctl_drlist, "");
-SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_PRLIST, nd6_prlist,
-	CTLFLAG_RD, nd6_sysctl_prlist, "");
+SYSCTL_PROC(_net_inet6_icmp6, ICMPV6CTL_ND6_DRLIST, nd6_drlist,
+	CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	NULL, 0, nd6_sysctl_drlist, "S,in6_defrouter",
+	"NDP default router list");
+SYSCTL_PROC(_net_inet6_icmp6, ICMPV6CTL_ND6_PRLIST, nd6_prlist,
+	CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	NULL, 0, nd6_sysctl_prlist, "S,in6_prefix",
+	"NDP prefix list");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN, nd6_maxqueuelen,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_maxqueuelen), 1, "");
 SYSCTL_INT(_net_inet6_icmp6, OID_AUTO, nd6_gctimer,
@@ -2608,15 +2613,17 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 	if (req->newptr)
 		return (EPERM);
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
 	bzero(&p, sizeof(p));
 	p.origin = PR_ORIG_RA;
 	bzero(&s6, sizeof(s6));
 	s6.sin6_family = AF_INET6;
 	s6.sin6_len = sizeof(s6);
 
-	/*
-	 * XXX locking
-	 */
+	ND6_RLOCK();
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		p.prefix = pr->ndpr_prefix;
 		if (sa6_recoverscope(&p.prefix)) {
@@ -2649,7 +2656,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			p.advrtrs++;
 		error = SYSCTL_OUT(req, &p, sizeof(p));
 		if (error != 0)
-			return (error);
+			break;
 		LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
 			s6.sin6_addr = pfr->router->rtaddr;
 			if (sa6_recoverscope(&s6))
@@ -2658,8 +2665,9 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 				    ip6_sprintf(ip6buf, &pfr->router->rtaddr));
 			error = SYSCTL_OUT(req, &s6, sizeof(s6));
 			if (error != 0)
-				return (error);
+				break;
 		}
 	}
-	return (0);
+	ND6_RUNLOCK();
+	return (error);
 }
