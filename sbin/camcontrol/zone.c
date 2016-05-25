@@ -347,8 +347,7 @@ zone(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		goto bailout;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -484,7 +483,8 @@ restart_report:
 				sector_count = ZAC_ATA_SECTOR_COUNT(alloc_len);
 				protocol = AP_PROTO_DMA;
 			} else {
-				cdb_storage = calloc(cdb_storage_len, 1);
+				if (cdb_storage == NULL)
+					cdb_storage = calloc(cdb_storage_len, 1);
 				if (cdb_storage == NULL)
 					err(1, "couldn't allocate memory");
 
@@ -662,6 +662,8 @@ restart_report:
 	if (zp_status == ZONE_PRINT_MORE_DATA) {
 		bzero(ccb, sizeof(*ccb));
 		first_pass = 0;
+		if (cdb_storage != NULL)
+			bzero(cdb_storage, cdb_storage_len);
 		goto restart_report;
 	} else if (zp_status == ZONE_PRINT_ERROR)
 		error = 1;
