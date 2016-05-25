@@ -43,7 +43,7 @@ acl_t
 get_acl_from_file(const char *filename)
 {
 	FILE *file;
-	char buf[BUFSIZ];
+	char buf[BUFSIZ+1];
 
 	if (filename == NULL)
 		err(1, "(null) filename in get_acl_from_file()");
@@ -61,7 +61,7 @@ get_acl_from_file(const char *filename)
 			err(1, "fopen() %s failed", filename);
 	}
 
-	fread(buf, sizeof(buf), (size_t)1, file);
+	fread(buf, sizeof(buf) - 1, (size_t)1, file);
 	if (ferror(file) != 0) {
 		fclose(file);
 		err(1, "error reading from %s", filename);
