@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -210,100 +211,97 @@ static void
 vmbus_synic_setup(void *xsc)
 {
 	struct vmbus_softc *sc = xsc;
-	int			cpu;
-	hv_vmbus_synic_simp	simp;
-	hv_vmbus_synic_siefp	siefp;
-	hv_vmbus_synic_scontrol sctrl;
-	hv_vmbus_synic_sint	shared_sint;
-
-	cpu = PCPU_GET(cpuid);
+	int cpu = curcpu;
+	uint64_t val, orig;
+	uint32_t sint;
 
 	/*
-	 * Setup the Synic's message page
+	 * Save virtual processor id.
 	 */
-	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
-	simp.u.simp_enabled = 1;
-	simp.u.base_simp_gpa =
-	    VMBUS_PCPU_GET(sc, message_dma.hv_paddr, cpu) >> PAGE_SHIFT;
-
-	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
+	VMBUS_PCPU_GET(sc, vcpuid, cpu) = rdmsr(MSR_HV_VP_INDEX);
 
 	/*
-	 * Setup the Synic's event page
+	 * Setup the SynIC message.
 	 */
-	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
-	siefp.u.siefp_enabled = 1;
-	siefp.u.base_siefp_gpa =
-	    VMBUS_PCPU_GET(sc, event_flag_dma.hv_paddr, cpu) >> PAGE_SHIFT;
-
-	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
-
-	/*HV_SHARED_SINT_IDT_VECTOR + 0x20; */
-	shared_sint.as_uint64_t = 0;
-	shared_sint.u.vector = sc->vmbus_idtvec;
-	shared_sint.u.masked = FALSE;
-	shared_sint.u.auto_eoi = TRUE;
-
-	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
-	    shared_sint.as_uint64_t);
-
-	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT,
-	    shared_sint.as_uint64_t);
-
-	/* Enable the global synic bit */
-	sctrl.as_uint64_t = rdmsr(HV_X64_MSR_SCONTROL);
-	sctrl.u.enable = 1;
-
-	wrmsr(HV_X64_MSR_SCONTROL, sctrl.as_uint64_t);
+	orig = rdmsr(MSR_HV_SIMP);
+	val = MSR_HV_SIMP_ENABLE | (orig & MSR_HV_SIMP_RSVD_MASK) |
+	    ((VMBUS_PCPU_GET(sc, message_dma.hv_paddr, cpu) >> PAGE_SHIFT) <<
+	     MSR_HV_SIMP_PGSHIFT);
+	wrmsr(MSR_HV_SIMP, val);
 
 	/*
-	 * Set up the cpuid mapping from Hyper-V to FreeBSD.
-	 * The array is indexed using FreeBSD cpuid.
+	 * Setup the SynIC event flags.
 	 */
-	VMBUS_PCPU_GET(sc, vcpuid, cpu) = rdmsr(HV_X64_MSR_VP_INDEX);
+	orig = rdmsr(MSR_HV_SIEFP);
+	val = MSR_HV_SIEFP_ENABLE | (orig & MSR_HV_SIEFP_RSVD_MASK) |
+	    ((VMBUS_PCPU_GET(sc, event_flag_dma.hv_paddr, cpu) >> PAGE_SHIFT) <<
+	     MSR_HV_SIEFP_PGSHIFT);
+	wrmsr(MSR_HV_SIEFP, val);
+
+
+	/*
+	 * Configure and unmask SINT for message and event flags.
+	 */
+	sint = MSR_HV_SINT0 + HV_VMBUS_MESSAGE_SINT;
+	orig = rdmsr(sint);
+	val = sc->vmbus_idtvec | MSR_HV_SINT_AUTOEOI |
+	    (orig & MSR_HV_SINT_RSVD_MASK);
+	wrmsr(sint, val);
+
+	/*
+	 * Configure and unmask SINT for timer.
+	 */
+	sint = MSR_HV_SINT0 + HV_VMBUS_TIMER_SINT;
+	orig = rdmsr(sint);
+	val = sc->vmbus_idtvec | MSR_HV_SINT_AUTOEOI |
+	    (orig & MSR_HV_SINT_RSVD_MASK);
+	wrmsr(sint, val);
+
+	/*
+	 * All done; enable SynIC.
+	 */
+	orig = rdmsr(MSR_HV_SCONTROL);
+	val = MSR_HV_SCTRL_ENABLE | (orig & MSR_HV_SCTRL_RSVD_MASK);
+	wrmsr(MSR_HV_SCONTROL, val);
 }
 
 static void
 vmbus_synic_teardown(void *arg)
 {
-	hv_vmbus_synic_sint	shared_sint;
-	hv_vmbus_synic_simp	simp;
-	hv_vmbus_synic_siefp	siefp;
-
-	shared_sint.as_uint64_t = rdmsr(
-	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT);
-
-	shared_sint.u.masked = 1;
+	uint64_t orig;
+	uint32_t sint;
 
 	/*
-	 * Disable the interrupt 0
+	 * Disable SynIC.
 	 */
-	wrmsr(
-	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
-	    shared_sint.as_uint64_t);
-
-	shared_sint.as_uint64_t = rdmsr(
-	    HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT);
-
-	shared_sint.u.masked = 1;
+	orig = rdmsr(MSR_HV_SCONTROL);
+	wrmsr(MSR_HV_SCONTROL, (orig & MSR_HV_SCTRL_RSVD_MASK));
 
 	/*
-	 * Disable the interrupt 1
+	 * Mask message and event flags SINT.
 	 */
-	wrmsr(
-	    HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT,
-	    shared_sint.as_uint64_t);
-	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
-	simp.u.simp_enabled = 0;
-	simp.u.base_simp_gpa = 0;
+	sint = MSR_HV_SINT0 + HV_VMBUS_MESSAGE_SINT;
+	orig = rdmsr(sint);
+	wrmsr(sint, orig | MSR_HV_SINT_MASKED);
 
-	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
+	/*
+	 * Mask timer SINT.
+	 */
+	sint = MSR_HV_SINT0 + HV_VMBUS_TIMER_SINT;
+	orig = rdmsr(sint);
+	wrmsr(sint, orig | MSR_HV_SINT_MASKED);
 
-	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
-	siefp.u.siefp_enabled = 0;
-	siefp.u.base_siefp_gpa = 0;
+	/*
+	 * Teardown SynIC message.
+	 */
+	orig = rdmsr(MSR_HV_SIMP);
+	wrmsr(MSR_HV_SIMP, (orig & MSR_HV_SIMP_RSVD_MASK));
 
-	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
+	/*
+	 * Teardown SynIC event flags.
+	 */
+	orig = rdmsr(MSR_HV_SIEFP);
+	wrmsr(MSR_HV_SIEFP, (orig & MSR_HV_SIEFP_RSVD_MASK));
 }
 
 static int
