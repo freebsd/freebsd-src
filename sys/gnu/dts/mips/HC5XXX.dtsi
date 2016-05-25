@@ -55,7 +55,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
-		reg = <0 0>;
+		reg = <0>;
 		linux,modalias = "m25p80", "w25q128";
 		spi-max-frequency = <10000000>;
 
@@ -125,7 +125,7 @@
 };
 
 &pinctrl {
-	state_default {
+	state_default: pinctrl0 {
 		gpio {
 			ralink,group = "uartf", "wled", "nd_sd";
 			ralink,function = "gpio";
