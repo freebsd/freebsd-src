@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx5_
+
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/errno.h>
