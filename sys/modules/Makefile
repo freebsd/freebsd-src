@@ -155,6 +155,7 @@ SUBDIR=	\
 	${_iir} \
 	${_imgact_binmisc} \
 	${_io} \
+	${_ioat} \
         ${_ipoib} \
 	${_ipdivert} \
 	${_ipfilter} \
@@ -723,6 +724,7 @@ _if_ndis=	if_ndis
 _igb=		igb
 _iir=		iir
 _io=		io
+_ioat=		ioat
 _ipmi=		ipmi
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ipoib=         ipoib
