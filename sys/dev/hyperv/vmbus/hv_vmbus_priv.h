@@ -200,10 +200,6 @@ enum {
 struct vmbus_message;
 union vmbus_event_flags;
 
-typedef struct {
-	hv_bool_uint8_t	syn_ic_initialized;
-} hv_vmbus_context;
-
 /*
  * Define hypervisor message types
  */
@@ -635,7 +631,6 @@ typedef enum {
  * Global variables
  */
 
-extern hv_vmbus_context		hv_vmbus_g_context;
 extern hv_vmbus_connection	hv_vmbus_g_connection;
 
 extern u_int			hyperv_features;

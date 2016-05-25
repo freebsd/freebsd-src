@@ -96,13 +96,6 @@ u_int	hyperv_recommends;
 static u_int	hyperv_pm_features;
 static u_int	hyperv_features3;
 
-/**
- * Globals
- */
-hv_vmbus_context hv_vmbus_g_context = {
-	.syn_ic_initialized = FALSE,
-};
-
 static struct timecounter hv_timecounter = {
 	hv_get_timecount, 0, ~0u, HV_NANOSECONDS_PER_SEC/100, "Hyper-V", HV_NANOSECONDS_PER_SEC/100
 };

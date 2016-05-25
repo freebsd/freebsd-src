@@ -55,7 +55,11 @@ struct vmbus_softc {
 	/* Rarely used fields */
 	device_t		vmbus_dev;
 	int			vmbus_idtvec;
+	uint32_t		vmbus_flags;	/* see VMBUS_FLAG_ */
 };
+
+#define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
+#define VMBUS_FLAG_SYNIC	0x0002	/* SynIC was setup */
 
 extern struct vmbus_softc	*vmbus_sc;
 
