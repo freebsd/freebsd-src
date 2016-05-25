@@ -475,8 +475,6 @@ client_build_req(struct idm *idm, struct idm_req *ir, struct aldap_message *m,
 		} else {
 			if (aldap_match_attr(m, idm->idm_attrs[i], &ldap_attrs) == -1)
 				return (-1);
-			if (ldap_attrs[0] == NULL)
-				return (-1);
 			if (strlcat(ir->ir_line, ldap_attrs[0],
 			    sizeof(ir->ir_line)) >= sizeof(ir->ir_line)) {
 				aldap_free_attr(ldap_attrs);
