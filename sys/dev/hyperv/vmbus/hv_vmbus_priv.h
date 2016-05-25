@@ -202,11 +202,6 @@ union vmbus_event_flags;
 
 typedef struct {
 	hv_bool_uint8_t	syn_ic_initialized;
-
-	/*
-	 * For FreeBSD cpuid to Hyper-V vcpuid mapping.
-	 */
-	uint32_t	hv_vcpu_index[MAXCPU];
 } hv_vmbus_context;
 
 /*

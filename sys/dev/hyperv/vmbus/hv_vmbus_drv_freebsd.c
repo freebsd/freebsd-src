@@ -213,7 +213,6 @@ vmbus_synic_setup(void *arg __unused)
 {
 	struct vmbus_softc *sc = vmbus_get_softc();
 	int			cpu;
-	uint64_t		hv_vcpu_index;
 	hv_vmbus_synic_simp	simp;
 	hv_vmbus_synic_siefp	siefp;
 	hv_vmbus_synic_scontrol sctrl;
@@ -271,8 +270,7 @@ vmbus_synic_setup(void *arg __unused)
 	 * Set up the cpuid mapping from Hyper-V to FreeBSD.
 	 * The array is indexed using FreeBSD cpuid.
 	 */
-	hv_vcpu_index = rdmsr(HV_X64_MSR_VP_INDEX);
-	hv_vmbus_g_context.hv_vcpu_index[cpu] = (uint32_t)hv_vcpu_index;
+	VMBUS_PCPU_GET(sc, vcpuid, cpu) = rdmsr(HV_X64_MSR_VP_INDEX);
 }
 
 static void

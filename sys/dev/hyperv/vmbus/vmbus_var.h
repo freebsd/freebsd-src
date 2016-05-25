@@ -36,6 +36,7 @@
 struct vmbus_pcpu_data {
 	u_long			*intr_cnt;	/* Hyper-V interrupt counter */
 	struct vmbus_message	*message;	/* shared messages */
+	uint32_t		vcpuid;		/* virtual cpuid */
 	int			event_flag_cnt;	/* # of event flags */
 	union vmbus_event_flags	*event_flag;	/* shared event flags */
 
