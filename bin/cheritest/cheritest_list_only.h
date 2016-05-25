@@ -85,6 +85,7 @@
 #define	test_fault_read_kcc				NULL
 #define	test_fault_read_kdc				NULL
 #define	test_fault_read_epcc				NULL
+#define	test_bounds_calloc				NULL
 #define	test_bounds_stack_static_uint8			NULL
 #define	test_bounds_stack_static_uint16			NULL
 #define	test_bounds_stack_static_uint32			NULL

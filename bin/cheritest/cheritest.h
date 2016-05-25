@@ -131,7 +131,10 @@ void	cheritest_failure_errx(const char *msg, ...) __dead2  __printflike(1, 2);
 void	cheritest_success(void) __dead2;
 void	signal_handler_clear(int sig);
 
-/* cheritest_bounds.c */
+/* cheritest_bounds_heap.c */
+void	test_bounds_calloc(const struct cheri_test *ctp);
+
+/* cheritest_bounds_stack.c */
 void	test_bounds_stack_static_uint8(const struct cheri_test *ctp);
 void	test_bounds_stack_static_uint16(const struct cheri_test *ctp);
 void	test_bounds_stack_static_uint32(const struct cheri_test *ctp);
