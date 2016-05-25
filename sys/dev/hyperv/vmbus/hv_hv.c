@@ -390,11 +390,14 @@ SYSINIT(hypercall_ctor, SI_SUB_DRIVERS, SI_ORDER_FIRST, hypercall_create, NULL);
 static void
 hypercall_destroy(void *arg __unused)
 {
+	uint64_t hc;
+
 	if (hypercall_context.hc_addr == NULL)
 		return;
 
 	/* Disable Hypercall */
-	wrmsr(MSR_HV_HYPERCALL, 0);
+	hc = rdmsr(MSR_HV_HYPERCALL);
+	wrmsr(MSR_HV_HYPERCALL, (hc & MSR_HV_HYPERCALL_RSVD_MASK));
 	hypercall_memfree();
 
 	if (bootverbose)
