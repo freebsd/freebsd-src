@@ -42,11 +42,16 @@ struct vmbus_pcpu_data {
 	/* Rarely used fields */
 	struct hyperv_dma	message_dma;	/* busdma glue */
 	struct hyperv_dma	event_flag_dma;	/* busdma glue */
+	struct taskqueue	*event_tq;	/* event taskq */
+	struct taskqueue	*message_tq;	/* message taskq */
+	struct task		message_task;	/* message task */
 } __aligned(CACHE_LINE_SIZE);
 
 struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
+
+	/* Rarely used fields */
 	device_t		vmbus_dev;
 	int			vmbus_idtvec;
 };

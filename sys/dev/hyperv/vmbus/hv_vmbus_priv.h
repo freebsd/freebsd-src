@@ -207,13 +207,6 @@ typedef struct {
 	 * For FreeBSD cpuid to Hyper-V vcpuid mapping.
 	 */
 	uint32_t	hv_vcpu_index[MAXCPU];
-	/*
-	 * Each cpu has its own software interrupt handler for channel
-	 * event and msg handling.
-	 */
-	struct taskqueue		*hv_event_queue[MAXCPU];
-	struct taskqueue		*hv_msg_tq[MAXCPU];
-	struct task			hv_msg_task[MAXCPU];
 } hv_vmbus_context;
 
 /*
