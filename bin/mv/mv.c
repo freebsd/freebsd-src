@@ -286,6 +286,7 @@ fastcopy(const char *from, const char *to, struct stat *sbp)
 	}
 	if (bp == NULL && (bp = malloc((size_t)blen)) == NULL) {
 		warnx("malloc(%u) failed", blen);
+		(void)close(from_fd);
 		return (1);
 	}
 	while ((to_fd =
