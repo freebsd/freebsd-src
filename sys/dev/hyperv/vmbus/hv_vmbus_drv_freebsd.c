@@ -443,16 +443,11 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 }
 
 static int
-vmbus_read_ivar(
-	device_t	dev,
-	device_t	child,
-	int		index,
-	uintptr_t*	result)
+vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
 	struct hv_device *child_dev_ctx = device_get_ivars(child);
 
 	switch (index) {
-
 	case HV_VMBUS_IVAR_TYPE:
 		*result = (uintptr_t) &child_dev_ctx->class_id;
 		return (0);
@@ -470,14 +465,9 @@ vmbus_read_ivar(
 }
 
 static int
-vmbus_write_ivar(
-	device_t	dev,
-	device_t	child,
-	int		index,
-	uintptr_t	value)
+vmbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 {
 	switch (index) {
-
 	case HV_VMBUS_IVAR_TYPE:
 	case HV_VMBUS_IVAR_INSTANCE:
 	case HV_VMBUS_IVAR_DEVCTX:
@@ -508,19 +498,16 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 	return (0);
 }
 
-struct hv_device*
-hv_vmbus_child_device_create(
-	hv_guid		type,
-	hv_guid		instance,
-	hv_vmbus_channel*	channel)
+struct hv_device *
+hv_vmbus_child_device_create(hv_guid type, hv_guid instance,
+    hv_vmbus_channel *channel)
 {
-	hv_device* child_dev;
+	hv_device *child_dev;
 
 	/*
 	 * Allocate the new child device
 	 */
-	child_dev = malloc(sizeof(hv_device), M_DEVBUF,
-			M_WAITOK |  M_ZERO);
+	child_dev = malloc(sizeof(hv_device), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	child_dev->channel = channel;
 	memcpy(&child_dev->class_id, &type, sizeof(hv_guid));
