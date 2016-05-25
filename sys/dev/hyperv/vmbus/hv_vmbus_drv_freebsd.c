@@ -215,14 +215,8 @@ vmbus_synic_setup(void *xsc)
 	hv_vmbus_synic_siefp	siefp;
 	hv_vmbus_synic_scontrol sctrl;
 	hv_vmbus_synic_sint	shared_sint;
-	uint64_t		version;
 
 	cpu = PCPU_GET(cpuid);
-
-	/*
-	 * TODO: Check the version
-	 */
-	version = rdmsr(HV_X64_MSR_SVERSION);
 
 	/*
 	 * Setup the Synic's message page
