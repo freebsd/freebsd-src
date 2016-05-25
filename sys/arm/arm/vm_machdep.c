@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 
-#include <machine/acle-compat.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/pcb.h>
@@ -76,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
-#include <machine/acle-compat.h>
 #include <machine/md_var.h>
 #include <machine/vfp.h>
 

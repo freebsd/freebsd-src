@@ -34,7 +34,6 @@
 #error Only include this file in the kernel
 #endif
 
-#include <machine/acle-compat.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/cpuinfo.h>
