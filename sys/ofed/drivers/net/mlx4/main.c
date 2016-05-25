@@ -33,6 +33,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx4_
+
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/errno.h>

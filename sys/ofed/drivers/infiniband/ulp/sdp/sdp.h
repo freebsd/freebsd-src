@@ -1,6 +1,8 @@
 #ifndef _SDP_H_
 #define _SDP_H_
 
+#define	LINUXKPI_PARAM_PREFIX ib_sdp_
+
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_ofed.h"

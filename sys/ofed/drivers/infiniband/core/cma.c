@@ -34,6 +34,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX ibcore_
+
 #include <linux/completion.h>
 #include <linux/in.h>
 #include <linux/in6.h>

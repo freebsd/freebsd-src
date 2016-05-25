@@ -35,6 +35,8 @@
 #ifndef _IPOIB_H
 #define _IPOIB_H
 
+#define	LINUXKPI_PARAM_PREFIX ipoib_
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ofed.h"

@@ -31,6 +31,8 @@
  *
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx4_
+
 #include <linux/page.h>
 #include <linux/mlx4/cq.h>
 #include <linux/slab.h>

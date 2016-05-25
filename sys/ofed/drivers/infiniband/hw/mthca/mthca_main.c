@@ -32,6 +32,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mthca_
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
