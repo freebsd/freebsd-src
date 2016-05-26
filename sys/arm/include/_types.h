@@ -43,6 +43,10 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#if __ARM_ARCH >= 6
+#define __NO_STRICT_ALIGNMENT
+#endif
+
 /*
  * Basic types upon which most other types are built.
  */
