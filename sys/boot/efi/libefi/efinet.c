@@ -101,7 +101,7 @@ efinet_match(struct netif *nif, void *machdep_hint)
 {
 	struct devdesc *dev = machdep_hint;
 
-	if (dev->d_unit - 1 == nif->nif_unit)
+	if (dev->d_unit == nif->nif_unit)
 		return (1);
 	return(0);
 }
@@ -271,7 +271,9 @@ efinet_dev_init()
 {
 	struct netif_dif *dif;
 	struct netif_stats *stats;
-	EFI_HANDLE *handles;
+	EFI_DEVICE_PATH *devpath, *node;
+	EFI_SIMPLE_NETWORK *net;
+	EFI_HANDLE *handles, *handles2;
 	EFI_STATUS status;
 	UINTN sz;
 	int err, i, nifs;
@@ -288,11 +290,43 @@ efinet_dev_init()
 	}
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
-	nifs = sz / sizeof(EFI_HANDLE);
-	err = efi_register_handles(&efinet_dev, handles, NULL, nifs);
+	handles2 = (EFI_HANDLE *)malloc(sz);
+	nifs = 0;
+	for (i = 0; i < sz / sizeof(EFI_HANDLE); i++) {
+		devpath = efi_lookup_devpath(handles[i]);
+		if (devpath == NULL)
+			continue;
+		node = efi_devpath_last_node(devpath);
+		if (DevicePathType(node) != MESSAGING_DEVICE_PATH ||
+		    DevicePathSubType(node) != MSG_MAC_ADDR_DP)
+			continue;
+
+		/*
+		 * Open the network device in exclusive mode. Without this
+		 * we will be racing with the UEFI network stack. It will
+		 * pull packets off the network leading to lost packets.
+		 */
+		status = BS->OpenProtocol(handles[i], &sn_guid, (void **)&net,
+		    IH, 0, EFI_OPEN_PROTOCOL_EXCLUSIVE);
+		if (status != EFI_SUCCESS) {
+			printf("Unable to open network interface %d for "
+			    "exclusive access: %d\n", i, EFI_ERROR(status));
+		}
+
+		handles2[nifs] = handles[i];
+		nifs++;
+	}
 	free(handles);
-	if (err != 0)
+	if (nifs == 0) {
+		free(handles2);
+		return (ENOENT);
+	}
+
+	err = efi_register_handles(&efinet_dev, handles2, NULL, nifs);
+	if (err != 0) {
+		free(handles2);
 		return (err);
+	}
 
 	efinetif.netif_nifs = nifs;
 	efinetif.netif_ifs = calloc(nifs, sizeof(struct netif_dif));
@@ -300,31 +334,14 @@ efinet_dev_init()
 	stats = calloc(nifs, sizeof(struct netif_stats));
 
 	for (i = 0; i < nifs; i++) {
-		EFI_SIMPLE_NETWORK *net;
-		EFI_HANDLE h;
 
 		dif = &efinetif.netif_ifs[i];
-		dif->dif_unit = -1;
-
-		h = efi_find_handle(&efinet_dev, i);
-
-		/*
-		 * Open the network device in exclusive mode. Without this
-		 * we will be racing with the UEFI network stack. It will
-		 * pull packets off the network leading to lost packets.
-		 */
-		status = BS->OpenProtocol(h, &sn_guid, (void **)&net,
-		    IH, 0, EFI_OPEN_PROTOCOL_EXCLUSIVE);
-		if (status != EFI_SUCCESS) {
-			printf("Unable to open network interface %d for "
-			    "exclusive access\n", i);
-		}
-
 		dif->dif_unit = i;
 		dif->dif_nsel = 1;
 		dif->dif_stats = &stats[i];
-		dif->dif_private = h;
+		dif->dif_private = handles2[i];
 	}
+	free(handles2);
 
 	return (0);
 }
