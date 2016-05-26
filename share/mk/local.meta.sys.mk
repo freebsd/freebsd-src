@@ -214,7 +214,7 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
-.if !defined(_RECURSING_PROGS)
+.if !defined(_RECURSING_PROGS) && !defined(_RECURSING_CRUNCH)
 WITH_META_STATS= t
 .endif
 
