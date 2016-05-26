@@ -269,7 +269,6 @@ chipc_detach(device_t dev)
 
 	chipc_release_region(sc, sc->core_region, RF_ALLOCATED|RF_ACTIVE);
 	chipc_free_rman(sc);
-	bhnd_sprom_fini(&sc->sprom);
 
 	CHIPC_LOCK_DESTROY(sc);
 
