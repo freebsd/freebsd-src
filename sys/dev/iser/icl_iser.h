@@ -148,6 +148,9 @@
 #define ISER_ZBVA_NOT_SUPPORTED                0x80
 #define ISER_SEND_W_INV_NOT_SUPPORTED	0x40
 
+#define	ISCSI_DEF_MAX_RECV_SEG_LEN	8192
+#define	ISCSI_OPCODE_MASK		0x3f
+
 #define icl_to_iser_conn(ic) \
 	container_of(ic, struct iser_conn, icl_conn)
 #define icl_to_iser_pdu(ip) \
@@ -445,6 +448,7 @@ struct iser_conn {
 	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
 	u32                          num_rx_descs;
+	bool                         handoff_done;
 };
 
 /**

@@ -415,7 +415,6 @@ iser_send_control(struct iser_conn *iser_conn,
 	struct iser_tx_desc *mdesc;
 	struct iser_device *device;
 	size_t datalen = iser_pdu->icl_pdu.ip_data_len;
-	struct icl_conn *ic = &iser_conn->icl_conn;
 	int err;
 
 	mdesc = &iser_pdu->desc;
@@ -442,8 +441,8 @@ iser_send_control(struct iser_conn *iser_conn,
 		mdesc->num_sge = 2;
 	}
 
-	/* For discovery session we re-use the login buffer */
-	if (ic->ic_session_login_phase(ic) || ic->ic_session_type_discovery(ic)) {
+	/* For login phase and discovery session we re-use the login buffer */
+	if (!iser_conn->handoff_done) {
 		err = iser_post_recvl(iser_conn);
 		if (err)
 			goto send_control_error;
