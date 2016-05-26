@@ -1,8 +1,8 @@
-# $FreeBSD$
+# $FreeBSD: releng/10.1/sys/mips/conf/PICOSTATION_M2HP.hints 255086 2013-08-30 20:46:01Z hiren $
 
-# arge0 MDIO bus
+# arge1 MDIO bus
 hint.argemdio.0.at="nexus0"
-hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.maddr=0x1a000000
 hint.argemdio.0.msize=0x1000
 hint.argemdio.0.order=0
 
@@ -62,7 +62,7 @@ hint.gpioled.3.pins=0x0080     # pin 7
 
 # GEOM_MAP
 #
-# Picostation M2 HP
+# Rocket M2 HP
 #
 # mtdparts=ar7240-nor0:256k(u-boot),64k(u-boot-env),1024k(kernel),6528k(rootfs),256k(cfg),64k(EEPROM)
 
