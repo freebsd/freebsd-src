@@ -248,7 +248,9 @@ invoke_system_calloc(void)
 			return (-1);
 		if (calloc_allocation == NULL)
 			return (-1);
-		if (cheri_getlen(calloc_allocation) != sizes[i])
+		if (cheri_getoffset(calloc_allocation) != 0)
+			return (-1);
+		if (cheri_getlen(calloc_allocation) < sizes[i])
 			return (-1);
 		if (cheri_system_free(calloc_allocation) != 0)
 			return (-1);

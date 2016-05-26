@@ -230,6 +230,15 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
 
 	/*
+	 * Test bounds on heap allocation.
+	 */
+#ifdef __CHERI_PURE_CAPABILITY__
+	{ .ct_name = "test_bounds_calloc",
+	  .ct_desc = "Check bounds on variously sized heap allocations",
+	  .ct_func = test_bounds_calloc, },
+#endif
+
+	/*
 	 * Test bounds on static stack allocations.
 	 */
 	{ .ct_name = "test_bounds_stack_static_uint8",
