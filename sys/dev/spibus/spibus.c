@@ -156,6 +156,7 @@ spibus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		break;
 	case SPIBUS_IVAR_CLOCK:
 		*(uint32_t *)result = devi->clock;
+		break;
 	}
 	return (0);
 }
