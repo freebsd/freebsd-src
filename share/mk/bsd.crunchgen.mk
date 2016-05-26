@@ -108,6 +108,7 @@ ${CONF}: Makefile
 
 CRUNCHGEN?= crunchgen
 CRUNCHENV+= MK_TESTS=no \
+	    UPDATE_DEPENDFILE=no \
 	    _RECURSING_CRUNCH=1
 .ORDER: ${OUTPUTS} objs
 ${OUTPUTS:[1]}: .META
@@ -121,13 +122,13 @@ ${OUTPUTS}: ${CONF}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
-${PROG}: ${OUTPUTS} objs
+${PROG}: ${OUTPUTS} objs .META
 	${CRUNCHENV} \
 	    CC="${CC} ${CFLAGS} ${LDFLAGS}" \
 	    CXX="${CXX} ${CXXFLAGS} ${LDFLAGS}" \
-	    ${MAKE} -f ${OUTMK} exe
+	    ${MAKE} .MAKE.MODE=normal -f ${OUTMK} exe
 
-objs: ${OUTMK}
+objs: ${OUTMK} .META
 	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
 	    ${MAKE} -f ${OUTMK} objs
 
@@ -163,3 +164,5 @@ clean:
 		${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} 	\
 		-f ${OUTMK} clean;					\
 	fi
+
+META_XTRAS+=	${find ${CRUNCHOBJS}${SRCTOP} -name '*.meta' 2>/dev/null || true:L:sh}
