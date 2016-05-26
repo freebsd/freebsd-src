@@ -28,7 +28,7 @@
  */
 
 /*
- * API for writting an Active Queue Management algorithm for Dummynet
+ * API for writing an Active Queue Management algorithm for Dummynet
  *
  * $FreeBSD$
  */
