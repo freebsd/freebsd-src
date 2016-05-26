@@ -37,6 +37,8 @@ static uma_zone_t icl_pdu_zone;
 static volatile u_int	icl_iser_ncons;
 struct iser_global ig;
 
+static void iser_conn_release(struct icl_conn *ic);
+
 static icl_conn_new_pdu_t	iser_conn_new_pdu;
 static icl_conn_pdu_free_t	iser_conn_pdu_free;
 static icl_conn_pdu_data_segment_length_t iser_conn_pdu_data_segment_length;
@@ -45,9 +47,7 @@ static icl_conn_pdu_queue_t	iser_conn_pdu_queue;
 static icl_conn_handoff_t	iser_conn_handoff;
 static icl_conn_free_t		iser_conn_free;
 static icl_conn_close_t		iser_conn_close;
-static icl_conn_release_t	iser_conn_release;
 static icl_conn_connect_t	iser_conn_connect;
-static icl_conn_connected_t	iser_conn_connected;
 static icl_conn_task_setup_t	iser_conn_task_setup;
 static icl_conn_task_done_t	iser_conn_task_done;
 static icl_conn_pdu_get_data_t	iser_conn_pdu_get_data;
@@ -61,9 +61,7 @@ static kobj_method_t icl_iser_methods[] = {
 	KOBJMETHOD(icl_conn_handoff, iser_conn_handoff),
 	KOBJMETHOD(icl_conn_free, iser_conn_free),
 	KOBJMETHOD(icl_conn_close, iser_conn_close),
-	KOBJMETHOD(icl_conn_release, iser_conn_release),
 	KOBJMETHOD(icl_conn_connect, iser_conn_connect),
-	KOBJMETHOD(icl_conn_connected, iser_conn_connected),
 	KOBJMETHOD(icl_conn_task_setup, iser_conn_task_setup),
 	KOBJMETHOD(icl_conn_task_done, iser_conn_task_done),
 	KOBJMETHOD(icl_conn_pdu_get_data, iser_conn_pdu_get_data),
@@ -263,8 +261,9 @@ iser_new_conn(const char *name, struct mtx *lock)
 	ic = &iser_conn->icl_conn;
 	ic->ic_lock = lock;
 	ic->ic_name = name;
-	ic->ic_driver = strdup("iser", M_TEMP);
+	ic->ic_offload = strdup("iser", M_TEMP);
 	ic->ic_iser = true;
+	ic->ic_unmapped = true;
 
 	return (ic);
 }
@@ -274,6 +273,7 @@ iser_conn_free(struct icl_conn *ic)
 {
 	struct iser_conn *iser_conn = icl_to_iser_conn(ic);
 
+	iser_conn_release(ic);
 	cv_destroy(&iser_conn->ib_conn.beacon.flush_cv);
 	mtx_destroy(&iser_conn->ib_conn.beacon.flush_lock);
 	sx_destroy(&iser_conn->state_mutex);
@@ -283,7 +283,7 @@ iser_conn_free(struct icl_conn *ic)
 }
 
 int
-iser_conn_handoff(struct icl_conn *ic, int cmds_max)
+iser_conn_handoff(struct icl_conn *ic, int fd)
 {
 	struct iser_conn *iser_conn = icl_to_iser_conn(ic);
 	int error = 0;
@@ -296,20 +296,15 @@ iser_conn_handoff(struct icl_conn *ic, int cmds_max)
 		goto out;
 	}
 
-	/*
-	 * In discovery session no need to allocate rx desc and posting recv
-	 * work request
-	 */
-	if (ic->ic_session_type_discovery(ic))
-		goto out;
-
-	error = iser_alloc_rx_descriptors(iser_conn, cmds_max);
+	error = iser_alloc_rx_descriptors(iser_conn, ic->ic_maxtags);
 	if (error)
 		goto out;
 
 	error = iser_post_recvm(iser_conn, iser_conn->min_posted_rx);
 	if (error)
 		goto post_error;
+
+	iser_conn->handoff_done = true;
 
 	sx_xunlock(&iser_conn->state_mutex);
 	return (error);
@@ -325,7 +320,7 @@ out:
 /**
  * Frees all conn objects
  */
-void
+static void
 iser_conn_release(struct icl_conn *ic)
 {
 	struct iser_conn *iser_conn = icl_to_iser_conn(ic);
@@ -388,9 +383,12 @@ iser_conn_connect(struct icl_conn *ic, int domain, int socktype,
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	int err = 0;
 
+	iser_conn_release(ic);
+
 	sx_xlock(&iser_conn->state_mutex);
 	 /* the device is known only --after-- address resolution */
 	ib_conn->device = NULL;
+	iser_conn->handoff_done = false;
 
 	iser_conn->state = ISER_CONN_PENDING;
 
@@ -437,21 +435,10 @@ addr_failure:
 	return (err);
 }
 
-/**
- * Called with session spinlock held.
- * No need to lock state mutex on an advisory check.
- **/
-bool
-iser_conn_connected(struct icl_conn *ic)
-{
-	struct iser_conn *iser_conn = icl_to_iser_conn(ic);
-
-	return (iser_conn->state == ISER_CONN_UP);
-}
-
 int
-iser_conn_task_setup(struct icl_conn *ic, struct ccb_scsiio *csio,
-		     uint32_t *task_tagp, void **prvp, struct icl_pdu *ip)
+iser_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
+		     struct ccb_scsiio *csio,
+		     uint32_t *task_tagp, void **prvp)
 {
 	struct icl_iser_pdu *iser_pdu = icl_to_iser_pdu(ip);
 
@@ -492,12 +479,6 @@ iser_conn_task_done(struct icl_conn *ic, void *prv)
 	iser_pdu_free(ic, ip);
 }
 
-static u_int32_t
-iser_hba_misc()
-{
-	return (PIM_UNMAPPED);
-}
-
 static int
 iser_limits(size_t *limitp)
 {
@@ -520,7 +501,7 @@ icl_iser_load(void)
 
 	refcount_init(&icl_iser_ncons, 0);
 
-	error = icl_register("iser", 0, iser_limits, iser_new_conn, iser_hba_misc);
+	error = icl_register("iser", true, 0, iser_limits, iser_new_conn);
 	KASSERT(error == 0, ("failed to register iser"));
 
 	memset(&ig, 0, sizeof(struct iser_global));
@@ -547,7 +528,7 @@ icl_iser_unload(void)
 	mtx_destroy(&ig.connlist_mutex);
 	sx_destroy(&ig.device_list_mutex);
 
-	icl_unregister("iser");
+	icl_unregister("iser", true);
 
 	uma_zdestroy(icl_pdu_zone);
 
@@ -575,8 +556,6 @@ moduledata_t icl_iser_data = {
 
 DECLARE_MODULE(icl_iser, icl_iser_data, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_DEPEND(icl_iser, icl, 1, 1, 1);
-MODULE_DEPEND(icl_iser, iscsi, 1, 1, 1);
 MODULE_DEPEND(icl_iser, ibcore, 1, 1, 1);
 MODULE_DEPEND(icl_iser, linuxkpi, 1, 1, 1);
 MODULE_VERSION(icl_iser, 1);
-
