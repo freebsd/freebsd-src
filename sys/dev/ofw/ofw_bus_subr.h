@@ -114,7 +114,7 @@ phandle_t ofw_bus_find_compatible(phandle_t, const char *);
 /* Helper to search for a child with a given name */
 phandle_t ofw_bus_find_child(phandle_t, const char *);
 
-/* Helper routine to find a device_t child matchig a given phandle_t */
+/* Helper routine to find a device_t child matching a given phandle_t */
 device_t ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node);
 
 /* Helper routines for parsing lists  */
