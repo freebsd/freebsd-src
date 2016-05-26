@@ -1158,6 +1158,25 @@ struct r92c_tx_desc {
 	uint32_t	reserved[4];
 } __packed __attribute__((aligned(4)));
 
+static const uint8_t ridx2rate[] =
+	{ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
+
+/* HW rate indices. */
+#define RTWN_RIDX_CCK1		0
+#define RTWN_RIDX_CCK11		3
+#define RTWN_RIDX_OFDM6		4
+#define RTWN_RIDX_OFDM24	8
+#define RTWN_RIDX_OFDM54	11
+#define RTWN_RIDX_MCS0		12
+#define RTWN_RIDX_MCS15		27
+
+#define RTWN_RIDX_COUNT		28
+#define RTWN_RIDX_UNKNOWN	(uint8_t)-1
+
+#define RTWN_RATE_IS_CCK(rate)	((rate) <= RTWN_RIDX_CCK11)
+#define RTWN_RATE_IS_OFDM(rate)	((rate) >= RTWN_RIDX_OFDM6 && \
+				 (rate) <= RTWN_RIDX_OFDM54)
+
 
 /*
  * Driver definitions.
@@ -1183,8 +1202,6 @@ struct r92c_tx_desc {
 
 #define RTWN_RXBUFSZ	(16 * 1024)
 #define RTWN_TXBUFSZ	(sizeof(struct r92c_tx_desc) + IEEE80211_MAX_LEN)
-
-#define RTWN_RIDX_COUNT	28
 
 #define RTWN_TX_TIMEOUT	5000	/* ms */
 
