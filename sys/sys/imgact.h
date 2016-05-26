@@ -38,6 +38,8 @@
 
 #define MAXSHELLCMDLEN	PAGE_SIZE
 
+struct ucred;
+
 struct image_args {
 	char *buf;		/* pointer to string buffer */
 	char *begin_argv;	/* beginning of argv in buf */
@@ -82,6 +84,8 @@ struct image_params {
 	int pagesizeslen;
 	vm_prot_t stack_prot;
 	u_long stack_sz;
+	struct ucred *newcred;		/* new credentials if changing */
+	bool credential_setid;		/* true if becoming setid */
 };
 
 #ifdef _KERNEL
