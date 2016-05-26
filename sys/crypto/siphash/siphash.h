@@ -68,14 +68,14 @@ typedef struct _SIPHASH_CTX {
 #define SipHash24_Init(x)	SipHash_InitX((x), 2, 4)
 #define SipHash48_Init(x)	SipHash_InitX((x), 4, 8)
 void SipHash_InitX(SIPHASH_CTX *, int, int);
-void SipHash_SetKey(SIPHASH_CTX *, const uint8_t [16]);
+void SipHash_SetKey(SIPHASH_CTX *, const uint8_t[static SIPHASH_KEY_LENGTH]);
 void SipHash_Update(SIPHASH_CTX *, const void *, size_t);
-void SipHash_Final(void *, SIPHASH_CTX *);
+void SipHash_Final(uint8_t[static SIPHASH_DIGEST_LENGTH], SIPHASH_CTX *);
 uint64_t SipHash_End(SIPHASH_CTX *);
 
 #define SipHash24(x, y, z, i)	SipHashX((x), 2, 4, (y), (z), (i));
 #define SipHash48(x, y, z, i)	SipHashX((x), 4, 8, (y), (z), (i));
-uint64_t SipHashX(SIPHASH_CTX *, int, int, const uint8_t [16], const void *,
+uint64_t SipHashX(SIPHASH_CTX *, int, int, const uint8_t[static SIPHASH_KEY_LENGTH], const void *,
     size_t);
 
 int SipHash24_TestVectors(void);

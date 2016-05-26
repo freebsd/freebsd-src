@@ -74,7 +74,7 @@ __BEGIN_DECLS
 
 void	SHA384_Init(SHA384_CTX *);
 void	SHA384_Update(SHA384_CTX *, const void *, size_t);
-void	SHA384_Final(unsigned char [SHA384_DIGEST_LENGTH], SHA384_CTX *);
+void	SHA384_Final(unsigned char [static SHA384_DIGEST_LENGTH], SHA384_CTX *);
 #ifndef _KERNEL
 char   *SHA384_End(SHA384_CTX *, char *);
 char   *SHA384_Data(const void *, unsigned int, char *);

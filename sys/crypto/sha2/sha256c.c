@@ -287,17 +287,17 @@ SHA256_Update(SHA256_CTX * ctx, const void *in, size_t len)
  * and clears the context state.
  */
 void
-SHA256_Final(unsigned char digest[32], SHA256_CTX * ctx)
+SHA256_Final(unsigned char digest[static SHA256_DIGEST_LENGTH], SHA256_CTX *ctx)
 {
 
 	/* Add padding */
 	SHA256_Pad(ctx);
 
 	/* Write the hash */
-	be32enc_vect(digest, ctx->state, 32);
+	be32enc_vect(digest, ctx->state, SHA256_DIGEST_LENGTH);
 
 	/* Clear the context state */
-	memset((void *)ctx, 0, sizeof(*ctx));
+	memset(ctx, 0, sizeof(*ctx));
 }
 
 #ifdef WEAK_REFS
