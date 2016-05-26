@@ -102,24 +102,17 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
     struct image_params *imgp)
 {
 	struct filemon *filemon;
-	char *fullpath, *freepath;
 	size_t len;
 
 	if ((filemon = filemon_proc_get(p)) != NULL) {
-		fullpath = "<unknown>";
-		freepath = NULL;
-
-		vn_fullpath(curthread, imgp->vp, &fullpath, &freepath);
-
 		len = snprintf(filemon->msgbufr,
 		    sizeof(filemon->msgbufr), "E %d %s\n",
-		    p->p_pid, fullpath);
+		    p->p_pid,
+		    imgp->execpath != NULL ? imgp->execpath : "<unknown>");
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
 		filemon_drop(filemon);
-
-		free(freepath, M_TEMP);
 	}
 }
 
