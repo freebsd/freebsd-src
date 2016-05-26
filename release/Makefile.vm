@@ -62,15 +62,6 @@ cw-${_CW:tl}:
 		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW}IMAGE} -c ${${_CW}CONF}
 	touch ${.TARGET}
 
-cw${_CW:tl}-install:
-	mkdir -p ${DESTDIR}/${_CW:tl}
-	cp -p ${${_CW}IMAGE} \
-		${DESTDIR}/${_CW:tl}/${${_CW}_DISK}
-	cd ${DESTDIR}/${_CW:tl} && sha512 ${${_CW}_DISK}* > \
-		${DESTDIR}/${_CW:tl}/CHECKSUM.SHA512
-	cd ${DESTDIR}/${_CW:tl} && sha256 ${${_CW}_DISK}* > \
-		${DESTDIR}/${_CW:tl}/CHECKSUM.SHA256
-
 cw${_CW:tl}-package:
 	@# Special target to handle packaging cloud images in the formats
 	@# specific to each hosting provider.
