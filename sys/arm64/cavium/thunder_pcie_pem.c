@@ -313,6 +313,10 @@ thunder_pem_adjust_resource(device_t dev, device_t child, int type,
 	struct rman *rm;
 
 	sc = device_get_softc(dev);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->id, child, res, start, end));
+#endif
 
 	rm = thunder_pem_rman(sc, type);
 	if (rm == NULL)
@@ -619,6 +623,11 @@ thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource *res;
 	device_t parent_dev;
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_alloc_bus(sc->id, child, rid, start,  end,
+		    count, flags));
+#endif
 	rm = thunder_pem_rman(sc, type);
 	if (rm == NULL) {
 		/* Find parent device. On ThunderX we know an exact path. */
@@ -675,7 +684,12 @@ thunder_pem_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
 	device_t parent_dev;
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct thunder_pem_softc *sc = device_get_softc(dev);
 
+	if (type == PCI_RES_BUS)
+		return (pci_domain_release_bus(sc->id, child, rid, res));
+#endif
 	/* Find parent device. On ThunderX we know an exact path. */
 	parent_dev = device_get_parent(device_get_parent(dev));
 

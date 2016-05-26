@@ -36,6 +36,11 @@ INTERFACE bhnd_chipc;
 # bhnd(4) ChipCommon interface.
 #
 
+HEADER {
+	/* forward declarations */
+	struct chipc_caps;
+}
+
 /**
  * Return the preferred NVRAM data source.
  *
@@ -62,4 +67,36 @@ METHOD void write_chipctrl {
 	device_t dev;
 	uint32_t value;
 	uint32_t mask;
+}
+
+/**
+ * Return a borrowed reference to ChipCommon's capability
+ * table.
+ *
+ * @param dev A bhnd(4) ChipCommon device
+ */
+METHOD struct chipc_caps * get_caps {
+	device_t dev;
+}
+
+/**
+ * Enable hardware access to the SPROM.
+ * 
+ * @param sc chipc driver state.
+ *
+ * @retval 0		success
+ * @retval EBUSY	If enabling the hardware may conflict with
+ *			other active devices.
+ */
+METHOD int enable_sprom {
+	device_t dev;
+}
+
+/**
+ * Release hardware access to the SPROM.
+ * 
+ * @param sc chipc driver state.
+ */
+METHOD void disable_sprom {
+	device_t dev;
 }

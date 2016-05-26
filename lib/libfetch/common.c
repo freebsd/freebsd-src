@@ -256,8 +256,11 @@ fetch_bind(int sd, int af, const char *addr)
 	if ((err = getaddrinfo(addr, NULL, &hints, &res0)) != 0)
 		return (-1);
 	for (res = res0; res; res = res->ai_next)
-		if (bind(sd, res->ai_addr, res->ai_addrlen) == 0)
+		if (bind(sd, res->ai_addr, res->ai_addrlen) == 0) {
+			freeaddrinfo(res0);
 			return (0);
+		}
+	freeaddrinfo(res0);
 	return (-1);
 }
 

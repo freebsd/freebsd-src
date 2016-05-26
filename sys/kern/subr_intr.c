@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_platform.h"
 
 #include <sys/param.h>
@@ -53,6 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
+
 #include <machine/atomic.h>
 #include <machine/intr.h>
 #include <machine/cpu.h>
@@ -311,6 +316,11 @@ intr_irq_handler(struct trapframe *tf)
 	irq_root_filter(irq_root_arg);
 	td->td_intr_frame = oldframe;
 	critical_exit();
+#ifdef HWPMC_HOOKS
+	if (pmc_hook && TRAPF_USERMODE(tf) &&
+	    (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
+#endif
 }
 
 /*

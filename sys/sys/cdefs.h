@@ -781,6 +781,14 @@
 #endif
 
 /*
+ * Old versions of GCC use non-standard ARM arch symbols; acle-compat.h
+ * translates them to __ARM_ARCH and the modern feature symbols defined by ARM.
+ */
+#if defined(__arm__) && !defined(__ARM_ARCH)
+#include <machine/acle-compat.h>
+#endif
+
+/*
  * Type Safety Checking
  *
  * Clang provides additional attributes to enable checking type safety

@@ -43,9 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/devicestat.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
+#include <sys/endian.h>
 #include <sys/cons.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/sbuf.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
 
@@ -58,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_da.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_iosched.h>
 
@@ -74,37 +78,53 @@ extern int iosched_debug;
 typedef enum {
 	ADA_STATE_RAHEAD,
 	ADA_STATE_WCACHE,
+	ADA_STATE_LOGDIR,
+	ADA_STATE_IDDIR,
+	ADA_STATE_SUP_CAP,
+	ADA_STATE_ZONE,
 	ADA_STATE_NORMAL
 } ada_state;
 
 typedef enum {
-	ADA_FLAG_CAN_48BIT	= 0x0002,
-	ADA_FLAG_CAN_FLUSHCACHE	= 0x0004,
-	ADA_FLAG_CAN_NCQ	= 0x0008,
-	ADA_FLAG_CAN_DMA	= 0x0010,
-	ADA_FLAG_NEED_OTAG	= 0x0020,
-	ADA_FLAG_WAS_OTAG	= 0x0040,
-	ADA_FLAG_CAN_TRIM	= 0x0080,
-	ADA_FLAG_OPEN		= 0x0100,
-	ADA_FLAG_SCTX_INIT	= 0x0200,
-	ADA_FLAG_CAN_CFA        = 0x0400,
-	ADA_FLAG_CAN_POWERMGT   = 0x0800,
-	ADA_FLAG_CAN_DMA48	= 0x1000,
-	ADA_FLAG_DIRTY		= 0x2000,
-	ADA_FLAG_CAN_NCQ_TRIM	= 0x4000,	/* CAN_TRIM also set */
-	ADA_FLAG_PIM_CAN_NCQ_TRIM = 0x8000
+	ADA_FLAG_CAN_48BIT	= 0x00000002,
+	ADA_FLAG_CAN_FLUSHCACHE	= 0x00000004,
+	ADA_FLAG_CAN_NCQ	= 0x00000008,
+	ADA_FLAG_CAN_DMA	= 0x00000010,
+	ADA_FLAG_NEED_OTAG	= 0x00000020,
+	ADA_FLAG_WAS_OTAG	= 0x00000040,
+	ADA_FLAG_CAN_TRIM	= 0x00000080,
+	ADA_FLAG_OPEN		= 0x00000100,
+	ADA_FLAG_SCTX_INIT	= 0x00000200,
+	ADA_FLAG_CAN_CFA        = 0x00000400,
+	ADA_FLAG_CAN_POWERMGT   = 0x00000800,
+	ADA_FLAG_CAN_DMA48	= 0x00001000,
+	ADA_FLAG_CAN_LOG	= 0x00002000,
+	ADA_FLAG_CAN_IDLOG	= 0x00004000,
+	ADA_FLAG_CAN_SUPCAP	= 0x00008000,
+	ADA_FLAG_CAN_ZONE	= 0x00010000,
+	ADA_FLAG_CAN_WCACHE	= 0x00020000,
+	ADA_FLAG_CAN_RAHEAD	= 0x00040000,
+	ADA_FLAG_PROBED		= 0x00080000,
+	ADA_FLAG_ANNOUNCED	= 0x00100000,
+	ADA_FLAG_DIRTY		= 0x00200000,
+	ADA_FLAG_CAN_NCQ_TRIM	= 0x00400000,	/* CAN_TRIM also set */
+	ADA_FLAG_PIM_ATA_EXT	= 0x00800000
 } ada_flags;
 
 typedef enum {
 	ADA_Q_NONE		= 0x00,
 	ADA_Q_4K		= 0x01,
 	ADA_Q_NCQ_TRIM_BROKEN	= 0x02,
+	ADA_Q_LOG_BROKEN	= 0x04,
+	ADA_Q_SMR_DM		= 0x08
 } ada_quirks;
 
 #define ADA_Q_BIT_STRING	\
 	"\020"			\
 	"\0014K"		\
-	"\002NCQ_TRIM_BROKEN"
+	"\002NCQ_TRIM_BROKEN"	\
+	"\003LOG_BROKEN"	\
+	"\004SMR_DM"
 
 typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
@@ -112,8 +132,51 @@ typedef enum {
 	ADA_CCB_BUFFER_IO	= 0x03,
 	ADA_CCB_DUMP		= 0x05,
 	ADA_CCB_TRIM		= 0x06,
+	ADA_CCB_LOGDIR		= 0x07,
+	ADA_CCB_IDDIR		= 0x08,
+	ADA_CCB_SUP_CAP		= 0x09,
+	ADA_CCB_ZONE		= 0x0a,
 	ADA_CCB_TYPE_MASK	= 0x0F,
 } ada_ccb_state;
+
+typedef enum {
+	ADA_ZONE_NONE		= 0x00,
+	ADA_ZONE_DRIVE_MANAGED	= 0x01,
+	ADA_ZONE_HOST_AWARE	= 0x02,
+	ADA_ZONE_HOST_MANAGED	= 0x03
+} ada_zone_mode;
+
+typedef enum {
+	ADA_ZONE_FLAG_RZ_SUP		= 0x0001,
+	ADA_ZONE_FLAG_OPEN_SUP		= 0x0002,
+	ADA_ZONE_FLAG_CLOSE_SUP		= 0x0004,
+	ADA_ZONE_FLAG_FINISH_SUP	= 0x0008,
+	ADA_ZONE_FLAG_RWP_SUP		= 0x0010,
+	ADA_ZONE_FLAG_SUP_MASK		= (ADA_ZONE_FLAG_RZ_SUP |
+					   ADA_ZONE_FLAG_OPEN_SUP |
+					   ADA_ZONE_FLAG_CLOSE_SUP |
+					   ADA_ZONE_FLAG_FINISH_SUP |
+					   ADA_ZONE_FLAG_RWP_SUP),
+	ADA_ZONE_FLAG_URSWRZ		= 0x0020,
+	ADA_ZONE_FLAG_OPT_SEQ_SET	= 0x0040,
+	ADA_ZONE_FLAG_OPT_NONSEQ_SET	= 0x0080,
+	ADA_ZONE_FLAG_MAX_SEQ_SET	= 0x0100,
+	ADA_ZONE_FLAG_SET_MASK		= (ADA_ZONE_FLAG_OPT_SEQ_SET |
+					   ADA_ZONE_FLAG_OPT_NONSEQ_SET |
+					   ADA_ZONE_FLAG_MAX_SEQ_SET)
+} ada_zone_flags;
+
+static struct ada_zone_desc {
+	ada_zone_flags value;
+	const char *desc;
+} ada_zone_desc_table[] = {
+	{ADA_ZONE_FLAG_RZ_SUP, "Report Zones" },
+	{ADA_ZONE_FLAG_OPEN_SUP, "Open" },
+	{ADA_ZONE_FLAG_CLOSE_SUP, "Close" },
+	{ADA_ZONE_FLAG_FINISH_SUP, "Finish" },
+	{ADA_ZONE_FLAG_RWP_SUP, "Reset Write Pointer" },
+};
+
 
 /* Offsets into our private area for storing information */
 #define ccb_state	ppriv_field0
@@ -157,6 +220,15 @@ struct ada_softc {
 	int	 refcount;		/* Active xpt_action() calls */
 	ada_state state;
 	ada_flags flags;
+	ada_zone_mode zone_mode;
+	ada_zone_flags zone_flags;
+	struct ata_gp_log_dir ata_logdir;
+	int valid_logdir_len;
+	struct ata_identify_log_pages ata_iddir;
+	int valid_iddir_len;
+	uint64_t optimal_seq_zones;
+	uint64_t optimal_nonseq_zones;
+	uint64_t max_seq_zones;
 	ada_quirks quirks;
 	ada_delete_methods delete_method;
 	int	 trim_max_ranges;
@@ -612,6 +684,35 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		/*quirks*/ADA_Q_4K
 	},
 	{
+		/*
+		 * Samsung drive that doesn't support READ LOG EXT or
+		 * READ LOG DMA EXT, despite reporting that it does in
+		 * ATA identify data:
+		 * SAMSUNG HD200HJ KF100-06
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD200*", "*" },
+		/*quirks*/ADA_Q_LOG_BROKEN
+	},
+	{
+		/*
+		 * Samsung drive that doesn't support READ LOG EXT or
+		 * READ LOG DMA EXT, despite reporting that it does in
+		 * ATA identify data:
+		 * SAMSUNG HD501LJ CR100-10
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD501*", "*" },
+		/*quirks*/ADA_Q_LOG_BROKEN
+	},
+	{
+		/*
+		 * Seagate Lamarr 8TB Shingled Magnetic Recording (SMR)
+		 * Drive Managed SATA hard drive.  This drive doesn't report
+		 * in firmware that it is a drive managed SMR drive.
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST8000AS0002*", "*" },
+		/*quirks*/ADA_Q_SMR_DM
+	},
+	{
 		/* Default */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
@@ -624,13 +725,28 @@ static struct ada_quirk_entry ada_quirk_table[] =
 static	disk_strategy_t	adastrategy;
 static	dumper_t	adadump;
 static	periph_init_t	adainit;
+static	void		adadiskgonecb(struct disk *dp);
+static	periph_oninv_t	adaoninvalidate;
+static	periph_dtor_t	adacleanup;
 static	void		adaasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
+static	int		adazonemodesysctl(SYSCTL_HANDLER_ARGS);
+static	int		adazonesupsysctl(SYSCTL_HANDLER_ARGS);
 static	void		adasysctlinit(void *context, int pending);
+static	int		adagetattr(struct bio *bp);
+static	void		adasetflags(struct ada_softc *softc,
+				    struct ccb_getdev *cgd);
 static	periph_ctor_t	adaregister;
-static	periph_dtor_t	adacleanup;
+static	void		ada_dsmtrim(struct ada_softc *softc, struct bio *bp,
+				    struct ccb_ataio *ataio);
+static	void 		ada_cfaerase(struct ada_softc *softc, struct bio *bp,
+				     struct ccb_ataio *ataio);
+static	int		ada_zone_bio_to_ata(int disk_zone_cmd);
+static	int		ada_zone_cmd(struct cam_periph *periph, union ccb *ccb,
+				     struct bio *bp, int *queue_ccb);
 static	periph_start_t	adastart;
-static	periph_oninv_t	adaoninvalidate;
+static	void		adaprobedone(struct cam_periph *periph, union ccb *ccb);
+static	void		adazonedone(struct cam_periph *periph, union ccb *ccb);
 static	void		adadone(struct cam_periph *periph,
 			       union ccb *done_ccb);
 static  int		adaerror(union ccb *ccb, u_int32_t cam_flags,
@@ -737,6 +853,8 @@ static struct periph_driver adadriver =
 static int adadeletemethodsysctl(SYSCTL_HANDLER_ARGS);
 
 PERIPHDRIVER_DECLARE(ada, adadriver);
+
+static MALLOC_DEFINE(M_ATADA, "ata_da", "ata_da buffers");
 
 static int
 adaopen(struct disk *dp)
@@ -860,6 +978,14 @@ adastrategy(struct bio *bp)
 		biofinish(bp, NULL, ENXIO);
 		return;
 	}
+
+	/*
+	 * Zone commands must be ordered, because they can depend on the
+	 * effects of previously issued commands, and they may affect
+	 * commands after them.
+	 */
+	if (bp->bio_cmd == BIO_ZONE)
+		bp->bio_flags |= BIO_ORDERED;
 	
 	/*
 	 * Place it in the queue of disk activities for this disk
@@ -1129,45 +1255,10 @@ adaasync(void *callback_arg, u_int32_t code,
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
 
-		if ((cgd.ident_data.capabilities1 & ATA_SUPPORT_DMA) &&
-		    (cgd.inq_flags & SID_DMA))
-			softc->flags |= ADA_FLAG_CAN_DMA;
-		else
-			softc->flags &= ~ADA_FLAG_CAN_DMA;
-		if (cgd.ident_data.support.command2 & ATA_SUPPORT_ADDRESS48) {
-			softc->flags |= ADA_FLAG_CAN_48BIT;
-			if (cgd.inq_flags & SID_DMA48)
-				softc->flags |= ADA_FLAG_CAN_DMA48;
-			else
-				softc->flags &= ~ADA_FLAG_CAN_DMA48;
-		} else
-			softc->flags &= ~(ADA_FLAG_CAN_48BIT |
-			    ADA_FLAG_CAN_DMA48);
-		if ((cgd.ident_data.satacapabilities & ATA_SUPPORT_NCQ) &&
-		    (cgd.inq_flags & SID_DMA) && (cgd.inq_flags & SID_CmdQue))
-			softc->flags |= ADA_FLAG_CAN_NCQ;
-		else
-			softc->flags &= ~ADA_FLAG_CAN_NCQ;
-
-		if ((cgd.ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) &&
-		    (cgd.inq_flags & SID_DMA)) {
-			softc->flags |= ADA_FLAG_CAN_TRIM;
-			/*
-			 * If we can do RCVSND_FPDMA_QUEUED commands, we may be able to do
-			 * NCQ trims, if we support trims at all. We also need support from
-			 * the sim do do things properly. Perhaps we should look at log 13
-			 * dword 0 bit 0 and dword 1 bit 0 are set too...
-			 */
-			if ((softc->quirks & ADA_Q_NCQ_TRIM_BROKEN) == 0 &&
-			    (softc->flags & ADA_FLAG_PIM_CAN_NCQ_TRIM) != 0 &&
-			    (cgd.ident_data.satacapabilities2 & ATA_SUPPORT_RCVSND_FPDMA_QUEUED) != 0 &&
-			    (softc->flags & ADA_FLAG_CAN_TRIM) != 0)
-				softc->flags |= ADA_FLAG_CAN_NCQ_TRIM;
-			else
-				softc->flags &= ~ADA_FLAG_CAN_NCQ_TRIM;
-		} else
-			softc->flags &= ~(ADA_FLAG_CAN_TRIM | ADA_FLAG_CAN_NCQ_TRIM);
-		adasetdeletemethod(softc);
+		/*
+		 * Set/clear support flags based on the new Identify data.
+		 */
+		adasetflags(softc, &cgd);
 
 		cam_periph_async(periph, code, path, arg);
 		break;
@@ -1196,12 +1287,13 @@ adaasync(void *callback_arg, u_int32_t code,
 		xpt_setup_ccb(&cgd.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
-		if (ADA_RA >= 0 &&
-		    cgd.ident_data.support.command1 & ATA_SUPPORT_LOOKAHEAD)
+		if (ADA_RA >= 0 && softc->flags & ADA_FLAG_CAN_RAHEAD)
 			softc->state = ADA_STATE_RAHEAD;
-		else if (ADA_WC >= 0 &&
-		    cgd.ident_data.support.command1 & ATA_SUPPORT_WRITECACHE)
+		else if (ADA_WC >= 0 && softc->flags & ADA_FLAG_CAN_RAHEAD)
 			softc->state = ADA_STATE_WCACHE;
+		else if ((softc->flags & ADA_FLAG_CAN_LOG)
+		      && (softc->zone_mode != ADA_ZONE_NONE))
+			softc->state = ADA_STATE_LOGDIR;
 		else
 		    break;
 		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
@@ -1214,6 +1306,73 @@ adaasync(void *callback_arg, u_int32_t code,
 		break;
 	}
 }
+
+static int
+adazonemodesysctl(SYSCTL_HANDLER_ARGS)
+{
+	char tmpbuf[40];
+	struct ada_softc *softc;
+	int error;
+
+	softc = (struct ada_softc *)arg1;
+
+	switch (softc->zone_mode) {
+	case ADA_ZONE_DRIVE_MANAGED:
+		snprintf(tmpbuf, sizeof(tmpbuf), "Drive Managed");
+		break;
+	case ADA_ZONE_HOST_AWARE:
+		snprintf(tmpbuf, sizeof(tmpbuf), "Host Aware");
+		break;
+	case ADA_ZONE_HOST_MANAGED:
+		snprintf(tmpbuf, sizeof(tmpbuf), "Host Managed");
+		break;
+	case ADA_ZONE_NONE:
+	default:
+		snprintf(tmpbuf, sizeof(tmpbuf), "Not Zoned");
+		break;
+	}
+
+	error = sysctl_handle_string(oidp, tmpbuf, sizeof(tmpbuf), req);
+
+	return (error);
+}
+
+static int
+adazonesupsysctl(SYSCTL_HANDLER_ARGS)
+{
+	char tmpbuf[180];
+	struct ada_softc *softc;
+	struct sbuf sb;
+	int error, first;
+	unsigned int i;
+
+	softc = (struct ada_softc *)arg1;
+
+	error = 0;
+	first = 1;
+	sbuf_new(&sb, tmpbuf, sizeof(tmpbuf), 0);
+
+	for (i = 0; i < sizeof(ada_zone_desc_table) /
+	     sizeof(ada_zone_desc_table[0]); i++) {
+		if (softc->zone_flags & ada_zone_desc_table[i].value) {
+			if (first == 0)
+				sbuf_printf(&sb, ", ");
+			else
+				first = 0;
+			sbuf_cat(&sb, ada_zone_desc_table[i].desc);
+		}
+	}
+
+	if (first == 1)
+		sbuf_printf(&sb, "None");
+
+	sbuf_finish(&sb);
+
+	error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+
+	return (error);
+}
+
 
 static void
 adasysctlinit(void *context, int pending)
@@ -1231,7 +1390,7 @@ adasysctlinit(void *context, int pending)
 	}
 
 	softc = (struct ada_softc *)periph->softc;
-	snprintf(tmpstr, sizeof(tmpstr), "CAM ADA unit %d", periph->unit_number);
+	snprintf(tmpstr, sizeof(tmpstr), "CAM ADA unit %d",periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
@@ -1261,6 +1420,29 @@ adasysctlinit(void *context, int pending)
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "rotating", CTLFLAG_RD | CTLFLAG_MPSAFE,
 		&softc->rotating, 0, "Rotating media");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "zone_mode", CTLTYPE_STRING | CTLFLAG_RD,
+		softc, 0, adazonemodesysctl, "A",
+		"Zone Mode");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "zone_support", CTLTYPE_STRING | CTLFLAG_RD,
+		softc, 0, adazonesupsysctl, "A",
+		"Zone Support");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"optimal_seq_zones", CTLFLAG_RD, &softc->optimal_seq_zones,
+		"Optimal Number of Open Sequential Write Preferred Zones");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"optimal_nonseq_zones", CTLFLAG_RD,
+		&softc->optimal_nonseq_zones,
+		"Optimal Number of Non-Sequentially Written Sequential Write "
+		"Preferred Zones");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"max_seq_zones", CTLFLAG_RD, &softc->max_seq_zones,
+		"Maximum Number of Open Sequential Write Required Zones");
+
 #ifdef ADA_TEST_FAILURE
 	/*
 	 * Add a 'door bell' sysctl which allows one to set it from userland
@@ -1361,6 +1543,105 @@ adadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	return (EINVAL);
 }
 
+static void
+adasetflags(struct ada_softc *softc, struct ccb_getdev *cgd)
+{
+	if ((cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA) &&
+	    (cgd->inq_flags & SID_DMA))
+		softc->flags |= ADA_FLAG_CAN_DMA;
+	else
+		softc->flags &= ~ADA_FLAG_CAN_DMA;
+
+	if (cgd->ident_data.support.command2 & ATA_SUPPORT_ADDRESS48) {
+		softc->flags |= ADA_FLAG_CAN_48BIT;
+		if (cgd->inq_flags & SID_DMA48)
+			softc->flags |= ADA_FLAG_CAN_DMA48;
+		else
+			softc->flags &= ~ADA_FLAG_CAN_DMA48;
+	} else
+		softc->flags &= ~(ADA_FLAG_CAN_48BIT | ADA_FLAG_CAN_DMA48);
+
+	if (cgd->ident_data.support.command2 & ATA_SUPPORT_FLUSHCACHE)
+		softc->flags |= ADA_FLAG_CAN_FLUSHCACHE;
+	else
+		softc->flags &= ~ADA_FLAG_CAN_FLUSHCACHE;
+
+	if (cgd->ident_data.support.command1 & ATA_SUPPORT_POWERMGT)
+		softc->flags |= ADA_FLAG_CAN_POWERMGT;
+	else
+		softc->flags &= ~ADA_FLAG_CAN_POWERMGT;
+
+	if ((cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ) &&
+	    (cgd->inq_flags & SID_DMA) && (cgd->inq_flags & SID_CmdQue))
+		softc->flags |= ADA_FLAG_CAN_NCQ;
+	else
+		softc->flags &= ~ADA_FLAG_CAN_NCQ;
+
+	if ((cgd->ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) &&
+	    (cgd->inq_flags & SID_DMA)) {
+		softc->flags |= ADA_FLAG_CAN_TRIM;
+		softc->trim_max_ranges = TRIM_MAX_RANGES;
+		if (cgd->ident_data.max_dsm_blocks != 0) {
+			softc->trim_max_ranges =
+			    min(cgd->ident_data.max_dsm_blocks *
+				ATA_DSM_BLK_RANGES, softc->trim_max_ranges);
+		}
+		/*
+		 * If we can do RCVSND_FPDMA_QUEUED commands, we may be able
+		 * to do NCQ trims, if we support trims at all. We also need
+		 * support from the SIM to do things properly. Perhaps we
+		 * should look at log 13 dword 0 bit 0 and dword 1 bit 0 are
+		 * set too...
+		 */
+		if ((softc->quirks & ADA_Q_NCQ_TRIM_BROKEN) == 0 &&
+		    (softc->flags & ADA_FLAG_PIM_ATA_EXT) != 0 &&
+		    (cgd->ident_data.satacapabilities2 &
+		     ATA_SUPPORT_RCVSND_FPDMA_QUEUED) != 0 &&
+		    (softc->flags & ADA_FLAG_CAN_TRIM) != 0)
+			softc->flags |= ADA_FLAG_CAN_NCQ_TRIM;
+		else
+			softc->flags &= ~ADA_FLAG_CAN_NCQ_TRIM;
+	} else
+		softc->flags &= ~(ADA_FLAG_CAN_TRIM | ADA_FLAG_CAN_NCQ_TRIM);
+
+	if (cgd->ident_data.support.command2 & ATA_SUPPORT_CFA)
+		softc->flags |= ADA_FLAG_CAN_CFA;
+	else
+		softc->flags &= ~ADA_FLAG_CAN_CFA;
+
+	/*
+	 * Now that we've set the appropriate flags, setup the delete
+	 * method.
+	 */
+	adasetdeletemethod(softc);
+
+	if ((cgd->ident_data.support.extension & ATA_SUPPORT_GENLOG)
+	 && ((softc->quirks & ADA_Q_LOG_BROKEN) == 0))
+		softc->flags |= ADA_FLAG_CAN_LOG;
+	else
+		softc->flags &= ~ADA_FLAG_CAN_LOG;
+
+	if ((cgd->ident_data.support3 & ATA_SUPPORT_ZONE_MASK) ==
+	     ATA_SUPPORT_ZONE_HOST_AWARE)
+		softc->zone_mode = ADA_ZONE_HOST_AWARE;
+	else if (((cgd->ident_data.support3 & ATA_SUPPORT_ZONE_MASK) ==
+		   ATA_SUPPORT_ZONE_DEV_MANAGED)
+	      || (softc->quirks & ADA_Q_SMR_DM))
+		softc->zone_mode = ADA_ZONE_DRIVE_MANAGED;
+	else
+		softc->zone_mode = ADA_ZONE_NONE;
+
+	if (cgd->ident_data.support.command1 & ATA_SUPPORT_LOOKAHEAD)
+		softc->flags |= ADA_FLAG_CAN_RAHEAD;
+	else
+		softc->flags &= ~ADA_FLAG_CAN_RAHEAD;
+
+	if (cgd->ident_data.support.command1 & ATA_SUPPORT_WRITECACHE)
+		softc->flags |= ADA_FLAG_CAN_WCACHE;
+	else
+		softc->flags &= ~ADA_FLAG_CAN_WCACHE;
+}
+
 static cam_status
 adaregister(struct cam_periph *periph, void *arg)
 {
@@ -1393,36 +1674,6 @@ adaregister(struct cam_periph *periph, void *arg)
 		       "Unable to allocate iosched memory\n");
 		return(CAM_REQ_CMP_ERR);
 	}
-
-	if ((cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA) &&
-	    (cgd->inq_flags & SID_DMA))
-		softc->flags |= ADA_FLAG_CAN_DMA;
-	if (cgd->ident_data.support.command2 & ATA_SUPPORT_ADDRESS48) {
-		softc->flags |= ADA_FLAG_CAN_48BIT;
-		if (cgd->inq_flags & SID_DMA48)
-			softc->flags |= ADA_FLAG_CAN_DMA48;
-	}
-	if (cgd->ident_data.support.command2 & ATA_SUPPORT_FLUSHCACHE)
-		softc->flags |= ADA_FLAG_CAN_FLUSHCACHE;
-	if (cgd->ident_data.support.command1 & ATA_SUPPORT_POWERMGT)
-		softc->flags |= ADA_FLAG_CAN_POWERMGT;
-	if ((cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ) &&
-	    (cgd->inq_flags & SID_DMA) && (cgd->inq_flags & SID_CmdQue))
-		softc->flags |= ADA_FLAG_CAN_NCQ;
-	if ((cgd->ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) &&
-	    (cgd->inq_flags & SID_DMA)) {
-		softc->flags |= ADA_FLAG_CAN_TRIM;
-		softc->trim_max_ranges = TRIM_MAX_RANGES;
-		if (cgd->ident_data.max_dsm_blocks != 0) {
-			softc->trim_max_ranges =
-			    min(cgd->ident_data.max_dsm_blocks *
-				ATA_DSM_BLK_RANGES, softc->trim_max_ranges);
-		}
-	}
-	if (cgd->ident_data.support.command2 & ATA_SUPPORT_CFA)
-		softc->flags |= ADA_FLAG_CAN_CFA;
-
-	adasetdeletemethod(softc);
 
 	periph->softc = softc;
 
@@ -1463,6 +1714,12 @@ adaregister(struct cam_periph *periph, void *arg)
 	snprintf(announce_buf, sizeof(announce_buf),
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
+
+	/*
+	 * Set support flags based on the Identify data and quirks.
+	 */
+	adasetflags(softc, cgd);
+
 	/* Disable queue sorting for non-rotational media by default. */
 	if (cgd->ident_data.media_rotation_rate == ATA_RATE_NON_ROTATING) {
 		softc->rotating = 0;
@@ -1498,7 +1755,7 @@ adaregister(struct cam_periph *periph, void *arg)
 		maxio = min(maxio, 256 * softc->params.secsize);
 	softc->disk->d_maxsize = maxio;
 	softc->disk->d_unit = periph->unit_number;
-	softc->disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
+	softc->disk->d_flags = DISKFLAG_DIRECT_COMPLETION | DISKFLAG_CANZONE;
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 	if (softc->flags & ADA_FLAG_CAN_TRIM) {
@@ -1516,19 +1773,6 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 		softc->unmappedio = 1;
 	}
-	/*
-	 * If we can do RCVSND_FPDMA_QUEUED commands, we may be able to do
-	 * NCQ trims, if we support trims at all. We also need support from
-	 * the sim do do things properly. Perhaps we should look at log 13
-	 * dword 0 bit 0 and dword 1 bit 0 are set too...
-	 */
-	if (cpi.hba_misc & PIM_ATA_EXT)
-		softc->flags |= ADA_FLAG_PIM_CAN_NCQ_TRIM;
-	if ((softc->quirks & ADA_Q_NCQ_TRIM_BROKEN) == 0 &&
-	    (softc->flags & ADA_FLAG_PIM_CAN_NCQ_TRIM) != 0 &&
-	    (cgd->ident_data.satacapabilities2 & ATA_SUPPORT_RCVSND_FPDMA_QUEUED) != 0 &&
-	    (softc->flags & ADA_FLAG_CAN_TRIM) != 0)
-		softc->flags |= ADA_FLAG_CAN_NCQ_TRIM;
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cgd->ident_data.model)));
 	strlcpy(softc->disk->d_ident, cgd->ident_data.serial,
@@ -1555,7 +1799,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
 	ata_disk_firmware_geom_adjust(softc->disk);
-	adasetdeletemethod(softc);
 
 	/*
 	 * Acquire a reference to the periph before we register with GEOM.
@@ -1570,7 +1813,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	}
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
-	cam_periph_unhold(periph);
 
 	dp = &softc->params;
 	snprintf(announce_buf, sizeof(announce_buf),
@@ -1608,20 +1850,24 @@ adaregister(struct cam_periph *periph, void *arg)
 	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);
 
-	if (ADA_RA >= 0 &&
-	    cgd->ident_data.support.command1 & ATA_SUPPORT_LOOKAHEAD) {
+	if (ADA_RA >= 0 && softc->flags & ADA_FLAG_CAN_RAHEAD) {
 		softc->state = ADA_STATE_RAHEAD;
-	} else if (ADA_WC >= 0 &&
-	    cgd->ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) {
+	} else if (ADA_WC >= 0 && softc->flags & ADA_FLAG_CAN_WCACHE) {
 		softc->state = ADA_STATE_WCACHE;
+	} else if ((softc->flags & ADA_FLAG_CAN_LOG)
+		&& (softc->zone_mode != ADA_ZONE_NONE)) {
+		softc->state = ADA_STATE_LOGDIR;
 	} else {
-		softc->state = ADA_STATE_NORMAL;
+		/*
+		 * Nothing to probe, so we can just transition to the
+		 * normal state.
+		 */
+		adaprobedone(periph, NULL);
 		return(CAM_REQ_CMP);
 	}
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
-		softc->state = ADA_STATE_NORMAL;
-	else
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
+
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
+
 	return(CAM_REQ_CMP);
 }
 
@@ -1752,6 +1998,209 @@ ada_cfaerase(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 	if (count >= 256)
 		count = 0;
 	ata_28bit_cmd(ataio, ATA_CFA_ERASE, 0, lba, count);
+}
+
+static int
+ada_zone_bio_to_ata(int disk_zone_cmd)
+{
+	switch (disk_zone_cmd) {
+	case DISK_ZONE_OPEN:
+		return ATA_ZM_OPEN_ZONE;
+	case DISK_ZONE_CLOSE:
+		return ATA_ZM_CLOSE_ZONE;
+	case DISK_ZONE_FINISH:
+		return ATA_ZM_FINISH_ZONE;
+	case DISK_ZONE_RWP:
+		return ATA_ZM_RWP;
+	}
+
+	return -1;
+}
+
+static int
+ada_zone_cmd(struct cam_periph *periph, union ccb *ccb, struct bio *bp,
+	     int *queue_ccb)
+{
+	struct ada_softc *softc;
+	int error;
+
+	error = 0;
+
+	if (bp->bio_cmd != BIO_ZONE) {
+		error = EINVAL;
+		goto bailout;
+	}
+
+	softc = periph->softc;
+
+	switch (bp->bio_zone.zone_cmd) {
+	case DISK_ZONE_OPEN:
+	case DISK_ZONE_CLOSE:
+	case DISK_ZONE_FINISH:
+	case DISK_ZONE_RWP: {
+		int zone_flags;
+		int zone_sa;
+		uint64_t lba;
+
+		zone_sa = ada_zone_bio_to_ata(bp->bio_zone.zone_cmd);
+		if (zone_sa == -1) {
+			xpt_print(periph->path, "Cannot translate zone "
+			    "cmd %#x to ATA\n", bp->bio_zone.zone_cmd);
+			error = EINVAL;
+			goto bailout;
+		}
+
+		zone_flags = 0;
+		lba = bp->bio_zone.zone_params.rwp.id;
+
+		if (bp->bio_zone.zone_params.rwp.flags &
+		    DISK_ZONE_RWP_FLAG_ALL)
+			zone_flags |= ZBC_OUT_ALL;
+
+		ata_zac_mgmt_out(&ccb->ataio,
+				 /*retries*/ ada_retry_count,
+				 /*cbfcnp*/ adadone,
+				 /*use_ncq*/ (softc->flags &
+					      ADA_FLAG_PIM_ATA_EXT) ? 1 : 0,
+				 /*zm_action*/ zone_sa,
+				 /*zone_id*/ lba,
+				 /*zone_flags*/ zone_flags,
+				 /*sector_count*/ 0,
+				 /*data_ptr*/ NULL,
+				 /*dxfer_len*/ 0,
+				 /*timeout*/ ada_default_timeout * 1000);
+		*queue_ccb = 1;
+
+		break;
+	}
+	case DISK_ZONE_REPORT_ZONES: {
+		uint8_t *rz_ptr;
+		uint32_t num_entries, alloc_size;
+		struct disk_zone_report *rep;
+
+		rep = &bp->bio_zone.zone_params.report;
+
+		num_entries = rep->entries_allocated;
+		if (num_entries == 0) {
+			xpt_print(periph->path, "No entries allocated for "
+			    "Report Zones request\n");
+			error = EINVAL;
+			goto bailout;
+		}
+		alloc_size = sizeof(struct scsi_report_zones_hdr) +
+		    (sizeof(struct scsi_report_zones_desc) * num_entries);
+		alloc_size = min(alloc_size, softc->disk->d_maxsize);
+		rz_ptr = malloc(alloc_size, M_ATADA, M_NOWAIT | M_ZERO);
+		if (rz_ptr == NULL) {
+			xpt_print(periph->path, "Unable to allocate memory "
+			   "for Report Zones request\n");
+			error = ENOMEM;
+			goto bailout;
+		}
+		
+		ata_zac_mgmt_in(&ccb->ataio,
+				/*retries*/ ada_retry_count,
+				/*cbcfnp*/ adadone,
+				/*use_ncq*/ (softc->flags &
+					     ADA_FLAG_PIM_ATA_EXT) ? 1 : 0,
+				/*zm_action*/ ATA_ZM_REPORT_ZONES,
+				/*zone_id*/ rep->starting_id,
+				/*zone_flags*/ rep->rep_options,
+				/*data_ptr*/ rz_ptr,
+				/*dxfer_len*/ alloc_size,
+				/*timeout*/ ada_default_timeout * 1000);
+
+		/*
+		 * For BIO_ZONE, this isn't normally needed.  However, it
+		 * is used by devstat_end_transaction_bio() to determine
+		 * how much data was transferred.
+		 */
+		/*
+		 * XXX KDM we have a problem.  But I'm not sure how to fix
+		 * it.  devstat uses bio_bcount - bio_resid to calculate
+		 * the amount of data transferred.   The GEOM disk code
+		 * uses bio_length - bio_resid to calculate the amount of
+		 * data in bio_completed.  We have different structure
+		 * sizes above and below the ada(4) driver.  So, if we
+		 * use the sizes above, the amount transferred won't be
+		 * quite accurate for devstat.  If we use different sizes
+		 * for bio_bcount and bio_length (above and below
+		 * respectively), then the residual needs to match one or
+		 * the other.  Everything is calculated after the bio
+		 * leaves the driver, so changing the values around isn't
+		 * really an option.  For now, just set the count to the
+		 * passed in length.  This means that the calculations
+		 * above (e.g. bio_completed) will be correct, but the
+		 * amount of data reported to devstat will be slightly
+		 * under or overstated.
+		 */
+		bp->bio_bcount = bp->bio_length;
+
+		*queue_ccb = 1;
+
+		break;
+	}
+	case DISK_ZONE_GET_PARAMS: {
+		struct disk_zone_disk_params *params;
+
+		params = &bp->bio_zone.zone_params.disk_params;
+		bzero(params, sizeof(*params));
+
+		switch (softc->zone_mode) {
+		case ADA_ZONE_DRIVE_MANAGED:
+			params->zone_mode = DISK_ZONE_MODE_DRIVE_MANAGED;
+			break;
+		case ADA_ZONE_HOST_AWARE:
+			params->zone_mode = DISK_ZONE_MODE_HOST_AWARE;
+			break;
+		case ADA_ZONE_HOST_MANAGED:
+			params->zone_mode = DISK_ZONE_MODE_HOST_MANAGED;
+			break;
+		default:
+		case ADA_ZONE_NONE:
+			params->zone_mode = DISK_ZONE_MODE_NONE;
+			break;
+		}
+
+		if (softc->zone_flags & ADA_ZONE_FLAG_URSWRZ)
+			params->flags |= DISK_ZONE_DISK_URSWRZ;
+
+		if (softc->zone_flags & ADA_ZONE_FLAG_OPT_SEQ_SET) {
+			params->optimal_seq_zones = softc->optimal_seq_zones;
+			params->flags |= DISK_ZONE_OPT_SEQ_SET;
+		}
+
+		if (softc->zone_flags & ADA_ZONE_FLAG_OPT_NONSEQ_SET) {
+			params->optimal_nonseq_zones =
+			    softc->optimal_nonseq_zones;
+			params->flags |= DISK_ZONE_OPT_NONSEQ_SET;
+		}
+
+		if (softc->zone_flags & ADA_ZONE_FLAG_MAX_SEQ_SET) {
+			params->max_seq_zones = softc->max_seq_zones;
+			params->flags |= DISK_ZONE_MAX_SEQ_SET;
+		}
+		if (softc->zone_flags & ADA_ZONE_FLAG_RZ_SUP)
+			params->flags |= DISK_ZONE_RZ_SUP;
+
+		if (softc->zone_flags & ADA_ZONE_FLAG_OPEN_SUP)
+			params->flags |= DISK_ZONE_OPEN_SUP;
+
+		if (softc->zone_flags & ADA_ZONE_FLAG_CLOSE_SUP)
+			params->flags |= DISK_ZONE_CLOSE_SUP;
+
+		if (softc->zone_flags & ADA_ZONE_FLAG_FINISH_SUP)
+			params->flags |= DISK_ZONE_FINISH_SUP;
+
+		if (softc->zone_flags & ADA_ZONE_FLAG_RWP_SUP)
+			params->flags |= DISK_ZONE_RWP_SUP;
+		break;
+	}
+	default:
+		break;
+	}
+bailout:
+	return (error);
 }
 
 static void
@@ -1941,6 +2390,20 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			else
 				ata_28bit_cmd(ataio, ATA_FLUSHCACHE, 0, 0, 0);
 			break;
+		case BIO_ZONE: {
+			int error, queue_ccb;
+
+			queue_ccb = 0;
+
+			error = ada_zone_cmd(periph, start_ccb, bp, &queue_ccb);
+			if ((error != 0)
+			 || (queue_ccb == 0)) {
+				biofinish(bp, NULL, error);
+				xpt_release_ccb(start_ccb);
+				return;
+			}
+			break;
+		}
 		}
 		start_ccb->ccb_h.ccb_state = ADA_CCB_BUFFER_IO;
 		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
@@ -1982,21 +2445,306 @@ out:
 		xpt_action(start_ccb);
 		break;
 	}
+	case ADA_STATE_LOGDIR:
+	{
+		struct ata_gp_log_dir *log_dir;
+
+		if ((softc->flags & ADA_FLAG_CAN_LOG) == 0) {
+			adaprobedone(periph, start_ccb);
+			break;
+		}
+
+		log_dir = malloc(sizeof(*log_dir), M_ATADA, M_NOWAIT|M_ZERO);
+		if (log_dir == NULL) {
+			xpt_print(periph->path, "Couldn't malloc log_dir "
+			    "data\n");
+			softc->state = ADA_STATE_NORMAL;
+			xpt_release_ccb(start_ccb);
+			break;
+		}
+
+
+		ata_read_log(ataio,
+		    /*retries*/1,
+		    /*cbfcnp*/adadone,
+		    /*log_address*/ ATA_LOG_DIRECTORY,
+		    /*page_number*/ 0,
+		    /*block_count*/ 1,
+		    /*protocol*/ softc->flags & ADA_FLAG_CAN_DMA ?
+				 CAM_ATAIO_DMA : 0,
+		    /*data_ptr*/ (uint8_t *)log_dir,
+		    /*dxfer_len*/sizeof(*log_dir),
+		    /*timeout*/ada_default_timeout*1000);
+
+		start_ccb->ccb_h.ccb_state = ADA_CCB_LOGDIR;
+		xpt_action(start_ccb);
+		break;
+	}
+	case ADA_STATE_IDDIR:
+	{
+		struct ata_identify_log_pages *id_dir;
+
+		id_dir = malloc(sizeof(*id_dir), M_ATADA, M_NOWAIT | M_ZERO);
+		if (id_dir == NULL) {
+			xpt_print(periph->path, "Couldn't malloc id_dir "
+			    "data\n");
+			adaprobedone(periph, start_ccb);
+			break;
+		}
+
+		ata_read_log(ataio,
+		    /*retries*/1,
+		    /*cbfcnp*/adadone,
+		    /*log_address*/ ATA_IDENTIFY_DATA_LOG,
+		    /*page_number*/ ATA_IDL_PAGE_LIST,
+		    /*block_count*/ 1,
+		    /*protocol*/ softc->flags & ADA_FLAG_CAN_DMA ?
+				 CAM_ATAIO_DMA : 0,
+		    /*data_ptr*/ (uint8_t *)id_dir,
+		    /*dxfer_len*/ sizeof(*id_dir),
+		    /*timeout*/ada_default_timeout*1000);
+
+		start_ccb->ccb_h.ccb_state = ADA_CCB_IDDIR;
+		xpt_action(start_ccb);
+		break;
+	}
+	case ADA_STATE_SUP_CAP:
+	{
+		struct ata_identify_log_sup_cap *sup_cap;
+
+		sup_cap = malloc(sizeof(*sup_cap), M_ATADA, M_NOWAIT|M_ZERO);
+		if (sup_cap == NULL) {
+			xpt_print(periph->path, "Couldn't malloc sup_cap "
+			    "data\n");
+			adaprobedone(periph, start_ccb);
+			break;
+		}
+
+		ata_read_log(ataio,
+		    /*retries*/1,
+		    /*cbfcnp*/adadone,
+		    /*log_address*/ ATA_IDENTIFY_DATA_LOG,
+		    /*page_number*/ ATA_IDL_SUP_CAP,
+		    /*block_count*/ 1,
+		    /*protocol*/ softc->flags & ADA_FLAG_CAN_DMA ?
+				 CAM_ATAIO_DMA : 0,
+		    /*data_ptr*/ (uint8_t *)sup_cap,
+		    /*dxfer_len*/ sizeof(*sup_cap),
+		    /*timeout*/ada_default_timeout*1000);
+
+		start_ccb->ccb_h.ccb_state = ADA_CCB_SUP_CAP;
+		xpt_action(start_ccb);
+		break;
+	}
+	case ADA_STATE_ZONE:
+	{
+		struct ata_zoned_info_log *ata_zone;
+
+		ata_zone = malloc(sizeof(*ata_zone), M_ATADA, M_NOWAIT|M_ZERO);
+		if (ata_zone == NULL) {
+			xpt_print(periph->path, "Couldn't malloc ata_zone "
+			    "data\n");
+			adaprobedone(periph, start_ccb);
+			break;
+		}
+
+		ata_read_log(ataio,
+		    /*retries*/1,
+		    /*cbfcnp*/adadone,
+		    /*log_address*/ ATA_IDENTIFY_DATA_LOG,
+		    /*page_number*/ ATA_IDL_ZDI,
+		    /*block_count*/ 1,
+		    /*protocol*/ softc->flags & ADA_FLAG_CAN_DMA ?
+				 CAM_ATAIO_DMA : 0,
+		    /*data_ptr*/ (uint8_t *)ata_zone,
+		    /*dxfer_len*/ sizeof(*ata_zone),
+		    /*timeout*/ada_default_timeout*1000);
+
+		start_ccb->ccb_h.ccb_state = ADA_CCB_ZONE;
+		xpt_action(start_ccb);
+		break;
+	}
 	}
 }
+
+static void
+adaprobedone(struct cam_periph *periph, union ccb *ccb)
+{
+	struct ada_softc *softc;
+
+	softc = (struct ada_softc *)periph->softc;
+
+	if (ccb != NULL)
+		xpt_release_ccb(ccb);
+
+	softc->state = ADA_STATE_NORMAL;
+	softc->flags |= ADA_FLAG_PROBED;
+	adaschedule(periph);
+	if ((softc->flags & ADA_FLAG_ANNOUNCED) == 0) {
+		softc->flags |= ADA_FLAG_ANNOUNCED;
+		cam_periph_unhold(periph);
+	} else {
+		cam_periph_release_locked(periph);
+	}
+}
+
+static void
+adazonedone(struct cam_periph *periph, union ccb *ccb)
+{
+	struct ada_softc *softc;
+	struct bio *bp;
+
+	softc = periph->softc;
+	bp = (struct bio *)ccb->ccb_h.ccb_bp;
+
+	switch (bp->bio_zone.zone_cmd) {
+	case DISK_ZONE_OPEN:
+	case DISK_ZONE_CLOSE:
+	case DISK_ZONE_FINISH:
+	case DISK_ZONE_RWP:
+		break;
+	case DISK_ZONE_REPORT_ZONES: {
+		uint32_t avail_len;
+		struct disk_zone_report *rep;
+		struct scsi_report_zones_hdr *hdr;
+		struct scsi_report_zones_desc *desc;
+		struct disk_zone_rep_entry *entry;
+		uint32_t num_alloced, hdr_len, num_avail;
+		uint32_t num_to_fill, i;
+
+		rep = &bp->bio_zone.zone_params.report;
+		avail_len = ccb->ataio.dxfer_len - ccb->ataio.resid;
+		/*
+		 * Note that bio_resid isn't normally used for zone
+		 * commands, but it is used by devstat_end_transaction_bio()
+		 * to determine how much data was transferred.  Because
+		 * the size of the SCSI/ATA data structures is different
+		 * than the size of the BIO interface structures, the
+		 * amount of data actually transferred from the drive will
+		 * be different than the amount of data transferred to
+		 * the user.
+		 */
+		num_alloced = rep->entries_allocated;
+		hdr = (struct scsi_report_zones_hdr *)ccb->ataio.data_ptr;
+		if (avail_len < sizeof(*hdr)) {
+			/*
+			 * Is there a better error than EIO here?  We asked
+			 * for at least the header, and we got less than
+			 * that.
+			 */
+			bp->bio_error = EIO;
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_resid = bp->bio_bcount;
+			break;
+		}
+
+		hdr_len = le32dec(hdr->length);
+		if (hdr_len > 0)
+			rep->entries_available = hdr_len / sizeof(*desc);
+		else
+			rep->entries_available = 0;
+		/*
+		 * NOTE: using the same values for the BIO version of the
+		 * same field as the SCSI/ATA values.  This means we could
+		 * get some additional values that aren't defined in bio.h
+		 * if more values of the same field are defined later.
+		 */
+		rep->header.same = hdr->byte4 & SRZ_SAME_MASK;
+		rep->header.maximum_lba = le64dec(hdr->maximum_lba);
+		/*
+		 * If the drive reports no entries that match the query,
+		 * we're done.
+		 */
+		if (hdr_len == 0) {
+			rep->entries_filled = 0;
+			bp->bio_resid = bp->bio_bcount;
+			break;
+		}
+
+		num_avail = min((avail_len - sizeof(*hdr)) / sizeof(*desc),
+				hdr_len / sizeof(*desc));
+		/*
+		 * If the drive didn't return any data, then we're done.
+		 */
+		if (num_avail == 0) {
+			rep->entries_filled = 0;
+			bp->bio_resid = bp->bio_bcount;
+			break;
+		}
+
+		num_to_fill = min(num_avail, rep->entries_allocated);
+		/*
+		 * If the user didn't allocate any entries for us to fill,
+		 * we're done.
+		 */
+		if (num_to_fill == 0) {
+			rep->entries_filled = 0;
+			bp->bio_resid = bp->bio_bcount;
+			break;
+		}
+
+		for (i = 0, desc = &hdr->desc_list[0], entry=&rep->entries[0];
+		     i < num_to_fill; i++, desc++, entry++) {
+			/*
+			 * NOTE: we're mapping the values here directly
+			 * from the SCSI/ATA bit definitions to the bio.h
+			 * definitions.  There is also a warning in
+			 * disk_zone.h, but the impact is that if
+			 * additional values are added in the SCSI/ATA
+			 * specs these will be visible to consumers of
+			 * this interface.
+			 */
+			entry->zone_type = desc->zone_type & SRZ_TYPE_MASK;
+			entry->zone_condition =
+			    (desc->zone_flags & SRZ_ZONE_COND_MASK) >>
+			    SRZ_ZONE_COND_SHIFT;
+			entry->zone_flags |= desc->zone_flags &
+			    (SRZ_ZONE_NON_SEQ|SRZ_ZONE_RESET);
+			entry->zone_length = le64dec(desc->zone_length);
+			entry->zone_start_lba = le64dec(desc->zone_start_lba);
+			entry->write_pointer_lba =
+			    le64dec(desc->write_pointer_lba);
+		}
+		rep->entries_filled = num_to_fill;
+		/*
+		 * Note that this residual is accurate from the user's
+		 * standpoint, but the amount transferred isn't accurate
+		 * from the standpoint of what actually came back from the
+		 * drive.
+		 */
+		bp->bio_resid = bp->bio_bcount - (num_to_fill * sizeof(*entry));
+		break;
+	}
+	case DISK_ZONE_GET_PARAMS:
+	default:
+		/*
+		 * In theory we should not get a GET_PARAMS bio, since it
+		 * should be handled without queueing the command to the
+		 * drive.
+		 */
+		panic("%s: Invalid zone command %d", __func__,
+		    bp->bio_zone.zone_cmd);
+		break;
+	}
+
+	if (bp->bio_zone.zone_cmd == DISK_ZONE_REPORT_ZONES)
+		free(ccb->ataio.data_ptr, M_ATADA);
+}
+
 
 static void
 adadone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct ada_softc *softc;
 	struct ccb_ataio *ataio;
-	struct ccb_getdev *cgd;
 	struct cam_path *path;
+	uint32_t priority;
 	int state;
 
 	softc = (struct ada_softc *)periph->softc;
 	ataio = &done_ccb->ataio;
 	path = done_ccb->ccb_h.path;
+	priority = done_ccb->ccb_h.pinfo.priority;
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("adadone\n"));
 
@@ -2040,6 +2788,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				panic("REQ_CMP with QFRZN");
+
 			error = 0;
 		}
 		bp->bio_error = error;
@@ -2047,11 +2796,15 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->bio_resid = bp->bio_bcount;
 			bp->bio_flags |= BIO_ERROR;
 		} else {
-			if (state == ADA_CCB_TRIM)
+			if (bp->bio_cmd == BIO_ZONE)
+				adazonedone(periph, done_ccb);
+			else if (state == ADA_CCB_TRIM)
 				bp->bio_resid = 0;
 			else
 				bp->bio_resid = ataio->resid;
-			if (bp->bio_resid > 0)
+
+			if ((bp->bio_resid > 0)
+			 && (bp->bio_cmd != BIO_ZONE))
 				bp->bio_flags |= BIO_ERROR;
 		}
 		softc->outstanding_cmds--;
@@ -2100,7 +2853,6 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	{
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if (adaerror(done_ccb, 0, 0) == ERESTART) {
-out:
 				/* Drop freeze taken due to CAM_DEV_QFREEZE */
 				cam_release_devq(path, 0, 0, 0, FALSE);
 				return;
@@ -2121,30 +2873,21 @@ out:
 		 * is removed, and we need it around for the CCB release
 		 * operation.
 		 */
-		cgd = (struct ccb_getdev *)done_ccb;
-		xpt_setup_ccb(&cgd->ccb_h, path, CAM_PRIORITY_NORMAL);
-		cgd->ccb_h.func_code = XPT_GDEV_TYPE;
-		xpt_action((union ccb *)cgd);
-		if (ADA_WC >= 0 &&
-		    cgd->ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) {
-			softc->state = ADA_STATE_WCACHE;
-			xpt_release_ccb(done_ccb);
-			xpt_schedule(periph, CAM_PRIORITY_DEV);
-			goto out;
-		}
-		softc->state = ADA_STATE_NORMAL;
+
 		xpt_release_ccb(done_ccb);
+		softc->state = ADA_STATE_WCACHE;
+		xpt_schedule(periph, priority);
 		/* Drop freeze taken due to CAM_DEV_QFREEZE */
 		cam_release_devq(path, 0, 0, 0, FALSE);
-		adaschedule(periph);
-		cam_periph_release_locked(periph);
 		return;
 	}
 	case ADA_CCB_WCACHE:
 	{
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if (adaerror(done_ccb, 0, 0) == ERESTART) {
-				goto out;
+				/* Drop freeze taken due to CAM_DEV_QFREEZE */
+				cam_release_devq(path, 0, 0, 0, FALSE);
+				return;
 			} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 				cam_release_devq(path,
 				    /*relsim_flags*/0,
@@ -2154,20 +2897,366 @@ out:
 			}
 		}
 
-		softc->state = ADA_STATE_NORMAL;
-		/*
-		 * Since our peripheral may be invalidated by an error
-		 * above or an external event, we must release our CCB
-		 * before releasing the reference on the peripheral.
-		 * The peripheral will only go away once the last reference
-		 * is removed, and we need it around for the CCB release
-		 * operation.
-		 */
-		xpt_release_ccb(done_ccb);
 		/* Drop freeze taken due to CAM_DEV_QFREEZE */
 		cam_release_devq(path, 0, 0, 0, FALSE);
-		adaschedule(periph);
-		cam_periph_release_locked(periph);
+
+		if ((softc->flags & ADA_FLAG_CAN_LOG)
+		 && (softc->zone_mode != ADA_ZONE_NONE)) {
+			xpt_release_ccb(done_ccb);
+			softc->state = ADA_STATE_LOGDIR;
+			xpt_schedule(periph, priority);
+		} else {
+			adaprobedone(periph, done_ccb);
+		}
+		return;
+	}
+	case ADA_CCB_LOGDIR:
+	{
+		int error;
+
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			error = 0;
+			softc->valid_logdir_len = 0;
+			bzero(&softc->ata_logdir, sizeof(softc->ata_logdir));
+			softc->valid_logdir_len =
+				ataio->dxfer_len - ataio->resid;
+			if (softc->valid_logdir_len > 0)
+				bcopy(ataio->data_ptr, &softc->ata_logdir,
+				    min(softc->valid_logdir_len,
+					sizeof(softc->ata_logdir)));
+			/*
+			 * Figure out whether the Identify Device log is
+			 * supported.  The General Purpose log directory
+			 * has a header, and lists the number of pages
+			 * available for each GP log identified by the
+			 * offset into the list.
+			 */
+			if ((softc->valid_logdir_len >=
+			    ((ATA_IDENTIFY_DATA_LOG + 1) * sizeof(uint16_t)))
+			 && (le16dec(softc->ata_logdir.header) == 
+			     ATA_GP_LOG_DIR_VERSION)
+			 && (le16dec(&softc->ata_logdir.num_pages[
+			     (ATA_IDENTIFY_DATA_LOG *
+			     sizeof(uint16_t)) - sizeof(uint16_t)]) > 0)){
+				softc->flags |= ADA_FLAG_CAN_IDLOG;
+			} else {
+				softc->flags &= ~ADA_FLAG_CAN_IDLOG;
+			}
+		} else {
+			error = adaerror(done_ccb, CAM_RETRY_SELTO,
+					 SF_RETRY_UA|SF_NO_PRINT);
+			if (error == ERESTART)
+				return;
+			else if (error != 0) {
+				/*
+				 * If we can't get the ATA log directory,
+				 * then ATA logs are effectively not
+				 * supported even if the bit is set in the
+				 * identify data.
+				 */ 
+				softc->flags &= ~(ADA_FLAG_CAN_LOG |
+						  ADA_FLAG_CAN_IDLOG);
+				if ((done_ccb->ccb_h.status &
+				     CAM_DEV_QFRZN) != 0) {
+					/* Don't wedge this device's queue */
+					cam_release_devq(done_ccb->ccb_h.path,
+							 /*relsim_flags*/0,
+							 /*reduction*/0,
+							 /*timeout*/0,
+							 /*getcount_only*/0);
+				}
+			}
+
+
+		}
+
+		free(ataio->data_ptr, M_ATADA);
+
+		if ((error == 0)
+		 && (softc->flags & ADA_FLAG_CAN_IDLOG)) {
+			softc->state = ADA_STATE_IDDIR;
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+		} else
+			adaprobedone(periph, done_ccb);
+
+		return;
+	}
+	case ADA_CCB_IDDIR: {
+		int error;
+
+		if ((ataio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			off_t entries_offset, max_entries;
+			error = 0;
+
+			softc->valid_iddir_len = 0;
+			bzero(&softc->ata_iddir, sizeof(softc->ata_iddir));
+			softc->flags &= ~(ADA_FLAG_CAN_SUPCAP |
+					  ADA_FLAG_CAN_ZONE);
+			softc->valid_iddir_len =
+				ataio->dxfer_len - ataio->resid;
+			if (softc->valid_iddir_len > 0)
+				bcopy(ataio->data_ptr, &softc->ata_iddir,
+				    min(softc->valid_iddir_len,
+					sizeof(softc->ata_iddir)));
+
+			entries_offset =
+			    __offsetof(struct ata_identify_log_pages,entries);
+			max_entries = softc->valid_iddir_len - entries_offset;
+			if ((softc->valid_iddir_len > (entries_offset + 1))
+			 && (le64dec(softc->ata_iddir.header) ==
+			     ATA_IDLOG_REVISION)
+			 && (softc->ata_iddir.entry_count > 0)) {
+				int num_entries, i;
+
+				num_entries = softc->ata_iddir.entry_count;
+				num_entries = min(num_entries,
+				   softc->valid_iddir_len - entries_offset);
+				for (i = 0; i < num_entries &&
+				     i < max_entries; i++) {
+					if (softc->ata_iddir.entries[i] ==
+					    ATA_IDL_SUP_CAP)
+						softc->flags |=
+						    ADA_FLAG_CAN_SUPCAP;
+					else if (softc->ata_iddir.entries[i]==
+						 ATA_IDL_ZDI)
+						softc->flags |=
+						    ADA_FLAG_CAN_ZONE;
+
+					if ((softc->flags &
+					     ADA_FLAG_CAN_SUPCAP)
+					 && (softc->flags &
+					     ADA_FLAG_CAN_ZONE))
+						break;
+				}
+			}
+		} else {
+			error = adaerror(done_ccb, CAM_RETRY_SELTO,
+					 SF_RETRY_UA|SF_NO_PRINT);
+			if (error == ERESTART)
+				return;
+			else if (error != 0) {
+				/*
+				 * If we can't get the ATA Identify Data log
+				 * directory, then it effectively isn't
+				 * supported even if the ATA Log directory
+				 * a non-zero number of pages present for
+				 * this log.
+				 */
+				softc->flags &= ~ADA_FLAG_CAN_IDLOG;
+				if ((done_ccb->ccb_h.status &
+				     CAM_DEV_QFRZN) != 0) {
+					/* Don't wedge this device's queue */
+					cam_release_devq(done_ccb->ccb_h.path,
+							 /*relsim_flags*/0,
+							 /*reduction*/0,
+							 /*timeout*/0,
+							 /*getcount_only*/0);
+				}
+			}
+		}
+
+		free(ataio->data_ptr, M_ATADA);
+
+		if ((error == 0)
+		 && (softc->flags & ADA_FLAG_CAN_SUPCAP)) {
+			softc->state = ADA_STATE_SUP_CAP;
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+		} else 
+			adaprobedone(periph, done_ccb);
+		return;
+	}
+	case ADA_CCB_SUP_CAP: {
+		int error;
+
+		if ((ataio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			uint32_t valid_len;
+			size_t needed_size;
+			struct ata_identify_log_sup_cap *sup_cap;
+			error = 0;
+
+			sup_cap = (struct ata_identify_log_sup_cap *)
+			    ataio->data_ptr;
+			valid_len = ataio->dxfer_len - ataio->resid;
+			needed_size =
+			    __offsetof(struct ata_identify_log_sup_cap,
+			    sup_zac_cap) + 1 + sizeof(sup_cap->sup_zac_cap);
+			if (valid_len >= needed_size) {
+				uint64_t zoned, zac_cap;
+
+				zoned = le64dec(sup_cap->zoned_cap);
+				if (zoned & ATA_ZONED_VALID) {
+					/*
+					 * This should have already been
+					 * set, because this is also in the
+					 * ATA identify data.
+					 */
+					if ((zoned & ATA_ZONED_MASK) ==
+					    ATA_SUPPORT_ZONE_HOST_AWARE)
+						softc->zone_mode =
+						    ADA_ZONE_HOST_AWARE;
+					else if ((zoned & ATA_ZONED_MASK) ==
+					    ATA_SUPPORT_ZONE_DEV_MANAGED)
+						softc->zone_mode =
+						    ADA_ZONE_DRIVE_MANAGED;
+				}
+
+				zac_cap = le64dec(sup_cap->sup_zac_cap);
+				if (zac_cap & ATA_SUP_ZAC_CAP_VALID) {
+					if (zac_cap & ATA_REPORT_ZONES_SUP)
+						softc->zone_flags |=
+						    ADA_ZONE_FLAG_RZ_SUP;
+					if (zac_cap & ATA_ND_OPEN_ZONE_SUP)
+						softc->zone_flags |=
+						    ADA_ZONE_FLAG_OPEN_SUP;
+					if (zac_cap & ATA_ND_CLOSE_ZONE_SUP)
+						softc->zone_flags |=
+						    ADA_ZONE_FLAG_CLOSE_SUP;
+					if (zac_cap & ATA_ND_FINISH_ZONE_SUP)
+						softc->zone_flags |=
+						    ADA_ZONE_FLAG_FINISH_SUP;
+					if (zac_cap & ATA_ND_RWP_SUP)
+						softc->zone_flags |=
+						    ADA_ZONE_FLAG_RWP_SUP;
+				} else {
+					/*
+					 * This field was introduced in
+					 * ACS-4, r08 on April 28th, 2015.
+					 * If the drive firmware was written
+					 * to an earlier spec, it won't have
+					 * the field.  So, assume all
+					 * commands are supported.
+					 */ 
+					softc->zone_flags |=
+					    ADA_ZONE_FLAG_SUP_MASK;
+				}
+					    
+			}
+		} else {
+			error = adaerror(done_ccb, CAM_RETRY_SELTO,
+					 SF_RETRY_UA|SF_NO_PRINT);
+			if (error == ERESTART)
+				return;
+			else if (error != 0) {
+				/*
+				 * If we can't get the ATA Identify Data
+				 * Supported Capabilities page, clear the
+				 * flag...
+				 */
+				softc->flags &= ~ADA_FLAG_CAN_SUPCAP;
+				/*
+				 * And clear zone capabilities.
+				 */
+				softc->zone_flags &= ~ADA_ZONE_FLAG_SUP_MASK;
+				if ((done_ccb->ccb_h.status &
+				     CAM_DEV_QFRZN) != 0) {
+					/* Don't wedge this device's queue */
+					cam_release_devq(done_ccb->ccb_h.path,
+							 /*relsim_flags*/0,
+							 /*reduction*/0,
+							 /*timeout*/0,
+							 /*getcount_only*/0);
+				}
+			}
+		}
+
+		free(ataio->data_ptr, M_ATADA);
+
+		if ((error == 0)
+		 && (softc->flags & ADA_FLAG_CAN_ZONE)) {
+			softc->state = ADA_STATE_ZONE;
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+		} else  
+			adaprobedone(periph, done_ccb);
+		return;
+	}
+	case ADA_CCB_ZONE: {
+		int error;
+
+		if ((ataio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			struct ata_zoned_info_log *zi_log;
+			uint32_t valid_len;
+			size_t needed_size;
+
+			zi_log = (struct ata_zoned_info_log *)ataio->data_ptr;
+
+			valid_len = ataio->dxfer_len - ataio->resid;
+			needed_size = __offsetof(struct ata_zoned_info_log,
+			    version_info) + 1 + sizeof(zi_log->version_info);
+			if (valid_len >= needed_size) {
+				uint64_t tmpvar;
+
+				tmpvar = le64dec(zi_log->zoned_cap);
+				if (tmpvar & ATA_ZDI_CAP_VALID) {
+					if (tmpvar & ATA_ZDI_CAP_URSWRZ)
+						softc->zone_flags |=
+						    ADA_ZONE_FLAG_URSWRZ;
+					else
+						softc->zone_flags &=
+						    ~ADA_ZONE_FLAG_URSWRZ;
+				}
+				tmpvar = le64dec(zi_log->optimal_seq_zones);
+				if (tmpvar & ATA_ZDI_OPT_SEQ_VALID) {
+					softc->zone_flags |=
+					    ADA_ZONE_FLAG_OPT_SEQ_SET;
+					softc->optimal_seq_zones = (tmpvar &
+					    ATA_ZDI_OPT_SEQ_MASK);
+				} else {
+					softc->zone_flags &=
+					    ~ADA_ZONE_FLAG_OPT_SEQ_SET;
+					softc->optimal_seq_zones = 0;
+				}
+
+				tmpvar =le64dec(zi_log->optimal_nonseq_zones);
+				if (tmpvar & ATA_ZDI_OPT_NS_VALID) {
+					softc->zone_flags |=
+					    ADA_ZONE_FLAG_OPT_NONSEQ_SET;
+					softc->optimal_nonseq_zones =
+					    (tmpvar & ATA_ZDI_OPT_NS_MASK);
+				} else {
+					softc->zone_flags &=
+					    ~ADA_ZONE_FLAG_OPT_NONSEQ_SET;
+					softc->optimal_nonseq_zones = 0;
+				}
+
+				tmpvar = le64dec(zi_log->max_seq_req_zones);
+				if (tmpvar & ATA_ZDI_MAX_SEQ_VALID) {
+					softc->zone_flags |=
+					    ADA_ZONE_FLAG_MAX_SEQ_SET;
+					softc->max_seq_zones =
+					    (tmpvar & ATA_ZDI_MAX_SEQ_MASK);
+				} else {
+					softc->zone_flags &=
+					    ~ADA_ZONE_FLAG_MAX_SEQ_SET;
+					softc->max_seq_zones = 0;
+				}
+			}
+		} else {
+			error = adaerror(done_ccb, CAM_RETRY_SELTO,
+					 SF_RETRY_UA|SF_NO_PRINT);
+			if (error == ERESTART)
+				return;
+			else if (error != 0) {
+				softc->flags &= ~ADA_FLAG_CAN_ZONE;
+				softc->flags &= ~ADA_ZONE_FLAG_SET_MASK;
+
+				if ((done_ccb->ccb_h.status &
+				     CAM_DEV_QFRZN) != 0) {
+					/* Don't wedge this device's queue */
+					cam_release_devq(done_ccb->ccb_h.path,
+							 /*relsim_flags*/0,
+							 /*reduction*/0,
+							 /*timeout*/0,
+							 /*getcount_only*/0);
+				}
+			}
+	
+		}
+		free(ataio->data_ptr, M_ATADA);
+
+		adaprobedone(periph, done_ccb);
 		return;
 	}
 	case ADA_CCB_DUMP:

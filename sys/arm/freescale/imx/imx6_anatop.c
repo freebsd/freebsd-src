@@ -139,7 +139,7 @@ static struct oppt {
  */
 static uint32_t imx6_ocotp_mhz_tab[] = {792, 852, 996, 1200};
 
-#define	TZ_ZEROC	2732	/* deci-Kelvin <-> deci-Celcius offset. */
+#define	TZ_ZEROC	2731	/* deci-Kelvin <-> deci-Celcius offset. */
 
 uint32_t
 imx6_anatop_read_4(bus_size_t offset)

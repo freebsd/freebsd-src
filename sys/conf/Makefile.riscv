@@ -32,6 +32,9 @@ INCLUDES+= -I$S/contrib/libfdt
 CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
 .endif
 
+# hack because genassym.c includes sys/bus.h which includes these.
+genassym.o: bus_if.h device_if.h
+
 %BEFORE_DEPEND
 
 %OBJS

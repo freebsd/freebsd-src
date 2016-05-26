@@ -38,9 +38,6 @@
 #define	TCP_LRO_ENTRIES	8
 #endif
 
-#define	TCP_LRO_SEQUENCE(mb) \
-    (mb)->m_pkthdr.PH_loc.thirtytwo[0]
-
 struct lro_entry {
 	LIST_ENTRY(lro_entry)	next;
 	struct mbuf		*m_head;
@@ -80,10 +77,15 @@ LIST_HEAD(lro_head, lro_entry);
 #define	source_ip6		lesource.s_ip6
 #define	dest_ip6		ledest.d_ip6
 
+struct lro_mbuf_sort {
+	uint64_t seq;
+	struct mbuf *mb;
+};
+
 /* NB: This is part of driver structs. */
 struct lro_ctrl {
 	struct ifnet	*ifp;
-	struct mbuf	**lro_mbuf_data;
+	struct lro_mbuf_sort *lro_mbuf_data;
 	uint64_t	lro_queued;
 	uint64_t	lro_flushed;
 	uint64_t	lro_bad_csum;

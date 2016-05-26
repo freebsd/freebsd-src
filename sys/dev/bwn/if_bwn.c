@@ -1148,34 +1148,15 @@ bwn_attach_core(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	int error, have_bg = 0, have_a = 0;
-	uint32_t high;
 
 	KASSERT(siba_get_revid(sc->sc_dev) >= 5,
 	    ("unsupported revision %d", siba_get_revid(sc->sc_dev)));
 
-	siba_powerup(sc->sc_dev, 0);
-
-	high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
-
-	/*
-	 * Guess at whether it has A-PHY or G-PHY.
-	 * This is just used for resetting the core to probe things;
-	 * we will re-guess once it's all up and working.
-	 *
-	 * XXX TODO: there's the TGSHIGH DUALPHY flag based on
-	 * the PHY revision.
-	 */
-	bwn_reset_core(mac, !!(high & BWN_TGSHIGH_HAVE_2GHZ));
-
-	/*
-	 * Get the PHY version.
-	 */
-	error = bwn_phy_getinfo(mac, high);
-	if (error)
-		goto fail;
-
-	/* XXX TODO need bhnd */
 	if (bwn_is_bus_siba(mac)) {
+		uint32_t high;
+
+		siba_powerup(sc->sc_dev, 0);
+		high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
 		have_a = (high & BWN_TGSHIGH_HAVE_5GHZ) ? 1 : 0;
 		have_bg = (high & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
 		if (high & BWN_TGSHIGH_DUALPHY) {
@@ -1187,6 +1168,20 @@ bwn_attach_core(struct bwn_mac *mac)
 		error = ENXIO;
 		goto fail;
 	}
+
+	/*
+	 * Guess at whether it has A-PHY or G-PHY.
+	 * This is just used for resetting the core to probe things;
+	 * we will re-guess once it's all up and working.
+	 */
+	bwn_reset_core(mac, have_bg);
+
+	/*
+	 * Get the PHY version.
+	 */
+	error = bwn_phy_getinfo(mac, have_bg);
+	if (error)
+		goto fail;
 
 #if 0
 	device_printf(sc->sc_dev, "%s: high=0x%08x, have_a=%d, have_bg=%d,"
@@ -1379,7 +1374,7 @@ bwn_reset_core(struct bwn_mac *mac, int g_mode)
 }
 
 static int
-bwn_phy_getinfo(struct bwn_mac *mac, int tgshigh)
+bwn_phy_getinfo(struct bwn_mac *mac, int gmode)
 {
 	struct bwn_phy *phy = &mac->mac_phy;
 	struct bwn_softc *sc = mac->mac_sc;
@@ -1387,7 +1382,7 @@ bwn_phy_getinfo(struct bwn_mac *mac, int tgshigh)
 
 	/* PHY */
 	tmp = BWN_READ_2(mac, BWN_PHYVER);
-	phy->gmode = !! (tgshigh & BWN_TGSHIGH_HAVE_2GHZ);
+	phy->gmode = gmode;
 	phy->rf_on = 1;
 	phy->analog = (tmp & BWN_PHYVER_ANALOG) >> 12;
 	phy->type = (tmp & BWN_PHYVER_TYPE) >> 8;
@@ -1498,7 +1493,7 @@ bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	memset(ic->ic_channels, 0, sizeof(ic->ic_channels));
 	ic->ic_nchans = 0;
@@ -4712,11 +4707,9 @@ bwn_rf_turnoff(struct bwn_mac *mac)
 
 /*
  * SSB PHY reset.
- *
- * XXX TODO: BCMA PHY reset.
  */
 static void
-bwn_phy_reset(struct bwn_mac *mac)
+bwn_phy_reset_siba(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 
@@ -4727,6 +4720,17 @@ bwn_phy_reset(struct bwn_mac *mac)
 	siba_write_4(sc->sc_dev, SIBA_TGSLOW,
 	    (siba_read_4(sc->sc_dev, SIBA_TGSLOW) & ~SIBA_TGSLOW_FGC));
 	DELAY(1000);
+}
+
+static void
+bwn_phy_reset(struct bwn_mac *mac)
+{
+
+	if (bwn_is_bus_siba(mac)) {
+		bwn_phy_reset_siba(mac);
+	} else {
+		BWN_ERRPRINTF(mac->mac_sc, "%s: unknown bus!\n", __func__);
+	}
 }
 
 static int

@@ -1207,7 +1207,7 @@ add_chanlist(struct ieee80211_channel chans[], int maxchans, int *nchans,
 		}
 	}
 
-	return (error);
+	return (0);
 }
 
 int

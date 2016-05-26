@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.18 2015/04/03 18:23:25 sjg Exp $
+	$Id: meta2deps.py,v 1.19 2016/04/02 20:45:40 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -482,7 +482,7 @@ class MetaFile:
         for p in self.excludes:
             if p and path.startswith(p):
                 if self.debug > 2:
-                    print >> self.debug_out, "exclude:", p, path
+                    print("exclude:", p, path, file=self.debug_out)
                 return
         # we don't want to resolve the last component if it is
         # a symlink

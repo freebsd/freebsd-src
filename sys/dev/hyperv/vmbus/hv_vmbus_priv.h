@@ -197,30 +197,8 @@ enum {
 
 #define HV_HYPERCALL_PARAM_ALIGN sizeof(uint64_t)
 
-typedef struct {
-	uint64_t	guest_id;
-	void*		hypercall_page;
-	hv_bool_uint8_t	syn_ic_initialized;
-
-	hv_vmbus_handle	syn_ic_msg_page[MAXCPU];
-	hv_vmbus_handle	syn_ic_event_page[MAXCPU];
-	/*
-	 * For FreeBSD cpuid to Hyper-V vcpuid mapping.
-	 */
-	uint32_t	hv_vcpu_index[MAXCPU];
-	/*
-	 * Each cpu has its own software interrupt handler for channel
-	 * event and msg handling.
-	 */
-	struct taskqueue		*hv_event_queue[MAXCPU];
-	struct taskqueue		*hv_msg_tq[MAXCPU];
-	struct task			hv_msg_task[MAXCPU];
-	/*
-	 * Host use this vector to interrupt guest for vmbus channel
-	 * event and msg.
-	 */
-	int				hv_cb_vector;
-} hv_vmbus_context;
+struct vmbus_message;
+union vmbus_event_flags;
 
 /*
  * Define hypervisor message types
@@ -305,7 +283,7 @@ typedef struct {
 /*
  *  Define synthetic interrupt controller message format
  */
-typedef struct {
+typedef struct vmbus_message {
 	hv_vmbus_msg_header	header;
 	union {
 		uint64_t	payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
@@ -580,7 +558,7 @@ typedef struct {
 /*
  * Define the synthetic interrupt controller event flags format
  */
-typedef union {
+typedef union vmbus_event_flags {
 	uint8_t		flags8[HV_EVENT_FLAGS_BYTE_COUNT];
 	uint32_t	flags32[HV_EVENT_FLAGS_DWORD_COUNT];
 	unsigned long	flagsul[HV_EVENT_FLAGS_ULONG_COUNT];
@@ -653,7 +631,6 @@ typedef enum {
  * Global variables
  */
 
-extern hv_vmbus_context		hv_vmbus_g_context;
 extern hv_vmbus_connection	hv_vmbus_g_connection;
 
 extern u_int			hyperv_features;
@@ -723,8 +700,6 @@ hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
 int			hv_vmbus_request_channel_offers(void);
 void			hv_vmbus_release_unattached_channels(void);
-int			hv_vmbus_init(void);
-void			hv_vmbus_cleanup(void);
 
 uint16_t		hv_vmbus_post_msg_via_msg_ipc(
 				hv_vmbus_connection_id	connection_id,
@@ -733,8 +708,6 @@ uint16_t		hv_vmbus_post_msg_via_msg_ipc(
 				size_t			payload_size);
 
 uint16_t		hv_vmbus_signal_event(void *con_id);
-void			hv_vmbus_synic_init(void *irq_arg);
-void			hv_vmbus_synic_cleanup(void *arg);
 
 struct hv_device*	hv_vmbus_child_device_create(
 				hv_guid			device_type,
@@ -762,48 +735,5 @@ void			hv_et_intr(struct trapframe*);
 
 /* Wait for device creation */
 void			vmbus_scan(void);
-
-/*
- * The guest OS needs to register the guest ID with the hypervisor.
- * The guest ID is a 64 bit entity and the structure of this ID is
- * specified in the Hyper-V specification:
- *
- * http://msdn.microsoft.com/en-us/library/windows/
- * hardware/ff542653%28v=vs.85%29.aspx
- *
- * While the current guideline does not specify how FreeBSD guest ID(s)
- * need to be generated, our plan is to publish the guidelines for
- * FreeBSD and other guest operating systems that currently are hosted
- * on Hyper-V. The implementation here conforms to this yet
- * unpublished guidelines.
- *
- * Bit(s)
- * 63 - Indicates if the OS is Open Source or not; 1 is Open Source
- * 62:56 - Os Type; Linux is 0x100, FreeBSD is 0x200
- * 55:48 - Distro specific identification
- * 47:16 - FreeBSD kernel version number
- * 15:0  - Distro specific identification
- *
- */
-
-#define HV_FREEBSD_VENDOR_ID	0x8200
-#define HV_FREEBSD_GUEST_ID	hv_generate_guest_id(0,0)
-
-static inline  uint64_t hv_generate_guest_id(
-	uint8_t distro_id_part1,
-	uint16_t distro_id_part2)
-{
-	uint64_t guest_id;
-	guest_id =  (((uint64_t)HV_FREEBSD_VENDOR_ID) << 48);
-	guest_id |= (((uint64_t)(distro_id_part1)) << 48);
-	guest_id |= (((uint64_t)(__FreeBSD_version)) << 16); /* in param.h */
-	guest_id |= ((uint64_t)(distro_id_part2));
-	return guest_id;
-}
-
-typedef struct {
-	unsigned int	vector;
-	void		*page_buffers[2 * MAXCPU];
-} hv_setup_args;
 
 #endif  /* __HYPERV_PRIV_H__ */

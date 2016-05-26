@@ -501,7 +501,14 @@ static int
 generic_pcie_release_resource(device_t dev, device_t child, int type,
     int rid, struct resource *res)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct generic_pcie_softc *sc;
 
+	if (type == PCI_RES_BUS) {
+		sc = device_get_softc(dev);
+		return (pci_domain_release_bus(sc->ecam, child, rid, res));
+	}
+#endif
 	/* For PCIe devices that do not have FDT nodes, use PCIB method */
 	if ((int)ofw_bus_get_node(child) <= 0) {
 		return (generic_pcie_release_resource_pcie(dev,
@@ -517,7 +524,15 @@ struct resource *
 pci_host_generic_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct generic_pcie_softc *sc;
 
+	if (type == PCI_RES_BUS) {
+		sc = device_get_softc(dev);
+		return (pci_domain_alloc_bus(sc->ecam, child, rid, start, end,
+		    count, flags));
+	}
+#endif
 	/* For PCIe devices that do not have FDT nodes, use PCIB method */
 	if ((int)ofw_bus_get_node(child) <= 0)
 		return (generic_pcie_alloc_resource_pcie(dev, child, type, rid,
@@ -579,6 +594,11 @@ generic_pcie_adjust_resource(device_t dev, device_t child, int type,
 	struct rman *rm;
 
 	sc = device_get_softc(dev);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->ecam, child, res, start,
+		    end));
+#endif
 
 	rm = generic_pcie_rman(sc, type);
 	if (rm != NULL)

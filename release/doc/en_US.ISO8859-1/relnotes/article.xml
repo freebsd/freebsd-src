@@ -26,6 +26,7 @@
 
     <copyright>
       <year>2015</year>
+      <year>2016</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
 	Project</holder>
     </copyright>
@@ -514,9 +515,9 @@
 	&man.hostapd.8; utilities have been updated to version
 	2.4.</para>
 
-      <para revision="282434" contrib="sponsor" sponsor="&ff;">The
+      <para revision="296190" contrib="sponsor" sponsor="&ff;">The
 	&man.resolvconf.8; utility has been updated to version
-	3.7.0.</para>
+	3.7.3.</para>
 
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
@@ -540,8 +541,8 @@
       <para revision="285275">The &man.tcpdump.1; utility has been
 	updated to version 4.7.4.</para>
 
-      <para revision="285329"><application>OpenSSL</application> has
-	been updated to version 1.0.1p.</para>
+      <para revision="298998"><application>OpenSSL</application> has
+	been updated to version 1.0.2h.</para>
 
       <para revision="285642" contrib="sponsor" sponsor="&dell;">The
 	&man.ssh.1; utility has been updated to re-implement hostname
@@ -563,9 +564,9 @@
       <para revision="286505">The &man.svnlite.1; utility has been
 	updated to version 1.8.14.</para>
 
-      <para revision="286510">The <application>sqlite3</application>
+      <para revision="298161">The <application>sqlite3</application>
 	library used by &man.svnlite.1; and &man.kerberos.8; has been
-	updated to version 3.8.11.1.</para>
+	updated to version 3.12.1.</para>
 
       <para revision="286750">Timezone data files have been updated to
 	version 2015f.</para>
@@ -579,8 +580,8 @@
       <para revision="288090">&man.jemalloc.3; has been updated to
 	version 4.0.2.</para>
 
-      <para revision="288143">The &man.file.1; utility has been
-	updated to version 5.25.</para>
+      <para revision="298192">The &man.file.1; utility has been
+	updated to version 5.26.</para>
 
       <para revision="288303">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.8 version.</para>

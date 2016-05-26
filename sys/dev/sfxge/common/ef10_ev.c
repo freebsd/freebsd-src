@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2012-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -275,6 +275,11 @@ ef10_ev_qcreate(
 
 	/* Set up the event queue */
 	irq = index;	/* INIT_EVQ expects function-relative vector number */
+
+	/*
+	 * Interrupts may be raised for events immediately after the queue is
+	 * created. See bug58606.
+	 */
 	if ((rc = efx_mcdi_init_evq(enp, index, esmp, n, irq)) != 0)
 		goto fail3;
 

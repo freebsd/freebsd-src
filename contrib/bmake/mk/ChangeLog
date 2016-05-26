@@ -1,3 +1,57 @@
+2016-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160512
+
+	* dpadd.mk: always include local.dpadd.mk if it exists
+	  remove some things that better belong in local.dpadd.mk
+	  skip INCLUDES_* for staged libs unless SRC_* defined.
+
+	* own.mk: add INCLUDEDIR
+	
+2016-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: when doing -f dirdeps.mk if target suppies no
+	  TARGET_MACHINE - :E will be empty or match part of path, use
+	  ${MACHINE}
+
+2016-04-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta.autodep.mk: issue a warning if UPDATE_DEPENDFILE=NO due to
+	  NO_FILEMON_COOKIE  
+
+	* dirdeps.mk: move the logic that allows for 
+	  make -f dirdeps.mk some/dir.${TARGET_SPEC}
+	  inside the check for !target(_DIRDEP_USE)
+
+2016-04-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Use <> when including local*.mk and others which may exist
+	  elsewhere so that user can better control what they get.
+	
+	* meta.autodep.mk (NO_FILEMON_COOKIE): 
+	  create a cookie if we ever build dir with nofilemon
+	  so that UPDATE_DEPENDFILE will be forced to NO until cleaned.
+
+2016-04-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160401
+	
+	* meta2deps.py: fix old print statement when debugging.
+
+	* gendirdeps.mk: META2DEPS_CMD append M2D_EXCLUDES with -X
+	  patch from Bryan Drewery
+
+2016-03-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160317 (St. Pats)
+	
+	* warnings.mk: g++ does not like -Wimplicit
+	
+	* sys.mk sys/*.mk lib.mk prog.mk: use CXX_SUFFIXES to handle the
+	  pelthora of common suffixes for C++
+	
+	* lib.mk: use .So for shared objects
+
 2016-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20160315

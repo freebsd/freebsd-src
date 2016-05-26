@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010-2015 Solarflare Communications Inc.
+ * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
@@ -1147,6 +1147,11 @@ sfxge_probe(device_t dev)
 
 	if (family == EFX_FAMILY_HUNTINGTON) {
 		device_set_desc(dev, "Solarflare SFC9100 family");
+		return (0);
+	}
+
+	if (family == EFX_FAMILY_MEDFORD) {
+		device_set_desc(dev, "Solarflare SFC9200 family");
 		return (0);
 	}
 

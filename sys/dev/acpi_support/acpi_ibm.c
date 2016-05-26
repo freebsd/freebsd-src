@@ -941,7 +941,7 @@ acpi_ibm_thermal_sysctl(SYSCTL_HANDLER_ARGS)
 			temp[i] = -1;
 		else if (sc->thermal_updt_supported)
 			/* Temperature is reported in tenth of Kelvin */
-			temp[i] = (temp[i] - 2732 + 5) / 10;
+			temp[i] = (temp[i] - 2731 + 5) / 10;
 	}
 
 	error = sysctl_handle_opaque(oidp, &temp, 8*sizeof(int), req);

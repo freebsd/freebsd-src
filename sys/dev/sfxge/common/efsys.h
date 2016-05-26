@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010-2015 Solarflare Communications Inc.
+ * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
@@ -238,7 +238,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 
 #define	EFSYS_OPT_SIENA 1
 #define	EFSYS_OPT_HUNTINGTON 1
-#define	EFSYS_OPT_MEDFORD 0
+#define	EFSYS_OPT_MEDFORD 1
 #ifdef DEBUG
 #define	EFSYS_OPT_CHECK_REG 1
 #else
@@ -277,6 +277,8 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_DECODE_INTR_FATAL 1
 
 #define	EFSYS_OPT_LICENSING 0
+
+#define	EFSYS_OPT_ALLOW_UNCONFIGURED_NIC 0
 
 /* ID */
 
@@ -1107,22 +1109,6 @@ typedef struct efsys_lock_s {
 		if ((_state) != EFSYS_LOCK_MAGIC)			\
 			KASSERT(B_FALSE, ("not locked"));		\
 		SFXGE_EFSYS_UNLOCK(_lockp);				\
-	_NOTE(CONSTANTCONDITION)					\
-	} while (B_FALSE)
-
-/* PREEMPT */
-
-#define	EFSYS_PREEMPT_DISABLE(_state)					\
-	do {								\
-		(_state) = (_state);					\
-		critical_enter();					\
-	_NOTE(CONSTANTCONDITION)					\
-	} while (B_FALSE)
-
-#define	EFSYS_PREEMPT_ENABLE(_state)					\
-	do {								\
-		(_state) = (_state);					\
-		critical_exit(_state);					\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 

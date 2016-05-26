@@ -97,6 +97,8 @@ struct siba_addrspace {
 	u_int		sa_region_num;	/**< bhnd region id */
 	uint8_t		sa_sid;		/**< siba-assigned address space ID */
 	int		sa_rid;		/**< bus resource id */
+	uint32_t	sa_bus_reserved;/**< number of bytes at high end of
+					  *  address space reserved for the bus */
 
 	STAILQ_ENTRY(siba_addrspace) sa_link;
 };
