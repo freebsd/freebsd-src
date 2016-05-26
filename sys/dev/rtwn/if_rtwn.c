@@ -172,6 +172,8 @@ static void	rtwn_set_rx_bssid_all(struct rtwn_softc *, int);
 static void	rtwn_set_gain(struct rtwn_softc *, uint8_t);
 static void	rtwn_scan_start(struct ieee80211com *);
 static void	rtwn_scan_end(struct ieee80211com *);
+static void	rtwn_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static void	rtwn_set_channel(struct ieee80211com *);
 static void	rtwn_update_mcast(struct ieee80211com *);
 static void	rtwn_set_chan(struct rtwn_softc *,
@@ -230,6 +232,9 @@ MODULE_DEPEND(rtwn, pci,  1, 1, 1);
 MODULE_DEPEND(rtwn, wlan, 1, 1, 1);
 MODULE_DEPEND(rtwn, firmware, 1, 1, 1);
 
+static const uint8_t rtwn_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
 static int
 rtwn_probe(device_t dev)
 {
@@ -251,7 +256,6 @@ rtwn_attach(device_t dev)
 	struct rtwn_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t lcsr;
-	uint8_t bands[IEEE80211_MODE_BYTES];
 	int i, count, error, rid;
 
 	sc->sc_dev = dev;
@@ -352,17 +356,18 @@ rtwn_attach(device_t dev)
 		| IEEE80211_C_WME		/* 802.11e */
 		;
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, bands);
+	/* XXX TODO: setup regdomain if R92C_CHANNEL_PLAN_BY_HW bit is set. */
+
+	rtwn_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 
 	ic->ic_wme.wme_update = rtwn_updateedca;
 	ic->ic_update_mcast = rtwn_update_mcast;
-	ic->ic_scan_start =rtwn_scan_start;
+	ic->ic_scan_start = rtwn_scan_start;
 	ic->ic_scan_end = rtwn_scan_end;
+	ic->ic_getradiocaps = rtwn_getradiocaps;
 	ic->ic_set_channel = rtwn_set_channel;
 	ic->ic_raw_xmit = rtwn_raw_xmit;
 	ic->ic_transmit = rtwn_transmit;
@@ -2714,6 +2719,19 @@ rtwn_scan_end(struct ieee80211com *ic)
 	/* Set gain under link. */
 	rtwn_set_gain(sc, 0x32);
 	RTWN_UNLOCK(sc);
+}
+
+static void
+rtwn_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    rtwn_chan_2ghz, nitems(rtwn_chan_2ghz), bands, 0);
 }
 
 static void

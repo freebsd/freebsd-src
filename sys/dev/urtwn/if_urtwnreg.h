@@ -1018,6 +1018,8 @@ struct r92c_rom {
 	uint8_t		rf_opt3;
 	uint8_t		rf_opt4;
 	uint8_t		channel_plan;
+#define R92C_CHANNEL_PLAN_BY_HW		0x80
+
 	uint8_t		version;
 	uint8_t		customer_id;
 } __packed;
