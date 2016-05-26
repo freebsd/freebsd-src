@@ -116,21 +116,6 @@ struct urtwn_vap {
 };
 #define	URTWN_VAP(vap)	((struct urtwn_vap *)(vap))
 
-struct urtwn_host_cmd {
-	void	(*cb)(struct urtwn_softc *, void *);
-	uint8_t	data[256];
-};
-
-struct urtwn_cmd_newstate {
-	enum ieee80211_state	state;
-	int			arg;
-};
-
-struct urtwn_cmd_key {
-	struct ieee80211_key	key;
-	uint16_t		associd;
-};
-
 enum {
 	URTWN_BULK_RX,
 	URTWN_BULK_TX_BE,	/* = WME_AC_BE */
