@@ -114,7 +114,10 @@ ${OUTPUTS}: ${CONF}
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
 ${PROG}: ${OUTPUTS} objs
-	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f ${OUTMK} exe
+	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	    CC="${CC} ${CFLAGS} ${LDFLAGS}" \
+	    CXX="${CXX} ${CXXFLAGS} ${LDFLAGS}" \
+	    ${MAKE} -f ${OUTMK} exe
 
 objs: ${OUTMK}
 	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f ${OUTMK} objs
