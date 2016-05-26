@@ -90,8 +90,16 @@
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits).
+ *
+ * armv4 and v5 require alignment to the type's size.  armv6 and later require
+ * that an 8-byte type be aligned to at least a 4-byte boundary; access to
+ * smaller types can be unaligned.
  */
+#if __ARM_ARCH >= 6
+#define	ALIGNED_POINTER(p, t)	(((sizeof(t) != 8) || ((unsigned)(p) & 3) == 0))
+#else
 #define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
+#endif
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
