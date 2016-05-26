@@ -103,11 +103,12 @@ ${CONF}: Makefile
 .endfor
 
 CRUNCHGEN?= crunchgen
-CRUNCHENV?= MK_TESTS=no
+CRUNCHENV?= MK_TESTS=no \
+	    _RECURSING_CRUNCH=1
 .ORDER: ${OUTPUTS} objs
 ${OUTPUTS}: ${CONF} .META
-	MAKE=${MAKE} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${CRUNCHGEN} -fq \
-	    -m ${OUTMK} -c ${OUTC} ${CONF}
+	MAKE=${MAKE} ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	    ${CRUNCHGEN} -fq -m ${OUTMK} -c ${OUTC} ${CONF}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
