@@ -46,8 +46,22 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/nvram/bhnd_nvram.h>
 #include <dev/bhnd/nvram/bhnd_spromvar.h>
 
-#include "bhnd_chipc_if.h"
 #include "bhnd_nvram_if.h"
+
+#include "chipc.h"
+
+static void
+chipc_sprom_identify(driver_t *driver, device_t parent)
+{
+	if (bhnd_chipc_nvram_src(parent) != BHND_NVRAM_SRC_SPROM)
+		return;
+
+	if (device_find_child(parent, "bhnd_nvram", 0) != NULL)
+		return;
+
+	if (BUS_ADD_CHILD(parent, 0, "bhnd_nvram", 0) == NULL)
+		device_printf(parent, "add bhnd_nvram failed\n");
+}
 
 static int
 chipc_sprom_probe(device_t dev)
@@ -87,6 +101,7 @@ chipc_sprom_attach(device_t dev)
 
 static device_method_t chipc_sprom_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,		chipc_sprom_identify),
 	DEVMETHOD(device_probe,			chipc_sprom_probe),
 	DEVMETHOD(device_attach,		chipc_sprom_attach),
 	DEVMETHOD_END
