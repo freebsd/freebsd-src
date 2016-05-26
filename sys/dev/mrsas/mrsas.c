@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include <sys/sysent.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/smp.h>
@@ -63,6 +64,7 @@ static d_write_t mrsas_write;
 static d_ioctl_t mrsas_ioctl;
 static d_poll_t mrsas_poll;
 
+static void mrsas_ich_startup(void *arg);
 static struct mrsas_mgmt_info mrsas_mgmt_info;
 static struct mrsas_ident *mrsas_find_ident(device_t);
 static int mrsas_setup_msix(struct mrsas_softc *sc);
@@ -80,7 +82,8 @@ static int mrsas_setup_irq(struct mrsas_softc *sc);
 static int mrsas_alloc_mem(struct mrsas_softc *sc);
 static int mrsas_init_fw(struct mrsas_softc *sc);
 static int mrsas_setup_raidmap(struct mrsas_softc *sc);
-static int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
+static void megasas_setup_jbod_map(struct mrsas_softc *sc);
+static int megasas_sync_pd_seq_num(struct mrsas_softc *sc, boolean_t pend);
 static int mrsas_clear_intr(struct mrsas_softc *sc);
 static int mrsas_get_ctrl_info(struct mrsas_softc *sc);
 static void mrsas_update_ext_vd_details(struct mrsas_softc *sc);
@@ -104,8 +107,9 @@ int	mrsas_ioc_init(struct mrsas_softc *sc);
 int	mrsas_bus_scan(struct mrsas_softc *sc);
 int	mrsas_issue_dcmd(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_issue_polled(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
-int	mrsas_reset_ctrl(struct mrsas_softc *sc);
-int	mrsas_wait_for_outstanding(struct mrsas_softc *sc);
+int	mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason);
+int	mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason);
+int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 int
 mrsas_issue_blocked_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd);
@@ -182,6 +186,8 @@ MRSAS_CTLR_ID device_table[] = {
 	{0x1000, MRSAS_TBOLT, 0xffff, 0xffff, "AVAGO Thunderbolt SAS Controller"},
 	{0x1000, MRSAS_INVADER, 0xffff, 0xffff, "AVAGO Invader SAS Controller"},
 	{0x1000, MRSAS_FURY, 0xffff, 0xffff, "AVAGO Fury SAS Controller"},
+	{0x1000, MRSAS_INTRUDER, 0xffff, 0xffff, "AVAGO Intruder SAS Controller"},
+	{0x1000, MRSAS_INTRUDER_24, 0xffff, 0xffff, "AVAGO Intruder_24 SAS Controller"},
 	{0, 0, 0, 0, NULL}
 };
 
@@ -553,6 +559,7 @@ mrsas_get_seq_num(struct mrsas_softc *sc,
 {
 	struct mrsas_mfi_cmd *cmd;
 	struct mrsas_dcmd_frame *dcmd;
+	u_int8_t do_ocr = 1, retcode = 0;
 
 	cmd = mrsas_get_mfi_cmd(sc);
 
@@ -580,16 +587,24 @@ mrsas_get_seq_num(struct mrsas_softc *sc,
 	dcmd->sgl.sge32[0].phys_addr = sc->el_info_phys_addr;
 	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_evt_log_info);
 
-	mrsas_issue_blocked_cmd(sc, cmd);
+	retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	if (retcode == ETIMEDOUT)
+		goto dcmd_timeout;
 
+	do_ocr = 0;
 	/*
 	 * Copy the data back into callers buffer
 	 */
 	memcpy(eli, sc->el_info_mem, sizeof(struct mrsas_evt_log_info));
 	mrsas_free_evt_log_info_cmd(sc);
-	mrsas_release_mfi_cmd(cmd);
 
-	return 0;
+dcmd_timeout:
+	if (do_ocr)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+	else
+		mrsas_release_mfi_cmd(cmd);
+
+	return retcode;
 }
 
 
@@ -811,7 +826,8 @@ mrsas_attach(device_t dev)
 {
 	struct mrsas_softc *sc = device_get_softc(dev);
 	uint32_t cmd, bar, error;
-	struct cdev *linux_dev;
+
+	memset(sc, 0, sizeof(struct mrsas_softc));
 
 	/* Look up our softc and initialize its fields. */
 	sc->mrsas_dev = dev;
@@ -852,12 +868,6 @@ mrsas_attach(device_t dev)
 	mtx_init(&sc->mfi_cmd_pool_lock, "mrsas_mfi_cmd_pool_lock", NULL, MTX_DEF);
 	mtx_init(&sc->raidmap_lock, "mrsas_raidmap_lock", NULL, MTX_DEF);
 
-	/*
-	 * Intialize a counting Semaphore to take care no. of concurrent
-	 * IOCTLs
-	 */
-	sema_init(&sc->ioctl_count_sema, MRSAS_MAX_MFI_CMDS - 5, IOCTL_SEMA_DESCRIPTION);
-
 	/* Intialize linked list */
 	TAILQ_INIT(&sc->mrsas_mpt_cmd_list_head);
 	TAILQ_INIT(&sc->mrsas_mfi_cmd_list_head);
@@ -865,16 +875,6 @@ mrsas_attach(device_t dev)
 	mrsas_atomic_set(&sc->fw_outstanding, 0);
 
 	sc->io_cmds_highwater = 0;
-
-	/* Create a /dev entry for this device. */
-	sc->mrsas_cdev = make_dev(&mrsas_cdevsw, device_get_unit(dev), UID_ROOT,
-	    GID_OPERATOR, (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP), "mrsas%u",
-	    device_get_unit(dev));
-	if (device_get_unit(dev) == 0)
-		make_dev_alias_p(MAKEDEV_CHECKNAME, &linux_dev, sc->mrsas_cdev,
-		    "megaraid_sas_ioctl_node");
-	if (sc->mrsas_cdev)
-		sc->mrsas_cdev->si_drv1 = sc;
 
 	sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 	sc->UnevenSpanSupport = 0;
@@ -885,7 +885,7 @@ mrsas_attach(device_t dev)
 	if (mrsas_init_fw(sc) != SUCCESS) {
 		goto attach_fail_fw;
 	}
-	/* Register SCSI mid-layer */
+	/* Register mrsas to CAM layer */
 	if ((mrsas_cam_attach(sc) != SUCCESS)) {
 		goto attach_fail_cam;
 	}
@@ -893,38 +893,28 @@ mrsas_attach(device_t dev)
 	if (mrsas_setup_irq(sc) != SUCCESS) {
 		goto attach_fail_irq;
 	}
-	/* Enable Interrupts */
-	mrsas_enable_intr(sc);
-
 	error = mrsas_kproc_create(mrsas_ocr_thread, sc,
 	    &sc->ocr_thread, 0, 0, "mrsas_ocr%d",
 	    device_get_unit(sc->mrsas_dev));
 	if (error) {
-		printf("Error %d starting rescan thread\n", error);
-		goto attach_fail_irq;
-	}
-	mrsas_setup_sysctl(sc);
-
-	/* Initiate AEN (Asynchronous Event Notification) */
-
-	if (mrsas_start_aen(sc)) {
-		printf("Error: start aen failed\n");
-		goto fail_start_aen;
+		device_printf(sc->mrsas_dev, "Error %d starting OCR thread\n", error);
+		goto attach_fail_ocr_thread;
 	}
 	/*
-	 * Add this controller to mrsas_mgmt_info structure so that it can be
-	 * exported to management applications
+	 * After FW initialization and OCR thread creation
+	 * we will defer the cdev creation, AEN setup on ICH callback
 	 */
-	if (device_get_unit(dev) == 0)
-		memset(&mrsas_mgmt_info, 0, sizeof(mrsas_mgmt_info));
+	sc->mrsas_ich.ich_func = mrsas_ich_startup;
+	sc->mrsas_ich.ich_arg = sc;
+	if (config_intrhook_establish(&sc->mrsas_ich) != 0) {
+		device_printf(sc->mrsas_dev, "Config hook is already established\n");
+	}
+	mrsas_setup_sysctl(sc);
+	return SUCCESS;
 
-	mrsas_mgmt_info.count++;
-	mrsas_mgmt_info.sc_ptr[mrsas_mgmt_info.max_index] = sc;
-	mrsas_mgmt_info.max_index++;
-
-	return (0);
-
-fail_start_aen:
+attach_fail_ocr_thread:
+	if (sc->ocr_thread_active)
+		wakeup(&sc->ocr_chan);
 attach_fail_irq:
 	mrsas_teardown_intr(sc);
 attach_fail_cam:
@@ -942,15 +932,69 @@ attach_fail_fw:
 	mtx_destroy(&sc->mpt_cmd_pool_lock);
 	mtx_destroy(&sc->mfi_cmd_pool_lock);
 	mtx_destroy(&sc->raidmap_lock);
-	/* Destroy the counting semaphore created for Ioctl */
-	sema_destroy(&sc->ioctl_count_sema);
 attach_fail:
-	destroy_dev(sc->mrsas_cdev);
 	if (sc->reg_res) {
 		bus_release_resource(sc->mrsas_dev, SYS_RES_MEMORY,
 		    sc->reg_res_id, sc->reg_res);
 	}
 	return (ENXIO);
+}
+
+/*
+ * Interrupt config hook
+ */
+static void
+mrsas_ich_startup(void *arg)
+{
+	struct mrsas_softc *sc = (struct mrsas_softc *)arg;
+
+	/*
+	 * Intialize a counting Semaphore to take care no. of concurrent IOCTLs
+	 */
+	sema_init(&sc->ioctl_count_sema,
+	    MRSAS_MAX_MFI_CMDS - 5,
+	    IOCTL_SEMA_DESCRIPTION);
+
+	/* Create a /dev entry for mrsas controller. */
+	sc->mrsas_cdev = make_dev(&mrsas_cdevsw, device_get_unit(sc->mrsas_dev), UID_ROOT,
+	    GID_OPERATOR, (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP), "mrsas%u",
+	    device_get_unit(sc->mrsas_dev));
+
+	if (device_get_unit(sc->mrsas_dev) == 0) {
+		make_dev_alias_p(MAKEDEV_CHECKNAME,
+		    &sc->mrsas_linux_emulator_cdev, sc->mrsas_cdev,
+		    "megaraid_sas_ioctl_node");
+	}
+	if (sc->mrsas_cdev)
+		sc->mrsas_cdev->si_drv1 = sc;
+
+	/*
+	 * Add this controller to mrsas_mgmt_info structure so that it can be
+	 * exported to management applications
+	 */
+	if (device_get_unit(sc->mrsas_dev) == 0)
+		memset(&mrsas_mgmt_info, 0, sizeof(mrsas_mgmt_info));
+
+	mrsas_mgmt_info.count++;
+	mrsas_mgmt_info.sc_ptr[mrsas_mgmt_info.max_index] = sc;
+	mrsas_mgmt_info.max_index++;
+
+	/* Enable Interrupts */
+	mrsas_enable_intr(sc);
+
+	/* Initiate AEN (Asynchronous Event Notification) */
+	if (mrsas_start_aen(sc)) {
+		device_printf(sc->mrsas_dev, "Error: AEN registration FAILED !!! "
+		    "Further events from the controller will not be communicated.\n"
+		    "Either there is some problem in the controller"
+		    "or the controller does not support AEN.\n"
+		    "Please contact to the SUPPORT TEAM if the problem persists\n");
+	}
+	if (sc->mrsas_ich.ich_arg != NULL) {
+		device_printf(sc->mrsas_dev, "Disestablish mrsas intr hook\n");
+		config_intrhook_disestablish(&sc->mrsas_ich);
+		sc->mrsas_ich.ich_arg = NULL;
+	}
 }
 
 /*
@@ -971,6 +1015,8 @@ mrsas_detach(device_t dev)
 	sc->remove_in_progress = 1;
 
 	/* Destroy the character device so no other IOCTL will be handled */
+	if ((device_get_unit(dev) == 0) && sc->mrsas_linux_emulator_cdev)
+		destroy_dev(sc->mrsas_linux_emulator_cdev);
 	destroy_dev(sc->mrsas_cdev);
 
 	/*
@@ -991,7 +1037,7 @@ mrsas_detach(device_t dev)
 		i++;
 		if (!(i % MRSAS_RESET_NOTICE_INTERVAL)) {
 			mrsas_dprint(sc, MRSAS_INFO,
-			    "[%2d]waiting for ocr to be finished\n", i);
+			    "[%2d]waiting for OCR to be finished from %s\n", i, __func__);
 		}
 		pause("mr_shutdown", hz);
 	}
@@ -1067,7 +1113,14 @@ mrsas_free_mem(struct mrsas_softc *sc)
 		if (sc->ld_drv_map[i] != NULL)
 			free(sc->ld_drv_map[i], M_MRSAS);
 	}
-
+	for (i = 0; i < 2; i++) {
+		if (sc->jbodmap_phys_addr[i])
+			bus_dmamap_unload(sc->jbodmap_tag[i], sc->jbodmap_dmamap[i]);
+		if (sc->jbodmap_mem[i] != NULL)
+			bus_dmamem_free(sc->jbodmap_tag[i], sc->jbodmap_mem[i], sc->jbodmap_dmamap[i]);
+		if (sc->jbodmap_tag[i] != NULL)
+			bus_dma_tag_destroy(sc->jbodmap_tag[i]);
+	}
 	/*
 	 * Free version buffer memroy
 	 */
@@ -1229,9 +1282,7 @@ mrsas_teardown_intr(struct mrsas_softc *sc)
 static int
 mrsas_suspend(device_t dev)
 {
-	struct mrsas_softc *sc;
-
-	sc = device_get_softc(dev);
+	/* This will be filled when the driver will have hibernation support */
 	return (0);
 }
 
@@ -1244,9 +1295,7 @@ mrsas_suspend(device_t dev)
 static int
 mrsas_resume(device_t dev)
 {
-	struct mrsas_softc *sc;
-
-	sc = device_get_softc(dev);
+	/* This will be filled when the driver will have hibernation support */
 	return (0);
 }
 
@@ -1317,9 +1366,7 @@ mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		i++;
 		if (!(i % MRSAS_RESET_NOTICE_INTERVAL)) {
 			mrsas_dprint(sc, MRSAS_INFO,
-			    "[%2d]waiting for "
-			    "OCR to be finished %d\n", i,
-			    sc->ocr_thread_active);
+			    "[%2d]waiting for OCR to be finished from %s\n", i, __func__);
 		}
 		pause("mr_ioctl", hz);
 	}
@@ -1483,7 +1530,7 @@ mrsas_isr(void *arg)
  * perform the appropriate action.  Before we return, we clear the response
  * interrupt.
  */
-static int
+int
 mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 {
 	Mpi2ReplyDescriptorsUnion_t *desc;
@@ -1580,7 +1627,9 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		if (threshold_reply_count >= THRESHOLD_REPLY_COUNT) {
 			if (sc->msix_enable) {
 				if ((sc->device_id == MRSAS_INVADER) ||
-				    (sc->device_id == MRSAS_FURY))
+				    (sc->device_id == MRSAS_FURY) ||
+				    (sc->device_id == MRSAS_INTRUDER) ||
+				    (sc->device_id == MRSAS_INTRUDER_24))
 					mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 					    ((MSIxIndex & 0x7) << 24) |
 					    sc->last_reply_idx[MSIxIndex]);
@@ -1602,7 +1651,9 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 	/* Clear response interrupt */
 	if (sc->msix_enable) {
 		if ((sc->device_id == MRSAS_INVADER) ||
-		    (sc->device_id == MRSAS_FURY)) {
+		    (sc->device_id == MRSAS_FURY) ||
+		    (sc->device_id == MRSAS_INTRUDER) ||
+		    (sc->device_id == MRSAS_INTRUDER_24)) {
 			mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 			    ((MSIxIndex & 0x7) << 24) |
 			    sc->last_reply_idx[MSIxIndex]);
@@ -1686,9 +1737,9 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    MRSAS_MAX_IO_SIZE,		/* maxsize */
-	    MRSAS_MAX_SGL,		/* nsegments */
-	    MRSAS_MAX_IO_SIZE,		/* maxsegsize */
+	    MAXPHYS,			/* maxsize */
+	    sc->max_num_sge,		/* nsegments */
+	    MAXPHYS,			/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->mrsas_parent_tag	/* tag */
@@ -1885,9 +1936,9 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 	    BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR,
 	    NULL, NULL,
-	    MRSAS_MAX_IO_SIZE,
-	    MRSAS_MAX_SGL,
-	    MRSAS_MAX_IO_SIZE,
+	    MAXPHYS,
+	    sc->max_num_sge,		/* nsegments */
+	    MAXPHYS,
 	    BUS_DMA_ALLOCNOW,
 	    busdma_lock_mutex,
 	    &sc->io_lock,
@@ -1989,6 +2040,78 @@ ABORT:
 	return (1);
 }
 
+/**
+ * megasas_setup_jbod_map -	setup jbod map for FP seq_number.
+ * @sc:				Adapter soft state
+ *
+ * Return 0 on success.
+ */
+void
+megasas_setup_jbod_map(struct mrsas_softc *sc)
+{
+	int i;
+	uint32_t pd_seq_map_sz;
+
+	pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
+	    (sizeof(struct MR_PD_CFG_SEQ) * (MAX_PHYSICAL_DEVICES - 1));
+
+	if (!sc->ctrl_info->adapterOperations3.useSeqNumJbodFP) {
+		sc->use_seqnum_jbod_fp = 0;
+		return;
+	}
+	if (sc->jbodmap_mem[0])
+		goto skip_alloc;
+
+	for (i = 0; i < 2; i++) {
+		if (bus_dma_tag_create(sc->mrsas_parent_tag,
+		    4, 0,
+		    BUS_SPACE_MAXADDR_32BIT,
+		    BUS_SPACE_MAXADDR,
+		    NULL, NULL,
+		    pd_seq_map_sz,
+		    1,
+		    pd_seq_map_sz,
+		    BUS_DMA_ALLOCNOW,
+		    NULL, NULL,
+		    &sc->jbodmap_tag[i])) {
+			device_printf(sc->mrsas_dev,
+			    "Cannot allocate jbod map tag.\n");
+			return;
+		}
+		if (bus_dmamem_alloc(sc->jbodmap_tag[i],
+		    (void **)&sc->jbodmap_mem[i],
+		    BUS_DMA_NOWAIT, &sc->jbodmap_dmamap[i])) {
+			device_printf(sc->mrsas_dev,
+			    "Cannot allocate jbod map memory.\n");
+			return;
+		}
+		bzero(sc->jbodmap_mem[i], pd_seq_map_sz);
+
+		if (bus_dmamap_load(sc->jbodmap_tag[i], sc->jbodmap_dmamap[i],
+		    sc->jbodmap_mem[i], pd_seq_map_sz,
+		    mrsas_addr_cb, &sc->jbodmap_phys_addr[i],
+		    BUS_DMA_NOWAIT)) {
+			device_printf(sc->mrsas_dev, "Cannot load jbod map memory.\n");
+			return;
+		}
+		if (!sc->jbodmap_mem[i]) {
+			device_printf(sc->mrsas_dev,
+			    "Cannot allocate memory for jbod map.\n");
+			sc->use_seqnum_jbod_fp = 0;
+			return;
+		}
+	}
+
+skip_alloc:
+	if (!megasas_sync_pd_seq_num(sc, false) &&
+	    !megasas_sync_pd_seq_num(sc, true))
+		sc->use_seqnum_jbod_fp = 1;
+	else
+		sc->use_seqnum_jbod_fp = 0;
+
+	device_printf(sc->mrsas_dev, "Jbod map is supported\n");
+}
+
 /*
  * mrsas_init_fw:	Initialize Firmware
  * input:			Adapter soft state
@@ -2088,18 +2211,28 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	if (sc->secure_jbod_support)
 		device_printf(sc->mrsas_dev, "FW supports SED \n");
 
+	if (sc->use_seqnum_jbod_fp)
+		device_printf(sc->mrsas_dev, "FW supports JBOD Map \n");
+
 	if (mrsas_setup_raidmap(sc) != SUCCESS) {
-		device_printf(sc->mrsas_dev, "Set up RAID map failed.\n");
-		return (1);
+		device_printf(sc->mrsas_dev, "Error: RAID map setup FAILED !!! "
+		    "There seems to be some problem in the controller\n"
+		    "Please contact to the SUPPORT TEAM if the problem persists\n");
 	}
+	megasas_setup_jbod_map(sc);
+
 	/* For pass-thru, get PD/LD list and controller info */
 	memset(sc->pd_list, 0,
 	    MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
-	mrsas_get_pd_list(sc);
-
+	if (mrsas_get_pd_list(sc) != SUCCESS) {
+		device_printf(sc->mrsas_dev, "Get PD list failed.\n");
+		return (1);
+	}
 	memset(sc->ld_ids, 0xff, MRSAS_MAX_LD_IDS);
-	mrsas_get_ld_list(sc);
-
+	if (mrsas_get_ld_list(sc) != SUCCESS) {
+		device_printf(sc->mrsas_dev, "Get LD lsit failed.\n");
+		return (1);
+	}
 	/*
 	 * Compute the max allowed sectors per IO: The controller info has
 	 * two limits on max sectors. Driver should use the minimum of these
@@ -2149,7 +2282,7 @@ int
 mrsas_init_adapter(struct mrsas_softc *sc)
 {
 	uint32_t status;
-	u_int32_t max_cmd;
+	u_int32_t max_cmd, scratch_pad_2;
 	int ret;
 	int i = 0;
 
@@ -2168,12 +2301,32 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 	sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * max_cmd;
 	sc->reply_alloc_sz = sizeof(MPI2_REPLY_DESCRIPTORS_UNION) * (sc->reply_q_depth);
 	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE + (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (max_cmd + 1));
-	sc->chain_frames_alloc_sz = 1024 * max_cmd;
+	scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+	    outbound_scratch_pad_2));
+	/*
+	 * If scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
+	 * Firmware support extended IO chain frame which is 4 time more
+	 * than legacy Firmware. Legacy Firmware - Frame size is (8 * 128) =
+	 * 1K 1M IO Firmware  - Frame size is (8 * 128 * 4)  = 4K
+	 */
+	if (scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK)
+		sc->max_chain_frame_sz =
+		    ((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >> 5)
+		    * MEGASAS_1MB_IO;
+	else
+		sc->max_chain_frame_sz =
+		    ((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >> 5)
+		    * MEGASAS_256K_IO;
+
+	sc->chain_frames_alloc_sz = sc->max_chain_frame_sz * max_cmd;
 	sc->max_sge_in_main_msg = (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE -
 	    offsetof(MRSAS_RAID_SCSI_IO_REQUEST, SGL)) / 16;
 
-	sc->max_sge_in_chain = MRSAS_MAX_SZ_CHAIN_FRAME / sizeof(MPI2_SGE_IO_UNION);
+	sc->max_sge_in_chain = sc->max_chain_frame_sz / sizeof(MPI2_SGE_IO_UNION);
 	sc->max_num_sge = sc->max_sge_in_main_msg + sc->max_sge_in_chain - 2;
+
+	mrsas_dprint(sc, MRSAS_INFO, "Avago Debug: MAX sge 0x%X MAX chain frame size 0x%X \n",
+	    sc->max_num_sge, sc->max_chain_frame_sz);
 
 	/* Used for pass thru MFI frame (DCMD) */
 	sc->chain_offset_mfi_pthru = offsetof(MRSAS_RAID_SCSI_IO_REQUEST, SGL) / 16;
@@ -2299,7 +2452,9 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 
 	/* driver support Extended MSIX */
 	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY)) {
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24)) {
 		init_frame->driver_operations.
 		    mfi_capabilities.support_additional_msix = 1;
 	}
@@ -2312,6 +2467,8 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	init_frame->driver_operations.mfi_capabilities.support_ndrive_r1_lb = 1;
 	init_frame->driver_operations.mfi_capabilities.support_max_255lds = 1;
 	init_frame->driver_operations.mfi_capabilities.security_protocol_cmds_fw = 1;
+	if (sc->max_chain_frame_sz > MEGASAS_CHAIN_FRAME_SZ_MIN)
+		init_frame->driver_operations.mfi_capabilities.support_ext_io_size = 1;
 	phys_addr = (bus_addr_t)sc->ioc_init_phys_mem + 1024;
 	init_frame->queue_info_new_phys_addr_lo = phys_addr;
 	init_frame->data_xfer_len = sizeof(Mpi2IOCInitRequest_t);
@@ -2414,7 +2571,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 	for (i = 0; i < max_cmd; i++) {
 		cmd = sc->mpt_cmd_list[i];
 		offset = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * i;
-		chain_offset = 1024 * i;
+		chain_offset = sc->max_chain_frame_sz * i;
 		sense_offset = MRSAS_SENSE_LEN * i;
 		memset(cmd, 0, sizeof(struct mrsas_mpt_cmd));
 		cmd->index = i + 1;
@@ -2625,16 +2782,20 @@ mrsas_ocr_thread(void *arg)
 		/* Sleep for 1 second and check the queue status */
 		msleep(&sc->ocr_chan, &sc->sim_lock, PRIBIO,
 		    "mrsas_ocr", sc->mrsas_fw_fault_check_delay * hz);
-		if (sc->remove_in_progress) {
+		if (sc->remove_in_progress ||
+		    sc->adprecovery == MRSAS_HW_CRITICAL_ERROR) {
 			mrsas_dprint(sc, MRSAS_OCR,
-			    "Exit due to shutdown from %s\n", __func__);
+			    "Exit due to %s from %s\n",
+			    sc->remove_in_progress ? "Shutdown" :
+			    "Hardware critical error", __func__);
 			break;
 		}
 		fw_status = mrsas_read_reg(sc,
 		    offsetof(mrsas_reg_set, outbound_scratch_pad));
 		fw_state = fw_status & MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT || sc->do_timedout_reset) {
-			device_printf(sc->mrsas_dev, "OCR started due to %s!\n",
+			device_printf(sc->mrsas_dev, "%s started due to %s!\n",
+			    sc->disableOnlineCtrlReset ? "Kill Adapter" : "OCR",
 			    sc->do_timedout_reset ? "IO Timeout" :
 			    "FW fault detected");
 			mtx_lock_spin(&sc->ioctl_lock);
@@ -2642,7 +2803,7 @@ mrsas_ocr_thread(void *arg)
 			sc->reset_count++;
 			mtx_unlock_spin(&sc->ioctl_lock);
 			mrsas_xpt_freeze(sc);
-			mrsas_reset_ctrl(sc);
+			mrsas_reset_ctrl(sc, sc->do_timedout_reset);
 			mrsas_xpt_release(sc);
 			sc->reset_in_progress = 0;
 			sc->do_timedout_reset = 0;
@@ -2689,14 +2850,14 @@ mrsas_reset_reply_desc(struct mrsas_softc *sc)
  * OCR, Re-fire Managment command and move Controller to Operation state.
  */
 int
-mrsas_reset_ctrl(struct mrsas_softc *sc)
+mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 {
 	int retval = SUCCESS, i, j, retry = 0;
 	u_int32_t host_diag, abs_state, status_reg, reset_adapter;
 	union ccb *ccb;
 	struct mrsas_mfi_cmd *mfi_cmd;
 	struct mrsas_mpt_cmd *mpt_cmd;
-	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc;
+	union mrsas_evt_class_locale class_locale;
 
 	if (sc->adprecovery == MRSAS_HW_CRITICAL_ERROR) {
 		device_printf(sc->mrsas_dev,
@@ -2706,10 +2867,11 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 	mrsas_set_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 	sc->adprecovery = MRSAS_ADPRESET_SM_INFAULT;
 	mrsas_disable_intr(sc);
-	DELAY(1000 * 1000);
+	msleep(&sc->ocr_chan, &sc->sim_lock, PRIBIO, "mrsas_ocr",
+	    sc->mrsas_fw_fault_check_delay * hz);
 
 	/* First try waiting for commands to complete */
-	if (mrsas_wait_for_outstanding(sc)) {
+	if (mrsas_wait_for_outstanding(sc, reset_reason)) {
 		mrsas_dprint(sc, MRSAS_OCR,
 		    "resetting adapter from %s.\n",
 		    __func__);
@@ -2819,30 +2981,16 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 				mrsas_dprint(sc, MRSAS_OCR, "mrsas_ioc_init() failed!\n");
 				continue;
 			}
-			/* Re-fire management commands */
 			for (j = 0; j < sc->max_fw_cmds; j++) {
 				mpt_cmd = sc->mpt_cmd_list[j];
 				if (mpt_cmd->sync_cmd_idx != (u_int32_t)MRSAS_ULONG_MAX) {
 					mfi_cmd = sc->mfi_cmd_list[mpt_cmd->sync_cmd_idx];
-					if (mfi_cmd->frame->dcmd.opcode ==
-					    MR_DCMD_LD_MAP_GET_INFO) {
-						mrsas_release_mfi_cmd(mfi_cmd);
-						mrsas_release_mpt_cmd(mpt_cmd);
-					} else {
-						req_desc = mrsas_get_request_desc(sc,
-						    mfi_cmd->cmd_id.context.smid - 1);
-						mrsas_dprint(sc, MRSAS_OCR,
-						    "Re-fire command DCMD opcode 0x%x index %d\n ",
-						    mfi_cmd->frame->dcmd.opcode, j);
-						if (!req_desc)
-							device_printf(sc->mrsas_dev,
-							    "Cannot build MPT cmd.\n");
-						else
-							mrsas_fire_cmd(sc, req_desc->addr.u.low,
-							    req_desc->addr.u.high);
-					}
+					mrsas_release_mfi_cmd(mfi_cmd);
+					mrsas_release_mpt_cmd(mpt_cmd);
 				}
 			}
+
+			sc->aen_cmd = NULL;
 
 			/* Reset load balance info */
 			memset(sc->load_balance_info, 0,
@@ -2856,10 +3004,37 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 			if (!mrsas_get_map_info(sc))
 				mrsas_sync_map_info(sc);
 
+			megasas_setup_jbod_map(sc);
+
+			memset(sc->pd_list, 0,
+			    MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
+			if (mrsas_get_pd_list(sc) != SUCCESS) {
+				device_printf(sc->mrsas_dev, "Get PD list failed from OCR.\n"
+				    "Will get the latest PD LIST after OCR on event.\n");
+			}
+			memset(sc->ld_ids, 0xff, MRSAS_MAX_LD_IDS);
+			if (mrsas_get_ld_list(sc) != SUCCESS) {
+				device_printf(sc->mrsas_dev, "Get LD lsit failed from OCR.\n"
+				    "Will get the latest LD LIST after OCR on event.\n");
+			}
 			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 			mrsas_enable_intr(sc);
 			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 
+			/* Register AEN with FW for last sequence number */
+			class_locale.members.reserved = 0;
+			class_locale.members.locale = MR_EVT_LOCALE_ALL;
+			class_locale.members.class = MR_EVT_CLASS_DEBUG;
+
+			if (mrsas_register_aen(sc, sc->last_seq_num,
+			    class_locale.word)) {
+				device_printf(sc->mrsas_dev,
+				    "ERROR: AEN registration FAILED from OCR !!! "
+				    "Further events from the controller cannot be notified."
+				    "Either there is some problem in the controller"
+				    "or the controller does not support AEN.\n"
+				    "Please contact to the SUPPORT TEAM if the problem persists\n");
+			}
 			/* Adapter reset completed successfully */
 			device_printf(sc->mrsas_dev, "Reset successful\n");
 			retval = SUCCESS;
@@ -2891,7 +3066,7 @@ void
 mrsas_kill_hba(struct mrsas_softc *sc)
 {
 	sc->adprecovery = MRSAS_HW_CRITICAL_ERROR;
-	pause("mrsas_kill_hba", 1000);
+	DELAY(1000 * 1000);
 	mrsas_dprint(sc, MRSAS_OCR, "%s\n", __func__);
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, doorbell),
 	    MFI_STOP_ADP);
@@ -2937,7 +3112,7 @@ mrsas_complete_outstanding_ioctls(struct mrsas_softc *sc)
  * completed.
  */
 int
-mrsas_wait_for_outstanding(struct mrsas_softc *sc)
+mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason)
 {
 	int i, outstanding, retval = 0;
 	u_int32_t fw_state, count, MSIxIndex;
@@ -2956,6 +3131,12 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc)
 		if (fw_state == MFI_STATE_FAULT) {
 			mrsas_dprint(sc, MRSAS_OCR,
 			    "Found FW in FAULT state, will reset adapter.\n");
+			retval = 1;
+			goto out;
+		}
+		if (check_reason == MFI_DCMD_TIMEOUT_OCR) {
+			mrsas_dprint(sc, MRSAS_OCR,
+			    "DCMD IO TIMEOUT detected, will reset adapter.\n");
 			retval = 1;
 			goto out;
 		}
@@ -3016,6 +3197,7 @@ static int
 mrsas_get_ctrl_info(struct mrsas_softc *sc)
 {
 	int retcode = 0;
+	u_int8_t do_ocr = 1;
 	struct mrsas_mfi_cmd *cmd;
 	struct mrsas_dcmd_frame *dcmd;
 
@@ -3045,15 +3227,26 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].phys_addr = sc->ctlr_info_phys_addr;
 	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_ctrl_info);
 
-	if (!mrsas_issue_polled(sc, cmd))
-		memcpy(sc->ctrl_info, sc->ctlr_info_mem, sizeof(struct mrsas_ctrl_info));
+	retcode = mrsas_issue_polled(sc, cmd);
+	if (retcode == ETIMEDOUT)
+		goto dcmd_timeout;
 	else
-		retcode = 1;
+		memcpy(sc->ctrl_info, sc->ctlr_info_mem, sizeof(struct mrsas_ctrl_info));
 
+	do_ocr = 0;
 	mrsas_update_ext_vd_details(sc);
 
+	sc->use_seqnum_jbod_fp =
+	    sc->ctrl_info->adapterOperations3.useSeqNumJbodFP;
+
+dcmd_timeout:
 	mrsas_free_ctlr_info_cmd(sc);
-	mrsas_release_mfi_cmd(cmd);
+
+	if (do_ocr)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+	else
+		mrsas_release_mfi_cmd(cmd);
+
 	return (retcode);
 }
 
@@ -3172,7 +3365,7 @@ mrsas_issue_polled(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 {
 	struct mrsas_header *frame_hdr = &cmd->frame->hdr;
 	u_int8_t max_wait = MRSAS_INTERNAL_CMD_WAIT_TIME;
-	int i, retcode = 0;
+	int i, retcode = SUCCESS;
 
 	frame_hdr->cmd_status = 0xFF;
 	frame_hdr->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
@@ -3195,12 +3388,12 @@ mrsas_issue_polled(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 				break;
 		}
 	}
-	if (frame_hdr->cmd_status != 0) {
-		if (frame_hdr->cmd_status == 0xFF)
-			device_printf(sc->mrsas_dev, "DCMD timed out after %d seconds.\n", max_wait);
-		else
-			device_printf(sc->mrsas_dev, "DCMD failed, status = 0x%x\n", frame_hdr->cmd_status);
-		retcode = 1;
+	if (frame_hdr->cmd_status == 0xFF) {
+		device_printf(sc->mrsas_dev, "DCMD timed out after %d "
+		    "seconds from %s\n", max_wait, __func__);
+		device_printf(sc->mrsas_dev, "DCMD opcode 0x%X\n",
+		    cmd->frame->dcmd.opcode);
+		retcode = ETIMEDOUT;
 	}
 	return (retcode);
 }
@@ -3294,7 +3487,10 @@ mrsas_build_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *mfi_cm
 
 	io_req = mpt_cmd->io_request;
 
-	if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+	if ((sc->device_id == MRSAS_INVADER) ||
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24)) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = (pMpi25IeeeSgeChain64_t)&io_req->SGL;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;
@@ -3311,7 +3507,7 @@ mrsas_build_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *mfi_cm
 	mpi25_ieee_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
 	    MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR;
 
-	mpi25_ieee_chain->Length = MRSAS_MAX_SZ_CHAIN_FRAME;
+	mpi25_ieee_chain->Length = sc->max_chain_frame_sz;
 
 	return (0);
 }
@@ -3329,10 +3525,10 @@ mrsas_issue_blocked_cmd(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 {
 	u_int8_t max_wait = MRSAS_INTERNAL_CMD_WAIT_TIME;
 	unsigned long total_time = 0;
-	int retcode = 0;
+	int retcode = SUCCESS;
 
 	/* Initialize cmd_status */
-	cmd->cmd_status = ECONNREFUSED;
+	cmd->cmd_status = 0xFF;
 
 	/* Build MPT-MFI command for issue to FW */
 	if (mrsas_issue_dcmd(sc, cmd)) {
@@ -3342,17 +3538,29 @@ mrsas_issue_blocked_cmd(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 	sc->chan = (void *)&cmd;
 
 	while (1) {
-		if (cmd->cmd_status == ECONNREFUSED) {
+		if (cmd->cmd_status == 0xFF) {
 			tsleep((void *)&sc->chan, 0, "mrsas_sleep", hz);
 		} else
 			break;
-		total_time++;
-		if (total_time >= max_wait) {
-			device_printf(sc->mrsas_dev,
-			    "Internal command timed out after %d seconds.\n", max_wait);
-			retcode = 1;
-			break;
+
+		if (!cmd->sync_cmd) {	/* cmd->sync will be set for an IOCTL
+					 * command */
+			total_time++;
+			if (total_time >= max_wait) {
+				device_printf(sc->mrsas_dev,
+				    "Internal command timed out after %d seconds.\n", max_wait);
+				retcode = 1;
+				break;
+			}
 		}
+	}
+
+	if (cmd->cmd_status == 0xFF) {
+		device_printf(sc->mrsas_dev, "DCMD timed out after %d "
+		    "seconds from %s\n", max_wait, __func__);
+		device_printf(sc->mrsas_dev, "DCMD opcode 0x%X\n",
+		    cmd->frame->dcmd.opcode);
+		retcode = ETIMEDOUT;
 	}
 	return (retcode);
 }
@@ -3404,6 +3612,7 @@ mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd
 		    (cmd->frame->dcmd.mbox.b[1] == 1)) {
 			sc->fast_path_io = 0;
 			mtx_lock(&sc->raidmap_lock);
+			sc->map_update_cmd = NULL;
 			if (cmd_status != 0) {
 				if (cmd_status != MFI_STAT_NOT_FOUND)
 					device_printf(sc->mrsas_dev, "map sync failed, status=%x\n", cmd_status);
@@ -3426,6 +3635,28 @@ mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd
 		if (cmd->frame->dcmd.opcode == MR_DCMD_CTRL_EVENT_GET_INFO ||
 		    cmd->frame->dcmd.opcode == MR_DCMD_CTRL_EVENT_GET) {
 			sc->mrsas_aen_triggered = 0;
+		}
+		/* FW has an updated PD sequence */
+		if ((cmd->frame->dcmd.opcode ==
+		    MR_DCMD_SYSTEM_PD_MAP_GET_INFO) &&
+		    (cmd->frame->dcmd.mbox.b[0] == 1)) {
+
+			mtx_lock(&sc->raidmap_lock);
+			sc->jbod_seq_cmd = NULL;
+			mrsas_release_mfi_cmd(cmd);
+
+			if (cmd_status == MFI_STAT_OK) {
+				sc->pd_seq_map_id++;
+				/* Re-register a pd sync seq num cmd */
+				if (megasas_sync_pd_seq_num(sc, true))
+					sc->use_seqnum_jbod_fp = 0;
+			} else {
+				sc->use_seqnum_jbod_fp = 0;
+				device_printf(sc->mrsas_dev,
+				    "Jbod map sync failed, status=%x\n", cmd_status);
+			}
+			mtx_unlock(&sc->raidmap_lock);
+			break;
 		}
 		/* See if got an event notification */
 		if (cmd->frame->dcmd.opcode == MR_DCMD_CTRL_EVENT_WAIT)
@@ -3458,7 +3689,7 @@ mrsas_wakeup(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 {
 	cmd->cmd_status = cmd->frame->io.cmd_status;
 
-	if (cmd->cmd_status == ECONNREFUSED)
+	if (cmd->cmd_status == 0xFF)
 		cmd->cmd_status = 0;
 
 	sc->chan = (void *)&cmd;
@@ -3489,9 +3720,10 @@ mrsas_shutdown_ctlr(struct mrsas_softc *sc, u_int32_t opcode)
 	}
 	if (sc->aen_cmd)
 		mrsas_issue_blocked_abort_cmd(sc, sc->aen_cmd);
-
 	if (sc->map_update_cmd)
 		mrsas_issue_blocked_abort_cmd(sc, sc->map_update_cmd);
+	if (sc->jbod_seq_cmd)
+		mrsas_issue_blocked_abort_cmd(sc, sc->jbod_seq_cmd);
 
 	dcmd = &cmd->frame->dcmd;
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
@@ -3551,6 +3783,85 @@ mrsas_flush_cache(struct mrsas_softc *sc)
 	mrsas_release_mfi_cmd(cmd);
 
 	return;
+}
+
+int
+megasas_sync_pd_seq_num(struct mrsas_softc *sc, boolean_t pend)
+{
+	int retcode = 0;
+	u_int8_t do_ocr = 1;
+	struct mrsas_mfi_cmd *cmd;
+	struct mrsas_dcmd_frame *dcmd;
+	uint32_t pd_seq_map_sz;
+	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
+	bus_addr_t pd_seq_h;
+
+	pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
+	    (sizeof(struct MR_PD_CFG_SEQ) *
+	    (MAX_PHYSICAL_DEVICES - 1));
+
+	cmd = mrsas_get_mfi_cmd(sc);
+	if (!cmd) {
+		device_printf(sc->mrsas_dev,
+		    "Cannot alloc for ld map info cmd.\n");
+		return 1;
+	}
+	dcmd = &cmd->frame->dcmd;
+
+	pd_sync = (void *)sc->jbodmap_mem[(sc->pd_seq_map_id & 1)];
+	pd_seq_h = sc->jbodmap_phys_addr[(sc->pd_seq_map_id & 1)];
+	if (!pd_sync) {
+		device_printf(sc->mrsas_dev,
+		    "Failed to alloc mem for jbod map info.\n");
+		mrsas_release_mfi_cmd(cmd);
+		return (ENOMEM);
+	}
+	memset(pd_sync, 0, pd_seq_map_sz);
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
+	dcmd->data_xfer_len = (pd_seq_map_sz);
+	dcmd->opcode = (MR_DCMD_SYSTEM_PD_MAP_GET_INFO);
+	dcmd->sgl.sge32[0].phys_addr = (pd_seq_h);
+	dcmd->sgl.sge32[0].length = (pd_seq_map_sz);
+
+	if (pend) {
+		dcmd->mbox.b[0] = MRSAS_DCMD_MBOX_PEND_FLAG;
+		dcmd->flags = (MFI_FRAME_DIR_WRITE);
+		sc->jbod_seq_cmd = cmd;
+		if (mrsas_issue_dcmd(sc, cmd)) {
+			device_printf(sc->mrsas_dev,
+			    "Fail to send sync map info command.\n");
+			return 1;
+		} else
+			return 0;
+	} else
+		dcmd->flags = MFI_FRAME_DIR_READ;
+
+	retcode = mrsas_issue_polled(sc, cmd);
+	if (retcode == ETIMEDOUT)
+		goto dcmd_timeout;
+
+	if (pd_sync->count > MAX_PHYSICAL_DEVICES) {
+		device_printf(sc->mrsas_dev,
+		    "driver supports max %d JBOD, but FW reports %d\n",
+		    MAX_PHYSICAL_DEVICES, pd_sync->count);
+		retcode = -EINVAL;
+	}
+	if (!retcode)
+		sc->pd_seq_map_id++;
+	do_ocr = 0;
+
+dcmd_timeout:
+	if (do_ocr)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+	else
+		mrsas_release_mfi_cmd(cmd);
+
+	return (retcode);
 }
 
 /*
@@ -3622,14 +3933,11 @@ mrsas_get_ld_map_info(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].phys_addr = map_phys_addr;
 	dcmd->sgl.sge32[0].length = sc->current_map_sz;
 
-	if (!mrsas_issue_polled(sc, cmd))
-		retcode = 0;
-	else {
-		device_printf(sc->mrsas_dev,
-		    "Fail to send get LD map info cmd.\n");
-		retcode = 1;
-	}
-	mrsas_release_mfi_cmd(cmd);
+	retcode = mrsas_issue_polled(sc, cmd);
+	if (retcode == ETIMEDOUT)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+	else
+		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
 }
@@ -3714,6 +4022,7 @@ static int
 mrsas_get_pd_list(struct mrsas_softc *sc)
 {
 	int retcode = 0, pd_index = 0, pd_count = 0, pd_list_size;
+	u_int8_t do_ocr = 1;
 	struct mrsas_mfi_cmd *cmd;
 	struct mrsas_dcmd_frame *dcmd;
 	struct MR_PD_LIST *pd_list_mem;
@@ -3735,6 +4044,8 @@ mrsas_get_pd_list(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev,
 		    "Cannot alloc dmamap for get PD list cmd\n");
 		mrsas_release_mfi_cmd(cmd);
+		mrsas_free_tmp_dcmd(tcmd);
+		free(tcmd, M_MRSAS);
 		return (ENOMEM);
 	} else {
 		pd_list_mem = tcmd->tmp_dcmd_mem;
@@ -3755,15 +4066,14 @@ mrsas_get_pd_list(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].phys_addr = pd_list_phys_addr;
 	dcmd->sgl.sge32[0].length = MRSAS_MAX_PD * sizeof(struct MR_PD_LIST);
 
-	if (!mrsas_issue_polled(sc, cmd))
-		retcode = 0;
-	else
-		retcode = 1;
+	retcode = mrsas_issue_polled(sc, cmd);
+	if (retcode == ETIMEDOUT)
+		goto dcmd_timeout;
 
 	/* Get the instance PD list */
 	pd_count = MRSAS_MAX_PD;
 	pd_addr = pd_list_mem->addr;
-	if (retcode == 0 && pd_list_mem->count < pd_count) {
+	if (pd_list_mem->count < pd_count) {
 		memset(sc->local_pd_list, 0,
 		    MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
 		for (pd_index = 0; pd_index < pd_list_mem->count; pd_index++) {
@@ -3774,15 +4084,22 @@ mrsas_get_pd_list(struct mrsas_softc *sc)
 			    MR_PD_STATE_SYSTEM;
 			pd_addr++;
 		}
+		/*
+		 * Use mutext/spinlock if pd_list component size increase more than
+		 * 32 bit.
+		 */
+		memcpy(sc->pd_list, sc->local_pd_list, sizeof(sc->local_pd_list));
+		do_ocr = 0;
 	}
-	/*
-	 * Use mutext/spinlock if pd_list component size increase more than
-	 * 32 bit.
-	 */
-	memcpy(sc->pd_list, sc->local_pd_list, sizeof(sc->local_pd_list));
+dcmd_timeout:
 	mrsas_free_tmp_dcmd(tcmd);
-	mrsas_release_mfi_cmd(cmd);
 	free(tcmd, M_MRSAS);
+
+	if (do_ocr)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+	else
+		mrsas_release_mfi_cmd(cmd);
+
 	return (retcode);
 }
 
@@ -3798,6 +4115,7 @@ static int
 mrsas_get_ld_list(struct mrsas_softc *sc)
 {
 	int ld_list_size, retcode = 0, ld_index = 0, ids = 0;
+	u_int8_t do_ocr = 1;
 	struct mrsas_mfi_cmd *cmd;
 	struct mrsas_dcmd_frame *dcmd;
 	struct MR_LD_LIST *ld_list_mem;
@@ -3818,6 +4136,8 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev,
 		    "Cannot alloc dmamap for get LD list cmd\n");
 		mrsas_release_mfi_cmd(cmd);
+		mrsas_free_tmp_dcmd(tcmd);
+		free(tcmd, M_MRSAS);
 		return (ENOMEM);
 	} else {
 		ld_list_mem = tcmd->tmp_dcmd_mem;
@@ -3839,18 +4159,16 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].length = sizeof(struct MR_LD_LIST);
 	dcmd->pad_0 = 0;
 
-	if (!mrsas_issue_polled(sc, cmd))
-		retcode = 0;
-	else
-		retcode = 1;
+	retcode = mrsas_issue_polled(sc, cmd);
+	if (retcode == ETIMEDOUT)
+		goto dcmd_timeout;
 
 #if VD_EXT_DEBUG
 	printf("Number of LDs %d\n", ld_list_mem->ldCount);
 #endif
 
 	/* Get the instance LD list */
-	if ((retcode == 0) &&
-	    (ld_list_mem->ldCount <= sc->fw_supported_vd_count)) {
+	if (ld_list_mem->ldCount <= sc->fw_supported_vd_count) {
 		sc->CurLdCount = ld_list_mem->ldCount;
 		memset(sc->ld_ids, 0xff, MAX_LOGICAL_DRIVES_EXT);
 		for (ld_index = 0; ld_index < ld_list_mem->ldCount; ld_index++) {
@@ -3859,10 +4177,17 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
 				sc->ld_ids[ids] = ld_list_mem->ldList[ld_index].ref.ld_context.targetId;
 			}
 		}
+		do_ocr = 0;
 	}
+dcmd_timeout:
 	mrsas_free_tmp_dcmd(tcmd);
-	mrsas_release_mfi_cmd(cmd);
 	free(tcmd, M_MRSAS);
+
+	if (do_ocr)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+	else
+		mrsas_release_mfi_cmd(cmd);
+
 	return (retcode);
 }
 
@@ -4018,7 +4343,7 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 	union mrsas_evt_class_locale class_locale;
 	int doscan = 0;
 	u_int32_t seq_num;
-	int error;
+ 	int error, fail_aen = 0;
 
 	if (sc == NULL) {
 		printf("invalid instance!\n");
@@ -4027,13 +4352,19 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 	if (sc->evt_detail_mem) {
 		switch (sc->evt_detail_mem->code) {
 		case MR_EVT_PD_INSERTED:
-			mrsas_get_pd_list(sc);
-			mrsas_bus_scan_sim(sc, sc->sim_1);
+			fail_aen = mrsas_get_pd_list(sc);
+			if (!fail_aen)
+				mrsas_bus_scan_sim(sc, sc->sim_1);
+			else
+				goto skip_register_aen;
 			doscan = 0;
 			break;
 		case MR_EVT_PD_REMOVED:
-			mrsas_get_pd_list(sc);
-			mrsas_bus_scan_sim(sc, sc->sim_1);
+			fail_aen = mrsas_get_pd_list(sc);
+			if (!fail_aen)
+				mrsas_bus_scan_sim(sc, sc->sim_1);
+			else
+				goto skip_register_aen;
 			doscan = 0;
 			break;
 		case MR_EVT_LD_OFFLINE:
@@ -4043,8 +4374,11 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 			doscan = 0;
 			break;
 		case MR_EVT_LD_CREATED:
-			mrsas_get_ld_list(sc);
-			mrsas_bus_scan_sim(sc, sc->sim_0);
+			fail_aen = mrsas_get_ld_list(sc);
+			if (!fail_aen)
+				mrsas_bus_scan_sim(sc, sc->sim_0);
+			else
+				goto skip_register_aen;
 			doscan = 0;
 			break;
 		case MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED:
@@ -4061,12 +4395,19 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 		return;
 	}
 	if (doscan) {
-		mrsas_get_pd_list(sc);
-		mrsas_dprint(sc, MRSAS_AEN, "scanning ...sim 1\n");
-		mrsas_bus_scan_sim(sc, sc->sim_1);
-		mrsas_get_ld_list(sc);
-		mrsas_dprint(sc, MRSAS_AEN, "scanning ...sim 0\n");
-		mrsas_bus_scan_sim(sc, sc->sim_0);
+		fail_aen = mrsas_get_pd_list(sc);
+		if (!fail_aen) {
+			mrsas_dprint(sc, MRSAS_AEN, "scanning ...sim 1\n");
+			mrsas_bus_scan_sim(sc, sc->sim_1);
+		} else
+			goto skip_register_aen;
+
+		fail_aen = mrsas_get_ld_list(sc);
+		if (!fail_aen) {
+			mrsas_dprint(sc, MRSAS_AEN, "scanning ...sim 0\n");
+			mrsas_bus_scan_sim(sc, sc->sim_0);
+		} else
+			goto skip_register_aen;
 	}
 	seq_num = sc->evt_detail_mem->seq_num + 1;
 
@@ -4085,6 +4426,9 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 
 	if (error)
 		device_printf(sc->mrsas_dev, "register aen failed error %x\n", error);
+
+skip_register_aen:
+	return;
 
 }
 
