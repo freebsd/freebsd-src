@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/allwinner/allwinner_machdep.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/phy/phy.h>
 
 #define EHCI_HC_DEVSTR			"Allwinner Integrated USB 2.0 controller"
 
@@ -94,6 +95,7 @@ struct aw_ehci_softc {
 	ehci_softc_t	sc;
 	clk_t		clk;
 	hwreset_t	rst;
+	phy_t		phy;
 };
 
 struct aw_ehci_conf {
@@ -222,6 +224,18 @@ a10_ehci_attach(device_t self)
 	err = clk_enable(aw_sc->clk);
 	if (err != 0) {
 		device_printf(self, "Could not enable clock\n");
+		goto error;
+	}
+
+	/* Enable USB PHY */
+	err = phy_get_by_ofw_name(self, "usb", &aw_sc->phy);
+	if (err != 0) {
+		device_printf(self, "Could not get phy\n");
+		goto error;
+	}
+	err = phy_enable(self, aw_sc->phy);
+	if (err != 0) {
+		device_printf(self, "Could not enable phy\n");
 		goto error;
 	}
 
