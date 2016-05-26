@@ -186,12 +186,8 @@ struct chipc_softc {
 	bhnd_nvram_src_t	 nvram_src;	/**< identified NVRAM source */
 
 	struct mtx		 mtx;		/**< state mutex. */
-
-	struct bhnd_sprom	 sprom;		/**< OTP/SPROM shadow, if any */
-	size_t			 sprom_refcnt;	/**< SPROM hardware refcount */
-
+	size_t			 sprom_refcnt;	/**< SPROM pin enable refcount */
 	struct rman		 mem_rman;	/**< port memory manager */
-
 	STAILQ_HEAD(, chipc_region) mem_regions;/**< memory allocation records */
 };
 
