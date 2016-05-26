@@ -773,7 +773,7 @@ SUBDIR:= ${SUBDIR:N${reject}}
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
 .MAKEFLAGS+=	-DNO_XREF
-afterinstall:
+afterinstall: .PHONY
 	@if type kldxref >/dev/null 2>&1; then \
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
 		kldxref ${DESTDIR}${KMODDIR}; \

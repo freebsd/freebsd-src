@@ -295,7 +295,7 @@ kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
 	sh $S/conf/systags.sh
 
-kernel-install:
+kernel-install: .PHONY
 	@if [ ! -f ${KERNEL_KO} ] ; then \
 		echo "You must build a kernel first." ; \
 		exit 1 ; \
