@@ -1570,9 +1570,15 @@ _dd=		bin/dd
 
 # r277259 crunchide: Correct 64-bit section header offset
 # r281674 crunchide: always include both 32- and 64-bit ELF support
-# r285986 crunchen: use STRIPBIN rather than STRIP
 .if ${BOOTSTRAPPING} < 1100078
-_crunch=	usr.sbin/crunch
+_crunchide=	usr.sbin/crunch/crunchide
+.endif
+
+# r285986 crunchen: use STRIPBIN rather than STRIP
+# 1100113: Support MK_AUTO_OBJ
+.if ${BOOTSTRAPPING} < 1100078 || \
+    (${MK_AUTO_OBJ} == "yes" && ${BOOTSTRAPPING} < 1100114)
+_crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
@@ -1661,7 +1667,8 @@ bootstrap-tools: .PHONY
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
-    ${_crunch} \
+    ${_crunchide} \
+    ${_crunchgen} \
     ${_nmtree} \
     ${_vtfontcvt} \
     usr.bin/localedef
