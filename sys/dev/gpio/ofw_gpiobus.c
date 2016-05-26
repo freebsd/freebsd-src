@@ -155,6 +155,15 @@ gpio_pin_release(gpio_pin_t gpio)
 }
 
 int
+gpio_pin_getcaps(gpio_pin_t pin, uint32_t *caps)
+{
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	return (GPIO_PIN_GETCAPS(pin->dev, pin->pin, caps));
+}
+
+int
 gpio_pin_is_active(gpio_pin_t pin, bool *active)
 {
 	int rv;

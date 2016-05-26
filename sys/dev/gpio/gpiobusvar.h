@@ -123,6 +123,7 @@ int gpio_pin_get_by_ofw_idx(device_t consumer, phandle_t node,
 int gpio_pin_get_by_ofw_property(device_t consumer, phandle_t node,
     char *name, gpio_pin_t *gpio);
 void gpio_pin_release(gpio_pin_t gpio);
+int gpio_pin_getcaps(gpio_pin_t pin, uint32_t *caps);
 int gpio_pin_is_active(gpio_pin_t pin, bool *active);
 int gpio_pin_set_active(gpio_pin_t pin, bool active);
 int gpio_pin_setflags(gpio_pin_t pin, uint32_t flags);
