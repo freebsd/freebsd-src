@@ -117,6 +117,8 @@ static void		rt2560_beacon_expire(struct rt2560_softc *);
 static void		rt2560_wakeup_expire(struct rt2560_softc *);
 static void		rt2560_scan_start(struct ieee80211com *);
 static void		rt2560_scan_end(struct ieee80211com *);
+static void		rt2560_getradiocaps(struct ieee80211com *, int, int *,
+			    struct ieee80211_channel[]);
 static void		rt2560_set_channel(struct ieee80211com *);
 static void		rt2560_setup_tx_desc(struct rt2560_softc *,
 			    struct rt2560_tx_desc *, uint32_t, int, int, int,
@@ -187,6 +189,14 @@ static const uint32_t rt2560_rf2525e_r2[]   = RT2560_RF2525E_R2;
 static const uint32_t rt2560_rf2526_r2[]    = RT2560_RF2526_R2;
 static const uint32_t rt2560_rf2526_hi_r2[] = RT2560_RF2526_HI_R2;
 
+static const uint8_t rt2560_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
+static const uint8_t rt2560_chan_5ghz[] =
+	{ 36, 40, 44, 48, 52, 56, 60, 64,
+	  100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
+	  149, 153, 157, 161 };
+
 static const struct {
 	uint8_t		chan;
 	uint32_t	r1, r2, r4;
@@ -199,7 +209,6 @@ rt2560_attach(device_t dev, int id)
 {
 	struct rt2560_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands[IEEE80211_MODE_BYTES];
 	int error;
 
 	sc->sc_dev = dev;
@@ -278,12 +287,8 @@ rt2560_attach(device_t dev, int id)
 #endif
 		;
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	if (sc->rf_rev == RT2560_RF_5222)
-		setbit(bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, bands);
+	rt2560_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = rt2560_raw_xmit;
@@ -291,6 +296,7 @@ rt2560_attach(device_t dev, int id)
 	ic->ic_update_promisc = rt2560_update_promisc;
 	ic->ic_scan_start = rt2560_scan_start;
 	ic->ic_scan_end = rt2560_scan_end;
+	ic->ic_getradiocaps = rt2560_getradiocaps;
 	ic->ic_set_channel = rt2560_set_channel;
 
 	ic->ic_vap_create = rt2560_vap_create;
@@ -2137,6 +2143,26 @@ rt2560_set_chan(struct rt2560_softc *sc, struct ieee80211_channel *c)
 
 		/* clear CRC errors */
 		RAL_READ(sc, RT2560_CNT0);
+	}
+}
+
+static void
+rt2560_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct rt2560_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    rt2560_chan_2ghz, nitems(rt2560_chan_2ghz), bands, 0);
+
+	if (sc->rf_rev == RT2560_RF_5222) {
+		setbit(bands, IEEE80211_MODE_11A);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+		    rt2560_chan_5ghz, nitems(rt2560_chan_5ghz), bands, 0);
 	}
 }
 
