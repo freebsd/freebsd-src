@@ -590,6 +590,7 @@ struct sctp_paddrthlds {
 	sctp_assoc_t spt_assoc_id;
 	uint16_t spt_pathmaxrxt;
 	uint16_t spt_pathpfthld;
+	uint16_t spt_pathcpthld;
 };
 
 struct sctp_paddrinfo {

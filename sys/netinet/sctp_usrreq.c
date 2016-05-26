@@ -3304,9 +3304,11 @@ flags_out:
 				if (net != NULL) {
 					thlds->spt_pathmaxrxt = net->failure_threshold;
 					thlds->spt_pathpfthld = net->pf_threshold;
+					thlds->spt_pathcpthld = 0xffff;
 				} else {
 					thlds->spt_pathmaxrxt = stcb->asoc.def_net_failure;
 					thlds->spt_pathpfthld = stcb->asoc.def_net_pf_threshold;
+					thlds->spt_pathcpthld = 0xffff;
 				}
 				thlds->spt_assoc_id = sctp_get_associd(stcb);
 				SCTP_TCB_UNLOCK(stcb);
@@ -3318,6 +3320,7 @@ flags_out:
 					SCTP_INP_RLOCK(inp);
 					thlds->spt_pathmaxrxt = inp->sctp_ep.def_net_failure;
 					thlds->spt_pathpfthld = inp->sctp_ep.def_net_pf_threshold;
+					thlds->spt_pathcpthld = 0xffff;
 					SCTP_INP_RUNLOCK(inp);
 				} else {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
@@ -6344,6 +6347,11 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
 					break;
 				}
+			}
+			if (thlds->spt_pathcpthld != 0xffff) {
+				error = EINVAL;
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
+				break;
 			}
 			if (stcb != NULL) {
 				if (net != NULL) {
