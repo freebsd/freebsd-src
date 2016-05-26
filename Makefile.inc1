@@ -1798,7 +1798,6 @@ cross-tools: .MAKE .PHONY
     ${_dtrace_tools} \
     ${_cc} \
     ${_btxld} \
-    ${_crunchide} \
     ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
