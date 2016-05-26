@@ -1236,8 +1236,6 @@ struct rtwn_tx_radiotap_header {
 	(1 << IEEE80211_RADIOTAP_FLAGS |		\
 	 1 << IEEE80211_RADIOTAP_CHANNEL)
 
-struct rtwn_softc;
-
 struct rtwn_rx_data {
 	bus_dmamap_t		map;
 	struct mbuf		*m;
@@ -1270,23 +1268,6 @@ struct rtwn_tx_ring {
 	struct rtwn_tx_data	tx_data[RTWN_TX_LIST_COUNT];
 	int			queued;
 	int			cur;
-};
-
-struct rtwn_host_cmd {
-	void	(*cb)(struct rtwn_softc *, void *);
-	uint8_t	data[256];
-};
-
-struct rtwn_cmd_key {
-	struct ieee80211_key	key;
-	uint16_t		associd;
-};
-
-struct rtwn_host_cmd_ring {
-	struct rtwn_host_cmd	cmd[RTWN_HOST_CMD_RING_COUNT];
-	int			cur;
-	int			next;
-	int			queued;
 };
 
 struct rtwn_vap {
