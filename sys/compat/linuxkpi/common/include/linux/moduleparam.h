@@ -110,6 +110,12 @@
 #define	module_param(var, type, mode)	\
 	LINUXKPI_PARAM_##type(var, var)
 
+#define	module_param_named_unsafe(name, var, type, mode) \
+	LINUXKPI_PARAM_##type(name, var)
+
+#define	module_param_unsafe(var, type, mode) \
+	LINUXKPI_PARAM_##type(var, var)
+
 #define	module_param_array(var, type, addr_argc, mode)
 
 #define	MODULE_PARM_DESC(name, desc) \
