@@ -52,9 +52,9 @@ typedef int32_t aqm_stime_t;
 #define DN_AQM_MTAG_TS 55345
 
 /* Macro for variable bounding */
-#define BOUND_VAR(x,l,h)  (x < l? l : x > h? h : x)
+#define BOUND_VAR(x,l,h)  ((x) > (h)? (h) : ((x) > (l)? (x) : (l)))
 
-/* sysctl variable to count number of droped packets */
+/* sysctl variable to count number of dropped packets */
 extern unsigned long io_pkt_drop; 
 
 /*
