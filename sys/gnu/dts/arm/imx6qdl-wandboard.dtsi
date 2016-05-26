@@ -262,12 +262,3 @@
 	cd-gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
-
-/ {
-	pps@0 {
-		compatible = "pps-gpio";
-		gpios = <&gpio3 27 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
-};
-
