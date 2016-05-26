@@ -185,7 +185,7 @@ iser_cq_callback(struct ib_cq *cq, void *cq_context)
 {
 	struct iser_comp *comp = cq_context;
 
-	taskqueue_enqueue_fast(comp->tq, &comp->task);
+	taskqueue_enqueue(comp->tq, &comp->task);
 }
 
 /**
