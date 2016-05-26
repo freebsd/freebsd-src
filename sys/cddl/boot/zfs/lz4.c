@@ -34,7 +34,7 @@
  * $FreeBSD$
  */
 
-#include <arpa/inet.h>
+#include <netinet/in.h>
 
 static int LZ4_uncompress_unknownOutputSize(const char *source, char *dest,
 					    int isize, int maxOutputSize);
