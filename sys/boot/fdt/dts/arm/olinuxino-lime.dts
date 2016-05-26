@@ -27,3 +27,4 @@
  */
 
 #include "sun4i-a10-olinuxino-lime.dts"
+#include "xpowers-axp209.dtsi"
