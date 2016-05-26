@@ -866,6 +866,7 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 	struct ccb_scsiio *csio;
 	size_t data_segment_len, received;
 	uint16_t sense_len;
+	uint32_t resid;
 
 	is = PDU_SESSION(response);
 
@@ -880,6 +881,22 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 	}
 
 	ccb = io->io_ccb;
+
+	/*
+	 * With iSER, after getting good response we can be sure
+	 * that all the data has been successfully transferred.
+	 */
+	if (is->is_conn->ic_iser) {
+		resid = ntohl(bhssr->bhssr_residual_count);
+		if (bhssr->bhssr_flags & BHSSR_FLAGS_RESIDUAL_UNDERFLOW) {
+			io->io_received = ccb->csio.dxfer_len - resid;
+		} else if (bhssr->bhssr_flags & BHSSR_FLAGS_RESIDUAL_OVERFLOW) {
+			ISCSI_SESSION_WARN(is, "overflow: target indicates %d", resid);
+		} else {
+			io->io_received = ccb->csio.dxfer_len;
+		}
+	}
+
 	received = io->io_received;
 	iscsi_outstanding_remove(is, io);
 	ISCSI_SESSION_UNLOCK(is);
