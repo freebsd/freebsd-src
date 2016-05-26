@@ -828,6 +828,7 @@ if_attachdomain1(struct ifnet *ifp)
 		    __func__, ifp->if_xname);
 		return;
 	}
+	ifp->if_afdata_initialized = domain_init_status;
 	IF_AFDATA_UNLOCK(ifp);
 
 	/* address family dependent data region */
@@ -837,10 +838,6 @@ if_attachdomain1(struct ifnet *ifp)
 			ifp->if_afdata[dp->dom_family] =
 			    (*dp->dom_ifattach)(ifp);
 	}
-
-	IF_AFDATA_LOCK(ifp);
-	ifp->if_afdata_initialized = domain_init_status;
-	IF_AFDATA_UNLOCK(ifp);
 }
 
 /*
