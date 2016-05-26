@@ -122,6 +122,8 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 	void *buf;
 
 	net = nif->nif_devdata;
+	if (net == NULL)
+		return (-1);
 
 	status = net->Transmit(net, 0, len, pkt, 0, 0, 0);
 	if (status != EFI_SUCCESS)
@@ -152,6 +154,8 @@ efinet_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 	char buf[2048];
 
 	net = nif->nif_devdata;
+	if (net == NULL)
+		return (0);
 
 	t = time(0);
 	while ((time(0) - t) < timeout) {
@@ -192,7 +196,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	h = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
 	status = BS->HandleProtocol(h, &sn_guid, (VOID **)&nif->nif_devdata);
 	if (status != EFI_SUCCESS) {
-		printf("net%d: cannot start interface (status=%lu)\n",
+		printf("net%d: cannot fetch interface data (status=%lu)\n",
 		    nif->nif_unit, EFI_ERROR_CODE(status));
 		return;
 	}
@@ -240,6 +244,9 @@ static void
 efinet_end(struct netif *nif)
 {
 	EFI_SIMPLE_NETWORK *net = nif->nif_devdata; 
+
+	if (net == NULL)
+		return;
 
 	net->Shutdown(net);
 }
