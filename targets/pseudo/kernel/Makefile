@@ -5,7 +5,7 @@ KERNCONF?= ${KERNEL:UGENERIC}
 
 TARGET?= ${MACHINE}
 # keep this compatible with peoples expectations...
-KERN_OBJDIR= ${OBJTOP}/sys/compile/${KERNCONF}
+KERN_OBJDIR= ${OBJTOP}/sys/${KERNCONF}
 KERN_CONFDIR= ${SRCTOP}/sys/${TARGET}/conf
 
 CONFIG= ${STAGE_HOST_OBJTOP}/usr/sbin/config
