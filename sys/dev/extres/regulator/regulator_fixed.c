@@ -115,8 +115,8 @@ regnode_get_gpio_entry(struct gpiobus_pin *gpio_pin)
 	}
 
 	/* Reserve pin. */
-	/* XXX Can we call gpiobus_map_pin() with gpio_list_mtx mutex held? */
-	rv = gpiobus_map_pin(busdev, gpio_pin->pin);
+	/* XXX Can we call gpiobus_acquire_pin() with gpio_list_mtx held? */
+	rv = gpiobus_acquire_pin(busdev, gpio_pin->pin);
 	if (rv != 0) {
 		mtx_unlock(&gpio_list_mtx);
 		free(entry, M_FIXEDREGULATOR);
