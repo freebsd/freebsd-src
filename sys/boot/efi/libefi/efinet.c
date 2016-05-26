@@ -325,15 +325,20 @@ efinet_dev_init()
 static void
 efinet_dev_print(int verbose)
 {
-	char line[80];
+	CHAR16 *text;
 	EFI_HANDLE h;
 	int unit;
 
 	pager_open();
 	for (unit = 0, h = efi_find_handle(&efinet_dev, 0);
 	    h != NULL; h = efi_find_handle(&efinet_dev, ++unit)) {
-		sprintf(line, "    %s%d:\n", efinet_dev.dv_name, unit);
-		if (pager_output(line))
+		printf("    %s%d:", efinet_dev.dv_name, unit);
+		text = efi_devpath_name(efi_lookup_devpath(h));
+		if (text != NULL) {
+			printf("    %S", text);
+			efi_free_devpath_name(text);
+		}
+		if (pager_output("\n"))
 			break;
 	}
 	pager_close();
