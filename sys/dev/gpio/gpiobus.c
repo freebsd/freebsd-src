@@ -260,7 +260,7 @@ gpiobus_free_ivars(struct gpiobus_ivar *devi)
 }
 
 int
-gpiobus_map_pin(device_t bus, uint32_t pin)
+gpiobus_acquire_pin(device_t bus, uint32_t pin)
 {
 	struct gpiobus_softc *sc;
 
@@ -291,13 +291,13 @@ gpiobus_release_pin(device_t bus, uint32_t pin)
 	/* Consistency check. */
 	if (pin >= sc->sc_npins) {
 		device_printf(bus,
-		    "gpiobus_map_pin: invalid pin %d, max=%d\n",
+		    "gpiobus_acquire_pin: invalid pin %d, max=%d\n",
 		    pin, sc->sc_npins - 1);
 		return (-1);
 	}
 
 	if (!sc->sc_pins[pin].mapped) {
-		device_printf(bus, "gpiobus_map_pin: pin %d is not mapped\n", pin);
+		device_printf(bus, "gpiobus_acquire_pin: pin %d is not mapped\n", pin);
 		return (-1);
 	}
 	sc->sc_pins[pin].mapped = 0;
@@ -330,7 +330,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if ((mask & (1 << i)) == 0)
 			continue;
 		/* Reserve the GPIO pin. */
-		if (gpiobus_map_pin(sc->sc_busdev, i) != 0) {
+		if (gpiobus_acquire_pin(sc->sc_busdev, i) != 0) {
 			gpiobus_free_ivars(devi);
 			return (EINVAL);
 		}
