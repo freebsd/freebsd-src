@@ -220,6 +220,9 @@ iser_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 	struct icl_iser_pdu *iser_pdu = icl_to_iser_pdu(ip);
 	int ret;
 
+	if (iser_conn->state != ISER_CONN_UP)
+		return;
+
 	ret = iser_initialize_headers(iser_pdu, iser_conn);
 	if (ret) {
 		ISER_ERR("Failed to map TX descriptor pdu %p", iser_pdu);
