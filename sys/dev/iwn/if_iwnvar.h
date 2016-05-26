@@ -317,6 +317,7 @@ struct iwn_softc {
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
 	int			last_calib_ticks;
+	struct callout		scan_timeout;
 	struct callout		watchdog_to;
 	struct iwn_fw_info	fw;
 	struct iwn_calib_info	calibcmd[IWN5000_PHY_CALIB_MAX_RESULT];
@@ -378,7 +379,6 @@ struct iwn_softc {
 	uint8_t			chainmask;
 
 	int			sc_tx_timer;
-	int			sc_scan_timer;
 
 	/* Are we doing a scan? */
 	int			sc_is_scanning;
