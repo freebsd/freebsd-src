@@ -970,7 +970,7 @@ ef10_filter_supported_filters(
 {
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_parser_disp_info(enp, list, length) != 0))
+	if ((rc = efx_mcdi_get_parser_disp_info(enp, list, length)) != 0)
 		goto fail1;
 
 	return (0);
