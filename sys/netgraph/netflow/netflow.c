@@ -469,7 +469,8 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 				fle6->f.n.next_hop6 =
 				    ((struct sockaddr_in6 *)&rt_gateway)->sin6_addr;
 
-			fle6->f.dst_mask = ip6_masklen(&sin6_mask.sin6_addr, &info);
+			fle6->f.dst_mask =
+			    ip6_masklen(&sin6_mask.sin6_addr, &info);
 
 			rib_free_info(&info);
 		}
@@ -489,7 +490,8 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 
 		if (rib_lookup_info(r->fib, (struct sockaddr *)&sin6, 0, 0,
 		    &info) == 0)
-			fle6->f.src_mask = ip6_masklen(&sin6_mask.sin6_addr, &info);
+			fle6->f.src_mask =
+			    ip6_masklen(&sin6_mask.sin6_addr, &info);
 	}
 
 	/* Push new flow at the and of hash. */
