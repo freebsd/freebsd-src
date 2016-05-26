@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <efiprot.h>
 
 static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;
-static EFI_GUID devpath_guid = DEVICE_PATH_PROTOCOL;
 
 static int efipart_init(void);
 static int efipart_strategy(void *, int, daddr_t, size_t, size_t, char *,
@@ -85,7 +84,6 @@ efipart_init(void)
 	UINTN sz;
 	u_int n, nin, nout;
 	int err;
-	size_t devpathlen;
 
 	sz = 0;
 	hin = NULL;
@@ -112,19 +110,10 @@ efipart_init(void)
 		return (ENOMEM);
 
 	for (n = 0; n < nin; n++) {
-		status = BS->HandleProtocol(hin[n], &devpath_guid,
-		    (void **)&devpath);
-		if (EFI_ERROR(status)) {
+		devpath = efi_lookup_devpath(hin[n]);
+		if (devpath == NULL) {
 			continue;
 		}
-
-		node = devpath;
-		devpathlen = DevicePathNodeLength(node);
-		while (!IsDevicePathEnd(NextDevicePathNode(node))) {
-			node = NextDevicePathNode(node);
-			devpathlen += DevicePathNodeLength(node);
-		}
-		devpathlen += DevicePathNodeLength(NextDevicePathNode(node));
 
 		status = BS->HandleProtocol(hin[n], &blkio_guid,
 		    (void**)&blkio);
@@ -140,14 +129,10 @@ efipart_init(void)
 		 * we try to find the parent device and add that instead as
 		 * that will be the CD filesystem.
 		 */
+		node = efi_devpath_last_node(devpath);
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
-			devpathcpy = malloc(devpathlen);
-			memcpy(devpathcpy, devpath, devpathlen);
-			node = devpathcpy;
-			while (!IsDevicePathEnd(NextDevicePathNode(node)))
-				node = NextDevicePathNode(node);
-			SetDevicePathEndNode(node);
+			devpathcpy = efi_devpath_trim(devpath);
 			tmpdevpath = devpathcpy;
 			status = BS->LocateDevicePath(&blkio_guid, &tmpdevpath,
 			    &handle);
