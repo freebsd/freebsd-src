@@ -39,6 +39,10 @@ OUTC=	${PROG}.c
 OUTPUTS=${OUTMK} ${OUTC} ${PROG}.cache
 CRUNCHOBJS= ${.OBJDIR}
 CRUNCH_GENERATE_LINKS?= yes
+# Don't let the prog.mk use MK_AUTO_OBJ, but do let the component builds use
+# it.
+CRUNCHENV+= MK_AUTO_OBJ=no
+CRUNCH_BUILDOPTS+= MK_AUTO_OBJ=${MK_AUTO_OBJ}
 
 CLEANFILES+= ${CONF} *.o *.lo *.c *.mk *.cache *.a *.h
 
@@ -103,12 +107,13 @@ ${CONF}: Makefile
 .endfor
 
 CRUNCHGEN?= crunchgen
-CRUNCHENV?= MK_TESTS=no \
+CRUNCHENV+= MK_TESTS=no \
 	    _RECURSING_CRUNCH=1
 .ORDER: ${OUTPUTS} objs
 ${OUTPUTS:[1]}: .META
 ${OUTPUTS}: ${CONF}
-	MAKE=${MAKE} ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	MAKE=${MAKE} ${CRUNCHENV:NMK_AUTO_OBJ=*} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	    MK_AUTO_OBJ=${MK_AUTO_OBJ} \
 	    ${CRUNCHGEN} -fq -m ${OUTMK} -c ${OUTC} ${CONF}
 	# Avoid redundantly calling 'make objs' which we've done by our
 	# own dependencies.
@@ -117,13 +122,14 @@ ${OUTPUTS}: ${CONF}
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
 ${PROG}: ${OUTPUTS} objs
-	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	${CRUNCHENV} \
 	    CC="${CC} ${CFLAGS} ${LDFLAGS}" \
 	    CXX="${CXX} ${CXXFLAGS} ${LDFLAGS}" \
 	    ${MAKE} -f ${OUTMK} exe
 
 objs: ${OUTMK}
-	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f ${OUTMK} objs
+	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	    ${MAKE} -f ${OUTMK} objs
 
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
 # shell scripts so we can remove this nonsense.
