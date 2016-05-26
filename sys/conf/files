@@ -2553,6 +2553,7 @@ dev/sound/midi/synth_if.m	optional sound
 dev/spibus/ofw_spibus.c		optional fdt spibus
 dev/spibus/spibus.c		optional spibus				\
 	dependency	"spibus_if.h"
+dev/spibus/spigen.c		optional spigen
 dev/spibus/spibus_if.m		optional spibus
 dev/ste/if_ste.c		optional ste pci
 dev/stg/tmc18c30.c		optional stg
