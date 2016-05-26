@@ -110,6 +110,9 @@ ${OUTPUTS:[1]}: .META
 ${OUTPUTS}: ${CONF}
 	MAKE=${MAKE} ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
 	    ${CRUNCHGEN} -fq -m ${OUTMK} -c ${OUTC} ${CONF}
+	# Avoid redundantly calling 'make objs' which we've done by our
+	# own dependencies.
+	sed -i '' -e "s/^\(${PROG}:.*\) \$$(SUBMAKE_TARGETS)/\1/" ${OUTMK}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
