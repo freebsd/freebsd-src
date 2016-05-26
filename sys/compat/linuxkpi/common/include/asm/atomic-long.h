@@ -35,6 +35,8 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
+#define	ATOMIC_LONG_INIT(x)	{ .counter = (x) }
+
 typedef struct {
 	volatile long counter;
 } atomic_long_t;
