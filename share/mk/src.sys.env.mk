@@ -34,4 +34,7 @@ MK_META_MODE=	no
 .if ${MAKESYSPATH:Uno:M*.../*} != ""
 MAKESYSPATH:= ${MAKESYSPATH:S,.../share/mk,${.PARSEDIR:tA},}
 .export MAKESYSPATH
+.elif empty(MAKESYSPATH)
+MAKESYSPATH:=	${.PARSEDIR:tA}
+.export MAKESYSPATH
 .endif
