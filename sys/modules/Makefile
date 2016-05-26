@@ -125,6 +125,7 @@ SUBDIR=	\
 	geom \
 	${_glxiic} \
 	${_glxsb} \
+	gpio \
 	${_hatm} \
 	hifn \
 	hme \
@@ -512,7 +513,7 @@ _cxgbe=		cxgbe
 SUBDIR+=	zfs
 .endif
 
-.if ${MK_CHERI} == "no"
+.if ${MK_CHERI} != "no"
 _en=		en
 _hatm=		hatm
 _oce=		oce
