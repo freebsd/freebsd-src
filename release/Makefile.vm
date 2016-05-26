@@ -17,7 +17,6 @@ RAW_DESC=	Unformatted raw disk image
 
 CLOUDWARE?=	EC2 \
 		GCE \
-		OPENSTACK \
 		VAGRANT-VIRTUALBOX \
 		VAGRANT-VMWARE
 AZURE_FORMAT=	vhdf
