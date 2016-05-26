@@ -296,6 +296,7 @@ rt2661_attach(device_t dev, int id)
 #endif
 	ic->ic_scan_start = rt2661_scan_start;
 	ic->ic_scan_end = rt2661_scan_end;
+	ic->ic_getradiocaps = rt2661_getradiocaps;
 	ic->ic_set_channel = rt2661_set_channel;
 	ic->ic_updateslot = rt2661_update_slot;
 	ic->ic_update_promisc = rt2661_update_promisc;
