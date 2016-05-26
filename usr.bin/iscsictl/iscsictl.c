@@ -987,10 +987,11 @@ main(int argc, char **argv)
 	if (error != 0)
 		xo_err(1, "close");
 
+	xo_close_container("iscsictl");
+	xo_finish();
+
 	if (failed != 0)
 		return (1);
 
-	xo_close_container("iscsictl");
-	xo_finish();
 	return (0);
 }
