@@ -4,8 +4,8 @@ LIB=	efi
 INTERNALLIB=
 WARNS?=	2
 
-SRCS=	delay.c efi_console.c efinet.c efipart.c env.c errno.c handles.c \
-	libefi.c time.c
+SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c env.c errno.c \
+	handles.c libefi.c time.c
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-msoft-float -mgeneral-regs-only
