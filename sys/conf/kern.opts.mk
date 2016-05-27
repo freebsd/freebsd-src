@@ -150,3 +150,11 @@ MK_${var}_SUPPORT:= yes
 .endif
 .endif
 .endfor
+
+# Some modules only compile successfully if option FDT is set, due to #ifdef FDT
+# wrapped around declarations.  Module makefiles can optionally compile such
+# things using .if !empty(OPT_FDT)
+.if !defined(OPT_FDT) && defined(KERNBUILDDIR)
+OPT_FDT!= sed -n '/FDT/p' ${KERNBUILDDIR}/opt_platform.h
+.export OPT_FDT
+.endif
