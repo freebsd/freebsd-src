@@ -126,11 +126,30 @@ routing_stop_atm()
 	return 0
 }
 
+get_fibmod()
+{
+	local _fibs
+
+	_fibs=$((`${SYSCTL_N} net.fibs` - 1))
+	if [ ${_fibs} -gt 0 ]; then
+		echo "-fib 0-${_fibs}"
+	else
+		echo
+	fi
+}
+
 static_inet()
 {
-	local _action _if _skip
+	local _action _if _skip _fibmod
 	_action=$1
 	_if=$2
+
+	_fibmod=`get_fibmod`
+
+	# Provide loopback route in all routing tables.  This has to come
+	# first so that any following routes can be added.
+	static_routes="_loopback ${static_routes}"
+	route__loopback="-inet 127.0.0.1 -iface lo0 ${_fibmod}"
 
 	# Add default route.
 	case ${defaultrouter} in
@@ -166,26 +185,23 @@ static_inet()
 
 static_inet6()
 {
-	local _action _if _skip fibmod fibs allfibs
+	local _action _if _skip fibmod allfibs
 	_action=$1
 	_if=$2
 
-	# get the number of FIBs supported.
-	fibs=$((`${SYSCTL_N} net.fibs` - 1))
-	allfibs=`${SYSCTL_N} net.add_addr_allfibs`
-	if [ "$fibs" -gt 0 ] && [ "$allfibs" -ne 0 ]; then
-		fibmod="-fib 0-$fibs"
-	else
-		fibmod=
-	fi
+	fibmod=`get_fibmod`
 
 	# Add pre-defined static routes first.
 	ipv6_static_routes="_v4mapped _v4compat ${ipv6_static_routes}"
 	ipv6_static_routes="_lla _llma ${ipv6_static_routes}"
+	ipv6_static_routes="_loopback ${ipv6_static_routes}"
 
 	# disallow "internal" addresses to appear on the wire
 	ipv6_route__v4mapped="::ffff:0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}"
 	ipv6_route__v4compat="::0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}"
+
+	# Create a loopback route in every fib
+	ipv6_route__loopback="::1 -prefixlen 128 -iface lo0 ${fibmod}"
 
 	# Disallow link-local unicast packets without outgoing scope
 	# identifiers.  However, if you set "ipv6_default_interface",

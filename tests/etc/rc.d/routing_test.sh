@@ -31,108 +31,43 @@
 #
 # $FreeBSD$
 
+atf_test_case static_ipv4_loopback_route_for_each_fib cleanup
+static_ipv4_loopback_route_for_each_fib_head()
+{
+	atf_set "descr" "Every FIB should have a static IPv4 loopback route"
+}
+static_ipv4_loopback_route_for_each_fib_body()
+{
+	local nfibs fib
+	nfibs=`sysctl -n net.fibs`
+
+	# Check for an IPv4 loopback route
+	for fib in `seq 0 $((${nfibs} - 1))`; do
+		atf_check -o match:"interface: lo0" -s exit:0 \
+			setfib -F ${fib} route -4 get 127.0.0.1
+	done
+}
+
 atf_test_case static_ipv6_loopback_route_for_each_fib cleanup
 static_ipv6_loopback_route_for_each_fib_head()
 {
 	atf_set "descr" "Every FIB should have a static IPv6 loopback route"
-	atf_set "require.user" "root"
-	atf_set "require.config" "fibs"
-	atf_set "require.progs" "sysrc"
 }
 static_ipv6_loopback_route_for_each_fib_body()
 {
-	# Configure the TAP interface to use an RFC5737 nonrouteable address
-	# and a non-default fib
-	ADDR="192.0.2.2"
-	SUBNET="192.0.2.0"
-	MASK="24"
+	local nfibs fib
+	nfibs=`sysctl -n net.fibs`
 
-	# Check system configuration
-	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
-		atf_skip "This test requires net.add_addr_allfibs=0"
-	fi
-
-	get_fibs 1
-	get_tap
-	
-	# Configure a TAP interface in /etc/rc.conf.  Register the sysrc
-	# variable for cleanup.
-	echo "ifconfig_${TAP}" >> "sysrc_vars_to_cleanup"
-	sysrc ifconfig_${TAP}="${ADDR}/${MASK} fib ${FIB0}"
-
-	# Start the interface
-	service netif start ${TAP}
 	# Check for an IPv6 loopback route
-	setfib ${FIB0} netstat -rn -f inet6 | grep -q "^::1.*lo0$"
-	if [ 0 -eq $? ]; then
-		atf_pass
-	else
-		setfib ${FIB0} netstat -rn -f inet6
-		atf_fail "Did not find an IPv6 loopback route"
-	fi
-}
-static_ipv6_loopback_route_for_each_fib_cleanup()
-{
-	cleanup_sysrc
-	cleanup_tap
+	for fib in `seq 0 $((${nfibs} - 1))`; do
+		atf_check -o match:"interface: lo0" -s exit:0 \
+			setfib -F ${fib} route -6 get ::1
+	done
 }
 
 atf_init_test_cases()
 {
+	atf_add_test_case static_ipv4_loopback_route_for_each_fib
 	atf_add_test_case static_ipv6_loopback_route_for_each_fib
 }
 
-# Looks up one or more fibs from the configuration data and validates them.
-# Returns the results in the env varilables FIB0, FIB1, etc.
-# parameter numfibs	The number of fibs to lookup
-get_fibs()
-{
-	NUMFIBS=$1
-	net_fibs=`sysctl -n net.fibs`
-	i=0
-	while [ $i -lt "$NUMFIBS" ]; do
-		fib=`atf_config_get "fibs" | \
-			awk -v i=$(( i + 1 )) '{print $i}'`
-		echo "fib is ${fib}"
-		eval FIB${i}=${fib}
-		if [ "$fib" -ge "$net_fibs" ]; then
-			msg="The ${i}th configured fib is ${fub}, which is "
-			msg="$msg not less than net.fibs (${net_fibs})"
-			atf_skip "$msg"
-		fi
-		i=$(( $i + 1 ))
-	done
-}
-
-
-# Creates a new tap(4) interface, registers it for cleanup, and returns the
-# name via the environment variable TAP
-get_tap()
-{
-	local TAPN=0
-	while ! ifconfig tap${TAPN} create > /dev/null 2>&1; do
-		if [ "$TAPN" -ge 8 ]; then
-			atf_skip "Could not create a tap(4) interface"
-		else
-			TAPN=$(($TAPN + 1))
-		fi
-	done
-	local TAPD=tap${TAPN}
-	# Record the TAP device so we can clean it up later
-	echo ${TAPD} >> "tap_devices_to_cleanup"
-	TAP=${TAPD}
-}
-
-cleanup_sysrc()
-{
-	for var in `cat "sysrc_vars_to_cleanup"`; do
-		sysrc -x $var
-	done
-}
-
-cleanup_tap()
-{
-	for TAPD in `cat "tap_devices_to_cleanup"`; do
-		ifconfig ${TAPD} destroy
-	done
-}
