@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
 
 #define HV_TIMER_FREQUENCY		(10 * 1000 * 1000LL) /* 100ns period */
 #define HV_MAX_DELTA_TICKS		0xffffffffLL
@@ -47,6 +48,16 @@ __FBSDID("$FreeBSD$");
 #define MSR_HV_STIMER0_CFG_SINT		\
 	((((uint64_t)HV_VMBUS_TIMER_SINT) << MSR_HV_STIMER_CFG_SINT_SHIFT) & \
 	 MSR_HV_STIMER_CFG_SINT_MASK)
+
+/*
+ * Two additionally required features:
+ * - SynIC is needed for interrupt generation.
+ * - Time reference counter is needed to set ABS reference count to
+ *   STIMER0_COUNT.
+ */
+#define CPUID_HV_ET_MASK		(CPUID_HV_MSR_TIME_REFCNT |	\
+					 CPUID_HV_MSR_SYNIC |		\
+					 CPUID_HV_MSR_SYNTIMER)
 
 static struct eventtimer *et;
 
@@ -104,7 +115,8 @@ hv_et_intr(struct trapframe *frame)
 static void
 hv_et_identify(driver_t *driver, device_t parent)
 {
-	if (device_find_child(parent, "hv_et", -1) != NULL)
+	if (device_find_child(parent, "hv_et", -1) != NULL ||
+	    (hyperv_features & CPUID_HV_ET_MASK) != CPUID_HV_ET_MASK)
 		return;
 
 	device_add_child(parent, "hv_et", -1);
