@@ -63,7 +63,7 @@ cxxrt_${_S}: ${_LIBCXXRTDIR}/${_S} .NOMETA
 .endfor
 
 WARNS=		0
-CFLAGS+=	-isystem ${HDRDIR} -isystem ${_LIBCXXRTDIR} -nostdinc++ -nostdlib -DLIBCXXRT
+CFLAGS+=	-I${HDRDIR} -I${_LIBCXXRTDIR} -nostdinc++ -nostdlib -DLIBCXXRT
 .if empty(CXXFLAGS:M-std=*)
 CXXFLAGS+=	-std=c++11
 .endif
