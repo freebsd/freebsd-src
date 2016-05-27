@@ -2013,6 +2013,8 @@ device		xmphy		# XaQti XMAC II
 #       the MPX 5030/5038, which is either a RealTek in disguise or a
 #       RealTek workalike.  Note that the D-Link DFE-530TX+ uses the RealTek
 #       chipset and is supported by this driver, not the 'vr' driver.
+# rtwn: RealTek wireless adapters.
+# rtwnfw: RealTek wireless firmware.
 # sf:   Support for Adaptec Duralink PCI fast ethernet adapters based on the
 #       Adaptec AIC-6915 "starfire" controller.
 #       This includes dual and quad port cards, as well as one 100baseFX card.
@@ -2184,6 +2186,8 @@ device		malo		# Marvell Libertas wireless NICs.
 device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		mwlfw
 device		ral		# Ralink Technology RT2500 wireless NICs.
+device		rtwn		# Realtek wireless NICs
+device		rtwnfw
 
 # Use sf_buf(9) interface for jumbo buffers on ti(4) controllers.
 #options 	TI_SF_BUF_JUMBO
