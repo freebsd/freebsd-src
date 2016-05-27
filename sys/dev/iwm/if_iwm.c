@@ -3829,7 +3829,6 @@ iwm_stop(struct iwm_softc *sc)
 	sc->sc_flags |= IWM_FLAG_STOPPED;
 	sc->sc_generation++;
 	sc->sc_scanband = 0;
-	sc->sc_auth_prot = 0;
 	sc->sc_tx_timer = 0;
 	iwm_stop_device(sc);
 }
@@ -4246,20 +4245,9 @@ iwm_notif_intr(struct iwm_softc *sc)
 			struct iwm_time_event_notif *notif;
 			SYNC_RESP_STRUCT(notif, pkt);
 
-			if (notif->status) {
-				if (le32toh(notif->action) &
-				    IWM_TE_V2_NOTIF_HOST_EVENT_START)
-					sc->sc_auth_prot = 2;
-				else
-					sc->sc_auth_prot = 0;
-			} else {
-				sc->sc_auth_prot = -1;
-			}
 			IWM_DPRINTF(sc, IWM_DEBUG_INTR,
-			    "%s: time event notification auth_prot=%d\n",
-				__func__, sc->sc_auth_prot);
-
-			wakeup(&sc->sc_auth_prot);
+			    "TE notif status = 0x%x action = 0x%x\n",
+			        notif->status, notif->action);
 			break; }
 
 		case IWM_MCAST_FILTER_CMD:
