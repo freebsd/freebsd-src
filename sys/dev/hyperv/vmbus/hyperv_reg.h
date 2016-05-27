@@ -110,7 +110,8 @@
 #define CPUID_HV_MSR_APIC		0x0010	/* MSR_HV_{EOI,ICR,TPR} */
 #define CPUID_HV_MSR_HYPERCALL		0x0020	/* MSR_HV_GUEST_OS_ID
 						 * MSR_HV_HYPERCALL */
-#define	CPUID_HV_MSR_GUEST_IDLE		0x0400	/* MSR_VH_GUEST_IDLE */
+#define CPUID_HV_MSR_VP_INDEX		0x0040	/* MSR_HV_VP_INDEX */
+#define CPUID_HV_MSR_GUEST_IDLE		0x0400	/* MSR_HV_GUEST_IDLE */
 /* ECX: power management features */
 #define CPUPM_HV_CSTATE_MASK		0x000f	/* deepest C-state */
 #define CPUPM_HV_C3_HPET		0x0010	/* C3 requires HPET */
