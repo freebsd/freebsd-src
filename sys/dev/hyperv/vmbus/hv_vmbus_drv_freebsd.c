@@ -118,7 +118,7 @@ handled:
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
 			 */
-			wrmsr(HV_X64_MSR_EOM, 0);
+			wrmsr(MSR_HV_EOM, 0);
 		}
 	}
 }
@@ -170,7 +170,7 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
 			 */
-			wrmsr(HV_X64_MSR_EOM, 0);
+			wrmsr(MSR_HV_EOM, 0);
 		}
 	}
 
