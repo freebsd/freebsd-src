@@ -21,7 +21,7 @@ SRCS+=		libelftc_dem_gnu3.c\
 		guard.cc
 
 WARNS=		0
-CFLAGS+=	-isystem ${SRCDIR} -nostdinc++
+CFLAGS+=	-I${SRCDIR} -nostdinc++
 .if empty(CXXFLAGS:M-std=*)
 CXXFLAGS+=	-std=c++11
 .endif

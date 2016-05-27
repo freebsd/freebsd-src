@@ -178,6 +178,32 @@ ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
 
+# Special handling for external GCC.
+.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == "gcc"
+# GCC's --sysroot support for a cross-compiler without a default
+# TARGET_SYSTEM_ROOT does not add sysroot/usr/include in or the C++
+# include path of sysroot/usr/include/c++/v1.  They need to be added in
+# when not using -nostdinc/-nostdinc++.  This is not a problem with a
+# non-cross-compiler external GCC or the in-tree cross-compiler GCC which
+# has a default TARGET_SYSTEM_ROOT.
+.if ${CC:M--sysroot=*} || ${CFLAGS:M--sysroot=*}
+.if ${CFLAGS:M-nostdinc} == ""
+CFLAGS+=	-isystem =/usr/include
+.endif
+# Add in sysroot/usr/lib to ensure that it comes before /usr/local/lib
+# from ports compilers.
+LDFLAGS+=	-L=/usr/lib
+# We want to force building the system with our in-tree libc++.  Note that
+# this also requires a symlink in OBJDIR/lib/libc++/libstdc++.so to
+# sysroot/usr/lib/libc++.so.
+.if ${CXXFLAGS:M-nostdinc++} == "" && ${CXXFLAGS:M-nostdlib} == ""
+CXXFLAGS+=	-std=c++11 \
+		-nostdinc++ -isystem =/usr/include/c++/v1
+LDFLAGS+=	-L${OBJTOP}/lib/libc++
+.endif
+.endif	# --sysroot
+.endif	# X_COMPILER_TYPE == gcc
+
 .if defined(SRCTOP)
 # Prevent rebuilding during install to support read-only objdirs.
 .if !make(all) && make(install) && empty(.MAKE.MODE:Mmeta)
