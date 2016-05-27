@@ -6060,7 +6060,6 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 
 	if (advice != MADV_DONTNEED && advice != MADV_FREE)
 		return;
-	pmap_delayed_invl_started();
 
 	/*
 	 * A/D bit emulation requires an alternate code path when clearing
@@ -6077,6 +6076,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	PG_V = pmap_valid_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
 	anychanged = FALSE;
+	pmap_delayed_invl_started();
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		pml4e = pmap_pml4e(pmap, sva);
