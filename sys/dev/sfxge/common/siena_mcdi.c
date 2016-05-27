@@ -237,7 +237,6 @@ siena_mcdi_feature_supported(
 	default:
 		rc = ENOTSUP;
 		goto fail1;
-		break;
 	}
 
 	return (0);
