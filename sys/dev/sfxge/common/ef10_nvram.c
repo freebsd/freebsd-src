@@ -362,7 +362,7 @@ tlv_last_segment_end(
 	 * is no end tag then the previous segment was the last valid one,
 	 * so return the pointer to its end tag.
 	 */
-	while (1) {
+	for (;;) {
 		if (tlv_init_cursor(&segment_cursor, segment_start,
 		    cursor->limit, segment_start) != 0)
 			break;
