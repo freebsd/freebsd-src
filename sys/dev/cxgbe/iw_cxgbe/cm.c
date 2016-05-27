@@ -1861,14 +1861,16 @@ process_mpa_request(struct c4iw_ep *ep)
 	/* drive upcall */
 	mutex_lock(&ep->parent_ep->com.mutex);
 	if (ep->parent_ep->com.state != DEAD) {
-		if(connect_request_upcall(ep))
-			goto err_out;
-	}else {
-		goto err_out;
-	}
+		if (connect_request_upcall(ep))
+			goto err_unlock_parent;
+	} else
+		goto err_unlock_parent;
 	mutex_unlock(&ep->parent_ep->com.mutex);
 	return 0;
 
+err_unlock_parent:
+	mutex_unlock(&ep->parent_ep->com.mutex);
+	goto err_out;
 err_stop_timer:
 	STOP_EP_TIMER(ep);
 err_out:
