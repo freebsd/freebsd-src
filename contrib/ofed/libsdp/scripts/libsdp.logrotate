@@ -1,6 +1,0 @@
-/var/log/libsdp.log {
-	missingok
-	notifempty
-	copytruncate
-	compress
-}

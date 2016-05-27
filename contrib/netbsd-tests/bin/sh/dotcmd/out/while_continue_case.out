@@ -1,8 +1,0 @@
-before while
-before dotcmd
-before case
-before continue
-before dotcmd
-before case
-before continue
-after while

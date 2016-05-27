@@ -1,4 +1,0 @@
-# $FreeBSD$
-files	"../gxemul/files.gxemul"
-
-cpu		CPU_MIPS4KC

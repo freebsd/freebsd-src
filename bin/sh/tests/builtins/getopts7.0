@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-set -- -x
-getopts :x: var
-r=$?
-[ r != 0 ] && [ "$OPTIND" = 2 ]

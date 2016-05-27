@@ -1,9 +1,0 @@
-/*
- * $FreeBSD$
- */
-
-FBSD_1.0 {
-	catopen;
-	catgets;
-	catclose;
-};
