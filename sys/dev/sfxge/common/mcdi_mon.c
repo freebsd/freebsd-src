@@ -367,7 +367,7 @@ efx_mcdi_sensor_info_npages(
 			goto fail1;
 		}
 	} while (MCDI_OUT_DWORD(req, SENSOR_INFO_OUT_MASK) &
-	    (1 << MC_CMD_SENSOR_PAGE0_NEXT));
+	    (1U << MC_CMD_SENSOR_PAGE0_NEXT));
 
 	*npagesp = page;
 
