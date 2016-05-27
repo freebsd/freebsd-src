@@ -236,6 +236,21 @@ int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
 #define TASKQGROUP_DECLARE(name)			\
 extern struct taskqgroup *qgroup_##name
 
+#ifdef EARLY_AP_STARTUP
+#define TASKQGROUP_DEFINE(name, cnt, stride)				\
+									\
+struct taskqgroup *qgroup_##name;					\
+									\
+static void								\
+taskqgroup_define_##name(void *arg)					\
+{									\
+	qgroup_##name = taskqgroup_create(#name);			\
+	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
+}									\
+									\
+SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
+	taskqgroup_define_##name, NULL)
+#else
 #define TASKQGROUP_DEFINE(name, cnt, stride)				\
 									\
 struct taskqgroup *qgroup_##name;					\
@@ -259,6 +274,7 @@ SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
 	taskqgroup_adjust_##name, NULL);				\
 									\
 struct __hack
+#endif
 
 TASKQGROUP_DECLARE(net);
 
