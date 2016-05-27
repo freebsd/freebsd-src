@@ -120,6 +120,7 @@
  *	- ARC header release, as it removes from L2ARC buflists
  */
 
+#include <sys/types.h>
 #include <sys/spa.h>
 #include <sys/zio.h>
 #include <sys/zio_compress.h>
