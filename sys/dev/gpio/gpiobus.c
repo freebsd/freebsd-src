@@ -96,6 +96,14 @@ gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
 	return (bus_alloc_resource(consumer_dev, SYS_RES_IRQ, rid,
 	    irqnum, irqnum, 1, alloc_flags));
 }
+#else
+struct resource *
+gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
+    gpio_pin_t pin, uint32_t intr_mode)
+{
+
+	return (NULL);
+}
 #endif
 
 int
