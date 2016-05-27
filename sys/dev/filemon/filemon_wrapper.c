@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
+#include <sys/priv.h>
 #include <sys/sx.h>
 #include <sys/vnode.h>
 
@@ -111,6 +112,24 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 		    imgp->execpath != NULL ? imgp->execpath : "<unknown>");
 
 		filemon_output(filemon, filemon->msgbufr, len);
+
+		/* If the credentials changed then cease tracing. */
+		if (imgp->newcred != NULL &&
+		    imgp->credential_setid &&
+		    priv_check_cred(filemon->cred,
+		    PRIV_DEBUG_DIFFCRED, 0) != 0) {
+			/*
+			 * It may have changed to NULL already, but
+			 * will not be re-attached by anything else.
+			 */
+			if (p->p_filemon != NULL) {
+				KASSERT(p->p_filemon == filemon,
+				    ("%s: proc %p didn't have expected"
+				    " filemon %p", __func__, p, filemon));
+				filemon_proc_drop(p);
+			}
+		}
+
 
 		filemon_drop(filemon);
 	}
