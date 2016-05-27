@@ -85,32 +85,17 @@ vdev_geom_set_rotation_rate(vdev_t *vd, struct g_consumer *cp)
 }
 
 static void
-vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
+vdev_geom_set_physpath(struct g_consumer *cp, boolean_t do_null_update)
 {
+	boolean_t needs_update;
 	vdev_t *vd;
-	spa_t *spa;
 	char *physpath;
 	int error, physpath_len;
-
-	vd = cp->private;
-	if (vd == NULL)
-		return;
-
-	if (strcmp(attr, "GEOM::rotation_rate") == 0) {
-		vdev_geom_set_rotation_rate(vd, cp);
-		return;
-	}
-
-	if (strcmp(attr, "GEOM::physpath") != 0)
-		return;
 
 	if (g_access(cp, 1, 0, 0) != 0)
 		return;
 
-	/*
-	 * Record/Update physical path information for this device.
-	 */
-	spa = vd->vdev_spa;
+	vd = cp->private;
 	physpath_len = MAXPATHLEN;
 	physpath = g_malloc(physpath_len, M_WAITOK|M_ZERO);
 	error = g_io_getattr("GEOM::physpath", cp, &physpath_len, physpath);
@@ -122,12 +107,46 @@ vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
 		g_topology_assert();
 		old_physpath = vd->vdev_physpath;
 		vd->vdev_physpath = spa_strdup(physpath);
-		spa_async_request(spa, SPA_ASYNC_CONFIG_UPDATE);
 
-		if (old_physpath != NULL)
+		if (old_physpath != NULL) {
+			needs_update = (strcmp(old_physpath,
+						vd->vdev_physpath) != 0);
 			spa_strfree(old_physpath);
+		} else
+			needs_update = do_null_update;
 	}
 	g_free(physpath);
+
+	/*
+	 * If the physical path changed, update the config.
+	 * Only request an update for previously unset physpaths if
+	 * requested by the caller.
+	 */
+	if (needs_update)
+		spa_async_request(vd->vdev_spa, SPA_ASYNC_CONFIG_UPDATE);
+
+}
+
+static void
+vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
+{
+	vdev_t *vd;
+	char *old_physpath;
+	int error;
+
+	vd = cp->private;
+	if (vd == NULL)
+		return;
+
+	if (strcmp(attr, "GEOM::rotation_rate") == 0) {
+		vdev_geom_set_rotation_rate(vd, cp);
+		return;
+	}
+
+	if (strcmp(attr, "GEOM::physpath") == 0) {
+		vdev_geom_set_physpath(cp, /*do_null_update*/B_TRUE);
+		return;
+	}
 }
 
 static void
@@ -257,8 +276,10 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 	 * 2) Set it to a linked list of vdevs, not just a single vdev
 	 */
 	cp->private = vd;
-	if (vd != NULL)
+	if (vd != NULL) {
 		vd->vdev_tsd = cp;
+		vdev_geom_set_physpath(cp, /*do_null_update*/B_FALSE);
+	}
 
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	return (cp);
