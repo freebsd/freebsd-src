@@ -1,0 +1,76 @@
+\documentclass[11pt,twoside]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xspace}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{tabularx}
+
+\hyphenation{three-fish}
+
+\renewcommand{\topfraction}{0.8}     % max fraction of floating figures at the top of a page
+\renewcommand{\bottomfraction}{0.8}  % idem for bottom
+\setcounter{topnumber}{4}            % max figures at top of page
+\setcounter{bottomnumber}{4}
+\setcounter{totalnumber}{4}
+\renewcommand{\textfraction}{0.2}    % minimum fraction of page that is text
+\renewcommand{\floatpagefraction}{0.5}
+
+\setlength{\textheight}{9in}
+\setlength{\textwidth}{6.5in}
+\setlength{\topmargin}{0.0in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\footskip}{0.5in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\renewcommand{\baselinestretch}{1}
+
+\newcommand{\purl}{\protect\url}
+\newcommand{\comment}[1]{}
+
+\parindent 0pt
+\parskip 1ex
+
+\begin{document}
+\thispagestyle{empty}
+\begin{center}
+{\Large\bf The Skein Hash Function Family} \\
+\vspace*{.2in}
+{\Large\bf NIST Round 3 Tweak Description} \\
+\vspace*{.2in}
+{\small 25 Oct 2010}
+\end{center}
+
+\section*{Description of Changes}
+
+The only change to the Skein hash function is in the key schedule
+parity constant, found in Section~3.3.2 of the newly submitted 
+(``tweak'') version 1.3 of the Skein specification document. The
+old constant was the value 
+  $$C_5\ \  = \texttt{0x5555555555555555}.$$ 
+The new constant is 
+  $$C_{240} = \texttt{0x1BD11BDAA9FC1A22}.$$
+
+Further details and discussion of the tweak and its implications are found in 
+version 1.2 of the Skein specification document, as follows:
+\begin{itemize}
+\item Section~8.3 (``Key Schedule Constant,'')
+\item Section ~9.3 (``Related-Key Attacks for the Threefish Block Cipher'')
+\item Section ~9.5.2 (``Rotational Cryptanalysis'')
+\item Section ~9.6 (``Empirical Observations for Threefish with Random Rotation Constants'')
+\item Section ~9.7 (``Cryptanalysis Summary'')
+\item Appendix~B (``Initial Chaining Values'')
+\item Appendix~C (``Test Vectors'')
+\item Appendix~E (``Empirical data for tweaking the key schedule constant'')
+\end{itemize}
+
+In addition, the following items have been updated in the Skein tweak submission package:
+\begin{itemize}
+\item Reference C source code
+\item Optimized C source code (32-bit and 64-bit)
+\item Assembly source code (32-bit and 64-bit)
+\item Test vectors (KAT\_MCT directory)
+\end{itemize}
+
+\end{document}
