@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -103,6 +104,8 @@ main(int argc, char **argv)
 	int fd, ch;
 	bool fflag, rflag, Eflag, mflag;
 	unsigned modeflags;
+
+	memset(&t, 0, sizeof(t));
 
 	fflag = rflag = Eflag = mflag = false;
 	modeflags = 0;
