@@ -462,21 +462,26 @@ AcpiDmDescendingOp (
         {
             NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
 
-            /*
-             * A Zero predicate indicates the possibility of one or more
-             * External() opcodes within the If() block.
-             */
-            if (NextOp->Common.AmlOpcode == AML_ZERO_OP)
+            /* Don't emit the actual embedded externals unless asked */
+
+            if (!AcpiGbl_DmEmitExternalOpcodes)
             {
-                NextOp2 = NextOp->Common.Next;
-
-                if (NextOp2 &&
-                    (NextOp2->Common.AmlOpcode == AML_EXTERNAL_OP))
+                /*
+                 * A Zero predicate indicates the possibility of one or more
+                 * External() opcodes within the If() block.
+                 */
+                if (NextOp->Common.AmlOpcode == AML_ZERO_OP)
                 {
-                    /* Ignore the If 0 block and all children */
+                    NextOp2 = NextOp->Common.Next;
 
-                    Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
-                    return (AE_CTRL_DEPTH);
+                    if (NextOp2 &&
+                        (NextOp2->Common.AmlOpcode == AML_EXTERNAL_OP))
+                    {
+                        /* Ignore the If 0 block and all children */
+
+                        Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                        return (AE_CTRL_DEPTH);
+                    }
                 }
             }
         }

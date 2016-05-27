@@ -91,10 +91,6 @@ AcpiHwValidateRegister (
     UINT8                   MaxBitWidth,
     UINT64                  *Address)
 {
-    UINT8                   BitWidth;
-    UINT8                   BitEnd;
-    UINT8                   AccessWidth;
-
 
     /* Must have a valid pointer to a GAS structure */
 
@@ -124,28 +120,24 @@ AcpiHwValidateRegister (
         return (AE_SUPPORT);
     }
 
-    /* Validate the AccessWidth */
+    /* Validate the BitWidth */
 
-    if (Reg->AccessWidth > 4)
+    if ((Reg->BitWidth != 8) &&
+        (Reg->BitWidth != 16) &&
+        (Reg->BitWidth != 32) &&
+        (Reg->BitWidth != MaxBitWidth))
     {
         ACPI_ERROR ((AE_INFO,
-            "Unsupported register access width: 0x%X", Reg->AccessWidth));
+            "Unsupported register bit width: 0x%X", Reg->BitWidth));
         return (AE_SUPPORT);
     }
 
-    /* Validate the BitWidth, convert AccessWidth into number of bits */
+    /* Validate the BitOffset. Just a warning for now. */
 
-    BitEnd = Reg->BitOffset + Reg->BitWidth;
-    AccessWidth = Reg->AccessWidth ? Reg->AccessWidth : 1;
-    AccessWidth = 1 << (AccessWidth + 2);
-    BitWidth = ACPI_ROUND_UP (BitEnd, AccessWidth) -
-        ACPI_ROUND_DOWN (Reg->BitOffset, AccessWidth);
-    if (MaxBitWidth < BitWidth)
+    if (Reg->BitOffset != 0)
     {
         ACPI_WARNING ((AE_INFO,
-            "Requested bit width 0x%X is smaller than register bit width 0x%X",
-            MaxBitWidth, BitWidth));
-        return (AE_SUPPORT);
+            "Unsupported register bit offset: 0x%X", Reg->BitOffset));
     }
 
     return (AE_OK);
