@@ -2700,10 +2700,11 @@ vm_wait(void)
 		msleep(&vm_pageout_pages_needed, &vm_page_queue_free_mtx,
 		    PDROP | PSWP, "VMWait", 0);
 	} else {
-		if (!vm_pages_needed) {
-			vm_pages_needed = 1;
-			wakeup(&vm_pages_needed);
+		if (!vm_pageout_wanted) {
+			vm_pageout_wanted = true;
+			wakeup(&vm_pageout_wanted);
 		}
+		vm_pages_needed = true;
 		msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PVM,
 		    "vmwait", 0);
 	}
@@ -2724,10 +2725,11 @@ vm_waitpfault(void)
 {
 
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (!vm_pages_needed) {
-		vm_pages_needed = 1;
-		wakeup(&vm_pages_needed);
+	if (!vm_pageout_wanted) {
+		vm_pageout_wanted = true;
+		wakeup(&vm_pageout_wanted);
 	}
+	vm_pages_needed = true;
 	msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PUSER,
 	    "pfault", 0);
 }
@@ -2908,7 +2910,7 @@ vm_page_free_wakeup(void)
 	 * lots of memory. this process will swapin processes.
 	 */
 	if (vm_pages_needed && !vm_page_count_min()) {
-		vm_pages_needed = 0;
+		vm_pages_needed = false;
 		wakeup(&vm_cnt.v_free_count);
 	}
 }
