@@ -29,6 +29,10 @@
 #ifndef _HYPERV_REG_H_
 #define _HYPERV_REG_H_
 
+/*
+ * Hyper-V Synthetic MSRs
+ */
+
 #define MSR_HV_GUEST_OS_ID		0x40000000
 #define MSR_HV_GUESTID_BUILD_MASK	0xffffULL
 #define MSR_HV_GUESTID_VERSION_MASK	0x0000ffffffff0000ULL
@@ -72,5 +76,43 @@
 #define MSR_HV_SINT_RSVD2_MASK		0xfffffffffffc0000ULL
 #define MSR_HV_SINT_RSVD_MASK		(MSR_HV_SINT_RSVD1_MASK |	\
 					 MSR_HV_SINT_RSVD2_MASK)
+
+/*
+ * CPUID leaves
+ */
+
+#define CPUID_LEAF_HV_MAXLEAF		0x40000000
+
+#define CPUID_LEAF_HV_INTERFACE		0x40000001
+#define CPUID_HV_IFACE_HYPERV		0x31237648	/* HV#1 */
+
+#define CPUID_LEAF_HV_IDENTITY		0x40000002
+
+#define CPUID_LEAF_HV_FEATURES		0x40000003
+/* EAX: features */
+#define CPUID_HV_MSR_TIME_REFCNT	0x0002	/* MSR_HV_TIME_REF_COUNT */
+#define CPUID_HV_MSR_SYNIC		0x0004	/* MSRs for SynIC */
+#define CPUID_HV_MSR_SYNTIMER		0x0008	/* MSRs for SynTimer */
+#define CPUID_HV_MSR_APIC		0x0010	/* MSR_HV_{EOI,ICR,TPR} */
+#define CPUID_HV_MSR_HYPERCALL		0x0020	/* MSR_HV_GUEST_OS_ID
+						 * MSR_HV_HYPERCALL */
+#define	CPUID_HV_MSR_GUEST_IDLE		0x0400	/* MSR_VH_GUEST_IDLE */
+/* ECX: power management features */
+#define CPUPM_HV_CSTATE_MASK		0x000f	/* deepest C-state */
+#define CPUPM_HV_C3_HPET		0x0010	/* C3 requires HPET */
+#define CPUPM_HV_CSTATE(f)		((f) & CPUPM_HV_CSTATE_MASK)
+/* EDX: features3 */
+#define CPUID3_HV_MWAIT			0x0001	/* MWAIT */
+#define CPUID3_HV_XMM_HYPERCALL		0x0010	/* Hypercall input through
+						 * XMM regs */
+#define CPUID3_HV_GUEST_IDLE		0x0020	/* guest idle */
+#define CPUID3_HV_NUMA			0x0080	/* NUMA distance query */
+#define CPUID3_HV_TIME_FREQ		0x0100	/* timer frequency query
+						 * (TSC, LAPIC) */
+#define CPUID3_HV_MSR_CRASH		0x0400	/* MSRs for guest crash */
+
+#define CPUID_LEAF_HV_RECOMMENDS	0x40000004
+#define CPUID_LEAF_HV_LIMITS		0x40000005
+#define CPUID_LEAF_HV_HWFEATURES	0x40000006
 
 #endif	/* !_HYPERV_REG_H_ */
