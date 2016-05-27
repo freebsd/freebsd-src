@@ -38,7 +38,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	previously contained a line like
 	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should
 	change it to "/dev/diskid/DISK-ABCDEFG0123456".  Users of geom
-	transfers like gmirror may also be affected.  ZFS users should
+	transforms like gmirror may also be affected.  ZFS users should
 	generally be fine.
 
 20160523:
