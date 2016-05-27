@@ -443,43 +443,6 @@ typedef struct {
 } hv_vmbus_monitor_page;
 
 /*
- * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
- * is set by CPUID(HV_CPU_ID_FUNCTION_VERSION_AND_FEATURES).
- */
-typedef enum {
-	HV_CPU_ID_FUNCTION_VERSION_AND_FEATURES			= 0x00000001,
-	HV_CPU_ID_FUNCTION_HV_VENDOR_AND_MAX_FUNCTION		= 0x40000000,
-	HV_CPU_ID_FUNCTION_HV_INTERFACE				= 0x40000001,
-	/*
-	 * The remaining functions depend on the value
-	 * of hv_cpu_id_function_interface
-	 */
-	HV_CPU_ID_FUNCTION_MS_HV_VERSION			= 0x40000002,
-	HV_CPU_ID_FUNCTION_MS_HV_FEATURES			= 0x40000003,
-	HV_CPU_ID_FUNCTION_MS_HV_ENLIGHTENMENT_INFORMATION	= 0x40000004,
-	HV_CPU_ID_FUNCTION_MS_HV_IMPLEMENTATION_LIMITS		= 0x40000005,
-	HV_CPU_ID_FUNCTION_MS_HV_HARDWARE_FEATURE		= 0x40000006
-} hv_vmbus_cpuid_function;
-
-#define	HV_FEATURE_MSR_TIME_REFCNT	0x0002	/* MSR_TIME_REF_COUNT */
-#define	HV_FEATURE_MSR_SYNIC		0x0004	/* MSRs for SynIC */
-#define	HV_FEATURE_MSR_SYNTIMER		0x0008	/* MSRs for SynTimer */
-#define	HV_FEATURE_MSR_APIC		0x0010	/* MSR_{EOI,ICR,TPR} */
-#define	HV_FEATURE_MSR_HYPERCALL	0x0020	/* MSR_{GUEST_OS_ID,HYPERCALL} */
-#define	HV_FEATURE_MSR_GUEST_IDLE	0x0400	/* MSR_GUEST_IDLE */
-
-#define	HV_PM_FEATURE_CSTATE_MASK	0x000f
-#define	HV_PM_FEATURE_C3_HPET		0x0010	/* C3 requires HPET */
-#define	HV_PM_FEATURE_CSTATE(f)		((f) & HV_PM_FEATURE_CSTATE_MASK)
-
-#define	HV_FEATURE3_MWAIT		0x0001	/* MWAIT */
-#define	HV_FEATURE3_XMM_HYPERCALL	0x0010	/* hypercall input through XMM regs */
-#define	HV_FEATURE3_GUEST_IDLE		0x0020	/* guest idle support */
-#define	HV_FEATURE3_NUMA		0x0080	/* NUMA distance query support */
-#define	HV_FEATURE3_TIME_FREQ		0x0100	/* timer frequency query (TSC, LAPIC) */
-#define	HV_FEATURE3_MSR_CRASH		0x0400	/* MSRs for guest crash */
-
-/*
  * Define the format of the SIMP register
  */
 typedef union {

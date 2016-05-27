@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #define HV_NANOSECONDS_PER_SEC		1000000000L
 
-#define	HYPERV_INTERFACE		0x31237648	/* HV#1 */
-
 #define HYPERV_FREEBSD_BUILD		0ULL
 #define HYPERV_FREEBSD_VERSION		((uint64_t)__FreeBSD_version)
 #define HYPERV_FREEBSD_OSID		0ULL
@@ -204,26 +202,22 @@ static bool
 hyperv_identify(void)
 {
 	u_int regs[4];
-	unsigned int maxLeaf;
-	unsigned int op;
+	unsigned int maxleaf;
 
 	if (vm_guest != VM_GUEST_HV)
 		return (false);
 
-	op = HV_CPU_ID_FUNCTION_HV_VENDOR_AND_MAX_FUNCTION;
-	do_cpuid(op, regs);
-	maxLeaf = regs[0];
-	if (maxLeaf < HV_CPU_ID_FUNCTION_MS_HV_IMPLEMENTATION_LIMITS)
+	do_cpuid(CPUID_LEAF_HV_MAXLEAF, regs);
+	maxleaf = regs[0];
+	if (maxleaf < CPUID_LEAF_HV_LIMITS)
 		return (false);
 
-	op = HV_CPU_ID_FUNCTION_HV_INTERFACE;
-	do_cpuid(op, regs);
-	if (regs[0] != HYPERV_INTERFACE)
+	do_cpuid(CPUID_LEAF_HV_INTERFACE, regs);
+	if (regs[0] != CPUID_HV_IFACE_HYPERV)
 		return (false);
 
-	op = HV_CPU_ID_FUNCTION_MS_HV_FEATURES;
-	do_cpuid(op, regs);
-	if ((regs[0] & HV_FEATURE_MSR_HYPERCALL) == 0) {
+	do_cpuid(CPUID_LEAF_HV_FEATURES, regs);
+	if ((regs[0] & CPUID_HV_MSR_HYPERCALL) == 0) {
 		/*
 		 * Hyper-V w/o Hypercall is impossible; someone
 		 * is faking Hyper-V.
@@ -234,31 +228,30 @@ hyperv_identify(void)
 	hyperv_pm_features = regs[2];
 	hyperv_features3 = regs[3];
 
-	op = HV_CPU_ID_FUNCTION_MS_HV_VERSION;
-	do_cpuid(op, regs);
+	do_cpuid(CPUID_LEAF_HV_IDENTITY, regs);
 	printf("Hyper-V Version: %d.%d.%d [SP%d]\n",
 	    regs[1] >> 16, regs[1] & 0xffff, regs[0], regs[2]);
 
 	printf("  Features=0x%b\n", hyperv_features,
 	    "\020"
-	    "\001VPRUNTIME"	/* MSR_VP_RUNTIME */
-	    "\002TMREFCNT"	/* MSR_TIME_REF_COUNT */
+	    "\001VPRUNTIME"	/* MSR_HV_VP_RUNTIME */
+	    "\002TMREFCNT"	/* MSR_HV_TIME_REF_COUNT */
 	    "\003SYNIC"		/* MSRs for SynIC */
 	    "\004SYNTM"		/* MSRs for SynTimer */
-	    "\005APIC"		/* MSR_{EOI,ICR,TPR} */
-	    "\006HYPERCALL"	/* MSR_{GUEST_OS_ID,HYPERCALL} */
-	    "\007VPINDEX"	/* MSR_VP_INDEX */
-	    "\010RESET"		/* MSR_RESET */
-	    "\011STATS"		/* MSR_STATS_ */
-	    "\012REFTSC"	/* MSR_REFERENCE_TSC */
-	    "\013IDLE"		/* MSR_GUEST_IDLE */
-	    "\014TMFREQ"	/* MSR_{TSC,APIC}_FREQUENCY */
-	    "\015DEBUG");	/* MSR_SYNTH_DEBUG_ */
-	printf("  PM Features=max C%u, 0x%b\n",
-	    HV_PM_FEATURE_CSTATE(hyperv_pm_features),
-	    (hyperv_pm_features & ~HV_PM_FEATURE_CSTATE_MASK),
+	    "\005APIC"		/* MSR_HV_{EOI,ICR,TPR} */
+	    "\006HYPERCALL"	/* MSR_HV_{GUEST_OS_ID,HYPERCALL} */
+	    "\007VPINDEX"	/* MSR_HV_VP_INDEX */
+	    "\010RESET"		/* MSR_HV_RESET */
+	    "\011STATS"		/* MSR_HV_STATS_ */
+	    "\012REFTSC"	/* MSR_HV_REFERENCE_TSC */
+	    "\013IDLE"		/* MSR_HV_GUEST_IDLE */
+	    "\014TMFREQ"	/* MSR_HV_{TSC,APIC}_FREQUENCY */
+	    "\015DEBUG");	/* MSR_HV_SYNTH_DEBUG_ */
+	printf("  PM Features=0x%b [C%u]\n",
+	    (hyperv_pm_features & ~CPUPM_HV_CSTATE_MASK),
 	    "\020"
-	    "\005C3HPET");	/* HPET is required for C3 state */
+	    "\005C3HPET",	/* HPET is required for C3 state */
+	    CPUPM_HV_CSTATE(hyperv_pm_features));
 	printf("  Features3=0x%b\n", hyperv_features3,
 	    "\020"
 	    "\001MWAIT"		/* MWAIT */
@@ -276,24 +269,21 @@ hyperv_identify(void)
 	    "\015NPIEP"		/* NPIEP */
 	    "\016HVDIS");	/* disabling hypervisor */
 
-	op = HV_CPU_ID_FUNCTION_MS_HV_ENLIGHTENMENT_INFORMATION;
-	do_cpuid(op, regs);
+	do_cpuid(CPUID_LEAF_HV_RECOMMENDS, regs);
 	hyperv_recommends = regs[0];
 	if (bootverbose)
 		printf("  Recommends: %08x %08x\n", regs[0], regs[1]);
 
-	op = HV_CPU_ID_FUNCTION_MS_HV_IMPLEMENTATION_LIMITS;
-	do_cpuid(op, regs);
+	do_cpuid(CPUID_LEAF_HV_LIMITS, regs);
 	if (bootverbose) {
 		printf("  Limits: Vcpu:%d Lcpu:%d Int:%d\n",
 		    regs[0], regs[1], regs[2]);
 	}
 
-	if (maxLeaf >= HV_CPU_ID_FUNCTION_MS_HV_HARDWARE_FEATURE) {
-		op = HV_CPU_ID_FUNCTION_MS_HV_HARDWARE_FEATURE;
-		do_cpuid(op, regs);
+	if (maxleaf >= CPUID_LEAF_HV_HWFEATURES) {
+		do_cpuid(CPUID_LEAF_HV_HWFEATURES, regs);
 		if (bootverbose) {
-			printf("  HW Features: %08x AMD: %08x\n",
+			printf("  HW Features: %08x, AMD: %08x\n",
 			    regs[0], regs[3]);
 		}
 	}
@@ -314,7 +304,7 @@ hyperv_init(void *dummy __unused)
 	/* Set guest id */
 	wrmsr(MSR_HV_GUEST_OS_ID, MSR_HV_GUESTID_FREEBSD);
 
-	if (hyperv_features & HV_FEATURE_MSR_TIME_REFCNT) {
+	if (hyperv_features & CPUID_HV_MSR_TIME_REFCNT) {
 		/* Register virtual timecount */
 		tc_init(&hv_timecounter);
 	}
