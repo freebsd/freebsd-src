@@ -128,10 +128,8 @@ int gpio_pin_is_active(gpio_pin_t pin, bool *active);
 int gpio_pin_set_active(gpio_pin_t pin, bool active);
 int gpio_pin_setflags(gpio_pin_t pin, uint32_t flags);
 #endif
-#ifdef INTRNG
 struct resource *gpio_alloc_intr_resource(device_t consumer_dev, int *rid,
     u_int alloc_flags, gpio_pin_t pin, uint32_t intr_mode);
-#endif
 int gpio_check_flags(uint32_t, uint32_t);
 device_t gpiobus_attach_bus(device_t);
 int gpiobus_detach_bus(device_t);
