@@ -191,7 +191,7 @@ filemon_drop(struct filemon *filemon)
 #include "filemon_wrapper.c"
 
 static void
-filemon_comment(struct filemon *filemon)
+filemon_write_header(struct filemon *filemon)
 {
 	int len;
 	struct timeval now;
@@ -383,7 +383,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		    &filemon->fp);
 		if (error == 0)
 			/* Write the file header. */
-			filemon_comment(filemon);
+			filemon_write_header(filemon);
 		break;
 
 	/* Set the monitored process ID. */
