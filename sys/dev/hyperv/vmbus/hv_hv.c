@@ -74,22 +74,29 @@ struct hypercall_ctx {
 	struct hyperv_dma	hc_dma;
 };
 
-static struct hypercall_ctx	hypercall_context;
+static u_int	hyperv_get_timecount(struct timecounter *tc);
 
-static u_int hv_get_timecount(struct timecounter *tc);
-
-u_int	hyperv_features;
-u_int	hyperv_recommends;
+u_int		hyperv_features;
+u_int		hyperv_recommends;
 
 static u_int	hyperv_pm_features;
 static u_int	hyperv_features3;
 
-static struct timecounter hv_timecounter = {
-	hv_get_timecount, 0, ~0u, HV_NANOSECONDS_PER_SEC/100, "Hyper-V", HV_NANOSECONDS_PER_SEC/100
+static struct timecounter	hyperv_timecounter = {
+	.tc_get_timecount	= hyperv_get_timecount,
+	.tc_poll_pps		= NULL,
+	.tc_counter_mask	= 0xffffffff,
+	.tc_frequency		= HV_NANOSECONDS_PER_SEC/100,
+	.tc_name		= "Hyper-V",
+	.tc_quality		= 2000,
+	.tc_flags		= 0,
+	.tc_priv		= NULL
 };
 
+static struct hypercall_ctx	hypercall_context;
+
 static u_int
-hv_get_timecount(struct timecounter *tc)
+hyperv_get_timecount(struct timecounter *tc __unused)
 {
 	return rdmsr(MSR_HV_TIME_REF_COUNT);
 }
@@ -304,8 +311,8 @@ hyperv_init(void *dummy __unused)
 	wrmsr(MSR_HV_GUEST_OS_ID, MSR_HV_GUESTID_FREEBSD);
 
 	if (hyperv_features & CPUID_HV_MSR_TIME_REFCNT) {
-		/* Register virtual timecount */
-		tc_init(&hv_timecounter);
+		/* Register Hyper-V timecounter */
+		tc_init(&hyperv_timecounter);
 	}
 }
 SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
