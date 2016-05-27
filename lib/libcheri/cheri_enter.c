@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -59,7 +59,7 @@
 /*
  * Stack for use on entering from sandbox.
  */
-#define	CHERI_ENTER_STACK_SIZE	(PAGE_SIZE * 4)
+#define	CHERI_ENTER_STACK_SIZE	(PAGE_SIZE * 16)
 static void		*__cheri_enter_stack;
 __capability void	*__cheri_enter_stack_cap;
 register_t		 __cheri_enter_stack_sp;
