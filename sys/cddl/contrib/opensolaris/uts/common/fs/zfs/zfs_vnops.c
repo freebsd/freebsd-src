@@ -75,7 +75,6 @@
 #include <sys/sched.h>
 #include <sys/acl.h>
 #include <vm/vm_param.h>
-#include <vm/vm_pageout.h>
 
 /*
  * Programming rules.
