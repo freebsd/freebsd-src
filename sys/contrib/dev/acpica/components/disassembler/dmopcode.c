@@ -971,7 +971,16 @@ AcpiDmDisassembleOneOp (
 
     case AML_EXTERNAL_OP:
 
-        break;
+        if (AcpiGbl_DmEmitExternalOpcodes)
+        {
+            AcpiOsPrintf ("/* Opcode 0x15 */ ");
+
+            /* Fallthrough */
+        }
+        else
+        {
+            break;
+        }
 
     default:
 
