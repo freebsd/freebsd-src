@@ -66,7 +66,7 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 		bwillwrite();
 
 	error = fo_write(filemon->fp, &auio, filemon->cred, 0, curthread);
-	if (error != 0)
+	if (error != 0 && filemon->error == 0)
 		filemon->error = error;
 }
 
