@@ -89,6 +89,7 @@ MALLOC_DEFINE(M_FILEMON, "filemon", "File access monitor");
 struct filemon {
 	struct sx	lock;		/* Lock for this filemon. */
 	struct file	*fp;		/* Output file pointer. */
+	struct ucred	*cred;		/* Credential of tracer. */
 	char		fname1[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		fname2[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		msgbufr[1024];	/* Output message buffer. */
@@ -125,6 +126,8 @@ filemon_release(struct filemon *filemon)
 	 */
 	sx_assert(&filemon->lock, SA_UNLOCKED);
 
+	if (filemon->cred != NULL)
+		crfree(filemon->cred);
 	sx_destroy(&filemon->lock);
 	free(filemon, M_FILEMON);
 }
@@ -308,6 +311,9 @@ filemon_attach_proc(struct filemon *filemon, struct proc *p)
 	KASSERT((p->p_flag & P_WEXIT) == 0,
 	    ("%s: filemon %p attaching to exiting process %p",
 	    __func__, filemon, p));
+	KASSERT((p->p_flag & P_INEXEC) == 0,
+	    ("%s: filemon %p attaching to execing process %p",
+	    __func__, filemon, p));
 
 	if (p->p_filemon == filemon)
 		return (0);
@@ -385,8 +391,8 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		/* Invalidate any existing processes already set. */
 		filemon_untrack_processes(filemon);
 
-		error = pget(*((pid_t *)data), PGET_CANDEBUG | PGET_NOTWEXIT,
-		    &p);
+		error = pget(*((pid_t *)data),
+		    PGET_CANDEBUG | PGET_NOTWEXIT | PGET_NOTINEXEC, &p);
 		if (error == 0) {
 			KASSERT(p->p_filemon != filemon,
 			    ("%s: proc %p didn't untrack filemon %p",
@@ -407,7 +413,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 
 static int
 filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
-    struct thread *td __unused)
+    struct thread *td)
 {
 	int error;
 	struct filemon *filemon;
@@ -416,6 +422,7 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 	    M_WAITOK | M_ZERO);
 	sx_init(&filemon->lock, "filemon");
 	refcount_init(&filemon->refcnt, 1);
+	filemon->cred = crhold(td->td_ucred);
 
 	error = devfs_set_cdevpriv(filemon, filemon_dtr);
 	if (error != 0)
