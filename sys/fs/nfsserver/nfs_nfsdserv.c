@@ -2395,8 +2395,6 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 	if (!nd->nd_repstat)
 	  nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, &cf, clientid,
 	    &stateid, exp, nd, p);
-	if (stp)
-		FREE((caddr_t)stp, M_NFSDSTATE);
 	if (nd->nd_repstat) {
 	    if (nd->nd_repstat == NFSERR_DENIED) {
 		NFSM_BUILD(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
@@ -2418,6 +2416,8 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 	    }
 	}
 	vput(vp);
+	if (stp)
+		FREE((caddr_t)stp, M_NFSDSTATE);
 	NFSEXITCODE2(0, nd);
 	return (0);
 nfsmout:
