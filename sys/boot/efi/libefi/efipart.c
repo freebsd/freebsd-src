@@ -325,11 +325,14 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
 	if (rsize != NULL)
 		*rsize = size;
 
-	if (blkio->Media->BlockSize == 512)
-		return (efipart_readwrite(blkio, rw, blk, size / 512, buf));
+        if ((size % blkio->Media->BlockSize == 0) &&
+	    ((blk * 512) % blkio->Media->BlockSize == 0))
+                return (efipart_readwrite(blkio, rw,
+		    blk * 512 / blkio->Media->BlockSize,
+		    size / blkio->Media->BlockSize, buf));
 
 	/*
-	 * The block size of the media is not 512B per sector.
+	 * The block size of the media is not a multiple of I/O.
 	 */
 	blkbuf = malloc(blkio->Media->BlockSize);
 	if (blkbuf == NULL)
