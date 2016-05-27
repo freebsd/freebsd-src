@@ -651,7 +651,9 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGTRAP,
-	  .ct_mips_exccode = T_TRAP },
+	  .ct_mips_exccode = T_TRAP,
+	  .ct_xfail_reason =
+	    "LLVM assembler generates break rather than trap instruction", },
 
 	{ .ct_name = "test_sandbox_divzero_nocatch",
 	  .ct_desc = "Exercise sandboxed divide-by-zero exception; uncaught",
@@ -659,7 +661,9 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGTRAP,
-	  .ct_mips_exccode = T_TRAP },
+	  .ct_mips_exccode = T_TRAP,
+	  .ct_xfail_reason =
+	    "LLVM assembler generates break rather than trap instruction", },
 
 	{ .ct_name = "test_sandbox_vm_rfault_catch",
 	  .ct_desc = "Exercise sandboxed VM read fault; caught",
