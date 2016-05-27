@@ -50,14 +50,15 @@ efx_mcdi_init_rxq(
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[
-	    MAX(MC_CMD_INIT_RXQ_IN_LEN(EFX_RXQ_NBUFS(EFX_RXQ_MAXNDESCS)),
-		MC_CMD_INIT_RXQ_OUT_LEN)];
+	    MC_CMD_INIT_RXQ_IN_LEN(EFX_RXQ_NBUFS(EFX_RXQ_MAXNDESCS))];
 	int npages = EFX_RXQ_NBUFS(size);
 	int i;
 	efx_qword_t *dma_addr;
 	uint64_t addr;
 	efx_rc_t rc;
 
+	/* If this changes, then the payload size might need to change. */
+	EFSYS_ASSERT3U(MC_CMD_INIT_RXQ_OUT_LEN, ==, 0);
 	EFSYS_ASSERT3U(size, <=, EFX_RXQ_MAXNDESCS);
 
 	(void) memset(payload, 0, sizeof (payload));
