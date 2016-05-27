@@ -356,32 +356,6 @@ typedef struct {
 } hv_vmbus_connection;
 
 typedef union {
-	uint64_t as_uint64_t;
-	struct {
-		uint64_t build_number		: 16;
-		uint64_t service_version	: 8; /* Service Pack, etc. */
-		uint64_t minor_version		: 8;
-		uint64_t major_version		: 8;
-		/*
-		 * HV_GUEST_OS_MICROSOFT_IDS (If Vendor=MS)
-		 * HV_GUEST_OS_VENDOR
-		 */
-		uint64_t os_id			: 8;
-		uint64_t vendor_id		: 16;
-	} u;
-} hv_vmbus_x64_msr_guest_os_id_contents;
-
-
-typedef union {
-	uint64_t as_uint64_t;
-	struct {
-		uint64_t enable :1;
-		uint64_t reserved :11;
-		uint64_t guest_physical_address :52;
-	} u;
-} hv_vmbus_x64_msr_hypercall_contents;
-
-typedef union {
 	uint32_t as_uint32_t;
 	struct {
 		uint32_t group_enable :4;
@@ -443,71 +417,6 @@ typedef struct {
 } hv_vmbus_monitor_page;
 
 /*
- * Define the format of the SIMP register
- */
-typedef union {
-	uint64_t as_uint64_t;
-	struct {
-		uint64_t simp_enabled	: 1;
-		uint64_t preserved	: 11;
-		uint64_t base_simp_gpa	: 52;
-	} u;
-} hv_vmbus_synic_simp;
-
-/*
- * Define the format of the SIEFP register
- */
-typedef union {
-	uint64_t as_uint64_t;
-	struct {
-		uint64_t siefp_enabled	: 1;
-		uint64_t preserved	: 11;
-		uint64_t base_siefp_gpa	: 52;
-	} u;
-} hv_vmbus_synic_siefp;
-
-/*
- * Define synthetic interrupt source
- */
-typedef union {
-	uint64_t as_uint64_t;
-	struct {
-		uint64_t vector		: 8;
-		uint64_t reserved1	: 8;
-		uint64_t masked		: 1;
-		uint64_t auto_eoi	: 1;
-		uint64_t reserved2	: 46;
-	} u;
-} hv_vmbus_synic_sint;
-
-/*
- * Timer configuration register.
- */
-union hv_timer_config {
-	uint64_t as_uint64;
-	struct {
-		uint64_t enable:1;
-		uint64_t periodic:1;
-		uint64_t lazy:1;
-		uint64_t auto_enable:1;
-		uint64_t reserved_z0:12;
-		uint64_t sintx:4;
-		uint64_t reserved_z1:44;
-	};
-};
-
-/*
- * Define syn_ic control register
- */
-typedef union _hv_vmbus_synic_scontrol {
-    uint64_t as_uint64_t;
-    struct {
-        uint64_t enable		: 1;
-        uint64_t reserved	: 63;
-    } u;
-} hv_vmbus_synic_scontrol;
-
-/*
  *  Define the hv_vmbus_post_message hypercall input structure
  */
 typedef struct {
@@ -527,60 +436,6 @@ typedef union vmbus_event_flags {
 	unsigned long	flagsul[HV_EVENT_FLAGS_ULONG_COUNT];
 } hv_vmbus_synic_event_flags;
 CTASSERT(sizeof(hv_vmbus_synic_event_flags) == HV_EVENT_FLAGS_BYTE_COUNT);
-
-#define HV_X64_CPUID_MIN	(0x40000005)
-#define HV_X64_CPUID_MAX	(0x4000ffff)
-
-/*
- * Declare the MSR used to identify the guest OS
- */
-#define HV_X64_MSR_GUEST_OS_ID	(0x40000000)
-/*
- *  Declare the MSR used to setup pages used to communicate with the hypervisor
- */
-#define HV_X64_MSR_HYPERCALL	(0x40000001)
-/* MSR used to provide vcpu index */
-#define	HV_X64_MSR_VP_INDEX	(0x40000002)
-
-#define HV_X64_MSR_TIME_REF_COUNT      (0x40000020)
-
-/*
- * Define synthetic interrupt controller model specific registers
- */
-#define HV_X64_MSR_SCONTROL   (0x40000080)
-#define HV_X64_MSR_SVERSION   (0x40000081)
-#define HV_X64_MSR_SIEFP      (0x40000082)
-#define HV_X64_MSR_SIMP       (0x40000083)
-#define HV_X64_MSR_EOM        (0x40000084)
-
-#define HV_X64_MSR_SINT0      (0x40000090)
-#define HV_X64_MSR_SINT1      (0x40000091)
-#define HV_X64_MSR_SINT2      (0x40000092)
-#define HV_X64_MSR_SINT3      (0x40000093)
-#define HV_X64_MSR_SINT4      (0x40000094)
-#define HV_X64_MSR_SINT5      (0x40000095)
-#define HV_X64_MSR_SINT6      (0x40000096)
-#define HV_X64_MSR_SINT7      (0x40000097)
-#define HV_X64_MSR_SINT8      (0x40000098)
-#define HV_X64_MSR_SINT9      (0x40000099)
-#define HV_X64_MSR_SINT10     (0x4000009A)
-#define HV_X64_MSR_SINT11     (0x4000009B)
-#define HV_X64_MSR_SINT12     (0x4000009C)
-#define HV_X64_MSR_SINT13     (0x4000009D)
-#define HV_X64_MSR_SINT14     (0x4000009E)
-#define HV_X64_MSR_SINT15     (0x4000009F)
-
-/*
- * Synthetic Timer MSRs. Four timers per vcpu.
- */
-#define HV_X64_MSR_STIMER0_CONFIG		0x400000B0
-#define HV_X64_MSR_STIMER0_COUNT		0x400000B1
-#define HV_X64_MSR_STIMER1_CONFIG		0x400000B2
-#define HV_X64_MSR_STIMER1_COUNT		0x400000B3
-#define HV_X64_MSR_STIMER2_CONFIG		0x400000B4
-#define HV_X64_MSR_STIMER2_COUNT		0x400000B5
-#define HV_X64_MSR_STIMER3_CONFIG		0x400000B6
-#define HV_X64_MSR_STIMER3_COUNT		0x400000B7
 
 /*
  * Declare the various hypercall operations
