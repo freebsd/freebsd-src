@@ -527,19 +527,12 @@ TARGET_ABI=	gnueabihf
 TARGET_ABI=	gnueabi
 .endif
 .endif
-.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
-# GCC requires -isystem and -L when using a cross-compiler.
-XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
-# Force using libc++ for external GCC.
-XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
-		-nostdinc++ -L${WORLDTMP}/../lib/libc++
-.else
+.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == "clang"
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}
-.else
 .endif # ${MK_CROSS_COMPILER} == "no"
 
 .if !empty(BFLAGS)
