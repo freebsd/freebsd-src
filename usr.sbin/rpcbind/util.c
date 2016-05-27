@@ -119,7 +119,9 @@ addrmerge(struct netbuf *caller, const char *serv_uaddr, const char *clnt_uaddr,
 	struct sockaddr_storage ss;
 	struct netconfig *nconf;
 	char *caller_uaddr = NULL;
+#ifdef ND_DEBUG
 	const char *hint_uaddr = NULL;
+#endif
 	char *ret = NULL;
 	int bestif_goodness;
 
@@ -140,13 +142,17 @@ addrmerge(struct netbuf *caller, const char *serv_uaddr, const char *clnt_uaddr,
 	 */
 	hint_sa = NULL;
 	if (clnt_uaddr != NULL) {
+#ifdef ND_DEBUG
 		hint_uaddr = clnt_uaddr;
+#endif
 		if ((hint_nbp = uaddr2taddr(nconf, clnt_uaddr)) == NULL)
 			goto freeit;
 		hint_sa = hint_nbp->buf;
 	}
 	if (hint_sa == NULL || hint_sa->sa_family != caller_sa->sa_family) {
+#ifdef ND_DEBUG
 		hint_uaddr = caller_uaddr;
+#endif
 		hint_sa = caller->buf;
 	}
 
