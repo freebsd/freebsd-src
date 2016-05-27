@@ -1264,6 +1264,8 @@ siena_ev_qcreate(
 	efx_oword_t oword;
 	efx_rc_t rc;
 
+	_NOTE(ARGUNUSED(esmp))
+
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MAXNEVS));
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MINNEVS));
 

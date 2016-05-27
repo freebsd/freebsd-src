@@ -601,6 +601,8 @@ ef10_rx_prefix_pktlen(
 	__in		uint8_t *buffer,
 	__out		uint16_t *lengthp)
 {
+	_NOTE(ARGUNUSED(enp))
+
 	/*
 	 * The RX pseudo-header contains the packet length, excluding the
 	 * pseudo-header. If the hardware receive datapath was operating in
@@ -619,6 +621,8 @@ ef10_rx_prefix_hash(
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer)
 {
+	_NOTE(ARGUNUSED(enp))
+
 	switch (func) {
 	case EFX_RX_HASHALG_TOEPLITZ:
 		return (buffer[0] |
@@ -745,7 +749,7 @@ ef10_rx_qcreate(
 	efx_rc_t rc;
 	boolean_t disable_scatter;
 
-	_NOTE(ARGUNUSED(erp))
+	_NOTE(ARGUNUSED(id, erp))
 
 	EFX_STATIC_ASSERT(EFX_EV_RX_NLABELS == (1 << ESF_DZ_RX_QLABEL_WIDTH));
 	EFSYS_ASSERT3U(label, <, EFX_EV_RX_NLABELS);
