@@ -49,14 +49,19 @@ static void
 usage(void)
 {
 
-	printf("Usage: %s [-E|-f|-m] OPTIONS <channel #> <txns> [<bufsize> "
+	printf("Usage: %s [-c period] [-EfmVz] channel-number num-txns [<bufsize> "
 	    "[<chain-len> [duration]]]\n", getprogname());
-	printf("       %s -r [-v] OPTIONS <channel #> <addr> [<bufsize>]\n\n",
+	printf("       %s -r [-c period] [-vVwz] channel-number address [<bufsize>]\n\n",
 	    getprogname());
-	printf("       OPTIONS:\n");
-	printf("           -c <period> - Enable interrupt coalescing (us)\n");
-	printf("           -V          - Enable verification\n");
-	printf("           -z          - Zero device stats before test\n");
+	printf("           -c period - Enable interrupt coalescing (us) (default: 0)\n");
+	printf("           -E        - Test non-contiguous 8k copy.\n");
+	printf("           -f        - Test block fill (default: DMA copy).\n");
+	printf("           -m        - Test memcpy instead of DMA.\n");
+	printf("           -r        - Issue DMA to or from a specific address.\n");
+	printf("           -V        - Enable verification\n");
+	printf("           -v        - <address> is a kernel virtual address\n");
+	printf("           -w        - Write to the specified address\n");
+	printf("           -z        - Zero device stats before test\n");
 	exit(EX_USAGE);
 }
 
