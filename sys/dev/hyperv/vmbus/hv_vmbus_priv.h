@@ -451,9 +451,6 @@ typedef enum {
 
 extern hv_vmbus_connection	hv_vmbus_g_connection;
 
-extern u_int			hyperv_features;
-extern u_int			hyperv_recommends;
-
 typedef void (*vmbus_msg_handler)(hv_vmbus_channel_msg_header *msg);
 
 typedef struct hv_vmbus_channel_msg_table_entry {

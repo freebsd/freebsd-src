@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
 #define HV_NANOSECONDS_PER_SEC		1000000000L
