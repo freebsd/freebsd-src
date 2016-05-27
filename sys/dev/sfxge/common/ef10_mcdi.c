@@ -213,6 +213,7 @@ ef10_mcdi_poll_reboot(
 		 * this can be handled by common code drivers (and reworked to
 		 * support Siena too).
 		 */
+		_NOTE(CONSTANTCONDITION)
 		if (B_FALSE) {
 			rc = EIO;
 			goto fail1;

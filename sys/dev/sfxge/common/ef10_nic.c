@@ -1677,6 +1677,7 @@ ef10_nic_register_test(
 
 	/* FIXME */
 	_NOTE(ARGUNUSED(enp))
+	_NOTE(CONSTANTCONDITION)
 	if (B_FALSE) {
 		rc = ENOTSUP;
 		goto fail1;
