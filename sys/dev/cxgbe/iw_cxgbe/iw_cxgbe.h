@@ -45,6 +45,7 @@
 #include <linux/kref.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <sys/vmem.h>
 
 #include <asm/byteorder.h>
 
@@ -144,8 +145,8 @@ struct c4iw_rdev {
 	unsigned long cqshift;
 	u32 cqmask;
 	struct c4iw_dev_ucontext uctx;
-	struct gen_pool *pbl_pool;
-	struct gen_pool *rqt_pool;
+	vmem_t          *rqt_arena;
+	vmem_t          *pbl_arena;
 	u32 flags;
 	struct c4iw_stats stats;
 };
@@ -928,75 +929,6 @@ void process_newconn(struct iw_cm_id *parent_cm_id,
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 extern int c4iw_max_read_depth;
-
-#include <sys/blist.h>
-struct gen_pool {
-        blist_t         gen_list;
-        daddr_t         gen_base;
-        int             gen_chunk_shift;
-        struct mutex      gen_lock;
-};
-
-static __inline struct gen_pool *
-gen_pool_create(daddr_t base, u_int chunk_shift, u_int len)
-{
-        struct gen_pool *gp;
-
-        gp = malloc(sizeof(struct gen_pool), M_DEVBUF, M_NOWAIT);
-        if (gp == NULL)
-                return (NULL);
-
-        memset(gp, 0, sizeof(struct gen_pool));
-        gp->gen_list = blist_create(len >> chunk_shift, M_NOWAIT);
-        if (gp->gen_list == NULL) {
-                free(gp, M_DEVBUF);
-                return (NULL);
-        }
-        blist_free(gp->gen_list, 0, len >> chunk_shift);
-        gp->gen_base = base;
-        gp->gen_chunk_shift = chunk_shift;
-        //mutex_init(&gp->gen_lock, "genpool", NULL, MTX_DUPOK|MTX_DEF);
-        mutex_init(&gp->gen_lock);
-
-        return (gp);
-}
-
-static __inline unsigned long
-gen_pool_alloc(struct gen_pool *gp, int size)
-{
-        int chunks;
-        daddr_t blkno;
-
-        chunks = (size + (1<<gp->gen_chunk_shift) - 1) >> gp->gen_chunk_shift;
-        mutex_lock(&gp->gen_lock);
-        blkno = blist_alloc(gp->gen_list, chunks);
-        mutex_unlock(&gp->gen_lock);
-
-        if (blkno == SWAPBLK_NONE)
-                return (0);
-
-        return (gp->gen_base + ((1 << gp->gen_chunk_shift) * blkno));
-}
-
-static __inline void
-gen_pool_free(struct gen_pool *gp, daddr_t address, int size)
-{
-        int chunks;
-        daddr_t blkno;
-
-        chunks = (size + (1<<gp->gen_chunk_shift) - 1) >> gp->gen_chunk_shift;
-        blkno = (address - gp->gen_base) / (1 << gp->gen_chunk_shift);
-        mutex_lock(&gp->gen_lock);
-        blist_free(gp->gen_list, blkno, chunks);
-        mutex_unlock(&gp->gen_lock);
-}
-
-static __inline void
-gen_pool_destroy(struct gen_pool *gp)
-{
-        blist_destroy(gp->gen_list);
-        free(gp, M_DEVBUF);
-}
 
 #if defined(__i386__) || defined(__amd64__)
 #define L1_CACHE_BYTES 128
