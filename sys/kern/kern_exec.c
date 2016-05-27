@@ -364,7 +364,7 @@ do_execve(td, args, mac_p)
 	struct vattr attr;
 	int (*img_first)(struct image_params *);
 	struct pargs *oldargs = NULL, *newargs = NULL;
-	struct sigacts *oldsigacts, *newsigacts;
+	struct sigacts *oldsigacts = NULL, *newsigacts = NULL;
 #ifdef KTRACE
 	struct vnode *tracevp = NULL;
 	struct ucred *tracecred = NULL;
@@ -714,8 +714,6 @@ interpret:
 		bcopy(imgp->args->begin_argv, newargs->ar_args, i);
 	}
 
-	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
-
 	/*
 	 * For security and other reasons, signal handlers cannot
 	 * be shared after an exec. The new process gets a copy of the old
@@ -726,10 +724,9 @@ interpret:
 		oldsigacts = p->p_sigacts;
 		newsigacts = sigacts_alloc();
 		sigacts_copy(newsigacts, oldsigacts);
-	} else {
-		oldsigacts = NULL;
-		newsigacts = NULL; /* satisfy gcc */
 	}
+
+	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 
 	PROC_LOCK(p);
 	if (oldsigacts)
@@ -791,9 +788,9 @@ interpret:
 		VOP_UNLOCK(imgp->vp, 0);
 		fdsetugidsafety(td);
 		error = fdcheckstd(td);
-		if (error != 0)
-			goto done1;
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
+		if (error != 0)
+			goto exec_fail_dealloc;
 		PROC_LOCK(p);
 #ifdef MAC
 		if (will_transition) {
@@ -881,32 +878,7 @@ interpret:
 
 	SDT_PROBE1(proc, , , exec__success, args->fname);
 
-	VOP_UNLOCK(imgp->vp, 0);
-done1:
-	/*
-	 * Handle deferred decrement of ref counts.
-	 */
-	if (oldtextvp != NULL)
-		vrele(oldtextvp);
-#ifdef KTRACE
-	if (tracevp != NULL)
-		vrele(tracevp);
-	if (tracecred != NULL)
-		crfree(tracecred);
-#endif
-	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
-	pargs_drop(oldargs);
-	pargs_drop(newargs);
-	if (oldsigacts != NULL)
-		sigacts_free(oldsigacts);
-
 exec_fail_dealloc:
-	/*
-	 * free various allocated resources
-	 */
-	if (euip != NULL)
-		uifree(euip);
-
 	if (imgp->firstpage != NULL)
 		exec_unmap_first_page(imgp);
 
@@ -936,18 +908,16 @@ exec_fail_dealloc:
 		 * the S_EXEC bit set.
 		 */
 		STOPEVENT(p, S_EXEC, 0);
-		goto done2;
+	} else {
+exec_fail:
+		/* we're done here, clear P_INEXEC */
+		PROC_LOCK(p);
+		p->p_flag &= ~P_INEXEC;
+		PROC_UNLOCK(p);
+
+		SDT_PROBE1(proc, , , exec__failure, error);
 	}
 
-exec_fail:
-	/* we're done here, clear P_INEXEC */
-	PROC_LOCK(p);
-	p->p_flag &= ~P_INEXEC;
-	PROC_UNLOCK(p);
-
-	SDT_PROBE1(proc, , , exec__failure, error);
-
-done2:
 	if (imgp->newcred != NULL)
 		crfree(oldcred);
 #ifdef MAC
@@ -955,6 +925,24 @@ done2:
 	mac_execve_interpreter_exit(interpvplabel);
 #endif
 	exec_free_args(args);
+
+	/*
+	 * Handle deferred decrement of ref counts.
+	 */
+	if (oldtextvp != NULL)
+		vrele(oldtextvp);
+#ifdef KTRACE
+	if (tracevp != NULL)
+		vrele(tracevp);
+	if (tracecred != NULL)
+		crfree(tracecred);
+#endif
+	pargs_drop(oldargs);
+	pargs_drop(newargs);
+	if (oldsigacts != NULL)
+		sigacts_free(oldsigacts);
+	if (euip != NULL)
+		uifree(euip);
 
 	if (error && imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
