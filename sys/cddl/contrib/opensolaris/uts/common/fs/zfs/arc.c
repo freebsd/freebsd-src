@@ -120,7 +120,6 @@
  *	- ARC header release, as it removes from L2ARC buflists
  */
 
-#include <sys/types.h>
 #include <sys/spa.h>
 #include <sys/zio.h>
 #include <sys/zio_compress.h>
@@ -141,7 +140,6 @@
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 
-#include <vm/vm_pageout.h>
 #include <machine/vmparam.h>
 
 #ifdef illumos
