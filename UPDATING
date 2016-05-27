@@ -31,6 +31,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160527:
+	CAM will now strip leading spaces from SCSI disks' serial numbers.
+	This will effect users who create UFS filesystems on SCSI disks using
+	those disk's diskid device nodes.  For example, if /etc/fstab
+	previously contained a line like
+	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should
+	change it to "/dev/diskid/DISK-ABCDEFG0123456".  Users of geom
+	transfers like gmirror may also be affected.  ZFS users should
+	generally be fine.
+
 20160523:
 	The bitstring(3) API has been updated with new functionality and
 	improved performance.  But it is binary-incompatible with the old API.
