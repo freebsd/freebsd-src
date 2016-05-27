@@ -549,7 +549,8 @@ AsProcessOneFile (
     ACPI_NATIVE_INT         FileType)
 {
     char                    *Pathname;
-    char                    *OutPathname = NULL;
+    char                    *OutPathname;
+    int                     Status = 0;
 
 
     /* Allocate a file pathname buffer for both source and target */
@@ -575,8 +576,8 @@ AsProcessOneFile (
 
     if (AsGetFile (Pathname, &Gbl_FileBuffer, &Gbl_FileSize))
     {
-        free (Pathname);
-        return (-1);
+        Status = -1;
+        goto Exit1;
     }
 
     Gbl_HeaderSize = 0;
@@ -619,7 +620,8 @@ AsProcessOneFile (
             if (!OutPathname)
             {
                 printf ("Could not allocate buffer for file pathnames\n");
-                return (-1);
+                Status = -1;
+                goto Exit2;
             }
 
             strcpy (OutPathname, TargetPath);
@@ -630,17 +632,16 @@ AsProcessOneFile (
             }
 
             AsPutFile (OutPathname, Gbl_FileBuffer, ConversionTable->Flags);
+            free (OutPathname);
         }
     }
 
+Exit2:
     free (Gbl_FileBuffer);
-    free (Pathname);
-    if (OutPathname)
-    {
-        free (OutPathname);
-    }
 
-    return (0);
+Exit1:
+    free (Pathname);
+    return (Status);
 }
 
 

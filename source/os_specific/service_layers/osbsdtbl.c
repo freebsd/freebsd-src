@@ -43,7 +43,7 @@
 
 #include "acpidump.h"
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined (__DragonFly__)
 #include <kenv.h>
 #endif
 #include <unistd.h>
@@ -376,7 +376,7 @@ static ACPI_STATUS
 OslTableInitialize (
     void)
 {
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
     char                    Buffer[32];
 #endif
     ACPI_TABLE_HEADER       *MappedTable;
@@ -404,7 +404,7 @@ OslTableInitialize (
     {
         Address = Gbl_RsdpBase;
     }
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined (__DragonFly__)
     else if (kenv (KENV_GET, SYSTEM_KENV, Buffer, sizeof (Buffer)) > 0)
     {
         Address = strtoul (Buffer, NULL, 0);
