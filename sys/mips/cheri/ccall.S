@@ -380,17 +380,14 @@ ccall_maybe_ktrace:
 	 */
 ccall_unseal_caps:
 	cgettype	k0, CHERI_REG_CCALLCODE
-	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
+	csetoffset	CHERI_REG_KR1C, CHERI_REG_KDC, k0
 	cgetoffset	k0, CHERI_REG_CCALLCODE # moved from below to avoid delay on cheri128
 
 	/* Unseal cs; install in PCC. */
-	cunseal		CHERI_REG_EPCC, CHERI_REG_CCALLCODE, CHERI_REG_KDC
+	cunseal		CHERI_REG_EPCC, CHERI_REG_CCALLCODE, CHERI_REG_KR1C
 
 	/* Unseal cb; install in IDC. */
-	cunseal		CHERI_REG_IDC, CHERI_REG_CCALLDATA, CHERI_REG_KDC
-
-	/* Restore KDC offset. */
-	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, zero
+	cunseal		CHERI_REG_IDC, CHERI_REG_CCALLDATA, CHERI_REG_KR1C
 
 	/* Install cs.offset as PC. */
 ccall_set_pc:
