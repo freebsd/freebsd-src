@@ -158,8 +158,17 @@ siena_mac_reconfigure(
 	 * so we always add bit 0xff to the mask (bit 0x7f in the
 	 * second octword).
 	 */
-	if (epp->ep_brdcst)
+	if (epp->ep_brdcst) {
+		/*
+		 * NOTE: due to constant folding, some of this evaluates
+		 * to null expressions, giving E_EXPR_NULL_EFFECT during
+		 * lint on Illumos.  No good way to fix this without
+		 * explicit coding the individual word/bit setting.
+		 * So just suppress lint for this one line.
+		 */
+		/* LINTED */
 		EFX_SET_OWORD_BIT(multicast_hash[1], 0x7f);
+	}
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_MCAST_HASH;
