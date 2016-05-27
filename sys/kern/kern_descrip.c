@@ -833,17 +833,16 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	if (new >= maxfd)
 		return (mode == FDDUP_FCNTL ? EINVAL : EBADF);
 
+	error = EBADF;
 	FILEDESC_XLOCK(fdp);
-	if (fget_locked(fdp, old) == NULL) {
-		FILEDESC_XUNLOCK(fdp);
-		return (EBADF);
-	}
+	if (fget_locked(fdp, old) == NULL)
+		goto unlock;
 	if ((mode == FDDUP_FIXED || mode == FDDUP_MUSTREPLACE) && old == new) {
 		td->td_retval[0] = new;
 		if (flags & FDDUP_FLAG_CLOEXEC)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
-		FILEDESC_XUNLOCK(fdp);
-		return (0);
+		error = 0;
+		goto unlock;
 	}
 
 	/*
@@ -854,17 +853,13 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	switch (mode) {
 	case FDDUP_NORMAL:
 	case FDDUP_FCNTL:
-		if ((error = fdalloc(td, new, &new)) != 0) {
-			FILEDESC_XUNLOCK(fdp);
-			return (error);
-		}
+		if ((error = fdalloc(td, new, &new)) != 0)
+			goto unlock;
 		break;
 	case FDDUP_MUSTREPLACE:
 		/* Target file descriptor must exist. */
-		if (fget_locked(fdp, new) == NULL) {
-			FILEDESC_XUNLOCK(fdp);
-			return (EBADF);
-		}
+		if (fget_locked(fdp, new) == NULL)
+			goto unlock;
 		break;
 	case FDDUP_FIXED:
 		if (new >= fdp->fd_nfiles) {
@@ -882,8 +877,8 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 				error = racct_set(p, RACCT_NOFILE, new + 1);
 				PROC_UNLOCK(p);
 				if (error != 0) {
-					FILEDESC_XUNLOCK(fdp);
-					return (EMFILE);
+					error = EMFILE;
+					goto unlock;
 				}
 			}
 #endif
@@ -921,14 +916,17 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 #endif
 	td->td_retval[0] = new;
 
+	error = 0;
+
 	if (delfp != NULL) {
 		(void) closefp(fdp, new, delfp, td, 1);
-		/* closefp() drops the FILEDESC lock for us. */
+		FILEDESC_UNLOCK_ASSERT(fdp);
 	} else {
+unlock:
 		FILEDESC_XUNLOCK(fdp);
 	}
 
-	return (0);
+	return (error);
 }
 
 /*
