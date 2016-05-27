@@ -82,7 +82,7 @@ do {									\
 	void *c = &(q).wchan;						\
 	if (!(cond)) {							\
 		for (;;) {						\
-			if (unlikely(SCHEDULER_STOPPED()))		\
+			if (SCHEDULER_STOPPED())			\
 				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
@@ -103,7 +103,7 @@ do {									\
 	_error = 0;							\
 	if (!(cond)) {							\
 		for (; _error == 0;) {					\
-			if (unlikely(SCHEDULER_STOPPED()))		\
+			if (SCHEDULER_STOPPED())			\
 				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
@@ -128,7 +128,7 @@ do {									\
 									\
 	if (!(cond)) {							\
 		for (; __rc == 0;) {					\
-			if (unlikely(SCHEDULER_STOPPED()))		\
+			if (SCHEDULER_STOPPED())			\
 				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
