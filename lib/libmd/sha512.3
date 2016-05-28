@@ -9,7 +9,7 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2015
+.Dd April 22, 2016
 .Dt SHA512 3
 .Os
 .Sh NAME
@@ -26,7 +26,14 @@
 .Nm SHA384_End ,
 .Nm SHA384_File ,
 .Nm SHA384_FileChunk ,
-.Nm SHA384_Data
+.Nm SHA384_Data,
+.Nm SHA512_256_Init ,
+.Nm SHA512_256_Update ,
+.Nm SHA512_256_Final ,
+.Nm SHA512_256_End ,
+.Nm SHA512_256_File ,
+.Nm SHA512_256_FileChunk ,
+.Nm SHA512_256_Data
 .Nd calculate the FIPS 180-4 ``SHA-512'' family of message digests
 .Sh LIBRARY
 .Lb libmd
@@ -47,6 +54,7 @@
 .Fn SHA512_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SHA512_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.In sha384.h
 .Ft void
 .Fn SHA384_Init "SHA384_CTX *context"
 .Ft void
@@ -61,6 +69,21 @@
 .Fn SHA384_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SHA384_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.In sha512t.h
+.Ft void
+.Fn SHA512_256_Init "SHA512_CTX *context"
+.Ft void
+.Fn SHA512_256_Update "SHA512_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SHA512_256_Final "unsigned char digest[32]" "SHA512_CTX *context"
+.Ft "char *"
+.Fn SHA512_256_End "SHA512_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA512_256_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SHA512_256_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SHA512_256_Data "const unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
 The
 .Li SHA512_
@@ -92,7 +115,7 @@ and finally extract the result using
 .Fn SHA512_End
 is a wrapper for
 .Fn SHA512_Final
-which converts the return value to a 65-character
+which converts the return value to a 129-character
 (including the terminating '\e0')
 .Tn ASCII
 string which represents the 512 bits in hexadecimal.
@@ -139,22 +162,32 @@ and subsequently must be explicitly deallocated using
 after use.
 If the
 .Fa buf
-argument is non-null it must point to at least 65 characters of buffer space.
+argument is non-null it must point to at least 129 characters of buffer space.
 .Pp
 The
 .Li SHA384_
+and
+.Li SHA512_256_
 functions are identical to the
 .Li SHA512_
 functions except they use a different initial hash value and the output is
-truncated to 384 bits.
+truncated to 384 bits and 256 bits respectively.
 .Pp
 .Fn SHA384_End
 is a wrapper for
 .Fn SHA384_Final
-which converts the return value to a 49-character
+which converts the return value to a 97-character
 (including the terminating '\e0')
 .Tn ASCII
 string which represents the 384 bits in hexadecimal.
+.Pp
+.Fn SHA512_256_End
+is a wrapper for
+.Fn SHA512_Final
+which converts the return value to a 65-character
+(including the terminating '\e0')
+.Tn ASCII
+string which represents the 256 bits in hexadecimal.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,

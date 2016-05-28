@@ -1,9 +1,9 @@
 .\" $FreeBSD$
-.Dd October 17, 2015
+.Dd April 22, 2016
 .Dt MD5 1
 .Os
 .Sh NAME
-.Nm md5 , sha1 , sha256 , sha384 , sha512, rmd160
+.Nm md5 , sha1 , sha256 , sha384 , sha512, sha512t256, rmd160
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
 .Nm md5
@@ -31,6 +31,11 @@
 .Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
+.Nm sha512t256
+.Op Fl pqrtx
+.Op Fl c Ar string
+.Op Fl s Ar string
+.Op Ar
 .Nm rmd160
 .Op Fl pqrtx
 .Op Fl c Ar string
@@ -38,7 +43,7 @@
 .Op Ar
 .Sh DESCRIPTION
 The
-.Nm md5 , sha1 , sha256 , sha384 , sha512
+.Nm md5 , sha1 , sha256 , sha384 , sha512, sha512t256
 and
 .Nm rmd160
 utilities take as input a message of arbitrary length and produce as
@@ -78,8 +83,17 @@ found which is faster than a brute-force search, placing the security of
 .Tn SHA-1
 in doubt.
 .Pp
-It is recommended that all new applications use
+.Tn SHA-512t256
+is a version of
+.Tn SHA-512
+truncated to only 256 bits.
+On 64-bit hardware, this algorithm is approximately 50% faster than
 .Tn SHA-256
+but with the same level of security.
+The hashes are not interchangeable.
+.Pp
+It is recommended that all new applications use
+.Tn SHA-512
 instead of one of the other hash functions.
 .Pp
 The following options may be used in any combination and must
@@ -114,7 +128,7 @@ Run a built-in test script.
 .El
 .Sh EXIT STATUS
 The
-.Nm md5 , sha1 , sha256 , sha512
+.Nm md5 , sha1 , sha256 , sha512, sha512t256
 and
 .Nm rmd160
 utilities exit 0 on success,
