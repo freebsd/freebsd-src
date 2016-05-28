@@ -56,14 +56,14 @@
 %e.%m.%y г.
 #
 # c_fmt
-%e %B %Y г., %H:%M:%S
+%a %e %B %Y г., %H:%M:%S
 #
 # AM/PM
 пр.об.
 сл.об.
 #
 # date_fmt
-%e %B %Y г., %H:%M:%S %Z
+%a %e %B %Y г., %H:%M:%S %Z
 #
 # Long month names (without case ending)
 януари
