@@ -49,6 +49,7 @@ LIBCXGB4?=	${DESTDIR}${LIBDIR}/libcxgb4.a
 LIBCXXRT?=	${DESTDIR}${LIBDIR}/libcxxrt.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBDEVCTL?=	${DESTDIR}${LIBDIR}/libdevctl.a
+LIBDEVDCTL?=	${DESTDIR}${LIBDIR}/libdevdctl.a
 LIBDEVINFO?=	${DESTDIR}${LIBDIR}/libdevinfo.a
 LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a

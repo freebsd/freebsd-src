@@ -123,7 +123,7 @@ FILES=	DAEMON \
 	ypserv \
 	ypset \
 	ypupdated \
-	ypxfrd \
+	ypxfrd
 
 .if ${MK_ACCT} != "no"
 FILESGROUPS+=	ACCT
@@ -308,6 +308,7 @@ FILES+=		wpa_supplicant
 .if ${MK_ZFS} != "no"
 FILESGROUPS+=	ZFS
 ZFS+=		zfs
+ZFS+=		zfsd
 ZFS+=		zvol
 ZFSPACKAGE=	zfs
 .endif
