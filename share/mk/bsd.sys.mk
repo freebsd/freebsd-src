@@ -198,7 +198,11 @@ LDFLAGS+=	-L=/usr/lib
 # sysroot/usr/lib/libc++.so.
 .if ${CXXFLAGS:M-nostdinc++} == "" && ${CXXFLAGS:M-nostdlib} == ""
 CXXFLAGS+=	-std=c++11 \
-		-nostdinc++ -isystem =/usr/include/c++/v1
+		-nostdinc++
+# Need to ensure this path comes before the above -isystem =/usr/include.
+# CXXFLAGS is CFLAGS with extra added in, so there's no way to fix the
+# ordering otherwise.
+CXX+=		-isystem =/usr/include/c++/v1
 LDFLAGS+=	-L${OBJTOP}/lib/libc++
 .endif
 .endif	# --sysroot
