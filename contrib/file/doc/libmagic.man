@@ -1,4 +1,4 @@
-.\" $File: libmagic.man,v 1.38 2015/09/11 17:24:09 christos Exp $
+.\" $File: libmagic.man,v 1.40 2016/03/31 17:51:12 christos Exp $
 .\"
 .\" Copyright (c) Christos Zoulas 2003.
 .\" All Rights Reserved.
@@ -225,7 +225,7 @@ It returns 0 on success and \-1 on failure.
 .Pp
 The
 .Fn magic_compile
-function can be used to compile the the colon
+function can be used to compile the colon
 separated list of database files passed in as
 .Ar filename ,
 or
@@ -251,7 +251,7 @@ for the default database.
 .Pp
 The
 .Fn magic_load
-function must be used to load the the colon
+function must be used to load the colon
 separated list of database files passed in as
 .Ar filename ,
 or
@@ -282,7 +282,7 @@ The
 .Fn magic_getparam
 and
 .Fn magic_setparam
-allow getting and setting various limits related to the the magic
+allow getting and setting various limits related to the magic
 library.
 .Bl -column "MAGIC_PARAM_ELF_PHNUM_MAX" "size_t" "Default" -offset indent
 .It Sy "Parameter" Ta Sy "Type" Ta Sy "Default"
@@ -292,6 +292,7 @@ library.
 .It Li MAGIC_PARAM_ELF_PHNUM_MAX Ta size_t Ta 128
 .It Li MAGIC_PARAM_ELF_SHNUM_MAX Ta size_t Ta 32768
 .It Li MAGIC_PARAM_REGEX_MAX Ta size_t Ta 8192
+.It Li MAGIC_PARAM_BYTES_MAX Ta size_t Ta 1048576
 .El
 .Pp
 The

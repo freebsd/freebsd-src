@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.167 2015/09/11 17:24:09 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.170 2016/03/31 17:51:12 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -94,9 +94,9 @@ private const struct option long_options[] = {
 #define OPT_EXTENSIONS		3
 #define OPT_MIME_TYPE		4
 #define OPT_MIME_ENCODING	5
-#define OPT(shortname, longname, opt, doc)      \
+#define OPT(shortname, longname, opt, def, doc)      \
     {longname, opt, NULL, shortname},
-#define OPT_LONGONLY(longname, opt, doc, id)        \
+#define OPT_LONGONLY(longname, opt, def, doc, id)        \
     {longname, opt, NULL, id},
 #include "file_opts.h"
 #undef OPT
@@ -132,15 +132,17 @@ private struct {
 	{ "elf_shnum",	MAGIC_PARAM_ELF_SHNUM_MAX, 0 },
 	{ "elf_notes",	MAGIC_PARAM_ELF_NOTES_MAX, 0 },
 	{ "regex",	MAGIC_PARAM_REGEX_MAX, 0 },
+	{ "bytes",	MAGIC_PARAM_BYTES_MAX, 0 },
 };
 
 private char *progname;		/* used throughout 		*/
+private int posixly;
 
 #ifdef __dead
 __dead
 #endif
 private void usage(void);
-private void docprint(const char *);
+private void docprint(const char *, int);
 #ifdef __dead
 __dead
 #endif
@@ -183,7 +185,8 @@ main(int argc, char *argv[])
 		progname = argv[0];
 
 #ifdef S_IFLNK
-	flags |= getenv("POSIXLY_CORRECT") ? MAGIC_SYMLINK : 0;
+	posixly = getenv("POSIXLY_CORRECT") != NULL;
+	flags |=  posixly ? MAGIC_SYMLINK : 0;
 #endif
 	while ((c = getopt_long(argc, argv, OPTSTRING, long_options,
 	    &longindex)) != -1)
@@ -204,7 +207,7 @@ main(int argc, char *argv[])
 			flags |= MAGIC_MIME_ENCODING;
 			break;
 		case '0':
-			nulsep = 1;
+			nulsep++;
 			break;
 		case 'b':
 			bflag++;
@@ -492,24 +495,28 @@ unwrap(struct magic_set *ms, const char *fn)
 private int
 process(struct magic_set *ms, const char *inname, int wid)
 {
-	const char *type;
+	const char *type, c = nulsep > 1 ? '\0' : '\n';
 	int std_in = strcmp(inname, "-") == 0;
 
 	if (wid > 0 && !bflag) {
 		(void)printf("%s", std_in ? "/dev/stdin" : inname);
 		if (nulsep)
 			(void)putc('\0', stdout);
-		(void)printf("%s", separator);
-		(void)printf("%*s ",
-		    (int) (nopad ? 0 : (wid - file_mbswidth(inname))), "");
+		if (nulsep < 2) {
+			(void)printf("%s", separator);
+			(void)printf("%*s ",
+			    (int) (nopad ? 0 : (wid - file_mbswidth(inname))),
+			    "");
+		}
 	}
 
 	type = magic_file(ms, std_in ? NULL : inname);
+
 	if (type == NULL) {
-		(void)printf("ERROR: %s\n", magic_error(ms));
+		(void)printf("ERROR: %s%c", magic_error(ms), c);
 		return 1;
 	} else {
-		(void)printf("%s\n", type);
+		(void)printf("%s%c", type, c);
 		return 0;
 	}
 }
@@ -559,7 +566,17 @@ usage(void)
 }
 
 private void
-docprint(const char *opts)
+defprint(int def)
+{
+	if (!def)
+		return;
+	if (((def & 1) && posixly) || ((def & 2) && !posixly))
+		fprintf(stdout, " (default)");
+	fputc('\n', stdout);
+}
+
+private void
+docprint(const char *opts, int def)
 {
 	size_t i;
 	int comma;
@@ -568,6 +585,7 @@ docprint(const char *opts)
 	p = strstr(opts, "%o");
 	if (p == NULL) {
 		fprintf(stdout, "%s", opts);
+		defprint(def);
 		return;
 	}
 
@@ -595,12 +613,12 @@ help(void)
 "Usage: file [OPTION...] [FILE...]\n"
 "Determine type of FILEs.\n"
 "\n", stdout);
-#define OPT(shortname, longname, opt, doc)      \
+#define OPT(shortname, longname, opt, def, doc)      \
 	fprintf(stdout, "  -%c, --" longname, shortname), \
-	docprint(doc);
-#define OPT_LONGONLY(longname, opt, doc, id)        \
+	docprint(doc, def);
+#define OPT_LONGONLY(longname, opt, def, doc, id)        \
 	fprintf(stdout, "      --" longname),	\
-	docprint(doc);
+	docprint(doc, def);
 #include "file_opts.h"
 #undef OPT
 #undef OPT_LONGONLY
