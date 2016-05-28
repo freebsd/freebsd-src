@@ -371,15 +371,12 @@ ccall_maybe_ktrace:
 	nop
 #endif /* KTRACE */
 
-	/*
-	 * Temporarily set $kdc type to allow unsealing; this is a bit awkward
-	 * as $kdc can't be used for data access until we unset it again.
-	 *
-	 * NB: Note implicit assumption that CHERI_REG_KDC.base == 0.
-	 *
-	 * XXXRW: This is inefficient and (should be) unnecessary.
-	 */
 ccall_unseal_caps:
+	/*
+	 * Unseal the sealed code and data capability operands by constructing
+	 * a suitably authorised capability in $kr1c.  The ISA has already
+	 * checked that the two types match.
+	 */
 	cgettype	k0, CHERI_REG_CCALLCODE
 	csetoffset	CHERI_REG_KR1C, CHERI_REG_KDC, k0
 	cgetoffset	k0, CHERI_REG_CCALLCODE # moved from below to avoid delay on cheri128
