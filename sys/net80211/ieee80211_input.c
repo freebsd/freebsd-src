@@ -227,9 +227,16 @@ ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace)
 		lwh = mtod(mfrag, struct ieee80211_frame *);
 		last_rxseq = le16toh(*(uint16_t *)lwh->i_seq);
 		/* NB: check seq # and frag together */
-		if (rxseq != last_rxseq+1 ||
-		    !IEEE80211_ADDR_EQ(wh->i_addr1, lwh->i_addr1) ||
-		    !IEEE80211_ADDR_EQ(wh->i_addr2, lwh->i_addr2)) {
+		if (rxseq == last_rxseq+1 &&
+		    IEEE80211_ADDR_EQ(wh->i_addr1, lwh->i_addr1) &&
+		    IEEE80211_ADDR_EQ(wh->i_addr2, lwh->i_addr2)) {
+			/* XXX clear MORE_FRAG bit? */
+			/* track last seqnum and fragno */
+			*(uint16_t *) lwh->i_seq = *(uint16_t *) wh->i_seq;
+
+			m_adj(m, hdrspace);		/* strip header */
+			m_catpkt(mfrag, m);		/* concatenate */
+		} else {
 			/*
 			 * Unrelated fragment or no space for it,
 			 * clear current fragments.
@@ -247,12 +254,6 @@ ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace)
 			return NULL;
 		}
 		mfrag = m;
-	} else {				/* concatenate */
-		m_adj(m, hdrspace);		/* strip header */
-		m_catpkt(mfrag, m);
-		/* track last seqnum and fragno */
-		lwh = mtod(mfrag, struct ieee80211_frame *);
-		*(uint16_t *) lwh->i_seq = *(uint16_t *) wh->i_seq;
 	}
 	if (more_frag) {			/* more to come, save */
 		ni->ni_rxfragstamp = ticks;
