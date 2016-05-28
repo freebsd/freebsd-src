@@ -196,19 +196,23 @@ if ($TYPE eq "timedef") {
 }
 
 sub callback_cformat {
- 	my $s = shift;
- 	$s =~ s/ %Z//;
- 	$s =~ s/ %z//;
- 	return $s;
+	my $s = shift;
+	$s =~ s/ %Z//;
+	$s =~ s/ %z//;
+	$s =~ s/^"(%B %e, )/"%a, $1/;
+	$s =~ s/^"(%e %B )/"%a $1/;
+	return $s;
 };
 
 sub callback_dtformat {
- 	my $s = shift;
+	my $s = shift;
 	my $nl = $callback{data}{l} . "_" . $callback{data}{c};
 
 	if ($nl eq 'ja_JP') {
-	    $s =~ s/(> )(%H)/$1%A $2/;
+		$s =~ s/(> )(%H)/$1%A $2/;
 	}
+	$s =~ s/^"(%B %e, )/"%a, $1/;
+	$s =~ s/^"(%e %B )/"%a $1/;
 	return $s;
 };
 
