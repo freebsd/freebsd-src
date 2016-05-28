@@ -48,8 +48,6 @@
     cddl
         lib
         ..
-        sbin
-        ..
         usr.bin
         ..
         usr.sbin
@@ -215,6 +213,8 @@
                     ..
                 ..
             ..
+            zfsd
+            ..
         ..
     ..
     etc
@@ -307,6 +307,8 @@
             ..
         ..
         libcrypt
+        ..
+        libdevdctl
         ..
         libmp
         ..
