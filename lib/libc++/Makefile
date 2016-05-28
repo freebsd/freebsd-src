@@ -187,7 +187,7 @@ RT_HEADERS=	cxxabi.h\
 
 .for hdr in ${STD_HEADERS}
 STD+=		${HDRDIR}/${hdr}
-INCSLINKS+=	${CXXINCLUDEDIR}/${hdr} ${CXXINCLUDEDIR}/tr1/${hdr}
+INCSLINKS+=	../${hdr} ${CXXINCLUDEDIR}/tr1/${hdr}
 .endfor
 .for hdr in ${RT_HEADERS}
 STD+=		${_LIBCXXRTDIR}/${hdr}
