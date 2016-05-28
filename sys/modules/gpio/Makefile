@@ -28,7 +28,7 @@
 SUBDIR = gpiobus gpioiic gpioled gpiospi
 
 .if !empty(OPT_FDT)
-SUBDIR += gpiopps
+SUBDIR += gpiokeys gpiopps
 .endif
 
 .include <bsd.subdir.mk>
