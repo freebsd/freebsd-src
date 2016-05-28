@@ -286,7 +286,7 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #error	CHERIABI does not support fewer than 8 argument registers
 #endif
 	/*
-	 * XXXBD: We should ideally use a user capability rather than KDC
+	 * XXXBD: We should ideally use a user capability rather than $kdc
 	 * to generate the pointers, but then we have to answer: which one?
 	 *
 	 * XXXRW: The kernel cannot distinguish between pointers with tags vs.
@@ -692,8 +692,8 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 * Signal handler installed with SA_SIGINFO.
 		 *
 		 * XXXRW: We would ideally synthesise these from the
-		 * user-originated stack capability, rather than KDC, to be on
-		 * the safe side.
+		 * user-originated stack capability, rather than $kdc, to be
+		 * on the safe side.
 		 */
 		cheri_capability_set(&regs->c3, CHERI_CAP_USER_DATA_PERMS,
 		    CHERI_CAP_USER_DATA_OTYPE, (void *)(intptr_t)&sfp->sf_si,
@@ -715,8 +715,8 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 *
 		 * XXXRW: I think there's some argument that anything
 		 * receiving this signal is fairly privileged.  But we could
-		 * generate a $c0-relative (or $pcc-relative) capability, if
-		 * possible.  (Using versions if $c0 and $pcc for the
+		 * generate a $ddc-relative (or $pcc-relative) capability, if
+		 * possible.  (Using versions if $ddc and $pcc for the
 		 * signal-handling context rather than that which caused the
 		 * signal).  I'd be tempted to deliver badvaddr as the offset
 		 * of that capability.  If badvaddr is not in range, then we

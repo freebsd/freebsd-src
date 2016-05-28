@@ -301,7 +301,7 @@
  *
  * XXXRW: Curiously non-contiguous.
  *
- * XXXRW: KDC is listed as 0x1a in the spec, which collides with EPCC.  Not
+ * XXXRW: KDC is listed as 0x1a in the spec, which collides with $epcc.  Not
  * sure what is actually used.
  */
 #define	CHERI_EXCCODE_NONE		0x00

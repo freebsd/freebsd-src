@@ -188,7 +188,7 @@ ccall_validate_args:
 	bnez		k0, CCall_c2_perm_execute
 	/* NB branch delay utilised below */
 
-	/* Fifth, check that PCC offset is not >= length. */
+	/* Fifth, check that $pcc offset is not >= length. */
 	/* XXXRW: Check that this is right! */
 	cgetoffset	k0, CHERI_REG_CCALLDATA
 	cgetlen		k1, CHERI_REG_CCALLDATA
@@ -315,8 +315,9 @@ ccall_check_globals:
 	nop
 
 	/*
-	 * Now prepare to push IDC, PCC, PC+4 onto the trusted stack.  Begin
-	 * by retrieving the current PCB pointer to reach the trusted stack.
+	 * Now prepare to push $idc, $pcc, $pc+4 onto the trusted stack.
+	 * Begin by retrieving the current PCB pointer to reach the trusted
+	 * stack.
 	 */
 ccall_push_stack:
 	GET_CPU_PCPU(k1)
@@ -339,12 +340,12 @@ ccall_push_stack:
 	PTR_ADDU	k0, k1, k0			/* Add PCB pointer. */
 	PTR_ADDIU	k0, k0, U_PCB_CHERISTACK_FRAMES	/* Add PCB offset. */
 
-	/* Push IDC. */
+	/* Push $idc. */
 	csc		CHERI_REG_IDC, k0, CHERI_STACKFRAME_IDC(CHERI_REG_KDC)
 
 	/*
-	 * Add 4 to PC, install in PC.offset; k1 is overwritten so no longer
-	 * the PCB pointer.
+	 * Add 4 to $pc, install in $pcc.offset; k1 is overwritten so no
+	 * longer the PCB pointer.
 	 *
 	 * NB: It seems like the hardware could do this for us?
 	 */
@@ -352,7 +353,7 @@ ccall_push_stack:
 	PTR_ADDU	k1, k1, 4
 	csetoffset	CHERI_REG_EPCC, CHERI_REG_EPCC, k1
 
-	/* Push PCC. */
+	/* Push $pcc. */
 	csc		CHERI_REG_EPCC, k0, CHERI_STACKFRAME_PCC(CHERI_REG_KDC)
 
 #ifdef KTRACE
@@ -371,8 +372,8 @@ ccall_maybe_ktrace:
 #endif /* KTRACE */
 
 	/*
-	 * Temporarily set KDC type to allow unsealing; this is a bit awkward
-	 * as KDC can't be used for data access until we unset it again.
+	 * Temporarily set $kdc type to allow unsealing; this is a bit awkward
+	 * as $kdc can't be used for data access until we unset it again.
 	 *
 	 * NB: Note implicit assumption that CHERI_REG_KDC.base == 0.
 	 *
@@ -383,13 +384,13 @@ ccall_unseal_caps:
 	csetoffset	CHERI_REG_KR1C, CHERI_REG_KDC, k0
 	cgetoffset	k0, CHERI_REG_CCALLCODE # moved from below to avoid delay on cheri128
 
-	/* Unseal cs; install in PCC. */
+	/* Unseal cs; install in $pcc. */
 	cunseal		CHERI_REG_EPCC, CHERI_REG_CCALLCODE, CHERI_REG_KR1C
 
-	/* Unseal cb; install in IDC. */
+	/* Unseal cb; install in $idc. */
 	cunseal		CHERI_REG_IDC, CHERI_REG_CCALLDATA, CHERI_REG_KR1C
 
-	/* Install cs.offset as PC. */
+	/* Install cs.offset as $pc. */
 ccall_set_pc:
 	#cgetoffset	k0, CHERI_REG_CCALLCODE # moved above to avoid delay on cheri128
 	MTC0		k0, MIPS_COP_0_EXC_PC
@@ -471,7 +472,7 @@ ccall_clear_caps:
 #if !defined(CPU_CHERI_HW_CCLEAR)
 	/* Non-argument capability registers. */
 
-	/* $c0 has been set aside in $kr2c, so clear it there. */
+	/* $ddc has been set aside in $kr2c, so clear it there. */
 	cfromptr	CHERI_REG_SEC0, CHERI_REG_SEC0, zero
 	/* $c1 preserved as the passed code capability. */
 	/* $c2 preserved as the passed data capability. */
@@ -506,7 +507,7 @@ ccall_clear_caps:
 #endif
 
 #else /* CPU_CHERI_HW_CCLEAR */
-	/* $c0 has been set aside in $kr2c, so clear it there. */
+	/* $ddc has been set aside in $kr2c, so clear it there. */
 	CHERI_CLEAR_CAPLO16( \
 		CHERI_CLEAR_CAPLO_C11 | \
 		CHERI_CLEAR_CAPLO_C12 | \
@@ -667,13 +668,13 @@ creturn_pop_stack:
 	PTR_ADDU	k0, k1, k0			/* Add PCB pointer. */
 	PTR_ADDIU	k0, k0, U_PCB_CHERISTACK_FRAMES	/* Add PCB offset. */
 
-	/* Pop IDC. */
+	/* Pop $idc. */
 	clc		CHERI_REG_IDC, k0, CHERI_STACKFRAME_IDC(CHERI_REG_KDC)
 
-	/* Pop PCC. */
+	/* Pop $pcc. */
 	clc		CHERI_REG_EPCC, k0, CHERI_STACKFRAME_PCC(CHERI_REG_KDC)
 
-	/* Extract PC+4, install in $c0_epc.  Toasts k0; k1 still PCB. */
+	/* Extract $pc+4, install in $c0_epc.  Toasts k0; k1 still PCB. */
 	cgetoffset	k0, CHERI_REG_EPCC
 	MTC0		k0, MIPS_COP_0_EXC_PC
 	COP0_SYNC
@@ -764,7 +765,7 @@ creturn_clear_caps:
 #if !defined(CPU_CHERI_HW_CCLEAR)
 	/* Non-return-value capability registers. */
 
-	/* $c0 has been set aside in $kr2c, so clear it there. */
+	/* $ddc has been set aside in $kr2c, so clear it there. */
 	cfromptr	CHERI_REG_SEC0, CHERI_REG_SEC0, zero
 	cfromptr	$c1, $c1, zero
 	cfromptr	$c2, $c2, zero
@@ -802,7 +803,7 @@ creturn_clear_caps:
 	cfromptr	$c25, $c25, zero
 #endif
 #else
-	/* $c0 has been set aside in $kr2c, so clear it there. */
+	/* $ddc has been set aside in $kr2c, so clear it there. */
 	CHERI_CLEAR_CAPLO16( \
 		CHERI_CLEAR_CAPLO_C1  | \
 		CHERI_CLEAR_CAPLO_C2  | \

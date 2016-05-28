@@ -92,7 +92,7 @@ NESTED_NOPROFILE(CHERICCallKtrace, CALLFRAME_SIZ, ra)
 	SAVE_REGS_TO_PCB(k1)
 #ifdef CPU_CHERI
 	/*
-	 * Note: This saves EPCC, matching the explicit EPC save above.
+	 * Note: This saves $epcc, matching the explicit $epc save above.
 	 */
 	SAVE_CREGS_TO_PCB(k1, t0)
 #endif
@@ -147,7 +147,7 @@ NESTED_NOPROFILE(CHERICCallKtrace, CALLFRAME_SIZ, ra)
 
 #ifdef CPU_CHERI
 	/*
-	 * Note: This restores EPCC, matching the explicit EPC restore below.
+	 * Note: This restores $epcc, matching the explicit $epc restore below.
 	 */
 	RESTORE_CREGS_FROM_PCB(k1, t0)
 #endif
@@ -175,7 +175,7 @@ NESTED_NOPROFILE(CHERICReturnKtrace, CALLFRAME_SIZ, ra)
 	SAVE_REGS_TO_PCB(k1)
 #ifdef CPU_CHERI
 	/*
-	 * Note: This saves EPCC, matching the explicit EPC save above.
+	 * Note: This saves $epcc, matching the explicit $epc save above.
 	 */
 	SAVE_CREGS_TO_PCB(k1, t0)
 #endif
@@ -230,7 +230,7 @@ NESTED_NOPROFILE(CHERICReturnKtrace, CALLFRAME_SIZ, ra)
 
 #ifdef CPU_CHERI
 	/*
-	 * Note: This restores EPCC, matching the explicit EPC restore below.
+	 * Note: This restores $epcc, matching the explicit $epc restore below.
 	 */
 	RESTORE_CREGS_FROM_PCB(k1, t0)
 #endif

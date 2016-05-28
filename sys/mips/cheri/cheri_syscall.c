@@ -49,7 +49,7 @@
  * sandboxes that have been explicitly delegated CHERI_PERM_SYSCALL via their
  * code capability.  Note that CHERI_PERM_SYSCALL effectively implies ambient
  * authority, as the kernel does not [currently] interpret pointers/lengths
- * via userspace $c0.
+ * via userspace $ddc.
  */
 int
 cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
@@ -68,7 +68,7 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 
 	/*
 	 * Check whether userspace holds the rights defined in
-	 * cheri_capability_set_user() in $PCC.  Note that object type doesn't
+	 * cheri_capability_set_user() in $pcc.  Note that object type doesn't
 	 * come into play here.
 	 *
 	 * XXXRW: Possibly ECAPMODE should be EPROT or ESANDBOX?

@@ -57,7 +57,7 @@
  * based on language-level properties and annotations, but in the mean
  * time...
  *
- * XXXRW: Any manipulation of c0 should include a "memory" clobber for inline
+ * XXXRW: Any manipulation of $ddc should include a "memory" clobber for inline
  * assembler, so that the compiler will write back memory contents before the
  * call, and reload them afterwards.
  */
@@ -105,7 +105,7 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sigprot, CTLFLAG_RW,
     &security_cheri_debugger_on_sigprot, 0,
     "Enter KDB when SIGPROT is delivered to an unsandboxed thread");
 
-static void	cheri_capability_set_user_c0(struct chericap *);
+static void	cheri_capability_set_user_ddc(struct chericap *);
 static void	cheri_capability_set_user_stack(struct chericap *);
 static void	cheri_capability_set_user_pcc(struct chericap *);
 static void	cheri_capability_set_user_entry(struct chericap *,
@@ -157,7 +157,7 @@ SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
     NULL);
 
 /*
- * Build a new capabilty derived from KDC with the contents of the passed
+ * Build a new capabilty derived from $kdc with the contents of the passed
  * flattened representation.
  *
  * XXXRW: It's not yet clear how important ordering is here -- try to do the
@@ -239,7 +239,7 @@ cheri_capability_set_priv(struct chericap *cp)
 #endif
 
 static void
-cheri_capability_set_user_c0(struct chericap *cp)
+cheri_capability_set_user_ddc(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_DATA_PERMS,
@@ -252,11 +252,11 @@ cheri_capability_set_user_stack(struct chericap *cp)
 {
 
 	/*
-	 * For now, initialise stack as ambient with identical rights as $c0.
+	 * For now, initialise stack as ambient with identical rights as $ddc.
 	 * In the future, we will likely want to change this to be local
 	 * (non-global).
 	 */
-	cheri_capability_set_user_c0(cp);
+	cheri_capability_set_user_ddc(cp);
 }
 
 static void
@@ -264,9 +264,9 @@ cheri_capability_set_user_idc(struct chericap *cp)
 {
 
 	/*
-	 * The default invoked data capability is also identical to $c0.
+	 * The default invoked data capability is also identical to $ddc.
 	 */
-	cheri_capability_set_user_c0(cp);
+	cheri_capability_set_user_ddc(cp);
 }
 
 static void
@@ -362,18 +362,18 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	 * the future.
 	 */
 	frame = &td->td_pcb->pcb_regs;
-	KASSERT(*(uint64_t *)&frame->ddc == 0, ("%s: non-zero initial DDC",
+	KASSERT(*(uint64_t *)&frame->ddc == 0, ("%s: non-zero initial $ddc",
 	    __func__));
-	KASSERT(*(uint64_t *)&frame->pcc == 0, ("%s: non-zero initial EPCC",
+	KASSERT(*(uint64_t *)&frame->pcc == 0, ("%s: non-zero initial $epcc",
 	    __func__));
 
 	/*
-	 * XXXRW: Experimental CHERI ABI initialises $c0 with full user
+	 * XXXRW: Experimental CHERI ABI initialises $ddc with full user
 	 * privilege, and all other user-accessible capability registers with
 	 * no rights at all.  The runtime linker/compiler/application can
 	 * propagate around rights as required.
 	 */
-	cheri_capability_set_user_c0(&frame->ddc);
+	cheri_capability_set_user_ddc(&frame->ddc);
 	cheri_capability_set_user_stack(&frame->c11);
 	cheri_capability_set_user_idc(&frame->idc);
 	cheri_capability_set_user_pcc(&frame->pcc);
@@ -387,7 +387,7 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	 */
 	csigp = &td->td_pcb->pcb_cherisignal;
 	bzero(csigp, sizeof(*csigp));
-	cheri_capability_set_user_c0(&csigp->csig_c0);
+	cheri_capability_set_user_ddc(&csigp->csig_ddc);
 	cheri_capability_set_user_stack(&csigp->csig_c11);
 	cheri_capability_set_user_stack(&csigp->csig_default_stack);
 	cheri_capability_set_user_idc(&csigp->csig_idc);

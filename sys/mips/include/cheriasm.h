@@ -83,12 +83,12 @@
 #define	CHERI_REG_CTEMP1	CHERI_REG_C12	/* C capability manipulation. */
 
 /*
- * Where to save the user $c0 during low-level exception handling.  Possibly
+ * Where to save the user $ddc during low-level exception handling.  Possibly
  * this should be an argument to macros rather than hard-coded in the macros.
  *
  * Ensure this is kept in sync with CHERI_CLEAR_CAPHI_SEC0.
  */
-#define	CHERI_REG_SEC0	CHERI_REG_KR2C	/* Saved $c0 in exception handling. */
+#define	CHERI_REG_SEC0	CHERI_REG_KR2C	/* Saved $ddc in exception handling. */
 
 /*
  * (Possibly) temporary ABI in which $c1 is the code argument to CCall, and
@@ -123,7 +123,7 @@
 	andi	reg, reg, MIPS_SR_KSU_USER;				\
 	beq	reg, $0, 64f;						\
 	nop;								\
-	/* Save user $c0; install kernel $c0. */			\
+	/* Save user $ddc; install kernel $ddc. */			\
 	CHERI_ASM_CMOVE(CHERI_REG_SEC0, CHERI_REG_C0);			\
 	CHERI_ASM_CMOVE(CHERI_REG_C0, CHERI_REG_KDC);			\
 	/* cgetdefault	CHERI_REG_SEC0; */				\
@@ -136,11 +136,11 @@
  * purposes of querying CP0 SR to determine whether the target is userspace
  * or the kernel.
  *
- * XXXCHERI: We assume that the caller will install an appropriate PCC for a
+ * XXXCHERI: We assume that the caller will install an appropriate $pcc for a
  * return to userspace, but that in the kernel case, we need to install a
- * kernel EPCC, potentially overwriting a previously present user EPCC from
+ * kernel $epcc, potentially overwriting a previously present user $epcc from
  * exception entry.  Once the kernel does multiple security domains, the
- * caller should manage EPCC in that case as well, and we can remove EPCC
+ * caller should manage $epcc in that case as well, and we can remove $epcc
  * assignment here.
  */
 #define	CHERI_EXCEPTION_RETURN(reg)					\
@@ -149,11 +149,11 @@
 	beq	reg, $0, 65f;						\
 	nop;								\
 	b	66f;							\
-	/* If returning to userspace, restore saved user $c0. */	\
+	/* If returning to userspace, restore saved user $ddc. */	\
 	CHERI_ASM_CMOVE(CHERI_REG_C0, CHERI_REG_SEC0); /* Branch-delay. */ \
 	/* csetdefault	CHERI_REG_SEC0; */	/* Branch-delay. */	\
 65:									\
-	/* If returning to kernelspace, reinstall kernel code PCC. */	\
+	/* If returning to kernelspace, reinstall kernel code $pcc. */	\
 	/*								\
 	 * XXXRW: If requested PC has been adjusted by stack, similarly	\
 	 * adjust $epcc.offset, which will overwrite an earlier $epc	\
@@ -165,10 +165,10 @@
 66:
 
 /*
- * Save and restore user CHERI state on an exception.  Assumes that $c0 has
+ * Save and restore user CHERI state on an exception.  Assumes that $ddc has
  * already been moved to $sec0, and that if we write $sec0, it will get moved
- * to $c0 later.  Unlike kernel context switches, we both save and restore the
- * capability cause register.
+ * to $ddc later.  Unlike kernel context switches, we both save and restore
+ * the capability cause register.
  *
  * XXXRW: Note hard-coding of SEC0 here.
  *

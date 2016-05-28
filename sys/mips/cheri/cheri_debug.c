@@ -49,7 +49,7 @@
  * Variation that prints live register state from the capability coprocessor.
  *
  * NB: Over time we will shift towards special registers holding values such
- * as $c0.  As a result, we must move those values through a temporary
+ * as $ddc.  As a result, we must move those values through a temporary
  * register that is hence overwritten.
  */
 DB_SHOW_COMMAND(cp2, ddb_dump_cp2)
@@ -65,12 +65,12 @@ DB_SHOW_COMMAND(cp2, ddb_dump_cp2)
 	if (regnum < 32)
 		db_printf("RegNum: $c%02d ", regnum);
 	else if (regnum == 255)
-		db_printf("RegNum: PCC ");
+		db_printf("RegNum: $pcc ");
 	else
 		db_printf("RegNum: invalid (%d) ", regnum);
 	db_printf("(%s)\n", cheri_exccode_string(exccode));
 
-	/* Shift $c0 into $ctemp for printing. */
+	/* Shift $ddc into $ctemp for printing. */
 	CHERI_CGETDEFAULT(CHERI_CR_CTEMP0);
 	DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, 0);
 	DB_CHERI_REG_PRINT(1, 1);
@@ -122,16 +122,16 @@ db_show_cheri_trapframe(struct trapframe *frame)
 	if (regnum < 32)
 		db_printf("RegNum: $c%02d ", regnum);
 	else if (regnum == 255)
-		db_printf("RegNum: PCC ");
+		db_printf("RegNum: $pcc ");
 	else
 		db_printf("RegNum: invalid (%d) ", regnum);
 	db_printf("(%s)\n", cheri_exccode_string(exccode));
 
 	cheri_capability_load(CHERI_CR_CTEMP0, &frame->ddc);
-	db_printf("DDC ");
+	db_printf("$ddc ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 	cheri_capability_load(CHERI_CR_CTEMP0, &frame->pcc);
-	db_printf("PCC ");
+	db_printf("$pcc ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 	db_printf("\n");
 
@@ -194,11 +194,11 @@ DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 		    '*' : ' ');
 
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_idc, 0);
-		db_printf("  IDC ");
+		db_printf("  $idc ");
 		DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_pcc, 0);
-		db_printf("  PCC ");
+		db_printf("  $ppc ");
 		DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 	}
 }

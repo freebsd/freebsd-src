@@ -98,13 +98,13 @@
 /*
  * Two variations on cheri_ptr() based on whether we are looking for a code or
  * data capability.  The compiler's use of CFromPtr will be with respect to
- * $c0 or $pcc depending on the type of the pointer derived, so we need to use
- * types to differentiate the two versions at compile time.  We don't provide
- * the full set of function variations for code pointers as they haven't
- * proven necessary as yet.
+ * $ddc or $pcc depending on the type of the pointer derived, so we need to
+ * use types to differentiate the two versions at compile time.  We don't
+ * provide the full set of function variations for code pointers as they
+ * haven't proven necessary as yet.
  *
  * XXXRW: Ideally, casting via a function pointer would cause the compiler to
- * derive the capability using CFromPtr on $pcc rather than on $c0.  This
+ * derive the capability using CFromPtr on $pcc rather than on $ddc.  This
  * appears not currently to be the case, so manually derive using
  * cheri_getpcc() for now.
  */
@@ -155,8 +155,8 @@ cheri_ptrpermoff(const void *ptr, size_t len, register_t perm, off_t off)
 /*
  * Construct a capability suitable to describe a type identified by 'ptr';
  * set it to zero-length with the offset equal to the base.  The caller must
- * provide a root capability (in the old world order, derived from $c0, but in
- * the new world order, likely extracted from the kernel using sysarch(2)).
+ * provide a root capability (in the old world order, derived from $ddc, but
+ * in the new world order, likely extracted from the kernel using sysarch(2)).
  *
  * The caller may wish to assert various properties about the returned
  * capability, including that CHERI_PERM_SEAL is set.

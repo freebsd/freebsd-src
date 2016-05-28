@@ -81,11 +81,11 @@ struct cheri_object {
  * state in this structure is critical to both correctness and security.
  */
 struct cheri_frame {
-	/* c0 has special properties for MIPS load/store instructions. */
+	/* DDC has special properties for MIPS load/store instructions. */
 #if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void	*cf_c0;
+	__capability void	*cf_ddc;
 #else
-	struct chericap	cf_c0;
+	struct chericap	cf_ddc;
 #endif
 
 	/*
@@ -155,21 +155,21 @@ struct cheri_kframe {
 /*
  * Data structure describing CHERI's sigaltstack-like extensions to signal
  * delivery.  In the event that a thread takes a signal when $pcc doesn't hold
- * CHERI_PERM_SYSCALL, we will need to install new $pcc, $c0, $c11, and $idc
+ * CHERI_PERM_SYSCALL, we will need to install new $pcc, $ddc, $c11, and $idc
  * state, and move execution to the per-thread alternative stack, whose
- * pointer should (presumably) be relative to the c0/c11 defined here.
+ * pointer should (presumably) be relative to the $ddc/$c11 defined here.
  */
 struct cheri_signal {
 #if !defined(_KERNEL) && __has_feature(capabilities)
 	__capability void	*csig_pcc;
-	__capability void	*csig_c0;
+	__capability void	*csig_ddc;
 	__capability void	*csig_c11;
 	__capability void	*csig_idc;
 	__capability void	*csig_default_stack;
 	__capability void	*csig_sigcode;
 #else
 	struct chericap		 csig_pcc;
-	struct chericap		 csig_c0;
+	struct chericap		 csig_ddc;
 	struct chericap		 csig_c11;
 	struct chericap		 csig_idc;
 	struct chericap		 csig_default_stack;
@@ -323,8 +323,8 @@ struct cheri_stack {
 
 /*
  * Note that despite effectively being a CMove, CGetDefault doesn't require a
- * memory clobber: if it's writing to $c0, it's a nop; otherwise, it's not
- * writing to $c0 so no clobber is needed.
+ * memory clobber: if it's writing to $ddc, it's a nop; otherwise, it's not
+ * writing to $ddc so no clobber is needed.
  */
 #define	CHERI_CGETDEFAULT(cd) do {					\
 	__asm__ __volatile__ (						\
@@ -368,8 +368,8 @@ struct cheri_stack {
 /*
  * Instructions relating to capability invocation, return, sealing, and
  * unsealing.  Memory clobbers are required for register manipulation when
- * targeting $c0.  They are also required for both CCall and CReturn to ensure
- * that any memory write-back is done before invocation.
+ * targeting $ddc.  They are also required for both CCall and CReturn to
+ * ensure that any memory write-back is done before invocation.
  *
  * XXXRW: Is the latter class of cases required?
  */
@@ -426,8 +426,8 @@ struct cheri_stack {
 } while (0)
 
 /*
- * Capability store; while this doesn't muck with c0, it does require a memory
- * clobber.
+ * Capability store; while this doesn't muck with $ddc, it does require a
+ * memory clobber.
  */
 #define	CHERI_CSC(cs, cb, regbase, offset) do {				\
 	__asm__ __volatile__ (						\
@@ -440,7 +440,7 @@ struct cheri_stack {
 } while (0)
 
 /*
- * Data stores; while these don't muck with c0, they do require memory
+ * Data stores; while these don't muck with $ddc, they do require memory
  * clobbers.
  */
 #define	CHERI_CSB(rs, rt, offset, cb) do {				\
@@ -480,7 +480,7 @@ struct cheri_stack {
 } while (0)
 
 /*
- * Data loads: while these don't much with c0, they do require memory
+ * Data loads: while these don't much with $ddc, they do require memory
  * clobbers.
  */
 #define	CHERI_CLB(rd, rt, offset, cb) do {				\

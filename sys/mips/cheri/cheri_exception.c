@@ -118,7 +118,7 @@ cheri_trapframe_to_cheriframe(struct trapframe *frame,
 	 */
 	bzero(cfp, sizeof(*cfp));
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->ddc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c0, 0);
+	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_ddc, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c1, 0);
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c1, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c2, 0);
@@ -185,7 +185,7 @@ cheri_trapframe_from_cheriframe(struct trapframe *frame,
     struct cheri_frame *cfp)
 {
 
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c0, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_ddc, 0);
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->ddc, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c1, 0);
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c1, 0);
@@ -355,11 +355,11 @@ cheri_log_cheri_frame(struct trapframe *frame)
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c24, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 24);
 
-	/* C26 - IDC */
+	/* C26 - $idc */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->idc, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 26);
 
-	/* C31 - saved PCC */
+	/* C31 - saved $pcc */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->pcc, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 31);
 }
@@ -382,7 +382,7 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 		if (regnum < 32)
 			printf("RegNum: $c%02d ", regnum);
 		else if (regnum == 255)
-			printf("RegNum: PCC ");
+			printf("RegNum: $pcc ");
 		else
 			printf("RegNum: invalid (%d) ", regnum);
 		printf("(%s)\n", cheri_exccode_string(exccode));

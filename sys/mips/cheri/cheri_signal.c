@@ -72,7 +72,7 @@ cheri_sendsig(struct thread *td)
 
 	frame = &td->td_pcb->pcb_regs;
 	csigp = &td->td_pcb->pcb_cherisignal;
-	cheri_capability_copy(&frame->ddc, &csigp->csig_c0);
+	cheri_capability_copy(&frame->ddc, &csigp->csig_ddc);
 	cheri_capability_copy(&frame->c11, &csigp->csig_c11);
 	cheri_capability_copy(&frame->idc, &csigp->csig_idc);
 	cheri_capability_copy(&frame->pcc, &csigp->csig_pcc);
