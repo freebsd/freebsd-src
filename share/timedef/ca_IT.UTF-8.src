@@ -56,14 +56,14 @@ dissabte
 %e/%m/%y
 #
 # c_fmt
-%e %B de %Y, %H:%M:%S
+%a %e %B de %Y, %H:%M:%S
 #
 # AM/PM
 a. m.
 p. m.
 #
 # date_fmt
-%e %B de %Y, %H:%M:%S %Z
+%a %e %B de %Y, %H:%M:%S %Z
 #
 # Long month names (without case ending)
 de gener

@@ -56,14 +56,14 @@
 %e/%m/%y
 #
 # c_fmt
-%e %B %Y को %I:%M:%S %p
+%a %e %B %Y को %I:%M:%S %p
 #
 # AM/PM
 पूर्वाह्न
 अपराह्न
 #
 # date_fmt
-%e %B %Y को %I:%M:%S %p %Z
+%a %e %B %Y को %I:%M:%S %p %Z
 #
 # Long month names (without case ending)
 जनवरी

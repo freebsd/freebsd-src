@@ -56,14 +56,14 @@
 %d.%m.%y
 #
 # c_fmt
-%e %B %Y р. %H:%M:%S
+%a %e %B %Y р. %H:%M:%S
 #
 # AM/PM
 дп
 пп
 #
 # date_fmt
-%e %B %Y р. %H:%M:%S %Z
+%a %e %B %Y р. %H:%M:%S %Z
 #
 # Long month names (without case ending)
 січень
