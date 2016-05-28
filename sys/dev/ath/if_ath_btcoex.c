@@ -252,7 +252,69 @@ ath_btcoex_cfg_wb222(struct ath_softc *sc)
 	return (0);
 }
 
+/*
+ * Initial QCA9565 / (WB335B) bluetooth coexistence settings,
+ * just for experimentation.
+ *
+ * Return 0 for OK; errno for error.
+ */
+static int
+ath_btcoex_cfg_wb335b(struct ath_softc *sc)
+{
+	HAL_BT_COEX_INFO btinfo;
+	HAL_BT_COEX_CONFIG btconfig;
+	struct ath_hal *ah = sc->sc_ah;
 
+	if (! ath_hal_btcoex_supported(ah))
+		return (EINVAL);
+
+	bzero(&btinfo, sizeof(btinfo));
+	bzero(&btconfig, sizeof(btconfig));
+
+	device_printf(sc->sc_dev, "Enabling WB335B BTCOEX\n");
+
+	btinfo.bt_module = HAL_BT_MODULE_JANUS;	/* XXX not used? */
+	btinfo.bt_coex_config = HAL_BT_COEX_CFG_MCI;
+
+	/*
+	 * MCI uses a completely different interface to speak
+	 * to the bluetooth module - it's a command based
+	 * thing over a serial line, rather than
+	 * state pins to/from the bluetooth module.
+	 *
+	 * So, the GPIO configuration, polarity, etc
+	 * doesn't matter on MCI devices; it's just
+	 * completely ignored by the HAL.
+	 */
+	btinfo.bt_gpio_bt_active = 4;
+	btinfo.bt_gpio_bt_priority = 8;
+	btinfo.bt_gpio_wlan_active = 5;
+
+	btinfo.bt_active_polarity = 1;	/* XXX not used */
+	btinfo.bt_single_ant = 0;	/* 2 antenna on WB335 */
+	btinfo.bt_isolation = 0;	/* in dB, not used */
+
+	ath_hal_btcoex_set_info(ah, &btinfo);
+
+	btconfig.bt_time_extend = 0;
+	btconfig.bt_txstate_extend = 1;	/* true */
+	btconfig.bt_txframe_extend = 1;	/* true */
+	btconfig.bt_mode = HAL_BT_COEX_MODE_SLOTTED;
+	btconfig.bt_quiet_collision = 1;	/* true */
+	btconfig.bt_rxclear_polarity = 1;	/* true */
+	btconfig.bt_priority_time = 2;
+	btconfig.bt_first_slot_time = 5;
+	btconfig.bt_hold_rxclear = 1;	/* true */
+
+	ath_hal_btcoex_set_config(ah, &btconfig);
+
+	/*
+	 * Enable antenna diversity.
+	 */
+	ath_hal_btcoex_set_parameter(ah, HAL_BT_COEX_ANTENNA_DIVERSITY, 1);
+
+	return (0);
+}
 
 
 #if 0
@@ -313,6 +375,8 @@ ath_btcoex_attach(struct ath_softc *sc)
 		ret = ath_btcoex_cfg_wb222(sc);
 	} else if (strncmp(profname, "wb225", 5) == 0) {
 		ret = ath_btcoex_cfg_wb225(sc);
+	} else if (strncmp(profname, "wb335", 5) == 0) {
+		ret = ath_btcoex_cfg_wb335b(sc);
 	} else {
 		return (0);
 	}
