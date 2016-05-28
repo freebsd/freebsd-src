@@ -46,6 +46,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcrypt \
 	${_libcurl} \
 	libdevctl \
+	libdevdctl \
 	libdevinfo \
 	libdevstat \
 	libdpv \
