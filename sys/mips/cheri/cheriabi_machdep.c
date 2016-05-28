@@ -512,8 +512,8 @@ cheriabi_swapcontext(struct thread *td, struct cheriabi_swapcontext_args *uap)
  * The CheriABI version of sendsig(9) largely borrows from the MIPS version,
  * and it is important to keep them in sync.  It differs primarily in that it
  * must also be aware of user stack-handling ABIs, so is also sensitive to our
- * (fluctuating) design choices in how $c11 and $sp interact.  The current
- * design uses ($c11 + $sp) for stack-relative references, so early on we have
+ * (fluctuating) design choices in how $stc and $sp interact.  The current
+ * design uses ($stc + $sp) for stack-relative references, so early on we have
  * to calculate a 'relocated' version of $sp that we can then use for
  * MIPS-style access.
  *
@@ -547,17 +547,17 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs = td->td_frame;
 
 	/*
-	 * In CheriABI, $sp is $c11 relative, so calculate a relocation base
+	 * In CheriABI, $sp is $stc relative, so calculate a relocation base
 	 * that must be combined with regs->sp from this point onwards.
 	 * Unfortunately, we won't retain bounds and permissions information
 	 * (as is the case elsewhere in CheriABI).  While 'stackbase'
-	 * suggests that $c11's offset isn't included, in practice it will be,
+	 * suggests that $stc's offset isn't included, in practice it will be,
 	 * although we may reasonably assume that it will be zero.
 	 *
 	 * If it turns out we will be delivering to the alternative signal
 	 * stack, we'll recalculate stackbase later.
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.c11,
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.stc,
 	    0);
 	CHERI_CTOPTR(stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	oonstack = sigonstack(stackbase + regs->sp);
@@ -765,7 +765,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	cheri_sendsig(td);
 
 	/*
-	 * Note that $sp must be installed relative to $c11, so re-subtract
+	 * Note that $sp must be installed relative to $stc, so re-subtract
 	 * the stack base here.
 	 */
 	regs->pc = (register_t)(intptr_t)catcher;
@@ -821,7 +821,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	KASSERT(stack > stackbase,
 	    ("top of stack 0x%lx is below stack base 0x%lx", stack, stackbase));
 	stacklen = stack - stackbase;
-	cheri_capability_set(&td->td_frame->c11, CHERI_CAP_USER_DATA_PERMS,
+	cheri_capability_set(&td->td_frame->stc, CHERI_CAP_USER_DATA_PERMS,
 	    CHERI_CAP_USER_DATA_OTYPE, (void *)stackbase, stacklen, 0);
 	td->td_frame->sp = stacklen;
 	/*
@@ -829,7 +829,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	 * cheri_exec_setregs() covers the whole address space.
 	 */
 	csigp = &td->td_pcb->pcb_cherisignal;
-	cheri_capability_set(&csigp->csig_c11, CHERI_CAP_USER_DATA_PERMS,
+	cheri_capability_set(&csigp->csig_stc, CHERI_CAP_USER_DATA_PERMS,
 	    CHERI_CAP_USER_DATA_OTYPE, (void *)stackbase, stacklen, 0);
 	/* XXX: set sp for signal stack! */
 
@@ -865,7 +865,7 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	 * We don't perform valiation on the new pcc or stack capabilities
 	 * and just let the caller fail on return if they are bogus.
 	 */
-	cheri_capability_copy(&frame->c11, &param->stack_base);
+	cheri_capability_copy(&frame->stc, &param->stack_base);
 	td->td_frame->sp = param->stack_size;
 	/*
 	 * XXX-BD: cpu_set_upcall() copies the cheri_signal struct.  Do we
@@ -921,7 +921,7 @@ void
 cheriabi_get_signal_stack_capability(struct thread *td, struct chericap *csig)
 {
 
-	cheri_capability_copy(csig, &td->td_pcb->pcb_cherisignal.csig_c11);
+	cheri_capability_copy(csig, &td->td_pcb->pcb_cherisignal.csig_stc);
 }
 
 /*
@@ -932,7 +932,7 @@ void
 cheriabi_set_signal_stack_capability(struct thread *td, struct chericap *csig)
 {
 
-	cheri_capability_copy(&td->td_pcb->pcb_cherisignal.csig_c11,
+	cheri_capability_copy(&td->td_pcb->pcb_cherisignal.csig_stc,
 	    csig != NULL ? csig :
 	    &td->td_pcb->pcb_cherisignal.csig_default_stack);
 }

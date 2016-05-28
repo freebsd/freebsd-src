@@ -243,6 +243,7 @@
  * Ideally, this list wouldn't exist here, but be purely in the assembler.
  */
 #define	CHERI_CR_C0	0	/*   MIPS fetch/load/store capability. */
+#define	CHERI_CR_DDC	CHERI_CR_C0
 #define	CHERI_CR_C1	1
 #define	CHERI_CR_C2	2
 #define	CHERI_CR_C3	3
@@ -254,6 +255,7 @@
 #define	CHERI_CR_C9	9
 #define	CHERI_CR_C10	10
 #define	CHERI_CR_C11	11
+#define	CHERI_CR_STC	CHERI_CR_C11
 #define	CHERI_CR_C12	12
 #define	CHERI_CR_C13	13
 #define	CHERI_CR_C14	14
@@ -268,12 +270,18 @@
 #define	CHERI_CR_C23	23
 #define	CHERI_CR_C24	24
 #define	CHERI_CR_C25	25
-#define	CHERI_CR_IDC	26
-#define	CHERI_CR_KR1C	27
-#define	CHERI_CR_KR2C	28
-#define	CHERI_CR_KCC	29
-#define	CHERI_CR_KDC	30
-#define	CHERI_CR_EPCC	31
+#define	CHERI_CR_C26	26
+#define	CHERI_CR_IDC	CHERI_CR_C26
+#define	CHERI_CR_C27	27
+#define	CHERI_CR_KR1C	CHERI_CR_C27
+#define	CHERI_CR_C28	28
+#define	CHERI_CR_KR2C	CHERI_CR_C28
+#define	CHERI_CR_C29	29
+#define	CHERI_CR_KCC	CHERI_CR_C29
+#define	CHERI_CR_C30	30
+#define	CHERI_CR_KDC	CHERI_CR_C30
+#define	CHERI_CR_C31	31
+#define	CHERI_CR_EPCC	CHERI_CR_C31
 
 #define	CHERI_CR_CTEMP0	CHERI_CR_C11	/* C capability manipulation. */
 #define	CHERI_CR_CTEMP1	CHERI_CR_C12	/* C capability manipulation. */

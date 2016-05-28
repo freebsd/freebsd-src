@@ -921,7 +921,7 @@ ktrcexception(struct trapframe *frame)
 
 	/* XXXCHERI: What about PCC? */
 	cheri_serialize(&ke->ktr_cap,
-	    ke->ktr_regnum == CHERI_CR_C0 ? &frame->ddc :
+	    ke->ktr_regnum == CHERI_CR_DDC ? &frame->ddc :
 	    ke->ktr_regnum == CHERI_CR_C1 ? &frame->c1 :
 	    ke->ktr_regnum == CHERI_CR_C2 ? &frame->c2 :
 	    ke->ktr_regnum == CHERI_CR_C3 ? &frame->c3 :
@@ -932,7 +932,7 @@ ktrcexception(struct trapframe *frame)
 	    ke->ktr_regnum == CHERI_CR_C8 ? &frame->c8 :
 	    ke->ktr_regnum == CHERI_CR_C9 ? &frame->c9 :
 	    ke->ktr_regnum == CHERI_CR_C10 ? &frame->c10 :
-	    ke->ktr_regnum == CHERI_CR_C11 ? &frame->c11 :
+	    ke->ktr_regnum == CHERI_CR_STC ? &frame->stc :
 	    ke->ktr_regnum == CHERI_CR_C12 ? &frame->c12 :
 	    ke->ktr_regnum == CHERI_CR_C13 ? &frame->c13 :
 	    ke->ktr_regnum == CHERI_CR_C14 ? &frame->c14 :

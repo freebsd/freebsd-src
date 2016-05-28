@@ -106,7 +106,7 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sigprot, CTLFLAG_RW,
     "Enter KDB when SIGPROT is delivered to an unsandboxed thread");
 
 static void	cheri_capability_set_user_ddc(struct chericap *);
-static void	cheri_capability_set_user_stack(struct chericap *);
+static void	cheri_capability_set_user_stc(struct chericap *);
 static void	cheri_capability_set_user_pcc(struct chericap *);
 static void	cheri_capability_set_user_entry(struct chericap *,
 		    unsigned long);
@@ -248,7 +248,7 @@ cheri_capability_set_user_ddc(struct chericap *cp)
 }
 
 static void
-cheri_capability_set_user_stack(struct chericap *cp)
+cheri_capability_set_user_stc(struct chericap *cp)
 {
 
 	/*
@@ -374,7 +374,7 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	 * propagate around rights as required.
 	 */
 	cheri_capability_set_user_ddc(&frame->ddc);
-	cheri_capability_set_user_stack(&frame->c11);
+	cheri_capability_set_user_stc(&frame->stc);
 	cheri_capability_set_user_idc(&frame->idc);
 	cheri_capability_set_user_pcc(&frame->pcc);
 	cheri_capability_set_user_entry(&frame->c12, entry_addr);
@@ -388,8 +388,8 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	csigp = &td->td_pcb->pcb_cherisignal;
 	bzero(csigp, sizeof(*csigp));
 	cheri_capability_set_user_ddc(&csigp->csig_ddc);
-	cheri_capability_set_user_stack(&csigp->csig_c11);
-	cheri_capability_set_user_stack(&csigp->csig_default_stack);
+	cheri_capability_set_user_stc(&csigp->csig_stc);
+	cheri_capability_set_user_stc(&csigp->csig_default_stack);
 	cheri_capability_set_user_idc(&csigp->csig_idc);
 	cheri_capability_set_user_pcc(&csigp->csig_pcc);
 	cheri_capability_set_user_sigcode(&csigp->csig_sigcode,

@@ -89,20 +89,20 @@ struct cheri_frame {
 #endif
 
 	/*
-	 * General-purpose capabilities -- note, numbering is from v1.7 of the
-	 * CHERI ISA spec (ISAv2).
+	 * General-purpose capabilities -- note, numbering is from v1.17 of
+	 * the CHERI ISA spec (ISAv5 draft).
 	 */
 #if !defined(_KERNEL) && __has_feature(capabilities)
 	__capability void *cf_c1, *cf_c2, *cf_c3, *cf_c4;
 	__capability void *cf_c5, *cf_c6, *cf_c7;
-	__capability void *cf_c8, *cf_c9, *cf_c10, *cf_c11, *cf_c12;
+	__capability void *cf_c8, *cf_c9, *cf_c10, *cf_stc, *cf_c12;
 	__capability void *cf_c13, *cf_c14, *cf_c15, *cf_c16, *cf_c17;
 	__capability void *cf_c18, *cf_c19, *cf_c20, *cf_c21, *cf_c22;
 	__capability void *cf_c23, *cf_c24, *cf_c25, *cf_idc;
 #else
 	struct chericap	cf_c1, cf_c2, cf_c3, cf_c4;
 	struct chericap	cf_c5, cf_c6, cf_c7;
-	struct chericap	cf_c8, cf_c9, cf_c10, cf_c11, cf_c12;
+	struct chericap	cf_c8, cf_c9, cf_c10, cf_stc, cf_c12;
 	struct chericap	cf_c13, cf_c14, cf_c15, cf_c16, cf_c17;
 	struct chericap	cf_c18, cf_c19, cf_c20, cf_c21, cf_c22;
 	struct chericap cf_c23, cf_c24, cf_c25, cf_idc;
@@ -155,22 +155,22 @@ struct cheri_kframe {
 /*
  * Data structure describing CHERI's sigaltstack-like extensions to signal
  * delivery.  In the event that a thread takes a signal when $pcc doesn't hold
- * CHERI_PERM_SYSCALL, we will need to install new $pcc, $ddc, $c11, and $idc
+ * CHERI_PERM_SYSCALL, we will need to install new $pcc, $ddc, $stc, and $idc
  * state, and move execution to the per-thread alternative stack, whose
- * pointer should (presumably) be relative to the $ddc/$c11 defined here.
+ * pointer should (presumably) be relative to the $ddc/$stc defined here.
  */
 struct cheri_signal {
 #if !defined(_KERNEL) && __has_feature(capabilities)
 	__capability void	*csig_pcc;
 	__capability void	*csig_ddc;
-	__capability void	*csig_c11;
+	__capability void	*csig_stc;
 	__capability void	*csig_idc;
 	__capability void	*csig_default_stack;
 	__capability void	*csig_sigcode;
 #else
 	struct chericap		 csig_pcc;
 	struct chericap		 csig_ddc;
-	struct chericap		 csig_c11;
+	struct chericap		 csig_stc;
 	struct chericap		 csig_idc;
 	struct chericap		 csig_default_stack;
 	struct chericap		 csig_sigcode;

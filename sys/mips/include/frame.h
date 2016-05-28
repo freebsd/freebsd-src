@@ -158,7 +158,7 @@ struct trapframe {
 	struct chericap		c8;
 	struct chericap		c9;
 	struct chericap		c10;
-	struct chericap		c11;
+	struct chericap		stc;
 	struct chericap		c12;
 	struct chericap		c13;
 	struct chericap		c14;
