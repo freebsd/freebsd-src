@@ -1679,16 +1679,8 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 	remainder = m0->m_pkthdr.len - off;
 	prev = m0;
 	do {
-		fragsize = totalhdrsize + remainder;
-		if (fragsize > mtu)
-			fragsize = mtu;
-		/* XXX fragsize can be >2048! */
-		KASSERT(fragsize < MCLBYTES,
-			("fragment size %u too big!", fragsize));
-		if (fragsize > MHLEN)
-			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-		else
-			m = m_gethdr(M_NOWAIT, MT_DATA);
+		fragsize = MIN(totalhdrsize + remainder, mtu);
+		m = m_get2(fragsize, M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL)
 			goto bad;
 		/* leave room to prepend any cipher header */
