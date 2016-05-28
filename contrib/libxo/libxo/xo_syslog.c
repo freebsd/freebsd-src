@@ -91,7 +91,7 @@
 #elif defined(__macosx__)
 #define XO_DEFAULT_EID	63
 #else
-#define XO_DEFAULT_EID	32473	/* Bail; use "example" number */
+#define XO_DEFAULT_EID	32473	/* Fallback to the "example" number */
 #endif
 
 #ifdef _SC_HOST_NAME_MAX
