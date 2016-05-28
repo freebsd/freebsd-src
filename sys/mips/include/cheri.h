@@ -200,7 +200,7 @@ struct cheri_stack_frame {
 	__capability void	*csf_pcc;
 	__capability void	*csf_idc;
 #else
-	struct chericap	csf_pcc;	/* XXXRW: Store $pc in here? */
+	struct chericap	csf_pcc;
 	struct chericap	csf_idc;
 #endif
 };
@@ -356,14 +356,6 @@ struct cheri_stack {
 	    ".set pop\n"						\
 	    : : "i" (cs), "i" (cb));					\
 } while (0)
-
-/*
- * Routines that modify or replace values in capability registers that don't
- * affect memory access via the register.  These do not require memory
- * clobbers.
- *
- * XXXRW: Are there now none of these?
- */
 
 /*
  * Instructions relating to capability invocation, return, sealing, and
@@ -548,8 +540,8 @@ struct cheri_stack {
 
 /*
  * Routines that modify or replace values in capability registers, and that if
- * if used on C0, require the compiler to write registers back to memory, and
- * reload afterwards, since we may effectively be changing the compiler-
+ * if used on $ddc, require the compiler to write registers back to memory,
+ * and reload afterwards, since we may effectively be changing the compiler-
  * visible address space.  This is also necessary for permissions changes as
  * well, to ensure that write-back occurs before a possible loss of store
  * permission.
@@ -769,19 +761,6 @@ cheri_capability_store(u_int crn_from, struct chericap *cp)
 
         CHERI_CSC(crn_from, CHERI_CR_KDC, cp, 0);
 }
-
-/*
- * Extract a flattened but useful memory representation of a complete
- * capability register.
- */
-#define	CHERI_GETCAPREG(crn, c) do {					\
-	CHERI_CGETPERM((c).c_perms, (crn));				\
-	CHERI_CGETSEALED((c).c_sealed, (crn));				\
-	CHERI_CGETTYPE((c).c_otype, (crn));				\
-	CHERI_CGETBASE((c).c_base, (crn));				\
-	CHERI_CGETLEN((c).c_length, (crn));				\
-} while (0)
-
 
 /*
  * Routines for measuring time -- depends on a later MIPS userspace cycle
