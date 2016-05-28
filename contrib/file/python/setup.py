@@ -1,10 +1,22 @@
-# Python distutils build script for magic extension
-from distutils.core import setup
+# coding: utf-8
 
-setup(name = 'Magic file extensions',
-    version = '0.2',
-    author = 'Reuben Thomas',
-    author_email = 'rrt@sc3d.org',
-    license = 'BSD',
-    description = 'libmagic Python bindings',
-    py_modules = ['magic'])
+from __future__ import unicode_literals
+
+from setuptools import setup
+
+
+setup(name='file-magic',
+      version='0.3.0',
+      author='Reuben Thomas, Álvaro Justen',
+      author_email='rrt@sc3d.org, alvarojusten@gmail.com',
+      url='https://github.com/file/file',
+      license='BSD',
+      description='(official) libmagic Python bindings',
+      py_modules=['magic'],
+      test_suite='tests',
+      classifiers = [
+          'Intended Audience :: Developers',
+          'License :: OSI Approved :: BSD License',
+          'Natural Language :: English',
+          'Topic :: Software Development :: Libraries :: Python Modules',
+      ])
