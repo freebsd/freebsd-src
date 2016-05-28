@@ -141,7 +141,17 @@ fuse_filehandle_open(struct vnode *vp,
 	foo = fdi.answ;
 
 	fuse_filehandle_init(vp, fufh_type, fufhp, foo->fh);
-	fuse_vnode_open(vp, foo->open_flags, td);
+
+	/*
+	 * For WRONLY opens, force DIRECT_IO.  This is necessary
+	 * since writing a partial block through the buffer cache
+	 * will result in a read of the block and that read won't
+	 * be allowed by the WRONLY open.
+	 */
+	if (fufh_type == FUFH_WRONLY)
+		fuse_vnode_open(vp, foo->open_flags | FOPEN_DIRECT_IO, td);
+	else
+		fuse_vnode_open(vp, foo->open_flags, td);
 
 out:
 	fdisp_destroy(&fdi);
