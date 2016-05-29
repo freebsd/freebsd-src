@@ -216,6 +216,28 @@ fuse_filehandle_valid(struct vnode *vp, fufh_type_t fufh_type)
 	return FUFH_IS_VALID(fufh);
 }
 
+/*
+ * Check for a valid file handle, first the type requested, but if that
+ * isn't valid, try for FUFH_RDWR.
+ * Return the FUFH type that is valid or FUFH_INVALID if there are none.
+ * This is a variant of fuse_filehandle_vaild() analogous to
+ * fuse_filehandle_getrw().
+ */
+fufh_type_t
+fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_filehandle *fufh;
+
+	fufh = &fvdat->fufh[fufh_type];
+	if (FUFH_IS_VALID(fufh) != 0)
+		return (fufh_type);
+	fufh = &fvdat->fufh[FUFH_RDWR];
+	if (FUFH_IS_VALID(fufh) != 0)
+		return (FUFH_RDWR);
+	return (FUFH_INVALID);
+}
+
 int
 fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
     struct fuse_filehandle **fufhp)
