@@ -396,6 +396,7 @@ network_init(void)
 	freeifaddrs(ifp);
 #endif
 
+	freeaddrinfo(res);
 	/* close(s); */
 }
 
