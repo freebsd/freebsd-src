@@ -48,6 +48,8 @@
     cddl
         lib
         ..
+        sbin
+        ..
         usr.bin
         ..
         usr.sbin
