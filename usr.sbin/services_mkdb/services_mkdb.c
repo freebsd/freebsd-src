@@ -92,7 +92,7 @@ main(int argc, char *argv[])
 	size_t	 cnt = 0;
 	StringList *sl, ***svc;
 	size_t port, proto;
-	char *dbname_dir;
+	char *dbname_dir, *dbname_dirbuf;
 	int dbname_dir_fd = -1;
 
 	setprogname(argv[0]);
@@ -172,7 +172,8 @@ main(int argc, char *argv[])
 	 * fsync() to the directory where file lies
 	 */
 	if (rename(tname, dbname) == -1 ||
-	    (dbname_dir = dirname(dbname)) == NULL ||
+	    (dbname_dirbuf = strdup(dbname)) == NULL ||
+	    (dbname_dir = dirname(dbname_dirbuf)) == NULL ||
 	    (dbname_dir_fd = open(dbname_dir, O_RDONLY|O_DIRECTORY)) == -1 ||
 	    fsync(dbname_dir_fd) != 0) {
 		if (dbname_dir_fd != -1)
