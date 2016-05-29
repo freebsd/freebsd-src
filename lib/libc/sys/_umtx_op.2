@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2016
+.Dd May 29, 2016
 .Dt _UMTX_OP 2
 .Os
 .Sh NAME
@@ -1041,6 +1041,20 @@ with the byte addressed by the
 if any.
 Only normal mutexes are supported by the request.
 The sleep queue is always one for a normal mutex type.
+.Pp
+This request is deprecated in favor of
+.Dv UMTX_OP_MUTEX_WAKE2
+since mutexes using it cannot synchronize their own destruction.
+That is, the
+.Dv m_owner
+word has already been set to
+.Dv UMUTEX_UNOWNED
+when this request is made,
+so that another thread can lock, unlock and destroy the mutex
+(if no other thread uses the mutex afterwards).
+Clearing the
+.Dv UMUTEX_CONTESTED
+bit may then modify freed memory.
 .It Dv UMTX_OP_MUTEX_WAKE2
 Check if a umutex is unlocked and wake up a waiter.
 The arguments for the request are:
