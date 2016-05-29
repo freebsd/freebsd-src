@@ -430,7 +430,7 @@ random(void)
 		 */
 		f = fptr; r = rptr;
 		*f += *r;
-		i = (*f >> 1) & 0x7fffffff;	/* chucking least random bit */
+		i = *f >> 1;	/* chucking least random bit */
 		if (++f >= end_ptr) {
 			f = state;
 			++r;
