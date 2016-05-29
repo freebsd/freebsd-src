@@ -635,6 +635,10 @@ controls whether this flag is set by default or not.
 .It Cm -accept_rtadv
 Clear a flag
 .Cm accept_rtadv .
+.It Cm autoconf
+Set a flag to accept router advertisements on an interface.
+.It Fl autoconf
+Disable autoconfiguration.
 .It Cm no_radr
 Set a flag to control whether routers from which the system accepts
 Router Advertisement messages will be added to the Default Router List
@@ -707,12 +711,20 @@ Note that the address family keyword
 .Dq Li inet6
 is needed for them:
 .Bl -tag -width indent
+.It Cm deprecated
+Set the IPv6 deprecated address bit.
+.It Fl deprecated
+Clear the IPv6 deprecated address bit.
+.It Cm pltime Ar n
+Set preferred lifetime for the address.
 .It Cm prefer_source
 Set a flag to prefer address as a candidate of the source address for
 outgoing packets.
 .It Cm -prefer_source
 Clear a flag
 .Cm prefer_source .
+.It Cm vltime Ar n
+Set valid lifetime for the address.
 .El
 .Pp
 The following parameters are specific to cloning
