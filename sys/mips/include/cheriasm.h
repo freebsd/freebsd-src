@@ -77,11 +77,12 @@
 #define	CHERI_REG_EPCC	$c31	/* Exception program counter capability. */
 
 /*
- * The kernel maintains a CHERI micro-ABI preserving two registers, $c11 and
- * $c12, for use by kernel threads.  Label them here for consistency.
+ * In kernel inline assembly, employee these two caller-save registers.  This
+ * means that we don't need to worry about preserving prior values -- as long
+ * as there is no direct use of a capability register in a function.
  */
-#define	CHERI_REG_CTEMP0	CHERI_REG_C11	/* C capability manipulation. */
-#define	CHERI_REG_CTEMP1	CHERI_REG_C12	/* C capability manipulation. */
+#define	CHERI_REG_CTEMP0	CHERI_REG_C13	/* C capability manipulation. */
+#define	CHERI_REG_CTEMP1	CHERI_REG_C14	/* C capability manipulation. */
 
 /*
  * Where to save the user $ddc during low-level exception handling.  Possibly

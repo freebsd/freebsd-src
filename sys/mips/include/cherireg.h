@@ -283,8 +283,8 @@
 #define	CHERI_CR_C31	31
 #define	CHERI_CR_EPCC	CHERI_CR_C31
 
-#define	CHERI_CR_CTEMP0	CHERI_CR_C11	/* C capability manipulation. */
-#define	CHERI_CR_CTEMP1	CHERI_CR_C12	/* C capability manipulation. */
+#define	CHERI_CR_CTEMP0	CHERI_CR_C13	/* C capability manipulation. */
+#define	CHERI_CR_CTEMP1	CHERI_CR_C14	/* C capability manipulation. */
 #define	CHERI_CR_SEC0	CHERI_CR_KR2C	/* Saved $c0 in exception handler. */
 
 /*
