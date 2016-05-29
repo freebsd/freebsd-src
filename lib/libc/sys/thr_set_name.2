@@ -45,7 +45,7 @@ The
 .Fn thr_set_name
 sets the user-visible name for the kernel thread with the identifier
 .Va id
-in the current process, to the NULL-terminated string
+in the current process, to the NUL-terminated string
 .Va name .
 The thread name can be seen in the output of the
 .Xr ps 1
@@ -92,5 +92,5 @@ does not exist in the current process.
 .Sh STANDARDS
 The
 .Fn thr_new
-system call is non-standard and is used by the
+system call is non-standard and is used by
 .Lb libthr .
