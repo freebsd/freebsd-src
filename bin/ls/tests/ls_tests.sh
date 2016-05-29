@@ -535,7 +535,7 @@ atf_test_case h_flag
 h_flag_head()
 {
 	atf_set "descr" "Verify that -h prints out the humanized units for file sizes with ls -l"
-	atf_set "require.files" "/usr/bin/bc"
+	atf_set "require.progs" "bc"
 }
 
 h_flag_body()
