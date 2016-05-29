@@ -92,7 +92,7 @@ usage()
 	  -u               Run updates from our current DNS information
 
 	Options:
-	  -f               Ignore non existant interfaces
+	  -f               Ignore non existent interfaces
 	  -m metric        Give the added DNS information a metric
 	  -p               Mark the interface as private
 	  -x               Mark the interface as exclusive
@@ -884,7 +884,7 @@ export RESOLVCONF DOMAINS SEARCH NAMESERVERS LOCALNAMESERVERS
 retval=0
 
 # Run scripts in the same directory resolvconf is run from
-# in case any scripts accidently dump files in the wrong place.
+# in case any scripts accidentally dump files in the wrong place.
 cd "$_PWD"
 for script in "$LIBEXECDIR"/*; do
 	if [ -f "$script" ]; then
