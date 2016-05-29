@@ -12,6 +12,33 @@ OLD_FILES+=usr/sbin/accton
 OLD_FILES+=usr/sbin/sa
 OLD_FILES+=usr/share/man/man8/accton.8.gz
 OLD_FILES+=usr/share/man/man8/sa.8.gz
+OLD_FILES+=usr/tests/usr.sbin/sa/Kyuafile
+OLD_FILES+=usr/tests/usr.sbin/sa/legacy_test
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-amd64-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-amd64-sav.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-amd64-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-amd64-usr.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-amd64-usr.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-i386-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-i386-sav.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-i386-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-i386-usr.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-i386-usr.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-sav.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-usr.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v1-sparc64-usr.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-amd64-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-amd64-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-amd64-usr.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-i386-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-i386-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-i386-usr.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-sav.in
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-u.out
+OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-usr.in
+OLD_FILES+=usr/tests/usr.sbin/sa
 .endif
 
 .if ${MK_ACPI} == no
