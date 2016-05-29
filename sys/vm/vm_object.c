@@ -2135,6 +2135,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 		 */
 		if (!reserved && !swap_reserve_by_cred(ptoa(next_size),
 		    prev_object->cred)) {
+			VM_OBJECT_WUNLOCK(prev_object);
 			return (FALSE);
 		}
 		prev_object->charge += ptoa(next_size);
