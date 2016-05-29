@@ -128,7 +128,7 @@ on the
 Here are some options for the above commands:-
 .Bl -tag -width indent
 .It Fl f
-Ignore non existant interfaces.
+Ignore non existent interfaces.
 Only really useful for deleting interfaces.
 .It Fl m Ar metric
 Set the metric of the interface when adding it, default of 0.
