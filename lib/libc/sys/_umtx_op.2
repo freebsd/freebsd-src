@@ -257,7 +257,7 @@ are defined, in addition to the common flags:
 .It Dv URWLOCK_PREFER_READER
 If specified, immediately grant read lock requests when
 .Dv urwlock
-is already read-locked, even in presence of the unsatisfied write
+is already read-locked, even in presence of unsatisfied write
 lock requests.
 By default, if there is a write lock waiter, further read requests are
 not granted, to prevent unfair write lock waiter starvation.
@@ -387,7 +387,7 @@ variant which returns an error rather than sleeping if the lock cannot
 be obtained.
 Also,
 .Fn _umtx_op
-provides requests which explicitely put the thread to sleep.
+provides requests which explicitly put the thread to sleep.
 .Pp
 Wakes need to know which threads to make runnable, so sleeping threads
 are grouped into containers called
@@ -399,12 +399,12 @@ Note that the
 .Em physical
 address is used, which means that same variable mapped multiple
 times will give one key value.
-This mechanism enables the construction of the
+This mechanism enables the construction of
 .Em process-shared
 locks.
 .Pp
 A related attribute of the key is shareability.
-Some requests always interpet keys as private for the current process,
+Some requests always interpret keys as private for the current process,
 creating sleep queues with the scope of the current process even if
 the memory is shared.
 Others either select the shareability automatically from the
@@ -435,7 +435,8 @@ the queue are selected.
 The
 .Em robust umutexes
 are provided as a substrate for a userspace library to implement
-POSIX robust mutexes.
+.Tn POSIX
+robust mutexes.
 A robust umutex must have the
 .Dv UMUTEX_ROBUST
 flag set.
@@ -524,13 +525,13 @@ argument is compared with the
 If they are equal, the requesting thread is put to interruptible sleep
 until woken up or the optionally specified timeout expires.
 .Pp
-The comparision and sleep are atomic.
+The comparison and sleep are atomic.
 In other words, if another thread writes a new value to
 .Dv *obj
 and then issues
 .Dv UMTX_OP_WAKE ,
 the request is guaranteed to not miss the wakeup,
-which might otherwise happen between comparision and blocking.
+which might otherwise happen between comparison and blocking.
 .Pp
 The physical address of memory where the
 .Fa *obj
@@ -599,7 +600,7 @@ contention indicator, and provides the acquire barrier for
 lock entrance semantic.
 .Pp
 If the lock cannot be obtained immediately because another thread owns
-the lock, the current thread is put into sleep, with
+the lock, the current thread is put to sleep, with
 .Dv UMUTEX_CONTESTED
 bit set before.
 Upon wake up, the lock conditions are re-tested.
@@ -668,7 +669,9 @@ New ceiling value.
 .It Fa uaddr
 Address of a variable of type
 .Vt uint32_t .
-If not NULL, after the successful update the previous ceiling value is
+If not
+.Dv NULL
+and the update was successful, the previous ceiling value is
 written to the location pointed to by
 .Fa uaddr .
 .El
@@ -685,7 +688,9 @@ member of the
 after which the umutex is unlocked.
 .Pp
 The locking does not adhere to the priority protect protocol,
-to confirm with the POSIX requirements for the
+to conform to the
+.Tn POSIX
+requirements for the
 .Xr pthread_mutex_setprioceiling 3
 interface.
 .It Dv UMTX_OP_CV_WAIT
@@ -769,7 +774,8 @@ If the
 flag is supplied, the timeout specifies absolute time value, otherwise
 it denotes a relative time interval.
 .Pp
-The request is not restartable.  An unblocked signal delivered during
+The request is not restartable.
+An unblocked signal delivered during
 the wait always results in sleep interruption and
 .Er EINTR
 error.
@@ -845,7 +851,7 @@ If the
 .Dv URWLOCK_WRITE_OWNER
 bit is set in the word
 .Dv rw_state ,
-the lock was granted to a writer which has not yet relinguished
+the lock was granted to a writer which has not yet relinquished
 its ownership.
 In this case the current thread is put to sleep until it makes sense to
 retry.
@@ -959,7 +965,7 @@ Same as
 .Dv UMTX_OP_WAKE ,
 but unconditionally select the process-private sleep queue.
 .It Dv UMTX_OP_MUTEX_WAIT
-Wait for the mutex availability.
+Wait for mutex availability.
 The arguments to the request are:
 .Bl -tag -width "It Fa obj"
 .It Fa obj
@@ -986,12 +992,12 @@ priority inherited protocol mutexes.
 Optionally, a timeout for the request may be specified.
 .Pp
 .Pp
-The request with a timeout specified is not restartable.
+A request with a timeout specified is not restartable.
 An unblocked signal delivered during the wait always results in sleep
 interruption and
 .Er EINTR
 error.
-The request without a timeout automatically restarts if the signal disposition
+A request without a timeout automatically restarts if the signal disposition
 requested restart via the
 .Dv SA_RESTART
 flag in
@@ -999,7 +1005,7 @@ flag in
 member
 .Dv sa_flags .
 .It Dv UMTX_OP_NWAKE_PRIVATE
-Wake up a batch of sleeping thread.
+Wake up a batch of sleeping threads.
 The arguments to the request are:
 .Bl -tag -width "It Fa obj"
 .It Fa obj
@@ -1016,7 +1022,7 @@ wakes up all threads waiting on the
 sleep queue with the key
 being the byte addressed by the array element.
 .It Dv UMTX_OP_MUTEX_WAKE
-Check if the normal umutex is unlocked and wake up a waiter.
+Check if a normal umutex is unlocked and wake up a waiter.
 The arguments for the request are:
 .Bl -tag -width "It Fa obj"
 .It Fa obj
@@ -1036,7 +1042,7 @@ if any.
 Only normal mutexes are supported by the request.
 The sleep queue is always one for a normal mutex type.
 .It Dv UMTX_OP_MUTEX_WAKE2
-Check if the umutex is unlocked and wake up a waiter.
+Check if a umutex is unlocked and wake up a waiter.
 The arguments for the request are:
 .Bl -tag -width "It Fa obj"
 .It Fa obj
@@ -1048,7 +1054,7 @@ The umutex flags.
 The request does not read the
 .Dv m_flags
 member of the
-.Vt struct umutex ,
+.Vt struct umutex ;
 instead, the
 .Fa val
 argument supplies flag information, in particular, to determine the
@@ -1064,8 +1070,7 @@ one waiter but the mutex is owned by a thread, the
 bit is set in the
 .Dv m_owner
 word of the
-.Vt struct umutex
-the request operates upon.
+.Vt struct umutex .
 .It Dv UMTX_OP_SEM2_WAIT
 Wait until semaphore is available.
 The arguments to the request are:
@@ -1076,12 +1081,12 @@ Pointer to the semaphore (of type
 .El
 Put the requesting thread onto a sleep queue if the semaphore counter
 is zero.
-If thread is put to sleep, the
+If the thread is put to sleep, the
 .Dv USEM_HAS_WAITERS
 bit is set in the
 .Dv _count
 word to indicate waiters.
-Function returns either due to
+The function returns either due to
 .Dv _count
 indicating the semaphore is available (non-zero count due to post),
 or due to a wakeup.
@@ -1096,7 +1101,7 @@ interruption and
 .Er EINTR
 error.
 .It Dv UMTX_OP_SEM2_WAKE
-Wake up waiters on the semaphore lock.
+Wake up waiters on semaphore lock.
 The arguments to the request are:
 .Bl -tag -width "It Fa obj"
 .It Fa obj
@@ -1112,7 +1117,9 @@ bit was set in the
 .Dv _count
 word, and the last sleeping thread was woken up, the bit is cleared.
 .It Dv UMTX_OP_SHM
-Manage the anonymous POSIX shared objects (see
+Manage anonymous
+.Tn POSIX
+shared memory objects (see
 .Xr shm_open 2 ) ,
 which can be attached to a byte of physical memory, mapped into the
 process address space.
@@ -1126,7 +1133,7 @@ argument specifies the sub-request of the
 request:
 .Bl -tag -width "Dv UMTX_SHM_DESTROY"
 .It Dv UMTX_SHM_CREAT
-Creates the POSIX anonymous memory shared object, which can be looked up
+Creates the anonymous shared memory object, which can be looked up
 with the specified key
 .Fa uaddr.
 If the object associated with the
@@ -1143,7 +1150,7 @@ Same as
 request, but if there is no shared memory object associated with
 the specified key
 .Fa uaddr ,
-an error is returned, and new object is not created.
+an error is returned, and no new object is created.
 .It Dv UMTX_SHM_DESTROY
 De-associate the shared object with the specified key
 .Fa uaddr.
@@ -1158,7 +1165,7 @@ This request is an optimization of the
 .Dv UMTX_SHM_LOOKUP
 request.
 It is cheaper when only the liveness of the associated object is asked
-for, since the file descriptor is not installed in the process fd table
+for, since no file descriptor is installed in the process fd table
 on success.
 .El
 .Pp
@@ -1212,7 +1219,7 @@ The kernel inspects the
 in addition to walking the shared and private lists.
 Also, the mutex pointed to by
 .Dv robust_inact_offset
-is handled more loosly at the thread termination time,
+is handled more loosely at the thread termination time,
 than other mutexes on the list.
 That mutex is allowed to be not owned by the current thread,
 in which case list processing is continued.
@@ -1233,7 +1240,7 @@ The
 .Dv UMTX_SHM_CREAT
 and
 .Dv UMTX_SHM_LOOKUP
-return a POSIX shared memory file descriptor on success.
+return a shared memory file descriptor on success.
 On error \-1 is returned, and the
 .Va errno
 variable is set to indicate the error.
@@ -1326,15 +1333,15 @@ and
 .Dv UMTX_SHM_ALIVE
 sub-requests of the
 .Dv UMTX_OP_SHM
-request, there is no shared object associated with the provided key.
+request, there is no shared memory object associated with the provided key.
 .It Bq Er ENOMEM
 The
 .Dv UMTX_SHM_CREAT
 sub-request of the
 .Dv UMTX_OP_SHM
-request cannot be satisfied, because allocation of the shared object
+request cannot be satisfied, because allocation of the shared memory object
 would exceed the
-.Dv RLIMIT_UMXP
+.Dv RLIMIT_UMTXP
 resource limit, see
 .Xr setrlimit 2 .
 .It Bq Er EAGAIN
@@ -1358,7 +1365,7 @@ specified in absolute time may be restartable.
 .It Bq Er ERESTART
 A signal was delivered during wait, for a restartable operation.
 Mutex lock requests without timeout specified are restartable.
-The error is typically not returned to userspace code, restart
+The error is not returned to userspace code since restart
 is handled by usual adjustment of the instruction counter.
 .El
 .Sh BUGS
@@ -1374,7 +1381,7 @@ implementation is only vulnerable to this race when operating on
 a shared mutex.
 A possible fix for the current implementation is to strengthen the checks
 for shared mutexes before terminating them, in particular, verifying
-that the mutex memory is mapped from the POSIX shared object, allocated
+that the mutex memory is mapped from a shared memory object allocated
 by the
 .Dv UMTX_OP_SHM
 request.
@@ -1402,5 +1409,5 @@ system call is non-standard and is used by the
 .Lb libthr
 to implement
 .St -p1003.1-2001
-.Xr pthread(3)
+.Xr pthread 3
 functionality.

@@ -33,7 +33,7 @@
 .Os
 .Sh NAME
 .Nm thr_kill
-.Nd send signal to the thread
+.Nd send signal to thread
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -72,7 +72,7 @@ The
 .Fa sig
 argument defines the delivered signal.
 It must be a valid signal number or zero.
-In the later case no signal is actually send, and the call is used to
+In the latter case no signal is actually sent, and the call is used to
 verify the liveness of the thread.
 .Pp
 The signal is delivered with
@@ -127,5 +127,5 @@ system calls are non-standard and are used by the
 .Lb libthr
 to implement
 .St -p1003.1-2001
-.Xr pthread(3)
+.Xr pthread 3
 functionality.
