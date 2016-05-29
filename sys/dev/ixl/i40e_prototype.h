@@ -501,6 +501,4 @@ enum i40e_status_code i40e_read_phy_register(struct i40e_hw *hw, u8 page,
 enum i40e_status_code i40e_write_phy_register(struct i40e_hw *hw, u8 page,
 					      u16 reg, u8 phy_addr, u16 value);
 u8 i40e_get_phy_address(struct i40e_hw *hw, u8 dev_num);
-enum i40e_status_code i40e_blink_phy_link_led(struct i40e_hw *hw,
-					      u32 time, u32 interval);
 #endif /* _I40E_PROTOTYPE_H_ */
