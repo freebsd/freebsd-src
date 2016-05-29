@@ -19,8 +19,8 @@
 #ifndef XO_BUF_H
 #define XO_BUF_H
 
-#define XO_BUFSIZ	(8*1024) /* Initial buffer size */
-
+#define XO_BUFSIZ		(8*1024) /* Initial buffer size */
+#define XO_BUF_HIGH_WATER	(XO_BUFSIZ - 512) /* When to auto-flush */
 /*
  * xo_buffer_t: a memory buffer that can be grown as needed.  We
  * use them for building format strings and output data.
