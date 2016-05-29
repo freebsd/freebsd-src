@@ -393,6 +393,7 @@ network_init(void)
 			if (debugging)
 				perror("setsockopt v6 multicast");
 	}
+	freeifaddrs(ifp);
 #endif
 
 	/* close(s); */
