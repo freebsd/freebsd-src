@@ -129,10 +129,8 @@ does not fully conform to
 because the
 .Fa pshared
 argument is ignored in
-.Lb libthr ,
-and in
-.Lb libkse
+.Lb libthr ;
 if any value other than
-.Dv PTHREAD_PROCESSES_PRIVATE
+.Dv PTHREAD_PROCESS_PRIVATE
 is specified, it returns
 .Er EINVAL .
