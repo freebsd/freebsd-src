@@ -82,8 +82,6 @@ static boolean_t dbg_ossr;	/* OS Save and Restore implemented */
 static uint32_t dbg_watchpoint_num;
 static uint32_t dbg_breakpoint_num;
 
-static int dbg_ref_count_mme; /* Times monitor mode was enabled */
-
 /* ID_DFR0 - Debug Feature Register 0 */
 #define	ID_DFR0_CP_DEBUG_M_SHIFT	0
 #define	ID_DFR0_CP_DEBUG_M_MASK		(0xF << ID_DFR0_CP_DEBUG_M_SHIFT)
@@ -250,6 +248,13 @@ dbg_wb_write_reg(int reg, int n, uint32_t val)
 boolean_t
 kdb_cpu_pc_is_singlestep(db_addr_t pc)
 {
+	/*
+	 * XXX: If the platform fails to enable its debug arch.
+	 *      there will be no stepping capabilities
+	 *      (SOFTWARE_SSTEP is not defined for __ARM_ARCH >= 6).
+	 */
+	if (!dbg_capable)
+		return (FALSE);
 
 	if (dbg_find_slot(DBG_TYPE_BREAKPOINT, pc) != ~0U)
 		return (TRUE);
@@ -264,6 +269,9 @@ kdb_cpu_set_singlestep(void)
 	db_addr_t pc, brpc;
 	uint32_t wcr;
 	u_int i;
+
+	if (!dbg_capable)
+		return;
 
 	/*
 	 * Disable watchpoints, e.g. stepping over watched instruction will
@@ -294,6 +302,9 @@ kdb_cpu_clear_singlestep(void)
 {
 	uint32_t wvr, wcr;
 	u_int i;
+
+	if (!dbg_capable)
+		return;
 
 	dbg_remove_breakpoint(DBG_BKPT_BT_SLOT);
 	dbg_remove_breakpoint(DBG_BKPT_BNT_SLOT);
@@ -572,34 +583,6 @@ dbg_enable_monitor(void)
 }
 
 static int
-dbg_disable_monitor(void)
-{
-	uint32_t dbg_dscr;
-
-	if (!dbg_monitor_is_enabled())
-		return (0);
-
-	dbg_dscr = cp14_dbgdscrint_get();
-	switch (dbg_model) {
-	case ID_DFR0_CP_DEBUG_M_V6:
-	case ID_DFR0_CP_DEBUG_M_V6_1: /* fall through */
-		dbg_dscr &= ~DBGSCR_MDBG_EN;
-		cp14_dbgdscr_v6_set(dbg_dscr);
-		break;
-	case ID_DFR0_CP_DEBUG_M_V7: /* fall through */
-	case ID_DFR0_CP_DEBUG_M_V7_1:
-		dbg_dscr &= ~DBGSCR_MDBG_EN;
-		cp14_dbgdscr_v7_set(dbg_dscr);
-		break;
-	default:
-		return (ENXIO);
-	}
-	isb();
-
-	return (0);
-}
-
-static int
 dbg_setup_xpoint(struct dbg_wb_conf *conf)
 {
 	struct pcpu *pcpu;
@@ -702,13 +685,6 @@ dbg_setup_xpoint(struct dbg_wb_conf *conf)
 	dbg_wb_write_reg(reg_addr, i, addr);
 	dbg_wb_write_reg(reg_ctrl, i, ctrl);
 
-	err = dbg_enable_monitor();
-	if (err != 0)
-		return (err);
-
-	/* Increment monitor enable counter */
-	dbg_ref_count_mme++;
-
 	/*
 	 * Save watchpoint settings for all CPUs.
 	 * We don't need to do the same with breakpoints since HW breakpoints
@@ -775,19 +751,6 @@ dbg_remove_xpoint(struct dbg_wb_conf *conf)
 	dbg_wb_write_reg(reg_ctrl, i, 0);
 	dbg_wb_write_reg(reg_addr, i, 0);
 
-	/* Decrement monitor enable counter */
-	dbg_ref_count_mme--;
-	if (dbg_ref_count_mme < 0)
-		dbg_ref_count_mme = 0;
-
-	atomic_thread_fence_rel();
-
-	if (dbg_ref_count_mme == 0) {
-		err = dbg_disable_monitor();
-		if (err != 0)
-			return (err);
-	}
-
 	/*
 	 * Save watchpoint settings for all CPUs.
 	 * We don't need to do the same with breakpoints since HW breakpoints
@@ -827,7 +790,7 @@ dbg_get_ossr(void)
 {
 
 	switch (dbg_model) {
-	case ID_DFR0_CP_DEBUG_M_V6_1:
+	case ID_DFR0_CP_DEBUG_M_V7:
 		if ((cp14_dbgoslsr_get() & DBGOSLSR_OSLM0) != 0)
 			return (TRUE);
 
@@ -844,10 +807,8 @@ dbg_arch_supported(void)
 {
 
 	switch (dbg_model) {
-#ifdef not_yet
 	case ID_DFR0_CP_DEBUG_M_V6:
 	case ID_DFR0_CP_DEBUG_M_V6_1:
-#endif
 	case ID_DFR0_CP_DEBUG_M_V7:
 	case ID_DFR0_CP_DEBUG_M_V7_1:	/* fall through */
 		return (TRUE);
@@ -889,9 +850,16 @@ dbg_reset_state(void)
 
 	switch (dbg_model) {
 	case ID_DFR0_CP_DEBUG_M_V6:
-		/* v6 Debug logic reset upon power-up */
-		return (0);
-	case ID_DFR0_CP_DEBUG_M_V6_1:
+	case ID_DFR0_CP_DEBUG_M_V6_1: /* fall through */
+		/*
+		 * Arch needs monitor mode selected and enabled
+		 * to be able to access breakpoint/watchpoint registers.
+		 */
+		err = dbg_enable_monitor();
+		if (err != 0)
+			return (err);
+		goto vectr_clr;
+	case ID_DFR0_CP_DEBUG_M_V7:
 		/* Is core power domain powered up? */
 		if ((cp14_dbgprsr_get() & DBGPRSR_PU) == 0)
 			err = ENXIO;
@@ -901,8 +869,6 @@ dbg_reset_state(void)
 
 		if (dbg_ossr)
 			goto vectr_clr;
-		break;
-	case ID_DFR0_CP_DEBUG_M_V7:
 		break;
 	case ID_DFR0_CP_DEBUG_M_V7_1:
 		/* Is double lock set? */
@@ -998,8 +964,11 @@ dbg_monitor_init(void)
 
 	err = dbg_reset_state();
 	if (err == 0) {
-		dbg_capable = TRUE;
-		return;
+		err = dbg_enable_monitor();
+		if (err == 0) {
+			dbg_capable = TRUE;
+			return;
+		}
 	}
 
 	db_printf("HW Breakpoints/Watchpoints not enabled on CPU%d\n",
@@ -1048,21 +1017,6 @@ dbg_resume_dbreg(void)
 		for (i = 0; i < dbg_watchpoint_num; i++) {
 			dbg_wb_write_reg(DBG_REG_BASE_WVR, i, d->dbg_wvr[i]);
 			dbg_wb_write_reg(DBG_REG_BASE_WCR, i, d->dbg_wcr[i]);
-		}
-
-		if ((dbg_ref_count_mme > 0) && !dbg_monitor_is_enabled()) {
-			err = dbg_enable_monitor();
-			if (err != 0) {
-				panic("%s: Failed to enable Debug Monitor "
-				    "on CPU%d", __func__, cpuid);
-			}
-		}
-		if ((dbg_ref_count_mme == 0) && dbg_monitor_is_enabled()) {
-			err = dbg_disable_monitor();
-			if (err != 0) {
-				panic("%s: Failed to disable Debug Monitor "
-				    "on CPU%d", __func__, cpuid);
-			}
 		}
 
 		PCPU_SET(dbreg_cmd, PC_DBREG_CMD_NONE);
