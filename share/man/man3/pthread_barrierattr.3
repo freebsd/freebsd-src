@@ -137,11 +137,9 @@ barriers
 does not fully conform to
 .St -p1003.2
 because the process-shared attribute is ignored in
-.Lb libthr ,
-and in
-.Lb libkse ;
+.Lb libthr ;
 if any value other than
-.Dv PTHREAD_PROCESSES_PRIVATE
+.Dv PTHREAD_PROCESS_PRIVATE
 is specified in a call to
 .Fn pthread_barrierattr_setpshared ,
 it will return
