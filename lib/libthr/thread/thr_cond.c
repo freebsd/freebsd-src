@@ -69,18 +69,18 @@ __weak_reference(_pthread_cond_destroy, pthread_cond_destroy);
 __weak_reference(_pthread_cond_signal, pthread_cond_signal);
 __weak_reference(_pthread_cond_broadcast, pthread_cond_broadcast);
 
-#define CV_PSHARED(cvp)	(((cvp)->__flags & USYNC_PROCESS_SHARED) != 0)
+#define CV_PSHARED(cvp)	(((cvp)->kcond.c_flags & USYNC_PROCESS_SHARED) != 0)
 
 static void
 cond_init_body(struct pthread_cond *cvp, const struct pthread_cond_attr *cattr)
 {
 
 	if (cattr == NULL) {
-		cvp->__clock_id = CLOCK_REALTIME;
+		cvp->kcond.c_clockid = CLOCK_REALTIME;
 	} else {
 		if (cattr->c_pshared)
-			cvp->__flags |= USYNC_PROCESS_SHARED;
-		cvp->__clock_id = cattr->c_clockid;
+			cvp->kcond.c_flags |= USYNC_PROCESS_SHARED;
+		cvp->kcond.c_clockid = cattr->c_clockid;
 	}
 }
 
@@ -205,9 +205,8 @@ cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 	if (cancel)
 		_thr_cancel_enter2(curthread, 0);
-	error = _thr_ucond_wait((struct ucond *)&cvp->__has_kern_waiters,
-	    (struct umutex *)&mp->m_lock, abstime, CVWAIT_ABSTIME |
-	    CVWAIT_CLOCKID);
+	error = _thr_ucond_wait(&cvp->kcond, &mp->m_lock, abstime,
+	    CVWAIT_ABSTIME | CVWAIT_CLOCKID);
 	if (cancel)
 		_thr_cancel_leave(curthread, 0);
 
@@ -292,7 +291,7 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 		if (cancel)
 			_thr_cancel_enter2(curthread, 0);
-		error = _thr_sleep(curthread, cvp->__clock_id, abstime);
+		error = _thr_sleep(curthread, cvp->kcond.c_clockid, abstime);
 		if (cancel)
 			_thr_cancel_leave(curthread, 0);
 
@@ -349,8 +348,7 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 	if (curthread->attr.sched_policy != SCHED_OTHER ||
 	    (mp->m_lock.m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT |
-	    USYNC_PROCESS_SHARED)) != 0 ||
-	    (cvp->__flags & USYNC_PROCESS_SHARED) != 0)
+	    USYNC_PROCESS_SHARED)) != 0 || CV_PSHARED(cvp))
 		return (cond_wait_kernel(cvp, mp, abstime, cancel));
 	else
 		return (cond_wait_user(cvp, mp, abstime, cancel));
@@ -413,7 +411,7 @@ cond_signal_common(pthread_cond_t *cond)
 
 	pshared = CV_PSHARED(cvp);
 
-	_thr_ucond_signal((struct ucond *)&cvp->__has_kern_waiters);
+	_thr_ucond_signal(&cvp->kcond);
 
 	if (pshared || cvp->__has_user_waiters == 0)
 		return (0);
@@ -496,7 +494,7 @@ cond_broadcast_common(pthread_cond_t *cond)
 
 	pshared = CV_PSHARED(cvp);
 
-	_thr_ucond_broadcast((struct ucond *)&cvp->__has_kern_waiters);
+	_thr_ucond_broadcast(&cvp->kcond);
 
 	if (pshared || cvp->__has_user_waiters == 0)
 		return (0);

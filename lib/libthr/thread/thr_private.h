@@ -190,9 +190,7 @@ struct pthread_mutex_attr {
 
 struct pthread_cond {
 	__uint32_t	__has_user_waiters;
-	__uint32_t	__has_kern_waiters;
-	__uint32_t	__flags;
-	__uint32_t	__clock_id;
+	struct ucond	kcond;
 };
 
 struct pthread_cond_attr {
