@@ -338,6 +338,7 @@ network_init(void)
 			exit(1);
 		}
 		memcpy(local_in4, res->ai_addr, sizeof *local_in4);
+		freeaddrinfo(res);
 	}
 
 #ifdef INET6
@@ -354,6 +355,7 @@ network_init(void)
 			exit(1);
 		}
 		memcpy(local_in6, res->ai_addr, sizeof *local_in6);
+		freeaddrinfo(res);
 	}
 
 	/*
@@ -395,7 +397,6 @@ network_init(void)
 	freeifaddrs(ifp);
 #endif
 
-	freeaddrinfo(res);
 	/* close(s); */
 }
 
