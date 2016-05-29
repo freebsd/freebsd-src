@@ -16,6 +16,15 @@ llib-lstdc.ln: llib-lstdc
 
 .include <bsd.prog.mk>
 
-.if ${MK_DIRDEPS_BUILD} == "yes"
+.if !empty(STAGE_INCLUDEDIR)
 LINTFLAGS+= -I${STAGE_INCLUDEDIR}
+.else
+.if ${CFLAGS:M--sysroot=*} != ""
+_sysroot?=  ${CFLAGS:M--sysroot=*:[1]:C,^--sysroot=,,}
+.elif ${CC:M--sysroot=*} != ""
+_sysroot?=  ${CC:M--sysroot=*:[1]:C,^--sysroot=,,}
+.endif
+.if !empty(_sysroot)
+LINTFLAGS+= -I${_sysroot}/usr/include
+.endif
 .endif
