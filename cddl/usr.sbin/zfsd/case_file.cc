@@ -455,7 +455,7 @@ CaseFile::ActivateSpare() {
 	zpool_handle_t	*zhp(zpl.empty() ? NULL : zpl.front());
 	if (zhp == NULL) {
 		syslog(LOG_ERR, "CaseFile::ActivateSpare: Could not find pool "
-		       "for pool_guid %"PRIu64".", (uint64_t)m_poolGUID);
+		       "for pool_guid %" PRIu64".", (uint64_t)m_poolGUID);
 		return (false);
 	}
 	poolname = zpool_get_name(zhp);
@@ -639,7 +639,7 @@ CaseFile::DeSerializeSelector(const struct dirent *dirEntry)
 	uint64_t vdevGUID;
 
 	if (dirEntry->d_type == DT_REG
-	 && sscanf(dirEntry->d_name, "pool_%"PRIu64"_vdev_%"PRIu64".case",
+	 && sscanf(dirEntry->d_name, "pool_%" PRIu64 "_vdev_%" PRIu64 ".case",
 		   &poolGUID, &vdevGUID) == 2)
 		return (1);
 	return (0);
@@ -657,7 +657,7 @@ CaseFile::DeSerializeFile(const char *fileName)
 		uint64_t vdevGUID;
 		nvlist_t *vdevConf;
 
-		sscanf(fileName, "pool_%"PRIu64"_vdev_%"PRIu64".case",
+		sscanf(fileName, "pool_%" PRIu64 "_vdev_%" PRIu64 ".case",
 		       &poolGUID, &vdevGUID);
 		existingCaseFile = Find(Guid(poolGUID), Guid(vdevGUID));
 		if (existingCaseFile != NULL) {
@@ -999,7 +999,7 @@ CaseFile::Replace(const char* vdev_type, const char* path, bool isspare) {
 	zpool_handle_t *zhp(zpl.empty() ? NULL : zpl.front());
 	if (zhp == NULL) {
 		syslog(LOG_ERR, "CaseFile::Replace: could not find pool for "
-		       "pool_guid %"PRIu64".", (uint64_t)m_poolGUID);
+		       "pool_guid %" PRIu64 ".", (uint64_t)m_poolGUID);
 		return (false);
 	}
 	poolname = zpool_get_name(zhp);

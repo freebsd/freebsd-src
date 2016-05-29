@@ -76,8 +76,8 @@ extern "C" {
 #define	SUNW_VENDOR	"SUNW"
 #define	SE_USR_PUB	"usr:"
 #define	SE_KERN_PUB	"kern:"
-#define	SUNW_KERN_PUB	SUNW_VENDOR":"SE_KERN_PUB
-#define	SUNW_USR_PUB	SUNW_VENDOR":"SE_USR_PUB
+#define	SUNW_KERN_PUB	SUNW_VENDOR ":" SE_KERN_PUB
+#define	SUNW_USR_PUB	SUNW_VENDOR ":" SE_USR_PUB
 
 /*
  * Event header and attribute value limits
