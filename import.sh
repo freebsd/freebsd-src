@@ -13,11 +13,6 @@
 #
 
 PROJECT=libxo
-MAKEOBJDIRPREFIX=/tank/home/phil/work/bsd/base/head/obj/
-export MAKEOBJDIRPREFIX
-EDITOR=vi
-VISUAL=vi
-export EDITOR VISUAL
 
 #"global" vars
 # Set SVN variables
@@ -39,9 +34,19 @@ Cd() {
         info "Directory =" `pwd`
 }
 
+siginfo() {
+    if [ ! -z "$CMD" ]; then
+        info "CMD is $CMD"
+    fi
+}
+
+trap 'siginfo' SIGINFO
+trap 'siginfo' SIGCONT
+
 run() {
     desc="$1"
     cmd="$2"
+    CMD="$2"
 
     if [ "$DOC" = doc ]; then
         echo " == $desc"
@@ -95,6 +100,7 @@ option_parsing() {
                 -p) PROJECT=$2; shift 2;;
 		-P) PR=$2; shift 2;;
 		-r) REVIEWER=$2; shift 2;;
+		-u) UPDATE=no; shift;;
                 -v) VERS=$2; shift 2;;
                 -y) OKAY=yes; shift;;
 
@@ -122,6 +128,17 @@ shift $?
 Cd `dirname $0`
 CWD=`pwd`
 
+TOP=`echo $CWD | sed 's:/vendor/.*::'`
+info "TOP = $TOP"
+
+Cd $TOP
+HEAD=$TOP/head
+info "HEAD = $HEAD"
+
+mkdir -p ../obj
+MAKEOBJDIRPREFIX=`cd ../obj; pwd`
+export MAKEOBJDIRPREFIX
+
 if [ -z "$VENDOR_DIR" ]; then
     VENDOR_DIR=`echo $CWD | sed 's:.*/vendor/::'`
 fi
@@ -131,9 +148,20 @@ fi
 info "CWD = $CWD"
 info "VENDOR_DIR = $VENDOR_DIR"
 info "VERS = $VERS"
+DATESTAMP=`date "+%Y-%m-%d-%H-%M"`
 
 [ -z "$VERS" ] && Error "missing version argument (-v)"
 
+run "show any local changes" "diff -rbu $CWD/dist $HEAD/contrib/libxo"
+
+Cd $HEAD
+run "updating all" "svn update"
+
+if [ ! -z "$UPDATE" ]; then
+    run "building the entire world" "script $MAKEOBJDIRPREFIX/out.$DATESTAMP.before make -DNO_CLEAN MK_TESTS=no buildworld"
+fi
+
+Cd $CWD
 mkdir -p ~/tars
 
 # We use the source tarball from git since it has no frills
@@ -229,7 +257,7 @@ run "making list of files in existing tree" \
     "(cd dist && $RSVN list -R) | grep -v '/$' | sort > $TF.old"
 
 run "making list of files in incoming tree" \
-    "(cd $BASE && find . -type f ) | cut -c 3- | $SEDNUKE | sort > $TF.new"
+    "(echo 'x .svnignore' ; cd $BASE && find . -type f ) | cut -c 3- | $SEDNUKE | sort > $TF.new"
 
 run "making list of deleted files" "comm -23 $TF.old $TF.new | tee $TF.rmlist"
 run "making list of new files" "comm -13 $TF.old $TF.new | tee $TF.addlist"
@@ -260,9 +288,7 @@ run "build for real" \
 
 
 # Move over and build the source tree
-Cd $CWD/../../../head
-HEAD=`pwd`
-info "HEAD = $HEAD"
+Cd $HEAD
 
 run "copying xo_config.h" "(echo '/* \$FreeBSD\$ */' ; cat $CWD/dist/build/libxo/xo_config.h ) > $HEAD/lib/libxo/xo_config.h"
 run "copying add.man" "(echo '.\\\" \$FreeBSD\$' ; cat $CWD/dist/build/libxo/add.man ) > $HEAD/lib/libxo/add.man"
@@ -273,8 +299,7 @@ run "copying add.man" "(echo '.\\\" \$FreeBSD\$' ; cat $CWD/dist/build/libxo/add
     #run "making build dir '$dir'" "make LIBXOSRC=$CWD/dist"
 #done
 
-DATESTAMP=`date "+%Y-%m-%d-%H-%M"`
-run "building the entire world" "script $MAKEOBJDIRPREFIX/out.$DATESTAMP make -DNO_CLEAN buildworld LIBXOSRC=$CWD/dist"
+run "building the entire world" "script $MAKEOBJDIRPREFIX/out.$DATESTAMP make -DNO_CLEAN MK_TESTS=no buildworld LIBXOSRC=$CWD/dist"
 
 # Okay, so now it all builds!!  Now we can start committing....
 
