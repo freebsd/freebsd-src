@@ -155,7 +155,7 @@ explained in detail in the rest of this section.
     make test
     sudo make install
 
-The following sections will walk thru each of these steps with
+The following sections will walk through each of these steps with
 additional details and options, but the above directions should be all
 that's needed.
 
@@ -469,7 +469,7 @@ content.  The roles are listed below; only one role is permitted:
 
 When a role is not provided, the "value" role is used as the default.
 
-Roles and modifiers can also use more verbose names, when preceeded by
+Roles and modifiers can also use more verbose names, when preceded by
 a comma:
 
     EXAMPLE:
@@ -720,7 +720,7 @@ particular output styles:
 | w | white         | A blank (" ") is appended after the label        |
 |---+---------------+--------------------------------------------------|
 
-Roles and modifiers can also use more verbose names, when preceeded by
+Roles and modifiers can also use more verbose names, when preceded by
 a comma.  For example, the modifier string "Lwc" (or "L,white,colon")
 means the field has a label role (text that describes the next field)
 and should be followed by a colon ('c') and a space ('w').  The
@@ -986,8 +986,8 @@ the right instead of the left.
 - a leading zero ('0') indicating the output value should be padded on the
 left with zeroes instead of spaces (' ').
 - one or more digits ('0' - '9') indicating the minimum width of the
-argument.  If the width in columns of the output value is less that
-the minumum width, the value will be padded to reach the minimum.
+argument.  If the width in columns of the output value is less than
+the minimum width, the value will be padded to reach the minimum.
 - a period followed by one or more digits indicating the maximum
 number of bytes which will be examined for a string argument, or the maximum
 width for a non-string argument.  When handling ASCII strings this
