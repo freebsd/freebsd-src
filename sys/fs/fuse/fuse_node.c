@@ -289,7 +289,9 @@ fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags, struct thread *td)
          * XXXIP: Handle fd based DIRECT_IO
          */
 	if (fuse_open_flags & FOPEN_DIRECT_IO) {
+		ASSERT_VOP_ELOCKED(vp, __func__);
 		VTOFUD(vp)->flag |= FN_DIRECTIO;
+		fuse_io_invalbuf(vp, td);
 	} else {
 	        VTOFUD(vp)->flag &= ~FN_DIRECTIO;
 	}
