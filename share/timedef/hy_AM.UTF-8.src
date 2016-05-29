@@ -56,14 +56,14 @@
 %d.%m.%y
 #
 # c_fmt
-%d %B, %Yթ., %H:%M:%S,
+%d %B, %Yթ. %H:%M:%S,
 #
 # AM/PM
 կեսօրից առաջ
 կեսօրից հետո
 #
 # date_fmt
-%d %B, %Yթ., %H:%M:%S, %Z
+%d %B, %Yթ. %H:%M:%S, %Z
 #
 # Long month names (without case ending)
 հունվարի
