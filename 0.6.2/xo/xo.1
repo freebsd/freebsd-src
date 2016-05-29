@@ -1,0 +1,173 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt XO 1
+.Os
+.Sh NAME
+.Nm xo
+.Nd emit formatted output based on format string and arguments
+.Sh SYNOPSIS
+.Nm
+.Op Fl options
+.Op Ar argument...
+.Sh DESCRIPTION
+The
+.Nm
+utility allows command line access to the functionality of
+the
+.Nm libxo
+library.
+Using
+.Nm ,
+shell scripts can emit
+.Em XML ,
+.Em JSON ,
+or
+.Em HTML
+using the same commands that emit text output.
+.Pp
+.Bl -tag -width "12345678901234567"
+.It Fl "-close <path>"
+Close tags for the given path
+.It Fl "-depth <num>"
+Set the depth for pretty printing
+.It Fl "-help"
+Display this help text
+.It Fl "-html OR -H"
+Generate HTML output
+.It Fl "-json OR -J"
+Generate JSON output
+.It Fl "-leading-xpath <path>"
+Add a prefix to generated XPaths (HTML)
+.It Fl "-open <path>"
+Open tags for the given path
+.It Fl "-pretty OR -p"
+Make 'pretty' output (add indent, newlines)
+.It Fl "-style <style>"
+Generate given style (xml, json, text, html)
+.It Fl "-text OR -T"
+Generate text output (the default style)
+.It Fl "-version"
+Display version information
+.It Fl "-warn OR -W"
+Display warnings in text on stderr
+.It Fl "-warn-xml"
+Display warnings in xml on stdout
+.It Fl "-wrap <path>"
+Wrap output in a set of containers
+.It Fl "-xml OR -X"
+Generate XML output
+.It Fl "-xpath"
+Add XPath data to HTML output
+.El
+.Pp
+The
+.Nm
+utility accepts a format string suitable for
+.Xr xo_emit 3
+and a set of zero or more arguments used to supply data for that string.
+.Bd -literal -offset indent
+    xo "The {k:name} weighs {:weight/%d} pounds.\\n" fish 6
+
+  TEXT:
+    The fish weighs 6 pounds.
+  XML:
+    <name>fish</name>
+    <weight>6</weight>
+  JSON:
+    "name": "fish",
+    "weight": 6
+  HTML:
+    <div class="line">
+      <div class="text">The </div>
+      <div class="data" data-tag="name">fish</div>
+      <div class="text"> weighs </div>
+      <div class="data" data-tag="weight">6</div>
+      <div class="text"> pounds.</div>
+    </div>
+.Ed
+.Pp
+The
+.Fl "-wrap <path>"
+option can be used to wrap emitted content in a
+specific hierarchy.
+The path is a set of hierarchical names separated
+by the '/' character.
+.Bd -literal -offset indent
+    xo --wrap top/a/b/c '{:tag}' value
+
+  XML:
+    <top>
+      <a>
+        <b>
+          <c>
+            <tag>value</tag>
+          </c>
+        </b>
+      </a>
+    </top>
+  JSON:
+    "top": {
+      "a": {
+        "b": {
+          "c": {
+            "tag": "value"
+          }
+        }
+      }
+    }
+.Ed
+.Pp
+The
+.Fl "\-open <path>"
+and
+.Fl "\-close <path>"
+can be used to emit
+hierarchical information without the matching close and open
+tag.
+This allows a shell script to emit open tags, data, and
+then close tags.
+The
+.Fl \-depth
+option may be used to set the
+depth for indentation.
+The
+.Fl "\-leading-xpath"
+may be used to
+prepend data to the XPath values used for HTML output style.
+.Bd -literal -offset indent
+    #!/bin/sh
+    xo --open top/data
+    xo --depth 2 '{tag}' value
+    xo --close top/data
+  XML:
+    <top>
+      <data>
+        <tag>value</tag>
+      </data>
+    </top>
+  JSON:
+    "top": {
+      "data": {
+        "tag": "value"
+      }
+    }
+.Ed
+.Sh EXAMPLE
+.Bd -literal
+  % xo 'The {:product} is {:status}\n' stereo "in route"
+  The stereo is in route
+  % xo -p -X 'The {:product} is {:status}\n' stereo "in route"
+  <product>stereo</product>
+  <status>in route</status>
+.Ed
+.Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_emit 3
