@@ -137,11 +137,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	MAX_TYPES	5		/* max number of types above */
 
-#ifdef  USE_WEAK_SEEDING
-#define NSHUFF 0
-#else   /* !USE_WEAK_SEEDING */
 #define NSHUFF 50       /* to drop some "seed -> 1st value" linearity */
-#endif  /* !USE_WEAK_SEEDING */
 
 static const int degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
 static const int seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
@@ -162,23 +158,12 @@ static const int seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
 
 static uint32_t randtbl[DEG_3 + 1] = {
 	TYPE_3,
-#ifdef  USE_WEAK_SEEDING
-/* Historic implementation compatibility */
-/* The random sequences do not vary much with the seed */
-	0x9a319039, 0x32d9c024, 0x9b663182, 0x5da1f342, 0xde3b81e0, 0xdf0a6fb5,
-	0xf103bc02, 0x48f340fb, 0x7449e56b, 0xbeb1dbb0, 0xab5c5918, 0x946554fd,
-	0x8c2e680f, 0xeb3d799f, 0xb11ee0b7, 0x2d436b86, 0xda672e2a, 0x1588ca88,
-	0xe369735d, 0x904f35f7, 0xd7158fd6, 0x6fa6f051, 0x616e6b96, 0xac94efdc,
-	0x36413f93, 0xc622c298, 0xf5a42ab8, 0x8a88d77b, 0xf5ad9d0e, 0x8999220b,
-	0x27fb47b9,
-#else   /* !USE_WEAK_SEEDING */
-	0x991539b1, 0x16a5bce3, 0x6774a4cd, 0x3e01511e, 0x4e508aaa, 0x61048c05,
-	0xf5500617, 0x846b7115, 0x6a19892c, 0x896a97af, 0xdb48f936, 0x14898454,
-	0x37ffd106, 0xb58bff9c, 0x59e17104, 0xcf918a49, 0x09378c83, 0x52c7a471,
-	0x8d293ea9, 0x1f4fc301, 0xc3db71be, 0x39b44e1c, 0xf8a44ef9, 0x4c8b80b1,
-	0x19edc328, 0x87bf4bdd, 0xc9b240e5, 0xe9ee4b1b, 0x4382aee7, 0x535b6b41,
-	0xf3bec5da
-#endif  /* !USE_WEAK_SEEDING */
+	0x2cf41758, 0x27bb3711, 0x4916d4d1, 0x7b02f59f, 0x9b8e28eb, 0xc0e80269,
+	0x696f5c16, 0x878f1ff5, 0x52d9c07f, 0x916a06cd, 0xb50b3a20, 0x2776970a,
+	0xee4eb2a6, 0xe94640ec, 0xb1d65612, 0x9d1ed968, 0x1043f6b7, 0xa3432a76,
+	0x17eacbb9, 0x3c09e2eb, 0x4f8c2b3,  0x708a1f57, 0xee341814, 0x95d0e4d2,
+	0xb06f216c, 0x8bd2e72e, 0x8f7c38d7, 0xcfc6a8fc, 0x2a59495,  0xa20d2a69,
+	0xe29d12d1
 };
 
 /*
@@ -215,16 +200,8 @@ static int rand_sep = SEP_3;
 static uint32_t *end_ptr = &randtbl[DEG_3 + 1];
 
 static inline uint32_t
-good_rand(int32_t x)
+good_rand(uint32_t ctx)
 {
-#ifdef  USE_WEAK_SEEDING
-/*
- * Historic implementation compatibility.
- * The random sequences do not vary much with the seed,
- * even with overflowing.
- */
-	return (1103515245 * x + 12345);
-#else   /* !USE_WEAK_SEEDING */
 /*
  * Compute x = (7^5 * x) mod (2^31 - 1)
  * wihout overflowing 31 bits:
@@ -233,18 +210,17 @@ good_rand(int32_t x)
  * Park and Miller, Communications of the ACM, vol. 31, no. 10,
  * October 1988, p. 1195.
  */
-	int32_t hi, lo;
+	int32_t hi, lo, x;
 
-	/* Can't be initialized with 0, so use another value. */
-	if (x == 0)
-		x = 123459876;
+	/* Transform to [1, 0x7ffffffe] range. */
+	x = (ctx % 0x7ffffffe) + 1;
 	hi = x / 127773;
 	lo = x % 127773;
 	x = 16807 * lo - 2836 * hi;
 	if (x < 0)
 		x += 0x7fffffff;
-	return (x);
-#endif  /* !USE_WEAK_SEEDING */
+	/* Transform to [0, 0x7ffffffd] range. */
+	return (x - 1);
 }
 
 /*
@@ -404,16 +380,8 @@ setstate(char *arg_state)
 	uint32_t rear = new_state[0] / MAX_TYPES;
 	char *ostate = (char *)(&state[-1]);
 
-	switch(type) {
-	case TYPE_0:
-	case TYPE_1:
-	case TYPE_2:
-	case TYPE_3:
-	case TYPE_4:
-		break;
-	default:
+	if (type != TYPE_0 && rear >= degrees[type])
 		return (NULL);
-	}
 	if (rand_type == TYPE_0)
 		state[-1] = rand_type;
 	else
@@ -455,7 +423,7 @@ random(void)
 
 	if (rand_type == TYPE_0) {
 		i = state[0];
-		state[0] = i = (good_rand(i)) & 0x7fffffff;
+		state[0] = i = good_rand(i);
 	} else {
 		/*
 		 * Use local variables rather than static variables for speed.
