@@ -10,16 +10,25 @@ SHLIBDIR?=	/lib
 SHLIB_MAJOR=	5
 LIB=		crypt
 
-.PATH:		${.CURDIR}/../libmd ${.CURDIR}/../../sys/crypto/sha2
+.PATH:		${.CURDIR}/../libmd ${.CURDIR}/../../sys/crypto/sha2 ${.CURDIR}/../../sys/crypto/skein
 SRCS=		crypt.c misc.c \
 		crypt-md5.c md5c.c \
 		crypt-nthash.c md4c.c \
 		crypt-sha256.c sha256c.c \
-		crypt-sha512.c sha512c.c
+		crypt-sha512.c sha512c.c \
+		skein.c skein_block.c
 MAN=		crypt.3
 MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
 CFLAGS+=	-I${.CURDIR}/../libmd -I${.CURDIR}/../libutil \
-		-I${.CURDIR}/../../sys/crypto/sha2
+		-I${.CURDIR}/../../sys/crypto/sha2 -I${.CURDIR}/../../sys/crypto/skein
+
+# Use assembly optimized skein if available
+.if exists(${MACHINE_ARCH}/skein_block_asm.s)
+.PATH:  ${.CURDIR}/../../sys/crypto/skein/${MACHINE_ARCH}
+SRCS	+= skein_block_asm.s
+CFLAGS	+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
+ACFLAGS	+= -DELF -Wa,--noexecstack
+.endif
 
 # Pull in the strong crypto, if it is present.
 .if exists(${.CURDIR}/../../secure/lib/libcrypt) && ${MK_CRYPT} != "no"
@@ -34,7 +43,10 @@ CFLAGS+=	-I${.CURDIR} -DHAS_DES -DHAS_BLOWFISH
 	    SHA512_224_Init SHA512_224_Final SHA512_224_Update \
 	    SHA512_256_Init SHA512_256_Final SHA512_256_Update \
 	    SHA384_Init SHA384_Final SHA384_Update \
-	    SHA512_Init SHA512_Final SHA512_Update
+	    SHA512_Init SHA512_Final SHA512_Update \
+	    SKEIN256_Init SKEIN256_Final SKEIN256_Update \
+	    SKEIN512_Init SKEIN512_Final SKEIN512_Update \
+	    SKEIN1024_Init SKEIN1024_Final SKEIN1024_Update
 CFLAGS+=	-D${sym}=__${sym}
 .endfor
 
