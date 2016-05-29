@@ -1128,8 +1128,11 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 		if (gi->gi_irq != irq)
 			return (EINVAL);
-	} else
-		return (ENOTSUP);
+	} else {
+		irq = gi->gi_irq;
+		pol = INTR_POLARITY_CONFORM;
+		trig = INTR_TRIGGER_CONFORM;
+	}
 
 	/* Compare config if this is not first setup. */
 	if (isrc->isrc_handlers != 0) {
