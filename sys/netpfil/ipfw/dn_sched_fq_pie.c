@@ -407,17 +407,17 @@ fq_calculate_drop_prob(void *x)
 	p *= (PIE_MAX_PROB << 12) / AQM_TIME_1S;
 
 	/* auto-tune drop probability */
-	if (prob< PIE_MAX_PROB * 0.000001)
+	if (prob < (int64_t)(PIE_MAX_PROB * 0.000001))
 		p >>= 11 + PIE_FIX_POINT_BITS+12;
-	else if (prob < PIE_MAX_PROB * 0.00001)
+	else if (prob < (int64_t)(PIE_MAX_PROB * 0.00001))
 		p >>= 9 + PIE_FIX_POINT_BITS+12;
-	else if (prob < PIE_MAX_PROB * 0.0001)
+	else if (prob < (int64_t)(PIE_MAX_PROB * 0.0001))
 		p >>= 7 + PIE_FIX_POINT_BITS+12;
-	else if (prob < PIE_MAX_PROB * 0.001)
+	else if (prob < (int64_t)(PIE_MAX_PROB * 0.001))
 		p >>= 5 + PIE_FIX_POINT_BITS+12;
-	else	if (prob < PIE_MAX_PROB * 0.01)
+	else	if (prob < (int64_t)(PIE_MAX_PROB * 0.01))
 		p >>= 3 + PIE_FIX_POINT_BITS+12;
-	else if (prob < PIE_MAX_PROB * 0.1)
+	else if (prob < (int64_t)(PIE_MAX_PROB * 0.1))
 		p >>= 1 + PIE_FIX_POINT_BITS+12;
 	else
 		p >>= PIE_FIX_POINT_BITS+12;
