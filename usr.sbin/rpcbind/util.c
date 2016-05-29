@@ -371,7 +371,7 @@ network_init(void)
 	if (s == -1) {
 		if (debugging)
 			fprintf(stderr, "couldn't create ip6 socket");
-		exit(1);
+		goto done_inet6;
 	}
 
 	/*
@@ -394,6 +394,7 @@ network_init(void)
 			if (debugging)
 				perror("setsockopt v6 multicast");
 	}
+done_inet6:
 	freeifaddrs(ifp);
 #endif
 
