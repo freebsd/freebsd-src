@@ -17,7 +17,7 @@ LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
 LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
 		MACHINE_CPU="i686 mmx sse sse2"
-LIB32WMAKEENV+=	\
+LIB32WMAKEFLAGS=	\
 		AS="${XAS} --32" \
 		LD="${XLD} -m elf_i386_fbsd -Y P,${LIBCOMPATTMP}/usr/lib32" \
 		OBJCOPY="${XOBJCOPY}"
@@ -29,7 +29,7 @@ LIB32CPUFLAGS=	-mcpu=powerpc
 LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
 .endif
 LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc
-LIB32WMAKEENV+=	\
+LIB32WMAKEFLAGS=	\
 		LD="${XLD} -m elf32ppc_fbsd" \
 		OBJCOPY="${XOBJCOPY}"
 .endif
@@ -72,6 +72,13 @@ LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 # -B is needed to find /usr/lib32/crti.o for GCC and /usr/libsoft/crti.o for
 # Clang/GCC.
 LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
+.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
+# GCC requires -isystem when using a cross-compiler.
+LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
+# Force using libc++ for external GCC.
+LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
+			-nostdinc++ -L${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc++
+.endif
 
 # Yes, the flags are redundant.
 LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
@@ -84,11 +91,9 @@ LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
 # Don't rebuild build-tools targets during normal build.
 LIBCOMPATWMAKEENV+=	BUILD_TOOLS_META=.NOMETA_CMP
 .endif
-LIBCOMPATWMAKEENV+= \
-		CC="${XCC} ${LIBCOMPATCFLAGS}" \
+LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
 		CXX="${XCXX} ${LIBCOMPATCFLAGS} ${LIBCOMPATCXXFLAGS}" \
-		CPP="${XCPP} ${LIBCOMPATCFLAGS}"
-LIBCOMPATWMAKEFLAGS+= \
+		CPP="${XCPP} ${LIBCOMPATCFLAGS}" \
 		DESTDIR=${LIBCOMPATTMP} \
 		-DNO_CPU_CFLAGS \
 		MK_CTF=no \

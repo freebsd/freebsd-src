@@ -108,10 +108,8 @@ ccache-print-options: .PHONY
 # CC and COMPILER_* settings here.
 _exported_vars=	${X_}COMPILER_TYPE ${X_}COMPILER_VERSION \
 		${X_}COMPILER_FREEBSD_VERSION
-# Handle importing cached vars, but not for X_ vars.
-.if ${X_} == ""
-_cc_hash=	${${cc}}${MACHINE}${PATH}
-_cc_hash:=	${_cc_hash:hash}
+${X_}_cc_hash=	${${cc}}${MACHINE}${PATH}
+${X_}_cc_hash:=	${${X_}_cc_hash:hash}
 # Only import if none of the vars are set somehow else.
 _can_export=	yes
 .for var in ${_exported_vars}
@@ -121,12 +119,11 @@ _can_export=	no
 .endfor
 .if ${_can_export} == yes
 .for var in ${_exported_vars}
-.if defined(${var}.${_cc_hash})
-${var}=	${${var}.${_cc_hash}}
+.if defined(${var}.${${X_}_cc_hash})
+${var}=	${${var}.${${X_}_cc_hash}}
 .endif
 .endfor
 .endif
-.endif	# ${X_} == ""
 
 .if ${cc} == "CC" || (${cc} == "XCC" && ${XCC} != ${CC})
 .if ${MACHINE} == "common"
@@ -186,14 +183,9 @@ X_COMPILER_FEATURES=	${COMPILER_FEATURES}
 # Export the values so sub-makes don't have to look them up again, using the
 # hash key computed above.
 .for var in ${_exported_vars}
-.if ${X_} == ""
-${var}.${_cc_hash}:=	${${var}}
-.export-env ${var}.${_cc_hash}
-.undef ${var}.${_cc_hash}
-.else
-# Always export X_ vars.
-.export-env ${var}
-.endif
+${var}.${${X_}_cc_hash}:=	${${var}}
+.export-env ${var}.${${X_}_cc_hash}
+.undef ${var}.${${X_}_cc_hash}
 .endfor
 
 .endif	# ${cc} == "CC" || !empty(XCC)
