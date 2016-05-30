@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ldconfig
-# REQUIRE: mountcritremote FILESYSTEMS
+# REQUIRE: FILESYSTEMS
 # BEFORE:  DAEMON
 
 . /etc/rc.subr
