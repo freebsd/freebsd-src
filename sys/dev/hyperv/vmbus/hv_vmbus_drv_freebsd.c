@@ -80,7 +80,7 @@ vmbus_msg_task(void *xsc, int pending __unused)
 	struct vmbus_softc *sc = xsc;
 	hv_vmbus_message *msg;
 
-	msg = VMBUS_PCPU_GET(sc, message, curcpu) + HV_VMBUS_MESSAGE_SINT;
+	msg = VMBUS_PCPU_GET(sc, message, curcpu) + VMBUS_SINT_MESSAGE;
 	for (;;) {
 		const hv_vmbus_channel_msg_table_entry *entry;
 		hv_vmbus_channel_msg_header *hdr;
@@ -144,14 +144,14 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 
 	/* Check if there are actual msgs to be process */
 	msg_base = VMBUS_PCPU_GET(sc, message, cpu);
-	msg = msg_base + HV_VMBUS_TIMER_SINT;
 
 	/* we call eventtimer process the message */
+	msg = msg_base + VMBUS_SINT_TIMER;
 	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
 		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
 
 		/* call intrrupt handler of event timer */
-		hv_et_intr(frame);
+		vmbus_et_intr(frame);
 
 		/*
 		 * Make sure the write to message_type (ie set to
@@ -175,7 +175,7 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 		}
 	}
 
-	msg = msg_base + HV_VMBUS_MESSAGE_SINT;
+	msg = msg_base + VMBUS_SINT_MESSAGE;
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
 		taskqueue_enqueue(VMBUS_PCPU_GET(sc, message_tq, cpu),
 		    VMBUS_PCPU_PTR(sc, message_task, cpu));
@@ -254,7 +254,7 @@ vmbus_synic_setup(void *xsc)
 	/*
 	 * Configure and unmask SINT for message and event flags.
 	 */
-	sint = MSR_HV_SINT0 + HV_VMBUS_MESSAGE_SINT;
+	sint = MSR_HV_SINT0 + VMBUS_SINT_MESSAGE;
 	orig = rdmsr(sint);
 	val = sc->vmbus_idtvec | MSR_HV_SINT_AUTOEOI |
 	    (orig & MSR_HV_SINT_RSVD_MASK);
@@ -263,7 +263,7 @@ vmbus_synic_setup(void *xsc)
 	/*
 	 * Configure and unmask SINT for timer.
 	 */
-	sint = MSR_HV_SINT0 + HV_VMBUS_TIMER_SINT;
+	sint = MSR_HV_SINT0 + VMBUS_SINT_TIMER;
 	orig = rdmsr(sint);
 	val = sc->vmbus_idtvec | MSR_HV_SINT_AUTOEOI |
 	    (orig & MSR_HV_SINT_RSVD_MASK);
@@ -292,14 +292,14 @@ vmbus_synic_teardown(void *arg)
 	/*
 	 * Mask message and event flags SINT.
 	 */
-	sint = MSR_HV_SINT0 + HV_VMBUS_MESSAGE_SINT;
+	sint = MSR_HV_SINT0 + VMBUS_SINT_MESSAGE;
 	orig = rdmsr(sint);
 	wrmsr(sint, orig | MSR_HV_SINT_MASKED);
 
 	/*
 	 * Mask timer SINT.
 	 */
-	sint = MSR_HV_SINT0 + HV_VMBUS_TIMER_SINT;
+	sint = MSR_HV_SINT0 + VMBUS_SINT_TIMER;
 	orig = rdmsr(sint);
 	wrmsr(sint, orig | MSR_HV_SINT_MASKED);
 
