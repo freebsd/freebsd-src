@@ -60,6 +60,16 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
+#ifndef _IN_ADDR_T_DECLARED
+typedef	__uint32_t	in_addr_t;
+#define	_IN_ADDR_T_DECLARED
+#endif
+
+#ifndef _IN_PORT_T_DECLARED
+typedef	__uint16_t	in_port_t;
+#define	_IN_PORT_T_DECLARED
+#endif
+
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
@@ -130,6 +140,8 @@ struct addrinfo {
 	struct	sockaddr *ai_addr;	/* binary address */
 	struct	addrinfo *ai_next;	/* next structure in linked list */
 };
+
+#define	IPPORT_RESERVED	1024
 
 /*
  * Error return codes from gethostbyname() and gethostbyaddr()
