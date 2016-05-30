@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2015
+.Dd May 30, 2016
 .Dt DBM 3
 .Os
 .Sh NAME
@@ -66,7 +66,7 @@ is declared in
 .In ndbm.h :
 .Bd -literal
 typedef struct {
-	char *dptr;
+	void *dptr;
 	int dsize;
 } datum;
 .Ed

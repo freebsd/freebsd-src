@@ -52,7 +52,7 @@
 #define	DBM_SUFFIX	".db"
 
 typedef struct {
-	char *dptr;
+	void *dptr;
 	int dsize;
 } datum;
 
