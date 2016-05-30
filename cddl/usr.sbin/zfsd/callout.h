@@ -109,7 +109,7 @@ public:
 	 *
 	 * \param interval  Timeval indicating the time which must elapse
 	 *                  before this callout fires.
-	 * \param func      Pointer to the callback funtion
+	 * \param func      Pointer to the callback function
 	 * \param arg       Argument pointer to pass to callback function
 	 *
 	 * \return  Cancellation status.
