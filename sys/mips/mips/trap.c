@@ -1823,6 +1823,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	int is_store = 0;
 	int sign_extend = 0;
 #ifdef CPU_CHERI
+	register_t pcc_base;
 
 	/*
 	 * XXXRW: This code isn't really post-CHERI ready.
@@ -1838,17 +1839,13 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * then substitute a different instruction...
 	 *
 	 * XXXRW: Should just use the CP0 'faulting instruction' register
-	 * available in CHERI.
-	 *
-	 * XXXRW: The below uses the saved $epcc for the user thread, but if
-	 * this is an emulated unaligned access for a kernel thread, then this
-	 * will not work.
+	 * available in CHERI (but not MIPS generally).
 	 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->pcc, 0);
-	CHERI_CLW(inst, 0, 0, CHERI_CR_CTEMP0);
-#else
-	inst = *((u_int32_t *)(intptr_t)pc);;
+	CHERI_CGETBASE(pcc_base, CHERI_CR_CTEMP0);
+	pc += pcc_base;
 #endif
+	inst = *((u_int32_t *)(intptr_t)pc);;
 	src_regno = MIPS_INST_RT(inst);
 
 	/*
