@@ -875,9 +875,7 @@ ktrccall(struct pcb *pcb)
 	if (req == NULL)
 		return;
 	kc = &req->ktr_data.ktr_ccall;
-	cheri_serialize(&kc->ktr_pcc, &pcb->pcb_regs.c1);
-	cheri_serialize(&kc->ktr_idc, &pcb->pcb_regs.c2);
-	kc->ktr_method = pcb->pcb_regs.v0;
+	ktrccall_mdfill(pcb, kc);
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }
@@ -895,8 +893,7 @@ ktrcreturn(struct pcb *pcb)
 	if (req == NULL)
 		return;
 	kr = &req->ktr_data.ktr_creturn;
-	cheri_serialize(&kr->ktr_cret, &pcb->pcb_regs.c3);
-	kr->ktr_iret = pcb->pcb_regs.v0;
+	ktrcreturn_mdfill(pcb, kr);
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }
@@ -907,49 +904,12 @@ ktrcexception(struct trapframe *frame)
 	struct thread *td = curthread;
 	struct ktr_request *req;
 	struct ktr_cexception *ke;
-	register_t cause;
-
-	cause = frame->capcause;
 
 	req = ktr_getrequest(KTR_CEXCEPTION);
 	if (req == NULL)
 		return;
 	ke = &req->ktr_data.ktr_cexception;
-	ke->ktr_exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
-	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
-	ke->ktr_regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
-
-	/* XXXCHERI: What about PCC? */
-	cheri_serialize(&ke->ktr_cap,
-	    ke->ktr_regnum == CHERI_CR_DDC ? &frame->ddc :
-	    ke->ktr_regnum == CHERI_CR_C1 ? &frame->c1 :
-	    ke->ktr_regnum == CHERI_CR_C2 ? &frame->c2 :
-	    ke->ktr_regnum == CHERI_CR_C3 ? &frame->c3 :
-	    ke->ktr_regnum == CHERI_CR_C4 ? &frame->c4 :
-	    ke->ktr_regnum == CHERI_CR_C5 ? &frame->c5 :
-	    ke->ktr_regnum == CHERI_CR_C6 ? &frame->c6 :
-	    ke->ktr_regnum == CHERI_CR_C7 ? &frame->c7 :
-	    ke->ktr_regnum == CHERI_CR_C8 ? &frame->c8 :
-	    ke->ktr_regnum == CHERI_CR_C9 ? &frame->c9 :
-	    ke->ktr_regnum == CHERI_CR_C10 ? &frame->c10 :
-	    ke->ktr_regnum == CHERI_CR_STC ? &frame->stc :
-	    ke->ktr_regnum == CHERI_CR_C12 ? &frame->c12 :
-	    ke->ktr_regnum == CHERI_CR_C13 ? &frame->c13 :
-	    ke->ktr_regnum == CHERI_CR_C14 ? &frame->c14 :
-	    ke->ktr_regnum == CHERI_CR_C15 ? &frame->c15 :
-	    ke->ktr_regnum == CHERI_CR_C16 ? &frame->c16 :
-	    ke->ktr_regnum == CHERI_CR_C17 ? &frame->c17 :
-	    ke->ktr_regnum == CHERI_CR_C18 ? &frame->c18 :
-	    ke->ktr_regnum == CHERI_CR_C19 ? &frame->c19 :
-	    ke->ktr_regnum == CHERI_CR_C20 ? &frame->c20 :
-	    ke->ktr_regnum == CHERI_CR_C21 ? &frame->c21 :
-	    ke->ktr_regnum == CHERI_CR_C22 ? &frame->c22 :
-	    ke->ktr_regnum == CHERI_CR_C23 ? &frame->c23 :
-	    ke->ktr_regnum == CHERI_CR_C24 ? &frame->c24 :
-	    ke->ktr_regnum == CHERI_CR_C25 ? &frame->c25 :
-	    ke->ktr_regnum == CHERI_CR_IDC ? &frame->idc :
-	    NULL);
-
+	ktrcexception_mdfill(frame, ke);
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }

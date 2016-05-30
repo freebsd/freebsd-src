@@ -896,6 +896,18 @@ extern u_int	security_cheri_debugger_on_sandbox_unwind;
 extern u_int	security_cheri_debugger_on_sigprot;
 extern u_int	security_cheri_sandboxed_signals;
 extern u_int	security_cheri_syscall_violations;
+
+/*
+ * Functions exposed to machine-independent code that must interact with
+ * CHERI-specific features; e.g., ktrace.
+ */
+struct ktr_ccall;
+struct ktr_creturn;
+struct ktr_cexception;
+void	ktrccall_mdfill(struct pcb *pcb, struct ktr_ccall *kc);
+void	ktrcreturn_mdfill(struct pcb *pcb, struct ktr_creturn *kr);
+void	ktrcexception_mdfill(struct trapframe *frame,
+	    struct ktr_cexception *ke);
 #endif /* !_KERNEL */
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */
