@@ -1343,18 +1343,14 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 
 #ifdef CPU_CHERI
 	/*
-	 * XXXRW: This isn't really right, as it doesn't properly implement
-	 * CHERI bounds checking for $epcc.  On the other hand, unlike some
-	 * other pc loads in trap.c, it actually uses fuword()!
-	 */
-	/*
-	 * XXXRW: TODO: Implement offsetting instptr or instPC by the thread's
-	 * $pcc.  Unfortuntely, we don't have a pointer to that here, only
-	 * having been passed 'trapframe', not 'cheriframe'.  We use the saved
-	 * $epcc, but it's not clear if that's safe.
+	 * XXXRW: This needs careful review.  We extract a suitable offset
+	 * from the executing $pcc, add it to $pcc's base, and use that for a
+	 * $kdc-relative load via fuword().  Is this safe with respect to
+	 * alignment on $pcc, etc?
 	 */
 	register_t pcc_base;
-	CHERI_CGETBASE(pcc_base, CHERI_CR_EPCC);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &framePtr->pcc, 0);
+	CHERI_CGETBASE(pcc_base, CHERI_CR_CTEMP0);
 	if (instptr)
 		instptr += pcc_base;
 	instPC += pcc_base;
@@ -1371,6 +1367,9 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 			inst = *(InstFmt *) instPC;
 	}
 
+	/*
+	 * XXXRW: CHERI branch instructions are not handled here.
+	 */
 	switch ((int)inst.JType.op) {
 	case OP_SPECIAL:
 		switch ((int)inst.RType.func) {
