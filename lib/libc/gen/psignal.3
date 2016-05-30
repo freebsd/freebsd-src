@@ -28,7 +28,7 @@
 .\"     @(#)psignal.3	8.2 (Berkeley) 2/27/95
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2011
+.Dd May 30, 2016
 .Dt PSIGNAL 3
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .In signal.h
 .Ft void
-.Fn psignal "unsigned sig" "const char *s"
+.Fn psignal "int sig" "const char *s"
 .Vt extern const char * const sys_siglist[] ;
 .Vt extern const char * const sys_signame[] ;
 .In string.h
