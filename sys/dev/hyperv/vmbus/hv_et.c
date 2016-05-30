@@ -41,10 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-#define HV_TIMER_FREQUENCY		(10 * 1000 * 1000LL) /* 100ns period */
-#define HV_MAX_DELTA_TICKS		0xffffffffLL
-#define HV_MIN_DELTA_TICKS		1LL
-
 #define MSR_HV_STIMER0_CFG_SINT		\
 	((((uint64_t)VMBUS_SINT_TIMER) << MSR_HV_STIMER_CFG_SINT_SHIFT) & \
 	 MSR_HV_STIMER_CFG_SINT_MASK)
@@ -67,7 +63,8 @@ sbintime2tick(sbintime_t time)
 	struct timespec val;
 
 	val = sbttots(time);
-	return (val.tv_sec * HV_TIMER_FREQUENCY) + (val.tv_nsec / 100);
+	return (val.tv_sec * HYPERV_TIMER_FREQ) +
+	    (val.tv_nsec / HYPERV_TIMER_NS_FACTOR);
 }
 
 static int
@@ -151,11 +148,9 @@ hv_et_attach(device_t dev)
 	vmbus_et.et_name = "Hyper-V";
 	vmbus_et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU;
 	vmbus_et.et_quality = 1000;
-	vmbus_et.et_frequency = HV_TIMER_FREQUENCY;
-	vmbus_et.et_min_period =
-	    HV_MIN_DELTA_TICKS * ((1LL << 32) / HV_TIMER_FREQUENCY);
-	vmbus_et.et_max_period =
-	    HV_MAX_DELTA_TICKS * ((1LL << 32) / HV_TIMER_FREQUENCY);
+	vmbus_et.et_frequency = HYPERV_TIMER_FREQ;
+	vmbus_et.et_min_period = (0x00000001ULL << 32) / HYPERV_TIMER_FREQ;
+	vmbus_et.et_max_period = (0xfffffffeULL << 32) / HYPERV_TIMER_FREQ;
 	vmbus_et.et_start = hv_et_start;
 
 	/*

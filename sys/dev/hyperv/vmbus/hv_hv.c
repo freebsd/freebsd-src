@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-#define HV_NANOSECONDS_PER_SEC		1000000000L
-
 #define HYPERV_FREEBSD_BUILD		0ULL
 #define HYPERV_FREEBSD_VERSION		((uint64_t)__FreeBSD_version)
 #define HYPERV_FREEBSD_OSID		0ULL
@@ -87,7 +85,7 @@ static struct timecounter	hyperv_timecounter = {
 	.tc_get_timecount	= hyperv_get_timecount,
 	.tc_poll_pps		= NULL,
 	.tc_counter_mask	= 0xffffffff,
-	.tc_frequency		= HV_NANOSECONDS_PER_SEC/100,
+	.tc_frequency		= HYPERV_TIMER_FREQ,
 	.tc_name		= "Hyper-V",
 	.tc_quality		= 2000,
 	.tc_flags		= 0,
