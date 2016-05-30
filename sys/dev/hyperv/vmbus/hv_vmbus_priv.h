@@ -189,8 +189,6 @@ enum {
 	HV_VMBUS_EVENT_PORT_ID		= 2,
 	HV_VMBUS_MONITOR_CONNECTION_ID	= 3,
 	HV_VMBUS_MONITOR_PORT_ID	= 3,
-	HV_VMBUS_MESSAGE_SINT		= 2,
-	HV_VMBUS_TIMER_SINT		= 4,
 };
 
 #define HV_PRESENT_BIT		0x80000000
@@ -541,12 +539,6 @@ int			hv_vmbus_connect(void);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
-
-/**
- * Event Timer interfaces
- */
-void			hv_et_init(void);
-void			hv_et_intr(struct trapframe*);
 
 /* Wait for device creation */
 void			vmbus_scan(void);

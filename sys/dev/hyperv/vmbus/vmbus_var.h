@@ -31,7 +31,20 @@
 
 #include <sys/param.h>
 #include <sys/bus_dma.h>
+#include <sys/taskqueue.h>
+
 #include <dev/hyperv/include/hyperv_busdma.h>
+
+/*
+ * NOTE: DO NOT CHANGE THIS.
+ */
+#define VMBUS_SINT_MESSAGE	2
+/*
+ * NOTE:
+ * - DO NOT set it to the same value as VMBUS_SINT_MESSAGE.
+ * - DO NOT set it to 0.
+ */
+#define VMBUS_SINT_TIMER	4
 
 struct vmbus_pcpu_data {
 	u_long			*intr_cnt;	/* Hyper-V interrupt counter */
@@ -78,8 +91,13 @@ vmbus_get_device(void)
 #define VMBUS_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
 #define VMBUS_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
 
+struct hv_vmbus_channel;
+struct trapframe;
+
 void	vmbus_on_channel_open(const struct hv_vmbus_channel *);
 void	vmbus_event_proc(struct vmbus_softc *, int);
 void	vmbus_event_proc_compat(struct vmbus_softc *, int);
+
+void	vmbus_et_intr(struct trapframe *);
 
 #endif	/* !_VMBUS_VAR_H_ */
