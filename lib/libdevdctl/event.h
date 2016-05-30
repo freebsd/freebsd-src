@@ -170,7 +170,7 @@ public:
 	Type GetType()					 const;
 
 	/**
-	 * Get the orginal DevdCtl event string for this event.
+	 * Get the original DevdCtl event string for this event.
 	 *
 	 * \return  The DevdCtl event string.
 	 */
@@ -267,7 +267,7 @@ protected:
 	 * \note Although stored by reference (since m_nvPairs can
 	 *       never be NULL), the NVPairMap referenced by this field
 	 *       is dynamically allocated and owned by this event object.
-	 *       m_nvPairs must be deleted at event desctruction.
+	 *       m_nvPairs must be deleted at event destruction.
 	 */
 	NVPairMap                  &m_nvPairs;
 
