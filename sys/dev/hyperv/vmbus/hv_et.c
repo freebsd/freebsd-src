@@ -113,6 +113,9 @@ vmbus_et_identify(driver_t *driver, device_t parent)
 static int
 vmbus_et_probe(device_t dev)
 {
+	if (resource_disabled(VMBUS_ET_NAME, 0))
+		return (ENXIO);
+
 	device_set_desc(dev, "Hyper-V event timer");
 
 	return (BUS_PROBE_NOWILDCARD);
