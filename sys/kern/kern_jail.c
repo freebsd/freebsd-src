@@ -4276,7 +4276,7 @@ SYSCTL_PROC(_security_jail, OID_AUTO, vnet,
 #if defined(INET) || defined(INET6)
 SYSCTL_UINT(_security_jail, OID_AUTO, jail_max_af_ips, CTLFLAG_RW,
     &jail_max_af_ips, 0,
-    "Number of IP addresses a jail may have at most per address family");
+    "Number of IP addresses a jail may have at most per address family (deprecated)");
 #endif
 
 /*
@@ -4316,59 +4316,59 @@ sysctl_jail_default_allow(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_security_jail, OID_AUTO, set_hostname_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_SET_HOSTNAME, sysctl_jail_default_allow, "I",
-    "Processes in jail can set their hostnames");
+    "Processes in jail can set their hostnames (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, socket_unixiproute_only,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     (void *)1, PR_ALLOW_SOCKET_AF, sysctl_jail_default_allow, "I",
-    "Processes in jail are limited to creating UNIX/IP/route sockets only");
+    "Processes in jail are limited to creating UNIX/IP/route sockets only (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, sysvipc_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_SYSVIPC, sysctl_jail_default_allow, "I",
-    "Processes in jail can use System V IPC primitives");
+    "Processes in jail can use System V IPC primitives (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, allow_raw_sockets,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_RAW_SOCKETS, sysctl_jail_default_allow, "I",
-    "Prison root can create raw sockets");
+    "Prison root can create raw sockets (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, chflags_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_CHFLAGS, sysctl_jail_default_allow, "I",
-    "Processes in jail can alter system file flags");
+    "Processes in jail can alter system file flags (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount/unmount jail-friendly file systems");
+    "Processes in jail can mount/unmount jail-friendly file systems (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_devfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_DEVFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the devfs file system");
+    "Processes in jail can mount the devfs file system (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_fdescfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_FDESCFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the fdescfs file system");
+    "Processes in jail can mount the fdescfs file system (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_nullfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_NULLFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the nullfs file system");
+    "Processes in jail can mount the nullfs file system (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_procfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_PROCFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the procfs file system");
+    "Processes in jail can mount the procfs file system (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_linprocfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_LINPROCFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the linprocfs file system");
+    "Processes in jail can mount the linprocfs file system (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_linsysfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_LINSYSFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the linsysfs file system");
+    "Processes in jail can mount the linsysfs file system (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_tmpfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_TMPFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the tmpfs file system");
+    "Processes in jail can mount the tmpfs file system (deprecated)");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_zfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_ZFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the zfs file system");
+    "Processes in jail can mount the zfs file system (deprecated)");
 
 static int
 sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
@@ -4389,13 +4389,13 @@ SYSCTL_PROC(_security_jail, OID_AUTO, enforce_statfs,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &jail_default_enforce_statfs, offsetof(struct prison, pr_enforce_statfs),
     sysctl_jail_default_level, "I",
-    "Processes in jail cannot see all mounted file systems");
+    "Processes in jail cannot see all mounted file systems (deprecated)");
 
 SYSCTL_PROC(_security_jail, OID_AUTO, devfs_ruleset,
     CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
     &jail_default_devfs_rsnum, offsetof(struct prison, pr_devfs_rsnum),
     sysctl_jail_default_level, "I",
-    "Ruleset for the devfs filesystem in jail");
+    "Ruleset for the devfs filesystem in jail (deprecated)");
 
 /*
  * Nodes to describe jail parameters.  Maximum length of string parameters
