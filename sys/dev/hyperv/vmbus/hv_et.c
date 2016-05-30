@@ -37,16 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/timeet.h>
 
-#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 #define HV_TIMER_FREQUENCY		(10 * 1000 * 1000LL) /* 100ns period */
 #define HV_MAX_DELTA_TICKS		0xffffffffLL
 #define HV_MIN_DELTA_TICKS		1LL
 
 #define MSR_HV_STIMER0_CFG_SINT		\
-	((((uint64_t)HV_VMBUS_TIMER_SINT) << MSR_HV_STIMER_CFG_SINT_SHIFT) & \
+	((((uint64_t)VMBUS_SINT_TIMER) << MSR_HV_STIMER_CFG_SINT_SHIFT) & \
 	 MSR_HV_STIMER_CFG_SINT_MASK)
 
 /*
@@ -83,7 +83,7 @@ hv_et_start(struct eventtimer *et, sbintime_t firsttime, sbintime_t periodtime)
 }
 
 void
-hv_et_intr(struct trapframe *frame)
+vmbus_et_intr(struct trapframe *frame)
 {
 	struct trapframe *oldframe;
 	struct thread *td;
