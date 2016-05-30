@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160523: remove extranous ALTQ files
+OLD_FILES+=usr/include/altq/altq_codel.h
+OLD_FILES+=usr/include/altq/altq_fairq.h
 # 20160519: remove DTrace Toolkit from base
 OLD_FILES+=usr/share/dtrace/toolkit/execsnoop
 OLD_FILES+=usr/share/dtrace/toolkit/hotkernel
