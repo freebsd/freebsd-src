@@ -19,7 +19,9 @@
 #include <sys/endian.h>
 #include <sys/types.h>
 
+#ifndef _OPENSOLARIS_SYS_TYPES_H_ /* Avoid redefining this typedef */
 typedef unsigned int    uint_t;             /* native unsigned integer */
+#endif
 typedef u_int8_t        u08b_t;             /*  8-bit unsigned integer */
 typedef u_int32_t       uint_32t;           /* 32-bit unsigned integer */
 typedef u_int64_t       u64b_t;             /* 64-bit unsigned integer */

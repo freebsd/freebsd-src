@@ -29,8 +29,10 @@
 #include <sys/zio.h>
 #ifdef _KERNEL
 #include <crypto/sha2/sha256.h>
+#include <crypto/sha2/sha512t.h>
 #else
 #include <sha256.h>
+#include <sha512t.h>
 #endif
 
 /*ARGSUSED*/
@@ -58,17 +60,16 @@ zio_checksum_SHA256(const void *buf, uint64_t size,
 	zcp->zc_word[3] = BE_64(tmp.zc_word[3]);
 }
 
-#ifdef illumos
 /*ARGSUSED*/
 void
 zio_checksum_SHA512_native(const void *buf, uint64_t size,
     const void *ctx_template, zio_cksum_t *zcp)
 {
-	SHA2_CTX	ctx;
+	SHA512_CTX	ctx;
 
-	SHA2Init(SHA512_256, &ctx);
-	SHA2Update(&ctx, buf, size);
-	SHA2Final(zcp, &ctx);
+	SHA512_256_Init(&ctx);
+	SHA512_256_Update(&ctx, buf, size);
+	SHA512_256_Final((unsigned char *)zcp, &ctx);
 }
 
 /*ARGSUSED*/
@@ -84,4 +85,3 @@ zio_checksum_SHA512_byteswap(const void *buf, uint64_t size,
 	zcp->zc_word[2] = BSWAP_64(tmp.zc_word[2]);
 	zcp->zc_word[3] = BSWAP_64(tmp.zc_word[3]);
 }
-#endif
