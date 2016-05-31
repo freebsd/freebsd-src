@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sockio.h>
@@ -154,6 +155,7 @@ struct bootpc_ifcontext {
 	int dhcpquerytype;		/* dhcp type sent */
 	struct in_addr dhcpserver;
 	int gotdhcpserver;
+	uint16_t mtu;
 };
 
 #define TAG_MAXLEN 1024
@@ -195,6 +197,7 @@ struct bootpc_globalcontext {
 #define TAG_ROUTERS	  3  /* Routers (in order of preference) */
 #define TAG_HOSTNAME	 12  /* Client host name */
 #define TAG_ROOT	 17  /* Root path */
+#define TAG_INTF_MTU	 26  /* Interface MTU Size (RFC2132) */
 
 /* DHCP specific tags */
 #define TAG_OVERLOAD	 52  /* Option Overload */
@@ -1030,7 +1033,19 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 		return (0);
 	}
 
-	printf("Adjusted interface %s\n", ifctx->ireq.ifr_name);
+	printf("Adjusted interface %s", ifctx->ireq.ifr_name);
+
+	/* Do BOOTP interface options */
+	if (ifctx->mtu != 0) {
+		printf(" (MTU=%d%s)", ifctx->mtu, 
+		    (ifctx->mtu > 1514) ? "/JUMBO" : "");
+		ifr->ifr_mtu = ifctx->mtu;
+		error = ifioctl(bootp_so, SIOCSIFMTU, (caddr_t) ifr, td);
+		if (error != 0)
+			panic("%s: SIOCSIFMTU, error=%d", __func__, error);
+	}
+	printf("\n");
+
 	/*
 	 * Do enough of ifconfig(8) so that the chosen interface
 	 * can talk to the servers.  (just set the address)
@@ -1518,6 +1533,11 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 		p[i] = '\0';
 	}
 
+	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
+		       TAG_INTF_MTU);
+	if (p != NULL) {
+		ifctx->mtu = be16dec(p);
+	}
 
 	printf("\n");
 

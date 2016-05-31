@@ -312,6 +312,11 @@ pxe_open(struct open_file *f, ...)
 		    sprintf(temp, "%6D", bootplayer.CAddr, ":");
 		    setenv("boot.netif.hwaddr", temp, 1);
 		}
+		if (intf_mtu != 0) {
+			char mtu[16];
+			sprintf(mtu, "%u", intf_mtu);
+			setenv("boot.netif.mtu", mtu, 1);
+		}
 		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
 		setenv("boot.nfsroot.path", rootpath, 1);
 		setenv("dhcp.host-name", hostname, 1);
