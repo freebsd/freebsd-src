@@ -137,6 +137,7 @@ static int thunder_pem_get_id(device_t, device_t, enum pci_id_type,
 static int thunder_pem_attach(device_t);
 static int thunder_pem_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
+static bus_dma_tag_t thunder_pem_get_dma_tag(device_t, device_t);
 static int thunder_pem_detach(device_t);
 static uint64_t thunder_pem_config_reg_read(struct thunder_pem_softc *, int);
 static int thunder_pem_link_init(struct thunder_pem_softc *);
@@ -175,6 +176,8 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	thunder_pem_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+
+	DEVMETHOD(bus_get_dma_tag,		thunder_pem_get_dma_tag),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,		thunder_pem_maxslots),
@@ -329,6 +332,15 @@ thunder_pem_adjust_resource(device_t dev, device_t child, int type,
 		 */
 		return (EINVAL);
 	return (rman_adjust_resource(res, start, end));
+}
+
+static bus_dma_tag_t
+thunder_pem_get_dma_tag(device_t dev, device_t child)
+{
+	struct thunder_pem_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->dmat);
 }
 
 static int
@@ -765,6 +777,21 @@ thunder_pem_attach(device_t dev)
 	}
 	sc->reg_bst = rman_get_bustag(sc->reg);
 	sc->reg_bsh = rman_get_bushandle(sc->reg);
+
+	/* Create the parent DMA tag to pass down the coherent flag */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
+	    1, 0,			/* alignment, bounds */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE,		/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,	/* nsegments */
+	    BUS_SPACE_MAXSIZE,		/* maxsegsize */
+	    BUS_DMA_COHERENT,		/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->dmat);
+	if (error != 0)
+		return (error);
 
 	/* Map SLI, do it only once */
 	if (!sli0_s2m_regx_base) {
