@@ -58,6 +58,10 @@
 #define	PROTOCOL_ISCSI			1
 #define	PROTOCOL_ISER			2
 
+#define	ENABLE_UNSPECIFIED		0
+#define	ENABLE_ON			1
+#define	ENABLE_OFF			2
+
 struct target {
 	TAILQ_ENTRY(target)	t_next;
 	struct conf		*t_conf;
@@ -71,6 +75,7 @@ struct target {
 	int			t_data_digest;
 	int			t_auth_method;
 	int			t_session_type;
+	int			t_enable;
 	int			t_protocol;
 	char			*t_offload;
 	char			*t_user;
@@ -113,5 +118,6 @@ void		print_periphs(int session_id);
 
 char		*checked_strdup(const char *);
 bool		valid_iscsi_name(const char *name);
+int		parse_enable(const char *enable);
 
 #endif /* !ISCSICTL_H */
