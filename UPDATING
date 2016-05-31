@@ -16,6 +16,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20160531	p35	FreeBSD-SA-16:20.linux
+			FreeBSD-SA-16:21.43bsd
+			FreeBSD-SA-16:22.libarchive
+
+	Fix kernel stack disclosure in Linux compatibility layer. [SA-16:20]
+	Fix kernel stack disclosure in 4.3BSD compatibility layer. [SA-16:21]
+	Fix directory traversal in cpio(1). [SA-16:22]
+
 20160517	p34	FreeBSD-SA-16:18.atkbd
 			FreeBSD-SA-16:19.sendmsg
 
