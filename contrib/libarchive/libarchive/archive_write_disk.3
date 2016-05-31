@@ -177,6 +177,9 @@ The default is to not refuse such paths.
 Note that paths ending in
 .Pa ..
 always cause an error, regardless of this flag.
+.It Cm ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS
+Refuse to extract an absolute path.
+The default is to not refuse such paths.
 .It Cm ARCHIVE_EXTRACT_SPARSE
 Scan data for blocks of NUL bytes and try to recreate them with holes.
 This results in sparse files, independent of whether the archive format
