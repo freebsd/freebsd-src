@@ -287,7 +287,7 @@ ${_ILINKS}:
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
-	ln -sf $$path ${.TARGET:T}
+	ln -fhs $$path ${.TARGET:T}
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
