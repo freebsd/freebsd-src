@@ -2855,6 +2855,9 @@ enum {
 #define AR_BTCOEX_WL_WEIGHTS3           AR_WLAN_COEX_OFFSET(BTCOEX_WL_WEIGHTS3) 
 #define AR_BTCOEX_MAX_TXPWR(_x)         (AR_WLAN_COEX_OFFSET(BTCOEX_MAX_TXPWR) + ((_x) << 2))
 #define AR_BTCOEX_WL_LNA                AR_WLAN_COEX_OFFSET(BTCOEX_WL_LNA) 
+#define AR_BTCOEX_WL_LNA_TIMEOUT                        0x003FFFFF
+#define AR_BTCOEX_WL_LNA_TIMEOUT_S                      0
+
 #define AR_BTCOEX_RFGAIN_CTRL           AR_WLAN_COEX_OFFSET(BTCOEX_RFGAIN_CTRL) 
 
 #define AR_BTCOEX_CTRL2                 AR_WLAN_COEX_OFFSET(BTCOEX_CTRL2) 
@@ -2886,6 +2889,32 @@ enum {
 #define AR_BTCOEX_CTRL3                 AR_WLAN_COEX_OFFSET(BTCOEX_CTRL3)
 #define AR_BTCOEX_CTRL3_CONT_INFO_TIMEOUT   0x00000FFF
 #define AR_BTCOEX_CTRL3_CONT_INFO_TIMEOUT_S 0
+
+/* QCA9565 */
+
+#define AR_BTCOEX_WL_LNADIV                                0x1a64
+#define AR_BTCOEX_WL_LNADIV_PREDICTED_PERIOD               0x00003FFF
+#define AR_BTCOEX_WL_LNADIV_PREDICTED_PERIOD_S             0
+#define AR_BTCOEX_WL_LNADIV_DPDT_IGNORE_PRIORITY           0x00004000
+#define AR_BTCOEX_WL_LNADIV_DPDT_IGNORE_PRIORITY_S         14
+#define AR_BTCOEX_WL_LNADIV_FORCE_ON                       0x00008000
+#define AR_BTCOEX_WL_LNADIV_FORCE_ON_S                     15
+#define AR_BTCOEX_WL_LNADIV_MODE_OPTION                    0x00030000
+#define AR_BTCOEX_WL_LNADIV_MODE_OPTION_S                  16
+#define AR_BTCOEX_WL_LNADIV_MODE                           0x007c0000
+#define AR_BTCOEX_WL_LNADIV_MODE_S                         18
+#define AR_BTCOEX_WL_LNADIV_ALLOWED_TX_ANTDIV_WL_TX_REQ    0x00800000
+#define AR_BTCOEX_WL_LNADIV_ALLOWED_TX_ANTDIV_WL_TX_REQ_S  23
+#define AR_BTCOEX_WL_LNADIV_DISABLE_TX_ANTDIV_ENABLE       0x01000000
+#define AR_BTCOEX_WL_LNADIV_DISABLE_TX_ANTDIV_ENABLE_S     24
+#define AR_BTCOEX_WL_LNADIV_CONTINUOUS_BT_ACTIVE_PROTECT   0x02000000
+#define AR_BTCOEX_WL_LNADIV_CONTINUOUS_BT_ACTIVE_PROTECT_S 25
+#define AR_BTCOEX_WL_LNADIV_BT_INACTIVE_THRESHOLD          0xFC000000
+#define AR_BTCOEX_WL_LNADIV_BT_INACTIVE_THRESHOLD_S        26
+
+#define AR_MCI_MISC                                     0x1a74
+#define AR_MCI_MISC_HW_FIX_EN                           0x00000001
+#define AR_MCI_MISC_HW_FIX_EN_S                         0
 
 /******************************************************************************
  * WLAN BT Global Register Map
