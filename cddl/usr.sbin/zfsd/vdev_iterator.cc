@@ -118,7 +118,7 @@ VdevIterator::Next()
 		 */
 		m_vdevQueue.insert(m_vdevQueue.begin(), vdevChildren,
 				   vdevChildren + numChildren);
-	};
+	}
 
 	return (vdevConfig);
 }
