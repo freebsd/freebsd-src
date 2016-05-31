@@ -968,7 +968,7 @@ gic_bind(struct arm_gic_softc *sc, u_int irq, cpuset_t *cpus)
 
 	for (mask = 0, cpu = 0; cpu < end; cpu++)
 		if (CPU_ISSET(cpu, cpus))
-			mask |= 1 << arm_gic_map[cpu];
+			mask |= arm_gic_map[cpu];
 
 	gic_d_write_1(sc, GICD_ITARGETSR(0) + irq, mask);
 	return (0);
