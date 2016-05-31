@@ -184,10 +184,8 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->map_count = 0;
 	newtag->segments = NULL;
 
-#ifdef notyet
 	if ((flags & BUS_DMA_COHERENT) != 0)
 		newtag->bounce_flags |= BF_COHERENT;
-#endif
 
 	if (parent != NULL) {
 		if ((newtag->common.filter != NULL ||
