@@ -490,18 +490,18 @@ vmbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 static int
 vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 {
-	char guidbuf[40];
 	struct hv_device *dev_ctx = device_get_ivars(child);
+	char guidbuf[HYPERV_GUID_STRLEN];
 
 	if (dev_ctx == NULL)
 		return (0);
 
 	strlcat(buf, "classid=", buflen);
-	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->class_id);
+	hyperv_guid2str(&dev_ctx->class_id, guidbuf, sizeof(guidbuf));
 	strlcat(buf, guidbuf, buflen);
 
 	strlcat(buf, " deviceid=", buflen);
-	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->device_id);
+	hyperv_guid2str(&dev_ctx->device_id, guidbuf, sizeof(guidbuf));
 	strlcat(buf, guidbuf, buflen);
 
 	return (0);
@@ -526,30 +526,19 @@ hv_vmbus_child_device_create(hv_guid type, hv_guid instance,
 }
 
 int
-snprintf_hv_guid(char *buf, size_t sz, const hv_guid *guid)
-{
-	int cnt;
-	const unsigned char *d = guid->data;
-
-	cnt = snprintf(buf, sz,
-		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-		d[3], d[2], d[1], d[0], d[5], d[4], d[7], d[6],
-		d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15]);
-	return (cnt);
-}
-
-int
 hv_vmbus_child_device_register(struct hv_device *child_dev)
 {
-	device_t child;
+	device_t child, parent;
 
+	parent = vmbus_get_device();
 	if (bootverbose) {
-		char name[40];
-		snprintf_hv_guid(name, sizeof(name), &child_dev->class_id);
-		printf("VMBUS: Class ID: %s\n", name);
+		char name[HYPERV_GUID_STRLEN];
+
+		hyperv_guid2str(&child_dev->class_id, name, sizeof(name));
+		device_printf(parent, "add device, classid: %s\n", name);
 	}
 
-	child = device_add_child(vmbus_get_device(), NULL, -1);
+	child = device_add_child(parent, NULL, -1);
 	child_dev->device = child;
 	device_set_ivars(child, child_dev);
 
