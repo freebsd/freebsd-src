@@ -178,6 +178,29 @@ DEFINE_TEST(test_write_disk_secure)
 	assert(S_ISDIR(st.st_mode));
 	archive_entry_free(ae);
 
+	 /*
+	 * Without security checks, we should be able to
+	 * extract an absolute path.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	assertFileExists("/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp");
+	assert(0 == unlink("/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp"));
+
+	/* But with security checks enabled, this should fail. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS);
+	failure("Extracting an absolute path should fail here.");
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assert(0 == archive_write_finish_entry(a));
+	assertFileNotExists("/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp");
+
 	assert(0 == archive_write_finish(a));
 
 	/* Test the entries on disk. */
