@@ -37,13 +37,13 @@
  */
         .text
         SUPERALIGN_TEXT
-IDTVEC(hv_vmbus_callback)
+IDTVEC(vmbus_isr)
         PUSH_FRAME
         SET_KERNEL_SREGS
         cld
         FAKE_MCOUNT(TF_EIP(%esp))
         pushl   %esp
-        call    hv_vector_handler
+        call    vmbus_handle_intr
         add     $4, %esp
         MEXITCOUNT
         jmp     doreti

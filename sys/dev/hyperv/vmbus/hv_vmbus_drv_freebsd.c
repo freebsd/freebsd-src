@@ -72,7 +72,7 @@ struct vmbus_softc	*vmbus_sc;
 
 static char *vmbus_ids[] = { "VMBUS", NULL };
 
-extern inthand_t IDTVEC(hv_vmbus_callback);
+extern inthand_t IDTVEC(vmbus_isr);
 
 static void
 vmbus_msg_task(void *xsc, int pending __unused)
@@ -124,8 +124,8 @@ handled:
 	}
 }
 
-static inline int
-hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
+static __inline int
+vmbus_handle_intr1(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 {
 	hv_vmbus_message *msg, *msg_base;
 
@@ -186,7 +186,7 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 }
 
 void
-hv_vector_handler(struct trapframe *trap_frame)
+vmbus_handle_intr(struct trapframe *trap_frame)
 {
 	struct vmbus_softc *sc = vmbus_get_softc();
 	int cpu = curcpu;
@@ -201,7 +201,7 @@ hv_vector_handler(struct trapframe *trap_frame)
 	 */
 	(*VMBUS_PCPU_GET(sc, intr_cnt, cpu))++;
 
-	hv_vmbus_isr(sc, trap_frame, cpu);
+	vmbus_handle_intr1(sc, trap_frame, cpu);
 
 	/*
 	 * Enable preemption.
@@ -411,7 +411,7 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 	 * All Hyper-V ISR required resources are setup, now let's find a
 	 * free IDT vector for Hyper-V ISR and set it up.
 	 */
-	sc->vmbus_idtvec = lapic_ipi_alloc(IDTVEC(hv_vmbus_callback));
+	sc->vmbus_idtvec = lapic_ipi_alloc(IDTVEC(vmbus_isr));
 	if (sc->vmbus_idtvec < 0) {
 		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
 		return ENXIO;
