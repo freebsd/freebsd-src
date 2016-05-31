@@ -197,6 +197,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/refcount.c			optional zfs compile-wit
 cddl/contrib/opensolaris/uts/common/fs/zfs/rrwlock.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/sa.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/sha256.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/skein_zfs.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_config.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_errlog.c			optional zfs compile-with "${ZFS_C}"
@@ -577,6 +578,8 @@ crypto/sha1.c			optional carp | crypto | ipsec | \
 crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random !random_loadable | \
 					 sctp | zfs
 crypto/sha2/sha512c.c		optional crypto | geom_bde | ipsec | zfs
+crypto/skein/skein.c		optional crypto | zfs
+crypto/skein/skein_block.c	optional crypto | zfs
 crypto/siphash/siphash.c	optional inet | inet6
 crypto/siphash/siphash_test.c	optional inet | inet6
 ddb/db_access.c			optional ddb
