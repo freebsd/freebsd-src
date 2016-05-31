@@ -804,7 +804,7 @@ kproc_shutdown(void *arg, int howto)
 		return;
 
 	p = (struct proc *)arg;
-	printf("Waiting (max %d seconds) for system process `%s' to stop...",
+	printf("Waiting (max %d seconds) for system process `%s' to stop... ",
 	    kproc_shutdown_wait, p->p_comm);
 	error = kproc_suspend(p, kproc_shutdown_wait * hz);
 
@@ -824,7 +824,7 @@ kthread_shutdown(void *arg, int howto)
 		return;
 
 	td = (struct thread *)arg;
-	printf("Waiting (max %d seconds) for system thread `%s' to stop...",
+	printf("Waiting (max %d seconds) for system thread `%s' to stop... ",
 	    kproc_shutdown_wait, td->td_name);
 	error = kthread_suspend(td, kproc_shutdown_wait * hz);
 

@@ -2103,7 +2103,7 @@ sched_sync(void)
 		if (syncer_state != SYNCER_RUNNING &&
 		    starttime != time_uptime) {
 			if (first_printf) {
-				printf("\nSyncing disks, vnodes remaining...");
+				printf("\nSyncing disks, vnodes remaining... ");
 				first_printf = 0;
 			}
 			printf("%d ", net_worklist_len);
