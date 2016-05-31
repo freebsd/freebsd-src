@@ -307,7 +307,7 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 	struct hv_device *hv_dev;       /* GUID Data Structure */
 	hn_softc_t *sc;                 /* hn softc structure  */
 	char if_name[4];
-	char buf[39];
+	char buf[HYPERV_GUID_STRLEN];
 
 	device_t *devs;
 	int devcnt;
@@ -335,10 +335,11 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 			/* Trying to find GUID of Network Device */
 			hv_dev = sc->hn_dev_obj;
 
-			snprintf_hv_guid(buf, sizeof(buf), &hv_dev->device_id);
+			hyperv_guid2str(&hv_dev->device_id, buf, sizeof(buf));
 			sprintf(if_name, "%s%d", "hn", device_get_unit(devs[devcnt]));
 
-			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id, 39) == 0) {
+			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id,
+			    HYPERV_GUID_STRLEN - 1) == 0) {
 				strcpy((char *)umsg->body.kvp_ip_val.adapter_id, if_name);
 				break;
 			}
