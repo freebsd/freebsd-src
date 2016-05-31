@@ -124,33 +124,22 @@ handled:
 	}
 }
 
-/**
- * @brief Interrupt filter routine for VMBUS.
- *
- * The purpose of this routine is to determine the type of VMBUS protocol
- * message to process - an event or a channel message.
- */
 static inline int
 hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 {
 	hv_vmbus_message *msg, *msg_base;
 
-	/*
-	 * The Windows team has advised that we check for events
-	 * before checking for messages. This is the way they do it
-	 * in Windows when running as a guest in Hyper-V
-	 */
-	sc->vmbus_event_proc(sc, cpu);
-
-	/* Check if there are actual msgs to be process */
 	msg_base = VMBUS_PCPU_GET(sc, message, cpu);
 
-	/* we call eventtimer process the message */
+	/*
+	 * Check event timer.
+	 *
+	 * TODO: move this to independent IDT vector.
+	 */
 	msg = msg_base + VMBUS_SINT_TIMER;
 	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
 		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
 
-		/* call intrrupt handler of event timer */
 		vmbus_et_intr(frame);
 
 		/*
@@ -175,8 +164,20 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 		}
 	}
 
+	/*
+	 * Check events.  Hot path for network and storage I/O data; high rate.
+	 *
+	 * NOTE:
+	 * As recommended by the Windows guest fellows, we check events before
+	 * checking messages.
+	 */
+	sc->vmbus_event_proc(sc, cpu);
+
+	/*
+	 * Check messages.  Mainly management stuffs; ultra low rate.
+	 */
 	msg = msg_base + VMBUS_SINT_MESSAGE;
-	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
+	if (__predict_false(msg->header.message_type != HV_MESSAGE_TYPE_NONE)) {
 		taskqueue_enqueue(VMBUS_PCPU_GET(sc, message_tq, cpu),
 		    VMBUS_PCPU_PTR(sc, message_task, cpu));
 	}
