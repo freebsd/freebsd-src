@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2015
+.Dd May 29, 2016
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nd configure network interface parameters
 .Sh SYNOPSIS
 .Nm
+.Op Fl f Ar type:format Ns Op Ar ,type:format
 .Op Fl L
 .Op Fl k
 .Op Fl m
@@ -192,6 +193,102 @@ for example,
 .Dq Li ed0 .
 .It Ar groupname
 List the interfaces in the given group.
+.El
+.Pp
+The output format of
+.Nm
+can be controlled using the
+.Fl f
+flag or the
+.Ev IFCONFIG_FORMAT
+environment variable.
+The format is specified as a comma separated list of
+.Sy type:format
+pairs.
+See the
+.Sx EXAMPLES
+section for more information.
+The
+.Sy types
+and their associated
+.Sy format
+strings are:
+.Bl -tag -width scope
+.It Sy addr
+Adjust the display of inet and inet6 addresses
+.Bl -tag -width default
+.It Sy default
+Display inet and inet6 addresses in the default format,
+.Sy numeric
+.It Sy fqdn
+Display inet and inet6 addresses as fully qualified domain names
+.Pq FQDN
+.It Sy full
+Display inet6 addresses without suppressing zeroes.
+Only applicable to inet6
+.It Sy host
+Display inet and inet6 addresses as unqualified hostnames
+.It Sy numeric
+Display inet and inet6 addresses in numeric format
+.El
+.It Sy ether
+Adjust the display of link-level ethernet (MAC) addresses
+.Bl -tag -width default
+.It Sy colon
+Separate address segments with a colon
+.It Sy dash
+Separate address segments with a dash
+.It Sy default
+Display ethernet addresses in the default format,
+.Sy colon
+.El
+.It Sy inet
+Adjust the display of inet address subnet masks:
+.Bl -tag -width default
+.It Sy cidr
+Display subnet masks in CIDR notation, for example:
+.br
+10.0.0.0/8 or 203.0.113.224/26
+.It Sy default
+Display subnet masks in the default format,
+.Sy hex
+.It Sy dotted
+Display subnet masks in dotted quad notation, for example:
+.br
+255.255.0.0 or 255.255.255.192
+.It Sy hex
+Display subnet masks in hexidecimal, for example:
+.br
+0xffff0000 or 0xffffffc0
+.El
+.It Sy inet6
+Adjust the display of inet6 address prefixes (subnet masks):
+.Bl -tag -width default
+.It Sy cidr
+Display subnet prefix in CIDR notation, for example:
+.br
+::1/128 or fe80::1%lo0/64
+.It Sy default
+Display subnet prefix in the default format
+.Sy numeric
+.It Sy numeric
+Display subnet prefix in integer format, for example:
+.br
+prefixlen 64
+.El
+.It Sy scope
+Controls the display of the interface scope as part of the address.
+Only applicable to inet6 addresses.
+.Bl -tag -width default
+.It Sy default
+The interface scope and scopeid are included in the address, for example:
+.br
+inet6 fe80::1%lo0 prefixlen 64 scopeid 0x7
+.It Sy none
+The interface scope and scopeid are not displayed, for example:
+.br
+inet6 fe80::1 prefixlen 64
+.El
 .El
 .Pp
 The following parameters may be set with
@@ -2855,6 +2952,9 @@ Destroy the software network interface
 Display available wireless networks using
 .Li wlan0 :
 .Dl # ifconfig wlan0 list scan
+.Pp
+Display inet and inet6 address subnet masks in CIDR notation
+.Dl # ifconfig -f inet:cidr,inet6:cidr
 .Sh DIAGNOSTICS
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
