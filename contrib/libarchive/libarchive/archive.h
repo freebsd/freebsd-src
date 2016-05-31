@@ -477,6 +477,8 @@ __LA_DECL int		archive_read_set_options(struct archive *_a,
 #define	ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER	(0x0800)
 /* Detect blocks of 0 and write holes instead. */
 #define	ARCHIVE_EXTRACT_SPARSE			(0x1000)
+/* Default: Do not reject entries with absolute paths */
+#define ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS (0x10000)
 
 __LA_DECL int	 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
