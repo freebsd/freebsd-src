@@ -522,7 +522,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 
 	dpcpu[cpuid - 1] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 	    M_WAITOK | M_ZERO);
-	dpcpu_init(dpcpu[cpuid - 1], id);
+	dpcpu_init(dpcpu[cpuid - 1], cpuid);
 
 	target_cpu = reg[0];
 	if (addr_size == 2) {
