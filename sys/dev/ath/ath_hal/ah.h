@@ -1513,7 +1513,7 @@ struct ath_hal {
 				HAL_BOOL, HAL_BOOL);
 	uint32_t    __ahdecl(*ah_btMciGetInterrupt)(struct ath_hal *,
 				uint32_t *, uint32_t *);
-	uint32_t    __ahdecl(*ah_btMciGetState)(struct ath_hal *,
+	uint32_t    __ahdecl(*ah_btMciState)(struct ath_hal *,
 				uint32_t, uint32_t *);
 	void	    __ahdecl(*ah_btMciDetach)(struct ath_hal *);
 
