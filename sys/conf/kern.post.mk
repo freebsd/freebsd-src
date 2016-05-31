@@ -12,7 +12,7 @@
 .if defined(DESTDIR)
 MKMODULESENV+=	DESTDIR="${DESTDIR}"
 .endif
-SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
+SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;:tA}
 MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}" SYSDIR="${SYSDIR}"
 
 .if defined(CONF_CFLAGS)

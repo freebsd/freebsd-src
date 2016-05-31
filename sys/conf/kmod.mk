@@ -269,7 +269,7 @@ ${OBJS}: ${_link}
 # Search for kernel source tree in standard places.
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
 .if !defined(SYSDIR) && exists(${_dir}/kern/)
-SYSDIR=	${_dir}
+SYSDIR=	${_dir:tA}
 .endif
 .endfor
 .if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
