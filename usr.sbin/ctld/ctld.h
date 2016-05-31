@@ -176,6 +176,9 @@ struct lun {
 	int64_t				l_size;
 
 	int				l_ctl_lun;
+	int 				l_pass_bus;
+	int 				l_pass_target;
+	int 				l_pass_lun;
 };
 
 struct target {
