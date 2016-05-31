@@ -216,7 +216,7 @@ main(int argc, char **argv)
 static const char *
 swap_on_off(const char *name, int doingall, char *mntops)
 {
-	char base[PATH_MAX];
+	char *base, *basebuf;
 
 	/* Swap on vnode-backed md(4) device. */
 	if (mntops != NULL &&
@@ -227,17 +227,23 @@ swap_on_off(const char *name, int doingall, char *mntops)
 	     strncmp(MD_NAME, name, sizeof(MD_NAME)) == 0))
 		return (swap_on_off_md(name, mntops, doingall));
 
-	basename_r(name, base);
+	basebuf = strdup(name);
+	base = basename(basebuf);
 
 	/* Swap on encrypted device by GEOM_BDE. */
-	if (fnmatch("*.bde", base, 0) == 0)
+	if (fnmatch("*.bde", base, 0) == 0) {
+		free(basebuf);
 		return (swap_on_off_gbde(name, doingall));
+	}
 
 	/* Swap on encrypted device by GEOM_ELI. */
-	if (fnmatch("*.eli", base, 0) == 0)
+	if (fnmatch("*.eli", base, 0) == 0) {
+		free(basebuf);
 		return (swap_on_off_geli(name, mntops, doingall));
+	}
 
 	/* Swap on special file. */
+	free(basebuf);
 	return (swap_on_off_sfile(name, doingall));
 }
 
