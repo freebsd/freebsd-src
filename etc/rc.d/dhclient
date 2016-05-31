@@ -30,7 +30,7 @@ dhclient_pre_check()
 		else
 			debug "$msg"
 		fi
-			exit 1
+		exit 1
 	fi
 }
 
