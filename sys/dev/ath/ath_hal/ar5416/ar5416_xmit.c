@@ -352,6 +352,7 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 
 	/*
 	 * XXX For now, just assume that this isn't a HT40 frame.
+	 * It'll get over-ridden by the multi-rate TX power setup.
 	 */
 	if (AH5212(ah)->ah_tpcEnabled) {
 		txPower = ar5416GetTxRatePower(ah, txRate0,
@@ -368,6 +369,7 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		     ;
 	ads->ds_ctl1 = (type << AR_FrameType_S)
 		     | (flags & HAL_TXDESC_NOACK ? AR_NoAck : 0)
+		     | (flags & HAL_TXDESC_HWTS ? AR_InsertTS : 0)
                      ;
 	ads->ds_ctl2 = SM(txTries0, AR_XmitDataTries0)
 		     | (flags & HAL_TXDESC_DURENA ? AR_DurUpdateEn : 0)
@@ -450,6 +452,10 @@ ar5416SetupXTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	return AH_TRUE;
 }
 
+/*
+ * XXX TODO: Figure out if AR_InsertTS is required on all sub-frames
+ * of a TX descriptor.
+ */
 HAL_BOOL
 ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList, u_int descId,
