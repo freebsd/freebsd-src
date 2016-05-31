@@ -119,6 +119,7 @@ thunder_pcie_fdt_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	thunder_pcie_identify_ecam(dev, &sc->ecam);
+	sc->coherent = 1;
 
 	return (pci_host_generic_attach(dev));
 }
