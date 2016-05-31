@@ -119,6 +119,13 @@ static uint32_t cpu_reg[MAXCPU][2];
 #endif
 static device_t cpu_list[MAXCPU];
 
+/*
+ * Not all systems boot from the first CPU in the device tree. To work around
+ * this we need to find which CPU we have booted from so when we later
+ * enable the secondary CPUs we skip this one.
+ */
+static int cpu0 = -1;
+
 void mpentry(unsigned long cpuid);
 void init_secondary(uint64_t);
 
@@ -486,6 +493,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	uint64_t target_cpu;
 	struct pcpu *pcpup;
 	vm_paddr_t pa;
+	u_int cpuid;
 	int err;
 
 	/* Check we are able to start this cpu */
@@ -502,16 +510,19 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 #endif
 
 	/* We are already running on cpu 0 */
-	if (id == 0)
+	if (id == cpu0)
 		return (1);
 
+	cpuid = id;
+	if (cpuid < cpu0)
+		cpuid++;
 
-	pcpup = &__pcpu[id];
-	pcpu_init(pcpup, id, sizeof(struct pcpu));
+	pcpup = &__pcpu[cpuid];
+	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
 
-	dpcpu[id - 1] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+	dpcpu[cpuid - 1] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 	    M_WAITOK | M_ZERO);
-	dpcpu_init(dpcpu[id - 1], id);
+	dpcpu_init(dpcpu[cpuid - 1], id);
 
 	target_cpu = reg[0];
 	if (addr_size == 2) {
@@ -519,21 +530,23 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		target_cpu |= reg[1];
 	}
 
-	printf("Starting CPU %u (%lx)\n", id, target_cpu);
+	printf("Starting CPU %u (%lx)\n", cpuid, target_cpu);
 	pa = pmap_extract(kernel_pmap, (vm_offset_t)mpentry);
 
-	err = psci_cpu_on(target_cpu, pa, id);
+	err = psci_cpu_on(target_cpu, pa, cpuid);
 	if (err != PSCI_RETVAL_SUCCESS) {
 		/* Panic here if INVARIANTS are enabled */
-		KASSERT(0, ("Failed to start CPU %u (%lx)\n", id, target_cpu));
+		KASSERT(0, ("Failed to start CPU %u (%lx)\n", id,
+		    target_cpu));
 
 		pcpu_destroy(pcpup);
-		kmem_free(kernel_arena, (vm_offset_t)dpcpu[id - 1], DPCPU_SIZE);
-		dpcpu[id - 1] = NULL;
+		kmem_free(kernel_arena, (vm_offset_t)dpcpu[cpuid - 1],
+		    DPCPU_SIZE);
+		dpcpu[cpuid - 1] = NULL;
 		/* Notify the user that the CPU failed to start */
 		printf("Failed to start CPU %u (%lx)\n", id, target_cpu);
 	} else
-		CPU_SET(id, &all_cpus);
+		CPU_SET(cpuid, &all_cpus);
 
 	return (1);
 }
@@ -551,6 +564,7 @@ cpu_mp_start(void)
 	switch(cpu_enum_method) {
 #ifdef FDT
 	case CPUS_FDT:
+		KASSERT(cpu0 >= 0, ("Current CPU was not found"));
 		ofw_cpu_early_foreach(cpu_init_fdt, true);
 		break;
 #endif
@@ -565,13 +579,34 @@ cpu_mp_announce(void)
 {
 }
 
+static boolean_t
+cpu_find_cpu0_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
+{
+	uint64_t mpidr_fdt, mpidr_reg;
+
+	if (cpu0 < 0) {
+		mpidr_fdt = reg[0];
+		if (addr_size == 2) {
+			mpidr_fdt <<= 32;
+			mpidr_fdt |= reg[1];
+		}
+
+		mpidr_reg = READ_SPECIALREG(mpidr_el1);
+
+		if ((mpidr_reg & 0xff00fffffful) == mpidr_fdt)
+			cpu0 = id;
+	}
+
+	return (TRUE);
+}
+
 void
 cpu_mp_setmaxid(void)
 {
 #ifdef FDT
 	int cores;
 
-	cores = ofw_cpu_early_foreach(NULL, false);
+	cores = ofw_cpu_early_foreach(cpu_find_cpu0_fdt, false);
 	if (cores > 0) {
 		cores = MIN(cores, MAXCPU);
 		if (bootverbose)
