@@ -152,7 +152,7 @@
 
 #ifdef CPU_CHERI
 /*
- * Load/store offfsets for saved registers are with respect to the basic
+ * Load/store offsets for saved registers are with respect to the basic
  * register size (8 bytes on CHERI), not the CHERI capability register size
  * (16 or 32 bytes).  Adjust all values by CHERIREGOFFSIZE so that SZREG can
  * be used in all such calculations.
