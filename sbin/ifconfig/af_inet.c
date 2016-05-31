@@ -54,11 +54,14 @@ static const char rcsid[] =
 
 static struct in_aliasreq in_addreq;
 static struct ifreq in_ridreq;
+static char addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
+extern char *f_inet, *f_addr;
 
 static void
 in_status(int s __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in *sin, null_sin;
+	int error, n_flags;
 	
 	memset(&null_sin, 0, sizeof(null_sin));
 
@@ -66,19 +69,47 @@ in_status(int s __unused, const struct ifaddrs *ifa)
 	if (sin == NULL)
 		return;
 
-	printf("\tinet %s ", inet_ntoa(sin->sin_addr));
+	if (f_addr != NULL && strcmp(f_addr, "fqdn") == 0)
+		n_flags = 0;
+	else if (f_addr != NULL && strcmp(f_addr, "host") == 0)
+		n_flags = NI_NOFQDN;
+	else
+		n_flags = NI_NUMERICHOST;
+
+	error = getnameinfo((struct sockaddr *)sin, sin->sin_len, addr_buf,
+			    sizeof(addr_buf), NULL, 0, n_flags);
+
+	if (error)
+		inet_ntop(AF_INET, &sin->sin_addr, addr_buf, sizeof(addr_buf));
+	
+	printf("\tinet %s", addr_buf);
 
 	if (ifa->ifa_flags & IFF_POINTOPOINT) {
 		sin = (struct sockaddr_in *)ifa->ifa_dstaddr;
 		if (sin == NULL)
 			sin = &null_sin;
-		printf("--> %s ", inet_ntoa(sin->sin_addr));
+		printf(" --> %s ", inet_ntoa(sin->sin_addr));
 	}
 
 	sin = (struct sockaddr_in *)ifa->ifa_netmask;
 	if (sin == NULL)
 		sin = &null_sin;
-	printf("netmask 0x%lx ", (unsigned long)ntohl(sin->sin_addr.s_addr));
+	if (f_inet != NULL && strcmp(f_inet, "cidr") == 0) {
+		int cidr = 32;
+		unsigned long smask;
+
+		smask = ntohl(sin->sin_addr.s_addr);
+		while ((smask & 1) == 0) {
+			smask = smask >> 1;
+			cidr--;
+			if (cidr == 0)
+				break;
+		}
+		printf("/%d ", cidr);
+	} else if (f_inet != NULL && strcmp(f_inet, "dotted") == 0)
+		printf(" netmask %s ", inet_ntoa(sin->sin_addr));
+	else
+		printf(" netmask 0x%lx ", (unsigned long)ntohl(sin->sin_addr.s_addr));
 
 	if (ifa->ifa_flags & IFF_BROADCAST) {
 		sin = (struct sockaddr_in *)ifa->ifa_broadaddr;
