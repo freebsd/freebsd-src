@@ -26,7 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd May 9, 2010
+.Dd May 31, 2016
 .Dt PTHREAD_CONDATTR 3
 .Os
 .Sh NAME
@@ -160,15 +160,3 @@ and
 .Fn pthread_condattr_destroy
 functions conform to
 .St -p1003.1-96
-.Sh BUGS
-The implementation of
-condition variables
-does not fully conform to
-.St -p1003.2
-because the process-shared attribute is ignored;
-if any value other than
-.Dv PTHREAD_PROCESS_PRIVATE
-is specified in a call to
-.Fn pthread_condattr_setpshared ,
-it will return
-.Er EINVAL .
