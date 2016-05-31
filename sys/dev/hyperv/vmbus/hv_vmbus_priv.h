@@ -251,42 +251,7 @@ typedef union _hv_vmbus_port_id {
 	} u ;
 } hv_vmbus_port_id;
 
-/*
- * Define synthetic interrupt controller message flag
- */
-typedef union {
-	uint8_t	as_uint8_t;
-	struct {
-		uint8_t	message_pending:1;
-		uint8_t	reserved:7;
-	} u;
-} hv_vmbus_msg_flags;
-
 typedef uint64_t hv_vmbus_partition_id;
-
-/*
- * Define synthetic interrupt controller message header
- */
-typedef struct {
-	hv_vmbus_msg_type	message_type;
-	uint8_t			payload_size;
-	hv_vmbus_msg_flags	message_flags;
-	uint8_t			reserved[2];
-	union {
-		hv_vmbus_partition_id	sender;
-		hv_vmbus_port_id	port;
-	} u;
-} hv_vmbus_msg_header;
-
-/*
- *  Define synthetic interrupt controller message format
- */
-typedef struct vmbus_message {
-	hv_vmbus_msg_header	header;
-	union {
-		uint64_t	payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
-	} u ;
-} hv_vmbus_message;
 
 /*
  *  Maximum channels is determined by the size of the interrupt
