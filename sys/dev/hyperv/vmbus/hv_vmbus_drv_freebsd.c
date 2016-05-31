@@ -70,8 +70,6 @@ __FBSDID("$FreeBSD$");
 
 struct vmbus_softc	*vmbus_sc;
 
-static char *vmbus_ids[] = { "VMBUS", NULL };
-
 extern inthand_t IDTVEC(vmbus_isr);
 
 static void
@@ -569,7 +567,9 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 static int
 vmbus_probe(device_t dev)
 {
-	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
+	char *id[] = { "VMBUS", NULL };
+
+	if (ACPI_ID_PROBE(device_get_parent(dev), dev, id) == NULL ||
 	    device_get_unit(dev) != 0 || vm_guest != VM_GUEST_HV ||
 	    (hyperv_features & CPUID_HV_MSR_SYNIC) == 0)
 		return (ENXIO);
