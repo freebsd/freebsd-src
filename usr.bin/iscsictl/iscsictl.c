@@ -837,10 +837,6 @@ main(int argc, char **argv)
 		if (session_id == -1)
 			xo_errx(1, "-M requires -i");
 
-		if (discovery_host != NULL)
-			xo_errx(1, "-M and -d are mutually exclusive");
-		if (aflag != 0)
-			xo_errx(1, "-M and -a are mutually exclusive");
 		if (nickname != NULL) {
 			if (portal != NULL)
 				xo_errx(1, "-n and -p and mutually exclusive");
@@ -852,6 +848,10 @@ main(int argc, char **argv)
 				xo_errx(1, "-n and -s and mutually exclusive");
 		}
 
+		if (aflag != 0)
+			xo_errx(1, "-a cannot be used with -M");
+		if (discovery_host != NULL)
+			xo_errx(1, "-d cannot be used with -M");
 		if (rflag != 0)
 			xo_errx(1, "-r cannot be used with -M");
 		if (vflag != 0)
@@ -860,13 +860,6 @@ main(int argc, char **argv)
 			xo_errx(1, "-w cannot be used with -M");
 
 	} else if (Rflag != 0) {
-		if (user != NULL)
-			xo_errx(1, "-R and -u are mutually exclusive");
-		if (secret != NULL)
-			xo_errx(1, "-R and -s are mutually exclusive");
-		if (discovery_host != NULL)
-			xo_errx(1, "-R and -d are mutually exclusive");
-
 		if (aflag != 0) {
 			if (portal != NULL)
 				xo_errx(1, "-a and -p and mutually exclusive");
@@ -883,10 +876,16 @@ main(int argc, char **argv)
 			xo_errx(1, "must specify either -a, -n, -t, or -p");
 		}
 
+		if (discovery_host != NULL)
+			xo_errx(1, "-d cannot be used with -R");
 		if (session_id != -1)
 			xo_errx(1, "-i cannot be used with -R");
 		if (rflag != 0)
 			xo_errx(1, "-r cannot be used with -R");
+		if (user != NULL)
+			xo_errx(1, "-u cannot be used with -R");
+		if (secret != NULL)
+			xo_errx(1, "-s cannot be used with -R");
 		if (vflag != 0)
 			xo_errx(1, "-v cannot be used with -R");
 		if (timeout != -1)
@@ -895,23 +894,22 @@ main(int argc, char **argv)
 	} else {
 		assert(Lflag != 0);
 
-		if (portal != NULL)
-			xo_errx(1, "-L and -p and mutually exclusive");
-		if (target != NULL)
-			xo_errx(1, "-L and -t and mutually exclusive");
-		if (user != NULL)
-			xo_errx(1, "-L and -u and mutually exclusive");
-		if (secret != NULL)
-			xo_errx(1, "-L and -s and mutually exclusive");
-		if (nickname != NULL)
-			xo_errx(1, "-L and -n and mutually exclusive");
 		if (discovery_host != NULL)
-			xo_errx(1, "-L and -d and mutually exclusive");
-		if (rflag != 0)
-			xo_errx(1, "-L and -r and mutually exclusive");
-
+			xo_errx(1, "-d cannot be used with -L");
 		if (session_id != -1)
 			xo_errx(1, "-i cannot be used with -L");
+		if (nickname != NULL)
+			xo_errx(1, "-n cannot be used with -L");
+		if (portal != NULL)
+			xo_errx(1, "-p cannot be used with -L");
+		if (rflag != 0)
+			xo_errx(1, "-r cannot be used with -L");
+		if (target != NULL)
+			xo_errx(1, "-t cannot be used with -L");
+		if (user != NULL)
+			xo_errx(1, "-u cannot be used with -L");
+		if (secret != NULL)
+			xo_errx(1, "-s cannot be used with -L");
 	}
 
 	iscsi_fd = open(ISCSI_PATH, O_RDWR);
