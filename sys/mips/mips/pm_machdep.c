@@ -95,7 +95,9 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct proc *p;
 	struct thread *td;
 	struct trapframe *regs;
+#ifdef CPU_CHERI
 	struct cheri_frame *cfp;
+#endif
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
 	vm_offset_t sp;
