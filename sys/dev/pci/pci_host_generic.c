@@ -181,6 +181,29 @@ pci_host_generic_attach(device_t dev)
 	if (generic_pcie_ofw_bus_attach(dev) != 0)
 		return (ENXIO);
 
+	node = ofw_bus_get_node(dev);
+	if (sc->coherent == 0) {
+		sc->coherent = OF_hasprop(node, "dma-coherent");
+	}
+	//if (bootverbose)
+		device_printf(dev, "Bus is%s cache-coherent\n",
+		    sc->coherent ? "" : " not");
+
+	/* Create the parent DMA tag to pass down the coherent flag */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
+	    1, 0,				/* alignment, bounds */
+	    BUS_SPACE_MAXADDR,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE,			/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,		/* nsegments */
+	    BUS_SPACE_MAXSIZE,			/* maxsegsize */
+	    sc->coherent ? BUS_DMA_COHERENT : 0, /* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->dmat);
+	if (error != 0)
+		return (error);
+
 	rid = 0;
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->res == NULL) {
@@ -232,7 +255,6 @@ pci_host_generic_attach(device_t dev)
 		}
 	}
 
-	node = ofw_bus_get_node(dev);
 	ofw_bus_setup_iinfo(node, &sc->pci_iinfo, sizeof(cell_t));
 
 	device_add_child(dev, "pci", -1);
@@ -682,6 +704,15 @@ generic_pcie_deactivate_resource(device_t dev, device_t child, int type, int rid
 	return (res);
 }
 
+static bus_dma_tag_t
+generic_pcie_get_dma_tag(device_t dev, device_t child)
+{
+	struct generic_pcie_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->dmat);
+}
+
 static int
 generic_pcie_alloc_msi(device_t pci, device_t child, int count, int maxcount,
     int *irqs)
@@ -797,6 +828,8 @@ static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	generic_pcie_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+
+	DEVMETHOD(bus_get_dma_tag,		generic_pcie_get_dma_tag),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,		generic_pcie_maxslots),
