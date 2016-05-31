@@ -37,10 +37,10 @@
  */
 	.text
 	SUPERALIGN_TEXT
-IDTVEC(hv_vmbus_callback)
+IDTVEC(vmbus_isr)
 	PUSH_FRAME
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp, %rdi
-	call	hv_vector_handler
+	call	vmbus_handle_intr
 	MEXITCOUNT
 	jmp	doreti
