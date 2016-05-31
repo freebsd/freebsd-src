@@ -185,7 +185,7 @@ pci_host_generic_attach(device_t dev)
 	if (sc->coherent == 0) {
 		sc->coherent = OF_hasprop(node, "dma-coherent");
 	}
-	//if (bootverbose)
+	if (bootverbose)
 		device_printf(dev, "Bus is%s cache-coherent\n",
 		    sc->coherent ? "" : " not");
 
