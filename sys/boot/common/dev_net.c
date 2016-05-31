@@ -171,6 +171,12 @@ net_open(struct open_file *f, ...)
 		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
 		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
 		setenv("boot.nfsroot.path", rootpath, 1);
+		if (intf_mtu != 0) {
+			char mtu[16];
+			sprintf(mtu, "%u", intf_mtu);
+			setenv("boot.netif.mtu", mtu, 1);
+		}
+
 	}
 	netdev_opens++;
 	f->f_devdata = &netdev_sock;

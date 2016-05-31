@@ -42,7 +42,7 @@ CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
 
 # standalone components and stuff we have modified locally
-SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
+SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c environment.c getopt.c gets.c \
 	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
 	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
