@@ -511,7 +511,7 @@ struct sockcred {
 
 /* given pointer to struct cmsghdr, return pointer to next cmsghdr */
 #define	CMSG_NXTHDR(mhdr, cmsg)	\
-	((char *)(cmsg) == NULL ? CMSG_FIRSTHDR(mhdr) : \
+	((char *)(cmsg) == (char *)0 ? CMSG_FIRSTHDR(mhdr) : \
 	    ((char *)(cmsg) + \
 	    _CMSG_ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len) + \
 	    _CMSG_ALIGN(sizeof(struct cmsghdr)) > \
@@ -527,7 +527,7 @@ struct sockcred {
 #define	CMSG_FIRSTHDR(mhdr) \
 	((mhdr)->msg_controllen >= sizeof(struct cmsghdr) ? \
 	 (struct cmsghdr *)(mhdr)->msg_control : \
-	 (struct cmsghdr *)NULL)
+	 (struct cmsghdr *)0)
 
 #if __BSD_VISIBLE
 /* RFC 2292 additions */
