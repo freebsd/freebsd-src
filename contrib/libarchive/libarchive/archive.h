@@ -562,6 +562,8 @@ __LA_DECL int archive_read_set_options(struct archive *_a,
 /* Default: Do not use HFS+ compression if it was not compressed. */
 /* This has no effect except on Mac OS v10.6 or later. */
 #define	ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED	(0x8000)
+/* Default: Do not reject entries with absolute paths */
+#define ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS (0x10000)
 
 __LA_DECL int archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
