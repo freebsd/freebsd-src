@@ -2326,6 +2326,7 @@ cvtstat(st, ost)
 	struct ostat *ost;
 {
 
+	bzero(ost, sizeof(*ost));
 	ost->st_dev = st->st_dev;
 	ost->st_ino = st->st_ino;
 	ost->st_mode = st->st_mode;
