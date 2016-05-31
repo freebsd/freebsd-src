@@ -455,16 +455,19 @@ vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 
 	switch (index) {
 	case HV_VMBUS_IVAR_TYPE:
-		*result = (uintptr_t) &child_dev_ctx->class_id;
+		*result = (uintptr_t)&child_dev_ctx->class_id;
 		return (0);
+
 	case HV_VMBUS_IVAR_INSTANCE:
-		*result = (uintptr_t) &child_dev_ctx->device_id;
+		*result = (uintptr_t)&child_dev_ctx->device_id;
 		return (0);
+
 	case HV_VMBUS_IVAR_DEVCTX:
-		*result = (uintptr_t) child_dev_ctx;
+		*result = (uintptr_t)child_dev_ctx;
 		return (0);
+
 	case HV_VMBUS_IVAR_NODE:
-		*result = (uintptr_t) child_dev_ctx->device;
+		*result = (uintptr_t)child_dev_ctx->device;
 		return (0);
 	}
 	return (ENOENT);
