@@ -406,6 +406,11 @@ iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 	KASSERT(STAILQ_EMPTY(&is->is_postponed),
 	    ("destroying session with postponed PDUs"));
 
+	if (is->is_conf.isc_enable == 0 && is->is_conf.isc_discovery == 0) {
+		ISCSI_SESSION_UNLOCK(is);
+		return;
+	}
+
 	/*
 	 * Request immediate reconnection from iscsid(8).
 	 */
@@ -548,6 +553,9 @@ iscsi_callout(void *context)
 	}
 
 	callout_schedule(&is->is_callout, 1 * hz);
+
+	if (is->is_conf.isc_enable == 0)
+		goto out;
 
 	is->is_timeout++;
 
@@ -1311,6 +1319,11 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 	for (;;) {
 		TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
 			ISCSI_SESSION_LOCK(is);
+			if (is->is_conf.isc_enable == 0 &&
+			    is->is_conf.isc_discovery == 0) {
+				ISCSI_SESSION_UNLOCK(is);
+				continue;
+			}
 			if (is->is_waiting_for_iscsid)
 				break;
 			ISCSI_SESSION_UNLOCK(is);
@@ -1826,17 +1839,22 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	callout_reset(&is->is_callout, 1 * hz, iscsi_callout, is);
 	TAILQ_INSERT_TAIL(&sc->sc_sessions, is, is_next);
 
-	/*
-	 * Trigger immediate reconnection.
-	 */
 	ISCSI_SESSION_LOCK(is);
+	/*
+	 * Don't notify iscsid(8) if the session is disabled and it's not
+	 * a discovery session,
+	 */
+	if (is->is_conf.isc_enable == 0 && is->is_conf.isc_discovery == 0) {
+		ISCSI_SESSION_UNLOCK(is);
+		sx_xunlock(&sc->sc_lock);
+		return (0);
+	}
+
 	is->is_waiting_for_iscsid = true;
 	strlcpy(is->is_reason, "Waiting for iscsid(8)", sizeof(is->is_reason));
 	ISCSI_SESSION_UNLOCK(is);
 	cv_signal(&sc->sc_cv);
-
 	sx_xunlock(&sc->sc_lock);
-
 	return (0);
 }
 

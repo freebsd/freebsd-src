@@ -98,7 +98,6 @@ target_delete(struct target *targ)
 	free(targ);
 }
 
-
 static char *
 default_initiator_name(void)
 {
@@ -150,6 +149,23 @@ valid_hex(const char ch)
 	default:
 		return (false);
 	}
+}
+
+int
+parse_enable(const char *enable)
+{
+	if (enable == NULL)
+		return (ENABLE_UNSPECIFIED);
+
+	if (strcasecmp(enable, "on") == 0 ||
+	    strcasecmp(enable, "yes") == 0)
+		return (ENABLE_ON);
+
+	if (strcasecmp(enable, "off") == 0 ||
+	    strcasecmp(enable, "no") == 0)
+		return (ENABLE_OFF);
+
+	return (ENABLE_UNSPECIFIED);
 }
 
 bool
@@ -325,6 +341,8 @@ conf_from_target(struct iscsi_session_conf *conf,
 		    sizeof(conf->isc_mutual_secret));
 	if (targ->t_session_type == SESSION_TYPE_DISCOVERY)
 		conf->isc_discovery = 1;
+	if (targ->t_enable != ENABLE_OFF)
+		conf->isc_enable = 1;
 	if (targ->t_protocol == PROTOCOL_ISER)
 		conf->isc_iser = 1;
 	if (targ->t_offload != NULL)
@@ -371,7 +389,7 @@ kernel_modify(int iscsi_fd, unsigned int session_id, const struct target *targ)
 
 static void
 kernel_modify_some(int iscsi_fd, unsigned int session_id, const char *target,
-  const char *target_addr, const char *user, const char *secret)
+  const char *target_addr, const char *user, const char *secret, int enable)
 {
 	struct iscsi_session_state *states = NULL;
 	struct iscsi_session_state *state;
@@ -421,6 +439,10 @@ kernel_modify_some(int iscsi_fd, unsigned int session_id, const char *target,
 		strlcpy(conf->isc_user, user, sizeof(conf->isc_user));
 	if (secret != NULL)
 		strlcpy(conf->isc_secret, secret, sizeof(conf->isc_secret));
+	if (enable == ENABLE_ON)
+		conf->isc_enable = 1;
+	else if (enable == ENABLE_OFF)
+		conf->isc_enable = 0;
 
 	memset(&ism, 0, sizeof(ism));
 	ism.ism_session_id = session_id;
@@ -527,6 +549,9 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			xo_emit("{L:/%-18s}{V:type/%s}\n",
 			    "Session type:",
 			    conf->isc_discovery ? "Discovery" : "Normal");
+			xo_emit("{L:/%-18s}{V:enable/%s}\n",
+			    "Enable:",
+			    conf->isc_enable ? "Yes" : "No");
 			xo_emit("{L:/%-18s}{V:state/%s}\n",
 			    "Session state:",
 			    state->iss_connected ? "Connected" : "Disconnected");
@@ -575,6 +600,8 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			} else {
 				if (conf->isc_discovery) {
 					xo_emit("{V:state}\n", "Discovery");
+				} else if (conf->isc_enable == 0) {
+					xo_emit("{V:state}\n", "Disabled");
 				} else if (state->iss_connected) {
 					xo_emit("{V:state}: ", "Connected");
 					print_periphs(state->iss_id);
@@ -653,13 +680,13 @@ usage(void)
 {
 
 	fprintf(stderr, "usage: iscsictl -A -p portal -t target "
-	    "[-u user -s secret] [-w timeout]\n");
+	    "[-u user -s secret] [-w timeout] [-e on | off]\n");
 	fprintf(stderr, "       iscsictl -A -d discovery-host "
-	    "[-u user -s secret]\n");
+	    "[-u user -s secret] [-e on | off]\n");
 	fprintf(stderr, "       iscsictl -A -a [-c path]\n");
 	fprintf(stderr, "       iscsictl -A -n nickname [-c path]\n");
 	fprintf(stderr, "       iscsictl -M -i session-id [-p portal] "
-	    "[-t target] [-u user] [-s secret]\n");
+	    "[-t target] [-u user] [-s secret] [-e on | off]\n");
 	fprintf(stderr, "       iscsictl -M -i session-id -n nickname "
 	    "[-c path]\n");
 	fprintf(stderr, "       iscsictl -R [-p portal] [-t target]\n");
@@ -687,8 +714,8 @@ main(int argc, char **argv)
 	    rflag = 0, vflag = 0;
 	const char *conf_path = DEFAULT_CONFIG_PATH;
 	char *nickname = NULL, *discovery_host = NULL, *portal = NULL,
-	     *target = NULL, *user = NULL, *secret = NULL;
-	int timeout = -1;
+	    *target = NULL, *user = NULL, *secret = NULL;
+	int timeout = -1, enable = ENABLE_UNSPECIFIED;
 	long long session_id = -1;
 	char *end;
 	int ch, error, iscsi_fd, retval, saved_errno;
@@ -699,7 +726,7 @@ main(int argc, char **argv)
 	argc = xo_parse_args(argc, argv);
 	xo_open_container("iscsictl");
 
-	while ((ch = getopt(argc, argv, "AMRLac:d:i:n:p:rt:u:s:vw:")) != -1) {
+	while ((ch = getopt(argc, argv, "AMRLac:d:e:i:n:p:rt:u:s:vw:")) != -1) {
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
@@ -721,6 +748,13 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			discovery_host = optarg;
+			break;
+		case 'e':
+			enable = parse_enable(optarg);
+			if (enable == ENABLE_UNSPECIFIED) {
+				xo_errx(1, "invalid argument to -e, "
+				    "must be either \"on\" or \"off\"");
+			}
 			break;
 		case 'i':
 			session_id = strtol(optarg, &end, 10);
@@ -781,6 +815,8 @@ main(int argc, char **argv)
 	 */
 	if (Aflag != 0) {
 		if (aflag != 0) {
+			if (enable != ENABLE_UNSPECIFIED)
+				xo_errx(1, "-a and -e and mutually exclusive");
 			if (portal != NULL)
 				xo_errx(1, "-a and -p and mutually exclusive");
 			if (target != NULL)
@@ -796,6 +832,8 @@ main(int argc, char **argv)
 			if (rflag != 0)
 				xo_errx(1, "-a and -r and mutually exclusive");
 		} else if (nickname != NULL) {
+			if (enable != ENABLE_UNSPECIFIED)
+				xo_errx(1, "-n and -e and mutually exclusive");
 			if (portal != NULL)
 				xo_errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
@@ -838,6 +876,8 @@ main(int argc, char **argv)
 			xo_errx(1, "-M requires -i");
 
 		if (nickname != NULL) {
+			if (enable != ENABLE_UNSPECIFIED)
+				xo_errx(1, "-n and -e and mutually exclusive");
 			if (portal != NULL)
 				xo_errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
@@ -878,6 +918,8 @@ main(int argc, char **argv)
 
 		if (discovery_host != NULL)
 			xo_errx(1, "-d cannot be used with -R");
+		if (enable != ENABLE_UNSPECIFIED)
+			xo_errx(1, "-e cannot be used with -R");
 		if (session_id != -1)
 			xo_errx(1, "-i cannot be used with -R");
 		if (rflag != 0)
@@ -946,7 +988,7 @@ main(int argc, char **argv)
 			failed += kernel_list(iscsi_fd, targ, vflag);
 	} else if (Mflag != 0) {
 		kernel_modify_some(iscsi_fd, session_id, target, portal,
-		    user, secret);
+		    user, secret, enable);
 	} else {
 		if (Aflag != 0 && target != NULL) {
 			if (valid_iscsi_name(target) == false)
@@ -965,6 +1007,7 @@ main(int argc, char **argv)
 			targ->t_session_type = SESSION_TYPE_NORMAL;
 			targ->t_address = portal;
 		}
+		targ->t_enable = enable;
 		if (rflag != 0)
 			targ->t_protocol = PROTOCOL_ISER;
 		targ->t_user = user;
