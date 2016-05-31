@@ -108,10 +108,10 @@ modules-all modules-depend: modules-obj
 FULLKERNEL=	${KERNEL_KO}
 .else
 FULLKERNEL=	${KERNEL_KO}.full
-${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.debug
+${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.debug ${OP_META}
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${KERNEL_KO}.debug \
 	    ${FULLKERNEL} ${.TARGET}
-${KERNEL_KO}.debug: ${FULLKERNEL}
+${KERNEL_KO}.debug: ${FULLKERNEL} ${OP_META}
 	${OBJCOPY} --only-keep-debug ${FULLKERNEL} ${.TARGET}
 install.debug reinstall.debug: gdbinit
 	cd ${.CURDIR}; ${MAKE} ${.TARGET:R}
@@ -127,7 +127,7 @@ gdbinit:
 .endif
 .endif
 
-${FULLKERNEL}: ${SYSTEM_DEP} vers.o
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${OP_META}
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
@@ -150,9 +150,9 @@ LNFILES=	${CFILES:T:S/.c$/.ln/}
 .for mfile in ${MFILES}
 # XXX the low quality .m.o rules gnerated by config are normally used
 # instead of the .m.c rules here.
-${mfile:T:S/.m$/.c/}: ${mfile}
+${mfile:T:S/.m$/.c/}: ${mfile} ${OP_META}
 	${AWK} -f $S/tools/makeobjops.awk ${mfile} -c
-${mfile:T:S/.m$/.h/}: ${mfile}
+${mfile:T:S/.m$/.h/}: ${mfile} ${OP_META}
 	${AWK} -f $S/tools/makeobjops.awk ${mfile} -h
 .endfor
 
@@ -172,18 +172,18 @@ lint: ${LNFILES}
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
 # in the a.out ld.  For now, this works.
 HACK_EXTRA_FLAGS?= -shared
-hack.So: Makefile
+hack.So: Makefile ${OP_META}
 	:> hack.c
 	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.So
 	rm -f hack.c
 
-assym.s: $S/kern/genassym.sh genassym.o
+assym.s: $S/kern/genassym.sh genassym.o ${OP_META}
 	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
-genassym.o: $S/$M/$M/genassym.c
+genassym.o: $S/$M/$M/genassym.c ${OP_META}
 	${CC} -c ${CFLAGS:N-fno-common} $S/$M/$M/genassym.c
 
-${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
+${SYSTEM_OBJS} genassym.o vers.o: opt_global.h ${OP_META}
 
 # Skip reading .depend when not needed to speed up tree-walks
 # and simple lookups.
@@ -260,7 +260,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}:N*.h}
 
 .NOPATH: .depend ${DEPENDFILES_OBJS}
 
-.depend: .PRECIOUS ${SRCS}
+.depend: .PRECIOUS ${SRCS} ${OP_META}
 
 _ILINKS= machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
@@ -339,26 +339,26 @@ kernel-reinstall:
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
 .endif
 
-config.o env.o hints.o vers.o vnode_if.o:
+config.o env.o hints.o vers.o vnode_if.o: ${OP_META}
 	${NORMAL_C}
 	${NORMAL_CTFCONVERT}
 
-config.ln env.ln hints.ln vers.ln vnode_if.ln:
+config.ln env.ln hints.ln vers.ln vnode_if.ln: ${OP_META}
 	${NORMAL_LINT}
 
-vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
+vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP} ${OP_META}
 	MAKE=${MAKE} sh $S/conf/newvers.sh ${KERN_IDENT}
 
-vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
+vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src ${OP_META}
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -c
 
 vnode_if.h vnode_if_newproto.h vnode_if_typedef.h: $S/tools/vnode_if.awk \
-    $S/kern/vnode_if.src
-vnode_if.h: vnode_if_newproto.h vnode_if_typedef.h
+    $S/kern/vnode_if.src ${OP_META}
+vnode_if.h: vnode_if_newproto.h vnode_if_typedef.h ${OP_META}
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -h
-vnode_if_newproto.h:
+vnode_if_newproto.h: ${OP_META}
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -p
-vnode_if_typedef.h:
+vnode_if_typedef.h: ${OP_META}
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -q
 
 .if ${MFS_IMAGE:Uno} != "no"
@@ -367,7 +367,7 @@ vnode_if_typedef.h:
 # via linking. Make sure the contents are in the mfs section and rename the
 # start/end/size variables to __start_mfs, __stop_mfs, and mfs_size,
 # respectively.
-embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
+embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE} ${OP_META}
 	${OBJCOPY} --input-target binary \
 	    --output-target ${EMBEDFS_FORMAT.${MACHINE_ARCH}} \
 	    --binary-architecture ${EMBEDFS_ARCH.${MACHINE_ARCH}} \

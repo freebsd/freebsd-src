@@ -58,6 +58,9 @@ META_MODE+= nofilemon
 META_MODE?= normal
 .export META_MODE
 .MAKE.MODE?= ${META_MODE}
+.if ${.MAKE.MODE:Mmeta*} != ""
+OP_META=	.META
+.endif
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
@@ -286,99 +289,99 @@ YFLAGS		?=	-d
 
 # non-Posix rule set
 
-.sh:
+.sh: ${OP_META}
 	cp -f ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
-.c.ln:
+.c.ln: ${OP_META}
 	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
 	    touch ${.TARGET}
 
-.cc.ln .C.ln .cpp.ln .cxx.ln:
+.cc.ln .C.ln .cpp.ln .cxx.ln: ${OP_META}
 	${LINT} ${LINTOBJFLAGS} ${CXXFLAGS:M-[DIU]*} ${.IMPSRC} || \
 	    touch ${.TARGET}
 
-.c:
+.c: ${OP_META}
 	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.c.o:
+.c.o: ${OP_META}
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.cc .cpp .cxx .C:
+.cc .cpp .cxx .C: ${OP_META}
 	${CXX} ${CXXFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 
-.cc.o .cpp.o .cxx.o .C.o:
+.cc.o .cpp.o .cxx.o .C.o: ${OP_META}
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.m.o:
+.m.o: ${OP_META}
 	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.p.o:
+.p.o: ${OP_META}
 	${PC} ${PFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.e .r .F .f:
+.e .r .F .f: ${OP_META}
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} \
 	    -o ${.TARGET}
 
-.e.o .r.o .F.o .f.o:
+.e.o .r.o .F.o .f.o: ${OP_META}
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.S.o:
+.S.o: ${OP_META}
 	${CC:N${CCACHE_BIN}} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.asm.o:
+.asm.o: ${OP_META}
 	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
 	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.s.o:
+.s.o: ${OP_META}
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
 # XXX not -j safe
-.y.o:
+.y.o: ${OP_META}
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
 	rm -f y.tab.c
 	${CTFCONVERT_CMD}
 
-.l.o:
+.l.o: ${OP_META}
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
 	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c
 	${CTFCONVERT_CMD}
 
 # XXX not -j safe
-.y.c:
+.y.c: ${OP_META}
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	mv y.tab.c ${.TARGET}
 
-.l.c:
+.l.c: ${OP_META}
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.TARGET}
 
-.s.out .c.out .o.out:
+.s.out .c.out .o.out: ${OP_META}
 	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.f.out .F.out .r.out .e.out:
+.f.out .F.out .r.out .e.out: ${OP_META}
 	${FC} ${EFLAGS} ${RFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} \
 	    ${LDLIBS} -o ${.TARGET}
 	rm -f ${.PREFIX}.o
 	${CTFCONVERT_CMD}
 
 # XXX not -j safe
-.y.out:
+.y.out: ${OP_META}
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
 	rm -f y.tab.c
 	${CTFCONVERT_CMD}
 
-.l.out:
+.l.out: ${OP_META}
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
 	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tmp.c ${LDLIBS} -ll -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c

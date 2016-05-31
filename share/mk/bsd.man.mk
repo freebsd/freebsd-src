@@ -99,7 +99,7 @@ ${__target}: ${__page}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __target in ${__page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
 all-man: ${__target}
-${__target}: ${__page}
+${__target}: ${__page} ${OP_META}
 	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} > ${.TARGET}
 .endfor
 .endif
@@ -112,7 +112,7 @@ CLEANFILES+=	${MAN:T:S/$/${CATEXT}/g}
 .for __page in ${MAN}
 .for __target in ${__page:T:S/$/${CATEXT}/g}
 all-man: ${__target}
-${__target}: ${__page}
+${__target}: ${__page} ${OP_META}
 	${MANDOC_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 .endfor
@@ -148,7 +148,7 @@ CLEANFILES+=	${MAN:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g}
 .for __page in ${MAN}
 .for __target in ${__page:T:S/$/${MCOMPRESS_EXT}/}
 all-man: ${__target}
-${__target}: ${__page}
+${__target}: ${__page} ${OP_META}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
 .else
@@ -158,7 +158,7 @@ ${__target}: ${__page}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __target in ${__page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/}
 all-man: ${__target}
-${__target}: ${__page}
+${__target}: ${__page} ${OP_META}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
 .else
