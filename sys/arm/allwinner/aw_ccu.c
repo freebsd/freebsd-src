@@ -192,7 +192,7 @@ aw_ccu_search_compatible(void)
 	phandle_t root;
 
 	root = OF_finddevice("/");
-	for (compat = compat_data; compat_data->ocd_str != NULL; compat++)
+	for (compat = compat_data; compat->ocd_str != NULL; compat++)
 		if (fdt_is_compatible(root, compat->ocd_str))
 			break;
 
