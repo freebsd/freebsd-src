@@ -723,10 +723,10 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
 
 #if ATH_SUPPORT_MCI
     if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) {
-#if 0
-        ah->ah_bt_coex_set_weights = ar9300_mci_bt_coex_set_weights;
-        ah->ah_bt_coex_disable = ar9300_mci_bt_coex_disable;
-        ah->ah_bt_coex_enable = ar9300_mci_bt_coex_enable;
+#if 1
+        ah->ah_btCoexSetWeights = ar9300_mci_bt_coex_set_weights;
+        ah->ah_btCoexDisable = ar9300_mci_bt_coex_disable;
+        ah->ah_btCoexEnable = ar9300_mci_bt_coex_enable;
 #endif
         ahp->ah_mci_ready = AH_FALSE;
         ahp->ah_mci_bt_state = MCI_BT_SLEEP;
@@ -3033,7 +3033,7 @@ ar9300_fill_capability_info(struct ath_hal *ah)
     /* XXX is this a flag, or a chainmask number? */
     p_cap->halApmEnable = !! ar9300_eeprom_get(ahp, EEP_CHAIN_MASK_REDUCE);
 #if ATH_ANT_DIV_COMB        
-    if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON_11_OR_LATER(ah)) {
+    if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON_11_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         if (ahp->ah_diversity_control == HAL_ANT_VARIABLE) {
             u_int8_t ant_div_control1 = 
                 ar9300_eeprom_get(ahp, EEP_ANTDIV_control);
