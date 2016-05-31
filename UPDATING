@@ -11,6 +11,16 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160531	p43	FreeBSD-SA-16:20.linux
+			FreeBSD-SA-16:21.43bsd
+			FreeBSD-SA-16:22.libarchive
+			FreeBSD-SA-16:23.libarchive
+
+	Fix kernel stack disclosure in Linux compatibility layer. [SA-16:20]
+	Fix kernel stack disclosure in 4.3BSD compatibility layer. [SA-16:21]
+	Fix directory traversal in cpio(1). [SA-16:22]
+	Fix buffer overflow in libarchive(3). [SA-16:23]
+
 20160517	p42	FreeBSD-SA-16:18.atkbd
 
 	Fix buffer overflow in keyboard driver. [SA-16:18]
