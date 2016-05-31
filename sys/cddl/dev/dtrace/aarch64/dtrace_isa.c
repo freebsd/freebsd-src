@@ -119,7 +119,7 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 	volatile uint16_t *flags =
 	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
 	int ret = 0;
-	uintptr_t oldfp;
+	uintptr_t oldfp = fp;
 
 	ASSERT(pcstack == NULL || pcstack_limit > 0);
 
@@ -168,6 +168,8 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 			*flags &= ~CPU_DTRACE_FAULT;
 			break;
 		}
+
+		oldfp = fp;
 	}
 
 	return (ret);
