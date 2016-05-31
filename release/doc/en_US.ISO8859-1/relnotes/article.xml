@@ -1734,6 +1734,43 @@
       <para revision="287798" contrib="sponsor" sponsor="&dell;">The
 	network stack has been updated to fix handling of
 	<acronym>IPv6</acronym> On-Link redirects.</para>
+
+	<para revision="300240">The net.inet.tcp.ecn.enable sysctl mib has been
+	changed from a binary off/on control to a three way setting.</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Value</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><literal>0</literal></entry>
+	      <entry>Totally disable ECN.</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>1</literal></entry>
+	      <entry>Enable ECN if incoming connections request it. Outgoing
+	      connections will request ECN.</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>2</literal></entry>
+	      <entry>Enable ECN if incoming connections request it. Outgoing
+	      conections will not request ECN.</entry>
+	    </row>
+
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
     </sect2>
   </sect1>
 
