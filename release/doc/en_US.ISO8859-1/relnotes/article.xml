@@ -1554,6 +1554,11 @@
 	code has been updated to take <literal>ashift</literal> into
 	account when gathering buffers to be written to the
 	<literal>l2arc</literal> device.</para>
+
+      <para revision="300906" contrib="sponsor"
+	sponsor="&ix;, &spectralogic;">The zfsd daemon has been added,
+	which manages hotspares and replements in drive slots that publish
+	physical paths.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
