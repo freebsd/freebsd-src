@@ -218,6 +218,7 @@ kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 kp [label="Kristof Provost\nkp@FreeBSD.org\n2015/03/22"]
+landonf [label="Landon Fuller\nlandonf@FreeBSD.org\n2016/05/31"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 lidl [label="Kurt Lidl\nlidl@FreeBSD.org\n2015/10/21"]
 loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
@@ -346,6 +347,7 @@ day1 -> dg
 
 adrian -> avos
 adrian -> jmcneill
+adrian -> landonf
 adrian -> lidl
 adrian -> loos
 adrian -> monthadar
