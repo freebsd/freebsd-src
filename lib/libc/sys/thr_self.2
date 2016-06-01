@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2016
+.Dd June 1, 2016
 .Dt THR_SELF 2
 .Os
 .Sh NAME
@@ -76,7 +76,9 @@ argument is not valid.
 .Xr thr_kill2 2 ,
 .Xr thr_new 2 ,
 .Xr thr_set_name 2 ,
-.Xr _umtx_op 2
+.Xr _umtx_op 2 ,
+.Xr pthread_getthreadid_np 3 ,
+.Xr pthread_self 3
 .Sh STANDARDS
 The
 .Fn thr_self
