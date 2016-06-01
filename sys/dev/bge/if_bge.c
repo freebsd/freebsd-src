@@ -2700,8 +2700,11 @@ bge_chipid(device_t dev)
 		 * registers.
 		 */
 		switch (pci_get_device(dev)) {
-		case BCOM_DEVICEID_BCM5717:
 		case BCOM_DEVICEID_BCM5717C:
+			/* 5717 C0 seems to belong to 5720 line. */
+			id = BGE_CHIPID_BCM5720_A0;
+			break;
+		case BCOM_DEVICEID_BCM5717:
 		case BCOM_DEVICEID_BCM5718:
 		case BCOM_DEVICEID_BCM5719:
 		case BCOM_DEVICEID_BCM5720:
@@ -2730,8 +2733,6 @@ bge_chipid(device_t dev)
 		default:
 			id = pci_read_config(dev, BGE_PCI_PRODID_ASICREV, 4);
 		}
-		if (id == BGE_CHIPID_BCM5717_C0)
-			id = BGE_CHIPID_BCM5720_A0;
 	}
 	return (id);
 }
