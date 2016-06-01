@@ -402,6 +402,22 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	cheri_capability_set_user_type(&td->td_pcb->pcb_typecap);
 }
 
+/*
+ * Similar to a newly exec'd process, we need to set up the CHERI register
+ * state for MIPS ABI processes with suitable capabilities.  We do this using
+ * the existing MIPS registers as a starting point.
+ *
+ * XXX: Similar concerns exist here as exist above in cheri_exec_setregs().
+ *
+ * XXX: I also wonder if we should be inheriting signal-handling state...?
+ */
+void
+cheri_newthread_setregs(struct thread *td)
+{
+
+	cheri_exec_setregs(td, td->td_pcb->pcb_regs.pc);
+}
+
 void
 cheri_serialize(struct cheri_serial *csp, struct chericap *cap)
 {

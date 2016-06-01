@@ -546,7 +546,12 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 
 	 /* XXXRW: With CNMIPS moved, does this still belong here? */
 #ifdef CPU_CHERI
+	/*
+	 * For the MIPS ABI, we can derive any required CHERI state from
+	 * the completed MIPS trapframe and existing process state.
+	 */
 	tf->sr |= MIPS_SR_COP_2_BIT;
+	cheri_newthread_setregs(td);
 #endif
 /*	tf->sr |= (ALL_INT_MASK & idle_mask) | SR_INT_ENAB; */
 	/**XXX the above may now be wrong -- mips2 implements this as panic */
