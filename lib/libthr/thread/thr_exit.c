@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #ifdef _PTHREAD_FORCED_UNWIND
 #include <dlfcn.h>
 #endif
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -172,15 +173,28 @@ thread_unwind(void)
 #endif
 
 void
+_thread_exitf(const char *fname, int lineno, const char *fmt, ...)
+{
+	va_list ap;
+
+	/* Write an error message to the standard error file descriptor: */
+	_thread_printf(STDERR_FILENO, "Fatal error '");
+
+	va_start(ap, fmt);
+	_thread_vprintf(STDERR_FILENO, fmt, ap);
+	va_end(ap);
+
+	_thread_printf(STDERR_FILENO, "' at line %d in file %s (errno = %d)\n",
+	    lineno, fname, errno);
+
+	abort();
+}
+
+void
 _thread_exit(const char *fname, int lineno, const char *msg)
 {
 
-	/* Write an error message to the standard error file descriptor: */
-	_thread_printf(2,
-	    "Fatal error '%s' at line %d in file %s (errno = %d)\n",
-	    msg, lineno, fname, errno);
-
-	abort();
+	_thread_exitf(fname, lineno, "%s", msg);
 }
 
 void
