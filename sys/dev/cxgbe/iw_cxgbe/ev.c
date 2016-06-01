@@ -194,13 +194,22 @@ int c4iw_ev_handler(struct sge_iq *iq, const struct rsp_ctrl *rc)
 	struct c4iw_cq *chp;
 	unsigned long flag;
 
+	spin_lock_irqsave(&dev->lock, flag);
 	chp = get_chp(dev, qid);
 	if (chp) {
+		atomic_inc(&chp->refcnt);
+		spin_unlock_irqrestore(&dev->lock, flag);
+
 		spin_lock_irqsave(&chp->comp_handler_lock, flag);
 		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
 		spin_unlock_irqrestore(&chp->comp_handler_lock, flag);
-	} else
+		if (atomic_dec_and_test(&chp->refcnt))
+			wake_up(&chp->wait);
+	} else {
 		CTR2(KTR_IW_CXGBE, "%s unknown cqid 0x%x", __func__, qid);
+		spin_unlock_irqrestore(&dev->lock, flag);
+	}
+
 	return 0;
 }
 #endif
