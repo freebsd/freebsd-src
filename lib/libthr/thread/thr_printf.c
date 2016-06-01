@@ -68,15 +68,19 @@ _thread_vprintf(int fd, const char *fmt, va_list ap)
 	unsigned long r, u;
 	int c;
 	long d;
-	int islong;
+	int islong, isalt;
 
 	while ((c = *fmt++)) {
+		isalt = 0;
 		islong = 0;
 		if (c == '%') {
 next:			c = *fmt++;
 			if (c == '\0')
 				return;
 			switch (c) {
+			case '#':
+				isalt = 1;
+				goto next;
 			case 'c':
 				pchar(fd, va_arg(ap, int));
 				continue;
@@ -87,10 +91,13 @@ next:			c = *fmt++;
 				islong = 1;
 				goto next;
 			case 'p':
+				pstr(fd, "0x");
 				islong = 1;
 			case 'd':
 			case 'u':
 			case 'x':
+				if (c == 'x' && isalt)
+					pstr(fd, "0x");
 				r = ((c == 'u') || (c == 'd')) ? 10 : 16;
 				if (c == 'd') {
 					if (islong)
