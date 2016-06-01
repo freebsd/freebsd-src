@@ -703,7 +703,9 @@ grp_setgrent(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
     nvlist_t *nvlout __unused)
 {
 
-	return (setgrent() == 0 ? EFAULT : 0);
+	setgrent();
+
+	return (0);
 }
 
 static int
