@@ -1838,8 +1838,10 @@ retry:
 				    m < &m_ret[npages]; m++) {
 					if ((req & VM_ALLOC_WIRED) != 0)
 						m->wire_count = 0;
-					if (m >= m_tmp)
+					if (m >= m_tmp) {
 						m->object = NULL;
+						m->oflags |= VPO_UNMANAGED;
+					}
 					vm_page_free(m);
 				}
 				return (NULL);
