@@ -2956,8 +2956,7 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 				switch (ic->ic_protmode) {
 				case IEEE80211_PROT_CTSONLY:
 					txd->txdw4 |= htole32(
-					    R92C_TXDW4_CTS2SELF |
-					    R92C_TXDW4_HWRTSEN);
+					    R92C_TXDW4_CTS2SELF);
 					break;
 				case IEEE80211_PROT_RTSCTS:
 					txd->txdw4 |= htole32(
@@ -3118,11 +3117,10 @@ urtwn_tx_raw(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		    params->ibp_try0));
 	}
 	if (params->ibp_flags & IEEE80211_BPF_RTS)
-		txd->txdw4 |= htole32(R92C_TXDW4_RTSEN);
+		txd->txdw4 |= htole32(R92C_TXDW4_RTSEN | R92C_TXDW4_HWRTSEN);
 	if (params->ibp_flags & IEEE80211_BPF_CTS)
 		txd->txdw4 |= htole32(R92C_TXDW4_CTS2SELF);
 	if (txd->txdw4 & htole32(R92C_TXDW4_RTSEN | R92C_TXDW4_CTS2SELF)) {
-		txd->txdw4 |= htole32(R92C_TXDW4_HWRTSEN);
 		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
 		    URTWN_RIDX_OFDM24));
 	}
