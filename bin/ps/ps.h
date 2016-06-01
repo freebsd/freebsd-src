@@ -42,8 +42,8 @@ typedef struct kinfo_str {
 
 typedef struct kinfo {
 	struct kinfo_proc *ki_p;	/* kinfo_proc structure */
-	char *ki_args;		/* exec args */
-	char *ki_env;		/* environment */
+	const char *ki_args;	/* exec args */
+	const char *ki_env;	/* environment */
 	int ki_valid;		/* 1 => uarea stuff valid */
 	double	 ki_pcpu;	/* calculated in main() */
 	segsz_t	 ki_memsize;	/* calculated in main() */

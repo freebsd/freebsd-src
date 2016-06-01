@@ -1217,6 +1217,7 @@ fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
 static void
 saveuser(KINFO *ki)
 {
+	char *argsp;
 
 	if (ki->ki_p->ki_flag & P_INMEM) {
 		/*
@@ -1235,10 +1236,12 @@ saveuser(KINFO *ki)
 		if (ki->ki_p->ki_stat == SZOMB)
 			ki->ki_args = strdup("<defunct>");
 		else if (UREADOK(ki) || (ki->ki_p->ki_args != NULL))
-			ki->ki_args = strdup(fmt(kvm_getargv, ki,
-			    ki->ki_p->ki_comm, ki->ki_p->ki_tdname, MAXCOMLEN));
-		else
-			asprintf(&ki->ki_args, "(%s)", ki->ki_p->ki_comm);
+			ki->ki_args = fmt(kvm_getargv, ki,
+			    ki->ki_p->ki_comm, ki->ki_p->ki_tdname, MAXCOMLEN);
+		else {
+			asprintf(&argsp, "(%s)", ki->ki_p->ki_comm);
+			ki->ki_args = argsp;
+		}
 		if (ki->ki_args == NULL)
 			errx(1, "malloc failed");
 	} else {
@@ -1246,8 +1249,8 @@ saveuser(KINFO *ki)
 	}
 	if (needenv) {
 		if (UREADOK(ki))
-			ki->ki_env = strdup(fmt(kvm_getenvv, ki,
-			    (char *)NULL, (char *)NULL, 0));
+			ki->ki_env = fmt(kvm_getenvv, ki,
+			    (char *)NULL, (char *)NULL, 0);
 		else
 			ki->ki_env = strdup("()");
 		if (ki->ki_env == NULL)
