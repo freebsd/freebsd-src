@@ -1643,6 +1643,10 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
     u_int32_t xlan_gpio_cfg;
     u_int8_t  i;
 
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: use_bt_ant_enable=%d\n",
+      __func__, ahp->ah_lna_div_use_bt_ant_enable);
+
+    /* XXX TODO: only if rx_gain_idx == 0 */
     if (AR_SREV_POSEIDON(ah)) {
         xlan_gpio_cfg = ah->ah_config.ath_hal_ext_lna_ctl_gpio;
         if (xlan_gpio_cfg) {
@@ -1733,7 +1737,7 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
                 AR_PHY_SWITCH_CHAIN_2, AR_SWITCH_TABLE_ALL, value);
         }
     }
-    if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON(ah)) {
+    if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON(ah) || AR_SREV_APHRODITE(ah)) {
         value = ar9300_eeprom_get(ahp, EEP_ANTDIV_control);
         /* main_lnaconf, alt_lnaconf, main_tb, alt_tb */
         regval = OS_REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
@@ -1747,6 +1751,29 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
         if ( AR_SREV_POSEIDON(ah) && (ahp->ah_lna_div_use_bt_ant_enable == TRUE) ) {
             regval |= ANT_DIV_ENABLE;
         }
+        if (AR_SREV_APHRODITE(ah)) {
+                if (ahp->ah_lna_div_use_bt_ant_enable) {
+                        regval |= (1 << MULTICHAIN_GAIN_CTRL__ENABLE_ANT_SW_RX_PROT__SHIFT);
+
+                        OS_REG_SET_BIT(ah, AR_PHY_RESTART,
+                                    RESTART__ENABLE_ANT_FAST_DIV_M2FLAG__MASK);
+
+                        /* Force WLAN LNA diversity ON */
+                        OS_REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV,
+                                    AR_BTCOEX_WL_LNADIV_FORCE_ON);
+                } else {
+                        regval &= ~(1 << MULTICHAIN_GAIN_CTRL__ENABLE_ANT_DIV_LNADIV__SHIFT);
+                        regval &= ~(1 << MULTICHAIN_GAIN_CTRL__ENABLE_ANT_SW_RX_PROT__SHIFT);
+
+                        OS_REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+                                    (1 << MULTICHAIN_GAIN_CTRL__ENABLE_ANT_SW_RX_PROT__SHIFT));
+
+                        /* Force WLAN LNA diversity OFF */
+                        OS_REG_CLR_BIT(ah, AR_BTCOEX_WL_LNADIV,
+                                    AR_BTCOEX_WL_LNADIV_FORCE_ON);
+                }
+        }
+
 #endif  /* ATH_ANT_DIV_COMB */
         OS_REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
         
@@ -1756,7 +1783,8 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
         regval |= ((value >> 7) & 0x1) << 
                   BBB_SIG_DETECT__ENABLE_ANT_FAST_DIV__SHIFT;
 #if ATH_ANT_DIV_COMB
-        if ( AR_SREV_POSEIDON(ah) && (ahp->ah_lna_div_use_bt_ant_enable == TRUE) ) {
+        if ((AR_SREV_POSEIDON(ah) || AR_SREV_APHRODITE(ah))
+          && (ahp->ah_lna_div_use_bt_ant_enable == TRUE) ) {
             regval |= FAST_DIV_ENABLE;
         }
 #endif  /* ATH_ANT_DIV_COMB */
