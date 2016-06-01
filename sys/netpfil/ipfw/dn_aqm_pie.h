@@ -132,11 +132,13 @@ drop_early(struct pie_status *pst, uint32_t qlen)
 	 * if accu_prob < 0.85 -> enqueue
 	 * if accu_prob>8.5 ->drop
 	 * between 0.85 and 8.5 || !De-randomize --> drop on prob
+	 * 
+	 * (0.85 = 17/20 ,8.5 = 17/2)
 	 */
 	if (pprms->flags & PIE_DERAND_ENABLED) {
-		if(pst->accu_prob < (uint64_t) (PIE_MAX_PROB * 0.85))
+		if(pst->accu_prob < (uint64_t) (PIE_MAX_PROB * 17 / 20))
 			return ENQUE;
-		 if( pst->accu_prob >= (uint64_t) (PIE_MAX_PROB * 8.5))
+		 if( pst->accu_prob >= (uint64_t) (PIE_MAX_PROB * 17 / 2))
 			return DROP;
 	}
 
