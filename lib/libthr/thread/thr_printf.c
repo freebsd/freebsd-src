@@ -69,11 +69,12 @@ _thread_vprintf(int fd, const char *fmt, va_list ap)
 	uint64_t r, u;
 	int c;
 	int64_t d;
-	int islong;
+	int islong, isalt;
 	int isptr;
 	void* pointer;
 
 	while ((c = *fmt++)) {
+		isalt = 0;
 		islong = 0;
 		isptr = 0;
 		if (c == '%') {
@@ -81,6 +82,9 @@ next:			c = *fmt++;
 			if (c == '\0')
 				return;
 			switch (c) {
+			case '#':
+				isalt = 1;
+				goto next;
 			case 'c':
 				pchar(fd, va_arg(ap, int));
 				continue;
@@ -92,9 +96,12 @@ next:			c = *fmt++;
 				goto next;
 			case 'p':
 				isptr = 1;
+				islong = 1;
 			case 'd':
 			case 'u':
 			case 'x':
+				if ((c == 'x' && isalt) || isptr)
+					pstr(fd, "0x");
 				r = ((c == 'u') || (c == 'd')) ? 10 : 16;
 				if (c == 'd') {
 					if (islong)
