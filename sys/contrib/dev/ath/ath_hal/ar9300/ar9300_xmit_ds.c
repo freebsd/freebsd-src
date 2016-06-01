@@ -614,6 +614,7 @@ ar9300_set_11n_tx_desc(
         (key_ix != HAL_TXKEYIX_INVALID ? SM(key_ix, AR_dest_idx) : 0)
       | SM(type, AR_frame_type)
       | (flags & HAL_TXDESC_NOACK ? AR_no_ack : 0)
+      | (flags & HAL_TXDESC_HWTS ? AR_insert_ts : 0)
       | (flags & HAL_TXDESC_EXT_ONLY ? AR_ext_only : 0)
       | (flags & HAL_TXDESC_EXT_AND_CTL ? AR_ext_and_ctl : 0);
 
