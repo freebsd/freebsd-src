@@ -1,0 +1,82 @@
+#!/bin/sh
+#echo "run $@" 1>&2
+#set -x
+# $1 command
+# $2 rulename
+# $3 protocol
+# $4 address
+# $5 mask
+# $6 port
+# $7 id
+
+pf=
+for f in npf pf; do
+	if [ -f "/etc/$f.conf" ]; then
+		pf="$f"
+		break
+	fi
+done
+
+if [ -z "$pf" ]; then
+	echo "$0: Unsupported packet filter" 1>&2
+	exit 1
+fi
+
+if [ -n "$3" ]; then
+	proto="proto $3"
+fi
+
+if [ -n "$6" ]; then
+	port="port $6"
+fi
+
+addr="$4"
+mask="$5"
+case "$4" in
+::ffff:*.*.*.*)
+	if [ "$5" = 128 ]; then
+		mask=32
+		addr=${4#::ffff:}
+	fi;;
+esac
+
+case "$1" in
+add)
+	case "$pf" in
+	npf)
+		/sbin/npfctl rule "$2" add block in final $proto from \
+		    "$addr/$mask" to any $port
+		;;
+	pf)
+		# insert $ip/$mask into per-protocol anchored table
+		/sbin/pfctl -a "$2" -t "port$6" -T add "$addr/$mask"
+		echo "block in quick $proto from <port$6> to any $port" | \
+		    /sbin/pfctl -a "$2" -f -
+		;;
+	esac
+	;;
+rem)
+	case "$pf" in
+	npf)
+		/sbin/npfctl rule "$2" rem-id "$7"
+		;;
+	pf)
+		/sbin/pfctl -a "$2" -t "port$6" -T delete "$addr/$mask"
+		;;
+	esac
+	;;
+flush)
+	case "$pf" in 
+	npf)
+		/sbin/npfctl rule "$2" flush
+		;;
+	pf)
+		/sbin/pfctl -a "$2" -t "port$6" -T flush
+		;;
+	esac
+	;;
+*)
+	echo "$0: Unknown command '$1'" 1>&2
+	exit 1
+	;;
+esac
