@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2016
+.Dd June 1, 2016
 .Dt THR_EXIT 2
 .Os
 .Sh NAME
@@ -41,6 +41,13 @@
 .Ft void
 .Fn thr_exit "long *state"
 .Sh DESCRIPTION
+.Bf -symbolic
+This function is intended for implementing threading.
+Normal applications should call
+.Xr pthread_exit 3
+instead.
+.Ef
+.Pp
 The
 .Fn thr_exit
 system call terminates the current kernel-scheduled thread.
@@ -70,7 +77,8 @@ last one in the process.
 .Xr thr_new 2 ,
 .Xr thr_self 2 ,
 .Xr thr_set_name 2 ,
-.Xr _umtx_op 2
+.Xr _umtx_op 2 ,
+.Xr pthread_exit 3
 .Sh STANDARDS
 The
 .Fn thr_exit

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2016
+.Dd June 1, 2016
 .Dt THR_NEW 2
 .Os
 .Sh NAME
@@ -41,6 +41,13 @@
 .Ft int
 .Fn thr_new "struct thr_param *param" "int param_size"
 .Sh DESCRIPTION
+.Bf -symbolic
+This function is intended for implementing threading.
+Normal applications should call
+.Xr pthread_create 3
+instead.
+.Ef
+.Pp
 The
 .Fn thr_new
 system call creates a new kernel-scheduled thread of execution in the context
@@ -220,7 +227,8 @@ No kernel memory to allocate for the new thread structures.
 .Xr thr_kill2 2 ,
 .Xr thr_self 2 ,
 .Xr thr_set_name 2 ,
-.Xr _umtx_op 2
+.Xr _umtx_op 2 ,
+.Xr pthread_create 3
 .Sh STANDARDS
 The
 .Fn thr_new
