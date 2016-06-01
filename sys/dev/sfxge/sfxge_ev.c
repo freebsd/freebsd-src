@@ -207,7 +207,6 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 	struct sfxge_softc *sc;
 	struct sfxge_rxq *rxq;
 	unsigned int index;
-	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
@@ -226,11 +225,7 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 	}
 
 	evq = sc->evq[index];
-
-	label = 0;
-	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
-	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != level"));
-	magic = SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QFLUSH_DONE) | label;
+	magic = sfxge_sw_ev_rxq_magic(SFXGE_SW_EV_RX_QFLUSH_DONE, rxq);
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
@@ -246,7 +241,6 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 	struct sfxge_softc *sc;
 	struct sfxge_rxq *rxq;
 	unsigned int index;
-	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
@@ -260,11 +254,7 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 	/* Resend a software event on the correct queue */
 	index = rxq->index;
 	evq = sc->evq[index];
-
-	label = 0;
-	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
-	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
-	magic = SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QFLUSH_FAILED) | label;
+	magic = sfxge_sw_ev_rxq_magic(SFXGE_SW_EV_RX_QFLUSH_FAILED, rxq);
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
@@ -331,7 +321,6 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 	struct sfxge_evq *evq;
 	struct sfxge_softc *sc;
 	struct sfxge_txq *txq;
-	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
@@ -351,11 +340,7 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 
 	/* Resend a software event on the correct queue */
 	evq = sc->evq[txq->evq_index];
-
-	label = txq->type;
-	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
-	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
-	magic = SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_TX_QFLUSH_DONE) | label;
+	magic = sfxge_sw_ev_txq_magic(SFXGE_SW_EV_TX_QFLUSH_DONE, txq);
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
