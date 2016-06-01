@@ -37,6 +37,16 @@
 #include <sys/_timeval.h>
 #include <sys/_types.h>
 
+#ifndef _ID_T_DECLARED
+typedef	__id_t		id_t;
+#define	_ID_T_DECLARED
+#endif
+
+#ifndef _RLIM_T_DECLARED
+typedef	__rlim_t	rlim_t;
+#define	_RLIM_T_DECLARED
+#endif
+
 /*
  * Process priority specifications to get/setpriority.
  */
@@ -134,11 +144,6 @@ static const char *rlimit_ident[RLIM_NLIMITS] = {
 	"kqueues",
 	"umtx",
 };
-#endif
-
-#ifndef _RLIM_T_DECLARED
-typedef	__rlim_t	rlim_t;
-#define	_RLIM_T_DECLARED
 #endif
 
 struct rlimit {
