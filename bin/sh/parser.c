@@ -1974,7 +1974,7 @@ getprompt(void *unused __unused)
 	/*
 	 * Format prompt string.
 	 */
-	for (i = 0; (i < 127) && (*fmt != '\0'); i++, fmt++)
+	for (i = 0; (i < PROMPTLEN - 1) && (*fmt != '\0'); i++, fmt++)
 		if (*fmt == '\\')
 			switch (*++fmt) {
 
@@ -1987,7 +1987,8 @@ getprompt(void *unused __unused)
 			case 'h':
 			case 'H':
 				ps[i] = '\0';
-				gethostname(&ps[i], PROMPTLEN - i);
+				gethostname(&ps[i], PROMPTLEN - i - 1);
+				ps[PROMPTLEN - 1] = '\0';
 				/* Skip to end of hostname. */
 				trim = (*fmt == 'h') ? '.' : '\0';
 				while ((ps[i] != '\0') && (ps[i] != trim))
@@ -2037,8 +2038,9 @@ getprompt(void *unused __unused)
 				 * Emit unrecognized formats verbatim.
 				 */
 			default:
-				ps[i++] = '\\';
-				ps[i] = *fmt;
+				ps[i] = '\\';
+				if (i < PROMPTLEN - 1)
+					ps[++i] = *fmt;
 				break;
 			}
 		else
