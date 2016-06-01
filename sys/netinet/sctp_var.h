@@ -344,7 +344,6 @@ void sctp_init(void);
 void 
 sctp_notify(struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *,
     uint8_t, uint8_t, uint16_t, uint16_t);
-void sctp_finish(void);
 int sctp_flush(struct socket *, int);
 int sctp_shutdown(struct socket *);
 int 
