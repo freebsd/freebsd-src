@@ -330,6 +330,7 @@ retry:
 			goto retry;
 		}
 		perror(hp->h_name);
+		(void) close(s);
 		return (-1);
 	}
 	if (fd2p == 0) {
