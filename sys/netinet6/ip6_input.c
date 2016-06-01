@@ -305,8 +305,8 @@ ip6proto_unregister(short ip6proto)
 }
 
 #ifdef VIMAGE
-void
-ip6_destroy()
+static void
+ip6_destroy(void *unused __unused)
 {
 	int error;
 
@@ -329,6 +329,8 @@ ip6_destroy()
 	nd6_destroy();
 	in6_ifattach_destroy();
 }
+
+VNET_SYSUNINIT(inet6, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_destroy, NULL);
 #endif
 
 static int

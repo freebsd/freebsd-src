@@ -269,20 +269,23 @@ udp_discardcb(struct udpcb *up)
 }
 
 #ifdef VIMAGE
-void
-udp_destroy(void)
+static void
+udp_destroy(void *unused __unused)
 {
 
 	in_pcbinfo_destroy(&V_udbinfo);
 	uma_zdestroy(V_udpcb_zone);
 }
+VNET_SYSUNINIT(udp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, udp_destroy, NULL);
 
-void
-udplite_destroy(void)
+static void
+udplite_destroy(void *unused __unused)
 {
 
 	in_pcbinfo_destroy(&V_ulitecbinfo);
 }
+VNET_SYSUNINIT(udplite, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, udplite_destroy,
+    NULL);
 #endif
 
 #ifdef INET

@@ -89,13 +89,14 @@ sctp_init(void)
 #endif
 }
 
-void
-sctp_finish(void)
+#ifdef VIMAGE
+static void
+sctp_finish(void *unused __unused)
 {
 	sctp_pcb_finish();
 }
-
-
+VNET_SYSUNINIT(sctp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, sctp_finish, NULL);
+#endif
 
 void
 sctp_pathmtu_adjustment(struct sctp_tcb *stcb, uint16_t nxtsz)

@@ -171,10 +171,6 @@ void		udplite_ctlinput(int, struct sockaddr *, void *);
 int		udp_ctloutput(struct socket *, struct sockopt *);
 void		udp_init(void);
 void		udplite_init(void);
-#ifdef VIMAGE
-void		udp_destroy(void);
-void		udplite_destroy(void);
-#endif
 int		udp_input(struct mbuf **, int *, int);
 void		udplite_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);

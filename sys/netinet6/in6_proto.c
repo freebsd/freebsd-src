@@ -153,9 +153,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_IPV6,
 	.pr_init =		ip6_init,
-#ifdef VIMAGE
-	.pr_destroy =		ip6_destroy,
-#endif
 	.pr_slowtimo =		frag6_slowtimo,
 	.pr_drain =		frag6_drain,
 	.pr_usrreqs =		&nousrreqs,
