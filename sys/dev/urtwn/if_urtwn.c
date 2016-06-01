@@ -2627,10 +2627,11 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (ic->ic_promisc == 0) {
 			reg = urtwn_read_4(sc, R92C_RCR);
 
-			if (vap->iv_opmode != IEEE80211_M_HOSTAP)
+			if (vap->iv_opmode != IEEE80211_M_HOSTAP) {
 				reg |= R92C_RCR_CBSSID_DATA;
-			if (vap->iv_opmode != IEEE80211_M_IBSS)
-				reg |= R92C_RCR_CBSSID_BCN;
+				if (vap->iv_opmode != IEEE80211_M_IBSS)
+					reg |= R92C_RCR_CBSSID_BCN;
+			}
 
 			urtwn_write_4(sc, R92C_RCR, reg);
 		}
@@ -4723,7 +4724,8 @@ urtwn_scan_start(struct ieee80211com *ic)
 
 	URTWN_LOCK(sc);
 	/* Receive beacons / probe responses from any BSSID. */
-	if (ic->ic_opmode != IEEE80211_M_IBSS)
+	if (ic->ic_opmode != IEEE80211_M_IBSS &&
+	    ic->ic_opmode != IEEE80211_M_HOSTAP)
 		urtwn_set_rx_bssid_all(sc, 1);
 
 	/* Set gain for scanning. */
@@ -4738,7 +4740,9 @@ urtwn_scan_end(struct ieee80211com *ic)
 
 	URTWN_LOCK(sc);
 	/* Restore limitations. */
-	if (ic->ic_promisc == 0 && ic->ic_opmode != IEEE80211_M_IBSS)
+	if (ic->ic_promisc == 0 &&
+	    ic->ic_opmode != IEEE80211_M_IBSS &&
+	    ic->ic_opmode != IEEE80211_M_HOSTAP)
 		urtwn_set_rx_bssid_all(sc, 0);
 
 	/* Set gain under link. */
@@ -4931,13 +4935,12 @@ urtwn_set_promisc(struct urtwn_softc *sc)
 	if (vap->iv_state == IEEE80211_S_RUN) {
 		switch (vap->iv_opmode) {
 		case IEEE80211_M_STA:
-			mask2 |= R92C_RCR_CBSSID_DATA;
-			/* FALLTHROUGH */
-		case IEEE80211_M_HOSTAP:
 			mask2 |= R92C_RCR_CBSSID_BCN;
-			break;
+			/* FALLTHROUGH */
 		case IEEE80211_M_IBSS:
 			mask2 |= R92C_RCR_CBSSID_DATA;
+			break;
+		case IEEE80211_M_HOSTAP:
 			break;
 		default:
 			device_printf(sc->sc_dev, "%s: undefined opmode %d\n",
