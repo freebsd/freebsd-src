@@ -64,8 +64,8 @@ options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
 options 	MAC			# TrustedBSD MAC Framework
-# options 	KDTRACE_FRAME		# Ensure frames are compiled in
-# options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 # options 	VFP			# Floating-point support
 options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
@@ -101,5 +101,10 @@ device		tun		# Packet tunnel.
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		# Berkeley packet filter
 
 options 	FDT
