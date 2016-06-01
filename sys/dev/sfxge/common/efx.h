@@ -1602,6 +1602,7 @@ efx_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__deref_out	efx_evq_t **eepp);
 
 extern		void

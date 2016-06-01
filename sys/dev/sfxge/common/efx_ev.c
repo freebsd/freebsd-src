@@ -70,6 +70,7 @@ siena_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__in		efx_evq_t *eep);
 
 static			void
@@ -226,6 +227,7 @@ efx_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__deref_out	efx_evq_t **eepp)
 {
 	const efx_ev_ops_t *eevop = enp->en_eevop;
@@ -262,7 +264,7 @@ efx_ev_qcreate(
 	enp->en_ev_qcount++;
 	*eepp = eep;
 
-	if ((rc = eevop->eevo_qcreate(enp, index, esmp, n, id, eep)) != 0)
+	if ((rc = eevop->eevo_qcreate(enp, index, esmp, n, id, us, eep)) != 0)
 		goto fail2;
 
 	return (0);
@@ -1257,6 +1259,7 @@ siena_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__in		efx_evq_t *eep)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
@@ -1311,6 +1314,9 @@ siena_ev_qcreate(
 	    FRF_AZ_EVQ_BUF_BASE_ID, id);
 
 	EFX_BAR_TBL_WRITEO(enp, FR_AZ_EVQ_PTR_TBL, index, &oword, B_TRUE);
+
+	/* Set initial interrupt moderation */
+	siena_ev_qmoderate(eep, us);
 
 	return (0);
 
