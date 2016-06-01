@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2016
+.Dd June 1, 2016
 .Dt THR_kill 2
 .Os
 .Sh NAME
@@ -112,11 +112,13 @@ The current process does not have sufficient privilege to check existence or
 send a signal to the specified process.
 .El
 .Sh SEE ALSO
+.Xr kill 2 ,
 .Xr thr_exit 2 ,
 .Xr thr_new 2 ,
 .Xr thr_self 2 ,
 .Xr thr_set_name 2 ,
 .Xr _umtx_op 2 ,
+.Xr pthread_kill 3 ,
 .Xr signal 3
 .Sh STANDARDS
 The
