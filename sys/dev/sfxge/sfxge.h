@@ -130,6 +130,26 @@ enum sfxge_sw_ev {
 #define	SFXGE_SW_EV_MAGIC(_sw_ev) \
 	(SFXGE_MAGIC_RESERVED | ((_sw_ev) << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
+static inline uint16_t
+sfxge_sw_ev_mk_magic(enum sfxge_sw_ev sw_ev, unsigned int label)
+{
+	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
+	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
+	return SFXGE_SW_EV_MAGIC(sw_ev) | label;
+}
+
+static inline uint16_t
+sfxge_sw_ev_rxq_magic(enum sfxge_sw_ev sw_ev, struct sfxge_rxq *rxq)
+{
+	return sfxge_sw_ev_mk_magic(sw_ev, 0);
+}
+
+static inline uint16_t
+sfxge_sw_ev_txq_magic(enum sfxge_sw_ev sw_ev, struct sfxge_txq *txq)
+{
+	return sfxge_sw_ev_mk_magic(sw_ev, txq->type);
+}
+
 enum sfxge_evq_state {
 	SFXGE_EVQ_UNINITIALIZED = 0,
 	SFXGE_EVQ_INITIALIZED,
