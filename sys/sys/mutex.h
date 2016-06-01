@@ -185,7 +185,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 #define __mtx_lock(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
-	if (!_mtx_obtain_lock((mp), _tid))				\
+	if (((mp)->mtx_lock != MTX_UNOWNED || !_mtx_obtain_lock((mp), _tid)))\
 		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
 	else								\
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,	\
@@ -203,7 +203,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
 	spinlock_enter();						\
-	if (!_mtx_obtain_lock((mp), _tid)) {				\
+	if (((mp)->mtx_lock != MTX_UNOWNED || !_mtx_obtain_lock((mp), _tid))) {\
 		if ((mp)->mtx_lock == _tid)				\
 			(mp)->mtx_recurse++;				\
 		else							\
@@ -232,7 +232,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 									\
 	if ((mp)->mtx_recurse == 0)					\
 		LOCKSTAT_PROFILE_RELEASE_LOCK(adaptive__release, mp);	\
-	if (!_mtx_release_lock((mp), _tid))				\
+	if ((mp)->mtx_lock != _tid || !_mtx_release_lock((mp), _tid))	\
 		_mtx_unlock_sleep((mp), (opts), (file), (line));	\
 } while (0)
 
