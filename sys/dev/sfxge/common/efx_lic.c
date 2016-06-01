@@ -506,7 +506,7 @@ efx_lic_v1v2_find_key(
 
 	_NOTE(ARGUNUSED(enp))
 
-	if((size_t)buffer_size - offset < EFX_LICENSE_V1V2_HEADER_LENGTH)
+	if ((size_t)buffer_size - offset < EFX_LICENSE_V1V2_HEADER_LENGTH)
 		goto fail1;
 
 	tlv_type = __LE_TO_CPU_16(((uint16_t*)&bufferp[offset])[0]);
@@ -548,7 +548,7 @@ efx_lic_v1v2_validate_key(
 	tlv_type = __LE_TO_CPU_16(((uint16_t*)keyp)[0]);
 	tlv_length = __LE_TO_CPU_16(((uint16_t*)keyp)[1]);
 
-	if(tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) {
+	if (tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) {
 		goto fail2;
 	}
 	if (tlv_type == 0) {
