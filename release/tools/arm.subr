@@ -72,7 +72,6 @@ arm_create_disk() {
 	chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
 	chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
 	chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}s2a
-	chroot ${CHROOTDIR} tunefs -N enable /dev/${mddev}s2a
 
 	return 0
 }
