@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2014
+.Dd May 31, 2016
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -454,6 +454,97 @@ Please note that booting from datasets that have recordsize greater than
 supported by the
 .Fx
 boot loader.
+.It Sy sha512
+.Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:sha512"
+.It GUID Ta org.illumos:sha512
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+The
+.Sy sha512
+feature enables the use of the SHA-512/256 truncated hash algorithm
+.Pq FIPS 180-4
+for checksum and dedup.
+The native 64-bit arithmetic of SHA-512 provides an approximate 50%
+performance boost over SHA-256 on 64-bit hardware and is thus a good
+minimum-change replacement candidate for systems where hash performance is
+important, but these systems cannot for whatever reason utilize the faster
+.Sy skein
+algorithms.
+.Pp
+When the
+.Sy sha512
+feature is set to
+.Sy enabled ,
+the administrator can turn on the
+.Sysha512
+checksum on any dataset using the
+.Dl # zfs set checksum=sha512 Ar dataset
+command.
+This feature becomes
+.Sy active
+once a
+.Sy checksum
+property has been set to
+.Sy sha512 ,
+and will return to being
+.Sy enabled
+once all filesystems that have ever had their checksum set to
+.Sy sha512
+are destroyed.
+.Pp
+Booting off of a pools utilizing SHA-512/256 is
+.Em NOT
+yet supported.
+.It Sy skein
+.Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:skein"
+.It GUID Ta org.illumos:skein
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+The
+.Sy skein
+feature enables the use of the Skein hash algorithm for checksum and dedup.
+Skein is a high-performance secure hash algorithm that was a finalist in the
+NIST SHA-3 competition.
+It provides a very high security margin and high performance on 64-bit hardware
+.Pq 80% faster than SHA-256 .
+This implementation also utilizes the new salted checksumming functionality in
+ZFS, which means that the checksum is pre-seeded with a secret 256-bit random
+key
+.Pq stored on the pool
+before being fed the data block to be checksummed.
+Thus the produced checksums are unique to a given pool, preventing hash
+collision attacks on systems with dedup.
+.Pp
+When the
+.Sy skein
+feature is set to
+.Sy enabled ,
+the administrator can turn on the
+.Sy skein
+checksum on any dataset using the
+.Dl # zfs set checksum=skein Ar dataset
+command.
+This feature becomes
+.Sy active
+once a
+.Sy checksum
+property has been set to
+.Sy skein ,
+and will return to being
+.Sy enabled
+once all filesystems that have ever had their checksum set to
+.Sy skein
+are destroyed.
+.Pp
+Booting off of pools using
+.Sy skein
+is
+.Em NOT
+supported.
 .El
 .Sh SEE ALSO
 .Xr zpool 8

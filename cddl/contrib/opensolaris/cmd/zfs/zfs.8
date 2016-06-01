@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2015
+.Dd May 31, 2016
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -940,7 +940,7 @@ command or unmounted by the
 command.
 .Pp
 This property is not inherited.
-.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256 | noparity
+.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256 | noparity | sha512 | skein
 Controls the checksum used to verify data integrity. The default value is
 .Cm on ,
 which automatically selects an appropriate algorithm (currently,
@@ -957,6 +957,16 @@ not be used by any other dataset.
 Disabling checksums is
 .Em NOT
 a recommended practice.
+The
+.Sy sha512 ,
+and
+.Sy skein
+checksum algorithms require enabling the appropriate features on the pool.
+Please see
+.Xr zpool-features 7
+for more information on these algorithms.
+.Pp
+Changing this property affects only newly-written data.
 .It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle | Cm lz4
 Controls the compression algorithm used for this dataset.
 Setting compression to
@@ -1036,7 +1046,7 @@ Changing this property only affects newly-written data. Therefore, set this
 property at file system creation time by using the
 .Fl o Cm copies= Ns Ar N
 option.
-.It Sy dedup Ns = Ns Cm on | off | verify | sha256 Ns Op Cm ,verify
+.It Sy dedup Ns = Ns Cm on | off | verify | sha256 Ns Oo Cm ,verify Oc | Sy sha512 Ns Oo Cm ,verify Oc | Sy skein Ns Oo Cm ,verify Oc
 Configures deduplication for a dataset. The default value is
 .Cm off .
 The default deduplication checksum is
