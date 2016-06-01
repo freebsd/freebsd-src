@@ -209,13 +209,10 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 	struct pthread *curthread = _get_curthread();
 
 	/* Check if this thread is already in the process of exiting: */
-	if (curthread->cancelling) {
-		char msg[128];
-		snprintf(msg, sizeof(msg), "Thread %p has called "
+	if (curthread->cancelling)
+		PANIC("Thread %p has called "
 		    "pthread_exit() from a destructor. POSIX 1003.1 "
 		    "1996 s16.2.5.2 does not allow this!", curthread);
-		PANIC(msg);
-	}
 
 	/* Flag this thread as exiting. */
 	curthread->cancelling = 1;
@@ -312,7 +309,7 @@ exit_thread(void)
 
 #if defined(_PTHREADS_INVARIANTS)
 	if (THR_IN_CRITICAL(curthread))
-		PANIC("thread exits with resources held!");
+		PANIC("thread %p exits with resources held!", curthread);
 #endif
 	/*
 	 * Kernel will do wakeup at the address, so joiner thread
