@@ -349,7 +349,6 @@ efx_ev_qprefetch(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count)
 {
-	efx_nic_t *enp = eep->ee_enp;
 	unsigned int offset;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
