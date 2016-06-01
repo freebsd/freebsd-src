@@ -135,13 +135,9 @@ mutex_assert_is_owned(struct pthread_mutex *m __unused)
 {
 
 #if defined(_PTHREADS_INVARIANTS)
-	if (__predict_false(m->m_qe.tqe_prev == NULL)) {
-		char msg[128];
-		snprintf(msg, sizeof(msg),
-		    "mutex %p own %#x is not on list %p %p",
+	if (__predict_false(m->m_qe.tqe_prev == NULL))
+		PANIC("mutex %p own %#x is not on list %p %p",
 		    m, m->m_lock.m_owner, m->m_qe.tqe_prev, m->m_qe.tqe_next);
-		PANIC(msg);
-	}
 #endif
 }
 
@@ -152,27 +148,20 @@ mutex_assert_not_owned(struct pthread *curthread __unused,
 
 #if defined(_PTHREADS_INVARIANTS)
 	if (__predict_false(m->m_qe.tqe_prev != NULL ||
-	    m->m_qe.tqe_next != NULL)) {
-		char msg[128];
-		snprintf(msg, sizeof(msg),
-		    "mutex %p own %#x is on list %p %p",
+	    m->m_qe.tqe_next != NULL))
+		PANIC("mutex %p own %#x is on list %p %p",
 		    m, m->m_lock.m_owner, m->m_qe.tqe_prev, m->m_qe.tqe_next);
-		PANIC(msg);
-	}
 	if (__predict_false(is_robust_mutex(m) &&
 	    (m->m_lock.m_rb_lnk != 0 || m->m_rb_prev != NULL ||
 	    (is_pshared_mutex(m) && curthread->robust_list ==
 	    (uintptr_t)&m->m_lock) ||
 	    (!is_pshared_mutex(m) && curthread->priv_robust_list ==
-	    (uintptr_t)&m->m_lock)))) {
-		char msg[128];
-		snprintf(msg, sizeof(msg),
+	    (uintptr_t)&m->m_lock))))
+		PANIC(
     "mutex %p own %#x is on robust linkage %p %p head %p phead %p",
 		    m, m->m_lock.m_owner, (void *)m->m_lock.m_rb_lnk,
 		    m->m_rb_prev, (void *)curthread->robust_list,
 		    (void *)curthread->priv_robust_list);
-		PANIC(msg);
-	}
 #endif
 }
 

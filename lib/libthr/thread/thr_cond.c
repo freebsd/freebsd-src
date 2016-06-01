@@ -258,7 +258,7 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 	curthread = _get_curthread();
 	if (curthread->wchan != NULL)
-		PANIC("thread was already on queue.");
+		PANIC("thread %p was already on queue.", curthread);
 
 	if (cancel)
 		_thr_testcancel(curthread);
