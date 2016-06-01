@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <assert.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <paths.h>
@@ -315,6 +316,8 @@ image_file_unmap(void *buffer, size_t sz)
 
 	unit = (secsz > image_swap_pgsz) ? secsz : image_swap_pgsz;
 	sz = (sz + unit - 1) & ~(unit - 1);
+	if (madvise(buffer, sz, MADV_DONTNEED) != 0)
+		warn("madvise");
 	munmap(buffer, sz);
 	return (0);
 }
