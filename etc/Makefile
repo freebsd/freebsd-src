@@ -309,6 +309,10 @@ distribution:
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
 .endif
+.if ${MK_DMAGENT} != "no"
+	cd ${.CURDIR}/../libexec/dma/dmagent; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    dma.conf ${DESTDIR}/etc/dma
+.endif
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
