@@ -180,8 +180,7 @@ sfxge_rx_post_refill(void *arg)
 	sc = rxq->sc;
 	index = rxq->index;
 	evq = sc->evq[index];
-
-	magic = SFXGE_MAGIC_RX_QREFILL | index;
+	magic = sfxge_sw_ev_rxq_magic(SFXGE_SW_EV_RX_QREFILL, rxq);
 
 	/* This is guaranteed due to the start/stop order of rx and ev */
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,

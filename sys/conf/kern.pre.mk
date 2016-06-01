@@ -19,6 +19,12 @@ _srcconf_included_:
 .include <bsd.compiler.mk>
 .include "kern.opts.mk"
 
+# The kernel build always occurs in the object directory which is .CURDIR.
+.if ${.MAKE.MODE:Unormal:Mmeta}
+.MAKE.MODE+=	curdirOk=yes
+OP_META=	.META
+.endif
+
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
 KERNEL?=	kernel

@@ -31,18 +31,31 @@
 
 #include <sys/param.h>
 #include <sys/bus_dma.h>
+#include <sys/taskqueue.h>
+
 #include <dev/hyperv/include/hyperv_busdma.h>
+
+/*
+ * NOTE: DO NOT CHANGE THIS.
+ */
+#define VMBUS_SINT_MESSAGE	2
+/*
+ * NOTE:
+ * - DO NOT set it to the same value as VMBUS_SINT_MESSAGE.
+ * - DO NOT set it to 0.
+ */
+#define VMBUS_SINT_TIMER	4
 
 struct vmbus_pcpu_data {
 	u_long			*intr_cnt;	/* Hyper-V interrupt counter */
 	struct vmbus_message	*message;	/* shared messages */
 	uint32_t		vcpuid;		/* virtual cpuid */
-	int			event_flag_cnt;	/* # of event flags */
-	union vmbus_event_flags	*event_flag;	/* shared event flags */
+	int			event_flags_cnt;/* # of event flags */
+	struct vmbus_evtflags	*event_flags;	/* shared event flags */
 
 	/* Rarely used fields */
 	struct hyperv_dma	message_dma;	/* busdma glue */
-	struct hyperv_dma	event_flag_dma;	/* busdma glue */
+	struct hyperv_dma	event_flags_dma;/* busdma glue */
 	struct taskqueue	*event_tq;	/* event taskq */
 	struct taskqueue	*message_tq;	/* message taskq */
 	struct task		message_task;	/* message task */
@@ -78,8 +91,14 @@ vmbus_get_device(void)
 #define VMBUS_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
 #define VMBUS_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
 
+struct hv_vmbus_channel;
+struct trapframe;
+
 void	vmbus_on_channel_open(const struct hv_vmbus_channel *);
 void	vmbus_event_proc(struct vmbus_softc *, int);
 void	vmbus_event_proc_compat(struct vmbus_softc *, int);
+void	vmbus_handle_intr(struct trapframe *);
+
+void	vmbus_et_intr(struct trapframe *);
 
 #endif	/* !_VMBUS_VAR_H_ */

@@ -1096,7 +1096,7 @@ linux_complete_common(struct completion *c, int all)
 long
 linux_wait_for_common(struct completion *c, int flags)
 {
-	if (unlikely(SCHEDULER_STOPPED()))
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 	if (flags != 0)
@@ -1128,7 +1128,7 @@ linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 {
 	long end = jiffies + timeout;
 
-	if (unlikely(SCHEDULER_STOPPED()))
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 	if (flags != 0)

@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
+#include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -69,26 +71,26 @@ __FBSDID("$FreeBSD$");
 
 struct vmbus_softc	*vmbus_sc;
 
-static char *vmbus_ids[] = { "VMBUS", NULL };
-
-extern inthand_t IDTVEC(hv_vmbus_callback);
+extern inthand_t IDTVEC(vmbus_isr);
 
 static void
 vmbus_msg_task(void *xsc, int pending __unused)
 {
 	struct vmbus_softc *sc = xsc;
-	hv_vmbus_message *msg;
+	volatile struct vmbus_message *msg;
 
-	msg = VMBUS_PCPU_GET(sc, message, curcpu) + HV_VMBUS_MESSAGE_SINT;
+	msg = VMBUS_PCPU_GET(sc, message, curcpu) + VMBUS_SINT_MESSAGE;
 	for (;;) {
 		const hv_vmbus_channel_msg_table_entry *entry;
 		hv_vmbus_channel_msg_header *hdr;
 		hv_vmbus_channel_msg_type msg_type;
 
-		if (msg->header.message_type == HV_MESSAGE_TYPE_NONE)
+		if (msg->msg_type == VMBUS_MSGTYPE_NONE)
 			break; /* no message */
 
-		hdr = (hv_vmbus_channel_msg_header *)msg->u.payload;
+		/* XXX: update messageHandler interface */
+		hdr = __DEVOLATILE(hv_vmbus_channel_msg_header *,
+		    msg->msg_data);
 		msg_type = hdr->message_type;
 
 		if (msg_type >= HV_CHANNEL_MESSAGE_COUNT) {
@@ -100,82 +102,83 @@ vmbus_msg_task(void *xsc, int pending __unused)
 		if (entry->messageHandler)
 			entry->messageHandler(hdr);
 handled:
-		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
+		msg->msg_type = VMBUS_MSGTYPE_NONE;
 		/*
-		 * Make sure the write to message_type (ie set to
-		 * HV_MESSAGE_TYPE_NONE) happens before we read the
-		 * message_pending and EOMing. Otherwise, the EOMing will
-		 * not deliver any more messages
-		 * since there is no empty slot
+		 * Make sure the write to msg_type (i.e. set to
+		 * VMBUS_MSGTYPE_NONE) happens before we read the
+		 * msg_flags and EOMing. Otherwise, the EOMing will
+		 * not deliver any more messages since there is no
+		 * empty slot
 		 *
 		 * NOTE:
 		 * mb() is used here, since atomic_thread_fence_seq_cst()
 		 * will become compiler fence on UP kernel.
 		 */
 		mb();
-		if (msg->header.message_flags.u.message_pending) {
+		if (msg->msg_flags & VMBUS_MSGFLAG_PENDING) {
 			/*
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
 			 */
-			wrmsr(HV_X64_MSR_EOM, 0);
+			wrmsr(MSR_HV_EOM, 0);
 		}
 	}
 }
 
-/**
- * @brief Interrupt filter routine for VMBUS.
- *
- * The purpose of this routine is to determine the type of VMBUS protocol
- * message to process - an event or a channel message.
- */
-static inline int
-hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
+static __inline int
+vmbus_handle_intr1(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 {
-	hv_vmbus_message *msg, *msg_base;
+	volatile struct vmbus_message *msg;
+	struct vmbus_message *msg_base;
+
+	msg_base = VMBUS_PCPU_GET(sc, message, cpu);
 
 	/*
-	 * The Windows team has advised that we check for events
-	 * before checking for messages. This is the way they do it
-	 * in Windows when running as a guest in Hyper-V
+	 * Check event timer.
+	 *
+	 * TODO: move this to independent IDT vector.
 	 */
-	sc->vmbus_event_proc(sc, cpu);
+	msg = msg_base + VMBUS_SINT_TIMER;
+	if (msg->msg_type == VMBUS_MSGTYPE_TIMER_EXPIRED) {
+		msg->msg_type = VMBUS_MSGTYPE_NONE;
 
-	/* Check if there are actual msgs to be process */
-	msg_base = VMBUS_PCPU_GET(sc, message, cpu);
-	msg = msg_base + HV_VMBUS_TIMER_SINT;
-
-	/* we call eventtimer process the message */
-	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
-		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
-
-		/* call intrrupt handler of event timer */
-		hv_et_intr(frame);
+		vmbus_et_intr(frame);
 
 		/*
-		 * Make sure the write to message_type (ie set to
-		 * HV_MESSAGE_TYPE_NONE) happens before we read the
-		 * message_pending and EOMing. Otherwise, the EOMing will
-		 * not deliver any more messages
-		 * since there is no empty slot
+		 * Make sure the write to msg_type (i.e. set to
+		 * VMBUS_MSGTYPE_NONE) happens before we read the
+		 * msg_flags and EOMing. Otherwise, the EOMing will
+		 * not deliver any more messages since there is no
+		 * empty slot
 		 *
 		 * NOTE:
 		 * mb() is used here, since atomic_thread_fence_seq_cst()
 		 * will become compiler fence on UP kernel.
 		 */
 		mb();
-
-		if (msg->header.message_flags.u.message_pending) {
+		if (msg->msg_flags & VMBUS_MSGFLAG_PENDING) {
 			/*
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
 			 */
-			wrmsr(HV_X64_MSR_EOM, 0);
+			wrmsr(MSR_HV_EOM, 0);
 		}
 	}
 
-	msg = msg_base + HV_VMBUS_MESSAGE_SINT;
-	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
+	/*
+	 * Check events.  Hot path for network and storage I/O data; high rate.
+	 *
+	 * NOTE:
+	 * As recommended by the Windows guest fellows, we check events before
+	 * checking messages.
+	 */
+	sc->vmbus_event_proc(sc, cpu);
+
+	/*
+	 * Check messages.  Mainly management stuffs; ultra low rate.
+	 */
+	msg = msg_base + VMBUS_SINT_MESSAGE;
+	if (__predict_false(msg->msg_type != VMBUS_MSGTYPE_NONE)) {
 		taskqueue_enqueue(VMBUS_PCPU_GET(sc, message_tq, cpu),
 		    VMBUS_PCPU_PTR(sc, message_task, cpu));
 	}
@@ -184,7 +187,7 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 }
 
 void
-hv_vector_handler(struct trapframe *trap_frame)
+vmbus_handle_intr(struct trapframe *trap_frame)
 {
 	struct vmbus_softc *sc = vmbus_get_softc();
 	int cpu = curcpu;
@@ -199,7 +202,7 @@ hv_vector_handler(struct trapframe *trap_frame)
 	 */
 	(*VMBUS_PCPU_GET(sc, intr_cnt, cpu))++;
 
-	hv_vmbus_isr(sc, trap_frame, cpu);
+	vmbus_handle_intr1(sc, trap_frame, cpu);
 
 	/*
 	 * Enable preemption.
@@ -215,10 +218,21 @@ vmbus_synic_setup(void *xsc)
 	uint64_t val, orig;
 	uint32_t sint;
 
-	/*
-	 * Save virtual processor id.
-	 */
-	VMBUS_PCPU_GET(sc, vcpuid, cpu) = rdmsr(MSR_HV_VP_INDEX);
+	if (hyperv_features & CPUID_HV_MSR_VP_INDEX) {
+		/*
+		 * Save virtual processor id.
+		 */
+		VMBUS_PCPU_GET(sc, vcpuid, cpu) = rdmsr(MSR_HV_VP_INDEX);
+	} else {
+		/*
+		 * XXX
+		 * Virtual processoor id is only used by a pretty broken
+		 * channel selection code from storvsc.  It's nothing
+		 * critical even if CPUID_HV_MSR_VP_INDEX is not set; keep
+		 * moving on.
+		 */
+		VMBUS_PCPU_GET(sc, vcpuid, cpu) = cpu;
+	}
 
 	/*
 	 * Setup the SynIC message.
@@ -234,15 +248,15 @@ vmbus_synic_setup(void *xsc)
 	 */
 	orig = rdmsr(MSR_HV_SIEFP);
 	val = MSR_HV_SIEFP_ENABLE | (orig & MSR_HV_SIEFP_RSVD_MASK) |
-	    ((VMBUS_PCPU_GET(sc, event_flag_dma.hv_paddr, cpu) >> PAGE_SHIFT) <<
-	     MSR_HV_SIEFP_PGSHIFT);
+	    ((VMBUS_PCPU_GET(sc, event_flags_dma.hv_paddr, cpu)
+	      >> PAGE_SHIFT) << MSR_HV_SIEFP_PGSHIFT);
 	wrmsr(MSR_HV_SIEFP, val);
 
 
 	/*
 	 * Configure and unmask SINT for message and event flags.
 	 */
-	sint = MSR_HV_SINT0 + HV_VMBUS_MESSAGE_SINT;
+	sint = MSR_HV_SINT0 + VMBUS_SINT_MESSAGE;
 	orig = rdmsr(sint);
 	val = sc->vmbus_idtvec | MSR_HV_SINT_AUTOEOI |
 	    (orig & MSR_HV_SINT_RSVD_MASK);
@@ -251,7 +265,7 @@ vmbus_synic_setup(void *xsc)
 	/*
 	 * Configure and unmask SINT for timer.
 	 */
-	sint = MSR_HV_SINT0 + HV_VMBUS_TIMER_SINT;
+	sint = MSR_HV_SINT0 + VMBUS_SINT_TIMER;
 	orig = rdmsr(sint);
 	val = sc->vmbus_idtvec | MSR_HV_SINT_AUTOEOI |
 	    (orig & MSR_HV_SINT_RSVD_MASK);
@@ -280,14 +294,14 @@ vmbus_synic_teardown(void *arg)
 	/*
 	 * Mask message and event flags SINT.
 	 */
-	sint = MSR_HV_SINT0 + HV_VMBUS_MESSAGE_SINT;
+	sint = MSR_HV_SINT0 + VMBUS_SINT_MESSAGE;
 	orig = rdmsr(sint);
 	wrmsr(sint, orig | MSR_HV_SINT_MASKED);
 
 	/*
 	 * Mask timer SINT.
 	 */
-	sint = MSR_HV_SINT0 + HV_VMBUS_TIMER_SINT;
+	sint = MSR_HV_SINT0 + VMBUS_SINT_TIMER;
 	orig = rdmsr(sint);
 	wrmsr(sint, orig | MSR_HV_SINT_MASKED);
 
@@ -325,11 +339,11 @@ vmbus_dma_alloc(struct vmbus_softc *sc)
 
 		ptr = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
 		    PAGE_SIZE, 0, PAGE_SIZE,
-		    VMBUS_PCPU_PTR(sc, event_flag_dma, cpu),
+		    VMBUS_PCPU_PTR(sc, event_flags_dma, cpu),
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 		if (ptr == NULL)
 			return ENOMEM;
-		VMBUS_PCPU_GET(sc, event_flag, cpu) = ptr;
+		VMBUS_PCPU_GET(sc, event_flags, cpu) = ptr;
 	}
 	return 0;
 }
@@ -346,11 +360,11 @@ vmbus_dma_free(struct vmbus_softc *sc)
 			    VMBUS_PCPU_GET(sc, message, cpu));
 			VMBUS_PCPU_GET(sc, message, cpu) = NULL;
 		}
-		if (VMBUS_PCPU_GET(sc, event_flag, cpu) != NULL) {
+		if (VMBUS_PCPU_GET(sc, event_flags, cpu) != NULL) {
 			hyperv_dmamem_free(
-			    VMBUS_PCPU_PTR(sc, event_flag_dma, cpu),
-			    VMBUS_PCPU_GET(sc, event_flag, cpu));
-			VMBUS_PCPU_GET(sc, event_flag, cpu) = NULL;
+			    VMBUS_PCPU_PTR(sc, event_flags_dma, cpu),
+			    VMBUS_PCPU_GET(sc, event_flags, cpu));
+			VMBUS_PCPU_GET(sc, event_flags, cpu) = NULL;
 		}
 	}
 }
@@ -398,7 +412,7 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 	 * All Hyper-V ISR required resources are setup, now let's find a
 	 * free IDT vector for Hyper-V ISR and set it up.
 	 */
-	sc->vmbus_idtvec = lapic_ipi_alloc(IDTVEC(hv_vmbus_callback));
+	sc->vmbus_idtvec = lapic_ipi_alloc(IDTVEC(vmbus_isr));
 	if (sc->vmbus_idtvec < 0) {
 		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
 		return ENXIO;
@@ -441,16 +455,19 @@ vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 
 	switch (index) {
 	case HV_VMBUS_IVAR_TYPE:
-		*result = (uintptr_t) &child_dev_ctx->class_id;
+		*result = (uintptr_t)&child_dev_ctx->class_id;
 		return (0);
+
 	case HV_VMBUS_IVAR_INSTANCE:
-		*result = (uintptr_t) &child_dev_ctx->device_id;
+		*result = (uintptr_t)&child_dev_ctx->device_id;
 		return (0);
+
 	case HV_VMBUS_IVAR_DEVCTX:
-		*result = (uintptr_t) child_dev_ctx;
+		*result = (uintptr_t)child_dev_ctx;
 		return (0);
+
 	case HV_VMBUS_IVAR_NODE:
-		*result = (uintptr_t) child_dev_ctx->device;
+		*result = (uintptr_t)child_dev_ctx->device;
 		return (0);
 	}
 	return (ENOENT);
@@ -473,18 +490,18 @@ vmbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 static int
 vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 {
-	char guidbuf[40];
 	struct hv_device *dev_ctx = device_get_ivars(child);
+	char guidbuf[HYPERV_GUID_STRLEN];
 
 	if (dev_ctx == NULL)
 		return (0);
 
 	strlcat(buf, "classid=", buflen);
-	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->class_id);
+	hyperv_guid2str(&dev_ctx->class_id, guidbuf, sizeof(guidbuf));
 	strlcat(buf, guidbuf, buflen);
 
 	strlcat(buf, " deviceid=", buflen);
-	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->device_id);
+	hyperv_guid2str(&dev_ctx->device_id, guidbuf, sizeof(guidbuf));
 	strlcat(buf, guidbuf, buflen);
 
 	return (0);
@@ -509,30 +526,19 @@ hv_vmbus_child_device_create(hv_guid type, hv_guid instance,
 }
 
 int
-snprintf_hv_guid(char *buf, size_t sz, const hv_guid *guid)
-{
-	int cnt;
-	const unsigned char *d = guid->data;
-
-	cnt = snprintf(buf, sz,
-		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-		d[3], d[2], d[1], d[0], d[5], d[4], d[7], d[6],
-		d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15]);
-	return (cnt);
-}
-
-int
 hv_vmbus_child_device_register(struct hv_device *child_dev)
 {
-	device_t child;
+	device_t child, parent;
 
+	parent = vmbus_get_device();
 	if (bootverbose) {
-		char name[40];
-		snprintf_hv_guid(name, sizeof(name), &child_dev->class_id);
-		printf("VMBUS: Class ID: %s\n", name);
+		char name[HYPERV_GUID_STRLEN];
+
+		hyperv_guid2str(&child_dev->class_id, name, sizeof(name));
+		device_printf(parent, "add device, classid: %s\n", name);
 	}
 
-	child = device_add_child(vmbus_get_device(), NULL, -1);
+	child = device_add_child(parent, NULL, -1);
 	child_dev->device = child;
 	device_set_ivars(child, child_dev);
 
@@ -556,8 +562,11 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 static int
 vmbus_probe(device_t dev)
 {
-	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
-	    device_get_unit(dev) != 0 || vm_guest != VM_GUEST_HV)
+	char *id[] = { "VMBUS", NULL };
+
+	if (ACPI_ID_PROBE(device_get_parent(dev), dev, id) == NULL ||
+	    device_get_unit(dev) != 0 || vm_guest != VM_GUEST_HV ||
+	    (hyperv_features & CPUID_HV_MSR_SYNIC) == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Hyper-V Vmbus");

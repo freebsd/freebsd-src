@@ -362,7 +362,7 @@ tlv_last_segment_end(
 	 * is no end tag then the previous segment was the last valid one,
 	 * so return the pointer to its end tag.
 	 */
-	while (1) {
+	for (;;) {
 		if (tlv_init_cursor(&segment_cursor, segment_start,
 		    cursor->limit, segment_start) != 0)
 			break;
@@ -903,6 +903,8 @@ ef10_nvram_buffer_find_end(
 	efx_rc_t rc;
 	uint32_t *segment_used;
 
+	_NOTE(ARGUNUSED(offset))
+
 	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)bufferp,
 			buffer_size)) != 0) {
 		rc = EFAULT;
@@ -1077,6 +1079,8 @@ ef10_nvram_buffer_delete_item(
 {
 	efx_rc_t rc;
 	tlv_cursor_t cursor;
+
+	_NOTE(ARGUNUSED(length, end))
 
 	if ((rc = tlv_init_cursor_at_offset(&cursor, (uint8_t *)bufferp,
 			buffer_size, offset)) != 0) {

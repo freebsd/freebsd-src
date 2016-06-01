@@ -76,6 +76,16 @@ OBJCOPY?=	objcopy
 .include <bsd.compiler.mk>
 .include "config.mk"
 
+# Search for kernel source tree in standard places.
+.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
+.if !defined(SYSDIR) && exists(${_dir}/kern/)
+SYSDIR=	${_dir:tA}
+.endif
+.endfor
+.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
+.error "can't find kernel source tree"
+.endif
+
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
 
 # amd64 and mips use direct linking for kmod, all others use shared binaries
@@ -149,7 +159,7 @@ CTFFLAGS+=	-g
 .endif
 
 .if defined(FIRMWS)
-${KMOD:S/$/.c/}: ${SYSDIR}/tools/fw_stub.awk
+${KMOD:S/$/.c/}: ${SYSDIR}/tools/fw_stub.awk ${OP_META}
 	${AWK} -f ${SYSDIR}/tools/fw_stub.awk ${FIRMWS} -m${KMOD} -c${KMOD:S/$/.c/g} \
 	    ${FIRMWARE_LICENSE:C/.+/-l/}${FIRMWARE_LICENSE}
 
@@ -157,7 +167,7 @@ SRCS+=	${KMOD:S/$/.c/}
 CLEANFILES+=	${KMOD:S/$/.c/}
 
 .for _firmw in ${FIRMWS}
-${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//}
+${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//} ${OP_META}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
@@ -188,15 +198,15 @@ PROG=	${KMOD}.ko
 FULLPROG=	${PROG}
 .else
 FULLPROG=	${PROG}.full
-${PROG}: ${FULLPROG} ${PROG}.debug
+${PROG}: ${FULLPROG} ${PROG}.debug ${OP_META}
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROG}.debug \
 	    ${FULLPROG} ${.TARGET}
-${PROG}.debug: ${FULLPROG}
+${PROG}.debug: ${FULLPROG} ${OP_META}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
 .if ${__KLD_SHARED} == yes
-${FULLPROG}: ${KMOD}.kld
+${FULLPROG}: ${KMOD}.kld ${OP_META}
 .if ${MACHINE_CPUARCH} != "aarch64"
 	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .else
@@ -219,9 +229,9 @@ CLEANFILES+=	export_syms
 .endif
 
 .if ${__KLD_SHARED} == yes
-${KMOD}.kld: ${OBJS}
+${KMOD}.kld: ${OBJS} ${OP_META}
 .else
-${FULLPROG}: ${OBJS}
+${FULLPROG}: ${OBJS} ${OP_META}
 .endif
 	${LD} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
 .if ${MK_CTF} != "no"
@@ -266,16 +276,6 @@ ${OBJS}: ${_link}
 .endif
 .endfor
 
-# Search for kernel source tree in standard places.
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
-.if !defined(SYSDIR) && exists(${_dir}/kern/)
-SYSDIR=	${_dir}
-.endif
-.endfor
-.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
-.error "can't find kernel source tree"
-.endif
-
 .NOPATH: ${_ILINKS}
 
 ${_ILINKS}:
@@ -287,7 +287,7 @@ ${_ILINKS}:
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
-	ln -sf $$path ${.TARGET:T}
+	ln -fhs $$path ${.TARGET:T}
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
@@ -306,7 +306,7 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 KERN_DEBUGDIR?=	${DEBUGDIR}
 realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
-_kmodinstall:
+_kmodinstall: .PHONY
 	${INSTALL} -T release -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
 .if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
@@ -320,7 +320,7 @@ _kmodinstall:
 afterinstall: _kldxref
 .ORDER: realinstall _kldxref
 .ORDER: _installlinks _kldxref
-_kldxref:
+_kldxref: .PHONY
 	@if type kldxref >/dev/null 2>&1; then \
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
 		kldxref ${DESTDIR}${KMODDIR}; \
@@ -331,17 +331,17 @@ _kldxref:
 .endif # !target(install)
 
 .if !target(load)
-load: ${PROG}
+load: ${PROG} .PHONY
 	${KMODLOAD} -v ${.OBJDIR}/${PROG}
 .endif
 
 .if !target(unload)
-unload:
+unload: .PHONY
 	if ${KMODISLOADED} ${PROG} ; then ${KMODUNLOAD} -v ${PROG} ; fi
 .endif
 
 .if !target(reload)
-reload: unload load
+reload: unload load .PHONY
 .endif
 
 .if defined(KERNBUILDDIR)
@@ -397,16 +397,16 @@ _MATCHES=${_MFILES:${_MATCH}}
 CLEANFILES+=	${_i}
 .endif
 .endfor # _i
-.m.c:	${SYSDIR}/tools/makeobjops.awk
+.m.c:	${SYSDIR}/tools/makeobjops.awk ${OP_META}
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c
 
-.m.h:	${SYSDIR}/tools/makeobjops.awk
+.m.h:	${SYSDIR}/tools/makeobjops.awk ${OP_META}
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -h
 
 .for _i in mii pccard
 .if !empty(SRCS:M${_i}devs.h)
 CLEANFILES+=	${_i}devs.h
-${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
+${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs ${OP_META}
 	${AWK} -f ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
@@ -415,8 +415,9 @@ ${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 CLEANFILES+=	bhnd_nvram_map.h
 bhnd_nvram_map.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
     ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
-    ${SYSDIR}/dev/bhnd/nvram/nvram_map
-bhnd_nvram_map.h:
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map \
+    ${OP_META}
+bhnd_nvram_map.h: ${OP_META}
 	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
 	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -h
 .endif
@@ -425,27 +426,28 @@ bhnd_nvram_map.h:
 CLEANFILES+=	bhnd_nvram_map_data.h
 bhnd_nvram_map_data.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
     ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
-    ${SYSDIR}/dev/bhnd/nvram/nvram_map
-bhnd_nvram_map_data.h:
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map \
+    ${OP_META}
+bhnd_nvram_map_data.h: ${OP_META}
 	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
 	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -d
 .endif
 
 .if !empty(SRCS:Musbdevs.h)
 CLEANFILES+=	usbdevs.h
-usbdevs.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs
+usbdevs.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs ${OP_META}
 	${AWK} -f ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs -h
 .endif
 
 .if !empty(SRCS:Musbdevs_data.h)
 CLEANFILES+=	usbdevs_data.h
-usbdevs_data.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs
+usbdevs_data.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs ${OP_META}
 	${AWK} -f ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs -d
 .endif
 
 .if !empty(SRCS:Macpi_quirks.h)
 CLEANFILES+=	acpi_quirks.h
-acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
+acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks ${OP_META}
 	${AWK} -f ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 .endif
 
@@ -455,10 +457,10 @@ assym.s: genassym.o
 .if defined(KERNBUILDDIR)
 genassym.o: opt_global.h
 .endif
-assym.s: ${SYSDIR}/kern/genassym.sh
+assym.s: ${SYSDIR}/kern/genassym.sh ${OP_META}
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
-genassym.o: ${SRCS:Mopt_*.h}
+genassym.o: ${SRCS:Mopt_*.h} ${OP_META}
 	${CC} -c ${CFLAGS:N-fno-common} \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif

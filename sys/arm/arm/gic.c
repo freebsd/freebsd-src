@@ -968,7 +968,7 @@ gic_bind(struct arm_gic_softc *sc, u_int irq, cpuset_t *cpus)
 
 	for (mask = 0, cpu = 0; cpu < end; cpu++)
 		if (CPU_ISSET(cpu, cpus))
-			mask |= 1 << cpu;
+			mask |= arm_gic_map[cpu];
 
 	gic_d_write_1(sc, GICD_ITARGETSR(0) + irq, mask);
 	return (0);
@@ -1128,8 +1128,11 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 		if (gi->gi_irq != irq)
 			return (EINVAL);
-	} else
-		return (ENOTSUP);
+	} else {
+		irq = gi->gi_irq;
+		pol = INTR_POLARITY_CONFORM;
+		trig = INTR_TRIGGER_CONFORM;
+	}
 
 	/* Compare config if this is not first setup. */
 	if (isrc->isrc_handlers != 0) {

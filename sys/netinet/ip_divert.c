@@ -826,6 +826,6 @@ static moduledata_t ipdivertmod = {
         0
 };
 
-DECLARE_MODULE(ipdivert, ipdivertmod, SI_SUB_FW, SI_ORDER_ANY);
+DECLARE_MODULE(ipdivert, ipdivertmod, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY);
 MODULE_DEPEND(ipdivert, ipfw, 3, 3, 3);
 MODULE_VERSION(ipdivert, 1);

@@ -215,6 +215,8 @@
                     ..
                 ..
             ..
+            zfsd
+            ..
         ..
     ..
     etc
@@ -307,6 +309,8 @@
             ..
         ..
         libcrypt
+        ..
+        libdevdctl
         ..
         libmp
         ..

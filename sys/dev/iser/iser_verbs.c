@@ -136,10 +136,12 @@ static void iser_handle_wc(struct ib_wc *wc)
 		struct iser_conn *iser_conn = container_of(ib_conn, struct iser_conn,
 					ib_conn);
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
-			ISER_ERR("conn %p wr id %lx status %d vend_err %x",
-				 iser_conn, wc->wr_id, wc->status, wc->vendor_err);
+			ISER_ERR("conn %p wr id %llx status %d vend_err %x",
+				 iser_conn, (unsigned long long)wc->wr_id,
+				 wc->status, wc->vendor_err);
 		} else {
-			ISER_DBG("flush error: conn %p wr id %lx", iser_conn, wc->wr_id);
+			ISER_DBG("flush error: conn %p wr id %llx",
+				 iser_conn, (unsigned long long)wc->wr_id);
 		}
 
 		if (wc->wr_id == ISER_BEACON_WRID) {
