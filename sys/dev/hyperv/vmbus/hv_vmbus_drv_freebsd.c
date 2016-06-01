@@ -248,8 +248,8 @@ vmbus_synic_setup(void *xsc)
 	 */
 	orig = rdmsr(MSR_HV_SIEFP);
 	val = MSR_HV_SIEFP_ENABLE | (orig & MSR_HV_SIEFP_RSVD_MASK) |
-	    ((VMBUS_PCPU_GET(sc, event_flag_dma.hv_paddr, cpu) >> PAGE_SHIFT) <<
-	     MSR_HV_SIEFP_PGSHIFT);
+	    ((VMBUS_PCPU_GET(sc, event_flags_dma.hv_paddr, cpu)
+	      >> PAGE_SHIFT) << MSR_HV_SIEFP_PGSHIFT);
 	wrmsr(MSR_HV_SIEFP, val);
 
 
@@ -339,11 +339,11 @@ vmbus_dma_alloc(struct vmbus_softc *sc)
 
 		ptr = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
 		    PAGE_SIZE, 0, PAGE_SIZE,
-		    VMBUS_PCPU_PTR(sc, event_flag_dma, cpu),
+		    VMBUS_PCPU_PTR(sc, event_flags_dma, cpu),
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 		if (ptr == NULL)
 			return ENOMEM;
-		VMBUS_PCPU_GET(sc, event_flag, cpu) = ptr;
+		VMBUS_PCPU_GET(sc, event_flags, cpu) = ptr;
 	}
 	return 0;
 }
@@ -360,11 +360,11 @@ vmbus_dma_free(struct vmbus_softc *sc)
 			    VMBUS_PCPU_GET(sc, message, cpu));
 			VMBUS_PCPU_GET(sc, message, cpu) = NULL;
 		}
-		if (VMBUS_PCPU_GET(sc, event_flag, cpu) != NULL) {
+		if (VMBUS_PCPU_GET(sc, event_flags, cpu) != NULL) {
 			hyperv_dmamem_free(
-			    VMBUS_PCPU_PTR(sc, event_flag_dma, cpu),
-			    VMBUS_PCPU_GET(sc, event_flag, cpu));
-			VMBUS_PCPU_GET(sc, event_flag, cpu) = NULL;
+			    VMBUS_PCPU_PTR(sc, event_flags_dma, cpu),
+			    VMBUS_PCPU_GET(sc, event_flags, cpu));
+			VMBUS_PCPU_GET(sc, event_flags, cpu) = NULL;
 		}
 	}
 }
