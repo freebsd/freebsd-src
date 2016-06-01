@@ -95,7 +95,7 @@ typedef struct efx_ev_ops_s {
 	void		(*eevo_fini)(efx_nic_t *);
 	efx_rc_t	(*eevo_qcreate)(efx_nic_t *, unsigned int,
 					  efsys_mem_t *, size_t, uint32_t,
-					  efx_evq_t *);
+					  uint32_t, efx_evq_t *);
 	void		(*eevo_qdestroy)(efx_evq_t *);
 	efx_rc_t	(*eevo_qprime)(efx_evq_t *, unsigned int);
 	void		(*eevo_qpost)(efx_evq_t *, uint16_t);
