@@ -116,7 +116,7 @@ SUBDIR=	\
 	fdc \
 	fdescfs \
 	${_fe} \
-	${_filemon} \
+	filemon \
 	firewire \
 	firmware \
 	fuse \
@@ -549,7 +549,6 @@ _ep=		ep
 _et=		et
 _exca=		exca
 _fe=		fe
-_filemon=	filemon
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=        ibcore
 .endif
