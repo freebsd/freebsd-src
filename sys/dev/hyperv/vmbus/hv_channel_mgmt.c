@@ -302,6 +302,12 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 {
 	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu %d", cpu));
 
+	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
+	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7) {
+		/* Only cpu0 is supported */
+		cpu = 0;
+	}
+
 	chan->target_cpu = cpu;
 	chan->target_vcpu = VMBUS_PCPU_GET(vmbus_get_softc(), vcpuid, cpu);
 
@@ -359,9 +365,7 @@ vmbus_channel_select_defcpu(struct hv_vmbus_channel *channel)
 		}
 	}
 
-	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
-	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7) ||
-	    (!is_perf_channel)) {
+	if (!is_perf_channel) {
 		/* Stick to cpu0 */
 		vmbus_channel_cpu_set(channel, 0);
 		return;
