@@ -472,9 +472,11 @@ void ar9300_mci_mute_bt(struct ath_hal *ah)
      * 1. reset not after resuming from full sleep
      * 2. before reset MCI RX, to quiet BT and avoid MCI RX misalignment
      */
-    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) Send LNA take\n");
-    ar9300_mci_send_lna_take(ah, AH_TRUE);
-    OS_DELAY(5);
+    if (MCI_ANT_ARCH_PA_LNA_SHARED(ah->ah_config.ath_hal_mci_config)) {
+        HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) Send LNA take\n");
+        ar9300_mci_send_lna_take(ah, AH_TRUE);
+        OS_DELAY(5);
+    }
     HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) Send sys sleeping\n");
     ar9300_mci_send_sys_sleeping(ah, AH_TRUE);
 }
@@ -498,7 +500,7 @@ static void ar9300_mci_observation_set_up(struct ath_hal *ah)
     HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: called; config=0x%08x\n",
         __func__, ah->ah_config.ath_hal_mci_config);
 
-    if (ah->ah_config.ath_hal_mci_config & 
+    if (ah->ah_config.ath_hal_mci_config &
         ATH_MCI_CONFIG_MCI_OBS_MCI)
     {
         HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: CONFIG_MCI_OBS_MCI\n", __func__);
@@ -846,7 +848,9 @@ static void ar9300_mci_prep_interface(struct ath_hal *ah)
             AR_MCI_INTERRUPT_RX_MSG_CONT_RST);
         OS_REG_WRITE(ah, AR_MCI_INTERRUPT_RAW, AR_MCI_INTERRUPT_BT_PRI);
 
-        if (AR_SREV_JUPITER_10(ah) || ahp->ah_mci_coex_is_2g) {
+        if (AR_SREV_JUPITER_10(ah) ||
+           (ahp->ah_mci_coex_is_2g &&
+            MCI_ANT_ARCH_PA_LNA_SHARED(ah->ah_config.ath_hal_mci_config))) {
             /* Send LNA_TRANS */
             HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) %s: Send LNA_TRANS to BT\n", 
                 __func__);
@@ -856,8 +860,8 @@ static void ar9300_mci_prep_interface(struct ath_hal *ah)
         }
 
         if (AR_SREV_JUPITER_10(ah) ||
-            (ahp->ah_mci_coex_is_2g && !ahp->ah_mci_coex_2g5g_update))
-        {
+            (ahp->ah_mci_coex_is_2g && !ahp->ah_mci_coex_2g5g_update &&
+            MCI_ANT_ARCH_PA_LNA_SHARED(ah->ah_config.ath_hal_mci_config))) {
             if (ar9300_mci_wait_for_interrupt(ah, AR_MCI_INTERRUPT_RX_MSG_RAW, 
                 AR_MCI_INTERRUPT_RX_MSG_LNA_INFO, mci_timeout)) {
                 HALDEBUG(ah, HAL_DEBUG_BT_COEX, 
@@ -1153,7 +1157,11 @@ void ar9300_mci_reset(struct ath_hal *ah, HAL_BOOL en_int, HAL_BOOL is_2g,
     OS_REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE,
              (SM(0xe801, AR_MCI_MSG_ATTRIBUTES_TABLE_INVALID_HDR) |
               SM(0x0000, AR_MCI_MSG_ATTRIBUTES_TABLE_CHECKSUM)));
-    OS_REG_CLR_BIT(ah, AR_MCI_TX_CTRL, AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
+    if (MCI_ANT_ARCH_PA_LNA_SHARED(ah->ah_config.ath_hal_mci_config)) {
+        OS_REG_CLR_BIT(ah, AR_MCI_TX_CTRL, AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
+    } else {
+        OS_REG_SET_BIT(ah, AR_MCI_TX_CTRL, AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
+    }
 
     if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         ar9300_mci_observation_set_up(ah);
