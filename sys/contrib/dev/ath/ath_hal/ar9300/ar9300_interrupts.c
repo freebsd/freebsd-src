@@ -389,6 +389,8 @@ ar9300_get_pending_interrupts(
                 if (int_rx_msg & AR_MCI_INTERRUPT_RX_MSG_CONT_INFO) {
                     ahp->ah_mci_cont_status = 
                                     OS_REG_READ(ah, AR_MCI_CONT_STATUS);
+                    HALDEBUG(ah, HAL_DEBUG_BT_COEX,
+                        "(MCI) cont_status=0x%08x\n", ahp->ah_mci_cont_status);
                 }
                 OS_REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW, 
                     int_rx_msg);
