@@ -5340,6 +5340,9 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
 
     ar9300_set_smart_antenna(ah, ahp->ah_smartantenna_enable);
 
+    if (AR_SREV_APHRODITE(ah) && ahp->ah_lna_div_use_bt_ant_enable)
+        OS_REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV, AR_BTCOEX_WL_LNADIV_FORCE_ON);
+
     if (ahp->ah_skip_rx_iq_cal && !is_scan) {
         /* restore RX Cal result if existing */
         ar9300_rx_iq_cal_restore(ah);
@@ -6385,6 +6388,9 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, cons
     struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
     HAL_CAPABILITIES *pcap = &ahpriv->ah_caps;
 
+    HALDEBUG(ah, HAL_DEBUG_RESET | HAL_DEBUG_BT_COEX,
+      "%s: called; enable=%d\n", __func__, enable);
+
     if (AR_SREV_POSEIDON(ah)) {
         // Make sure this scheme is only used for WB225(Astra)
         ahp->ah_lna_div_use_bt_ant_enable = enable;
@@ -6454,10 +6460,35 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, cons
         }
 
         return AH_TRUE;
-    } else {
+    } else if (AR_SREV_APHRODITE(ah)) {
+        ahp->ah_lna_div_use_bt_ant_enable = enable;
+        if (enable) {
+                OS_REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL, ANT_DIV_ENABLE);
+                OS_REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL, (1 << MULTICHAIN_GAIN_CTRL__ENABLE_ANT_SW_RX_PROT__SHIFT));
+                OS_REG_SET_BIT(ah, AR_PHY_CCK_DETECT, AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+                OS_REG_SET_BIT(ah, AR_PHY_RESTART, RESTART__ENABLE_ANT_FAST_DIV_M2FLAG__MASK);
+                OS_REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV, AR_BTCOEX_WL_LNADIV_FORCE_ON);
+        } else {
+                OS_REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL, ANT_DIV_ENABLE);
+                OS_REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL, (1 << MULTICHAIN_GAIN_CTRL__ENABLE_ANT_SW_RX_PROT__SHIFT));
+                OS_REG_CLR_BIT(ah, AR_PHY_CCK_DETECT, AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+                OS_REG_CLR_BIT(ah, AR_PHY_RESTART, RESTART__ENABLE_ANT_FAST_DIV_M2FLAG__MASK);
+                OS_REG_CLR_BIT(ah, AR_BTCOEX_WL_LNADIV, AR_BTCOEX_WL_LNADIV_FORCE_ON);
+
+                regval = OS_REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+                regval &= (~(MULTICHAIN_GAIN_CTRL__ANT_DIV_MAIN_LNACONF__MASK |
+                             MULTICHAIN_GAIN_CTRL__ANT_DIV_ALT_LNACONF__MASK |
+                             MULTICHAIN_GAIN_CTRL__ANT_DIV_ALT_GAINTB__MASK |
+                             MULTICHAIN_GAIN_CTRL__ANT_DIV_MAIN_GAINTB__MASK));
+                regval |= (HAL_ANT_DIV_COMB_LNA1 <<
+                           MULTICHAIN_GAIN_CTRL__ANT_DIV_MAIN_LNACONF__SHIFT);
+                regval |= (HAL_ANT_DIV_COMB_LNA2 <<
+                           MULTICHAIN_GAIN_CTRL__ANT_DIV_ALT_LNACONF__SHIFT);
+ 
+                OS_REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+        }
         return AH_TRUE;
     }
-
-    /* XXX TODO: Add AR9565 support? */
+    return AH_TRUE;
 }
 #endif /* ATH_ANT_DIV_COMB */
