@@ -586,8 +586,10 @@ __fts_children_44bsd(sp, instr)
 	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
-	if (fchdir(fd))
+	if (fchdir(fd)) {
+		(void)_close(fd);
 		return (NULL);
+	}
 	(void)_close(fd);
 	return (sp->fts_child);
 }
