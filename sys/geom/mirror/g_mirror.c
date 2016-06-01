@@ -2989,7 +2989,8 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	pp = sc->sc_provider;
-	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
+	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0 ||
+	    SCHEDULER_STOPPED())) {
 		switch (how) {
 		case G_MIRROR_DESTROY_SOFT:
 			G_MIRROR_DEBUG(1,
