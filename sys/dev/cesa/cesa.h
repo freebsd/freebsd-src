@@ -68,7 +68,7 @@
 #define CESA_TDMA_DESCRIPTORS		(CESA_TDMA_DESC_PER_REQ * CESA_REQUESTS)
 
 /* Useful constants */
-#define CESA_HMAC_HASH_LENGTH		12
+#define CESA_HMAC_TRUNC_LEN		12
 #define CESA_MAX_FRAGMENTS		64
 #define CESA_SRAM_SIZE			2048
 
@@ -293,8 +293,10 @@ struct cesa_chain_info {
 
 #define CESA_CSHD_MD5			(4 << 4)
 #define CESA_CSHD_SHA1			(5 << 4)
-#define CESA_CSHD_MD5_HMAC		((6 << 4) | (1 << 7))
-#define CESA_CSHD_SHA1_HMAC		((7 << 4) | (1 << 7))
+#define CESA_CSHD_MD5_HMAC		(6 << 4)
+#define CESA_CSHD_SHA1_HMAC		(7 << 4)
+
+#define CESA_CSHD_96_BIT_HMAC		(1 << 7)
 
 #define CESA_CSHD_DES			(1 << 8)
 #define CESA_CSHD_3DES			(2 << 8)
