@@ -436,6 +436,7 @@ ath_btcoex_mci_intr(struct ath_softc *sc)
 	uint32_t offset, subtype, opcode;
 	uint32_t *pGpm;
 	uint32_t more_data = HAL_MCI_GPM_MORE;
+	int8_t value_dbm;
 	bool skip_gpm = false;
 
 	DPRINTF(sc, ATH_DEBUG_BTCOEX, "%s: called\n", __func__);
@@ -607,7 +608,7 @@ ath_btcoex_mci_intr(struct ath_softc *sc)
 			DPRINTF(sc, ATH_DEBUG_BTCOEX, "(MCI) LNA_INFO\n");
 		}
 		if (mciIntRxMsg & HAL_MCI_INTERRUPT_RX_MSG_CONT_INFO) {
-			int8_t value_dbm = ath_hal_btcoex_mci_state(sc->sc_ah,
+			value_dbm = ath_hal_btcoex_mci_state(sc->sc_ah,
 			    HAL_MCI_STATE_CONT_RSSI_POWER, NULL);
 
 			mciIntRxMsg &= ~HAL_MCI_INTERRUPT_RX_MSG_CONT_INFO;
