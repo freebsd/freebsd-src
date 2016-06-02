@@ -1673,11 +1673,11 @@ vm_object_qcollapse(vm_object_t object)
 void
 vm_object_collapse(vm_object_t object)
 {
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	
-	while (TRUE) {
-		vm_object_t backing_object;
+	vm_object_t backing_object, new_backing_object;
 
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	while (TRUE) {
 		/*
 		 * Verify that the conditions are right for collapse:
 		 *
@@ -1703,14 +1703,13 @@ vm_object_collapse(vm_object_t object)
 			break;
 		}
 
-		if (
-		    object->paging_in_progress != 0 ||
-		    backing_object->paging_in_progress != 0
-		) {
+		if (object->paging_in_progress != 0 ||
+		    backing_object->paging_in_progress != 0) {
 			vm_object_qcollapse(object);
 			VM_OBJECT_WUNLOCK(backing_object);
 			break;
 		}
+
 		/*
 		 * We know that we can either collapse the backing object (if
 		 * the parent is the only reference to it) or (perhaps) have
@@ -1800,8 +1799,6 @@ vm_object_collapse(vm_object_t object)
 
 			object_collapses++;
 		} else {
-			vm_object_t new_backing_object;
-
 			/*
 			 * If we do not entirely shadow the backing object,
 			 * there is nothing we can do so we give up.
