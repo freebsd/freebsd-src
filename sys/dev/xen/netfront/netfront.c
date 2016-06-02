@@ -1101,8 +1101,8 @@ xn_alloc_rx_buffers(struct netfront_rxq *rxq)
 
 	/* Not enough requests? Try again later. */
 	if (req_prod - rxq->ring.rsp_cons < NET_RX_SLOTS_MIN) {
-		callout_reset(&rxq->rx_refill, hz/10, xn_alloc_rx_buffers_callout,
-		    rxq);
+		callout_reset_curcpu(&rxq->rx_refill, hz/10,
+		    xn_alloc_rx_buffers_callout, rxq);
 		return;
 	}
 
