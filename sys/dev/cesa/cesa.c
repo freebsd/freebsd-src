@@ -1043,6 +1043,7 @@ cesa_attach(device_t dev)
 	switch (d) {
 	case MV_DEV_88F6281:
 	case MV_DEV_88F6282:
+	case MV_DEV_88F6828:
 		sc->sc_tperr = 0;
 		break;
 	case MV_DEV_MV78100:
@@ -1214,7 +1215,7 @@ cesa_attach(device_t dev)
 
 	/* Register in OCF */
 	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
-	if (sc->sc_cid) {
+	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		goto err8;
 	}
