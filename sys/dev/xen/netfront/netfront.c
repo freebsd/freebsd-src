@@ -1253,6 +1253,13 @@ xn_rxeof(struct netfront_rxq *rxq)
 					    | CSUM_PSEUDO_HDR);
 				m->m_pkthdr.csum_data = 0xffff;
 			}
+			if ((rx->flags & NETRXF_extra_info) != 0 &&
+			    (extras[XEN_NETIF_EXTRA_TYPE_GSO - 1].type ==
+			    XEN_NETIF_EXTRA_TYPE_GSO)) {
+				m->m_pkthdr.tso_segsz =
+				extras[XEN_NETIF_EXTRA_TYPE_GSO - 1].u.gso.size;
+				m->m_pkthdr.csum_flags |= CSUM_TSO;
+			}
 
 			rxq->stats.rx_packets++;
 			rxq->stats.rx_bytes += m->m_pkthdr.len;
