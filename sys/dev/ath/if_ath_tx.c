@@ -1738,6 +1738,15 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 #endif
 
+#if 0
+	/*
+	 * Placeholder: if you want to transmit with the azimuth
+	 * timestamp in the end of the payload, here's where you
+	 * should set the TXDESC field.
+	 */
+	flags |= HAL_TXDESC_HWTS;
+#endif
+
 	/*
 	 * Determine if a tx interrupt should be generated for
 	 * this descriptor.  We take a tx interrupt to reap

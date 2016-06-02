@@ -656,7 +656,8 @@ struct ath_softc {
 				sc_has_ldpc : 1,
 				sc_hasenforcetxop : 1, /* support enforce TxOP */
 				sc_hasdivcomb : 1,     /* RX diversity combining */
-				sc_rx_lnamixer : 1;    /* RX using LNA mixing */
+				sc_rx_lnamixer : 1,    /* RX using LNA mixing */
+				sc_btcoex_mci : 1;     /* MCI bluetooth coex */
 
 	int			sc_cabq_enable;	/* Enable cabq transmission */
 
@@ -908,6 +909,19 @@ struct ath_softc {
 
 	/* ATH_PCI_* flags */
 	uint32_t		sc_pci_devinfo;
+
+	/* BT coex */
+	struct {
+		struct ath_descdma buf;
+
+		/* gpm/sched buffer, saved pointers */
+		char *sched_buf;
+		bus_addr_t sched_paddr;
+		char *gpm_buf;
+		bus_addr_t gpm_paddr;
+
+		uint32_t wlan_channels[4];
+	} sc_btcoex;
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -1488,8 +1502,6 @@ void	ath_intr(void *);
 	((*(_ah)->ah_btCoexSetQcuThresh)((_ah), (_qcuid)))
 #define	ath_hal_btcoex_set_weights(_ah, _weight) \
 	((*(_ah)->ah_btCoexSetWeights)((_ah), (_weight)))
-#define	ath_hal_btcoex_set_weights(_ah, _weight) \
-	((*(_ah)->ah_btCoexSetWeights)((_ah), (_weight)))
 #define	ath_hal_btcoex_set_bmiss_thresh(_ah, _thr) \
 	((*(_ah)->ah_btCoexSetBmissThresh)((_ah), (_thr)))
 #define	ath_hal_btcoex_set_parameter(_ah, _attrib, _val) \
@@ -1498,6 +1510,17 @@ void	ath_intr(void *);
 	((*(_ah)->ah_btCoexEnable)((_ah)))
 #define	ath_hal_btcoex_disable(_ah) \
 	((*(_ah)->ah_btCoexDisable)((_ah)))
+
+#define	ath_hal_btcoex_mci_setup(_ah, _gp, _gb, _gl, _sp) \
+	((*(_ah)->ah_btMciSetup)((_ah), (_gp), (_gb), (_gl), (_sp)))
+#define	ath_hal_btcoex_mci_send_message(_ah, _h, _f, _p, _l, _wd, _cbt) \
+	((*(_ah)->ah_btMciSendMessage)((_ah), (_h), (_f), (_p), (_l), (_wd), (_cbt)))
+#define	ath_hal_btcoex_mci_get_interrupt(_ah, _mi, _mm) \
+	((*(_ah)->ah_btMciGetInterrupt)((_ah), (_mi), (_mm)))
+#define	ath_hal_btcoex_mci_state(_ah, _st, _pd) \
+	((*(_ah)->ah_btMciState)((_ah), (_st), (_pd)))
+#define	ath_hal_btcoex_mci_detach(_ah) \
+	((*(_ah)->ah_btMciDetach)((_ah)))
 
 #define	ath_hal_div_comb_conf_get(_ah, _conf) \
 	((*(_ah)->ah_divLnaConfGet)((_ah), (_conf)))

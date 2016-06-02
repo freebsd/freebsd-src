@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
+ * Copyright (c) 2016 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,17 +28,15 @@
  *
  * $FreeBSD$
  */
-#ifndef	__IF_ATH_BTCOEX_H__
-#define	__IF_ATH_BTCOEX_H__
+#ifndef	__IF_ATH_BTCOEX_MCI_H__
+#define	__IF_ATH_BTCOEX_MCI_H__
 
-typedef enum {
-	ATH_COEX_EVENT_BT_NOOP,
-} ATH_BT_COEX_EVENT;
+#define	ATH_MCI_NUM_BT_CHANNELS		79
 
-extern	int ath_btcoex_attach(struct ath_softc *sc);
-extern	int ath_btcoex_detach(struct ath_softc *sc);
-extern	int ath_btcoex_ioctl(struct ath_softc *sc, struct ath_diag *ad);
-extern	int ath_btcoex_enable(struct ath_softc *sc,
-	    const struct ieee80211_channel *ch);
+extern	int ath_btcoex_mci_attach(struct ath_softc *sc);
+extern	int ath_btcoex_mci_detach(struct ath_softc *sc);
+extern	int ath_btcoex_mci_enable(struct ath_softc *sc,
+	    const struct ieee80211_channel *chan);
+extern	void ath_btcoex_mci_intr(struct ath_softc *sc);
 
-#endif	/* __IF_ATH_BTCOEX_H__ */
+#endif	/* __IF_ATH_BTCOEX_MCI_H__ */
