@@ -412,6 +412,7 @@ struct iwm_softc {
 
 	struct intr_config_hook sc_preinit_hook;
 	struct callout		sc_watchdog_to;
+	struct callout		sc_led_blink_to;
 
 	struct task		init_task;
 
