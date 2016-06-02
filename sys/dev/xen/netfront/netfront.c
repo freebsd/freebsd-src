@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
 
+#define NET_RX_SLOTS_MIN (XEN_NETIF_NR_SLOTS_MIN + 1)
+
 /*
  * Should the driver do LRO on the RX end
  *  this can be toggled on the fly, but the
@@ -114,6 +116,7 @@ struct netfront_rx_info;
 static void xn_txeof(struct netfront_txq *);
 static void xn_rxeof(struct netfront_rxq *);
 static void xn_alloc_rx_buffers(struct netfront_rxq *);
+static void xn_alloc_rx_buffers_callout(void *arg);
 
 static void xn_release_rx_bufs(struct netfront_rxq *);
 static void xn_release_tx_bufs(struct netfront_txq *);
@@ -182,15 +185,13 @@ struct netfront_rxq {
 	grant_ref_t 		grant_ref[NET_TX_RING_SIZE + 1];
 
 	struct mbuf		*mbufs[NET_RX_RING_SIZE + 1];
-	struct mbufq		batch;		/* batch queue */
-	int                     target;
-
-	xen_pfn_t		pfn_array[NET_RX_RING_SIZE];
 
 	struct lro_ctrl		lro;
 
 	struct taskqueue 	*tq;
 	struct task		intrtask;
+
+	struct callout		rx_refill;
 
 	struct xn_rx_stats	stats;
 };
@@ -232,12 +233,6 @@ struct netfront_info {
 
 	u_int			carrier;
 	u_int			maxfrags;
-
-	/* Receive-ring batched refills. */
-#define RX_MIN_TARGET 32
-#define RX_MAX_TARGET NET_RX_RING_SIZE
-	int			rx_min_target;
-	int			rx_max_target;
 
 	device_t		xbdev;
 	uint8_t			mac[ETHER_ADDR_LEN];
@@ -687,6 +682,7 @@ static void
 destroy_rxq(struct netfront_rxq *rxq)
 {
 
+	callout_drain(&rxq->rx_refill);
 	free(rxq->ring.sring, M_DEVBUF);
 	taskqueue_drain_all(rxq->tq);
 	taskqueue_free(rxq->tq);
@@ -721,7 +717,6 @@ setup_rxqs(device_t dev, struct netfront_info *info,
 
 		rxq->id = q;
 		rxq->info = info;
-		rxq->target = RX_MIN_TARGET;
 		rxq->ring_ref = GRANT_REF_INVALID;
 		rxq->ring.sring = NULL;
 		snprintf(rxq->name, XN_QUEUE_NAME_LEN, "xnrx_%u", q);
@@ -733,11 +728,9 @@ setup_rxqs(device_t dev, struct netfront_info *info,
 			rxq->grant_ref[i] = GRANT_REF_INVALID;
 		}
 
-		mbufq_init(&rxq->batch, INT_MAX);
-
 		/* Start resources allocation */
 
-		if (gnttab_alloc_grant_references(RX_MAX_TARGET,
+		if (gnttab_alloc_grant_references(NET_RX_RING_SIZE,
 		    &rxq->gref_head) != 0) {
 			device_printf(dev, "allocating rx gref");
 			error = ENOMEM;
@@ -759,6 +752,8 @@ setup_rxqs(device_t dev, struct netfront_info *info,
 		TASK_INIT(&rxq->intrtask, 0, xn_rxq_tq_intr, rxq);
 		rxq->tq = taskqueue_create_fast(rxq->name, M_WAITOK,
 		    taskqueue_thread_enqueue, &rxq->tq);
+
+		callout_init(&rxq->rx_refill, 1);
 
 		error = taskqueue_start_threads(&rxq->tq, 1, PI_NET,
 		    "%s rxq %d", device_get_nameunit(dev), rxq->id);
@@ -1058,117 +1053,86 @@ xn_release_tx_bufs(struct netfront_txq *txq)
 	}
 }
 
+static struct mbuf *
+xn_alloc_one_rx_buffer(struct netfront_rxq *rxq)
+{
+	struct mbuf *m;
+
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+	if (m == NULL)
+		return NULL;
+	m->m_len = m->m_pkthdr.len = MJUMPAGESIZE;
+
+	return (m);
+}
+
 static void
 xn_alloc_rx_buffers(struct netfront_rxq *rxq)
 {
-	struct netfront_info *np = rxq->info;
-	int otherend_id = xenbus_get_otherend_id(np->xbdev);
-	unsigned short id;
-	struct mbuf *m_new;
-	int i, batch_target, notify;
 	RING_IDX req_prod;
-	grant_ref_t ref;
-	netif_rx_request_t *req;
-	vm_offset_t vaddr;
-	u_long pfn;
+	int notify;
 
-	req_prod = rxq->ring.req_prod_pvt;
+	XN_RX_LOCK_ASSERT(rxq);
 
-	if (__predict_false(np->carrier == 0))
+	if (__predict_false(rxq->info->carrier == 0))
 		return;
 
-	/*
-	 * Allocate mbufs greedily, even though we batch updates to the
-	 * receive ring. This creates a less bursty demand on the memory
-	 * allocator, and so should reduce the chance of failed allocation
-	 * requests both for ourself and for other kernel subsystems.
-	 *
-	 * Here we attempt to maintain rx_target buffers in flight, counting
-	 * buffers that we have yet to process in the receive ring.
-	 */
-	batch_target = rxq->target - (req_prod - rxq->ring.rsp_cons);
-	for (i = mbufq_len(&rxq->batch); i < batch_target; i++) {
-		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
-		if (m_new == NULL) {
-			if (i != 0)
-				goto refill;
-			/* XXX set timer */
-			break;
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MJUMPAGESIZE;
+	for (req_prod = rxq->ring.req_prod_pvt;
+	     req_prod - rxq->ring.rsp_cons < NET_RX_RING_SIZE;
+	     req_prod++) {
+		struct mbuf *m;
+		unsigned short id;
+		grant_ref_t ref;
+		struct netif_rx_request *req;
+		unsigned long pfn;
 
-		/* queue the mbufs allocated */
-		mbufq_enqueue(&rxq->batch, m_new);
-	}
-
-	/*
-	 * If we've allocated at least half of our target number of entries,
-	 * submit them to the backend - we have enough to make the overhead
-	 * of submission worthwhile.  Otherwise wait for more mbufs and
-	 * request entries to become available.
-	 */
-	if (i < (rxq->target/2)) {
-		if (req_prod > rxq->ring.sring->req_prod)
-			goto push;
-		return;
-	}
-
-	/*
-	 * Double floating fill target if we risked having the backend
-	 * run out of empty buffers for receive traffic.  We define "running
-	 * low" as having less than a fourth of our target buffers free
-	 * at the time we refilled the queue.
-	 */
-	if ((req_prod - rxq->ring.sring->rsp_prod) < (rxq->target / 4)) {
-		rxq->target *= 2;
-		if (rxq->target > np->rx_max_target)
-			rxq->target = np->rx_max_target;
-	}
-
-refill:
-	for (i = 0; ; i++) {
-		if ((m_new = mbufq_dequeue(&rxq->batch)) == NULL)
+		m = xn_alloc_one_rx_buffer(rxq);
+		if (m == NULL)
 			break;
 
-		m_new->m_ext.ext_arg1 = (vm_paddr_t *)(uintptr_t)(
-				vtophys(m_new->m_ext.ext_buf) >> PAGE_SHIFT);
-
-		id = xn_rxidx(req_prod + i);
+		id = xn_rxidx(req_prod);
 
 		KASSERT(rxq->mbufs[id] == NULL, ("non-NULL xn_rx_chain"));
-		rxq->mbufs[id] = m_new;
+		rxq->mbufs[id] = m;
 
 		ref = gnttab_claim_grant_reference(&rxq->gref_head);
 		KASSERT(ref != GNTTAB_LIST_END,
-			("reserved grant references exhuasted"));
+		    ("reserved grant references exhuasted"));
 		rxq->grant_ref[id] = ref;
 
-		vaddr = mtod(m_new, vm_offset_t);
-		pfn = vtophys(vaddr) >> PAGE_SHIFT;
-		req = RING_GET_REQUEST(&rxq->ring, req_prod + i);
+		pfn = atop(vtophys(mtod(m, vm_offset_t)));
+		req = RING_GET_REQUEST(&rxq->ring, req_prod);
 
-		gnttab_grant_foreign_access_ref(ref, otherend_id, pfn, 0);
+		gnttab_grant_foreign_access_ref(ref,
+		    xenbus_get_otherend_id(rxq->info->xbdev), pfn, 0);
 		req->id = id;
 		req->gref = ref;
-
-		rxq->pfn_array[i] =
-		    vtophys(mtod(m_new,vm_offset_t)) >> PAGE_SHIFT;
 	}
 
-	KASSERT(i, ("no mbufs processed")); /* should have returned earlier */
-	KASSERT(mbufq_len(&rxq->batch) == 0, ("not all mbufs processed"));
-	/*
-	 * We may have allocated buffers which have entries outstanding
-	 * in the page * update queue -- make sure we flush those first!
-	 */
-	wmb();
+	rxq->ring.req_prod_pvt = req_prod;
 
-	/* Above is a suitable barrier to ensure backend will see requests. */
-	rxq->ring.req_prod_pvt = req_prod + i;
-push:
+	/* Not enough requests? Try again later. */
+	if (req_prod - rxq->ring.rsp_cons < NET_RX_SLOTS_MIN) {
+		callout_reset(&rxq->rx_refill, hz/10, xn_alloc_rx_buffers_callout,
+		    rxq);
+		return;
+	}
+
+	wmb();		/* barrier so backend seens requests */
+
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&rxq->ring, notify);
 	if (notify)
 		xen_intr_signal(rxq->xen_intr_handle);
+}
+
+static void xn_alloc_rx_buffers_callout(void *arg)
+{
+	struct netfront_rxq *rxq;
+
+	rxq = (struct netfront_rxq *)arg;
+	XN_RX_LOCK(rxq);
+	xn_alloc_rx_buffers(rxq);
+	XN_RX_UNLOCK(rxq);
 }
 
 static void
@@ -1792,8 +1756,12 @@ xn_ifinit_locked(struct netfront_info *np)
 
 	for (i = 0; i < np->num_queues; i++) {
 		rxq = &np->rxq[i];
+		XN_RX_LOCK(rxq);
 		xn_alloc_rx_buffers(rxq);
 		rxq->ring.sring->rsp_event = rxq->ring.rsp_cons + 1;
+		if (RING_HAS_UNCONSUMED_RESPONSES(&rxq->ring))
+			taskqueue_enqueue(rxq->tq, &rxq->intrtask);
+		XN_RX_UNLOCK(rxq);
 	}
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -2009,7 +1977,9 @@ xn_connect(struct netfront_info *np)
 		XN_TX_LOCK(txq);
 		xn_txeof(txq);
 		XN_TX_UNLOCK(txq);
+		XN_RX_LOCK(rxq);
 		xn_alloc_rx_buffers(rxq);
+		XN_RX_UNLOCK(rxq);
 	}
 
 	return (0);
@@ -2224,9 +2194,6 @@ create_netdev(device_t dev)
 	ifmedia_init(&np->sc_media, 0, xn_ifmedia_upd, xn_ifmedia_sts);
 	ifmedia_add(&np->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
 	ifmedia_set(&np->sc_media, IFM_ETHER|IFM_MANUAL);
-
-	np->rx_min_target = RX_MIN_TARGET;
-	np->rx_max_target = RX_MAX_TARGET;
 
 	err = xen_net_read_mac(dev, np->mac);
 	if (err != 0)
