@@ -539,7 +539,7 @@ enum iwm_dtd_diode_reg {
  */
 
 /**
- * enum iwl_ucode_tlv_flag - ucode API flags
+ * enum iwm_ucode_tlv_flag - ucode API flags
  * @IWM_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
  *	was a separate TLV but moved here to save space.
  * @IWM_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
@@ -1519,7 +1519,14 @@ enum {
 	IWM_MVM_CMD_QUEUE = 9,
 };
 
-#define IWM_MVM_CMD_FIFO	7
+enum iwm_mvm_tx_fifo {
+	IWM_MVM_TX_FIFO_BK = 0,
+	IWM_MVM_TX_FIFO_BE,
+	IWM_MVM_TX_FIFO_VI,
+	IWM_MVM_TX_FIFO_VO,
+	IWM_MVM_TX_FIFO_MCAST = 5,
+	IWM_MVM_TX_FIFO_CMD = 7,
+};
 
 #define IWM_MVM_STATION_COUNT	16
 
@@ -1740,6 +1747,45 @@ struct iwm_phy_cfg_cmd {
 #define IWM_PHY_CFG_RX_CHAIN_A	(1 << 12)
 #define IWM_PHY_CFG_RX_CHAIN_B	(1 << 13)
 #define IWM_PHY_CFG_RX_CHAIN_C	(1 << 14)
+
+/*
+ * PHY db
+ */
+
+enum iwm_phy_db_section_type {
+	IWM_PHY_DB_CFG = 1,
+	IWM_PHY_DB_CALIB_NCH,
+	IWM_PHY_DB_UNUSED,
+	IWM_PHY_DB_CALIB_CHG_PAPD,
+	IWM_PHY_DB_CALIB_CHG_TXP,
+	IWM_PHY_DB_MAX
+};
+
+#define IWM_PHY_DB_CMD 0x6c /* TEMP API - The actual is 0x8c */
+
+/*
+ * phy db - configure operational ucode
+ */
+struct iwm_phy_db_cmd {
+	uint16_t type;
+	uint16_t length;
+	uint8_t data[];
+} __packed;
+
+/* for parsing of tx power channel group data that comes from the firmware */
+struct iwm_phy_db_chg_txp {
+	uint32_t space;
+	uint16_t max_channel_idx;
+} __packed;
+
+/*
+ * phy db - Receive phy db chunk after calibrations
+ */
+struct iwm_calib_res_notif_phy_db {
+	uint16_t type;
+	uint16_t length;
+	uint8_t data[];
+} __packed;
 
 
 /* Target of the IWM_NVM_ACCESS_CMD */
