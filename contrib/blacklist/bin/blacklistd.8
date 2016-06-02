@@ -117,7 +117,7 @@ The following options are available:
 Use
 .Ar controlprog
 to communicate with the packet filter, usually
-.Pa /libexec/blacklistd-helper .
+.Pa /usr/libexec/blacklistd-helper .
 The following arguments are passed to the control program:
 .Bl -tag -width protocol
 .It action
@@ -199,8 +199,8 @@ instead of
 .Xr syslogd 8 .
 .El
 .Sh FILES
-.Bl -tag -width /libexec/blacklistd-helper -compact
-.It Pa /libexec/blacklistd-helper
+.Bl -tag -width /usr/libexec/blacklistd-helper -compact
+.It Pa /usr/libexec/blacklistd-helper
 Shell script invoked to interface with the packet filter.
 .It Pa /etc/blacklistd.conf
 Configuration file.
