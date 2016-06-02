@@ -1451,24 +1451,32 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	if (!error && mac) {
 		switch (mac->cri_alg) {
 		case CRYPTO_MD5:
-			cs->cs_config |= CESA_CSHD_MD5;
 			cs->cs_mblen = 1;
-			cs->cs_hlen = MD5_HASH_LEN;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? MD5_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_MD5;
 			break;
 		case CRYPTO_MD5_HMAC:
-			cs->cs_config |= CESA_CSHD_MD5_HMAC;
 			cs->cs_mblen = MD5_HMAC_BLOCK_LEN;
-			cs->cs_hlen = CESA_HMAC_HASH_LENGTH;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? MD5_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_MD5_HMAC;
+			if (cs->cs_hlen == CESA_HMAC_TRUNC_LEN)
+				cs->cs_config |= CESA_CSHD_96_BIT_HMAC;
 			break;
 		case CRYPTO_SHA1:
-			cs->cs_config |= CESA_CSHD_SHA1;
 			cs->cs_mblen = 1;
-			cs->cs_hlen = SHA1_HASH_LEN;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA1_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_SHA1;
 			break;
 		case CRYPTO_SHA1_HMAC:
-			cs->cs_config |= CESA_CSHD_SHA1_HMAC;
 			cs->cs_mblen = SHA1_HMAC_BLOCK_LEN;
-			cs->cs_hlen = CESA_HMAC_HASH_LENGTH;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA1_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_SHA1_HMAC;
+			if (cs->cs_hlen == CESA_HMAC_TRUNC_LEN)
+				cs->cs_config |= CESA_CSHD_96_BIT_HMAC;
 			break;
 		default:
 			error = EINVAL;
