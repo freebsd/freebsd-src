@@ -213,7 +213,7 @@ The
 and their associated
 .Sy format
 strings are:
-.Bl -tag -width scope
+.Bl -tag -width ether
 .It Sy addr
 Adjust the display of inet and inet6 addresses
 .Bl -tag -width default
@@ -223,9 +223,6 @@ Display inet and inet6 addresses in the default format,
 .It Sy fqdn
 Display inet and inet6 addresses as fully qualified domain names
 .Pq FQDN
-.It Sy full
-Display inet6 addresses without suppressing zeroes.
-Only applicable to inet6
 .It Sy host
 Display inet and inet6 addresses as unqualified hostnames
 .It Sy numeric
@@ -275,19 +272,6 @@ Display subnet prefix in the default format
 Display subnet prefix in integer format, for example:
 .br
 prefixlen 64
-.El
-.It Sy scope
-Controls the display of the interface scope as part of the address.
-Only applicable to inet6 addresses.
-.Bl -tag -width default
-.It Sy default
-The interface scope and scopeid are included in the address, for example:
-.br
-inet6 fe80::1%lo0 prefixlen 64 scopeid 0x7
-.It Sy none
-The interface scope and scopeid are not displayed, for example:
-.br
-inet6 fe80::1 prefixlen 64
 .El
 .El
 .Pp

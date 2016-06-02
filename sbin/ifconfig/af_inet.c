@@ -54,7 +54,7 @@ static const char rcsid[] =
 
 static struct in_aliasreq in_addreq;
 static struct ifreq in_ridreq;
-static char addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
+static char addr_buf[NI_MAXHOST];	/*for getnameinfo()*/
 extern char *f_inet, *f_addr;
 
 static void
