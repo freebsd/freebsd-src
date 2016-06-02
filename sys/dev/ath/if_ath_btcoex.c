@@ -299,9 +299,13 @@ ath_btcoex_cfg_wb335b(struct ath_softc *sc)
 	 * HAL correctly!
 	 */
 	if (sc->sc_pci_devinfo & ATH_PCI_AR9565_1ANT) {
-		flags |= ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_SHARED;
+		flags &= ~ATH_MCI_CONFIG_ANT_ARCH;
+		flags |= ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_SHARED <<
+		    ATH_MCI_CONFIG_ANT_ARCH_S;
 	} else if (sc->sc_pci_devinfo & ATH_PCI_AR9565_2ANT) {
-		flags |= ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_NON_SHARED;
+		flags &= ~ATH_MCI_CONFIG_ANT_ARCH;
+		flags |= ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_NON_SHARED <<
+		    ATH_MCI_CONFIG_ANT_ARCH_S;
 	}
 
 	if (sc->sc_pci_devinfo & ATH_PCI_BT_ANT_DIV) {
