@@ -163,6 +163,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_scan.h>
 
 #include <dev/iwm/if_iwm_pcie_trans.h>
+#include <dev/iwm/if_iwm_led.h>
 
 const uint8_t iwm_nvm_channels[] = {
 	/* 2.4 GHz */
@@ -3515,6 +3516,10 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	    ieee80211_state_name[nstate]);
 	IEEE80211_UNLOCK(ic);
 	IWM_LOCK(sc);
+
+	if (vap->iv_state == IEEE80211_S_SCAN && nstate != vap->iv_state)
+		iwm_led_blink_stop(sc);
+
 	/* disable beacon filtering if we're hopping out of RUN */
 	if (vap->iv_state == IEEE80211_S_RUN && nstate != vap->iv_state) {
 		iwm_mvm_disable_beacon_filter(sc);
@@ -3829,6 +3834,7 @@ iwm_stop(struct iwm_softc *sc)
 	sc->sc_flags |= IWM_FLAG_STOPPED;
 	sc->sc_generation++;
 	sc->sc_scanband = 0;
+	iwm_led_blink_stop(sc);
 	sc->sc_tx_timer = 0;
 	iwm_stop_device(sc);
 }
@@ -4600,6 +4606,7 @@ iwm_attach(device_t dev)
 	IWM_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 	callout_init_mtx(&sc->sc_watchdog_to, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->sc_led_blink_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
 	sc->sc_tq = taskqueue_create("iwm_taskq", M_WAITOK,
             taskqueue_thread_enqueue, &sc->sc_tq);
@@ -4879,13 +4886,23 @@ iwm_scan_start(struct ieee80211com *ic)
 		device_printf(sc->sc_dev, "could not initiate scan\n");
 		IWM_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
-	} else
+	} else {
+		iwm_led_blink_start(sc);
 		IWM_UNLOCK(sc);
+	}
 }
 
 static void
 iwm_scan_end(struct ieee80211com *ic)
 {
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK(sc);
+	iwm_led_blink_stop(sc);
+	if (vap->iv_state == IEEE80211_S_RUN)
+		iwm_mvm_led_enable(sc);
+	IWM_UNLOCK(sc);
 }
 
 static void
@@ -4982,6 +4999,7 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		taskqueue_drain_all(sc->sc_tq);
 		taskqueue_free(sc->sc_tq);
 	}
+	callout_drain(&sc->sc_led_blink_to);
 	callout_drain(&sc->sc_watchdog_to);
 	iwm_stop_device(sc);
 	if (do_net80211)
