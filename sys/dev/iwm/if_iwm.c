@@ -3642,7 +3642,8 @@ iwm_endscan_cb(void *arg, int pending)
 		done = 0;
 		if ((error = iwm_mvm_scan_request(sc,
 		    IEEE80211_CHAN_5GHZ, 0, NULL, 0)) != 0) {
-			device_printf(sc->sc_dev, "could not initiate scan\n");
+			device_printf(sc->sc_dev,
+			    "could not initiate 5 GHz scan\n");
 			done = 1;
 		}
 	} else {
@@ -4883,9 +4884,10 @@ iwm_scan_start(struct ieee80211com *ic)
 	IWM_LOCK(sc);
 	error = iwm_mvm_scan_request(sc, IEEE80211_CHAN_2GHZ, 0, NULL, 0);
 	if (error) {
-		device_printf(sc->sc_dev, "could not initiate scan\n");
+		device_printf(sc->sc_dev, "could not initiate 2 GHz scan\n");
 		IWM_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
+		sc->sc_scanband = 0;
 	} else {
 		iwm_led_blink_start(sc);
 		IWM_UNLOCK(sc);
