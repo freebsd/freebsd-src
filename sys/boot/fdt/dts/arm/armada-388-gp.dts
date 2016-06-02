@@ -62,6 +62,13 @@
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 
 		internal-regs {
+			crypto@90000 {
+				status = "okay";
+			};
+			crypto@92000 {
+				status = "okay";
+			};
+
 			spi@10600 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&spi0_pins>;

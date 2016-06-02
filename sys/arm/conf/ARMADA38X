@@ -81,6 +81,11 @@ device		iic
 device		iicbus
 device		twsi
 
+# CESA
+device		cesa
+device		crypto
+device		cryptodev
+
 #FDT
 options 	FDT
 options 	FDT_DTB_STATIC
