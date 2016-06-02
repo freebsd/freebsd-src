@@ -283,7 +283,7 @@ static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 static int
 platform_sram_devmap(struct devmap_entry *map)
 {
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	phandle_t child, root;
 	u_long base, size;
 	/*

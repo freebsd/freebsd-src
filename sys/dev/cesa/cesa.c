@@ -27,15 +27,15 @@
 /*
  * CESA SRAM Memory Map:
  *
- * +------------------------+ <= sc->sc_sram_base + CESA_SRAM_SIZE
+ * +------------------------+ <= sc->sc_sram_base_va + CESA_SRAM_SIZE
  * |                        |
  * |          DATA          |
  * |                        |
- * +------------------------+ <= sc->sc_sram_base + CESA_DATA(0)
+ * +------------------------+ <= sc->sc_sram_base_va + CESA_DATA(0)
  * |  struct cesa_sa_data   |
  * +------------------------+
  * |  struct cesa_sa_hdesc  |
- * +------------------------+ <= sc->sc_sram_base
+ * +------------------------+ <= sc->sc_sram_base_va
  */
 
 #include <sys/cdefs.h>
@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
+#include <machine/fdt.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -373,7 +374,7 @@ static struct cesa_tdma_desc *
 cesa_tdma_copyin_sa_data(struct cesa_softc *sc, struct cesa_request *cr)
 {
 
-	return (cesa_tdma_copy(sc, sc->sc_sram_base +
+	return (cesa_tdma_copy(sc, sc->sc_sram_base_pa +
 	    sizeof(struct cesa_sa_hdesc), cr->cr_csd_paddr,
 	    sizeof(struct cesa_sa_data)));
 }
@@ -382,7 +383,7 @@ static struct cesa_tdma_desc *
 cesa_tdma_copyout_sa_data(struct cesa_softc *sc, struct cesa_request *cr)
 {
 
-	return (cesa_tdma_copy(sc, cr->cr_csd_paddr, sc->sc_sram_base +
+	return (cesa_tdma_copy(sc, cr->cr_csd_paddr, sc->sc_sram_base_pa +
 	    sizeof(struct cesa_sa_hdesc), sizeof(struct cesa_sa_data)));
 }
 
@@ -390,7 +391,7 @@ static struct cesa_tdma_desc *
 cesa_tdma_copy_sdesc(struct cesa_softc *sc, struct cesa_sa_desc *csd)
 {
 
-	return (cesa_tdma_copy(sc, sc->sc_sram_base, csd->csd_cshd_paddr,
+	return (cesa_tdma_copy(sc, sc->sc_sram_base_pa, csd->csd_cshd_paddr,
 	    sizeof(struct cesa_sa_hdesc)));
 }
 
@@ -566,14 +567,14 @@ cesa_fill_packet(struct cesa_softc *sc, struct cesa_packet *cp,
 	bsize = MIN(seg->ds_len, cp->cp_size - cp->cp_offset);
 
 	if (bsize > 0) {
-		ctd = cesa_tdma_copy(sc, sc->sc_sram_base +
+		ctd = cesa_tdma_copy(sc, sc->sc_sram_base_pa +
 		    CESA_DATA(cp->cp_offset), seg->ds_addr, bsize);
 		if (!ctd)
 			return (-ENOMEM);
 
 		STAILQ_INSERT_TAIL(&cp->cp_copyin, ctd, ctd_stq);
 
-		ctd = cesa_tdma_copy(sc, seg->ds_addr, sc->sc_sram_base +
+		ctd = cesa_tdma_copy(sc, seg->ds_addr, sc->sc_sram_base_pa +
 		    CESA_DATA(cp->cp_offset), bsize);
 		if (!ctd)
 			return (-ENOMEM);
@@ -950,22 +951,33 @@ cesa_setup_sram(struct cesa_softc *sc)
 {
 	phandle_t sram_node;
 	ihandle_t sram_ihandle;
-	pcell_t sram_handle, sram_reg;
+	pcell_t sram_handle, sram_reg[2];
+	int rv;
 
-	if (OF_getprop(ofw_bus_get_node(sc->sc_dev), "sram-handle",
-	    (void *)&sram_handle, sizeof(sram_handle)) <= 0)
-		return (ENXIO);
+	rv = OF_getprop(ofw_bus_get_node(sc->sc_dev), "sram-handle",
+	    (void *)&sram_handle, sizeof(sram_handle));
+	if (rv <= 0)
+		return (rv);
 
 	sram_ihandle = (ihandle_t)sram_handle;
 	sram_ihandle = fdt32_to_cpu(sram_ihandle);
 	sram_node = OF_instance_to_package(sram_ihandle);
 
-	if (OF_getprop(sram_node, "reg", (void *)&sram_reg,
-	    sizeof(sram_reg)) <= 0)
-		return (ENXIO);
+	rv = OF_getprop(sram_node, "reg", (void *)sram_reg, sizeof(sram_reg));
+	if (rv <= 0)
+		return (rv);
 
-	sc->sc_sram_base = fdt32_to_cpu(sram_reg);
+	sc->sc_sram_base_pa = fdt32_to_cpu(sram_reg[0]);
+	/* Store SRAM size to be able to unmap in detach() */
+	sc->sc_sram_size = fdt32_to_cpu(sram_reg[1]);
 
+#if defined(SOC_MV_ARMADA38X)
+	/* SRAM memory was not mapped in platform_sram_devmap(), map it now */
+	rv = bus_space_map(fdtbus_bs_tag, sc->sc_sram_base_pa, sc->sc_sram_size,
+	    0, &(sc->sc_sram_base_va));
+	if (rv != 0)
+		return (rv);
+#endif
 	return (0);
 }
 
@@ -1066,7 +1078,7 @@ cesa_attach(device_t dev)
 	    NULL, cesa_intr, sc, &(sc->sc_icookie));
 	if (error) {
 		device_printf(dev, "could not setup engine completion irq\n");
-		goto err1;
+		goto err2;
 	}
 
 	/* Create DMA tag for processed data */
@@ -1081,13 +1093,13 @@ cesa_attach(device_t dev)
 	    NULL, NULL,				/* lockfunc, lockfuncarg */
 	    &sc->sc_data_dtag);			/* dmat */
 	if (error)
-		goto err2;
+		goto err3;
 
 	/* Initialize data structures: TDMA Descriptors Pool */
 	error = cesa_alloc_dma_mem(sc, &sc->sc_tdesc_cdm,
 	    CESA_TDMA_DESCRIPTORS * sizeof(struct cesa_tdma_hdesc));
 	if (error)
-		goto err3;
+		goto err4;
 
 	STAILQ_INIT(&sc->sc_free_tdesc);
 	for (i = 0; i < CESA_TDMA_DESCRIPTORS; i++) {
@@ -1103,7 +1115,7 @@ cesa_attach(device_t dev)
 	error = cesa_alloc_dma_mem(sc, &sc->sc_sdesc_cdm,
 	    CESA_SA_DESCRIPTORS * sizeof(struct cesa_sa_hdesc));
 	if (error)
-		goto err4;
+		goto err5;
 
 	STAILQ_INIT(&sc->sc_free_sdesc);
 	for (i = 0; i < CESA_SA_DESCRIPTORS; i++) {
@@ -1119,7 +1131,7 @@ cesa_attach(device_t dev)
 	error = cesa_alloc_dma_mem(sc, &sc->sc_requests_cdm,
 	    CESA_REQUESTS * sizeof(struct cesa_sa_data));
 	if (error)
-		goto err5;
+		goto err6;
 
 	STAILQ_INIT(&sc->sc_free_requests);
 	STAILQ_INIT(&sc->sc_ready_requests);
@@ -1141,7 +1153,7 @@ cesa_attach(device_t dev)
 				    sc->sc_requests[i].cr_dmap);
 			} while (i--);
 
-			goto err6;
+			goto err7;
 		}
 
 		STAILQ_INSERT_TAIL(&sc->sc_free_requests, &sc->sc_requests[i],
@@ -1187,7 +1199,7 @@ cesa_attach(device_t dev)
 	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid) {
 		device_printf(dev, "could not get crypto driver id\n");
-		goto err7;
+		goto err8;
 	}
 
 	crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
@@ -1199,20 +1211,24 @@ cesa_attach(device_t dev)
 	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
 
 	return (0);
-err7:
+err8:
 	for (i = 0; i < CESA_REQUESTS; i++)
 		bus_dmamap_destroy(sc->sc_data_dtag,
 		    sc->sc_requests[i].cr_dmap);
-err6:
+err7:
 	cesa_free_dma_mem(&sc->sc_requests_cdm);
-err5:
+err6:
 	cesa_free_dma_mem(&sc->sc_sdesc_cdm);
-err4:
+err5:
 	cesa_free_dma_mem(&sc->sc_tdesc_cdm);
-err3:
+err4:
 	bus_dma_tag_destroy(sc->sc_data_dtag);
-err2:
+err3:
 	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_icookie);
+err2:
+#if defined(SOC_MV_ARMADA38X)
+	bus_space_unmap(fdtbus_bs_tag, sc->sc_sram_base_va, sc->sc_sram_size);
+#endif
 err1:
 	bus_release_resources(dev, cesa_res_spec, sc->sc_res);
 err0:
@@ -1260,6 +1276,10 @@ cesa_detach(device_t dev)
 	/* Relase I/O and IRQ resources */
 	bus_release_resources(dev, cesa_res_spec, sc->sc_res);
 
+#if defined(SOC_MV_ARMADA38X)
+	/* Unmap SRAM memory */
+	bus_space_unmap(fdtbus_bs_tag, sc->sc_sram_base_va, sc->sc_sram_size);
+#endif
 	/* Destroy mutexes */
 	mtx_destroy(&sc->sc_sessions_lock);
 	mtx_destroy(&sc->sc_requests_lock);
