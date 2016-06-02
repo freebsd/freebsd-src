@@ -1704,7 +1704,7 @@ xn_ifinit_locked(struct netfront_info *np)
 
 	ifp = np->xn_ifp;
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING || !netfront_carrier_ok(np))
 		return;
 
 	xn_stop(np);
@@ -2088,6 +2088,8 @@ xn_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 	np = ifp->if_softc;
 	npairs = np->num_queues;
 
+	KASSERT(npairs != 0, ("called with 0 available queues"));
+
 	/* check if flowid is set */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % npairs;
@@ -2202,9 +2204,9 @@ netif_free(struct netfront_info *np)
 	xn_stop(np);
 	XN_UNLOCK(np);
 	netif_disconnect_backend(np);
+	ether_ifdetach(np->xn_ifp);
 	free(np->rxq, M_DEVBUF);
 	free(np->txq, M_DEVBUF);
-	ether_ifdetach(np->xn_ifp);
 	if_free(np->xn_ifp);
 	np->xn_ifp = NULL;
 	ifmedia_removeall(&np->sc_media);
