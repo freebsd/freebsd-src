@@ -29,7 +29,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#include <machine/cheric.h>
+#include <cheri/cheric.h>
 
 #include <errno.h>
 #include <stddef.h>

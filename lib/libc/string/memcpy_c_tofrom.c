@@ -29,8 +29,9 @@
  */
 
 #include <sys/types.h>
-#include <machine/cheric.h>
 #include <string.h>
+
+#include <cheri/cheric.h>
 
 __capability void *
 memcpy_c_tocap(__capability void *dst, const void *src, size_t len)

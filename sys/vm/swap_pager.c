@@ -121,7 +121,7 @@ __FBSDID("$FreeBSD$");
  * another day.
  */
 #ifdef CPU_CHERI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 /*

@@ -32,7 +32,8 @@
 #include "strncpy.c"
 
 #include <sys/types.h>
-#include <machine/cheric.h>
+
+#include <cheri/cheric.h>
 
 char *
 strncpy_c_fromcap(char *dst, __CAPABILITY const char *src, size_t n)

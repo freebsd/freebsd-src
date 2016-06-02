@@ -81,9 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
 #include <machine/bootinfo.h>
 #include <machine/cache.h>
-#ifdef CPU_CHERI
-#include <machine/cheri.h>
-#endif
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -95,6 +92,10 @@ __FBSDID("$FreeBSD$");
 #ifdef DDB
 #include <sys/kdb.h>
 #include <ddb/ddb.h>
+#endif
+
+#ifdef CPU_CHERI
+#include <cheri/cheri.h>
 #endif
 
 #include <sys/random.h>

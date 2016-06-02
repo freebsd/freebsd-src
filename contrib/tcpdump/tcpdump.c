@@ -134,9 +134,8 @@ extern int SIZE_BUF;
 #include "print.h"
 
 #if __has_feature(capabilities)
-#include <machine/cheri.h>
-#include <machine/cheric.h>
-#include <machine/cherireg.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #define cheri_string(str)	cheri_ptr((str), strlen(str) + 1)
 #else
 #define	cheri_ptrperm(ptr, len, perm)	(ptr);

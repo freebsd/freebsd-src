@@ -155,7 +155,7 @@
 #ifndef LOCORE
 #include <machine/frame.h>
 #ifdef CPU_CHERI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 /*

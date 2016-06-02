@@ -2,7 +2,7 @@
  * Copyright (c) 1986, 1988, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
- * Copyright (c) 2011, 2014 Robert N. M. Watson
+ * Copyright (c) 2011, 2014, 2016 Robert N. M. Watson
  *
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
@@ -40,9 +40,8 @@
 
 #include <sys/param.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
-
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #include <cheri/cheri_system.h>
 
 #include <inttypes.h>

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 Robert N. M. Watson
+ * Copyright (c) 2014-2016 Robert N. M. Watson
  * Copyright (c) 2014 Robert M. Norton
  * All rights reserved.
  *
@@ -50,8 +50,8 @@
 
 #if __has_feature(capabilities)
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
 #include <cheri/cheri_invoke.h>

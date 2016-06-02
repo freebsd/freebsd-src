@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -41,8 +41,8 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <assert.h>
 #include <err.h>

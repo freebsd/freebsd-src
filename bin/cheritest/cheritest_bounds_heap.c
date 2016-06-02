@@ -38,8 +38,8 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <err.h>
 #include <errno.h>

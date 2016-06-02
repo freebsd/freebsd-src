@@ -55,11 +55,9 @@
 #include <unistd.h>
 #endif
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
-
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #include <cheri/sandbox.h>
-
 #include <cheritest-helper.h>
 #include <cheritest-helper-internal.h>
 #include <stdio.h>

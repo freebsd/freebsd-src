@@ -44,7 +44,7 @@
 #include <sys/utsname.h>
 #include <sys/ktrace.h>
 
-#include <machine/cheric.h>
+#include <cheri/cheric.h>
 
 #include <dlfcn.h>
 #include <err.h>

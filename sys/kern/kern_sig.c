@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
  * XXXRW: We're not quite doing this in the right place, hence the header;
  * need to work on that.
  */
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 #include <machine/cpu.h>

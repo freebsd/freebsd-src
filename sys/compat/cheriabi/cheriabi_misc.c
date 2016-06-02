@@ -104,10 +104,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
-#include <machine/cheri.h>
 #include <machine/elf.h>
 
 #include <security/audit/audit.h>
+
+#include <cheri/cheri.h>
 
 #include <compat/cheriabi/cheriabi.h>
 #include <compat/cheriabi/cheriabi_util.h>

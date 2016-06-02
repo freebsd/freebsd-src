@@ -60,9 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmem.h>
 
 #include <machine/cache.h>
-#ifdef CPU_CHERI
-#include <machine/cheri.h>
-#endif
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -70,6 +67,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/tls.h>
+
+#ifdef CPU_CHERI
+#include <cheri/cheri.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

@@ -40,8 +40,9 @@
 #include <ddb/ddb.h>
 #include <sys/kdb.h>
 
+#include <cheri/cheri.h>
+
 #include <machine/atomic.h>
-#include <machine/cheri.h>
 #include <machine/cherireg.h>
 #include <machine/pcb.h>
 #include <machine/proc.h>
@@ -61,49 +62,6 @@
  * assembler, so that the compiler will write back memory contents before the
  * call, and reload them afterwards.
  */
-
-SYSCTL_NODE(_security, OID_AUTO, cheri, CTLFLAG_RD, 0,
-    "CHERI settings and statistics");
-
-static u_int cheri_capability_size = CHERICAP_SIZE;
-SYSCTL_UINT(_security_cheri, OID_AUTO, capability_size, CTLFLAG_RD,
-    &cheri_capability_size, 0, "Size of a CHERI capability");
-
-SYSCTL_NODE(_security_cheri, OID_AUTO, stats, CTLFLAG_RD, 0,
-    "CHERI statistics");
-
-/* XXXRW: Should possibly be u_long. */
-u_int	security_cheri_syscall_violations;
-SYSCTL_UINT(_security_cheri, OID_AUTO, syscall_violations, CTLFLAG_RD,
-    &security_cheri_syscall_violations, 0, "Number of system calls blocked");
-
-u_int	security_cheri_sandboxed_signals;
-SYSCTL_UINT(_security_cheri, OID_AUTO, sandboxed_signals, CTLFLAG_RD,
-    &security_cheri_sandboxed_signals, 0, "Number of signals in sandboxes");
-
-/*
- * A set of sysctls that cause the kernel debugger to enter following a policy
- * violation or signal delivery due to CHERI or while in a sandbox.
- */
-u_int	security_cheri_debugger_on_sandbox_signal;
-SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_signal, CTLFLAG_RW,
-    &security_cheri_debugger_on_sandbox_signal, 0,
-    "Enter KDB when a signal is delivered while in a sandbox");
-
-u_int	security_cheri_debugger_on_sandbox_syscall;
-SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_syscall, CTLFLAG_RW,
-    &security_cheri_debugger_on_sandbox_syscall, 0,
-    "Enter KDB when a syscall is rejected while in a sandbox");
-
-u_int	security_cheri_debugger_on_sandbox_unwind;
-SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_unwind, CTLFLAG_RW,
-    &security_cheri_debugger_on_sandbox_unwind, 0,
-    "Enter KDB when a sandbox is auto-unwound due to a signal");
-
-u_int	security_cheri_debugger_on_sigprot;
-SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sigprot, CTLFLAG_RW,
-    &security_cheri_debugger_on_sigprot, 0,
-    "Enter KDB when SIGPROT is delivered to an unsandboxed thread");
 
 static void	cheri_capability_set_user_ddc(struct chericap *);
 static void	cheri_capability_set_user_stc(struct chericap *);

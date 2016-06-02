@@ -36,14 +36,15 @@
  */
 
 #include <sys/param.h>
-#include <machine/cheri.h>
-#include <machine/cheric.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
 #include <unistd.h>
 #include "rtld_printf.h"
+
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #define MAXNBUF	(sizeof(intmax_t) * NBBY + 1)
 

@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #ifdef __CHERI_PURE_CAPABILITY__
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #endif
 
 #include <ctype.h>

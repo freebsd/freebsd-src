@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 
 #include <machine/trap.h>
-#include <machine/cheri.h>
 #include <machine/cpu.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
@@ -85,6 +84,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/regnum.h>
 #include <machine/tlb.h>
 #include <machine/tls.h>
+
+#ifdef CPU_CHERI
+#include <cheri/cheri.h>
+#endif
 
 #ifdef DDB
 #include <machine/db_machdep.h>

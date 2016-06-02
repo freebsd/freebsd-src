@@ -39,7 +39,7 @@
 #include <sys/signal.h>
 
 #ifdef COMPAT_CHERIABI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 /*

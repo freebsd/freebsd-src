@@ -158,7 +158,7 @@ static const bool config_cache_oblivious =
 #endif
 
 #ifdef __CHERI_PURE_CAPABILITY__
-#include <machine/cheric.h>
+#include <cheri/cheric.h>
 #endif
 
 #ifndef __CHERI_PURE_CAPABILITY__

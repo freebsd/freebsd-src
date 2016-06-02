@@ -37,7 +37,7 @@ PHDRS=	sched.h _semaphore.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
-LDIRS=	bsm cam geom net net80211 netgraph netinet netinet6 \
+LDIRS=	bsm cam cheri geom net net80211 netgraph netinet netinet6 \
 	netipsec netnatm netsmb nfs nfsclient nfsserver sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \

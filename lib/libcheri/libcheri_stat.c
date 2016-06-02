@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -32,8 +32,8 @@
 #include <sys/exec.h>
 #include <sys/sysctl.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <err.h>
 #include <errno.h>

@@ -28,8 +28,8 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <string.h>
 

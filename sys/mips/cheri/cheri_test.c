@@ -40,8 +40,9 @@
 #include <ddb/ddb.h>
 #include <sys/kdb.h>
 
+#include <cheri/cheri.h>
+
 #include <machine/atomic.h>
-#include <machine/cheri.h>
 #include <machine/cherireg.h>
 #include <machine/pcb.h>
 #include <machine/proc.h>

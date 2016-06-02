@@ -40,7 +40,7 @@
 #define	_MACHINE_PROC_H_
 
 #ifdef	CPU_CHERI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 #ifdef	CPU_CNMIPS
 #include <machine/octeon_cop2.h>

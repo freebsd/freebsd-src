@@ -38,8 +38,9 @@
 
 #include <sys/param.h>		/* For NULL */
 #include <sys/malloc.h>		/* For M_* */
+
 #ifdef CPU_CHERI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 /* User visible parameters */

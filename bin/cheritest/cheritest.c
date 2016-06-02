@@ -45,8 +45,9 @@
 #include <sys/wait.h>
 
 #ifndef LIST_ONLY
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
+
 #include <machine/cherireg.h>
 #include <machine/cpuregs.h>
 #include <machine/frame.h>

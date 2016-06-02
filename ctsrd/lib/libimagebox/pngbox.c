@@ -35,10 +35,10 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
 #include <machine/cpuregs.h>
 
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #include <cheri/sandbox.h>
 
 #include <errno.h>

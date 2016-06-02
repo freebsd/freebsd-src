@@ -39,7 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <inttypes.h>
 
-#include <machine/cheric.h>
+#include <cheri/cheric.h>
+
 #include <machine/sysarch.h>
 #include <machine/tls.h>
 

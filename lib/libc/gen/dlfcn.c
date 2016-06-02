@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
  */
 #include <sys/mman.h>
 #ifdef __CHERI_PURE_CAPABILITY__
-#include <machine/cheric.h>
+#include <cheri/cheric.h>
 #endif
 #include <dlfcn.h>
 #include <link.h>

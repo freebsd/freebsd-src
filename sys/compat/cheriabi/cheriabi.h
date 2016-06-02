@@ -34,7 +34,7 @@
 #ifndef _COMPAT_CHERIABI_CHERIABI_H_
 #define _COMPAT_CHERIABI_CHERIABI_H_
 
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 
 #define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
 

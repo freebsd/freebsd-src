@@ -37,8 +37,8 @@
 #include <sys/queue.h>
 #include <sys/ucontext.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>

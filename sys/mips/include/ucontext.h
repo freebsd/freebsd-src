@@ -44,7 +44,7 @@
 #endif
 
 #if defined(COMPAT_CHERIABI) || defined(__CHERI_PURE_CAPABILITY__)
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 typedef struct	__mcontext {

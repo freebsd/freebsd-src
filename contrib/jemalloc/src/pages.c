@@ -1,7 +1,7 @@
 #define	JEMALLOC_PAGES_C_
 #include "jemalloc/internal/jemalloc_internal.h"
 #ifdef __CHERI_PURE_CAPABILITY__
-#include <machine/cheric.h>
+#include <cheri/cheric.h>
 #endif
 
 /******************************************************************************/

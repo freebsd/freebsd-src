@@ -1,7 +1,7 @@
 /******************************************************************************/
 #ifdef JEMALLOC_H_TYPES
 #ifdef __CHERI_PURE_CAPABILITY__
-#include <machine/cheric.h>
+#include <cheri/cheric.h>
 #endif
 
 /*

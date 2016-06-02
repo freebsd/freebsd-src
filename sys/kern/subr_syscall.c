@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #ifdef CPU_CHERI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 static inline int

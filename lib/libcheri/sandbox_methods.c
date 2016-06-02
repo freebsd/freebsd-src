@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014-2015 SRI International
- * Copyright (c) 2015 Robert N. M. Watson
+ * Copyright (c) 2015-2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -33,8 +33,8 @@
 #include <sys/mman.h>
 #include <sys/param.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <assert.h>
 #include <elf.h>

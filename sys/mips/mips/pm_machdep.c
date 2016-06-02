@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/procfs/procfs.h>
 
 #ifdef CPU_CHERI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 #include <ddb/ddb.h>

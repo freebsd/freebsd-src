@@ -80,7 +80,8 @@
 #include <sys/uuid.h>
 #include <netinet/sctp.h>
 
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
+
 #include <machine/cpuinfo.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>

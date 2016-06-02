@@ -31,7 +31,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 
 #include <err.h>
 #include <stdlib.h>

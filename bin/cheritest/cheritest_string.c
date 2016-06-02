@@ -1,4 +1,3 @@
-
 /*-
  * Copyright (c) 2012-2014 David T. Chisnall
  * Copyright (c) 2015 SRI International
@@ -38,8 +37,8 @@
 
 #include <sys/types.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <string.h>
 

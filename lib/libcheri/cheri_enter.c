@@ -38,8 +38,8 @@
 #include <sys/param.h>
 #include <sys/mman.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <assert.h>
 #include <stdio.h>

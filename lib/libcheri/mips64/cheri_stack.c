@@ -40,8 +40,9 @@
 #include <sys/time.h>
 #include <sys/ucontext.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
+
 #include <machine/cpuregs.h>
 #include <machine/regnum.h>
 #include <machine/sysarch.h>

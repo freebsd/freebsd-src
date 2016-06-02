@@ -84,7 +84,7 @@
 #include "inftrees.h"
 #include "inflate.h"
 #include "inffast.h"
-#include <machine/cheric.h>
+#include <cheri/cheric.h>
 
 #ifdef MAKEFIXED
 #  ifndef BUILDFIXED

@@ -28,8 +28,7 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/cheri.h>
-
+#include <cheri/cheri.h>
 #include <cheri/sandbox.h>
 
 #include <err.h>

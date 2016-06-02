@@ -519,8 +519,8 @@ typedef uLong FAR uLongf;
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
 #if __has_feature(capabilities)
-#include <machine/cheric.h>
-#include <machine/cherireg.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #else
 #define __capability
 #define cheri_ptrperm(a, b)	(a)

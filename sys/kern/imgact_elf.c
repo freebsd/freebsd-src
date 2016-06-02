@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef CPU_CHERI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 #ifdef COMPAT_CHERIABI

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 SRI International
- * Copyright (c) 2012 Robert N. M. Watson
+ * Copyright (c) 2012, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -32,8 +32,8 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #ifdef MALLOC_DEBUG
 #include <stdint.h>

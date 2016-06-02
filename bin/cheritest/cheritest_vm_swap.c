@@ -28,9 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
-
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
@@ -41,6 +38,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include "cheritest.h"
 

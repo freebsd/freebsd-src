@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -46,12 +46,12 @@
 #include <sys/ucontext.h>
 #include <sys/wait.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
 #include <machine/cpuregs.h>
 #include <machine/frame.h>
 #include <machine/trap.h>
 
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
 

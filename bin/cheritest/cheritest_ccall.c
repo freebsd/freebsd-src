@@ -39,10 +39,10 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
 #include <machine/cpuregs.h>
 
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #include <cheri/cheri_fd.h>
 #include <cheri/cheri_invoke.h>
 #include <cheri/cheri_type.h>

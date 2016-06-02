@@ -66,9 +66,8 @@
 #ifndef _MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
-
 #ifdef CPU_CHERI
-#include <machine/cheri.h>
+#include <cheri/cheri.h>
 #endif
 
 /* Note: This must also match regnum.h and regdef.h */

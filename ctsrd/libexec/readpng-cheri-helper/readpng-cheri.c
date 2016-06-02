@@ -33,9 +33,9 @@
 #include <sys/capability.h>
 #include <sys/mman.h>
 
-#include <machine/cheri.h>
 #include <machine/sysarch.h>
 
+#include <cheri/cheri.h>
 #include <cheri/cheri_memcpy.h>
 #include <cheri/cheri_system.h>
 

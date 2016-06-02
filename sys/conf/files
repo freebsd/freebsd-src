@@ -245,11 +245,15 @@ cddl/contrib/opensolaris/uts/common/zmod/trees.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
+
+# CHERI and CHERI-compat related files
+cheri/cheri_sysctl.c			optional cpu_cheri
 compat/cheriabi/cheriabi_ioctl.c	optional compat_cheriabi
 compat/cheriabi/cheriabi_mac.c		optional compat_cheriabi
 compat/cheriabi/cheriabi_misc.c		optional compat_cheriabi
 compat/cheriabi/cheriabi_syscalls.c	optional compat_cheriabi
 compat/cheriabi/cheriabi_sysent.c	optional compat_cheriabi
+
 # dtrace specific
 cddl/contrib/opensolaris/uts/common/dtrace/dtrace.c	optional dtrace compile-with "${DTRACE_C}" \
 							warning "kernel contains CDDL licensed DTRACE"
