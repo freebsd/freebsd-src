@@ -663,7 +663,7 @@ disconnect_rxq(struct netfront_rxq *rxq)
 
 	xn_release_rx_bufs(rxq);
 	gnttab_free_grant_references(rxq->gref_head);
-	gnttab_end_foreign_access_ref(rxq->ring_ref);
+	gnttab_end_foreign_access(rxq->ring_ref, NULL);
 	/*
 	 * No split event channel support at the moment, handle will
 	 * be unbound in tx. So no need to call xen_intr_unbind here,
@@ -765,7 +765,7 @@ disconnect_txq(struct netfront_txq *txq)
 
 	xn_release_tx_bufs(txq);
 	gnttab_free_grant_references(txq->gref_head);
-	gnttab_end_foreign_access_ref(txq->ring_ref);
+	gnttab_end_foreign_access(txq->ring_ref, NULL);
 	xen_intr_unbind(&txq->xen_intr_handle);
 }
 
@@ -877,7 +877,7 @@ fail_bind_port:
 fail_start_thread:
 	buf_ring_free(txq->br, M_DEVBUF);
 	taskqueue_free(txq->tq);
-	gnttab_end_foreign_access_ref(txq->ring_ref);
+	gnttab_end_foreign_access(txq->ring_ref, NULL);
 fail_grant_ring:
 	gnttab_free_grant_references(txq->gref_head);
 	free(txq->ring.sring, M_DEVBUF);
