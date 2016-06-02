@@ -5243,6 +5243,7 @@ enum iwm_power_scheme {
 };
 
 #define IWM_DEF_CMD_PAYLOAD_SIZE 320
+#define IWM_MAX_CMD_PAYLOAD_SIZE ((4096 - 4) - sizeof(struct iwm_cmd_header))
 #define IWM_CMD_FAILED_MSK 0x40
 
 struct iwm_device_cmd {
