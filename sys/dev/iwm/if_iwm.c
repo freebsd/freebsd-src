@@ -225,6 +225,7 @@ static void	iwm_free_kw(struct iwm_softc *);
 static int	iwm_alloc_ict(struct iwm_softc *);
 static void	iwm_free_ict(struct iwm_softc *);
 static int	iwm_alloc_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
+static void	iwm_disable_rx_dma(struct iwm_softc *);
 static void	iwm_reset_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static void	iwm_free_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static int	iwm_alloc_tx_ring(struct iwm_softc *, struct iwm_tx_ring *,
@@ -881,7 +882,7 @@ fail:	iwm_free_rx_ring(sc, ring);
 }
 
 static void
-iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
+iwm_disable_rx_dma(struct iwm_softc *sc)
 {
 
 	/* XXX print out if we can't lock the NIC? */
@@ -890,6 +891,11 @@ iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 		(void) iwm_pcie_rx_stop(sc);
 		iwm_nic_unlock(sc);
 	}
+}
+
+static void
+iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
+{
 	/* Reset the ring state */
 	ring->cur = 0;
 	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
@@ -1152,6 +1158,7 @@ iwm_stop_device(struct iwm_softc *sc)
 		}
 		iwm_nic_unlock(sc);
 	}
+	iwm_disable_rx_dma(sc);
 
 	/* Stop RX ring. */
 	iwm_reset_rx_ring(sc, &sc->rxq);
@@ -1241,7 +1248,7 @@ iwm_nic_rx_init(struct iwm_softc *sc)
 	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 
 	/* stop DMA */
-	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	iwm_disable_rx_dma(sc);
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_RBDCB_WPTR, 0);
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_FLUSH_RB_REQ, 0);
 	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_RDPTR, 0);
