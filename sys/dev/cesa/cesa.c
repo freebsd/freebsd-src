@@ -83,6 +83,7 @@ static int	decode_win_cesa_setup(struct cesa_softc *sc);
 
 static struct resource_spec cesa_res_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE },
 	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE },
 	{ -1, 0 }
 };
@@ -940,8 +941,8 @@ cesa_execute(struct cesa_softc *sc)
 	cr = STAILQ_FIRST(&sc->sc_queued_requests);
 	ctd = STAILQ_FIRST(&cr->cr_tdesc);
 
-	CESA_WRITE(sc, CESA_TDMA_ND, ctd->ctd_cthd_paddr);
-	CESA_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_ND, ctd->ctd_cthd_paddr);
+	CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE);
 
 	CESA_UNLOCK(sc, requests);
 }
@@ -1056,9 +1057,6 @@ cesa_attach(device_t dev)
 		goto err0;
 	}
 
-	sc->sc_bsh = rman_get_bushandle(*(sc->sc_res));
-	sc->sc_bst = rman_get_bustag(*(sc->sc_res));
-
 	/* Setup CESA decoding windows */
 	error = decode_win_cesa_setup(sc);
 	if (error) {
@@ -1074,8 +1072,8 @@ cesa_attach(device_t dev)
 	}
 
 	/* Setup interrupt handler */
-	error = bus_setup_intr(dev, sc->sc_res[1], INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, cesa_intr, sc, &(sc->sc_icookie));
+	error = bus_setup_intr(dev, sc->sc_res[RES_CESA_IRQ], INTR_TYPE_NET |
+	    INTR_MPSAFE, NULL, cesa_intr, sc, &(sc->sc_icookie));
 	if (error) {
 		device_printf(dev, "could not setup engine completion irq\n");
 		goto err2;
@@ -1174,8 +1172,9 @@ cesa_attach(device_t dev)
 	 * - Outstanding reads enabled,
 	 * - No byte-swap.
 	 */
-	CESA_WRITE(sc, CESA_TDMA_CR, CESA_TDMA_CR_DBL128 | CESA_TDMA_CR_SBL128 |
-	    CESA_TDMA_CR_ORDEN | CESA_TDMA_CR_NBS | CESA_TDMA_CR_ENABLE);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_CR, CESA_TDMA_CR_DBL128 |
+	    CESA_TDMA_CR_SBL128 | CESA_TDMA_CR_ORDEN | CESA_TDMA_CR_NBS |
+	    CESA_TDMA_CR_ENABLE);
 
 	/*
 	 * Initialize SA:
@@ -1183,15 +1182,15 @@ cesa_attach(device_t dev)
 	 * - Multi-packet chain mode,
 	 * - Cooperation with TDMA enabled.
 	 */
-	CESA_WRITE(sc, CESA_SA_DPR, 0);
-	CESA_WRITE(sc, CESA_SA_CR, CESA_SA_CR_ACTIVATE_TDMA |
+	CESA_REG_WRITE(sc, CESA_SA_DPR, 0);
+	CESA_REG_WRITE(sc, CESA_SA_CR, CESA_SA_CR_ACTIVATE_TDMA |
 	    CESA_SA_CR_WAIT_FOR_TDMA | CESA_SA_CR_MULTI_MODE);
 
 	/* Unmask interrupts */
-	CESA_WRITE(sc, CESA_ICR, 0);
-	CESA_WRITE(sc, CESA_ICM, CESA_ICM_ACCTDMA | sc->sc_tperr);
-	CESA_WRITE(sc, CESA_TDMA_ECR, 0);
-	CESA_WRITE(sc, CESA_TDMA_EMR, CESA_TDMA_EMR_MISS |
+	CESA_REG_WRITE(sc, CESA_ICR, 0);
+	CESA_REG_WRITE(sc, CESA_ICM, CESA_ICM_ACCTDMA | sc->sc_tperr);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_ECR, 0);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_EMR, CESA_TDMA_EMR_MISS |
 	    CESA_TDMA_EMR_DOUBLE_HIT | CESA_TDMA_EMR_BOTH_HIT |
 	    CESA_TDMA_EMR_DATA_ERROR);
 
@@ -1224,7 +1223,7 @@ err5:
 err4:
 	bus_dma_tag_destroy(sc->sc_data_dtag);
 err3:
-	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_icookie);
+	bus_teardown_intr(dev, sc->sc_res[RES_CESA_IRQ], sc->sc_icookie);
 err2:
 #if defined(SOC_MV_ARMADA38X)
 	bus_space_unmap(fdtbus_bs_tag, sc->sc_sram_base_va, sc->sc_sram_size);
@@ -1251,8 +1250,8 @@ cesa_detach(device_t dev)
 	/* TODO: Wait for queued requests completion before shutdown. */
 
 	/* Mask interrupts */
-	CESA_WRITE(sc, CESA_ICM, 0);
-	CESA_WRITE(sc, CESA_TDMA_EMR, 0);
+	CESA_REG_WRITE(sc, CESA_ICM, 0);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_EMR, 0);
 
 	/* Unregister from OCF */
 	crypto_unregister_all(sc->sc_cid);
@@ -1271,7 +1270,7 @@ cesa_detach(device_t dev)
 	bus_dma_tag_destroy(sc->sc_data_dtag);
 
 	/* Stop interrupt */
-	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_icookie);
+	bus_teardown_intr(dev, sc->sc_res[RES_CESA_IRQ], sc->sc_icookie);
 
 	/* Relase I/O and IRQ resources */
 	bus_release_resources(dev, cesa_res_spec, sc->sc_res);
@@ -1302,10 +1301,10 @@ cesa_intr(void *arg)
 	sc = arg;
 
 	/* Ack interrupt */
-	ecr = CESA_READ(sc, CESA_TDMA_ECR);
-	CESA_WRITE(sc, CESA_TDMA_ECR, 0);
-	icr = CESA_READ(sc, CESA_ICR);
-	CESA_WRITE(sc, CESA_ICR, 0);
+	ecr = CESA_TDMA_READ(sc, CESA_TDMA_ECR);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_ECR, 0);
+	icr = CESA_REG_READ(sc, CESA_ICR);
+	CESA_REG_WRITE(sc, CESA_ICR, 0);
 
 	/* Check for TDMA errors */
 	if (ecr & CESA_TDMA_ECR_MISS) {
@@ -1676,8 +1675,8 @@ decode_win_cesa_setup(struct cesa_softc *sc)
 
 	/* Disable and clear all CESA windows */
 	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
-		CESA_WRITE(sc, MV_WIN_CESA_BASE(i), 0);
-		CESA_WRITE(sc, MV_WIN_CESA_CTRL(i), 0);
+		CESA_TDMA_WRITE(sc, MV_WIN_CESA_BASE(i), 0);
+		CESA_TDMA_WRITE(sc, MV_WIN_CESA_CTRL(i), 0);
 	}
 
 	/* Fill CESA TDMA decoding windows with information acquired from DTS */
@@ -1691,8 +1690,8 @@ decode_win_cesa_setup(struct cesa_softc *sc)
 			(MV_WIN_DDR_ATTR(i) << MV_WIN_CPU_ATTR_SHIFT) |
 			    (MV_WIN_DDR_TARGET << MV_WIN_CPU_TARGET_SHIFT) |
 			    MV_WIN_CPU_ENABLE_BIT);
-			CESA_WRITE(sc, MV_WIN_CESA_BASE(i), br);
-			CESA_WRITE(sc, MV_WIN_CESA_CTRL(i), cr);
+			CESA_TDMA_WRITE(sc, MV_WIN_CESA_BASE(i), br);
+			CESA_TDMA_WRITE(sc, MV_WIN_CESA_CTRL(i), cr);
 		}
 	}
 

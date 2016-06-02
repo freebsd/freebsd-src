@@ -93,10 +93,15 @@
 	mtx_assert(&(sc)->sc_ ## what ## _lock, MA_OWNED)
 
 /* Registers read/write macros */
-#define CESA_READ(sc, reg)		\
-	bus_space_read_4((sc)->sc_bst, (sc)->sc_bsh, (reg))
-#define CESA_WRITE(sc, reg, val)	\
-	bus_space_write_4((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
+#define CESA_REG_READ(sc, reg)		\
+	bus_read_4((sc)->sc_res[RES_CESA_REGS], (reg))
+#define CESA_REG_WRITE(sc, reg, val)	\
+	bus_write_4((sc)->sc_res[RES_CESA_REGS], (reg), (val))
+
+#define CESA_TDMA_READ(sc, reg)		\
+	bus_read_4((sc)->sc_res[RES_TDMA_REGS], (reg))
+#define CESA_TDMA_WRITE(sc, reg, val)	\
+	bus_write_4((sc)->sc_res[RES_TDMA_REGS], (reg), (val))
 
 /* Generic allocator for objects */
 #define CESA_GENERIC_ALLOC_LOCKED(sc, obj, pool) do {		\
@@ -125,6 +130,14 @@
 	(sizeof(struct cesa_sa_hdesc) + offsetof(struct cesa_sa_data, member))
 #define CESA_DATA(offset)					\
 	(sizeof(struct cesa_sa_hdesc) + sizeof(struct cesa_sa_data) + offset)
+
+/* CESA memory and IRQ resources */
+enum cesa_res_type {
+	RES_TDMA_REGS,
+	RES_CESA_REGS,
+	RES_CESA_IRQ,
+	RES_CESA_NUM
+};
 
 struct cesa_tdma_hdesc {
 	uint16_t	cthd_byte_count;
@@ -220,11 +233,9 @@ struct cesa_packet {
 struct cesa_softc {
 	device_t			sc_dev;
 	int32_t				sc_cid;
-	struct resource			*sc_res[2];
+	struct resource			*sc_res[RES_CESA_NUM];
 	void				*sc_icookie;
 	bus_dma_tag_t			sc_data_dtag;
-	bus_space_tag_t			sc_bst;
-	bus_space_handle_t		sc_bsh;
 	int				sc_error;
 	int				sc_tperr;
 
@@ -303,11 +314,11 @@ struct cesa_chain_info {
 #define CESA_CSHD_FRAG_MIDDLE		(3U << 30)
 
 /* CESA registers definitions */
-#define CESA_ICR			0xDE20
+#define CESA_ICR			0x0E20
 #define CESA_ICR_ACCTDMA		(1 << 7)
 #define CESA_ICR_TPERR			(1 << 12)
 
-#define CESA_ICM			0xDE24
+#define CESA_ICM			0x0E24
 #define CESA_ICM_ACCTDMA		CESA_ICR_ACCTDMA
 #define CESA_ICM_TPERR			CESA_ICR_TPERR
 
@@ -341,17 +352,17 @@ struct cesa_chain_info {
 #define MV_WIN_CESA_MAX			4
 
 /* CESA SA registers definitions */
-#define CESA_SA_CMD			0xDE00
+#define CESA_SA_CMD			0x0E00
 #define CESA_SA_CMD_ACTVATE		(1 << 0)
 
-#define CESA_SA_DPR			0xDE04
+#define CESA_SA_DPR			0x0E04
 
-#define CESA_SA_CR			0xDE08
+#define CESA_SA_CR			0x0E08
 #define CESA_SA_CR_WAIT_FOR_TDMA	(1 << 7)
 #define CESA_SA_CR_ACTIVATE_TDMA	(1 << 9)
 #define CESA_SA_CR_MULTI_MODE		(1 << 11)
 
-#define CESA_SA_SR			0xDE0C
+#define CESA_SA_SR			0x0E0C
 #define CESA_SA_SR_ACTIVE		(1 << 0)
 
 #endif
