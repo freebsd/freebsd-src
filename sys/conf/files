@@ -1704,6 +1704,7 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	clean		"iwi_monitor.fw"
 dev/iwm/if_iwm.c		optional iwm
 dev/iwm/if_iwm_binding.c	optional iwm
+dev/iwm/if_iwm_led.c		optional iwm
 dev/iwm/if_iwm_mac_ctxt.c	optional iwm
 dev/iwm/if_iwm_pcie_trans.c	optional iwm
 dev/iwm/if_iwm_phy_ctxt.c	optional iwm
