@@ -31,6 +31,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libatm} \
 	libauditd \
 	libbegemot \
+	${_libblacklist} \
 	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
@@ -171,6 +172,10 @@ SUBDIR_DEPEND_liblzma= ${_libthr}
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
+.endif
+
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+_libblacklist=	libblacklist
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
