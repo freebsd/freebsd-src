@@ -1,7 +1,7 @@
 /*-
  * Copyright 1996-1998 John D. Polstra.
  * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
- * Copyright (c) 2016 Yukishige SHibata <y-shibat@mtd.biglobe.ne.jp>
+ * Copyright (c) 2016 Yukishige Shibata <y-shibat@mtd.biglobe.ne.jp>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -132,7 +132,7 @@ SYSCTL_INT(_kern, OID_AUTO, debug_kld,
 
 struct type2str_ent {
 	int type;
-	const char* str;
+	const char *str;
 };
 
 void
@@ -203,28 +203,28 @@ insert_imm(uint32_t insn, uint32_t imm, int imm_msb, int imm_lsb,
 }
 
 /*
- * The RISCV ISA is designed so that all of immediate value is
- * sign-extened.
+ * The RISC-V ISA is designed so that all of immediate values are
+ * sign-extended.
  * An immediate value is sometimes generated at runtime by adding
  * 12bit sign integer and 20bit signed integer. This requests 20bit
  * immediate value to be ajusted if the MSB of the 12bit immediate
- * value is asserted (sign extened value is treated as negative value).
+ * value is asserted (sign-extended value is treated as negative value).
  *
  * For example, 0x123800 can be calculated by adding upper 20 bit of
- * 0x124000 and signed-extended 12bit immediate whose bit pattern is
- * 0x800 as follows;
+ * 0x124000 and sign-extended 12bit immediate whose bit pattern is
+ * 0x800 as follows:
  *   0x123800
  *     = 0x123000 + 0x800
  *     = (0x123000 + 0x1000) + (-0x1000 + 0x800)
  *     = (0x123000 + 0x1000) + (0xff...ff800)
- *     = 0x124000            + sign-exntend(0x800)
+ *     = 0x124000            + sign-extention(0x800)
  */
 static uint32_t
 calc_hi20_imm(uint32_t value)
 {
 	/*
 	 * There is the arithmetical hack that can remove conditional
-	 * statement. But I implement it in straghtforward way.
+	 * statement. But I implement it in straightforward way.
 	 */
 	if ((value & 0x800) != 0)
 		value += 0x1000;
@@ -246,7 +246,7 @@ static const struct type2str_ent t2s[] = {
 	{ R_RISCV_LO12_S,	"R_RISCV_LO12_S"	},
 };
 
-static const char*
+static const char *
 reloctype_to_str(int type)
 {
 	int i;
@@ -373,7 +373,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			return -1;
 		val = addr - (Elf_Addr)where;
 		if ((val <= -(1UL << 32) || (1UL << 32) <= val)) {
-			printf("kldload:%s: huge offset against R_RISCV_CALL\n");
+			printf("kldload: huge offset against R_RISCV_CALL\n");
 			return -1;
 		}
 
