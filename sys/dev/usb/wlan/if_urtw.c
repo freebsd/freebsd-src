@@ -1789,8 +1789,8 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		flags |= (urtw_rate2rtl(11) & 0xf) << URTW_TX_FLAG_RTSRATE_SHIFT;
 		tx->flag = htole32(flags);
 		tx->retry = 3;		/* CW minimum  */
-		tx->retry = 7 << 4;	/* CW maximum  */
-		tx->retry = URTW_TX_MAXRETRY << 8;	/* retry limitation  */
+		tx->retry |= 7 << 4;	/* CW maximum  */
+		tx->retry |= URTW_TX_MAXRETRY << 8;	/* retry limitation  */
 		m_copydata(m0, 0, m0->m_pkthdr.len, (uint8_t *)(tx + 1));
 	}
 
