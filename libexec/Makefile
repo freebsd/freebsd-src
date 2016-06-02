@@ -5,6 +5,7 @@
 
 SUBDIR=	${_atf} \
 	${_atrun} \
+	${_blacklistd-helper} \
 	${_comsat} \
 	${_dma} \
 	getty \
@@ -31,6 +32,10 @@ SUBDIR=	${_atf} \
 
 .if ${MK_AT} != "no"
 _atrun=		atrun
+.endif
+
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+_blacklistd-helper+=	blacklistd-helper
 .endif
 
 .if ${MK_BOOTPD} != "no"
