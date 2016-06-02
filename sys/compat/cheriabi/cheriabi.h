@@ -206,7 +206,8 @@ struct thr_param_c {
 	struct chericap	parent_tid;
 	int		flags;
 	struct chericap	rtp;
-	struct chericap	spare[3];
+	struct chericap ddc;
+	struct chericap	spare[2];
 };
 
 struct mac_c {
