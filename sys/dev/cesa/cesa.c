@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/md5.h>
 #include <crypto/sha1.h>
+#include <crypto/sha2/sha256.h>
 #include <crypto/rijndael/rijndael.h>
 #include <opencrypto/cryptodev.h>
 #include "cryptodev_if.h"
@@ -449,6 +450,7 @@ cesa_set_mkey(struct cesa_session *cs, int alg, const uint8_t *mkey, int mklen)
 	uint8_t ipad[CESA_MAX_HMAC_BLOCK_LEN];
 	uint8_t opad[CESA_MAX_HMAC_BLOCK_LEN];
 	SHA1_CTX sha1ctx;
+	SHA256_CTX sha256ctx;
 	MD5_CTX md5ctx;
 	uint32_t *hout;
 	uint32_t *hin;
@@ -480,6 +482,14 @@ cesa_set_mkey(struct cesa_session *cs, int alg, const uint8_t *mkey, int mklen)
 		SHA1Init(&sha1ctx);
 		SHA1Update(&sha1ctx, opad, SHA1_HMAC_BLOCK_LEN);
 		memcpy(hout, sha1ctx.h.b32, sizeof(sha1ctx.h.b32));
+		break;
+	case CRYPTO_SHA2_256_HMAC:
+		SHA256_Init(&sha256ctx);
+		SHA256_Update(&sha256ctx, ipad, SHA2_256_HMAC_BLOCK_LEN);
+		memcpy(hin, sha256ctx.state, sizeof(sha256ctx.state));
+		SHA256_Init(&sha256ctx);
+		SHA256_Update(&sha256ctx, opad, SHA2_256_HMAC_BLOCK_LEN);
+		memcpy(hout, sha256ctx.state, sizeof(sha256ctx.state));
 		break;
 	default:
 		return (EINVAL);
@@ -541,6 +551,7 @@ cesa_is_hash(int alg)
 	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA1_HMAC:
+	case CRYPTO_SHA2_256_HMAC:
 		return (1);
 	default:
 		return (0);
@@ -942,7 +953,11 @@ cesa_execute(struct cesa_softc *sc)
 	ctd = STAILQ_FIRST(&cr->cr_tdesc);
 
 	CESA_TDMA_WRITE(sc, CESA_TDMA_ND, ctd->ctd_cthd_paddr);
+#if defined (SOC_MV_ARMADA38X)
+	CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE | CESA_SA_CMD_SHA2);
+#else
 	CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE);
+#endif
 
 	CESA_UNLOCK(sc, requests);
 }
@@ -1174,6 +1189,9 @@ cesa_attach(device_t dev)
 	 */
 	CESA_TDMA_WRITE(sc, CESA_TDMA_CR, CESA_TDMA_CR_DBL128 |
 	    CESA_TDMA_CR_SBL128 | CESA_TDMA_CR_ORDEN | CESA_TDMA_CR_NBS |
+#if defined (SOC_MV_ARMADA38X)
+	    CESA_TDMA_NUM_OUTSTAND |
+#endif
 	    CESA_TDMA_CR_ENABLE);
 
 	/*
@@ -1208,6 +1226,7 @@ cesa_attach(device_t dev)
 	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 
 	return (0);
 err8:
@@ -1477,6 +1496,12 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			cs->cs_config |= CESA_CSHD_SHA1_HMAC;
 			if (cs->cs_hlen == CESA_HMAC_TRUNC_LEN)
 				cs->cs_config |= CESA_CSHD_96_BIT_HMAC;
+			break;
+		case CRYPTO_SHA2_256_HMAC:
+			cs->cs_mblen = SHA2_256_HMAC_BLOCK_LEN;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA2_256_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_SHA2_256_HMAC;
 			break;
 		default:
 			error = EINVAL;
