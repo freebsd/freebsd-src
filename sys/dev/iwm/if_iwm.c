@@ -1764,21 +1764,11 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	data->radio_cfg_step = IWM_NVM_RF_CFG_STEP_MSK(radio_cfg);
 	data->radio_cfg_dash = IWM_NVM_RF_CFG_DASH_MSK(radio_cfg);
 	data->radio_cfg_pnum = IWM_NVM_RF_CFG_PNUM_MSK(radio_cfg);
-	data->valid_tx_ant = IWM_NVM_RF_CFG_TX_ANT_MSK(radio_cfg);
-	data->valid_rx_ant = IWM_NVM_RF_CFG_RX_ANT_MSK(radio_cfg);
 
 	sku = le16_to_cpup(nvm_sw + IWM_SKU);
 	data->sku_cap_band_24GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_24GHZ;
 	data->sku_cap_band_52GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_52GHZ;
 	data->sku_cap_11n_enable = 0;
-
-	if (!data->valid_tx_ant || !data->valid_rx_ant) {
-		device_printf(sc->sc_dev,
-		    "%s: invalid antennas (0x%x, 0x%x)\n",
-		    __func__, data->valid_tx_ant,
-		    data->valid_rx_ant);
-		return EINVAL;
-	}
 
 	data->n_hw_addrs = le16_to_cpup(nvm_sw + IWM_N_HW_ADDRS);
 
