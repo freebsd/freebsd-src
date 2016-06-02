@@ -90,18 +90,23 @@ routing_stop()
 
 setroutes()
 {
+	local _ret
+	_ret=0
 	case $1 in
 	static)
 		static_$2 add $3
+		_ret=$?
 		;;
 	options)
 		options_$2
 		;;
 	doall)
 		static_$2 add $3
+		_ret=$?
 		options_$2
 		;;
 	esac
+	return $_ret
 }
 
 routing_stop_inet()
