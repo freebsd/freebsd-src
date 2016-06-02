@@ -237,7 +237,7 @@ struct netfront_info {
 
 	struct ifmedia		sc_media;
 
-	bool			xn_resume;
+	bool			xn_reset;
 };
 
 struct netfront_rx_info {
@@ -458,7 +458,6 @@ netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
 
-	info->xn_resume = true;
 	netif_disconnect_backend(info);
 	return (0);
 }
@@ -590,10 +589,19 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
-	err = xs_printf(xst, node, "feature-gso-tcpv4", "%d", 1);
-	if (err != 0) {
-		message = "writing feature-gso-tcpv4";
-		goto abort_transaction;
+	if ((info->xn_ifp->if_capenable & IFCAP_LRO) != 0) {
+		err = xs_printf(xst, node, "feature-gso-tcpv4", "%d", 1);
+		if (err != 0) {
+			message = "writing feature-gso-tcpv4";
+			goto abort_transaction;
+		}
+	}
+	if ((info->xn_ifp->if_capenable & IFCAP_RXCSUM) == 0) {
+		err = xs_printf(xst, node, "feature-no-csum-offload", "%d", 1);
+		if (err != 0) {
+			message = "writing feature-no-csum-offload";
+			goto abort_transaction;
+		}
 	}
 
 	err = xs_transaction_end(xst, 0);
@@ -960,7 +968,6 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
 	case XenbusStateUnknown:
-	case XenbusStateClosed:
 	case XenbusStateReconfigured:
 	case XenbusStateReconfiguring:
 		break;
@@ -973,6 +980,13 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
+		break;
+	case XenbusStateClosed:
+		if (sc->xn_reset) {
+			netif_disconnect_backend(sc);
+			xenbus_set_state(dev, XenbusStateInitialising);
+			sc->xn_reset = false;
+		}
 		break;
 	case XenbusStateConnected:
 #ifdef INET
@@ -1739,11 +1753,14 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct netfront_info *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
+	device_t dev;
 #ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
-
 	int mask, error = 0;
+
+	dev = sc->xbdev;
+
 	switch(cmd) {
 	case SIOCSIFADDR:
 #ifdef INET
@@ -1820,6 +1837,31 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_LRO;
 
 		}
+		/*
+		 * We must reset the interface so the backend picks up the
+		 * new features.
+		 */
+		XN_LOCK(sc);
+		netfront_carrier_off(sc);
+		sc->xn_reset = true;
+		/*
+		 * NB: the pending packet queue is not flushed, since
+		 * the interface should still support the old options.
+		 */
+		XN_UNLOCK(sc);
+		/*
+		 * Delete the xenstore nodes that export features.
+		 *
+		 * NB: There's a xenbus state called
+		 * "XenbusStateReconfiguring", which is what we should set
+		 * here. Sadly none of the backends know how to handle it,
+		 * and simply disconnect from the frontend, so we will just
+		 * switch back to XenbusStateInitialising in order to force
+		 * a reconnection.
+		 */
+		xs_rm(XST_NIL, xenbus_get_node(dev), "feature-gso-tcpv4");
+		xs_rm(XST_NIL, xenbus_get_node(dev), "feature-no-csum-offload");
+		xenbus_set_state(dev, XenbusStateClosing);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -1967,6 +2009,20 @@ xn_query_features(struct netfront_info *np)
 		printf(" feature-gso-tcp4");
 	}
 
+	/*
+	 * HW CSUM offload is assumed to be available unless
+	 * feature-no-csum-offload is set in xenstore.
+	 */
+	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
+		"feature-no-csum-offload", NULL, "%d", &val) != 0)
+		val = 0;
+
+	np->xn_ifp->if_capabilities |= IFCAP_HWCSUM;
+	if (val) {
+		np->xn_ifp->if_capabilities &= ~(IFCAP_HWCSUM);
+		printf(" feature-no-csum-offload");
+	}
+
 	printf("\n");
 }
 
@@ -1977,50 +2033,50 @@ xn_configure_features(struct netfront_info *np)
 #if (defined(INET) || defined(INET6))
 	int i;
 #endif
+	struct ifnet *ifp;
 
+	ifp = np->xn_ifp;
 	err = 0;
 
-	if (np->xn_resume &&
-	    ((np->xn_ifp->if_capenable & np->xn_ifp->if_capabilities)
-	    == np->xn_ifp->if_capenable)) {
+	if ((ifp->if_capenable & ifp->if_capabilities) == ifp->if_capenable) {
 		/* Current options are available, no need to do anything. */
 		return (0);
 	}
 
 	/* Try to preserve as many options as possible. */
-	if (np->xn_resume)
-		cap_enabled = np->xn_ifp->if_capenable;
-	else
-		cap_enabled = UINT_MAX;
+	cap_enabled = ifp->if_capenable;
+	ifp->if_capenable = ifp->if_hwassist = 0;
 
 #if (defined(INET) || defined(INET6))
-	for (i = 0; i < np->num_queues; i++)
-		if ((np->xn_ifp->if_capenable & IFCAP_LRO) ==
-		    (cap_enabled & IFCAP_LRO))
+	if ((cap_enabled & IFCAP_LRO) != 0)
+		for (i = 0; i < np->num_queues; i++)
 			tcp_lro_free(&np->rxq[i].lro);
-#endif
-    	np->xn_ifp->if_capenable =
-	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4) & cap_enabled;
-	np->xn_ifp->if_hwassist &= ~CSUM_TSO;
-#if (defined(INET) || defined(INET6))
-	for (i = 0; i < np->num_queues; i++) {
-		if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) ==
-		    (cap_enabled & IFCAP_LRO)) {
+	if (xn_enable_lro &&
+	    (ifp->if_capabilities & cap_enabled & IFCAP_LRO) != 0) {
+	    	ifp->if_capenable |= IFCAP_LRO;
+		for (i = 0; i < np->num_queues; i++) {
 			err = tcp_lro_init(&np->rxq[i].lro);
 			if (err != 0) {
-				device_printf(np->xbdev, "LRO initialization failed\n");
-			} else {
-				np->rxq[i].lro.ifp = np->xn_ifp;
-				np->xn_ifp->if_capenable |= IFCAP_LRO;
+				device_printf(np->xbdev,
+				    "LRO initialization failed\n");
+				ifp->if_capenable &= ~IFCAP_LRO;
+				break;
 			}
+			np->rxq[i].lro.ifp = ifp;
 		}
 	}
-	if ((np->xn_ifp->if_capabilities & IFCAP_TSO4) ==
-	    (cap_enabled & IFCAP_TSO4)) {
-		np->xn_ifp->if_capenable |= IFCAP_TSO4;
-		np->xn_ifp->if_hwassist |= CSUM_TSO;
+	if ((ifp->if_capabilities & cap_enabled & IFCAP_TSO4) != 0) {
+		ifp->if_capenable |= IFCAP_TSO4;
+		ifp->if_hwassist |= CSUM_TSO;
 	}
 #endif
+	if ((ifp->if_capabilities & cap_enabled & IFCAP_TXCSUM) != 0) {
+		ifp->if_capenable |= IFCAP_TXCSUM;
+		ifp->if_hwassist |= CSUM_TCP|CSUM_UDP;
+	}
+	if ((ifp->if_capabilities & cap_enabled & IFCAP_RXCSUM) != 0)
+		ifp->if_capenable |= IFCAP_RXCSUM;
+
 	return (err);
 }
 
@@ -2169,7 +2225,9 @@ create_netdev(device_t dev)
     	ifp->if_init = xn_ifinit;
 
     	ifp->if_hwassist = XN_CSUM_FEATURES;
-    	ifp->if_capabilities = IFCAP_HWCSUM;
+	/* Enable all supported features at device creation. */
+	ifp->if_capenable = ifp->if_capabilities =
+	    IFCAP_HWCSUM|IFCAP_TSO4|IFCAP_LRO;
 	ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 	ifp->if_hw_tsomaxsegcount = MAX_TX_REQ_FRAGS;
 	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
