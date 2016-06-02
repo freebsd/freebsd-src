@@ -138,7 +138,6 @@ struct llentry {
 	LLE_FREE_LOCKED(lle);					\
 } while (0)
 
-
 typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
 typedef	struct llentry *(llt_alloc_t)(struct lltable *, u_int flags,

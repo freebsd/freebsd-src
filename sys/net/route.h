@@ -50,6 +50,11 @@
  */
 struct route {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
+	/*
+	 * ro_prepend and ro_plen are only used for bpf to pass in a
+	 * preformed header.  They are not cacheable.
+	 */
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;
@@ -71,6 +76,7 @@ struct route {
 #define	RT_REJECT		0x0020		/* Destination is reject */
 #define	RT_BLACKHOLE		0x0040		/* Destination is blackhole */
 #define	RT_HAS_GW		0x0080		/* Destination has GW  */
+#define	RT_LLE_CACHE		0x0100		/* Cache link layer  */
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -399,6 +405,7 @@ struct rt_addrinfo {
 		if ((_ro)->ro_flags & RT_NORTREF) {		\
 			(_ro)->ro_flags &= ~RT_NORTREF;		\
 			(_ro)->ro_rt = NULL;			\
+			(_ro)->ro_lle = NULL;			\
 		} else {					\
 			RT_LOCK((_ro)->ro_rt);			\
 			RTFREE_LOCKED((_ro)->ro_rt);		\
@@ -413,9 +420,11 @@ struct rt_addrinfo {
  */
 #define RT_VALIDATE(ro, cookiep, fibnum) do {				\
 	rt_gen_t cookie = RT_GEN(fibnum, (ro)->ro_dst.sa_family);	\
-	if (*(cookiep) != cookie && (ro)->ro_rt != NULL) {		\
-		RTFREE((ro)->ro_rt);					\
-		(ro)->ro_rt = NULL;					\
+	if (*(cookiep) != cookie) {					\
+		if ((ro)->ro_rt != NULL) {				\
+			RTFREE((ro)->ro_rt);				\
+			(ro)->ro_rt = NULL;				\
+		}							\
 		*(cookiep) = cookie;					\
 	}								\
 } while (0)

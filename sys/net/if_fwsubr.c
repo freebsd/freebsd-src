@@ -144,7 +144,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		 * doesn't fit into the arp model.
 		 */
 		if (unicast) {
-			error = arpresolve(ifp, is_gw, m, dst, (u_char *) destfw, NULL);
+			error = arpresolve(ifp, is_gw, m, dst,
+			    (u_char *) destfw, NULL, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -174,7 +175,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	case AF_INET6:
 		if (unicast) {
 			error = nd6_resolve(fc->fc_ifp, is_gw, m, dst,
-			    (u_char *) destfw, NULL);
+			    (u_char *) destfw, NULL, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}

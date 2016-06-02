@@ -375,6 +375,11 @@ extern const struct in6_addr in6addr_linklocal_allv2routers;
 #if __BSD_VISIBLE
 struct route_in6 {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
+	/*
+	 * ro_prepend and ro_plen are only used for bpf to pass in a
+	 * preformed header.  They are not cacheable.
+	 */
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;

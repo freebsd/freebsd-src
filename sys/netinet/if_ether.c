@@ -420,7 +420,8 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
  */
 static int
 arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
-	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags,
+	struct llentry **plle)
 {
 	struct llentry *la = NULL, *la_tmp;
 	struct mbuf *curr = NULL;
@@ -431,6 +432,8 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 
 	if (pflags != NULL)
 		*pflags = 0;
+	if (plle != NULL)
+		*plle = NULL;
 
 	if ((flags & LLE_CREATE) == 0) {
 		IF_AFDATA_RLOCK(ifp);
@@ -483,6 +486,10 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 		}
 		if (pflags != NULL)
 			*pflags = la->la_flags & (LLE_VALID|LLE_IFADDR);
+		if (plle) {
+			LLE_ADDREF(la);
+			*plle = la;
+		}
 		LLE_WUNLOCK(la);
 		return (0);
 	}
@@ -548,12 +555,12 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
  */
 int
 arpresolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
-    char *desten, uint32_t *pflags)
+    char *desten, uint32_t *pflags, struct llentry **plle)
 {
 	int error;
 
 	flags |= LLE_ADDRONLY;
-	error = arpresolve_full(ifp, 0, flags, NULL, dst, desten, pflags);
+	error = arpresolve_full(ifp, 0, flags, NULL, dst, desten, pflags, plle);
 	return (error);
 }
 
@@ -576,12 +583,15 @@ arpresolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
  */
 int
 arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
-	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags,
+	struct llentry **plle)
 {
 	struct llentry *la = NULL;
 
 	if (pflags != NULL)
 		*pflags = 0;
+	if (plle != NULL)
+		*plle = NULL;
 
 	if (m != NULL) {
 		if (m->m_flags & M_BCAST) {
@@ -616,7 +626,7 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	IF_AFDATA_RUNLOCK(ifp);
 
 	return (arpresolve_full(ifp, is_gw, la == NULL ? LLE_CREATE : 0, m, dst,
-	    desten, pflags));
+	    desten, pflags, plle));
 }
 
 /*

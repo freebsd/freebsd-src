@@ -451,12 +451,12 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 	switch (sa->sa_family) {
 #ifdef INET
 	case AF_INET:
-		rc = arpresolve(ifp, 0, NULL, sa, lladdr, NULL);
+		rc = arpresolve(ifp, 0, NULL, sa, lladdr, NULL, NULL);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		rc = nd6_resolve(ifp, 0, NULL, sa, lladdr, NULL);
+		rc = nd6_resolve(ifp, 0, NULL, sa, lladdr, NULL, NULL);
 		break;
 #endif
 	default:

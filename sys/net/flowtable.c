@@ -696,13 +696,8 @@ flowtable_lookup(sa_family_t sa, struct mbuf *m, struct route *ro)
 	ro->ro_rt = fle->f_rt;
 	ro->ro_flags |= RT_NORTREF;
 	lle = fle->f_lle;
-	if (lle != NULL && (lle->la_flags & LLE_VALID)) {
-		ro->ro_prepend = lle->r_linkdata;
-		ro->ro_plen = lle->r_hdrlen;
-		ro->ro_flags |= RT_MAY_LOOP;
-		if (lle->la_flags & LLE_IFADDR)
-			ro->ro_flags |= RT_L2_ME;
-	}
+	if (lle != NULL && (lle->la_flags & LLE_VALID))
+		ro->ro_lle = lle;	/* share ref with fle->f_lle */
 
 	return (0);
 }

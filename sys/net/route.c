@@ -207,6 +207,8 @@ rt_tables_get_gen(int table, int fam)
 	struct rib_head *rnh;
 
 	rnh = *rt_tables_get_rnh_ptr(table, fam);
+	KASSERT(rnh != NULL, ("%s: NULL rib_head pointer table %d fam %d",
+	    __func__, table, fam));
 	return (rnh->rnh_gen);
 }
 
