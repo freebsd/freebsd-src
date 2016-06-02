@@ -121,9 +121,9 @@ static void xn_alloc_rx_buffers_callout(void *arg);
 static void xn_release_rx_bufs(struct netfront_rxq *);
 static void xn_release_tx_bufs(struct netfront_txq *);
 
-static void xn_rxq_intr(void *);
-static void xn_txq_intr(void *);
-static int  xn_intr(void *);
+static void xn_rxq_intr(struct netfront_rxq *);
+static void xn_txq_intr(struct netfront_txq *);
+static void xn_intr(void *);
 static inline int xn_count_frags(struct mbuf *m);
 static int xn_assemble_tx_request(struct netfront_txq *, struct mbuf *);
 static int xn_ioctl(struct ifnet *, u_long, caddr_t);
@@ -188,9 +188,6 @@ struct netfront_rxq {
 
 	struct lro_ctrl		lro;
 
-	struct taskqueue 	*tq;
-	struct task		intrtask;
-
 	struct callout		rx_refill;
 
 	struct xn_rx_stats	stats;
@@ -214,7 +211,6 @@ struct netfront_txq {
 	struct buf_ring		*br;
 
 	struct taskqueue 	*tq;
-	struct task       	intrtask;
 	struct task       	defrtask;
 
 	bool			full;
@@ -621,9 +617,8 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 }
 
 static void
-xn_rxq_tq_intr(void *xrxq, int pending)
+xn_rxq_intr(struct netfront_rxq *rxq)
 {
-	struct netfront_rxq *rxq = xrxq;
 
 	XN_RX_LOCK(rxq);
 	xn_rxeof(rxq);
@@ -642,9 +637,8 @@ xn_txq_start(struct netfront_txq *txq)
 }
 
 static void
-xn_txq_tq_intr(void *xtxq, int pending)
+xn_txq_intr(struct netfront_txq *txq)
 {
-	struct netfront_txq *txq = xtxq;
 
 	XN_TX_LOCK(txq);
 	if (RING_HAS_UNCONSUMED_RESPONSES(&txq->ring))
@@ -684,8 +678,6 @@ destroy_rxq(struct netfront_rxq *rxq)
 
 	callout_drain(&rxq->rx_refill);
 	free(rxq->ring.sring, M_DEVBUF);
-	taskqueue_drain_all(rxq->tq);
-	taskqueue_free(rxq->tq);
 }
 
 static void
@@ -749,27 +741,11 @@ setup_rxqs(device_t dev, struct netfront_info *info,
 			goto fail_grant_ring;
 		}
 
-		TASK_INIT(&rxq->intrtask, 0, xn_rxq_tq_intr, rxq);
-		rxq->tq = taskqueue_create_fast(rxq->name, M_WAITOK,
-		    taskqueue_thread_enqueue, &rxq->tq);
-
 		callout_init(&rxq->rx_refill, 1);
-
-		error = taskqueue_start_threads(&rxq->tq, 1, PI_NET,
-		    "%s rxq %d", device_get_nameunit(dev), rxq->id);
-		if (error != 0) {
-			device_printf(dev, "failed to start rx taskq %d\n",
-			    rxq->id);
-			goto fail_start_thread;
-		}
 	}
 
 	return (0);
 
-fail_start_thread:
-	gnttab_end_foreign_access_ref(rxq->ring_ref);
-	taskqueue_drain_all(rxq->tq);
-	taskqueue_free(rxq->tq);
 fail_grant_ring:
 	gnttab_free_grant_references(rxq->gref_head);
 	free(rxq->ring.sring, M_DEVBUF);
@@ -871,9 +847,8 @@ setup_txqs(device_t dev, struct netfront_info *info,
 		txq->br = buf_ring_alloc(NET_TX_RING_SIZE, M_DEVBUF,
 		    M_WAITOK, &txq->lock);
 		TASK_INIT(&txq->defrtask, 0, xn_txq_tq_deferred, txq);
-		TASK_INIT(&txq->intrtask, 0, xn_txq_tq_intr, txq);
 
-		txq->tq = taskqueue_create_fast(txq->name, M_WAITOK,
+		txq->tq = taskqueue_create(txq->name, M_WAITOK,
 		    taskqueue_thread_enqueue, &txq->tq);
 
 		error = taskqueue_start_threads(&txq->tq, 1, PI_NET,
@@ -885,10 +860,9 @@ setup_txqs(device_t dev, struct netfront_info *info,
 		}
 
 		error = xen_intr_alloc_and_bind_local_port(dev,
-			    xenbus_get_otherend_id(dev), xn_intr, /* handler */ NULL,
-			    &info->txq[q],
-			    INTR_TYPE_NET | INTR_MPSAFE | INTR_ENTROPY,
-			    &txq->xen_intr_handle);
+		    xenbus_get_otherend_id(dev), /* filter */ NULL, xn_intr,
+		    &info->txq[q], INTR_TYPE_NET | INTR_MPSAFE | INTR_ENTROPY,
+		    &txq->xen_intr_handle);
 
 		if (error != 0) {
 			device_printf(dev, "xen_intr_alloc_and_bind_local_port failed\n");
@@ -1356,28 +1330,11 @@ xn_txeof(struct netfront_txq *txq)
 	if (txq->full &&
 	    ((txq->ring.sring->req_prod - prod) < NET_TX_RING_SIZE)) {
 		txq->full = false;
-		taskqueue_enqueue(txq->tq, &txq->intrtask);
+		xn_txq_start(txq);
 	}
 }
 
-
 static void
-xn_rxq_intr(void *xrxq)
-{
-	struct netfront_rxq *rxq = xrxq;
-
-	taskqueue_enqueue(rxq->tq, &rxq->intrtask);
-}
-
-static void
-xn_txq_intr(void *xtxq)
-{
-	struct netfront_txq *txq = xtxq;
-
-	taskqueue_enqueue(txq->tq, &txq->intrtask);
-}
-
-static int
 xn_intr(void *xsc)
 {
 	struct netfront_txq *txq = xsc;
@@ -1387,8 +1344,6 @@ xn_intr(void *xsc)
 	/* kick both tx and rx */
 	xn_rxq_intr(rxq);
 	xn_txq_intr(txq);
-
-	return (FILTER_HANDLED);
 }
 
 static void
@@ -1760,7 +1715,7 @@ xn_ifinit_locked(struct netfront_info *np)
 		xn_alloc_rx_buffers(rxq);
 		rxq->ring.sring->rsp_event = rxq->ring.rsp_cons + 1;
 		if (RING_HAS_UNCONSUMED_RESPONSES(&rxq->ring))
-			taskqueue_enqueue(rxq->tq, &rxq->intrtask);
+			xn_rxeof(rxq);
 		XN_RX_UNLOCK(rxq);
 	}
 
