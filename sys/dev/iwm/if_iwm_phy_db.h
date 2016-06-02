@@ -106,41 +106,6 @@
 #ifndef	__IF_IWM_PHY_DB_H__
 #define	__IF_IWM_PHY_DB_H__
 
-enum iwm_phy_db_section_type {
-	IWM_PHY_DB_CFG = 1,
-	IWM_PHY_DB_CALIB_NCH,
-	IWM_PHY_DB_UNUSED,
-	IWM_PHY_DB_CALIB_CHG_PAPD,
-	IWM_PHY_DB_CALIB_CHG_TXP,
-	IWM_PHY_DB_MAX
-};
-
-#define IWM_PHY_DB_CMD 0x6c /* TEMP API - The actual is 0x8c */
-
-/*
- * phy db - configure operational ucode
- */
-struct iwm_phy_db_cmd {
-	uint16_t type;
-	uint16_t length;
-	uint8_t data[];
-} __packed;
-
-/* for parsing of tx power channel group data that comes from the firmware*/
-struct iwm_phy_db_chg_txp {
-	uint32_t space;
-	uint16_t max_channel_idx;
-} __packed;
-
-/*
- * phy db - Receive phy db chunk after calibrations
- */
-struct iwm_calib_res_notif_phy_db {
-	uint16_t type;
-	uint16_t length;
-	uint8_t data[];
-} __packed;
-
 extern	int iwm_phy_db_set_section(struct iwm_softc *sc,
 	     struct iwm_calib_res_notif_phy_db *phy_db_notif);
 extern	int iwm_send_phy_db_data(struct iwm_softc *sc);

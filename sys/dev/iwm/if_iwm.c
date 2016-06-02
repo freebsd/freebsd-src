@@ -265,7 +265,6 @@ static int	iwm_firmware_load_chunk(struct iwm_softc *, uint32_t,
                                         const uint8_t *, uint32_t);
 static int	iwm_load_firmware(struct iwm_softc *, enum iwm_ucode_type);
 static int	iwm_start_fw(struct iwm_softc *, enum iwm_ucode_type);
-static int	iwm_fw_alive(struct iwm_softc *, uint32_t);
 static int	iwm_send_tx_ant_cfg(struct iwm_softc *, uint8_t);
 static int	iwm_send_phy_cfg_cmd(struct iwm_softc *);
 static int	iwm_mvm_load_ucode_wait_alive(struct iwm_softc *,
@@ -1353,14 +1352,6 @@ iwm_nic_init(struct iwm_softc *sc)
 	return 0;
 }
 
-enum iwm_mvm_tx_fifo {
-	IWM_MVM_TX_FIFO_BK = 0,
-	IWM_MVM_TX_FIFO_BE,
-	IWM_MVM_TX_FIFO_VI,
-	IWM_MVM_TX_FIFO_VO,
-	IWM_MVM_TX_FIFO_MCAST = 5,
-};
-
 const uint8_t iwm_mvm_ac_to_tx_fifo[] = {
 	IWM_MVM_TX_FIFO_VO,
 	IWM_MVM_TX_FIFO_VI,
@@ -2005,12 +1996,6 @@ iwm_start_fw(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 }
 
 static int
-iwm_fw_alive(struct iwm_softc *sc, uint32_t sched_base)
-{
-	return iwm_post_alive(sc);
-}
-
-static int
 iwm_send_tx_ant_cfg(struct iwm_softc *sc, uint8_t valid_tx_ant)
 {
 	struct iwm_tx_ant_cfg_cmd tx_ant_cmd = {
@@ -2058,7 +2043,7 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 		return error;
 	}
 
-	return iwm_fw_alive(sc, sc->sched_base);
+	return iwm_post_alive(sc);
 }
 
 /*
@@ -2082,8 +2067,10 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 
 	sc->sc_init_complete = 0;
 	if ((error = iwm_mvm_load_ucode_wait_alive(sc,
-	    IWM_UCODE_TYPE_INIT)) != 0)
+	    IWM_UCODE_TYPE_INIT)) != 0) {
+		device_printf(sc->sc_dev, "failed to load init firmware\n");
 		return error;
+	}
 
 	if (justnvm) {
 		if ((error = iwm_nvm_init(sc)) != 0) {
@@ -3022,13 +3009,7 @@ iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
 static int
 iwm_mvm_add_sta(struct iwm_softc *sc, struct iwm_node *in)
 {
-	int ret;
-
-	ret = iwm_mvm_sta_send_to_fw(sc, in, 0);
-	if (ret)
-		return ret;
-
-	return 0;
+	return iwm_mvm_sta_send_to_fw(sc, in, 0);
 }
 
 static int
