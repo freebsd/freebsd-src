@@ -178,6 +178,12 @@ _LIBRARIES=	\
 		zfs \
 		zpool \
 
+.if ${MK_BLACKLIST} != "no"
+_LIBRARIES+= \
+		blacklist \
+
+.endif
+
 .if ${MK_OFED} != "no"
 _LIBRARIES+= \
 		cxgb4 \
@@ -200,6 +206,9 @@ _LIBRARIES+= \
 # 2nd+ order consumers.  Auto-generating this would be better.
 _DP_80211=	sbuf bsdxml
 _DP_archive=	z bz2 lzma bsdxml
+.if ${MK_BLACKLIST} != "no"
+_DP_blacklist+=	pthread
+.endif
 .if ${MK_OPENSSL} != "no"
 _DP_archive+=	crypto
 .else
@@ -502,6 +511,7 @@ LIBWINDDIR=	${OBJTOP}/kerberos5/lib/libwind
 LIBATF_CDIR=	${OBJTOP}/lib/atf/libatf-c
 LIBATF_CXXDIR=	${OBJTOP}/lib/atf/libatf-c++
 LIBALIASDIR=	${OBJTOP}/lib/libalias/libalias
+LIBBLACKLISTDIR=	${OBJTOP}/lib/libblacklist
 LIBBLOCKSRUNTIMEDIR=	${OBJTOP}/lib/libblocksruntime
 LIBBSNMPDIR=	${OBJTOP}/lib/libbsnmp/libbsnmp
 LIBCASPERDIR=	${OBJTOP}/lib/libcasper/libcasper
