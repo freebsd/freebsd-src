@@ -172,7 +172,6 @@ struct xbb_xen_req;
 static void xbb_attach_failed(struct xbb_softc *xbb, int err, const char *fmt,
 			      ...) __attribute__((format(printf, 3, 4)));
 static int  xbb_shutdown(struct xbb_softc *xbb);
-static int  xbb_detach(device_t dev);
 
 /*------------------------------ Data Structures -----------------------------*/
 
@@ -3419,8 +3418,8 @@ xbb_shutdown(struct xbb_softc *xbb)
 	mtx_lock(&xbb->lock);
 	xbb->flags &= ~XBBF_IN_SHUTDOWN;
 
-	/* The front can submit I/O until entering the closed state. */
-	if (frontState < XenbusStateClosed)
+	/* Wait for the frontend to disconnect (if it's connected). */
+	if (frontState == XenbusStateConnected)
 		return (EAGAIN);
 
 	DPRINTF("\n");
@@ -3477,7 +3476,9 @@ xbb_attach_failed(struct xbb_softc *xbb, int err, const char *fmt, ...)
 
 	xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
 		  "online", "0");
-	xbb_detach(xbb->dev);
+	mtx_lock(&xbb->lock);
+	xbb_shutdown(xbb);
+	mtx_unlock(&xbb->lock);
 }
 
 /*---------------------------- NewBus Entrypoints ----------------------------*/
