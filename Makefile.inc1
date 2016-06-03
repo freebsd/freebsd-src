@@ -99,7 +99,7 @@ _expected_compiler_type=	gcc
 .if ${_expected_compiler_type} == "clang"
 CROSS_COMPILER_FREEBSD_VERSION!= \
 	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
-	${SRCDIR}/lib/clang/include/clang/Basic/Version.inc || echo unknown
+	${SRCDIR}/lib/clang/freebsd_cc_version.h || echo unknown
 CROSS_COMPILER_VERSION!= \
 	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
 	${SRCDIR}/lib/clang/include/clang/Basic/Version.inc || echo unknown
