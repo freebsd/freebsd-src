@@ -387,7 +387,8 @@ tcp_lro_msb_64(uint64_t x)
  * number of elements to sort and 64 is the number of sequence bits
  * available. The algorithm is bit-slicing the 64-bit sequence number,
  * sorting one bit at a time from the most significant bit until the
- * least significant one, skipping the constant bits.
+ * least significant one, skipping the constant bits. This is
+ * typically called a radix sort.
  */
 static void
 tcp_lro_sort(struct lro_mbuf_sort *parray, uint32_t size)
@@ -399,17 +400,13 @@ tcp_lro_sort(struct lro_mbuf_sort *parray, uint32_t size)
 	uint32_t y;
 
 repeat:
-	/* for small arrays bubble sort is faster */
+	/* for small arrays insertion sort is faster */
 	if (size <= 12) {
-		for (x = 0; x != size; x++) {
-			for (y = x + 1; y != size; y++) {
-				if (parray[x].seq > parray[y].seq) {
-					/* swap entries */
-					temp = parray[x];
-					parray[x] = parray[y];
-					parray[y] = temp;
-				}
-			}
+		for (x = 1; x < size; x++) {
+			temp = parray[x];
+			for (y = x; y > 0 && temp.seq < parray[y - 1].seq; y--)
+				parray[y] = parray[y - 1];
+			parray[y] = temp;
 		}
 		return;
 	}
