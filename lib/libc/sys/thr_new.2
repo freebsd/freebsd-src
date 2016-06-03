@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2016
+.Dd June 2, 2016
 .Dt THR_NEW 2
 .Os
 .Sh NAME
@@ -175,6 +175,8 @@ The
 .Fn thr_new
 operation returns the following errors:
 .Bl -tag -width Er
+.\" When changing this list, consider updating share/man/man3/pthread_create.3,
+.\" since that function can return any of these errors.
 .It Bq Er EFAULT
 The memory pointed to by the
 .Fa param
@@ -188,7 +190,7 @@ or
 .Fa rtp
 arguments is not valid.
 .It Bq Er EFAULT
-Specified stack base is invalid, or the kernel was unable to put required
+The specified stack base is invalid, or the kernel was unable to put required
 initial data on the stack.
 .It Bq Er EINVAL
 The
@@ -205,6 +207,9 @@ member is not
 and specifies invalid scheduling parameters.
 .It Bq Er EINVAL
 The specified TLS base is invalid.
+.It Bq Er EPERM
+The caller does not have permission to set the scheduling parameters or
+scheduling policy.
 .It Bq Er EPROCLIM
 Creation of the new thread would exceed the
 .Dv RACCT_NTHR
@@ -216,7 +221,7 @@ Creation of the new thread would exceed the
 .Xr sysctl 2
 limit.
 .It Bq Er ENOMEM
-No kernel memory to allocate for the new thread structures.
+There was not enough kernel memory to allocate the new thread structures.
 .El
 .Sh SEE ALSO
 .Xr ps 1 ,
