@@ -67,6 +67,14 @@ struct cheri_object cheri_bench;
   __asm __volatile("rdhwr %0, $"#regno : "=r" (ret)); \
   return ret;						\
   }
+#define DEFINE_GET_STAT_COUNTER(name,X,Y)   \
+    static inline uint64_t get_##name##_count (void)   \
+    {                                           \
+        uint64_t ret;                           \
+        __asm __volatile(".word (0x1f << 26) | (0x0 << 21) | (12 << 16) | ("#X" << 11) | ( "#Y"  << 6) | 0x3b\n\tmove %0,$12" : "=r" (ret) :: "$12"); \
+        return ret;                             \
+    }
+
 
 
 #else
@@ -87,6 +95,13 @@ struct cheri_object cheri_bench;
     __asm __volatile(".word (0x1f << 26) | (12 << 16) | (" #regno  " << 11) | 0x3b\n\tmove %0,$12" : "=r" (ret) :: "$12"); \
     return ret;								\
   }
+#define DEFINE_GET_STAT_COUNTER(name,X,Y)   \
+    static inline uint64_t get_##name##_count (void)   \
+    {                                           \
+        uint64_t ret;                           \
+        __asm __volatile(".word (0x1f << 26) | (0x0 << 21) | (12 << 16) | ("#X" << 11) | ( "#Y"  << 6) | 0x3b\n\tmove %0,$12" : "=r" (ret) :: "$12"); \
+        return ret;                             \
+    }
 
 #endif
 
@@ -103,6 +118,10 @@ DEFINE_RDHWR_COUNTER_GETTER(cycle,2)
 DEFINE_RDHWR_COUNTER_GETTER(inst,4)
 DEFINE_RDHWR_COUNTER_GETTER(tlb_inst,5)
 DEFINE_RDHWR_COUNTER_GETTER(tlb_data,6)
+DEFINE_GET_STAT_COUNTER(l2cache_write_hit,10,0);
+DEFINE_GET_STAT_COUNTER(l2cache_write_miss,10,1);
+DEFINE_GET_STAT_COUNTER(l2cache_read_hit,10,2);
+DEFINE_GET_STAT_COUNTER(l2cache_read_miss,10,3);
 
 typedef void memcpy_t(__capability char *, __capability char *, size_t, void *data);
 
@@ -124,6 +143,10 @@ struct counters {
   int32_t cycles;
   int32_t instTLB;
   int32_t dataTLB;
+  int64_t l2whit;
+  int64_t l2wmiss;
+  int64_t l2rhit;
+  int64_t l2rmiss;
 };
 
 /*
@@ -258,6 +281,7 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability char *datain, size_t size, const char* name, uint reps, struct counters *samples, void *data)
 {
       int32_t cycles, cycles2, insts, insts2, instTLB, instTLB2, dataTLB, dataTLB2;
+      int64_t l2whit, l2whit2, l2wmiss, l2wmiss2, l2rhit, l2rhit2, l2rmiss, l2rmiss2;
       // Initialise arrays
       for (uint i=0; i < size; i++) 
 	{
@@ -267,21 +291,33 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 
       for (uint rep = 0; rep < reps; rep++) 
 	{
-	  cycles  = get_cycle_count();
-	  insts   = get_inst_count();
 	  instTLB = get_tlb_inst_count();
 	  dataTLB = get_tlb_data_count();
+      l2whit  = get_l2cache_write_hit_count();
+      l2wmiss = get_l2cache_write_miss_count();
+      l2rhit  = get_l2cache_read_hit_count();
+      l2rmiss = get_l2cache_read_miss_count();
+	  insts   = get_inst_count();
+	  cycles  = get_cycle_count();
 	  CHERI_START_TRACE;
 	  memcpy_func(dataout, datain, size, data);
 	  CHERI_STOP_TRACE;
 	  cycles2  = get_cycle_count();
 	  insts2   = get_inst_count();
-	  instTLB2 = get_tlb_inst_count();
+      l2rmiss2 = get_l2cache_read_miss_count();
+      l2rhit2  = get_l2cache_read_hit_count();
+      l2wmiss2 = get_l2cache_write_miss_count();
+      l2whit2  = get_l2cache_write_hit_count();
 	  dataTLB2 = get_tlb_data_count();
+	  instTLB2 = get_tlb_inst_count();
 	  samples[rep].cycles = cycles2 - cycles;
 	  samples[rep].insts  = insts2 - insts;
 	  samples[rep].instTLB = instTLB2 - instTLB;
 	  samples[rep].dataTLB = dataTLB2 - dataTLB;
+	  samples[rep].l2whit = l2whit2 - l2whit;
+	  samples[rep].l2wmiss = l2wmiss2 - l2wmiss;
+	  samples[rep].l2rhit = l2rhit2 - l2rhit;
+	  samples[rep].l2rmiss = l2rmiss2 - l2rmiss;
 	  for (uint i=0; i < size; i+=8)
 	    {
 	      assert(dataout[i] == (char) i);
@@ -305,6 +341,10 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
       dump_metric(insts);
       dump_metric(instTLB);
       dump_metric(dataTLB);
+      dump_metric(l2whit);
+      dump_metric(l2wmiss);
+      dump_metric(l2rhit);
+      dump_metric(l2rmiss);
       return 0;
 }
 
