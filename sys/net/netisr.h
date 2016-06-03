@@ -210,6 +210,10 @@ void	netisr_getqlimit(const struct netisr_handler *nhp, u_int *qlimitp);
 void	netisr_register(const struct netisr_handler *nhp);
 int	netisr_setqlimit(const struct netisr_handler *nhp, u_int qlimit);
 void	netisr_unregister(const struct netisr_handler *nhp);
+#ifdef VIMAGE
+void	netisr_register_vnet(const struct netisr_handler *nhp);
+void	netisr_unregister_vnet(const struct netisr_handler *nhp);
+#endif
 
 /*
  * Process a packet destined for a protocol, and attempt direct dispatch.
