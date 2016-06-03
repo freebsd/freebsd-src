@@ -118,15 +118,21 @@ CROSS_COMPILER_VERSION!= \
 # Everything matches, disable the bootstrap compiler.
 MK_CLANG_BOOTSTRAP=	no
 MK_GCC_BOOTSTRAP=	no
-CROSSENV+=	COMPILER_VERSION=${COMPILER_VERSION} \
-		COMPILER_TYPE=${COMPILER_TYPE} \
-		COMPILER_FREEBSD_VERSION=${COMPILER_FREEBSD_VERSION}
 .if make(buildworld)
 .info SYSTEM_COMPILER: Determined that CC=${CC} matches the source tree.  Not bootstrapping a cross-compiler.
 .endif
 .endif	# ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION}
 .endif	# ${_expected_compiler_type} == ${COMPILER_TYPE}
 .endif	# ${XCC:N${CCACHE_BIN}:M/*}
+
+# For installworld need to ensure that the looked-up compiler metadata is
+# passed along rather than trying to run cc from the restricted
+# STRICTTMPPATH.
+.if ${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no"
+CROSSENV+=	COMPILER_VERSION=${COMPILER_VERSION} \
+		COMPILER_TYPE=${COMPILER_TYPE} \
+		COMPILER_FREEBSD_VERSION=${COMPILER_FREEBSD_VERSION}
+.endif
 
 # Handle external binutils.
 .if defined(CROSS_TOOLCHAIN_PREFIX)
