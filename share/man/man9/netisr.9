@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2015
+.Dd June 3, 2016
 .Dt NETISR 9
 .Os
 .Sh NAME
@@ -61,6 +61,16 @@
 .Fn netisr_get_cpucount "void"
 .Ft u_int
 .Fn netisr_get_cpuid "u_int cpunumber"
+.Pp
+With optional virtual network stack support enabled via the following kernel
+compile option:
+.Bd -ragged -offset indent
+.Cd "options VIMAGE"
+.Ed
+.Ft void
+.Fn netisr_register_vnet "const struct netisr_handler *nhp"
+.Ft void
+.Fn netisr_unregister_vnet "const struct netisr_handler *nhp"
 .Sh DESCRIPTION
 The
 .Nm
@@ -79,6 +89,16 @@ and may also manage queue limits and statistics using the
 .Fn netisr_getqlimit ,
 and
 .Fn netisr_setqlimit .
+.Pp
+In case of VIMAGE kernels each virtual network stack (vnet), that is not the
+default base system network stack, calls
+.Fn netisr_register_vnet
+and
+.Fn netisr_unregister_vnet
+to enable or disable packet processing by the
+.Nm
+for each protocol.
+Disabling will also purge any outstanding packet from the protocol queue.
 .Pp
 .Nm
 supports multi-processor execution of handlers, and relies on a combination
