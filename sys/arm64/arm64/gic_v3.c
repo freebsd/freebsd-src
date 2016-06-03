@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
+static bus_read_ivar_t gic_v3_read_ivar;
+
 #ifdef INTRNG
 static pic_disable_intr_t gic_v3_disable_intr;
 static pic_enable_intr_t gic_v3_enable_intr;
@@ -100,6 +102,9 @@ static void gic_v3_ipi_send(device_t, cpuset_t, u_int);
 static device_method_t gic_v3_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_detach,	gic_v3_detach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_read_ivar,	gic_v3_read_ivar),
 
 #ifdef INTRNG
 	/* Interrupt controller interface */
@@ -177,6 +182,44 @@ static gic_v3_initseq_t gic_v3_secondary_init[] = {
 	gic_v3_cpu_init,
 	NULL
 };
+#endif
+
+#ifdef INTRNG
+uint32_t
+gic_r_read_4(device_t dev, bus_size_t offset)
+{
+	struct gic_v3_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (bus_read_4(sc->gic_redists.pcpu[PCPU_GET(cpuid)], offset));
+}
+
+uint64_t
+gic_r_read_8(device_t dev, bus_size_t offset)
+{
+	struct gic_v3_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (bus_read_8(sc->gic_redists.pcpu[PCPU_GET(cpuid)], offset));
+}
+
+void
+gic_r_write_4(device_t dev, bus_size_t offset, uint32_t val)
+{
+	struct gic_v3_softc *sc;
+
+	sc = device_get_softc(dev);
+	bus_write_4(sc->gic_redists.pcpu[PCPU_GET(cpuid)], offset, val);
+}
+
+void
+gic_r_write_8(device_t dev, bus_size_t offset, uint64_t val)
+{
+	struct gic_v3_softc *sc;
+
+	sc = device_get_softc(dev);
+	bus_write_8(sc->gic_redists.pcpu[PCPU_GET(cpuid)], offset, val);
+}
 #endif
 
 /*
@@ -327,17 +370,39 @@ gic_v3_detach(device_t dev)
 	return (0);
 }
 
+static int
+gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct gic_v3_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	switch (which) {
+	case GICV3_IVAR_NIRQS:
+		*result = sc->gic_nirqs;
+		return (0);
+	case GICV3_IVAR_REDIST_VADDR:
+		*result = (uintptr_t)rman_get_virtual(
+		    sc->gic_redists.pcpu[PCPU_GET(cpuid)]);
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
 #ifdef INTRNG
 int
 arm_gic_v3_intr(void *arg)
 {
 	struct gic_v3_softc *sc = arg;
 	struct gic_v3_irqsrc *gi;
+	struct intr_pic *pic;
 	uint64_t active_irq;
 	struct trapframe *tf;
 	bool first;
 
 	first = true;
+	pic = sc->gic_pic;
 
 	while (1) {
 		if (CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1) {
@@ -355,6 +420,11 @@ arm_gic_v3_intr(void *arg)
 			    : "=&r" (active_irq));
 		} else {
 			active_irq = gic_icc_read(IAR1);
+		}
+
+		if (active_irq >= GIC_FIRST_LPI) {
+			intr_child_irq_handler(pic, active_irq);
+			continue;
 		}
 
 		if (__predict_false(active_irq >= sc->gic_nirqs))
@@ -733,11 +803,12 @@ gic_v3_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 static void
 gic_v3_init_secondary(device_t dev)
 {
+	device_t child;
 	struct gic_v3_softc *sc;
 	gic_v3_initseq_t *init_func;
 	struct intr_irqsrc *isrc;
 	u_int cpu, irq;
-	int err;
+	int err, i;
 
 	sc = device_get_softc(dev);
 	cpu = PCPU_GET(cpuid);
@@ -765,6 +836,11 @@ gic_v3_init_secondary(device_t dev)
 		isrc = GIC_INTR_ISRC(sc, irq);
 		if (intr_isrc_init_on_cpu(isrc, cpu))
 			gic_v3_enable_intr(dev, isrc);
+	}
+
+	for (i = 0; i < sc->gic_nchildren; i++) {
+		child = sc->gic_children[i];
+		PIC_INIT_SECONDARY(child);
 	}
 }
 
