@@ -355,7 +355,7 @@ pause(const char *wmesg, int timo)
 	if (timo < 1)
 		timo = 1;
 
-	if (cold) {
+	if (cold || kdb_active || SCHEDULER_STOPPED()) {
 		/*
 		 * We delay one HZ at a time to avoid overflowing the
 		 * system specific DELAY() function(s):
