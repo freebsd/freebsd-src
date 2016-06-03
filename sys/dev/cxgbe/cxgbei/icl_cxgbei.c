@@ -850,7 +850,7 @@ icl_cxgbei_load(void)
 
 	refcount_init(&icl_cxgbei_ncons, 0);
 
-	error = icl_register("cxgbei", false, 100, icl_cxgbei_limits,
+	error = icl_register("cxgbei", false, -100, icl_cxgbei_limits,
 	    icl_cxgbei_new_conn);
 	KASSERT(error == 0, ("failed to register"));
 

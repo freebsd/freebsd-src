@@ -759,6 +759,22 @@ vm_page_trysbusy(vm_page_t m)
 	}
 }
 
+static void
+vm_page_xunbusy_maybelocked(vm_page_t m)
+{
+	bool lockacq;
+
+	vm_page_assert_xbusied(m);
+
+	lockacq = !mtx_owned(vm_page_lockptr(m));
+	if (lockacq)
+		vm_page_lock(m);
+	vm_page_flash(m);
+	atomic_store_rel_int(&m->busy_lock, VPB_UNBUSIED);
+	if (lockacq)
+		vm_page_unlock(m);
+}
+
 /*
  *	vm_page_xunbusy_hard:
  *
@@ -1096,8 +1112,6 @@ static int
 vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
     vm_page_t mpred)
 {
-	vm_pindex_t sidx;
-	vm_object_t sobj;
 	vm_page_t msucc;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
@@ -1118,8 +1132,6 @@ vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 	/*
 	 * Record the object/offset pair in this page
 	 */
-	sobj = m->object;
-	sidx = m->pindex;
 	m->object = object;
 	m->pindex = pindex;
 
@@ -1127,8 +1139,8 @@ vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 	 * Now link into the object's ordered list of backed pages.
 	 */
 	if (vm_radix_insert(&object->rtree, m)) {
-		m->object = sobj;
-		m->pindex = sidx;
+		m->object = NULL;
+		m->pindex = 0;
 		return (1);
 	}
 	vm_page_insert_radixdone(m, object, mpred);
@@ -1197,25 +1209,14 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
-	boolean_t lockacq;
 
 	if ((m->oflags & VPO_UNMANAGED) == 0)
-		vm_page_lock_assert(m, MA_OWNED);
+		vm_page_assert_locked(m);
 	if ((object = m->object) == NULL)
 		return;
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (vm_page_xbusied(m)) {
-		lockacq = FALSE;
-		if ((m->oflags & VPO_UNMANAGED) != 0 &&
-		    !mtx_owned(vm_page_lockptr(m))) {
-			lockacq = TRUE;
-			vm_page_lock(m);
-		}
-		vm_page_flash(m);
-		atomic_store_rel_int(&m->busy_lock, VPB_UNBUSIED);
-		if (lockacq)
-			vm_page_unlock(m);
-	}
+	if (vm_page_xbusied(m))
+		vm_page_xunbusy_maybelocked(m);
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -1340,7 +1341,7 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	TAILQ_REMOVE(&object->memq, mold, listq);
 
 	mold->object = NULL;
-	vm_page_xunbusy(mold);
+	vm_page_xunbusy_maybelocked(mold);
 
 	/*
 	 * The object's resident_page_count does not change because we have
@@ -1747,6 +1748,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			}
 			m->object = NULL;
 			m->oflags = VPO_UNMANAGED;
+			m->busy_lock = VPB_UNBUSIED;
 			vm_page_free(m);
 			return (NULL);
 		}
@@ -1948,6 +1950,7 @@ retry:
 						m->object = NULL;
 						m->oflags |= VPO_UNMANAGED;
 					}
+					m->busy_lock = VPB_UNBUSIED;
 					vm_page_free(m);
 				}
 				return (NULL);

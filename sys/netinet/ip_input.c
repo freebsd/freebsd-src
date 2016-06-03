@@ -331,6 +331,7 @@ ip_init(void)
 		    __func__);
 
 	/* Skip initialization of globals for non-default instances. */
+#ifdef VIMAGE
 	if (!IS_DEFAULT_VNET(curvnet)) {
 		netisr_register_vnet(&ip_nh);
 #ifdef	RSS
@@ -338,6 +339,7 @@ ip_init(void)
 #endif
 		return;
 	}
+#endif
 
 	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)

@@ -136,7 +136,7 @@ static void nd6_llinfo_settimer_locked(struct llentry *, long);
 static void clear_llinfo_pqueue(struct llentry *);
 static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int nd6_resolve_slow(struct ifnet *, int, struct mbuf *,
-    const struct sockaddr_in6 *, u_char *, uint32_t *);
+    const struct sockaddr_in6 *, u_char *, uint32_t *, struct llentry **);
 static int nd6_need_cache(struct ifnet *);
  
 
@@ -2187,7 +2187,8 @@ nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
  */
 int
 nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
-    const struct sockaddr *sa_dst, u_char *desten, uint32_t *pflags)
+    const struct sockaddr *sa_dst, u_char *desten, uint32_t *pflags,
+    struct llentry **plle)
 {
 	struct llentry *ln = NULL;
 	const struct sockaddr_in6 *dst6;
@@ -2239,7 +2240,7 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	}
 	IF_AFDATA_RUNLOCK(ifp);
 
-	return (nd6_resolve_slow(ifp, 0, m, dst6, desten, pflags));
+	return (nd6_resolve_slow(ifp, 0, m, dst6, desten, pflags, plle));
 }
 
 
@@ -2256,7 +2257,8 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
  */
 static __noinline int
 nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
-    const struct sockaddr_in6 *dst, u_char *desten, uint32_t *pflags)
+    const struct sockaddr_in6 *dst, u_char *desten, uint32_t *pflags,
+    struct llentry **plle)
 {
 	struct llentry *lle = NULL, *lle_tmp;
 	struct in6_addr *psrc, src;
@@ -2343,6 +2345,10 @@ nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
 		bcopy(lladdr, desten, ll_len);
 		if (pflags != NULL)
 			*pflags = lle->la_flags;
+		if (plle) {
+			LLE_ADDREF(lle);
+			*plle = lle;
+		}
 		LLE_WUNLOCK(lle);
 		return (0);
 	}
@@ -2417,7 +2423,7 @@ nd6_resolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
 
 	flags |= LLE_ADDRONLY;
 	error = nd6_resolve_slow(ifp, flags, NULL,
-	    (const struct sockaddr_in6 *)dst, desten, pflags);
+	    (const struct sockaddr_in6 *)dst, desten, pflags, NULL);
 	return (error);
 }
 

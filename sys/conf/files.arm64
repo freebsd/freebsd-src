@@ -26,6 +26,7 @@ arm64/arm64/dump_machdep.c	standard
 arm64/arm64/elf_machdep.c	standard
 arm64/arm64/exception.S		standard
 arm64/arm64/gic.c		optional	!intrng
+arm64/arm64/gicv3_its.c		optional	intrng
 arm64/arm64/gic_acpi.c		optional	!intrng acpi
 arm64/arm64/gic_fdt.c		optional	!intrng fdt
 arm64/arm64/gic_v3.c		standard

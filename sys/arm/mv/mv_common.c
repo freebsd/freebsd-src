@@ -2107,6 +2107,37 @@ moveon:
 		return (EINVAL);
 
 	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
+#ifdef SOC_MV_ARMADA38X
+	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(0);
+#else
+	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(1);
+#endif
+	cpu_win_tbl[t].base = sram_base;
+	cpu_win_tbl[t].size = sram_size;
+	cpu_win_tbl[t].remap = ~0;
+	cpu_wins_no++;
+	debugf("sram: base = 0x%0lx size = 0x%0lx\n", sram_base, sram_size);
+
+	/* Check if there is a second CESA node */
+	while ((node = OF_peer(node)) != 0) {
+		if (fdt_is_compatible(node, "mrvl,cesa-sram")) {
+			if (fdt_regsize(node, &sram_base, &sram_size) != 0)
+				return (EINVAL);
+			break;
+		}
+	}
+
+	if (node == 0)
+		return (0);
+
+	t++;
+	if (t >= ((sizeof(cpu_win_tbl))/(sizeof(cpu_win_tbl[0])))) {
+		debugf("cannot fit CESA tuple into cpu_win_tbl\n");
+		return (ENOMEM);
+	}
+
+	/* Configure window for CESA1 */
+	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
 	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(1);
 	cpu_win_tbl[t].base = sram_base;
 	cpu_win_tbl[t].size = sram_size;

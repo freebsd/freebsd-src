@@ -795,7 +795,6 @@ efx_mcdi_get_proxy_handle(
 	__in		efx_mcdi_req_t *emrp,
 	__out		uint32_t *handlep)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_rc_t rc;
 
 	/*

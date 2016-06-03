@@ -500,7 +500,8 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	if (ro == NULL) {
 		ro = &ip6route;
 		bzero((caddr_t)ro, sizeof(*ro));
-	}
+	} else
+		ro->ro_flags |= RT_LLE_CACHE;
 	ro_pmtu = ro;
 	if (opt && opt->ip6po_rthdr)
 		ro = &opt->ip6po_route;

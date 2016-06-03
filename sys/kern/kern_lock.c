@@ -787,8 +787,10 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			break;
 		}
 
-		while (!atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED,
-		    tid)) {
+		for (;;) {
+			if (lk->lk_lock == LK_UNLOCKED &&
+			    atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED, tid))
+				break;
 #ifdef HWPMC_HOOKS
 			PMC_SOFT_CALL( , , lock, failed);
 #endif
@@ -1124,7 +1126,11 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    __func__, iwmesg, file, line);
 		}
 
-		while (!atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED, tid)) {
+		for (;;) {
+			if (lk->lk_lock == LK_UNLOCKED &&
+			    atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED, tid))
+				break;
+
 #ifdef HWPMC_HOOKS
 			PMC_SOFT_CALL( , , lock, failed);
 #endif

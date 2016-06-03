@@ -227,6 +227,23 @@ medford_board_cfg(
 	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
 	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
+	/*
+	 * Enable firmware workarounds for hardware errata.
+	 * Expected responses are:
+	 *  - 0 (zero):
+	 *	Success: workaround enabled or disabled as requested.
+	 *  - MC_CMD_ERR_ENOSYS (reported as ENOTSUP):
+	 *	Firmware does not support the MC_CMD_WORKAROUND request.
+	 *	(assume that the workaround is not supported).
+	 *  - MC_CMD_ERR_ENOENT (reported as ENOENT):
+	 *	Firmware does not support the requested workaround.
+	 *  - MC_CMD_ERR_EPERM  (reported as EACCES):
+	 *	Unprivileged function cannot enable/disable workarounds.
+	 *
+	 * See efx_mcdi_request_errcode() for MCDI error translations.
+	 */
+
+
 	if (EFX_PCI_FUNCTION_IS_VF(encp)) {
 		/*
 		 * Interrupt testing does not work for VFs. See bug50084.
@@ -238,9 +255,23 @@ medford_board_cfg(
 	/* Chained multicast is always enabled on Medford */
 	encp->enc_bug26807_workaround = B_TRUE;
 
+	/*
+	 * If the bug61265 workaround is enabled, then interrupt holdoff timers
+	 * cannot be controlled by timer table writes, so MCDI must be used
+	 * (timer table writes can still be used for wakeup timers).
+	 */
+	rc = efx_mcdi_set_workaround(enp, MC_CMD_WORKAROUND_BUG61265, B_TRUE,
+	    NULL);
+	if ((rc == 0) || (rc == EACCES))
+		encp->enc_bug61265_workaround = B_TRUE;
+	else if ((rc == ENOTSUP) || (rc == ENOENT))
+		encp->enc_bug61265_workaround = B_FALSE;
+	else
+		goto fail8;
+
 	/* Get clock frequencies (in MHz). */
 	if ((rc = efx_mcdi_get_clock(enp, &sysclk, &dpcpu_clk)) != 0)
-		goto fail8;
+		goto fail9;
 
 	/*
 	 * The Medford timer quantum is 1536 dpcpu_clk cycles, documented for
@@ -252,14 +283,14 @@ medford_board_cfg(
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
-	    goto fail9;
+	    goto fail10;
 
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
 
 	/* Get the RX DMA end padding alignment configuration */
 	if ((rc = efx_mcdi_get_rxdp_config(enp, &end_padding)) != 0)
-		goto fail10;
+		goto fail11;
 	encp->enc_rx_buf_align_end = end_padding;
 
 	/* Alignment for WPTR updates */
@@ -288,13 +319,13 @@ medford_board_cfg(
 	 * can result in time-of-check/time-of-use bugs.
 	 */
 	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
-		goto fail11;
+		goto fail12;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
 	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
 		if (EFX_PCI_FUNCTION_IS_PF(encp))
-			goto fail12;
+			goto fail13;
 
 		/* Ignore error (cannot query vector limits from a VF). */
 		base = 0;
@@ -317,12 +348,14 @@ medford_board_cfg(
 
 	rc = medford_nic_get_required_pcie_bandwidth(enp, &bandwidth);
 	if (rc != 0)
-		goto fail13;
+		goto fail14;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN3;
 
 	return (0);
 
+fail14:
+	EFSYS_PROBE(fail14);
 fail13:
 	EFSYS_PROBE(fail13);
 fail12:

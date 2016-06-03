@@ -22,6 +22,7 @@ LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBAUDITD?=	${DESTDIR}${LIBDIR}/libauditd.a
 LIBAVL?=	${DESTDIR}${LIBDIR}/libavl.a
 LIBBEGEMOT?=	${DESTDIR}${LIBDIR}/libbegemot.a
+LIBBLACKLIST?=	${DESTDIR}${LIBDIR}/libblacklist.a
 LIBBLUETOOTH?=	${DESTDIR}${LIBDIR}/libbluetooth.a
 LIBBSDXML?=	${DESTDIR}${LIBDIR}/libbsdxml.a
 LIBBSM?=	${DESTDIR}${LIBDIR}/libbsm.a

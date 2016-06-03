@@ -35,8 +35,8 @@
 
 #if defined(_KERNEL)
 /*
- * When compiling OpenSolaris kernel code, this file is getting
- * included instead of FreeBSD one.  Pull the original sys/acl.h as well.
+ * When compiling OpenSolaris kernel code, this file is included instead of the
+ * FreeBSD one.  Include the original sys/acl.h as well.
  */
 #undef _SYS_ACL_H
 #include_next <sys/acl.h>

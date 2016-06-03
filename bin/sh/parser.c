@@ -2063,7 +2063,7 @@ getprompt(void *unused __unused)
 				 */
 			default:
 				ps[i] = '\\';
-				if (i < PROMPTLEN - 1)
+				if (i < PROMPTLEN - 2)
 					ps[++i] = *fmt;
 				break;
 			}

@@ -254,7 +254,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
+		error = arpresolve(ifp, is_gw, m, dst, edst, NULL, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		snap_type = ETHERTYPE_IP;
@@ -289,7 +289,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif	/* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL);
+		error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		snap_type = ETHERTYPE_IPV6;

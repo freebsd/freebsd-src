@@ -210,6 +210,7 @@ SYSCTL_UINT(_net_isr, OID_AUTO, maxprot, CTLFLAG_RD,
  */
 static struct netisr_proto	netisr_proto[NETISR_MAXPROT];
 
+#ifdef VIMAGE
 /*
  * The netisr_enable array describes a per-VNET flag for registered
  * protocols on whether this netisr is active in this VNET or not.
@@ -224,6 +225,7 @@ static struct netisr_proto	netisr_proto[NETISR_MAXPROT];
  */
 static VNET_DEFINE(u_int,	netisr_enable[NETISR_MAXPROT]);
 #define	V_netisr_enable		VNET(netisr_enable)
+#endif
 
 /*
  * Per-CPU workstream data.  See netisr_internal.h for more details.
@@ -678,9 +680,7 @@ netisr_register_vnet(const struct netisr_handler *nhp)
 	V_netisr_enable[proto] = 1;
 	NETISR_WUNLOCK();
 }
-#endif
 
-#ifdef VIMAGE
 static void
 netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
 {
@@ -688,9 +688,6 @@ netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
 	struct netisr_work *npwp;
 	struct mbuf *m, *mp, *n, *ne;
 	u_int i;
-#ifdef INVARIANTS
-	u_int b, k, f;
-#endif
 
 	KASSERT(vnet != NULL, ("%s: vnet is NULL", __func__));
 	NETISR_LOCK_ASSERT();
@@ -701,15 +698,11 @@ netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
 			continue;
 		npwp = &nwsp->nws_work[proto];
 		NWS_LOCK(nwsp);
-#ifdef INVARIANTS
-		b = npwp->nw_len;
-		k = f = 0;
-#endif
 
 		/*
 		 * Rather than dissecting and removing mbufs from the middle
 		 * of the chain, we build a new chain if the packet stays and
-		 * update the head and tial pointers at the end.  All packets
+		 * update the head and tail pointers at the end.  All packets
 		 * matching the given vnet are freed.
 		 */
 		m = npwp->nw_head;
@@ -725,25 +718,14 @@ netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
 					ne->m_nextpkt = mp;
 					ne = mp;
 				}
-#ifdef INVARIANTS
-				k++;
-#endif
 				continue;
 			}
 			/* This is a packet in the selected vnet. Free it. */
 			npwp->nw_len--;
-#ifdef INVARIANTS
-			f++;
-#endif
 			m_freem(mp);
 		}
 		npwp->nw_head = n;
 		npwp->nw_tail = ne;
-#ifdef INVARIANTS
-		KASSERT((k + f) == b, ("%s: b %u != k %u + f %u, nw_len %u "
-		    "vnet %p proto %u", __func__, b, k, f, npwp->nw_len,
-		    vnet, proto));
-#endif
 		NWS_UNLOCK(nwsp);
 	}
 }
@@ -1069,10 +1051,12 @@ netisr_queue_src(u_int proto, uintptr_t source, struct mbuf *m)
 	KASSERT(netisr_proto[proto].np_handler != NULL,
 	    ("%s: invalid proto %u", __func__, proto));
 
+#ifdef VIMAGE
 	if (V_netisr_enable[proto] == 0) {
 		m_freem(m);
 		return (ENOPROTOOPT);
 	}
+#endif
 
 	m = netisr_select_cpuid(&netisr_proto[proto], NETISR_DISPATCH_DEFERRED,
 	    source, m, &cpuid);
@@ -1120,10 +1104,12 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 	KASSERT(npp->np_handler != NULL, ("%s: invalid proto %u", __func__,
 	    proto));
 
+#ifdef VIMAGE
 	if (V_netisr_enable[proto] == 0) {
 		m_freem(m);
 		return (ENOPROTOOPT);
 	}
+#endif
 
 	dispatch_policy = netisr_get_dispatch(npp);
 	if (dispatch_policy == NETISR_DISPATCH_DEFERRED)

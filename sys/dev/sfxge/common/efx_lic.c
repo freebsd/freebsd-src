@@ -506,7 +506,7 @@ efx_lic_v1v2_find_key(
 
 	_NOTE(ARGUNUSED(enp))
 
-	if((size_t)buffer_size - offset < EFX_LICENSE_V1V2_HEADER_LENGTH)
+	if ((size_t)buffer_size - offset < EFX_LICENSE_V1V2_HEADER_LENGTH)
 		goto fail1;
 
 	tlv_type = __LE_TO_CPU_16(((uint16_t*)&bufferp[offset])[0]);
@@ -534,8 +534,6 @@ efx_lic_v1v2_validate_key(
 	__in			uint32_t length
 	)
 {
-	const efx_lic_ops_t *elop = enp->en_elop;
-	efx_rc_t rc;
 	uint16_t tlv_type;
 	uint16_t tlv_length;
 
@@ -548,7 +546,7 @@ efx_lic_v1v2_validate_key(
 	tlv_type = __LE_TO_CPU_16(((uint16_t*)keyp)[0]);
 	tlv_length = __LE_TO_CPU_16(((uint16_t*)keyp)[1]);
 
-	if(tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) {
+	if (tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) {
 		goto fail2;
 	}
 	if (tlv_type == 0) {
@@ -658,7 +656,6 @@ efx_lic_v1v2_delete_key(
 	__out			uint32_t *deltap
 	)
 {
-	efx_rc_t rc;
 	uint32_t move_start = offset + length;
 	uint32_t move_length = end - move_start;
 
@@ -1158,7 +1155,6 @@ efx_lic_v3_validate_key(
 	)
 {
 	// Check key is a valid V3 key
-	efx_rc_t rc;
 	uint8_t key_type;
 	uint8_t key_length;
 
@@ -1396,8 +1392,6 @@ efx_lic_check_support(
 efx_lic_fini(
 	__in			efx_nic_t *enp)
 {
-	const efx_lic_ops_t *elop = enp->en_elop;
-
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
@@ -1573,7 +1567,6 @@ efx_lic_find_key(
 	)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
-	boolean_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
@@ -1599,8 +1592,6 @@ efx_lic_validate_key(
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	boolean_t rc;
-	uint16_t tlv_type;
-	uint16_t tlv_length;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);

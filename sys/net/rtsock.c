@@ -199,12 +199,16 @@ vnet_rts_init(void)
 		if (TUNABLE_INT_FETCH("net.route.netisr_maxqlen", &tmp))
 			rtsock_nh.nh_qlimit = tmp;
 		netisr_register(&rtsock_nh);
-	} else
+	}
+#ifdef VIMAGE
+	 else
 		netisr_register_vnet(&rtsock_nh);
+#endif
 }
 VNET_SYSINIT(vnet_rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     vnet_rts_init, 0);
 
+#ifdef VIMAGE
 static void
 vnet_rts_uninit(void)
 {
@@ -213,6 +217,7 @@ vnet_rts_uninit(void)
 }
 VNET_SYSUNINIT(vnet_rts_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     vnet_rts_uninit, 0);
+#endif
 
 static int
 raw_input_rts_cb(struct mbuf *m, struct sockproto *proto, struct sockaddr *src,

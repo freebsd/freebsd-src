@@ -99,7 +99,7 @@ int	supmedia = 0;
 int	printkeys = 0;		/* Print keying material for interfaces. */
 
 /* Formatter Strings */
-char	*f_inet, *f_inet6, *f_ether, *f_addr, *f_scope;
+char	*f_inet, *f_inet6, *f_ether, *f_addr;
 
 static	int ifconfig(int argc, char *const *argv, int iscreate,
 		const struct afswtch *afp);
@@ -257,8 +257,6 @@ static void freeformat(void)
 		free(f_ether);
 	if (f_addr != NULL)
 		free(f_addr);
-	if (f_scope != NULL)
-		free(f_scope);
 }
 
 static void setformat(char *input)
@@ -286,8 +284,6 @@ static void setformat(char *input)
 			f_inet = strdup(modifier);
 		else if (strcmp(category, "inet6") == 0)
 			f_inet6 = strdup(modifier);
-		else if (strcmp(category, "scope") == 0)
-			f_scope = strdup(modifier);
 	}
 	free(formatstr);
 }
@@ -372,7 +368,7 @@ main(int argc, char *argv[])
 	size_t iflen;
 
 	all = downonly = uponly = namesonly = noload = verbose = 0;
-	f_inet = f_inet6 = f_ether = f_addr = f_scope = NULL;
+	f_inet = f_inet6 = f_ether = f_addr = NULL;
 
 	envformat = getenv("IFCONFIG_FORMAT");
 	if (envformat != NULL)

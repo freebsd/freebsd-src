@@ -163,6 +163,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_scan.h>
 
 #include <dev/iwm/if_iwm_pcie_trans.h>
+#include <dev/iwm/if_iwm_led.h>
 
 const uint8_t iwm_nvm_channels[] = {
 	/* 2.4 GHz */
@@ -224,6 +225,7 @@ static void	iwm_free_kw(struct iwm_softc *);
 static int	iwm_alloc_ict(struct iwm_softc *);
 static void	iwm_free_ict(struct iwm_softc *);
 static int	iwm_alloc_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
+static void	iwm_disable_rx_dma(struct iwm_softc *);
 static void	iwm_reset_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static void	iwm_free_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static int	iwm_alloc_tx_ring(struct iwm_softc *, struct iwm_tx_ring *,
@@ -263,7 +265,6 @@ static int	iwm_firmware_load_chunk(struct iwm_softc *, uint32_t,
                                         const uint8_t *, uint32_t);
 static int	iwm_load_firmware(struct iwm_softc *, enum iwm_ucode_type);
 static int	iwm_start_fw(struct iwm_softc *, enum iwm_ucode_type);
-static int	iwm_fw_alive(struct iwm_softc *, uint32_t);
 static int	iwm_send_tx_ant_cfg(struct iwm_softc *, uint8_t);
 static int	iwm_send_phy_cfg_cmd(struct iwm_softc *);
 static int	iwm_mvm_load_ucode_wait_alive(struct iwm_softc *,
@@ -880,7 +881,7 @@ fail:	iwm_free_rx_ring(sc, ring);
 }
 
 static void
-iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
+iwm_disable_rx_dma(struct iwm_softc *sc)
 {
 
 	/* XXX print out if we can't lock the NIC? */
@@ -889,6 +890,11 @@ iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 		(void) iwm_pcie_rx_stop(sc);
 		iwm_nic_unlock(sc);
 	}
+}
+
+static void
+iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
+{
 	/* Reset the ring state */
 	ring->cur = 0;
 	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
@@ -1151,6 +1157,7 @@ iwm_stop_device(struct iwm_softc *sc)
 		}
 		iwm_nic_unlock(sc);
 	}
+	iwm_disable_rx_dma(sc);
 
 	/* Stop RX ring. */
 	iwm_reset_rx_ring(sc, &sc->rxq);
@@ -1240,7 +1247,7 @@ iwm_nic_rx_init(struct iwm_softc *sc)
 	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 
 	/* stop DMA */
-	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	iwm_disable_rx_dma(sc);
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_RBDCB_WPTR, 0);
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_FLUSH_RB_REQ, 0);
 	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_RDPTR, 0);
@@ -1344,14 +1351,6 @@ iwm_nic_init(struct iwm_softc *sc)
 
 	return 0;
 }
-
-enum iwm_mvm_tx_fifo {
-	IWM_MVM_TX_FIFO_BK = 0,
-	IWM_MVM_TX_FIFO_BE,
-	IWM_MVM_TX_FIFO_VI,
-	IWM_MVM_TX_FIFO_VO,
-	IWM_MVM_TX_FIFO_MCAST = 5,
-};
 
 const uint8_t iwm_mvm_ac_to_tx_fifo[] = {
 	IWM_MVM_TX_FIFO_VO,
@@ -1765,21 +1764,11 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	data->radio_cfg_step = IWM_NVM_RF_CFG_STEP_MSK(radio_cfg);
 	data->radio_cfg_dash = IWM_NVM_RF_CFG_DASH_MSK(radio_cfg);
 	data->radio_cfg_pnum = IWM_NVM_RF_CFG_PNUM_MSK(radio_cfg);
-	data->valid_tx_ant = IWM_NVM_RF_CFG_TX_ANT_MSK(radio_cfg);
-	data->valid_rx_ant = IWM_NVM_RF_CFG_RX_ANT_MSK(radio_cfg);
 
 	sku = le16_to_cpup(nvm_sw + IWM_SKU);
 	data->sku_cap_band_24GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_24GHZ;
 	data->sku_cap_band_52GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_52GHZ;
 	data->sku_cap_11n_enable = 0;
-
-	if (!data->valid_tx_ant || !data->valid_rx_ant) {
-		device_printf(sc->sc_dev,
-		    "%s: invalid antennas (0x%x, 0x%x)\n",
-		    __func__, data->valid_tx_ant,
-		    data->valid_rx_ant);
-		return EINVAL;
-	}
 
 	data->n_hw_addrs = le16_to_cpup(nvm_sw + IWM_N_HW_ADDRS);
 
@@ -1997,12 +1986,6 @@ iwm_start_fw(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 }
 
 static int
-iwm_fw_alive(struct iwm_softc *sc, uint32_t sched_base)
-{
-	return iwm_post_alive(sc);
-}
-
-static int
 iwm_send_tx_ant_cfg(struct iwm_softc *sc, uint8_t valid_tx_ant)
 {
 	struct iwm_tx_ant_cfg_cmd tx_ant_cmd = {
@@ -2050,7 +2033,7 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 		return error;
 	}
 
-	return iwm_fw_alive(sc, sc->sched_base);
+	return iwm_post_alive(sc);
 }
 
 /*
@@ -2074,8 +2057,10 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 
 	sc->sc_init_complete = 0;
 	if ((error = iwm_mvm_load_ucode_wait_alive(sc,
-	    IWM_UCODE_TYPE_INIT)) != 0)
+	    IWM_UCODE_TYPE_INIT)) != 0) {
+		device_printf(sc->sc_dev, "failed to load init firmware\n");
 		return error;
+	}
 
 	if (justnvm) {
 		if ((error = iwm_nvm_init(sc)) != 0) {
@@ -3014,13 +2999,7 @@ iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
 static int
 iwm_mvm_add_sta(struct iwm_softc *sc, struct iwm_node *in)
 {
-	int ret;
-
-	ret = iwm_mvm_sta_send_to_fw(sc, in, 0);
-	if (ret)
-		return ret;
-
-	return 0;
+	return iwm_mvm_sta_send_to_fw(sc, in, 0);
 }
 
 static int
@@ -3515,6 +3494,10 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	    ieee80211_state_name[nstate]);
 	IEEE80211_UNLOCK(ic);
 	IWM_LOCK(sc);
+
+	if (vap->iv_state == IEEE80211_S_SCAN && nstate != vap->iv_state)
+		iwm_led_blink_stop(sc);
+
 	/* disable beacon filtering if we're hopping out of RUN */
 	if (vap->iv_state == IEEE80211_S_RUN && nstate != vap->iv_state) {
 		iwm_mvm_disable_beacon_filter(sc);
@@ -3637,7 +3620,8 @@ iwm_endscan_cb(void *arg, int pending)
 		done = 0;
 		if ((error = iwm_mvm_scan_request(sc,
 		    IEEE80211_CHAN_5GHZ, 0, NULL, 0)) != 0) {
-			device_printf(sc->sc_dev, "could not initiate scan\n");
+			device_printf(sc->sc_dev,
+			    "could not initiate 5 GHz scan\n");
 			done = 1;
 		}
 	} else {
@@ -3829,6 +3813,7 @@ iwm_stop(struct iwm_softc *sc)
 	sc->sc_flags |= IWM_FLAG_STOPPED;
 	sc->sc_generation++;
 	sc->sc_scanband = 0;
+	iwm_led_blink_stop(sc);
 	sc->sc_tx_timer = 0;
 	iwm_stop_device(sc);
 }
@@ -4600,6 +4585,7 @@ iwm_attach(device_t dev)
 	IWM_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 	callout_init_mtx(&sc->sc_watchdog_to, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->sc_led_blink_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
 	sc->sc_tq = taskqueue_create("iwm_taskq", M_WAITOK,
             taskqueue_thread_enqueue, &sc->sc_tq);
@@ -4876,16 +4862,27 @@ iwm_scan_start(struct ieee80211com *ic)
 	IWM_LOCK(sc);
 	error = iwm_mvm_scan_request(sc, IEEE80211_CHAN_2GHZ, 0, NULL, 0);
 	if (error) {
-		device_printf(sc->sc_dev, "could not initiate scan\n");
+		device_printf(sc->sc_dev, "could not initiate 2 GHz scan\n");
 		IWM_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
-	} else
+		sc->sc_scanband = 0;
+	} else {
+		iwm_led_blink_start(sc);
 		IWM_UNLOCK(sc);
+	}
 }
 
 static void
 iwm_scan_end(struct ieee80211com *ic)
 {
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK(sc);
+	iwm_led_blink_stop(sc);
+	if (vap->iv_state == IEEE80211_S_RUN)
+		iwm_mvm_led_enable(sc);
+	IWM_UNLOCK(sc);
 }
 
 static void
@@ -4982,6 +4979,7 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		taskqueue_drain_all(sc->sc_tq);
 		taskqueue_free(sc->sc_tq);
 	}
+	callout_drain(&sc->sc_led_blink_to);
 	callout_drain(&sc->sc_watchdog_to);
 	iwm_stop_device(sc);
 	if (do_net80211)

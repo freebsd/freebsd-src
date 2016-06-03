@@ -245,7 +245,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (ro == NULL) {
 		ro = &iproute;
 		bzero(ro, sizeof (*ro));
-	}
+	} else
+		ro->ro_flags |= RT_LLE_CACHE;
 
 #ifdef FLOWTABLE
 	if (ro->ro_rt == NULL)
@@ -311,6 +312,9 @@ again:
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
 		RTFREE(rte);
 		rte = ro->ro_rt = (struct rtentry *)NULL;
+		if (ro->ro_lle)
+			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+		ro->ro_lle = (struct llentry *)NULL;
 	}
 	ia = NULL;
 	have_ia_ref = 0;

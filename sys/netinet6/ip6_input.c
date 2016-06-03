@@ -218,6 +218,7 @@ ip6_init(void)
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
 	/* Skip global initialization stuff for non-default instances. */
+#ifdef VIMAGE
 	if (!IS_DEFAULT_VNET(curvnet)) {
 		netisr_register_vnet(&ip6_nh);
 #ifdef RSS
@@ -225,6 +226,7 @@ ip6_init(void)
 #endif
 		return;
 	}
+#endif
 
 	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
