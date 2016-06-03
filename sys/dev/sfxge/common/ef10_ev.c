@@ -87,6 +87,52 @@ ef10_ev_mcdi(
 
 
 static	__checkReturn	efx_rc_t
+efx_mcdi_set_evq_tmr(
+	__in		efx_nic_t *enp,
+	__in		uint32_t instance,
+	__in		uint32_t mode,
+	__in		uint32_t timer_ns)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_SET_EVQ_TMR_IN_LEN,
+			    MC_CMD_SET_EVQ_TMR_OUT_LEN)];
+	efx_rc_t rc;
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_SET_EVQ_TMR;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_SET_EVQ_TMR_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_SET_EVQ_TMR_OUT_LEN;
+
+	MCDI_IN_SET_DWORD(req, SET_EVQ_TMR_IN_INSTANCE, instance);
+	MCDI_IN_SET_DWORD(req, SET_EVQ_TMR_IN_TMR_LOAD_REQ_NS, timer_ns);
+	MCDI_IN_SET_DWORD(req, SET_EVQ_TMR_IN_TMR_RELOAD_REQ_NS, timer_ns);
+	MCDI_IN_SET_DWORD(req, SET_EVQ_TMR_IN_TMR_MODE, mode);
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used < MC_CMD_SET_EVQ_TMR_OUT_LEN) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+static	__checkReturn	efx_rc_t
 efx_mcdi_init_evq(
 	__in		efx_nic_t *enp,
 	__in		unsigned int instance,
@@ -437,8 +483,18 @@ ef10_ev_qmoderate(
 	efx_nic_t *enp = eep->ee_enp;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_dword_t dword;
-	uint32_t timer_val, mode;
+	uint32_t timer_ns, timer_val, mode;
 	efx_rc_t rc;
+
+	/* Check that hardware and MCDI use the same timer MODE values */
+	EFX_STATIC_ASSERT(FFE_CZ_TIMER_MODE_DIS ==
+	    MC_CMD_SET_EVQ_TMR_IN_TIMER_MODE_DIS);
+	EFX_STATIC_ASSERT(FFE_CZ_TIMER_MODE_IMMED_START ==
+	    MC_CMD_SET_EVQ_TMR_IN_TIMER_MODE_IMMED_START);
+	EFX_STATIC_ASSERT(FFE_CZ_TIMER_MODE_TRIG_START ==
+	    MC_CMD_SET_EVQ_TMR_IN_TIMER_MODE_TRIG_START);
+	EFX_STATIC_ASSERT(FFE_CZ_TIMER_MODE_INT_HLDOFF ==
+	    MC_CMD_SET_EVQ_TMR_IN_TIMER_MODE_INT_HLDOFF);
 
 	if (us > encp->enc_evq_timer_max_us) {
 		rc = EINVAL;
@@ -447,37 +503,46 @@ ef10_ev_qmoderate(
 
 	/* If the value is zero then disable the timer */
 	if (us == 0) {
-		timer_val = 0;
+		timer_ns = 0;
 		mode = FFE_CZ_TIMER_MODE_DIS;
 	} else {
+		timer_ns = us * 1000u;
+		mode = FFE_CZ_TIMER_MODE_INT_HLDOFF;
+	}
+
+	if (encp->enc_bug61265_workaround) {
+		rc = efx_mcdi_set_evq_tmr(enp, eep->ee_index, mode, timer_ns);
+		if (rc != 0)
+			goto fail2;
+	} else {
 		/* Calculate the timer value in quanta */
-		timer_val = us * 1000 / encp->enc_evq_timer_quantum_ns;
+		timer_val = timer_ns / encp->enc_evq_timer_quantum_ns;
 
 		/* Moderation value is base 0 so we need to deduct 1 */
 		if (timer_val > 0)
 			timer_val--;
 
-		mode = FFE_CZ_TIMER_MODE_INT_HLDOFF;
-	}
-
-	if (encp->enc_bug35388_workaround) {
-		EFX_POPULATE_DWORD_3(dword,
-		    ERF_DD_EVQ_IND_TIMER_FLAGS,
-		    EFE_DD_EVQ_IND_TIMER_FLAGS,
-		    ERF_DD_EVQ_IND_TIMER_MODE, mode,
-		    ERF_DD_EVQ_IND_TIMER_VAL, timer_val);
-		EFX_BAR_TBL_WRITED(enp, ER_DD_EVQ_INDIRECT,
-		    eep->ee_index, &dword, 0);
-	} else {
-		EFX_POPULATE_DWORD_2(dword,
-		    ERF_DZ_TC_TIMER_MODE, mode,
-		    ERF_DZ_TC_TIMER_VAL, timer_val);
-		EFX_BAR_TBL_WRITED(enp, ER_DZ_EVQ_TMR_REG,
-		    eep->ee_index, &dword, 0);
+		if (encp->enc_bug35388_workaround) {
+			EFX_POPULATE_DWORD_3(dword,
+			    ERF_DD_EVQ_IND_TIMER_FLAGS,
+			    EFE_DD_EVQ_IND_TIMER_FLAGS,
+			    ERF_DD_EVQ_IND_TIMER_MODE, mode,
+			    ERF_DD_EVQ_IND_TIMER_VAL, timer_val);
+			EFX_BAR_TBL_WRITED(enp, ER_DD_EVQ_INDIRECT,
+			    eep->ee_index, &dword, 0);
+		} else {
+			EFX_POPULATE_DWORD_2(dword,
+			    ERF_DZ_TC_TIMER_MODE, mode,
+			    ERF_DZ_TC_TIMER_VAL, timer_val);
+			EFX_BAR_TBL_WRITED(enp, ER_DZ_EVQ_TMR_REG,
+			    eep->ee_index, &dword, 0);
+		}
 	}
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
