@@ -507,6 +507,10 @@ struct mlx5e_sq {
 #define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
 #define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
 	struct callout cev_callout;
+	union {
+		u32	d32[2];
+		u64	d64;
+	} doorbell;
 	struct	mlx5e_sq_stats stats;
 
 	struct	mlx5e_cq cq;
@@ -754,8 +758,7 @@ int	mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
 void	mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 static inline void
-mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
-    struct mlx5e_tx_wqe *wqe, int bf_sz)
+mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
 {
 	u16 ofst = MLX5_BF_OFFSET + sq->bf_offset;
 
@@ -771,13 +774,13 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	wmb();
 
 	if (bf_sz) {
-		__iowrite64_copy(sq->uar_bf_map + ofst, &wqe->ctrl, bf_sz);
+		__iowrite64_copy(sq->uar_bf_map + ofst, wqe, bf_sz);
 
 		/* flush the write-combining mapped buffer */
 		wmb();
 
 	} else {
-		mlx5_write64((__be32 *)&wqe->ctrl, sq->uar_map + ofst, NULL);
+		mlx5_write64(wqe, sq->uar_map + ofst, NULL);
 	}
 
 	sq->bf_offset ^= sq->bf_buf_size;
@@ -797,7 +800,7 @@ void	mlx5e_create_ethtool(struct mlx5e_priv *);
 void	mlx5e_create_stats(struct sysctl_ctx_list *,
     struct sysctl_oid_list *, const char *,
     const char **, unsigned, u64 *);
-void	mlx5e_send_nop(struct mlx5e_sq *, u32, bool);
+void	mlx5e_send_nop(struct mlx5e_sq *, u32);
 void	mlx5e_sq_cev_timeout(void *);
 int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
 
