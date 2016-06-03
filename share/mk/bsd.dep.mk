@@ -246,7 +246,9 @@ DPSRCS+= ${SRCS}
 # beforedepend/_EXTRADEPEND/afterdepend.  The target is kept
 # to allow 'make depend' to generate files.
 ${DEPENDFILE}: ${DPSRCS}
-.if !empty(.MAKE.MODE:Mmeta) || exists(${.OBJDIR}/${DEPENDFILE})
+.if exists(${.OBJDIR}/${DEPENDFILE}) || \
+    ((commands(beforedepend) || commands(_EXTRADEPEND) || \
+    commands(afterdepend)) && !empty(.MAKE.MODE:Mmeta))
 	rm -f ${DEPENDFILE}
 .endif
 .if target(_EXTRADEPEND)
