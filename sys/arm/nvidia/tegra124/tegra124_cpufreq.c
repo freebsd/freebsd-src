@@ -214,8 +214,8 @@ TUNABLE_INT("hw.tegra124.cpufreq.lowest_freq", &cpufreq_lowest_freq);
 
 #define	DIV_ROUND_CLOSEST(val, div)	(((val) + ((div) / 2)) / (div))
 
-#define	ROUND_UP(val, div)	((((val) + ((div) - 1)) / (div)) * (div))
-#define	ROUND_DOWN(val, div)	(((val) / (div)) * (div))
+#define	ROUND_UP(val, div)	roundup(val, div)
+#define	ROUND_DOWN(val, div)	rounddown(val, div)
 
 /*
  * Compute requesetd voltage for given frequency and SoC process variations,
