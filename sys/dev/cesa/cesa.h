@@ -267,7 +267,7 @@ struct cesa_softc {
 
 	/* CESA SRAM Address */
 	bus_addr_t			sc_sram_base_pa;
-	bus_space_handle_t		sc_sram_base_va;
+	vm_offset_t			sc_sram_base_va;
 	bus_size_t			sc_sram_size;
 };
 
