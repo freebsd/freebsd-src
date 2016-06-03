@@ -331,8 +331,15 @@ ip_init(void)
 		    __func__);
 
 	/* Skip initialization of globals for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
+#ifdef VIMAGE
+	if (!IS_DEFAULT_VNET(curvnet)) {
+		netisr_register_vnet(&ip_nh);
+#ifdef	RSS
+		netisr_register_vnet(&ip_direct_nh);
+#endif
 		return;
+	}
+#endif
 
 	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
@@ -365,6 +372,11 @@ static void
 ip_destroy(void *unused __unused)
 {
 	int error;
+
+#ifdef	RSS
+	netisr_unregister_vnet(&ip_direct_nh);
+#endif
+	netisr_unregister_vnet(&ip_nh);
 
 	if ((error = pfil_head_unregister(&V_inet_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to unregister pfil hook, "

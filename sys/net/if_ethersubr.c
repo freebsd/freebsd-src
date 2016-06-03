@@ -702,12 +702,16 @@ vnet_ether_init(__unused void *arg)
 	if ((i = pfil_head_register(&V_link_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to register pfil link hook, "
 			"error %d\n", __func__, i);
+#ifdef VIMAGE
+	netisr_register_vnet(&ether_nh);
+#endif
 }
 VNET_SYSINIT(vnet_ether_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     vnet_ether_init, NULL);
  
+#ifdef VIMAGE
 static void
-vnet_ether_destroy(__unused void *arg)
+vnet_ether_pfil_destroy(__unused void *arg)
 {
 	int i;
 
@@ -715,8 +719,18 @@ vnet_ether_destroy(__unused void *arg)
 		printf("%s: WARNING: unable to unregister pfil link hook, "
 			"error %d\n", __func__, i);
 }
+VNET_SYSUNINIT(vnet_ether_pfil_uninit, SI_SUB_PROTO_PFIL, SI_ORDER_ANY,
+    vnet_ether_pfil_destroy, NULL);
+
+static void
+vnet_ether_destroy(__unused void *arg)
+{
+
+	netisr_unregister_vnet(&ether_nh);
+}
 VNET_SYSUNINIT(vnet_ether_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     vnet_ether_destroy, NULL);
+#endif
 
 
 
@@ -740,7 +754,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		 * so assert it is correct here.
 		 */
 		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+		CURVNET_SET_QUIET(ifp->if_vnet);
 		netisr_dispatch(NETISR_ETHER, m);
+		CURVNET_RESTORE();
 		m = mn;
 	}
 }

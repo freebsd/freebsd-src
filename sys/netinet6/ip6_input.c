@@ -217,8 +217,15 @@ ip6_init(void)
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
 	/* Skip global initialization stuff for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
+#ifdef VIMAGE
+	if (!IS_DEFAULT_VNET(curvnet)) {
+		netisr_register_vnet(&ip6_nh);
+#ifdef RSS
+		netisr_register_vnet(&ip6_direct_nh);
+#endif
 		return;
+	}
+#endif
 
 	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
@@ -309,6 +316,11 @@ static void
 ip6_destroy(void *unused __unused)
 {
 	int error;
+
+#ifdef RSS
+	netisr_unregister_vnet(&ip6_direct_nh);
+#endif
+	netisr_unregister_vnet(&ip6_nh);
 
 	if ((error = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to unregister pfil hook, "
