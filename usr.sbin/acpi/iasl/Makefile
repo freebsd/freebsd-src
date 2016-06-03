@@ -97,6 +97,7 @@ aslcompiler.y: ${PARSER}
 	    ${ACPICA_DIR}/compiler/aslparser.y > ${.TARGET}
 
 .ORDER: aslcompilerparse.c aslcompilerparse.h
+aslcompilerparse.h: .NOMETA
 aslcompilerparse.c aslcompilerparse.h: aslcompiler.y
 	${YACC} ${YFLAGS} -pAslCompiler -oaslcompilerparse.c ${.ALLSRC}
 
@@ -107,6 +108,7 @@ dtparserlex.c: dtparser.l
 	${LEX} ${LFLAGS} -PDtParser -o${.TARGET} ${.ALLSRC}
 
 .ORDER: dtparserparse.c dtparserparse.h
+dtparserparse.h: .NOMETA
 dtparserparse.c dtparserparse.h: dtparser.y
 	${YACC} ${YFLAGS} -pDtParser -odtparserparse.c ${.ALLSRC}
 
@@ -117,6 +119,7 @@ prparserlex.c: prparser.l
 	${LEX} ${LFLAGS} -PPrParser -o${.TARGET} ${.ALLSRC}
 
 .ORDER: prparserparse.c prparserparse.h
+prparserparse.h: .NOMETA
 prparserparse.c prparserparse.h: prparser.y
 	${YACC} ${YFLAGS} -pPrParser -oprparserparse.c ${.ALLSRC}
 

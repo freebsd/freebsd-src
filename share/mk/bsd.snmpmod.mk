@@ -11,6 +11,7 @@ ${MOD}_oid.h: ${MOD}_tree.def ${EXTRAMIBDEFS} ${EXTRAMIBSYMS}
 	cat ${.ALLSRC} | gensnmptree -e ${XSYM} > ${.TARGET}
 
 .ORDER: ${MOD}_tree.c ${MOD}_tree.h
+${MOD}_tree.h: .NOMETA
 ${MOD}_tree.c ${MOD}_tree.h: ${MOD}_tree.def ${EXTRAMIBDEFS}
 	cat ${.ALLSRC} | gensnmptree -p ${MOD}_
 

@@ -107,6 +107,7 @@ SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
 CLEANFILES+= ${_YC}
 .if !empty(YFLAGS:M-d) && !empty(SRCS:My.tab.h)
 .ORDER: ${_YC} y.tab.h
+y.tab.h: .NOMETA
 ${_YC} y.tab.h: ${_YSRC}
 	${YACC} ${YFLAGS} ${.ALLSRC}
 	cp y.tab.c ${_YC}
@@ -114,6 +115,7 @@ CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
 .ORDER: ${_YC} ${_YH}
+${_YH}: .NOMETA
 ${_YC} ${_YH}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 SRCS+=	${_YH}
