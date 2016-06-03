@@ -2131,7 +2131,7 @@ moveon:
 		return (0);
 
 	t++;
-	if (t >= ((sizeof(cpu_win_tbl))/(sizeof(cpu_win_tbl[0])))) {
+	if (t >= nitems(cpu_win_tbl)) {
 		debugf("cannot fit CESA tuple into cpu_win_tbl\n");
 		return (ENOMEM);
 	}
