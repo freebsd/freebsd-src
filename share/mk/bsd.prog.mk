@@ -99,7 +99,7 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 beforelinking: ${OBJS}
 ${PROG_FULL}: beforelinking
 .endif
-${PROG_FULL}: ${OBJS} ${OP_META}
+${PROG_FULL}: ${OBJS}
 .if defined(PROG_CXX)
 	${CXX:N${CCACHE_BIN}} ${CXXFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} \
 	    ${OBJS} ${LDADD}
@@ -131,7 +131,7 @@ OBJS+=	${PROG}.o
 beforelinking: ${OBJS}
 ${PROG_FULL}: beforelinking
 .endif
-${PROG_FULL}: ${OBJS} ${OP_META}
+${PROG_FULL}: ${OBJS}
 .if defined(PROG_CXX)
 	${CXX:N${CCACHE_BIN}} ${CXXFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} \
 	    ${OBJS} ${LDADD}
@@ -147,11 +147,11 @@ ${PROG_FULL}: ${OBJS} ${OP_META}
 .endif # !defined(SRCS)
 
 .if ${MK_DEBUG_FILES} != "no"
-${PROG}: ${PROG_FULL} ${PROGNAME}.debug ${OP_META}
+${PROG}: ${PROG_FULL} ${PROGNAME}.debug
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROGNAME}.debug \
 	    ${PROG_FULL} ${.TARGET}
 
-${PROGNAME}.debug: ${PROG_FULL} ${OP_META}
+${PROGNAME}.debug: ${PROG_FULL}
 	${OBJCOPY} --only-keep-debug ${PROG_FULL} ${.TARGET}
 .endif
 

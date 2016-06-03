@@ -86,18 +86,18 @@ DVIPS2ASCII?=	dvips2ascii
 
 .SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo .dvi .ps .latin1 .html
 
-.texi.info .texinfo.info: ${OP_META}
+.texi.info .texinfo.info:
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
 		-o ${.TARGET}
 
-.texi.dvi .texinfo.dvi: ${OP_META}
+.texi.dvi .texinfo.dvi:
 	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC} </dev/null
 # Run again to resolve cross references.
 	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC} </dev/null
 
-.texinfo.latin1 .texi.latin1: ${OP_META}
+.texinfo.latin1 .texi.latin1:
 	perl -npe 's/(^\s*\\input\s+texinfo\s+)/$$1\n@tex\n\\global\\hsize=120mm\n@end tex\n\n/' ${.IMPSRC} >> ${.IMPSRC:T:R}-la.texi
 	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
@@ -108,10 +108,10 @@ DVIPS2ASCII?=	dvips2ascii
 		${DVIPS2ASCII} > ${.TARGET}.new
 	mv -f ${.TARGET}.new ${.TARGET}
 
-.dvi.ps: ${OP_META}
+.dvi.ps:
 	${DVIPS} -o ${.TARGET} ${.IMPSRC}
 
-.info.html: ${OP_META}
+.info.html:
 	${INFO2HTML} ${.IMPSRC}
 	${INSTALL_LINK} ${.TARGET:R}.info.Top.html ${.TARGET}
 
@@ -133,7 +133,7 @@ all: ${IFILES}
 .endif
 
 .for x in ${IFILENS}
-${x:S/$/${ICOMPRESS_EXT}/}:	${x} ${OP_META}
+${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 	${ICOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 
@@ -158,7 +158,7 @@ ${x:S/$/-install/}:
 
 .if defined(SRCS)
 CLEANFILES+=	${INFO}.texi
-${INFO}.texi: ${SRCS} ${OP_META}
+${INFO}.texi: ${SRCS}
 	cat ${.ALLSRC} > ${.TARGET}
 .endif
 

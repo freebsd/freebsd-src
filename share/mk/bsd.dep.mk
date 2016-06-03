@@ -92,7 +92,7 @@ OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
 # Lexical analyzers
 .for _LSRC in ${SRCS:M*.l:N*/*}
 .for _LC in ${_LSRC:R}.c
-${_LC}: ${_LSRC} ${OP_META}
+${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
 OBJS_DEPEND_GUESS.${_LC:R}.o=	${_LC}
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
@@ -107,7 +107,6 @@ SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
 CLEANFILES+= ${_YC}
 .if !empty(YFLAGS:M-d) && !empty(SRCS:My.tab.h)
 .ORDER: ${_YC} y.tab.h
-${_YC}:	${OP_META}
 ${_YC} y.tab.h: ${_YSRC}
 	${YACC} ${YFLAGS} ${.ALLSRC}
 	cp y.tab.c ${_YC}
@@ -115,14 +114,13 @@ CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
 .ORDER: ${_YC} ${_YH}
-${_YC}:	${OP_META}
 ${_YC} ${_YH}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 SRCS+=	${_YH}
 CLEANFILES+= ${_YH}
 .endfor
 .else
-${_YC}: ${_YSRC} ${OP_META}
+${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
 OBJS_DEPEND_GUESS.${_YC:R}.o=	${_YC}
@@ -136,20 +134,20 @@ CFLAGS+=	-I${.OBJDIR}
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
 SRCS+=	${_D}.h
-${_D}.h: ${_DSRC} ${OP_META}
+${_D}.h: ${_DSRC}
 	${DTRACE} ${DTRACEFLAGS} -h -s ${.ALLSRC}
 SRCS:=	${SRCS:S/^${_DSRC}$//}
 OBJS+=	${_D}.o
 CLEANFILES+= ${_D}.h ${_D}.o
-${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//} ${OP_META}
+${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
 	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 .if defined(LIB)
 CLEANFILES+= ${_D}.So ${_D}.po
-${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//} ${OP_META}
+${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
 	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
-${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//} ${OP_META}
+${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
 	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 .endif
@@ -245,7 +243,7 @@ DPSRCS+= ${SRCS}
 # A .depend file will only be generated if there are commands in
 # beforedepend/_EXTRADEPEND/afterdepend.  The target is kept
 # to allow 'make depend' to generate files.
-${DEPENDFILE}: ${DPSRCS} ${OP_META}
+${DEPENDFILE}: ${DPSRCS}
 .if !empty(.MAKE.MODE:Mmeta) || exists(${.OBJDIR}/${DEPENDFILE})
 	rm -f ${DEPENDFILE}
 .endif
