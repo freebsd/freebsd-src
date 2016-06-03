@@ -170,10 +170,10 @@ int	reg	= 0;	/* 1 => return a REGEXPR now */
 int yylex(void)
 {
 	int c;
-	static char *buf = 0;
+	static char *buf = NULL;
 	static int bufsize = 5; /* BUG: setting this small causes core dump! */
 
-	if (buf == 0 && (buf = (char *) malloc(bufsize)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsize)) == NULL)
 		FATAL( "out of space in yylex" );
 	if (sc) {
 		sc = 0;
@@ -358,10 +358,10 @@ int string(void)
 {
 	int c, n;
 	char *s, *bp;
-	static char *buf = 0;
+	static char *buf = NULL;
 	static int bufsz = 500;
 
-	if (buf == 0 && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
 		FATAL("out of space for strings");
 	for (bp = buf; (c = input()) != '"'; ) {
 		if (!adjbuf(&buf, &bufsz, bp-buf+2, 500, &bp, "string"))
@@ -504,11 +504,11 @@ void startreg(void)	/* next call to yylex will return a regular expression */
 int regexpr(void)
 {
 	int c;
-	static char *buf = 0;
+	static char *buf = NULL;
 	static int bufsz = 500;
 	char *bp;
 
-	if (buf == 0 && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
 		FATAL("out of space for rex expr");
 	bp = buf;
 	for ( ; (c = input()) != '/' && c != 0; ) {
@@ -539,7 +539,7 @@ char	ebuf[300];
 char	*ep = ebuf;
 char	yysbuf[100];	/* pushback buffer */
 char	*yysptr = yysbuf;
-FILE	*yyin = 0;
+FILE	*yyin = NULL;
 
 int input(void)	/* get next lexical input character */
 {
