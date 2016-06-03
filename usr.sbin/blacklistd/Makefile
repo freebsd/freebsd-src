@@ -6,7 +6,7 @@ BLACKLIST_DIR=${SRCTOP}/contrib/blacklist
 PROG=	blacklistd
 SRCS=	blacklistd.c conf.c run.c state.c support.c internal.c \
 	sockaddr_snprintf.c pidfile.c strtoi.c popenve.c
-MAN=	blacklistd.8
+MAN=	blacklistd.8 blacklistd.conf.5
 
 LDFLAGS+=-L${LIBBLACKLISTDIR}
 LIBADD+= blacklist util
