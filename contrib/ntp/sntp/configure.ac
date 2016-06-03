@@ -143,6 +143,8 @@ NTP_UNITYBUILD
 AC_PROG_CXX
 NTP_GOOGLETEST
 
+SNTP_PROBLEM_TESTS
+
 # All libraries should be in various LIB_* variables now. 
 #LIBS=
 # Sadly not.  There is a gettext() check somewhere, and on Solaris this pulls

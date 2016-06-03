@@ -55,5 +55,6 @@ case "$ntp_ept:$cross:$host" in
 esac
 AC_MSG_RESULT([$ntp_test_ntp_signd])
 AM_CONDITIONAL([BUILD_TEST_NTP_SIGND], [test x$ntp_test_ntp_signd = xyes])
+
 ])
 dnl ======================================================================

@@ -126,8 +126,9 @@ am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
 	$(top_srcdir)/m4/ntp_ver_suffix.m4 \
 	$(top_srcdir)/m4/openldap-thread-check.m4 \
 	$(top_srcdir)/m4/openldap.m4 $(top_srcdir)/m4/os_cflags.m4 \
-	$(top_srcdir)/m4/snprintf.m4 $(top_srcdir)/m4/version.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/snprintf.m4 \
+	$(top_srcdir)/m4/sntp_problemtests.m4 \
+	$(top_srcdir)/m4/version.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(top_srcdir)/configure \

@@ -2971,12 +2971,16 @@ apply_enable_disable(
 			proto_config(PROTO_MONITOR, enable, 0., NULL);
 			break;
 
+		case T_Mode7:
+			proto_config(PROTO_MODE7, enable, 0., NULL);
+			break;
+
 		case T_Ntp:
 			proto_config(PROTO_NTP, enable, 0., NULL);
 			break;
 
-		case T_Mode7:
-			proto_config(PROTO_MODE7, enable, 0., NULL);
+		case T_PCEdigest:
+			proto_config(PROTO_PCEDIGEST, enable, 0., NULL);
 			break;
 
 		case T_Stats:

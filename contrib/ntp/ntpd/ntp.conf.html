@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p7 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p8 of <code>ntp.conf</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -167,8 +167,14 @@ in some weird and even destructive behavior.
   <p>If the Basic Socket Interface Extensions for IPv6 (RFC-2553)
 is detected, support for the IPv6 address family is generated
 in addition to the default support of the IPv4 address family. 
-In a few cases, including the reslist billboard generated
-by ntpdc, IPv6 addresses are automatically generated. 
+In a few cases, including the
+<code>reslist</code>
+billboard generated
+by
+<code>ntpq(1ntpqmdoc)</code>
+or
+<code>ntpdc(1ntpdcmdoc)</code>,
+IPv6 addresses are automatically generated. 
 IPv6 addresses can be identified by the presence of colons
 :
 in the address field. 
@@ -187,7 +193,7 @@ qualifier forces DNS resolution to the IPv6 namespace.
 See IPv6 references for the
 equivalent classes for that address family.
      <dl>
-<dt><code>pool</code> <kbd>address</kbd> <code>[burst]</code> <code>[iburst]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[maxpoll </code><kbd>maxpoll</kbd><code>]</code><br><dt><code>server</code> <kbd>address</kbd> <code>[key </code><kbd>key</kbd> <kbd>|</kbd><code> autokey]</code> <code>[burst]</code> <code>[iburst]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[maxpoll </code><kbd>maxpoll</kbd><code>]</code><br><dt><code>peer</code> <kbd>address</kbd> <code>[key </code><kbd>key</kbd> <kbd>|</kbd><code> autokey]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[maxpoll </code><kbd>maxpoll</kbd><code>]</code><br><dt><code>broadcast</code> <kbd>address</kbd> <code>[key </code><kbd>key</kbd> <kbd>|</kbd><code> autokey]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[ttl </code><kbd>ttl</kbd><code>]</code><br><dt><code>manycastclient</code> <kbd>address</kbd> <code>[key </code><kbd>key</kbd> <kbd>|</kbd><code> autokey]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[maxpoll </code><kbd>maxpoll</kbd><code>]</code> <code>[ttl </code><kbd>ttl</kbd><code>]</code><dd></dl>
+<dt><code>pool</code> <kbd>address</kbd> <code>[burst]</code> <code>[iburst]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[maxpoll </code><kbd>maxpoll</kbd><code>]</code><br><dt><code>server</code> <kbd>address</kbd> <code>[key </code><kbd>key</kbd> <kbd>|</kbd><code> autokey]</code> <code>[burst]</code> <code>[iburst]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[maxpoll </code><kbd>maxpoll</kbd><code>]</code> <code>[true]</code><br><dt><code>peer</code> <kbd>address</kbd> <code>[key </code><kbd>key</kbd> <kbd>|</kbd><code> autokey]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[maxpoll </code><kbd>maxpoll</kbd><code>]</code> <code>[true]</code> <code>[xleave]</code><br><dt><code>broadcast</code> <kbd>address</kbd> <code>[key </code><kbd>key</kbd> <kbd>|</kbd><code> autokey]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[ttl </code><kbd>ttl</kbd><code>]</code> <code>[xleave]</code><br><dt><code>manycastclient</code> <kbd>address</kbd> <code>[key </code><kbd>key</kbd> <kbd>|</kbd><code> autokey]</code> <code>[version </code><kbd>version</kbd><code>]</code> <code>[prefer]</code> <code>[minpoll </code><kbd>minpoll</kbd><code>]</code> <code>[maxpoll </code><kbd>maxpoll</kbd><code>]</code> <code>[ttl </code><kbd>ttl</kbd><code>]</code><dd></dl>
 
   <p>These five commands specify the time server name or address to
 be used and the mode in which to operate. 
@@ -341,6 +347,7 @@ option to a lower limit of 4 (16 s).
 The server is discarded by the selection algroithm. 
 <br><dt><code>preempt</code><dd>Says the association can be preempted. 
 <br><dt><code>true</code><dd>Marks the server as a truechimer. 
+Use this option only for testing. 
 <br><dt><code>prefer</code><dd>Marks the server as preferred. 
 All other things being equal,
 this host will be chosen for synchronization among a set of
@@ -352,6 +359,10 @@ page
 provided in
 <span class="file">/usr/share/doc/ntp</span>)
 for further information. 
+<br><dt><code>true</code><dd>Forces the association to always survive the selection and clustering algorithms. 
+This option should almost certainly
+<em>only</em>
+be used while testing an association. 
 <br><dt><code>ttl</code> <kbd>ttl</kbd><dd>This option is used only with broadcast server and manycast
 client modes. 
 It specifies the time-to-live
@@ -523,7 +534,7 @@ and
 commands and also by remote
 configuration commands sent by a
 <code>ntpdc(1ntpdcmdoc)</code>
-program running in
+program running on
 another machine. 
 If this flag is enabled, which is the default
 case, new broadcast client and symmetric passive associations and
@@ -709,7 +720,7 @@ using the host name, network address and public keys,
 all of which are bound together by the protocol specifically
 to deflect masquerade attacks. 
 For this reason Autokey
-includes the source and destinatino IP addresses in message digest
+includes the source and destination IP addresses in message digest
 computations and so the same addresses must be available
 at both the server and client. 
 For this reason operation
@@ -895,8 +906,8 @@ This overrides
 the link
 <span class="file">ntpkey_key_</span><kbd>hostname</kbd>
 in the keys directory. 
-<br><dt><code>iffpar</code> <kbd>file</kbd><dd>Specifies the location of the optional IFF parameters file.This
-overrides the link
+<br><dt><code>iffpar</code> <kbd>file</kbd><dd>Specifies the location of the optional IFF parameters file. 
+This overrides the link
 <span class="file">ntpkey_iff_</span><kbd>hostname</kbd>
 in the keys directory. 
 <br><dt><code>leap</code> <kbd>file</kbd><dd>Specifies the location of the optional leapsecond file. 
@@ -904,8 +915,7 @@ This overrides the link
 <span class="file">ntpkey_leap</span>
 in the keys directory. 
 <br><dt><code>mvpar</code> <kbd>file</kbd><dd>Specifies the location of the optional MV parameters file. 
-This
-overrides the link
+This overrides the link
 <span class="file">ntpkey_mv_</span><kbd>hostname</kbd>
 in the keys directory. 
 <br><dt><code>pw</code> <kbd>password</kbd><dd>Specifies the password to decrypt files containing private keys and
@@ -1033,7 +1043,7 @@ supported.
 Statistic files are managed using file generation sets
 and scripts in the
 <span class="file">./scripts</span>
-directory of this distribution. 
+directory of the source code distribution. 
 Using
 these facilities and
 <span class="sc">unix</span>
@@ -1331,7 +1341,9 @@ When there is already a file with this name and
 the number of links of this file is one, it is renamed appending a
 dot, the letter
 <code>C</code>,
-and the pid of the ntpd server process. 
+and the pid of the
+<code>ntpd(1ntpdmdoc)</code>
+server process. 
 When the
 number of links is greater than one, the file is unlinked. 
 This
@@ -1392,9 +1404,9 @@ at abusive rates.
 Some violations cause denied service
 only for the offending packet, others cause denied service
 for a timed period and others cause the denied service for
-an indefinate period. 
+an indefinite period. 
 When a client or network is denied access
-for an indefinate period, the only way at present to remove
+for an indefinite period, the only way at present to remove
 the restrictions is by restarting the server.
 
 <h5 class="subsubsection">The Kiss-of-Death Packet</h5>
@@ -1560,7 +1572,9 @@ and
 queries. 
 <br><dt><code>notrap</code><dd>Decline to provide mode 6 control message trap service to matching
 hosts. 
-The trap service is a subsystem of the ntpdq control message
+The trap service is a subsystem of the
+<code>ntpq(1ntpqmdoc)</code>
+control message
 protocol which is intended for use by remote event logging programs. 
 <br><dt><code>notrust</code><dd>Deny service unless the packet is cryptographically authenticated. 
 <br><dt><code>ntpport</code><dd>This is actually a match algorithm modifier, rather than a
@@ -2309,8 +2323,9 @@ must have write permission for the directory the
 drift file is located in, and that file system links, symbolic or
 otherwise, should be avoided. 
 <br><dt><code>dscp</code> <kbd>value</kbd><dd>This option specifies the Differentiated Services Control Point (DSCP) value,
-a 6-bit code.  The default value is 46, signifying Expedited Forwarding. 
-<br><dt><code>enable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</code><br><dt><code>disable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</code><dd>Provides a way to enable or disable various server options. 
+a 6-bit code. 
+The default value is 46, signifying Expedited Forwarding. 
+<br><dt><code>enable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | peer_clear_digest_early | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</code><br><dt><code>disable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | peer_clear_digest_early | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</code><dd>Provides a way to enable or disable various server options. 
 Flags not mentioned are unaffected. 
 Note that all of these flags
 can be controlled remotely using the
@@ -2366,6 +2381,25 @@ In effect, this switch opens and
 closes the feedback loop, which is useful for testing. 
 The default for
 this flag is
+<code>enable</code>. 
+<br><dt><code>peer_clear_digest_early</code><dd>By default, if
+<code>ntpd(1ntpdmdoc)</code>
+is using autokey and it
+receives a crypto-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the peer variables are immediately cleared. 
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto-NAK packet
+can be used in a DoS attack. 
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option. 
+You can check your
+<code>peerstats</code>
+file for evidence of any of these attacks. 
+The
+default for this flag is
 <code>enable</code>. 
 <br><dt><code>stats</code><dd>Enables the statistics facility. 
 See the
@@ -2502,7 +2536,8 @@ A
 message class may also be followed by the
 <code>all</code>
 keyword to enable/disable all
-messages of the respective message class.Thus, a minimal log configuration
+messages of the respective message class. 
+Thus, a minimal log configuration
 could look like this:
 <pre class="verbatim">     
      logconfig =syncstatus +sysevents
@@ -2641,7 +2676,8 @@ The default is 32 megabytes on non-Linux machines, and -1 under Linux.
 <code>mlockall()</code>
 function. 
 Defaults to 50 4k pages (200 4k pages in OpenBSD). 
-<br><dt><code>filenum</code> <kbd>Nfiledescriptors</kbd><dd>Specifies the maximum number of file descriptors ntpd may have open at once. Defaults to the system default. 
+<br><dt><code>filenum</code> <kbd>Nfiledescriptors</kbd><dd>Specifies the maximum number of file descriptors ntpd may have open at once. 
+Defaults to the system default. 
 </dl>
      <br><dt><code>trap</code> <kbd>host_address</kbd> <code>[port </code><kbd>port_number</kbd><code>]</code> <code>[interface </code><kbd>interface_address</kbd><code>]</code><dd>This command configures a trap receiver at the given host
 address and port number for sending messages with the specified

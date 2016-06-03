@@ -1,7 +1,7 @@
 run_ag=		cd $(srcdir) &&	env PATH="$(abs_builddir):$(PATH)" AUTOGEN_DNE_DATE=-D	\
 		autogen -L ../sntp/include -L ../sntp/ag-tpl
 
-noinst_SCRIPTS = mkver
+noinst_SCRIPTS = genAuthors mkver
 
 NULL=
 EXTRA_DIST =			\

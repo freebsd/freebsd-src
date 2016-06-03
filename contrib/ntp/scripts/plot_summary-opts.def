@@ -62,7 +62,7 @@ flag = {
         This is string is passed directly to the @code{gnuplot set terminal}
         command.  Default is @code{x11} if @code{DISPLAY} is set and
         @code{dumb} is it's not'. See output from @code(gnuplot -e "set
-        terminal") for the list of avalaible options.
+        terminal") for the list of available options.
 	_EndOfDoc_;
 };
 
