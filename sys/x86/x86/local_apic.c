@@ -511,7 +511,7 @@ native_lapic_init(vm_paddr_t addr)
 	}
 
 #ifdef SMP
-#define	LOOPS	1000000
+#define	LOOPS	100000
 	/*
 	 * Calibrate the busy loop waiting for IPI ack in xAPIC mode.
 	 * lapic_ipi_wait_mult contains the number of iterations which
