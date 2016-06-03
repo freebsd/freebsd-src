@@ -1109,12 +1109,10 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 	struct gic_irqsrc *gi = (struct gic_irqsrc *)isrc;
-	u_int irq;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 
 	if ((gi->gi_flags & GI_FLAG_MSI) == GI_FLAG_MSI) {
-		irq = gi->gi_irq;
 		pol = gi->gi_pol;
 		trig = gi->gi_trig;
 		KASSERT(pol == INTR_POLARITY_HIGH,
@@ -1122,14 +1120,13 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		KASSERT(trig == INTR_TRIGGER_EDGE,
 		    ("%s: MSI interrupts must be edge triggered", __func__));
 	} else if (data != NULL) {
-		/* Get config for resource. */
-		if (gic_map_intr(dev, data, &irq, &pol, &trig))
-			return (EINVAL);
+		u_int irq;
 
-		if (gi->gi_irq != irq)
+		/* Get config for resource. */
+		if (gic_map_intr(dev, data, &irq, &pol, &trig) ||
+		    gi->gi_irq != irq)
 			return (EINVAL);
 	} else {
-		irq = gi->gi_irq;
 		pol = INTR_POLARITY_CONFORM;
 		trig = INTR_TRIGGER_CONFORM;
 	}
