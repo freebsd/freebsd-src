@@ -210,6 +210,23 @@ SYSCTL_UINT(_net_isr, OID_AUTO, maxprot, CTLFLAG_RD,
  */
 static struct netisr_proto	netisr_proto[NETISR_MAXPROT];
 
+#ifdef VIMAGE
+/*
+ * The netisr_enable array describes a per-VNET flag for registered
+ * protocols on whether this netisr is active in this VNET or not.
+ * netisr_register() will automatically enable the netisr for the
+ * default VNET and all currently active instances.
+ * netisr_unregister() will disable all active VNETs, including vnet0.
+ * Individual network stack instances can be enabled/disabled by the
+ * netisr_(un)register _vnet() functions.
+ * With this we keep the one netisr_proto per protocol but add a
+ * mechanism to stop netisr processing for vnet teardown.
+ * Apart from that we expect a VNET to always be enabled.
+ */
+static VNET_DEFINE(u_int,	netisr_enable[NETISR_MAXPROT]);
+#define	V_netisr_enable		VNET(netisr_enable)
+#endif
+
 /*
  * Per-CPU workstream data.  See netisr_internal.h for more details.
  */
@@ -352,6 +369,7 @@ sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS)
 void
 netisr_register(const struct netisr_handler *nhp)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct netisr_work *npwp;
 	const char *name;
 	u_int i, proto;
@@ -420,6 +438,22 @@ netisr_register(const struct netisr_handler *nhp)
 		bzero(npwp, sizeof(*npwp));
 		npwp->nw_qlimit = netisr_proto[proto].np_qlimit;
 	}
+
+#ifdef VIMAGE
+	/*
+	 * Test that we are in vnet0 and have a curvnet set.
+	 */
+	KASSERT(curvnet != NULL, ("%s: curvnet is NULL", __func__));
+	KASSERT(IS_DEFAULT_VNET(curvnet), ("%s: curvnet %p is not vnet0 %p",
+	    __func__, curvnet, vnet0));
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		V_netisr_enable[proto] = 1;
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
+#endif
 	NETISR_WUNLOCK();
 }
 
@@ -584,6 +618,7 @@ netisr_drain_proto(struct netisr_work *npwp)
 void
 netisr_unregister(const struct netisr_handler *nhp)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct netisr_work *npwp;
 #ifdef INVARIANTS
 	const char *name;
@@ -602,6 +637,16 @@ netisr_unregister(const struct netisr_handler *nhp)
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    name));
 
+#ifdef VIMAGE
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		V_netisr_enable[proto] = 0;
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
+#endif
+
 	netisr_proto[proto].np_name = NULL;
 	netisr_proto[proto].np_handler = NULL;
 	netisr_proto[proto].np_m2flow = NULL;
@@ -615,6 +660,97 @@ netisr_unregister(const struct netisr_handler *nhp)
 	}
 	NETISR_WUNLOCK();
 }
+
+#ifdef VIMAGE
+void
+netisr_register_vnet(const struct netisr_handler *nhp)
+{
+	u_int proto;
+
+	proto = nhp->nh_proto;
+
+	KASSERT(curvnet != NULL, ("%s: curvnet is NULL", __func__));
+	KASSERT(proto < NETISR_MAXPROT,
+	    ("%s(%u): protocol too big for %s", __func__, proto, nhp->nh_name));
+	NETISR_WLOCK();
+	KASSERT(netisr_proto[proto].np_handler != NULL,
+	    ("%s(%u): protocol not registered for %s", __func__, proto,
+	    nhp->nh_name));
+	
+	V_netisr_enable[proto] = 1;
+	NETISR_WUNLOCK();
+}
+
+static void
+netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
+{
+	struct netisr_workstream *nwsp;
+	struct netisr_work *npwp;
+	struct mbuf *m, *mp, *n, *ne;
+	u_int i;
+
+	KASSERT(vnet != NULL, ("%s: vnet is NULL", __func__));
+	NETISR_LOCK_ASSERT();
+
+	CPU_FOREACH(i) {
+		nwsp = DPCPU_ID_PTR(i, nws);
+		if (nwsp->nws_intr_event == NULL)
+			continue;
+		npwp = &nwsp->nws_work[proto];
+		NWS_LOCK(nwsp);
+
+		/*
+		 * Rather than dissecting and removing mbufs from the middle
+		 * of the chain, we build a new chain if the packet stays and
+		 * update the head and tail pointers at the end.  All packets
+		 * matching the given vnet are freed.
+		 */
+		m = npwp->nw_head;
+		n = ne = NULL;
+		while (m != NULL) {
+			mp = m;
+			m = m->m_nextpkt;
+			mp->m_nextpkt = NULL;
+			if (mp->m_pkthdr.rcvif->if_vnet != vnet) {
+				if (n == NULL) {
+					n = ne = mp;
+				} else {
+					ne->m_nextpkt = mp;
+					ne = mp;
+				}
+				continue;
+			}
+			/* This is a packet in the selected vnet. Free it. */
+			npwp->nw_len--;
+			m_freem(mp);
+		}
+		npwp->nw_head = n;
+		npwp->nw_tail = ne;
+		NWS_UNLOCK(nwsp);
+	}
+}
+
+void
+netisr_unregister_vnet(const struct netisr_handler *nhp)
+{
+	u_int proto;
+
+	proto = nhp->nh_proto;
+
+	KASSERT(curvnet != NULL, ("%s: curvnet is NULL", __func__));
+	KASSERT(proto < NETISR_MAXPROT,
+	    ("%s(%u): protocol too big for %s", __func__, proto, nhp->nh_name));
+	NETISR_WLOCK();
+	KASSERT(netisr_proto[proto].np_handler != NULL,
+	    ("%s(%u): protocol not registered for %s", __func__, proto,
+	    nhp->nh_name));
+	
+	V_netisr_enable[proto] = 0;
+
+	netisr_drain_proto_vnet(curvnet, proto);
+	NETISR_WUNLOCK();
+}
+#endif
 
 /*
  * Compose the global and per-protocol policies on dispatch, and return the
@@ -906,6 +1042,13 @@ netisr_queue_src(u_int proto, uintptr_t source, struct mbuf *m)
 	KASSERT(netisr_proto[proto].np_handler != NULL,
 	    ("%s: invalid proto %u", __func__, proto));
 
+#ifdef VIMAGE
+	if (V_netisr_enable[proto] == 0) {
+		m_freem(m);
+		return (ENOPROTOOPT);
+	}
+#endif
+
 	m = netisr_select_cpuid(&netisr_proto[proto], NETISR_DISPATCH_DEFERRED,
 	    source, m, &cpuid);
 	if (m != NULL) {
@@ -951,6 +1094,13 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 	npp = &netisr_proto[proto];
 	KASSERT(npp->np_handler != NULL, ("%s: invalid proto %u", __func__,
 	    proto));
+
+#ifdef VIMAGE
+	if (V_netisr_enable[proto] == 0) {
+		m_freem(m);
+		return (ENOPROTOOPT);
+	}
+#endif
 
 	dispatch_policy = netisr_get_dispatch(npp);
 	if (dispatch_policy == NETISR_DISPATCH_DEFERRED)
