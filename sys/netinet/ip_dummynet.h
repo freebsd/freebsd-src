@@ -104,6 +104,7 @@ enum {	/* user flags */
 	DN_HAS_PROFILE	= 0x0010,	/* a link has a profile */
 	DN_IS_RED	= 0x0020,
 	DN_IS_GENTLE_RED= 0x0040,
+	DN_IS_ECN	= 0x0080,
 	DN_PIPE_CMD	= 0x1000,	/* pipe config... */
 };
 
