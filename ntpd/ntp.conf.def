@@ -2442,6 +2442,7 @@ The default value is 46, signifying Expedited Forwarding.
 .Cm calibrate | Cm kernel |
 .Cm mode7 | Cm monitor |
 .Cm ntp | Cm stats |
+.Cm peer_clear_digest_early |
 .Cm unpeer_crypto_early | Cm unpeer_crypto_nak_early | Cm unpeer_digest_early
 .Oc
 .Xc
@@ -2451,6 +2452,7 @@ The default value is 46, signifying Expedited Forwarding.
 .Cm calibrate | Cm kernel |
 .Cm mode7 | Cm monitor |
 .Cm ntp | Cm stats |
+.Cm peer_clear_digest_early |
 .Cm unpeer_crypto_early | Cm unpeer_crypto_nak_early | Cm unpeer_digest_early
 .Oc
 .Xc
@@ -2517,6 +2519,26 @@ In effect, this switch opens and
 closes the feedback loop, which is useful for testing.
 The default for
 this flag is
+.Ic enable .
+.It Cm peer_clear_digest_early
+By default, if
+.Xr ntpd 1ntpdmdoc
+is using autokey and it
+receives a crypto-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the peer variables are immediately cleared.
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto-NAK packet
+can be used in a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+.Cm peerstats
+file for evidence of any of these attacks.
+The
+default for this flag is
 .Ic enable .
 .It Cm stats
 Enables the statistics facility.

@@ -381,6 +381,10 @@ typedef int ssize_t;	/* ssize is an int */
 #define HAVE_SIZE_T             1     
 #define HAVE_PTRDIFF_T  		1
 
+#if defined(_MSC_VER) && _MSC_VER >= 1900
+#define HAVE_WINT_T				1
+#endif
+
 # define SIZEOF_SIGNED_CHAR	1
 # define SIZEOF_SHORT		2
 # define SIZEOF_INT		4

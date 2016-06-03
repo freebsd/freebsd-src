@@ -1,0 +1,556 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{2cbfaff6-f124-4847-a42e-8fcda8f2ccde}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{7c80ca48-41d3-4140-9f66-d1f9b0819935}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl</Extensions>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{ee743a49-b45f-4111-99c1-b763c58855eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{b8223a11-17dc-43a1-8a4d-71cb38696349}</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
+    </Filter>
+    <Filter Include="Reference Clock">
+      <UniqueIdentifier>{42cb2adf-a7f2-44fa-bac2-4e7123023aab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Parse Lib">
+      <UniqueIdentifier>{46c3cccd-994c-4611-982a-cc7e02e0bb60}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\ntpd\cmd_args.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ntpd\nt_clockstuff.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_config.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_control.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_crypto.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_filegen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_io.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ntpd\ntp_iocompletionport.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_leapsec.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_loopfilter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_monitor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_parser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_peer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_proto.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_refclock.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_request.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_restrict.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_scanner.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_signd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_timer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntp_util.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntpd-opts.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntpd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\ntpsim.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ntpd\ntservice.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ntpd\hopf_PCI_io.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_acts.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_arbiter.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_arc.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_as2201.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_atom.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_bancomm.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_chronolog.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_chu.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_conf.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_datum.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_dumbclock.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_fg.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_gpsvme.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_heath.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_hopfpci.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_hopfser.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_hpgps.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_irig.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_jjy.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_jupiter.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_leitch.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_local.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_msfees.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_mx4200.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_neoclock4x.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_nmea.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_oncore.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_palisade.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_parse.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_pcf.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_pst.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_ripencc.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_shm.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_tpro.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_true.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_tsyncpci.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_tt560.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_ulink.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_wwv.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_wwvb.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_zyfer.c">
+      <Filter>Reference Clock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\binio.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_computime.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_dcf7000.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_hopf6021.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_meinberg.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_rawdcf.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_rcc8000.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_schmid.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_trimtaip.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_trimtsip.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_varitext.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\clk_wharton.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\data_mbg.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\gpstolfp.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\ieee754io.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\info_trimble.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\mfp_mul.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\parse.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\parse_conf.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libparse\trim_info.c">
+      <Filter>Parse Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="version.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\rc_cmdlength.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ntpd\ntp_iocplmem.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ntpd\ntp_iocpltypes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\include\ascii.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\assertions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\binio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\boolean.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\clockstuff.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\ntpd\declcond.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\hopf_PCI_io.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ieee754io.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\arpa\inet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\interfaceiter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\iosignal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\ipv6.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\ntpd\jupiter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\l_stdlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\mbg_gps166.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\netaddr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_assert.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_calendar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_cmdargs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_control.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_filegen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_fp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_if.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_io.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ntp_iocompletionport.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\ntpd\ntp_keyword.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\ntpd\ntp_leapsec.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_libopts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_lists.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_machine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_malloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_net.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_proto.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_refclock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_request.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_rfc2553.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\ntpd\ntp_scanner.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_select.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_stdlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_string.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_syslog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ntp_timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_tty.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_unixtime.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_worker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntp_workimpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\ntpd\ntpd-opts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntpd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\ntpsim.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ntservice.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\sntp\libopts\autoopts\options.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sys\param.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\recvbuff.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\ntpd\refclock_palisade.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\result.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\syslog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\termios.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\timepps.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\timespecops.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\timevalops.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sys\wait.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\win32_io.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\win32os.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\socket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\platform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\offset.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\netdb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\net.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\int.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ntp_iocplmem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ntp_iocpltypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\libntp\messages.rc">
+      <Filter>Generated Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\libntp\MSG00001.bin">
+      <Filter>Generated Files</Filter>
+    </None>
+    <None Include="..\libntp\messages.mc">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\..\ntpd\ntp_parser.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\..\..\packageinfo.sh" />
+  </ItemGroup>
+</Project>

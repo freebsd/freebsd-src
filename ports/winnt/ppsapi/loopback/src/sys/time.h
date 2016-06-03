@@ -10,9 +10,11 @@
 #include <windows.h>
 #include <time.h>
 
+#if defined(_MSC_VER) && _MSC_VER < 1900
 typedef struct timespec {
 	time_t	tv_sec;
 	long	tv_nsec;
 } timespec_t;
+#endif
 
 #endif /* SYS_TIME_H */

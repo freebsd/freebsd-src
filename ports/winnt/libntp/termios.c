@@ -39,6 +39,7 @@ common_serial_open(
 	size_t		prev_c_hnds;
 	size_t		opens;
 	const char *	pch;
+	u_int		uibuf;
 
 	/*
 	 * This is odd, but we'll take any unix device path
@@ -77,9 +78,8 @@ common_serial_open(
 		return INVALID_HANDLE_VALUE;
 	}
 
-	if (1 != sscanf(pch, "%d", &unit) 
-	    || unit > MAX_SERIAL
-	    || unit < 0) {
+	if (1 != sscanf(pch, "%u", &uibuf) 
+	    || (unit = uibuf) > MAX_SERIAL) {
 		TRACE(1, ("sscanf failure of %s\n", pch));
 		return INVALID_HANDLE_VALUE;
 	}

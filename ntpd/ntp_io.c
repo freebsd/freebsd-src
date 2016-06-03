@@ -3285,15 +3285,6 @@ fetch_timestamp(
 	)
 {
 	struct cmsghdr *	cmsghdr;
-#ifdef HAVE_BINTIME
-	struct bintime *	btp;
-#endif
-#ifdef HAVE_TIMESTAMPNS
-	struct timespec *	tsp;
-#endif
-#ifdef HAVE_TIMESTAMP
-	struct timeval *	tvp;
-#endif
 	unsigned long		ticks;
 	double			fuzz;
 	l_fp			lfpfuzz;
@@ -3320,49 +3311,58 @@ fetch_timestamp(
 			{
 #ifdef HAVE_BINTIME
 			case SCM_BINTIME:
-				btp = (struct bintime *)CMSG_DATA(cmsghdr);
-				/*
-				 * bintime documentation is at http://phk.freebsd.dk/pubs/timecounter.pdf
-				 */
-				nts.l_i = btp->sec + JAN_1970;
-				nts.l_uf = (u_int32)(btp->frac >> 32);
-				if (sys_tick > measured_tick &&
-				    sys_tick > 1e-9) {
-					ticks = (unsigned long)(nts.l_uf / (unsigned long)(sys_tick * FRAC));
-					nts.l_uf = (unsigned long)(ticks * (unsigned long)(sys_tick * FRAC));
+				{
+					struct bintime	pbt;
+					memcpy(&pbt, CMSG_DATA(cmsghdr), sizeof(pbt));
+					/*
+					 * bintime documentation is at http://phk.freebsd.dk/pubs/timecounter.pdf
+					 */
+					nts.l_i = pbt.sec + JAN_1970;
+					nts.l_uf = (u_int32)(pbt.frac >> 32);
+					if (sys_tick > measured_tick &&
+					    sys_tick > 1e-9) {
+						ticks = (unsigned long)(nts.l_uf / (unsigned long)(sys_tick * FRAC));
+						nts.l_uf = (unsigned long)(ticks * (unsigned long)(sys_tick * FRAC));
+					}
+					DPRINTF(4, ("fetch_timestamp: system bintime network time stamp: %ld.%09lu\n",
+						    pbt.sec, (unsigned long)((nts.l_uf / FRAC) * 1e9)));
 				}
-                                DPRINTF(4, ("fetch_timestamp: system bintime network time stamp: %ld.%09lu\n",
-                                            btp->sec, (unsigned long)((nts.l_uf / FRAC) * 1e9)));
 				break;
 #endif  /* HAVE_BINTIME */
 #ifdef HAVE_TIMESTAMPNS
 			case SCM_TIMESTAMPNS:
-				tsp = UA_PTR(struct timespec, CMSG_DATA(cmsghdr));
-				if (sys_tick > measured_tick &&
-				    sys_tick > 1e-9) {
-					ticks = (unsigned long)((tsp->tv_nsec * 1e-9) /
-						       sys_tick);
-					tsp->tv_nsec = (long)(ticks * 1e9 *
-							      sys_tick);
+				{
+					struct timespec	pts;
+					memcpy(&pts, CMSG_DATA(cmsghdr), sizeof(pts));
+					if (sys_tick > measured_tick &&
+					    sys_tick > 1e-9) {
+						ticks = (unsigned long)((pts.tv_nsec * 1e-9) /
+									sys_tick);
+						pts.tv_nsec = (long)(ticks * 1e9 *
+								     sys_tick);
+					}
+					DPRINTF(4, ("fetch_timestamp: system nsec network time stamp: %ld.%09ld\n",
+						    pts.tv_sec, pts.tv_nsec));
+					nts = tspec_stamp_to_lfp(pts);
 				}
-				DPRINTF(4, ("fetch_timestamp: system nsec network time stamp: %ld.%09ld\n",
-					    tsp->tv_sec, tsp->tv_nsec));
-				nts = tspec_stamp_to_lfp(*tsp);
 				break;
 #endif	/* HAVE_TIMESTAMPNS */
 #ifdef HAVE_TIMESTAMP
 			case SCM_TIMESTAMP:
-				tvp = (struct timeval *)CMSG_DATA(cmsghdr);
-				if (sys_tick > measured_tick &&
-				    sys_tick > 1e-6) {
-					ticks = (unsigned long)((tvp->tv_usec * 1e-6) /
-						       sys_tick);
-					tvp->tv_usec = (long)(ticks * 1e6 *
-							      sys_tick);
+				{
+					struct timeval	ptv;
+					memcpy(&ptv, CMSG_DATA(cmsghdr), sizeof(ptv));
+					if (sys_tick > measured_tick &&
+					    sys_tick > 1e-6) {
+						ticks = (unsigned long)((ptv.tv_usec * 1e-6) /
+									sys_tick);
+						ptv.tv_usec = (long)(ticks * 1e6 *
+								    sys_tick);
+					}
+					DPRINTF(4, ("fetch_timestamp: system usec network time stamp: %jd.%06ld\n",
+						    (intmax_t)ptv.tv_sec, (long)ptv.tv_usec));
+					nts = tval_stamp_to_lfp(ptv);
 				}
-				DPRINTF(4, ("fetch_timestamp: system usec network time stamp: %jd.%06ld\n",
-					    (intmax_t)tvp->tv_sec, (long)tvp->tv_usec));
-				nts = tval_stamp_to_lfp(*tvp);
 				break;
 #endif  /* HAVE_TIMESTAMP */
 			}
