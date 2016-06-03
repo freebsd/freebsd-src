@@ -74,12 +74,15 @@ typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
 #else
 typedef int intr_irq_filter_t(void *arg);
 #endif
+typedef int intr_child_irq_filter_t(void *arg, uintptr_t irq);
 
 #define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
 
 #define INTR_ISRCF_IPI		0x01	/* IPI interrupt */
 #define INTR_ISRCF_PPI		0x02	/* PPI interrupt */
 #define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
+
+struct intr_pic;
 
 /* Interrupt source definition. */
 struct intr_irqsrc {
@@ -113,6 +116,8 @@ u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 struct intr_pic *intr_pic_register(device_t, intptr_t);
 int intr_pic_deregister(device_t, intptr_t);
 int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *, u_int);
+struct intr_pic *intr_pic_add_handler(device_t, struct intr_pic *,
+    intr_child_irq_filter_t *, void *, uintptr_t, uintptr_t);
 
 extern device_t intr_irq_root_dev;
 
@@ -127,6 +132,7 @@ int intr_setup_irq(device_t, struct resource *, driver_filter_t, driver_intr_t,
 int intr_teardown_irq(device_t, struct resource *, void *);
 
 int intr_describe_irq(device_t, struct resource *, void *, const char *);
+int intr_child_irq_handler(struct intr_pic *, uintptr_t);
 
 /* MSI/MSI-X handling */
 int intr_msi_register(device_t, intptr_t);
