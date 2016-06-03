@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 
 static struct resource_spec imx6_anatop_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
 #define	MEMRES	0
@@ -637,11 +636,20 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 static void
 intr_setup(void *arg)
 {
+	int rid;
 	struct imx6_anatop_softc *sc;
 
 	sc = arg;
-	bus_setup_intr(sc->dev, sc->res[IRQRES], INTR_TYPE_MISC | INTR_MPSAFE,
-	    tempmon_intr, NULL, sc, &sc->temp_intrhand);
+	rid = 0;
+	sc->res[IRQRES] = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
+	if (sc->res[IRQRES] != NULL) {
+		bus_setup_intr(sc->dev, sc->res[IRQRES],
+		    INTR_TYPE_MISC | INTR_MPSAFE, tempmon_intr, NULL, sc,
+		    &sc->temp_intrhand);
+	} else {
+		device_printf(sc->dev, "Cannot allocate IRQ resource\n");
+	}
 	config_intrhook_disestablish(&sc->intr_setup_hook);
 }
 
