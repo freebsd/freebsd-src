@@ -98,6 +98,15 @@ static intr_irq_filter_t *irq_root_filter;
 static void *irq_root_arg;
 static u_int irq_root_ipicount;
 
+struct intr_pic_child {
+	SLIST_ENTRY(intr_pic_child)	 pc_next;
+	struct intr_pic			*pc_pic;
+	intr_child_irq_filter_t		*pc_filter;
+	void				*pc_filter_arg;
+	uintptr_t			 pc_start;
+	uintptr_t			 pc_length;
+};
+
 /* Interrupt controller definition. */
 struct intr_pic {
 	SLIST_ENTRY(intr_pic)	pic_next;
@@ -106,6 +115,8 @@ struct intr_pic {
 #define	FLAG_PIC	(1 << 0)
 #define	FLAG_MSI	(1 << 1)
 	u_int			pic_flags;
+	struct mtx		pic_child_lock;
+	SLIST_HEAD(, intr_pic_child) pic_children;
 };
 
 static struct mtx pic_list_lock;
@@ -321,6 +332,29 @@ intr_irq_handler(struct trapframe *tf)
 	    (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
 		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
 #endif
+}
+
+int
+intr_child_irq_handler(struct intr_pic *parent, uintptr_t irq)
+{
+	struct intr_pic_child *child;
+	bool found;
+
+	found = false;
+	mtx_lock_spin(&parent->pic_child_lock);
+	SLIST_FOREACH(child, &parent->pic_children, pc_next) {
+		if (child->pc_start <= irq &&
+		    irq < (child->pc_start + child->pc_length)) {
+			found = true;
+			break;
+		}
+	}
+	mtx_unlock_spin(&parent->pic_child_lock);
+
+	if (found)
+		return (child->pc_filter(child->pc_filter_arg, irq));
+
+	return (FILTER_STRAY);
 }
 
 /*
@@ -892,6 +926,7 @@ pic_create(device_t dev, intptr_t xref)
 	}
 	pic->pic_xref = xref;
 	pic->pic_dev = dev;
+	mtx_init(&pic->pic_child_lock, "pic child lock", NULL, MTX_SPIN);
 	SLIST_INSERT_HEAD(&pic_list, pic, pic_next);
 	mtx_unlock(&pic_list_lock);
 
@@ -999,6 +1034,44 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 
 	debugf("irq root set to %s\n", device_get_nameunit(dev));
 	return (0);
+}
+
+/*
+ * Add a handler to manage a sub range of a parents interrupts.
+ */
+struct intr_pic *
+intr_pic_add_handler(device_t parent, struct intr_pic *pic,
+    intr_child_irq_filter_t *filter, void *arg, uintptr_t start,
+    uintptr_t length)
+{
+	struct intr_pic *parent_pic;
+	struct intr_pic_child *newchild;
+#ifdef INVARIANTS
+	struct intr_pic_child *child;
+#endif
+
+	parent_pic = pic_lookup(parent, 0);
+	if (parent_pic == NULL)
+		return (NULL);
+
+	newchild = malloc(sizeof(*newchild), M_INTRNG, M_WAITOK | M_ZERO);
+	newchild->pc_pic = pic;
+	newchild->pc_filter = filter;
+	newchild->pc_filter_arg = arg;
+	newchild->pc_start = start;
+	newchild->pc_length = length;
+
+	mtx_lock_spin(&parent_pic->pic_child_lock);
+#ifdef INVARIANTS
+	SLIST_FOREACH(child, &parent_pic->pic_children, pc_next) {
+		KASSERT(child->pc_pic != pic, ("%s: Adding a child PIC twice",
+		    __func__));
+	}
+#endif
+	SLIST_INSERT_HEAD(&parent_pic->pic_children, newchild, pc_next);
+	mtx_unlock_spin(&parent_pic->pic_child_lock);
+
+	return (pic);
 }
 
 int
