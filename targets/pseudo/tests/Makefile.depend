@@ -283,6 +283,7 @@ DIRDEPS= \
 	usr.bin/bmake/tests/variables/modifier_t \
 	usr.bin/bmake/tests/variables/opt_V \
 	usr.bin/bmake/tests/variables/t0 \
+	usr.bin/bsdcat/tests \
 	usr.bin/calendar/tests \
 	usr.bin/cmp/tests \
 	usr.bin/col/tests \
