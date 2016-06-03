@@ -422,7 +422,7 @@ hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
 			}
 		}
 
-		if (j > linebuflen - 1)
+		if (j > linebuflen - 4)
 			break;
 
 		sprintf(linebuf + j, "%02X", c);
