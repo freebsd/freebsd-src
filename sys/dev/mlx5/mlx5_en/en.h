@@ -393,6 +393,8 @@ struct mlx5e_params {
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
+  m(+1, u64 tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
+  m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
   m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled")
 
@@ -498,6 +500,13 @@ struct mlx5e_sq {
 	/* dirtied @xmit */
 	u16	pc __aligned(MLX5E_CACHELINE_SIZE);
 	u16	bf_offset;
+	u16	cev_counter;		/* completion event counter */
+	u16	cev_factor;		/* completion event factor */
+	u32	cev_next_state;		/* next completion event state */
+#define	MLX5E_CEV_STATE_INITIAL 0	/* timer not started */
+#define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
+#define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
+	struct callout cev_callout;
 	struct	mlx5e_sq_stats stats;
 
 	struct	mlx5e_cq cq;
@@ -789,6 +798,7 @@ void	mlx5e_create_stats(struct sysctl_ctx_list *,
     struct sysctl_oid_list *, const char *,
     const char **, unsigned, u64 *);
 void	mlx5e_send_nop(struct mlx5e_sq *, u32, bool);
+void	mlx5e_sq_cev_timeout(void *);
 int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
 
 #endif					/* _MLX5_EN_H_ */
