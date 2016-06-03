@@ -174,7 +174,7 @@ void freesymtab(Cell *ap)	/* free a symbol table */
 			free(cp); 
 			tp->nelem--;
 		}
-		tp->tab[i] = 0;
+		tp->tab[i] = NULL;
 	}
 	if (tp->nelem != 0)
 		WARNING("can't happen: inconsistent element count freeing %s", ap->nval);
