@@ -802,6 +802,9 @@ struct xbb_softc {
 
 	/** How many times we have run out of request structures */
 	uint64_t		  request_shortages;
+
+	/** Watch to wait for hotplug script execution */
+	struct xs_watch		  hotplug_watch;
 };
 
 /*---------------------------- Request Processing ----------------------------*/
@@ -3306,7 +3309,7 @@ xbb_connect(struct xbb_softc *xbb)
 {
 	int error;
 
-	if (xenbus_get_state(xbb->dev) == XenbusStateConnected)
+	if (xenbus_get_state(xbb->dev) != XenbusStateInitialised)
 		return;
 
 	if (xbb_collect_frontend_info(xbb) != 0)
@@ -3402,6 +3405,12 @@ xbb_shutdown(struct xbb_softc *xbb)
 
 	xbb->flags |= XBBF_IN_SHUTDOWN;
 	mtx_unlock(&xbb->lock);
+
+	if (xbb->hotplug_watch.node != NULL) {
+		xs_unregister_watch(&xbb->hotplug_watch);
+		free(xbb->hotplug_watch.node, M_XENBLOCKBACK);
+		xbb->hotplug_watch.node = NULL;
+	}
 
 	if (xenbus_get_state(xbb->dev) < XenbusStateClosing)
 		xenbus_set_state(xbb->dev, XenbusStateClosing);
@@ -3583,6 +3592,107 @@ xbb_setup_sysctl(struct xbb_softc *xbb)
 		        "communication channel pages (negotiated)");
 }
 
+static void
+xbb_attach_disk(struct xs_watch *watch, const char **vec, unsigned int len)
+{
+	device_t		 dev;
+	struct xbb_softc	*xbb;
+	int			 error;
+
+	dev = (device_t) watch->callback_data;
+	xbb = device_get_softc(dev);
+
+	error = xs_gather(XST_NIL, xenbus_get_node(dev), "physical-device-path",
+	    NULL, &xbb->dev_name, NULL);
+	if (error != 0)
+		return;
+
+	xs_unregister_watch(watch);
+	free(watch->node, M_XENBLOCKBACK);
+	watch->node = NULL;
+
+	/* Collect physical device information. */
+	error = xs_gather(XST_NIL, xenbus_get_otherend_path(xbb->dev),
+			  "device-type", NULL, &xbb->dev_type,
+			  NULL);
+	if (error != 0)
+		xbb->dev_type = NULL;
+
+	error = xs_gather(XST_NIL, xenbus_get_node(dev),
+                          "mode", NULL, &xbb->dev_mode,
+                          NULL);
+	if (error != 0) {
+		xbb_attach_failed(xbb, error, "reading backend fields at %s",
+				  xenbus_get_node(dev));
+                return;
+        }
+
+	/* Parse fopen style mode flags. */
+	if (strchr(xbb->dev_mode, 'w') == NULL)
+		xbb->flags |= XBBF_READ_ONLY;
+
+	/*
+	 * Verify the physical device is present and can support
+	 * the desired I/O mode.
+	 */
+	error = xbb_open_backend(xbb);
+	if (error != 0) {
+		xbb_attach_failed(xbb, error, "Unable to open %s",
+				  xbb->dev_name);
+		return;
+	}
+
+	/* Use devstat(9) for recording statistics. */
+	xbb->xbb_stats = devstat_new_entry("xbb", device_get_unit(xbb->dev),
+					   xbb->sector_size,
+					   DEVSTAT_ALL_SUPPORTED,
+					   DEVSTAT_TYPE_DIRECT
+					 | DEVSTAT_TYPE_IF_OTHER,
+					   DEVSTAT_PRIORITY_OTHER);
+
+	xbb->xbb_stats_in = devstat_new_entry("xbbi", device_get_unit(xbb->dev),
+					      xbb->sector_size,
+					      DEVSTAT_ALL_SUPPORTED,
+					      DEVSTAT_TYPE_DIRECT
+					    | DEVSTAT_TYPE_IF_OTHER,
+					      DEVSTAT_PRIORITY_OTHER);
+	/*
+	 * Setup sysctl variables.
+	 */
+	xbb_setup_sysctl(xbb);
+
+	/*
+	 * Create a taskqueue for doing work that must occur from a
+	 * thread context.
+	 */
+	xbb->io_taskqueue = taskqueue_create_fast(device_get_nameunit(dev),
+						  M_NOWAIT,
+						  taskqueue_thread_enqueue,
+						  /*contxt*/&xbb->io_taskqueue);
+	if (xbb->io_taskqueue == NULL) {
+		xbb_attach_failed(xbb, error, "Unable to create taskqueue");
+		return;
+	}
+
+	taskqueue_start_threads(&xbb->io_taskqueue,
+				/*num threads*/1,
+				/*priority*/PWAIT,
+				/*thread name*/
+				"%s taskq", device_get_nameunit(dev));
+
+	/* Update hot-plug status to satisfy xend. */
+	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
+			  "hotplug-status", "connected");
+	if (error) {
+		xbb_attach_failed(xbb, error, "writing %s/hotplug-status",
+				  xenbus_get_node(xbb->dev));
+		return;
+	}
+
+	/* Tell the front end that we are ready to connect. */
+	xenbus_set_state(dev, XenbusStateInitialised);
+}
+
 /**
  * Attach to a XenBus device that has been claimed by our probe routine.
  *
@@ -3596,6 +3706,7 @@ xbb_attach(device_t dev)
 	struct xbb_softc	*xbb;
 	int			 error;
 	u_int			 max_ring_page_order;
+	struct sbuf		*watch_path;
 
 	DPRINTF("Attaching to %s\n", xenbus_get_node(dev));
 
@@ -3639,88 +3750,25 @@ xbb_attach(device_t dev)
 		return (error);
 	}
 
-	/* Collect physical device information. */
-	error = xs_gather(XST_NIL, xenbus_get_otherend_path(xbb->dev),
-			  "device-type", NULL, &xbb->dev_type,
-			  NULL);
-	if (error != 0)
-		xbb->dev_type = NULL;
-
-	error = xs_gather(XST_NIL, xenbus_get_node(dev),
-                          "mode", NULL, &xbb->dev_mode,
-			  "params", NULL, &xbb->dev_name,
-                          NULL);
+	/*
+	 * We need to wait for hotplug script execution before
+	 * moving forward.
+	 */
+	watch_path = xs_join(xenbus_get_node(xbb->dev), "physical-device-path");
+	xbb->hotplug_watch.callback_data = (uintptr_t)dev;
+	xbb->hotplug_watch.callback = xbb_attach_disk;
+	KASSERT(xbb->hotplug_watch.node == NULL, ("watch node already setup"));
+	xbb->hotplug_watch.node = strdup(sbuf_data(watch_path), M_XENBLOCKBACK);
+	sbuf_delete(watch_path);
+	error = xs_register_watch(&xbb->hotplug_watch);
 	if (error != 0) {
-		xbb_attach_failed(xbb, error, "reading backend fields at %s",
-				  xenbus_get_node(dev));
-                return (ENXIO);
-        }
-
-	/* Parse fopen style mode flags. */
-	if (strchr(xbb->dev_mode, 'w') == NULL)
-		xbb->flags |= XBBF_READ_ONLY;
-
-	/*
-	 * Verify the physical device is present and can support
-	 * the desired I/O mode.
-	 */
-	DROP_GIANT();
-	error = xbb_open_backend(xbb);
-	PICKUP_GIANT();
-	if (error != 0) {
-		xbb_attach_failed(xbb, error, "Unable to open %s",
-				  xbb->dev_name);
-		return (ENXIO);
-	}
-
-	/* Use devstat(9) for recording statistics. */
-	xbb->xbb_stats = devstat_new_entry("xbb", device_get_unit(xbb->dev),
-					   xbb->sector_size,
-					   DEVSTAT_ALL_SUPPORTED,
-					   DEVSTAT_TYPE_DIRECT
-					 | DEVSTAT_TYPE_IF_OTHER,
-					   DEVSTAT_PRIORITY_OTHER);
-
-	xbb->xbb_stats_in = devstat_new_entry("xbbi", device_get_unit(xbb->dev),
-					      xbb->sector_size,
-					      DEVSTAT_ALL_SUPPORTED,
-					      DEVSTAT_TYPE_DIRECT
-					    | DEVSTAT_TYPE_IF_OTHER,
-					      DEVSTAT_PRIORITY_OTHER);
-	/*
-	 * Setup sysctl variables.
-	 */
-	xbb_setup_sysctl(xbb);
-
-	/*
-	 * Create a taskqueue for doing work that must occur from a
-	 * thread context.
-	 */
-	xbb->io_taskqueue = taskqueue_create_fast(device_get_nameunit(dev),
-						  M_NOWAIT,
-						  taskqueue_thread_enqueue,
-						  /*contxt*/&xbb->io_taskqueue);
-	if (xbb->io_taskqueue == NULL) {
-		xbb_attach_failed(xbb, error, "Unable to create taskqueue");
-		return (ENOMEM);
-	}
-
-	taskqueue_start_threads(&xbb->io_taskqueue,
-				/*num threads*/1,
-				/*priority*/PWAIT,
-				/*thread name*/
-				"%s taskq", device_get_nameunit(dev));
-
-	/* Update hot-plug status to satisfy xend. */
-	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
-			  "hotplug-status", "connected");
-	if (error) {
-		xbb_attach_failed(xbb, error, "writing %s/hotplug-status",
-				  xenbus_get_node(xbb->dev));
+		xbb_attach_failed(xbb, error, "failed to create watch on %s",
+		    xbb->hotplug_watch.node);
+		free(xbb->hotplug_watch.node, M_XENBLOCKBACK);
 		return (error);
 	}
 
-	/* Tell the front end that we are ready to connect. */
+	/* Tell the toolstack blkback has attached. */
 	xenbus_set_state(dev, XenbusStateInitWait);
 
 	return (0);
