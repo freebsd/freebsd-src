@@ -189,6 +189,7 @@ struct iterator_control {
 
 struct sctp_net_route {
 	sctp_rtentry_t *ro_rt;
+	struct llentry *ro_lle;
 	char *ro_prepend;
 	uint16_t ro_plen;
 	uint16_t ro_flags;
