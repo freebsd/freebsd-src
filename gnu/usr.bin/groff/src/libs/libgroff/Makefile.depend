@@ -4,6 +4,7 @@
 DIRDEPS = \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 
 
