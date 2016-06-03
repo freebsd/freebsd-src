@@ -91,55 +91,55 @@ PICFLAG=-fpic
 
 PO_FLAG=-pg
 
-.c.o: ${OP_META}
+.c.o:
 	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.c.po: ${OP_META}
+.c.po:
 	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.c.So: ${OP_META}
+.c.So:
 	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.cc.o .C.o .cpp.o .cxx.o: ${OP_META}
+.cc.o .C.o .cpp.o .cxx.o:
 	${CXX} ${STATIC_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.cc.po .C.po .cpp.po .cxx.po: ${OP_META}
+.cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.cc.So .C.So .cpp.So .cxx.So: ${OP_META}
+.cc.So .C.So .cpp.So .cxx.So:
 	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.f.po: ${OP_META}
+.f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.f.So: ${OP_META}
+.f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.s.po .s.So: ${OP_META}
+.s.po .s.So:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.asm.po: ${OP_META}
+.asm.po:
 	${CC:N${CCACHE_BIN}} -x assembler-with-cpp -DPROF ${PO_CFLAGS} \
 	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.asm.So: ${OP_META}
+.asm.So:
 	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
 	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.S.po: ${OP_META}
+.S.po:
 	${CC:N${CCACHE_BIN}} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
 	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.S.So: ${OP_META}
+.S.So:
 	${CC:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
@@ -183,7 +183,7 @@ CLEANFILES+=	${OBJS} ${STATICOBJS}
 .if defined(LIB) && !empty(LIB)
 _LIBS=		lib${LIB_PRIVATE}${LIB}.a
 
-lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS} ${OP_META}
+lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
@@ -198,7 +198,7 @@ POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 DEPENDOBJS+=	${POBJS}
 CLEANFILES+=	${POBJS}
 
-lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS} ${OP_META}
+lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${POBJS} | tsort -q` ${ARADD}
@@ -230,7 +230,7 @@ ${SHLIB_NAME_FULL}: beforelinking
 
 .if defined(SHLIB_LINK)
 .if defined(SHLIB_LDSCRIPT) && !empty(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
-${SHLIB_LINK:R}.ld: ${.CURDIR}/${SHLIB_LDSCRIPT} ${OP_META}
+${SHLIB_LINK:R}.ld: ${.CURDIR}/${SHLIB_LDSCRIPT}
 	sed -e 's,@@SHLIB@@,${_SHLIBDIR}/${SHLIB_NAME},g' \
 	    -e 's,@@LIBDIR@@,${_LIBDIR},g' \
 	    ${.ALLSRC} > ${.TARGET}
@@ -241,7 +241,7 @@ CLEANFILES+=	${SHLIB_LINK:R}.ld
 CLEANFILES+=	${SHLIB_LINK}
 .endif
 
-${SHLIB_NAME_FULL}: ${SOBJS} ${OP_META}
+${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
@@ -256,11 +256,11 @@ ${SHLIB_NAME_FULL}: ${SOBJS} ${OP_META}
 
 .if ${MK_DEBUG_FILES} != "no"
 CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
-${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug ${OP_META}
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
 
-${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL} ${OP_META}
+${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
 .endif
 .endif #defined(SHLIB_NAME)
@@ -268,7 +268,7 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL} ${OP_META}
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
-lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS} ${OP_META}
+lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
@@ -281,7 +281,7 @@ _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
 CLEANFILES+=	${LINTOBJS}
 
-${LINTLIB}: ${LINTOBJS} ${OP_META}
+${LINTLIB}: ${LINTOBJS}
 	@${ECHO} building lint library ${.TARGET}
 	@rm -f ${.TARGET}
 	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}

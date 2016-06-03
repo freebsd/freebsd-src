@@ -159,7 +159,7 @@ CTFFLAGS+=	-g
 .endif
 
 .if defined(FIRMWS)
-${KMOD:S/$/.c/}: ${SYSDIR}/tools/fw_stub.awk ${OP_META}
+${KMOD:S/$/.c/}: ${SYSDIR}/tools/fw_stub.awk
 	${AWK} -f ${SYSDIR}/tools/fw_stub.awk ${FIRMWS} -m${KMOD} -c${KMOD:S/$/.c/g} \
 	    ${FIRMWARE_LICENSE:C/.+/-l/}${FIRMWARE_LICENSE}
 
@@ -167,7 +167,7 @@ SRCS+=	${KMOD:S/$/.c/}
 CLEANFILES+=	${KMOD:S/$/.c/}
 
 .for _firmw in ${FIRMWS}
-${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//} ${OP_META}
+${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
@@ -198,15 +198,15 @@ PROG=	${KMOD}.ko
 FULLPROG=	${PROG}
 .else
 FULLPROG=	${PROG}.full
-${PROG}: ${FULLPROG} ${PROG}.debug ${OP_META}
+${PROG}: ${FULLPROG} ${PROG}.debug
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROG}.debug \
 	    ${FULLPROG} ${.TARGET}
-${PROG}.debug: ${FULLPROG} ${OP_META}
+${PROG}.debug: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
 .if ${__KLD_SHARED} == yes
-${FULLPROG}: ${KMOD}.kld ${OP_META}
+${FULLPROG}: ${KMOD}.kld
 .if ${MACHINE_CPUARCH} != "aarch64"
 	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .else
@@ -229,9 +229,9 @@ CLEANFILES+=	export_syms
 .endif
 
 .if ${__KLD_SHARED} == yes
-${KMOD}.kld: ${OBJS} ${OP_META}
+${KMOD}.kld: ${OBJS}
 .else
-${FULLPROG}: ${OBJS} ${OP_META}
+${FULLPROG}: ${OBJS}
 .endif
 	${LD} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
 .if ${MK_CTF} != "no"
@@ -397,16 +397,16 @@ _MATCHES=${_MFILES:${_MATCH}}
 CLEANFILES+=	${_i}
 .endif
 .endfor # _i
-.m.c:	${SYSDIR}/tools/makeobjops.awk ${OP_META}
+.m.c:	${SYSDIR}/tools/makeobjops.awk
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c
 
-.m.h:	${SYSDIR}/tools/makeobjops.awk ${OP_META}
+.m.h:	${SYSDIR}/tools/makeobjops.awk
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -h
 
 .for _i in mii pccard
 .if !empty(SRCS:M${_i}devs.h)
 CLEANFILES+=	${_i}devs.h
-${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs ${OP_META}
+${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 	${AWK} -f ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
@@ -415,9 +415,8 @@ ${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs ${OP_
 CLEANFILES+=	bhnd_nvram_map.h
 bhnd_nvram_map.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
     ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
-    ${SYSDIR}/dev/bhnd/nvram/nvram_map \
-    ${OP_META}
-bhnd_nvram_map.h: ${OP_META}
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map
+bhnd_nvram_map.h:
 	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
 	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -h
 .endif
@@ -426,28 +425,27 @@ bhnd_nvram_map.h: ${OP_META}
 CLEANFILES+=	bhnd_nvram_map_data.h
 bhnd_nvram_map_data.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
     ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
-    ${SYSDIR}/dev/bhnd/nvram/nvram_map \
-    ${OP_META}
-bhnd_nvram_map_data.h: ${OP_META}
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map
+bhnd_nvram_map_data.h:
 	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
 	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -d
 .endif
 
 .if !empty(SRCS:Musbdevs.h)
 CLEANFILES+=	usbdevs.h
-usbdevs.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs ${OP_META}
+usbdevs.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs
 	${AWK} -f ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs -h
 .endif
 
 .if !empty(SRCS:Musbdevs_data.h)
 CLEANFILES+=	usbdevs_data.h
-usbdevs_data.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs ${OP_META}
+usbdevs_data.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs
 	${AWK} -f ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs -d
 .endif
 
 .if !empty(SRCS:Macpi_quirks.h)
 CLEANFILES+=	acpi_quirks.h
-acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks ${OP_META}
+acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 	${AWK} -f ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 .endif
 
@@ -457,10 +455,10 @@ assym.s: genassym.o
 .if defined(KERNBUILDDIR)
 genassym.o: opt_global.h
 .endif
-assym.s: ${SYSDIR}/kern/genassym.sh ${OP_META}
+assym.s: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
-genassym.o: ${SRCS:Mopt_*.h} ${OP_META}
+genassym.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif
