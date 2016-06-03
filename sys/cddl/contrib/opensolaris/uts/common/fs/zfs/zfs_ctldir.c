@@ -1051,13 +1051,6 @@ relookup:
 			 */
 			VERIFY(zfsctl_snapshot_zname(dvp, nm, MAXNAMELEN, snapname) == 0);
 			goto domount;
-		} else {
-			/*
-			 * VROOT was set during the traverse call.  We need
-			 * to clear it since we're pretending to be part
-			 * of our parent's vfs.
-			 */
-			(*vpp)->v_flag &= ~VROOT;
 		}
 		mutex_exit(&sdp->sd_lock);
 		ZFS_EXIT(zfsvfs);
@@ -1132,7 +1125,6 @@ domount:
 		 */
 		ASSERT(VTOZ(*vpp)->z_zfsvfs != zfsvfs);
 		VTOZ(*vpp)->z_zfsvfs->z_parent = zfsvfs;
-		(*vpp)->v_flag &= ~VROOT;
 	}
 	ZFS_EXIT(zfsvfs);
 
