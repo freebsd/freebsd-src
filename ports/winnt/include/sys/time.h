@@ -11,10 +11,12 @@
 #include <time.h>
 #include <sys/timeb.h>
 
+#if defined(_MSC_VER) && _MSC_VER < 1900 
 typedef struct timespec {
 	time_t	tv_sec;
 	long	tv_nsec;
 } timespec_t;
+#endif
 
 #define TIMEOFDAY	0	/* getclock() clktyp arg */
 extern int getclock(int, struct timespec *ts);

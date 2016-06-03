@@ -1,0 +1,515 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="DebugXP|Win32">
+      <Configuration>DebugXP</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseXP|Win32">
+      <Configuration>ReleaseXP</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{CB61F8BF-9637-495C-9087-E8664B400CE0}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140_xp</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\debug.props" />
+    <Import Project="..\common.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\debug.props" />
+    <Import Project="..\common.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\release.props" />
+    <Import Project="..\common.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\release.props" />
+    <Import Project="..\common.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\debug-x64.props" />
+    <Import Project="..\common.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\release-x64.props" />
+    <Import Project="..\common.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>12.0.30501.0</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Midl>
+      <TypeLibraryName>$(IntDir)ntpd.tlb</TypeLibraryName>
+      <HeaderFileName />
+    </Midl>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\ntpd;..\..\..\..\ntpd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
+    <Midl>
+      <TypeLibraryName>$(IntDir)ntpd.tlb</TypeLibraryName>
+      <HeaderFileName>
+      </HeaderFileName>
+    </Midl>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\ntpd;..\..\..\..\ntpd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Midl>
+      <TypeLibraryName>$(IntDir)ntpd.tlb</TypeLibraryName>
+      <HeaderFileName />
+    </Midl>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\ntpd;..\..\..\..\ntpd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">
+    <Midl>
+      <TypeLibraryName>$(IntDir)ntpd.tlb</TypeLibraryName>
+      <HeaderFileName>
+      </HeaderFileName>
+    </Midl>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\ntpd;..\..\..\..\ntpd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+      <TypeLibraryName>$(IntDir)ntpd.tlb</TypeLibraryName>
+      <HeaderFileName />
+    </Midl>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\ntpd;..\..\..\..\ntpd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+      <TypeLibraryName>$(IntDir)ntpd.tlb</TypeLibraryName>
+      <HeaderFileName />
+    </Midl>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\ntpd;..\..\..\..\ntpd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\libparse\binio.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_computime.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_dcf7000.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_hopf6021.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_meinberg.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_rawdcf.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_rcc8000.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_schmid.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_trimtaip.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_trimtsip.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_varitext.c" />
+    <ClCompile Include="..\..\..\..\libparse\clk_wharton.c" />
+    <ClCompile Include="..\..\..\..\libparse\data_mbg.c" />
+    <ClCompile Include="..\..\..\..\libparse\gpstolfp.c" />
+    <ClCompile Include="..\..\..\..\libparse\ieee754io.c" />
+    <ClCompile Include="..\..\..\..\libparse\info_trimble.c" />
+    <ClCompile Include="..\..\..\..\libparse\mfp_mul.c" />
+    <ClCompile Include="..\..\..\..\libparse\parse.c" />
+    <ClCompile Include="..\..\..\..\libparse\parse_conf.c" />
+    <ClCompile Include="..\..\..\..\libparse\trim_info.c" />
+    <ClCompile Include="..\..\..\..\ntpd\cmd_args.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntpd-opts.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntpd.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntpsim.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_config.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_control.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_crypto.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_filegen.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_io.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_leapsec.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_loopfilter.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_monitor.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_parser.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_peer.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_proto.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_refclock.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_request.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_restrict.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_scanner.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_signd.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_timer.c" />
+    <ClCompile Include="..\..\..\..\ntpd\ntp_util.c" />
+    <ClCompile Include="..\..\..\..\ntpd\rc_cmdlength.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_acts.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_arbiter.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_arc.c">
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\ntpd\refclock_as2201.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_atom.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_bancomm.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_chronolog.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_chu.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_conf.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_datum.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_dumbclock.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_fg.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_gpsvme.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_heath.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_hopfpci.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_hopfser.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_hpgps.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_irig.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_jjy.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_jupiter.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_leitch.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_local.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_msfees.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_mx4200.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_neoclock4x.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_nmea.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_oncore.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_palisade.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_parse.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_pcf.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_pst.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_ripencc.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_shm.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_tpro.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_true.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_tsyncpci.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_tt560.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_ulink.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_wwv.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_wwvb.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_zyfer.c" />
+    <ClInclude Include="..\..\include\ntp_iocplmem.h" />
+    <ClInclude Include="..\..\include\ntp_iocpltypes.h" />
+    <ClCompile Include="..\..\ntpd\hopf_PCI_io.c" />
+    <ClCompile Include="..\..\ntpd\ntp_iocompletionport.c" />
+    <ClCompile Include="..\..\ntpd\ntp_iocplmem.c" />
+    <ClCompile Include="..\..\ntpd\ntp_iocpltypes.c" />
+    <ClCompile Include="..\..\ntpd\ntservice.c" />
+    <ClCompile Include="..\..\ntpd\nt_clockstuff.c" />
+    <ClCompile Include="version.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\include\ascii.h" />
+    <ClInclude Include="..\..\..\..\include\binio.h" />
+    <ClInclude Include="..\..\..\..\include\ieee754io.h" />
+    <ClInclude Include="..\..\..\..\include\iosignal.h" />
+    <ClInclude Include="..\..\..\..\include\l_stdlib.h" />
+    <ClInclude Include="..\..\..\..\include\mbg_gps166.h" />
+    <ClInclude Include="..\..\..\..\include\ntp.h" />
+    <ClInclude Include="..\..\..\..\include\ntpd.h" />
+    <ClInclude Include="..\..\..\..\include\ntpsim.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_assert.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_calendar.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_cmdargs.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_config.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_control.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_debug.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_filegen.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_fp.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_if.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_io.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_libopts.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_lists.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_machine.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_malloc.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_net.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_proto.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_random.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_refclock.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_request.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_rfc2553.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_select.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_stdlib.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_string.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_syslog.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_tty.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_types.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_unixtime.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_worker.h" />
+    <ClInclude Include="..\..\..\..\include\ntp_workimpl.h" />
+    <ClInclude Include="..\..\..\..\include\recvbuff.h" />
+    <ClInclude Include="..\..\..\..\include\timespecops.h" />
+    <ClInclude Include="..\..\..\..\include\timevalops.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\assertions.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\boolean.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\interfaceiter.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\log.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\netaddr.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\result.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\include\isc\socket.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\int.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\ipv6.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\net.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\netdb.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\offset.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\platform.h" />
+    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\win32os.h" />
+    <ClInclude Include="..\..\..\..\ntpd\declcond.h" />
+    <ClInclude Include="..\..\..\..\ntpd\jupiter.h" />
+    <ClInclude Include="..\..\..\..\ntpd\ntpd-opts.h" />
+    <ClInclude Include="..\..\..\..\ntpd\ntp_keyword.h" />
+    <ClInclude Include="..\..\..\..\ntpd\ntp_leapsec.h" />
+    <CustomBuild Include="..\..\..\..\ntpd\ntp_parser.h">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\gen-ntp_keyword $(TmpBaseDir)
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">call .\gen-ntp_keyword.bat $(TmpBaseDir)
+</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..\..\..\ntpd\ntp_parser.h;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">
+      </AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">call .\gen-ntp_keyword.bat $(TmpBaseDir)
+</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">call .\gen-ntp_keyword.bat $(TmpBaseDir)
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">call .\gen-ntp_keyword.bat $(TmpBaseDir)
+</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
+      </AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">invoking keyword-gen on ntp_parser.h to produce ntp_keyword.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">call .\gen-ntp_keyword.bat $(TmpBaseDir)
+</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\..\..\ntpd\ntp_keyword.h;..\..\..\..\ntpd\keyword-gen-utd</Outputs>
+    </CustomBuild>
+    <ClInclude Include="..\..\..\..\ntpd\ntp_scanner.h" />
+    <ClInclude Include="..\..\..\..\ntpd\refclock_palisade.h" />
+    <ClInclude Include="..\..\..\..\sntp\libopts\autoopts\options.h" />
+    <ClInclude Include="..\..\include\arpa\inet.h" />
+    <ClInclude Include="..\..\include\clockstuff.h" />
+    <ClInclude Include="..\..\include\config.h" />
+    <ClInclude Include="..\..\include\hopf_PCI_io.h" />
+    <ClInclude Include="..\..\include\ntp_iocompletionport.h" />
+    <ClInclude Include="..\..\include\ntp_timer.h" />
+    <ClInclude Include="..\..\include\ntservice.h" />
+    <ClInclude Include="..\..\include\syslog.h" />
+    <ClInclude Include="..\..\include\sys\param.h" />
+    <ClInclude Include="..\..\include\sys\wait.h" />
+    <ClInclude Include="..\..\include\termios.h" />
+    <ClInclude Include="..\..\include\timepps.h" />
+    <ClInclude Include="..\..\include\win32_io.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\libntp\messages.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\..\packageinfo.sh">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Using NT Shell Script to generate version.c</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">Using NT Shell Script to generate version.c</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..\scripts\mkver.bat -P $(ProjectName)
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">call ..\..\scripts\mkver.bat -P $(ProjectName)
+</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..\scripts\mkver.bat;..\..\include\config.h;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">
+      </AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\version.c;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">.\version.c;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Using NT Shell Script to generate version.c</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">call ..\..\scripts\mkver.bat -P $(ProjectName)
+</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\version.c;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Using NT Shell Script to generate version.c</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Using NT Shell Script to generate version.c</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">call ..\..\scripts\mkver.bat -P $(ProjectName)
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">call ..\..\scripts\mkver.bat -P $(ProjectName)
+</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
+      </AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\version.c;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">.\version.c;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Using NT Shell Script to generate version.c</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">call ..\..\scripts\mkver.bat -P $(ProjectName)
+</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\version.c;%(Outputs)</Outputs>
+    </CustomBuild>
+    <None Include="..\..\libntp\MSG00001.bin" />
+    <None Include="..\libntp\messages.mc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\libntp\libntp.vcxproj">
+      <Project>{400fbfcb-462e-40d0-b06b-3b74e3fffd00}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\ntpd-keyword-gen\ntpd-keyword-gen.vcxproj">
+      <Project>{1b814cc1-ead4-4a13-b29c-a67b23c9845a}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
