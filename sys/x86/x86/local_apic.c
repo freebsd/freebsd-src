@@ -706,7 +706,7 @@ native_lapic_setup(int boot)
 		lapic_write32(LAPIC_LVT_CMCI, lvt_mode(la, APIC_LVT_CMCI,
 		    lapic_read32(LAPIC_LVT_CMCI)));
 	}
-	    
+
 	intr_restore(saveintr);
 }
 
@@ -1725,7 +1725,7 @@ static void
 apic_setup_local(void *dummy __unused)
 {
 	int retval;
- 
+
 	if (best_enum == NULL)
 		return;
 
