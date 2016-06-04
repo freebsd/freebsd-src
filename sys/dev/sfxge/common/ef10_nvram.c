@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 #if EFSYS_OPT_VPD || EFSYS_OPT_NVRAM
 
@@ -1654,7 +1654,7 @@ ef10_nvram_segment_write_tlv(
 	 * Read the segment from NVRAM into the segment_data buffer and validate
 	 * it, returning if it does not validate. This is not a failure unless
 	 * this is the first segment in a partition. In this case the caller
-	 * must propogate the error.
+	 * must propagate the error.
 	 */
 	status = ef10_nvram_read_tlv_segment(enp, partn, *partn_offsetp,
 	    *seg_datap, *src_remain_lenp);
@@ -2330,4 +2330,4 @@ ef10_nvram_partn_rw_finish(
 
 #endif	/* EFSYS_OPT_NVRAM */
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */

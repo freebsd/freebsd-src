@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 	__checkReturn	efx_rc_t
 ef10_intr_init(
@@ -197,4 +197,4 @@ ef10_intr_fini(
 	_NOTE(ARGUNUSED(enp))
 }
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
