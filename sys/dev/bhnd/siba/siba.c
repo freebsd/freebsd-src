@@ -114,7 +114,7 @@ siba_attach(device_t dev)
 
 			/* Allocate the config resource */
 			dinfo->cfg_rid[cfgidx] = 0;
-			dinfo->cfg[cfgidx] = bhnd_alloc_resource(dev,
+			dinfo->cfg[cfgidx] = BHND_BUS_ALLOC_RESOURCE(dev, dev,
 			    SYS_RES_MEMORY, &dinfo->cfg_rid[cfgidx], r_start,
 			    r_end, r_count, RF_ACTIVE);
 	
@@ -458,10 +458,6 @@ siba_register_addrspaces(device_t dev, struct siba_devinfo *di,
 		/* Fetch the address match register value */
 		adm = bus_read_4(r, adm_offset);
 
-		/* Skip disabled entries */
-		if (adm & SIBA_AM_ADEN)
-			continue;
-			
 		/* Parse the value */
 		if ((error = siba_parse_admatch(adm, &addr, &size))) {
 			device_printf(dev, "failed to decode address "
@@ -551,7 +547,7 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 		ccid = bhnd_parse_chipid(ccreg, SIBA_ENUM_ADDR);
 
 		if (!CHIPC_NCORES_MIN_HWREV(ccrev)) {
-			switch (device) {
+			switch (ccid.chip_id) {
 			case BHND_CHIPID_BCM4306:
 				ccid.ncores = 6;
 				break;

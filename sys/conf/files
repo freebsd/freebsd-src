@@ -9,12 +9,12 @@ acpi_quirks.h			optional acpi				   \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
-bhnd_nvram_map.h		optional bhndbus | bhnd			   \
+bhnd_nvram_map.h		optional bhnd				   \
 	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
 	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"bhnd_nvram_map.h"
-bhnd_nvram_map_data.h		optional bhndbus | bhnd			   \
+bhnd_nvram_map_data.h		optional bhnd				   \
 	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
 	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -d" \
 	no-obj no-implicit-rule before-depend				   \
@@ -1127,40 +1127,46 @@ dev/ath/ath_dfs/null/dfs_null.c	optional ath \
 dev/bce/if_bce.c			optional bce
 dev/bfe/if_bfe.c			optional bfe
 dev/bge/if_bge.c			optional bge
-dev/bhnd/bhnd.c				optional bhndbus | bhnd
-dev/bhnd/bhnd_subr.c			optional bhndbus | bhnd
-dev/bhnd/bhnd_bus_if.m			optional bhndbus | bhnd
-dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb.c			optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_if.m		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_pci.c		optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_subr.c		optional bhndbus pci | bhndb
-dev/bhnd/bcma/bcma.c			optional bhndbus | bcma
-dev/bhnd/bcma/bcma_bhndb.c		optional bhndbus | bcma bhndb
-dev/bhnd/bcma/bcma_erom.c		optional bhndbus | bcma
-dev/bhnd/bcma/bcma_subr.c		optional bhndbus | bcma
-dev/bhnd/cores/chipc/chipc.c		optional bhndbus | bhnd
-dev/bhnd/cores/chipc/chipc_subr.c	optional bhndbus | bhnd
-dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhndbus | bhnd
-dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhndbus | bhnd
-dev/bhnd/cores/pci/bhnd_pci.c		optional bhndbus pci | bhnd pci
-dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/bhnd.c				optional bhnd
+dev/bhnd/bhnd_nexus.c			optional bhnd siba_nexus | \
+						 bhnd bcma_nexus
+dev/bhnd/bhnd_subr.c			optional bhnd
+dev/bhnd/bhnd_bus_if.m			optional bhnd
+dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb.c			optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_if.m		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_pci.c		optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_subr.c		optional bhndb bhnd
+dev/bhnd/bcma/bcma.c			optional bcma bhnd
+dev/bhnd/bcma/bcma_bhndb.c		optional bcma bhnd bhndb
+dev/bhnd/bcma/bcma_erom.c		optional bcma bhnd
+dev/bhnd/bcma/bcma_nexus.c		optional bcma_nexus bcma bhnd
+dev/bhnd/bcma/bcma_subr.c		optional bcma bhnd
+dev/bhnd/cores/chipc/chipc.c		optional bhnd
+dev/bhnd/cores/chipc/chipc_cfi.c	optional bhnd cfi 
+dev/bhnd/cores/chipc/chipc_slicer.c	optional bhnd cfi | bhnd spibus
+dev/bhnd/cores/chipc/chipc_spi.c	optional bhnd spibus
+dev/bhnd/cores/chipc/chipc_subr.c	optional bhnd
+dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhnd
+dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhnd
+dev/bhnd/cores/pci/bhnd_pci.c		optional bhnd pci
+dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndb bhnd pci
 dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
-dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhndbus pci | bhnd pci
-dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhnd pci
+dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndb bhnd pci
 dev/bhnd/cores/pcie2/bhnd_pcie2b.c	optional bhnd_pcie2b bhnd pci
-dev/bhnd/nvram/bhnd_nvram_if.m		optional bhndbus | bhnd
-dev/bhnd/nvram/bhnd_sprom.c		optional bhndbus | bhnd
-dev/bhnd/nvram/bhnd_sprom_subr.c	optional bhndbus | bhnd
-dev/bhnd/nvram/nvram_subr.c		optional bhndbus | bhnd
-dev/bhnd/siba/siba.c			optional bhndbus | siba
-dev/bhnd/siba/siba_bhndb.c		optional bhndbus | siba bhndb
-dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba
-dev/bhnd/siba/siba_subr.c		optional bhndbus | siba
+dev/bhnd/nvram/bhnd_nvram_if.m		optional bhnd
+dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
+dev/bhnd/nvram/bhnd_sprom_subr.c	optional bhnd
+dev/bhnd/nvram/nvram_subr.c		optional bhnd
+dev/bhnd/siba/siba.c			optional siba bhnd
+dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
+dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba bhnd
+dev/bhnd/siba/siba_subr.c		optional siba bhnd
 #
 dev/bktr/bktr_audio.c		optional bktr pci
 dev/bktr/bktr_card.c		optional bktr pci
@@ -1182,7 +1188,7 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bwn/if_bwn_pci.c		optional bwn pci bhnd | bwn pci bhndbus
+dev/bwn/if_bwn_pci.c		optional bwn pci bhnd
 dev/bwn/if_bwn_phy_common.c	optional bwn siba_bwn
 dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
@@ -1190,7 +1196,7 @@ dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_phy_n.c		optional bwn siba_bwn
 dev/bwn/if_bwn_util.c		optional bwn siba_bwn
-dev/bwn/bwn_mac.c		optional bwn bhnd | bwn bhndbus
+dev/bwn/bwn_mac.c		optional bwn bhnd
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -2490,10 +2496,7 @@ dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
 dev/siba/siba_bwn.c		optional siba_bwn pci
-dev/siba/siba_cc.c		optional siba_s5 !bhnd !bhndbus
-dev/siba/siba_core.c		optional siba_s5 | siba_bwn pci
-dev/siba/siba_mips.c		optional siba_s5 !bhnd !bhndbus
-dev/siba/siba_pcib.c		optional siba_s5 pci !bhnd !bhndbus
+dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
