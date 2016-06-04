@@ -232,10 +232,6 @@ ath_btcoex_cfg_mci(struct ath_softc *sc, uint32_t mci_cfg, int do_btdiv)
 	btinfo.bt_single_ant = 0;	/* 2 antenna on WB335 */
 	btinfo.bt_isolation = 0;	/* in dB, not used */
 
-	/* Implement a default dutycycle/period */
-	btinfo.bt_dutyCycle = 55;
-	btinfo.bt_period = 40;
-
 	ath_hal_btcoex_set_info(ah, &btinfo);
 
 	btconfig.bt_time_extend = 0;
