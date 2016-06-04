@@ -38,7 +38,7 @@ DECLARE_CLASS(bhnd_sprom_driver);
 struct bhnd_sprom;
 
 int	bhnd_sprom_probe(device_t dev);
-int	bhnd_sprom_attach(device_t dev);
+int	bhnd_sprom_attach(device_t dev, bus_size_t offset);
 int	bhnd_sprom_resume(device_t dev);
 int	bhnd_sprom_suspend(device_t dev);
 int	bhnd_sprom_detach(device_t dev);
