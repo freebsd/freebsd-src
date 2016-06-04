@@ -87,32 +87,6 @@ static efx_mac_ops_t	__efx_ef10_mac_ops = {
 };
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
-static efx_mac_ops_t	*__efx_mac_ops[] = {
-	/* [EFX_MAC_INVALID] */
-	NULL,
-	/* [EFX_MAC_FALCON_GMAC] */
-	NULL,
-	/* [EFX_MAC_FALCON_XMAC] */
-	NULL,
-	/* [EFX_MAC_SIENA] */
-#if EFSYS_OPT_SIENA
-	&__efx_siena_mac_ops,
-#else
-	NULL,
-#endif
-	/* [EFX_MAC_HUNTINGTON] */
-#if EFSYS_OPT_HUNTINGTON
-	&__efx_ef10_mac_ops,
-#else
-	NULL,
-#endif
-	/* [EFX_MAC_MEDFORD] */
-#if EFSYS_OPT_MEDFORD
-	&__efx_ef10_mac_ops,
-#else
-	NULL,
-#endif
-};
 
 	__checkReturn			efx_rc_t
 efx_mac_pdu_set(
@@ -731,38 +705,43 @@ efx_mac_select(
 	efx_mac_ops_t *emop;
 	int rc = EINVAL;
 
+	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
-	if (enp->en_family == EFX_FAMILY_SIENA) {
+	case EFX_FAMILY_SIENA:
+		emop = &__efx_siena_mac_ops;
 		type = EFX_MAC_SIENA;
-		goto chosen;
-	}
-#endif
+		break;
+#endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
-	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
+	case EFX_FAMILY_HUNTINGTON:
+		emop = &__efx_ef10_mac_ops;
 		type = EFX_MAC_HUNTINGTON;
-		goto chosen;
-	}
-#endif
+		break;
+#endif /* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
-	if (enp->en_family == EFX_FAMILY_MEDFORD) {
+	case EFX_FAMILY_MEDFORD:
+		emop = &__efx_ef10_mac_ops;
 		type = EFX_MAC_MEDFORD;
-		goto chosen;
-	}
-#endif
+		break;
+#endif /* EFSYS_OPT_MEDFORD */
 
-chosen:
+	default:
+		rc = EINVAL;
+		goto fail1;
+	}
+
 	EFSYS_ASSERT(type != EFX_MAC_INVALID);
 	EFSYS_ASSERT3U(type, <, EFX_MAC_NTYPES);
-	emop = epp->ep_emop = (efx_mac_ops_t *)__efx_mac_ops[type];
 	EFSYS_ASSERT(emop != NULL);
 
+	epp->ep_emop = emop;
 	epp->ep_mac_type = type;
 
 	if (emop->emo_reset != NULL) {
 		if ((rc = emop->emo_reset(enp)) != 0)
-			goto fail1;
+			goto fail2;
 
 		EFSYS_ASSERT(enp->en_reset_flags & EFX_RESET_MAC);
 		enp->en_reset_flags &= ~EFX_RESET_MAC;
@@ -770,6 +749,8 @@ chosen:
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
