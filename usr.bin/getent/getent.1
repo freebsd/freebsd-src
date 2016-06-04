@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2005
+.Dd June 4, 2016
 .Dt GETENT 1
 .Os
 .Sh NAME
@@ -62,6 +62,7 @@ argument may be one of:
 .It Li ethers Ta address name
 .It Li group Ta group:passwd:gid:[member[,member]...]
 .It Li hosts Ta address name [alias ...]
+.It Li netgroup Ta (host,user,domain) [...]
 .It Li networks Ta name network [alias ...]
 .It Li passwd Ta user:passwd:uid:gid:gecos:home_dir:shell
 .It Li protocols Ta name protocol [alias ...]
@@ -107,6 +108,7 @@ or 3 if there is no support for enumeration on
 .Xr ethers 5 ,
 .Xr group 5 ,
 .Xr hosts 5 ,
+.Xr netgroup 5 ,
 .Xr networks 5 ,
 .Xr nsswitch.conf 5 ,
 .Xr passwd 5 ,
