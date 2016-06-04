@@ -1330,6 +1330,7 @@ efx_lic_init(
 	__in			efx_nic_t *enp)
 {
 	const efx_lic_ops_t *elop;
+	efx_key_stats_t eks;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -1365,12 +1366,30 @@ efx_lic_init(
 	enp->en_elop = elop;
 	enp->en_mod_flags |= EFX_MOD_LIC;
 
+	/* Probe for support */
+	if (efx_lic_get_key_stats(enp, &eks) == 0) {
+		enp->en_licensing_supported = B_TRUE;
+	} else {
+		enp->en_licensing_supported = B_FALSE;
+	}
+
 	return (0);
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
+}
+
+extern	__checkReturn	boolean_t
+efx_lic_check_support(
+	__in			efx_nic_t *enp)
+{
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
+
+	return enp->en_licensing_supported;
 }
 
 				void
