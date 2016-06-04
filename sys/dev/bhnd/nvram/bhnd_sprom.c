@@ -71,19 +71,33 @@ bhnd_sprom_probe(device_t dev)
 	/* Quiet by default */
 	if (!bootverbose)
 		device_quiet(dev);
-	device_set_desc(dev, "Broadcom SPROM/OTP");
+	device_set_desc(dev, "SPROM/OTP");
 
 	/* Refuse wildcard attachments */
 	return (BUS_PROBE_NOWILDCARD);
 }
 
+/* Default DEVICE_ATTACH() implementation; assumes a zero offset to the
+ * SPROM data */
+static int
+bhnd_sprom_attach_meth(device_t dev)
+{
+	return (bhnd_sprom_attach(dev, 0));
+}
+
 /**
- * Default bhnd sprom driver implementation of DEVICE_ATTACH().
+ * BHND SPROM device attach.
  * 
- * Assumes sprom is mapped via YS_RES_MEMORY resource with RID 0.
+ * This should be called from DEVICE_ATTACH() with the @p offset to the
+ * SPROM data.
+ * 
+ * Assumes SPROM is mapped via SYS_RES_MEMORY resource with RID 0.
+ * 
+ * @param dev BHND SPROM device.
+ * @param offset Offset to the SPROM data.
  */
 int
-bhnd_sprom_attach(device_t dev)
+bhnd_sprom_attach(device_t dev, bus_size_t offset)
 {
 	struct bhnd_sprom_softc	*sc;
 	int				 error;
@@ -101,10 +115,8 @@ bhnd_sprom_attach(device_t dev)
 	}
 
 	/* Initialize SPROM shadow */
-	if ((error = bhnd_sprom_init(&sc->shadow, sc->sprom_res, 0))) {
-		device_printf(dev, "unrecognized SPROM format\n");
+	if ((error = bhnd_sprom_init(&sc->shadow, sc->sprom_res, offset)))
 		goto failed;
-	}
 
 	/* Initialize mutex */
 	SPROM_LOCK_INIT(sc);
@@ -118,7 +130,7 @@ failed:
 }
 
 /**
- * Default bhnd sprom driver implementation of DEVICE_DETACH().
+ * Default bhnd_sprom implementation of DEVICE_RESUME().
  */
 int
 bhnd_sprom_resume(device_t dev)
@@ -127,7 +139,7 @@ bhnd_sprom_resume(device_t dev)
 }
 
 /**
- * Default bhnd sprom driver implementation of DEVICE_DETACH().
+ * Default bhnd sprom driver implementation of DEVICE_SUSPEND().
  */
 int
 bhnd_sprom_suspend(device_t dev)
@@ -193,7 +205,7 @@ bhnd_sprom_setvar_meth(device_t dev, const char *name, const void *buf,
 static device_method_t bhnd_sprom_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			bhnd_sprom_probe),
-	DEVMETHOD(device_attach,		bhnd_sprom_attach),
+	DEVMETHOD(device_attach,		bhnd_sprom_attach_meth),
 	DEVMETHOD(device_resume,		bhnd_sprom_resume),
 	DEVMETHOD(device_suspend,		bhnd_sprom_suspend),
 	DEVMETHOD(device_detach,		bhnd_sprom_detach),
