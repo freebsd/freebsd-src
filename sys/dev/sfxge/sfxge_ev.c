@@ -225,7 +225,7 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 	label = 0;
 	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
 	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != level"));
-	magic = SFXGE_MAGIC_RX_QFLUSH_DONE | label;
+	magic = SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QFLUSH_DONE) | label;
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
@@ -259,7 +259,7 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 	label = 0;
 	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
 	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
-	magic = SFXGE_MAGIC_RX_QFLUSH_FAILED | label;
+	magic = SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QFLUSH_FAILED) | label;
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
@@ -350,7 +350,7 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 	label = txq->type;
 	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
 	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
-	magic = SFXGE_MAGIC_TX_QFLUSH_DONE | label;
+	magic = SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_TX_QFLUSH_DONE) | label;
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
@@ -375,19 +375,19 @@ sfxge_ev_software(void *arg, uint16_t magic)
 	magic &= ~SFXGE_MAGIC_DMAQ_LABEL_MASK;
 
 	switch (magic) {
-	case SFXGE_MAGIC_RX_QFLUSH_DONE:
+	case SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QFLUSH_DONE):
 		sfxge_rx_qflush_done(sfxge_get_rxq_by_label(evq, label));
 		break;
 
-	case SFXGE_MAGIC_RX_QFLUSH_FAILED:
+	case SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QFLUSH_FAILED):
 		sfxge_rx_qflush_failed(sfxge_get_rxq_by_label(evq, label));
 		break;
 
-	case SFXGE_MAGIC_RX_QREFILL:
+	case SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QREFILL):
 		sfxge_rx_qrefill(sfxge_get_rxq_by_label(evq, label));
 		break;
 
-	case SFXGE_MAGIC_TX_QFLUSH_DONE: {
+	case SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_TX_QFLUSH_DONE): {
 		struct sfxge_txq *txq = sfxge_get_txq_by_label(evq, label);
 
 		KASSERT(txq != NULL, ("txq == NULL"));
