@@ -39,19 +39,36 @@ __FBSDID("$FreeBSD$");
  * and bcma(4) interconnects, providing a common interface to chipset 
  * identification, bus enumeration, UARTs, clocks, watchdog interrupts, GPIO, 
  * flash, etc.
+ *
+ * The purpose of this driver is memory resource management for ChipCommon drivers
+ * like UART, PMU, flash. ChipCommon core has several memory regions.
+ *
+ * ChipCommon driver has memory resource manager. Driver
+ * gets information about BHND core ports/regions and map them
+ * into drivers' resources.
+ *
+ * Here is overview of mapping:
+ *
+ * ------------------------------------------------------
+ * | Port.Region| Purpose				|
+ * ------------------------------------------------------
+ * |	0.0	| PMU, SPI(0x40), UART(0x300)           |
+ * |	1.0	| ?					|
+ * |	1.1	| MMIO flash (SPI & CFI)		|
+ * ------------------------------------------------------
  */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
 
 #include <dev/bhnd/bhnd.h>
@@ -98,6 +115,18 @@ static struct bhnd_device_quirk chipc_quirks[] = {
 	BHND_DEVICE_QUIRK_END
 };
 
+
+/*
+ * Here is resource configuration hints for child devices
+ *
+ * [Flash] There are 2 flash resources:
+ *  - resource ID (rid) = 0: memory-mapped flash memory
+ *  - resource ID (rid) = 1: memory-mapped flash registers (i.e for SPI)
+ *
+ * [UART] Uses IRQ and memory resources:
+ *  - resource ID (rid) = 0: memory-mapped registers
+ *  - IRQ resource ID (rid) = 0: shared IRQ line for Tx/Rx.
+ */
 
 static const struct chipc_hint {
 	const char	*name;
@@ -1288,6 +1317,15 @@ chipc_get_caps(device_t dev)
 	return (&sc->caps);
 }
 
+static uint32_t
+chipc_get_flash_cfg(device_t dev)
+{
+	struct chipc_softc	*sc;
+
+	sc = device_get_softc(dev);
+	return (bhnd_bus_read_4(sc->core, CHIPC_FLASH_CFG));
+}
+
 static device_method_t chipc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			chipc_probe),
@@ -1330,11 +1368,13 @@ static device_method_t chipc_methods[] = {
 	DEVMETHOD(bhnd_chipc_enable_sprom,	chipc_enable_sprom_pins),
 	DEVMETHOD(bhnd_chipc_disable_sprom,	chipc_disable_sprom_pins),
 	DEVMETHOD(bhnd_chipc_get_caps,		chipc_get_caps),
+	DEVMETHOD(bhnd_chipc_get_flash_cfg,	chipc_get_flash_cfg),
 
 	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(bhnd_chipc, chipc_driver, chipc_methods, sizeof(struct chipc_softc));
-DRIVER_MODULE(bhnd_chipc, bhnd, chipc_driver, bhnd_chipc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(bhnd_chipc, bhnd, chipc_driver, bhnd_chipc_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_DEPEND(bhnd_chipc, bhnd, 1, 1, 1);
 MODULE_VERSION(bhnd_chipc, 1);
