@@ -842,7 +842,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		if (rx_desc->flags & EFX_PKT_PREFIX_LEN) {
 			uint16_t tmp_size;
 			int rc;
-			rc = efx_psuedo_hdr_pkt_length_get(sc->enp, 
+			rc = efx_psuedo_hdr_pkt_length_get(sc->enp,
 							   mtod(m, uint8_t *),
 							   &tmp_size);
 			KASSERT(rc == 0, ("cannot get packet length: %d", rc));
@@ -1109,7 +1109,7 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	EFSYS_ASSERT(ISP2(align));
 	sc->rx_buffer_size = P2ROUNDUP(sc->rx_buffer_size, align);
 
-	/* 
+	/*
 	 * Standard mbuf zones only guarantee pointer-size alignment;
 	 * we need extra space to align to the cache line
 	 */
