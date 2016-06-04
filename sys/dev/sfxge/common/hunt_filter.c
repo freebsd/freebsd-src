@@ -1275,7 +1275,7 @@ ef10_filter_reconfigure(
 	 * firmware state, and that later changes to enable/disable the
 	 * workaround will result in this function seeing a reset (FLR).
 	 *
-	 * FIXME: On Medford mulicast chaining should always be on.
+	 * FIXME: On Medford multicast chaining should always be on.
 	 */
 	if ((rc = hunt_filter_get_workarounds(enp)) != 0)
 		goto fail3;
