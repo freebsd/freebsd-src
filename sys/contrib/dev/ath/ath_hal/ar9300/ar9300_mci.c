@@ -1890,6 +1890,12 @@ void ar9300_mci_bt_coex_set_weights(struct ath_hal *ah, u_int32_t stomp_type)
             ar9300_gpio_set(ah, 5, 0);
         }
         break;
+    case HAL_BT_COEX_STOMP_AUDIO:
+        ahp->ah_bt_coex_wlan_weight[0] = 0xffffff01;
+        ahp->ah_bt_coex_wlan_weight[1] = 0xffffffff;
+        ahp->ah_bt_coex_wlan_weight[2] = 0xffffff01;
+        ahp->ah_bt_coex_wlan_weight[3] = 0xffffffff;
+        break;
     default:
         /* There is a forceWeight from registry */
         ahp->ah_bt_coex_wlan_weight[0] = stomp_type;
