@@ -109,7 +109,6 @@ medford_board_cfg(
 	uint32_t pf;
 	uint32_t vf;
 	uint32_t mask;
-	uint32_t flags;
 	uint32_t sysclk;
 	uint32_t base, nvec;
 	uint32_t end_padding;
