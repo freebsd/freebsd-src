@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
+ * Copyright (c) 2016 Landon Fuller <landon@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,27 +25,22 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- */
-
-/*
+ * 
  * $FreeBSD$
  */
-#ifndef _BHND_SOC_BHND_SOC_H_
-#define _BHND_SOC_BHND_SOC_H_
 
-#define	BHND_SOC_MAXNUM_CORES	0x20
-#define	BHND_SOC_RAM_OFFSET	0x0
-#define	BHND_SOC_RAM_SIZE	0x20000000
+#ifndef _BHND_BHND_NEXUSVAR_H_
+#define _BHND_BHND_NEXUSVAR_H_
 
-struct bhnd_soc_softc {
-	device_t dev;
-	device_t bridge;
-	device_t bus;
-	struct bhnd_chipid	chipid;	/* chip identification */
-};
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/module.h>
 
-struct bhnd_soc_devinfo {
-	struct resource_list resources;
-};
+#include "bhndvar.h"
 
-#endif /* _BHND_SOC_BHND_SOC_H_ */
+DECLARE_CLASS(bhnd_nexus_driver);
+
+int	bhnd_nexus_read_chipid(device_t dev, struct bhnd_chipid *chipid);
+
+#endif /* _BHND_BHND_NEXUSVAR_H_ */
