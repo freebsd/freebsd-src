@@ -349,11 +349,14 @@ efx_mcdi_fc_license_update_license(
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
 
 	(void) memset(payload, 0, sizeof (payload));
-	req.emr_cmd = MC_CMD_FC_OP_LICENSE;
+	req.emr_cmd = MC_CMD_FC;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_FC_IN_LICENSE_LEN;
 	req.emr_out_buf = payload;
 	req.emr_out_length = 0;
+
+	MCDI_IN_SET_DWORD(req, FC_IN_CMD,
+	    MC_CMD_FC_OP_LICENSE);
 
 	MCDI_IN_SET_DWORD(req, FC_IN_LICENSE_OP,
 	    MC_CMD_FC_IN_LICENSE_UPDATE_LICENSE);
@@ -393,11 +396,14 @@ efx_mcdi_fc_license_get_key_stats(
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
 
 	(void) memset(payload, 0, sizeof (payload));
-	req.emr_cmd = MC_CMD_FC_OP_LICENSE;
+	req.emr_cmd = MC_CMD_FC;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_FC_IN_LICENSE_LEN;
 	req.emr_out_buf = payload;
 	req.emr_out_length = MC_CMD_FC_OUT_LICENSE_LEN;
+
+	MCDI_IN_SET_DWORD(req, FC_IN_CMD,
+	    MC_CMD_FC_OP_LICENSE);
 
 	MCDI_IN_SET_DWORD(req, FC_IN_LICENSE_OP,
 	    MC_CMD_FC_IN_LICENSE_GET_KEY_STATS);
