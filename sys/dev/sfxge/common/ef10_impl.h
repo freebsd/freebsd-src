@@ -236,6 +236,11 @@ ef10_mac_pdu_set(
 	__in	efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
+ef10_mac_pdu_get(
+	__in	efx_nic_t *enp,
+	__out	size_t *pdu);
+
+extern	__checkReturn	efx_rc_t
 ef10_mac_reconfigure(
 	__in	efx_nic_t *enp);
 

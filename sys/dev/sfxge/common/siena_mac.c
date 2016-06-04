@@ -432,4 +432,12 @@ siena_mac_stats_update(
 
 #endif	/* EFSYS_OPT_MAC_STATS */
 
+	__checkReturn		efx_rc_t
+siena_mac_pdu_get(
+	__in		efx_nic_t *enp,
+	__out		size_t *pdu)
+{
+	return (ENOTSUP);
+}
+
 #endif	/* EFSYS_OPT_SIENA */
