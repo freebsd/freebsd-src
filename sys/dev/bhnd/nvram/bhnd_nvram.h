@@ -65,6 +65,6 @@ typedef enum {
 				  *  is provided by a common platform NVRAM
 				  *  device.
 				  */
-} bhnd_nvram_src_t;
+} bhnd_nvram_src;
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_H_ */

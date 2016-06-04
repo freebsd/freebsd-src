@@ -32,6 +32,9 @@
 #ifndef _BHND_CORES_CHIPC_CHIPCVAR_H_
 #define _BHND_CORES_CHIPC_CHIPCVAR_H_
 
+#include <sys/types.h>
+#include <sys/rman.h>
+
 #include <dev/bhnd/nvram/bhnd_spromvar.h>
 
 #include "chipc.h"
@@ -67,8 +70,14 @@ struct chipc_caps {
 
 	uint8_t		extbus_type;	/**< ExtBus type (CHIPC_CAP_EXTBUS_*) */
 	chipc_flash 	flash_type;	/**< Flash type */
+	bhnd_nvram_src	nvram_src;	/**< identified NVRAM source */
+
+	bus_size_t	sprom_offset;	/**< Offset to SPROM data within
+					     SPROM/OTP, 0 if unknown or not
+					     present */
 	uint8_t		otp_size;	/**< OTP (row?) size, 0 if not present */
-	uint8_t		cfi_width;	/**< CFI bus width, 0 if unknown or CFI not present */
+	uint8_t		cfi_width;	/**< CFI bus width, 0 if unknown or CFI
+					     not present */
 
 	uint8_t		pll_type;	/**< PLL type */
 	bool		power_control;	/**< Power control available */
@@ -158,9 +167,21 @@ enum {
 	/** Supports CHIPC_CAPABILITIES_EXT register */
 	CHIPC_QUIRK_SUPPORTS_CAP_EXT		= (1<<6),
 
+	/** Supports HND or IPX OTP registers (CHIPC_OTPST, CHIPC_OTPCTRL,
+	 *  CHIPC_OTPPROG) */
+	CHIPC_QUIRK_SUPPORTS_OTP		= (1<<7),
+
+	/** Supports HND OTP registers. */
+	CHIPC_QUIRK_OTP_HND			= (1<<8) |
+	    CHIPC_QUIRK_SUPPORTS_OTP,
+
+	/** Supports IPX OTP registers. */
+	CHIPC_QUIRK_OTP_IPX			= (1<<9) |
+	    CHIPC_QUIRK_SUPPORTS_OTP,
+
 	/** OTP size is defined via CHIPC_OTPLAYOUT register in later
 	 *  ChipCommon revisions using the 'IPX' OTP controller. */
-	CHIPC_QUIRK_IPX_OTPLAYOUT_SIZE		= (1<<7),
+	CHIPC_QUIRK_IPX_OTPL_SIZE		= (1<<10)
 };
 
 /**
@@ -182,8 +203,6 @@ struct chipc_softc {
 	struct bhnd_chipid	 ccid;		/**< chip identification */
 	uint32_t		 quirks;	/**< chipc quirk flags */
 	struct chipc_caps	 caps;		/**< chipc capabilities */
-
-	bhnd_nvram_src_t	 nvram_src;	/**< identified NVRAM source */
 
 	struct mtx		 mtx;		/**< state mutex. */
 	size_t			 sprom_refcnt;	/**< SPROM pin enable refcount */

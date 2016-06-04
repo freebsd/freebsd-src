@@ -48,7 +48,7 @@
 #define	CHIPC_OTPST			0x10	/**< otp status */
 #define	CHIPC_OTPCTRL			0x14	/**< otp control */
 #define	CHIPC_OTPPROG			0x18
-#define	CHIPC_OTPLAYOUT			0x1C	/**< otp layout (rev >= 23) */
+#define	CHIPC_OTPLAYOUT			0x1C	/**< otp layout (IPX OTP) */
 
 #define	CHIPC_INTST			0x20	/**< interrupt status */
 #define	CHIPC_INTM			0x24	/**< interrupt mask */
@@ -339,7 +339,7 @@ enum {
 #define	CHIPC_OTPS_RV(x)		(1 << (16 + (x)))	/* redundancy entry valid */
 #define	CHIPC_OTPS_RV_MASK		0x0fff0000
 
-/* Fields in the otpcontrol register in rev >= 21 */
+/* IPX OTP fields in the otpcontrol register */
 #define	CHIPC_OTPC_PROGSEL		0x00000001
 #define	CHIPC_OTPC_PCOUNT_MASK		0x0000000e
 #define	CHIPC_OTPC_PCOUNT_SHIFT	1
@@ -350,7 +350,7 @@ enum {
 #define	CHIPC_OTPC_ODM			0x00000800
 #define	CHIPC_OTPC_PROGEN		0x80000000
 
-/* Fields in otpprog in rev >= 21 and HND OTP */
+/* Fields in otpprog in IPX OTP and HND OTP */
 #define	CHIPC_OTPP_COL_MASK		0x000000ff
 #define	CHIPC_OTPP_COL_SHIFT		0
 #define	CHIPC_OTPP_ROW_MASK		0x0000ff00
@@ -366,6 +366,8 @@ enum {
 /* otplayout */
 #define	CHIPC_OTPL_SIZE_MASK		0x0000f000	/* rev >= 49 */
 #define	CHIPC_OTPL_SIZE_SHIFT		12
+#define	CHIPC_OTPL_GUP_MASK		0x00000FFF	/* bit offset to general use region */
+#define	CHIPC_OTPL_GUP_SHIFT		0
 #define	CHIPC_OTPL_CISFORMAT_NEW	0x80000000	/* rev >= 36 */
 
 /* Opcodes for OTPP_OC field */

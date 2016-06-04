@@ -37,15 +37,4 @@
 
 #include "bhnd_chipc_if.h"
 
-/**
- * Query a ChipCommon device and return the preferred NVRAM data source.
- *
- * @param dev A bhnd(4) ChipCommon device.
- */
-static inline bhnd_nvram_src_t
-bhnd_chipc_nvram_src(device_t dev)
-{
-	return (BHND_CHIPC_NVRAM_SRC(dev));
-}
-
 #endif /* _BHND_CORES_CHIPC_CHIPC_H_ */

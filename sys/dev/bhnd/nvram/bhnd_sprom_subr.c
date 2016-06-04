@@ -465,7 +465,7 @@ sprom_populate_shadow(struct bhnd_sprom *sc)
 	}
 
 	/* identification failed */
-	device_printf(sc->dev, "unrecognized sprom format\n");
+	device_printf(sc->dev, "unrecognized SPROM format\n");
 	return (EINVAL);
 }
 
