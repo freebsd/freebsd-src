@@ -73,8 +73,11 @@ __elfN(arm_exec)(struct preloaded_file *fp)
 
 	e = (Elf_Ehdr *)&fmp->md_data;
 
-	if ((error = bi_load(fp->f_args, &modulep, &kernend)) != 0)
+	efi_time_fini();
+	if ((error = bi_load(fp->f_args, &modulep, &kernend)) != 0) {
+		efi_time_init();
 		return (error);
+	}
 
 	entry = efi_translate(e->e_entry);
 	printf("Kernel entry at 0x%x...\n", (unsigned)entry);

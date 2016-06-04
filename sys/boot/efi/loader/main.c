@@ -246,6 +246,9 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_zfs_probe = efi_zfs_probe;
 #endif
 
+	/* Init the time source */
+	efi_time_init();
+
 	has_kbd = has_keyboard();
 
 	/*

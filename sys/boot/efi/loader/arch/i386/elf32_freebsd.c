@@ -71,9 +71,12 @@ elf32_exec(struct preloaded_file *fp)
 	return(EFTYPE);
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
+    efi_time_fini();
     err = bi_load(fp->f_args, &boothowto, &bootdev, &bootinfop, &modulep, &kernend);
-    if (err != 0)
+    if (err != 0) {
+	efi_time_init();
 	return(err);
+    }
     entry = ehdr->e_entry & 0xffffff;
 
     printf("Start @ 0x%lx ...\n", entry);
