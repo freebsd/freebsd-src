@@ -342,7 +342,6 @@ dev/sfxge/common/hunt_nic.c	optional	sfxge pci
 dev/sfxge/common/hunt_nvram.c	optional	sfxge pci
 dev/sfxge/common/hunt_phy.c	optional	sfxge pci
 dev/sfxge/common/hunt_rx.c	optional	sfxge pci
-dev/sfxge/common/hunt_sram.c	optional	sfxge pci
 dev/sfxge/common/hunt_tx.c	optional	sfxge pci
 dev/sfxge/common/hunt_vpd.c	optional	sfxge pci
 dev/sfxge/common/medford_nic.c	optional	sfxge pci
