@@ -901,6 +901,8 @@ siena_tx_qcreate(
 	uint32_t size;
 	efx_rc_t rc;
 
+	_NOTE(ARGUNUSED(esmp))
+
 	EFX_STATIC_ASSERT(EFX_EV_TX_NLABELS ==
 	    (1 << FRF_AZ_TX_DESCQ_LABEL_WIDTH));
 	EFSYS_ASSERT3U(label, <, EFX_EV_TX_NLABELS);
