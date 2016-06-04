@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_SIENA
 
-static efx_nvram_ops_t	__efx_nvram_siena_ops = {
+static const efx_nvram_ops_t	__efx_nvram_siena_ops = {
 #if EFSYS_OPT_DIAG
 	siena_nvram_test,		/* envo_test */
 #endif	/* EFSYS_OPT_DIAG */
@@ -58,7 +58,7 @@ static efx_nvram_ops_t	__efx_nvram_siena_ops = {
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
-static efx_nvram_ops_t	__efx_nvram_ef10_ops = {
+static const efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 #if EFSYS_OPT_DIAG
 	ef10_nvram_test,		/* envo_test */
 #endif	/* EFSYS_OPT_DIAG */
@@ -80,7 +80,7 @@ static efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 efx_nvram_init(
 	__in		efx_nic_t *enp)
 {
-	efx_nvram_ops_t *envop;
+	const efx_nvram_ops_t *envop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -90,19 +90,19 @@ efx_nvram_init(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		envop = (efx_nvram_ops_t *)&__efx_nvram_siena_ops;
+		envop = &__efx_nvram_siena_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		envop = (efx_nvram_ops_t *)&__efx_nvram_ef10_ops;
+		envop = &__efx_nvram_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		envop = (efx_nvram_ops_t *)&__efx_nvram_ef10_ops;
+		envop = &__efx_nvram_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
 
@@ -129,7 +129,7 @@ fail1:
 efx_nvram_test(
 	__in			efx_nic_t *enp)
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -154,7 +154,7 @@ efx_nvram_size(
 	__in			efx_nvram_type_t type,
 	__out			size_t *sizep)
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
 	efx_rc_t rc;
 
@@ -187,7 +187,7 @@ efx_nvram_get_version(
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4])
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
 	efx_rc_t rc;
 
@@ -220,7 +220,7 @@ efx_nvram_rw_start(
 	__in			efx_nvram_type_t type,
 	__out_opt		size_t *chunk_sizep)
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
 	efx_rc_t rc;
 
@@ -258,7 +258,7 @@ efx_nvram_read_chunk(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
 	efx_rc_t rc;
 
@@ -291,7 +291,7 @@ efx_nvram_erase(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type)
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	unsigned int offset = 0;
 	size_t size = 0;
 	uint32_t partn;
@@ -334,7 +334,7 @@ efx_nvram_write_chunk(
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
 	efx_rc_t rc;
 
@@ -367,7 +367,7 @@ efx_nvram_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type)
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -390,7 +390,7 @@ efx_nvram_set_version(
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4])
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
 	efx_rc_t rc;
 
@@ -431,7 +431,7 @@ efx_nvram_validate(
 	__in_bcount(partn_size)	caddr_t partn_data,
 	__in			size_t partn_size)
 {
-	efx_nvram_ops_t *envop = enp->en_envop;
+	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
 	efx_rc_t rc;
 

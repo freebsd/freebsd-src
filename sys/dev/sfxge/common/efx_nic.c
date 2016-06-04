@@ -179,7 +179,7 @@ fail1:
 
 #if EFSYS_OPT_SIENA
 
-static efx_nic_ops_t	__efx_nic_siena_ops = {
+static const efx_nic_ops_t	__efx_nic_siena_ops = {
 	siena_nic_probe,		/* eno_probe */
 	NULL,				/* eno_board_cfg */
 	NULL,				/* eno_set_drv_limits */
@@ -198,7 +198,7 @@ static efx_nic_ops_t	__efx_nic_siena_ops = {
 
 #if EFSYS_OPT_HUNTINGTON
 
-static efx_nic_ops_t	__efx_nic_hunt_ops = {
+static const efx_nic_ops_t	__efx_nic_hunt_ops = {
 	ef10_nic_probe,			/* eno_probe */
 	hunt_board_cfg,			/* eno_board_cfg */
 	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
@@ -217,7 +217,7 @@ static efx_nic_ops_t	__efx_nic_hunt_ops = {
 
 #if EFSYS_OPT_MEDFORD
 
-static efx_nic_ops_t	__efx_nic_medford_ops = {
+static const efx_nic_ops_t	__efx_nic_medford_ops = {
 	ef10_nic_probe,			/* eno_probe */
 	medford_board_cfg,		/* eno_board_cfg */
 	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
@@ -262,7 +262,7 @@ efx_nic_create(
 	switch (family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_siena_ops;
+		enp->en_enop = &__efx_nic_siena_ops;
 		enp->en_features =
 		    EFX_FEATURE_IPV6 |
 		    EFX_FEATURE_LFSR_HASH_INSERT |
@@ -278,7 +278,7 @@ efx_nic_create(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_hunt_ops;
+		enp->en_enop = &__efx_nic_hunt_ops;
 		/* FIXME: Add WOL support */
 		enp->en_features =
 		    EFX_FEATURE_IPV6 |
@@ -295,7 +295,7 @@ efx_nic_create(
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_medford_ops;
+		enp->en_enop = &__efx_nic_medford_ops;
 		/*
 		 * FW_ASSISTED_TSO ommitted as Medford only supports firmware
 		 * assisted TSO version 2, not the v1 scheme used on Huntington.
@@ -343,7 +343,7 @@ fail1:
 efx_nic_probe(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop;
+	const efx_nic_ops_t *enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -379,7 +379,7 @@ efx_nic_set_drv_limits(
 	__inout		efx_nic_t *enp,
 	__in		efx_drv_limits_t *edlp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -405,7 +405,7 @@ efx_nic_get_bar_region(
 	__out		uint32_t *offsetp,
 	__out		size_t *sizep)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -440,7 +440,7 @@ efx_nic_get_vi_pool(
 	__out		uint32_t *rxq_countp,
 	__out		uint32_t *txq_countp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_rc_t rc;
 
@@ -477,7 +477,7 @@ fail1:
 efx_nic_init(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -507,7 +507,7 @@ fail1:
 efx_nic_fini(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT(enp->en_mod_flags & EFX_MOD_PROBE);
@@ -526,7 +526,7 @@ efx_nic_fini(
 efx_nic_unprobe(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 #if EFSYS_OPT_MCDI
@@ -572,7 +572,7 @@ efx_nic_destroy(
 efx_nic_reset(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	unsigned int mod_flags;
 	efx_rc_t rc;
 
@@ -626,7 +626,7 @@ efx_nic_cfg_get(
 efx_nic_register_test(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
