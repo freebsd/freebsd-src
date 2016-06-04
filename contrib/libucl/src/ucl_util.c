@@ -975,6 +975,7 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 		if (params->soft_fail) {
 			return false;
 		}
+
 		return (!params->must_exist || false);
 	}
 
@@ -1172,11 +1173,14 @@ ucl_include_file_single (const unsigned char *data, size_t len,
 
 	res = ucl_parser_add_chunk_full (parser, buf, buflen, params->priority,
 			params->strat, params->parse_type);
-	if (!res && !params->must_exist) {
-		/* Free error */
-		utstring_free (parser->err);
-		parser->err = NULL;
-		parser->state = UCL_STATE_AFTER_VALUE;
+
+	if (!res) {
+		if (!params->must_exist) {
+			/* Free error */
+			utstring_free (parser->err);
+			parser->err = NULL;
+			res = true;
+		}
 	}
 
 	/* Stop nesting the include, take 1 level off the stack */
@@ -1848,6 +1852,9 @@ ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
 		ucl_create_err (&parser->err, "cannot stat fd %d: %s",
 			fd, strerror (errno));
 		return false;
+	}
+	if (st.st_size == 0) {
+		return true;
 	}
 	if ((buf = ucl_mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
 		ucl_create_err (&parser->err, "cannot mmap fd %d: %s",
