@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 
 #define	NTB_MSIX_VER_GUARD	0xaabbccdd
 #define	NTB_MSIX_RECEIVED	0xe0f0e0f0
-#define	ONE_MB			(1024u * 1024)
 
 /*
  * PCI constants could be somewhere more generic, but aren't defined/used in
@@ -238,6 +237,7 @@ struct ntb_softc {
 	/* Memory window used to access peer bar0 */
 #define B2B_MW_DISABLED			UINT8_MAX
 	uint8_t				b2b_mw_idx;
+	uint32_t			msix_xlat;
 	uint8_t				msix_mw_idx;
 
 	uint8_t				mw_count;
@@ -1361,12 +1361,12 @@ ntb_get_msix_info(struct ntb_softc *ntb)
 
 		laddr = bus_read_4(msix->msix_table_res, offset +
 		    PCI_MSIX_ENTRY_LOWER_ADDR);
-		ntb_printf(2, "local lower MSIX addr(%u): 0x%x\n", i, laddr);
+		ntb_printf(2, "local MSIX addr(%u): 0x%x\n", i, laddr);
 
 		KASSERT((laddr & MSI_INTEL_ADDR_BASE) == MSI_INTEL_ADDR_BASE,
 		    ("local MSIX addr 0x%x not in MSI base 0x%x", laddr,
 		     MSI_INTEL_ADDR_BASE));
-		ntb->msix_data[i].nmd_ofs = laddr & ~MSI_INTEL_ADDR_BASE;
+		ntb->msix_data[i].nmd_ofs = laddr;
 
 		data = bus_read_4(msix->msix_table_res, offset +
 		    PCI_MSIX_ENTRY_DATA);
@@ -1659,15 +1659,6 @@ xeon_reset_sbar_size(struct ntb_softc *ntb, enum ntb_bar idx,
 			bar_sz--;
 		else
 			bar_sz = 0;
-	} else if (HAS_FEATURE(NTB_SB01BASE_LOCKUP) &&
-	    ntb_mw_to_bar(ntb, ntb->msix_mw_idx) == idx) {
-		/* Restrict LAPIC BAR to 1MB */
-		pci_write_config(ntb->device, bar->psz_off, 20, 1);
-		pci_write_config(ntb->device, bar->ssz_off, 20, 1);
-		bar_sz = pci_read_config(ntb->device, bar->psz_off, 1);
-		bar_sz = pci_read_config(ntb->device, bar->ssz_off, 1);
-		(void)bar_sz;
-		return;
 	}
 	pci_write_config(ntb->device, bar->ssz_off, bar_sz, 1);
 	bar_sz = pci_read_config(ntb->device, bar->ssz_off, 1);
@@ -1678,24 +1669,19 @@ static void
 xeon_set_sbar_base_and_limit(struct ntb_softc *ntb, uint64_t bar_addr,
     enum ntb_bar idx, enum ntb_bar regbar)
 {
-	uint64_t reg_val, lmt_addr;
+	uint64_t reg_val;
 	uint32_t base_reg, lmt_reg;
 
 	bar_get_xlat_params(ntb, idx, &base_reg, NULL, &lmt_reg);
 	if (idx == regbar)
 		bar_addr += ntb->b2b_off;
-	lmt_addr = bar_addr;
-
-	if (HAS_FEATURE(NTB_SB01BASE_LOCKUP) &&
-	    ntb_mw_to_bar(ntb, ntb->msix_mw_idx) == idx)
-		lmt_addr += ONE_MB;
 
 	/*
 	 * Set limit registers first to avoid an errata where setting the base
 	 * registers locks the limit registers.
 	 */
 	if (!bar_is_64bit(ntb, idx)) {
-		ntb_reg_write(4, lmt_reg, lmt_addr);
+		ntb_reg_write(4, lmt_reg, bar_addr);
 		reg_val = ntb_reg_read(4, lmt_reg);
 		(void)reg_val;
 
@@ -1703,7 +1689,7 @@ xeon_set_sbar_base_and_limit(struct ntb_softc *ntb, uint64_t bar_addr,
 		reg_val = ntb_reg_read(4, base_reg);
 		(void)reg_val;
 	} else {
-		ntb_reg_write(8, lmt_reg, lmt_addr);
+		ntb_reg_write(8, lmt_reg, bar_addr);
 		reg_val = ntb_reg_read(8, lmt_reg);
 		(void)reg_val;
 
@@ -1732,31 +1718,13 @@ xeon_set_pbar_xlat(struct ntb_softc *ntb, uint64_t base_addr, enum ntb_bar idx)
 static int
 xeon_setup_msix_bar(struct ntb_softc *ntb)
 {
-	struct ntb_pci_bar_info *lapic_bar;
 	enum ntb_bar bar_num;
-	int rc;
 
 	if (!HAS_FEATURE(NTB_SB01BASE_LOCKUP))
 		return (0);
 
 	bar_num = ntb_mw_to_bar(ntb, ntb->msix_mw_idx);
-	lapic_bar = &ntb->bar_info[bar_num];
-
-	/* Restrict LAPIC BAR to 1MB */
-	if (lapic_bar->size > ONE_MB) {
-		rc = bus_adjust_resource(ntb->device, SYS_RES_MEMORY,
-		    lapic_bar->pci_resource, lapic_bar->pbase,
-		    lapic_bar->pbase + ONE_MB - 1);
-		if (rc == 0)
-			lapic_bar->size = ONE_MB;
-		else {
-			ntb_printf(0, "Failed to shrink LAPIC BAR resource to "
-			    "1 MB: %d\n", rc);
-			/* Ignore error */
-		}
-	}
-
-	ntb->peer_lapic_bar = lapic_bar;
+	ntb->peer_lapic_bar =  &ntb->bar_info[bar_num];
 	return (0);
 }
 
@@ -1867,10 +1835,13 @@ xeon_setup_b2b_mw(struct ntb_softc *ntb, const struct ntb_b2b_addr *addr,
 		 * We point the chosen MSIX MW BAR xlat to remote LAPIC for
 		 * workaround
 		 */
-		if (size == 4)
+		if (size == 4) {
 			ntb_reg_write(4, xlatoffset, MSI_INTEL_ADDR_BASE);
-		else
+			ntb->msix_xlat = ntb_reg_read(4, xlatoffset);
+		} else {
 			ntb_reg_write(8, xlatoffset, MSI_INTEL_ADDR_BASE);
+			ntb->msix_xlat = ntb_reg_read(8, xlatoffset);
+		}
 	}
 	(void)ntb_reg_read(8, XEON_SBAR2XLAT_OFFSET);
 	(void)ntb_reg_read(8, XEON_SBAR4XLAT_OFFSET);
@@ -2810,7 +2781,7 @@ ntb_exchange_msix(void *ctx)
 		ntb_peer_spad_write(ntb, NTB_MSIX_DATA0 + i,
 		    ntb->msix_data[i].nmd_data);
 		ntb_peer_spad_write(ntb, NTB_MSIX_OFS0 + i,
-		    ntb->msix_data[i].nmd_ofs);
+		    ntb->msix_data[i].nmd_ofs - ntb->msix_xlat);
 	}
 	ntb_peer_spad_write(ntb, NTB_MSIX_GUARD, NTB_MSIX_VER_GUARD);
 
@@ -2820,8 +2791,10 @@ ntb_exchange_msix(void *ctx)
 
 	for (i = 0; i < XEON_NONLINK_DB_MSIX_BITS; i++) {
 		ntb_spad_read(ntb, NTB_MSIX_DATA0 + i, &val);
+		ntb_printf(2, "remote MSIX data(%u): 0x%x\n", i, val);
 		ntb->peer_msix_data[i].nmd_data = val;
 		ntb_spad_read(ntb, NTB_MSIX_OFS0 + i, &val);
+		ntb_printf(2, "remote MSIX addr(%u): 0x%x\n", i, val);
 		ntb->peer_msix_data[i].nmd_ofs = val;
 	}
 
