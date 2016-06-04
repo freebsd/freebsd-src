@@ -595,32 +595,6 @@ ef10_phy_stats_update(
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
-#if EFSYS_OPT_PHY_PROPS
-
-#if EFSYS_OPT_NAMES
-
-extern		const char *
-ef10_phy_prop_name(
-	__in	efx_nic_t *enp,
-	__in	unsigned int id);
-
-#endif	/* EFSYS_OPT_NAMES */
-
-extern	__checkReturn	efx_rc_t
-ef10_phy_prop_get(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t flags,
-	__out		uint32_t *valp);
-
-extern	__checkReturn	efx_rc_t
-ef10_phy_prop_set(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t val);
-
-#endif	/* EFSYS_OPT_PHY_PROPS */
-
 
 /* TX */
 

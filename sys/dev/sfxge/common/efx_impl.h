@@ -217,14 +217,6 @@ typedef struct efx_phy_ops_s {
 	efx_rc_t	(*epo_stats_update)(efx_nic_t *, efsys_mem_t *,
 					    uint32_t *);
 #endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_PHY_PROPS
-#if EFSYS_OPT_NAMES
-	const char	*(*epo_prop_name)(efx_nic_t *, unsigned int);
-#endif	/* EFSYS_OPT_PHY_PROPS */
-	efx_rc_t	(*epo_prop_get)(efx_nic_t *, unsigned int, uint32_t,
-					uint32_t *);
-	efx_rc_t	(*epo_prop_set)(efx_nic_t *, unsigned int, uint32_t);
-#endif	/* EFSYS_OPT_PHY_PROPS */
 #if EFSYS_OPT_BIST
 	efx_rc_t	(*epo_bist_enable_offline)(efx_nic_t *);
 	efx_rc_t	(*epo_bist_start)(efx_nic_t *, efx_bist_type_t);

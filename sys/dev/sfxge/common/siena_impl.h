@@ -42,17 +42,6 @@
 extern "C" {
 #endif
 
-#if EFSYS_OPT_PHY_PROPS
-
-/* START MKCONFIG GENERATED SienaPhyHeaderPropsBlock a8db1f8eb5106efd */
-typedef enum siena_phy_prop_e {
-	SIENA_PHY_NPROPS
-} siena_phy_prop_t;
-
-/* END MKCONFIG GENERATED SienaPhyHeaderPropsBlock */
-
-#endif  /* EFSYS_OPT_PHY_PROPS */
-
 #define	SIENA_NVRAM_CHUNK 0x80
 
 extern	__checkReturn	efx_rc_t
@@ -359,32 +348,6 @@ siena_phy_stats_update(
 	__inout_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
 
 #endif	/* EFSYS_OPT_PHY_STATS */
-
-#if EFSYS_OPT_PHY_PROPS
-
-#if EFSYS_OPT_NAMES
-
-extern		const char *
-siena_phy_prop_name(
-	__in	efx_nic_t *enp,
-	__in	unsigned int id);
-
-#endif	/* EFSYS_OPT_NAMES */
-
-extern	__checkReturn	efx_rc_t
-siena_phy_prop_get(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t flags,
-	__out		uint32_t *valp);
-
-extern	__checkReturn	efx_rc_t
-siena_phy_prop_set(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t val);
-
-#endif	/* EFSYS_OPT_PHY_PROPS */
 
 #if EFSYS_OPT_BIST
 
