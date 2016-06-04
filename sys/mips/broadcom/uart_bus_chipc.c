@@ -45,8 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
+#include <dev/bhnd/cores/chipc/chipcvar.h>
+
 #include "uart_if.h"
 #include "bhnd_chipc_if.h"
+
 
 static int	uart_chipc_probe(device_t dev);
 
@@ -55,9 +58,18 @@ extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 static void
 uart_chipc_identify(driver_t *driver, device_t parent)
 {
-	struct chipc_capabilities	*caps;
+	struct chipc_caps	*caps;
 
-	caps = BHND_CHIPC_GET_CAPABILITIES(parent);
+	if (device_find_child(parent, "uart", -1) != NULL)
+		return;
+
+	caps = BHND_CHIPC_GET_CAPS(parent);
+
+	if (caps == NULL) {
+		device_printf(parent, "error: can't retrieve ChipCommon "
+		    "capabilities\n");
+		return;
+	}
 
 	if (caps->num_uarts == 0)
 		return;
@@ -74,6 +86,7 @@ uart_chipc_probe(device_t dev)
 	struct uart_softc 	*sc;
 	struct resource		*res;
 	int			 rid;
+	int			 err;
 
 	rid = 0;
 	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -97,7 +110,11 @@ uart_chipc_probe(device_t dev)
 	sc->sc_bas.bst = sc->sc_sysdev->bas.bst;
 	sc->sc_bas.bsh = sc->sc_sysdev->bas.bsh;
 
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+	err = bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+	if (err) {
+		device_printf(dev, "can't release resource [%d]\n", rid);
+		return (ENXIO);
+	}
 
 	/* We use internal SoC clock generator with non-standart freq MHz */
 	return (uart_bus_probe(dev, 0, sc->sc_sysdev->bas.rclk, 0, 0));
