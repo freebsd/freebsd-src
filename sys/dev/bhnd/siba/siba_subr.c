@@ -244,9 +244,9 @@ siba_append_dinfo_region(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 	struct siba_addrspace	*sa;
 	struct siba_port	*port;
 	rman_res_t		 r_size;
-	
+
 	/* Verify that base + size will not overflow */
-	if (UINT32_MAX - size < base)
+	if (size > 0 && UINT32_MAX - (size - 1) < base)
 		return (ERANGE);
 
 	/* Verify that size - bus_reserved will not underflow */
@@ -276,7 +276,7 @@ siba_append_dinfo_region(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 	/* Populate the resource list */
 	r_size = size - bus_reserved;
 	sa->sa_rid = resource_list_add_next(&dinfo->resources, SYS_RES_MEMORY,
-	    base, base + r_size - 1, r_size);
+	    base, base + (r_size - 1), r_size);
 
 	/* Append to target port */
 	STAILQ_INSERT_TAIL(&port->sp_addrs, sa, sa_link);
