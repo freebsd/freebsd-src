@@ -236,8 +236,6 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 
 #define	EFSYS_OPT_NAMES 1
 
-#define	EFSYS_OPT_FALCON 0
-#define	EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE 0
 #define	EFSYS_OPT_SIENA 1
 #define	EFSYS_OPT_HUNTINGTON 1
 #define	EFSYS_OPT_MEDFORD 0
@@ -251,24 +249,13 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_MCDI_LOGGING 0
 #define	EFSYS_OPT_MCDI_PROXY_AUTH 0
 
-#define	EFSYS_OPT_MAC_FALCON_GMAC 0
-#define	EFSYS_OPT_MAC_FALCON_XMAC 0
 #define	EFSYS_OPT_MAC_STATS 1
 
 #define	EFSYS_OPT_LOOPBACK 0
 
-#define	EFSYS_OPT_MON_NULL 0
-#define	EFSYS_OPT_MON_LM87 0
-#define	EFSYS_OPT_MON_MAX6647 0
 #define	EFSYS_OPT_MON_MCDI 0
 #define	EFSYS_OPT_MON_STATS 0
 
-#define	EFSYS_OPT_PHY_NULL 0
-#define	EFSYS_OPT_PHY_QT2022C2 0
-#define	EFSYS_OPT_PHY_SFX7101 0
-#define	EFSYS_OPT_PHY_TXC43128 0
-#define	EFSYS_OPT_PHY_SFT9001 0
-#define	EFSYS_OPT_PHY_QT2025C 0
 #define	EFSYS_OPT_PHY_STATS 1
 #define	EFSYS_OPT_PHY_PROPS 0
 #define	EFSYS_OPT_BIST 1
@@ -277,12 +264,8 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 
 #define	EFSYS_OPT_VPD 1
 #define	EFSYS_OPT_NVRAM 1
-#define	EFSYS_OPT_NVRAM_FALCON_BOOTROM 0
-#define	EFSYS_OPT_NVRAM_SFT9001	0
-#define	EFSYS_OPT_NVRAM_SFX7101	0
 #define	EFSYS_OPT_BOOTCFG 0
 
-#define	EFSYS_OPT_PCIE_TUNE 0
 #define	EFSYS_OPT_DIAG 0
 #define	EFSYS_OPT_WOL 1
 #define	EFSYS_OPT_RX_SCALE 1
