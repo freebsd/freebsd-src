@@ -152,8 +152,8 @@ MODULE_VERSION(ioat, 1);
  * Private data structures
  */
 static struct ioat_softc *ioat_channel[IOAT_MAX_CHANNELS];
-static int ioat_channel_index = 0;
-SYSCTL_INT(_hw_ioat, OID_AUTO, channels, CTLFLAG_RD, &ioat_channel_index, 0,
+static unsigned ioat_channel_index = 0;
+SYSCTL_UINT(_hw_ioat, OID_AUTO, channels, CTLFLAG_RD, &ioat_channel_index, 0,
     "Number of IOAT channels attached");
 
 static struct _pcsid

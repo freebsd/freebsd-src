@@ -455,7 +455,7 @@ struct ioat_softc {
 })
 
 	int			version;
-	int			chan_idx;
+	unsigned		chan_idx;
 
 	struct mtx		submit_lock;
 	device_t		device;
