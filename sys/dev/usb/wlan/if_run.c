@@ -2829,7 +2829,9 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 		tap->wr_antenna = ant;
 		tap->wr_dbm_antsignal = run_rssi2dbm(sc, rssi, ant);
 		tap->wr_rate = 2;	/* in case it can't be found below */
+		RUN_LOCK(sc);
 		run_get_tsf(sc, &tap->wr_tsf);
+		RUN_UNLOCK(sc);
 		phy = le16toh(rxwi->phy);
 		switch (phy & RT2860_PHY_MODE) {
 		case RT2860_PHY_CCK:
