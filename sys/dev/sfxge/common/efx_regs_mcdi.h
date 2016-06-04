@@ -721,6 +721,12 @@
 #define	FCDI_EVENT_CODE_PTP_STATUS 0x9
 /* enum: Port id config to map MC-FC port idx */
 #define	FCDI_EVENT_CODE_PORT_CONFIG 0xa
+/* enum: Boot result or error code */
+#define	FCDI_EVENT_CODE_BOOT_RESULT 0xb
+#define	FCDI_EVENT_REBOOT_SRC_LBN 36
+#define	FCDI_EVENT_REBOOT_SRC_WIDTH 8
+#define	FCDI_EVENT_REBOOT_FC_FW 0x0 /* enum */
+#define	FCDI_EVENT_REBOOT_FC_BOOTLOADER 0x1 /* enum */
 #define	FCDI_EVENT_ASSERT_INSTR_ADDRESS_OFST 0
 #define	FCDI_EVENT_ASSERT_INSTR_ADDRESS_LBN 0
 #define	FCDI_EVENT_ASSERT_INSTR_ADDRESS_WIDTH 32
@@ -752,6 +758,11 @@
 #define	FCDI_EVENT_PORT_CONFIG_DATA_OFST 0
 #define	FCDI_EVENT_PORT_CONFIG_DATA_LBN 0
 #define	FCDI_EVENT_PORT_CONFIG_DATA_WIDTH 32
+#define	FCDI_EVENT_BOOT_RESULT_OFST 0
+/*            Enum values, see field(s): */
+/*               MC_CMD_AOE/MC_CMD_AOE_OUT_INFO/FC_BOOT_RESULT */
+#define	FCDI_EVENT_BOOT_RESULT_LBN 0
+#define	FCDI_EVENT_BOOT_RESULT_WIDTH 32
 
 /* FCDI_EXTENDED_EVENT_PPS structuredef: Extended FCDI event to send PPS events
  * to the MC. Note that this structure | is overlayed over a normal FCDI event
@@ -3350,6 +3361,8 @@
 #define	MC_CMD_AOE_OUT_INFO_FC_BOOT_FAIL_BAD_CHECKSUM 0x4
 /* enum: Bad BSP */
 #define	MC_CMD_AOE_OUT_INFO_FC_BOOT_FAIL_BAD_BSP 0x5
+/* enum: Flash mode is invalid */
+#define	MC_CMD_AOE_OUT_INFO_FC_BOOT_FAIL_INVALID_FLASH_MODE 0x6
 /* enum: FC application loaded and execution attempted */
 #define	MC_CMD_AOE_OUT_INFO_FC_BOOT_APP_EXECUTE 0x80
 /* enum: FC application Started */
@@ -5480,6 +5493,14 @@
 /* MC_CMD_SET_MAC_OUT msgresponse */
 #define	MC_CMD_SET_MAC_OUT_LEN 0
 
+/* MC_CMD_SET_MAC_V2_OUT msgresponse */
+#define	MC_CMD_SET_MAC_V2_OUT_LEN 4
+/* MTU as configured after processing the request. See comment at
+ * MC_CMD_SET_MAC_IN/MTU. To query MTU without doing any changes, set CONTROL
+ * to 0.
+ */
+#define	MC_CMD_SET_MAC_V2_OUT_MTU_OFST 0
+
 
 /***********************************/
 /* MC_CMD_PHY_STATS
@@ -6552,6 +6573,10 @@
 #define	MC_CMD_SENSOR_PHY1_VCC  0x4d
 /* enum: Controller die temperature (TDIODE): degC */
 #define	MC_CMD_SENSOR_CONTROLLER_TDIODE_TEMP  0x4e
+/* enum: Board temperature (front): degC */
+#define	MC_CMD_SENSOR_BOARD_FRONT_TEMP  0x4f
+/* enum: Board temperature (back): degC */
+#define	MC_CMD_SENSOR_BOARD_BACK_TEMP  0x50
 /* MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF */
 #define	MC_CMD_SENSOR_ENTRY_OFST 4
 #define	MC_CMD_SENSOR_ENTRY_LEN 8
@@ -7904,6 +7929,8 @@
 #define	LICENSED_FEATURES_TX_SNIFF_WIDTH 1
 #define	LICENSED_FEATURES_PROXY_FILTER_OPS_LBN 8
 #define	LICENSED_FEATURES_PROXY_FILTER_OPS_WIDTH 1
+#define	LICENSED_FEATURES_EVENT_CUT_THROUGH_LBN 9
+#define	LICENSED_FEATURES_EVENT_CUT_THROUGH_WIDTH 1
 #define	LICENSED_FEATURES_MASK_LBN 0
 #define	LICENSED_FEATURES_MASK_WIDTH 64
 
@@ -8072,6 +8099,8 @@
 #define	MC_CMD_INIT_EVQ_IN_FLAG_RX_MERGE_WIDTH 1
 #define	MC_CMD_INIT_EVQ_IN_FLAG_TX_MERGE_LBN 5
 #define	MC_CMD_INIT_EVQ_IN_FLAG_TX_MERGE_WIDTH 1
+#define	MC_CMD_INIT_EVQ_IN_FLAG_USE_TIMER_LBN 6
+#define	MC_CMD_INIT_EVQ_IN_FLAG_USE_TIMER_WIDTH 1
 #define	MC_CMD_INIT_EVQ_IN_TMR_MODE_OFST 20
 /* enum: Disabled */
 #define	MC_CMD_INIT_EVQ_IN_TMR_MODE_DIS 0x0
@@ -9197,6 +9226,15 @@
  * client
  */
 #define	MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_RESTRICTIONS  0x2
+/* enum: read properties relating to security rules (Medford-only; for use by
+ * SolarSecure apps, not directly by drivers. See SF-114946-SW.)
+ */
+#define	MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_SECURITY_RULE_INFO  0x3
+/* enum: read the list of supported RX filter matches for VXLAN/NVGRE
+ * encapsulated frames, which follow a different match sequence to normal
+ * frames (Medford only)
+ */
+#define	MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_SUPPORTED_ENCAP_RX_MATCHES  0x4
 
 /* MC_CMD_GET_PARSER_DISP_INFO_OUT msgresponse */
 #define	MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMIN 8
@@ -9226,6 +9264,39 @@
 #define	MC_CMD_GET_PARSER_DISP_RESTRICTIONS_OUT_RESTRICTION_FLAGS_OFST 4
 #define	MC_CMD_GET_PARSER_DISP_RESTRICTIONS_OUT_DST_IP_MCAST_ONLY_LBN 0
 #define	MC_CMD_GET_PARSER_DISP_RESTRICTIONS_OUT_DST_IP_MCAST_ONLY_WIDTH 1
+
+/* MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT msgresponse:
+ * GET_PARSER_DISP_INFO response format for OP_GET_SECURITY_RULE_INFO.
+ * (Medford-only; for use by SolarSecure apps, not directly by drivers. See
+ * SF-114946-SW.) NOTE - this message definition is provisional. It has not yet
+ * been used in any released code and may change during development. This note
+ * will be removed once it is regarded as stable.
+ */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_LEN 36
+/* identifies the type of operation requested */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_OP_OFST 0
+/*            Enum values, see field(s): */
+/*               MC_CMD_GET_PARSER_DISP_INFO_IN/OP */
+/* a version number representing the set of rule lookups that are implemented
+ * by the currently running firmware
+ */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_RULES_VERSION_OFST 4
+/* enum: implements lookup sequences described in SF-114946-SW draft C */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_RULES_VERSION_SF_114946_SW_C  0x0
+/* the number of nodes in the subnet map */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_SUBNET_MAP_NUM_NODES_OFST 8
+/* the number of entries in one subnet map node */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_SUBNET_MAP_NUM_ENTRIES_PER_NODE_OFST 12
+/* minimum valid value for a subnet ID in a subnet map leaf */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_SUBNET_ID_MIN_OFST 16
+/* maximum valid value for a subnet ID in a subnet map leaf */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_SUBNET_ID_MAX_OFST 20
+/* the number of entries in the local and remote port range maps */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_PORTRANGE_TREE_NUM_ENTRIES_OFST 24
+/* minimum valid value for a portrange ID in a port range map leaf */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_PORTRANGE_ID_MIN_OFST 28
+/* maximum valid value for a portrange ID in a port range map leaf */
+#define	MC_CMD_GET_PARSER_DISP_SECURITY_RULE_INFO_OUT_PORTRANGE_ID_MAX_OFST 32
 
 
 /***********************************/
@@ -10084,6 +10155,8 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_TXDP_TEST_FW_TSO_EDIT  0x101
 /* enum: TXDP Test firmware image 2 */
 #define	MC_CMD_GET_CAPABILITIES_OUT_TXDP_TEST_FW_PACKET_EDITS  0x102
+/* enum: TXDP CSR bus test firmware */
+#define	MC_CMD_GET_CAPABILITIES_OUT_TXDP_TEST_FW_CSR  0x103
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_VERSION_OFST 8
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_VERSION_LEN 2
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_VERSION_REV_LBN 0
@@ -10162,7 +10235,7 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_IN_LEN 0
 
 /* MC_CMD_GET_CAPABILITIES_V2_OUT msgresponse */
-#define	MC_CMD_GET_CAPABILITIES_V2_OUT_LEN 26
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_LEN 72
 /* First word of flags. */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_FLAGS1_OFST 0
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_VPORT_RECONFIGURE_LBN 3
@@ -10267,6 +10340,8 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_TEST_FW_TSO_EDIT  0x101
 /* enum: TXDP Test firmware image 2 */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_TEST_FW_PACKET_EDITS  0x102
+/* enum: TXDP CSR bus test firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_TEST_FW_CSR  0x103
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_OFST 8
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_LEN 2
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_REV_LBN 0
@@ -10346,11 +10421,67 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_ENCAP_LBN 1
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_ENCAP_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVQ_TIMER_CTRL_LBN 2
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVQ_TIMER_CTRL_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVENT_CUT_THROUGH_LBN 3
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVENT_CUT_THROUGH_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_CUT_THROUGH_LBN 4
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_CUT_THROUGH_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC. Not present
  * on older firmware (check the length).
  */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS_OFST 24
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS_LEN 2
+/* One byte per PF containing the number of the external port assigned to this
+ * PF, indexed by PF number. Special values indicate that a PF is either not
+ * present or not assigned.
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_PFS_TO_PORTS_ASSIGNMENT_OFST 26
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_PFS_TO_PORTS_ASSIGNMENT_LEN 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_PFS_TO_PORTS_ASSIGNMENT_NUM 16
+/* enum: The caller is not permitted to access information on this PF. */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_ACCESS_NOT_PERMITTED  0xff
+/* enum: PF does not exist. */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_PF_NOT_PRESENT  0xfe
+/* enum: PF does exist but is not assigned to any external port. */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_PF_NOT_ASSIGNED  0xfd
+/* enum: This value indicates that PF is assigned, but it cannot be expressed
+ * in this field. It is intended for a possible future situation where a more
+ * complex scheme of PFs to ports mapping is being used. The future driver
+ * should look for a new field supporting the new scheme. The current/old
+ * driver should treat this value as PF_NOT_ASSIGNED.
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_INCOMPATIBLE_ASSIGNMENT  0xfc
+/* One byte per PF containing the number of its VFs, indexed by PF number. A
+ * special value indicates that a PF is not present.
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_OFST 42
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_LEN 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_NUM 16
+/* enum: The caller is not permitted to access information on this PF. */
+/*               MC_CMD_GET_CAPABILITIES_V2_OUT_ACCESS_NOT_PERMITTED  0xff */
+/* enum: PF does not exist. */
+/*               MC_CMD_GET_CAPABILITIES_V2_OUT_PF_NOT_PRESENT  0xfe */
+/* Number of VIs available for each external port */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VIS_PER_PORT_OFST 58
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VIS_PER_PORT_LEN 2
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VIS_PER_PORT_NUM 4
+/* Size of RX descriptor cache expressed as binary logarithm The actual size
+ * equals (2 ^ RX_DESC_CACHE_SIZE)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_DESC_CACHE_SIZE_OFST 66
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_DESC_CACHE_SIZE_LEN 1
+/* Size of TX descriptor cache expressed as binary logarithm The actual size
+ * equals (2 ^ TX_DESC_CACHE_SIZE)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_DESC_CACHE_SIZE_OFST 67
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_DESC_CACHE_SIZE_LEN 1
+/* Total number of available PIO buffers */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_PIO_BUFFS_OFST 68
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_PIO_BUFFS_LEN 2
+/* Size of a single PIO buffer */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_SIZE_PIO_BUFF_OFST 70
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_SIZE_PIO_BUFF_LEN 2
 
 
 /***********************************/
@@ -13761,5 +13892,662 @@
 
 /* MC_CMD_PREPARE_SIGNED_OUT msgresponse */
 #define	MC_CMD_PREPARE_SIGNED_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_SET_SECURITY_RULE
+ * Set blacklist and/or whitelist action for a particular match criteria.
+ * (Medford-only; for use by SolarSecure apps, not directly by drivers. See
+ * SF-114946-SW.) NOTE - this message definition is provisional. It has not yet
+ * been used in any released code and may change during development. This note
+ * will be removed once it is regarded as stable.
+ */
+#define	MC_CMD_SET_SECURITY_RULE 0x10f
+#undef	MC_CMD_0x10f_PRIVILEGE_CTG
+
+#define	MC_CMD_0x10f_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_SET_SECURITY_RULE_IN msgrequest */
+#define	MC_CMD_SET_SECURITY_RULE_IN_LEN 92
+/* fields to include in match criteria */
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_FIELDS_OFST 0
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_IP_LBN 0
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_IP_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_LOCAL_IP_LBN 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_LOCAL_IP_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_MAC_LBN 2
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_MAC_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_PORT_LBN 3
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_PORT_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_LOCAL_MAC_LBN 4
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_LOCAL_MAC_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_LOCAL_PORT_LBN 5
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_LOCAL_PORT_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_ETHER_TYPE_LBN 6
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_ETHER_TYPE_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_INNER_VLAN_LBN 7
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_INNER_VLAN_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_OUTER_VLAN_LBN 8
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_OUTER_VLAN_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_IP_PROTO_LBN 9
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_IP_PROTO_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_PHYSICAL_PORT_LBN 10
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_PHYSICAL_PORT_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_RESERVED_LBN 11
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_RESERVED_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_SUBNET_ID_LBN 12
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_SUBNET_ID_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_PORTRANGE_ID_LBN 13
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_REMOTE_PORTRANGE_ID_WIDTH 1
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_LOCAL_PORTRANGE_ID_LBN 14
+#define	MC_CMD_SET_SECURITY_RULE_IN_MATCH_LOCAL_PORTRANGE_ID_WIDTH 1
+/* remote MAC address to match (as bytes in network order) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_REMOTE_MAC_OFST 4
+#define	MC_CMD_SET_SECURITY_RULE_IN_REMOTE_MAC_LEN 6
+/* remote port to match (as bytes in network order) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_REMOTE_PORT_OFST 10
+#define	MC_CMD_SET_SECURITY_RULE_IN_REMOTE_PORT_LEN 2
+/* local MAC address to match (as bytes in network order) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_LOCAL_MAC_OFST 12
+#define	MC_CMD_SET_SECURITY_RULE_IN_LOCAL_MAC_LEN 6
+/* local port to match (as bytes in network order) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_LOCAL_PORT_OFST 18
+#define	MC_CMD_SET_SECURITY_RULE_IN_LOCAL_PORT_LEN 2
+/* Ethernet type to match (as bytes in network order) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_ETHER_TYPE_OFST 20
+#define	MC_CMD_SET_SECURITY_RULE_IN_ETHER_TYPE_LEN 2
+/* Inner VLAN tag to match (as bytes in network order) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_INNER_VLAN_OFST 22
+#define	MC_CMD_SET_SECURITY_RULE_IN_INNER_VLAN_LEN 2
+/* Outer VLAN tag to match (as bytes in network order) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_OUTER_VLAN_OFST 24
+#define	MC_CMD_SET_SECURITY_RULE_IN_OUTER_VLAN_LEN 2
+/* IP protocol to match (in low byte; set high byte to 0) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_IP_PROTO_OFST 26
+#define	MC_CMD_SET_SECURITY_RULE_IN_IP_PROTO_LEN 2
+/* Physical port to match (as little-endian 32-bit value) */
+#define	MC_CMD_SET_SECURITY_RULE_IN_PHYSICAL_PORT_OFST 28
+/* Reserved; set to 0 */
+#define	MC_CMD_SET_SECURITY_RULE_IN_RESERVED_OFST 32
+/* remote IP address to match (as bytes in network order; set last 12 bytes to
+ * 0 for IPv4 address)
+ */
+#define	MC_CMD_SET_SECURITY_RULE_IN_REMOTE_IP_OFST 36
+#define	MC_CMD_SET_SECURITY_RULE_IN_REMOTE_IP_LEN 16
+/* local IP address to match (as bytes in network order; set last 12 bytes to 0
+ * for IPv4 address)
+ */
+#define	MC_CMD_SET_SECURITY_RULE_IN_LOCAL_IP_OFST 52
+#define	MC_CMD_SET_SECURITY_RULE_IN_LOCAL_IP_LEN 16
+/* remote subnet ID to match (as little-endian 32-bit value); note that remote
+ * subnets are matched by mapping the remote IP address to a "subnet ID" via a
+ * data structure which must already have been configured using
+ * MC_CMD_SUBNET_MAP_SET_NODE appropriately
+ */
+#define	MC_CMD_SET_SECURITY_RULE_IN_REMOTE_SUBNET_ID_OFST 68
+/* remote portrange ID to match (as little-endian 32-bit value); note that
+ * remote port ranges are matched by mapping the remote port to a "portrange
+ * ID" via a data structure which must already have been configured using
+ * MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE
+ */
+#define	MC_CMD_SET_SECURITY_RULE_IN_REMOTE_PORTRANGE_ID_OFST 72
+/* local portrange ID to match (as little-endian 32-bit value); note that local
+ * port ranges are matched by mapping the local port to a "portrange ID" via a
+ * data structure which must already have been configured using
+ * MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE
+ */
+#define	MC_CMD_SET_SECURITY_RULE_IN_LOCAL_PORTRANGE_ID_OFST 76
+/* set the action for transmitted packets matching this rule */
+#define	MC_CMD_SET_SECURITY_RULE_IN_TX_ACTION_OFST 80
+/* enum: make no decision */
+#define	MC_CMD_SET_SECURITY_RULE_IN_TX_ACTION_NONE  0x0
+/* enum: decide to accept the packet */
+#define	MC_CMD_SET_SECURITY_RULE_IN_TX_ACTION_WHITELIST  0x1
+/* enum: decide to drop the packet */
+#define	MC_CMD_SET_SECURITY_RULE_IN_TX_ACTION_BLACKLIST  0x2
+/* enum: do not change the current TX action */
+#define	MC_CMD_SET_SECURITY_RULE_IN_TX_ACTION_UNCHANGED  0xffffffff
+/* set the action for received packets matching this rule */
+#define	MC_CMD_SET_SECURITY_RULE_IN_RX_ACTION_OFST 84
+/* enum: make no decision */
+#define	MC_CMD_SET_SECURITY_RULE_IN_RX_ACTION_NONE  0x0
+/* enum: decide to accept the packet */
+#define	MC_CMD_SET_SECURITY_RULE_IN_RX_ACTION_WHITELIST  0x1
+/* enum: decide to drop the packet */
+#define	MC_CMD_SET_SECURITY_RULE_IN_RX_ACTION_BLACKLIST  0x2
+/* enum: do not change the current RX action */
+#define	MC_CMD_SET_SECURITY_RULE_IN_RX_ACTION_UNCHANGED  0xffffffff
+/* counter ID to associate with this rule; IDs are allocated using
+ * MC_CMD_SECURITY_RULE_COUNTER_ALLOC
+ */
+#define	MC_CMD_SET_SECURITY_RULE_IN_COUNTER_ID_OFST 88
+/* enum: special value for the null counter ID */
+#define	MC_CMD_SET_SECURITY_RULE_IN_COUNTER_ID_NONE  0x0
+
+/* MC_CMD_SET_SECURITY_RULE_OUT msgresponse */
+#define	MC_CMD_SET_SECURITY_RULE_OUT_LEN 28
+/* new reference count for uses of counter ID */
+#define	MC_CMD_SET_SECURITY_RULE_OUT_COUNTER_REFCNT_OFST 0
+/* constructed match bits for this rule (as a tracing aid only) */
+#define	MC_CMD_SET_SECURITY_RULE_OUT_LUE_MATCH_BITS_OFST 4
+#define	MC_CMD_SET_SECURITY_RULE_OUT_LUE_MATCH_BITS_LEN 12
+/* constructed discriminator bits for this rule (as a tracing aid only) */
+#define	MC_CMD_SET_SECURITY_RULE_OUT_LUE_DISCRIMINATOR_OFST 16
+/* base location for probes for this rule (as a tracing aid only) */
+#define	MC_CMD_SET_SECURITY_RULE_OUT_LUE_PROBE_BASE_OFST 20
+/* step for probes for this rule (as a tracing aid only) */
+#define	MC_CMD_SET_SECURITY_RULE_OUT_LUE_PROBE_STEP_OFST 24
+
+
+/***********************************/
+/* MC_CMD_RESET_SECURITY_RULES
+ * Reset all blacklist and whitelist actions for a particular physical port, or
+ * all ports. (Medford-only; for use by SolarSecure apps, not directly by
+ * drivers. See SF-114946-SW.) NOTE - this message definition is provisional.
+ * It has not yet been used in any released code and may change during
+ * development. This note will be removed once it is regarded as stable.
+ */
+#define	MC_CMD_RESET_SECURITY_RULES 0x110
+#undef	MC_CMD_0x110_PRIVILEGE_CTG
+
+#define	MC_CMD_0x110_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_RESET_SECURITY_RULES_IN msgrequest */
+#define	MC_CMD_RESET_SECURITY_RULES_IN_LEN 4
+/* index of physical port to reset (or ALL_PHYSICAL_PORTS to reset all) */
+#define	MC_CMD_RESET_SECURITY_RULES_IN_PHYSICAL_PORT_OFST 0
+/* enum: special value to reset all physical ports */
+#define	MC_CMD_RESET_SECURITY_RULES_IN_ALL_PHYSICAL_PORTS  0xffffffff
+
+/* MC_CMD_RESET_SECURITY_RULES_OUT msgresponse */
+#define	MC_CMD_RESET_SECURITY_RULES_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_GET_SECURITY_RULESET_VERSION
+ * Return a large hash value representing a "version" of the complete set of
+ * currently active blacklist / whitelist rules and associated data structures.
+ * (Medford-only; for use by SolarSecure apps, not directly by drivers. See
+ * SF-114946-SW.) NOTE - this message definition is provisional. It has not yet
+ * been used in any released code and may change during development. This note
+ * will be removed once it is regarded as stable.
+ */
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION 0x111
+#undef	MC_CMD_0x111_PRIVILEGE_CTG
+
+#define	MC_CMD_0x111_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_GET_SECURITY_RULESET_VERSION_IN msgrequest */
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION_IN_LEN 0
+
+/* MC_CMD_GET_SECURITY_RULESET_VERSION_OUT msgresponse */
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION_OUT_LENMIN 1
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION_OUT_LENMAX 252
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION_OUT_LEN(num) (0+1*(num))
+/* Opaque hash value; length may vary depending on the hash scheme used */
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION_OUT_VERSION_OFST 0
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION_OUT_VERSION_LEN 1
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION_OUT_VERSION_MINNUM 1
+#define	MC_CMD_GET_SECURITY_RULESET_VERSION_OUT_VERSION_MAXNUM 252
+
+
+/***********************************/
+/* MC_CMD_SECURITY_RULE_COUNTER_ALLOC
+ * Allocate counters for use with blacklist / whitelist rules. (Medford-only;
+ * for use by SolarSecure apps, not directly by drivers. See SF-114946-SW.)
+ * NOTE - this message definition is provisional. It has not yet been used in
+ * any released code and may change during development. This note will be
+ * removed once it is regarded as stable.
+ */
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC 0x112
+#undef	MC_CMD_0x112_PRIVILEGE_CTG
+
+#define	MC_CMD_0x112_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_SECURITY_RULE_COUNTER_ALLOC_IN msgrequest */
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_IN_LEN 4
+/* the number of new counter IDs to request */
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_IN_NUM_COUNTERS_OFST 0
+
+/* MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT msgresponse */
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT_LENMIN 4
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT_LENMAX 252
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT_LEN(num) (4+4*(num))
+/* the number of new counter IDs allocated (may be less than the number
+ * requested if resources are unavailable)
+ */
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT_NUM_COUNTERS_OFST 0
+/* new counter ID(s) */
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT_COUNTER_ID_OFST 4
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT_COUNTER_ID_LEN 4
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT_COUNTER_ID_MINNUM 0
+#define	MC_CMD_SECURITY_RULE_COUNTER_ALLOC_OUT_COUNTER_ID_MAXNUM 62
+
+
+/***********************************/
+/* MC_CMD_SECURITY_RULE_COUNTER_FREE
+ * Allocate counters for use with blacklist / whitelist rules. (Medford-only;
+ * for use by SolarSecure apps, not directly by drivers. See SF-114946-SW.)
+ * NOTE - this message definition is provisional. It has not yet been used in
+ * any released code and may change during development. This note will be
+ * removed once it is regarded as stable.
+ */
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE 0x113
+#undef	MC_CMD_0x113_PRIVILEGE_CTG
+
+#define	MC_CMD_0x113_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_SECURITY_RULE_COUNTER_FREE_IN msgrequest */
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_IN_LENMIN 4
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_IN_LENMAX 252
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_IN_LEN(num) (4+4*(num))
+/* the number of counter IDs to free */
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_IN_NUM_COUNTERS_OFST 0
+/* the counter ID(s) to free */
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_IN_COUNTER_ID_OFST 4
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_IN_COUNTER_ID_LEN 4
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_IN_COUNTER_ID_MINNUM 0
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_IN_COUNTER_ID_MAXNUM 62
+
+/* MC_CMD_SECURITY_RULE_COUNTER_FREE_OUT msgresponse */
+#define	MC_CMD_SECURITY_RULE_COUNTER_FREE_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_SUBNET_MAP_SET_NODE
+ * Atomically update a trie node in the map of subnets to subnet IDs. The
+ * constants in the descriptions of the fields of this message may be retrieved
+ * by the GET_SECURITY_RULE_INFO op of MC_CMD_GET_PARSER_DISP_INFO. (Medford-
+ * only; for use by SolarSecure apps, not directly by drivers. See
+ * SF-114946-SW.) NOTE - this message definition is provisional. It has not yet
+ * been used in any released code and may change during development. This note
+ * will be removed once it is regarded as stable.
+ */
+#define	MC_CMD_SUBNET_MAP_SET_NODE 0x114
+#undef	MC_CMD_0x114_PRIVILEGE_CTG
+
+#define	MC_CMD_0x114_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_SUBNET_MAP_SET_NODE_IN msgrequest */
+#define	MC_CMD_SUBNET_MAP_SET_NODE_IN_LENMIN 6
+#define	MC_CMD_SUBNET_MAP_SET_NODE_IN_LENMAX 252
+#define	MC_CMD_SUBNET_MAP_SET_NODE_IN_LEN(num) (4+2*(num))
+/* node to update in the range 0 .. SUBNET_MAP_NUM_NODES-1 */
+#define	MC_CMD_SUBNET_MAP_SET_NODE_IN_NODE_ID_OFST 0
+/* SUBNET_MAP_NUM_ENTRIES_PER_NODE new entries; each entry is either a pointer
+ * to the next node, expressed as an offset in the trie memory (i.e. node ID
+ * multiplied by SUBNET_MAP_NUM_ENTRIES_PER_NODE), or a leaf value in the range
+ * SUBNET_ID_MIN .. SUBNET_ID_MAX
+ */
+#define	MC_CMD_SUBNET_MAP_SET_NODE_IN_ENTRY_OFST 4
+#define	MC_CMD_SUBNET_MAP_SET_NODE_IN_ENTRY_LEN 2
+#define	MC_CMD_SUBNET_MAP_SET_NODE_IN_ENTRY_MINNUM 1
+#define	MC_CMD_SUBNET_MAP_SET_NODE_IN_ENTRY_MAXNUM 124
+
+/* MC_CMD_SUBNET_MAP_SET_NODE_OUT msgresponse */
+#define	MC_CMD_SUBNET_MAP_SET_NODE_OUT_LEN 0
+
+/* PORTRANGE_TREE_ENTRY structuredef */
+#define	PORTRANGE_TREE_ENTRY_LEN 4
+/* key for branch nodes (<= key takes left branch, > key takes right branch),
+ * or magic value for leaf nodes
+ */
+#define	PORTRANGE_TREE_ENTRY_BRANCH_KEY_OFST 0
+#define	PORTRANGE_TREE_ENTRY_BRANCH_KEY_LEN 2
+#define	PORTRANGE_TREE_ENTRY_LEAF_NODE_KEY  0xffff /* enum */
+#define	PORTRANGE_TREE_ENTRY_BRANCH_KEY_LBN 0
+#define	PORTRANGE_TREE_ENTRY_BRANCH_KEY_WIDTH 16
+/* final portrange ID for leaf nodes (don't care for branch nodes) */
+#define	PORTRANGE_TREE_ENTRY_LEAF_PORTRANGE_ID_OFST 2
+#define	PORTRANGE_TREE_ENTRY_LEAF_PORTRANGE_ID_LEN 2
+#define	PORTRANGE_TREE_ENTRY_LEAF_PORTRANGE_ID_LBN 16
+#define	PORTRANGE_TREE_ENTRY_LEAF_PORTRANGE_ID_WIDTH 16
+
+
+/***********************************/
+/* MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE
+ * Atomically update the entire tree mapping remote port ranges to portrange
+ * IDs. The constants in the descriptions of the fields of this message may be
+ * retrieved by the GET_SECURITY_RULE_INFO op of MC_CMD_GET_PARSER_DISP_INFO.
+ * (Medford-only; for use by SolarSecure apps, not directly by drivers. See
+ * SF-114946-SW.) NOTE - this message definition is provisional. It has not yet
+ * been used in any released code and may change during development. This note
+ * will be removed once it is regarded as stable.
+ */
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE 0x115
+#undef	MC_CMD_0x115_PRIVILEGE_CTG
+
+#define	MC_CMD_0x115_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_IN msgrequest */
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_IN_LENMIN 4
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_IN_LENMAX 252
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_IN_LEN(num) (0+4*(num))
+/* PORTRANGE_TREE_NUM_ENTRIES new entries, each laid out as a
+ * PORTRANGE_TREE_ENTRY
+ */
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_IN_ENTRIES_OFST 0
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_IN_ENTRIES_LEN 4
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_IN_ENTRIES_MINNUM 1
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_IN_ENTRIES_MAXNUM 63
+
+/* MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_OUT msgresponse */
+#define	MC_CMD_REMOTE_PORTRANGE_MAP_SET_TREE_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE
+ * Atomically update the entire tree mapping remote port ranges to portrange
+ * IDs. The constants in the descriptions of the fields of this message may be
+ * retrieved by the GET_SECURITY_RULE_INFO op of MC_CMD_GET_PARSER_DISP_INFO.
+ * (Medford-only; for use by SolarSecure apps, not directly by drivers. See
+ * SF-114946-SW.) NOTE - this message definition is provisional. It has not yet
+ * been used in any released code and may change during development. This note
+ * will be removed once it is regarded as stable.
+ */
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE 0x116
+#undef	MC_CMD_0x116_PRIVILEGE_CTG
+
+#define	MC_CMD_0x116_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_IN msgrequest */
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_IN_LENMIN 4
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_IN_LENMAX 252
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_IN_LEN(num) (0+4*(num))
+/* PORTRANGE_TREE_NUM_ENTRIES new entries, each laid out as a
+ * PORTRANGE_TREE_ENTRY
+ */
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_IN_ENTRIES_OFST 0
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_IN_ENTRIES_LEN 4
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_IN_ENTRIES_MINNUM 1
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_IN_ENTRIES_MAXNUM 63
+
+/* MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_OUT msgresponse */
+#define	MC_CMD_LOCAL_PORTRANGE_MAP_SET_TREE_OUT_LEN 0
+
+/* TUNNEL_ENCAP_UDP_PORT_ENTRY structuredef */
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_LEN 4
+/* UDP port (the standard ports are named below but any port may be used) */
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_UDP_PORT_OFST 0
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_UDP_PORT_LEN 2
+/* enum: the IANA allocated UDP port for VXLAN */
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_IANA_VXLAN_UDP_PORT  0x12b5
+/* enum: the IANA allocated UDP port for Geneve */
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_IANA_GENEVE_UDP_PORT  0x17c1
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_UDP_PORT_LBN 0
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_UDP_PORT_WIDTH 16
+/* tunnel encapsulation protocol (only those named below are supported) */
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_OFST 2
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_LEN 2
+/* enum: This port will be used for VXLAN on both IPv4 and IPv6 */
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_VXLAN  0x0
+/* enum: This port will be used for Geneve on both IPv4 and IPv6 */
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_GENEVE  0x1
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_LBN 16
+#define	TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_WIDTH 16
+
+
+/***********************************/
+/* MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS
+ * Configure UDP ports for tunnel encapsulation hardware acceleration. The
+ * parser-dispatcher will attempt to parse traffic on these ports as tunnel
+ * encapsulation PDUs and filter them using the tunnel encapsulation filter
+ * chain rather than the standard filter chain. Note that this command can
+ * cause all functions to see a reset. (Available on Medford only.)
+ */
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS 0x117
+#undef	MC_CMD_0x117_PRIVILEGE_CTG
+
+#define	MC_CMD_0x117_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN msgrequest */
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LENMIN 4
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LENMAX 68
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LEN(num) (4+4*(num))
+/* Flags */
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_FLAGS_OFST 0
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_FLAGS_LEN 2
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_UNLOADING_LBN 0
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_UNLOADING_WIDTH 1
+/* The number of entries in the ENTRIES array */
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_NUM_ENTRIES_OFST 2
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_NUM_ENTRIES_LEN 2
+/* Entries defining the UDP port to protocol mapping, each laid out as a
+ * TUNNEL_ENCAP_UDP_PORT_ENTRY
+ */
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_ENTRIES_OFST 4
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_ENTRIES_LEN 4
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_ENTRIES_MINNUM 0
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_ENTRIES_MAXNUM 16
+
+/* MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT msgresponse */
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_LEN 2
+/* Flags */
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_FLAGS_OFST 0
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_FLAGS_LEN 2
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_RESETTING_LBN 0
+#define	MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_RESETTING_WIDTH 1
+
+
+/***********************************/
+/* MC_CMD_RX_BALANCING
+ * Configure a port upconverter to distribute the packets on both RX engines.
+ * Packets are distributed based on a table with the destination vFIFO. The
+ * index of the table is a hash of source and destination of IPV4 and VLAN
+ * priority.
+ */
+#define	MC_CMD_RX_BALANCING 0x118
+#undef	MC_CMD_0x118_PRIVILEGE_CTG
+
+#define	MC_CMD_0x118_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_RX_BALANCING_IN msgrequest */
+#define	MC_CMD_RX_BALANCING_IN_LEN 4
+/* The RX port whose upconverter table will be modified */
+#define	MC_CMD_RX_BALANCING_IN_PORT_OFST 0
+#define	MC_CMD_RX_BALANCING_IN_PORT_LEN 1
+/* The VLAN priority associated to the table index and vFIFO */
+#define	MC_CMD_RX_BALANCING_IN_PRIORITY_OFST 1
+#define	MC_CMD_RX_BALANCING_IN_PRIORITY_LEN 1
+/* The resulting bit of SRC^DST for indexing the table */
+#define	MC_CMD_RX_BALANCING_IN_SRC_DST_OFST 2
+#define	MC_CMD_RX_BALANCING_IN_SRC_DST_LEN 1
+/* The RX engine to which the vFIFO in the table entry will point to */
+#define	MC_CMD_RX_BALANCING_IN_ENG_OFST 3
+#define	MC_CMD_RX_BALANCING_IN_ENG_LEN 1
+
+/* MC_CMD_RX_BALANCING_OUT msgresponse */
+#define	MC_CMD_RX_BALANCING_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_TSA_BIND
+ * TSAN - TSAC binding communication protocol. Refer to SF-115479-TC for more
+ * info in respect to the binding protocol. Note- This MCDI command is only
+ * available over a TLS secure connection between the TSAN and TSAC, and is not
+ * available to host software.
+ */
+#define	MC_CMD_TSA_BIND 0x119
+
+/* MC_CMD_TSA_BIND_IN msgrequest: Protocol operation code */
+#define	MC_CMD_TSA_BIND_IN_LEN 4
+#define	MC_CMD_TSA_BIND_IN_OP_OFST 0
+/* enum: Retrieve the TSAN ID from a TSAN. TSAN ID is a unique identifier for
+ * the network adapter. More specifically, TSAN ID equals the MAC address of
+ * the network adapter. TSAN ID is used as part of the TSAN authentication
+ * protocol. Refer to SF-114946-SW for more information.
+ */
+#define	MC_CMD_TSA_BIND_OP_GET_ID 0x1
+/* enum: Get a binding ticket from the TSAN. The binding ticket is used as part
+ * of the binding procedure to authorize the binding of an adapter to a TSAID.
+ * Refer to SF-114946-SW for more information.
+ */
+#define	MC_CMD_TSA_BIND_OP_GET_TICKET 0x2
+/* enum: Opcode associated with the propagation of a private key that TSAN uses
+ * as part of post-binding authentication procedure. More specifically, TSAN
+ * uses this key for a signing operation. TSAC uses the counterpart public key
+ * to verify the signature. Note - The post-binding authentication occurs when
+ * the TSAN-TSAC connection terminates and TSAN tries to reconnect. Refer to
+ * SF-114946-SW for more information.
+ */
+#define	MC_CMD_TSA_BIND_OP_SET_KEY 0x3
+/* enum: Request an unbinding operation. Note- TSAN clears the binding ticket
+ * from the Nvram section.
+ */
+#define	MC_CMD_TSA_BIND_OP_UNBIND 0x4
+
+/* MC_CMD_TSA_BIND_IN_GET_ID msgrequest */
+#define	MC_CMD_TSA_BIND_IN_GET_ID_LEN 20
+/* The operation requested. */
+#define	MC_CMD_TSA_BIND_IN_GET_ID_OP_OFST 0
+/* Cryptographic nonce that TSAC generates and sends to TSAN. TSAC generates
+ * the nonce every time as part of the TSAN post-binding authentication
+ * procedure when the TSAN-TSAC connection terminates and TSAN does need to re-
+ * connect to the TSAC. Refer to SF-114946-SW for more information.
+ */
+#define	MC_CMD_TSA_BIND_IN_GET_ID_NONCE_OFST 4
+#define	MC_CMD_TSA_BIND_IN_GET_ID_NONCE_LEN 16
+
+/* MC_CMD_TSA_BIND_IN_GET_TICKET msgrequest */
+#define	MC_CMD_TSA_BIND_IN_GET_TICKET_LEN 4
+/* The operation requested. */
+#define	MC_CMD_TSA_BIND_IN_GET_TICKET_OP_OFST 0
+
+/* MC_CMD_TSA_BIND_IN_SET_KEY msgrequest */
+#define	MC_CMD_TSA_BIND_IN_SET_KEY_LENMIN 5
+#define	MC_CMD_TSA_BIND_IN_SET_KEY_LENMAX 252
+#define	MC_CMD_TSA_BIND_IN_SET_KEY_LEN(num) (4+1*(num))
+/* The operation requested. */
+#define	MC_CMD_TSA_BIND_IN_SET_KEY_OP_OFST 0
+/* This data blob contains the private key generated by the TSAC. TSAN uses
+ * this key for a signing operation. Note- This private key is used in
+ * conjunction with the post-binding TSAN authentication procedure that occurs
+ * when the TSAN-TSAC connection terminates and TSAN tries to reconnect. Refer
+ * to SF-114946-SW for more information.
+ */
+#define	MC_CMD_TSA_BIND_IN_SET_KEY_DATKEY_OFST 4
+#define	MC_CMD_TSA_BIND_IN_SET_KEY_DATKEY_LEN 1
+#define	MC_CMD_TSA_BIND_IN_SET_KEY_DATKEY_MINNUM 1
+#define	MC_CMD_TSA_BIND_IN_SET_KEY_DATKEY_MAXNUM 248
+
+/* MC_CMD_TSA_BIND_IN_UNBIND msgrequest: Asks for the un-binding procedure */
+#define	MC_CMD_TSA_BIND_IN_UNBIND_LEN 6
+/* TSAN unique identifier for the network adapter */
+#define	MC_CMD_TSA_BIND_IN_UNBIND_TSANID_OFST 0
+#define	MC_CMD_TSA_BIND_IN_UNBIND_TSANID_LEN 6
+
+/* MC_CMD_TSA_BIND_OUT_GET_ID msgresponse */
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_LENMIN 11
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_LENMAX 252
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_LEN(num) (10+1*(num))
+/* The operation completion code. */
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_OP_OFST 0
+/* TSAN unique identifier for the network adapter */
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_TSANID_OFST 4
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_TSANID_LEN 6
+/* The signature data blob. The signature is computed against the message
+ * formed by TSAN ID concatenated with the NONCE value. Refer to SF-115479-TC
+ * for more information also in respect to the private keys that are used to
+ * sign the message based on TSAN pre/post-binding authentication procedure.
+ */
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_SIG_OFST 10
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_SIG_LEN 1
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_SIG_MINNUM 1
+#define	MC_CMD_TSA_BIND_OUT_GET_ID_SIG_MAXNUM 242
+
+/* MC_CMD_TSA_BIND_OUT_GET_TICKET msgresponse */
+#define	MC_CMD_TSA_BIND_OUT_GET_TICKET_LENMIN 5
+#define	MC_CMD_TSA_BIND_OUT_GET_TICKET_LENMAX 252
+#define	MC_CMD_TSA_BIND_OUT_GET_TICKET_LEN(num) (4+1*(num))
+/* The operation completion code. */
+#define	MC_CMD_TSA_BIND_OUT_GET_TICKET_OP_OFST 0
+/* The ticket represents the data blob construct that TSAN sends to TSAC as
+ * part of the binding protocol. From the TSAN perspective the ticket is an
+ * opaque construct. For more info refer to SF-115479-TC.
+ */
+#define	MC_CMD_TSA_BIND_OUT_GET_TICKET_TICKET_OFST 4
+#define	MC_CMD_TSA_BIND_OUT_GET_TICKET_TICKET_LEN 1
+#define	MC_CMD_TSA_BIND_OUT_GET_TICKET_TICKET_MINNUM 1
+#define	MC_CMD_TSA_BIND_OUT_GET_TICKET_TICKET_MAXNUM 248
+
+/* MC_CMD_TSA_BIND_OUT_SET_KEY msgresponse */
+#define	MC_CMD_TSA_BIND_OUT_SET_KEY_LEN 4
+/* The operation completion code. */
+#define	MC_CMD_TSA_BIND_OUT_SET_KEY_OP_OFST 0
+
+/* MC_CMD_TSA_BIND_OUT_UNBIND msgresponse */
+#define	MC_CMD_TSA_BIND_OUT_UNBIND_LEN 8
+/* Same as MC_CMD_ERR field, but included as 0 in success cases */
+#define	MC_CMD_TSA_BIND_OUT_UNBIND_RESULT_OFST 0
+/* Extra status information */
+#define	MC_CMD_TSA_BIND_OUT_UNBIND_INFO_OFST 4
+/* enum: Unbind successful. */
+#define	MC_CMD_TSA_BIND_OUT_UNBIND_OK_UNBOUND  0x0
+/* enum: TSANID mismatch */
+#define	MC_CMD_TSA_BIND_OUT_UNBIND_ERR_BAD_TSANID  0x1
+/* enum: Unable to remove the binding ticket from persistent storage. */
+#define	MC_CMD_TSA_BIND_OUT_UNBIND_ERR_REMOVE_TICKET  0x2
+/* enum: TSAN is not bound to a binding ticket. */
+#define	MC_CMD_TSA_BIND_OUT_UNBIND_ERR_NOT_BOUND  0x3
+
+
+/***********************************/
+/* MC_CMD_MANAGE_SECURITY_RULESET_CACHE
+ * Manage the persistent NVRAM cache of security rules created with
+ * MC_CMD_SET_SECURITY_RULE. Note that the cache is not automatically updated
+ * as rules are added or removed; the active ruleset must be explicitly
+ * committed to the cache. The cache may also be explicitly invalidated,
+ * without affecting the currently active ruleset. When the cache is valid, it
+ * will be loaded at power on or MC reboot, instead of the default ruleset.
+ * Rollback of the currently active ruleset to the cached version (when it is
+ * valid) is also supported. (Medford-only; for use by SolarSecure apps, not
+ * directly by drivers. See SF-114946-SW.) NOTE - this message definition is
+ * provisional. It has not yet been used in any released code and may change
+ * during development. This note will be removed once it is regarded as stable.
+ */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE 0x11a
+#undef	MC_CMD_0x11a_PRIVILEGE_CTG
+
+#define	MC_CMD_0x11a_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_MANAGE_SECURITY_RULESET_CACHE_IN msgrequest */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_IN_LEN 4
+/* the operation to perform */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_IN_OP_OFST 0
+/* enum: reports the ruleset version that is cached in persistent storage but
+ * performs no other action
+ */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_IN_OP_GET_CACHED_VERSION  0x0
+/* enum: rolls back the active state to the cached version. (May fail with
+ * ENOENT if there is no valid cached version.)
+ */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_IN_OP_ROLLBACK  0x1
+/* enum: commits the active state to the persistent cache */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_IN_OP_COMMIT  0x2
+/* enum: invalidates the persistent cache without affecting the active state */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_IN_OP_INVALIDATE  0x3
+
+/* MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT msgresponse */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_LENMIN 5
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_LENMAX 252
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_LEN(num) (4+1*(num))
+/* indicates whether the persistent cache is valid (after completion of the
+ * requested operation in the case of rollback, commit, or invalidate)
+ */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_STATE_OFST 0
+/* enum: persistent cache is invalid (the VERSION field will be empty in this
+ * case)
+ */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_STATE_INVALID  0x0
+/* enum: persistent cache is valid */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_STATE_VALID  0x1
+/* cached ruleset version (after completion of the requested operation, in the
+ * case of rollback, commit, or invalidate) as an opaque hash value in the same
+ * form as MC_CMD_GET_SECURITY_RULESET_VERSION_OUT_VERSION
+ */
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_VERSION_OFST 4
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_VERSION_LEN 1
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_VERSION_MINNUM 1
+#define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_VERSION_MAXNUM 248
 
 #endif /* _SIENA_MC_DRIVER_PCOL_H */
