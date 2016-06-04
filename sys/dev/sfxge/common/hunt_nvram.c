@@ -757,6 +757,358 @@ fail1:
 	return (rc);
 }
 
+
+
+	__checkReturn		efx_rc_t
+ef10_nvram_buffer_create(
+	__in			efx_nic_t *enp,
+	__in			uint16_t partn_type,
+	__in_bcount(partn_size)	caddr_t partn_data,
+	__in			size_t partn_size)
+{
+	uint32_t *buf = (uint32_t *)partn_data;
+	efx_rc_t rc;
+	tlv_cursor_t cursor;
+	struct tlv_partition_header header;
+	struct tlv_partition_trailer trailer;
+
+	unsigned min_buf_size = sizeof (struct tlv_partition_header) +
+	    sizeof (struct tlv_partition_trailer);
+	if (partn_size < min_buf_size) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	memset(buf, 0xff, partn_size);
+
+	tlv_init_block(buf);
+	if ((rc = tlv_init_cursor(&cursor, buf,
+	    (uint32_t *)((uint8_t *)buf + partn_size),
+	    buf)) != 0) {
+		goto fail2;
+	}
+
+	header.tag = __CPU_TO_LE_32(TLV_TAG_PARTITION_HEADER);
+	header.length = __CPU_TO_LE_32(sizeof (header) - 8);
+	header.type_id = __CPU_TO_LE_16(partn_type);
+	header.preset = 0;
+	header.generation = __CPU_TO_LE_32(1);
+	header.total_length = 0;  /* This will be fixed below. */
+	if ((rc = tlv_insert(
+	    &cursor, TLV_TAG_PARTITION_HEADER,
+	    (uint8_t *)&header.type_id, sizeof (header) - 8)) != 0)
+		goto fail3;
+	if ((rc = tlv_advance(&cursor)) != 0)
+		goto fail4;
+
+	trailer.tag = __CPU_TO_LE_32(TLV_TAG_PARTITION_TRAILER);
+	trailer.length = __CPU_TO_LE_32(sizeof (trailer) - 8);
+	trailer.generation = header.generation;
+	trailer.checksum = 0;  /* This will be fixed below. */
+	if ((rc = tlv_insert(&cursor, TLV_TAG_PARTITION_TRAILER,
+	    (uint8_t *)&trailer.generation, sizeof (trailer) - 8)) != 0)
+		goto fail5;
+
+	if ((rc = tlv_update_partition_len_and_cks(&cursor)) != 0)
+		goto fail6;
+
+	/* Check that the partition is valid. */
+	if ((rc = ef10_nvram_buffer_validate(enp, partn_type,
+	    partn_data, partn_size)) != 0)
+		goto fail7;
+
+	return (0);
+
+fail7:
+	EFSYS_PROBE(fail7);
+fail6:
+	EFSYS_PROBE(fail6);
+fail5:
+	EFSYS_PROBE(fail5);
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+static			uint32_t
+byte_offset(
+	__in		uint32_t *position,
+	__in		uint32_t *base)
+{
+	return (uint32_t)((uint8_t *)position - (uint8_t *)base);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_buffer_find_item_start(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp)
+{
+	// Read past partition header to find start address of the first key
+	tlv_cursor_t cursor;
+	efx_rc_t rc;
+
+	/* A PARTITION_HEADER tag must be the first item (at offset zero) */
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)bufferp,
+			buffer_size)) != 0) {
+		rc = EFAULT;
+		goto fail1;
+	}
+	if (tlv_tag(&cursor) != TLV_TAG_PARTITION_HEADER) {
+		rc = EINVAL;
+		goto fail2;
+	}
+
+	if ((rc = tlv_advance(&cursor)) != 0) {
+		rc = EINVAL;
+		goto fail3;
+	}
+	*startp = byte_offset(cursor.current, cursor.block);
+
+	if ((rc = tlv_require_end(&cursor)) != 0)
+		goto fail4;
+
+	return (0);
+
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_buffer_find_end(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp)
+{
+	// Read to end of partition
+	tlv_cursor_t cursor;
+	efx_rc_t rc;
+
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)bufferp,
+			buffer_size)) != 0) {
+		rc = EFAULT;
+		goto fail1;
+	}
+
+	if ((rc = tlv_require_end(&cursor)) != 0)
+		goto fail2;
+
+	*endp = byte_offset(tlv_last_segment_end(&cursor)+1, cursor.block);
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn	__success(return != B_FALSE)	boolean_t
+ef10_nvram_buffer_find_item(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp)
+{
+	// Find TLV at offset and return key start and length
+	tlv_cursor_t cursor;
+	uint8_t *key;
+	uint32_t tag;
+
+	if (tlv_init_cursor_at_offset(&cursor, (uint8_t *)bufferp,
+			buffer_size, offset) != 0) {
+		return (B_FALSE);
+	}
+
+	while ((key = tlv_item(&cursor)) != NULL) {
+		tag = tlv_tag(&cursor);
+		if (tag == TLV_TAG_PARTITION_HEADER ||
+		    tag == TLV_TAG_PARTITION_TRAILER) {
+			if (tlv_advance(&cursor) != 0) {
+				break;
+			}
+			continue;
+		}
+		*startp = byte_offset(cursor.current, cursor.block);
+		*lengthp = byte_offset(tlv_next_item_ptr(&cursor),
+		    cursor.current);
+		return (B_TRUE);
+	}
+
+	return (B_FALSE);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_buffer_get_item(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(item_max_size, *lengthp)
+				caddr_t itemp,
+	__in			size_t item_max_size,
+	__out			uint32_t *lengthp)
+{
+	efx_rc_t rc;
+	tlv_cursor_t cursor;
+	uint32_t item_length;
+
+	if (item_max_size < length) {
+		rc = ENOSPC;
+		goto fail1;
+	}
+
+	if ((rc = tlv_init_cursor_at_offset(&cursor, (uint8_t *)bufferp,
+			buffer_size, offset)) != 0) {
+		goto fail2;
+	}
+
+	item_length = tlv_length(&cursor);
+	if (length < item_length) {
+		rc = ENOSPC;
+		goto fail3;
+	}
+	memcpy(itemp, tlv_value(&cursor), item_length);
+
+	*lengthp = item_length;
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_buffer_insert_item(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp)
+{
+	efx_rc_t rc;
+	tlv_cursor_t cursor;
+
+	if ((rc = tlv_init_cursor_at_offset(&cursor, (uint8_t *)bufferp,
+			buffer_size, offset)) != 0) {
+		goto fail1;
+	}
+
+	rc = tlv_insert(&cursor, TLV_TAG_LICENSE, keyp, length);
+
+	if (rc != 0) {
+		goto fail2;
+	}
+
+	*lengthp = byte_offset(tlv_next_item_ptr(&cursor),
+		    cursor.current);
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_buffer_delete_item(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end)
+{
+	efx_rc_t rc;
+	tlv_cursor_t cursor;
+
+	if ((rc = tlv_init_cursor_at_offset(&cursor, (uint8_t *)bufferp,
+			buffer_size, offset)) != 0) {
+		goto fail1;
+	}
+
+	if ((rc = tlv_delete(&cursor)) != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_buffer_finish(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size)
+{
+	efx_rc_t rc;
+	tlv_cursor_t cursor;
+
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)bufferp,
+			buffer_size)) != 0) {
+		rc = EFAULT;
+		goto fail1;
+	}
+
+	if ((rc = tlv_require_end(&cursor)) != 0)
+		goto fail2;
+
+	if ((rc = tlv_update_partition_len_and_cks(&cursor)) != 0)
+		goto fail3;
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+
+
 /*
  * Read and validate a segment from a partition. A segment is a complete
  * tlv chain between PARTITION_HEADER and PARTITION_END tags. There may
