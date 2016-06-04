@@ -59,7 +59,7 @@ typedef __success(return == 0) int efx_rc_t;
 
 typedef enum efx_family_e {
 	EFX_FAMILY_INVALID,
-	EFX_FAMILY_FALCON,
+	EFX_FAMILY_FALCON,	/* Obsolete and not supported */
 	EFX_FAMILY_SIENA,
 	EFX_FAMILY_HUNTINGTON,
 	EFX_FAMILY_MEDFORD,
@@ -246,7 +246,6 @@ efx_mcdi_fini(
 
 /* INTR */
 
-#define	EFX_NINTR_FALCON 64
 #define	EFX_NINTR_SIENA 1024
 
 typedef enum efx_intr_type_e {
