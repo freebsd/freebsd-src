@@ -85,8 +85,6 @@ extern "C" {
 
 typedef enum efx_mac_type_e {
 	EFX_MAC_INVALID = 0,
-	EFX_MAC_FALCON_GMAC,
-	EFX_MAC_FALCON_XMAC,
 	EFX_MAC_SIENA,
 	EFX_MAC_HUNTINGTON,
 	EFX_MAC_MEDFORD,
