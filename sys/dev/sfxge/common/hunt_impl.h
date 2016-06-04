@@ -42,6 +42,67 @@
 extern "C" {
 #endif
 
+/* Missing register definitions */
+#ifndef	ER_DZ_TX_PIOBUF_OFST
+#define	ER_DZ_TX_PIOBUF_OFST 0x00001000
+#endif
+#ifndef	ER_DZ_TX_PIOBUF_STEP
+#define	ER_DZ_TX_PIOBUF_STEP 8192
+#endif
+#ifndef	ER_DZ_TX_PIOBUF_ROWS
+#define	ER_DZ_TX_PIOBUF_ROWS 2048
+#endif
+
+#ifndef	ER_DZ_TX_PIOBUF_SIZE
+#define	ER_DZ_TX_PIOBUF_SIZE 2048
+#endif
+
+#define	HUNT_PIOBUF_NBUFS	(16)
+#define	HUNT_PIOBUF_SIZE	(ER_DZ_TX_PIOBUF_SIZE)
+
+#define	HUNT_MIN_PIO_ALLOC_SIZE	(HUNT_PIOBUF_SIZE / 32)
+
+
+/* NIC */
+
+extern	__checkReturn	efx_rc_t
+hunt_board_cfg(
+	__in		efx_nic_t *enp);
+
+
+/* PHY */
+
+#if EFSYS_OPT_BIST
+
+extern	__checkReturn		efx_rc_t
+hunt_bist_enable_offline(
+	__in			efx_nic_t *enp);
+
+extern	__checkReturn		efx_rc_t
+hunt_bist_start(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type);
+
+extern	__checkReturn		efx_rc_t
+hunt_bist_poll(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type,
+	__out			efx_bist_result_t *resultp,
+	__out_opt __drv_when(count > 0, __notnull)
+	uint32_t 	*value_maskp,
+	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
+	unsigned long	*valuesp,
+	__in			size_t count);
+
+extern				void
+hunt_bist_stop(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type);
+
+#endif	/* EFSYS_OPT_BIST */
+
+
+
 /*
  * FIXME: This is just a power of 2 which fits in an MCDI v1 message, and could
  * possibly be increased, or the write size reported by newer firmware used
@@ -169,10 +230,6 @@ ef10_intr_fini(
 
 extern	__checkReturn	efx_rc_t
 ef10_nic_probe(
-	__in		efx_nic_t *enp);
-
-extern	__checkReturn	efx_rc_t
-hunt_board_cfg(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
@@ -623,35 +680,6 @@ ef10_phy_prop_set(
 
 #endif	/* EFSYS_OPT_PHY_PROPS */
 
-#if EFSYS_OPT_BIST
-
-extern	__checkReturn		efx_rc_t
-hunt_bist_enable_offline(
-	__in			efx_nic_t *enp);
-
-extern	__checkReturn		efx_rc_t
-hunt_bist_start(
-	__in			efx_nic_t *enp,
-	__in			efx_bist_type_t type);
-
-extern	__checkReturn		efx_rc_t
-hunt_bist_poll(
-	__in			efx_nic_t *enp,
-	__in			efx_bist_type_t type,
-	__out			efx_bist_result_t *resultp,
-	__out_opt __drv_when(count > 0, __notnull)
-	uint32_t 	*value_maskp,
-	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
-	unsigned long	*valuesp,
-	__in			size_t count);
-
-extern				void
-hunt_bist_stop(
-	__in			efx_nic_t *enp,
-	__in			efx_bist_type_t type);
-
-#endif	/* EFSYS_OPT_BIST */
-
 
 /* TX */
 
@@ -777,43 +805,6 @@ ef10_tx_qstats_update(
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat);
 
 #endif /* EFSYS_OPT_QSTATS */
-
-/* PIO */
-
-/* Missing register definitions */
-#ifndef	ER_DZ_TX_PIOBUF_OFST
-#define	ER_DZ_TX_PIOBUF_OFST 0x00001000
-#endif
-#ifndef	ER_DZ_TX_PIOBUF_STEP
-#define	ER_DZ_TX_PIOBUF_STEP 8192
-#endif
-#ifndef	ER_DZ_TX_PIOBUF_ROWS
-#define	ER_DZ_TX_PIOBUF_ROWS 2048
-#endif
-
-#ifndef	ER_DZ_TX_PIOBUF_SIZE
-#define	ER_DZ_TX_PIOBUF_SIZE 2048
-#endif
-
-#define	HUNT_PIOBUF_NBUFS	(16)
-#define	HUNT_PIOBUF_SIZE	(ER_DZ_TX_PIOBUF_SIZE)
-
-#define	HUNT_MIN_PIO_ALLOC_SIZE	(HUNT_PIOBUF_SIZE / 32)
-
-#define	EF10_LEGACY_PF_PRIVILEGE_MASK					\
-	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN			|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK			|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_ONLOAD			|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_PTP			|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_INSECURE_FILTERS		|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING		|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_UNICAST			|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_MULTICAST			|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_BROADCAST			|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_ALL_MULTICAST		|	\
-	MC_CMD_PRIVILEGE_MASK_IN_GRP_PROMISCUOUS)
-
-#define	EF10_LEGACY_VF_PRIVILEGE_MASK	0
 
 typedef uint32_t	efx_piobuf_handle_t;
 
