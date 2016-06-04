@@ -174,13 +174,17 @@ sfxge_rx_post_refill(void *arg)
 	struct sfxge_softc *sc;
 	unsigned int index;
 	struct sfxge_evq *evq;
+	unsigned int label;
 	uint16_t magic;
 
 	sc = rxq->sc;
 	index = rxq->index;
 	evq = sc->evq[index];
 
-	magic = SFXGE_MAGIC_RX_QREFILL | index;
+	label = 0;
+	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
+	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != level"));
+	magic = SFXGE_MAGIC_RX_QREFILL | label;
 
 	/* This is guaranteed due to the start/stop order of rx and ev */
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
