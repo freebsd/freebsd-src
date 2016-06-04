@@ -78,10 +78,9 @@ extern "C" {
 #define	EFX_MOD_FILTER		0x00001000
 #define	EFX_MOD_LIC		0x00002000
 
-#define	EFX_RESET_MAC		0x00000001
-#define	EFX_RESET_PHY		0x00000002
-#define	EFX_RESET_RXQ_ERR	0x00000004
-#define	EFX_RESET_TXQ_ERR	0x00000008
+#define	EFX_RESET_PHY		0x00000001
+#define	EFX_RESET_RXQ_ERR	0x00000002
+#define	EFX_RESET_TXQ_ERR	0x00000004
 
 typedef enum efx_mac_type_e {
 	EFX_MAC_INVALID = 0,
@@ -180,7 +179,6 @@ typedef struct efx_rx_ops_s {
 } efx_rx_ops_t;
 
 typedef struct efx_mac_ops_s {
-	efx_rc_t	(*emo_reset)(efx_nic_t *); /* optional */
 	efx_rc_t	(*emo_poll)(efx_nic_t *, efx_link_mode_t *);
 	efx_rc_t	(*emo_up)(efx_nic_t *, boolean_t *);
 	efx_rc_t	(*emo_addr_set)(efx_nic_t *);
