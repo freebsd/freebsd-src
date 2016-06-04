@@ -2597,12 +2597,7 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 		return false;
 	}
 
-	if (len == 0) {
-		parser->top_obj = ucl_object_new_full (UCL_OBJECT, priority);
-		return true;
-	}
-
-	if (data == NULL) {
+	if (data == NULL && len != 0) {
 		ucl_create_err (&parser->err, "invalid chunk added");
 		return false;
 	}
@@ -2613,6 +2608,7 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 			ucl_create_err (&parser->err, "cannot allocate chunk structure");
 			return false;
 		}
+
 		chunk->begin = data;
 		chunk->remain = len;
 		chunk->pos = chunk->begin;
@@ -2631,12 +2627,27 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 			return false;
 		}
 
-		switch (parse_type) {
-		default:
-		case UCL_PARSE_UCL:
-			return ucl_state_machine (parser);
-		case UCL_PARSE_MSGPACK:
-			return ucl_parse_msgpack (parser);
+		if (len > 0) {
+			/* Need to parse something */
+			switch (parse_type) {
+			default:
+			case UCL_PARSE_UCL:
+				return ucl_state_machine (parser);
+			case UCL_PARSE_MSGPACK:
+				return ucl_parse_msgpack (parser);
+			}
+		}
+		else {
+			/* Just add empty chunk and go forward */
+			if (parser->top_obj == NULL) {
+				/*
+				 * In case of empty object, create one to indicate that we've
+				 * read something
+				 */
+				parser->top_obj = ucl_object_new_full (UCL_OBJECT, priority);
+			}
+
+			return true;
 		}
 	}
 
