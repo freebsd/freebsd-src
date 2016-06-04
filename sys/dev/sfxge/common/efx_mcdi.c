@@ -535,6 +535,9 @@ efx_mcdi_request_poll(
 	/* Request complete */
 	emip->emi_pending_req = NULL;
 
+	/* Ensure stale MCDI requests fail after an MC reboot. */
+	emip->emi_new_epoch = B_FALSE;
+
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
 	if ((rc = emrp->emr_rc) != 0)
