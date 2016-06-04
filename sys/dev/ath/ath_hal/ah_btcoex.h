@@ -37,9 +37,7 @@ typedef struct {
 	u_int8_t	bt_gpio_wlan_active;
 	u_int8_t	bt_active_polarity;
 	HAL_BOOL	bt_single_ant;
-	u_int8_t	bt_dutyCycle;
 	u_int8_t	bt_isolation;
-	u_int8_t	bt_period;
 } HAL_BT_COEX_INFO;
 
 typedef enum {
@@ -101,6 +99,7 @@ typedef enum {
 	HAL_BT_COEX_STOMP_NONE,
 	HAL_BT_COEX_STOMP_ALL_FORCE,
 	HAL_BT_COEX_STOMP_LOW_FORCE,
+	HAL_BT_COEX_STOMP_AUDIO,
 } HAL_BT_COEX_STOMP_TYPE;
 
 typedef struct {
