@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2000 Doug Rabson
- * Copyright (c) 2006 Marcel Moolenaar
+ * Copyright (c) 2016 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,41 +22,61 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <stand.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-extern EFI_HANDLE		IH;
-extern EFI_SYSTEM_TABLE		*ST;
-extern EFI_BOOT_SERVICES	*BS;
-extern EFI_RUNTIME_SERVICES	*RS;
+#include <efi.h>
+#include <efilib.h>
 
-extern struct devsw efipart_dev;
-extern struct devsw efinet_dev;
-extern struct netif_driver efinetif;
+#include <time.h>
+#include <sys/time.h>
 
-void *efi_get_table(EFI_GUID *tbl);
+static EFI_EVENT time_event;
+static uint64_t curtime;
 
-int efi_register_handles(struct devsw *, EFI_HANDLE *, EFI_HANDLE *, int);
-EFI_HANDLE efi_find_handle(struct devsw *, int);
-int efi_handle_lookup(EFI_HANDLE, struct devsw **, int *,  uint64_t *);
-int efi_handle_update_dev(EFI_HANDLE, struct devsw *, int, uint64_t);
+static void
+time_update(EFI_EVENT event, void *context)
+{
 
-EFI_DEVICE_PATH *efi_lookup_image_devpath(EFI_HANDLE);
-EFI_DEVICE_PATH *efi_lookup_devpath(EFI_HANDLE);
-EFI_HANDLE efi_devpath_handle(EFI_DEVICE_PATH *);
-EFI_DEVICE_PATH *efi_devpath_last_node(EFI_DEVICE_PATH *);
-EFI_DEVICE_PATH *efi_devpath_trim(EFI_DEVICE_PATH *);
-CHAR16 *efi_devpath_name(EFI_DEVICE_PATH *);
-void efi_free_devpath_name(CHAR16 *);
+	curtime += 10;
+}
 
-int efi_status_to_errno(EFI_STATUS);
+void
+efi_time_init(void)
+{
 
-void efi_time_init(void);
-void efi_time_fini(void);
+	/* Create a timer event */
+	BS->CreateEvent(EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
+	    time_update, 0, &time_event);
+	/* Use a 10ms timer */
+	BS->SetTimer(time_event, TimerPeriodic, 100000);
+}
 
-EFI_STATUS main(int argc, CHAR16 *argv[]);
-void exit(EFI_STATUS status);
-void delay(int usecs);
+void
+efi_time_fini(void)
+{
+
+	/* Cancel the timer */
+	BS->SetTimer(time_event, TimerCancel, 0);
+	BS->CloseEvent(time_event);
+}
+
+time_t
+time(time_t *tloc)
+{
+	time_t t;
+
+	t = curtime / 1000;
+	if (tloc != NULL)
+		*tloc = t;
+
+	return (t);
+}
+
+time_t
+getsecs()
+{
+    return time(0);
+}
