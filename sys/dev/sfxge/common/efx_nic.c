@@ -105,59 +105,6 @@ efx_family(
 	return (ENOTSUP);
 }
 
-/*
- * To support clients which aren't provided with any PCI context infer
- * the hardware family by inspecting the hardware. Obviously the caller
- * must be damn sure they're really talking to a supported device.
- */
-	__checkReturn	efx_rc_t
-efx_infer_family(
-	__in		efsys_bar_t *esbp,
-	__out		efx_family_t *efp)
-{
-	efx_family_t family;
-	efx_oword_t oword;
-	unsigned int portnum;
-	efx_rc_t rc;
-
-	EFSYS_BAR_READO(esbp, FR_AZ_CS_DEBUG_REG_OFST, &oword, B_TRUE);
-	portnum = EFX_OWORD_FIELD(oword, FRF_CZ_CS_PORT_NUM);
-	if ((portnum == 1) || (portnum == 2)) {
-#if EFSYS_OPT_SIENA
-		family = EFX_FAMILY_SIENA;
-		goto out;
-#endif
-	} else if (portnum == 0) {
-		efx_dword_t dword;
-		uint32_t hw_rev;
-
-		EFSYS_BAR_READD(esbp, ER_DZ_BIU_HW_REV_ID_REG_OFST, &dword,
-		    B_TRUE);
-		hw_rev = EFX_DWORD_FIELD(dword, ERF_DZ_HW_REV_ID);
-		if (hw_rev == ER_DZ_BIU_HW_REV_ID_REG_RESET) {
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-			/*
-			 * BIU_HW_REV_ID is the same for Huntington and Medford.
-			 * Assume Huntington, as Medford is very similar.
-			 */
-			family = EFX_FAMILY_HUNTINGTON;
-			goto out;
-#endif
-		}
-	}
-	rc = ENOTSUP;
-	goto fail1;
-
-out:
-	if (efp != NULL)
-		*efp = family;
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
 
 #define	EFX_BIU_MAGIC0	0x01234567
 #define	EFX_BIU_MAGIC1	0xfedcba98
