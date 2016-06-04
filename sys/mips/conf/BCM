@@ -5,8 +5,6 @@
 # used in COTS hardware including the ASUS RT-N12, RT-N16, RT-N53.
 #
 
-#NO_UNIVERSE
-
 ident		BCM
 
 hints		"BCM.hints"
@@ -57,10 +55,15 @@ options 	INVARIANT_SUPPORT
 #options	VERBOSE_SYSINIT
 #makeoptions	VERBOSE_SYSINIT
 
+# bhnd(4)
+device		bhnd
+device		bcma			# bcma backplane
+device		bcma_nexus
+
 device		pci
+device		bhnd_pcib		# PCIe-G1 core
 
 #device		bgmac			# Broadcom GMAC - not yet
-device		bhnd
 
 device		mdio
 

@@ -98,8 +98,9 @@ bcma_attach(device_t dev)
 		r_end = r_start + r_count - 1;
 
 		dinfo->rid_agent = i + 1;
-		dinfo->res_agent = bhnd_alloc_resource(dev, SYS_RES_MEMORY,
-		    &dinfo->rid_agent, r_start, r_end, r_count, RF_ACTIVE);
+		dinfo->res_agent = BHND_BUS_ALLOC_RESOURCE(dev, dev,
+		    SYS_RES_MEMORY, &dinfo->rid_agent, r_start, r_end, r_count,
+		    RF_ACTIVE);
 		if (dinfo->res_agent == NULL) {
 			device_printf(dev, "failed allocating agent register "
 			    "block for core %d\n", i);
