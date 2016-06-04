@@ -649,6 +649,7 @@ ef10_tx_qpace(
 
 	/* FIXME */
 	_NOTE(ARGUNUSED(etp, ns))
+	_NOTE(CONSTANTCONDITION)
 	if (B_FALSE) {
 		rc = ENOTSUP;
 		goto fail1;
