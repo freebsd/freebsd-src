@@ -397,24 +397,9 @@ falconsiena_intr_trigger(
 	/* bug16757: No event queues can be initialized */
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_EV));
 
-	switch (enp->en_family) {
-	case EFX_FAMILY_FALCON:
-		if (level >= EFX_NINTR_FALCON) {
-			rc = EINVAL;
-			goto fail1;
-		}
-		break;
-
-	case EFX_FAMILY_SIENA:
-		if (level >= EFX_NINTR_SIENA) {
-			rc = EINVAL;
-			goto fail1;
-		}
-		break;
-
-	default:
-		EFSYS_ASSERT(B_FALSE);
-		break;
+	if (level >= EFX_NINTR_SIENA) {
+		rc = EINVAL;
+		goto fail1;
 	}
 
 	if (level > EFX_MASK32(FRF_AZ_KER_INT_LEVE_SEL))
