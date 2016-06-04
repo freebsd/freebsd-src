@@ -39,6 +39,29 @@ INTERFACE bhnd_chipc;
 HEADER {
 	/* forward declarations */
 	struct chipc_caps;
+	struct chipc_caps	*bhnd_chipc_generic_get_caps(device_t dev);
+}
+
+CODE {
+
+	/**
+	 * Helper function for implementing BHND_CHIPC_GET_CAPS().
+	 *
+	 * This implementation of BHND_CHIPC_GET_CAPS() simply calls the
+	 * BHND_CHIPC_GET_CAPS() method of the parent of @p dev.
+	 */
+	struct chipc_caps*
+	bhnd_chipc_generic_get_caps(device_t dev)
+	{
+	
+		if (device_get_parent(dev) != NULL)
+			return (BHND_CHIPC_GET_CAPS(device_get_parent(dev)));
+	
+		panic("bhnd_chipc_generic_get_caps unimplemented");
+		/* Unreachable */
+		return (NULL);
+	}
+
 }
 
 /**
@@ -77,7 +100,7 @@ METHOD void write_chipctrl {
  */
 METHOD struct chipc_caps * get_caps {
 	device_t dev;
-}
+} DEFAULT bhnd_chipc_generic_get_caps;
 
 /**
  * Enable hardware access to the SPROM.

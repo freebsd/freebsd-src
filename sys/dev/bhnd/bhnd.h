@@ -356,6 +356,8 @@ int				 bhnd_bus_generic_activate_resource (device_t dev,
 int				 bhnd_bus_generic_deactivate_resource (device_t dev,
 				     device_t child, int type, int rid,
 				     struct bhnd_resource *r);
+bhnd_attach_type		 bhnd_bus_generic_get_attach_type(device_t dev,
+				     device_t child);
 
 
 

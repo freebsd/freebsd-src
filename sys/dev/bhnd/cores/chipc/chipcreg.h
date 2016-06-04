@@ -240,11 +240,11 @@
 #define	  CHIPC_CAP_EXTBUS_PROG		0x2		/* ExtBus: ProgIf only */
 #define	CHIPC_CAP_FLASH_MASK		0x00000700	/* Type of flash */
 #define	CHIPC_CAP_FLASH_SHIFT		8
-#define	  CHIPC_CAP_FLASH_NONE		0x000		/* No flash */
-#define	  CHIPC_CAP_SFLASH_ST		0x100		/* ST serial flash */
-#define	  CHIPC_CAP_SFLASH_AT		0x200		/* Atmel serial flash */
-#define	  CHIPC_CAP_NFLASH		0x300		/* NAND flash */
-#define	  CHIPC_CAP_PFLASH		0x700		/* Parallel flash */
+#define	  CHIPC_CAP_FLASH_NONE		0x0		/* No flash */
+#define	  CHIPC_CAP_SFLASH_ST		0x1		/* ST serial flash */
+#define	  CHIPC_CAP_SFLASH_AT		0x2		/* Atmel serial flash */
+#define	  CHIPC_CAP_NFLASH		0x3		/* NAND flash */
+#define	  CHIPC_CAP_PFLASH		0x7		/* Parallel flash */
 #define	CHIPC_CAP_PLL_MASK		0x00038000	/* Type of PLL */
 #define	CHIPC_CAP_PLL_SHIFT		15
 #define	CHIPC_CAP_PWR_CTL		0x00040000	/* Power control */
