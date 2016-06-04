@@ -99,13 +99,6 @@ efx_mcdi_init(
 	EFSYS_ASSERT3U(enp->en_mod_flags, ==, 0);
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		emcop = NULL;
-		emtp = NULL;
-		break;
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_siena_ops;

@@ -36,26 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_NVRAM
 
-#if EFSYS_OPT_FALCON
-
-static efx_nvram_ops_t	__efx_nvram_falcon_ops = {
-#if EFSYS_OPT_DIAG
-	falcon_nvram_test,		/* envo_test */
-#endif	/* EFSYS_OPT_DIAG */
-	falcon_nvram_type_to_partn,	/* envo_type_to_partn */
-	falcon_nvram_partn_size,	/* envo_partn_size */
-	falcon_nvram_partn_rw_start,	/* envo_partn_rw_start */
-	falcon_nvram_partn_read,	/* envo_partn_read */
-	falcon_nvram_partn_erase,	/* envo_partn_erase */
-	falcon_nvram_partn_write,	/* envo_partn_write */
-	falcon_nvram_partn_rw_finish,	/* envo_partn_rw_finish */
-	falcon_nvram_partn_get_version,	/* envo_partn_get_version */
-	falcon_nvram_partn_set_version,	/* envo_partn_set_version */
-	NULL,				/* envo_partn_validate */
-};
-
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 
 static efx_nvram_ops_t	__efx_nvram_siena_ops = {
@@ -108,12 +88,6 @@ efx_nvram_init(
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_NVRAM));
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		envop = (efx_nvram_ops_t *)&__efx_nvram_falcon_ops;
-		break;
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		envop = (efx_nvram_ops_t *)&__efx_nvram_siena_ops;
