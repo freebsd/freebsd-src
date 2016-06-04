@@ -47,15 +47,15 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_init(
+siena_tx_init(
 	__in		efx_nic_t *enp);
 
 static			void
-falconsiena_tx_fini(
+siena_tx_fini(
 	__in		efx_nic_t *enp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qcreate(
+siena_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -68,11 +68,11 @@ falconsiena_tx_qcreate(
 	__out		unsigned int *addedp);
 
 static		void
-falconsiena_tx_qdestroy(
+siena_tx_qdestroy(
 	__in	efx_txq_t *etp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qpost(
+siena_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
 	__in		unsigned int n,
@@ -80,26 +80,26 @@ falconsiena_tx_qpost(
 	__inout		unsigned int *addedp);
 
 static			void
-falconsiena_tx_qpush(
+siena_tx_qpush(
 	__in	efx_txq_t *etp,
 	__in	unsigned int added,
 	__in	unsigned int pushed);
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qpace(
+siena_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns);
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qflush(
+siena_tx_qflush(
 	__in		efx_txq_t *etp);
 
 static			void
-falconsiena_tx_qenable(
+siena_tx_qenable(
 	__in	efx_txq_t *etp);
 
 	__checkReturn	efx_rc_t
-falconsiena_tx_qdesc_post(
+siena_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
 	__in		unsigned int n,
@@ -107,7 +107,7 @@ falconsiena_tx_qdesc_post(
 	__inout		unsigned int *addedp);
 
 	void
-falconsiena_tx_qdesc_dma_create(
+siena_tx_qdesc_dma_create(
 	__in	efx_txq_t *etp,
 	__in	efsys_dma_addr_t addr,
 	__in	size_t size,
@@ -116,7 +116,7 @@ falconsiena_tx_qdesc_dma_create(
 
 #if EFSYS_OPT_QSTATS
 static			void
-falconsiena_tx_qstats_update(
+siena_tx_qstats_update(
 	__in				efx_txq_t *etp,
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat);
 #endif
@@ -126,26 +126,26 @@ falconsiena_tx_qstats_update(
 
 #if EFSYS_OPT_SIENA
 static const efx_tx_ops_t	__efx_tx_siena_ops = {
-	falconsiena_tx_init,			/* etxo_init */
-	falconsiena_tx_fini,			/* etxo_fini */
-	falconsiena_tx_qcreate,			/* etxo_qcreate */
-	falconsiena_tx_qdestroy,		/* etxo_qdestroy */
-	falconsiena_tx_qpost,			/* etxo_qpost */
-	falconsiena_tx_qpush,			/* etxo_qpush */
-	falconsiena_tx_qpace,			/* etxo_qpace */
-	falconsiena_tx_qflush,			/* etxo_qflush */
-	falconsiena_tx_qenable,			/* etxo_qenable */
+	siena_tx_init,				/* etxo_init */
+	siena_tx_fini,				/* etxo_fini */
+	siena_tx_qcreate,			/* etxo_qcreate */
+	siena_tx_qdestroy,			/* etxo_qdestroy */
+	siena_tx_qpost,				/* etxo_qpost */
+	siena_tx_qpush,				/* etxo_qpush */
+	siena_tx_qpace,				/* etxo_qpace */
+	siena_tx_qflush,			/* etxo_qflush */
+	siena_tx_qenable,			/* etxo_qenable */
 	NULL,					/* etxo_qpio_enable */
 	NULL,					/* etxo_qpio_disable */
 	NULL,					/* etxo_qpio_write */
 	NULL,					/* etxo_qpio_post */
-	falconsiena_tx_qdesc_post,		/* etxo_qdesc_post */
-	falconsiena_tx_qdesc_dma_create,	/* etxo_qdesc_dma_create */
+	siena_tx_qdesc_post,			/* etxo_qdesc_post */
+	siena_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
 	NULL,					/* etxo_qdesc_tso_create */
 	NULL,					/* etxo_qdesc_tso2_create */
 	NULL,					/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
-	falconsiena_tx_qstats_update,		/* etxo_qstats_update */
+	siena_tx_qstats_update,			/* etxo_qstats_update */
 #endif
 };
 #endif /* EFSYS_OPT_SIENA */
@@ -665,7 +665,7 @@ efx_tx_qstats_update(
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_init(
+siena_tx_init(
 	__in		efx_nic_t *enp)
 {
 	efx_oword_t oword;
@@ -728,7 +728,7 @@ falconsiena_tx_init(
 	} while (B_FALSE)
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qpost(
+siena_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
 	__in		unsigned int n,
@@ -766,7 +766,7 @@ fail1:
 }
 
 static		void
-falconsiena_tx_qpush(
+siena_tx_qpush(
 	__in	efx_txq_t *etp,
 	__in	unsigned int added,
 	__in	unsigned int pushed)
@@ -797,7 +797,7 @@ falconsiena_tx_qpush(
 #define	EFX_TX_PACE_CLOCK_BASE	104
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qpace(
+siena_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns)
 {
@@ -840,7 +840,7 @@ fail1:
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qflush(
+siena_tx_qflush(
 	__in		efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -860,7 +860,7 @@ falconsiena_tx_qflush(
 }
 
 static		void
-falconsiena_tx_qenable(
+siena_tx_qenable(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -884,7 +884,7 @@ falconsiena_tx_qenable(
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qcreate(
+siena_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -959,7 +959,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-falconsiena_tx_qdesc_post(
+siena_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
 	__in		unsigned int n,
@@ -1000,7 +1000,7 @@ fail1:
 }
 
 	void
-falconsiena_tx_qdesc_dma_create(
+siena_tx_qdesc_dma_create(
 	__in	efx_txq_t *etp,
 	__in	efsys_dma_addr_t addr,
 	__in	size_t size,
@@ -1052,7 +1052,7 @@ efx_tx_qstat_name(
 
 #if EFSYS_OPT_QSTATS
 static					void
-falconsiena_tx_qstats_update(
+siena_tx_qstats_update(
 	__in				efx_txq_t *etp,
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat)
 {
@@ -1068,7 +1068,7 @@ falconsiena_tx_qstats_update(
 #endif	/* EFSYS_OPT_QSTATS */
 
 static		void
-falconsiena_tx_qdestroy(
+siena_tx_qdestroy(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -1082,7 +1082,7 @@ falconsiena_tx_qdestroy(
 }
 
 static		void
-falconsiena_tx_fini(
+siena_tx_fini(
 	__in	efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
