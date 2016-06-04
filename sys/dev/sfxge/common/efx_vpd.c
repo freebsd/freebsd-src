@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_SIENA
 
-static efx_vpd_ops_t	__efx_vpd_siena_ops = {
+static const efx_vpd_ops_t	__efx_vpd_siena_ops = {
 	siena_vpd_init,		/* evpdo_init */
 	siena_vpd_size,		/* evpdo_size */
 	siena_vpd_read,		/* evpdo_read */
@@ -73,7 +73,7 @@ static efx_vpd_ops_t	__efx_vpd_siena_ops = {
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
-static efx_vpd_ops_t	__efx_vpd_ef10_ops = {
+static const efx_vpd_ops_t	__efx_vpd_ef10_ops = {
 	ef10_vpd_init,		/* evpdo_init */
 	ef10_vpd_size,		/* evpdo_size */
 	ef10_vpd_read,		/* evpdo_read */
@@ -92,7 +92,7 @@ static efx_vpd_ops_t	__efx_vpd_ef10_ops = {
 efx_vpd_init(
 	__in			efx_nic_t *enp)
 {
-	efx_vpd_ops_t *evpdop;
+	const efx_vpd_ops_t *evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -102,19 +102,19 @@ efx_vpd_init(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		evpdop = (efx_vpd_ops_t *)&__efx_vpd_siena_ops;
+		evpdop = &__efx_vpd_siena_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		evpdop = (efx_vpd_ops_t *)&__efx_vpd_ef10_ops;
+		evpdop = &__efx_vpd_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		evpdop = (efx_vpd_ops_t *)&__efx_vpd_ef10_ops;
+		evpdop = &__efx_vpd_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
 
@@ -147,7 +147,7 @@ efx_vpd_size(
 	__in			efx_nic_t *enp,
 	__out			size_t *sizep)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -170,7 +170,7 @@ efx_vpd_read(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -193,7 +193,7 @@ efx_vpd_verify(
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -216,7 +216,7 @@ efx_vpd_reinit(
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -247,7 +247,7 @@ efx_vpd_get(
 	__in			size_t size,
 	__inout			efx_vpd_value_t *evvp)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -271,7 +271,7 @@ efx_vpd_set(
 	__in			size_t size,
 	__in			efx_vpd_value_t *evvp)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -296,7 +296,7 @@ efx_vpd_next(
 	__out			efx_vpd_value_t *evvp,
 	__inout			unsigned int *contp)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -319,7 +319,7 @@ efx_vpd_write(
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -999,7 +999,7 @@ fail1:
 efx_vpd_fini(
 	__in			efx_nic_t *enp)
 {
-	efx_vpd_ops_t *evpdop = enp->en_evpdop;
+	const efx_vpd_ops_t *evpdop = enp->en_evpdop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
