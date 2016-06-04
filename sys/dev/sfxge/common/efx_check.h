@@ -254,8 +254,8 @@
 
 /* Support PCIe interface tuning */
 #if EFSYS_OPT_PCIE_TUNE
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  error "PCIE_TUNE requires FALCON or SIENA"
+# if !EFSYS_OPT_FALCON
+#  error "PCIE_TUNE requires FALCON"
 # endif
 #endif /* EFSYS_OPT_PCIE_TUNE */
 
