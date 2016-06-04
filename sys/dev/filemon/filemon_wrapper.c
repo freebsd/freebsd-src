@@ -39,6 +39,10 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 
+#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
+extern struct sysent freebsd32_sysent[];
+#endif
+
 static eventhandler_tag filemon_exec_tag;
 static eventhandler_tag filemon_exit_tag;
 static eventhandler_tag filemon_fork_tag;
