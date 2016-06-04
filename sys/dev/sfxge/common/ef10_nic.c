@@ -765,7 +765,7 @@ efx_mcdi_unlink_piobuf(
 
 	MCDI_IN_SET_DWORD(req, UNLINK_PIOBUF_IN_TXQ_INSTANCE, vi_index);
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
