@@ -1428,10 +1428,6 @@ efx_mcdi_get_phy_cfg(
 			    (1 << EFX_PHY_LED_ON));
 #endif	/* EFSYS_OPT_PHY_LED_CONTROL */
 
-#if EFSYS_OPT_PHY_PROPS
-	encp->enc_phy_nprops  = 0;
-#endif	/* EFSYS_OPT_PHY_PROPS */
-
 	/* Get the media type of the fixed port, if recognised. */
 	EFX_STATIC_ASSERT(MC_CMD_MEDIA_XAUI == EFX_PHY_MEDIA_XAUI);
 	EFX_STATIC_ASSERT(MC_CMD_MEDIA_CX4 == EFX_PHY_MEDIA_CX4);
