@@ -260,9 +260,9 @@
 #endif /* EFSYS_OPT_PCIE_TUNE */
 
 /* Obsolete option */
-#if EFSYS_OPT_PHY_BIST
-#  error "PHY_BIST is obsolete (replaced by BIST)."
-#endif /* EFSYS_OPT_PHY_BIST */
+#ifdef EFSYS_OPT_PHY_BIST
+# error "PHY_BIST is obsolete (replaced by BIST)."
+#endif
 
 /* Support PHY flags */
 #if EFSYS_OPT_PHY_FLAGS
