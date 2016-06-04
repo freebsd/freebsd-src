@@ -188,7 +188,6 @@ static efx_nic_ops_t	__efx_nic_siena_ops = {
 	NULL,				/* eno_get_vi_pool */
 	NULL,				/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
-	siena_sram_test,		/* eno_sram_test */
 	siena_nic_register_test,	/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
 	siena_nic_fini,			/* eno_fini */
@@ -208,7 +207,6 @@ static efx_nic_ops_t	__efx_nic_hunt_ops = {
 	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
 	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
-	ef10_sram_test,			/* eno_sram_test */
 	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
 	ef10_nic_fini,			/* eno_fini */
@@ -228,7 +226,6 @@ static efx_nic_ops_t	__efx_nic_medford_ops = {
 	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
 	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
-	ef10_sram_test,			/* eno_sram_test */
 	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
 	ef10_nic_fini,			/* eno_fini */
