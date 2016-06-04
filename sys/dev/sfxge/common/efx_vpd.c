@@ -253,8 +253,12 @@ efx_vpd_get(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_VPD);
 
-	if ((rc = evpdop->evpdo_get(enp, data, size, evvp)) != 0)
+	if ((rc = evpdop->evpdo_get(enp, data, size, evvp)) != 0) {
+		if (rc == ENOENT)
+			return (rc);
+
 		goto fail1;
+	}
 
 	return (0);
 
