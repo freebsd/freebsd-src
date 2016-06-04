@@ -298,9 +298,6 @@ typedef struct efx_port_s {
 	uint32_t		ep_lp_cap_mask;
 	uint32_t		ep_default_adv_cap_mask;
 	uint32_t		ep_phy_cap_mask;
-	boolean_t		ep_mac_poll_needed; /* falcon only */
-	boolean_t		ep_mac_up; /* falcon only */
-	uint32_t		ep_fwver; /* falcon only */
 	boolean_t		ep_mac_drain;
 	boolean_t		ep_mac_stats_pending;
 #if EFSYS_OPT_BIST
