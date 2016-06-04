@@ -186,9 +186,12 @@ elf64_exec(struct preloaded_file *fp)
 
 	printf("Start @ 0x%lx ...\n", ehdr->e_entry);
 
+	efi_time_fini();
 	err = bi_load(fp->f_args, &modulep, &kernend);
-	if (err != 0)
+	if (err != 0) {
+		efi_time_init();
 		return(err);
+	}
 
 	dev_cleanup();
 
