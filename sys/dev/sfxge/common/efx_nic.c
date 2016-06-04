@@ -580,7 +580,7 @@ efx_nic_reset(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT(enp->en_mod_flags & EFX_MOD_PROBE);
 	/*
-	 * All modules except the MCDI, PROBE, NVRAM, VPD, MON, LIC
+	 * All modules except the MCDI, PROBE, NVRAM, VPD, MON
 	 * (which we do not reset here) must have been shut down or never
 	 * initialized.
 	 *
@@ -590,7 +590,7 @@ efx_nic_reset(
 	 */
 	mod_flags = enp->en_mod_flags;
 	mod_flags &= ~(EFX_MOD_MCDI | EFX_MOD_PROBE | EFX_MOD_NVRAM |
-		    EFX_MOD_VPD | EFX_MOD_MON | EFX_MOD_LIC);
+		    EFX_MOD_VPD | EFX_MOD_MON);
 	EFSYS_ASSERT3U(mod_flags, ==, 0);
 	if (mod_flags != 0) {
 		rc = EINVAL;
