@@ -795,7 +795,6 @@ ef10_nic_alloc_piobufs(
 {
 	efx_piobuf_handle_t *handlep;
 	unsigned int i;
-	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(max_piobuf_count, <=,
 	    EFX_ARRAY_SIZE(enp->en_arch.ef10.ena_piobuf_handle));
@@ -805,7 +804,7 @@ ef10_nic_alloc_piobufs(
 	for (i = 0; i < max_piobuf_count; i++) {
 		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
-		if ((rc = efx_mcdi_alloc_piobuf(enp, handlep)) != 0)
+		if (efx_mcdi_alloc_piobuf(enp, handlep) != 0)
 			goto fail1;
 
 		enp->en_arch.ef10.ena_pio_alloc_map[i] = 0;
