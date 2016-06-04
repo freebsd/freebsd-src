@@ -442,16 +442,28 @@ typedef enum efx_link_mode_e {
 
 #define	EFX_MAC_SDU_MAX	9202
 
-#define	EFX_MAC_PDU(_sdu) 				\
-	P2ROUNDUP(((_sdu)				\
-		    + /* EtherII */ 14			\
-		    + /* VLAN */ 4			\
-		    + /* CRC */ 4			\
-		    + /* bug16011 */ 16),		\
-		    (1 << 3))
+#define	EFX_MAC_PDU_ADJUSTMENT					\
+	(/* EtherII */ 14					\
+	    + /* VLAN */ 4					\
+	    + /* CRC */ 4					\
+	    + /* bug16011 */ 16)				\
+
+#define	EFX_MAC_PDU(_sdu)					\
+	P2ROUNDUP((_sdu) + EFX_MAC_PDU_ADJUSTMENT, 8)
+
+/*
+ * Due to the P2ROUNDUP in EFX_MAC_PDU(), EFX_MAC_SDU_FROM_PDU() may give
+ * the SDU rounded up slightly.
+ */
+#define	EFX_MAC_SDU_FROM_PDU(_pdu)	((_pdu) - EFX_MAC_PDU_ADJUSTMENT)
 
 #define	EFX_MAC_PDU_MIN	60
 #define	EFX_MAC_PDU_MAX	EFX_MAC_PDU(EFX_MAC_SDU_MAX)
+
+extern	__checkReturn	efx_rc_t
+efx_mac_pdu_get(
+	__in		efx_nic_t *enp,
+	__out		size_t *pdu);
 
 extern	__checkReturn	efx_rc_t
 efx_mac_pdu_set(
