@@ -742,7 +742,7 @@ pw_user_next(int argc, char **argv, char *name __unused)
 	bool quiet = false;
 	uid_t next;
 
-	while ((ch = getopt(argc, argv, "Cq")) != -1) {
+	while ((ch = getopt(argc, argv, "C:q")) != -1) {
 		switch (ch) {
 		case 'C':
 			cfg = optarg;
