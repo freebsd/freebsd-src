@@ -1261,7 +1261,7 @@ typedef struct mixer_info {
  */
 #define LOCL_STARTAUDIO		1
 
-#if (!defined(_KERNEL) && !defined(INKERNEL)) || defined(USE_SEQ_MACROS)
+#if !defined(_KERNEL) || defined(USE_SEQ_MACROS)
 /*
  *	Some convenience macros to simplify programming of the
  *	/dev/sequencer interface
