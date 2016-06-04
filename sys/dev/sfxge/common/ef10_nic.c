@@ -1003,8 +1003,11 @@ ef10_get_datapath_caps(
 	encp->enc_rx_batching_enabled =
 	    CAP_FLAG(flags, RX_BATCHING) ? B_TRUE : B_FALSE;
 
-	if (encp->enc_rx_batching_enabled)
-		encp->enc_rx_batch_max = 16;
+	/*
+	 * Even if batching isn't reported as supported, we may still get
+	 * batched events.
+	 */
+	encp->enc_rx_batch_max = 16;
 
 	/* Check if the firmware supports disabling scatter on RXQs */
 	encp->enc_rx_disable_scatter_supported =
