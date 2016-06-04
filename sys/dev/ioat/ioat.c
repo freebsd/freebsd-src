@@ -742,6 +742,13 @@ ioat_reset_hw_task(void *ctx, int pending __unused)
 /*
  * User API functions
  */
+unsigned
+ioat_get_nchannels(void)
+{
+
+	return (ioat_channel_index);
+}
+
 bus_dmaengine_t
 ioat_get_dmaengine(uint32_t index, int flags)
 {
