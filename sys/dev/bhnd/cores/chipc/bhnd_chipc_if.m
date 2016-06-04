@@ -65,15 +65,6 @@ CODE {
 }
 
 /**
- * Return the preferred NVRAM data source.
- *
- * @param dev A bhnd(4) ChipCommon device.
- */
-METHOD bhnd_nvram_src_t nvram_src {
-	device_t dev;
-}
-
-/**
  * Write @p value with @p mask directly to the chipctrl register.
  *
  * @param dev A bhnd(4) ChipCommon device.
@@ -103,7 +94,7 @@ METHOD struct chipc_caps * get_caps {
 } DEFAULT bhnd_chipc_generic_get_caps;
 
 /**
- * Enable hardware access to the SPROM.
+ * Enable hardware access to the SPROM/OTP source.
  * 
  * @param sc chipc driver state.
  *
@@ -116,7 +107,7 @@ METHOD int enable_sprom {
 }
 
 /**
- * Release hardware access to the SPROM.
+ * Release hardware access to the SPROM/OTP source.
  * 
  * @param sc chipc driver state.
  */

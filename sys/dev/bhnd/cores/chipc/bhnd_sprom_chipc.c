@@ -48,12 +48,19 @@ __FBSDID("$FreeBSD$");
 
 #include "bhnd_nvram_if.h"
 
-#include "chipc.h"
+#include "chipcvar.h"
+#include "chipc_private.h"
+
+#define	CHIPC_VALID_SPROM_SRC(_src)	\
+	((_src) == BHND_NVRAM_SRC_SPROM || (_src) == BHND_NVRAM_SRC_OTP)
 
 static void
 chipc_sprom_identify(driver_t *driver, device_t parent)
 {
-	if (bhnd_chipc_nvram_src(parent) != BHND_NVRAM_SRC_SPROM)
+	struct chipc_caps *caps;
+	
+	caps = BHND_CHIPC_GET_CAPS(parent);
+	if (!CHIPC_VALID_SPROM_SRC(caps->nvram_src))
 		return;
 
 	if (device_find_child(parent, "bhnd_nvram", 0) != NULL)
@@ -66,13 +73,15 @@ chipc_sprom_identify(driver_t *driver, device_t parent)
 static int
 chipc_sprom_probe(device_t dev)
 {
-	device_t	chipc;
-	int		error;
+	struct chipc_caps	*caps;
+	device_t		 chipc;
+	int			 error;
 
 	chipc = device_get_parent(dev);
+	caps = BHND_CHIPC_GET_CAPS(chipc);
 
-	/* Only match on SPROM devices */
-	if (BHND_CHIPC_NVRAM_SRC(chipc) != BHND_NVRAM_SRC_SPROM)
+	/* Only match on SPROM/OTP devices */
+	if (!CHIPC_VALID_SPROM_SRC(caps->nvram_src))
 		return (ENXIO);
 
 	/* Defer to default driver implementation */
@@ -85,16 +94,19 @@ chipc_sprom_probe(device_t dev)
 static int
 chipc_sprom_attach(device_t dev)
 {
-	device_t	chipc;
-	int		error;
+	struct chipc_caps	*caps;
+	device_t		 chipc;
+	int			 error;
+
+	chipc = device_get_parent(dev);
+	caps = BHND_CHIPC_GET_CAPS(chipc);
 
 	/* Request that ChipCommon enable access to SPROM hardware before
 	 * delegating attachment (and SPROM parsing) to the common driver */
-	chipc = device_get_parent(dev);
 	if ((error = BHND_CHIPC_ENABLE_SPROM(chipc)))
 		return (error);
 
-	error = bhnd_sprom_attach(dev);
+	error = bhnd_sprom_attach(dev, caps->sprom_offset);
 	BHND_CHIPC_DISABLE_SPROM(chipc);
 	return (error);
 }
