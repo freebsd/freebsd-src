@@ -423,43 +423,6 @@ efx_phy_stats_update(
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
-#if EFSYS_OPT_PHY_PROPS
-
-#if EFSYS_OPT_NAMES
-		const char *
-efx_phy_prop_name(
-	__in	efx_nic_t *enp,
-	__in	unsigned int id)
-{
-	_NOTE(ARGUNUSED(enp, id))
-
-	return (NULL);
-}
-#endif	/* EFSYS_OPT_NAMES */
-
-	__checkReturn	efx_rc_t
-efx_phy_prop_get(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t flags,
-	__out		uint32_t *valp)
-{
-	_NOTE(ARGUNUSED(enp, id, flags, valp))
-
-	return (ENOTSUP);
-}
-
-	__checkReturn	efx_rc_t
-efx_phy_prop_set(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t val)
-{
-	_NOTE(ARGUNUSED(enp, id, val))
-
-	return (ENOTSUP);
-}
-#endif	/* EFSYS_OPT_PHY_STATS */
 
 #if EFSYS_OPT_BIST
 
