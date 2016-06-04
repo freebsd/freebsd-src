@@ -28,7 +28,6 @@
 #include <sys/bus.h>
 
 #include <dev/bhnd/bhnd.h>
-#include <dev/bhnd/nvram/bhnd_nvram.h>
 
 INTERFACE bhnd_chipc;
 
@@ -37,6 +36,7 @@ INTERFACE bhnd_chipc;
 #
 
 HEADER {
+	#include <dev/bhnd/nvram/bhnd_nvram.h>
 	/* forward declarations */
 	struct chipc_caps;
 	struct chipc_caps	*bhnd_chipc_generic_get_caps(device_t dev);
@@ -121,5 +121,14 @@ METHOD int enable_sprom {
  * @param sc chipc driver state.
  */
 METHOD void disable_sprom {
+	device_t dev;
+}
+
+/**
+ * Return the flash configuration register value
+ *
+ * @param dev A bhnd(4) ChipCommon device
+ */
+METHOD uint32_t get_flash_cfg {
 	device_t dev;
 }
