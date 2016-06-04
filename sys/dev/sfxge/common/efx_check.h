@@ -43,6 +43,34 @@
  * from client code (and do not reappear in merges from other branches).
  */
 
+#ifdef EFSYS_OPT_FALCON
+# error "FALCON is obsolete and is not supported."
+#else
+/* FIXME: remove this after Falcon support has been removed */
+#define	EFSYS_OPT_FALCON			(0)
+#define	EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE	(0)
+
+#define	EFSYS_OPT_MAC_FALCON_GMAC		(0)
+#define	EFSYS_OPT_MAC_FALCON_XMAC		(0)
+
+#define	EFSYS_OPT_MON_LM87			(0)
+#define	EFSYS_OPT_MON_MAX6647			(0)
+#define	EFSYS_OPT_MON_NULL			(0)
+
+#define	EFSYS_OPT_NVRAM_FALCON_BOOTROM		(0)
+#define	EFSYS_OPT_NVRAM_SFT9001			(0)
+#define	EFSYS_OPT_NVRAM_SFX7101			(0)
+
+#define	EFSYS_OPT_PCIE_TUNE			(0)
+
+#define	EFSYS_OPT_PHY_NULL			(0)
+#define	EFSYS_OPT_PHY_QT2022C2			(0)
+#define	EFSYS_OPT_PHY_QT2025C			(0)
+#define	EFSYS_OPT_PHY_SFT9001			(0)
+#define	EFSYS_OPT_PHY_SFX7101			(0)
+#define	EFSYS_OPT_PHY_TXC43128			(0)
+#endif
+
 /* Support NVRAM based boot config */
 #if EFSYS_OPT_BOOTCFG
 # if !EFSYS_OPT_NVRAM
