@@ -406,6 +406,27 @@ efx_ev_qpost(
 }
 
 	__checkReturn	efx_rc_t
+efx_ev_usecs_to_ticks(
+	__in		efx_nic_t *enp,
+	__in		unsigned int us,
+	__out		unsigned int *ticksp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	unsigned int ticks;
+
+	/* Convert microseconds to a timer tick count */
+	if (us == 0)
+		ticks = 0;
+	else if (us * 1000 < encp->enc_evq_timer_quantum_ns)
+		ticks = 1;	/* Never round down to zero */
+	else
+		ticks = us * 1000 / encp->enc_evq_timer_quantum_ns;
+
+	*ticksp = ticks;
+	return (0);
+}
+
+	__checkReturn	efx_rc_t
 efx_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us)
@@ -1224,18 +1245,15 @@ siena_ev_qmoderate(
 		    FRF_CZ_TC_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS,
 		    FRF_CZ_TC_TIMER_VAL, 0);
 	} else {
-		uint32_t timer_val;
+		unsigned int ticks;
 
-		/* Calculate the timer value in quanta */
-		timer_val = us * 1000 / encp->enc_evq_timer_quantum_ns;
+		if ((rc = efx_ev_usecs_to_ticks(enp, us, &ticks)) != 0)
+			goto fail2;
 
-		/* Moderation value is base 0 so we need to deduct 1 */
-		if (timer_val > 0)
-			timer_val--;
-
+		EFSYS_ASSERT(ticks > 0);
 		EFX_POPULATE_DWORD_2(dword,
 		    FRF_CZ_TC_TIMER_MODE, FFE_CZ_TIMER_MODE_INT_HLDOFF,
-		    FRF_CZ_TC_TIMER_VAL, timer_val);
+		    FRF_CZ_TC_TIMER_VAL, ticks - 1);
 	}
 
 	locked = (eep->ee_index == 0) ? 1 : 0;
@@ -1245,6 +1263,8 @@ siena_ev_qmoderate(
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
