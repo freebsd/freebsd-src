@@ -1062,7 +1062,7 @@ Set to not build utilities for manual pages,
 .Xr manctl 8 ,
 and related support files.
 .It Va WITH_META_MODE
-.\" from FreeBSD: head/tools/build/options/WITH_META_MODE 301466 2016-06-05 23:04:42Z bdrewery
+.\" from FreeBSD: head/tools/build/options/WITH_META_MODE 301474 2016-06-05 23:14:06Z bdrewery
 Creates
 .Xr make 1
 meta files when building, which can provide a reliable incremental build when
@@ -1106,6 +1106,9 @@ The build operates as it normally would otherwise.
 This option originally invoked a different build system but that was renamed
 to
 .Va WITH_DIRDEPS_BUILD .
+.Pp
+Currently this also enforces
+.Va WITHOUT_SYSTEM_COMPILER .
 .Pp
 This must be set in the environment, make command line, or
 .Pa /etc/src-env.conf ,
