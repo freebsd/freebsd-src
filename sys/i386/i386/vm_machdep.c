@@ -486,13 +486,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 
 	default:
-		if (td->td_proc->p_sysent->sv_errsize) {
-			if (error >= td->td_proc->p_sysent->sv_errsize)
-				error = -1;	/* XXX */
-			else
-				error = td->td_proc->p_sysent->sv_errtbl[error];
-		}
-		td->td_frame->tf_eax = error;
+		td->td_frame->tf_eax = SV_ABI_ERRNO(td->td_proc, error);
 		td->td_frame->tf_eflags |= PSL_C;
 		break;
 	}
