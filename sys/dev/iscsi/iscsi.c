@@ -1934,6 +1934,8 @@ iscsi_ioctl_session_list(struct iscsi_softc *sc, struct iscsi_session_list *isl)
 			iss.iss_data_digest = ISCSI_DIGEST_NONE;
 
 		iss.iss_max_data_segment_length = is->is_max_data_segment_length;
+		iss.iss_max_burst_length = is->is_max_burst_length;
+		iss.iss_first_burst_length = is->is_first_burst_length;
 		iss.iss_immediate_data = is->is_immediate_data;
 		iss.iss_connected = is->is_connected;
 	

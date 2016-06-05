@@ -244,6 +244,7 @@ struct connection {
 	size_t			conn_data_segment_limit;
 	size_t			conn_max_data_segment_length;
 	size_t			conn_max_burst_length;
+	size_t			conn_first_burst_length;
 	int			conn_immediate_data;
 	int			conn_header_digest;
 	int			conn_data_digest;
