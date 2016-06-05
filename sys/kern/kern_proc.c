@@ -237,7 +237,6 @@ proc_init(void *mem, int size, int flags)
 
 	p = (struct proc *)mem;
 	SDT_PROBE3(proc, , init, entry, p, size, flags);
-	p->p_sched = (struct p_sched *)&p[1];
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_NEW);
 	mtx_init(&p->p_statmtx, "pstatl", NULL, MTX_SPIN | MTX_NEW);
