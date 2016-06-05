@@ -73,7 +73,7 @@ typedef unsigned __int64 uint64_t;
 #define _MUM_FRESH_GCC
 #endif
 
-#if defined(__GNUC__) && !defined(__llvm__)
+#if defined(__GNUC__) && !defined(__llvm__) && defined(_MUM_FRESH_GCC)
 #define _MUM_ATTRIBUTE_UNUSED  __attribute__((unused))
 #define _MUM_OPTIMIZE(opts) __attribute__((__optimize__ (opts)))
 #define _MUM_TARGET(opts) __attribute__((__target__ (opts)))
