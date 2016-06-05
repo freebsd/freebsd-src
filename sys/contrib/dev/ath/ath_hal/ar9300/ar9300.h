@@ -635,6 +635,10 @@ struct ath_hal_9300 {
     struct ar9300_ini_array ah_ini_japan2484;
     struct ar9300_ini_array ah_ini_radio_post_sys2ant;
     struct ar9300_ini_array ah_ini_BTCOEX_MAX_TXPWR;
+    struct ar9300_ini_array ah_ini_modes_rxgain_xlna;
+    struct ar9300_ini_array ah_ini_modes_rxgain_bb_core;
+    struct ar9300_ini_array ah_ini_modes_rxgain_bb_postamble;
+
     /* 
      * New INI format starting with Osprey 2.0 INI.
      * Pre, core, post arrays for each sub-system (mac, bb, radio, soc)

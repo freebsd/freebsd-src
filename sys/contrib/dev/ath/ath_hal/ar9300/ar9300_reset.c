@@ -3053,6 +3053,26 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
     REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain, 1, reg_writes);
     HALDEBUG(ah, HAL_DEBUG_RESET, "ar9300_process_ini: Rx Gain programming\n");
 
+    if (AR_SREV_JUPITER_20_OR_LATER(ah)) {
+        /*
+         * CUS217 mix LNA mode.
+         */
+        if (ar9300_rx_gain_index_get(ah) == 2) {
+            REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain_bb_core, 1, reg_writes);
+            REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain_bb_postamble,
+                modes_index, reg_writes);
+        }
+
+        /*
+         * 5G-XLNA
+         */
+        if ((ar9300_rx_gain_index_get(ah) == 2) ||
+            (ar9300_rx_gain_index_get(ah) == 3)) {
+            REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain_xlna, modes_index,
+              reg_writes);
+        }
+    }
+
     if (AR_SREV_SCORPION(ah)) {
         /* Write rxgain bounds Array */
         REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain_bounds, modes_index, reg_writes);
