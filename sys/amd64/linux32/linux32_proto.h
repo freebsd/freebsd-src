@@ -480,16 +480,16 @@ struct linux_sysctl_args {
 };
 struct linux_sched_setparam_args {
 	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
-	char param_l_[PADL_(struct l_sched_param *)]; struct l_sched_param * param; char param_r_[PADR_(struct l_sched_param *)];
+	char param_l_[PADL_(struct sched_param *)]; struct sched_param * param; char param_r_[PADR_(struct sched_param *)];
 };
 struct linux_sched_getparam_args {
 	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
-	char param_l_[PADL_(struct l_sched_param *)]; struct l_sched_param * param; char param_r_[PADR_(struct l_sched_param *)];
+	char param_l_[PADL_(struct sched_param *)]; struct sched_param * param; char param_r_[PADR_(struct sched_param *)];
 };
 struct linux_sched_setscheduler_args {
 	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
 	char policy_l_[PADL_(l_int)]; l_int policy; char policy_r_[PADR_(l_int)];
-	char param_l_[PADL_(struct l_sched_param *)]; struct l_sched_param * param; char param_r_[PADR_(struct l_sched_param *)];
+	char param_l_[PADL_(struct sched_param *)]; struct sched_param * param; char param_r_[PADR_(struct sched_param *)];
 };
 struct linux_sched_getscheduler_args {
 	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
