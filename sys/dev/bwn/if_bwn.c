@@ -750,6 +750,7 @@ bwn_detach(device_t dev)
 	if (mac->mac_msi != 0)
 		pci_release_msi(dev);
 	mbufq_drain(&sc->sc_snd);
+	bwn_release_firmware(mac);
 	BWN_LOCK_DESTROY(sc);
 	return (0);
 }
@@ -1328,6 +1329,7 @@ bwn_attach_core(struct bwn_mac *mac)
 	siba_dev_down(sc->sc_dev, 0);
 fail:
 	siba_powerdown(sc->sc_dev);
+	bwn_release_firmware(mac);
 	return (error);
 }
 
@@ -3930,6 +3932,7 @@ bwn_fw_gets(struct bwn_mac *mac, enum bwn_fwtype type)
 		}
 	} else if (rev < 11) {
 		device_printf(sc->sc_dev, "no PCM for rev %d\n", rev);
+		bwn_release_firmware(mac);
 		return (EOPNOTSUPP);
 	}
 
