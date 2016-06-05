@@ -28,11 +28,6 @@
 
 ELFTC_VCSID("$Id: libdwarf_reloc.c 3198 2015-05-14 18:36:19Z emaste $");
 
-/* Backwards compatability for older FreeBSD releases. */
-#ifndef EM_IAMCU
-#define EM_IAMCU 6
-#endif
-
 Dwarf_Unsigned
 _dwarf_get_reloc_type(Dwarf_P_Debug dbg, int is64)
 {
