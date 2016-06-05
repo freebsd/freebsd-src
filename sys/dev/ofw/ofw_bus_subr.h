@@ -52,6 +52,13 @@ struct ofw_compat_data {
 	uintptr_t	 ocd_data;
 };
 
+struct intr_map_data_fdt {
+	struct intr_map_data	hdr;
+	phandle_t		iparent;
+	u_int			ncells;
+	pcell_t			*cells;
+};
+
 #define SIMPLEBUS_PNP_DESCR "Z:compat;P:private;"
 #define SIMPLEBUS_PNP_INFO(t) \
 	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0]));
@@ -82,7 +89,11 @@ int ofw_bus_msimap(phandle_t, uint16_t, phandle_t *, uint32_t *);
 /* Routines for parsing device-tree data into resource lists. */
 int ofw_bus_reg_to_rl(device_t, phandle_t, pcell_t, pcell_t,
     struct resource_list *);
+#ifndef INTRNG
 int ofw_bus_intr_to_rl(device_t, phandle_t, struct resource_list *, int *);
+#endif
+int ofw_bus_intr_by_rid(device_t, phandle_t, int, phandle_t *, int *,
+    pcell_t **);
 
 /* Helper to get device status property */
 const char *ofw_bus_get_status(device_t dev);

@@ -42,13 +42,6 @@ struct intr_map_data_acpi {
 	enum intr_trigger	trig;
 };
 #endif
-#ifdef FDT
-struct intr_map_data_fdt {
-	struct intr_map_data	hdr;
-	u_int			ncells;
-	pcell_t			cells[0];
-};
-#endif
 
 struct intr_map_data_gpio {
 	struct intr_map_data	hdr;
@@ -135,9 +128,7 @@ int intr_release_msix(device_t, device_t, intptr_t, int);
 u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
     enum intr_trigger);
 #endif
-#ifdef FDT
-u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
-#endif
+
 u_int intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags,
     u_int intr_mode);
 

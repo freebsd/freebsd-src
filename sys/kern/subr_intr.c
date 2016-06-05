@@ -64,12 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
-#ifdef FDT
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#endif
-
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -625,33 +619,6 @@ intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
 	return (ddata->idd_irq);
 }
 #endif
-#ifdef FDT
-/*
- *  Map interrupt source according to FDT data into framework. If such mapping
- *  does not exist, create it. Return unique interrupt number (resource handle)
- *  associated with mapped interrupt source.
- */
-u_int
-intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
-{
-	size_t cellsize;
-	struct intr_dev_data *ddata;
-	struct intr_map_data_fdt *daf;
-
-	cellsize = ncells * sizeof(*cells);
-	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_fdt) + cellsize);
-	if (ddata == NULL)
-		return (INTR_IRQ_INVALID);	/* no space left */
-
-	ddata->idd_xref = (intptr_t)node;
-	ddata->idd_data->type = INTR_MAP_DATA_FDT;
-
-	daf = (struct intr_map_data_fdt *)ddata->idd_data;
-	daf->ncells = ncells;
-	memcpy(daf->cells, cells, cellsize);
-	return (ddata->idd_irq);
-}
-#endif
 
 /*
  *  Store GPIO interrupt decription in framework and return unique interrupt
@@ -1107,7 +1074,11 @@ intr_alloc_irq(device_t dev, struct resource *res)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	data = rman_get_virtual(res);
+	if (data == NULL)
+		isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	else
+		isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
@@ -1123,7 +1094,11 @@ intr_release_irq(device_t dev, struct resource *res)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	data = rman_get_virtual(res);
+	if (data == NULL)
+		isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	else
+		isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
@@ -1142,7 +1117,11 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	data = rman_get_virtual(res);
+	if (data == NULL)
+		isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	else
+		isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
@@ -1202,7 +1181,11 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	data = rman_get_virtual(res);
+	if (data == NULL)
+		isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	else
+		isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 
