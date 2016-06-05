@@ -1524,8 +1524,9 @@ legacy: .PHONY
 	    cd ${.CURDIR}/${_tool}; \
 	    ${MAKE} DIRPRFX=${_tool}/ obj; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
-	    ${MAKE} DIRPRFX=${_tool}/ all; \
-	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
+	    ${MAKE} DIRPRFX=${_tool}/ MK_INCLUDES=no all; \
+	    ${MAKE} DIRPRFX=${_tool}/ MK_INCLUDES=no \
+	        DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
 #
