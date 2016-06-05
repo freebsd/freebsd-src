@@ -38,7 +38,9 @@
 #include "ar9300/ar9485.ini"
 #include "ar9300/ar9485_1_1.ini"
 #include "ar9300/ar9300_jupiter10.ini"
+/* TODO: convert the 2.0 code to use the new initvals from ath9k */
 #include "ar9300/ar9300_jupiter20.ini"
+#include "ar9300/ar9462_2p0_initvals.h"
 #include "ar9300/ar9462_2p1_initvals.h"
 #include "ar9300/ar9580.ini"
 #include "ar9300/ar955x.ini"
@@ -1676,10 +1678,11 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
             ar9300_jupiter_1p0_baseband_core_txfir_coeff_japan_2484), 2);
 
     }
-    else if (AR_SREV_JUPITER_20(ah)) {
+    else if (AR_SREV_JUPITER_20_OR_LATER(ah)) {
         /* Jupiter: new INI format (pre, core, post arrays per subsystem) */
 
         /* FreeBSD: just override the registers for jupiter 2.1 */
+        /* XXX TODO: refactor this stuff out; reinit all the 2.1 registers */
 
         /* mac */
         INIT_INI_ARRAY(&ahp->ah_ini_mac[ATH_INI_PRE], NULL, 0, 0);
@@ -2923,6 +2926,7 @@ ar9300_fill_capability_info(struct ath_hal *ah)
         p_cap->halMciSupport = AH_FALSE;
     }
 
+    /* XXX TODO: jupiter 2.1? */
     if (AR_SREV_JUPITER_20(ah)) {
         p_cap->halRadioRetentionSupport = AH_TRUE;
     } else {
@@ -3533,11 +3537,17 @@ void ar9300_rx_gain_table_apply(struct ath_hal *ah)
                 ar9300_common_mixed_rx_gain_table_jupiter_1p0,
                 ARRAY_LENGTH(ar9300_common_mixed_rx_gain_table_jupiter_1p0), 2);
             break;
-        }        
+        }
         else if (AR_SREV_JUPITER_20(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
                 ar9300Common_mixed_rx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Common_mixed_rx_gain_table_jupiter_2p0), 2);
+            break;
+        }
+        else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
+                ar9462_2p1_common_mixed_rx_gain,
+                ARRAY_LENGTH(ar9462_2p1_common_mixed_rx_gain), 2);
             break;
         }
     case 0:
@@ -3583,6 +3593,10 @@ void ar9300_rx_gain_table_apply(struct ath_hal *ah)
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
                 ar9300Common_rx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Common_rx_gain_table_jupiter_2p0), 2);
+        } else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
+                ar9462_2p1_common_rx_gain,
+                ARRAY_LENGTH(ar9462_2p1_common_rx_gain), 2);
         } else if (AR_SREV_AR9580(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
                 ar9300_common_rx_gain_table_ar9580_1p0,
@@ -3637,6 +3651,11 @@ void ar9300_rx_gain_table_apply(struct ath_hal *ah)
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
                 ar9300Common_wo_xlna_rx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Common_wo_xlna_rx_gain_table_jupiter_2p0),
+                2);
+        } else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
+                ar9462_2p1_common_wo_xlna_rx_gain,
+                ARRAY_LENGTH(ar9462_2p1_common_wo_xlna_rx_gain),
                 2);
         } else if (AR_SREV_APHRODITE(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
@@ -3718,10 +3737,15 @@ void ar9300_tx_gain_table_apply(struct ath_hal *ah)
                 ar9300_modes_low_ob_db_tx_gain_table_jupiter_1p0,
                 ARRAY_LENGTH(ar9300_modes_low_ob_db_tx_gain_table_jupiter_1p0),
                 5);
-        } else if (AR_SREV_JUPITER_20(ah)) {
+         } else if (AR_SREV_JUPITER_20(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
                 ar9300Modes_low_ob_db_tx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Modes_low_ob_db_tx_gain_table_jupiter_2p0),
+                5);
+       } else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
+                ar9462_2p1_modes_low_ob_db_tx_gain,
+                ARRAY_LENGTH(ar9462_2p1_modes_low_ob_db_tx_gain),
                 5);
         } else if (AR_SREV_HONEYBEE(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
@@ -3780,6 +3804,11 @@ void ar9300_tx_gain_table_apply(struct ath_hal *ah)
                 ar9300Modes_high_ob_db_tx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(
                 ar9300Modes_high_ob_db_tx_gain_table_jupiter_2p0), 5);
+        } else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
+                ar9462_2p1_modes_high_ob_db_tx_gain,
+                ARRAY_LENGTH(
+                ar9462_2p1_modes_high_ob_db_tx_gain), 5);
         } else if (AR_SREV_APHRODITE(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
                 ar956XModes_high_ob_db_tx_gain_table_aphrodite_1p0,
