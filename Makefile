@@ -170,9 +170,13 @@ HAVE_MAKE=	bmake
 .else
 HAVE_MAKE=	fmake
 .endif
+.if ${HAVE_MAKE} != ${WANT_MAKE} || \
+    (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
+NEED_MAKE_UPGRADE= t
+.endif
 .if exists(${MYMAKE})
 SUB_MAKE:= ${MYMAKE} -m ${.CURDIR}/share/mk
-.elif ${WANT_MAKE} != ${HAVE_MAKE}
+.elif defined(NEED_MAKE_UPGRADE)
 # It may not exist yet but we may cause it to.
 # In the case of fmake, upgrade_checks may cause a newer version to be built.
 SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
@@ -313,8 +317,7 @@ kernel: buildkernel installkernel
 # for building the world.
 #
 upgrade_checks:
-.if ${HAVE_MAKE} != ${WANT_MAKE} || \
-    (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
+.if defined(NEED_MAKE_UPGRADE)
 	@${_+_}(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
 .endif
 
