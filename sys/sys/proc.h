@@ -325,7 +325,6 @@ struct thread {
 	int		td_kstack_pages; /* (a) Size of the kstack. */
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
-	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
 	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
@@ -339,6 +338,11 @@ struct thread {
 	void		*td_emuldata;	/* Emulator state data */
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
+};
+
+struct thread0_storage {
+	struct thread t0st_thread;
+	uint64_t t0st_sched[10];
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -616,7 +620,6 @@ struct proc {
 	struct proc	*p_leader;	/* (b) */
 	void		*p_emuldata;	/* (c) Emulator state data. */
 	struct label	*p_label;	/* (*) Proc (not subject) MAC label. */
-	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
 	STAILQ_HEAD(, ktr_request)	p_ktr;	/* (o) KTR event queue. */
 	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
 	struct kdtrace_proc	*p_dtrace; /* (*) DTrace-specific data. */
@@ -890,7 +893,8 @@ extern int allproc_gen;
 extern struct sx proctree_lock;
 extern struct mtx ppeers_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
-extern struct thread thread0;		/* Primary thread in proc0. */
+extern struct thread0_storage thread0_st;	/* Primary thread in proc0. */
+#define	thread0 (thread0_st.t0st_thread)
 extern struct vmspace vmspace0;		/* VM space for proc0. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int lastpid;
@@ -1063,6 +1067,13 @@ curthread_pflags_restore(int save)
 {
 
 	curthread->td_pflags &= save;
+}
+
+static __inline __pure2 struct td_sched *
+td_get_sched(struct thread *td)
+{
+
+	return ((struct td_sched *)&td[1]);
 }
 
 #endif	/* _KERNEL */

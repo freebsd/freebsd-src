@@ -206,7 +206,7 @@ VECTOR(_locore, unknown)
 	jalr	t9
 	nop
 
-	PTR_LA	sp, _C_LABEL(thread0)
+	PTR_LA	sp, _C_LABEL(thread0_st)
 	PTR_L	a0, TD_PCB(sp)
 	REG_LI	t0, ~7
 	and	a0, a0, t0

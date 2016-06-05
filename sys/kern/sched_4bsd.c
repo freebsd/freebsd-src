@@ -117,7 +117,10 @@ struct td_sched {
 #define	THREAD_CAN_SCHED(td, cpu)	\
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
-static struct td_sched td_sched0;
+_Static_assert(sizeof(struct thread) + sizeof(struct td_sched) <=
+    sizeof(struct thread0_storage),
+    "increase struct thread0_storage.t0st_sched size");
+
 static struct mtx sched_lock;
 
 static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
@@ -491,8 +494,8 @@ schedcpu(void)
 		}
 		FOREACH_THREAD_IN_PROC(p, td) {
 			awake = 0;
+			ts = td_get_sched(td);
 			thread_lock(td);
-			ts = td->td_sched;
 			/*
 			 * Increment sleep time (if sleeping).  We
 			 * ignore overflow, as above.
@@ -596,7 +599,7 @@ updatepri(struct thread *td)
 	fixpt_t loadfac;
 	unsigned int newcpu;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	loadfac = loadfactor(averunnable.ldavg[0]);
 	if (ts->ts_slptime > 5 * loadfac)
 		ts->ts_estcpu = 0;
@@ -621,7 +624,8 @@ resetpriority(struct thread *td)
 
 	if (td->td_pri_class != PRI_TIMESHARE)
 		return;
-	newpriority = PUSER + td->td_sched->ts_estcpu / INVERSE_ESTCPU_WEIGHT +
+	newpriority = PUSER +
+	    td_get_sched(td)->ts_estcpu / INVERSE_ESTCPU_WEIGHT +
 	    NICE_WEIGHT * (td->td_proc->p_nice - PRIO_MIN);
 	newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
 	    PRI_MAX_TIMESHARE);
@@ -682,13 +686,12 @@ sched_initticks(void *dummy)
 void
 schedinit(void)
 {
+
 	/*
-	 * Set up the scheduler specific parts of proc0.
+	 * Set up the scheduler specific parts of thread0.
 	 */
-	proc0.p_sched = NULL; /* XXX */
-	thread0.td_sched = &td_sched0;
 	thread0.td_lock = &sched_lock;
-	td_sched0.ts_slice = sched_slice;
+	td_get_sched(&thread0)->ts_slice = sched_slice;
 	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
 }
 
@@ -731,7 +734,7 @@ sched_clock(struct thread *td)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 
 	ts->ts_cpticks++;
 	ts->ts_estcpu = ESTCPULIM(ts->ts_estcpu + 1);
@@ -775,8 +778,8 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "exit",
 	    "prio:%d", child->td_priority);
 	thread_lock(td);
-	td->td_sched->ts_estcpu = ESTCPULIM(td->td_sched->ts_estcpu +
-	    child->td_sched->ts_estcpu);
+	td_get_sched(td)->ts_estcpu = ESTCPULIM(td_get_sched(td)->ts_estcpu +
+	    td_get_sched(child)->ts_estcpu);
 	thread_unlock(td);
 	thread_lock(child);
 	if ((child->td_flags & TDF_NOLOAD) == 0)
@@ -793,17 +796,18 @@ sched_fork(struct thread *td, struct thread *childtd)
 void
 sched_fork_thread(struct thread *td, struct thread *childtd)
 {
-	struct td_sched *ts;
+	struct td_sched *ts, *tsc;
 
 	childtd->td_oncpu = NOCPU;
 	childtd->td_lastcpu = NOCPU;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
 	childtd->td_priority = childtd->td_base_pri;
-	ts = childtd->td_sched;
+	ts = td_get_sched(childtd);
 	bzero(ts, sizeof(*ts));
-	ts->ts_estcpu = td->td_sched->ts_estcpu;
-	ts->ts_flags |= (td->td_sched->ts_flags & TSF_AFFINITY);
+	tsc = td_get_sched(td);
+	ts->ts_estcpu = tsc->ts_estcpu;
+	ts->ts_flags |= (tsc->ts_flags & TSF_AFFINITY);
 	ts->ts_slice = 1;
 }
 
@@ -952,7 +956,7 @@ sched_sleep(struct thread *td, int pri)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_slptick = ticks;
-	td->td_sched->ts_slptime = 0;
+	td_get_sched(td)->ts_slptime = 0;
 	if (pri != 0 && PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
 		sched_prio(td, pri);
 	if (TD_IS_SUSPENDED(td) || pri >= PSOCK)
@@ -968,7 +972,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	int preempted;
 
 	tmtx = NULL;
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	p = td->td_proc;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -1095,7 +1099,7 @@ sched_wakeup(struct thread *td)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	td->td_flags &= ~TDF_CANSWAP;
 	if (ts->ts_slptime > 1) {
 		updatepri(td);
@@ -1266,7 +1270,7 @@ sched_add(struct thread *td, int flags)
 	int forwarded = 0;
 	int single_cpu = 0;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
 	    ("sched_add: trying to run inhibited thread"));
@@ -1361,7 +1365,7 @@ sched_add(struct thread *td, int flags)
 {
 	struct td_sched *ts;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
 	    ("sched_add: trying to run inhibited thread"));
@@ -1414,7 +1418,7 @@ sched_rem(struct thread *td)
 {
 	struct td_sched *ts;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	KASSERT(td->td_flags & TDF_INMEM,
 	    ("sched_rem: thread swapped out"));
 	KASSERT(TD_ON_RUNQ(td),
@@ -1527,7 +1531,7 @@ sched_bind(struct thread *td, int cpu)
 	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
 	KASSERT(td == curthread, ("sched_bind: can only bind curthread"));
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 
 	td->td_flags |= TDF_BOUND;
 #ifdef SMP
@@ -1586,7 +1590,7 @@ sched_pctcpu(struct thread *td)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	return (ts->ts_pctcpu);
 }
 
@@ -1603,7 +1607,7 @@ sched_pctcpu_delta(struct thread *td)
 	int realstathz;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	delta = 0;
 	realstathz = stathz ? stathz : hz;
 	if (ts->ts_cpticks != 0) {
@@ -1628,7 +1632,7 @@ u_int
 sched_estcpu(struct thread *td)
 {
 	
-	return (td->td_sched->ts_estcpu);
+	return (td_get_sched(td)->ts_estcpu);
 }
 
 /*
@@ -1707,7 +1711,7 @@ sched_tdname(struct thread *td)
 #ifdef KTR
 	struct td_sched *ts;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	if (ts->ts_name[0] == '\0')
 		snprintf(ts->ts_name, sizeof(ts->ts_name),
 		    "%s tid %d", td->td_name, td->td_tid);
@@ -1723,7 +1727,7 @@ sched_clear_tdname(struct thread *td)
 {
 	struct td_sched *ts;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	ts->ts_name[0] = '\0';
 }
 #endif
@@ -1741,7 +1745,7 @@ sched_affinity(struct thread *td)
 	 * Set the TSF_AFFINITY flag if there is at least one CPU this
 	 * thread can't run on.
 	 */
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	ts->ts_flags &= ~TSF_AFFINITY;
 	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu)) {

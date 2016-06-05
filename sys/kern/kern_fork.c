@@ -1011,7 +1011,7 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
 
 	CTR4(KTR_PROC, "fork_exit: new thread %p (td_sched %p, pid %d, %s)",
-		td, td->td_sched, p->p_pid, td->td_name);
+	    td, td_get_sched(td), p->p_pid, td->td_name);
 
 	sched_fork_exit(td);
 	/*
