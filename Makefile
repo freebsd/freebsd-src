@@ -103,7 +103,9 @@
 
 # This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
 # can be cached for sub-makes.
+.if ${MAKE_VERSION} >= 20140620
 .include <bsd.compiler.mk>
+.endif
 
 # Note: we use this awkward construct to be compatible with FreeBSD's
 # old make used in 10.0 and 9.2 and earlier.
