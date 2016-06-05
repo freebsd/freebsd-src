@@ -2794,10 +2794,10 @@ struct cctl_islist_conn {
 	char *target_alias;
 	char *header_digest;
 	char *data_digest;
-	char *max_data_segment_length;;
-	char *max_burst_length;;
-	char *first_burst_length;;
-	char *offload;;
+	char *max_data_segment_length;
+	char *max_burst_length;
+	char *first_burst_length;
+	char *offload;
 	int immediate_data;
 	int iser;
 	STAILQ_ENTRY(cctl_islist_conn) links;
