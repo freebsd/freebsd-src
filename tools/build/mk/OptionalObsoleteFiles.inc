@@ -447,9 +447,9 @@ OLD_FILES+=usr/share/man/man3/blacklist_open.3.gz
 OLD_FILES+=usr/share/man/man3/blacklist_r.3.gz
 OLD_FILES+=usr/share/man/man3/blacklist_sa.3.gz
 OLD_FILES+=usr/share/man/man3/blacklist_sa_r.3.gz
+OLD_FILES+=usr/share/man/man5/blacklistd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/blacklistctl.8.gz
 OLD_FILES+=usr/share/man/man8/blacklistd.8.gz
-OLD_FILES+=usr/share/man/man8/blacklistd.conf.5.gz
 .endif
 
 .if ${MK_BLUETOOTH} == no
