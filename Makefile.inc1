@@ -431,6 +431,9 @@ PACKAGE=	kernel
 #
 
 BOOTSTRAPPING?=	0
+# Keep these in sync
+MINIMUM_SUPPORTED_OSREL?= 900044
+MINIMUM_SUPPORTED_REL?= 9.1
 
 # Common environment for world related stages
 CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -1512,8 +1515,8 @@ _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
 legacy: .PHONY
-.if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
-	@echo "ERROR: Source upgrades from versions prior to 8.0 are not supported."; \
+.if ${BOOTSTRAPPING} < ${MINIMUM_SUPPORTED_OSREL} && ${BOOTSTRAPPING} != 0
+	@echo "ERROR: Source upgrades from versions prior to ${MINIMUM_SUPPORTED_REL} are not supported."; \
 	false
 .endif
 .for _tool in tools/build ${_elftoolchain_libs}
