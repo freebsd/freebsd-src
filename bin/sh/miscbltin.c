@@ -406,7 +406,7 @@ static const struct limits limits[] = {
 	{ "swap limit",		"kbytes",	RLIMIT_SWAP,	1024, 'w' },
 #endif
 #ifdef RLIMIT_SBSIZE
-	{ "sbsize",		"bytes",	RLIMIT_SBSIZE,	   1, 'b' },
+	{ "socket buffer size",	"bytes",	RLIMIT_SBSIZE,	   1, 'b' },
 #endif
 #ifdef RLIMIT_NPTS
 	{ "pseudo-terminals",	(char *)0,	RLIMIT_NPTS,	   1, 'p' },
@@ -415,7 +415,7 @@ static const struct limits limits[] = {
 	{ "kqueues",		(char *)0,	RLIMIT_KQUEUES,	   1, 'k' },
 #endif
 #ifdef RLIMIT_UMTXP
-	{ "umtxp",		(char *)0,	RLIMIT_UMTXP,	   1, 'o' },
+	{ "umtx shared locks",	(char *)0,	RLIMIT_UMTXP,	   1, 'o' },
 #endif
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
