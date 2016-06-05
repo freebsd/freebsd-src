@@ -41,11 +41,6 @@
 
 ELFTC_VCSID("$Id: main.c 3446 2016-05-03 01:31:17Z emaste $");
 
-/* Backwards compatability for older FreeBSD releases. */
-#ifndef ELFOSABI_CLOUDABI
-#define ELFOSABI_CLOUDABI 17
-#endif
-
 enum options
 {
 	ECP_ADD_GNU_DEBUGLINK,
