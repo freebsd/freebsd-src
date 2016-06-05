@@ -47,6 +47,9 @@ __ENV_ONLY_OPTIONS:= \
 .elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
 # verbose will show .MAKE.META.PREFIX for each target.
 META_MODE+=	meta verbose
+.if !defined(NO_META_MISSING)
+META_MODE+=	missing-meta=yes
+.endif
 # silent will hide command output if a .meta file is created.
 .if !defined(NO_SILENT)
 META_MODE+=	silent=yes
@@ -56,6 +59,10 @@ META_MODE+=	silent=yes
 .error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded.
 .endif
 META_MODE+= nofilemon
+.endif
+# Require filemon data with bmake
+.if empty(META_MODE:Mnofilemon)
+META_MODE+= missing-filemon=yes
 .endif
 .endif
 META_MODE?= normal
