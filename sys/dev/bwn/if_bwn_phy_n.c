@@ -101,6 +101,9 @@ bwn_phy_n_attach(struct bwn_mac *mac)
 #ifdef	BWN_GPL_PHY
 	return bwn_nphy_op_allocate(mac);
 #else
+	device_printf(mac->mac_sc->sc_dev,
+	    "%s: BWN_GPL_PHY not in kernel config; "
+	    "no PHY-N support\n", __func__);
 	return (ENXIO);
 #endif
 }
