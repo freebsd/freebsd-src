@@ -567,6 +567,10 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			    "CRC32C" : "None");
 			xo_emit("{L:/%-18s}{V:dataSegmentLen/%d}\n",
 			    "DataSegmentLen:", state->iss_max_data_segment_length);
+			xo_emit("{L:/%-18s}{V:maxBurstLen/%d}\n",
+			    "MaxBurstLen:", state->iss_max_burst_length);
+			xo_emit("{L:/%-18s}{V:firstBurstLen/%d}\n",
+			    "FirstBurstLen:", state->iss_first_burst_length);
 			xo_emit("{L:/%-18s}{V:immediateData/%s}\n",
 			    "ImmediateData:", state->iss_immediate_data ? "Yes" : "No");
 			xo_emit("{L:/%-18s}{V:iSER/%s}\n",

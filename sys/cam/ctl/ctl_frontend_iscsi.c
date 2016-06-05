@@ -1514,6 +1514,7 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 	cs->cs_statsn = cihp->statsn;
 	cs->cs_max_data_segment_length = cihp->max_recv_data_segment_length;
 	cs->cs_max_burst_length = cihp->max_burst_length;
+	cs->cs_first_burst_length = cihp->first_burst_length;
 	cs->cs_immediate_data = !!cihp->immediate_data;
 	if (cihp->header_digest == CTL_ISCSI_DIGEST_CRC32C)
 		cs->cs_conn->ic_header_crc32c = true;
@@ -1652,6 +1653,8 @@ cfiscsi_ioctl_list(struct ctl_iscsi *ci)
 		    "<header_digest>%s</header_digest>"
 		    "<data_digest>%s</data_digest>"
 		    "<max_data_segment_length>%zd</max_data_segment_length>"
+		    "<max_burst_length>%zd</max_burst_length>"
+		    "<first_burst_length>%zd</first_burst_length>"
 		    "<immediate_data>%d</immediate_data>"
 		    "<iser>%d</iser>"
 		    "<offload>%s</offload>"
@@ -1663,6 +1666,8 @@ cfiscsi_ioctl_list(struct ctl_iscsi *ci)
 		    cs->cs_conn->ic_header_crc32c ? "CRC32C" : "None",
 		    cs->cs_conn->ic_data_crc32c ? "CRC32C" : "None",
 		    cs->cs_max_data_segment_length,
+		    cs->cs_max_burst_length,
+		    cs->cs_first_burst_length,
 		    cs->cs_immediate_data,
 		    cs->cs_conn->ic_iser,
 		    cs->cs_conn->ic_offload);

@@ -86,6 +86,7 @@ struct cfiscsi_session {
 	bool				cs_tasks_aborted;
 	size_t				cs_max_data_segment_length;
 	size_t				cs_max_burst_length;
+	size_t				cs_first_burst_length;
 	bool				cs_immediate_data;
 	char				cs_initiator_name[CTL_ISCSI_NAME_LEN];
 	char				cs_initiator_addr[CTL_ISCSI_ADDR_LEN];

@@ -93,7 +93,8 @@ struct iscsi_session_state {
 	int		iss_connected;
 	char		iss_reason[ISCSI_REASON_LEN];
 	char		iss_offload[ISCSI_OFFLOAD_LEN];
-	int		iss_spare[2];
+	int		iss_max_burst_length;
+	int		iss_first_burst_length;
 };
 
 /*
