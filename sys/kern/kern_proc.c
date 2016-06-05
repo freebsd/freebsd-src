@@ -168,7 +168,7 @@ CTASSERT(sizeof(struct kinfo_proc32) == KINFO_PROC32_SIZE);
  * Initialize global process hashing structures.
  */
 void
-procinit()
+procinit(void)
 {
 
 	sx_init(&allproc_lock, "allproc");
