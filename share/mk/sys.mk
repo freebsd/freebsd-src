@@ -68,6 +68,26 @@ META_MODE+= missing-filemon=yes
 META_MODE?= normal
 .export META_MODE
 .MAKE.MODE?= ${META_MODE}
+.if !empty(.MAKE.MODE:Mmeta) && !defined(NO_META_IGNORE_HOST)
+# Ignore host file changes that will otherwise cause
+# buildworld -> installworld -> buildworld to rebuild everything.
+# Since the build is self-reliant and bootstraps everything it needs,
+# this should not be a real problem for incremental builds.
+# Note that these are prefix matching, so /lib matches /libexec.
+.MAKE.META.IGNORE_PATHS+= \
+	${__MAKE_SHELL} \
+	/bin \
+	/lib \
+	/rescue \
+	/sbin \
+	/usr/bin \
+	/usr/include \
+	/usr/lib \
+	/usr/sbin \
+	/usr/share \
+
+.endif
+
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
