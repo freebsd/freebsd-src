@@ -352,6 +352,10 @@ MK_ELFTOOLCHAIN_BOOTSTRAP:= no
 MK_GCC_BOOTSTRAP:= no
 .endif
 
+.if ${MK_META_MODE} == "yes"
+MK_SYSTEM_COMPILER:= no
+.endif
+
 .if ${MK_TOOLCHAIN} == "no"
 MK_BINUTILS:=	no
 MK_CLANG:=	no
