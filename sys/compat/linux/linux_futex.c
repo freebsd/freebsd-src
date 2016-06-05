@@ -1,7 +1,9 @@
 /*	$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $ */
 
 /*-
- * Copyright (c) 2005 Emmanuel Dreyfus, all rights reserved.
+ * Copyright (c) 2009-2016 Dmitry Chagin
+ * Copyright (c) 2005 Emmanuel Dreyfus
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -605,7 +607,7 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 
 	LIN_SDT_PROBE4(futex, futex_atomic_op, decoded_op, op, cmp, oparg,
 	    cmparg);
-	
+
 	/* XXX: Linux verifies access here and returns EFAULT */
 	LIN_SDT_PROBE0(futex, futex_atomic_op, missing_access_check);
 
@@ -997,7 +999,6 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		return (ENOSYS);
 
 	case LINUX_FUTEX_REQUEUE:
-
 		/*
 		 * Glibc does not use this operation since version 2.3.3,
 		 * as it is racy and replaced by FUTEX_CMP_REQUEUE operation.
