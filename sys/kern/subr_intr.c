@@ -560,7 +560,6 @@ intr_ddata_alloc(u_int extsize)
 	mtx_unlock(&isrc_table_lock);
 
 	ddata->idd_data = (struct intr_map_data *)((uintptr_t)ddata + size);
-	ddata->idd_data->size = extsize;
 	return (ddata);
 }
 

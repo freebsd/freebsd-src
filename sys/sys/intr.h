@@ -34,17 +34,6 @@
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
-enum intr_map_data_type {
-	INTR_MAP_DATA_ACPI,
-	INTR_MAP_DATA_FDT,
-	INTR_MAP_DATA_GPIO,
-};
-
-struct intr_map_data {
-	enum intr_map_data_type	type;
-	size_t			size;
-};
-
 #ifdef DEV_ACPI
 struct intr_map_data_acpi {
 	struct intr_map_data	hdr;
