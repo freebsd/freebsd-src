@@ -901,11 +901,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		tf->srr0 -= 4;
 		break;
 	default:
-		if (p->p_sysent->sv_errsize) {
-			error = (error < p->p_sysent->sv_errsize) ?
-			    p->p_sysent->sv_errtbl[error] : -1;
-		}
-		tf->fixreg[FIRSTARG] = error;
+		tf->fixreg[FIRSTARG] = SV_ABI_ERRNO(p, error);
 		tf->cr |= 0x10000000;		/* Set summary overflow */
 		break;
 	}
