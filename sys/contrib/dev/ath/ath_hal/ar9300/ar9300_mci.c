@@ -107,7 +107,7 @@ void ar9300_mci_osla_setup(struct ath_hal *ah, HAL_BOOL enable)
 static void ar9300_mci_reset_req_wakeup(struct ath_hal *ah)
 {
     /* to be tested in emulation */
-    if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+    if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         OS_REG_RMW_FIELD(ah, AR_MCI_COMMAND2,
             AR_MCI_COMMAND2_RESET_REQ_WAKEUP, 1);
         OS_DELAY(1);
@@ -364,7 +364,7 @@ static void ar9300_mci_send_2g5g_status(struct ath_hal *ah, HAL_BOOL wait_done)
     struct ath_hal_9300 *ahp = AH9300(ah);
     u_int32_t new_flags, to_set, to_clear;
 
-    if ((AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) &&
+    if ((AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) &&
         (ahp->ah_mci_coex_2g5g_update == AH_TRUE) &&
         (ahp->ah_mci_bt_state != MCI_BT_SLEEP))
     {
@@ -409,7 +409,7 @@ void ar9300_mci_2g5g_switch(struct ath_hal *ah, HAL_BOOL wait_done)
 
             OS_REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
                 AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
-            if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+            if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
                 OS_REG_CLR_BIT(ah, AR_GLB_CONTROL,
                     AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
                 if (!(ah->ah_config.ath_hal_mci_config &
@@ -425,7 +425,7 @@ void ar9300_mci_2g5g_switch(struct ath_hal *ah, HAL_BOOL wait_done)
 
             OS_REG_SET_BIT(ah, AR_MCI_TX_CTRL,
                 AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
-            if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+            if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
                 OS_REG_SET_BIT(ah, AR_GLB_CONTROL,
                     AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
                 ar9300_mci_osla_setup(ah, AH_FALSE);
@@ -1035,7 +1035,7 @@ void ar9300_mci_reset(struct ath_hal *ah, HAL_BOOL en_int, HAL_BOOL is_2g,
     }
 
 
-    if (is_2g && (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) &&
+    if (is_2g && (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) &&
          !(ah->ah_config.ath_hal_mci_config &
            ATH_MCI_CONFIG_DISABLE_OSLA))
     {
@@ -1045,7 +1045,7 @@ void ar9300_mci_reset(struct ath_hal *ah, HAL_BOOL en_int, HAL_BOOL is_2g,
         ar9300_mci_osla_setup(ah, AH_FALSE);
     }
 
-    if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+    if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         OS_REG_SET_BIT(ah, AR_GLB_CONTROL, AR_BTCOEX_CTRL_SPDT_ENABLE);
 
         OS_REG_RMW_FIELD(ah, AR_BTCOEX_CTRL3,
@@ -1743,7 +1743,7 @@ ar9300_mci_state(struct ath_hal *ah, u_int32_t state_type, u_int32_t *p_data)
                     ar9300_mci_send_coex_bt_status_query(ah, AH_TRUE,
                         MCI_GPM_COEX_QUERY_BT_DEBUG);
                     OS_DELAY(10);
-                    if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+                    if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
                         ar9300_mci_send_coex_bt_flags(ah, AH_TRUE,
                             MCI_GPM_COEX_BT_FLAGS_READ, 0);
                     }
