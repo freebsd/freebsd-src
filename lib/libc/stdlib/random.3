@@ -174,8 +174,8 @@ If
 .Fn initstate
 is called with less than 8 bytes of state information, or if
 .Fn setstate
-detects that the state information has been garbled, error
-messages are printed on the standard error output.
+detects that the state information has been garbled,
+NULL is returned.
 .Sh SEE ALSO
 .Xr arc4random 3 ,
 .Xr lrand48 3 ,
