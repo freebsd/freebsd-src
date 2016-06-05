@@ -1025,6 +1025,13 @@ ef10_get_datapath_caps(
 	encp->enc_enhanced_set_mac_supported =
 		CAP_FLAG(flags, SET_MAC_ENHANCED) ? B_TRUE : B_FALSE;
 
+	/*
+	 * Check if firmware supports version 2 of MC_CMD_INIT_EVQ, which allows
+	 * us to let the firmware choose the settings to use on an EVQ.
+	 */
+	encp->enc_init_evq_v2_supported =
+		CAP_FLAG2(flags2, INIT_EVQ_V2) ? B_TRUE : B_FALSE;
+
 #undef CAP_FLAG
 #undef CAP_FLAG2
 
