@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.44 2016/04/07 17:00:38 sjg Exp $
+# $Id: meta.autodep.mk,v 1.45 2016/06/03 17:22:32 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -266,7 +266,7 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 	DPADD='${FORCE_DPADD:O:u}' ${_gendirdeps_mutex} \
 	MAKESYSPATH=${_makesyspath} \
 	${.MAKE} -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE} \
-	META_FILES='${META_XTRAS:T:O:u} ${META_FILES:T:O:u:${META_FILE_FILTER:ts:}}')
+	META_FILES='${META_XTRAS:O:u} ${META_FILES:T:O:u:${META_FILE_FILTER:ts:}}')
 	@test -s $@ && touch $@; :
 .endif
 

@@ -1,3 +1,26 @@
+2016-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160604
+	  Merge with NetBSD make, pick up
+	  o meta.c: missing filemon data is only relevant if we read a
+	    meta file.
+	    Also do not return oodate for a missing metafile if gn->path
+	    points to .CURDIR
+	
+2016-06-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160602
+	  Merge with NetBSD make, pick up
+	  o cached_realpath(): avoid hitting filesystem more than necessary.
+	  o meta.c: refactor need_meta decision, add knobs for 
+	    missing meta file and filemon data wrt out-of-datedness.
+
+2016-05-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160528
+
+	* boot-strap, make-bootstrap.sh.in: Makefile now uses _MAKE_VERSION 
+
 2016-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20160512

@@ -1,3 +1,16 @@
+2016-06-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160602
+	* meta.autodep.mk: when passing META_FILES to gendirdeps.mk
+	  do not apply :T to META_XTRAS
+	  patch from Bryan Drewery at FreeBSD.org.
+
+2016-05-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160530
+	* meta.stage.mk: we assume ${CLEANFILES} gets .NOPATH
+	  make it so.
+	
 2016-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20160512

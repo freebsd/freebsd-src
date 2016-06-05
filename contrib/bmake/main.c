@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.244 2016/04/05 04:25:43 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.245 2016/06/03 01:21:59 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.244 2016/04/05 04:25:43 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.245 2016/06/03 01:21:59 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.244 2016/04/05 04:25:43 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.245 2016/06/03 01:21:59 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1014,7 +1014,7 @@ main(int argc, char **argv)
 	    /*
 	     * A relative path, canonicalize it.
 	     */
-	    p1 = realpath(argv[0], mdpath);
+	    p1 = cached_realpath(argv[0], mdpath);
 	    if (!p1 || *p1 != '/' || stat(p1, &sb) < 0) {
 		p1 = argv[0];		/* realpath failed */
 	    }
@@ -1883,6 +1883,40 @@ usage(void)
 	exit(2);
 }
 
+
+/*
+ * realpath(3) can get expensive, cache results...
+ */
+char *
+cached_realpath(const char *pathname, char *resolved)
+{
+    static GNode *cache;
+    char *rp, *cp;
+
+    if (!pathname || !pathname[0])
+	return NULL;
+
+    if (!cache) {
+	cache = Targ_NewGN("Realpath");
+#ifndef DEBUG_REALPATH_CACHE
+	cache->flags = INTERNAL;
+#endif
+    }
+
+    rp = Var_Value(pathname, cache, &cp);
+    if (rp) {
+	/* a hit */
+	if (resolved)
+	    strlcpy(resolved, rp, MAXPATHLEN);
+	else
+	    resolved = bmake_strdup(rp);
+    } else {
+	if ((rp = realpath(pathname, resolved))) {
+	    Var_Set(pathname, rp, cache, 0);
+	}
+    }
+    return rp ? resolved : NULL;
+}
 
 int
 PrintAddr(void *a, void *b)
