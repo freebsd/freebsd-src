@@ -14,4 +14,10 @@ WARNS?=	2
 CFLAGS+= -DINET6
 .endif
 
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+CFLAGS+= -DUSE_BLACKLIST -I${SRCTOP}/contrib/blacklist/include
+LIBADD+= blacklist
+LDFLAGS+=-L${LIBBLACKLISTDIR}
+.endif
+
 .include <bsd.prog.mk>
