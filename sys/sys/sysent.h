@@ -154,8 +154,6 @@ struct sysentvec {
 
 #ifdef _KERNEL
 extern struct sysentvec aout_sysvec;
-extern struct sysentvec elf_freebsd_sysvec;
-extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
 extern const char *syscallnames[];
 
