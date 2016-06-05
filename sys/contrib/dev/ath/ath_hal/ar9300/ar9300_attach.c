@@ -3542,14 +3542,50 @@ void ar9300_rx_gain_table_apply(struct ath_hal *ah)
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
                 ar9300Common_mixed_rx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Common_mixed_rx_gain_table_jupiter_2p0), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_bb_core,
+                ar9462_2p0_baseband_core_mix_rxgain,
+                ARRAY_LENGTH(ar9462_2p0_baseband_core_mix_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_bb_postamble,
+                ar9462_2p0_baseband_postamble_mix_rxgain,
+                ARRAY_LENGTH(ar9462_2p0_baseband_postamble_mix_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_xlna,
+                ar9462_2p0_baseband_postamble_5g_xlna,
+                ARRAY_LENGTH(ar9462_2p0_baseband_postamble_5g_xlna), 2);
             break;
         }
         else if (AR_SREV_JUPITER_21(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
                 ar9462_2p1_common_mixed_rx_gain,
                 ARRAY_LENGTH(ar9462_2p1_common_mixed_rx_gain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_bb_core,
+                ar9462_2p1_baseband_core_mix_rxgain,
+                ARRAY_LENGTH(ar9462_2p1_baseband_core_mix_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_bb_postamble,
+                ar9462_2p1_baseband_postamble_mix_rxgain,
+                ARRAY_LENGTH(ar9462_2p1_baseband_postamble_mix_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_xlna,
+                ar9462_2p1_baseband_postamble_5g_xlna,
+                ARRAY_LENGTH(ar9462_2p1_baseband_postamble_5g_xlna), 2);
+
             break;
         }
+    case 3:
+        if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
+                ar9462_2p1_common_5g_xlna_only_rxgain,
+                ARRAY_LENGTH(ar9462_2p1_common_5g_xlna_only_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_xlna,
+                ar9462_2p1_baseband_postamble_5g_xlna,
+                ARRAY_LENGTH(ar9462_2p1_baseband_postamble_5g_xlna), 2);
+        } else if (AR_SREV_JUPITER_20(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
+                ar9462_2p0_common_5g_xlna_only_rxgain,
+                ARRAY_LENGTH(ar9462_2p0_common_5g_xlna_only_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_xlna,
+                ar9462_2p0_baseband_postamble_5g_xlna,
+                ARRAY_LENGTH(ar9462_2p0_baseband_postamble_5g_xlna), 2);
+        }
+        break;
     case 0:
     default:
         if (AR_SREV_HORNET_12(ah)) {
