@@ -69,8 +69,10 @@ typedef unsigned __int64 uint64_t;
 #endif
 #endif
 
+#if 0
 #if defined(__GNUC__) && ((__GNUC__ == 4) &&  (__GNUC_MINOR__ >= 9) || (__GNUC__ > 4))
 #define _MUM_FRESH_GCC
+#endif
 #endif
 
 #if defined(__GNUC__) && !defined(__llvm__) && defined(_MUM_FRESH_GCC)
