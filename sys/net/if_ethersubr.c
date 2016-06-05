@@ -754,7 +754,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch m %p "
 		    "rcvif %p ifp %p", __func__, m, m->m_pkthdr.rcvif, ifp));
 		CURVNET_SET_QUIET(ifp->if_vnet);
-		CURVNET_SET_QUIET(ifp->if_vnet);
 		netisr_dispatch(NETISR_ETHER, m);
 		CURVNET_RESTORE();
 		m = mn;
