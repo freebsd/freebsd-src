@@ -978,7 +978,7 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		error = fo_ioctl(fp, TIOCGETD, (caddr_t)&bsd_line,
 		    td->td_ucred, td);
 		if (error)
-			return (error);
+			break;
 		switch (bsd_line) {
 		case TTYDISC:
 			linux_line = LINUX_N_TTY;
