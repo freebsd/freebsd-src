@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.207 2016/03/11 15:12:39 matthias Exp $	*/
+/*	$NetBSD: var.c,v 1.208 2016/06/03 01:21:59 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.207 2016/03/11 15:12:39 matthias Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.208 2016/06/03 01:21:59 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.207 2016/03/11 15:12:39 matthias Exp $");
+__RCSID("$NetBSD: var.c,v 1.208 2016/06/03 01:21:59 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -530,7 +530,7 @@ VarAdd(const char *name, const char *val, GNode *ctxt)
     h = Hash_CreateEntry(&ctxt->context, name, NULL);
     Hash_SetValue(h, v);
     v->name = h->name;
-    if (DEBUG(VAR)) {
+    if (DEBUG(VAR) && (ctxt->flags & INTERNAL) == 0) {
 	fprintf(debug_file, "%s:%s = %s\n", ctxt->name, name, val);
     }
 }
@@ -1950,7 +1950,7 @@ VarRealpath(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	    Buf_AddByte(buf, vpstate->varSpace);
 	}
 	addSpace = TRUE;
-	rp = realpath(word, rbuf);
+	rp = cached_realpath(word, rbuf);
 	if (rp && *rp == '/' && stat(rp, &st) == 0)
 		word = rp;
 	

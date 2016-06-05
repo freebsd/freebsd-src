@@ -531,37 +531,51 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      mode that bbmmaakkee runs in.  It can contain a number of key-
                      words:
 
-                     _c_o_m_p_a_t      Like --BB, puts bbmmaakkee into "compat" mode.
+                     _c_o_m_p_a_t               Like --BB, puts bbmmaakkee into "compat"
+                                          mode.
 
-                     _m_e_t_a        Puts bbmmaakkee into "meta" mode, where meta files
-                                 are created for each target to capture the
-                                 command run, the output generated and if
-                                 filemon(4) is available, the system calls
-                                 which are of interest to bbmmaakkee.  The captured
-                                 output can be very useful when diagnosing
-                                 errors.
+                     _m_e_t_a                 Puts bbmmaakkee into "meta" mode, where
+                                          meta files are created for each tar-
+                                          get to capture the command run, the
+                                          output generated and if filemon(4)
+                                          is available, the system calls which
+                                          are of interest to bbmmaakkee.  The cap-
+                                          tured output can be very useful when
+                                          diagnosing errors.
 
-                     _c_u_r_d_i_r_O_k_= _b_f Normally bbmmaakkee will not create .meta files
-                                 in `_._C_U_R_D_I_R'.  This can be overridden by set-
-                                 ting _b_f to a value which represents True.
+                     _c_u_r_d_i_r_O_k_= _b_f         Normally bbmmaakkee will not create .meta
+                                          files in `_._C_U_R_D_I_R'.  This can be
+                                          overridden by setting _b_f to a value
+                                          which represents True.
 
-                     _e_n_v         For debugging, it can be useful to include
-                                 the environment in the .meta file.
+                     _m_i_s_s_i_n_g_-_m_e_t_a_= _b_f     If _b_f is True, then a missing .meta
+                                          file makes the target out-of-date.
 
-                     _v_e_r_b_o_s_e     If in "meta" mode, print a clue about the
-                                 target being built.  This is useful if the
-                                 build is otherwise running silently.  The
-                                 message printed the value of:
-                                 _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X.
+                     _m_i_s_s_i_n_g_-_f_i_l_e_m_o_n_= _b_f  If _b_f is True, then missing filemon
+                                          data makes the target out-of-date.
 
-                     _i_g_n_o_r_e_-_c_m_d  Some makefiles have commands which are simply
-                                 not stable.  This keyword causes them to be
-                                 ignored for determining whether a target is
-                                 out of date in "meta" mode.  See also
-                                 ..NNOOMMEETTAA__CCMMPP.
+                     _n_o_f_i_l_e_m_o_n            Do not use filemon(4).
 
-                     _s_i_l_e_n_t_= _b_f  If _b_f is True, when a .meta file is created,
-                                 mark the target ..SSIILLEENNTT.
+                     _e_n_v                  For debugging, it can be useful to
+                                          include the environment in the .meta
+                                          file.
+
+                     _v_e_r_b_o_s_e              If in "meta" mode, print a clue
+                                          about the target being built.  This
+                                          is useful if the build is otherwise
+                                          running silently.  The message
+                                          printed the value of:
+                                          _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X.
+
+                     _i_g_n_o_r_e_-_c_m_d           Some makefiles have commands which
+                                          are simply not stable.  This keyword
+                                          causes them to be ignored for deter-
+                                          mining whether a target is out of
+                                          date in "meta" mode.  See also
+                                          ..NNOOMMEETTAA__CCMMPP.
+
+                     _s_i_l_e_n_t_= _b_f           If _b_f is True, when a .meta file is
+                                          created, mark the target ..SSIILLEENNTT.
 
      _._M_A_K_E_._M_E_T_A_._B_A_I_L_I_W_I_C_K
                      In "meta" mode, provides a list of prefixes which match
@@ -1475,4 +1489,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                       May 10, 2016                       NetBSD 5.1
+NetBSD 5.1                       June 2, 2016                       NetBSD 5.1
