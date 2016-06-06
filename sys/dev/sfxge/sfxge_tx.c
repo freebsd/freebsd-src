@@ -49,6 +49,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -67,6 +69,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include "common/efx.h"
 
@@ -818,12 +824,24 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 	    (CSUM_DELAY_DATA | CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO)) {
 		int index = 0;
 
+#ifdef RSS
+		uint32_t bucket_id;
+
+		/*
+		 * Select a TX queue which matches the corresponding
+		 * RX queue for the hash in order to assign both
+		 * TX and RX parts of the flow to the same CPU
+		 */
+		if (rss_m2bucket(m, &bucket_id) == 0)
+			index = bucket_id % (sc->txq_count - (SFXGE_TXQ_NTYPES - 1));
+#else
 		/* check if flowid is set */
 		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 			uint32_t hash = m->m_pkthdr.flowid;
 
 			index = sc->rx_indir_table[hash % SFXGE_RX_SCALE_MAX];
 		}
+#endif
 #if SFXGE_TX_PARSE_EARLY
 		if (m->m_pkthdr.csum_flags & CSUM_TSO)
 			sfxge_parse_tx_packet(m);
