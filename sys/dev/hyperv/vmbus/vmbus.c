@@ -86,7 +86,8 @@ vmbus_msg_task(void *xsc, int pending __unused)
 			break;
 		} else if (msg->msg_type == VMBUS_MSGTYPE_CHANNEL) {
 			/* Channel message */
-			vmbus_chan_msgproc(sc, msg);
+			vmbus_chan_msgproc(sc,
+			    __DEVOLATILE(const struct vmbus_message *, msg));
 		}
 
 		msg->msg_type = VMBUS_MSGTYPE_NONE;
