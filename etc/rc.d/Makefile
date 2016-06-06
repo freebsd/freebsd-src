@@ -120,6 +120,7 @@ FILES=	DAEMON \
 	var \
 	watchdogd \
 	ypbind \
+	ypldap \
 	yppasswdd \
 	ypserv \
 	ypset \
