@@ -1141,6 +1141,15 @@ rt_ifdelroute(const struct rtentry *rt, void *arg)
  * to this interface...oh well...
  */
 void
+rt_flushifroutes_af(struct ifnet *ifp, int af)
+{
+	KASSERT((af >= 1 && af <= AF_MAX), ("%s: af %d not >= 1 and <= %d",
+	    __func__, af, AF_MAX));
+
+	rt_foreach_fib_walk_del(af, rt_ifdelroute, ifp);
+}
+
+void
 rt_flushifroutes(struct ifnet *ifp)
 {
 
