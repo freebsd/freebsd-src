@@ -102,7 +102,6 @@ void	vmbus_handle_intr(struct trapframe *);
 
 void	vmbus_et_intr(struct trapframe *);
 
-void	vmbus_chan_msgproc(struct vmbus_softc *,
-	    volatile struct vmbus_message *);
+void	vmbus_chan_msgproc(struct vmbus_softc *, const struct vmbus_message *);
 
 #endif	/* !_VMBUS_VAR_H_ */
