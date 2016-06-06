@@ -373,8 +373,8 @@ int hv_vmbus_post_message(void *buffer, size_t bufferLen)
 	 * insufficient resources. 20 times should suffice in practice.
 	 */
 	for (retries = 0; retries < 20; retries++) {
-		ret = hv_vmbus_post_msg_via_msg_ipc(connId, 1, buffer,
-						    bufferLen);
+		ret = hv_vmbus_post_msg_via_msg_ipc(connId,
+		    VMBUS_MSGTYPE_CHANNEL, buffer, bufferLen);
 		if (ret == HV_STATUS_SUCCESS)
 			return (0);
 

@@ -49,6 +49,7 @@ struct vmbus_message {
 CTASSERT(sizeof(struct vmbus_message) == VMBUS_MSG_SIZE);
 
 #define VMBUS_MSGTYPE_NONE		0
+#define VMBUS_MSGTYPE_CHANNEL		1
 #define VMBUS_MSGTYPE_TIMER_EXPIRED	0x80000010
 
 #define VMBUS_MSGFLAG_PENDING		0x01

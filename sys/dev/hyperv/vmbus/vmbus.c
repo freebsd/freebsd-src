@@ -85,8 +85,13 @@ vmbus_msg_task(void *xsc, int pending __unused)
 		hv_vmbus_channel_msg_header *hdr;
 		hv_vmbus_channel_msg_type msg_type;
 
-		if (msg->msg_type == VMBUS_MSGTYPE_NONE)
-			break; /* no message */
+		if (msg->msg_type == VMBUS_MSGTYPE_NONE) {
+			/* No message */
+			break;
+		} else if (msg->msg_type != VMBUS_MSGTYPE_CHANNEL) {
+			/* Not a channel message */
+			goto handled;
+		}
 
 		/* XXX: update messageHandler interface */
 		hdr = __DEVOLATILE(hv_vmbus_channel_msg_header *,
