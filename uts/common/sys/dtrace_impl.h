@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright 2016 Joyent, Inc.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -922,6 +922,7 @@ typedef struct dtrace_mstate {
 	int dtms_ipl;				/* cached interrupt pri lev */
 	int dtms_fltoffs;			/* faulting DIFO offset */
 	uintptr_t dtms_strtok;			/* saved strtok() pointer */
+	uintptr_t dtms_strtok_limit;		/* upper bound of strtok ptr */
 	uint32_t dtms_access;			/* memory access rights */
 	dtrace_difo_t *dtms_difo;		/* current dif object */
 	file_t *dtms_getf;			/* cached rval of getf() */
