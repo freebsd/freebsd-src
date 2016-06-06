@@ -1129,7 +1129,12 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	 * Set up the scale table.  Enable all hash types and hash insertion.
 	 */
 	for (index = 0; index < SFXGE_RX_SCALE_MAX; index++)
+#ifdef RSS
+		sc->rx_indir_table[index] =
+			rss_get_indirection_to_bucket(index) % sc->rxq_count;
+#else
 		sc->rx_indir_table[index] = index % sc->rxq_count;
+#endif
 	if ((rc = efx_rx_scale_tbl_set(sc->enp, sc->rx_indir_table,
 				       SFXGE_RX_SCALE_MAX)) != 0)
 		goto fail;
