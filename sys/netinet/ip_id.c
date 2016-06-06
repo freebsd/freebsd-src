@@ -287,11 +287,11 @@ static void
 ipid_sysuninit(void)
 {
 
-	mtx_destroy(&V_ip_id_mtx);
 	if (V_id_array != NULL) {
 		free(V_id_array, M_IPID);
 		free(V_id_bits, M_IPID);
 	}
 	counter_u64_free(V_ip_id);
+	mtx_destroy(&V_ip_id_mtx);
 }
 VNET_SYSUNINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipid_sysuninit, NULL);
