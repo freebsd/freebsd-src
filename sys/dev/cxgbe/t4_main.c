@@ -8297,152 +8297,132 @@ in_range(int val, int lo, int hi)
 }
 
 static int
-set_sched_class(struct adapter *sc, struct t4_sched_params *p)
+set_sched_class_config(struct adapter *sc, int minmax)
 {
-	int fw_subcmd, fw_type, rc;
+	int rc;
 
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setsc");
+	if (minmax < 0)
+		return (EINVAL);
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4sscc");
 	if (rc)
 		return (rc);
+	rc = -t4_sched_config(sc, FW_SCHED_TYPE_PKTSCHED, minmax, 1);
+	end_synchronized_op(sc, 0);
 
-	if (!(sc->flags & FULL_INIT_DONE)) {
-		rc = EAGAIN;
-		goto done;
-	}
+	return (rc);
+}
+
+static int
+set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
+    int sleep_ok)
+{
+	int rc, top_speed, fw_level, fw_mode, fw_rateunit, fw_ratemode;
+	struct port_info *pi;
+
+	if (p->level == SCHED_CLASS_LEVEL_CL_RL)
+		fw_level = FW_SCHED_PARAMS_LEVEL_CL_RL;
+	else if (p->level == SCHED_CLASS_LEVEL_CL_WRR)
+		fw_level = FW_SCHED_PARAMS_LEVEL_CL_WRR;
+	else if (p->level == SCHED_CLASS_LEVEL_CH_RL)
+		fw_level = FW_SCHED_PARAMS_LEVEL_CH_RL;
+	else
+		return (EINVAL);
+
+	if (p->mode == SCHED_CLASS_MODE_CLASS)
+		fw_mode = FW_SCHED_PARAMS_MODE_CLASS;
+	else if (p->mode == SCHED_CLASS_MODE_FLOW)
+		fw_mode = FW_SCHED_PARAMS_MODE_FLOW;
+	else
+		return (EINVAL);
+
+	if (p->rateunit == SCHED_CLASS_RATEUNIT_BITS)
+		fw_rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
+	else if (p->rateunit == SCHED_CLASS_RATEUNIT_PKTS)
+		fw_rateunit = FW_SCHED_PARAMS_UNIT_PKTRATE;
+	else
+		return (EINVAL);
+
+	if (p->ratemode == SCHED_CLASS_RATEMODE_REL)
+		fw_ratemode = FW_SCHED_PARAMS_RATE_REL;
+	else if (p->ratemode == SCHED_CLASS_RATEMODE_ABS)
+		fw_ratemode = FW_SCHED_PARAMS_RATE_ABS;
+	else
+		return (EINVAL);
+
+	/* Vet our parameters ... */
+	if (!in_range(p->channel, 0, sc->chip_params->nchan - 1))
+		return (ERANGE);
+
+	pi = sc->port[sc->chan_map[p->channel]];
+	if (pi == NULL)
+		return (ENXIO);
+	MPASS(pi->tx_chan == p->channel);
+	top_speed = port_top_speed(pi) * 1000000; /* Gbps -> Kbps */
+
+	if (!in_range(p->cl, 0, sc->chip_params->nsched_cls) ||
+	    !in_range(p->minrate, 0, top_speed) ||
+	    !in_range(p->maxrate, 0, top_speed) ||
+	    !in_range(p->weight, 0, 100))
+		return (ERANGE);
 
 	/*
-	 * Translate the cxgbetool parameters into T4 firmware parameters.  (The
-	 * sub-command and type are in common locations.)
+	 * Translate any unset parameters into the firmware's
+	 * nomenclature and/or fail the call if the parameters
+	 * are required ...
 	 */
-	if (p->subcmd == SCHED_CLASS_SUBCMD_CONFIG)
-		fw_subcmd = FW_SCHED_SC_CONFIG;
-	else if (p->subcmd == SCHED_CLASS_SUBCMD_PARAMS)
-		fw_subcmd = FW_SCHED_SC_PARAMS;
-	else {
-		rc = EINVAL;
-		goto done;
+	if (p->rateunit < 0 || p->ratemode < 0 || p->channel < 0 || p->cl < 0)
+		return (EINVAL);
+
+	if (p->minrate < 0)
+		p->minrate = 0;
+	if (p->maxrate < 0) {
+		if (p->level == SCHED_CLASS_LEVEL_CL_RL ||
+		    p->level == SCHED_CLASS_LEVEL_CH_RL)
+			return (EINVAL);
+		else
+			p->maxrate = 0;
 	}
-	if (p->type == SCHED_CLASS_TYPE_PACKET)
-		fw_type = FW_SCHED_TYPE_PKTSCHED;
-	else {
-		rc = EINVAL;
-		goto done;
+	if (p->weight < 0) {
+		if (p->level == SCHED_CLASS_LEVEL_CL_WRR)
+			return (EINVAL);
+		else
+			p->weight = 0;
 	}
-
-	if (fw_subcmd == FW_SCHED_SC_CONFIG) {
-		/* Vet our parameters ..*/
-		if (p->u.config.minmax < 0) {
-			rc = EINVAL;
-			goto done;
-		}
-
-		/* And pass the request to the firmware ...*/
-		rc = -t4_sched_config(sc, fw_type, p->u.config.minmax, 1);
-		goto done;
-	}
-
-	if (fw_subcmd == FW_SCHED_SC_PARAMS) {
-		int fw_level;
-		int fw_mode;
-		int fw_rateunit;
-		int fw_ratemode;
-
-		if (p->u.params.level == SCHED_CLASS_LEVEL_CL_RL)
-			fw_level = FW_SCHED_PARAMS_LEVEL_CL_RL;
-		else if (p->u.params.level == SCHED_CLASS_LEVEL_CL_WRR)
-			fw_level = FW_SCHED_PARAMS_LEVEL_CL_WRR;
-		else if (p->u.params.level == SCHED_CLASS_LEVEL_CH_RL)
-			fw_level = FW_SCHED_PARAMS_LEVEL_CH_RL;
-		else {
-			rc = EINVAL;
-			goto done;
-		}
-
-		if (p->u.params.mode == SCHED_CLASS_MODE_CLASS)
-			fw_mode = FW_SCHED_PARAMS_MODE_CLASS;
-		else if (p->u.params.mode == SCHED_CLASS_MODE_FLOW)
-			fw_mode = FW_SCHED_PARAMS_MODE_FLOW;
-		else {
-			rc = EINVAL;
-			goto done;
-		}
-
-		if (p->u.params.rateunit == SCHED_CLASS_RATEUNIT_BITS)
-			fw_rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
-		else if (p->u.params.rateunit == SCHED_CLASS_RATEUNIT_PKTS)
-			fw_rateunit = FW_SCHED_PARAMS_UNIT_PKTRATE;
-		else {
-			rc = EINVAL;
-			goto done;
-		}
-
-		if (p->u.params.ratemode == SCHED_CLASS_RATEMODE_REL)
-			fw_ratemode = FW_SCHED_PARAMS_RATE_REL;
-		else if (p->u.params.ratemode == SCHED_CLASS_RATEMODE_ABS)
-			fw_ratemode = FW_SCHED_PARAMS_RATE_ABS;
-		else {
-			rc = EINVAL;
-			goto done;
-		}
-
-		/* Vet our parameters ... */
-		if (!in_range(p->u.params.channel, 0, 3) ||
-		    !in_range(p->u.params.cl, 0, sc->chip_params->nsched_cls) ||
-		    !in_range(p->u.params.minrate, 0, 10000000) ||
-		    !in_range(p->u.params.maxrate, 0, 10000000) ||
-		    !in_range(p->u.params.weight, 0, 100)) {
-			rc = ERANGE;
-			goto done;
-		}
-
-		/*
-		 * Translate any unset parameters into the firmware's
-		 * nomenclature and/or fail the call if the parameters
-		 * are required ...
-		 */
-		if (p->u.params.rateunit < 0 || p->u.params.ratemode < 0 ||
-		    p->u.params.channel < 0 || p->u.params.cl < 0) {
-			rc = EINVAL;
-			goto done;
-		}
-		if (p->u.params.minrate < 0)
-			p->u.params.minrate = 0;
-		if (p->u.params.maxrate < 0) {
-			if (p->u.params.level == SCHED_CLASS_LEVEL_CL_RL ||
-			    p->u.params.level == SCHED_CLASS_LEVEL_CH_RL) {
-				rc = EINVAL;
-				goto done;
-			} else
-				p->u.params.maxrate = 0;
-		}
-		if (p->u.params.weight < 0) {
-			if (p->u.params.level == SCHED_CLASS_LEVEL_CL_WRR) {
-				rc = EINVAL;
-				goto done;
-			} else
-				p->u.params.weight = 0;
-		}
-		if (p->u.params.pktsize < 0) {
-			if (p->u.params.level == SCHED_CLASS_LEVEL_CL_RL ||
-			    p->u.params.level == SCHED_CLASS_LEVEL_CH_RL) {
-				rc = EINVAL;
-				goto done;
-			} else
-				p->u.params.pktsize = 0;
-		}
-
-		/* See what the firmware thinks of the request ... */
-		rc = -t4_sched_params(sc, fw_type, fw_level, fw_mode,
-		    fw_rateunit, fw_ratemode, p->u.params.channel,
-		    p->u.params.cl, p->u.params.minrate, p->u.params.maxrate,
-		    p->u.params.weight, p->u.params.pktsize, 1);
-		goto done;
+	if (p->pktsize < 0) {
+		if (p->level == SCHED_CLASS_LEVEL_CL_RL ||
+		    p->level == SCHED_CLASS_LEVEL_CH_RL)
+			return (EINVAL);
+		else
+			p->pktsize = 0;
 	}
 
-	rc = EINVAL;
-done:
-	end_synchronized_op(sc, 0);
+	rc = begin_synchronized_op(sc, NULL,
+	    sleep_ok ? (SLEEP_OK | INTR_OK) : HOLD_LOCK, "t4sscp");
+	if (rc)
+		return (rc);
+	rc = -t4_sched_params(sc, FW_SCHED_TYPE_PKTSCHED, fw_level, fw_mode,
+	    fw_rateunit, fw_ratemode, p->channel, p->cl, p->minrate, p->maxrate,
+	    p->weight, p->pktsize, sleep_ok);
+	end_synchronized_op(sc, sleep_ok ? 0 : LOCK_HELD);
+
 	return (rc);
+}
+
+static int
+set_sched_class(struct adapter *sc, struct t4_sched_params *p)
+{
+
+	if (p->type != SCHED_CLASS_TYPE_PACKET)
+		return (EINVAL);
+
+	if (p->subcmd == SCHED_CLASS_SUBCMD_CONFIG)
+		return (set_sched_class_config(sc, p->u.config.minmax));
+
+	if (p->subcmd == SCHED_CLASS_SUBCMD_PARAMS)
+		return (set_sched_class_params(sc, &p->u.params, 1));
+
+	return (EINVAL);
 }
 
 static int
