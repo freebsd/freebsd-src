@@ -364,7 +364,7 @@ pfil_chain_remove(pfil_chain_t *chain, pfil_func_t func, void *arg)
  * course).
  */
 static void
-vnet_pfil_init(const void *unused)
+vnet_pfil_init(const void *unused __unused)
 {
 
 	LIST_INIT(&V_pfil_head_list);
@@ -375,7 +375,7 @@ vnet_pfil_init(const void *unused)
  * Called for the removal of each instance.
  */
 static void
-vnet_pfil_uninit(const void *unused)
+vnet_pfil_uninit(const void *unused __unused)
 {
 
 	VNET_ASSERT(LIST_EMPTY(&V_pfil_head_list),

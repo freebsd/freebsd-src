@@ -848,7 +848,7 @@ if_purgeaddrs(struct ifnet *ifp)
 {
 	struct ifaddr *ifa, *next;
 
-	/* XXX IF_ADDR_R/WLOCK */
+	/* XXX cannot hold IF_ADDR_WLOCK over called functions. */
 	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family == AF_LINK)
 			continue;
