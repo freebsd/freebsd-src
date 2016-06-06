@@ -146,7 +146,8 @@ static int setup_device(device_t dev, struct netfront_info *info,
 static int xn_ifmedia_upd(struct ifnet *ifp);
 static void xn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 
-int xn_connect(struct netfront_info *);
+static int xn_connect(struct netfront_info *);
+static void xn_kick_rings(struct netfront_info *);
 
 static int xn_get_responses(struct netfront_rxq *,
     struct netfront_rx_info *, RING_IDX, RING_IDX *,
@@ -976,7 +977,9 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 			break;
 		if (xn_connect(sc) != 0)
 			break;
-		xenbus_set_state(dev, XenbusStateConnected);
+		/* Switch to connected state before kicking the rings. */
+		xenbus_set_state(sc->xbdev, XenbusStateConnected);
+		xn_kick_rings(sc);
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
@@ -1924,7 +1927,7 @@ xn_rebuild_rx_bufs(struct netfront_rxq *rxq)
 }
 
 /* START of Xenolinux helper functions adapted to FreeBSD */
-int
+static int
 xn_connect(struct netfront_info *np)
 {
 	int i, error;
@@ -1968,8 +1971,20 @@ xn_connect(struct netfront_info *np)
 	 * packets.
 	 */
 	netfront_carrier_on(np);
+
+	return (0);
+}
+
+static void
+xn_kick_rings(struct netfront_info *np)
+{
+	struct netfront_rxq *rxq;
+	struct netfront_txq *txq;
+	int i;
+
 	for (i = 0; i < np->num_queues; i++) {
 		txq = &np->txq[i];
+		rxq = &np->rxq[i];
 		xen_intr_signal(txq->xen_intr_handle);
 		XN_TX_LOCK(txq);
 		xn_txeof(txq);
@@ -1978,8 +1993,6 @@ xn_connect(struct netfront_info *np)
 		xn_alloc_rx_buffers(rxq);
 		XN_RX_UNLOCK(rxq);
 	}
-
-	return (0);
 }
 
 static void
