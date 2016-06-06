@@ -861,9 +861,6 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 	struct netisr_work local_npw, *npwp;
 	u_int handled;
 	struct mbuf *m;
-#ifdef INVARIANTS
-	u_int b, f;
-#endif
 
 	NETISR_LOCK_ASSERT();
 	NWS_LOCK_ASSERT(nwsp);
@@ -877,10 +874,6 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 	if (npwp->nw_len == 0)
 		return (0);
 
-#ifdef INVARIANTS
-	b = npwp->nw_len;
-	f = 0;
-#endif
 	/*
 	 * Move the global work queue to a thread-local work queue.
 	 *
@@ -901,7 +894,6 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 		if (local_npw.nw_head == NULL)
 			local_npw.nw_tail = NULL;
 		local_npw.nw_len--;
-		f++;
 		VNET_ASSERT(m->m_pkthdr.rcvif != NULL,
 		    ("%s:%d rcvif == NULL: m=%p", __func__, __LINE__, m));
 		CURVNET_SET(m->m_pkthdr.rcvif->if_vnet);
@@ -909,8 +901,7 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 		CURVNET_RESTORE();
 	}
 	KASSERT(local_npw.nw_len == 0,
-	    ("%s(%u): len %u b %u f %u", __func__, proto, local_npw.nw_len,
-	    b, f));
+	    ("%s(%u): len %u", __func__, proto, local_npw.nw_len));
 	if (netisr_proto[proto].np_drainedcpu)
 		netisr_proto[proto].np_drainedcpu(nwsp->nws_cpu);
 	NWS_LOCK(nwsp);
