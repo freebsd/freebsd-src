@@ -425,6 +425,8 @@
             ..
             uefisign
             ..
+            ypldap
+            ..
         ..
         firmware
         ..
