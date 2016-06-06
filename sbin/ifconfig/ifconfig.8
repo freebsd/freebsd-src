@@ -2614,6 +2614,29 @@ Note that
 and
 .Cm vlandev
 must both be set at the same time.
+.It Cm vlanpcp Ar priority_code_point
+Priority code point 
+.Pq Dv PCP
+is an 3-bit field which refers to the IEEE 802.1p
+class of service and maps to the frame priority level.
+.Pp
+Values in order of priority are:
+.Cm 1 
+.Pq Dv Background (lowest) ,
+.Cm 0
+.Pq Dv Best effort (default) ,
+.Cm 2
+.Pq Dv Excellent effort ,
+.Cm 3
+.Pq Dv Critical applications ,
+.Cm 4
+.Pq Dv Video, < 100ms latency ,
+.Cm 5
+.Pq Dv Video, < 10ms latency ,
+.Cm 6
+.Pq Dv Internetwork control ,
+.Cm 7
+.Pq Dv Network control (highest) .
 .It Cm vlandev Ar iface
 Associate the physical interface
 .Ar iface
