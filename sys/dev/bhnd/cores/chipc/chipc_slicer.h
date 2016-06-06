@@ -25,27 +25,22 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- */
-
-/*
+ *
  * $FreeBSD$
  */
-#ifndef _BHND_SOC_BHND_SOC_H_
-#define _BHND_SOC_BHND_SOC_H_
 
-#define	BHND_SOC_MAXNUM_CORES	0x20
-#define	BHND_SOC_RAM_OFFSET	0x0
-#define	BHND_SOC_RAM_SIZE	0x20000000
+#ifndef _BHND_CORES_CHIPC_CHIPC_SLICER_H_
+#define _BHND_CORES_CHIPC_CHIPC_SLICER_H_
 
-struct bhnd_soc_softc {
-	device_t dev;
-	device_t bridge;
-	device_t bus;
-	struct bhnd_chipid	chipid;	/* chip identification */
-};
+#include <sys/slicer.h>
 
-struct bhnd_soc_devinfo {
-	struct resource_list resources;
-};
+#define	TRX_MAGIC 	0x30524448
+#define	CFE_MAGIC 	0x43464531
+#define	NVRAM_MAGIC	0x48534C46
 
-#endif /* _BHND_SOC_BHND_SOC_H_ */
+int		chipc_slicer_spi(device_t dev, struct flash_slice *slices,
+		    int *nslices);
+int		chipc_slicer_cfi(device_t dev, struct flash_slice *slices,
+		    int *nslices);
+
+#endif /* _BHND_CORES_CHIPC_CHIPC_SLICER_H_ */

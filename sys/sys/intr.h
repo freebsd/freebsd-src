@@ -34,30 +34,12 @@
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
-enum intr_map_data_type {
-	INTR_MAP_DATA_ACPI,
-	INTR_MAP_DATA_FDT,
-	INTR_MAP_DATA_GPIO,
-};
-
-struct intr_map_data {
-	enum intr_map_data_type	type;
-	size_t			size;
-};
-
 #ifdef DEV_ACPI
 struct intr_map_data_acpi {
 	struct intr_map_data	hdr;
 	u_int			irq;
 	enum intr_polarity	pol;
 	enum intr_trigger	trig;
-};
-#endif
-#ifdef FDT
-struct intr_map_data_fdt {
-	struct intr_map_data	hdr;
-	u_int			ncells;
-	pcell_t			cells[0];
 };
 #endif
 
@@ -146,9 +128,7 @@ int intr_release_msix(device_t, device_t, intptr_t, int);
 u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
     enum intr_trigger);
 #endif
-#ifdef FDT
-u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
-#endif
+
 u_int intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags,
     u_int intr_mode);
 

@@ -582,10 +582,7 @@ login_negotiate_key(struct pdu *request, const char *name,
 			    tmp, conn->conn_data_segment_limit);
 			tmp = conn->conn_data_segment_limit;
 		}
-		/*
-		 * We don't pass the value to the kernel; it only enforces
-		 * hardcoded limit anyway.
-		 */
+		conn->conn_first_burst_length = tmp;
 		keys_add_int(response_keys, name, tmp);
 	} else if (strcmp(name, "DefaultTime2Wait") == 0) {
 		keys_add(response_keys, name, value);

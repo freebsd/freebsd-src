@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Bruce M. Simpson.
+ * Copyright (c) 2016 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,31 +22,61 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _SIBA_PCIBVAR_H_
-#define _SIBA_PCIBVAR_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <sys/rman.h>
+#include <efi.h>
+#include <efilib.h>
 
-struct siba_pcib_softc {
-	device_t		 sc_dev;	/* Device ID */
-	u_int			 sc_bus;	/* PCI bus number */
-	struct resource		*sc_mem;	/* siba memory window */
-	struct resource		*sc_csr;	/* config space */
+#include <time.h>
+#include <sys/time.h>
 
-	bus_space_tag_t		 sc_bt;
-	bus_space_handle_t	 sc_bh;
-#if 0
-	bus_addr_t		 sc_maddr;
-	bus_size_t		 sc_msize;
+static EFI_EVENT time_event;
+static uint64_t curtime;
 
-	struct bus_space	 sc_pci_memt;
-	struct bus_space	 sc_pci_iot;
-	bus_dma_tag_t		 sc_dmat;
-#endif
-};
+static void
+time_update(EFI_EVENT event, void *context)
+{
 
-#endif /* _SIBA_PCIBVAR_H_ */
+	curtime += 10;
+}
+
+void
+efi_time_init(void)
+{
+
+	/* Create a timer event */
+	BS->CreateEvent(EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
+	    time_update, 0, &time_event);
+	/* Use a 10ms timer */
+	BS->SetTimer(time_event, TimerPeriodic, 100000);
+}
+
+void
+efi_time_fini(void)
+{
+
+	/* Cancel the timer */
+	BS->SetTimer(time_event, TimerCancel, 0);
+	BS->CloseEvent(time_event);
+}
+
+time_t
+time(time_t *tloc)
+{
+	time_t t;
+
+	t = curtime / 1000;
+	if (tloc != NULL)
+		*tloc = t;
+
+	return (t);
+}
+
+time_t
+getsecs()
+{
+    return time(0);
+}

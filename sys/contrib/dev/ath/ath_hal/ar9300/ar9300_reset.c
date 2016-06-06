@@ -3000,7 +3000,7 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
         ar9300_prog_ini(ah, &ahp->ah_ini_mac[i], modes_index);
         ar9300_prog_ini(ah, &ahp->ah_ini_bb[i], modes_index);
         ar9300_prog_ini(ah, &ahp->ah_ini_radio[i], modes_index);
-        if ((i == ATH_INI_POST) && (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah))) {
+        if ((i == ATH_INI_POST) && (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah))) {
             ar9300_prog_ini(ah, &ahp->ah_ini_radio_post_sys2ant, modes_index);
         }
 
@@ -3052,6 +3052,26 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
     /* Write rxgain Array Parameters */
     REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain, 1, reg_writes);
     HALDEBUG(ah, HAL_DEBUG_RESET, "ar9300_process_ini: Rx Gain programming\n");
+
+    if (AR_SREV_JUPITER_20_OR_LATER(ah)) {
+        /*
+         * CUS217 mix LNA mode.
+         */
+        if (ar9300_rx_gain_index_get(ah) == 2) {
+            REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain_bb_core, 1, reg_writes);
+            REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain_bb_postamble,
+                modes_index, reg_writes);
+        }
+
+        /*
+         * 5G-XLNA
+         */
+        if ((ar9300_rx_gain_index_get(ah) == 2) ||
+            (ar9300_rx_gain_index_get(ah) == 3)) {
+            REG_WRITE_ARRAY(&ahp->ah_ini_modes_rxgain_xlna, modes_index,
+              reg_writes);
+        }
+    }
 
     if (AR_SREV_SCORPION(ah)) {
         /* Write rxgain bounds Array */
@@ -3118,7 +3138,8 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
     }
 
 #if 0
-    if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+    /* XXX TODO! */
+    if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         ar9300_prog_ini(ah, &ahp->ah_ini_BTCOEX_MAX_TXPWR, 1);
     }
 #endif
@@ -4497,7 +4518,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
 
 #if ATH_SUPPORT_MCI
     if (AH_PRIVATE(ah)->ah_caps.halMciSupport &&
-        (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)))
+        (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)))
     {
         ar9300_mci_2g5g_changed(ah, IEEE80211_IS_CHAN_2GHZ(chan));
     }

@@ -42,7 +42,7 @@ NLSSRCFILES_${file}?= ${NLSSRCFILES}
 .endif
 .if defined(NLSSRCFILES_${file})
 NLSSRCDIR_${file}?= ${NLSSRCDIR}
-${file}.msg: ${NLSSRCFILES_${file}:S/^/${NLSSRCDIR_${file}}\//} ${OP_META}
+${file}.msg: ${NLSSRCFILES_${file}:S/^/${NLSSRCDIR_${file}}\//}
 	@rm -f ${.TARGET}
 	cat ${.ALLSRC} > ${.TARGET}
 CLEANFILES+= ${file}.msg
