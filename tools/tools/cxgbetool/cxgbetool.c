@@ -2526,9 +2526,9 @@ sched_class(int argc, const char *argv[])
                         errs++;
                 }
                 if (op.u.params.ratemode == SCHED_CLASS_RATEMODE_ABS &&
-		    !in_range(op.u.params.maxrate, 1, 10000000)) {
+		    !in_range(op.u.params.maxrate, 1, 100000000)) {
                         warnx("sched params \"max-rate\" takes "
-			    "value(1-10000000) for rate-mode absolute");
+			    "value(1-100000000) for rate-mode absolute");
                         errs++;
                 }
                 if (op.u.params.maxrate > 0 &&
