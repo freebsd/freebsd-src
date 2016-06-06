@@ -364,16 +364,6 @@ typedef enum {
 
 extern hv_vmbus_connection	hv_vmbus_g_connection;
 
-typedef void (*vmbus_msg_handler)(hv_vmbus_channel_msg_header *msg);
-
-typedef struct hv_vmbus_channel_msg_table_entry {
-	hv_vmbus_channel_msg_type    messageType;
-
-	vmbus_msg_handler   messageHandler;
-} hv_vmbus_channel_msg_table_entry;
-
-extern hv_vmbus_channel_msg_table_entry	g_channel_message_table[];
-
 /*
  * Private, VM Bus functions
  */
