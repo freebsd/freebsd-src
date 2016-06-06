@@ -268,7 +268,7 @@ int
 main(int argc, char *argv[], char **envp)
 {
 	socklen_t addrlen;
-	int ch, on = 1, tos;
+	int ch, on = 1, tos, s = STDIN_FILENO;
 	char *cp, line[LINE_MAX];
 	FILE *fd;
 	char	*bindname = NULL;
@@ -504,8 +504,8 @@ main(int argc, char *argv[], char **envp)
 					switch (pid = fork()) {
 					case 0:
 						/* child */
-						(void) dup2(fd, 0);
-						(void) dup2(fd, 1);
+						(void) dup2(fd, s);
+						(void) dup2(fd, STDOUT_FILENO);
 						(void) close(fd);
 						for (i = 1; i <= *ctl_sock; i++)
 							close(ctl_sock[i]);
@@ -522,7 +522,7 @@ main(int argc, char *argv[], char **envp)
 		}
 	} else {
 		addrlen = sizeof(his_addr);
-		if (getpeername(0, (struct sockaddr *)&his_addr, &addrlen) < 0) {
+		if (getpeername(s, (struct sockaddr *)&his_addr, &addrlen) < 0) {
 			syslog(LOG_ERR, "getpeername (%s): %m",argv[0]);
 			exit(1);
 		}
@@ -557,7 +557,7 @@ gotchild:
 	(void)sigaction(SIGPIPE, &sa, NULL);
 
 	addrlen = sizeof(ctrl_addr);
-	if (getsockname(0, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
+	if (getsockname(s, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
 		syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
 		exit(1);
 	}
@@ -570,7 +570,7 @@ gotchild:
 	if (ctrl_addr.su_family == AF_INET)
       {
 	tos = IPTOS_LOWDELAY;
-	if (setsockopt(0, IPPROTO_IP, IP_TOS, &tos, sizeof(int)) < 0)
+	if (setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "control setsockopt (IP_TOS): %m");
       }
 #endif
@@ -578,7 +578,7 @@ gotchild:
 	 * Disable Nagle on the control channel so that we don't have to wait
 	 * for peer's ACK before issuing our next reply.
 	 */
-	if (setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
+	if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "control setsockopt (TCP_NODELAY): %m");
 
 	data_source.su_port = htons(ntohs(ctrl_addr.su_port) - 1);
@@ -587,12 +587,12 @@ gotchild:
 
 	/* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
-	if (setsockopt(0, SOL_SOCKET, SO_OOBINLINE, &on, sizeof(on)) < 0)
+	if (setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "control setsockopt (SO_OOBINLINE): %m");
 #endif
 
 #ifdef	F_SETOWN
-	if (fcntl(fileno(stdin), F_SETOWN, getpid()) == -1)
+	if (fcntl(s, F_SETOWN, getpid()) == -1)
 		syslog(LOG_ERR, "fcntl F_SETOWN: %m");
 #endif
 	dolog((struct sockaddr *)&his_addr);
@@ -1423,7 +1423,7 @@ skip:
 		if (rval) {
 			reply(530, "Login incorrect.");
 #ifdef USE_BLACKLIST
-			blacklist_notify(1, 0, "Login incorrect");
+			blacklist_notify(1, STDIN_FILENO, "Login incorrect");
 #endif
 			if (logging) {
 				syslog(LOG_NOTICE,
@@ -1444,7 +1444,7 @@ skip:
 		}
 #ifdef USE_BLACKLIST
 		 else {
-			blacklist_notify(0, 0, "Login successful");
+			blacklist_notify(0, STDIN_FILENO, "Login successful");
 		}
 #endif
 	}
