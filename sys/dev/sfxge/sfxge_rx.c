@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -54,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 
 #include <machine/in_cksum.h>
+
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include "common/efx.h"
 
@@ -160,6 +166,9 @@ sfxge_rx_qflush_failed(struct sfxge_rxq *rxq)
 	rxq->flush_state = SFXGE_FLUSH_FAILED;
 }
 
+#ifdef RSS
+static uint8_t toep_key[RSS_KEYSIZE];
+#else
 static uint8_t toep_key[] = {
 	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
 	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
@@ -167,6 +176,7 @@ static uint8_t toep_key[] = {
 	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
+#endif
 
 static void
 sfxge_rx_post_refill(void *arg)
@@ -1127,6 +1137,9 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	    (1 << EFX_RX_HASH_IPV4) | (1 << EFX_RX_HASH_TCPIPV4) |
 	    (1 << EFX_RX_HASH_IPV6) | (1 << EFX_RX_HASH_TCPIPV6), B_TRUE);
 
+#ifdef RSS
+	rss_getkey(toep_key);
+#endif
 	if ((rc = efx_rx_scale_key_set(sc->enp, toep_key,
 				       sizeof(toep_key))) != 0)
 		goto fail;
