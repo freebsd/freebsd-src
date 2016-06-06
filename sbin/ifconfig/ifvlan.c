@@ -1,6 +1,10 @@
 /*
- * Copyright (c) 1999
- *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+ * Copyright (c) 1999 Bill Paul <wpaul@ctr.columbia.edu>
+ * Copyright (c) 2012 ADARA Networks, Inc.
+ * All rights reserved.
+  *
+ * Portions of this software were developed by Robert N. M. Watson under
+ * contract to ADARA Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -78,10 +82,14 @@ vlan_status(int s)
 {
 	struct vlanreq		vreq;
 
-	if (getvlan(s, &ifr, &vreq) != -1)
-		printf("\tvlan: %d parent interface: %s\n",
-		    vreq.vlr_tag, vreq.vlr_parent[0] == '\0' ?
-		    "<none>" : vreq.vlr_parent);
+	if (getvlan(s, &ifr, &vreq) == -1)
+		return;
+	printf("\tvlan: %d", vreq.vlr_tag);
+	if (ioctl(s, SIOCGVLANPCP, (caddr_t)&ifr) != -1)
+		printf(" vlanpcp: %u", ifr.ifr_vlan_pcp);
+	printf(" parent interface: %s", vreq.vlr_parent[0] == '\0' ?
+	    "<none>" : vreq.vlr_parent);
+	printf("\n");
 }
 
 static void
@@ -149,6 +157,22 @@ DECL_CMD_FUNC(setvlandev, val, d)
 }
 
 static
+DECL_CMD_FUNC(setvlanpcp, val, d)
+{
+	u_long ul;
+	char *endp;
+
+	ul = strtoul(val, &endp, 0);
+	if (*endp != '\0')
+		errx(1, "invalid value for vlanpcp");
+	if (ul > 7)
+		errx(1, "value for vlanpcp out of range");
+	ifr.ifr_vlan_pcp = ul;
+	if (ioctl(s, SIOCSVLANPCP, (caddr_t)&ifr) == -1)
+		err(1, "SIOCSVLANPCP");
+}
+
+static
 DECL_CMD_FUNC(unsetvlandev, val, d)
 {
 	struct vlanreq		vreq;
@@ -169,6 +193,7 @@ DECL_CMD_FUNC(unsetvlandev, val, d)
 static struct cmd vlan_cmds[] = {
 	DEF_CLONE_CMD_ARG("vlan",			setvlantag),
 	DEF_CLONE_CMD_ARG("vlandev",			setvlandev),
+	DEF_CMD_ARG("vlanpcp",				setvlanpcp),
 	/* NB: non-clone cmds */
 	DEF_CMD_ARG("vlan",				setvlantag),
 	DEF_CMD_ARG("vlandev",				setvlandev),
