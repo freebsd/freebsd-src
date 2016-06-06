@@ -81,32 +81,14 @@ vmbus_msg_task(void *xsc, int pending __unused)
 
 	msg = VMBUS_PCPU_GET(sc, message, curcpu) + VMBUS_SINT_MESSAGE;
 	for (;;) {
-		const hv_vmbus_channel_msg_table_entry *entry;
-		hv_vmbus_channel_msg_header *hdr;
-		hv_vmbus_channel_msg_type msg_type;
-
 		if (msg->msg_type == VMBUS_MSGTYPE_NONE) {
 			/* No message */
 			break;
-		} else if (msg->msg_type != VMBUS_MSGTYPE_CHANNEL) {
-			/* Not a channel message */
-			goto handled;
+		} else if (msg->msg_type == VMBUS_MSGTYPE_CHANNEL) {
+			/* Channel message */
+			vmbus_chan_msgproc(sc, msg);
 		}
 
-		/* XXX: update messageHandler interface */
-		hdr = __DEVOLATILE(hv_vmbus_channel_msg_header *,
-		    msg->msg_data);
-		msg_type = hdr->message_type;
-
-		if (msg_type >= HV_CHANNEL_MESSAGE_COUNT) {
-			printf("VMBUS: unknown message type = %d\n", msg_type);
-			goto handled;
-		}
-
-		entry = &g_channel_message_table[msg_type];
-		if (entry->messageHandler)
-			entry->messageHandler(hdr);
-handled:
 		msg->msg_type = VMBUS_MSGTYPE_NONE;
 		/*
 		 * Make sure the write to msg_type (i.e. set to

@@ -40,6 +40,14 @@
  * Internal functions
  */
 
+typedef void (*vmbus_msg_handler)(hv_vmbus_channel_msg_header *msg);
+
+typedef struct hv_vmbus_channel_msg_table_entry {
+	hv_vmbus_channel_msg_type    messageType;
+
+	vmbus_msg_handler   messageHandler;
+} hv_vmbus_channel_msg_table_entry;
+
 static void vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_offer_internal(void* context);
 static void vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr);
@@ -53,7 +61,7 @@ static void vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr);
 /**
  * Channel message dispatch table
  */
-hv_vmbus_channel_msg_table_entry
+static const hv_vmbus_channel_msg_table_entry
     g_channel_message_table[HV_CHANNEL_MESSAGE_COUNT] = {
 	{ HV_CHANNEL_MESSAGE_INVALID,
 		NULL },
@@ -830,4 +838,26 @@ vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
 {
 
 	free(subchan, M_TEMP);
+}
+
+void
+vmbus_chan_msgproc(struct vmbus_softc *sc, volatile struct vmbus_message *msg)
+{
+	const hv_vmbus_channel_msg_table_entry *entry;
+	hv_vmbus_channel_msg_header *hdr;
+	hv_vmbus_channel_msg_type msg_type;
+
+	/* XXX: update messageHandler interface */
+	hdr = __DEVOLATILE(hv_vmbus_channel_msg_header *, msg->msg_data);
+	msg_type = hdr->message_type;
+
+	if (msg_type >= HV_CHANNEL_MESSAGE_COUNT) {
+		device_printf(sc->vmbus_dev, "unknown message type 0x%x\n",
+		    msg_type);
+		return;
+	}
+
+	entry = &g_channel_message_table[msg_type];
+	if (entry->messageHandler)
+		entry->messageHandler(hdr);
 }
