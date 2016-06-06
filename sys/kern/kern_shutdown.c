@@ -935,7 +935,7 @@ DB_SHOW_COMMAND(panic, db_show_panic)
 {
 
 	if (panicstr == NULL)
-		db_printf("Not paniced\n");
+		db_printf("panicstr not set\n");
 	else
 		db_printf("panic: %s\n", panicstr);
 }

@@ -79,7 +79,7 @@ struct templ specials[1000] =
     {"double", 4},
     {"long", 4},
     {"short", 4},
-    {"typdef", 4},
+    {"typedef", 4},
     {"unsigned", 4},
     {"register", 4},
     {"static", 4},

@@ -1623,7 +1623,6 @@ SYSCTL_PROC(_kern, OID_AUTO, callout_stat,
     "Dump immediate statistic snapshot of the scheduled callouts");
 
 #ifdef DDB
-
 static void
 _show_callout(struct callout *c)
 {
