@@ -732,6 +732,8 @@ VNET_SYSUNINIT(vnet_ether_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     vnet_ether_destroy, NULL);
 #endif
 
+
+
 static void
 ether_input(struct ifnet *ifp, struct mbuf *m)
 {
