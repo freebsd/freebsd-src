@@ -1007,11 +1007,14 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		ifp->if_addr = NULL;
 
 		/* We can now free link ifaddr. */
+		IF_ADDR_WLOCK(ifp);
 		if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
 			ifa = TAILQ_FIRST(&ifp->if_addrhead);
 			TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+			IF_ADDR_WUNLOCK(ifp);
 			ifa_free(ifa);
-		}
+		} else
+			IF_ADDR_WUNLOCK(ifp);
 	}
 
 	rt_flushifroutes(ifp);
