@@ -896,9 +896,6 @@ nd6_timer(void *arg)
 	struct nd_prefix *pr, *npr;
 	struct in6_ifaddr *ia6, *nia6;
 
-	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
-	    nd6_timer, curvnet);
-
 	TAILQ_INIT(&drq);
 
 	/* expire default router list */
@@ -1025,6 +1022,10 @@ nd6_timer(void *arg)
 			prelist_remove(pr);
 		}
 	}
+
+	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
+	    nd6_timer, curvnet);
+
 	CURVNET_RESTORE();
 }
 
