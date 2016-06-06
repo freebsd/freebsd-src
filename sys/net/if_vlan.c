@@ -1,5 +1,9 @@
 /*-
  * Copyright 1998 Massachusetts Institute of Technology
+ * Copyright 2012 ADARA Networks, Inc.
+ *
+ * Portions of this software were developed by Robert N. M. Watson under
+ * contract to ADARA Networks, Inc.
  *
  * Permission to use, copy, modify, and distribute this software and
  * its documentation for any purpose and without fee is hereby
@@ -29,8 +33,7 @@
 
 /*
  * if_vlan.c - pseudo-device driver for IEEE 802.1Q virtual LANs.
- * Might be extended some day to also handle IEEE 802.1p priority
- * tagging.  This is sort of sneaky in the implementation, since
+ * This is sort of sneaky in the implementation, since
  * we need to pretend to be enough of an Ethernet implementation
  * to make arp work.  The way we do this is by telling everyone
  * that we are an Ethernet, and then catch the packets that
@@ -52,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/rmlock.h>
+#include <sys/priv.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -114,6 +118,8 @@ struct	ifvlan {
 		int	ifvm_mintu;	/* min transmission unit */
 		uint16_t ifvm_proto;	/* encapsulation ethertype */
 		uint16_t ifvm_tag;	/* tag to apply on packets leaving if */
+              	uint16_t ifvm_vid;	/* VLAN ID */
+		uint8_t	ifvm_pcp;	/* Priority Code Point (PCP). */
 	}	ifv_mib;
 	SLIST_HEAD(, vlan_mc_entry) vlan_mc_listhead;
 #ifndef VLAN_ARRAY
@@ -121,7 +127,9 @@ struct	ifvlan {
 #endif
 };
 #define	ifv_proto	ifv_mib.ifvm_proto
-#define	ifv_vid		ifv_mib.ifvm_tag
+#define	ifv_tag		ifv_mib.ifvm_tag
+#define	ifv_vid 	ifv_mib.ifvm_vid
+#define	ifv_pcp		ifv_mib.ifvm_pcp
 #define	ifv_encaplen	ifv_mib.ifvm_encaplen
 #define	ifv_mtufudge	ifv_mib.ifvm_mtufudge
 #define	ifv_mintu	ifv_mib.ifvm_mintu
@@ -146,6 +154,15 @@ static VNET_DEFINE(int, soft_pad);
 #define	V_soft_pad	VNET(soft_pad)
 SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(soft_pad), 0, "pad short frames before tagging");
+
+/*
+ * For now, make preserving PCP via an mbuf tag optional, as it increases
+ * per-packet memory allocations and frees.  In the future, it would be
+ * preferable to reuse ether_vtag for this, or similar.
+ */
+static int vlan_mtag_pcp = 0;
+SYSCTL_INT(_net_link_vlan, OID_AUTO, mtag_pcp, CTLFLAG_RW, &vlan_mtag_pcp, 0,
+	"Retain VLAN PCP information as packets are passed up the stack");
 
 static const char vlanname[] = "vlan";
 static MALLOC_DEFINE(M_VLAN, vlanname, "802.1Q Virtual LAN Interface");
@@ -697,6 +714,16 @@ vlan_devat(struct ifnet *ifp, uint16_t vid)
 }
 
 /*
+ * Recalculate the cached VLAN tag exposed via the MIB.
+ */
+static void
+vlan_tag_recalculate(struct ifvlan *ifv)
+{
+
+       ifv->ifv_tag = EVL_MAKETAG(ifv->ifv_vid, ifv->ifv_pcp, 0);
+}
+
+/*
  * VLAN support can be loaded as a module.  The only place in the
  * system that's intimately aware of this is ether_input.  We hook
  * into this code through vlan_input_p which is defined there and
@@ -1009,6 +1036,8 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ifvlan *ifv;
 	struct ifnet *p;
+	struct m_tag *mtag;
+	uint16_t tag;
 	int error, len, mcast;
 
 	ifv = ifp->if_softc;
@@ -1064,11 +1093,16 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * knows how to find the VLAN tag to use, so we attach a
 	 * packet tag that holds it.
 	 */
+	if (vlan_mtag_pcp && (mtag = m_tag_locate(m, MTAG_8021Q,
+	    MTAG_8021Q_PCP_OUT, NULL)) != NULL)
+		tag = EVL_MAKETAG(ifv->ifv_vid, *(uint8_t *)(mtag + 1), 0);
+	else
+              tag = ifv->ifv_tag;
 	if (p->if_capenable & IFCAP_VLAN_HWTAGGING) {
-		m->m_pkthdr.ether_vtag = ifv->ifv_vid;
+		m->m_pkthdr.ether_vtag = tag;
 		m->m_flags |= M_VLANTAG;
 	} else {
-		m = ether_vlanencap(m, ifv->ifv_vid);
+		m = ether_vlanencap(m, tag);
 		if (m == NULL) {
 			if_printf(ifp, "unable to prepend VLAN header\n");
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
@@ -1103,7 +1137,8 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	struct ifvlantrunk *trunk = ifp->if_vlantrunk;
 	struct ifvlan *ifv;
 	TRUNK_LOCK_READER;
-	uint16_t vid;
+	struct m_tag *mtag;
+	uint16_t vid, tag;
 
 	KASSERT(trunk != NULL, ("%s: no trunk", __func__));
 
@@ -1112,7 +1147,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		 * Packet is tagged, but m contains a normal
 		 * Ethernet frame; the tag is stored out-of-band.
 		 */
-		vid = EVL_VLANOFTAG(m->m_pkthdr.ether_vtag);
+		tag = m->m_pkthdr.ether_vtag;
 		m->m_flags &= ~M_VLANTAG;
 	} else {
 		struct ether_vlan_header *evl;
@@ -1128,7 +1163,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 				return;
 			}
 			evl = mtod(m, struct ether_vlan_header *);
-			vid = EVL_VLANOFTAG(ntohs(evl->evl_tag));
+			tag = ntohs(evl->evl_tag);
 
 			/*
 			 * Remove the 802.1q header by copying the Ethernet
@@ -1152,6 +1187,8 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		}
 	}
 
+	vid = EVL_VLANOFTAG(tag);
+
 	TRUNK_RLOCK(trunk);
 	ifv = vlan_gethash(trunk, vid);
 	if (ifv == NULL || !UP_AND_RUNNING(ifv->ifv_ifp)) {
@@ -1161,6 +1198,28 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 	TRUNK_RUNLOCK(trunk);
+
+	if (vlan_mtag_pcp) {
+		/*
+		 * While uncommon, it is possible that we will find a 802.1q
+		 * packet encapsulated inside another packet that also had an
+		 * 802.1q header.  For example, ethernet tunneled over IPSEC
+		 * arriving over ethernet.  In that case, we replace the
+		 * existing 802.1q PCP m_tag value.
+		 */
+		mtag = m_tag_locate(m, MTAG_8021Q, MTAG_8021Q_PCP_IN, NULL);
+		if (mtag == NULL) {
+			mtag = m_tag_alloc(MTAG_8021Q, MTAG_8021Q_PCP_IN,
+			    sizeof(uint8_t), M_NOWAIT);
+			if (mtag == NULL) {
+				m_freem(m);
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+				return;
+			}
+			m_tag_prepend(m, mtag);
+		}
+		*(uint8_t *)(mtag + 1) = EVL_PRIOFTAG(tag);
+	}
 
 	m->m_pkthdr.rcvif = ifv->ifv_ifp;
 	if_inc_counter(ifv->ifv_ifp, IFCOUNTER_IPACKETS, 1);
@@ -1201,7 +1260,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 		vlan_inithash(trunk);
 		VLAN_LOCK();
 		if (p->if_vlantrunk != NULL) {
-			/* A race that that is very unlikely to be hit. */
+			/* A race that is very unlikely to be hit. */
 			vlan_freehash(trunk);
 			free(trunk, M_VLAN);
 			goto exists;
@@ -1218,6 +1277,8 @@ exists:
 	}
 
 	ifv->ifv_vid = vid;	/* must set this before vlan_inshash() */
+	ifv->ifv_pcp = 0;       /* Default: best effort delivery. */
+	vlan_tag_recalculate(ifv);
 	error = vlan_inshash(trunk, ifv);
 	if (error)
 		goto done;
@@ -1703,6 +1764,34 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = vlan_setmulti(ifp);
 			TRUNK_UNLOCK(trunk);
 		}
+		break;
+
+	case SIOCGVLANPCP:
+#ifdef VIMAGE
+		if (ifp->if_vnet != ifp->if_home_vnet) {
+			error = EPERM;
+			break;
+		}
+#endif
+		ifr->ifr_vlan_pcp = ifv->ifv_pcp;
+		break;
+
+	case SIOCSVLANPCP:
+#ifdef VIMAGE
+		if (ifp->if_vnet != ifp->if_home_vnet) {
+			error = EPERM;
+			break;
+		}
+#endif
+		error = priv_check(curthread, PRIV_NET_SETVLANPCP);
+		if (error)
+			break;
+		if (ifr->ifr_vlan_pcp > 7) {
+			error = EINVAL;
+			break;
+		}
+		ifv->ifv_pcp = ifr->ifr_vlan_pcp;
+		vlan_tag_recalculate(ifv);
 		break;
 
 	default:
