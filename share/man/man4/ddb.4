@@ -688,6 +688,13 @@ The second one is the name of the interrupt/trap handler.
 Those functions are machine dependent.
 .\"
 .Pp
+.It Ic show Cm igi_list Ar addr
+Show information about the IGMP structure
+.Vt struct igmp_ifsoftc
+present at
+.Ar addr .
+.\"
+.Pp
 .It Ic show Cm inodedeps Op Ar addr
 Show brief information about each inodedep structure.
 If

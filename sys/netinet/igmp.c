@@ -50,6 +50,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>
@@ -63,6 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/ktr.h>
 #include <sys/condvar.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -3640,6 +3646,37 @@ vnet_igmp_uninit(const void *unused __unused)
 }
 VNET_SYSUNINIT(vnet_igmp_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_igmp_uninit, NULL);
+
+#ifdef DDB
+DB_SHOW_COMMAND(igi_list, db_show_igi_list)
+{
+	struct igmp_ifsoftc *igi, *tigi;
+	LIST_HEAD(_igi_list, igmp_ifsoftc) *igi_head;
+
+	if (!have_addr) {
+		db_printf("usage: show igi_list <addr>\n");
+		return;
+	}
+	igi_head = (struct _igi_list *)addr;
+
+	LIST_FOREACH_SAFE(igi, igi_head, igi_link, tigi) {
+		db_printf("igmp_ifsoftc %p:\n", igi);
+		db_printf("    ifp %p\n", igi->igi_ifp);
+		db_printf("    version %u\n", igi->igi_version);
+		db_printf("    v1_timer %u\n", igi->igi_v1_timer);
+		db_printf("    v2_timer %u\n", igi->igi_v2_timer);
+		db_printf("    v3_timer %u\n", igi->igi_v3_timer);
+		db_printf("    flags %#x\n", igi->igi_flags);
+		db_printf("    rv %u\n", igi->igi_rv);
+		db_printf("    qi %u\n", igi->igi_qi);
+		db_printf("    qri %u\n", igi->igi_qri);
+		db_printf("    uri %u\n", igi->igi_uri);
+		/* SLIST_HEAD(,in_multi)   igi_relinmhead */
+		/* struct mbufq    igi_gq; */
+		db_printf("\n");
+	}
+}
+#endif
 
 static int
 igmp_modevent(module_t mod, int type, void *unused __unused)
