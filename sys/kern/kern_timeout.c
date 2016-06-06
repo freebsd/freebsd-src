@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_callout_profiling.h"
+#include "opt_ddb.h"
 #if defined(__arm__)
 #include "opt_timer.h"
 #endif
@@ -59,6 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <machine/_inttypes.h>
+#endif
 
 #ifdef SMP
 #include <machine/cpu.h>
@@ -1615,3 +1621,34 @@ SYSCTL_PROC(_kern, OID_AUTO, callout_stat,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_callout_stat, "I",
     "Dump immediate statistic snapshot of the scheduled callouts");
+
+#ifdef DDB
+static void
+_show_callout(struct callout *c)
+{
+
+	db_printf("callout %p\n", c);
+#define	C_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, c->e);
+	db_printf("   &c_links = %p\n", &(c->c_links));
+	C_DB_PRINTF("%" PRId64,	c_time);
+	C_DB_PRINTF("%" PRId64,	c_precision);
+	C_DB_PRINTF("%p",	c_arg);
+	C_DB_PRINTF("%p",	c_func);
+	C_DB_PRINTF("%p",	c_lock);
+	C_DB_PRINTF("%#x",	c_flags);
+	C_DB_PRINTF("%#x",	c_iflags);
+	C_DB_PRINTF("%d",	c_cpu);
+#undef	C_DB_PRINTF
+}
+
+DB_SHOW_COMMAND(callout, db_show_callout)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show callout <struct callout *>\n");
+		return;
+	}
+
+	_show_callout((struct callout *)addr);
+}
+#endif /* DDB */
