@@ -118,7 +118,7 @@ xen_clear_bit(int bit, volatile long *addr)
 	atomic_clear_long(&addr[bit / NBPL], 1UL << (bit % NBPL));
 }
 
-#undef NPBL
+#undef NBPL
 
 /*
  * Functions to allocate/free unused memory in order
