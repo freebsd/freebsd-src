@@ -6229,7 +6229,6 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = rate_fb = tp->ucastrate;
 	else {
-		/* XXX TODO: don't fall back to CCK rates for OFDM */
 		rix = ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 
@@ -6324,9 +6323,11 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 		macctl |= BWN_TX_MAC_LONGFRAME;
 
 	if (ic->ic_flags & IEEE80211_F_USEPROT) {
-		/* XXX RTS rate is always 1MB??? */
-		/* XXX TODO: don't fall back to CCK rates for OFDM */
-		rts_rate = BWN_CCK_RATE_1MB;
+		/* Note: don't fall back to CCK rates for 5G */
+		if (phy->gmode)
+			rts_rate = BWN_CCK_RATE_1MB;
+		else
+			rts_rate = BWN_OFDM_RATE_6MB;
 		rts_rate_fb = bwn_get_fbrate(rts_rate);
 
 		/* XXX 'rate' here is hardware rate now, not the net80211 rate */
