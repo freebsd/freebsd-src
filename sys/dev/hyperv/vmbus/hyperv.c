@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/hyperv_machdep.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
@@ -104,40 +105,17 @@ hyperv_get_timecount(struct timecounter *tc __unused)
  * @brief Invoke the specified hypercall
  */
 static uint64_t
-hv_vmbus_do_hypercall(uint64_t control, void* input, void* output)
+hv_vmbus_do_hypercall(uint64_t value, void *input, void *output)
 {
-#ifdef __x86_64__
-	uint64_t hv_status = 0;
-	uint64_t input_address = (input) ? hv_get_phys_addr(input) : 0;
-	uint64_t output_address = (output) ? hv_get_phys_addr(output) : 0;
-	volatile void *hypercall_page = hypercall_context.hc_addr;
+	uint64_t in_paddr = 0, out_paddr = 0;
 
-	__asm__ __volatile__ ("mov %0, %%r8" : : "r" (output_address): "r8");
-	__asm__ __volatile__ ("call *%3" : "=a"(hv_status):
-				"c" (control), "d" (input_address),
-				"m" (hypercall_page));
-	return (hv_status);
-#else
-	uint32_t control_high = control >> 32;
-	uint32_t control_low = control & 0xFFFFFFFF;
-	uint32_t hv_status_high = 1;
-	uint32_t hv_status_low = 1;
-	uint64_t input_address = (input) ? hv_get_phys_addr(input) : 0;
-	uint32_t input_address_high = input_address >> 32;
-	uint32_t input_address_low = input_address & 0xFFFFFFFF;
-	uint64_t output_address = (output) ? hv_get_phys_addr(output) : 0;
-	uint32_t output_address_high = output_address >> 32;
-	uint32_t output_address_low = output_address & 0xFFFFFFFF;
-	volatile void *hypercall_page = hypercall_context.hc_addr;
+	if (input != NULL)
+		in_paddr = hv_get_phys_addr(input);
+	if (output != NULL)
+		out_paddr = hv_get_phys_addr(output);
 
-	__asm__ __volatile__ ("call *%8" : "=d"(hv_status_high),
-				"=a"(hv_status_low) : "d" (control_high),
-				"a" (control_low), "b" (input_address_high),
-				"c" (input_address_low),
-				"D"(output_address_high),
-				"S"(output_address_low), "m" (hypercall_page));
-	return (hv_status_low | ((uint64_t)hv_status_high << 32));
-#endif /* __x86_64__ */
+	return hypercall_md(hypercall_context.hc_addr, value,
+	    in_paddr, out_paddr);
 }
 
 /**
