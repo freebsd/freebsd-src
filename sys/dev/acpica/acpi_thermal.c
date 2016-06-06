@@ -311,19 +311,40 @@ acpi_tz_attach(device_t dev)
 		    "thermal sampling period for passive cooling");
 
     /*
-     * Create thread to service all of the thermal zones.  Register
-     * our power profile event handler.
+     * Register our power profile event handler.
      */
     sc->tz_event = EVENTHANDLER_REGISTER(power_profile_change,
 	acpi_tz_power_profile, sc, 0);
-    if (acpi_tz_proc == NULL) {
-	error = kproc_create(acpi_tz_thread, NULL, &acpi_tz_proc,
-	    RFHIGHPID, 0, "acpi_thermal");
-	if (error != 0) {
-	    device_printf(sc->tz_dev, "could not create thread - %d", error);
-	    goto out;
-	}
-    }
+
+    /*
+     * Flag the event handler for a manual invocation by our timeout.
+     * We defer it like this so that the rest of the subsystem has time
+     * to come up.  Don't bother evaluating/printing the temperature at
+     * this point; on many systems it'll be bogus until the EC is running.
+     */
+    sc->tz_flags |= TZ_FLAG_GETPROFILE;
+
+    return_VALUE (0);
+}
+
+static void
+acpi_tz_startup(void *arg __unused)
+{
+    struct acpi_tz_softc *sc;
+    device_t *devs;
+    int devcount, error, i;
+
+    devclass_get_devices(acpi_tz_devclass, &devs, &devcount);
+    if (devcount == 0)
+	return;
+
+    /*
+     * Create thread to service all of the thermal zones.
+     */
+    error = kproc_create(acpi_tz_thread, NULL, &acpi_tz_proc, RFHIGHPID, 0,
+	"acpi_thermal");
+    if (error != 0)
+	printf("acpi_tz: could not create thread - %d", error);
 
     /*
      * Create a thread to handle passive cooling for 1st zone which
@@ -335,34 +356,22 @@ acpi_tz_attach(device_t dev)
      * given frequency whereas it's possible for different thermal
      * zones to specify independent settings for multiple CPUs.
      */
-    if (acpi_tz_cooling_unit < 0 && acpi_tz_cooling_is_available(sc))
-	sc->tz_cooling_enabled = TRUE;
-    if (sc->tz_cooling_enabled) {
-	error = acpi_tz_cooling_thread_start(sc);
-	if (error != 0) {
-	    sc->tz_cooling_enabled = FALSE;
-	    goto out;
+    for (i = 0; i < devcount; i++) {
+	sc = device_get_softc(devs[i]);
+	if (acpi_tz_cooling_is_available(sc)) {
+	    sc->tz_cooling_enabled = TRUE;
+	    error = acpi_tz_cooling_thread_start(sc);
+	    if (error != 0) {
+		sc->tz_cooling_enabled = FALSE;
+		break;
+	    }
+	    acpi_tz_cooling_unit = device_get_unit(devs[i]);
+	    break;
 	}
-	acpi_tz_cooling_unit = device_get_unit(dev);
     }
-
-    /*
-     * Flag the event handler for a manual invocation by our timeout.
-     * We defer it like this so that the rest of the subsystem has time
-     * to come up.  Don't bother evaluating/printing the temperature at
-     * this point; on many systems it'll be bogus until the EC is running.
-     */
-    sc->tz_flags |= TZ_FLAG_GETPROFILE;
-
-out:
-    if (error != 0) {
-	EVENTHANDLER_DEREGISTER(power_profile_change, sc->tz_event);
-	AcpiRemoveNotifyHandler(sc->tz_handle, ACPI_DEVICE_NOTIFY,
-	    acpi_tz_notify_handler);
-	sysctl_ctx_free(&sc->tz_sysctl_ctx);
-    }
-    return_VALUE (error);
+    free(devs, M_TEMP);
 }
+SYSINIT(acpi_tz, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, acpi_tz_startup, NULL);
 
 /*
  * Parse the current state of this thermal zone and set up to use it.
