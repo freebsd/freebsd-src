@@ -1099,8 +1099,8 @@ static void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	struct if_clone *ifc;
-	int rc;
 	u_int bif_dlt, bif_hdrlen;
+	int rc;
 
  	/*
 	 * if_detach_internal() will call the eventhandler to notify
