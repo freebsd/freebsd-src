@@ -1771,6 +1771,10 @@
 	</tgroup>
       </informaltable>
 
+      <para revision="300779">Dummynet AQM, an independent implementation of
+      CoDel and FQ-CoDel for ipfw/dummynet has been imported to the base
+      system.</para>
+
     </sect2>
   </sect1>
 
