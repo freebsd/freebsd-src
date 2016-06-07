@@ -806,7 +806,8 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
 		nam[len + offset++] = ':';
 		memmove(nam + len + offset, spec, speclen);
 		nam[len + speclen + offset] = '\0';
-	}
+	} else
+		nam[0] = '\0';
 
 	/*
 	 * XXX: IPv6
