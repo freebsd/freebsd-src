@@ -6236,7 +6236,7 @@ sctp_input(struct mbuf **mp, int *offp, int proto SCTP_UNUSED)
 			tag = htonl(sh->v_tag);
 			flowid = tag ^ ntohs(sh->dest_port) ^ ntohs(sh->src_port);
 			m->m_pkthdr.flowid = flowid;
-			M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+			M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE_HASH);
 		}
 		cpu_to_use = sctp_cpuarry[flowid % mp_ncpus];
 		sctp_queue_to_mcore(m, off, cpu_to_use);

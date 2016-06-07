@@ -2237,8 +2237,7 @@ vxlan_pick_source_port(struct vxlan_softc *sc, struct mbuf *m)
 	range = sc->vxl_max_port - sc->vxl_min_port + 1;
 
 	/* check if flowid is set and not opaque */
-	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE &&
-	    M_HASHTYPE_GET(m) != M_HASHTYPE_OPAQUE)
+	if (M_HASHTYPE_ISHASH(m))
 		hash = m->m_pkthdr.flowid;
 	else
 		hash = jenkins_hash(m->m_data, ETHER_HDR_LEN,
