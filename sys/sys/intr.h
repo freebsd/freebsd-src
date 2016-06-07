@@ -34,15 +34,6 @@
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
-#ifdef DEV_ACPI
-struct intr_map_data_acpi {
-	struct intr_map_data	hdr;
-	u_int			irq;
-	enum intr_polarity	pol;
-	enum intr_trigger	trig;
-};
-#endif
-
 #ifdef notyet
 #define	INTR_SOLO	INTR_MD1
 typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
@@ -116,11 +107,6 @@ int intr_release_msi(device_t, device_t, intptr_t, int, int *);
 int intr_map_msi(device_t, device_t, intptr_t, int, uint64_t *, uint32_t *);
 int intr_alloc_msix(device_t, device_t, intptr_t, int *);
 int intr_release_msix(device_t, device_t, intptr_t, int);
-
-#ifdef DEV_ACPI
-u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
-    enum intr_trigger);
-#endif
 
 #ifdef SMP
 int intr_bind_irq(device_t, struct resource *, int);
