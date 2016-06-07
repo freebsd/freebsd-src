@@ -875,6 +875,9 @@ t4_attach(device_t dev)
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
 		sc->chan_map[pi->tx_chan] = i;
 
+		pi->tc = malloc(sizeof(struct tx_sched_class) *
+		    sc->chip_params->nsched_cls, M_CXGBE, M_ZERO | M_WAITOK);
+
 		if (is_10G_port(pi) || is_40G_port(pi)) {
 			n10g++;
 			for_each_vi(pi, j, vi) {
@@ -1131,6 +1134,7 @@ t4_detach(device_t dev)
 
 			mtx_destroy(&pi->pi_lock);
 			free(pi->vi, M_CXGBE);
+			free(pi->tc, M_CXGBE);
 			free(pi, M_CXGBE);
 		}
 	}
@@ -8319,6 +8323,7 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 {
 	int rc, top_speed, fw_level, fw_mode, fw_rateunit, fw_ratemode;
 	struct port_info *pi;
+	struct tx_sched_class *tc;
 
 	if (p->level == SCHED_CLASS_LEVEL_CL_RL)
 		fw_level = FW_SCHED_PARAMS_LEVEL_CL_RL;
@@ -8401,9 +8406,20 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 	    sleep_ok ? (SLEEP_OK | INTR_OK) : HOLD_LOCK, "t4sscp");
 	if (rc)
 		return (rc);
+	tc = &pi->tc[p->cl];
+	tc->params = *p;
 	rc = -t4_sched_params(sc, FW_SCHED_TYPE_PKTSCHED, fw_level, fw_mode,
 	    fw_rateunit, fw_ratemode, p->channel, p->cl, p->minrate, p->maxrate,
 	    p->weight, p->pktsize, sleep_ok);
+	if (rc == 0)
+		tc->flags |= TX_SC_OK;
+	else {
+		/*
+		 * Unknown state at this point, see tc->params for what was
+		 * attempted.
+		 */
+		tc->flags &= ~TX_SC_OK;
+	}
 	end_synchronized_op(sc, sleep_ok ? 0 : LOCK_HELD);
 
 	return (rc);
