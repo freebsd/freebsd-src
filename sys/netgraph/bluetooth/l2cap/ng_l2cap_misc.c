@@ -346,7 +346,8 @@ ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm, int idtyp
 		ch->scid = ng_l2cap_get_cid(l2cap,
 					    (con->linktype!= NG_HCI_LINK_ACL));
 	}
-
+	
+	ch->idtype = idtype;
 	if (ch->scid != NG_L2CAP_NULL_CID) {
 		/* Initialize channel */
 		ch->psm = psm;
