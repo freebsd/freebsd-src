@@ -147,7 +147,9 @@ struct intr_dev_data {
 };
 
 static struct intr_dev_data *intr_ddata_tab[2 * NIRQ];
+#if 0
 static u_int intr_ddata_first_unused;
+#endif
 
 #define IRQ_DDATA_BASE	10000
 CTASSERT(IRQ_DDATA_BASE > nitems(irq_sources));
@@ -534,6 +536,7 @@ intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
 }
 #endif
 
+#if 0
 static struct intr_dev_data *
 intr_ddata_alloc(u_int extsize)
 {
@@ -556,6 +559,7 @@ intr_ddata_alloc(u_int extsize)
 	ddata->idd_data = (struct intr_map_data *)((uintptr_t)ddata + size);
 	return (ddata);
 }
+#endif
 
 static struct intr_irqsrc *
 intr_ddata_lookup(u_int irq, struct intr_map_data **datap)
@@ -619,30 +623,6 @@ intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
 	return (ddata->idd_irq);
 }
 #endif
-
-/*
- *  Store GPIO interrupt decription in framework and return unique interrupt
- *  number (resource handle) associated with it.
- */
-u_int
-intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags, u_int intr_mode)
-{
-	struct intr_dev_data *ddata;
-	struct intr_map_data_gpio *dag;
-
-	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_gpio));
-	if (ddata == NULL)
-		return (INTR_IRQ_INVALID);	/* no space left */
-
-	ddata->idd_dev = dev;
-	ddata->idd_data->type = INTR_MAP_DATA_GPIO;
-
-	dag = (struct intr_map_data_gpio *)ddata->idd_data;
-	dag->gpio_pin_num = pin_num;
-	dag->gpio_pin_flags = pin_flags;
-	dag->gpio_intr_mode = intr_mode;
-	return (ddata->idd_irq);
-}
 
 #ifdef INTR_SOLO
 /*
