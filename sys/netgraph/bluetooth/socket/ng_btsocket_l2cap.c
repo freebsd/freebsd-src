@@ -1115,7 +1115,7 @@ ng_btsocket_l2cap_process_l2ca_discon_ind(struct ng_mesg *msg,
 
 	/* Look for the socket with given channel ID */
 	pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, ip->lcid,
-					   NG_L2CAP_L2CA_IDTYPE_BREDR);
+					   ip->idtype);
 	if (pcb == NULL) {
 		mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
 		return (0);
