@@ -40,8 +40,8 @@
  * Ext4 file system extent on disk.
  */
 struct ext4_extent {
-	uint32_t e_blk;	/* first logical block */
-	uint16_t e_len;	/* number of blocks */
+	uint32_t e_blk;		/* first logical block */
+	uint16_t e_len;		/* number of blocks */
 	uint16_t e_start_hi;	/* high 16 bits of physical block */
 	uint32_t e_start_lo;	/* low 32 bits of physical block */
 };
