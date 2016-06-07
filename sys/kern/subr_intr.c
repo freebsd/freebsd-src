@@ -35,10 +35,8 @@ __FBSDID("$FreeBSD$");
  *        - to complete things for removable PICs
  */
 
-#include "opt_acpi.h"
 #include "opt_ddb.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_platform.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -122,37 +120,6 @@ static struct intr_pic *pic_lookup(device_t dev, intptr_t xref);
 static struct mtx isrc_table_lock;
 static struct intr_irqsrc *irq_sources[NIRQ];
 u_int irq_next_free;
-
-/*
- *  XXX - All stuff around struct intr_dev_data is considered as temporary
- *  until better place for storing struct intr_map_data will be find.
- *
- *  For now, there are two global interrupt numbers spaces:
- *  <0, NIRQ)                      ... interrupts without config data
- *                                     managed in irq_sources[]
- *  IRQ_DDATA_BASE + <0, 2 * NIRQ) ... interrupts with config data
- *                                     managed in intr_ddata_tab[]
- *
- *  Read intr_ddata_lookup() to see how these spaces are worked with.
- *  Note that each interrupt number from second space duplicates some number
- *  from first space at this moment. An interrupt number from first space can
- *  be duplicated even multiple times in second space.
- */
-struct intr_dev_data {
-	device_t		idd_dev;
-	intptr_t		idd_xref;
-	u_int			idd_irq;
-	struct intr_map_data *	idd_data;
-	struct intr_irqsrc *	idd_isrc;
-};
-
-static struct intr_dev_data *intr_ddata_tab[2 * NIRQ];
-#if 0
-static u_int intr_ddata_first_unused;
-#endif
-
-#define IRQ_DDATA_BASE	10000
-CTASSERT(IRQ_DDATA_BASE > nitems(irq_sources));
 
 #ifdef SMP
 static boolean_t irq_assign_cpu = FALSE;
@@ -533,94 +500,6 @@ intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
 
 	CPU_SET(cpu, &isrc->isrc_cpu);
 	return (true);
-}
-#endif
-
-#if 0
-static struct intr_dev_data *
-intr_ddata_alloc(u_int extsize)
-{
-	struct intr_dev_data *ddata;
-	size_t size;
-
-	size = sizeof(*ddata);
-	ddata = malloc(size + extsize, M_INTRNG, M_WAITOK | M_ZERO);
-
-	mtx_lock(&isrc_table_lock);
-	if (intr_ddata_first_unused >= nitems(intr_ddata_tab)) {
-		mtx_unlock(&isrc_table_lock);
-		free(ddata, M_INTRNG);
-		return (NULL);
-	}
-	intr_ddata_tab[intr_ddata_first_unused] = ddata;
-	ddata->idd_irq = IRQ_DDATA_BASE + intr_ddata_first_unused++;
-	mtx_unlock(&isrc_table_lock);
-
-	ddata->idd_data = (struct intr_map_data *)((uintptr_t)ddata + size);
-	return (ddata);
-}
-#endif
-
-static struct intr_irqsrc *
-intr_ddata_lookup(u_int irq, struct intr_map_data **datap)
-{
-	int error;
-	struct intr_irqsrc *isrc;
-	struct intr_dev_data *ddata;
-
-	isrc = isrc_lookup(irq);
-	if (isrc != NULL) {
-		if (datap != NULL)
-			*datap = NULL;
-		return (isrc);
-	}
-
-	if (irq < IRQ_DDATA_BASE)
-		return (NULL);
-
-	irq -= IRQ_DDATA_BASE;
-	if (irq >= nitems(intr_ddata_tab))
-		return (NULL);
-
-	ddata = intr_ddata_tab[irq];
-	if (ddata->idd_isrc == NULL) {
-		error = intr_map_irq(ddata->idd_dev, ddata->idd_xref,
-		    ddata->idd_data, &irq);
-		if (error != 0)
-			return (NULL);
-		ddata->idd_isrc = isrc_lookup(irq);
-	}
-	if (datap != NULL)
-		*datap = ddata->idd_data;
-	return (ddata->idd_isrc);
-}
-
-#ifdef DEV_ACPI
-/*
- *  Map interrupt source according to ACPI info into framework. If such mapping
- *  does not exist, create it. Return unique interrupt number (resource handle)
- *  associated with mapped interrupt source.
- */
-u_int
-intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
-    enum intr_trigger trig)
-{
-	struct intr_map_data_acpi *daa;
-	struct intr_dev_data *ddata;
-
-	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_acpi));
-	if (ddata == NULL)
-		return (INTR_IRQ_INVALID);	/* no space left */
-
-	ddata->idd_dev = dev;
-	ddata->idd_data->type = INTR_MAP_DATA_ACPI;
-
-	daa = (struct intr_map_data_acpi *)ddata->idd_data;
-	daa->irq = irq;
-	daa->pol = pol;
-	daa->trig = trig;
-
-	return (ddata->idd_irq);
 }
 #endif
 
@@ -1054,14 +933,11 @@ intr_alloc_irq(device_t dev, struct resource *res)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	data = rman_get_virtual(res);
-	if (data == NULL)
-		isrc = intr_ddata_lookup(rman_get_start(res), &data);
-	else
-		isrc = isrc_lookup(rman_get_start(res));
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
+	data = rman_get_virtual(res);
 	return (PIC_ALLOC_INTR(isrc->isrc_dev, isrc, res, data));
 }
 
@@ -1074,14 +950,11 @@ intr_release_irq(device_t dev, struct resource *res)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	data = rman_get_virtual(res);
-	if (data == NULL)
-		isrc = intr_ddata_lookup(rman_get_start(res), &data);
-	else
-		isrc = isrc_lookup(rman_get_start(res));
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
+	data = rman_get_virtual(res);
 	return (PIC_RELEASE_INTR(isrc->isrc_dev, isrc, res, data));
 }
 
@@ -1097,14 +970,11 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	data = rman_get_virtual(res);
-	if (data == NULL)
-		isrc = intr_ddata_lookup(rman_get_start(res), &data);
-	else
-		isrc = isrc_lookup(rman_get_start(res));
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
+	data = rman_get_virtual(res);
 	name = device_get_nameunit(dev);
 
 #ifdef INTR_SOLO
@@ -1161,13 +1031,11 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	data = rman_get_virtual(res);
-	if (data == NULL)
-		isrc = intr_ddata_lookup(rman_get_start(res), &data);
-	else
-		isrc = isrc_lookup(rman_get_start(res));
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
+
+	data = rman_get_virtual(res);
 
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
@@ -1211,7 +1079,7 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), NULL);
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 #ifdef INTR_SOLO
@@ -1243,7 +1111,7 @@ intr_bind_irq(device_t dev, struct resource *res, int cpu)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), NULL);
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 #ifdef INTR_SOLO
