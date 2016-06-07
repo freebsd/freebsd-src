@@ -2377,6 +2377,7 @@ daregister(struct cam_periph *periph, void *arg)
 	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
 		printf("daregister: Unable to probe new device. "
 		       "Unable to allocate iosched memory\n");
+		free(softc, M_DEVBUF);
 		return(CAM_REQ_CMP_ERR);
 	}
 	
