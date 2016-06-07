@@ -70,6 +70,7 @@ options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
 options 	SMP
+options 	INTRNG
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
