@@ -3626,6 +3626,7 @@ list_txpow(int s)
 		/* suppress duplicates as above */
 		if (isset(reported, c->ic_ieee) && !verbose) {
 			/* XXX we assume duplicates are adjacent */
+			assert(achans->ic_nchans > 0);
 			prev = &achans->ic_chans[achans->ic_nchans-1];
 			/* display highest power on channel */
 			if (c->ic_maxpower > prev->ic_maxpower)
