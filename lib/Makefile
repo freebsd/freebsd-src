@@ -161,7 +161,7 @@ SUBDIR_DEPEND_liblzma= ${_libthr}
 _libngatm=	libngatm
 .endif
 
-.if ${MK_BLACKLIST_SUPPORT} != "no"
+.if ${MK_BLACKLIST} != "no"
 _libblacklist=	libblacklist
 .endif
 
