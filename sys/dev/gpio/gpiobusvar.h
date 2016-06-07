@@ -70,6 +70,13 @@ struct gpiobus_pin_data
 	char		*name;		/* pin name. */
 };
 
+struct intr_map_data_gpio {
+	struct intr_map_data	hdr;
+	u_int			gpio_pin_num;
+	u_int			gpio_pin_flags;
+	u_int		 	gpio_intr_mode;
+};
+
 struct gpiobus_softc
 {
 	struct mtx	sc_mtx;		/* bus mutex */

@@ -43,13 +43,6 @@ struct intr_map_data_acpi {
 };
 #endif
 
-struct intr_map_data_gpio {
-	struct intr_map_data	hdr;
-	u_int			gpio_pin_num;
-	u_int			gpio_pin_flags;
-	u_int		 	gpio_intr_mode;
-};
-
 #ifdef notyet
 #define	INTR_SOLO	INTR_MD1
 typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
@@ -128,9 +121,6 @@ int intr_release_msix(device_t, device_t, intptr_t, int);
 u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
     enum intr_trigger);
 #endif
-
-u_int intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags,
-    u_int intr_mode);
 
 #ifdef SMP
 int intr_bind_irq(device_t, struct resource *, int);
