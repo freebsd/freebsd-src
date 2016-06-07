@@ -38,6 +38,18 @@ int mlx5_vport_query_out_of_rx_buffer(struct mlx5_core_dev *mdev,
 				      u32 *out_of_rx_buffer);
 
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod);
+int mlx5_arm_vport_context_events(struct mlx5_core_dev *mdev,
+				  u8 vport,
+				  u32 events_mask);
+int mlx5_query_vport_promisc(struct mlx5_core_dev *mdev,
+			     u32 vport,
+			     u8 *promisc_uc,
+			     u8 *promisc_mc,
+			     u8 *promisc_all);
+int mlx5_modify_nic_vport_promisc(struct mlx5_core_dev *mdev,
+				  int promisc_uc,
+				  int promisc_mc,
+				  int promisc_all);
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 				     u32 vport, u8 *addr);
 int mlx5_set_nic_vport_current_mac(struct mlx5_core_dev *mdev, int vport,
@@ -49,6 +61,22 @@ int mlx5_set_nic_vport_mc_list(struct mlx5_core_dev *mdev, int vport,
 int mlx5_set_nic_vport_promisc(struct mlx5_core_dev *mdev, int vport,
 			       bool promisc_mc, bool promisc_uc,
 			       bool promisc_all);
+int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
+				  u32 vport,
+				  enum mlx5_list_type list_type,
+				  u8 addr_list[][ETH_ALEN],
+				  int *list_size);
+int mlx5_modify_nic_vport_mac_list(struct mlx5_core_dev *dev,
+				   enum mlx5_list_type list_type,
+				   u8 addr_list[][ETH_ALEN],
+				   int list_size);
+int mlx5_query_nic_vport_vlan_list(struct mlx5_core_dev *dev,
+				   u32 vport,
+				   u16 *vlan_list,
+				   int *list_size);
+int mlx5_modify_nic_vport_vlans(struct mlx5_core_dev *dev,
+				u16 vlans[],
+				int list_size);
 int mlx5_set_nic_vport_permanent_mac(struct mlx5_core_dev *mdev, int vport,
 				     u8 *addr);
 int mlx5_nic_vport_enable_roce(struct mlx5_core_dev *mdev);

@@ -33,6 +33,7 @@
 #include <linux/pci.h>
 #include <linux/cache.h>
 #include <linux/rbtree.h>
+#include <linux/if_ether.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
