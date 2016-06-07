@@ -86,8 +86,8 @@ ext2_bmap(struct vop_bmap_args *ap)
 }
 
 /*
- * This function converts the logical block number of a file to
- * its physical block number on the disk within ext4 extents.
+ * Convert the logical block number of a file to its physical block number
+ * on the disk within ext4 extents.
  */
 static int
 ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
@@ -97,7 +97,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	struct ext4_extent *ep;
 	struct ext4_extent_path path = { .ep_bp = NULL };
 	daddr_t lbn;
-	int ret = 0;
+	int error = 0;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
@@ -120,7 +120,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	} else {
 		ep = path.ep_ext;
 		if (ep == NULL)
-			ret = EIO;
+			error = EIO;
 		else {
 			*bnp = fsbtodb(fs, lbn - ep->e_blk +
 			    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
@@ -140,7 +140,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 		path.ep_bp = NULL;
 	}
 
-	return (ret);
+	return (error);
 }
 
 /*
