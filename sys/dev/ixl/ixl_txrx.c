@@ -1453,10 +1453,10 @@ ixl_ptype_to_hash(u8 ptype)
 	ex = decoded.outer_frag;
 
 	if (!decoded.known)
-		return M_HASHTYPE_OPAQUE;
+		return M_HASHTYPE_OPAQUE_HASH;
 
 	if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_L2) 
-		return M_HASHTYPE_OPAQUE;
+		return M_HASHTYPE_OPAQUE_HASH;
 
 	/* Note: anything that gets to this point is IP */
         if (decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV6) { 
@@ -1492,7 +1492,7 @@ ixl_ptype_to_hash(u8 ptype)
 		}
 	}
 	/* We should never get here!! */
-	return M_HASHTYPE_OPAQUE;
+	return M_HASHTYPE_OPAQUE_HASH;
 }
 #endif /* RSS */
 

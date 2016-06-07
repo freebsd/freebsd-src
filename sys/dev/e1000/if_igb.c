@@ -5154,7 +5154,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 					default:
 						/* XXX fallthrough */
 						M_HASHTYPE_SET(rxr->fmp,
-						    M_HASHTYPE_OPAQUE);
+						    M_HASHTYPE_OPAQUE_HASH);
 				}
 			} else {
 #ifndef IGB_LEGACY_TX

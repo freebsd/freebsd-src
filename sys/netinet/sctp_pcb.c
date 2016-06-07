@@ -4070,7 +4070,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	net->flowid = stcb->asoc.my_vtag ^
 	    ntohs(stcb->rport) ^
 	    ntohs(stcb->sctp_ep->sctp_lport);
-	net->flowtype = M_HASHTYPE_OPAQUE;
+	net->flowtype = M_HASHTYPE_OPAQUE_HASH;
 	if (netp) {
 		*netp = net;
 	}

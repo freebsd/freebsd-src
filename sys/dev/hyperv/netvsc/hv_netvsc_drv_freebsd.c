@@ -1300,6 +1300,7 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 	struct ifnet *ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
 	int size, do_lro = 0, do_csum = 1;
+	int hash_type = M_HASHTYPE_OPAQUE_HASH;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return (0);
@@ -1430,8 +1431,6 @@ skip:
 	}
 
 	if (hash_info != NULL && hash_value != NULL) {
-		int hash_type = M_HASHTYPE_OPAQUE;
-
 		rxr->hn_rss_pkts++;
 		m_new->m_pkthdr.flowid = hash_value->hash_value;
 		if ((hash_info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
@@ -1465,14 +1464,15 @@ skip:
 				break;
 			}
 		}
-		M_HASHTYPE_SET(m_new, hash_type);
 	} else {
-		if (hash_value != NULL)
+		if (hash_value != NULL) {
 			m_new->m_pkthdr.flowid = hash_value->hash_value;
-		else
+		} else {
 			m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
-		M_HASHTYPE_SET(m_new, M_HASHTYPE_OPAQUE);
+			hash_type = M_HASHTYPE_OPAQUE;
+		}
 	}
+	M_HASHTYPE_SET(m_new, hash_type);
 
 	/*
 	 * Note:  Moved RX completion back to hv_nv_on_receive() so all

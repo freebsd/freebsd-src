@@ -2900,7 +2900,8 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			eop = get_packet(adap, drop_thresh, qs, mh, r);
 			if (eop) {
 				if (r->rss_hdr.hash_type && !adap->timestamp) {
-					M_HASHTYPE_SET(mh->mh_head, M_HASHTYPE_OPAQUE);
+					M_HASHTYPE_SET(mh->mh_head,
+					    M_HASHTYPE_OPAQUE_HASH);
 					mh->mh_head->m_pkthdr.flowid = rss_hash;
 				}
 			}
