@@ -8575,11 +8575,6 @@ set_sched_queue(struct adapter *sc, struct t4_sched_queue *p)
 	if (rc)
 		return (rc);
 
-	if (!(sc->flags & FULL_INIT_DONE)) {
-		rc = EAGAIN;
-		goto done;
-	}
-
 	if (p->port >= sc->params.nports) {
 		rc = EINVAL;
 		goto done;
@@ -8588,7 +8583,14 @@ set_sched_queue(struct adapter *sc, struct t4_sched_queue *p)
 	/* XXX: Only supported for the main VI. */
 	pi = sc->port[p->port];
 	vi = &pi->vi[0];
-	if (!in_range(p->queue, 0, vi->ntxq - 1) || !in_range(p->cl, 0, 7)) {
+	if (!(vi->flags & VI_INIT_DONE)) {
+		/* tx queues not set up yet */
+		rc = EAGAIN;
+		goto done;
+	}
+
+	if (!in_range(p->queue, 0, vi->ntxq - 1) ||
+	    !in_range(p->cl, 0, sc->chip_params->nsched_cls - 1)) {
 		rc = EINVAL;
 		goto done;
 	}
