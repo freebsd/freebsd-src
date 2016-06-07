@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2015-2016 Mellanox Technologies, Ltd. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -102,7 +102,8 @@ eth_broadcast_addr(u8 *pa)
 static inline void
 random_ether_addr(u8 * dst)
 {
-	read_random(dst, 6);
+	if (read_random(dst, 6) == 0)
+		arc4rand(dst, 6, 0);
 
 	dst[0] &= 0xfe;
 	dst[0] |= 0x02;
