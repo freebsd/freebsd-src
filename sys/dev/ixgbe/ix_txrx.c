@@ -1964,7 +1964,7 @@ ixgbe_rxeof(struct ix_queue *que)
 #endif
                                     default:
                                         M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_OPAQUE);
+                                            M_HASHTYPE_OPAQUE_HASH);
                                 }
                         } else {
                                 sendmp->m_pkthdr.flowid = que->msix;
