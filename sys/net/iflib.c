@@ -3085,7 +3085,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 		next = next->m_nextpkt;
 	} while (next != NULL);
 
-	if (count > 8)
+	if (count > nitems(marr))
 		if ((mp = malloc(count*sizeof(struct mbuf *), M_IFLIB, M_NOWAIT)) == NULL) {
 			/* XXX check nextpkt */
 			m_freem(m);
@@ -3112,7 +3112,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 			m_freem(mp[i]);
 		ifmp_ring_check_drainage(txq->ift_br[0], TX_BATCH_SIZE);
 	}
-	if (count > 16)
+	if (count > nitems(marr))
 		free(mp, M_IFLIB);
 
 	return (err);
