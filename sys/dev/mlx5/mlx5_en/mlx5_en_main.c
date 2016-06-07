@@ -3001,6 +3001,13 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	}
 	mlx5_query_nic_vport_mac_address(priv->mdev, 0, dev_addr);
 
+	/* check if we should generate a random MAC address */
+	if (MLX5_CAP_GEN(priv->mdev, vport_group_manager) == 0 &&
+	    is_zero_ether_addr(dev_addr)) {
+		random_ether_addr(dev_addr);
+		if_printf(ifp, "Assigned random MAC address\n");
+	}
+
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
 
