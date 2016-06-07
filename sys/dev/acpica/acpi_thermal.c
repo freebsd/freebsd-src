@@ -335,8 +335,10 @@ acpi_tz_startup(void *arg __unused)
     int devcount, error, i;
 
     devclass_get_devices(acpi_tz_devclass, &devs, &devcount);
-    if (devcount == 0)
+    if (devcount == 0) {
+	free(devs, M_TEMP);
 	return;
+    }
 
     /*
      * Create thread to service all of the thermal zones.
