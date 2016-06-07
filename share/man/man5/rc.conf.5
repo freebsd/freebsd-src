@@ -2559,6 +2559,22 @@ is set to
 these are the flags to pass to the
 .Xr ypbind 8
 service.
+.It Va nis_ypldap_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr ypldap 8
+daemon at system boot time.
+.It Va nis_ypldap_flags
+.Pq Vt str
+If
+.Va nis.ypldap_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr ypldap 8
+daemon.
 .It Va nis_ypset_enable
 .Pq Vt bool
 If set to
