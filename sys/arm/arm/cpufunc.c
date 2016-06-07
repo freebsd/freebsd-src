@@ -761,25 +761,19 @@ set_cpufuncs()
 	}
 #endif /* CPU_ARM1176 */
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
-	if (cputype == CPU_ID_CORTEXA5 ||
-	    cputype == CPU_ID_CORTEXA7 ||
-	    cputype == CPU_ID_CORTEXA8R1 ||
-	    cputype == CPU_ID_CORTEXA8R2 ||
-	    cputype == CPU_ID_CORTEXA8R3 ||
-	    cputype == CPU_ID_CORTEXA9R1 ||
-	    cputype == CPU_ID_CORTEXA9R2 ||
-	    cputype == CPU_ID_CORTEXA9R3 ||
-	    cputype == CPU_ID_CORTEXA9R4 ||
-	    cputype == CPU_ID_CORTEXA12R0 ||
-	    cputype == CPU_ID_CORTEXA15R0 ||
-	    cputype == CPU_ID_CORTEXA15R1 ||
-	    cputype == CPU_ID_CORTEXA15R2 ||
-	    cputype == CPU_ID_CORTEXA15R3 ||
-	    cputype == CPU_ID_KRAIT300R0 ||
-	    cputype == CPU_ID_KRAIT300R1 ) {
+	switch(cputype & CPU_ID_SCHEME_MASK) {
+	case CPU_ID_CORTEXA5:
+	case CPU_ID_CORTEXA7:
+	case CPU_ID_CORTEXA8:
+	case CPU_ID_CORTEXA9:
+	case CPU_ID_CORTEXA12:
+	case CPU_ID_CORTEXA15:
+	case CPU_ID_KRAIT300:
 		cpufuncs = cortexa_cpufuncs;
 		get_cachetype_cp15();
 		goto out;
+	default:
+		break;
 	}
 #endif /* CPU_CORTEXA */
 
