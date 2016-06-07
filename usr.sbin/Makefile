@@ -113,9 +113,9 @@ SUBDIR.${MK_AUDIT}+=	auditreduce
 SUBDIR.${MK_AUDIT}+=	praudit
 SUBDIR.${MK_AUTHPF}+=	authpf
 SUBDIR.${MK_AUTOFS}+=	autofs
-.if ${MK_BLACKLIST_SUPPORT} != "no"
-SUBDIR.${MK_BLACKLIST_SUPPORT}+=	blacklistctl
-SUBDIR.${MK_BLACKLIST_SUPPORT}+=	blacklistd
+.if ${MK_BLACKLIST} != "no"
+SUBDIR.${MK_BLACKLIST}+=	blacklistctl
+SUBDIR.${MK_BLACKLIST}+=	blacklistd
 .endif
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
 SUBDIR.${MK_BOOTPARAMD}+=	bootparamd

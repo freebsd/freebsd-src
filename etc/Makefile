@@ -86,7 +86,7 @@ BIN1+= apmd.conf
 BIN1+=	auto_master
 .endif
 
-.if ${MK_BLACKLIST_SUPPORT} != "no"
+.if ${MK_BLACKLIST} != "no"
 BIN1+= blacklistd.conf
 .endif
 

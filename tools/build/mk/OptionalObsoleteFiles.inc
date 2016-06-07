@@ -431,7 +431,7 @@ OLD_FILES+=usr/share/man/man7/ldint.7.gz
 OLD_FILES+=usr/share/man/man7/binutils.7.gz
 .endif
 
-.if ${MK_BLACKLIST_SUPPORT} == no
+.if ${MK_BLACKLIST} == no
 OLD_FILES+=etc/rc.d/blacklistd
 OLD_FILES+=usr/include/blacklist.h
 OLD_FILES+=usr/lib/libblacklist.a
