@@ -158,11 +158,9 @@ ext2_mount(struct mount *mp)
 			}
 			fs->e2fs_ronly = 1;
 			vfs_flagopt(opts, "ro", &mp->mnt_flag, MNT_RDONLY);
-			DROP_GIANT();
 			g_topology_lock();
 			g_access(ump->um_cp, 0, -1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			error = ext2_reload(mp, td);
@@ -187,11 +185,9 @@ ext2_mount(struct mount *mp)
 				return (error);
 			}
 			VOP_UNLOCK(devvp, 0);
-			DROP_GIANT();
 			g_topology_lock();
 			error = g_access(ump->um_cp, 0, 1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			if (error)
 				return (error);
 
@@ -547,11 +543,9 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 
 	ronly = vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0);
 	/* XXX: use VOP_ACESS to check FS perms */
-	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ext2fs", ronly ? 0 : 1);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
@@ -559,11 +553,9 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	/* XXX: should we check for some sectorsize or 512 instead? */
 	if (((SBSIZE % cp->provider->sectorsize) != 0) ||
 	    (SBSIZE < cp->provider->sectorsize)) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 		return (EINVAL);
 	}
 
@@ -683,11 +675,9 @@ out:
 	if (bp)
 		brelse(bp);
 	if (cp != NULL) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 	}
 	if (ump) {
 		mtx_destroy(EXT2_MTX(ump));
@@ -729,11 +719,9 @@ ext2_unmount(struct mount *mp, int mntflags)
 		ext2_sbupdate(ump, MNT_WAIT);
 	}
 
-	DROP_GIANT();
 	g_topology_lock();
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	vrele(ump->um_devvp);
 	sump = fs->e2fs_clustersum;
 	for (i = 0; i < fs->e2fs_gcount; i++, sump++)
