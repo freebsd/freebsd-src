@@ -496,6 +496,7 @@ static int sysctl_tp_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_tc_params(SYSCTL_HANDLER_ARGS);
 #endif
 #ifdef TCP_OFFLOAD
 static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
@@ -5034,8 +5035,10 @@ cxgbe_sysctls(struct port_info *pi)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *oid;
-	struct sysctl_oid_list *children;
+	struct sysctl_oid_list *children, *children2;
 	struct adapter *sc = pi->adapter;
+	int i;
+	char name[16];
 
 	ctx = device_get_sysctl_ctx(pi->dev);
 
@@ -5062,6 +5065,29 @@ cxgbe_sysctls(struct port_info *pi)
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "max_speed", CTLFLAG_RD, NULL,
 	    port_top_speed(pi), "max speed (in Gbps)");
+
+	/*
+	 * dev.(cxgbe|cxl).X.tc.
+	 */
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "tc", CTLFLAG_RD, NULL,
+	    "Tx scheduler traffic classes");
+	for (i = 0; i < sc->chip_params->nsched_cls; i++) {
+		struct tx_sched_class *tc = &pi->tc[i];
+
+		snprintf(name, sizeof(name), "%d", i);
+		children2 = SYSCTL_CHILDREN(SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(oid), OID_AUTO, name, CTLFLAG_RD, NULL,
+		    "traffic class"));
+		SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "flags", CTLFLAG_RD,
+		    &tc->flags, 0, "flags");
+		SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "refcount",
+		    CTLFLAG_RD, &tc->refcount, 0, "references to this class");
+#ifdef SBUF_DRAIN
+		SYSCTL_ADD_PROC(ctx, children2, OID_AUTO, "params",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, (pi->port_id << 16) | i,
+		    sysctl_tc_params, "A", "traffic class parameters");
+#endif
+	}
 
 	/*
 	 * dev.cxgbe.X.stats.
@@ -7452,6 +7478,101 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_tc_params(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct tx_sched_class *tc;
+	struct t4_sched_class_params p;
+	struct sbuf *sb;
+	int i, rc, port_id, flags, mbps, gbps;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	port_id = arg2 >> 16;
+	MPASS(port_id < sc->params.nports);
+	MPASS(sc->port[port_id] != NULL);
+	i = arg2 & 0xffff;
+	MPASS(i < sc->chip_params->nsched_cls);
+	tc = &sc->port[port_id]->tc[i];
+
+	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4tc_p");
+	if (rc)
+		goto done;
+	flags = tc->flags;
+	p = tc->params;
+	end_synchronized_op(sc, LOCK_HELD);
+
+	if ((flags & TX_SC_OK) == 0) {
+		sbuf_printf(sb, "none");
+		goto done;
+	}
+
+	if (p.level == SCHED_CLASS_LEVEL_CL_WRR) {
+		sbuf_printf(sb, "cl-wrr weight %u", p.weight);
+		goto done;
+	} else if (p.level == SCHED_CLASS_LEVEL_CL_RL)
+		sbuf_printf(sb, "cl-rl");
+	else if (p.level == SCHED_CLASS_LEVEL_CH_RL)
+		sbuf_printf(sb, "ch-rl");
+	else {
+		rc = ENXIO;
+		goto done;
+	}
+
+	if (p.ratemode == SCHED_CLASS_RATEMODE_REL) {
+		/* XXX: top speed or actual link speed? */
+		gbps = port_top_speed(sc->port[port_id]);
+		sbuf_printf(sb, " %u%% of %uGbps", p.maxrate, gbps);
+	}
+	else if (p.ratemode == SCHED_CLASS_RATEMODE_ABS) {
+		switch (p.rateunit) {
+		case SCHED_CLASS_RATEUNIT_BITS:
+			mbps = p.maxrate / 1000;
+			gbps = p.maxrate / 1000000;
+			if (p.maxrate == gbps * 1000000)
+				sbuf_printf(sb, " %uGbps", gbps);
+			else if (p.maxrate == mbps * 1000)
+				sbuf_printf(sb, " %uMbps", mbps);
+			else
+				sbuf_printf(sb, " %uKbps", p.maxrate);
+			break;
+		case SCHED_CLASS_RATEUNIT_PKTS:
+			sbuf_printf(sb, " %upps", p.maxrate);
+			break;
+		default:
+			rc = ENXIO;
+			goto done;
+		}
+	}
+
+	switch (p.mode) {
+	case SCHED_CLASS_MODE_CLASS:
+		sbuf_printf(sb, " aggregate");
+		break;
+	case SCHED_CLASS_MODE_FLOW:
+		sbuf_printf(sb, " per-flow");
+		break;
+	default:
+		rc = ENXIO;
+		goto done;
+	}
+
+done:
+	if (rc == 0)
+		rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
 	return (rc);
