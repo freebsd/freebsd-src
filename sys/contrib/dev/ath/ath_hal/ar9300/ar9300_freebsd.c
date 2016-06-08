@@ -774,8 +774,7 @@ ar9300_beacon_set_beacon_timers(struct ath_hal *ah,
 	OS_REG_WRITE(ah, AR_NEXT_NDP_TIMER, TU_TO_USEC(bt->bt_nextatim));
 
 	bperiod = TU_TO_USEC(bt->bt_intval & HAL_BEACON_PERIOD);
-	/* XXX TODO! */
-//        ahp->ah_beaconInterval = bt->bt_intval & HAL_BEACON_PERIOD;
+	AH9300(ah)->ah_beaconInterval = bt->bt_intval & HAL_BEACON_PERIOD;
 	OS_REG_WRITE(ah, AR_BEACON_PERIOD, bperiod);
 	OS_REG_WRITE(ah, AR_DMA_BEACON_PERIOD, bperiod);
 	OS_REG_WRITE(ah, AR_SWBA_PERIOD, bperiod);
