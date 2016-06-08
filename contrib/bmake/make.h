@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.99 2016/06/03 01:21:59 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.100 2016/06/07 00:40:00 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -506,6 +506,8 @@ void Main_ExportMAKEFLAGS(Boolean);
 Boolean Main_SetObjdir(const char *);
 int mkTempFile(const char *, char **);
 int str2Lst_Append(Lst, char *, const char *);
+int cached_lstat(const char *, void *);
+int cached_stat(const char *, void *);
 
 #define	VARF_UNDEFERR	1
 #define	VARF_WANTRES	2
