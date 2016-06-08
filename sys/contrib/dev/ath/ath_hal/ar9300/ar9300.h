@@ -898,6 +898,8 @@ struct ath_hal_9300 {
     struct ar9300NfLimits nf_2GHz;
     struct ar9300NfLimits nf_5GHz;
     struct ar9300NfLimits *nfp;
+
+    uint32_t ah_beaconInterval;
 };
 
 #define AH9300(_ah) ((struct ath_hal_9300 *)(_ah))
