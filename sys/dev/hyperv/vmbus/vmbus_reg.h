@@ -66,6 +66,7 @@ CTASSERT(sizeof(struct vmbus_message) == VMBUS_MSG_SIZE);
 #define VMBUS_EVTFLAG_SHIFT	5
 #endif
 #define VMBUS_EVTFLAG_LEN	(1 << VMBUS_EVTFLAG_SHIFT)
+#define VMBUS_EVTFLAG_MASK	(VMBUS_EVTFLAG_LEN - 1)
 #define VMBUS_EVTFLAGS_SIZE	256
 
 struct vmbus_evtflags {
