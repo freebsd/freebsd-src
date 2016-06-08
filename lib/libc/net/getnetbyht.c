@@ -215,10 +215,10 @@ _ht_getnetbyname(void *rval, void *cb_data, va_list ap)
 	}
 
 	_setnethtent(ned->stayopen, ned);
-	while ((error = getnetent_p(&ne, ned)) == NULL) {
+	while ((error = getnetent_p(&ne, ned)) == 0) {
 		if (strcasecmp(ne.n_name, name) == 0)
 			break;
-		for (cp = ne.n_aliases; *cp != NULL; cp++)
+		for (cp = ne.n_aliases; *cp != 0; cp++)
 			if (strcasecmp(*cp, name) == 0)
 				goto found;
 	}
