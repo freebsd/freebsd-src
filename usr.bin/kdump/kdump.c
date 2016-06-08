@@ -1750,7 +1750,7 @@ ktrstat(struct stat *statp)
 		printf(".%09ld, ", statp->st_atim.tv_nsec);
 	else
 		printf(", ");
-	printf("stime=");
+	printf("mtime=");
 	if (resolv == 0)
 		printf("%jd", (intmax_t)statp->st_mtim.tv_sec);
 	else {
