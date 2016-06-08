@@ -139,7 +139,6 @@
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 
-#include <vm/vm_pageout.h>
 #include <machine/vmparam.h>
 
 #ifdef illumos
