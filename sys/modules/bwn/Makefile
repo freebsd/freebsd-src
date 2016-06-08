@@ -12,7 +12,7 @@ SRCS+=	if_bwn_phy_g.c if_bwn_phy_lp.c
 SRCS+=	if_bwn_phy_n.c
 
 # Other
-SRCS+=	device_if.h bus_if.h pci_if.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_bwn.h opt_wlan.h
 
 # Uncomment this for the GPL PHY code; this requires the
 # module be built with BWN_GPL_PHY set in the kernel
