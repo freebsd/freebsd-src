@@ -137,7 +137,6 @@
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 
-#include <vm/vm_pageout.h>
 
 #ifdef illumos
 #ifndef _KERNEL
