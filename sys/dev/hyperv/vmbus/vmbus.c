@@ -340,7 +340,7 @@ vmbus_dma_alloc(struct vmbus_softc *sc)
 	if (evtflags == NULL)
 		return ENOMEM;
 	sc->vmbus_rx_evtflags = (u_long *)evtflags;
-	sc->vmbus_tx_evtflags = evtflags + (PAGE_SIZE / 2);
+	sc->vmbus_tx_evtflags = (u_long *)(evtflags + (PAGE_SIZE / 2));
 	sc->vmbus_evtflags = evtflags;
 
 	sc->vmbus_mnf1 = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
