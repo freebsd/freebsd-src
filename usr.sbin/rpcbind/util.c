@@ -311,8 +311,7 @@ found:
 	ret = taddr2uaddr(nconf, &tbuf);
 
 freeit:
-	if (caller_uaddr != NULL)
-		free(caller_uaddr);
+	free(caller_uaddr);
 	if (hint_nbp != NULL) {
 		free(hint_nbp->buf);
 		free(hint_nbp);
