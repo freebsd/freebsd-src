@@ -268,7 +268,8 @@ then that lock must be held when this function is called.
 Note that when stopping multiple callouts that use the same lock it is possible
 to get multiple return's of zero and multiple calls to the
 .Fa drain
-function, depending upon which CPU's the callouts are running. The
+function, depending upon which CPU's the callouts are running.
+The
 .Fa drain
 function itself is called from the context of the completing callout
 i.e. softclock or hardclock, just like a callout itself.
@@ -813,7 +814,8 @@ and
 .Fn callout_drain
 functions return a value of one if the callout was still pending when it was
 called, a zero if the callout could not be stopped and a negative one is it
-was either not running or haas already completed. The
+was either not running or haas already completed.
+The
 .Fn timeout
 function returns a
 .Ft struct callout_handle
