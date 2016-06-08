@@ -1,5 +1,5 @@
 .\" Copyright (c) 2015, Mellanox Technologies, Inc. All rights reserved.
-.\"                                                                            
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -8,7 +8,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\"                                                                            
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -20,7 +20,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\"
 .\" $FreeBSD$
 .Dd June 6, 2016
@@ -28,7 +28,7 @@
 .Os
 .Sh NAME
 .Nm iser
-.Nd iSCSI Extensions for RDMA driver
+.Nd iSCSI Extensions for RDMA (iSER) driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in the
@@ -50,7 +50,8 @@ The
 It permits data to be transferred directly into and out of SCSI buffers
 without intermediate data copies.
 iSER uses the RDMA protocol suite to supply higher bandwidth for
-block storage transfers (zero copy behavior). To that fact, it eliminates the
+block storage transfers (zero copy behavior).
+To that fact, it eliminates the
 TCP/IP processing overhead while preserving the compatibility with iSCSI protocol.
 The initiator is the iSCSI/iSER client, which connects to an iSCSI/iSER target,
 providing local access to a remote block device.
