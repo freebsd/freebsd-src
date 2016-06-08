@@ -96,9 +96,9 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			blocked = 1;
+			break;
 		case 'D':
 			dbname = optarg;
-			break;
 			break;
 		case 'd':
 			debug++;
