@@ -414,6 +414,7 @@ FBSD_1.4 {
 	pthread_mutexattr_getrobust;
 	pthread_mutexattr_setrobust;
 	scandir_b;
+	stravis;
 };
 
 FBSDprivate_1.0 {
