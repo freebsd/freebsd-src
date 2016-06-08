@@ -130,6 +130,9 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "w25q64bv",	0xef, 0x4017, 64 * 1024, 128, FL_ERASE_4K },
 	{ "w25q128",	0xef, 0x4018, 64 * 1024, 256, FL_ERASE_4K },
 	{ "w25q256",	0xef, 0x4019, 64 * 1024, 512, FL_ERASE_4K },
+
+	 /* Atmel */
+	{ "at25df641",  0x1f, 0x4800, 64 * 1024, 128, FL_ERASE_4K },
 };
 
 static uint8_t
