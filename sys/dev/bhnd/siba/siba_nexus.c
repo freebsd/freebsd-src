@@ -115,4 +115,5 @@ static device_method_t siba_nexus_methods[] = {
 DEFINE_CLASS_2(bhnd, siba_nexus_driver, siba_nexus_methods,
     sizeof(struct siba_nexus_softc), bhnd_nexus_driver, siba_driver);
 
-DRIVER_MODULE(siba_nexus, nexus, siba_nexus_driver, bhnd_devclass, 0, 0);
+EARLY_DRIVER_MODULE(siba_nexus, nexus, siba_nexus_driver, bhnd_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
