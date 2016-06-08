@@ -248,6 +248,7 @@ static void drain_wrq_wr_list(struct adapter *, struct sge_wrq *);
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 static int sysctl_bufsizes(SYSCTL_HANDLER_ARGS);
+static int sysctl_tc(SYSCTL_HANDLER_ARGS);
 
 static counter_u64_t extfree_refs;
 static counter_u64_t extfree_rels;
@@ -3434,6 +3435,7 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
 	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_VF_VLD(1) |
 	    V_TXPKT_VF(vi->viid));
+	txq->tc_idx = -1;
 	txq->sdesc = malloc(eq->sidx * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
@@ -3450,6 +3452,10 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
 	    CTLTYPE_INT | CTLFLAG_RD, &eq->pidx, 0, sysctl_uint16, "I",
 	    "producer index");
+
+	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "tc",
+	    CTLTYPE_INT | CTLFLAG_RW, vi, idx, sysctl_tc, "I",
+	    "traffic class (-1 means none)");
 
 	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txcsum", CTLFLAG_RD,
 	    &txq->txcsum, "# of times hardware assisted with checksum");
@@ -4682,5 +4688,80 @@ sysctl_bufsizes(SYSCTL_HANDLER_ARGS)
 	sbuf_finish(&sb);
 	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
 	sbuf_delete(&sb);
+	return (rc);
+}
+
+static int
+sysctl_tc(SYSCTL_HANDLER_ARGS)
+{
+	struct vi_info *vi = arg1;
+	struct port_info *pi;
+	struct adapter *sc;
+	struct sge_txq *txq;
+	struct tx_sched_class *tc;
+	int qidx = arg2, rc, tc_idx;
+	uint32_t fw_queue, fw_class;
+
+	MPASS(qidx >= 0 && qidx < vi->ntxq);
+	pi = vi->pi;
+	sc = pi->adapter;
+	txq = &sc->sge.txq[vi->first_txq + qidx];
+
+	tc_idx = txq->tc_idx;
+	rc = sysctl_handle_int(oidp, &tc_idx, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+
+	/* Note that -1 is legitimate input (it means unbind). */
+	if (tc_idx < -1 || tc_idx >= sc->chip_params->nsched_cls)
+		return (EINVAL);
+
+	rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4stc");
+	if (rc)
+		return (rc);
+
+	if (tc_idx == txq->tc_idx) {
+		rc = 0;		/* No change, nothing to do. */
+		goto done;
+	}
+
+	fw_queue = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH) |
+	    V_FW_PARAMS_PARAM_YZ(txq->eq.cntxt_id);
+
+	if (tc_idx == -1)
+		fw_class = 0xffffffff;	/* Unbind. */
+	else {
+		/*
+		 * Bind to a different class.  Ethernet txq's are only allowed
+		 * to bind to cl-rl mode-class for now.  XXX: too restrictive.
+		 */
+		tc = &pi->tc[tc_idx];
+		if (tc->flags & TX_SC_OK &&
+		    tc->params.level == SCHED_CLASS_LEVEL_CL_RL &&
+		    tc->params.mode == SCHED_CLASS_MODE_CLASS) {
+			/* Ok to proceed. */
+			fw_class = tc_idx;
+		} else {
+			rc = tc->flags & TX_SC_OK ? EBUSY : ENXIO;
+			goto done;
+		}
+	}
+
+	rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &fw_queue, &fw_class);
+	if (rc == 0) {
+		if (txq->tc_idx != -1) {
+			tc = &pi->tc[txq->tc_idx];
+			MPASS(tc->refcount > 0);
+			tc->refcount--;
+		}
+		if (tc_idx != -1) {
+			tc = &pi->tc[tc_idx];
+			tc->refcount++;
+		}
+		txq->tc_idx = tc_idx;
+	}
+done:
+	end_synchronized_op(sc, 0);
 	return (rc);
 }

@@ -536,6 +536,7 @@ struct sge_txq {
 	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
 	struct sglist *gl;
 	__be32 cpl_ctrl0;	/* for convenience */
+	int tc_idx;		/* traffic class */
 
 	struct task tx_reclaim_task;
 	/* stats for common events first */
