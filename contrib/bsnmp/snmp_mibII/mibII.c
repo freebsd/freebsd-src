@@ -443,6 +443,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 	size_t len;
 	void *newmib;
 	struct ifmibdata oldmib = ifp->mib;
+	struct ifreq irr;
 
 	if (fetch_generic_mib(ifp, &oldmib) == -1)
 		return (-1);
@@ -514,6 +515,18 @@ mib_fetch_ifmib(struct mibif *ifp)
 	}
 
   out:
+	strncpy(irr.ifr_name, ifp->name, sizeof(irr.ifr_name));
+	irr.ifr_buffer.buffer = MIBIF_PRIV(ifp)->alias;
+	irr.ifr_buffer.length = sizeof(MIBIF_PRIV(ifp)->alias);
+	if (ioctl(mib_netsock, SIOCGIFDESCR, &irr) == -1) {
+		MIBIF_PRIV(ifp)->alias[0] = 0;
+		if (errno != ENOMSG)
+			syslog(LOG_WARNING, "SIOCGIFDESCR (%s): %m", ifp->name);
+	} else if (irr.ifr_buffer.buffer == NULL) {
+		MIBIF_PRIV(ifp)->alias[0] = 0;
+		syslog(LOG_WARNING, "SIOCGIFDESCR (%s): too long (%zu)",
+		    ifp->name, irr.ifr_buffer.length);
+	}
 	ifp->mibtick = get_ticks();
 	return (0);
 }
