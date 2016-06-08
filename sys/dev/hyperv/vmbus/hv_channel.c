@@ -62,17 +62,16 @@ static void	VmbusProcessChannelEvent(void* channel, int pending);
 static void
 vmbus_channel_set_event(hv_vmbus_channel *channel)
 {
-	hv_vmbus_monitor_page *monitor_page;
-
 	if (channel->offer_msg.monitor_allocated) {
+		struct vmbus_softc *sc = vmbus_get_softc();
+		hv_vmbus_monitor_page *monitor_page;
+
 		/* Each uint32_t represents 32 channels */
 		synch_set_bit((channel->offer_msg.child_rel_id & 31),
-			((uint32_t *)hv_vmbus_g_connection.send_interrupt_page
+			((uint32_t *)sc->vmbus_tx_evtflags
 				+ ((channel->offer_msg.child_rel_id >> 5))));
 
-		monitor_page = (hv_vmbus_monitor_page *)
-			hv_vmbus_g_connection.monitor_page_2;
-
+		monitor_page = sc->vmbus_mnf2;
 		synch_set_bit(channel->monitor_bit,
 			(uint32_t *)&monitor_page->
 				trigger_group[channel->monitor_group].u.pending);
