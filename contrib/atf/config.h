@@ -2,10 +2,10 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if basename takes a constant pointer */
-#define HAVE_CONST_BASENAME 1
+/* #undef HAVE_CONST_BASENAME */
 
 /* Define to 1 if dirname takes a constant pointer */
-#define HAVE_CONST_DIRNAME 1
+/* #undef HAVE_CONST_DIRNAME */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
