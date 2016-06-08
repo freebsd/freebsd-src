@@ -1623,14 +1623,16 @@ static const char *
 gethints(bool nostdlib)
 {
 	static char *hints, *filtered_path;
-	struct elfhints_hdr hdr;
+	static struct elfhints_hdr hdr;
 	struct fill_search_info_args sargs, hargs;
 	struct dl_serinfo smeta, hmeta, *SLPinfo, *hintinfo;
 	struct dl_serpath *SLPpath, *hintpath;
 	char *p;
+	struct stat hint_stat;
 	unsigned int SLPndx, hintndx, fndx, fcount;
 	int fd;
 	size_t flen;
+	uint32_t dl;
 	bool skip;
 
 	/* First call, read the hints file */
@@ -1640,19 +1642,38 @@ gethints(bool nostdlib)
 
 		if ((fd = open(ld_elf_hints_path, O_RDONLY | O_CLOEXEC)) == -1)
 			return (NULL);
+
+		/*
+		 * Check of hdr.dirlistlen value against type limit
+		 * intends to pacify static analyzers.  Further
+		 * paranoia leads to checks that dirlist is fully
+		 * contained in the file range.
+		 */
 		if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
 		    hdr.magic != ELFHINTS_MAGIC ||
-		    hdr.version != 1) {
+		    hdr.version != 1 || hdr.dirlistlen > UINT_MAX / 2 ||
+		    fstat(fd, &hint_stat) == -1) {
+cleanup1:
 			close(fd);
+			hdr.dirlistlen = 0;
 			return (NULL);
 		}
+		dl = hdr.strtab;
+		if (dl + hdr.dirlist < dl)
+			goto cleanup1;
+		dl += hdr.dirlist;
+		if (dl + hdr.dirlistlen < dl)
+			goto cleanup1;
+		dl += hdr.dirlistlen;
+		if (dl > hint_stat.st_size)
+			goto cleanup1;
 		p = xmalloc(hdr.dirlistlen + 1);
+
 		if (lseek(fd, hdr.strtab + hdr.dirlist, SEEK_SET) == -1 ||
 		    read(fd, p, hdr.dirlistlen + 1) !=
-		    (ssize_t)hdr.dirlistlen + 1) {
+		    (ssize_t)hdr.dirlistlen + 1 || p[hdr.dirlistlen] != '\0') {
 			free(p);
-			close(fd);
-			return (NULL);
+			goto cleanup1;
 		}
 		hints = p;
 		close(fd);
@@ -1685,7 +1706,7 @@ gethints(bool nostdlib)
 	hargs.serinfo = &hmeta;
 
 	path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &sargs);
-	path_enumerate(p, fill_search_info, &hargs);
+	path_enumerate(hints, fill_search_info, &hargs);
 
 	SLPinfo = xmalloc(smeta.dls_size);
 	hintinfo = xmalloc(hmeta.dls_size);
@@ -1704,7 +1725,7 @@ gethints(bool nostdlib)
 	hargs.strspace = (char *)&hintinfo->dls_serpath[hmeta.dls_cnt];
 
 	path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &sargs);
-	path_enumerate(p, fill_search_info, &hargs);
+	path_enumerate(hints, fill_search_info, &hargs);
 
 	/*
 	 * Now calculate the difference between two sets, by excluding
