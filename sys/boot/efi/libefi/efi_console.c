@@ -111,9 +111,9 @@ efi_cons_probe(struct console *cp)
 static int
 efi_cons_init(int arg)
 {
+#ifdef TERM_EMU
 	conout->SetAttribute(conout, EFI_TEXT_ATTR(DEFAULT_FGCOLOR,
 	    DEFAULT_BGCOLOR));
-#ifdef TERM_EMU
 	end_term();
 	get_pos(&curx, &cury);
 	curs_move(&curx, &cury, curx, cury);
@@ -178,6 +178,7 @@ efi_cons_rawputchar(int c)
 	}
 }
 
+#ifdef TERM_EMU
 /* Gracefully exit ESC-sequence processing in case of misunderstanding. */
 static void
 bail_out(int c)
@@ -412,6 +413,12 @@ efi_term_emu(int c)
 		break;
 	}
 }
+#else
+void
+HO(void)
+{
+}
+#endif
 
 void
 efi_cons_putchar(int c)
