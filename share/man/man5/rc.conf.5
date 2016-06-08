@@ -189,7 +189,8 @@ to this directory before running the service.
 Run the service under this user account.
 .It Ao Ar name Ac Ns Va _group
 .Pq Vt str
-Run the chrooted service under this system group. Unlike the _user
+Run the chrooted service under this system group.
+Unlike the _user
 setting, this setting has no effect if the service is not chrooted.
 .It Ao Ar name Ac Ns Va _fib
 .Pq Vt int
@@ -944,7 +945,8 @@ interface is desired,
 .Va pflog_instances
 is set to the list of
 .Xr pflogd 8
-instances that should be started at system boot time. If
+instances that should be started at system boot time.
+If
 .Va pflog_instances
 is set, for each whitespace-seperated
 .Ar element
@@ -983,11 +985,13 @@ This variable contains additional flags passed to the
 program.
 .It Va ftpproxy_instances
 .Pq Vt str
-Empty by default. If multiple instances of
+Empty by default.
+If multiple instances of
 .Xr ftp-proxy 8
 are desired at boot time,
 .Va ftpproxy_instances
-should contain a whitespace-seperated list of instance names. For each
+should contain a whitespace-seperated list of instance names.
+For each
 .Ar element
 in the list, a variable named
 .Ao Ar element Ac Ns Va _flags
