@@ -38,6 +38,57 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160608: removed pam_verbose_error
+OLD_LIBS+=usr/lib/libpam.so.5
+OLD_LIBS+=usr/lib/pam_chroot.so.5
+OLD_LIBS+=usr/lib/pam_deny.so.5
+OLD_LIBS+=usr/lib/pam_echo.so.5
+OLD_LIBS+=usr/lib/pam_exec.so.5
+OLD_LIBS+=usr/lib/pam_ftpusers.so.5
+OLD_LIBS+=usr/lib/pam_group.so.5
+OLD_LIBS+=usr/lib/pam_guest.so.5
+OLD_LIBS+=usr/lib/pam_krb5.so.5
+OLD_LIBS+=usr/lib/pam_ksu.so.5
+OLD_LIBS+=usr/lib/pam_lastlog.so.5
+OLD_LIBS+=usr/lib/pam_login_access.so.5
+OLD_LIBS+=usr/lib/pam_nologin.so.5
+OLD_LIBS+=usr/lib/pam_opie.so.5
+OLD_LIBS+=usr/lib/pam_opieaccess.so.5
+OLD_LIBS+=usr/lib/pam_passwdqc.so.5
+OLD_LIBS+=usr/lib/pam_permit.so.5
+OLD_LIBS+=usr/lib/pam_radius.so.5
+OLD_LIBS+=usr/lib/pam_rhosts.so.5
+OLD_LIBS+=usr/lib/pam_rootok.so.5
+OLD_LIBS+=usr/lib/pam_securetty.so.5
+OLD_LIBS+=usr/lib/pam_self.so.5
+OLD_LIBS+=usr/lib/pam_ssh.so.5
+OLD_LIBS+=usr/lib/pam_tacplus.so.5
+OLD_LIBS+=usr/lib/pam_unix.so.5
+OLD_LIBS+=usr/lib32/libpam.so.5
+OLD_LIBS+=usr/lib32/pam_chroot.so.5
+OLD_LIBS+=usr/lib32/pam_deny.so.5
+OLD_LIBS+=usr/lib32/pam_echo.so.5
+OLD_LIBS+=usr/lib32/pam_exec.so.5
+OLD_LIBS+=usr/lib32/pam_ftpusers.so.5
+OLD_LIBS+=usr/lib32/pam_group.so.5
+OLD_LIBS+=usr/lib32/pam_guest.so.5
+OLD_LIBS+=usr/lib32/pam_krb5.so.5
+OLD_LIBS+=usr/lib32/pam_ksu.so.5
+OLD_LIBS+=usr/lib32/pam_lastlog.so.5
+OLD_LIBS+=usr/lib32/pam_login_access.so.5
+OLD_LIBS+=usr/lib32/pam_nologin.so.5
+OLD_LIBS+=usr/lib32/pam_opie.so.5
+OLD_LIBS+=usr/lib32/pam_opieaccess.so.5
+OLD_LIBS+=usr/lib32/pam_passwdqc.so.5
+OLD_LIBS+=usr/lib32/pam_permit.so.5
+OLD_LIBS+=usr/lib32/pam_radius.so.5
+OLD_LIBS+=usr/lib32/pam_rhosts.so.5
+OLD_LIBS+=usr/lib32/pam_rootok.so.5
+OLD_LIBS+=usr/lib32/pam_securetty.so.5
+OLD_LIBS+=usr/lib32/pam_self.so.5
+OLD_LIBS+=usr/lib32/pam_ssh.so.5
+OLD_LIBS+=usr/lib32/pam_tacplus.so.5
+OLD_LIBS+=usr/lib32/pam_unix.so.5
 # 20160523: remove extranous ALTQ files
 OLD_FILES+=usr/include/altq/altq_codel.h
 OLD_FILES+=usr/include/altq/altq_fairq.h
