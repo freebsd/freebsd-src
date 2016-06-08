@@ -320,8 +320,10 @@ The
 .Fn uma_zone_set_maxaction
 function sets a function that will be called when the given zone becomes full
 and fails to allocate an item.
-The function will be called with the zone locked. Also, the function
-that called the allocation function may have held additional locks. Therefore,
+The function will be called with the zone locked.
+Also, the function
+that called the allocation function may have held additional locks.
+Therefore,
 this function should do very little work (similar to a signal handler).
 .Pp
 The

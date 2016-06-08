@@ -215,7 +215,8 @@ The flag allows exclusive requests to preempt the current shared request
 even if the current thread owns shared locks.
 This is safe since shared lock is guaranteed to not recurse, and is used
 when thread is known to held unrelated shared locks, to not cause
-unnecessary starvation.  An example is
+unnecessary starvation.
+An example is
 .Dv vp
 locking in VFS
 .Xr lookup 9 ,

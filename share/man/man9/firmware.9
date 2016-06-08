@@ -97,7 +97,8 @@ by calling the function
 .Fn firmware_get
 with the
 .Nm imagename
-they want as an argument. If a matching image is not already registered,
+they want as an argument.
+If a matching image is not already registered,
 the firmware subsystem will try to load it using the
 mechanisms specified below (typically, a kernel module
 with
@@ -127,7 +128,8 @@ pointer to the image requested.
 .Fn firmware_unregister
 tries to unregister the firmware image
 .Nm imagename
-from the system. The function is successful and returns 0
+from the system.
+The function is successful and returns 0
 if there are no pending references to the image, otherwise
 it does not unregister the image and returns EBUSY.
 .Pp
@@ -148,7 +150,8 @@ already mounted.
 On success,
 .Fn firmware_get
 returns a pointer to the image description and increases the reference count
-for this image. On failure, the function returns NULL.
+for this image.
+On failure, the function returns NULL.
 .Pp
 .Fn firmware_put
 drops a reference to a firmware image.
