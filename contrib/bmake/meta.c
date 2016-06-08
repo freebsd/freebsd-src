@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.60 2016/06/04 22:17:14 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.61 2016/06/07 00:40:00 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -429,7 +429,7 @@ meta_needed(GNode *gn, const char *dname, const char *tname,
     }
 
     /* The object directory may not exist. Check it.. */
-    if (stat(dname, &fs) != 0) {
+    if (cached_stat(dname, &fs) != 0) {
 	if (verbose)
 	    fprintf(debug_file, "Skipping meta for %s: no .OBJDIR\n",
 		    gn->name);
@@ -1238,8 +1238,8 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    if ((strstr("tmp", p)))
 			break;
 
-		    if ((link_src != NULL && lstat(p, &fs) < 0) ||
-			(link_src == NULL && stat(p, &fs) < 0)) {
+		    if ((link_src != NULL && cached_lstat(p, &fs) < 0) ||
+			(link_src == NULL && cached_stat(p, &fs) < 0)) {
 			if (Lst_Find(missingFiles, p, string_match) == NULL)
 				Lst_AtEnd(missingFiles, bmake_strdup(p));
 		    }
@@ -1328,7 +1328,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 			    if (DEBUG(META))
 				fprintf(debug_file, "%s: %d: looking for: %s\n", fname, lineno, *sdp);
 #endif
-			    if (stat(*sdp, &fs) == 0) {
+			    if (cached_stat(*sdp, &fs) == 0) {
 				found = 1;
 				p = *sdp;
 			    }

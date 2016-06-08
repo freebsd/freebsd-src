@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.245 2016/06/03 01:21:59 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.245 2016/06/03 01:21:59 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.245 2016/06/03 01:21:59 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1906,15 +1906,11 @@ cached_realpath(const char *pathname, char *resolved)
     rp = Var_Value(pathname, cache, &cp);
     if (rp) {
 	/* a hit */
-	if (resolved)
-	    strlcpy(resolved, rp, MAXPATHLEN);
-	else
-	    resolved = bmake_strdup(rp);
-    } else {
-	if ((rp = realpath(pathname, resolved))) {
-	    Var_Set(pathname, rp, cache, 0);
-	}
+	strlcpy(resolved, rp, MAXPATHLEN);
+    } else if ((rp = realpath(pathname, resolved))) {
+	Var_Set(pathname, rp, cache, 0);
     }
+    free(cp);
     return rp ? resolved : NULL;
 }
 
