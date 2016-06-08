@@ -83,7 +83,7 @@ static int	bhnd_pcie2_wars_hwdown(struct bhnd_pcie2hb_softc *sc);
  */
 
 #define	BHND_PCI_DEV(_core, _quirks)		\
-	BHND_DEVICE(_core, NULL, _quirks, BHND_DF_HOSTB)
+	BHND_DEVICE(BCM, _core, NULL, _quirks, BHND_DF_HOSTB)
 
 static const struct bhnd_device bhnd_pcie2_devs[] = {
 	BHND_PCI_DEV(PCIE2,	bhnd_pcie2_quirks),

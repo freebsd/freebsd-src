@@ -68,8 +68,8 @@ static struct bhnd_device_quirk bhnd_pcie_quirks[];
 
 #define	BHND_PCI_QUIRKS		bhnd_pci_quirks
 #define	BHND_PCIE_QUIRKS	bhnd_pcie_quirks
-#define	BHND_PCI_DEV(_core, _desc, ...)				\
-	{ BHND_DEVICE(_core, _desc, BHND_ ## _core ## _QUIRKS,	\
+#define	BHND_PCI_DEV(_core, _desc, ...)					\
+	{ BHND_DEVICE(BCM, _core, _desc, BHND_ ## _core ## _QUIRKS,	\
 	    ## __VA_ARGS__), BHND_PCI_REGFMT_ ## _core }
 
 static const struct bhnd_pci_device {

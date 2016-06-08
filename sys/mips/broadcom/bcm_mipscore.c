@@ -54,9 +54,9 @@ static const struct resource_spec mipscore_rspec[MIPSCORE_MAX_RSPEC] = {
 };
 
 struct bhnd_device mipscore_match[] = {
-	BHND_MIPS_DEVICE(MIPS,		"BHND MIPS processor", 		NULL),
-	BHND_MIPS_DEVICE(MIPS33,	"BHND MIPS3302 processor", 	NULL),
-	BHND_MIPS_DEVICE(MIPS74K,	"BHND MIPS74K processor", 	NULL),
+	BHND_DEVICE(BCM,	MIPS,		NULL, 	NULL),
+	BHND_DEVICE(BCM,	MIPS33,		NULL, 	NULL),
+	BHND_DEVICE(MIPS,	MIPS74K,	NULL, 	NULL),
 	BHND_DEVICE_END
 };
 

@@ -232,16 +232,8 @@ struct bhnd_device {
 	    BHND_COREID_ ## _device) }, _desc, _quirks,		\
 	    _flags }
 
-#define	BHND_MIPS_DEVICE(_device, _desc, _quirks, ...)	\
-	_BHND_DEVICE(MIPS, _device, _desc, _quirks,	\
-	    ## __VA_ARGS__, 0)
-
-#define	BHND_ARM_DEVICE(_device, _desc, _quirks, ...)	\
-	_BHND_DEVICE(ARM, _device, _desc, _quirks,	\
-	    ## __VA_ARGS__, 0)
-
-#define	BHND_DEVICE(_device, _desc, _quirks, ...)		\
-	_BHND_DEVICE(BCM, _device, _desc, _quirks,	\
+#define	BHND_DEVICE(_vendor, _device, _desc, _quirks, ...)	\
+	_BHND_DEVICE(_vendor, _device, _desc, _quirks,		\
 	    ## __VA_ARGS__, 0)
 
 #define	BHND_DEVICE_END		{ { BHND_MATCH_ANY }, NULL, NULL, 0 }
