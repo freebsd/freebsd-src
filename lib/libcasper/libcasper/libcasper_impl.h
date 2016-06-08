@@ -46,11 +46,11 @@ bool fd_is_valid(int fd);
 /* Private service functions. */
 struct service	*service_alloc(const char *name,
 		    service_limit_func_t *limitfunc,
-		    service_command_func_t *commandfunc);
+		    service_command_func_t *commandfunc, uint64_t flags);
 void		 service_free(struct service *service);
 void		 service_message(struct service *service,
 		    struct service_connection *sconn);
-void		 service_start(struct service *service, int sock);
+void		 service_start(struct service *service, int sock, int procfd);
 const char	*service_name(struct service *service);
 
 /* Private service connection functions. */
