@@ -354,8 +354,10 @@ network_init(void)
 		if (local_in4 == NULL) {
 			if (debugging)
 				fprintf(stderr, "can't alloc local ip4 addr\n");
+			exit(1);
 		}
 		memcpy(local_in4, res->ai_addr, sizeof *local_in4);
+		freeaddrinfo(res);
 	}
 
 #ifdef INET6
@@ -369,8 +371,10 @@ network_init(void)
 		if (local_in6 == NULL) {
 			if (debugging)
 				fprintf(stderr, "can't alloc local ip6 addr\n");
+			exit(1);
 		}
 		memcpy(local_in6, res->ai_addr, sizeof *local_in6);
+		freeaddrinfo(res);
 	}
 
 	/*
@@ -383,6 +387,11 @@ network_init(void)
 	inet_pton(AF_INET6, RPCB_MULTICAST_ADDR, &mreq6.ipv6mr_multiaddr);
 
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	if (s == -1) {
+		if (debugging)
+			fprintf(stderr, "couldn't create ip6 socket");
+		goto done_inet6;
+	}
 
 	/*
 	 * Loop through all interfaces. For each IPv6 multicast-capable
@@ -404,6 +413,8 @@ network_init(void)
 			if (debugging)
 				perror("setsockopt v6 multicast");
 	}
+done_inet6:
+	freeifaddrs(ifp);
 #endif
 
 	/* close(s); */
