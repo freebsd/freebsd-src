@@ -25,7 +25,7 @@
 .\" 
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2014
+.Dd June 8, 2016
 .Dt USFS 4
 .Os
 .Sh NAME
@@ -50,12 +50,17 @@ usfs_load="YES"
 The
 .Nm
 driver provides support for emulating an USB mass storage device when
-the USB stack is activated in USB device side mode.
+the USB stack is activated in USB device side mode (the
+.Xr usb_template 4
+module is loaded and the
+.Va hw.usb.template
+sysctl is set to 0).
 .Pp
 Upon attach the driver creates a RAM disk which can be read and written.
 .Sh SEE ALSO
 .Xr umass 4 ,
-.Xr usb 4
+.Xr usb 4 ,
+.Xr usb_template 4
 .Sh HISTORY
 The
 .Nm
