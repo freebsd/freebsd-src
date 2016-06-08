@@ -262,7 +262,7 @@ _get_next_token(char *npp, int token)
     *cp++ = '\0';		/* null-terminate token */
     /* get rid of any backslash escapes */
     ep = npp;
-    while ((np = strchr(ep, '\\')) != 0) {
+    while ((np = strchr(ep, '\\')) != NULL) {
 	if (np[1] == '\\')
 	    np++;
 	strcpy(np, (ep = &np[1]));  /* XXX: overlapping string copy */
