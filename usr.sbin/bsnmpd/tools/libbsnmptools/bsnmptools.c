@@ -251,12 +251,12 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 	}
 
 	if ((fstring = strdup(filename)) == NULL) {
-		warnx("malloc() failed - %s", strerror(errno));
+		warnx("strdup() failed - %s", strerror(errno));
 		return (-1);
 	}
 
 	if ((entry = calloc(1, sizeof(struct fname))) == NULL) {
-		warnx("malloc() failed - %s", strerror(errno));
+		warnx("calloc() failed - %s", strerror(errno));
 		free(fstring);
 		return (-1);
 	}
