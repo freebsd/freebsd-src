@@ -422,11 +422,29 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
                         | AR_Q_MISC_CBR_INCR_DIS1
                         | AR_Q_MISC_CBR_INCR_DIS0);
 
-        value = TU_TO_USEC(qi->tqi_readyTime)
-                - (ah->ah_config.ah_sw_beacon_response_time
-                -  ah->ah_config.ah_dma_beacon_response_time)
-                - ah->ah_config.ah_additional_swba_backoff;
-        OS_REG_WRITE(ah, AR_QRDYTIMECFG(q), value | AR_Q_RDYTIMECFG_EN);
+        if (qi->tqi_readyTime) {
+            OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+              SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_DURATION) |
+              AR_Q_RDYTIMECFG_EN);
+        } else {
+
+            value = (ahp->ah_beaconInterval * 50 / 100)
+              - ah->ah_config.ah_additional_swba_backoff
+              - ah->ah_config.ah_sw_beacon_response_time
+              + ah->ah_config.ah_dma_beacon_response_time;
+            /*
+             * XXX Ensure it isn't too low - nothing lower
+             * XXX than 10 TU
+             */
+            if (value < 10)
+                value = 10;
+            HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+              "%s: defaulting to rdytime = %d uS\n",
+              __func__, value);
+            OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+              SM(TU_TO_USEC(value), AR_Q_RDYTIMECFG_DURATION) |
+              AR_Q_RDYTIMECFG_EN);
+        }
 
         OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q))
                     | (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
