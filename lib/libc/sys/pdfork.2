@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2014
+.Dd June 8, 2016
 .Dt PDFORK 2
 .Os
 .Sh NAME
@@ -79,6 +79,10 @@ This option is not permitted in
 .Xr capsicum 4
 capability mode (see
 .Xr cap_enter 2 ) .
+.El
+.Bl -tag -width ".Dv PD_DAEMON"
+.It Dv PD_CLOEXEC
+Set close-on-exec on process descriptor.
 .El
 .Pp
 .Fn pdgetpid
