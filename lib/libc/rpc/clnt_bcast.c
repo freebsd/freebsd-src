@@ -341,7 +341,8 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 #ifdef PORTMAP
 		if (si.si_af == AF_INET && si.si_proto == IPPROTO_UDP) {
 			udpbufsz = fdlist[fdlistno].dsize;
-			if ((outbuf_pmap = malloc(udpbufsz)) == NULL) {
+			outbuf_pmap = reallocf(outbuf_pmap, udpbufsz);
+			if (outbuf_pmap == NULL) {
 				_close(fd);
 				stat = RPC_SYSTEMERROR;
 				goto done_broad;
