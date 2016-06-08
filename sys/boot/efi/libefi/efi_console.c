@@ -139,8 +139,7 @@ efi_cons_rawputchar(int c)
 #ifndef	TERM_EMU
 		if (c == '\n')
 			efi_cons_efiputchar('\r');
-		else
-			efi_cons_efiputchar(c);
+		efi_cons_efiputchar(c);
 #else
 		switch (c) {
 		case '\r':
