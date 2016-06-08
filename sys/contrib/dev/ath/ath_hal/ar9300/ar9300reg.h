@@ -506,6 +506,7 @@
 #define AR_Q0_MISC                        AR_MAC_QCU_OFFSET(MAC_QCU_MISC)
 #define AR_QMISC(_i)                      (AR_Q0_MISC + ((_i)<<2))
 #define AR_Q_MISC_FSP                     0x0000000F // Mask for Frame Scheduling Policy
+#define AR_Q_MISC_FSP_S                   0
 #define AR_Q_MISC_FSP_ASAP                0          // ASAP
 #define AR_Q_MISC_FSP_CBR                 1          // CBR
 #define AR_Q_MISC_FSP_DBA_GATED           2          // DMA Beacon Alert gated
