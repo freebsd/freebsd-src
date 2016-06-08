@@ -900,7 +900,7 @@ rt2860_ampdu_rx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
 }
 #endif
 
-int
+static int
 rt2860_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct rt2860_vap *rvp = RT2860_VAP(vap);
@@ -3824,8 +3824,15 @@ rt2860_init_locked(struct rt2860_softc *sc)
 
 	/* disable DMA */
 	tmp = RAL_READ(sc, RT2860_WPDMA_GLO_CFG);
-	tmp &= 0xff0;
+	tmp &= ~(RT2860_RX_DMA_BUSY | RT2860_RX_DMA_EN | RT2860_TX_DMA_BUSY |
+	    RT2860_TX_DMA_EN);
+	tmp |= RT2860_TX_WB_DDONE;
 	RAL_WRITE(sc, RT2860_WPDMA_GLO_CFG, tmp);
+
+	/* reset DMA indexes */
+	RAL_WRITE(sc, RT2860_WPDMA_RST_IDX, RT2860_RST_DRX_IDX0 |
+	    RT2860_RST_DTX_IDX5 | RT2860_RST_DTX_IDX4 | RT2860_RST_DTX_IDX3 |
+	    RT2860_RST_DTX_IDX2 | RT2860_RST_DTX_IDX1 | RT2860_RST_DTX_IDX0);
 
 	/* PBF hardware reset */
 	RAL_WRITE(sc, RT2860_SYS_CTRL, 0xe1f);
@@ -3858,7 +3865,9 @@ rt2860_init_locked(struct rt2860_softc *sc)
 		rt2860_stop_locked(sc);
 		return;
 	}
-	tmp &= 0xff0;
+	tmp &= ~(RT2860_RX_DMA_BUSY | RT2860_RX_DMA_EN | RT2860_TX_DMA_BUSY |
+	    RT2860_TX_DMA_EN);
+	tmp |= RT2860_TX_WB_DDONE;
 	RAL_WRITE(sc, RT2860_WPDMA_GLO_CFG, tmp);
 
 	/* reset Rx ring and all 6 Tx rings */
@@ -3958,7 +3967,9 @@ rt2860_init_locked(struct rt2860_softc *sc)
 		rt2860_stop_locked(sc);
 		return;
 	}
-	tmp &= 0xff0;
+	tmp &= ~(RT2860_RX_DMA_BUSY | RT2860_RX_DMA_EN | RT2860_TX_DMA_BUSY |
+	    RT2860_TX_DMA_EN);
+	tmp |= RT2860_TX_WB_DDONE;
 	RAL_WRITE(sc, RT2860_WPDMA_GLO_CFG, tmp);
 
 	/* disable interrupts mitigation */
