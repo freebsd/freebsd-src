@@ -27,7 +27,7 @@
 
 # PROVIDE: netif
 # REQUIRE: atm1 FILESYSTEMS serial sppp sysctl
-# REQUIRE: ipfilter ipfs
+# REQUIRE: hostid ipfilter ipfs
 # KEYWORD: nojailvnet
 
 . /etc/rc.subr
