@@ -118,7 +118,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 		if (runb != NULL)
 			*runb = lbn - path.ep_sparse_ext.e_blk;
 	} else {
-		if ( path.ep_ext == NULL) {
+		if (path.ep_ext == NULL) {
 			error = EIO;
 			goto out;
 		}
