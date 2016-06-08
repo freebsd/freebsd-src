@@ -992,7 +992,7 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 	tso->protocol = TSO_MBUF_PROTO(mbuf);
 	tso->nh_off = mbuf->m_pkthdr.l2hlen;
 	tso->tcph_off = mbuf->m_pkthdr.l3hlen;
-	tso->packet_id = TSO_MBUF_PACKETID(mbuf);
+	tso->packet_id = ntohs(TSO_MBUF_PACKETID(mbuf));
 #endif
 
 #if !SFXGE_TX_PARSE_EARLY
@@ -1001,7 +1001,7 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 		KASSERT(tso_iph(tso)->ip_p == IPPROTO_TCP,
 			("TSO required on non-TCP packet"));
 		tso->tcph_off = tso->nh_off + 4 * tso_iph(tso)->ip_hl;
-		tso->packet_id = tso_iph(tso)->ip_id;
+		tso->packet_id = ntohs(tso_iph(tso)->ip_id);
 	} else {
 		KASSERT(tso->protocol == htons(ETHERTYPE_IPV6),
 			("TSO required on non-IP packet"));
