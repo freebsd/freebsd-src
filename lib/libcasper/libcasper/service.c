@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,6 +79,7 @@ struct service_connection {
 struct service {
 	int			 s_magic;
 	char			*s_name;
+	uint64_t		 s_flags;
 	service_limit_func_t	*s_limit;
 	service_command_func_t	*s_command;
 	TAILQ_HEAD(, service_connection) s_connections;
@@ -85,7 +87,7 @@ struct service {
 
 struct service *
 service_alloc(const char *name, service_limit_func_t *limitfunc,
-    service_command_func_t *commandfunc)
+    service_command_func_t *commandfunc, uint64_t flags)
 {
 	struct service *service;
 
@@ -99,6 +101,7 @@ service_alloc(const char *name, service_limit_func_t *limitfunc,
 	}
 	service->s_limit = limitfunc;
 	service->s_command = commandfunc;
+	service->s_flags = flags;
 	TAILQ_INIT(&service->s_connections);
 	service->s_magic = SERVICE_MAGIC;
 
@@ -338,8 +341,59 @@ service_name(struct service *service)
 	return (service->s_name);
 }
 
+static void
+stdnull(void)
+{
+	int fd;
+
+	fd = open(_PATH_DEVNULL, O_RDWR);
+	if (fd == -1)
+		errx(1, "Unable to open %s", _PATH_DEVNULL);
+
+	if (setsid() == -1)
+		errx(1, "Unable to detach from session");
+
+	if (dup2(fd, STDIN_FILENO) == -1)
+		errx(1, "Unable to cover stdin");
+	if (dup2(fd, STDOUT_FILENO) == -1)
+		errx(1, "Unable to cover stdout");
+	if (dup2(fd, STDERR_FILENO) == -1)
+		errx(1, "Unable to cover stderr");
+
+	close(fd);
+}
+
+static void
+service_clean(int sock, int procfd, uint64_t flags)
+{
+	int fd, maxfd, minfd;
+
+	assert(sock > STDERR_FILENO);
+	assert(procfd > STDERR_FILENO);
+	assert(sock != procfd);
+
+	if ((flags & CASPER_SERVICE_STDIO) == 0)
+		stdnull();
+
+	if ((flags & CASPER_SERVICE_FD) == 0) {
+		if (procfd > sock) {
+			maxfd = procfd;
+			minfd = sock;
+		} else {
+			maxfd = sock;
+			minfd = procfd;
+		}
+
+		for (fd = STDERR_FILENO + 1; fd < maxfd; fd++) {
+			if (fd != minfd)
+				close(fd);
+		}
+		closefrom(maxfd + 1);
+	}
+}
+
 void
-service_start(struct service *service, int sock)
+service_start(struct service *service, int sock, int procfd)
 {
 	struct service_connection *sconn, *sconntmp;
 	fd_set fds;
@@ -348,6 +402,8 @@ service_start(struct service *service, int sock)
 	assert(service != NULL);
 	assert(service->s_magic == SERVICE_MAGIC);
 	setproctitle("%s", service->s_name);
+	service_clean(sock, procfd, service->s_flags);
+
 	if (service_connection_add(service, sock, NULL) == NULL)
 		exit(1);
 
