@@ -587,19 +587,26 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
 	uint8_t *eaddr, val;
-	uint32_t crc, ffval, hashbit, hashreg, hi, lo, reg;
+	uint32_t crc, ffval, hashbit, hashreg, hi, lo, hash[8], hmask;
+	int nhash, i;
 
 	DWC_ASSERT_LOCKED(sc);
 
 	ifp = sc->ifp;
+	nhash = sc->mactype == DWC_GMAC_ALT_DESC ? 2 : 8;
+	hmask = ((nhash << 5) - 1) | 0xf;
 
 	/*
 	 * Set the multicast (group) filter hash.
 	 */
-	if ((ifp->if_flags & IFF_ALLMULTI))
+	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
 		ffval = (FRAME_FILTER_PM);
-	else {
+		for (i = 0; i < nhash; i++)
+			hash[i] = ~0;
+	} else {
 		ffval = (FRAME_FILTER_HMC);
+		for (i = 0; i < nhash; i++)
+			hash[i] = 0;
 		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -608,13 +615,13 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 				ifma->ifma_addr), ETHER_ADDR_LEN);
 
 			/* Take lower 8 bits and reverse it */
-			val = bitreverse(~crc & 0xff);
-			hashreg = (val >> 5);
+			val = bitreverse(~crc & 0xff) & hmask;
+			if (sc->mactype == DWC_GMAC_ALT_DESC)
+				hashreg = (val >> 5) == 0;
+			else
+				hashreg = (val >> 5);
 			hashbit = (val & 31);
-
-			reg = READ4(sc, HASH_TABLE_REG(hashreg));
-			reg |= (1 << hashbit);
-			WRITE4(sc, HASH_TABLE_REG(hashreg), reg);
+			hash[hashreg] |= (1 << hashbit);
 		}
 		if_maddr_runlock(ifp);
 	}
@@ -635,6 +642,8 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	WRITE4(sc, MAC_ADDRESS_LOW(0), lo);
 	WRITE4(sc, MAC_ADDRESS_HIGH(0), hi);
 	WRITE4(sc, MAC_FRAME_FILTER, ffval);
+	for (i = 0; i < nhash; i++)
+		WRITE4(sc, HASH_TABLE_REG(i), hash[i]);
 }
 
 static int
@@ -758,6 +767,9 @@ dwc_rxfinish_locked(struct dwc_softc *sc)
 			m->m_pkthdr.len = len;
 			m->m_len = len;
 			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+
+			/* Remove trailing FCS */
+			m_adj(m, -ETHER_CRC_LEN);
 
 			DWC_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
