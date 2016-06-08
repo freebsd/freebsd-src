@@ -100,8 +100,6 @@ SRCS=	openpam_asprintf.c \
 	pam_verror.c \
 	pam_vinfo.c \
 	pam_vprompt.c
-# Local additions
-SRCS+=	pam_debug_log.c
 
 MAN?=	openpam.3 \
 	openpam_borrow_cred.3 \
