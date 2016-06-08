@@ -806,8 +806,11 @@ interpret:
 	/*
 	 * Set the new credentials.
 	 */
-	if (imgp->newcred != NULL)
+	if (imgp->newcred != NULL) {
 		proc_set_cred(p, imgp->newcred);
+		crfree(oldcred);
+		oldcred = NULL;
+	}
 
 	/*
 	 * Store the vp for use in procfs.  This vnode was referenced by namei
@@ -918,8 +921,9 @@ exec_fail:
 		SDT_PROBE1(proc, , , exec__failure, error);
 	}
 
-	if (imgp->newcred != NULL)
-		crfree(oldcred);
+	if (imgp->newcred != NULL && oldcred != NULL)
+		crfree(imgp->newcred);
+
 #ifdef MAC
 	mac_execve_exit(imgp);
 	mac_execve_interpreter_exit(interpvplabel);
