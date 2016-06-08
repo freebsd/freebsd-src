@@ -51,7 +51,7 @@ struct vmbus_pcpu_data {
 	struct vmbus_message	*message;	/* shared messages */
 	uint32_t		vcpuid;		/* virtual cpuid */
 	int			event_flags_cnt;/* # of event flags */
-	struct vmbus_evtflags	*event_flags;	/* shared event flags */
+	struct vmbus_evtflags	*event_flags;	/* event flags from host */
 
 	/* Rarely used fields */
 	struct hyperv_dma	message_dma;	/* busdma glue */
@@ -63,12 +63,26 @@ struct vmbus_pcpu_data {
 
 struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
+	void			*vmbus_tx_evtflags;
+						/* event flags to host */
+	void			*vmbus_mnf2;	/* monitored by host */
+
+	u_long			*vmbus_rx_evtflags;
+						/* compat evtflgs from host */
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
 	/* Rarely used fields */
 	device_t		vmbus_dev;
 	int			vmbus_idtvec;
 	uint32_t		vmbus_flags;	/* see VMBUS_FLAG_ */
+
+	/* Shared memory for vmbus_{rx,tx}_evtflags */
+	void			*vmbus_evtflags;
+	struct hyperv_dma	vmbus_evtflags_dma;
+
+	void			*vmbus_mnf1;	/* monitored by VM, unused */
+	struct hyperv_dma	vmbus_mnf1_dma;
+	struct hyperv_dma	vmbus_mnf2_dma;
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */

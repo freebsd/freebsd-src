@@ -309,30 +309,50 @@ vmbus_synic_teardown(void *arg)
 static int
 vmbus_dma_alloc(struct vmbus_softc *sc)
 {
+	bus_dma_tag_t parent_dtag;
+	uint8_t *evtflags;
 	int cpu;
 
+	parent_dtag = bus_get_dma_tag(sc->vmbus_dev);
 	CPU_FOREACH(cpu) {
 		void *ptr;
 
 		/*
 		 * Per-cpu messages and event flags.
 		 */
-		ptr = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
-		    PAGE_SIZE, 0, PAGE_SIZE,
-		    VMBUS_PCPU_PTR(sc, message_dma, cpu),
+		ptr = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
+		    PAGE_SIZE, VMBUS_PCPU_PTR(sc, message_dma, cpu),
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 		if (ptr == NULL)
 			return ENOMEM;
 		VMBUS_PCPU_GET(sc, message, cpu) = ptr;
 
-		ptr = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
-		    PAGE_SIZE, 0, PAGE_SIZE,
-		    VMBUS_PCPU_PTR(sc, event_flags_dma, cpu),
+		ptr = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
+		    PAGE_SIZE, VMBUS_PCPU_PTR(sc, event_flags_dma, cpu),
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 		if (ptr == NULL)
 			return ENOMEM;
 		VMBUS_PCPU_GET(sc, event_flags, cpu) = ptr;
 	}
+
+	evtflags = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
+	    PAGE_SIZE, &sc->vmbus_evtflags_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (evtflags == NULL)
+		return ENOMEM;
+	sc->vmbus_rx_evtflags = (u_long *)evtflags;
+	sc->vmbus_tx_evtflags = evtflags + (PAGE_SIZE / 2);
+	sc->vmbus_evtflags = evtflags;
+
+	sc->vmbus_mnf1 = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
+	    PAGE_SIZE, &sc->vmbus_mnf1_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (sc->vmbus_mnf1 == NULL)
+		return ENOMEM;
+
+	sc->vmbus_mnf2 = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
+	    PAGE_SIZE, &sc->vmbus_mnf2_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (sc->vmbus_mnf2 == NULL)
+		return ENOMEM;
+
 	return 0;
 }
 
@@ -340,6 +360,21 @@ static void
 vmbus_dma_free(struct vmbus_softc *sc)
 {
 	int cpu;
+
+	if (sc->vmbus_evtflags != NULL) {
+		hyperv_dmamem_free(&sc->vmbus_evtflags_dma, sc->vmbus_evtflags);
+		sc->vmbus_evtflags = NULL;
+		sc->vmbus_rx_evtflags = NULL;
+		sc->vmbus_tx_evtflags = NULL;
+	}
+	if (sc->vmbus_mnf1 != NULL) {
+		hyperv_dmamem_free(&sc->vmbus_mnf1_dma, sc->vmbus_mnf1);
+		sc->vmbus_mnf1 = NULL;
+	}
+	if (sc->vmbus_mnf2 != NULL) {
+		hyperv_dmamem_free(&sc->vmbus_mnf2_dma, sc->vmbus_mnf2);
+		sc->vmbus_mnf2 = NULL;
+	}
 
 	CPU_FOREACH(cpu) {
 		if (VMBUS_PCPU_GET(sc, message, cpu) != NULL) {
@@ -609,8 +644,7 @@ vmbus_bus_init(void)
 	/*
 	 * Connect to VMBus in the root partition
 	 */
-	ret = hv_vmbus_connect();
-
+	ret = hv_vmbus_connect(sc);
 	if (ret != 0)
 		goto cleanup;
 
