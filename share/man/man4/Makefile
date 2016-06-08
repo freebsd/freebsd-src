@@ -863,7 +863,7 @@ _dtrace_udp.4=	dtrace_udp.4
 .if ${MK_ISCSI} != "no"
 MAN+=		iscsi.4
 MAN+=		iscsi_initiator.4
-
+MAN+=		iser.4
 .endif
 
 .if ${MK_TESTS} != "no"
