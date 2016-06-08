@@ -63,7 +63,7 @@ struct vmbus_pcpu_data {
 
 struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
-	void			*vmbus_tx_evtflags;
+	u_long			*vmbus_tx_evtflags;
 						/* event flags to host */
 	void			*vmbus_mnf2;	/* monitored by host */
 

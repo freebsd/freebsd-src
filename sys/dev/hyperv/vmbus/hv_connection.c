@@ -353,12 +353,10 @@ hv_vmbus_set_event(hv_vmbus_channel *channel)
 {
 	struct vmbus_softc *sc = vmbus_get_softc();
 	int ret = 0;
-	uint32_t child_rel_id = channel->offer_msg.child_rel_id;
+	uint32_t chanid = channel->offer_msg.child_rel_id;
 
-	/* Each uint32_t represents 32 channels */
-
-	synch_set_bit(child_rel_id & 31,
-		(((uint32_t *)sc->vmbus_tx_evtflags + (child_rel_id >> 5))));
+	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
+	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 	ret = hv_vmbus_signal_event(channel->signal_event_param);
 
 	return (ret);

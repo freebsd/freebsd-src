@@ -37,12 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+
+#include <machine/atomic.h>
 #include <machine/bus.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
 static int 	vmbus_channel_create_gpadl_header(
@@ -65,11 +69,11 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 	if (channel->offer_msg.monitor_allocated) {
 		struct vmbus_softc *sc = vmbus_get_softc();
 		hv_vmbus_monitor_page *monitor_page;
+		uint32_t chanid = channel->offer_msg.child_rel_id;
 
-		/* Each uint32_t represents 32 channels */
-		synch_set_bit((channel->offer_msg.child_rel_id & 31),
-			((uint32_t *)sc->vmbus_tx_evtflags
-				+ ((channel->offer_msg.child_rel_id >> 5))));
+		atomic_set_long(
+		    &sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
+		    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
 		monitor_page = sc->vmbus_mnf2;
 		synch_set_bit(channel->monitor_bit,
