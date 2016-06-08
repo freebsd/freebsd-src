@@ -614,6 +614,8 @@ read_for_group(const char *group)
 					if (linep == NULL) {
 						free(lp->l_groupname);
 						free(lp);
+						if (olen > 0)
+							free(olinep);
 						return (NULL);
 					}
 					if (olen > 0) {
