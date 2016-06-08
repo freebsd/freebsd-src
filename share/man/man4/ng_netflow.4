@@ -74,8 +74,9 @@ plus two export hooks:
 .Va export
 (for NetFlow version 5) and
 .Va export9
-(for NetFlow version 9). Export can be done simultaneously for all supported
-export hooks. By default (ingress NetFlow enabled) node does NetFlow accounting of data
+(for NetFlow version 9).
+Export can be done simultaneously for all supported export hooks.
+By default (ingress NetFlow enabled) node does NetFlow accounting of data
 received on
 .Va iface*
 hooks.
@@ -196,7 +197,8 @@ struct ng_netflow_setconfig {
 };
 .Ed
 .Pp
-Configuration is a bitmask of several options. Option NG_NETFLOW_CONF_INGRESS
+Configuration is a bitmask of several options.
+Option NG_NETFLOW_CONF_INGRESS
 enabled by default enables ingress NetFlow generation (for data coming from
 ifaceX hook).
 Option
