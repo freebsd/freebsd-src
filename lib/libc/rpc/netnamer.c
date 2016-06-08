@@ -253,6 +253,9 @@ getnetid(key, ret)
 	char           *lookup;
 	int             len;
 #endif
+	int rv;
+
+	rv = 0;
 
 	fd = fopen(NETIDFILE, "r");
 	if (fd == NULL) {
@@ -263,13 +266,11 @@ getnetid(key, ret)
 		return (0);
 #endif
 	}
-	for (;;) {
-		if (fd == NULL)
-			return (0);	/* getnetidyp brings us here */
+	while (fd != NULL) {
 		res = fgets(buf, sizeof(buf), fd);
 		if (res == NULL) {
-			fclose(fd);
-			return (0);
+			rv = 0;
+			goto done;
 		}
 		if (res[0] == '#')
 			continue;
@@ -292,9 +293,8 @@ getnetid(key, ret)
 			lookup[len] = 0;
 			strcpy(ret, lookup);
 			free(lookup);
-			if (fd != NULL)
-				fclose(fd);
-			return (2);
+			rv = 2;
+			goto done;
 #else	/* YP */
 #ifdef DEBUG
 			fprintf(stderr,
@@ -320,10 +320,14 @@ getnetid(key, ret)
 			}
 			if (strcmp(mkey, key) == 0) {
 				strcpy(ret, mval);
-				fclose(fd);
-				return (1);
-
+				rv = 1;
+				goto done;
 			}
 		}
 	}
+
+done:
+	if (fd != NULL)
+		fclose(fd);
+	return (rv);
 }
