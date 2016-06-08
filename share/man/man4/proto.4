@@ -108,7 +108,8 @@ system call can be used for the
 .Dv PROTO_IOC_REGION
 request.
 This ioctl request returns the extend of the resource covered by this
-device special file. The extend is returned in the following structure:
+device special file.
+The extend is returned in the following structure:
 .Bd -literal
 struct proto_ioc_region {
         unsigned long   address;
@@ -200,8 +201,8 @@ The
 field is set on output with the key of the DMA tag.
 The tag is created with the constraints given by the
 .Va tag
-sub-structure. These constraints correspond roughly to those that can be
-given to the
+sub-structure.
+These constraints correspond roughly to those that can be given to the
 .Xr bus_dma_tag_create 9
 function.
 .It PROTO_IOC_BUSDMA_TAG_DERIVE
@@ -387,7 +388,8 @@ or
 .Pa mem
 representing I/O port or memory mapped I/O space (resp.)
 .Pp
-ISA devices do not have a location. Instead, they are identified by the
+ISA devices do not have a location.
+Instead, they are identified by the
 first I/O port address or first memory mapped I/O address.
 Consequently, all device special files corresponding to an ISA device are
 located under

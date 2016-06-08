@@ -270,11 +270,13 @@ The default is -1 which lets the driver decide.
 0 or 1 explicitly disable or enable this feature.
 .It Va hw.cxgbe.allow_mbufs_in_cluster
 1 allows the driver to lay down one or more mbufs within the receive buffer
-opportunistically.  This is the default.
+opportunistically.
+This is the default.
 0 prohibits the driver from doing so.
 .It Va hw.cxgbe.largest_rx_cluster
 .It Va hw.cxgbe.safest_rx_cluster
-Sizes of rx clusters.  Each of these must be set to one of the sizes available
+Sizes of rx clusters.
+Each of these must be set to one of the sizes available
 (usually 2048, 4096, 9216, and 16384) and largest_rx_cluster must be greater
 than or equal to safest_rx_cluster.
 The defaults are 16384 and 4096 respectively.

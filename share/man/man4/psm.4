@@ -110,7 +110,8 @@ The movement of the roller is reported as movement along the Z axis.
 8 byte data packets are sent to the user program at this level.
 .Pp
 At the operation level two, data from the pointing device is passed to the
-user program as is. Conversely, command from the user program is passed
+user program as is.
+Conversely, command from the user program is passed
 to the pointing device as is and the user program is responsible for
 status validation and error recovery.
 Modern PS/2 type pointing devices often use proprietary data format.
@@ -352,7 +353,8 @@ to
 .Em 0
 at boot-time.
 Currently, this is only supported on Synaptics touchpads with Extended
-support disabled. The behaviour may be changed after boot by setting
+support disabled.
+The behaviour may be changed after boot by setting
 the sysctl with the same name and by restarting
 .Xr moused 8
 using

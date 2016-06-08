@@ -42,16 +42,19 @@ The following tunables are settable from the
 .Xr loader 8 :
 .Bl -ohang
 .It Va hint.hpet. Ns Ar X Ns Va .allowed_irqs
-is a 32bit mask. Each set bit allows driver to use respective IRQ,
+is a 32bit mask.
+Each set bit allows driver to use respective IRQ,
 if BIOS also set respective capability bit in comparator's configuration
 register.
 Default value is 0xffff0000, except some known broken hardware.
 .It Va hint.hpet. Ns Ar X Ns Va .clock
-controls event timers functionality support. Setting to 0, disables it.
+controls event timers functionality support.
+Setting to 0, disables it.
 Default value is 1.
 .It Va hint.hpet. Ns Ar X Ns Va .legacy_route
-controls "LegacyReplacement Route" mode. If enabled, HPET will steal IRQ0 of
-i8254 timer and IRQ8 of RTC. Before using it, make sure that respective
+controls "LegacyReplacement Route" mode.
+If enabled, HPET will steal IRQ0 of i8254 timer and IRQ8 of RTC.
+Before using it, make sure that respective
 drivers are not using interrupts, by setting also:
 .Bd -literal
 hint.attimer.0.clock=0
@@ -77,8 +80,8 @@ Depending on hardware capabilities and configuration, interrupt can be
 delivered as regular I/O APIC interrupt (ISA or PCI) in range from 0 to 31,
 or as Front Side Bus interrupt, alike to PCI MSI interrupts, or in so called
 "LegacyReplacement Route" HPET can steal IRQ0 of i8254 and IRQ8 of the RTC.
-Interrupt can be either edge- or level-triggered. In last case they could be
-safely shared with PCI IRQs.
+Interrupt can be either edge- or level-triggered.
+In last case they could be safely shared with PCI IRQs.
 Driver prefers to use FSB interrupts, if supported, to avoid sharing.
 If it is not possible, it uses single sharable IRQ from PCI range.
 Other modes (LegacyReplacement and ISA IRQs) require special care to setup,
@@ -89,9 +92,10 @@ and irrelevant to CPU power states.
 .Pp
 Depending on hardware capabilities and configuration, driver can expose each
 comparator as separate event timer or group them into one or several per-CPU
-event timers. In last case interrupt of every of those comparators within
-group is bound to specific CPU core. This is possible only when each
-of these comparators has own unsharable IRQ.
+event timers.
+In last case interrupt of every of those comparators within
+group is bound to specific CPU core.
+This is possible only when each of these comparators has own unsharable IRQ.
 .Sh SEE ALSO
 .Xr acpi 4 ,
 .Xr apic 4 ,

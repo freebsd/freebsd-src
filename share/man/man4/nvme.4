@@ -89,7 +89,8 @@ not 0, and this driver follows that convention.
 By default,
 .Nm
 will create an I/O queue pair for each CPU, provided enough MSI-X vectors
-and NVMe queue pairs can be allocated.  If not enough vectors or queue
+and NVMe queue pairs can be allocated.
+If not enough vectors or queue
 pairs are available, nvme(4) will use a smaller number of queue pairs and
 assign multiple CPUs per queue pair.
 .Pp
