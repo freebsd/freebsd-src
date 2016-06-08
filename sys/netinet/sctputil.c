@@ -1123,7 +1123,8 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * that were dropped must be notified to the upper layer as
 		 * failed to send.
 		 */
-		asoc->strmout[i].next_sequence_send = 0x0;
+		asoc->strmout[i].next_mid_ordered = 0;
+		asoc->strmout[i].next_mid_unordered = 0;
 		TAILQ_INIT(&asoc->strmout[i].outqueue);
 		asoc->strmout[i].chunks_on_queues = 0;
 #if defined(SCTP_DETAILED_STR_STATS)
@@ -4836,10 +4837,22 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 					goto oh_well;
 				}
 				memset(chk, 0, sizeof(*chk));
-				chk->rec.data.rcv_flags = SCTP_DATA_LAST_FRAG;
+				chk->rec.data.rcv_flags = 0;
 				chk->sent = SCTP_FORWARD_TSN_SKIP;
 				chk->asoc = &stcb->asoc;
-				chk->rec.data.stream_seq = strq->next_sequence_send;
+				if (stcb->asoc.idata_supported == 0) {
+					if (sp->sinfo_flags & SCTP_UNORDERED) {
+						chk->rec.data.stream_seq = 0;
+					} else {
+						chk->rec.data.stream_seq = strq->next_mid_ordered;
+					}
+				} else {
+					if (sp->sinfo_flags & SCTP_UNORDERED) {
+						chk->rec.data.stream_seq = strq->next_mid_unordered;
+					} else {
+						chk->rec.data.stream_seq = strq->next_mid_ordered;
+					}
+				}
 				chk->rec.data.stream_number = sp->stream;
 				chk->rec.data.payloadtype = sp->ppid;
 				chk->rec.data.context = sp->context;
@@ -4850,10 +4863,19 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 				TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, chk, sctp_next);
 				stcb->asoc.sent_queue_cnt++;
 				stcb->asoc.pr_sctp_cnt++;
-			} else {
-				chk->rec.data.rcv_flags |= SCTP_DATA_LAST_FRAG;
 			}
-			strq->next_sequence_send++;
+			chk->rec.data.rcv_flags |= SCTP_DATA_LAST_FRAG;
+			if (stcb->asoc.idata_supported == 0) {
+				if ((sp->sinfo_flags & SCTP_UNORDERED) == 0) {
+					strq->next_mid_ordered++;
+				}
+			} else {
+				if (sp->sinfo_flags & SCTP_UNORDERED) {
+					strq->next_mid_unordered++;
+				} else {
+					strq->next_mid_ordered++;
+				}
+			}
 	oh_well:
 			if (sp->data) {
 				/*
