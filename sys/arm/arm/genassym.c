@@ -101,8 +101,10 @@ ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
+#if __ARM_ARCH < 6
 ASSYM(MD_RAS_START, offsetof(struct mdthread, md_ras_start));
 ASSYM(MD_RAS_END, offsetof(struct mdthread, md_ras_end));
+#endif
 
 ASSYM(TF_SPSR, offsetof(struct trapframe, tf_spsr));
 ASSYM(TF_R0, offsetof(struct trapframe, tf_r0));
