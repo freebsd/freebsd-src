@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -47,6 +49,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/stdarg.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include "ioat.h"
 #include "ioat_hw.h"
@@ -2090,3 +2096,96 @@ ioat_drain_locked(struct ioat_softc *ioat)
 	while (ioat->refcnt > 0)
 		msleep(IOAT_REFLK, IOAT_REFLK, 0, "ioat_drain", 0);
 }
+
+#ifdef DDB
+#define	_db_show_lock(lo)	LOCK_CLASS(lo)->lc_ddb_show(lo)
+#define	db_show_lock(lk)	_db_show_lock(&(lk)->lock_object)
+DB_SHOW_COMMAND(ioat, db_show_ioat)
+{
+	struct ioat_softc *sc;
+	unsigned idx;
+
+	if (!have_addr)
+		goto usage;
+	idx = (unsigned)addr;
+	if (addr >= ioat_channel_index)
+		goto usage;
+
+	sc = ioat_channel[idx];
+	db_printf("ioat softc at %p\n", sc);
+	if (sc == NULL)
+		return;
+
+	db_printf(" version: %d\n", sc->version);
+	db_printf(" chan_idx: %u\n", sc->chan_idx);
+	db_printf(" submit_lock: ");
+	db_show_lock(&sc->submit_lock);
+
+	db_printf(" capabilities: %b\n", (int)sc->capabilities,
+	    IOAT_DMACAP_STR);
+	db_printf(" cached_intrdelay: %u\n", sc->cached_intrdelay);
+	db_printf(" *comp_update: 0x%jx\n", (uintmax_t)*sc->comp_update);
+
+	db_printf(" timer:\n");
+	db_printf("  c_time: %ju\n", (uintmax_t)sc->timer.c_time);
+	db_printf("  c_arg: %p\n", sc->timer.c_arg);
+	db_printf("  c_func: %p\n", sc->timer.c_func);
+	db_printf("  c_lock: %p\n", sc->timer.c_lock);
+	db_printf("  c_flags: 0x%x\n", (unsigned)sc->timer.c_flags);
+
+	db_printf(" quiescing: %d\n", (int)sc->quiescing);
+	db_printf(" destroying: %d\n", (int)sc->destroying);
+	db_printf(" is_resize_pending: %d\n", (int)sc->is_resize_pending);
+	db_printf(" is_completion_pending: %d\n", (int)sc->is_completion_pending);
+	db_printf(" is_reset_pending: %d\n", (int)sc->is_reset_pending);
+	db_printf(" is_channel_running: %d\n", (int)sc->is_channel_running);
+	db_printf(" intrdelay_supported: %d\n", (int)sc->intrdelay_supported);
+
+	db_printf(" head: %u\n", sc->head);
+	db_printf(" tail: %u\n", sc->tail);
+	db_printf(" hw_head: %u\n", sc->hw_head);
+	db_printf(" ring_size_order: %u\n", sc->ring_size_order);
+	db_printf(" last_seen: 0x%lx\n", sc->last_seen);
+	db_printf(" ring: %p\n", sc->ring);
+
+	db_printf(" cleanup_lock: ");
+	db_show_lock(&sc->cleanup_lock);
+
+	db_printf(" refcnt: %u\n", sc->refcnt);
+#ifdef INVARIANTS
+	CTASSERT(IOAT_NUM_REF_KINDS == 2);
+	db_printf(" refkinds: [ENG=%u, DESCR=%u]\n", sc->refkinds[0],
+	    sc->refkinds[1]);
+#endif
+	db_printf(" stats:\n");
+	db_printf("  interrupts: %lu\n", sc->stats.interrupts);
+	db_printf("  descriptors_processed: %lu\n", sc->stats.descriptors_processed);
+	db_printf("  descriptors_error: %lu\n", sc->stats.descriptors_error);
+	db_printf("  descriptors_submitted: %lu\n", sc->stats.descriptors_submitted);
+
+	db_printf("  channel_halts: %u\n", sc->stats.channel_halts);
+	db_printf("  last_halt_chanerr: %u\n", sc->stats.last_halt_chanerr);
+
+	if (db_pager_quit)
+		return;
+
+	db_printf(" hw status:\n");
+	db_printf("  status: 0x%lx\n", ioat_get_chansts(sc));
+	db_printf("  chanctrl: 0x%x\n",
+	    (unsigned)ioat_read_2(sc, IOAT_CHANCTRL_OFFSET));
+	db_printf("  chancmd: 0x%x\n",
+	    (unsigned)ioat_read_1(sc, IOAT_CHANCMD_OFFSET));
+	db_printf("  dmacount: 0x%x\n",
+	    (unsigned)ioat_read_2(sc, IOAT_DMACOUNT_OFFSET));
+	db_printf("  chainaddr: 0x%lx\n",
+	    ioat_read_double_4(sc, IOAT_CHAINADDR_OFFSET_LOW));
+	db_printf("  chancmp: 0x%lx\n",
+	    ioat_read_double_4(sc, IOAT_CHANCMP_OFFSET_LOW));
+	db_printf("  chanerr: %b\n",
+	    (int)ioat_read_4(sc, IOAT_CHANERR_OFFSET), IOAT_CHANERR_STR);
+	return;
+usage:
+	db_printf("usage: show ioat <0-%u>\n", ioat_channel_index);
+	return;
+}
+#endif /* DDB */
