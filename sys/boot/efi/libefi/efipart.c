@@ -119,8 +119,11 @@ efipart_init(void)
 		    (void**)&blkio);
 		if (EFI_ERROR(status))
 			continue;
-		if (!blkio->Media->LogicalPartition)
+		if (!blkio->Media->LogicalPartition) {
+			printf("%s%d isn't a logical partition, skipping\n",
+			    efipart_dev.dv_name, n);
 			continue;
+		}
 
 		/*
 		 * If we come across a logical partition of subtype CDROM
