@@ -412,8 +412,8 @@ hostap_deliver_data(struct ieee80211vap *vap,
 				ieee80211_free_node(sta);
 			}
 		}
-		if (mcopy != NULL && ieee80211_vap_xmitpkt(vap, mcopy) == 0)
-			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if (mcopy != NULL)
+			(void) ieee80211_vap_xmitpkt(vap, mcopy);
 	}
 	if (m != NULL) {
 		/*
