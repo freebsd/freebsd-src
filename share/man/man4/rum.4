@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2008
+.Dd June 9, 2016
 .Dt RUM 4
 .Os
 .Sh NAME
@@ -64,10 +64,14 @@ This chipset uses the MIMO (multiple-input multiple-output) technology
 with multiple antennas to extend the operating range of the adapter
 and to achieve higher throughput.
 .Pp
+All chips have hardware support for WEP, AES-CCM, TKIP, and Michael
+cryptographic operations.
+.Pp
 .Nm
 supports
 .Cm station ,
 .Cm adhoc ,
+.Cm adhoc-demo ,
 .Cm hostap ,
 and
 .Cm monitor
@@ -182,7 +186,3 @@ driver was written by
 .An Niall O'Higgins Aq Mt niallo@openbsd.org
 and
 .An Damien Bergamini Aq Mt damien@openbsd.org .
-.Sh BUGS
-Host AP mode doesn't support client power save.
-Clients using power save mode will experience
-packet loss (disabling power saving on the client will fix this).
