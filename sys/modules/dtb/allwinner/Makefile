@@ -7,6 +7,7 @@ DTS=	\
 	cubieboard2.dts \
 	olimex-a20-som-evb.dts \
 	olinuxino-lime.dts \
+	pcduino3b.dts \
 	sinovoip-bpi-m3.dts
 
 .include <bsd.dtb.mk>
