@@ -43,9 +43,7 @@ struct harvest_event {
 	uint8_t		he_source;		/* origin of the entropy */
 } __packed;
 
-void	random_harvest_queue(const void *, u_int, u_int,
-	    enum random_entropy_source);
-void	read_rate_increment(u_int);
+void read_rate_increment(u_int);
 
 #define	RANDOM_HARVESTQ_BOOT_ENTROPY_FILE	"/boot/entropy"
 
