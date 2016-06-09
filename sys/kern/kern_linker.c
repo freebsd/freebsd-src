@@ -54,6 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+
 #include <net/vnet.h>
 
 #include <security/mac/mac_framework.h>
@@ -1255,6 +1259,23 @@ kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat)
 	td->td_retval[0] = 0;
 	return (0);
 }
+
+#ifdef DDB
+DB_COMMAND(kldstat, db_kldstat)
+{
+	linker_file_t lf;
+
+#define	POINTER_WIDTH	((int)(sizeof(void *) * 2 + 2))
+	db_printf("Id Refs Address%*c Size     Name\n", POINTER_WIDTH - 7, ' ');
+#undef	POINTER_WIDTH
+	TAILQ_FOREACH(lf, &linker_files, link) {
+		if (db_pager_quit)
+			return;
+		db_printf("%2d %4d %p %-8zx %s\n", lf->id, lf->refs,
+		    lf->address, lf->size, lf->filename);
+	}
+}
+#endif /* DDB */
 
 int
 sys_kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
