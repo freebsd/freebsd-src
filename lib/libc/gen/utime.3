@@ -28,7 +28,7 @@
 .\"     @(#)utime.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd June 9, 2016
 .Dt UTIME 3
 .Os
 .Sh NAME
@@ -43,7 +43,8 @@
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is obsoleted by
-.Xr utimes 2 .
+.Xr utimensat 2
+because it is not accurate to fractions of a second.
 .Ef
 .Pp
 The
@@ -79,6 +80,7 @@ for any of the errors specified for the library function
 .Xr utimes 2 .
 .Sh SEE ALSO
 .Xr stat 2 ,
+.Xr utimensat 2 ,
 .Xr utimes 2
 .Sh STANDARDS
 The

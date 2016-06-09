@@ -30,7 +30,7 @@
 .\"     @(#)utimes.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2014
+.Dd June 9, 2016
 .Dt UTIMES 2
 .Os
 .Sh NAME
@@ -52,6 +52,14 @@
 .Ft int
 .Fn futimesat "int fd" "const char *path" "const struct timeval times[2]"
 .Sh DESCRIPTION
+.Bf -symbolic
+These interfaces are obsoleted by
+.Xr futimens 2
+and
+.Xr utimensat 2
+because they are not accurate to nanoseconds.
+.Ef
+.Pp
 The access and modification times of the file named by
 .Fa path
 or referenced by
@@ -223,6 +231,7 @@ nor a file descriptor associated with a directory.
 .Sh SEE ALSO
 .Xr chflags 2 ,
 .Xr stat 2 ,
+.Xr utimensat 2 ,
 .Xr utime 3
 .Sh STANDARDS
 The
@@ -231,7 +240,11 @@ function is expected to conform to
 .St -xpg4.2 .
 The
 .Fn futimesat
-system call follows The Open Group Extended API Set 2 specification.
+system call follows The Open Group Extended API Set 2 specification
+but was replaced by
+.Fn utimensat
+in
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn utimes
