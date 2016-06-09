@@ -14,13 +14,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 15, 2015
+.Dd June 9, 2016
 .Dt URTWN 4
 .Os
 .Sh NAME
 .Nm urtwn
 .Nd Realtek RTL8188CU/RTL8188RU/RTL8188EU/RTL8192CU USB IEEE 802.11b/g/n wireless network device
 .Sh SYNOPSIS
+.Cd "options URTWN_WITHOUT_UCODE"
+.Pp
 To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
@@ -38,13 +40,6 @@ module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_urtwn_load="YES"
-.Ed
-.Pp
-In both cases, place the following line in
-.Xr loader.conf 5
-to acknowledge the firmware license (see below):
-.Bd -literal -offset indent
-legal.realtek.license_ack=1
 .Ed
 .Sh DESCRIPTION
 The
@@ -64,15 +59,21 @@ The RTL8192CU is a highly integrated multiple-in, multiple-out (MIMO)
 RF in a single chip.
 It operates in the 2GHz spectrum only.
 .Pp
-This driver requires the firmware built with the
-.Nm urtwnfw
-module to work.
-For the loaded firmware to be enabled for use the license at
-.Pa /usr/share/doc/legal/realtek.LICENSE
-must be agreed by adding the following line to
-.Xr loader.conf 5 :
+All chips have hardware support for  WEP, AES-CCM and TKIP encryption.
 .Pp
-.Dl "legal.realtek.license_ack=1"
+The driver supports
+.Cm station ,
+.Cm adhoc ,
+.Cm hostap ,
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+.Pp
+This driver may use the firmware built with the
+.Nm urtwnfw
+module for some additional features
+(when URTWN_WITHOUT_UCODE kernel option is not set).
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
 .It Pa /usr/share/doc/legal/realtek.LICENSE
@@ -117,6 +118,28 @@ Join a specific BSS network with 64-bit WEP encryption:
 ifconfig wlan create wlandev urtwn0 ssid my_net \e
         wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
+.Pp
+Create an IBSS network with 128-bit WEP encryption on the channel 4:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev urtwn0 wlanmode adhoc ssid my_net \e
+	wepmode on wepkey 0x01020304050607080910111213 weptxkey 1 \e
+	channel 4
+.Ed
+.Pp
+Join/create an 802.11b IBSS network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev urtwn0 wlanmode adhoc
+ifconfig wlan0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
+	mode 11b
+.Ed
+.Pp
+Create an 802.11g host-based access point:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev urtwn0 wlanmode hostap
+ifconfig wlan0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	mode 11g
+.Ed
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "urtwn%d: error %d, could not read firmware %s"
@@ -134,6 +157,7 @@ This should not happen.
 .Xr urtwnfw 4 ,
 .Xr usb 4 ,
 .Xr wlan 4 ,
+.Xr wlan_amrr 4 ,
 .Xr wlan_ccmp 4 ,
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
@@ -158,5 +182,9 @@ driver was written by
 .Sh CAVEATS
 The
 .Nm
-driver does not support any of the 802.11n capabilities offered by the
-adapters.
+driver currently does not support A-MPDU 802.11n transmit aggregation.
+.Pp
+For non-RTL8188EUS chips
+.Dq "rate control"
+algorithm is absent; this may result in increased packet loss in noisy
+networks.
