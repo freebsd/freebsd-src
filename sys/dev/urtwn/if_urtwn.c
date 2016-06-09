@@ -373,6 +373,8 @@ static void		urtwn_set_chan(struct urtwn_softc *,
 static void		urtwn_iq_calib(struct urtwn_softc *);
 static void		urtwn_lc_calib(struct urtwn_softc *);
 static void		urtwn_temp_calib(struct urtwn_softc *);
+static void		urtwn_setup_static_keys(struct urtwn_softc *,
+			    struct urtwn_vap *);
 static int		urtwn_init(struct urtwn_softc *);
 static void		urtwn_stop(struct urtwn_softc *);
 static void		urtwn_abort_xfers(struct urtwn_softc *);
@@ -2340,10 +2342,26 @@ static int
 urtwn_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	struct urtwn_softc *sc = vap->iv_ic->ic_softc;
+	struct urtwn_vap *uvp = URTWN_VAP(vap);
 
 	if (k->wk_flags & IEEE80211_KEY_SWCRYPT) {
 		/* Not for us. */
 		return (1);
+	}
+
+	if (&vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		URTWN_LOCK(sc);
+		uvp->keys[k->wk_keyix] = k;
+		if ((sc->sc_flags & URTWN_RUNNING) == 0) {
+			/*
+			 * The device was not started;
+			 * the key will be installed later.
+			 */
+			URTWN_UNLOCK(sc);
+			return (1);
+		}
+		URTWN_UNLOCK(sc);
 	}
 
 	return (!urtwn_cmd_sleepable(sc, k, sizeof(*k), urtwn_key_set_cb));
@@ -2353,10 +2371,23 @@ static int
 urtwn_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	struct urtwn_softc *sc = vap->iv_ic->ic_softc;
+	struct urtwn_vap *uvp = URTWN_VAP(vap);
 
 	if (k->wk_flags & IEEE80211_KEY_SWCRYPT) {
 		/* Not for us. */
 		return (1);
+	}
+
+	if (&vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		URTWN_LOCK(sc);                  
+		uvp->keys[k->wk_keyix] = NULL;
+		if ((sc->sc_flags & URTWN_RUNNING) == 0) {
+			/* All keys are removed on device reset. */
+			URTWN_UNLOCK(sc);
+			return (1);
+		}
+		URTWN_UNLOCK(sc);
 	}
 
 	return (!urtwn_cmd_sleepable(sc, k, sizeof(*k), urtwn_key_del_cb));
@@ -5230,6 +5261,20 @@ urtwn_temp_calib(struct urtwn_softc *sc)
 	}
 }
 
+static void
+urtwn_setup_static_keys(struct urtwn_softc *sc, struct urtwn_vap *uvp)
+{
+	int i;
+
+	for (i = 0; i < IEEE80211_WEP_NKID; i++) {
+		const struct ieee80211_key *k = uvp->keys[i];
+		if (k != NULL) {
+			urtwn_cmd_sleepable(sc, k, sizeof(*k),
+			    urtwn_key_set_cb);
+		}
+	}
+}
+
 static int
 urtwn_init(struct urtwn_softc *sc)
 {
@@ -5418,12 +5463,6 @@ urtwn_init(struct urtwn_softc *sc)
 	    R92C_SECCFG_TXENC_ENA | R92C_SECCFG_RXDEC_ENA |
 	    R92C_SECCFG_TXBCKEY_DEF | R92C_SECCFG_RXBCKEY_DEF);
 
-	/*
-	 * Install static keys (if any).
-	 * Must be called after urtwn_cam_init().
-	 */
-	ieee80211_runtask(ic, &sc->cmdq_task);
-
 	/* Enable hardware sequence numbering. */
 	urtwn_write_1(sc, R92C_HWSEQ_CTRL, R92C_TX_QUEUE_ALL);
 
@@ -5458,6 +5497,13 @@ urtwn_init(struct urtwn_softc *sc)
 	usbd_transfer_start(sc->sc_xfer[URTWN_BULK_RX]);
 
 	sc->sc_flags |= URTWN_RUNNING;
+
+	/*
+	 * Install static keys (if any).
+	 * Must be called after urtwn_cam_init().
+	 */
+	if (vap != NULL)
+		urtwn_setup_static_keys(sc, URTWN_VAP(vap));
 
 	callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
 fail:

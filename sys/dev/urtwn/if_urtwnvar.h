@@ -107,6 +107,8 @@ struct urtwn_vap {
 	struct mbuf		*bcn_mbuf;
 	struct task		tsf_task_adhoc;
 
+	const struct ieee80211_key	*keys[IEEE80211_WEP_NKID];
+
 	int			(*newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
 	void			(*recv_mgmt)(struct ieee80211_node *,
