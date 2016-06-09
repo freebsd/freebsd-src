@@ -7,15 +7,13 @@
  * without any warranty.
  */
 
-#include <netinet/in.h>
-
+#include <ldns/ldns.h>
 #include <limits.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include <ldns/ldns.h>
 
 /* General utilities.
  */
@@ -159,11 +157,108 @@ memerr:
 }
 
 static ldns_status
+ldns_tcp_start(ldns_resolver *res, ldns_pkt *qpkt, int nameserver) {
+    /* This routine is based on ldns_axfr_start, with the major
+     * difference in that it takes a query packet explicitly.
+     */
+    struct sockaddr_storage *ns = NULL;
+    size_t ns_len = 0;
+    ldns_buffer *qbuf = NULL;
+    ldns_status status;
+
+    ns = ldns_rdf2native_sockaddr_storage(
+            res->_nameservers[nameserver], ldns_resolver_port(res), &ns_len);
+    if (ns == NULL) {
+        status = LDNS_STATUS_MEM_ERR;
+        goto error;
+    }
+
+    res->_socket = ldns_tcp_connect(
+            ns, (socklen_t)ns_len, ldns_resolver_timeout(res));
+    if (res->_socket <= 0) {
+        status = LDNS_STATUS_ADDRESS_ERR;
+        goto error;
+    }
+
+    qbuf = ldns_buffer_new(LDNS_MAX_PACKETLEN);
+    if (qbuf == NULL) {
+        status = LDNS_STATUS_MEM_ERR;
+        goto error;
+    }
+
+    status = ldns_pkt2buffer_wire(qbuf, qpkt);
+    if (status != LDNS_STATUS_OK)
+        goto error;
+
+    if (ldns_tcp_send_query(qbuf, res->_socket, ns, (socklen_t)ns_len) == 0) {
+        status = LDNS_STATUS_NETWORK_ERR;
+        goto error;
+    }
+
+    ldns_buffer_free(qbuf);
+    free(ns);
+    return LDNS_STATUS_OK;
+ 
+error:
+    ldns_buffer_free(qbuf);
+    free(ns);
+    if (res->_socket > 0) {
+        close(res->_socket);
+        res->_socket = 0;
+    }
+    return status;
+}
+
+static ldns_status
+ldns_tcp_read(ldns_pkt **answer, ldns_resolver *res) {
+    ldns_status status;
+    struct timeval t1, t2;
+    uint8_t *data;
+    size_t size;
+
+    if (res->_socket <= 0)
+        return LDNS_STATUS_ERR;
+
+    gettimeofday(&t1, NULL);
+    data = ldns_tcp_read_wire_timeout(
+            res->_socket, &size, ldns_resolver_timeout(res));
+    if (data == NULL)
+        goto error;
+
+    status = ldns_wire2pkt(answer, data, size);
+    free(data);
+    if (status != LDNS_STATUS_OK)
+        goto error;
+
+    gettimeofday(&t2, NULL);
+    ldns_pkt_set_querytime(*answer,
+            (uint32_t)((t2.tv_sec - t1.tv_sec)*1000) +
+                (t2.tv_usec - t1.tv_usec)/1000);
+    ldns_pkt_set_timestamp(*answer, t2);
+    return status;
+
+error:
+    close(res->_socket);
+    res->_socket = 0;
+    return LDNS_STATUS_ERR;
+}
+
+static void
+ldns_tcp_close(ldns_resolver *res) {
+    if (res->_socket > 0) {
+        close(res->_socket);
+        res->_socket = 0;
+    }
+}
+
+static ldns_status
 ldns_resolver_send_to(ldns_pkt **answer, ldns_resolver *res,
     const ldns_rdf *name, ldns_rr_type t, ldns_rr_class c,
-    uint16_t flags, uint32_t ixfr_serial, int nameserver) {
-    ldns_status status;
+    uint16_t flags, uint32_t ixfr_serial, int nameserver,
+    bool close_tcp) {
+    ldns_status status = LDNS_STATUS_OK;
     ldns_pkt *qpkt;
+    struct timeval now;
 
     int nscnt = ldns_resolver_nameserver_count(res);
     ldns_rdf **ns = ldns_resolver_nameservers(res);
@@ -173,12 +268,38 @@ ldns_resolver_send_to(ldns_pkt **answer, ldns_resolver *res,
     ldns_resolver_set_rtt(res, &rtt[nameserver]);
     ldns_resolver_set_nameserver_count(res, 1);
 
-    status = ldns_resolver_prepare_query_pkt(&qpkt, res, name, t, c, flags);
-    if (status == LDNS_STATUS_OK && t == LDNS_RR_TYPE_IXFR)
+    /* The next fragment should have been a call to
+     * ldns_resolver_prepare_query_pkt(), but starting with ldns
+     * version 1.6.17 that function tries to add it's own SOA
+     * records when rr_type is LDNS_RR_TYPE_IXFR, and we don't
+     * want that.
+     */
+    qpkt = ldns_pkt_query_new(ldns_rdf_clone(name), t, c, flags);
+    if (qpkt == NULL) {
+        status = LDNS_STATUS_ERR;
+        goto done;
+    }
+    now.tv_sec = time(NULL);
+    now.tv_usec = 0;
+    ldns_pkt_set_timestamp(qpkt, now);
+    ldns_pkt_set_random_id(qpkt);
+
+    if (t == LDNS_RR_TYPE_IXFR) {
         status = ldns_pkt_push_rr_soa(qpkt,
             LDNS_SECTION_AUTHORITY, name, c, ixfr_serial);
-    if (status == LDNS_STATUS_OK)
+        if (status != LDNS_STATUS_OK) goto done;
+    }
+    if (close_tcp) {
         status = ldns_resolver_send_pkt(answer, res, qpkt);
+    } else {
+        status = ldns_tcp_start(res, qpkt, 0);
+        if (status != LDNS_STATUS_OK) goto done;
+        status = ldns_tcp_read(answer, res);
+        if (status != LDNS_STATUS_OK) goto done;
+        ldns_pkt_set_answerfrom(*answer, ldns_rdf_clone(ns[0]));
+    }
+
+done:
     ldns_pkt_free(qpkt);
 
     ldns_resolver_set_nameservers(res, ns);
@@ -203,9 +324,9 @@ ldns_pkt_filter_answer(ldns_pkt *pkt, ldns_rr_type type) {
             type == rrtype ||
             (type == LDNS_RR_TYPE_AXFR &&
                 (rrtype == LDNS_RR_TYPE_A ||
-		    rrtype == LDNS_RR_TYPE_AAAA ||
-		    rrtype == LDNS_RR_TYPE_NS ||
-		    rrtype == LDNS_RR_TYPE_PTR)))
+                rrtype == LDNS_RR_TYPE_AAAA ||
+                rrtype == LDNS_RR_TYPE_NS ||
+                rrtype == LDNS_RR_TYPE_PTR)))
             ldns_rr_list_set_rr(rrlist, rr, j++);
     }
     ldns_rr_list_set_rr_count(rrlist, j);
@@ -438,7 +559,7 @@ print_received_line(ldns_resolver *res, ldns_pkt *pkt) {
 #define DEFAULT_TCP_TIMEOUT 10
 #define DEFAULT_UDP_TIMEOUT 5
 
-enum operation_mode { M_AXFR, M_DEFAULT_Q, M_SINGLE_Q, M_SOA };
+enum operation_mode { M_AXFR, M_IXFR, M_DEFAULT_Q, M_SINGLE_Q, M_SOA };
 
 static enum operation_mode o_mode = M_DEFAULT_Q;
 static bool o_ignore_servfail = true;
@@ -454,15 +575,15 @@ static int o_ipversion = LDNS_RESOLV_INETANY;
 static int o_ndots = 1;
 static int o_retries = 1;
 static ldns_rr_class o_rrclass = LDNS_RR_CLASS_IN;
-static ldns_rr_type o_rrtype = LDNS_RR_TYPE_A;
+static ldns_rr_type o_rrtype = (ldns_rr_type)-1;
 static time_t o_timeout = 0;
 static uint32_t o_ixfr_serial = 0;
 
 static void
 usage(void) {
-    fputs(
-    "Usage: host [-aCdilrsTvw46] [-c class] [-N ndots] [-R number]\n"
-    "            [-t type] [-W wait] name [server]\n"
+    fprintf(stderr,
+    "Usage: %s [-aCdilrsTvw46] [-c class] [-N ndots] [-R number]\n"
+    "       %*c [-t type] [-W wait] name [server]\n"
     "\t-a same as -v -t ANY\n"
     "\t-C query SOA records from all authoritative name servers\n"
     "\t-c use this query class (IN, CH, HS, etc)\n"
@@ -480,7 +601,7 @@ usage(void) {
     "\t-W wait this many seconds for a reply\n"
     "\t-4 use IPv4 only\n"
     "\t-6 use IPv6 only\n",
-    stderr);
+    progname, (int)strlen(progname), ' ');
     exit(1);
 }
 
@@ -513,7 +634,8 @@ parse_args(int argc, char *argv[]) {
         case 'i': o_ip6_int = true; break;
         case 'l':
             o_mode = M_AXFR;
-            o_rrtype = LDNS_RR_TYPE_AXFR;
+            if (o_rrtype == (ldns_rr_type)-1)
+                o_rrtype = LDNS_RR_TYPE_AXFR;
             o_tcp = true;
             break;
         case 'N':
@@ -542,12 +664,14 @@ parse_args(int argc, char *argv[]) {
                 if (o_rrtype <= 0)
                     die(2, "invalid type: %s\n", optarg);
             }
-            if (o_rrtype == LDNS_RR_TYPE_AXFR || o_rrtype == LDNS_RR_TYPE_IXFR)
-                o_tcp = true;
             if (o_rrtype == LDNS_RR_TYPE_AXFR) {
                 o_mode = M_AXFR;
                 o_rrtype = LDNS_RR_TYPE_ANY;
                 o_verbose = true;
+            }
+            if (o_rrtype == LDNS_RR_TYPE_IXFR) {
+                o_mode = M_IXFR;
+                o_rrtype = LDNS_RR_TYPE_ANY;
             }
             break;
         case 'v': o_verbose = true; break;
@@ -574,6 +698,8 @@ parse_args(int argc, char *argv[]) {
         o_server = argv[1];
         o_print_pkt_server = true;
     }
+    if (o_rrtype == (ldns_rr_type)-1)
+        o_rrtype = LDNS_RR_TYPE_A;
 }
 
 static ldns_rdf*
@@ -602,7 +728,7 @@ safe_dname_cat_clone(const ldns_rdf *rd1, const ldns_rdf *rd2) {
 }
 
 static bool
-query(ldns_resolver *res, ldns_rdf *domain, ldns_pkt **pkt) {
+query(ldns_resolver *res, ldns_rdf *domain, ldns_pkt **pkt, bool close_tcp) {
     ldns_status status;
     ldns_pkt_rcode rcode;
     int i, cnt;
@@ -614,7 +740,8 @@ query(ldns_resolver *res, ldns_rdf *domain, ldns_pkt **pkt) {
     }
     for (cnt = ldns_resolver_nameserver_count(res), i = 0; i < cnt; i++) {
         status = ldns_resolver_send_to(pkt, res, domain, o_rrtype,
-            o_rrclass, o_recursive ? LDNS_RD : 0, o_ixfr_serial, i);
+            o_rrclass, o_recursive ? LDNS_RD : 0, o_ixfr_serial, i,
+            close_tcp);
         if (status != LDNS_STATUS_OK) {
             *pkt = NULL;
             continue;
@@ -624,7 +751,8 @@ query(ldns_resolver *res, ldns_rdf *domain, ldns_pkt **pkt) {
                 printf(";; Truncated, retrying in TCP mode.\n");
             ldns_resolver_set_usevc(res, true);
             status = ldns_resolver_send_to(pkt, res, domain, o_rrtype,
-                o_rrclass, o_recursive ? LDNS_RD : 0, o_ixfr_serial, i);
+                o_rrclass, o_recursive ? LDNS_RD : 0, o_ixfr_serial, i,
+                close_tcp);
             ldns_resolver_set_usevc(res, false);
             if (status != LDNS_STATUS_OK)
                 continue;
@@ -642,16 +770,17 @@ query(ldns_resolver *res, ldns_rdf *domain, ldns_pkt **pkt) {
 }
 
 static ldns_rdf *
-search(ldns_resolver *res, ldns_rdf *domain, ldns_pkt **pkt, bool absolute) {
+search(ldns_resolver *res, ldns_rdf *domain, ldns_pkt **pkt,
+    bool absolute, bool close_tcp) {
     ldns_rdf *dname, **searchlist;
     int i, n;
 
-    if (absolute && query(res, domain, pkt))
+    if (absolute && query(res, domain, pkt, close_tcp))
         return domain;
 
     if ((dname = ldns_resolver_domain(res)) != NULL) {
         dname = safe_dname_cat_clone(domain, dname);
-        if (query(res, dname, pkt))
+        if (query(res, dname, pkt, close_tcp))
             return dname;
     }
 
@@ -659,11 +788,11 @@ search(ldns_resolver *res, ldns_rdf *domain, ldns_pkt **pkt, bool absolute) {
     n = ldns_resolver_searchlist_count(res);
     for (i = 0; i < n; i++) {
         dname = safe_dname_cat_clone(domain, searchlist[i]);
-        if (query(res, dname, pkt))
+        if (query(res, dname, pkt, close_tcp))
             return dname;
     }
 
-    if (!absolute && query(res, domain, pkt))
+    if (!absolute && query(res, domain, pkt, close_tcp))
         return domain;
 
     return NULL;
@@ -691,7 +820,7 @@ report(ldns_resolver *res, ldns_rdf *domain, ldns_pkt *pkt) {
             print_pkt_verbose(pkt);
         } else {
             print_pkt_short(pkt, o_print_rr_server);
-            if (o_mode != M_DEFAULT_Q &&
+            if (o_mode == M_SINGLE_Q &&
                 ldns_rr_list_rr_count(ldns_pkt_answer(pkt)) == 0) {
                 print_rdf_nodot(domain);
                 printf(" has no ");
@@ -709,7 +838,7 @@ doquery(ldns_resolver *res, ldns_rdf *domain) {
     ldns_pkt *pkt;
     bool q;
 
-    q = query(res, domain, &pkt);
+    q = query(res, domain, &pkt, true);
     report(res, domain, pkt);
     return q;
 }
@@ -719,7 +848,7 @@ doquery_filtered(ldns_resolver *res, ldns_rdf *domain) {
     ldns_pkt *pkt;
     bool q;
 
-    q = query(res, domain, &pkt);
+    q = query(res, domain, &pkt, true);
     ldns_pkt_filter_answer(pkt, o_rrtype);
     report(res, domain, pkt);
     return q;
@@ -730,7 +859,7 @@ dosearch(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
     ldns_pkt *pkt;
     ldns_rdf *dname;
 
-    dname = search(res, domain, &pkt, absolute);
+    dname = search(res, domain, &pkt, absolute, true);
     report(res, dname != NULL ? dname : domain, pkt);
     return o_mode != M_DEFAULT_Q ? (dname != NULL) :
         (dname != NULL) &&
@@ -739,17 +868,44 @@ dosearch(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
 }
 
 static bool
-doaxfr(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
-    ldns_pkt *pkt;
+dozonetransfer(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
+    ldns_pkt *pkt, *nextpkt;
     ldns_rdf *dname;
     ldns_rr_type rrtype;
+    ldns_rr_list *rrl;
+    int i, nsoa = 0;
 
     rrtype = o_rrtype;
-    o_rrtype = LDNS_RR_TYPE_AXFR;
-    dname = search(res, domain, &pkt, absolute);
-    ldns_pkt_filter_answer(pkt, rrtype);
-    report(res, dname != NULL ? dname : domain, pkt);
-    return dname != NULL;
+    o_rrtype = (o_mode == M_AXFR) ? LDNS_RR_TYPE_AXFR : LDNS_RR_TYPE_IXFR;
+    dname = search(res, domain, &pkt, absolute, false);
+
+    for (;;) {
+        rrl = ldns_pkt_answer(pkt);
+        for (i = ldns_rr_list_rr_count(rrl) - 1; i >= 0; i--) {
+            if (ldns_rr_get_type(ldns_rr_list_rr(rrl, i)) == LDNS_RR_TYPE_SOA)
+                nsoa++;
+        }
+        ldns_pkt_filter_answer(pkt, rrtype);
+        report(res, dname != NULL ? dname : domain, pkt);
+        if ((dname == NULL) ||
+                (ldns_pkt_get_rcode(pkt) != LDNS_RCODE_NOERROR)) {
+            printf("; Transfer failed.\n");
+            ldns_tcp_close(res);
+            return false;
+        }
+        if (nsoa >= 2) {
+            ldns_tcp_close(res);
+            return true;
+        }
+        if (ldns_tcp_read(&nextpkt, res) != LDNS_STATUS_OK) {
+            printf("; Transfer failed.\n");
+            return false;
+        }
+        ldns_pkt_set_answerfrom(nextpkt,
+                ldns_rdf_clone(ldns_pkt_answerfrom(pkt)));
+        ldns_pkt_free(pkt);
+        pkt = nextpkt;
+    }
 }
 
 static bool
@@ -760,7 +916,7 @@ dosoa(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
     ldns_rr *rr;
     size_t i, j, n, cnt;
 
-    if ((dname = search(res, domain, &pkt, absolute)) == NULL)
+    if ((dname = search(res, domain, &pkt, absolute, true)) == NULL)
         return false;
 
     answer = ldns_pkt_answer(pkt);
@@ -780,9 +936,9 @@ dosoa(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
             ldns_resolver_remove_nameservers(res);
             rr = ldns_rr_list_rr(nsaddrs[i], j);
             if ((ldns_resolver_ip6(res) == LDNS_RESOLV_INET &&
-		    ldns_rr_get_type(rr) == LDNS_RR_TYPE_AAAA) ||
+                ldns_rr_get_type(rr) == LDNS_RR_TYPE_AAAA) ||
                 (ldns_resolver_ip6(res) == LDNS_RESOLV_INET6 &&
-		    ldns_rr_get_type(rr) == LDNS_RR_TYPE_A))
+                ldns_rr_get_type(rr) == LDNS_RR_TYPE_A))
                 continue;
             if (ldns_resolver_push_nameserver_rr(res, rr) == LDNS_STATUS_OK)
                 /* bind9-host queries for domain, not dname here */
@@ -879,6 +1035,9 @@ main(int argc, char *argv[]) {
         o_rrtype = LDNS_RR_TYPE_PTR;
         return !doquery(res, dname);
     }
-    return !(o_mode == M_SOA ? dosoa : o_mode == M_AXFR ? doaxfr : dosearch)
+    return !(o_mode == M_SOA ? dosoa :
+             o_mode == M_AXFR ? dozonetransfer :
+             o_mode == M_IXFR ? dozonetransfer :
+             dosearch)
         (res, safe_str2rdf_dname(o_name), ndots(o_name) >= o_ndots);
 }
