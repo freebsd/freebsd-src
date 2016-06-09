@@ -158,7 +158,7 @@ struct iscsi_daemon_fail {
  */
 
 struct iscsi_daemon_connect {
-	int				idc_session_id;
+	unsigned int			idc_session_id;
 	int				idc_iser;
 	int				idc_domain;
 	int				idc_socktype;
@@ -171,7 +171,7 @@ struct iscsi_daemon_connect {
 };
 
 struct iscsi_daemon_send {
-	int				ids_session_id;
+	unsigned int			ids_session_id;
 	void				*ids_bhs;
 	size_t				ids_spare;
 	void				*ids_spare2;
@@ -181,7 +181,7 @@ struct iscsi_daemon_send {
 };
 
 struct iscsi_daemon_receive {
-	int				idr_session_id;
+	unsigned int			idr_session_id;
 	void				*idr_bhs;
 	size_t				idr_spare;
 	void				*idr_spare2;
