@@ -290,6 +290,7 @@ dev/nvme/nvme_ctrlr_cmd.c	optional	nvme
 dev/nvme/nvme_ns.c		optional	nvme
 dev/nvme/nvme_ns_cmd.c		optional	nvme
 dev/nvme/nvme_qpair.c		optional	nvme
+dev/nvme/nvme_sim.c		optional	nvme scbus !nvd
 dev/nvme/nvme_sysctl.c		optional	nvme
 dev/nvme/nvme_test.c		optional	nvme
 dev/nvme/nvme_util.c		optional	nvme
