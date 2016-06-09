@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd June 6, 2016
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -148,7 +148,9 @@ The following databases are used by the following C library functions:
 .Xr getprotoent 3
 .It netgroup
 .Xr getnetgrent 3 ,
+.Xr getnetgrent_r 3 ,
 .Xr setnetgrent 3 ,
+.Xr endnetgrent 3 ,
 .Xr innetgr 3
 .El
 .Ss Status codes
