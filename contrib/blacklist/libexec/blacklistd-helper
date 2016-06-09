@@ -16,6 +16,11 @@ for f in npf pf; do
 		break
 	fi
 done
+if [ -f "/etc/ipfw-blacklist.rc" ]; then
+	pf="ipfw"
+	. /etc/ipfw-blacklist.rc
+	ipfw_offset=${ipfw_offset:-2000}
+fi
 
 if [ -z "$pf" ]; then
 	echo "$0: Unsupported packet filter" 1>&2
@@ -43,6 +48,13 @@ esac
 case "$1" in
 add)
 	case "$pf" in
+	ipfw)
+		rule=$(( $ipfw_offset + $6 )) # use $ipfw_offset+$port for rule number
+		tname="port$6"
+		/sbin/ipfw table $tname create type addr 2>/dev/null
+		/sbin/ipfw -q table $tname add "$addr/$mask"
+		/sbin/ipfw -q add $rule drop $3 from "table("$tname")" to any dst-port $6
+		;;
 	npf)
 		/sbin/npfctl rule "$2" add block in final $proto from \
 		    "$addr/$mask" to any $port
@@ -57,6 +69,9 @@ add)
 	;;
 rem)
 	case "$pf" in
+	ipfw)
+		/sbin/ipfw table "port$6" delete "$addr/$mask" 2>/dev/null
+		;;
 	npf)
 		/sbin/npfctl rule "$2" rem-id "$7"
 		;;
@@ -67,6 +82,9 @@ rem)
 	;;
 flush)
 	case "$pf" in 
+	ipfw)
+		/sbin/ipfw table "port$6" flush 2>/dev/null
+		;;
 	npf)
 		/sbin/npfctl rule "$2" flush
 		;;
