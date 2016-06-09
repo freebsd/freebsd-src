@@ -1207,12 +1207,12 @@ Note that the maximum number of the generated addresses from a range
 specification is limited to an integer value specified in
 .Va netif_ipexpand_max
 in
-.Xr rc.conf 5
+.Nm
 because a small typo can unexpectedly generate a large number of addresses.
 The default value is
 .Li 2048 .
 It can be increased by adding the following line into
-.Xr rc.conf 5 :
+.Nm :
 .Bd -literal
 netif_ipexpand_max="4096"
 .Ed
@@ -3900,7 +3900,7 @@ all configured jails in
 are stopped in reverse order.
 .It Va jail_* variables
 Note that older releases supported per-jail configuration via
-.Xr rc.conf 5
+.Nm
 variables.
 For example,
 hostname of a jail named
