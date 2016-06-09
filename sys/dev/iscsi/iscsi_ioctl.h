@@ -68,7 +68,7 @@ struct iscsi_session_conf {
 	int		isc_iser;
 	char		isc_offload[ISCSI_OFFLOAD_LEN];
 	int		isc_enable;
-	int		isc_spare[1];
+	int		isc_spare[4];
 };
 
 /*
@@ -77,6 +77,7 @@ struct iscsi_session_conf {
  */
 struct iscsi_session_limits {
 	size_t		isl_max_data_segment_length;
+	int		isl_spare[8];
 };
 
 /*
@@ -89,12 +90,13 @@ struct iscsi_session_state {
 	int		iss_header_digest;
 	int		iss_data_digest;
 	int		iss_max_data_segment_length;
+	int		iss_max_burst_length;
+	int		iss_first_burst_length;
 	int		iss_immediate_data;
 	int		iss_connected;
 	char		iss_reason[ISCSI_REASON_LEN];
 	char		iss_offload[ISCSI_OFFLOAD_LEN];
-	int		iss_max_burst_length;
-	int		iss_first_burst_length;
+	int		iss_spare[4];
 };
 
 /*
@@ -107,7 +109,7 @@ struct iscsi_daemon_request {
 	uint16_t			idr_tsih;
 	uint16_t			idr_spare_cid;
 	struct iscsi_session_limits	idr_limits;
-	int				idr_spare[2];
+	int				idr_spare[4];
 };
 
 struct iscsi_daemon_handoff {
@@ -120,11 +122,11 @@ struct iscsi_daemon_handoff {
 	uint32_t			idh_statsn;
 	int				idh_header_digest;
 	int				idh_data_digest;
-	int				idh_initial_r2t;
-	int				idh_immediate_data;
 	size_t				idh_max_data_segment_length;
 	size_t				idh_max_burst_length;
 	size_t				idh_first_burst_length;
+	int				idh_immediate_data;
+	int				idh_initial_r2t;
 	int				idh_spare[4];
 };
 
