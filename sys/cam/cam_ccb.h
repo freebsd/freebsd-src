@@ -207,6 +207,9 @@ typedef enum {
 	XPT_NVME_IO		= 0x1c | XPT_FC_DEV_QUEUED,
 				/* Execiute the requestred NVMe I/O operation */
 
+	XPT_MMCSD_IO		= 0x1d | XPT_FC_DEV_QUEUED,
+				/* Placeholder for MMC / SD / SDIO I/O stuff */
+
 	XPT_SCAN_TGT		= 0x1E | XPT_FC_QUEUED | XPT_FC_USER_CCB
 				       | XPT_FC_XPT_ONLY,
 				/* Scan Target */
