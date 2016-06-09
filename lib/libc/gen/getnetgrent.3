@@ -28,7 +28,7 @@
 .\"     @(#)getnetgrent.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd June 5, 2016
 .Dt GETNETGRENT 3
 .Os
 .Sh NAME
@@ -43,6 +43,8 @@
 .In netdb.h
 .Ft int
 .Fn getnetgrent "char **host" "char **user" "char **domain"
+.Ft int
+.Fn getnetgrent_r "char **host" "char **user" "char **domain" "char *buf" "size_t bufsize"
 .Ft int
 .Fn innetgr "const char *netgroup" "const char *host" "const char *user" "const char *domain"
 .Ft void
