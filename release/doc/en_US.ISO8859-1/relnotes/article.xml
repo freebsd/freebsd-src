@@ -605,6 +605,9 @@
       <para revision="300879"><application>ACPICA</application> has been
 	updated to version 20160527.</para>
 
+      <para revision="292432"><application>OpenBSM</application> has been
+	updated to version 1.2 alpha 4.</para>
+
     </sect2>
 
     <sect2 xml:id="userland-installer">
