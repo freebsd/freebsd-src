@@ -5361,6 +5361,7 @@ static struct kv map[] = {
 	{ XPT_ATA_IO, "XPT_ATA_IO" },
 	{ XPT_GET_SIM_KNOB, "XPT_GET_SIM_KNOB" },
 	{ XPT_SET_SIM_KNOB, "XPT_SET_SIM_KNOB" },
+	{ XPT_NVME_IO, "XPT_NVME_IO" },
 	{ XPT_SMP_IO, "XPT_SMP_IO" },
 	{ XPT_SCAN_TGT, "XPT_SCAN_TGT" },
 	{ XPT_ENG_INQ, "XPT_ENG_INQ" },
