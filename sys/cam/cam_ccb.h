@@ -204,6 +204,9 @@ typedef enum {
 	XPT_SMP_IO		= 0x1b | XPT_FC_DEV_QUEUED,
 				/* Serial Management Protocol */
 
+	XPT_NVME_IO		= 0x1c | XPT_FC_DEV_QUEUED,
+				/* Execiute the requestred NVMe I/O operation */
+
 	XPT_SCAN_TGT		= 0x1E | XPT_FC_QUEUED | XPT_FC_USER_CCB
 				       | XPT_FC_XPT_ONLY,
 				/* Scan Target */
