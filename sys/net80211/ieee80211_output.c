@@ -608,6 +608,8 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
 	    IEEE80211_FC0_VERSION_0)
 		senderr(EIO);	/* XXX */
+	if (m->m_pkthdr.len < ieee80211_anyhdrsize(wh))
+		senderr(EIO);	/* XXX */
 
 	/* locate destination node */
 	switch (wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) {
@@ -617,8 +619,6 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		break;
 	case IEEE80211_FC1_DIR_TODS:
 	case IEEE80211_FC1_DIR_DSTODS:
-		if (m->m_pkthdr.len < sizeof(struct ieee80211_frame))
-			senderr(EIO);	/* XXX */
 		ni = ieee80211_find_txnode(vap, wh->i_addr3);
 		break;
 	default:
