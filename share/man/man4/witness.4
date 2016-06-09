@@ -62,7 +62,7 @@ If any of these checks fail, then the kernel will panic.
 The
 .Dv WITNESS_COUNT
 kernel option controls the maximum number of
-.Xr witness 4
+.Nm
 entries that are tracked in the kernel.
 The maximum number of entries can be queried via the
 .Va debug.witness.count
@@ -76,7 +76,7 @@ environment variable.
 The
 .Dv WITNESS_NO_VNODE
 kernel option tells
-.Xr witness 4
+.Nm
 to ignore locking issues between
 .Xr vnode 9
 objects.
