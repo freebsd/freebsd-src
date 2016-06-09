@@ -56,10 +56,10 @@ __FBSDID("$FreeBSD$");
 bool_t
 xdr_rpcb(XDR *xdrs, RPCB *objp)
 {
-	if (!xdr_u_int32_t(xdrs, &objp->r_prog)) {
+	if (!xdr_rpcprog(xdrs, &objp->r_prog)) {
 		return (FALSE);
 	}
-	if (!xdr_u_int32_t(xdrs, &objp->r_vers)) {
+	if (!xdr_rpcvers(xdrs, &objp->r_vers)) {
 		return (FALSE);
 	}
 	if (!xdr_string(xdrs, &objp->r_netid, (u_int)~0)) {
@@ -243,13 +243,13 @@ xdr_rpcb_rmtcallargs(XDR *xdrs, struct rpcb_rmtcallargs *p)
 
 	buf = XDR_INLINE(xdrs, 3 * BYTES_PER_XDR_UNIT);
 	if (buf == NULL) {
-		if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+		if (!xdr_rpcprog(xdrs, &objp->prog)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+		if (!xdr_rpcvers(xdrs, &objp->vers)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->proc)) {
+		if (!xdr_rpcproc(xdrs, &objp->proc)) {
 			return (FALSE);
 		}
 	} else {
