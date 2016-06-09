@@ -23,7 +23,7 @@ CW_EC2_PORTINSTALL=
 
 cw-ec2-portinstall:
 .if exists(${PORTSDIR}/net/bsdec2-image-upload/Makefile)
-	make -C ${PORTSDIR}/net/bsdec2-image-upload BATCH=1 all install clean
+	env - PATH=$$PATH make -C ${PORTSDIR}/net/bsdec2-image-upload BATCH=1 all install clean
 .else
 . if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -y
