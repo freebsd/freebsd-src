@@ -2383,7 +2383,14 @@ sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
 	if (error)
 		return (error);
 
-	sx_slock(&allprison_lock);
+	/*
+	 * Start with exclusive hold on allprison_lock to ensure that a possible
+	 * PR_METHOD_REMOVE call isn't concurrent with jail_set or jail_remove.
+	 * But then immediately downgrade it since we don't need to stop
+	 * readers.
+	 */
+	sx_xlock(&allprison_lock);
+	sx_downgrade(&allprison_lock);
 	pr = prison_find_child(td->td_ucred->cr_prison, uap->jid);
 	if (pr == NULL) {
 		sx_sunlock(&allprison_lock);
@@ -2601,9 +2608,11 @@ prison_complete(void *context, int pending)
 {
 	struct prison *pr = context;
 
+	sx_xlock(&allprison_lock);
 	mtx_lock(&pr->pr_mtx);
 	prison_deref(pr, pr->pr_uref
-	    ? PD_DEREF | PD_DEUREF | PD_LOCKED : PD_LOCKED);
+	    ? PD_DEREF | PD_DEUREF | PD_LOCKED | PD_LIST_XLOCKED
+	    : PD_LOCKED | PD_LIST_XLOCKED);
 }
 
 /*
@@ -2647,13 +2656,8 @@ prison_deref(struct prison *pr, int flags)
 		 */
 		if (lasturef) {
 			if (!(flags & (PD_LIST_SLOCKED | PD_LIST_XLOCKED))) {
-				if (ref > 1) {
-					sx_slock(&allprison_lock);
-					flags |= PD_LIST_SLOCKED;
-				} else {
-					sx_xlock(&allprison_lock);
-					flags |= PD_LIST_XLOCKED;
-				}
+				sx_xlock(&allprison_lock);
+				flags |= PD_LIST_XLOCKED;
 			}
 			(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
 			mtx_lock(&pr->pr_mtx);
