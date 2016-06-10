@@ -35,11 +35,10 @@ which they appear when given to \fBipf\fP.
 .SH OPTIONS
 .TP
 .B \-6
-This option was required in previous releases of IP FIlter to parse IPv6
-rules and to have them loaded. As of IP FIlter 5.0.0 all rules are stored
-in a single table loaded from a single file. This option is a noop. It
-will produce the message "IPv6 rules are no longer seperate." It is
-included for backward compatibility.
+IPv4 and IPv6 rules are stored in a single table and can be read from a
+single file. This option is no longer required to load IPv6 rules. This
+option is ignored when specified with the -F option and the -F option
+will flush IPv4 rules even if this option is specified.
 .TP
 .B \-A
 Set the list to make changes to the active list (default).
