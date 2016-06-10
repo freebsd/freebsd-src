@@ -360,7 +360,6 @@ atf_map_insert(atf_map_t *m, const char *key, void *value, bool managed)
             if (atf_is_error(err)) {
                 if (managed)
                     free(value);
-                free(me);
             }
         }
     } else {
