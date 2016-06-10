@@ -186,11 +186,11 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	return (xprt);
+
 cleanup_svc_vc_create:
-	if (xprt) {
-		sx_destroy(&xprt->xp_lock);
-		svc_xprt_free(xprt);
-	}
+	sx_destroy(&xprt->xp_lock);
+	svc_xprt_free(xprt);
+
 	return (NULL);
 }
 
@@ -200,8 +200,8 @@ cleanup_svc_vc_create:
 SVCXPRT *
 svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 {
-	SVCXPRT *xprt = NULL;
-	struct cf_conn *cd = NULL;
+	SVCXPRT *xprt;
+	struct cf_conn *cd;
 	struct sockaddr* sa = NULL;
 	struct sockopt opt;
 	int one = 1;
@@ -274,12 +274,10 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 
 	return (xprt);
 cleanup_svc_vc_create:
-	if (xprt) {
-		sx_destroy(&xprt->xp_lock);
-		svc_xprt_free(xprt);
-	}
-	if (cd)
-		mem_free(cd, sizeof(*cd));
+	sx_destroy(&xprt->xp_lock);
+	svc_xprt_free(xprt);
+	mem_free(cd, sizeof(*cd));
+
 	return (NULL);
 }
 
