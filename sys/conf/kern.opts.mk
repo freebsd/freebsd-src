@@ -45,6 +45,7 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     EISA \
+    EXTRA_TCP_STACKS \
     NAND \
     OFED
 
