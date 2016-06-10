@@ -627,6 +627,9 @@ getmntpt(const char *name)
 		statfsp = &mntbuf[i];
 		ddevname = statfsp->f_mntfromname;
 		if (*ddevname != '/') {
+			if (strlen(_PATH_DEV) + strlen(ddevname) + 1 >
+			    sizeof(statfsp->f_mntfromname))
+				continue;
 			strcpy(device, _PATH_DEV);
 			strcat(device, ddevname);
 			strcpy(statfsp->f_mntfromname, device);
