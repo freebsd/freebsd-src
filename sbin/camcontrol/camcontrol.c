@@ -4992,6 +4992,7 @@ dev_has_vpd_page(struct cam_device *dev, uint8_t page_id, int retry_count,
 
 	if (cam_send_ccb(dev, ccb) < 0) {
 		cam_freeccb(ccb);
+		ccb = NULL;
 		retval = -1;
 		goto bailout;
 	}
