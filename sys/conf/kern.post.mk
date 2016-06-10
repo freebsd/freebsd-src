@@ -23,6 +23,10 @@ MKMODULESENV+=	CONF_CFLAGS="${CONF_CFLAGS}"
 MKMODULESENV+=	WITH_CTF="${WITH_CTF}"
 .endif
 
+.if defined(WITH_EXTRA_TCP_STACKS)
+MKMODULESENV+=	WITH_EXTRA_TCP_STACKS="${WITH_EXTRA_TCP_STACKS}"
+.endif
+
 # Allow overriding the kernel debug directory, so kernel and user debug may be
 # installed in different directories. Setting it to "" restores the historical
 # behavior of installing debug files in the kernel directory.
