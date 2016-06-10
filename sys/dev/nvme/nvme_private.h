@@ -245,6 +245,10 @@ struct nvme_controller {
 
 	struct mtx		lock;
 
+	struct cam_sim		*sim;
+	struct cam_path		*path;
+	int			cam_ref;
+
 	uint32_t		ready_timeout_in_ms;
 
 	bus_space_tag_t		bus_tag;
@@ -527,5 +531,7 @@ void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 				    uint32_t log_page_size);
 void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
 void	nvme_notify_new_controller(struct nvme_controller *ctrlr);
+
+void	nvme_ctrlr_intx_handler(void *arg);
 
 #endif /* __NVME_PRIVATE_H__ */

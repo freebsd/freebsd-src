@@ -87,7 +87,7 @@ cam/ata/ata_all.c		optional scbus
 cam/ata/ata_xpt.c		optional scbus
 cam/ata/ata_pmp.c		optional scbus
 cam/nvme/nvme_all.c		optional scbus nvme 
-cam/nvme/nvme_da.c		optional scbus nvme da
+cam/nvme/nvme_da.c		optional scbus nvme da !nvd
 cam/nvme/nvme_xpt.c		optional scbus nvme
 cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus

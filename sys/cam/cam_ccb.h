@@ -359,6 +359,8 @@ struct ccb_getdev {
 	u_int8_t  serial_num[252];
 	u_int8_t  inq_flags;
 	u_int8_t  serial_num_len;
+	const struct nvme_controller_data	*nvme_cdata;
+	const struct nvme_namespace_data	*nvme_data;
 };
 
 /* Device Statistics CCB */
@@ -619,6 +621,11 @@ struct ccb_pathinq_settings_fc {
 struct ccb_pathinq_settings_sas {
 	u_int32_t bitrate;	/* Mbps */
 };
+
+struct ccb_pathinq_settings_nvme {
+	uint16_t nsid;		/* Namespace ID for this path */
+};
+
 #define	PATHINQ_SETTINGS_SIZE	128
 
 struct ccb_pathinq {
@@ -649,6 +656,7 @@ struct ccb_pathinq {
 		struct ccb_pathinq_settings_spi spi;
 		struct ccb_pathinq_settings_fc fc;
 		struct ccb_pathinq_settings_sas sas;
+		struct ccb_pathinq_settings_nvme nvme;
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 	u_int		maxio;		/* Max supported I/O size, in bytes. */
@@ -975,6 +983,18 @@ struct ccb_trans_settings_sata {
 #define	CTS_SATA_CAPS_D_APST		0x00020000
 };
 
+struct ccb_trans_settings_nvme 
+{
+	u_int     	valid;		/* Which fields to honor */
+#define CTS_NVME_VALID_SPEC	0x01
+#define CTS_NVME_VALID_CAPS	0x02
+	u_int		spec_major;	/* Major version of spec supported */
+	u_int		spec_minor;	/* Minor verison of spec supported */
+	u_int		spec_tiny;	/* Tiny version of spec supported */
+	u_int		max_xfer;	/* Max transfer size (0 -> unlimited */
+	u_int		caps;
+};
+	
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
 struct ccb_trans_settings {
 	struct	  ccb_hdr ccb_h;
@@ -987,6 +1007,7 @@ struct ccb_trans_settings {
 		u_int  valid;	/* Which fields to honor */
 		struct ccb_trans_settings_ata ata;
 		struct ccb_trans_settings_scsi scsi;
+		struct ccb_trans_settings_nvme nvme;
 	} proto_specific;
 	union {
 		u_int  valid;	/* Which fields to honor */
@@ -995,6 +1016,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_sas sas;
 		struct ccb_trans_settings_pata ata;
 		struct ccb_trans_settings_sata sata;
+		struct ccb_trans_settings_nvme nvme;
 	} xport_specific;
 };
 

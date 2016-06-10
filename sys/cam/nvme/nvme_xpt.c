@@ -137,7 +137,7 @@ static cam_status	nvme_probe_register(struct cam_periph *periph,
 static void	 nvme_probe_schedule(struct cam_periph *nvme_probe_periph);
 static void	 nvme_probe_start(struct cam_periph *periph, union ccb *start_ccb);
 static void	 nvme_probe_cleanup(struct cam_periph *periph);
-static void	 nvme_find_quirk(struct cam_ed *device);
+//static void	 nvme_find_quirk(struct cam_ed *device);
 static void	 nvme_scan_lun(struct cam_periph *periph,
 			       struct cam_path *path, cam_flags flags,
 			       union ccb *ccb);
@@ -312,6 +312,7 @@ nvme_probe_cleanup(struct cam_periph *periph)
 	free(periph->softc, M_CAMXPT);
 }
 
+#if 0
 /* XXX should be used, don't delete */
 static void
 nvme_find_quirk(struct cam_ed *device)
@@ -334,6 +335,7 @@ nvme_find_quirk(struct cam_ed *device)
 		device->maxtags = quirk->maxtags;
 	}
 }
+#endif
 
 static void
 nvme_scan_lun(struct cam_periph *periph, struct cam_path *path,
