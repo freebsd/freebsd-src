@@ -152,8 +152,8 @@ MODULE_VERSION(ioat, 1);
  * Private data structures
  */
 static struct ioat_softc *ioat_channel[IOAT_MAX_CHANNELS];
-static int ioat_channel_index = 0;
-SYSCTL_INT(_hw_ioat, OID_AUTO, channels, CTLFLAG_RD, &ioat_channel_index, 0,
+static unsigned ioat_channel_index = 0;
+SYSCTL_UINT(_hw_ioat, OID_AUTO, channels, CTLFLAG_RD, &ioat_channel_index, 0,
     "Number of IOAT channels attached");
 
 static struct _pcsid
@@ -407,7 +407,7 @@ ioat3_attach(device_t device)
 	ioat = DEVICE2SOFTC(device);
 	ioat->capabilities = ioat_read_dmacapability(ioat);
 
-	ioat_log_message(1, "Capabilities: %b\n", (int)ioat->capabilities,
+	ioat_log_message(0, "Capabilities: %b\n", (int)ioat->capabilities,
 	    IOAT_DMACAP_STR);
 
 	xfercap = ioat_read_xfercap(ioat);
@@ -742,6 +742,13 @@ ioat_reset_hw_task(void *ctx, int pending __unused)
 /*
  * User API functions
  */
+unsigned
+ioat_get_nchannels(void)
+{
+
+	return (ioat_channel_index);
+}
+
 bus_dmaengine_t
 ioat_get_dmaengine(uint32_t index, int flags)
 {
