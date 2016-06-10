@@ -608,6 +608,29 @@
       <para revision="292432"><application>OpenBSM</application> has been
 	updated to version 1.2 alpha 4.</para>
 
+      <para revision="301169" contrib="sponsor" sponsor="&ff;">The NetBSD
+	Project's &man.libblacklist.3; library and applications
+	have been ported and integrated into the system.  Packet
+	filtering support for the &man.pf.4; packet filtering systems
+	has been implemented.  The <application>blacklist</application>
+	system provides the <application>blacklistd</application>
+	daemon, the helper script
+	<application>blacklistd-helper</application> to make changes
+	to the running packet filter system and the
+	<application>blacklistctl</application> control program.
+	A selection of system daemons, including:
+	<application>fingerd</application>,
+	<application>ftpd</application>,
+	<application>rlogind</application>,
+	<application>rshd</application>, and
+	<application>sshd</application> have been modified to support
+	sending notifications to the <application>blacklistd</application>
+	daemon.</para>
+
+      <para revision="301736" contrib="sponsor" sponsor="&ff;">Support for
+	the &man.ipfw.4; packet filter has been added to the
+	<application>blacklistd-helper</application> script.</para>
+
     </sect2>
 
     <sect2 xml:id="userland-installer">
