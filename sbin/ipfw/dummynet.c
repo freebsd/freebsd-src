@@ -1,4 +1,11 @@
 /*
+ * Codel/FQ_Codel and PIE/FQ_PIE Code:
+ * Copyright (C) 2016 Centre for Advanced Internet Architectures,
+ *  Swinburne University of Technology, Melbourne, Australia.
+ * Portions of this code were made possible in part by a gift from 
+ *  The Comcast Innovation Fund.
+ * Implemented by Rasool Al-Saadi <ralsaadi@swin.edu.au>
+ * 
  * Copyright (c) 2002-2003,2010 Luigi Rizzo
  *
  * Redistribution and use in source forms, with and without modification,
@@ -15,12 +22,17 @@
  * dummynet support
  */
 
+#define NEW_AQM
 #include <sys/types.h>
 #include <sys/socket.h>
 /* XXX there are several sysctl leftover here */
 #include <sys/sysctl.h>
 
 #include "ipfw2.h"
+
+#ifdef NEW_AQM
+#include <stdint.h>
+#endif
 
 #include <ctype.h>
 #include <err.h>
@@ -59,6 +71,12 @@ static struct _s_x dummynet_params[] = {
 	{ "ecn",		TOK_ECN },
 	{ "red",		TOK_RED },
 	{ "gred",		TOK_GRED },
+#ifdef NEW_AQM
+	{ "codel",		TOK_CODEL}, /* Codel AQM */
+	{ "fq_codel",	TOK_FQ_CODEL}, /* FQ-Codel  */
+	{ "pie",		TOK_PIE}, /* PIE AQM */
+	{ "fq_pie",		TOK_FQ_PIE}, /* FQ-PIE */
+#endif
 	{ "bw",			TOK_BW },
 	{ "bandwidth",		TOK_BW },
 	{ "delay",		TOK_DELAY },
@@ -81,6 +99,32 @@ static struct _s_x dummynet_params[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
+#ifdef NEW_AQM
+/* AQM/extra sched parameters  tokens*/
+static struct _s_x aqm_params[] = {
+	{ "target",		TOK_TARGET},
+	{ "interval",		TOK_INTERVAL},
+	{ "limit",		TOK_LIMIT},
+	{ "flows",		TOK_FLOWS},
+	{ "quantum",		TOK_QUANTUM},
+	{ "ecn",		TOK_ECN},
+	{ "noecn",		TOK_NO_ECN},
+	{ "tupdate",		TOK_TUPDATE},
+	{ "max_burst",		TOK_MAX_BURST},
+	{ "max_ecnth",	TOK_MAX_ECNTH},
+	{ "alpha",		TOK_ALPHA},
+	{ "beta",		TOK_BETA},
+	{ "capdrop",	TOK_CAPDROP},
+	{ "nocapdrop",	TOK_NO_CAPDROP},
+	{ "onoff",	TOK_ONOFF},
+	{ "dre",	TOK_DRE},
+	{ "ts",	TOK_TS},
+	{ "derand",	TOK_DERAND},
+	{ "noderand",	TOK_NO_DERAND},
+	{ NULL, 0 }	/* terminator */
+};
+#endif
+
 #define O_NEXT(p, len) ((void *)((char *)p + len))
 
 static void
@@ -101,6 +145,214 @@ o_next(struct dn_id **o, int len, int type)
 	*o = O_NEXT(*o, len);
 	return ret;
 }
+
+#ifdef NEW_AQM
+
+/* Codel flags */
+enum {
+	CODEL_ECN_ENABLED = 1
+};
+
+/* PIE flags, from PIE kernel module */
+enum {
+	PIE_ECN_ENABLED = 1,
+	PIE_CAPDROP_ENABLED = 2,
+	PIE_ON_OFF_MODE_ENABLED = 4,
+	PIE_DEPRATEEST_ENABLED = 8,
+	PIE_DERAND_ENABLED = 16
+};
+
+#define PIE_FIX_POINT_BITS 13
+#define PIE_SCALE (1L<<PIE_FIX_POINT_BITS)
+
+/* integer to time */
+void 
+us_to_time(int t,char *strt)
+{
+	if (t < 0)
+		strt[0]='\0';
+	else if ( t==0 )
+		sprintf(strt,"%d", t);
+	else if (t< 1000)
+		sprintf(strt,"%dus", t);
+	else if (t < 1000000) 
+		sprintf(strt,"%gms", (float) t / 1000);
+	else
+		sprintf(strt,"%gfs", (float) t / 1000000);
+}
+
+/*
+ * returns -1 if s is not a valid time, otherwise, return time in us
+ */
+static long
+time_to_us(const char *s)
+{
+	int i, dots = 0;
+	int len = strlen(s);
+	char strt[16]="", stru[16]="";
+	
+	if (len>15)
+		return -1;
+	for (i = 0; i<len && (isdigit(s[i]) || s[i]=='.') ; i++)
+		if (s[i]=='.') {
+			if (dots)
+				return -1;
+			else
+				dots++;
+		}
+
+	if (!i)
+		return -1;
+	strncpy(strt, s, i);
+	if (i<len)
+		strcpy(stru, s+i);
+	else
+		strcpy(stru, "ms");
+	
+	if (!strcasecmp(stru, "us"))
+		return atol(strt);
+	if (!strcasecmp(stru, "ms"))
+		return (strtod(strt, NULL) * 1000);
+	if (!strcasecmp(stru, "s"))
+		return (strtod(strt, NULL)*1000000);
+
+	return -1;
+}
+
+ 
+/* Get AQM or scheduler extra parameters  */
+void
+get_extra_parms(uint32_t nr, char *out, int subtype)
+{ 
+	struct dn_extra_parms *ep;
+	int ret;
+	char strt1[15], strt2[15], strt3[15];
+	u_int l;
+
+	/* prepare the request */
+	l = sizeof(struct dn_extra_parms);
+	ep = safe_calloc(1, l);
+	memset(ep, 0, sizeof(*ep));
+	*out = '\0';
+
+	oid_fill(&ep->oid, l, DN_CMD_GET, DN_API_VERSION);
+	ep->oid.len = l;
+	ep->oid.subtype = subtype;
+	ep->nr = nr;
+
+	ret = do_cmd(-IP_DUMMYNET3, ep, (uintptr_t)&l);
+	if (ret) {
+		free(ep);
+		errx(EX_DATAERR, "Error getting extra parameters\n");
+	}
+
+	switch (subtype) {
+	case DN_AQM_PARAMS:
+		if( !strcasecmp(ep->name, "codel")) {
+			us_to_time(ep->par[0], strt1);
+			us_to_time(ep->par[1], strt2);
+			l = sprintf(out, " AQM CoDel target %s interval %s",
+				strt1, strt2);
+			if (ep->par[2] & CODEL_ECN_ENABLED)
+				l = sprintf(out + l, " ECN");
+			else
+				l += sprintf(out + l, " NoECN");
+		} else if( !strcasecmp(ep->name, "pie")) {
+			us_to_time(ep->par[0], strt1);
+			us_to_time(ep->par[1], strt2);
+			us_to_time(ep->par[2], strt3);
+			l = sprintf(out, " AQM type PIE target %s tupdate %s alpha "
+					"%g beta %g max_burst %s max_ecnth %.3g",
+					strt1,
+					strt2,
+					ep->par[4] / (float) PIE_SCALE,
+					ep->par[5] / (float) PIE_SCALE,
+					strt3,
+					ep->par[3] / (float) PIE_SCALE
+				);
+				
+			if (ep->par[6] & PIE_ECN_ENABLED)
+				l += sprintf(out + l, " ECN");
+			else
+				l += sprintf(out + l, " NoECN");
+			if (ep->par[6] & PIE_CAPDROP_ENABLED)
+				l += sprintf(out + l, " CapDrop");
+			else
+				l += sprintf(out + l, " NoCapDrop");
+			if (ep->par[6] & PIE_ON_OFF_MODE_ENABLED)
+				l += sprintf(out + l, " OnOff");
+			if (ep->par[6] & PIE_DEPRATEEST_ENABLED)
+				l += sprintf(out + l, " DRE");
+			else
+				l += sprintf(out + l, " TS");
+			if (ep->par[6] & PIE_DERAND_ENABLED)
+				l += sprintf(out + l, " Derand");
+			else
+				l += sprintf(out + l, " NoDerand");
+		}
+		break;
+
+	case	DN_SCH_PARAMS:
+		if (!strcasecmp(ep->name,"FQ_CODEL")) {
+			us_to_time(ep->par[0], strt1);
+			us_to_time(ep->par[1], strt2);
+			l = sprintf(out," FQ_CODEL target %s interval %s"
+				" quantum %jd limit %jd flows %jd",
+				strt1, strt2,
+				(intmax_t) ep->par[3],
+				(intmax_t) ep->par[4],
+				(intmax_t) ep->par[5]
+				);
+			if (ep->par[2] & CODEL_ECN_ENABLED)
+				l += sprintf(out + l, " ECN");
+			else
+				l += sprintf(out + l, " NoECN");
+			l += sprintf(out + l, "\n");
+		} else 	if (!strcasecmp(ep->name,"FQ_PIE")) {
+			us_to_time(ep->par[0], strt1);
+			us_to_time(ep->par[1], strt2);
+			us_to_time(ep->par[2], strt3);
+			l = sprintf(out, "  FQ_PIE target %s tupdate %s alpha "
+				"%g beta %g max_burst %s max_ecnth %.3g"
+				" quantum %jd limit %jd flows %jd",
+				strt1,
+				strt2,
+				ep->par[4] / (float) PIE_SCALE,
+				ep->par[5] / (float) PIE_SCALE,
+				strt3,
+				ep->par[3] / (float) PIE_SCALE,
+				(intmax_t) ep->par[7],
+				(intmax_t) ep->par[8],
+				(intmax_t) ep->par[9]
+			);
+			
+			if (ep->par[6] & PIE_ECN_ENABLED)
+				l += sprintf(out + l, " ECN");
+			else
+				l += sprintf(out + l, " NoECN");
+			if (ep->par[6] & PIE_CAPDROP_ENABLED)
+				l += sprintf(out + l, " CapDrop");
+			else
+				l += sprintf(out + l, " NoCapDrop");
+			if (ep->par[6] & PIE_ON_OFF_MODE_ENABLED)
+				l += sprintf(out + l, " OnOff");
+			if (ep->par[6] & PIE_DEPRATEEST_ENABLED)
+				l += sprintf(out + l, " DRE");
+			else
+				l += sprintf(out + l, " TS");
+			if (ep->par[6] & PIE_DERAND_ENABLED)
+				l += sprintf(out + l, " Derand");
+			else
+				l += sprintf(out + l, " NoDerand");
+			l += sprintf(out + l, "\n");
+		}
+		break;
+	}
+
+	free(ep);
+}
+#endif
+
 
 #if 0
 static int
@@ -225,7 +477,7 @@ print_flowset_parms(struct dn_fs *fs, char *prefix)
 	int l;
 	char qs[30];
 	char plr[30];
-	char red[90];	/* Display RED parameters */
+	char red[200];	/* Display RED parameters */
 
 	l = fs->qsize;
 	if (fs->flags & DN_QSIZE_BYTES) {
@@ -250,6 +502,11 @@ print_flowset_parms(struct dn_fs *fs, char *prefix)
 		    1.0 * fs->max_p / (double)(1 << SCALE_RED));
 		if (fs->flags & DN_IS_ECN)
 			strncat(red, " (ecn)", 6);
+#ifdef NEW_AQM
+	/* get AQM parameters */
+	} else if (fs->flags & DN_IS_AQM) {
+			get_extra_parms(fs->fs_nr, red, DN_AQM_PARAMS);
+#endif
 	} else
 		sprintf(red, "droptail");
 
@@ -340,6 +597,11 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 	    printf(" sched %d type %s flags 0x%x %d buckets %d active\n",
 			s->sched_nr,
 			s->name, s->flags, s->buckets, s->oid.id);
+#ifdef NEW_AQM
+		char parms[200];
+		get_extra_parms(s->sched_nr, parms, DN_SCH_PARAMS);
+		printf("%s",parms);
+#endif
 	    if (s->flags & DN_HAVE_MASK)
 		print_mask(&s->sched_mask);
 	    }
@@ -740,6 +1002,242 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 	strncpy(p->name, profile_name, sizeof(p->name));
 }
 
+#ifdef NEW_AQM
+
+/* Parse AQM/extra scheduler parameters */
+static int 
+process_extra_parms(int *ac, char **av, struct dn_extra_parms *ep,
+	uint16_t type)
+{
+	int i;
+	
+	/* use kernel defaults */
+	for (i=0; i<DN_MAX_EXTRA_PARM; i++)
+		ep->par[i] = -1;
+		
+	switch(type) {
+	case TOK_CODEL:
+	case TOK_FQ_CODEL:
+	/* Codel
+	 * 0- target, 1- interval, 2- flags,
+	 * FQ_CODEL
+	 * 3- quantum, 4- limit, 5- flows
+	 */
+		if (type==TOK_CODEL)
+			ep->par[2] = 0;
+		else
+			ep->par[2] = CODEL_ECN_ENABLED;
+
+		while (*ac > 0) {
+			int tok = match_token(aqm_params, *av);
+			(*ac)--; av++;
+			switch(tok) {
+			case TOK_TARGET:
+				if (*ac <= 0 || time_to_us(av[0]) < 0)
+					errx(EX_DATAERR, "target needs time\n");
+
+				ep->par[0] = time_to_us(av[0]);
+				(*ac)--; av++;
+				break;
+
+			case TOK_INTERVAL:
+				if (*ac <= 0 || time_to_us(av[0]) < 0)
+					errx(EX_DATAERR, "interval needs time\n");
+
+				ep->par[1] = time_to_us(av[0]);
+				(*ac)--; av++;
+				break;
+
+			case TOK_ECN:
+				ep->par[2] = CODEL_ECN_ENABLED;
+				break;
+			case TOK_NO_ECN:
+				ep->par[2] &= ~CODEL_ECN_ENABLED;
+				break;
+			/* Config fq_codel parameters */
+			case TOK_QUANTUM:
+				if (type != TOK_FQ_CODEL)
+					errx(EX_DATAERR, "quantum is not for codel\n");
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "quantum needs number\n");
+
+				ep->par[3]= atoi(av[0]);
+				(*ac)--; av++;
+				break;
+
+			case TOK_LIMIT:
+				if (type != TOK_FQ_CODEL)
+					errx(EX_DATAERR, "limit is not for codel, use queue instead\n");
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "limit needs number\n");
+
+				ep->par[4] = atoi(av[0]);
+				(*ac)--; av++;
+				break;
+
+			case TOK_FLOWS:
+				if (type != TOK_FQ_CODEL)
+					errx(EX_DATAERR, "flows is not for codel\n");
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "flows needs number\n");
+
+				ep->par[5] = atoi(av[0]);
+				(*ac)--; av++;
+				break;
+
+			default:
+				printf("%s is Invalid parameter\n", av[-1]);
+			}
+		}
+		break;
+	case TOK_PIE:
+	case TOK_FQ_PIE:
+		/* PIE
+		 * 0- target , 1- tupdate, 2- max_burst,
+		 * 3- max_ecnth, 4- alpha,
+		 * 5- beta, 6- flags
+		 * FQ_CODEL
+		 * 7- quantum, 8- limit, 9- flows
+		 */
+
+		if ( type == TOK_PIE)
+			ep->par[6] = PIE_CAPDROP_ENABLED | PIE_DEPRATEEST_ENABLED
+				| PIE_DERAND_ENABLED;
+		else
+			/* for FQ-PIE, use TS mode */
+			ep->par[6] = PIE_CAPDROP_ENABLED |  PIE_DERAND_ENABLED
+				| PIE_ECN_ENABLED;
+
+		while (*ac > 0) {
+			int tok = match_token(aqm_params, *av);
+			(*ac)--; av++;
+			switch(tok) {
+			case TOK_TARGET:
+				if (*ac <= 0 || time_to_us(av[0]) < 0)
+					errx(EX_DATAERR, "target needs time\n");
+					
+				ep->par[0] = time_to_us(av[0]);
+				(*ac)--; av++;
+				break;
+				
+			case TOK_TUPDATE:
+				if (*ac <= 0 || time_to_us(av[0]) < 0)
+					errx(EX_DATAERR, "tupdate needs time\n");
+					
+				ep->par[1] = time_to_us(av[0]);
+				(*ac)--; av++;
+				break;
+				
+			case TOK_MAX_BURST:
+				if (*ac <= 0 || time_to_us(av[0]) < 0)
+					errx(EX_DATAERR, "max_burst needs time\n");
+					
+				ep->par[2] = time_to_us(av[0]);
+				(*ac)--; av++;
+				break;
+				
+			case TOK_MAX_ECNTH:
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "max_ecnth needs number\n");
+					
+				ep->par[3] = atof(av[0]) * PIE_SCALE;
+				(*ac)--; av++;
+				break;
+
+			case TOK_ALPHA:
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "alpha needs number\n");
+					
+				ep->par[4] = atof(av[0]) * PIE_SCALE;
+				(*ac)--; av++;
+				break;
+
+			case TOK_BETA:
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "beta needs number\n");
+					
+				ep->par[5] = atof(av[0]) * PIE_SCALE;
+				(*ac)--; av++;
+				break;
+
+			case TOK_ECN:
+				ep->par[6] |= PIE_ECN_ENABLED;
+				break;
+			case TOK_NO_ECN:
+				ep->par[6] &= ~PIE_ECN_ENABLED;
+				break;
+
+			case TOK_CAPDROP:
+				ep->par[6] |= PIE_CAPDROP_ENABLED;
+				break;
+			case TOK_NO_CAPDROP:
+				ep->par[6] &= ~PIE_CAPDROP_ENABLED;
+				break;
+
+			case TOK_ONOFF:
+				ep->par[6] |= PIE_ON_OFF_MODE_ENABLED;
+				break;
+				
+			case TOK_DRE:
+				ep->par[6] |= PIE_DEPRATEEST_ENABLED;
+				break;
+
+			case TOK_TS:
+				ep->par[6] &= ~PIE_DEPRATEEST_ENABLED;
+				break;
+
+			case TOK_DERAND:
+				ep->par[6] |= PIE_DERAND_ENABLED;
+				break;
+			case TOK_NO_DERAND:
+				ep->par[6] &= ~PIE_DERAND_ENABLED;
+				break;
+
+			/* Config fq_pie parameters */
+			case TOK_QUANTUM:
+				if (type != TOK_FQ_PIE)
+					errx(EX_DATAERR, "quantum is not for pie\n");
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "quantum needs number\n");
+
+				ep->par[7]= atoi(av[0]);
+				(*ac)--; av++;
+				break;
+
+			case TOK_LIMIT:
+				if (type != TOK_FQ_PIE)
+					errx(EX_DATAERR, "limit is not for pie, use queue instead\n");
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "limit needs number\n");
+
+				ep->par[8] = atoi(av[0]);
+				(*ac)--; av++;
+				break;
+
+			case TOK_FLOWS:
+				if (type != TOK_FQ_PIE)
+					errx(EX_DATAERR, "flows is not for pie\n");
+				if (*ac <= 0 || !is_valid_number(av[0]))
+					errx(EX_DATAERR, "flows needs number\n");
+
+				ep->par[9] = atoi(av[0]);
+				(*ac)--; av++;
+				break;
+
+
+			default:
+				printf("%s is invalid parameter\n", av[-1]);
+			}
+		}
+		break;
+	}
+
+	return 0;
+}
+
+#endif
+
+
 /*
  * configuration of pipes, schedulers, flowsets.
  * When we configure a new scheduler, an empty pipe is created, so:
@@ -771,6 +1269,12 @@ ipfw_config_pipe(int ac, char **av)
 	struct dn_fs *fs = NULL;
 	struct dn_profile *pf = NULL;
 	struct ipfw_flow_id *mask = NULL;
+#ifdef NEW_AQM
+	struct dn_extra_parms *aqm_extra;
+	struct dn_extra_parms *sch_extra;
+	int lmax_extra;
+#endif
+	
 	int lmax;
 	uint32_t _foo = 0, *flags = &_foo , *buckets = &_foo;
 
@@ -781,6 +1285,15 @@ ipfw_config_pipe(int ac, char **av)
 	lmax = sizeof(struct dn_id);	/* command header */
 	lmax += sizeof(struct dn_sch) + sizeof(struct dn_link) +
 		sizeof(struct dn_fs) + sizeof(struct dn_profile);
+
+#ifdef NEW_AQM
+	/* Extra Params */
+	lmax_extra = sizeof(struct dn_extra_parms);
+	/* two lmax_extra because one for AQM params and another
+	 * sch params 
+	 */
+	lmax += lmax_extra*2; 
+#endif
 
 	av++; ac--;
 	/* Pipe number */
@@ -807,8 +1320,16 @@ ipfw_config_pipe(int ac, char **av)
 		 * The FIFO scheduler and link are derived from the
 		 * WF2Q+ one in the kernel.
 		 */
+#ifdef NEW_AQM
+		sch_extra = o_next(&buf, lmax_extra, DN_TEXT);
+		sch_extra ->oid.subtype = 0; /* don't configure scheduler */
+#endif
 		sch = o_next(&buf, sizeof(*sch), DN_SCH);
 		p = o_next(&buf, sizeof(*p), DN_LINK);
+#ifdef NEW_AQM
+		aqm_extra = o_next(&buf, lmax_extra, DN_TEXT);
+		aqm_extra ->oid.subtype = 0; /* don't configure AQM */
+#endif
 		fs = o_next(&buf, sizeof(*fs), DN_FS);
 
 		sch->sched_nr = i;
@@ -826,6 +1347,10 @@ ipfw_config_pipe(int ac, char **av)
 		break;
 
 	case 2: /* "queue N config ... " */
+#ifdef NEW_AQM
+		aqm_extra = o_next(&buf, lmax_extra, DN_TEXT);
+		aqm_extra ->oid.subtype = 0; 
+#endif
 		fs = o_next(&buf, sizeof(*fs), DN_FS);
 		fs->fs_nr = i;
 		mask = &fs->flow_mask;
@@ -834,7 +1359,15 @@ ipfw_config_pipe(int ac, char **av)
 		break;
 
 	case 3: /* "sched N config ..." */
+#ifdef NEW_AQM
+		sch_extra = o_next(&buf, lmax_extra, DN_TEXT);
+		sch_extra ->oid.subtype = 0; 
+#endif
 		sch = o_next(&buf, sizeof(*sch), DN_SCH);
+#ifdef NEW_AQM
+		aqm_extra = o_next(&buf, lmax_extra, DN_TEXT);
+		aqm_extra ->oid.subtype = 0;
+#endif
 		fs = o_next(&buf, sizeof(*fs), DN_FS);
 		sch->sched_nr = i;
 		mask = &sch->sched_mask;
@@ -1021,7 +1554,31 @@ ipfw_config_pipe(int ac, char **av)
 			} /* end while, config masks */
 end_mask:
 			break;
+#ifdef NEW_AQM
+		case TOK_CODEL:
+		case TOK_PIE:
+			NEED(fs, "codel/pie is only for flowsets");
 
+			fs->flags &= ~(DN_IS_RED|DN_IS_GENTLE_RED);
+			fs->flags |= DN_IS_AQM;
+
+			strcpy(aqm_extra->name,av[-1]);
+			aqm_extra->oid.subtype = DN_AQM_PARAMS;
+
+			process_extra_parms(&ac, av, aqm_extra, tok);
+			break;
+
+		case TOK_FQ_CODEL:
+		case TOK_FQ_PIE:
+			if (!strcmp(av[-1],"type"))
+				errx(EX_DATAERR, "use type before fq_codel/fq_pie");
+
+			NEED(sch, "fq_codel/fq_pie is only for schd");
+			strcpy(sch_extra->name,av[-1]);
+			sch_extra->oid.subtype = DN_SCH_PARAMS;
+			process_extra_parms(&ac, av, sch_extra, tok);
+			break;
+#endif
 		case TOK_RED:
 		case TOK_GRED:
 			NEED1("red/gred needs w_q/min_th/max_th/max_p\n");
@@ -1088,7 +1645,20 @@ end_mask:
 				errx(1, "type %s too long\n", av[0]);
 			strcpy(sch->name, av[0]);
 			sch->oid.subtype = 0; /* use string */
-			ac--; av++;
+#ifdef NEW_AQM
+			/* if fq_codel is selected, consider all tokens after it
+			 * as parameters
+			 */
+			if (!strcasecmp(av[0],"fq_codel") || !strcasecmp(av[0],"fq_pie")){
+				strcpy(sch_extra->name,av[0]);
+				sch_extra->oid.subtype = DN_SCH_PARAMS;
+				process_extra_parms(&ac, av, sch_extra, tok);
+			} else {
+				ac--;av++;
+			}
+#else
+			ac--;av++;
+#endif
 			break;
 		    }
 
@@ -1182,8 +1752,16 @@ end_mask:
 			errx(EX_DATAERR, "2 <= queue size <= %ld", limit);
 	    }
 
+#ifdef NEW_AQM
+		if ((fs->flags & DN_IS_ECN) && !((fs->flags & DN_IS_RED)|| 
+			(fs->flags & DN_IS_AQM)))
+			errx(EX_USAGE, "ECN can be used with red/gred/"
+				"codel/fq_codel only!");
+#else
 	    if ((fs->flags & DN_IS_ECN) && !(fs->flags & DN_IS_RED))
 		errx(EX_USAGE, "enable red/gred for ECN");
+
+#endif
 
 	    if (fs->flags & DN_IS_RED) {
 		size_t len;

@@ -3592,8 +3592,12 @@ netipx/spx_usrreq.c		optional ipx
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm
+netpfil/ipfw/dn_aqm_codel.c	optional inet dummynet
+netpfil/ipfw/dn_aqm_pie.c	optional inet dummynet
 netpfil/ipfw/dn_heap.c		optional inet dummynet
 netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
+netpfil/ipfw/dn_sched_fq_codel.c	optional inet dummynet
+netpfil/ipfw/dn_sched_fq_pie.c	optional inet dummynet
 netpfil/ipfw/dn_sched_prio.c	optional inet dummynet
 netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet
 netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
