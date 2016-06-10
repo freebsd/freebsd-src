@@ -2646,8 +2646,10 @@ krtread(int again)
 			sleep(1);
 		retry++;
 		errmsg = NULL;
-		if (buf)
+		if (buf) {
 			free(buf);
+			buf = NULL;
+		}
 		if (sysctl(mib, 6, NULL, &msize, NULL, 0) < 0) {
 			errmsg = "sysctl estimate";
 			continue;
