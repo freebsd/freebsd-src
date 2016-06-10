@@ -1194,11 +1194,6 @@ zfs_create_boot()
 			f_eval_catch $funcname chmod "$CHMOD_MODE" \
 			             go-wrx "$bootpool/$zroot_key" ||
 			             return $FAILURE
-		else
-			# Clean up
-			f_eval_catch $funcname zfs "$ZFS_UNMOUNT" \
-			             "$bootpool_name" || return $FAILURE
-			f_eval_catch -d $funcname umount "$UMOUNT" /mnt # tmpfs
 		fi
 
 	fi
@@ -1409,6 +1404,11 @@ zfs_create_boot()
 	             "cachefile=\"$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\"" \
 	             "$zroot_name" || return $FAILURE
 
+	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		f_eval_catch $funcname printf "$PRINTF_CONF" \
+			vfs.root.mountfrom "\"zfs:$zroot_name/$zroot_bootfs\"" \
+			$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
+	fi
 	#
 	# Set canmount=noauto so that the default Boot Environment (BE) does not
 	# get mounted if a different BE is selected from the beastie menu
@@ -1486,10 +1486,6 @@ zfs_create_boot()
 		             $BSDINSTALL_TMPBOOT/loader.conf.zfs ||
 		             return $FAILURE
 	done
-	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
-		"\"zfs:$zroot_name/$zroot_bootfs\"" \
-		$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
-
 	return $SUCCESS
 }
 
