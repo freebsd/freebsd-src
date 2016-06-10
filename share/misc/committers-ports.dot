@@ -226,6 +226,7 @@ tota [label="TAKATSU Tomonari\ntota@FreeBSD.org\n2009/03/30"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 trociny [label="Mikolaj Golub\ntrociny@FreeBSD.org\n2013/10/17"]
+tz [label="Torsten Zuehlsdorff\ntz@FreeBSD.org\n2016/06/04"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
 vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11"]
@@ -413,6 +414,8 @@ jadawin -> wen
 
 joerg -> netchild
 
+junovitch -> tz
+
 knu -> daichi
 knu -> maho
 knu -> nobutaka
@@ -530,6 +533,8 @@ pgollucci -> swills
 
 philip -> koitsu
 
+pi -> tz
+
 rafan -> chinsan
 
 rakuco -> alonso
@@ -573,6 +578,7 @@ swills -> milki
 swills -> pclin
 swills -> robak
 swills -> rpaulo
+swills -> tz
 swills -> xmj
 
 tabthorpe -> ashish
