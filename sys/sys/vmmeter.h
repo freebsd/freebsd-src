@@ -183,7 +183,8 @@ static __inline
 int
 vm_paging_needed(void)
 {
-    return (cnt.v_free_count + cnt.v_cache_count < vm_pageout_wakeup_thresh);
+    return (cnt.v_free_count + cnt.v_cache_count <
+        (u_int)vm_pageout_wakeup_thresh);
 }
 
 #endif
