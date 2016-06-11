@@ -253,11 +253,11 @@ vm_page_domain_init(struct vm_domain *vmd)
 
 	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_name) =
 	    "vm inactive pagequeue";
-	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_vcnt) =
+	*__DECONST(u_int **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_vcnt) =
 	    &cnt.v_inactive_count;
 	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_name) =
 	    "vm active pagequeue";
-	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_vcnt) =
+	*__DECONST(u_int **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_vcnt) =
 	    &cnt.v_active_count;
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
