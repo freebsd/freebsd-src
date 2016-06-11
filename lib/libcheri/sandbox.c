@@ -645,7 +645,7 @@ sandbox_object_getsandboxdata(struct sandbox_object *sbop)
 {
 
 	return (cheri_unseal(sbop->sbo_cheri_object_invoke.co_datacap,
-			sbop->sbo_sandbox_classp->sbc_typecap));
+	    sbop->sbo_sandbox_classp->sbc_typecap));
 }
 
 __capability void *

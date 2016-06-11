@@ -196,10 +196,11 @@ cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 	 */
 	pcb->pcb_regs.v0 = -1;
 	pcb->pcb_regs.v1 = signum;
+
 	/*
-	 * Also store the signal number in a0.  a0 is normally cleared on return to
-	 * prevent information leaks, so this allows us to differentiate between a
-	 * normal and exceptional exit.
+	 * Also store the signal number in a0.  a0 is normally cleared on
+	 * return to prevent information leaks, so this allows us to
+	 * differentiate between a normal and exceptional exit.
 	 */
 	pcb->pcb_regs.a0 = signum;
 	return (1);

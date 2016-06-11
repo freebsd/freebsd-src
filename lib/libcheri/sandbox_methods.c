@@ -120,20 +120,22 @@ extern int sb_verbose;
 
 int
 sandbox_class_method_get_number(struct sandbox_class *sbcp,
-		const char *name)
+    const char *name)
 {
 	struct sandbox_provided_classes *cls = sbcp->sbc_provided_classes;
 	vm_offset_t vtable_base = cls->spcs_base;
-	for (size_t i=0 ; i<cls->spcs_nclasses ; i++) {
+
+	for (size_t i=0; i<cls->spcs_nclasses; i++) {
 		struct sandbox_provided_methods *methods = cls->spcs_classes[i];
-		for (size_t j=0 ; j<methods->spms_nmethods ; j++) {
-			struct sandbox_provided_method *method = &methods->spms_methods[j];
+		for (size_t j=0; j<methods->spms_nmethods; j++) {
+			struct sandbox_provided_method *method =
+			    &methods->spms_methods[j];
 			if (strcmp(method->spm_method, name) == 0) {
-				return method->spm_index_offset - vtable_base;
+				return (method->spm_index_offset - vtable_base);
 			}
 		}
 	}
-	return -1;
+	return (-1);
 }
 
 #define SB_GET_CLASS_ALLOC	0x1
@@ -149,7 +151,7 @@ sandbox_get_class_flag(struct sandbox_provided_classes *pcs,
 
 	for (i = 0; i < pcs->spcs_nclasses; i++)
 		if (strcmp(pcs->spcs_classes[i]->spms_class, class) == 0)
-			return(pcs->spcs_classes[i]);
+			return (pcs->spcs_classes[i]);
 
 	if (!(flags & SB_GET_CLASS_ALLOC))
 		return (NULL);
