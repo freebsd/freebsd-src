@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Jakub Klama <jceel@FreeBSD.org>
+ * Copyright 2016 Chris Torek <chris.torek@gmail.com>
  * All rights reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,30 +25,41 @@
  *
  */
 
+#include <grp.h>
+#include <pwd.h>
+#include <string.h>
+
 /*
- * Minimal libsbuf reimplementation for Mac OS X.
+ * Reentrant, optionally-malloc-ing versions of
+ * basename() and dirname().
  */
+char	*r_basename(const char *, char *, size_t);
+char	*r_dirname(const char *, char *, size_t);
 
-#ifndef LIB9P_SBUF_H
-#define LIB9P_SBUF_H
-
-#include <stdarg.h>
-
-struct sbuf
-{
-	char *s_buf;
-	int s_size;
-	int s_capacity;
-	int s_position;
+/*
+ * Yuck: getpwuid, getgrgid are not thread-safe, and the
+ * POSIX replacements (getpwuid_r, getgrgid_r) are horrible.
+ * This is to allow us to loop over the get.*_r calls with ever
+ * increasing buffers until they succeed or get unreasonable
+ * (same idea as the libc code for the non-reentrant versions,
+ * although prettier).
+ *
+ * The getpwuid/getgrgid functions auto-init one of these,
+ * but the caller must call r_pgfree() when done with the
+ * return values.
+ *
+ * If we need more later, we may have to expose the init function.
+ */
+struct r_pgdata {
+	char	*r_pgbuf;
+	size_t	r_pgbufsize;
+	union {
+		struct passwd un_pw;
+		struct group un_gr;
+	} r_pgun;
 };
 
-struct sbuf *sbuf_new_auto(void);
-int sbuf_cat(struct sbuf *s, const char *str);
-int sbuf_printf(struct sbuf *s, const char *fmt, ...);
-int sbuf_vprintf(struct sbuf *s, const char *fmt, va_list args);
-int sbuf_done(struct sbuf *s);
-void sbuf_delete(struct sbuf *s);
-char *sbuf_data(struct sbuf *s);
-
-#endif /* LIB9P_SBUF_H */
-
+/* void r_pginit(struct r_pgdata *); */
+void r_pgfree(struct r_pgdata *);
+struct passwd *r_getpwuid(uid_t, struct r_pgdata *);
+struct group *r_getgrgid(gid_t, struct r_pgdata *);

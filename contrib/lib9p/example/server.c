@@ -30,7 +30,6 @@
 #include <err.h>
 #include "../lib9p.h"
 #include "../transport/socket.h"
-#include "../backend/fs.h"
 
 int
 main(int argc, const char *argv[])
@@ -47,6 +46,9 @@ main(int argc, const char *argv[])
 	if (l9p_server_init(&server, fs_backend) != 0)
 		err(1, "cannot create server");
 
-	server->ls_max_version = L9P_2000U;
-	l9p_start_server(server, "0.0.0.0", "564");
+	server->ls_max_version = L9P_2000L;
+	if (l9p_start_server(server, "0.0.0.0", "564"))
+		err(1, "l9p_start_server() failed");
+	/* XXX - we never get here, l9p_start_server does not return */
+	exit(0);
 }

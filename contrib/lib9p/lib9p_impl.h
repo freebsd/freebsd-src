@@ -36,13 +36,13 @@ static inline void *
 l9p_malloc(size_t size)
 {
 	void *r = malloc(size);
-	
+
 	if (r == NULL) {
 		fprintf(stderr, "cannot allocate %zd bytes: out of memory\n",
 		    size);
 		abort();
 	}
-	
+
 	return (r);
 }
 
@@ -50,13 +50,13 @@ static inline void *
 l9p_calloc(size_t n, size_t size)
 {
 	void *r = calloc(n, size);
-	
+
 	if (r == NULL) {
 		fprintf(stderr, "cannot allocate %zd bytes: out of memory\n",
 		    n * size);
 		abort();
 	}
-	
+
 	return (r);
 }
 

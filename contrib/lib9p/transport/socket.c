@@ -32,6 +32,11 @@
 #include <pthread.h>
 #include <assert.h>
 #include <sys/types.h>
+#ifdef __APPLE__
+# include "../apple_endian.h"
+#else
+# include <sys/endian.h>
+#endif
 #include <sys/socket.h>
 #include <sys/event.h>
 #include <sys/uio.h>
@@ -39,7 +44,7 @@
 #include "../lib9p.h"
 #include "../lib9p_impl.h"
 #include "../log.h"
-#include "socket.h" 
+#include "socket.h"
 
 struct l9p_socket_softc
 {
@@ -85,7 +90,7 @@ l9p_start_server(struct l9p_server *server, const char *host, const char *port)
 
 		if (s < 0)
 			continue;
-		
+
 		if (bind(s, res->ai_addr, res->ai_addrlen) < 0) {
 			close(s);
 			continue;
@@ -95,6 +100,11 @@ l9p_start_server(struct l9p_server *server, const char *host, const char *port)
 		EV_SET(&kev[nsockets++], s, EVFILT_READ, EV_ADD | EV_ENABLE, 0,
 		    0, 0);
 		listen(s, 10);
+	}
+
+	if (nsockets < 1) {
+		L9P_LOG(L9P_ERROR, "bind(): %s", strerror(errno));
+		return(-1);
 	}
 
 	kq = kqueue();
@@ -149,8 +159,9 @@ l9p_socket_accept(struct l9p_server *server, int conn_fd,
 	if (err != 0) {
 		L9P_LOG(L9P_WARNING, "cannot look up client name: %s",
 		    gai_strerror(err));
-	} else
+	} else {
 		L9P_LOG(L9P_INFO, "new connection from %s:%s", host, serv);
+	}
 
 	if (l9p_connection_init(server, &conn) != 0) {
 		L9P_LOG(L9P_ERROR, "cannot create new connection");
@@ -170,7 +181,7 @@ l9p_socket_accept(struct l9p_server *server, int conn_fd,
 
 static void *
 l9p_socket_thread(void *arg)
-{	
+{
 	struct l9p_socket_softc *sc = (struct l9p_socket_softc *)arg;
 	struct iovec iov;
 	void *buf;
@@ -194,6 +205,7 @@ l9p_socket_readmsg(struct l9p_socket_softc *sc, void **buf, size_t *size)
 {
 	uint32_t msize;
 	size_t toread;
+	ssize_t ret;
 	void *buffer;
 	int fd = sc->ls_fd;
 
@@ -201,17 +213,31 @@ l9p_socket_readmsg(struct l9p_socket_softc *sc, void **buf, size_t *size)
 
 	buffer = l9p_malloc(sizeof(uint32_t));
 
-	if (xread(fd, buffer, sizeof(uint32_t)) != sizeof(uint32_t)) {
-		L9P_LOG(L9P_ERROR, "short read: %s", strerror(errno));
+	ret = xread(fd, buffer, sizeof(uint32_t));
+	if (ret < 0) {
+		L9P_LOG(L9P_ERROR, "read(): %s", strerror(errno));
 		return (-1);
 	}
 
-	msize = *(uint32_t *)buffer;
+	if (ret != sizeof(uint32_t)) {
+		L9P_LOG(L9P_ERROR, "short read: %zd bytes of %zd expected",
+		    ret, sizeof(uint32_t));
+		return (-1);
+	}
+
+	msize = le32toh(*(uint32_t *)buffer);
 	toread = msize - sizeof(uint32_t);
 	buffer = realloc(buffer, msize);
 
-	if (xread(fd, (char *)buffer + sizeof(uint32_t), toread) != (ssize_t)toread) {
-		L9P_LOG(L9P_ERROR, "short read: %s", strerror(errno));
+	ret = xread(fd, (char *)buffer + sizeof(uint32_t), toread);
+	if (ret < 0) {
+		L9P_LOG(L9P_ERROR, "read(): %s", strerror(errno));
+		return (-1);
+	}
+
+	if (ret != (ssize_t)toread) {
+		L9P_LOG(L9P_ERROR, "short read: %zd bytes of %zd expected",
+		    ret, toread);
 		return (-1);
 	}
 
