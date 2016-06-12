@@ -490,7 +490,6 @@ linprocfs_doswaps(PFS_FILL_ARGS)
 	char devname[SPECNAMELEN + 1];
 
 	sbuf_printf(sb, "Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
-	mtx_lock(&Giant);
 	for (n = 0; ; n++) {
 		if (swap_dev_info(n, &xsw, devname, sizeof(devname)) != 0)
 			break;
@@ -504,7 +503,6 @@ linprocfs_doswaps(PFS_FILL_ARGS)
 		sbuf_printf(sb, "/dev/%-34s unknown\t\t%jd\t%jd\t-1\n",
 		    devname, total, used);
 	}
-	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -1326,13 +1324,13 @@ linprocfs_dofilesystems(PFS_FILL_ARGS)
 {
 	struct vfsconf *vfsp;
 
-	mtx_lock(&Giant);
+	vfsconf_slock();
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
 		if (vfsp->vfc_flags & VFCF_SYNTHETIC)
 			sbuf_printf(sb, "nodev");
 		sbuf_printf(sb, "\t%s\n", vfsp->vfc_name);
 	}
-	mtx_unlock(&Giant);
+	vfsconf_sunlock();
 	return(0);
 }
 
