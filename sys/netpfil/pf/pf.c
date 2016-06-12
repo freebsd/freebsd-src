@@ -1420,16 +1420,22 @@ pf_intr(void *v)
 }
 
 void
-pf_purge_thread(void *v)
+pf_purge_thread(void *unused __unused)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	u_int idx = 0;
-
-	CURVNET_SET((struct vnet *)v);
 
 	for (;;) {
 		PF_RULES_RLOCK();
 		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftm", hz / 10);
+		PF_RULES_RUNLOCK();
 
+		VNET_LIST_RLOCK();
+		VNET_FOREACH(vnet_iter) {
+			CURVNET_SET(vnet_iter);
+
+#if 0
+		/* XXX-BZ cleanup needs to happen elsewhere. */
 		if (V_pf_end_threads) {
 			/*
 			 * To cleanse up all kifs and rules we need
@@ -1462,9 +1468,9 @@ pf_purge_thread(void *v)
 			V_pf_end_threads++;
 			PF_RULES_RUNLOCK();
 			wakeup(pf_purge_thread);
-			kproc_exit(0);
+			//kproc_exit(0);
 		}
-		PF_RULES_RUNLOCK();
+#endif
 
 		/* Process 1/interval fraction of the state table every run. */
 		idx = pf_purge_expired_states(idx, pf_hashmask /
@@ -1482,9 +1488,11 @@ pf_purge_thread(void *v)
 			pf_purge_unlinked_rules();
 			pfi_kif_purge();
 		}
+		CURVNET_RESTORE();
+		}
+		VNET_LIST_RUNLOCK();
 	}
 	/* not reached */
-	CURVNET_RESTORE();
 }
 
 u_int32_t

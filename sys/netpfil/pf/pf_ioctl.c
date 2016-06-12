@@ -204,17 +204,14 @@ pfsync_defer_t			*pfsync_defer_ptr = NULL;
 /* pflog */
 pflog_packet_t			*pflog_packet_ptr = NULL;
 
-static int
-pfattach(void)
+static void
+pfattach_vnet(void)
 {
 	u_int32_t *my_timeout = V_pf_default_rule.timeout;
-	int error;
 
-	if (IS_DEFAULT_VNET(curvnet))
-		pf_mtag_initialize();
 	pf_initialize();
 	pfr_initialize();
-	pfi_initialize();
+	pfi_initialize_vnet();
 	pf_normalize_init();
 
 	V_pf_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
@@ -276,14 +273,24 @@ pfattach(void)
 	for (int i = 0; i < SCNT_MAX; i++)
 		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
 
-	if ((error = kproc_create(pf_purge_thread, curvnet, NULL, 0, 0,
-	    "pf purge")) != 0)
+	if (swi_add(NULL, "pf send", pf_intr, curvnet, SWI_NET,
+	    INTR_MPSAFE, &V_pf_swi_cookie) != 0)
 		/* XXXGL: leaked all above. */
+		return;
+}
+
+static int
+pfattach(void)
+{
+	int error;
+
+	pf_mtag_initialize();
+
+	error = kproc_create(pf_purge_thread, NULL, NULL, 0, 0, "pf purge");
+	if (error != 0) {
+		pf_mtag_cleanup();
 		return (error);
-	if ((error = swi_add(NULL, "pf send", pf_intr, curvnet, SWI_NET,
-	    INTR_MPSAFE, &V_pf_swi_cookie)) != 0)
-		/* XXXGL: leaked all above. */
-		return (error);
+	}
 
 	return (0);
 }
@@ -3691,23 +3698,31 @@ dehook_pf(void)
 	return (0);
 }
 
-static int
-pf_load(void)
+static void
+pf_load_vnet(void)
 {
-	int error;
-
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		V_pf_pfil_hooked = 0;
+#if 0
 		V_pf_end_threads = 0;
+#endif
 		TAILQ_INIT(&V_pf_tags);
 		TAILQ_INIT(&V_pf_qids);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK();
+
+	pfattach_vnet();
+}
+
+static int
+pf_load(void)
+{
+	int error;
 
 	rw_init(&pf_rules_lock, "pf rulesets");
 	sx_init(&pf_ioctl_lock, "pf ioctl");
@@ -3719,10 +3734,10 @@ pf_load(void)
 	return (0);
 }
 
-static int
-pf_unload(void)
+static void
+pf_unload_vnet()
 {
-	int error = 0;
+	int error;
 
 	V_pf_status.running = 0;
 	swi_remove(V_pf_swi_cookie);
@@ -3734,29 +3749,59 @@ pf_unload(void)
 		 * a message like 'No such process'.
 		 */
 		printf("%s : pfil unregisteration fail\n", __FUNCTION__);
-		return error;
+		return;
 	}
 	PF_RULES_WLOCK();
 	shutdown_pf();
+#if 0
 	V_pf_end_threads = 1;
 	while (V_pf_end_threads < 2) {
 		wakeup_one(pf_purge_thread);
 		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
 	}
+#endif
 	PF_RULES_WUNLOCK();
 	pf_normalize_cleanup();
-	pfi_cleanup();
+	pfi_cleanup_vnet();
 	pfr_cleanup();
 	pf_osfp_flush();
 	pf_cleanup();
 	if (IS_DEFAULT_VNET(curvnet))
 		pf_mtag_cleanup();
+}
+
+static int
+pf_unload(void)
+{
+	int error = 0;
+
+	pfi_cleanup();
+
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);
 
 	return (error);
 }
+
+static void
+vnet_pf_init(void *unused __unused)
+{
+
+	pf_load_vnet();
+}
+VNET_SYSINIT(vnet_pf_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD, 
+    vnet_pf_init, NULL);
+
+static void
+vnet_pf_uninit(const void *unused __unused)
+{
+
+	pf_unload_vnet();
+} 
+VNET_SYSUNINIT(vnet_pf_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
+    vnet_pf_uninit, NULL);
+
 
 static int
 pf_modevent(module_t mod, int type, void *data)
@@ -3790,5 +3835,5 @@ static moduledata_t pf_mod = {
 	0
 };
 
-DECLARE_MODULE(pf, pf_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_FIRST);
+DECLARE_MODULE(pf, pf_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND);
 MODULE_VERSION(pf, PF_MODVER);

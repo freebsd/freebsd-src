@@ -108,7 +108,7 @@ MTX_SYSINIT(pfi_unlnkdkifs_mtx, &pfi_unlnkdkifs_mtx, "pf unlinked interfaces",
     MTX_DEF);
 
 void
-pfi_initialize(void)
+pfi_initialize_vnet(void)
 {
 	struct ifg_group *ifg;
 	struct ifnet *ifp;
@@ -129,6 +129,11 @@ pfi_initialize(void)
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		pfi_attach_ifnet(ifp);
 	IFNET_RUNLOCK();
+}
+
+void
+pfi_initialize(void)
+{
 
 	pfi_attach_cookie = EVENTHANDLER_REGISTER(ifnet_arrival_event,
 	    pfi_attach_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
@@ -145,16 +150,9 @@ pfi_initialize(void)
 }
 
 void
-pfi_cleanup(void)
+pfi_cleanup_vnet(void)
 {
 	struct pfi_kif *p;
-
-	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, pfi_attach_cookie);
-	EVENTHANDLER_DEREGISTER(ifnet_departure_event, pfi_detach_cookie);
-	EVENTHANDLER_DEREGISTER(group_attach_event, pfi_attach_group_cookie);
-	EVENTHANDLER_DEREGISTER(group_change_event, pfi_change_group_cookie);
-	EVENTHANDLER_DEREGISTER(group_detach_event, pfi_detach_group_cookie);
-	EVENTHANDLER_DEREGISTER(ifaddr_event, pfi_ifaddr_event_cookie);
 
 	V_pfi_all = NULL;
 	while ((p = RB_MIN(pfi_ifhead, &V_pfi_ifs))) {
@@ -168,6 +166,18 @@ pfi_cleanup(void)
 	}
 
 	free(V_pfi_buffer, PFI_MTYPE);
+}
+
+void
+pfi_cleanup(void)
+{
+
+	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, pfi_attach_cookie);
+	EVENTHANDLER_DEREGISTER(ifnet_departure_event, pfi_detach_cookie);
+	EVENTHANDLER_DEREGISTER(group_attach_event, pfi_attach_group_cookie);
+	EVENTHANDLER_DEREGISTER(group_change_event, pfi_change_group_cookie);
+	EVENTHANDLER_DEREGISTER(group_detach_event, pfi_detach_group_cookie);
+	EVENTHANDLER_DEREGISTER(ifaddr_event, pfi_ifaddr_event_cookie);
 }
 
 struct pfi_kif *

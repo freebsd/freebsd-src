@@ -1655,7 +1655,9 @@ VNET_DECLARE(struct pfi_kif *,		 pfi_all);
 #define	V_pfi_all	 		 VNET(pfi_all)
 
 void		 pfi_initialize(void);
+void		 pfi_initialize_vnet(void);
 void		 pfi_cleanup(void);
+void		 pfi_cleanup_vnet(void);
 void		 pfi_kif_ref(struct pfi_kif *);
 void		 pfi_kif_unref(struct pfi_kif *);
 struct pfi_kif	*pfi_kif_find(const char *);
