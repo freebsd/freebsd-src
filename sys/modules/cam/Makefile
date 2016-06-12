@@ -25,6 +25,7 @@ SRCS+=	cam_iosched.c cam_periph.c cam_queue.c cam_sim.c cam_xpt.c
 SRCS+=	scsi_all.c scsi_cd.c scsi_ch.c
 SRCS+=	scsi_da.c
 SRCS+=	scsi_pass.c
+SRCS+=  scsi_passthrough.c
 SRCS+=	scsi_pt.c
 SRCS+=	scsi_sa.c
 SRCS+=	scsi_enc.c
