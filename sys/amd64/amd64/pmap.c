@@ -6480,7 +6480,7 @@ static int
 pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 {
 	vm_offset_t base, offset, tmpva;
-	vm_paddr_t pa_start, pa_end;
+	vm_paddr_t pa_start, pa_end, pa_end1;
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
 	pt_entry_t *pte;
@@ -6660,9 +6660,12 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			tmpva += PAGE_SIZE;
 		}
 	}
-	if (error == 0 && pa_start != pa_end)
-		error = pmap_change_attr_locked(PHYS_TO_DMAP(pa_start),
-		    pa_end - pa_start, mode);
+	if (error == 0 && pa_start != pa_end && pa_start < dmaplimit) {
+		pa_end1 = MIN(pa_end, dmaplimit);
+		if (pa_start != pa_end1)
+			error = pmap_change_attr_locked(PHYS_TO_DMAP(pa_start),
+			    pa_end1 - pa_start, mode);
+	}
 
 	/*
 	 * Flush CPU caches if required to make sure any data isn't cached that
