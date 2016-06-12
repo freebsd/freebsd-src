@@ -19,16 +19,21 @@
  */
 
 #include "os.h"
-#include <ctype.h>
-#include <signal.h>
-#include <errno.h>
+
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include <ctype.h>
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h>
+
+#include "commands.h"
 #include "sigdesc.h"		/* generated automatically */
 #include "top.h"
 #include "boolean.h"
 #include "utils.h"
+#include "machine.h"
 
 extern int  errno;
 
@@ -39,12 +44,15 @@ extern int overstrike;
 
 int err_compar();
 char *err_string();
+static int str_adderr(char *str, int len, int err);
+static int str_addarg(char *str, int len, char *arg, int first);
 
 /*
  *  show_help() - display the help screen; invoked in response to
  *		either 'h' or '?'.
  */
 
+void
 show_help()
 
 {
@@ -123,6 +131,7 @@ register char *str;
     return(*str == '\0' ? NULL : str);
 }
 
+int
 scanint(str, intp)
 
 char *str;
@@ -262,6 +271,7 @@ char *err_string()
  *	the string "str".
  */
 
+static int
 str_adderr(str, len, err)
 
 char *str;
@@ -289,6 +299,7 @@ int err;
  *	is set (indicating that a comma should NOT be added to the front).
  */
 
+static int
 str_addarg(str, len, arg, first)
 
 char *str;
@@ -321,6 +332,7 @@ int  first;
  *	for sorting errors.
  */
 
+int
 err_compar(p1, p2)
 
 register struct errs *p1, *p2;
@@ -339,6 +351,7 @@ register struct errs *p1, *p2;
  *  error_count() - return the number of errors currently logged.
  */
 
+int
 error_count()
 
 {
@@ -349,6 +362,7 @@ error_count()
  *  show_errors() - display on stdout the current log of errors.
  */
 
+void
 show_errors()
 
 {
