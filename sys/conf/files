@@ -100,6 +100,7 @@ cam/ctl/scsi_ctl.c		optional ctl
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_pass.c		optional pass
+cam/scsi/scsi_passthrough.c     optional passthrough
 cam/scsi/scsi_pt.c		optional pt
 cam/scsi/scsi_sa.c		optional sa
 cam/scsi/scsi_enc.c		optional ses

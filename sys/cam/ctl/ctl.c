@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_cd.h>
 #include <cam/scsi/scsi_da.h>
+#include <cam/scsi/scsi_passthrough.c>
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
@@ -11843,10 +11844,16 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 {
 	int retval;
 	const struct ctl_cmd_entry *entry;
+	struct ctl_lun *lun;
 
 	retval = CTL_RETVAL_COMPLETE;
 
 	CTL_DEBUG_PRINT(("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]));
+	
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	if(lun->be_lun->lun_type == T_PASSTHROUGH)
+		return ctlccb((union ctl_io *)ctsio);
+	
 
 	entry = ctl_get_cmd_entry(ctsio, NULL);
 
