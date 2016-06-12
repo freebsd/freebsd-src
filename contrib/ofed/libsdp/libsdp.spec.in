@@ -17,7 +17,7 @@ and without recompiling the application.
 %package devel
 Summary: Development files for the libsdp
 Group: System Environment/Libraries
-Requires: %{name} = %{version}-%{release}
+Requires: %{name} = %{version}-%{release}, logrotate
 
 %description devel
 Development files of libsdp that may be linked directly to an
@@ -31,23 +31,29 @@ application, which may be useful for debugging.
 make
 
 %install
+etc=$RPM_BUILD_ROOT%{_sysconfdir}
 make DESTDIR=${RPM_BUILD_ROOT} install
 # remove unpackaged files from the buildroot
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
+mkdir -p $etc/logrotate.d
+install -m 644 scripts/libsdp.logrotate $etc/logrotate.d/libsdp
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%defattr(6644,root,root)
+# For set-user-ID/set-group-ID ELF binaries, only libraries in the standard search directories that are also set-user-ID
+# To do so, change line below to: %defattr(6644,root,root)
+%defattr(0644,root,root)
 %{_libdir}/libsdp*.so*
 %defattr(0644,root,root)
 %config(noreplace) %{_sysconfdir}/libsdp.conf
 %config(noreplace) %{_includedir}/linux/sdp_inet.h
 %doc README NEWS ChangeLog COPYING
+%config(noreplace) %{_sysconfdir}/logrotate.d/libsdp
 
 %files devel
-%defattr(6644,root,root,-)
+%defattr(0644,root,root,-)
 %{_libdir}/libsdp*.so
 
 %changelog

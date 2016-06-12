@@ -27,8 +27,6 @@ typedef struct {
 	u_int32	frac;
 } lfpfracdata ;
 
-typedef int bool;
-
 struct timeval timeval_init( time_t hi, long lo);
 const bool timeval_isValid(struct timeval V);
 l_fp l_fp_init(int32 i, u_int32 f);

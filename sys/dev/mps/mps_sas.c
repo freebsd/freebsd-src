@@ -2408,11 +2408,20 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	case MPI2_IOCSTATUS_SCSI_IOC_TERMINATED:
 	case MPI2_IOCSTATUS_SCSI_EXT_TERMINATED:
 		/*
-		 * Since these are generally external (i.e. hopefully
-		 * transient transport-related) errors, retry these without
-		 * decrementing the retry count.
+		 * These can sometimes be transient transport-related
+		 * errors, and sometimes persistent drive-related errors.
+		 * We used to retry these without decrementing the retry
+		 * count by returning CAM_REQUEUE_REQ.  Unfortunately, if
+		 * we hit a persistent drive problem that returns one of
+		 * these error codes, we would retry indefinitely.  So,
+		 * return CAM_REQ_CMP_ERROR so that we decrement the retry
+		 * count and avoid infinite retries.  We're taking the
+		 * potential risk of flagging false failures in the event
+		 * of a topology-related error (e.g. a SAS expander problem
+		 * causes a command addressed to a drive to fail), but
+		 * avoiding getting into an infinite retry loop.
 		 */
-		mpssas_set_ccbstatus(ccb, CAM_REQUEUE_REQ);
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		mpssas_log_command(cm, MPS_INFO,
 		    "terminated ioc %x scsi %x state %x xfer %u\n",
 		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
@@ -2502,7 +2511,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 			 * Check if the I/O crosses a stripe boundary.  If not,
 			 * translate the virtual LBA to a physical LBA and set
 			 * the DevHandle for the PhysDisk to be used.  If it
-			 * does cross a boundry, do normal I/O.  To get the
+			 * does cross a boundary, do normal I/O.  To get the
 			 * right DevHandle to use, get the map number for the
 			 * column, then use that map number to look up the
 			 * DevHandle of the PhysDisk.
@@ -2588,7 +2597,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 				 * If not, translate the virtual LBA to a
 				 * physical LBA and set the DevHandle for the
 				 * PhysDisk to be used.  If it does cross a
-				 * boundry, do normal I/O.  To get the right
+				 * boundary, do normal I/O.  To get the right
 				 * DevHandle to use, get the map number for the
 				 * column, then use that map number to look up
 				 * the DevHandle of the PhysDisk.
@@ -2666,7 +2675,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 				 * If not, translate the virtual LBA to a
 				 * physical LBA and set the DevHandle for the
 				 * PhysDisk to be used.  If it does cross a
-				 * boundry, do normal I/O.  To get the right
+				 * boundary, do normal I/O.  To get the right
 				 * DevHandle to use, get the map number for the
 				 * column, then use that map number to look up
 				 * the DevHandle of the PhysDisk.
@@ -2797,11 +2806,9 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	uint8_t *request, *response;
 	MPI2_SMP_PASSTHROUGH_REQUEST *req;
 	struct mps_softc *sc;
-	struct sglist *sg;
 	int error;
 
 	sc = sassc->sc;
-	sg = NULL;
 	error = 0;
 
 	/*

@@ -116,7 +116,7 @@ static const unsigned char flags[NOPT] = {
 
 /* These must match BOOTINFO_DEV_TYPE constants. */
 static const char *const dev_nm[] = {"dram", "cfi", "sdcard"};
-static const u_int dev_nm_count = sizeof(dev_nm) / sizeof(dev_nm[0]);
+static const u_int dev_nm_count = nitems(dev_nm);
 
 static struct dmadat __dmadat;
 

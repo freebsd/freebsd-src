@@ -6,17 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-SparcTargetInfo.o: SparcGenInstrInfo.inc.h
-SparcTargetInfo.o: SparcGenRegisterInfo.inc.h
-SparcTargetInfo.o: SparcGenSubtargetInfo.inc.h
-SparcTargetInfo.po: SparcGenInstrInfo.inc.h
-SparcTargetInfo.po: SparcGenRegisterInfo.inc.h
-SparcTargetInfo.po: SparcGenSubtargetInfo.inc.h
 .endif

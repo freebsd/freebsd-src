@@ -67,8 +67,27 @@ ns_to_timeval(const int64_t nsec)
         return (tv);
 }
 
-static drm_pci_id_list_t *
-drm_find_description(int vendor, int device, drm_pci_id_list_t *idlist)
+/* Copied from OFED. */
+unsigned long drm_linux_timer_hz_mask;
+
+static void
+drm_linux_timer_init(void *arg)
+{
+
+        /*
+         * Compute an internal HZ value which can divide 2**32 to
+         * avoid timer rounding problems when the tick value wraps
+         * around 2**32:
+         */
+        drm_linux_timer_hz_mask = 1;
+        while (drm_linux_timer_hz_mask < (unsigned long)hz)
+                drm_linux_timer_hz_mask *= 2;
+        drm_linux_timer_hz_mask--;
+}
+SYSINIT(drm_linux_timer, SI_SUB_DRIVERS, SI_ORDER_FIRST, drm_linux_timer_init, NULL);
+
+static const drm_pci_id_list_t *
+drm_find_description(int vendor, int device, const drm_pci_id_list_t *idlist)
 {
 	int i = 0;
 
@@ -87,9 +106,9 @@ drm_find_description(int vendor, int device, drm_pci_id_list_t *idlist)
  * method.
  */
 int
-drm_probe_helper(device_t kdev, drm_pci_id_list_t *idlist)
+drm_probe_helper(device_t kdev, const drm_pci_id_list_t *idlist)
 {
-	drm_pci_id_list_t *id_entry;
+	const drm_pci_id_list_t *id_entry;
 	int vendor, device;
 
 	vendor = pci_get_vendor(kdev);
@@ -118,7 +137,7 @@ drm_probe_helper(device_t kdev, drm_pci_id_list_t *idlist)
  * method.
  */
 int
-drm_attach_helper(device_t kdev, drm_pci_id_list_t *idlist,
+drm_attach_helper(device_t kdev, const drm_pci_id_list_t *idlist,
     struct drm_driver *driver)
 {
 	struct drm_device *dev;
@@ -134,6 +153,55 @@ drm_attach_helper(device_t kdev, drm_pci_id_list_t *idlist,
 	ret = drm_get_pci_dev(kdev, dev, driver);
 
 	return (ret);
+}
+
+int
+drm_generic_suspend(device_t kdev)
+{
+	struct drm_device *dev;
+	int error;
+
+	DRM_DEBUG_KMS("Starting suspend\n");
+
+	dev = device_get_softc(kdev);
+	if (dev->driver->suspend) {
+		pm_message_t state;
+
+		state.event = PM_EVENT_SUSPEND;
+		error = -dev->driver->suspend(dev, state);
+		if (error)
+			goto out;
+	}
+
+	error = bus_generic_suspend(kdev);
+
+out:
+	DRM_DEBUG_KMS("Finished suspend: %d\n", error);
+
+	return error;
+}
+
+int
+drm_generic_resume(device_t kdev)
+{
+	struct drm_device *dev;
+	int error;
+
+	DRM_DEBUG_KMS("Starting resume\n");
+
+	dev = device_get_softc(kdev);
+	if (dev->driver->resume) {
+		error = -dev->driver->resume(dev);
+		if (error)
+			goto out;
+	}
+
+	error = bus_generic_resume(kdev);
+
+out:
+	DRM_DEBUG_KMS("Finished resume: %d\n", error);
+
+	return error;
 }
 
 int
@@ -329,6 +397,42 @@ drm_clflush_virt_range(char *addr, unsigned long length)
 #else
 	DRM_ERROR("drm_clflush_virt_range not implemented on this architecture");
 #endif
+}
+
+void
+hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
+    char *linebuf, size_t linebuflen, bool ascii __unused)
+{
+	int i, j, c;
+
+	i = j = 0;
+
+	while (i < len && j <= linebuflen) {
+		c = ((const char *)buf)[i];
+
+		if (i != 0) {
+			if (i % rowsize == 0) {
+				/* Newline required. */
+				sprintf(linebuf + j, "\n");
+				++j;
+			} else if (i % groupsize == 0) {
+				/* Space required. */
+				sprintf(linebuf + j, " ");
+				++j;
+			}
+		}
+
+		if (j > linebuflen - 4)
+			break;
+
+		sprintf(linebuf + j, "%02X", c);
+		j += 2;
+
+		++i;
+	}
+
+	if (j <= linebuflen)
+		sprintf(linebuf + j, "\n");
 }
 
 #if DRM_LINUX

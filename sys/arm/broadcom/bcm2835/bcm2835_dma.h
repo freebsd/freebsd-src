@@ -37,8 +37,6 @@
 /* request CH for any nubmer */
 #define	BCM_DMA_CH_INVALID	(-1)
 #define	BCM_DMA_CH_ANY		(-1)
-#define	BCM_DMA_CH_FAST1	(2)
-#define	BCM_DMA_CH_FAST2	(3)
 
 /* Peripheral DREQ Signals (4.2.1.3) */
 #define	BCM_DMA_DREQ_NONE	0

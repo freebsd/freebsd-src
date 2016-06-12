@@ -53,6 +53,7 @@ void DAGTypeLegalizer::PromoteIntegerResult(SDNode *N, unsigned ResNo) {
   case ISD::AssertSext:  Res = PromoteIntRes_AssertSext(N); break;
   case ISD::AssertZext:  Res = PromoteIntRes_AssertZext(N); break;
   case ISD::BITCAST:     Res = PromoteIntRes_BITCAST(N); break;
+  case ISD::BITREVERSE:  Res = PromoteIntRes_BITREVERSE(N); break;
   case ISD::BSWAP:       Res = PromoteIntRes_BSWAP(N); break;
   case ISD::BUILD_PAIR:  Res = PromoteIntRes_BUILD_PAIR(N); break;
   case ISD::Constant:    Res = PromoteIntRes_Constant(N); break;
@@ -65,16 +66,20 @@ void DAGTypeLegalizer::PromoteIntegerResult(SDNode *N, unsigned ResNo) {
   case ISD::CTTZ:        Res = PromoteIntRes_CTTZ(N); break;
   case ISD::EXTRACT_VECTOR_ELT:
                          Res = PromoteIntRes_EXTRACT_VECTOR_ELT(N); break;
-  case ISD::LOAD:        Res = PromoteIntRes_LOAD(cast<LoadSDNode>(N));break;
-  case ISD::MLOAD:       Res = PromoteIntRes_MLOAD(cast<MaskedLoadSDNode>(N));break;
+  case ISD::LOAD:        Res = PromoteIntRes_LOAD(cast<LoadSDNode>(N)); break;
+  case ISD::MLOAD:       Res = PromoteIntRes_MLOAD(cast<MaskedLoadSDNode>(N));
+    break;
+  case ISD::MGATHER:     Res = PromoteIntRes_MGATHER(cast<MaskedGatherSDNode>(N));
+    break;
   case ISD::SELECT:      Res = PromoteIntRes_SELECT(N); break;
   case ISD::VSELECT:     Res = PromoteIntRes_VSELECT(N); break;
   case ISD::SELECT_CC:   Res = PromoteIntRes_SELECT_CC(N); break;
   case ISD::SETCC:       Res = PromoteIntRes_SETCC(N); break;
   case ISD::SMIN:
-  case ISD::SMAX:
+  case ISD::SMAX:        Res = PromoteIntRes_SExtIntBinOp(N); break;
   case ISD::UMIN:
-  case ISD::UMAX:        Res = PromoteIntRes_SimpleIntBinOp(N); break;
+  case ISD::UMAX:        Res = PromoteIntRes_ZExtIntBinOp(N); break;
+
   case ISD::SHL:         Res = PromoteIntRes_SHL(N); break;
   case ISD::SIGN_EXTEND_INREG:
                          Res = PromoteIntRes_SIGN_EXTEND_INREG(N); break;
@@ -114,10 +119,10 @@ void DAGTypeLegalizer::PromoteIntegerResult(SDNode *N, unsigned ResNo) {
   case ISD::MUL:         Res = PromoteIntRes_SimpleIntBinOp(N); break;
 
   case ISD::SDIV:
-  case ISD::SREM:        Res = PromoteIntRes_SDIV(N); break;
+  case ISD::SREM:        Res = PromoteIntRes_SExtIntBinOp(N); break;
 
   case ISD::UDIV:
-  case ISD::UREM:        Res = PromoteIntRes_UDIV(N); break;
+  case ISD::UREM:        Res = PromoteIntRes_ZExtIntBinOp(N); break;
 
   case ISD::SADDO:
   case ISD::SSUBO:       Res = PromoteIntRes_SADDSUBO(N, ResNo); break;
@@ -180,7 +185,7 @@ SDValue DAGTypeLegalizer::PromoteIntRes_Atomic0(AtomicSDNode *N) {
                               N->getChain(), N->getBasePtr(),
                               N->getMemOperand(), N->getOrdering(),
                               N->getSynchScope());
-  // Legalized the chain result - switch anything that used the old chain to
+  // Legalize the chain result - switch anything that used the old chain to
   // use the new one.
   ReplaceValueWith(SDValue(N, 1), Res.getValue(1));
   return Res;
@@ -193,7 +198,7 @@ SDValue DAGTypeLegalizer::PromoteIntRes_Atomic1(AtomicSDNode *N) {
                               N->getChain(), N->getBasePtr(),
                               Op2, N->getMemOperand(), N->getOrdering(),
                               N->getSynchScope());
-  // Legalized the chain result - switch anything that used the old chain to
+  // Legalize the chain result - switch anything that used the old chain to
   // use the new one.
   ReplaceValueWith(SDValue(N, 1), Res.getValue(1));
   return Res;
@@ -257,12 +262,8 @@ SDValue DAGTypeLegalizer::PromoteIntRes_BITCAST(SDNode *N) {
     return DAG.getNode(ISD::ANY_EXTEND, dl, NOutVT, GetSoftenedFloat(InOp));
   case TargetLowering::TypePromoteFloat: {
     // Convert the promoted float by hand.
-    if (NOutVT.bitsEq(NInVT)) {
-      SDValue PromotedOp = GetPromotedFloat(InOp);
-      SDValue Trunc = DAG.getNode(ISD::FP_TO_FP16, dl, NOutVT, PromotedOp);
-      return DAG.getNode(ISD::AssertZext, dl, NOutVT, Trunc,
-                         DAG.getValueType(OutVT));
-    }
+    SDValue PromotedOp = GetPromotedFloat(InOp);
+    return DAG.getNode(ISD::FP_TO_FP16, dl, NOutVT, PromotedOp);
     break;
   }
   case TargetLowering::TypeExpandInteger:
@@ -312,6 +313,19 @@ SDValue DAGTypeLegalizer::PromoteIntRes_BSWAP(SDNode *N) {
   unsigned DiffBits = NVT.getScalarSizeInBits() - OVT.getScalarSizeInBits();
   return DAG.getNode(
       ISD::SRL, dl, NVT, DAG.getNode(ISD::BSWAP, dl, NVT, Op),
+      DAG.getConstant(DiffBits, dl,
+                      TLI.getShiftAmountTy(NVT, DAG.getDataLayout())));
+}
+
+SDValue DAGTypeLegalizer::PromoteIntRes_BITREVERSE(SDNode *N) {
+  SDValue Op = GetPromotedInteger(N->getOperand(0));
+  EVT OVT = N->getValueType(0);
+  EVT NVT = Op.getValueType();
+  SDLoc dl(N);
+
+  unsigned DiffBits = NVT.getScalarSizeInBits() - OVT.getScalarSizeInBits();
+  return DAG.getNode(
+      ISD::SRL, dl, NVT, DAG.getNode(ISD::BITREVERSE, dl, NVT, Op),
       DAG.getConstant(DiffBits, dl,
                       TLI.getShiftAmountTy(NVT, DAG.getDataLayout())));
 }
@@ -465,7 +479,7 @@ SDValue DAGTypeLegalizer::PromoteIntRes_LOAD(LoadSDNode *N) {
   SDValue Res = DAG.getExtLoad(ExtType, dl, NVT, N->getChain(), N->getBasePtr(),
                                N->getMemoryVT(), N->getMemOperand());
 
-  // Legalized the chain result - switch anything that used the old chain to
+  // Legalize the chain result - switch anything that used the old chain to
   // use the new one.
   ReplaceValueWith(SDValue(N, 1), Res.getValue(1));
   return Res;
@@ -475,20 +489,34 @@ SDValue DAGTypeLegalizer::PromoteIntRes_MLOAD(MaskedLoadSDNode *N) {
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
   SDValue ExtSrc0 = GetPromotedInteger(N->getSrc0());
 
-  SDValue Mask = N->getMask();
-  EVT NewMaskVT = getSetCCResultType(NVT);
-  if (NewMaskVT != N->getMask().getValueType())
-    Mask = PromoteTargetBoolean(Mask, NewMaskVT);
   SDLoc dl(N);
-
   SDValue Res = DAG.getMaskedLoad(NVT, dl, N->getChain(), N->getBasePtr(),
-                                  Mask, ExtSrc0, N->getMemoryVT(),
+                                  N->getMask(), ExtSrc0, N->getMemoryVT(),
                                   N->getMemOperand(), ISD::SEXTLOAD);
-  // Legalized the chain result - switch anything that used the old chain to
+  // Legalize the chain result - switch anything that used the old chain to
   // use the new one.
   ReplaceValueWith(SDValue(N, 1), Res.getValue(1));
   return Res;
 }
+
+SDValue DAGTypeLegalizer::PromoteIntRes_MGATHER(MaskedGatherSDNode *N) {
+  EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+  SDValue ExtSrc0 = GetPromotedInteger(N->getValue());
+  assert(NVT == ExtSrc0.getValueType() &&
+      "Gather result type and the passThru agrument type should be the same");
+
+  SDLoc dl(N);
+  SDValue Ops[] = {N->getChain(), ExtSrc0, N->getMask(), N->getBasePtr(),
+                   N->getIndex()};
+  SDValue Res = DAG.getMaskedGather(DAG.getVTList(NVT, MVT::Other),
+                                    N->getMemoryVT(), dl, Ops,
+                                    N->getMemOperand()); 
+  // Legalize the chain result - switch anything that used the old chain to
+  // use the new one.
+  ReplaceValueWith(SDValue(N, 1), Res.getValue(1));
+  return Res;
+}
+
 /// Promote the overflow flag of an overflowing arithmetic node.
 SDValue DAGTypeLegalizer::PromoteIntRes_Overflow(SDNode *N) {
   // Simply change the return type of the boolean result.
@@ -532,14 +560,6 @@ SDValue DAGTypeLegalizer::PromoteIntRes_SADDSUBO(SDNode *N, unsigned ResNo) {
   ReplaceValueWith(SDValue(N, 1), Ofl);
 
   return Res;
-}
-
-SDValue DAGTypeLegalizer::PromoteIntRes_SDIV(SDNode *N) {
-  // Sign extend the input.
-  SDValue LHS = SExtPromotedInteger(N->getOperand(0));
-  SDValue RHS = SExtPromotedInteger(N->getOperand(1));
-  return DAG.getNode(N->getOpcode(), SDLoc(N),
-                     LHS.getValueType(), LHS, RHS);
 }
 
 SDValue DAGTypeLegalizer::PromoteIntRes_SELECT(SDNode *N) {
@@ -625,6 +645,22 @@ SDValue DAGTypeLegalizer::PromoteIntRes_SimpleIntBinOp(SDNode *N) {
   // that too is okay if they are integer operations.
   SDValue LHS = GetPromotedInteger(N->getOperand(0));
   SDValue RHS = GetPromotedInteger(N->getOperand(1));
+  return DAG.getNode(N->getOpcode(), SDLoc(N),
+                     LHS.getValueType(), LHS, RHS);
+}
+
+SDValue DAGTypeLegalizer::PromoteIntRes_SExtIntBinOp(SDNode *N) {
+  // Sign extend the input.
+  SDValue LHS = SExtPromotedInteger(N->getOperand(0));
+  SDValue RHS = SExtPromotedInteger(N->getOperand(1));
+  return DAG.getNode(N->getOpcode(), SDLoc(N),
+                     LHS.getValueType(), LHS, RHS);
+}
+
+SDValue DAGTypeLegalizer::PromoteIntRes_ZExtIntBinOp(SDNode *N) {
+  // Zero extend the input.
+  SDValue LHS = ZExtPromotedInteger(N->getOperand(0));
+  SDValue RHS = ZExtPromotedInteger(N->getOperand(1));
   return DAG.getNode(N->getOpcode(), SDLoc(N),
                      LHS.getValueType(), LHS, RHS);
 }
@@ -770,14 +806,6 @@ SDValue DAGTypeLegalizer::PromoteIntRes_XMULO(SDNode *N, unsigned ResNo) {
   return Mul;
 }
 
-SDValue DAGTypeLegalizer::PromoteIntRes_UDIV(SDNode *N) {
-  // Zero extend the input.
-  SDValue LHS = ZExtPromotedInteger(N->getOperand(0));
-  SDValue RHS = ZExtPromotedInteger(N->getOperand(1));
-  return DAG.getNode(N->getOpcode(), SDLoc(N),
-                     LHS.getValueType(), LHS, RHS);
-}
-
 SDValue DAGTypeLegalizer::PromoteIntRes_UNDEF(SDNode *N) {
   return DAG.getUNDEF(TLI.getTypeToTransformTo(*DAG.getContext(),
                                                N->getValueType(0)));
@@ -875,6 +903,10 @@ bool DAGTypeLegalizer::PromoteIntegerOperand(SDNode *N, unsigned OpNo) {
                                                     OpNo); break;
   case ISD::MLOAD:        Res = PromoteIntOp_MLOAD(cast<MaskedLoadSDNode>(N),
                                                     OpNo); break;
+  case ISD::MGATHER:  Res = PromoteIntOp_MGATHER(cast<MaskedGatherSDNode>(N),
+                                                 OpNo); break;
+  case ISD::MSCATTER: Res = PromoteIntOp_MSCATTER(cast<MaskedScatterSDNode>(N),
+                                                  OpNo); break;
   case ISD::TRUNCATE:     Res = PromoteIntOp_TRUNCATE(N); break;
   case ISD::FP16_TO_FP:
   case ISD::UINT_TO_FP:   Res = PromoteIntOp_UINT_TO_FP(N); break;
@@ -1143,61 +1175,79 @@ SDValue DAGTypeLegalizer::PromoteIntOp_STORE(StoreSDNode *N, unsigned OpNo){
                            N->getMemoryVT(), N->getMemOperand());
 }
 
-SDValue DAGTypeLegalizer::PromoteIntOp_MSTORE(MaskedStoreSDNode *N, unsigned OpNo){
+SDValue DAGTypeLegalizer::PromoteIntOp_MSTORE(MaskedStoreSDNode *N,
+                                              unsigned OpNo) {
 
   SDValue DataOp = N->getValue();
   EVT DataVT = DataOp.getValueType();
   SDValue Mask = N->getMask();
-  EVT MaskVT = Mask.getValueType();
   SDLoc dl(N);
 
   bool TruncateStore = false;
-  if (!TLI.isTypeLegal(DataVT)) {
-    if (getTypeAction(DataVT) == TargetLowering::TypePromoteInteger) {
-      DataOp = GetPromotedInteger(DataOp);
-      if (!TLI.isTypeLegal(MaskVT))
-        Mask = PromoteTargetBoolean(Mask, DataOp.getValueType());
-      TruncateStore = true;
-    }
+  if (OpNo == 2) {
+    // Mask comes before the data operand. If the data operand is legal, we just
+    // promote the mask.
+    // When the data operand has illegal type, we should legalize the data
+    // operand first. The mask will be promoted/splitted/widened according to
+    // the data operand type.
+    if (TLI.isTypeLegal(DataVT))
+      Mask = PromoteTargetBoolean(Mask, DataVT);
     else {
-      assert(getTypeAction(DataVT) == TargetLowering::TypeWidenVector &&
-             "Unexpected data legalization in MSTORE");
-      DataOp = GetWidenedVector(DataOp);
+      if (getTypeAction(DataVT) == TargetLowering::TypePromoteInteger)
+        return PromoteIntOp_MSTORE(N, 3);
 
-      if (getTypeAction(MaskVT) == TargetLowering::TypeWidenVector)
-        Mask = GetWidenedVector(Mask);
+      else if (getTypeAction(DataVT) == TargetLowering::TypeWidenVector)
+        return WidenVecOp_MSTORE(N, 3);
+
       else {
-        EVT BoolVT = getSetCCResultType(DataOp.getValueType());
-
-        // We can't use ModifyToType() because we should fill the mask with
-        // zeroes
-        unsigned WidenNumElts = BoolVT.getVectorNumElements();
-        unsigned MaskNumElts = MaskVT.getVectorNumElements();
-
-        unsigned NumConcat = WidenNumElts / MaskNumElts;
-        SmallVector<SDValue, 16> Ops(NumConcat);
-        SDValue ZeroVal = DAG.getConstant(0, dl, MaskVT);
-        Ops[0] = Mask;
-        for (unsigned i = 1; i != NumConcat; ++i)
-          Ops[i] = ZeroVal;
-
-        Mask = DAG.getNode(ISD::CONCAT_VECTORS, dl, BoolVT, Ops);
+        assert (getTypeAction(DataVT) == TargetLowering::TypeSplitVector);
+        return SplitVecOp_MSTORE(N, 3);
       }
     }
+  } else { // Data operand
+    assert(OpNo == 3 && "Unexpected operand for promotion");
+    DataOp = GetPromotedInteger(DataOp);
+    Mask = PromoteTargetBoolean(Mask, DataOp.getValueType());
+    TruncateStore = true;
   }
-  else
-    Mask = PromoteTargetBoolean(N->getMask(), DataOp.getValueType());
+
   return DAG.getMaskedStore(N->getChain(), dl, DataOp, N->getBasePtr(), Mask,
                             N->getMemoryVT(), N->getMemOperand(),
                             TruncateStore);
 }
 
-SDValue DAGTypeLegalizer::PromoteIntOp_MLOAD(MaskedLoadSDNode *N, unsigned OpNo){
+SDValue DAGTypeLegalizer::PromoteIntOp_MLOAD(MaskedLoadSDNode *N,
+                                             unsigned OpNo) {
   assert(OpNo == 2 && "Only know how to promote the mask!");
   EVT DataVT = N->getValueType(0);
   SDValue Mask = PromoteTargetBoolean(N->getOperand(OpNo), DataVT);
   SmallVector<SDValue, 4> NewOps(N->op_begin(), N->op_end());
   NewOps[OpNo] = Mask;
+  return SDValue(DAG.UpdateNodeOperands(N, NewOps), 0);
+}
+
+SDValue DAGTypeLegalizer::PromoteIntOp_MGATHER(MaskedGatherSDNode *N,
+                                               unsigned OpNo) {
+
+  SmallVector<SDValue, 5> NewOps(N->op_begin(), N->op_end());
+  if (OpNo == 2) {
+    // The Mask
+    EVT DataVT = N->getValueType(0);
+    NewOps[OpNo] = PromoteTargetBoolean(N->getOperand(OpNo), DataVT);
+  } else
+    NewOps[OpNo] = GetPromotedInteger(N->getOperand(OpNo));
+  return SDValue(DAG.UpdateNodeOperands(N, NewOps), 0);
+}
+
+SDValue DAGTypeLegalizer::PromoteIntOp_MSCATTER(MaskedScatterSDNode *N,
+                                                unsigned OpNo) {
+  SmallVector<SDValue, 5> NewOps(N->op_begin(), N->op_end());
+  if (OpNo == 2) {
+    // The Mask
+    EVT DataVT = N->getValue().getValueType();
+    NewOps[OpNo] = PromoteTargetBoolean(N->getOperand(OpNo), DataVT);
+  } else
+    NewOps[OpNo] = GetPromotedInteger(N->getOperand(OpNo));
   return SDValue(DAG.UpdateNodeOperands(N, NewOps), 0);
 }
 
@@ -1259,6 +1309,7 @@ void DAGTypeLegalizer::ExpandIntegerResult(SDNode *N, unsigned ResNo) {
   case ISD::ANY_EXTEND:  ExpandIntRes_ANY_EXTEND(N, Lo, Hi); break;
   case ISD::AssertSext:  ExpandIntRes_AssertSext(N, Lo, Hi); break;
   case ISD::AssertZext:  ExpandIntRes_AssertZext(N, Lo, Hi); break;
+  case ISD::BITREVERSE:  ExpandIntRes_BITREVERSE(N, Lo, Hi); break;
   case ISD::BSWAP:       ExpandIntRes_BSWAP(N, Lo, Hi); break;
   case ISD::Constant:    ExpandIntRes_Constant(N, Lo, Hi); break;
   case ISD::CTLZ_ZERO_UNDEF:
@@ -1270,6 +1321,7 @@ void DAGTypeLegalizer::ExpandIntegerResult(SDNode *N, unsigned ResNo) {
   case ISD::FP_TO_UINT:  ExpandIntRes_FP_TO_UINT(N, Lo, Hi); break;
   case ISD::LOAD:        ExpandIntRes_LOAD(cast<LoadSDNode>(N), Lo, Hi); break;
   case ISD::MUL:         ExpandIntRes_MUL(N, Lo, Hi); break;
+  case ISD::READCYCLECOUNTER: ExpandIntRes_READCYCLECOUNTER(N, Lo, Hi); break;
   case ISD::SDIV:        ExpandIntRes_SDIV(N, Lo, Hi); break;
   case ISD::SIGN_EXTEND: ExpandIntRes_SIGN_EXTEND(N, Lo, Hi); break;
   case ISD::SIGN_EXTEND_INREG: ExpandIntRes_SIGN_EXTEND_INREG(N, Lo, Hi); break;
@@ -1763,12 +1815,6 @@ void DAGTypeLegalizer::ExpandIntRes_ADDSUBE(SDNode *N,
   ReplaceValueWith(SDValue(N, 1), Hi.getValue(1));
 }
 
-void DAGTypeLegalizer::ExpandIntRes_MERGE_VALUES(SDNode *N, unsigned ResNo,
-                                                 SDValue &Lo, SDValue &Hi) {
-  SDValue Res = DisintegrateMERGE_VALUES(N, ResNo);
-  SplitInteger(Res, Lo, Hi);
-}
-
 void DAGTypeLegalizer::ExpandIntRes_ANY_EXTEND(SDNode *N,
                                                SDValue &Lo, SDValue &Hi) {
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
@@ -1832,6 +1878,14 @@ void DAGTypeLegalizer::ExpandIntRes_AssertZext(SDNode *N,
     // The high part must be zero, make it explicit.
     Hi = DAG.getConstant(0, dl, NVT);
   }
+}
+
+void DAGTypeLegalizer::ExpandIntRes_BITREVERSE(SDNode *N,
+                                               SDValue &Lo, SDValue &Hi) {
+  SDLoc dl(N);
+  GetExpandedInteger(N->getOperand(0), Hi, Lo);  // Note swapped operands.
+  Lo = DAG.getNode(ISD::BITREVERSE, dl, Lo.getValueType(), Lo);
+  Hi = DAG.getNode(ISD::BITREVERSE, dl, Hi.getValueType(), Hi);
 }
 
 void DAGTypeLegalizer::ExpandIntRes_BSWAP(SDNode *N,
@@ -1918,8 +1972,7 @@ void DAGTypeLegalizer::ExpandIntRes_FP_TO_SINT(SDNode *N, SDValue &Lo,
 
   RTLIB::Libcall LC = RTLIB::getFPTOSINT(Op.getValueType(), VT);
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unexpected fp-to-sint conversion!");
-  SplitInteger(TLI.makeLibCall(DAG, LC, VT, &Op, 1, true/*irrelevant*/,
-                               dl).first,
+  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Op, true/*irrelevant*/, dl).first,
                Lo, Hi);
 }
 
@@ -1934,8 +1987,7 @@ void DAGTypeLegalizer::ExpandIntRes_FP_TO_UINT(SDNode *N, SDValue &Lo,
 
   RTLIB::Libcall LC = RTLIB::getFPTOUINT(Op.getValueType(), VT);
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unexpected fp-to-uint conversion!");
-  SplitInteger(TLI.makeLibCall(DAG, LC, VT, &Op, 1, false/*irrelevant*/,
-                               dl).first,
+  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Op, false/*irrelevant*/, dl).first,
                Lo, Hi);
 }
 
@@ -2055,7 +2107,7 @@ void DAGTypeLegalizer::ExpandIntRes_LOAD(LoadSDNode *N,
     }
   }
 
-  // Legalized the chain result - switch anything that used the old chain to
+  // Legalize the chain result - switch anything that used the old chain to
   // use the new one.
   ReplaceValueWith(SDValue(N, 1), Ch);
 }
@@ -2096,9 +2148,19 @@ void DAGTypeLegalizer::ExpandIntRes_MUL(SDNode *N,
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported MUL!");
 
   SDValue Ops[2] = { N->getOperand(0), N->getOperand(1) };
-  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, 2, true/*irrelevant*/,
-                               dl).first,
+  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, true/*irrelevant*/, dl).first,
                Lo, Hi);
+}
+
+void DAGTypeLegalizer::ExpandIntRes_READCYCLECOUNTER(SDNode *N, SDValue &Lo,
+                                                     SDValue &Hi) {
+  SDLoc DL(N);
+  EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+  SDVTList VTs = DAG.getVTList(NVT, NVT, MVT::Other);
+  SDValue R = DAG.getNode(N->getOpcode(), DL, VTs, N->getOperand(0));
+  Lo = R.getValue(0);
+  Hi = R.getValue(1);
+  ReplaceValueWith(SDValue(N, 1), R.getValue(2));
 }
 
 void DAGTypeLegalizer::ExpandIntRes_SADDSUBO(SDNode *Node,
@@ -2166,7 +2228,7 @@ void DAGTypeLegalizer::ExpandIntRes_SDIV(SDNode *N,
     LC = RTLIB::SDIV_I128;
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported SDIV!");
 
-  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, 2, true, dl).first, Lo, Hi);
+  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, true, dl).first, Lo, Hi);
 }
 
 void DAGTypeLegalizer::ExpandIntRes_Shift(SDNode *N,
@@ -2261,8 +2323,7 @@ void DAGTypeLegalizer::ExpandIntRes_Shift(SDNode *N,
 
   if (LC != RTLIB::UNKNOWN_LIBCALL && TLI.getLibcallName(LC)) {
     SDValue Ops[2] = { N->getOperand(0), N->getOperand(1) };
-    SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, 2, isSigned, dl).first, Lo,
-                 Hi);
+    SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, isSigned, dl).first, Lo, Hi);
     return;
   }
 
@@ -2352,7 +2413,7 @@ void DAGTypeLegalizer::ExpandIntRes_SREM(SDNode *N,
     LC = RTLIB::SREM_I128;
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported SREM!");
 
-  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, 2, true, dl).first, Lo, Hi);
+  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, true, dl).first, Lo, Hi);
 }
 
 void DAGTypeLegalizer::ExpandIntRes_TRUNCATE(SDNode *N,
@@ -2499,7 +2560,7 @@ void DAGTypeLegalizer::ExpandIntRes_UDIV(SDNode *N,
     LC = RTLIB::UDIV_I128;
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported UDIV!");
 
-  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, 2, false, dl).first, Lo, Hi);
+  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, false, dl).first, Lo, Hi);
 }
 
 void DAGTypeLegalizer::ExpandIntRes_UREM(SDNode *N,
@@ -2525,7 +2586,7 @@ void DAGTypeLegalizer::ExpandIntRes_UREM(SDNode *N,
     LC = RTLIB::UREM_I128;
   assert(LC != RTLIB::UNKNOWN_LIBCALL && "Unsupported UREM!");
 
-  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, 2, false, dl).first, Lo, Hi);
+  SplitInteger(TLI.makeLibCall(DAG, LC, VT, Ops, false, dl).first, Lo, Hi);
 }
 
 void DAGTypeLegalizer::ExpandIntRes_ZERO_EXTEND(SDNode *N,
@@ -2605,6 +2666,7 @@ bool DAGTypeLegalizer::ExpandIntegerOperand(SDNode *N, unsigned OpNo) {
   case ISD::SCALAR_TO_VECTOR:  Res = ExpandOp_SCALAR_TO_VECTOR(N); break;
   case ISD::SELECT_CC:         Res = ExpandIntOp_SELECT_CC(N); break;
   case ISD::SETCC:             Res = ExpandIntOp_SETCC(N); break;
+  case ISD::SETCCE:            Res = ExpandIntOp_SETCCE(N); break;
   case ISD::SINT_TO_FP:        Res = ExpandIntOp_SINT_TO_FP(N); break;
   case ISD::STORE:   Res = ExpandIntOp_STORE(cast<StoreSDNode>(N), OpNo); break;
   case ISD::TRUNCATE:          Res = ExpandIntOp_TRUNCATE(N); break;
@@ -2732,6 +2794,47 @@ void DAGTypeLegalizer::IntegerExpandSetCCOperands(SDValue &NewLHS,
     return;
   }
 
+  if (LHSHi == RHSHi) {
+    // Comparing the low bits is enough.
+    NewLHS = Tmp1;
+    NewRHS = SDValue();
+    return;
+  }
+
+  // Lower with SETCCE if the target supports it.
+  // FIXME: Make all targets support this, then remove the other lowering.
+  if (TLI.getOperationAction(
+          ISD::SETCCE,
+          TLI.getTypeToExpandTo(*DAG.getContext(), LHSLo.getValueType())) ==
+      TargetLowering::Custom) {
+    // SETCCE can detect < and >= directly. For > and <=, flip operands and
+    // condition code.
+    bool FlipOperands = false;
+    switch (CCCode) {
+    case ISD::SETGT:  CCCode = ISD::SETLT;  FlipOperands = true; break;
+    case ISD::SETUGT: CCCode = ISD::SETULT; FlipOperands = true; break;
+    case ISD::SETLE:  CCCode = ISD::SETGE;  FlipOperands = true; break;
+    case ISD::SETULE: CCCode = ISD::SETUGE; FlipOperands = true; break;
+    default: break;
+    }
+    if (FlipOperands) {
+      std::swap(LHSLo, RHSLo);
+      std::swap(LHSHi, RHSHi);
+    }
+    // Perform a wide subtraction, feeding the carry from the low part into
+    // SETCCE. The SETCCE operation is essentially looking at the high part of
+    // the result of LHS - RHS. It is negative iff LHS < RHS. It is zero or
+    // positive iff LHS >= RHS.
+    SDVTList VTList = DAG.getVTList(LHSLo.getValueType(), MVT::Glue);
+    SDValue LowCmp = DAG.getNode(ISD::SUBC, dl, VTList, LHSLo, RHSLo);
+    SDValue Res =
+        DAG.getNode(ISD::SETCCE, dl, getSetCCResultType(LHSLo.getValueType()),
+                    LHSHi, RHSHi, LowCmp.getValue(1), DAG.getCondCode(CCCode));
+    NewLHS = Res;
+    NewRHS = SDValue();
+    return;
+  }
+
   NewLHS = TLI.SimplifySetCC(getSetCCResultType(LHSHi.getValueType()),
                              LHSHi, RHSHi, ISD::SETEQ, false,
                              DagCombineInfo, dl);
@@ -2796,6 +2899,24 @@ SDValue DAGTypeLegalizer::ExpandIntOp_SETCC(SDNode *N) {
                                 DAG.getCondCode(CCCode)), 0);
 }
 
+SDValue DAGTypeLegalizer::ExpandIntOp_SETCCE(SDNode *N) {
+  SDValue LHS = N->getOperand(0);
+  SDValue RHS = N->getOperand(1);
+  SDValue Carry = N->getOperand(2);
+  SDValue Cond = N->getOperand(3);
+  SDLoc dl = SDLoc(N);
+
+  SDValue LHSLo, LHSHi, RHSLo, RHSHi;
+  GetExpandedInteger(LHS, LHSLo, LHSHi);
+  GetExpandedInteger(RHS, RHSLo, RHSHi);
+
+  // Expand to a SUBE for the low part and a smaller SETCCE for the high.
+  SDVTList VTList = DAG.getVTList(LHSLo.getValueType(), MVT::Glue);
+  SDValue LowCmp = DAG.getNode(ISD::SUBE, dl, VTList, LHSLo, RHSLo, Carry);
+  return DAG.getNode(ISD::SETCCE, dl, N->getValueType(0), LHSHi, RHSHi,
+                     LowCmp.getValue(1), Cond);
+}
+
 SDValue DAGTypeLegalizer::ExpandIntOp_Shift(SDNode *N) {
   // The value being shifted is legal, but the shift amount is too big.
   // It follows that either the result of the shift is undefined, or the
@@ -2820,7 +2941,7 @@ SDValue DAGTypeLegalizer::ExpandIntOp_SINT_TO_FP(SDNode *N) {
   RTLIB::Libcall LC = RTLIB::getSINTTOFP(Op.getValueType(), DstVT);
   assert(LC != RTLIB::UNKNOWN_LIBCALL &&
          "Don't know how to expand this SINT_TO_FP!");
-  return TLI.makeLibCall(DAG, LC, DstVT, &Op, 1, true, SDLoc(N)).first;
+  return TLI.makeLibCall(DAG, LC, DstVT, Op, true, SDLoc(N)).first;
 }
 
 SDValue DAGTypeLegalizer::ExpandIntOp_STORE(StoreSDNode *N, unsigned OpNo) {
@@ -2980,11 +3101,10 @@ SDValue DAGTypeLegalizer::ExpandIntOp_UINT_TO_FP(SDNode *N) {
 
     // Load the value out, extending it from f32 to the destination float type.
     // FIXME: Avoid the extend by constructing the right constant pool?
-    SDValue Fudge = DAG.getExtLoad(ISD::EXTLOAD, dl, DstVT, DAG.getEntryNode(),
-                                   FudgePtr,
-                                   MachinePointerInfo::getConstantPool(),
-                                   MVT::f32,
-                                   false, false, false, Alignment);
+    SDValue Fudge = DAG.getExtLoad(
+        ISD::EXTLOAD, dl, DstVT, DAG.getEntryNode(), FudgePtr,
+        MachinePointerInfo::getConstantPool(DAG.getMachineFunction()), MVT::f32,
+        false, false, false, Alignment);
     return DAG.getNode(ISD::FADD, dl, DstVT, SignedConv, Fudge);
   }
 
@@ -2992,7 +3112,7 @@ SDValue DAGTypeLegalizer::ExpandIntOp_UINT_TO_FP(SDNode *N) {
   RTLIB::Libcall LC = RTLIB::getUINTTOFP(SrcVT, DstVT);
   assert(LC != RTLIB::UNKNOWN_LIBCALL &&
          "Don't know how to expand this UINT_TO_FP!");
-  return TLI.makeLibCall(DAG, LC, DstVT, &Op, 1, true, dl).first;
+  return TLI.makeLibCall(DAG, LC, DstVT, Op, true, dl).first;
 }
 
 SDValue DAGTypeLegalizer::ExpandIntOp_ATOMIC_STORE(SDNode *N) {

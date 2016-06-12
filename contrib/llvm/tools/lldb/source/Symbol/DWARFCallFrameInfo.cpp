@@ -342,7 +342,7 @@ DWARFCallFrameInfo::GetFDEIndex ()
                     "error: Invalid fde/cie next entry offset of 0x%x found in cie/fde at 0x%x\n",
                     next_entry,
                     current_entry);
-            // Don't trust anything in this eh_frame section if we find blatently 
+            // Don't trust anything in this eh_frame section if we find blatantly
             // invalid data.
             m_fde_index.Clear();
             m_fde_index_initialized = true;
@@ -354,7 +354,7 @@ DWARFCallFrameInfo::GetFDEIndex ()
                     "error: Invalid cie offset of 0x%x found in cie/fde at 0x%x\n",
                     cie_offset,
                     current_entry);
-            // Don't trust anything in this eh_frame section if we find blatently 
+            // Don't trust anything in this eh_frame section if we find blatantly
             // invalid data.
             m_fde_index.Clear();
             m_fde_index_initialized = true;
@@ -535,7 +535,7 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
                         // We only keep enough register locations around to
                         // unwind what is in our thread, and these are organized
                         // by the register index in that state, so we need to convert our
-                        // GCC register number from the EH frame info, to a register index
+                        // eh_frame register number from the EH frame info, to a register index
 
                         if (unwind_plan.IsValidRowIndex(0) && unwind_plan.GetRowAtIndex(0)->GetRegisterInfo(reg_num, reg_location))
                             row->SetRegisterInfo (reg_num, reg_location);

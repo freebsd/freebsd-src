@@ -16,6 +16,8 @@
 // Project includes
 #include "lldb/Core/ValueObject.h"
 
+#include "llvm/ADT/Optional.h"
+
 namespace lldb_private {
 
 //----------------------------------------------------------------------
@@ -24,76 +26,76 @@ namespace lldb_private {
 class ValueObjectChild : public ValueObject
 {
 public:
-    virtual ~ValueObjectChild();
+    ~ValueObjectChild() override;
 
-    virtual uint64_t
-    GetByteSize()
+    uint64_t
+    GetByteSize() override
     {
         return m_byte_size;
     }
 
-    virtual lldb::offset_t
-    GetByteOffset()
+    lldb::offset_t
+    GetByteOffset() override
     {
         return m_byte_offset;
     }
 
-    virtual uint32_t
-    GetBitfieldBitSize()
+    uint32_t
+    GetBitfieldBitSize() override
     {
         return m_bitfield_bit_size;
     }
 
-    virtual uint32_t
-    GetBitfieldBitOffset()
+    uint32_t
+    GetBitfieldBitOffset() override
     {
         return m_bitfield_bit_offset;
     }
 
-    virtual lldb::ValueType
-    GetValueType() const;
+    lldb::ValueType
+    GetValueType() const override;
 
-    virtual size_t
-    CalculateNumChildren();
+    size_t
+    CalculateNumChildren(uint32_t max) override;
 
-    virtual ConstString
-    GetTypeName();
+    ConstString
+    GetTypeName() override;
 
-    virtual ConstString
-    GetQualifiedTypeName();
+    ConstString
+    GetQualifiedTypeName() override;
     
-    virtual ConstString
-    GetDisplayTypeName();
+    ConstString
+    GetDisplayTypeName() override;
     
-    virtual bool
-    IsInScope ();
+    bool
+    IsInScope() override;
 
-    virtual bool
-    IsBaseClass ()
+    bool
+    IsBaseClass() override
     {
         return m_is_base_class;
     }
 
-    virtual bool
-    IsDereferenceOfParent ()
+    bool
+    IsDereferenceOfParent() override
     {
         return m_is_deref_of_parent;
     }
 
 protected:
-    virtual bool
-    UpdateValue ();
+    bool
+    UpdateValue() override;
     
-    virtual bool
-    CanUpdateWithInvalidExecutionContext ();
+    LazyBool
+    CanUpdateWithInvalidExecutionContext() override;
 
-    virtual ClangASTType
-    GetClangTypeImpl ()
+    CompilerType
+    GetCompilerTypeImpl() override
     {
-        return m_clang_type;
+        return m_compiler_type;
     }
     
-    ClangASTType m_clang_type;
+    CompilerType m_compiler_type;
     ConstString m_type_name;
     uint64_t m_byte_size;
     int32_t m_byte_offset;
@@ -101,6 +103,7 @@ protected:
     uint8_t m_bitfield_bit_offset;
     bool m_is_base_class;
     bool m_is_deref_of_parent;
+    llvm::Optional<LazyBool> m_can_update_with_invalid_exe_ctx;
 
 //
 //  void
@@ -110,8 +113,9 @@ protected:
     friend class ValueObject;
     friend class ValueObjectConstResult;
     friend class ValueObjectConstResultImpl;
+
     ValueObjectChild (ValueObject &parent,
-                      const ClangASTType &clang_type,
+                      const CompilerType &compiler_type,
                       const ConstString &name,
                       uint64_t byte_size,
                       int32_t byte_offset,
@@ -119,11 +123,12 @@ protected:
                       uint32_t bitfield_bit_offset,
                       bool is_base_class,
                       bool is_deref_of_parent,
-                      AddressType child_ptr_or_ref_addr_type);
+                      AddressType child_ptr_or_ref_addr_type,
+                      uint64_t language_flags);
 
     DISALLOW_COPY_AND_ASSIGN (ValueObjectChild);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_ValueObjectChild_h_
+#endif // liblldb_ValueObjectChild_h_

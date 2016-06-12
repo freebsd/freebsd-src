@@ -41,8 +41,8 @@ void llvm::DeleteDeadBlock(BasicBlock *BB) {
 
   // Loop through all of our successors and make sure they know that one
   // of their predecessors is going away.
-  for (unsigned i = 0, e = BBTerm->getNumSuccessors(); i != e; ++i)
-    BBTerm->getSuccessor(i)->removePredecessor(BB);
+  for (BasicBlock *Succ : BBTerm->successors())
+    Succ->removePredecessor(BB);
 
   // Zap all the instructions in the block.
   while (!BB->empty()) {
@@ -65,7 +65,7 @@ void llvm::DeleteDeadBlock(BasicBlock *BB) {
 /// any single-entry PHI nodes in it, fold them away.  This handles the case
 /// when all entries to the PHI nodes in a block are guaranteed equal, such as
 /// when the block has exactly one predecessor.
-void llvm::FoldSingleEntryPHINodes(BasicBlock *BB, AliasAnalysis *AA,
+void llvm::FoldSingleEntryPHINodes(BasicBlock *BB,
                                    MemoryDependenceAnalysis *MemDep) {
   if (!isa<PHINode>(BB->begin())) return;
 
@@ -77,8 +77,6 @@ void llvm::FoldSingleEntryPHINodes(BasicBlock *BB, AliasAnalysis *AA,
 
     if (MemDep)
       MemDep->removeInstruction(PN);  // Memdep updates AA itself.
-    else if (AA && isa<PointerType>(PN->getType()))
-      AA->deleteValue(PN);
 
     PN->eraseFromParent();
   }
@@ -108,7 +106,7 @@ bool llvm::DeleteDeadPHIs(BasicBlock *BB, const TargetLibraryInfo *TLI) {
 /// MergeBlockIntoPredecessor - Attempts to merge a block into its predecessor,
 /// if possible.  The return value indicates success or failure.
 bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DominatorTree *DT,
-                                     LoopInfo *LI, AliasAnalysis *AA,
+                                     LoopInfo *LI,
                                      MemoryDependenceAnalysis *MemDep) {
   // Don't merge away blocks who have their address taken.
   if (BB->hasAddressTaken()) return false;
@@ -119,8 +117,9 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DominatorTree *DT,
 
   // Don't break self-loops.
   if (PredBB == BB) return false;
-  // Don't break invokes.
-  if (isa<InvokeInst>(PredBB->getTerminator())) return false;
+  // Don't break unwinding instructions.
+  if (PredBB->getTerminator()->isExceptional())
+    return false;
 
   succ_iterator SI(succ_begin(PredBB)), SE(succ_end(PredBB));
   BasicBlock *OnlySucc = BB;
@@ -145,7 +144,7 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DominatorTree *DT,
 
   // Begin by getting rid of unneeded PHIs.
   if (isa<PHINode>(BB->front()))
-    FoldSingleEntryPHINodes(BB, AA, MemDep);
+    FoldSingleEntryPHINodes(BB, MemDep);
 
   // Delete the unconditional branch from the predecessor...
   PredBB->getInstList().pop_back();
@@ -253,7 +252,7 @@ BasicBlock *llvm::SplitEdge(BasicBlock *BB, BasicBlock *Succ, DominatorTree *DT,
     // block.
     assert(SP == BB && "CFG broken");
     SP = nullptr;
-    return SplitBlock(Succ, Succ->begin(), DT, LI);
+    return SplitBlock(Succ, &Succ->front(), DT, LI);
   }
 
   // Otherwise, if BB has a single successor, split it at the bottom of the
@@ -284,8 +283,8 @@ llvm::SplitAllCriticalEdges(Function &F,
 ///
 BasicBlock *llvm::SplitBlock(BasicBlock *Old, Instruction *SplitPt,
                              DominatorTree *DT, LoopInfo *LI) {
-  BasicBlock::iterator SplitIt = SplitPt;
-  while (isa<PHINode>(SplitIt) || isa<LandingPadInst>(SplitIt))
+  BasicBlock::iterator SplitIt = SplitPt->getIterator();
+  while (isa<PHINode>(SplitIt) || SplitIt->isEHPad())
     ++SplitIt;
   BasicBlock *New = Old->splitBasicBlock(SplitIt, Old->getName()+".split");
 
@@ -393,7 +392,7 @@ static void UpdateAnalysisInformation(BasicBlock *OldBB, BasicBlock *NewBB,
 /// from NewBB. This also updates AliasAnalysis, if available.
 static void UpdatePHINodes(BasicBlock *OrigBB, BasicBlock *NewBB,
                            ArrayRef<BasicBlock *> Preds, BranchInst *BI,
-                           AliasAnalysis *AA, bool HasLoopExit) {
+                           bool HasLoopExit) {
   // Otherwise, create a new PHI node in NewBB for each PHI node in OrigBB.
   SmallPtrSet<BasicBlock *, 16> PredSet(Preds.begin(), Preds.end());
   for (BasicBlock::iterator I = OrigBB->begin(); isa<PHINode>(I); ) {
@@ -474,17 +473,20 @@ static void UpdatePHINodes(BasicBlock *OrigBB, BasicBlock *NewBB,
 ///
 BasicBlock *llvm::SplitBlockPredecessors(BasicBlock *BB,
                                          ArrayRef<BasicBlock *> Preds,
-                                         const char *Suffix, AliasAnalysis *AA,
-                                         DominatorTree *DT, LoopInfo *LI,
-                                         bool PreserveLCSSA) {
+                                         const char *Suffix, DominatorTree *DT,
+                                         LoopInfo *LI, bool PreserveLCSSA) {
+  // Do not attempt to split that which cannot be split.
+  if (!BB->canSplitPredecessors())
+    return nullptr;
+
   // For the landingpads we need to act a bit differently.
   // Delegate this work to the SplitLandingPadPredecessors.
   if (BB->isLandingPad()) {
     SmallVector<BasicBlock*, 2> NewBBs;
     std::string NewName = std::string(Suffix) + ".split-lp";
 
-    SplitLandingPadPredecessors(BB, Preds, Suffix, NewName.c_str(),
-                                NewBBs, AA, DT, LI, PreserveLCSSA);
+    SplitLandingPadPredecessors(BB, Preds, Suffix, NewName.c_str(), NewBBs, DT,
+                                LI, PreserveLCSSA);
     return NewBBs[0];
   }
 
@@ -523,7 +525,7 @@ BasicBlock *llvm::SplitBlockPredecessors(BasicBlock *BB,
                             HasLoopExit);
 
   // Update the PHI nodes in BB with the values coming from NewBB.
-  UpdatePHINodes(BB, NewBB, Preds, BI, AA, HasLoopExit);
+  UpdatePHINodes(BB, NewBB, Preds, BI, HasLoopExit);
   return NewBB;
 }
 
@@ -544,8 +546,8 @@ void llvm::SplitLandingPadPredecessors(BasicBlock *OrigBB,
                                        ArrayRef<BasicBlock *> Preds,
                                        const char *Suffix1, const char *Suffix2,
                                        SmallVectorImpl<BasicBlock *> &NewBBs,
-                                       AliasAnalysis *AA, DominatorTree *DT,
-                                       LoopInfo *LI, bool PreserveLCSSA) {
+                                       DominatorTree *DT, LoopInfo *LI,
+                                       bool PreserveLCSSA) {
   assert(OrigBB->isLandingPad() && "Trying to split a non-landing pad!");
 
   // Create a new basic block for OrigBB's predecessors listed in Preds. Insert
@@ -574,7 +576,7 @@ void llvm::SplitLandingPadPredecessors(BasicBlock *OrigBB,
                             HasLoopExit);
 
   // Update the PHI nodes in OrigBB with the values coming from NewBB1.
-  UpdatePHINodes(OrigBB, NewBB1, Preds, BI1, AA, HasLoopExit);
+  UpdatePHINodes(OrigBB, NewBB1, Preds, BI1, HasLoopExit);
 
   // Move the remaining edges from OrigBB to point to NewBB2.
   SmallVector<BasicBlock*, 8> NewBB2Preds;
@@ -611,7 +613,7 @@ void llvm::SplitLandingPadPredecessors(BasicBlock *OrigBB,
                               PreserveLCSSA, HasLoopExit);
 
     // Update the PHI nodes in OrigBB with the values coming from NewBB2.
-    UpdatePHINodes(OrigBB, NewBB2, NewBB2Preds, BI2, AA, HasLoopExit);
+    UpdatePHINodes(OrigBB, NewBB2, NewBB2Preds, BI2, HasLoopExit);
   }
 
   LandingPadInst *LPad = OrigBB->getLandingPadInst();
@@ -624,11 +626,17 @@ void llvm::SplitLandingPadPredecessors(BasicBlock *OrigBB,
     Clone2->setName(Twine("lpad") + Suffix2);
     NewBB2->getInstList().insert(NewBB2->getFirstInsertionPt(), Clone2);
 
-    // Create a PHI node for the two cloned landingpad instructions.
-    PHINode *PN = PHINode::Create(LPad->getType(), 2, "lpad.phi", LPad);
-    PN->addIncoming(Clone1, NewBB1);
-    PN->addIncoming(Clone2, NewBB2);
-    LPad->replaceAllUsesWith(PN);
+    // Create a PHI node for the two cloned landingpad instructions only
+    // if the original landingpad instruction has some uses.
+    if (!LPad->use_empty()) {
+      assert(!LPad->getType()->isTokenTy() &&
+             "Split cannot be applied if LPad is token type. Otherwise an "
+             "invalid PHINode of token type would be created.");
+      PHINode *PN = PHINode::Create(LPad->getType(), 2, "lpad.phi", LPad);
+      PN->addIncoming(Clone1, NewBB1);
+      PN->addIncoming(Clone2, NewBB2);
+      LPad->replaceAllUsesWith(PN);
+    }
     LPad->eraseFromParent();
   } else {
     // There is no second clone. Just replace the landing pad with the first
@@ -661,7 +669,7 @@ ReturnInst *llvm::FoldReturnIntoUncondBranch(ReturnInst *RI, BasicBlock *BB,
       // return instruction.
       V = BCI->getOperand(0);
       NewBC = BCI->clone();
-      Pred->getInstList().insert(NewRet, NewBC);
+      Pred->getInstList().insert(NewRet->getIterator(), NewBC);
       *i = NewBC;
     }
     if (PHINode *PN = dyn_cast<PHINode>(V)) {
@@ -707,7 +715,7 @@ TerminatorInst *llvm::SplitBlockAndInsertIfThen(Value *Cond,
                                                 MDNode *BranchWeights,
                                                 DominatorTree *DT) {
   BasicBlock *Head = SplitBefore->getParent();
-  BasicBlock *Tail = Head->splitBasicBlock(SplitBefore);
+  BasicBlock *Tail = Head->splitBasicBlock(SplitBefore->getIterator());
   TerminatorInst *HeadOldTerm = Head->getTerminator();
   LLVMContext &C = Head->getContext();
   BasicBlock *ThenBlock = BasicBlock::Create(C, "", Head->getParent(), Tail);
@@ -757,7 +765,7 @@ void llvm::SplitBlockAndInsertIfThenElse(Value *Cond, Instruction *SplitBefore,
                                          TerminatorInst **ElseTerm,
                                          MDNode *BranchWeights) {
   BasicBlock *Head = SplitBefore->getParent();
-  BasicBlock *Tail = Head->splitBasicBlock(SplitBefore);
+  BasicBlock *Tail = Head->splitBasicBlock(SplitBefore->getIterator());
   TerminatorInst *HeadOldTerm = Head->getTerminator();
   LLVMContext &C = Head->getContext();
   BasicBlock *ThenBlock = BasicBlock::Create(C, "", Head->getParent(), Tail);

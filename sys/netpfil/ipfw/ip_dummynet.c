@@ -1,4 +1,11 @@
 /*-
+ * Codel/FQ_Codel and PIE/FQ-PIE Code:
+ * Copyright (C) 2016 Centre for Advanced Internet Architectures,
+ *  Swinburne University of Technology, Melbourne, Australia.
+ * Portions of this code were made possible in part by a gift from 
+ *  The Comcast Innovation Fund.
+ * Implemented by Rasool Al-Saadi <ralsaadi@swin.edu.au>
+ * 
  * Copyright (c) 1998-2002,2010 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
@@ -58,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#ifdef NEW_AQM
+#include <netpfil/ipfw/dn_aqm.h>
+#endif
 #include <netpfil/ipfw/dn_sched.h>
 
 /* which objects to copy */
@@ -84,7 +94,7 @@ dummynet(void *arg)
 {
 
 	(void)arg;	/* UNUSED */
-	taskqueue_enqueue_fast(dn_tq, &dn_task);
+	taskqueue_enqueue(dn_tq, &dn_task);
 }
 
 void
@@ -97,6 +107,21 @@ dn_reschedule(void)
 	    C_HARDCLOCK | C_DIRECT_EXEC);
 }
 /*----- end of callout hooks -----*/
+
+#ifdef NEW_AQM
+/* Return AQM descriptor for given type or name. */
+static struct dn_aqm *
+find_aqm_type(int type, char *name)
+{
+	struct dn_aqm *d;
+
+	SLIST_FOREACH(d, &dn_cfg.aqmlist, next) {
+		if (d->type == type || (name && !strcasecmp(d->name, name)))
+			return d;
+	}
+	return NULL; /* not found */
+}
+#endif
 
 /* Return a scheduler descriptor given the type or name. */
 static struct dn_alg *
@@ -320,7 +345,15 @@ q_new(uintptr_t key, int flags, void *arg)
 
 	if (fs->sched->fp->new_queue)
 		fs->sched->fp->new_queue(q);
+
+#ifdef NEW_AQM
+	/* call AQM init function after creating a queue*/
+	if (fs->aqmfp && fs->aqmfp->init)
+		if(fs->aqmfp->init(q))
+			D("unable to init AQM for fs %d", fs->fs.fs_nr);
+#endif
 	dn_cfg.queue_count++;
+
 	return q;
 }
 
@@ -334,6 +367,13 @@ dn_delete_queue(struct dn_queue *q, int flags)
 {
 	struct dn_fsk *fs = q->fs;
 
+#ifdef NEW_AQM
+	/* clean up AQM status for queue 'q'
+	 * cleanup here is called just with MULTIQUEUE
+	 */
+	if (fs && fs->aqmfp && fs->aqmfp->cleanup)
+		fs->aqmfp->cleanup(q);
+#endif
 	// D("fs %p si %p\n", fs, q->_si);
 	/* notify the parent scheduler that the queue is going away */
 	if (fs && fs->sched->fp->free_queue)
@@ -475,6 +515,16 @@ si_new(uintptr_t key, int flags, void *arg)
 	if (s->sch.flags & DN_HAVE_MASK)
 		si->ni.fid = *(struct ipfw_flow_id *)key;
 
+#ifdef NEW_AQM
+	/* init AQM status for !DN_MULTIQUEUE sched*/
+	if (!(s->fp->flags & DN_MULTIQUEUE))
+		if (s->fs->aqmfp && s->fs->aqmfp->init)
+			if(s->fs->aqmfp->init((struct dn_queue *)(si + 1))) {
+				D("unable to init AQM for fs %d", s->fs->fs.fs_nr);
+				goto error;
+			}
+#endif
+
 	dn_cfg.si_count++;
 	return si;
 
@@ -504,6 +554,20 @@ si_destroy(void *_si, void *arg)
 	dn_free_pkts(dl->mq.head);	/* drain delay line */
 	if (si->kflags & DN_ACTIVE) /* remove si from event heap */
 		heap_extract(&dn_cfg.evheap, si);
+
+#ifdef NEW_AQM
+	/* clean up AQM status for !DN_MULTIQUEUE sched
+	 * Note that all queues belong to fs were cleaned up in fsk_detach.
+	 * When drain_scheduler is called s->fs and q->fs are pointing 
+	 * to a correct fs, so we can use fs in this case.
+	 */
+	if (!(s->fp->flags & DN_MULTIQUEUE)) {
+		struct dn_queue *q = (struct dn_queue *)(si + 1);
+		if (q->aqm_status && q->fs->aqmfp)
+			if (q->fs->aqmfp->cleanup)
+				q->fs->aqmfp->cleanup(q);
+	}
+#endif
 	if (s->fp->free_sched)
 		s->fp->free_sched(si);
 	bzero(si, sizeof(*si));	/* safety */
@@ -592,6 +656,67 @@ fsk_new(uintptr_t key, int flags, void *arg)
 	return fs;
 }
 
+#ifdef NEW_AQM
+/* callback function for cleaning up AQM queue status belongs to a flowset
+ * connected to scheduler instance '_si' (for !DN_MULTIQUEUE only).
+ */
+static int
+si_cleanup_q(void *_si, void *arg)
+{
+	struct dn_sch_inst *si = _si;
+
+	if (!(si->sched->fp->flags & DN_MULTIQUEUE)) {
+		if (si->sched->fs->aqmfp && si->sched->fs->aqmfp->cleanup)
+			si->sched->fs->aqmfp->cleanup((struct dn_queue *) (si+1));
+	}
+	return 0;
+}
+
+/* callback to clean up queue AQM status.*/
+static int
+q_cleanup_q(void *_q, void *arg)
+{
+	struct dn_queue *q = _q;
+	q->fs->aqmfp->cleanup(q);
+	return 0;
+}
+
+/* Clean up all AQM queues status belongs to flowset 'fs' and then
+ * deconfig AQM for flowset 'fs'
+ */
+static void 
+aqm_cleanup_deconfig_fs(struct dn_fsk *fs)
+{
+	struct dn_sch_inst *si;
+
+	/* clean up AQM status for all queues for !DN_MULTIQUEUE sched*/
+	if (fs->fs.fs_nr > DN_MAX_ID) {
+		if (fs->sched && !(fs->sched->fp->flags & DN_MULTIQUEUE)) {
+			if (fs->sched->sch.flags & DN_HAVE_MASK)
+				dn_ht_scan(fs->sched->siht, si_cleanup_q, NULL);
+			else {
+					/* single si i.e. no sched mask */
+					si = (struct dn_sch_inst *) fs->sched->siht;
+					if (si && fs->aqmfp && fs->aqmfp->cleanup)
+						fs->aqmfp->cleanup((struct dn_queue *) (si+1));
+			}
+		} 
+	}
+
+	/* clean up AQM status for all queues for DN_MULTIQUEUE sched*/
+	if (fs->sched && fs->sched->fp->flags & DN_MULTIQUEUE && fs->qht) {
+			if (fs->fs.flags & DN_QHT_HASH)
+				dn_ht_scan(fs->qht, q_cleanup_q, NULL);
+			else
+				fs->aqmfp->cleanup((struct dn_queue *)(fs->qht));
+	}
+
+	/* deconfig AQM */
+	if(fs->aqmcfg && fs->aqmfp && fs->aqmfp->deconfig)
+		fs->aqmfp->deconfig(fs);
+}
+#endif
+
 /*
  * detach flowset from its current scheduler. Flags as follows:
  * DN_DETACH removes from the fsk_list
@@ -620,6 +745,10 @@ fsk_detach(struct dn_fsk *fs, int flags)
 		free(fs->w_q_lookup, M_DUMMYNET);
 	fs->w_q_lookup = NULL;
 	qht_delete(fs, flags);
+#ifdef NEW_AQM
+	aqm_cleanup_deconfig_fs(fs);
+#endif
+
 	if (fs->sched && fs->sched->fp->free_fsk)
 		fs->sched->fp->free_fsk(fs);
 	fs->sched = NULL;
@@ -1191,6 +1320,183 @@ update_fs(struct dn_schk *s)
 	}
 }
 
+#ifdef NEW_AQM
+/* Retrieve AQM configurations to ipfw userland 
+ */
+static int
+get_aqm_parms(struct sockopt *sopt)
+{
+	struct dn_extra_parms  *ep;
+	struct dn_fsk *fs;
+	size_t sopt_valsize;
+	int l, err = 0;
+	
+	sopt_valsize = sopt->sopt_valsize;
+	l = sizeof(*ep);
+	if (sopt->sopt_valsize < l) {
+		D("bad len sopt->sopt_valsize %d len %d",
+			(int) sopt->sopt_valsize , l);
+		err = EINVAL;
+		return err;
+	}
+	ep = malloc(l, M_DUMMYNET, M_WAITOK);
+	if(!ep) {
+		err = ENOMEM ;
+		return err;
+	}
+	do {
+		err = sooptcopyin(sopt, ep, l, l);
+		if(err)
+			break;
+		sopt->sopt_valsize = sopt_valsize;
+		if (ep->oid.len < l) {
+			err = EINVAL;
+			break;
+		}
+
+		fs = dn_ht_find(dn_cfg.fshash, ep->nr, 0, NULL);
+		if (!fs) {
+			D("fs %d not found", ep->nr);
+			err = EINVAL;
+			break;
+		}
+
+		if (fs->aqmfp && fs->aqmfp->getconfig) {
+			if(fs->aqmfp->getconfig(fs, ep)) {
+				D("Error while trying to get AQM params");
+				err = EINVAL;
+				break;
+			}
+			ep->oid.len = l;
+			err = sooptcopyout(sopt, ep, l);
+		}
+	}while(0);
+
+	free(ep, M_DUMMYNET);
+	return err;
+}
+
+/* Retrieve AQM configurations to ipfw userland
+ */
+static int
+get_sched_parms(struct sockopt *sopt)
+{
+	struct dn_extra_parms  *ep;
+	struct dn_schk *schk;
+	size_t sopt_valsize;
+	int l, err = 0;
+	
+	sopt_valsize = sopt->sopt_valsize;
+	l = sizeof(*ep);
+	if (sopt->sopt_valsize < l) {
+		D("bad len sopt->sopt_valsize %d len %d",
+			(int) sopt->sopt_valsize , l);
+		err = EINVAL;
+		return err;
+	}
+	ep = malloc(l, M_DUMMYNET, M_WAITOK);
+	if(!ep) {
+		err = ENOMEM ;
+		return err;
+	}
+	do {
+		err = sooptcopyin(sopt, ep, l, l);
+		if(err)
+			break;
+		sopt->sopt_valsize = sopt_valsize;
+		if (ep->oid.len < l) {
+			err = EINVAL;
+			break;
+		}
+
+		schk = locate_scheduler(ep->nr);
+		if (!schk) {
+			D("sched %d not found", ep->nr);
+			err = EINVAL;
+			break;
+		}
+		
+		if (schk->fp && schk->fp->getconfig) {
+			if(schk->fp->getconfig(schk, ep)) {
+				D("Error while trying to get sched params");
+				err = EINVAL;
+				break;
+			}
+			ep->oid.len = l;
+			err = sooptcopyout(sopt, ep, l);
+		}
+	}while(0);
+	free(ep, M_DUMMYNET);
+
+	return err;
+}
+
+/* Configure AQM for flowset 'fs'.
+ * extra parameters are passed from userland.
+ */
+static int
+config_aqm(struct dn_fsk *fs, struct  dn_extra_parms *ep, int busy)
+{
+	int err = 0;
+
+	do {
+		/* no configurations */
+		if (!ep) {
+			err = 0;
+			break;
+		}
+
+		/* no AQM for this flowset*/
+		if (!strcmp(ep->name,"")) {
+			err = 0;
+			break;
+		}
+		if (ep->oid.len < sizeof(*ep)) {
+			D("short aqm len %d", ep->oid.len);
+				err = EINVAL;
+				break;
+		}
+
+		if (busy) {
+			D("Unable to configure flowset, flowset busy!");
+			err = EINVAL;
+			break;
+		}
+
+		/* deconfigure old aqm if exist */
+		if (fs->aqmcfg && fs->aqmfp && fs->aqmfp->deconfig) {
+			aqm_cleanup_deconfig_fs(fs);
+		}
+
+		if (!(fs->aqmfp = find_aqm_type(0, ep->name))) {
+			D("AQM functions not found for type %s!", ep->name);
+			fs->fs.flags &= ~DN_IS_AQM;
+			err = EINVAL;
+			break;
+		} else
+			fs->fs.flags |= DN_IS_AQM;
+
+		if (ep->oid.subtype != DN_AQM_PARAMS) {
+				D("Wrong subtype");
+				err = EINVAL;
+				break;
+		}
+
+		if (fs->aqmfp->config) {
+			err = fs->aqmfp->config(fs, ep, ep->oid.len);
+			if (err) {
+					D("Unable to configure AQM for FS %d", fs->fs.fs_nr );
+					fs->fs.flags &= ~DN_IS_AQM;
+					fs->aqmfp = NULL;
+					break;
+			}
+		}
+	} while(0);
+
+	return err;
+}
+#endif
+
 /*
  * Configuration -- to preserve backward compatibility we use
  * the following scheme (N is 65536)
@@ -1323,6 +1629,14 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	    }
 	    if (bcmp(&fs->fs, nfs, sizeof(*nfs)) == 0) {
 		ND("flowset %d unchanged", i);
+#ifdef NEW_AQM
+		/* reconfigure AQM as the parameters can be changed.
+		 * we consider the flowsetis  busy if it has scheduler instance(s) 
+		*/ 
+		s = locate_scheduler(nfs->sched_nr);
+		config_aqm(fs, (struct dn_extra_parms *) arg, 
+			s != NULL && s->siht != NULL);
+#endif
 		break; /* no change, nothing to do */
 	    }
 	    if (oldc != dn_cfg.fsk_count)	/* new item */
@@ -1341,6 +1655,10 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 		fsk_detach(fs, flags);
 	    }
 	    fs->fs = *nfs; /* copy configuration */
+#ifdef NEW_AQM
+			fs->aqmfp = NULL;
+			config_aqm(fs, (struct dn_extra_parms *) arg, s != NULL && s->siht != NULL);
+#endif
 	    if (s != NULL)
 		fsk_attach(fs, s);
 	} while (0);
@@ -1629,7 +1947,7 @@ dummynet_flush(void)
  * with an oid which is at least a dn_id.
  * - the first object is the command (config, delete, flush, ...)
  * - config_link must be issued after the corresponding config_sched
- * - parameters (DN_TXT) for an object must preceed the object
+ * - parameters (DN_TXT) for an object must precede the object
  *   processed on a config_sched.
  */
 int
@@ -1866,6 +2184,19 @@ dummynet_get(struct sockopt *sopt, void **compat)
 		// cmd->id = sopt_valsize;
 		D("compatibility mode");
 	}
+
+#ifdef NEW_AQM
+	/* get AQM params */
+	if(cmd->subtype == DN_AQM_PARAMS) {
+		error = get_aqm_parms(sopt);
+		goto done;
+	/* get Scheduler params */
+	} else if (cmd->subtype == DN_SCH_PARAMS) {
+		error = get_sched_parms(sopt);
+		goto done;
+	}
+#endif
+
 	a.extra = (struct copy_range *)cmd;
 	if (cmd->len == sizeof(*cmd)) { /* no range, create a default */
 		uint32_t *rp = (uint32_t *)(cmd + 1);
@@ -2318,4 +2649,98 @@ MODULE_VERSION(dummynet, 3);
  */
 //VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_destroy, NULL);
 
+#ifdef NEW_AQM
+
+/* modevent helpers for the AQM modules */
+static int
+load_dn_aqm(struct dn_aqm *d)
+{
+	struct dn_aqm *aqm=NULL;
+
+	if (d == NULL)
+		return 1; /* error */
+	ip_dn_init();	/* just in case, we need the lock */
+
+	/* Check that mandatory funcs exists */
+	if (d->enqueue == NULL || d->dequeue == NULL) {
+		D("missing enqueue or dequeue for %s", d->name);
+		return 1;
+	}
+
+	/* Search if AQM already exists */
+	DN_BH_WLOCK();
+	SLIST_FOREACH(aqm, &dn_cfg.aqmlist, next) {
+		if (strcmp(aqm->name, d->name) == 0) {
+			D("%s already loaded", d->name);
+			break; /* AQM already exists */
+		}
+	}
+	if (aqm == NULL)
+		SLIST_INSERT_HEAD(&dn_cfg.aqmlist, d, next);
+	DN_BH_WUNLOCK();
+	D("dn_aqm %s %sloaded", d->name, aqm ? "not ":"");
+	return aqm ? 1 : 0;
+}
+
+
+/* Callback to clean up AQM status for queues connected to a flowset
+ * and then deconfigure the flowset.
+ * This function is called before an AQM module is unloaded
+ */
+static int
+fs_cleanup(void *_fs, void *arg)
+{
+	struct dn_fsk *fs = _fs;
+	uint32_t type = *(uint32_t *)arg;
+
+	if (fs->aqmfp && fs->aqmfp->type == type)
+		aqm_cleanup_deconfig_fs(fs);
+
+	return 0;
+}
+
+static int
+unload_dn_aqm(struct dn_aqm *aqm)
+{
+	struct dn_aqm *tmp, *r;
+	int err = EINVAL;
+	err = 0;
+	ND("called for %s", aqm->name);
+
+	DN_BH_WLOCK();
+
+	/* clean up AQM status and deconfig flowset */
+	dn_ht_scan(dn_cfg.fshash, fs_cleanup, &aqm->type);
+
+	SLIST_FOREACH_SAFE(r, &dn_cfg.aqmlist, next, tmp) {
+		if (strcmp(aqm->name, r->name) != 0)
+			continue;
+		ND("ref_count = %d", r->ref_count);
+		err = (r->ref_count != 0 || r->cfg_ref_count != 0) ? EBUSY : 0;
+		if (err == 0)
+			SLIST_REMOVE(&dn_cfg.aqmlist, r, dn_aqm, next);
+		break;
+	}
+	DN_BH_WUNLOCK();
+	D("%s %sunloaded", aqm->name, err ? "not ":"");
+	if (err)
+		D("ref_count=%d, cfg_ref_count=%d", r->ref_count, r->cfg_ref_count);
+	return err;
+}
+
+int
+dn_aqm_modevent(module_t mod, int cmd, void *arg)
+{
+	struct dn_aqm *aqm = arg;
+
+	if (cmd == MOD_LOAD)
+		return load_dn_aqm(aqm);
+	else if (cmd == MOD_UNLOAD)
+		return unload_dn_aqm(aqm);
+	else
+		return EINVAL;
+}
+#endif
+
 /* end of file */
+

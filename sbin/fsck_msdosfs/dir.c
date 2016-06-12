@@ -223,7 +223,7 @@ resetDosDirSection(struct bootblock *boot, struct fatEntry *fat)
 	b1 = boot->bpbRootDirEnts * 32;
 	b2 = boot->bpbSecPerClust * boot->bpbBytesPerSec;
 
-	if ((buffer = malloc(len = b1 > b2 ? b1 : b2)) == NULL) {
+	if ((buffer = malloc(len = MAX(b1, b2))) == NULL) {
 		perr("No space for directory buffer (%zu)", len);
 		return FSFATAL;
 	}
@@ -289,7 +289,7 @@ finishDosDirSection(void)
 		np = p->next;
 		freeDirTodo(p);
 	}
-	pendingDirectories = 0;
+	pendingDirectories = NULL;
 	for (d = rootDir; d; d = nd) {
 		if ((nd = d->child) != NULL) {
 			d->child = 0;
@@ -925,6 +925,7 @@ int
 reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 {
 	struct dosDirEntry d;
+	int len;
 	u_char *p;
 
 	if (!ask(1, "Reconnect"))
@@ -976,14 +977,15 @@ reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 	boot->NumFiles++;
 	/* Ensure uniqueness of entry here!				XXX */
 	memset(&d, 0, sizeof d);
-	(void)snprintf(d.name, sizeof(d.name), "%u", head);
+	/* worst case -1 = 4294967295, 10 digits */
+	len = snprintf(d.name, sizeof(d.name), "%u", head);
 	d.flags = 0;
 	d.head = head;
 	d.size = fat[head].length * boot->ClusterSize;
 
-	memset(p, 0, 32);
-	memset(p, ' ', 11);
-	memcpy(p, d.name, strlen(d.name));
+	memcpy(p, d.name, len);
+	memset(p + len, ' ', 11 - len);
+	memset(p + 11, 0, 32 - 11);
 	p[26] = (u_char)d.head;
 	p[27] = (u_char)(d.head >> 8);
 	if (boot->ClustMask == CLUST32_MASK) {

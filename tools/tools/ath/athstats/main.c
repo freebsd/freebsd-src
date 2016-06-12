@@ -94,7 +94,7 @@ main(int argc, char *argv[])
 
 	ifname = getenv("ATH");
 	if (ifname == NULL)
-		ifname = "ath0";
+		ifname = ATH_DEFAULT;
 	wf = athstats_new(ifname, getfmt("default"));
 	while ((c = getopt(argc, argv, "bi:lo:z")) != -1) {
 		switch (c) {

@@ -138,6 +138,7 @@ static int Reboot = FALSE;
 static int howto = RB_AUTOBOOT;
 
 static int devfs;
+static char *init_path_argv0;
 
 static void transition(state_t);
 static state_t requested_transition;
@@ -246,6 +247,11 @@ invalid:
 #endif
 			errx(1, "already running");
 	}
+
+	init_path_argv0 = strdup(argv[0]);
+	if (init_path_argv0 == NULL)
+		err(1, "strdup");
+
 	/*
 	 * Note that this does NOT open a file...
 	 * Does 'init' deserve its own facility number?
@@ -322,7 +328,7 @@ invalid:
 	if (kenv(KENV_GET, "init_script", kenv_value, sizeof(kenv_value)) > 0) {
 		state_func_t next_transition;
 
-		if ((next_transition = run_script(kenv_value)) != 0)
+		if ((next_transition = run_script(kenv_value)) != NULL)
 			initial_transition = (state_t) next_transition;
 	}
 
@@ -755,33 +761,22 @@ static state_func_t
 reroot(void)
 {
 	void *buf;
-	char init_path[PATH_MAX];
-	size_t bufsize, init_path_len;
-	int error, name[4];
+	size_t bufsize;
+	int error;
 
 	buf = NULL;
 	bufsize = 0;
-
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_PATHNAME;
-	name[3] = -1;
-	init_path_len = sizeof(init_path);
-	error = sysctl(name, 4, init_path, &init_path_len, NULL, 0);
-	if (error != 0) {
-		emergency("failed to get kern.proc.pathname: %s",
-		    strerror(errno));
-		goto out;
-	}
 
 	revoke_ttys();
 	runshutdown();
 
 	/*
 	 * Make sure nobody can interfere with our scheme.
+	 * Ignore ESRCH, which can apparently happen when
+	 * there are no processes to kill.
 	 */
 	error = kill(-1, SIGKILL);
-	if (error != 0) {
+	if (error != 0 && errno != ESRCH) {
 		emergency("kill(2) failed: %s", strerror(errno));
 		goto out;
 	}
@@ -790,7 +785,7 @@ reroot(void)
 	 * Copy the init binary into tmpfs, so that we can unmount
 	 * the old rootfs without committing suicide.
 	 */
-	error = read_file(init_path, &buf, &bufsize);
+	error = read_file(init_path_argv0, &buf, &bufsize);
 	if (error != 0)
 		goto out;
 	error = mount_tmpfs(_PATH_REROOT);
@@ -914,7 +909,7 @@ single_user(void)
 			write_stderr(banner);
 			for (;;) {
 				clear = getpass("Password:");
-				if (clear == 0 || *clear == '\0')
+				if (clear == NULL || *clear == '\0')
 					_exit(0);
 				password = crypt(clear, pp->pw_passwd);
 				bzero(clear, _PASSWORD_LEN);
@@ -1027,7 +1022,7 @@ runcom(void)
 {
 	state_func_t next_transition;
 
-	if ((next_transition = run_script(_PATH_RUNCOM)) != 0)
+	if ((next_transition = run_script(_PATH_RUNCOM)) != NULL)
 		return next_transition;
 
 	runcom_mode = AUTOBOOT;		/* the default */
@@ -1144,7 +1139,7 @@ start_session_db(void)
 {
 	if (session_db && (*session_db->close)(session_db))
 		emergency("session database close: %s", strerror(errno));
-	if ((session_db = dbopen(NULL, O_RDWR, 0, DB_HASH, NULL)) == 0) {
+	if ((session_db = dbopen(NULL, O_RDWR, 0, DB_HASH, NULL)) == NULL) {
 		emergency("session database open: %s", strerror(errno));
 		return (1);
 	}
@@ -1213,7 +1208,7 @@ construct_argv(char *command)
 	char **argv = (char **) malloc(((strlen(command) + 1) / 2 + 1)
 						* sizeof (char *));
 
-	if ((argv[argc++] = strk(command)) == 0) {
+	if ((argv[argc++] = strk(command)) == NULL) {
 		free(argv);
 		return (NULL);
 	}
@@ -1284,7 +1279,7 @@ new_session(session_t *sprev, struct ttyent *typ)
 	}
 
 	sp->se_next = 0;
-	if (sprev == 0) {
+	if (sprev == NULL) {
 		sessions = sp;
 		sp->se_prev = 0;
 	} else {
@@ -1311,7 +1306,7 @@ setupargv(session_t *sp, struct ttyent *typ)
 	sprintf(sp->se_getty, "%s %s", typ->ty_getty, typ->ty_name);
 	sp->se_getty_argv_space = strdup(sp->se_getty);
 	sp->se_getty_argv = construct_argv(sp->se_getty_argv_space);
-	if (sp->se_getty_argv == 0) {
+	if (sp->se_getty_argv == NULL) {
 		warning("can't parse getty for port %s", sp->se_device);
 		free(sp->se_getty);
 		free(sp->se_getty_argv_space);
@@ -1329,7 +1324,7 @@ setupargv(session_t *sp, struct ttyent *typ)
 		sp->se_window = strdup(typ->ty_window);
 		sp->se_window_argv_space = strdup(sp->se_window);
 		sp->se_window_argv = construct_argv(sp->se_window_argv_space);
-		if (sp->se_window_argv == 0) {
+		if (sp->se_window_argv == NULL) {
 			warning("can't parse window for port %s",
 			    sp->se_device);
 			free(sp->se_window_argv_space);

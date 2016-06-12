@@ -310,7 +310,7 @@ printblocks(ino_t inum, union dinode *dp)
 	return;
 
     bufp = malloc((unsigned int)sblock.fs_bsize);
-    if (bufp == 0)
+    if (bufp == NULL)
 	errx(EEXIT, "cannot allocate indirect block buffer");
     printf("Indirect blocks:\n");
     for (i = 0; i < NIADDR; i++)

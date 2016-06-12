@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 # Vendor sources and generated files
 LDNSDIR= ${.CURDIR}/../../contrib/ldns
 UNBOUNDDIR= ${.CURDIR}/../../contrib/unbound
@@ -9,10 +10,11 @@ UNBOUNDDIR= ${.CURDIR}/../../contrib/unbound
 
 LIB=	unbound
 PRIVATELIB=
+PACKAGE=	unbound
 
-CFLAGS= -I${UNBOUNDDIR} -I${LDNSDIR} -I${.OBJDIR}
+CFLAGS+= -I${UNBOUNDDIR} -I${LDNSDIR} -I${.OBJDIR}
 
-SRCS=	alloc.c autotrust.c config_file.c configlexer.l configparser.y \
+SRCS=	alloc.c as112.c autotrust.c config_file.c configlexer.l configparser.y \
 	context.c dname.c dns.c dns64.c dnstree.c fptr_wlist.c infra.c \
 	iter_delegpt.c iter_donotq.c iter_fwd.c iter_hints.c iter_priv.c \
 	iter_resptype.c iter_scrub.c iter_utils.c iterator.c keyraw.c \

@@ -936,7 +936,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	offset == 0 means that (if this is an IPv4 packet)
 	 *	this is the first or only fragment.
 	 *	For IPv6 offset|ip6f_mf == 0 means there is no Fragment Header
-	 *	or there is a single packet fragement (fragement header added
+	 *	or there is a single packet fragment (fragment header added
 	 *	without needed).  We will treat a single packet fragment as if
 	 *	there was no fragment header (or log/block depending on the
 	 *	V_fw_permit_single_frag6 sysctl setting).
@@ -1711,7 +1711,7 @@ do {								\
 					break;
 
 				/* DSCP bitmask is stored as low_u32 high_u32 */
-				if (x > 32)
+				if (x >= 32)
 					match = *(p + 1) & (1 << (x - 32));
 				else
 					match = *p & (1 << x);
@@ -1999,7 +1999,7 @@ do {								\
 				 * certainly be inp_user_cookie?
 				 */
 
-				/* For incomming packet, lookup up the 
+				/* For incoming packet, lookup up the 
 				inpcb using the src/dest ip/port tuple */
 				if (inp == NULL) {
 					inp = in_pcblookup(pi, 
@@ -2542,6 +2542,11 @@ do {								\
 				done = 1;	/* exit outer loop */
 				break;
 			}
+			case O_EXTERNAL_ACTION:
+				l = 0; /* in any case exit inner loop */
+				retval = ipfw_run_eaction(chain, args,
+				    cmd, &done);
+				break;
 
 			default:
 				panic("-- unknown opcode %d\n", cmd->opcode);
@@ -2766,6 +2771,7 @@ vnet_ipfw_init(const void *unused)
 
 	IPFW_LOCK_INIT(chain);
 	ipfw_dyn_init(chain);
+	ipfw_eaction_init(chain, first);
 #ifdef LINEAR_SKIPTO
 	ipfw_init_skipto_cache(chain);
 #endif
@@ -2830,6 +2836,7 @@ vnet_ipfw_uninit(const void *unused)
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
 	ipfw_destroy_tables(chain, last);
+	ipfw_eaction_uninit(chain, last);
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	vnet_ipfw_iface_destroy(chain);

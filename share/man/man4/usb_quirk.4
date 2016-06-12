@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2015
+.Dd April 4, 2016
 .Dt USB_QUIRK 4
 .Os
 .Sh NAME
@@ -232,6 +232,12 @@ device which appears as a USB device on
 .Pa ugen0.3 :
 .Bd -literal -offset indent
 usbconfig -d ugen0.3 add_quirk UQ_MSC_EJECT_WAIT
+.Ed
+.Pp
+Enable a Holtec/Keep Out F85 gaming keyboard on
+.Pa ugen1.4 :
+.Bd -literal -offset indent
+usbconfig -d ugen1.4 add_quirk UQ_KBD_BOOTPROTO
 .Ed
 .Pp
 To install a quirk at boot time, place one or several lines like the

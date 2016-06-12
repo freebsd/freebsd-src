@@ -381,7 +381,7 @@ walkthrough_dates(struct event **e)
 		d = m->days;
 		*e = d->events;
 		return (1);
-	};
+	}
 	if (d->nextday != NULL) {
 		d = d->nextday;
 		*e = d->events;

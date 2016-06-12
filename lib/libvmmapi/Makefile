@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	vmmapi
 SRCS=	vmmapi.c vmmapi_freebsd.c
 INCS=	vmmapi.h

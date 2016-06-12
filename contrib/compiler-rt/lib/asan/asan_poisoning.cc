@@ -102,7 +102,7 @@ using namespace __asan;  // NOLINT
 // that user program (un)poisons the memory it owns. It poisons memory
 // conservatively, and unpoisons progressively to make sure asan shadow
 // mapping invariant is preserved (see detailed mapping description here:
-// http://code.google.com/p/address-sanitizer/wiki/AddressSanitizerAlgorithm).
+// https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm).
 //
 // * if user asks to poison region [left, right), the program poisons
 // at least [left, AlignDown(right)).
@@ -354,7 +354,7 @@ void __sanitizer_annotate_contiguous_container(const void *beg_p,
   // Make a quick sanity check that we are indeed in this state.
   //
   // FIXME: Two of these three checks are disabled until we fix
-  // https://code.google.com/p/address-sanitizer/issues/detail?id=258.
+  // https://github.com/google/sanitizers/issues/258.
   // if (d1 != d2)
   //  CHECK_EQ(*(u8*)MemToShadow(d1), old_mid - d1);
   if (a + granularity <= d1)
@@ -375,10 +375,10 @@ void __sanitizer_annotate_contiguous_container(const void *beg_p,
   }
 }
 
-int __sanitizer_verify_contiguous_container(const void *beg_p,
-                                            const void *mid_p,
-                                            const void *end_p) {
-  if (!flags()->detect_container_overflow) return 1;
+const void *__sanitizer_contiguous_container_find_bad_address(
+    const void *beg_p, const void *mid_p, const void *end_p) {
+  if (!flags()->detect_container_overflow)
+    return nullptr;
   uptr beg = reinterpret_cast<uptr>(beg_p);
   uptr end = reinterpret_cast<uptr>(end_p);
   uptr mid = reinterpret_cast<uptr>(mid_p);
@@ -395,17 +395,24 @@ int __sanitizer_verify_contiguous_container(const void *beg_p,
   uptr r3_end = end;
   for (uptr i = r1_beg; i < r1_end; i++)
     if (AddressIsPoisoned(i))
-      return 0;
+      return reinterpret_cast<const void *>(i);
   for (uptr i = r2_beg; i < mid; i++)
     if (AddressIsPoisoned(i))
-      return 0;
+      return reinterpret_cast<const void *>(i);
   for (uptr i = mid; i < r2_end; i++)
     if (!AddressIsPoisoned(i))
-      return 0;
+      return reinterpret_cast<const void *>(i);
   for (uptr i = r3_beg; i < r3_end; i++)
     if (!AddressIsPoisoned(i))
-      return 0;
-  return 1;
+      return reinterpret_cast<const void *>(i);
+  return nullptr;
+}
+
+int __sanitizer_verify_contiguous_container(const void *beg_p,
+                                            const void *mid_p,
+                                            const void *end_p) {
+  return __sanitizer_contiguous_container_find_bad_address(beg_p, mid_p,
+                                                           end_p) == nullptr;
 }
 
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE

@@ -382,11 +382,10 @@ dtrace_getarg(int arg, int aframes)
 			 * we'll pull the true stack pointer out of the saved
 			 * registers and decrement our argument by the number
 			 * of arguments passed in registers; if the argument
-			 * we're seeking is passed in regsiters, we can just
+			 * we're seeking is passed in registers, we can just
 			 * load it directly.
 			 */
-			struct trapframe *tf = (struct trapframe *)
-			    ((uintptr_t)&fp[1] + sizeof(uintptr_t));
+			struct trapframe *tf = (struct trapframe *)&fp[1];
 
 			if (arg <= inreg) {
 				switch (arg) {

@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
 # $FreeBSD$
 
+PACKAGE=sendmail
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/rmail
 

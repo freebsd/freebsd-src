@@ -27,15 +27,15 @@
 /*
  * CESA SRAM Memory Map:
  *
- * +------------------------+ <= sc->sc_sram_base + CESA_SRAM_SIZE
+ * +------------------------+ <= sc->sc_sram_base_va + CESA_SRAM_SIZE
  * |                        |
  * |          DATA          |
  * |                        |
- * +------------------------+ <= sc->sc_sram_base + CESA_DATA(0)
+ * +------------------------+ <= sc->sc_sram_base_va + CESA_DATA(0)
  * |  struct cesa_sa_data   |
  * +------------------------+
  * |  struct cesa_sa_hdesc  |
- * +------------------------+ <= sc->sc_sram_base
+ * +------------------------+ <= sc->sc_sram_base_va
  */
 
 #include <sys/cdefs.h>
@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
+#include <machine/fdt.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/md5.h>
 #include <crypto/sha1.h>
+#include <crypto/sha2/sha256.h>
 #include <crypto/rijndael/rijndael.h>
 #include <opencrypto/cryptodev.h>
 #include "cryptodev_if.h"
@@ -82,6 +84,7 @@ static int	decode_win_cesa_setup(struct cesa_softc *sc);
 
 static struct resource_spec cesa_res_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE },
 	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE },
 	{ -1, 0 }
 };
@@ -284,7 +287,7 @@ cesa_free_request(struct cesa_softc *sc, struct cesa_request *cr)
 	STAILQ_CONCAT(&sc->sc_free_sdesc, &cr->cr_sdesc);
 	CESA_UNLOCK(sc, sdesc);
 
-	/* Unload DMA memory asociated with request */
+	/* Unload DMA memory associated with request */
 	if (cr->cr_dmap_loaded) {
 		bus_dmamap_unload(sc->sc_data_dtag, cr->cr_dmap);
 		cr->cr_dmap_loaded = 0;
@@ -373,7 +376,7 @@ static struct cesa_tdma_desc *
 cesa_tdma_copyin_sa_data(struct cesa_softc *sc, struct cesa_request *cr)
 {
 
-	return (cesa_tdma_copy(sc, sc->sc_sram_base +
+	return (cesa_tdma_copy(sc, sc->sc_sram_base_pa +
 	    sizeof(struct cesa_sa_hdesc), cr->cr_csd_paddr,
 	    sizeof(struct cesa_sa_data)));
 }
@@ -382,7 +385,7 @@ static struct cesa_tdma_desc *
 cesa_tdma_copyout_sa_data(struct cesa_softc *sc, struct cesa_request *cr)
 {
 
-	return (cesa_tdma_copy(sc, cr->cr_csd_paddr, sc->sc_sram_base +
+	return (cesa_tdma_copy(sc, cr->cr_csd_paddr, sc->sc_sram_base_pa +
 	    sizeof(struct cesa_sa_hdesc), sizeof(struct cesa_sa_data)));
 }
 
@@ -390,7 +393,7 @@ static struct cesa_tdma_desc *
 cesa_tdma_copy_sdesc(struct cesa_softc *sc, struct cesa_sa_desc *csd)
 {
 
-	return (cesa_tdma_copy(sc, sc->sc_sram_base, csd->csd_cshd_paddr,
+	return (cesa_tdma_copy(sc, sc->sc_sram_base_pa, csd->csd_cshd_paddr,
 	    sizeof(struct cesa_sa_hdesc)));
 }
 
@@ -447,6 +450,7 @@ cesa_set_mkey(struct cesa_session *cs, int alg, const uint8_t *mkey, int mklen)
 	uint8_t ipad[CESA_MAX_HMAC_BLOCK_LEN];
 	uint8_t opad[CESA_MAX_HMAC_BLOCK_LEN];
 	SHA1_CTX sha1ctx;
+	SHA256_CTX sha256ctx;
 	MD5_CTX md5ctx;
 	uint32_t *hout;
 	uint32_t *hin;
@@ -478,6 +482,14 @@ cesa_set_mkey(struct cesa_session *cs, int alg, const uint8_t *mkey, int mklen)
 		SHA1Init(&sha1ctx);
 		SHA1Update(&sha1ctx, opad, SHA1_HMAC_BLOCK_LEN);
 		memcpy(hout, sha1ctx.h.b32, sizeof(sha1ctx.h.b32));
+		break;
+	case CRYPTO_SHA2_256_HMAC:
+		SHA256_Init(&sha256ctx);
+		SHA256_Update(&sha256ctx, ipad, SHA2_256_HMAC_BLOCK_LEN);
+		memcpy(hin, sha256ctx.state, sizeof(sha256ctx.state));
+		SHA256_Init(&sha256ctx);
+		SHA256_Update(&sha256ctx, opad, SHA2_256_HMAC_BLOCK_LEN);
+		memcpy(hout, sha256ctx.state, sizeof(sha256ctx.state));
 		break;
 	default:
 		return (EINVAL);
@@ -539,6 +551,7 @@ cesa_is_hash(int alg)
 	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA1_HMAC:
+	case CRYPTO_SHA2_256_HMAC:
 		return (1);
 	default:
 		return (0);
@@ -566,14 +579,14 @@ cesa_fill_packet(struct cesa_softc *sc, struct cesa_packet *cp,
 	bsize = MIN(seg->ds_len, cp->cp_size - cp->cp_offset);
 
 	if (bsize > 0) {
-		ctd = cesa_tdma_copy(sc, sc->sc_sram_base +
+		ctd = cesa_tdma_copy(sc, sc->sc_sram_base_pa +
 		    CESA_DATA(cp->cp_offset), seg->ds_addr, bsize);
 		if (!ctd)
 			return (-ENOMEM);
 
 		STAILQ_INSERT_TAIL(&cp->cp_copyin, ctd, ctd_stq);
 
-		ctd = cesa_tdma_copy(sc, seg->ds_addr, sc->sc_sram_base +
+		ctd = cesa_tdma_copy(sc, seg->ds_addr, sc->sc_sram_base_pa +
 		    CESA_DATA(cp->cp_offset), bsize);
 		if (!ctd)
 			return (-ENOMEM);
@@ -705,7 +718,7 @@ cesa_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			/*
 			 * Fill in current packet with data. Break if there is
 			 * no more data in current DMA segment or an error
-			 * occured.
+			 * occurred.
 			 */
 			size = cesa_fill_packet(sc, &cp, &seg);
 			if (size <= 0) {
@@ -939,8 +952,12 @@ cesa_execute(struct cesa_softc *sc)
 	cr = STAILQ_FIRST(&sc->sc_queued_requests);
 	ctd = STAILQ_FIRST(&cr->cr_tdesc);
 
-	CESA_WRITE(sc, CESA_TDMA_ND, ctd->ctd_cthd_paddr);
-	CESA_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_ND, ctd->ctd_cthd_paddr);
+#if defined (SOC_MV_ARMADA38X)
+	CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE | CESA_SA_CMD_SHA2);
+#else
+	CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE);
+#endif
 
 	CESA_UNLOCK(sc, requests);
 }
@@ -950,22 +967,34 @@ cesa_setup_sram(struct cesa_softc *sc)
 {
 	phandle_t sram_node;
 	ihandle_t sram_ihandle;
-	pcell_t sram_handle, sram_reg;
+	pcell_t sram_handle, sram_reg[2];
+	int rv;
 
-	if (OF_getprop(ofw_bus_get_node(sc->sc_dev), "sram-handle",
-	    (void *)&sram_handle, sizeof(sram_handle)) <= 0)
-		return (ENXIO);
+	rv = OF_getencprop(ofw_bus_get_node(sc->sc_dev), "sram-handle",
+	    (void *)&sram_handle, sizeof(sram_handle));
+	if (rv <= 0)
+		return (rv);
 
 	sram_ihandle = (ihandle_t)sram_handle;
-	sram_ihandle = fdt32_to_cpu(sram_ihandle);
 	sram_node = OF_instance_to_package(sram_ihandle);
 
-	if (OF_getprop(sram_node, "reg", (void *)&sram_reg,
-	    sizeof(sram_reg)) <= 0)
-		return (ENXIO);
+	rv = OF_getencprop(sram_node, "reg", (void *)sram_reg, sizeof(sram_reg));
+	if (rv <= 0)
+		return (rv);
 
-	sc->sc_sram_base = fdt32_to_cpu(sram_reg);
+	sc->sc_sram_base_pa = sram_reg[0];
+	/* Store SRAM size to be able to unmap in detach() */
+	sc->sc_sram_size = sram_reg[1];
 
+#if defined(SOC_MV_ARMADA38X)
+	void *sram_va;
+
+	/* SRAM memory was not mapped in platform_sram_devmap(), map it now */
+	sram_va = pmap_mapdev(sc->sc_sram_base_pa, sc->sc_sram_size);
+	if (sram_va == NULL)
+		return (ENOMEM);
+	sc->sc_sram_base_va = (vm_offset_t)sram_va;
+#endif
 	return (0);
 }
 
@@ -1015,6 +1044,7 @@ cesa_attach(device_t dev)
 	switch (d) {
 	case MV_DEV_88F6281:
 	case MV_DEV_88F6282:
+	case MV_DEV_88F6828:
 		sc->sc_tperr = 0;
 		break;
 	case MV_DEV_MV78100:
@@ -1044,9 +1074,6 @@ cesa_attach(device_t dev)
 		goto err0;
 	}
 
-	sc->sc_bsh = rman_get_bushandle(*(sc->sc_res));
-	sc->sc_bst = rman_get_bustag(*(sc->sc_res));
-
 	/* Setup CESA decoding windows */
 	error = decode_win_cesa_setup(sc);
 	if (error) {
@@ -1062,11 +1089,11 @@ cesa_attach(device_t dev)
 	}
 
 	/* Setup interrupt handler */
-	error = bus_setup_intr(dev, sc->sc_res[1], INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, cesa_intr, sc, &(sc->sc_icookie));
+	error = bus_setup_intr(dev, sc->sc_res[RES_CESA_IRQ], INTR_TYPE_NET |
+	    INTR_MPSAFE, NULL, cesa_intr, sc, &(sc->sc_icookie));
 	if (error) {
 		device_printf(dev, "could not setup engine completion irq\n");
-		goto err1;
+		goto err2;
 	}
 
 	/* Create DMA tag for processed data */
@@ -1081,13 +1108,13 @@ cesa_attach(device_t dev)
 	    NULL, NULL,				/* lockfunc, lockfuncarg */
 	    &sc->sc_data_dtag);			/* dmat */
 	if (error)
-		goto err2;
+		goto err3;
 
 	/* Initialize data structures: TDMA Descriptors Pool */
 	error = cesa_alloc_dma_mem(sc, &sc->sc_tdesc_cdm,
 	    CESA_TDMA_DESCRIPTORS * sizeof(struct cesa_tdma_hdesc));
 	if (error)
-		goto err3;
+		goto err4;
 
 	STAILQ_INIT(&sc->sc_free_tdesc);
 	for (i = 0; i < CESA_TDMA_DESCRIPTORS; i++) {
@@ -1103,7 +1130,7 @@ cesa_attach(device_t dev)
 	error = cesa_alloc_dma_mem(sc, &sc->sc_sdesc_cdm,
 	    CESA_SA_DESCRIPTORS * sizeof(struct cesa_sa_hdesc));
 	if (error)
-		goto err4;
+		goto err5;
 
 	STAILQ_INIT(&sc->sc_free_sdesc);
 	for (i = 0; i < CESA_SA_DESCRIPTORS; i++) {
@@ -1119,7 +1146,7 @@ cesa_attach(device_t dev)
 	error = cesa_alloc_dma_mem(sc, &sc->sc_requests_cdm,
 	    CESA_REQUESTS * sizeof(struct cesa_sa_data));
 	if (error)
-		goto err5;
+		goto err6;
 
 	STAILQ_INIT(&sc->sc_free_requests);
 	STAILQ_INIT(&sc->sc_ready_requests);
@@ -1141,7 +1168,7 @@ cesa_attach(device_t dev)
 				    sc->sc_requests[i].cr_dmap);
 			} while (i--);
 
-			goto err6;
+			goto err7;
 		}
 
 		STAILQ_INSERT_TAIL(&sc->sc_free_requests, &sc->sc_requests[i],
@@ -1162,8 +1189,12 @@ cesa_attach(device_t dev)
 	 * - Outstanding reads enabled,
 	 * - No byte-swap.
 	 */
-	CESA_WRITE(sc, CESA_TDMA_CR, CESA_TDMA_CR_DBL128 | CESA_TDMA_CR_SBL128 |
-	    CESA_TDMA_CR_ORDEN | CESA_TDMA_CR_NBS | CESA_TDMA_CR_ENABLE);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_CR, CESA_TDMA_CR_DBL128 |
+	    CESA_TDMA_CR_SBL128 | CESA_TDMA_CR_ORDEN | CESA_TDMA_CR_NBS |
+#if defined (SOC_MV_ARMADA38X)
+	    CESA_TDMA_NUM_OUTSTAND |
+#endif
+	    CESA_TDMA_CR_ENABLE);
 
 	/*
 	 * Initialize SA:
@@ -1171,23 +1202,23 @@ cesa_attach(device_t dev)
 	 * - Multi-packet chain mode,
 	 * - Cooperation with TDMA enabled.
 	 */
-	CESA_WRITE(sc, CESA_SA_DPR, 0);
-	CESA_WRITE(sc, CESA_SA_CR, CESA_SA_CR_ACTIVATE_TDMA |
+	CESA_REG_WRITE(sc, CESA_SA_DPR, 0);
+	CESA_REG_WRITE(sc, CESA_SA_CR, CESA_SA_CR_ACTIVATE_TDMA |
 	    CESA_SA_CR_WAIT_FOR_TDMA | CESA_SA_CR_MULTI_MODE);
 
 	/* Unmask interrupts */
-	CESA_WRITE(sc, CESA_ICR, 0);
-	CESA_WRITE(sc, CESA_ICM, CESA_ICM_ACCTDMA | sc->sc_tperr);
-	CESA_WRITE(sc, CESA_TDMA_ECR, 0);
-	CESA_WRITE(sc, CESA_TDMA_EMR, CESA_TDMA_EMR_MISS |
+	CESA_REG_WRITE(sc, CESA_ICR, 0);
+	CESA_REG_WRITE(sc, CESA_ICM, CESA_ICM_ACCTDMA | sc->sc_tperr);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_ECR, 0);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_EMR, CESA_TDMA_EMR_MISS |
 	    CESA_TDMA_EMR_DOUBLE_HIT | CESA_TDMA_EMR_BOTH_HIT |
 	    CESA_TDMA_EMR_DATA_ERROR);
 
 	/* Register in OCF */
 	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
-	if (sc->sc_cid) {
+	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
-		goto err7;
+		goto err8;
 	}
 
 	crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0);
@@ -1197,22 +1228,27 @@ cesa_attach(device_t dev)
 	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
+	crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 
 	return (0);
-err7:
+err8:
 	for (i = 0; i < CESA_REQUESTS; i++)
 		bus_dmamap_destroy(sc->sc_data_dtag,
 		    sc->sc_requests[i].cr_dmap);
-err6:
+err7:
 	cesa_free_dma_mem(&sc->sc_requests_cdm);
-err5:
+err6:
 	cesa_free_dma_mem(&sc->sc_sdesc_cdm);
-err4:
+err5:
 	cesa_free_dma_mem(&sc->sc_tdesc_cdm);
-err3:
+err4:
 	bus_dma_tag_destroy(sc->sc_data_dtag);
+err3:
+	bus_teardown_intr(dev, sc->sc_res[RES_CESA_IRQ], sc->sc_icookie);
 err2:
-	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_icookie);
+#if defined(SOC_MV_ARMADA38X)
+	pmap_unmapdev(sc->sc_sram_base_va, sc->sc_sram_size);
+#endif
 err1:
 	bus_release_resources(dev, cesa_res_spec, sc->sc_res);
 err0:
@@ -1235,8 +1271,8 @@ cesa_detach(device_t dev)
 	/* TODO: Wait for queued requests completion before shutdown. */
 
 	/* Mask interrupts */
-	CESA_WRITE(sc, CESA_ICM, 0);
-	CESA_WRITE(sc, CESA_TDMA_EMR, 0);
+	CESA_REG_WRITE(sc, CESA_ICM, 0);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_EMR, 0);
 
 	/* Unregister from OCF */
 	crypto_unregister_all(sc->sc_cid);
@@ -1255,12 +1291,16 @@ cesa_detach(device_t dev)
 	bus_dma_tag_destroy(sc->sc_data_dtag);
 
 	/* Stop interrupt */
-	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_icookie);
+	bus_teardown_intr(dev, sc->sc_res[RES_CESA_IRQ], sc->sc_icookie);
 
 	/* Relase I/O and IRQ resources */
 	bus_release_resources(dev, cesa_res_spec, sc->sc_res);
 
-	/* Destory mutexes */
+#if defined(SOC_MV_ARMADA38X)
+	/* Unmap SRAM memory */
+	pmap_unmapdev(sc->sc_sram_base_va, sc->sc_sram_size);
+#endif
+	/* Destroy mutexes */
 	mtx_destroy(&sc->sc_sessions_lock);
 	mtx_destroy(&sc->sc_requests_lock);
 	mtx_destroy(&sc->sc_sdesc_lock);
@@ -1282,10 +1322,10 @@ cesa_intr(void *arg)
 	sc = arg;
 
 	/* Ack interrupt */
-	ecr = CESA_READ(sc, CESA_TDMA_ECR);
-	CESA_WRITE(sc, CESA_TDMA_ECR, 0);
-	icr = CESA_READ(sc, CESA_ICR);
-	CESA_WRITE(sc, CESA_ICR, 0);
+	ecr = CESA_TDMA_READ(sc, CESA_TDMA_ECR);
+	CESA_TDMA_WRITE(sc, CESA_TDMA_ECR, 0);
+	icr = CESA_REG_READ(sc, CESA_ICR);
+	CESA_REG_WRITE(sc, CESA_ICR, 0);
 
 	/* Check for TDMA errors */
 	if (ecr & CESA_TDMA_ECR_MISS) {
@@ -1432,24 +1472,38 @@ cesa_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	if (!error && mac) {
 		switch (mac->cri_alg) {
 		case CRYPTO_MD5:
-			cs->cs_config |= CESA_CSHD_MD5;
 			cs->cs_mblen = 1;
-			cs->cs_hlen = MD5_HASH_LEN;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? MD5_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_MD5;
 			break;
 		case CRYPTO_MD5_HMAC:
-			cs->cs_config |= CESA_CSHD_MD5_HMAC;
 			cs->cs_mblen = MD5_HMAC_BLOCK_LEN;
-			cs->cs_hlen = CESA_HMAC_HASH_LENGTH;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? MD5_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_MD5_HMAC;
+			if (cs->cs_hlen == CESA_HMAC_TRUNC_LEN)
+				cs->cs_config |= CESA_CSHD_96_BIT_HMAC;
 			break;
 		case CRYPTO_SHA1:
-			cs->cs_config |= CESA_CSHD_SHA1;
 			cs->cs_mblen = 1;
-			cs->cs_hlen = SHA1_HASH_LEN;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA1_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_SHA1;
 			break;
 		case CRYPTO_SHA1_HMAC:
-			cs->cs_config |= CESA_CSHD_SHA1_HMAC;
 			cs->cs_mblen = SHA1_HMAC_BLOCK_LEN;
-			cs->cs_hlen = CESA_HMAC_HASH_LENGTH;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA1_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_SHA1_HMAC;
+			if (cs->cs_hlen == CESA_HMAC_TRUNC_LEN)
+				cs->cs_config |= CESA_CSHD_96_BIT_HMAC;
+			break;
+		case CRYPTO_SHA2_256_HMAC:
+			cs->cs_mblen = SHA2_256_HMAC_BLOCK_LEN;
+			cs->cs_hlen = (mac->cri_mlen == 0) ? SHA2_256_HASH_LEN :
+			    mac->cri_mlen;
+			cs->cs_config |= CESA_CSHD_SHA2_256_HMAC;
 			break;
 		default:
 			error = EINVAL;
@@ -1641,11 +1695,11 @@ decode_win_cesa_setup(struct cesa_softc *sc)
 {
 	struct mem_region availmem_regions[FDT_MEM_REGIONS];
 	int availmem_regions_sz;
-	uint32_t memsize, br, cr, i;
+	uint32_t br, cr, i;
 
 	/* Grab physical memory regions information from DTS */
 	if (fdt_get_mem_regions(availmem_regions, &availmem_regions_sz,
-	    &memsize) != 0)
+	    NULL) != 0)
 		return (ENXIO);
 
 	if (availmem_regions_sz > MV_WIN_CESA_MAX) {
@@ -1656,8 +1710,8 @@ decode_win_cesa_setup(struct cesa_softc *sc)
 
 	/* Disable and clear all CESA windows */
 	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
-		CESA_WRITE(sc, MV_WIN_CESA_BASE(i), 0);
-		CESA_WRITE(sc, MV_WIN_CESA_CTRL(i), 0);
+		CESA_TDMA_WRITE(sc, MV_WIN_CESA_BASE(i), 0);
+		CESA_TDMA_WRITE(sc, MV_WIN_CESA_CTRL(i), 0);
 	}
 
 	/* Fill CESA TDMA decoding windows with information acquired from DTS */
@@ -1671,8 +1725,8 @@ decode_win_cesa_setup(struct cesa_softc *sc)
 			(MV_WIN_DDR_ATTR(i) << MV_WIN_CPU_ATTR_SHIFT) |
 			    (MV_WIN_DDR_TARGET << MV_WIN_CPU_TARGET_SHIFT) |
 			    MV_WIN_CPU_ENABLE_BIT);
-			CESA_WRITE(sc, MV_WIN_CESA_BASE(i), br);
-			CESA_WRITE(sc, MV_WIN_CESA_CTRL(i), cr);
+			CESA_TDMA_WRITE(sc, MV_WIN_CESA_BASE(i), br);
+			CESA_TDMA_WRITE(sc, MV_WIN_CESA_CTRL(i), cr);
 		}
 	}
 

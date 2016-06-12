@@ -1,4 +1,4 @@
-//===-- EmulateInstructionMIPS64.h ------------------------------------*- C++ -*-===//
+//===-- EmulateInstructionMIPS64.h ------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,6 +10,14 @@
 #ifndef EmulateInstructionMIPS64_h_
 #define EmulateInstructionMIPS64_h_
 
+// C Includes
+// C++ Includes
+// Other libraries and framework includes
+// Project includes
+#include "lldb/Core/EmulateInstruction.h"
+#include "lldb/Core/Error.h"
+#include "lldb/Interpreter/OptionValue.h"
+
 namespace llvm
 {
     class MCDisassembler;
@@ -19,15 +27,13 @@ namespace llvm
     class MCContext;
     class MCInstrInfo;
     class MCInst;
-}
-
-#include "lldb/Core/EmulateInstruction.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Interpreter/OptionValue.h"
+} // namespace llvm
 
 class EmulateInstructionMIPS64 : public lldb_private::EmulateInstruction
 {
 public: 
+    EmulateInstructionMIPS64(const lldb_private::ArchSpec &arch);
+
     static void
     Initialize ();
 
@@ -60,57 +66,47 @@ public:
         return false;
     }
 
-    virtual lldb_private::ConstString
-    GetPluginName();
+    lldb_private::ConstString
+    GetPluginName() override;
 
-    virtual lldb_private::ConstString
-    GetShortPluginName()
-    {
-        return GetPluginNameStatic();
-    }
-
-    virtual uint32_t
-    GetPluginVersion()
+    uint32_t
+    GetPluginVersion() override
     {
         return 1;
     }
 
     bool
-    SetTargetTriple (const lldb_private::ArchSpec &arch);
+    SetTargetTriple(const lldb_private::ArchSpec &arch) override;
     
-    EmulateInstructionMIPS64 (const lldb_private::ArchSpec &arch);
-
-    virtual bool
-    SupportsEmulatingInstructionsOfType (lldb_private::InstructionType inst_type)
+    bool
+    SupportsEmulatingInstructionsOfType(lldb_private::InstructionType inst_type) override
     {
         return SupportsEmulatingInstructionsOfTypeStatic (inst_type);
     }
 
-    virtual bool 
-    ReadInstruction ();
+    bool
+    ReadInstruction() override;
     
-    virtual bool
-    EvaluateInstruction (uint32_t evaluate_options);
+    bool
+    EvaluateInstruction(uint32_t evaluate_options) override;
     
-    virtual bool
-    TestEmulation (lldb_private::Stream *out_stream, 
-                   lldb_private::ArchSpec &arch, 
-                   lldb_private::OptionValueDictionary *test_data)
+    bool
+    TestEmulation(lldb_private::Stream *out_stream,
+                  lldb_private::ArchSpec &arch,
+                  lldb_private::OptionValueDictionary *test_data) override
     {
         return false;
     }
 
-    virtual bool
-    GetRegisterInfo (lldb::RegisterKind reg_kind,
-                     uint32_t reg_num, 
-                     lldb_private::RegisterInfo &reg_info);
+    bool
+    GetRegisterInfo(lldb::RegisterKind reg_kind,
+                    uint32_t reg_num,
+                    lldb_private::RegisterInfo &reg_info) override;
 
-    virtual bool
-    CreateFunctionEntryUnwind (lldb_private::UnwindPlan &unwind_plan);
-
+    bool
+    CreateFunctionEntryUnwind(lldb_private::UnwindPlan &unwind_plan) override;
 
 protected:
-
     typedef struct
     {
         const char *op_name;
@@ -128,130 +124,46 @@ protected:
     Emulate_SD (llvm::MCInst& insn);
 
     bool
-    Emulate_SW (llvm::MCInst& insn);
-
-    bool
-    Emulate_LW (llvm::MCInst& insn);
-
-    bool
     Emulate_LD (llvm::MCInst& insn);
 
     bool
-    Emulate_BEQ (llvm::MCInst& insn);
+    Emulate_LDST_Imm (llvm::MCInst& insn);
 
     bool
-    Emulate_BNE (llvm::MCInst& insn);
+    Emulate_LDST_Reg (llvm::MCInst& insn);
 
     bool
-    Emulate_BEQL (llvm::MCInst& insn);
+    Emulate_BXX_3ops (llvm::MCInst& insn);
 
     bool
-    Emulate_BNEL (llvm::MCInst& insn);
+    Emulate_BXX_3ops_C (llvm::MCInst& insn);
 
     bool
-    Emulate_BGEZALL (llvm::MCInst& insn);
+    Emulate_BXX_2ops (llvm::MCInst& insn);
+
+    bool
+    Emulate_BXX_2ops_C (llvm::MCInst& insn);
+
+    bool
+    Emulate_Bcond_Link_C (llvm::MCInst& insn);
+
+    bool
+    Emulate_Bcond_Link (llvm::MCInst& insn);
+
+    bool
+    Emulate_FP_branch (llvm::MCInst& insn);
+
+    bool
+    Emulate_3D_branch (llvm::MCInst& insn);
 
     bool
     Emulate_BAL (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGEZAL (llvm::MCInst& insn);
 
     bool
     Emulate_BALC (llvm::MCInst& insn);
 
     bool
     Emulate_BC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGEZ (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLEZALC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGEZALC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLTZALC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGTZALC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BEQZALC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BNEZALC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BEQC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BNEC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLTC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGEC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLTUC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGEUC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLTZC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLEZC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGEZC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGTZC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BEQZC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BNEZC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGEZL (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGTZ (llvm::MCInst& insn);
-
-    bool
-    Emulate_BGTZL (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLEZ (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLEZL (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLTZ (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLTZAL (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLTZALL (llvm::MCInst& insn);
-
-    bool
-    Emulate_BLTZL (llvm::MCInst& insn);
-
-    bool
-    Emulate_BOVC (llvm::MCInst& insn);
-
-    bool
-    Emulate_BNVC (llvm::MCInst& insn);
 
     bool
     Emulate_J (llvm::MCInst& insn);
@@ -272,34 +184,46 @@ protected:
     Emulate_JR (llvm::MCInst& insn);
 
     bool
-    Emulate_BC1F (llvm::MCInst& insn);
-
-    bool
-    Emulate_BC1T (llvm::MCInst& insn);
-
-    bool
-    Emulate_BC1FL (llvm::MCInst& insn);
-
-    bool
-    Emulate_BC1TL (llvm::MCInst& insn);
-
-    bool
     Emulate_BC1EQZ (llvm::MCInst& insn);
 
     bool
     Emulate_BC1NEZ (llvm::MCInst& insn);
 
     bool
-    Emulate_BC1ANY2F  (llvm::MCInst& insn);
+    Emulate_BNZB  (llvm::MCInst& insn);
 
     bool
-    Emulate_BC1ANY2T  (llvm::MCInst& insn);
+    Emulate_BNZH  (llvm::MCInst& insn);
 
     bool
-    Emulate_BC1ANY4F  (llvm::MCInst& insn);
+    Emulate_BNZW  (llvm::MCInst& insn);
 
     bool
-    Emulate_BC1ANY4T  (llvm::MCInst& insn);
+    Emulate_BNZD  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZB  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZH  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZW  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZD  (llvm::MCInst& insn);
+
+    bool
+    Emulate_MSA_Branch_DF (llvm::MCInst& insn, int element_byte_size, bool bnz);
+
+    bool
+    Emulate_BNZV  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZV  (llvm::MCInst& insn);
+
+    bool
+    Emulate_MSA_Branch_V (llvm::MCInst& insn, bool bnz);
 
     bool
     nonvolatile_reg_p (uint64_t regnum);
@@ -316,4 +240,4 @@ private:
     std::unique_ptr<llvm::MCInstrInfo>      m_insn_info;
 };
 
-#endif  // EmulateInstructionMIPS64_h_
+#endif // EmulateInstructionMIPS64_h_

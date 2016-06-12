@@ -70,6 +70,7 @@ options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
 options 	SMP
+options 	INTRNG
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
@@ -96,6 +97,7 @@ device		vtnet
 
 # Bus drivers
 device		pci
+options 	PCI_HP			# PCI-Express native HotPlug
 options 	PCI_IOV		# PCI SR-IOV support
 
 # Ethernet NICs
@@ -103,6 +105,7 @@ device		mii
 device		miibus		# MII bus support
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
+device		ix		# Intel 10Gb Ethernet Family
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		vnic		# Cavium ThunderX NIC
 
@@ -121,6 +124,7 @@ device		dwmmc
 
 # Serial (COM) ports
 device		uart		# Generic UART driver
+device		uart_ns8250	# ns8250-type UART driver
 device		pl011
 
 # USB support
@@ -151,7 +155,7 @@ device		bpf		# Berkeley packet filter
 options 	THUNDERX_PASS_1_1_ERRATA
 
 options 	FDT
-device		acpi
+#device		acpi
 
 # The crypto framework is required by IPSEC
 device		crypto			# Required by IPSEC

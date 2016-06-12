@@ -67,6 +67,7 @@ static struct login_res {
     { "pseudoterminals", login_getcapnum,  RLIMIT_NPTS    },
     { "swapuse",         login_getcapsize, RLIMIT_SWAP    },
     { "kqueues",         login_getcapsize, RLIMIT_KQUEUES },
+    { "umtxp",           login_getcapnum,  RLIMIT_UMTXP   },
     { NULL,              0,                0              }
 };
 

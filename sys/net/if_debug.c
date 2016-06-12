@@ -65,8 +65,13 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%d", if_index_reserved);
 	IF_DB_PRINTF("%p", if_softc);
 	IF_DB_PRINTF("%p", if_l2com);
+	IF_DB_PRINTF("%p", if_afdata);
+	IF_DB_PRINTF("%d", if_afdata_initialized);
+	IF_DB_PRINTF("%u", if_fib);
 	IF_DB_PRINTF("%p", if_vnet);
 	IF_DB_PRINTF("%p", if_home_vnet);
+	IF_DB_PRINTF("%p", if_vlantrunk);
+	IF_DB_PRINTF("%p", if_bpf);
 	IF_DB_PRINTF("%p", if_addr);
 	IF_DB_PRINTF("%p", if_llsoftc);
 	IF_DB_PRINTF("%p", if_label);
@@ -85,7 +90,6 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%d", if_snd.ifq_drv_maxlen);
 	IF_DB_PRINTF("%d", if_snd.altq_type);
 	IF_DB_PRINTF("%x", if_snd.altq_flags);
-	IF_DB_PRINTF("%u", if_fib);
 #undef IF_DB_PRINTF
 }
 

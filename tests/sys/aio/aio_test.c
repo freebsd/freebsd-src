@@ -60,6 +60,7 @@
 #include <atf-c.h>
 
 #include "freebsd_test_suite/macros.h"
+#include "local.h"
 
 #define	PATH_TEMPLATE	"aio.XXXXXXXXXX"
 
@@ -340,6 +341,7 @@ ATF_TC_BODY(aio_file_test, tc)
 	int fd;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	strcpy(pathname, PATH_TEMPLATE);
 	fd = mkstemp(pathname);
@@ -386,6 +388,7 @@ ATF_TC_BODY(aio_fifo_test, tc)
 	struct aio_context ac;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	/*
 	 * In theory, mkstemp() can return a name that is then collided with.
@@ -497,6 +500,7 @@ ATF_TC_BODY(aio_pty_test, tc)
 	int error;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	ATF_REQUIRE_MSG(openpty(&read_fd, &write_fd, NULL, NULL, NULL) == 0,
 	    "openpty failed: %s", strerror(errno));
@@ -544,6 +548,7 @@ ATF_TC_BODY(aio_pipe_test, tc)
 	int pipes[2];
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	ATF_REQUIRE_MSG(pipe(pipes) != -1,
 	    "pipe failed: %s", strerror(errno));
@@ -644,6 +649,270 @@ ATF_TC_BODY(aio_md_test, tc)
 	aio_md_cleanup(&arg);
 }
 
+ATF_TC_WITHOUT_HEAD(aio_large_read_test);
+ATF_TC_BODY(aio_large_read_test, tc)
+{
+	char pathname[PATH_MAX];
+	struct aiocb cb, *cbp;
+	ssize_t nread;
+	size_t len;
+	int fd;
+#ifdef __LP64__
+	int clamped;
+#endif
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
+
+#ifdef __LP64__
+	len = sizeof(clamped);
+	if (sysctlbyname("debug.iosize_max_clamp", &clamped, &len, NULL, 0) ==
+	    -1)
+		atf_libc_error(errno, "Failed to read debug.iosize_max_clamp");
+#endif
+
+	/* Determine the maximum supported read(2) size. */
+	len = SSIZE_MAX;
+#ifdef __LP64__
+	if (clamped)
+		len = INT_MAX;
+#endif
+
+	strcpy(pathname, PATH_TEMPLATE);
+	fd = mkstemp(pathname);
+	ATF_REQUIRE_MSG(fd != -1, "mkstemp failed: %s", strerror(errno));
+
+	unlink(pathname);
+
+	memset(&cb, 0, sizeof(cb));
+	cb.aio_nbytes = len;
+	cb.aio_fildes = fd;
+	cb.aio_buf = NULL;
+	if (aio_read(&cb) == -1)
+		atf_tc_fail("aio_read() of maximum read size failed: %s",
+		    strerror(errno));
+
+	nread = aio_waitcomplete(&cbp, NULL);
+	if (nread == -1)
+		atf_tc_fail("aio_waitcomplete() failed: %s", strerror(errno));
+	if (nread != 0)
+		atf_tc_fail("aio_read() from empty file returned data: %zd",
+		    nread);
+
+	memset(&cb, 0, sizeof(cb));
+	cb.aio_nbytes = len + 1;
+	cb.aio_fildes = fd;
+	cb.aio_buf = NULL;
+	if (aio_read(&cb) == -1) {
+		if (errno == EINVAL)
+			goto finished;
+		atf_tc_fail("aio_read() of too large read size failed: %s",
+		    strerror(errno));
+	}
+
+	nread = aio_waitcomplete(&cbp, NULL);
+	if (nread == -1) {
+		if (errno == EINVAL)
+			goto finished;
+		atf_tc_fail("aio_waitcomplete() failed: %s", strerror(errno));
+	}
+	atf_tc_fail("aio_read() of too large read size returned: %zd", nread);
+
+finished:
+	close(fd);
+}
+
+/*
+ * This tests for a bug where arriving socket data can wakeup multiple
+ * AIO read requests resulting in an uncancellable request.
+ */
+ATF_TC_WITHOUT_HEAD(aio_socket_two_reads);
+ATF_TC_BODY(aio_socket_two_reads, tc)
+{
+	struct ioreq {
+		struct aiocb iocb;
+		char buffer[1024];
+	} ioreq[2];
+	struct aiocb *iocb;
+	unsigned i;
+	int s[2];
+	char c;
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+#if __FreeBSD_version < 1100101
+	aft_tc_skip("kernel version %d is too old (%d required)",
+	    __FreeBSD_version, 1100101);
+#endif
+
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, s) != -1);
+
+	/* Queue two read requests. */
+	memset(&ioreq, 0, sizeof(ioreq));
+	for (i = 0; i < nitems(ioreq); i++) {
+		ioreq[i].iocb.aio_nbytes = sizeof(ioreq[i].buffer);
+		ioreq[i].iocb.aio_fildes = s[0];
+		ioreq[i].iocb.aio_buf = ioreq[i].buffer;
+		ATF_REQUIRE(aio_read(&ioreq[i].iocb) == 0);
+	}
+
+	/* Send a single byte.  This should complete one request. */
+	c = 0xc3;
+	ATF_REQUIRE(write(s[1], &c, sizeof(c)) == 1);
+
+	ATF_REQUIRE(aio_waitcomplete(&iocb, NULL) == 1);
+
+	/* Determine which request completed and verify the data was read. */
+	if (iocb == &ioreq[0].iocb)
+		i = 0;
+	else
+		i = 1;
+	ATF_REQUIRE(ioreq[i].buffer[0] == c);
+
+	i ^= 1;
+
+	/*
+	 * Try to cancel the other request.  On broken systems this
+	 * will fail and the process will hang on exit.
+	 */
+	ATF_REQUIRE(aio_error(&ioreq[i].iocb) == EINPROGRESS);
+	ATF_REQUIRE(aio_cancel(s[0], &ioreq[i].iocb) == AIO_CANCELED);
+
+	close(s[1]);
+	close(s[0]);
+}
+
+/*
+ * This test ensures that aio_write() on a blocking socket of a "large"
+ * buffer does not return a short completion.
+ */
+ATF_TC_WITHOUT_HEAD(aio_socket_blocking_short_write);
+ATF_TC_BODY(aio_socket_blocking_short_write, tc)
+{
+	struct aiocb iocb, *iocbp;
+	char *buffer[2];
+	ssize_t done;
+	int buffer_size, sb_size;
+	socklen_t len;
+	int s[2];
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, s) != -1);
+
+	len = sizeof(sb_size);
+	ATF_REQUIRE(getsockopt(s[0], SOL_SOCKET, SO_RCVBUF, &sb_size, &len) !=
+	    -1);
+	ATF_REQUIRE(len == sizeof(sb_size));
+	buffer_size = sb_size;
+
+	ATF_REQUIRE(getsockopt(s[1], SOL_SOCKET, SO_SNDBUF, &sb_size, &len) !=
+	    -1);
+	ATF_REQUIRE(len == sizeof(sb_size));
+	if (sb_size > buffer_size)
+		buffer_size = sb_size;
+
+	/*
+	 * Use twice the size of the MAX(receive buffer, send buffer)
+	 * to ensure that the write is split up into multiple writes
+	 * internally.
+	 */
+	buffer_size *= 2;
+
+	buffer[0] = malloc(buffer_size);
+	ATF_REQUIRE(buffer[0] != NULL);
+	buffer[1] = malloc(buffer_size);
+	ATF_REQUIRE(buffer[1] != NULL);
+
+	srandomdev();
+	aio_fill_buffer(buffer[1], buffer_size, random());
+
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = s[1];
+	iocb.aio_buf = buffer[1];
+	iocb.aio_nbytes = buffer_size;
+	ATF_REQUIRE(aio_write(&iocb) == 0);
+
+	done = recv(s[0], buffer[0], buffer_size, MSG_WAITALL);
+	ATF_REQUIRE(done == buffer_size);
+
+	done = aio_waitcomplete(&iocbp, NULL);
+	ATF_REQUIRE(iocbp == &iocb);
+	ATF_REQUIRE(done == buffer_size);
+
+	ATF_REQUIRE(memcmp(buffer[0], buffer[1], buffer_size) == 0);
+
+	close(s[1]);
+	close(s[0]);
+}
+
+/*
+ * This test verifies that cancelling a partially completed socket write
+ * returns a short write rather than ECANCELED.
+ */
+ATF_TC_WITHOUT_HEAD(aio_socket_short_write_cancel);
+ATF_TC_BODY(aio_socket_short_write_cancel, tc)
+{
+	struct aiocb iocb, *iocbp;
+	char *buffer[2];
+	ssize_t done;
+	int buffer_size, sb_size;
+	socklen_t len;
+	int s[2];
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, s) != -1);
+
+	len = sizeof(sb_size);
+	ATF_REQUIRE(getsockopt(s[0], SOL_SOCKET, SO_RCVBUF, &sb_size, &len) !=
+	    -1);
+	ATF_REQUIRE(len == sizeof(sb_size));
+	buffer_size = sb_size;
+
+	ATF_REQUIRE(getsockopt(s[1], SOL_SOCKET, SO_SNDBUF, &sb_size, &len) !=
+	    -1);
+	ATF_REQUIRE(len == sizeof(sb_size));
+	if (sb_size > buffer_size)
+		buffer_size = sb_size;
+
+	/*
+	 * Use three times the size of the MAX(receive buffer, send
+	 * buffer) for the write to ensure that the write is split up
+	 * into multiple writes internally.  The recv() ensures that
+	 * the write has partially completed, but a remaining size of
+	 * two buffers should ensure that the write has not completed
+	 * fully when it is cancelled.
+	 */
+	buffer[0] = malloc(buffer_size);
+	ATF_REQUIRE(buffer[0] != NULL);
+	buffer[1] = malloc(buffer_size * 3);
+	ATF_REQUIRE(buffer[1] != NULL);
+
+	srandomdev();
+	aio_fill_buffer(buffer[1], buffer_size * 3, random());
+
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = s[1];
+	iocb.aio_buf = buffer[1];
+	iocb.aio_nbytes = buffer_size * 3;
+	ATF_REQUIRE(aio_write(&iocb) == 0);
+
+	done = recv(s[0], buffer[0], buffer_size, MSG_WAITALL);
+	ATF_REQUIRE(done == buffer_size);
+
+	ATF_REQUIRE(aio_error(&iocb) == EINPROGRESS);
+	ATF_REQUIRE(aio_cancel(s[1], &iocb) == AIO_NOTCANCELED);
+
+	done = aio_waitcomplete(&iocbp, NULL);
+	ATF_REQUIRE(iocbp == &iocb);
+	ATF_REQUIRE(done >= buffer_size && done <= buffer_size * 2);
+
+	ATF_REQUIRE(memcmp(buffer[0], buffer[1], buffer_size) == 0);
+
+	close(s[1]);
+	close(s[0]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -653,6 +922,10 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, aio_pty_test);
 	ATF_TP_ADD_TC(tp, aio_pipe_test);
 	ATF_TP_ADD_TC(tp, aio_md_test);
+	ATF_TP_ADD_TC(tp, aio_large_read_test);
+	ATF_TP_ADD_TC(tp, aio_socket_two_reads);
+	ATF_TP_ADD_TC(tp, aio_socket_blocking_short_write);
+	ATF_TP_ADD_TC(tp, aio_socket_short_write_cancel);
 
 	return (atf_no_error());
 }

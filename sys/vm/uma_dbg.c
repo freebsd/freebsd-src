@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitset.h>
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
+#include <vm/memguard.h>
 
 static const uint32_t uma_junk = 0xdeadc0de;
 
@@ -57,13 +60,17 @@ static const uint32_t uma_junk = 0xdeadc0de;
  * prior to subsequent reallocation.
  *
  * Complies with standard ctor arg/return
- *
  */
 int
 trash_ctor(void *mem, int size, void *arg, int flags)
 {
 	int cnt;
 	uint32_t *p;
+
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(mem))
+		return (0);
+#endif
 
 	cnt = size / sizeof(uma_junk);
 
@@ -92,6 +99,11 @@ trash_dtor(void *mem, int size, void *arg)
 {
 	int cnt;
 	uint32_t *p;
+
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(mem))
+		return;
+#endif
 
 	cnt = size / sizeof(uma_junk);
 
@@ -131,6 +143,11 @@ mtrash_ctor(void *mem, int size, void *arg, int flags)
 	uint32_t *p = mem;
 	int cnt;
 
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(mem))
+		return (0);
+#endif
+
 	size -= sizeof(struct malloc_type *);
 	ksp = (struct malloc_type **)mem;
 	ksp += size / sizeof(struct malloc_type *);
@@ -158,6 +175,11 @@ mtrash_dtor(void *mem, int size, void *arg)
 	int cnt;
 	uint32_t *p;
 
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(mem))
+		return;
+#endif
+
 	size -= sizeof(struct malloc_type *);
 	cnt = size / sizeof(uma_junk);
 
@@ -175,6 +197,11 @@ int
 mtrash_init(void *mem, int size, int flags)
 {
 	struct malloc_type **ksp;
+
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(mem))
+		return (0);
+#endif
 
 	mtrash_dtor(mem, size, NULL);
 
@@ -196,100 +223,3 @@ mtrash_fini(void *mem, int size)
 {
 	(void)mtrash_ctor(mem, size, NULL, 0);
 }
-
-#ifdef INVARIANTS
-static uma_slab_t
-uma_dbg_getslab(uma_zone_t zone, void *item)
-{
-	uma_slab_t slab;
-	uma_keg_t keg;
-	uint8_t *mem;
-
-	mem = (uint8_t *)((uintptr_t)item & (~UMA_SLAB_MASK));
-	if (zone->uz_flags & UMA_ZONE_VTOSLAB) {
-		slab = vtoslab((vm_offset_t)mem);
-	} else {
-		/*
-		 * It is safe to return the slab here even though the
-		 * zone is unlocked because the item's allocation state
-		 * essentially holds a reference.
-		 */
-		ZONE_LOCK(zone);
-		keg = LIST_FIRST(&zone->uz_kegs)->kl_keg;
-		if (keg->uk_flags & UMA_ZONE_HASH)
-			slab = hash_sfind(&keg->uk_hash, mem);
-		else
-			slab = (uma_slab_t)(mem + keg->uk_pgoff);
-		ZONE_UNLOCK(zone);
-	}
-
-	return (slab);
-}
-
-/*
- * Set up the slab's freei data such that uma_dbg_free can function.
- *
- */
-void
-uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
-{
-	uma_keg_t keg;
-	int freei;
-
-	if (zone_first_keg(zone) == NULL)
-		return;
-	if (slab == NULL) {
-		slab = uma_dbg_getslab(zone, item);
-		if (slab == NULL) 
-			panic("uma: item %p did not belong to zone %s\n",
-			    item, zone->uz_name);
-	}
-	keg = slab->us_keg;
-	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
-
-	if (BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
-		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)\n",
-		    item, zone, zone->uz_name, slab, freei);
-	BIT_SET_ATOMIC(SLAB_SETSIZE, freei, &slab->us_debugfree);
-
-	return;
-}
-
-/*
- * Verifies freed addresses.  Checks for alignment, valid slab membership
- * and duplicate frees.
- *
- */
-void
-uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
-{
-	uma_keg_t keg;
-	int freei;
-
-	if (zone_first_keg(zone) == NULL)
-		return;
-	if (slab == NULL) {
-		slab = uma_dbg_getslab(zone, item);
-		if (slab == NULL) 
-			panic("uma: Freed item %p did not belong to zone %s\n",
-			    item, zone->uz_name);
-	}
-	keg = slab->us_keg;
-	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
-
-	if (freei >= keg->uk_ipers)
-		panic("Invalid free of %p from zone %p(%s) slab %p(%d)\n",
-		    item, zone, zone->uz_name, slab, freei);
-
-	if (((freei * keg->uk_rsize) + slab->us_data) != item) 
-		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)\n",
-		    item, zone, zone->uz_name, slab, freei);
-
-	if (!BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
-		panic("Duplicate free of %p from zone %p(%s) slab %p(%d)\n",
-		    item, zone, zone->uz_name, slab, freei);
-
-	BIT_CLR_ATOMIC(SLAB_SETSIZE, freei, &slab->us_debugfree);
-}
-
-#endif /* INVARIANTS */

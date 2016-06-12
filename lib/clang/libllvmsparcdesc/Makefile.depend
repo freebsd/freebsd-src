@@ -6,37 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-SparcAsmBackend.o: SparcGenInstrInfo.inc.h
-SparcAsmBackend.o: SparcGenRegisterInfo.inc.h
-SparcAsmBackend.o: SparcGenSubtargetInfo.inc.h
-SparcAsmBackend.po: SparcGenInstrInfo.inc.h
-SparcAsmBackend.po: SparcGenRegisterInfo.inc.h
-SparcAsmBackend.po: SparcGenSubtargetInfo.inc.h
-SparcELFObjectWriter.o: SparcGenInstrInfo.inc.h
-SparcELFObjectWriter.o: SparcGenRegisterInfo.inc.h
-SparcELFObjectWriter.o: SparcGenSubtargetInfo.inc.h
-SparcELFObjectWriter.po: SparcGenInstrInfo.inc.h
-SparcELFObjectWriter.po: SparcGenRegisterInfo.inc.h
-SparcELFObjectWriter.po: SparcGenSubtargetInfo.inc.h
-SparcMCCodeEmitter.o: SparcGenInstrInfo.inc.h
-SparcMCCodeEmitter.o: SparcGenMCCodeEmitter.inc.h
-SparcMCCodeEmitter.o: SparcGenRegisterInfo.inc.h
-SparcMCCodeEmitter.o: SparcGenSubtargetInfo.inc.h
-SparcMCCodeEmitter.po: SparcGenInstrInfo.inc.h
-SparcMCCodeEmitter.po: SparcGenMCCodeEmitter.inc.h
-SparcMCCodeEmitter.po: SparcGenRegisterInfo.inc.h
-SparcMCCodeEmitter.po: SparcGenSubtargetInfo.inc.h
-SparcMCTargetDesc.o: SparcGenInstrInfo.inc.h
-SparcMCTargetDesc.o: SparcGenRegisterInfo.inc.h
-SparcMCTargetDesc.o: SparcGenSubtargetInfo.inc.h
-SparcMCTargetDesc.po: SparcGenInstrInfo.inc.h
-SparcMCTargetDesc.po: SparcGenRegisterInfo.inc.h
-SparcMCTargetDesc.po: SparcGenSubtargetInfo.inc.h
 .endif

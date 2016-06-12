@@ -436,7 +436,7 @@ DoFile(const char *savedir, const char *device)
 {
 	xo_handle_t *xostdout, *xoinfo;
 	static char infoname[PATH_MAX], corename[PATH_MAX], linkname[PATH_MAX];
-	static char *buf = NULL;
+	static char *buf = NULL, *temp = NULL;
 	struct kerneldumpheader kdhf, kdhl;
 	off_t mediasize, dumpsize, firsthd, lasthd;
 	FILE *info, *fp;
@@ -490,14 +490,29 @@ DoFile(const char *savedir, const char *device)
 		printf("sectorsize = %u\n", sectorsize);
 	}
 
+	if (sectorsize < sizeof(kdhl)) {
+		syslog(LOG_ERR,
+		    "Sector size is less the kernel dump header %zu",
+		    sizeof(kdhl));
+		goto closefd;
+	}
+
 	lasthd = mediasize - sectorsize;
+	if (temp == NULL) {
+		temp = malloc(sectorsize);
+		if (temp == NULL) {
+			syslog(LOG_ERR, "%m");
+			goto closefd;
+		}
+	}
 	if (lseek(fd, lasthd, SEEK_SET) != lasthd ||
-	    read(fd, &kdhl, sizeof(kdhl)) != sizeof(kdhl)) {
+	    read(fd, temp, sectorsize) != (ssize_t)sectorsize) {
 		syslog(LOG_ERR,
 		    "error reading last dump header at offset %lld in %s: %m",
 		    (long long)lasthd, device);
 		goto closefd;
 	}
+	memcpy(&kdhl, temp, sizeof(kdhl));
 	istextdump = 0;
 	if (strncmp(kdhl.magic, TEXTDUMPMAGIC, sizeof kdhl) == 0) {
 		if (verbose)
@@ -567,15 +582,16 @@ DoFile(const char *savedir, const char *device)
 			goto closefd;
 	}
 	dumpsize = dtoh64(kdhl.dumplength);
-	firsthd = lasthd - dumpsize - sizeof kdhf;
+	firsthd = lasthd - dumpsize - sectorsize;
 	if (lseek(fd, firsthd, SEEK_SET) != firsthd ||
-	    read(fd, &kdhf, sizeof(kdhf)) != sizeof(kdhf)) {
+	    read(fd, temp, sectorsize) != (ssize_t)sectorsize) {
 		syslog(LOG_ERR,
 		    "error reading first dump header at offset %lld in %s: %m",
 		    (long long)firsthd, device);
 		nerr++;
 		goto closefd;
 	}
+	memcpy(&kdhf, temp, sizeof(kdhf));
 
 	if (verbose >= 2) {
 		printf("First dump headers:\n");
@@ -586,7 +602,7 @@ DoFile(const char *savedir, const char *device)
 		printf("\n");
 	}
 
-	if (memcmp(&kdhl, &kdhf, sizeof kdhl)) {
+	if (memcmp(&kdhl, &kdhf, sizeof(kdhl))) {
 		syslog(LOG_ERR,
 		    "first and last dump headers disagree on %s", device);
 		nerr++;
@@ -603,7 +619,7 @@ DoFile(const char *savedir, const char *device)
 		exit(0);
 	}
 
-	if (kdhl.panicstring[0])
+	if (kdhl.panicstring[0] != '\0')
 		syslog(LOG_ALERT, "reboot after panic: %*s",
 		    (int)sizeof(kdhl.panicstring), kdhl.panicstring);
 	else
@@ -724,9 +740,10 @@ nuke:
 	if (!keep) {
 		if (verbose)
 			printf("clearing dump header\n");
-		memcpy(kdhl.magic, KERNELDUMPMAGIC_CLEARED, sizeof kdhl.magic);
+		memcpy(kdhl.magic, KERNELDUMPMAGIC_CLEARED, sizeof(kdhl.magic));
+		memcpy(temp, &kdhl, sizeof(kdhl));
 		if (lseek(fd, lasthd, SEEK_SET) != lasthd ||
-		    write(fd, &kdhl, sizeof(kdhl)) != sizeof(kdhl))
+		    write(fd, temp, sectorsize) != (ssize_t)sectorsize)
 			syslog(LOG_ERR,
 			    "error while clearing the dump header: %m");
 	}
@@ -828,6 +845,7 @@ main(int argc, char **argv)
 				continue;
 			DoFile(savedir, fsp->fs_spec);
 		}
+		endfsent();
 	} else {
 		for (i = 0; i < argc; i++)
 			DoFile(savedir, argv[i]);

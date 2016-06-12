@@ -1022,6 +1022,13 @@ svn_ra_serf__svnname_from_wirename(const char *ns,
 
 /** MERGE-related functions **/
 
+void
+svn_ra_serf__merge_lock_token_list(apr_hash_t *lock_tokens,
+                                   const char *parent,
+                                   serf_bucket_t *body,
+                                   serf_bucket_alloc_t *alloc,
+                                   apr_pool_t *pool);
+
 /* Create an MERGE request aimed at the SESSION url, requesting the
    merge of the resource identified by MERGE_RESOURCE_URL.
    LOCK_TOKENS is a hash mapping paths to lock tokens owned by the
@@ -1538,6 +1545,17 @@ svn_ra_serf__create_bucket_with_eagain(const char *data,
                                        apr_size_t len,
                                        serf_bucket_alloc_t *allocator);
 
+/* Parse a given URL_STR, fill in all supplied fields of URI
+ * structure.
+ *
+ * This function is a compatibility wrapper around apr_uri_parse().
+ * Different apr-util versions set apr_uri_t.path to either NULL or ""
+ * for root paths, and serf expects to see "/". This function always
+ * sets URI.path to "/" for these paths. */
+svn_error_t *
+svn_ra_serf__uri_parse(apr_uri_t *uri,
+                       const char *url_str,
+                       apr_pool_t *result_pool);
 
 
 #if defined(SVN_DEBUG)

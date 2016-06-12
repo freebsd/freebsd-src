@@ -784,9 +784,9 @@ FindNewPortGroup(struct libalias *la,
 		struct alias_link *search_result;
 
 		for (j = 0; j < port_count; j++)
-			if (0 != (search_result = FindLinkIn(la, dst_addr, alias_addr,
-			    dst_port, htons(port_sys + j),
-			    link_type, 0)))
+			if ((search_result = FindLinkIn(la, dst_addr,
+			    alias_addr, dst_port, htons(port_sys + j),
+			    link_type, 0)) != NULL)
 				break;
 
 		/* Found a good range, return base */

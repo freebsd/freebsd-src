@@ -1017,6 +1017,7 @@ static void
 ixgbe_set_if_hwassist(struct adapter *adapter)
 {
 	struct ifnet *ifp = adapter->ifp;
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	ifp->if_hwassist = 0;
 #if __FreeBSD_version >= 1000000
@@ -1024,18 +1025,21 @@ ixgbe_set_if_hwassist(struct adapter *adapter)
 		ifp->if_hwassist |= CSUM_IP_TSO;
 	if (ifp->if_capenable & IFCAP_TSO6)
 		ifp->if_hwassist |= CSUM_IP6_TSO;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist |= (CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP |
-		    CSUM_IP_SCTP);
-	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
-		ifp->if_hwassist |= (CSUM_IP6_UDP | CSUM_IP6_TCP |
-		    CSUM_IP6_SCTP);
+	if (ifp->if_capenable & IFCAP_TXCSUM) {
+		ifp->if_hwassist |= (CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP);
+		if (hw->mac.type != ixgbe_mac_82598EB)
+			ifp->if_hwassist |= CSUM_IP_SCTP;
+	}
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6) {
+		ifp->if_hwassist |= (CSUM_IP6_UDP | CSUM_IP6_TCP);
+		if (hw->mac.type != ixgbe_mac_82598EB)
+			ifp->if_hwassist |= CSUM_IP6_SCTP;
+	}
 #else
 	if (ifp->if_capenable & IFCAP_TSO)
 		ifp->if_hwassist |= CSUM_TSO;
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
-		struct ixgbe_hw *hw = &adapter->hw;
 		if (hw->mac.type != ixgbe_mac_82598EB)
 			ifp->if_hwassist |= CSUM_SCTP;
 	}
@@ -2118,7 +2122,7 @@ ixgbe_mc_array_itr(struct ixgbe_hw *hw, u8 **update_ptr, u32 *vmdq)
 	mta = (struct ixgbe_mc_addr *)*update_ptr;
 	*vmdq = mta->vmdq;
 
-	*update_ptr = (u8*)(mta + 1);;
+	*update_ptr = (u8*)(mta + 1);
 	return (mta->addr);
 }
 
@@ -4745,10 +4749,6 @@ ixgbe_sysctl_advertise(SYSCTL_HANDLER_ARGS)
 	if ((error) || (req->newptr == NULL))
 		return (error);
 
-	/* Checks to validate new value */
-	if (adapter->advertise == advertise) /* no change */
-		return (0);
-
 	return ixgbe_set_advertise(adapter, advertise);
 }
 
@@ -4758,6 +4758,10 @@ ixgbe_set_advertise(struct adapter *adapter, int advertise)
 	device_t		dev;
 	struct ixgbe_hw		*hw;
 	ixgbe_link_speed	speed;
+
+	/* Checks to validate new value */
+	if (adapter->advertise == advertise) /* no change */
+		return (0);
 
 	hw = &adapter->hw;
 	dev = adapter->dev;

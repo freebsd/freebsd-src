@@ -8,7 +8,8 @@ SRCDIR=	lib/Target/Sparc/TargetInfo
 INCDIR=	lib/Target/Sparc
 SRCS=	SparcTargetInfo.cpp
 
-TGHDRS=	SparcGenInstrInfo \
+TGHDRS=	Attributes \
+	SparcGenInstrInfo \
 	SparcGenRegisterInfo \
 	SparcGenSubtargetInfo
 

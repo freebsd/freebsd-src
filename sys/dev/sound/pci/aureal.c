@@ -556,8 +556,8 @@ au_pci_attach(device_t dev)
 	struct resource *reg[10];
 	int		i, j, mapped = 0;
 	int		irqid;
-	struct resource *irq = 0;
-	void		*ih = 0;
+	struct resource *irq;
+	void		*ih;
 	struct ac97_info *codec;
 	char 		status[SND_STATUSLEN];
 
@@ -566,6 +566,8 @@ au_pci_attach(device_t dev)
 
 	pci_enable_busmaster(dev);
 
+	irq = NULL;
+	ih = NULL;
 	j=0;
 	/* XXX dfr: is this strictly necessary? */
 	for (i=0; i<PCI_MAXMAPS_0; i++) {
@@ -645,7 +647,7 @@ au_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at %s 0x%jx irq %jd %s",
 		 (type[0] == SYS_RES_IOPORT)? "io" : "memory",
 		 rman_get_start(reg[0]), rman_get_start(irq),PCM_KLDSTRING(snd_aureal));
 

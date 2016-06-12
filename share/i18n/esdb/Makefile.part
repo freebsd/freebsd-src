@@ -60,17 +60,16 @@ esdb.alias.${ESUBDIR}: ${PARTFILE} ${ALIASFILE}
 .endfor
 	echo >>${.TARGET}
 
-all: realall
-realall: esdb.dir.${ESUBDIR} esdb.alias.${ESUBDIR} codesets
+.if !defined(_SKIP_BUILD)
+all: esdb.dir.${ESUBDIR} esdb.alias.${ESUBDIR} codesets
+.endif
 codesets: ${ESDB}
 
 .if !defined(NO_PREPROC)
 .for i in ${PART}
-.if !exists(${EPREFIX}${i:S/:/@/}.src)
 ${EPREFIX}${i:S/:/@/}.src: ${CODE}.src
-	sed ${SED_EXP:S@%%PART%%@${i}@} ${.CURDIR}/${CODE}.src > ${EPREFIX}${i:S/:/@/}.src
-	@echo ${EPREFIX}${i:S/:/@/}.src >>.tmpfiles
-.endif
+	sed ${SED_EXP:S@%%PART%%@${i}@} ${.ALLSRC} > ${.TARGET}
+	@echo ${.TARGET} >>.tmpfiles
 .endfor
 .endif
 

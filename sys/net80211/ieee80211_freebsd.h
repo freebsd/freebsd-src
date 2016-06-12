@@ -28,7 +28,7 @@
 #define _NET80211_IEEE80211_FREEBSD_H_
 
 #ifdef _KERNEL
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
 #include <sys/lock.h>
@@ -65,7 +65,7 @@ typedef struct {
  * transmission operations throughout the stack.
  */
 typedef struct {
-	char		name[16];		/* e.g. "ath0_com_lock" */
+	char		name[16];		/* e.g. "ath0_tx_lock" */
 	struct mtx	mtx;
 } ieee80211_tx_lock_t;
 #define	IEEE80211_TX_LOCK_INIT(_ic, _name) do {				\
@@ -251,10 +251,10 @@ void	ieee80211_vap_destroy(struct ieee80211vap *);
 #define	ticks_to_msecs(t)	(1000*(t) / hz)
 #define	ticks_to_secs(t)	((t) / hz)
 
-#define time_after(a,b) 	((long)(b) - (long)(a) < 0)
-#define time_before(a,b)	time_after(b,a)
-#define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
-#define time_before_eq(a,b)	time_after_eq(b,a)
+#define ieee80211_time_after(a,b) 	((long)(b) - (long)(a) < 0)
+#define ieee80211_time_before(a,b)	ieee80211_time_after(b,a)
+#define ieee80211_time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
+#define ieee80211_time_before_eq(a,b)	ieee80211_time_after_eq(b,a)
 
 struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 
@@ -263,7 +263,7 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_EAPOL		M_PROTO3		/* PAE/EAPOL frame */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
-#define	M_FF		M_PROTO6		/* fast frame */
+#define	M_FF		M_PROTO6		/* fast frame / A-MSDU */
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
 #define	M_FRAG		M_PROTO9		/* frame fragmentation */

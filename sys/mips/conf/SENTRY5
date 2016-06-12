@@ -57,8 +57,11 @@ options 	INVARIANT_SUPPORT
 #options 	BUS_DEBUG
 #makeoptions	BUS_DEBUG
 
-device		siba			# Sonics SiliconBackplane
-device		pci			# siba_pcib
+device		bhnd
+device		siba
+device		siba_nexus
+device		bhnd_pcib
+device		pci			# bhnd_pcib
 
 # device 	bfe			# XXX will build both pci and siba
 # device 	miibus			# attachments

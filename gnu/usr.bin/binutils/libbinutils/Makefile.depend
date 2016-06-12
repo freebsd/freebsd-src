@@ -12,10 +12,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-arlex.o: arlex.c
-arlex.o: arparse.h
-arlex.po: arlex.c
-arlex.po: arparse.h
-arparse.o: arparse.c
-arparse.po: arparse.c
 .endif

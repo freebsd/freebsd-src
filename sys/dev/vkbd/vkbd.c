@@ -380,11 +380,11 @@ vkbd_dev_write(struct cdev *dev, struct uio *uio, int flag)
 	while (uio->uio_resid >= sizeof(q->q[0])) {
 		if (q->head == q->tail) {
 			if (q->cc == 0)
-				avail = sizeof(q->q)/sizeof(q->q[0]) - q->head;
+				avail = nitems(q->q) - q->head;
 			else
 				avail = 0; /* queue must be full */
 		} else if (q->head < q->tail)
-			avail = sizeof(q->q)/sizeof(q->q[0]) - q->tail;
+			avail = nitems(q->q) - q->tail;
 		else
 			avail = q->head - q->tail;
 
@@ -410,7 +410,7 @@ vkbd_dev_write(struct cdev *dev, struct uio *uio, int flag)
 
 			q->cc += avail;
 			q->tail += avail;
-			if (q->tail == sizeof(q->q)/sizeof(q->q[0]))
+			if (q->tail == nitems(q->q))
 				q->tail = 0;
 
 			/* queue interrupt task if needed */
@@ -459,7 +459,7 @@ vkbd_dev_poll(struct cdev *dev, int events, struct thread *td)
 	}
 
 	if (events & (POLLOUT | POLLWRNORM)) {
-		if (q->cc < sizeof(q->q)/sizeof(q->q[0]))
+		if (q->cc < nitems(q->q))
 			revents |= events & (POLLOUT | POLLWRNORM);
 		else
 			selrecord(td, &state->ks_wsel);
@@ -524,7 +524,7 @@ vkbd_data_read(vkbd_state_t *state, int wait)
 	/* get first code from the queue */
 	q->cc --;
 	c = q->q[q->head ++];
-	if (q->head == sizeof(q->q)/sizeof(q->q[0]))
+	if (q->head == nitems(q->q))
 		q->head = 0;
 
 	/* wakeup ks_inq writers/poll()ers */
@@ -1326,12 +1326,12 @@ typematic(int delay, int rate)
 	int value;
 	int i;
 
-	for (i = sizeof(delays)/sizeof(delays[0]) - 1; i > 0; i --) {
+	for (i = nitems(delays) - 1; i > 0; i --) {
 		if (delay >= delays[i])
 			break;
 	}
 	value = i << 5;
-	for (i = sizeof(rates)/sizeof(rates[0]) - 1; i > 0; i --) {
+	for (i = nitems(rates) - 1; i > 0; i --) {
 		if (rate >= rates[i])
 			break;
 	}

@@ -1090,12 +1090,9 @@ out:
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 	if (error != 0 && lf != NULL)
 		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-	if (shdr != NULL)
-		free(shdr, M_LINKER);
-	if (firstpage != NULL)
-		free(firstpage, M_LINKER);
-	if (shstrs != NULL)
-		free(shstrs, M_LINKER);
+	free(shdr, M_LINKER);
+	free(firstpage, M_LINKER);
+	free(shstrs, M_LINKER);
 
 	return (error);
 }
@@ -1157,19 +1154,13 @@ link_elf_unload_file(linker_file_t file)
 		    + (ef->object->size << PAGE_SHIFT));
 	}
 #else
-	if (ef->address != NULL)
-		free(ef->address, M_LINKER);
+	free(ef->address, M_LINKER);
 #endif
-	if (ef->symbase != NULL)
-		free(ef->symbase, M_LINKER);
-	if (ef->strbase != NULL)
-		free(ef->strbase, M_LINKER);
-	if (ef->ctftab != NULL)
-		free(ef->ctftab, M_LINKER);
-	if (ef->ctfoff != NULL)
-		free(ef->ctfoff, M_LINKER);
-	if (ef->typoff != NULL)
-		free(ef->typoff, M_LINKER);
+	free(ef->symbase, M_LINKER);
+	free(ef->strbase, M_LINKER);
+	free(ef->ctftab, M_LINKER);
+	free(ef->ctfoff, M_LINKER);
+	free(ef->typoff, M_LINKER);
 }
 
 static void
@@ -1391,7 +1382,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 	u_long diff = off;
 	u_long st_value;
 	const Elf_Sym* es;
-	const Elf_Sym* best = 0;
+	const Elf_Sym* best = NULL;
 	int i;
 
 	for (i = 0, es = ef->ddbsymtab; i < ef->ddbsymcnt; i++, es++) {
@@ -1409,7 +1400,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 			}
 		}
 	}
-	if (best == 0)
+	if (best == NULL)
 		*diffp = off;
 	else
 		*diffp = diff;

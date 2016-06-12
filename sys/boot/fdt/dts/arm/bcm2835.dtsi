@@ -144,7 +144,7 @@
 			#gpio-cells = <2>;
 
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&pins_reserved>;

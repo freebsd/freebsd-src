@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from aesni-x86_64.pl.
 .text	
 
 .globl	aesni_encrypt
@@ -504,7 +505,7 @@ aesni_ecb_encrypt:
 	testl	%r8d,%r8d
 	jz	.Lecb_decrypt
 
-	cmpq	$128,%rdx
+	cmpq	$0x80,%rdx
 	jb	.Lecb_enc_tail
 
 	movdqu	(%rdi),%xmm2
@@ -516,7 +517,7 @@ aesni_ecb_encrypt:
 	movdqu	96(%rdi),%xmm8
 	movdqu	112(%rdi),%xmm9
 	leaq	128(%rdi),%rdi
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	jmp	.Lecb_enc_loop8_enter
 .align	16
 .Lecb_enc_loop8:
@@ -544,7 +545,7 @@ aesni_ecb_encrypt:
 
 	call	_aesni_encrypt8
 
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	jnc	.Lecb_enc_loop8
 
 	movups	%xmm2,(%rsi)
@@ -558,22 +559,22 @@ aesni_ecb_encrypt:
 	movups	%xmm8,96(%rsi)
 	movups	%xmm9,112(%rsi)
 	leaq	128(%rsi),%rsi
-	addq	$128,%rdx
+	addq	$0x80,%rdx
 	jz	.Lecb_ret
 
 .Lecb_enc_tail:
 	movups	(%rdi),%xmm2
-	cmpq	$32,%rdx
+	cmpq	$0x20,%rdx
 	jb	.Lecb_enc_one
 	movups	16(%rdi),%xmm3
 	je	.Lecb_enc_two
 	movups	32(%rdi),%xmm4
-	cmpq	$64,%rdx
+	cmpq	$0x40,%rdx
 	jb	.Lecb_enc_three
 	movups	48(%rdi),%xmm5
 	je	.Lecb_enc_four
 	movups	64(%rdi),%xmm6
-	cmpq	$96,%rdx
+	cmpq	$0x60,%rdx
 	jb	.Lecb_enc_five
 	movups	80(%rdi),%xmm7
 	je	.Lecb_enc_six
@@ -647,7 +648,7 @@ aesni_ecb_encrypt:
 
 .align	16
 .Lecb_decrypt:
-	cmpq	$128,%rdx
+	cmpq	$0x80,%rdx
 	jb	.Lecb_dec_tail
 
 	movdqu	(%rdi),%xmm2
@@ -659,7 +660,7 @@ aesni_ecb_encrypt:
 	movdqu	96(%rdi),%xmm8
 	movdqu	112(%rdi),%xmm9
 	leaq	128(%rdi),%rdi
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	jmp	.Lecb_dec_loop8_enter
 .align	16
 .Lecb_dec_loop8:
@@ -688,7 +689,7 @@ aesni_ecb_encrypt:
 	call	_aesni_decrypt8
 
 	movups	(%r11),%xmm0
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	jnc	.Lecb_dec_loop8
 
 	movups	%xmm2,(%rsi)
@@ -710,22 +711,22 @@ aesni_ecb_encrypt:
 	movups	%xmm9,112(%rsi)
 	pxor	%xmm9,%xmm9
 	leaq	128(%rsi),%rsi
-	addq	$128,%rdx
+	addq	$0x80,%rdx
 	jz	.Lecb_ret
 
 .Lecb_dec_tail:
 	movups	(%rdi),%xmm2
-	cmpq	$32,%rdx
+	cmpq	$0x20,%rdx
 	jb	.Lecb_dec_one
 	movups	16(%rdi),%xmm3
 	je	.Lecb_dec_two
 	movups	32(%rdi),%xmm4
-	cmpq	$64,%rdx
+	cmpq	$0x40,%rdx
 	jb	.Lecb_dec_three
 	movups	48(%rdi),%xmm5
 	je	.Lecb_dec_four
 	movups	64(%rdi),%xmm6
-	cmpq	$96,%rdx
+	cmpq	$0x60,%rdx
 	jb	.Lecb_dec_five
 	movups	80(%rdi),%xmm7
 	je	.Lecb_dec_six
@@ -1599,7 +1600,7 @@ aesni_xts_encrypt:
 
 	movdqa	.Lxts_magic(%rip),%xmm8
 	movdqa	%xmm2,%xmm15
-	pshufd	$95,%xmm2,%xmm9
+	pshufd	$0x5f,%xmm2,%xmm9
 	pxor	%xmm0,%xmm1
 	movdqa	%xmm9,%xmm14
 	paddd	%xmm9,%xmm9
@@ -1698,7 +1699,7 @@ aesni_xts_encrypt:
 .byte	102,15,56,220,248
 	movups	64(%r11),%xmm0
 	movdqa	%xmm8,80(%rsp)
-	pshufd	$95,%xmm15,%xmm9
+	pshufd	$0x5f,%xmm15,%xmm9
 	jmp	.Lxts_enc_loop6
 .align	32
 .Lxts_enc_loop6:
@@ -1837,13 +1838,13 @@ aesni_xts_encrypt:
 	jz	.Lxts_enc_done
 
 	pxor	%xmm0,%xmm11
-	cmpq	$32,%rdx
+	cmpq	$0x20,%rdx
 	jb	.Lxts_enc_one
 	pxor	%xmm0,%xmm12
 	je	.Lxts_enc_two
 
 	pxor	%xmm0,%xmm13
-	cmpq	$64,%rdx
+	cmpq	$0x40,%rdx
 	jb	.Lxts_enc_three
 	pxor	%xmm0,%xmm14
 	je	.Lxts_enc_four
@@ -2070,7 +2071,7 @@ aesni_xts_decrypt:
 
 	movdqa	.Lxts_magic(%rip),%xmm8
 	movdqa	%xmm2,%xmm15
-	pshufd	$95,%xmm2,%xmm9
+	pshufd	$0x5f,%xmm2,%xmm9
 	pxor	%xmm0,%xmm1
 	movdqa	%xmm9,%xmm14
 	paddd	%xmm9,%xmm9
@@ -2169,7 +2170,7 @@ aesni_xts_decrypt:
 .byte	102,15,56,222,248
 	movups	64(%r11),%xmm0
 	movdqa	%xmm8,80(%rsp)
-	pshufd	$95,%xmm15,%xmm9
+	pshufd	$0x5f,%xmm15,%xmm9
 	jmp	.Lxts_dec_loop6
 .align	32
 .Lxts_dec_loop6:
@@ -2309,13 +2310,13 @@ aesni_xts_decrypt:
 	jz	.Lxts_dec_done
 
 	pxor	%xmm0,%xmm12
-	cmpq	$32,%rdx
+	cmpq	$0x20,%rdx
 	jb	.Lxts_dec_one
 	pxor	%xmm0,%xmm13
 	je	.Lxts_dec_two
 
 	pxor	%xmm0,%xmm14
-	cmpq	$64,%rdx
+	cmpq	$0x40,%rdx
 	jb	.Lxts_dec_three
 	je	.Lxts_dec_four
 
@@ -2346,7 +2347,7 @@ aesni_xts_decrypt:
 	pcmpgtd	%xmm15,%xmm14
 	movdqu	%xmm6,64(%rsi)
 	leaq	80(%rsi),%rsi
-	pshufd	$19,%xmm14,%xmm11
+	pshufd	$0x13,%xmm14,%xmm11
 	andq	$15,%r9
 	jz	.Lxts_dec_ret
 
@@ -2635,7 +2636,7 @@ aesni_cbc_encrypt:
 	leaq	-8(%rax),%rbp
 	movups	(%r8),%xmm10
 	movl	%r10d,%eax
-	cmpq	$80,%rdx
+	cmpq	$0x50,%rdx
 	jbe	.Lcbc_dec_tail
 
 	movups	(%rcx),%xmm0
@@ -2651,14 +2652,14 @@ aesni_cbc_encrypt:
 	movdqu	80(%rdi),%xmm7
 	movdqa	%xmm6,%xmm15
 	movl	OPENSSL_ia32cap_P+4(%rip),%r9d
-	cmpq	$112,%rdx
+	cmpq	$0x70,%rdx
 	jbe	.Lcbc_dec_six_or_seven
 
 	andl	$71303168,%r9d
-	subq	$80,%rdx
+	subq	$0x50,%rdx
 	cmpl	$4194304,%r9d
 	je	.Lcbc_dec_loop6_enter
-	subq	$32,%rdx
+	subq	$0x20,%rdx
 	leaq	112(%rcx),%rcx
 	jmp	.Lcbc_dec_loop8_enter
 .align	16
@@ -2673,7 +2674,7 @@ aesni_cbc_encrypt:
 	movups	16-112(%rcx),%xmm1
 	pxor	%xmm0,%xmm4
 	xorq	%r11,%r11
-	cmpq	$112,%rdx
+	cmpq	$0x70,%rdx
 	pxor	%xmm0,%xmm5
 	pxor	%xmm0,%xmm6
 	pxor	%xmm0,%xmm7
@@ -2858,21 +2859,21 @@ aesni_cbc_encrypt:
 	movups	%xmm8,96(%rsi)
 	leaq	112(%rsi),%rsi
 
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	ja	.Lcbc_dec_loop8
 
 	movaps	%xmm9,%xmm2
 	leaq	-112(%rcx),%rcx
-	addq	$112,%rdx
+	addq	$0x70,%rdx
 	jle	.Lcbc_dec_clear_tail_collected
 	movups	%xmm9,(%rsi)
 	leaq	16(%rsi),%rsi
-	cmpq	$80,%rdx
+	cmpq	$0x50,%rdx
 	jbe	.Lcbc_dec_tail
 
 	movaps	%xmm11,%xmm2
 .Lcbc_dec_six_or_seven:
-	cmpq	$96,%rdx
+	cmpq	$0x60,%rdx
 	ja	.Lcbc_dec_seven
 
 	movaps	%xmm7,%xmm8
@@ -2965,33 +2966,33 @@ aesni_cbc_encrypt:
 	movl	%r10d,%eax
 	movdqu	%xmm6,64(%rsi)
 	leaq	80(%rsi),%rsi
-	subq	$96,%rdx
+	subq	$0x60,%rdx
 	ja	.Lcbc_dec_loop6
 
 	movdqa	%xmm7,%xmm2
-	addq	$80,%rdx
+	addq	$0x50,%rdx
 	jle	.Lcbc_dec_clear_tail_collected
 	movups	%xmm7,(%rsi)
 	leaq	16(%rsi),%rsi
 
 .Lcbc_dec_tail:
 	movups	(%rdi),%xmm2
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jbe	.Lcbc_dec_one
 
 	movups	16(%rdi),%xmm3
 	movaps	%xmm2,%xmm11
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jbe	.Lcbc_dec_two
 
 	movups	32(%rdi),%xmm4
 	movaps	%xmm3,%xmm12
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jbe	.Lcbc_dec_three
 
 	movups	48(%rdi),%xmm5
 	movaps	%xmm4,%xmm13
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jbe	.Lcbc_dec_four
 
 	movups	64(%rdi),%xmm6
@@ -3016,7 +3017,7 @@ aesni_cbc_encrypt:
 	movdqa	%xmm6,%xmm2
 	pxor	%xmm6,%xmm6
 	pxor	%xmm7,%xmm7
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jmp	.Lcbc_dec_tail_collected
 
 .align	16
@@ -3333,7 +3334,7 @@ __aesni_set_encrypt_key:
 	pslldq	$4,%xmm0
 	pxor	%xmm3,%xmm0
 
-	pshufd	$255,%xmm0,%xmm3
+	pshufd	$0xff,%xmm0,%xmm3
 	pxor	%xmm1,%xmm3
 	pslldq	$4,%xmm1
 	pxor	%xmm1,%xmm3
@@ -3420,7 +3421,7 @@ __aesni_set_encrypt_key:
 	decl	%r10d
 	jz	.Ldone_key256
 
-	pshufd	$255,%xmm0,%xmm2
+	pshufd	$0xff,%xmm0,%xmm2
 	pxor	%xmm3,%xmm3
 .byte	102,15,56,221,211
 

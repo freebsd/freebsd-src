@@ -2873,7 +2873,7 @@ main(int argc, char **argv)
 			printf("-A -- Run all canned tests\n");
 			return(0);
 			break;
-		};
+		}
 	}
 	if ((run_all == 0) && (name == NULL) && (filename == NULL) &&
 	    (test_mode == 0) && (master_exp == NULL)) {

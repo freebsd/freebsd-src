@@ -122,7 +122,7 @@ class PathDiagnosticRange : public SourceRange {
 public:
   bool isPoint;
 
-  PathDiagnosticRange(const SourceRange &R, bool isP = false)
+  PathDiagnosticRange(SourceRange R, bool isP = false)
     : SourceRange(R), isPoint(isP) {}
 
   PathDiagnosticRange() : isPoint(false) {}
@@ -422,7 +422,6 @@ class PathPieces : public std::list<IntrusiveRefCntPtr<PathDiagnosticPiece> > {
   void flattenTo(PathPieces &Primary, PathPieces &Current,
                  bool ShouldFlattenMacros) const;
 public:
-  ~PathPieces();
 
   PathPieces flatten(bool ShouldFlattenMacros) const {
     PathPieces Result;

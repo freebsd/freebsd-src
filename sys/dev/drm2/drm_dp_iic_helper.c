@@ -149,7 +149,7 @@ iic_dp_aux_xfer(device_t idev, struct iic_msg *msgs, uint32_t num)
 		buf = msgs[m].buf;
 		reading = (msgs[m].flags & IIC_M_RD) != 0;
 		ret = iic_dp_aux_address(idev, msgs[m].slave >> 1, reading);
-		if (ret != 0)
+		if (ret < 0)
 			break;
 		if (reading) {
 			for (b = 0; b < len; b++) {
@@ -160,7 +160,7 @@ iic_dp_aux_xfer(device_t idev, struct iic_msg *msgs, uint32_t num)
 		} else {
 			for (b = 0; b < len; b++) {
 				ret = iic_dp_aux_put_byte(idev, buf[b]);
-				if (ret != 0)
+				if (ret < 0)
 					break;
 			}
 		}

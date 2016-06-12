@@ -141,7 +141,7 @@ elf64_exec(struct preloaded_file *fp)
 
 	dev_cleanup();
 
-	stack[0] = 0;		/* return address */;
+	stack[0] = 0;		/* return address */
 	stack[1] = modulep;
 	stack[2] = kernend;
 	CALLBACK(copyin, stack, 0x1000, sizeof(stack));

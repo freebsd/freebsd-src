@@ -62,7 +62,7 @@ tpm_acpi_probe(device_t dev)
 
 static device_method_t tpm_acpi_methods[] = {
 #if 0
-	/*In some case, TPM existance is found only in TPCA header*/
+	/*In some case, TPM existence is found only in TPCA header*/
 	DEVMETHOD(device_identify,	tpm_acpi_identify),
 #endif
 

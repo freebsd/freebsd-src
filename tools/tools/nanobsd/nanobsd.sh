@@ -55,7 +55,7 @@ set -e
 set -- $args
 for i
 do
-	case "$i" 
+	case "$i"
 	in
 	-K)
 		do_installkernel=false
@@ -138,6 +138,8 @@ if ! $do_clean; then
 fi
 
 pprint 1 "NanoBSD image ${NANO_NAME} build starting"
+
+run_early_customize
 
 if $do_world ; then
 	if $do_clean ; then

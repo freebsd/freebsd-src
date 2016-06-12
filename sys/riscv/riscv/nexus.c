@@ -143,13 +143,14 @@ nexus_attach(device_t dev)
 {
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
+	mem_rman.rm_end = BUS_SPACE_MAXADDR;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory addresses";
-	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0))
+	if (rman_init(&mem_rman) ||
+	    rman_manage_region(&mem_rman, 0, BUS_SPACE_MAXADDR))
 		panic("nexus_attach mem_rman");
 	irq_rman.rm_start = 0;
-	irq_rman.rm_end = ~0ul;
+	irq_rman.rm_end = ~0;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupts";
 	if (rman_init(&irq_rman) || rman_manage_region(&irq_rman, 0, ~0))
@@ -215,7 +216,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * (ie. they aren't maintained by a child bus), then work out
 	 * the start/end values.
 	 */
-	if ((start == 0UL) && (end == ~0UL) && (count == 1)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end) && (count == 1)) {
 		if (device_get_parent(child) != bus || ndev == NULL)
 			return(NULL);
 		rle = resource_list_find(&ndev->nx_resources, type, *rid);
@@ -241,7 +242,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == 0)
+	if (rv == NULL)
 		return (NULL);
 
 	rman_set_rid(rv, *rid);

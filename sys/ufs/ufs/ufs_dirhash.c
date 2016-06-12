@@ -1145,7 +1145,7 @@ ufsdirhash_getprev(struct direct *dirp, doff_t offset)
 	doff_t blkoff, prevoff;
 	int entrypos, i;
 
-	blkoff = offset & ~(DIRBLKSIZ - 1);	/* offset of start of block */
+	blkoff = rounddown2(offset, DIRBLKSIZ);	/* offset of start of block */
 	entrypos = offset & (DIRBLKSIZ - 1);	/* entry relative to block */
 	blkbuf = (char *)dirp - entrypos;
 	prevoff = blkoff;

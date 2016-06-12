@@ -53,6 +53,20 @@ def err_pch_different_branch : Error<
 def err_pch_with_compiler_errors : Error<
     "PCH file contains compiler errors">;
 
+def err_module_file_conflict : Error<
+  "module '%0' is defined in both '%1' and '%2'">, DefaultFatal;
+def err_module_file_not_found : Error<
+  "%select{PCH|module|AST}0 file '%1' not found%select{|: %3}2">, DefaultFatal;
+def err_module_file_out_of_date : Error<
+  "%select{PCH|module|AST}0 file '%1' is out of date and "
+  "needs to be rebuilt%select{|: %3}2">, DefaultFatal;
+def err_module_file_invalid : Error<
+  "file '%1' is not a valid precompiled %select{PCH|module|AST}0 file">, DefaultFatal;
+def note_module_file_imported_by : Note<
+  "imported by %select{|module '%2' in }1'%0'">;
+def err_module_file_not_module : Error<
+  "AST file '%0' was not built as a module">, DefaultFatal;
+
 def err_imported_module_not_found : Error<
     "module '%0' in AST file '%1' (imported by AST file '%2') "
     "is not defined in any loaded module map file; "
@@ -82,9 +96,6 @@ def err_pch_pp_detailed_record : Error<
     "'-detailed-preprocessing-record' but %select{precompiled header was not "
     "built with it|it is not present on the command line}0">;
 
-def err_not_a_pch_file : Error<
-    "'%0' does not appear to be a precompiled header file">, DefaultFatal;
-
 def err_module_odr_violation_missing_decl : Error<
   "%q0 from module '%1' is not present in definition of %q2"
   "%select{ in module '%4'| provided earlier}3">, NoSFINAE;
@@ -99,6 +110,14 @@ def note_module_odr_violation_different_definitions : Note<
   "definition in module '%0' is here">;
 def err_module_odr_violation_different_instantiations : Error<
   "instantiation of %q0 is different in different modules">;
+
+def warn_module_uses_date_time : Warning<
+  "%select{precompiled header|module}0 uses __DATE__ or __TIME__">,
+  InGroup<DiagGroup<"pch-date-time">>;
+
+def warn_duplicate_module_file_extension : Warning<
+  "duplicate module file extension block name '%0'">,
+  InGroup<ModuleFileExtension>;
 
 } // let CategoryName
 } // let Component

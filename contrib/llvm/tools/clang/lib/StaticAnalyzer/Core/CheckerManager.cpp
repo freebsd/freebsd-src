@@ -177,7 +177,9 @@ void CheckerManager::runCheckersForStmt(bool isPreVisit,
 namespace {
   struct CheckObjCMessageContext {
     typedef std::vector<CheckerManager::CheckObjCMessageFunc> CheckersTy;
-    bool IsPreVisit, WasInlined;
+
+    ObjCMessageVisitKind Kind;
+    bool WasInlined;
     const CheckersTy &Checkers;
     const ObjCMethodCall &Msg;
     ExprEngine &Eng;
@@ -185,14 +187,28 @@ namespace {
     CheckersTy::const_iterator checkers_begin() { return Checkers.begin(); }
     CheckersTy::const_iterator checkers_end() { return Checkers.end(); }
 
-    CheckObjCMessageContext(bool isPreVisit, const CheckersTy &checkers,
+    CheckObjCMessageContext(ObjCMessageVisitKind visitKind,
+                            const CheckersTy &checkers,
                             const ObjCMethodCall &msg, ExprEngine &eng,
                             bool wasInlined)
-      : IsPreVisit(isPreVisit), WasInlined(wasInlined), Checkers(checkers),
+      : Kind(visitKind), WasInlined(wasInlined), Checkers(checkers),
         Msg(msg), Eng(eng) { }
 
     void runChecker(CheckerManager::CheckObjCMessageFunc checkFn,
                     NodeBuilder &Bldr, ExplodedNode *Pred) {
+
+      bool IsPreVisit;
+
+      switch (Kind) {
+        case ObjCMessageVisitKind::Pre:
+          IsPreVisit = true;
+          break;
+        case ObjCMessageVisitKind::MessageNil:
+        case ObjCMessageVisitKind::Post:
+          IsPreVisit = false;
+          break;
+      }
+
       const ProgramPoint &L = Msg.getProgramPoint(IsPreVisit,checkFn.Checker);
       CheckerContext C(Bldr, Eng, Pred, L, WasInlined);
 
@@ -202,19 +218,30 @@ namespace {
 }
 
 /// \brief Run checkers for visiting obj-c messages.
-void CheckerManager::runCheckersForObjCMessage(bool isPreVisit,
+void CheckerManager::runCheckersForObjCMessage(ObjCMessageVisitKind visitKind,
                                                ExplodedNodeSet &Dst,
                                                const ExplodedNodeSet &Src,
                                                const ObjCMethodCall &msg,
                                                ExprEngine &Eng,
                                                bool WasInlined) {
-  CheckObjCMessageContext C(isPreVisit,
-                            isPreVisit ? PreObjCMessageCheckers
-                                       : PostObjCMessageCheckers,
-                            msg, Eng, WasInlined);
+  auto &checkers = getObjCMessageCheckers(visitKind);
+  CheckObjCMessageContext C(visitKind, checkers, msg, Eng, WasInlined);
   expandGraphWithCheckers(C, Dst, Src);
 }
 
+const std::vector<CheckerManager::CheckObjCMessageFunc> &
+CheckerManager::getObjCMessageCheckers(ObjCMessageVisitKind Kind) {
+  switch (Kind) {
+  case ObjCMessageVisitKind::Pre:
+    return PreObjCMessageCheckers;
+    break;
+  case ObjCMessageVisitKind::Post:
+    return PostObjCMessageCheckers;
+  case ObjCMessageVisitKind::MessageNil:
+    return ObjCMessageNilCheckers;
+  }
+  llvm_unreachable("Unknown Kind");
+}
 namespace {
   // FIXME: This has all the same signatures as CheckObjCMessageContext.
   // Is there a way we can merge the two?
@@ -357,9 +384,9 @@ void CheckerManager::runCheckersForEndFunction(NodeBuilderContext &BC,
                                                ExplodedNodeSet &Dst,
                                                ExplodedNode *Pred,
                                                ExprEngine &Eng) {
-  
+
   // We define the builder outside of the loop bacause if at least one checkers
-  // creates a sucsessor for Pred, we do not need to generate an 
+  // creates a sucsessor for Pred, we do not need to generate an
   // autotransition for it.
   NodeBuilder Bldr(Pred, Dst, BC);
   for (unsigned i = 0, e = EndFunctionCheckers.size(); i != e; ++i) {
@@ -467,7 +494,7 @@ bool CheckerManager::wantsRegionChangeUpdate(ProgramStateRef state) {
 }
 
 /// \brief Run checkers for region changes.
-ProgramStateRef 
+ProgramStateRef
 CheckerManager::runCheckersForRegionChanges(ProgramStateRef state,
                                     const InvalidatedSymbols *invalidated,
                                     ArrayRef<const MemRegion *> ExplicitRegions,
@@ -478,7 +505,7 @@ CheckerManager::runCheckersForRegionChanges(ProgramStateRef state,
     // bail out.
     if (!state)
       return nullptr;
-    state = RegionChangesCheckers[i].CheckFn(state, invalidated, 
+    state = RegionChangesCheckers[i].CheckFn(state, invalidated,
                                              ExplicitRegions, Regions, Call);
   }
   return state;
@@ -506,7 +533,7 @@ CheckerManager::runCheckersForPointerEscape(ProgramStateRef State,
 }
 
 /// \brief Run checkers for handling assumptions on symbolic values.
-ProgramStateRef 
+ProgramStateRef
 CheckerManager::runCheckersForEvalAssume(ProgramStateRef state,
                                          SVal Cond, bool Assumption) {
   for (unsigned i = 0, e = EvalAssumeCheckers.size(); i != e; ++i) {
@@ -558,7 +585,7 @@ void CheckerManager::runCheckersForEvalCall(ExplodedNodeSet &Dst,
 #endif
       }
     }
-    
+
     // If none of the checkers evaluated the call, ask ExprEngine to handle it.
     if (!anyEvaluated) {
       NodeBuilder B(Pred, Dst, Eng.getBuilderContext());
@@ -616,6 +643,11 @@ void CheckerManager::_registerForPostStmt(CheckStmtFunc checkfn,
 void CheckerManager::_registerForPreObjCMessage(CheckObjCMessageFunc checkfn) {
   PreObjCMessageCheckers.push_back(checkfn);
 }
+
+void CheckerManager::_registerForObjCMessageNil(CheckObjCMessageFunc checkfn) {
+  ObjCMessageNilCheckers.push_back(checkfn);
+}
+
 void CheckerManager::_registerForPostObjCMessage(CheckObjCMessageFunc checkfn) {
   PostObjCMessageCheckers.push_back(checkfn);
 }

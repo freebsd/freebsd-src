@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "Dec 10, 2015" "NLnet Labs" "unbound 1.5.7"
+.TH "libunbound" "3" "Mar  2, 2016" "NLnet Labs" "unbound 1.5.8"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -19,6 +19,7 @@
 .B ub_ctx_get_option,
 .B ub_ctx_config,
 .B ub_ctx_set_fwd,
+.B ub_ctx_set_stub,
 .B ub_ctx_resolvconf,
 .B ub_ctx_hosts,
 .B ub_ctx_add_ta,
@@ -42,7 +43,7 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.5.7 functions.
+\- Unbound DNS validating resolver 1.5.8 functions.
 .SH "SYNOPSIS"
 .B #include <unbound.h>
 .LP
@@ -63,6 +64,12 @@
 .LP
 \fIint\fR
 \fBub_ctx_set_fwd\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR addr);
+.LP
+\fIint\fR
+\fBub_ctx_set_stub\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR zone,
+\fIchar*\fR addr,
+.br
+		\fIint\fR isprime);
 .LP
 \fIint\fR
 \fBub_ctx_resolvconf\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
@@ -204,6 +211,15 @@ IP4 or IP6 address. Forwards all DNS requests to that machine, which
 is expected to run a recursive resolver. If the proxy is not 
 DNSSEC capable, validation may fail. Can be called several times, in 
 that case the addresses are used as backup servers.
+At this time it is only possible to set configuration before the
+first resolve is done.
+.TP
+.B ub_ctx_set_stub
+Set a stub zone, authoritative dns servers to use for a particular zone.
+IP4 or IP6 address.  If the address is NULL the stub entry is removed.
+Set isprime true if you configure root hints with it.  Otherwise similar to
+the stub zone item from unbound's config file.  Can be called several times,
+for different zones, or to add multiple addresses for a particular zone.
 At this time it is only possible to set configuration before the
 first resolve is done.
 .TP

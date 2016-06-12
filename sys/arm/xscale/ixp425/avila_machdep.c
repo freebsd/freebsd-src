@@ -38,7 +38,7 @@
  *
  * machdep.c
  *
- * Machine dependant functions for kernel setup
+ * Machine dependent functions for kernel setup
  *
  * This file needs a lot of work.
  *
@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <sys/devmap.h>
 #include <machine/physmem.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
@@ -81,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -117,81 +117,65 @@ struct pv_addr kernelstack;
 struct pv_addr minidataclean;
 
 /* Static device mappings. */
-static const struct arm_devmap_entry ixp425_devmap[] = {
+static const struct devmap_entry ixp425_devmap[] = {
 	/* Physical/Virtual address for I/O space */
-    { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE, },
 
 	/* Expansion Bus */
-    { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE, },
 
 	/* CFI Flash on the Expansion Bus */
     { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
-      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+      IXP425_EXP_BUS_CS0_SIZE, },
 
 	/* IXP425 PCI Configuration */
-    { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE, },
 
 	/* SDRAM Controller */
-    { IXP425_MCU_VBASE, IXP425_MCU_HWBASE, IXP425_MCU_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_MCU_VBASE, IXP425_MCU_HWBASE, IXP425_MCU_SIZE, },
 
 	/* PCI Memory Space */
-    { IXP425_PCI_MEM_VBASE, IXP425_PCI_MEM_HWBASE, IXP425_PCI_MEM_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_PCI_MEM_VBASE, IXP425_PCI_MEM_HWBASE, IXP425_PCI_MEM_SIZE, },
 
 	/* Q-Mgr Memory Space */
-    { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE, },
 
     { 0 },
 };
 
 /* Static device mappings. */
-static const struct arm_devmap_entry ixp435_devmap[] = {
+static const struct devmap_entry ixp435_devmap[] = {
 	/* Physical/Virtual address for I/O space */
-    { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE, },
 
-    { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE, },
 
 	/* IXP425 PCI Configuration */
-    { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE, },
 
 	/* DDRII Controller NB: mapped same place as IXP425 */
-    { IXP425_MCU_VBASE, IXP435_MCU_HWBASE, IXP425_MCU_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_MCU_VBASE, IXP435_MCU_HWBASE, IXP425_MCU_SIZE, },
 
 	/* PCI Memory Space */
-    { IXP425_PCI_MEM_VBASE, IXP425_PCI_MEM_HWBASE, IXP425_PCI_MEM_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_PCI_MEM_VBASE, IXP425_PCI_MEM_HWBASE, IXP425_PCI_MEM_SIZE, },
 
 	/* Q-Mgr Memory Space */
-    { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE, },
 
 	/* CFI Flash on the Expansion Bus */
     { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
-      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+      IXP425_EXP_BUS_CS0_SIZE, },
 
 	/* USB1 Memory Space */
-    { IXP435_USB1_VBASE, IXP435_USB1_HWBASE, IXP435_USB1_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP435_USB1_VBASE, IXP435_USB1_HWBASE, IXP435_USB1_SIZE, },
 	/* USB2 Memory Space */
-    { IXP435_USB2_VBASE, IXP435_USB2_HWBASE, IXP435_USB2_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { IXP435_USB2_VBASE, IXP435_USB2_HWBASE, IXP435_USB2_SIZE, },
 
 	/* GPS Memory Space */
-    { CAMBRIA_GPS_VBASE, CAMBRIA_GPS_HWBASE, CAMBRIA_GPS_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { CAMBRIA_GPS_VBASE, CAMBRIA_GPS_HWBASE, CAMBRIA_GPS_SIZE, },
 
 	/* RS485 Memory Space */
-    { CAMBRIA_RS485_VBASE, CAMBRIA_RS485_HWBASE, CAMBRIA_RS485_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
+    { CAMBRIA_RS485_VBASE, CAMBRIA_RS485_HWBASE, CAMBRIA_RS485_SIZE, },
 
     { 0 }
 };
@@ -307,7 +291,7 @@ initarm(struct arm_boot_params *abp)
 	l1pagetable = kernel_l1pt.pv_va;
 
 	/* Map the L2 pages tables in the L1 page table */
-	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
+	pmap_link_l2pt(l1pagetable, rounddown2(ARM_VECTORS_HIGH, 0x00100000),
 	    &kernel_pt_table[KERNEL_PT_SYS]);
 	pmap_link_l2pt(l1pagetable, IXP425_IO_VBASE,
 	    &kernel_pt_table[KERNEL_PT_IO]);
@@ -342,9 +326,9 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	if (cpu_is_ixp43x())
-		arm_devmap_bootstrap(l1pagetable, ixp435_devmap);
+		devmap_bootstrap(l1pagetable, ixp435_devmap);
 	else
-		arm_devmap_bootstrap(l1pagetable, ixp425_devmap);
+		devmap_bootstrap(l1pagetable, ixp425_devmap);
 	/*
 	 * Give the XScale global cache clean code an appropriately
 	 * sized chunk of unmapped VA space starting at 0xff000000
@@ -353,7 +337,7 @@ initarm(struct arm_boot_params *abp)
 	xscale_cache_clean_addr = 0xff000000U;
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
-	setttb(kernel_l1pt.pv_pa);
+	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 
@@ -370,7 +354,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.

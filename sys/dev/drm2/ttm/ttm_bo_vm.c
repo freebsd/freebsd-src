@@ -106,21 +106,18 @@ ttm_bo_vm_fault(vm_object_t vm_obj, vm_ooffset_t offset,
 	struct ttm_buffer_object *bo = vm_obj->handle;
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_tt *ttm = NULL;
-	vm_page_t m, m1, oldm;
+	vm_page_t m, m1;
 	int ret;
 	int retval = VM_PAGER_OK;
 	struct ttm_mem_type_manager *man =
 		&bdev->man[bo->mem.mem_type];
 
 	vm_object_pip_add(vm_obj, 1);
-	oldm = *mres;
-	if (oldm != NULL) {
-		vm_page_lock(oldm);
-		vm_page_remove(oldm);
-		vm_page_unlock(oldm);
-		*mres = NULL;
-	} else
-		oldm = NULL;
+	if (*mres != NULL) {
+		vm_page_lock(*mres);
+		vm_page_remove(*mres);
+		vm_page_unlock(*mres);
+	}
 retry:
 	VM_OBJECT_WUNLOCK(vm_obj);
 	m = NULL;
@@ -261,14 +258,14 @@ reserve:
 		    bo, m, m1, (uintmax_t)offset));
 	}
 	m->valid = VM_PAGE_BITS_ALL;
-	*mres = m;
 	vm_page_xbusy(m);
-
-	if (oldm != NULL) {
-		vm_page_lock(oldm);
-		vm_page_free(oldm);
-		vm_page_unlock(oldm);
+	if (*mres != NULL) {
+		KASSERT(*mres != m, ("losing %p %p", *mres, m));
+		vm_page_lock(*mres);
+		vm_page_free(*mres);
+		vm_page_unlock(*mres);
 	}
+	*mres = m;
 
 out_io_unlock1:
 	ttm_mem_io_unlock(man);
@@ -299,7 +296,7 @@ ttm_bo_vm_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * acquired either in ttm_bo_mmap() or ttm_bo_vm_open(). It's
 	 * then released in ttm_bo_vm_close().
 	 *
-	 * Here, this function is called during mmap() intialization.
+	 * Here, this function is called during mmap() initialization.
 	 * Thus, the reference acquired in ttm_bo_mmap_single() is
 	 * sufficient.
 	 */

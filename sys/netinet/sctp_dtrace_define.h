@@ -45,131 +45,131 @@ SDT_PROVIDER_DEFINE(sctp);
 /********************************************************/
 /* Initial */
 SDT_PROBE_DEFINE5(sctp, cwnd, net, init,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "uintptr_t",	/* The pointer to the struct sctp_nets * changing */
-    "int",		/* The old value of the cwnd */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "uintptr_t",		/* The pointer to the struct sctp_nets *
+				 * changing */
+    "int",			/* The old value of the cwnd */
+    "int");			/* The new value of the cwnd */
 
 /* ACK-INCREASE */
 SDT_PROBE_DEFINE5(sctp, cwnd, net, ack,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "uintptr_t",	/* The pointer to the struct sctp_nets * changing */
-    "int",		/* The old value of the cwnd */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "uintptr_t",		/* The pointer to the struct sctp_nets *
+				 * changing */
+    "int",			/* The old value of the cwnd */
+    "int");			/* The new value of the cwnd */
 
 /* ACK-INCREASE */
 SDT_PROBE_DEFINE5(sctp, cwnd, net, rttvar,
-    "uint64_t",		/* The Vtag << 32 | localport << 16 | remoteport */
-    "uint64_t",		/* obw | nbw */
-    "uint64_t",		/* bwrtt | newrtt */
-    "uint64_t",		/* flight */
-    "uint64_t");	/* (cwnd << 32) | point << 16 | retval(0/1) */
+    "uint64_t",			/* The Vtag << 32 | localport << 16 |
+				 * remoteport */
+    "uint64_t",			/* obw | nbw */
+    "uint64_t",			/* bwrtt | newrtt */
+    "uint64_t",			/* flight */
+    "uint64_t");		/* (cwnd << 32) | point << 16 | retval(0/1) */
 
 SDT_PROBE_DEFINE5(sctp, cwnd, net, rttstep,
-    "uint64_t",		/* The Vtag << 32 | localport << 16 | remoteport */
-    "uint64_t",		/* obw | nbw */
-    "uint64_t",		/* bwrtt | newrtt */
-    "uint64_t",		/* flight */
-    "uint64_t");	/* (cwnd << 32) | point << 16 | retval(0/1) */
+    "uint64_t",			/* The Vtag << 32 | localport << 16 |
+				 * remoteport */
+    "uint64_t",			/* obw | nbw */
+    "uint64_t",			/* bwrtt | newrtt */
+    "uint64_t",			/* flight */
+    "uint64_t");		/* (cwnd << 32) | point << 16 | retval(0/1) */
 
 /* FastRetransmit-DECREASE */
 SDT_PROBE_DEFINE5(sctp, cwnd, net, fr,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "uintptr_t",	/* The pointer to the struct sctp_nets * changing */
-    "int",		/* The old value of the cwnd */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "uintptr_t",		/* The pointer to the struct sctp_nets *
+				 * changing */
+    "int",			/* The old value of the cwnd */
+    "int");			/* The new value of the cwnd */
 
 /* TimeOut-DECREASE */
 SDT_PROBE_DEFINE5(sctp, cwnd, net, to,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "uintptr_t",	/* The pointer to the struct sctp_nets * changing */
-    "int",		/* The old value of the cwnd */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "uintptr_t",		/* The pointer to the struct sctp_nets *
+				 * changing */
+    "int",			/* The old value of the cwnd */
+    "int");			/* The new value of the cwnd */
 
 /* BurstLimit-DECREASE */
 SDT_PROBE_DEFINE5(sctp, cwnd, net, bl,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "uintptr_t",	/* The pointer to the struct sctp_nets * changing */
-    "int",		/* The old value of the cwnd */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "uintptr_t",		/* The pointer to the struct sctp_nets *
+				 * changing */
+    "int",			/* The old value of the cwnd */
+    "int");			/* The new value of the cwnd */
 
 /* ECN-DECREASE */
 SDT_PROBE_DEFINE5(sctp, cwnd, net, ecn,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "uintptr_t",	/* The pointer to the struct sctp_nets * changing */
-    "int",		/* The old value of the cwnd */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "uintptr_t",		/* The pointer to the struct sctp_nets *
+				 * changing */
+    "int",			/* The old value of the cwnd */
+    "int");			/* The new value of the cwnd */
 
 /* PacketDrop-DECREASE */
 SDT_PROBE_DEFINE5(sctp, cwnd, net, pd,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "uintptr_t",	/* The pointer to the struct sctp_nets * changing */
-    "int",		/* The old value of the cwnd */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "uintptr_t",		/* The pointer to the struct sctp_nets *
+				 * changing */
+    "int",			/* The old value of the cwnd */
+    "int");			/* The new value of the cwnd */
 
 /********************************************************/
 /* Rwnd probe - tracks changes in the receiver window for an assoc */
 /********************************************************/
 SDT_PROBE_DEFINE4(sctp, rwnd, assoc, val,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "int",		/* The up/down amount */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "int",			/* The up/down amount */
+    "int");			/* The new value of the cwnd */
 
 /********************************************************/
 /* flight probe - tracks changes in the flight size on a net or assoc */
 /********************************************************/
 SDT_PROBE_DEFINE5(sctp, flightsize, net, val,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "uintptr_t",        /* The pointer to the struct sctp_nets * changing */
-    "int",		/* The up/down amount */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "uintptr_t",		/* The pointer to the struct sctp_nets *
+				 * changing */
+    "int",			/* The up/down amount */
+    "int");			/* The new value of the cwnd */
 
 /********************************************************/
 /* The total flight version */
 /********************************************************/
 SDT_PROBE_DEFINE4(sctp, flightsize, assoc, val,
-    "uint32_t",		/* The Vtag for this end */
-    "uint32_t",		/*
-			 * The port number of the local side << 16 | port number
-			 * of remote in network byte order.
-			 */
-    "int",		/* The up/down amount */
-    "int");		/* The new value of the cwnd */
+    "uint32_t",			/* The Vtag for this end */
+    "uint32_t",			/* The port number of the local side << 16 |
+				 * port number of remote in network byte
+				 * order. */
+    "int",			/* The up/down amount */
+    "int");			/* The new value of the cwnd */
 
 #endif

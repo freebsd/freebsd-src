@@ -106,7 +106,7 @@ typedef enum __ns_sect {
 } ns_sect;
 
 /*%
- * Network name (compressed or not) type.  Equivilent to a pointer when used
+ * Network name (compressed or not) type.  Equivalent to a pointer when used
  * in a function prototype.  Can be const'd.
  */
 typedef u_char ns_nname[NS_MAXNNAME];

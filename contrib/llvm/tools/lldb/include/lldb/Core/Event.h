@@ -12,7 +12,7 @@
 
 // C Includes
 // C++ Includes
-#include <list>
+#include <memory>
 #include <string>
 
 // Other libraries and framework includes
@@ -49,7 +49,6 @@ private:
     }
 
     DISALLOW_COPY_AND_ASSIGN (EventData);
-
 };
 
 //----------------------------------------------------------------------
@@ -67,17 +66,16 @@ public:
 
     EventDataBytes (const void *src, size_t src_len);
 
-    virtual
-    ~EventDataBytes();
+    ~EventDataBytes() override;
 
     //------------------------------------------------------------------
     // Member functions
     //------------------------------------------------------------------
-    virtual const ConstString &
-    GetFlavor () const;
+    const ConstString &
+    GetFlavor () const override;
 
-    virtual void
-    Dump (Stream *s) const;
+    void
+    Dump (Stream *s) const override;
 
     const void *
     GetBytes() const;
@@ -113,7 +111,6 @@ private:
     std::string m_bytes;
 
     DISALLOW_COPY_AND_ASSIGN (EventDataBytes);
-
 };
 
 //----------------------------------------------------------------------
@@ -126,10 +123,9 @@ class Event
     friend class EventData;
 
 public:
+    Event(Broadcaster *broadcaster, uint32_t event_type, EventData *data = nullptr);
 
-    Event (Broadcaster *broadcaster, uint32_t event_type, EventData *data = NULL);
-
-    Event (uint32_t event_type, EventData *data = NULL);
+    Event(uint32_t event_type, EventData *data = nullptr);
 
     ~Event ();
 
@@ -184,7 +180,6 @@ public:
         m_data_ap.reset();
     }
 
-
 private:
     // This is only called by Listener when it pops an event off the queue for
     // the listener.  It calls the Event Data's DoOnRemoval() method, which is
@@ -202,7 +197,6 @@ private:
         m_broadcaster = broadcaster;
     }
 
-
     Broadcaster *   m_broadcaster;  // The broadcaster that sent this event
     uint32_t        m_type;         // The bit describing this event
     std::unique_ptr<EventData> m_data_ap;         // User specific data for this event
@@ -214,4 +208,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_Event_h_
+#endif // liblldb_Event_h_

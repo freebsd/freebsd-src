@@ -36,6 +36,6 @@ ${EPREFIX}${i}.src: ${CODE}.src
 	sed -e 's/UTF-x/UTF-${i}/' \
 		-e 's/UTF-mod/${UTF-${i}-mod}/' \
 		-e 's/UTF-var/${UTF-${i}-var}/' \
-		${.CURDIR}/${CODE}.src > ${EPREFIX}${i:S/:/@/}.src
-	@echo ${EPREFIX}${i:S/:/@/}.src >>.tmpfiles
+		${.ALLSRC} > ${.TARGET}
+	@echo ${.TARGET} >>.tmpfiles
 .endfor

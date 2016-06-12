@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
@@ -795,7 +796,7 @@ epic_rx_done(epic_softc_t *sc)
 		(*ifp->if_input)(ifp, m);
 		EPIC_LOCK(sc);
 
-		/* Successfuly received frame */
+		/* Successfully received frame */
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
         }
 	bus_dmamap_sync(sc->rtag, sc->rmap,
@@ -896,7 +897,7 @@ epic_intr(void *arg)
 		      INTSTAT_APE|INTSTAT_DPE|INTSTAT_TXU|INTSTAT_RXE)) {
     	    if (status & (INTSTAT_FATAL|INTSTAT_PMA|INTSTAT_PTA|
 			  INTSTAT_APE|INTSTAT_DPE)) {
-		device_printf(sc->dev, "PCI fatal errors occured: %s%s%s%s\n",
+		device_printf(sc->dev, "PCI fatal errors occurred: %s%s%s%s\n",
 		    (status & INTSTAT_PMA) ? "PMA " : "",
 		    (status & INTSTAT_PTA) ? "PTA " : "",
 		    (status & INTSTAT_APE) ? "APE " : "",

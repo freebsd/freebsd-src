@@ -353,7 +353,7 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	 *	 ignores all dots before extension, and use all
 	 * 	 chars as filename except for dots.
 	 */
-	dp = dp1 = 0;
+	dp = dp1 = NULL;
 	for (cp = un + 1, i = unlen - 1; --i >= 0;) {
 		switch (*cp++) {
 		case '.':
@@ -365,7 +365,7 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 		default:
 			if (dp1)
 				dp = dp1;
-			dp1 = 0;
+			dp1 = NULL;
 			break;
 		}
 	}
@@ -658,7 +658,9 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
+			if (mbnambuf_write(nbp, name,
+			    (wep->weCnt & WIN_CNT) - 1) != 0)
+				return -1;
 			return chksum;
 		case '/':
 			*np = '\0';
@@ -676,7 +678,9 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
+			if (mbnambuf_write(nbp, name,
+			    (wep->weCnt & WIN_CNT) - 1) != 0)
+				return -1;
 			return chksum;
 		case '/':
 			*np = '\0';
@@ -694,7 +698,9 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
+			if (mbnambuf_write(nbp, name,
+			    (wep->weCnt & WIN_CNT) - 1) != 0)
+				return -1;
 			return chksum;
 		case '/':
 			*np = '\0';
@@ -708,7 +714,8 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 		cp += 2;
 	}
 	*np = '\0';
-	mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
+	if (mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1) != 0)
+		return -1;
 	return chksum;
 }
 
@@ -752,7 +759,7 @@ winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp)
 }
 
 /*
- * Determine the number of bytes neccessary for Win95 names
+ * Determine the number of bytes necessary for Win95 names
  */
 size_t
 winLenFixup(const u_char *un, size_t unlen)
@@ -1005,7 +1012,7 @@ mbnambuf_init(struct mbnambuf *nbp)
  * This only penalizes portions of substrings that contain more than
  * WIN_CHARS bytes when they are first encountered.
  */
-void
+int
 mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 {
 	char *slot;
@@ -1016,7 +1023,7 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 		printf("msdosfs: non-decreasing id: id %d, last id %d\n",
 		    id, nbp->nb_last_id);
 #endif
-		return;
+		return (EINVAL);
 	}
 
 	/* Will store this substring in a WIN_CHARS-aligned slot. */
@@ -1027,17 +1034,24 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 #ifdef MSDOSFS_DEBUG
 		printf("msdosfs: file name length %zu too large\n", newlen);
 #endif
-		return;
+		return (ENAMETOOLONG);
 	}
 
 	/* Shift suffix upwards by the amount length exceeds WIN_CHARS. */
-	if (count > WIN_CHARS && nbp->nb_len != 0)
+	if (count > WIN_CHARS && nbp->nb_len != 0) {
+		if ((id * WIN_CHARS + count + nbp->nb_len) >
+		    sizeof(nbp->nb_buf))
+			return (ENAMETOOLONG);
+
 		bcopy(slot + WIN_CHARS, slot + count, nbp->nb_len);
+	}
 
 	/* Copy in the substring to its slot and update length so far. */
 	bcopy(name, slot, count);
 	nbp->nb_len = newlen;
 	nbp->nb_last_id = id;
+
+	return (0);
 }
 
 /*

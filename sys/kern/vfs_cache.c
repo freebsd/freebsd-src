@@ -150,7 +150,7 @@ struct	namecache_ts {
  */
 
 /*
- * Structures associated with name cacheing.
+ * Structures associated with name caching.
  */
 #define NCHHASH(hash) \
 	(&nchashtbl[(hash) & nchash])
@@ -171,7 +171,7 @@ SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0,
 static u_long	numcachehv;		/* number of cache entries with vnodes held */
 SYSCTL_ULONG(_debug, OID_AUTO, numcachehv, CTLFLAG_RD, &numcachehv, 0,
     "Number of namecache entries with vnodes held");
-static u_int	ncsizefactor = 2;
+u_int	ncsizefactor = 2;
 SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
     "Size factor for namecache");
 
@@ -485,7 +485,7 @@ cache_zap(struct namecache *ncp)
  * cnp pointing to the name of the entry being sought. If the lookup
  * succeeds, the vnode is returned in *vpp, and a status of -1 is
  * returned. If the lookup determines that the name does not exist
- * (negative cacheing), a status of ENOENT is returned. If the lookup
+ * (negative caching), a status of ENOENT is returned. If the lookup
  * fails, a status of zero is returned.  If the directory vnode is
  * recycled out from under us due to a forced unmount, a status of
  * ENOENT is returned.

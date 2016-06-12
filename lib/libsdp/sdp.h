@@ -561,7 +561,7 @@ void               sdp_print      (uint32_t level, uint8_t const *start,
  *	bdaddr_t	bdaddr;	local BD_ADDR (or ANY)
  *	profile data[pdu->len - sizeof(uuid) - sizeof(bdaddr)]
  *
- * in successful reponse additional data will contain 4 bytes record handle
+ * in successful response additional data will contain 4 bytes record handle
  *
  *
  * SDP_PDU_SERVICE_UNREGISTER_REQUEST

@@ -45,22 +45,21 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #define	DELAYBRANCH(x)	((int)(x) < 0)
-		
-extern uintptr_t 	dtrace_in_probe_addr;
-extern int		dtrace_in_probe;
+
+extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 extern dtrace_id_t	dtrace_probeid_error;
 
-int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
+int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
 
 typedef struct dtrace_invop_hdlr {
-	int (*dtih_func)(uintptr_t, uintptr_t *, uintptr_t);
+	int (*dtih_func)(uintptr_t, struct trapframe *, uintptr_t);
 	struct dtrace_invop_hdlr *dtih_next;
 } dtrace_invop_hdlr_t;
 
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
 int
-dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t eax)
+dtrace_invop(uintptr_t addr, struct trapframe *stack, uintptr_t eax)
 {
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
@@ -72,6 +71,46 @@ dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t eax)
 	return (0);
 }
 
+void
+dtrace_invop_add(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
+{
+	dtrace_invop_hdlr_t *hdlr;
+
+	hdlr = kmem_alloc(sizeof (dtrace_invop_hdlr_t), KM_SLEEP);
+	hdlr->dtih_func = func;
+	hdlr->dtih_next = dtrace_invop_hdlr;
+	dtrace_invop_hdlr = hdlr;
+}
+
+void
+dtrace_invop_remove(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
+{
+	dtrace_invop_hdlr_t *hdlr, *prev;
+
+	hdlr = dtrace_invop_hdlr;
+	prev = NULL;
+
+	for (;;) {
+		if (hdlr == NULL)
+			panic("attempt to remove non-existent invop handler");
+
+		if (hdlr->dtih_func == func)
+			break;
+
+		prev = hdlr;
+		hdlr = hdlr->dtih_next;
+	}
+
+	if (prev == NULL) {
+		ASSERT(dtrace_invop_hdlr == hdlr);
+		dtrace_invop_hdlr = hdlr->dtih_next;
+	} else {
+		ASSERT(dtrace_invop_hdlr != hdlr);
+		prev->dtih_next = hdlr->dtih_next;
+	}
+
+	kmem_free(hdlr, 0);
+}
 
 /*ARGSUSED*/
 void
@@ -200,4 +239,46 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 	dtrace_probe(dtrace_probeid_error, (uint64_t)(uintptr_t)state,
 	    (uintptr_t)epid,
 	    (uintptr_t)which, (uintptr_t)fault, (uintptr_t)fltoffs);
+}
+
+static int
+dtrace_invop_start(struct trapframe *frame)
+{
+	register_t *sp;
+	int16_t offs;
+	int invop;
+
+	invop = dtrace_invop(frame->pc, frame, frame->pc);
+	offs = (invop & LDSD_DATA_MASK);
+	sp = (register_t *)((uint8_t *)frame->sp + offs);
+
+	switch (invop & LDSD_RA_SP_MASK) {
+	case LD_RA_SP:
+		frame->ra = *sp;
+		frame->pc += INSN_SIZE;
+		break;
+	case SD_RA_SP:
+		*(sp) = frame->ra;
+		frame->pc += INSN_SIZE;
+		break;
+	default:
+		printf("%s: 0x%x undefined\n", __func__, invop);
+		return (-1);
+	};
+
+	return (0);
+}
+
+void
+dtrace_invop_init(void)
+{
+
+	dtrace_invop_jump_addr = dtrace_invop_start;
+}
+
+void
+dtrace_invop_uninit(void)
+{
+
+	dtrace_invop_jump_addr = 0;
 }

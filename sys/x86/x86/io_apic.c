@@ -987,14 +987,6 @@ apic_add_resource(device_t dev, int rid, vm_paddr_t base, size_t length)
 {
 	int error;
 
-#ifdef PAE
-	/*
-	 * Resources use long's to track resources, so we can't
-	 * include memory regions above 4GB.
-	 */
-	if (base >= ~0ul)
-		return;
-#endif
 	error = bus_set_resource(dev, SYS_RES_MEMORY, rid, base, length);
 	if (error)
 		panic("apic_add_resource: resource %d failed set with %d", rid,

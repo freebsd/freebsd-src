@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2015
+.Dd May 16, 2016
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Nm pci_find_extcap ,
 .Nm pci_find_htcap ,
 .Nm pci_find_pcie_root_port ,
+.Nm pci_get_id ,
 .Nm pci_get_max_read_req ,
 .Nm pci_get_powerstate ,
 .Nm pci_get_vpd_ident ,
@@ -96,6 +97,8 @@
 .Fn pci_find_htcap "device_t dev" "int capability" "int *capreg"
 .Ft device_t
 .Fn pci_find_pcie_root_port "device_t dev"
+.Ft int
+.Fn pci_get_id "device_t dev" "enum pci_id_type type" "uintptr_t *id"
 .Ft int
 .Fn pci_get_max_read_req "device_t dev"
 .Ft int
@@ -355,6 +358,21 @@ If a root port is not found,
 .Fn pci_find_pcie_root_port
 returns
 .Dv NULL .
+.Pp
+The
+.Fn pci_get_id
+function is used to read an identifier from a device.
+The
+.Fa type
+flag is used to specify which identifier to read.
+The following flags are supported:
+.Bl -hang -width ".Dv PCI_ID_RID"
+.It Dv PCI_ID_RID
+Read the routing identifier for the device.
+.It Dv PCI_ID_MSI
+Read the MSI routing ID.
+This is needed by some interrupt controllers to route MSI and MSI-X interrupts.
+.El
 .Pp
 The
 .Fn pci_get_vpd_ident
@@ -761,7 +779,7 @@ function assigns the
 .Fa *count
 messages allocated to the first
 .Fa *count
-table indicies.
+table indices.
 If
 .Fn pci_alloc_msix
 is not able to allocate any messages,

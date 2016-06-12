@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from bsaes-x86_64.pl.
 .text	
 
 
@@ -325,45 +326,45 @@ _bsaes_encrypt8_bitslice:
 	pxor	%xmm2,%xmm5
 	decl	%r10d
 	jl	.Lenc_done
-	pshufd	$147,%xmm15,%xmm7
-	pshufd	$147,%xmm0,%xmm8
+	pshufd	$0x93,%xmm15,%xmm7
+	pshufd	$0x93,%xmm0,%xmm8
 	pxor	%xmm7,%xmm15
-	pshufd	$147,%xmm3,%xmm9
+	pshufd	$0x93,%xmm3,%xmm9
 	pxor	%xmm8,%xmm0
-	pshufd	$147,%xmm5,%xmm10
+	pshufd	$0x93,%xmm5,%xmm10
 	pxor	%xmm9,%xmm3
-	pshufd	$147,%xmm2,%xmm11
+	pshufd	$0x93,%xmm2,%xmm11
 	pxor	%xmm10,%xmm5
-	pshufd	$147,%xmm6,%xmm12
+	pshufd	$0x93,%xmm6,%xmm12
 	pxor	%xmm11,%xmm2
-	pshufd	$147,%xmm1,%xmm13
+	pshufd	$0x93,%xmm1,%xmm13
 	pxor	%xmm12,%xmm6
-	pshufd	$147,%xmm4,%xmm14
+	pshufd	$0x93,%xmm4,%xmm14
 	pxor	%xmm13,%xmm1
 	pxor	%xmm14,%xmm4
 
 	pxor	%xmm15,%xmm8
 	pxor	%xmm4,%xmm7
 	pxor	%xmm4,%xmm8
-	pshufd	$78,%xmm15,%xmm15
+	pshufd	$0x4E,%xmm15,%xmm15
 	pxor	%xmm0,%xmm9
-	pshufd	$78,%xmm0,%xmm0
+	pshufd	$0x4E,%xmm0,%xmm0
 	pxor	%xmm2,%xmm12
 	pxor	%xmm7,%xmm15
 	pxor	%xmm6,%xmm13
 	pxor	%xmm8,%xmm0
 	pxor	%xmm5,%xmm11
-	pshufd	$78,%xmm2,%xmm7
+	pshufd	$0x4E,%xmm2,%xmm7
 	pxor	%xmm1,%xmm14
-	pshufd	$78,%xmm6,%xmm8
+	pshufd	$0x4E,%xmm6,%xmm8
 	pxor	%xmm3,%xmm10
-	pshufd	$78,%xmm5,%xmm2
+	pshufd	$0x4E,%xmm5,%xmm2
 	pxor	%xmm4,%xmm10
-	pshufd	$78,%xmm4,%xmm6
+	pshufd	$0x4E,%xmm4,%xmm6
 	pxor	%xmm4,%xmm11
-	pshufd	$78,%xmm1,%xmm5
+	pshufd	$0x4E,%xmm1,%xmm5
 	pxor	%xmm11,%xmm7
-	pshufd	$78,%xmm3,%xmm1
+	pshufd	$0x4E,%xmm3,%xmm1
 	pxor	%xmm12,%xmm8
 	pxor	%xmm10,%xmm2
 	pxor	%xmm14,%xmm6
@@ -797,24 +798,24 @@ _bsaes_decrypt8:
 	decl	%r10d
 	jl	.Ldec_done
 
-	pshufd	$78,%xmm15,%xmm7
-	pshufd	$78,%xmm2,%xmm13
+	pshufd	$0x4E,%xmm15,%xmm7
+	pshufd	$0x4E,%xmm2,%xmm13
 	pxor	%xmm15,%xmm7
-	pshufd	$78,%xmm4,%xmm14
+	pshufd	$0x4E,%xmm4,%xmm14
 	pxor	%xmm2,%xmm13
-	pshufd	$78,%xmm0,%xmm8
+	pshufd	$0x4E,%xmm0,%xmm8
 	pxor	%xmm4,%xmm14
-	pshufd	$78,%xmm5,%xmm9
+	pshufd	$0x4E,%xmm5,%xmm9
 	pxor	%xmm0,%xmm8
-	pshufd	$78,%xmm3,%xmm10
+	pshufd	$0x4E,%xmm3,%xmm10
 	pxor	%xmm5,%xmm9
 	pxor	%xmm13,%xmm15
 	pxor	%xmm13,%xmm0
-	pshufd	$78,%xmm1,%xmm11
+	pshufd	$0x4E,%xmm1,%xmm11
 	pxor	%xmm3,%xmm10
 	pxor	%xmm7,%xmm5
 	pxor	%xmm8,%xmm3
-	pshufd	$78,%xmm6,%xmm12
+	pshufd	$0x4E,%xmm6,%xmm12
 	pxor	%xmm1,%xmm11
 	pxor	%xmm14,%xmm0
 	pxor	%xmm9,%xmm1
@@ -828,45 +829,45 @@ _bsaes_decrypt8:
 	pxor	%xmm14,%xmm1
 	pxor	%xmm14,%xmm6
 	pxor	%xmm12,%xmm4
-	pshufd	$147,%xmm15,%xmm7
-	pshufd	$147,%xmm0,%xmm8
+	pshufd	$0x93,%xmm15,%xmm7
+	pshufd	$0x93,%xmm0,%xmm8
 	pxor	%xmm7,%xmm15
-	pshufd	$147,%xmm5,%xmm9
+	pshufd	$0x93,%xmm5,%xmm9
 	pxor	%xmm8,%xmm0
-	pshufd	$147,%xmm3,%xmm10
+	pshufd	$0x93,%xmm3,%xmm10
 	pxor	%xmm9,%xmm5
-	pshufd	$147,%xmm1,%xmm11
+	pshufd	$0x93,%xmm1,%xmm11
 	pxor	%xmm10,%xmm3
-	pshufd	$147,%xmm6,%xmm12
+	pshufd	$0x93,%xmm6,%xmm12
 	pxor	%xmm11,%xmm1
-	pshufd	$147,%xmm2,%xmm13
+	pshufd	$0x93,%xmm2,%xmm13
 	pxor	%xmm12,%xmm6
-	pshufd	$147,%xmm4,%xmm14
+	pshufd	$0x93,%xmm4,%xmm14
 	pxor	%xmm13,%xmm2
 	pxor	%xmm14,%xmm4
 
 	pxor	%xmm15,%xmm8
 	pxor	%xmm4,%xmm7
 	pxor	%xmm4,%xmm8
-	pshufd	$78,%xmm15,%xmm15
+	pshufd	$0x4E,%xmm15,%xmm15
 	pxor	%xmm0,%xmm9
-	pshufd	$78,%xmm0,%xmm0
+	pshufd	$0x4E,%xmm0,%xmm0
 	pxor	%xmm1,%xmm12
 	pxor	%xmm7,%xmm15
 	pxor	%xmm6,%xmm13
 	pxor	%xmm8,%xmm0
 	pxor	%xmm3,%xmm11
-	pshufd	$78,%xmm1,%xmm7
+	pshufd	$0x4E,%xmm1,%xmm7
 	pxor	%xmm2,%xmm14
-	pshufd	$78,%xmm6,%xmm8
+	pshufd	$0x4E,%xmm6,%xmm8
 	pxor	%xmm5,%xmm10
-	pshufd	$78,%xmm3,%xmm1
+	pshufd	$0x4E,%xmm3,%xmm1
 	pxor	%xmm4,%xmm10
-	pshufd	$78,%xmm4,%xmm6
+	pshufd	$0x4E,%xmm4,%xmm6
 	pxor	%xmm4,%xmm11
-	pshufd	$78,%xmm2,%xmm3
+	pshufd	$0x4E,%xmm2,%xmm3
 	pxor	%xmm11,%xmm7
-	pshufd	$78,%xmm5,%xmm2
+	pshufd	$0x4E,%xmm5,%xmm2
 	pxor	%xmm12,%xmm8
 	pxor	%xmm1,%xmm10
 	pxor	%xmm14,%xmm6
@@ -1553,20 +1554,20 @@ bsaes_xts_encrypt:
 	movdqa	%xmm7,(%rax)
 
 	andq	$-16,%r14
-	subq	$128,%rsp
+	subq	$0x80,%rsp
 	movdqa	32(%rbp),%xmm6
 
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
 
-	subq	$128,%r14
+	subq	$0x80,%r14
 	jc	.Lxts_enc_short
 	jmp	.Lxts_enc_loop
 
 .align	16
 .Lxts_enc_loop:
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm15
 	movdqa	%xmm6,0(%rsp)
@@ -1574,7 +1575,7 @@ bsaes_xts_encrypt:
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm0
 	movdqa	%xmm6,16(%rsp)
@@ -1583,7 +1584,7 @@ bsaes_xts_encrypt:
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
 	movdqu	0(%r12),%xmm7
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm1
 	movdqa	%xmm6,32(%rsp)
@@ -1593,7 +1594,7 @@ bsaes_xts_encrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	16(%r12),%xmm8
 	pxor	%xmm7,%xmm15
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm2
 	movdqa	%xmm6,48(%rsp)
@@ -1603,7 +1604,7 @@ bsaes_xts_encrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	32(%r12),%xmm9
 	pxor	%xmm8,%xmm0
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm3
 	movdqa	%xmm6,64(%rsp)
@@ -1613,7 +1614,7 @@ bsaes_xts_encrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	48(%r12),%xmm10
 	pxor	%xmm9,%xmm1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm4
 	movdqa	%xmm6,80(%rsp)
@@ -1623,7 +1624,7 @@ bsaes_xts_encrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	64(%r12),%xmm11
 	pxor	%xmm10,%xmm2
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm5
 	movdqa	%xmm6,96(%rsp)
@@ -1667,20 +1668,20 @@ bsaes_xts_encrypt:
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	paddq	%xmm6,%xmm6
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
 
-	subq	$128,%r14
+	subq	$0x80,%r14
 	jnc	.Lxts_enc_loop
 
 .Lxts_enc_short:
-	addq	$128,%r14
+	addq	$0x80,%r14
 	jz	.Lxts_enc_done
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm15
 	movdqa	%xmm6,0(%rsp)
@@ -1688,7 +1689,7 @@ bsaes_xts_encrypt:
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm0
 	movdqa	%xmm6,16(%rsp)
@@ -1699,7 +1700,7 @@ bsaes_xts_encrypt:
 	movdqu	0(%r12),%xmm7
 	cmpq	$16,%r14
 	je	.Lxts_enc_1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm1
 	movdqa	%xmm6,32(%rsp)
@@ -1711,7 +1712,7 @@ bsaes_xts_encrypt:
 	cmpq	$32,%r14
 	je	.Lxts_enc_2
 	pxor	%xmm7,%xmm15
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm2
 	movdqa	%xmm6,48(%rsp)
@@ -1723,7 +1724,7 @@ bsaes_xts_encrypt:
 	cmpq	$48,%r14
 	je	.Lxts_enc_3
 	pxor	%xmm8,%xmm0
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm3
 	movdqa	%xmm6,64(%rsp)
@@ -1735,7 +1736,7 @@ bsaes_xts_encrypt:
 	cmpq	$64,%r14
 	je	.Lxts_enc_4
 	pxor	%xmm9,%xmm1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm4
 	movdqa	%xmm6,80(%rsp)
@@ -1747,7 +1748,7 @@ bsaes_xts_encrypt:
 	cmpq	$80,%r14
 	je	.Lxts_enc_5
 	pxor	%xmm10,%xmm2
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm5
 	movdqa	%xmm6,96(%rsp)
@@ -2012,20 +2013,20 @@ bsaes_xts_decrypt:
 	shlq	$4,%rax
 	subq	%rax,%r14
 
-	subq	$128,%rsp
+	subq	$0x80,%rsp
 	movdqa	32(%rbp),%xmm6
 
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
 
-	subq	$128,%r14
+	subq	$0x80,%r14
 	jc	.Lxts_dec_short
 	jmp	.Lxts_dec_loop
 
 .align	16
 .Lxts_dec_loop:
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm15
 	movdqa	%xmm6,0(%rsp)
@@ -2033,7 +2034,7 @@ bsaes_xts_decrypt:
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm0
 	movdqa	%xmm6,16(%rsp)
@@ -2042,7 +2043,7 @@ bsaes_xts_decrypt:
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
 	movdqu	0(%r12),%xmm7
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm1
 	movdqa	%xmm6,32(%rsp)
@@ -2052,7 +2053,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	16(%r12),%xmm8
 	pxor	%xmm7,%xmm15
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm2
 	movdqa	%xmm6,48(%rsp)
@@ -2062,7 +2063,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	32(%r12),%xmm9
 	pxor	%xmm8,%xmm0
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm3
 	movdqa	%xmm6,64(%rsp)
@@ -2072,7 +2073,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	48(%r12),%xmm10
 	pxor	%xmm9,%xmm1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm4
 	movdqa	%xmm6,80(%rsp)
@@ -2082,7 +2083,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	64(%r12),%xmm11
 	pxor	%xmm10,%xmm2
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm5
 	movdqa	%xmm6,96(%rsp)
@@ -2126,20 +2127,20 @@ bsaes_xts_decrypt:
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	paddq	%xmm6,%xmm6
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
 
-	subq	$128,%r14
+	subq	$0x80,%r14
 	jnc	.Lxts_dec_loop
 
 .Lxts_dec_short:
-	addq	$128,%r14
+	addq	$0x80,%r14
 	jz	.Lxts_dec_done
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm15
 	movdqa	%xmm6,0(%rsp)
@@ -2147,7 +2148,7 @@ bsaes_xts_decrypt:
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm0
 	movdqa	%xmm6,16(%rsp)
@@ -2158,7 +2159,7 @@ bsaes_xts_decrypt:
 	movdqu	0(%r12),%xmm7
 	cmpq	$16,%r14
 	je	.Lxts_dec_1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm1
 	movdqa	%xmm6,32(%rsp)
@@ -2170,7 +2171,7 @@ bsaes_xts_decrypt:
 	cmpq	$32,%r14
 	je	.Lxts_dec_2
 	pxor	%xmm7,%xmm15
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm2
 	movdqa	%xmm6,48(%rsp)
@@ -2182,7 +2183,7 @@ bsaes_xts_decrypt:
 	cmpq	$48,%r14
 	je	.Lxts_dec_3
 	pxor	%xmm8,%xmm0
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm3
 	movdqa	%xmm6,64(%rsp)
@@ -2194,7 +2195,7 @@ bsaes_xts_decrypt:
 	cmpq	$64,%r14
 	je	.Lxts_dec_4
 	pxor	%xmm9,%xmm1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm4
 	movdqa	%xmm6,80(%rsp)
@@ -2206,7 +2207,7 @@ bsaes_xts_decrypt:
 	cmpq	$80,%r14
 	je	.Lxts_dec_5
 	pxor	%xmm10,%xmm2
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm5
 	movdqa	%xmm6,96(%rsp)
@@ -2383,7 +2384,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	movdqa	%xmm6,%xmm5
 	paddq	%xmm6,%xmm6
 	pand	%xmm12,%xmm13

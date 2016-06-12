@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="mountd"
+desc="Service remote NFS mount requests"
 rcvar="mountd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"

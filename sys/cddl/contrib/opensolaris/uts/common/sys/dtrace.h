@@ -87,7 +87,7 @@ typedef int model_t;
 
 #define	DTRACE_PROVNAMELEN	64
 #define	DTRACE_MODNAMELEN	64
-#define	DTRACE_FUNCNAMELEN	128
+#define	DTRACE_FUNCNAMELEN	192
 #define	DTRACE_NAMELEN		64
 #define	DTRACE_FULLNAMELEN	(DTRACE_PROVNAMELEN + DTRACE_MODNAMELEN + \
 				DTRACE_FUNCNAMELEN + DTRACE_NAMELEN + 4)
@@ -2398,8 +2398,9 @@ extern int dtrace_instr_size(uchar_t *instr);
 extern int dtrace_instr_size_isa(uchar_t *, model_t, int *);
 extern void dtrace_invop_callsite(void);
 #endif
-extern void dtrace_invop_add(int (*)(uintptr_t, uintptr_t *, uintptr_t));
-extern void dtrace_invop_remove(int (*)(uintptr_t, uintptr_t *, uintptr_t));
+extern void dtrace_invop_add(int (*)(uintptr_t, struct trapframe *, uintptr_t));
+extern void dtrace_invop_remove(int (*)(uintptr_t, struct trapframe *,
+    uintptr_t));
 
 #ifdef __sparc
 extern int dtrace_blksuword32(uintptr_t, uint32_t *, int);
@@ -2427,7 +2428,9 @@ extern void dtrace_helpers_destroy(proc_t *);
 #if defined(__i386) || defined(__amd64)
 
 #define	DTRACE_INVOP_PUSHL_EBP		1
+#define	DTRACE_INVOP_PUSHQ_RBP		DTRACE_INVOP_PUSHL_EBP
 #define	DTRACE_INVOP_POPL_EBP		2
+#define	DTRACE_INVOP_POPQ_RBP		DTRACE_INVOP_POPL_EBP
 #define	DTRACE_INVOP_LEAVE		3
 #define	DTRACE_INVOP_NOP		4
 #define	DTRACE_INVOP_RET		5
@@ -2479,6 +2482,28 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	DTRACE_INVOP_PUSHM	1
 #define	DTRACE_INVOP_RET	2
 #define	DTRACE_INVOP_B		3
+
+#elif defined(__mips__)
+
+#define	INSN_SIZE		4
+
+/* Load/Store double RA to/from SP */
+#define	LDSD_RA_SP_MASK		0xffff0000
+#define	LDSD_DATA_MASK		0x0000ffff
+#define	SD_RA_SP		0xffbf0000
+#define	LD_RA_SP		0xdfbf0000
+
+#define	DTRACE_INVOP_SD		1
+#define	DTRACE_INVOP_LD		2
+
+#elif defined(__riscv__)
+
+#define	SD_RA_SP_MASK		0x1fff07f
+#define	SD_RA_SP		0x0113023
+
+#define	DTRACE_INVOP_SD		1
+#define	DTRACE_INVOP_RET	2
+#define	DTRACE_INVOP_NOP	3
 
 #endif
 

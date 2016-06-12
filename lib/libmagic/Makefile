@@ -1,6 +1,7 @@
 # $FreeBSD$
 # Copyright (c) David E. O'Brien, 2000-2004, 2006, 2009
 
+PACKAGE=lib${LIB}
 CONTRDIR=	${.CURDIR}/../../contrib/file
 .PATH: ${CONTRDIR}/src
 .PATH: ${CONTRDIR}/doc
@@ -11,7 +12,7 @@ LIBADD=	z
 MAN=	libmagic.3 magic.5
 
 SRCS=	apprentice.c apptype.c ascmagic.c cdf.c cdf_time.c compress.c \
-	encoding.c fsmagic.c funcs.c \
+	der.c encoding.c fsmagic.c funcs.c \
 	is_tar.c magic.c print.c readcdf.c readelf.c softmagic.c
 INCS=	magic.h
 
@@ -35,11 +36,11 @@ magic: ${MAGFILES}
 	cat ${.ALLSRC:O} > ${.TARGET}
 
 magic.mgc: mkmagic magic
-	./mkmagic magic
+	${BTOOLSPATH:U.}/mkmagic magic
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
-mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c
+mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c ${BUILD_TOOLS_META}
 	${CC} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} \
 	    ${LDADD}
 

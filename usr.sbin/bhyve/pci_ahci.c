@@ -427,7 +427,6 @@ ahci_port_stop(struct ahci_port *p)
 	struct ahci_ioreq *aior;
 	uint8_t *cfis;
 	int slot;
-	int ncq;
 	int error;
 
 	assert(pthread_mutex_isowned_np(&p->pr_sc->mtx));
@@ -445,10 +444,7 @@ ahci_port_stop(struct ahci_port *p)
 		if (cfis[2] == ATA_WRITE_FPDMA_QUEUED ||
 		    cfis[2] == ATA_READ_FPDMA_QUEUED ||
 		    cfis[2] == ATA_SEND_FPDMA_QUEUED)
-			ncq = 1;
-
-		if (ncq)
-			p->sact &= ~(1 << slot);
+			p->sact &= ~(1 << slot);	/* NCQ */
 		else
 			p->ci &= ~(1 << slot);
 
@@ -745,7 +741,7 @@ read_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 
 		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
-		sublen = len < dbcsz ? len : dbcsz;
+		sublen = MIN(len, dbcsz);
 		memcpy(to, ptr, sublen);
 		len -= sublen;
 		to += sublen;
@@ -851,7 +847,7 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 
 		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
-		sublen = len < dbcsz ? len : dbcsz;
+		sublen = MIN(len, dbcsz);
 		memcpy(ptr, from, sublen);
 		len -= sublen;
 		from += sublen;

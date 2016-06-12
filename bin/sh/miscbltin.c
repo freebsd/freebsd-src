@@ -341,7 +341,7 @@ umaskcmd(int argc __unused, char **argv __unused)
 		} else {
 			void *set;
 			INTOFF;
-			if ((set = setmode (ap)) == 0)
+			if ((set = setmode (ap)) == NULL)
 				error("Illegal number: %s", ap);
 
 			mask = getmode (set, ~mask & 0777);
@@ -406,13 +406,16 @@ static const struct limits limits[] = {
 	{ "swap limit",		"kbytes",	RLIMIT_SWAP,	1024, 'w' },
 #endif
 #ifdef RLIMIT_SBSIZE
-	{ "sbsize",		"bytes",	RLIMIT_SBSIZE,	   1, 'b' },
+	{ "socket buffer size",	"bytes",	RLIMIT_SBSIZE,	   1, 'b' },
 #endif
 #ifdef RLIMIT_NPTS
 	{ "pseudo-terminals",	(char *)0,	RLIMIT_NPTS,	   1, 'p' },
 #endif
 #ifdef RLIMIT_KQUEUES
 	{ "kqueues",		(char *)0,	RLIMIT_KQUEUES,	   1, 'k' },
+#endif
+#ifdef RLIMIT_UMTXP
+	{ "umtx shared locks",	(char *)0,	RLIMIT_UMTXP,	   1, 'o' },
 #endif
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
@@ -449,7 +452,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSatfdsmcnuvlbpwk")) != '\0')
+	while ((optc = nextopt("HSatfdsmcnuvlbpwko")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;

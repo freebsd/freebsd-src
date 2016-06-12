@@ -412,6 +412,7 @@ onsig(int signo)
 void
 dotrap(void)
 {
+	struct stackmark smark;
 	int i;
 	int savestatus, prev_evalskip, prev_skipcount;
 
@@ -445,7 +446,9 @@ dotrap(void)
 
 					last_trapsig = i;
 					savestatus = exitstatus;
-					evalstring(trap[i], 0);
+					setstackmark(&smark);
+					evalstring(stsavestr(trap[i]), 0);
+					popstackmark(&smark);
 
 					/*
 					 * If such a command was not

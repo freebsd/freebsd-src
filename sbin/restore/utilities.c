@@ -62,7 +62,7 @@ pathcheck(char *name)
 	char *start;
 
 	start = strchr(name, '/');
-	if (start == 0)
+	if (start == NULL)
 		return;
 	for (cp = start; *cp != '\0'; cp++) {
 		if (*cp != '/')

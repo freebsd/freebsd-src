@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -67,6 +68,8 @@ static void _db_show_sta(const struct ieee80211_node *);
 static void _db_show_vap(const struct ieee80211vap *, int, int);
 static void _db_show_com(const struct ieee80211com *,
 	int showvaps, int showsta, int showmesh, int showprocs);
+
+static void _db_show_all_vaps(void *, struct ieee80211com *);
 
 static void _db_show_node_table(const char *tag,
 	const struct ieee80211_node_table *);
@@ -160,8 +163,6 @@ DB_SHOW_COMMAND(com, db_show_com)
 
 DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
-	const struct ifnet *ifp;
 	int i, showall = 0;
 
 	for (i = 0; modif[i] != '\0'; i++)
@@ -171,24 +172,7 @@ DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 			break;
 		}
 
-	VNET_FOREACH(vnet_iter) {
-		TAILQ_FOREACH(ifp, &V_ifnet, if_list)
-			if (ifp->if_type == IFT_IEEE80211) {
-				const struct ieee80211com *ic = ifp->if_l2com;
-
-				if (!showall) {
-					const struct ieee80211vap *vap;
-					db_printf("%s: com %p vaps:",
-					    ifp->if_xname, ic);
-					TAILQ_FOREACH(vap, &ic->ic_vaps,
-					    iv_next)
-						db_printf(" %s(%p)",
-						    vap->iv_ifp->if_xname, vap);
-					db_printf("\n");
-				} else
-					_db_show_com(ic, 1, 1, 1, 1);
-			}
-	}
+	ieee80211_iterate_coms(_db_show_all_vaps, &showall);
 }
 
 #ifdef IEEE80211_SUPPORT_MESH
@@ -679,6 +663,21 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 			_db_show_sta(ni);
 		}
 	}
+}
+
+static void
+_db_show_all_vaps(void *arg, struct ieee80211com *ic)
+{
+	int showall = *(int *)arg;
+
+	if (!showall) {
+		const struct ieee80211vap *vap;
+		db_printf("%s: com %p vaps:", ic->ic_name, ic);
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+			db_printf(" %s(%p)", vap->iv_ifp->if_xname, vap);
+		db_printf("\n");
+	} else
+		_db_show_com(ic, 1, 1, 1, 1);
 }
 
 static void

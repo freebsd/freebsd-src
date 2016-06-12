@@ -102,20 +102,23 @@ typedef struct tcpsinfo {
 	string tcps_raddr;		/* remote address, as a string */
 	int32_t tcps_state;		/* TCP state */
 	uint32_t tcps_iss;		/* Initial sequence # sent */
+	uint32_t tcps_irs;		/* Initial sequence # received */
 	uint32_t tcps_suna;		/* sequence # sent but unacked */
 	uint32_t tcps_smax;		/* highest sequence number sent */
 	uint32_t tcps_snxt;		/* next sequence # to send */
 	uint32_t tcps_rack;		/* sequence # we have acked */
 	uint32_t tcps_rnxt;		/* next sequence # expected */
-	uint32_t tcps_swnd;		/* send window size */
+	u_long tcps_swnd;		/* send window size */
 	int32_t tcps_snd_ws;		/* send window scaling */
 	uint32_t tcps_swl1;		/* window update seg seq number */
 	uint32_t tcps_swl2;		/* window update seg ack number */
 	uint32_t tcps_rup;		/* receive urgent pointer */
-	uint32_t tcps_rwnd;		/* receive window size */
+	uint32_t tcps_radv;		/* advertised window */
+	u_long tcps_rwnd;		/* receive window size */
 	int32_t tcps_rcv_ws;		/* receive window scaling */
-	uint32_t tcps_cwnd;		/* congestion window */
-	uint32_t tcps_cwnd_ssthresh;	/* threshold for congestion avoidance */
+	u_long tcps_cwnd;		/* congestion window */
+	u_long tcps_cwnd_ssthresh;	/* threshold for congestion avoidance */
+	uint32_t tcps_srecover;	/* for use in NewReno Fast Recovery */
 	uint32_t tcps_sack_fack;	/* SACK sequence # we have acked */
 	uint32_t tcps_sack_snxt;	/* next SACK seq # for retransmission */
 	uint32_t tcps_rto;		/* round-trip timeout, msec */
@@ -123,6 +126,10 @@ typedef struct tcpsinfo {
 	int tcps_retransmit;		/* retransmit send event, boolean */
 	int tcps_srtt;			/* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
 	int tcps_debug;		/* socket has SO_DEBUG set */
+	int32_t tcps_dupacks;	/* consecutive dup acks received */
+	uint32_t tcps_rtttime;	/* RTT measurement start time */
+	uint32_t tcps_rtseq;	/* sequence # being timed */
+	uint32_t tcps_ts_recent;	/* timestamp echo data */
 } tcpsinfo_t;
 
 /*
@@ -192,6 +199,7 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	    inet_ntoa6(&p->t_inpcb->inp_inc.inc_ie.ie_dependfaddr.ie6_foreign);
 	tcps_state =		p == NULL ? -1 : p->t_state;
 	tcps_iss =		p == NULL ? 0  : p->iss;
+	tcps_irs =		p == NULL ? 0  : p->irs;
 	tcps_suna =		p == NULL ? 0  : p->snd_una;
 	tcps_smax =		p == NULL ? 0  : p->snd_max;
 	tcps_snxt =		p == NULL ? 0  : p->snd_nxt;
@@ -201,11 +209,13 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_snd_ws =		p == NULL ? -1  : p->snd_scale;
 	tcps_swl1 =		p == NULL ? -1  : p->snd_wl1;
 	tcps_swl2 = 		p == NULL ? -1  : p->snd_wl2;
+	tcps_radv =		p == NULL ? -1  : p->rcv_adv;
 	tcps_rwnd =		p == NULL ? -1  : p->rcv_wnd;
 	tcps_rup =		p == NULL ? -1  : p->rcv_up;
 	tcps_rcv_ws =		p == NULL ? -1  : p->rcv_scale;
 	tcps_cwnd =		p == NULL ? -1  : p->snd_cwnd;
 	tcps_cwnd_ssthresh =	p == NULL ? -1  : p->snd_ssthresh;
+	tcps_srecover =		p == NULL ? -1  : p->snd_recover;
 	tcps_sack_fack =	p == NULL ? 0  : p->snd_fack;
 	tcps_sack_snxt =	p == NULL ? 0  : p->sack_newdata;
 	tcps_rto =		p == NULL ? -1 : (p->t_rxtcur * 1000) / `hz;
@@ -214,6 +224,10 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_srtt =             p == NULL ? -1  : p->t_srtt;   /* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
 	tcps_debug =		p == NULL ? 0 :
 	    p->t_inpcb->inp_socket->so_options & 1;
+	tcps_dupacks =		p == NULL ? -1  : p->t_dupacks;
+	tcps_rtttime =		p == NULL ? -1  : p->t_rtttime;
+	tcps_rtseq =		p == NULL ? -1  : p->t_rtseq;
+	tcps_ts_recent =	p == NULL ? -1  : p->ts_recent;
 };
 
 #pragma D binding "1.6.3" translator

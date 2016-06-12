@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/domain.h>
 #include <sys/proc.h>
@@ -118,9 +119,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_IP,
 	.pr_init =		ip_init,
-#ifdef VIMAGE
-	.pr_destroy =		ip_destroy,
-#endif
 	.pr_slowtimo =		ip_slowtimo,
 	.pr_drain =		ip_drain,
 	.pr_usrreqs =		&nousrreqs
@@ -134,9 +132,6 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		udp_ctlinput,
 	.pr_ctloutput =		udp_ctloutput,
 	.pr_init =		udp_init,
-#ifdef VIMAGE
-	.pr_destroy =		udp_destroy,
-#endif
 	.pr_usrreqs =		&udp_usrreqs
 },
 {
@@ -148,9 +143,6 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		tcp_ctlinput,
 	.pr_ctloutput =		tcp_ctloutput,
 	.pr_init =		tcp_init,
-#ifdef VIMAGE
-	.pr_destroy =		tcp_destroy,
-#endif
 	.pr_slowtimo =		tcp_slowtimo,
 	.pr_drain =		tcp_drain,
 	.pr_usrreqs =		&tcp_usrreqs
@@ -165,9 +157,6 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_init =		sctp_init,
-#ifdef VIMAGE
-	.pr_destroy =		sctp_finish,
-#endif
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs
 },
@@ -175,7 +164,7 @@ struct protosw inetsw[] = {
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
 	.pr_input =		sctp_input,
 	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
@@ -192,9 +181,6 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		udplite_ctlinput,
 	.pr_ctloutput =		udp_ctloutput,
 	.pr_init =		udplite_init,
-#ifdef VIMAGE
-	.pr_destroy =		udplite_destroy,
-#endif
 	.pr_usrreqs =		&udp_usrreqs
 },
 {
@@ -342,9 +328,6 @@ IPPROTOSPACER,
 	.pr_input =		rip_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_init =		rip_init,
-#ifdef VIMAGE
-	.pr_destroy =		rip_destroy,
-#endif
 	.pr_usrreqs =		&rip_usrreqs
 },
 };
@@ -356,7 +339,7 @@ struct domain inetdomain = {
 	.dom_family =		AF_INET,
 	.dom_name =		"internet",
 	.dom_protosw =		inetsw,
-	.dom_protoswNPROTOSW =	&inetsw[sizeof(inetsw)/sizeof(inetsw[0])],
+	.dom_protoswNPROTOSW =	&inetsw[nitems(inetsw)],
 #ifdef RADIX_MPATH
 	.dom_rtattach =		rn4_mpath_inithead,
 #else

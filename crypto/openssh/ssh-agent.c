@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.204 2015/07/08 20:24:02 markus Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.212 2016/02/15 09:47:49 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -388,6 +388,18 @@ process_authentication_challenge1(SocketEntry *e)
 }
 #endif
 
+static char *
+agent_decode_alg(struct sshkey *key, u_int flags)
+{
+	if (key->type == KEY_RSA) {
+		if (flags & SSH_AGENT_RSA_SHA2_256)
+			return "rsa-sha2-256";
+		else if (flags & SSH_AGENT_RSA_SHA2_512)
+			return "rsa-sha2-512";
+	}
+	return NULL;
+}
+
 /* ssh2 only */
 static void
 process_sign_request2(SocketEntry *e)
@@ -409,7 +421,7 @@ process_sign_request2(SocketEntry *e)
 	if (flags & SSH_AGENT_OLD_SIGNATURE)
 		compat = SSH_BUG_SIGBLOB;
 	if ((r = sshkey_from_blob(blob, blen, &key)) != 0) {
-		error("%s: cannot parse key blob: %s", __func__, ssh_err(ok));
+		error("%s: cannot parse key blob: %s", __func__, ssh_err(r));
 		goto send;
 	}
 	if ((id = lookup_identity(key, 2)) == NULL) {
@@ -421,8 +433,8 @@ process_sign_request2(SocketEntry *e)
 		goto send;
 	}
 	if ((r = sshkey_sign(id->key, &signature, &slen,
-	    data, dlen, compat)) != 0) {
-		error("%s: sshkey_sign: %s", __func__, ssh_err(ok));
+	    data, dlen, agent_decode_alg(key, flags), compat)) != 0) {
+		error("%s: sshkey_sign: %s", __func__, ssh_err(r));
 		goto send;
 	}
 	/* Success */
@@ -1213,6 +1225,7 @@ main(int ac, char **av)
 	size_t len;
 	mode_t prev_mask;
 
+	ssh_malloc_init();	/* must be called before any mallocs */
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
@@ -1359,6 +1372,7 @@ main(int ac, char **av)
 		printf(format, SSH_AUTHSOCKET_ENV_NAME, socket_name,
 		    SSH_AUTHSOCKET_ENV_NAME);
 		printf("echo Agent pid %ld;\n", (long)parent_pid);
+		fflush(stdout);
 		goto skip;
 	}
 	pid = fork();
@@ -1430,6 +1444,10 @@ skip:
 	signal(SIGHUP, cleanup_handler);
 	signal(SIGTERM, cleanup_handler);
 	nalloc = 0;
+
+	if (pledge("stdio cpath unix id proc exec", NULL) == -1)
+		fatal("%s: pledge: %s", __progname, strerror(errno));
+	platform_pledge_agent();
 
 	while (1) {
 		prepare_select(&readsetp, &writesetp, &max_fd, &nalloc, &tvp);

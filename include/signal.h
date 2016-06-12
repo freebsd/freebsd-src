@@ -36,6 +36,10 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 #include <sys/signal.h>
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#include <machine/ucontext.h>
+#include <sys/_ucontext.h>
+#endif
 
 #if __BSD_VISIBLE
 /*
@@ -109,12 +113,11 @@ int	siginterrupt(int, int);
 #endif
 
 #if __POSIX_VISIBLE >= 200809
-void	psignal(unsigned int, const char *);
+void	psignal(int, const char *);
 #endif
 
 #if __BSD_VISIBLE
 int	sigblock(int);
-struct __ucontext;		/* XXX spec requires a complete declaration. */
 int	sigreturn(const struct __ucontext *);
 int	sigsetmask(int);
 int	sigstack(const struct sigstack *, struct sigstack *);

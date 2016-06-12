@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2015
+.Dd Feb 4, 2016
 .Dt INET 4
 .Os
 .Sh NAME
@@ -134,7 +134,7 @@ The following
 .Xr ioctl 2
 commands are provided for a datagram socket in the Internet domain:
 .Pp
-.Bl -tag -width ".Dv SIOCGIFBRDADDR" -offset indent -compact   
+.Bl -tag -width ".Dv SIOCGIFBRDADDR" -offset indent -compact
 .It Dv SIOCAIFADDR
 Add address to an interface.
 The command requires
@@ -149,8 +149,8 @@ as argument.
 .It Dv SIOCGIFBRDADDR
 .It Dv SIOCGIFDSTADDR
 .It Dv SIOCGIFNETMASK
-Return address information from interface. The returned value
-is in
+Return address information from interface.
+The returned value is in
 .Ft struct ifreq .
 This way of address information retrieval is obsoleted, a
 preferred way is to use
@@ -164,33 +164,11 @@ MIB.
 In addition to the variables supported by the transport protocols
 (for which the respective manual pages may be consulted),
 the following general variables are defined:
-.Bl -tag -width IPCTL_FASTFORWARDING
+.Bl -tag -width IPCTL_ACCEPTSOURCEROUTE
 .It Dv IPCTL_FORWARDING
 .Pq ip.forwarding
 Boolean: enable/disable forwarding of IP packets.
 Defaults to off.
-.It Dv IPCTL_FASTFORWARDING
-.Pq ip.fastforwarding
-Boolean: enable/disable the use of
-.Tn fast IP forwarding
-code.
-Defaults to off.
-When
-.Tn fast IP forwarding
-is enabled, IP packets are forwarded directly to the appropriate network
-interface with direct processing to completion, which greatly improves
-the throughput.
-All packets for local IP addresses, non-unicast, or with IP options are
-handled by the normal IP input processing path.
-All features of the normal (slow) IP forwarding path are supported
-including firewall (through
-.Xr pfil 9
-hooks) checking, except
-.Xr ipsec 4
-tunnel brokering.
-The
-.Tn IP fastforwarding
-path does not generate ICMP redirect or source quench messages.
 .It Dv IPCTL_SENDREDIRECTS
 .Pq ip.redirect
 Boolean: enable/disable sending of ICMP redirects in response to

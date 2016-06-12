@@ -108,7 +108,7 @@ pass1bcheck(struct inodesc *idesc)
 			if (dlp == muldup)
 				break;
 		}
-		if (muldup == 0 || duphead == muldup->next) {
+		if (muldup == NULL || duphead == muldup->next) {
 			rerun = 1;
 			return (STOP);
 		}

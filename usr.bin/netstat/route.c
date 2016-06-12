@@ -417,6 +417,7 @@ p_sockaddr(const char *name, struct sockaddr *sa, struct sockaddr *mask,
 	if (width < 0) {
 		snprintf(buf, sizeof(buf), "{:%s/%%s} ", name);
 		xo_emit(buf, cp);
+		protrusion = 0;
 	} else {
 		if (Wflag != 0 || numeric_addr) {
 			snprintf(buf, sizeof(buf), "{[:%d}{:%s/%%s}{]:} ",

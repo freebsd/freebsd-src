@@ -156,6 +156,11 @@ svm_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val, bool *retu)
 		 * Ignore writes to the "Interrupt Pending Message" MSR.
 		 */
 		break;
+	case MSR_K8_UCODE_UPDATE:
+		/*
+		 * Ignore writes to microcode update register.
+		 */
+		break;
 	default:
 		error = EINVAL;
 		break;

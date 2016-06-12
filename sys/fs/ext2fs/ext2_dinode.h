@@ -131,6 +131,7 @@ struct ext2fs_dinode {
 	uint32_t	e2di_crtime;	/* 144: Creation (birth)time */
 	uint32_t	e2di_crtime_extra; /* 148: Extra creation (birth)time */
 	uint32_t	e2di_version_hi;  /* 152: High bits of inode version */
+	uint32_t	e2di_projid;	/* 156: Project ID */
 };
 
 #endif /* !_FS_EXT2FS_EXT2_DINODE_H_ */

@@ -70,6 +70,7 @@ bool ntb_link_is_up(struct ntb_softc *, enum ntb_speed *, enum ntb_width *);
 void ntb_link_event(struct ntb_softc *);
 int ntb_link_enable(struct ntb_softc *, enum ntb_speed, enum ntb_width);
 int ntb_link_disable(struct ntb_softc *);
+bool ntb_link_enabled(struct ntb_softc *);
 
 int ntb_set_ctx(struct ntb_softc *, void *, const struct ntb_ctx_ops *);
 void *ntb_get_ctx(struct ntb_softc *, const struct ntb_ctx_ops **);
@@ -86,6 +87,7 @@ int ntb_mw_get_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t *mode);
 int ntb_mw_set_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t mode);
 
 uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
+void ntb_spad_clear(struct ntb_softc *ntb);
 int ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
 int ntb_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);
 int ntb_peer_spad_write(struct ntb_softc *ntb, unsigned int idx,

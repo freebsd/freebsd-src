@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD: users/kaiwang27/elftc/libelftc.h 392 2009-05-31 19:17:46Z kaiwang27 $
- * $Id: libelftc.h 3174 2015-03-27 17:13:41Z emaste $
+ * $Id: libelftc.h 3418 2016-02-19 20:04:42Z emaste $
  */
 
 #ifndef	_LIBELFTC_H_
@@ -46,7 +46,9 @@ typedef enum {
 	ETF_ELF,
 	ETF_BINARY,
 	ETF_SREC,
-	ETF_IHEX
+	ETF_IHEX,
+	ETF_PE,
+	ETF_EFI,
 } Elftc_Bfd_Target_Flavor;
 
 /*
@@ -73,6 +75,7 @@ unsigned int	elftc_bfd_target_machine(Elftc_Bfd_Target *_tgt);
 int		elftc_copyfile(int _srcfd,  int _dstfd);
 int		elftc_demangle(const char *_mangledname, char *_buffer,
     size_t _bufsize, unsigned int _flags);
+const char	*elftc_reloc_type_str(unsigned int mach, unsigned int type);
 int		elftc_set_timestamps(const char *_filename, struct stat *_sb);
 Elftc_String_Table	*elftc_string_table_create(int _hint);
 void		elftc_string_table_destroy(Elftc_String_Table *_table);

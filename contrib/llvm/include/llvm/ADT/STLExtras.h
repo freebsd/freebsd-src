@@ -196,6 +196,41 @@ inline mapped_iterator<ItTy, FuncTy> map_iterator(const ItTy &I, FuncTy F) {
   return mapped_iterator<ItTy, FuncTy>(I, F);
 }
 
+/// \brief Metafunction to determine if type T has a member called rbegin().
+template <typename T> struct has_rbegin {
+  template <typename U> static char(&f(const U &, decltype(&U::rbegin)))[1];
+  static char(&f(...))[2];
+  const static bool value = sizeof(f(std::declval<T>(), nullptr)) == 1;
+};
+
+// Returns an iterator_range over the given container which iterates in reverse.
+// Note that the container must have rbegin()/rend() methods for this to work.
+template <typename ContainerTy>
+auto reverse(ContainerTy &&C,
+             typename std::enable_if<has_rbegin<ContainerTy>::value>::type * =
+                 nullptr) -> decltype(make_range(C.rbegin(), C.rend())) {
+  return make_range(C.rbegin(), C.rend());
+}
+
+// Returns a std::reverse_iterator wrapped around the given iterator.
+template <typename IteratorTy>
+std::reverse_iterator<IteratorTy> make_reverse_iterator(IteratorTy It) {
+  return std::reverse_iterator<IteratorTy>(It);
+}
+
+// Returns an iterator_range over the given container which iterates in reverse.
+// Note that the container must have begin()/end() methods which return
+// bidirectional iterators for this to work.
+template <typename ContainerTy>
+auto reverse(
+    ContainerTy &&C,
+    typename std::enable_if<!has_rbegin<ContainerTy>::value>::type * = nullptr)
+    -> decltype(make_range(llvm::make_reverse_iterator(std::end(C)),
+                           llvm::make_reverse_iterator(std::begin(C)))) {
+  return make_range(llvm::make_reverse_iterator(std::end(C)),
+                    llvm::make_reverse_iterator(std::begin(C)));
+}
+
 //===----------------------------------------------------------------------===//
 //     Extra additions to <utility>
 //===----------------------------------------------------------------------===//
@@ -329,11 +364,26 @@ void DeleteContainerSeconds(Container &C) {
 }
 
 /// Provide wrappers to std::all_of which take ranges instead of having to pass
-/// being/end explicitly.
+/// begin/end explicitly.
 template<typename R, class UnaryPredicate>
 bool all_of(R &&Range, UnaryPredicate &&P) {
   return std::all_of(Range.begin(), Range.end(),
                      std::forward<UnaryPredicate>(P));
+}
+
+/// Provide wrappers to std::any_of which take ranges instead of having to pass
+/// begin/end explicitly.
+template <typename R, class UnaryPredicate>
+bool any_of(R &&Range, UnaryPredicate &&P) {
+  return std::any_of(Range.begin(), Range.end(),
+                     std::forward<UnaryPredicate>(P));
+}
+
+/// Provide wrappers to std::find which take ranges instead of having to pass
+/// begin/end explicitly.
+template<typename R, class T>
+auto find(R &&Range, const T &val) -> decltype(Range.begin()) {
+  return std::find(Range.begin(), Range.end(), val);
 }
 
 //===----------------------------------------------------------------------===//

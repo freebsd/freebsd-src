@@ -76,11 +76,15 @@ extern void _key_freesp(struct secpolicy **, const char*, int);
 
 extern struct secasvar *key_allocsa(union sockaddr_union *, u_int, u_int32_t,
 	const char*, int);
+extern struct secasvar *key_allocsa_tunnel(union sockaddr_union *,
+    union sockaddr_union *, u_int, const char*, int);
 extern void key_addrefsa(struct secasvar *, const char*, int);
 extern void key_freesav(struct secasvar **, const char*, int);
 
 #define	KEY_ALLOCSA(dst, proto, spi)				\
 	key_allocsa(dst, proto, spi, __FILE__, __LINE__)
+#define	KEY_ALLOCSA_TUNNEL(src, dst, proto)				\
+	key_allocsa_tunnel(src, dst, proto, __FILE__, __LINE__)
 #define	KEY_ADDREFSA(sav)					\
 	key_addrefsa(sav, __FILE__, __LINE__)
 #define	KEY_FREESAV(psav)					\

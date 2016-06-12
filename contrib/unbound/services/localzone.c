@@ -51,6 +51,7 @@
 #include "util/netevent.h"
 #include "util/data/msgreply.h"
 #include "util/data/msgparse.h"
+#include "util/as112.h"
 
 struct local_zones* 
 local_zones_create(void)
@@ -592,10 +593,11 @@ static int
 lz_enter_defaults(struct local_zones* zones, struct config_file* cfg)
 {
 	struct local_zone* z;
+	const char** zstr;
 
-	/* this list of zones is from RFC 6303 */
+	/* this list of zones is from RFC 6303 and RFC 7686 */
 
-	/* block localhost level zones, first, later the LAN zones */
+	/* block localhost level zones first, then onion and later the LAN zones */
 
 	/* localhost. zone */
 	if(!lz_exists(zones, "localhost.") &&
@@ -653,111 +655,31 @@ lz_enter_defaults(struct local_zones* zones, struct config_file* cfg)
 		}
 		lock_rw_unlock(&z->lock);
 	}
+	/* onion. zone (RFC 7686) */
+	if(!lz_exists(zones, "onion.") &&
+		!lz_nodefault(cfg, "onion.")) {
+		if(!(z=lz_enter_zone(zones, "onion.", "static", 
+			LDNS_RR_CLASS_IN)) ||
+		   !lz_enter_rr_into_zone(z,
+			"onion. 10800 IN NS localhost.") ||
+		   !lz_enter_rr_into_zone(z,
+			"onion. 10800 IN SOA localhost. nobody.invalid. "
+			"1 3600 1200 604800 10800")) {
+			log_err("out of memory adding default zone");
+			if(z) { lock_rw_unlock(&z->lock); }
+			return 0;
+		}
+		lock_rw_unlock(&z->lock);
+	}
 
-	/* if unblock lan-zones, then do not add the zones below.
-	 * we do add the zones above, about 127.0.0.1, because localhost is
-	 * not on the lan. */
-	if(cfg->unblock_lan_zones)
-		return 1;
-
-	/* block LAN level zones */
-	if (	!add_as112_default(zones, cfg, "10.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "16.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "17.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "18.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "19.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "20.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "21.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "22.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "23.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "24.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "25.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "26.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "27.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "28.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "29.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "30.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "31.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "168.192.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "0.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "64.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "65.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "66.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "67.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "68.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "69.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "70.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "71.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "72.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "73.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "74.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "75.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "76.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "77.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "78.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "79.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "80.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "81.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "82.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "83.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "84.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "85.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "86.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "87.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "88.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "89.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "90.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "91.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "92.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "93.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "94.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "95.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "96.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "97.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "98.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "99.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "100.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "101.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "102.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "103.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "104.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "105.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "106.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "107.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "108.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "109.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "110.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "111.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "112.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "113.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "114.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "115.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "116.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "117.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "118.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "119.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "120.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "121.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "122.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "123.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "124.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "125.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "126.100.in-addr.arpa.") ||
-      		!add_as112_default(zones, cfg, "127.100.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "254.169.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "2.0.192.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "100.51.198.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "113.0.203.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "255.255.255.255.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, "d.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, "8.e.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, "9.e.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, "a.e.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, "b.e.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, "8.b.d.0.1.0.0.2.ip6.arpa.")) {
-		log_err("out of memory adding default zone");
-		return 0;
+	/* block AS112 zones, unless asked not to */
+	if(!cfg->unblock_lan_zones) {
+		for(zstr = as112_zones; *zstr; zstr++) {
+			if(!add_as112_default(zones, cfg, *zstr)) {
+				log_err("out of memory adding default zone");
+				return 0;
+			}
+		}
 	}
 	return 1;
 }

@@ -779,7 +779,7 @@ hdaa_sense_init(struct hdaa_devinfo *devinfo)
 					    (w->unsol < 0) ? "polling" :
 					    "unsolicited responses");
 				);
-			};
+			}
 		}
 		hdaa_presence_handler(w);
 		if (!HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) &&
@@ -847,7 +847,7 @@ hdaa_widget_pin_patch(uint32_t config, const char *str)
 			if (bad[0] == 0) {
 				config |= ((ival << HDA_CONFIG_DEFAULTCONF_COLOR_SHIFT) &
 				    HDA_CONFIG_DEFAULTCONF_COLOR_MASK);
-			};
+			}
 			for (i = 0; i < 16; i++) {
 				if (strcasecmp(HDA_COLORS[i], value) == 0) {
 					config |= (i << HDA_CONFIG_DEFAULTCONF_COLOR_SHIFT);
@@ -872,7 +872,7 @@ hdaa_widget_pin_patch(uint32_t config, const char *str)
 				config |= ((ival << HDA_CONFIG_DEFAULTCONF_DEVICE_SHIFT) &
 				    HDA_CONFIG_DEFAULTCONF_DEVICE_MASK);
 				continue;
-			};
+			}
 			for (i = 0; i < 16; i++) {
 				if (strcasecmp(HDA_DEVS[i], value) == 0) {
 					config |= (i << HDA_CONFIG_DEFAULTCONF_DEVICE_SHIFT);
@@ -898,7 +898,7 @@ hdaa_widget_pin_patch(uint32_t config, const char *str)
 				config |= ((ival << HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_SHIFT) &
 				    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
 				continue;
-			};
+			}
 			for (i = 0; i < 4; i++) {
 				if (strcasecmp(HDA_CONNS[i], value) == 0) {
 					config |= (i << HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_SHIFT);
@@ -1553,20 +1553,20 @@ hdaa_widget_parse(struct hdaa_widget *w)
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    buf, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    w, sizeof(w), hdaa_sysctl_caps, "A", "Node capabilities");
+	    w, 0, hdaa_sysctl_caps, "A", "Node capabilities");
 	if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
 		snprintf(buf, sizeof(buf), "nid%d_config", w->nid);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		    buf, CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-		    &w->wclass.pin.newconf, sizeof(&w->wclass.pin.newconf),
-		    hdaa_sysctl_config, "A", "Current pin configuration");
+		    &w->wclass.pin.newconf, 0, hdaa_sysctl_config, "A",
+		    "Current pin configuration");
 		snprintf(buf, sizeof(buf), "nid%d_original", w->nid);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		    buf, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-		    &w->wclass.pin.original, sizeof(&w->wclass.pin.original),
-		    hdaa_sysctl_config, "A", "Original pin configuration");
+		    &w->wclass.pin.original, 0, hdaa_sysctl_config, "A",
+		    "Original pin configuration");
 	}
 	hdaa_lock(w->devinfo);
 }
@@ -6641,38 +6641,32 @@ hdaa_attach(device_t dev)
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "config", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    &devinfo->newquirks, sizeof(&devinfo->newquirks),
-	    hdaa_sysctl_quirks, "A", "Configuration options");
+	    &devinfo->newquirks, 0, hdaa_sysctl_quirks, "A",
+	    "Configuration options");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpi_state", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpi_state, "A", "GPI state");
+	    devinfo, 0, hdaa_sysctl_gpi_state, "A", "GPI state");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpio_state", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpio_state, "A", "GPIO state");
+	    devinfo, 0, hdaa_sysctl_gpio_state, "A", "GPIO state");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpio_config", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpio_config, "A", "GPIO configuration");
+	    devinfo, 0, hdaa_sysctl_gpio_config, "A", "GPIO configuration");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpo_state", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpo_state, "A", "GPO state");
+	    devinfo, 0, hdaa_sysctl_gpo_state, "A", "GPO state");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpo_config", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpo_config, "A", "GPO configuration");
+	    devinfo, 0, hdaa_sysctl_gpo_config, "A", "GPO configuration");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "reconfig", CTLTYPE_INT | CTLFLAG_RW,
-	    dev, sizeof(dev),
-	    hdaa_sysctl_reconfig, "I", "Reprocess configuration");
+	    dev, 0, hdaa_sysctl_reconfig, "I", "Reprocess configuration");
 	bus_generic_attach(dev);
 	return (0);
 }

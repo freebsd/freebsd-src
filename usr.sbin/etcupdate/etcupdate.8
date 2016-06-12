@@ -757,7 +757,7 @@ has been removed from the
 tree,
 but it has been locally modified.
 The modified version of the file remains in the destination directory.
-.It "Needs update: /etc/localtime (required manual update via tzsetup(1))"
+.It "Needs update: /etc/localtime (required manual update via tzsetup(8))"
 The
 .Fa /var/db/zoneinfo
 file does not exist,
@@ -768,7 +768,7 @@ was not able to refresh
 from its source file in
 .Fa /usr/share/zoneinfo .
 Running
-.Xr tzsetup 1
+.Xr tzsetup 8
 will both refresh
 .Fa /etc/localtime
 and generate
@@ -870,7 +870,7 @@ utility was written by
 Rerunning a merge does not automatically delete conflicts left over from a
 previous merge.
 Any conflicts must be resolved before the merge can be rerun.
-It it is not clear if this is a feature or a bug.
+It is not clear if this is a feature or a bug.
 .Pp
 There is no way to easily automate conflict resolution for specific files.
 For example, one can imagine a syntax along the lines of

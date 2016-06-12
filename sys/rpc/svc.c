@@ -440,7 +440,7 @@ xprt_inactive(SVCXPRT *xprt)
 
 /*
  * Variant of xprt_inactive() for use only when sure that port is
- * assigned to thread. For example, withing receive handlers.
+ * assigned to thread. For example, within receive handlers.
  */
 void
 xprt_inactive_self(SVCXPRT *xprt)
@@ -560,7 +560,7 @@ svc_loss_reg(SVCXPRT *xprt, void (*dispatch)(SVCXPRT *))
 		mtx_unlock(&pool->sp_lock);
 		return (TRUE);
 	}
-	s = malloc(sizeof (struct svc_callout), M_RPC, M_NOWAIT);
+	s = malloc(sizeof(struct svc_loss_callout), M_RPC, M_NOWAIT);
 	if (s == NULL) {
 		mtx_unlock(&pool->sp_lock);
 		return (FALSE);
@@ -847,9 +847,7 @@ svc_xprt_alloc()
 	SVCXPRT_EXT *ext;
 
 	xprt = mem_alloc(sizeof(SVCXPRT));
-	memset(xprt, 0, sizeof(SVCXPRT));
 	ext = mem_alloc(sizeof(SVCXPRT_EXT));
-	memset(ext, 0, sizeof(SVCXPRT_EXT));
 	xprt->xp_p3 = ext;
 	refcount_init(&xprt->xp_refs, 1);
 

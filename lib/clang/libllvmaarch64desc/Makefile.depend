@@ -6,43 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AArch64AsmBackend.o: AArch64GenInstrInfo.inc.h
-AArch64AsmBackend.o: AArch64GenRegisterInfo.inc.h
-AArch64AsmBackend.o: AArch64GenSubtargetInfo.inc.h
-AArch64AsmBackend.po: AArch64GenInstrInfo.inc.h
-AArch64AsmBackend.po: AArch64GenRegisterInfo.inc.h
-AArch64AsmBackend.po: AArch64GenSubtargetInfo.inc.h
-AArch64ELFObjectWriter.o: AArch64GenInstrInfo.inc.h
-AArch64ELFObjectWriter.o: AArch64GenRegisterInfo.inc.h
-AArch64ELFObjectWriter.o: AArch64GenSubtargetInfo.inc.h
-AArch64ELFObjectWriter.po: AArch64GenInstrInfo.inc.h
-AArch64ELFObjectWriter.po: AArch64GenRegisterInfo.inc.h
-AArch64ELFObjectWriter.po: AArch64GenSubtargetInfo.inc.h
-AArch64MCCodeEmitter.o: AArch64GenInstrInfo.inc.h
-AArch64MCCodeEmitter.o: AArch64GenMCCodeEmitter.inc.h
-AArch64MCCodeEmitter.o: AArch64GenRegisterInfo.inc.h
-AArch64MCCodeEmitter.o: AArch64GenSubtargetInfo.inc.h
-AArch64MCCodeEmitter.po: AArch64GenInstrInfo.inc.h
-AArch64MCCodeEmitter.po: AArch64GenMCCodeEmitter.inc.h
-AArch64MCCodeEmitter.po: AArch64GenRegisterInfo.inc.h
-AArch64MCCodeEmitter.po: AArch64GenSubtargetInfo.inc.h
-AArch64MCTargetDesc.o: AArch64GenInstrInfo.inc.h
-AArch64MCTargetDesc.o: AArch64GenRegisterInfo.inc.h
-AArch64MCTargetDesc.o: AArch64GenSubtargetInfo.inc.h
-AArch64MCTargetDesc.po: AArch64GenInstrInfo.inc.h
-AArch64MCTargetDesc.po: AArch64GenRegisterInfo.inc.h
-AArch64MCTargetDesc.po: AArch64GenSubtargetInfo.inc.h
-AArch64MachObjectWriter.o: AArch64GenInstrInfo.inc.h
-AArch64MachObjectWriter.o: AArch64GenRegisterInfo.inc.h
-AArch64MachObjectWriter.o: AArch64GenSubtargetInfo.inc.h
-AArch64MachObjectWriter.po: AArch64GenInstrInfo.inc.h
-AArch64MachObjectWriter.po: AArch64GenRegisterInfo.inc.h
-AArch64MachObjectWriter.po: AArch64GenSubtargetInfo.inc.h
 .endif

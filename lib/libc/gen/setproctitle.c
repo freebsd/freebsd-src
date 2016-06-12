@@ -19,7 +19,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/sysctl.h>
@@ -134,7 +133,7 @@ setproctitle(const char *fmt, ...)
 		len = sizeof(ul_ps_strings);
 		if (sysctlbyname("kern.ps_strings", &ul_ps_strings, &len, NULL,
 		    0) == -1)
-			ul_ps_strings = PS_STRINGS;
+			return;
 		ps_strings = (struct ps_strings *)ul_ps_strings;
 	}
 

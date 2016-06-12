@@ -16,6 +16,7 @@ SUBDIR=	alias \
 	banner \
 	basename \
 	brandelf \
+	bsdcat \
 	bsdiff \
 	bzip2 \
 	bzip2recover \
@@ -99,7 +100,6 @@ SUBDIR=	alias \
 	mkimg \
 	mklocale \
 	mktemp \
-	mkulzma \
 	mkuzip \
 	mt \
 	ncal \
@@ -126,6 +126,7 @@ SUBDIR=	alias \
 	protect \
 	rctl \
 	renice \
+	resizewin \
 	rev \
 	revoke \
 	rpcinfo \
@@ -134,6 +135,7 @@ SUBDIR=	alias \
 	rusers \
 	rwall \
 	script \
+	sdiff \
 	sed \
 	send-pr \
 	seq \

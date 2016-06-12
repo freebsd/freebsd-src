@@ -1,3 +1,85 @@
+2016-03-24  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* reader.c: unused variable
+
+	* package/pkgsrc/Makefile, package/debian/copyright: bump
+
+2016-03-24  Jung-uk.Kim
+
+	* main.c:
+	correct logic for finding output suffix in the "-o" option, which matched
+	the first occurrence of ".c" in the name in 2005-08-13 changes rather than
+	at the end of the filename (patch by Jung-uk Kim)
+
+2016-03-24  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* aclocal.m4:
+	update CF_WITH_MAN2HTML to use configured shell rather than /bin/sh
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2016-01-25  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.guess, config.sub: 2016-01-01
+
+2015-07-10  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* lr0.c: fix a duplicate-free in the leak-checking
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+	* reader.c:
+	make cache-size clearer (prompted by discussion with Pedro Giffuni,
+	Oliver Pinter)
+
+	* main.c:
+	make relationship with format/size clearer (prompted by discussion
+	with Pedro Giffuni, Oliver Pinter)
+
+2015-07-05  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* configure: regen
+
+	* package/pkgsrc/Makefile, package/mingw-byacc.spec, package/debian/copyright, package/debian/changelog, package/byacc.spec, VERSION:
+	bump
+
+	* aclocal.m4: resync with my-autoconf
+	add configure option --with-man2html
+
+	* makefile.in: add configure options --with-man2html
+
+	* configure.in: add configure option --with-man2html
+
+2015-05-02  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.guess: 2015-03-04
+
+	* config.sub: 2015-03-08
+
+2014-11-28  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* lr0.c: coverity #39181: memory leak
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2014-11-13  Jouk.Jansen
+
+	* descrip.mms:
+	I sucessfully compiled byacc on my OpenVMS systems. However, I had to update
+	the descrip.mms to include some extra c-source files and some dependenxcies
+	so that it also works when the distribution is located on an ODS5 disk.
+
+	The patched descrip.mms file can be found at:
+	  http://nchrem.tnw.tudelft.nl/openvms/software2.html#BYACC
+
+	Please feel free to insert the file in your distribution.
+
+	             Regards
+	                 Jouk.
+
 2014-10-06  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* package/debian/source/format:
@@ -2218,7 +2300,7 @@
 
 	* vmsbuild.com: original version
 
-2000-02-23  Thomas E. Dickey  <dickey@invisible-island.net>
+2000-02-23  dickey
 
 	* test/RCS, RCS: PERMIT FILE
 

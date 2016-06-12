@@ -11,12 +11,14 @@
 #define liblldb_ProcessGDBRemote_h_
 
 // C Includes
-
 // C++ Includes
-#include <list>
+#include <atomic>
+#include <map>
+#include <string>
 #include <vector>
 
 // Other libraries and framework includes
+// Project includes
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Broadcaster.h"
 #include "lldb/Core/ConstString.h"
@@ -25,6 +27,7 @@
 #include "lldb/Core/StringList.h"
 #include "lldb/Core/StructuredData.h"
 #include "lldb/Core/ThreadSafeValue.h"
+#include "lldb/Core/LoadedModuleInfoList.h"
 #include "lldb/Host/HostThread.h"
 #include "lldb/lldb-private-forward.h"
 #include "lldb/Utility/StringExtractor.h"
@@ -42,11 +45,12 @@ class ThreadGDBRemote;
 class ProcessGDBRemote : public Process
 {
 public:
-    //------------------------------------------------------------------
-    // Constructors and Destructors
-    //------------------------------------------------------------------
+    ProcessGDBRemote(lldb::TargetSP target_sp, Listener &listener);
+
+    ~ProcessGDBRemote() override;
+
     static lldb::ProcessSP
-    CreateInstance (Target& target, 
+    CreateInstance (lldb::TargetSP target_sp,
                     Listener &listener,
                     const FileSpec *crash_file_path);
 
@@ -66,18 +70,10 @@ public:
     GetPluginDescriptionStatic();
 
     //------------------------------------------------------------------
-    // Constructors and Destructors
-    //------------------------------------------------------------------
-    ProcessGDBRemote(Target& target, Listener &listener);
-
-    virtual
-    ~ProcessGDBRemote();
-
-    //------------------------------------------------------------------
     // Check if a given Process
     //------------------------------------------------------------------
     bool
-    CanDebug (Target &target, bool plugin_specified_by_name) override;
+    CanDebug (lldb::TargetSP target_sp, bool plugin_specified_by_name) override;
 
     CommandObject *
     GetPluginCommandObject() override;
@@ -152,6 +148,9 @@ public:
     void
     RefreshStateAfterStop() override;
 
+    void
+    SetUnixSignals(const lldb::UnixSignalsSP &signals_sp);
+
     //------------------------------------------------------------------
     // Process Queries
     //------------------------------------------------------------------
@@ -160,6 +159,9 @@ public:
 
     lldb::addr_t
     GetImageInfoAddress() override;
+
+    void
+    WillPublicStop () override;
 
     //------------------------------------------------------------------
     // Process Memory
@@ -238,6 +240,14 @@ public:
                   const ArchSpec& arch,
                   ModuleSpec &module_spec) override;
 
+    bool
+    GetHostOSVersion(uint32_t &major,
+                     uint32_t &minor,
+                     uint32_t &update) override;
+
+    size_t
+    LoadModules(LoadedModuleInfoList &module_list) override;
+
     size_t
     LoadModules() override;
 
@@ -255,7 +265,47 @@ protected:
     friend class GDBRemoteCommunicationClient;
     friend class GDBRemoteRegisterContext;
 
-    class GDBLoadedModuleInfoList;
+    //------------------------------------------------------------------
+    /// Broadcaster event bits definitions.
+    //------------------------------------------------------------------
+    enum
+    {
+        eBroadcastBitAsyncContinue                  = (1 << 0),
+        eBroadcastBitAsyncThreadShouldExit          = (1 << 1),
+        eBroadcastBitAsyncThreadDidExit             = (1 << 2)
+    };
+    
+    Flags m_flags;            // Process specific flags (see eFlags enums)
+    GDBRemoteCommunicationClient m_gdb_comm;
+    std::atomic<lldb::pid_t> m_debugserver_pid;
+    std::vector<StringExtractorGDBRemote> m_stop_packet_stack;  // The stop packet stack replaces the last stop packet variable
+    Mutex m_last_stop_packet_mutex;
+    GDBRemoteDynamicRegisterInfo m_register_info;
+    Broadcaster m_async_broadcaster;
+    Listener m_async_listener;
+    HostThread m_async_thread;
+    Mutex m_async_thread_state_mutex;
+    typedef std::vector<lldb::tid_t> tid_collection;
+    typedef std::vector< std::pair<lldb::tid_t,int> > tid_sig_collection;
+    typedef std::map<lldb::addr_t, lldb::addr_t> MMapMap;
+    typedef std::map<uint32_t, std::string> ExpeditedRegisterMap;
+    tid_collection m_thread_ids; // Thread IDs for all threads. This list gets updated after stopping
+    std::vector<lldb::addr_t> m_thread_pcs; // PC values for all the threads.
+    StructuredData::ObjectSP m_jstopinfo_sp; // Stop info only for any threads that have valid stop infos
+    StructuredData::ObjectSP m_jthreadsinfo_sp; // Full stop info, expedited registers and memory for all threads if "jThreadsInfo" packet is supported
+    tid_collection m_continue_c_tids;                  // 'c' for continue
+    tid_sig_collection m_continue_C_tids; // 'C' for continue with signal
+    tid_collection m_continue_s_tids;                  // 's' for step
+    tid_sig_collection m_continue_S_tids; // 'S' for step with signal
+    uint64_t m_max_memory_size;       // The maximum number of bytes to read/write when reading and writing memory
+    uint64_t m_remote_stub_max_memory_size;    // The maximum memory size the remote gdb stub can handle
+    MMapMap m_addr_to_mmap_size;
+    lldb::BreakpointSP m_thread_create_bp_sp;
+    bool m_waiting_for_attach;
+    bool m_destroy_tried_resuming;
+    lldb::CommandObjectSP m_command_sp;
+    int64_t m_breakpoint_pc_offset;
+    lldb::tid_t m_initial_tid; // The initial thread ID, given by stub on attach
 
     //----------------------------------------------------------------------
     // Accessors
@@ -263,14 +313,15 @@ protected:
     bool
     IsRunning ( lldb::StateType state )
     {
-        return    state == lldb::eStateRunning || IsStepping(state);
+        return state == lldb::eStateRunning || IsStepping(state);
     }
 
     bool
     IsStepping ( lldb::StateType state)
     {
-        return    state == lldb::eStateStepping;
+        return state == lldb::eStateStepping;
     }
+
     bool
     CanResume ( lldb::StateType state)
     {
@@ -306,6 +357,9 @@ protected:
                       ThreadList &new_thread_list) override;
 
     Error
+    EstablishConnectionIfNeeded (const ProcessInfo &process_info);
+
+    Error
     LaunchAndConnectToDebugserver (const ProcessInfo &process_info);
 
     void
@@ -333,46 +387,10 @@ protected:
     CalculateThreadStopInfo (ThreadGDBRemote *thread);
 
     size_t
-    UpdateThreadIDsFromStopReplyThreadsValue (std::string &value);
+    UpdateThreadPCsFromStopReplyThreadsValue (std::string &value);
 
-    //------------------------------------------------------------------
-    /// Broadcaster event bits definitions.
-    //------------------------------------------------------------------
-    enum
-    {
-        eBroadcastBitAsyncContinue                  = (1 << 0),
-        eBroadcastBitAsyncThreadShouldExit          = (1 << 1),
-        eBroadcastBitAsyncThreadDidExit             = (1 << 2)
-    };
-    
-    Flags m_flags;            // Process specific flags (see eFlags enums)
-    GDBRemoteCommunicationClient m_gdb_comm;
-    std::atomic<lldb::pid_t> m_debugserver_pid;
-    std::vector<StringExtractorGDBRemote> m_stop_packet_stack;  // The stop packet stack replaces the last stop packet variable
-    Mutex m_last_stop_packet_mutex;
-    GDBRemoteDynamicRegisterInfo m_register_info;
-    Broadcaster m_async_broadcaster;
-    HostThread m_async_thread;
-    Mutex m_async_thread_state_mutex;
-    typedef std::vector<lldb::tid_t> tid_collection;
-    typedef std::vector< std::pair<lldb::tid_t,int> > tid_sig_collection;
-    typedef std::map<lldb::addr_t, lldb::addr_t> MMapMap;
-    typedef std::map<uint32_t, std::string> ExpeditedRegisterMap;
-    tid_collection m_thread_ids; // Thread IDs for all threads. This list gets updated after stopping
-    StructuredData::ObjectSP m_threads_info_sp; // Stop info for all threads if "jThreadsInfo" packet is supported
-    tid_collection m_continue_c_tids;                  // 'c' for continue
-    tid_sig_collection m_continue_C_tids; // 'C' for continue with signal
-    tid_collection m_continue_s_tids;                  // 's' for step
-    tid_sig_collection m_continue_S_tids; // 'S' for step with signal
-    uint64_t m_max_memory_size;       // The maximum number of bytes to read/write when reading and writing memory
-    uint64_t m_remote_stub_max_memory_size;    // The maximum memory size the remote gdb stub can handle
-    MMapMap m_addr_to_mmap_size;
-    lldb::BreakpointSP m_thread_create_bp_sp;
-    bool m_waiting_for_attach;
-    bool m_destroy_tried_resuming;
-    lldb::CommandObjectSP m_command_sp;
-    int64_t m_breakpoint_pc_offset;
-    lldb::tid_t m_initial_tid; // The inital thread ID, given by stub on attach
+    size_t
+    UpdateThreadIDsFromStopReplyThreadsValue (std::string &value);
 
     bool
     HandleNotifyPacket(StringExtractorGDBRemote &packet);
@@ -396,7 +414,10 @@ protected:
     lldb::StateType
     SetThreadStopInfo (StringExtractor& stop_packet);
 
-    lldb::StateType
+    bool
+    GetThreadStopInfoFromJSON (ThreadGDBRemote *thread, const StructuredData::ObjectSP &thread_infos_sp);
+
+    lldb::ThreadSP
     SetThreadStopInfo (StructuredData::Dictionary *thread_dict);
 
     lldb::ThreadSP
@@ -410,6 +431,8 @@ protected:
                        const std::vector<lldb::addr_t> &exc_data,
                        lldb::addr_t thread_dispatch_qaddr,
                        bool queue_vars_valid,
+                       lldb_private::LazyBool associated_with_libdispatch_queue,
+                       lldb::addr_t dispatch_queue_t,
                        std::string &queue_name,
                        lldb::QueueKind queue_kind,
                        uint64_t queue_serial);
@@ -442,10 +465,10 @@ protected:
 
     // Query remote GDBServer for a detailed loaded library list
     Error
-    GetLoadedModuleList (GDBLoadedModuleInfoList &);
+    GetLoadedModuleList (LoadedModuleInfoList &);
 
     lldb::ModuleSP
-    LoadModuleAtAddress (const FileSpec &file, lldb::addr_t base_addr);
+    LoadModuleAtAddress (const FileSpec &file, lldb::addr_t base_addr, bool value_is_offset);
 
 private:
     //------------------------------------------------------------------
@@ -458,10 +481,9 @@ private:
                          lldb::user_id_t break_loc_id);
 
     DISALLOW_COPY_AND_ASSIGN (ProcessGDBRemote);
-
 };
 
 } // namespace process_gdb_remote
 } // namespace lldb_private
 
-#endif  // liblldb_ProcessGDBRemote_h_
+#endif // liblldb_ProcessGDBRemote_h_

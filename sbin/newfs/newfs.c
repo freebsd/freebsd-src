@@ -306,7 +306,7 @@ main(int argc, char *argv[])
 	if (!special[0])
 		err(1, "empty file/special name");
 	cp = strrchr(special, '/');
-	if (cp == 0) {
+	if (cp == NULL) {
 		/*
 		 * No path prefix; try prefixing _PATH_DEV.
 		 */

@@ -85,7 +85,7 @@ getifaddrs(struct ifaddrs **pif)
 	size_t needed;
 	char *buf;
 	char *next;
-	struct ifaddrs *cif = 0;
+	struct ifaddrs *cif;
 	char *p, *p0;
 	struct rt_msghdr *rtm;
 	struct if_msghdrl *ifm;
@@ -214,6 +214,7 @@ getifaddrs(struct ifaddrs **pif)
 	ift = ifa;
 
 	idx = 0;
+	cif = NULL;
 	for (next = buf; next < buf + needed; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)(void *)next;
 		if (rtm->rtm_version != RTM_VERSION)

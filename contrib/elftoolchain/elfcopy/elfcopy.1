@@ -21,13 +21,14 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elfcopy.1 3266 2015-12-07 15:38:26Z emaste $
+.\" $Id: elfcopy.1 3426 2016-03-05 13:32:28Z emaste $
 .\"
-.Dd December 7, 2015
+.Dd March 5, 2016
 .Os
 .Dt ELFCOPY 1
 .Sh NAME
-.Nm elfcopy
+.Nm elfcopy ,
+.Nm objcopy
 .Nd copy and translate object files
 .Sh SYNOPSIS
 .Nm
@@ -66,7 +67,10 @@
 .Op Fl -change-section-vma Ar section Ns {+|-|=} Ns Ar val
 .Op Fl -extract-dwo
 .Op Fl -gap-fill Ns = Ns Ar val
+.Op Fl -globalize-symbol Ns = Ns ar symbolname
+.Op Fl -globalize-symbols Ns = Ns Ar filename
 .Op Fl -localize-hidden
+.Op Fl -localize-symbols Ns = Ns Ar filename
 .Op Fl -no-adjust-warnings | Fl -no-change-warnings
 .Op Fl -only-keep-debug
 .Op Fl -pad-to Ns = Ns Ar address
@@ -85,7 +89,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility copies the content of the ELF object named by argument
+utility copies the content of the binary object named by argument
 .Ar infile
 to that named by argument
 .Ar outfile ,
@@ -121,6 +125,10 @@ to the output.
 .It Fl O Ar objformat | Fl -output-target= Ns Ar objformat
 Write the output file using the object format specified in argument
 .Ar objformat .
+The argument
+.Ar objformat
+should be one of the target names recognized by
+.Xr elftc_bfd_find_target 3 .
 .It Fl R Ar sectionname | Fl -remove-section= Ns Ar sectionname
 Remove any section with name
 .Ar sectionname
@@ -234,9 +242,21 @@ Copy only .dwo debug sections to the output file.
 Fill the gaps between sections with the byte value specified by
 the argument
 .Ar val .
+.It Fl -globalize-symbol Ns = Ns Ar symbolname
+Make the symbol named by argument
+.Ar symbolname
+global, so that it is visible outside of the file in which it is defined.
+.It Fl -globalize-symbols Ns = Ns Ar filename
+Make each symbol listed in the file specified by
+.Ar filename
+global.
 .It Fl -localize-hidden
 Make all hidden symbols local to the output file.
 This includes symbols with internal visiblity.
+.It Fl -localize-symbols Ns = Ns Ar filename
+Make each symbol listed in the file specified by
+.Ar filename
+local to the output file.
 .It Fl -no-adjust-warnings | Fl -no-change-warnings
 Do not issue a warning if the section specified by the options
 .Fl -change-section-address ,
@@ -330,8 +350,14 @@ Do not copy symbols that are not needed for relocation processing.
 .Xr mcs 1 ,
 .Xr strip 1 ,
 .Xr elf 3 ,
+.Xr elftc_bfd_find_target 3 ,
 .Xr ar 5 ,
 .Xr elf 5
+.Sh COMPATIBILITY
+The
+.Nm
+utility is expected to be option compatible with GNU
+.Nm objcopy .
 .Sh HISTORY
 .Nm
 has been implemented by

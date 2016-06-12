@@ -104,9 +104,10 @@ check_PROGRAMS = test-a_md5encrypt$(EXEEXT) test-atoint$(EXEEXT) \
 	test-sfptostr$(EXEEXT) test-socktoa$(EXEEXT) \
 	test-ssl_init$(EXEEXT) test-statestr$(EXEEXT) \
 	test-strtolfp$(EXEEXT) test-timespecops$(EXEEXT) \
-	test-timevalops$(EXEEXT) test-tstotv$(EXEEXT) \
-	test-tvtots$(EXEEXT) test-uglydate$(EXEEXT) \
-	test-vi64ops$(EXEEXT) test-ymd2yd$(EXEEXT) $(am__EXEEXT_1)
+	test-timevalops$(EXEEXT) test-tsafememcmp$(EXEEXT) \
+	test-tstotv$(EXEEXT) test-tvtots$(EXEEXT) \
+	test-uglydate$(EXEEXT) test-vi64ops$(EXEEXT) \
+	test-ymd2yd$(EXEEXT) $(am__EXEEXT_1)
 @NTP_CROSSCOMPILE_FALSE@am__append_1 = $(check_PROGRAMS)
 subdir = tests/libntp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -446,6 +447,14 @@ test_timevalops_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+am_test_tsafememcmp_OBJECTS = tsafememcmp.$(OBJEXT) \
+	run-tsafememcmp.$(OBJEXT) $(am__objects_1)
+test_tsafememcmp_OBJECTS = $(am_test_tsafememcmp_OBJECTS)
+test_tsafememcmp_LDADD = $(LDADD)
+test_tsafememcmp_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
 am_test_tstotv_OBJECTS = tstotv.$(OBJEXT) run-tstotv.$(OBJEXT) \
 	$(am__objects_1)
 test_tstotv_OBJECTS = $(am_test_tstotv_OBJECTS)
@@ -536,9 +545,10 @@ SOURCES = $(test_a_md5encrypt_SOURCES) $(test_atoint_SOURCES) \
 	$(test_sfptostr_SOURCES) $(test_socktoa_SOURCES) \
 	$(test_ssl_init_SOURCES) $(test_statestr_SOURCES) \
 	$(test_strtolfp_SOURCES) $(test_timespecops_SOURCES) \
-	$(test_timevalops_SOURCES) $(test_tstotv_SOURCES) \
-	$(test_tvtots_SOURCES) $(test_uglydate_SOURCES) \
-	$(test_vi64ops_SOURCES) $(test_ymd2yd_SOURCES)
+	$(test_timevalops_SOURCES) $(test_tsafememcmp_SOURCES) \
+	$(test_tstotv_SOURCES) $(test_tvtots_SOURCES) \
+	$(test_uglydate_SOURCES) $(test_vi64ops_SOURCES) \
+	$(test_ymd2yd_SOURCES)
 DIST_SOURCES = $(test_a_md5encrypt_SOURCES) $(test_atoint_SOURCES) \
 	$(test_atouint_SOURCES) $(test_authkeys_SOURCES) \
 	$(test_buftvtots_SOURCES) $(test_calendar_SOURCES) \
@@ -555,9 +565,10 @@ DIST_SOURCES = $(test_a_md5encrypt_SOURCES) $(test_atoint_SOURCES) \
 	$(test_sfptostr_SOURCES) $(test_socktoa_SOURCES) \
 	$(test_ssl_init_SOURCES) $(test_statestr_SOURCES) \
 	$(test_strtolfp_SOURCES) $(test_timespecops_SOURCES) \
-	$(test_timevalops_SOURCES) $(test_tstotv_SOURCES) \
-	$(test_tvtots_SOURCES) $(test_uglydate_SOURCES) \
-	$(test_vi64ops_SOURCES) $(test_ymd2yd_SOURCES)
+	$(test_timevalops_SOURCES) $(test_tsafememcmp_SOURCES) \
+	$(test_tstotv_SOURCES) $(test_tvtots_SOURCES) \
+	$(test_uglydate_SOURCES) $(test_vi64ops_SOURCES) \
+	$(test_ymd2yd_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -1077,10 +1088,11 @@ BUILT_SOURCES = $(srcdir)/run-a_md5encrypt.c $(srcdir)/run-atoint.c \
 	$(srcdir)/run-sfptostr.c $(srcdir)/run-socktoa.c \
 	$(srcdir)/run-ssl_init.c $(srcdir)/run-statestr.c \
 	$(srcdir)/run-strtolfp.c $(srcdir)/run-timevalops.c \
-	$(srcdir)/run-timespecops.c $(srcdir)/run-tstotv.c \
-	$(srcdir)/run-tvtots.c $(srcdir)/run-uglydate.c \
-	$(srcdir)/run-vi64ops.c $(srcdir)/run-ymd2yd.c $(NULL) \
-	check-libntp check-libunity .deps-ver
+	$(srcdir)/run-timespecops.c $(srcdir)/run-tsafememcmp.c \
+	$(srcdir)/run-tstotv.c $(srcdir)/run-tvtots.c \
+	$(srcdir)/run-uglydate.c $(srcdir)/run-vi64ops.c \
+	$(srcdir)/run-ymd2yd.c $(NULL) check-libntp check-libunity \
+	.deps-ver
 CLEANFILES = check-libntp check-libunity .deps-ver
 std_unity_list = \
 	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
@@ -1369,6 +1381,13 @@ test_timevalops_SOURCES = \
 
 
 ###
+test_tsafememcmp_SOURCES = \
+	tsafememcmp.c		\
+	run-tsafememcmp.c	\
+	$(NULL)
+
+
+###
 test_tstotv_SOURCES = \
 	tstotv.c		\
 	run-tstotv.c		\
@@ -1586,6 +1605,10 @@ test-timevalops$(EXEEXT): $(test_timevalops_OBJECTS) $(test_timevalops_DEPENDENC
 	@rm -f test-timevalops$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(test_timevalops_OBJECTS) $(test_timevalops_LDADD) $(LIBS)
 
+test-tsafememcmp$(EXEEXT): $(test_tsafememcmp_OBJECTS) $(test_tsafememcmp_DEPENDENCIES) $(EXTRA_test_tsafememcmp_DEPENDENCIES) 
+	@rm -f test-tsafememcmp$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_tsafememcmp_OBJECTS) $(test_tsafememcmp_LDADD) $(LIBS)
+
 test-tstotv$(EXEEXT): $(test_tstotv_OBJECTS) $(test_tstotv_DEPENDENCIES) $(EXTRA_test_tstotv_DEPENDENCIES) 
 	@rm -f test-tstotv$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(test_tstotv_OBJECTS) $(test_tstotv_LDADD) $(LIBS)
@@ -1665,6 +1688,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-statestr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-timespecops.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-timevalops.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-tsafememcmp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-tstotv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-tvtots.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-uglydate.Po@am__quote@
@@ -1689,6 +1713,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_strtolfp-strtolfp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timespecops.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timevalops.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsafememcmp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tstotv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tvtots.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uglydate.Po@am__quote@
@@ -2300,6 +2325,13 @@ test-timevalops.log: test-timevalops$(EXEEXT)
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-tsafememcmp.log: test-tsafememcmp$(EXEEXT)
+	@p='test-tsafememcmp$(EXEEXT)'; \
+	b='test-tsafememcmp'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 test-tstotv.log: test-tstotv$(EXEEXT)
 	@p='test-tstotv$(EXEEXT)'; \
 	b='test-tstotv'; \
@@ -2611,6 +2643,9 @@ $(srcdir)/run-timespecops.c: $(srcdir)/timespecops.c $(std_unity_list)
 
 $(srcdir)/run-timevalops.c: $(srcdir)/timevalops.c $(std_unity_list)
 	$(run_unity) timevalops.c run-timevalops.c
+
+$(srcdir)/run-tsafememcmp.c: $(srcdir)/tsafememcmp.c $(std_unity_list)
+	$(run_unity) tsafememcmp.c run-tsafememcmp.c
 
 $(srcdir)/run-tstotv.c: $(srcdir)/tstotv.c $(std_unity_list)
 	$(run_unity) tstotv.c run-tstotv.c

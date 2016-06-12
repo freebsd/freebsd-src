@@ -651,7 +651,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
   if ((shpid = fork()) == 0) {
     int i, fd;
 
-    if ((shell = getenv("SHELL")) == 0)
+    if ((shell = getenv("SHELL")) == NULL)
       shell = _PATH_BSHELL;
 
     timer_TermService();

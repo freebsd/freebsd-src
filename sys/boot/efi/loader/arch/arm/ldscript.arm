@@ -15,7 +15,7 @@ SECTIONS
   } =0
   _etext = .;
   PROVIDE (etext = .);
-  . = ALIGN(4096);
+  . = ALIGN(16);
   .data    :
   {
     *(.data *.data.*)
@@ -24,6 +24,7 @@ SECTIONS
     *(.rodata.*)
     CONSTRUCTORS
 
+    . = ALIGN(4);
     PROVIDE (__bss_start = .);
     *(.sbss)
     *(.scommon)
@@ -31,6 +32,7 @@ SECTIONS
     *(.dynbss)
     *(.bss)
     *(COMMON)
+    . = ALIGN(4);
     PROVIDE (__bss_end = .);
   }
   /* We want the small data sections together, so single-instruction offsets

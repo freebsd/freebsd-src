@@ -945,7 +945,7 @@ tmpfs_dir_attach_dup(struct tmpfs_node *dnode,
 		LIST_INSERT_BEFORE(de, nde, uh.td_dup.index_entries);
 		LIST_INSERT_HEAD(duphead, nde, uh.td_dup.entries);
 		return;
-	};
+	}
 }
 
 /*

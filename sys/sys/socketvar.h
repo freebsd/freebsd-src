@@ -64,7 +64,6 @@ struct socket;
  * (a) constant after allocation, no locking required.
  * (b) locked by SOCK_LOCK(so).
  * (c) locked by SOCKBUF_LOCK(&so->so_rcv).
- * (d) locked by SOCKBUF_LOCK(&so->so_snd).
  * (e) locked by ACCEPT_LOCK().
  * (f) not locked since integer reads/writes are atomic.
  * (g) used only as a sleep/wakeup address, no value.
@@ -95,16 +94,15 @@ struct socket {
 	TAILQ_HEAD(, socket) so_incomp;	/* (e) queue of partial unaccepted connections */
 	TAILQ_HEAD(, socket) so_comp;	/* (e) queue of complete unaccepted connections */
 	TAILQ_ENTRY(socket) so_list;	/* (e) list of unaccepted connections */
-	u_short	so_qlen;		/* (e) number of unaccepted connections */
-	u_short	so_incqlen;		/* (e) number of unaccepted incomplete
+	u_int	so_qlen;		/* (e) number of unaccepted connections */
+	u_int	so_incqlen;		/* (e) number of unaccepted incomplete
 					   connections */
-	u_short	so_qlimit;		/* (e) max number queued connections */
+	u_int	so_qlimit;		/* (e) max number queued connections */
 	short	so_timeo;		/* (g) connection timeout */
 	u_short	so_error;		/* (f) error affecting connection */
 	struct	sigio *so_sigio;	/* [sg] information for async I/O or
 					   out of band data (SIGURG) */
 	u_long	so_oobmark;		/* (c) chars to oob mark */
-	TAILQ_HEAD(, aiocblist) so_aiojobq; /* AIO ops waiting on socket */
 
 	struct sockbuf so_rcv, so_snd;
 
@@ -172,9 +170,9 @@ struct xsocket {
 	caddr_t	so_pcb;		/* another convenient handle */
 	int	xso_protocol;
 	int	xso_family;
-	u_short	so_qlen;
-	u_short	so_incqlen;
-	u_short	so_qlimit;
+	u_int	so_qlen;
+	u_int	so_incqlen;
+	u_int	so_qlimit;
 	short	so_timeo;
 	u_short	so_error;
 	pid_t	so_pgid;
@@ -337,12 +335,14 @@ struct uio;
 /*
  * From uipc_socket and friends
  */
-int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
 int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp, u_int *fflagp);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
+void	soaio_enqueue(struct task *task);
+void	soaio_rcv(void *context, int pending);
+void	soaio_snd(void *context, int pending);
 int	socheckuid(struct socket *so, uid_t uid);
 int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
 int	sobindat(int fd, struct socket *so, struct sockaddr *nam,
@@ -397,6 +397,7 @@ void	soupcall_clear(struct socket *so, int which);
 void	soupcall_set(struct socket *so, int which,
 	    int (*func)(struct socket *, void *, int), void *arg);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
+void	sowakeup_aio(struct socket *so, struct sockbuf *sb);
 int	selsocket(struct socket *so, int events, struct timeval *tv,
 	    struct thread *td);
 

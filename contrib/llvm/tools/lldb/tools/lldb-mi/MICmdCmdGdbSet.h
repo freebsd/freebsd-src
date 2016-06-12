@@ -37,29 +37,26 @@
 //          class instantiates a request info command for a matching request. The
 //          design/code of *this class then does not then become bloated. Use a
 //          lightweight version of the current MI command system.
-// Gotchas: None.
-// Authors: Illya Rudkin 03/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdGdbSet : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdGdbSet(void);
+    /* ctor */ CMICmdCmdGdbSet();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdGdbSet(void) override;
+    /* dtor */ ~CMICmdCmdGdbSet() override;
 
     // Typedefs:
   private:
@@ -79,7 +76,6 @@ class CMICmdCmdGdbSet : public CMICmdBase
   private:
     const static MapGdbOptionNameToFnGdbOptionPtr_t ms_mapGdbOptionNameToFnGdbOptionPtr;
     //
-    const CMIUtilString m_constStrArgNamedThreadGrp;
     const CMIUtilString m_constStrArgNamedGdbOption;
     bool m_bGdbOptionRecognised;   // True = This command has a function with a name that matches the Print argument, false = not found
     bool m_bGdbOptionFnSuccessful; // True = The print function completed its task ok, false = function failed for some reason

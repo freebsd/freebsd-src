@@ -50,8 +50,8 @@ In
 .Pp
 In DTS file:
 .Cd flash@74000000 {
-.Cd "	compatible =" Qo cfi-flash Qc ;
-.Cd "	reg = <0x74000000 0x4000000>;"
+.Cd "  compatible =" Qo cfi-flash Qc ;
+.Cd "  reg = <0x74000000 0x4000000>;"
 .Cd };
 .Sh DESCRIPTION
 The
@@ -72,7 +72,6 @@ Additional support for write-once bits to switch part of Intel StrataFlash
 devices to read-only can be enabled by the
 .Cd CFI_ARMEDANDDANGEROUS
 kernel option.
-.El
 .Sh SEE ALSO
 .Xr led 4
 .Sh HISTORY

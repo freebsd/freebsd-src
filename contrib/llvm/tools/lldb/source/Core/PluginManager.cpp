@@ -771,16 +771,18 @@ PluginManager::GetEmulateInstructionCreateCallbackForPluginName (const ConstStri
 
 struct OperatingSystemInstance
 {
-    OperatingSystemInstance() :
-        name(),
-        description(),
-        create_callback(NULL)
+    OperatingSystemInstance () :
+        name (),
+        description (),
+        create_callback (nullptr),
+        debugger_init_callback (nullptr)
     {
     }
     
     ConstString name;
     std::string description;
     OperatingSystemCreateInstance create_callback;
+    DebuggerInitializeCallback debugger_init_callback;
 };
 
 typedef std::vector<OperatingSystemInstance> OperatingSystemInstances;
@@ -800,9 +802,9 @@ GetOperatingSystemInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin (const ConstString &name,
-                               const char *description,
-                               OperatingSystemCreateInstance create_callback)
+PluginManager::RegisterPlugin(const ConstString &name, const char *description,
+                              OperatingSystemCreateInstance create_callback,
+                              DebuggerInitializeCallback debugger_init_callback)
 {
     if (create_callback)
     {
@@ -812,6 +814,7 @@ PluginManager::RegisterPlugin (const ConstString &name,
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
+        instance.debugger_init_callback = debugger_init_callback;
         Mutex::Locker locker (GetOperatingSystemMutex ());
         GetOperatingSystemInstances ().push_back (instance);
     }
@@ -858,6 +861,111 @@ PluginManager::GetOperatingSystemCreateCallbackForPluginName (const ConstString 
         OperatingSystemInstances &instances = GetOperatingSystemInstances ();
         
         OperatingSystemInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (name == pos->name)
+                return pos->create_callback;
+        }
+    }
+    return NULL;
+}
+
+
+#pragma mark Language
+
+
+struct LanguageInstance
+{
+    LanguageInstance() :
+        name(),
+        description(),
+        create_callback(NULL)
+    {
+    }
+    
+    ConstString name;
+    std::string description;
+    LanguageCreateInstance create_callback;
+};
+
+typedef std::vector<LanguageInstance> LanguageInstances;
+
+static Mutex &
+GetLanguageMutex ()
+{
+    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    return g_instances_mutex;
+}
+
+static LanguageInstances &
+GetLanguageInstances ()
+{
+    static LanguageInstances g_instances;
+    return g_instances;
+}
+
+bool
+PluginManager::RegisterPlugin
+(
+ const ConstString &name,
+ const char *description,
+ LanguageCreateInstance create_callback
+ )
+{
+    if (create_callback)
+    {
+        LanguageInstance instance;
+        assert ((bool)name);
+        instance.name = name;
+        if (description && description[0])
+            instance.description = description;
+        instance.create_callback = create_callback;
+        Mutex::Locker locker (GetLanguageMutex ());
+        GetLanguageInstances ().push_back (instance);
+    }
+    return false;
+}
+
+bool
+PluginManager::UnregisterPlugin (LanguageCreateInstance create_callback)
+{
+    if (create_callback)
+    {
+        Mutex::Locker locker (GetLanguageMutex ());
+        LanguageInstances &instances = GetLanguageInstances ();
+        
+        LanguageInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (pos->create_callback == create_callback)
+            {
+                instances.erase(pos);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+LanguageCreateInstance
+PluginManager::GetLanguageCreateCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetLanguageMutex ());
+    LanguageInstances &instances = GetLanguageInstances ();
+    if (idx < instances.size())
+        return instances[idx].create_callback;
+    return NULL;
+}
+
+LanguageCreateInstance
+PluginManager::GetLanguageCreateCallbackForPluginName (const ConstString &name)
+{
+    if (name)
+    {
+        Mutex::Locker locker (GetLanguageMutex ());
+        LanguageInstances &instances = GetLanguageInstances ();
+        
+        LanguageInstances::iterator pos, end = instances.end();
         for (pos = instances.begin(); pos != end; ++ pos)
         {
             if (name == pos->name)
@@ -1764,6 +1872,110 @@ PluginManager::GetProcessCreateCallbackForPluginName (const ConstString &name)
     return NULL;
 }
 
+#pragma mark ScriptInterpreter
+
+struct ScriptInterpreterInstance
+{
+    ScriptInterpreterInstance()
+        : name()
+        , language(lldb::eScriptLanguageNone)
+        , description()
+        , create_callback(NULL)
+    {
+    }
+
+    ConstString name;
+    lldb::ScriptLanguage language;
+    std::string description;
+    ScriptInterpreterCreateInstance create_callback;
+};
+
+typedef std::vector<ScriptInterpreterInstance> ScriptInterpreterInstances;
+
+static Mutex &
+GetScriptInterpreterMutex()
+{
+    static Mutex g_instances_mutex(Mutex::eMutexTypeRecursive);
+    return g_instances_mutex;
+}
+
+static ScriptInterpreterInstances &
+GetScriptInterpreterInstances()
+{
+    static ScriptInterpreterInstances g_instances;
+    return g_instances;
+}
+
+bool
+PluginManager::RegisterPlugin(const ConstString &name, const char *description, lldb::ScriptLanguage script_language,
+                              ScriptInterpreterCreateInstance create_callback)
+{
+    if (!create_callback)
+        return false;
+    ScriptInterpreterInstance instance;
+    assert((bool)name);
+    instance.name = name;
+    if (description && description[0])
+        instance.description = description;
+    instance.create_callback = create_callback;
+    instance.language = script_language;
+    Mutex::Locker locker(GetScriptInterpreterMutex());
+    GetScriptInterpreterInstances().push_back(instance);
+    return false;
+}
+
+bool
+PluginManager::UnregisterPlugin(ScriptInterpreterCreateInstance create_callback)
+{
+    if (!create_callback)
+        return false;
+    Mutex::Locker locker(GetScriptInterpreterMutex());
+    ScriptInterpreterInstances &instances = GetScriptInterpreterInstances();
+
+    ScriptInterpreterInstances::iterator pos, end = instances.end();
+    for (pos = instances.begin(); pos != end; ++pos)
+    {
+        if (pos->create_callback != create_callback)
+            continue;
+
+        instances.erase(pos);
+        return true;
+    }
+    return false;
+}
+
+ScriptInterpreterCreateInstance
+PluginManager::GetScriptInterpreterCreateCallbackAtIndex(uint32_t idx)
+{
+    Mutex::Locker locker(GetScriptInterpreterMutex());
+    ScriptInterpreterInstances &instances = GetScriptInterpreterInstances();
+    if (idx < instances.size())
+        return instances[idx].create_callback;
+    return nullptr;
+}
+
+lldb::ScriptInterpreterSP
+PluginManager::GetScriptInterpreterForLanguage(lldb::ScriptLanguage script_lang, CommandInterpreter &interpreter)
+{
+    Mutex::Locker locker(GetScriptInterpreterMutex());
+    ScriptInterpreterInstances &instances = GetScriptInterpreterInstances();
+
+    ScriptInterpreterInstances::iterator pos, end = instances.end();
+    ScriptInterpreterCreateInstance none_instance = nullptr;
+    for (pos = instances.begin(); pos != end; ++pos)
+    {
+        if (pos->language == lldb::eScriptLanguageNone)
+            none_instance = pos->create_callback;
+
+        if (script_lang == pos->language)
+            return pos->create_callback(interpreter);
+    }
+
+    // If we didn't find one, return the ScriptInterpreter for the null language.
+    assert(none_instance != nullptr);
+    return none_instance(interpreter);
+}
+
 #pragma mark SymbolFile
 
 struct SymbolFileInstance
@@ -1771,13 +1983,15 @@ struct SymbolFileInstance
     SymbolFileInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr),
+        debugger_init_callback(nullptr)
     {
     }
 
     ConstString name;
     std::string description;
     SymbolFileCreateInstance create_callback;
+    DebuggerInitializeCallback debugger_init_callback;
 };
 
 typedef std::vector<SymbolFileInstance> SymbolFileInstances;
@@ -1802,7 +2016,8 @@ PluginManager::RegisterPlugin
 (
     const ConstString &name,
     const char *description,
-    SymbolFileCreateInstance create_callback
+    SymbolFileCreateInstance create_callback,
+    DebuggerInitializeCallback debugger_init_callback
 )
 {
     if (create_callback)
@@ -1813,6 +2028,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
+        instance.debugger_init_callback = debugger_init_callback;
         Mutex::Locker locker (GetSymbolFileMutex ());
         GetSymbolFileInstances ().push_back (instance);
     }
@@ -2300,6 +2516,270 @@ PluginManager::GetInstrumentationRuntimeCreateCallbackForPluginName (const Const
     return NULL;
 }
 
+#pragma mark TypeSystem
+
+
+struct TypeSystemInstance
+{
+    TypeSystemInstance() :
+    name(),
+    description(),
+    create_callback(NULL)
+    {
+    }
+
+    ConstString name;
+    std::string description;
+    TypeSystemCreateInstance create_callback;
+    TypeSystemEnumerateSupportedLanguages enumerate_callback;
+};
+
+typedef std::vector<TypeSystemInstance> TypeSystemInstances;
+
+static Mutex &
+GetTypeSystemMutex ()
+{
+    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    return g_instances_mutex;
+}
+
+static TypeSystemInstances &
+GetTypeSystemInstances ()
+{
+    static TypeSystemInstances g_instances;
+    return g_instances;
+}
+
+bool
+PluginManager::RegisterPlugin (const ConstString &name,
+                               const char *description,
+                               TypeSystemCreateInstance create_callback,
+                               TypeSystemEnumerateSupportedLanguages enumerate_supported_languages_callback)
+{
+    if (create_callback)
+    {
+        TypeSystemInstance instance;
+        assert ((bool)name);
+        instance.name = name;
+        if (description && description[0])
+            instance.description = description;
+        instance.create_callback = create_callback;
+        instance.enumerate_callback = enumerate_supported_languages_callback;
+        Mutex::Locker locker (GetTypeSystemMutex ());
+        GetTypeSystemInstances ().push_back (instance);
+    }
+    return false;
+}
+
+bool
+PluginManager::UnregisterPlugin (TypeSystemCreateInstance create_callback)
+{
+    if (create_callback)
+    {
+        Mutex::Locker locker (GetTypeSystemMutex ());
+        TypeSystemInstances &instances = GetTypeSystemInstances ();
+
+        TypeSystemInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (pos->create_callback == create_callback)
+            {
+                instances.erase(pos);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+TypeSystemCreateInstance
+PluginManager::GetTypeSystemCreateCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetTypeSystemMutex ());
+    TypeSystemInstances &instances = GetTypeSystemInstances ();
+    if (idx < instances.size())
+        return instances[idx].create_callback;
+    return NULL;
+}
+
+TypeSystemCreateInstance
+PluginManager::GetTypeSystemCreateCallbackForPluginName (const ConstString &name)
+{
+    if (name)
+    {
+        Mutex::Locker locker (GetTypeSystemMutex ());
+        TypeSystemInstances &instances = GetTypeSystemInstances ();
+
+        TypeSystemInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (name == pos->name)
+                return pos->create_callback;
+        }
+    }
+    return NULL;
+}
+
+TypeSystemEnumerateSupportedLanguages
+PluginManager::GetTypeSystemEnumerateSupportedLanguagesCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetTypeSystemMutex ());
+    TypeSystemInstances &instances = GetTypeSystemInstances ();
+    if (idx < instances.size())
+        return instances[idx].enumerate_callback;
+    return NULL;
+}
+
+TypeSystemEnumerateSupportedLanguages
+PluginManager::GetTypeSystemEnumerateSupportedLanguagesCallbackForPluginName (const ConstString &name)
+{
+    if (name)
+    {
+        Mutex::Locker locker (GetTypeSystemMutex ());
+        TypeSystemInstances &instances = GetTypeSystemInstances ();
+        
+        TypeSystemInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (name == pos->name)
+                return pos->enumerate_callback;
+        }
+    }
+    return NULL;
+}
+
+#pragma mark REPL
+
+struct REPLInstance
+{
+    REPLInstance() :
+    name(),
+    description(),
+    create_callback(NULL)
+    {
+    }
+    
+    ConstString name;
+    std::string description;
+    REPLCreateInstance create_callback;
+    REPLEnumerateSupportedLanguages enumerate_languages_callback;
+};
+
+typedef std::vector<REPLInstance> REPLInstances;
+
+static Mutex &
+GetREPLMutex ()
+{
+    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    return g_instances_mutex;
+}
+
+static REPLInstances &
+GetREPLInstances ()
+{
+    static REPLInstances g_instances;
+    return g_instances;
+}
+
+bool
+PluginManager::RegisterPlugin (const ConstString &name,
+                               const char *description,
+                               REPLCreateInstance create_callback,
+                               REPLEnumerateSupportedLanguages enumerate_languages_callback)
+{
+    if (create_callback)
+    {
+        REPLInstance instance;
+        assert ((bool)name);
+        instance.name = name;
+        if (description && description[0])
+            instance.description = description;
+        instance.create_callback = create_callback;
+        instance.enumerate_languages_callback = enumerate_languages_callback;
+        Mutex::Locker locker (GetREPLMutex ());
+        GetREPLInstances ().push_back (instance);
+    }
+    return false;
+}
+
+bool
+PluginManager::UnregisterPlugin (REPLCreateInstance create_callback)
+{
+    if (create_callback)
+    {
+        Mutex::Locker locker (GetREPLMutex ());
+        REPLInstances &instances = GetREPLInstances ();
+        
+        REPLInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (pos->create_callback == create_callback)
+            {
+                instances.erase(pos);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+REPLCreateInstance
+PluginManager::GetREPLCreateCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetREPLMutex ());
+    REPLInstances &instances = GetREPLInstances ();
+    if (idx < instances.size())
+        return instances[idx].create_callback;
+    return NULL;
+}
+
+REPLCreateInstance
+PluginManager::GetREPLCreateCallbackForPluginName (const ConstString &name)
+{
+    if (name)
+    {
+        Mutex::Locker locker (GetREPLMutex ());
+        REPLInstances &instances = GetREPLInstances ();
+        
+        REPLInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (name == pos->name)
+                return pos->create_callback;
+        }
+    }
+    return NULL;
+}
+
+REPLEnumerateSupportedLanguages
+PluginManager::GetREPLEnumerateSupportedLanguagesCallbackAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetREPLMutex ());
+    REPLInstances &instances = GetREPLInstances ();
+    if (idx < instances.size())
+        return instances[idx].enumerate_languages_callback;
+    return NULL;
+}
+
+
+REPLEnumerateSupportedLanguages
+PluginManager::GetREPLSystemEnumerateSupportedLanguagesCallbackForPluginName (const ConstString &name)
+{
+    if (name)
+    {
+        Mutex::Locker locker (GetREPLMutex ());
+        REPLInstances &instances = GetREPLInstances ();
+        
+        REPLInstances::iterator pos, end = instances.end();
+        for (pos = instances.begin(); pos != end; ++ pos)
+        {
+            if (name == pos->name)
+                return pos->enumerate_languages_callback;
+        }
+    }
+    return NULL;
+}
+
 #pragma mark PluginManager
 
 void
@@ -2343,7 +2823,7 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
                 pos->debugger_init_callback (debugger);
         }
     }
-    
+
     // Initialize the Process plugins
     {
         Mutex::Locker locker (GetProcessMutex());
@@ -2357,6 +2837,25 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
         }
     }
 
+    // Initialize the SymbolFile plugins
+    {
+        Mutex::Locker locker (GetSymbolFileMutex());
+        for (auto& sym_file: GetSymbolFileInstances())
+        {
+            if (sym_file.debugger_init_callback)
+                sym_file.debugger_init_callback (debugger);
+        }
+    }
+
+    // Initialize the OperatingSystem plugins
+    {
+        Mutex::Locker locker(GetOperatingSystemMutex());
+        for (auto &os : GetOperatingSystemInstances())
+        {
+            if (os.debugger_init_callback)
+                os.debugger_init_callback(debugger);
+        }
+    }
 }
 
 // This is the preferred new way to register plugin specific settings.  e.g.
@@ -2439,18 +2938,65 @@ GetDebuggerPropertyForPluginsOldStyle (Debugger &debugger,
     return lldb::OptionValuePropertiesSP();
 }
 
+namespace {
+
+typedef lldb::OptionValuePropertiesSP
+GetDebuggerPropertyForPluginsPtr (Debugger&, const ConstString&, const ConstString&, bool can_create);
 
 lldb::OptionValuePropertiesSP
-PluginManager::GetSettingForDynamicLoaderPlugin (Debugger &debugger, const ConstString &setting_name)
+GetSettingForPlugin (Debugger &debugger,
+                     const ConstString &setting_name,
+                     const ConstString &plugin_type_name,
+                     GetDebuggerPropertyForPluginsPtr get_debugger_property= GetDebuggerPropertyForPlugins)
 {
     lldb::OptionValuePropertiesSP properties_sp;
-    lldb::OptionValuePropertiesSP plugin_type_properties_sp (GetDebuggerPropertyForPlugins (debugger,
-                                                                                            ConstString("dynamic-loader"),
-                                                                                            ConstString(), // not creating to so we don't need the description
-                                                                                            false));
+    lldb::OptionValuePropertiesSP plugin_type_properties_sp (get_debugger_property (debugger,
+                                                                                    plugin_type_name,
+                                                                                    ConstString(), // not creating to so we don't need the description
+                                                                                    false));
     if (plugin_type_properties_sp)
-        properties_sp = plugin_type_properties_sp->GetSubProperty (NULL, setting_name);
+        properties_sp = plugin_type_properties_sp->GetSubProperty (nullptr, setting_name);
     return properties_sp;
+}
+
+bool
+CreateSettingForPlugin (Debugger &debugger,
+                        const ConstString &plugin_type_name,
+                        const ConstString &plugin_type_desc,
+                        const lldb::OptionValuePropertiesSP &properties_sp,
+                        const ConstString &description,
+                        bool is_global_property,
+                        GetDebuggerPropertyForPluginsPtr get_debugger_property = GetDebuggerPropertyForPlugins)
+{
+    if (properties_sp)
+    {
+        lldb::OptionValuePropertiesSP plugin_type_properties_sp (get_debugger_property (
+            debugger, plugin_type_name, plugin_type_desc, true));
+        if (plugin_type_properties_sp)
+        {
+            plugin_type_properties_sp->AppendProperty (properties_sp->GetName(),
+                                                       description,
+                                                       is_global_property,
+                                                       properties_sp);
+            return true;
+        }
+    }
+    return false;
+}
+
+const char* kDynamicLoaderPluginName("dynamic-loader");
+const char* kPlatformPluginName("platform");
+const char* kProcessPluginName("process");
+const char* kSymbolFilePluginName("symbol-file");
+const char* kJITLoaderPluginName("jit-loader");
+
+}
+
+lldb::OptionValuePropertiesSP
+PluginManager::GetSettingForDynamicLoaderPlugin (Debugger &debugger,
+                                                 const ConstString &setting_name)
+{
+    return GetSettingForPlugin(debugger, setting_name, ConstString(kDynamicLoaderPluginName));
 }
 
 bool
@@ -2459,74 +3005,44 @@ PluginManager::CreateSettingForDynamicLoaderPlugin (Debugger &debugger,
                                                     const ConstString &description,
                                                     bool is_global_property)
 {
-    if (properties_sp)
-    {
-        lldb::OptionValuePropertiesSP plugin_type_properties_sp (GetDebuggerPropertyForPlugins (debugger,
-                                                                                                ConstString("dynamic-loader"),
-                                                                                                ConstString("Settings for dynamic loader plug-ins"),
-                                                                                                true));
-        if (plugin_type_properties_sp)
-        {
-            plugin_type_properties_sp->AppendProperty (properties_sp->GetName(),
-                                                       description,
-                                                       is_global_property,
-                                                       properties_sp);
-            return true;
-        }
-    }
-    return false;
+    return CreateSettingForPlugin(debugger,
+                                  ConstString(kDynamicLoaderPluginName),
+                                  ConstString("Settings for dynamic loader plug-ins"),
+                                  properties_sp,
+                                  description,
+                                  is_global_property);
 }
 
 
 lldb::OptionValuePropertiesSP
 PluginManager::GetSettingForPlatformPlugin (Debugger &debugger, const ConstString &setting_name)
 {
-    lldb::OptionValuePropertiesSP properties_sp;
-    lldb::OptionValuePropertiesSP plugin_type_properties_sp (GetDebuggerPropertyForPluginsOldStyle (debugger,
-                                                                                                    ConstString("platform"),
-                                                                                                    ConstString(), // not creating to so we don't need the description
-                                                                                                    false));
-    if (plugin_type_properties_sp)
-        properties_sp = plugin_type_properties_sp->GetSubProperty (NULL, setting_name);
-    return properties_sp;
+    return GetSettingForPlugin(debugger,
+                               setting_name,
+                               ConstString(kPlatformPluginName),
+                               GetDebuggerPropertyForPluginsOldStyle);
 }
 
 bool
 PluginManager::CreateSettingForPlatformPlugin (Debugger &debugger,
-                                                    const lldb::OptionValuePropertiesSP &properties_sp,
-                                                    const ConstString &description,
-                                                    bool is_global_property)
+                                               const lldb::OptionValuePropertiesSP &properties_sp,
+                                               const ConstString &description,
+                                               bool is_global_property)
 {
-    if (properties_sp)
-    {
-        lldb::OptionValuePropertiesSP plugin_type_properties_sp (GetDebuggerPropertyForPluginsOldStyle (debugger,
-                                                                                                        ConstString("platform"),
-                                                                                                        ConstString("Settings for platform plug-ins"),
-                                                                                                        true));
-        if (plugin_type_properties_sp)
-        {
-            plugin_type_properties_sp->AppendProperty (properties_sp->GetName(),
-                                                       description,
-                                                       is_global_property,
-                                                       properties_sp);
-            return true;
-        }
-    }
-    return false;
+    return CreateSettingForPlugin(debugger,
+                                  ConstString(kPlatformPluginName),
+                                  ConstString("Settings for platform plug-ins"),
+                                  properties_sp,
+                                  description,
+                                  is_global_property,
+                                  GetDebuggerPropertyForPluginsOldStyle);
 }
 
 
 lldb::OptionValuePropertiesSP
 PluginManager::GetSettingForProcessPlugin (Debugger &debugger, const ConstString &setting_name)
 {
-    lldb::OptionValuePropertiesSP properties_sp;
-    lldb::OptionValuePropertiesSP plugin_type_properties_sp (GetDebuggerPropertyForPlugins (debugger,
-                                                                                            ConstString("process"),
-                                                                                            ConstString(), // not creating to so we don't need the description
-                                                                                            false));
-    if (plugin_type_properties_sp)
-        properties_sp = plugin_type_properties_sp->GetSubProperty (NULL, setting_name);
-    return properties_sp;
+    return GetSettingForPlugin(debugger, setting_name, ConstString(kProcessPluginName));
 }
 
 bool
@@ -2535,21 +3051,87 @@ PluginManager::CreateSettingForProcessPlugin (Debugger &debugger,
                                               const ConstString &description,
                                               bool is_global_property)
 {
+    return CreateSettingForPlugin(debugger,
+                                  ConstString(kProcessPluginName),
+                                  ConstString("Settings for process plug-ins"),
+                                  properties_sp,
+                                  description,
+                                  is_global_property);
+}
+
+lldb::OptionValuePropertiesSP
+PluginManager::GetSettingForSymbolFilePlugin (Debugger &debugger,
+                                              const ConstString &setting_name)
+{
+    return GetSettingForPlugin(debugger, setting_name, ConstString(kSymbolFilePluginName));
+}
+
+bool
+PluginManager::CreateSettingForSymbolFilePlugin (Debugger &debugger,
+                                                 const lldb::OptionValuePropertiesSP &properties_sp,
+                                                 const ConstString &description,
+                                                 bool is_global_property)
+{
+    return CreateSettingForPlugin(debugger,
+                                  ConstString(kSymbolFilePluginName),
+                                  ConstString("Settings for symbol file plug-ins"),
+                                  properties_sp,
+                                  description,
+                                  is_global_property);
+}
+
+lldb::OptionValuePropertiesSP
+PluginManager::GetSettingForJITLoaderPlugin (Debugger &debugger,
+                                             const ConstString &setting_name)
+{
+    return GetSettingForPlugin(debugger, setting_name, ConstString(kJITLoaderPluginName));
+}
+
+bool
+PluginManager::CreateSettingForJITLoaderPlugin (Debugger &debugger,
+                                                const lldb::OptionValuePropertiesSP &properties_sp,
+                                                const ConstString &description,
+                                                bool is_global_property)
+{
+    return CreateSettingForPlugin(debugger,
+                                  ConstString(kJITLoaderPluginName),
+                                  ConstString("Settings for JIT loader plug-ins"),
+                                  properties_sp,
+                                  description,
+                                  is_global_property);
+}
+
+static const char *kOperatingSystemPluginName("os");
+
+lldb::OptionValuePropertiesSP
+PluginManager::GetSettingForOperatingSystemPlugin(Debugger &debugger, const ConstString &setting_name)
+{
+    lldb::OptionValuePropertiesSP properties_sp;
+    lldb::OptionValuePropertiesSP plugin_type_properties_sp(
+        GetDebuggerPropertyForPlugins(debugger, ConstString(kOperatingSystemPluginName),
+                                      ConstString(), // not creating to so we don't need the description
+                                      false));
+    if (plugin_type_properties_sp)
+        properties_sp = plugin_type_properties_sp->GetSubProperty(nullptr, setting_name);
+    return properties_sp;
+}
+
+bool
+PluginManager::CreateSettingForOperatingSystemPlugin(Debugger &debugger,
+                                                     const lldb::OptionValuePropertiesSP &properties_sp,
+                                                     const ConstString &description, bool is_global_property)
+{
     if (properties_sp)
     {
-        lldb::OptionValuePropertiesSP plugin_type_properties_sp (GetDebuggerPropertyForPlugins (debugger,
-                                                                                                ConstString("process"),
-                                                                                                ConstString("Settings for process plug-ins"),
-                                                                                                true));
+        lldb::OptionValuePropertiesSP plugin_type_properties_sp(
+            GetDebuggerPropertyForPlugins(debugger, ConstString(kOperatingSystemPluginName),
+                                          ConstString("Settings for operating system plug-ins"), true));
         if (plugin_type_properties_sp)
         {
-            plugin_type_properties_sp->AppendProperty (properties_sp->GetName(),
-                                                       description,
-                                                       is_global_property,
-                                                       properties_sp);
+            plugin_type_properties_sp->AppendProperty(properties_sp->GetName(), description, is_global_property,
+                                                      properties_sp);
             return true;
         }
     }
     return false;
 }
-

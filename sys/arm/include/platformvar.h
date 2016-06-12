@@ -53,6 +53,13 @@
 #include <sys/kobj.h>
 #include <sys/linker_set.h>
 
+struct platform_class {
+	KOBJ_CLASS_FIELDS;
+
+	/* How many times to loop to delay approximately 1us */
+	int delay_count;
+};
+
 struct platform_kobj {
 	/*
 	 * A platform instance is a kernel object
@@ -60,11 +67,15 @@ struct platform_kobj {
 	KOBJ_FIELDS;
 
 	/* Platform class, for access to class specific data */
-	struct kobj_class *cls;
+	struct platform_class *cls;
+};
+
+struct platform_data {
+	int delay_count;
 };
 
 typedef struct platform_kobj	*platform_t;
-typedef struct kobj_class	platform_def_t;
+typedef struct platform_class	platform_def_t;
 #define platform_method_t	kobj_method_t
 
 #define PLATFORMMETHOD		KOBJMETHOD
@@ -83,7 +94,20 @@ typedef struct fdt_platform_class fdt_platform_def_t;
 
 extern platform_method_t fdt_platform_methods[];
 
-#define FDT_PLATFORM_DEF2(NAME, VAR_NAME, NAME_STR, size, compatible)	\
+#ifdef MULTIDELAY
+#define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay > 0)
+#else
+#define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay == 0)
+#endif
+
+#define	PLATFORM_DATA(NAME, delay)					\
+static struct platform_data NAME ## _platc = {				\
+	.delay_count = delay;						\
+};
+
+#define FDT_PLATFORM_DEF2(NAME, VAR_NAME, NAME_STR, size, compatible,	\
+    delay)								\
+FDT_PLATFORM_CTASSERT(delay);						\
 static fdt_platform_def_t VAR_NAME ## _fdt_platform = {			\
 	.name = NAME_STR,						\
 	.methods = fdt_platform_methods,				\
@@ -96,12 +120,15 @@ static platform_def_t VAR_NAME ## _platform = {				\
 	NAME ## _methods,						\
 	size,								\
 	VAR_NAME ## _baseclasses,					\
+	delay,								\
 };									\
 DATA_SET(platform_set, VAR_NAME ## _platform)
 
-#define	FDT_PLATFORM_DEF(NAME, NAME_STR, size, compatible)		\
-    FDT_PLATFORM_DEF2(NAME, NAME, NAME_STR, size, compatible)
+#define	FDT_PLATFORM_DEF(NAME, NAME_STR, size, compatible, delay)	\
+    FDT_PLATFORM_DEF2(NAME, NAME, NAME_STR, size, compatible, delay)
 
 #endif
+
+bool arm_tmr_timed_wait(platform_t, int);
 
 #endif /* _MACHINE_PLATFORMVAR_H_ */

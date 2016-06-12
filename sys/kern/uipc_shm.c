@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/signal.h>
+#include <sys/jail.h>
 #include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -109,15 +110,10 @@ static dev_t shm_dev_ino;
 
 #define	SHM_HASH(fnv)	(&shm_dictionary[(fnv) & shm_hash])
 
-static int	shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags);
-static struct shmfd *shm_alloc(struct ucred *ucred, mode_t mode);
 static void	shm_init(void *arg);
-static void	shm_drop(struct shmfd *shmfd);
-static struct shmfd *shm_hold(struct shmfd *shmfd);
 static void	shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd);
 static struct shmfd *shm_lookup(char *path, Fnv32_t fnv);
 static int	shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
-static int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
@@ -131,7 +127,7 @@ static fo_fill_kinfo_t	shm_fill_kinfo;
 static fo_mmap_t	shm_mmap;
 
 /* File descriptor operations. */
-static struct fileops shm_ops = {
+struct fileops shm_ops = {
 	.fo_read = shm_read,
 	.fo_write = shm_write,
 	.fo_truncate = shm_truncate,
@@ -384,7 +380,7 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	bzero(sb, sizeof(*sb));
 	sb->st_blksize = PAGE_SIZE;
 	sb->st_size = shmfd->shm_size;
-	sb->st_blocks = (sb->st_size + sb->st_blksize - 1) / sb->st_blksize;
+	sb->st_blocks = howmany(sb->st_size, sb->st_blksize);
 	mtx_lock(&shm_timestamp_lock);
 	sb->st_atim = shmfd->shm_atime;
 	sb->st_ctim = shmfd->shm_ctime;
@@ -412,7 +408,7 @@ shm_close(struct file *fp, struct thread *td)
 	return (0);
 }
 
-static int
+int
 shm_dotruncate(struct shmfd *shmfd, off_t length)
 {
 	vm_object_t object;
@@ -521,7 +517,7 @@ retry:
  * shmfd object management including creation and reference counting
  * routines.
  */
-static struct shmfd *
+struct shmfd *
 shm_alloc(struct ucred *ucred, mode_t mode)
 {
 	struct shmfd *shmfd;
@@ -559,7 +555,7 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	return (shmfd);
 }
 
-static struct shmfd *
+struct shmfd *
 shm_hold(struct shmfd *shmfd)
 {
 
@@ -567,7 +563,7 @@ shm_hold(struct shmfd *shmfd)
 	return (shmfd);
 }
 
-static void
+void
 shm_drop(struct shmfd *shmfd)
 {
 
@@ -588,7 +584,7 @@ shm_drop(struct shmfd *shmfd)
  * Determine if the credentials have sufficient permissions for a
  * specified combination of FREAD and FWRITE.
  */
-static int
+int
 shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
 {
 	accmode_t accmode;
@@ -692,6 +688,8 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 	struct shmfd *shmfd;
 	struct file *fp;
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	mode_t cmode;
 	int fd, error;
@@ -728,13 +726,19 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 		shmfd = shm_alloc(td->td_ucred, cmode);
 	} else {
 		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
-		error = copyinstr(userpath, path, MAXPATHLEN, NULL);
+		pr_path = td->td_ucred->cr_prison->pr_path;
+
+		/* Construct a full pathname for jailed callers. */
+		pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+		    : strlcpy(path, pr_path, MAXPATHLEN);
+		error = copyinstr(userpath, path + pr_pathlen,
+		    MAXPATHLEN - pr_pathlen, NULL);
 #ifdef KTRACE
 		if (error == 0 && KTRPOINT(curthread, KTR_NAMEI))
 			ktrnamei(path);
 #endif
 		/* Require paths to start with a '/' character. */
-		if (error == 0 && path[0] != '/')
+		if (error == 0 && path[pr_pathlen] != '/')
 			error = EINVAL;
 		if (error) {
 			fdclose(td, fp, fd);
@@ -828,11 +832,17 @@ int
 sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 {
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	int error;
 
 	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	error = copyinstr(uap->path, path, MAXPATHLEN, NULL);
+	pr_path = td->td_ucred->cr_prison->pr_path;
+	pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+	    : strlcpy(path, pr_path, MAXPATHLEN);
+	error = copyinstr(uap->path, path + pr_pathlen, MAXPATHLEN - pr_pathlen,
+	    NULL);
 	if (error) {
 		free(path, M_TEMP);
 		return (error);
@@ -1065,7 +1075,9 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 static int
 shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
+	const char *path, *pr_path;
 	struct shmfd *shmfd;
+	size_t pr_pathlen;
 
 	kif->kf_type = KF_TYPE_SHM;
 	shmfd = fp->f_data;
@@ -1076,9 +1088,18 @@ shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	kif->kf_un.kf_file.kf_file_size = shmfd->shm_size;
 	if (shmfd->shm_path != NULL) {
 		sx_slock(&shm_dict_lock);
-		if (shmfd->shm_path != NULL)
-			strlcpy(kif->kf_path, shmfd->shm_path,
-			    sizeof(kif->kf_path));
+		if (shmfd->shm_path != NULL) {
+			path = shmfd->shm_path;
+			pr_path = curthread->td_ucred->cr_prison->pr_path;
+			if (strcmp(pr_path, "/") != 0) {
+				/* Return the jail-rooted pathname. */
+				pr_pathlen = strlen(pr_path);
+				if (strncmp(path, pr_path, pr_pathlen) == 0 &&
+				    path[pr_pathlen] == '/')
+					path += pr_pathlen;
+			}
+			strlcpy(kif->kf_path, path, sizeof(kif->kf_path));
+		}
 		sx_sunlock(&shm_dict_lock);
 	}
 	return (0);

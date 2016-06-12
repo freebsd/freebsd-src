@@ -93,9 +93,13 @@ int	clearaddr;
 int	newaddr = 1;
 int	verbose;
 int	noload;
+int	printifname = 0;
 
 int	supmedia = 0;
 int	printkeys = 0;		/* Print keying material for interfaces. */
+
+/* Formatter Strings */
+char	*f_inet, *f_inet6, *f_ether, *f_addr;
 
 static	int ifconfig(int argc, char *const *argv, int iscreate,
 		const struct afswtch *afp);
@@ -107,6 +111,8 @@ static	void usage(void);
 static struct afswtch *af_getbyname(const char *name);
 static struct afswtch *af_getbyfamily(int af);
 static void af_other_status(int);
+
+void printifnamemaybe(void);
 
 static struct option *opts = NULL;
 
@@ -140,8 +146,8 @@ usage(void)
 	}
 
 	fprintf(stderr,
-	"usage: ifconfig %sinterface address_family [address [dest_address]]\n"
-	"                [parameters]\n"
+	"usage: ifconfig [-f type:format] %sinterface address_family\n"
+	"                [address [dest_address]] [parameters]\n"
 	"       ifconfig interface create\n"
 	"       ifconfig -a %s[-d] [-m] [-u] [-v] [address_family]\n"
 	"       ifconfig -l [-d] [-u] [address_family]\n"
@@ -240,6 +246,48 @@ cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 	return (0);
 }
 
+static void freeformat(void)
+{
+
+	if (f_inet != NULL)
+		free(f_inet);
+	if (f_inet6 != NULL)
+		free(f_inet6);
+	if (f_ether != NULL)
+		free(f_ether);
+	if (f_addr != NULL)
+		free(f_addr);
+}
+
+static void setformat(char *input)
+{
+	char	*formatstr, *category, *modifier; 
+
+	formatstr = strdup(input);
+	while ((category = strsep(&formatstr, ",")) != NULL) {
+		modifier = strchr(category, ':');
+		if (modifier == NULL || modifier[1] == '\0') {
+			warnx("Skipping invalid format specification: %s\n",
+			    category);
+			continue;
+		}
+
+		/* Split the string on the separator, then seek past it */
+		modifier[0] = '\0';
+		modifier++;
+
+		if (strcmp(category, "addr") == 0)
+			f_addr = strdup(modifier);
+		else if (strcmp(category, "ether") == 0)
+			f_ether = strdup(modifier);
+		else if (strcmp(category, "inet") == 0)
+			f_inet = strdup(modifier);
+		else if (strcmp(category, "inet6") == 0)
+			f_inet6 = strdup(modifier);
+	}
+	free(formatstr);
+}
+
 #undef ORDERS_SIZE
 
 static struct ifaddrs *
@@ -297,6 +345,12 @@ sortifaddrs(struct ifaddrs *list,
 	return (result);
 }
 
+void printifnamemaybe()
+{
+	if (printifname)
+		printf("%s\n", name);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -306,7 +360,7 @@ main(int argc, char *argv[])
 	struct ifaddrs *ifap, *sifap, *ifa;
 	struct ifreq paifr;
 	const struct sockaddr_dl *sdl;
-	char options[1024], *cp, *namecp = NULL;
+	char options[1024], *cp, *envformat, *namecp = NULL;
 	struct ifa_queue q = TAILQ_HEAD_INITIALIZER(q);
 	struct ifa_order_elt *cur, *tmp;
 	const char *ifname;
@@ -314,9 +368,20 @@ main(int argc, char *argv[])
 	size_t iflen;
 
 	all = downonly = uponly = namesonly = noload = verbose = 0;
+	f_inet = f_inet6 = f_ether = f_addr = NULL;
+
+	envformat = getenv("IFCONFIG_FORMAT");
+	if (envformat != NULL)
+		setformat(envformat);
+
+	/*
+	 * Ensure we print interface name when expected to,
+	 * even if we terminate early due to error.
+	 */
+	atexit(printifnamemaybe);
 
 	/* Parse leading line options */
-	strlcpy(options, "adklmnuv", sizeof(options));
+	strlcpy(options, "f:adklmnuv", sizeof(options));
 	for (p = opts; p != NULL; p = p->next)
 		strlcat(options, p->opt, sizeof(options));
 	while ((c = getopt(argc, argv, options)) != -1) {
@@ -326,6 +391,11 @@ main(int argc, char *argv[])
 			break;
 		case 'd':	/* restrict scan to "down" interfaces */
 			downonly++;
+			break;
+		case 'f':
+			if (optarg == NULL)
+				usage();
+			setformat(optarg);
 			break;
 		case 'k':
 			printkeys++;
@@ -457,7 +527,7 @@ main(int argc, char *argv[])
 	ifindex = 0;
 	for (ifa = sifap; ifa; ifa = ifa->ifa_next) {
 		memset(&paifr, 0, sizeof(paifr));
-		strncpy(paifr.ifr_name, ifa->ifa_name, sizeof(paifr.ifr_name));
+		strlcpy(paifr.ifr_name, ifa->ifa_name, sizeof(paifr.ifr_name));
 		if (sizeof(paifr.ifr_addr) >= ifa->ifa_addr->sa_len) {
 			memcpy(&paifr.ifr_addr, ifa->ifa_addr,
 			    ifa->ifa_addr->sa_len);
@@ -524,6 +594,7 @@ main(int argc, char *argv[])
 		printf("\n");
 	freeifaddrs(ifap);
 
+	freeformat();
 	exit(0);
 }
 
@@ -656,7 +727,7 @@ ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp)
 	struct callback *cb;
 	int s;
 
-	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
+	strlcpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
 	afp = NULL;
 	if (uafp != NULL)
 		afp = uafp;
@@ -777,7 +848,8 @@ top:
 	}
 	if (clearaddr) {
 		int ret;
-		strncpy(afp->af_ridreq, name, sizeof ifr.ifr_name);
+		strlcpy(((struct ifreq *)afp->af_ridreq)->ifr_name, name,
+			sizeof ifr.ifr_name);
 		ret = ioctl(s, afp->af_difaddr, afp->af_ridreq);
 		if (ret < 0) {
 			if (errno == EADDRNOTAVAIL && (doalias >= 0)) {
@@ -794,7 +866,8 @@ top:
 		}
 	}
 	if (newaddr && (setaddr || setmask)) {
-		strncpy(afp->af_addreq, name, sizeof ifr.ifr_name);
+		strlcpy(((struct ifreq *)afp->af_addreq)->ifr_name, name,
+			sizeof ifr.ifr_name);
 		if (ioctl(s, afp->af_aifaddr, afp->af_addreq) < 0)
 			Perror("ioctl (SIOCAIFADDR)");
 	}
@@ -990,7 +1063,7 @@ static void
 setifmetric(const char *val, int dummy __unused, int s, 
     const struct afswtch *afp)
 {
-	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_metric = atoi(val);
 	if (ioctl(s, SIOCSIFMETRIC, (caddr_t)&ifr) < 0)
 		err(1, "ioctl SIOCSIFMETRIC (set metric)");
@@ -1000,7 +1073,7 @@ static void
 setifmtu(const char *val, int dummy __unused, int s, 
     const struct afswtch *afp)
 {
-	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_mtu = atoi(val);
 	if (ioctl(s, SIOCSIFMTU, (caddr_t)&ifr) < 0)
 		err(1, "ioctl SIOCSIFMTU (set mtu)");
@@ -1011,6 +1084,8 @@ setifname(const char *val, int dummy __unused, int s,
     const struct afswtch *afp)
 {
 	char *newname;
+	
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
 	newname = strdup(val);
 	if (newname == NULL)
@@ -1020,6 +1095,7 @@ setifname(const char *val, int dummy __unused, int s,
 		free(newname);
 		err(1, "ioctl SIOCSIFNAME (set name)");
 	}
+	printifname = 1;
 	strlcpy(name, newname, sizeof(name));
 	free(newname);
 }
@@ -1031,6 +1107,8 @@ setifdescr(const char *val, int dummy __unused, int s,
 {
 	char *newdescr;
 
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	
 	ifr.ifr_buffer.length = strlen(val) + 1;
 	if (ifr.ifr_buffer.length == 1) {
 		ifr.ifr_buffer.buffer = newdescr = NULL;
@@ -1089,7 +1167,7 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 		ifr.ifr_addr.sa_family =
 		    afp->af_af == AF_LINK ? AF_LOCAL : afp->af_af;
 	}
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
 	s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0);
 	if (s < 0)
@@ -1171,7 +1249,7 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	else if (afp->af_other_status != NULL)
 		afp->af_other_status(s);
 
-	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
+	strlcpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
 		printf("%s", ifs.ascii);
 

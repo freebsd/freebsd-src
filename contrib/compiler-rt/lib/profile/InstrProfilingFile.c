@@ -8,6 +8,7 @@
 \*===----------------------------------------------------------------------===*/
 
 #include "InstrProfiling.h"
+#include "InstrProfilingInternal.h"
 #include "InstrProfilingUtil.h"
 #include <errno.h>
 #include <stdio.h>
@@ -16,45 +17,41 @@
 
 #define UNCONST(ptr) ((void *)(uintptr_t)(ptr))
 
-static int writeFile(FILE *File) {
-  /* Match logic in __llvm_profile_write_buffer(). */
-  const __llvm_profile_data *DataBegin = __llvm_profile_begin_data();
-  const __llvm_profile_data *DataEnd = __llvm_profile_end_data();
-  const uint64_t *CountersBegin = __llvm_profile_begin_counters();
-  const uint64_t *CountersEnd   = __llvm_profile_end_counters();
-  const char *NamesBegin = __llvm_profile_begin_names();
-  const char *NamesEnd   = __llvm_profile_end_names();
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
 
-  /* Calculate size of sections. */
-  const uint64_t DataSize = DataEnd - DataBegin;
-  const uint64_t CountersSize = CountersEnd - CountersBegin;
-  const uint64_t NamesSize = NamesEnd - NamesBegin;
-  const uint64_t Padding = sizeof(uint64_t) - NamesSize % sizeof(uint64_t);
-
-  /* Enough zeroes for padding. */
-  const char Zeroes[sizeof(uint64_t)] = {0};
-
-  /* Create the header. */
-  uint64_t Header[PROFILE_HEADER_SIZE];
-  Header[0] = __llvm_profile_get_magic();
-  Header[1] = __llvm_profile_get_version();
-  Header[2] = DataSize;
-  Header[3] = CountersSize;
-  Header[4] = NamesSize;
-  Header[5] = (uintptr_t)CountersBegin;
-  Header[6] = (uintptr_t)NamesBegin;
-
-  /* Write the data. */
-#define CHECK_fwrite(Data, Size, Length, File) \
-  do { if (fwrite(Data, Size, Length, File) != Length) return -1; } while (0)
-  CHECK_fwrite(Header,        sizeof(uint64_t), PROFILE_HEADER_SIZE, File);
-  CHECK_fwrite(DataBegin,     sizeof(__llvm_profile_data), DataSize, File);
-  CHECK_fwrite(CountersBegin, sizeof(uint64_t), CountersSize, File);
-  CHECK_fwrite(NamesBegin,    sizeof(char), NamesSize, File);
-  CHECK_fwrite(Zeroes,        sizeof(char), Padding, File);
-#undef CHECK_fwrite
-
+/* Return 1 if there is an error, otherwise return  0.  */
+static uint32_t fileWriter(ProfDataIOVec *IOVecs, uint32_t NumIOVecs,
+                           void **WriterCtx) {
+  uint32_t I;
+  FILE *File = (FILE *)*WriterCtx;
+  for (I = 0; I < NumIOVecs; I++) {
+    if (fwrite(IOVecs[I].Data, IOVecs[I].ElmSize, IOVecs[I].NumElm, File) !=
+        IOVecs[I].NumElm)
+      return 1;
+  }
   return 0;
+}
+
+COMPILER_RT_VISIBILITY ProfBufferIO *
+llvmCreateBufferIOInternal(void *File, uint32_t BufferSz) {
+  CallocHook = calloc;
+  FreeHook = free;
+  return llvmCreateBufferIO(fileWriter, File, BufferSz);
+}
+
+static int writeFile(FILE *File) {
+  const char *BufferSzStr = 0;
+  uint64_t ValueDataSize = 0;
+  struct ValueProfData **ValueDataArray =
+      __llvm_profile_gather_value_data(&ValueDataSize);
+  FreeHook = &free;
+  CallocHook = &calloc;
+  BufferSzStr = getenv("LLVM_VP_BUFFER_SIZE");
+  if (BufferSzStr && BufferSzStr[0])
+    VPBufferSize = atoi(BufferSzStr);
+  return llvmWriteProfData(fileWriter, File, ValueDataArray, ValueDataSize);
 }
 
 static int writeFileWithName(const char *OutputName) {
@@ -64,7 +61,7 @@ static int writeFileWithName(const char *OutputName) {
     return -1;
 
   /* Append to the file to support profiling multiple shared objects. */
-  OutputFile = fopen(OutputName, "a");
+  OutputFile = fopen(OutputName, "ab");
   if (!OutputFile)
     return -1;
 
@@ -74,8 +71,8 @@ static int writeFileWithName(const char *OutputName) {
   return RetVal;
 }
 
-__attribute__((weak)) int __llvm_profile_OwnsFilename = 0;
-__attribute__((weak)) const char *__llvm_profile_CurrentFilename = NULL;
+COMPILER_RT_WEAK int __llvm_profile_OwnsFilename = 0;
+COMPILER_RT_WEAK const char *__llvm_profile_CurrentFilename = NULL;
 
 static void truncateCurrentFile(void) {
   const char *Filename;
@@ -182,7 +179,7 @@ static void setFilenameAutomatically(void) {
   resetFilenameToDefault();
 }
 
-__attribute__((visibility("hidden")))
+COMPILER_RT_VISIBILITY
 void __llvm_profile_initialize_file(void) {
   /* Check if the filename has been initialized. */
   if (__llvm_profile_CurrentFilename)
@@ -192,12 +189,12 @@ void __llvm_profile_initialize_file(void) {
   setFilenameAutomatically();
 }
 
-__attribute__((visibility("hidden")))
+COMPILER_RT_VISIBILITY
 void __llvm_profile_set_filename(const char *Filename) {
   setFilenamePossiblyWithPid(Filename);
 }
 
-__attribute__((visibility("hidden")))
+COMPILER_RT_VISIBILITY
 void __llvm_profile_override_default_filename(const char *Filename) {
   /* If the env var is set, skip setting filename from argument. */
   const char *Env_Filename = getenv("LLVM_PROFILE_FILE");
@@ -206,27 +203,37 @@ void __llvm_profile_override_default_filename(const char *Filename) {
   setFilenamePossiblyWithPid(Filename);
 }
 
-__attribute__((visibility("hidden")))
+COMPILER_RT_VISIBILITY
 int __llvm_profile_write_file(void) {
   int rc;
 
+  GetEnvHook = &getenv;
   /* Check the filename. */
-  if (!__llvm_profile_CurrentFilename)
+  if (!__llvm_profile_CurrentFilename) {
+    PROF_ERR("LLVM Profile: Failed to write file : %s\n", "Filename not set");
     return -1;
+  }
+
+  /* Check if there is llvm/runtime version mismatch.  */
+  if (GET_VERSION(__llvm_profile_get_version()) != INSTR_PROF_RAW_VERSION) {
+    PROF_ERR("LLVM Profile: runtime and instrumentation version mismatch : "
+             "expected %d, but get %d\n",
+             INSTR_PROF_RAW_VERSION,
+             (int)GET_VERSION(__llvm_profile_get_version()));
+    return -1;
+  }
 
   /* Write the file. */
   rc = writeFileWithName(__llvm_profile_CurrentFilename);
-  if (rc && getenv("LLVM_PROFILE_VERBOSE_ERRORS"))
-    fprintf(stderr, "LLVM Profile: Failed to write file \"%s\": %s\n",
+  if (rc)
+    PROF_ERR("LLVM Profile: Failed to write file \"%s\": %s\n",
             __llvm_profile_CurrentFilename, strerror(errno));
   return rc;
 }
 
-static void writeFileWithoutReturn(void) {
-  __llvm_profile_write_file();
-}
+static void writeFileWithoutReturn(void) { __llvm_profile_write_file(); }
 
-__attribute__((visibility("hidden")))
+COMPILER_RT_VISIBILITY
 int __llvm_profile_register_write_file_atexit(void) {
   static int HasBeenRegistered = 0;
 

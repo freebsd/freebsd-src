@@ -179,6 +179,7 @@ DIRDEPS+= \
 	usr.bin/brandelf \
 	usr.bin/bsdiff/bsdiff \
 	usr.bin/bsdiff/bspatch \
+	usr.bin/bsdcat \
 	usr.bin/bzip2 \
 	usr.bin/bzip2recover \
 	usr.bin/c89 \
@@ -297,7 +298,6 @@ DIRDEPS+= \
 	usr.bin/mklocale \
 	usr.bin/mkstr \
 	usr.bin/mktemp \
-	usr.bin/mkulzma \
 	usr.bin/mkuzip \
 	usr.bin/msgs \
 	usr.bin/mt \
@@ -330,6 +330,7 @@ DIRDEPS+= \
 	usr.bin/quota \
 	usr.bin/rctl \
 	usr.bin/renice \
+	usr.bin/resizewin \
 	usr.bin/rev \
 	usr.bin/revoke \
 	usr.bin/rlogin \
@@ -343,6 +344,7 @@ DIRDEPS+= \
 	usr.bin/rwall \
 	usr.bin/rwho \
 	usr.bin/script \
+	usr.bin/sdiff \
 	usr.bin/sed \
 	usr.bin/send-pr \
 	usr.bin/seq \
@@ -789,6 +791,7 @@ DIRDEPS+= \
 	usr.sbin/ypset \
 	usr.sbin/zic/zdump \
 	usr.sbin/zic/zic \
+	usr.sbin/zonectl \
 	${DEP_RELDIR}/cddl \
 	${DEP_RELDIR}/games \
 	${DEP_RELDIR}/gnu \
@@ -891,12 +894,35 @@ DIRDEPS.powerpc= \
 	usr.sbin/nvram \
 	usr.sbin/ofwdump
 
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+DIRDEPS+= \
+	usr.sbin/blacklistctl \
+	usr.sbin/blacklistd
+.endif
+
 .if ${MK_GPL_DTC} != "yes"
 DIRDEPS+= usr.bin/dtc
 .endif
 
-.if ${MK_CASPER} == "yes"
-DIRDEPS+= sbin/casperd
+.if ${MK_OFED} != "no"
+DIRDEPS+= \
+	  contrib/ofed/usr.bin/ibaddr \
+	  contrib/ofed/usr.bin/ibnetdiscover \
+	  contrib/ofed/usr.bin/ibping \
+	  contrib/ofed/usr.bin/ibportstate \
+	  contrib/ofed/usr.bin/ibroute \
+	  contrib/ofed/usr.bin/ibsendtrap \
+	  contrib/ofed/usr.bin/ibstat \
+	  contrib/ofed/usr.bin/ibsysstat \
+	  contrib/ofed/usr.bin/ibtracert \
+	  contrib/ofed/usr.bin/opensm \
+	  contrib/ofed/usr.bin/osmtest \
+	  contrib/ofed/usr.bin/perfquery \
+	  contrib/ofed/usr.bin/saquery \
+	  contrib/ofed/usr.bin/sminfo \
+	  contrib/ofed/usr.bin/smpdump \
+	  contrib/ofed/usr.bin/smpquery \
+	  contrib/ofed/usr.bin/vendstat
 .endif
 
 DIRDEPS+= ${DIRDEPS.${MACHINE}:U}

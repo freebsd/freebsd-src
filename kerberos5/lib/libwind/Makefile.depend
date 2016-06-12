@@ -12,49 +12,11 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcom_err \
 	lib/libcompiler_rt \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-bidi.So: wind_err.h
-bidi.o: wind_err.h
-bidi.po: wind_err.h
-combining.So: wind_err.h
-combining.o: wind_err.h
-combining.po: wind_err.h
-errorlist.So: wind_err.h
-errorlist.o: wind_err.h
-errorlist.po: wind_err.h
-errorlist_table.So: wind_err.h
-errorlist_table.o: wind_err.h
-errorlist_table.po: wind_err.h
-ldap.So: wind_err.h
-ldap.o: wind_err.h
-ldap.po: wind_err.h
-map.So: wind_err.h
-map.o: wind_err.h
-map.po: wind_err.h
-map_table.So: wind_err.h
-map_table.o: wind_err.h
-map_table.po: wind_err.h
-normalize.So: wind_err.h
-normalize.o: wind_err.h
-normalize.po: wind_err.h
-punycode.So: wind_err.h
-punycode.o: wind_err.h
-punycode.po: wind_err.h
-stringprep.So: wind_err.h
-stringprep.o: wind_err.h
-stringprep.po: wind_err.h
-utf8.So: wind_err.h
-utf8.o: wind_err.h
-utf8.po: wind_err.h
-wind_err.So: wind_err.c
-wind_err.So: wind_err.h
-wind_err.o: wind_err.c
-wind_err.o: wind_err.h
-wind_err.po: wind_err.c
-wind_err.po: wind_err.h
 .endif

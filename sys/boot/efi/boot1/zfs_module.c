@@ -91,7 +91,7 @@ probe(dev_info_t *dev)
 }
 
 static EFI_STATUS
-try_load(dev_info_t *devinfo, const char *loader_path, void **bufp, size_t *bufsize)
+load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 {
 	spa_t *spa;
 	struct zfsmount zfsmount;
@@ -102,32 +102,41 @@ try_load(dev_info_t *devinfo, const char *loader_path, void **bufp, size_t *bufs
 	EFI_STATUS status;
 
 	spa = devinfo->devdata;
-	if (zfs_spa_init(spa) != 0) {
-		/* Init failed, don't report this loudly. */
+
+	DPRINTF("load: '%s' spa: '%s', devpath: %s\n", filepath, spa->spa_name,
+	    devpath_str(devinfo->devpath));
+
+	if ((err = zfs_spa_init(spa)) != 0) {
+		DPRINTF("Failed to load pool '%s' (%d)\n", spa->spa_name, err);
 		return (EFI_NOT_FOUND);
 	}
 
-	if (zfs_mount(spa, 0, &zfsmount) != 0) {
-		/* Mount failed, don't report this loudly. */
+	if ((err = zfs_mount(spa, 0, &zfsmount)) != 0) {
+		DPRINTF("Failed to mount pool '%s' (%d)\n", spa->spa_name, err);
 		return (EFI_NOT_FOUND);
 	}
 
-	if ((err = zfs_lookup(&zfsmount, loader_path, &dn)) != 0) {
-		printf("Failed to lookup %s on pool %s (%d)\n", loader_path,
+	if ((err = zfs_lookup(&zfsmount, filepath, &dn)) != 0) {
+		if (err == ENOENT) {
+			DPRINTF("Failed to find '%s' on pool '%s' (%d)\n",
+			    filepath, spa->spa_name, err);
+			return (EFI_NOT_FOUND);
+		}
+		printf("Failed to lookup '%s' on pool '%s' (%d)\n", filepath,
 		    spa->spa_name, err);
 		return (EFI_INVALID_PARAMETER);
 	}
 
 	if ((err = zfs_dnode_stat(spa, &dn, &st)) != 0) {
-		printf("Failed to lookup %s on pool %s (%d)\n", loader_path,
+		printf("Failed to stat '%s' on pool '%s' (%d)\n", filepath,
 		    spa->spa_name, err);
 		return (EFI_INVALID_PARAMETER);
 	}
 
 	if ((status = bs->AllocatePool(EfiLoaderData, (UINTN)st.st_size, &buf))
 	    != EFI_SUCCESS) {
-		printf("Failed to allocate load buffer for pool %s (%lu)\n",
-		    spa->spa_name, EFI_ERROR_CODE(status));
+		printf("Failed to allocate load buffer %zd for pool '%s' for '%s' "
+		    "(%lu)\n", st.st_size, spa->spa_name, filepath, EFI_ERROR_CODE(status));
 		return (EFI_INVALID_PARAMETER);
 	}
 
@@ -142,26 +151,6 @@ try_load(dev_info_t *devinfo, const char *loader_path, void **bufp, size_t *bufs
 	*bufp = buf;
 
 	return (EFI_SUCCESS);
-}
-
-static EFI_STATUS
-load(const char *loader_path, dev_info_t **devinfop, void **bufp,
-    size_t *bufsize)
-{
-	dev_info_t *devinfo;
-	EFI_STATUS status;
-
-	for (devinfo = devices; devinfo != NULL; devinfo = devinfo->next) {
-		status = try_load(devinfo, loader_path, bufp, bufsize);
-		if (status == EFI_SUCCESS) {
-			*devinfop = devinfo;
-			return (EFI_SUCCESS);
-		} else if (status != EFI_NOT_FOUND) {
-			return (status);
-		}
-	}
-
-	return (EFI_NOT_FOUND);
 }
 
 static void
@@ -189,11 +178,19 @@ init()
 	zfs_init();
 }
 
+static dev_info_t *
+_devices()
+{
+
+	return (devices);
+}
+
 const boot_module_t zfs_module =
 {
 	.name = "ZFS",
 	.init = init,
 	.probe = probe,
 	.load = load,
-	.status = status
+	.status = status,
+	.devices = _devices
 };

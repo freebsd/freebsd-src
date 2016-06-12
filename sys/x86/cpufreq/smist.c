@@ -223,7 +223,7 @@ set_ownership(device_t dev)
 		bus_dma_tag_destroy(tag);
 		device_printf(dev, "can't load mem\n");
 		return (ENXIO);
-	};
+	}
 	DPRINT(dev, "taking ownership over BIOS return %d\n", cb_data.result);
 	bus_dmamap_unload(tag, map);
 	bus_dmamem_free(tag, cb_data.buf, map);

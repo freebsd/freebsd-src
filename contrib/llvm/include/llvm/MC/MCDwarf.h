@@ -19,6 +19,7 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/MC/MCSection.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/raw_ostream.h"
@@ -31,7 +32,6 @@ namespace llvm {
 class MCAsmBackend;
 class MCContext;
 class MCObjectStreamer;
-class MCSection;
 class MCStreamer;
 class MCSymbol;
 class SourceMgr;
@@ -182,6 +182,19 @@ public:
   }
 };
 
+struct MCDwarfLineTableParams {
+  /// First special line opcode - leave room for the standard opcodes.
+  /// Note: If you want to change this, you'll have to update the
+  /// "StandardOpcodeLengths" table that is emitted in
+  /// \c Emit().
+  uint8_t DWARF2LineOpcodeBase = 13;
+  /// Minimum line offset in a special line info. opcode.  The value
+  /// -5 was chosen to give a reasonable range of values.
+  int8_t DWARF2LineBase = -5;
+  /// Range of line offsets in a special line info. opcode.
+  uint8_t DWARF2LineRange = 14;
+};
+
 struct MCDwarfLineTableHeader {
   MCSymbol *Label;
   SmallVector<std::string, 3> MCDwarfDirs;
@@ -192,9 +205,11 @@ struct MCDwarfLineTableHeader {
   MCDwarfLineTableHeader() : Label(nullptr) {}
   unsigned getFile(StringRef &Directory, StringRef &FileName,
                    unsigned FileNumber = 0);
-  std::pair<MCSymbol *, MCSymbol *> Emit(MCStreamer *MCOS) const;
+  std::pair<MCSymbol *, MCSymbol *> Emit(MCStreamer *MCOS,
+                                         MCDwarfLineTableParams Params) const;
   std::pair<MCSymbol *, MCSymbol *>
-  Emit(MCStreamer *MCOS, ArrayRef<char> SpecialOpcodeLengths) const;
+  Emit(MCStreamer *MCOS, MCDwarfLineTableParams Params,
+       ArrayRef<char> SpecialOpcodeLengths) const;
 };
 
 class MCDwarfDwoLineTable {
@@ -206,7 +221,7 @@ public:
   unsigned getFile(StringRef Directory, StringRef FileName) {
     return Header.getFile(Directory, FileName);
   }
-  void Emit(MCStreamer &MCOS) const;
+  void Emit(MCStreamer &MCOS, MCDwarfLineTableParams Params) const;
 };
 
 class MCDwarfLineTable {
@@ -215,10 +230,10 @@ class MCDwarfLineTable {
 
 public:
   // This emits the Dwarf file and the line tables for all Compile Units.
-  static void Emit(MCObjectStreamer *MCOS);
+  static void Emit(MCObjectStreamer *MCOS, MCDwarfLineTableParams Params);
 
   // This emits the Dwarf file and the line tables for a given Compile Unit.
-  void EmitCU(MCObjectStreamer *MCOS) const;
+  void EmitCU(MCObjectStreamer *MCOS, MCDwarfLineTableParams Params) const;
 
   unsigned getFile(StringRef &Directory, StringRef &FileName,
                    unsigned FileNumber = 0);
@@ -262,11 +277,12 @@ public:
 class MCDwarfLineAddr {
 public:
   /// Utility function to encode a Dwarf pair of LineDelta and AddrDeltas.
-  static void Encode(MCContext &Context, int64_t LineDelta, uint64_t AddrDelta,
-                     raw_ostream &OS);
+  static void Encode(MCContext &Context, MCDwarfLineTableParams Params,
+                     int64_t LineDelta, uint64_t AddrDelta, raw_ostream &OS);
 
   /// Utility function to emit the encoding to a streamer.
-  static void Emit(MCStreamer *MCOS, int64_t LineDelta, uint64_t AddrDelta);
+  static void Emit(MCStreamer *MCOS, MCDwarfLineTableParams Params,
+                   int64_t LineDelta, uint64_t AddrDelta);
 };
 
 class MCGenDwarfInfo {
@@ -324,7 +340,8 @@ public:
     OpRestore,
     OpUndefined,
     OpRegister,
-    OpWindowSave
+    OpWindowSave,
+    OpGnuArgsSize
   };
 
 private:
@@ -438,6 +455,11 @@ public:
     return MCCFIInstruction(OpEscape, L, 0, 0, Vals);
   }
 
+  /// \brief A special wrapper for .cfi_escape that indicates GNU_ARGS_SIZE
+  static MCCFIInstruction createGnuArgsSize(MCSymbol *L, int Size) {
+    return MCCFIInstruction(OpGnuArgsSize, L, 0, Size, "");
+  }
+
   OpType getOperation() const { return Operation; }
   MCSymbol *getLabel() const { return Label; }
 
@@ -457,7 +479,7 @@ public:
   int getOffset() const {
     assert(Operation == OpDefCfa || Operation == OpOffset ||
            Operation == OpRelOffset || Operation == OpDefCfaOffset ||
-           Operation == OpAdjustCfaOffset);
+           Operation == OpAdjustCfaOffset || Operation == OpGnuArgsSize);
     return Offset;
   }
 

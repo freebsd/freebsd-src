@@ -6,19 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ARMAsmParser.o: ARMGenAsmMatcher.inc.h
-ARMAsmParser.o: ARMGenInstrInfo.inc.h
-ARMAsmParser.o: ARMGenRegisterInfo.inc.h
-ARMAsmParser.o: ARMGenSubtargetInfo.inc.h
-ARMAsmParser.po: ARMGenAsmMatcher.inc.h
-ARMAsmParser.po: ARMGenInstrInfo.inc.h
-ARMAsmParser.po: ARMGenRegisterInfo.inc.h
-ARMAsmParser.po: ARMGenSubtargetInfo.inc.h
 .endif

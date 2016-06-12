@@ -140,6 +140,15 @@ inline BlockFieldFlags operator|(BlockFieldFlag_t l, BlockFieldFlag_t r) {
   return BlockFieldFlags(l) | BlockFieldFlags(r);
 }
 
+/// Information about the layout of a __block variable.
+class BlockByrefInfo {
+public:
+  llvm::StructType *Type;
+  unsigned FieldIndex;
+  CharUnits ByrefAlignment;
+  CharUnits FieldOffset;
+};
+
 /// CGBlockInfo - Information to generate a block literal.
 class CGBlockInfo {
 public:
@@ -152,14 +161,19 @@ public:
   class Capture {
     uintptr_t Data;
     EHScopeStack::stable_iterator Cleanup;
+    CharUnits::QuantityType Offset;
 
   public:
     bool isIndex() const { return (Data & 1) != 0; }
     bool isConstant() const { return !isIndex(); }
-    unsigned getIndex() const { assert(isIndex()); return Data >> 1; }
-    llvm::Value *getConstant() const {
-      assert(isConstant());
-      return reinterpret_cast<llvm::Value*>(Data);
+
+    unsigned getIndex() const {
+      assert(isIndex());
+      return Data >> 1;
+    }
+    CharUnits getOffset() const {
+      assert(isIndex());
+      return CharUnits::fromQuantity(Offset);
     }
     EHScopeStack::stable_iterator getCleanup() const {
       assert(isIndex());
@@ -170,9 +184,15 @@ public:
       Cleanup = cleanup;
     }
 
-    static Capture makeIndex(unsigned index) {
+    llvm::Value *getConstant() const {
+      assert(isConstant());
+      return reinterpret_cast<llvm::Value*>(Data);
+    }
+
+    static Capture makeIndex(unsigned index, CharUnits offset) {
       Capture v;
       v.Data = (index << 1) | 1;
+      v.Offset = offset.getQuantity();
       return v;
     }
 
@@ -205,12 +225,13 @@ public:
   /// The mapping of allocated indexes within the block.
   llvm::DenseMap<const VarDecl*, Capture> Captures;  
 
-  llvm::AllocaInst *Address;
+  Address LocalAddress;
   llvm::StructType *StructureType;
   const BlockDecl *Block;
   const BlockExpr *BlockExpression;
   CharUnits BlockSize;
   CharUnits BlockAlign;
+  CharUnits CXXThisOffset;
   
   // Offset of the gap caused by block header having a smaller
   // alignment than the alignment of the block descriptor. This

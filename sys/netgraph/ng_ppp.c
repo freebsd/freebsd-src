@@ -152,7 +152,7 @@ static MALLOC_DEFINE(M_NETGRAPH_PPP, "netgraph_ppp", "netgraph ppp node");
 				    ((s) | ~MP_LONG_SEQ_MASK)		\
 				    : ((s) & MP_LONG_SEQ_MASK))
 
-/* Comparision of MP sequence numbers. Note: all sequence numbers
+/* Comparison of MP sequence numbers. Note: all sequence numbers
    except priv->xseq are stored with the sign bit extended. */
 #define MP_SHORT_SEQ_DIFF(x,y)	MP_SHORT_EXTEND((x) - (y))
 #define MP_LONG_SEQ_DIFF(x,y)	MP_LONG_EXTEND((x) - (y))
@@ -211,7 +211,7 @@ struct ng_ppp_private {
 	struct ng_ppp_link	links[NG_PPP_MAX_LINKS];/* per-link info */
 	int32_t			xseq;			/* next out MP seq # */
 	int32_t			mseq;			/* min links[i].seq */
-	uint16_t		activeLinks[NG_PPP_MAX_LINKS];	/* indicies */
+	uint16_t		activeLinks[NG_PPP_MAX_LINKS];	/* indices */
 	uint16_t		numActiveLinks;		/* how many links up */
 	uint16_t		lastLink;		/* for round robin */
 	uint8_t			vjCompHooked;		/* VJ comp hooked up? */
@@ -254,7 +254,7 @@ static ng_rcvdata_t	ng_ppp_rcvdata_decompress;
 static ng_rcvdata_t	ng_ppp_rcvdata_encrypt;
 static ng_rcvdata_t	ng_ppp_rcvdata_decrypt;
 
-/* We use integer indicies to refer to the non-link hooks. */
+/* We use integer indices to refer to the non-link hooks. */
 static const struct {
 	char *const name;
 	ng_rcvdata_t *fn;
@@ -1511,7 +1511,7 @@ done:
  *	discarded, their missing fragments are declared lost and MSEQ
  *	is increased.
  *
- *    o If we recieve a fragment with seq# < MSEQ, we throw it away
+ *    o If we receive a fragment with seq# < MSEQ, we throw it away
  *	because we've already delcared it lost.
  *
  * This assumes linkNum != NG_PPP_BUNDLE_LINKNUM.

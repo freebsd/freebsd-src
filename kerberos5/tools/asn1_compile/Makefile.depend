@@ -19,38 +19,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-asn1parse.o: asn1parse.c
-asn1parse.o: roken.h
-asn1parse.po: asn1parse.c
-asn1parse.po: roken.h
-gen.o: roken.h
-gen.po: roken.h
-gen_copy.o: roken.h
-gen_copy.po: roken.h
-gen_decode.o: roken.h
-gen_decode.po: roken.h
-gen_encode.o: roken.h
-gen_encode.po: roken.h
-gen_free.o: roken.h
-gen_free.po: roken.h
-gen_glue.o: roken.h
-gen_glue.po: roken.h
-gen_length.o: roken.h
-gen_length.po: roken.h
-gen_seq.o: roken.h
-gen_seq.po: roken.h
-gen_template.o: roken.h
-gen_template.po: roken.h
-hash.o: roken.h
-hash.po: roken.h
-lex.o: asn1parse.h
-lex.o: lex.c
-lex.o: roken.h
-lex.po: asn1parse.h
-lex.po: lex.c
-lex.po: roken.h
-main.o: roken.h
-main.po: roken.h
-symbol.o: roken.h
-symbol.po: roken.h
 .endif

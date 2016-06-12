@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: libdwarf.h 3174 2015-03-27 17:13:41Z emaste $
+ * $Id: libdwarf.h 3295 2016-01-08 22:08:10Z jkoshy $
  */
 
 #ifndef	_LIBDWARF_H_
@@ -33,7 +33,7 @@
 #include <libelf.h>
 
 typedef int		Dwarf_Bool;
-typedef off_t		Dwarf_Off;
+typedef uint64_t	Dwarf_Off;
 typedef uint64_t	Dwarf_Unsigned;
 typedef uint16_t	Dwarf_Half;
 typedef uint8_t		Dwarf_Small;
@@ -440,6 +440,7 @@ enum Dwarf_ISA {
 	DW_ISA_X86,
 	DW_ISA_X86_64,
 	DW_ISA_AARCH64,
+	DW_ISA_RISCV,
 	DW_ISA_MAX
 };
 

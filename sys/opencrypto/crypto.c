@@ -911,7 +911,7 @@ again:
 }
 
 /*
- * Dispatch an assymetric crypto request.
+ * Dispatch an asymmetric crypto request.
  */
 static int
 crypto_kinvoke(struct cryptkop *krp, int crid)

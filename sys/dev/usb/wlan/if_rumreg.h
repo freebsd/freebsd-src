@@ -47,7 +47,7 @@
  * H/w encryption/decryption support
  */
 #define KEY_SIZE		(IEEE80211_KEYBUF_SIZE + IEEE80211_MICBUF_SIZE)
-#define RT2573_ADDR_MAX         64
+#define RT2573_ADDR_MAX		64
 #define RT2573_SKEY_MAX		4
 
 #define RT2573_SKEY(vap, kidx)	(0x1000 + ((vap) * RT2573_SKEY_MAX + \
@@ -136,6 +136,13 @@
 /* possible flags for register MAC_CSR5 */
 #define RT2573_NUM_BSSID_MSK(n)	(((n * 3) & 3) << 16)
 
+/* possible flags for register MAC_CSR11 */
+#define RT2573_AUTO_WAKEUP		(1 << 15)
+#define RT2573_TBCN_EXP(n)		((n) << 8)
+#define RT2573_TBCN_EXP_MAX		0x7f
+#define RT2573_TBCN_DELAY(t)		(t)
+#define RT2573_TBCN_DELAY_MAX		0xff
+
 /* possible flags for register TXRX_CSR0 */
 /* Tx filter flags are in the low 16 bits */
 #define RT2573_AUTO_TX_SEQ		(1 << 15)
@@ -152,6 +159,7 @@
 #define RT2573_DROP_ACKCTS		(1 << 25)
 
 /* possible flags for register TXRX_CSR4 */
+#define RT2573_ACKCTS_PWRMGT	(1 << 16)
 #define RT2573_SHORT_PREAMBLE	(1 << 18)
 #define RT2573_MRR_ENABLED	(1 << 19)
 #define RT2573_MRR_CCK_FALLBACK	(1 << 22)
@@ -188,7 +196,10 @@
 #define RT2573_LED_ON		0x1e1e
 #define RT2573_LED_OFF		0x0
 
-#define RT2573_MCU_RUN	(1 << 3)
+/* USB vendor requests */
+#define RT2573_MCU_SLEEP	7
+#define RT2573_MCU_RUN		8
+#define RT2573_MCU_WAKEUP	9
 
 #define RT2573_SMART_MODE	(1 << 0)
 

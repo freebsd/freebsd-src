@@ -267,8 +267,6 @@ acpi_perf_evaluate(device_t dev)
 
 	sc->px_states = malloc(sc->px_count * sizeof(struct acpi_px),
 	    M_ACPIPERF, M_WAITOK | M_ZERO);
-	if (sc->px_states == NULL)
-		goto out;
 
 	/*
 	 * Each state is a package of {CoreFreq, Power, TransitionLatency,

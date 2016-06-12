@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "InputInfo.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Job.h"
@@ -26,9 +27,14 @@ using llvm::StringRef;
 using llvm::ArrayRef;
 
 Command::Command(const Action &Source, const Tool &Creator,
-                 const char *Executable, const ArgStringList &Arguments)
+                 const char *Executable, const ArgStringList &Arguments,
+                 ArrayRef<InputInfo> Inputs)
     : Source(Source), Creator(Creator), Executable(Executable),
-      Arguments(Arguments), ResponseFile(nullptr) {}
+      Arguments(Arguments), ResponseFile(nullptr) {
+  for (const auto &II : Inputs)
+    if (II.isFilename())
+      InputFilenames.push_back(II.getFilename());
+}
 
 static int skipArgs(const char *Flag, bool HaveCrashVFS) {
   // These flags are all of the form -Flag <Arg> and are treated as two
@@ -42,6 +48,7 @@ static int skipArgs(const char *Flag, bool HaveCrashVFS) {
     .Cases("-iwithprefixbefore", "-isystem", "-iquote", true)
     .Cases("-resource-dir", "-serialize-diagnostic-file", true)
     .Cases("-dwarf-debug-flags", "-ivfsoverlay", true)
+    .Cases("-header-include-file", "-diagnostic-log-file", true)
     // Some include flags shouldn't be skipped if we have a crash VFS
     .Case("-isysroot", !HaveCrashVFS)
     .Default(false);
@@ -98,7 +105,9 @@ void Command::writeResponseFile(raw_ostream &OS) const {
     return;
   }
 
-  // In regular response files, we send all arguments to the response file
+  // In regular response files, we send all arguments to the response file.
+  // Wrapping all arguments in double quotes ensures that both Unix tools and
+  // Windows tools understand the response file.
   for (const char *Arg : Arguments) {
     OS << '"';
 
@@ -155,13 +164,6 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
     Args = ArrayRef<const char *>(ArgsRespFile).slice(1); // no executable name
   }
 
-  StringRef MainFilename;
-  // We'll need the argument to -main-file-name to find the input file name.
-  if (CrashInfo)
-    for (size_t I = 0, E = Args.size(); I + 1 < E; ++I)
-      if (StringRef(Args[I]).equals("-main-file-name"))
-        MainFilename = Args[I + 1];
-
   bool HaveCrashVFS = CrashInfo && !CrashInfo->VFSPath.empty();
   for (size_t i = 0, e = Args.size(); i < e; ++i) {
     const char *const Arg = Args[i];
@@ -170,8 +172,11 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
       if (int Skip = skipArgs(Arg, HaveCrashVFS)) {
         i += Skip - 1;
         continue;
-      } else if (llvm::sys::path::filename(Arg) == MainFilename &&
-                 (i == 0 || StringRef(Args[i - 1]) != "-main-file-name")) {
+      }
+      auto Found = std::find_if(InputFilenames.begin(), InputFilenames.end(),
+                                [&Arg](StringRef IF) { return IF == Arg; });
+      if (Found != InputFilenames.end() &&
+          (i == 0 || StringRef(Args[i - 1]) != "-main-file-name")) {
         // Replace the input file name with the crashinfo's file name.
         OS << ' ';
         StringRef ShortName = llvm::sys::path::filename(CrashInfo->Filename);
@@ -254,8 +259,9 @@ int Command::Execute(const StringRef **Redirects, std::string *ErrMsg,
 FallbackCommand::FallbackCommand(const Action &Source_, const Tool &Creator_,
                                  const char *Executable_,
                                  const ArgStringList &Arguments_,
+                                 ArrayRef<InputInfo> Inputs,
                                  std::unique_ptr<Command> Fallback_)
-    : Command(Source_, Creator_, Executable_, Arguments_),
+    : Command(Source_, Creator_, Executable_, Arguments_, Inputs),
       Fallback(std::move(Fallback_)) {}
 
 void FallbackCommand::Print(raw_ostream &OS, const char *Terminator,

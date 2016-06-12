@@ -388,7 +388,7 @@ le_dma_attach(device_t dev)
 	sc->sc_mediachange = le_dma_supmediachange;
 	sc->sc_mediastatus = le_dma_supmediastatus;
 	sc->sc_supmedia = le_dma_supmedia;
-	sc->sc_nsupmedia = sizeof(le_dma_supmedia) / sizeof(le_dma_supmedia[0]);
+	sc->sc_nsupmedia = nitems(le_dma_supmedia);
 	sc->sc_defaultmedia = le_dma_supmedia[0];
 
 	OF_getetheraddr(dev, sc->sc_enaddr);

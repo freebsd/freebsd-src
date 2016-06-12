@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=		figpar
 SHLIB_MAJOR=	0
 INCS=		figpar.h string_m.h
@@ -15,7 +16,5 @@ MLINKS=		figpar.3 get_config_option.3	\
 CFLAGS+=	-I${.CURDIR}
 
 SRCS=		figpar.c string_m.c
-
-WARNS?=		6
 
 .include <bsd.lib.mk>

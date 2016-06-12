@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=hast
 .PATH:	${.CURDIR}/../hastd
 
 PROG=	hastctl

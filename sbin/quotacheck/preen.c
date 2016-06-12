@@ -105,7 +105,7 @@ checkfstab(int uflag, int gflag)
 			warnx("Can't open checklist file: %s\n", _PATH_FSTAB);
 			return (8);
 		}
-		while ((fs = getfsent()) != 0) {
+		while ((fs = getfsent()) != NULL) {
 			if (fs->fs_passno > passno && fs->fs_passno < nextpass)
 				nextpass = fs->fs_passno;
 

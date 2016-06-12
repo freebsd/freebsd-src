@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
@@ -32,25 +33,22 @@ bool TargetFrameLowering::noFramePointerElim(const MachineFunction &MF) const {
   return Attr.getValueAsString() == "true";
 }
 
-/// getFrameIndexOffset - Returns the displacement from the frame register to
-/// the stack frame of the specified index. This is the default implementation
-/// which is overridden for some targets.
-int TargetFrameLowering::getFrameIndexOffset(const MachineFunction &MF,
-                                             int FI) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return MFI->getObjectOffset(FI) + MFI->getStackSize() -
-    getOffsetOfLocalArea() + MFI->getOffsetAdjustment();
-}
-
+/// Returns the displacement from the frame register to the stack
+/// frame of the specified index, along with the frame register used
+/// (in output arg FrameReg). This is the default implementation which
+/// is overridden for some targets.
 int TargetFrameLowering::getFrameIndexReference(const MachineFunction &MF,
                                              int FI, unsigned &FrameReg) const {
+  const MachineFrameInfo *MFI = MF.getFrameInfo();
   const TargetRegisterInfo *RI = MF.getSubtarget().getRegisterInfo();
 
   // By default, assume all frame indices are referenced via whatever
   // getFrameRegister() says. The target can override this if it's doing
   // something different.
   FrameReg = RI->getFrameRegister(MF);
-  return getFrameIndexOffset(MF, FI);
+
+  return MFI->getObjectOffset(FI) + MFI->getStackSize() -
+         getOffsetOfLocalArea() + MFI->getOffsetAdjustment();
 }
 
 bool TargetFrameLowering::needsFrameIndexResolution(
@@ -83,4 +81,14 @@ void TargetFrameLowering::determineCalleeSaves(MachineFunction &MF,
     if (CallsUnwindInit || MRI.isPhysRegModified(Reg))
       SavedRegs.set(Reg);
   }
+}
+
+unsigned TargetFrameLowering::getStackAlignmentSkew(
+    const MachineFunction &MF) const {
+  // When HHVM function is called, the stack is skewed as the return address
+  // is removed from the stack before we enter the function.
+  if (LLVM_UNLIKELY(MF.getFunction()->getCallingConv() == CallingConv::HHVM))
+    return MF.getTarget().getPointerSize();
+
+  return 0;
 }

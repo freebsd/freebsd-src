@@ -214,12 +214,12 @@ portion never recurses
 (this is perhaps a bug).
 .It Cm reinstall
 Use this to restore a port after using
-.Xr pkg_delete 1
+.Xr pkg-delete 8
 when you should have used
 .Cm deinstall .
 .It Cm deinstall
 Remove an installed port from the system, similar to
-.Xr pkg_delete 1 .
+.Xr pkg-delete 8 .
 .It Cm deinstall-all
 Remove all installed ports with the same
 .Va PKGORIGIN
@@ -231,7 +231,7 @@ The package is a
 .Pa .tbz
 file that you can use to
 install the port on other machines with
-.Xr pkg_add 1 .
+.Xr pkg-add 8 .
 If the directory specified by
 .Va PACKAGES
 does not exist, the package will be put into the current directory.

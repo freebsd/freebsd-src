@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2015
+.Dd March 1, 2016
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -79,8 +79,6 @@ struct timeout_task;
 .Fn taskqueue_free "struct taskqueue *queue"
 .Ft int
 .Fn taskqueue_enqueue "struct taskqueue *queue" "struct task *task"
-.Ft int
-.Fn taskqueue_enqueue_fast "struct taskqueue *queue" "struct task *task"
 .Ft int
 .Fn taskqueue_enqueue_timeout "struct taskqueue *queue" "struct timeout_task *timeout_task" "int ticks"
 .Ft int
@@ -190,14 +188,6 @@ it suitable for calling from an interrupt handler.
 This function will return
 .Er EPIPE
 if the queue is being freed.
-.Pp
-The function
-.Fn taskqueue_enqueue_fast
-should be used in place of
-.Fn taskqueue_enqueue
-when the enqueuing must happen from a fast interrupt handler.
-This method uses spin locks to avoid the possibility of sleeping in the fast
-interrupt context.
 .Pp
 When a task is executed,
 first it is removed from the queue,
@@ -467,15 +457,7 @@ To use these queues,
 call
 .Fn taskqueue_enqueue
 with the value of the global taskqueue variable for the queue you wish to
-use
-.Va ( taskqueue_swi ,
-.Va taskqueue_swi_giant ,
-or
-.Va taskqueue_thread ) .
-Use
-.Fn taskqueue_enqueue_fast
-for the global taskqueue variable
-.Va taskqueue_fast .
+use.
 .Pp
 The software interrupt queues can be used,
 for instance, for implementing interrupt handlers which must perform a

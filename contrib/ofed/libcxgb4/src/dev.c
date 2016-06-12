@@ -54,7 +54,6 @@
 	struct { \
 		unsigned vendor; \
 		unsigned device; \
-		unsigned chip_version; \
 	} hca_table[] = {
 
 #define CH_PCI_DEVICE_ID_FUNCTION \
@@ -64,7 +63,6 @@
 		{ \
 			.vendor = PCI_VENDOR_ID_CHELSIO, \
 			.device = (__DeviceID), \
-			.chip_version = CHELSIO_PCI_ID_CHIP_VERSION(__DeviceID), \
 		}
 
 #define CH_PCI_DEVICE_ID_TABLE_DEFINE_END \
@@ -493,7 +491,8 @@ found:
 	}
 
 	PDBG("%s found vendor %d device %d type %d\n",
-	     __FUNCTION__, vendor, device, hca_table[i].chip_version);
+		__FUNCTION__, vendor, device,
+		CHELSIO_PCI_ID_CHIP_VERSION(hca_table[i].device));
 
 	dev = calloc(1, sizeof *dev);
 	if (!dev) {
@@ -502,7 +501,7 @@ found:
 
 	pthread_spin_init(&dev->lock, PTHREAD_PROCESS_PRIVATE);
 	dev->ibv_dev.ops = c4iw_dev_ops;
-	dev->chip_version = hca_table[i].chip_version;
+	dev->chip_version = CHELSIO_PCI_ID_CHIP_VERSION(hca_table[i].device);
 	dev->abi_version = abi_version;
 
 	PDBG("%s device claimed\n", __FUNCTION__);

@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3272 2015-12-11 20:00:54Z kaiwang27 $");
+ELFTC_VCSID("$Id: sections.c 3443 2016-04-15 18:57:54Z kaiwang27 $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -223,6 +223,7 @@ static int
 is_debug_section(const char *name)
 {
 	const char *dbg_sec[] = {
+		".apple_",
 		".debug",
 		".gnu.linkonce.wi.",
 		".line",
@@ -342,7 +343,7 @@ create_scn(struct elfcopy *ecp)
 	GElf_Shdr	 ish;
 	size_t		 indx;
 	uint64_t	 oldndx, newndx;
-	int		 elferr, sec_flags;
+	int		 elferr, sec_flags, reorder;
 
 	/*
 	 * Insert a pseudo section that contains the ELF header
@@ -366,10 +367,11 @@ create_scn(struct elfcopy *ecp)
 		errx(EXIT_FAILURE, "elf_getshstrndx failed: %s",
 		    elf_errmsg(-1));
 
+	reorder = 0;
 	is = NULL;
 	while ((is = elf_nextscn(ecp->ein, is)) != NULL) {
 		if (gelf_getshdr(is, &ish) == NULL)
-			errx(EXIT_FAILURE, "219 gelf_getshdr failed: %s",
+			errx(EXIT_FAILURE, "gelf_getshdr failed: %s",
 			    elf_errmsg(-1));
 		if ((name = elf_strptr(ecp->ein, indx, ish.sh_name)) == NULL)
 			errx(EXIT_FAILURE, "elf_strptr failed: %s",
@@ -416,12 +418,19 @@ create_scn(struct elfcopy *ecp)
 			 * is loadable, but if user explicitly set section flags
 			 * while neither "load" nor "alloc" is set, we make the
 			 * section unloadable.
+			 *
+			 * Sections in relocatable object is loadable if
+			 * section flag SHF_ALLOC is set.
 			 */
 			if (sec_flags &&
 			    (sec_flags & (SF_LOAD | SF_ALLOC)) == 0)
 				s->loadable = 0;
-			else
+			else {
 				s->loadable = add_to_inseg_list(ecp, s);
+				if ((ecp->flags & RELOCATABLE) &&
+				    (ish.sh_flags & SHF_ALLOC))
+					s->loadable = 1;
+			}
 		} else {
 			/* Assuming .shstrtab is "unloadable". */
 			s		= ecp->shstrtab;
@@ -474,8 +483,20 @@ create_scn(struct elfcopy *ecp)
 		/* create section header based on input object. */
 		if (strcmp(name, ".symtab") != 0 &&
 		    strcmp(name, ".strtab") != 0 &&
-		    strcmp(name, ".shstrtab") != 0)
+		    strcmp(name, ".shstrtab") != 0) {
 			copy_shdr(ecp, s, NULL, 0, sec_flags);
+			/*
+			 * elfcopy puts .symtab, .strtab and .shstrtab
+			 * sections in the end of the output object.
+			 * If the input objects have more sections
+			 * after any of these 3 sections, the section
+			 * table will be reordered. section symbols
+			 * should be regenerated for relocations.
+			 */
+			if (reorder)
+				ecp->flags &= ~SYMTAB_INTACT;
+		} else
+			reorder = 1;
 
 		if (strcmp(name, ".symtab") == 0) {
 			ecp->flags |= SYMTAB_EXIST;
@@ -875,10 +896,10 @@ resync_sections(struct elfcopy *ecp)
 		if (s->align == 0)
 			s->align = 1;
 		if (off <= s->off) {
-			if (!s->loadable)
+			if (!s->loadable || (ecp->flags & RELOCATABLE))
 				s->off = roundup(off, s->align);
 		} else {
-			if (s->loadable)
+			if (s->loadable && (ecp->flags & RELOCATABLE) == 0)
 				warnx("moving loadable section %s, "
 				    "is this intentional?", s->name);
 			s->off = roundup(off, s->align);
@@ -1028,8 +1049,11 @@ print_section(struct section *s)
 		print_data(s->buf, s->sz);
 	} else {
 		id = NULL;
-		while ((id = elf_getdata(s->is, id)) != NULL)
+		while ((id = elf_getdata(s->is, id)) != NULL ||
+		    (id = elf_rawdata(s->is, id)) != NULL) {
+			(void) elf_errno();
 			print_data(id->d_buf, id->d_size);
+		}
 		elferr = elf_errno();
 		if (elferr != 0)
 			errx(EXIT_FAILURE, "elf_getdata() failed: %s",
@@ -1049,7 +1073,9 @@ read_section(struct section *s, size_t *size)
 	sz = 0;
 	b = NULL;
 	id = NULL;
-	while ((id = elf_getdata(s->is, id)) != NULL) {
+	while ((id = elf_getdata(s->is, id)) != NULL ||
+	    (id = elf_rawdata(s->is, id)) != NULL) {
+		(void) elf_errno();
 		if (b == NULL)
 			b = malloc(id->d_size);
 		else
@@ -1077,10 +1103,10 @@ copy_shdr(struct elfcopy *ecp, struct section *s, const char *name, int copy,
 	GElf_Shdr ish, osh;
 
 	if (gelf_getshdr(s->is, &ish) == NULL)
-		errx(EXIT_FAILURE, "526 gelf_getshdr() failed: %s",
+		errx(EXIT_FAILURE, "gelf_getshdr() failed: %s",
 		    elf_errmsg(-1));
 	if (gelf_getshdr(s->os, &osh) == NULL)
-		errx(EXIT_FAILURE, "529 gelf_getshdr() failed: %s",
+		errx(EXIT_FAILURE, "gelf_getshdr() failed: %s",
 		    elf_errmsg(-1));
 
 	if (copy)
@@ -1097,19 +1123,32 @@ copy_shdr(struct elfcopy *ecp, struct section *s, const char *name, int copy,
 
 		if (sec_flags) {
 			osh.sh_flags = 0;
-			if (sec_flags & SF_ALLOC) {
+			if (sec_flags & SF_ALLOC)
 				osh.sh_flags |= SHF_ALLOC;
-				if (!s->loadable)
-					warnx("set SHF_ALLOC flag for "
-					    "unloadable section %s",
-					    s->name);
-			}
 			if ((sec_flags & SF_READONLY) == 0)
 				osh.sh_flags |= SHF_WRITE;
 			if (sec_flags & SF_CODE)
 				osh.sh_flags |= SHF_EXECINSTR;
+			if ((sec_flags & SF_CONTENTS) &&
+			    s->type == SHT_NOBITS && s->sz > 0) {
+				/*
+				 * Convert SHT_NOBITS section to section with
+				 * (zero'ed) content on file.
+				 */
+				osh.sh_type = s->type = SHT_PROGBITS;
+				if ((s->buf = calloc(1, s->sz)) == NULL)
+					err(EXIT_FAILURE, "malloc failed");
+				s->nocopy = 1;
+			}
 		} else {
 			osh.sh_flags = ish.sh_flags;
+			/*
+			 * Newer binutils as(1) emits the section flag
+			 * SHF_INFO_LINK for relocation sections. elfcopy
+			 * emits this flag in the output section if it's
+			 * missing in the input section, to remain compatible
+			 * with binutils.
+			 */
 			if (ish.sh_type == SHT_REL || ish.sh_type == SHT_RELA)
 				osh.sh_flags |= SHF_INFO_LINK;
 		}
@@ -1135,11 +1174,14 @@ copy_data(struct section *s)
 		return;
 
 	if ((id = elf_getdata(s->is, NULL)) == NULL) {
-		elferr = elf_errno();
-		if (elferr != 0)
-			errx(EXIT_FAILURE, "elf_getdata() failed: %s",
-			    elf_errmsg(elferr));
-		return;
+		(void) elf_errno();
+		if ((id = elf_rawdata(s->is, NULL)) == NULL) {
+			elferr = elf_errno();
+			if (elferr != 0)
+				errx(EXIT_FAILURE, "failed to read section:"
+				    " %s", s->name);
+			return;
+		}
 	}
 
 	if ((od = elf_newdata(s->os)) == NULL)
@@ -1245,6 +1287,7 @@ insert_sections(struct elfcopy *ecp)
 	struct sec_add	*sa;
 	struct section	*s;
 	size_t		 off;
+	uint64_t	 stype;
 
 	/* Put these sections in the end of current list. */
 	off = 0;
@@ -1259,8 +1302,20 @@ insert_sections(struct elfcopy *ecp)
 
 		/* TODO: Add section header vma/lma, flag changes here */
 
+		/*
+		 * The default section type for user added section is
+		 * SHT_PROGBITS. If the section name match certain patterns,
+		 * elfcopy will try to set a more appropriate section type.
+		 * However, data type is always set to ELF_T_BYTE and no
+		 * translation is performed by libelf.
+		 */
+		stype = SHT_PROGBITS;
+		if (strcmp(sa->name, ".note") == 0 ||
+		    strncmp(sa->name, ".note.", strlen(".note.")) == 0)
+			stype = SHT_NOTE;
+
 		(void) create_external_section(ecp, sa->name, NULL, sa->content,
-		    sa->size, off, SHT_PROGBITS, ELF_T_BYTE, 0, 1, 0, 0);
+		    sa->size, off, stype, ELF_T_BYTE, 0, 1, 0, 0);
 	}
 }
 
@@ -1285,7 +1340,7 @@ update_shdr(struct elfcopy *ecp, int update_link)
 			continue;
 
 		if (gelf_getshdr(s->os, &osh) == NULL)
-			errx(EXIT_FAILURE, "668 gelf_getshdr failed: %s",
+			errx(EXIT_FAILURE, "gelf_getshdr failed: %s",
 			    elf_errmsg(-1));
 
 		/* Find section name in string table and set sh_name. */
@@ -1364,7 +1419,7 @@ set_shstrtab(struct elfcopy *ecp)
 	}
 
 	if (gelf_getshdr(s->os, &sh) == NULL)
-		errx(EXIT_FAILURE, "692 gelf_getshdr() failed: %s",
+		errx(EXIT_FAILURE, "gelf_getshdr() failed: %s",
 		    elf_errmsg(-1));
 	sh.sh_addr	= 0;
 	sh.sh_addralign	= 1;
@@ -1431,14 +1486,17 @@ add_section(struct elfcopy *ecp, const char *arg)
 	if (stat(fn, &sb) == -1)
 		err(EXIT_FAILURE, "stat failed");
 	sa->size = sb.st_size;
-	if ((sa->content = malloc(sa->size)) == NULL)
-		err(EXIT_FAILURE, "malloc failed");
-	if ((fp = fopen(fn, "r")) == NULL)
-		err(EXIT_FAILURE, "can not open %s", fn);
-	if (fread(sa->content, 1, sa->size, fp) == 0 ||
-	    ferror(fp))
-		err(EXIT_FAILURE, "fread failed");
-	fclose(fp);
+	if (sa->size > 0) {
+		if ((sa->content = malloc(sa->size)) == NULL)
+			err(EXIT_FAILURE, "malloc failed");
+		if ((fp = fopen(fn, "r")) == NULL)
+			err(EXIT_FAILURE, "can not open %s", fn);
+		if (fread(sa->content, 1, sa->size, fp) == 0 ||
+		    ferror(fp))
+			err(EXIT_FAILURE, "fread failed");
+		fclose(fp);
+	} else
+		sa->content = NULL;
 
 	STAILQ_INSERT_TAIL(&ecp->v_sadd, sa, sadd_list);
 	ecp->flags |= SEC_ADD;
@@ -1477,6 +1535,9 @@ add_gnu_debuglink(struct elfcopy *ecp)
 		err(EXIT_FAILURE, "strdup failed");
 	if (stat(ecp->debuglink, &sb) == -1)
 		err(EXIT_FAILURE, "stat failed");
+	if (sb.st_size == 0)
+		errx(EXIT_FAILURE, "empty debug link target %s",
+		    ecp->debuglink);
 	if ((buf = malloc(sb.st_size)) == NULL)
 		err(EXIT_FAILURE, "malloc failed");
 	if ((fp = fopen(ecp->debuglink, "r")) == NULL)

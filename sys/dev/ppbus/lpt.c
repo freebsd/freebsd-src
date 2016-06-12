@@ -113,7 +113,7 @@ struct lpt_data {
 	   prime once */
 	u_char	sc_control;
 	char	sc_flags;
-#define	LP_POS_INIT	0x04	/* if we are a postive init signal */
+#define	LP_POS_INIT	0x04	/* if we are a positive init signal */
 #define	LP_POS_ACK	0x08	/* if we are a positive going ack */
 #define	LP_NO_PRIME	0x10	/* don't prime the printer at all */
 #define	LP_PRIMEOPEN	0x20	/* prime on every open */

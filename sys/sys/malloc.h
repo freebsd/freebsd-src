@@ -146,9 +146,6 @@ MALLOC_DECLARE(M_CACHE);
 MALLOC_DECLARE(M_DEVBUF);
 MALLOC_DECLARE(M_TEMP);
 
-MALLOC_DECLARE(M_IP6OPT); /* for INET6 */
-MALLOC_DECLARE(M_IP6NDP); /* for INET6 */
-
 /*
  * Deprecated macro versions of not-quite-malloc() and free().
  */

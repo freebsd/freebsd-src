@@ -325,8 +325,6 @@ evtchn_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EINVAL);
 
 	kbuf = malloc(PAGE_SIZE, M_EVTCHN, M_WAITOK);
-	if (kbuf == NULL)
-		return (ENOMEM);
 
 	count = uio->uio_resid;
 	/* Whole number of ports. */

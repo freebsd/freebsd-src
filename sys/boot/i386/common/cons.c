@@ -97,6 +97,13 @@ xgetc(int fn)
 }
 
 int
+getchar(void)
+{
+
+	return (xgetc(0));
+}
+
+int
 keyhit(unsigned int secs)
 {
 	uint32_t t0, t1;

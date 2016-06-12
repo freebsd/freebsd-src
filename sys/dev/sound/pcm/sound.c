@@ -1153,18 +1153,12 @@ pcm_unregister(device_t dev)
 		return (0);
 	}
 
-	if (sndstat_acquire(td) != 0) {
-		device_printf(dev, "unregister: sndstat busy\n");
-		return (EBUSY);
-	}
-
 	PCM_LOCK(d);
 	PCM_WAIT(d);
 
 	if (d->inprog != 0) {
 		device_printf(dev, "unregister: operation in progress\n");
 		PCM_UNLOCK(d);
-		sndstat_release(td);
 		return (EBUSY);
 	}
 
@@ -1179,7 +1173,6 @@ pcm_unregister(device_t dev)
 			    ch->name, ch->pid);
 			CHN_UNLOCK(ch);
 			PCM_RELEASE_QUICK(d);
-			sndstat_release(td);
 			return (EBUSY);
 		}
 		CHN_UNLOCK(ch);
@@ -1189,7 +1182,6 @@ pcm_unregister(device_t dev)
 		if (snd_clone_busy(d->clones) != 0) {
 			device_printf(dev, "unregister: clone busy\n");
 			PCM_RELEASE_QUICK(d);
-			sndstat_release(td);
 			return (EBUSY);
 		} else {
 			PCM_LOCK(d);
@@ -1205,10 +1197,12 @@ pcm_unregister(device_t dev)
 			(void)snd_clone_enable(d->clones);
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
-		sndstat_release(td);
 		return (EBUSY);
 	}
 
+	/* remove /dev/sndstat entry first */
+	sndstat_unregister(dev);
+	
 	PCM_LOCK(d);
 	d->flags |= SD_F_DYING;
 	d->flags &= ~SD_F_REGISTERED;
@@ -1242,8 +1236,6 @@ pcm_unregister(device_t dev)
 	cv_destroy(&d->cv);
 	PCM_UNLOCK(d);
 	snd_mtxfree(d->lock);
-	sndstat_unregister(dev);
-	sndstat_release(td);
 
 	if (snd_unit == device_get_unit(dev)) {
 		snd_unit = pcm_best_unit(-1);
@@ -1415,9 +1407,6 @@ sound_modevent(module_t mod, int type, void *data)
 			pcmsg_unrhdr = new_unrhdr(1, INT_MAX, NULL);
 			break;
 		case MOD_UNLOAD:
-			ret = sndstat_acquire(curthread);
-			if (ret != 0)
-				break;
 			if (pcmsg_unrhdr != NULL) {
 				delete_unrhdr(pcmsg_unrhdr);
 				pcmsg_unrhdr = NULL;

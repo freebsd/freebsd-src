@@ -189,6 +189,9 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	VM_OBJECT_WLOCK(object);
 	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, plinks.q);
 	vm_page_replace_checked(page, object, offset, m[0]);
+	vm_page_lock(m[0]);
+	vm_page_free(m[0]);
+	vm_page_unlock(m[0]);
 	m[0] = page;
 	page->valid = VM_PAGE_BITS_ALL;
 

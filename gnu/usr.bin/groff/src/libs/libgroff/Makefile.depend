@@ -4,6 +4,7 @@
 DIRDEPS = \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 
 
@@ -11,6 +12,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-version.o: version.cpp
-version.po: version.cpp
 .endif

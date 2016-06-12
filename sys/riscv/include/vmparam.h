@@ -43,19 +43,19 @@
  * Virtual memory related constants, all in bytes
  */
 #ifndef MAXTSIZ
-#define	MAXTSIZ		(32*1024*1024)	/* max text size */
+#define	MAXTSIZ		(1*1024*1024*1024)	/* max text size */
 #endif
 #ifndef DFLDSIZ
 #define	DFLDSIZ		(128*1024*1024)		/* initial data size limit */
 #endif
 #ifndef MAXDSIZ
-#define	MAXDSIZ		(128*1024*1024)	/* max data size */
+#define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */
 #endif
 #ifndef DFLSSIZ
-#define	DFLSSIZ		(2*1024*1024)		/* initial stack size limit */
+#define	DFLSSIZ		(128*1024*1024)		/* initial stack size limit */
 #endif
 #ifndef MAXSSIZ
-#define	MAXSSIZ		(8*1024*1024)	/* max stack size */
+#define	MAXSSIZ		(1*1024*1024*1024)	/* max stack size */
 #endif
 #ifndef SGROWSIZ
 #define	SGROWSIZ	(128*1024)		/* amount to grow stack */
@@ -128,12 +128,12 @@
  * We limit the size of the two spaces to 39 bits each.
  *
  * Upper region:	0xffffffffffffffff
- *			0xffffffffc0000000
+ *			0xffffff8000000000
  *
- * Hole:		0xffffffffbfffffff
- *			0x0000000080000000
+ * Hole:		0xffffff7fffffffff
+ *			0x0000008000000000
  *
- * Lower region:	0x000000007fffffff
+ * Lower region:	0x0000007fffffffff
  *			0x0000000000000000
  *
  * We use the upper region for the kernel, and the lower region for userland.
@@ -152,19 +152,20 @@
 #define	VM_MIN_ADDRESS		(0x0000000000000000UL)
 #define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 
-/* 256 MiB of kernel addresses */
-#define	VM_MIN_KERNEL_ADDRESS	(0xffffffffc0000000UL)
-#define	VM_MAX_KERNEL_ADDRESS	(0xffffffffcfffffffUL)
+/* 32 GiB of kernel addresses */
+#define	VM_MIN_KERNEL_ADDRESS	(0xffffffc000000000UL)
+#define	VM_MAX_KERNEL_ADDRESS	(0xffffffc800000000UL)
 
-/* Direct Map for 512 MiB of PA: 0x0 - 0x1fffffff */
-#define	DMAP_MIN_ADDRESS	(0xffffffffd0000000UL)
-#define	DMAP_MAX_ADDRESS	(0xffffffffefffffffUL)
+/* Direct Map for 128 GiB of PA: 0x0 - 0x1fffffffff */
+#define	DMAP_MIN_ADDRESS	(0xffffffd000000000UL)
+#define	DMAP_MAX_ADDRESS	(0xffffffefffffffffUL)
 
 #define	DMAP_MIN_PHYSADDR	(0x0000000000000000UL)
 #define	DMAP_MAX_PHYSADDR	(DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS)
 
 /* True if pa is in the dmap range */
-#define	PHYS_IN_DMAP(pa)	((pa) <= DMAP_MAX_PHYSADDR)
+#define	PHYS_IN_DMAP(pa)	((pa) >= DMAP_MIN_PHYSADDR && \
+    (pa) <= DMAP_MAX_PHYSADDR)
 /* True if va is in the dmap range */
 #define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS && \
     (va) <= DMAP_MAX_ADDRESS)
@@ -186,13 +187,15 @@
 })
 
 #define	VM_MIN_USER_ADDRESS	(0x0000000000000000UL)
-#define	VM_MAX_USER_ADDRESS	(0x0000000080000000UL)
+#define	VM_MAX_USER_ADDRESS	(0x0000004000000000UL)
 
 #define	VM_MINUSER_ADDRESS	(VM_MIN_USER_ADDRESS)
 #define	VM_MAXUSER_ADDRESS	(VM_MAX_USER_ADDRESS)
 
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
-#define	USRSTACK		(VM_MAX_USER_ADDRESS)
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	USRSTACK		SHAREDPAGE
+
 #define	KERNENTRY		(0x200)
 
 /*
@@ -235,5 +238,7 @@ extern vm_offset_t vm_max_kernel_address;
 extern vm_offset_t init_pt_va;
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
+#define	DEVMAP_MAX_VADDR	VM_MAX_KERNEL_ADDRESS
 
 #endif /* !_MACHINE_VMPARAM_H_ */

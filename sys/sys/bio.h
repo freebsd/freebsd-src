@@ -39,16 +39,18 @@
 #define	_SYS_BIO_H_
 
 #include <sys/queue.h>
+#include <sys/disk_zone.h>
 
 /* bio_cmd */
 #define BIO_READ	0x01	/* Read I/O data */
 #define BIO_WRITE	0x02	/* Write I/O data */
-#define BIO_DELETE	0x04	/* TRIM or free blocks, i.e. mark as unused */
-#define BIO_GETATTR	0x08	/* Get GEOM attributes of object */
-#define BIO_FLUSH	0x10	/* Commit outstanding I/O now */
-#define BIO_CMD0	0x20	/* Available for local hacks */
-#define BIO_CMD1	0x40	/* Available for local hacks */
-#define BIO_CMD2	0x80	/* Available for local hacks */
+#define BIO_DELETE	0x03	/* TRIM or free blocks, i.e. mark as unused */
+#define BIO_GETATTR	0x04	/* Get GEOM attributes of object */
+#define BIO_FLUSH	0x05	/* Commit outstanding I/O now */
+#define BIO_CMD0	0x06	/* Available for local hacks */
+#define BIO_CMD1	0x07	/* Available for local hacks */
+#define BIO_CMD2	0x08	/* Available for local hacks */
+#define BIO_ZONE	0x09	/* Zone command */
 
 /* bio_flags */
 #define BIO_ERROR	0x01	/* An error occurred processing this bio. */
@@ -77,10 +79,10 @@ typedef void bio_task_t(void *);
  * The bio structure describes an I/O operation in the kernel.
  */
 struct bio {
-	uint8_t	bio_cmd;		/* I/O operation. */
-	uint8_t	bio_flags;		/* General flags. */
-	uint8_t	bio_cflags;		/* Private use by the consumer. */
-	uint8_t	bio_pflags;		/* Private use by the provider. */
+	uint16_t bio_cmd;		/* I/O operation. */
+	uint16_t bio_flags;		/* General flags. */
+	uint16_t bio_cflags;		/* Private use by the consumer. */
+	uint16_t bio_pflags;		/* Private use by the provider. */
 	struct cdev *bio_dev;		/* Device to do I/O on. */
 	struct disk *bio_disk;		/* Valid below geom_disk.c only */
 	off_t	bio_offset;		/* Offset into file. */
@@ -98,6 +100,7 @@ struct bio {
 	void	*bio_caller2;		/* Private use by the consumer. */
 	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
 	const char *bio_attribute;	/* Attribute for BIO_[GS]ETATTR */
+	struct  disk_zone_args bio_zone;/* Used for BIO_ZONE */
 	struct g_consumer *bio_from;	/* GEOM linkage */
 	struct g_provider *bio_to;	/* GEOM linkage */
 	off_t	bio_length;		/* Like bio_bcount */

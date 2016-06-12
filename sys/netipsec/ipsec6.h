@@ -59,7 +59,7 @@ VNET_DECLARE(int, ip6_ipsec_ecn);
 #define	V_ip6_ipsec_ecn		VNET(ip6_ipsec_ecn)
 
 struct inpcb;
-extern int ipsec6_in_reject(struct mbuf *, struct inpcb *);
+extern int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
 
 struct m_tag;
 extern int ipsec6_common_input(struct mbuf **mp, int *offp, int proto);

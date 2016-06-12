@@ -152,7 +152,6 @@ struct cb_file {
 static int
 cb_open(void *arg, const char *filename, void **hp)
 {
-	struct stat st;
 	struct cb_file *cf;
 	char path[PATH_MAX];
 
@@ -169,7 +168,7 @@ cb_open(void *arg, const char *filename, void **hp)
 		return (errno);
 	}
 
-	cf->cf_size = st.st_size;
+	cf->cf_size = cf->cf_stat.st_size;
 	if (S_ISDIR(cf->cf_stat.st_mode)) {
 		cf->cf_isdir = 1;
 		cf->cf_u.dir = opendir(path);
@@ -542,6 +541,21 @@ cb_getenv(void *arg, int num)
 	return (NULL);
 }
 
+static int
+cb_vm_set_register(void *arg, int vcpu, int reg, uint64_t val)
+{
+
+	return (vm_set_register(ctx, vcpu, reg, val));
+}
+
+static int
+cb_vm_set_desc(void *arg, int vcpu, int reg, uint64_t base, u_int limit,
+    u_int access)
+{
+
+	return (vm_set_desc(ctx, vcpu, reg, base, limit, access));
+}
+
 static struct loader_callbacks cb = {
 	.getc = cb_getc,
 	.putc = cb_putc,
@@ -571,6 +585,10 @@ static struct loader_callbacks cb = {
 	.getmem = cb_getmem,
 
 	.getenv = cb_getenv,
+
+	/* Version 4 additions */
+	.vm_set_register = cb_vm_set_register,
+	.vm_set_desc = cb_vm_set_desc,
 };
 
 static int
@@ -655,7 +673,7 @@ main(int argc, char** argv)
 	consin_fd = STDIN_FILENO;
 	consout_fd = STDOUT_FILENO;
 
-	while ((opt = getopt(argc, argv, "Sc:d:e:h:l:m:")) != -1) {
+	while ((opt = getopt(argc, argv, "CSc:d:e:h:l:m:")) != -1) {
 		switch (opt) {
 		case 'c':
 			error = altcons_open(optarg);
@@ -689,6 +707,9 @@ main(int argc, char** argv)
 			error = vm_parse_memsize(optarg, &mem_size);
 			if (error != 0)
 				errx(EX_USAGE, "Invalid memsize '%s'", optarg);
+			break;
+		case 'C':
+			memflags |= VM_MEM_F_INCORE;
 			break;
 		case 'S':
 			memflags |= VM_MEM_F_WIRED;
@@ -765,7 +786,7 @@ main(int argc, char** argv)
 	addenv("smbios.bios.vendor=BHYVE");
 	addenv("boot_serial=1");
 
-	func(&cb, NULL, USERBOOT_VERSION_3, ndisks);
+	func(&cb, NULL, USERBOOT_VERSION_4, ndisks);
 
 	free(loader);
 	return (0);

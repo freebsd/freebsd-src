@@ -41,6 +41,7 @@ TGHDRS=	AArch64GenCallingConv \
 	AArch64GenMCPseudoLowering \
 	AArch64GenRegisterInfo \
 	AArch64GenSubtargetInfo \
+	Attributes \
 	Intrinsics
 
 .include "../clang.lib.mk"

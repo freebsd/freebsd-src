@@ -6,6 +6,7 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libstand \
 	sys/boot/ficl32 \
+	sys/boot/geli \
 	sys/boot/i386/btx/btx \
 	sys/boot/i386/btx/btxldr \
 	sys/boot/i386/btx/lib \
@@ -17,6 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-vers.o: vers.c
-vers.po: vers.c
 .endif

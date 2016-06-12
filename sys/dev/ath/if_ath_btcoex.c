@@ -47,9 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/errno.h>
-
 #include <machine/bus.h>
 #include <machine/resource.h>
+
 #include <sys/bus.h>
 
 #include <sys/socket.h>
@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_athvar.h>
 #include <dev/ath/if_ath_btcoex.h>
+#include <dev/ath/if_ath_btcoex_mci.h>
+
+MALLOC_DECLARE(M_ATHDEV);
 
 /*
  * Initial AR9285 / (WB195) bluetooth coexistence settings,
@@ -188,14 +191,8 @@ ath_btcoex_cfg_wb225(struct ath_softc *sc)
 	return (0);
 }
 
-/*
- * Initial AR9462 / (WB222) bluetooth coexistence settings,
- * just for experimentation.
- *
- * Return 0 for OK; errno for error.
- */
 static int
-ath_btcoex_cfg_wb222(struct ath_softc *sc)
+ath_btcoex_cfg_mci(struct ath_softc *sc, uint32_t mci_cfg, int do_btdiv)
 {
 	HAL_BT_COEX_INFO btinfo;
 	HAL_BT_COEX_CONFIG btconfig;
@@ -207,7 +204,12 @@ ath_btcoex_cfg_wb222(struct ath_softc *sc)
 	bzero(&btinfo, sizeof(btinfo));
 	bzero(&btconfig, sizeof(btconfig));
 
-	device_printf(sc->sc_dev, "Enabling WB222 BTCOEX\n");
+	sc->sc_ah->ah_config.ath_hal_mci_config = mci_cfg;
+
+	if (ath_btcoex_mci_attach(sc) != 0) {
+		device_printf(sc->sc_dev, "Failed to setup btcoex\n");
+		return (EINVAL);
+	}
 
 	btinfo.bt_module = HAL_BT_MODULE_JANUS;	/* XXX not used? */
 	btinfo.bt_coex_config = HAL_BT_COEX_CFG_MCI;
@@ -227,7 +229,7 @@ ath_btcoex_cfg_wb222(struct ath_softc *sc)
 	btinfo.bt_gpio_wlan_active = 5;
 
 	btinfo.bt_active_polarity = 1;	/* XXX not used */
-	btinfo.bt_single_ant = 0;	/* 2 antenna on WB222 */
+	btinfo.bt_single_ant = 0;	/* 2 antenna on WB335 */
 	btinfo.bt_isolation = 0;	/* in dB, not used */
 
 	ath_hal_btcoex_set_info(ah, &btinfo);
@@ -244,16 +246,72 @@ ath_btcoex_cfg_wb222(struct ath_softc *sc)
 
 	ath_hal_btcoex_set_config(ah, &btconfig);
 
+	/* Enable */
+	ath_hal_btcoex_enable(sc->sc_ah);
+
+	/* Stomp */
+	ath_hal_btcoex_set_weights(ah, HAL_BT_COEX_STOMP_NONE);
+
 	/*
 	 * Enable antenna diversity.
 	 */
-	ath_hal_btcoex_set_parameter(ah, HAL_BT_COEX_ANTENNA_DIVERSITY, 1);
+	ath_hal_btcoex_set_parameter(ah, HAL_BT_COEX_ANTENNA_DIVERSITY,
+	    do_btdiv);
 
 	return (0);
 }
 
+/*
+ * Initial AR9462 / (WB222) bluetooth coexistence settings.
+ *
+ * Return 0 for OK; errno for error.
+ */
+static int
+ath_btcoex_cfg_wb222(struct ath_softc *sc)
+{
 
+	device_printf(sc->sc_dev, "Enabling WB222 BTCOEX\n");
+	/* XXX from ath9k */
+	return (ath_btcoex_cfg_mci(sc, 0x2201, 1));
+}
 
+/*
+ * Initial QCA9565 / (WB335B) bluetooth coexistence settings.
+ *
+ * Return 0 for OK; errno for error.
+ */
+static int
+ath_btcoex_cfg_wb335b(struct ath_softc *sc)
+{
+	uint32_t flags;
+	int do_btdiv = 0;
+
+	/* ath9k default */
+	flags = 0xa4c1;
+
+	/* 1-ant and 2-ant AR9565 */
+	/*
+	 * XXX TODO: ensure these actually make it down to the
+	 * HAL correctly!
+	 */
+	if (sc->sc_pci_devinfo & ATH_PCI_AR9565_1ANT) {
+		flags &= ~ATH_MCI_CONFIG_ANT_ARCH;
+		flags |= ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_SHARED <<
+		    ATH_MCI_CONFIG_ANT_ARCH_S;
+	} else if (sc->sc_pci_devinfo & ATH_PCI_AR9565_2ANT) {
+		flags &= ~ATH_MCI_CONFIG_ANT_ARCH;
+		flags |= ATH_MCI_ANT_ARCH_2_ANT_PA_LNA_NON_SHARED <<
+		    ATH_MCI_CONFIG_ANT_ARCH_S;
+	}
+
+	if (sc->sc_pci_devinfo & ATH_PCI_BT_ANT_DIV) {
+		do_btdiv = 1;
+	}
+
+	device_printf(sc->sc_dev, "Enabling WB335 BTCOEX\n");
+	/* XXX from ath9k */
+	return (ath_btcoex_cfg_mci(sc, flags, do_btdiv));
+}
 
 #if 0
 /*
@@ -313,6 +371,8 @@ ath_btcoex_attach(struct ath_softc *sc)
 		ret = ath_btcoex_cfg_wb222(sc);
 	} else if (strncmp(profname, "wb225", 5) == 0) {
 		ret = ath_btcoex_cfg_wb225(sc);
+	} else if (strncmp(profname, "wb335", 5) == 0) {
+		ret = ath_btcoex_cfg_wb335b(sc);
 	} else {
 		return (0);
 	}
@@ -332,6 +392,9 @@ ath_btcoex_attach(struct ath_softc *sc)
 int
 ath_btcoex_detach(struct ath_softc *sc)
 {
+	if (sc->sc_btcoex_mci) {
+		ath_btcoex_mci_detach(sc);
+	}
 
 	return (0);
 }
@@ -348,6 +411,9 @@ ath_btcoex_detach(struct ath_softc *sc)
 int
 ath_btcoex_enable(struct ath_softc *sc, const struct ieee80211_channel *chan)
 {
+	if (sc->sc_btcoex_mci) {
+		ath_btcoex_mci_enable(sc, chan);
+	}
 
 	return (0);
 }

@@ -10,16 +10,21 @@
 #ifndef liblldb_RangeMap_h_
 #define liblldb_RangeMap_h_
 
+// C Includes
+// C++ Includes
+#include <algorithm>
 #include <vector>
 
-#include "lldb/lldb-private.h"
+// Other libraries and framework includes
 #include "llvm/ADT/SmallVector.h"
+
+// Project includes
+#include "lldb/lldb-private.h"
 
 // Uncomment to make sure all Range objects are sorted when needed
 //#define ASSERT_RANGEMAP_ARE_SORTED
 
 namespace lldb_private {
-
     
     //----------------------------------------------------------------------
     // Templatized classes for dealing with generic ranges and also
@@ -187,16 +192,11 @@ namespace lldb_private {
         typedef S SizeType;
         typedef Range<B,S> Entry;
         typedef llvm::SmallVector<Entry, N> Collection;
-        
-        RangeArray () :
-            m_entries ()
-        {
-        }
-        
-        ~RangeArray()
-        {
-        }
-        
+
+        RangeArray() = default;
+
+        ~RangeArray() = default;
+
         void
         Append (const Entry &entry)
         {
@@ -236,6 +236,7 @@ namespace lldb_private {
             return true;
         }
 #endif        
+
         void
         CombineConsecutiveRanges ()
         {
@@ -281,7 +282,6 @@ namespace lldb_private {
             }
         }
 
-        
         BaseType
         GetMinRangeBase (BaseType fail_value) const
         {
@@ -337,9 +337,7 @@ namespace lldb_private {
         const Entry *
         GetEntryAtIndex (size_t i) const
         {
-            if (i<m_entries.size())
-                return &m_entries[i];
-            return NULL;
+            return ((i < m_entries.size()) ? &m_entries[i] : nullptr);
         }
         
         // Clients must ensure that "i" is a valid index prior to calling this function
@@ -352,17 +350,13 @@ namespace lldb_private {
         Entry *
         Back()
         {
-            if (m_entries.empty())
-                return NULL;
-            return &m_entries.back();
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
 
         const Entry *
         Back() const
         {
-            if (m_entries.empty())
-                return NULL;
-            return &m_entries.back();
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
 
         static bool 
@@ -424,7 +418,7 @@ namespace lldb_private {
                     }
                 }
             }
-            return NULL;
+            return nullptr;
         }
 
         const Entry *
@@ -452,7 +446,7 @@ namespace lldb_private {
                     }
                 }
             }
-            return NULL;
+            return nullptr;
         }
 
     protected:
@@ -467,16 +461,11 @@ namespace lldb_private {
         typedef S SizeType;
         typedef Range<B,S> Entry;
         typedef std::vector<Entry> Collection;
-        
-        RangeVector () :
-            m_entries ()
-        {
-        }
-        
-        ~RangeVector()
-        {
-        }
-        
+
+        RangeVector() = default;
+
+        ~RangeVector() = default;
+
         void
         Append (const Entry &entry)
         {
@@ -516,6 +505,7 @@ namespace lldb_private {
             return true;
         }
 #endif
+
         void
         CombineConsecutiveRanges ()
         {
@@ -560,8 +550,7 @@ namespace lldb_private {
                 }
             }
         }
-        
-        
+
         BaseType
         GetMinRangeBase (BaseType fail_value) const
         {
@@ -623,9 +612,7 @@ namespace lldb_private {
         const Entry *
         GetEntryAtIndex (size_t i) const
         {
-            if (i<m_entries.size())
-                return &m_entries[i];
-            return NULL;
+            return ((i < m_entries.size()) ? &m_entries[i] : nullptr);
         }
         
         // Clients must ensure that "i" is a valid index prior to calling this function
@@ -638,17 +625,13 @@ namespace lldb_private {
         Entry *
         Back()
         {
-            if (m_entries.empty())
-                return NULL;
-            return &m_entries.back();
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
         
         const Entry *
         Back() const
         {
-            if (m_entries.empty())
-                return NULL;
-            return &m_entries.back();
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
         
         static bool
@@ -710,7 +693,7 @@ namespace lldb_private {
                     }
                 }
             }
-            return NULL;
+            return nullptr;
         }
         
         const Entry *
@@ -738,7 +721,7 @@ namespace lldb_private {
                     }
                 }
             }
-            return NULL;
+            return nullptr;
         }
         
     protected:
@@ -812,15 +795,10 @@ namespace lldb_private {
         typedef RangeData<B,S,T> Entry;
         typedef llvm::SmallVector<Entry, N> Collection;
 
+        RangeDataArray() = default;
 
-        RangeDataArray ()
-        {
-        }
-        
-        ~RangeDataArray()
-        {
-        }
-        
+        ~RangeDataArray() = default;
+
         void
         Append (const Entry &entry)
         {
@@ -911,9 +889,7 @@ namespace lldb_private {
         const Entry *
         GetEntryAtIndex (size_t i) const
         {
-            if (i<m_entries.size())
-                return &m_entries[i];
-            return NULL;
+            return ((i < m_entries.size()) ? &m_entries[i] : nullptr);
         }
 
         // Clients must ensure that "i" is a valid index prior to calling this function
@@ -984,8 +960,9 @@ namespace lldb_private {
                     }
                 }
             }
-            return NULL;
+            return nullptr;
         }
+
         const Entry *
         FindEntryThatContains (B addr) const
         {
@@ -1014,7 +991,7 @@ namespace lldb_private {
                     }
                 }
             }
-            return NULL;
+            return nullptr;
         }
         
         const Entry *
@@ -1042,23 +1019,19 @@ namespace lldb_private {
                     }
                 }
             }
-            return NULL;
+            return nullptr;
         }
         
         Entry *
         Back()
         {
-            if (!m_entries.empty())
-                return &m_entries.back();
-            return NULL;
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
 
         const Entry *
         Back() const
         {
-            if (!m_entries.empty())
-                return &m_entries.back();
-            return NULL;
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
 
     protected:
@@ -1073,15 +1046,11 @@ namespace lldb_private {
     public:
         typedef RangeData<B,S,T> Entry;
         typedef std::vector<Entry> Collection;
-        
-        RangeDataVector ()
-        {
-        }
-        
-        ~RangeDataVector()
-        {
-        }
-        
+
+        RangeDataVector() = default;
+
+        ~RangeDataVector() = default;
+
         void
         Append (const Entry &entry)
         {
@@ -1181,7 +1150,6 @@ namespace lldb_private {
                     }
                 }
             }
-            
         }
         
         void
@@ -1211,9 +1179,7 @@ namespace lldb_private {
         const Entry *
         GetEntryAtIndex (size_t i) const
         {
-            if (i<m_entries.size())
-                return &m_entries[i];
-            return NULL;
+            return ((i < m_entries.size()) ? &m_entries[i] : nullptr);
         }
         
         // Clients must ensure that "i" is a valid index prior to calling this function
@@ -1250,6 +1216,25 @@ namespace lldb_private {
             }
             return UINT32_MAX;
         }
+
+        uint32_t
+        FindEntryIndexesThatContain(B addr, std::vector<uint32_t> &indexes) const
+        {
+#ifdef ASSERT_RANGEMAP_ARE_SORTED
+            assert (IsSorted());
+#endif
+
+            if (!m_entries.empty())
+            {
+                typename Collection::const_iterator pos;
+                for (const auto &entry : m_entries)
+                {
+                    if (entry.Contains(addr))
+                        indexes.push_back(entry.data);
+                }
+            }
+            return indexes.size() ;
+        }
         
         Entry *
         FindEntryThatContains (B addr)
@@ -1272,8 +1257,9 @@ namespace lldb_private {
                 if (pos != end && pos->Contains(addr))
                     return &(*pos);
             }
-            return NULL;
+            return nullptr;
         }
+
         const Entry *
         FindEntryThatContains (B addr) const
         {
@@ -1295,7 +1281,7 @@ namespace lldb_private {
                 if (pos != end && pos->Contains(addr))
                     return &(*pos);
             }
-            return NULL;
+            return nullptr;
         }
         
         const Entry *
@@ -1316,30 +1302,25 @@ namespace lldb_private {
                 if (pos != end && pos->Contains(range))
                     return &(*pos);
             }
-            return NULL;
+            return nullptr;
         }
         
         Entry *
         Back()
         {
-            if (!m_entries.empty())
-                return &m_entries.back();
-            return NULL;
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
         
         const Entry *
         Back() const
         {
-            if (!m_entries.empty())
-                return &m_entries.back();
-            return NULL;
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
         
     protected:
         Collection m_entries;
     };
-                    
-                
+
     //----------------------------------------------------------------------
     // A simple range  with data class where you get to define the type of
     // the range base "B", the type used for the range byte size "S", and
@@ -1389,7 +1370,6 @@ namespace lldb_private {
         }
     };
 
-
     template <typename B, typename T, unsigned N>
     class AddressDataArray
     {
@@ -1397,15 +1377,10 @@ namespace lldb_private {
         typedef AddressData<B,T> Entry;
         typedef llvm::SmallVector<Entry, N> Collection;
 
+        AddressDataArray() = default;
 
-        AddressDataArray ()
-        {
-        }
-        
-        ~AddressDataArray()
-        {
-        }
-        
+        ~AddressDataArray() = default;
+
         void
         Append (const Entry &entry)
         {
@@ -1456,9 +1431,7 @@ namespace lldb_private {
         const Entry *
         GetEntryAtIndex (size_t i) const
         {
-            if (i<m_entries.size())
-                return &m_entries[i];
-            return NULL;
+            return ((i < m_entries.size()) ? &m_entries[i] : nullptr);
         }
 
         // Clients must ensure that "i" is a valid index prior to calling this function
@@ -1497,7 +1470,7 @@ namespace lldb_private {
                         return &(*pos);
                 }
             }
-            return NULL;
+            return nullptr;
         }
         
         const Entry *
@@ -1505,23 +1478,19 @@ namespace lldb_private {
         {
             if (entry >= &*m_entries.begin() && entry + 1 < &*m_entries.end())
                 return entry + 1;
-            return NULL;
+            return nullptr;
         }
         
         Entry *
         Back()
         {
-            if (!m_entries.empty())
-                return &m_entries.back();
-            return NULL;
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
 
         const Entry *
         Back() const
         {
-            if (!m_entries.empty())
-                return &m_entries.back();
-            return NULL;
+            return (m_entries.empty() ? nullptr : &m_entries.back());
         }
 
     protected:
@@ -1530,4 +1499,4 @@ namespace lldb_private {
 
 } // namespace lldb_private
 
-#endif  // liblldb_RangeMap_h_
+#endif // liblldb_RangeMap_h_

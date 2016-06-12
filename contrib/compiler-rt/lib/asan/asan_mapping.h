@@ -17,7 +17,7 @@
 #include "asan_internal.h"
 
 // The full explanation of the memory mapping could be found here:
-// http://code.google.com/p/address-sanitizer/wiki/AddressSanitizerAlgorithm
+// https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm
 //
 // Typical shadow mapping on Linux/x86_64 with SHADOW_OFFSET == 0x00007fff8000:
 // || `[0x10007fff8000, 0x7fffffffffff]` || HighMem    ||
@@ -73,6 +73,20 @@
 // || `[0x2000000000, 0x23ffffffff]` || LowShadow  ||
 // || `[0x0000000000, 0x1fffffffff]` || LowMem     ||
 //
+// Default Linux/AArch64 (39-bit VMA) mapping:
+// || `[0x2000000000, 0x7fffffffff]` || highmem    ||
+// || `[0x1400000000, 0x1fffffffff]` || highshadow ||
+// || `[0x1200000000, 0x13ffffffff]` || shadowgap  ||
+// || `[0x1000000000, 0x11ffffffff]` || lowshadow  ||
+// || `[0x0000000000, 0x0fffffffff]` || lowmem     ||
+//
+// Default Linux/AArch64 (42-bit VMA) mapping:
+// || `[0x10000000000, 0x3ffffffffff]` || highmem    ||
+// || `[0x0a000000000, 0x0ffffffffff]` || highshadow ||
+// || `[0x09000000000, 0x09fffffffff]` || shadowgap  ||
+// || `[0x08000000000, 0x08fffffffff]` || lowshadow  ||
+// || `[0x00000000000, 0x07fffffffff]` || lowmem     ||
+//
 // Shadow mapping on FreeBSD/x86-64 with SHADOW_OFFSET == 0x400000000000:
 // || `[0x500000000000, 0x7fffffffffff]` || HighMem    ||
 // || `[0x4a0000000000, 0x4fffffffffff]` || HighShadow ||
@@ -113,11 +127,12 @@ static const u64 kFreeBSD_ShadowOffset64 = 1ULL << 46;  // 0x400000000000
 static const u64 kWindowsShadowOffset32 = 3ULL << 28;  // 0x30000000
 
 #define SHADOW_SCALE kDefaultShadowScale
-#if SANITIZER_ANDROID
-# define SHADOW_OFFSET (0)
-#else
-# if SANITIZER_WORDSIZE == 32
-#  if defined(__mips__)
+
+
+#if SANITIZER_WORDSIZE == 32
+#  if SANITIZER_ANDROID
+#    define SHADOW_OFFSET (0)
+#  elif defined(__mips__)
 #    define SHADOW_OFFSET kMIPS32_ShadowOffset32
 #  elif SANITIZER_FREEBSD
 #    define SHADOW_OFFSET kFreeBSD_ShadowOffset32
@@ -130,7 +145,7 @@ static const u64 kWindowsShadowOffset32 = 3ULL << 28;  // 0x30000000
 #  else
 #    define SHADOW_OFFSET kDefaultShadowOffset32
 #  endif
-# else
+#else
 #  if defined(__aarch64__)
 #    define SHADOW_OFFSET kAArch64_ShadowOffset64
 #  elif defined(__powerpc64__)
@@ -148,7 +163,6 @@ static const u64 kWindowsShadowOffset32 = 3ULL << 28;  // 0x30000000
 #  else
 #   define SHADOW_OFFSET kDefaultShort64bitShadowOffset
 #  endif
-# endif
 #endif
 
 #define SHADOW_GRANULARITY (1ULL << SHADOW_SCALE)
@@ -171,7 +185,8 @@ static const u64 kWindowsShadowOffset32 = 3ULL << 28;  // 0x30000000
 
 // With the zero shadow base we can not actually map pages starting from 0.
 // This constant is somewhat arbitrary.
-#define kZeroBaseShadowStart (1 << 18)
+#define kZeroBaseShadowStart 0
+#define kZeroBaseMaxShadowStart (1 << 18)
 
 #define kShadowGapBeg   (kLowShadowEnd ? kLowShadowEnd + 1 \
                                        : kZeroBaseShadowStart)

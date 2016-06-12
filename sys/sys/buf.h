@@ -98,8 +98,8 @@ struct buf {
 	void		*b_caller1;
 	caddr_t		b_data;
 	int		b_error;
-	uint8_t		b_iocmd;
-	uint8_t		b_ioflags;
+	uint16_t	b_iocmd;	/* BIO_* bio_cmd from bio.h */
+	uint16_t	b_ioflags;	/* BIO_* bio_flags from bio.h */
 	off_t		b_iooffset;
 	long		b_resid;
 	void	(*b_iodone)(struct buf *);
@@ -200,20 +200,20 @@ struct buf {
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_VALIDSUSPWRT	0x00000040	/* Valid write during suspension. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
-#define	B_PERSISTENT	0x00000100	/* Perm. ref'ed while EXT2FS mounted. */
+#define	B_00000100	0x00000100	/* Available flag. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_NOREUSE	0x00000800	/* Contents not reused once released. */
 #define	B_00001000	0x00001000	/* Available flag. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
-#define	B_BARRIER	0x00004000	/* Write this and all preceeding first. */
+#define	B_BARRIER	0x00004000	/* Write this and all preceding first. */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
 #define	B_00040000	0x00040000	/* Available flag. */
 #define	B_00080000	0x00080000	/* Available flag. */
 #define	B_00100000	0x00100000	/* Available flag. */
-#define	B_DIRTY		0x00200000	/* Needs writing later (in EXT2FS). */
+#define	B_00200000	0x00200000	/* Available flag. */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_FS_FLAG1	0x00800000	/* Available flag for FS use. */
 #define	B_NOCOPY	0x01000000	/* Don't copy-on-write this buf. */
@@ -226,9 +226,9 @@ struct buf {
 #define B_REMFREE	0x80000000	/* Delayed bremfree */
 
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
-	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26dirty\25b20" \
+	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26b21\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
-	"\15b12\14noreuse\13eintr\12done\11persist\10delwri" \
+	"\15b12\14noreuse\13eintr\12done\11b8\10delwri" \
 	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*

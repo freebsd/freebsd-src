@@ -207,7 +207,7 @@ rcmd_af(char **ahost, int rport, const char *locuser, const char *remuser,
 		}
 	}
 	lport--;
-	if (fd2p == 0) {
+	if (fd2p == NULL) {
 		_write(s, "", 1);
 		lport = 0;
 	} else {

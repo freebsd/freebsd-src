@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -50,5 +50,19 @@ typedef unsigned long * riscv_intrcnt_t;
 
 riscv_intrcnt_t riscv_intrcnt_create(const char *);
 void riscv_intrcnt_setname(riscv_intrcnt_t, const char *);
+
+#ifdef SMP
+void riscv_setup_ipihandler(driver_filter_t *);
+void riscv_unmask_ipi(void);
+#endif
+
+enum {
+	IRQ_SOFTWARE,
+	IRQ_TIMER,
+	IRQ_HTIF,
+	IRQ_COP,	/* lowRISC only */
+	IRQ_UART,	/* lowRISC only */
+	NIRQS
+};
 
 #endif /* !_MACHINE_INTR_MACHDEP_H_ */

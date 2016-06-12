@@ -20,16 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-config_file.So: configparser.h
-config_file.o: configparser.h
-config_file.po: configparser.h
-configlexer.So: configlexer.c
-configlexer.So: configparser.h
-configlexer.o: configlexer.c
-configlexer.o: configparser.h
-configlexer.po: configlexer.c
-configlexer.po: configparser.h
-configparser.So: configparser.c
-configparser.o: configparser.c
-configparser.po: configparser.c
 .endif

@@ -100,6 +100,18 @@ flag = {
 };
 
 flag = {
+    name      = refid;
+    value     = r;
+    descrip   = "Set default display type for S2+ refids";
+    arg-type  = keyword;
+    keyword   = hash, ipv4;
+    arg-default = ipv4;
+    doc = <<-  _EndOfDoc_
+	Set the default display format for S2+ refids.
+	_EndOfDoc_;
+};
+
+flag = {
     name      = wide;
     value     = w;
     descrip   = "Display the full 'remote' value";

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2013
+.Dd March 1, 2016
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -224,7 +224,7 @@ However, running
 .Fl I
 .Cm update
 is probably safe, and can be used together with
-.Xr portversion 1
+.Xr pkg-version 8
 to identify installed software which is out of date.
 .It
 If you wish to use
@@ -272,6 +272,8 @@ Default location where the ports tree is extracted.
 .Xr fetch 1 ,
 .Xr sha256 1 ,
 .Xr fetch 3 ,
-.Xr portsnap.conf 5
+.Xr portsnap.conf 5 ,
+.Xr pkg 7 ,
+.Xr pkg-version 8
 .Sh AUTHORS
 .An Colin Percival Aq Mt cperciva@FreeBSD.org

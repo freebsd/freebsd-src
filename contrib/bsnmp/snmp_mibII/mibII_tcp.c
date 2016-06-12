@@ -47,6 +47,7 @@ struct tcp_index {
 static uint64_t tcp_tick;
 static uint64_t tcp_stats_tick;
 static struct tcpstat tcpstat;
+static uint64_t tcps_states[TCP_NSTATES];
 static struct xinpgen *xinpgen;
 static size_t xinpgen_len;
 static u_int tcp_total;
@@ -75,6 +76,17 @@ fetch_tcp_stats(void)
 	}
 	if (len != sizeof(tcpstat)) {
 		syslog(LOG_ERR, "net.inet.tcp.stats: wrong size");
+		return (-1);
+	}
+
+	len = sizeof(tcps_states);
+	if (sysctlbyname("net.inet.tcp.states", &tcps_states, &len, NULL,
+	    0) == -1) {
+		syslog(LOG_ERR, "net.inet.tcp.states: %m");
+		return (-1);
+	}
+	if (len != sizeof(tcps_states)) {
+		syslog(LOG_ERR, "net.inet.tcp.states: wrong size");
 		return (-1);
 	}
 
@@ -231,8 +243,8 @@ op_tcp(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 
 	  case LEAF_tcpCurrEstab:
-		value->v.uint32 = tcpstat.tcps_states[TCPS_ESTABLISHED] +
-		    tcpstat.tcps_states[TCPS_CLOSE_WAIT];
+		value->v.uint32 = tcps_states[TCPS_ESTABLISHED] +
+		    tcps_states[TCPS_CLOSE_WAIT];
 		break;
 
 	  case LEAF_tcpInSegs:

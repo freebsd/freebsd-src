@@ -215,8 +215,8 @@ static const int trap_sig[] = {
 	-1,			/* kernel stack fault */
 };
 
-CTASSERT(sizeof(trap_msg) / sizeof(*trap_msg) == T_MAX);
-CTASSERT(sizeof(trap_sig) / sizeof(*trap_sig) == T_MAX);
+CTASSERT(nitems(trap_msg) == T_MAX);
+CTASSERT(nitems(trap_sig) == T_MAX);
 
 CTASSERT(sizeof(struct trapframe) == 256);
 

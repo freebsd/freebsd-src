@@ -49,7 +49,7 @@
 #
 #
 # KMODDIR	Base path for loadable kernel modules
-#		(see kld(4)). [/boot/kernel]
+#		(see kld(4)). [/boot/module]
 #
 # KMODOWN	Kernel and KLD owner. [${BINOWN}]
 #
@@ -165,11 +165,7 @@ BINGRP?=	wheel
 BINMODE?=	555
 NOBINMODE?=	444
 
-.if defined(MODULES_WITH_WORLD)
 KMODDIR?=	/boot/modules
-.else
-KMODDIR?=	/boot/kernel
-.endif
 KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
@@ -256,6 +252,8 @@ XZ_CMD?=	xz
 # Pointer to the top directory into which tests are installed.  Should not be
 # overriden by Makefiles, but the user may choose to set this in src.conf(5).
 TESTSBASE?= /usr/tests
+
+DEPENDFILE?=	.depend
 
 # Compat for the moment -- old bsd.own.mk only included this when _WITHOUT_SRCCONF
 # wasn't defined. bsd.ports.mk and friends depend on this behavior. Remove in 12.

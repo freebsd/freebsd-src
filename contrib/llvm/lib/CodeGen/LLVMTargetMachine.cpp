@@ -82,7 +82,7 @@ LLVMTargetMachine::LLVMTargetMachine(const Target &T,
 }
 
 TargetIRAnalysis LLVMTargetMachine::getTargetIRAnalysis() {
-  return TargetIRAnalysis([this](Function &F) {
+  return TargetIRAnalysis([this](const Function &F) {
     return TargetTransformInfo(BasicTTIImpl(this, F));
   });
 }
@@ -125,9 +125,10 @@ addPassesToGenerateCode(LLVMTargetMachine *TM, PassManagerBase &PM,
   PM.add(new MachineFunctionAnalysis(*TM, MFInitializer));
 
   // Enable FastISel with -fast, but allow that to be overridden.
+  TM->setO0WantsFastISel(EnableFastISelOption != cl::BOU_FALSE);
   if (EnableFastISelOption == cl::BOU_TRUE ||
       (TM->getOptLevel() == CodeGenOpt::None &&
-       EnableFastISelOption != cl::BOU_FALSE))
+       TM->getO0WantsFastISel()))
     TM->setFastISel(true);
 
   // Ask the target for an isel.
@@ -202,6 +203,7 @@ bool LLVMTargetMachine::addPassesToEmitFile(
     Triple T(getTargetTriple().str());
     AsmStreamer.reset(getTarget().createMCObjectStreamer(
         T, *Context, *MAB, Out, MCE, STI, Options.MCOptions.MCRelaxAll,
+        Options.MCOptions.MCIncrementalLinkerCompatible,
         /*DWARFMustBeAtTheEnd*/ true));
     break;
   }
@@ -254,6 +256,7 @@ bool LLVMTargetMachine::addPassesToEmitMC(PassManagerBase &PM, MCContext *&Ctx,
   const MCSubtargetInfo &STI = *getMCSubtargetInfo();
   std::unique_ptr<MCStreamer> AsmStreamer(getTarget().createMCObjectStreamer(
       T, *Ctx, *MAB, Out, MCE, STI, Options.MCOptions.MCRelaxAll,
+      Options.MCOptions.MCIncrementalLinkerCompatible,
       /*DWARFMustBeAtTheEnd*/ true));
 
   // Create the AsmPrinter, which takes ownership of AsmStreamer if successful.

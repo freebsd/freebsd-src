@@ -93,6 +93,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
+options 	DEVICE_NUMA		# I/O Device Affinity
 
 # CPU frequency control
 device		cpufreq
@@ -101,6 +102,7 @@ device		cpufreq
 device		acpi
 options 	ACPI_DMAR
 device		pci
+options 	PCI_HP			# PCI-Express native HotPlug
 options		PCI_IOV			# PCI SR-IOV support
 
 # Floppy drives
@@ -348,9 +350,7 @@ device		virtio_blk		# VirtIO Block device
 device		virtio_scsi		# VirtIO SCSI device
 device		virtio_balloon		# VirtIO Memory Balloon device
 
-# HyperV drivers and enchancement support
-# NOTE: HYPERV depends on hyperv.  They must be added or removed together.
-options 	HYPERV			# Hyper-V kernel infrastructure
+# HyperV drivers and enhancement support
 device		hyperv			# HyperV drivers 
 
 # Xen HVM Guest Optimizations

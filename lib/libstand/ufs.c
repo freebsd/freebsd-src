@@ -157,7 +157,7 @@ read_inode(inumber, f)
 	buf = malloc(fs->fs_bsize);
 	twiddle(1);
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-		fsbtodb(fs, ino_to_fsba(fs, inumber)), fs->fs_bsize,
+		fsbtodb(fs, ino_to_fsba(fs, inumber)), 0, fs->fs_bsize,
 		buf, &rsize);
 	if (rc)
 		goto out;
@@ -267,7 +267,7 @@ block_map(f, file_block, disk_block_p)
 					malloc(fs->fs_bsize);
 			twiddle(1);
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-				fsbtodb(fp->f_fs, ind_block_num),
+				fsbtodb(fp->f_fs, ind_block_num), 0,
 				fs->fs_bsize,
 				fp->f_blk[level],
 				&fp->f_blksize[level]);
@@ -348,7 +348,7 @@ buf_write_file(f, buf_p, size_p)
 
 		twiddle(4);
 		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-			fsbtodb(fs, disk_block),
+			fsbtodb(fs, disk_block), 0,
 			block_size, fp->f_buf, &fp->f_buf_size);
 		if (rc)
 			return (rc);
@@ -367,7 +367,7 @@ buf_write_file(f, buf_p, size_p)
 
 	twiddle(4);
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_WRITE,
-		fsbtodb(fs, disk_block),
+		fsbtodb(fs, disk_block), 0,
 		block_size, fp->f_buf, &fp->f_buf_size);
 	return (rc);
 }
@@ -408,7 +408,7 @@ buf_read_file(f, buf_p, size_p)
 		} else {
 			twiddle(4);
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-				fsbtodb(fs, disk_block),
+				fsbtodb(fs, disk_block), 0,
 				block_size, fp->f_buf, &fp->f_buf_size);
 			if (rc)
 				return (rc);
@@ -521,7 +521,7 @@ ufs_open(upath, f)
 	 */
 	for (i = 0; sblock_try[i] != -1; i++) {
 		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-		    sblock_try[i] / DEV_BSIZE, SBLOCKSIZE,
+		    sblock_try[i] / DEV_BSIZE, 0, SBLOCKSIZE,
 		    (char *)fs, &buf_size);
 		if (rc)
 			goto out;
@@ -651,7 +651,7 @@ ufs_open(upath, f)
 				
 				twiddle(1);
 				rc = (f->f_dev->dv_strategy)(f->f_devdata,
-					F_READ, fsbtodb(fs, disk_block),
+					F_READ, fsbtodb(fs, disk_block), 0,
 					fs->fs_bsize, buf, &buf_size);
 				if (rc)
 					goto out;

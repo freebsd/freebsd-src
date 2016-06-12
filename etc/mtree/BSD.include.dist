@@ -90,8 +90,12 @@
     cam
         ata
         ..
+        nvme
+        ..
         scsi
         ..
+    ..
+    casper
     ..
     crypto
     ..
@@ -152,6 +156,8 @@
         ..
         wi
         ..
+    ..
+    devdctl
     ..
     edit
         readline

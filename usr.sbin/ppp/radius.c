@@ -1150,7 +1150,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     snprintf(ac->multi_session_id, sizeof ac->multi_session_id, "%s",
              dl->bundle->ncp.mp.active ?
              dl->bundle->ncp.mp.server.socket.sun_path : "");
-  };
+  }
 
   if (rad_put_string(r->cx.rad, RAD_USER_NAME, ac->user_name) != 0 ||
       rad_put_int(r->cx.rad, RAD_SERVICE_TYPE, RAD_FRAMED) != 0 ||

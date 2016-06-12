@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2007-2017 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
@@ -174,6 +174,9 @@ extern void elink_cb_dbg3(struct bxe_softc *sc,  char *fmt, uint32_t arg1, uint3
 #define ELINK_SFP_EEPROM_DIAG_ADDR_CHANGE_REQ		(1<<2)
 #define ELINK_SFP_EEPROM_SFF_8472_COMP_ADDR		0x5e
 #define ELINK_SFP_EEPROM_SFF_8472_COMP_SIZE		1
+#define ELINK_SFP_EEPROM_VENDOR_SPECIFIC_ADDR	0x60
+#define ELINK_SFP_EEPROM_VENDOR_SPECIFIC_SIZE	16
+
 
 #define ELINK_SFP_EEPROM_A2_CHECKSUM_RANGE		0x5e
 #define ELINK_SFP_EEPROM_A2_CC_DMI_ADDR			0x5f
@@ -304,6 +307,8 @@ struct elink_phy {
 #define ELINK_SUPPORTED_Autoneg 		(1<<9)
 #define ELINK_SUPPORTED_Pause 			(1<<10)
 #define ELINK_SUPPORTED_Asym_Pause		(1<<11)
+#define ELINK_SUPPORTED_1000baseKX_Full		(1<<17)
+#define ELINK_SUPPORTED_10000baseKR_Full	(1<<19)
 #define ELINK_SUPPORTED_20000baseMLD2_Full	(1<<21)
 #define ELINK_SUPPORTED_20000baseKR2_Full	(1<<22)
 
@@ -413,6 +418,7 @@ struct elink_params {
 #define ELINK_FEATURE_CONFIG_IEEE_PHY_TEST			(1<<12)
 #define ELINK_FEATURE_CONFIG_MT_SUPPORT			(1<<13)
 #define ELINK_FEATURE_CONFIG_BOOT_FROM_SAN			(1<<14)
+#define ELINK_FEATURE_CONFIG_DISABLE_PD				(1<<15)
 
 	/* Will be populated during common init */
 	struct elink_phy phy[ELINK_MAX_PHYS];
@@ -456,6 +462,9 @@ struct elink_params {
 #define ELINK_LINK_FLAGS_INT_DISABLED		(1<<0)
 #define ELINK_PHY_INITIALIZED		(1<<1)
 	uint32_t lfa_base;
+
+	/* The same definitions as the shmem2 parameter */
+	uint32_t link_attr_sync;
 };
 
 /* Output parameters */
@@ -497,8 +506,7 @@ struct elink_vars {
 	uint8_t rx_tx_asic_rst;
 	uint8_t turn_to_run_wc_rt;
 	uint16_t rsrv2;
-	/* The same definitions as the shmem2 parameter */
-	uint32_t link_attr_sync;
+
 };
 
 /***********************************************************/
@@ -674,14 +682,13 @@ void elink_pfc_statistic(struct elink_params *params, struct elink_vars *vars,
 void elink_init_mod_abs_int(struct bxe_softc *sc, struct elink_vars *vars,
 			    uint32_t chip_id, uint32_t shmem_base, uint32_t shmem2_base,
 			    uint8_t port);
-
-elink_status_t elink_sfp_module_detection(struct elink_phy *phy,
-			       struct elink_params *params);
+//elink_status_t elink_sfp_module_detection(struct elink_phy *phy,
+//			       struct elink_params *params);
 
 void elink_period_func(struct elink_params *params, struct elink_vars *vars);
 
-elink_status_t elink_check_half_open_conn(struct elink_params *params,
-			            struct elink_vars *vars, uint8_t notify);
+//elink_status_t elink_check_half_open_conn(struct elink_params *params,
+//			            struct elink_vars *vars, uint8_t notify);
 
 void elink_enable_pmd_tx(struct elink_params *params);
 

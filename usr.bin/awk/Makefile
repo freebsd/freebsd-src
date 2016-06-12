@@ -21,9 +21,9 @@ ytab.h: awkgram.h .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 proctab.c: maketab
-	./maketab > proctab.c
+	${BTOOLSPATH:U.}/maketab > proctab.c
 
 build-tools: maketab
-maketab: ytab.h ${AWKSRC}/maketab.c
+maketab: ytab.h ${AWKSRC}/maketab.c ${BUILD_TOOLS_META}
 
 .include <bsd.prog.mk>

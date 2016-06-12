@@ -115,12 +115,21 @@ struct rt_txdesc
 } __packed;
 
 #define	RT_RXDESC_SDL0_DDONE		(1 << 15)
+
+#define RT305X_RXD_SRC_L4_CSUM_FAIL	(1 << 28)
+#define RT305X_RXD_SRC_IP_CSUM_FAIL	(1 << 29)
+#define MT7620_RXD_SRC_L4_CSUM_FAIL	(1 << 22)
+#define MT7620_RXD_SRC_IP_CSUM_FAIL	(1 << 25)
+#define MT7621_RXD_SRC_L4_CSUM_FAIL	(1 << 23)
+#define MT7621_RXD_SRC_IP_CSUM_FAIL	(1 << 26)
+
 struct rt_rxdesc
 {
 	uint32_t sdp0;
 	uint16_t sdl1;
 	uint16_t sdl0;
 	uint32_t sdp1;
+#if 0
 	uint16_t foe;
 #define	RXDSXR_FOE_ENTRY_VALID		0x40
 #define	RXDSXR_FOE_ENTRY_MASK		0x3f
@@ -134,6 +143,8 @@ struct rt_rxdesc
 #define	RXDSXR_SRC_L4_CSUM_FAIL	0x10
 #define	RXDSXR_SRC_AIS			0x08
 #define	RXDSXR_SRC_PORT_MASK		0x07
+#endif
+	uint32_t word3;
 } __packed;
 
 struct rt_softc_rx_data
@@ -263,6 +274,8 @@ struct rt_softc
         uint32_t        rt_chipid;
         /* chip specific registers config */
         int		rx_ring_count;
+	uint32_t	csum_fail_l4;
+	uint32_t	csum_fail_ip;
         uint32_t	int_rx_done_mask;
         uint32_t	int_tx_done_mask;
         uint32_t        delay_int_cfg;

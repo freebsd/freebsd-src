@@ -323,8 +323,7 @@ age_probe(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 	sp = age_devs;
-	for (i = 0; i < sizeof(age_devs) / sizeof(age_devs[0]);
-	    i++, sp++) {
+	for (i = 0; i < nitems(age_devs); i++, sp++) {
 		if (vendor == sp->age_vendorid &&
 		    devid == sp->age_deviceid) {
 			device_set_desc(dev, sp->age_name);
@@ -588,7 +587,7 @@ age_attach(device_t dev)
 	/* Create device sysctl node. */
 	age_sysctl_node(sc);
 
-	if ((error = age_dma_alloc(sc) != 0))
+	if ((error = age_dma_alloc(sc)) != 0)
 		goto fail;
 
 	/* Load station address. */
@@ -2487,7 +2486,7 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 		 * I'm not sure whether this check is really needed.
 		 */
 		pktlen = AGE_RX_BYTES(le32toh(rxrd->len));
-		if (nsegs != (pktlen + (AGE_RX_BUF_SIZE - 1)) / AGE_RX_BUF_SIZE)
+		if (nsegs != howmany(pktlen, AGE_RX_BUF_SIZE))
 			break;
 
 		/* Received a frame. */

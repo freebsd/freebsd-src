@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Breakpoint/WatchpointOptions.h"
-
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Breakpoint/WatchpointOptions.h"
+
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StringList.h"
 #include "lldb/Core/Value.h"
@@ -20,7 +20,6 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadSpec.h"
-#include "lldb/Expression/ClangUserExpression.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -51,7 +50,7 @@ WatchpointOptions::WatchpointOptions(const WatchpointOptions& rhs) :
     m_callback_is_synchronous (rhs.m_callback_is_synchronous),
     m_thread_spec_ap ()
 {
-    if (rhs.m_thread_spec_ap.get() != NULL)
+    if (rhs.m_thread_spec_ap.get() != nullptr)
         m_thread_spec_ap.reset (new ThreadSpec(*rhs.m_thread_spec_ap.get()));
 }
 
@@ -64,7 +63,7 @@ WatchpointOptions::operator=(const WatchpointOptions& rhs)
     m_callback = rhs.m_callback;
     m_callback_baton_sp = rhs.m_callback_baton_sp;
     m_callback_is_synchronous = rhs.m_callback_is_synchronous;
-    if (rhs.m_thread_spec_ap.get() != NULL)
+    if (rhs.m_thread_spec_ap.get() != nullptr)
         m_thread_spec_ap.reset(new ThreadSpec(*rhs.m_thread_spec_ap.get()));
     return *this;
 }
@@ -87,9 +86,7 @@ WatchpointOptions::CopyOptionsNoCallback (WatchpointOptions &orig)
 //----------------------------------------------------------------------
 // Destructor
 //----------------------------------------------------------------------
-WatchpointOptions::~WatchpointOptions()
-{
-}
+WatchpointOptions::~WatchpointOptions() = default;
 
 //------------------------------------------------------------------
 // Callbacks
@@ -128,9 +125,9 @@ WatchpointOptions::InvokeCallback (StoppointCallbackContext *context,
 {
     if (m_callback && context->is_synchronous == IsCallbackSynchronous())
     {
-        return m_callback (m_callback_baton_sp ? m_callback_baton_sp->m_data : NULL,
-                           context, 
-                           watch_id);
+        return m_callback(m_callback_baton_sp ? m_callback_baton_sp->m_data : nullptr,
+                          context,
+                          watch_id);
     }
     else
         return true;
@@ -151,7 +148,7 @@ WatchpointOptions::GetThreadSpecNoCreate () const
 ThreadSpec *
 WatchpointOptions::GetThreadSpec ()
 {
-    if (m_thread_spec_ap.get() == NULL)
+    if (m_thread_spec_ap.get() == nullptr)
         m_thread_spec_ap.reset (new ThreadSpec());
         
     return m_thread_spec_ap.get();
@@ -172,14 +169,14 @@ WatchpointOptions::GetCallbackDescription (Stream *s, lldb::DescriptionLevel lev
         m_callback_baton_sp->GetDescription (s, level);
     }
 }
+
 void
 WatchpointOptions::GetDescription (Stream *s, lldb::DescriptionLevel level) const
 {
-
     // Figure out if there are any options not at their default value, and only print 
     // anything if there are:
     
-    if ((GetThreadSpecNoCreate() != NULL && GetThreadSpecNoCreate()->HasSpecification ()))
+    if ((GetThreadSpecNoCreate() != nullptr && GetThreadSpecNoCreate()->HasSpecification ()))
     {
         if (level == lldb::eDescriptionLevelVerbose)
         {
@@ -238,4 +235,3 @@ WatchpointOptions::CommandBaton::GetDescription (Stream *s, lldb::DescriptionLev
     s->IndentLess ();
     s->IndentLess ();
 }
-

@@ -383,7 +383,9 @@ archive_read_support_format_cab(struct archive *_a)
 	    archive_read_format_cab_read_data,
 	    archive_read_format_cab_read_data_skip,
 	    NULL,
-	    archive_read_format_cab_cleanup);
+	    archive_read_format_cab_cleanup,
+	    NULL,
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(cab);

@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <signal.h>
 #include <stdio.h>
-#include <vector>
 
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
@@ -136,6 +135,10 @@ typedef BOOL (WINAPI *fpSymGetLineFromAddr64)(HANDLE, DWORD64,
                       PDWORD, PIMAGEHLP_LINE64);
 static fpSymGetLineFromAddr64 fSymGetLineFromAddr64;
 
+typedef BOOL(WINAPI *fpSymGetModuleInfo64)(HANDLE hProcess, DWORD64 dwAddr,
+                                           PIMAGEHLP_MODULE64 ModuleInfo);
+static fpSymGetModuleInfo64 fSymGetModuleInfo64;
+
 typedef PVOID (WINAPI *fpSymFunctionTableAccess64)(HANDLE, DWORD64);
 static fpSymFunctionTableAccess64 fSymFunctionTableAccess64;
 
@@ -144,6 +147,9 @@ static fpSymSetOptions fSymSetOptions;
 
 typedef BOOL (WINAPI *fpSymInitialize)(HANDLE, PCSTR, BOOL);
 static fpSymInitialize fSymInitialize;
+
+typedef BOOL (WINAPI *fpEnumerateLoadedModules)(HANDLE,PENUMLOADED_MODULES_CALLBACK64,PVOID);
+static fpEnumerateLoadedModules fEnumerateLoadedModules;
 
 static bool load64BitDebugHelp(void) {
   HMODULE hLib = ::LoadLibraryW(L"Dbghelp.dll");
@@ -156,13 +162,19 @@ static bool load64BitDebugHelp(void) {
                       ::GetProcAddress(hLib, "SymGetSymFromAddr64");
     fSymGetLineFromAddr64 = (fpSymGetLineFromAddr64)
                       ::GetProcAddress(hLib, "SymGetLineFromAddr64");
+    fSymGetModuleInfo64 = (fpSymGetModuleInfo64)
+                      ::GetProcAddress(hLib, "SymGetModuleInfo64");
     fSymFunctionTableAccess64 = (fpSymFunctionTableAccess64)
                      ::GetProcAddress(hLib, "SymFunctionTableAccess64");
     fSymSetOptions = (fpSymSetOptions)::GetProcAddress(hLib, "SymSetOptions");
     fSymInitialize = (fpSymInitialize)::GetProcAddress(hLib, "SymInitialize");
+    fEnumerateLoadedModules = (fpEnumerateLoadedModules)
+      ::GetProcAddress(hLib, "EnumerateLoadedModules64");
   }
   return fStackWalk64 && fSymInitialize && fSymSetOptions;
 }
+
+using namespace llvm;
 
 // Forward declare.
 static LONG WINAPI LLVMUnhandledExceptionFilter(LPEXCEPTION_POINTERS ep);
@@ -172,7 +184,6 @@ static BOOL WINAPI LLVMConsoleCtrlHandler(DWORD dwCtrlType);
 static void (*InterruptFunction)() = 0;
 
 static std::vector<std::string> *FilesToRemove = NULL;
-static std::vector<std::pair<void(*)(void*), void*> > *CallBacksToRun = 0;
 static bool RegisteredUnhandledExceptionFilter = false;
 static bool CleanupExecuted = false;
 static PTOP_LEVEL_EXCEPTION_FILTER OldFilter = NULL;
@@ -183,23 +194,106 @@ static PTOP_LEVEL_EXCEPTION_FILTER OldFilter = NULL;
 static CRITICAL_SECTION CriticalSection;
 static bool CriticalSectionInitialized = false;
 
+enum {
+#if defined(_M_X64)
+  NativeMachineType = IMAGE_FILE_MACHINE_AMD64
+#else
+  NativeMachineType = IMAGE_FILE_MACHINE_I386
+#endif
+};
+
+static bool printStackTraceWithLLVMSymbolizer(llvm::raw_ostream &OS,
+                                              HANDLE hProcess, HANDLE hThread,
+                                              STACKFRAME64 &StackFrameOrig,
+                                              CONTEXT *ContextOrig) {
+  // StackWalk64 modifies the incoming stack frame and context, so copy them.
+  STACKFRAME64 StackFrame = StackFrameOrig;
+
+  // Copy the register context so that we don't modify it while we unwind. We
+  // could use InitializeContext + CopyContext, but that's only required to get
+  // at AVX registers, which typically aren't needed by StackWalk64. Reduce the
+  // flag set to indicate that there's less data.
+  CONTEXT Context = *ContextOrig;
+  Context.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
+
+  static void *StackTrace[256];
+  size_t Depth = 0;
+  while (fStackWalk64(NativeMachineType, hProcess, hThread, &StackFrame,
+                      &Context, 0, fSymFunctionTableAccess64,
+                      fSymGetModuleBase64, 0)) {
+    if (StackFrame.AddrFrame.Offset == 0)
+      break;
+    StackTrace[Depth++] = (void *)(uintptr_t)StackFrame.AddrPC.Offset;
+    if (Depth >= array_lengthof(StackTrace))
+      break;
+  }
+
+  return printSymbolizedStackTrace(&StackTrace[0], Depth, OS);
+}
+
+namespace {
+struct FindModuleData {
+  void **StackTrace;
+  int Depth;
+  const char **Modules;
+  intptr_t *Offsets;
+  StringSaver *StrPool;
+};
+}
+
+static BOOL CALLBACK findModuleCallback(WIN32_ELMCB_PCSTR ModuleName,
+                                        DWORD64 ModuleBase, ULONG ModuleSize,
+                                        void *VoidData) {
+  FindModuleData *Data = (FindModuleData*)VoidData;
+  intptr_t Beg = ModuleBase;
+  intptr_t End = Beg + ModuleSize;
+  for (int I = 0; I < Data->Depth; I++) {
+    if (Data->Modules[I])
+      continue;
+    intptr_t Addr = (intptr_t)Data->StackTrace[I];
+    if (Beg <= Addr && Addr < End) {
+      Data->Modules[I] = Data->StrPool->save(ModuleName);
+      Data->Offsets[I] = Addr - Beg;
+    }
+  }
+  return TRUE;
+}
+
+static bool findModulesAndOffsets(void **StackTrace, int Depth,
+                                  const char **Modules, intptr_t *Offsets,
+                                  const char *MainExecutableName,
+                                  StringSaver &StrPool) {
+  if (!fEnumerateLoadedModules)
+    return false;
+  FindModuleData Data;
+  Data.StackTrace = StackTrace;
+  Data.Depth = Depth;
+  Data.Modules = Modules;
+  Data.Offsets = Offsets;
+  Data.StrPool = &StrPool;
+  fEnumerateLoadedModules(GetCurrentProcess(), findModuleCallback, &Data);
+  return true;
+}
+
 static void PrintStackTraceForThread(llvm::raw_ostream &OS, HANDLE hProcess,
                                      HANDLE hThread, STACKFRAME64 &StackFrame,
                                      CONTEXT *Context) {
-  DWORD machineType;
-#if defined(_M_X64)
-  machineType = IMAGE_FILE_MACHINE_AMD64;
-#else
-  machineType = IMAGE_FILE_MACHINE_I386;
-#endif
-
   // Initialize the symbol handler.
   fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
   fSymInitialize(hProcess, NULL, TRUE);
 
+  // Try llvm-symbolizer first. llvm-symbolizer knows how to deal with both PDBs
+  // and DWARF, so it should do a good job regardless of what debug info or
+  // linker is in use.
+  if (printStackTraceWithLLVMSymbolizer(OS, hProcess, hThread, StackFrame,
+                                        Context)) {
+    return;
+  }
+
   while (true) {
-    if (!fStackWalk64(machineType, hProcess, hThread, &StackFrame, Context, 0,
-                      fSymFunctionTableAccess64, fSymGetModuleBase64, 0)) {
+    if (!fStackWalk64(NativeMachineType, hProcess, hThread, &StackFrame,
+                      Context, 0, fSymFunctionTableAccess64,
+                      fSymGetModuleBase64, 0)) {
       break;
     }
 
@@ -404,7 +498,6 @@ extern "C" VOID WINAPI RtlCaptureContext(PCONTEXT ContextRecord);
 #endif
 
 void llvm::sys::PrintStackTrace(raw_ostream &OS) {
-
   STACKFRAME64 StackFrame = {};
   CONTEXT Context = {};
   ::RtlCaptureContext(&Context);
@@ -436,8 +529,6 @@ void llvm::sys::SetInterruptFunction(void (*IF)()) {
 /// to the process.  The handler can have a cookie passed to it to identify
 /// what instance of the handler it is.
 void llvm::sys::AddSignalHandler(void (*FnPtr)(void *), void *Cookie) {
-  if (CallBacksToRun == 0)
-    CallBacksToRun = new std::vector<std::pair<void(*)(void*), void*> >();
   CallBacksToRun->push_back(std::make_pair(FnPtr, Cookie));
   RegisterHandler();
   LeaveCriticalSection(&CriticalSection);
@@ -454,17 +545,12 @@ static void Cleanup() {
   CleanupExecuted = true;
 
   // FIXME: open files cannot be deleted.
-
   if (FilesToRemove != NULL)
     while (!FilesToRemove->empty()) {
       llvm::sys::fs::remove(FilesToRemove->back());
       FilesToRemove->pop_back();
     }
-
-  if (CallBacksToRun)
-    for (auto &I : *CallBacksToRun)
-      I.first(I.second);
-
+  llvm::sys::RunSignalHandlers();
   LeaveCriticalSection(&CriticalSection);
 }
 

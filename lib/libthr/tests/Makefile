@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libpthread
 
 # TODO: t_name (missing pthread_getname_np support in FreeBSD)
@@ -41,8 +43,7 @@ PROGS+=		h_cancel
 PROGS+=		h_exit
 PROGS+=		h_resolv
 
-FILESDIR=	${TESTSDIR}
-FILES=		d_mach
+${PACKAGE}FILES+=		d_mach
 
 TESTS_SUBDIRS=		dlopen
 

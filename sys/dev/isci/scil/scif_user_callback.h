@@ -100,7 +100,7 @@ void * scif_cb_timer_create(
 );
 
 /**
- * @brief This callback method asks the user to destory the supplied timer.
+ * @brief This callback method asks the user to destroy the supplied timer.
  *
  * @param[in]  controller This parameter specifies the controller with
  *             which this timer is to associated.
@@ -371,14 +371,14 @@ void scif_cb_task_request_complete(
 
 /**
  * @brief This callback method asks the user to provide the number of
- *        bytes to be transfered as part of this request.
+ *        bytes to be transferred as part of this request.
  *
  * @param[in] scif_user_io_request This parameter points to the user's
  *            IO request object.  It is a cookie that allows the user to
  *            provide the necessary information for this callback.
  *
  * @return This method returns the number of payload data bytes to be
- *         transfered for this IO request.
+ *         transferred for this IO request.
  */
 U32 scif_cb_io_request_get_transfer_length(
    void * scif_user_io_request

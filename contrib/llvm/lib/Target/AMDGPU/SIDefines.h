@@ -37,7 +37,8 @@ enum {
   MIMG = 1 << 18,
   FLAT = 1 << 19,
   WQM = 1 << 20,
-  VGPRSpill = 1 << 21
+  VGPRSpill = 1 << 21,
+  VOPAsmPrefer32Bit = 1 << 22
 };
 }
 
@@ -136,7 +137,7 @@ namespace SIOutMods {
 #define   C_00B84C_EXCP_EN 
 
 #define R_0286CC_SPI_PS_INPUT_ENA                                       0x0286CC
-
+#define R_0286D0_SPI_PS_INPUT_ADDR                                      0x0286D0
 
 #define R_00B848_COMPUTE_PGM_RSRC1                                      0x00B848
 #define   S_00B848_VGPRS(x)                                           (((x) & 0x3F) << 0)

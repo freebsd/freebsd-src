@@ -1,6 +1,6 @@
 .\"-
 .\" Copyright (c) 1998-2013 Dag-Erling Smørgrav
-.\" Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
+.\" Copyright (c) 2013-2016 Michael Gmelin <freebsd@grem.de>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2015
+.Dd March 18, 2016
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -396,8 +396,15 @@ is currently unimplemented.
 .Sh HTTPS SCHEME
 Based on HTTP SCHEME.
 By default the peer is verified using the CA bundle located in
-.Pa /etc/ssl/cert.pem .
-The file may contain multiple CA certificates.
+.Pa /usr/local/etc/ssl/cert.pem .
+If this file does not exist,
+.Pa /etc/ssl/cert.pem
+is used instead.
+If neither file exists, and
+.Ev SSL_CA_CERT_PATH
+has not been set,
+OpenSSL's default CA cert and path settings apply.
+The certificate bundle can contain multiple CA certificates.
 A common source of a current CA bundle is
 .Pa \%security/ca_root_nss .
 .Pp
@@ -428,10 +435,11 @@ Client certificate based authentication is supported.
 The environment variable
 .Ev SSL_CLIENT_CERT_FILE
 should be set to point to a file containing key and client certificate
-to be used in PEM format. In case the key is stored in a separate
-file, the environment variable
+to be used in PEM format.
+When a PEM-format key is in a separate file from the client certificate,
+the environment variable
 .Ev SSL_CLIENT_KEY_FILE
-can be set to point to the key in PEM format.
+can be set to point to the key file.
 In case the key uses a password, the user will be prompted on standard
 input (see
 .Xr PEM 3 ) .
@@ -531,7 +539,7 @@ Invalid URL
 .El
 .Pp
 The accompanying error message includes a protocol-specific error code
-and message, e.g.\& "File is not available (404 Not Found)"
+and message, like "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev FETCH_BIND_ADDRESS"
 .It Ev FETCH_BIND_ADDRESS
@@ -648,8 +656,7 @@ for compatibility.
 Allow SSL version 3 when negotiating the connection (not recommended).
 .It Ev SSL_CA_CERT_FILE
 CA certificate bundle containing trusted CA certificates.
-Default value:
-.Pa /etc/ssl/cert.pem .
+Default value: See HTTPS SCHEME above.
 .It Ev SSL_CA_CERT_PATH
 Path containing trusted CA hashes.
 .It Ev SSL_CLIENT_CERT_FILE
@@ -717,7 +724,6 @@ SSL_CA_CERT_FILE=/path/to/myca.pem
 .Ed
 .Sh SEE ALSO
 .Xr fetch 1 ,
-.Xr ftpio 3 ,
 .Xr ip 4
 .Rs
 .%A J. Postel

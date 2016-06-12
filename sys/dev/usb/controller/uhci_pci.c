@@ -161,6 +161,12 @@ uhci_pci_match(device_t self)
 	case 0x24de8086:
 		return ("Intel 82801EB (ICH5) USB controller USB-D");
 
+	case 0x25a98086:
+		return ("Intel 6300ESB USB controller USB-A");
+
+	case 0x25aa8086:
+		return ("Intel 6300ESB USB controller USB-B");
+
 	case 0x26588086:
 		return ("Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-A");
 

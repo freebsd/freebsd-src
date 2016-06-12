@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -74,6 +76,7 @@ static void	amrr_tx_update(const struct ieee80211vap *vap,
 			const struct ieee80211_node *, void *, void *, void *);
 static void	amrr_sysctlattach(struct ieee80211vap *,
 			struct sysctl_ctx_list *, struct sysctl_oid *);
+static void	amrr_node_stats(struct ieee80211_node *ni, struct sbuf *s);
 
 /* number of references from net80211 layer */
 static	int nrefs = 0;
@@ -90,6 +93,7 @@ static const struct ieee80211_ratectl amrr = {
 	.ir_tx_complete	= amrr_tx_complete,
 	.ir_tx_update	= amrr_tx_update,
 	.ir_setinterval	= amrr_setinterval,
+	.ir_node_stats	= amrr_node_stats,
 };
 IEEE80211_RATECTL_MODULE(amrr, 1);
 IEEE80211_RATECTL_ALG(amrr, IEEE80211_RATECTL_AMRR, amrr);
@@ -408,4 +412,32 @@ amrr_sysctlattach(struct ieee80211vap *vap,
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "amrr_min_sucess_threshold", CTLFLAG_RW,
 	    &amrr->amrr_min_success_threshold, 0, "");
+}
+
+static void
+amrr_node_stats(struct ieee80211_node *ni, struct sbuf *s)
+{
+	int rate;
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	struct ieee80211_rateset *rs;
+
+	/* XXX TODO: check locking? */
+
+	/* XXX TODO: this should be a method */
+	if (amrr_node_is_11n(ni)) {
+		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
+		rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
+		sbuf_printf(s, "rate: MCS %d\n", rate);
+	} else {
+		rs = &ni->ni_rates;
+		rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
+		sbuf_printf(s, "rate: %d Mbit\n", rate / 2);
+	}
+
+	sbuf_printf(s, "ticks: %d\n", amn->amn_ticks);
+	sbuf_printf(s, "txcnt: %u\n", amn->amn_txcnt);
+	sbuf_printf(s, "success: %u\n", amn->amn_success);
+	sbuf_printf(s, "success_threshold: %u\n", amn->amn_success_threshold);
+	sbuf_printf(s, "recovery: %u\n", amn->amn_recovery);
+	sbuf_printf(s, "retry_cnt: %u\n", amn->amn_retrycnt);
 }

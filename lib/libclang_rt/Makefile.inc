@@ -5,7 +5,7 @@
 CRTARCH=${MACHINE_CPUARCH:C/amd64/x86_64/}
 CRTSRC=${.CURDIR}/../../../contrib/compiler-rt
 
-CLANGDIR=/usr/lib/clang/3.7.1
+CLANGDIR=/usr/lib/clang/3.8.0
 LIBDIR=${CLANGDIR}/lib/freebsd
 
 NO_PIC=

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
@@ -1262,7 +1263,7 @@ fxp_eeprom_putword(struct fxp_softc *sc, int offset, uint16_t data)
  *
  * 559's can have either 64-word or 256-word EEPROMs, the 558
  * datasheet only talks about 64-word EEPROMs, and the 557 datasheet
- * talks about the existance of 16 to 256 word EEPROMs.
+ * talks about the existence of 16 to 256 word EEPROMs.
  *
  * The only known sizes are 64 and 256, where the 256 version is used
  * by CardBus cards to store CIS information.
@@ -2089,7 +2090,7 @@ fxp_update_stats(struct fxp_softc *sc)
 		    le32toh(sp->rx_rnr_errors) +
 		    le32toh(sp->rx_overrun_errors));
 		/*
-		 * If any transmit underruns occured, bump up the transmit
+		 * If any transmit underruns occurred, bump up the transmit
 		 * threshold by another 512 bytes (64 * 8).
 		 */
 		if (sp->tx_underruns) {
@@ -2140,7 +2141,7 @@ fxp_tick(void *xsc)
 	 * then assume the receiver has locked up and attempt to clear
 	 * the condition by reprogramming the multicast filter. This is
 	 * a work-around for a bug in the 82557 where the receiver locks
-	 * up if it gets certain types of garbage in the syncronization
+	 * up if it gets certain types of garbage in the synchronization
 	 * bits prior to the packet header. This bug is supposed to only
 	 * occur in 10Mbps mode, but has been seen to occur in 100Mbps
 	 * mode as well (perhaps due to a 10/100 speed transition).

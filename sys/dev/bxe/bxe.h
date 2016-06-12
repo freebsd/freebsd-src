@@ -111,6 +111,9 @@ __FBSDID("$FreeBSD$");
 
 #include "bxe_elink.h"
 
+#define VF_MAC_CREDIT_CNT 0
+#define VF_VLAN_CREDIT_CNT (0)
+
 #if __FreeBSD_version < 800054
 #if defined(__i386__) || defined(__amd64__)
 #define mb()  __asm volatile("mfence;" : : : "memory")
@@ -320,13 +323,6 @@ struct bxe_device_type
 #define RX_BD_USABLE          (RX_BD_USABLE_PER_PAGE * RX_BD_NUM_PAGES)
 #define RX_BD_MAX             (RX_BD_TOTAL - 1)
 
-#if 0
-#define NUM_RX_RINGS RX_BD_NUM_PAGES
-#define NUM_RX_BD    RX_BD_TOTAL
-#define MAX_RX_BD    RX_BD_MAX
-#define MAX_RX_AVAIL RX_BD_USABLE
-#endif
-
 #define RX_BD_NEXT(x)                                               \
     ((((x) & RX_BD_PER_PAGE_MASK) == (RX_BD_USABLE_PER_PAGE - 1)) ? \
      ((x) + 3) : ((x) + 1))
@@ -385,13 +381,6 @@ struct bxe_device_type
 #define RCQ(x)      ((x) & RCQ_MAX)
 #define RCQ_PAGE(x) (((x) & ~RCQ_USABLE_PER_PAGE) >> 7)
 #define RCQ_IDX(x)  ((x) & RCQ_USABLE_PER_PAGE)
-
-#if 0
-#define NUM_RCQ_RINGS RCQ_NUM_PAGES
-#define NUM_RCQ_BD    RCQ_TOTAL
-#define MAX_RCQ_BD    RCQ_MAX
-#define MAX_RCQ_AVAIL RCQ_USABLE
-#endif
 
 /*
  * dropless fc calculations for RCQs
@@ -627,14 +616,6 @@ struct bxe_fastpath {
     struct bxe_sw_tpa_info rx_tpa_info[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
     bus_dmamap_t           rx_tpa_info_mbuf_spare_map;
     uint64_t               rx_tpa_queue_used;
-#if 0
-    bus_dmamap_t      rx_tpa_mbuf_map[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
-    bus_dmamap_t      rx_tpa_mbuf_spare_map;
-    struct mbuf       *rx_tpa_mbuf_ptr[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
-    bus_dma_segment_t rx_tpa_mbuf_segs[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
-
-    uint8_t tpa_state[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
-#endif
 
     uint16_t *sb_index_values;
     uint16_t *sb_running_index;
@@ -687,16 +668,6 @@ struct bxe_fastpath {
     /* Transmit buffer descriptor producer index. */
     uint16_t tx_bd_prod;
     uint16_t tx_bd_cons;
-
-#if 0
-    /* status block number in hardware */
-    uint8_t sb_id;
-#define FP_SB_ID(fp) (fp->sb_id)
-
-    /* driver copy of the fastpath CSTORM/USTORM indices */
-    uint16_t fp_c_idx;
-    uint16_t fp_u_idx;
-#endif
 
     uint64_t sge_mask[RX_SGE_MASK_LEN];
     uint16_t rx_sge_prod;
@@ -964,21 +935,8 @@ struct bxe_fw_stats_data {
  */
 struct bxe_slowpath {
 
-#if 0
-    /*
-     * The cdu_context array MUST be the first element in this
-     * structure. It is used during the leading edge ramrod
-     * operation.
-     */
-    union cdu_context context[MAX_CONTEXT];
-
-    /* Used as a DMA source for MAC configuration. */
-    struct mac_configuration_cmd    mac_config;
-    struct mac_configuration_cmd    mcast_config;
-#endif
-
     /* used by the DMAE command executer */
-    struct dmae_command dmae[MAX_DMAE_C];
+    struct dmae_cmd dmae[MAX_DMAE_C];
 
     /* statistics completion */
     uint32_t stats_comp;
@@ -1754,10 +1712,6 @@ struct bxe_softc {
 
     uint8_t dropless_fc;
 
-#if 0
-    struct bxe_dma *t2;
-#endif
-
     /* total number of FW statistics requests */
     uint8_t fw_stats_num;
     /*
@@ -1794,7 +1748,7 @@ struct bxe_softc {
     struct bxe_net_stats_old     net_stats_old;
     struct bxe_fw_port_stats_old fw_stats_old;
 
-    struct dmae_command stats_dmae; /* used by dmae command loader */
+    struct dmae_cmd stats_dmae; /* used by dmae command loader */
     int                 executer_idx;
 
     int mtu;
@@ -1832,9 +1786,13 @@ struct bxe_softc {
     int panic;
 
     struct cdev *ioctl_dev;
+
     void *grc_dump;
-    int trigger_grcdump;
-    int grcdump_done;
+    unsigned int trigger_grcdump;
+    unsigned int  grcdump_done;
+    unsigned int grcdump_started;
+
+    void *eeprom;
 }; /* struct bxe_softc */
 
 /* IOCTL sub-commands for edebug and firmware upgrade */
@@ -1954,13 +1912,6 @@ void bxe_reg_write32(struct bxe_softc *sc, bus_size_t offset, uint32_t val);
 #define BXE_FP(sc, nr, var) ((sc)->fp[(nr)].var)
 #define BXE_SP_OBJ(sc, fp) ((sc)->sp_objs[(fp)->index])
 
-#if 0
-#define bxe_fp(sc, nr, var)   ((sc)->fp[nr].var)
-#define bxe_sp_obj(sc, fp)    ((sc)->sp_objs[(fp)->index])
-#define bxe_fp_stats(sc, fp)  (&(sc)->fp_stats[(fp)->index])
-#define bxe_fp_qstats(sc, fp) (&(sc)->fp_stats[(fp)->index].eth_q_stats)
-#endif
-
 #define REG_RD_DMAE(sc, offset, valp, len32)               \
     do {                                                   \
         bxe_read_dmae(sc, offset, len32);                  \
@@ -2041,21 +1992,21 @@ void bxe_reg_write32(struct bxe_softc *sc, bus_size_t offset, uint32_t val);
 #define DMAE_COMP_REGULAR 0
 #define DMAE_COM_SET_ERR  1
 
-#define DMAE_CMD_SRC_PCI (DMAE_SRC_PCI << DMAE_COMMAND_SRC_SHIFT)
-#define DMAE_CMD_SRC_GRC (DMAE_SRC_GRC << DMAE_COMMAND_SRC_SHIFT)
-#define DMAE_CMD_DST_PCI (DMAE_DST_PCI << DMAE_COMMAND_DST_SHIFT)
-#define DMAE_CMD_DST_GRC (DMAE_DST_GRC << DMAE_COMMAND_DST_SHIFT)
+#define DMAE_CMD_SRC_PCI (DMAE_SRC_PCI << DMAE_CMD_SRC_SHIFT)
+#define DMAE_CMD_SRC_GRC (DMAE_SRC_GRC << DMAE_CMD_SRC_SHIFT)
+#define DMAE_CMD_DST_PCI (DMAE_DST_PCI << DMAE_CMD_DST_SHIFT)
+#define DMAE_CMD_DST_GRC (DMAE_DST_GRC << DMAE_CMD_DST_SHIFT)
 
-#define DMAE_CMD_C_DST_PCI (DMAE_COMP_PCI << DMAE_COMMAND_C_DST_SHIFT)
-#define DMAE_CMD_C_DST_GRC (DMAE_COMP_GRC << DMAE_COMMAND_C_DST_SHIFT)
+#define DMAE_CMD_C_DST_PCI (DMAE_COMP_PCI << DMAE_CMD_C_DST_SHIFT)
+#define DMAE_CMD_C_DST_GRC (DMAE_COMP_GRC << DMAE_CMD_C_DST_SHIFT)
 
-#define DMAE_CMD_ENDIANITY_NO_SWAP   (0 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_B_SWAP    (1 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_DW_SWAP   (2 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_B_DW_SWAP (3 << DMAE_COMMAND_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_NO_SWAP   (0 << DMAE_CMD_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_B_SWAP    (1 << DMAE_CMD_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_DW_SWAP   (2 << DMAE_CMD_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_B_DW_SWAP (3 << DMAE_CMD_ENDIANITY_SHIFT)
 
 #define DMAE_CMD_PORT_0 0
-#define DMAE_CMD_PORT_1 DMAE_COMMAND_PORT
+#define DMAE_CMD_PORT_1 DMAE_CMD_PORT
 
 #define DMAE_SRC_PF 0
 #define DMAE_SRC_VF 1
@@ -2163,6 +2114,28 @@ static const uint32_t dmae_reg_go_c[] = {
 #define PCI_PM_D0    1
 #define PCI_PM_D3hot 2
 
+#ifndef DUPLEX_UNKNOWN
+#define DUPLEX_UNKNOWN (0xff)
+#endif
+
+#ifndef SPEED_UNKNOWN
+#define SPEED_UNKNOWN (-1)
+#endif
+
+/* Enable or disable autonegotiation. */
+#define AUTONEG_DISABLE         0x00
+#define AUTONEG_ENABLE          0x01
+
+/* Which connector port. */
+#define PORT_TP                 0x00
+#define PORT_AUI                0x01
+#define PORT_MII                0x02
+#define PORT_FIBRE              0x03
+#define PORT_BNC                0x04
+#define PORT_DA                 0x05
+#define PORT_NONE               0xef
+#define PORT_OTHER              0xff
+
 int  bxe_test_bit(int nr, volatile unsigned long * addr);
 void bxe_set_bit(unsigned int nr, volatile unsigned long * addr);
 void bxe_clear_bit(int nr, volatile unsigned long * addr);
@@ -2184,7 +2157,7 @@ uint32_t bxe_dmae_opcode_clr_src_reset(uint32_t opcode);
 uint32_t bxe_dmae_opcode(struct bxe_softc *sc, uint8_t src_type,
                          uint8_t dst_type, uint8_t with_comp,
                          uint8_t comp_type);
-void bxe_post_dmae(struct bxe_softc *sc, struct dmae_command *dmae, int idx);
+void bxe_post_dmae(struct bxe_softc *sc, struct dmae_cmd *dmae, int idx);
 void bxe_read_dmae(struct bxe_softc *sc, uint32_t src_addr, uint32_t len32);
 void bxe_write_dmae(struct bxe_softc *sc, bus_addr_t dma_addr,
                     uint32_t dst_addr, uint32_t len32);
@@ -2301,7 +2274,6 @@ void ecore_storm_memset_struct(struct bxe_softc *sc, uint32_t addr,
                           "ERROR: " format,           \
                           ## args);                   \
         }                                             \
-        sc->trigger_grcdump |= 0x1;                   \
     } while(0)
 
 #ifdef ECORE_STOP_ON_ERROR
@@ -2325,6 +2297,17 @@ void bxe_dump_mem(struct bxe_softc *sc, char *tag,
                   uint8_t *mem, uint32_t len);
 void bxe_dump_mbuf_data(struct bxe_softc *sc, char *pTag,
                         struct mbuf *m, uint8_t contents);
+extern int bxe_grc_dump(struct bxe_softc *sc);
+
+#if __FreeBSD_version >= 800000
+#if __FreeBSD_version >= 1000000
+#define BXE_SET_FLOWID(m) M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE)
+#define BXE_VALID_FLOWID(m) (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+#else
+#define BXE_VALID_FLOWID(m) ((m->m_flags & M_FLOWID) != 0)
+#define BXE_SET_FLOWID(m) m->m_flags |= M_FLOWID
+#endif
+#endif /* #if __FreeBSD_version >= 800000 */
 
 /***********/
 /* INLINES */
@@ -2489,12 +2472,6 @@ bxe_stats_id(struct bxe_fastpath *fp)
     struct bxe_softc *sc = fp->sc;
 
     if (!CHIP_IS_E1x(sc)) {
-#if 0
-        /* there are special statistics counters for FCoE 136..140 */
-        if (IS_FCOE_FP(fp)) {
-            return (sc->cnic_base_cl_id + (sc->pf_num >> 1));
-        }
-#endif
         return (fp->cl_id);
     }
 

@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd April 23, 2016
 .Dt RC 8
 .Os
 .Sh NAME
@@ -323,6 +323,10 @@ If the script starts a process (rather than performing a one-off
 operation), show the status of the process.
 Otherwise it is not necessary to support this argument.
 Defaults to displaying the process ID of the program (if running).
+.It Cm describe
+Print a short description of what the script does.
+.It Cm extracommands
+Print the script's non-standard commands.
 .It Cm poll
 If the script starts a process (rather than performing a one-off
 operation), wait for the command to exit.

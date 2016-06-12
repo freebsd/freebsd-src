@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Dec 10, 2015" "NLnet Labs" "unbound 1.5.7"
+.TH "unbound.conf" "5" "Mar  2, 2016" "NLnet Labs" "unbound 1.5.8"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -275,7 +275,7 @@ are going to exist later on, with host failover configuration.  This is
 a lot like interface\-automatic, but that one services all interfaces
 and with this option you can select which (future) interfaces unbound
 provides service on.  This option needs unbound to be started with root
-permissions on some systems.
+permissions on some systems.  The option uses IP_BINDANY on FreeBSD systems.
 .TP
 .B rrset\-cache\-size: \fI<number>
 Number of bytes size of the RRset cache. Default is 4 megabytes.
@@ -337,6 +337,22 @@ Enable or disable whether UDP queries are answered or issued. Default is yes.
 .TP
 .B do\-tcp: \fI<yes or no>
 Enable or disable whether TCP queries are answered or issued. Default is yes.
+.TP
+.B tcp\-mss: \fI<number>
+Maximum segment size (MSS) of TCP socket on which the server responds
+to queries. Value lower than common MSS on Ethernet 
+(1220 for example) will address path MTU problem.
+Note that not all platform supports socket option to set MSS (TCP_MAXSEG).
+Default is system default MSS determined by interface MTU and
+negotiation between server and client.
+.TP
+.B outgoing\-tcp\-mss: \fI<number>
+Maximum segment size (MSS) of TCP socket for outgoing queries
+(from Unbound to other servers). Value lower than
+common MSS on Ethernet (1220 for example) will address path MTU problem.
+Note that not all platform supports socket option to set MSS (TCP_MAXSEG).
+Default is system default MSS determined by interface MTU and
+negotiation between Unbound and other servers.
 .TP
 .B tcp\-upstream: \fI<yes or no>
 Enable or disable whether the upstream queries use TCP only for transport.
@@ -841,6 +857,11 @@ as a (DHCP-) DNS network resolver for a group of machines, where such
 lookups should be filtered (RFC compliance), this also stops potential
 data leakage about the local network to the upstream DNS servers.
 .TP
+.B insecure\-lan\-zones: \fI<yesno>
+Default is disabled.  If enabled, then reverse lookups in private
+address space are not validated.  This is usually required whenever
+\fIunblock\-lan\-zones\fR is used.
+.TP
 .B local\-zone: \fI<zone> <type>
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
@@ -912,10 +933,10 @@ has no other effect than turning off default contents for the
 given zone.  Use \fInodefault\fR if you use exactly that zone, if you want to
 use a subzone, use \fItransparent\fR.
 .P
-The default zones are localhost, reverse 127.0.0.1 and ::1, and the AS112
-zones. The AS112 zones are reverse DNS zones for private use and reserved
-IP addresses for which the servers on the internet cannot provide correct
-answers. They are configured by default to give nxdomain (no reverse 
+The default zones are localhost, reverse 127.0.0.1 and ::1, the onion and
+the AS112 zones. The AS112 zones are reverse DNS zones for private use and
+reserved IP addresses for which the servers on the internet cannot provide
+correct answers. They are configured by default to give nxdomain (no reverse
 information) answers. The defaults can be turned off by specifying your
 own local\-zone of that name, or using the 'nodefault' type. Below is a 
 list of the default zone contents.
@@ -957,6 +978,15 @@ local\-data: "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.
 local\-data: "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.
     0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. 10800 IN 
     PTR localhost."
+.fi
+.TP 10
+\h'5'\fIonion (RFC 7686)\fR 
+Default content:
+.nf
+local\-zone: "onion." static
+local\-data: "onion. 10800 IN NS localhost."
+local\-data: "onion. 10800 IN 
+    SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
 .fi
 .TP 10
 \h'5'\fIreverse RFC1918 local use zones\fR 

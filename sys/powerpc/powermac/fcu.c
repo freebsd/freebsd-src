@@ -553,7 +553,7 @@ fcu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 		default:
 			/* This should never happen */
 			return (EINVAL);
-		};
+		}
 	}
 
 	/* We can only read the RPM from a PWM controlled fan, so return. */

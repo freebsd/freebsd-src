@@ -75,7 +75,7 @@ uint32_t d_fileno;
 uint16_t d_reclen;
 uint8_t  d_type;
 uint8_t  d_namlen;
-char	d_name[MAXNAMELEN + 1];	/* see below */
+char	d_name[MAXNAMLEN + 1];	/* see below */
 .Ed
 .Pp
 The
@@ -103,7 +103,7 @@ entry specifies the length of the file name excluding the null byte.
 Thus the actual size of
 .Fa d_name
 may vary from 1 to
-.Dv MAXNAMELEN
+.Dv MAXNAMLEN
 \&+ 1.
 .Pp
 Entries may be separated by extra space.

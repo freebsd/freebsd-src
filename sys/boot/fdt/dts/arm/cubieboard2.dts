@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
+ * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,78 +23,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
-/dts-v1/;
-
-/include/ "sun7i-a20.dtsi"
-
-#include <dt-bindings/gpio/gpio.h>
+#include "sun7i-a20-cubieboard2.dts"
+#include "sun7i-a20-hdmi.dtsi"
+#include "xpowers-axp209.dtsi"
 
 / {
-	model = "Cubietech Cubieboard2";
-
-	memory {
-		device_type = "memory";
-		reg = < 0x40000000 0x40000000 >;	/* 1GB RAM */
-	};
-
-	aliases {
-		soc = &SOC;
-		UART0 = &UART0;
-	};
-
-	SOC: a20 {
-
-		usb1: usb@01c14000 {
+	soc@01c00000 {
+		hdmi@01c16000 {
 			status = "okay";
 		};
 
-		usb2: usb@01c1c000 {
+		hdmiaudio {
 			status = "okay";
 		};
-
-		UART0: serial@01c28000 {
-			status = "okay";
-		};
-
-		mmc0: mmc@01c0f000 {
-			status = "okay";
-		};
-
-		emac@01c0b000 {
-			status = "okay";
-		};
-
-		gmac@01c50000 {
-			status = "okay";
-		};
-
-		ahci: sata@01c18000 {
-			status = "okay";
-		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-
-		blue {
-			label = "cubieboard2:blue:usr";
-			gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>;
-		};
-
-		green {
-			label = "cubieboard2:green:usr";
-			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	chosen {
-		bootargs = "-v";
-		stdin = "UART0";
-		stdout = "UART0";
 	};
 };
-

@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -880,8 +881,8 @@ fe_alloc_port(device_t dev, int size)
 	int rid;
 
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				 0ul, ~0ul, size, RF_ACTIVE);
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+					  size, RF_ACTIVE);
 	if (res) {
 		sc->port_used = size;
 		sc->port_res = res;

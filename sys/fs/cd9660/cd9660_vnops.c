@@ -341,11 +341,9 @@ cd9660_read(ap)
 			} else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		}
-		n = MIN(n, size - bp->b_resid);
-		if (error) {
-			brelse(bp);
+		if (error != 0)
 			return (error);
-		}
+		n = MIN(n, size - bp->b_resid);
 
 		error = uiomove(bp->b_data + on, (int)n, uio);
 		brelse(bp);

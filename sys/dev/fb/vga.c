@@ -602,7 +602,7 @@ map_mode_num(int mode)
     };
     int i;
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+    for (i = 0; i < nitems(mode_map); ++i) {
         if (mode_map[i].from == mode)
             return mode_map[i].to;
     }
@@ -655,7 +655,7 @@ map_gen_mode_num(int type, int color, int mode)
 	}
     }
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+    for (i = 0; i < nitems(mode_map); ++i) {
         if (mode_map[i].from == mode)
             return ((color) ? mode_map[i].to_color : mode_map[i].to_mono);
     }
@@ -702,7 +702,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
     switch (type) {
 
     case KD_VGA:
-	if (bios_mode < sizeof(vga_modes)/sizeof(vga_modes[0]))
+	if (bios_mode < nitems(vga_modes))
 	    return vga_modes[bios_mode];
 	else if (color)
 	    return M_VGA_C80x25;
@@ -711,7 +711,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
 	break;
 
     case KD_EGA:
-	if (bios_mode < sizeof(ega_modes)/sizeof(ega_modes[0]))
+	if (bios_mode < nitems(ega_modes))
 	    return ega_modes[bios_mode];
 	else if (color)
 	    return M_ENH_C80x25;
@@ -720,7 +720,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
 	break;
 
     case KD_CGA:
-	if (bios_mode < sizeof(cga_modes)/sizeof(cga_modes[0]))
+	if (bios_mode < nitems(cga_modes))
 	    return cga_modes[bios_mode];
 	else
 	    return M_C80x25;
@@ -772,7 +772,7 @@ fill_adapter_param(int code, video_adapter_t *adp)
 	{ DCC_EGAMONO, 			DCC_CGA80 },
     };
 
-    if ((code < 0) || (code >= sizeof(dcc)/sizeof(dcc[0]))) {
+    if ((code < 0) || (code >= nitems(dcc))) {
 	adp[V_ADP_PRIMARY] = adapter_init_value[DCC_MONO];
 	adp[V_ADP_SECONDARY] = adapter_init_value[DCC_CGA80];
     } else {
@@ -918,7 +918,7 @@ comp_adpregs(u_char *buf1, u_char *buf2)
     if ((buf1 == NULL) || (buf2 == NULL))
 	return COMP_DIFFERENT;
 
-    for (i = 0; i < sizeof(params)/sizeof(params[0]); ++i) {
+    for (i = 0; i < nitems(params); ++i) {
 	if (params[i].mask == 0)	/* don't care */
 	    continue;
 	if ((buf1[i] & params[i].mask) != (buf2[i] & params[i].mask))
@@ -948,7 +948,7 @@ probe_adapters(void)
 
     /* 
      * Locate display adapters. 
-     * The AT architecture supports upto two adapters. `syscons' allows
+     * The AT architecture supports up to two adapters. `syscons' allows
      * the following combinations of adapters: 
      *     1) MDA + CGA
      *     2) MDA + EGA/VGA color 
@@ -1134,7 +1134,7 @@ probe_adapters(void)
 		case COMP_DIFFERENT:
 		default:
 		    /*
-		     * Don't use the paramter table in BIOS. It doesn't
+		     * Don't use the parameter table in BIOS. It doesn't
 		     * look familiar to us. Video mode switching is allowed
 		     * only if the new mode is the same as or based on
 		     * the initial mode. 
@@ -1247,12 +1247,12 @@ set_line_length(video_adapter_t *adp, int pixel)
     switch (adp->va_info.vi_mem_model) {
     case V_INFO_MM_PLANAR:
 	ppw = 16/(adp->va_info.vi_depth/adp->va_info.vi_planes);
-	count = (pixel + ppw - 1)/ppw/2;
-	bpl = ((pixel + ppw - 1)/ppw/2)*4;
+	count = howmany(pixel, ppw)/2;
+	bpl = (howmany(pixel, ppw)/2)*4;
 	break;
     case V_INFO_MM_PACKED:
 	count = (pixel + 7)/8;
-	bpl = ((pixel + 7)/8)*8;
+	bpl = rounddown(pixel + 7, 8);
 	break;
     case V_INFO_MM_TEXT:
 	count = (pixel + 7)/8;			/* columns */

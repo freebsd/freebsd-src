@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/systm.h> 
  
 #include <sys/socket.h>
@@ -102,7 +103,6 @@ ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 			break;
 		meshaction_send_action[act] = f;
 		return 0;
-		break;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act >= nitems(vendor_send_action))
 			break;

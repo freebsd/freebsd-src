@@ -519,7 +519,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    rtld_die();
     }
 
-    if (aux_info[AT_EXECPATH] != 0) {
+    if (aux_info[AT_EXECPATH] != NULL) {
 	    char *kexecpath;
 	    char buf[MAXPATHLEN];
 
@@ -822,7 +822,7 @@ origin_subst_one(Obj_Entry *obj, char *real, const char *kw,
 	kw_len = strlen(kw);
 
 	/*
-	 * First, count the number of the keyword occurences, to
+	 * First, count the number of the keyword occurrences, to
 	 * preallocate the final string.
 	 */
 	for (p = real, subst_count = 0;; p = p1 + kw_len, subst_count++) {
@@ -1667,14 +1667,16 @@ static const char *
 gethints(bool nostdlib)
 {
 	static char *hints, *filtered_path;
-	struct elfhints_hdr hdr;
+	static struct elfhints_hdr hdr;
 	struct fill_search_info_args sargs, hargs;
 	struct dl_serinfo smeta, hmeta, *SLPinfo, *hintinfo;
 	struct dl_serpath *SLPpath, *hintpath;
 	char *p;
+	struct stat hint_stat;
 	unsigned int SLPndx, hintndx, fndx, fcount;
 	int fd;
 	size_t flen;
+	uint32_t dl;
 	bool skip;
 
 	/* First call, read the hints file */
@@ -1684,19 +1686,38 @@ gethints(bool nostdlib)
 
 		if ((fd = open(ld_elf_hints_path, O_RDONLY | O_CLOEXEC)) == -1)
 			return (NULL);
+
+		/*
+		 * Check of hdr.dirlistlen value against type limit
+		 * intends to pacify static analyzers.  Further
+		 * paranoia leads to checks that dirlist is fully
+		 * contained in the file range.
+		 */
 		if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
 		    hdr.magic != ELFHINTS_MAGIC ||
-		    hdr.version != 1) {
+		    hdr.version != 1 || hdr.dirlistlen > UINT_MAX / 2 ||
+		    fstat(fd, &hint_stat) == -1) {
+cleanup1:
 			close(fd);
+			hdr.dirlistlen = 0;
 			return (NULL);
 		}
+		dl = hdr.strtab;
+		if (dl + hdr.dirlist < dl)
+			goto cleanup1;
+		dl += hdr.dirlist;
+		if (dl + hdr.dirlistlen < dl)
+			goto cleanup1;
+		dl += hdr.dirlistlen;
+		if (dl > hint_stat.st_size)
+			goto cleanup1;
 		p = xmalloc(hdr.dirlistlen + 1);
+
 		if (lseek(fd, hdr.strtab + hdr.dirlist, SEEK_SET) == -1 ||
 		    read(fd, p, hdr.dirlistlen + 1) !=
-		    (ssize_t)hdr.dirlistlen + 1) {
+		    (ssize_t)hdr.dirlistlen + 1 || p[hdr.dirlistlen] != '\0') {
 			free(p);
-			close(fd);
-			return (NULL);
+			goto cleanup1;
 		}
 		hints = p;
 		close(fd);
@@ -1729,7 +1750,7 @@ gethints(bool nostdlib)
 	hargs.serinfo = &hmeta;
 
 	path_enumerate(ld_standard_library_path, fill_search_info, &sargs);
-	path_enumerate(p, fill_search_info, &hargs);
+	path_enumerate(hints, fill_search_info, &hargs);
 
 	SLPinfo = xmalloc(smeta.dls_size);
 	hintinfo = xmalloc(hmeta.dls_size);
@@ -1748,7 +1769,7 @@ gethints(bool nostdlib)
 	hargs.strspace = (char *)&hintinfo->dls_serpath[hmeta.dls_cnt];
 
 	path_enumerate(ld_standard_library_path, fill_search_info, &sargs);
-	path_enumerate(p, fill_search_info, &hargs);
+	path_enumerate(hints, fill_search_info, &hargs);
 
 	/*
 	 * Now calculate the difference between two sets, by excluding
@@ -2627,6 +2648,40 @@ relocate_object_dag(Obj_Entry *root, bool bind_now, Obj_Entry *rtldobj,
 }
 
 /*
+ * Prepare for, or clean after, relocating an object marked with
+ * DT_TEXTREL or DF_TEXTREL.  Before relocating, all read-only
+ * segments are remapped read-write.  After relocations are done, the
+ * segment's permissions are returned back to the modes specified in
+ * the phdrs.  If any relocation happened, or always for wired
+ * program, COW is triggered.
+ */
+static int
+reloc_textrel_prot(Obj_Entry *obj, bool before)
+{
+	const Elf_Phdr *ph;
+	void *base;
+	size_t l, sz;
+	int prot;
+
+	for (l = obj->phsize / sizeof(*ph), ph = obj->phdr; l > 0;
+	    l--, ph++) {
+		if (ph->p_type != PT_LOAD || (ph->p_flags & PF_W) != 0)
+			continue;
+		base = obj->relocbase + trunc_page(ph->p_vaddr);
+		sz = round_page(ph->p_vaddr + ph->p_filesz) -
+		    trunc_page(ph->p_vaddr);
+		prot = convert_prot(ph->p_flags) | (before ? PROT_WRITE : 0);
+		if (mprotect(base, sz, prot) == -1) {
+			_rtld_error("%s: Cannot write-%sable text segment: %s",
+			    obj->path, before ? "en" : "dis",
+			    rtld_strerror(errno));
+			return (-1);
+		}
+	}
+	return (0);
+}
+
+/*
  * Relocate single object.
  * Returns 0 on success, or -1 on failure.
  */
@@ -2648,28 +2703,17 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 		return (-1);
 	}
 
-	if (obj->textrel) {
-		/* There are relocations to the write-protected text segment. */
-		if (mprotect(obj->mapbase, obj->textsize,
-		    PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
-			_rtld_error("%s: Cannot write-enable text segment: %s",
-			    obj->path, rtld_strerror(errno));
-			return (-1);
-		}
-	}
+	/* There are relocations to the write-protected text segment. */
+	if (obj->textrel && reloc_textrel_prot(obj, true) != 0)
+		return (-1);
 
 	/* Process the non-PLT non-IFUNC relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
 		return (-1);
 
-	if (obj->textrel) {	/* Re-protected the text segment. */
-		if (mprotect(obj->mapbase, obj->textsize,
-		    PROT_READ|PROT_EXEC) == -1) {
-			_rtld_error("%s: Cannot write-protect text segment: %s",
-			    obj->path, rtld_strerror(errno));
-			return (-1);
-		}
-	}
+	/* Re-protected the text segment. */
+	if (obj->textrel && reloc_textrel_prot(obj, false) != 0)
+		return (-1);
 
 	/* Set the special PLT or GOT entries. */
 	init_pltgot(obj);

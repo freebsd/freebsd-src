@@ -85,7 +85,7 @@ getmib(void)
 	if (miblen != 0)
 		return;
 	
-	miblen = sizeof(mib) / sizeof(mib[0]);
+	miblen = nitems(mib);
 	if (sysctlnametomib(pathctl, mib, &miblen) != 0)
 		err(1, "sysctlnametomib(%s)", pathctl);
 }

@@ -6,87 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ADCE.o: Intrinsics.inc.h
-ADCE.po: Intrinsics.inc.h
-AlignmentFromAssumptions.o: Intrinsics.inc.h
-AlignmentFromAssumptions.po: Intrinsics.inc.h
-BDCE.o: Intrinsics.inc.h
-BDCE.po: Intrinsics.inc.h
-ConstantHoisting.o: Intrinsics.inc.h
-ConstantHoisting.po: Intrinsics.inc.h
-DeadStoreElimination.o: Intrinsics.inc.h
-DeadStoreElimination.po: Intrinsics.inc.h
-EarlyCSE.o: Intrinsics.inc.h
-EarlyCSE.po: Intrinsics.inc.h
-GVN.o: Intrinsics.inc.h
-GVN.po: Intrinsics.inc.h
-IndVarSimplify.o: Intrinsics.inc.h
-IndVarSimplify.po: Intrinsics.inc.h
-InductiveRangeCheckElimination.o: Intrinsics.inc.h
-InductiveRangeCheckElimination.po: Intrinsics.inc.h
-JumpThreading.o: Intrinsics.inc.h
-JumpThreading.po: Intrinsics.inc.h
-LICM.o: Intrinsics.inc.h
-LICM.po: Intrinsics.inc.h
-LoopIdiomRecognize.o: Intrinsics.inc.h
-LoopIdiomRecognize.po: Intrinsics.inc.h
-LoopInterchange.o: Intrinsics.inc.h
-LoopInterchange.po: Intrinsics.inc.h
-LoopRerollPass.o: Intrinsics.inc.h
-LoopRerollPass.po: Intrinsics.inc.h
-LoopRotation.o: Intrinsics.inc.h
-LoopRotation.po: Intrinsics.inc.h
-LoopStrengthReduce.o: Intrinsics.inc.h
-LoopStrengthReduce.po: Intrinsics.inc.h
-LoopUnrollPass.o: Intrinsics.inc.h
-LoopUnrollPass.po: Intrinsics.inc.h
-LoopUnswitch.o: Intrinsics.inc.h
-LoopUnswitch.po: Intrinsics.inc.h
-LowerAtomic.o: Intrinsics.inc.h
-LowerAtomic.po: Intrinsics.inc.h
-LowerExpectIntrinsic.o: Intrinsics.inc.h
-LowerExpectIntrinsic.po: Intrinsics.inc.h
-MemCpyOptimizer.o: Intrinsics.inc.h
-MemCpyOptimizer.po: Intrinsics.inc.h
-MergedLoadStoreMotion.o: Intrinsics.inc.h
-MergedLoadStoreMotion.po: Intrinsics.inc.h
-NaryReassociate.o: Intrinsics.inc.h
-NaryReassociate.po: Intrinsics.inc.h
-PartiallyInlineLibCalls.o: Intrinsics.inc.h
-PartiallyInlineLibCalls.po: Intrinsics.inc.h
-PlaceSafepoints.o: Intrinsics.inc.h
-PlaceSafepoints.po: Intrinsics.inc.h
-Reassociate.o: Intrinsics.inc.h
-Reassociate.po: Intrinsics.inc.h
-RewriteStatepointsForGC.o: Intrinsics.inc.h
-RewriteStatepointsForGC.po: Intrinsics.inc.h
-SCCP.o: Intrinsics.inc.h
-SCCP.po: Intrinsics.inc.h
-SROA.o: Intrinsics.inc.h
-SROA.po: Intrinsics.inc.h
-ScalarReplAggregates.o: Intrinsics.inc.h
-ScalarReplAggregates.po: Intrinsics.inc.h
-Scalarizer.o: Intrinsics.inc.h
-Scalarizer.po: Intrinsics.inc.h
-SeparateConstOffsetFromGEP.o: Intrinsics.inc.h
-SeparateConstOffsetFromGEP.po: Intrinsics.inc.h
-SimplifyCFGPass.o: Intrinsics.inc.h
-SimplifyCFGPass.po: Intrinsics.inc.h
-Sink.o: Intrinsics.inc.h
-Sink.po: Intrinsics.inc.h
-SpeculativeExecution.o: Intrinsics.inc.h
-SpeculativeExecution.po: Intrinsics.inc.h
-StraightLineStrengthReduce.o: Intrinsics.inc.h
-StraightLineStrengthReduce.po: Intrinsics.inc.h
-StructurizeCFG.o: Intrinsics.inc.h
-StructurizeCFG.po: Intrinsics.inc.h
-TailRecursionElimination.o: Intrinsics.inc.h
-TailRecursionElimination.po: Intrinsics.inc.h
 .endif

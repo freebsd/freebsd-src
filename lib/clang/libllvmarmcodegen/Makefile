@@ -46,6 +46,7 @@ TGHDRS=	ARMGenAsmWriter \
 	ARMGenMCPseudoLowering \
 	ARMGenRegisterInfo \
 	ARMGenSubtargetInfo \
+	Attributes \
 	Intrinsics
 
 .include "../clang.lib.mk"

@@ -8,6 +8,8 @@ dir=`dirname $0`
 
 [ "${os}:${fs}" = "FreeBSD:UFS" ] || quick_exit
 
+requires_exec
+
 echo "1..4"
 
 n0=`namegen`

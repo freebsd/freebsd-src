@@ -52,6 +52,7 @@
 #include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ABI.h"
+#include "lldb/Target/Language.h"
 #include "lldb/Target/LanguageRuntime.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Process.h"
@@ -847,11 +848,11 @@ SBTarget::BreakpointCreateByName (const char *symbol_name,
         {
             FileSpecList module_spec_list;
             module_spec_list.Append (FileSpec (module_name, false));
-            *sb_bp = target_sp->CreateBreakpoint (&module_spec_list, NULL, symbol_name, eFunctionNameTypeAuto, skip_prologue, internal, hardware);
+            *sb_bp = target_sp->CreateBreakpoint (&module_spec_list, NULL, symbol_name, eFunctionNameTypeAuto, eLanguageTypeUnknown, skip_prologue, internal, hardware);
         }
         else
         {
-            *sb_bp = target_sp->CreateBreakpoint (NULL, NULL, symbol_name, eFunctionNameTypeAuto, skip_prologue, internal, hardware);
+            *sb_bp = target_sp->CreateBreakpoint (NULL, NULL, symbol_name, eFunctionNameTypeAuto, eLanguageTypeUnknown, skip_prologue, internal, hardware);
         }
     }
 
@@ -869,12 +870,22 @@ SBTarget::BreakpointCreateByName (const char *symbol_name,
                                   const SBFileSpecList &comp_unit_list)
 {
     uint32_t name_type_mask = eFunctionNameTypeAuto;
-    return BreakpointCreateByName (symbol_name, name_type_mask, module_list, comp_unit_list);
+    return BreakpointCreateByName (symbol_name, name_type_mask, eLanguageTypeUnknown, module_list, comp_unit_list);
 }
 
 lldb::SBBreakpoint
 SBTarget::BreakpointCreateByName (const char *symbol_name,
                                   uint32_t name_type_mask,
+                                  const SBFileSpecList &module_list,
+                                  const SBFileSpecList &comp_unit_list)
+{
+    return BreakpointCreateByName (symbol_name, name_type_mask, eLanguageTypeUnknown, module_list, comp_unit_list);
+}
+
+lldb::SBBreakpoint
+SBTarget::BreakpointCreateByName (const char *symbol_name,
+                                  uint32_t name_type_mask,
+                                  LanguageType symbol_language,
                                   const SBFileSpecList &module_list,
                                   const SBFileSpecList &comp_unit_list)
 {
@@ -892,6 +903,7 @@ SBTarget::BreakpointCreateByName (const char *symbol_name,
                                               comp_unit_list.get(),
                                               symbol_name,
                                               name_type_mask,
+                                              symbol_language,
                                               skip_prologue,
                                               internal,
                                               hardware);
@@ -912,6 +924,17 @@ SBTarget::BreakpointCreateByNames (const char *symbol_names[],
                                    const SBFileSpecList &module_list,
                                    const SBFileSpecList &comp_unit_list)
 {
+    return BreakpointCreateByNames(symbol_names, num_names, name_type_mask, eLanguageTypeUnknown, module_list, comp_unit_list);
+}
+
+lldb::SBBreakpoint
+SBTarget::BreakpointCreateByNames (const char *symbol_names[],
+                                   uint32_t num_names,
+                                   uint32_t name_type_mask,
+                                   LanguageType symbol_language,
+                                   const SBFileSpecList &module_list,
+                                   const SBFileSpecList &comp_unit_list)
+{
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
     SBBreakpoint sb_bp;
@@ -923,13 +946,14 @@ SBTarget::BreakpointCreateByNames (const char *symbol_names[],
         const bool hardware = false;
         const LazyBool skip_prologue = eLazyBoolCalculate;
         *sb_bp = target_sp->CreateBreakpoint (module_list.get(), 
-                                                comp_unit_list.get(), 
-                                                symbol_names,
-                                                num_names,
-                                                name_type_mask, 
-                                                skip_prologue,
-                                                internal,
-                                                hardware);
+                                              comp_unit_list.get(), 
+                                              symbol_names,
+                                              num_names,
+                                              name_type_mask, 
+                                              symbol_language,
+                                              skip_prologue,
+                                              internal,
+                                              hardware);
     }
 
     if (log)
@@ -959,41 +983,27 @@ SBBreakpoint
 SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex,
                                    const char *module_name)
 {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-
-    SBBreakpoint sb_bp;
-    TargetSP target_sp(GetSP());
-    if (target_sp && symbol_name_regex && symbol_name_regex[0])
+    SBFileSpecList module_spec_list;
+    SBFileSpecList comp_unit_list;
+    if (module_name && module_name[0])
     {
-        Mutex::Locker api_locker (target_sp->GetAPIMutex());
-        RegularExpression regexp(symbol_name_regex);
-        const bool internal = false;
-        const bool hardware = false;
-        const LazyBool skip_prologue = eLazyBoolCalculate;
-
-        if (module_name && module_name[0])
-        {
-            FileSpecList module_spec_list;
-            module_spec_list.Append (FileSpec (module_name, false));
-
-            *sb_bp = target_sp->CreateFuncRegexBreakpoint (&module_spec_list, NULL, regexp, skip_prologue, internal, hardware);
-        }
-        else
-        {
-            *sb_bp = target_sp->CreateFuncRegexBreakpoint (NULL, NULL, regexp, skip_prologue, internal, hardware);
-        }
+        module_spec_list.Append (FileSpec (module_name, false));
+            
     }
-
-    if (log)
-        log->Printf ("SBTarget(%p)::BreakpointCreateByRegex (symbol_regex=\"%s\", module_name=\"%s\") => SBBreakpoint(%p)",
-                     static_cast<void*>(target_sp.get()), symbol_name_regex,
-                     module_name, static_cast<void*>(sb_bp.get()));
-
-    return sb_bp;
+    return BreakpointCreateByRegex (symbol_name_regex, eLanguageTypeUnknown, module_spec_list, comp_unit_list);
 }
 
 lldb::SBBreakpoint
 SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex, 
+                                   const SBFileSpecList &module_list,
+                                   const SBFileSpecList &comp_unit_list)
+{
+    return BreakpointCreateByRegex (symbol_name_regex, eLanguageTypeUnknown, module_list, comp_unit_list);
+}
+
+lldb::SBBreakpoint
+SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex,
+                                   LanguageType symbol_language,
                                    const SBFileSpecList &module_list,
                                    const SBFileSpecList &comp_unit_list)
 {
@@ -1008,8 +1018,8 @@ SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex,
         const bool internal = false;
         const bool hardware = false;
         const LazyBool skip_prologue = eLazyBoolCalculate;
-
-        *sb_bp = target_sp->CreateFuncRegexBreakpoint (module_list.get(), comp_unit_list.get(), regexp, skip_prologue, internal, hardware);
+        
+        *sb_bp = target_sp->CreateFuncRegexBreakpoint (module_list.get(), comp_unit_list.get(), regexp, symbol_language, skip_prologue, internal, hardware);
     }
 
     if (log)
@@ -1039,6 +1049,41 @@ SBTarget::BreakpointCreateByAddress (addr_t address)
                      static_cast<void*>(target_sp.get()),
                      static_cast<uint64_t>(address),
                      static_cast<void*>(sb_bp.get()));
+
+    return sb_bp;
+}
+
+SBBreakpoint
+SBTarget::BreakpointCreateBySBAddress (SBAddress &sb_address)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+
+    SBBreakpoint sb_bp;
+    TargetSP target_sp(GetSP());
+    if (!sb_address.IsValid())
+    {
+        if (log)
+            log->Printf ("SBTarget(%p)::BreakpointCreateBySBAddress called with invalid address",
+                         static_cast<void*>(target_sp.get()));
+        return sb_bp;
+    }
+    
+    if (target_sp)
+    {
+        Mutex::Locker api_locker (target_sp->GetAPIMutex());
+        const bool hardware = false;
+        *sb_bp = target_sp->CreateBreakpoint (sb_address.ref(), false, hardware);
+    }
+
+    if (log)
+    {
+        SBStream s;
+        sb_address.GetDescription(s);
+        log->Printf ("SBTarget(%p)::BreakpointCreateBySBAddress (address=%s) => SBBreakpoint(%p)",
+                     static_cast<void*>(target_sp.get()),
+                     s.GetData(),
+                     static_cast<void*>(sb_bp.get()));
+    }
 
     return sb_bp;
 }
@@ -1131,7 +1176,7 @@ SBTarget::BreakpointCreateForException  (lldb::LanguageType language,
     if (log)
         log->Printf ("SBTarget(%p)::BreakpointCreateByRegex (Language: %s, catch: %s throw: %s) => SBBreakpoint(%p)",
                      static_cast<void*>(target_sp.get()),
-                     LanguageRuntime::GetNameForLanguageType(language),
+                     Language::GetNameForLanguageType(language),
                      catch_bp ? "on" : "off", throw_bp ? "on" : "off",
                      static_cast<void*>(sb_bp.get()));
 
@@ -1344,7 +1389,7 @@ SBTarget::WatchAddress (lldb::addr_t addr, size_t size, bool read, bool write, S
         // Target::CreateWatchpoint() is thread safe.
         Error cw_error;
         // This API doesn't take in a type, so we can't figure out what it is.
-        ClangASTType *type = NULL;
+        CompilerType *type = NULL;
         watchpoint_sp = target_sp->CreateWatchpoint(addr, size, type, watch_type, cw_error);
         error.SetError(cw_error);
         sb_watchpoint.SetSP (watchpoint_sp);
@@ -1398,7 +1443,7 @@ SBTarget::CreateValueFromAddress (const char *name, SBAddress addr, SBType type)
     {
         lldb::addr_t load_addr(addr.GetLoadAddress(*this));
         ExecutionContext exe_ctx (ExecutionContextRef(ExecutionContext(m_opaque_sp.get(),false)));
-        ClangASTType ast_type(type.GetSP()->GetClangASTType(true));
+        CompilerType ast_type(type.GetSP()->GetCompilerType(true));
         new_value_sp = ValueObject::CreateValueObjectFromAddress(name, load_addr, exe_ctx, ast_type);
     }
     sb_value.SetSP(new_value_sp);
@@ -1425,7 +1470,7 @@ SBTarget::CreateValueFromData (const char *name, lldb::SBData data, lldb::SBType
     {
         DataExtractorSP extractor(*data);
         ExecutionContext exe_ctx (ExecutionContextRef(ExecutionContext(m_opaque_sp.get(),false)));
-        ClangASTType ast_type(type.GetSP()->GetClangASTType(true));
+        CompilerType ast_type(type.GetSP()->GetCompilerType(true));
         new_value_sp = ValueObject::CreateValueObjectFromData(name, *extractor, exe_ctx, ast_type);
     }
     sb_value.SetSP(new_value_sp);
@@ -1806,7 +1851,7 @@ SBTarget::FindFirstType (const char* typename_cstr)
                     
                     if (objc_decl_vendor->FindDecls(const_typename, true, 1, decls) > 0)
                     {
-                        if (ClangASTType type = ClangASTContext::GetTypeForDecl(decls[0]))
+                        if (CompilerType type = ClangASTContext::GetTypeForDecl(decls[0]))
                         {
                             return SBType(type);
                         }
@@ -1886,7 +1931,7 @@ SBTarget::FindTypes (const char* typename_cstr)
                     {
                         for (clang::NamedDecl *decl : decls)
                         {
-                            if (ClangASTType type = ClangASTContext::GetTypeForDecl(decl))
+                            if (CompilerType type = ClangASTContext::GetTypeForDecl(decl))
                             {
                                 sb_type_list.Append(SBType(type));
                             }

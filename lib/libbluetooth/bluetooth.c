@@ -67,7 +67,7 @@ bt_gethostbyname(char const *name)
 	while ((p = bt_gethostent()) != NULL) {
 		if (strcasecmp(p->h_name, name) == 0)
 			break;
-		for (cp = p->h_aliases; *cp != 0; cp++)
+		for (cp = p->h_aliases; *cp != NULL; cp++)
 			if (strcasecmp(*cp, name) == 0)
 				goto found;
 	}
@@ -180,7 +180,7 @@ bt_getprotobyname(char const *name)
 	while ((p = bt_getprotoent()) != NULL) {
 		if (strcmp(p->p_name, name) == 0)
 			break;
-		for (cp = p->p_aliases; *cp != 0; cp++)
+		for (cp = p->p_aliases; *cp != NULL; cp++)
 			if (strcmp(*cp, name) == 0)
 				goto found;
 	}

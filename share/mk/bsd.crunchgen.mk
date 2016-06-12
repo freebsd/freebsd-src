@@ -39,6 +39,10 @@ OUTC=	${PROG}.c
 OUTPUTS=${OUTMK} ${OUTC} ${PROG}.cache
 CRUNCHOBJS= ${.OBJDIR}
 CRUNCH_GENERATE_LINKS?= yes
+# Don't let the prog.mk use MK_AUTO_OBJ, but do let the component builds use
+# it.
+CRUNCHENV+= MK_AUTO_OBJ=no
+CRUNCH_BUILDOPTS+= MK_AUTO_OBJ=${MK_AUTO_OBJ}
 
 CLEANFILES+= ${CONF} *.o *.lo *.c *.mk *.cache *.a *.h
 
@@ -70,7 +74,9 @@ LINKS+= ${BINDIR}/${PROG} ${BINDIR}/${A}
 .endfor
 .endfor
 
+.if !defined(_SKIP_BUILD)
 all: ${PROG}
+.endif
 exe: ${PROG}
 
 ${CONF}: Makefile
@@ -101,19 +107,30 @@ ${CONF}: Makefile
 .endfor
 
 CRUNCHGEN?= crunchgen
-CRUNCHENV?= MK_TESTS=no
+CRUNCHENV+= MK_TESTS=no \
+	    UPDATE_DEPENDFILE=no \
+	    _RECURSING_CRUNCH=1
 .ORDER: ${OUTPUTS} objs
-${OUTPUTS}: ${CONF} .META
-	MAKE=${MAKE} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${CRUNCHGEN} -fq \
-	    -m ${OUTMK} -c ${OUTC} ${CONF}
+${OUTPUTS:[1]}: .META
+${OUTPUTS}: ${CONF}
+	MAKE=${MAKE} ${CRUNCHENV:NMK_AUTO_OBJ=*} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	    MK_AUTO_OBJ=${MK_AUTO_OBJ} \
+	    ${CRUNCHGEN} -fq -m ${OUTMK} -c ${OUTC} ${CONF}
+	# Avoid redundantly calling 'make objs' which we've done by our
+	# own dependencies.
+	sed -i '' -e "s/^\(${PROG}:.*\) \$$(SUBMAKE_TARGETS)/\1/" ${OUTMK}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
-${PROG}: ${OUTPUTS} objs
-	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f ${OUTMK} exe
+${PROG}: ${OUTPUTS} objs .META
+	${CRUNCHENV} \
+	    CC="${CC} ${CFLAGS} ${LDFLAGS}" \
+	    CXX="${CXX} ${CXXFLAGS} ${LDFLAGS}" \
+	    ${MAKE} .MAKE.MODE=normal -f ${OUTMK} exe
 
-objs: ${OUTMK}
-	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f ${OUTMK} objs
+objs: ${OUTMK} .META
+	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
+	    ${MAKE} -f ${OUTMK} objs
 
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
 # shell scripts so we can remove this nonsense.
@@ -147,3 +164,5 @@ clean:
 		${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} 	\
 		-f ${OUTMK} clean;					\
 	fi
+
+META_XTRAS+=	${find ${CRUNCHOBJS}${SRCTOP} -name '*.meta' 2>/dev/null || true:L:sh}

@@ -13,6 +13,7 @@
 // functions are intercepted. Instead, we implement a tiny subset of libc here.
 // FIXME: Some of functions declared in this file are in fact POSIX, not libc.
 //===----------------------------------------------------------------------===//
+
 #ifndef SANITIZER_LIBC_H
 #define SANITIZER_LIBC_H
 
@@ -42,8 +43,10 @@ uptr internal_strcspn(const char *s, const char *reject);
 char *internal_strdup(const char *s);
 char *internal_strndup(const char *s, uptr n);
 uptr internal_strlen(const char *s);
+uptr internal_strlcat(char *dst, const char *src, uptr maxlen);
 char *internal_strncat(char *dst, const char *src, uptr n);
 int internal_strncmp(const char *s1, const char *s2, uptr n);
+uptr internal_strlcpy(char *dst, const char *src, uptr maxlen);
 char *internal_strncpy(char *dst, const char *src, uptr n);
 uptr internal_strnlen(const char *s, uptr maxlen);
 char *internal_strrchr(const char *s, int c);
@@ -75,8 +78,8 @@ uptr internal_getppid();
 uptr internal_sched_yield();
 
 // Error handling
-bool internal_iserror(uptr retval, int *rverrno = 0);
+bool internal_iserror(uptr retval, int *rverrno = nullptr);
 
-}  // namespace __sanitizer
+} // namespace __sanitizer
 
-#endif  // SANITIZER_LIBC_H
+#endif // SANITIZER_LIBC_H

@@ -1048,7 +1048,7 @@ g_mirror_kernel_dump(struct bio *bp)
 	/*
 	 * We configure dumping to the first component, because this component
 	 * will be used for reading with 'prefer' balance algorithm.
-	 * If the component with the higest priority is currently disconnected
+	 * If the component with the highest priority is currently disconnected
 	 * we will not be able to read the dump after the reboot if it will be
 	 * connected and synchronized later. Can we do something better?
 	 */
@@ -1160,7 +1160,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 	struct g_mirror_disk *disk;
 	struct bio *sbp;
 	off_t rstart, rend, sstart, send;
-	int i;
+	u_int i;
 
 	if (sc->sc_sync.ds_ndisks == 0)
 		return (0);
@@ -1277,7 +1277,7 @@ g_mirror_sync_release(struct g_mirror_softc *sc)
  * Handle synchronization requests.
  * Every synchronization request is two-steps process: first, READ request is
  * send to active provider and then WRITE request (with read data) to the provider
- * beeing synchronized. When WRITE is finished, new synchronization request is
+ * being synchronized. When WRITE is finished, new synchronization request is
  * send.
  */
 static void
@@ -1372,7 +1372,7 @@ g_mirror_sync_request(struct bio *bp)
 
 		/* Send next synchronization request. */
 		data = bp->bio_data;
-		bzero(bp, sizeof(*bp));
+		g_reset_bio(bp);
 		bp->bio_cmd = BIO_READ;
 		bp->bio_offset = sync->ds_offset;
 		bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
@@ -1905,7 +1905,7 @@ g_mirror_worker(void *arg)
 				g_mirror_sync_request(bp);	/* WRITE */
 			else {
 				KASSERT(0,
-				    ("Invalid request cflags=0x%hhx to=%s.",
+				    ("Invalid request cflags=0x%hx to=%s.",
 				    bp->bio_cflags, bp->bio_to->name));
 			}
 		} else {
@@ -2989,7 +2989,8 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	pp = sc->sc_provider;
-	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
+	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0 ||
+	    SCHEDULER_STOPPED())) {
 		switch (how) {
 		case G_MIRROR_DESTROY_SOFT:
 			G_MIRROR_DEBUG(1,
@@ -3310,7 +3311,6 @@ g_mirror_shutdown_post_sync(void *arg, int howto)
 	int error;
 
 	mp = arg;
-	DROP_GIANT();
 	g_topology_lock();
 	g_mirror_shutdown = 1;
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
@@ -3329,7 +3329,6 @@ g_mirror_shutdown_post_sync(void *arg, int howto)
 		g_topology_lock();
 	}
 	g_topology_unlock();
-	PICKUP_GIANT();
 }
 
 static void

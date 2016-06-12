@@ -92,6 +92,7 @@ static struct {
 	  { "  pseudo-terminals%-4s %8s", "\n",       1    },
 	  { "  swapuse%-4s          %8s", " kB\n",    1024 },
 	  { "  kqueues%-4s          %8s", "\n",       1    },
+	  { "  umtxp%-4s            %8s", "\n",       1    },
       }
     },
     { "sh", "unlimited", "", " -H", " -S", "",
@@ -110,6 +111,7 @@ static struct {
 	  { "ulimit%s -p %s", ";\n",  1    },
 	  { "ulimit%s -w %s", ";\n",  1024 },
 	  { "ulimit%s -k %s", ";\n",  1    },
+	  { "ulimit%s -o %s", ";\n",  1    },
       }
     },
     { "csh", "unlimited", "", " -h", "", NULL,
@@ -128,6 +130,7 @@ static struct {
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
 	  { "limit%s swapsize %s",        ";\n",  1024 },
 	  { "limit%s kqueues %s",         ";\n",  1    },
+	  { "limit%s umtxp %s",           ";\n",  1    },
       }
     },
     { "bash|bash2", "unlimited", "", " -H", " -S", "",
@@ -163,6 +166,7 @@ static struct {
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
 	  { "limit%s swapsize %s",        ";\n",  1024 },
 	  { "limit%s kqueues %s",         ";\n",  1    },
+	  { "limit%s umtxp %s",           ";\n",  1    },
       }
     },
     { "ksh|pdksh", "unlimited", "", " -H", " -S", "",
@@ -239,6 +243,7 @@ static struct {
     { "pseudoterminals",login_getcapnum  },
     { "swapuse",	login_getcapsize },
     { "kqueues",	login_getcapnum  },
+    { "umtxp",		login_getcapnum  },
 };
 
 /*
@@ -249,7 +254,7 @@ static struct {
  * to be modified accordingly!
  */
 
-#define RCS_STRING  "tfdscmlunbvpwk"
+#define RCS_STRING  "tfdscmlunbvpwko"
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(void);
@@ -289,7 +294,7 @@ main(int argc, char *argv[])
     pid = -1;
     optarg = NULL;
     while ((ch = getopt(argc, argv,
-      ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:k:")) != -1) {
+      ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:k:o:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -546,7 +551,7 @@ usage(void)
 {
     (void)fprintf(stderr,
 	"usage: limits [-C class|-P pid|-U user] [-eaSHBE] "
-	"[-bcdflmnstuvpwk [val]] [[name=val ...] cmd]\n");
+	"[-bcdfklmnostuvpw [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
@@ -655,6 +660,7 @@ resource_num(int which, int ch, const char *str)
 	case RLIMIT_NOFILE:
 	case RLIMIT_NPTS:
 	case RLIMIT_KQUEUES:
+	case RLIMIT_UMTXP:
 	    res = strtoq(s, &e, 0);
 	    s = e;
 	    break;

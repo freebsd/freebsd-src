@@ -1044,70 +1044,18 @@ yyerror(const char *str)
 	    lineno, yytext, str);
 }
 
-static void
-check_perms(const char *path)
+int
+parse_conf(struct conf *newconf, const char *path)
 {
-	struct stat sb;
 	int error;
 
-	error = stat(path, &sb);
-	if (error != 0) {
-		log_warn("stat");
-		return;
-	}
-	if (sb.st_mode & S_IWOTH) {
-		log_warnx("%s is world-writable", path);
-	} else if (sb.st_mode & S_IROTH) {
-		log_warnx("%s is world-readable", path);
-	} else if (sb.st_mode & S_IXOTH) {
-		/*
-		 * Ok, this one doesn't matter, but still do it,
-		 * just for consistency.
-		 */
-		log_warnx("%s is world-executable", path);
-	}
-
-	/*
-	 * XXX: Should we also check for owner != 0?
-	 */
-}
-
-struct conf *
-conf_new_from_file(const char *path, struct conf *oldconf)
-{
-	struct auth_group *ag;
-	struct portal_group *pg;
-	struct pport *pp;
-	int error;
-
-	log_debugx("obtaining configuration from %s", path);
-
-	conf = conf_new();
-
-	TAILQ_FOREACH(pp, &oldconf->conf_pports, pp_next)
-		pport_copy(pp, conf);
-
-	ag = auth_group_new(conf, "default");
-	assert(ag != NULL);
-
-	ag = auth_group_new(conf, "no-authentication");
-	assert(ag != NULL);
-	ag->ag_type = AG_TYPE_NO_AUTHENTICATION;
-
-	ag = auth_group_new(conf, "no-access");
-	assert(ag != NULL);
-	ag->ag_type = AG_TYPE_DENY;
-
-	pg = portal_group_new(conf, "default");
-	assert(pg != NULL);
-
+	conf = newconf;
 	yyin = fopen(path, "r");
 	if (yyin == NULL) {
 		log_warn("unable to open configuration file %s", path);
-		conf_delete(conf);
-		return (NULL);
+		return (1);
 	}
-	check_perms(path);
+
 	lineno = 1;
 	yyrestart(yyin);
 	error = yyparse();
@@ -1116,35 +1064,6 @@ conf_new_from_file(const char *path, struct conf *oldconf)
 	target = NULL;
 	lun = NULL;
 	fclose(yyin);
-	if (error != 0) {
-		conf_delete(conf);
-		return (NULL);
-	}
 
-	if (conf->conf_default_ag_defined == false) {
-		log_debugx("auth-group \"default\" not defined; "
-		    "going with defaults");
-		ag = auth_group_find(conf, "default");
-		assert(ag != NULL);
-		ag->ag_type = AG_TYPE_DENY;
-	}
-
-	if (conf->conf_default_pg_defined == false) {
-		log_debugx("portal-group \"default\" not defined; "
-		    "going with defaults");
-		pg = portal_group_find(conf, "default");
-		assert(pg != NULL);
-		portal_group_add_listen(pg, "0.0.0.0:3260", false);
-		portal_group_add_listen(pg, "[::]:3260", false);
-	}
-
-	conf->conf_kernel_port_on = true;
-
-	error = conf_verify(conf);
-	if (error != 0) {
-		conf_delete(conf);
-		return (NULL);
-	}
-
-	return (conf);
+	return (error);
 }

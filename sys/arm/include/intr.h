@@ -43,101 +43,27 @@
 #include <dev/ofw/openfirm.h>
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 
 #ifndef NIRQ
 #define	NIRQ		1024	/* XXX - It should be an option. */
 #endif
 
-#ifdef notyet
-#define	INTR_SOLO	INTR_MD1
-typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
-#else
-typedef int intr_irq_filter_t(void *arg);
-#endif
-
-#define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
-
-typedef void intr_ipi_filter_t(void *arg);
-
-enum intr_isrc_type {
-	INTR_ISRCT_NAMESPACE,
-	INTR_ISRCT_FDT
-};
-
-#define INTR_ISRCF_REGISTERED	0x01	/* registered in a controller */
-#define INTR_ISRCF_PERCPU	0x02	/* per CPU interrupt */
-#define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
-
-/* Interrupt source definition. */
-struct intr_irqsrc {
-	device_t		isrc_dev;	/* where isrc is mapped */
-	intptr_t		isrc_xref;	/* device reference key */
-	uintptr_t		isrc_data;	/* device data for isrc */
-	u_int			isrc_irq;	/* unique identificator */
-	enum intr_isrc_type	isrc_type;	/* how is isrc decribed */
-	u_int			isrc_flags;
-	char			isrc_name[INTR_ISRC_NAMELEN];
-	uint16_t		isrc_nspc_type;
-	uint16_t		isrc_nspc_num;
-	enum intr_trigger	isrc_trig;
-	enum intr_polarity	isrc_pol;
-	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
-	u_int			isrc_index;
-	u_long *		isrc_count;
-	u_int			isrc_handlers;
-	struct intr_event *	isrc_event;
-	intr_irq_filter_t *	isrc_filter;
-	intr_ipi_filter_t *	isrc_ipifilter;
-	void *			isrc_arg;
-#ifdef FDT
-	u_int			isrc_ncells;
-	pcell_t			isrc_cells[];	/* leave it last */
-#endif
-};
-
-void intr_irq_set_name(struct intr_irqsrc *isrc, const char *fmt, ...)
-    __printflike(2, 3);
-
-void intr_irq_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf);
-
-#define INTR_IRQ_NSPC_NONE	0
-#define INTR_IRQ_NSPC_PLAIN	1
-#define INTR_IRQ_NSPC_IRQ	2
-#define INTR_IRQ_NSPC_IPI	3
-
-u_int intr_namespace_map_irq(device_t dev, uint16_t type, uint16_t num);
-#ifdef FDT
-u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
-#endif
-
-int intr_pic_register(device_t dev, intptr_t xref);
-int intr_pic_unregister(device_t dev, intptr_t xref);
-int intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
-    void *arg, u_int ipicount);
-
-int intr_irq_add_handler(device_t dev, driver_filter_t, driver_intr_t, void *,
-    u_int, int, void **);
-int intr_irq_remove_handler(device_t dev, u_int, void *);
-int intr_irq_config(u_int, enum intr_trigger, enum intr_polarity);
-int intr_irq_describe(u_int, void *, const char *);
-
-u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
+#include <sys/intr.h>
 
 #ifdef SMP
-int intr_irq_bind(u_int, int);
+typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
+typedef void intr_ipi_handler_t(void *);
 
-void intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf);
+void intr_ipi_dispatch(u_int, struct trapframe *);
+void intr_ipi_send(cpuset_t, u_int);
 
-#define AISHF_NOALLOC	0x0001
+void intr_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *,
+    intr_ipi_send_t *, void *);
 
-int intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
-    void *arg, u_int flags);
-
-void intr_pic_init_secondary(void);
+int intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *);
 #endif
-
-#else /* ARM_INTRNG */
+#else /* INTRNG */
 
 /* XXX move to std.* files? */
 #ifdef CPU_XSCALE_81342
@@ -185,7 +111,7 @@ int gic_decode_fdt(phandle_t, pcell_t *, int *, int *, int *);
 int intr_fdt_map_irq(phandle_t, pcell_t *, int);
 #endif
 
-#endif /* ARM_INTRNG */
+#endif /* INTRNG */
 
 void arm_irq_memory_barrier(uintptr_t);
 

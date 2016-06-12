@@ -40,13 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
 
 #include <machine/bus.h>
-#include <dev/ofw/ofw_bus.h> 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/usb/usb.h> 
+#include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
@@ -59,9 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
-#include "gpio_if.h"
-
-#include "a10_clk.h"
+#include <arm/allwinner/allwinner_machdep.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/phy/phy.h>
 
 #define EHCI_HC_DEVSTR			"Allwinner Integrated USB 2.0 controller"
 
@@ -75,8 +75,9 @@ __FBSDID("$FreeBSD$");
 #define SW_AHB_INCRX_ALIGN		(1 << 8)
 #define SW_AHB_INCR4			(1 << 9)
 #define SW_AHB_INCR8			(1 << 10)
-#define GPIO_USB1_PWR			230
-#define GPIO_USB2_PWR			227
+
+#define	USB_CONF(d)			\
+	(void *)ofw_bus_search_compatible((d), compat_data)->ocd_data
 
 #define A10_READ_4(sc, reg)		\
 	bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
@@ -90,6 +91,34 @@ static device_detach_t a10_ehci_detach;
 bs_r_1_proto(reversed);
 bs_w_1_proto(reversed);
 
+struct aw_ehci_softc {
+	ehci_softc_t	sc;
+	clk_t		clk;
+	hwreset_t	rst;
+	phy_t		phy;
+};
+
+struct aw_ehci_conf {
+	bool		sdram_init;
+};
+
+static const struct aw_ehci_conf a10_ehci_conf = {
+	.sdram_init = true,
+};
+
+static const struct aw_ehci_conf a31_ehci_conf = {
+	.sdram_init = false,
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{ "allwinner,sun4i-a10-ehci",	(uintptr_t)&a10_ehci_conf },
+	{ "allwinner,sun6i-a31-ehci",	(uintptr_t)&a31_ehci_conf },
+	{ "allwinner,sun7i-a20-ehci",	(uintptr_t)&a10_ehci_conf },
+	{ "allwinner,sun8i-a83t-ehci",	(uintptr_t)&a31_ehci_conf },
+	{ "allwinner,sun8i-h3-ehci",	(uintptr_t)&a31_ehci_conf },
+	{ NULL,				(uintptr_t)NULL }
+};
+
 static int
 a10_ehci_probe(device_t self)
 {
@@ -97,7 +126,7 @@ a10_ehci_probe(device_t self)
 	if (!ofw_bus_status_okay(self))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(self, "allwinner,usb-ehci")) 
+	if (ofw_bus_search_compatible(self, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(self, EHCI_HC_DEVSTR);
@@ -108,12 +137,15 @@ a10_ehci_probe(device_t self)
 static int
 a10_ehci_attach(device_t self)
 {
-	ehci_softc_t *sc = device_get_softc(self);
+	struct aw_ehci_softc *aw_sc = device_get_softc(self);
+	ehci_softc_t *sc = &aw_sc->sc;
+	const struct aw_ehci_conf *conf;
 	bus_space_handle_t bsh;
-	device_t sc_gpio_dev;
 	int err;
 	int rid;
 	uint32_t reg_value = 0;
+
+	conf = USB_CONF(self);
 
 	/* initialise some bus fields */
 	sc->sc_bus.parent = self;
@@ -164,13 +196,6 @@ a10_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Allwinner");
 
-        /* Get the GPIO device, we need this to give power to USB */
-	sc_gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
-	if (sc_gpio_dev == NULL) {
-		device_printf(self, "Error: failed to get the GPIO device\n");
-		goto error;
-	}
-
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
@@ -181,16 +206,38 @@ a10_ehci_attach(device_t self)
 
 	sc->sc_flags |= EHCI_SCFLG_DONTRESET;
 
+	/* De-assert reset */
+	if (hwreset_get_by_ofw_idx(self, 0, &aw_sc->rst) == 0) {
+		err = hwreset_deassert(aw_sc->rst);
+		if (err != 0) {
+			device_printf(self, "Could not de-assert reset\n");
+			goto error;
+		}
+	}
+
 	/* Enable clock for USB */
-	a10_clk_usb_activate();
+	err = clk_get_by_ofw_index(self, 0, &aw_sc->clk);
+	if (err != 0) {
+		device_printf(self, "Could not get clock\n");
+		goto error;
+	}
+	err = clk_enable(aw_sc->clk);
+	if (err != 0) {
+		device_printf(self, "Could not enable clock\n");
+		goto error;
+	}
 
-	/* Give power to USB */
-	GPIO_PIN_SETFLAGS(sc_gpio_dev, GPIO_USB2_PWR, GPIO_PIN_OUTPUT);
-	GPIO_PIN_SET(sc_gpio_dev, GPIO_USB2_PWR, GPIO_PIN_HIGH);
-
-	/* Give power to USB */
-	GPIO_PIN_SETFLAGS(sc_gpio_dev, GPIO_USB1_PWR, GPIO_PIN_OUTPUT);
-	GPIO_PIN_SET(sc_gpio_dev, GPIO_USB1_PWR, GPIO_PIN_HIGH);
+	/* Enable USB PHY */
+	err = phy_get_by_ofw_name(self, "usb", &aw_sc->phy);
+	if (err != 0) {
+		device_printf(self, "Could not get phy\n");
+		goto error;
+	}
+	err = phy_enable(self, aw_sc->phy);
+	if (err != 0) {
+		device_printf(self, "Could not enable phy\n");
+		goto error;
+	}
 
 	/* Enable passby */
 	reg_value = A10_READ_4(sc, SW_USB_PMU_IRQ_ENABLE);
@@ -201,9 +248,11 @@ a10_ehci_attach(device_t self)
 	A10_WRITE_4(sc, SW_USB_PMU_IRQ_ENABLE, reg_value);
 
 	/* Configure port */
-	reg_value = A10_READ_4(sc, SW_SDRAM_REG_HPCR_USB2);
-	reg_value |= SW_SDRAM_BP_HPCR_ACCESS;
-	A10_WRITE_4(sc, SW_SDRAM_REG_HPCR_USB2, reg_value);
+	if (conf->sdram_init) {
+		reg_value = A10_READ_4(sc, SW_SDRAM_REG_HPCR_USB2);
+		reg_value |= SW_SDRAM_BP_HPCR_ACCESS;
+		A10_WRITE_4(sc, SW_SDRAM_REG_HPCR_USB2, reg_value);
+	}
 
 	err = ehci_init(sc);
 	if (!err) {
@@ -216,6 +265,8 @@ a10_ehci_attach(device_t self)
 	return (0);
 
 error:
+	if (aw_sc->clk)
+		clk_release(aw_sc->clk);
 	a10_ehci_detach(self);
 	return (ENXIO);
 }
@@ -223,10 +274,14 @@ error:
 static int
 a10_ehci_detach(device_t self)
 {
-	ehci_softc_t *sc = device_get_softc(self);
+	struct aw_ehci_softc *aw_sc = device_get_softc(self);
+	ehci_softc_t *sc = &aw_sc->sc;
+	const struct aw_ehci_conf *conf;
 	device_t bdev;
 	int err;
 	uint32_t reg_value = 0;
+
+	conf = USB_CONF(self);
 
 	if (sc->sc_bus.bdev) {
 		bdev = sc->sc_bus.bdev;
@@ -263,9 +318,11 @@ a10_ehci_detach(device_t self)
 	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
 
 	/* Disable configure port */
-	reg_value = A10_READ_4(sc, SW_SDRAM_REG_HPCR_USB2);
-	reg_value &= ~SW_SDRAM_BP_HPCR_ACCESS;
-	A10_WRITE_4(sc, SW_SDRAM_REG_HPCR_USB2, reg_value);
+	if (conf->sdram_init) {
+		reg_value = A10_READ_4(sc, SW_SDRAM_REG_HPCR_USB2);
+		reg_value &= ~SW_SDRAM_BP_HPCR_ACCESS;
+		A10_WRITE_4(sc, SW_SDRAM_REG_HPCR_USB2, reg_value);
+	}
 
 	/* Disable passby */
 	reg_value = A10_READ_4(sc, SW_USB_PMU_IRQ_ENABLE);
@@ -276,7 +333,14 @@ a10_ehci_detach(device_t self)
 	A10_WRITE_4(sc, SW_USB_PMU_IRQ_ENABLE, reg_value);
 
 	/* Disable clock for USB */
-	a10_clk_usb_deactivate();
+	clk_disable(aw_sc->clk);
+	clk_release(aw_sc->clk);
+
+	/* Assert reset */
+	if (aw_sc->rst != NULL) {
+		hwreset_assert(aw_sc->rst);
+		hwreset_release(aw_sc->rst);
+	}
 
 	return (0);
 }

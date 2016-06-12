@@ -149,7 +149,7 @@ office:
 				else if (pn->officephone)
 					(void)printf(" %-7.7s", " ");
 				if (pn->officephone)
-					(void)printf(" %-.9s",
+					(void)printf(" %-.15s",
 					    prphone(pn->officephone));
 			} else
 				(void)printf(" %.*s", MAXHOSTNAME, w->host);

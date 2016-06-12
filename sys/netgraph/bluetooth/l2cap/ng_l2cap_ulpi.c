@@ -1389,7 +1389,13 @@ ng_l2cap_l2ca_discon_ind(ng_l2cap_chan_p ch)
 		error = ENOMEM;
 	else {
 		ip = (ng_l2cap_l2ca_discon_ind_ip *)(msg->data);
-		ip->lcid = ch->scid;
+		ip->idtype = ch->idtype;
+		if(ch->idtype == NG_L2CAP_L2CA_IDTYPE_ATT||
+		   ch->idtype == NG_L2CAP_L2CA_IDTYPE_SMP)
+			ip->lcid = ch->con->con_handle;
+		else
+			ip->lcid = ch->scid;
+		
 		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	} 
 

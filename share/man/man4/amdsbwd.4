@@ -25,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2011
+.Dd March 29, 2016
 .Dt AMDSBWD 4
 .Os
 .Sh NAME
 .Nm amdsbwd
-.Nd device driver for the AMD SB600/SB7xx/SB8xx watchdog timers
+.Nd device driver for the AMD southbridge watchdog timers
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -51,7 +51,7 @@ The
 driver provides
 .Xr watchdog 4
 support for the watchdog timers present on
-AMD SB600, SB7xx and SB8xx southbridges.
+AMD SB600, SB7xx, SB8xx and SB9xx southbridges and Axx FCHs.
 .Sh SEE ALSO
 .Xr watchdog 4 ,
 .Xr watchdog 8 ,

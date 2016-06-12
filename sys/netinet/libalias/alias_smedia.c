@@ -518,7 +518,7 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 
 		/*
 		 * When aliasing a server, check for the 200 reply
-		 * Accomodate varying number of blanks between 200 & OK
+		 * Accommodate varying number of blanks between 200 & OK
 		 */
 
 		if (dlen >= (int)strlen(str200)) {

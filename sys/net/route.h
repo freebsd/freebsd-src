@@ -50,6 +50,11 @@
  */
 struct route {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
+	/*
+	 * ro_prepend and ro_plen are only used for bpf to pass in a
+	 * preformed header.  They are not cacheable.
+	 */
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;
@@ -71,6 +76,7 @@ struct route {
 #define	RT_REJECT		0x0020		/* Destination is reject */
 #define	RT_BLACKHOLE		0x0040		/* Destination is blackhole */
 #define	RT_HAS_GW		0x0080		/* Destination has GW  */
+#define	RT_LLE_CACHE		0x0100		/* Cache link layer  */
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -97,6 +103,14 @@ struct rt_metrics {
 
 /* lle state is exported in rmx_state rt_metrics field */
 #define	rmx_state	rmx_weight
+
+/*
+ * Keep a generation count of routing table, incremented on route addition,
+ * so we can invalidate caches.  This is accessed without a lock, as precision
+ * is not required.
+ */
+typedef volatile u_int rt_gen_t;	/* tree generation (for adds) */
+#define RT_GEN(fibnum, af)	rt_tables_get_gen(fibnum, af)
 
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
@@ -391,11 +405,28 @@ struct rt_addrinfo {
 		if ((_ro)->ro_flags & RT_NORTREF) {		\
 			(_ro)->ro_flags &= ~RT_NORTREF;		\
 			(_ro)->ro_rt = NULL;			\
+			(_ro)->ro_lle = NULL;			\
 		} else {					\
 			RT_LOCK((_ro)->ro_rt);			\
 			RTFREE_LOCKED((_ro)->ro_rt);		\
 		}						\
 	}							\
+} while (0)
+
+/*
+ * Validate a cached route based on a supplied cookie.  If there is an
+ * out-of-date cache, simply free it.  Update the generation number
+ * for the new allocation
+ */
+#define RT_VALIDATE(ro, cookiep, fibnum) do {				\
+	rt_gen_t cookie = RT_GEN(fibnum, (ro)->ro_dst.sa_family);	\
+	if (*(cookiep) != cookie) {					\
+		if ((ro)->ro_rt != NULL) {				\
+			RTFREE((ro)->ro_rt);				\
+			(ro)->ro_rt = NULL;				\
+		}							\
+		*(cookiep) = cookie;					\
+	}								\
 } while (0)
 
 struct ifmultiaddr;
@@ -415,6 +446,7 @@ int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
 struct rib_head *rt_table_init(int);
 void	rt_table_destroy(struct rib_head *);
+u_int	rt_tables_get_gen(int table, int fam);
 
 int	rtsock_addrmsg(int, struct ifaddr *, int);
 int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
@@ -436,6 +468,7 @@ typedef int rt_walktree_f_t(struct rtentry *, void *);
 typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
 void	rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void	rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
+void	rt_flushifroutes_af(struct ifnet *, int);
 void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */

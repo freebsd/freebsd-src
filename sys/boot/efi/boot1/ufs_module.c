@@ -93,7 +93,7 @@ probe(dev_info_t* dev)
 }
 
 static EFI_STATUS
-try_load(dev_info_t *dev, const char *loader_path, void **bufp, size_t *bufsize)
+load(const char *filepath, dev_info_t *dev, void **bufp, size_t *bufsize)
 {
 	ufs_ino_t ino;
 	EFI_STATUS status;
@@ -101,57 +101,44 @@ try_load(dev_info_t *dev, const char *loader_path, void **bufp, size_t *bufsize)
 	ssize_t read;
 	void *buf;
 
-	if (init_dev(dev) < 0)
-		return (EFI_UNSUPPORTED);
+	DPRINTF("Loading '%s' from %s\n", filepath, devpath_str(dev->devpath));
 
-	if ((ino = lookup(loader_path)) == 0)
+	if (init_dev(dev) < 0) {
+		DPRINTF("Failed to init device\n");
+		return (EFI_UNSUPPORTED);
+	}
+
+	if ((ino = lookup(filepath)) == 0) {
+		DPRINTF("Failed to lookup '%s' (file not found?)\n", filepath);
 		return (EFI_NOT_FOUND);
+	}
 
 	if (fsread_size(ino, NULL, 0, &size) < 0 || size <= 0) {
-		printf("Failed to read size of '%s' ino: %d\n", loader_path,
-		    ino);
+		printf("Failed to read size of '%s' ino: %d\n", filepath, ino);
 		return (EFI_INVALID_PARAMETER);
 	}
 
 	if ((status = bs->AllocatePool(EfiLoaderData, size, &buf)) !=
 	    EFI_SUCCESS) {
-		printf("Failed to allocate read buffer (%lu)\n",
-		    EFI_ERROR_CODE(status));
+		printf("Failed to allocate read buffer %zu for '%s' (%lu)\n",
+		    size, filepath, EFI_ERROR_CODE(status));
 		return (status);
 	}
 
 	read = fsread(ino, buf, size);
 	if ((size_t)read != size) {
-		printf("Failed to read '%s' (%zd != %zu)\n", loader_path, read,
+		printf("Failed to read '%s' (%zd != %zu)\n", filepath, read,
 		    size);
 		(void)bs->FreePool(buf);
 		return (EFI_INVALID_PARAMETER);
 	}
 
+	DPRINTF("Load complete\n");
+
 	*bufp = buf;
 	*bufsize = size;
 
 	return (EFI_SUCCESS);
-}
-
-static EFI_STATUS
-load(const char *loader_path, dev_info_t **devinfop, void **buf,
-    size_t *bufsize)
-{
-	dev_info_t *dev;
-	EFI_STATUS status;
-
-	for (dev = devices; dev != NULL; dev = dev->next) {
-		status = try_load(dev, loader_path, buf, bufsize);
-		if (status == EFI_SUCCESS) {
-			*devinfop = dev;
-			return (EFI_SUCCESS);
-		} else if (status != EFI_NOT_FOUND) {
-			return (status);
-		}
-	}
-
-	return (EFI_NOT_FOUND);
 }
 
 static void
@@ -176,10 +163,18 @@ status()
 	}
 }
 
+static dev_info_t *
+_devices()
+{
+
+	return (devices);
+}
+
 const boot_module_t ufs_module =
 {
 	.name = "UFS",
 	.probe = probe,
 	.load = load,
-	.status = status
+	.status = status,
+	.devices = _devices
 };

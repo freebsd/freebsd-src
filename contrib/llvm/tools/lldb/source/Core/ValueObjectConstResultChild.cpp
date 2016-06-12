@@ -19,17 +19,19 @@ using namespace lldb_private;
 ValueObjectConstResultChild::ValueObjectConstResultChild
 (
     ValueObject &parent,
-    const ClangASTType &clang_type,
+    const CompilerType &compiler_type,
     const ConstString &name,
     uint32_t byte_size,
     int32_t byte_offset,
     uint32_t bitfield_bit_size,
     uint32_t bitfield_bit_offset,
     bool is_base_class,
-    bool is_deref_of_parent
+    bool is_deref_of_parent,
+    lldb::addr_t live_address,
+    uint64_t language_flags
 ) :
     ValueObjectChild (parent,
-                      clang_type,
+                      compiler_type,
                       name,
                       byte_size,
                       byte_offset,
@@ -37,8 +39,9 @@ ValueObjectConstResultChild::ValueObjectConstResultChild
                       bitfield_bit_offset,
                       is_base_class,
                       is_deref_of_parent,
-                      eAddressTypeLoad),
-    m_impl(this)
+                      eAddressTypeLoad,
+                      language_flags),
+    m_impl(this, live_address)
 {
     m_name = name;
 }
@@ -54,7 +57,7 @@ ValueObjectConstResultChild::Dereference (Error &error)
 }
 
 lldb::ValueObjectSP
-ValueObjectConstResultChild::GetSyntheticChildAtOffset(uint32_t offset, const ClangASTType& type, bool can_create)
+ValueObjectConstResultChild::GetSyntheticChildAtOffset(uint32_t offset, const CompilerType& type, bool can_create)
 {
     return m_impl.GetSyntheticChildAtOffset(offset, type, can_create);
 }
@@ -77,4 +80,10 @@ ValueObjectConstResultChild::GetPointeeData (DataExtractor& data,
                                              uint32_t item_count)
 {
     return m_impl.GetPointeeData(data, item_idx, item_count);
+}
+
+lldb::ValueObjectSP
+ValueObjectConstResultChild::Cast (const CompilerType &compiler_type)
+{
+    return m_impl.Cast(compiler_type);
 }

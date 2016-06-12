@@ -209,7 +209,7 @@ le_isa_probe_legacy(device_t dev, const struct le_isa_param *leip)
 	sc = &lesc->sc_am7990.lsc;
 
 	i = 0;
-	lesc->sc_rres = bus_alloc_resource(dev, SYS_RES_IOPORT, &i, 0, ~0,
+	lesc->sc_rres = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &i,
 	    leip->iosize, RF_ACTIVE);
 	if (lesc->sc_rres == NULL)
 		return (ENXIO);
@@ -241,8 +241,7 @@ le_isa_probe(device_t dev)
 	case 0:
 		return (BUS_PROBE_DEFAULT);
 	case ENOENT:
-		for (i = 0; i < sizeof(le_isa_params) /
-		    sizeof(le_isa_params[0]); i++) {
+		for (i = 0; i < nitems(le_isa_params); i++) {
 			if (le_isa_probe_legacy(dev, &le_isa_params[i]) == 0) {
 				device_set_desc(dev, le_isa_params[i].name);
 				return (BUS_PROBE_DEFAULT);
@@ -279,11 +278,10 @@ le_isa_attach(device_t dev)
 		macstride = 1;
 		break;
 	case ENOENT:
-		for (i = 0; i < sizeof(le_isa_params) /
-		    sizeof(le_isa_params[0]); i++) {
+		for (i = 0; i < nitems(le_isa_params); i++) {
 			if (le_isa_probe_legacy(dev, &le_isa_params[i]) == 0) {
-				lesc->sc_rres = bus_alloc_resource(dev,
-				    SYS_RES_IOPORT, &j, 0, ~0,
+				lesc->sc_rres = bus_alloc_resource_anywhere(dev,
+				    SYS_RES_IOPORT, &j,
 				    le_isa_params[i].iosize, RF_ACTIVE);
 				rap = le_isa_params[i].rap;
 				rdp = le_isa_params[i].rdp;

@@ -354,9 +354,6 @@ int	icmp6_ctloutput(struct socket *, struct sockopt *sopt);
 
 struct in6_ifaddr;
 void	ip6_init(void);
-#ifdef VIMAGE
-void	ip6_destroy(void);
-#endif
 int	ip6proto_register(short);
 int	ip6proto_unregister(short);
 
@@ -382,7 +379,7 @@ int	ip6_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 
 void	ip6_forward(struct mbuf *, int);
 
-void	ip6_mloopback(struct ifnet *, const struct mbuf *);
+void	ip6_mloopback(struct ifnet *, struct mbuf *);
 int	ip6_output(struct mbuf *, struct ip6_pktopts *,
 			struct route_in6 *,
 			int,

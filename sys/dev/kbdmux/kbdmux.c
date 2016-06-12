@@ -33,6 +33,7 @@
 
 #include "opt_compat.h"
 #include "opt_kbd.h"
+#include "opt_kbdmux.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -54,6 +55,13 @@
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
 #include <dev/kbd/kbdreg.h>
+
+/* the initial key map, accent map and fkey strings */
+#ifdef KBDMUX_DFLT_KEYMAP
+#define KBD_DFLT_KEYMAP
+#include "kbdmuxmap.h"
+#endif
+
 #include <dev/kbd/kbdtables.h>
 
 #define KEYBOARD_NAME	"kbdmux"

@@ -39,6 +39,7 @@
 #include <sys/_cpuset.h>
 
 struct taskqueue;
+struct taskqgroup;
 struct thread;
 
 struct timeout_task {
@@ -55,6 +56,7 @@ enum taskqueue_callback_type {
 #define	TASKQUEUE_CALLBACK_TYPE_MIN	TASKQUEUE_CALLBACK_TYPE_INIT
 #define	TASKQUEUE_CALLBACK_TYPE_MAX	TASKQUEUE_CALLBACK_TYPE_SHUTDOWN
 #define	TASKQUEUE_NUM_CALLBACKS		TASKQUEUE_CALLBACK_TYPE_MAX + 1
+#define	TASKQUEUE_NAMELEN		32
 
 typedef void (*taskqueue_callback_fn)(void *context);
 
@@ -143,7 +145,7 @@ taskqueue_define_##name(void *arg)					\
 	init;								\
 }									\
 									\
-SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
+SYSINIT(taskqueue_##name, SI_SUB_INIT_IF, SI_ORDER_SECOND,		\
 	taskqueue_define_##name, NULL);					\
 									\
 struct __hack
@@ -168,7 +170,7 @@ taskqueue_define_##name(void *arg)					\
 	init;								\
 }									\
 									\
-SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
+SYSINIT(taskqueue_##name, SI_SUB_INIT_IF, SI_ORDER_SECOND,		\
 	taskqueue_define_##name, NULL);					\
 									\
 struct __hack
@@ -198,9 +200,82 @@ TASKQUEUE_DECLARE(thread);
  * from a fast interrupt handler context.
  */
 TASKQUEUE_DECLARE(fast);
-int	taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task);
 struct taskqueue *taskqueue_create_fast(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
 				    void *context);
+
+/*
+ * Taskqueue groups.  Manages dynamic thread groups and irq binding for
+ * device and other tasks.
+ */
+int grouptaskqueue_enqueue(struct taskqueue *queue, struct task *task);
+void	taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
+	    void *uniq, int irq, char *name);
+int		taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
+		void *uniq, int cpu, int irq, char *name);
+void	taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
+struct taskqgroup *taskqgroup_create(char *name);
+void	taskqgroup_destroy(struct taskqgroup *qgroup);
+int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
+
+#define TASK_SKIP_WAKEUP		0x1
+
+#define GTASK_INIT(task, priority, func, context) do {	\
+	(task)->ta_pending = 0;				\
+	(task)->ta_priority = (priority);		\
+	(task)->ta_func = (func);			\
+	(task)->ta_context = (context);			\
+} while (0)
+
+#define	GROUPTASK_INIT(gtask, priority, func, context)	\
+	GTASK_INIT(&(gtask)->gt_task, priority, func, context)
+
+#define	GROUPTASK_ENQUEUE(gtask)			\
+	grouptaskqueue_enqueue((gtask)->gt_taskqueue, &(gtask)->gt_task)
+
+#define TASKQGROUP_DECLARE(name)			\
+extern struct taskqgroup *qgroup_##name
+
+#ifdef EARLY_AP_STARTUP
+#define TASKQGROUP_DEFINE(name, cnt, stride)				\
+									\
+struct taskqgroup *qgroup_##name;					\
+									\
+static void								\
+taskqgroup_define_##name(void *arg)					\
+{									\
+	qgroup_##name = taskqgroup_create(#name);			\
+	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
+}									\
+									\
+SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
+	taskqgroup_define_##name, NULL)
+#else
+#define TASKQGROUP_DEFINE(name, cnt, stride)				\
+									\
+struct taskqgroup *qgroup_##name;					\
+									\
+static void								\
+taskqgroup_define_##name(void *arg)					\
+{									\
+	qgroup_##name = taskqgroup_create(#name);			\
+}									\
+									\
+SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
+	taskqgroup_define_##name, NULL);				\
+									\
+static void								\
+taskqgroup_adjust_##name(void *arg)					\
+{									\
+	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
+}									\
+									\
+SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
+	taskqgroup_adjust_##name, NULL);				\
+									\
+struct __hack
+#endif
+
+TASKQGROUP_DECLARE(net);
 
 #endif /* !_SYS_TASKQUEUE_H_ */

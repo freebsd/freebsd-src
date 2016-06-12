@@ -40,9 +40,7 @@ typedef struct _EFI_DEVICE_PATH {
 #define EFI_DP_TYPE_MASK                    0x7F
 #define EFI_DP_TYPE_UNPACKED                0x80
 
-//#define END_DEVICE_PATH_TYPE                0xff
 #define END_DEVICE_PATH_TYPE                0x7f
-//#define END_DEVICE_PATH_TYPE_UNPACKED       0x7f
 
 #define END_ENTIRE_DEVICE_PATH_SUBTYPE      0xff
 #define END_INSTANCE_DEVICE_PATH_SUBTYPE    0x01
@@ -56,8 +54,8 @@ typedef struct _EFI_DEVICE_PATH {
 #define DevicePathSubType(a)        ( (a)->SubType )
 #define DevicePathNodeLength(a)     ( ((a)->Length[0]) | ((a)->Length[1] << 8) )
 #define NextDevicePathNode(a)       ( (EFI_DEVICE_PATH *) ( ((UINT8 *) (a)) + DevicePathNodeLength(a)))
-//#define IsDevicePathEndType(a)      ( DevicePathType(a) == END_DEVICE_PATH_TYPE_UNPACKED )
-#define IsDevicePathEndType(a)      ( DevicePathType(a) == END_DEVICE_PATH_TYPE )
+#define IsDevicePathType(a, t)      ( DevicePathType(a) == t )
+#define IsDevicePathEndType(a)      IsDevicePathType(a, END_DEVICE_PATH_TYPE)
 #define IsDevicePathEndSubType(a)   ( (a)->SubType == END_ENTIRE_DEVICE_PATH_SUBTYPE )
 #define IsDevicePathEnd(a)          ( IsDevicePathEndType(a) && IsDevicePathEndSubType(a) )
 #define IsDevicePathUnpacked(a)     ( (a)->Type & EFI_DP_TYPE_UNPACKED )
@@ -285,6 +283,13 @@ typedef struct _UART_DEVICE_PATH {
 #define DEVICE_PATH_MESSAGING_VT_UTF8 \
     { 0xad15a0d6, 0x8bec, 0x4acf, {0xa0, 0x73, 0xd0, 0x1d, 0xe7, 0x7e, 0x2d, 0x88} }
 
+#define MSG_SATA_DP			0x12
+typedef struct _SATA_DEVICE_PATH {
+	EFI_DEVICE_PATH			Header;
+	UINT16				HBAPortNumber;
+	UINT16				PortMultiplierPortNumber;
+	UINT16				Lun;
+} SATA_DEVICE_PATH;
 
 #define MEDIA_DEVICE_PATH               0x04
 

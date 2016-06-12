@@ -13,8 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-HTMLRewrite.o: DiagnosticCommonKinds.inc.h
-HTMLRewrite.po: DiagnosticCommonKinds.inc.h
-Rewriter.o: DiagnosticCommonKinds.inc.h
-Rewriter.po: DiagnosticCommonKinds.inc.h
 .endif

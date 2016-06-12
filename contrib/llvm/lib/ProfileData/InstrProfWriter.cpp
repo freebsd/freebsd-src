@@ -13,27 +13,29 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ProfileData/InstrProfWriter.h"
-#include "InstrProfIndexed.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/OnDiskHashTable.h"
+#include <tuple>
 
 using namespace llvm;
 
 namespace {
+static support::endianness ValueProfDataEndianness = support::little;
+
 class InstrProfRecordTrait {
 public:
   typedef StringRef key_type;
   typedef StringRef key_type_ref;
 
-  typedef const InstrProfWriter::CounterData *const data_type;
-  typedef const InstrProfWriter::CounterData *const data_type_ref;
+  typedef const InstrProfWriter::ProfilingData *const data_type;
+  typedef const InstrProfWriter::ProfilingData *const data_type_ref;
 
   typedef uint64_t hash_value_type;
   typedef uint64_t offset_type;
 
   static hash_value_type ComputeHash(key_type_ref K) {
-    return IndexedInstrProf::ComputeHash(IndexedInstrProf::HashType, K);
+    return IndexedInstrProf::ComputeHash(K);
   }
 
   static std::pair<offset_type, offset_type>
@@ -45,8 +47,15 @@ public:
     LE.write<offset_type>(N);
 
     offset_type M = 0;
-    for (const auto &Counts : *V)
-      M += (2 + Counts.second.size()) * sizeof(uint64_t);
+    for (const auto &ProfileData : *V) {
+      const InstrProfRecord &ProfRecord = ProfileData.second;
+      M += sizeof(uint64_t); // The function hash
+      M += sizeof(uint64_t); // The size of the Counts vector
+      M += ProfRecord.Counts.size() * sizeof(uint64_t);
+
+      // Value data
+      M += ValueProfData::getSize(ProfileData.second);
+    }
     LE.write<offset_type>(M);
 
     return std::make_pair(N, M);
@@ -60,50 +69,62 @@ public:
                        offset_type) {
     using namespace llvm::support;
     endian::Writer<little> LE(Out);
+    for (const auto &ProfileData : *V) {
+      const InstrProfRecord &ProfRecord = ProfileData.second;
 
-    for (const auto &Counts : *V) {
-      LE.write<uint64_t>(Counts.first);
-      LE.write<uint64_t>(Counts.second.size());
-      for (uint64_t I : Counts.second)
+      LE.write<uint64_t>(ProfileData.first); // Function hash
+      LE.write<uint64_t>(ProfRecord.Counts.size());
+      for (uint64_t I : ProfRecord.Counts)
         LE.write<uint64_t>(I);
+
+      // Write value data
+      std::unique_ptr<ValueProfData> VDataPtr =
+          ValueProfData::serializeFrom(ProfileData.second);
+      uint32_t S = VDataPtr->getSize();
+      VDataPtr->swapBytesFromHost(ValueProfDataEndianness);
+      Out.write((const char *)VDataPtr.get(), S);
     }
   }
 };
 }
 
-std::error_code
-InstrProfWriter::addFunctionCounts(StringRef FunctionName,
-                                   uint64_t FunctionHash,
-                                   ArrayRef<uint64_t> Counters) {
-  auto &CounterData = FunctionData[FunctionName];
+// Internal interface for testing purpose only.
+void InstrProfWriter::setValueProfDataEndianness(
+    support::endianness Endianness) {
+  ValueProfDataEndianness = Endianness;
+}
 
-  auto Where = CounterData.find(FunctionHash);
-  if (Where == CounterData.end()) {
+std::error_code InstrProfWriter::addRecord(InstrProfRecord &&I,
+                                           uint64_t Weight) {
+  auto &ProfileDataMap = FunctionData[I.Name];
+
+  bool NewFunc;
+  ProfilingData::iterator Where;
+  std::tie(Where, NewFunc) =
+      ProfileDataMap.insert(std::make_pair(I.Hash, InstrProfRecord()));
+  InstrProfRecord &Dest = Where->second;
+
+  instrprof_error Result = instrprof_error::success;
+  if (NewFunc) {
     // We've never seen a function with this name and hash, add it.
-    CounterData[FunctionHash] = Counters;
-    // We keep track of the max function count as we go for simplicity.
-    if (Counters[0] > MaxFunctionCount)
-      MaxFunctionCount = Counters[0];
-    return instrprof_error::success;
+    Dest = std::move(I);
+    // Fix up the name to avoid dangling reference.
+    Dest.Name = FunctionData.find(Dest.Name)->getKey();
+    if (Weight > 1)
+      Result = Dest.scale(Weight);
+  } else {
+    // We're updating a function we've seen before.
+    Result = Dest.merge(I, Weight);
   }
 
-  // We're updating a function we've seen before.
-  auto &FoundCounters = Where->second;
-  // If the number of counters doesn't match we either have bad data or a hash
-  // collision.
-  if (FoundCounters.size() != Counters.size())
-    return instrprof_error::count_mismatch;
+  Dest.sortValueData();
 
-  for (size_t I = 0, E = Counters.size(); I < E; ++I) {
-    if (FoundCounters[I] + Counters[I] < FoundCounters[I])
-      return instrprof_error::counter_overflow;
-    FoundCounters[I] += Counters[I];
-  }
   // We keep track of the max function count as we go for simplicity.
-  if (FoundCounters[0] > MaxFunctionCount)
-    MaxFunctionCount = FoundCounters[0];
+  // Update this statistic no matter the result of the merge.
+  if (Dest.Counts[0] > MaxFunctionCount)
+    MaxFunctionCount = Dest.Counts[0];
 
-  return instrprof_error::success;
+  return Result;
 }
 
 std::pair<uint64_t, uint64_t> InstrProfWriter::writeImpl(raw_ostream &OS) {
@@ -117,13 +138,23 @@ std::pair<uint64_t, uint64_t> InstrProfWriter::writeImpl(raw_ostream &OS) {
   endian::Writer<little> LE(OS);
 
   // Write the header.
-  LE.write<uint64_t>(IndexedInstrProf::Magic);
-  LE.write<uint64_t>(IndexedInstrProf::Version);
-  LE.write<uint64_t>(MaxFunctionCount);
-  LE.write<uint64_t>(static_cast<uint64_t>(IndexedInstrProf::HashType));
+  IndexedInstrProf::Header Header;
+  Header.Magic = IndexedInstrProf::Magic;
+  Header.Version = IndexedInstrProf::Version;
+  Header.MaxFunctionCount = MaxFunctionCount;
+  Header.HashType = static_cast<uint64_t>(IndexedInstrProf::HashType);
+  Header.HashOffset = 0;
+  int N = sizeof(IndexedInstrProf::Header) / sizeof(uint64_t);
+
+  // Only write out all the fields execpt 'HashOffset'. We need
+  // to remember the offset of that field to allow back patching
+  // later.
+  for (int I = 0; I < N - 1; I++)
+    LE.write<uint64_t>(reinterpret_cast<uint64_t *>(&Header)[I]);
 
   // Save a space to write the hash table start location.
   uint64_t HashTableStartLoc = OS.tell();
+  // Reserve the space for HashOffset field.
   LE.write<uint64_t>(0);
   // Write the hash table.
   uint64_t HashTableStart = Generator.Emit(OS);
@@ -138,7 +169,63 @@ void InstrProfWriter::write(raw_fd_ostream &OS) {
   // Go back and fill in the hash table start.
   using namespace support;
   OS.seek(TableStart.first);
+  // Now patch the HashOffset field previously reserved.
   endian::Writer<little>(OS).write<uint64_t>(TableStart.second);
+}
+
+static const char *ValueProfKindStr[] = {
+#define VALUE_PROF_KIND(Enumerator, Value) #Enumerator,
+#include "llvm/ProfileData/InstrProfData.inc"
+};
+
+void InstrProfWriter::writeRecordInText(const InstrProfRecord &Func,
+                                        InstrProfSymtab &Symtab,
+                                        raw_fd_ostream &OS) {
+  OS << Func.Name << "\n";
+  OS << "# Func Hash:\n" << Func.Hash << "\n";
+  OS << "# Num Counters:\n" << Func.Counts.size() << "\n";
+  OS << "# Counter Values:\n";
+  for (uint64_t Count : Func.Counts)
+    OS << Count << "\n";
+
+  uint32_t NumValueKinds = Func.getNumValueKinds();
+  if (!NumValueKinds) {
+    OS << "\n";
+    return;
+  }
+
+  OS << "# Num Value Kinds:\n" << Func.getNumValueKinds() << "\n";
+  for (uint32_t VK = 0; VK < IPVK_Last + 1; VK++) {
+    uint32_t NS = Func.getNumValueSites(VK);
+    if (!NS)
+      continue;
+    OS << "# ValueKind = " << ValueProfKindStr[VK] << ":\n" << VK << "\n";
+    OS << "# NumValueSites:\n" << NS << "\n";
+    for (uint32_t S = 0; S < NS; S++) {
+      uint32_t ND = Func.getNumValueDataForSite(VK, S);
+      OS << ND << "\n";
+      std::unique_ptr<InstrProfValueData[]> VD = Func.getValueForSite(VK, S);
+      for (uint32_t I = 0; I < ND; I++) {
+        if (VK == IPVK_IndirectCallTarget)
+          OS << Symtab.getFuncName(VD[I].Value) << ":" << VD[I].Count << "\n";
+        else
+          OS << VD[I].Value << ":" << VD[I].Count << "\n";
+      }
+    }
+  }
+
+  OS << "\n";
+}
+
+void InstrProfWriter::writeText(raw_fd_ostream &OS) {
+  InstrProfSymtab Symtab;
+  for (const auto &I : FunctionData)
+    Symtab.addFuncName(I.getKey());
+  Symtab.finalizeSymtab();
+
+  for (const auto &I : FunctionData)
+    for (const auto &Func : I.getValue())
+      writeRecordInText(Func.second, Symtab, OS);
 }
 
 std::unique_ptr<MemoryBuffer> InstrProfWriter::writeBuffer() {

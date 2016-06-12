@@ -323,7 +323,7 @@ SCI_STATUS scic_oem_parameters_set(
 );
 
 /**
- * @brief This method allows the user to retreive the OEM
+ * @brief This method allows the user to retrieve the OEM
  *        parameters utilized by the controller.
  *
  * @param[in]  controller This parameter specifies the controller on which

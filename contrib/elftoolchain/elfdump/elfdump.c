@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3250 2015-10-06 13:56:15Z emaste $");
+ELFTC_VCSID("$Id: elfdump.c 3474 2016-05-17 20:44:53Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -155,77 +155,82 @@ le32dec(const void *pp)
 static const char *
 d_tags(uint64_t tag)
 {
+	static char unknown_buf[64];
+
 	switch (tag) {
-	case 0: return "DT_NULL";
-	case 1: return "DT_NEEDED";
-	case 2: return "DT_PLTRELSZ";
-	case 3: return "DT_PLTGOT";
-	case 4: return "DT_HASH";
-	case 5: return "DT_STRTAB";
-	case 6: return "DT_SYMTAB";
-	case 7: return "DT_RELA";
-	case 8: return "DT_RELASZ";
-	case 9: return "DT_RELAENT";
-	case 10: return "DT_STRSZ";
-	case 11: return "DT_SYMENT";
-	case 12: return "DT_INIT";
-	case 13: return "DT_FINI";
-	case 14: return "DT_SONAME";
-	case 15: return "DT_RPATH";
-	case 16: return "DT_SYMBOLIC";
-	case 17: return "DT_REL";
-	case 18: return "DT_RELSZ";
-	case 19: return "DT_RELENT";
-	case 20: return "DT_PLTREL";
-	case 21: return "DT_DEBUG";
-	case 22: return "DT_TEXTREL";
-	case 23: return "DT_JMPREL";
-	case 24: return "DT_BIND_NOW";
-	case 25: return "DT_INIT_ARRAY";
-	case 26: return "DT_FINI_ARRAY";
-	case 27: return "DT_INIT_ARRAYSZ";
-	case 28: return "DT_FINI_ARRAYSZ";
-	case 29: return "DT_RUNPATH";
-	case 30: return "DT_FLAGS";
-	case 32: return "DT_PREINIT_ARRAY"; /* XXX: DT_ENCODING */
-	case 33: return "DT_PREINIT_ARRAYSZ";
+	case DT_NULL:		return "DT_NULL";
+	case DT_NEEDED:		return "DT_NEEDED";
+	case DT_PLTRELSZ:	return "DT_PLTRELSZ";
+	case DT_PLTGOT:		return "DT_PLTGOT";
+	case DT_HASH:		return "DT_HASH";
+	case DT_STRTAB:		return "DT_STRTAB";
+	case DT_SYMTAB:		return "DT_SYMTAB";
+	case DT_RELA:		return "DT_RELA";
+	case DT_RELASZ:		return "DT_RELASZ";
+	case DT_RELAENT:	return "DT_RELAENT";
+	case DT_STRSZ:		return "DT_STRSZ";
+	case DT_SYMENT:		return "DT_SYMENT";
+	case DT_INIT:		return "DT_INIT";
+	case DT_FINI:		return "DT_FINI";
+	case DT_SONAME:		return "DT_SONAME";
+	case DT_RPATH:		return "DT_RPATH";
+	case DT_SYMBOLIC:	return "DT_SYMBOLIC";
+	case DT_REL:		return "DT_REL";
+	case DT_RELSZ:		return "DT_RELSZ";
+	case DT_RELENT:		return "DT_RELENT";
+	case DT_PLTREL:		return "DT_PLTREL";
+	case DT_DEBUG:		return "DT_DEBUG";
+	case DT_TEXTREL:	return "DT_TEXTREL";
+	case DT_JMPREL:		return "DT_JMPREL";
+	case DT_BIND_NOW:	return "DT_BIND_NOW";
+	case DT_INIT_ARRAY:	return "DT_INIT_ARRAY";
+	case DT_FINI_ARRAY:	return "DT_FINI_ARRAY";
+	case DT_INIT_ARRAYSZ:	return "DT_INIT_ARRAYSZ";
+	case DT_FINI_ARRAYSZ:	return "DT_FINI_ARRAYSZ";
+	case DT_RUNPATH:	return "DT_RUNPATH";
+	case DT_FLAGS:		return "DT_FLAGS";
+	case DT_PREINIT_ARRAY:	return "DT_PREINIT_ARRAY"; /* XXX DT_ENCODING */
+	case DT_PREINIT_ARRAYSZ:return "DT_PREINIT_ARRAYSZ";
 	/* 0x6000000D - 0x6ffff000 operating system-specific semantics */
-	case 0x6ffffdf5: return "DT_GNU_PRELINKED";
-	case 0x6ffffdf6: return "DT_GNU_CONFLICTSZ";
-	case 0x6ffffdf7: return "DT_GNU_LIBLISTSZ";
-	case 0x6ffffdf8: return "DT_SUNW_CHECKSUM";
-	case 0x6ffffdf9: return "DT_PLTPADSZ";
-	case 0x6ffffdfa: return "DT_MOVEENT";
-	case 0x6ffffdfb: return "DT_MOVESZ";
-	case 0x6ffffdfc: return "DT_FEATURE";
-	case 0x6ffffdfd: return "DT_POSFLAG_1";
-	case 0x6ffffdfe: return "DT_SYMINSZ";
-	case 0x6ffffdff: return "DT_SYMINENT (DT_VALRNGHI)";
-	case 0x6ffffe00: return "DT_ADDRRNGLO";
-	case 0x6ffffef5: return "DT_GNU_HASH";
-	case 0x6ffffef8: return "DT_GNU_CONFLICT";
-	case 0x6ffffef9: return "DT_GNU_LIBLIST";
-	case 0x6ffffefa: return "DT_CONFIG";
-	case 0x6ffffefb: return "DT_DEPAUDIT";
-	case 0x6ffffefc: return "DT_AUDIT";
-	case 0x6ffffefd: return "DT_PLTPAD";
-	case 0x6ffffefe: return "DT_MOVETAB";
-	case 0x6ffffeff: return "DT_SYMINFO (DT_ADDRRNGHI)";
-	case 0x6ffffff9: return "DT_RELACOUNT";
-	case 0x6ffffffa: return "DT_RELCOUNT";
-	case 0x6ffffffb: return "DT_FLAGS_1";
-	case 0x6ffffffc: return "DT_VERDEF";
-	case 0x6ffffffd: return "DT_VERDEFNUM";
-	case 0x6ffffffe: return "DT_VERNEED";
-	case 0x6fffffff: return "DT_VERNEEDNUM";
-	case 0x6ffffff0: return "DT_GNU_VERSYM";
+	case 0x6ffffdf5:	return "DT_GNU_PRELINKED";
+	case 0x6ffffdf6:	return "DT_GNU_CONFLICTSZ";
+	case 0x6ffffdf7:	return "DT_GNU_LIBLISTSZ";
+	case 0x6ffffdf8:	return "DT_SUNW_CHECKSUM";
+	case DT_PLTPADSZ:	return "DT_PLTPADSZ";
+	case DT_MOVEENT:	return "DT_MOVEENT";
+	case DT_MOVESZ:		return "DT_MOVESZ";
+	case 0x6ffffdfc:	return "DT_FEATURE";
+	case DT_POSFLAG_1:	return "DT_POSFLAG_1";
+	case DT_SYMINSZ:	return "DT_SYMINSZ";
+	case DT_SYMINENT:	return "DT_SYMINENT (DT_VALRNGHI)";
+	case DT_ADDRRNGLO:	return "DT_ADDRRNGLO";
+	case DT_GNU_HASH:	return "DT_GNU_HASH";
+	case 0x6ffffef8:	return "DT_GNU_CONFLICT";
+	case 0x6ffffef9:	return "DT_GNU_LIBLIST";
+	case 0x6ffffefa:	return "DT_CONFIG";
+	case 0x6ffffefb:	return "DT_DEPAUDIT";
+	case 0x6ffffefc:	return "DT_AUDIT";
+	case 0x6ffffefd:	return "DT_PLTPAD";
+	case 0x6ffffefe:	return "DT_MOVETAB";
+	case DT_SYMINFO:	return "DT_SYMINFO (DT_ADDRRNGHI)";
+	case DT_RELACOUNT:	return "DT_RELACOUNT";
+	case DT_RELCOUNT:	return "DT_RELCOUNT";
+	case DT_FLAGS_1:	return "DT_FLAGS_1";
+	case DT_VERDEF:		return "DT_VERDEF";
+	case DT_VERDEFNUM:	return "DT_VERDEFNUM";
+	case DT_VERNEED:	return "DT_VERNEED";
+	case DT_VERNEEDNUM:	return "DT_VERNEEDNUM";
+	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd: return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe: return "DT_SUNW_USED";
-	case 0x7fffffff: return "DT_SUNW_FILTER";
-	default: return "ERROR: TAG NOT DEFINED";
+	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
+	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
+	case 0x7ffffffe:	return "DT_SUNW_USED";
+	case 0x7fffffff:	return "DT_SUNW_FILTER";
 	}
+
+	snprintf(unknown_buf, sizeof(unknown_buf),
+		"<unknown: %#llx>", (unsigned long long)tag);
+	return (unknown_buf);
 }
 
 static const char *
@@ -258,34 +263,99 @@ e_machines(unsigned int mach)
 	return (machdesc);
 }
 
-static const char *e_types[] = {
-	"ET_NONE", "ET_REL", "ET_EXEC", "ET_DYN", "ET_CORE"
-};
+static const char *
+elf_type_str(unsigned int type)
+{
+	static char s_type[32];
 
-static const char *ei_versions[] = {
-	"EV_NONE", "EV_CURRENT"
-};
+	switch (type)
+	{
+	case ET_NONE:	return "ET_NONE";
+	case ET_REL:	return "ET_REL";
+	case ET_EXEC:	return "ET_EXEC";
+	case ET_DYN:	return "ET_DYN";
+	case ET_CORE:	return "ET_CORE";
+	}
+	if (type >= ET_LOPROC)
+		snprintf(s_type, sizeof(s_type), "<proc: %#x>", type);
+	else if (type >= ET_LOOS && type <= ET_HIOS)
+		snprintf(s_type, sizeof(s_type), "<os: %#x>", type);
+	else
+		snprintf(s_type, sizeof(s_type), "<unknown: %#x", type);
+	return (s_type);
+}
 
-static const char *ei_classes[] = {
-	"ELFCLASSNONE", "ELFCLASS32", "ELFCLASS64"
-};
+static const char *
+elf_version_str(unsigned int ver)
+{
+	static char s_ver[32];
 
-static const char *ei_data[] = {
-	"ELFDATANONE", "ELFDATA2LSB", "ELFDATA2MSB"
-};
+	switch (ver) {
+	case EV_NONE:		return "EV_NONE";
+	case EV_CURRENT:	return "EV_CURRENT";
+	}
+	snprintf(s_ver, sizeof(s_ver), "<unknown: %#x>", ver);
+	return (s_ver);
+}
+
+static const char *
+elf_class_str(unsigned int class)
+{
+	static char s_class[32];
+
+	switch (class) {
+	case ELFCLASSNONE:	return "ELFCLASSNONE";
+	case ELFCLASS32:	return "ELFCLASS32";
+	case ELFCLASS64:	return "ELFCLASS64";
+	}
+	snprintf(s_class, sizeof(s_class), "<unknown: %#x>", class);
+	return (s_class);
+}
+
+static const char *
+elf_data_str(unsigned int data)
+{
+	static char s_data[32];
+
+	switch (data) {
+	case ELFDATANONE:	return "ELFDATANONE";
+	case ELFDATA2LSB:	return "ELFDATA2LSB";
+	case ELFDATA2MSB:	return "ELFDATA2MSB";
+	}
+	snprintf(s_data, sizeof(s_data), "<unknown: %#x>", data);
+	return (s_data);
+}
 
 static const char *ei_abis[256] = {
 	"ELFOSABI_NONE", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
 	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS", "ELFOSABI_AIX",
 	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
 	"ELFOSABI_MODESTO", "ELFOSABI_OPENBSD",
+	[17] = "ELFOSABI_CLOUDABI",
 	[255] = "ELFOSABI_STANDALONE"
 };
 
-static const char *p_types[] = {
-	"PT_NULL", "PT_LOAD", "PT_DYNAMIC", "PT_INTERP", "PT_NOTE",
-	"PT_SHLIB", "PT_PHDR", "PT_TLS"
-};
+static const char *
+elf_phdr_type_str(unsigned int type)
+{
+	static char s_type[32];
+
+	switch (type) {
+	case PT_NULL:		return "PT_NULL";
+	case PT_LOAD:		return "PT_LOAD";
+	case PT_DYNAMIC:	return "PT_DYNAMIC";
+	case PT_INTERP:		return "PT_INTERP";
+	case PT_NOTE:		return "PT_NOTE";
+	case PT_SHLIB:		return "PT_SHLIB";
+	case PT_PHDR:		return "PT_PHDR";
+	case PT_TLS:		return "PT_TLS";
+	case PT_GNU_EH_FRAME:	return "PT_GNU_EH_FRAME";
+	case PT_GNU_STACK:	return "PT_GNU_STACK";
+	case PT_GNU_RELRO:	return "PT_GNU_RELRO";
+	}
+	snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+	return (s_type);
+}
 
 static const char *p_flags[] = {
 	"", "PF_X", "PF_W", "PF_X|PF_W", "PF_R", "PF_X|PF_R", "PF_W|PF_R",
@@ -313,42 +383,79 @@ sh_name(struct elfdump *ed, int ndx)
 
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
 static const char *
-sh_types(u_int64_t sht) {
-	switch (sht) {
-	case 0:	return "SHT_NULL";
-	case 1: return "SHT_PROGBITS";
-	case 2: return "SHT_SYMTAB";
-	case 3: return "SHT_STRTAB";
-	case 4: return "SHT_RELA";
-	case 5: return "SHT_HASH";
-	case 6: return "SHT_DYNAMIC";
-	case 7: return "SHT_NOTE";
-	case 8: return "SHT_NOBITS";
-	case 9: return "SHT_REL";
-	case 10: return "SHT_SHLIB";
-	case 11: return "SHT_DYNSYM";
-	case 14: return "SHT_INIT_ARRAY";
-	case 15: return "SHT_FINI_ARRAY";
-	case 16: return "SHT_PREINIT_ARRAY";
-	case 17: return "SHT_GROUP";
-	case 18: return "SHT_SYMTAB_SHNDX";
-	/* 0x60000000 - 0x6fffffff operating system-specific semantics */
-	case 0x6ffffff0: return "XXX:VERSYM";
-	case 0x6ffffff4: return "SHT_SUNW_dof";
-	case 0x6ffffff6: return "SHT_GNU_HASH";
-	case 0x6ffffff7: return "SHT_GNU_LIBLIST";
-	case 0x6ffffffc: return "XXX:VERDEF";
-	case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
-	case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
-	case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
-	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "SHT_IA_64_EXT";
-	case 0x70000001: return "SHT_IA_64_UNWIND";
-	case 0x7ffffffd: return "XXX:AUXILIARY";
-	case 0x7fffffff: return "XXX:FILTER";
-	/* 0x80000000 - 0xffffffff application programs */
-	default: return "ERROR: SHT NOT DEFINED";
+sh_types(uint64_t mach, uint64_t sht) {
+	static char unknown_buf[64];
+
+	if (sht < 0x60000000) {
+		switch (sht) {
+		case SHT_NULL:		return "SHT_NULL";
+		case SHT_PROGBITS:	return "SHT_PROGBITS";
+		case SHT_SYMTAB:	return "SHT_SYMTAB";
+		case SHT_STRTAB:	return "SHT_STRTAB";
+		case SHT_RELA:		return "SHT_RELA";
+		case SHT_HASH:		return "SHT_HASH";
+		case SHT_DYNAMIC:	return "SHT_DYNAMIC";
+		case SHT_NOTE:		return "SHT_NOTE";
+		case SHT_NOBITS:	return "SHT_NOBITS";
+		case SHT_REL:		return "SHT_REL";
+		case SHT_SHLIB:		return "SHT_SHLIB";
+		case SHT_DYNSYM:	return "SHT_DYNSYM";
+		case SHT_INIT_ARRAY:	return "SHT_INIT_ARRAY";
+		case SHT_FINI_ARRAY:	return "SHT_FINI_ARRAY";
+		case SHT_PREINIT_ARRAY:	return "SHT_PREINIT_ARRAY";
+		case SHT_GROUP:		return "SHT_GROUP";
+		case SHT_SYMTAB_SHNDX:	return "SHT_SYMTAB_SHNDX";
+		}
+	} else if (sht < 0x70000000) {
+		/* 0x60000000-0x6fffffff operating system-specific semantics */
+		switch (sht) {
+		case 0x6ffffff0:	return "XXX:VERSYM";
+		case SHT_SUNW_dof:	return "SHT_SUNW_dof";
+		case SHT_GNU_HASH:	return "SHT_GNU_HASH";
+		case 0x6ffffff7:	return "SHT_GNU_LIBLIST";
+		case 0x6ffffffc:	return "XXX:VERDEF";
+		case SHT_SUNW_verdef:	return "SHT_SUNW(GNU)_verdef";
+		case SHT_SUNW_verneed:	return "SHT_SUNW(GNU)_verneed";
+		case SHT_SUNW_versym:	return "SHT_SUNW(GNU)_versym";
+		}
+	} else if (sht < 0x80000000) {
+		/* 0x70000000 - 0x7fffffff processor-specific semantics */
+		switch (mach) {
+		case EM_ARM:
+			switch (sht) {
+			case SHT_ARM_EXIDX: return "SHT_ARM_EXIDX";
+			case SHT_ARM_PREEMPTMAP: return "SHT_ARM_PREEMPTMAP";
+			case SHT_ARM_ATTRIBUTES: return "SHT_ARM_ATTRIBUTES";
+			case SHT_ARM_DEBUGOVERLAY:
+			    return "SHT_ARM_DEBUGOVERLAY";
+			case SHT_ARM_OVERLAYSECTION:
+			    return "SHT_ARM_OVERLAYSECTION";
+			}
+			break;
+		case EM_IA_64:
+			switch (sht) {
+			case 0x70000000: return "SHT_IA_64_EXT";
+			case 0x70000001: return "SHT_IA_64_UNWIND";
+			}
+			break;
+		case EM_MIPS:
+			switch (sht) {
+			case SHT_MIPS_REGINFO: return "SHT_MIPS_REGINFO";
+			case SHT_MIPS_OPTIONS: return "SHT_MIPS_OPTIONS";
+			case SHT_MIPS_ABIFLAGS: return "SHT_MIPS_ABIFLAGS";
+			}
+			break;
+		}
+		switch (sht) {
+		case 0x7ffffffd: return "XXX:AUXILIARY";
+		case 0x7fffffff: return "XXX:FILTER";
+		}
 	}
+	/* 0x80000000 - 0xffffffff application programs */
+
+	snprintf(unknown_buf, sizeof(unknown_buf),
+		"<unknown: %#llx>", (unsigned long long)sht);
+	return (unknown_buf);
 }
 
 /*
@@ -365,7 +472,8 @@ sh_types(u_int64_t sht) {
 	DEFINE_SHF(LINK_ORDER)			\
 	DEFINE_SHF(OS_NONCONFORMING)		\
 	DEFINE_SHF(GROUP)			\
-	DEFINE_SHF(TLS)
+	DEFINE_SHF(TLS)				\
+	DEFINE_SHF(COMPRESSED)
 
 #undef	DEFINE_SHF
 #define	DEFINE_SHF(F) "SHF_" #F "|"
@@ -390,407 +498,91 @@ sh_flags(uint64_t shf)
 	return (flg);
 }
 
-static const char *st_types[] = {
-	"STT_NOTYPE", "STT_OBJECT", "STT_FUNC", "STT_SECTION", "STT_FILE",
-	"STT_COMMON", "STT_TLS"
-};
+static const char *
+st_type(unsigned int mach, unsigned int type)
+{
+	static char s_type[32];
 
-static const char *st_types_S[] = {
-	"NOTY", "OBJT", "FUNC", "SECT", "FILE"
-};
+	switch (type) {
+	case STT_NOTYPE: return "STT_NOTYPE";
+	case STT_OBJECT: return "STT_OBJECT";
+	case STT_FUNC: return "STT_FUNC";
+	case STT_SECTION: return "STT_SECTION";
+	case STT_FILE: return "STT_FILE";
+	case STT_COMMON: return "STT_COMMON";
+	case STT_TLS: return "STT_TLS";
+	case 13:
+		if (mach == EM_SPARCV9)
+			return "STT_SPARC_REGISTER";
+		break;
+	}
+	snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+	return (s_type);
+}
 
-static const char *st_bindings[] = {
-	"STB_LOCAL", "STB_GLOBAL", "STB_WEAK"
-};
+static const char *
+st_type_S(unsigned int type)
+{
+	static char s_type[32];
 
-static const char *st_bindings_S[] = {
-	"LOCL", "GLOB", "WEAK"
-};
+	switch (type) {
+	case STT_NOTYPE: return "NOTY";
+	case STT_OBJECT: return "OBJT";
+	case STT_FUNC: return "FUNC";
+	case STT_SECTION: return "SECT";
+	case STT_FILE: return "FILE";
+	}
+	snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+	return (s_type);
+}
+
+static const char *
+st_bindings(unsigned int sbind)
+{
+	static char s_sbind[32];
+
+	switch (sbind) {
+	case STB_LOCAL: return "STB_LOCAL";
+	case STB_GLOBAL: return "STB_GLOBAL";
+	case STB_WEAK: return "STB_WEAK";
+	case STB_GNU_UNIQUE: return "STB_GNU_UNIQUE";
+	default:
+		if (sbind >= STB_LOOS && sbind <= STB_HIOS)
+			return "OS";
+		else if (sbind >= STB_LOPROC && sbind <= STB_HIPROC)
+			return "PROC";
+		else
+			snprintf(s_sbind, sizeof(s_sbind), "<unknown: %#x>",
+			    sbind);
+		return (s_sbind);
+	}
+}
+
+static const char *
+st_bindings_S(unsigned int sbind)
+{
+	static char s_sbind[32];
+
+	switch (sbind) {
+	case STB_LOCAL: return "LOCL";
+	case STB_GLOBAL: return "GLOB";
+	case STB_WEAK: return "WEAK";
+	case STB_GNU_UNIQUE: return "UNIQ";
+	default:
+		if (sbind >= STB_LOOS && sbind <= STB_HIOS)
+			return "OS";
+		else if (sbind >= STB_LOPROC && sbind <= STB_HIPROC)
+			return "PROC";
+		else
+			snprintf(s_sbind, sizeof(s_sbind), "<%#x>",
+			    sbind);
+		return (s_sbind);
+	}
+}
 
 static unsigned char st_others[] = {
 	'D', 'I', 'H', 'P'
 };
-
-static const char *
-r_type(unsigned int mach, unsigned int type)
-{
-	switch(mach) {
-	case EM_NONE: return "";
-	case EM_386:
-	case EM_IAMCU:
-		switch(type) {
-		case 0: return "R_386_NONE";
-		case 1: return "R_386_32";
-		case 2: return "R_386_PC32";
-		case 3: return "R_386_GOT32";
-		case 4: return "R_386_PLT32";
-		case 5: return "R_386_COPY";
-		case 6: return "R_386_GLOB_DAT";
-		case 7: return "R_386_JMP_SLOT";
-		case 8: return "R_386_RELATIVE";
-		case 9: return "R_386_GOTOFF";
-		case 10: return "R_386_GOTPC";
-		case 14: return "R_386_TLS_TPOFF";
-		case 15: return "R_386_TLS_IE";
-		case 16: return "R_386_TLS_GOTIE";
-		case 17: return "R_386_TLS_LE";
-		case 18: return "R_386_TLS_GD";
-		case 19: return "R_386_TLS_LDM";
-		case 24: return "R_386_TLS_GD_32";
-		case 25: return "R_386_TLS_GD_PUSH";
-		case 26: return "R_386_TLS_GD_CALL";
-		case 27: return "R_386_TLS_GD_POP";
-		case 28: return "R_386_TLS_LDM_32";
-		case 29: return "R_386_TLS_LDM_PUSH";
-		case 30: return "R_386_TLS_LDM_CALL";
-		case 31: return "R_386_TLS_LDM_POP";
-		case 32: return "R_386_TLS_LDO_32";
-		case 33: return "R_386_TLS_IE_32";
-		case 34: return "R_386_TLS_LE_32";
-		case 35: return "R_386_TLS_DTPMOD32";
-		case 36: return "R_386_TLS_DTPOFF32";
-		case 37: return "R_386_TLS_TPOFF32";
-		default: return "";
-		}
-	case EM_ARM:
-		switch(type) {
-		case 0: return "R_ARM_NONE";
-		case 1: return "R_ARM_PC24";
-		case 2: return "R_ARM_ABS32";
-		case 3: return "R_ARM_REL32";
-		case 4: return "R_ARM_PC13";
-		case 5: return "R_ARM_ABS16";
-		case 6: return "R_ARM_ABS12";
-		case 7: return "R_ARM_THM_ABS5";
-		case 8: return "R_ARM_ABS8";
-		case 9: return "R_ARM_SBREL32";
-		case 10: return "R_ARM_THM_PC22";
-		case 11: return "R_ARM_THM_PC8";
-		case 12: return "R_ARM_AMP_VCALL9";
-		case 13: return "R_ARM_SWI24";
-		case 14: return "R_ARM_THM_SWI8";
-		case 15: return "R_ARM_XPC25";
-		case 16: return "R_ARM_THM_XPC22";
-		case 20: return "R_ARM_COPY";
-		case 21: return "R_ARM_GLOB_DAT";
-		case 22: return "R_ARM_JUMP_SLOT";
-		case 23: return "R_ARM_RELATIVE";
-		case 24: return "R_ARM_GOTOFF";
-		case 25: return "R_ARM_GOTPC";
-		case 26: return "R_ARM_GOT32";
-		case 27: return "R_ARM_PLT32";
-		case 100: return "R_ARM_GNU_VTENTRY";
-		case 101: return "R_ARM_GNU_VTINHERIT";
-		case 250: return "R_ARM_RSBREL32";
-		case 251: return "R_ARM_THM_RPC22";
-		case 252: return "R_ARM_RREL32";
-		case 253: return "R_ARM_RABS32";
-		case 254: return "R_ARM_RPC24";
-		case 255: return "R_ARM_RBASE";
-		default: return "";
-		}
-	case EM_IA_64:
-		switch(type) {
-		case 0: return "R_IA_64_NONE";
-		case 33: return "R_IA_64_IMM14";
-		case 34: return "R_IA_64_IMM22";
-		case 35: return "R_IA_64_IMM64";
-		case 36: return "R_IA_64_DIR32MSB";
-		case 37: return "R_IA_64_DIR32LSB";
-		case 38: return "R_IA_64_DIR64MSB";
-		case 39: return "R_IA_64_DIR64LSB";
-		case 42: return "R_IA_64_GPREL22";
-		case 43: return "R_IA_64_GPREL64I";
-		case 44: return "R_IA_64_GPREL32MSB";
-		case 45: return "R_IA_64_GPREL32LSB";
-		case 46: return "R_IA_64_GPREL64MSB";
-		case 47: return "R_IA_64_GPREL64LSB";
-		case 50: return "R_IA_64_LTOFF22";
-		case 51: return "R_IA_64_LTOFF64I";
-		case 58: return "R_IA_64_PLTOFF22";
-		case 59: return "R_IA_64_PLTOFF64I";
-		case 62: return "R_IA_64_PLTOFF64MSB";
-		case 63: return "R_IA_64_PLTOFF64LSB";
-		case 67: return "R_IA_64_FPTR64I";
-		case 68: return "R_IA_64_FPTR32MSB";
-		case 69: return "R_IA_64_FPTR32LSB";
-		case 70: return "R_IA_64_FPTR64MSB";
-		case 71: return "R_IA_64_FPTR64LSB";
-		case 72: return "R_IA_64_PCREL60B";
-		case 73: return "R_IA_64_PCREL21B";
-		case 74: return "R_IA_64_PCREL21M";
-		case 75: return "R_IA_64_PCREL21F";
-		case 76: return "R_IA_64_PCREL32MSB";
-		case 77: return "R_IA_64_PCREL32LSB";
-		case 78: return "R_IA_64_PCREL64MSB";
-		case 79: return "R_IA_64_PCREL64LSB";
-		case 82: return "R_IA_64_LTOFF_FPTR22";
-		case 83: return "R_IA_64_LTOFF_FPTR64I";
-		case 84: return "R_IA_64_LTOFF_FPTR32MSB";
-		case 85: return "R_IA_64_LTOFF_FPTR32LSB";
-		case 86: return "R_IA_64_LTOFF_FPTR64MSB";
-		case 87: return "R_IA_64_LTOFF_FPTR64LSB";
-		case 92: return "R_IA_64_SEGREL32MSB";
-		case 93: return "R_IA_64_SEGREL32LSB";
-		case 94: return "R_IA_64_SEGREL64MSB";
-		case 95: return "R_IA_64_SEGREL64LSB";
-		case 100: return "R_IA_64_SECREL32MSB";
-		case 101: return "R_IA_64_SECREL32LSB";
-		case 102: return "R_IA_64_SECREL64MSB";
-		case 103: return "R_IA_64_SECREL64LSB";
-		case 108: return "R_IA_64_REL32MSB";
-		case 109: return "R_IA_64_REL32LSB";
-		case 110: return "R_IA_64_REL64MSB";
-		case 111: return "R_IA_64_REL64LSB";
-		case 116: return "R_IA_64_LTV32MSB";
-		case 117: return "R_IA_64_LTV32LSB";
-		case 118: return "R_IA_64_LTV64MSB";
-		case 119: return "R_IA_64_LTV64LSB";
-		case 121: return "R_IA_64_PCREL21BI";
-		case 122: return "R_IA_64_PCREL22";
-		case 123: return "R_IA_64_PCREL64I";
-		case 128: return "R_IA_64_IPLTMSB";
-		case 129: return "R_IA_64_IPLTLSB";
-		case 133: return "R_IA_64_SUB";
-		case 134: return "R_IA_64_LTOFF22X";
-		case 135: return "R_IA_64_LDXMOV";
-		case 145: return "R_IA_64_TPREL14";
-		case 146: return "R_IA_64_TPREL22";
-		case 147: return "R_IA_64_TPREL64I";
-		case 150: return "R_IA_64_TPREL64MSB";
-		case 151: return "R_IA_64_TPREL64LSB";
-		case 154: return "R_IA_64_LTOFF_TPREL22";
-		case 166: return "R_IA_64_DTPMOD64MSB";
-		case 167: return "R_IA_64_DTPMOD64LSB";
-		case 170: return "R_IA_64_LTOFF_DTPMOD22";
-		case 177: return "R_IA_64_DTPREL14";
-		case 178: return "R_IA_64_DTPREL22";
-		case 179: return "R_IA_64_DTPREL64I";
-		case 180: return "R_IA_64_DTPREL32MSB";
-		case 181: return "R_IA_64_DTPREL32LSB";
-		case 182: return "R_IA_64_DTPREL64MSB";
-		case 183: return "R_IA_64_DTPREL64LSB";
-		case 186: return "R_IA_64_LTOFF_DTPREL22";
-		default: return "";
-		}
-	case EM_MIPS:
-		switch(type) {
-		case 0: return "R_MIPS_NONE";
-		case 1: return "R_MIPS_16";
-		case 2: return "R_MIPS_32";
-		case 3: return "R_MIPS_REL32";
-		case 4: return "R_MIPS_26";
-		case 5: return "R_MIPS_HI16";
-		case 6: return "R_MIPS_LO16";
-		case 7: return "R_MIPS_GPREL16";
-		case 8: return "R_MIPS_LITERAL";
-		case 9: return "R_MIPS_GOT16";
-		case 10: return "R_MIPS_PC16";
-		case 11: return "R_MIPS_CALL16";
-		case 12: return "R_MIPS_GPREL32";
-		case 21: return "R_MIPS_GOTHI16";
-		case 22: return "R_MIPS_GOTLO16";
-		case 30: return "R_MIPS_CALLHI16";
-		case 31: return "R_MIPS_CALLLO16";
-		default: return "";
-		}
-	case EM_PPC:
-		switch(type) {
-		case 0: return "R_PPC_NONE";
-		case 1: return "R_PPC_ADDR32";
-		case 2: return "R_PPC_ADDR24";
-		case 3: return "R_PPC_ADDR16";
-		case 4: return "R_PPC_ADDR16_LO";
-		case 5: return "R_PPC_ADDR16_HI";
-		case 6: return "R_PPC_ADDR16_HA";
-		case 7: return "R_PPC_ADDR14";
-		case 8: return "R_PPC_ADDR14_BRTAKEN";
-		case 9: return "R_PPC_ADDR14_BRNTAKEN";
-		case 10: return "R_PPC_REL24";
-		case 11: return "R_PPC_REL14";
-		case 12: return "R_PPC_REL14_BRTAKEN";
-		case 13: return "R_PPC_REL14_BRNTAKEN";
-		case 14: return "R_PPC_GOT16";
-		case 15: return "R_PPC_GOT16_LO";
-		case 16: return "R_PPC_GOT16_HI";
-		case 17: return "R_PPC_GOT16_HA";
-		case 18: return "R_PPC_PLTREL24";
-		case 19: return "R_PPC_COPY";
-		case 20: return "R_PPC_GLOB_DAT";
-		case 21: return "R_PPC_JMP_SLOT";
-		case 22: return "R_PPC_RELATIVE";
-		case 23: return "R_PPC_LOCAL24PC";
-		case 24: return "R_PPC_UADDR32";
-		case 25: return "R_PPC_UADDR16";
-		case 26: return "R_PPC_REL32";
-		case 27: return "R_PPC_PLT32";
-		case 28: return "R_PPC_PLTREL32";
-		case 29: return "R_PPC_PLT16_LO";
-		case 30: return "R_PPC_PLT16_HI";
-		case 31: return "R_PPC_PLT16_HA";
-		case 32: return "R_PPC_SDAREL16";
-		case 33: return "R_PPC_SECTOFF";
-		case 34: return "R_PPC_SECTOFF_LO";
-		case 35: return "R_PPC_SECTOFF_HI";
-		case 36: return "R_PPC_SECTOFF_HA";
-		case 67: return "R_PPC_TLS";
-		case 68: return "R_PPC_DTPMOD32";
-		case 69: return "R_PPC_TPREL16";
-		case 70: return "R_PPC_TPREL16_LO";
-		case 71: return "R_PPC_TPREL16_HI";
-		case 72: return "R_PPC_TPREL16_HA";
-		case 73: return "R_PPC_TPREL32";
-		case 74: return "R_PPC_DTPREL16";
-		case 75: return "R_PPC_DTPREL16_LO";
-		case 76: return "R_PPC_DTPREL16_HI";
-		case 77: return "R_PPC_DTPREL16_HA";
-		case 78: return "R_PPC_DTPREL32";
-		case 79: return "R_PPC_GOT_TLSGD16";
-		case 80: return "R_PPC_GOT_TLSGD16_LO";
-		case 81: return "R_PPC_GOT_TLSGD16_HI";
-		case 82: return "R_PPC_GOT_TLSGD16_HA";
-		case 83: return "R_PPC_GOT_TLSLD16";
-		case 84: return "R_PPC_GOT_TLSLD16_LO";
-		case 85: return "R_PPC_GOT_TLSLD16_HI";
-		case 86: return "R_PPC_GOT_TLSLD16_HA";
-		case 87: return "R_PPC_GOT_TPREL16";
-		case 88: return "R_PPC_GOT_TPREL16_LO";
-		case 89: return "R_PPC_GOT_TPREL16_HI";
-		case 90: return "R_PPC_GOT_TPREL16_HA";
-		case 101: return "R_PPC_EMB_NADDR32";
-		case 102: return "R_PPC_EMB_NADDR16";
-		case 103: return "R_PPC_EMB_NADDR16_LO";
-		case 104: return "R_PPC_EMB_NADDR16_HI";
-		case 105: return "R_PPC_EMB_NADDR16_HA";
-		case 106: return "R_PPC_EMB_SDAI16";
-		case 107: return "R_PPC_EMB_SDA2I16";
-		case 108: return "R_PPC_EMB_SDA2REL";
-		case 109: return "R_PPC_EMB_SDA21";
-		case 110: return "R_PPC_EMB_MRKREF";
-		case 111: return "R_PPC_EMB_RELSEC16";
-		case 112: return "R_PPC_EMB_RELST_LO";
-		case 113: return "R_PPC_EMB_RELST_HI";
-		case 114: return "R_PPC_EMB_RELST_HA";
-		case 115: return "R_PPC_EMB_BIT_FLD";
-		case 116: return "R_PPC_EMB_RELSDA";
-		default: return "";
-		}
-	case EM_SPARC:
-	case EM_SPARCV9:
-		switch(type) {
-		case 0: return "R_SPARC_NONE";
-		case 1: return "R_SPARC_8";
-		case 2: return "R_SPARC_16";
-		case 3: return "R_SPARC_32";
-		case 4: return "R_SPARC_DISP8";
-		case 5: return "R_SPARC_DISP16";
-		case 6: return "R_SPARC_DISP32";
-		case 7: return "R_SPARC_WDISP30";
-		case 8: return "R_SPARC_WDISP22";
-		case 9: return "R_SPARC_HI22";
-		case 10: return "R_SPARC_22";
-		case 11: return "R_SPARC_13";
-		case 12: return "R_SPARC_LO10";
-		case 13: return "R_SPARC_GOT10";
-		case 14: return "R_SPARC_GOT13";
-		case 15: return "R_SPARC_GOT22";
-		case 16: return "R_SPARC_PC10";
-		case 17: return "R_SPARC_PC22";
-		case 18: return "R_SPARC_WPLT30";
-		case 19: return "R_SPARC_COPY";
-		case 20: return "R_SPARC_GLOB_DAT";
-		case 21: return "R_SPARC_JMP_SLOT";
-		case 22: return "R_SPARC_RELATIVE";
-		case 23: return "R_SPARC_UA32";
-		case 24: return "R_SPARC_PLT32";
-		case 25: return "R_SPARC_HIPLT22";
-		case 26: return "R_SPARC_LOPLT10";
-		case 27: return "R_SPARC_PCPLT32";
-		case 28: return "R_SPARC_PCPLT22";
-		case 29: return "R_SPARC_PCPLT10";
-		case 30: return "R_SPARC_10";
-		case 31: return "R_SPARC_11";
-		case 32: return "R_SPARC_64";
-		case 33: return "R_SPARC_OLO10";
-		case 34: return "R_SPARC_HH22";
-		case 35: return "R_SPARC_HM10";
-		case 36: return "R_SPARC_LM22";
-		case 37: return "R_SPARC_PC_HH22";
-		case 38: return "R_SPARC_PC_HM10";
-		case 39: return "R_SPARC_PC_LM22";
-		case 40: return "R_SPARC_WDISP16";
-		case 41: return "R_SPARC_WDISP19";
-		case 42: return "R_SPARC_GLOB_JMP";
-		case 43: return "R_SPARC_7";
-		case 44: return "R_SPARC_5";
-		case 45: return "R_SPARC_6";
-		case 46: return "R_SPARC_DISP64";
-		case 47: return "R_SPARC_PLT64";
-		case 48: return "R_SPARC_HIX22";
-		case 49: return "R_SPARC_LOX10";
-		case 50: return "R_SPARC_H44";
-		case 51: return "R_SPARC_M44";
-		case 52: return "R_SPARC_L44";
-		case 53: return "R_SPARC_REGISTER";
-		case 54: return "R_SPARC_UA64";
-		case 55: return "R_SPARC_UA16";
-		case 56: return "R_SPARC_TLS_GD_HI22";
-		case 57: return "R_SPARC_TLS_GD_LO10";
-		case 58: return "R_SPARC_TLS_GD_ADD";
-		case 59: return "R_SPARC_TLS_GD_CALL";
-		case 60: return "R_SPARC_TLS_LDM_HI22";
-		case 61: return "R_SPARC_TLS_LDM_LO10";
-		case 62: return "R_SPARC_TLS_LDM_ADD";
-		case 63: return "R_SPARC_TLS_LDM_CALL";
-		case 64: return "R_SPARC_TLS_LDO_HIX22";
-		case 65: return "R_SPARC_TLS_LDO_LOX10";
-		case 66: return "R_SPARC_TLS_LDO_ADD";
-		case 67: return "R_SPARC_TLS_IE_HI22";
-		case 68: return "R_SPARC_TLS_IE_LO10";
-		case 69: return "R_SPARC_TLS_IE_LD";
-		case 70: return "R_SPARC_TLS_IE_LDX";
-		case 71: return "R_SPARC_TLS_IE_ADD";
-		case 72: return "R_SPARC_TLS_LE_HIX22";
-		case 73: return "R_SPARC_TLS_LE_LOX10";
-		case 74: return "R_SPARC_TLS_DTPMOD32";
-		case 75: return "R_SPARC_TLS_DTPMOD64";
-		case 76: return "R_SPARC_TLS_DTPOFF32";
-		case 77: return "R_SPARC_TLS_DTPOFF64";
-		case 78: return "R_SPARC_TLS_TPOFF32";
-		case 79: return "R_SPARC_TLS_TPOFF64";
-		default: return "";
-		}
-	case EM_X86_64:
-		switch(type) {
-		case 0: return "R_X86_64_NONE";
-		case 1: return "R_X86_64_64";
-		case 2: return "R_X86_64_PC32";
-		case 3: return "R_X86_64_GOT32";
-		case 4: return "R_X86_64_PLT32";
-		case 5: return "R_X86_64_COPY";
-		case 6: return "R_X86_64_GLOB_DAT";
-		case 7: return "R_X86_64_JMP_SLOT";
-		case 8: return "R_X86_64_RELATIVE";
-		case 9: return "R_X86_64_GOTPCREL";
-		case 10: return "R_X86_64_32";
-		case 11: return "R_X86_64_32S";
-		case 12: return "R_X86_64_16";
-		case 13: return "R_X86_64_PC16";
-		case 14: return "R_X86_64_8";
-		case 15: return "R_X86_64_PC8";
-		case 16: return "R_X86_64_DTPMOD64";
-		case 17: return "R_X86_64_DTPOFF64";
-		case 18: return "R_X86_64_TPOFF64";
-		case 19: return "R_X86_64_TLSGD";
-		case 20: return "R_X86_64_TLSLD";
-		case 21: return "R_X86_64_DTPOFF32";
-		case 22: return "R_X86_64_GOTTPOFF";
-		case 23: return "R_X86_64_TPOFF32";
-		default: return "";
-		}
-	default: return "";
-	}
-}
 
 static void	add_name(struct elfdump *ed, const char *name);
 static void	elf_print_object(struct elfdump *ed);
@@ -824,7 +616,7 @@ static void	find_gotrel(struct elfdump *ed, struct section *gs,
     struct rel_entry *got);
 static struct spec_name	*find_name(struct elfdump *ed, const char *name);
 static int	get_ent_count(const struct section *s, int *ent_count);
-static const char *get_symbol_name(struct elfdump *ed, int symtab, int i);
+static const char *get_symbol_name(struct elfdump *ed, uint32_t symtab, int i);
 static const char *get_string(struct elfdump *ed, int strtab, size_t off);
 static void	get_versym(struct elfdump *ed, int i, uint16_t **vs, int *nvs);
 static void	load_sections(struct elfdump *ed);
@@ -1003,8 +795,8 @@ ac_print_ar(struct elfdump *ed, int fd)
 	char			 idx[10], *b;
 	void			*buff;
 	size_t			 size;
-	uint32_t		 cnt;
-	int			 i, r;
+	uint32_t		 cnt, i;
+	int			 r;
 
 	if (lseek(fd, 0, SEEK_SET) == -1)
 		err(EXIT_FAILURE, "lseek failed");
@@ -1053,11 +845,11 @@ ac_print_ar(struct elfdump *ed, int fd)
 			if (arsym == NULL)
 				err(EXIT_FAILURE, "calloc failed");
 			b += sizeof(uint32_t);
-			for (i = 0; (size_t)i < cnt; i++) {
+			for (i = 0; i < cnt; i++) {
 				arsym[i].off = be32dec(b);
 				b += sizeof(uint32_t);
 			}
-			for (i = 0; (size_t)i < cnt; i++) {
+			for (i = 0; i < cnt; i++) {
 				arsym[i].sym_name = b;
 				b += strlen(b) + 1;
 			}
@@ -1066,7 +858,7 @@ ac_print_ar(struct elfdump *ed, int fd)
 				PRT("     index    offset    symbol\n");
 			} else
 				PRT("\nsymbol table (archive):\n");
-			for (i = 0; (size_t)i < cnt; i++) {
+			for (i = 0; i < cnt; i++) {
 				if (ed->flags & SOLARIS_FMT) {
 					snprintf(idx, sizeof(idx), "[%d]", i);
 					PRT("%10s  ", idx);
@@ -1122,8 +914,7 @@ elf_print_ar(struct elfdump *ed, int fd)
 	Elf_Arsym	*arsym;
 	Elf_Cmd		 cmd;
 	char		 idx[10];
-	size_t		 cnt;
-	int		 i;
+	size_t		 cnt, i;
 
 	ed->ar = ed->elf;
 
@@ -1140,7 +931,7 @@ elf_print_ar(struct elfdump *ed, int fd)
 			PRT("     index    offset    member name and symbol\n");
 		} else
 			PRT("\nsymbol table (archive):\n");
-		for (i = 0; (size_t)i < cnt - 1; i++) {
+		for (i = 0; i < cnt - 1; i++) {
 			if (elf_rand(ed->ar, arsym[i].as_off) !=
 			    arsym[i].as_off) {
 				warnx("elf_rand failed: %s", elf_errmsg(-1));
@@ -1156,14 +947,14 @@ elf_print_ar(struct elfdump *ed, int fd)
 				break;
 			}
 			if (ed->flags & SOLARIS_FMT) {
-				snprintf(idx, sizeof(idx), "[%d]", i);
+				snprintf(idx, sizeof(idx), "[%zu]", i);
 				PRT("%10s  ", idx);
 				PRT("0x%8.8jx  ",
 				    (uintmax_t)arsym[i].as_off);
 				PRT("(%s):%s\n", arh->ar_name,
 				    arsym[i].as_name);
 			} else {
-				PRT("\nentry: %d\n", i);
+				PRT("\nentry: %zu\n", i);
 				PRT("\toffset: %#jx\n",
 				    (uintmax_t)arsym[i].as_off);
 				PRT("\tmember: %s\n", arh->ar_name);
@@ -1424,7 +1215,7 @@ find_name(struct elfdump *ed, const char *name)
  * table and the index of the symbol within that table.
  */
 static const char *
-get_symbol_name(struct elfdump *ed, int symtab, int i)
+get_symbol_name(struct elfdump *ed, uint32_t symtab, int i)
 {
 	static char	 sname[64];
 	struct section	*s;
@@ -1433,6 +1224,8 @@ get_symbol_name(struct elfdump *ed, int symtab, int i)
 	Elf_Data	*data;
 	int		 elferr;
 
+	if (symtab >= ed->shnum)
+		return ("");
 	s = &ed->sl[symtab];
 	if (s->type != SHT_SYMTAB && s->type != SHT_DYNSYM)
 		return ("");
@@ -1489,11 +1282,13 @@ elf_print_ehdr(struct elfdump *ed)
 		    ed->ehdr.e_ident[0], ed->ehdr.e_ident[1],
 		    ed->ehdr.e_ident[2], ed->ehdr.e_ident[3]);
 		PRT("  ei_class:   %-18s",
-		    ei_classes[ed->ehdr.e_ident[EI_CLASS]]);
-		PRT("  ei_data:      %s\n", ei_data[ed->ehdr.e_ident[EI_DATA]]);
+		    elf_class_str(ed->ehdr.e_ident[EI_CLASS]));
+		PRT("  ei_data:      %s\n",
+		    elf_data_str(ed->ehdr.e_ident[EI_DATA]));
 		PRT("  e_machine:  %-18s", e_machines(ed->ehdr.e_machine));
-		PRT("  e_version:    %s\n", ei_versions[ed->ehdr.e_version]);
-		PRT("  e_type:     %s\n", e_types[ed->ehdr.e_type]);
+		PRT("  e_version:    %s\n",
+		    elf_version_str(ed->ehdr.e_version));
+		PRT("  e_type:     %s\n", elf_type_str(ed->ehdr.e_type));
 		PRT("  e_flags:    %18d\n", ed->ehdr.e_flags);
 		PRT("  e_entry:    %#18jx", (uintmax_t)ed->ehdr.e_entry);
 		PRT("  e_ehsize: %6d", ed->ehdr.e_ehsize);
@@ -1508,12 +1303,12 @@ elf_print_ehdr(struct elfdump *ed)
 		PRT("\nelf header:\n");
 		PRT("\n");
 		PRT("\te_ident: %s %s %s\n",
-		    ei_classes[ed->ehdr.e_ident[EI_CLASS]],
-		    ei_data[ed->ehdr.e_ident[EI_DATA]],
+		    elf_class_str(ed->ehdr.e_ident[EI_CLASS]),
+		    elf_data_str(ed->ehdr.e_ident[EI_DATA]),
 		    ei_abis[ed->ehdr.e_ident[EI_OSABI]]);
-		PRT("\te_type: %s\n", e_types[ed->ehdr.e_type]);
+		PRT("\te_type: %s\n", elf_type_str(ed->ehdr.e_type));
 		PRT("\te_machine: %s\n", e_machines(ed->ehdr.e_machine));
-		PRT("\te_version: %s\n", ei_versions[ed->ehdr.e_version]);
+		PRT("\te_version: %s\n", elf_version_str(ed->ehdr.e_version));
 		PRT("\te_entry: %#jx\n", (uintmax_t)ed->ehdr.e_entry);
 		PRT("\te_phoff: %ju\n", (uintmax_t)ed->ehdr.e_phoff);
 		PRT("\te_shoff: %ju\n", (uintmax_t) ed->ehdr.e_shoff);
@@ -1534,28 +1329,30 @@ static void
 elf_print_phdr(struct elfdump *ed)
 {
 	GElf_Phdr	 ph;
-	size_t		 phnum;
-	int		 header, i;
+	size_t		 phnum, i;
+	int		 header;
 
 	if (elf_getphnum(ed->elf, &phnum) == 0) {
 		warnx("elf_getphnum failed: %s", elf_errmsg(-1));
 		return;
 	}
 	header = 0;
-	for (i = 0; (u_int64_t) i < phnum; i++) {
+	for (i = 0; i < phnum; i++) {
 		if (gelf_getphdr(ed->elf, i, &ph) != &ph) {
 			warnx("elf_getphdr failed: %s", elf_errmsg(-1));
 			continue;
 		}
 		if (!STAILQ_EMPTY(&ed->snl) &&
-		    find_name(ed, p_types[ph.p_type & 0x7]) == NULL)
+		    find_name(ed, elf_phdr_type_str(ph.p_type)) == NULL)
 			continue;
 		if (ed->flags & SOLARIS_FMT) {
-			PRT("\nProgram Header[%d]:\n", i);
+			PRT("\nProgram Header[%zu]:\n", i);
 			PRT("    p_vaddr:      %#-14jx", (uintmax_t)ph.p_vaddr);
-			PRT("  p_flags:    [ %s ]\n", p_flags[ph.p_flags]);
+			PRT("  p_flags:    [ %s ]\n",
+			    p_flags[ph.p_flags & 0x7]);
 			PRT("    p_paddr:      %#-14jx", (uintmax_t)ph.p_paddr);
-			PRT("  p_type:     [ %s ]\n", p_types[ph.p_type & 0x7]);
+			PRT("  p_type:     [ %s ]\n",
+			    elf_phdr_type_str(ph.p_type));
 			PRT("    p_filesz:     %#-14jx",
 			    (uintmax_t)ph.p_filesz);
 			PRT("  p_memsz:    %#jx\n", (uintmax_t)ph.p_memsz);
@@ -1568,14 +1365,14 @@ elf_print_phdr(struct elfdump *ed)
 				header = 1;
 			}
 			PRT("\n");
-			PRT("entry: %d\n", i);
-			PRT("\tp_type: %s\n", p_types[ph.p_type & 0x7]);
+			PRT("entry: %zu\n", i);
+			PRT("\tp_type: %s\n", elf_phdr_type_str(ph.p_type));
 			PRT("\tp_offset: %ju\n", (uintmax_t)ph.p_offset);
 			PRT("\tp_vaddr: %#jx\n", (uintmax_t)ph.p_vaddr);
 			PRT("\tp_paddr: %#jx\n", (uintmax_t)ph.p_paddr);
 			PRT("\tp_filesz: %ju\n", (uintmax_t)ph.p_filesz);
 			PRT("\tp_memsz: %ju\n", (uintmax_t)ph.p_memsz);
-			PRT("\tp_flags: %s\n", p_flags[ph.p_flags]);
+			PRT("\tp_flags: %s\n", p_flags[ph.p_flags & 0x7]);
 			PRT("\tp_align: %ju\n", (uintmax_t)ph.p_align);
 		}
 	}
@@ -1588,19 +1385,19 @@ static void
 elf_print_shdr(struct elfdump *ed)
 {
 	struct section *s;
-	int i;
+	size_t i;
 
 	if (!STAILQ_EMPTY(&ed->snl))
 		return;
 
 	if ((ed->flags & SOLARIS_FMT) == 0)
 		PRT("\nsection header:\n");
-	for (i = 0; (size_t)i < ed->shnum; i++) {
+	for (i = 0; i < ed->shnum; i++) {
 		s = &ed->sl[i];
 		if (ed->flags & SOLARIS_FMT) {
 			if (i == 0)
 				continue;
-			PRT("\nSection Header[%d]:", i);
+			PRT("\nSection Header[%zu]:", i);
 			PRT("  sh_name: %s\n", s->name);
 			PRT("    sh_addr:      %#-14jx", (uintmax_t)s->addr);
 			if (s->flags != 0)
@@ -1608,7 +1405,8 @@ elf_print_shdr(struct elfdump *ed)
 			else
 				PRT("  sh_flags:   0\n");
 			PRT("    sh_size:      %#-14jx", (uintmax_t)s->sz);
-			PRT("  sh_type:    [ %s ]\n", sh_types(s->type));
+			PRT("  sh_type:    [ %s ]\n",
+			    sh_types(ed->ehdr.e_machine, s->type));
 			PRT("    sh_offset:    %#-14jx", (uintmax_t)s->off);
 			PRT("  sh_entsize: %#jx\n", (uintmax_t)s->entsize);
 			PRT("    sh_link:      %-14u", s->link);
@@ -1618,7 +1416,8 @@ elf_print_shdr(struct elfdump *ed)
 			PRT("\n");
 			PRT("entry: %ju\n", (uintmax_t)i);
 			PRT("\tsh_name: %s\n", s->name);
-			PRT("\tsh_type: %s\n", sh_types(s->type));
+			PRT("\tsh_type: %s\n",
+			    sh_types(ed->ehdr.e_machine, s->type));
 			PRT("\tsh_flags: %s\n", sh_flags(s->flags));
 			PRT("\tsh_addr: %#jx\n", (uintmax_t)s->addr);
 			PRT("\tsh_offset: %ju\n", (uintmax_t)s->off);
@@ -1658,15 +1457,16 @@ get_versym(struct elfdump *ed, int i, uint16_t **vs, int *nvs)
 {
 	struct section	*s;
 	Elf_Data	*data;
-	int		 j, elferr;
+	size_t		 j;
+	int		 elferr;
 
 	s = NULL;
-	for (j = 0; (size_t)j < ed->shnum; j++) {
+	for (j = 0; j < ed->shnum; j++) {
 		s = &ed->sl[j];
 		if (s->type == SHT_SUNW_versym && s->link == (uint32_t)i)
 			break;
 	}
-	if ((size_t)j >= ed->shnum) {
+	if (j >= ed->shnum) {
 		*vs = NULL;
 		return;
 	}
@@ -1745,8 +1545,8 @@ elf_print_symtab(struct elfdump *ed, int i)
 				PRT("0x%8.8jx  ", (uintmax_t)sym.st_size);
 			else
 				PRT("0x%12.12jx  ", (uintmax_t)sym.st_size);
-			PRT("%s ", st_types_S[GELF_ST_TYPE(sym.st_info)]);
-			PRT("%s  ", st_bindings_S[GELF_ST_BIND(sym.st_info)]);
+			PRT("%s ", st_type_S(GELF_ST_TYPE(sym.st_info)));
+			PRT("%s  ", st_bindings_S(GELF_ST_BIND(sym.st_info)));
 			PRT("%c  ", st_others[sym.st_other]);
 			PRT("%3u ", (vs == NULL ? 0 : vs[j]));
 			PRT("%-11.11s ", sh_name(ed, sym.st_shndx));
@@ -1757,8 +1557,9 @@ elf_print_symtab(struct elfdump *ed, int i)
 			PRT("\tst_value: %#jx\n", (uintmax_t)sym.st_value);
 			PRT("\tst_size: %ju\n", (uintmax_t)sym.st_size);
 			PRT("\tst_info: %s %s\n",
-			    st_types[GELF_ST_TYPE(sym.st_info)],
-			    st_bindings[GELF_ST_BIND(sym.st_info)]);
+			    st_type(ed->ehdr.e_machine,
+			    GELF_ST_TYPE(sym.st_info)),
+			    st_bindings(GELF_ST_BIND(sym.st_info)));
 			PRT("\tst_shndx: %ju\n", (uintmax_t)sym.st_shndx);
 		}
 	}
@@ -1770,9 +1571,9 @@ elf_print_symtab(struct elfdump *ed, int i)
 static void
 elf_print_symtabs(struct elfdump *ed)
 {
-	int i;
+	size_t i;
 
-	for (i = 0; (size_t)i < ed->shnum; i++)
+	for (i = 0; i < ed->shnum; i++)
 		if ((ed->sl[i].type == SHT_SYMTAB ||
 		    ed->sl[i].type == SHT_DYNSYM) &&
 		    (STAILQ_EMPTY(&ed->snl) || find_name(ed, ed->sl[i].name)))
@@ -1835,6 +1636,7 @@ elf_print_dynamic(struct elfdump *ed)
 		case DT_NEEDED:
 		case DT_SONAME:
 		case DT_RPATH:
+		case DT_RUNPATH:
 			if ((name = elf_strptr(ed->elf, s->link,
 				    dyn.d_un.d_val)) == NULL)
 				name = "";
@@ -1901,7 +1703,7 @@ elf_print_rel_entry(struct elfdump *ed, struct section *s, int j,
 {
 
 	if (ed->flags & SOLARIS_FMT) {
-		PRT("        %-23s ", r_type(ed->ehdr.e_machine,
+		PRT("        %-23s ", elftc_reloc_type_str(ed->ehdr.e_machine,
 			GELF_R_TYPE(r->u_r.rel.r_info)));
 		PRT("%#12jx ", (uintmax_t)r->u_r.rel.r_offset);
 		if (r->type == SHT_RELA)
@@ -1995,9 +1797,10 @@ elf_print_reloc(struct elfdump *ed)
 {
 	struct section	*s;
 	Elf_Data	*data;
-	int		 i, elferr;
+	size_t		 i;
+	int		 elferr;
 
-	for (i = 0; (size_t)i < ed->shnum; i++) {
+	for (i = 0; i < ed->shnum; i++) {
 		s = &ed->sl[i];
 		if ((s->type == SHT_REL || s->type == SHT_RELA) &&
 		    (STAILQ_EMPTY(&ed->snl) || find_name(ed, s->name))) {
@@ -2025,13 +1828,12 @@ elf_print_interp(struct elfdump *ed)
 {
 	const char *s;
 	GElf_Phdr phdr;
-	size_t phnum;
-	int i;
+	size_t filesize, i, phnum;
 
 	if (!STAILQ_EMPTY(&ed->snl) && find_name(ed, "PT_INTERP") == NULL)
 		return;
 
-	if ((s = elf_rawfile(ed->elf, NULL)) == NULL) {
+	if ((s = elf_rawfile(ed->elf, &filesize)) == NULL) {
 		warnx("elf_rawfile failed: %s", elf_errmsg(-1));
 		return;
 	}
@@ -2039,12 +1841,16 @@ elf_print_interp(struct elfdump *ed)
 		warnx("elf_getphnum failed: %s", elf_errmsg(-1));
 		return;
 	}
-	for (i = 0; (size_t)i < phnum; i++) {
+	for (i = 0; i < phnum; i++) {
 		if (gelf_getphdr(ed->elf, i, &phdr) != &phdr) {
 			warnx("elf_getphdr failed: %s", elf_errmsg(-1));
 			continue;
 		}
 		if (phdr.p_type == PT_INTERP) {
+			if (phdr.p_offset >= filesize) {
+				warnx("invalid phdr offset");
+				continue;
+			}
 			PRT("\ninterp:\n");
 			PRT("\t%s\n", s + phdr.p_offset);
 		}
@@ -2052,7 +1858,7 @@ elf_print_interp(struct elfdump *ed)
 }
 
 /*
- * Search the relocation sections for entries refering to the .got section.
+ * Search the relocation sections for entries referring to the .got section.
  */
 static void
 find_gotrel(struct elfdump *ed, struct section *gs, struct rel_entry *got)
@@ -2060,9 +1866,10 @@ find_gotrel(struct elfdump *ed, struct section *gs, struct rel_entry *got)
 	struct section		*s;
 	struct rel_entry	 r;
 	Elf_Data		*data;
-	int			 elferr, i, j, k, len;
+	size_t			 i;
+	int			 elferr, j, k, len;
 
-	for(i = 0; (size_t)i < ed->shnum; i++) {
+	for(i = 0; i < ed->shnum; i++) {
 		s = &ed->sl[i];
 		if (s->type != SHT_REL && s->type != SHT_RELA)
 			continue;
@@ -2139,7 +1946,7 @@ elf_print_got_section(struct elfdump *ed, struct section *s)
 
 	/*
 	 * GOT section has section type SHT_PROGBITS, thus libelf treats it as
-	 * byte stream and will not perfrom any translation on it. As a result,
+	 * byte stream and will not perform any translation on it. As a result,
 	 * an exlicit call to gelf_xlatetom is needed here. Depends on arch,
 	 * GOT section should be translated to either WORD or XWORD.
 	 */
@@ -2173,13 +1980,16 @@ elf_print_got_section(struct elfdump *ed, struct section *s)
 		for(i = 0; i < len; i++) {
 			PRT("[%5.5d]  ", i);
 			if (ed->ec == ELFCLASS32) {
-				PRT("%-8.8jx  ", s->addr + i * s->entsize);
+				PRT("%-8.8jx  ",
+				    (uintmax_t) (s->addr + i * s->entsize));
 				PRT("%-8.8x ", *((uint32_t *)dst.d_buf + i));
 			} else {
-				PRT("%-16.16jx  ", s->addr + i * s->entsize);
-				PRT("%-16.16jx  ", *((uint64_t *)dst.d_buf + i));
+				PRT("%-16.16jx  ",
+				    (uintmax_t) (s->addr + i * s->entsize));
+				PRT("%-16.16jx  ",
+				    (uintmax_t) *((uint64_t *)dst.d_buf + i));
 			}
-			PRT("%-18s ", r_type(ed->ehdr.e_machine,
+			PRT("%-18s ", elftc_reloc_type_str(ed->ehdr.e_machine,
 				GELF_R_TYPE(got[i].u_r.rel.r_info)));
 			if (ed->ec == ELFCLASS32)
 				PRT("%-8.8jd ",
@@ -2198,7 +2008,8 @@ elf_print_got_section(struct elfdump *ed, struct section *s)
 			if (ed->ec == ELFCLASS32)
 				PRT("\t%#x\n", *((uint32_t *)dst.d_buf + i));
 			else
-				PRT("\t%#jx\n", *((uint64_t *)dst.d_buf + i));
+				PRT("\t%#jx\n",
+				    (uintmax_t) *((uint64_t *)dst.d_buf + i));
 		}
 	}
 }
@@ -2210,13 +2021,13 @@ static void
 elf_print_got(struct elfdump *ed)
 {
 	struct section	*s;
-	int		 i;
+	size_t		 i;
 
 	if (!STAILQ_EMPTY(&ed->snl))
 		return;
 
 	s = NULL;
-	for (i = 0; (size_t)i < ed->shnum; i++) {
+	for (i = 0; i < ed->shnum; i++) {
 		s = &ed->sl[i];
 		if (s->name && !strncmp(s->name, ".got", 4) &&
 		    (STAILQ_EMPTY(&ed->snl) || find_name(ed, s->name)))
@@ -2238,7 +2049,8 @@ elf_print_note(struct elfdump *ed)
 	uint32_t	 desc;
 	size_t		 count;
 	int		 elferr, i;
-	char		*src, idx[10];
+	uint8_t		*src;
+	char		 idx[10];
 
 	s = NULL;
 	for (i = 0; (size_t)i < ed->shnum; i++) {
@@ -2269,6 +2081,10 @@ elf_print_note(struct elfdump *ed)
 		descsz = en->n_descsz;
 		src += sizeof(Elf_Note);
 		count -= sizeof(Elf_Note);
+		if (roundup2(namesz, 4) + roundup2(descsz, 4) > count) {
+			warnx("truncated note section");
+			return;
+		}
 		if (ed->flags & SOLARIS_FMT) {
 			PRT("\n    type   %#x\n", en->n_type);
 			PRT("    namesz %#x:\n", en->n_namesz);
@@ -2319,7 +2135,8 @@ elf_print_svr4_hash(struct elfdump *ed, struct section *s)
 	uint32_t	*bucket, *chain;
 	uint32_t	 nbucket, nchain;
 	uint32_t	*bl, *c, maxl, total;
-	int		 i, j, first, elferr;
+	uint32_t	 i, j;
+	int		 first, elferr;
 	char		 idx[10];
 
 	if (ed->flags & SOLARIS_FMT)
@@ -2345,7 +2162,8 @@ elf_print_svr4_hash(struct elfdump *ed, struct section *s)
 		warnx("Malformed .hash section");
 		return;
 	}
-	if (data->d_size != (nbucket + nchain + 2) * sizeof(uint32_t)) {
+	if (data->d_size !=
+	    ((uint64_t)nbucket + (uint64_t)nchain + 2) * sizeof(uint32_t)) {
 		warnx("Malformed .hash section");
 		return;
 	}
@@ -2356,20 +2174,18 @@ elf_print_svr4_hash(struct elfdump *ed, struct section *s)
 		maxl = 0;
 		if ((bl = calloc(nbucket, sizeof(*bl))) == NULL)
 			err(EXIT_FAILURE, "calloc failed");
-		for (i = 0; (uint32_t)i < nbucket; i++)
-			for (j = bucket[i]; j > 0 && (uint32_t)j < nchain;
-			     j = chain[j])
+		for (i = 0; i < nbucket; i++)
+			for (j = bucket[i]; j > 0 && j < nchain; j = chain[j])
 				if (++bl[i] > maxl)
 					maxl = bl[i];
 		if ((c = calloc(maxl + 1, sizeof(*c))) == NULL)
 			err(EXIT_FAILURE, "calloc failed");
-		for (i = 0; (uint32_t)i < nbucket; i++)
+		for (i = 0; i < nbucket; i++)
 			c[bl[i]]++;
 		PRT("    bucket    symndx    name\n");
-		for (i = 0; (uint32_t)i < nbucket; i++) {
+		for (i = 0; i < nbucket; i++) {
 			first = 1;
-			for (j = bucket[i]; j > 0 && (uint32_t)j < nchain;
-			     j = chain[j]) {
+			for (j = bucket[i]; j > 0 && j < nchain; j = chain[j]) {
 				if (first) {
 					PRT("%10d  ", i);
 					first = 0;
@@ -2382,7 +2198,7 @@ elf_print_svr4_hash(struct elfdump *ed, struct section *s)
 		}
 		PRT("\n");
 		total = 0;
-		for (i = 0; (uint32_t)i <= maxl; i++) {
+		for (i = 0; i <= maxl; i++) {
 			total += c[i] * i;
 			PRT("%10u  buckets contain %8d symbols\n", c[i], i);
 		}
@@ -2391,9 +2207,9 @@ elf_print_svr4_hash(struct elfdump *ed, struct section *s)
 	} else {
 		PRT("\nnbucket: %u\n", nbucket);
 		PRT("nchain: %u\n\n", nchain);
-		for (i = 0; (uint32_t)i < nbucket; i++)
+		for (i = 0; i < nbucket; i++)
 			PRT("bucket[%d]:\n\t%u\n\n", i, bucket[i]);
-		for (i = 0; (uint32_t)i < nchain; i++)
+		for (i = 0; i < nchain; i++)
 			PRT("chain[%d]:\n\t%u\n\n", i, chain[i]);
 	}
 }
@@ -2409,7 +2225,8 @@ elf_print_svr4_hash64(struct elfdump *ed, struct section *s)
 	uint64_t	*bucket, *chain;
 	uint64_t	 nbucket, nchain;
 	uint64_t	*bl, *c, maxl, total;
-	int		 i, j, elferr, first;
+	uint64_t	 i, j;
+	int		 elferr, first;
 	char		 idx[10];
 
 	if (ed->flags & SOLARIS_FMT)
@@ -2459,35 +2276,33 @@ elf_print_svr4_hash64(struct elfdump *ed, struct section *s)
 		maxl = 0;
 		if ((bl = calloc(nbucket, sizeof(*bl))) == NULL)
 			err(EXIT_FAILURE, "calloc failed");
-		for (i = 0; (uint64_t)i < nbucket; i++)
-			for (j = bucket[i]; j > 0 && (uint64_t)j < nchain;
-			     j = chain[j])
+		for (i = 0; i < nbucket; i++)
+			for (j = bucket[i]; j > 0 && j < nchain; j = chain[j])
 				if (++bl[i] > maxl)
 					maxl = bl[i];
 		if ((c = calloc(maxl + 1, sizeof(*c))) == NULL)
 			err(EXIT_FAILURE, "calloc failed");
-		for (i = 0; (uint64_t)i < nbucket; i++)
+		for (i = 0; i < nbucket; i++)
 			c[bl[i]]++;
 		PRT("    bucket    symndx    name\n");
-		for (i = 0; (uint64_t)i < nbucket; i++) {
+		for (i = 0; i < nbucket; i++) {
 			first = 1;
-			for (j = bucket[i]; j > 0 && (uint64_t)j < nchain;
-			     j = chain[j]) {
+			for (j = bucket[i]; j > 0 && j < nchain; j = chain[j]) {
 				if (first) {
-					PRT("%10d  ", i);
+					PRT("%10zu  ", i);
 					first = 0;
 				} else
 					PRT("            ");
-				snprintf(idx, sizeof(idx), "[%d]", j);
+				snprintf(idx, sizeof(idx), "[%zu]", (size_t)j);
 				PRT("%-10s  ", idx);
 				PRT("%s\n", get_symbol_name(ed, s->link, j));
 			}
 		}
 		PRT("\n");
 		total = 0;
-		for (i = 0; (uint64_t)i <= maxl; i++) {
+		for (i = 0; i <= maxl; i++) {
 			total += c[i] * i;
-			PRT("%10ju  buckets contain %8d symbols\n",
+			PRT("%10ju  buckets contain %8zu symbols\n",
 			    (uintmax_t)c[i], i);
 		}
 		PRT("%10ju  buckets         %8ju symbols (globals)\n",
@@ -2495,10 +2310,10 @@ elf_print_svr4_hash64(struct elfdump *ed, struct section *s)
 	} else {
 		PRT("\nnbucket: %ju\n", (uintmax_t)nbucket);
 		PRT("nchain: %ju\n\n", (uintmax_t)nchain);
-		for (i = 0; (uint64_t)i < nbucket; i++)
-			PRT("bucket[%d]:\n\t%ju\n\n", i, (uintmax_t)bucket[i]);
-		for (i = 0; (uint64_t)i < nchain; i++)
-			PRT("chain[%d]:\n\t%ju\n\n", i, (uintmax_t)chain[i]);
+		for (i = 0; i < nbucket; i++)
+			PRT("bucket[%zu]:\n\t%ju\n\n", i, (uintmax_t)bucket[i]);
+		for (i = 0; i < nchain; i++)
+			PRT("chain[%zu]:\n\t%ju\n\n", i, (uintmax_t)chain[i]);
 	}
 
 }
@@ -2515,7 +2330,8 @@ elf_print_gnu_hash(struct elfdump *ed, struct section *s)
 	uint32_t	*bucket, *chain;
 	uint32_t	 nbucket, nchain, symndx, maskwords, shift2;
 	uint32_t	*bl, *c, maxl, total;
-	int		 i, j, first, elferr, dynsymcount;
+	uint32_t	 i, j;
+	int		 first, elferr, dynsymcount;
 	char		 idx[10];
 
 	if (ed->flags & SOLARIS_FMT)
@@ -2540,13 +2356,21 @@ elf_print_gnu_hash(struct elfdump *ed, struct section *s)
 	maskwords = buf[2];
 	shift2 = buf[3];
 	buf += 4;
+	if (s->link >= ed->shnum) {
+		warnx("Malformed .gnu.hash section");
+		return;
+	}
 	ds = &ed->sl[s->link];
 	if (!get_ent_count(ds, &dynsymcount))
 		return;
+	if (symndx >= (uint32_t)dynsymcount) {
+		warnx("Malformed .gnu.hash section");
+		return;
+	}
 	nchain = dynsymcount - symndx;
 	if (data->d_size != 4 * sizeof(uint32_t) + maskwords *
 	    (ed->ec == ELFCLASS32 ? sizeof(uint32_t) : sizeof(uint64_t)) +
-	    (nbucket + nchain) * sizeof(uint32_t)) {
+	    ((uint64_t)nbucket + (uint64_t)nchain) * sizeof(uint32_t)) {
 		warnx("Malformed .gnu.hash section");
 		return;
 	}
@@ -2557,10 +2381,8 @@ elf_print_gnu_hash(struct elfdump *ed, struct section *s)
 		maxl = 0;
 		if ((bl = calloc(nbucket, sizeof(*bl))) == NULL)
 			err(EXIT_FAILURE, "calloc failed");
-		for (i = 0; (uint32_t)i < nbucket; i++)
-			for (j = bucket[i];
-			     j > 0 && (uint32_t)j - symndx < nchain;
-			     j++) {
+		for (i = 0; i < nbucket; i++)
+			for (j = bucket[i]; j > 0 && j - symndx < nchain; j++) {
 				if (++bl[i] > maxl)
 					maxl = bl[i];
 				if (chain[j - symndx] & 1)
@@ -2568,14 +2390,12 @@ elf_print_gnu_hash(struct elfdump *ed, struct section *s)
 			}
 		if ((c = calloc(maxl + 1, sizeof(*c))) == NULL)
 			err(EXIT_FAILURE, "calloc failed");
-		for (i = 0; (uint32_t)i < nbucket; i++)
+		for (i = 0; i < nbucket; i++)
 			c[bl[i]]++;
 		PRT("    bucket    symndx    name\n");
-		for (i = 0; (uint32_t)i < nbucket; i++) {
+		for (i = 0; i < nbucket; i++) {
 			first = 1;
-			for (j = bucket[i];
-			     j > 0 && (uint32_t)j - symndx < nchain;
-			     j++) {
+			for (j = bucket[i]; j > 0 && j - symndx < nchain; j++) {
 				if (first) {
 					PRT("%10d  ", i);
 					first = 0;
@@ -2590,7 +2410,7 @@ elf_print_gnu_hash(struct elfdump *ed, struct section *s)
 		}
 		PRT("\n");
 		total = 0;
-		for (i = 0; (uint32_t)i <= maxl; i++) {
+		for (i = 0; i <= maxl; i++) {
 			total += c[i] * i;
 			PRT("%10u  buckets contain %8d symbols\n", c[i], i);
 		}
@@ -2602,9 +2422,9 @@ elf_print_gnu_hash(struct elfdump *ed, struct section *s)
 		PRT("maskwords: %u\n", maskwords);
 		PRT("shift2: %u\n", shift2);
 		PRT("nchain: %u\n\n", nchain);
-		for (i = 0; (uint32_t)i < nbucket; i++)
+		for (i = 0; i < nbucket; i++)
 			PRT("bucket[%d]:\n\t%u\n\n", i, bucket[i]);
-		for (i = 0; (uint32_t)i < nchain; i++)
+		for (i = 0; i < nchain; i++)
 			PRT("chain[%d]:\n\t%u\n\n", i, chain[i]);
 	}
 }
@@ -2616,9 +2436,9 @@ static void
 elf_print_hash(struct elfdump *ed)
 {
 	struct section	*s;
-	int		 i;
+	size_t		 i;
 
-	for (i = 0; (size_t)i < ed->shnum; i++) {
+	for (i = 0; i < ed->shnum; i++) {
 		s = &ed->sl[i];
 		if ((s->type == SHT_HASH || s->type == SHT_GNU_HASH) &&
 		    (STAILQ_EMPTY(&ed->snl) || find_name(ed, s->name))) {
@@ -2801,9 +2621,9 @@ static void
 elf_print_symver(struct elfdump *ed)
 {
 	struct section	*s;
-	int		 i;
+	size_t		 i;
 
-	for (i = 0; (size_t)i < ed->shnum; i++) {
+	for (i = 0; i < ed->shnum; i++) {
 		s = &ed->sl[i];
 		if (!STAILQ_EMPTY(&ed->snl) && !find_name(ed, s->name))
 			continue;

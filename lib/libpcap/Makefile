@@ -5,6 +5,7 @@ SHLIBDIR?= /lib
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	pcap
 SRCS=	grammar.y tokdefs.h version.h pcap-bpf.c \
 	pcap-netmap.c \

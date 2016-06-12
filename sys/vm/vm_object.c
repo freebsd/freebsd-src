@@ -264,6 +264,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 #if VM_NRESERVLEVEL > 0
 	LIST_INIT(&object->rvq);
 #endif
+	umtx_shm_object_init(object);
 }
 
 /*
@@ -475,6 +476,9 @@ vm_object_vndeallocate(vm_object_t object)
 	}
 #endif
 
+	if (!umtx_shm_vnobj_persistent && object->ref_count == 1)
+		umtx_shm_object_terminated(object);
+
 	/*
 	 * The test for text of vp vnode does not need a bypass to
 	 * reach right VV_TEXT there, since it is obtained from
@@ -647,6 +651,7 @@ retry:
 			return;
 		}
 doterm:
+		umtx_shm_object_terminated(object);
 		temp = object->backing_object;
 		if (temp != NULL) {
 			KASSERT((object->flags & OBJ_TMPFS_NODE) == 0,
@@ -1664,11 +1669,11 @@ vm_object_qcollapse(vm_object_t object)
 void
 vm_object_collapse(vm_object_t object)
 {
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	
-	while (TRUE) {
-		vm_object_t backing_object;
+	vm_object_t backing_object, new_backing_object;
 
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	while (TRUE) {
 		/*
 		 * Verify that the conditions are right for collapse:
 		 *
@@ -1694,14 +1699,13 @@ vm_object_collapse(vm_object_t object)
 			break;
 		}
 
-		if (
-		    object->paging_in_progress != 0 ||
-		    backing_object->paging_in_progress != 0
-		) {
+		if (object->paging_in_progress != 0 ||
+		    backing_object->paging_in_progress != 0) {
 			vm_object_qcollapse(object);
 			VM_OBJECT_WUNLOCK(backing_object);
 			break;
 		}
+
 		/*
 		 * We know that we can either collapse the backing object (if
 		 * the parent is the only reference to it) or (perhaps) have
@@ -1713,6 +1717,9 @@ vm_object_collapse(vm_object_t object)
 		 * case.
 		 */
 		if (backing_object->ref_count == 1) {
+			vm_object_pip_add(object, 1);
+			vm_object_pip_add(backing_object, 1);
+
 			/*
 			 * If there is exactly one reference to the backing
 			 * object, we can collapse it into the parent.
@@ -1784,15 +1791,15 @@ vm_object_collapse(vm_object_t object)
 			KASSERT(backing_object->ref_count == 1, (
 "backing_object %p was somehow re-referenced during collapse!",
 			    backing_object));
+			vm_object_pip_wakeup(backing_object);
 			backing_object->type = OBJT_DEAD;
 			backing_object->ref_count = 0;
 			VM_OBJECT_WUNLOCK(backing_object);
 			vm_object_destroy(backing_object);
 
+			vm_object_pip_wakeup(object);
 			object_collapses++;
 		} else {
-			vm_object_t new_backing_object;
-
 			/*
 			 * If we do not entirely shadow the backing object,
 			 * there is nothing we can do so we give up.
@@ -2106,7 +2113,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 
 		/*
 		 * If prev_object was charged, then this mapping,
-		 * althought not charged now, may become writable
+		 * although not charged now, may become writable
 		 * later. Non-NULL cred in the object would prevent
 		 * swap reservation during enabling of the write
 		 * access, so reserve swap now. Failed reservation
@@ -2116,6 +2123,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 		 */
 		if (!reserved && !swap_reserve_by_cred(ptoa(next_size),
 		    prev_object->cred)) {
+			VM_OBJECT_WUNLOCK(prev_object);
 			return (FALSE);
 		}
 		prev_object->charge += ptoa(next_size);

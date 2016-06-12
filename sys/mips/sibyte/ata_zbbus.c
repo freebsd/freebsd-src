@@ -67,7 +67,7 @@ ata_zbbus_attach(device_t dev)
 	ch->attached = 1;
 
 	rid = 0;
-	io = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE);
+	io = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (io == NULL)
 		return (ENXIO);
 

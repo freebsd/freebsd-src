@@ -649,7 +649,7 @@ done:
  * Return values:
  *   0: Success
  * < 0: Failure
- * > 0: Acutal length
+ * > 0: Actual length
  *------------------------------------------------------------------------*/
 int
 usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *uhe,

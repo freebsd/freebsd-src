@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -89,6 +89,7 @@ CONSOLE_DRIVER(riscv);
 #define	MAX_BURST_LEN		1
 #define	QUEUE_SIZE		256
 #define	CONSOLE_DEFAULT_ID	1ul
+#define	SPIN_IN_MACHINE_MODE	1
 
 struct queue_entry {
 	uint64_t data;
@@ -109,7 +110,12 @@ htif_putc(int c)
 	cmd |= (CONSOLE_DEFAULT_ID << HTIF_DEV_ID_SHIFT);
 	cmd |= c;
 
+#ifdef SPIN_IN_MACHINE_MODE
+	machine_command(ECALL_HTIF_LOWPUTC, cmd);
+#else
 	htif_command(cmd);
+#endif
+
 }
 
 static uint8_t
@@ -141,6 +147,7 @@ riscv_putc(int c)
 
 	htif_putc(c);
 
+#ifndef SPIN_IN_MACHINE_MODE
 	/* Wait for an interrupt */
 	__asm __volatile(
 		"li	%0, 1\n"	/* counter = 1 */
@@ -153,6 +160,7 @@ riscv_putc(int c)
 	"2:"
 		: "=&r"(counter), "=&r"(val) : "r"(cc)
 	);
+#endif
 }
 
 #ifdef EARLY_PRINTF
@@ -259,10 +267,37 @@ riscv_cnungrab(struct consdev *cp)
 static int
 riscv_cngetc(struct consdev *cp)
 {
+#if defined(KDB)
+	uint64_t devcmd;
+	uint64_t entry;
+	uint64_t devid;
+#endif
 	uint8_t data;
 	int ch;
 
-	ch = htif_getc();
+	htif_getc();
+
+#if defined(KDB)
+	if (kdb_active) {
+		entry = machine_command(ECALL_HTIF_GET_ENTRY, 0);
+		while (entry) {
+			devid = HTIF_DEV_ID(entry);
+			devcmd = HTIF_DEV_CMD(entry);
+			data = HTIF_DEV_DATA(entry);
+
+			if (devid == CONSOLE_DEFAULT_ID && devcmd == 0) {
+				entry_last->data = data;
+				entry_last->used = 1;
+				entry_last = entry_last->next;
+			} else {
+				printf("Lost interrupt: devid %d\n",
+				    devid);
+			}
+
+			entry = machine_command(ECALL_HTIF_GET_ENTRY, 0);
+		}
+	}
+#endif
 
 	if (entry_served->used == 1) {
 		data = entry_served->data;

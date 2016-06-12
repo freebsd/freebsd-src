@@ -76,13 +76,16 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libutil.h>
 #include <paths.h>
+#include <poll.h>
 #include <pwd.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#ifdef USE_BLACKLIST
+#include <blacklist.h>
+#endif
 
 #ifndef TIOCPKT_WINDOW
 #define TIOCPKT_WINDOW 0x80
@@ -228,6 +231,9 @@ doit(int f, union sockunion *fromp)
 			/* error check ? */
 			syslog(LOG_NOTICE, "Connection from %s on illegal port",
 			       nameinfo);
+#ifdef USE_BLACKLIST
+			blacklist(1, STDIN_FILENO, "illegal port");
+#endif
 			fatal(f, "Permission denied", 0);
 		}
 #ifdef IP_OPTIONS
@@ -251,6 +257,9 @@ doit(int f, union sockunion *fromp)
 						"Connection refused from %s with IP option %s",
 						inet_ntoa(fromp->su_sin.sin_addr),
 						c == IPOPT_LSRR ? "LSRR" : "SSRR");
+#ifdef USE_BLACKLIST
+					blacklist(1, STDIN_FILENO, "source routing present");
+#endif
 					exit(1);
 				}
 				if (c == IPOPT_EOL)
@@ -280,11 +289,17 @@ doit(int f, union sockunion *fromp)
 		if (f > 2)	/* f should always be 0, but... */
 			(void) close(f);
 		setup_term(0);
-		 if (*lusername=='-') {
+		if (*lusername=='-') {
 			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
 			       lusername);
+#ifdef USE_BLACKLIST
+			blacklist(1, STDIN_FILENO, "invalid user");
+#endif
 			fatal(STDERR_FILENO, "invalid user", 0);
 		}
+#ifdef USE_BLACKLIST
+		blacklist(0, STDIN_FILENO, "success");
+#endif
 		if (authenticated) {
 			execl(_PATH_LOGIN, "login", "-p",
 			    "-h", hostname, "-f", lusername, (char *)NULL);
@@ -350,34 +365,27 @@ protocol(int f, int p)
 		nfd = f + 1;
 	else
 		nfd = p + 1;
-	if (nfd > FD_SETSIZE) {
-		syslog(LOG_ERR, "select mask too small, increase FD_SETSIZE");
-		fatal(f, "internal error (select mask too small)", 0);
-	}
 	for (;;) {
-		fd_set ibits, obits, ebits, *omask;
+		struct pollfd set[2];
 
-		FD_ZERO(&ebits);
-		FD_ZERO(&ibits);
-		FD_ZERO(&obits);
-		omask = (fd_set *)NULL;
-		if (fcc) {
-			FD_SET(p, &obits);
-			omask = &obits;
-		} else
-			FD_SET(f, &ibits);
+		set[0].fd = p;
+		set[0].events = POLLPRI;
+		set[1].fd = f;
+		set[1].events = 0;
+		if (fcc)
+			set[0].events |= POLLOUT;
+		else
+			set[1].events |= POLLIN;
 		if (pcc >= 0) {
-			if (pcc) {
-				FD_SET(f, &obits);
-				omask = &obits;
-			} else
-				FD_SET(p, &ibits);
+			if (pcc)
+				set[1].events |= POLLOUT;
+			else
+				set[0].events |= POLLIN;
 		}
-		FD_SET(p, &ebits);
-		if ((n = select(nfd, &ibits, omask, &ebits, 0)) < 0) {
+		if ((n = poll(set, 2, INFTIM)) < 0) {
 			if (errno == EINTR)
 				continue;
-			fatal(f, "select", 1);
+			fatal(f, "poll", 1);
 		}
 		if (n == 0) {
 			/* shouldn't happen... */
@@ -385,18 +393,16 @@ protocol(int f, int p)
 			continue;
 		}
 #define	pkcontrol(c)	((c)&(TIOCPKT_FLUSHWRITE|TIOCPKT_NOSTOP|TIOCPKT_DOSTOP))
-		if (FD_ISSET(p, &ebits)) {
+		if (set[0].revents & POLLPRI) {
 			cc = read(p, &cntl, 1);
 			if (cc == 1 && pkcontrol(cntl)) {
 				cntl |= oobdata[0];
 				send(f, &cntl, 1, MSG_OOB);
-				if (cntl & TIOCPKT_FLUSHWRITE) {
+				if (cntl & TIOCPKT_FLUSHWRITE)
 					pcc = 0;
-					FD_CLR(p, &ibits);
-				}
 			}
 		}
-		if (FD_ISSET(f, &ibits)) {
+		if (set[1].revents & POLLIN) {
 			fcc = read(f, fibuf, sizeof(fibuf));
 			if (fcc < 0 && errno == EWOULDBLOCK)
 				fcc = 0;
@@ -422,11 +428,10 @@ protocol(int f, int p)
 							goto top; /* n^2 */
 						}
 					}
-				FD_SET(p, &obits);		/* try write */
 			}
 		}
 
-		if (FD_ISSET(p, &obits) && fcc > 0) {
+		if (set[0].revents & POLLOUT && fcc > 0) {
 			cc = write(p, fbp, fcc);
 			if (cc > 0) {
 				fcc -= cc;
@@ -434,7 +439,7 @@ protocol(int f, int p)
 			}
 		}
 
-		if (FD_ISSET(p, &ibits)) {
+		if (set[0].revents & POLLIN) {
 			pcc = read(p, pibuf, sizeof (pibuf));
 			pbp = pibuf;
 			if (pcc < 0 && errno == EWOULDBLOCK)
@@ -443,7 +448,6 @@ protocol(int f, int p)
 				break;
 			else if (pibuf[0] == 0) {
 				pbp++, pcc--;
-				FD_SET(f, &obits);	/* try write */
 			} else {
 				if (pkcontrol(pibuf[0])) {
 					pibuf[0] |= oobdata[0];
@@ -452,18 +456,8 @@ protocol(int f, int p)
 				pcc = 0;
 			}
 		}
-		if ((FD_ISSET(f, &obits)) && pcc > 0) {
+		if (set[1].revents & POLLOUT && pcc > 0) {
 			cc = write(f, pbp, pcc);
-			if (cc < 0 && errno == EWOULDBLOCK) {
-				/*
-				 * This happens when we try write after read
-				 * from p, but some old kernels balk at large
-				 * writes even when select returns true.
-				 */
-				if (!FD_ISSET(p, &ibits))
-					sleep(5);
-				continue;
-			}
 			if (cc > 0) {
 				pcc -= cc;
 				pbp += cc;
@@ -528,8 +522,12 @@ getstr(char *buf, int cnt, char *errmsg)
 	do {
 		if (read(STDIN_FILENO, &c, 1) != 1)
 			exit(1);
-		if (--cnt < 0)
+		if (--cnt < 0) {
+#ifdef USE_BLACKLIST
+			blacklist(1, STDIN_FILENO, "buffer overflow");
+#endif
 			fatal(STDOUT_FILENO, errmsg, 0);
+		}
 		*buf++ = c;
 	} while (c != 0);
 }

@@ -185,7 +185,11 @@ enum CastKind {
   /// CK_FloatingToBoolean - Floating point to boolean.
   ///    (bool) f
   CK_FloatingToBoolean,
-    
+
+  // CK_BooleanToSignedIntegral - Convert a boolean to -1 or 0 for true and
+  // false, respectively.
+  CK_BooleanToSignedIntegral,
+
   /// CK_FloatingCast - Casting between floating types of different size.
   ///    (double) f
   ///    (float) ld
@@ -334,7 +338,8 @@ enum UnaryOperatorKind {
   UO_Plus, UO_Minus,      // [C99 6.5.3.3] Unary arithmetic
   UO_Not, UO_LNot,        // [C99 6.5.3.3] Unary arithmetic
   UO_Real, UO_Imag,       // "__real expr"/"__imag expr" Extension.
-  UO_Extension            // __extension__ marker.
+  UO_Extension,           // __extension__ marker.
+  UO_Coawait              // [C++ Coroutines] co_await operator
 };
 
 /// \brief The kind of bridging performed by the Objective-C bridge cast.

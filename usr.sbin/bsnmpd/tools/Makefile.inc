@@ -2,6 +2,7 @@
 # Author: Shteryana Shopova <syrinx@FreeBSD.org>
 
 BINDIR?= /usr/bin
+PACKAGE=	bsnmp
 
 CFLAGS+= -I. -I${.CURDIR}
 
@@ -11,3 +12,5 @@ LIBBSNMPTOOLSDIR=      ${.OBJDIR}/../libbsnmptools
 LIBBSNMPTOOLSDIR=      ${.CURDIR}/../libbsnmptools
 .endif
 LIBBSNMPTOOLS=         ${LIBBSNMPTOOLSDIR}/libbsnmptools.a
+
+WARNS?=		6

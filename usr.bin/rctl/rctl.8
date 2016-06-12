@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2015
+.Dd January 30, 2016
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -204,14 +204,22 @@ resource would be
 .It Sy shmsize Ta "SysV shared memory size, in bytes"
 .It Sy wallclock Ta "wallclock time, in seconds"
 .It Sy pcpu Ta "%CPU, in percents of a single CPU core"
+.It Sy readbps Ta "filesystem reads, in bytes per second"
+.It Sy writebps Ta "filesystem writes, in bytes per second"
+.It Sy readiops Ta "filesystem reads, in operations per second"
+.It Sy writeiops Ta "filesystem writes, in operations per second"
 .El
 .Sh ACTIONS
 .Bl -column -offset 3n "pseudoterminals"
 .It Em action
 .It Sy deny Ta deny the allocation; not supported for
-.Sy cputime
+.Sy cputime ,
+.Sy wallclock ,
+.Sy readbps ,
+.Sy writebps ,
+.Sy readiops ,
 and
-.Sy wallclock
+.Sy writeiops
 .It Sy log Ta "log a warning to the console"
 .It Sy devctl Ta "send notification to"
 .Xr devd 8
@@ -228,6 +236,12 @@ send a signal to the offending process.
 See
 .Xr signal 3
 for a list of supported signals
+.It Sy throttle Ta "slow down process execution"; only supported for
+.Sy readbps ,
+.Sy writebps ,
+.Sy readiops ,
+and
+.Sy writeiops .
 .El
 .Pp
 Not all actions are supported for all resources.
@@ -287,3 +301,22 @@ under sponsorship from the FreeBSD Foundation.
 Limiting
 .Sy memoryuse
 may kill the machine due to thrashing.
+.Pp
+The
+.Sy readiops
+and
+.Sy writeiops
+counters are only approximations.
+Like
+.Sy readbps
+and
+.Sy writebps ,
+they are calculated in the filesystem layer, where it is difficult
+or even impossible to observe actual disk device operations.
+.Pp
+The
+.Sy writebps
+and
+.Sy writeiops
+resources generally account for writes to the filesystem cache,
+not to actual devices.

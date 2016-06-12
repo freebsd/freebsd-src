@@ -7,14 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Breakpoint/BreakpointSite.h"
-
 // C Includes
 // C++ Includes
 #include <inttypes.h>
 
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Breakpoint/BreakpointSite.h"
+
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/BreakpointSiteList.h"
@@ -23,13 +23,10 @@
 using namespace lldb;
 using namespace lldb_private;
 
-BreakpointSite::BreakpointSite
-(
-    BreakpointSiteList *list,
-    const BreakpointLocationSP& owner,
-    lldb::addr_t addr,
-    bool use_hardware
-) :
+BreakpointSite::BreakpointSite(BreakpointSiteList *list,
+                               const BreakpointLocationSP& owner,
+                               lldb::addr_t addr,
+                               bool use_hardware) :
     StoppointLocation(GetNextID(), addr, 0, use_hardware),
     m_type (eSoftware), // Process subclasses need to set this correctly using SetType()
     m_saved_opcode(),
@@ -85,7 +82,7 @@ BreakpointSite::IsBreakpointAtThisSite (lldb::break_id_t bp_id)
 void
 BreakpointSite::Dump(Stream *s) const
 {
-    if (s == NULL)
+    if (s == nullptr)
         return;
 
     s->Printf("BreakpointSite %u: addr = 0x%8.8" PRIx64 "  type = %s breakpoint  hw_index = %i  hit_count = %-4u",
@@ -205,6 +202,7 @@ BreakpointSite::ValidForThisThread (Thread *thread)
 void
 BreakpointSite::BumpHitCounts()
 {
+    Mutex::Locker locker(m_owners_mutex);
     for (BreakpointLocationSP loc_sp : m_owners.BreakpointLocations())
     {
         loc_sp->BumpHitCount();
@@ -252,4 +250,15 @@ BreakpointSite::IntersectsRange(lldb::addr_t addr, size_t size, lldb::addr_t *in
         }
     }
     return false;
+}
+
+size_t
+BreakpointSite::CopyOwnersList (BreakpointLocationCollection &out_collection)
+{
+    Mutex::Locker locker(m_owners_mutex);
+    for (BreakpointLocationSP loc_sp : m_owners.BreakpointLocations())
+    {
+        out_collection.Add(loc_sp);
+    }
+    return out_collection.GetSize();
 }

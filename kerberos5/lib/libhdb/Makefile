@@ -86,6 +86,7 @@ CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} hdb_asn1_files \
 		hdb_asn1-template.[ch]*
 
 .ORDER: ${GEN}
+${GEN:[2..-1]}: .NOMETA
 ${GEN}: hdb.asn1
 	${ASN1_COMPILE} ${.ALLSRC:M*.asn1} hdb_asn1
 
@@ -96,11 +97,6 @@ ${GEN}: hdb.asn1
 
 .hx.h:
 	${CP} ${.IMPSRC} ${.TARGET}
-
-# This makefile generates a lot of its headers
-# so tell bsd.sys.mk not to try and stage them before they are built.
-# Note: this is rare
-NO_BEFOREBUILD_INCLUDES=
 
 .include <bsd.lib.mk>
 

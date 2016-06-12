@@ -84,7 +84,7 @@ public:
   /// \brief Add another mass.
   ///
   /// Adds another mass, saturating at \a isFull() rather than overflowing.
-  BlockMass &operator+=(const BlockMass &X) {
+  BlockMass &operator+=(BlockMass X) {
     uint64_t Sum = Mass + X.Mass;
     Mass = Sum < Mass ? UINT64_MAX : Sum;
     return *this;
@@ -94,23 +94,23 @@ public:
   ///
   /// Subtracts another mass, saturating at \a isEmpty() rather than
   /// undeflowing.
-  BlockMass &operator-=(const BlockMass &X) {
+  BlockMass &operator-=(BlockMass X) {
     uint64_t Diff = Mass - X.Mass;
     Mass = Diff > Mass ? 0 : Diff;
     return *this;
   }
 
-  BlockMass &operator*=(const BranchProbability &P) {
+  BlockMass &operator*=(BranchProbability P) {
     Mass = P.scale(Mass);
     return *this;
   }
 
-  bool operator==(const BlockMass &X) const { return Mass == X.Mass; }
-  bool operator!=(const BlockMass &X) const { return Mass != X.Mass; }
-  bool operator<=(const BlockMass &X) const { return Mass <= X.Mass; }
-  bool operator>=(const BlockMass &X) const { return Mass >= X.Mass; }
-  bool operator<(const BlockMass &X) const { return Mass < X.Mass; }
-  bool operator>(const BlockMass &X) const { return Mass > X.Mass; }
+  bool operator==(BlockMass X) const { return Mass == X.Mass; }
+  bool operator!=(BlockMass X) const { return Mass != X.Mass; }
+  bool operator<=(BlockMass X) const { return Mass <= X.Mass; }
+  bool operator>=(BlockMass X) const { return Mass >= X.Mass; }
+  bool operator<(BlockMass X) const { return Mass < X.Mass; }
+  bool operator>(BlockMass X) const { return Mass > X.Mass; }
 
   /// \brief Convert to scaled number.
   ///
@@ -122,20 +122,20 @@ public:
   raw_ostream &print(raw_ostream &OS) const;
 };
 
-inline BlockMass operator+(const BlockMass &L, const BlockMass &R) {
+inline BlockMass operator+(BlockMass L, BlockMass R) {
   return BlockMass(L) += R;
 }
-inline BlockMass operator-(const BlockMass &L, const BlockMass &R) {
+inline BlockMass operator-(BlockMass L, BlockMass R) {
   return BlockMass(L) -= R;
 }
-inline BlockMass operator*(const BlockMass &L, const BranchProbability &R) {
+inline BlockMass operator*(BlockMass L, BranchProbability R) {
   return BlockMass(L) *= R;
 }
-inline BlockMass operator*(const BranchProbability &L, const BlockMass &R) {
+inline BlockMass operator*(BranchProbability L, BlockMass R) {
   return BlockMass(R) *= L;
 }
 
-inline raw_ostream &operator<<(raw_ostream &OS, const BlockMass &X) {
+inline raw_ostream &operator<<(raw_ostream &OS, BlockMass X) {
   return X.print(OS);
 }
 
@@ -476,6 +476,8 @@ public:
   Scaled64 getFloatingBlockFreq(const BlockNode &Node) const;
 
   BlockFrequency getBlockFreq(const BlockNode &Node) const;
+
+  void setBlockFreq(const BlockNode &Node, uint64_t Freq);
 
   raw_ostream &printBlockFreq(raw_ostream &OS, const BlockNode &Node) const;
   raw_ostream &printBlockFreq(raw_ostream &OS,
@@ -905,14 +907,15 @@ template <class BT> class BlockFrequencyInfoImpl : BlockFrequencyInfoImplBase {
 public:
   const FunctionT *getFunction() const { return F; }
 
-  void doFunction(const FunctionT *F, const BranchProbabilityInfoT *BPI,
-                  const LoopInfoT *LI);
+  void calculate(const FunctionT &F, const BranchProbabilityInfoT &BPI,
+                 const LoopInfoT &LI);
   BlockFrequencyInfoImpl() : BPI(nullptr), LI(nullptr), F(nullptr) {}
 
   using BlockFrequencyInfoImplBase::getEntryFreq;
   BlockFrequency getBlockFreq(const BlockT *BB) const {
     return BlockFrequencyInfoImplBase::getBlockFreq(getNode(BB));
   }
+  void setBlockFreq(const BlockT *BB, uint64_t Freq);
   Scaled64 getFloatingBlockFreq(const BlockT *BB) const {
     return BlockFrequencyInfoImplBase::getFloatingBlockFreq(getNode(BB));
   }
@@ -938,13 +941,13 @@ public:
 };
 
 template <class BT>
-void BlockFrequencyInfoImpl<BT>::doFunction(const FunctionT *F,
-                                            const BranchProbabilityInfoT *BPI,
-                                            const LoopInfoT *LI) {
+void BlockFrequencyInfoImpl<BT>::calculate(const FunctionT &F,
+                                           const BranchProbabilityInfoT &BPI,
+                                           const LoopInfoT &LI) {
   // Save the parameters.
-  this->BPI = BPI;
-  this->LI = LI;
-  this->F = F;
+  this->BPI = &BPI;
+  this->LI = &LI;
+  this->F = &F;
 
   // Clean up left-over data structures.
   BlockFrequencyInfoImplBase::clear();
@@ -952,8 +955,8 @@ void BlockFrequencyInfoImpl<BT>::doFunction(const FunctionT *F,
   Nodes.clear();
 
   // Initialize.
-  DEBUG(dbgs() << "\nblock-frequency: " << F->getName() << "\n================="
-               << std::string(F->getName().size(), '=') << "\n");
+  DEBUG(dbgs() << "\nblock-frequency: " << F.getName() << "\n================="
+               << std::string(F.getName().size(), '=') << "\n");
   initializeRPOT();
   initializeLoops();
 
@@ -965,8 +968,23 @@ void BlockFrequencyInfoImpl<BT>::doFunction(const FunctionT *F,
   finalizeMetrics();
 }
 
+template <class BT>
+void BlockFrequencyInfoImpl<BT>::setBlockFreq(const BlockT *BB, uint64_t Freq) {
+  if (Nodes.count(BB))
+    BlockFrequencyInfoImplBase::setBlockFreq(getNode(BB), Freq);
+  else {
+    // If BB is a newly added block after BFI is done, we need to create a new
+    // BlockNode for it assigned with a new index. The index can be determined
+    // by the size of Freqs.
+    BlockNode NewNode(Freqs.size());
+    Nodes[BB] = NewNode;
+    Freqs.emplace_back();
+    BlockFrequencyInfoImplBase::setBlockFreq(NewNode, Freq);
+  }
+}
+
 template <class BT> void BlockFrequencyInfoImpl<BT>::initializeRPOT() {
-  const BlockT *Entry = F->begin();
+  const BlockT *Entry = &F->front();
   RPOT.reserve(F->size());
   std::copy(po_begin(Entry), po_end(Entry), std::back_inserter(RPOT));
   std::reverse(RPOT.begin(), RPOT.end());
@@ -1155,6 +1173,13 @@ void BlockFrequencyInfoImpl<BT>::computeIrreducibleMass(
   updateLoopWithIrreducible(*OuterLoop);
 }
 
+namespace {
+// A helper function that converts a branch probability into weight.
+inline uint32_t getWeightFromBranchProb(const BranchProbability Prob) {
+  return Prob.getNumerator();
+}
+} // namespace
+
 template <class BT>
 bool
 BlockFrequencyInfoImpl<BT>::propagateMassToSuccessors(LoopData *OuterLoop,
@@ -1171,10 +1196,8 @@ BlockFrequencyInfoImpl<BT>::propagateMassToSuccessors(LoopData *OuterLoop,
     const BlockT *BB = getBlock(Node);
     for (auto SI = Successor::child_begin(BB), SE = Successor::child_end(BB);
          SI != SE; ++SI)
-      // Do not dereference SI, or getEdgeWeight() is linear in the number of
-      // successors.
       if (!addToDist(Dist, OuterLoop, Node, getNode(*SI),
-                     BPI->getEdgeWeight(BB, SI)))
+                     getWeightFromBranchProb(BPI->getEdgeProbability(BB, SI))))
         // Irreducible backedge.
         return false;
   }
@@ -1190,10 +1213,11 @@ raw_ostream &BlockFrequencyInfoImpl<BT>::print(raw_ostream &OS) const {
   if (!F)
     return OS;
   OS << "block-frequency-info: " << F->getName() << "\n";
-  for (const BlockT &BB : *F)
-    OS << " - " << bfi_detail::getBlockName(&BB)
-       << ": float = " << getFloatingBlockFreq(&BB)
-       << ", int = " << getBlockFreq(&BB).getFrequency() << "\n";
+  for (const BlockT &BB : *F) {
+    OS << " - " << bfi_detail::getBlockName(&BB) << ": float = ";
+    getFloatingBlockFreq(&BB).print(OS, 5)
+        << ", int = " << getBlockFreq(&BB).getFrequency() << "\n";
+  }
 
   // Add an extra newline for readability.
   OS << "\n";

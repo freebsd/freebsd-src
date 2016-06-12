@@ -152,7 +152,7 @@ static TAILQ_HEAD(, swdevt) swtailq = TAILQ_HEAD_INITIALIZER(swtailq);
 static struct swdevt *swdevhd;	/* Allocate from here next */
 static int nswapdev;		/* Number of swap devices */
 int swap_pager_avail;
-static int swdev_syscall_active = 0; /* serialize swap(on|off) */
+static struct sx swdev_syscall_lock;	/* serialize swap(on|off) */
 
 static vm_ooffset_t swap_total;
 SYSCTL_QUAD(_vm, OID_AUTO, swap_total, CTLFLAG_RD, &swap_total, 0,
@@ -325,8 +325,9 @@ static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
 
 static int sysctl_swap_async_max(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_vm, OID_AUTO, swap_async_max, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, sysctl_swap_async_max, "I", "Maximum running async swap ops");
+SYSCTL_PROC(_vm, OID_AUTO, swap_async_max, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_swap_async_max, "I",
+    "Maximum running async swap ops");
 
 static struct swblock **swhash;
 static int swhash_mask;
@@ -487,6 +488,7 @@ swap_pager_init(void)
 		TAILQ_INIT(&swap_pager_object_list[i]);
 	mtx_init(&sw_alloc_mtx, "swap_pager list", NULL, MTX_DEF);
 	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
+	sx_init(&swdev_syscall_lock, "swsysc");
 
 	/*
 	 * Device Stripe, in PAGE_SIZE'd blocks
@@ -602,7 +604,6 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
 	if (handle) {
-		mtx_lock(&Giant);
 		/*
 		 * Reference existing named region or allocate new one.  There
 		 * should not be a race here against swp_pager_meta_build()
@@ -615,7 +616,6 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			if (cred != NULL) {
 				if (!swap_reserve_by_cred(size, cred)) {
 					sx_xunlock(&sw_alloc_sx);
-					mtx_unlock(&Giant);
 					return (NULL);
 				}
 				crhold(cred);
@@ -631,7 +631,6 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			VM_OBJECT_WUNLOCK(object);
 		}
 		sx_xunlock(&sw_alloc_sx);
-		mtx_unlock(&Giant);
 	} else {
 		if (cred != NULL) {
 			if (!swap_reserve_by_cred(size, cred))
@@ -965,7 +964,7 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	/*
 	 * Free left over swap blocks in source.
 	 *
-	 * We have to revert the type to OBJT_DEFAULT so we do not accidently
+	 * We have to revert the type to OBJT_DEFAULT so we do not accidentally
 	 * double-remove the object from the swap queues.
 	 */
 	if (destroysource) {
@@ -1664,7 +1663,7 @@ swap_pager_swapoff(struct swdevt *sp)
 	struct swblock *swap;
 	int i, j, retries;
 
-	GIANT_REQUIRED;
+	sx_assert(&swdev_syscall_lock, SA_XLOCKED);
 
 	retries = 0;
 full_rescan:
@@ -2005,10 +2004,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 	if (error)
 		return (error);
 
-	mtx_lock(&Giant);
-	while (swdev_syscall_active)
-	    tsleep(&swdev_syscall_active, PUSER - 1, "swpon", 0);
-	swdev_syscall_active = 1;
+	sx_xlock(&swdev_syscall_lock);
 
 	/*
 	 * Swap metadata may not fit in the KVM if we have physical
@@ -2043,9 +2039,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 	if (error)
 		vrele(vp);
 done:
-	swdev_syscall_active = 0;
-	wakeup_one(&swdev_syscall_active);
-	mtx_unlock(&Giant);
+	sx_xunlock(&swdev_syscall_lock);
 	return (error);
 }
 
@@ -2175,10 +2169,7 @@ sys_swapoff(struct thread *td, struct swapoff_args *uap)
 	if (error)
 		return (error);
 
-	mtx_lock(&Giant);
-	while (swdev_syscall_active)
-	    tsleep(&swdev_syscall_active, PUSER - 1, "swpoff", 0);
-	swdev_syscall_active = 1;
+	sx_xlock(&swdev_syscall_lock);
 
 	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->name,
 	    td);
@@ -2200,9 +2191,7 @@ sys_swapoff(struct thread *td, struct swapoff_args *uap)
 	}
 	error = swapoff_one(sp, td->td_ucred);
 done:
-	swdev_syscall_active = 0;
-	wakeup_one(&swdev_syscall_active);
-	mtx_unlock(&Giant);
+	sx_xunlock(&swdev_syscall_lock);
 	return (error);
 }
 
@@ -2214,7 +2203,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	int error;
 #endif
 
-	mtx_assert(&Giant, MA_OWNED);
+	sx_assert(&swdev_syscall_lock, SA_XLOCKED);
 #ifdef MAC
 	(void) vn_lock(sp->sw_vp, LK_EXCLUSIVE | LK_RETRY);
 	error = mac_system_check_swapoff(cred, sp->sw_vp);
@@ -2276,10 +2265,7 @@ swapoff_all(void)
 	const char *devname;
 	int error;
 
-	mtx_lock(&Giant);
-	while (swdev_syscall_active)
-		tsleep(&swdev_syscall_active, PUSER - 1, "swpoff", 0);
-	swdev_syscall_active = 1;
+	sx_xlock(&swdev_syscall_lock);
 
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH_SAFE(sp, &swtailq, sw_list, spt) {
@@ -2299,9 +2285,7 @@ swapoff_all(void)
 	}
 	mtx_unlock(&sw_dev_mtx);
 
-	swdev_syscall_active = 0;
-	wakeup_one(&swdev_syscall_active);
-	mtx_unlock(&Giant);
+	sx_xunlock(&swdev_syscall_lock);
 }
 
 void
@@ -2370,7 +2354,8 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_INT(_vm, OID_AUTO, nswapdev, CTLFLAG_RD, &nswapdev, 0,
     "Number of swap devices");
-SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD, sysctl_vm_swap_info,
+SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    sysctl_vm_swap_info,
     "Swap statistics by device");
 
 /*
@@ -2623,7 +2608,7 @@ swapongeom_ev(void *arg, int flags)
 	cp->flags |=  G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
 	/*
-	 * XXX: Everytime you think you can improve the margin for
+	 * XXX: Every time you think you can improve the margin for
 	 * footshooting, somebody depends on the ability to do so:
 	 * savecore(8) wants to write to our swapdev so we cannot
 	 * set an exclusive count :-(

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,10 +102,10 @@ AcpiDsBuildInternalObject (
         if (!Op->Common.Node)
         {
             Status = AcpiNsLookup (WalkState->ScopeInfo,
-                        Op->Common.Value.String,
-                        ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                        ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE, NULL,
-                        ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &(Op->Common.Node)));
+                Op->Common.Value.String,
+                ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+                ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE, NULL,
+                ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &(Op->Common.Node)));
             if (ACPI_FAILURE (Status))
             {
                 /* Check if we are resolving a named reference within a package */
@@ -161,8 +161,8 @@ AcpiDsBuildInternalObject (
             ObjDesc = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Op->Common.Node);
 
             Status = AcpiExResolveNodeToValue (
-                        ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &ObjDesc),
-                        WalkState);
+                ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &ObjDesc),
+                WalkState);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);
@@ -222,14 +222,14 @@ AcpiDsBuildInternalObject (
     /* Create and init a new internal ACPI object */
 
     ObjDesc = AcpiUtCreateInternalObject (
-                (AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode))->ObjectType);
+        (AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode))->ObjectType);
     if (!ObjDesc)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiDsInitObjectFromOp (WalkState, Op, Op->Common.AmlOpcode,
-                &ObjDesc);
+    Status = AcpiDsInitObjectFromOp (
+        WalkState, Op, Op->Common.AmlOpcode, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         AcpiUtRemoveReference (ObjDesc);
@@ -336,8 +336,8 @@ AcpiDsBuildInternalBufferObj (
     }
     else
     {
-        ObjDesc->Buffer.Pointer = ACPI_ALLOCATE_ZEROED (
-                                        ObjDesc->Buffer.Length);
+        ObjDesc->Buffer.Pointer =
+            ACPI_ALLOCATE_ZEROED (ObjDesc->Buffer.Length);
         if (!ObjDesc->Buffer.Pointer)
         {
             AcpiUtDeleteObjectDesc (ObjDesc);
@@ -349,7 +349,7 @@ AcpiDsBuildInternalBufferObj (
         if (ByteList)
         {
             memcpy (ObjDesc->Buffer.Pointer, ByteList->Named.Data,
-                         ByteListLength);
+                ByteListLength);
         }
     }
 
@@ -468,8 +468,8 @@ AcpiDsBuildInternalPackageObj (
                  * invocation, so we special case it here
                  */
                 Arg->Common.AmlOpcode = AML_INT_NAMEPATH_OP;
-                Status = AcpiDsBuildInternalObject (WalkState, Arg,
-                            &ObjDesc->Package.Elements[i]);
+                Status = AcpiDsBuildInternalObject (
+                    WalkState, Arg, &ObjDesc->Package.Elements[i]);
             }
             else
             {
@@ -481,8 +481,8 @@ AcpiDsBuildInternalPackageObj (
         }
         else
         {
-            Status = AcpiDsBuildInternalObject (WalkState, Arg,
-                        &ObjDesc->Package.Elements[i]);
+            Status = AcpiDsBuildInternalObject (
+                WalkState, Arg, &ObjDesc->Package.Elements[i]);
         }
 
         if (*ObjDescPtr)
@@ -538,8 +538,9 @@ AcpiDsBuildInternalPackageObj (
             Arg = Arg->Common.Next;
         }
 
-        ACPI_INFO ((AE_INFO,
-            "Actual Package length (%u) is larger than NumElements field (%u), truncated",
+        ACPI_INFO ((
+            "Actual Package length (%u) is larger than "
+            "NumElements field (%u), truncated",
             i, ElementCount));
     }
     else if (i < ElementCount)
@@ -549,7 +550,8 @@ AcpiDsBuildInternalPackageObj (
          * Note: this is not an error, the package is padded out with NULLs.
          */
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "Package List length (%u) smaller than NumElements count (%u), padded with null elements\n",
+            "Package List length (%u) smaller than NumElements "
+            "count (%u), padded with null elements\n",
             i, ElementCount));
     }
 
@@ -605,8 +607,8 @@ AcpiDsCreateNode (
 
     /* Build an internal object for the argument(s) */
 
-    Status = AcpiDsBuildInternalObject (WalkState, Op->Common.Value.Arg,
-                &ObjDesc);
+    Status = AcpiDsBuildInternalObject (
+        WalkState, Op->Common.Value.Arg, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -678,9 +680,9 @@ AcpiDsInitObjectFromOp (
         /*
          * Defer evaluation of Buffer TermArg operand
          */
-        ObjDesc->Buffer.Node      = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
-                                        WalkState->Operands[0]);
-        ObjDesc->Buffer.AmlStart  = Op->Named.Data;
+        ObjDesc->Buffer.Node = ACPI_CAST_PTR (
+            ACPI_NAMESPACE_NODE, WalkState->Operands[0]);
+        ObjDesc->Buffer.AmlStart = Op->Named.Data;
         ObjDesc->Buffer.AmlLength = Op->Named.Length;
         break;
 
@@ -688,9 +690,9 @@ AcpiDsInitObjectFromOp (
         /*
          * Defer evaluation of Package TermArg operand
          */
-        ObjDesc->Package.Node      = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
-                                        WalkState->Operands[0]);
-        ObjDesc->Package.AmlStart  = Op->Named.Data;
+        ObjDesc->Package.Node = ACPI_CAST_PTR (
+            ACPI_NAMESPACE_NODE, WalkState->Operands[0]);
+        ObjDesc->Package.AmlStart = Op->Named.Data;
         ObjDesc->Package.AmlLength = Op->Named.Length;
         break;
 
@@ -800,9 +802,9 @@ AcpiDsInitObjectFromOp (
 
 #ifndef ACPI_NO_METHOD_EXECUTION
             Status = AcpiDsMethodDataGetNode (ACPI_REFCLASS_LOCAL,
-                        ObjDesc->Reference.Value, WalkState,
-                        ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE,
-                            &ObjDesc->Reference.Object));
+                ObjDesc->Reference.Value, WalkState,
+                ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE,
+                    &ObjDesc->Reference.Object));
 #endif
             break;
 
@@ -815,9 +817,9 @@ AcpiDsInitObjectFromOp (
 
 #ifndef ACPI_NO_METHOD_EXECUTION
             Status = AcpiDsMethodDataGetNode (ACPI_REFCLASS_ARG,
-                        ObjDesc->Reference.Value, WalkState,
-                        ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE,
-                            &ObjDesc->Reference.Object));
+                ObjDesc->Reference.Value, WalkState,
+                ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE,
+                    &ObjDesc->Reference.Object));
 #endif
             break;
 

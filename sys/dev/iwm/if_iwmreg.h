@@ -539,7 +539,7 @@ enum iwm_dtd_diode_reg {
  */
 
 /**
- * enum iwl_ucode_tlv_flag - ucode API flags
+ * enum iwm_ucode_tlv_flag - ucode API flags
  * @IWM_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
  *	was a separate TLV but moved here to save space.
  * @IWM_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
@@ -1519,7 +1519,14 @@ enum {
 	IWM_MVM_CMD_QUEUE = 9,
 };
 
-#define IWM_MVM_CMD_FIFO	7
+enum iwm_mvm_tx_fifo {
+	IWM_MVM_TX_FIFO_BK = 0,
+	IWM_MVM_TX_FIFO_BE,
+	IWM_MVM_TX_FIFO_VI,
+	IWM_MVM_TX_FIFO_VO,
+	IWM_MVM_TX_FIFO_MCAST = 5,
+	IWM_MVM_TX_FIFO_CMD = 7,
+};
 
 #define IWM_MVM_STATION_COUNT	16
 
@@ -1741,6 +1748,45 @@ struct iwm_phy_cfg_cmd {
 #define IWM_PHY_CFG_RX_CHAIN_B	(1 << 13)
 #define IWM_PHY_CFG_RX_CHAIN_C	(1 << 14)
 
+/*
+ * PHY db
+ */
+
+enum iwm_phy_db_section_type {
+	IWM_PHY_DB_CFG = 1,
+	IWM_PHY_DB_CALIB_NCH,
+	IWM_PHY_DB_UNUSED,
+	IWM_PHY_DB_CALIB_CHG_PAPD,
+	IWM_PHY_DB_CALIB_CHG_TXP,
+	IWM_PHY_DB_MAX
+};
+
+#define IWM_PHY_DB_CMD 0x6c /* TEMP API - The actual is 0x8c */
+
+/*
+ * phy db - configure operational ucode
+ */
+struct iwm_phy_db_cmd {
+	uint16_t type;
+	uint16_t length;
+	uint8_t data[];
+} __packed;
+
+/* for parsing of tx power channel group data that comes from the firmware */
+struct iwm_phy_db_chg_txp {
+	uint32_t space;
+	uint16_t max_channel_idx;
+} __packed;
+
+/*
+ * phy db - Receive phy db chunk after calibrations
+ */
+struct iwm_calib_res_notif_phy_db {
+	uint16_t type;
+	uint16_t length;
+	uint8_t data[];
+} __packed;
+
 
 /* Target of the IWM_NVM_ACCESS_CMD */
 enum {
@@ -1869,7 +1915,7 @@ enum {
  * struct iwm_error_resp - FW error indication
  * ( IWM_REPLY_ERROR = 0x2 )
  * @error_type: one of IWM_FW_ERR_*
- * @cmd_id: the command ID for which the error occured
+ * @cmd_id: the command ID for which the error occurred
  * @bad_cmd_seq_num: sequence number of the erroneous command
  * @error_service: which service created the error, applicable only if
  *	error_type = 2, otherwise 0
@@ -2855,7 +2901,7 @@ enum iwm_sf_scenario {
 /**
  * Smart Fifo configuration command.
  * @state: smart fifo state, types listed in iwm_sf_sate.
- * @watermark: Minimum allowed availabe free space in RXF for transient state.
+ * @watermark: Minimum allowed available free space in RXF for transient state.
  * @long_delay_timeouts: aging and idle timer values for each scenario
  * in long delay state.
  * @full_on_timeouts: timer values for each scenario in full on state.
@@ -3411,12 +3457,12 @@ struct iwm_uapsd_misbehaving_ap_notif {
  *      calculated for this and the last passed beacon is greater than this
  *      threshold. Zero value means that the temperature change is ignored for
  *      beacon filtering; beacons will not be  forced to be sent to driver
- *      regardless of whether its temerature has been changed.
+ *      regardless of whether its temperature has been changed.
  * @bf_temp_slow_filter: Send Beacon to driver if delta in temperature values
  *      calculated for this and the last passed beacon is greater than this
  *      threshold. Zero value means that the temperature change is ignored for
  *      beacon filtering; beacons will not be forced to be sent to driver
- *      regardless of whether its temerature has been changed.
+ *      regardless of whether its temperature has been changed.
  * @bf_enable_beacon_filter: 1, beacon filtering is enabled; 0, disabled.
  * @bf_filter_escape_timer: Send beacons to to driver if no beacons were passed
  *      for a specific period of time. Units: Beacons.
@@ -3923,7 +3969,7 @@ enum iwm_tx_flags {
  *	cleared. Combination of IWM_RATE_MCS_*
  * @sta_id: index of destination station in FW station table
  * @sec_ctl: security control, IWM_TX_CMD_SEC_*
- * @initial_rate_index: index into the the rate table for initial TX attempt.
+ * @initial_rate_index: index into the rate table for initial TX attempt.
  *	Applied if IWM_TX_CMD_FLG_STA_RATE_MSK is set, normally 0 for data frames.
  * @key: security key
  * @next_frame_flags: IWM_TX_CMD_SEC_* and IWM_TX_CMD_NEXT_FRAME_*
@@ -4274,7 +4320,7 @@ struct iwm_beacon_notif {
 
 /**
  * enum iwm_dump_control - dump (flush) control flags
- * @IWM_DUMP_TX_FIFO_FLUSH: Dump MSDUs until the the FIFO is empty
+ * @IWM_DUMP_TX_FIFO_FLUSH: Dump MSDUs until the FIFO is empty
  *	and the TFD queues are empty.
  */
 enum iwm_dump_control {
@@ -4439,7 +4485,7 @@ enum iwm_scan_type {
  * @rxchain_sel_flags: RXON_RX_CHAIN_*
  * @max_out_time: in usecs, max out of serving channel time
  * @suspend_time: how long to pause scan when returning to service channel:
- *	bits 0-19: beacon interal in usecs (suspend before executing)
+ *	bits 0-19: beacon interval in usecs (suspend before executing)
  *	bits 20-23: reserved
  *	bits 24-31: number of beacons (suspend between channels)
  * @rxon_flags: RXON_FLG_*
@@ -5243,6 +5289,7 @@ enum iwm_power_scheme {
 };
 
 #define IWM_DEF_CMD_PAYLOAD_SIZE 320
+#define IWM_MAX_CMD_PAYLOAD_SIZE ((4096 - 4) - sizeof(struct iwm_cmd_header))
 #define IWM_CMD_FAILED_MSK 0x40
 
 struct iwm_device_cmd {

@@ -5,6 +5,7 @@
 # pf_ruleset.c is shared between kernel and pfctl
 .PATH: ${.CURDIR}/../../sys/netpfil/pf
 
+PACKAGE=pf
 PROG=	pfctl
 MAN=	pfctl.8
 

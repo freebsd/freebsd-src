@@ -395,16 +395,24 @@ login_negotiate_key(struct connection *conn, const char *name,
 		}
 		conn->conn_max_data_segment_length = tmp;
 	} else if (strcmp(name, "MaxBurstLength") == 0) {
-		if (conn->conn_immediate_data) {
-			tmp = strtoul(value, NULL, 10);
-			if (tmp <= 0)
-				log_errx(1, "received invalid MaxBurstLength");
-			conn->conn_max_burst_length = tmp;
+		tmp = strtoul(value, NULL, 10);
+		if (tmp <= 0)
+			log_errx(1, "received invalid MaxBurstLength");
+		if (tmp > MAX_BURST_LENGTH) {
+			log_debugx("capping MaxBurstLength "
+			    "from %d to %d", tmp, MAX_BURST_LENGTH);
+			tmp = MAX_BURST_LENGTH;
 		}
+		conn->conn_max_burst_length = tmp;
 	} else if (strcmp(name, "FirstBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0)
 			log_errx(1, "received invalid FirstBurstLength");
+		if (tmp > FIRST_BURST_LENGTH) {
+			log_debugx("capping FirstBurstLength "
+			    "from %d to %d", tmp, FIRST_BURST_LENGTH);
+			tmp = FIRST_BURST_LENGTH;
+		}
 		conn->conn_first_burst_length = tmp;
 	} else if (strcmp(name, "DefaultTime2Wait") == 0) {
 		/* Ignore */
@@ -422,8 +430,38 @@ login_negotiate_key(struct connection *conn, const char *name,
 		/* Ignore */
 	} else if (strcmp(name, "IFMarker") == 0) {
 		/* Ignore */
+	} else if (strcmp(name, "RDMAExtensions") == 0) {
+		if (conn->conn_conf.isc_iser == 1 &&
+		    strcmp(value, "Yes") != 0) {
+			log_errx(1, "received unsupported RDMAExtensions");
+		}
+	} else if (strcmp(name, "InitiatorRecvDataSegmentLength") == 0) {
+		tmp = strtoul(value, NULL, 10);
+		if (tmp <= 0)
+			log_errx(1, "received invalid "
+			    "InitiatorRecvDataSegmentLength");
+		if ((size_t)tmp > conn->conn_limits.isl_max_data_segment_length) {
+			log_debugx("capping InitiatorRecvDataSegmentLength "
+			    "from %d to %zd", tmp,
+			    conn->conn_limits.isl_max_data_segment_length);
+			tmp = conn->conn_limits.isl_max_data_segment_length;
+		}
+		conn->conn_max_data_segment_length = tmp;
 	} else if (strcmp(name, "TargetPortalGroupTag") == 0) {
 		/* Ignore */
+	} else if (strcmp(name, "TargetRecvDataSegmentLength") == 0) {
+		tmp = strtoul(value, NULL, 10);
+		if (tmp <= 0) {
+			log_errx(1,
+			    "received invalid TargetRecvDataSegmentLength");
+		}
+		if ((size_t)tmp > conn->conn_limits.isl_max_data_segment_length) {
+			log_debugx("capping TargetRecvDataSegmentLength "
+			    "from %d to %zd", tmp,
+			    conn->conn_limits.isl_max_data_segment_length);
+			tmp = conn->conn_limits.isl_max_data_segment_length;
+		}
+		conn->conn_max_data_segment_length = tmp;
 	} else {
 		log_debugx("unknown key \"%s\"; ignoring",  name);
 	}
@@ -459,19 +497,27 @@ login_negotiate(struct connection *conn)
 			keys_add(request_keys, "DataDigest", "None");
 
 		keys_add(request_keys, "ImmediateData", "Yes");
-		keys_add_int(request_keys, "MaxBurstLength",
-		    2 * conn->conn_limits.isl_max_data_segment_length);
-		keys_add_int(request_keys, "FirstBurstLength",
-		    conn->conn_limits.isl_max_data_segment_length);
+		keys_add_int(request_keys, "MaxBurstLength", MAX_BURST_LENGTH);
+		keys_add_int(request_keys, "FirstBurstLength", FIRST_BURST_LENGTH);
 		keys_add(request_keys, "InitialR2T", "Yes");
 		keys_add(request_keys, "MaxOutstandingR2T", "1");
+		if (conn->conn_conf.isc_iser == 1) {
+			keys_add_int(request_keys, "InitiatorRecvDataSegmentLength",
+			    conn->conn_limits.isl_max_data_segment_length);
+			keys_add_int(request_keys, "TargetRecvDataSegmentLength",
+			    conn->conn_limits.isl_max_data_segment_length);
+			keys_add(request_keys, "RDMAExtensions", "Yes");
+		} else {
+			keys_add_int(request_keys, "MaxRecvDataSegmentLength",
+			    conn->conn_limits.isl_max_data_segment_length);
+		}
 	} else {
 		keys_add(request_keys, "HeaderDigest", "None");
 		keys_add(request_keys, "DataDigest", "None");
+		keys_add_int(request_keys, "MaxRecvDataSegmentLength",
+		    conn->conn_limits.isl_max_data_segment_length);
 	}
 
-	keys_add_int(request_keys, "MaxRecvDataSegmentLength",
-	    conn->conn_limits.isl_max_data_segment_length);
 	keys_add(request_keys, "DefaultTime2Wait", "0");
 	keys_add(request_keys, "DefaultTime2Retain", "0");
 	keys_add(request_keys, "ErrorRecoveryLevel", "0");

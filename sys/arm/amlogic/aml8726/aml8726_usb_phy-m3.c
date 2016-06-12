@@ -139,7 +139,7 @@ aml8726_usb_phy_mode(const char *dwcotg_path, uint32_t *mode)
 		    AML_USB_PHY_MISC_ID_OVERIDE_DEVICE;
 	}
 
-	free(usb_mode, M_OFWPROP);
+	OF_prop_free(usb_mode);
 
 	return (0);
 }
@@ -214,7 +214,7 @@ aml8726_usb_phy_attach(device_t dev)
 		}
 	}
 
-	free(prop, M_OFWPROP);
+	OF_prop_free(prop);
 
 	if (err) {
 		device_printf(dev, "unable to parse gpio\n");

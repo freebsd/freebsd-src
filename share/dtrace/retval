@@ -37,6 +37,6 @@
 #pragma D option quiet
 
 fbt::$1:return {
-	printf("%s %d\n", probefunc, arg1);
+	printf("%s+0x%x returned %d\n", probefunc, arg0, arg1);
 }
 

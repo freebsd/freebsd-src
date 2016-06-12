@@ -194,6 +194,7 @@ struct sysctl_oid {
 #define	SYSCTL_OUT(r, p, l)	(r->oldfunc)(r, p, l)
 #define	SYSCTL_OUT_STR(r, p)	(r->oldfunc)(r, p, strlen(p) + 1)
 
+int sysctl_handle_bool(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_8(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_16(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_32(SYSCTL_HANDLER_ARGS);
@@ -204,6 +205,7 @@ int sysctl_handle_long(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_counter_u64_array(SYSCTL_HANDLER_ARGS);
 
 int sysctl_handle_uma_zone_max(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS);
@@ -326,6 +328,24 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_STRING);	\
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_STRING|(access),	\
 	    __arg, len, sysctl_handle_string, "A", __DESCR(descr));	\
+})
+
+/* Oid for a bool.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_BOOL_PTR ((bool *)NULL)
+#define	SYSCTL_BOOL(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_U8 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_bool, "CU", descr);		\
+	CTASSERT(((access) & CTLTYPE) == 0 &&			\
+	    sizeof(bool) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_BOOL(ctx, parent, nbr, name, access, ptr, val, descr) \
+({									\
+	bool *__ptr = (ptr);						\
+	CTASSERT(((access) & CTLTYPE) == 0);				\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U8 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_bool, "CU", __DESCR(descr));	\
 })
 
 /* Oid for a signed 8-bit int.  If ptr is NULL, val is returned. */
@@ -607,7 +627,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	    __ptr, 0, sysctl_handle_64, "QU", __DESCR(descr));		\
 })
 
-/* Oid for a CPU dependant variable */
+/* Oid for a CPU dependent variable */
 #define	SYSCTL_ADD_UAUTO(ctx, parent, nbr, name, access, ptr, descr)	\
 ({									\
 	struct sysctl_oid *__ret;					\
@@ -646,6 +666,28 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	sysctl_add_oid(ctx, parent, nbr, name,				\
 	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
 	    __ptr, 0, sysctl_handle_counter_u64, "QU", __DESCR(descr));	\
+})
+
+/* Oid for an array of counter(9)s.  The pointer and length must be non zero. */
+#define	SYSCTL_COUNTER_U64_ARRAY(parent, nbr, name, access, ptr, len, descr) \
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_OPAQUE | CTLFLAG_MPSAFE | (access),			\
+	    (ptr), (len), sysctl_handle_counter_u64_array, "S", descr);	\
+	CTASSERT((((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_OPAQUE) &&	\
+	    sizeof(counter_u64_t) == sizeof(*(ptr)) &&			\
+	    sizeof(uint64_t) == sizeof(**(ptr)))
+
+#define	SYSCTL_ADD_COUNTER_U64_ARRAY(ctx, parent, nbr, name, access,	\
+    ptr, len, descr)							\
+({									\
+	counter_u64_t *__ptr = (ptr);					\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_OPAQUE);	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_OPAQUE | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, len, sysctl_handle_counter_u64_array, "S",		\
+	    __DESCR(descr));						\
 })
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
@@ -730,7 +772,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /*
- * A macro to generate a read-only sysctl to indicate the presense of optional
+ * A macro to generate a read-only sysctl to indicate the presence of optional
  * kernel features.
  */
 #define	FEATURE(name, desc)						\

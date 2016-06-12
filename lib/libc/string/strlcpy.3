@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2013
+.Dd February 26, 2016
 .Dt STRLCPY 3
 .Os
 .Sh NAME
@@ -39,9 +39,9 @@
 .Sh SYNOPSIS
 .In string.h
 .Ft size_t
-.Fn strlcpy "char * restrict dst" "const char * restrict src" "size_t size"
+.Fn strlcpy "char * restrict dst" "const char * restrict src" "size_t dstsize"
 .Ft size_t
-.Fn strlcat "char * restrict dst" "const char * restrict src" "size_t size"
+.Fn strlcat "char * restrict dst" "const char * restrict src" "size_t dstsize"
 .Sh DESCRIPTION
 The
 .Fn strlcpy

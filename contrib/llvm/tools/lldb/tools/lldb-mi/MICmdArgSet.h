@@ -9,10 +9,12 @@
 
 #pragma once
 
-// Third party headers:
+// C Includes
+// C++ Includes
 #include <vector>
 
-// In-house headers:
+// Other libraries and framework includes
+// Project includes
 #include "MICmnBase.h"
 #include "MICmdArgContext.h"
 
@@ -30,9 +32,6 @@ class CMICmdArgValBase;
 //          objects on the heap.
 //          It is assumed the arguments to be parsed are read from left to right in
 //          order. The order added to *this container is the order they will parsed.
-// Gotchas: None.
-// Authors: Illya Rudkin 14/04/2014.
-// Changes: None.
 //--
 class CMICmdArgSet : public CMICmnBase
 {
@@ -44,48 +43,44 @@ class CMICmdArgSet : public CMICmnBase
     class IArg
     {
       public:
-        virtual bool GetFound(void) const = 0;
-        virtual bool GetIsHandledByCmd(void) const = 0;
-        virtual bool GetIsMandatory(void) const = 0;
-        virtual bool GetIsMissingOptions(void) const = 0;
-        virtual const CMIUtilString &GetName(void) const = 0;
-        virtual bool GetValid(void) const = 0;
+        virtual bool GetFound() const = 0;
+        virtual bool GetIsHandledByCmd() const = 0;
+        virtual bool GetIsMandatory() const = 0;
+        virtual bool GetIsMissingOptions() const = 0;
+        virtual const CMIUtilString &GetName() const = 0;
+        virtual bool GetValid() const = 0;
         virtual bool Validate(CMICmdArgContext &vwArgContext) = 0;
 
-        /* dtor */ virtual ~IArg(void){};
+        virtual ~IArg() = default;
     };
 
     // Typedefs:
-  public:
     typedef std::vector<CMICmdArgValBase *> SetCmdArgs_t;
 
     // Methods:
-  public:
-    /* ctor */ CMICmdArgSet(void);
+    CMICmdArgSet();
 
-    bool Add(const CMICmdArgValBase &vArg);
+    void Add(CMICmdArgValBase *vArg);
     bool GetArg(const CMIUtilString &vArgName, CMICmdArgValBase *&vpArg) const;
-    const SetCmdArgs_t &GetArgsThatAreMissing(void) const;
-    const SetCmdArgs_t &GetArgsThatInvalid(void) const;
-    MIuint GetCount(void) const;
-    bool IsArgContextEmpty(void) const;
-    bool IsArgsPresentButNotHandledByCmd(void) const;
+    const SetCmdArgs_t &GetArgsThatAreMissing() const;
+    const SetCmdArgs_t &GetArgsThatInvalid() const;
+    size_t GetCount() const;
+    bool IsArgContextEmpty() const;
+    bool IsArgsPresentButNotHandledByCmd() const;
     void WarningArgsNotHandledbyCmdLogFile(const CMIUtilString &vrCmdName);
     bool Validate(const CMIUtilString &vStrMiCmd, CMICmdArgContext &vwCmdArgsText);
 
     // Overrideable:
-  public:
-    /* dtor */ virtual ~CMICmdArgSet(void);
+    ~CMICmdArgSet() override;
 
     // Methods:
   private:
-    const SetCmdArgs_t &GetArgsNotHandledByCmd(void) const;
+    const SetCmdArgs_t &GetArgsNotHandledByCmd() const;
     void
-    Destroy(void); // Release resources used by *this object
+    Destroy(); // Release resources used by *this object
     bool ValidationFormErrorMessages(const CMICmdArgContext &vwCmdArgsText);
 
     // Attributes:
-  private:
     bool m_bIsArgsPresentButNotHandledByCmd; // True = The driver's client presented the command with options recognised but not handled by
                                              // a command, false = all args handled
     SetCmdArgs_t m_setCmdArgs;               // The set of arguments that are that the command is expecting to find in the options string

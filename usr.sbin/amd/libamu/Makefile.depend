@@ -15,8 +15,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-nfs_prot_x.o: nfs_prot_x.c
-nfs_prot_x.po: nfs_prot_x.c
-xdr_func_%undef.o: xdr_func_%undef.c
-xdr_func_%undef.po: xdr_func_%undef.c
 .endif

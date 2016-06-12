@@ -19,6 +19,7 @@ DIRDEPS = \
 	etc/newsyslog.conf.d \
 	etc/sendmail \
 	rescue/librescue \
+	rescue/rescue \
 
 .if ${MK_BOOT} != "no"
 DIRDEPS+= sys/boot/common
@@ -32,6 +33,7 @@ DIRDEPS+= \
 
 DIRDEPS.x86sys= \
 	sys/boot/efi/libefi \
+	sys/boot/geli \
 	sys/boot/i386/boot0 \
 	sys/boot/i386/boot0sio \
 	sys/boot/i386/boot2 \
@@ -40,6 +42,7 @@ DIRDEPS.x86sys= \
 	sys/boot/i386/btx/lib \
 	sys/boot/i386/cdboot \
 	sys/boot/i386/gptboot \
+	sys/boot/i386/kgzldr \
 	sys/boot/i386/libfirewire \
 	sys/boot/i386/libi386 \
 	sys/boot/i386/loader \

@@ -164,7 +164,7 @@ char DRIVER_VERSION[] = "v1.16";
  *
  *	Description:	free allocated queues for the given channel
  *
- *	Parameters:    	pMvSataAdapter - pointer to the RR18xx controler this 
+ *	Parameters:    	pMvSataAdapter - pointer to the RR18xx controller this 
  * 					channel connected to. 
  *			channelNum - channel number. 
  *     
@@ -309,7 +309,7 @@ hptmv_init_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
  *
  *	Description:	this functions parses the identify command results, checks
  *					that the connected deives can be accesed by RR18xx EDMA,
- *					and updates the channel stucture accordingly.
+ *					and updates the channel structure accordingly.
  *
  *	Parameters:     pMvSataChannel, pointer to the channel data structure.
  *
@@ -1304,8 +1304,8 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 
 	/* also map EPROM address */
 	rid = 0x10;
-	if (!(pAdapter->mem_res = bus_alloc_resource(pAdapter->hpt_dev, SYS_RES_MEMORY, &rid,
-			0, ~0, MV_SATA_PCI_BAR0_SPACE_SIZE+0x40000, RF_ACTIVE))
+	if (!(pAdapter->mem_res = bus_alloc_resource_any(pAdapter->hpt_dev,
+			SYS_RES_MEMORY, &rid, RF_ACTIVE))
 		||
 		!(pMvSataAdapter->adapterIoBaseAddress = rman_get_virtual(pAdapter->mem_res)))
 	{
@@ -1990,7 +1990,7 @@ hpt_attach(device_t dev)
 		return rid;
 
 	rid = 0;
-	if ((pAdapter->hpt_irq = bus_alloc_resource(pAdapter->hpt_dev, SYS_RES_IRQ, &rid, 0, ~0ul, 1, RF_SHAREABLE | RF_ACTIVE)) == NULL)
+	if ((pAdapter->hpt_irq = bus_alloc_resource_any(pAdapter->hpt_dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE)) == NULL)
 	{
 		hpt_printk(("can't allocate interrupt\n"));
 		return(ENXIO);

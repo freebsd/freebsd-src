@@ -73,12 +73,6 @@ CTASSERT((IEEE80211_NODE_HASHSIZE & (IEEE80211_NODE_HASHSIZE-1)) == 0);
 #define	IEEE80211_AID_ISSET(_vap, b) \
 	((_vap)->iv_aid_bitmap[IEEE80211_AID(b) / 32] & (1 << (IEEE80211_AID(b) % 32)))
 
-#ifdef IEEE80211_DEBUG_REFCNT
-#define REFCNT_LOC "%s (%s:%u) %p<%s> refcnt %d\n", __func__, func, line
-#else
-#define REFCNT_LOC "%s %p<%s> refcnt %d\n", __func__
-#endif
-
 static int ieee80211_sta_join1(struct ieee80211_node *);
 
 static struct ieee80211_node *node_alloc(struct ieee80211vap *,
@@ -330,9 +324,10 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 	struct ieee80211_node *ni;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		"%s: creating %s on channel %u\n", __func__,
+		"%s: creating %s on channel %u%c\n", __func__,
 		ieee80211_opmode_name[vap->iv_opmode],
-		ieee80211_chan2ieee(ic, chan));
+		ieee80211_chan2ieee(ic, chan),
+		ieee80211_channel_type_char(chan));
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
 	if (ni == NULL) {
@@ -556,6 +551,33 @@ check_bss_debug(struct ieee80211vap *vap, struct ieee80211_node *ni)
 }
 #endif /* IEEE80211_DEBUG */
  
+
+int
+ieee80211_ibss_merge_check(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	if (ni == vap->iv_bss ||
+	    IEEE80211_ADDR_EQ(ni->ni_bssid, vap->iv_bss->ni_bssid)) {
+		/* unchanged, nothing to do */
+		return 0;
+	}
+
+	if (!check_bss(vap, ni)) {
+		/* capabilities mismatch */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
+		    "%s: merge failed, capabilities mismatch\n", __func__);
+#ifdef IEEE80211_DEBUG
+		if (ieee80211_msg_assoc(vap))
+			check_bss_debug(vap, ni);
+#endif
+		vap->iv_stats.is_ibss_capmismatch++;
+		return 0;
+	}
+
+	return 1;
+}
+
 /*
  * Handle 802.11 ad hoc network merge.  The
  * convention, set by the Wireless Ethernet Compatibility Alliance
@@ -571,27 +593,14 @@ check_bss_debug(struct ieee80211vap *vap, struct ieee80211_node *ni)
 int
 ieee80211_ibss_merge(struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
 #ifdef IEEE80211_DEBUG
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 #endif
 
-	if (ni == vap->iv_bss ||
-	    IEEE80211_ADDR_EQ(ni->ni_bssid, vap->iv_bss->ni_bssid)) {
-		/* unchanged, nothing to do */
+	if (! ieee80211_ibss_merge_check(ni))
 		return 0;
-	}
-	if (!check_bss(vap, ni)) {
-		/* capabilities mismatch */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
-		    "%s: merge failed, capabilities mismatch\n", __func__);
-#ifdef IEEE80211_DEBUG
-		if (ieee80211_msg_assoc(vap))
-			check_bss_debug(vap, ni);
-#endif
-		vap->iv_stats.is_ibss_capmismatch++;
-		return 0;
-	}
+
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
 		"%s: new bssid %s: %s preamble, %s slot time%s\n", __func__,
 		ether_sprintf(ni->ni_bssid),
@@ -1014,8 +1023,8 @@ node_cleanup(struct ieee80211_node *ni)
 	if (ni->ni_flags & IEEE80211_NODE_HT)
 		ieee80211_ht_node_cleanup(ni);
 #ifdef IEEE80211_SUPPORT_SUPERG
-	else if (ni->ni_ath_flags & IEEE80211_NODE_ATH)
-		ieee80211_ff_node_cleanup(ni);
+	/* Always do FF node cleanup; for A-MSDU */
+	ieee80211_ff_node_cleanup(ni);
 #endif
 #ifdef IEEE80211_SUPPORT_MESH
 	/*
@@ -2202,7 +2211,7 @@ ieee80211_node_timeout(void *arg)
 	 * Defer timeout processing if a channel switch is pending.
 	 * We typically need to be mute so not doing things that
 	 * might generate frames is good to handle in one place.
-	 * Supressing the station timeout processing may extend the
+	 * Suppressing the station timeout processing may extend the
 	 * lifetime of inactive stations (by not decrementing their
 	 * idle counters) but this should be ok unless the CSA is
 	 * active for an unusually long time.
@@ -2638,7 +2647,7 @@ ieee80211_erp_timeout(struct ieee80211com *ic)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	if ((ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) &&
-	    time_after(ticks, ic->ic_lastnonerp + IEEE80211_NONERP_PRESENT_AGE)) {
+	    ieee80211_time_after(ticks, ic->ic_lastnonerp + IEEE80211_NONERP_PRESENT_AGE)) {
 #if 0
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
 		    "%s", "age out non-ERP sta present on channel");
@@ -2683,7 +2692,6 @@ ieee80211_node_leave(struct ieee80211_node *ni)
 
 	IEEE80211_LOCK(ic);
 	IEEE80211_AID_CLR(vap, ni->ni_associd);
-	ni->ni_associd = 0;
 	vap->iv_sta_assoc--;
 	ic->ic_sta_assoc--;
 

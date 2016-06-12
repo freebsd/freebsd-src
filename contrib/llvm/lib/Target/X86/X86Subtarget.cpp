@@ -44,9 +44,8 @@ X86EarlyIfConv("x86-early-ifcvt", cl::Hidden,
                cl::desc("Enable early if-conversion on X86"));
 
 
-/// ClassifyBlockAddressReference - Classify a blockaddress reference for the
-/// current subtarget according to how we should reference it in a non-pcrel
-/// context.
+/// Classify a blockaddress reference for the current subtarget according to how
+/// we should reference it in a non-pcrel context.
 unsigned char X86Subtarget::ClassifyBlockAddressReference() const {
   if (isPICStyleGOT())    // 32-bit ELF targets.
     return X86II::MO_GOTOFF;
@@ -58,9 +57,8 @@ unsigned char X86Subtarget::ClassifyBlockAddressReference() const {
   return X86II::MO_NO_FLAG;
 }
 
-/// ClassifyGlobalReference - Classify a global variable reference for the
-/// current subtarget according to how we should reference it in a non-pcrel
-/// context.
+/// Classify a global variable reference for the current subtarget according to
+/// how we should reference it in a non-pcrel context.
 unsigned char X86Subtarget::
 ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
   // DLLImport only exists on windows, it is implemented as a load from a
@@ -147,9 +145,9 @@ ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
 }
 
 
-/// getBZeroEntry - This function returns the name of a function which has an
-/// interface like the non-standard bzero function, if such a function exists on
-/// the current subtarget and it is considered prefereable over memset with zero
+/// This function returns the name of a function which has an interface like
+/// the non-standard bzero function, if such a function exists on the
+/// current subtarget and it is considered preferable over memset with zero
 /// passed as the second argument. Otherwise it returns null.
 const char *X86Subtarget::getBZeroEntry() const {
   // Darwin 10 has a __bzero entry point for this purpose.
@@ -166,8 +164,7 @@ bool X86Subtarget::hasSinCos() const {
     is64Bit();
 }
 
-/// IsLegalToCallImmediateAddr - Return true if the subtarget allows calls
-/// to immediate address.
+/// Return true if the subtarget allows calls to immediate address.
 bool X86Subtarget::IsLegalToCallImmediateAddr(const TargetMachine &TM) const {
   // FIXME: I386 PE/COFF supports PC relative calls using IMAGE_REL_I386_REL32
   // but WinCOFFObjectWriter::RecordRelocation cannot emit them.  Once it does,
@@ -192,9 +189,25 @@ void X86Subtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
       FullFS = "+64bit,+sse2";
   }
 
+  // LAHF/SAHF are always supported in non-64-bit mode.
+  if (!In64BitMode) {
+    if (!FullFS.empty())
+      FullFS = "+sahf," + FullFS;
+    else
+      FullFS = "+sahf";
+  }
+
+
   // Parse features string and set the CPU.
   ParseSubtargetFeatures(CPUName, FullFS);
 
+  // All CPUs that implement SSE4.2 or SSE4A support unaligned accesses of
+  // 16-bytes and under that are reasonably fast. These features were
+  // introduced with Intel's Nehalem/Silvermont and AMD's Family10h
+  // micro-architectures respectively.
+  if (hasSSE42() || hasSSE4A())
+    IsUAMem16Slow = false;
+  
   InstrItins = getInstrItineraryForCPU(CPUName);
 
   // It's important to keep the MCSubtargetInfo feature bits in sync with
@@ -224,13 +237,18 @@ void X86Subtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
 }
 
 void X86Subtarget::initializeEnvironment() {
-  X86SSELevel = NoMMXSSE;
+  X86SSELevel = NoSSE;
   X863DNowLevel = NoThreeDNow;
   HasCMov = false;
   HasX86_64 = false;
   HasPOPCNT = false;
   HasSSE4A = false;
   HasAES = false;
+  HasFXSR = false;
+  HasXSAVE = false;
+  HasXSAVEOPT = false;
+  HasXSAVEC = false;
+  HasXSAVES = false;
   HasPCLMUL = false;
   HasFMA = false;
   HasFMA4 = false;
@@ -252,13 +270,15 @@ void X86Subtarget::initializeEnvironment() {
   HasBWI = false;
   HasVLX = false;
   HasADX = false;
+  HasPKU = false;
   HasSHA = false;
   HasPRFCHW = false;
   HasRDSEED = false;
+  HasLAHFSAHF = false;
   HasMPX = false;
   IsBTMemSlow = false;
   IsSHLDSlow = false;
-  IsUAMemFast = false;
+  IsUAMem16Slow = false;
   IsUAMem32Slow = false;
   HasSSEUnalignedMem = false;
   HasCmpxchg16b = false;

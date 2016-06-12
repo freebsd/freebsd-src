@@ -156,7 +156,7 @@ The
 .Nm
 driver can capture PPS timing information as defined in RFC 2783.
 The API, accessed via
-.Xr ioctl 8 ,
+.Xr ioctl 2 ,
 is available on the tty device.
 To use the PPS capture feature with
 .Xr ntpd 8 ,
@@ -188,7 +188,7 @@ Capture pulses on the CTS line.
 Capture pulses on the DCD line.
 .El
 .Pp
-The following values may be ORed with the capture mode to configure 
+The following values may be ORed with the capture mode to configure
 capture processing options:
 .Bl -tag -compact -offset "mmmm" -width "mmmm"
 .It 0x10

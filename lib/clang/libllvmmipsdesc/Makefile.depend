@@ -6,67 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-MipsABIInfo.o: MipsGenInstrInfo.inc.h
-MipsABIInfo.o: MipsGenRegisterInfo.inc.h
-MipsABIInfo.o: MipsGenSubtargetInfo.inc.h
-MipsABIInfo.po: MipsGenInstrInfo.inc.h
-MipsABIInfo.po: MipsGenRegisterInfo.inc.h
-MipsABIInfo.po: MipsGenSubtargetInfo.inc.h
-MipsAsmBackend.o: MipsGenInstrInfo.inc.h
-MipsAsmBackend.o: MipsGenRegisterInfo.inc.h
-MipsAsmBackend.o: MipsGenSubtargetInfo.inc.h
-MipsAsmBackend.po: MipsGenInstrInfo.inc.h
-MipsAsmBackend.po: MipsGenRegisterInfo.inc.h
-MipsAsmBackend.po: MipsGenSubtargetInfo.inc.h
-MipsELFObjectWriter.o: MipsGenInstrInfo.inc.h
-MipsELFObjectWriter.o: MipsGenRegisterInfo.inc.h
-MipsELFObjectWriter.o: MipsGenSubtargetInfo.inc.h
-MipsELFObjectWriter.po: MipsGenInstrInfo.inc.h
-MipsELFObjectWriter.po: MipsGenRegisterInfo.inc.h
-MipsELFObjectWriter.po: MipsGenSubtargetInfo.inc.h
-MipsELFStreamer.o: MipsGenInstrInfo.inc.h
-MipsELFStreamer.o: MipsGenRegisterInfo.inc.h
-MipsELFStreamer.o: MipsGenSubtargetInfo.inc.h
-MipsELFStreamer.po: MipsGenInstrInfo.inc.h
-MipsELFStreamer.po: MipsGenRegisterInfo.inc.h
-MipsELFStreamer.po: MipsGenSubtargetInfo.inc.h
-MipsMCCodeEmitter.o: MipsGenInstrInfo.inc.h
-MipsMCCodeEmitter.o: MipsGenMCCodeEmitter.inc.h
-MipsMCCodeEmitter.o: MipsGenRegisterInfo.inc.h
-MipsMCCodeEmitter.o: MipsGenSubtargetInfo.inc.h
-MipsMCCodeEmitter.po: MipsGenInstrInfo.inc.h
-MipsMCCodeEmitter.po: MipsGenMCCodeEmitter.inc.h
-MipsMCCodeEmitter.po: MipsGenRegisterInfo.inc.h
-MipsMCCodeEmitter.po: MipsGenSubtargetInfo.inc.h
-MipsMCTargetDesc.o: MipsGenInstrInfo.inc.h
-MipsMCTargetDesc.o: MipsGenRegisterInfo.inc.h
-MipsMCTargetDesc.o: MipsGenSubtargetInfo.inc.h
-MipsMCTargetDesc.po: MipsGenInstrInfo.inc.h
-MipsMCTargetDesc.po: MipsGenRegisterInfo.inc.h
-MipsMCTargetDesc.po: MipsGenSubtargetInfo.inc.h
-MipsNaClELFStreamer.o: MipsGenInstrInfo.inc.h
-MipsNaClELFStreamer.o: MipsGenRegisterInfo.inc.h
-MipsNaClELFStreamer.o: MipsGenSubtargetInfo.inc.h
-MipsNaClELFStreamer.po: MipsGenInstrInfo.inc.h
-MipsNaClELFStreamer.po: MipsGenRegisterInfo.inc.h
-MipsNaClELFStreamer.po: MipsGenSubtargetInfo.inc.h
-MipsOptionRecord.o: MipsGenInstrInfo.inc.h
-MipsOptionRecord.o: MipsGenRegisterInfo.inc.h
-MipsOptionRecord.o: MipsGenSubtargetInfo.inc.h
-MipsOptionRecord.po: MipsGenInstrInfo.inc.h
-MipsOptionRecord.po: MipsGenRegisterInfo.inc.h
-MipsOptionRecord.po: MipsGenSubtargetInfo.inc.h
-MipsTargetStreamer.o: MipsGenInstrInfo.inc.h
-MipsTargetStreamer.o: MipsGenRegisterInfo.inc.h
-MipsTargetStreamer.o: MipsGenSubtargetInfo.inc.h
-MipsTargetStreamer.po: MipsGenInstrInfo.inc.h
-MipsTargetStreamer.po: MipsGenRegisterInfo.inc.h
-MipsTargetStreamer.po: MipsGenSubtargetInfo.inc.h
 .endif

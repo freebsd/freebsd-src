@@ -23,6 +23,7 @@
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/CharInfo.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TypeTraits.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APSInt.h"
@@ -60,7 +61,6 @@ struct SubobjectAdjustment {
     FieldAdjustment,
     MemberPointerAdjustment
   } Kind;
-
 
   struct DTB {
     const CastExpr *BasePath;
@@ -148,8 +148,6 @@ public:
   /// \brief Set whether this expression is value-dependent or not.
   void setValueDependent(bool VD) {
     ExprBits.ValueDependent = VD;
-    if (VD)
-      ExprBits.InstantiationDependent = true;
   }
 
   /// isTypeDependent - Determines whether this expression is
@@ -168,8 +166,6 @@ public:
   /// \brief Set whether this expression is type-dependent or not.
   void setTypeDependent(bool TD) {
     ExprBits.TypeDependent = TD;
-    if (TD)
-      ExprBits.InstantiationDependent = true;
   }
 
   /// \brief Whether this expression is instantiation-dependent, meaning that
@@ -458,6 +454,10 @@ public:
   /// \brief Returns whether this expression refers to a vector element.
   bool refersToVectorElement() const;
 
+  /// \brief Returns whether this expression refers to a global register
+  /// variable.
+  bool refersToGlobalRegisterVar() const;
+
   /// \brief Returns whether this expression has a placeholder type.
   bool hasPlaceholderType() const {
     return getType()->isPlaceholderType();
@@ -529,9 +529,14 @@ public:
 
   /// EvalStatus is a struct with detailed info about an evaluation in progress.
   struct EvalStatus {
-    /// HasSideEffects - Whether the evaluated expression has side effects.
+    /// \brief Whether the evaluated expression has side effects.
     /// For example, (f() && 0) can be folded, but it still has side effects.
     bool HasSideEffects;
+
+    /// \brief Whether the evaluation hit undefined behavior.
+    /// For example, 1.0 / 0.0 can be folded to Inf, but has undefined behavior.
+    /// Likewise, INT_MAX + 1 can be folded to INT_MIN, but has UB.
+    bool HasUndefinedBehavior;
 
     /// Diag - If this is non-null, it will be filled in with a stack of notes
     /// indicating why evaluation failed (or why it failed to produce a constant
@@ -542,7 +547,8 @@ public:
     /// expression *is* a constant expression, no notes will be produced.
     SmallVectorImpl<PartialDiagnosticAt> *Diag;
 
-    EvalStatus() : HasSideEffects(false), Diag(nullptr) {}
+    EvalStatus()
+        : HasSideEffects(false), HasUndefinedBehavior(false), Diag(nullptr) {}
 
     // hasSideEffects - Return true if the evaluated expression has
     // side effects.
@@ -575,7 +581,12 @@ public:
   /// side-effects.
   bool EvaluateAsBooleanCondition(bool &Result, const ASTContext &Ctx) const;
 
-  enum SideEffectsKind { SE_NoSideEffects, SE_AllowSideEffects };
+  enum SideEffectsKind {
+    SE_NoSideEffects,          ///< Strictly evaluate the expression.
+    SE_AllowUndefinedBehavior, ///< Allow UB that we can give a value, but not
+                               ///< arbitrary unmodeled side effects.
+    SE_AllowSideEffects        ///< Allow any unmodeled side effect.
+  };
 
   /// EvaluateAsInt - Return true if this is a constant which we can fold and
   /// convert to an integer, using any crazy technique that we want to.
@@ -584,7 +595,8 @@ public:
 
   /// isEvaluatable - Call EvaluateAsRValue to see if this expression can be
   /// constant folded without side-effects, but discard the result.
-  bool isEvaluatable(const ASTContext &Ctx) const;
+  bool isEvaluatable(const ASTContext &Ctx,
+                     SideEffectsKind AllowSideEffects = SE_NoSideEffects) const;
 
   /// HasSideEffects - This routine returns true for all those expressions
   /// which have any effect other than producing a value. Example is a function
@@ -627,6 +639,16 @@ public:
   bool EvaluateWithSubstitution(APValue &Value, ASTContext &Ctx,
                                 const FunctionDecl *Callee,
                                 ArrayRef<const Expr*> Args) const;
+
+  /// \brief If the current Expr is a pointer, this will try to statically
+  /// determine the number of bytes available where the pointer is pointing.
+  /// Returns true if all of the above holds and we were able to figure out the
+  /// size, false otherwise.
+  ///
+  /// \param Type - How to evaluate the size of the Expr, as defined by the
+  /// "type" parameter of __builtin_object_size
+  bool tryEvaluateObjectSize(uint64_t &Result, ASTContext &Ctx,
+                             unsigned Type) const;
 
   /// \brief Enumeration used to describe the kind of Null pointer constant
   /// returned from \c isNullPointerConstant().
@@ -806,7 +828,6 @@ public:
   }
 };
 
-
 //===----------------------------------------------------------------------===//
 // Primary Expressions.
 //===----------------------------------------------------------------------===//
@@ -856,7 +877,9 @@ public:
     return Loc;
   }
 
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 
   /// The source expression of an opaque value expression is the
   /// expression which originally generated the value.  This is
@@ -896,7 +919,11 @@ public:
 ///   DeclRefExprBits.RefersToEnclosingVariableOrCapture
 ///       Specifies when this declaration reference expression (validly)
 ///       refers to an enclosed local or a captured variable.
-class DeclRefExpr : public Expr {
+class DeclRefExpr final
+    : public Expr,
+      private llvm::TrailingObjects<DeclRefExpr, NestedNameSpecifierLoc,
+                                    NamedDecl *, ASTTemplateKWAndArgsInfo,
+                                    TemplateArgumentLoc> {
   /// \brief The declaration that we are referencing.
   ValueDecl *D;
 
@@ -907,35 +934,21 @@ class DeclRefExpr : public Expr {
   /// embedded in D.
   DeclarationNameLoc DNLoc;
 
-  /// \brief Helper to retrieve the optional NestedNameSpecifierLoc.
-  NestedNameSpecifierLoc &getInternalQualifierLoc() {
-    assert(hasQualifier());
-    return *reinterpret_cast<NestedNameSpecifierLoc *>(this + 1);
+  size_t numTrailingObjects(OverloadToken<NestedNameSpecifierLoc>) const {
+    return hasQualifier() ? 1 : 0;
   }
 
-  /// \brief Helper to retrieve the optional NestedNameSpecifierLoc.
-  const NestedNameSpecifierLoc &getInternalQualifierLoc() const {
-    return const_cast<DeclRefExpr *>(this)->getInternalQualifierLoc();
+  size_t numTrailingObjects(OverloadToken<NamedDecl *>) const {
+    return hasFoundDecl() ? 1 : 0;
+  }
+
+  size_t numTrailingObjects(OverloadToken<ASTTemplateKWAndArgsInfo>) const {
+    return hasTemplateKWAndArgsInfo() ? 1 : 0;
   }
 
   /// \brief Test whether there is a distinct FoundDecl attached to the end of
   /// this DRE.
   bool hasFoundDecl() const { return DeclRefExprBits.HasFoundDecl; }
-
-  /// \brief Helper to retrieve the optional NamedDecl through which this
-  /// reference occurred.
-  NamedDecl *&getInternalFoundDecl() {
-    assert(hasFoundDecl());
-    if (hasQualifier())
-      return *reinterpret_cast<NamedDecl **>(&getInternalQualifierLoc() + 1);
-    return *reinterpret_cast<NamedDecl **>(this + 1);
-  }
-
-  /// \brief Helper to retrieve the optional NamedDecl through which this
-  /// reference occurred.
-  NamedDecl *getInternalFoundDecl() const {
-    return const_cast<DeclRefExpr *>(this)->getInternalFoundDecl();
-  }
 
   DeclRefExpr(const ASTContext &Ctx,
               NestedNameSpecifierLoc QualifierLoc,
@@ -1009,21 +1022,17 @@ public:
   bool hasQualifier() const { return DeclRefExprBits.HasQualifier; }
 
   /// \brief If the name was qualified, retrieves the nested-name-specifier
-  /// that precedes the name. Otherwise, returns NULL.
-  NestedNameSpecifier *getQualifier() const {
-    if (!hasQualifier())
-      return nullptr;
-
-    return getInternalQualifierLoc().getNestedNameSpecifier();
-  }
-
-  /// \brief If the name was qualified, retrieves the nested-name-specifier
   /// that precedes the name, with source-location information.
   NestedNameSpecifierLoc getQualifierLoc() const {
     if (!hasQualifier())
       return NestedNameSpecifierLoc();
+    return *getTrailingObjects<NestedNameSpecifierLoc>();
+  }
 
-    return getInternalQualifierLoc();
+  /// \brief If the name was qualified, retrieves the nested-name-specifier
+  /// that precedes the name. Otherwise, returns NULL.
+  NestedNameSpecifier *getQualifier() const {
+    return getQualifierLoc().getNestedNameSpecifier();
   }
 
   /// \brief Get the NamedDecl through which this reference occurred.
@@ -1031,60 +1040,40 @@ public:
   /// This Decl may be different from the ValueDecl actually referred to in the
   /// presence of using declarations, etc. It always returns non-NULL, and may
   /// simple return the ValueDecl when appropriate.
+
   NamedDecl *getFoundDecl() {
-    return hasFoundDecl() ? getInternalFoundDecl() : D;
+    return hasFoundDecl() ? *getTrailingObjects<NamedDecl *>() : D;
   }
 
   /// \brief Get the NamedDecl through which this reference occurred.
   /// See non-const variant.
   const NamedDecl *getFoundDecl() const {
-    return hasFoundDecl() ? getInternalFoundDecl() : D;
+    return hasFoundDecl() ? *getTrailingObjects<NamedDecl *>() : D;
   }
 
   bool hasTemplateKWAndArgsInfo() const {
     return DeclRefExprBits.HasTemplateKWAndArgsInfo;
   }
 
-  /// \brief Return the optional template keyword and arguments info.
-  ASTTemplateKWAndArgsInfo *getTemplateKWAndArgsInfo() {
-    if (!hasTemplateKWAndArgsInfo())
-      return nullptr;
-
-    if (hasFoundDecl())
-      return reinterpret_cast<ASTTemplateKWAndArgsInfo *>(
-        &getInternalFoundDecl() + 1);
-
-    if (hasQualifier())
-      return reinterpret_cast<ASTTemplateKWAndArgsInfo *>(
-        &getInternalQualifierLoc() + 1);
-
-    return reinterpret_cast<ASTTemplateKWAndArgsInfo *>(this + 1);
-  }
-
-  /// \brief Return the optional template keyword and arguments info.
-  const ASTTemplateKWAndArgsInfo *getTemplateKWAndArgsInfo() const {
-    return const_cast<DeclRefExpr*>(this)->getTemplateKWAndArgsInfo();
-  }
-
   /// \brief Retrieve the location of the template keyword preceding
   /// this name, if any.
   SourceLocation getTemplateKeywordLoc() const {
     if (!hasTemplateKWAndArgsInfo()) return SourceLocation();
-    return getTemplateKWAndArgsInfo()->getTemplateKeywordLoc();
+    return getTrailingObjects<ASTTemplateKWAndArgsInfo>()->TemplateKWLoc;
   }
 
   /// \brief Retrieve the location of the left angle bracket starting the
   /// explicit template argument list following the name, if any.
   SourceLocation getLAngleLoc() const {
     if (!hasTemplateKWAndArgsInfo()) return SourceLocation();
-    return getTemplateKWAndArgsInfo()->LAngleLoc;
+    return getTrailingObjects<ASTTemplateKWAndArgsInfo>()->LAngleLoc;
   }
 
   /// \brief Retrieve the location of the right angle bracket ending the
   /// explicit template argument list following the name, if any.
   SourceLocation getRAngleLoc() const {
     if (!hasTemplateKWAndArgsInfo()) return SourceLocation();
-    return getTemplateKWAndArgsInfo()->RAngleLoc;
+    return getTrailingObjects<ASTTemplateKWAndArgsInfo>()->RAngleLoc;
   }
 
   /// \brief Determines whether the name in this declaration reference
@@ -1095,32 +1084,12 @@ public:
   /// explicit template argument list.
   bool hasExplicitTemplateArgs() const { return getLAngleLoc().isValid(); }
 
-  /// \brief Retrieve the explicit template argument list that followed the
-  /// member template name.
-  ASTTemplateArgumentListInfo &getExplicitTemplateArgs() {
-    assert(hasExplicitTemplateArgs());
-    return *getTemplateKWAndArgsInfo();
-  }
-
-  /// \brief Retrieve the explicit template argument list that followed the
-  /// member template name.
-  const ASTTemplateArgumentListInfo &getExplicitTemplateArgs() const {
-    return const_cast<DeclRefExpr *>(this)->getExplicitTemplateArgs();
-  }
-
-  /// \brief Retrieves the optional explicit template arguments.
-  /// This points to the same data as getExplicitTemplateArgs(), but
-  /// returns null if there are no explicit template arguments.
-  const ASTTemplateArgumentListInfo *getOptionalExplicitTemplateArgs() const {
-    if (!hasExplicitTemplateArgs()) return nullptr;
-    return &getExplicitTemplateArgs();
-  }
-
   /// \brief Copies the template arguments (if present) into the given
   /// structure.
   void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
     if (hasExplicitTemplateArgs())
-      getExplicitTemplateArgs().copyInto(List);
+      getTrailingObjects<ASTTemplateKWAndArgsInfo>()->copyInto(
+          getTrailingObjects<TemplateArgumentLoc>(), List);
   }
 
   /// \brief Retrieve the template arguments provided as part of this
@@ -1129,7 +1098,7 @@ public:
     if (!hasExplicitTemplateArgs())
       return nullptr;
 
-    return getExplicitTemplateArgs().getTemplateArgs();
+    return getTrailingObjects<TemplateArgumentLoc>();
   }
 
   /// \brief Retrieve the number of template arguments provided as part of this
@@ -1138,7 +1107,7 @@ public:
     if (!hasExplicitTemplateArgs())
       return 0;
 
-    return getExplicitTemplateArgs().NumTemplateArgs;
+    return getTrailingObjects<ASTTemplateKWAndArgsInfo>()->NumTemplateArgs;
   }
 
   /// \brief Returns true if this expression refers to a function that
@@ -1164,8 +1133,11 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 
+  friend TrailingObjects;
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
 };
@@ -1310,7 +1282,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 class CharacterLiteral : public Expr {
@@ -1318,6 +1292,7 @@ public:
   enum CharacterKind {
     Ascii,
     Wide,
+    UTF8,
     UTF16,
     UTF32
   };
@@ -1357,7 +1332,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 class FloatingLiteral : public Expr, private APFloatStorage {
@@ -1419,7 +1396,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// ImaginaryLiteral - We support imaginary integer and floating point literals,
@@ -1596,13 +1575,15 @@ public:
   /// and can have escape sequences in them in addition to the usual trigraph
   /// and escaped newline business.  This routine handles this complexity.
   ///
-  SourceLocation getLocationOfByte(unsigned ByteNo, const SourceManager &SM,
-                                   const LangOptions &Features,
-                                   const TargetInfo &Target) const;
+  SourceLocation
+  getLocationOfByte(unsigned ByteNo, const SourceManager &SM,
+                    const LangOptions &Features, const TargetInfo &Target,
+                    unsigned *StartToken = nullptr,
+                    unsigned *StartTokenByteOffset = nullptr) const;
 
   typedef const SourceLocation *tokloc_iterator;
   tokloc_iterator tokloc_begin() const { return TokLocs; }
-  tokloc_iterator tokloc_end() const { return TokLocs+NumConcatenated; }
+  tokloc_iterator tokloc_end() const { return TokLocs + NumConcatenated; }
 
   SourceLocation getLocStart() const LLVM_READONLY { return TokLocs[0]; }
   SourceLocation getLocEnd() const LLVM_READONLY {
@@ -1614,7 +1595,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// ParenExpr - This represents a parethesized expression, e.g. "(1)".  This
@@ -1657,7 +1640,6 @@ public:
   // Iterators
   child_range children() { return child_range(&Val, &Val+1); }
 };
-
 
 /// UnaryOperator - This represents the unary-expression's (except sizeof and
 /// alignof), the postinc/postdec operators from postfix-expression, and various
@@ -1768,6 +1750,99 @@ public:
   child_range children() { return child_range(&Val, &Val+1); }
 };
 
+/// Helper class for OffsetOfExpr.
+
+// __builtin_offsetof(type, identifier(.identifier|[expr])*)
+class OffsetOfNode {
+public:
+  /// \brief The kind of offsetof node we have.
+  enum Kind {
+    /// \brief An index into an array.
+    Array = 0x00,
+    /// \brief A field.
+    Field = 0x01,
+    /// \brief A field in a dependent type, known only by its name.
+    Identifier = 0x02,
+    /// \brief An implicit indirection through a C++ base class, when the
+    /// field found is in a base class.
+    Base = 0x03
+  };
+
+private:
+  enum { MaskBits = 2, Mask = 0x03 };
+
+  /// \brief The source range that covers this part of the designator.
+  SourceRange Range;
+
+  /// \brief The data describing the designator, which comes in three
+  /// different forms, depending on the lower two bits.
+  ///   - An unsigned index into the array of Expr*'s stored after this node
+  ///     in memory, for [constant-expression] designators.
+  ///   - A FieldDecl*, for references to a known field.
+  ///   - An IdentifierInfo*, for references to a field with a given name
+  ///     when the class type is dependent.
+  ///   - A CXXBaseSpecifier*, for references that look at a field in a
+  ///     base class.
+  uintptr_t Data;
+
+public:
+  /// \brief Create an offsetof node that refers to an array element.
+  OffsetOfNode(SourceLocation LBracketLoc, unsigned Index,
+               SourceLocation RBracketLoc)
+      : Range(LBracketLoc, RBracketLoc), Data((Index << 2) | Array) {}
+
+  /// \brief Create an offsetof node that refers to a field.
+  OffsetOfNode(SourceLocation DotLoc, FieldDecl *Field, SourceLocation NameLoc)
+      : Range(DotLoc.isValid() ? DotLoc : NameLoc, NameLoc),
+        Data(reinterpret_cast<uintptr_t>(Field) | OffsetOfNode::Field) {}
+
+  /// \brief Create an offsetof node that refers to an identifier.
+  OffsetOfNode(SourceLocation DotLoc, IdentifierInfo *Name,
+               SourceLocation NameLoc)
+      : Range(DotLoc.isValid() ? DotLoc : NameLoc, NameLoc),
+        Data(reinterpret_cast<uintptr_t>(Name) | Identifier) {}
+
+  /// \brief Create an offsetof node that refers into a C++ base class.
+  explicit OffsetOfNode(const CXXBaseSpecifier *Base)
+      : Range(), Data(reinterpret_cast<uintptr_t>(Base) | OffsetOfNode::Base) {}
+
+  /// \brief Determine what kind of offsetof node this is.
+  Kind getKind() const { return static_cast<Kind>(Data & Mask); }
+
+  /// \brief For an array element node, returns the index into the array
+  /// of expressions.
+  unsigned getArrayExprIndex() const {
+    assert(getKind() == Array);
+    return Data >> 2;
+  }
+
+  /// \brief For a field offsetof node, returns the field.
+  FieldDecl *getField() const {
+    assert(getKind() == Field);
+    return reinterpret_cast<FieldDecl *>(Data & ~(uintptr_t)Mask);
+  }
+
+  /// \brief For a field or identifier offsetof node, returns the name of
+  /// the field.
+  IdentifierInfo *getFieldName() const;
+
+  /// \brief For a base class node, returns the base specifier.
+  CXXBaseSpecifier *getBase() const {
+    assert(getKind() == Base);
+    return reinterpret_cast<CXXBaseSpecifier *>(Data & ~(uintptr_t)Mask);
+  }
+
+  /// \brief Retrieve the source range that covers this offsetof node.
+  ///
+  /// For an array element node, the source range contains the locations of
+  /// the square brackets. For a field or identifier node, the source range
+  /// contains the location of the period (if there is one) and the
+  /// identifier.
+  SourceRange getSourceRange() const LLVM_READONLY { return Range; }
+  SourceLocation getLocStart() const LLVM_READONLY { return Range.getBegin(); }
+  SourceLocation getLocEnd() const LLVM_READONLY { return Range.getEnd(); }
+};
+
 /// OffsetOfExpr - [C99 7.17] - This represents an expression of the form
 /// offsetof(record-type, member-designator). For example, given:
 /// @code
@@ -1782,104 +1857,9 @@ public:
 /// @endcode
 /// we can represent and evaluate the expression @c offsetof(struct T, s[2].d).
 
-class OffsetOfExpr : public Expr {
-public:
-  // __builtin_offsetof(type, identifier(.identifier|[expr])*)
-  class OffsetOfNode {
-  public:
-    /// \brief The kind of offsetof node we have.
-    enum Kind {
-      /// \brief An index into an array.
-      Array = 0x00,
-      /// \brief A field.
-      Field = 0x01,
-      /// \brief A field in a dependent type, known only by its name.
-      Identifier = 0x02,
-      /// \brief An implicit indirection through a C++ base class, when the
-      /// field found is in a base class.
-      Base = 0x03
-    };
-
-  private:
-    enum { MaskBits = 2, Mask = 0x03 };
-
-    /// \brief The source range that covers this part of the designator.
-    SourceRange Range;
-
-    /// \brief The data describing the designator, which comes in three
-    /// different forms, depending on the lower two bits.
-    ///   - An unsigned index into the array of Expr*'s stored after this node
-    ///     in memory, for [constant-expression] designators.
-    ///   - A FieldDecl*, for references to a known field.
-    ///   - An IdentifierInfo*, for references to a field with a given name
-    ///     when the class type is dependent.
-    ///   - A CXXBaseSpecifier*, for references that look at a field in a
-    ///     base class.
-    uintptr_t Data;
-
-  public:
-    /// \brief Create an offsetof node that refers to an array element.
-    OffsetOfNode(SourceLocation LBracketLoc, unsigned Index,
-                 SourceLocation RBracketLoc)
-      : Range(LBracketLoc, RBracketLoc), Data((Index << 2) | Array) { }
-
-    /// \brief Create an offsetof node that refers to a field.
-    OffsetOfNode(SourceLocation DotLoc, FieldDecl *Field,
-                 SourceLocation NameLoc)
-      : Range(DotLoc.isValid()? DotLoc : NameLoc, NameLoc),
-        Data(reinterpret_cast<uintptr_t>(Field) | OffsetOfNode::Field) { }
-
-    /// \brief Create an offsetof node that refers to an identifier.
-    OffsetOfNode(SourceLocation DotLoc, IdentifierInfo *Name,
-                 SourceLocation NameLoc)
-      : Range(DotLoc.isValid()? DotLoc : NameLoc, NameLoc),
-        Data(reinterpret_cast<uintptr_t>(Name) | Identifier) { }
-
-    /// \brief Create an offsetof node that refers into a C++ base class.
-    explicit OffsetOfNode(const CXXBaseSpecifier *Base)
-      : Range(), Data(reinterpret_cast<uintptr_t>(Base) | OffsetOfNode::Base) {}
-
-    /// \brief Determine what kind of offsetof node this is.
-    Kind getKind() const {
-      return static_cast<Kind>(Data & Mask);
-    }
-
-    /// \brief For an array element node, returns the index into the array
-    /// of expressions.
-    unsigned getArrayExprIndex() const {
-      assert(getKind() == Array);
-      return Data >> 2;
-    }
-
-    /// \brief For a field offsetof node, returns the field.
-    FieldDecl *getField() const {
-      assert(getKind() == Field);
-      return reinterpret_cast<FieldDecl *>(Data & ~(uintptr_t)Mask);
-    }
-
-    /// \brief For a field or identifier offsetof node, returns the name of
-    /// the field.
-    IdentifierInfo *getFieldName() const;
-
-    /// \brief For a base class node, returns the base specifier.
-    CXXBaseSpecifier *getBase() const {
-      assert(getKind() == Base);
-      return reinterpret_cast<CXXBaseSpecifier *>(Data & ~(uintptr_t)Mask);
-    }
-
-    /// \brief Retrieve the source range that covers this offsetof node.
-    ///
-    /// For an array element node, the source range contains the locations of
-    /// the square brackets. For a field or identifier node, the source range
-    /// contains the location of the period (if there is one) and the
-    /// identifier.
-    SourceRange getSourceRange() const LLVM_READONLY { return Range; }
-    SourceLocation getLocStart() const LLVM_READONLY { return Range.getBegin(); }
-    SourceLocation getLocEnd() const LLVM_READONLY { return Range.getEnd(); }
-  };
-
-private:
-
+class OffsetOfExpr final
+    : public Expr,
+      private llvm::TrailingObjects<OffsetOfExpr, OffsetOfNode, Expr *> {
   SourceLocation OperatorLoc, RParenLoc;
   // Base type;
   TypeSourceInfo *TSInfo;
@@ -1887,6 +1867,10 @@ private:
   unsigned NumComps;
   // Number of sub-expressions (i.e. array subscript expressions).
   unsigned NumExprs;
+
+  size_t numTrailingObjects(OverloadToken<OffsetOfNode>) const {
+    return NumComps;
+  }
 
   OffsetOfExpr(const ASTContext &C, QualType type,
                SourceLocation OperatorLoc, TypeSourceInfo *tsi,
@@ -1924,12 +1908,12 @@ public:
 
   const OffsetOfNode &getComponent(unsigned Idx) const {
     assert(Idx < NumComps && "Subscript out of range");
-    return reinterpret_cast<const OffsetOfNode *> (this + 1)[Idx];
+    return getTrailingObjects<OffsetOfNode>()[Idx];
   }
 
   void setComponent(unsigned Idx, OffsetOfNode ON) {
     assert(Idx < NumComps && "Subscript out of range");
-    reinterpret_cast<OffsetOfNode *> (this + 1)[Idx] = ON;
+    getTrailingObjects<OffsetOfNode>()[Idx] = ON;
   }
 
   unsigned getNumComponents() const {
@@ -1938,17 +1922,17 @@ public:
 
   Expr* getIndexExpr(unsigned Idx) {
     assert(Idx < NumExprs && "Subscript out of range");
-    return reinterpret_cast<Expr **>(
-                    reinterpret_cast<OffsetOfNode *>(this+1) + NumComps)[Idx];
+    return getTrailingObjects<Expr *>()[Idx];
   }
+
   const Expr *getIndexExpr(unsigned Idx) const {
-    return const_cast<OffsetOfExpr*>(this)->getIndexExpr(Idx);
+    assert(Idx < NumExprs && "Subscript out of range");
+    return getTrailingObjects<Expr *>()[Idx];
   }
 
   void setIndexExpr(unsigned Idx, Expr* E) {
     assert(Idx < NumComps && "Subscript out of range");
-    reinterpret_cast<Expr **>(
-                reinterpret_cast<OffsetOfNode *>(this+1) + NumComps)[Idx] = E;
+    getTrailingObjects<Expr *>()[Idx] = E;
   }
 
   unsigned getNumExpressions() const {
@@ -1964,11 +1948,10 @@ public:
 
   // Iterators
   child_range children() {
-    Stmt **begin =
-      reinterpret_cast<Stmt**>(reinterpret_cast<OffsetOfNode*>(this + 1)
-                               + NumComps);
+    Stmt **begin = reinterpret_cast<Stmt **>(getTrailingObjects<Expr *>());
     return child_range(begin, begin + NumExprs);
   }
+  friend TrailingObjects;
 };
 
 /// UnaryExprOrTypeTraitExpr - expression with either a type or (unevaluated)
@@ -2142,7 +2125,6 @@ public:
   }
 };
 
-
 /// CallExpr - Represents a function call (C99 6.5.2.2, C++ [expr.call]).
 /// CallExpr itself represents a normal function call, e.g., "f(x, 2)",
 /// while its subclasses may represent alternative syntax that (semantically)
@@ -2209,7 +2191,8 @@ public:
     return reinterpret_cast<Expr **>(SubExprs+getNumPreArgs()+PREARGS_START);
   }
   const Expr *const *getArgs() const {
-    return const_cast<CallExpr*>(this)->getArgs();
+    return reinterpret_cast<Expr **>(SubExprs + getNumPreArgs() +
+                                     PREARGS_START);
   }
 
   /// getArg - Return the specified argument.
@@ -2298,20 +2281,24 @@ public:
   }
 };
 
+/// Extra data stored in some MemberExpr objects.
+struct MemberExprNameQualifier {
+  /// \brief The nested-name-specifier that qualifies the name, including
+  /// source-location information.
+  NestedNameSpecifierLoc QualifierLoc;
+
+  /// \brief The DeclAccessPair through which the MemberDecl was found due to
+  /// name qualifiers.
+  DeclAccessPair FoundDecl;
+};
+
 /// MemberExpr - [C99 6.5.2.3] Structure and Union Members.  X->F and X.F.
 ///
-class MemberExpr : public Expr {
-  /// Extra data stored in some member expressions.
-  struct MemberNameQualifier {
-    /// \brief The nested-name-specifier that qualifies the name, including
-    /// source-location information.
-    NestedNameSpecifierLoc QualifierLoc;
-
-    /// \brief The DeclAccessPair through which the MemberDecl was found due to
-    /// name qualifiers.
-    DeclAccessPair FoundDecl;
-  };
-
+class MemberExpr final
+    : public Expr,
+      private llvm::TrailingObjects<MemberExpr, MemberExprNameQualifier,
+                                    ASTTemplateKWAndArgsInfo,
+                                    TemplateArgumentLoc> {
   /// Base - the expression for the base pointer or structure references.  In
   /// X.F, this is "X".
   Stmt *Base;
@@ -2335,7 +2322,7 @@ class MemberExpr : public Expr {
 
   /// \brief True if this member expression used a nested-name-specifier to
   /// refer to the member, e.g., "x->Base::f", or found its member via a using
-  /// declaration.  When true, a MemberNameQualifier
+  /// declaration.  When true, a MemberExprNameQualifier
   /// structure is allocated immediately after the MemberExpr.
   bool HasQualifierOrFoundDecl : 1;
 
@@ -2343,24 +2330,19 @@ class MemberExpr : public Expr {
   /// and/or a template argument list explicitly, e.g., x->f<int>,
   /// x->template f, x->template f<int>.
   /// When true, an ASTTemplateKWAndArgsInfo structure and its
-  /// TemplateArguments (if any) are allocated immediately after
-  /// the MemberExpr or, if the member expression also has a qualifier,
-  /// after the MemberNameQualifier structure.
+  /// TemplateArguments (if any) are present.
   bool HasTemplateKWAndArgsInfo : 1;
 
   /// \brief True if this member expression refers to a method that
   /// was resolved from an overloaded set having size greater than 1.
   bool HadMultipleCandidates : 1;
 
-  /// \brief Retrieve the qualifier that preceded the member name, if any.
-  MemberNameQualifier *getMemberQualifier() {
-    assert(HasQualifierOrFoundDecl);
-    return reinterpret_cast<MemberNameQualifier *> (this + 1);
+  size_t numTrailingObjects(OverloadToken<MemberExprNameQualifier>) const {
+    return HasQualifierOrFoundDecl ? 1 : 0;
   }
 
-  /// \brief Retrieve the qualifier that preceded the member name, if any.
-  const MemberNameQualifier *getMemberQualifier() const {
-    return const_cast<MemberExpr *>(this)->getMemberQualifier();
+  size_t numTrailingObjects(OverloadToken<ASTTemplateKWAndArgsInfo>) const {
+    return HasTemplateKWAndArgsInfo ? 1 : 0;
   }
 
 public:
@@ -2416,7 +2398,7 @@ public:
     if (!HasQualifierOrFoundDecl)
       return DeclAccessPair::make(getMemberDecl(),
                                   getMemberDecl()->getAccess());
-    return getMemberQualifier()->FoundDecl;
+    return getTrailingObjects<MemberExprNameQualifier>()->FoundDecl;
   }
 
   /// \brief Determines whether this member expression actually had
@@ -2425,61 +2407,41 @@ public:
   bool hasQualifier() const { return getQualifier() != nullptr; }
 
   /// \brief If the member name was qualified, retrieves the
-  /// nested-name-specifier that precedes the member name. Otherwise, returns
-  /// NULL.
-  NestedNameSpecifier *getQualifier() const {
-    if (!HasQualifierOrFoundDecl)
-      return nullptr;
-
-    return getMemberQualifier()->QualifierLoc.getNestedNameSpecifier();
-  }
-
-  /// \brief If the member name was qualified, retrieves the
   /// nested-name-specifier that precedes the member name, with source-location
   /// information.
   NestedNameSpecifierLoc getQualifierLoc() const {
-    if (!hasQualifier())
+    if (!HasQualifierOrFoundDecl)
       return NestedNameSpecifierLoc();
 
-    return getMemberQualifier()->QualifierLoc;
+    return getTrailingObjects<MemberExprNameQualifier>()->QualifierLoc;
   }
 
-  /// \brief Return the optional template keyword and arguments info.
-  ASTTemplateKWAndArgsInfo *getTemplateKWAndArgsInfo() {
-    if (!HasTemplateKWAndArgsInfo)
-      return nullptr;
-
-    if (!HasQualifierOrFoundDecl)
-      return reinterpret_cast<ASTTemplateKWAndArgsInfo *>(this + 1);
-
-    return reinterpret_cast<ASTTemplateKWAndArgsInfo *>(
-                                                      getMemberQualifier() + 1);
-  }
-
-  /// \brief Return the optional template keyword and arguments info.
-  const ASTTemplateKWAndArgsInfo *getTemplateKWAndArgsInfo() const {
-    return const_cast<MemberExpr*>(this)->getTemplateKWAndArgsInfo();
+  /// \brief If the member name was qualified, retrieves the
+  /// nested-name-specifier that precedes the member name. Otherwise, returns
+  /// NULL.
+  NestedNameSpecifier *getQualifier() const {
+    return getQualifierLoc().getNestedNameSpecifier();
   }
 
   /// \brief Retrieve the location of the template keyword preceding
   /// the member name, if any.
   SourceLocation getTemplateKeywordLoc() const {
     if (!HasTemplateKWAndArgsInfo) return SourceLocation();
-    return getTemplateKWAndArgsInfo()->getTemplateKeywordLoc();
+    return getTrailingObjects<ASTTemplateKWAndArgsInfo>()->TemplateKWLoc;
   }
 
   /// \brief Retrieve the location of the left angle bracket starting the
   /// explicit template argument list following the member name, if any.
   SourceLocation getLAngleLoc() const {
     if (!HasTemplateKWAndArgsInfo) return SourceLocation();
-    return getTemplateKWAndArgsInfo()->LAngleLoc;
+    return getTrailingObjects<ASTTemplateKWAndArgsInfo>()->LAngleLoc;
   }
 
   /// \brief Retrieve the location of the right angle bracket ending the
   /// explicit template argument list following the member name, if any.
   SourceLocation getRAngleLoc() const {
     if (!HasTemplateKWAndArgsInfo) return SourceLocation();
-    return getTemplateKWAndArgsInfo()->RAngleLoc;
+    return getTrailingObjects<ASTTemplateKWAndArgsInfo>()->RAngleLoc;
   }
 
   /// Determines whether the member name was preceded by the template keyword.
@@ -2493,30 +2455,8 @@ public:
   /// structure.
   void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
     if (hasExplicitTemplateArgs())
-      getExplicitTemplateArgs().copyInto(List);
-  }
-
-  /// \brief Retrieve the explicit template argument list that
-  /// follow the member template name.  This must only be called on an
-  /// expression with explicit template arguments.
-  ASTTemplateArgumentListInfo &getExplicitTemplateArgs() {
-    assert(hasExplicitTemplateArgs());
-    return *getTemplateKWAndArgsInfo();
-  }
-
-  /// \brief Retrieve the explicit template argument list that
-  /// followed the member template name.  This must only be called on
-  /// an expression with explicit template arguments.
-  const ASTTemplateArgumentListInfo &getExplicitTemplateArgs() const {
-    return const_cast<MemberExpr *>(this)->getExplicitTemplateArgs();
-  }
-
-  /// \brief Retrieves the optional explicit template arguments.
-  /// This points to the same data as getExplicitTemplateArgs(), but
-  /// returns null if there are no explicit template arguments.
-  const ASTTemplateArgumentListInfo *getOptionalExplicitTemplateArgs() const {
-    if (!hasExplicitTemplateArgs()) return nullptr;
-    return &getExplicitTemplateArgs();
+      getTrailingObjects<ASTTemplateKWAndArgsInfo>()->copyInto(
+          getTrailingObjects<TemplateArgumentLoc>(), List);
   }
 
   /// \brief Retrieve the template arguments provided as part of this
@@ -2525,7 +2465,7 @@ public:
     if (!hasExplicitTemplateArgs())
       return nullptr;
 
-    return getExplicitTemplateArgs().getTemplateArgs();
+    return getTrailingObjects<TemplateArgumentLoc>();
   }
 
   /// \brief Retrieve the number of template arguments provided as part of this
@@ -2534,7 +2474,7 @@ public:
     if (!hasExplicitTemplateArgs())
       return 0;
 
-    return getExplicitTemplateArgs().NumTemplateArgs;
+    return getTrailingObjects<ASTTemplateKWAndArgsInfo>()->NumTemplateArgs;
   }
 
   /// \brief Retrieve the member declaration name info.
@@ -2575,6 +2515,14 @@ public:
     HadMultipleCandidates = V;
   }
 
+  /// \brief Returns true if virtual dispatch is performed.
+  /// If the member access is fully qualified, (i.e. X::f()), virtual
+  /// dispatching is not performed. In -fapple-kext mode qualified
+  /// calls to virtual method will still go through the vtable.
+  bool performsVirtualDispatch(const LangOptions &LO) const {
+    return LO.AppleKext || !hasQualifier();
+  }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == MemberExprClass;
   }
@@ -2582,6 +2530,7 @@ public:
   // Iterators
   child_range children() { return child_range(&Base, &Base+1); }
 
+  friend TrailingObjects;
   friend class ASTReader;
   friend class ASTStmtWriter;
 };
@@ -2731,8 +2680,6 @@ public:
   path_const_iterator path_begin() const { return path_buffer(); }
   path_const_iterator path_end() const { return path_buffer() + path_size(); }
 
-  void setCastPath(const CXXCastPath &Path);
-
   static bool classof(const Stmt *T) {
     return T->getStmtClass() >= firstCastExprConstant &&
            T->getStmtClass() <= lastCastExprConstant;
@@ -2762,7 +2709,9 @@ public:
 ///                     // to an xvalue of type Base
 /// }
 /// @endcode
-class ImplicitCastExpr : public CastExpr {
+class ImplicitCastExpr final
+    : public CastExpr,
+      private llvm::TrailingObjects<ImplicitCastExpr, CXXBaseSpecifier *> {
 private:
   ImplicitCastExpr(QualType ty, CastKind kind, Expr *op,
                    unsigned BasePathLength, ExprValueKind VK)
@@ -2798,6 +2747,9 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ImplicitCastExprClass;
   }
+
+  friend TrailingObjects;
+  friend class CastExpr;
 };
 
 inline Expr *Expr::IgnoreImpCasts() {
@@ -2857,7 +2809,9 @@ public:
 /// CStyleCastExpr - An explicit cast in C (C99 6.5.4) or a C-style
 /// cast in C++ (C++ [expr.cast]), which uses the syntax
 /// (Type)expr. For example: @c (int)f.
-class CStyleCastExpr : public ExplicitCastExpr {
+class CStyleCastExpr final
+    : public ExplicitCastExpr,
+      private llvm::TrailingObjects<CStyleCastExpr, CXXBaseSpecifier *> {
   SourceLocation LPLoc; // the location of the left paren
   SourceLocation RPLoc; // the location of the right paren
 
@@ -2895,6 +2849,9 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CStyleCastExprClass;
   }
+
+  friend TrailingObjects;
+  friend class CastExpr;
 };
 
 /// \brief A builtin binary operation expression such as "x + y" or "x <= y".
@@ -2989,7 +2946,10 @@ public:
 
   /// predicates to categorize the respective opcodes.
   bool isPtrMemOp() const { return Opc == BO_PtrMemD || Opc == BO_PtrMemI; }
-  bool isMultiplicativeOp() const { return Opc >= BO_Mul && Opc <= BO_Rem; }
+  static bool isMultiplicativeOp(Opcode Opc) {
+    return Opc >= BO_Mul && Opc <= BO_Rem;
+  }
+  bool isMultiplicativeOp() const { return isMultiplicativeOp(getOpcode()); }
   static bool isAdditiveOp(Opcode Opc) { return Opc == BO_Add || Opc==BO_Sub; }
   bool isAdditiveOp() const { return isAdditiveOp(getOpcode()); }
   static bool isShiftOp(Opcode Opc) { return Opc == BO_Shl || Opc == BO_Shr; }
@@ -3384,7 +3344,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// StmtExpr - This is the GNU Statement Expression extension: ({int X=4; X;}).
@@ -3428,7 +3390,6 @@ public:
   // Iterators
   child_range children() { return child_range(&SubStmt, &SubStmt+1); }
 };
-
 
 /// ShuffleVectorExpr - clang-specific builtin-in function
 /// __builtin_shufflevector.
@@ -3663,36 +3624,40 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
-/// VAArgExpr, used for the builtin function __builtin_va_arg.
+/// Represents a call to the builtin function \c __builtin_va_arg.
 class VAArgExpr : public Expr {
   Stmt *Val;
-  TypeSourceInfo *TInfo;
+  llvm::PointerIntPair<TypeSourceInfo *, 1, bool> TInfo;
   SourceLocation BuiltinLoc, RParenLoc;
 public:
-  VAArgExpr(SourceLocation BLoc, Expr* e, TypeSourceInfo *TInfo,
-            SourceLocation RPLoc, QualType t)
-    : Expr(VAArgExprClass, t, VK_RValue, OK_Ordinary,
-           t->isDependentType(), false,
-           (TInfo->getType()->isInstantiationDependentType() ||
-            e->isInstantiationDependent()),
-           (TInfo->getType()->containsUnexpandedParameterPack() ||
-            e->containsUnexpandedParameterPack())),
-      Val(e), TInfo(TInfo),
-      BuiltinLoc(BLoc),
-      RParenLoc(RPLoc) { }
+  VAArgExpr(SourceLocation BLoc, Expr *e, TypeSourceInfo *TInfo,
+            SourceLocation RPLoc, QualType t, bool IsMS)
+      : Expr(VAArgExprClass, t, VK_RValue, OK_Ordinary, t->isDependentType(),
+             false, (TInfo->getType()->isInstantiationDependentType() ||
+                     e->isInstantiationDependent()),
+             (TInfo->getType()->containsUnexpandedParameterPack() ||
+              e->containsUnexpandedParameterPack())),
+        Val(e), TInfo(TInfo, IsMS), BuiltinLoc(BLoc), RParenLoc(RPLoc) {}
 
-  /// \brief Create an empty __builtin_va_arg expression.
-  explicit VAArgExpr(EmptyShell Empty) : Expr(VAArgExprClass, Empty) { }
+  /// Create an empty __builtin_va_arg expression.
+  explicit VAArgExpr(EmptyShell Empty)
+      : Expr(VAArgExprClass, Empty), Val(nullptr), TInfo(nullptr, false) {}
 
   const Expr *getSubExpr() const { return cast<Expr>(Val); }
   Expr *getSubExpr() { return cast<Expr>(Val); }
   void setSubExpr(Expr *E) { Val = E; }
 
-  TypeSourceInfo *getWrittenTypeInfo() const { return TInfo; }
-  void setWrittenTypeInfo(TypeSourceInfo *TI) { TInfo = TI; }
+  /// Returns whether this is really a Win64 ABI va_arg expression.
+  bool isMicrosoftABI() const { return TInfo.getInt(); }
+  void setIsMicrosoftABI(bool IsMS) { TInfo.setInt(IsMS); }
+
+  TypeSourceInfo *getWrittenTypeInfo() const { return TInfo.getPointer(); }
+  void setWrittenTypeInfo(TypeSourceInfo *TI) { TInfo.setPointer(TI); }
 
   SourceLocation getBuiltinLoc() const { return BuiltinLoc; }
   void setBuiltinLoc(SourceLocation L) { BuiltinLoc = L; }
@@ -3790,6 +3755,10 @@ public:
 
   /// \brief Retrieve the set of initializers.
   Expr **getInits() { return reinterpret_cast<Expr **>(InitExprs.data()); }
+
+  ArrayRef<Expr *> inits() {
+    return llvm::makeArrayRef(getInits(), getNumInits());
+  }
 
   const Expr *getInit(unsigned Init) const {
     assert(Init < getNumInits() && "Initializer access out of range!");
@@ -3916,7 +3885,8 @@ public:
   // Iterators
   child_range children() {
     // FIXME: This does not include the array filler expression.
-    if (InitExprs.empty()) return child_range();
+    if (InitExprs.empty())
+      return child_range(child_iterator(), child_iterator());
     return child_range(&InitExprs[0], &InitExprs[0] + InitExprs.size());
   }
 
@@ -3958,7 +3928,9 @@ public:
 /// which covers @c [2].y=1.0. This DesignatedInitExpr will have two
 /// designators, one array designator for @c [2] followed by one field
 /// designator for @c .y. The initialization expression will be 1.0.
-class DesignatedInitExpr : public Expr {
+class DesignatedInitExpr final
+    : public Expr,
+      private llvm::TrailingObjects<DesignatedInitExpr, Stmt *> {
 public:
   /// \brief Forward declaration of the Designator class.
   class Designator;
@@ -4238,12 +4210,12 @@ public:
 
   Expr *getSubExpr(unsigned Idx) const {
     assert(Idx < NumSubExprs && "Subscript out of range");
-    return cast<Expr>(reinterpret_cast<Stmt *const *>(this + 1)[Idx]);
+    return cast<Expr>(getTrailingObjects<Stmt *>()[Idx]);
   }
 
   void setSubExpr(unsigned Idx, Expr *E) {
     assert(Idx < NumSubExprs && "Subscript out of range");
-    reinterpret_cast<Stmt **>(this + 1)[Idx] = E;
+    getTrailingObjects<Stmt *>()[Idx] = E;
   }
 
   /// \brief Replaces the designator at index @p Idx with the series
@@ -4262,9 +4234,11 @@ public:
 
   // Iterators
   child_range children() {
-    Stmt **begin = reinterpret_cast<Stmt**>(this + 1);
+    Stmt **begin = getTrailingObjects<Stmt *>();
     return child_range(begin, begin + NumSubExprs);
   }
+
+  friend TrailingObjects;
 };
 
 /// \brief Represents a place-holder for an object not to be initialized by
@@ -4293,7 +4267,9 @@ public:
   SourceLocation getLocEnd() const LLVM_READONLY { return SourceLocation(); }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 // In cases like:
@@ -4367,9 +4343,10 @@ public:
   SourceLocation getLocEnd() const LLVM_READONLY { return SourceLocation(); }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
-
 
 class ParenListExpr : public Expr {
   Stmt **Exprs;
@@ -4397,6 +4374,10 @@ public:
 
   Expr **getExprs() { return reinterpret_cast<Expr **>(Exprs); }
 
+  ArrayRef<Expr *> exprs() {
+    return llvm::makeArrayRef(getExprs(), getNumExprs());
+  }
+
   SourceLocation getLParenLoc() const { return LParenLoc; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
 
@@ -4415,7 +4396,6 @@ public:
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
 };
-
 
 /// \brief Represents a C11 generic selection.
 ///
@@ -4532,7 +4512,6 @@ public:
 // Clang Extensions
 //===----------------------------------------------------------------------===//
 
-
 /// ExtVectorElementExpr - This represents access to specific elements of a
 /// vector, and may occur on the left hand side or right hand side.  For example
 /// the following is legal:  "V.xy = V.zw" if V is a 4 element extended vector.
@@ -4577,7 +4556,7 @@ public:
 
   /// getEncodedElementAccess - Encode the elements accessed into an llvm
   /// aggregate Constant of ConstantInt(s).
-  void getEncodedElementAccess(SmallVectorImpl<unsigned> &Elts) const;
+  void getEncodedElementAccess(SmallVectorImpl<uint32_t> &Elts) const;
 
   SourceLocation getLocStart() const LLVM_READONLY {
     return getBase()->getLocStart();
@@ -4595,7 +4574,6 @@ public:
   // Iterators
   child_range children() { return child_range(&Base, &Base+1); }
 };
-
 
 /// BlockExpr - Adaptor class for mixing a BlockDecl with expressions.
 /// ^{ statement-body }   or   ^(int arg1, float arg2){ statement-body }
@@ -4633,7 +4611,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// AsTypeExpr - Clang builtin function __builtin_astype [OpenCL 6.2.4.2]
@@ -4709,7 +4689,9 @@ public:
 /// equivalent to a particular message send, and this is very much
 /// part of the user model.  The name of this class encourages this
 /// modelling design.
-class PseudoObjectExpr : public Expr {
+class PseudoObjectExpr final
+    : public Expr,
+      private llvm::TrailingObjects<PseudoObjectExpr, Expr *> {
   // PseudoObjectExprBits.NumSubExprs - The number of sub-expressions.
   // Always at least two, because the first sub-expression is the
   // syntactic form.
@@ -4721,12 +4703,10 @@ class PseudoObjectExpr : public Expr {
   // in to Create, which is an index within the semantic forms.
   // Note also that ASTStmtWriter assumes this encoding.
 
-  Expr **getSubExprsBuffer() { return reinterpret_cast<Expr**>(this + 1); }
+  Expr **getSubExprsBuffer() { return getTrailingObjects<Expr *>(); }
   const Expr * const *getSubExprsBuffer() const {
-    return reinterpret_cast<const Expr * const *>(this + 1);
+    return getTrailingObjects<Expr *>();
   }
-
-  friend class ASTStmtReader;
 
   PseudoObjectExpr(QualType type, ExprValueKind VK,
                    Expr *syntactic, ArrayRef<Expr*> semantic,
@@ -4789,6 +4769,14 @@ public:
   const_semantics_iterator semantics_end() const {
     return getSubExprsBuffer() + getNumSubExprs();
   }
+
+  llvm::iterator_range<semantics_iterator> semantics() {
+    return llvm::make_range(semantics_begin(), semantics_end());
+  }
+  llvm::iterator_range<const_semantics_iterator> semantics() const {
+    return llvm::make_range(semantics_begin(), semantics_end());
+  }
+
   Expr *getSemanticExpr(unsigned index) {
     assert(index + 1 < getNumSubExprs());
     return getSubExprsBuffer()[index + 1];
@@ -4816,6 +4804,9 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == PseudoObjectExprClass;
   }
+
+  friend TrailingObjects;
+  friend class ASTStmtReader;
 };
 
 /// AtomicExpr - Variadic atomic builtins: __atomic_exchange, __atomic_fetch_*,
@@ -4935,10 +4926,17 @@ public:
     assert(T->isDependentType() && "TypoExpr given a non-dependent type");
   }
 
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
   SourceLocation getLocStart() const LLVM_READONLY { return SourceLocation(); }
   SourceLocation getLocEnd() const LLVM_READONLY { return SourceLocation(); }
-};
-}  // end namespace clang
+  
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == TypoExprClass;
+  }
 
-#endif
+};
+} // end namespace clang
+
+#endif // LLVM_CLANG_AST_EXPR_H

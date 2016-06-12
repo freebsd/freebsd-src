@@ -702,7 +702,7 @@ static struct bufarea *
 getdirblk(ufs2_daddr_t blkno, long size)
 {
 
-	if (pdirbp != 0)
+	if (pdirbp != NULL)
 		pdirbp->b_flags &= ~B_INUSE;
 	pdirbp = getdatablk(blkno, size, BT_DIRDATA);
 	return (pdirbp);

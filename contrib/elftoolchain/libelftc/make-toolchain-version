@@ -3,7 +3,7 @@
 # This script generates a project-wide version identifier for use by
 # the `elftc_version()' API.
 #
-# $Id: make-toolchain-version 2583 2012-09-14 09:49:25Z jkoshy $
+# $Id: make-toolchain-version 3414 2016-02-16 22:55:28Z jkoshy $
 
 #
 # Defaults.
@@ -64,17 +64,23 @@ done
 curdir=`pwd`
 cd ${top} || usage "ERROR: Cannot change directory to \"${top}\"."
 
-if [ -d .svn ]; then		# FreeBSD and SF.Net sources.
-    versionstring=" svn:"$(svnversion)
-elif [ -d CVS ]; then		# NetBSD.
+if [ -d CVS ]; then		# Look for CVS (NetBSD).
     versionstring=" cvs:unknown"
-else				# DragonFlyBSD.
-    versionstring=" git:"$(git describe --all --dirty --long 2> /dev/null)
-
-    # Cannot determine an in-tree version number.
-    if [ $? -ne 0 ]; then
-	versionstring=""
+else				# Try git (DragonFlyBSD).
+    gitversion="$(git describe --all --dirty --long 2> /dev/null)"
+    if [ -n "${gitversion}" ]; then
+        versionstring=" git:${gitversion}"
+    else   # Assume an SVN checkout (SourceForge or FreeBSD).
+        svnversion="$(svnversion)"
+        if [ -n "${svnversion}" ]; then
+	    versionstring=" svn:$(svnversion)"
+        fi
     fi
+fi
+
+if [ -z "${versionstring}" ]; then
+    echo "ERROR: cannot determine a revision number." 1>&2
+    exit 1
 fi
 
 cd ${curdir} || usage "Cannot change back to ${curdir}."

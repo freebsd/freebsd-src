@@ -422,7 +422,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	if (dtb_size)
 		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
 	else
-		pager_output("WARNING! Trying to fire up the kernel, but no "
+		printf("WARNING! Trying to fire up the kernel, but no "
 		    "device tree blob found!\n");
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
@@ -445,7 +445,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 
 	/* Do relocation fixup on metadata of each module. */
 	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
-		for (i = 0; i < sizeof mdt / sizeof mdt[0]; i++) {
+		for (i = 0; i < nitems(mdt); i++) {
 			md = file_findmetadata(xp, mdt[i]);
 			if (md) {
 				bcopy(md->md_data, &vaddr, sizeof vaddr);

@@ -29,6 +29,48 @@ class MCSymbol;
 class raw_ostream;
 class DwarfTypeUnit;
 
+// AsmStreamerBase - A base abstract interface class defines methods that
+// can be implemented to stream objects or can be implemented to
+// calculate the size of the streamed objects.
+// The derived classes will use an AsmPrinter to implement the methods.
+//
+// TODO: complete this interface and use it to merge EmitValue and SizeOf
+//       methods in the DIE classes below.
+class AsmStreamerBase {
+protected:
+  const AsmPrinter *AP;
+  AsmStreamerBase(const AsmPrinter *AP) : AP(AP) {}
+
+public:
+  virtual ~AsmStreamerBase() {}
+  virtual unsigned emitULEB128(uint64_t Value, const char *Desc = nullptr,
+                               unsigned PadTo = 0) = 0;
+  virtual unsigned emitInt8(unsigned char Value) = 0;
+  virtual unsigned emitBytes(StringRef Data) = 0;
+};
+
+/// EmittingAsmStreamer - Implements AbstractAsmStreamer to stream objects.
+/// Notice that the return value is not the actual size of the streamed object.
+/// For size calculation use SizeReporterAsmStreamer.
+class EmittingAsmStreamer : public AsmStreamerBase {
+public:
+  EmittingAsmStreamer(const AsmPrinter *AP) : AsmStreamerBase(AP) {}
+  unsigned emitULEB128(uint64_t Value, const char *Desc = nullptr,
+                       unsigned PadTo = 0) override;
+  unsigned emitInt8(unsigned char Value) override;
+  unsigned emitBytes(StringRef Data) override;
+};
+
+/// SizeReporterAsmStreamer - Only reports the size of the streamed objects.
+class SizeReporterAsmStreamer : public AsmStreamerBase {
+public:
+  SizeReporterAsmStreamer(const AsmPrinter *AP) : AsmStreamerBase(AP) {}
+  unsigned emitULEB128(uint64_t Value, const char *Desc = nullptr,
+                       unsigned PadTo = 0) override;
+  unsigned emitInt8(unsigned char Value) override;
+  unsigned emitBytes(StringRef Data) override;
+};
+
 //===--------------------------------------------------------------------===//
 /// DIEAbbrevData - Dwarf abbreviation data, describes one attribute of a
 /// Dwarf abbreviation.
@@ -100,10 +142,8 @@ public:
   ///
   void Emit(const AsmPrinter *AP) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O);
   void dump();
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -143,9 +183,7 @@ public:
   void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -164,9 +202,7 @@ public:
   void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -185,9 +221,7 @@ public:
   void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -203,9 +237,7 @@ public:
   void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -223,9 +255,7 @@ public:
   void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -252,9 +282,7 @@ public:
                                            : sizeof(int32_t);
   }
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -273,9 +301,7 @@ public:
     return 8;
   }
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -295,9 +321,7 @@ public:
   void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
@@ -444,10 +468,8 @@ public:
   ///
   unsigned SizeOf(const AsmPrinter *AP) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
   void dump() const;
-#endif
 };
 
 struct IntrusiveBackListNode {
@@ -566,64 +588,70 @@ class DIEValueList {
   ListTy List;
 
 public:
-  bool empty() const { return List.empty(); }
-
-  class const_iterator;
-  class iterator
-      : public iterator_adaptor_base<iterator, ListTy::iterator,
+  class const_value_iterator;
+  class value_iterator
+      : public iterator_adaptor_base<value_iterator, ListTy::iterator,
                                      std::forward_iterator_tag, DIEValue> {
-    friend class const_iterator;
-    typedef iterator_adaptor_base<iterator, ListTy::iterator,
+    friend class const_value_iterator;
+    typedef iterator_adaptor_base<value_iterator, ListTy::iterator,
                                   std::forward_iterator_tag,
                                   DIEValue> iterator_adaptor;
 
   public:
-    iterator() = default;
-    explicit iterator(ListTy::iterator X) : iterator_adaptor(X) {}
+    value_iterator() = default;
+    explicit value_iterator(ListTy::iterator X) : iterator_adaptor(X) {}
 
     explicit operator bool() const { return bool(wrapped()); }
     DIEValue &operator*() const { return wrapped()->V; }
   };
 
-  class const_iterator
-      : public iterator_adaptor_base<const_iterator, ListTy::const_iterator,
-                                     std::forward_iterator_tag,
-                                     const DIEValue> {
-    typedef iterator_adaptor_base<const_iterator, ListTy::const_iterator,
+  class const_value_iterator : public iterator_adaptor_base<
+                                   const_value_iterator, ListTy::const_iterator,
+                                   std::forward_iterator_tag, const DIEValue> {
+    typedef iterator_adaptor_base<const_value_iterator, ListTy::const_iterator,
                                   std::forward_iterator_tag,
                                   const DIEValue> iterator_adaptor;
 
   public:
-    const_iterator() = default;
-    const_iterator(DIEValueList::iterator X) : iterator_adaptor(X.wrapped()) {}
-    explicit const_iterator(ListTy::const_iterator X) : iterator_adaptor(X) {}
+    const_value_iterator() = default;
+    const_value_iterator(DIEValueList::value_iterator X)
+        : iterator_adaptor(X.wrapped()) {}
+    explicit const_value_iterator(ListTy::const_iterator X)
+        : iterator_adaptor(X) {}
 
     explicit operator bool() const { return bool(wrapped()); }
     const DIEValue &operator*() const { return wrapped()->V; }
   };
 
-  iterator insert(BumpPtrAllocator &Alloc, DIEValue V) {
+  typedef iterator_range<value_iterator> value_range;
+  typedef iterator_range<const_value_iterator> const_value_range;
+
+  value_iterator addValue(BumpPtrAllocator &Alloc, DIEValue V) {
     List.push_back(*new (Alloc) Node(V));
-    return iterator(ListTy::toIterator(List.back()));
+    return value_iterator(ListTy::toIterator(List.back()));
   }
-  template <class... Ts>
-  iterator emplace(BumpPtrAllocator &Alloc, Ts &&... Args) {
-    return insert(Alloc, DIEValue(std::forward<Ts>(Args)...));
+  template <class T>
+  value_iterator addValue(BumpPtrAllocator &Alloc, dwarf::Attribute Attribute,
+                    dwarf::Form Form, T &&Value) {
+    return addValue(Alloc, DIEValue(Attribute, Form, std::forward<T>(Value)));
   }
 
-  iterator begin() { return iterator(List.begin()); }
-  iterator end() { return iterator(List.end()); }
-  const_iterator begin() const { return const_iterator(List.begin()); }
-  const_iterator end() const { return const_iterator(List.end()); }
+  value_range values() {
+    return llvm::make_range(value_iterator(List.begin()),
+                            value_iterator(List.end()));
+  }
+  const_value_range values() const {
+    return llvm::make_range(const_value_iterator(List.begin()),
+                            const_value_iterator(List.end()));
+  }
 };
 
 //===--------------------------------------------------------------------===//
 /// DIE - A structured debug information entry.  Has an abbreviation which
 /// describes its organization.
-class DIE : IntrusiveBackListNode {
+class DIE : IntrusiveBackListNode, public DIEValueList {
   friend class IntrusiveBackList<DIE>;
 
-protected:
   /// Offset - Offset in debug info section.
   ///
   unsigned Offset;
@@ -643,14 +671,7 @@ protected:
 
   DIE *Parent = nullptr;
 
-  /// Attribute values.
-  ///
-  DIEValueList Values;
-
-protected:
-  DIE() : Offset(0), Size(0) {}
-
-private:
+  DIE() = delete;
   explicit DIE(dwarf::Tag Tag) : Offset(0), Size(0), Tag(Tag) {}
 
 public:
@@ -677,20 +698,6 @@ public:
     return llvm::make_range(Children.begin(), Children.end());
   }
 
-  typedef DIEValueList::iterator value_iterator;
-  typedef iterator_range<value_iterator> value_range;
-
-  value_range values() {
-    return llvm::make_range(Values.begin(), Values.end());
-  }
-
-  typedef DIEValueList::const_iterator const_value_iterator;
-  typedef iterator_range<const_value_iterator> const_value_range;
-
-  const_value_range values() const {
-    return llvm::make_range(Values.begin(), Values.end());
-  }
-
   DIE *getParent() const { return Parent; }
 
   /// Generate the abbreviation for this DIE.
@@ -711,17 +718,6 @@ public:
   void setOffset(unsigned O) { Offset = O; }
   void setSize(unsigned S) { Size = S; }
 
-  /// addValue - Add a value and attributes to a DIE.
-  ///
-  value_iterator addValue(BumpPtrAllocator &Alloc, DIEValue Value) {
-    return Values.insert(Alloc, Value);
-  }
-  template <class T>
-  value_iterator addValue(BumpPtrAllocator &Alloc, dwarf::Attribute Attribute,
-                          dwarf::Form Form, T &&Value) {
-    return Values.emplace(Alloc, Attribute, Form, std::forward<T>(Value));
-  }
-
   /// Add a child to the DIE.
   DIE &addChild(DIE *Child) {
     assert(!Child->getParent() && "Child should be orphaned");
@@ -736,16 +732,14 @@ public:
   /// gives \a DIEValue::isNone) if no such attribute exists.
   DIEValue findAttribute(dwarf::Attribute Attribute) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O, unsigned IndentCount = 0) const;
   void dump();
-#endif
 };
 
 //===--------------------------------------------------------------------===//
 /// DIELoc - Represents an expression location.
 //
-class DIELoc : public DIE {
+class DIELoc : public DIEValueList {
   mutable unsigned Size; // Size in bytes excluding size header.
 
 public:
@@ -773,15 +767,13 @@ public:
   void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 //===--------------------------------------------------------------------===//
 /// DIEBlock - Represents a block of values.
 //
-class DIEBlock : public DIE {
+class DIEBlock : public DIEValueList {
   mutable unsigned Size; // Size in bytes excluding size header.
 
 public:
@@ -806,9 +798,7 @@ public:
   void EmitValue(const AsmPrinter *AP, dwarf::Form Form) const;
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
-#ifndef NDEBUG
   void print(raw_ostream &O) const;
-#endif
 };
 
 } // end llvm namespace

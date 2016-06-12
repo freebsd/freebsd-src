@@ -247,9 +247,7 @@ g_modevent(module_t mod, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 		g_trace(G_T_TOPOLOGY, "g_modevent(%s, UNLOAD)", mp->name);
-		DROP_GIANT();
 		error = g_unload_class(mp);
-		PICKUP_GIANT();
 		if (error == 0) {
 			KASSERT(LIST_EMPTY(&mp->geom),
 			    ("Unloaded class (%s) still has geom", mp->name));
@@ -1471,6 +1469,7 @@ db_print_bio_cmd(struct bio *bp)
 	case BIO_CMD0: db_printf("BIO_CMD0"); break;
 	case BIO_CMD1: db_printf("BIO_CMD1"); break;
 	case BIO_CMD2: db_printf("BIO_CMD2"); break;
+	case BIO_ZONE: db_printf("BIO_ZONE"); break;
 	default: db_printf("UNKNOWN"); break;
 	}
 	db_printf("\n");
@@ -1508,8 +1507,8 @@ DB_SHOW_COMMAND(bio, db_show_bio)
 		db_printf("BIO %p\n", bp);
 		db_print_bio_cmd(bp);
 		db_print_bio_flags(bp);
-		db_printf("  cflags: 0x%hhx\n", bp->bio_cflags);
-		db_printf("  pflags: 0x%hhx\n", bp->bio_pflags);
+		db_printf("  cflags: 0x%hx\n", bp->bio_cflags);
+		db_printf("  pflags: 0x%hx\n", bp->bio_pflags);
 		db_printf("  offset: %jd\n", (intmax_t)bp->bio_offset);
 		db_printf("  length: %jd\n", (intmax_t)bp->bio_length);
 		db_printf("  bcount: %ld\n", bp->bio_bcount);

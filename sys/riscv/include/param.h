@@ -51,7 +51,7 @@
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
-#define	MAXCPU		2
+#define	MAXCPU		16
 #endif
 #else
 #define	MAXCPU		1

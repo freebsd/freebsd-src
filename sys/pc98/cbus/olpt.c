@@ -420,7 +420,7 @@ lptopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 	lprintf(("irq %x\n", sc->sc_irq));
 	if (sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
-		sc->sc_backoff = hz / LPTOUTINITIAL;;
+		sc->sc_backoff = hz / LPTOUTINITIAL;
 		callout_reset(&sc->timer, sc->sc_backoff, lptout, sc);
 	}
 

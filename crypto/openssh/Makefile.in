@@ -91,11 +91,11 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	sc25519.o ge25519.o fe25519.o ed25519.o verify.o hash.o blocks.o \
 	kex.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
 	kexdhc.o kexgexc.o kexecdhc.o kexc25519c.o \
-	kexdhs.o kexgexs.o kexecdhs.o kexc25519s.o
+	kexdhs.o kexgexs.o kexecdhs.o kexc25519s.o \
+	platform-pledge.o
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
-	sshconnect.o sshconnect1.o sshconnect2.o mux.o \
-	roaming_common.o roaming_client.o
+	sshconnect.o sshconnect1.o sshconnect2.o mux.o
 
 SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	audit.o audit-bsm.o audit-linux.o platform.o \
@@ -108,9 +108,9 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
 	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
 	sftp-server.o sftp-common.o \
-	roaming_common.o roaming_serv.o \
 	sandbox-null.o sandbox-rlimit.o sandbox-systrace.o sandbox-darwin.o \
-	sandbox-seccomp-filter.o sandbox-capsicum.o
+	sandbox-seccomp-filter.o sandbox-capsicum.o sandbox-pledge.o \
+	sandbox-solaris.o
 
 MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-keysign.8.out ssh-pkcs11-helper.8.out sshd_config.5.out ssh_config.5.out
 MANPAGES_IN	= moduli.5 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-keysign.8 ssh-pkcs11-helper.8 sshd_config.5 ssh_config.5
@@ -178,14 +178,14 @@ ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-agent.o ssh-pkcs11-client.o
 ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o
 	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o roaming_dummy.o readconf.o
-	$(LD) -o $@ ssh-keysign.o readconf.o roaming_dummy.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o readconf.o
+	$(LD) -o $@ ssh-keysign.o readconf.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-pkcs11-helper$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-pkcs11-helper.o ssh-pkcs11.o
 	$(LD) -o $@ ssh-pkcs11-helper.o ssh-pkcs11.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o roaming_dummy.o
-	$(LD) -o $@ ssh-keyscan.o roaming_dummy.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
+ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o
+	$(LD) -o $@ ssh-keyscan.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
 
 sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o sftp-server-main.o
 	$(LD) -o $@ sftp-server.o sftp-common.o sftp-server-main.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
@@ -327,10 +327,6 @@ install-files:
 	$(INSTALL) -m 644 sftp-server.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	$(INSTALL) -m 644 ssh-keysign.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
 	$(INSTALL) -m 644 ssh-pkcs11-helper.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-pkcs11-helper.8
-	-rm -f $(DESTDIR)$(bindir)/slogin
-	ln -s ./ssh$(EXEEXT) $(DESTDIR)$(bindir)/slogin
-	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
-	ln -s ./ssh.1 $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
 
 install-sysconf:
 	if [ ! -d $(DESTDIR)$(sysconfdir) ]; then \
@@ -359,41 +355,19 @@ install-sysconf:
 
 host-key: ssh-keygen$(EXEEXT)
 	@if [ -z "$(DESTDIR)" ] ; then \
-		if [ -f "$(sysconfdir)/ssh_host_key" ] ; then \
-			echo "$(sysconfdir)/ssh_host_key already exists, skipping." ; \
-		else \
-			./ssh-keygen -t rsa1 -f $(sysconfdir)/ssh_host_key -N "" ; \
-		fi ; \
-		if [ -f $(sysconfdir)/ssh_host_dsa_key ] ; then \
-			echo "$(sysconfdir)/ssh_host_dsa_key already exists, skipping." ; \
-		else \
-			./ssh-keygen -t dsa -f $(sysconfdir)/ssh_host_dsa_key -N "" ; \
-		fi ; \
-		if [ -f $(sysconfdir)/ssh_host_rsa_key ] ; then \
-			echo "$(sysconfdir)/ssh_host_rsa_key already exists, skipping." ; \
-		else \
-			./ssh-keygen -t rsa -f $(sysconfdir)/ssh_host_rsa_key -N "" ; \
-		fi ; \
-		if [ -f $(sysconfdir)/ssh_host_ed25519_key ] ; then \
-			echo "$(sysconfdir)/ssh_host_ed25519_key already exists, skipping." ; \
-		else \
-			./ssh-keygen -t ed25519 -f $(sysconfdir)/ssh_host_ed25519_key -N "" ; \
-		fi ; \
-		if [ -z "@COMMENT_OUT_ECC@" ] ; then \
-		    if [ -f $(sysconfdir)/ssh_host_ecdsa_key ] ; then \
-			echo "$(sysconfdir)/ssh_host_ecdsa_key already exists, skipping." ; \
-		    else \
-			./ssh-keygen -t ecdsa -f $(sysconfdir)/ssh_host_ecdsa_key -N "" ; \
-		    fi ; \
-		fi ; \
-	fi ;
+		./ssh-keygen -A; \
+	fi
 
-host-key-force: ssh-keygen$(EXEEXT)
-	./ssh-keygen -t rsa1 -f $(DESTDIR)$(sysconfdir)/ssh_host_key -N ""
+host-key-force: ssh-keygen$(EXEEXT) ssh$(EXEEXT)
+	if ./ssh -Q protocol-version | grep '^1$$' >/dev/null; then \
+		./ssh-keygen -t rsa1 -f $(DESTDIR)$(sysconfdir)/ssh_host_key -N ""; \
+	fi
 	./ssh-keygen -t dsa -f $(DESTDIR)$(sysconfdir)/ssh_host_dsa_key -N ""
 	./ssh-keygen -t rsa -f $(DESTDIR)$(sysconfdir)/ssh_host_rsa_key -N ""
 	./ssh-keygen -t ed25519 -f $(DESTDIR)$(sysconfdir)/ssh_host_ed25519_key -N ""
-	test -z "@COMMENT_OUT_ECC@" && ./ssh-keygen -t ecdsa -f $(DESTDIR)$(sysconfdir)/ssh_host_ecdsa_key -N ""
+	if ./ssh -Q key | grep ecdsa >/dev/null ; then \
+		./ssh-keygen -t ecdsa -f $(DESTDIR)$(sysconfdir)/ssh_host_ecdsa_key -N ""; \
+	fi
 
 uninstallall:	uninstall
 	-rm -f $(DESTDIR)$(sysconfdir)/ssh_config
@@ -407,7 +381,6 @@ uninstallall:	uninstall
 	-rmdir $(DESTDIR)$(libexecdir)
 
 uninstall:
-	-rm -f $(DESTDIR)$(bindir)/slogin
 	-rm -f $(DESTDIR)$(bindir)/ssh$(EXEEXT)
 	-rm -f $(DESTDIR)$(bindir)/scp$(EXEEXT)
 	-rm -f $(DESTDIR)$(bindir)/ssh-add$(EXEEXT)
@@ -430,7 +403,6 @@ uninstall:
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-pkcs11-helper.8
-	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
 
 regress-prep:
 	[ -d `pwd`/regress ] || mkdir -p `pwd`/regress
@@ -459,6 +431,10 @@ regress/setuid-allowed$(EXEEXT): $(srcdir)/regress/setuid-allowed.c
 	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
 regress/netcat$(EXEEXT): $(srcdir)/regress/netcat.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $? \
+	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+regress/check-perm$(EXEEXT): $(srcdir)/regress/check-perm.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $? \
 	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
@@ -510,8 +486,7 @@ regress/unittests/bitmap/test_bitmap$(EXEEXT): ${UNITTESTS_TEST_BITMAP_OBJS} \
 
 UNITTESTS_TEST_KEX_OBJS=\
 	regress/unittests/kex/tests.o \
-	regress/unittests/kex/test_kex.o \
-	roaming_dummy.o
+	regress/unittests/kex/test_kex.o
 
 regress/unittests/kex/test_kex$(EXEEXT): ${UNITTESTS_TEST_KEX_OBJS} \
     regress/unittests/test_helper/libtest_helper.a libssh.a
@@ -534,6 +509,7 @@ REGRESS_BINARIES=\
 	regress/modpipe$(EXEEXT) \
 	regress/setuid-allowed$(EXEEXT) \
 	regress/netcat$(EXEEXT) \
+	regress/check-perm$(EXEEXT) \
 	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
 	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
 	regress/unittests/bitmap/test_bitmap$(EXEEXT) \

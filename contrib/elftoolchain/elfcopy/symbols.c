@@ -25,6 +25,7 @@
  */
 
 #include <sys/param.h>
+#include <assert.h>
 #include <err.h>
 #include <fnmatch.h>
 #include <stdio.h>
@@ -33,7 +34,13 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 3222 2015-05-24 23:47:23Z kaiwang27 $");
+ELFTC_VCSID("$Id: symbols.c 3446 2016-05-03 01:31:17Z emaste $");
+
+/* Backwards compatibility for systems with older ELF definitions. */
+#ifndef STB_GNU_UNIQUE
+#define	STB_GNU_UNIQUE 10
+#endif
+
 
 /* Symbol table buffer structure. */
 struct symbuf {
@@ -79,7 +86,6 @@ static int	lookup_exact_string(hash_head *hash, const char *buf,
 static int	generate_symbols(struct elfcopy *ecp);
 static void	mark_reloc_symbols(struct elfcopy *ecp, size_t sc);
 static void	mark_section_group_symbols(struct elfcopy *ecp, size_t sc);
-static int	match_wildcard(const char *name, const char *pattern);
 uint32_t	str_hash(const char *s);
 
 /* Convenient bit vector operation macros. */
@@ -102,7 +108,8 @@ static int
 is_global_symbol(unsigned char st_info)
 {
 
-	if (GELF_ST_BIND(st_info) == STB_GLOBAL)
+	if (GELF_ST_BIND(st_info) == STB_GLOBAL ||
+	    GELF_ST_BIND(st_info) == STB_GNU_UNIQUE)
 		return (1);
 
 	return (0);
@@ -161,7 +168,7 @@ is_needed_symbol(struct elfcopy *ecp, int i, GElf_Sym *s)
 	if (BIT_ISSET(ecp->v_rel, i))
 		return (1);
 
-	/* Symbols refered by COMDAT sections are needed. */
+	/* Symbols referred by COMDAT sections are needed. */
 	if (BIT_ISSET(ecp->v_grp, i))
 		return (1);
 
@@ -190,12 +197,6 @@ is_remove_symbol(struct elfcopy *ecp, size_t sc, int i, GElf_Sym *s,
 		SHN_UNDEF,	/* st_shndx */
 	};
 
-	if (lookup_symop_list(ecp, name, SYMOP_KEEP) != NULL)
-		return (0);
-
-	if (lookup_symop_list(ecp, name, SYMOP_STRIP) != NULL)
-		return (1);
-
 	/*
 	 * Keep the first symbol if it is the special reserved symbol.
 	 * XXX Should we generate one if it's missing?
@@ -208,14 +209,33 @@ is_remove_symbol(struct elfcopy *ecp, size_t sc, int i, GElf_Sym *s,
 	    ecp->secndx[s->st_shndx] == 0)
 		return (1);
 
+	/* Keep the symbol if specified by command line option -K. */
+	if (lookup_symop_list(ecp, name, SYMOP_KEEP) != NULL)
+		return (0);
+
 	if (ecp->strip == STRIP_ALL)
 		return (1);
 
+	/* Mark symbols used in relocation. */
 	if (ecp->v_rel == NULL)
 		mark_reloc_symbols(ecp, sc);
 
+	/* Mark symbols used in section groups. */
 	if (ecp->v_grp == NULL)
 		mark_section_group_symbols(ecp, sc);
+
+	/*
+	 * Strip the symbol if specified by command line option -N,
+	 * unless it's used in relocation.
+	 */
+	if (lookup_symop_list(ecp, name, SYMOP_STRIP) != NULL) {
+		if (BIT_ISSET(ecp->v_rel, i)) {
+			warnx("not stripping symbol `%s' because it is named"
+			    " in a relocation", name);
+			return (0);
+		}
+		return (1);
+	}
 
 	if (is_needed_symbol(ecp, i, s))
 		return (0);
@@ -238,7 +258,7 @@ is_remove_symbol(struct elfcopy *ecp, size_t sc, int i, GElf_Sym *s,
 }
 
 /*
- * Mark symbols refered by relocation entries.
+ * Mark symbols referred by relocation entries.
  */
 static void
 mark_reloc_symbols(struct elfcopy *ecp, size_t sc)
@@ -565,8 +585,11 @@ generate_symbols(struct elfcopy *ecp)
 		 * If the symbol is a STT_SECTION symbol, mark the section
 		 * it points to.
 		 */
-		if (GELF_ST_TYPE(sym.st_info) == STT_SECTION)
+		if (GELF_ST_TYPE(sym.st_info) == STT_SECTION &&
+		    sym.st_shndx < SHN_LORESERVE) {
+			assert(ecp->secndx[sym.st_shndx] < (uint64_t)ecp->nos);
 			BIT_SET(ecp->v_secsym, ecp->secndx[sym.st_shndx]);
+		}
 	}
 
 	/*
@@ -861,6 +884,8 @@ add_to_symtab(struct elfcopy *ecp, const char *name, uint64_t st_value,
 	 * It handles buffer growing, st_name calculating and st_shndx
 	 * updating for symbols with non-special section index.
 	 */
+#define	_ST_NAME_EMPTY_l 0
+#define	_ST_NAME_EMPTY_g -1
 #define	_ADDSYM(B, SZ) do {						\
 	if (sy_buf->B##SZ == NULL) {					\
 		sy_buf->B##SZ = malloc(sy_buf->B##cap *			\
@@ -920,7 +945,8 @@ add_to_symtab(struct elfcopy *ecp, const char *name, uint64_t st_value,
 			st_buf->B.sz += strlen(name) + 1;		\
 		}							\
 	} else								\
-		sy_buf->B##SZ[sy_buf->n##B##s].st_name = 0;		\
+		sy_buf->B##SZ[sy_buf->n##B##s].st_name = 		\
+		    (Elf##SZ##_Word)_ST_NAME_EMPTY_##B;			\
 	sy_buf->n##B##s++;						\
 } while (0)
 
@@ -945,6 +971,8 @@ add_to_symtab(struct elfcopy *ecp, const char *name, uint64_t st_value,
 	ecp->strtab->sz = st_buf->l.sz + st_buf->g.sz;
 
 #undef	_ADDSYM
+#undef	_ST_NAME_EMPTY_l
+#undef	_ST_NAME_EMPTY_g
 }
 
 void
@@ -961,10 +989,17 @@ finalize_external_symtab(struct elfcopy *ecp)
 	sy_buf = ecp->symtab->buf;
 	st_buf = ecp->strtab->buf;
 	for (i = 0; (size_t) i < sy_buf->ngs; i++) {
-		if (ecp->oec == ELFCLASS32)
-			sy_buf->g32[i].st_name += st_buf->l.sz;
-		else
-			sy_buf->g64[i].st_name += st_buf->l.sz;
+		if (ecp->oec == ELFCLASS32) {
+			if (sy_buf->g32[i].st_name == (Elf32_Word)-1)
+				sy_buf->g32[i].st_name = 0;
+			else
+				sy_buf->g32[i].st_name += st_buf->l.sz;
+		} else {
+			if (sy_buf->g64[i].st_name == (Elf64_Word)-1)
+				sy_buf->g64[i].st_name = 0;
+			else
+				sy_buf->g64[i].st_name += st_buf->l.sz;
+		}
 	}
 }
 
@@ -1105,46 +1140,47 @@ add_to_symop_list(struct elfcopy *ecp, const char *name, const char *newname,
 {
 	struct symop *s;
 
-	if ((s = lookup_symop_list(ecp, name, ~0U)) == NULL) {
-		if ((s = calloc(1, sizeof(*s))) == NULL)
-			errx(EXIT_FAILURE, "not enough memory");
-		s->name = name;
-		if (op == SYMOP_REDEF)
-			s->newname = newname;
-	}
+	assert (name != NULL);
+	STAILQ_FOREACH(s, &ecp->v_symop, symop_list)
+		if (!strcmp(name, s->name))
+			goto found;
 
-	s->op |= op;
+	if ((s = calloc(1, sizeof(*s))) == NULL)
+		errx(EXIT_FAILURE, "not enough memory");
 	STAILQ_INSERT_TAIL(&ecp->v_symop, s, symop_list);
-}
-
-static int
-match_wildcard(const char *name, const char *pattern)
-{
-	int reverse, match;
-
-	reverse = 0;
-	if (*pattern == '!') {
-		reverse = 1;
-		pattern++;
-	}
-
-	match = 0;
-	if (!fnmatch(pattern, name, 0))
-		match = 1;
-
-	return (reverse ? !match : match);
+	s->name = name;
+found:
+	if (op == SYMOP_REDEF)
+		s->newname = newname;
+	s->op |= op;
 }
 
 struct symop *
 lookup_symop_list(struct elfcopy *ecp, const char *name, unsigned int op)
 {
-	struct symop *s;
+	struct symop *s, *ret;
+	const char *pattern;
 
 	STAILQ_FOREACH(s, &ecp->v_symop, symop_list) {
-		if (name == NULL || !strcmp(name, s->name) ||
-		    ((ecp->flags & WILDCARD) && match_wildcard(name, s->name)))
-			if ((s->op & op) != 0)
-				return (s);
+		if ((s->op & op) == 0)
+			continue;
+		if (name == NULL || !strcmp(name, s->name))
+			return (s);
+		if ((ecp->flags & WILDCARD) == 0)
+			continue;
+
+		/* Handle wildcards. */
+		pattern = s->name;
+		if (pattern[0] == '!') {
+			/* Negative match. */
+			pattern++;
+			ret = NULL;
+		} else {
+			/* Regular wildcard match. */
+			ret = s;
+		}
+		if (!fnmatch(pattern, name, 0))
+			return (ret);
 	}
 
 	return (NULL);

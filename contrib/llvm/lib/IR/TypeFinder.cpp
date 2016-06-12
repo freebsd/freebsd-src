@@ -44,19 +44,13 @@ void TypeFinder::run(const Module &M, bool onlyNamed) {
   for (Module::const_iterator FI = M.begin(), E = M.end(); FI != E; ++FI) {
     incorporateType(FI->getType());
 
-    if (FI->hasPrefixData())
-      incorporateValue(FI->getPrefixData());
-
-    if (FI->hasPrologueData())
-      incorporateValue(FI->getPrologueData());
-
-    if (FI->hasPersonalityFn())
-      incorporateValue(FI->getPersonalityFn());
+    for (const Use &U : FI->operands())
+      incorporateValue(U.get());
 
     // First incorporate the arguments.
     for (Function::const_arg_iterator AI = FI->arg_begin(),
            AE = FI->arg_end(); AI != AE; ++AI)
-      incorporateValue(AI);
+      incorporateValue(&*AI);
 
     for (Function::const_iterator BB = FI->begin(), E = FI->end();
          BB != E;++BB)
@@ -85,7 +79,7 @@ void TypeFinder::run(const Module &M, bool onlyNamed) {
 
   for (Module::const_named_metadata_iterator I = M.named_metadata_begin(),
          E = M.named_metadata_end(); I != E; ++I) {
-    const NamedMDNode *NMD = I;
+    const NamedMDNode *NMD = &*I;
     for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i)
       incorporateMDNode(NMD->getOperand(i));
   }

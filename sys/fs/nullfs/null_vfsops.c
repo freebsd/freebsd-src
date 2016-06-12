@@ -199,7 +199,7 @@ nullfs_mount(struct mount *mp)
 	}
 	mp->mnt_kern_flag |= MNTK_LOOKUP_EXCL_DOTDOT;
 	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
-	    MNTK_USES_BCACHE;
+	    (MNTK_USES_BCACHE | MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS);
 	MNT_IUNLOCK(mp);
 	mp->mnt_data = xmp;
 	vfs_getnewfsid(mp);

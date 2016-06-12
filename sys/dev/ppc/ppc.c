@@ -1699,7 +1699,7 @@ ppc_probe(device_t dev, int rid)
 			next_bios_ppc += 1;
 			if (bootverbose)
 				device_printf(dev,
-				    "parallel port found at 0x%lx\n", port);
+				    "parallel port found at 0x%jx\n", port);
 		}
 #else
 		if ((next_bios_ppc < BIOS_MAX_PPC) &&
@@ -1707,7 +1707,7 @@ ppc_probe(device_t dev, int rid)
 			port = *(BIOS_PORTS + next_bios_ppc++);
 			if (bootverbose)
 				device_printf(dev,
-				    "parallel port found at 0x%lx\n", port);
+				    "parallel port found at 0x%jx\n", port);
 		} else {
 			device_printf(dev, "parallel port not found.\n");
 			return (ENXIO);
@@ -1721,19 +1721,21 @@ ppc_probe(device_t dev, int rid)
 	/* IO port is mandatory */
 
 	/* Try "extended" IO port range...*/
-	ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-					     &ppc->rid_ioport, 0, ~0,
-					     IO_LPTSIZE_EXTENDED, RF_ACTIVE);
+	ppc->res_ioport = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+						      &ppc->rid_ioport,
+						      IO_LPTSIZE_EXTENDED,
+						      RF_ACTIVE);
 
 	if (ppc->res_ioport != 0) {
 		if (bootverbose)
 			device_printf(dev, "using extended I/O port range\n");
 	} else {
 		/* Failed? If so, then try the "normal" IO port range... */
-		 ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						      &ppc->rid_ioport, 0, ~0,
-						      IO_LPTSIZE_NORMAL,
-						      RF_ACTIVE);
+		 ppc->res_ioport = bus_alloc_resource_anywhere(dev,
+		 	 				       SYS_RES_IOPORT,
+							       &ppc->rid_ioport,
+							       IO_LPTSIZE_NORMAL,
+							       RF_ACTIVE);
 		if (ppc->res_ioport != 0) {
 			if (bootverbose)
 				device_printf(dev, "using normal I/O port range\n");

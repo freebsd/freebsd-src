@@ -103,10 +103,10 @@ protected:
 
         VNInfo *AddendValNo =
           LIS->getInterval(MI->getOperand(1).getReg()).Query(FMAIdx).valueIn();
-        if (!AddendValNo) {
-          // This can be null if the register is undef.
+
+        // This can be null if the register is undef.
+        if (!AddendValNo)
           continue;
-        }
 
         MachineInstr *AddendMI = LIS->getInstructionFromIndex(AddendValNo->def);
 
@@ -186,18 +186,17 @@ protected:
         if (!KilledProdOp)
           continue;
 
-	// If the addend copy is used only by this MI, then the addend source
-	// register is likely not live here. This could be fixed (based on the
-	// legality checks above, the live range for the addend source register
-	// could be extended), but it seems likely that such a trivial copy can
-	// be coalesced away later, and thus is not worth the effort.
-	if (TargetRegisterInfo::isVirtualRegister(AddendSrcReg) &&
+        // If the addend copy is used only by this MI, then the addend source
+        // register is likely not live here. This could be fixed (based on the
+        // legality checks above, the live range for the addend source register
+        // could be extended), but it seems likely that such a trivial copy can
+        // be coalesced away later, and thus is not worth the effort.
+        if (TargetRegisterInfo::isVirtualRegister(AddendSrcReg) &&
             !LIS->getInterval(AddendSrcReg).liveAt(FMAIdx))
           continue;
 
         // Transform: (O2 * O3) + O1 -> (O2 * O1) + O3.
 
-        unsigned AddReg = AddendMI->getOperand(1).getReg();
         unsigned KilledProdReg = MI->getOperand(KilledProdOp).getReg();
         unsigned OtherProdReg  = MI->getOperand(OtherProdOp).getReg();
 
@@ -221,6 +220,14 @@ protected:
         if (OldFMAReg == KilledProdReg)
           continue;
 
+        // If there isn't a class that fits, we can't perform the transform.
+        // This is needed for correctness with a mixture of VSX and Altivec
+        // instructions to make sure that a low VSX register is not assigned to
+        // the Altivec instruction.
+        if (!MRI.constrainRegClass(KilledProdReg,
+                                   MRI.getRegClass(OldFMAReg)))
+          continue;
+
         assert(OldFMAReg == AddendMI->getOperand(0).getReg() &&
                "Addend copy not tied to old FMA output!");
 
@@ -228,7 +235,7 @@ protected:
 
         MI->getOperand(0).setReg(KilledProdReg);
         MI->getOperand(1).setReg(KilledProdReg);
-        MI->getOperand(3).setReg(AddReg);
+        MI->getOperand(3).setReg(AddendSrcReg);
         MI->getOperand(2).setReg(OtherProdReg);
 
         MI->getOperand(0).setSubReg(KilledProdSubReg);
@@ -263,8 +270,7 @@ protected:
           if (UseMI == AddendMI)
             continue;
 
-          UseMO.setReg(KilledProdReg);
-          UseMO.setSubReg(KilledProdSubReg);
+          UseMO.substVirtReg(KilledProdReg, KilledProdSubReg, *TRI);
         }
 
         // Extend the live intervals of the killed product operand to hold the
@@ -285,6 +291,20 @@ protected:
                                                      NewFMAValNo));
         }
         DEBUG(dbgs() << "  extended: " << NewFMAInt << '\n');
+
+        // Extend the live interval of the addend source (it might end at the
+        // copy to be removed, or somewhere in between there and here). This
+        // is necessary only if it is a physical register.
+        if (!TargetRegisterInfo::isVirtualRegister(AddendSrcReg))
+          for (MCRegUnitIterator Units(AddendSrcReg, TRI); Units.isValid();
+               ++Units) {
+            unsigned Unit = *Units;
+
+            LiveRange &AddendSrcRange = LIS->getRegUnit(Unit);
+            AddendSrcRange.extendInBlock(LIS->getMBBStartIdx(&MBB),
+                                         FMAIdx.getRegSlot());
+            DEBUG(dbgs() << "  extended: " << AddendSrcRange << '\n');
+          }
 
         FMAInt.removeValNo(FMAValNo);
         DEBUG(dbgs() << "  trimmed:  " << FMAInt << '\n');
@@ -347,7 +367,6 @@ INITIALIZE_PASS_END(PPCVSXFMAMutate, DEBUG_TYPE,
 char &llvm::PPCVSXFMAMutateID = PPCVSXFMAMutate::ID;
 
 char PPCVSXFMAMutate::ID = 0;
-FunctionPass*
-llvm::createPPCVSXFMAMutatePass() { return new PPCVSXFMAMutate(); }
-
-
+FunctionPass *llvm::createPPCVSXFMAMutatePass() {
+  return new PPCVSXFMAMutate();
+}

@@ -83,7 +83,6 @@ static bool IsIntegerCC(unsigned CC)
   return  (CC <= SPCC::ICC_VC);
 }
 
-
 static SPCC::CondCodes GetOppositeBranchCondition(SPCC::CondCodes CC)
 {
   switch(CC) {
@@ -124,106 +123,103 @@ static SPCC::CondCodes GetOppositeBranchCondition(SPCC::CondCodes CC)
   llvm_unreachable("Invalid cond code");
 }
 
+static bool isUncondBranchOpcode(int Opc) { return Opc == SP::BA; }
+
+static bool isCondBranchOpcode(int Opc) {
+  return Opc == SP::FBCOND || Opc == SP::BCOND;
+}
+
+static bool isIndirectBranchOpcode(int Opc) {
+  return Opc == SP::BINDrr || Opc == SP::BINDri;
+}
+
+static void parseCondBranch(MachineInstr *LastInst, MachineBasicBlock *&Target,
+                            SmallVectorImpl<MachineOperand> &Cond) {
+  Cond.push_back(MachineOperand::CreateImm(LastInst->getOperand(1).getImm()));
+  Target = LastInst->getOperand(0).getMBB();
+}
+
 bool SparcInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
                                    MachineBasicBlock *&TBB,
                                    MachineBasicBlock *&FBB,
                                    SmallVectorImpl<MachineOperand> &Cond,
-                                   bool AllowModify) const
-{
+                                   bool AllowModify) const {
+  MachineBasicBlock::iterator I = MBB.getLastNonDebugInstr();
+  if (I == MBB.end())
+    return false;
 
-  MachineBasicBlock::iterator I = MBB.end();
-  MachineBasicBlock::iterator UnCondBrIter = MBB.end();
-  while (I != MBB.begin()) {
-    --I;
+  if (!isUnpredicatedTerminator(I))
+    return false;
 
-    if (I->isDebugValue())
-      continue;
+  // Get the last instruction in the block.
+  MachineInstr *LastInst = I;
+  unsigned LastOpc = LastInst->getOpcode();
 
-    // When we see a non-terminator, we are done.
-    if (!isUnpredicatedTerminator(I))
-      break;
-
-    // Terminator is not a branch.
-    if (!I->isBranch())
-      return true;
-
-    // Handle Unconditional branches.
-    if (I->getOpcode() == SP::BA) {
-      UnCondBrIter = I;
-
-      if (!AllowModify) {
-        TBB = I->getOperand(0).getMBB();
-        continue;
-      }
-
-      while (std::next(I) != MBB.end())
-        std::next(I)->eraseFromParent();
-
-      Cond.clear();
-      FBB = nullptr;
-
-      if (MBB.isLayoutSuccessor(I->getOperand(0).getMBB())) {
-        TBB = nullptr;
-        I->eraseFromParent();
-        I = MBB.end();
-        UnCondBrIter = MBB.end();
-        continue;
-      }
-
-      TBB = I->getOperand(0).getMBB();
-      continue;
+  // If there is only one terminator instruction, process it.
+  if (I == MBB.begin() || !isUnpredicatedTerminator(--I)) {
+    if (isUncondBranchOpcode(LastOpc)) {
+      TBB = LastInst->getOperand(0).getMBB();
+      return false;
     }
-
-    unsigned Opcode = I->getOpcode();
-    if (Opcode != SP::BCOND && Opcode != SP::FBCOND)
-      return true; // Unknown Opcode.
-
-    SPCC::CondCodes BranchCode = (SPCC::CondCodes)I->getOperand(1).getImm();
-
-    if (Cond.empty()) {
-      MachineBasicBlock *TargetBB = I->getOperand(0).getMBB();
-      if (AllowModify && UnCondBrIter != MBB.end() &&
-          MBB.isLayoutSuccessor(TargetBB)) {
-
-        // Transform the code
-        //
-        //    brCC L1
-        //    ba L2
-        // L1:
-        //    ..
-        // L2:
-        //
-        // into
-        //
-        //   brnCC L2
-        // L1:
-        //   ...
-        // L2:
-        //
-        BranchCode = GetOppositeBranchCondition(BranchCode);
-        MachineBasicBlock::iterator OldInst = I;
-        BuildMI(MBB, UnCondBrIter, MBB.findDebugLoc(I), get(Opcode))
-          .addMBB(UnCondBrIter->getOperand(0).getMBB()).addImm(BranchCode);
-        BuildMI(MBB, UnCondBrIter, MBB.findDebugLoc(I), get(SP::BA))
-          .addMBB(TargetBB);
-
-        OldInst->eraseFromParent();
-        UnCondBrIter->eraseFromParent();
-
-        UnCondBrIter = MBB.end();
-        I = MBB.end();
-        continue;
-      }
-      FBB = TBB;
-      TBB = I->getOperand(0).getMBB();
-      Cond.push_back(MachineOperand::CreateImm(BranchCode));
-      continue;
+    if (isCondBranchOpcode(LastOpc)) {
+      // Block ends with fall-through condbranch.
+      parseCondBranch(LastInst, TBB, Cond);
+      return false;
     }
-    // FIXME: Handle subsequent conditional branches.
-    // For now, we can't handle multiple conditional branches.
+    return true; // Can't handle indirect branch.
+  }
+
+  // Get the instruction before it if it is a terminator.
+  MachineInstr *SecondLastInst = I;
+  unsigned SecondLastOpc = SecondLastInst->getOpcode();
+
+  // If AllowModify is true and the block ends with two or more unconditional
+  // branches, delete all but the first unconditional branch.
+  if (AllowModify && isUncondBranchOpcode(LastOpc)) {
+    while (isUncondBranchOpcode(SecondLastOpc)) {
+      LastInst->eraseFromParent();
+      LastInst = SecondLastInst;
+      LastOpc = LastInst->getOpcode();
+      if (I == MBB.begin() || !isUnpredicatedTerminator(--I)) {
+        // Return now the only terminator is an unconditional branch.
+        TBB = LastInst->getOperand(0).getMBB();
+        return false;
+      } else {
+        SecondLastInst = I;
+        SecondLastOpc = SecondLastInst->getOpcode();
+      }
+    }
+  }
+
+  // If there are three terminators, we don't know what sort of block this is.
+  if (SecondLastInst && I != MBB.begin() && isUnpredicatedTerminator(--I))
+    return true;
+
+  // If the block ends with a B and a Bcc, handle it.
+  if (isCondBranchOpcode(SecondLastOpc) && isUncondBranchOpcode(LastOpc)) {
+    parseCondBranch(SecondLastInst, TBB, Cond);
+    FBB = LastInst->getOperand(0).getMBB();
+    return false;
+  }
+
+  // If the block ends with two unconditional branches, handle it.  The second
+  // one is not executed.
+  if (isUncondBranchOpcode(SecondLastOpc) && isUncondBranchOpcode(LastOpc)) {
+    TBB = SecondLastInst->getOperand(0).getMBB();
+    return false;
+  }
+
+  // ...likewise if it ends with an indirect branch followed by an unconditional
+  // branch.
+  if (isIndirectBranchOpcode(SecondLastOpc) && isUncondBranchOpcode(LastOpc)) {
+    I = LastInst;
+    if (AllowModify)
+      I->eraseFromParent();
     return true;
   }
-  return false;
+
+  // Otherwise, can't handle this.
+  return true;
 }
 
 unsigned
@@ -277,6 +273,14 @@ unsigned SparcInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const
   return Count;
 }
 
+bool SparcInstrInfo::ReverseBranchCondition(
+    SmallVectorImpl<MachineOperand> &Cond) const {
+  assert(Cond.size() == 1);
+  SPCC::CondCodes CC = static_cast<SPCC::CondCodes>(Cond[0].getImm());
+  Cond[0].setImm(GetOppositeBranchCondition(CC));
+  return false;
+}
+
 void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator I, DebugLoc DL,
                                  unsigned DestReg, unsigned SrcReg,
@@ -284,7 +288,9 @@ void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   unsigned numSubRegs = 0;
   unsigned movOpc     = 0;
   const unsigned *subRegIdx = nullptr;
+  bool ExtraG0 = false;
 
+  const unsigned DW_SubRegsIdx[]  = { SP::sub_even, SP::sub_odd };
   const unsigned DFP_FP_SubRegsIdx[]  = { SP::sub_even, SP::sub_odd };
   const unsigned QFP_DFP_SubRegsIdx[] = { SP::sub_even64, SP::sub_odd64 };
   const unsigned QFP_FP_SubRegsIdx[]  = { SP::sub_even, SP::sub_odd,
@@ -294,7 +300,12 @@ void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   if (SP::IntRegsRegClass.contains(DestReg, SrcReg))
     BuildMI(MBB, I, DL, get(SP::ORrr), DestReg).addReg(SP::G0)
       .addReg(SrcReg, getKillRegState(KillSrc));
-  else if (SP::FPRegsRegClass.contains(DestReg, SrcReg))
+  else if (SP::IntPairRegClass.contains(DestReg, SrcReg)) {
+    subRegIdx  = DW_SubRegsIdx;
+    numSubRegs = 2;
+    movOpc     = SP::ORrr;
+    ExtraG0 = true;
+  } else if (SP::FPRegsRegClass.contains(DestReg, SrcReg))
     BuildMI(MBB, I, DL, get(SP::FMOVS), DestReg)
       .addReg(SrcReg, getKillRegState(KillSrc));
   else if (SP::DFPRegsRegClass.contains(DestReg, SrcReg)) {
@@ -347,7 +358,11 @@ void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     unsigned Src = TRI->getSubReg(SrcReg,  subRegIdx[i]);
     assert(Dst && Src && "Bad sub-register");
 
-    MovMI = BuildMI(MBB, I, DL, get(movOpc), Dst).addReg(Src);
+    MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(movOpc), Dst);
+    if (ExtraG0)
+      MIB.addReg(SP::G0);
+    MIB.addReg(Src);
+    MovMI = MIB.getInstr();
   }
   // Add implicit super-register defs and kills to the last MovMI.
   MovMI->addRegisterDefined(DestReg, TRI);
@@ -365,18 +380,19 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   MachineFunction *MF = MBB.getParent();
   const MachineFrameInfo &MFI = *MF->getFrameInfo();
-  MachineMemOperand *MMO =
-    MF->getMachineMemOperand(MachinePointerInfo::getFixedStack(FI),
-                             MachineMemOperand::MOStore,
-                             MFI.getObjectSize(FI),
-                             MFI.getObjectAlignment(FI));
+  MachineMemOperand *MMO = MF->getMachineMemOperand(
+      MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOStore,
+      MFI.getObjectSize(FI), MFI.getObjectAlignment(FI));
 
   // On the order of operands here: think "[FrameIdx + 0] = SrcReg".
- if (RC == &SP::I64RegsRegClass)
+  if (RC == &SP::I64RegsRegClass)
     BuildMI(MBB, I, DL, get(SP::STXri)).addFrameIndex(FI).addImm(0)
       .addReg(SrcReg, getKillRegState(isKill)).addMemOperand(MMO);
   else if (RC == &SP::IntRegsRegClass)
     BuildMI(MBB, I, DL, get(SP::STri)).addFrameIndex(FI).addImm(0)
+      .addReg(SrcReg, getKillRegState(isKill)).addMemOperand(MMO);
+  else if (RC == &SP::IntPairRegClass)
+    BuildMI(MBB, I, DL, get(SP::STDri)).addFrameIndex(FI).addImm(0)
       .addReg(SrcReg, getKillRegState(isKill)).addMemOperand(MMO);
   else if (RC == &SP::FPRegsRegClass)
     BuildMI(MBB, I, DL, get(SP::STFri)).addFrameIndex(FI).addImm(0)
@@ -403,17 +419,18 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   MachineFunction *MF = MBB.getParent();
   const MachineFrameInfo &MFI = *MF->getFrameInfo();
-  MachineMemOperand *MMO =
-    MF->getMachineMemOperand(MachinePointerInfo::getFixedStack(FI),
-                             MachineMemOperand::MOLoad,
-                             MFI.getObjectSize(FI),
-                             MFI.getObjectAlignment(FI));
+  MachineMemOperand *MMO = MF->getMachineMemOperand(
+      MachinePointerInfo::getFixedStack(*MF, FI), MachineMemOperand::MOLoad,
+      MFI.getObjectSize(FI), MFI.getObjectAlignment(FI));
 
   if (RC == &SP::I64RegsRegClass)
     BuildMI(MBB, I, DL, get(SP::LDXri), DestReg).addFrameIndex(FI).addImm(0)
       .addMemOperand(MMO);
   else if (RC == &SP::IntRegsRegClass)
     BuildMI(MBB, I, DL, get(SP::LDri), DestReg).addFrameIndex(FI).addImm(0)
+      .addMemOperand(MMO);
+  else if (RC == &SP::IntPairRegClass)
+    BuildMI(MBB, I, DL, get(SP::LDDri), DestReg).addFrameIndex(FI).addImm(0)
       .addMemOperand(MMO);
   else if (RC == &SP::FPRegsRegClass)
     BuildMI(MBB, I, DL, get(SP::LDFri), DestReg).addFrameIndex(FI).addImm(0)

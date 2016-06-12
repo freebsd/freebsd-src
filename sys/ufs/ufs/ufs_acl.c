@@ -220,7 +220,7 @@ ufs_getacl_nfs4(struct vop_getacl_args *ap)
 
 /*
  * Read POSIX.1e ACL from an EA.  Return error if its not found
- * or if any other error has occured.
+ * or if any other error has occurred.
  */
 static int
 ufs_get_oldacl(acl_type_t type, struct oldacl *old, struct vnode *vp,

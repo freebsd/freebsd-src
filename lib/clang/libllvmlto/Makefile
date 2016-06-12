@@ -8,6 +8,7 @@ SRCDIR=	lib/LTO
 SRCS=	LTOCodeGenerator.cpp \
 	LTOModule.cpp
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

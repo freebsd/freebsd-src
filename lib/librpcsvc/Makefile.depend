@@ -17,46 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-klm_prot_xdr.So: klm_prot_xdr.c
-klm_prot_xdr.o: klm_prot_xdr.c
-klm_prot_xdr.po: klm_prot_xdr.c
-mount_xdr.So: mount_xdr.c
-mount_xdr.o: mount_xdr.c
-mount_xdr.po: mount_xdr.c
-nfs_prot_xdr.So: nfs_prot_xdr.c
-nfs_prot_xdr.o: nfs_prot_xdr.c
-nfs_prot_xdr.po: nfs_prot_xdr.c
-nlm_prot_xdr.So: nlm_prot_xdr.c
-nlm_prot_xdr.o: nlm_prot_xdr.c
-nlm_prot_xdr.po: nlm_prot_xdr.c
-rex_xdr.So: rex_xdr.c
-rex_xdr.o: rex_xdr.c
-rex_xdr.po: rex_xdr.c
-rnusers_xdr.So: rnusers_xdr.c
-rnusers_xdr.o: rnusers_xdr.c
-rnusers_xdr.po: rnusers_xdr.c
-rquota_xdr.So: rquota_xdr.c
-rquota_xdr.o: rquota_xdr.c
-rquota_xdr.po: rquota_xdr.c
-rstat_xdr.So: rstat_xdr.c
-rstat_xdr.o: rstat_xdr.c
-rstat_xdr.po: rstat_xdr.c
-rwall_xdr.So: rwall_xdr.c
-rwall_xdr.o: rwall_xdr.c
-rwall_xdr.po: rwall_xdr.c
-sm_inter_xdr.So: sm_inter_xdr.c
-sm_inter_xdr.o: sm_inter_xdr.c
-sm_inter_xdr.po: sm_inter_xdr.c
-spray_xdr.So: spray_xdr.c
-spray_xdr.o: spray_xdr.c
-spray_xdr.po: spray_xdr.c
-yppasswd_xdr.So: yppasswd_xdr.c
-yppasswd_xdr.o: yppasswd_xdr.c
-yppasswd_xdr.po: yppasswd_xdr.c
-ypupdate_prot_xdr.So: ypupdate_prot_xdr.c
-ypupdate_prot_xdr.o: ypupdate_prot_xdr.c
-ypupdate_prot_xdr.po: ypupdate_prot_xdr.c
-ypxfrd_xdr.So: ypxfrd_xdr.c
-ypxfrd_xdr.o: ypxfrd_xdr.c
-ypxfrd_xdr.po: ypxfrd_xdr.c
 .endif

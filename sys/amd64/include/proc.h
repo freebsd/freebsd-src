@@ -33,11 +33,23 @@
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
+#include <sys/queue.h>
 #include <machine/segments.h>
+
+/*
+ * List of locks
+ *	k - only accessed by curthread
+ *	pp - pmap.c:invl_gen_mtx
+ */
 
 struct proc_ldt {
 	caddr_t ldt_base;
 	int     ldt_refcnt;
+};
+
+struct pmap_invl_gen {
+	u_long gen;			/* (k) */
+	LIST_ENTRY(pmap_invl_gen) link;	/* (pp) */
 };
 
 /*
@@ -47,6 +59,7 @@ struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_flags;	/* (k) */
 	register_t md_spurflt_addr;	/* (k) Spurious page fault address. */
+	struct pmap_invl_gen md_invl_gen;
 };
 
 struct mdproc {

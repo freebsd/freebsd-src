@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 The FreeBSD Foundation
+ * Copyright (c) 2015-2016 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Andrew Turner under
@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
+#include <machine/debug_monitor.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
 #ifdef VFP
@@ -63,6 +64,29 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <dev/psci/psci.h>
+
+#ifdef INTRNG
+#include "pic_if.h"
+
+typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
+typedef void intr_ipi_handler_t(void *);
+
+#define INTR_IPI_NAMELEN	(MAXCOMLEN + 1)
+struct intr_ipi {
+	intr_ipi_handler_t *	ii_handler;
+	void *			ii_handler_arg;
+	intr_ipi_send_t *	ii_send;
+	void *			ii_send_arg;
+	char			ii_name[INTR_IPI_NAMELEN];
+	u_long *		ii_count;
+};
+
+static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
+
+static struct intr_ipi *intr_ipi_lookup(u_int);
+static void intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *,
+    void *);
+#endif /* INTRNG */
 
 boolean_t ofw_cpu_reg(phandle_t node, u_int, cell_t *);
 
@@ -79,6 +103,12 @@ static device_identify_t arm64_cpu_identify;
 static device_probe_t arm64_cpu_probe;
 static device_attach_t arm64_cpu_attach;
 
+static void ipi_ast(void *);
+static void ipi_hardclock(void *);
+static void ipi_preempt(void *);
+static void ipi_rendezvous(void *);
+static void ipi_stop(void *);
+
 static int ipi_handler(void *arg);
 
 struct mtx ap_boot_mtx;
@@ -88,6 +118,13 @@ struct pcb stoppcbs[MAXCPU];
 static uint32_t cpu_reg[MAXCPU][2];
 #endif
 static device_t cpu_list[MAXCPU];
+
+/*
+ * Not all systems boot from the first CPU in the device tree. To work around
+ * this we need to find which CPU we have booted from so when we later
+ * enable the secondary CPUs we skip this one.
+ */
+static int cpu0 = -1;
 
 void mpentry(unsigned long cpuid);
 void init_secondary(uint64_t);
@@ -177,9 +214,18 @@ release_aps(void *dummy __unused)
 {
 	int cpu, i;
 
+#ifdef INTRNG
+	intr_pic_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
+	intr_pic_ipi_setup(IPI_PREEMPT, "preempt", ipi_preempt, NULL);
+	intr_pic_ipi_setup(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL);
+	intr_pic_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
+	intr_pic_ipi_setup(IPI_STOP_HARD, "stop hard", ipi_stop, NULL);
+	intr_pic_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
+#else
 	/* Setup the IPI handler */
-	for (i = 0; i < COUNT_IPI; i++)
+	for (i = 0; i < INTR_IPI_COUNT; i++)
 		arm_setup_ipihandler(ipi_handler, i);
+#endif
 
 	atomic_store_rel_int(&aps_ready, 1);
 	/* Wake up the other CPUs */
@@ -207,7 +253,9 @@ void
 init_secondary(uint64_t cpu)
 {
 	struct pcpu *pcpup;
+#ifndef INTRNG
 	int i;
+#endif
 
 	pcpup = &__pcpu[cpu];
 	/*
@@ -234,11 +282,15 @@ init_secondary(uint64_t cpu)
 	 */
 	identify_cpu();
 
+#ifdef INTRNG
+	intr_pic_init_secondary();
+#else
 	/* Configure the interrupt controller */
 	arm_init_secondary();
 
-	for (i = 0; i < COUNT_IPI; i++)
+	for (i = 0; i < INTR_IPI_COUNT; i++)
 		arm_unmask_ipi(i);
+#endif
 
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
@@ -246,6 +298,8 @@ init_secondary(uint64_t cpu)
 #ifdef VFP
 	vfp_init();
 #endif
+
+	dbg_monitor_init();
 
 	/* Enable interrupts */
 	intr_enable();
@@ -268,13 +322,124 @@ init_secondary(uint64_t cpu)
 	/* NOTREACHED */
 }
 
+#ifdef INTRNG
+/*
+ *  Send IPI thru interrupt controller.
+ */
+static void
+pic_ipi_send(void *arg, cpuset_t cpus, u_int ipi)
+{
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+	PIC_IPI_SEND(intr_irq_root_dev, arg, cpus, ipi);
+}
+
+/*
+ *  Setup IPI handler on interrupt controller.
+ *
+ *  Not SMP coherent.
+ */
+static void
+intr_pic_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
+    void *arg)
+{
+	struct intr_irqsrc *isrc;
+	struct intr_ipi *ii;
+	int error;
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+	KASSERT(hand != NULL, ("%s: ipi %u no handler", __func__, ipi));
+
+	error = PIC_IPI_SETUP(intr_irq_root_dev, ipi, &isrc);
+	if (error != 0)
+		return;
+
+	isrc->isrc_handlers++;
+
+	ii = intr_ipi_lookup(ipi);
+	KASSERT(ii->ii_count == NULL, ("%s: ipi %u reused", __func__, ipi));
+
+	ii->ii_handler = hand;
+	ii->ii_handler_arg = arg;
+	ii->ii_send = pic_ipi_send;
+	ii->ii_send_arg = isrc;
+	strlcpy(ii->ii_name, name, INTR_IPI_NAMELEN);
+	ii->ii_count = intr_ipi_setup_counters(name);
+}
+
+static void
+intr_ipi_send(cpuset_t cpus, u_int ipi)
+{
+	struct intr_ipi *ii;
+
+	ii = intr_ipi_lookup(ipi);
+	if (ii->ii_count == NULL)
+		panic("%s: not setup IPI %u", __func__, ipi);
+
+	ii->ii_send(ii->ii_send_arg, cpus, ipi);
+}
+#endif
+
+static void
+ipi_ast(void *dummy __unused)
+{
+
+	CTR0(KTR_SMP, "IPI_AST");
+}
+
+static void
+ipi_hardclock(void *dummy __unused)
+{
+
+	CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
+	hardclockintr();
+}
+
+static void
+ipi_preempt(void *dummy __unused)
+{
+	CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
+	sched_preempt(curthread);
+}
+
+static void
+ipi_rendezvous(void *dummy __unused)
+{
+
+	CTR0(KTR_SMP, "IPI_RENDEZVOUS");
+	smp_rendezvous_action();
+}
+
+static void
+ipi_stop(void *dummy __unused)
+{
+	u_int cpu;
+
+	CTR0(KTR_SMP, "IPI_STOP");
+
+	cpu = PCPU_GET(cpuid);
+	savectx(&stoppcbs[cpu]);
+
+	/* Indicate we are stopped */
+	CPU_SET_ATOMIC(cpu, &stopped_cpus);
+
+	/* Wait for restart */
+	while (!CPU_ISSET(cpu, &started_cpus))
+		cpu_spinwait();
+
+	CPU_CLR_ATOMIC(cpu, &started_cpus);
+	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+	CTR0(KTR_SMP, "IPI_STOP (restart)");
+}
+
+#ifndef INTRNG
 static int
 ipi_handler(void *arg)
 {
 	u_int cpu, ipi;
 
 	arg = (void *)((uintptr_t)arg & ~(1 << 16));
-	KASSERT((uintptr_t)arg < COUNT_IPI,
+	KASSERT((uintptr_t)arg < INTR_IPI_COUNT,
 	    ("Invalid IPI %ju", (uintptr_t)arg));
 
 	cpu = PCPU_GET(cpuid);
@@ -282,35 +447,20 @@ ipi_handler(void *arg)
 
 	switch(ipi) {
 	case IPI_AST:
-		CTR0(KTR_SMP, "IPI_AST");
+		ipi_ast(NULL);
 		break;
 	case IPI_PREEMPT:
-		CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
-		sched_preempt(curthread);
+		ipi_preempt(NULL);
 		break;
 	case IPI_RENDEZVOUS:
-		CTR0(KTR_SMP, "IPI_RENDEZVOUS");
-		smp_rendezvous_action();
+		ipi_rendezvous(NULL);
 		break;
 	case IPI_STOP:
 	case IPI_STOP_HARD:
-		CTR0(KTR_SMP, (ipi == IPI_STOP) ? "IPI_STOP" : "IPI_STOP_HARD");
-		savectx(&stoppcbs[cpu]);
-
-		/* Indicate we are stopped */
-		CPU_SET_ATOMIC(cpu, &stopped_cpus);
-
-		/* Wait for restart */
-		while (!CPU_ISSET(cpu, &started_cpus))
-			cpu_spinwait();
-
-		CPU_CLR_ATOMIC(cpu, &started_cpus);
-		CPU_CLR_ATOMIC(cpu, &stopped_cpus);
-		CTR0(KTR_SMP, "IPI_STOP (restart)");
+		ipi_stop(NULL);
 		break;
 	case IPI_HARDCLOCK:
-		CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
-		hardclockintr();
+		ipi_hardclock(NULL);
 		break;
 	default:
 		panic("Unknown IPI %#0x on cpu %d", ipi, curcpu);
@@ -318,6 +468,7 @@ ipi_handler(void *arg)
 
 	return (FILTER_HANDLED);
 }
+#endif
 
 struct cpu_group *
 cpu_topo(void)
@@ -342,6 +493,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	uint64_t target_cpu;
 	struct pcpu *pcpup;
 	vm_paddr_t pa;
+	u_int cpuid;
 	int err;
 
 	/* Check we are able to start this cpu */
@@ -358,16 +510,19 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 #endif
 
 	/* We are already running on cpu 0 */
-	if (id == 0)
+	if (id == cpu0)
 		return (1);
 
+	cpuid = id;
+	if (cpuid < cpu0)
+		cpuid++;
 
-	pcpup = &__pcpu[id];
-	pcpu_init(pcpup, id, sizeof(struct pcpu));
+	pcpup = &__pcpu[cpuid];
+	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
 
-	dpcpu[id - 1] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+	dpcpu[cpuid - 1] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 	    M_WAITOK | M_ZERO);
-	dpcpu_init(dpcpu[id - 1], id);
+	dpcpu_init(dpcpu[cpuid - 1], cpuid);
 
 	target_cpu = reg[0];
 	if (addr_size == 2) {
@@ -375,21 +530,23 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		target_cpu |= reg[1];
 	}
 
-	printf("Starting CPU %u (%lx)\n", id, target_cpu);
+	printf("Starting CPU %u (%lx)\n", cpuid, target_cpu);
 	pa = pmap_extract(kernel_pmap, (vm_offset_t)mpentry);
 
-	err = psci_cpu_on(target_cpu, pa, id);
+	err = psci_cpu_on(target_cpu, pa, cpuid);
 	if (err != PSCI_RETVAL_SUCCESS) {
 		/* Panic here if INVARIANTS are enabled */
-		KASSERT(0, ("Failed to start CPU %u (%lx)\n", id, target_cpu));
+		KASSERT(0, ("Failed to start CPU %u (%lx)\n", id,
+		    target_cpu));
 
 		pcpu_destroy(pcpup);
-		kmem_free(kernel_arena, (vm_offset_t)dpcpu[id - 1], DPCPU_SIZE);
-		dpcpu[id - 1] = NULL;
+		kmem_free(kernel_arena, (vm_offset_t)dpcpu[cpuid - 1],
+		    DPCPU_SIZE);
+		dpcpu[cpuid - 1] = NULL;
 		/* Notify the user that the CPU failed to start */
 		printf("Failed to start CPU %u (%lx)\n", id, target_cpu);
 	} else
-		CPU_SET(id, &all_cpus);
+		CPU_SET(cpuid, &all_cpus);
 
 	return (1);
 }
@@ -407,6 +564,7 @@ cpu_mp_start(void)
 	switch(cpu_enum_method) {
 #ifdef FDT
 	case CPUS_FDT:
+		KASSERT(cpu0 >= 0, ("Current CPU was not found"));
 		ofw_cpu_early_foreach(cpu_init_fdt, true);
 		break;
 #endif
@@ -421,13 +579,34 @@ cpu_mp_announce(void)
 {
 }
 
+static boolean_t
+cpu_find_cpu0_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
+{
+	uint64_t mpidr_fdt, mpidr_reg;
+
+	if (cpu0 < 0) {
+		mpidr_fdt = reg[0];
+		if (addr_size == 2) {
+			mpidr_fdt <<= 32;
+			mpidr_fdt |= reg[1];
+		}
+
+		mpidr_reg = READ_SPECIALREG(mpidr_el1);
+
+		if ((mpidr_reg & 0xff00fffffful) == mpidr_fdt)
+			cpu0 = id;
+	}
+
+	return (TRUE);
+}
+
 void
 cpu_mp_setmaxid(void)
 {
 #ifdef FDT
 	int cores;
 
-	cores = ofw_cpu_early_foreach(NULL, false);
+	cores = ofw_cpu_early_foreach(cpu_find_cpu0_fdt, false);
 	if (cores > 0) {
 		cores = MIN(cores, MAXCPU);
 		if (bootverbose)
@@ -444,3 +623,149 @@ cpu_mp_setmaxid(void)
 	mp_ncpus = 1;
 	mp_maxid = 0;
 }
+
+#ifdef INTRNG
+/*
+ *  Lookup IPI source.
+ */
+static struct intr_ipi *
+intr_ipi_lookup(u_int ipi)
+{
+
+	if (ipi >= INTR_IPI_COUNT)
+		panic("%s: no such IPI %u", __func__, ipi);
+
+	return (&ipi_sources[ipi]);
+}
+
+/*
+ *  interrupt controller dispatch function for IPIs. It should
+ *  be called straight from the interrupt controller, when associated
+ *  interrupt source is learned. Or from anybody who has an interrupt
+ *  source mapped.
+ */
+void
+intr_ipi_dispatch(u_int ipi, struct trapframe *tf)
+{
+	void *arg;
+	struct intr_ipi *ii;
+
+	ii = intr_ipi_lookup(ipi);
+	if (ii->ii_count == NULL)
+		panic("%s: not setup IPI %u", __func__, ipi);
+
+	intr_ipi_increment_count(ii->ii_count, PCPU_GET(cpuid));
+
+	/*
+	 * Supply ipi filter with trapframe argument
+	 * if none is registered.
+	 */
+	arg = ii->ii_handler_arg != NULL ? ii->ii_handler_arg : tf;
+	ii->ii_handler(arg);
+}
+
+#ifdef notyet
+/*
+ *  Map IPI into interrupt controller.
+ *
+ *  Not SMP coherent.
+ */
+static int
+ipi_map(struct intr_irqsrc *isrc, u_int ipi)
+{
+	boolean_t is_percpu;
+	int error;
+
+	if (ipi >= INTR_IPI_COUNT)
+		panic("%s: no such IPI %u", __func__, ipi);
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+
+	isrc->isrc_type = INTR_ISRCT_NAMESPACE;
+	isrc->isrc_nspc_type = INTR_IRQ_NSPC_IPI;
+	isrc->isrc_nspc_num = ipi_next_num;
+
+	error = PIC_REGISTER(intr_irq_root_dev, isrc, &is_percpu);
+	if (error == 0) {
+		isrc->isrc_dev = intr_irq_root_dev;
+		ipi_next_num++;
+	}
+	return (error);
+}
+
+/*
+ *  Setup IPI handler to interrupt source.
+ *
+ *  Note that there could be more ways how to send and receive IPIs
+ *  on a platform like fast interrupts for example. In that case,
+ *  one can call this function with ASIF_NOALLOC flag set and then
+ *  call intr_ipi_dispatch() when appropriate.
+ *
+ *  Not SMP coherent.
+ */
+int
+intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
+    void *arg, u_int flags)
+{
+	struct intr_irqsrc *isrc;
+	int error;
+
+	if (filter == NULL)
+		return(EINVAL);
+
+	isrc = intr_ipi_lookup(ipi);
+	if (isrc->isrc_ipifilter != NULL)
+		return (EEXIST);
+
+	if ((flags & AISHF_NOALLOC) == 0) {
+		error = ipi_map(isrc, ipi);
+		if (error != 0)
+			return (error);
+	}
+
+	isrc->isrc_ipifilter = filter;
+	isrc->isrc_arg = arg;
+	isrc->isrc_handlers = 1;
+	isrc->isrc_count = intr_ipi_setup_counters(name);
+	isrc->isrc_index = 0; /* it should not be used in IPI case */
+
+	if (isrc->isrc_dev != NULL) {
+		PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
+		PIC_ENABLE_SOURCE(isrc->isrc_dev, isrc);
+	}
+	return (0);
+}
+#endif
+
+/* Sending IPI */
+void
+ipi_all_but_self(u_int ipi)
+{
+	cpuset_t cpus;
+
+	cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
+	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+	intr_ipi_send(cpus, ipi);
+}
+
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+	cpuset_t cpus;
+
+	CPU_ZERO(&cpus);
+	CPU_SET(cpu, &cpus);
+
+	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
+	intr_ipi_send(cpus, ipi);
+}
+
+void
+ipi_selected(cpuset_t cpus, u_int ipi)
+{
+
+	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+	intr_ipi_send(cpus, ipi);
+}
+#endif /* INTRNG */

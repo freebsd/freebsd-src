@@ -864,7 +864,7 @@ doswitch:
 			 * z', but treats `a-a' as `the letter a, the
 			 * character -, and the letter a'.
 			 *
-			 * For compatibility, the `-' is not considerd
+			 * For compatibility, the `-' is not considered
 			 * to define a range if the character following
 			 * it is either a close bracket (required by ANSI)
 			 * or is not numerically greater than the character
@@ -873,7 +873,7 @@ doswitch:
 			n = *fmt;
 			if (n == ']'
 			    || (table->__collate_load_error ? n < c :
-				__collate_range_cmp (table, n, c) < 0
+				__wcollate_range_cmp(table, n, c) < 0
 			       )
 			   ) {
 				c = '-';
@@ -887,8 +887,8 @@ doswitch:
 				} while (c < n);
 			} else {
 				for (i = 0; i < 256; i ++)
-					if (   __collate_range_cmp (table, c, i) < 0
-					    && __collate_range_cmp (table, i, n) <= 0
+					if (__wcollate_range_cmp(table, c, i) < 0 &&
+					    __wcollate_range_cmp(table, i, n) <= 0
 					   )
 						tab[i] = v;
 			}

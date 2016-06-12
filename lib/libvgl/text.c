@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include "vgl.h"
 
-static VGLText		*VGLTextFont = 0;
+static VGLText		*VGLTextFont;
 
 extern byte VGLFont[];
 

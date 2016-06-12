@@ -6,41 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-Analysis.o: Intrinsics.inc.h
-Analysis.po: Intrinsics.inc.h
-AtomicExpandPass.o: Intrinsics.inc.h
-AtomicExpandPass.po: Intrinsics.inc.h
-BasicTargetTransformInfo.o: Intrinsics.inc.h
-BasicTargetTransformInfo.po: Intrinsics.inc.h
-CodeGenPrepare.o: Intrinsics.inc.h
-CodeGenPrepare.po: Intrinsics.inc.h
-DwarfEHPrepare.o: Intrinsics.inc.h
-DwarfEHPrepare.po: Intrinsics.inc.h
-GCRootLowering.o: Intrinsics.inc.h
-GCRootLowering.po: Intrinsics.inc.h
-GlobalMerge.o: Intrinsics.inc.h
-GlobalMerge.po: Intrinsics.inc.h
-IntrinsicLowering.o: Intrinsics.inc.h
-IntrinsicLowering.po: Intrinsics.inc.h
-LLVMTargetMachine.o: Intrinsics.inc.h
-LLVMTargetMachine.po: Intrinsics.inc.h
-LocalStackSlotAllocation.o: Intrinsics.inc.h
-LocalStackSlotAllocation.po: Intrinsics.inc.h
-ShadowStackGC.o: Intrinsics.inc.h
-ShadowStackGC.po: Intrinsics.inc.h
-ShadowStackGCLowering.o: Intrinsics.inc.h
-ShadowStackGCLowering.po: Intrinsics.inc.h
-SjLjEHPrepare.o: Intrinsics.inc.h
-SjLjEHPrepare.po: Intrinsics.inc.h
-StackProtector.o: Intrinsics.inc.h
-StackProtector.po: Intrinsics.inc.h
-WinEHPrepare.o: Intrinsics.inc.h
-WinEHPrepare.po: Intrinsics.inc.h
 .endif

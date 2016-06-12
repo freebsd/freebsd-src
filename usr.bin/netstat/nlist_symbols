@@ -44,6 +44,7 @@ all	_sctpstat
 all	_sfstat
 all	_tcbinfo
 all	_tcpstat
+all	_tcps_states
 all	_udbinfo
 all	_udpstat
 all	_unp_count

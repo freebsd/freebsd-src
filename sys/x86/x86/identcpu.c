@@ -926,6 +926,7 @@ printcpuinfo(void)
 				       /* RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
 				       "\001FSGSBASE"
 				       "\002TSCADJ"
+				       "\003SGX"
 				       /* Bit Manipulation Instructions */
 				       "\004BMI1"
 				       /* Hardware Lock Elision */
@@ -945,9 +946,9 @@ printcpuinfo(void)
 				       "\014RTM"
 				       "\015PQM"
 				       "\016NFPUSG"
-				       "\020PQE"
 				       /* Intel Memory Protection Extensions */
 				       "\017MPX"
+				       "\020PQE"
 				       /* AVX512 Foundation */
 				       "\021AVX512F"
 				       "\022AVX512DQ"
@@ -976,8 +977,11 @@ printcpuinfo(void)
 				       "\020"
 				       "\001PREFETCHWT1"
 				       "\002AVX512VBMI"
+				       "\003UMIP"
 				       "\004PKU"
 				       "\005OSPKE"
+				       "\027RDPID"
+				       "\037SGXLC"
 				       );
 			}
 
@@ -1342,27 +1346,42 @@ identify_hypervisor(void)
 	}
 }
 
-/*
- * Clear "Limit CPUID Maxval" bit and return true if the caller should
- * get the largest standard CPUID function number again if it is set
- * from BIOS.  It is necessary for probing correct CPU topology later
- * and for the correct operation of the AVX-aware userspace.
- */
 bool
-intel_fix_cpuid(void)
+fix_cpuid(void)
 {
 	uint64_t msr;
 
-	if (cpu_vendor_id != CPU_VENDOR_INTEL)
-		return (false);
-	if ((CPUID_TO_FAMILY(cpu_id) == 0xf &&
+	/*
+	 * Clear "Limit CPUID Maxval" bit and return true if the caller should
+	 * get the largest standard CPUID function number again if it is set
+	 * from BIOS.  It is necessary for probing correct CPU topology later
+	 * and for the correct operation of the AVX-aware userspace.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_INTEL &&
+	    ((CPUID_TO_FAMILY(cpu_id) == 0xf &&
 	    CPUID_TO_MODEL(cpu_id) >= 0x3) ||
 	    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-	    CPUID_TO_MODEL(cpu_id) >= 0xe)) {
+	    CPUID_TO_MODEL(cpu_id) >= 0xe))) {
 		msr = rdmsr(MSR_IA32_MISC_ENABLE);
 		if ((msr & IA32_MISC_EN_LIMCPUID) != 0) {
 			msr &= ~IA32_MISC_EN_LIMCPUID;
 			wrmsr(MSR_IA32_MISC_ENABLE, msr);
+			return (true);
+		}
+	}
+
+	/*
+	 * Re-enable AMD Topology Extension that could be disabled by BIOS
+	 * on some notebook processors.  Without the extension it's really
+	 * hard to determine the correct CPU cache topology.
+	 * See BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h
+	 * Models 60h-6Fh Processors, Publication # 50742.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_AMD && CPUID_TO_FAMILY(cpu_id) == 0x15) {
+		msr = rdmsr(MSR_EXTFEATURES);
+		if ((msr & ((uint64_t)1 << 54)) == 0) {
+			msr |= (uint64_t)1 << 54;
+			wrmsr(MSR_EXTFEATURES, msr);
 			return (true);
 		}
 	}
@@ -1403,7 +1422,7 @@ identify_cpu(void)
 	identify_hypervisor();
 	cpu_vendor_id = find_cpu_vendor_id();
 
-	if (intel_fix_cpuid()) {
+	if (fix_cpuid()) {
 		do_cpuid(0, regs);
 		cpu_high = regs[0];
 	}
@@ -1570,7 +1589,7 @@ find_cpu_vendor_id(void)
 {
 	int	i;
 
-	for (i = 0; i < sizeof(cpu_vendors) / sizeof(cpu_vendors[0]); i++)
+	for (i = 0; i < nitems(cpu_vendors); i++)
 		if (strcmp(cpu_vendor, cpu_vendors[i].vendor) == 0)
 			return (cpu_vendors[i].vendor_id);
 	return (0);
@@ -1920,7 +1939,10 @@ print_INTEL_TLB(u_int data)
 		printf("Instruction TLB: 4 KByte pages, fully associative, 48 entries\n");
 		break;
 	case 0x63:
-		printf("Data TLB: 1 GByte pages, 4-way set associative, 4 entries\n");
+		printf("Data TLB: 2 MByte or 4 MByte pages, 4-way set associative, 32 entries and a separate array with 1 GByte pages, 4-way set associative, 4 entries\n");
+		break;
+	case 0x64:
+		printf("Data TLB: 4 KBytes pages, 4-way set associative, 512 entries\n");
 		break;
 	case 0x66:
 		printf("1st-level data cache: 8 KB, 4-way set associative, sectored cache, 64 byte line size\n");
@@ -2035,6 +2057,9 @@ print_INTEL_TLB(u_int data)
 		break;
 	case 0xc3:
 		printf("Shared 2nd-Level TLB: 4 KByte /2 MByte pages, 6-way associative, 1536 entries. Also 1GBbyte pages, 4-way, 16 entries\n");
+		break;
+	case 0xc4:
+		printf("DTLB: 2M/4M Byte pages, 4-way associative, 32 entries\n");
 		break;
 	case 0xca:
 		printf("Shared 2nd-Level TLB: 4 KByte pages, 4-way associative, 512 entries\n");

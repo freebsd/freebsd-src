@@ -233,6 +233,19 @@
  *  2: engine0
  */
 #define MV_WIN_CESA_ATTR(eng_sel)	(1 | ((eng_sel) << 2))
+#elif defined(SOC_MV_ARMADA38X)
+#define MV_WIN_CESA_TARGET		9
+/*
+ * Bits [1:0] = Data swapping
+ *  0x0 = Byte swap
+ *  0x1 = No swap
+ *  0x2 = Byte and word swap
+ *  0x3 = Word swap
+ * Bits [4:2] = CESA select:
+ *  0x6 = CESA0
+ *  0x5 = CESA1
+ */
+#define MV_WIN_CESA_ATTR(eng_sel)	(0x11 | (1 << (3 - (eng_sel))))
 #else
 #define MV_WIN_CESA_TARGET		3
 #define MV_WIN_CESA_ATTR(eng_sel)	0
@@ -241,6 +254,10 @@
 #define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x320)
 #define MV_WIN_USB_BASE(n)		(0x10 * (n) + 0x324)
 #define MV_WIN_USB_MAX			4
+
+#define	MV_WIN_USB3_CTRL(n)		(0x8 * (n))
+#define	MV_WIN_USB3_BASE(n)		(0x8 * (n) + 0x4)
+#define	MV_WIN_USB3_MAX			8
 
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
 #define MV_WIN_ETH_SIZE(n)		(0x8 * (n) + 0x204)

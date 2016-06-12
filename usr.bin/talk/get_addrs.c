@@ -59,7 +59,7 @@ get_addrs(const char *my_machine_name __unused, const char *his_machine_name)
 		err(1, "failed to find my interface address");
 	/* find the server's port */
 	sp = getservbyname("ntalk", "udp");
-	if (sp == 0)
+	if (sp == NULL)
 		errx(1, "ntalk/udp: service is not registered");
 	daemon_port = sp->s_port;
 }

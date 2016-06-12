@@ -65,11 +65,12 @@ extern int autofs_mount_on_stat;
 #define AUTOFS_ASSERT_UNLOCKED(X)	sx_assert(&X->am_lock, SA_UNLOCKED)
 
 struct autofs_node {
-	TAILQ_ENTRY(autofs_node)	an_next;
+	RB_ENTRY(autofs_node)		an_link;
 	char				*an_name;
 	int				an_fileno;
 	struct autofs_node		*an_parent;
-	TAILQ_HEAD(, autofs_node)	an_children;
+	RB_HEAD(autofs_node_tree,
+	    autofs_node)		an_children;
 	struct autofs_mount		*an_mount;
 	struct vnode			*an_vnode;
 	struct sx			an_vnode_lock;
@@ -120,13 +121,6 @@ struct autofs_softc {
 	int				sc_last_request_id;
 };
 
-/*
- * Limits and constants
- */
-#define AUTOFS_NAMELEN		24
-#define AUTOFS_FSNAMELEN	16	/* equal to MFSNAMELEN */
-#define AUTOFS_DELEN		(8 + AUTOFS_NAMELEN)
-
 int	autofs_init(struct vfsconf *vfsp);
 int	autofs_uninit(struct vfsconf *vfsp);
 int	autofs_trigger(struct autofs_node *anp, const char *component,
@@ -142,5 +136,7 @@ int	autofs_node_find(struct autofs_node *parent,
 void	autofs_node_delete(struct autofs_node *anp);
 int	autofs_node_vn(struct autofs_node *anp, struct mount *mp,
 	    int flags, struct vnode **vpp);
+
+RB_PROTOTYPE(autofs_node_tree, autofs_node, an_link, autofs_node_cmp);
 
 #endif /* !AUTOFS_H */

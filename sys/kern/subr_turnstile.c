@@ -1026,8 +1026,7 @@ print_thread(struct thread *td, const char *prefix)
 {
 
 	db_printf("%s%p (tid %d, pid %d, \"%s\")\n", prefix, td, td->td_tid,
-	    td->td_proc->p_pid, td->td_name[0] != '\0' ? td->td_name :
-	    td->td_name);
+	    td->td_proc->p_pid, td->td_name);
 }
 
 static void
@@ -1109,8 +1108,7 @@ print_lockchain(struct thread *td, const char *prefix)
 	 */
 	while (!db_pager_quit) {
 		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
-		    td->td_proc->p_pid, td->td_name[0] != '\0' ? td->td_name :
-		    td->td_name);
+		    td->td_proc->p_pid, td->td_name);
 		switch (td->td_state) {
 		case TDS_INACTIVE:
 			db_printf("is inactive\n");
@@ -1193,8 +1191,7 @@ print_sleepchain(struct thread *td, const char *prefix)
 	 */
 	while (!db_pager_quit) {
 		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
-		    td->td_proc->p_pid, td->td_name[0] != '\0' ? td->td_name :
-		    td->td_name);
+		    td->td_proc->p_pid, td->td_name);
 		switch (td->td_state) {
 		case TDS_INACTIVE:
 			db_printf("is inactive\n");

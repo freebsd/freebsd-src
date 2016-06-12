@@ -295,8 +295,6 @@ FBSDprivate_1.0 {
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
-
-	__pthread_map_stacks_exec;
 };
 
 FBSD_1.1 {
@@ -316,4 +314,10 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	pthread_getthreadid_np;
+};
+
+FBSD_1.4 {
+	 pthread_mutex_consistent;
+	 pthread_mutexattr_getrobust;
+	 pthread_mutexattr_setrobust;
 };

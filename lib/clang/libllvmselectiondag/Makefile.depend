@@ -6,25 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-FastISel.o: Intrinsics.inc.h
-FastISel.po: Intrinsics.inc.h
-FunctionLoweringInfo.o: Intrinsics.inc.h
-FunctionLoweringInfo.po: Intrinsics.inc.h
-SelectionDAG.o: Intrinsics.inc.h
-SelectionDAG.po: Intrinsics.inc.h
-SelectionDAGBuilder.o: Intrinsics.inc.h
-SelectionDAGBuilder.po: Intrinsics.inc.h
-SelectionDAGDumper.o: Intrinsics.inc.h
-SelectionDAGDumper.po: Intrinsics.inc.h
-SelectionDAGISel.o: Intrinsics.inc.h
-SelectionDAGISel.po: Intrinsics.inc.h
-StatepointLowering.o: Intrinsics.inc.h
-StatepointLowering.po: Intrinsics.inc.h
 .endif

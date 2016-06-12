@@ -154,6 +154,7 @@ nfs_parse_options(const char *envopts, struct nfs_args *nd)
  * boot.netif.netmask		netmask on boot interface
  * boot.netif.gateway		default gateway (optional)
  * boot.netif.hwaddr		hardware address of boot interface
+ * boot.netif.mtu		interface mtu from bootp/dhcp (optional)
  * boot.nfsroot.server		IP address of root filesystem server
  * boot.nfsroot.path		path of the root filesystem on server
  * boot.nfsroot.nfshandle	NFS handle for root filesystem on server

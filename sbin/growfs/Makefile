@@ -8,6 +8,7 @@
 
 .PATH:	${.CURDIR}/../mount
 
+PACKAGE=runtime
 PROG=   growfs
 SRCS=   growfs.c getmntopts.c
 MAN=	growfs.8

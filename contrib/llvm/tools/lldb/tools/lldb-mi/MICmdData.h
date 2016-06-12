@@ -15,18 +15,15 @@
 //++ ============================================================================
 // Details: MI command metadata. Holds the command's name, MI number and options
 //          as found on stdin. Holds the command's MI output (written to stdout).
-// Gotchas: None.
-// Authors: Illya Rudkin 18/02/2014.
-// Changes: None.
 //--
 struct SMICmdData
 {
-    SMICmdData(void)
+    SMICmdData()
         : id(0)
         , bCmdValid(false)
         , bCmdExecutedSuccessfully(false)
         , bMIOldStyle(false)
-        , bHasResultRecordExtra(false){};
+        , bHasResultRecordExtra(false){}
 
     MIuint id;                               // A command's unique ID i.e. GUID
     CMIUtilString strMiCmdToken;             // The command's MI token (a number)
@@ -43,7 +40,7 @@ struct SMICmdData
         bHasResultRecordExtra; // True = Yes command produced additional MI output to its 1 line response, false = no extra MI output formed
 
     void
-    Clear(void)
+    Clear()
     {
         id = 0;
         strMiCmdToken.clear();

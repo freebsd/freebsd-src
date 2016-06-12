@@ -23,7 +23,7 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class ArrayBoundChecker : 
+class ArrayBoundChecker :
     public Checker<check::Location> {
   mutable std::unique_ptr<BuiltinBug> BT;
 
@@ -55,17 +55,17 @@ void ArrayBoundChecker::checkLocation(SVal l, bool isLoad, const Stmt* LoadS,
   ProgramStateRef state = C.getState();
 
   // Get the size of the array.
-  DefinedOrUnknownSVal NumElements 
-    = C.getStoreManager().getSizeInElements(state, ER->getSuperRegion(), 
+  DefinedOrUnknownSVal NumElements
+    = C.getStoreManager().getSizeInElements(state, ER->getSuperRegion(),
                                             ER->getValueType());
 
   ProgramStateRef StInBound = state->assumeInBound(Idx, NumElements, true);
   ProgramStateRef StOutBound = state->assumeInBound(Idx, NumElements, false);
   if (StOutBound && !StInBound) {
-    ExplodedNode *N = C.generateSink(StOutBound);
+    ExplodedNode *N = C.generateErrorNode(StOutBound);
     if (!N)
       return;
-  
+
     if (!BT)
       BT.reset(new BuiltinBug(
           this, "Out-of-bound array access",
@@ -82,7 +82,7 @@ void ArrayBoundChecker::checkLocation(SVal l, bool isLoad, const Stmt* LoadS,
     C.emitReport(std::move(report));
     return;
   }
-  
+
   // Array bound check succeeded.  From this point forward the array bound
   // should always succeed.
   C.addTransition(StInBound);

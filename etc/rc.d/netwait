@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 # PROVIDE: netwait
-# REQUIRE: devd routing
+# REQUIRE: devd ipfilter ipfw pf routing
 # KEYWORD: nojail
 #
 # The netwait script helps handle two situations:
@@ -21,6 +21,7 @@
 . /etc/rc.subr
 
 name="netwait"
+desc="Wait for network devices or the network being up"
 rcvar="netwait_enable"
 
 start_cmd="${name}_start"

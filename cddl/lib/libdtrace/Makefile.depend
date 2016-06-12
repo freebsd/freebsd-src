@@ -22,31 +22,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-dt_cc.So: dt_grammar.h
-dt_cc.o: dt_grammar.h
-dt_cc.po: dt_grammar.h
-dt_cg.So: dt_grammar.h
-dt_cg.o: dt_grammar.h
-dt_cg.po: dt_grammar.h
-dt_errtags.So: dt_errtags.c
-dt_errtags.o: dt_errtags.c
-dt_errtags.po: dt_errtags.c
-dt_grammar.So: dt_grammar.c
-dt_grammar.o: dt_grammar.c
-dt_grammar.po: dt_grammar.c
-dt_lex.So: dt_grammar.h
-dt_lex.So: dt_lex.c
-dt_lex.o: dt_grammar.h
-dt_lex.o: dt_lex.c
-dt_lex.po: dt_grammar.h
-dt_lex.po: dt_lex.c
-dt_names.So: dt_names.c
-dt_names.o: dt_names.c
-dt_names.po: dt_names.c
-dt_parser.So: dt_grammar.h
-dt_parser.o: dt_grammar.h
-dt_parser.po: dt_grammar.h
-dt_xlator.So: dt_grammar.h
-dt_xlator.o: dt_grammar.h
-dt_xlator.po: dt_grammar.h
 .endif

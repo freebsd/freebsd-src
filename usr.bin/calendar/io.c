@@ -469,7 +469,7 @@ closecal(FILE *fp)
 		if (setuid(getuid()) < 0) {
 			warnx("setuid failed");
 			_exit(1);
-		};
+		}
 		if (setgid(getegid()) < 0) {
 			warnx("setgid failed");
 			_exit(1);

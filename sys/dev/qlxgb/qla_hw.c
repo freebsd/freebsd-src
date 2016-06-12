@@ -28,7 +28,7 @@
 /*
  * File: qla_hw.c
  * Author : David C Somayajulu, Qlogic Corporation, Aliso Viejo, CA 92656.
- * Content: Contains Hardware dependant functions
+ * Content: Contains Hardware dependent functions
  */
 
 #include <sys/cdefs.h>
@@ -319,7 +319,7 @@ qla_init_cntxt_regions(qla_host_t *ha)
 
 	/*
 	 * Initialize the Transmit Context Request so that we don't need to
-	 * do it everytime we need to create a context
+	 * do it every time we need to create a context
 	 */
 	tx_cntxt_req = hw->tx_cntxt_req;
 
@@ -636,7 +636,7 @@ qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint16_t cntxt_id,
 
 /*
  * Name: qla_set_mac_rcv_mode
- * Function: Enable/Disable AllMulticast and Promiscous Modes.
+ * Function: Enable/Disable AllMulticast and Promiscuous Modes.
  */
 static int
 qla_set_mac_rcv_mode(qla_host_t *ha, uint16_t cntxt_id, uint32_t mode)
@@ -797,7 +797,8 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd, uint8_t *hdr)
 			}
 
 			if ((*tcp_opt != 0x01) || (*(tcp_opt + 1) != 0x01) ||
-				(*(tcp_opt + 2) != 0x08) || (*(tcp_opt + 2) != 10)) {
+				(*(tcp_opt + 2) != 0x08) ||
+				(*(tcp_opt + 3) != 10)) {
 				return -1;
 			}
 		}

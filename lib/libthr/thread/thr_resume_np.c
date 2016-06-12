@@ -25,9 +25,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
@@ -90,7 +91,7 @@ static void
 resume_common(struct pthread *thread)
 {
 	/* Clear the suspend flag: */
-	thread->flags &= ~THR_FLAGS_NEED_SUSPEND;
+	thread->flags &= ~(THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED);
 	thread->cycle++;
 	_thr_umtx_wake(&thread->cycle, 1, 0);
 }

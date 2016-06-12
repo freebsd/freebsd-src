@@ -26,12 +26,15 @@ new=${base}/../${1}
 TEMP=/tmp/${1}.locales
 TEMP2=/tmp/${1}.hashes
 TEMP3=/tmp/${1}.symlinks
+TEMP4=/tmp/${1}.mapped
 FULLMAP=/tmp/utf8-map
 FULLEXTRACT=/tmp/extracted-names
 AWKCMD="/## PLACEHOLDER/ { \
 	  while ( getline line < \"${TEMP}\" ) {print line} } \
 	/## SYMPAIRS/ { \
 	  while ( getline line < \"${TEMP3}\" ) {print line} } \
+	/## LOCALES_MAPPED/ { \
+	  while ( getline line < \"${TEMP4}\" ) {print line} } \
 	!/## / { print \$0 }"
 
 grep '^LOCALES+' ${old}/Makefile > ${TEMP}
@@ -51,21 +54,23 @@ then
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
 		${CLDRDIR}/posix/UTF-8.cm \
 		> ${base}/../etc/final-maps/map.UTF-8
-	CHARMAPS="ARMSCII-8 Big5 Big5HKSCS CP1131 CP1251 \
-		CP866 GB2312 GBK ISCII-DEV ISO8859-1 \
+	/usr/bin/sed -E -e 's/[ ]+/ /g' \
+		${CLDRDIR}/posix/eucCN.cm \
+		> ${base}/../etc/final-maps/map.eucCN
+	/usr/bin/sed -E -e 's/[ ]+/ /g' \
+		${CLDRDIR}/posix/eucCN.cm \
+		> ${base}/../etc/final-maps/map.GB2312
+	CHARMAPS="ARMSCII-8 Big5 CP1131 CP1251 \
+		CP866 GBK ISCII-DEV ISO8859-1 \
 		ISO8859-13 ISO8859-15 ISO8859-2 ISO8859-4 \
 		ISO8859-5 ISO8859-7 ISO8859-9 KOI8-R KOI8-U \
-		PT154 SJIS US-ASCII eucCN eucJP eucKR"
+		PT154 SJIS US-ASCII eucJP eucKR"
 
 	# GB18030 blows up, use pre-generate Illumos version
 
 	for map in ${CHARMAPS}
 	do
 		encoding=${map}
-		if [ ${map} = "Big5HKSCS" ]
-		then
-			encoding="Big5"
-		fi
 		/usr/local/bin/perl ${base}/convert_map.pl \
 			${base}/../etc/charmaps/${map}.TXT ${encoding} \
 			| /usr/bin/sed -E -e 's/	+/ /g' \
@@ -73,6 +78,31 @@ then
 		echo map ${map} converted.
 	done
 
+elif [ $1 = "colldef" ]
+then
+	awk -v tmp4=${TEMP4} '$1 == "SAME+=" && $0 !~ /legacy/ {
+		orig=$2
+		dest=$3
+		gsub(/.*\./, "", orig)
+		gsub(/.*\./, "", dest)
+		if (orig != dest )
+			print "LOCALES_MAPPED+=\t"$2 " "$3 > tmp4
+		}' ${old}/Makefile
+
+	for line in $(awk '{ print $3 }' ${TEMP4}); do
+		sed -i '' "/^SAME.*$line$/d" ${old}/Makefile
+	done
+	echo "" >> ${TEMP4}
+	for enc in ${COLLATIONS_SPECIAL}; do
+		sed -i '' "/^.*${enc}$/d" ${TEMP4}
+		echo "LOCALES+=	${enc}" >> ${TEMP4}
+	done
+
+	keep=$(cat ${TEMP} | awk '{ print $2 }')
+	for original in ${keep}
+	do
+		cp ${old}/${original}.src ${new}/
+	done
 else  # below is everything but ctypedef
 
 	keep=$(cat ${TEMP} | awk '{ print $2 }')
@@ -85,4 +115,4 @@ fi
 
 grep -v '^LOCALES+' ${old}/Makefile | awk "${AWKCMD}" > ${new}/Makefile
 
-rm -f ${TEMP} ${TEMP3}
+rm -f ${TEMP} ${TEMP3} ${TEMP4}

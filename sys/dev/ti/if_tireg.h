@@ -140,7 +140,7 @@
 #define TI_FIRMWARE_FIX			0xb
 
 /*
- * Miscelaneous Local Control register.
+ * Miscellaneous Local Control register.
  */
 #define TI_MLC_EE_WRITE_ENB		0x00000010
 #define TI_MLC_SRAM_BANK_SIZE		0x00000300 /* Tigon 2 only */
@@ -337,7 +337,7 @@
  */
 #define TI_OPMODE_BYTESWAP_BD		0x00000002
 #define TI_OPMODE_WORDSWAP_BD		0x00000004
-#define TI_OPMODE_WARN_ENB		0x00000008 /* not yet implimented */
+#define	TI_OPMODE_WARN_ENB		0x00000008 /* not yet implemented */
 #define TI_OPMODE_BYTESWAP_DATA		0x00000010
 #define TI_OPMODE_1_DMA_ACTIVE		0x00000040
 #define TI_OPMODE_SBUS			0x00000100
@@ -347,7 +347,7 @@
 #define TI_OPMODE_NO_EVENT_INTRS	0x00001000
 #define TI_OPMODE_NO_TX_INTRS		0x00002000
 #define TI_OPMODE_NO_RX_INTRS		0x00004000
-#define TI_OPMODE_FATAL_ENB		0x40000000 /* not yet implimented */
+#define	TI_OPMODE_FATAL_ENB		0x40000000 /* not yet implemented */
 #define TI_OPMODE_JUMBO_HDRSPLIT	0x00008000
 
 /*

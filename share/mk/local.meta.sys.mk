@@ -10,7 +10,7 @@ MK_INSTALL_AS_USER= yes
 _default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
-.if defined(MAKEOBJDIRPREFIX)
+.if defined(MAKEOBJDIRPREFIX) && !empty(MAKEOBJDIRPREFIX)
 # put things approximately where they want
 OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
 MAKEOBJDIRPREFIX=
@@ -43,7 +43,7 @@ OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 .endif
 
 # from src/Makefile (for universe)
-TARGET_ARCHES_arm?=     arm armeb armv6 armv6hf
+TARGET_ARCHES_arm?=     arm armeb armv6
 TARGET_ARCHES_arm64?=   aarch64
 TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
 TARGET_ARCHES_powerpc?= powerpc powerpc64
@@ -131,6 +131,16 @@ PYTHON ?= /usr/local/bin/python
 .export PYTHON
 # this works best if share/mk is ready for it.
 BUILD_AT_LEVEL0= no
+# _SKIP_BUILD is not 100% as it requires wrapping all 'all:' targets to avoid
+# building in MAKELEVEL0.  Just prohibit 'all' entirely in this case to avoid
+# problems.
+.if ${MK_DIRDEPS_BUILD} == "yes" && \
+    ${.MAKE.LEVEL} == 0 && ${BUILD_AT_LEVEL0:Uyes:tl} == "no"
+.MAIN: dirdeps
+.if make(all)
+.error DIRDEPS_BUILD: Please run '${MAKE}' instead of '${MAKE} all'.
+.endif
+.endif
 
 # we want to end up with a singe stage tree for all machines
 .if ${MK_STAGING} == "yes"
@@ -169,7 +179,7 @@ STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 # the target is usually an absolute path
 STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
-LDFLAGS_LAST+= -Wl,-rpath-link -Wl,${STAGE_LIBDIR}
+LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 .if ${MK_SYSROOT} == "yes"
 SYSROOT?= ${STAGE_OBJTOP}
 .else
@@ -204,20 +214,31 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
+.if !defined(_RECURSING_PROGS) && !defined(_RECURSING_CRUNCH)
+WITH_META_STATS= t
+.endif
 
 # toolchains can be a pain - especially bootstrappping them
 .if ${MACHINE} == "host"
 MK_SHARED_TOOLCHAIN= no
 .endif
 TOOLCHAIN_VARS=	AS AR CC CLANG_TBLGEN CXX CPP LD NM OBJDUMP OBJCOPY RANLIB \
-		STRINGS SIZE TBLGEN
+		STRINGS SIZE LLVM_TBLGEN
 _toolchain_bin_CLANG_TBLGEN=	/usr/bin/clang-tblgen
+_toolchain_bin_LLVM_TBLGEN=	/usr/bin/llvm-tblgen
 _toolchain_bin_CXX=		/usr/bin/c++
 .ifdef WITH_TOOLSDIR
 TOOLSDIR?= ${HOST_OBJTOP}/tools
 .elif defined(STAGE_HOST_OBJTOP)
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
+# Only define if it exists in case user didn't run bootstrap-tools.  Otherwise
+# the tool will be built during the build.  Building it assumes it is
+# TARGET==MACHINE.
+.if exists(${HOST_OBJTOP}/tools${.CURDIR})
+BTOOLSPATH= ${HOST_OBJTOP}/tools${.CURDIR}
+.endif
+
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
     !make(showconfig) && \
@@ -231,8 +252,7 @@ PATH:= ${TOOLSDIR}${dir}:${PATH}
 _toolchain_bin.${var}=	${TOOLSDIR}${_toolchain_bin_${var}:U/usr/bin/${var:tl}}
 .if exists(${_toolchain_bin.${var}})
 HOST_${var}?=	${_toolchain_bin.${var}}
-${var}?=	${HOST_${var}}
-.export		HOST_${var} ${var}
+.export		HOST_${var}
 .endif
 .endfor
 .endif
@@ -257,4 +277,9 @@ CROSS_TARGET_FLAGS= -target ${MACHINE_ARCH}-unknown-freebsd${FREEBSD_REVISION}
 CFLAGS+= ${CROSS_TARGET_FLAGS}
 ACFLAGS+= ${CROSS_TARGET_FLAGS}
 LDFLAGS+= -Wl,-m -Wl,elf_${MACHINE_ARCH}_fbsd
+.endif
+
+META_MODE+=	missing-meta=yes
+.if empty(META_MODE:Mnofilemon)
+META_MODE+=	missing-filemon=yes
 .endif

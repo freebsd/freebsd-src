@@ -27,6 +27,7 @@
 
 /*
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2016 Pedro Giffuni.  All rights reserved.
  */
 
 #include <sys/types.h>
@@ -47,15 +48,15 @@ dt_regset_create(ulong_t nregs)
 	if (drp == NULL)
 		return (NULL);
 
-	drp->dr_bitmap = malloc(sizeof (ulong_t) * n);
-	drp->dr_size = nregs;
+	drp->dr_bitmap = calloc(n, sizeof (ulong_t));
 
 	if (drp->dr_bitmap == NULL) {
 		dt_regset_destroy(drp);
 		return (NULL);
 	}
 
-	bzero(drp->dr_bitmap, sizeof (ulong_t) * n);
+	drp->dr_size = nregs;
+
 	return (drp);
 }
 

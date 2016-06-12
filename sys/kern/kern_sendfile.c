@@ -119,31 +119,6 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
     NULL, 0, sfstat_sysctl, "I", "sendfile statistics");
 
 /*
- * Add more references to a vm_page + sf_buf + sendfile_sync.  Called
- * by mbuf(9) code to add extra references to a page.
- */
-void
-sf_ext_ref(void *arg1, void *arg2)
-{
-	struct sf_buf *sf = arg1;
-	struct sendfile_sync *sfs = arg2;
-	vm_page_t pg = sf_buf_page(sf);
-
-	sf_buf_ref(sf);
-
-	vm_page_lock(pg);
-	vm_page_wire(pg);
-	vm_page_unlock(pg);
-
-	if (sfs != NULL) {
-		mtx_lock(&sfs->mtx);
-		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
-		sfs->count++;
-		mtx_unlock(&sfs->mtx);
-	}
-}
-
-/*
  * Detach mapped page and release resources back to the system.  Called
  * by mbuf(9) code when last reference to a page is freed.
  */
@@ -541,7 +516,7 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 int
 vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    struct thread *td)
 {
 	struct file *sock_fp;
 	struct vnode *vp;
@@ -559,7 +534,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	so = NULL;
 	m = mh = NULL;
 	sfs = NULL;
-	sbytes = 0;
+	hdrlen = sbytes = 0;
 	softerr = 0;
 
 	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
@@ -584,26 +559,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
 	}
-
-	/* If headers are specified copy them into mbufs. */
-	if (hdr_uio != NULL && hdr_uio->uio_resid > 0) {
-		hdr_uio->uio_td = td;
-		hdr_uio->uio_rw = UIO_WRITE;
-		/*
-		 * In FBSD < 5.0 the nbytes to send also included
-		 * the header.  If compat is specified subtract the
-		 * header size from nbytes.
-		 */
-		if (kflags & SFK_COMPAT) {
-			if (nbytes > hdr_uio->uio_resid)
-				nbytes -= hdr_uio->uio_resid;
-			else
-				nbytes = 0;
-		}
-		mh = m_uiotombuf(hdr_uio, M_WAITOK, 0, 0, 0);
-		hdrlen = m_length(mh, &mhtail);
-	} else
-		hdrlen = 0;
 
 	rem = nbytes ? omin(nbytes, obj_size - offset) : obj_size - offset;
 
@@ -693,11 +648,20 @@ retry_space:
 		SOCKBUF_UNLOCK(&so->so_snd);
 
 		/*
-		 * Reduce space in the socket buffer by the size of
-		 * the header mbuf chain.
-		 * hdrlen is set to 0 after the first loop.
+		 * At the beginning of the first loop check if any headers
+		 * are specified and copy them into mbufs.  Reduce space in
+		 * the socket buffer by the size of the header mbuf chain.
+		 * Clear hdr_uio here and hdrlen at the end of the first loop.
 		 */
-		space -= hdrlen;
+		if (hdr_uio != NULL && hdr_uio->uio_resid > 0) {
+			hdr_uio->uio_td = td;
+			hdr_uio->uio_rw = UIO_WRITE;
+			hdr_uio->uio_resid = min(hdr_uio->uio_resid, space);
+			mh = m_uiotombuf(hdr_uio, M_WAITOK, 0, 0, 0);
+			hdrlen = m_length(mh, &mhtail);
+			space -= hdrlen;
+			hdr_uio = NULL;
+		}
 
 		if (vp != NULL) {
 			error = vn_lock(vp, LK_SHARED);
@@ -807,7 +771,8 @@ retry_space:
 				m0->m_ext.ext_type = EXT_SFBUF;
 			else
 				m0->m_ext.ext_type = EXT_SFBUF_NOCACHE;
-			m0->m_ext.ext_flags = 0;
+			m0->m_ext.ext_flags = EXT_FLAG_EMBREF;
+			m0->m_ext.ext_count = 1;
 			m0->m_flags |= (M_EXT | M_RDONLY);
 			if (nios)
 				m0->m_flags |= M_NOTREADY;
@@ -968,6 +933,19 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 			    &hdr_uio);
 			if (error != 0)
 				goto out;
+#ifdef COMPAT_FREEBSD4
+			/*
+			 * In FreeBSD < 5.0 the nbytes to send also included
+			 * the header.  If compat is specified subtract the
+			 * header size from nbytes.
+			 */
+			if (compat) {
+				if (uap->nbytes > hdr_uio->uio_resid)
+					uap->nbytes -= hdr_uio->uio_resid;
+				else
+					uap->nbytes = 0;
+			}
+#endif
 		}
 		if (hdtr.trailers != NULL) {
 			error = copyinuio(hdtr.trailers, hdtr.trl_cnt,
@@ -989,7 +967,7 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	}
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
-	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	    uap->nbytes, &sbytes, uap->flags, td);
 	fdrop(fp, td);
 
 	if (uap->sbytes != NULL)

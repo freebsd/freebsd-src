@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .if defined(RESCUE) || defined(RELEASE_CRUNCH)
 
 .PATH:	${.CURDIR}/class/part \

@@ -2,6 +2,3 @@
 Set to not install header or
 programs used for program development,
 compilers, debuggers etc.
-.Bf -symbolic
-The option does not work for build targets.
-.Ef

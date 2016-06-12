@@ -1385,7 +1385,7 @@ ar5212GetNfHistMid(const int16_t calData[AR512_NF_CAL_HIST_MAX])
 }
 
 /*
- * Read the NF and check it against the noise floor threshhold
+ * Read the NF and check it against the noise floor threshold
  */
 int16_t
 ar5212GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)

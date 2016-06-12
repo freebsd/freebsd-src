@@ -81,6 +81,10 @@ SLIST_HEAD(dn_fsk_head, dn_fsk);
 SLIST_HEAD(dn_queue_head, dn_queue);
 SLIST_HEAD(dn_alg_head, dn_alg);
 
+#ifdef NEW_AQM
+SLIST_HEAD(dn_aqm_head, dn_aqm); /* for new AQMs */
+#endif
+
 struct mq {	/* a basic queue of packets*/
         struct mbuf *head, *tail;
 	int count;
@@ -136,6 +140,9 @@ struct dn_parms {
 	/* list of flowsets without a scheduler -- use sch_chain */
 	struct dn_fsk_head	fsu;	/* list of unlinked flowsets */
 	struct dn_alg_head	schedlist;	/* list of algorithms */
+#ifdef NEW_AQM
+	struct dn_aqm_head	aqmlist;	/* list of AQMs */
+#endif
 
 	/* Store the fs/sch to scan when draining. The value is the
 	 * bucket number of the hash table. Expire can be disabled
@@ -232,6 +239,10 @@ struct dn_fsk { /* kernel side of a flowset */
 	int lookup_weight ;	/* equal to (1-w_q)^t / (1-w_q)^(t+1) */
 	int avg_pkt_size ;	/* medium packet size */
 	int max_pkt_size ;	/* max packet size */
+#ifdef NEW_AQM
+	struct dn_aqm *aqmfp;	/* Pointer to AQM functions */
+	void *aqmcfg;	/* configuration parameters for AQM */
+#endif
 };
 
 /*
@@ -254,6 +265,9 @@ struct dn_queue {
 	int count;		/* arrivals since last RED drop */
 	int random;		/* random value (scaled) */
 	uint64_t q_time;	/* start of queue idle time */
+#ifdef NEW_AQM
+	void *aqm_status;	/* per-queue status variables*/
+#endif
 
 };
 
@@ -400,5 +414,50 @@ int do_config(void *p, int l);
 /* function to drain idle object */
 void dn_drain_scheduler(void);
 void dn_drain_queue(void);
+
+#ifdef NEW_AQM
+int ecn_mark(struct mbuf* m);
+
+/* moved from ip_dn_io.c to here to be available for AQMs modules*/
+static inline void
+mq_append(struct mq *q, struct mbuf *m)
+{
+#ifdef USERSPACE
+	// buffers from netmap need to be copied
+	// XXX note that the routine is not expected to fail
+	ND("append %p to %p", m, q);
+	if (m->m_flags & M_STACK) {
+		struct mbuf *m_new;
+		void *p;
+		int l, ofs;
+
+		ofs = m->m_data - m->__m_extbuf;
+		// XXX allocate
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		ND("*** WARNING, volatile buf %p ext %p %d dofs %d m_new %p",
+			m, m->__m_extbuf, m->__m_extlen, ofs, m_new);
+		p = m_new->__m_extbuf;	/* new pointer */
+		l = m_new->__m_extlen;	/* new len */
+		if (l <= m->__m_extlen) {
+			panic("extlen too large");
+		}
+
+		*m_new = *m;	// copy
+		m_new->m_flags &= ~M_STACK;
+		m_new->__m_extbuf = p; // point to new buffer
+		_pkt_copy(m->__m_extbuf, p, m->__m_extlen);
+		m_new->m_data = p + ofs;
+		m = m_new;
+	}
+#endif /* USERSPACE */
+	if (q->head == NULL)
+		q->head = m;
+	else
+		q->tail->m_nextpkt = m;
+	q->count++;
+	q->tail = m;
+	m->m_nextpkt = NULL;
+}
+#endif /* NEW_AQM */
 
 #endif /* _IP_DN_PRIVATE_H */

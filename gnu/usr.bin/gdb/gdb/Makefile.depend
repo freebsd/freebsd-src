@@ -23,10 +23,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-gdb.o: nm.h
-gdb.o: tm.h
-gdb.o: xm.h
-gdb.po: nm.h
-gdb.po: tm.h
-gdb.po: xm.h
 .endif

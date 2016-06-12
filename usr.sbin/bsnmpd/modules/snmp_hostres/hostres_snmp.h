@@ -85,7 +85,7 @@ struct statfs;
 /* path to devd(8) output pipe */
 #define	PATH_DEVD_PIPE	"/var/run/devd.pipe"
 
-#define	IS_KERNPROC(kp)	(((kp)->ki_flag & P_KTHREAD) == P_KTHREAD)
+#define	IS_KERNPROC(kp)	(((kp)->ki_flag & P_KPROC) == P_KPROC)
 
 enum snmpTCTruthValue {
 	SNMP_TRUE = 1,

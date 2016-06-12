@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2015
+.Dd February 11, 2016
 .Dt UEFI 8
 .Os
 .Sh NAME
@@ -73,9 +73,34 @@ as
 .Pa /EFI/BOOT/BOOTX64.EFI .
 .It
 .Pa boot1.efi
-locates the first partition with the type
-.Li freebsd-ufs ,
-and from it loads
+reads boot configuration from
+.Pa /boot.config
+or
+.Pa /boot/config .
+Unlike other first-stage boot loaders,
+.Pa boot1.efi
+passes the configuration to the next stage boot loader and does not
+itself act on the contents of the file.
+.It
+.Pa boot1.efi
+searches partitions of type
+.Li freebsd-ufs
+and
+.Li freebsd-zfs
+for
+.Pa loader.efi .
+The search begins with partitions on the device from which
+.Pa boot1.efi
+was loaded, and continues with other available partitions.
+If both
+.Li freebsd-ufs
+and
+.Li freebsd-zfs
+partitions exist on the same device the
+.Li freebsd-zfs
+partition is preferred.
+.Pa boot1.efi
+then loads and executes
 .Pa loader.efi .
 .It
 .Pa loader.efi
@@ -112,6 +137,7 @@ typical non-default kernel (optional)
 .El
 .Sh SEE ALSO
 .Xr vt 4 ,
+.Xr boot.config 5 ,
 .Xr msdosfs 5 ,
 .Xr boot 8 ,
 .Xr gpart 8 ,
@@ -135,19 +161,3 @@ Foundation sponsored portions of the work.
 EFI environment variables are not supported by
 .Xr loader 8
 or the kernel.
-.Pp
-.Pa boot1.efi
-loads
-.Pa loader.efi
-from the first FreeBSD-UFS file system it locates, even if it is on a
-different disk.
-.Pp
-.Pa boot1.efi
-cannot load
-.Pa loader.efi
-from a
-.Xr ZFS 8
-file system.
-As a result,
-.Nm
-does not support a typical root file system on ZFS configuration.

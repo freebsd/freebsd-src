@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.73 2015/07/30 00:01:34 djm Exp $ */
+/* $OpenBSD: kex.h,v 1.76 2016/02/08 10:57:07 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -54,7 +54,6 @@
 #define	KEX_DH14		"diffie-hellman-group14-sha1"
 #define	KEX_DHGEX_SHA1		"diffie-hellman-group-exchange-sha1"
 #define	KEX_DHGEX_SHA256	"diffie-hellman-group-exchange-sha256"
-#define	KEX_RESUME		"resume@appgate.com"
 #define	KEX_ECDH_SHA2_NISTP256	"ecdh-sha2-nistp256"
 #define	KEX_ECDH_SHA2_NISTP384	"ecdh-sha2-nistp384"
 #define	KEX_ECDH_SHA2_NISTP521	"ecdh-sha2-nistp521"
@@ -129,10 +128,12 @@ struct kex {
 	u_int	dh_need;
 	int	server;
 	char	*name;
+	char	*hostkey_alg;
 	int	hostkey_type;
 	int	hostkey_nid;
 	u_int	kex_type;
-	int	roaming;
+	int	rsa_sha2;
+	int	ext_info_c;
 	struct sshbuf *my;
 	struct sshbuf *peer;
 	sig_atomic_t done;
@@ -146,8 +147,8 @@ struct kex {
 	struct sshkey *(*load_host_public_key)(int, int, struct ssh *);
 	struct sshkey *(*load_host_private_key)(int, int, struct ssh *);
 	int	(*host_key_index)(struct sshkey *, int, struct ssh *);
-	int	(*sign)(struct sshkey *, struct sshkey *,
-	    u_char **, size_t *, const u_char *, size_t, u_int);
+	int	(*sign)(struct sshkey *, struct sshkey *, u_char **, size_t *,
+	    const u_char *, size_t, const char *, u_int);
 	int	(*kex[KEX_MAX])(struct ssh *);
 	/* kex specific state */
 	DH	*dh;			/* DH */
@@ -174,9 +175,11 @@ void	 kex_prop_free(char **);
 
 int	 kex_send_kexinit(struct ssh *);
 int	 kex_input_kexinit(int, u_int32_t, void *);
+int	 kex_input_ext_info(int, u_int32_t, void *);
 int	 kex_derive_keys(struct ssh *, u_char *, u_int, const struct sshbuf *);
 int	 kex_derive_keys_bn(struct ssh *, u_char *, u_int, const BIGNUM *);
 int	 kex_send_newkeys(struct ssh *);
+int	 kex_start_rekex(struct ssh *);
 
 int	 kexdh_client(struct ssh *);
 int	 kexdh_server(struct ssh *);

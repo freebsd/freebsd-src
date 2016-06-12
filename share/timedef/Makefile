@@ -127,10 +127,11 @@ LOCALES+=	zh_Hans_CN.GB2312
 LOCALES+=	zh_Hans_CN.GBK
 LOCALES+=	zh_Hans_CN.UTF-8
 LOCALES+=	zh_Hans_CN.eucCN
-LOCALES+=	zh_Hant_HK.Big5HKSCS
 LOCALES+=	zh_Hant_HK.UTF-8
 LOCALES+=	zh_Hant_TW.Big5
 LOCALES+=	zh_Hant_TW.UTF-8
+
+
 
 SAME+=		af_ZA.UTF-8 af_ZA.ISO8859-15
 SAME+=		af_ZA.UTF-8 af_ZA.ISO8859-1

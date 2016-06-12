@@ -29,9 +29,6 @@
 //          list ==>  "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
 //          More information see:
 //          http://ftp.gnu.org/old-gnu/Manuals/gdb-5.1.1/html_chapter/gdb_22.html
-// Gotchas: None.
-// Authors: Illya Rudkin 24/02/2014.
-// Changes: None.
 //--
 class CMICmnMIValueList : public CMICmnMIValue
 {
@@ -41,18 +38,18 @@ class CMICmnMIValueList : public CMICmnMIValue
     /* ctor */ CMICmnMIValueList(const CMICmnMIValueResult &vResult);
     /* ctor */ CMICmnMIValueList(const CMICmnMIValue &vValue);
     //
-    bool Add(const CMICmnMIValueResult &vResult);
-    bool Add(const CMICmnMIValue &vValue);
-    CMIUtilString ExtractContentNoBrackets(void) const;
+    void Add(const CMICmnMIValueResult &vResult);
+    void Add(const CMICmnMIValue &vValue);
+    CMIUtilString ExtractContentNoBrackets() const;
 
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ ~CMICmnMIValueList(void) override;
+    /* dtor */ ~CMICmnMIValueList() override;
 
     // Methods:
   private:
-    bool BuildList(void);
-    bool BuildList(const CMICmnMIValueResult &vResult);
-    bool BuildList(const CMICmnMIValue &vResult);
+    void BuildList();
+    void BuildList(const CMICmnMIValueResult &vResult);
+    void BuildList(const CMICmnMIValue &vResult);
 };

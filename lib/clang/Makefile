@@ -38,7 +38,6 @@ SUBDIR=	libclanganalysis \
 	libllvmcore \
 	libllvminstcombine \
 	libllvminstrumentation \
-	libllvmipa \
 	libllvmipo \
 	libllvmirreader \
 	libllvmlinker \
@@ -58,38 +57,36 @@ SUBDIR=	libclanganalysis \
 	libllvmvectorize \
 	\
 	libllvmaarch64asmparser \
+	libllvmaarch64asmprinter \
 	libllvmaarch64codegen \
 	libllvmaarch64desc \
 	libllvmaarch64info \
-	libllvmaarch64instprinter \
 	libllvmaarch64utils \
 	libllvmarmasmparser \
+	libllvmarmasmprinter \
 	libllvmarmcodegen \
 	libllvmarmdesc \
-	libllvmarmdisassembler \
 	libllvmarminfo \
-	libllvmarminstprinter \
 	libllvmmipsasmparser \
+	libllvmmipsasmprinter \
 	libllvmmipscodegen \
 	libllvmmipsdesc \
 	libllvmmipsinfo \
-	libllvmmipsinstprinter \
 	libllvmpowerpcasmparser \
+	libllvmpowerpcasmprinter \
 	libllvmpowerpccodegen \
 	libllvmpowerpcdesc \
-	libllvmpowerpcdisassembler \
 	libllvmpowerpcinfo \
-	libllvmpowerpcinstprinter \
 	libllvmsparcasmparser \
+	libllvmsparcasmprinter \
 	libllvmsparccodegen \
 	libllvmsparcdesc \
 	libllvmsparcinfo \
-	libllvmsparcinstprinter \
 	libllvmx86asmparser \
+	libllvmx86asmprinter \
 	libllvmx86codegen \
 	libllvmx86desc \
 	libllvmx86info \
-	libllvmx86instprinter \
 	libllvmx86utils
 
 .if ${MK_CLANG_EXTRAS} != "no"
@@ -99,14 +96,18 @@ SUBDIR+=libllvmdebuginfodwarf \
 	libllvmlto \
 	libllvmmirparser \
 	libllvmorcjit \
-	libllvmpasses
+	libllvmpasses \
+	libllvmsymbolize
 .endif # MK_CLANG_EXTRAS
+	
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SUBDIR+=libllvmaarch64disassembler \
-	libllvmexecutionengine \
+SUBDIR+=libllvmexecutionengine \
+	libllvmaarch64disassembler \
+	libllvmarmdisassembler \
 	libllvminterpreter \
 	libllvmmcjit \
 	libllvmmipsdisassembler \
+	libllvmpowerpcdisassembler \
 	libllvmruntimedyld \
 	libllvmsparcdisassembler \
 	libllvmx86disassembler
@@ -142,12 +143,16 @@ SUBDIR+=liblldb \
 	liblldbPluginDisassemblerLLVM \
 	liblldbPluginDynamicLoaderStatic \
 	liblldbPluginDynamicLoaderPosixDYLD \
+	liblldbPluginExpressionParserClang \
+	liblldbPluginExpressionParserGo \
 	liblldbPluginInstructionARM \
 	liblldbPluginInstructionARM64 \
 	liblldbPluginInstructionMIPS \
 	liblldbPluginInstructionMIPS64 \
 	liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	liblldbPluginJITLoaderGDB \
+	liblldbPluginLanguageCPlusPlus \
+	liblldbPluginLanguageObjC \
 	liblldbPluginMemoryHistoryASan \
 	liblldbPluginObjectContainerBSDArchive \
 	liblldbPluginObjectFileELF \
@@ -159,6 +164,7 @@ SUBDIR+=liblldb \
 	liblldbPluginProcessGDBRemote \
 	liblldbPluginProcessPOSIX \
 	liblldbPluginProcessUtility \
+	liblldbPluginScriptInterpreterNone \
 	liblldbPluginSymbolFileDWARF \
 	liblldbPluginSymbolFileSymtab \
 	liblldbPluginSymbolVendorELF \

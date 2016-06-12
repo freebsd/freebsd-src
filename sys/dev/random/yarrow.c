@@ -96,7 +96,7 @@ static struct yarrow_state {
 	u_int ys_slowoverthresh;	/* slow pool overthreshhold reseed count */
 	struct ys_pool {
 		u_int ysp_source_bits[ENTROPYSOURCE];	/* estimated bits of entropy per source */
-		u_int ysp_thresh;	/* pool reseed threshhold */
+		u_int ysp_thresh;	/* pool reseed threshold */
 		struct randomdev_hash ysp_hash;	/* accumulated entropy */
 	} ys_pool[RANDOM_YARROW_NPOOLS];/* pool[0] is fast, pool[1] is slow */
 	bool ys_seeded;
@@ -240,8 +240,8 @@ random_yarrow_process_event(struct harvest_event *event)
 		}
 	}
 	/*
-	 * If enough slow sources are over threshhold, then slow reseed
-	 * else if any fast source over threshhold, then fast reseed.
+	 * If enough slow sources are over threshold, then slow reseed
+	 * else if any fast source over threshold, then fast reseed.
 	 */
 	if (overthreshhold[RANDOM_YARROW_SLOW] >= yarrow_state.ys_slowoverthresh)
 		random_yarrow_reseed_internal(RANDOM_YARROW_SLOW);
@@ -374,7 +374,7 @@ random_yarrow_read(uint8_t *buf, u_int bytecount)
 
 	KASSERT((bytecount % RANDOM_BLOCKSIZE) == 0, ("%s(): bytecount (= %d) must be a multiple of %d", __func__, bytecount, RANDOM_BLOCKSIZE ));
 	RANDOM_RESEED_LOCK();
-	blockcount = (bytecount + RANDOM_BLOCKSIZE - 1)/RANDOM_BLOCKSIZE;
+	blockcount = howmany(bytecount, RANDOM_BLOCKSIZE);
 	for (i = 0; i < blockcount; i++) {
 		if (yarrow_state.ys_outputblocks++ >= yarrow_state.ys_gengateinterval) {
 			random_yarrow_generator_gate();

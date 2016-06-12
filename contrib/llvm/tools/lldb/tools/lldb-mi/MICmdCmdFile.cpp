@@ -30,9 +30,8 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdFileExecAndSymbols::CMICmdCmdFileExecAndSymbols(void)
+CMICmdCmdFileExecAndSymbols::CMICmdCmdFileExecAndSymbols()
     : m_constStrArgNameFile("file")
-    , m_constStrArgThreadGrp("thread-group")
     , m_constStrArgNamedPlatformName("p")
     , m_constStrArgNamedRemotePath("r")
 {
@@ -50,7 +49,7 @@ CMICmdCmdFileExecAndSymbols::CMICmdCmdFileExecAndSymbols(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdFileExecAndSymbols::~CMICmdCmdFileExecAndSymbols(void)
+CMICmdCmdFileExecAndSymbols::~CMICmdCmdFileExecAndSymbols()
 {
 }
 
@@ -64,18 +63,14 @@ CMICmdCmdFileExecAndSymbols::~CMICmdCmdFileExecAndSymbols(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdFileExecAndSymbols::ParseArgs(void)
+CMICmdCmdFileExecAndSymbols::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(
-        *(new CMICmdArgValOptionLong(m_constStrArgThreadGrp, false, false, CMICmdArgValListBase::eArgValType_ThreadGrp, 1)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValFile(m_constStrArgNameFile, true, true)));
-    bOk = bOk &&
-    m_setCmdArgs.Add(*(new CMICmdArgValOptionShort(m_constStrArgNamedPlatformName, false, true,
-                                                   CMICmdArgValListBase::eArgValType_String, 1)));
-    bOk = bOk &&
-    m_setCmdArgs.Add(*(new CMICmdArgValOptionShort(m_constStrArgNamedRemotePath, false, true,
-                                                   CMICmdArgValListBase::eArgValType_StringQuotedNumberPath, 1)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValFile(m_constStrArgNameFile, true, true));
+    m_setCmdArgs.Add(new CMICmdArgValOptionShort(m_constStrArgNamedPlatformName, false, true,
+                                                 CMICmdArgValListBase::eArgValType_String, 1));
+    m_setCmdArgs.Add(new CMICmdArgValOptionShort(m_constStrArgNamedRemotePath, false, true,
+                                                 CMICmdArgValListBase::eArgValType_StringQuotedNumberPath, 1));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -90,7 +85,7 @@ CMICmdCmdFileExecAndSymbols::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdFileExecAndSymbols::Execute(void)
+CMICmdCmdFileExecAndSymbols::Execute()
 {
     CMICMDBASE_GETOPTION(pArgNamedFile, File, m_constStrArgNameFile);
     CMICMDBASE_GETOPTION(pArgPlatformName, OptionShort, m_constStrArgNamedPlatformName);
@@ -168,7 +163,7 @@ CMICmdCmdFileExecAndSymbols::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdFileExecAndSymbols::Acknowledge(void)
+CMICmdCmdFileExecAndSymbols::Acknowledge()
 {
     const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done);
     m_miResultRecord = miRecordResult;
@@ -185,7 +180,7 @@ CMICmdCmdFileExecAndSymbols::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdFileExecAndSymbols::CreateSelf(void)
+CMICmdCmdFileExecAndSymbols::CreateSelf()
 {
     return new CMICmdCmdFileExecAndSymbols();
 }
@@ -202,7 +197,7 @@ CMICmdCmdFileExecAndSymbols::CreateSelf(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdFileExecAndSymbols::GetExitAppOnCommandFailure(void) const
+CMICmdCmdFileExecAndSymbols::GetExitAppOnCommandFailure() const
 {
     return true;
 }

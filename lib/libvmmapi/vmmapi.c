@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 
 #include <x86/segments.h>
 #include <machine/specialreg.h>
-#include <machine/param.h>
 
 #include <errno.h>
 #include <stdio.h>

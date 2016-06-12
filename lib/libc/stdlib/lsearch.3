@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2013
+.Dd April 17, 2016
 .Dt LSEARCH 3
 .Os
 .Sh NAME
@@ -107,7 +107,7 @@ main(int argc, char **argv)
 
 	printf("Enter a number: ");
 	if (scanf("%d", &key) != 1) {
-		printf("Bad input\n");
+		printf("Bad input\en");
 		return (EXIT_FAILURE);
 	}
 
@@ -115,9 +115,9 @@ main(int argc, char **argv)
 	    element_compare);
 
 	if (element != NULL)
-		printf("Element found: %d\n", *(int *)element);
+		printf("Element found: %d\en", *(int *)element);
 	else
-		printf("Element not found\n");
+		printf("Element not found\en");
 
 	return (EXIT_SUCCESS);
 }

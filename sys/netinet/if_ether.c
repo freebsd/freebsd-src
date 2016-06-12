@@ -143,7 +143,6 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
 } while (0)
 
 
-static void	arp_init(void);
 static void	arpintr(struct mbuf *);
 static void	arptimer(void *);
 #ifdef INET
@@ -420,7 +419,8 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
  */
 static int
 arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
-	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags,
+	struct llentry **plle)
 {
 	struct llentry *la = NULL, *la_tmp;
 	struct mbuf *curr = NULL;
@@ -431,6 +431,8 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 
 	if (pflags != NULL)
 		*pflags = 0;
+	if (plle != NULL)
+		*plle = NULL;
 
 	if ((flags & LLE_CREATE) == 0) {
 		IF_AFDATA_RLOCK(ifp);
@@ -483,6 +485,10 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 		}
 		if (pflags != NULL)
 			*pflags = la->la_flags & (LLE_VALID|LLE_IFADDR);
+		if (plle) {
+			LLE_ADDREF(la);
+			*plle = la;
+		}
 		LLE_WUNLOCK(la);
 		return (0);
 	}
@@ -548,12 +554,12 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
  */
 int
 arpresolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
-    char *desten, uint32_t *pflags)
+    char *desten, uint32_t *pflags, struct llentry **plle)
 {
 	int error;
 
 	flags |= LLE_ADDRONLY;
-	error = arpresolve_full(ifp, 0, flags, NULL, dst, desten, pflags);
+	error = arpresolve_full(ifp, 0, flags, NULL, dst, desten, pflags, plle);
 	return (error);
 }
 
@@ -576,12 +582,15 @@ arpresolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
  */
 int
 arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
-	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags,
+	struct llentry **plle)
 {
-	struct llentry *la = 0;
+	struct llentry *la = NULL;
 
 	if (pflags != NULL)
 		*pflags = 0;
+	if (plle != NULL)
+		*plle = NULL;
 
 	if (m != NULL) {
 		if (m->m_flags & M_BCAST) {
@@ -616,7 +625,7 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	IF_AFDATA_RUNLOCK(ifp);
 
 	return (arpresolve_full(ifp, is_gw, la == NULL ? LLE_CREATE : 0, m, dst,
-	    desten, pflags));
+	    desten, pflags, plle));
 }
 
 /*
@@ -1327,12 +1336,33 @@ arp_iflladdr(void *arg __unused, struct ifnet *ifp)
 }
 
 static void
-arp_init(void)
+vnet_arp_init(void)
 {
 
-	netisr_register(&arp_nh);
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
+		netisr_register(&arp_nh);
 		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
 		    arp_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
+	}
+#ifdef VIMAGE
+	else
+		netisr_register_vnet(&arp_nh);
+#endif
 }
-SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);
+VNET_SYSINIT(vnet_arp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND,
+    vnet_arp_init, 0);
+
+#ifdef VIMAGE
+/*
+ * We have to unregister ARP along with IP otherwise we risk doing INADDR_HASH
+ * lookups after destroying the hash.  Ideally this would go on SI_ORDER_3.5.
+ */
+static void
+vnet_arp_destroy(__unused void *arg)
+{
+
+	netisr_unregister_vnet(&arp_nh);
+}
+VNET_SYSUNINIT(vnet_arp_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    vnet_arp_destroy, NULL);
+#endif

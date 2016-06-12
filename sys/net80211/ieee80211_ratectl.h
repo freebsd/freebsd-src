@@ -53,6 +53,7 @@ struct ieee80211_ratectl {
 	    			const struct ieee80211_node *,
 	    			void *, void *, void *);
 	void	(*ir_setinterval)(const struct ieee80211vap *, int);
+	void	(*ir_node_stats)(struct ieee80211_node *ni, struct sbuf *s);
 };
 
 void	ieee80211_ratectl_register(int, const struct ieee80211_ratectl *);
@@ -114,4 +115,14 @@ ieee80211_ratectl_setinterval(const struct ieee80211vap *vap, int msecs)
 	if (vap->iv_rate->ir_setinterval == NULL)
 		return;
 	vap->iv_rate->ir_setinterval(vap, msecs);
+}
+
+static __inline void
+ieee80211_ratectl_node_stats(struct ieee80211_node *ni, struct sbuf *s)
+{
+	const struct ieee80211vap *vap = ni->ni_vap;
+
+	if (vap->iv_rate->ir_node_stats == NULL)
+		return;
+	vap->iv_rate->ir_node_stats(ni, s);
 }

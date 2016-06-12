@@ -132,6 +132,8 @@ struct outside_network {
 	/** dnstap environment */
 	struct dt_env* dtenv;
 #endif
+	/** maximum segment size of tcp socket */
+	int tcp_mss;
 
 	/**
 	 * Array of tcp pending used for outgoing TCP connections.
@@ -392,6 +394,7 @@ struct serviced_query {
  * @param unwanted_threshold: when to take defensive action.
  * @param unwanted_action: the action to take.
  * @param unwanted_param: user parameter to action.
+ * @param tcp_mss: maximum segment size of tcp socket.
  * @param do_udp: if udp is done.
  * @param sslctx: context to create outgoing connections with (if enabled).
  * @param delayclose: if not 0, udp sockets are delayed before timeout closure.
@@ -403,7 +406,7 @@ struct outside_network* outside_network_create(struct comm_base* base,
 	size_t bufsize, size_t num_ports, char** ifs, int num_ifs,
 	int do_ip4, int do_ip6, size_t num_tcp, struct infra_cache* infra, 
 	struct ub_randstate* rnd, int use_caps_for_id, int* availports, 
-	int numavailports, size_t unwanted_threshold,
+	int numavailports, size_t unwanted_threshold, int tcp_mss,
 	void (*unwanted_action)(void*), void* unwanted_param, int do_udp,
 	void* sslctx, int delayclose, struct dt_env *dtenv);
 

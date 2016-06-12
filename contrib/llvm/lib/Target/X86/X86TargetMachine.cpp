@@ -28,10 +28,17 @@ static cl::opt<bool> EnableMachineCombinerPass("x86-machine-combiner",
                                cl::desc("Enable the machine combiner pass"),
                                cl::init(true), cl::Hidden);
 
+namespace llvm {
+void initializeWinEHStatePassPass(PassRegistry &);
+}
+
 extern "C" void LLVMInitializeX86Target() {
   // Register the target.
   RegisterTargetMachine<X86TargetMachine> X(TheX86_32Target);
   RegisterTargetMachine<X86TargetMachine> Y(TheX86_64Target);
+
+  PassRegistry &PR = *PassRegistry::getPassRegistry();
+  initializeWinEHStatePassPass(PR);
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
@@ -45,7 +52,7 @@ static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
     return make_unique<X86LinuxNaClTargetObjectFile>();
   if (TT.isOSBinFormatELF())
     return make_unique<X86ELFTargetObjectFile>();
-  if (TT.isKnownWindowsMSVCEnvironment())
+  if (TT.isKnownWindowsMSVCEnvironment() || TT.isWindowsCoreCLREnvironment())
     return make_unique<X86WindowsTargetObjectFile>();
   if (TT.isOSBinFormatCOFF())
     return make_unique<TargetLoweringObjectFileCOFF>();
@@ -175,8 +182,9 @@ UseVZeroUpper("x86-use-vzeroupper", cl::Hidden,
 //===----------------------------------------------------------------------===//
 
 TargetIRAnalysis X86TargetMachine::getTargetIRAnalysis() {
-  return TargetIRAnalysis(
-      [this](Function &F) { return TargetTransformInfo(X86TTIImpl(this, F)); });
+  return TargetIRAnalysis([this](const Function &F) {
+    return TargetTransformInfo(X86TTIImpl(this, F));
+  });
 }
 
 
@@ -246,6 +254,9 @@ bool X86PassConfig::addPreISel() {
 }
 
 void X86PassConfig::addPreRegAlloc() {
+  if (getOptLevel() != CodeGenOpt::None)
+    addPass(createX86OptimizeLEAs());
+
   addPass(createX86CallFrameOptimization());
 }
 

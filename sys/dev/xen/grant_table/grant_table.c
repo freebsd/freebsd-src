@@ -573,8 +573,7 @@ gnttab_expand(unsigned int req_entries)
 	unsigned int cur, extra;
 
 	cur = nr_grant_frames;
-	extra = ((req_entries + (GREFS_PER_GRANT_FRAME-1)) /
-		 GREFS_PER_GRANT_FRAME);
+	extra = howmany(req_entries, GREFS_PER_GRANT_FRAME);
 	if (cur + extra > max_nr_grant_frames())
 		return (ENOSPC);
 

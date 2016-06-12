@@ -99,11 +99,17 @@ cfi_read(struct cfi_softc *sc, u_int ofs)
 		break;
 	case 2:
 		sval = bus_space_read_2(sc->sc_tag, sc->sc_handle, ofs);
+#ifdef CFI_HARDWAREBYTESWAP
+		val = sval;
+#else
 		val = le16toh(sval);
+#endif
 		break;
 	case 4:
 		val = bus_space_read_4(sc->sc_tag, sc->sc_handle, ofs);
+#ifndef CFI_HARDWAREBYTESWAP
 		val = le32toh(val);
+#endif
 		break;
 	default:
 		val = ~0;
@@ -122,10 +128,19 @@ cfi_write(struct cfi_softc *sc, u_int ofs, u_int val)
 		bus_space_write_1(sc->sc_tag, sc->sc_handle, ofs, val);
 		break;
 	case 2:
+#ifdef CFI_HARDWAREBYTESWAP
+		bus_space_write_2(sc->sc_tag, sc->sc_handle, ofs, val);
+#else
 		bus_space_write_2(sc->sc_tag, sc->sc_handle, ofs, htole16(val));
+
+#endif
 		break;
 	case 4:
+#ifdef CFI_HARDWAREBYTESWAP
+		bus_space_write_4(sc->sc_tag, sc->sc_handle, ofs, val);
+#else
 		bus_space_write_4(sc->sc_tag, sc->sc_handle, ofs, htole32(val));
+#endif
 		break;
 	}
 }

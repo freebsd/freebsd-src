@@ -890,3 +890,29 @@ in6_purgemaddrs(struct ifnet *ifp)
 
 	IN6_MULTI_UNLOCK();
 }
+
+void
+in6_ifattach_destroy(void)
+{
+
+	callout_drain(&V_in6_tmpaddrtimer_ch);
+}
+
+static void
+in6_ifattach_init(void *dummy)
+{
+
+	/* Timer for regeneranation of temporary addresses randomize ID. */
+	callout_init(&V_in6_tmpaddrtimer_ch, 0);
+	callout_reset(&V_in6_tmpaddrtimer_ch,
+	    (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
+	    V_ip6_temp_regen_advance) * hz,
+	    in6_tmpaddrtimer, curvnet);
+}
+
+/*
+ * Cheat.
+ * This must be after route_init(), which is now SI_ORDER_THIRD.
+ */
+SYSINIT(in6_ifattach_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
+    in6_ifattach_init, NULL);

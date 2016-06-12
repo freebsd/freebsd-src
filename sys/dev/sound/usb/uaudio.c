@@ -657,6 +657,7 @@ static const struct usb_config
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = UMIDI_TX_BUFFER,
+		.flags = {.no_pipe_ok = 1},
 		.callback = &umidi_bulk_write_callback,
 	},
 
@@ -665,7 +666,7 @@ static const struct usb_config
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = 4,	/* bytes */
-		.flags = {.short_xfer_ok = 1,.proxy_buffer = 1,},
+		.flags = {.short_xfer_ok = 1,.proxy_buffer = 1,.no_pipe_ok = 1},
 		.callback = &umidi_bulk_read_callback,
 	},
 };
@@ -1173,8 +1174,8 @@ uaudio_get_buffer_size(struct uaudio_chan *ch, uint8_t alt)
 {
 	struct uaudio_chan_alt *chan_alt = &ch->usb_alt[alt];
 	/* We use 2 times 8ms of buffer */
-	uint32_t buf_size = (((chan_alt->sample_rate * (UAUDIO_NFRAMES / 8)) +
-	    1000 - 1) / 1000) * chan_alt->sample_size;
+	uint32_t buf_size = chan_alt->sample_size *
+	    howmany(chan_alt->sample_rate * (UAUDIO_NFRAMES / 8), 1000);
 	return (buf_size);
 }
 
@@ -1292,8 +1293,8 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 	/* bytes per frame should not be zero */
 	chan->bytes_per_frame[0] =
 	    ((chan_alt->sample_rate / fps) * chan_alt->sample_size);
-	chan->bytes_per_frame[1] =
-	    (((chan_alt->sample_rate + fps - 1) / fps) * chan_alt->sample_size);
+	chan->bytes_per_frame[1] = howmany(chan_alt->sample_rate, fps) *
+	    chan_alt->sample_size;
 
 	/* setup data rate dithering, if any */
 	chan->frames_per_second = fps;
@@ -5754,7 +5755,16 @@ umidi_start_write(struct usb_fifo *fifo)
 {
 	struct umidi_chan *chan = usb_fifo_softc(fifo);
 
-	usbd_transfer_start(chan->xfer[UMIDI_TX_TRANSFER]);
+	if (chan->xfer[UMIDI_TX_TRANSFER] == NULL) {
+		uint8_t buf[1];
+		int actlen;
+		do {
+			/* dump data */
+			usb_fifo_get_data_linear(fifo, buf, 1, &actlen, 0);
+		} while (actlen > 0);
+	} else {
+		usbd_transfer_start(chan->xfer[UMIDI_TX_TRANSFER]);
+	}
 }
 
 static void
@@ -5872,6 +5882,11 @@ umidi_probe(device_t dev)
 		DPRINTF("error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
+	if (chan->xfer[UMIDI_TX_TRANSFER] == NULL &&
+	    chan->xfer[UMIDI_RX_TRANSFER] == NULL) {
+		DPRINTF("no BULK or INTERRUPT MIDI endpoint(s) found\n");
+		goto detach;
+	}
 
 	/*
 	 * Some USB MIDI device makers couldn't resist using
@@ -5885,7 +5900,8 @@ umidi_probe(device_t dev)
 	 * and 64-byte maximum packet sizes for full-speed bulk
 	 * endpoints and 512 bytes for high-speed bulk endpoints."
 	 */
-	if (usbd_xfer_maxp_was_clamped(chan->xfer[UMIDI_TX_TRANSFER]))
+	if (chan->xfer[UMIDI_TX_TRANSFER] != NULL &&
+	    usbd_xfer_maxp_was_clamped(chan->xfer[UMIDI_TX_TRANSFER]))
 		chan->single_command = 1;
 
 	if (chan->single_command != 0)

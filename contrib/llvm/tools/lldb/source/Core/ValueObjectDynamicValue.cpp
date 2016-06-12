@@ -20,7 +20,7 @@
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObject.h"
 
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/Type.h"
@@ -49,18 +49,18 @@ ValueObjectDynamicValue::~ValueObjectDynamicValue()
     m_owning_valobj_sp.reset();
 }
 
-ClangASTType
-ValueObjectDynamicValue::GetClangTypeImpl ()
+CompilerType
+ValueObjectDynamicValue::GetCompilerTypeImpl ()
 {
     const bool success = UpdateValueIfNeeded(false);
     if (success)
     {
         if (m_dynamic_type_info.HasType())
-            return m_value.GetClangType();
+            return m_value.GetCompilerType();
         else
-            return m_parent->GetClangType();
+            return m_parent->GetCompilerType();
     }
-    return m_parent->GetClangType();
+    return m_parent->GetCompilerType();
 }
 
 ConstString
@@ -105,7 +105,7 @@ ValueObjectDynamicValue::GetDisplayTypeName()
     if (success)
     {
         if (m_dynamic_type_info.HasType())
-            return GetClangType().GetDisplayTypeName();
+            return GetCompilerType().GetDisplayTypeName();
         if (m_dynamic_type_info.HasName())
             return m_dynamic_type_info.GetName();
     }
@@ -113,13 +113,16 @@ ValueObjectDynamicValue::GetDisplayTypeName()
 }
 
 size_t
-ValueObjectDynamicValue::CalculateNumChildren()
+ValueObjectDynamicValue::CalculateNumChildren(uint32_t max)
 {
     const bool success = UpdateValueIfNeeded(false);
     if (success && m_dynamic_type_info.HasType())
-        return GetClangType().GetNumChildren (true);
+    {
+        auto children_count = GetCompilerType().GetNumChildren (true);
+        return children_count <= max ? children_count : max;
+    }
     else
-        return m_parent->GetNumChildren();
+        return m_parent->GetNumChildren(max);
 }
 
 uint64_t
@@ -127,7 +130,10 @@ ValueObjectDynamicValue::GetByteSize()
 {
     const bool success = UpdateValueIfNeeded(false);
     if (success && m_dynamic_type_info.HasType())
-        return m_value.GetValueByteSize(nullptr);
+    {
+        ExecutionContext exe_ctx (GetExecutionContextRef());
+        return m_value.GetValueByteSize(nullptr, &exe_ctx);
+    }
     else
         return m_parent->GetByteSize();
 }
@@ -136,40 +142,6 @@ lldb::ValueType
 ValueObjectDynamicValue::GetValueType() const
 {
     return m_parent->GetValueType();
-}
-
-
-static TypeAndOrName
-FixupTypeAndOrName (const TypeAndOrName& type_andor_name,
-                    ValueObject& parent)
-{
-    TypeAndOrName ret(type_andor_name);
-    if (type_andor_name.HasType())
-    {
-        // The type will always be the type of the dynamic object.  If our parent's type was a pointer,
-        // then our type should be a pointer to the type of the dynamic object.  If a reference, then the original type
-        // should be okay...
-        ClangASTType orig_type = type_andor_name.GetClangASTType();
-        ClangASTType corrected_type = orig_type;
-        if (parent.IsPointerType())
-            corrected_type = orig_type.GetPointerType ();
-        else if (parent.IsPointerOrReferenceType())
-            corrected_type = orig_type.GetLValueReferenceType ();
-        ret.SetClangASTType(corrected_type);
-    }
-    else /*if (m_dynamic_type_info.HasName())*/
-    {
-        // If we are here we need to adjust our dynamic type name to include the correct & or * symbol
-        std::string corrected_name (type_andor_name.GetName().GetCString());
-        if (parent.IsPointerType())
-            corrected_name.append(" *");
-        else if (parent.IsPointerOrReferenceType())
-            corrected_name.append(" &");
-        // the parent type should be a correctly pointer'ed or referenc'ed type
-        ret.SetClangASTType(parent.GetClangType());
-        ret.SetName(corrected_name.c_str());
-    }
-    return ret;
 }
 
 bool
@@ -210,25 +182,28 @@ ValueObjectDynamicValue::UpdateValue ()
     TypeAndOrName class_type_or_name;
     Address dynamic_address;
     bool found_dynamic_type = false;
+    Value::ValueType value_type;
+    
+    LanguageRuntime *runtime = nullptr;
 
     lldb::LanguageType known_type = m_parent->GetObjectRuntimeLanguage();
     if (known_type != lldb::eLanguageTypeUnknown && known_type != lldb::eLanguageTypeC)
     {
-        LanguageRuntime *runtime = process->GetLanguageRuntime (known_type);
+        runtime = process->GetLanguageRuntime (known_type);
         if (runtime)
-            found_dynamic_type = runtime->GetDynamicTypeAndAddress (*m_parent, m_use_dynamic, class_type_or_name, dynamic_address);
+            found_dynamic_type = runtime->GetDynamicTypeAndAddress (*m_parent, m_use_dynamic, class_type_or_name, dynamic_address, value_type);
     }
     else
     {
-        LanguageRuntime *cpp_runtime = process->GetLanguageRuntime (lldb::eLanguageTypeC_plus_plus);
-        if (cpp_runtime)
-            found_dynamic_type = cpp_runtime->GetDynamicTypeAndAddress (*m_parent, m_use_dynamic, class_type_or_name, dynamic_address);
+        runtime = process->GetLanguageRuntime (lldb::eLanguageTypeC_plus_plus);
+        if (runtime)
+            found_dynamic_type = runtime->GetDynamicTypeAndAddress (*m_parent, m_use_dynamic, class_type_or_name, dynamic_address, value_type);
 
         if (!found_dynamic_type)
         {
-            LanguageRuntime *objc_runtime = process->GetLanguageRuntime (lldb::eLanguageTypeObjC);
-            if (objc_runtime)
-                found_dynamic_type = objc_runtime->GetDynamicTypeAndAddress (*m_parent, m_use_dynamic, class_type_or_name, dynamic_address);
+            runtime = process->GetLanguageRuntime (lldb::eLanguageTypeObjC);
+            if (runtime)
+                found_dynamic_type = runtime->GetDynamicTypeAndAddress (*m_parent, m_use_dynamic, class_type_or_name, dynamic_address, value_type);
         }
     }
 
@@ -237,11 +212,12 @@ ValueObjectDynamicValue::UpdateValue ()
 
     m_update_point.SetUpdated();
 
-    if (found_dynamic_type)
+    if (runtime && found_dynamic_type)
     {
         if (class_type_or_name.HasType())
         {
-            m_type_impl = TypeImpl(m_parent->GetClangType(),FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
+            m_type_impl = TypeImpl(m_parent->GetCompilerType(),
+                                   runtime->FixUpDynamicType(class_type_or_name, *m_parent).GetCompilerType());
         }
         else
         {
@@ -300,14 +276,13 @@ ValueObjectDynamicValue::UpdateValue ()
         m_value.GetScalar() = load_address;
     }
 
-    m_dynamic_type_info = FixupTypeAndOrName(m_dynamic_type_info, *m_parent);
+    if (runtime)
+        m_dynamic_type_info = runtime->FixUpDynamicType(m_dynamic_type_info, *m_parent);
 
     //m_value.SetContext (Value::eContextTypeClangType, corrected_type);
-    m_value.SetClangType (m_dynamic_type_info.GetClangASTType());
+    m_value.SetCompilerType (m_dynamic_type_info.GetCompilerType());
 
-    // Our address is the location of the dynamic type stored in memory.  It isn't a load address,
-    // because we aren't pointing to the LOCATION that stores the pointer to us, we're pointing to us...
-    m_value.SetValueType(Value::eValueTypeScalar);
+    m_value.SetValueType(value_type);
 
     if (has_changed_type && log)
         log->Printf("[%s %p] has a new dynamic type %s", GetName().GetCString(),
@@ -420,4 +395,51 @@ ValueObjectDynamicValue::SetData (DataExtractor &data, Error &error)
     bool ret_val = m_parent->SetData(data, error);
     SetNeedsUpdate();
     return ret_val;
+}
+
+void
+ValueObjectDynamicValue::SetPreferredDisplayLanguage (lldb::LanguageType lang)
+{
+    this->ValueObject::SetPreferredDisplayLanguage(lang);
+    if (m_parent)
+        m_parent->SetPreferredDisplayLanguage(lang);
+}
+
+lldb::LanguageType
+ValueObjectDynamicValue::GetPreferredDisplayLanguage ()
+{
+    if (m_preferred_display_language == lldb::eLanguageTypeUnknown)
+    {
+        if (m_parent)
+            return m_parent->GetPreferredDisplayLanguage();
+        return lldb::eLanguageTypeUnknown;
+    }
+    else
+        return m_preferred_display_language;
+}
+
+bool
+ValueObjectDynamicValue::GetDeclaration (Declaration &decl)
+{
+    if (m_parent)
+        return m_parent->GetDeclaration(decl);
+
+    return ValueObject::GetDeclaration(decl);
+}
+
+uint64_t
+ValueObjectDynamicValue::GetLanguageFlags ()
+{
+    if (m_parent)
+        return m_parent->GetLanguageFlags();
+    return this->ValueObject::GetLanguageFlags();
+}
+
+void
+ValueObjectDynamicValue::SetLanguageFlags (uint64_t flags)
+{
+    if (m_parent)
+        m_parent->SetLanguageFlags(flags);
+    else
+        this->ValueObject::SetLanguageFlags(flags);
 }

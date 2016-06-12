@@ -1,7 +1,7 @@
 [
     {
         "description": "valid definition",
-        "schema": {"$ref": "http://json-schema.org/draft-04/schema#"},
+        "schema": {"$ref": "http://highsecure.ru/ucl-schema/schema#"},
         "tests": [
             {
                 "description": "valid definition schema",
@@ -16,7 +16,7 @@
     },
     {
         "description": "invalid definition",
-        "schema": {"$ref": "http://json-schema.org/draft-04/schema#"},
+        "schema": {"$ref": "http://highsecure.ru/ucl-schema/schema#"},
         "tests": [
             {
                 "description": "invalid definition schema",

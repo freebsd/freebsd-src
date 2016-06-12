@@ -330,8 +330,8 @@ sdhci_pci_attach(device_t dev)
 
 		/* Allocate memory. */
 		rid = PCIR_BAR(bar + i);
-		sc->mem_res[i] = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &rid, 0ul, ~0ul, 0x100, RF_ACTIVE);
+		sc->mem_res[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
 		if (sc->mem_res[i] == NULL) {
 			device_printf(dev, "Can't allocate memory for slot %d\n", i);
 			continue;
@@ -412,11 +412,16 @@ static int
 sdhci_pci_resume(device_t dev)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
-	int i;
+	int i, err;
 
 	for (i = 0; i < sc->num_slots; i++)
 		sdhci_generic_resume(&sc->slots[i]);
-	return (bus_generic_resume(dev));
+	err = bus_generic_resume(dev);
+	if (err)
+		return (err);
+	if (sc->quirks & SDHCI_QUIRK_LOWER_FREQUENCY)
+		sdhci_lower_frequency(dev);
+	return (0);
 }
 
 static void
@@ -475,3 +480,4 @@ DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_pci, sdhci, 1, 1, 1);
 DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(sdhci_pci, mmc, 1, 1, 1);

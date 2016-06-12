@@ -429,9 +429,9 @@ static bool_t
 xdr_rmtcall_args(XDR *xdrs, struct r_rmtcall_args *cap)
 {
 	/* does not get the address or the arguments */
-	if (xdr_u_int32_t(xdrs, &(cap->rmt_prog)) &&
-	    xdr_u_int32_t(xdrs, &(cap->rmt_vers)) &&
-	    xdr_u_int32_t(xdrs, &(cap->rmt_proc))) {
+	if (xdr_rpcprog(xdrs, &(cap->rmt_prog)) &&
+	    xdr_rpcvers(xdrs, &(cap->rmt_vers)) &&
+	    xdr_rpcproc(xdrs, &(cap->rmt_proc))) {
 		return (xdr_encap_parms(xdrs, &(cap->rmt_args)));
 	}
 	return (FALSE);
@@ -634,7 +634,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 	/*
 	 * Should be multiple of 4 for XDR.
 	 */
-	sendsz = ((sendsz + 3) / 4) * 4;
+	sendsz = roundup(sendsz, 4);
 	if (sendsz > RPC_BUF_MAX) {
 #ifdef	notyet
 		buf_alloc = alloca(sendsz);		/* not in IDR2? */

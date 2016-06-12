@@ -216,8 +216,8 @@ agp_nvidia_attach (device_t dev)
 	if (sc->num_dirs == 0) {
 		sc->num_dirs = 1;
 		sc->num_active_entries /= (64 / size);
-		sc->pg_offset = (apbase & (64 * 1024 * 1024 - 1) &
-				 ~(AGP_GET_APERTURE(dev) - 1)) / PAGE_SIZE;
+		sc->pg_offset = rounddown2(apbase & (64 * 1024 * 1024 - 1),
+		    AGP_GET_APERTURE(dev)) / PAGE_SIZE;
 	}
 
 	/* (G)ATT Base Address */
@@ -410,7 +410,7 @@ nvidia_init_iorr(u_int32_t addr, u_int32_t size)
 	}
 
 	base = (addr & ~0xfff) | 0x18;
-	mask = (0xfULL << 32) | ((~(size - 1)) & 0xfffff000) | 0x800;
+	mask = (0xfULL << 32) | rounddown2(0xfffff000, size) | 0x800;
 	wrmsr(IORR_BASE0 + 2 * iorr_addr, base);
 	wrmsr(IORR_MASK0 + 2 * iorr_addr, mask);
 

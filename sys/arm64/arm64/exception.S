@@ -150,7 +150,7 @@ END(handle_el1h_sync)
 ENTRY(handle_el1h_irq)
 	save_registers 1
 	mov	x0, sp
-	bl	arm_cpu_intr
+	bl	intr_irq_handler
 	restore_registers 1
 	eret
 END(handle_el1h_irq)
@@ -171,7 +171,7 @@ END(handle_el0_sync)
 ENTRY(handle_el0_irq)
 	save_registers 0
 	mov	x0, sp
-	bl	arm_cpu_intr
+	bl	intr_irq_handler
 	do_ast
 	restore_registers 0
 	eret

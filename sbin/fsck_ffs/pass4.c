@@ -143,7 +143,7 @@ pass4check(struct inodesc *idesc)
 				free((char *)dlp);
 				break;
 			}
-			if (dlp == 0) {
+			if (dlp == NULL) {
 				clrbmap(blkno);
 				n_blks--;
 			}

@@ -118,7 +118,6 @@ struct linux_socketcall_args {
 };
 
 void init_syscalls(void);
-void print_syscall(struct trussinfo *, const char *, int, char **);
-void print_syscall_ret(struct trussinfo *, const char *, int, char **, int,
-    long *, struct syscall *);
+void print_syscall(struct trussinfo *);
+void print_syscall_ret(struct trussinfo *, int, long *);
 void print_summary(struct trussinfo *trussinfo);

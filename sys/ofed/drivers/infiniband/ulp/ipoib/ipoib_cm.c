@@ -481,6 +481,8 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	int has_srq;
 	u_short proto;
 
+	CURVNET_SET_QUIET(dev->if_vnet);
+
 	ipoib_dbg_data(priv, "cm recv completion: id %d, status: %d\n",
 		       wr_id, wc->status);
 
@@ -496,7 +498,7 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 		} else
 			ipoib_warn(priv, "cm recv completion event with wrid %d (> %d)\n",
 				   wr_id, ipoib_recvq_size);
-		return;
+		goto done;
 	}
 
 	p = wc->qp->qp_context;
@@ -520,7 +522,7 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 				queue_work(ipoib_workqueue, &priv->cm.rx_reap_task);
 				spin_unlock(&priv->lock);
 			}
-			return;
+			goto done;
 		}
 	}
 
@@ -579,6 +581,9 @@ repost:
 				   "for buf %d\n", wr_id);
 		}
 	}
+done:
+	CURVNET_RESTORE();
+	return;
 }
 
 static inline int post_send(struct ipoib_dev_priv *priv,

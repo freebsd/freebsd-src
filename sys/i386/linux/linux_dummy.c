@@ -71,7 +71,6 @@ DUMMY(pivot_root);
 DUMMY(mincore);
 DUMMY(lookup_dcookie);
 DUMMY(remap_file_pages);
-DUMMY(fstatfs64);
 DUMMY(mbind);
 DUMMY(get_mempolicy);
 DUMMY(set_mempolicy);

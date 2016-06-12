@@ -1,12 +1,12 @@
 # $FreeBSD$
 
+MIASM:=	${MIASM:Nfreebsd[467]_*}
+
 SRCS+=	__vdso_gettc.c
 
 #MDASM= ptrace.S
-MDASM=	brk.S \
-	cerror.S \
+MDASM=	cerror.S \
 	pipe.S \
-	sbrk.S \
 	shmat.S \
 	sigreturn.S \
 	syscall.S \
@@ -17,6 +17,7 @@ NOASM=	break.o \
 	exit.o \
 	getlogin.o \
 	openbsd_poll.o \
+	sbrk.o \
 	sstk.o \
 	vfork.o \
 	yield.o

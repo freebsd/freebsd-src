@@ -21,14 +21,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ipf_l.o: ipf_l.c
-ipf_l.o: ipf_l.h
-ipf_l.o: ipf_y.h
-ipf_l.po: ipf_l.c
-ipf_l.po: ipf_l.h
-ipf_l.po: ipf_y.h
-ipf_y.o: ipf_l.h
-ipf_y.o: ipf_y.c
-ipf_y.po: ipf_l.h
-ipf_y.po: ipf_y.c
 .endif

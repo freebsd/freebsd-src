@@ -40,7 +40,7 @@
 #include "uthash.h"
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: addr2line.c 3264 2015-11-30 05:38:14Z kaiwang27 $");
+ELFTC_VCSID("$Id: addr2line.c 3446 2016-05-03 01:31:17Z emaste $");
 
 struct Func {
 	char *name;
@@ -284,7 +284,7 @@ collect_func(Dwarf_Debug dbg, Dwarf_Die die, struct Func *parent, struct CU *cu)
 		    &de) == DW_DLV_OK)
 			goto add_func;
 
-		/* Skip if no name assoicated with this DIE. */
+		/* Skip if no name associated with this DIE. */
 		goto cont_search;
 
 	add_func:
@@ -368,7 +368,8 @@ print_inlines(struct CU *cu, struct Func *f, Dwarf_Unsigned call_file,
 				printf("%s\n", f->name);
 		}
 	}
-	(void) printf("%s:%ju\n", base ? basename(file) : file, call_line);
+	(void) printf("%s:%ju\n", base ? basename(file) : file,
+	    (uintmax_t) call_line);
 
 	if (f->inlined_caller != NULL)
 		print_inlines(cu, f->inlined_caller, f->call_file,
@@ -562,7 +563,8 @@ out:
 		}
 	}
 
-	(void) printf("%s:%ju\n", base ? basename(file) : file, lineno);
+	(void) printf("%s:%ju\n", base ? basename(file) : file,
+	    (uintmax_t) lineno);
 
 	if (ret == DW_DLV_OK && inlines && cu != NULL &&
 	    cu->srcfiles != NULL && f != NULL && f->inlined_caller != NULL)

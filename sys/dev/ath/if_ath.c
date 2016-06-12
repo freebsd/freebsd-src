@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_tx_edma.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_ath_btcoex.h>
+#include <dev/ath/if_ath_btcoex_mci.h>
 #include <dev/ath/if_ath_spectral.h>
 #include <dev/ath/if_ath_lna_div.h>
 #include <dev/ath/if_athdfs.h>
@@ -474,6 +475,10 @@ ath_setup_hal_config(struct ath_softc *sc, HAL_OPS_CONFIG *ah_config)
 
 	if (sc->sc_pci_devinfo & ATH_PCI_AR9565_2ANT)
 		device_printf(sc->sc_dev, "WB335 2-ANT card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_BT_ANT_DIV)
+		device_printf(sc->sc_dev,
+		    "Bluetooth Antenna Diversity card detected\n");
 
 	if (sc->sc_pci_devinfo & ATH_PCI_KILLER)
 		device_printf(sc->sc_dev, "Killer Wireless card detected\n");
@@ -1062,6 +1067,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (ath_hal_getcapability(ah, HAL_CAP_HT, 0, NULL) == HAL_OK &&
 	    (wmodes & (HAL_MODE_HT20 | HAL_MODE_HT40))) {
 		uint32_t rxs, txs;
+		uint32_t ldpc;
 
 		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
 
@@ -1073,7 +1079,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    | IEEE80211_HTCAP_MAXAMSDU_3839
 			    				/* max A-MSDU length */
 			    | IEEE80211_HTCAP_SMPS_OFF;	/* SM power save off */
-			;
 
 		/*
 		 * Enable short-GI for HT20 only if the hardware
@@ -1130,6 +1135,18 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			device_printf(sc->sc_dev,
 			    "[HT] RTS aggregates limited to %d KiB\n",
 			    sc->sc_rts_aggr_limit / 1024);
+
+		/*
+		 * LDPC
+		 */
+		if ((ath_hal_getcapability(ah, HAL_CAP_LDPC, 0, &ldpc))
+		    == HAL_OK && (ldpc == 1)) {
+			sc->sc_has_ldpc = 1;
+			device_printf(sc->sc_dev,
+			    "[HT] LDPC transmit/receive enabled\n");
+			ic->ic_htcaps |= IEEE80211_HTCAP_LDPC;
+		}
+
 
 		device_printf(sc->sc_dev,
 		    "[HT] %d RX streams; %d TX streams\n", rxs, txs);
@@ -2242,6 +2259,9 @@ ath_intr(void *arg)
 			device_printf(sc->sc_dev, "%s: TSFOOR\n", __func__);
 			sc->sc_syncbeacon = 1;
 		}
+		if (status & HAL_INT_MCI) {
+			ath_btcoex_mci_intr(sc);
+		}
 	}
 	ATH_PCU_LOCK(sc);
 	sc->sc_intr_cnt--;
@@ -2537,6 +2557,12 @@ ath_init(struct ath_softc *sc)
 		sc->sc_imask |= HAL_INT_RXEOL;
 
 	/*
+	 * Enable MCI interrupt for MCI devices.
+	 */
+	if (sc->sc_btcoex_mci)
+		sc->sc_imask |= HAL_INT_MCI;
+
+	/*
 	 * Enable MIB interrupts when there are hardware phy counters.
 	 * Note we only do this (at the moment) for station mode.
 	 */
@@ -2686,7 +2712,7 @@ ath_txrx_start(struct ath_softc *sc)
 }
 
 /*
- * Grab the reset lock, and wait around until noone else
+ * Grab the reset lock, and wait around until no one else
  * is trying to do anything with it.
  *
  * This is totally horrible but we can't hold this lock for
@@ -2770,7 +2796,7 @@ ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	ATH_PCU_UNLOCK_ASSERT(sc);
 	ATH_UNLOCK_ASSERT(sc);
 
-	/* Try to (stop any further TX/RX from occuring */
+	/* Try to (stop any further TX/RX from occurring */
 	taskqueue_block(sc->sc_tq);
 
 	/*
@@ -2814,7 +2840,7 @@ ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 
 	/*
 	 * Should now wait for pending TX/RX to complete
-	 * and block future ones from occuring. This needs to be
+	 * and block future ones from occurring. This needs to be
 	 * done before the TX queue is drained.
 	 */
 	ath_draintxq(sc, reset_type);	/* stop xmit side */
@@ -3484,10 +3510,10 @@ ath_update_mcast_hw(struct ath_softc *sc)
 				/* calculate XOR of eight 6bit values */
 				dl = LLADDR((struct sockaddr_dl *)
 				    ifma->ifma_addr);
-				val = LE_READ_4(dl + 0);
+				val = le32dec(dl + 0);
 				pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
 				    val;
-				val = LE_READ_4(dl + 3);
+				val = le32dec(dl + 3);
 				pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
 				    val;
 				pos &= 0x3f;
@@ -3664,7 +3690,7 @@ ath_bstuck_proc(void *arg, int pending)
 	sc->sc_stats.ast_bstuck++;
 	/*
 	 * This assumes that there's no simultaneous channel mode change
-	 * occuring.
+	 * occurring.
 	 */
 	ath_reset(sc, ATH_RESET_NOLOSS);
 }
@@ -4725,7 +4751,7 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 	/*
 	 * Make sure that we only sync/unload if there's an mbuf.
 	 * If not (eg we cloned a buffer), the unload will have already
-	 * occured.
+	 * occurred.
 	 */
 	if (bf->bf_m != NULL) {
 		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
@@ -5064,7 +5090,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	ATH_PCU_UNLOCK_ASSERT(sc);
 	ATH_UNLOCK_ASSERT(sc);
 
-	/* (Try to) stop TX/RX from occuring */
+	/* (Try to) stop TX/RX from occurring */
 	taskqueue_block(sc->sc_tq);
 
 	ATH_PCU_LOCK(sc);
@@ -5845,7 +5871,7 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	 * If we're reassociating, make sure that any paused queues
 	 * get unpaused.
 	 *
-	 * Now, we may hvae frames in the hardware queue for this node.
+	 * Now, we may have frames in the hardware queue for this node.
 	 * So if we are reassociating and there are frames in the queue,
 	 * we need to go through the cleanup path to ensure that they're
 	 * marked as non-aggregate.
@@ -6056,7 +6082,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	sc->sc_currates = rt;
 	sc->sc_curmode = mode;
 	/*
-	 * All protection frames are transmited at 2Mb/s for
+	 * All protection frames are transmitted at 2Mb/s for
 	 * 11g, otherwise at 1Mb/s.
 	 */
 	if (mode == IEEE80211_MODE_11G)
@@ -6160,7 +6186,7 @@ ath_announce(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
-	device_printf(sc->sc_dev, "AR%s mac %d.%d RF%s phy %d.%d\n",
+	device_printf(sc->sc_dev, "%s mac %d.%d RF%s phy %d.%d\n",
 		ath_hal_mac_name(ah), ah->ah_macVersion, ah->ah_macRev,
 		ath_hal_rf_name(ah), ah->ah_phyRev >> 4, ah->ah_phyRev & 0xf);
 	device_printf(sc->sc_dev, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",

@@ -37,7 +37,6 @@
 namespace lldb_private {
 
 class ModuleCache;
-
     enum MmapFlags {
       eMmapFlagsPrivate = 1,
       eMmapFlagsAnon = 2
@@ -46,10 +45,10 @@ class ModuleCache;
     class PlatformProperties : public Properties
     {
     public:
+        PlatformProperties();
+
         static ConstString
         GetSettingName ();
-
-        PlatformProperties();
 
         bool
         GetUseModuleCache () const;
@@ -81,6 +80,19 @@ class ModuleCache;
         public PluginInterface
     {
     public:
+        //------------------------------------------------------------------
+        /// Default Constructor
+        //------------------------------------------------------------------
+        Platform (bool is_host_platform);
+
+        //------------------------------------------------------------------
+        /// Destructor.
+        ///
+        /// The destructor is virtual since this class is designed to be
+        /// inherited from by the plug-in instance.
+        //------------------------------------------------------------------
+        ~Platform() override;
+
         static void
         Initialize ();
 
@@ -131,20 +143,6 @@ class ModuleCache;
         GetConnectedRemotePlatformAtIndex (uint32_t idx);
 
         //------------------------------------------------------------------
-        /// Default Constructor
-        //------------------------------------------------------------------
-        Platform (bool is_host_platform);
-
-        //------------------------------------------------------------------
-        /// Destructor.
-        ///
-        /// The destructor is virtual since this class is designed to be
-        /// inherited from by the plug-in instance.
-        //------------------------------------------------------------------
-        virtual
-        ~Platform();
-
-        //------------------------------------------------------------------
         /// Find a platform plugin for a given process.
         ///
         /// Scans the installed Platform plug-ins and tries to find
@@ -156,7 +154,7 @@ class ModuleCache;
         ///
         /// @param[in] plugin_name
         ///     An optional name of a specific platform plug-in that
-        ///     should be used. If NULL, pick the best plug-in.
+        ///     should be used. If nullptr, pick the best plug-in.
         //------------------------------------------------------------------
 //        static lldb::PlatformSP
 //        FindPlugin (Process *process, const ConstString &plugin_name);
@@ -185,7 +183,6 @@ class ModuleCache;
                            lldb::ModuleSP &module_sp,
                            const FileSpecList *module_search_paths_ptr);
 
-        
         //------------------------------------------------------------------
         /// Find a symbol file given a symbol file module specification.
         ///
@@ -247,10 +244,21 @@ class ModuleCache;
         ResolveRemotePath (const FileSpec &platform_path,
                            FileSpec &resolved_platform_path);
 
-        bool
+        //------------------------------------------------------------------
+        /// Get the OS version from a connected platform.
+        ///
+        /// Some platforms might not be connected to a remote platform, but
+        /// can figure out the OS version for a process. This is common for
+        /// simulator platforms that will run native programs on the current
+        /// host, but the simulator might be simulating a different OS. The
+        /// \a process parameter might be specified to help to determine
+        /// the OS version.
+        //------------------------------------------------------------------
+        virtual bool
         GetOSVersion (uint32_t &major, 
                       uint32_t &minor, 
-                      uint32_t &update);
+                      uint32_t &update,
+                      Process *process = nullptr);
            
         bool
         SetOSVersion (uint32_t major, 
@@ -269,6 +277,9 @@ class ModuleCache;
 
         virtual const char *
         GetHostname ();
+        
+        virtual ConstString
+        GetFullNameForDylib (ConstString basename);
 
         virtual const char *
         GetDescription () = 0;
@@ -473,8 +484,15 @@ class ModuleCache;
         virtual lldb::ProcessSP
         DebugProcess (ProcessLaunchInfo &launch_info,
                       Debugger &debugger,
-                      Target *target,       // Can be NULL, if NULL create a new target, else use existing one
+                      Target *target,       // Can be nullptr, if nullptr create a new target, else use existing one
                       Error &error);
+
+        virtual lldb::ProcessSP
+        ConnectProcess (const char* connect_url,
+                        const char* plugin_name,
+                        lldb_private::Debugger &debugger,
+                        lldb_private::Target *target,
+                        lldb_private::Error &error);
 
         //------------------------------------------------------------------
         /// Attach to an existing process using a process ID.
@@ -497,7 +515,7 @@ class ModuleCache;
         virtual lldb::ProcessSP
         Attach (ProcessAttachInfo &attach_info,
                 Debugger &debugger,
-                Target *target,       // Can be NULL, if NULL create a new target, else use existing one
+                Target *target,       // Can be nullptr, if nullptr create a new target, else use existing one
                 Error &error) = 0;
 
         //------------------------------------------------------------------
@@ -593,6 +611,7 @@ class ModuleCache;
         {
             return m_max_uid_name_len;
         }
+
         // Used for column widths
         size_t
         GetMaxGroupIDNameLength() const
@@ -829,15 +848,15 @@ class ModuleCache;
         virtual lldb_private::OptionGroupOptions *
         GetConnectionOptions (CommandInterpreter& interpreter)
         {
-            return NULL;
+            return nullptr;
         }
         
         virtual lldb_private::Error
-        RunShellCommand(const char *command,           // Shouldn't be NULL
+        RunShellCommand(const char *command,           // Shouldn't be nullptr
                         const FileSpec &working_dir,   // Pass empty FileSpec to use the current working directory
-                        int *status_ptr,               // Pass NULL if you don't want the process exit status
-                        int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
-                        std::string *command_output,   // Pass NULL if you don't want the command output
+                        int *status_ptr,               // Pass nullptr if you don't want the process exit status
+                        int *signo_ptr,                // Pass nullptr if you don't want the signal that caused the process to exit
+                        std::string *command_output,   // Pass nullptr if you don't want the command output
                         uint32_t timeout_sec);         // Timeout in seconds to wait for shell program to finish
 
         virtual void
@@ -945,9 +964,105 @@ class ModuleCache;
         virtual const std::vector<ConstString> &
         GetTrapHandlerSymbolNames ();
 
+        //------------------------------------------------------------------
+        /// Find a support executable that may not live within in the
+        /// standard locations related to LLDB.
+        ///
+        /// Executable might exist within the Platform SDK directories, or
+        /// in standard tool directories within the current IDE that is
+        /// running LLDB.
+        ///
+        /// @param[in] basename
+        ///     The basename of the executable to locate in the current
+        ///     platform.
+        ///
+        /// @return
+        ///     A FileSpec pointing to the executable on disk, or an invalid
+        ///     FileSpec if the executable cannot be found.
+        //------------------------------------------------------------------
+        virtual FileSpec
+        LocateExecutable (const char *basename)
+        {
+            return FileSpec();
+        }
+
+        //------------------------------------------------------------------
+        /// Allow the platform to set preferred memory cache line size. If non-zero (and the user
+        /// has not set cache line size explicitly), this value will be used as the cache line
+        /// size for memory reads.
+        //------------------------------------------------------------------
+        virtual uint32_t
+        GetDefaultMemoryCacheLineSize() { return 0; }
+
+        //------------------------------------------------------------------
+        /// Load a shared library into this process.
+        ///
+        /// Try and load a shared library into the current process. This
+        /// call might fail in the dynamic loader plug-in says it isn't safe
+        /// to try and load shared libraries at the moment.
+        ///
+        /// @param[in] process
+        ///     The process to load the image.
+        ///
+        /// @param[in] local_file
+        ///     The file spec that points to the shared library that you want
+        ///     to load if the library is located on the host. The library will
+        ///     be copied over to the location specified by remote_file or into
+        ///     the current working directory with the same filename if the
+        ///     remote_file isn't specified.
+        ///
+        /// @param[in] remote_file
+        ///     If local_file is specified then the location where the library
+        ///     should be copied over from the host. If local_file isn't
+        ///     specified, then the path for the shared library on the target
+        ///     what you want to load.
+        ///
+        /// @param[out] error
+        ///     An error object that gets filled in with any errors that
+        ///     might occur when trying to load the shared library.
+        ///
+        /// @return
+        ///     A token that represents the shared library that can be
+        ///     later used to unload the shared library. A value of
+        ///     LLDB_INVALID_IMAGE_TOKEN will be returned if the shared
+        ///     library can't be opened.
+        //------------------------------------------------------------------
+        uint32_t
+        LoadImage (lldb_private::Process* process,
+                   const lldb_private::FileSpec& local_file,
+                   const lldb_private::FileSpec& remote_file,
+                   lldb_private::Error& error);
+
+        virtual uint32_t
+        DoLoadImage (lldb_private::Process* process,
+                     const lldb_private::FileSpec& remote_file,
+                     lldb_private::Error& error);
+
+        virtual Error
+        UnloadImage (lldb_private::Process* process, uint32_t image_token);
+
+        //------------------------------------------------------------------
+        /// Connect to all processes waiting for a debugger to attach
+        ///
+        /// If the platform have a list of processes waiting for a debugger
+        /// to connect to them then connect to all of these pending processes.
+        ///
+        /// @param[in] debugger
+        ///     The debugger used for the connect.
+        ///
+        /// @param[out] error
+        ///     If an error occurred during the connect then this object will
+        ///     contain the error message.
+        ///
+        /// @return
+        ///     The number of processes we are succesfully connected to.
+        //------------------------------------------------------------------
+        virtual size_t
+        ConnectToWaitingProcesses(lldb_private::Debugger& debugger, lldb_private::Error& error);
+
     protected:
         bool m_is_host;
-        // Set to true when we are able to actually set the OS version while 
+        // Set to true when we are able to actually set the OS version while
         // being connected. For remote platforms, we might set the version ahead
         // of time before we actually connect and this version might change when
         // we actually connect to a remote platform. For the host platform this
@@ -1000,16 +1115,12 @@ class ModuleCache;
         GetCachedUserName (uint32_t uid)
         {
             Mutex::Locker locker (m_mutex);
-            IDToNameMap::iterator pos = m_uid_map.find (uid);
-            if (pos != m_uid_map.end())
-            {
-                // return the empty string if our string is NULL
-                // so we can tell when things were in the negative
-                // cached (didn't find a valid user name, don't keep
-                // trying)
-                return pos->second.AsCString("");
-            }
-            return NULL;
+            // return the empty string if our string is NULL
+            // so we can tell when things were in the negative
+            // cached (didn't find a valid user name, don't keep
+            // trying)
+            const auto pos = m_uid_map.find(uid);
+            return ((pos != m_uid_map.end()) ? pos->second.AsCString("") : nullptr);
         }
 
         const char *
@@ -1030,7 +1141,6 @@ class ModuleCache;
             Mutex::Locker locker (m_mutex);
             m_uid_map[uid] = ConstString();
         }
-        
 
         void
         ClearCachedUserNames ()
@@ -1043,16 +1153,12 @@ class ModuleCache;
         GetCachedGroupName (uint32_t gid)
         {
             Mutex::Locker locker (m_mutex);
-            IDToNameMap::iterator pos = m_gid_map.find (gid);
-            if (pos != m_gid_map.end())
-            {
-                // return the empty string if our string is NULL
-                // so we can tell when things were in the negative
-                // cached (didn't find a valid group name, don't keep
-                // trying)
-                return pos->second.AsCString("");
-            }
-            return NULL;
+            // return the empty string if our string is NULL
+            // so we can tell when things were in the negative
+            // cached (didn't find a valid group name, don't keep
+            // trying)
+            const auto pos = m_gid_map.find(gid);
+            return ((pos != m_gid_map.end()) ? pos->second.AsCString("") : nullptr);
         }
 
         const char *
@@ -1092,6 +1198,10 @@ class ModuleCache;
                              const uint64_t src_offset,
                              const uint64_t src_size,
                              const FileSpec& dst_file_spec);
+        
+        virtual Error
+        DownloadSymbolFile (const lldb::ModuleSP& module_sp,
+                            const FileSpec& dst_file_spec);
 
         virtual const char *
         GetCacheHostname ();
@@ -1123,7 +1233,6 @@ class ModuleCache;
         DISALLOW_COPY_AND_ASSIGN (Platform);
     };
 
-    
     class PlatformList
     {
     public:
@@ -1133,11 +1242,9 @@ class ModuleCache;
             m_selected_platform_sp()
         {
         }
-        
-        ~PlatformList()
-        {
-        }
-        
+
+        ~PlatformList() = default;
+
         void
         Append (const lldb::PlatformSP &platform_sp, bool set_selected)
         {
@@ -1220,22 +1327,21 @@ class ModuleCache;
     public:
         OptionGroupPlatformRSync ();
         
-        virtual
-        ~OptionGroupPlatformRSync ();
+        ~OptionGroupPlatformRSync() override;
         
-        virtual lldb_private::Error
-        SetOptionValue (CommandInterpreter &interpreter,
-                        uint32_t option_idx,
-                        const char *option_value);
+        lldb_private::Error
+        SetOptionValue(CommandInterpreter &interpreter,
+		       uint32_t option_idx,
+		       const char *option_value) override;
         
         void
-        OptionParsingStarting (CommandInterpreter &interpreter);
+        OptionParsingStarting(CommandInterpreter &interpreter) override;
         
         const lldb_private::OptionDefinition*
-        GetDefinitions ();
+        GetDefinitions() override;
         
-        virtual uint32_t
-        GetNumDefinitions ();
+        uint32_t
+        GetNumDefinitions() override;
         
         // Options table: Required for subclasses of Options.
         
@@ -1256,22 +1362,21 @@ class ModuleCache;
     public:
         OptionGroupPlatformSSH ();
         
-        virtual
-        ~OptionGroupPlatformSSH ();
+        ~OptionGroupPlatformSSH() override;
         
-        virtual lldb_private::Error
-        SetOptionValue (CommandInterpreter &interpreter,
-                        uint32_t option_idx,
-                        const char *option_value);
+        lldb_private::Error
+        SetOptionValue(CommandInterpreter &interpreter,
+		       uint32_t option_idx,
+		       const char *option_value) override;
         
         void
-        OptionParsingStarting (CommandInterpreter &interpreter);
+        OptionParsingStarting(CommandInterpreter &interpreter) override;
         
-        virtual uint32_t
-        GetNumDefinitions ();
+        uint32_t
+        GetNumDefinitions() override;
         
         const lldb_private::OptionDefinition*
-        GetDefinitions ();
+        GetDefinitions() override;
         
         // Options table: Required for subclasses of Options.
         
@@ -1283,7 +1388,6 @@ class ModuleCache;
         std::string m_ssh_opts;
 
     private:
-
         DISALLOW_COPY_AND_ASSIGN(OptionGroupPlatformSSH);
     };
     
@@ -1292,22 +1396,21 @@ class ModuleCache;
     public:
         OptionGroupPlatformCaching ();
         
-        virtual
-        ~OptionGroupPlatformCaching ();
+        ~OptionGroupPlatformCaching() override;
         
-        virtual lldb_private::Error
-        SetOptionValue (CommandInterpreter &interpreter,
-                        uint32_t option_idx,
-                        const char *option_value);
+        lldb_private::Error
+        SetOptionValue(CommandInterpreter &interpreter,
+		       uint32_t option_idx,
+		       const char *option_value) override;
         
         void
-        OptionParsingStarting (CommandInterpreter &interpreter);
+        OptionParsingStarting(CommandInterpreter &interpreter) override;
         
-        virtual uint32_t
-        GetNumDefinitions ();
+        uint32_t
+        GetNumDefinitions() override;
         
         const lldb_private::OptionDefinition*
-        GetDefinitions ();
+        GetDefinitions() override;
         
         // Options table: Required for subclasses of Options.
         
@@ -1316,10 +1419,11 @@ class ModuleCache;
         // Instance variables to hold the values for command options.
         
         std::string m_cache_dir;
+
     private:
         DISALLOW_COPY_AND_ASSIGN(OptionGroupPlatformCaching);
     };
     
 } // namespace lldb_private
 
-#endif  // liblldb_Platform_h_
+#endif // liblldb_Platform_h_

@@ -56,21 +56,6 @@ DISubprogram *llvm::getDISubprogram(const Function *F) {
   return nullptr;
 }
 
-DICompositeTypeBase *llvm::getDICompositeType(DIType *T) {
-  if (auto *C = dyn_cast_or_null<DICompositeTypeBase>(T))
-    return C;
-
-  if (auto *D = dyn_cast_or_null<DIDerivedTypeBase>(T)) {
-    // This function is currently used by dragonegg and dragonegg does
-    // not generate identifier for types, so using an empty map to resolve
-    // DerivedFrom should be fine.
-    DITypeIdentifierMap EmptyMap;
-    return getDICompositeType(D->getBaseType().resolve(EmptyMap));
-  }
-
-  return nullptr;
-}
-
 DITypeIdentifierMap
 llvm::generateDITypeIdentifierMap(const NamedMDNode *CU_Nodes) {
   DITypeIdentifierMap Map;
@@ -164,20 +149,22 @@ void DebugInfoFinder::processType(DIType *DT) {
   if (!addType(DT))
     return;
   processScope(DT->getScope().resolve(TypeIdentifierMap));
-  if (auto *DCT = dyn_cast<DICompositeTypeBase>(DT)) {
+  if (auto *ST = dyn_cast<DISubroutineType>(DT)) {
+    for (DITypeRef Ref : ST->getTypeArray())
+      processType(Ref.resolve(TypeIdentifierMap));
+    return;
+  }
+  if (auto *DCT = dyn_cast<DICompositeType>(DT)) {
     processType(DCT->getBaseType().resolve(TypeIdentifierMap));
-    if (auto *ST = dyn_cast<DISubroutineType>(DCT)) {
-      for (DITypeRef Ref : ST->getTypeArray())
-        processType(Ref.resolve(TypeIdentifierMap));
-      return;
-    }
     for (Metadata *D : DCT->getElements()) {
       if (auto *T = dyn_cast<DIType>(D))
         processType(T);
       else if (auto *SP = dyn_cast<DISubprogram>(D))
         processSubprogram(SP);
     }
-  } else if (auto *DDT = dyn_cast<DIDerivedTypeBase>(DT)) {
+    return;
+  }
+  if (auto *DDT = dyn_cast<DIDerivedType>(DT)) {
     processType(DDT->getBaseType().resolve(TypeIdentifierMap));
   }
 }
@@ -313,6 +300,10 @@ bool DebugInfoFinder::addScope(DIScope *Scope) {
 
 bool llvm::stripDebugInfo(Function &F) {
   bool Changed = false;
+  if (F.getSubprogram()) {
+    Changed = true;
+    F.setSubprogram(nullptr);
+  }
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {
       if (I.getDebugLoc()) {
@@ -349,7 +340,7 @@ bool llvm::StripDebugInfo(Module &M) {
 
   for (Module::named_metadata_iterator NMI = M.named_metadata_begin(),
          NME = M.named_metadata_end(); NMI != NME;) {
-    NamedMDNode *NMD = NMI;
+    NamedMDNode *NMD = &*NMI;
     ++NMI;
     if (NMD->getName().startswith("llvm.dbg.")) {
       NMD->eraseFromParent();
@@ -371,22 +362,4 @@ unsigned llvm::getDebugMetadataVersionFromModule(const Module &M) {
           M.getModuleFlag("Debug Info Version")))
     return Val->getZExtValue();
   return 0;
-}
-
-DenseMap<const llvm::Function *, DISubprogram *>
-llvm::makeSubprogramMap(const Module &M) {
-  DenseMap<const Function *, DISubprogram *> R;
-
-  NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu");
-  if (!CU_Nodes)
-    return R;
-
-  for (MDNode *N : CU_Nodes->operands()) {
-    auto *CUNode = cast<DICompileUnit>(N);
-    for (auto *SP : CUNode->getSubprograms()) {
-      if (Function *F = SP->getFunction())
-        R.insert(std::make_pair(F, SP));
-    }
-  }
-  return R;
 }

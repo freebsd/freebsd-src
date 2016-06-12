@@ -138,7 +138,7 @@ void scic_sds_remote_node_table_clear_group_index(
 }
 
 /**
- * This method will set the group index bit entry in the specified gropu index
+ * This method will set the group index bit entry in the specified group index
  * table.
  *
  * @param[in out] remote_node_table This the remote node table in which to set

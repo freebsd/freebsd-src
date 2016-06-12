@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011-2015 Devin Teske
+.\" Copyright (c) 2011-2016 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2015
+.Dd February 2, 2016
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -255,7 +255,7 @@ When using the
 .Ql key+=value
 syntax to add items to existing values,
 the first character of the value is taken as the delimiter separating items
-.Pq usually Qo \  Qc or Qo , Qc .
+.Pq usually Qo " " Qc or Qo , Qc .
 For example, in the following statement:
 .Bl -item -offset indent
 .It
@@ -275,6 +275,10 @@ it is added
 .Pp
 For convenience, if the first character is alpha-numeric
 .Pq letters A-Z, a-z, or numbers 0-9 ,
+dot
+.Pq Li . ,
+or slash
+.Pq Li / ,
 .Nm
 uses the default setting of whitespace as separator.
 For example, the above and below statements are equivalent since
@@ -312,7 +316,7 @@ When using the
 .Ql key-=value
 syntax to remove items from existing values,
 the first character of the value is taken as the delimiter separating items
-.Pq usually Qo \  Qc or Qo , Qc .
+.Pq usually Qo " " Qc or Qo , Qc .
 For example, in the following statement:
 .Pp
 .Dl Nm cloned_interfaces-=" gif0"
@@ -329,6 +333,10 @@ it is removed
 .Pp
 For convenience, if the first character is alpha-numeric
 .Pq letters A-Z, a-z, or numbers 0-9 ,
+dot
+.Pq Li . ,
+or slash
+.Pq Li / ,
 .Nm
 uses the default setting of whitespace as separator.
 For example, the above and below statements are equivalent since
@@ -379,14 +387,14 @@ The following standard commands are required by
 .Xr chmod 1 ,
 .Xr env 1 ,
 .Xr grep 1 ,
-.Xr jls 1 ,
 .Xr mktemp 1 ,
 .Xr mv 1 ,
 .Xr rm 1 ,
 .Xr sh 1 ,
 .Xr stat 1 ,
 .Xr tail 1 ,
-.Xr chown 8
+.Xr chown 8 ,
+.Xr jls 8 ,
 and
 .Xr jexec 8 .
 .Sh FILES
@@ -457,11 +465,11 @@ usbd_flags-"default"
 cloned_interfaces+"alternate"
 .Dl returns "alternate" if $cloned_interfaces is set .
 .Sh SEE ALSO
-.Xr jls 1 ,
 .Xr rc.conf 5 ,
 .Xr rc.subr 8 ,
 .Xr jail 8 ,
 .Xr jexec 8 ,
+.Xr jls 8 ,
 .Xr rc 8 ,
 .Xr sysctl 8
 .Sh HISTORY

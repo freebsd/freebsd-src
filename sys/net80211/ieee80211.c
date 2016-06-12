@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/sbuf.h>
 
@@ -265,21 +266,24 @@ static int
 sysctl_ieee80211coms(SYSCTL_HANDLER_ARGS)
 {
 	struct ieee80211com *ic;
-	struct sbuf *sb;
+	struct sbuf sb;
 	char *sp;
 	int error;
 
-	sb = sbuf_new_auto();
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
+	sbuf_new_for_sysctl(&sb, NULL, 8, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	sp = "";
 	mtx_lock(&ic_list_mtx);
 	LIST_FOREACH(ic, &ic_head, ic_next) {
-		sbuf_printf(sb, "%s%s", sp, ic->ic_name);
+		sbuf_printf(&sb, "%s%s", sp, ic->ic_name);
 		sp = " ";
 	}
 	mtx_unlock(&ic_list_mtx);
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
-	sbuf_delete(sb);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
@@ -402,6 +406,17 @@ ieee80211_find_com(const char *name)
 	return (ic);
 }
 
+void
+ieee80211_iterate_coms(ieee80211_com_iter_func *f, void *arg)
+{
+	struct ieee80211com *ic;
+
+	mtx_lock(&ic_list_mtx);
+	LIST_FOREACH(ic, &ic_head, ic_next)
+		(*f)(arg, ic);
+	mtx_unlock(&ic_list_mtx);
+}
+
 /*
  * Default reset method for use with the ioctl support.  This
  * method is invoked after any state change in the 802.11
@@ -479,7 +494,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_htextcaps = ic->ic_htextcaps;
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
-	vap->iv_myaddr = ic->ic_macaddr;
+	IEEE80211_ADDR_COPY(vap->iv_myaddr, ic->ic_macaddr);
 	switch (opmode) {
 	case IEEE80211_M_WDS:
 		/*
@@ -599,7 +614,7 @@ ieee80211_vap_attach(struct ieee80211vap *vap, ifm_change_cb_t media_change,
 		ifp->if_baudrate = IF_Mbps(maxrate);
 
 	ether_ifattach(ifp, macaddr);
-	vap->iv_myaddr = IF_LLADDR(ifp);
+	IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
 	/* hook output method setup by ether_ifattach */
 	vap->iv_output = ifp->if_output;
 	ifp->if_output = ieee80211_output;
@@ -700,17 +715,8 @@ ieee80211_promisc(struct ieee80211vap *vap, bool on)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
-	/*
-	 * XXX the bridge sets PROMISC but we don't want to
-	 * enable it on the device, discard here so all the
-	 * drivers don't need to special-case it
-	 */
-	if (!(vap->iv_opmode == IEEE80211_M_MONITOR ||
-	      (vap->iv_opmode == IEEE80211_M_AHDEMO &&
-	       (vap->iv_caps & IEEE80211_C_TDMA) == 0)))
-			return;
+	IEEE80211_LOCK_ASSERT(ic);
 
-	IEEE80211_LOCK(ic);
 	if (on) {
 		if (++ic->ic_promisc == 1)
 			ieee80211_runtask(ic, &ic->ic_promisc_task);
@@ -720,7 +726,6 @@ ieee80211_promisc(struct ieee80211vap *vap, bool on)
 		if (--ic->ic_promisc == 0)
 			ieee80211_runtask(ic, &ic->ic_promisc_task);
 	}
-	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -732,7 +737,8 @@ ieee80211_allmulti(struct ieee80211vap *vap, bool on)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
-	IEEE80211_LOCK(ic);
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (on) {
 		if (++ic->ic_allmulti == 1)
 			ieee80211_runtask(ic, &ic->ic_mcast_task);
@@ -742,7 +748,6 @@ ieee80211_allmulti(struct ieee80211vap *vap, bool on)
 		if (--ic->ic_allmulti == 0)
 			ieee80211_runtask(ic, &ic->ic_mcast_task);
 	}
-	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -976,6 +981,261 @@ ieee80211_ieee2mhz(u_int chan, u_int flags)
 	}
 }
 
+static __inline void
+set_extchan(struct ieee80211_channel *c)
+{
+
+	/*
+	 * IEEE Std 802.11-2012, page 1738, subclause 20.3.15.4:
+	 * "the secondary channel number shall be 'N + [1,-1] * 4'
+	 */
+	if (c->ic_flags & IEEE80211_CHAN_HT40U)
+		c->ic_extieee = c->ic_ieee + 4;
+	else if (c->ic_flags & IEEE80211_CHAN_HT40D)
+		c->ic_extieee = c->ic_ieee - 4;
+	else
+		c->ic_extieee = 0;
+}
+
+static int
+addchan(struct ieee80211_channel chans[], int maxchans, int *nchans,
+    uint8_t ieee, uint16_t freq, int8_t maxregpower, uint32_t flags)
+{
+	struct ieee80211_channel *c;
+
+	if (*nchans >= maxchans)
+		return (ENOBUFS);
+
+	c = &chans[(*nchans)++];
+	c->ic_ieee = ieee;
+	c->ic_freq = freq != 0 ? freq : ieee80211_ieee2mhz(ieee, flags);
+	c->ic_maxregpower = maxregpower;
+	c->ic_maxpower = 2 * maxregpower;
+	c->ic_flags = flags;
+	set_extchan(c);
+
+	return (0);
+}
+
+static int
+copychan_prev(struct ieee80211_channel chans[], int maxchans, int *nchans,
+    uint32_t flags)
+{
+	struct ieee80211_channel *c;
+
+	KASSERT(*nchans > 0, ("channel list is empty\n"));
+
+	if (*nchans >= maxchans)
+		return (ENOBUFS);
+
+	c = &chans[(*nchans)++];
+	c[0] = c[-1];
+	c->ic_flags = flags;
+	set_extchan(c);
+
+	return (0);
+}
+
+static void
+getflags_2ghz(const uint8_t bands[], uint32_t flags[], int ht40)
+{
+	int nmodes;
+
+	nmodes = 0;
+	if (isset(bands, IEEE80211_MODE_11B))
+		flags[nmodes++] = IEEE80211_CHAN_B;
+	if (isset(bands, IEEE80211_MODE_11G))
+		flags[nmodes++] = IEEE80211_CHAN_G;
+	if (isset(bands, IEEE80211_MODE_11NG))
+		flags[nmodes++] = IEEE80211_CHAN_G | IEEE80211_CHAN_HT20;
+	if (ht40) {
+		flags[nmodes++] = IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U;
+		flags[nmodes++] = IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D;
+	}
+	flags[nmodes] = 0;
+}
+
+static void
+getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40)
+{
+	int nmodes;
+
+	nmodes = 0;
+	if (isset(bands, IEEE80211_MODE_11A))
+		flags[nmodes++] = IEEE80211_CHAN_A;
+	if (isset(bands, IEEE80211_MODE_11NA))
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT20;
+	if (ht40) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U;
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D;
+	}
+	flags[nmodes] = 0;
+}
+
+static void
+getflags(const uint8_t bands[], uint32_t flags[], int ht40)
+{
+
+	flags[0] = 0;
+	if (isset(bands, IEEE80211_MODE_11A) ||
+	    isset(bands, IEEE80211_MODE_11NA)) {
+		if (isset(bands, IEEE80211_MODE_11B) ||
+		    isset(bands, IEEE80211_MODE_11G) ||
+		    isset(bands, IEEE80211_MODE_11NG))
+			return;
+
+		getflags_5ghz(bands, flags, ht40);
+	} else
+		getflags_2ghz(bands, flags, ht40);
+}
+
+/*
+ * Add one 20 MHz channel into specified channel list.
+ */
+int
+ieee80211_add_channel(struct ieee80211_channel chans[], int maxchans,
+    int *nchans, uint8_t ieee, uint16_t freq, int8_t maxregpower,
+    uint32_t chan_flags, const uint8_t bands[])
+{
+	uint32_t flags[IEEE80211_MODE_MAX];
+	int i, error;
+
+	getflags(bands, flags, 0);
+	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
+
+	error = addchan(chans, maxchans, nchans, ieee, freq, maxregpower,
+	    flags[0] | chan_flags);
+	for (i = 1; flags[i] != 0 && error == 0; i++) {
+		error = copychan_prev(chans, maxchans, nchans,
+		    flags[i] | chan_flags);
+	}
+
+	return (error);
+}
+
+static struct ieee80211_channel *
+findchannel(struct ieee80211_channel chans[], int nchans, uint16_t freq,
+    uint32_t flags)
+{
+	struct ieee80211_channel *c;
+	int i;
+
+	flags &= IEEE80211_CHAN_ALLTURBO;
+	/* brute force search */
+	for (i = 0; i < nchans; i++) {
+		c = &chans[i];
+		if (c->ic_freq == freq &&
+		    (c->ic_flags & IEEE80211_CHAN_ALLTURBO) == flags)
+			return c;
+	}
+	return NULL;
+}
+
+/*
+ * Add 40 MHz channel pair into specified channel list.
+ */
+int
+ieee80211_add_channel_ht40(struct ieee80211_channel chans[], int maxchans,
+    int *nchans, uint8_t ieee, int8_t maxregpower, uint32_t flags)
+{
+	struct ieee80211_channel *cent, *extc;
+	uint16_t freq;
+	int error;
+
+	freq = ieee80211_ieee2mhz(ieee, flags);
+
+	/*
+	 * Each entry defines an HT40 channel pair; find the
+	 * center channel, then the extension channel above.
+	 */
+	flags |= IEEE80211_CHAN_HT20;
+	cent = findchannel(chans, *nchans, freq, flags);
+	if (cent == NULL)
+		return (EINVAL);
+
+	extc = findchannel(chans, *nchans, freq + 20, flags);
+	if (extc == NULL)
+		return (ENOENT);
+
+	flags &= ~IEEE80211_CHAN_HT;
+	error = addchan(chans, maxchans, nchans, cent->ic_ieee, cent->ic_freq,
+	    maxregpower, flags | IEEE80211_CHAN_HT40U);
+	if (error != 0)
+		return (error);
+
+	error = addchan(chans, maxchans, nchans, extc->ic_ieee, extc->ic_freq,
+	    maxregpower, flags | IEEE80211_CHAN_HT40D);
+
+	return (error);
+}
+
+/*
+ * Adds channels into specified channel list (ieee[] array must be sorted).
+ * Channels are already sorted.
+ */
+static int
+add_chanlist(struct ieee80211_channel chans[], int maxchans, int *nchans,
+    const uint8_t ieee[], int nieee, uint32_t flags[])
+{
+	uint16_t freq;
+	int i, j, error;
+
+	for (i = 0; i < nieee; i++) {
+		freq = ieee80211_ieee2mhz(ieee[i], flags[0]);
+		for (j = 0; flags[j] != 0; j++) {
+			if (flags[j] & IEEE80211_CHAN_HT40D)
+				if (i == 0 || ieee[i] < ieee[0] + 4 ||
+				    freq - 20 !=
+				    ieee80211_ieee2mhz(ieee[i] - 4, flags[j]))
+					continue;
+			if (flags[j] & IEEE80211_CHAN_HT40U)
+				if (i == nieee - 1 ||
+				    ieee[i] + 4 > ieee[nieee - 1] ||
+				    freq + 20 !=
+				    ieee80211_ieee2mhz(ieee[i] + 4, flags[j]))
+					continue;
+
+			if (j == 0) {
+				error = addchan(chans, maxchans, nchans,
+				    ieee[i], freq, 0, flags[j]);
+			} else {
+				error = copychan_prev(chans, maxchans, nchans,
+				    flags[j]);
+			}
+			if (error != 0)
+				return (error);
+		}
+	}
+
+	return (0);
+}
+
+int
+ieee80211_add_channel_list_2ghz(struct ieee80211_channel chans[], int maxchans,
+    int *nchans, const uint8_t ieee[], int nieee, const uint8_t bands[],
+    int ht40)
+{
+	uint32_t flags[IEEE80211_MODE_MAX];
+
+	getflags_2ghz(bands, flags, ht40);
+	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
+
+	return (add_chanlist(chans, maxchans, nchans, ieee, nieee, flags));
+}
+
+int
+ieee80211_add_channel_list_5ghz(struct ieee80211_channel chans[], int maxchans,
+    int *nchans, const uint8_t ieee[], int nieee, const uint8_t bands[],
+    int ht40)
+{
+	uint32_t flags[IEEE80211_MODE_MAX];
+
+	getflags_5ghz(bands, flags, ht40);
+	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
+
+	return (add_chanlist(chans, maxchans, nchans, ieee, nieee, flags));
+}
+
 /*
  * Locate a channel given a frequency+flags.  We cache
  * the previous lookup to optimize switching between two
@@ -985,7 +1245,6 @@ struct ieee80211_channel *
 ieee80211_find_channel(struct ieee80211com *ic, int freq, int flags)
 {
 	struct ieee80211_channel *c;
-	int i;
 
 	flags &= IEEE80211_CHAN_ALLTURBO;
 	c = ic->ic_prevchan;
@@ -993,13 +1252,7 @@ ieee80211_find_channel(struct ieee80211com *ic, int freq, int flags)
 	    (c->ic_flags & IEEE80211_CHAN_ALLTURBO) == flags)
 		return c;
 	/* brute force search */
-	for (i = 0; i < ic->ic_nchans; i++) {
-		c = &ic->ic_channels[i];
-		if (c->ic_freq == freq &&
-		    (c->ic_flags & IEEE80211_CHAN_ALLTURBO) == flags)
-			return c;
-	}
-	return NULL;
+	return (findchannel(ic->ic_channels, ic->ic_nchans, freq, flags));
 }
 
 /*
@@ -1591,7 +1844,7 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		{   6 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM3 },
 		{   9 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM4 },
 		{  54 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM27 },
-		/* NB: OFDM72 doesn't realy exist so we don't handle it */
+		/* NB: OFDM72 doesn't really exist so we don't handle it */
 	};
 	static const struct ratemedia htrates[] = {
 		{   0, IFM_IEEE80211_MCS },

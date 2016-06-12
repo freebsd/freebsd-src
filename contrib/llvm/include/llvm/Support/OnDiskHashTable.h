@@ -53,6 +53,8 @@ namespace llvm {
 ///   /// Write Data to Out.  DataLen is the length from EmitKeyDataLength.
 ///   static void EmitData(raw_ostream &Out, key_type_ref Key,
 ///                        data_type_ref Data, offset_type DataLen);
+///   /// Determine if two keys are equal. Optional, only needed by contains.
+///   static bool EqualKey(key_type_ref Key1, key_type_ref Key2);
 /// };
 /// \endcode
 template <typename Info> class OnDiskChainedHashTableGenerator {
@@ -122,11 +124,19 @@ public:
   /// Uses the provided Info instead of a stack allocated one.
   void insert(typename Info::key_type_ref Key,
               typename Info::data_type_ref Data, Info &InfoObj) {
-
     ++NumEntries;
     if (4 * NumEntries >= 3 * NumBuckets)
       resize(NumBuckets * 2);
     insert(Buckets, NumBuckets, new (BA.Allocate()) Item(Key, Data, InfoObj));
+  }
+
+  /// \brief Determine whether an entry has been inserted.
+  bool contains(typename Info::key_type_ref Key, Info &InfoObj) {
+    unsigned Hash = InfoObj.ComputeHash(Key);
+    for (Item *I = Buckets[Hash & (NumBuckets - 1)].Head; I; I = I->Next)
+      if (I->Hash == Hash && InfoObj.EqualKey(I->Key, Key))
+        return true;
+    return false;
   }
 
   /// \brief Emit the table to Out, which must not be at offset 0.
@@ -161,8 +171,22 @@ public:
         LE.write<typename Info::hash_value_type>(I->Hash);
         const std::pair<offset_type, offset_type> &Len =
             InfoObj.EmitKeyDataLength(Out, I->Key, I->Data);
+#ifdef NDEBUG
         InfoObj.EmitKey(Out, I->Key, Len.first);
         InfoObj.EmitData(Out, I->Key, I->Data, Len.second);
+#else
+        // In asserts mode, check that the users length matches the data they
+        // wrote.
+        uint64_t KeyStart = Out.tell();
+        InfoObj.EmitKey(Out, I->Key, Len.first);
+        uint64_t DataStart = Out.tell();
+        InfoObj.EmitData(Out, I->Key, I->Data, Len.second);
+        uint64_t End = Out.tell();
+        assert(offset_type(DataStart - KeyStart) == Len.first &&
+               "key length does not match bytes written");
+        assert(offset_type(End - DataStart) == Len.second &&
+               "data length does not match bytes written");
+#endif
       }
     }
 
@@ -239,11 +263,12 @@ template <typename Info> class OnDiskChainedHashTable {
   Info InfoObj;
 
 public:
+  typedef Info InfoType;
   typedef typename Info::internal_key_type internal_key_type;
   typedef typename Info::external_key_type external_key_type;
-  typedef typename Info::data_type         data_type;
-  typedef typename Info::hash_value_type   hash_value_type;
-  typedef typename Info::offset_type       offset_type;
+  typedef typename Info::data_type data_type;
+  typedef typename Info::hash_value_type hash_value_type;
+  typedef typename Info::offset_type offset_type;
 
   OnDiskChainedHashTable(offset_type NumBuckets, offset_type NumEntries,
                          const unsigned char *Buckets,
@@ -253,6 +278,21 @@ public:
         Base(Base), InfoObj(InfoObj) {
     assert((reinterpret_cast<uintptr_t>(Buckets) & 0x3) == 0 &&
            "'buckets' must have a 4-byte alignment");
+  }
+
+  /// Read the number of buckets and the number of entries from a hash table
+  /// produced by OnDiskHashTableGenerator::Emit, and advance the Buckets
+  /// pointer past them.
+  static std::pair<offset_type, offset_type>
+  readNumBucketsAndEntries(const unsigned char *&Buckets) {
+    assert((reinterpret_cast<uintptr_t>(Buckets) & 0x3) == 0 &&
+           "buckets should be 4-byte aligned.");
+    using namespace llvm::support;
+    offset_type NumBuckets =
+        endian::readNext<offset_type, little, aligned>(Buckets);
+    offset_type NumEntries =
+        endian::readNext<offset_type, little, aligned>(Buckets);
+    return std::make_pair(NumBuckets, NumEntries);
   }
 
   offset_type getNumBuckets() const { return NumBuckets; }
@@ -275,6 +315,10 @@ public:
         : Key(K), Data(D), Len(L), InfoObj(InfoObj) {}
 
     data_type operator*() const { return InfoObj->ReadData(Key, Data, Len); }
+
+    const unsigned char *getDataPtr() const { return Data; }
+    offset_type getDataLen() const { return Len; }
+
     bool operator==(const iterator &X) const { return X.Data == Data; }
     bool operator!=(const iterator &X) const { return X.Data != Data; }
   };
@@ -356,17 +400,11 @@ public:
   static OnDiskChainedHashTable *Create(const unsigned char *Buckets,
                                         const unsigned char *const Base,
                                         const Info &InfoObj = Info()) {
-    using namespace llvm::support;
     assert(Buckets > Base);
-    assert((reinterpret_cast<uintptr_t>(Buckets) & 0x3) == 0 &&
-           "buckets should be 4-byte aligned.");
-
-    offset_type NumBuckets =
-        endian::readNext<offset_type, little, aligned>(Buckets);
-    offset_type NumEntries =
-        endian::readNext<offset_type, little, aligned>(Buckets);
-    return new OnDiskChainedHashTable<Info>(NumBuckets, NumEntries, Buckets,
-                                            Base, InfoObj);
+    auto NumBucketsAndEntries = readNumBucketsAndEntries(Buckets);
+    return new OnDiskChainedHashTable<Info>(NumBucketsAndEntries.first,
+                                            NumBucketsAndEntries.second,
+                                            Buckets, Base, InfoObj);
   }
 };
 
@@ -385,40 +423,30 @@ public:
   typedef typename base_type::hash_value_type   hash_value_type;
   typedef typename base_type::offset_type       offset_type;
 
-  OnDiskIterableChainedHashTable(offset_type NumBuckets, offset_type NumEntries,
-                                 const unsigned char *Buckets,
-                                 const unsigned char *Payload,
-                                 const unsigned char *Base,
-                                 const Info &InfoObj = Info())
-      : base_type(NumBuckets, NumEntries, Buckets, Base, InfoObj),
-        Payload(Payload) {}
-
+private:
   /// \brief Iterates over all of the keys in the table.
-  class key_iterator {
+  class iterator_base {
     const unsigned char *Ptr;
     offset_type NumItemsInBucketLeft;
     offset_type NumEntriesLeft;
-    Info *InfoObj;
 
   public:
     typedef external_key_type value_type;
 
-    key_iterator(const unsigned char *const Ptr, offset_type NumEntries,
-                 Info *InfoObj)
-        : Ptr(Ptr), NumItemsInBucketLeft(0), NumEntriesLeft(NumEntries),
-          InfoObj(InfoObj) {}
-    key_iterator()
-        : Ptr(nullptr), NumItemsInBucketLeft(0), NumEntriesLeft(0),
-          InfoObj(0) {}
+    iterator_base(const unsigned char *const Ptr, offset_type NumEntries)
+        : Ptr(Ptr), NumItemsInBucketLeft(0), NumEntriesLeft(NumEntries) {}
+    iterator_base()
+        : Ptr(nullptr), NumItemsInBucketLeft(0), NumEntriesLeft(0) {}
 
-    friend bool operator==(const key_iterator &X, const key_iterator &Y) {
+    friend bool operator==(const iterator_base &X, const iterator_base &Y) {
       return X.NumEntriesLeft == Y.NumEntriesLeft;
     }
-    friend bool operator!=(const key_iterator &X, const key_iterator &Y) {
+    friend bool operator!=(const iterator_base &X, const iterator_base &Y) {
       return X.NumEntriesLeft != Y.NumEntriesLeft;
     }
 
-    key_iterator &operator++() { // Preincrement
+    /// Move to the next item.
+    void advance() {
       using namespace llvm::support;
       if (!NumItemsInBucketLeft) {
         // 'Items' starts with a 16-bit unsigned integer representing the
@@ -435,25 +463,58 @@ public:
       --NumItemsInBucketLeft;
       assert(NumEntriesLeft);
       --NumEntriesLeft;
+    }
+
+    /// Get the start of the item as written by the trait (after the hash and
+    /// immediately before the key and value length).
+    const unsigned char *getItem() const {
+      return Ptr + (NumItemsInBucketLeft ? 0 : 2) + sizeof(hash_value_type);
+    }
+  };
+
+public:
+  OnDiskIterableChainedHashTable(offset_type NumBuckets, offset_type NumEntries,
+                                 const unsigned char *Buckets,
+                                 const unsigned char *Payload,
+                                 const unsigned char *Base,
+                                 const Info &InfoObj = Info())
+      : base_type(NumBuckets, NumEntries, Buckets, Base, InfoObj),
+        Payload(Payload) {}
+
+  /// \brief Iterates over all of the keys in the table.
+  class key_iterator : public iterator_base {
+    Info *InfoObj;
+
+  public:
+    typedef external_key_type value_type;
+
+    key_iterator(const unsigned char *const Ptr, offset_type NumEntries,
+                 Info *InfoObj)
+        : iterator_base(Ptr, NumEntries), InfoObj(InfoObj) {}
+    key_iterator() : iterator_base(), InfoObj() {}
+
+    key_iterator &operator++() {
+      this->advance();
       return *this;
     }
     key_iterator operator++(int) { // Postincrement
-      key_iterator tmp = *this; ++*this; return tmp;
+      key_iterator tmp = *this;
+      ++*this;
+      return tmp;
+    }
+
+    internal_key_type getInternalKey() const {
+      auto *LocalPtr = this->getItem();
+
+      // Determine the length of the key and the data.
+      auto L = Info::ReadKeyDataLength(LocalPtr);
+
+      // Read the key.
+      return InfoObj->ReadKey(LocalPtr, L.first);
     }
 
     value_type operator*() const {
-      const unsigned char *LocalPtr = Ptr;
-      if (!NumItemsInBucketLeft)
-        LocalPtr += 2; // number of items in bucket
-      LocalPtr += sizeof(hash_value_type); // Skip the hash.
-
-      // Determine the length of the key and the data.
-      const std::pair<offset_type, offset_type> &L =
-          Info::ReadKeyDataLength(LocalPtr);
-
-      // Read the key.
-      const internal_key_type &Key = InfoObj->ReadKey(LocalPtr, L.first);
-      return InfoObj->GetExternalKey(Key);
+      return InfoObj->GetExternalKey(getInternalKey());
     }
   };
 
@@ -467,10 +528,7 @@ public:
   }
 
   /// \brief Iterates over all the entries in the table, returning the data.
-  class data_iterator {
-    const unsigned char *Ptr;
-    offset_type NumItemsInBucketLeft;
-    offset_type NumEntriesLeft;
+  class data_iterator : public iterator_base {
     Info *InfoObj;
 
   public:
@@ -478,51 +536,24 @@ public:
 
     data_iterator(const unsigned char *const Ptr, offset_type NumEntries,
                   Info *InfoObj)
-        : Ptr(Ptr), NumItemsInBucketLeft(0), NumEntriesLeft(NumEntries),
-          InfoObj(InfoObj) {}
-    data_iterator()
-        : Ptr(nullptr), NumItemsInBucketLeft(0), NumEntriesLeft(0),
-          InfoObj(nullptr) {}
-
-    bool operator==(const data_iterator &X) const {
-      return X.NumEntriesLeft == NumEntriesLeft;
-    }
-    bool operator!=(const data_iterator &X) const {
-      return X.NumEntriesLeft != NumEntriesLeft;
-    }
+        : iterator_base(Ptr, NumEntries), InfoObj(InfoObj) {}
+    data_iterator() : iterator_base(), InfoObj() {}
 
     data_iterator &operator++() { // Preincrement
-      using namespace llvm::support;
-      if (!NumItemsInBucketLeft) {
-        // 'Items' starts with a 16-bit unsigned integer representing the
-        // number of items in this bucket.
-        NumItemsInBucketLeft =
-            endian::readNext<uint16_t, little, unaligned>(Ptr);
-      }
-      Ptr += sizeof(hash_value_type); // Skip the hash.
-      // Determine the length of the key and the data.
-      const std::pair<offset_type, offset_type> &L =
-          Info::ReadKeyDataLength(Ptr);
-      Ptr += L.first + L.second;
-      assert(NumItemsInBucketLeft);
-      --NumItemsInBucketLeft;
-      assert(NumEntriesLeft);
-      --NumEntriesLeft;
+      this->advance();
       return *this;
     }
     data_iterator operator++(int) { // Postincrement
-      data_iterator tmp = *this; ++*this; return tmp;
+      data_iterator tmp = *this;
+      ++*this;
+      return tmp;
     }
 
     value_type operator*() const {
-      const unsigned char *LocalPtr = Ptr;
-      if (!NumItemsInBucketLeft)
-        LocalPtr += 2; // number of items in bucket
-      LocalPtr += sizeof(hash_value_type); // Skip the hash.
+      auto *LocalPtr = this->getItem();
 
       // Determine the length of the key and the data.
-      const std::pair<offset_type, offset_type> &L =
-          Info::ReadKeyDataLength(LocalPtr);
+      auto L = Info::ReadKeyDataLength(LocalPtr);
 
       // Read the key.
       const internal_key_type &Key = InfoObj->ReadKey(LocalPtr, L.first);
@@ -555,17 +586,12 @@ public:
   static OnDiskIterableChainedHashTable *
   Create(const unsigned char *Buckets, const unsigned char *const Payload,
          const unsigned char *const Base, const Info &InfoObj = Info()) {
-    using namespace llvm::support;
     assert(Buckets > Base);
-    assert((reinterpret_cast<uintptr_t>(Buckets) & 0x3) == 0 &&
-           "buckets should be 4-byte aligned.");
-
-    offset_type NumBuckets =
-        endian::readNext<offset_type, little, aligned>(Buckets);
-    offset_type NumEntries =
-        endian::readNext<offset_type, little, aligned>(Buckets);
+    auto NumBucketsAndEntries =
+        OnDiskIterableChainedHashTable<Info>::readNumBucketsAndEntries(Buckets);
     return new OnDiskIterableChainedHashTable<Info>(
-        NumBuckets, NumEntries, Buckets, Payload, Base, InfoObj);
+        NumBucketsAndEntries.first, NumBucketsAndEntries.second,
+        Buckets, Payload, Base, InfoObj);
   }
 };
 

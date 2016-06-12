@@ -110,6 +110,7 @@
  *	C:	Cacheable, coherency unspecified.
  *	CNC:	Cacheable non-coherent.
  *	CC:	Cacheable coherent.
+ *	CCS:	Cacheable coherent, shared read.
  *	CCE:	Cacheable coherent, exclusive read.
  *	CCEW:	Cacheable coherent, exclusive write.
  *	CCUOW:	Cacheable coherent, update on write.
@@ -149,14 +150,25 @@
 #define	MIPS_CCA_CC	0x05	/* Cacheable Coherent. */
 #endif
 
-#if defined(CPU_MIPS74KC)
+#if defined(CPU_MIPS74K)
 #define	MIPS_CCA_UNCACHED	0x02
 #define	MIPS_CCA_CACHED		0x03
 #endif
 
-#if defined(CPU_MIPS1004KC)
-#define	MIPS_CCA_UNCACHED	0x02
-#define	MIPS_CCA_CACHED		0x05
+/*
+ * 1004K and 1074K cores, as well as interAptiv and proAptiv cores, support
+ * Cacheable Coherent CCAs 0x04 and 0x05, as well as Cacheable non-Coherent
+ * CCA 0x03 and Uncached Accelerated CCA 0x07
+ */
+#if defined(CPU_MIPS1004K) || defined(CPU_MIPS1074K) ||	\
+    defined(CPU_INTERAPTIV) || defined(CPU_PROAPTIV)
+#define	MIPS_CCA_CNC		0x03
+#define	MIPS_CCA_CCE		0x04
+#define	MIPS_CCA_CCS		0x05
+#define	MIPS_CCA_UA		0x07
+
+/* We use shared read CCA for CACHED CCA */
+#define	MIPS_CCA_CACHED		MIPS_CCA_CCS
 #endif
 
 #ifndef	MIPS_CCA_UNCACHED
@@ -214,8 +226,18 @@
 #define	COP0_SYNC	.word 0xc0	/* ehb */
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
-#elif defined(CPU_MIPS74KC) || defined(CPU_MIPS1004KC)
-#define	COP0_SYNC	 .word 0xc0	/* ehb */
+#elif defined(CPU_MIPS24K) || defined(CPU_MIPS34K) ||		\
+      defined(CPU_MIPS74K) || defined(CPU_MIPS1004K)  ||	\
+      defined(CPU_MIPS1074K) || defined(CPU_INTERAPTIV) ||	\
+      defined(CPU_PROAPTIV)
+/*
+ * According to MIPS32tm Architecture for Programmers, Vol.II, rev. 2.00:
+ * "As EHB becomes standard in MIPS implementations, the previous SSNOPs can be
+ *  removed, leaving only the EHB".
+ * Also, all MIPS32 Release 2 implementations have the EHB instruction, which
+ * resolves all execution hazards. The same goes for MIPS32 Release 3.
+ */
+#define	COP0_SYNC	.word 0xc0	/* ehb */
 #else
 /*
  * Pick a reasonable default based on the "typical" spacing described in the

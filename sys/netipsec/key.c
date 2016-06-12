@@ -351,7 +351,7 @@ do { \
 	if ((head) != (sav)) {						\
 		ipseclog((LOG_DEBUG, "%s: state mismatched (TREE=%d SA=%d)\n", \
 			(name), (head), (sav)));			\
-		continue;						\
+		break;							\
 	}								\
 } while (0)
 
@@ -933,7 +933,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 {
 	struct secasvar *sav, *nextsav, *candidate, *d;
 
-	/* initilize */
+	/* initialize */
 	candidate = NULL;
 
 	SAHTREE_LOCK();
@@ -1058,7 +1058,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
  * allocating a usable SA entry for a *INBOUND* packet.
  * Must call key_freesav() later.
  * OUT: positive:	pointer to a usable sav (i.e. MATURE or DYING state).
- *	NULL:		not found, or error occured.
+ *	NULL:		not found, or error occurred.
  *
  * In the comparison, no source address is used--for RFC2401 conformance.
  * To quote, from section 4.1:
@@ -1156,6 +1156,66 @@ done:
 		printf("DP %s return SA:%p; refcnt %u\n", __func__,
 			sav, sav ? sav->refcnt : 0));
 	return sav;
+}
+
+struct secasvar *
+key_allocsa_tunnel(union sockaddr_union *src, union sockaddr_union *dst,
+    u_int proto, const char* where, int tag)
+{
+	struct secashead *sah;
+	struct secasvar *sav;
+	u_int stateidx, arraysize, state;
+	const u_int *saorder_state_valid;
+
+	IPSEC_ASSERT(src != NULL, ("null src address"));
+	IPSEC_ASSERT(dst != NULL, ("null dst address"));
+	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
+		printf("DP %s from %s:%u\n", __func__, where, tag));
+
+	SAHTREE_LOCK();
+	if (V_key_preferred_oldsa) {
+		saorder_state_valid = saorder_state_valid_prefer_old;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_old);
+	} else {
+		saorder_state_valid = saorder_state_valid_prefer_new;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
+	}
+	LIST_FOREACH(sah, &V_sahtree, chain) {
+		/* search valid state */
+		for (stateidx = 0; stateidx < arraysize; stateidx++) {
+			state = saorder_state_valid[stateidx];
+			LIST_FOREACH(sav, &sah->savtree[state], chain) {
+				/* sanity check */
+				KEY_CHKSASTATE(sav->state, state, __func__);
+				/* do not return entries w/ unusable state */
+				if (sav->state != SADB_SASTATE_MATURE &&
+				    sav->state != SADB_SASTATE_DYING)
+					continue;
+				if (IPSEC_MODE_TUNNEL != sav->sah->saidx.mode)
+					continue;
+				if (proto != sav->sah->saidx.proto)
+					continue;
+				/* check src address */
+				if (key_sockaddrcmp(&src->sa,
+				    &sav->sah->saidx.src.sa, 0) != 0)
+					continue;
+				/* check dst address */
+				if (key_sockaddrcmp(&dst->sa,
+				    &sav->sah->saidx.dst.sa, 0) != 0)
+					continue;
+				sa_addref(sav);
+				goto done;
+			}
+		}
+	}
+	sav = NULL;
+done:
+	SAHTREE_UNLOCK();
+
+	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
+		printf("DP %s return SA:%p; refcnt %u\n", __func__,
+			sav, sav ? sav->refcnt : 0));
+	return (sav);
 }
 
 /*
@@ -2275,7 +2335,7 @@ key_spdget(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
  * send
  *   <base, policy(*)>
  * to KMD, and expect to receive
- *   <base> with SADB_X_SPDACQUIRE if error occured,
+ *   <base> with SADB_X_SPDACQUIRE if error occurred,
  * or
  *   <base, policy>
  * with SADB_X_SPDUPDATE from KMD by PF_KEY.
@@ -3365,7 +3425,7 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 		goto fail;
 	result = m;
 
-	for (i = sizeof(dumporder)/sizeof(dumporder[0]) - 1; i >= 0; i--) {
+	for (i = nitems(dumporder) - 1; i >= 0; i--) {
 		m = NULL;
 		switch (dumporder[i]) {
 		case SADB_EXT_SA:
@@ -3490,6 +3550,7 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 	}
 
 	m_cat(result, tres);
+	tres = NULL;
 	if (result->m_len < sizeof(struct sadb_msg)) {
 		result = m_pullup(result, sizeof(struct sadb_msg));
 		if (result == NULL)
@@ -4922,8 +4983,8 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		dport = (struct sadb_x_nat_t_port *)
 		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
 	} else {
-		type = 0;
-		sport = dport = 0;
+		type = NULL;
+		sport = dport = NULL;
 	}
 	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
@@ -4948,7 +5009,7 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		frag = (struct sadb_x_nat_t_frag *)
 		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
 	} else {
-		frag = 0;
+		frag = NULL;
 	}
 #endif
 
@@ -5214,7 +5275,7 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			KEY_PORTTOSADDR(&saidx.dst,
 			    dport->sadb_x_nat_t_port_port);
 	} else {
-		type = 0;
+		type = NULL;
 	}
 	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
@@ -5239,7 +5300,7 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		frag = (struct sadb_x_nat_t_frag *)
 		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
 	} else {
-		frag = 0;
+		frag = NULL;
 	}
 #endif
 
@@ -6092,7 +6153,7 @@ key_getprop(const struct secasindex *saidx)
  *   <base, SA, address(SD), (address(P)), x_policy,
  *       (identity(SD),) (sensitivity,) proposal>
  * to KMD, and expect to receive
- *   <base> with SADB_ACQUIRE if error occured,
+ *   <base> with SADB_ACQUIRE if error occurred,
  * or
  *   <base, src address, dst address, (SPI range)> with SADB_GETSPI
  * from KMD by PF_KEY.
@@ -6456,9 +6517,9 @@ key_acquire2(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 
 	/*
 	 * Error message from KMd.
-	 * We assume that if error was occured in IKEd, the length of PFKEY
+	 * We assume that if error was occurred in IKEd, the length of PFKEY
 	 * message is equal to the size of sadb_msg structure.
-	 * We do not raise error even if error occured in this function.
+	 * We do not raise error even if error occurred in this function.
 	 */
 	if (mhp->msg->sadb_msg_len == PFKEY_UNIT64(sizeof(struct sadb_msg))) {
 		struct secacq *acq;
@@ -6598,7 +6659,7 @@ key_acquire2(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 static int
 key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
-	struct secreg *reg, *newreg = 0;
+	struct secreg *reg, *newreg = NULL;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
@@ -7204,8 +7265,7 @@ key_parse(struct mbuf *m, struct socket *so)
 	orglen = PFKEY_UNUNIT64(msg->sadb_msg_len);
 	target = KEY_SENDUP_ONE;
 
-	if ((m->m_flags & M_PKTHDR) == 0 ||
-	    m->m_pkthdr.len != m->m_pkthdr.len) {
+	if ((m->m_flags & M_PKTHDR) == 0 || m->m_pkthdr.len != orglen) {
 		ipseclog((LOG_DEBUG, "%s: invalid message length.\n",__func__));
 		PFKEYSTAT_INC(out_invlen);
 		error = EINVAL;
@@ -7410,7 +7470,7 @@ key_parse(struct mbuf *m, struct socket *so)
 		 */
 	}
 
-	if (msg->sadb_msg_type >= sizeof(key_typesw)/sizeof(key_typesw[0]) ||
+	if (msg->sadb_msg_type >= nitems(key_typesw) ||
 	    key_typesw[msg->sadb_msg_type] == NULL) {
 		PFKEYSTAT_INC(out_invmsgtype);
 		error = EINVAL;
@@ -7562,8 +7622,8 @@ key_validate_ext(const struct sadb_ext *ext, int len)
 		return EINVAL;
 
 	/* if it does not match minimum/maximum length, bail */
-	if (ext->sadb_ext_type >= sizeof(minsize) / sizeof(minsize[0]) ||
-	    ext->sadb_ext_type >= sizeof(maxsize) / sizeof(maxsize[0]))
+	if (ext->sadb_ext_type >= nitems(minsize) ||
+	    ext->sadb_ext_type >= nitems(maxsize))
 		return EINVAL;
 	if (!minsize[ext->sadb_ext_type] || len < minsize[ext->sadb_ext_type])
 		return EINVAL;
@@ -7640,7 +7700,8 @@ key_init(void)
 	/* initialize key statistics */
 	keystat.getspi_count = 1;
 
-	printf("IPsec: Initialized Security Association Processing.\n");
+	if (bootverbose)
+		printf("IPsec: Initialized Security Association Processing.\n");
 }
 
 #ifdef VIMAGE

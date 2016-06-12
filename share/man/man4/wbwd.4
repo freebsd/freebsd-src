@@ -25,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2012
+.Dd March 24, 2016
 .Dt WBWD 4
 .Os
 .Sh NAME
 .Nm wbwd
-.Nd device driver for watchdog timer found on Winbond Super I/O chips
+.Nd device driver for Winbond/Nuvoton Super I/O chips watchdog timer
 .Sh SYNOPSIS
 To compile this driver into the kernel, place the following line in your
 kernel configuration file:
@@ -50,18 +50,51 @@ The
 driver provides
 .Xr watchdog 4
 support for the watchdog interrupt timer present on at least the following
-Winbond Super I/O chips:
-.Pp
+Super I/O chips:
 .Bl -bullet -compact
 .It
-83627HF/F/HG/G Rev. G
+Winbond 83627HF/F/HG/G
 .It
-83627HF/F/HG/G Rev. J
+Winbond 83627S
 .It
-83627HF/F/HG/G Rev. UD-A
+Winbond 83697HF
 .It
-83627DHG IC ver. 5
+Winbond 83697UG
+.It
+Winbond 83637HF
+.It
+Winbond 83627THF
+.It
+Winbond 83687THF
+.It
+Winbond 83627EHF
+.It
+Winbond 83627DHG
+.It
+Winbond 83627UHG
+.It
+Winbond 83667HG
+.It
+Winbond 83627DHG-P
+.It
+Winbond 83667HG-B
+.It
+Nuvoton NCT6775
+.It
+Nuvoton NCT6776
+.It
+Nuvoton NCT6102
+.It
+Nuvoton NCT6779
+.It
+Nuvoton NCT6791
+.It
+Nuvoton NCT6792
 .El
+.Pp
+Driver may be forced to attach to unknown chips by adding to
+.Pa /boot/device.hints :
+.Cd hint.wbwd.0.at="isa"
 .Sh SYSCTL VARIABLES
 The
 .Nm

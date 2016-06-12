@@ -47,7 +47,6 @@ SUBDIR = usb
 SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} \
 	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw} ${_saf1761otg}
 SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
-SUBDIR += ${_urtwn} ${_urtwnfw}
 SUBDIR += atp uhid ukbd ums udbp ufm uep wsp ugold uled
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
@@ -70,8 +69,6 @@ _rum=		rum
 _uath=		uath
 _zyd=		zyd
 _kue=		kue
-_urtwn=		urtwn
-_urtwnfw=	urtwnfw
 _run=		run
 _runfw=		runfw
 _rsu=		rsu

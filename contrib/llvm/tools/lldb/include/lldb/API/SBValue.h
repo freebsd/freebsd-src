@@ -139,10 +139,8 @@ public:
     lldb::SBTypeFormat
     GetTypeFormat ();
     
-#ifndef LLDB_DISABLE_PYTHON
     lldb::SBTypeSummary
     GetTypeSummary ();
-#endif
 
     lldb::SBTypeFilter
     GetTypeFilter ();
@@ -206,7 +204,11 @@ public:
     /// pointer to a 'Point' type, then the child at index zero will be
     /// the 'x' member, and the child at index 1 will be the 'y' member
     /// (the child at index zero won't be a 'Point' instance).
-    /// 
+    ///
+    /// If you actually need an SBValue that represents the type pointed
+    /// to by a SBValue for which GetType().IsPointeeType() returns true,
+    /// regardless of the pointee type, you can do that with SBValue::Dereference.
+    ///
     /// Arrays have a preset number of children that can be accessed by
     /// index and will returns invalid child values for indexes that are
     /// out of bounds unless the \a synthetic_allowed is \b true. In this
@@ -332,6 +334,9 @@ public:
     uint32_t
     GetNumChildren ();
 
+    uint32_t
+    GetNumChildren (uint32_t max);
+
     void *
     GetOpaqueType();
 
@@ -350,6 +355,7 @@ public:
     lldb::SBValue
     Dereference ();
 
+    // Deprecated - please use GetType().IsPointerType() instead.
     bool
     TypeIsPointerType ();
     

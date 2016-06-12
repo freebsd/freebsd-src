@@ -42,6 +42,7 @@ check_PROGRAMS =		\
 	test-strtolfp		\
 	test-timespecops	\
 	test-timevalops		\
+	test-tsafememcmp	\
 	test-tstotv		\
 	test-tvtots		\
 	test-uglydate		\
@@ -102,6 +103,7 @@ BUILT_SOURCES +=			\
 	$(srcdir)/run-strtolfp.c	\
 	$(srcdir)/run-timevalops.c	\
 	$(srcdir)/run-timespecops.c	\
+	$(srcdir)/run-tsafememcmp.c	\
 	$(srcdir)/run-tstotv.c		\
 	$(srcdir)/run-tvtots.c		\
 	$(srcdir)/run-uglydate.c	\
@@ -474,6 +476,16 @@ test_timevalops_SOURCES =	\
 
 $(srcdir)/run-timevalops.c: $(srcdir)/timevalops.c $(std_unity_list)
 	$(run_unity) timevalops.c run-timevalops.c
+
+###
+
+test_tsafememcmp_SOURCES =	\
+	tsafememcmp.c		\
+	run-tsafememcmp.c	\
+	$(NULL)
+
+$(srcdir)/run-tsafememcmp.c: $(srcdir)/tsafememcmp.c $(std_unity_list)
+	$(run_unity) tsafememcmp.c run-tsafememcmp.c
 
 ###
 

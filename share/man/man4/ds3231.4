@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2015
+.Dd February 12, 2016
 .Dt DS3231 4
 .Os
 .Sh NAME
@@ -65,9 +65,9 @@ dev.ds3231.0.32khz_enable: 1
 .It Va dev.ds3231.%d.temperature
 The read-only value of the current temperature read by the RTC.
 .It Va dev.ds3231.%d.temp_conv
-Start a new temperature convertion.
+Start a new temperature conversion.
 When read as 1, a temperature conversion is in progress.
-When read as 0 and then set to 1, a temperature convertion is started.
+When read as 0 and then set to 1, a temperature conversion is started.
 The temperature conversion runs automatically on power up and once every 64
 seconds afterward.
 .It Va dev.ds3231.%d.bbsqw
@@ -110,8 +110,11 @@ that the
 .Nm
 is connected to.
 .It Va hint.ds3231.%d.addr
-The i2c address of
+The 8-bit i2c address of
 .Nm .
+The default 8-bit address for
+.Nm
+is 0xd0.
 .El
 .Pp
 On a
@@ -121,11 +124,11 @@ based system the following properties must be set:
 .It Va compatible
 Must always be set to "maxim,ds3231".
 .It Va reg
-The i2c address of
+The 7-bit i2c address of
 .Nm .
-The default address for
+The default 7-bit address for
 .Nm
-is 0xd0.
+is 0x68.
 .El
 .Sh SEE ALSO
 .Xr fdt 4 ,

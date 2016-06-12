@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <libelf.h>
@@ -45,7 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: strings.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: strings.c 3446 2016-05-03 01:31:17Z emaste $");
 
 enum return_code {
 	RETURN_OK,
@@ -73,10 +74,10 @@ enum encoding_style {
 	  ((c) == '\t' || isprint((c)) ||			\
 	      (encoding == ENCODING_8BIT && (c) > 127)))
 
-
-static int encoding_size, entire_file, min_len, show_filename, show_loc;
+static int encoding_size, entire_file, show_filename, show_loc;
 static enum encoding_style encoding;
 static enum radix_style radix;
+static intmax_t min_len;
 
 static struct option strings_longopts[] = {
 	{ "all",		no_argument,		NULL,	'a'},
@@ -144,7 +145,10 @@ main(int argc, char **argv)
 			show_filename = 1;
 			break;
 		case 'n':
-			min_len = (int)strtoimax(optarg, (char**)NULL, 10);
+			min_len = strtoimax(optarg, (char**)NULL, 10);
+			if (min_len <= 0)
+				errx(EX_USAGE, "option -n should specify a "
+				    "positive decimal integer.");
 			break;
 		case 'o':
 			show_loc = 1;
@@ -254,7 +258,7 @@ handle_elf(const char *name, int fd)
 	int rc;
 
 	rc = RETURN_OK;
-	/* If entire file is choosen, treat it as a binary file */
+	/* If entire file is chosen, treat it as a binary file */
 	if (entire_file)
 		return (handle_binary(name, fd));
 

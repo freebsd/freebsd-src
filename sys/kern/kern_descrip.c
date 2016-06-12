@@ -833,17 +833,16 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	if (new >= maxfd)
 		return (mode == FDDUP_FCNTL ? EINVAL : EBADF);
 
+	error = EBADF;
 	FILEDESC_XLOCK(fdp);
-	if (fget_locked(fdp, old) == NULL) {
-		FILEDESC_XUNLOCK(fdp);
-		return (EBADF);
-	}
+	if (fget_locked(fdp, old) == NULL)
+		goto unlock;
 	if ((mode == FDDUP_FIXED || mode == FDDUP_MUSTREPLACE) && old == new) {
 		td->td_retval[0] = new;
 		if (flags & FDDUP_FLAG_CLOEXEC)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
-		FILEDESC_XUNLOCK(fdp);
-		return (0);
+		error = 0;
+		goto unlock;
 	}
 
 	/*
@@ -854,17 +853,13 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	switch (mode) {
 	case FDDUP_NORMAL:
 	case FDDUP_FCNTL:
-		if ((error = fdalloc(td, new, &new)) != 0) {
-			FILEDESC_XUNLOCK(fdp);
-			return (error);
-		}
+		if ((error = fdalloc(td, new, &new)) != 0)
+			goto unlock;
 		break;
 	case FDDUP_MUSTREPLACE:
 		/* Target file descriptor must exist. */
-		if (fget_locked(fdp, new) == NULL) {
-			FILEDESC_XUNLOCK(fdp);
-			return (EBADF);
-		}
+		if (fget_locked(fdp, new) == NULL)
+			goto unlock;
 		break;
 	case FDDUP_FIXED:
 		if (new >= fdp->fd_nfiles) {
@@ -882,8 +877,8 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 				error = racct_set(p, RACCT_NOFILE, new + 1);
 				PROC_UNLOCK(p);
 				if (error != 0) {
-					FILEDESC_XUNLOCK(fdp);
-					return (EMFILE);
+					error = EMFILE;
+					goto unlock;
 				}
 			}
 #endif
@@ -921,14 +916,17 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 #endif
 	td->td_retval[0] = new;
 
+	error = 0;
+
 	if (delfp != NULL) {
 		(void) closefp(fdp, new, delfp, td, 1);
-		/* closefp() drops the FILEDESC lock for us. */
+		FILEDESC_UNLOCK_ASSERT(fdp);
 	} else {
+unlock:
 		FILEDESC_XUNLOCK(fdp);
 	}
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -1395,9 +1393,8 @@ sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 	if (error != 0)
 		return (error);
 
-	/* If asynchronous I/O is available, it works for all descriptors. */
 	if (uap->name == _PC_ASYNC_IO) {
-		td->td_retval[0] = async_io_version;
+		td->td_retval[0] = _POSIX_ASYNCHRONOUS_IO;
 		goto out;
 	}
 	vp = fp->f_vnode;
@@ -1531,7 +1528,7 @@ fdgrowtable_exp(struct filedesc *fdp, int nfd)
 }
 
 /*
- * Grow the file table to accomodate (at least) nfd descriptors.
+ * Grow the file table to accommodate (at least) nfd descriptors.
  */
 static void
 fdgrowtable(struct filedesc *fdp, int nfd)
@@ -1545,7 +1542,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 
 	/*
 	 * If lastfile is -1 this struct filedesc was just allocated and we are
-	 * growing it to accomodate for the one we are going to copy from. There
+	 * growing it to accommodate for the one we are going to copy from. There
 	 * is no need to have a lock on this one as it's not visible to anyone.
 	 */
 	if (fdp->fd_lastfile != -1)
@@ -1710,7 +1707,7 @@ fdallocn(struct thread *td, int minfd, int *fds, int n)
 }
 
 /*
- * Create a new open file structure and allocate a file decriptor for the
+ * Create a new open file structure and allocate a file descriptor for the
  * process that refers to it.  We add one reference to the file for the
  * descriptor table and one reference for resultfp. This is to prevent us
  * being preempted and the entry in the descriptor table closed after we
@@ -2308,7 +2305,7 @@ fdcloseexec(struct thread *td)
 			FILEDESC_XLOCK(fdp);
 			fdfree(fdp, i);
 			(void) closefp(fdp, i, fp, td, 0);
-			/* closefp() drops the FILEDESC lock. */
+			FILEDESC_UNLOCK_ASSERT(fdp);
 		}
 	}
 }
@@ -2536,7 +2533,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
  *
  * File's rights will be checked against the capability rights mask.
  *
- * If an error occured the non-zero error is returned and *fpp is set to
+ * If an error occurred the non-zero error is returned and *fpp is set to
  * NULL.  Otherwise *fpp is held and set and zero is returned.  Caller is
  * responsible for fdrop().
  */
@@ -3959,7 +3956,7 @@ badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 static int
 badfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    struct thread *td)
 {
 
 	return (EBADF);
@@ -4045,7 +4042,7 @@ invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 int
 invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    struct thread *td)
 {
 
 	return (EINVAL);

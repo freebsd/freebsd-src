@@ -390,7 +390,7 @@ gather_sctp(void)
 			if (sock->family == AF_INET)
 				sock->laddr->address.ss_len = sizeof(struct sockaddr_in);
 			else
-				sock->laddr->address.ss_len = sizeof(struct sockaddr_in);
+				sock->laddr->address.ss_len = sizeof(struct sockaddr_in6);
 			local_all_loopback = 0;
 		}
 		if ((sock->faddr = calloc(1, sizeof(struct addr))) == NULL)
@@ -399,7 +399,7 @@ gather_sctp(void)
 		if (sock->family == AF_INET)
 			sock->faddr->address.ss_len = sizeof(struct sockaddr_in);
 		else
-			sock->faddr->address.ss_len = sizeof(struct sockaddr_in);
+			sock->faddr->address.ss_len = sizeof(struct sockaddr_in6);
 		no_stcb = 1;
 		while (offset < len) {
 			xstcb = (struct xsctp_tcb *)(void *)(buf + offset);

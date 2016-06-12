@@ -61,7 +61,7 @@ int efi_cons_poll(void);
 struct console efi_console = {
 	"efi",
 	"EFI console",
-	0,
+	C_WIDEOUT,
 	efi_cons_probe,
 	efi_cons_init,
 	efi_cons_putchar,
@@ -111,9 +111,9 @@ efi_cons_probe(struct console *cp)
 static int
 efi_cons_init(int arg)
 {
+#ifdef TERM_EMU
 	conout->SetAttribute(conout, EFI_TEXT_ATTR(DEFAULT_FGCOLOR,
 	    DEFAULT_BGCOLOR));
-#ifdef TERM_EMU
 	end_term();
 	get_pos(&curx, &cury);
 	curs_move(&curx, &cury, curx, cury);
@@ -139,8 +139,7 @@ efi_cons_rawputchar(int c)
 #ifndef	TERM_EMU
 		if (c == '\n')
 			efi_cons_efiputchar('\r');
-		else
-			efi_cons_efiputchar(c);
+		efi_cons_efiputchar(c);
 #else
 		switch (c) {
 		case '\r':
@@ -178,6 +177,7 @@ efi_cons_rawputchar(int c)
 	}
 }
 
+#ifdef TERM_EMU
 /* Gracefully exit ESC-sequence processing in case of misunderstanding. */
 static void
 bail_out(int c)
@@ -266,6 +266,8 @@ CL(int direction)
 	case 2:         /* entire line */
 		len = x;
 		break;
+	default:	/* NOTREACHED */
+		__unreachable();
 	}
 
 	if (cury == y - 1)
@@ -410,6 +412,12 @@ efi_term_emu(int c)
 		break;
 	}
 }
+#else
+void
+HO(void)
+{
+}
+#endif
 
 void
 efi_cons_putchar(int c)

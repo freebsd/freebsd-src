@@ -1,15 +1,16 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	kvm
 
 SHLIBDIR?= /lib
-SHLIB_MAJOR=	6
+SHLIB_MAJOR=	7
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 
 WARNS?=	3
 
-SRCS=	kvm.c kvm_cptime.c kvm_file.c kvm_getloadavg.c \
+SRCS=	kvm.c kvm_cptime.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c kvm_vnet.c \
 	kvm_minidump_aarch64.c \
 	kvm_amd64.c kvm_minidump_amd64.c \
@@ -22,7 +23,7 @@ INCS=	kvm.h
 
 LIBADD=	elf
 
-MAN=	kvm.3 kvm_getcptime.3 kvm_geterr.3 kvm_getfiles.3 kvm_getloadavg.3 \
+MAN=	kvm.3 kvm_getcptime.3 kvm_geterr.3 kvm_getloadavg.3 \
 	kvm_getpcpu.3 kvm_getprocs.3 kvm_getswapinfo.3 kvm_native.3 \
 	kvm_nlist.3 kvm_open.3 kvm_read.3
 

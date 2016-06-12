@@ -309,7 +309,7 @@ nandsim_loop(void *arg)
 				    links);
 				destroy_event(ev);
 				wakeup(ev);
-			};
+			}
 			NANDSIM_CHIP_UNLOCK(chip);
 			nandsim_log(chip, NANDSIM_LOG_SM, "destroyed\n");
 			mtx_destroy(&chip->ns_lock);

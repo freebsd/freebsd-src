@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: krl.h,v 1.4 2015/01/13 19:06:49 djm Exp $ */
+/* $OpenBSD: krl.h,v 1.5 2015/12/30 23:46:14 djm Exp $ */
 
 #ifndef _KRL_H
 #define _KRL_H
@@ -43,7 +43,6 @@ struct ssh_krl;
 struct ssh_krl *ssh_krl_init(void);
 void ssh_krl_free(struct ssh_krl *krl);
 void ssh_krl_set_version(struct ssh_krl *krl, u_int64_t version);
-void ssh_krl_set_sign_key(struct ssh_krl *krl, const struct sshkey *sign_key);
 int ssh_krl_set_comment(struct ssh_krl *krl, const char *comment);
 int ssh_krl_revoke_cert_by_serial(struct ssh_krl *krl,
     const struct sshkey *ca_key, u_int64_t serial);

@@ -80,7 +80,7 @@ ParsePort(const char *service, const char *proto)
   int port;
 
   servent = getservbyname(service, proto);
-  if (servent != 0)
+  if (servent != NULL)
     return ntohs(servent->s_port);
 
   port = strtol(service, &cp, 0);

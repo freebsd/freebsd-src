@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -155,6 +155,8 @@ static const struct mcdi_sensor_map_s {
 	STAT(Px, PHY0_VCC),		/* 0x4c PHY0_VCC */
 	STAT(Px, PHY1_VCC),		/* 0x4d PHY1_VCC */
 	STAT(Px, CONTROLLER_TDIODE_TEMP), /* 0x4e CONTROLLER_TDIODE_TEMP */
+	STAT(Px, BOARD_FRONT_TEMP), 	/* 0x4f BOARD_FRONT_TEMP */
+	STAT(Px, BOARD_BACK_TEMP), 	/* 0x50 BOARD_BACK_TEMP */
 };
 
 #define	MCDI_STATIC_SENSOR_ASSERT(_field)				\
@@ -365,7 +367,7 @@ efx_mcdi_sensor_info_npages(
 			goto fail1;
 		}
 	} while (MCDI_OUT_DWORD(req, SENSOR_INFO_OUT_MASK) &
-	    (1 << MC_CMD_SENSOR_PAGE0_NEXT));
+	    (1U << MC_CMD_SENSOR_PAGE0_NEXT));
 
 	*npagesp = page;
 

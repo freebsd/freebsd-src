@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 .PATH:	${.CURDIR}/../../contrib/pf/libevent
 
 .include <src.opts.mk>

@@ -12,6 +12,11 @@
 #include "lldb/API/SBThread.h"
 #include "lldb/API/SBProcess.h"
 #include "lldb/API/SBCommandInterpreter.h"
+#include "lldb/API/SBTypeSummary.h"
+#include "lldb/API/SBTypeCategory.h"
+#include "lldb/API/SBTypeNameSpecifier.h"
+#include "lldb/API/SBStream.h"
+#include "lldb/API/SBType.h"
 
 // In-house headers:
 #include "MICmnLLDBDebugger.h"
@@ -24,13 +29,50 @@
 #include "MIUtilSingletonHelper.h"
 
 //++ ------------------------------------------------------------------------------------
+// MI private summary providers
+static inline bool
+MI_char_summary_provider(lldb::SBValue value, lldb::SBTypeSummaryOptions options, lldb::SBStream &stream)
+{
+    if (!value.IsValid())
+        return false;
+
+    lldb::SBType value_type = value.GetType();
+    if(!value_type.IsValid())
+        return false;
+    
+    lldb::BasicType type_code = value_type.GetBasicType();
+    if (type_code == lldb::eBasicTypeSignedChar)
+        stream.Printf("%d %s", (int)value.GetValueAsSigned(), value.GetValue());
+    else if (type_code == lldb::eBasicTypeUnsignedChar)
+        stream.Printf("%u %s", (unsigned)value.GetValueAsUnsigned(), value.GetValue());
+    else
+        return false;
+    
+    return true;
+}
+
+//++ ------------------------------------------------------------------------------------
+// MI summary helper routines
+static inline bool
+MI_add_summary(lldb::SBTypeCategory category, const char *typeName, lldb::SBTypeSummary::FormatCallback cb,
+               uint32_t options, bool regex = false)
+{
+#if defined(LLDB_DISABLE_PYTHON)
+    return false;
+#else
+    lldb::SBTypeSummary summary = lldb::SBTypeSummary::CreateWithCallback(cb, options);
+    return summary.IsValid() ? category.AddTypeSummary(lldb::SBTypeNameSpecifier(typeName, regex), summary) : false;
+#endif
+} 
+
+//++ ------------------------------------------------------------------------------------
 // Details: CMICmnLLDBDebugger constructor.
 // Type:    Method.
 // Args:    None.
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnLLDBDebugger::CMICmnLLDBDebugger(void)
+CMICmnLLDBDebugger::CMICmnLLDBDebugger()
     : m_constStrThisThreadId("MI debugger event")
 {
 }
@@ -42,7 +84,7 @@ CMICmnLLDBDebugger::CMICmnLLDBDebugger(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnLLDBDebugger::~CMICmnLLDBDebugger(void)
+CMICmnLLDBDebugger::~CMICmnLLDBDebugger()
 {
     Shutdown();
 }
@@ -56,7 +98,7 @@ CMICmnLLDBDebugger::~CMICmnLLDBDebugger(void)
 // Throws:  None.
 //--
 bool
-CMICmnLLDBDebugger::Initialize(void)
+CMICmnLLDBDebugger::Initialize()
 {
     m_clientUsageRefCnt++;
 
@@ -98,7 +140,7 @@ CMICmnLLDBDebugger::Initialize(void)
         errMsg += GetErrorDescription().c_str();
     }
     bOk = bOk && InitStdStreams();
-
+    bOk = bOk && RegisterMISummaryProviders();
     m_bInitialized = bOk;
 
     if (!bOk && !HaveErrorDescription())
@@ -119,7 +161,7 @@ CMICmnLLDBDebugger::Initialize(void)
 // Throws:  None.
 //--
 bool
-CMICmnLLDBDebugger::Shutdown(void)
+CMICmnLLDBDebugger::Shutdown()
 {
     if (--m_clientUsageRefCnt > 0)
         return MIstatus::success;
@@ -173,7 +215,7 @@ CMICmnLLDBDebugger::Shutdown(void)
 // Throws:  None.
 //--
 lldb::SBDebugger &
-CMICmnLLDBDebugger::GetTheDebugger(void)
+CMICmnLLDBDebugger::GetTheDebugger()
 {
     return m_lldbDebugger;
 }
@@ -186,7 +228,7 @@ CMICmnLLDBDebugger::GetTheDebugger(void)
 // Throws:  None.
 //--
 lldb::SBListener &
-CMICmnLLDBDebugger::GetTheListener(void)
+CMICmnLLDBDebugger::GetTheListener()
 {
     return m_lldbListener;
 }
@@ -216,7 +258,7 @@ CMICmnLLDBDebugger::SetDriver(const CMIDriverBase &vClientDriver)
 // Throws:  None.
 //--
 CMIDriverBase &
-CMICmnLLDBDebugger::GetDriver(void) const
+CMICmnLLDBDebugger::GetDriver() const
 {
     return *m_pClientDriver;
 }
@@ -234,7 +276,7 @@ CMICmnLLDBDebugger::GetDriver(void) const
 // Throws:  None.
 //--
 void
-CMICmnLLDBDebugger::WaitForHandleEvent(void)
+CMICmnLLDBDebugger::WaitForHandleEvent()
 {
     std::unique_lock<std::mutex> lock(m_mutexEventQueue);
 
@@ -254,7 +296,7 @@ CMICmnLLDBDebugger::WaitForHandleEvent(void)
 // Throws:  None.
 //--
 bool
-CMICmnLLDBDebugger::CheckIfNeedToRebroadcastStopEvent(void)
+CMICmnLLDBDebugger::CheckIfNeedToRebroadcastStopEvent()
 {
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
     if (!rSessionInfo.GetDebugger().GetAsync())
@@ -276,7 +318,7 @@ CMICmnLLDBDebugger::CheckIfNeedToRebroadcastStopEvent(void)
 // Throws:  None.
 //--
 void
-CMICmnLLDBDebugger::RebroadcastStopEvent(void)
+CMICmnLLDBDebugger::RebroadcastStopEvent()
 {
     lldb::SBProcess process = CMICmnLLDBDebugSessionInfo::Instance().GetProcess();
     const bool include_expression_stops = false;
@@ -297,7 +339,7 @@ CMICmnLLDBDebugger::RebroadcastStopEvent(void)
 // Throws:  None.
 //--
 bool
-CMICmnLLDBDebugger::InitSBDebugger(void)
+CMICmnLLDBDebugger::InitSBDebugger()
 {
     m_lldbDebugger = lldb::SBDebugger::Create(false);
     if (!m_lldbDebugger.IsValid())
@@ -321,7 +363,7 @@ CMICmnLLDBDebugger::InitSBDebugger(void)
 // Throws:  None.
 //--
 bool
-CMICmnLLDBDebugger::InitStdStreams(void)
+CMICmnLLDBDebugger::InitStdStreams()
 {
     // This is not required when operating the MI driver's code as it has its own
     // streams. Setting the Stdin for the lldbDebugger especially on LINUX will cause
@@ -342,7 +384,7 @@ CMICmnLLDBDebugger::InitStdStreams(void)
 // Throws:  None.
 //--
 bool
-CMICmnLLDBDebugger::InitSBListener(void)
+CMICmnLLDBDebugger::InitSBListener()
 {
     m_lldbListener = m_lldbDebugger.GetListener();
     if (!m_lldbListener.IsValid())
@@ -585,7 +627,7 @@ CMICmnLLDBDebugger::ClientGetMaskForAllClients(const CMIUtilString &vBroadcaster
     while (it != m_mapIdToEventMask.end())
     {
         const CMIUtilString &rId((*it).first);
-        if (rId.find(vBroadcasterClass.c_str()) != std::string::npos)
+        if (rId.find(vBroadcasterClass) != std::string::npos)
         {
             const MIuint clientsMask = (*it).second;
             mask |= clientsMask;
@@ -678,9 +720,7 @@ CMICmnLLDBDebugger::ClientGetTheirMask(const CMIUtilString &vClientName, const C
         return MIstatus::failure;
     }
 
-    CMIUtilString strId(vBroadcasterClass.c_str());
-    strId += vClientName;
-
+    const CMIUtilString strId(vBroadcasterClass + vClientName);
     const MapIdToEventMask_t::const_iterator it = m_mapIdToEventMask.find(strId);
     if (it != m_mapIdToEventMask.end())
     {
@@ -776,7 +816,7 @@ CMICmnLLDBDebugger::ThreadRun(bool &vrbIsAlive)
 // Throws:  None.
 //--
 bool
-CMICmnLLDBDebugger::ThreadFinish(void)
+CMICmnLLDBDebugger::ThreadFinish()
 {
     return MIstatus::success;
 }
@@ -789,7 +829,58 @@ CMICmnLLDBDebugger::ThreadFinish(void)
 // Throws:  None.
 //--
 const CMIUtilString &
-CMICmnLLDBDebugger::ThreadGetName(void) const
+CMICmnLLDBDebugger::ThreadGetName() const
 {
     return m_constStrThisThreadId;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Loads lldb-mi formatters
+// Type:    Method.
+// Args:    None.
+// Return:  true - Functionality succeeded.
+//          false - Functionality failed.
+// Throws:  None.
+//--
+bool
+CMICmnLLDBDebugger::LoadMIFormatters(lldb::SBTypeCategory miCategory)
+{
+    if (!MI_add_summary(miCategory, "char", MI_char_summary_provider,
+                        lldb::eTypeOptionHideValue | lldb::eTypeOptionSkipPointers))
+        return false;
+
+    if (!MI_add_summary(miCategory, "unsigned char", MI_char_summary_provider,
+                        lldb::eTypeOptionHideValue | lldb::eTypeOptionSkipPointers))
+        return false;
+
+    if (!MI_add_summary(miCategory, "signed char", MI_char_summary_provider,
+                       lldb::eTypeOptionHideValue | lldb::eTypeOptionSkipPointers))
+        return false;
+
+    return true;        
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Registers lldb-mi custom summary providers
+// Type:    Method.
+// Args:    None.
+// Return:  true - Functionality succeeded.
+//          false - Functionality failed.
+// Throws:  None.
+//--
+bool
+CMICmnLLDBDebugger::RegisterMISummaryProviders()
+{
+    static const char* miCategoryName = "lldb-mi";
+    lldb::SBTypeCategory miCategory = m_lldbDebugger.CreateCategory(miCategoryName);
+    if (!miCategory.IsValid())
+        return false;
+
+    if (!LoadMIFormatters(miCategory))
+    {
+        m_lldbDebugger.DeleteCategory(miCategoryName);
+        return false;
+    }
+    miCategory.SetEnabled(true);
+    return true;
 }

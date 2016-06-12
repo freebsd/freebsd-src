@@ -330,22 +330,19 @@ static const NEONLdStTableEntry NEONLdStTable[] = {
 /// LookupNEONLdSt - Search the NEONLdStTable for information about a NEON
 /// load or store pseudo instruction.
 static const NEONLdStTableEntry *LookupNEONLdSt(unsigned Opcode) {
-  const unsigned NumEntries = array_lengthof(NEONLdStTable);
-
 #ifndef NDEBUG
   // Make sure the table is sorted.
   static bool TableChecked = false;
   if (!TableChecked) {
-    for (unsigned i = 0; i != NumEntries-1; ++i)
-      assert(NEONLdStTable[i] < NEONLdStTable[i+1] &&
-             "NEONLdStTable is not sorted!");
+    assert(std::is_sorted(std::begin(NEONLdStTable), std::end(NEONLdStTable)) &&
+           "NEONLdStTable is not sorted!");
     TableChecked = true;
   }
 #endif
 
-  const NEONLdStTableEntry *I =
-    std::lower_bound(NEONLdStTable, NEONLdStTable + NumEntries, Opcode);
-  if (I != NEONLdStTable + NumEntries && I->PseudoOpc == Opcode)
+  auto I = std::lower_bound(std::begin(NEONLdStTable),
+                            std::end(NEONLdStTable), Opcode);
+  if (I != std::end(NEONLdStTable) && I->PseudoOpc == Opcode)
     return I;
   return nullptr;
 }
@@ -734,7 +731,7 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
   HI16.addImm(Pred).addReg(PredReg);
 
   if (RequiresBundling)
-    finalizeBundle(MBB, &*LO16, &*MBBI);
+    finalizeBundle(MBB, LO16->getIterator(), MBBI->getIterator());
 
   TransferImpOps(MI, LO16, HI16);
   MI.eraseFromParent();
@@ -747,6 +744,55 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
   switch (Opcode) {
     default:
       return false;
+
+    case ARM::TCRETURNdi:
+    case ARM::TCRETURNri: {
+      MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
+      assert(MBBI->isReturn() &&
+             "Can only insert epilog into returning blocks");
+      unsigned RetOpcode = MBBI->getOpcode();
+      DebugLoc dl = MBBI->getDebugLoc();
+      const ARMBaseInstrInfo &TII = *static_cast<const ARMBaseInstrInfo *>(
+          MBB.getParent()->getSubtarget().getInstrInfo());
+
+      // Tail call return: adjust the stack pointer and jump to callee.
+      MBBI = MBB.getLastNonDebugInstr();
+      MachineOperand &JumpTarget = MBBI->getOperand(0);
+
+      // Jump to label or value in register.
+      if (RetOpcode == ARM::TCRETURNdi) {
+        unsigned TCOpcode =
+            STI->isThumb()
+                ? (STI->isTargetMachO() ? ARM::tTAILJMPd : ARM::tTAILJMPdND)
+                : ARM::TAILJMPd;
+        MachineInstrBuilder MIB = BuildMI(MBB, MBBI, dl, TII.get(TCOpcode));
+        if (JumpTarget.isGlobal())
+          MIB.addGlobalAddress(JumpTarget.getGlobal(), JumpTarget.getOffset(),
+                               JumpTarget.getTargetFlags());
+        else {
+          assert(JumpTarget.isSymbol());
+          MIB.addExternalSymbol(JumpTarget.getSymbolName(),
+                                JumpTarget.getTargetFlags());
+        }
+
+        // Add the default predicate in Thumb mode.
+        if (STI->isThumb())
+          MIB.addImm(ARMCC::AL).addReg(0);
+      } else if (RetOpcode == ARM::TCRETURNri) {
+        BuildMI(MBB, MBBI, dl,
+                TII.get(STI->isThumb() ? ARM::tTAILJMPr : ARM::TAILJMPr))
+            .addReg(JumpTarget.getReg(), RegState::Kill);
+      }
+
+      MachineInstr *NewMI = std::prev(MBBI);
+      for (unsigned i = 1, e = MBBI->getNumOperands(); i != e; ++i)
+        NewMI->addOperand(MBBI->getOperand(i));
+
+      // Delete the pseudo instruction TCRETURN.
+      MBB.erase(MBBI);
+      MBBI = NewMI;
+      return true;
+    }
     case ARM::VMOVScc:
     case ARM::VMOVDcc: {
       unsigned newOpc = Opcode == ARM::VMOVScc ? ARM::VMOVS : ARM::VMOVD;

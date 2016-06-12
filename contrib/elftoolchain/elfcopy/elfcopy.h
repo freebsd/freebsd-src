@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfcopy.h 3221 2015-05-24 23:42:43Z kaiwang27 $
+ * $Id: elfcopy.h 3446 2016-05-03 01:31:17Z emaste $
  */
 
 #include <sys/queue.h>
@@ -139,7 +139,8 @@ struct section {
 
 /* Internal data structure for segments. */
 struct segment {
-	uint64_t	addr;	/* load addr */
+	uint64_t	vaddr;	/* virtual addr (VMA) */
+	uint64_t	paddr;	/* physical addr (LMA) */
 	uint64_t	off;	/* file offset */
 	uint64_t	fsz;	/* file size */
 	uint64_t	msz;	/* memory size */
@@ -177,7 +178,7 @@ struct elfcopy {
 	Elftc_Bfd_Target_Flavor otf; /* flavour of output object */
 	const char	*otgt;	/* output target name */
 	int		 oec;	/* elfclass of output object */
-	unsigned char	 oed;	/* endianess of output object */
+	unsigned char	 oed;	/* endianness of output object */
 	int		 oem;	/* EM_XXX of output object */
 	int		 abi;	/* OSABI of output object */
 	Elf		*ein;	/* ELF descriptor of input object */
@@ -237,7 +238,7 @@ struct elfcopy {
 	uint64_t	*secndx;	/* section index map. */
 	uint64_t	*symndx;	/* symbol index map. */
 	unsigned char	*v_rel;		/* symbols needed by relocation. */
-	unsigned char	*v_grp;		/* symbols refered by section group. */
+	unsigned char	*v_grp;		/* symbols referred by section group. */
 	unsigned char	*v_secsym;	/* sections with section symbol. */
 	STAILQ_HEAD(, segment) v_seg;	/* list of segments. */
 	STAILQ_HEAD(, sec_action) v_sac;/* list of section operations. */
@@ -287,6 +288,7 @@ struct section *create_external_section(struct elfcopy *_ecp, const char *_name,
     int _loadable);
 void	create_external_symtab(struct elfcopy *_ecp);
 void	create_ihex(int _ifd, int _ofd);
+void	create_pe(struct elfcopy *_ecp, int _ifd, int _ofd);
 void	create_scn(struct elfcopy *_ecp);
 void	create_srec(struct elfcopy *_ecp, int _ifd, int _ofd, const char *_ofn);
 void	create_symtab(struct elfcopy *_ecp);

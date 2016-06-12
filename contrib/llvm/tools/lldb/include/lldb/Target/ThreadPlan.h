@@ -13,6 +13,7 @@
 // C Includes
 // C++ Includes
 #include <string>
+
 // Other libraries and framework includes
 // Project includes
 #include "lldb/lldb-private.h"
@@ -518,10 +519,10 @@ public:
     // the user regained control at that point) a subsequent process control command step/continue/etc. might
     // complete the expression evaluations.  If so, the result of the expression evaluation will show up here.
     
-    virtual lldb::ClangExpressionVariableSP
+    virtual lldb::ExpressionVariableSP
     GetExpressionVariable ()
     {
-        return lldb::ClangExpressionVariableSP();
+        return lldb::ExpressionVariableSP();
     }
     
     // If a thread plan stores the state before it was run, then you might
@@ -562,13 +563,14 @@ public:
         else
             return m_iteration_count;
     }
+
 protected:
     //------------------------------------------------------------------
     // Classes that inherit from ThreadPlan can see and modify these
     //------------------------------------------------------------------
 
     virtual bool
-    DoWillResume (lldb::StateType resume_state, bool current_plan) { return true; };
+    DoWillResume (lldb::StateType resume_state, bool current_plan) { return true; }
 
     virtual bool
     DoPlanExplainsStop (Event *event_ptr) = 0;
@@ -613,6 +615,9 @@ protected:
     virtual lldb::StateType
     GetPlanRunState () = 0;
 
+    bool
+    IsUsuallyUnexplainedStopReason(lldb::StopReason);
+
     Thread &m_thread;
     Vote m_stop_vote;
     Vote m_run_vote;
@@ -653,47 +658,46 @@ class ThreadPlanNull : public ThreadPlan
 {
 public:
     ThreadPlanNull (Thread &thread);
-    virtual ~ThreadPlanNull ();
+    ~ThreadPlanNull() override;
     
-    virtual void
-    GetDescription (Stream *s,
-                    lldb::DescriptionLevel level);
+    void
+    GetDescription(Stream *s,
+		   lldb::DescriptionLevel level) override;
 
-    virtual bool
-    ValidatePlan (Stream *error);
+    bool
+    ValidatePlan(Stream *error) override;
 
-    virtual bool
-    ShouldStop (Event *event_ptr);
+    bool
+    ShouldStop(Event *event_ptr) override;
 
-    virtual bool
-    MischiefManaged ();
+    bool
+    MischiefManaged() override;
 
-    virtual bool
-    WillStop ();
+    bool
+    WillStop() override;
 
-    virtual bool
-    IsBasePlan()
+    bool
+    IsBasePlan() override
     {
         return true;
     }
     
-    virtual bool
-    OkayToDiscard ()
+    bool
+    OkayToDiscard() override
     {
         return false;
     }
 
 protected:
-    virtual bool
-    DoPlanExplainsStop (Event *event_ptr);
+    bool
+    DoPlanExplainsStop(Event *event_ptr) override;
     
-    virtual lldb::StateType
-    GetPlanRunState ();
+    lldb::StateType
+    GetPlanRunState() override;
 
     DISALLOW_COPY_AND_ASSIGN(ThreadPlanNull);
 };
 
-
 } // namespace lldb_private
 
-#endif  // liblldb_ThreadPlan_h_
+#endif // liblldb_ThreadPlan_h_

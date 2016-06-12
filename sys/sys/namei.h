@@ -53,7 +53,6 @@ struct componentname {
 	char	*cn_pnbuf;	/* pathname buffer */
 	char	*cn_nameptr;	/* pointer to looked up name */
 	long	cn_namelen;	/* length of looked up component */
-	long	cn_consume;	/* chars to consume in lookup() */
 };
 
 /*

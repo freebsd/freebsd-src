@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 struct sge_iq;
 struct rss_header;
+struct cpl_set_tcb_rpl;
 #include <linux/types.h>
 #include "offload.h"
 #include "tom/t4_tom.h"
@@ -215,7 +216,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.op = FW_RI_RES_OP_WRITE;
 
 	/* eqsize is the number of 64B entries plus the status page size. */
-	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS + spg_creds;
+	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS +
+	    (sc->params.sge.spg_len / EQ_ESIZE);
 
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
@@ -237,7 +239,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.op = FW_RI_RES_OP_WRITE;
 
 	/* eqsize is the number of 64B entries plus the status page size. */
-	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS + spg_creds ;
+	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS +
+	    (sc->params.sge.spg_len / EQ_ESIZE);
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
 		V_FW_RI_RES_WR_CPRIO(0) |	/* don't keep in chip cache */
@@ -613,7 +616,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		fw_flags = 0;
 		if (wr->send_flags & IB_SEND_SOLICITED)
 			fw_flags |= FW_RI_SOLICITED_EVENT_FLAG;
-		if (wr->send_flags & IB_SEND_SIGNALED)
+		if (wr->send_flags & IB_SEND_SIGNALED || qhp->sq_sig_all)
 			fw_flags |= FW_RI_COMPLETION_FLAG;
 		swsqe = &qhp->wq.sq.sw_sq[qhp->wq.sq.pidx];
 		switch (wr->opcode) {
@@ -671,7 +674,8 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 		swsqe->idx = qhp->wq.sq.pidx;
 		swsqe->complete = 0;
-		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED);
+		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED) ||
+					qhp->sq_sig_all;
 		swsqe->wr_id = wr->wr_id;
 
 		init_wr_hdr(wqe, qhp->wq.sq.pidx, fw_opcode, fw_flags, len16);
@@ -950,7 +954,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	flushed = c4iw_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&rchp->lock, flag);
-	if (flushed) {
+	if (flushed && rchp->ibcq.comp_handler) {
 		spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 		spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
@@ -964,7 +968,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	flushed = c4iw_flush_sq(&qhp->wq, &schp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, flag);
-	if (flushed) {
+	if (flushed && schp->ibcq.comp_handler) {
 		spin_lock_irqsave(&schp->comp_handler_lock, flag);
 		(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
 		spin_unlock_irqrestore(&schp->comp_handler_lock, flag);
@@ -1528,6 +1532,7 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->attr.enable_bind = 1;
 	qhp->attr.max_ord = 1;
 	qhp->attr.max_ird = 1;
+	qhp->sq_sig_all = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	spin_lock_init(&qhp->lock);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
@@ -1700,6 +1705,12 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	memset(attr, 0, sizeof *attr);
 	memset(init_attr, 0, sizeof *init_attr);
 	attr->qp_state = to_ib_qp_state(qhp->attr.state);
+	init_attr->cap.max_send_wr = qhp->attr.sq_num_entries;
+	init_attr->cap.max_recv_wr = qhp->attr.rq_num_entries;
+	init_attr->cap.max_send_sge = qhp->attr.sq_max_sges;
+	init_attr->cap.max_recv_sge = qhp->attr.sq_max_sges;
+	init_attr->cap.max_inline_data = T4_MAX_SEND_INLINE;
+	init_attr->sq_sig_type = qhp->sq_sig_all ? IB_SIGNAL_ALL_WR : 0;
 	return 0;
 }
 #endif

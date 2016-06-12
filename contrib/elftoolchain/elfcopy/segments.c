@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 3269 2015-12-11 18:38:43Z kaiwang27 $");
+ELFTC_VCSID("$Id: segments.c 3449 2016-05-03 13:59:29Z emaste $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 
@@ -72,12 +72,12 @@ add_to_inseg_list(struct elfcopy *ecp, struct section *s)
 	 */
 	loadable = 0;
 	STAILQ_FOREACH(seg, &ecp->v_seg, seg_list) {
-		if (s->off < seg->off || (s->vma < seg->addr && !s->pseudo))
+		if (s->off < seg->off || (s->vma < seg->vaddr && !s->pseudo))
 			continue;
 		if (s->off + s->sz > seg->off + seg->fsz &&
 		    s->type != SHT_NOBITS)
 			continue;
-		if (s->vma + s->sz > seg->addr + seg->msz)
+		if (s->vma + s->sz > seg->vaddr + seg->msz)
 			continue;
 
 		insert_to_inseg_list(seg, s);
@@ -85,7 +85,12 @@ add_to_inseg_list(struct elfcopy *ecp, struct section *s)
 			s->seg = seg;
 		else if (seg->type == PT_TLS)
 			s->seg_tls = seg;
-		s->lma = seg->addr + (s->off - seg->off);
+		if (s->pseudo)
+			s->vma = seg->vaddr + (s->off - seg->off);
+		if (seg->paddr > 0)
+			s->lma = seg->paddr + (s->off - seg->off);
+		else
+			s->lma = 0;
 		loadable = 1;
 	}
 
@@ -98,7 +103,7 @@ adjust_addr(struct elfcopy *ecp)
 	struct section *s, *s0;
 	struct segment *seg;
 	struct sec_action *sac;
-	uint64_t dl, lma, start, end;
+	uint64_t dl, vma, lma, start, end;
 	int found, i;
 
 	/*
@@ -107,59 +112,55 @@ adjust_addr(struct elfcopy *ecp)
 	TAILQ_FOREACH(s, &ecp->v_sec, sec_list) {
 
 		/* Only adjust loadable section's address. */
-		if (!s->loadable || s->seg == NULL)
+		if (!s->loadable)
 			continue;
 
-		/* Apply global LMA adjustment. */
+		/* Apply global VMA adjustment. */
 		if (ecp->change_addr != 0)
+			s->vma += ecp->change_addr;
+
+		/* Apply global LMA adjustment. */
+		if (ecp->change_addr != 0 && s->seg != NULL &&
+		    s->seg->paddr > 0)
 			s->lma += ecp->change_addr;
-
-		if (!s->pseudo) {
-			/* Apply global VMA adjustment. */
-			if (ecp->change_addr != 0)
-				s->vma += ecp->change_addr;
-
-			/* Apply section VMA adjustment. */
-			sac = lookup_sec_act(ecp, s->name, 0);
-			if (sac == NULL)
-				continue;
-			if (sac->setvma)
-				s->vma = sac->vma;
-			if (sac->vma_adjust != 0)
-				s->vma += sac->vma_adjust;
-		}
 	}
 
 	/*
-	 * Apply sections LMA change in the second iteration.
+	 * Apply sections VMA change in the second iteration.
 	 */
 	TAILQ_FOREACH(s, &ecp->v_sec, sec_list) {
 
-		/* Only adjust loadable section's LMA. */
-		if (!s->loadable || s->seg == NULL)
+		if (!s->loadable)
 			continue;
 
 		/*
-		 * Check if there is a LMA change request for this
+		 * Check if there is a VMA change request for this
 		 * section.
 		 */
 		sac = lookup_sec_act(ecp, s->name, 0);
 		if (sac == NULL)
 			continue;
-		if (!sac->setlma && sac->lma_adjust == 0)
-			continue;
-		lma = s->lma;
-		if (sac->setlma)
-			lma = sac->lma;
-		if (sac->lma_adjust != 0)
-			lma += sac->lma_adjust;
-		if (lma == s->lma)
+		vma = s->vma;
+		if (sac->setvma)
+			vma = sac->vma;
+		if (sac->vma_adjust != 0)
+			vma += sac->vma_adjust;
+		if (vma == s->vma)
 			continue;
 
 		/*
-		 * Check if the LMA change is viable.
+		 * No need to make segment adjustment if the section doesn't
+		 * belong to any segment.
+		 */
+		if (s->seg == NULL) {
+			s->vma = vma;
+			continue;
+		}
+
+		/*
+		 * Check if the VMA change is viable.
 		 *
-		 * 1. Check if the new LMA is properly aligned accroding to
+		 * 1. Check if the new VMA is properly aligned accroding to
 		 *    section alignment.
 		 *
 		 * 2. Compute the new extent of segment that contains this
@@ -167,37 +168,36 @@ adjust_addr(struct elfcopy *ecp)
 		 *    segments.
 		 */
 #ifdef	DEBUG
-		printf("LMA for section %s: %#jx\n", s->name, lma);
+		printf("VMA for section %s: %#jx\n", s->name, vma);
 #endif
 
-		if (lma % s->align != 0)
-			errx(EXIT_FAILURE, "The load address %#jx for "
+		if (vma % s->align != 0)
+			errx(EXIT_FAILURE, "The VMA %#jx for "
 			    "section %s is not aligned to %ju",
-			    (uintmax_t) lma, s->name, s->align);
+			    (uintmax_t) vma, s->name, (uintmax_t) s->align);
 
-		if (lma < s->lma) {
+		if (vma < s->vma) {
 			/* Move section to lower address. */
-			if (lma < s->lma - s->seg->addr)
+			if (vma < s->vma - s->seg->vaddr)
 				errx(EXIT_FAILURE, "Not enough space to move "
-				    "section %s load address to %#jx", s->name,
-				    (uintmax_t) lma);
-			start = lma - (s->lma - s->seg->addr);
+				    "section %s VMA to %#jx", s->name,
+				    (uintmax_t) vma);
+			start = vma - (s->vma - s->seg->vaddr);
 			if (s == s->seg->v_sec[s->seg->nsec - 1])
 				end = start + s->seg->msz;
 			else
-				end = s->seg->addr + s->seg->msz;
-
+				end = s->seg->vaddr + s->seg->msz;
 		} else {
 			/* Move section to upper address. */
 			if (s == s->seg->v_sec[0])
-				start = lma;
+				start = vma;
 			else
-				start = s->seg->addr;
-			end = lma + (s->seg->addr + s->seg->msz - s->lma);
+				start = s->seg->vaddr;
+			end = vma + (s->seg->vaddr + s->seg->msz - s->vma);
 			if (end < start)
 				errx(EXIT_FAILURE, "Not enough space to move "
-				    "section %s load address to %#jx", s->name,
-				    (uintmax_t) lma);
+				    "section %s VMA to %#jx", s->name,
+				    (uintmax_t) vma);
 		}
 
 #ifdef	DEBUG
@@ -208,33 +208,34 @@ adjust_addr(struct elfcopy *ecp)
 		STAILQ_FOREACH(seg, &ecp->v_seg, seg_list) {
 			if (seg == s->seg || seg->type != PT_LOAD)
 				continue;
-			if (start > seg->addr + seg->msz)
+			if (start > seg->vaddr + seg->msz)
 				continue;
-			if (end < seg->addr)
+			if (end < seg->vaddr)
 				continue;
 			errx(EXIT_FAILURE, "The extent of segment containing "
 			    "section %s overlaps with segment(%#jx,%#jx)",
-			    s->name, seg->addr, seg->addr + seg->msz);
+			    s->name, (uintmax_t) seg->vaddr,
+			    (uintmax_t) (seg->vaddr + seg->msz));
 		}
 
 		/*
-		 * Update section LMA and file offset.
+		 * Update section VMA and file offset.
 		 */
 
-		if (lma < s->lma) {
+		if (vma < s->vma) {
 			/*
-			 * To move a section to lower load address, we decrease
-			 * the load addresses of the section and all the
-			 * sections that are before it, and we increase the
-			 * file offsets of all the sections that are after it.
+			 * To move a section to lower VMA, we decrease
+			 * the VMA of the section and all the sections that
+			 * are before it, and we increase the file offsets
+			 * of all the sections that are after it.
 			 */
-			dl = s->lma - lma;
+			dl = s->vma - vma;
 			for (i = 0; i < s->seg->nsec; i++) {
 				s0 = s->seg->v_sec[i];
-				s0->lma -= dl;
+				s0->vma -= dl;
 #ifdef	DEBUG
-				printf("section %s LMA set to %#jx\n",
-				    s0->name, (uintmax_t) s0->lma);
+				printf("section %s VMA set to %#jx\n",
+				    s0->name, (uintmax_t) s0->vma);
 #endif
 				if (s0 == s)
 					break;
@@ -249,13 +250,13 @@ adjust_addr(struct elfcopy *ecp)
 			}
 		} else {
 			/*
-			 * To move a section to upper load address, we increase
-			 * the load addresses of the section and all the
-			 * sections that are after it, and we increase the
-			 * their file offsets too unless the section in question
+			 * To move a section to upper VMA, we increase
+			 * the VMA of the section and all the sections that
+			 * are after it, and we increase the their file
+			 * offsets too unless the section in question
 			 * is the first in its containing segment.
 			 */
-			dl = lma - s->lma;
+			dl = vma - s->vma;
 			for (i = 0; i < s->seg->nsec; i++)
 				if (s->seg->v_sec[i] == s)
 					break;
@@ -265,9 +266,9 @@ adjust_addr(struct elfcopy *ecp)
 				    s->name);
 			for (; i < s->seg->nsec; i++) {
 				s0 = s->seg->v_sec[i];
-				s0->lma += dl;
+				s0->vma += dl;
 #ifdef	DEBUG
-				printf("section %s LMA set to %#jx\n",
+				printf("section %s VMA set to %#jx\n",
 				    s0->name, (uintmax_t) s0->lma);
 #endif
 				if (s != s->seg->v_sec[0]) {
@@ -288,9 +289,8 @@ adjust_addr(struct elfcopy *ecp)
 	if (ecp->pad_to != 0) {
 
 		/*
-		 * Find the section with highest load address.
+		 * Find the section with highest VMA.
 		 */
-
 		s = NULL;
 		STAILQ_FOREACH(seg, &ecp->v_seg, seg_list) {
 			if (seg->type != PT_LOAD)
@@ -304,26 +304,113 @@ adjust_addr(struct elfcopy *ecp)
 				s = seg->v_sec[i];
 			else {
 				s0 = seg->v_sec[i];
-				if (s0->lma > s->lma)
+				if (s0->vma > s->vma)
 					s = s0;
 			}
 		}
 
 		if (s == NULL)
-			goto issue_warn;
+			goto adjust_lma;
 
 		/* No need to pad if the pad_to address is lower. */
-		if (ecp->pad_to <= s->lma + s->sz)
-			goto issue_warn;
+		if (ecp->pad_to <= s->vma + s->sz)
+			goto adjust_lma;
 
-		s->pad_sz = ecp->pad_to - (s->lma + s->sz);
+		s->pad_sz = ecp->pad_to - (s->vma + s->sz);
 #ifdef	DEBUG
-		printf("pad section %s load to address %#jx by %#jx\n", s->name,
+		printf("pad section %s VMA to address %#jx by %#jx\n", s->name,
 		    (uintmax_t) ecp->pad_to, (uintmax_t) s->pad_sz);
 #endif
 	}
 
-issue_warn:
+
+adjust_lma:
+
+	/*
+	 * Apply sections LMA change in the third iteration.
+	 */
+	TAILQ_FOREACH(s, &ecp->v_sec, sec_list) {
+
+		/*
+		 * Only loadable section that's inside a segment can have
+		 * LMA adjusted. Also, if LMA of the containing segment is
+		 * set to 0, it probably means we should ignore the LMA.
+		 */
+		if (!s->loadable || s->seg == NULL || s->seg->paddr == 0)
+			continue;
+
+		/*
+		 * Check if there is a LMA change request for this
+		 * section.
+		 */
+		sac = lookup_sec_act(ecp, s->name, 0);
+		if (sac == NULL)
+			continue;
+		if (!sac->setlma && sac->lma_adjust == 0)
+			continue;
+		lma = s->lma;
+		if (sac->setlma)
+			lma = sac->lma;
+		if (sac->lma_adjust != 0)
+			lma += sac->lma_adjust;
+		if (lma == s->lma)
+			continue;
+
+#ifdef	DEBUG
+		printf("LMA for section %s: %#jx\n", s->name, lma);
+#endif
+
+		/* Check alignment. */
+		if (lma % s->align != 0)
+			errx(EXIT_FAILURE, "The LMA %#jx for "
+			    "section %s is not aligned to %ju",
+			    (uintmax_t) lma, s->name, (uintmax_t) s->align);
+
+		/*
+		 * Update section LMA.
+		 */
+
+		if (lma < s->lma) {
+			/*
+			 * To move a section to lower LMA, we decrease
+			 * the LMA of the section and all the sections that
+			 * are before it.
+			 */
+			dl = s->lma - lma;
+			for (i = 0; i < s->seg->nsec; i++) {
+				s0 = s->seg->v_sec[i];
+				s0->lma -= dl;
+#ifdef	DEBUG
+				printf("section %s LMA set to %#jx\n",
+				    s0->name, (uintmax_t) s0->lma);
+#endif
+				if (s0 == s)
+					break;
+			}
+		} else {
+			/*
+			 * To move a section to upper LMA, we increase
+			 * the LMA of the section and all the sections that
+			 * are after it.
+			 */
+			dl = lma - s->lma;
+			for (i = 0; i < s->seg->nsec; i++)
+				if (s->seg->v_sec[i] == s)
+					break;
+			if (i >= s->seg->nsec)
+				errx(EXIT_FAILURE, "Internal: section `%s' not"
+				    " found in its containing segement",
+				    s->name);
+			for (; i < s->seg->nsec; i++) {
+				s0 = s->seg->v_sec[i];
+				s0->lma += dl;
+#ifdef	DEBUG
+				printf("section %s LMA set to %#jx\n",
+				    s0->name, (uintmax_t) s0->lma);
+#endif
+			}
+		}
+	}
 
 	/*
 	 * Issue a warning if there are VMA/LMA adjust requests for
@@ -381,8 +468,7 @@ setup_phdr(struct elfcopy *ecp)
 {
 	struct segment	*seg;
 	GElf_Phdr	 iphdr;
-	size_t		 iphnum;
-	int		 i;
+	size_t		 iphnum, i;
 
 	if (elf_getphnum(ecp->ein, &iphnum) == 0)
 		errx(EXIT_FAILURE, "elf_getphnum failed: %s",
@@ -398,13 +484,14 @@ setup_phdr(struct elfcopy *ecp)
 		return;
 	}
 
-	for (i = 0; (size_t)i < iphnum; i++) {
+	for (i = 0; i < iphnum; i++) {
 		if (gelf_getphdr(ecp->ein, i, &iphdr) != &iphdr)
 			errx(EXIT_FAILURE, "gelf_getphdr failed: %s",
 			    elf_errmsg(-1));
 		if ((seg = calloc(1, sizeof(*seg))) == NULL)
 			err(EXIT_FAILURE, "calloc failed");
-		seg->addr	= iphdr.p_vaddr;
+		seg->vaddr	= iphdr.p_vaddr;
+		seg->paddr	= iphdr.p_paddr;
 		seg->off	= iphdr.p_offset;
 		seg->fsz	= iphdr.p_filesz;
 		seg->msz	= iphdr.p_memsz;
@@ -425,20 +512,30 @@ copy_phdr(struct elfcopy *ecp)
 		if (seg->type == PT_PHDR) {
 			if (!TAILQ_EMPTY(&ecp->v_sec)) {
 				s = TAILQ_FIRST(&ecp->v_sec);
-				if (s->pseudo)
-					seg->addr = s->lma +
+				if (s->pseudo) {
+					seg->vaddr = s->vma +
 					    gelf_fsize(ecp->eout, ELF_T_EHDR,
 						1, EV_CURRENT);
+					seg->paddr = s->lma +
+					    gelf_fsize(ecp->eout, ELF_T_EHDR,
+						1, EV_CURRENT);
+				}
 			}
 			seg->fsz = seg->msz = gelf_fsize(ecp->eout, ELF_T_PHDR,
 			    ecp->ophnum, EV_CURRENT);
 			continue;
 		}
 
+		if (seg->nsec > 0) {
+			s = seg->v_sec[0];
+			seg->vaddr = s->vma;
+			seg->paddr = s->lma;
+		}
+
 		seg->fsz = seg->msz = 0;
 		for (i = 0; i < seg->nsec; i++) {
 			s = seg->v_sec[i];
-			seg->msz = s->vma + s->sz - seg->addr;
+			seg->msz = s->vma + s->sz - seg->vaddr;
 			if (s->type != SHT_NOBITS)
 				seg->fsz = s->off + s->sz - seg->off;
 		}
@@ -477,15 +574,15 @@ copy_phdr(struct elfcopy *ecp)
 			    elf_errmsg(-1));
 
 		ophdr.p_type = iphdr.p_type;
-		ophdr.p_vaddr = seg->addr;
-		ophdr.p_paddr = seg->addr;
+		ophdr.p_vaddr = seg->vaddr;
+		ophdr.p_paddr = seg->paddr;
 		ophdr.p_flags = iphdr.p_flags;
 		ophdr.p_align = iphdr.p_align;
 		ophdr.p_offset = seg->off;
 		ophdr.p_filesz = seg->fsz;
 		ophdr.p_memsz = seg->msz;
 		if (!gelf_update_phdr(ecp->eout, i, &ophdr))
-			err(EXIT_FAILURE, "gelf_update_phdr failed :%s",
+			errx(EXIT_FAILURE, "gelf_update_phdr failed: %s",
 			    elf_errmsg(-1));
 
 		i++;

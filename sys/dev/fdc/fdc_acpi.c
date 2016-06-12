@@ -140,6 +140,8 @@ out:
 		free(buf.Pointer, M_TEMP);
 	if (error != 0)
 		fdc_release_resources(sc);
+	else
+		fdc_start_worker(dev);
 
 	return (error);
 }

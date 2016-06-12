@@ -222,11 +222,11 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 			M_HASHTYPE_SET(mb, M_HASHTYPE_RSS_IPV6);
 			break;
 		default:	/* Other */
-			M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+			M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
 			break;
 		}
 #else
-		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
 #endif
 	} else {
 		mb->m_pkthdr.flowid = rq->ix;
@@ -322,9 +322,6 @@ mlx5e_decompress_cqes(struct mlx5e_cq *cq)
 static int
 mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 {
-#ifndef HAVE_TURBO_LRO
-	struct lro_entry *queued;
-#endif
 	int i;
 
 	for (i = 0; i < budget; i++) {
@@ -399,10 +396,7 @@ wq_ll_pop:
 	/* ensure cq space is freed before enabling more cqes */
 	wmb();
 #ifndef HAVE_TURBO_LRO
-	while ((queued = SLIST_FIRST(&rq->lro.lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&rq->lro.lro_active, next);
-		tcp_lro_flush(&rq->lro, queued);
-	}
+	tcp_lro_flush_all(&rq->lro);
 #endif
 	return (i);
 }

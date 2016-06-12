@@ -6,9 +6,7 @@ LIB=	llvmanalysis
 
 SRCDIR=	lib/Analysis
 SRCS=	AliasAnalysis.cpp \
-	AliasAnalysisCounter.cpp \
 	AliasAnalysisEvaluator.cpp \
-	AliasDebugger.cpp \
 	AliasSetTracker.cpp \
 	AssumptionCache.cpp \
 	BasicAliasAnalysis.cpp \
@@ -18,16 +16,23 @@ SRCS=	AliasAnalysis.cpp \
 	CFG.cpp \
 	CFGPrinter.cpp \
 	CFLAliasAnalysis.cpp \
+	CallGraph.cpp \
+	CallGraphSCCPass.cpp \
+	CallPrinter.cpp \
 	CaptureTracking.cpp \
 	CodeMetrics.cpp \
 	ConstantFolding.cpp \
 	CostModel.cpp \
 	Delinearization.cpp \
+	DemandedBits.cpp \
 	DependenceAnalysis.cpp \
 	DivergenceAnalysis.cpp \
 	DomPrinter.cpp \
 	DominanceFrontier.cpp \
+	EHPersonalities.cpp \
+	GlobalsModRef.cpp \
 	IVUsers.cpp \
+	InlineCost.cpp \
 	InstCount.cpp \
 	InstructionSimplify.cpp \
 	Interval.cpp \
@@ -35,8 +40,6 @@ SRCS=	AliasAnalysis.cpp \
 	IteratedDominanceFrontier.cpp \
 	LazyCallGraph.cpp \
 	LazyValueInfo.cpp \
-	LibCallAliasAnalysis.cpp \
-	LibCallSemantics.cpp \
 	Lint.cpp \
 	Loads.cpp \
 	LoopAccessAnalysis.cpp \
@@ -48,7 +51,10 @@ SRCS=	AliasAnalysis.cpp \
 	MemoryDependenceAnalysis.cpp \
 	MemoryLocation.cpp \
 	ModuleDebugInfoPrinter.cpp \
-	NoAliasAnalysis.cpp \
+	ObjCARCAliasAnalysis.cpp \
+	ObjCARCAnalysisUtils.cpp \
+	ObjCARCInstKind.cpp \
+	OrderedBasicBlock.cpp \
 	PHITransAddr.cpp \
 	PostDominators.cpp \
 	PtrUseVisitor.cpp \
@@ -73,6 +79,7 @@ SRCS+=	Analysis.cpp \
 	Trace.cpp
 .endif
 	
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

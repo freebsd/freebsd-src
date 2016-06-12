@@ -1,12 +1,13 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 TAP_TESTS_SH=	legacy_test
 
-FILESDIR=	${TESTSDIR}
-FILES=		regress.00.in
-FILES+=		regress.00.out
-FILES+=		regress.01.out
-FILES+=		regress.01.sh
-FILES+=		regress.sh
+${PACKAGE}FILES+=		regress.00.in
+${PACKAGE}FILES+=		regress.00.out
+${PACKAGE}FILES+=		regress.01.out
+${PACKAGE}FILES+=		regress.01.sh
+${PACKAGE}FILES+=		regress.sh
 
 .include <bsd.test.mk>

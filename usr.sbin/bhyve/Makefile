@@ -7,8 +7,11 @@ CFLAGS+=-I${.CURDIR}/../../contrib/lib9p
 .PATH:  ${.CURDIR}/../../contrib/lib9p
 
 PROG=	bhyve
+PACKAGE=	bhyve
 
 MAN=	bhyve.8
+
+BHYVE_SYSDIR?=${SRCTOP}
 
 SRCS=	\
 	atkbdc.c		\
@@ -45,7 +48,7 @@ SRCS=	\
 	xmsr.c			\
 	spinup_ap.c
 
-.PATH:	${.CURDIR}/../../sys/amd64/vmm
+.PATH:  ${BHYVE_SYSDIR}/sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md pthread 9p

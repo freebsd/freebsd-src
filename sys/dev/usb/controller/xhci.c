@@ -1830,8 +1830,8 @@ restart:
 			}
 
 			/* set up npkt */
-			npkt = (len_old - npkt_off + temp->max_packet_size - 1) /
-			    temp->max_packet_size;
+			npkt = howmany(len_old - npkt_off,
+				       temp->max_packet_size);
 
 			if (npkt == 0)
 				npkt = 1;
@@ -2185,10 +2185,9 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 				temp.len = xfer->max_frame_size;
 
 			/* compute TD packet count */
-			tdpc = (temp.len + xfer->max_packet_size - 1) /
-			    xfer->max_packet_size;
+			tdpc = howmany(temp.len, xfer->max_packet_size);
 
-			temp.tbc = ((tdpc + mult - 1) / mult) - 1;
+			temp.tbc = howmany(tdpc, mult) - 1;
 			temp.tlbpc = (tdpc % mult);
 
 			if (temp.tlbpc == 0)
@@ -2358,6 +2357,8 @@ xhci_configure_endpoint(struct usb_device *udev,
 
 	/* store endpoint mode */
 	pepext->trb_ep_mode = ep_mode;
+	/* store bMaxPacketSize for control endpoints */
+	pepext->trb_ep_maxp = edesc->wMaxPacketSize[0];
 	usb_pc_cpu_flush(pepext->page_cache);
 
 	if (ep_mode == USB_EP_MODE_STREAMS) {
@@ -2902,6 +2903,17 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 	if (pepext->trb_used[id] >= trb_limit) {
 		DPRINTFN(8, "Too many TDs queued.\n");
 		return (USB_ERR_NOMEM);
+	}
+
+	/* check if bMaxPacketSize changed */
+	if (xfer->flags_int.control_xfr != 0 &&
+	    pepext->trb_ep_maxp != xfer->endpoint->edesc->wMaxPacketSize[0]) {
+
+		DPRINTFN(8, "Reconfigure control endpoint\n");
+
+		/* force driver to reconfigure endpoint */
+		pepext->trb_halted = 1;
+		pepext->trb_running = 0;
 	}
 
 	/* check for stopped condition, after putting transfer on interrupt queue */

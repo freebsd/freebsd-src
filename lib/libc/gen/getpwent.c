@@ -748,7 +748,7 @@ pwdbopen(int *version)
 	else
 		*version = 3;
 	if (*version < 3 ||
-	    *version >= sizeof(pwdb_versions)/sizeof(pwdb_versions[0])) {
+	    *version >= nitems(pwdb_versions)) {
 		syslog(LOG_CRIT, "Unsupported password database version %d",
 		    *version);
 		res->close(res);

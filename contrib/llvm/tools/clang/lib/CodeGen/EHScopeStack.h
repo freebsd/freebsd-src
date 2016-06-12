@@ -96,6 +96,9 @@ enum CleanupKind : unsigned {
 /// and catch blocks.
 class EHScopeStack {
 public:
+  /* Should switch to alignof(uint64_t) instead of 8, when EHCleanupScope can */
+  enum { ScopeStackAlignment = 8 };
+
   /// A saved depth on the scope stack.  This is necessary because
   /// pushing scopes onto the stack invalidates iterators.
   class stable_iterator {
@@ -141,7 +144,15 @@ public:
   class Cleanup {
     // Anchor the construction vtable.
     virtual void anchor();
+
+  protected:
+    ~Cleanup() = default;
+
   public:
+    Cleanup(const Cleanup &) = default;
+    Cleanup(Cleanup &&) {}
+    Cleanup() = default;
+
     /// Generation flags.
     class Flags {
       enum {
@@ -168,10 +179,6 @@ public:
       void setIsEHCleanupKind() { flags |= F_IsEHCleanupKind; }
     };
 
-    // Provide a virtual destructor to suppress a very common warning
-    // that unfortunately cannot be suppressed without this.  Cleanups
-    // should not rely on this destructor ever being called.
-    virtual ~Cleanup() {}
 
     /// Emit the cleanup.  For normal cleanups, this is run in the
     /// same EH context as when the cleanup was pushed, i.e. the
@@ -184,7 +191,8 @@ public:
 
   /// ConditionalCleanup stores the saved form of its parameters,
   /// then restores them and performs the cleanup.
-  template <class T, class... As> class ConditionalCleanup : public Cleanup {
+  template <class T, class... As>
+  class ConditionalCleanup final : public Cleanup {
     typedef std::tuple<typename DominatingValue<As>::saved_type...> SavedTuple;
     SavedTuple Saved;
 
@@ -248,6 +256,7 @@ private:
   SmallVector<BranchFixup, 8> BranchFixups;
 
   char *allocate(size_t Size);
+  void deallocate(size_t Size);
 
   void *pushCleanup(CleanupKind K, size_t DataSize);
 
@@ -259,6 +268,8 @@ public:
 
   /// Push a lazily-created cleanup on the stack.
   template <class T, class... As> void pushCleanup(CleanupKind Kind, As... A) {
+    static_assert(llvm::AlignOf<T>::Alignment <= ScopeStackAlignment,
+                  "Cleanup's alignment is too large.");
     void *Buffer = pushCleanup(Kind, sizeof(T));
     Cleanup *Obj = new (Buffer) T(A...);
     (void) Obj;
@@ -267,6 +278,8 @@ public:
   /// Push a lazily-created cleanup on the stack. Tuple version.
   template <class T, class... As>
   void pushCleanupTuple(CleanupKind Kind, std::tuple<As...> A) {
+    static_assert(llvm::AlignOf<T>::Alignment <= ScopeStackAlignment,
+                  "Cleanup's alignment is too large.");
     void *Buffer = pushCleanup(Kind, sizeof(T));
     Cleanup *Obj = new (Buffer) T(std::move(A));
     (void) Obj;
@@ -287,6 +300,8 @@ public:
   /// stack is modified.
   template <class T, class... As>
   T *pushCleanupWithExtra(CleanupKind Kind, size_t N, As... A) {
+    static_assert(llvm::AlignOf<T>::Alignment <= ScopeStackAlignment,
+                  "Cleanup's alignment is too large.");
     void *Buffer = pushCleanup(Kind, sizeof(T) + T::getExtraSize(N));
     return new (Buffer) T(N, A...);
   }
@@ -346,7 +361,6 @@ public:
     return InnermostEHScope;
   }
 
-  stable_iterator getInnermostActiveEHScope() const;
 
   /// An unstable reference to a scope-stack depth.  Invalidated by
   /// pushes but not pops.
@@ -376,9 +390,6 @@ public:
   /// Turn a stable reference to a scope depth into a unstable pointer
   /// to the EH stack.
   iterator find(stable_iterator save) const;
-
-  /// Removes the cleanup pointed to by the given stable_iterator.
-  void removeCleanup(stable_iterator save);
 
   /// Add a branch fixup to the current cleanup scope.
   BranchFixup &addBranchFixup() {

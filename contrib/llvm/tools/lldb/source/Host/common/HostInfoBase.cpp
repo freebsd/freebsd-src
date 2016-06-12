@@ -20,6 +20,7 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <thread>
@@ -102,7 +103,7 @@ HostInfoBase::GetVendorString()
 {
     static std::once_flag g_once_flag;
     std::call_once(g_once_flag,  []() {
-        g_fields->m_vendor_string = std::move(HostInfo::GetArchitecture().GetTriple().getVendorName().str());
+        g_fields->m_vendor_string = HostInfo::GetArchitecture().GetTriple().getVendorName().str();
     });
     return g_fields->m_vendor_string;
 }
@@ -306,7 +307,10 @@ HostInfoBase::ComputeSharedLibraryDirectory(FileSpec &file_spec)
 
     FileSpec lldb_file_spec(
         Host::GetModuleFileSpecForHostAddress(reinterpret_cast<void *>(reinterpret_cast<intptr_t>(HostInfoBase::GetLLDBPath))));
-
+    
+    // This is necessary because when running the testsuite the shlib might be a symbolic link inside the Python resource dir.
+    FileSystem::ResolveSymbolicLink(lldb_file_spec, lldb_file_spec);
+    
     // Remove the filename so that this FileSpec only represents the directory.
     file_spec.GetDirectory() = lldb_file_spec.GetDirectory();
 
@@ -341,19 +345,9 @@ HostInfoBase::ComputeProcessTempFileDirectory(FileSpec &file_spec)
 bool
 HostInfoBase::ComputeTempFileBaseDirectory(FileSpec &file_spec)
 {
-    file_spec.Clear();
-
-    const char *tmpdir_cstr = getenv("TMPDIR");
-    if (tmpdir_cstr == nullptr)
-    {
-        tmpdir_cstr = getenv("TMP");
-        if (tmpdir_cstr == nullptr)
-            tmpdir_cstr = getenv("TEMP");
-    }
-    if (!tmpdir_cstr)
-        return false;
-
-    file_spec = FileSpec(tmpdir_cstr, false);
+    llvm::SmallVector<char, 16> tmpdir;
+    llvm::sys::path::system_temp_directory(/*ErasedOnReboot*/ true, tmpdir);
+    file_spec = FileSpec(std::string(tmpdir.data(), tmpdir.size()), true);
     return true;
 }
 
@@ -415,13 +409,13 @@ HostInfoBase::ComputeHostArchitectureSupport(ArchSpec &arch_32, ArchSpec &arch_6
             arch_32.SetTriple(triple);
             break;
 
+        case llvm::Triple::aarch64:
         case llvm::Triple::ppc64:
         case llvm::Triple::x86_64:
             arch_64.SetTriple(triple);
             arch_32.SetTriple(triple.get32BitArchVariant());
             break;
 
-        case llvm::Triple::aarch64:
         case llvm::Triple::mips64:
         case llvm::Triple::mips64el:
         case llvm::Triple::sparcv9:

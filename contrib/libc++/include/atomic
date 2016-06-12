@@ -535,13 +535,12 @@ void atomic_signal_fence(memory_order m) noexcept;
 
 #ifdef _LIBCPP_HAS_NO_THREADS
 #error <atomic> is not supported on this single threaded system
-#else // !_LIBCPP_HAS_NO_THREADS
+#endif
+#if !defined(_LIBCPP_HAS_C_ATOMIC_IMP) && !defined(_LIBCPP_HAS_GCC_ATOMIC_IMP)
+#error <atomic> is not implemented
+#endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
-
-#if !__has_feature(cxx_atomic) && _GNUC_VER < 407
-#error <atomic> is not implemented
-#else
 
 typedef enum memory_order
 {
@@ -549,11 +548,22 @@ typedef enum memory_order
     memory_order_release, memory_order_acq_rel, memory_order_seq_cst
 } memory_order;
 
-#if _GNUC_VER >= 407
+#if defined(_LIBCPP_HAS_GCC_ATOMIC_IMP)
 namespace __gcc_atomic {
 template <typename _Tp>
 struct __gcc_atomic_t {
-  __gcc_atomic_t() _NOEXCEPT {}
+
+#if _GNUC_VER >= 501
+    static_assert(is_trivially_copyable<_Tp>::value,
+      "std::atomic<Tp> requires that 'Tp' be a trivially copyable type");
+#endif
+
+  _LIBCPP_INLINE_VISIBILITY
+#ifndef _LIBCPP_HAS_NO_DEFAULTED_FUNCTIONS
+    __gcc_atomic_t() _NOEXCEPT = default;
+#else
+    __gcc_atomic_t() _NOEXCEPT : __a_value() {}
+#endif // _LIBCPP_HAS_NO_DEFAULTED_FUNCTIONS
   _LIBCPP_CONSTEXPR explicit __gcc_atomic_t(_Tp value) _NOEXCEPT
     : __a_value(value) {}
   _Tp __a_value;
@@ -574,7 +584,7 @@ struct __can_assign {
       sizeof(__test_atomic_assignable<_Tp, _Td>(1)) == sizeof(char);
 };
 
-static inline constexpr int __to_gcc_order(memory_order __order) {
+static inline _LIBCPP_CONSTEXPR int __to_gcc_order(memory_order __order) {
   // Avoid switch statement to make this a constexpr.
   return __order == memory_order_relaxed ? __ATOMIC_RELAXED:
          (__order == memory_order_acquire ? __ATOMIC_ACQUIRE:
@@ -584,7 +594,7 @@ static inline constexpr int __to_gcc_order(memory_order __order) {
               __ATOMIC_CONSUME))));
 }
 
-static inline constexpr int __to_gcc_failure_order(memory_order __order) {
+static inline _LIBCPP_CONSTEXPR int __to_gcc_failure_order(memory_order __order) {
   // Avoid switch statement to make this a constexpr.
   return __order == memory_order_relaxed ? __ATOMIC_RELAXED:
          (__order == memory_order_acquire ? __ATOMIC_ACQUIRE:
@@ -805,7 +815,7 @@ static inline _Tp __c11_atomic_fetch_xor(_Atomic(_Tp)* __a, _Tp __pattern,
   return __atomic_fetch_xor(&__a->__a_value, __pattern,
                             __gcc_atomic::__to_gcc_order(__order));
 }
-#endif // _GNUC_VER >= 407
+#endif // _LIBCPP_HAS_GCC_ATOMIC_IMP
 
 template <class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
@@ -825,7 +835,7 @@ struct __atomic_base  // false
     _LIBCPP_INLINE_VISIBILITY
     bool is_lock_free() const volatile _NOEXCEPT
     {
-#if __has_feature(cxx_atomic)
+#if defined(_LIBCPP_HAS_C_ATOMIC_IMP)
     return __c11_atomic_is_lock_free(sizeof(_Tp));
 #else
     return __atomic_is_lock_free(sizeof(_Tp), 0);
@@ -1779,8 +1789,6 @@ typedef atomic<uintmax_t> atomic_uintmax_t;
 #define ATOMIC_FLAG_INIT {false}
 #define ATOMIC_VAR_INIT(__v) {__v}
 
-// lock-free property
-
 #define ATOMIC_BOOL_LOCK_FREE      __GCC_ATOMIC_BOOL_LOCK_FREE
 #define ATOMIC_CHAR_LOCK_FREE      __GCC_ATOMIC_CHAR_LOCK_FREE
 #define ATOMIC_CHAR16_T_LOCK_FREE  __GCC_ATOMIC_CHAR16_T_LOCK_FREE
@@ -1792,10 +1800,6 @@ typedef atomic<uintmax_t> atomic_uintmax_t;
 #define ATOMIC_LLONG_LOCK_FREE     __GCC_ATOMIC_LLONG_LOCK_FREE
 #define ATOMIC_POINTER_LOCK_FREE   __GCC_ATOMIC_POINTER_LOCK_FREE
 
-#endif  //  !__has_feature(cxx_atomic)
-
 _LIBCPP_END_NAMESPACE_STD
-
-#endif  // !_LIBCPP_HAS_NO_THREADS
 
 #endif  // _LIBCPP_ATOMIC

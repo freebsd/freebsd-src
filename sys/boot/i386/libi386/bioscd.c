@@ -85,13 +85,19 @@ struct specification_packet {
 static struct bcinfo {
 	int	bc_unit;		/* BIOS unit number */
 	struct specification_packet bc_sp;
+	int	bc_open;		/* reference counter */
+	void	*bc_bcache;		/* buffer cache data */
 } bcinfo [MAXBCDEV];
 static int nbcinfo = 0;
+
+#define	BC(dev)	(bcinfo[(dev)->d_unit])
 
 static int	bc_read(int unit, daddr_t dblk, int blks, caddr_t dest);
 static int	bc_init(void);
 static int	bc_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+    size_t offset, size_t size, char *buf, size_t *rsize);
+static int	bc_realstrategy(void *devdata, int flag, daddr_t dblk,
+    size_t offset, size_t size, char *buf, size_t *rsize);
 static int	bc_open(struct open_file *f, ...);
 static int	bc_close(struct open_file *f);
 static void	bc_print(int verbose);
@@ -164,6 +170,7 @@ bc_add(int biosdev)
 
 	printf("BIOS CD is cd%d\n", nbcinfo);
 	nbcinfo++;
+	bcache_add_dev(nbcinfo);	/* register cd device in bcache */
 	return(0);
 }
 
@@ -176,11 +183,14 @@ bc_print(int verbose)
 	char line[80];
 	int i;
 
+	pager_open();
 	for (i = 0; i < nbcinfo; i++) {
 		sprintf(line, "    cd%d: Device 0x%x\n", i,
 		    bcinfo[i].bc_sp.sp_devicespec);
-		pager_output(line);
+		if (pager_output(line))
+			break;
 	}
+	pager_close();
 }
 
 /*
@@ -200,19 +210,44 @@ bc_open(struct open_file *f, ...)
 		return(ENXIO);
 	}
 
+	BC(dev).bc_open++;
+	if (BC(dev).bc_bcache == NULL)
+		BC(dev).bc_bcache = bcache_allocate();
 	return(0);
 }
  
 static int 
 bc_close(struct open_file *f)
 {
+	struct i386_devdesc *dev;
 
+	dev = (struct i386_devdesc *)f->f_devdata;
+	BC(dev).bc_open--;
+	if (BC(dev).bc_open == 0) {
+		bcache_free(BC(dev).bc_bcache);
+		BC(dev).bc_bcache = NULL;
+	}
 	return(0);
 }
 
+static int
+bc_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+    char *buf, size_t *rsize)
+{
+	struct bcache_devdata bcd;
+	struct i386_devdesc *dev;
+
+	dev = (struct i386_devdesc *)devdata;
+	bcd.dv_strategy = bc_realstrategy;
+	bcd.dv_devdata = devdata;
+	bcd.dv_cache = BC(dev).bc_bcache;
+
+	return (bcache_strategy(&bcd, rw, dblk, offset, size, buf, rsize));
+}
+
 static int 
-bc_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf,
-    size_t *rsize)
+bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+    char *buf, size_t *rsize)
 {
 	struct i386_devdesc *dev;
 	int unit;
@@ -239,14 +274,25 @@ bc_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf,
 
 	if (rsize)
 		*rsize = 0;
-	if (blks && bc_read(unit, dblk, blks, buf)) {
+	if ((blks = bc_read(unit, dblk, blks, buf)) < 0) {
 		DEBUG("read error");
 		return (EIO);
+	} else {
+		if (size / BIOSCD_SECSIZE > blks) {
+			if (rsize)
+				*rsize = blks * BIOSCD_SECSIZE;
+			return (0);
+		}
 	}
 #ifdef BD_SUPPORT_FRAGS
 	DEBUG("frag read %d from %lld+%d to %p", 
 	    fragsize, dblk, blks, buf + (blks * BIOSCD_SECSIZE));
-	if (fragsize && bc_read(unit, dblk + blks, 1, fragbuf)) {
+	if (fragsize && bc_read(unit, dblk + blks, 1, fragbuf) != 1) {
+		if (blks) {
+			if (rsize)
+				*rsize = blks * BIOSCD_SECSIZE;
+			return (0);
+		}
 		DEBUG("frag read error");
 		return(EIO);
 	}
@@ -260,6 +306,7 @@ bc_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf,
 /* Max number of sectors to bounce-buffer at a time. */
 #define	CD_BOUNCEBUF	8
 
+/* return negative value for an error, otherwise blocks read */
 static int
 bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 {
@@ -336,6 +383,8 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 			result = V86_CY(v86.efl);
 			if (result == 0)
 				break;
+			/* fall back to 1 sector read */
+			x = 1;
 		}
 	
 #ifdef DISK_DEBUG
@@ -344,6 +393,11 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 		DEBUG("%d sectors from %lld to %p (0x%x) %s", x, dblk, p,
 		    VTOP(p), result ? "failed" : "ok");
 		DEBUG("unit %d  status 0x%x", unit, error);
+
+		/* still an error? break off */
+		if (result != 0)
+			break;
+
 		if (bbuf != NULL)
 			bcopy(bbuf, p, x * BIOSCD_SECSIZE);
 		p += (x * BIOSCD_SECSIZE);
@@ -352,7 +406,11 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 	}
 	
 /*	hexdump(dest, (blks * BIOSCD_SECSIZE)); */
-	return(0);
+
+	if (blks - resid == 0)
+		return (-1);		/* read failed */
+
+	return (blks - resid);
 }
 
 /*

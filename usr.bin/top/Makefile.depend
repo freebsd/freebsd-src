@@ -20,12 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-commands.o: sigdesc.h
-commands.po: sigdesc.h
-display.o: top.local.h
-display.po: top.local.h
-top.o: top.local.h
-top.po: top.local.h
-username.o: top.local.h
-username.po: top.local.h
 .endif

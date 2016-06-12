@@ -123,7 +123,7 @@ struct arm_lbabi_tag
 };
 
 #define	ATAG_TAG(a)  (a)->tag_hdr.tag
-#define ATAG_SIZE(a) (a)->tag_hdr.size
+#define ATAG_SIZE(a) ((a)->tag_hdr.size * sizeof(uint32_t))
 #define ATAG_NEXT(a) (struct arm_lbabi_tag *)((char *)(a) + ATAG_SIZE(a))
 
 #endif /* __MACHINE_ATAGS_H__ */

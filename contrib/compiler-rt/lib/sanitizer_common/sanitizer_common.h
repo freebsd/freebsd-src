@@ -49,6 +49,8 @@ static const uptr kMaxNumberOfModules = 1 << 14;
 
 const uptr kMaxThreadStackSize = 1 << 30;  // 1Gb
 
+static const uptr kErrorMessageBufferSize = 1 << 16;
+
 // Denotes fake PC values that come from JIT/JAVA/etc.
 // For such PC values __tsan_symbolize_external() will be called.
 const u64 kExternalPCBit = 1ULL << 60;
@@ -76,7 +78,10 @@ void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
                           uptr *tls_addr, uptr *tls_size);
 
 // Memory management
-void *MmapOrDie(uptr size, const char *mem_type);
+void *MmapOrDie(uptr size, const char *mem_type, bool raw_report = false);
+INLINE void *MmapOrDieQuietly(uptr size, const char *mem_type) {
+  return MmapOrDie(size, mem_type, /*raw_report*/ true);
+}
 void UnmapOrDie(void *addr, uptr size);
 void *MmapFixedNoReserve(uptr fixed_addr, uptr size,
                          const char *name = nullptr);
@@ -97,6 +102,8 @@ void DecreaseTotalMmap(uptr size);
 uptr GetRSS();
 void NoHugePagesInRegion(uptr addr, uptr length);
 void DontDumpShadowMemory(uptr addr, uptr length);
+// Check if the built VMA size matches the runtime one.
+void CheckVMASize();
 
 // InternalScopedBuffer can be used instead of large stack arrays to
 // keep frame size low.
@@ -160,6 +167,7 @@ void SetLowLevelAllocateCallback(LowLevelAllocateCallback callback);
 // IO
 void RawWrite(const char *buffer);
 bool ColorizeReports();
+void RemoveANSIEscapeSequencesFromString(char *buffer);
 void Printf(const char *format, ...);
 void Report(const char *format, ...);
 void SetPrintfAndReportCallback(void (*callback)(const char *));
@@ -224,14 +232,23 @@ bool WriteToFile(fd_t fd, const void *buff, uptr buff_size,
 bool RenameFile(const char *oldpath, const char *newpath,
                 error_t *error_p = nullptr);
 
+// Scoped file handle closer.
+struct FileCloser {
+  explicit FileCloser(fd_t fd) : fd(fd) {}
+  ~FileCloser() { CloseFile(fd); }
+  fd_t fd;
+};
+
 bool SupportsColoredOutput(fd_t fd);
 
 // Opens the file 'file_name" and reads up to 'max_len' bytes.
 // The resulting buffer is mmaped and stored in '*buff'.
-// The size of the mmaped region is stored in '*buff_size',
-// Returns the number of read bytes or 0 if file can not be opened.
-uptr ReadFileToBuffer(const char *file_name, char **buff, uptr *buff_size,
-                      uptr max_len, error_t *errno_p = nullptr);
+// The size of the mmaped region is stored in '*buff_size'.
+// The total number of read bytes is stored in '*read_len'.
+// Returns true if file was successfully opened and read.
+bool ReadFileToBuffer(const char *file_name, char **buff, uptr *buff_size,
+                      uptr *read_len, uptr max_len = 1 << 26,
+                      error_t *errno_p = nullptr);
 // Maps given file to virtual memory, and returns pointer to it
 // (or NULL if mapping fails). Stores the size of mmaped region
 // in '*buff_size'.
@@ -249,7 +266,9 @@ const char *StripModuleName(const char *module);
 // OS
 uptr ReadBinaryName(/*out*/char *buf, uptr buf_len);
 uptr ReadBinaryNameCached(/*out*/char *buf, uptr buf_len);
-const char *GetBinaryBasename();
+uptr ReadLongProcessName(/*out*/ char *buf, uptr buf_len);
+const char *GetProcessName();
+void UpdateProcessName();
 void CacheBinaryName();
 void DisableCoreDumperIfNecessary();
 void DumpProcessMap();
@@ -295,6 +314,9 @@ void NORETURN Abort();
 void NORETURN Die();
 void NORETURN
 CheckFailed(const char *file, int line, const char *cond, u64 v1, u64 v2);
+void NORETURN ReportMmapFailureAndDie(uptr size, const char *mem_type,
+                                      const char *mmap_type, error_t err,
+                                      bool raw_report = false);
 
 // Set the name of the current thread to 'name', return true on succees.
 // The name may be truncated to a system-dependent limit.
@@ -306,9 +328,16 @@ bool SanitizerGetThreadName(char *name, int max_len);
 // Specific tools may override behavior of "Die" and "CheckFailed" functions
 // to do tool-specific job.
 typedef void (*DieCallbackType)(void);
-void SetDieCallback(DieCallbackType);
-void SetUserDieCallback(DieCallbackType);
-DieCallbackType GetDieCallback();
+
+// It's possible to add several callbacks that would be run when "Die" is
+// called. The callbacks will be run in the opposite order. The tools are
+// strongly recommended to setup all callbacks during initialization, when there
+// is only a single thread.
+bool AddDieCallback(DieCallbackType callback);
+bool RemoveDieCallback(DieCallbackType callback);
+
+void SetUserDieCallback(DieCallbackType callback);
+
 typedef void (*CheckFailedCallbackType)(const char *, int, const char *,
                                        u64, u64);
 void SetCheckFailedCallback(CheckFailedCallbackType callback);
@@ -400,7 +429,7 @@ INLINE uptr RoundUpToPowerOfTwo(uptr size) {
 }
 
 INLINE uptr RoundUpTo(uptr size, uptr boundary) {
-  CHECK(IsPowerOfTwo(boundary));
+  RAW_CHECK(IsPowerOfTwo(boundary));
   return (size + boundary - 1) & ~(boundary - 1);
 }
 
@@ -626,17 +655,34 @@ enum AndroidApiLevel {
   ANDROID_POST_LOLLIPOP = 23
 };
 
-#if SANITIZER_ANDROID
+void WriteToSyslog(const char *buffer);
+
+#if SANITIZER_MAC
+void LogFullErrorReport(const char *buffer);
+#else
+INLINE void LogFullErrorReport(const char *buffer) {}
+#endif
+
+#if SANITIZER_LINUX || SANITIZER_MAC
+void WriteOneLineToSyslog(const char *s);
+void LogMessageOnPrintf(const char *str);
+#else
+INLINE void WriteOneLineToSyslog(const char *s) {}
+INLINE void LogMessageOnPrintf(const char *str) {}
+#endif
+
+#if SANITIZER_LINUX
 // Initialize Android logging. Any writes before this are silently lost.
 void AndroidLogInit();
-void AndroidLogWrite(const char *buffer);
-void GetExtraActivationFlags(char *buf, uptr size);
+#else
+INLINE void AndroidLogInit() {}
+#endif
+
+#if SANITIZER_ANDROID
 void SanitizerInitializeUnwinder();
 AndroidApiLevel AndroidGetApiLevel();
 #else
-INLINE void AndroidLogInit() {}
 INLINE void AndroidLogWrite(const char *buffer_unused) {}
-INLINE void GetExtraActivationFlags(char *buf, uptr size) { *buf = '\0'; }
 INLINE void SanitizerInitializeUnwinder() {}
 INLINE AndroidApiLevel AndroidGetApiLevel() { return ANDROID_NOT_ANDROID; }
 #endif
@@ -684,6 +730,9 @@ struct SignalContext {
 };
 
 void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp);
+
+void DisableReexec();
+void MaybeReexec();
 
 }  // namespace __sanitizer
 

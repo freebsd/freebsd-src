@@ -125,6 +125,8 @@ def CC_ARM_AAPCS_Common : CallingConv<[
   CCIfType<[i32], CCAssignToStackWithShadow<4, 4, [R0, R1, R2, R3]>>,
   CCIfType<[f32], CCAssignToStackWithShadow<4, 4, [Q0, Q1, Q2, Q3]>>,
   CCIfType<[f64], CCAssignToStackWithShadow<8, 8, [Q0, Q1, Q2, Q3]>>,
+  CCIfType<[v2f64], CCIfAlign<"16",
+           CCAssignToStackWithShadow<16, 16, [Q0, Q1, Q2, Q3]>>>,
   CCIfType<[v2f64], CCAssignToStackWithShadow<16, 8, [Q0, Q1, Q2, Q3]>>
 ]>;
 
@@ -222,6 +224,21 @@ def CSR_iOS : CalleeSavedRegs<(add LR, R7, R6, R5, R4, (sub CSR_AAPCS, R9))>;
 
 def CSR_iOS_ThisReturn : CalleeSavedRegs<(add LR, R7, R6, R5, R4,
                                          (sub CSR_AAPCS_ThisReturn, R9))>;
+
+def CSR_iOS_TLSCall : CalleeSavedRegs<(add LR, SP,
+                                           (sequence "R%u", 12, 1),
+                                           (sequence "D%u", 31, 0))>;
+
+// C++ TLS access function saves all registers except SP. Try to match
+// the order of CSRs in CSR_iOS.
+def CSR_iOS_CXX_TLS : CalleeSavedRegs<(add CSR_iOS, (sequence "R%u", 12, 1),
+                                           (sequence "D%u", 31, 0))>;
+
+// CSRs that are handled by prologue, epilogue.
+def CSR_iOS_CXX_TLS_PE : CalleeSavedRegs<(add LR)>;
+
+// CSRs that are handled explicitly via copies.
+def CSR_iOS_CXX_TLS_ViaCopy : CalleeSavedRegs<(sub CSR_iOS_CXX_TLS, LR)>;
 
 // The "interrupt" attribute is used to generate code that is acceptable in
 // exception-handlers of various kinds. It makes us use a different return

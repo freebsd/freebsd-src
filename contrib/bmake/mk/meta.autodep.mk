@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.39 2015/12/07 04:35:32 sjg Exp $
+# $Id: meta.autodep.mk,v 1.45 2016/06/03 17:22:32 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -18,7 +18,7 @@ _this ?= ${.PARSEFILE}
 .if !target(__${_this}__)
 __${_this}__: .NOTMAIN
 
-.-include "local.autodep.mk"
+.-include <local.autodep.mk>
 
 .if defined(SRCS)
 # it would be nice to be able to query .SUFFIXES
@@ -55,6 +55,21 @@ _OBJTOP ?= ${OBJTOP}
 _OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
 _DEPENDFILE := ${_CURDIR}/${.MAKE.DEPENDFILE:T}
 
+.if ${.MAKE.LEVEL} > 0 || ${BUILD_AT_LEVEL0:Uyes:tl} == "yes"
+# do not allow auto update if we ever built this dir without filemon
+NO_FILEMON_COOKIE = .nofilemon
+CLEANFILES += ${NO_FILEMON_COOKIE}
+.if ${.MAKE.MODE:Uno:Mnofilemon} != ""
+UPDATE_DEPENDFILE = NO
+all: ${NO_FILEMON_COOKIE}
+${NO_FILEMON_COOKIE}: .NOMETA
+	@echo UPDATE_DEPENDFILE=NO > ${.TARGET}
+.elif exists(${NO_FILEMON_COOKIE})
+UPDATE_DEPENDFILE = NO
+.warning ${RELDIR} built with nofilemon; UPDATE_DEPENDFILE=NO
+.endif
+.endif
+
 .if ${.MAKE.LEVEL} == 0
 .if ${BUILD_AT_LEVEL0:Uyes:tl} == "no"
 UPDATE_DEPENDFILE = NO
@@ -86,7 +101,7 @@ WANT_UPDATE_DEPENDFILE ?= yes
 .endif
 
 .if ${WANT_UPDATE_DEPENDFILE:Uno:tl} != "no"
-.if ${.MAKE.MODE:Mmeta*} == "" || ${.MAKE.MODE:M*read*} != ""
+.if ${.MAKE.MODE:Uno:Mmeta*} == "" || ${.MAKE.MODE:Uno:M*read*} != ""
 UPDATE_DEPENDFILE = no
 .endif
 
@@ -195,7 +210,7 @@ gendirdeps:	${_DEPENDFILE}
 # The pseudo machine "host" is used for HOST_TARGET
 DIRDEPS += \
 	${DPADD:M${_OBJTOP}*:H:C,${_OBJTOP}[^/]*/,,:N.:O:u} \
-	${DPADD:M${_OBJROOT}*:N${_OBJTOP}*:H:S,${_OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
+	${DPADD:M${_OBJROOT}*:N${_OBJTOP}*:N${STAGE_ROOT:U${_OBJTOP}}/*:H:S,${_OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
 
 .endif
 .endif
@@ -251,7 +266,7 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 	DPADD='${FORCE_DPADD:O:u}' ${_gendirdeps_mutex} \
 	MAKESYSPATH=${_makesyspath} \
 	${.MAKE} -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE} \
-	META_FILES='${META_XTRAS:T:O:u} ${META_FILES:T:O:u:${META_FILE_FILTER:ts:}}')
+	META_FILES='${META_XTRAS:O:u} ${META_FILES:T:O:u:${META_FILE_FILTER:ts:}}')
 	@test -s $@ && touch $@; :
 .endif
 

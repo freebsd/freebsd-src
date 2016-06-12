@@ -116,7 +116,7 @@ static vop_vptofh_t	msdosfs_vptofh;
  * that when a directory is actually read/written (via read, write, or
  * readdir, or seek) we must use the vnode for the filesystem instead of
  * the vnode for the directory as would happen in ufs. This is to insure we
- * retreive the correct block from the buffer cache since the hash value is
+ * retrieve the correct block from the buffer cache since the hash value is
  * based upon the vnode address and the desired block number.
  */
 
@@ -941,13 +941,9 @@ msdosfs_rename(struct vop_rename_args *ap)
 	int error;
 	u_long cn, pcl;
 	daddr_t bn;
-	struct denode *fddep;	/* from file's parent directory	 */
 	struct msdosfsmount *pmp;
 	struct direntry *dotdotp;
 	struct buf *bp;
-
-	fddep = VTODE(ap->a_fdvp);
-	pmp = fddep->de_pmp;
 
 	pmp = VFSTOMSDOSFS(fdvp->v_mount);
 

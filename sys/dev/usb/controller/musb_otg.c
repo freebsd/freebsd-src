@@ -33,7 +33,6 @@
  * This file contains the driver for the Mentor Graphics Inventra USB
  * 2.0 High Speed Dual-Role controller.
  *
- * NOTE: The current implementation only supports Device Side Mode!
  */
 
 #ifdef USB_GLOBAL_INCLUDE_FILE

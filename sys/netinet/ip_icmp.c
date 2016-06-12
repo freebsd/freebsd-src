@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
+#include <netinet/sctp.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
@@ -104,18 +105,19 @@ static VNET_DEFINE(int, icmpmaskrepl) = 0;
 #define	V_icmpmaskrepl			VNET(icmpmaskrepl)
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmpmaskrepl), 0,
-	"Reply to ICMP Address Mask Request packets.");
+	"Reply to ICMP Address Mask Request packets");
 
 static VNET_DEFINE(u_int, icmpmaskfake) = 0;
 #define	V_icmpmaskfake			VNET(icmpmaskfake)
 SYSCTL_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmpmaskfake), 0,
-	"Fake reply to ICMP Address Mask Request packets.");
+	"Fake reply to ICMP Address Mask Request packets");
 
 VNET_DEFINE(int, drop_redirect) = 0;
 #define	V_drop_redirect			VNET(drop_redirect)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(drop_redirect), 0, "Ignore ICMP redirects");
+	&VNET_NAME(drop_redirect), 0,
+	"Ignore ICMP redirects");
 
 static VNET_DEFINE(int, log_redirect) = 0;
 #define	V_log_redirect			VNET(log_redirect)
@@ -127,7 +129,7 @@ static VNET_DEFINE(char, reply_src[IFNAMSIZ]);
 #define	V_reply_src			VNET(reply_src)
 SYSCTL_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(reply_src), IFNAMSIZ,
-	"icmp reply source for non-local packets.");
+	"ICMP reply source for non-local packets");
 
 static VNET_DEFINE(int, icmp_rfi) = 0;
 #define	V_icmp_rfi			VNET(icmp_rfi)
@@ -141,19 +143,17 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmp_quotelen), 0,
 	"Number of bytes from original packet to quote in ICMP reply");
 
-/*
- * ICMP broadcast echo sysctl
- */
 static VNET_DEFINE(int, icmpbmcastecho) = 0;
 #define	V_icmpbmcastecho		VNET(icmpbmcastecho)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmpbmcastecho), 0,
-	"");
+	"Reply to multicast ICMP Echo Request and Timestamp packets");
 
 static VNET_DEFINE(int, icmptstamprepl) = 1;
 #define	V_icmptstamprepl		VNET(icmptstamprepl)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, tstamprepl, CTLFLAG_RW,
-	&VNET_NAME(icmptstamprepl), 0, "Respond to ICMP Timestamp packets");
+	&VNET_NAME(icmptstamprepl), 0,
+	"Respond to ICMP Timestamp packets");
 
 #ifdef ICMPPRINTFS
 int	icmpprintfs = 0;
@@ -223,7 +223,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 	/*
 	 * Calculate length to quote from original packet and
 	 * prevent the ICMP mbuf from overflowing.
-	 * Unfortunatly this is non-trivial since ip_forward()
+	 * Unfortunately this is non-trivial since ip_forward()
 	 * sends us truncated packets.
 	 */
 	nlen = m_length(n, NULL);
@@ -250,6 +250,34 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 			goto freeit;
 		icmpelen = max(tcphlen, min(V_icmp_quotelen,
 		    ntohs(oip->ip_len) - oiphlen));
+	} else if (oip->ip_p == IPPROTO_SCTP) {
+		struct sctphdr *sh;
+		struct sctp_chunkhdr *ch;
+
+		if (ntohs(oip->ip_len) < oiphlen + sizeof(struct sctphdr))
+			goto stdreply;
+		if (oiphlen + sizeof(struct sctphdr) > n->m_len &&
+		    n->m_next == NULL)
+			goto stdreply;
+		if (n->m_len < oiphlen + sizeof(struct sctphdr) &&
+		    (n = m_pullup(n, oiphlen + sizeof(struct sctphdr))) == NULL)
+			goto freeit;
+		icmpelen = max(sizeof(struct sctphdr),
+		    min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
+		sh = (struct sctphdr *)((caddr_t)oip + oiphlen);
+		if (ntohl(sh->v_tag) == 0 &&
+		    ntohs(oip->ip_len) >= oiphlen + sizeof(struct sctphdr) + 8 &&
+		    (n->m_len >= oiphlen + sizeof(struct sctphdr) + 8 ||
+		     n->m_next != NULL)) {
+			if (n->m_len < oiphlen + sizeof(struct sctphdr) + 8 &&
+			    (n = m_pullup(n, oiphlen + sizeof(struct sctphdr) + 8)) == NULL)
+				goto freeit;
+			ch = (struct sctp_chunkhdr *)(sh + 1);
+			if (ch->chunk_type == SCTP_INITIATION) {
+				icmpelen = max(sizeof(struct sctphdr) + 8,
+				    min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
+			}
+		}
 	} else
 stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
 
@@ -475,6 +503,23 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 * XXX if the packet contains [IPv4 AH TCP], we can't make a
 		 * notification to TCP layer.
 		 */
+		i = sizeof(struct ip) + min(icmplen, ICMP_ADVLENPREF(icp));
+		ip_stripoptions(m);
+		if (m->m_len < i && (m = m_pullup(m, i)) == NULL) {
+			/* This should actually not happen */
+			ICMPSTAT_INC(icps_tooshort);
+			return (IPPROTO_DONE);
+		}
+		ip = mtod(m, struct ip *);
+		icp = (struct icmp *)(ip + 1);
+		/*
+		 * The upper layer handler can rely on:
+		 * - The outer IP header has no options.
+		 * - The outer IP header, the ICMP header, the inner IP header,
+		 *   and the first n bytes of the inner payload are contiguous.
+		 *   n is at least 8, but might be larger based on 
+		 *   ICMP_ADVLENPREF. See its definition in ip_icmp.h.
+		 */
 		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
 		if (ctlfunc)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
@@ -657,7 +702,7 @@ icmp_reflect(struct mbuf *m)
 	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct nhop4_extended nh_ext;
-	struct mbuf *opts = 0;
+	struct mbuf *opts = NULL;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
@@ -773,7 +818,7 @@ match:
 		 * add on any record-route or timestamp options.
 		 */
 		cp = (u_char *) (ip + 1);
-		if ((opts = ip_srcroute(m)) == 0 &&
+		if ((opts = ip_srcroute(m)) == NULL &&
 		    (opts = m_gethdr(M_NOWAIT, MT_DATA))) {
 			opts->m_len = sizeof(struct in_addr);
 			mtod(opts, struct in_addr *)->s_addr = 0;

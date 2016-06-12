@@ -348,13 +348,13 @@ ndis_create_sysctls(arg)
 	ndis_add_sysctl(sc, "BusType", "Bus Type", buf, NDIS_FLAG_RDONLY);
 
 	if (sc->ndis_res_io != NULL) {
-		sprintf(buf, "0x%lx", rman_get_start(sc->ndis_res_io));
+		sprintf(buf, "0x%jx", rman_get_start(sc->ndis_res_io));
 		ndis_add_sysctl(sc, "IOBaseAddress",
 		    "Base I/O Address", buf, NDIS_FLAG_RDONLY);
 	}
 
 	if (sc->ndis_irq != NULL) {
-		sprintf(buf, "%lu", rman_get_start(sc->ndis_irq));
+		sprintf(buf, "%ju", rman_get_start(sc->ndis_irq));
 		ndis_add_sysctl(sc, "InterruptNumber",
 		    "Interrupt Number", buf, NDIS_FLAG_RDONLY);
 	}
@@ -717,7 +717,7 @@ ndis_ptom(m0, p)
  * send routine.
  *
  * NDIS packets consist of two parts: an ndis_packet structure,
- * which is vaguely analagous to the pkthdr portion of an mbuf,
+ * which is vaguely analogous to the pkthdr portion of an mbuf,
  * and one or more ndis_buffer structures, which define the
  * actual memory segments in which the packet data resides.
  * We need to allocate one ndis_buffer for each mbuf in a chain,

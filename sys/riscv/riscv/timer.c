@@ -145,8 +145,9 @@ riscv_tmr_intr(void *arg)
 
 	/*
 	 * Clear interrupt pending bit.
-	 * Note sip register is unimplemented in Spike simulator,
-	 * so use machine command to clear in mip.
+	 * Note: SIP_STIP bit is not implemented in sip register
+	 * in Spike simulator, so use machine command to clear
+	 * interrupt pending bit in mip.
 	 */
 	machine_command(ECALL_CLEAR_PENDING, 0);
 

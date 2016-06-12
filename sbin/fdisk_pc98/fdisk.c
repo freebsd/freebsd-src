@@ -63,8 +63,6 @@ static char lbuf[LBUF];
 #define Decimal(str, ans, tmp) if (decimal(str, &tmp, ans)) ans = tmp
 #define String(str, ans, len) {char *z = ans; char **dflt = &z; if (string(str, dflt)) strncpy(ans, *dflt, len); }
 
-#define RoundCyl(x) ((((x) + cylsecs - 1) / cylsecs) * cylsecs)
-
 #define MAX_SEC_SIZE 2048	/* maximum section size that is supported */
 #define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
 static int secsize = 0;		/* the sensed sector size */
@@ -854,17 +852,11 @@ string(const char *str, char **ans)
 static const char *
 get_type(int type)
 {
-	int	numentries = (sizeof(part_types)/sizeof(struct part_type));
-	int	counter = 0;
-	struct	part_type *ptr = part_types;
+	size_t i;
 
-
-	while(counter < numentries) {
-		if(ptr->type == (type & 0x7f))
-			return(ptr->name);
-		ptr++;
-		counter++;
-	}
+	for (i = 0; i < nitems(part_types); i++)
+		if (part_types[i].type == (type & 0x7f))
+			return(part_types[i].name);
 	return("unknown");
 }
 

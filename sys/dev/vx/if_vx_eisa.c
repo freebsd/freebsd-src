@@ -149,7 +149,7 @@ vx_eisa_attach(device_t dev)
 	}
 	sc->vx_irq = irq;
 
-	/* Now the registers are availible through the lower ioport */
+	/* Now the registers are available through the lower ioport */
 
 	if (vx_attach(dev) == 0)
 		goto bad;

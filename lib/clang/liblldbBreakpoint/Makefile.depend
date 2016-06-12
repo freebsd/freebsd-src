@@ -13,30 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-Breakpoint.o: DiagnosticCommonKinds.inc.h
-Breakpoint.po: DiagnosticCommonKinds.inc.h
-BreakpointLocation.o: DiagnosticCommonKinds.inc.h
-BreakpointLocation.po: DiagnosticCommonKinds.inc.h
-BreakpointOptions.o: DiagnosticCommonKinds.inc.h
-BreakpointOptions.po: DiagnosticCommonKinds.inc.h
-BreakpointResolver.o: DiagnosticCommonKinds.inc.h
-BreakpointResolver.po: DiagnosticCommonKinds.inc.h
-BreakpointResolverFileLine.o: DiagnosticCommonKinds.inc.h
-BreakpointResolverFileLine.po: DiagnosticCommonKinds.inc.h
-BreakpointResolverFileRegex.o: DiagnosticCommonKinds.inc.h
-BreakpointResolverFileRegex.po: DiagnosticCommonKinds.inc.h
-BreakpointResolverName.o: DiagnosticCommonKinds.inc.h
-BreakpointResolverName.po: DiagnosticCommonKinds.inc.h
-Watchpoint.o: CommentCommandList.inc.h
-Watchpoint.o: DeclNodes.inc.h
-Watchpoint.o: DiagnosticCommonKinds.inc.h
-Watchpoint.o: StmtNodes.inc.h
-Watchpoint.po: CommentCommandList.inc.h
-Watchpoint.po: DeclNodes.inc.h
-Watchpoint.po: DiagnosticCommonKinds.inc.h
-Watchpoint.po: StmtNodes.inc.h
-WatchpointList.o: DiagnosticCommonKinds.inc.h
-WatchpointList.po: DiagnosticCommonKinds.inc.h
-WatchpointOptions.o: DiagnosticCommonKinds.inc.h
-WatchpointOptions.po: DiagnosticCommonKinds.inc.h
 .endif

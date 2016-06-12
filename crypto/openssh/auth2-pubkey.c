@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.53 2015/06/15 18:44:22 jsing Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.55 2016/01/27 00:53:12 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -79,19 +79,19 @@ userauth_pubkey(Authctxt *authctxt)
 {
 	Buffer b;
 	Key *key = NULL;
-	char *pkalg, *userstyle;
+	char *pkalg, *userstyle, *fp = NULL;
 	u_char *pkblob, *sig;
 	u_int alen, blen, slen;
 	int have_sig, pktype;
 	int authenticated = 0;
 
 	if (!authctxt->valid) {
-		debug2("userauth_pubkey: disabled because of invalid user");
+		debug2("%s: disabled because of invalid user", __func__);
 		return 0;
 	}
 	have_sig = packet_get_char();
 	if (datafellows & SSH_BUG_PKAUTH) {
-		debug2("userauth_pubkey: SSH_BUG_PKAUTH");
+		debug2("%s: SSH_BUG_PKAUTH", __func__);
 		/* no explicit pkalg given */
 		pkblob = packet_get_string(&blen);
 		buffer_init(&b);
@@ -106,18 +106,18 @@ userauth_pubkey(Authctxt *authctxt)
 	pktype = key_type_from_name(pkalg);
 	if (pktype == KEY_UNSPEC) {
 		/* this is perfectly legal */
-		logit("userauth_pubkey: unsupported public key algorithm: %s",
-		    pkalg);
+		logit("%s: unsupported public key algorithm: %s",
+		    __func__, pkalg);
 		goto done;
 	}
 	key = key_from_blob(pkblob, blen);
 	if (key == NULL) {
-		error("userauth_pubkey: cannot decode key: %s", pkalg);
+		error("%s: cannot decode key: %s", __func__, pkalg);
 		goto done;
 	}
 	if (key->type != pktype) {
-		error("userauth_pubkey: type mismatch for decoded key "
-		    "(received %d, expected %d)", key->type, pktype);
+		error("%s: type mismatch for decoded key "
+		    "(received %d, expected %d)", __func__, key->type, pktype);
 		goto done;
 	}
 	if (key_type_plain(key->type) == KEY_RSA &&
@@ -126,6 +126,7 @@ userauth_pubkey(Authctxt *authctxt)
 		    "signature scheme");
 		goto done;
 	}
+	fp = sshkey_fingerprint(key, options.fingerprint_hash, SSH_FP_DEFAULT);
 	if (auth2_userkey_already_used(authctxt, key)) {
 		logit("refusing previously-used %s key", key_type(key));
 		goto done;
@@ -138,6 +139,8 @@ userauth_pubkey(Authctxt *authctxt)
 	}
 
 	if (have_sig) {
+		debug3("%s: have signature for %s %s",
+		    __func__, sshkey_type(key), fp);
 		sig = packet_get_string(&slen);
 		packet_check_eom();
 		buffer_init(&b);
@@ -183,7 +186,8 @@ userauth_pubkey(Authctxt *authctxt)
 		buffer_free(&b);
 		free(sig);
 	} else {
-		debug("test whether pkalg/pkblob are acceptable");
+		debug("%s: test whether pkalg/pkblob are acceptable for %s %s",
+		    __func__, sshkey_type(key), fp);
 		packet_check_eom();
 
 		/* XXX fake reply and always send PK_OK ? */
@@ -206,11 +210,12 @@ userauth_pubkey(Authctxt *authctxt)
 	if (authenticated != 1)
 		auth_clear_options();
 done:
-	debug2("userauth_pubkey: authenticated %d pkalg %s", authenticated, pkalg);
+	debug2("%s: authenticated %d pkalg %s", __func__, authenticated, pkalg);
 	if (key != NULL)
 		key_free(key);
 	free(pkalg);
 	free(pkblob);
+	free(fp);
 	return authenticated;
 }
 
@@ -796,8 +801,9 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
 				free(fp);
 				continue;
 			}
-			verbose("Accepted certificate ID \"%s\" "
+			verbose("Accepted certificate ID \"%s\" (serial %llu) "
 			    "signed by %s CA %s via %s", key->cert->key_id,
+			    (unsigned long long)key->cert->serial,
 			    key_type(found), fp, file);
 			free(fp);
 			found_key = 1;
@@ -875,8 +881,10 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
 	if (auth_cert_options(key, pw) != 0)
 		goto out;
 
-	verbose("Accepted certificate ID \"%s\" signed by %s CA %s via %s",
-	    key->cert->key_id, key_type(key->cert->signature_key), ca_fp,
+	verbose("Accepted certificate ID \"%s\" (serial %llu) signed by "
+	    "%s CA %s via %s", key->cert->key_id,
+	    (unsigned long long)key->cert->serial,
+	    key_type(key->cert->signature_key), ca_fp,
 	    options.trusted_user_ca_keys);
 	ret = 1;
 

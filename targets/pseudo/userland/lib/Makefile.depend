@@ -33,7 +33,6 @@ DIRDEPS = \
 	lib/libc++ \
 	lib/libcalendar \
 	lib/libcam \
-	lib/libcasper \
 	lib/libcom_err/doc \
 	lib/libcompat \
 	lib/libcompiler_rt \
@@ -41,11 +40,13 @@ DIRDEPS = \
 	lib/libcuse \
 	lib/libcxxrt \
 	lib/libdevctl \
+	lib/libdevdctl \
 	lib/libdevinfo \
 	lib/libdevstat \
 	lib/libdwarf \
 	lib/libedit/edit/readline \
 	lib/libelf \
+	lib/libelftc \
 	lib/libevent \
 	lib/libexecinfo \
 	lib/libexpat \
@@ -117,7 +118,9 @@ DIRDEPS = \
 	lib/libpam/modules/pam_ssh \
 	lib/libpam/modules/pam_tacplus \
 	lib/libpam/modules/pam_unix \
+	lib/libpam/static_libpam \
 	lib/libpcap \
+	lib/libpe \
 	lib/libpjdlog \
 	lib/libpmc \
 	lib/libproc \
@@ -183,6 +186,38 @@ DIRDEPS+= \
 
 .if ${MK_NAND} != "no"
 DIRDEPS+= lib/libnandfs
+.endif
+
+.if ${MK_CASPER} != "no"
+DIRDEPS+= \
+	lib/libcasper/libcasper \
+	lib/libcasper/services/cap_dns \
+	lib/libcasper/services/cap_grp \
+	lib/libcasper/services/cap_pwd \
+	lib/libcasper/services/cap_random \
+	lib/libcasper/services/cap_sysctl \
+
+.endif
+
+.if ${MK_OFED} != "no"
+DIRDEPS+= \
+	contrib/ofed/usr.lib/libcxgb4 \
+	contrib/ofed/usr.lib/libibcm \
+	contrib/ofed/usr.lib/libibcommon \
+	contrib/ofed/usr.lib/libibmad \
+	contrib/ofed/usr.lib/libibumad \
+	contrib/ofed/usr.lib/libibverbs \
+	contrib/ofed/usr.lib/libmlx4 \
+	contrib/ofed/usr.lib/libmthca \
+	contrib/ofed/usr.lib/libopensm \
+	contrib/ofed/usr.lib/libosmcomp \
+	contrib/ofed/usr.lib/libosmvendor \
+	contrib/ofed/usr.lib/librdmacm \
+	contrib/ofed/usr.lib/libsdp
+.endif
+
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+DIRDEPS+=	lib/libblacklist
 .endif
 
 .include <dirdeps.mk>

@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="motd"
+desc="Update /etc/motd"
 rcvar="update_motd"
 start_cmd="motd_start"
 stop_cmd=":"

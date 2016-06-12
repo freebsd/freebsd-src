@@ -584,7 +584,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 
   bad:
 	m_freem(m);
-	return;
 }
 
 #ifndef BURN_BRIDGES
@@ -858,33 +857,19 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Remove the sender from the Default Router List and
 			 * update the Destination Cache entries.
 			 */
-			struct nd_defrouter *dr;
-			struct in6_addr *in6;
 			struct ifnet *nd6_ifp;
 
-			in6 = &ln->r_l3addr.addr6;
-
-			/*
-			 * Lock to protect the default router list.
-			 * XXX: this might be unnecessary, since this function
-			 * is only called under the network software interrupt
-			 * context.  However, we keep it just for safety.
-			 */
 			nd6_ifp = lltable_get_ifp(ln->lle_tbl);
-			dr = defrouter_lookup(in6, nd6_ifp);
-			if (dr)
-				defrtrlist_del(dr);
-			else if (ND_IFINFO(nd6_ifp)->flags &
-			    ND6_IFF_ACCEPT_RTADV) {
+			if (!defrouter_remove(&ln->r_l3addr.addr6, nd6_ifp) &&
+			    (ND_IFINFO(nd6_ifp)->flags &
+			     ND6_IFF_ACCEPT_RTADV) != 0)
 				/*
 				 * Even if the neighbor is not in the default
-				 * router list, the neighbor may be used
-				 * as a next hop for some destinations
-				 * (e.g. redirect case). So we must
-				 * call rt6_flush explicitly.
+				 * router list, the neighbor may be used as a
+				 * next hop for some destinations (e.g. redirect
+				 * case). So we must call rt6_flush explicitly.
 				 */
 				rt6_flush(&ip6->ip6_src, ifp);
-			}
 		}
 		ln->ln_router = is_router;
 	}
@@ -1078,7 +1063,6 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 
   bad:
 	m_freem(m);
-	return;
 }
 
 #ifndef BURN_BRIDGES
@@ -1232,7 +1216,6 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
-	int send_ns;
 
 	/*
 	 * If we don't need DAD, don't do it.
@@ -1270,9 +1253,10 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	}
 	if ((dp = nd6_dad_find(ifa, NULL)) != NULL) {
 		/*
-		 * DAD already in progress.  Let the existing entry
-		 * to finish it.
+		 * DAD is already in progress.  Let the existing entry
+		 * finish it.
 		 */
+		nd6_dad_rele(dp);
 		return;
 	}
 
@@ -1305,12 +1289,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	dp->dad_ns_lcount = dp->dad_loopbackprobe = 0;
 	refcount_init(&dp->dad_refcnt, 1);
 	nd6_dad_add(dp);
-	send_ns = 0;
-	if (delay == 0) {
-		send_ns = 1;
-		delay = (long)ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000;
-	}
-	nd6_dad_starttimer(dp, delay, send_ns);
+	nd6_dad_starttimer(dp, delay, 0);
 }
 
 /*

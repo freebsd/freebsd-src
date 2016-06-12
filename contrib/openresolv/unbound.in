@@ -45,7 +45,8 @@ for d in $DOMAINS; do
 	ns="${d#*:}"
 	case "$unbound_insecure" in
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-		newconf="$newconf${NL}domain-insecure: \"$dn\""
+		newconf="$newconf${NL}server:$NL"
+		newconf="$newconf	domain-insecure: \"$dn\"$NL"
 		;;
 	esac
 	newconf="$newconf${NL}forward-zone:$NL	name: \"$dn\"$NL"

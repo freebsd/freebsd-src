@@ -403,7 +403,7 @@ adb_mouse_receive_packet(device_t dev, u_char status, u_char command,
 	 * high button events when they are touched.
 	 */
 
-	if (buttons & ~((1 << sc->hw.buttons) - 1)
+	if (rounddown2(buttons, 1 << sc->hw.buttons)
 	    && !(sc->flags & AMS_TOUCHPAD)) {
 		buttons |= 1 << (sc->hw.buttons - 1);
 	}

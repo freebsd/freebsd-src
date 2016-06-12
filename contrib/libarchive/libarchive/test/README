@@ -18,10 +18,10 @@ The test function must be declared with a line of this form
 
 Nothing else should appear on that line.
 
-When you add a test, please update the Makefile to add your
-file to the list of tests.  The Makefile and main.c use various
-macro trickery to automatically collect a list of test functions
-to be invoked.
+When you add a test, please update the top-level Makefile.am and the
+CMakeLists.txt in this directory to add your file to the list of
+tests.  The Makefile and main.c use various macro trickery to
+automatically collect a list of test functions to be invoked.
 
 Each test function can rely on the following:
 
@@ -52,10 +52,10 @@ Each test function can rely on the following:
     as a result, tests should be careful to release any memory they
     allocate.
 
-  * Disable tests on specific platforms as necessary.  Please don't
-    use config.h to adjust feature requirements, as I want the tests
+  * Disable tests on specific platforms as necessary.  Please avoid
+    using config.h to adjust feature requirements, as I want the tests
     to also serve as a check on the configure process.  The following
-    form is appropriate:
+    form is usually more appropriate:
 
 #if !defined(__PLATFORM) && !defined(__Platform2__)
     assert(xxxx)

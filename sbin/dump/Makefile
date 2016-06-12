@@ -13,6 +13,7 @@
 #	DEBUG			use local directory to find ddate and dumpdates
 #	TDEBUG			trace out the process forking
 
+PACKAGE=runtime
 PROG=	dump
 LINKS=	${BINDIR}/dump ${BINDIR}/rdump
 CFLAGS+=-DRDUMP

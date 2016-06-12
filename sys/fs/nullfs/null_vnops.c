@@ -117,7 +117,7 @@
  * are created as a result of vnode operations on
  * this or other null vnode stacks.
  *
- * New vnode stacks come into existance as a result of
+ * New vnode stacks come into existence as a result of
  * an operation which returns a vnode.
  * The bypass routine stacks a null-node above the new
  * vnode before returning it to the caller.
@@ -619,6 +619,14 @@ null_rename(struct vop_rename_args *ap)
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
+static int
+null_rmdir(struct vop_rmdir_args *ap)
+{
+
+	VTONULL(ap->a_vp)->null_flags |= NULLV_DROP;
+	return (null_bypass(&ap->a_gen));
+}
+
 /*
  * We need to process our own vnode lock and then clear the
  * interlock flag as it applies only to our vnode, not the
@@ -920,6 +928,7 @@ struct vop_vector null_vnodeops = {
 	.vop_reclaim =		null_reclaim,
 	.vop_remove =		null_remove,
 	.vop_rename =		null_rename,
+	.vop_rmdir =		null_rmdir,
 	.vop_setattr =		null_setattr,
 	.vop_strategy =		VOP_EOPNOTSUPP,
 	.vop_unlock =		null_unlock,

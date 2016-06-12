@@ -2,7 +2,7 @@
 
 NO_WERROR=
 PROG=	truss
-SRCS=	cloudabi.c main.c setup.c syscalls.c
+SRCS=	main.c setup.c syscalls.c
 
 LIBADD=	sysdecode
 
@@ -18,6 +18,7 @@ ABIS+=		cloudabi64
 ABIS+=		i386-linux
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
+ABIS+=		amd64-linux
 ABIS+=		amd64-linux32
 ABIS+=		freebsd32
 ABIS+=		cloudabi64

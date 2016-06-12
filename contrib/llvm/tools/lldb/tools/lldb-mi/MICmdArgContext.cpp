@@ -1,4 +1,4 @@
-//===-- MICmnArgContext.cpp -------------------------------------*- C++ -*-===//
+//===-- MICmdArgContext.cpp -------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,7 +17,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgContext::CMICmdArgContext(void)
+CMICmdArgContext::CMICmdArgContext()
 {
 }
 
@@ -40,7 +40,7 @@ CMICmdArgContext::CMICmdArgContext(const CMIUtilString &vrCmdLineArgsRaw)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgContext::~CMICmdArgContext(void)
+CMICmdArgContext::~CMICmdArgContext()
 {
 }
 
@@ -52,7 +52,7 @@ CMICmdArgContext::~CMICmdArgContext(void)
 // Throws:  None.
 //--
 const CMIUtilString &
-CMICmdArgContext::GetArgsLeftToParse(void) const
+CMICmdArgContext::GetArgsLeftToParse() const
 {
     return m_strCmdArgsAndOptions;
 }
@@ -65,7 +65,7 @@ CMICmdArgContext::GetArgsLeftToParse(void) const
 // Throws:  None.
 //--
 bool
-CMICmdArgContext::IsEmpty(void) const
+CMICmdArgContext::IsEmpty() const
 {
     return m_strCmdArgsAndOptions.empty();
 }
@@ -130,7 +130,7 @@ CMICmdArgContext::RemoveArg(const CMIUtilString &vArg)
     }
 
     const size_t nPosEnd = nLen + nExtraSpace;
-    m_strCmdArgsAndOptions = m_strCmdArgsAndOptions.replace(nPos, nPosEnd, "").c_str();
+    m_strCmdArgsAndOptions = m_strCmdArgsAndOptions.replace(nPos, nPosEnd, "");
     m_strCmdArgsAndOptions = m_strCmdArgsAndOptions.Trim();
 
     return MIstatus::success;
@@ -149,9 +149,9 @@ CMICmdArgContext::RemoveArg(const CMIUtilString &vArg)
 // Throws:  None.
 //--
 bool
-CMICmdArgContext::RemoveArgAtPos(const CMIUtilString &vArg, const MIuint nArgIndex)
+CMICmdArgContext::RemoveArgAtPos(const CMIUtilString &vArg, size_t nArgIndex)
 {
-    MIuint nWordIndex = 0;
+    size_t nWordIndex = 0;
     CMIUtilString strBuildContextUp;
     const CMIUtilString::VecString_t vecWords(GetArgs());
     const bool bSpaceRequired(GetNumberArgsPresent() > 2);
@@ -202,11 +202,11 @@ CMICmdArgContext::RemoveArgAtPos(const CMIUtilString &vArg, const MIuint nArgInd
 // Details: Retrieve number of arguments or options present in the command's option text.
 // Type:    Method.
 // Args:    None.
-// Return:  MIuint  - 0 to n arguments present.
+// Return:  size_t  - 0 to n arguments present.
 // Throws:  None.
 //--
-MIuint
-CMICmdArgContext::GetNumberArgsPresent(void) const
+size_t
+CMICmdArgContext::GetNumberArgsPresent() const
 {
     CMIUtilString::VecString_t vecOptions;
     return m_strCmdArgsAndOptions.SplitConsiderQuotes(" ", vecOptions);
@@ -220,7 +220,7 @@ CMICmdArgContext::GetNumberArgsPresent(void) const
 // Throws:  None.
 //--
 CMIUtilString::VecString_t
-CMICmdArgContext::GetArgs(void) const
+CMICmdArgContext::GetArgs() const
 {
     CMIUtilString::VecString_t vecOptions;
     m_strCmdArgsAndOptions.SplitConsiderQuotes(" ", vecOptions);

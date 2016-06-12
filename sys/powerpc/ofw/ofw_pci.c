@@ -384,10 +384,10 @@ ofw_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 	}
 	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 		struct ofw_pci_range *rp;
-		vm_offset_t start;
+		vm_paddr_t start;
 		int space;
 
-		start = (vm_offset_t)rman_get_start(res);
+		start = (vm_paddr_t)rman_get_start(res);
 
 		/*
 		 * Map this through the ranges list
@@ -416,8 +416,8 @@ ofw_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 		}
 
 		if (bootverbose)
-			printf("ofw_pci mapdev: start %zx, len %ld\n", start,
-			    rman_get_size(res));
+			printf("ofw_pci mapdev: start %jx, len %jd\n",
+			    (rman_res_t)start, rman_get_size(res));
 
 		p = pmap_mapdev(start, (vm_size_t)rman_get_size(res));
 		if (p == NULL)

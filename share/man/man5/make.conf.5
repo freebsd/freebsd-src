@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2015
+.Dd March 29, 2016
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -141,16 +141,6 @@ Optimization levels other than
 and
 .Fl O2
 are not supported.
-.Va BDECFLAGS
-is provided as a set of
-.Xr cc 1
-settings suggested by
-.An Bruce Evans Aq Mt bde@FreeBSD.org
-for developing and testing changes.
-They can be used, if set, by:
-.Bd -literal -offset indent
-CFLAGS+=${BDECFLAGS}
-.Ed
 .It Va CPUTYPE
 .Pq Vt str
 Controls which processor should be targeted for generated
@@ -302,12 +292,6 @@ during
 .Pq Vt bool
 Set this to skip running
 .Xr config 8
-during
-.Dq Li "${MAKE} buildkernel" .
-.It Va NO_KERNELDEPEND
-.Pq Vt bool
-Set this to skip running
-.Dq Li "${MAKE} depend"
 during
 .Dq Li "${MAKE} buildkernel" .
 .It Va NO_KERNELOBJ

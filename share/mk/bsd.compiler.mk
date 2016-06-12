@@ -14,10 +14,14 @@
 # against 30300 for gcc likely isn't  what you wanted (since versions of gcc
 # prior to 4.2 likely have no prayer of working).
 #
+# COMPILER_FREEBSD_VERSION is the compiler's __FreeBSD_cc_version value.
+#
 # COMPILER_FEATURES will contain one or more of the following, based on
 # compiler support for that feature:
 #
 # - c++11 : supports full (or nearly full) C++11 programming environment.
+#
+# These variables with an X_ prefix will also be provided if XCC is set.
 #
 # This file may be included multiple times, but only has effect the first time.
 #
@@ -83,22 +87,32 @@ CCACHE_NOCPP2=	1
 .export CCACHE_NOCPP2
 .endif
 # Canonicalize CCACHE_DIR for meta mode usage.
-.if defined(CCACHE_DIR) && empty(.MAKE.META.IGNORE_PATHS:M${CCACHE_DIR})
+.if !defined(CCACHE_DIR)
+CCACHE_DIR!=	${CCACHE_BIN} -p | awk '$$2 == "cache_dir" {print $$4}'
+.export CCACHE_DIR
+.endif
+.if !empty(CCACHE_DIR) && empty(.MAKE.META.IGNORE_PATHS:M${CCACHE_DIR})
 CCACHE_DIR:=	${CCACHE_DIR:tA}
 .MAKE.META.IGNORE_PATHS+= ${CCACHE_DIR}
 .export CCACHE_DIR
 .endif
+# ccache doesn't affect build output so let it slide for meta mode
+# comparisons.
+.MAKE.META.IGNORE_PATHS+= ${CCACHE_BIN}
 ccache-print-options: .PHONY
 	@${CCACHE_BIN} -p
 .endif	# exists(${CCACHE_BIN})
 .endif	# ${MK_CCACHE_BUILD} == "yes"
 
+.for cc X_ in CC $${_empty_var_} XCC X_
+.if ${cc} == "CC" || !empty(XCC)
 # Try to import COMPILER_TYPE and COMPILER_VERSION from parent make.
 # The value is only used/exported for the same environment that impacts
 # CC and COMPILER_* settings here.
-_exported_vars=	COMPILER_TYPE COMPILER_VERSION
-_cc_hash=	${CC}${MACHINE}${PATH}
-_cc_hash:=	${_cc_hash:hash}
+_exported_vars=	${X_}COMPILER_TYPE ${X_}COMPILER_VERSION \
+		${X_}COMPILER_FREEBSD_VERSION
+${X_}_cc_hash=	${${cc}}${MACHINE}${PATH}
+${X_}_cc_hash:=	${${X_}_cc_hash:hash}
 # Only import if none of the vars are set somehow else.
 _can_export=	yes
 .for var in ${_exported_vars}
@@ -108,54 +122,76 @@ _can_export=	no
 .endfor
 .if ${_can_export} == yes
 .for var in ${_exported_vars}
-.if defined(${var}.${_cc_hash})
-${var}=	${${var}.${_cc_hash}}
+.if defined(${var}.${${X_}_cc_hash})
+${var}=	${${var}.${${X_}_cc_hash}}
 .endif
 .endfor
 .endif
 
+.if ${cc} == "CC" || (${cc} == "XCC" && ${XCC} != ${CC})
 .if ${MACHINE} == "common"
 # common is a pseudo machine for architecture independent
 # generated files - thus there is no compiler.
-COMPILER_TYPE= none
-COMPILER_VERSION= 0
-.elif !defined(COMPILER_TYPE) || !defined(COMPILER_VERSION)
-_v!=	${CC} --version || echo 0.0.0
+${X_}COMPILER_TYPE= none
+${X_}COMPILER_VERSION= 0
+${X_}COMPILER_FREEBSD_VERSION= 0
+.elif !defined(${X_}COMPILER_TYPE) || !defined(${X_}COMPILER_VERSION)
+_v!=	${${cc}} --version || echo 0.0.0
 
-.if !defined(COMPILER_TYPE)
-. if ${CC:T:M*gcc*}
-COMPILER_TYPE:=	gcc  
-. elif ${CC:T:M*clang*}
-COMPILER_TYPE:=	clang
+.if !defined(${X_}COMPILER_TYPE)
+. if ${${cc}:T:M*gcc*}
+${X_}COMPILER_TYPE:=	gcc
+. elif ${${cc}:T:M*clang*}
+${X_}COMPILER_TYPE:=	clang
 . elif ${_v:Mgcc}
-COMPILER_TYPE:=	gcc
+${X_}COMPILER_TYPE:=	gcc
 . elif ${_v:M\(GCC\)}
-COMPILER_TYPE:=	gcc
+${X_}COMPILER_TYPE:=	gcc
 . elif ${_v:Mclang}
-COMPILER_TYPE:=	clang
+${X_}COMPILER_TYPE:=	clang
 . else
-.error Unable to determine compiler type for ${CC}.  Consider setting COMPILER_TYPE.
+.error Unable to determine compiler type for ${cc}=${${cc}}.  Consider setting ${X_}COMPILER_TYPE.
 . endif
 .endif
-.if !defined(COMPILER_VERSION)
-COMPILER_VERSION!=echo "${_v:M[1-9].[0-9]*}" | awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
+.if !defined(${X_}COMPILER_VERSION)
+${X_}COMPILER_VERSION!=echo "${_v:M[1-9].[0-9]*}" | awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
 .endif
 .undef _v
 .endif
+.if !defined(${X_}COMPILER_FREEBSD_VERSION)
+${X_}COMPILER_FREEBSD_VERSION!=	{ echo "__FreeBSD_cc_version" | ${${cc}} -E - 2>/dev/null || echo __FreeBSD_cc_version; } | sed -n '$$p'
+# If we get a literal "__FreeBSD_cc_version" back then the compiler
+# is a non-FreeBSD build that doesn't support it or some other error
+# occurred.
+.if ${${X_}COMPILER_FREEBSD_VERSION} == "__FreeBSD_cc_version"
+${X_}COMPILER_FREEBSD_VERSION=	unknown
+.endif
+.endif
+
+.if ${${X_}COMPILER_TYPE} == "clang" || \
+	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 40800)
+${X_}COMPILER_FEATURES=	c++11
+.else
+${X_}COMPILER_FEATURES=
+.endif
+
+.else
+# Use CC's values
+X_COMPILER_TYPE=	${COMPILER_TYPE}
+X_COMPILER_VERSION=	${COMPILER_VERSION}
+X_COMPILER_FREEBSD_VERSION=	${COMPILER_FREEBSD_VERSION}
+X_COMPILER_FEATURES=	${COMPILER_FEATURES}
+.endif	# ${cc} == "CC" || (${cc} == "XCC" && ${XCC} != ${CC})
 
 # Export the values so sub-makes don't have to look them up again, using the
 # hash key computed above.
 .for var in ${_exported_vars}
-${var}.${_cc_hash}:=	${${var}}
-.export-env ${var}.${_cc_hash}
-.undef ${var}.${_cc_hash}
+${var}.${${X_}_cc_hash}:=	${${var}}
+.export-env ${var}.${${X_}_cc_hash}
+.undef ${var}.${${X_}_cc_hash}
 .endfor
 
-.if ${COMPILER_TYPE} == "clang" || \
-	(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800)
-COMPILER_FEATURES=	c++11
-.else
-COMPILER_FEATURES=
-.endif
+.endif	# ${cc} == "CC" || !empty(XCC)
+.endfor	# .for cc in CC XCC
 
 .endif	# !target(__<bsd.compiler.mk>__)

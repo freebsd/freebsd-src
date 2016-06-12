@@ -2794,8 +2794,10 @@ struct cctl_islist_conn {
 	char *target_alias;
 	char *header_digest;
 	char *data_digest;
-	char *max_data_segment_length;;
-	char *offload;;
+	char *max_data_segment_length;
+	char *max_burst_length;
+	char *first_burst_length;
+	char *offload;
 	int immediate_data;
 	int iser;
 	STAILQ_ENTRY(cctl_islist_conn) links;
@@ -2909,6 +2911,12 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "max_data_segment_length") == 0) {
 		cur_conn->max_data_segment_length = str;
 		str = NULL;
+	} else if (strcmp(name, "max_burst_length") == 0) {
+		cur_conn->max_burst_length = str;
+		str = NULL;
+	} else if (strcmp(name, "first_burst_length") == 0) {
+		cur_conn->first_burst_length = str;
+		str = NULL;
 	} else if (strcmp(name, "offload") == 0) {
 		cur_conn->offload = str;
 		str = NULL;
@@ -2922,7 +2930,7 @@ cctl_islist_end_element(void *user_data, const char *name)
 		/* Nothing. */
 	} else {
 		/*
-		 * Unknown element; ignore it for forward compatiblity.
+		 * Unknown element; ignore it for forward compatibility.
 		 */
 	}
 
@@ -3031,6 +3039,8 @@ retry:
 			printf("Header digest:    %s\n", conn->header_digest);
 			printf("Data digest:      %s\n", conn->data_digest);
 			printf("DataSegmentLen:   %s\n", conn->max_data_segment_length);
+			printf("MaxBurstLen:      %s\n", conn->max_burst_length);
+			printf("FirstBurstLen:    %s\n", conn->first_burst_length);
 			printf("ImmediateData:    %s\n", conn->immediate_data ? "Yes" : "No");
 			printf("iSER (RDMA):      %s\n", conn->iser ? "Yes" : "No");
 			printf("Offload driver:   %s\n", conn->offload);

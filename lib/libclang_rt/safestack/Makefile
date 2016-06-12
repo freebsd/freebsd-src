@@ -42,6 +42,7 @@ SRCS=	interception_linux.cc\
 	sanitizer_tls_get_addr.cc\
 	sanitizer_thread_registry.cc\
 	sanitizer_win.cc\
+	sanitizer_common_nolibc.cc\
 	safestack.cc
 
 .include <bsd.lib.mk>

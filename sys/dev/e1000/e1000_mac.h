@@ -36,9 +36,7 @@
 #define _E1000_MAC_H_
 
 void e1000_init_mac_ops_generic(struct e1000_hw *hw);
-#ifndef E1000_REMOVED
 #define E1000_REMOVED(a) (0)
-#endif /* E1000_REMOVED */
 void e1000_null_mac_generic(struct e1000_hw *hw);
 s32  e1000_null_ops_generic(struct e1000_hw *hw);
 s32  e1000_null_link_info(struct e1000_hw *hw, u16 *s, u16 *d);

@@ -18,14 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-bootparam_prot_clnt.o: bootparam_prot.h
-bootparam_prot_clnt.o: bootparam_prot_clnt.c
-bootparam_prot_clnt.po: bootparam_prot.h
-bootparam_prot_clnt.po: bootparam_prot_clnt.c
-bootparam_prot_xdr.o: bootparam_prot.h
-bootparam_prot_xdr.o: bootparam_prot_xdr.c
-bootparam_prot_xdr.po: bootparam_prot.h
-bootparam_prot_xdr.po: bootparam_prot_xdr.c
-callbootd.o: bootparam_prot.h
-callbootd.po: bootparam_prot.h
 .endif

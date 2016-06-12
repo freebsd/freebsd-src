@@ -29,6 +29,7 @@
 # $FreeBSD$
 #
 
+#include <sys/socket.h>
 #include <dev/iscsi/icl.h>
 
 INTERFACE icl_conn;
@@ -84,6 +85,7 @@ METHOD void close {
 
 METHOD int task_setup {
 	struct icl_conn *_ic;
+	struct icl_pdu *_ip;
 	struct ccb_scsiio *_csio;
 	uint32_t *_task_tag;
 	void **_prvp;
@@ -104,4 +106,16 @@ METHOD int transfer_setup {
 METHOD void transfer_done {
 	struct icl_conn *_ic;
 	void *_prv;
+};
+
+#
+# The function below is only used with ICL_KERNEL_PROXY.
+#
+METHOD int connect {
+	struct icl_conn *_ic;
+	int _domain;
+	int _socktype;
+	int _protocol;
+	struct sockaddr *_from_sa;
+	struct sockaddr *_to_sa;
 };

@@ -15,7 +15,6 @@
 #ifndef LLVM_IR_DIAGNOSTICINFO_H
 #define LLVM_IR_DIAGNOSTICINFO_H
 
-#include "llvm-c/Core.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Module.h"
@@ -56,8 +55,11 @@ enum DiagnosticKind {
   DK_OptimizationRemark,
   DK_OptimizationRemarkMissed,
   DK_OptimizationRemarkAnalysis,
+  DK_OptimizationRemarkAnalysisFPCommute,
+  DK_OptimizationRemarkAnalysisAliasing,
   DK_OptimizationFailure,
   DK_MIRParser,
+  DK_PGOProfile,
   DK_FirstPluginKind
 };
 
@@ -99,6 +101,8 @@ public:
   /// The printed message must not end with '.' nor start with a severity
   /// keyword.
   virtual void print(DiagnosticPrinter &DP) const = 0;
+
+  static const char *AlwaysPrint;
 };
 
 typedef std::function<void(const DiagnosticInfo &)> DiagnosticHandlerFunction;
@@ -210,19 +214,18 @@ public:
 /// Diagnostic information for the sample profiler.
 class DiagnosticInfoSampleProfile : public DiagnosticInfo {
 public:
-  DiagnosticInfoSampleProfile(const char *FileName, unsigned LineNum,
+  DiagnosticInfoSampleProfile(StringRef FileName, unsigned LineNum,
                               const Twine &Msg,
                               DiagnosticSeverity Severity = DS_Error)
       : DiagnosticInfo(DK_SampleProfile, Severity), FileName(FileName),
         LineNum(LineNum), Msg(Msg) {}
-  DiagnosticInfoSampleProfile(const char *FileName, const Twine &Msg,
+  DiagnosticInfoSampleProfile(StringRef FileName, const Twine &Msg,
                               DiagnosticSeverity Severity = DS_Error)
       : DiagnosticInfo(DK_SampleProfile, Severity), FileName(FileName),
         LineNum(0), Msg(Msg) {}
   DiagnosticInfoSampleProfile(const Twine &Msg,
                               DiagnosticSeverity Severity = DS_Error)
-      : DiagnosticInfo(DK_SampleProfile, Severity), FileName(nullptr),
-        LineNum(0), Msg(Msg) {}
+      : DiagnosticInfo(DK_SampleProfile, Severity), LineNum(0), Msg(Msg) {}
 
   /// \see DiagnosticInfo::print.
   void print(DiagnosticPrinter &DP) const override;
@@ -231,17 +234,42 @@ public:
     return DI->getKind() == DK_SampleProfile;
   }
 
-  const char *getFileName() const { return FileName; }
+  StringRef getFileName() const { return FileName; }
   unsigned getLineNum() const { return LineNum; }
   const Twine &getMsg() const { return Msg; }
 
 private:
   /// Name of the input file associated with this diagnostic.
-  const char *FileName;
+  StringRef FileName;
 
   /// Line number where the diagnostic occurred. If 0, no line number will
   /// be emitted in the message.
   unsigned LineNum;
+
+  /// Message to report.
+  const Twine &Msg;
+};
+
+/// Diagnostic information for the PGO profiler.
+class DiagnosticInfoPGOProfile : public DiagnosticInfo {
+public:
+  DiagnosticInfoPGOProfile(const char *FileName, const Twine &Msg,
+                           DiagnosticSeverity Severity = DS_Error)
+      : DiagnosticInfo(DK_PGOProfile, Severity), FileName(FileName), Msg(Msg) {}
+
+  /// \see DiagnosticInfo::print.
+  void print(DiagnosticPrinter &DP) const override;
+
+  static bool classof(const DiagnosticInfo *DI) {
+    return DI->getKind() == DK_PGOProfile;
+  }
+
+  const char *getFileName() const { return FileName; }
+  const Twine &getMsg() const { return Msg; }
+
+private:
+  /// Name of the input file associated with this diagnostic.
+  const char *FileName;
 
   /// Message to report.
   const Twine &Msg;
@@ -266,10 +294,6 @@ public:
 
   /// \see DiagnosticInfo::print.
   void print(DiagnosticPrinter &DP) const override;
-
-  static bool classof(const DiagnosticInfo *DI) {
-    return DI->getKind() == DK_OptimizationRemark;
-  }
 
   /// Return true if this optimization remark is enabled by one of
   /// of the LLVM command line flags (-pass-remarks, -pass-remarks-missed,
@@ -386,6 +410,69 @@ public:
 
   /// \see DiagnosticInfoOptimizationBase::isEnabled.
   bool isEnabled() const override;
+
+protected:
+  DiagnosticInfoOptimizationRemarkAnalysis(enum DiagnosticKind Kind,
+                                           const char *PassName,
+                                           const Function &Fn,
+                                           const DebugLoc &DLoc,
+                                           const Twine &Msg)
+      : DiagnosticInfoOptimizationBase(Kind, DS_Remark, PassName, Fn, DLoc,
+                                       Msg) {}
+};
+
+/// Diagnostic information for optimization analysis remarks related to
+/// floating-point non-commutativity.
+class DiagnosticInfoOptimizationRemarkAnalysisFPCommute
+    : public DiagnosticInfoOptimizationRemarkAnalysis {
+public:
+  /// \p PassName is the name of the pass emitting this diagnostic. If
+  /// this name matches the regular expression given in -Rpass-analysis=, then
+  /// the diagnostic will be emitted. \p Fn is the function where the diagnostic
+  /// is being emitted. \p DLoc is the location information to use in the
+  /// diagnostic. If line table information is available, the diagnostic will
+  /// include the source code location. \p Msg is the message to show. The
+  /// front-end will append its own message related to options that address
+  /// floating-point non-commutativity. Note that this class does not copy this
+  /// message, so this reference must be valid for the whole life time of the
+  /// diagnostic.
+  DiagnosticInfoOptimizationRemarkAnalysisFPCommute(const char *PassName,
+                                                    const Function &Fn,
+                                                    const DebugLoc &DLoc,
+                                                    const Twine &Msg)
+      : DiagnosticInfoOptimizationRemarkAnalysis(
+            DK_OptimizationRemarkAnalysisFPCommute, PassName, Fn, DLoc, Msg) {}
+
+  static bool classof(const DiagnosticInfo *DI) {
+    return DI->getKind() == DK_OptimizationRemarkAnalysisFPCommute;
+  }
+};
+
+/// Diagnostic information for optimization analysis remarks related to
+/// pointer aliasing.
+class DiagnosticInfoOptimizationRemarkAnalysisAliasing
+    : public DiagnosticInfoOptimizationRemarkAnalysis {
+public:
+  /// \p PassName is the name of the pass emitting this diagnostic. If
+  /// this name matches the regular expression given in -Rpass-analysis=, then
+  /// the diagnostic will be emitted. \p Fn is the function where the diagnostic
+  /// is being emitted. \p DLoc is the location information to use in the
+  /// diagnostic. If line table information is available, the diagnostic will
+  /// include the source code location. \p Msg is the message to show. The
+  /// front-end will append its own message related to options that address
+  /// pointer aliasing legality. Note that this class does not copy this
+  /// message, so this reference must be valid for the whole life time of the
+  /// diagnostic.
+  DiagnosticInfoOptimizationRemarkAnalysisAliasing(const char *PassName,
+                                                   const Function &Fn,
+                                                   const DebugLoc &DLoc,
+                                                   const Twine &Msg)
+      : DiagnosticInfoOptimizationRemarkAnalysis(
+            DK_OptimizationRemarkAnalysisAliasing, PassName, Fn, DLoc, Msg) {}
+
+  static bool classof(const DiagnosticInfo *DI) {
+    return DI->getKind() == DK_OptimizationRemarkAnalysisAliasing;
+  }
 };
 
 /// Diagnostic information for machine IR parser.
@@ -437,6 +524,30 @@ void emitOptimizationRemarkMissed(LLVMContext &Ctx, const char *PassName,
 void emitOptimizationRemarkAnalysis(LLVMContext &Ctx, const char *PassName,
                                     const Function &Fn, const DebugLoc &DLoc,
                                     const Twine &Msg);
+
+/// Emit an optimization analysis remark related to messages about
+/// floating-point non-commutativity. \p PassName is the name of the pass
+/// emitting the message. If -Rpass-analysis= is given and \p PassName matches
+/// the regular expression in -Rpass, then the remark will be emitted. \p Fn is
+/// the function triggering the remark, \p DLoc is the debug location where the
+/// diagnostic is generated. \p Msg is the message string to use.
+void emitOptimizationRemarkAnalysisFPCommute(LLVMContext &Ctx,
+                                             const char *PassName,
+                                             const Function &Fn,
+                                             const DebugLoc &DLoc,
+                                             const Twine &Msg);
+
+/// Emit an optimization analysis remark related to messages about
+/// pointer aliasing. \p PassName is the name of the pass emitting the message.
+/// If -Rpass-analysis= is given and \p PassName matches the regular expression
+/// in -Rpass, then the remark will be emitted. \p Fn is the function triggering
+/// the remark, \p DLoc is the debug location where the diagnostic is generated.
+/// \p Msg is the message string to use.
+void emitOptimizationRemarkAnalysisAliasing(LLVMContext &Ctx,
+                                            const char *PassName,
+                                            const Function &Fn,
+                                            const DebugLoc &DLoc,
+                                            const Twine &Msg);
 
 /// Diagnostic information for optimization failures.
 class DiagnosticInfoOptimizationFailure

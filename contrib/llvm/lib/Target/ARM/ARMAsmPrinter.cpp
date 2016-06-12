@@ -60,7 +60,7 @@ using namespace llvm;
 ARMAsmPrinter::ARMAsmPrinter(TargetMachine &TM,
                              std::unique_ptr<MCStreamer> Streamer)
     : AsmPrinter(TM, std::move(Streamer)), AFI(nullptr), MCP(nullptr),
-      InConstantPool(false) {}
+      InConstantPool(false), OptimizationGoals(-1) {}
 
 void ARMAsmPrinter::EmitFunctionBodyEnd() {
   // Make sure to terminate any constant pools that were at the end
@@ -80,8 +80,8 @@ void ARMAsmPrinter::EmitFunctionEntryLabel() {
   OutStreamer->EmitLabel(CurrentFnSym);
 }
 
-void ARMAsmPrinter::EmitXXStructor(const Constant *CV) {
-  uint64_t Size = TM.getDataLayout()->getTypeAllocSize(CV->getType());
+void ARMAsmPrinter::EmitXXStructor(const DataLayout &DL, const Constant *CV) {
+  uint64_t Size = getDataLayout().getTypeAllocSize(CV->getType());
   assert(Size && "C++ constructor pointer had zero size!");
 
   const GlobalValue *GV = dyn_cast<GlobalValue>(CV->stripPointerCasts());
@@ -106,9 +106,38 @@ bool ARMAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   Subtarget = &MF.getSubtarget<ARMSubtarget>();
 
   SetupMachineFunction(MF);
+  const Function* F = MF.getFunction();
+  const TargetMachine& TM = MF.getTarget();
+
+  // Calculate this function's optimization goal.
+  unsigned OptimizationGoal;
+  if (F->hasFnAttribute(Attribute::OptimizeNone))
+    // For best debugging illusion, speed and small size sacrificed
+    OptimizationGoal = 6;
+  else if (F->optForMinSize())
+    // Aggressively for small size, speed and debug illusion sacrificed
+    OptimizationGoal = 4;
+  else if (F->optForSize())
+    // For small size, but speed and debugging illusion preserved
+    OptimizationGoal = 3;
+  else if (TM.getOptLevel() == CodeGenOpt::Aggressive)
+    // Aggressively for speed, small size and debug illusion sacrificed
+    OptimizationGoal = 2;
+  else if (TM.getOptLevel() > CodeGenOpt::None)
+    // For speed, but small size and good debug illusion preserved
+    OptimizationGoal = 1;
+  else // TM.getOptLevel() == CodeGenOpt::None
+    // For good debugging, but speed and small size preserved
+    OptimizationGoal = 5;
+
+  // Combine a new optimization goal with existing ones.
+  if (OptimizationGoals == -1) // uninitialized goals
+    OptimizationGoals = OptimizationGoal;
+  else if (OptimizationGoals != (int)OptimizationGoal) // conflicting goals
+    OptimizationGoals = 0;
 
   if (Subtarget->isTargetCOFF()) {
-    bool Internal = MF.getFunction()->hasInternalLinkage();
+    bool Internal = F->hasInternalLinkage();
     COFF::SymbolStorageClass Scl = Internal ? COFF::IMAGE_SYM_CLASS_STATIC
                                             : COFF::IMAGE_SYM_CLASS_EXTERNAL;
     int Type = COFF::IMAGE_SYM_DTYPE_FUNCTION << COFF::SCT_COMPLEX_TYPE_SHIFT;
@@ -198,19 +227,10 @@ void ARMAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
 
 MCSymbol *ARMAsmPrinter::
 GetARMJTIPICJumpTableLabel(unsigned uid) const {
-  const DataLayout *DL = TM.getDataLayout();
+  const DataLayout &DL = getDataLayout();
   SmallString<60> Name;
-  raw_svector_ostream(Name) << DL->getPrivateGlobalPrefix() << "JTI"
+  raw_svector_ostream(Name) << DL.getPrivateGlobalPrefix() << "JTI"
                             << getFunctionNumber() << '_' << uid;
-  return OutContext.getOrCreateSymbol(Name);
-}
-
-
-MCSymbol *ARMAsmPrinter::GetARMSJLJEHLabel() const {
-  const DataLayout *DL = TM.getDataLayout();
-  SmallString<60> Name;
-  raw_svector_ostream(Name) << DL->getPrivateGlobalPrefix() << "SJLJEH"
-    << getFunctionNumber();
   return OutContext.getOrCreateSymbol(Name);
 }
 
@@ -515,6 +535,17 @@ void ARMAsmPrinter::EmitEndOfAsmFile(Module &M) {
     // generates code that does this, it is always safe to set.
     OutStreamer->EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
   }
+
+  // The last attribute to be emitted is ABI_optimization_goals
+  MCTargetStreamer &TS = *OutStreamer->getTargetStreamer();
+  ARMTargetStreamer &ATS = static_cast<ARMTargetStreamer &>(TS);
+
+  if (OptimizationGoals > 0 &&
+      (Subtarget->isTargetAEABI() || Subtarget->isTargetGNUAEABI()))
+    ATS.emitAttribute(ARMBuildAttrs::ABI_optimization_goals, OptimizationGoals);
+  OptimizationGoals = -1;
+
+  ATS.finishAttributeSection();
 }
 
 //===----------------------------------------------------------------------===//
@@ -532,7 +563,7 @@ static ARMBuildAttrs::CPUArch getArchForCPU(StringRef CPU,
   if (Subtarget->hasV8Ops())
     return ARMBuildAttrs::v8;
   else if (Subtarget->hasV7Ops()) {
-    if (Subtarget->isMClass() && Subtarget->hasThumb2DSP())
+    if (Subtarget->isMClass() && Subtarget->hasDSP())
       return ARMBuildAttrs::v7E_M;
     return ARMBuildAttrs::v7;
   } else if (Subtarget->hasV6T2Ops())
@@ -587,7 +618,7 @@ void ARMAsmPrinter::emitAttributes() {
       // We consider krait as a "cortex-a9" + hwdiv CPU
       // Enable hwdiv through ".arch_extension idiv"
       if (STI.hasDivide() || STI.hasDivideInARMMode())
-        ATS.emitArchExtension(ARM::AEK_HWDIV);
+        ATS.emitArchExtension(ARM::AEK_HWDIV | ARM::AEK_HWDIVARM);
     } else
       ATS.emitTextAttribute(ARMBuildAttrs::CPU_name, CPUString);
   }
@@ -807,8 +838,6 @@ void ARMAsmPrinter::emitAttributes() {
   else if (STI.hasVirtualization())
     ATS.emitAttribute(ARMBuildAttrs::Virtualization_use,
                       ARMBuildAttrs::AllowVirtualization);
-
-  ATS.finishAttributeSection();
 }
 
 //===----------------------------------------------------------------------===//
@@ -828,8 +857,7 @@ getModifierVariantKind(ARMCP::ARMCPModifier Modifier) {
   case ARMCP::TLSGD:       return MCSymbolRefExpr::VK_TLSGD;
   case ARMCP::TPOFF:       return MCSymbolRefExpr::VK_TPOFF;
   case ARMCP::GOTTPOFF:    return MCSymbolRefExpr::VK_GOTTPOFF;
-  case ARMCP::GOT:         return MCSymbolRefExpr::VK_GOT;
-  case ARMCP::GOTOFF:      return MCSymbolRefExpr::VK_GOTOFF;
+  case ARMCP::GOT_PREL:    return MCSymbolRefExpr::VK_ARM_GOT_PREL;
   }
   llvm_unreachable("Invalid ARMCPModifier!");
 }
@@ -875,8 +903,8 @@ MCSymbol *ARMAsmPrinter::GetARMGVSymbol(const GlobalValue *GV,
 
 void ARMAsmPrinter::
 EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) {
-  const DataLayout *DL = TM.getDataLayout();
-  int Size = TM.getDataLayout()->getTypeAllocSize(MCPV->getType());
+  const DataLayout &DL = getDataLayout();
+  int Size = DL.getTypeAllocSize(MCPV->getType());
 
   ARMConstantPoolValue *ACPV = static_cast<ARMConstantPoolValue*>(MCPV);
 
@@ -909,10 +937,9 @@ EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) {
                             OutContext);
 
   if (ACPV->getPCAdjustment()) {
-    MCSymbol *PCLabel = getPICLabel(DL->getPrivateGlobalPrefix(),
-                                    getFunctionNumber(),
-                                    ACPV->getLabelId(),
-                                    OutContext);
+    MCSymbol *PCLabel =
+        getPICLabel(DL.getPrivateGlobalPrefix(), getFunctionNumber(),
+                    ACPV->getLabelId(), OutContext);
     const MCExpr *PCRelExpr = MCSymbolRefExpr::create(PCLabel, OutContext);
     PCRelExpr =
       MCBinaryExpr::createAdd(PCRelExpr,
@@ -1136,6 +1163,7 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
         Offset = 0;
         break;
       case ARM::ADDri:
+      case ARM::t2ADDri:
         Offset = -MI->getOperand(2).getImm();
         break;
       case ARM::SUBri:
@@ -1198,7 +1226,7 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
 #include "ARMGenMCPseudoLowering.inc"
 
 void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
-  const DataLayout *DL = TM.getDataLayout();
+  const DataLayout &DL = getDataLayout();
 
   // If we just ended a constant pool, mark it as such.
   if (InConstantPool && MI->getOpcode() != ARM::CONSTPOOL_ENTRY) {
@@ -1355,9 +1383,9 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     MCSymbol *GVSym = GetARMGVSymbol(GV, TF);
     const MCExpr *GVSymExpr = MCSymbolRefExpr::create(GVSym, OutContext);
 
-    MCSymbol *LabelSym = getPICLabel(DL->getPrivateGlobalPrefix(),
-                                     getFunctionNumber(),
-                                     MI->getOperand(2).getImm(), OutContext);
+    MCSymbol *LabelSym =
+        getPICLabel(DL.getPrivateGlobalPrefix(), getFunctionNumber(),
+                    MI->getOperand(2).getImm(), OutContext);
     const MCExpr *LabelSymExpr= MCSymbolRefExpr::create(LabelSym, OutContext);
     unsigned PCAdj = (Opc == ARM::MOVi16_ga_pcrel) ? 8 : 4;
     const MCExpr *PCRelExpr =
@@ -1388,9 +1416,9 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     MCSymbol *GVSym = GetARMGVSymbol(GV, TF);
     const MCExpr *GVSymExpr = MCSymbolRefExpr::create(GVSym, OutContext);
 
-    MCSymbol *LabelSym = getPICLabel(DL->getPrivateGlobalPrefix(),
-                                     getFunctionNumber(),
-                                     MI->getOperand(3).getImm(), OutContext);
+    MCSymbol *LabelSym =
+        getPICLabel(DL.getPrivateGlobalPrefix(), getFunctionNumber(),
+                    MI->getOperand(3).getImm(), OutContext);
     const MCExpr *LabelSymExpr= MCSymbolRefExpr::create(LabelSym, OutContext);
     unsigned PCAdj = (Opc == ARM::MOVTi16_ga_pcrel) ? 8 : 4;
     const MCExpr *PCRelExpr =
@@ -1414,10 +1442,9 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // This adds the address of LPC0 to r0.
 
     // Emit the label.
-    OutStreamer->EmitLabel(getPICLabel(DL->getPrivateGlobalPrefix(),
+    OutStreamer->EmitLabel(getPICLabel(DL.getPrivateGlobalPrefix(),
                                        getFunctionNumber(),
-                                       MI->getOperand(2).getImm(),
-                                       OutContext));
+                                       MI->getOperand(2).getImm(), OutContext));
 
     // Form and emit the add.
     EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::tADDhirr)
@@ -1436,10 +1463,9 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // This adds the address of LPC0 to r0.
 
     // Emit the label.
-    OutStreamer->EmitLabel(getPICLabel(DL->getPrivateGlobalPrefix(),
+    OutStreamer->EmitLabel(getPICLabel(DL.getPrivateGlobalPrefix(),
                                        getFunctionNumber(),
-                                       MI->getOperand(2).getImm(),
-                                       OutContext));
+                                       MI->getOperand(2).getImm(), OutContext));
 
     // Form and emit the add.
     EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::ADDrr)
@@ -1468,10 +1494,9 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // a PC-relative address at the ldr instruction.
 
     // Emit the label.
-    OutStreamer->EmitLabel(getPICLabel(DL->getPrivateGlobalPrefix(),
+    OutStreamer->EmitLabel(getPICLabel(DL.getPrivateGlobalPrefix(),
                                        getFunctionNumber(),
-                                       MI->getOperand(2).getImm(),
-                                       OutContext));
+                                       MI->getOperand(2).getImm(), OutContext));
 
     // Form and emit the load
     unsigned Opcode;
@@ -1519,7 +1544,7 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     if (MCPE.isMachineConstantPoolEntry())
       EmitMachineConstantPoolValue(MCPE.Val.MachineCPVal);
     else
-      EmitGlobalConstant(MCPE.Val.ConstVal);
+      EmitGlobalConstant(DL, MCPE.Val.ConstVal);
     return;
   }
   case ARM::JUMPTABLE_ADDRS:
@@ -1653,12 +1678,12 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // adds $val, #7
     // str $val, [$src, #4]
     // movs r0, #0
-    // b 1f
+    // b LSJLJEH
     // movs r0, #1
-    // 1:
+    // LSJLJEH:
     unsigned SrcReg = MI->getOperand(0).getReg();
     unsigned ValReg = MI->getOperand(1).getReg();
-    MCSymbol *Label = GetARMSJLJEHLabel();
+    MCSymbol *Label = OutContext.createTempSymbol("SJLJEH", false, true);
     OutStreamer->AddComment("eh_setjmp begin");
     EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::tMOVr)
       .addReg(ValReg)

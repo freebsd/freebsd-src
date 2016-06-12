@@ -319,6 +319,85 @@ print_dyn_rule_flags(struct ipfw_flow_id *id, int dyn_type, int log_flags,
 #define TIME_LEQ(a,b)       ((int)((a)-(b)) <= 0)
 #define TIME_LE(a,b)       ((int)((a)-(b)) < 0)
 
+static void
+dyn_update_proto_state(ipfw_dyn_rule *q, const struct ipfw_flow_id *id,
+    const struct tcphdr *tcp, int dir)
+{
+	uint32_t ack;
+	u_char flags;
+
+	if (id->proto == IPPROTO_TCP) {
+		flags = id->_flags & (TH_FIN | TH_SYN | TH_RST);
+#define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
+#define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
+#define	TCP_FLAGS	(TH_FLAGS | (TH_FLAGS << 8))
+#define	ACK_FWD		0x10000			/* fwd ack seen */
+#define	ACK_REV		0x20000			/* rev ack seen */
+
+		q->state |= (dir == MATCH_FORWARD) ? flags : (flags << 8);
+		switch (q->state & TCP_FLAGS) {
+		case TH_SYN:			/* opening */
+			q->expire = time_uptime + V_dyn_syn_lifetime;
+			break;
+
+		case BOTH_SYN:			/* move to established */
+		case BOTH_SYN | TH_FIN:		/* one side tries to close */
+		case BOTH_SYN | (TH_FIN << 8):
+#define _SEQ_GE(a,b) ((int)(a) - (int)(b) >= 0)
+			if (tcp == NULL)
+				break;
+
+			ack = ntohl(tcp->th_ack);
+			if (dir == MATCH_FORWARD) {
+				if (q->ack_fwd == 0 ||
+				    _SEQ_GE(ack, q->ack_fwd)) {
+					q->ack_fwd = ack;
+					q->state |= ACK_FWD;
+				}
+			} else {
+				if (q->ack_rev == 0 ||
+				    _SEQ_GE(ack, q->ack_rev)) {
+					q->ack_rev = ack;
+					q->state |= ACK_REV;
+				}
+			}
+			if ((q->state & (ACK_FWD | ACK_REV)) ==
+			    (ACK_FWD | ACK_REV)) {
+				q->expire = time_uptime + V_dyn_ack_lifetime;
+				q->state &= ~(ACK_FWD | ACK_REV);
+			}
+			break;
+
+		case BOTH_SYN | BOTH_FIN:	/* both sides closed */
+			if (V_dyn_fin_lifetime >= V_dyn_keepalive_period)
+				V_dyn_fin_lifetime =
+				    V_dyn_keepalive_period - 1;
+			q->expire = time_uptime + V_dyn_fin_lifetime;
+			break;
+
+		default:
+#if 0
+			/*
+			 * reset or some invalid combination, but can also
+			 * occur if we use keep-state the wrong way.
+			 */
+			if ( (q->state & ((TH_RST << 8)|TH_RST)) == 0)
+				printf("invalid state: 0x%x\n", q->state);
+#endif
+			if (V_dyn_rst_lifetime >= V_dyn_keepalive_period)
+				V_dyn_rst_lifetime =
+				    V_dyn_keepalive_period - 1;
+			q->expire = time_uptime + V_dyn_rst_lifetime;
+			break;
+		}
+	} else if (id->proto == IPPROTO_UDP) {
+		q->expire = time_uptime + V_dyn_udp_lifetime;
+	} else {
+		/* other protocols */
+		q->expire = time_uptime + V_dyn_short_lifetime;
+	}
+}
+
 /*
  * Lookup a dynamic rule, locked version.
  */
@@ -330,15 +409,12 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
 	 * Stateful ipfw extensions.
 	 * Lookup into dynamic session queue.
 	 */
-#define MATCH_REVERSE	0
-#define MATCH_FORWARD	1
-#define MATCH_NONE	2
-#define MATCH_UNKNOWN	3
-	int dir = MATCH_NONE;
 	ipfw_dyn_rule *prev, *q = NULL;
+	int dir;
 
 	IPFW_BUCK_ASSERT(i);
 
+	dir = MATCH_NONE;
 	for (prev = NULL, q = V_ipfw_dyn_v[i].head; q; prev = q, q = q->next) {
 		if (q->dyn_type == O_LIMIT_PARENT && q->count)
 			continue;
@@ -386,76 +462,9 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
 		q->next = V_ipfw_dyn_v[i].head;
 		V_ipfw_dyn_v[i].head = q;
 	}
-	if (pkt->proto == IPPROTO_TCP) { /* update state according to flags */
-		uint32_t ack;
-		u_char flags = pkt->_flags & (TH_FIN | TH_SYN | TH_RST);
 
-#define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
-#define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
-#define	TCP_FLAGS	(TH_FLAGS | (TH_FLAGS << 8))
-#define	ACK_FWD		0x10000			/* fwd ack seen */
-#define	ACK_REV		0x20000			/* rev ack seen */
-
-		q->state |= (dir == MATCH_FORWARD) ? flags : (flags << 8);
-		switch (q->state & TCP_FLAGS) {
-		case TH_SYN:			/* opening */
-			q->expire = time_uptime + V_dyn_syn_lifetime;
-			break;
-
-		case BOTH_SYN:			/* move to established */
-		case BOTH_SYN | TH_FIN:		/* one side tries to close */
-		case BOTH_SYN | (TH_FIN << 8):
-#define _SEQ_GE(a,b) ((int)(a) - (int)(b) >= 0)
-			if (tcp == NULL)
-				break;
-
-			ack = ntohl(tcp->th_ack);
-			if (dir == MATCH_FORWARD) {
-				if (q->ack_fwd == 0 ||
-				    _SEQ_GE(ack, q->ack_fwd)) {
-					q->ack_fwd = ack;
-					q->state |= ACK_FWD;
-				}
-			} else {
-				if (q->ack_rev == 0 ||
-				    _SEQ_GE(ack, q->ack_rev)) {
-					q->ack_rev = ack;
-					q->state |= ACK_REV;
-				}
-			}
-			if ((q->state & (ACK_FWD | ACK_REV)) ==
-			    (ACK_FWD | ACK_REV)) {
-				q->expire = time_uptime + V_dyn_ack_lifetime;
-				q->state &= ~(ACK_FWD | ACK_REV);
-			}
-			break;
-
-		case BOTH_SYN | BOTH_FIN:	/* both sides closed */
-			if (V_dyn_fin_lifetime >= V_dyn_keepalive_period)
-				V_dyn_fin_lifetime = V_dyn_keepalive_period - 1;
-			q->expire = time_uptime + V_dyn_fin_lifetime;
-			break;
-
-		default:
-#if 0
-			/*
-			 * reset or some invalid combination, but can also
-			 * occur if we use keep-state the wrong way.
-			 */
-			if ( (q->state & ((TH_RST << 8)|TH_RST)) == 0)
-				printf("invalid state: 0x%x\n", q->state);
-#endif
-			if (V_dyn_rst_lifetime >= V_dyn_keepalive_period)
-				V_dyn_rst_lifetime = V_dyn_keepalive_period - 1;
-			q->expire = time_uptime + V_dyn_rst_lifetime;
-			break;
-		}
-	} else if (pkt->proto == IPPROTO_UDP) {
-		q->expire = time_uptime + V_dyn_udp_lifetime;
-	} else {
-		/* other protocols */
-		q->expire = time_uptime + V_dyn_short_lifetime;
-	}
+	/* update state according to flags */
+	dyn_update_proto_state(q, pkt, tcp, dir);
 done:
 	if (match_direction != NULL)
 		*match_direction = dir;
@@ -505,7 +514,7 @@ resize_dynamic_table(struct ip_fw_chain *chain, int nbuckets)
 	    V_curr_dyn_buckets, nbuckets);
 
 	/* Allocate and initialize new hash */
-	dyn_v = malloc(nbuckets * sizeof(ipfw_dyn_rule), M_IPFW,
+	dyn_v = malloc(nbuckets * sizeof(*dyn_v), M_IPFW,
 	    M_WAITOK | M_ZERO);
 
 	for (i = 0 ; i < nbuckets; i++)
@@ -687,7 +696,6 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 	IPFW_BUCK_LOCK(i);
 
 	q = lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL);
-
 	if (q != NULL) {	/* should never occur */
 		DEB(
 		if (last_log != time_uptime) {
@@ -786,7 +794,8 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 		IPFW_BUCK_UNLOCK(pindex);
 
 		IPFW_BUCK_LOCK(i);
-		q = add_dyn_rule(&args->f_id, i, O_LIMIT, (struct ip_fw *)parent);
+		q = add_dyn_rule(&args->f_id, i, O_LIMIT,
+		    (struct ip_fw *)parent);
 		if (q == NULL) {
 			/* Decrement index and notify caller */
 			IPFW_BUCK_UNLOCK(i);
@@ -807,9 +816,7 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 		return (1);	/* Notify caller about failure */
 	}
 
-	/* XXX just set lifetime */
-	lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL);
-
+	dyn_update_proto_state(q, &args->f_id, NULL, MATCH_FORWARD);
 	IPFW_BUCK_UNLOCK(i);
 	return (0);
 }
@@ -989,7 +996,7 @@ ipfw_dyn_send_ka(struct mbuf **mtailp, ipfw_dyn_rule *q)
 }
 
 /*
- * This procedure is used to perform various maintance
+ * This procedure is used to perform various maintenance
  * on dynamic hash list. Currently it is called every second.
  */
 static void
@@ -1021,7 +1028,7 @@ ipfw_dyn_tick(void * vnetx)
 
 
 /*
- * Walk thru all dynamic states doing generic maintance:
+ * Walk through all dynamic states doing generic maintenance:
  * 1) free expired states
  * 2) free all states based on deleted rule / set
  * 3) send keepalives for states if needed

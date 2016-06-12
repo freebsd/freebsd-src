@@ -200,7 +200,7 @@ bootonly: packagesystem
 	    MK_GAMES=no MK_GROFF=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
-	    MK_INSTALLIB=no MK_RESCUE=no MK_DICT=no \
+	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
@@ -291,7 +291,7 @@ real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
 
-install:	release-install vm-install cloudware-install
+install:	release-install vm-install
 
 release-install:
 .if defined(DESTDIR) && !empty(DESTDIR)

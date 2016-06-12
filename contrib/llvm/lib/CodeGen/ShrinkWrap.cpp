@@ -43,9 +43,12 @@
 // points must be in the same loop.
 // Property #3 is ensured via the MachineBlockFrequencyInfo.
 //
-// If this pass found points matching all this properties, then
-// MachineFrameInfo is updated this that information.
+// If this pass found points matching all these properties, then
+// MachineFrameInfo is updated with this information.
 //===----------------------------------------------------------------------===//
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/Statistic.h"
 // To check for profitability.
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
@@ -61,11 +64,14 @@
 #include "llvm/CodeGen/Passes.h"
 // To know about callee-saved.
 #include "llvm/CodeGen/RegisterClassInfo.h"
+#include "llvm/CodeGen/RegisterScavenging.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Support/Debug.h"
 // To query the target about frame lowering.
 #include "llvm/Target/TargetFrameLowering.h"
 // To know about frame setup operation.
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
 // To access TargetInstrInfo.
 #include "llvm/Target/TargetSubtargetInfo.h"
 
@@ -77,6 +83,10 @@ STATISTIC(NumFunc, "Number of functions");
 STATISTIC(NumCandidates, "Number of shrink-wrapping candidates");
 STATISTIC(NumCandidatesDropped,
           "Number of shrink-wrapping candidates dropped because of frequency");
+
+static cl::opt<cl::boolOrDefault>
+    EnableShrinkWrapOpt("enable-shrink-wrap", cl::Hidden,
+                        cl::desc("enable the shrink-wrapping pass"));
 
 namespace {
 /// \brief Class to determine where the safe point to insert the
@@ -113,18 +123,38 @@ class ShrinkWrap : public MachineFunctionPass {
   unsigned FrameDestroyOpcode;
   /// Entry block.
   const MachineBasicBlock *Entry;
+  typedef SmallSetVector<unsigned, 16> SetOfRegs;
+  /// Registers that need to be saved for the current function.
+  mutable SetOfRegs CurrentCSRs;
+  /// Current MachineFunction.
+  MachineFunction *MachineFunc;
 
   /// \brief Check if \p MI uses or defines a callee-saved register or
   /// a frame index. If this is the case, this means \p MI must happen
   /// after Save and before Restore.
-  bool useOrDefCSROrFI(const MachineInstr &MI) const;
+  bool useOrDefCSROrFI(const MachineInstr &MI, RegScavenger *RS) const;
+
+  const SetOfRegs &getCurrentCSRs(RegScavenger *RS) const {
+    if (CurrentCSRs.empty()) {
+      BitVector SavedRegs;
+      const TargetFrameLowering *TFI =
+          MachineFunc->getSubtarget().getFrameLowering();
+
+      TFI->determineCalleeSaves(*MachineFunc, SavedRegs, RS);
+
+      for (int Reg = SavedRegs.find_first(); Reg != -1;
+           Reg = SavedRegs.find_next(Reg))
+        CurrentCSRs.insert((unsigned)Reg);
+    }
+    return CurrentCSRs;
+  }
 
   /// \brief Update the Save and Restore points such that \p MBB is in
   /// the region that is dominated by Save and post-dominated by Restore
   /// and Save and Restore still match the safe point definition.
   /// Such point may not exist and Save and/or Restore may be null after
   /// this call.
-  void updateSaveRestorePoints(MachineBasicBlock &MBB);
+  void updateSaveRestorePoints(MachineBasicBlock &MBB, RegScavenger *RS);
 
   /// \brief Initialize the pass for \p MF.
   void init(MachineFunction &MF) {
@@ -140,6 +170,8 @@ class ShrinkWrap : public MachineFunctionPass {
     FrameSetupOpcode = TII.getCallFrameSetupOpcode();
     FrameDestroyOpcode = TII.getCallFrameDestroyOpcode();
     Entry = &MF.front();
+    CurrentCSRs.clear();
+    MachineFunc = &MF;
 
     ++NumFunc;
   }
@@ -147,6 +179,9 @@ class ShrinkWrap : public MachineFunctionPass {
   /// Check whether or not Save and Restore points are still interesting for
   /// shrink-wrapping.
   bool ArePointsInteresting() const { return Save != Entry && Save && Restore; }
+
+  /// \brief Check if shrink wrapping is enabled for this target and function.
+  static bool isShrinkWrapEnabled(const MachineFunction &MF);
 
 public:
   static char ID;
@@ -185,27 +220,34 @@ INITIALIZE_PASS_DEPENDENCY(MachinePostDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
 INITIALIZE_PASS_END(ShrinkWrap, "shrink-wrap", "Shrink Wrap Pass", false, false)
 
-bool ShrinkWrap::useOrDefCSROrFI(const MachineInstr &MI) const {
+bool ShrinkWrap::useOrDefCSROrFI(const MachineInstr &MI,
+                                 RegScavenger *RS) const {
   if (MI.getOpcode() == FrameSetupOpcode ||
       MI.getOpcode() == FrameDestroyOpcode) {
     DEBUG(dbgs() << "Frame instruction: " << MI << '\n');
     return true;
   }
   for (const MachineOperand &MO : MI.operands()) {
-    bool UseCSR = false;
+    bool UseOrDefCSR = false;
     if (MO.isReg()) {
       unsigned PhysReg = MO.getReg();
       if (!PhysReg)
         continue;
       assert(TargetRegisterInfo::isPhysicalRegister(PhysReg) &&
              "Unallocated register?!");
-      UseCSR = RCI.getLastCalleeSavedAlias(PhysReg);
+      UseOrDefCSR = RCI.getLastCalleeSavedAlias(PhysReg);
+    } else if (MO.isRegMask()) {
+      // Check if this regmask clobbers any of the CSRs.
+      for (unsigned Reg : getCurrentCSRs(RS)) {
+        if (MO.clobbersPhysReg(Reg)) {
+          UseOrDefCSR = true;
+          break;
+        }
+      }
     }
-    // TODO: Handle regmask more accurately.
-    // For now, be conservative about them.
-    if (UseCSR || MO.isFI() || MO.isRegMask()) {
-      DEBUG(dbgs() << "Use or define CSR(" << UseCSR << ") or FI(" << MO.isFI()
-                   << "): " << MI << '\n');
+    if (UseOrDefCSR || MO.isFI()) {
+      DEBUG(dbgs() << "Use or define CSR(" << UseOrDefCSR << ") or FI("
+                   << MO.isFI() << "): " << MI << '\n');
       return true;
     }
   }
@@ -222,10 +264,13 @@ MachineBasicBlock *FindIDom(MachineBasicBlock &Block, ListOfBBs BBs,
     if (!IDom)
       break;
   }
+  if (IDom == &Block)
+    return nullptr;
   return IDom;
 }
 
-void ShrinkWrap::updateSaveRestorePoints(MachineBasicBlock &MBB) {
+void ShrinkWrap::updateSaveRestorePoints(MachineBasicBlock &MBB,
+                                         RegScavenger *RS) {
   // Get rid of the easy cases first.
   if (!Save)
     Save = &MBB;
@@ -246,7 +291,7 @@ void ShrinkWrap::updateSaveRestorePoints(MachineBasicBlock &MBB) {
   // terminator.
   if (Restore == &MBB) {
     for (const MachineInstr &Terminator : MBB.terminators()) {
-      if (!useOrDefCSROrFI(Terminator))
+      if (!useOrDefCSROrFI(Terminator, RS))
         continue;
       // One of the terminator needs to happen before the restore point.
       if (MBB.succ_empty()) {
@@ -277,7 +322,24 @@ void ShrinkWrap::updateSaveRestorePoints(MachineBasicBlock &MBB) {
   while (Save && Restore &&
          (!(SaveDominatesRestore = MDT->dominates(Save, Restore)) ||
           !(RestorePostDominatesSave = MPDT->dominates(Restore, Save)) ||
-          MLI->getLoopFor(Save) != MLI->getLoopFor(Restore))) {
+          // Post-dominance is not enough in loops to ensure that all uses/defs
+          // are after the prologue and before the epilogue at runtime.
+          // E.g.,
+          // while(1) {
+          //  Save
+          //  Restore
+          //   if (...)
+          //     break;
+          //  use/def CSRs
+          // }
+          // All the uses/defs of CSRs are dominated by Save and post-dominated
+          // by Restore. However, the CSRs uses are still reachable after
+          // Restore and before Save are executed.
+          //
+          // For now, just push the restore/save points outside of loops.
+          // FIXME: Refine the criteria to still find interesting cases
+          // for loops.
+          MLI->getLoopFor(Save) || MLI->getLoopFor(Restore))) {
     // Fix (A).
     if (!SaveDominatesRestore) {
       Save = MDT->findNearestCommonDominator(Save, Restore);
@@ -288,35 +350,114 @@ void ShrinkWrap::updateSaveRestorePoints(MachineBasicBlock &MBB) {
       Restore = MPDT->findNearestCommonDominator(Restore, Save);
 
     // Fix (C).
-    if (Save && Restore && Save != Restore &&
-        MLI->getLoopFor(Save) != MLI->getLoopFor(Restore)) {
-      if (MLI->getLoopDepth(Save) > MLI->getLoopDepth(Restore))
-        // Push Save outside of this loop.
+    if (Save && Restore &&
+        (MLI->getLoopFor(Save) || MLI->getLoopFor(Restore))) {
+      if (MLI->getLoopDepth(Save) > MLI->getLoopDepth(Restore)) {
+        // Push Save outside of this loop if immediate dominator is different
+        // from save block. If immediate dominator is not different, bail out.
         Save = FindIDom<>(*Save, Save->predecessors(), *MDT);
-      else
+        if (!Save)
+          break;
+      } else {
+        // If the loop does not exit, there is no point in looking
+        // for a post-dominator outside the loop.
+        SmallVector<MachineBasicBlock*, 4> ExitBlocks;
+        MLI->getLoopFor(Restore)->getExitingBlocks(ExitBlocks);
         // Push Restore outside of this loop.
-        Restore = FindIDom<>(*Restore, Restore->successors(), *MPDT);
+        // Look for the immediate post-dominator of the loop exits.
+        MachineBasicBlock *IPdom = Restore;
+        for (MachineBasicBlock *LoopExitBB: ExitBlocks) {
+          IPdom = FindIDom<>(*IPdom, LoopExitBB->successors(), *MPDT);
+          if (!IPdom)
+            break;
+        }
+        // If the immediate post-dominator is not in a less nested loop,
+        // then we are stuck in a program with an infinite loop.
+        // In that case, we will not find a safe point, hence, bail out.
+        if (IPdom && MLI->getLoopDepth(IPdom) < MLI->getLoopDepth(Restore))
+          Restore = IPdom;
+        else {
+          Restore = nullptr;
+          break;
+        }
+      }
     }
   }
 }
 
+/// Check whether the edge (\p SrcBB, \p DestBB) is a backedge according to MLI.
+/// I.e., check if it exists a loop that contains SrcBB and where DestBB is the
+/// loop header.
+static bool isProperBackedge(const MachineLoopInfo &MLI,
+                             const MachineBasicBlock *SrcBB,
+                             const MachineBasicBlock *DestBB) {
+  for (const MachineLoop *Loop = MLI.getLoopFor(SrcBB); Loop;
+       Loop = Loop->getParentLoop()) {
+    if (Loop->getHeader() == DestBB)
+      return true;
+  }
+  return false;
+}
+
+/// Check if the CFG of \p MF is irreducible.
+static bool isIrreducibleCFG(const MachineFunction &MF,
+                             const MachineLoopInfo &MLI) {
+  const MachineBasicBlock *Entry = &*MF.begin();
+  ReversePostOrderTraversal<const MachineBasicBlock *> RPOT(Entry);
+  BitVector VisitedBB(MF.getNumBlockIDs());
+  for (const MachineBasicBlock *MBB : RPOT) {
+    VisitedBB.set(MBB->getNumber());
+    for (const MachineBasicBlock *SuccBB : MBB->successors()) {
+      if (!VisitedBB.test(SuccBB->getNumber()))
+        continue;
+      // We already visited SuccBB, thus MBB->SuccBB must be a backedge.
+      // Check that the head matches what we have in the loop information.
+      // Otherwise, we have an irreducible graph.
+      if (!isProperBackedge(MLI, MBB, SuccBB))
+        return true;
+    }
+  }
+  return false;
+}
+
 bool ShrinkWrap::runOnMachineFunction(MachineFunction &MF) {
-  if (MF.empty())
+  if (MF.empty() || !isShrinkWrapEnabled(MF))
     return false;
+
   DEBUG(dbgs() << "**** Analysing " << MF.getName() << '\n');
 
   init(MF);
+
+  if (isIrreducibleCFG(MF, *MLI)) {
+    // If MF is irreducible, a block may be in a loop without
+    // MachineLoopInfo reporting it. I.e., we may use the
+    // post-dominance property in loops, which lead to incorrect
+    // results. Moreover, we may miss that the prologue and
+    // epilogue are not in the same loop, leading to unbalanced
+    // construction/deconstruction of the stack frame.
+    DEBUG(dbgs() << "Irreducible CFGs are not supported yet\n");
+    return false;
+  }
+
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+  std::unique_ptr<RegScavenger> RS(
+      TRI->requiresRegisterScavenging(MF) ? new RegScavenger() : nullptr);
 
   for (MachineBasicBlock &MBB : MF) {
     DEBUG(dbgs() << "Look into: " << MBB.getNumber() << ' ' << MBB.getName()
                  << '\n');
 
+    if (MBB.isEHFuncletEntry()) {
+      DEBUG(dbgs() << "EH Funclets are not supported yet.\n");
+      return false;
+    }
+
     for (const MachineInstr &MI : MBB) {
-      if (!useOrDefCSROrFI(MI))
+      if (!useOrDefCSROrFI(MI, RS.get()))
         continue;
       // Save (resp. restore) point must dominate (resp. post dominate)
       // MI. Look for the proper basic block for those.
-      updateSaveRestorePoints(MBB);
+      updateSaveRestorePoints(MBB, RS.get());
       // If we are at a point where we cannot improve the placement of
       // save/restore instructions, just give up.
       if (!ArePointsInteresting()) {
@@ -368,7 +509,7 @@ bool ShrinkWrap::runOnMachineFunction(MachineFunction &MF) {
         break;
       NewBB = Restore;
     }
-    updateSaveRestorePoints(*NewBB);
+    updateSaveRestorePoints(*NewBB, RS.get());
   } while (Save && Restore);
 
   if (!ArePointsInteresting()) {
@@ -385,4 +526,31 @@ bool ShrinkWrap::runOnMachineFunction(MachineFunction &MF) {
   MFI->setRestorePoint(Restore);
   ++NumCandidates;
   return false;
+}
+
+bool ShrinkWrap::isShrinkWrapEnabled(const MachineFunction &MF) {
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+
+  switch (EnableShrinkWrapOpt) {
+  case cl::BOU_UNSET:
+    return TFI->enableShrinkWrapping(MF) &&
+      // Windows with CFI has some limitations that make it impossible
+      // to use shrink-wrapping.
+      !MF.getTarget().getMCAsmInfo()->usesWindowsCFI() &&
+      // Sanitizers look at the value of the stack at the location
+      // of the crash. Since a crash can happen anywhere, the
+      // frame must be lowered before anything else happen for the
+      // sanitizers to be able to get a correct stack frame.
+      !(MF.getFunction()->hasFnAttribute(Attribute::SanitizeAddress) ||
+        MF.getFunction()->hasFnAttribute(Attribute::SanitizeThread) ||
+        MF.getFunction()->hasFnAttribute(Attribute::SanitizeMemory));
+  // If EnableShrinkWrap is set, it takes precedence on whatever the
+  // target sets. The rational is that we assume we want to test
+  // something related to shrink-wrapping.
+  case cl::BOU_TRUE:
+    return true;
+  case cl::BOU_FALSE:
+    return false;
+  }
+  llvm_unreachable("Invalid shrink-wrapping state");
 }

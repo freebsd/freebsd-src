@@ -144,6 +144,9 @@ int PPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
   int Latency = PPCGenInstrInfo::getOperandLatency(ItinData, DefMI, DefIdx,
                                                    UseMI, UseIdx);
 
+  if (!DefMI->getParent())
+    return Latency;
+
   const MachineOperand &DefMO = DefMI->getOperand(DefIdx);
   unsigned Reg = DefMO.getReg();
 
@@ -184,6 +187,60 @@ int PPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
   }
 
   return Latency;
+}
+
+// This function does not list all associative and commutative operations, but
+// only those worth feeding through the machine combiner in an attempt to
+// reduce the critical path. Mostly, this means floating-point operations,
+// because they have high latencies (compared to other operations, such and
+// and/or, which are also associative and commutative, but have low latencies).
+bool PPCInstrInfo::isAssociativeAndCommutative(const MachineInstr &Inst) const {
+  switch (Inst.getOpcode()) {
+  // FP Add:
+  case PPC::FADD:
+  case PPC::FADDS:
+  // FP Multiply:
+  case PPC::FMUL:
+  case PPC::FMULS:
+  // Altivec Add:
+  case PPC::VADDFP:
+  // VSX Add:
+  case PPC::XSADDDP:
+  case PPC::XVADDDP:
+  case PPC::XVADDSP:
+  case PPC::XSADDSP:
+  // VSX Multiply:
+  case PPC::XSMULDP:
+  case PPC::XVMULDP:
+  case PPC::XVMULSP:
+  case PPC::XSMULSP:
+  // QPX Add:
+  case PPC::QVFADD:
+  case PPC::QVFADDS:
+  case PPC::QVFADDSs:
+  // QPX Multiply:
+  case PPC::QVFMUL:
+  case PPC::QVFMULS:
+  case PPC::QVFMULSs:
+    return true;
+  default:
+    return false;
+  }
+}
+
+bool PPCInstrInfo::getMachineCombinerPatterns(
+    MachineInstr &Root,
+    SmallVectorImpl<MachineCombinerPattern> &Patterns) const {
+  // Using the machine combiner in this way is potentially expensive, so
+  // restrict to when aggressive optimizations are desired.
+  if (Subtarget.getTargetMachine().getOptLevel() != CodeGenOpt::Aggressive)
+    return false;
+
+  // FP reassociation is only legal when we don't need strict IEEE semantics.
+  if (!Root.getParent()->getParent()->getTarget().Options.UnsafeFPMath)
+    return false;
+
+  return TargetInstrInfo::getMachineCombinerPatterns(Root, Patterns);
 }
 
 // Detect 32 -> 64-bit extensions where we may reuse the low sub-register.
@@ -259,16 +316,16 @@ unsigned PPCInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
   return 0;
 }
 
-// commuteInstruction - We can commute rlwimi instructions, but only if the
-// rotate amt is zero.  We also have to munge the immediates a bit.
-MachineInstr *
-PPCInstrInfo::commuteInstruction(MachineInstr *MI, bool NewMI) const {
+MachineInstr *PPCInstrInfo::commuteInstructionImpl(MachineInstr *MI,
+                                                   bool NewMI,
+                                                   unsigned OpIdx1,
+                                                   unsigned OpIdx2) const {
   MachineFunction &MF = *MI->getParent()->getParent();
 
   // Normal instructions can be commuted the obvious way.
   if (MI->getOpcode() != PPC::RLWIMI &&
       MI->getOpcode() != PPC::RLWIMIo)
-    return TargetInstrInfo::commuteInstruction(MI, NewMI);
+    return TargetInstrInfo::commuteInstructionImpl(MI, NewMI, OpIdx1, OpIdx2);
   // Note that RLWIMI can be commuted as a 32-bit instruction, but not as a
   // 64-bit instruction (so we don't handle PPC::RLWIMI8 here), because
   // changing the relative order of the mask operands might change what happens
@@ -286,6 +343,8 @@ PPCInstrInfo::commuteInstruction(MachineInstr *MI, bool NewMI) const {
   //   Op0 = (Op2 & ~M) | (Op1 & M)
 
   // Swap op1/op2
+  assert(((OpIdx1 == 1 && OpIdx2 == 2) || (OpIdx1 == 2 && OpIdx2 == 1)) &&
+         "Only the operands 1 and 2 can be swapped in RLSIMI/RLWIMIo.");
   unsigned Reg0 = MI->getOperand(0).getReg();
   unsigned Reg1 = MI->getOperand(1).getReg();
   unsigned Reg2 = MI->getOperand(2).getReg();
@@ -353,9 +412,9 @@ bool PPCInstrInfo::findCommutedOpIndices(MachineInstr *MI, unsigned &SrcOpIdx1,
   if (AltOpc == -1)
     return TargetInstrInfo::findCommutedOpIndices(MI, SrcOpIdx1, SrcOpIdx2);
 
-  SrcOpIdx1 = 2;
-  SrcOpIdx2 = 3;
-  return true;
+  // The commutable operand indices are 2 and 3. Return them in SrcOpIdx1
+  // and SrcOpIdx2.
+  return fixCommutedOpIndices(SrcOpIdx1, SrcOpIdx2, 2, 3);
 }
 
 void PPCInstrInfo::insertNoop(MachineBasicBlock &MBB,
@@ -685,20 +744,43 @@ void PPCInstrInfo::insertSelect(MachineBasicBlock &MBB,
          "isel is for regular integer GPRs only");
 
   unsigned OpCode = Is64Bit ? PPC::ISEL8 : PPC::ISEL;
-  unsigned SelectPred = Cond[0].getImm();
+  auto SelectPred = static_cast<PPC::Predicate>(Cond[0].getImm());
 
   unsigned SubIdx;
   bool SwapOps;
   switch (SelectPred) {
-  default: llvm_unreachable("invalid predicate for isel");
-  case PPC::PRED_EQ: SubIdx = PPC::sub_eq; SwapOps = false; break;
-  case PPC::PRED_NE: SubIdx = PPC::sub_eq; SwapOps = true; break;
-  case PPC::PRED_LT: SubIdx = PPC::sub_lt; SwapOps = false; break;
-  case PPC::PRED_GE: SubIdx = PPC::sub_lt; SwapOps = true; break;
-  case PPC::PRED_GT: SubIdx = PPC::sub_gt; SwapOps = false; break;
-  case PPC::PRED_LE: SubIdx = PPC::sub_gt; SwapOps = true; break;
-  case PPC::PRED_UN: SubIdx = PPC::sub_un; SwapOps = false; break;
-  case PPC::PRED_NU: SubIdx = PPC::sub_un; SwapOps = true; break;
+  case PPC::PRED_EQ:
+  case PPC::PRED_EQ_MINUS:
+  case PPC::PRED_EQ_PLUS:
+      SubIdx = PPC::sub_eq; SwapOps = false; break;
+  case PPC::PRED_NE:
+  case PPC::PRED_NE_MINUS:
+  case PPC::PRED_NE_PLUS:
+      SubIdx = PPC::sub_eq; SwapOps = true; break;
+  case PPC::PRED_LT:
+  case PPC::PRED_LT_MINUS:
+  case PPC::PRED_LT_PLUS:
+      SubIdx = PPC::sub_lt; SwapOps = false; break;
+  case PPC::PRED_GE:
+  case PPC::PRED_GE_MINUS:
+  case PPC::PRED_GE_PLUS:
+      SubIdx = PPC::sub_lt; SwapOps = true; break;
+  case PPC::PRED_GT:
+  case PPC::PRED_GT_MINUS:
+  case PPC::PRED_GT_PLUS:
+      SubIdx = PPC::sub_gt; SwapOps = false; break;
+  case PPC::PRED_LE:
+  case PPC::PRED_LE_MINUS:
+  case PPC::PRED_LE_PLUS:
+      SubIdx = PPC::sub_gt; SwapOps = true; break;
+  case PPC::PRED_UN:
+  case PPC::PRED_UN_MINUS:
+  case PPC::PRED_UN_PLUS:
+      SubIdx = PPC::sub_un; SwapOps = false; break;
+  case PPC::PRED_NU:
+  case PPC::PRED_NU_MINUS:
+  case PPC::PRED_NU_PLUS:
+      SubIdx = PPC::sub_un; SwapOps = true; break;
   case PPC::PRED_BIT_SET:   SubIdx = 0; SwapOps = false; break;
   case PPC::PRED_BIT_UNSET: SubIdx = 0; SwapOps = true; break;
   }
@@ -996,11 +1078,10 @@ PPCInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
     MBB.insert(MI, NewMIs[i]);
 
   const MachineFrameInfo &MFI = *MF.getFrameInfo();
-  MachineMemOperand *MMO =
-    MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIdx),
-                            MachineMemOperand::MOStore,
-                            MFI.getObjectSize(FrameIdx),
-                            MFI.getObjectAlignment(FrameIdx));
+  MachineMemOperand *MMO = MF.getMachineMemOperand(
+      MachinePointerInfo::getFixedStack(MF, FrameIdx),
+      MachineMemOperand::MOStore, MFI.getObjectSize(FrameIdx),
+      MFI.getObjectAlignment(FrameIdx));
   NewMIs.back()->addMemOperand(MF, MMO);
 }
 
@@ -1109,11 +1190,10 @@ PPCInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
     MBB.insert(MI, NewMIs[i]);
 
   const MachineFrameInfo &MFI = *MF.getFrameInfo();
-  MachineMemOperand *MMO =
-    MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIdx),
-                            MachineMemOperand::MOLoad,
-                            MFI.getObjectSize(FrameIdx),
-                            MFI.getObjectAlignment(FrameIdx));
+  MachineMemOperand *MMO = MF.getMachineMemOperand(
+      MachinePointerInfo::getFixedStack(MF, FrameIdx),
+      MachineMemOperand::MOLoad, MFI.getObjectSize(FrameIdx),
+      MFI.getObjectAlignment(FrameIdx));
   NewMIs.back()->addMemOperand(MF, MMO);
 }
 
@@ -1214,7 +1294,7 @@ bool PPCInstrInfo::isProfitableToIfCvt(MachineBasicBlock &TMBB,
                      unsigned NumT, unsigned ExtraT,
                      MachineBasicBlock &FMBB,
                      unsigned NumF, unsigned ExtraF,
-                     const BranchProbability &Probability) const {
+                     BranchProbability Probability) const {
   return !(MBBDefinesCTR(TMBB) && MBBDefinesCTR(FMBB));
 }
 
@@ -1691,13 +1771,13 @@ bool PPCInstrInfo::optimizeCompareInstr(MachineInstr *CmpInstr,
     MI->setDesc(NewDesc);
 
     if (NewDesc.ImplicitDefs)
-      for (const uint16_t *ImpDefs = NewDesc.getImplicitDefs();
+      for (const MCPhysReg *ImpDefs = NewDesc.getImplicitDefs();
            *ImpDefs; ++ImpDefs)
         if (!MI->definesRegister(*ImpDefs))
           MI->addOperand(*MI->getParent()->getParent(),
                          MachineOperand::CreateReg(*ImpDefs, true, true));
     if (NewDesc.ImplicitUses)
-      for (const uint16_t *ImpUses = NewDesc.getImplicitUses();
+      for (const MCPhysReg *ImpUses = NewDesc.getImplicitUses();
            *ImpUses; ++ImpUses)
         if (!MI->readsRegister(*ImpUses))
           MI->addOperand(*MI->getParent()->getParent(),
@@ -1735,5 +1815,37 @@ unsigned PPCInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
     const MCInstrDesc &Desc = get(Opcode);
     return Desc.getSize();
   }
+}
+
+std::pair<unsigned, unsigned>
+PPCInstrInfo::decomposeMachineOperandsTargetFlags(unsigned TF) const {
+  const unsigned Mask = PPCII::MO_ACCESS_MASK;
+  return std::make_pair(TF & Mask, TF & ~Mask);
+}
+
+ArrayRef<std::pair<unsigned, const char *>>
+PPCInstrInfo::getSerializableDirectMachineOperandTargetFlags() const {
+  using namespace PPCII;
+  static const std::pair<unsigned, const char *> TargetFlags[] = {
+      {MO_LO, "ppc-lo"},
+      {MO_HA, "ppc-ha"},
+      {MO_TPREL_LO, "ppc-tprel-lo"},
+      {MO_TPREL_HA, "ppc-tprel-ha"},
+      {MO_DTPREL_LO, "ppc-dtprel-lo"},
+      {MO_TLSLD_LO, "ppc-tlsld-lo"},
+      {MO_TOC_LO, "ppc-toc-lo"},
+      {MO_TLS, "ppc-tls"}};
+  return makeArrayRef(TargetFlags);
+}
+
+ArrayRef<std::pair<unsigned, const char *>>
+PPCInstrInfo::getSerializableBitmaskMachineOperandTargetFlags() const {
+  using namespace PPCII;
+  static const std::pair<unsigned, const char *> TargetFlags[] = {
+      {MO_PLT_OR_STUB, "ppc-plt-or-stub"},
+      {MO_PIC_FLAG, "ppc-pic"},
+      {MO_NLP_FLAG, "ppc-nlp"},
+      {MO_NLP_HIDDEN_FLAG, "ppc-nlp-hidden"}};
+  return makeArrayRef(TargetFlags);
 }
 

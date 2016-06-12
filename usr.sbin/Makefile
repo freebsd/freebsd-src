@@ -96,7 +96,8 @@ SUBDIR=	adduser \
 	wake \
 	watch \
 	watchdogd \
-	zic
+	zic \
+	zonectl
 
 # NB: keep these sorted by MK_* knobs
 
@@ -112,6 +113,10 @@ SUBDIR.${MK_AUDIT}+=	auditreduce
 SUBDIR.${MK_AUDIT}+=	praudit
 SUBDIR.${MK_AUTHPF}+=	authpf
 SUBDIR.${MK_AUTOFS}+=	autofs
+.if ${MK_BLACKLIST} != "no"
+SUBDIR.${MK_BLACKLIST}+=	blacklistctl
+SUBDIR.${MK_BLACKLIST}+=	blacklistd
+.endif
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
 SUBDIR.${MK_BOOTPARAMD}+=	bootparamd
 SUBDIR.${MK_BSDINSTALL}+=	bsdinstall
@@ -194,9 +199,7 @@ SUBDIR.${MK_TIMED}+=	timed
 SUBDIR.${MK_TOOLCHAIN}+=	config
 SUBDIR.${MK_TOOLCHAIN}+=	crunch
 SUBDIR.${MK_UNBOUND}+=	unbound
-.if !(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50200)
 SUBDIR.${MK_USB}+=	uathload
-.endif
 SUBDIR.${MK_USB}+=	uhsoctl
 SUBDIR.${MK_USB}+=	usbconfig
 SUBDIR.${MK_USB}+=	usbdump

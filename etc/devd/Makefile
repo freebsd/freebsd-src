@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-FILES=
+FILEGROUPS=	FILES
 
 .if ${MACHINE} == "powerpc"
 FILES+=	apple.conf

@@ -29,10 +29,6 @@
 #ifndef __KVM_ARM_H__
 #define	__KVM_ARM_H__
 
-#ifdef __arm__
-#include <machine/pte.h>
-#endif
-
 typedef uint32_t	arm_physaddr_t;
 typedef uint32_t	arm_pd_entry_t;
 typedef uint32_t	arm_pt_entry_t;
@@ -72,10 +68,14 @@ typedef uint32_t	arm_pt_entry_t;
 #define	ARM_L2_TYPE_T	0x03		/* Tiny Page  -  1k - not used */
 #define	ARM_L2_TYPE_MASK	0x03
 
-#define	ARM_L2_ADDR_BITS	0x000ff000	/* L2 PTE address bits */
-
 #ifdef __arm__
 #include <machine/acle-compat.h>
+
+#if __ARM_ARCH >= 6
+#include <machine/pte-v6.h>
+#else
+#include <machine/pte-v4.h>
+#endif
 
 _Static_assert(PAGE_SHIFT == ARM_PAGE_SHIFT, "PAGE_SHIFT mismatch");
 _Static_assert(PAGE_SIZE == ARM_PAGE_SIZE, "PAGE_SIZE mismatch");
@@ -106,7 +106,6 @@ _Static_assert(L2_TYPE_S == ARM_L2_TYPE_S, "L2_TYPE_S mismatch");
 _Static_assert(L2_TYPE_T == ARM_L2_TYPE_T, "L2_TYPE_T mismatch");
 #endif
 _Static_assert(L2_TYPE_MASK == ARM_L2_TYPE_MASK, "L2_TYPE_MASK mismatch");
-_Static_assert(L2_ADDR_BITS == ARM_L2_ADDR_BITS, "L2_ADDR_BITS mismatch");
 #endif
 
 int	_arm_native(kvm_t *);

@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/endian.h>
+#include <sys/devmap.h>
 
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -61,8 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
@@ -70,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include "ofw_bus_if.h"
 #include "pcib_if.h"
 
-#include <machine/devmap.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 
@@ -221,7 +221,7 @@ mv_pci_ranges(phandle_t node, struct mv_pci_range *io_space,
 }
 
 int
-mv_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va,
+mv_pci_devmap(phandle_t node, struct devmap_entry *devmap, vm_offset_t io_va,
     vm_offset_t mem_va)
 {
 	struct mv_pci_range io_space, mem_space;
@@ -233,15 +233,11 @@ mv_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va
 	devmap->pd_va = (io_va ? io_va : io_space.base_parent);
 	devmap->pd_pa = io_space.base_parent;
 	devmap->pd_size = io_space.len;
-	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_DEVICE;
 	devmap++;
 
 	devmap->pd_va = (mem_va ? mem_va : mem_space.base_parent);
 	devmap->pd_pa = mem_space.base_parent;
 	devmap->pd_size = mem_space.len;
-	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_DEVICE;
 	return (0);
 }
 
@@ -846,9 +842,9 @@ mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	default:
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 		    type, rid, start, end, count, flags));
-	};
+	}
 
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		start = sc->sc_mem_base;
 		end = sc->sc_mem_base + sc->sc_mem_size - 1;
 		count = sc->sc_mem_size;

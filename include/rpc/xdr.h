@@ -219,15 +219,11 @@ xdr_putint32(XDR *xdrs, int32_t *ip)
 		(*(xdrs)->x_ops->x_control)(xdrs, req, op)
 #define xdr_control(xdrs, req, op) XDR_CONTROL(xdrs, req, op)
 
-/*
- * Solaris strips the '_t' from these types -- not sure why.
- * But, let's be compatible.
- */
-#define xdr_rpcvers(xdrs, versp) xdr_u_int32(xdrs, versp)
-#define xdr_rpcprog(xdrs, progp) xdr_u_int32(xdrs, progp)
-#define xdr_rpcproc(xdrs, procp) xdr_u_int32(xdrs, procp)
-#define xdr_rpcprot(xdrs, protp) xdr_u_int32(xdrs, protp)
-#define xdr_rpcport(xdrs, portp) xdr_u_int32(xdrs, portp)
+#define xdr_rpcvers(xdrs, versp) xdr_u_int32_t(xdrs, versp)
+#define xdr_rpcprog(xdrs, progp) xdr_u_int32_t(xdrs, progp)
+#define xdr_rpcproc(xdrs, procp) xdr_u_int32_t(xdrs, procp)
+#define xdr_rpcprot(xdrs, protp) xdr_u_int32_t(xdrs, protp)
+#define xdr_rpcport(xdrs, portp) xdr_u_int32_t(xdrs, portp)
 
 /*
  * Support struct for discriminated unions.

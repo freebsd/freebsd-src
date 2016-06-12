@@ -74,6 +74,8 @@ static int canonicalize_username(sasl_conn_t *conn,
     {
       /* The only valid realm is user_realm (i.e. the repository's realm).
          If the user gave us another realm, complain. */
+      if (realm_len != inlen-(pos-in+1))
+        return SASL_BADPROT;
       if (strncmp(pos+1, user_realm, inlen-(pos-in+1)) != 0)
         return SASL_BADPROT;
     }

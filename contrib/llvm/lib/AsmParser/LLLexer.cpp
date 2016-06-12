@@ -105,7 +105,7 @@ void LLLexer::FP80HexToIntPair(const char *Buffer, const char *End,
     Pair[1] += hexDigitValue(*Buffer);
   }
   Pair[0] = 0;
-  for (int i=0; i<16; i++, Buffer++) {
+  for (int i = 0; i < 16 && Buffer != End; i++, Buffer++) {
     Pair[0] *= 16;
     Pair[0] += hexDigitValue(*Buffer);
   }
@@ -523,9 +523,14 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(zeroinitializer);
   KEYWORD(undef);
   KEYWORD(null);
+  KEYWORD(none);
   KEYWORD(to);
+  KEYWORD(caller);
+  KEYWORD(within);
+  KEYWORD(from);
   KEYWORD(tail);
   KEYWORD(musttail);
+  KEYWORD(notail);
   KEYWORD(target);
   KEYWORD(triple);
   KEYWORD(unwind);
@@ -586,6 +591,10 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(preserve_mostcc);
   KEYWORD(preserve_allcc);
   KEYWORD(ghccc);
+  KEYWORD(x86_intrcc);
+  KEYWORD(hhvmcc);
+  KEYWORD(hhvm_ccc);
+  KEYWORD(cxx_fast_tlscc);
 
   KEYWORD(cc);
   KEYWORD(c);
@@ -601,6 +610,8 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(convergent);
   KEYWORD(dereferenceable);
   KEYWORD(dereferenceable_or_null);
+  KEYWORD(inaccessiblememonly);
+  KEYWORD(inaccessiblemem_or_argmemonly);
   KEYWORD(inlinehint);
   KEYWORD(inreg);
   KEYWORD(jumptable);
@@ -613,6 +624,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(noduplicate);
   KEYWORD(noimplicitfloat);
   KEYWORD(noinline);
+  KEYWORD(norecurse);
   KEYWORD(nonlazybind);
   KEYWORD(nonnull);
   KEYWORD(noredzone);
@@ -690,6 +702,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   TYPEKEYWORD("label",     Type::getLabelTy(Context));
   TYPEKEYWORD("metadata",  Type::getMetadataTy(Context));
   TYPEKEYWORD("x86_mmx",   Type::getX86_MMXTy(Context));
+  TYPEKEYWORD("token",     Type::getTokenTy(Context));
 #undef TYPEKEYWORD
 
   // Keywords for instructions.
@@ -749,6 +762,11 @@ lltok::Kind LLLexer::LexIdentifier() {
   INSTKEYWORD(extractvalue,   ExtractValue);
   INSTKEYWORD(insertvalue,    InsertValue);
   INSTKEYWORD(landingpad,     LandingPad);
+  INSTKEYWORD(cleanupret,     CleanupRet);
+  INSTKEYWORD(catchret,       CatchRet);
+  INSTKEYWORD(catchswitch,  CatchSwitch);
+  INSTKEYWORD(catchpad,     CatchPad);
+  INSTKEYWORD(cleanuppad,   CleanupPad);
 #undef INSTKEYWORD
 
 #define DWKEYWORD(TYPE, TOKEN)                                                 \
@@ -763,6 +781,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   DWKEYWORD(VIRTUALITY, DwarfVirtuality);
   DWKEYWORD(LANG, DwarfLang);
   DWKEYWORD(OP, DwarfOp);
+  DWKEYWORD(MACINFO, DwarfMacinfo);
 #undef DWKEYWORD
 
   if (Keyword.startswith("DIFlag")) {

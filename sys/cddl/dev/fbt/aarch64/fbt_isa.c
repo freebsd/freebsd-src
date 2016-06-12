@@ -46,13 +46,11 @@
 #define	FBT_RETURN	"return"
 
 int
-fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
+fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 {
-	struct trapframe *frame;
 	solaris_cpu_t *cpu;
 	fbt_probe_t *fbt;
 
-	frame = (struct trapframe *)stack;
 	cpu = &solaris_cpu[curcpu];
 	fbt = fbt_probetab[FBT_ADDR2NDX(addr)];
 

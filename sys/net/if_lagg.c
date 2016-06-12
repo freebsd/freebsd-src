@@ -1260,7 +1260,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
 			break;
-		if (ra->ra_proto < 1 || ra->ra_proto >= LAGG_PROTO_MAX) {
+		if (ra->ra_proto >= LAGG_PROTO_MAX) {
 			error = EPROTONOSUPPORT;
 			break;
 		}
@@ -2031,7 +2031,7 @@ lagg_fail_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	if (!LAGG_PORTACTIVE(sc->sc_primary)) {
 		tmp_tp = lagg_link_active(sc, sc->sc_primary);
 		/*
-		 * If tmp_tp is null, we've recieved a packet when all
+		 * If tmp_tp is null, we've received a packet when all
 		 * our links are down. Weird, but process it anyways.
 		 */
 		if ((tmp_tp == NULL || tmp_tp == lp)) {

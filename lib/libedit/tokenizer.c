@@ -1,4 +1,4 @@
-/*	$NetBSD: tokenizer.c,v 1.21 2011/08/16 16:25:15 christos Exp $	*/
+/*	$NetBSD: tokenizer.c,v 1.22 2016/01/30 04:02:51 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tokenizer.c,v 1.21 2011/08/16 16:25:15 christos Exp $");
+__RCSID("$NetBSD: tokenizer.c,v 1.22 2016/01/30 04:02:51 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -448,5 +448,5 @@ FUN(tok,str)(TYPE(Tokenizer) *tok, const Char *line, int *argc,
 	memset(&li, 0, sizeof(li));
 	li.buffer = line;
 	li.cursor = li.lastchar = Strchr(line, '\0');
-	return FUN(tok,line(tok, &li, argc, argv, NULL, NULL));
+	return FUN(tok,line)(tok, &li, argc, argv, NULL, NULL);
 }

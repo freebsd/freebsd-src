@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 EXPAT=		${.CURDIR}/../../contrib/expat
 
 LIB=		bsdxml

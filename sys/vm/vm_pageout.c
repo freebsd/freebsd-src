@@ -156,10 +156,11 @@ SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 #endif
 
 
-int vm_pages_needed;		/* Event on which pageout daemon sleeps */
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
 int vm_pageout_wakeup_thresh;
 static int vm_pageout_oom_seq = 12;
+bool vm_pageout_wanted;		/* Event on which pageout daemon sleeps */
+bool vm_pages_needed;		/* Are threads waiting for free pages? */
 
 #if !defined(NO_SWAPPING)
 static int vm_pageout_req_swapout;	/* XXX */
@@ -447,7 +448,7 @@ more:
 		++pageout_count;
 		++ib;
 		/*
-		 * alignment boundry, stop here and switch directions.  Do
+		 * alignment boundary, stop here and switch directions.  Do
 		 * not clear ib.
 		 */
 		if ((pindex - (ib - 1)) % vm_pageout_page_count == 0)
@@ -477,7 +478,7 @@ more:
 
 	/*
 	 * If we exhausted our forward scan, continue with the reverse scan
-	 * when possible, even past a page boundry.  This catches boundry
+	 * when possible, even past a page boundary.  This catches boundary
 	 * conditions.
 	 */
 	if (ib && pageout_count < vm_pageout_page_count)
@@ -1550,48 +1551,65 @@ vm_pageout_worker(void *arg)
 	 * The pageout daemon worker is never done, so loop forever.
 	 */
 	while (TRUE) {
-		/*
-		 * If we have enough free memory, wakeup waiters.  Do
-		 * not clear vm_pages_needed until we reach our target,
-		 * otherwise we may be woken up over and over again and
-		 * waste a lot of cpu.
-		 */
 		mtx_lock(&vm_page_queue_free_mtx);
+
+		/*
+		 * Generally, after a level >= 1 scan, if there are enough
+		 * free pages to wakeup the waiters, then they are already
+		 * awake.  A call to vm_page_free() during the scan awakened
+		 * them.  However, in the following case, this wakeup serves
+		 * to bound the amount of time that a thread might wait.
+		 * Suppose a thread's call to vm_page_alloc() fails, but
+		 * before that thread calls VM_WAIT, enough pages are freed by
+		 * other threads to alleviate the free page shortage.  The
+		 * thread will, nonetheless, wait until another page is freed
+		 * or this wakeup is performed.
+		 */
 		if (vm_pages_needed && !vm_page_count_min()) {
-			if (!vm_paging_needed())
-				vm_pages_needed = 0;
+			vm_pages_needed = false;
 			wakeup(&vm_cnt.v_free_count);
 		}
-		if (vm_pages_needed) {
+
+		/*
+		 * Do not clear vm_pageout_wanted until we reach our target.
+		 * Otherwise, we may be awakened over and over again, wasting
+		 * CPU time.
+		 */
+		if (vm_pageout_wanted && !vm_paging_needed())
+			vm_pageout_wanted = false;
+
+		/*
+		 * Might the page daemon receive a wakeup call?
+		 */
+		if (vm_pageout_wanted) {
 			/*
-			 * We're still not done.  Either vm_pages_needed was
-			 * set by another thread during the previous scan
-			 * (typically, this happens during a level 0 scan) or
-			 * vm_pages_needed was already set and the scan failed
-			 * to free enough pages.  If we haven't yet performed
-			 * a level >= 2 scan (unlimited dirty cleaning), then
-			 * upgrade the level and scan again now.  Otherwise,
-			 * sleep a bit and try again later.  While sleeping,
-			 * vm_pages_needed can be cleared.
+			 * No.  Either vm_pageout_wanted was set by another
+			 * thread during the previous scan, which must have
+			 * been a level 0 scan, or vm_pageout_wanted was
+			 * already set and the scan failed to free enough
+			 * pages.  If we haven't yet performed a level >= 2
+			 * scan (unlimited dirty cleaning), then upgrade the
+			 * level and scan again now.  Otherwise, sleep a bit
+			 * and try again later.
 			 */
+			mtx_unlock(&vm_page_queue_free_mtx);
 			if (domain->vmd_pass > 1)
-				msleep(&vm_pages_needed,
-				    &vm_page_queue_free_mtx, PVM, "psleep",
-				    hz / 2);
+				pause("psleep", hz / 2);
+			domain->vmd_pass++;
 		} else {
 			/*
-			 * Good enough, sleep until required to refresh
-			 * stats.
+			 * Yes.  Sleep until pages need to be reclaimed or
+			 * have their reference stats updated.
 			 */
-			msleep(&vm_pages_needed, &vm_page_queue_free_mtx,
-			    PVM, "psleep", hz);
+			if (mtx_sleep(&vm_pageout_wanted,
+			    &vm_page_queue_free_mtx, PDROP | PVM, "psleep",
+			    hz) == 0) {
+				PCPU_INC(cnt.v_pdwakeups);
+				domain->vmd_pass = 1;
+			} else
+				domain->vmd_pass = 0;
 		}
-		if (vm_pages_needed) {
-			vm_cnt.v_pdwakeups++;
-			domain->vmd_pass++;
-		} else
-			domain->vmd_pass = 0;
-		mtx_unlock(&vm_page_queue_free_mtx);
+
 		vm_pageout_scan(domain, domain->vmd_pass);
 	}
 }
@@ -1656,12 +1674,12 @@ static void
 vm_pageout(void)
 {
 	int error;
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	int i;
 #endif
 
 	swap_pager_swap_init();
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	for (i = 1; i < vm_ndomains; i++) {
 		error = kthread_add(vm_pageout_worker, (void *)(uintptr_t)i,
 		    curproc, NULL, 0, 0, "dom%d", i);
@@ -1688,9 +1706,9 @@ void
 pagedaemon_wakeup(void)
 {
 
-	if (!vm_pages_needed && curthread->td_proc != pageproc) {
-		vm_pages_needed = 1;
-		wakeup(&vm_pages_needed);
+	if (!vm_pageout_wanted && curthread->td_proc != pageproc) {
+		vm_pageout_wanted = true;
+		wakeup(&vm_pageout_wanted);
 	}
 }
 

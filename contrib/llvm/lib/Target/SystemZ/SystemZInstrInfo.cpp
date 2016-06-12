@@ -69,6 +69,11 @@ void SystemZInstrInfo::splitMove(MachineBasicBlock::iterator MI,
   MachineOperand &LowOffsetOp = MI->getOperand(2);
   LowOffsetOp.setImm(LowOffsetOp.getImm() + 8);
 
+ // Clear the kill flags for the base and index registers in the first
+ // instruction.
+  EarlierMI->getOperand(1).setIsKill(false);
+  EarlierMI->getOperand(3).setIsKill(false);
+
   // Set the opcodes.
   unsigned HighOpcode = getOpcodeForOffset(NewOpcode, HighOffsetOp.getImm());
   unsigned LowOpcode = getOpcodeForOffset(NewOpcode, LowOffsetOp.getImm());
@@ -111,7 +116,7 @@ void SystemZInstrInfo::expandRIPseudo(MachineInstr *MI, unsigned LowOpcode,
 }
 
 // MI is a three-operand RIE-style pseudo instruction.  Replace it with
-// LowOpcode3 if the registers are both low GR32s, otherwise use a move
+// LowOpcodeK if the registers are both low GR32s, otherwise use a move
 // followed by HighOpcode or LowOpcode, depending on whether the target
 // is a high or low GR32.
 void SystemZInstrInfo::expandRIEPseudo(MachineInstr *MI, unsigned LowOpcode,
@@ -129,6 +134,7 @@ void SystemZInstrInfo::expandRIEPseudo(MachineInstr *MI, unsigned LowOpcode,
                   MI->getOperand(1).isKill());
     MI->setDesc(get(DestIsHigh ? HighOpcode : LowOpcode));
     MI->getOperand(1).setReg(DestReg);
+    MI->tieOperands(0, 1);
   }
 }
 
@@ -486,11 +492,8 @@ SystemZInstrInfo::optimizeCompareInstr(MachineInstr *Compare,
                                        const MachineRegisterInfo *MRI) const {
   assert(!SrcReg2 && "Only optimizing constant comparisons so far");
   bool IsLogical = (Compare->getDesc().TSFlags & SystemZII::IsLogical) != 0;
-  if (Value == 0 &&
-      !IsLogical &&
-      removeIPMBasedCompare(Compare, SrcReg, MRI, &RI))
-    return true;
-  return false;
+  return Value == 0 && !IsLogical &&
+         removeIPMBasedCompare(Compare, SrcReg, MRI, &RI);
 }
 
 // If Opcode is a move that has a conditional variant, return that variant,
@@ -505,16 +508,13 @@ static unsigned getConditionalMove(unsigned Opcode) {
 
 bool SystemZInstrInfo::isPredicable(MachineInstr *MI) const {
   unsigned Opcode = MI->getOpcode();
-  if (STI.hasLoadStoreOnCond() &&
-      getConditionalMove(Opcode))
-    return true;
-  return false;
+  return STI.hasLoadStoreOnCond() && getConditionalMove(Opcode);
 }
 
 bool SystemZInstrInfo::
 isProfitableToIfCvt(MachineBasicBlock &MBB,
                     unsigned NumCycles, unsigned ExtraPredCycles,
-                    const BranchProbability &Probability) const {
+                    BranchProbability Probability) const {
   // For now only convert single instructions.
   return NumCycles == 1;
 }
@@ -524,7 +524,7 @@ isProfitableToIfCvt(MachineBasicBlock &TMBB,
                     unsigned NumCyclesT, unsigned ExtraPredCyclesT,
                     MachineBasicBlock &FMBB,
                     unsigned NumCyclesF, unsigned ExtraPredCyclesF,
-                    const BranchProbability &Probability) const {
+                    BranchProbability Probability) const {
   // For now avoid converting mutually-exclusive cases.
   return false;
 }
@@ -548,11 +548,10 @@ PredicateInstruction(MachineInstr *MI, ArrayRef<MachineOperand> Pred) const {
   return false;
 }
 
-void
-SystemZInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
-			      MachineBasicBlock::iterator MBBI, DebugLoc DL,
-			      unsigned DestReg, unsigned SrcReg,
-			      bool KillSrc) const {
+void SystemZInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+                                   MachineBasicBlock::iterator MBBI,
+                                   DebugLoc DL, unsigned DestReg,
+                                   unsigned SrcReg, bool KillSrc) const {
   // Split 128-bit GPR moves into two 64-bit moves.  This handles ADDR128 too.
   if (SystemZ::GR128BitRegClass.contains(DestReg, SrcReg)) {
     copyPhysReg(MBB, MBBI, DL, RI.getSubReg(DestReg, SystemZ::subreg_h64),
@@ -590,13 +589,10 @@ SystemZInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     .addReg(SrcReg, getKillRegState(KillSrc));
 }
 
-void
-SystemZInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
-				      MachineBasicBlock::iterator MBBI,
-				      unsigned SrcReg, bool isKill,
-				      int FrameIdx,
-				      const TargetRegisterClass *RC,
-				      const TargetRegisterInfo *TRI) const {
+void SystemZInstrInfo::storeRegToStackSlot(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI, unsigned SrcReg,
+    bool isKill, int FrameIdx, const TargetRegisterClass *RC,
+    const TargetRegisterInfo *TRI) const {
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   // Callers may expect a single instruction, so keep 128-bit moves
@@ -604,15 +600,14 @@ SystemZInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   unsigned LoadOpcode, StoreOpcode;
   getLoadStoreOpcodes(RC, LoadOpcode, StoreOpcode);
   addFrameReference(BuildMI(MBB, MBBI, DL, get(StoreOpcode))
-		    .addReg(SrcReg, getKillRegState(isKill)), FrameIdx);
+                        .addReg(SrcReg, getKillRegState(isKill)),
+                    FrameIdx);
 }
 
-void
-SystemZInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
-				       MachineBasicBlock::iterator MBBI,
-				       unsigned DestReg, int FrameIdx,
-				       const TargetRegisterClass *RC,
-				       const TargetRegisterInfo *TRI) const {
+void SystemZInstrInfo::loadRegFromStackSlot(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI, unsigned DestReg,
+    int FrameIdx, const TargetRegisterClass *RC,
+    const TargetRegisterInfo *TRI) const {
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   // Callers may expect a single instruction, so keep 128-bit moves
@@ -681,7 +676,8 @@ SystemZInstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
                                         LiveVariables *LV) const {
   MachineInstr *MI = MBBI;
   MachineBasicBlock *MBB = MI->getParent();
-  MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
+  MachineFunction *MF = MBB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
 
   unsigned Opcode = MI->getOpcode();
   unsigned NumOps = MI->getNumOperands();
@@ -708,14 +704,19 @@ SystemZInstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     }
     int ThreeOperandOpcode = SystemZ::getThreeOperandOpcode(Opcode);
     if (ThreeOperandOpcode >= 0) {
-      MachineInstrBuilder MIB =
-        BuildMI(*MBB, MBBI, MI->getDebugLoc(), get(ThreeOperandOpcode))
-        .addOperand(Dest);
+      // Create three address instruction without adding the implicit
+      // operands. Those will instead be copied over from the original
+      // instruction by the loop below.
+      MachineInstrBuilder MIB(*MF,
+                              MF->CreateMachineInstr(get(ThreeOperandOpcode),
+                                    MI->getDebugLoc(), /*NoImplicit=*/true));
+      MIB.addOperand(Dest);
       // Keep the kill state, but drop the tied flag.
       MIB.addReg(Src.getReg(), getKillRegState(Src.isKill()), Src.getSubReg());
       // Keep the remaining operands as-is.
       for (unsigned I = 2; I < NumOps; ++I)
         MIB.addOperand(MI->getOperand(I));
+      MBB->insert(MI, MIB);
       return finishConvertToThreeAddress(MI, MIB, LV);
     }
   }
@@ -1191,6 +1192,12 @@ unsigned SystemZInstrInfo::getLoadAndTest(unsigned Opcode) const {
   case SystemZ::LER:    return SystemZ::LTEBR;
   case SystemZ::LDR:    return SystemZ::LTDBR;
   case SystemZ::LXR:    return SystemZ::LTXBR;
+  case SystemZ::LCDFR:  return SystemZ::LCDBR;
+  case SystemZ::LPDFR:  return SystemZ::LPDBR;
+  case SystemZ::LNDFR:  return SystemZ::LNDBR;
+  case SystemZ::LCDFR_32:  return SystemZ::LCEBR;
+  case SystemZ::LPDFR_32:  return SystemZ::LPEBR;
+  case SystemZ::LNDFR_32:  return SystemZ::LNEBR;
   // On zEC12 we prefer to use RISBGN.  But if there is a chance to
   // actually use the condition code, we may turn it back into RISGB.
   // Note that RISBG is not really a "load-and-test" instruction,

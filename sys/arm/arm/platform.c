@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus_dma.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
@@ -74,6 +75,10 @@ SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, plat_nam
  * algorithm as bus attachment.
  */
 SET_DECLARE(platform_set, platform_def_t);
+
+#ifdef MULTIDELAY
+static delay_func platform_delay;
+#endif
 
 void
 platform_probe_and_attach(void)
@@ -100,8 +105,9 @@ platform_probe_and_attach(void)
 		 * Take care of compiling the selected class, and
 		 * then statically initialise the MMU object
 		 */
-		kobj_class_compile_static(platp, &plat_kernel_kops);
-		kobj_init_static((kobj_t)plat_obj, platp);
+		kobj_class_compile_static((kobj_class_t)platp,
+		    &plat_kernel_kops);
+		kobj_init_static((kobj_t)plat_obj, (kobj_class_t)platp);
 
 		plat_obj->cls = platp;
 
@@ -141,10 +147,16 @@ platform_probe_and_attach(void)
 	 * correct one, and then attach.
 	 */
 
-	kobj_class_compile_static(plat_def_impl, &plat_kernel_kops);
-	kobj_init_static((kobj_t)plat_obj, plat_def_impl);
+	kobj_class_compile_static((kobj_class_t)plat_def_impl,
+	    &plat_kernel_kops);
+	kobj_init_static((kobj_t)plat_obj, (kobj_class_t)plat_def_impl);
 
-	strlcpy(plat_name,plat_def_impl->name,sizeof(plat_name));
+	strlcpy(plat_name, plat_def_impl->name, sizeof(plat_name));
+
+#ifdef MULTIDELAY
+	/* Set a default delay function */
+	arm_set_delay(platform_delay, NULL);
+#endif
 
 	PLATFORM_ATTACH(plat_obj);
 }
@@ -177,3 +189,42 @@ platform_late_init(void)
 	PLATFORM_LATE_INIT(plat_obj);
 }
 
+#ifdef MULTIDELAY
+static void
+platform_delay(int usec, void *arg __unused)
+{
+	int counts;
+
+	for (; usec > 0; usec--)
+		for (counts = plat_obj->cls->delay_count; counts > 0; counts--)
+			/*
+			 * Prevent the compiler from optimizing
+			 * out the loop
+			 */
+			cpufunc_nullop();
+}
+#endif
+
+#if defined(SMP) && defined(PLATFORM_SMP)
+void
+platform_mp_setmaxid(void)
+{
+	int ncpu;
+
+	PLATFORM_MP_SETMAXID(plat_obj);
+
+	if (TUNABLE_INT_FETCH("hw.ncpu", &ncpu)) {
+		if (ncpu >= 1 && ncpu <= mp_ncpus) {
+			mp_ncpus = ncpu;
+			mp_maxid = ncpu - 1;
+		}
+	}
+}
+
+void
+platform_mp_start_ap(void)
+{
+
+	PLATFORM_MP_START_AP(plat_obj);
+}
+#endif

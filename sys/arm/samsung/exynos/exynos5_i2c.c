@@ -292,7 +292,7 @@ i2c_start(device_t dev, u_char slave, int timeout)
 
 		mtx_unlock(&sc->mutex);
 		return (IIC_ENOACK);
-	};
+	}
 
 	mtx_unlock(&sc->mutex);
 	return (IIC_NOERR);
@@ -387,7 +387,7 @@ i2c_read(device_t dev, char *buf, int len,
 			reg = READ1(sc, I2CCON);
 			reg &= ~(ACKGEN);
 			WRITE1(sc, I2CCON, reg);
-		};
+		}
 
 		clear_ipend(sc);
 
@@ -444,7 +444,7 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 			DPRINTF("cant i2c write: no ack\n");
 			mtx_unlock(&sc->mutex);
 			return (IIC_ENOACK);
-		};
+		}
 
 		(*sent)++;
 	}

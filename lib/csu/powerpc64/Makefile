@@ -13,8 +13,11 @@ CFLAGS+=	-I${.CURDIR}/../common \
 # clang doesn't support -mlongcall, and testing shows a clang linked with a
 # clang-built csu segfaults, this must currently be compiled with gcc.  Once
 # clang supports -mlongcall, or we get a fixed ld, this can be revisited.
+.include <bsd.compiler.mk>
+.if ${COMPILER_TYPE} != "gcc"
 CC:=		gcc
 COMPILER_TYPE:=	gcc
+.endif
 
 FILES=		${OBJS}
 FILESMODE=	${LIBMODE}

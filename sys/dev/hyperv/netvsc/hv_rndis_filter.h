@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2010-2012 Citrix Inc.
  * Copyright (c) 2012 NetApp Inc.
  * All rights reserved.
@@ -63,17 +63,32 @@ typedef struct rndis_request_ {
 	struct sema			wait_sema;	
 
 	/*
-	 * Fixme:  We assumed a fixed size response here.  If we do ever
-	 * need to handle a bigger response, we can either define a max
-	 * response message or add a response buffer variable above this field
+	 * The max response size is sizeof(rndis_msg) + PAGE_SIZE.
+	 *
+	 * XXX
+	 * This is ugly and should be cleaned up once we busdma-fy
+	 * RNDIS request bits.
 	 */
 	rndis_msg			response_msg;
+	uint8_t				buf_resp[PAGE_SIZE];
 
 	/* Simplify allocation by having a netvsc packet inline */
 	netvsc_packet			pkt;
 	hv_vmbus_page_buffer		buffer;
-	/* Fixme:  We assumed a fixed size request here. */
+
+	/*
+	 * The max request size is sizeof(rndis_msg) + PAGE_SIZE.
+	 *
+	 * NOTE:
+	 * This is required for the large request like RSS settings.
+	 *
+	 * XXX
+	 * This is ugly and should be cleaned up once we busdma-fy
+	 * RNDIS request bits.
+	 */
 	rndis_msg			request_msg;
+	uint8_t				buf_req[PAGE_SIZE];
+
 	/* Fixme:  Poor man's semaphore. */
 	uint32_t			halt_complete_flag;
 } rndis_request;
@@ -95,12 +110,13 @@ typedef struct rndis_device_ {
 /*
  * Externs
  */
+struct hv_vmbus_channel;
 
-int hv_rf_on_receive(netvsc_dev *net_dev,
-    struct hv_device *device, netvsc_packet *pkt);
+int hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device,
+    struct hv_vmbus_channel *chan, netvsc_packet *pkt);
 void hv_rf_receive_rollup(netvsc_dev *net_dev);
-void hv_rf_channel_rollup(netvsc_dev *net_dev);
-int hv_rf_on_device_add(struct hv_device *device, void *additl_info);
+void hv_rf_channel_rollup(struct hv_vmbus_channel *chan);
+int hv_rf_on_device_add(struct hv_device *device, void *additl_info, int nchan);
 int hv_rf_on_device_remove(struct hv_device *device, boolean_t destroy_channel);
 int hv_rf_on_open(struct hv_device *device);
 int hv_rf_on_close(struct hv_device *device);

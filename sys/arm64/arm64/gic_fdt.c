@@ -158,12 +158,17 @@ arm_gic_fdt_attach(device_t dev)
 	OF_getencprop(root, "#size-cells", &sc->sc_size_cells,
 	    sizeof(sc->sc_size_cells));
 
+	/* If we have no children don't probe for them */
+	child = OF_child(root);
+	if (child == 0)
+		return (0);
+
 	if (gic_fill_ranges(root, sc) < 0) {
 		device_printf(dev, "could not get ranges\n");
 		return (ENXIO);
 	}
 
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+	for (; child != 0; child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 
 		if (ofw_bus_gen_setup_devinfo(&dinfo->obdinfo, child) != 0) {
@@ -193,7 +198,7 @@ arm_gic_fdt_attach(device_t dev)
 
 static struct resource *
 arm_gic_fdt_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct arm_gic_fdt_softc *sc = device_get_softc(bus);
 	struct gic_devinfo *di;
@@ -206,7 +211,7 @@ arm_gic_fdt_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * Request for the default allocation with a given rid: use resource
 	 * list stored in the local device info.
 	 */
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 

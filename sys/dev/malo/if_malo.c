@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -173,7 +174,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh;
 	int error;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	MALO_LOCK_INIT(sc);
 	callout_init_mtx(&sc->malo_watchdog_timer, &sc->malo_mtx, 0);
@@ -396,9 +397,9 @@ malo_intr(void *arg)
 	    __func__, status, sc->malo_imask);
 
 	if (status & MALO_A2HRIC_BIT_RX_RDY)
-		taskqueue_enqueue_fast(sc->malo_tq, &sc->malo_rxtask);
+		taskqueue_enqueue(sc->malo_tq, &sc->malo_rxtask);
 	if (status & MALO_A2HRIC_BIT_TX_DONE)
-		taskqueue_enqueue_fast(sc->malo_tq, &sc->malo_txtask);
+		taskqueue_enqueue(sc->malo_tq, &sc->malo_txtask);
 	if (status & MALO_A2HRIC_BIT_OPC_DONE)
 		malo_hal_cmddone(mh);
 	if (status & MALO_A2HRIC_BIT_MAC_EVENT)
@@ -1569,14 +1570,7 @@ malo_mode_init(struct malo_softc *sc)
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh = sc->malo_mh;
 
-	/*
-	 * NB: Ignore promisc in hostap mode; it's set by the
-	 * bridge.  This is wrong but we have no way to
-	 * identify internal requests (from the bridge)
-	 * versus external requests such as for tcpdump.
-	 */
-	malo_hal_setpromisc(mh, ic->ic_promisc > 0 &&
-	    ic->ic_opmode != IEEE80211_M_HOSTAP);
+	malo_hal_setpromisc(mh, ic->ic_promisc > 0);
 	malo_setmcastfilter(sc);
 
 	return ENXIO;

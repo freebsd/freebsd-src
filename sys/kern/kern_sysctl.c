@@ -359,7 +359,7 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 	 *
 	 * NOTE: DO NOT change the starting value here, change it in
 	 * <sys/sysctl.h>, and make sure it is at least 256 to
-	 * accomodate e.g. net.inet.raw as a static sysctl node.
+	 * accommodate e.g. net.inet.raw as a static sysctl node.
 	 */
 	if (oid_number < 0) {
 		static int newoid;
@@ -494,7 +494,7 @@ sysctl_ctx_free(struct sysctl_ctx_list *clist)
 	}
 	/*
 	 * Restore deregistered entries, either from the end,
-	 * or from the place where error occured.
+	 * or from the place where error occurred.
 	 * e contains the entry that was not unregistered
 	 */
 	if (error)
@@ -912,7 +912,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 			name++;
 			continue;
 		}
-		lsp2 = 0;
+		lsp2 = NULL;
 		SLIST_FOREACH(oid, lsp, oid_link) {
 			if (oid->oid_number != *name)
 				continue;
@@ -1083,7 +1083,7 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 {
 	char *p;
 	int error, oid[CTL_MAXNAME], len = 0;
-	struct sysctl_oid *op = 0;
+	struct sysctl_oid *op = NULL;
 	struct rm_priotracker tracker;
 
 	if (!req->newlen) 
@@ -1179,6 +1179,41 @@ static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD
 /*
  * Default "handler" functions.
  */
+
+/*
+ * Handle a bool.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_bool(SYSCTL_HANDLER_ARGS)
+{
+	uint8_t temp;
+	int error;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		temp = *(bool *)arg1 ? 1 : 0;
+	else
+		temp = arg2 ? 1 : 0;
+
+	error = SYSCTL_OUT(req, &temp, sizeof(temp));
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else {
+		error = SYSCTL_IN(req, &temp, sizeof(temp));
+		if (!error)
+			*(bool *)arg1 = temp ? 1 : 0;
+	}
+	return (error);
+}
 
 /*
  * Handle an int8_t, signed or unsigned.

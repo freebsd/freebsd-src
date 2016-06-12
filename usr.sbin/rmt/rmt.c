@@ -84,8 +84,10 @@ main(int argc, char **argv)
 	argc--, argv++;
 	if (argc > 0) {
 		debug = fopen(*argv, "w");
-		if (debug == 0)
+		if (debug == NULL) {
+			DEBUG1("rmtd: error to open %s\n", *argv);
 			exit(1);
+		}
 		(void)setbuf(debug, (char *)0);
 	}
 top:
@@ -226,10 +228,10 @@ checkbuf(char *rec, int size)
 
 	if (size <= maxrecsize)
 		return (rec);
-	if (rec != 0)
+	if (rec != NULL)
 		free(rec);
 	rec = malloc(size);
-	if (rec == 0) {
+	if (rec == NULL) {
 		DEBUG("rmtd: cannot allocate buffer space\n");
 		exit(4);
 	}

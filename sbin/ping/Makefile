@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	ping
 MAN=	ping.8
 BINOWN=	root
@@ -11,8 +12,9 @@ WARNS?=	3
 LIBADD=	m
 
 .if ${MK_CASPER} != "no" && !defined(RESCUE)
-LIBADD+=	capsicum
-CFLAGS+=-DHAVE_LIBCAPSICUM
+LIBADD+=	casper
+LIBADD+=	cap_dns
+CFLAGS+=-DHAVE_LIBCASPER
 .endif
 
 .if !defined(RELEASE_CRUNCH)

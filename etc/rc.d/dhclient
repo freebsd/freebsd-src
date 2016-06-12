@@ -12,6 +12,7 @@
 ifn="$2"
 
 name="dhclient"
+desc="Dynamic Host Configuration Protocol (DHCP) client"
 rcvar=
 pidfile="/var/run/${name}.${ifn}.pid"
 start_precmd="dhclient_prestart"
@@ -29,7 +30,7 @@ dhclient_pre_check()
 		else
 			debug "$msg"
 		fi
-			exit 1
+		exit 1
 	fi
 }
 

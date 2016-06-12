@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2015
+.Dd May 17, 2016
 .Dt LIBTHR 3
 .Os
 .Sh NAME
@@ -47,9 +47,7 @@ library provides a 1:1 implementation of the
 library interfaces for application threading.
 It
 has been optimized for use by applications expecting system scope thread
-semantics, and can provide significant performance improvements
-compared to
-.Lb libkse .
+semantics.
 .Pp
 The library is tightly integrated with the run-time link editor
 .Xr ld-elf.so.1 1
@@ -118,7 +116,7 @@ environment variable.
 If both the spin and yield loops
 failed to acquire the lock, the thread is taken off the CPU and
 put to sleep in the kernel with the
-.Xr umtx 2
+.Xr _umtx_op 2
 syscall.
 The kernel wakes up a thread and hands the ownership of the lock to
 the woken thread when the lock becomes available.
@@ -167,7 +165,7 @@ for 32bit architectures.
 The following environment variables are recognized by
 .Nm
 and adjust the operation of the library at run-time:
-.Bl -tag -width LIBPTHREAD_SPLITSTACK_MAIN
+.Bl -tag -width "Ev LIBPTHREAD_SPLITSTACK_MAIN"
 .It Ev LIBPTHREAD_BIGSTACK_MAIN
 Disables the reduction of the initial thread stack enabled by
 .Ev LIBPTHREAD_SPLITSTACK_MAIN .
@@ -198,7 +196,37 @@ The integer value of the variable specifies how often blocked
 threads are inserted at the head of the sleep queue, instead of its tail.
 Bigger values reduce the frequency of the FIFO discipline.
 The value must be between 0 and 255.
+.Pp
 .El
+The following
+.Dv sysctl
+MIBs affect the operation of the library:
+.Bl -tag -width "Dv debug.umtx.robust_faults_verbose"
+.It Dv kern.ipc.umtx_vnode_persistent
+By default, a shared lock backed by a mapped file in memory is
+automatically destroyed on the last unmap of the corresponding file's page,
+which is allowed by POSIX.
+Setting the sysctl to 1 makes such a shared lock object persist until
+the vnode is recycled by the Virtual File System.
+Note that in case file is not opened and not mapped, the kernel might
+recycle it at any moment, making this sysctl less useful than it sounds.
+.It Dv kern.ipc.umtx_max_robust
+The maximal number of robust mutexes allowed for one thread.
+The kernel will not unlock more mutexes than specified, see
+.Xr _umtx_op
+for more details.
+The default value is large enough for most useful applications.
+.It Dv debug.umtx.robust_faults_verbose
+A non zero value makes kernel emit some diagnostic when the robust
+mutexes unlock was prematurely aborted after detecting some inconsistency,
+as a measure to prevent memory corruption.
+.El
+.Pp
+The
+.Dv RLIMIT_UMTXP
+limit (see
+.Xr getrlimit 2 )
+defines how many shared locks a given user may create simultaneously.
 .Sh INTERACTION WITH RUN-TIME LINKER
 On load,
 .Nm
@@ -206,7 +234,7 @@ installs interposing handlers into the hooks exported by
 .Li libc .
 The interposers provide real locking implementation instead of the
 stubs for single-threaded processes in
-.Li ,
+.Li libc ,
 cancellation support and some modifications to the signal operations.
 .Pp
 .Nm
@@ -235,12 +263,17 @@ logs.
 .Xr ktrace 1 ,
 .Xr ld-elf.so.1 1 ,
 .Xr getrlimit 2 ,
-.Xr umtx 2 ,
+.Xr errno 2 ,
+.Xr thr_exit 2 ,
+.Xr thr_kill 2 ,
+.Xr thr_kill2 2 ,
+.Xr thr_new 2 ,
+.Xr thr_self 2 ,
+.Xr thr_set_name 2 ,
+.Xr _umtx_op 2 ,
 .Xr dlclose 3 ,
 .Xr dlopen 3 ,
-.Xr errno 3 ,
 .Xr getenv 3 ,
-.Xr libc 3 ,
 .Xr pthread_attr 3 ,
 .Xr pthread_attr_setstacksize 3 ,
 .Xr pthread_create 3 ,

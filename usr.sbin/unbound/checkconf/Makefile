@@ -8,7 +8,7 @@ UNBOUNDDIR= ${.CURDIR}/../../../contrib/unbound
 
 PROG=	unbound-checkconf
 SRCS=	unbound-checkconf.c worker_cb.c
-CFLAGS=	-I${UNBOUNDDIR} -I${LDNSDIR}
+CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
 LIBADD=	unbound pthread
 MAN=	unbound-checkconf.8
 

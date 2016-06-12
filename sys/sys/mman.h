@@ -233,6 +233,13 @@ struct shmfd {
 int	shm_map(struct file *fp, size_t size, off_t offset, void **memp);
 int	shm_unmap(struct file *fp, void *mem, size_t size);
 
+int	shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags);
+struct shmfd *shm_alloc(struct ucred *ucred, mode_t mode);
+struct shmfd *shm_hold(struct shmfd *shmfd);
+void	shm_drop(struct shmfd *shmfd);
+int	shm_dotruncate(struct shmfd *shmfd, off_t length);
+
+extern struct fileops shm_ops;
 #else /* !_KERNEL */
 
 __BEGIN_DECLS

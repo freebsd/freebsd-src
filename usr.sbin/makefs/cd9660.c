@@ -685,6 +685,9 @@ cd9660_finalize_PVD(void)
 	cd9660_time_8426(
 	    (unsigned char *)diskStructure.primaryDescriptor.effective_date,
 	    tim);
+	/* make this sane */
+	cd9660_time_915(diskStructure.rootNode->dot_record->isoDirRecord->date,
+			tim);
 }
 
 static void
@@ -774,7 +777,7 @@ cd9660_setup_volume_descriptors(void)
 	temp->next = t;
 	memset(t->volumeDescriptorData, 0, 2048);
 	t->volumeDescriptorData[0] = ISO_VOLUME_DESCRIPTOR_TERMINATOR;
-	t->next = 0;
+	t->next = NULL;
 	t->volumeDescriptorData[6] = 1;
 	t->sector = sector;
 	memcpy(t->volumeDescriptorData + 1,
@@ -1403,7 +1406,7 @@ cd9660_convert_structure(fsnode *root, cd9660node *parent_node, int level,
 						this_node->level =
 						    working_level - 1;
 						if (cd9660_rrip_move_directory(
-							this_node) == 0) {
+							this_node) == NULL) {
 							warnx("Failure in "
 							      "cd9660_rrip_"
 							      "move_directory"
@@ -1416,7 +1419,7 @@ cd9660_convert_structure(fsnode *root, cd9660node *parent_node, int level,
 				}
 
 				/* Do the recursive call on the children */
-				if (iterator->child != 0) {
+				if (iterator->child != NULL) {
 					cd9660_convert_structure(
 					    iterator->child, this_node,
 						working_level,
@@ -1445,7 +1448,7 @@ cd9660_convert_structure(fsnode *root, cd9660node *parent_node, int level,
 			}
 
 			/*Allocate new temp_node */
-			if (iterator->next != 0) {
+			if (iterator->next != NULL) {
 				this_node = cd9660_allocate_cd9660node();
 				if (this_node == NULL)
 					CD9660_MEM_ALLOC_ERROR(__func__);
@@ -1733,7 +1736,7 @@ cd9660_convert_filename(const char *oldname, char *newname, int is_file)
 {
 	assert(1 <= diskStructure.isoLevel && diskStructure.isoLevel <= 2);
 	/* NEW */
-	cd9660_filename_conversion_functor conversion_function = 0;
+	cd9660_filename_conversion_functor conversion_function = NULL;
 	if (diskStructure.isoLevel == 1)
 		conversion_function = &cd9660_level1_convert_filename;
 	else if (diskStructure.isoLevel == 2)

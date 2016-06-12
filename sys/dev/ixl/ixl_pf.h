@@ -42,12 +42,15 @@
 #define	VF_FLAG_PROMISC_CAP		0x08
 #define	VF_FLAG_MAC_ANTI_SPOOF		0x10
 
+#define IXL_PF_STATE_EMPR_RESETTING	(1 << 0)
+
 struct ixl_vf {
 	struct ixl_vsi		vsi;
 	uint32_t		vf_flags;
 
 	uint8_t			mac[ETHER_ADDR_LEN];
 	uint16_t		vf_num;
+	uint32_t		version;
 
 	struct sysctl_ctx_list	ctx;
 };
@@ -72,6 +75,7 @@ struct ixl_pf {
 	struct callout		timer;
 	int			msix;
 	int			if_flags;
+	int			state;
 
 	struct mtx		pf_mtx;
 
@@ -111,14 +115,75 @@ struct ixl_pf {
 	int			vc_debug_lvl;
 };
 
-#define IXL_SET_ADVERTISE_HELP		\
-"Control link advertise speed:\n"	\
-"\tFlags:\n"				\
-"\t\t0x1 - advertise 100 Mb\n"		\
-"\t\t0x2 - advertise 1G\n"		\
-"\t\t0x4 - advertise 10G\n"		\
-"\t\t0x8 - advertise 20G\n\n"		\
-"\tDoes not work on 40G devices."
+/*
+ * Defines used for NVM update ioctls.
+ * This value is used in the Solaris tool, too.
+ */
+#define I40E_NVM_ACCESS \
+     (((((((('E' << 4) + '1') << 4) + 'K') << 4) + 'G') << 4) | 5)
+
+#define IXL_DEFAULT_PHY_INT_MASK \
+     ((~(I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL \
+      | I40E_AQ_EVENT_MEDIA_NA)) & 0x3FF)
+
+/*** Sysctl help messages; displayed with "sysctl -d" ***/
+
+#define IXL_SYSCTL_HELP_SET_ADVERTISE	\
+"\nControl advertised link speed.\n"	\
+"Flags:\n"				\
+"\t 0x1 - advertise 100M\n"		\
+"\t 0x2 - advertise 1G\n"		\
+"\t 0x4 - advertise 10G\n"		\
+"\t 0x8 - advertise 20G\n"		\
+"\t0x10 - advertise 40G\n\n"		\
+"Set to 0 to disable link."
+
+#define IXL_SYSCTL_HELP_FC				\
+"\nSet flow control mode using the values below.\n" 	\
+"\t0 - off\n" 						\
+"\t1 - rx pause\n" 					\
+"\t2 - tx pause\n"					\
+"\t3 - tx and rx pause"
+
+#define IXL_SYSCTL_HELP_LINK_STATUS					\
+"\nExecutes a \"Get Link Status\" command on the Admin Queue, and displays" \
+" the response."			\
+
+/*** Functions / Macros ***/
+
+/*
+** Put the NVM, EEtrackID, and OEM version information into a string
+*/
+static void
+ixl_nvm_version_str(struct i40e_hw *hw, struct sbuf *buf)
+{
+	u8 oem_ver = (u8)(hw->nvm.oem_ver >> 24);
+	u16 oem_build = (u16)((hw->nvm.oem_ver >> 16) & 0xFFFF);
+	u8 oem_patch = (u8)(hw->nvm.oem_ver & 0xFF);
+
+	sbuf_printf(buf,
+	    "nvm %x.%02x etid %08x oem %d.%d.%d",
+	    (hw->nvm.version & IXL_NVM_VERSION_HI_MASK) >>
+	    IXL_NVM_VERSION_HI_SHIFT,
+	    (hw->nvm.version & IXL_NVM_VERSION_LO_MASK) >>
+	    IXL_NVM_VERSION_LO_SHIFT,
+	    hw->nvm.eetrack,
+	    oem_ver, oem_build, oem_patch);
+}
+
+static void
+ixl_print_nvm_version(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	struct sbuf *sbuf;
+
+	sbuf = sbuf_new_auto();
+	ixl_nvm_version_str(hw, sbuf);
+	sbuf_finish(sbuf);
+	device_printf(dev, "%s\n", sbuf_data(sbuf));
+	sbuf_delete(sbuf);
+}
 
 #define	I40E_VC_DEBUG(pf, level, ...) \
 	do { \

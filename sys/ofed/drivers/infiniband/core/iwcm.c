@@ -79,7 +79,6 @@ struct iwcm_listen_work {
 static LIST_HEAD(listen_port_list);
 
 static DEFINE_MUTEX(listen_port_mutex);
-static DEFINE_MUTEX(dequeue_mutex);
 
 struct listen_port_info {
 	struct list_head list;
@@ -455,7 +454,6 @@ iw_so_event_handler(struct work_struct *_work)
 		kfree(work);
 		return;
 	}
-	mutex_lock(&dequeue_mutex);
 
 	/* Dequeue & process  all new 'so' connection requests for this cmid */
 	while ((so = dequeue_socket(work->cm_id->so)) != NULL) {
@@ -475,7 +473,6 @@ iw_so_event_handler(struct work_struct *_work)
 		}
 	}
 err:
-	mutex_unlock(&dequeue_mutex);
 	kfree(work);
 #endif
 	return;
@@ -487,7 +484,6 @@ iw_so_upcall(struct socket *parent_so, void *arg, int waitflag)
 	struct socket *so;
 	struct iw_cm_id *cm_id = arg;
 
-	mutex_lock(&dequeue_mutex);
 	/* check whether iw_so_event_handler() already dequeued this 'so' */
 	so = TAILQ_FIRST(&parent_so->so_comp);
 	if (!so)
@@ -500,7 +496,6 @@ iw_so_upcall(struct socket *parent_so, void *arg, int waitflag)
 	INIT_WORK(&work->work, iw_so_event_handler);
 	queue_work(iwcm_wq, &work->work);
 
-	mutex_unlock(&dequeue_mutex);
 	return SU_OK;
 }
 

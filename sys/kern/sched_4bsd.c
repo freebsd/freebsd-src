@@ -87,12 +87,14 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 /*
  * The schedulable entity that runs a context.
  * This is  an extension to the thread structure and is tailored to
- * the requirements of this scheduler
+ * the requirements of this scheduler.
+ * All fields are protected by the scheduler lock.
  */
 struct td_sched {
-	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
-	int		ts_cpticks;	/* (j) Ticks of cpu time. */
-	int		ts_slptime;	/* (j) Seconds !RUNNING. */
+	fixpt_t		ts_pctcpu;	/* %cpu during p_swtime. */
+	u_int		ts_estcpu;	/* Estimated cpu utilization. */
+	int		ts_cpticks;	/* Ticks of cpu time. */
+	int		ts_slptime;	/* Seconds !RUNNING. */
 	int		ts_slice;	/* Remaining part of time slice. */
 	int		ts_flags;
 	struct runq	*ts_runq;	/* runq the thread is currently on */
@@ -115,7 +117,10 @@ struct td_sched {
 #define	THREAD_CAN_SCHED(td, cpu)	\
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
-static struct td_sched td_sched0;
+_Static_assert(sizeof(struct thread) + sizeof(struct td_sched) <=
+    sizeof(struct thread0_storage),
+    "increase struct thread0_storage.t0st_sched size");
+
 static struct mtx sched_lock;
 
 static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
@@ -382,20 +387,20 @@ maybe_preempt(struct thread *td)
 
 /*
  * Constants for digital decay and forget:
- *	90% of (td_estcpu) usage in 5 * loadav time
+ *	90% of (ts_estcpu) usage in 5 * loadav time
  *	95% of (ts_pctcpu) usage in 60 seconds (load insensitive)
  *          Note that, as ps(1) mentions, this can let percentages
  *          total over 100% (I've seen 137.9% for 3 processes).
  *
- * Note that schedclock() updates td_estcpu and p_cpticks asynchronously.
+ * Note that schedclock() updates ts_estcpu and p_cpticks asynchronously.
  *
- * We wish to decay away 90% of td_estcpu in (5 * loadavg) seconds.
+ * We wish to decay away 90% of ts_estcpu in (5 * loadavg) seconds.
  * That is, the system wants to compute a value of decay such
  * that the following for loop:
  * 	for (i = 0; i < (5 * loadavg); i++)
- * 		td_estcpu *= decay;
+ * 		ts_estcpu *= decay;
  * will compute
- * 	td_estcpu *= 0.1;
+ * 	ts_estcpu *= 0.1;
  * for all values of loadavg:
  *
  * Mathematically this loop can be expressed by saying:
@@ -489,8 +494,8 @@ schedcpu(void)
 		}
 		FOREACH_THREAD_IN_PROC(p, td) {
 			awake = 0;
+			ts = td_get_sched(td);
 			thread_lock(td);
-			ts = td->td_sched;
 			/*
 			 * Increment sleep time (if sleeping).  We
 			 * ignore overflow, as above.
@@ -559,7 +564,7 @@ schedcpu(void)
 				thread_unlock(td);
 				continue;
 			}
-			td->td_estcpu = decay_cpu(loadfac, td->td_estcpu);
+			ts->ts_estcpu = decay_cpu(loadfac, ts->ts_estcpu);
 		      	resetpriority(td);
 			resetpriority_thread(td);
 			thread_unlock(td);
@@ -584,8 +589,8 @@ schedcpu_thread(void)
 
 /*
  * Recalculate the priority of a process after it has slept for a while.
- * For all load averages >= 1 and max td_estcpu of 255, sleeping for at
- * least six times the loadfactor will decay td_estcpu to zero.
+ * For all load averages >= 1 and max ts_estcpu of 255, sleeping for at
+ * least six times the loadfactor will decay ts_estcpu to zero.
  */
 static void
 updatepri(struct thread *td)
@@ -594,16 +599,16 @@ updatepri(struct thread *td)
 	fixpt_t loadfac;
 	unsigned int newcpu;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	loadfac = loadfactor(averunnable.ldavg[0]);
 	if (ts->ts_slptime > 5 * loadfac)
-		td->td_estcpu = 0;
+		ts->ts_estcpu = 0;
 	else {
-		newcpu = td->td_estcpu;
+		newcpu = ts->ts_estcpu;
 		ts->ts_slptime--;	/* was incremented in schedcpu() */
 		while (newcpu && --ts->ts_slptime)
 			newcpu = decay_cpu(loadfac, newcpu);
-		td->td_estcpu = newcpu;
+		ts->ts_estcpu = newcpu;
 	}
 }
 
@@ -615,15 +620,16 @@ updatepri(struct thread *td)
 static void
 resetpriority(struct thread *td)
 {
-	register unsigned int newpriority;
+	u_int newpriority;
 
-	if (td->td_pri_class == PRI_TIMESHARE) {
-		newpriority = PUSER + td->td_estcpu / INVERSE_ESTCPU_WEIGHT +
-		    NICE_WEIGHT * (td->td_proc->p_nice - PRIO_MIN);
-		newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
-		    PRI_MAX_TIMESHARE);
-		sched_user_prio(td, newpriority);
-	}
+	if (td->td_pri_class != PRI_TIMESHARE)
+		return;
+	newpriority = PUSER +
+	    td_get_sched(td)->ts_estcpu / INVERSE_ESTCPU_WEIGHT +
+	    NICE_WEIGHT * (td->td_proc->p_nice - PRIO_MIN);
+	newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
+	    PRI_MAX_TIMESHARE);
+	sched_user_prio(td, newpriority);
 }
 
 /*
@@ -680,13 +686,12 @@ sched_initticks(void *dummy)
 void
 schedinit(void)
 {
+
 	/*
-	 * Set up the scheduler specific parts of proc0.
+	 * Set up the scheduler specific parts of thread0.
 	 */
-	proc0.p_sched = NULL; /* XXX */
-	thread0.td_sched = &td_sched0;
 	thread0.td_lock = &sched_lock;
-	td_sched0.ts_slice = sched_slice;
+	td_get_sched(&thread0)->ts_slice = sched_slice;
 	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
 }
 
@@ -709,18 +714,18 @@ sched_rr_interval(void)
 }
 
 /*
- * We adjust the priority of the current process.  The priority of
- * a process gets worse as it accumulates CPU time.  The cpu usage
- * estimator (td_estcpu) is increased here.  resetpriority() will
- * compute a different priority each time td_estcpu increases by
- * INVERSE_ESTCPU_WEIGHT
- * (until MAXPRI is reached).  The cpu usage estimator ramps up
- * quite quickly when the process is running (linearly), and decays
- * away exponentially, at a rate which is proportionally slower when
- * the system is busy.  The basic principle is that the system will
- * 90% forget that the process used a lot of CPU time in 5 * loadav
- * seconds.  This causes the system to favor processes which haven't
- * run much recently, and to round-robin among other processes.
+ * We adjust the priority of the current process.  The priority of a
+ * process gets worse as it accumulates CPU time.  The cpu usage
+ * estimator (ts_estcpu) is increased here.  resetpriority() will
+ * compute a different priority each time ts_estcpu increases by
+ * INVERSE_ESTCPU_WEIGHT (until PRI_MAX_TIMESHARE is reached).  The
+ * cpu usage estimator ramps up quite quickly when the process is
+ * running (linearly), and decays away exponentially, at a rate which
+ * is proportionally slower when the system is busy.  The basic
+ * principle is that the system will 90% forget that the process used
+ * a lot of CPU time in 5 * loadav seconds.  This causes the system to
+ * favor processes which haven't run much recently, and to round-robin
+ * among other processes.
  */
 void
 sched_clock(struct thread *td)
@@ -729,11 +734,11 @@ sched_clock(struct thread *td)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 
 	ts->ts_cpticks++;
-	td->td_estcpu = ESTCPULIM(td->td_estcpu + 1);
-	if ((td->td_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
+	ts->ts_estcpu = ESTCPULIM(ts->ts_estcpu + 1);
+	if ((ts->ts_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
 		resetpriority(td);
 		resetpriority_thread(td);
 	}
@@ -773,7 +778,8 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "exit",
 	    "prio:%d", child->td_priority);
 	thread_lock(td);
-	td->td_estcpu = ESTCPULIM(td->td_estcpu + child->td_estcpu);
+	td_get_sched(td)->ts_estcpu = ESTCPULIM(td_get_sched(td)->ts_estcpu +
+	    td_get_sched(child)->ts_estcpu);
 	thread_unlock(td);
 	thread_lock(child);
 	if ((child->td_flags & TDF_NOLOAD) == 0)
@@ -790,17 +796,18 @@ sched_fork(struct thread *td, struct thread *childtd)
 void
 sched_fork_thread(struct thread *td, struct thread *childtd)
 {
-	struct td_sched *ts;
+	struct td_sched *ts, *tsc;
 
 	childtd->td_oncpu = NOCPU;
 	childtd->td_lastcpu = NOCPU;
-	childtd->td_estcpu = td->td_estcpu;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
 	childtd->td_priority = childtd->td_base_pri;
-	ts = childtd->td_sched;
+	ts = td_get_sched(childtd);
 	bzero(ts, sizeof(*ts));
-	ts->ts_flags |= (td->td_sched->ts_flags & TSF_AFFINITY);
+	tsc = td_get_sched(td);
+	ts->ts_estcpu = tsc->ts_estcpu;
+	ts->ts_flags |= (tsc->ts_flags & TSF_AFFINITY);
 	ts->ts_slice = 1;
 }
 
@@ -949,7 +956,7 @@ sched_sleep(struct thread *td, int pri)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_slptick = ticks;
-	td->td_sched->ts_slptime = 0;
+	td_get_sched(td)->ts_slptime = 0;
 	if (pri != 0 && PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
 		sched_prio(td, pri);
 	if (TD_IS_SUSPENDED(td) || pri >= PSOCK)
@@ -965,7 +972,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	int preempted;
 
 	tmtx = NULL;
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	p = td->td_proc;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -1092,7 +1099,7 @@ sched_wakeup(struct thread *td)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	td->td_flags &= ~TDF_CANSWAP;
 	if (ts->ts_slptime > 1) {
 		updatepri(td);
@@ -1263,7 +1270,7 @@ sched_add(struct thread *td, int flags)
 	int forwarded = 0;
 	int single_cpu = 0;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
 	    ("sched_add: trying to run inhibited thread"));
@@ -1358,7 +1365,7 @@ sched_add(struct thread *td, int flags)
 {
 	struct td_sched *ts;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
 	    ("sched_add: trying to run inhibited thread"));
@@ -1392,7 +1399,7 @@ sched_add(struct thread *td, int flags)
 	 * or kicking off another CPU as it won't help and may hinder.
 	 * In the YIEDLING case, we are about to run whoever is being
 	 * put in the queue anyhow, and in the OURSELF case, we are
-	 * puting ourself on the run queue which also only happens
+	 * putting ourself on the run queue which also only happens
 	 * when we are about to yield.
 	 */
 	if ((flags & SRQ_YIELDING) == 0) {
@@ -1411,7 +1418,7 @@ sched_rem(struct thread *td)
 {
 	struct td_sched *ts;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	KASSERT(td->td_flags & TDF_INMEM,
 	    ("sched_rem: thread swapped out"));
 	KASSERT(TD_ON_RUNQ(td),
@@ -1524,7 +1531,7 @@ sched_bind(struct thread *td, int cpu)
 	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
 	KASSERT(td == curthread, ("sched_bind: can only bind curthread"));
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 
 	td->td_flags |= TDF_BOUND;
 #ifdef SMP
@@ -1583,7 +1590,7 @@ sched_pctcpu(struct thread *td)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	return (ts->ts_pctcpu);
 }
 
@@ -1600,7 +1607,7 @@ sched_pctcpu_delta(struct thread *td)
 	int realstathz;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	delta = 0;
 	realstathz = stathz ? stathz : hz;
 	if (ts->ts_cpticks != 0) {
@@ -1621,9 +1628,11 @@ sched_pctcpu_delta(struct thread *td)
 }
 #endif
 
-void
-sched_tick(int cnt)
+u_int
+sched_estcpu(struct thread *td)
 {
+	
+	return (td_get_sched(td)->ts_estcpu);
 }
 
 /*
@@ -1702,7 +1711,7 @@ sched_tdname(struct thread *td)
 #ifdef KTR
 	struct td_sched *ts;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	if (ts->ts_name[0] == '\0')
 		snprintf(ts->ts_name, sizeof(ts->ts_name),
 		    "%s tid %d", td->td_name, td->td_tid);
@@ -1718,7 +1727,7 @@ sched_clear_tdname(struct thread *td)
 {
 	struct td_sched *ts;
 
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	ts->ts_name[0] = '\0';
 }
 #endif
@@ -1736,7 +1745,7 @@ sched_affinity(struct thread *td)
 	 * Set the TSF_AFFINITY flag if there is at least one CPU this
 	 * thread can't run on.
 	 */
-	ts = td->td_sched;
+	ts = td_get_sched(td);
 	ts->ts_flags &= ~TSF_AFFINITY;
 	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu)) {

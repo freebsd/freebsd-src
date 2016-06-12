@@ -1,5 +1,6 @@
 #	$FreeBSD$
 
+PACKAGE=	ipf
 PROG=		ipftest
 SRCS=		${GENHDRS} ipftest.c fil.c ip_frag.c ip_state.c ip_nat.c \
 		ip_nat6.c \

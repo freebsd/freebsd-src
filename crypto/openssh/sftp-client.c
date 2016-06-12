@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.120 2015/05/28 04:50:53 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.121 2016/02/11 02:21:34 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -1760,7 +1760,7 @@ do_upload(struct sftp_conn *conn, const char *local_path,
 	if (fsync_flag)
 		(void)do_fsync(conn, handle, handle_len);
 
-	if (do_close(conn, handle, handle_len) != SSH2_FX_OK)
+	if (do_close(conn, handle, handle_len) != 0)
 		status = SSH2_FX_FAILURE;
 
 	free(handle);
@@ -1773,12 +1773,11 @@ upload_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
     int depth, int preserve_flag, int print_flag, int resume, int fsync_flag)
 {
 	int ret = 0;
-	u_int status;
 	DIR *dirp;
 	struct dirent *dp;
 	char *filename, *new_src, *new_dst;
 	struct stat sb;
-	Attrib a;
+	Attrib a, *dirattrib;
 
 	if (depth >= MAX_DIR_DEPTH) {
 		error("Maximum directory depth exceeded: %d levels", depth);
@@ -1805,17 +1804,18 @@ upload_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 	if (!preserve_flag)
 		a.flags &= ~SSH2_FILEXFER_ATTR_ACMODTIME;
 
-	status = do_mkdir(conn, dst, &a, 0);
 	/*
-	 * we lack a portable status for errno EEXIST,
-	 * so if we get a SSH2_FX_FAILURE back we must check
-	 * if it was created successfully.
+	 * sftp lacks a portable status value to match errno EEXIST,
+	 * so if we get a failure back then we must check whether
+	 * the path already existed and is a directory.
 	 */
-	if (status != SSH2_FX_OK) {
-		if (status != SSH2_FX_FAILURE)
+	if (do_mkdir(conn, dst, &a, 0) != 0) {
+		if ((dirattrib = do_stat(conn, dst, 0)) == NULL)
 			return -1;
-		if (do_stat(conn, dst, 0) == NULL)
+		if (!S_ISDIR(dirattrib->perm)) {
+			error("\"%s\" exists but is not a directory", dst);
 			return -1;
+		}
 	}
 
 	if ((dirp = opendir(src)) == NULL) {

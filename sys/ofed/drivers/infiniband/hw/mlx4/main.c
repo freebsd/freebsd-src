@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx4_
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -799,7 +801,7 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	unsigned long  command = vma->vm_pgoff & MLX4_IB_MMAP_CMD_MASK;
 
 	if (command < MLX4_IB_MMAP_GET_CONTIGUOUS_PAGES) {
-		/* compatability handling for commands 0 & 1*/
+		/* compatibility handling for commands 0 & 1*/
 		if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 			return -EINVAL;
 	}
@@ -1119,7 +1121,7 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 	if (flow_attr->priority > MLX4_IB_FLOW_MAX_PRIO) {
 		pr_err("Invalid priority value.\n");
 		return -EINVAL;
-                    }
+	}
 	if (domain >= IB_FLOW_DOMAIN_NUM) {
 		pr_err("Invalid domain value.\n");
 		return -EINVAL;
@@ -1198,7 +1200,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	switch (flow_attr->type) {
 	case IB_FLOW_ATTR_NORMAL:
 		type[0] = MLX4_FS_REGULAR;
-			break;
+		break;
 
 	case IB_FLOW_ATTR_ALL_DEFAULT:
 		type[0] = MLX4_FS_ALL_DEFAULT;
@@ -1221,7 +1223,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	while (i < ARRAY_SIZE(type) && type[i]) {
 		err = __mlx4_ib_create_flow(qp, flow_attr, domain, type[i],
 					    &mflow->reg_id[i]);
-	if (err)
+		if (err)
 			goto err_free;
 		i++;
 	}
@@ -1297,7 +1299,7 @@ static int del_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
 		pr_warn("could not find mgid entry\n");
 
 	mutex_unlock(&mqp->mutex);
-	return ge != 0 ? 0 : -EINVAL;
+	return ge != NULL ? 0 : -EINVAL;
 }
 
 static int _mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid,
@@ -1605,11 +1607,11 @@ static void update_gids_task(struct work_struct *work)
 					IB_LINK_LAYER_ETHERNET) {
 		err = mlx4_cmd(dev, mailbox->dma,
 			       MLX4_SET_PORT_GID_TABLE << 8 | gw->port,
-		       1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
-		       MLX4_CMD_WRAPPED);
+			       1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+			       MLX4_CMD_WRAPPED);
 
-	if (err)
-		pr_warn("set port command failed\n");
+		if (err)
+			pr_warn("set port command failed\n");
 		else
 			mlx4_ib_dispatch_event(gw->dev, gw->port,
 					       IB_EVENT_GID_CHANGE);
@@ -1618,6 +1620,12 @@ static void update_gids_task(struct work_struct *work)
 	mlx4_free_cmd_mailbox(dev, mailbox);
 free:
 	kfree(gw);
+}
+
+static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
+{
+	struct mlx4_ib_dev *ibdev = to_mdev(device);
+	return mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port_num);
 }
 
 static void reset_gids_task(struct work_struct *work)
@@ -1686,8 +1694,8 @@ static int update_gid_table(struct mlx4_ib_dev *dev, int port,
 			if (found >= 0) {
 				need_update = 1;
 				dev->iboe.gid_table[port - 1][found] = zgid;
-					break;
-				}
+				break;
+			}
 		} else {
 			if (found >= 0)
 				break;
@@ -1696,22 +1704,22 @@ static int update_gid_table(struct mlx4_ib_dev *dev, int port,
 			    !memcmp(&dev->iboe.gid_table[port - 1][i],
 				    &zgid, sizeof(*gid)))
 				free = i;
-				}
-			}
+		}
+	}
 
 	if (found == -1 && !clear && free < 0) {
 		pr_err("GID table of port %d is full. Can't add "GID_PRINT_FMT"\n",
 		       port, GID_PRINT_ARGS(gid));
 		return -ENOMEM;
-		}
+	}
 	if (found == -1 && clear) {
 		pr_err(GID_PRINT_FMT" is not in GID table of port %d\n", GID_PRINT_ARGS(gid), port);
 		return -EINVAL;
-        }
+	}
 	if (found == -1 && !clear && free >= 0) {
 		dev->iboe.gid_table[port - 1][free] = *gid;
 		need_update = 1;
-        }
+	}
 
 	if (!need_update)
 		return 0;
@@ -1721,10 +1729,10 @@ static int update_gid_table(struct mlx4_ib_dev *dev, int port,
 		return -ENOMEM;
 
 	memcpy(work->gids, dev->iboe.gid_table[port - 1], sizeof(work->gids));
-		INIT_WORK(&work->work, update_gids_task);
-		work->port = port;
-		work->dev = dev;
-		queue_work(wq, &work->work);
+	INIT_WORK(&work->work, update_gids_task);
+	work->port = port;
+	work->dev = dev;
+	queue_work(wq, &work->work);
 
 	return 0;
 }
@@ -1773,7 +1781,7 @@ static u8 mlx4_ib_get_dev_port(struct net_device *dev, struct mlx4_ib_dev *ibdev
 	for (port = 1; port <= MLX4_MAX_PORTS; ++port)
 		if ((netif_is_bond_master(real_dev) && (real_dev == iboe->masters[port - 1])) ||
 		    (!netif_is_bond_master(real_dev) && (real_dev == iboe->netdevs[port - 1])))
-		break;
+			break;
 
 	return port > MLX4_MAX_PORTS ? 0 : port;
 }
@@ -1809,11 +1817,11 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev, struct mlx4_ib_dev *ibd
 		read_lock_bh(&in6_dev->lock);
 		list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
 			pgid = (union ib_gid *)&ifp->addr;
-			update_gid_table(ibdev, port, pgid, 0, 0);
-	}
+				update_gid_table(ibdev, port, pgid, 0, 0);
+			}
 		read_unlock_bh(&in6_dev->lock);
 		in6_dev_put(in6_dev);
-	}
+		}
 #endif
 }
 
@@ -2002,10 +2010,10 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
 		for (j = 0; j < eq_per_port; j++) {
 			sprintf(name, "mlx4-ib-%d-%d@%d:%d:%d:%d", i, j,
-			    pci_get_domain(dev->pdev->dev.bsddev),
-			    pci_get_bus(dev->pdev->dev.bsddev),
-			    PCI_SLOT(dev->pdev->devfn),
-			    PCI_FUNC(dev->pdev->devfn));
+						pci_get_domain(dev->pdev->dev.bsddev),
+						pci_get_bus(dev->pdev->dev.bsddev),
+						PCI_SLOT(dev->pdev->devfn),
+						PCI_FUNC(dev->pdev->devfn));
 
 			/* Set IRQ for specific name (per ring) */
 			if (mlx4_assign_eq(dev, name,
@@ -2168,7 +2176,7 @@ static struct attribute_group diag_counters_group = {
 static void init_dev_assign(void)
 {
 	int i = 1;
-	
+
 	spin_lock_init(&dev_num_str_lock);
 	if (mlx4_fill_dbdf2val_tbl(&dev_assign_str))
 		return;
@@ -2268,7 +2276,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (dev_idx >= 0)
 		sprintf(ibdev->ib_dev.name, "mlx4_%d", dev_idx);
 	else
-	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
+		strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
 
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
@@ -2353,6 +2361,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.attach_mcast	= mlx4_ib_mcg_attach;
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
+	ibdev->ib_dev.get_netdev	= mlx4_ib_get_netdev;
 	ibdev->ib_dev.ioctl		= mlx4_ib_ioctl;
 	ibdev->ib_dev.query_values	= mlx4_ib_query_values;
 
@@ -2471,8 +2480,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE) {
 		if (!iboe->nb.notifier_call) {
-		iboe->nb.notifier_call = mlx4_ib_netdev_event;
-		err = register_netdevice_notifier(&iboe->nb);
+			iboe->nb.notifier_call = mlx4_ib_netdev_event;
+			err = register_netdevice_notifier(&iboe->nb);
 			if (err) {
 				iboe->nb.notifier_call = NULL;
 				goto err_notify;
@@ -2519,8 +2528,8 @@ err_notify:
         }
 
 	if (ibdev->iboe.nb.notifier_call) {
-	if (unregister_netdevice_notifier(&ibdev->iboe.nb))
-		pr_warn("failure unregistering notifier\n");
+		if (unregister_netdevice_notifier(&ibdev->iboe.nb))
+			pr_warn("failure unregistering notifier\n");
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
 	if (ibdev->iboe.nb_inet.notifier_call) {
@@ -2873,15 +2882,15 @@ module_exit(mlx4_ib_cleanup);
 static int
 mlx4ib_evhand(module_t mod, int event, void *arg)
 {
-        return (0);
+	return (0);
 }
 
 static moduledata_t mlx4ib_mod = {
-        .name = "mlx4ib",
-        .evhand = mlx4ib_evhand,
+	.name = "mlx4ib",
+	.evhand = mlx4ib_evhand,
 };
 
-DECLARE_MODULE(mlx4ib, mlx4ib_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(mlx4ib, mlx4ib_mod, SI_SUB_LAST, SI_ORDER_ANY);
 MODULE_DEPEND(mlx4ib, mlx4, 1, 1, 1);
 MODULE_DEPEND(mlx4ib, ibcore, 1, 1, 1);
 MODULE_DEPEND(mlx4ib, linuxkpi, 1, 1, 1);

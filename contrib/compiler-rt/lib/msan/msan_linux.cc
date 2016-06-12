@@ -56,7 +56,7 @@ static bool CheckMemoryRangeAvailability(uptr beg, uptr size) {
 static bool ProtectMemoryRange(uptr beg, uptr size, const char *name) {
   if (size > 0) {
     void *addr = MmapNoAccess(beg, size, name);
-    if (beg == 0 && addr != 0) {
+    if (beg == 0 && addr) {
       // Depending on the kernel configuration, we may not be able to protect
       // the page at address zero.
       uptr gap = 16 * GetPageSizeCached();
@@ -119,11 +119,17 @@ bool InitShadow(bool init_origins) {
     return false;
   }
 
+  const uptr maxVirtualAddress = GetMaxVirtualAddress();
+
   for (unsigned i = 0; i < kMemoryLayoutSize; ++i) {
     uptr start = kMemoryLayout[i].start;
     uptr end = kMemoryLayout[i].end;
     uptr size= end - start;
     MappingDesc::Type type = kMemoryLayout[i].type;
+
+    // Check if the segment should be mapped based on platform constraints.
+    if (start >= maxVirtualAddress)
+      continue;
 
     bool map = type == MappingDesc::SHADOW ||
                (init_origins && type == MappingDesc::ORIGIN);
@@ -151,20 +157,13 @@ bool InitShadow(bool init_origins) {
   return true;
 }
 
-void MsanDie() {
-  if (common_flags()->coverage)
-    __sanitizer_cov_dump();
-  if (death_callback)
-    death_callback();
-  internal__exit(flags()->exit_code);
-}
-
 static void MsanAtExit(void) {
   if (flags()->print_stats && (flags()->atexit || msan_report_count > 0))
     ReportStats();
   if (msan_report_count > 0) {
     ReportAtExitStatistics();
-    if (flags()->exit_code) _exit(flags()->exit_code);
+    if (common_flags()->exitcode)
+      internal__exit(common_flags()->exitcode);
   }
 }
 
@@ -211,6 +210,6 @@ void MsanTSDDtor(void *tsd) {
   MsanThread::TSDDtor(tsd);
 }
 
-}  // namespace __msan
+} // namespace __msan
 
-#endif  // SANITIZER_FREEBSD || SANITIZER_LINUX
+#endif // SANITIZER_FREEBSD || SANITIZER_LINUX

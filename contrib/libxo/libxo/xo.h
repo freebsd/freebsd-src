@@ -94,6 +94,11 @@ typedef unsigned long long xo_xof_flags_t;
 
 #define XOF_LOG_GETTEXT	XOF_BIT(28) /** Log (stderr) gettext lookup strings */
 #define XOF_UTF8	XOF_BIT(29) /** Force text output to be UTF8 */
+#define XOF_RETAIN_ALL	XOF_BIT(30) /** Force use of XOEF_RETAIN */
+#define XOF_RETAIN_NONE	XOF_BIT(31) /** Prevent use of XOEF_RETAIN */
+
+typedef unsigned xo_emit_flags_t; /* Flags to xo_emit() and friends */
+#define XOEF_RETAIN	(1<<0)	  /* Retain parsed formatting information */
 
 /*
  * The xo_info_t structure provides a mapping between names and
@@ -162,6 +167,12 @@ xo_set_flags (xo_handle_t *xop, xo_xof_flags_t flags);
 void
 xo_clear_flags (xo_handle_t *xop, xo_xof_flags_t flags);
 
+int
+xo_set_file_h (xo_handle_t *xop, FILE *fp);
+
+int
+xo_set_file (FILE *fp);
+
 void
 xo_set_info (xo_handle_t *xop, xo_info_t *infop, int count);
 
@@ -179,6 +190,16 @@ xo_emit_h (xo_handle_t *xop, const char *fmt, ...);
 
 int
 xo_emit (const char *fmt, ...);
+
+int
+xo_emit_hvf (xo_handle_t *xop, xo_emit_flags_t flags,
+	     const char *fmt, va_list vap);
+
+int
+xo_emit_hf (xo_handle_t *xop, xo_emit_flags_t flags, const char *fmt, ...);
+
+int
+xo_emit_f (xo_emit_flags_t flags, const char *fmt, ...);
 
 PRINTFLIKE(2, 0)
 static inline int
@@ -205,6 +226,36 @@ xo_emit_p (const char *fmt, ...)
     va_list vap;
     va_start(vap, fmt);
     int rc = xo_emit_hv(NULL, fmt, vap);
+    va_end(vap);
+    return rc;
+}
+
+PRINTFLIKE(3, 0)
+static inline int
+xo_emit_hvfp (xo_handle_t *xop, xo_emit_flags_t flags,
+	      const char *fmt, va_list vap)
+{
+    return xo_emit_hvf(xop, flags, fmt, vap);
+}
+
+PRINTFLIKE(3, 4)
+static inline int
+xo_emit_hfp (xo_handle_t *xop, xo_emit_flags_t flags, const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    int rc = xo_emit_hvf(xop, flags, fmt, vap);
+    va_end(vap);
+    return rc;
+}
+
+PRINTFLIKE(2, 3)
+static inline int
+xo_emit_fp (xo_emit_flags_t flags, const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    int rc = xo_emit_hvf(NULL, flags, fmt, vap);
     va_end(vap);
     return rc;
 }
@@ -592,5 +643,24 @@ typedef void (*xo_simplify_field_func_t)(const char *, unsigned, int);
 char *
 xo_simplify_format (xo_handle_t *xop, const char *fmt, int with_numbers,
 		    xo_simplify_field_func_t field_cb);
+
+int
+xo_emit_field_hv (xo_handle_t *xop, const char *rolmod, const char *contents,
+		  const char *fmt, const char *efmt,
+		  va_list vap);
+
+int
+xo_emit_field_h (xo_handle_t *xop, const char *rolmod, const char *contents,
+		 const char *fmt, const char *efmt, ...);
+
+int
+xo_emit_field (const char *rolmod, const char *contents,
+	       const char *fmt, const char *efmt, ...);
+
+void
+xo_retain_clear_all (void);
+
+void
+xo_retain_clear (const char *fmt);
 
 #endif /* INCLUDE_XO_H */

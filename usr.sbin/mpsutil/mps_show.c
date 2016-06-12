@@ -139,15 +139,19 @@ show_adapter(int ac, char **av)
 	if (sas0 == NULL) {
 		error = errno;
 		warn("Error retrieving SAS IO Unit page %d", IOCStatus);
+		free(sas0);
+		close(fd);
 		return (error);
 	}
 
 	sas1 = mps_read_extended_config_page(fd,
 	    MPI2_CONFIG_EXTPAGETYPE_SAS_IO_UNIT,
 	    MPI2_SASIOUNITPAGE1_PAGEVERSION, 1, 0, &IOCStatus);
-	if (sas0 == NULL) {
+	if (sas1 == NULL) {
 		error = errno;
 		warn("Error retrieving SAS IO Unit page %d", IOCStatus);
+		free(sas0);
+		close(fd);
 		return (error);
 	}
 	printf("\n");
@@ -266,12 +270,14 @@ show_adapters(int ac, char **av)
 			error = errno;
 			warn("Failed to get controller info");
 			close(fd);
+			free(facts);
 			return (error);
 		}
 		if (man0->Header.PageLength < sizeof(*man0) / 4) {
 			warnx("Invalid controller info");
 			close(fd);
 			free(man0);
+			free(facts);
 			return (EINVAL);
 		}
 		printf("/dev/mp%s%d\t%16s %16s        %08x\n",
@@ -476,6 +482,7 @@ show_devices(int ac, char **av)
 				break;
 			error = errno;
 			warn("Error retrieving device page");
+			close(fd);
 			return (error);
 		}
 		handle = device->DevHandle;
@@ -515,6 +522,8 @@ show_devices(int ac, char **av)
 					error = errno;
 					warn("Error retrieving expander page 1: 0x%x",
 					    IOCStatus);
+					close(fd);
+					free(device);
 					return (error);
 				}
 				speed = " ";
@@ -579,6 +588,7 @@ show_enclosures(int ac, char **av)
 				break;
 			error = errno;
 			warn("Error retrieving enclosure page");
+			close(fd);
 			return (error);
 		}
 		type = get_enc_type(enc->Flags, &issep);
@@ -629,6 +639,7 @@ show_expanders(int ac, char **av)
 				break;
 			error = errno;
 			warn("Error retrieving expander page 0");
+			close(fd);
 			return (error);
 		}
 
@@ -766,6 +777,7 @@ show_cfgpage(int ac, char **av)
 	printf("Page 0x%x: %s %d, %s\n", page, pgname, num, pgattr);
 	hexdump(data, len, NULL, HD_REVERSED | 4);
 	free(data);
+	close(fd);
 	return (0);
 }
 

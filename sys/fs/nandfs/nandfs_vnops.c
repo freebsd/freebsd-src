@@ -1251,12 +1251,12 @@ nandfs_readdir(struct vop_readdir_args *ap)
 			diroffset += ndirent->rec_len;
 			blkoff += ndirent->rec_len;
 
-			/* Remember the last entry we transfered */
+			/* Remember the last entry we transferred */
 			transoffset = diroffset;
 		}
 		brelse(bp);
 
-		/* Pass on last transfered offset */
+		/* Pass on last transferred offset */
 		uio->uio_offset = transoffset;
 	}
 

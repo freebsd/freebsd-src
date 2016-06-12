@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
@@ -45,25 +46,21 @@ _pthread_rwlockattr_destroy(pthread_rwlockattr_t *rwlockattr)
 	pthread_rwlockattr_t prwlockattr;
 
 	if (rwlockattr == NULL)
-		return(EINVAL);
-
+		return (EINVAL);
 	prwlockattr = *rwlockattr;
-
 	if (prwlockattr == NULL)
-		return(EINVAL);
-
+		return (EINVAL);
 	free(prwlockattr);
-
-	return(0);
+	return (0);
 }
 
 int
 _pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *rwlockattr,
-	int *pshared)
+    int *pshared)
 {
-	*pshared = (*rwlockattr)->pshared;
 
-	return(0);
+	*pshared = (*rwlockattr)->pshared;
+	return (0);
 }
 
 int
@@ -72,28 +69,24 @@ _pthread_rwlockattr_init(pthread_rwlockattr_t *rwlockattr)
 	pthread_rwlockattr_t prwlockattr;
 
 	if (rwlockattr == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
-	prwlockattr = (pthread_rwlockattr_t)
-		malloc(sizeof(struct pthread_rwlockattr));
-
+	prwlockattr = malloc(sizeof(struct pthread_rwlockattr));
 	if (prwlockattr == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
-	prwlockattr->pshared 	= PTHREAD_PROCESS_PRIVATE;
-	*rwlockattr		= prwlockattr;
-
-	return(0);
+	prwlockattr->pshared = PTHREAD_PROCESS_PRIVATE;
+	*rwlockattr = prwlockattr;
+	return (0);
 }
 
 int
 _pthread_rwlockattr_setpshared(pthread_rwlockattr_t *rwlockattr, int pshared)
 {
-	/* Only PTHREAD_PROCESS_PRIVATE is supported. */
-	if (pshared != PTHREAD_PROCESS_PRIVATE)
-		return(EINVAL);
 
+	if (pshared != PTHREAD_PROCESS_PRIVATE &&
+	    pshared != PTHREAD_PROCESS_SHARED)
+		return (EINVAL);
 	(*rwlockattr)->pshared = pshared;
-
-	return(0);
+	return (0);
 }

@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
-#include <machine/acle-compat.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
@@ -282,7 +281,7 @@ elf_cpu_load_file(linker_file_t lf)
 #else
 	cpu_dcache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
 	cpu_l2cache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
-	cpu_icache_sync_all();
+	cpu_icache_sync_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
 #endif
 	return (0);
 }

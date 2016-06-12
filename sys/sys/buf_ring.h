@@ -98,7 +98,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 
 	/*
 	 * If there are other enqueues in progress
-	 * that preceeded us, we need to wait for them
+	 * that preceded us, we need to wait for them
 	 * to complete 
 	 */   
 	while (br->br_prod_tail != prod_head)
@@ -135,7 +135,7 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 #endif
 	/*
 	 * If there are other dequeues in progress
-	 * that preceeded us, we need to wait for them
+	 * that preceded us, we need to wait for them
 	 * to complete 
 	 */   
 	while (br->br_cons_tail != cons_head)
@@ -266,6 +266,37 @@ buf_ring_peek(struct buf_ring *br)
 		return (NULL);
 	
 	return (br->br_ring[br->br_cons_head]);
+}
+
+static __inline void *
+buf_ring_peek_clear_sc(struct buf_ring *br)
+{
+#ifdef DEBUG_BUFRING
+	void *ret;
+
+	if (!mtx_owned(br->br_lock))
+		panic("lock not held on single consumer dequeue");
+#endif	
+	/*
+	 * I believe it is safe to not have a memory barrier
+	 * here because we control cons and tail is worst case
+	 * a lagging indicator so we worst case we might
+	 * return NULL immediately after a buffer has been enqueued
+	 */
+	if (br->br_cons_head == br->br_prod_tail)
+		return (NULL);
+
+#ifdef DEBUG_BUFRING
+	/*
+	 * Single consumer, i.e. cons_head will not move while we are
+	 * running, so atomic_swap_ptr() is not necessary here.
+	 */
+	ret = br->br_ring[br->br_cons_head];
+	br->br_ring[br->br_cons_head] = NULL;
+	return (ret);
+#else
+	return (br->br_ring[br->br_cons_head]);
+#endif
 }
 
 static __inline int

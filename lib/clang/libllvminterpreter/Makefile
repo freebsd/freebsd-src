@@ -9,6 +9,7 @@ SRCS=	Execution.cpp \
 	ExternalFunctions.cpp \
 	Interpreter.cpp \
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

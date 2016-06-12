@@ -376,7 +376,7 @@ cyclelink(void)
 	 *	i.e. it is origin 1, not origin 0.
 	 */
     cyclenl = (nltype *) calloc( ncycle + 1 , sizeof( nltype ) );
-    if ( cyclenl == 0 )
+    if ( cyclenl == NULL )
 	errx( 1 , "no room for %zu bytes of cycle headers" ,
 		   ( ncycle + 1 ) * sizeof( nltype ) );
 	/*
@@ -479,7 +479,7 @@ cycleanalyze(void)
 	    continue;
 	done = FALSE;
         cyclestack = (arctype **) calloc( size + 1 , sizeof( arctype *) );
-	if ( cyclestack == 0 )
+	if ( cyclestack == NULL )
 	    errx( 1, "no room for %zu bytes of cycle stack" ,
 			   ( size + 1 ) * sizeof( arctype * ) );
 #	ifdef DEBUG
@@ -592,7 +592,7 @@ addcycle(arctype **stkstart, arctype **stkend)
     }
     clp = (cltype *)
 	calloc( 1 , sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
-    if ( clp == 0 ) {
+    if ( clp == NULL ) {
 	warnx( "no room for %zu bytes of subcycle storage" ,
 	    sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
 	return( FALSE );

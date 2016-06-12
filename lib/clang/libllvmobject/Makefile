@@ -14,6 +14,7 @@ SRCS=	Archive.cpp \
 	ELFObjectFile.cpp \
 	ELFYAML.cpp \
 	Error.cpp \
+	FunctionIndexObjectFile.cpp \
 	IRObjectFile.cpp \
 	MachOObjectFile.cpp \
 	MachOUniversal.cpp \
@@ -25,5 +26,7 @@ SRCS=	Archive.cpp \
 SRCS+=	Object.cpp \
 	SymbolSize.cpp
 .endif
+
+TGHDRS=	Attributes
 	
 .include "../clang.lib.mk"

@@ -28,8 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -773,9 +771,6 @@ passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 
 	if (softc->open_count == 0) {
 		struct pass_io_req *io_req, *io_req2;
-		int need_unlock;
-
-		need_unlock = 0;
 
 		TAILQ_FOREACH_SAFE(io_req, &softc->done_queue, links, io_req2) {
 			TAILQ_REMOVE(&softc->done_queue, io_req, links);
@@ -948,7 +943,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 		case XPT_ATA_IO:
 			devstat_end_transaction(softc->device_stats,
 			    done_ccb->ataio.dxfer_len - done_ccb->ataio.resid,
-			    done_ccb->ataio.tag_action & 0x3,
+			    0, /* Not used in ATA */
 			    ((done_ccb->ccb_h.flags & CAM_DIR_MASK) ==
 			    CAM_DIR_NONE) ? DEVSTAT_NO_DATA : 
 			    (done_ccb->ccb_h.flags & CAM_DIR_OUT) ?

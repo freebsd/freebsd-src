@@ -201,6 +201,18 @@ rt_tables_get_rnh(int table, int fam)
 	return (*rt_tables_get_rnh_ptr(table, fam));
 }
 
+u_int
+rt_tables_get_gen(int table, int fam)
+{
+	struct rib_head *rnh;
+
+	rnh = *rt_tables_get_rnh_ptr(table, fam);
+	KASSERT(rnh != NULL, ("%s: NULL rib_head pointer table %d fam %d",
+	    __func__, table, fam));
+	return (rnh->rnh_gen);
+}
+
+
 /*
  * route initialization must occur before ip6_init2(), which happenas at
  * SI_ORDER_MIDDLE.
@@ -353,9 +365,23 @@ rt_table_init(int offset)
 	return (rh);
 }
 
+static int
+rt_freeentry(struct radix_node *rn, void *arg)
+{
+	struct radix_head * const rnh = arg;
+	struct radix_node *x;
+
+	x = (struct radix_node *)rn_delete(rn + 2, NULL, rnh);
+	if (x != NULL)
+		R_Free(x);
+	return (0);
+}
+
 void
 rt_table_destroy(struct rib_head *rh)
 {
+
+	rn_walktree(&rh->rmhead.head, rt_freeentry, &rh->rmhead.head);
 
 	/* Assume table is already empty */
 	rw_destroy(&rh->rib_lock);
@@ -1115,6 +1141,15 @@ rt_ifdelroute(const struct rtentry *rt, void *arg)
  * to this interface...oh well...
  */
 void
+rt_flushifroutes_af(struct ifnet *ifp, int af)
+{
+	KASSERT((af >= 1 && af <= AF_MAX), ("%s: af %d not >= 1 and <= %d",
+	    __func__, af, AF_MAX));
+
+	rt_foreach_fib_walk_del(af, rt_ifdelroute, ifp);
+}
+
+void
 rt_flushifroutes(struct ifnet *ifp)
 {
 
@@ -1740,6 +1775,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			*ret_nrt = rt;
 			RT_ADDREF(rt);
 		}
+		rnh->rnh_gen++;		/* Routing table updated */
 		RT_UNLOCK(rt);
 		break;
 	case RTM_CHANGE:

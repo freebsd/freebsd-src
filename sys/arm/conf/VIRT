@@ -26,7 +26,9 @@ include 	"../qemu/std.virt"
 options 	HZ=100
 options 	SCHED_ULE		# 4BSD scheduler
 options 	PLATFORM
+options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores
+options 	MULTIDELAY
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -46,6 +48,8 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 
 # Interrupt controller
 device		gic
+options 	INTRNG
+
 # ARM Generic Timer
 device		generic_timer
 

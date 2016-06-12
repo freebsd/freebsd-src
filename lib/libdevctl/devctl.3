@@ -25,16 +25,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2014
+.Dd April 27, 2016
 .Dt DEVCTL 3
 .Os
 .Sh NAME
 .Nm devctl ,
 .Nm devctl_attach ,
+.Nm devctl_delete ,
 .Nm devctl_detach ,
 .Nm devctl_disable ,
 .Nm devctl_enable ,
+.Nm devctl_rescan ,
 .Nm devctl_resume ,
+.Nm devctl_set_driver ,
 .Nm devctl_suspend
 .Nd device control library
 .Sh LIBRARY
@@ -44,17 +47,21 @@
 .Ft int
 .Fn devctl_attach "const char *device"
 .Ft int
+.Fn devctl_delete "const char *device" "bool force"
+.Ft int
 .Fn devctl_detach "const char *device" "bool force"
 .Ft int
 .Fn devctl_disable "const char *device" "bool force_detach"
 .Ft int
 .Fn devctl_enable "const char *device"
 .Ft int
+.Fn devctl_rescan "const char *device"
+.Ft int
 .Fn devctl_resume "const char *device"
 .Ft int
-.Fn devctl_suspend "const char *device"
-.Ft int
 .Fn devctl_set_driver "const char *device" "const char *driver" "bool force"
+.Ft int
+.Fn devctl_suspend "const char *device"
 .Sh DESCRIPTION
 The
 .Nm
@@ -106,6 +113,15 @@ is true,
 the current device driver will be detached even if the device is busy.
 .Pp
 The
+.Fn devctl_delete
+function deletes a device from the device tree.
+No
+If
+.Fa force
+is true,
+the device is deleted even if the device is physically present.
+.Pp
+The
 .Fn devctl_disable
 function disables a device.
 If the device is currently attached to a device driver,
@@ -148,9 +164,14 @@ If the device is already attached and
 is true,
 the device will be detached from its current device driver before it is
 attached to the new device driver.
+.Pp
+The
+.Fn devctl_rescan
+function rescans a bus device checking for devices that have been added or
+removed.
 .Sh RETURN VALUES
-.Rv -std devctl_attach devctl_detach devctl_disable devctl_enable \
-devctl_suspend devctl_resume devctl_set_driver
+.Rv -std devctl_attach devctl_delete devctl_detach devctl_disable \
+devctl_enable devctl_suspend devctl_rescan devctl_resume devctl_set_driver
 .Sh ERRORS
 In addition to specific errors noted below,
 all of the
@@ -279,6 +300,29 @@ The device is disabled.
 .It Bq Er ENXIO
 The new device driver failed to attach.
 .El
+.Pp
+The
+.Fn devctl_rescan
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er ENXIO
+The device is not attached to a driver.
+.It Bq Er ENXIO
+The bus driver does not support rescanning.
+.El
+.Pp
+The
+.Fn devctl_delete
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is physically present and
+.Fa force
+is false.
+.It Bq Er EINVAL
+.Fa dev
+is the root device of the device tree.
+.El
 .Sh SEE ALSO
 .Xr devinfo 3 ,
 .Xr devstat 3 ,
@@ -287,7 +331,7 @@ The new device driver failed to attach.
 The
 .Nm
 library first appeared in
-.Fx 11.0 .
+.Fx 10.3 .
 .Sh BUGS
 If a device is suspended individually via
 .Fn devctl_suspend

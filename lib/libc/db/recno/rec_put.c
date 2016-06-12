@@ -140,8 +140,7 @@ einval:		errno = EINVAL;
 			return (RET_ERROR);
 		if (nrec > t->bt_nrecs + 1) {
 			if (F_ISSET(t, R_FIXLEN)) {
-				if ((tdata.data =
-				    (void *)malloc(t->bt_reclen)) == NULL)
+				if ((tdata.data = malloc(t->bt_reclen)) == NULL)
 					return (RET_ERROR);
 				tdata.size = t->bt_reclen;
 				memset(tdata.data, t->bt_bval, tdata.size);
@@ -208,7 +207,7 @@ __rec_iput(BTREE *t, recno_t nrec, const DBT *data, u_int flags)
 			return (RET_ERROR);
 		tdata.data = db;
 		tdata.size = NOVFLSIZE;
-		*(pgno_t *)db = pg;
+		memcpy(db, &pg, sizeof(pg));
 		*(u_int32_t *)(db + sizeof(pgno_t)) = data->size;
 		dflags = P_BIGDATA;
 		data = &tdata;

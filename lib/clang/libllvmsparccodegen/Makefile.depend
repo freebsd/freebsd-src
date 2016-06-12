@@ -6,77 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-DelaySlotFiller.o: SparcGenInstrInfo.inc.h
-DelaySlotFiller.o: SparcGenRegisterInfo.inc.h
-DelaySlotFiller.o: SparcGenSubtargetInfo.inc.h
-DelaySlotFiller.po: SparcGenInstrInfo.inc.h
-DelaySlotFiller.po: SparcGenRegisterInfo.inc.h
-DelaySlotFiller.po: SparcGenSubtargetInfo.inc.h
-SparcAsmPrinter.o: SparcGenInstrInfo.inc.h
-SparcAsmPrinter.o: SparcGenRegisterInfo.inc.h
-SparcAsmPrinter.o: SparcGenSubtargetInfo.inc.h
-SparcAsmPrinter.po: SparcGenInstrInfo.inc.h
-SparcAsmPrinter.po: SparcGenRegisterInfo.inc.h
-SparcAsmPrinter.po: SparcGenSubtargetInfo.inc.h
-SparcFrameLowering.o: SparcGenInstrInfo.inc.h
-SparcFrameLowering.o: SparcGenRegisterInfo.inc.h
-SparcFrameLowering.o: SparcGenSubtargetInfo.inc.h
-SparcFrameLowering.po: SparcGenInstrInfo.inc.h
-SparcFrameLowering.po: SparcGenRegisterInfo.inc.h
-SparcFrameLowering.po: SparcGenSubtargetInfo.inc.h
-SparcISelDAGToDAG.o: Intrinsics.inc.h
-SparcISelDAGToDAG.o: SparcGenDAGISel.inc.h
-SparcISelDAGToDAG.o: SparcGenInstrInfo.inc.h
-SparcISelDAGToDAG.o: SparcGenRegisterInfo.inc.h
-SparcISelDAGToDAG.o: SparcGenSubtargetInfo.inc.h
-SparcISelDAGToDAG.po: Intrinsics.inc.h
-SparcISelDAGToDAG.po: SparcGenDAGISel.inc.h
-SparcISelDAGToDAG.po: SparcGenInstrInfo.inc.h
-SparcISelDAGToDAG.po: SparcGenRegisterInfo.inc.h
-SparcISelDAGToDAG.po: SparcGenSubtargetInfo.inc.h
-SparcISelLowering.o: SparcGenCallingConv.inc.h
-SparcISelLowering.o: SparcGenInstrInfo.inc.h
-SparcISelLowering.o: SparcGenRegisterInfo.inc.h
-SparcISelLowering.o: SparcGenSubtargetInfo.inc.h
-SparcISelLowering.po: SparcGenCallingConv.inc.h
-SparcISelLowering.po: SparcGenInstrInfo.inc.h
-SparcISelLowering.po: SparcGenRegisterInfo.inc.h
-SparcISelLowering.po: SparcGenSubtargetInfo.inc.h
-SparcInstrInfo.o: SparcGenInstrInfo.inc.h
-SparcInstrInfo.o: SparcGenRegisterInfo.inc.h
-SparcInstrInfo.o: SparcGenSubtargetInfo.inc.h
-SparcInstrInfo.po: SparcGenInstrInfo.inc.h
-SparcInstrInfo.po: SparcGenRegisterInfo.inc.h
-SparcInstrInfo.po: SparcGenSubtargetInfo.inc.h
-SparcMCInstLower.o: SparcGenInstrInfo.inc.h
-SparcMCInstLower.o: SparcGenRegisterInfo.inc.h
-SparcMCInstLower.o: SparcGenSubtargetInfo.inc.h
-SparcMCInstLower.po: SparcGenInstrInfo.inc.h
-SparcMCInstLower.po: SparcGenRegisterInfo.inc.h
-SparcMCInstLower.po: SparcGenSubtargetInfo.inc.h
-SparcRegisterInfo.o: SparcGenInstrInfo.inc.h
-SparcRegisterInfo.o: SparcGenRegisterInfo.inc.h
-SparcRegisterInfo.o: SparcGenSubtargetInfo.inc.h
-SparcRegisterInfo.po: SparcGenInstrInfo.inc.h
-SparcRegisterInfo.po: SparcGenRegisterInfo.inc.h
-SparcRegisterInfo.po: SparcGenSubtargetInfo.inc.h
-SparcSubtarget.o: SparcGenInstrInfo.inc.h
-SparcSubtarget.o: SparcGenRegisterInfo.inc.h
-SparcSubtarget.o: SparcGenSubtargetInfo.inc.h
-SparcSubtarget.po: SparcGenInstrInfo.inc.h
-SparcSubtarget.po: SparcGenRegisterInfo.inc.h
-SparcSubtarget.po: SparcGenSubtargetInfo.inc.h
-SparcTargetMachine.o: SparcGenInstrInfo.inc.h
-SparcTargetMachine.o: SparcGenRegisterInfo.inc.h
-SparcTargetMachine.o: SparcGenSubtargetInfo.inc.h
-SparcTargetMachine.po: SparcGenInstrInfo.inc.h
-SparcTargetMachine.po: SparcGenRegisterInfo.inc.h
-SparcTargetMachine.po: SparcGenSubtargetInfo.inc.h
 .endif

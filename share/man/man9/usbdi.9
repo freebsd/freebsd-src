@@ -157,7 +157,8 @@ available.
 .Fa udev
 is a pointer to "struct usb_device".
 .Fa ifaces
-is an array of interface index numbers to use. See "if_index".
+is an array of interface index numbers to use.
+See "if_index".
 .Fa pxfer
 is a pointer to an array of USB transfer pointers that are initialized
 to NULL, and then pointed to allocated USB transfers.
@@ -171,9 +172,10 @@ is the private softc pointer, which will be used to initialize
 "xfer->priv_sc".
 .Fa priv_mtx
 is the private mutex protecting the transfer structure and the
-softc. This pointer is used to initialize "xfer->priv_mtx".
-This function returns
-zero upon success. A non-zero return value indicates failure.
+softc.
+This pointer is used to initialize "xfer->priv_mtx".
+This function returns zero upon success.
+A non-zero return value indicates failure.
 .
 .Pp
 .
@@ -245,8 +247,8 @@ pointer.
 .
 The USB callback has three states.
 .
-USB_ST_SETUP, USB_ST_TRANSFERRED and USB_ST_ERROR. USB_ST_SETUP is the
-initial state.
+USB_ST_SETUP, USB_ST_TRANSFERRED and USB_ST_ERROR.
+USB_ST_SETUP is the initial state.
 .
 After the callback has been called with this state it will always be
 called back at a later stage in one of the other two states.
@@ -323,7 +325,8 @@ The SETUP packet is always pointed to by frame 0 and the
 length is set by
 .Fn usbd_xfer_frame_len
 also if there should not be
-sent any SETUP packet! If an USB control transfer has no DATA stage,
+sent any SETUP packet!
+If an USB control transfer has no DATA stage,
 then the number of frames should be set to 1.
 .
 Else the default number of frames is 2.
@@ -440,10 +443,12 @@ Depending on the endpoint type, this field has different meaning:
 "0" use the default interrupt interval based on endpoint descriptor.
 "Else" use the given value for polling rate.
 .It UE_ISOCHRONOUS
-"0" use default. "Else" the value is ignored.
+"0" use default.
+"Else" the value is ignored.
 .It UE_BULK
 .It UE_CONTROL
-"0" no transfer pre-delay. "Else" a delay as given by this field in
+"0" no transfer pre-delay.
+"Else" a delay as given by this field in
 milliseconds is inserted before the hardware is started when
 "usbd_transfer_submit()" is called.
 .Pp
@@ -453,14 +458,14 @@ pre-delay has elapsed!
 .
 .Pp
 .Fa timeout
-field, if non-zero, will set the transfer timeout in milliseconds. If
-the "timeout" field is zero and the transfer type is ISOCHRONOUS a
+field, if non-zero, will set the transfer timeout in milliseconds.
+If the "timeout" field is zero and the transfer type is ISOCHRONOUS a
 timeout of 250ms will be used.
 .
 .Pp
 .Fa frames
-field sets the maximum number of frames. If zero is specified it will
-yield the following results:
+field sets the maximum number of frames.
+If zero is specified it will yield the following results:
 .Bl -tag -width "UE_INTERRUPT"
 .It UE_BULK
 xfer->nframes = 1;
@@ -469,7 +474,8 @@ xfer->nframes = 1;
 .It UE_CONTROL
 xfer->nframes = 2;
 .It UE_ISOCHRONOUS
-Not allowed. Will cause an error.
+Not allowed.
+Will cause an error.
 .El
 .
 .Pp
@@ -486,26 +492,29 @@ be used when setting up the given USB transfer.
 .Pp
 .Fa flags
 field has type "struct usb_xfer_flags" and allows one to set initial
-flags an USB transfer. Valid flags are:
+flags an USB transfer.
+Valid flags are:
 .Bl -tag -width "force_short_xfer"
 .It force_short_xfer
-This flag forces the last transmitted USB packet to be short.  A short
-packet has a length of less than "xfer->max_packet_size", which
-derives from "wMaxPacketSize". This flag can be changed during
-operation.
+This flag forces the last transmitted USB packet to be short.
+A short packet has a length of less than "xfer->max_packet_size", which
+derives from "wMaxPacketSize".
+This flag can be changed during operation.
 .It short_xfer_ok
 This flag allows the received transfer length, "xfer->actlen" to be
-less than "xfer->sumlen" upon completion of a transfer.  This flag can
-be changed during operation.
+less than "xfer->sumlen" upon completion of a transfer.
+This flag can be changed during operation.
 .It short_frames_ok
-This flag allows the reception of multiple short USB frames. This flag
+This flag allows the reception of multiple short USB frames.
+This flag
 only has effect for BULK and INTERRUPT endpoints and if the number of
-frames received is greater than 1. This flag can be changed during
-operation.
+frames received is greater than 1.
+This flag can be changed during operation.
 .It pipe_bof
 This flag causes a failing USB transfer to remain first in the PIPE
 queue except in the case of "xfer->error" equal to
-"USB_ERR_CANCELLED". No other USB transfers in the affected PIPE queue
+"USB_ERR_CANCELLED".
+No other USB transfers in the affected PIPE queue
 will be started until either:
 .Bl -tag -width "X"
 .It 1
@@ -569,8 +578,8 @@ This flag can be changed during operation.
 .
 .
 .It no_pipe_ok
-Setting this flag causes the USB_ERR_NO_PIPE error to be ignored. This
-flag can not be changed during operation.
+Setting this flag causes the USB_ERR_NO_PIPE error to be ignored.
+This flag can not be changed during operation.
 .
 .
 .It stall_pipe
@@ -614,7 +623,8 @@ request structure.
 .
 .Pp
 .Fa callback
-pointer sets the USB callback. This field is mandatory.
+pointer sets the USB callback.
+This field is mandatory.
 .
 .
 .Sh USB LINUX COMPAT LAYER
@@ -635,7 +645,8 @@ module complies with the USB 2.0 standard.
 The
 .Nm usb
 module has been inspired by the NetBSD USB stack initially written by
-Lennart Augustsson. The
+Lennart Augustsson.
+The
 .Nm usb
 module was written by
 .An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org .

@@ -50,10 +50,12 @@ IRExecutionUnit::WriteNow (const uint8_t *bytes,
                            size_t size,
                            Error &error)
 {
+    const bool zero_memory = false;
     lldb::addr_t allocation_process_addr = Malloc (size,
                                                    8,
                                                    lldb::ePermissionsWritable | lldb::ePermissionsReadable,
                                                    eAllocationPolicyMirror,
+                                                   zero_memory,
                                                    error);
 
     if (!error.Success())
@@ -432,6 +434,13 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
                     my_extractor.PutToLog(log, 0, my_buffer.GetByteSize(), record.m_process_address, 16, DataExtractor::TypeUInt8);
                 }
             }
+            else
+            {
+                record.dump(log);
+                
+                DataExtractor my_extractor ((const void*)record.m_host_address, record.m_size, lldb::eByteOrderBig, 8);
+                my_extractor.PutToLog(log, 0, record.m_size, record.m_host_address, 16, DataExtractor::TypeUInt8);
+            }
         }
     }
 
@@ -488,6 +497,8 @@ IRExecutionUnit::GetSectionTypeFromSectionName (const llvm::StringRef &name, IRE
                         sect_type = lldb::eSectionTypeDWARFDebugAbbrev;
                     else if (dwarf_name.equals("aranges"))
                         sect_type = lldb::eSectionTypeDWARFDebugAranges;
+                    else if (dwarf_name.equals("addr"))
+                        sect_type = lldb::eSectionTypeDWARFDebugAddr;
                     break;
 
                 case 'f':
@@ -522,6 +533,8 @@ IRExecutionUnit::GetSectionTypeFromSectionName (const llvm::StringRef &name, IRE
                 case 's':
                     if (dwarf_name.equals("str"))
                         sect_type = lldb::eSectionTypeDWARFDebugStr;
+                    else if (dwarf_name.equals("str_offsets"))
+                        sect_type = lldb::eSectionTypeDWARFDebugStrOffsets;
                     break;
 
                 case 'r':
@@ -789,6 +802,7 @@ IRExecutionUnit::CommitAllocations (lldb::ProcessSP &process_sp)
         {
         case lldb::eSectionTypeInvalid:
         case lldb::eSectionTypeDWARFDebugAbbrev:
+        case lldb::eSectionTypeDWARFDebugAddr:
         case lldb::eSectionTypeDWARFDebugAranges:
         case lldb::eSectionTypeDWARFDebugFrame:
         case lldb::eSectionTypeDWARFDebugInfo:
@@ -799,6 +813,7 @@ IRExecutionUnit::CommitAllocations (lldb::ProcessSP &process_sp)
         case lldb::eSectionTypeDWARFDebugPubTypes:
         case lldb::eSectionTypeDWARFDebugRanges:
         case lldb::eSectionTypeDWARFDebugStr:
+        case lldb::eSectionTypeDWARFDebugStrOffsets:
         case lldb::eSectionTypeDWARFAppleNames:
         case lldb::eSectionTypeDWARFAppleTypes:
         case lldb::eSectionTypeDWARFAppleNamespaces:
@@ -806,10 +821,12 @@ IRExecutionUnit::CommitAllocations (lldb::ProcessSP &process_sp)
             err.Clear();
             break;
         default:
+            const bool zero_memory = false;
             record.m_process_address = Malloc (record.m_size,
                                                record.m_alignment,
                                                record.m_permissions,
                                                eAllocationPolicyProcessOnly,
+                                               zero_memory,
                                                err);
             break;
         }
@@ -877,12 +894,13 @@ IRExecutionUnit::AllocationRecord::dump (Log *log)
     if (!log)
         return;
 
-    log->Printf("[0x%llx+0x%llx]->0x%llx (alignment %d, section ID %d)",
+    log->Printf("[0x%llx+0x%llx]->0x%llx (alignment %d, section ID %d, name %s)",
                 (unsigned long long)m_host_address,
                 (unsigned long long)m_size,
                 (unsigned long long)m_process_address,
                 (unsigned)m_alignment,
-                (unsigned)m_section_id);
+                (unsigned)m_section_id,
+                m_name.c_str());
 }
 
 

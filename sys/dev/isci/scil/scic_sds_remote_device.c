@@ -2375,7 +2375,7 @@ SCIC_SDS_REMOTE_DEVICE_STATE_HANDLER_T
 
 /**
  * This is the enter method for the SCI_BASE_REMOTE_DEVICE_STATE_INITIAL it
- * immediatly transitions the remote device object to the stopped state.
+ * immediately transitions the remote device object to the stopped state.
  *
  * @param[in] object This is the SCI_BASE_OBJECT that is cast into a
  *            SCIC_SDS_REMOTE_DEVICE.

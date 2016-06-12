@@ -293,9 +293,12 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 {
 	uint32_t ifa_flags = 0;
 
+	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
+		return;
+	}
 	/*
 	 * BSD only has one VRF, if this changes we will need to hook in the
-	 * right things here to get the id to pass to the address managment
+	 * right things here to get the id to pass to the address management
 	 * routine.
 	 */
 	if (SCTP_BASE_VAR(first_time) == 0) {

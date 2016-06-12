@@ -6,17 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AArch64BaseInfo.o: AArch64GenInstrInfo.inc.h
-AArch64BaseInfo.o: AArch64GenRegisterInfo.inc.h
-AArch64BaseInfo.o: AArch64GenSubtargetInfo.inc.h
-AArch64BaseInfo.po: AArch64GenInstrInfo.inc.h
-AArch64BaseInfo.po: AArch64GenRegisterInfo.inc.h
-AArch64BaseInfo.po: AArch64GenSubtargetInfo.inc.h
 .endif

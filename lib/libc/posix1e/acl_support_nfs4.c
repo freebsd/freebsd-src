@@ -81,7 +81,7 @@ static const char *
 format_flag(uint32_t *var, const struct flagnames_struct *flags)
 {
 
-	for (; flags->name != 0; flags++) {
+	for (; flags->name != NULL; flags++) {
 		if ((flags->flag & *var) == 0)
 			continue;
 

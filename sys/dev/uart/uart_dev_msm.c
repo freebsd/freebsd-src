@@ -123,7 +123,7 @@ msm_uart_param(struct uart_bas *bas, int baudrate, int databits,
 	}
 	uart_setreg(bas, UART_DM_MR2, ulcon);
 
-	/* Set 115200 for both TX and RX. */;
+	/* Set 115200 for both TX and RX. */
 	uart_setreg(bas, UART_DM_CSR, UART_DM_CSR_115200);
 	uart_barrier(bas);
 

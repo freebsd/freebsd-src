@@ -88,7 +88,7 @@ struct procctl_reaper_kill {
 	int	rk_sig;		/* in  - signal to send */
 	u_int	rk_flags;	/* in  - REAPER_KILL flags */
 	pid_t	rk_subtree;	/* in  - subtree, if REAPER_KILL_SUBTREE */
-	u_int	rk_killed;	/* out - count of processes sucessfully
+	u_int	rk_killed;	/* out - count of processes successfully
 				   killed */
 	pid_t	rk_fpid;	/* out - first failed pid for which error
 				   is returned */

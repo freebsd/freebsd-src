@@ -88,7 +88,7 @@
 MALLOC_DEFINE(M_WTAP, "wtap", "wtap wireless simulator");
 MALLOC_DEFINE(M_WTAP_PACKET, "wtap packet", "wtap wireless simulator packet");
 MALLOC_DEFINE(M_WTAP_RXBUF, "wtap rxbuf",
-    "wtap wireless simulator recieve buffer");
+    "wtap wireless simulator receive buffer");
 MALLOC_DEFINE(M_WTAP_PLUGIN, "wtap plugin", "wtap wireless simulator plugin");
 
 static struct wtap_hal		*hal;
@@ -122,7 +122,7 @@ wtap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			error = EINVAL;
 		break;
 	default:
-		DWTAP_PRINTF("Unkown WTAP IOCTL\n");
+		DWTAP_PRINTF("Unknown WTAP IOCTL\n");
 		error = EINVAL;
 	}
 

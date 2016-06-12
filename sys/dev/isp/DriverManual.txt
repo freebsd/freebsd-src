@@ -69,7 +69,7 @@ are planned.
 3. Driver Design Goals
 
 The driver has not started out as one normally would do such an effort.
-Normally you design via top-down methodologies and set an intial goal
+Normally you design via top-down methodologies and set an initial goal
 and meet it. This driver has had a design goal that changes from almost
 the very first. This has been an extremely peculiar, if not risque,
 experience. As a consequence, this section of this document contains
@@ -127,7 +127,7 @@ means that at the same host visible address if you write a mailbox
 register, that is a write to an (incoming, to the HBA) mailbox register,
 while a read to the same address reads another (outgoing, to the HBA)
 mailbox register with completely different data. Each HBA also then has
-core and auxillary logic which either is used to interface to a SCSI bus
+core and auxiliary logic which either is used to interface to a SCSI bus
 (or to external bus drivers that connect to a SCSI bus), or to connect
 to a Fibre Channel bus.
 
@@ -310,7 +310,7 @@ queues (as well as a Fibre Channel scratch area if this is a Fibre
 Channel HBA).  The reason this is considered 'bus dependent' is that
 only the bus dependent module may have the information that says how
 one could perform I/O mapping and dependent (e.g., on a Solaris system)
-on the Request and Reponse queues. Another callback can enable the *use*
+on the Request and Response queues. Another callback can enable the *use*
 of interrupts should this platform be able to finish configuration in
 interrupt driven mode.
 
@@ -325,7 +325,7 @@ here in clarifying some of this.
 
 5.4 Initiator Mode Command Code Flow
 
-A succesful execution of isp_init will lead to the driver 'registering'
+A successful execution of isp_init will lead to the driver 'registering'
 itself with this platform's SCSI subsystem. One assumed action for this
 is the registry of a function that the SCSI subsystem for this platform
 will call when it has a SCSI command to run.

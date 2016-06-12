@@ -22,7 +22,9 @@
 ident		ZEDBOARD
 
 include 	"std.armv6"
-include 	"../xilinx/zedboard/std.zedboard"
+include 	"../xilinx/std.zynq7"
+
+makeoptions	MODULES_EXTRA="dtb/zynq"
 
 options 	SCHED_ULE		# ULE scheduler
 #options 	NFSSD			# Network Filesystem Server
@@ -52,6 +54,8 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
 # Interrupt controller
 device		gic
+options 	INTRNG
+
 # Cache controller
 device		pl310			# PL310 L2 cache controller
 # ARM MPCore timer

@@ -44,7 +44,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: brandelf.c 3234 2015-07-31 12:35:09Z emaste $");
+ELFTC_VCSID("$Id: brandelf.c 3440 2016-04-07 14:51:47Z emaste $");
 
 static int elftype(const char *);
 static const char *iselftype(int);
@@ -62,6 +62,7 @@ static struct ELFtypes elftypes[] = {
 	{ "AIX",	ELFOSABI_AIX },
 	{ "ARM",	ELFOSABI_ARM },
 	{ "AROS",	ELFOSABI_AROS },
+	{ "CloudABI",	ELFOSABI_CLOUDABI },
 	{ "FreeBSD",	ELFOSABI_FREEBSD },
 	{ "GNU",	ELFOSABI_GNU },
 	{ "HP/UX",	ELFOSABI_HPUX},
@@ -212,7 +213,7 @@ main(int argc, char **argv)
 			/*
 			 * Update the ABI type.
 			 */
-			ehdr.e_ident[EI_OSABI] = type;
+			ehdr.e_ident[EI_OSABI] = (unsigned char) type;
 			if (gelf_update_ehdr(elf, &ehdr) == 0) {
 				warnx("gelf_update_ehdr error: %s",
 				    elf_errmsg(-1));

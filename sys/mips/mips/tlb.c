@@ -215,7 +215,7 @@ tlb_invalidate_range(pmap_t pmap, vm_offset_t start, vm_offset_t end)
 	 * and round the virtual address "end" to an even page frame number.
 	 */
 	start &= ~((1 << TLBMASK_SHIFT) - 1);
-	end = (end + (1 << TLBMASK_SHIFT) - 1) & ~((1 << TLBMASK_SHIFT) - 1);
+	end = roundup2(end, 1 << TLBMASK_SHIFT);
 
 	s = intr_disable();
 	save_asid = mips_rd_entryhi() & TLBHI_ASID_MASK;

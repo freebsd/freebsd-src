@@ -277,7 +277,7 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 			bus_teardown_intr(dev, mss->irq, mss->ih);
  		bus_release_resource(dev, SYS_RES_IRQ, mss->irq_rid,
 				     mss->irq);
-		mss->irq = 0;
+		mss->irq = NULL;
     	}
     	if (mss->drq2) {
 		if (mss->drq2 != mss->drq1) {
@@ -285,28 +285,28 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 			bus_release_resource(dev, SYS_RES_DRQ, mss->drq2_rid,
 				     	mss->drq2);
 		}
-		mss->drq2 = 0;
+		mss->drq2 = NULL;
     	}
      	if (mss->drq1) {
 		isa_dma_release(rman_get_start(mss->drq1));
 		bus_release_resource(dev, SYS_RES_DRQ, mss->drq1_rid,
 				     mss->drq1);
-		mss->drq1 = 0;
+		mss->drq1 = NULL;
     	}
    	if (mss->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, mss->io_rid,
 				     mss->io_base);
-		mss->io_base = 0;
+		mss->io_base = NULL;
     	}
     	if (mss->conf_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, mss->conf_rid,
 				     mss->conf_base);
-		mss->conf_base = 0;
+		mss->conf_base = NULL;
     	}
 	if (mss->indir) {
 		bus_release_resource(dev, SYS_RES_IOPORT, mss->indir_rid,
 				     mss->indir);
-		mss->indir = 0;
+		mss->indir = NULL;
 	}
     	if (mss->parent_dmat) {
 		bus_dma_tag_destroy(mss->parent_dmat);
@@ -1289,8 +1289,8 @@ mss_probe(device_t dev)
     	mss->irq_rid = 0;
     	mss->drq1_rid = 0;
     	mss->drq2_rid = -1;
-    	mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->io_rid,
-				      	0, ~0, 8, RF_ACTIVE);
+    	mss->io_base = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+    						&mss->io_rid, 8, RF_ACTIVE);
     	if (!mss->io_base) {
         	BVDDB(printf("mss_probe: no address given, try 0x%x\n", 0x530));
 		mss->io_rid = 0;
@@ -1298,8 +1298,9 @@ mss_probe(device_t dev)
 		setres = 1;
 		bus_set_resource(dev, SYS_RES_IOPORT, mss->io_rid,
     		         	0x530, 8);
-		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->io_rid,
-					  	0, ~0, 8, RF_ACTIVE);
+		mss->io_base = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+							&mss->io_rid,
+							8, RF_ACTIVE);
     	}
     	if (!mss->io_base) goto no;
 
@@ -1325,7 +1326,7 @@ mss_probe(device_t dev)
     	}
     	tmp &= 0x3f;
     	if (!(tmp == 0x04 || tmp == 0x0f || tmp == 0x00 || tmp == 0x05)) {
-		BVDDB(printf("No MSS signature detected on port 0x%lx (0x%x)\n",
+		BVDDB(printf("No MSS signature detected on port 0x%jx (0x%x)\n",
 		     	rman_get_start(mss->io_base), tmpx));
 		goto no;
     	}
@@ -1685,7 +1686,7 @@ ymf_test(device_t dev, struct mss_info *mss)
 			/* PC98 need this. I don't know reason why. */
 			bus_delete_resource(dev, SYS_RES_IOPORT, mss->conf_rid);
 #endif
-	    		mss->conf_base = 0;
+	    		mss->conf_base = NULL;
 	    		continue;
 		}
 		version = conf_rd(mss, OPL3SAx_MISC) & 0x07;
@@ -1766,7 +1767,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
 	else
 		status2[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %d%s bufsz %u",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd drq %d%s bufsz %u",
     	     	rman_get_start(mss->io_base), rman_get_start(mss->irq), pdma, status2, mss->bufsize);
 
     	if (pcm_register(dev, mss, 1, 1)) goto no;
@@ -2091,8 +2092,8 @@ opti_init(device_t dev, struct mss_info *mss)
 		return ENXIO;
 
 	if (!mss->io_base)
-		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-			&mss->io_rid, 0, ~0, 8, RF_ACTIVE);
+		mss->io_base = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+			&mss->io_rid, 8, RF_ACTIVE);
 
 	if (!mss->io_base)	/* No hint specified, use 0x530 */
 		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
@@ -2275,8 +2276,9 @@ guspcm_attach(device_t dev)
 	if (flags & DV_F_DUAL_DMA)
 		mss->drq2_rid = 0;
 
-	mss->conf_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->conf_rid,
-					    0, ~0, 8, RF_ACTIVE);
+	mss->conf_base = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+						     &mss->conf_rid,
+						     8, RF_ACTIVE);
 
 	if (mss->conf_base == NULL) {
 		mss_release_resources(mss, dev);

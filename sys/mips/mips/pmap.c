@@ -3299,18 +3299,18 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 {
 	vm_offset_t superpage_offset;
 
-	if (size < NBSEG)
+	if (size < PDRSIZE)
 		return;
 	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
 		offset += ptoa(object->pg_color);
-	superpage_offset = offset & SEGMASK;
-	if (size - ((NBSEG - superpage_offset) & SEGMASK) < NBSEG ||
-	    (*addr & SEGMASK) == superpage_offset)
+	superpage_offset = offset & PDRMASK;
+	if (size - ((PDRSIZE - superpage_offset) & PDRMASK) < PDRSIZE ||
+	    (*addr & PDRMASK) == superpage_offset)
 		return;
-	if ((*addr & SEGMASK) < superpage_offset)
-		*addr = (*addr & ~SEGMASK) + superpage_offset;
+	if ((*addr & PDRMASK) < superpage_offset)
+		*addr = (*addr & ~PDRMASK) + superpage_offset;
 	else
-		*addr = ((*addr + SEGMASK) & ~SEGMASK) + superpage_offset;
+		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
 
 #ifdef DDB

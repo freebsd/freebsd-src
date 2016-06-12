@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,6 @@ RsDoEndTagDescriptor (
     Descriptor->EndTag.DescriptorType = ACPI_RESOURCE_NAME_END_TAG |
                                         ASL_RDESC_END_TAG_SIZE;
     Descriptor->EndTag.Checksum = 0;
-
     return (Rnode);
 }
 
@@ -114,8 +113,8 @@ RsDoEndDependentDescriptor (
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_END_DEPENDENT));
 
     Descriptor = Rnode->Buffer;
-    Descriptor->EndDpf.DescriptorType  = ACPI_RESOURCE_NAME_END_DEPENDENT |
-                                      ASL_RDESC_END_DEPEND_SIZE;
+    Descriptor->EndDpf.DescriptorType =
+        ACPI_RESOURCE_NAME_END_DEPENDENT | ASL_RDESC_END_DEPEND_SIZE;
     return (Rnode);
 }
 
@@ -151,7 +150,7 @@ RsDoMemory24Descriptor (
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_MEMORY24));
 
     Descriptor = Rnode->Buffer;
-    Descriptor->Memory24.DescriptorType  = ACPI_RESOURCE_NAME_MEMORY24;
+    Descriptor->Memory24.DescriptorType = ACPI_RESOURCE_NAME_MEMORY24;
     Descriptor->Memory24.ResourceLength = 9;
 
     /* Process all child initialization nodes */
@@ -257,7 +256,7 @@ RsDoMemory32Descriptor (
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_MEMORY32));
 
     Descriptor = Rnode->Buffer;
-    Descriptor->Memory32.DescriptorType  = ACPI_RESOURCE_NAME_MEMORY32;
+    Descriptor->Memory32.DescriptorType = ACPI_RESOURCE_NAME_MEMORY32;
     Descriptor->Memory32.ResourceLength = 17;
 
     /* Process all child initialization nodes */
@@ -360,7 +359,7 @@ RsDoMemory32FixedDescriptor (
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_FIXED_MEMORY32));
 
     Descriptor = Rnode->Buffer;
-    Descriptor->FixedMemory32.DescriptorType  = ACPI_RESOURCE_NAME_FIXED_MEMORY32;
+    Descriptor->FixedMemory32.DescriptorType = ACPI_RESOURCE_NAME_FIXED_MEMORY32;
     Descriptor->FixedMemory32.ResourceLength = 9;
 
     /* Process all child initialization nodes */
@@ -448,8 +447,8 @@ RsDoStartDependentDescriptor (
 
     /* Descriptor has priority byte */
 
-    Descriptor->StartDpf.DescriptorType  = ACPI_RESOURCE_NAME_START_DEPENDENT |
-                                      (ASL_RDESC_ST_DEPEND_SIZE + 0x01);
+    Descriptor->StartDpf.DescriptorType =
+        ACPI_RESOURCE_NAME_START_DEPENDENT | (ASL_RDESC_ST_DEPEND_SIZE + 0x01);
 
     /* Process all child initialization nodes */
 
@@ -493,8 +492,8 @@ RsDoStartDependentDescriptor (
              * must keep track of the offset of not only each descriptor, but each
              * element (field) within each descriptor as well.
              */
-            CurrentByteOffset += RsLinkDescriptorChain (&PreviousRnode,
-                                    NextRnode);
+            CurrentByteOffset += RsLinkDescriptorChain (
+                &PreviousRnode, NextRnode);
             break;
         }
 
@@ -536,8 +535,8 @@ RsDoStartDependentNoPriDescriptor (
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_START_DEPENDENT_NOPRIO));
 
     Descriptor = Rnode->Buffer;
-    Descriptor->StartDpf.DescriptorType  = ACPI_RESOURCE_NAME_START_DEPENDENT |
-                                      ASL_RDESC_ST_DEPEND_SIZE;
+    Descriptor->StartDpf.DescriptorType =
+        ACPI_RESOURCE_NAME_START_DEPENDENT | ASL_RDESC_ST_DEPEND_SIZE;
     PreviousRnode = Rnode;
 
     /* Increment offset past StartDependentNoPri descriptor */
@@ -599,7 +598,7 @@ RsDoVendorSmallDescriptor (
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_VENDOR_SMALL) + 7);
 
     Descriptor = Rnode->Buffer;
-    Descriptor->VendorSmall.DescriptorType  = ACPI_RESOURCE_NAME_VENDOR_SMALL;
+    Descriptor->VendorSmall.DescriptorType = ACPI_RESOURCE_NAME_VENDOR_SMALL;
     VendorData = ((UINT8 *) Descriptor) + sizeof (AML_RESOURCE_SMALL_HEADER);
 
     /* Process all child initialization nodes */

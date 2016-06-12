@@ -255,12 +255,12 @@ ckb_check(keyboard_t *kbd)
 
 	if (sc->sc_flags & CKB_FLAG_POLLING) {
 		return (1);
-	};
+	}
 
 	for (i = 0; i < sc->cols; i++)
 		if (sc->scan_local[i] != sc->scan[i]) {
 			return (1);
-		};
+		}
 
 	if (sc->sc_repeating)
 		return (1);
@@ -356,7 +356,7 @@ ckb_read_char_locked(keyboard_t *kbd, int wait)
 		callout_reset(&sc->sc_repeat_callout, hz / 10,
                     ckb_repeat, sc);
 		return (sc->sc_repeat_key);
-	};
+	}
 
 	if (sc->sc_flags & CKB_FLAG_POLLING) {
 		for (;;) {
@@ -374,7 +374,7 @@ ckb_read_char_locked(keyboard_t *kbd, int wait)
 			}
 			DELAY(1000);
 		}
-	};
+	}
 
 	for (i = 0; i < sc->cols; i++) {
 		for (j = 0; j < sc->rows; j++) {
@@ -387,7 +387,7 @@ ckb_read_char_locked(keyboard_t *kbd, int wait)
 			key = keymap_read(sc, i, j);
 			if (key == 0) {
 				continue;
-			};
+			}
 
 			if (newbit > 0) {
 				/* key pressed */
@@ -841,7 +841,7 @@ chrome_kb_attach(device_t dev)
 	for (i = 0; i < sc->cols; i++) {
 		sc->scan_local[i] = 0;
 		sc->scan[i] = 0;
-	};
+	}
 
 	kbd_init_struct(kbd, KBD_DRIVER_NAME, KB_OTHER,
 	    device_get_unit(dev), 0, 0, 0);
@@ -866,7 +866,7 @@ chrome_kb_attach(device_t dev)
 
 	if (kbd_register(kbd) < 0) {
 		return (ENXIO);
-	};
+	}
 	KBD_CONFIG_DONE(kbd);
 
 	return (0);

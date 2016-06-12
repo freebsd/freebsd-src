@@ -1,9 +1,27 @@
-.\" ----------------------------------------------------------------------------
-.\" "THE BEER-WARE LICENSE" (Revision 42):
-.\" <sobomax@FreeBSD.org> wrote this file. As long as you retain this notice you
-.\" can do whatever you want with this stuff. If we meet some day, and you think
-.\" this stuff is worth it, you can buy me a beer in return.       Maxim Sobolev
-.\" ----------------------------------------------------------------------------
+.\"-
+.\" Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
 .\"
@@ -20,6 +38,7 @@ class
 .Op Fl v
 .Op Fl o Ar outfile
 .Op Fl s Ar cluster_size
+.Op Fl j Ar compression_jobs
 .Ar infile
 .Sh DESCRIPTION
 The
@@ -39,7 +58,9 @@ works in two phases:
 An
 .Ar infile
 image is split into clusters; each cluster is compressed using
-.Xr zlib 3 .
+.Xr zlib 3 
+or
+.Xr lzma 3 .
 .It
 The resulting set of compressed clusters along with headers that allow
 locating each individual cluster is written to the output file.
@@ -51,7 +72,23 @@ The options are:
 Name of the output file
 .Ar outfile .
 The default is to use the input name with the suffix
-.Pa .uzip .
+.Pa .uzip 
+for the
+.Xr zlib 3
+compression or
+.Pa .ulzma
+for the
+.Xr lzma 3 .
+.It Fl L
+Use
+.Xr lzma 3
+compression algorithm instead of the default
+.Xr zlib 3 .
+The
+.Xr lzma 3
+provides noticeable better compression levels on the same data set
+at the expense of much slower compression speed (10-20x) and somewhat slower
+decompression (2-3x).
 .It Fl s Ar cluster_size
 Split the image into clusters of
 .Ar cluster_size
@@ -61,6 +98,39 @@ The
 should be a multiple of 512 bytes.
 .It Fl v
 Display verbose messages.
+.It Fl Z
+Disable zero-blocks detection and elimination.
+When this option is set, the
+.Nm
+would compress empty blocks (i.e. clusters that consist of only zero bytes)
+just as it would any other block.
+When the option is not set, the
+.Nm
+detects such blocks and skips them from the output.
+Setting
+.Fl Z
+results is slight increase of compressed image size, typically less than 0.1%
+of a final size of the compressed image.
+.It Fl d
+Enable de-duplication.
+When the option is enabled the
+.Nm
+detects identical blocks in the input and replaces each subsequent occurence
+of such block with pointer to the very first one in the output.
+Setting this option results is moderate decrease of compressed image size,
+typically around 3-5% of a final size of the compressed image.
+.It Fl S
+Print summary about the compression ratio as well as output
+file size after file has been processed.
+.It Fl j Ar compression_jobs
+Specify the number of compression jobs that
+.Nm
+runs in parallel to speed up compression.
+When option is not specified the number of jobs set to be equal
+to the value of
+.Va hw.ncpu
+.Xr sysctl 8
+variable.
 .El
 .Sh NOTES
 The compression ratio largely depends on the cluster size used.
@@ -92,11 +162,20 @@ disk device using
 and automatically mount it using
 .Xr mount_cd9660 8
 on the mount point provided as the first argument to the script.
+.Pp
+The de-duplication is a
+.Fx
+specific feature and while it does not require any changes to on-disk
+compressed image format, however it did require some matching changes to the
+.Xr geom_uzip 4
+to handle resulting images correctly.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
 .Xr gzip 1 ,
+.Xr xz 1 ,
 .Xr zlib 3 ,
+.Xr lzma 3 ,
 .Xr geom 4 ,
 .Xr geom_uzip 4 ,
 .Xr md 4 ,

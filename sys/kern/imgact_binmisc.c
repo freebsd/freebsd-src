@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-15, Stacey D. Son
+ * Copyright (c) 2013-16, Stacey D. Son
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -220,16 +220,17 @@ imgact_binmisc_add_entry(ximgact_binmisc_entry_t *xbe)
 {
 	imgact_binmisc_entry_t *ibe;
 	char *p;
+	int cnt;
 
 	if (xbe->xbe_msize > IBE_MAGIC_MAX)
 		return (EINVAL);
 
-	for(p = xbe->xbe_name; *p != 0; p++)
-		if (!isascii((int)*p))
+	for(cnt = 0, p = xbe->xbe_name; *p != 0; cnt++, p++)
+		if (cnt >= IBE_NAME_MAX || !isascii((int)*p))
 			return (EINVAL);
 
-	for(p = xbe->xbe_interpreter; *p != 0; p++)
-		if (!isascii((int)*p))
+	for(cnt = 0, p = xbe->xbe_interpreter; *p != 0; cnt++, p++)
+		if (cnt >= IBE_INTERP_LEN_MAX || !isascii((int)*p))
 			return (EINVAL);
 
 	/* Make sure we don't have any invalid #'s. */
@@ -266,8 +267,6 @@ imgact_binmisc_add_entry(ximgact_binmisc_entry_t *xbe)
 
 	/* Preallocate a new entry. */
 	ibe = imgact_binmisc_new_entry(xbe);
-	if (!ibe)
-		return (ENOMEM);
 
 	SLIST_INSERT_HEAD(&interpreter_list, ibe, link);
 	interp_list_entry_count++;
@@ -701,7 +700,7 @@ imgact_binmisc_exec(struct image_params *imgp)
 			break;
 
 		case ' ':
-			/* Replace space with NUL to seperate arguments. */
+			/* Replace space with NUL to separate arguments. */
 			*d++ = '\0';
 			break;
 

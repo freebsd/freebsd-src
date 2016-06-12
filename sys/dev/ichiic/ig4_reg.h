@@ -185,7 +185,7 @@
  *	RESTART		- RW This bit controls whether a forced RESTART is
  *			  issued before the byte is sent or received.
  *
- *		0	  If not set a RESTART is only issued if the tranfer
+ *		0	  If not set a RESTART is only issued if the transfer
  *			  direction is changing from the previous command.
  *
  *		1	  A RESTART is issued before the byte is sent or
@@ -271,7 +271,7 @@
  *			cleared by HW when the buffer level goes above
  *			the threshold.
  *
- *	TX_OVER		Indicates that the processer attempted to write
+ *	TX_OVER		Indicates that the processor attempted to write
  *			to the TX FIFO while the TX FIFO was full.  Cleared
  *			by reading CLR_TX_OVER.
  *

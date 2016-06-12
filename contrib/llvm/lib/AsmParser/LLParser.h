@@ -46,29 +46,32 @@ namespace llvm {
   /// or a symbolic (%var) reference.  This is just a discriminated union.
   struct ValID {
     enum {
-      t_LocalID, t_GlobalID,      // ID in UIntVal.
-      t_LocalName, t_GlobalName,  // Name in StrVal.
-      t_APSInt, t_APFloat,        // Value in APSIntVal/APFloatVal.
-      t_Null, t_Undef, t_Zero,    // No value.
-      t_EmptyArray,               // No value:  []
-      t_Constant,                 // Value in ConstantVal.
-      t_InlineAsm,                // Value in StrVal/StrVal2/UIntVal.
-      t_ConstantStruct,           // Value in ConstantStructElts.
-      t_PackedConstantStruct      // Value in ConstantStructElts.
-    } Kind;
+      t_LocalID, t_GlobalID,           // ID in UIntVal.
+      t_LocalName, t_GlobalName,       // Name in StrVal.
+      t_APSInt, t_APFloat,             // Value in APSIntVal/APFloatVal.
+      t_Null, t_Undef, t_Zero, t_None, // No value.
+      t_EmptyArray,                    // No value:  []
+      t_Constant,                      // Value in ConstantVal.
+      t_InlineAsm,                     // Value in FTy/StrVal/StrVal2/UIntVal.
+      t_ConstantStruct,                // Value in ConstantStructElts.
+      t_PackedConstantStruct           // Value in ConstantStructElts.
+    } Kind = t_LocalID;
 
     LLLexer::LocTy Loc;
     unsigned UIntVal;
+    FunctionType *FTy = nullptr;
     std::string StrVal, StrVal2;
     APSInt APSIntVal;
-    APFloat APFloatVal;
+    APFloat APFloatVal{0.0};
     Constant *ConstantVal;
-    Constant **ConstantStructElts;
+    std::unique_ptr<Constant *[]> ConstantStructElts;
 
-    ValID() : Kind(t_LocalID), APFloatVal(0.0) {}
-    ~ValID() {
-      if (Kind == t_ConstantStruct || Kind == t_PackedConstantStruct)
-        delete [] ConstantStructElts;
+    ValID() = default;
+    ValID(const ValID &RHS)
+        : Kind(RHS.Kind), Loc(RHS.Loc), UIntVal(RHS.UIntVal), FTy(RHS.FTy),
+          StrVal(RHS.StrVal), StrVal2(RHS.StrVal2), APSIntVal(RHS.APSIntVal),
+          APFloatVal(RHS.APFloatVal), ConstantVal(RHS.ConstantVal) {
+      assert(!RHS.ConstantStructElts);
     }
 
     bool operator<(const ValID &RHS) const {
@@ -143,6 +146,8 @@ namespace llvm {
           Slots(Slots), BlockAddressPFS(nullptr) {}
     bool Run();
 
+    bool parseStandaloneConstantValue(Constant *&C, const SlotMapping *Slots);
+
     LLVMContext &getContext() { return Context; }
 
   private:
@@ -153,6 +158,10 @@ namespace llvm {
     bool TokError(const Twine &Msg) const {
       return Error(Lex.getLoc(), Msg);
     }
+
+    /// Restore the internal name and slot mappings using the mappings that
+    /// were created at an earlier parsing stage.
+    void restoreParsingState(const SlotMapping *Slots);
 
     /// GetGlobalVal - Get a value with the specified name or ID, creating a
     /// forward reference record if needed.  This can return null if the value
@@ -209,6 +218,8 @@ namespace llvm {
       Loc = Lex.getLoc();
       return ParseUInt64(Val);
     }
+
+    bool ParseStringAttribute(AttrBuilder &B);
 
     bool ParseTLSModel(GlobalVariable::ThreadLocalMode &TLM);
     bool ParseOptionalThreadLocal(GlobalVariable::ThreadLocalMode &TLM);
@@ -343,10 +354,12 @@ namespace llvm {
     bool ConvertValIDToValue(Type *Ty, ValID &ID, Value *&V,
                              PerFunctionState *PFS);
 
+    bool parseConstantValue(Type *Ty, Constant *&C);
     bool ParseValue(Type *Ty, Value *&V, PerFunctionState *PFS);
     bool ParseValue(Type *Ty, Value *&V, PerFunctionState &PFS) {
       return ParseValue(Ty, V, &PFS);
     }
+
     bool ParseValue(Type *Ty, Value *&V, LocTy &Loc,
                     PerFunctionState &PFS) {
       Loc = Lex.getLoc();
@@ -380,6 +393,13 @@ namespace llvm {
                             PerFunctionState &PFS,
                             bool IsMustTailCall = false,
                             bool InVarArgsFunc = false);
+
+    bool
+    ParseOptionalOperandBundles(SmallVectorImpl<OperandBundleDef> &BundleList,
+                                PerFunctionState &PFS);
+
+    bool ParseExceptionArgs(SmallVectorImpl<Value *> &Args,
+                            PerFunctionState &PFS);
 
     // Constant Parsing.
     bool ParseValID(ValID &ID, PerFunctionState *PFS = nullptr);
@@ -441,6 +461,11 @@ namespace llvm {
     bool ParseIndirectBr(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseInvoke(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseResume(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseCleanupRet(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseCatchRet(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseCatchSwitch(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseCatchPad(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseCleanupPad(Instruction *&Inst, PerFunctionState &PFS);
 
     bool ParseArithmetic(Instruction *&I, PerFunctionState &PFS, unsigned Opc,
                          unsigned OperandType);

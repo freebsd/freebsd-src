@@ -1305,7 +1305,7 @@ process_generic(src, dest, tagvalue)
 
 PRIVATE boolean
 goodname(hostname)
-	register char *hostname;
+	char *hostname;
 {
 	do {
 		if (!isalpha(*hostname++)) {	/* First character must be a letter */
@@ -1524,7 +1524,7 @@ PRIVATE void
 adjust(s)
 	char **s;
 {
-	register char *t;
+	char *t;
 
 	t = *s;
 	while (*t && (*t != ':')) {
@@ -1549,7 +1549,7 @@ PRIVATE void
 eat_whitespace(s)
 	char **s;
 {
-	register char *t;
+	char *t;
 
 	t = *s;
 	while (*t && isspace(*t)) {
@@ -1668,7 +1668,7 @@ prs_inetaddr(src, result)
 	u_int32 *result;
 {
 	char tmpstr[MAXSTRINGLEN];
-	register u_int32 value;
+	u_int32 value;
 	u_int32 parts[4], *pp;
 	int n;
 	char *s, *t;
@@ -1853,7 +1853,7 @@ PRIVATE u_int32
 get_u_long(src)
 	char **src;
 {
-	register u_int32 value, base;
+	u_int32 value, base;
 	char c;
 
 	/*

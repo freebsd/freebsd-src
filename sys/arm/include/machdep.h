@@ -4,8 +4,6 @@
 #ifndef _MACHDEP_BOOT_MACHDEP_H_
 #define _MACHDEP_BOOT_MACHDEP_H_
 
-#include <machine/acle-compat.h>
-
 /* Structs that need to be initialised by initarm */
 #if __ARM_ARCH >= 6
 extern vm_offset_t irqstack;
@@ -37,7 +35,8 @@ struct arm_boot_params;
 vm_offset_t default_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t freebsd_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t linux_parse_boot_param(struct arm_boot_params *abp);
-vm_offset_t fake_preload_metadata(struct arm_boot_params *abp);
+vm_offset_t fake_preload_metadata(struct arm_boot_params *abp,
+    void *dtb_ptr, size_t dtb_size);
 vm_offset_t parse_boot_param(struct arm_boot_params *abp);
 void arm_generic_initclocks(void);
 
@@ -47,5 +46,10 @@ void board_set_revision(uint32_t);
 
 int arm_predict_branch(void *, u_int, register_t, register_t *,
     u_int (*)(void*, int), u_int (*)(void*, vm_offset_t, u_int*));
+
+#ifdef MULTIDELAY
+typedef void delay_func(int, void *);
+void arm_set_delay(delay_func *, void *);
+#endif
 
 #endif /* !_MACHINE_MACHDEP_H_ */

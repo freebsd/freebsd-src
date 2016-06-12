@@ -67,10 +67,10 @@ options 	TMPFS			# TMP Memory Filesystem
 options 	FFS			#Berkeley Fast Filesystem
 #options		ROOTDEVNAME=\"nfs:193.178.153.200:/bsdmips\"
 
-#device		geom_uncompress
-#options		GEOM_UNCOMPRESS
+#device		geom_uzip
+#options		GEOM_UZIP
 #options		MD_ROOT
-#options		ROOTDEVNAME=\"ufs:md0.uncompress\"
+#options		ROOTDEVNAME=\"ufs:md0.uzip\"
 
 # Options for making kernel less hangry
 makeoptions	INLINE_LIMIT=1024

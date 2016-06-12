@@ -2986,7 +2986,7 @@ pnpgets(char *buf)
 connect_idle:
 
     /* we may still have something in the buffer */
-    return ((i > 0) ? i : 0);
+    return (MAX(i, 0));
 }
 
 static int

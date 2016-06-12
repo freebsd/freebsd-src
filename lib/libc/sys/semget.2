@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 1995
+.Dd February 7, 2016
 .Dt SEMGET 2
 .Os
 .Sh NAME
@@ -132,6 +132,17 @@ already exists.
 .It Bq Er EINVAL
 The number of semaphores requested exceeds the system imposed maximum
 per set.
+.It Bq Er EINVAL
+A semaphore set corresponding to
+.Fa key
+already exists and contains fewer semaphores than
+.Fa nsems .
+.It Bq Er EINVAL
+A semaphore set corresponding to
+.Fa key
+does not exist and
+.Fa nsems
+is 0 or negative.
 .It Bq Er ENOSPC
 Insufficiently many semaphores are available.
 .It Bq Er ENOSPC

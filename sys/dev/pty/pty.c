@@ -67,7 +67,7 @@ ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
 		return (EBUSY);
 
 	/* Generate device name and create PTY. */
-	strcpy(name, devtoname(dev));
+	strlcpy(name, devtoname(dev), sizeof(name));
 	name[0] = 't';
 
 	error = pts_alloc_external(fflags & (FREAD|FWRITE), td, fp, dev, name);

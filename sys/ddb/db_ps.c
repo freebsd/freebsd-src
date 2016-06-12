@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/jail.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
@@ -183,7 +184,8 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 			strlcat(state, "V", sizeof(state));
 		if (p->p_flag & P_SYSTEM || p->p_lock > 0)
 			strlcat(state, "L", sizeof(state));
-		if (p->p_session != NULL && SESS_LEADER(p))
+		if (p->p_pgrp != NULL && p->p_session != NULL &&
+		    SESS_LEADER(p))
 			strlcat(state, "s", sizeof(state));
 		/* Cheated here and didn't compare pgid's. */
 		if (p->p_flag & P_CONTROLT)
@@ -302,6 +304,7 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 	struct thread *td;
 	struct lock_object *lock;
 	bool comma;
+	int delta;
 
 	/* Determine which thread to examine. */
 	if (have_addr)
@@ -376,6 +379,16 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		    td->td_wchan);
 	db_printf(" priority: %d\n", td->td_priority);
 	db_printf(" container lock: %s (%p)\n", lock->lo_name, lock);
+	if (td->td_swvoltick != 0) {
+		delta = (u_int)ticks - (u_int)td->td_swvoltick;
+		db_printf(" last voluntary switch: %d ms ago\n",
+		    1000 * delta / hz);
+	}
+	if (td->td_swinvoltick != 0) {
+		delta = (u_int)ticks - (u_int)td->td_swinvoltick;
+		db_printf(" last involuntary switch: %d ms ago\n",
+		    1000 * delta / hz);
+	}
 }
 
 DB_SHOW_COMMAND(proc, db_show_proc)

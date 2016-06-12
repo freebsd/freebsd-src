@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd July 11, 2015
+.Dd April 14, 2016
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -234,10 +234,19 @@ A partial list of variables and their possible values that can be used together
 with the
 .Ic match
 statement.
+The variables are published by the bus based on characteristics of the device
+that generated the event (for device events).
+Variables for other classes of events are dependent on those events.
 .Pp
 .Bl -tag -width ".Li manufacturer" -compact
 .It Ic Variable
 .Ic Description
+.It Li *
+The entire message from the current event
+.It Li _
+The entire message from the current event, after the initial type character
+.It Li timestamp
+The time this event was processed, in seconds since 1970 dot fraction
 .It Li bus
 Device name of parent bus.
 .It Li cdev
@@ -342,7 +351,7 @@ Thermal zone events.
 .Pp
 .It Li CARP
 Events related to the
-.Xr carp 8
+.Xr carp 4
 protocol.
 .Bl -tag -width ".Sy Subsystem" -compact
 .It Sy Subsystem
@@ -424,6 +433,8 @@ device node is created.
 A
 .Xr geom 4
 device node is destroyed.
+.It Li GEOM::physpath
+The physical path of a device has changed.
 .It Li MEDIACHANGE
 Physical media has changed.
 .El
@@ -490,6 +501,23 @@ Information about the state of the system.
 .It Sy Type
 .It Li resume
 Notification that the system has woken from the suspended state.
+.El
+.El
+.Pp
+.It Li CAM
+Events related to the
+.Xr cam 4
+system.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li periph
+Events related to peripheral devices.
+.Bl -tag -width ".li timeout" -compact
+.It Sy Type
+.It Li error
+Generic errors.
+.It Li timeout
+Command timeouts.
 .El
 .El
 .El
@@ -621,4 +649,5 @@ has many additional examples.
 .Xr coretemp 4 ,
 .Xr devfs 5 ,
 .Xr re_format 7 ,
-.Xr devd 8
+.Xr devd 8 ,
+.Xr cam 4

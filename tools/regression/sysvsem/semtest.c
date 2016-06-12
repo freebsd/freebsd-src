@@ -152,6 +152,15 @@ main(int argc, char *argv[])
 
 	print_semid_ds(&s_ds, 0600);
 
+	errno = 0;
+	if (semget(semkey, 1, IPC_CREAT | IPC_EXCL | 0600) != -1 ||
+	    errno != EEXIST)
+		err(1, "semget IPC_EXCL 1 did not fail with [EEXIST]");
+	errno = 0;
+	if (semget(semkey, 2, IPC_CREAT | IPC_EXCL | 0600) != -1 ||
+	    errno != EEXIST)
+		err(1, "semget IPC_EXCL 2 did not fail with [EEXIST]");
+
 	for (child_count = 0; child_count < 5; child_count++) {
 		switch ((child_pid = fork())) {
 		case -1:

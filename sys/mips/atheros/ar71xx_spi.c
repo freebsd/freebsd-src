@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/pmap.h>
 
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>

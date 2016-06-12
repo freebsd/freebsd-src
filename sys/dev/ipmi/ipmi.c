@@ -603,6 +603,20 @@ ipmi_polled_enqueue_request(struct ipmi_softc *sc, struct ipmi_request *req)
  */
 
 static int
+ipmi_reset_watchdog(struct ipmi_softc *sc)
+{
+	struct ipmi_request *req;
+	int error;
+
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	    IPMI_RESET_WDOG, 0, 0);
+	error = ipmi_submit_driver_request(sc, req, 0);
+	if (error)
+		device_printf(sc->ipmi_dev, "Failed to reset watchdog\n");
+	return (error);
+}
+
+static int
 ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 {
 	struct ipmi_request *req;
@@ -613,7 +627,6 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 
 	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_SET_WDOG, 6, 0);
-
 	if (sec) {
 		req->ir_request[0] = IPMI_SET_WD_TIMER_DONT_STOP
 		    | IPMI_SET_WD_TIMER_SMS_OS;
@@ -630,24 +643,10 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 		req->ir_request[4] = 0;
 		req->ir_request[5] = 0;
 	}
-
 	error = ipmi_submit_driver_request(sc, req, 0);
 	if (error)
 		device_printf(sc->ipmi_dev, "Failed to set watchdog\n");
-	else if (sec) {
-		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
-		    IPMI_RESET_WDOG, 0, 0);
-
-		error = ipmi_submit_driver_request(sc, req, 0);
-		if (error)
-			device_printf(sc->ipmi_dev,
-			    "Failed to reset watchdog\n");
-	}
-
 	return (error);
-	/*
-	dump_watchdog(sc);
-	*/
 }
 
 static void
@@ -665,12 +664,24 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 		timeout = ((uint64_t)1 << cmd) / 1000000000;
 		if (timeout == 0)
 			timeout = 1;
-		e = ipmi_set_watchdog(sc, timeout);
-		if (e == 0) {
-			*error = 0;
-			sc->ipmi_watchdog_active = 1;
-		} else
-			(void)ipmi_set_watchdog(sc, 0);
+		if (timeout != sc->ipmi_watchdog_active) {
+			e = ipmi_set_watchdog(sc, timeout);
+			if (e == 0) {
+				sc->ipmi_watchdog_active = timeout;
+			} else {
+				(void)ipmi_set_watchdog(sc, 0);
+				sc->ipmi_watchdog_active = 0;
+			}
+		}
+		if (sc->ipmi_watchdog_active != 0) {
+			e = ipmi_reset_watchdog(sc);
+			if (e == 0) {
+				*error = 0;
+			} else {
+				(void)ipmi_set_watchdog(sc, 0);
+				sc->ipmi_watchdog_active = 0;
+			}
+		}
 	} else if (atomic_readandclear_int(&sc->ipmi_watchdog_active) != 0) {
 		e = ipmi_set_watchdog(sc, 0);
 		if (e != 0 && cmd == 0)

@@ -71,8 +71,7 @@ public:
     /// The destructor is virtual since this class is designed to be
     /// inherited from by the plug-in instance.
     //------------------------------------------------------------------
-    virtual
-    ~DynamicLoader ();
+    ~DynamicLoader() override;
 
     //------------------------------------------------------------------
     /// Called after attaching a process.
@@ -264,12 +263,14 @@ protected:
     virtual void
     UpdateLoadedSections(lldb::ModuleSP module,
                          lldb::addr_t link_map_addr,
-                         lldb::addr_t base_addr);
+                         lldb::addr_t base_addr,
+                         bool base_addr_is_offset);
 
     // Utility method so base classes can share implementation of UpdateLoadedSections
     void
     UpdateLoadedSectionsCommon(lldb::ModuleSP module,
-                               lldb::addr_t base_addr);
+                               lldb::addr_t base_addr,
+                               bool base_addr_is_offset);
 
     /// Removes the loaded sections from the target in @p module.
     ///
@@ -283,8 +284,11 @@ protected:
 
     /// Locates or creates a module given by @p file and updates/loads the
     /// resulting module at the virtual base address @p base_addr.
-    lldb::ModuleSP
-    LoadModuleAtAddress(const lldb_private::FileSpec &file, lldb::addr_t link_map_addr, lldb::addr_t base_addr);
+    virtual lldb::ModuleSP
+    LoadModuleAtAddress(const lldb_private::FileSpec &file,
+                        lldb::addr_t link_map_addr,
+                        lldb::addr_t base_addr,
+                        bool base_addr_is_offset);
 
     const lldb_private::SectionList *
     GetSectionListFromModule(const lldb::ModuleSP module) const;
@@ -303,11 +307,12 @@ protected:
     // Member variables.
     //------------------------------------------------------------------
     Process* m_process; ///< The process that this dynamic loader plug-in is tracking.
-private:
-    DISALLOW_COPY_AND_ASSIGN (DynamicLoader);
 
+private:
+
+    DISALLOW_COPY_AND_ASSIGN (DynamicLoader);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_DynamicLoader_h_
+#endif // liblldb_DynamicLoader_h_

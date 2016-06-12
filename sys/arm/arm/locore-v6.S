@@ -30,13 +30,12 @@
 
 #include "assym.s"
 #include <sys/syscall.h>
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
 #include <machine/sysreg.h>
 #include <machine/cpuconf.h>
-#include <machine/pte.h>
+#include <machine/pte-v6.h>
 
 __FBSDID("$FreeBSD$");
 
@@ -130,12 +129,12 @@ ASENTRY_NP(_start)
 	 */
 1:
 	bic	r7, #CPU_CONTROL_DC_ENABLE
+	bic	r7, #CPU_CONTROL_AFLT_ENABLE
 	bic	r7, #CPU_CONTROL_MMU_ENABLE
 	bic	r7, #CPU_CONTROL_IC_ENABLE
-	bic	r7, #CPU_CONTROL_UNAL_ENABLE
 	bic	r7, #CPU_CONTROL_BPRD_ENABLE
 	bic	r7, #CPU_CONTROL_SW_ENABLE
-	orr	r7, #CPU_CONTROL_AFLT_ENABLE
+	orr	r7, #CPU_CONTROL_UNAL_ENABLE
 	orr	r7, #CPU_CONTROL_VECRELOC
 	mcr	CP15_SCTLR(r7)
 	DSB
@@ -280,7 +279,7 @@ ASENTRY_NP(init_mmu)
 	mcr	CP15_CONTEXTIDR(r0)	/* Set ASID to 0 */
 
 	/* Set the Domain Access register */
-	mov	r0, #((DOMAIN_CLIENT <<	(PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
+	mov	r0, #DOMAIN_CLIENT	/* Only domain #0 is used */
 	mcr	CP15_DACR(r0)
 
 	/*
@@ -454,12 +453,12 @@ ASENTRY_NP(mpentry)
 	/* Setup core, disable all caches. */
 	mrc	CP15_SCTLR(r0)
 	bic	r0, #CPU_CONTROL_MMU_ENABLE
+	bic	r0, #CPU_CONTROL_AFLT_ENABLE
 	bic	r0, #CPU_CONTROL_DC_ENABLE
 	bic	r0, #CPU_CONTROL_IC_ENABLE
-	bic	r0, #CPU_CONTROL_UNAL_ENABLE
 	bic	r0, #CPU_CONTROL_BPRD_ENABLE
 	bic	r0, #CPU_CONTROL_SW_ENABLE
-	orr	r0, #CPU_CONTROL_AFLT_ENABLE
+	orr	r0, #CPU_CONTROL_UNAL_ENABLE
 	orr	r0, #CPU_CONTROL_VECRELOC
 	mcr	CP15_SCTLR(r0)
 	DSB

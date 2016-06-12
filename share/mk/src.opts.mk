@@ -56,6 +56,7 @@ __DEFAULT_YES_OPTIONS = \
     BHYVE \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
+    BLACKLIST \
     BLUETOOTH \
     BOOT \
     BOOTPARAMD \
@@ -80,6 +81,7 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EE \
+    ELFCOPY_AS_OBJCOPY \
     ELFTOOLCHAIN_BOOTSTRAP \
     EXAMPLES \
     FDT \
@@ -186,7 +188,9 @@ __DEFAULT_NO_OPTIONS = \
     OPENLDAP \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
-    SVN
+    SVN \
+    SYSTEM_COMPILER \
+
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -231,9 +235,9 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T} == "riscv64"
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
-__DEFAULT_YES_OPTIONS+=ELFCOPY_AS_OBJCOPY LLVM_LIBUNWIND
+__DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
-__DEFAULT_NO_OPTIONS+=ELFCOPY_AS_OBJCOPY LLVM_LIBUNWIND
+__DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
 .if ${__T} == "riscv64"
 BROKEN_OPTIONS+=PROFILE # "sorry, unimplemented: profiler support for RISC-V"
@@ -348,12 +352,17 @@ MK_ELFTOOLCHAIN_BOOTSTRAP:= no
 MK_GCC_BOOTSTRAP:= no
 .endif
 
+.if ${MK_META_MODE} == "yes"
+MK_SYSTEM_COMPILER:= no
+.endif
+
 .if ${MK_TOOLCHAIN} == "no"
 MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
 MK_INCLUDES:=	no
+MK_LLDB:=	no
 .endif
 
 .if ${MK_CLANG} == "no"
@@ -370,6 +379,7 @@ MK_CLANG_FULL:= no
 # MK_* variable is set to "no".
 #
 .for var in \
+    BLACKLIST \
     BZIP2 \
     GNU \
     INET \

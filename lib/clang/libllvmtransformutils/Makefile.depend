@@ -6,41 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-BasicBlockUtils.o: Intrinsics.inc.h
-BasicBlockUtils.po: Intrinsics.inc.h
-BuildLibCalls.o: Intrinsics.inc.h
-BuildLibCalls.po: Intrinsics.inc.h
-CloneFunction.o: Intrinsics.inc.h
-CloneFunction.po: Intrinsics.inc.h
-CodeExtractor.o: Intrinsics.inc.h
-CodeExtractor.po: Intrinsics.inc.h
-GlobalStatus.o: Intrinsics.inc.h
-GlobalStatus.po: Intrinsics.inc.h
-InlineFunction.o: Intrinsics.inc.h
-InlineFunction.po: Intrinsics.inc.h
-IntegerDivision.o: Intrinsics.inc.h
-IntegerDivision.po: Intrinsics.inc.h
-Local.o: Intrinsics.inc.h
-Local.po: Intrinsics.inc.h
-LoopSimplify.o: Intrinsics.inc.h
-LoopSimplify.po: Intrinsics.inc.h
-LoopUtils.o: Intrinsics.inc.h
-LoopUtils.po: Intrinsics.inc.h
-PromoteMemoryToRegister.o: Intrinsics.inc.h
-PromoteMemoryToRegister.po: Intrinsics.inc.h
-SSAUpdater.o: Intrinsics.inc.h
-SSAUpdater.po: Intrinsics.inc.h
-SimplifyCFG.o: Intrinsics.inc.h
-SimplifyCFG.po: Intrinsics.inc.h
-SimplifyIndVar.o: Intrinsics.inc.h
-SimplifyIndVar.po: Intrinsics.inc.h
-SimplifyLibCalls.o: Intrinsics.inc.h
-SimplifyLibCalls.po: Intrinsics.inc.h
 .endif

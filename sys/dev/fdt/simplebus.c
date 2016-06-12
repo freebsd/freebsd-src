@@ -251,7 +251,9 @@ simplebus_setup_dinfo(device_t dev, phandle_t node,
 
 	resource_list_init(&ndi->rl);
 	ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells, &ndi->rl);
+#ifndef INTRNG
 	ofw_bus_intr_to_rl(dev, node, &ndi->rl, NULL);
+#endif
 
 	return (ndi);
 }
@@ -335,7 +337,7 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * Request for the default allocation with a given rid: use resource
 	 * list stored in the local device info.
 	 */
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 
@@ -369,7 +371,7 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (j == sc->nranges && sc->nranges != 0) {
 			if (bootverbose)
 				device_printf(bus, "Could not map resource "
-				    "%#lx-%#lx\n", start, end);
+				    "%#jx-%#jx\n", start, end);
 
 			return (NULL);
 		}
@@ -387,8 +389,8 @@ simplebus_print_res(struct simplebus_devinfo *di)
 	if (di == NULL)
 		return (0);
 	rv = 0;
-	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }
 

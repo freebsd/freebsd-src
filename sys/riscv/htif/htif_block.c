@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -115,8 +115,12 @@ htif_blk_intr(void *arg, uint64_t entry)
 	data = HTIF_DEV_DATA(entry);
 
 	if (sc->curtag == data) {
+		wmb();
 		sc->cmd_done = 1;
 		wakeup(&sc->intr_chan);
+	} else {
+		device_printf(sc->dev, "Unexpected tag %d (should be %d)\n",
+		    data, sc->curtag);
 	}
 }
 
@@ -195,6 +199,7 @@ htif_blk_task(void *arg)
 {
 	struct htif_blk_request req __aligned(HTIF_ALIGN);
 	struct htif_blk_softc *sc;
+	uint64_t req_paddr;
 	struct bio *bp;
 	uint64_t paddr;
 	uint64_t cmd;
@@ -212,11 +217,15 @@ htif_blk_task(void *arg)
 		HTIF_BLK_UNLOCK(sc);
 
 		if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
+			HTIF_BLK_LOCK(sc);
+
+			rmb();
 			req.offset = (bp->bio_pblkno * sc->disk->d_sectorsize);
 			req.size = bp->bio_bcount;
 			paddr = vtophys(bp->bio_data);
 			KASSERT(paddr != 0, ("paddr is 0"));
 			req.addr = paddr;
+			sc->curtag++;
 			req.tag = sc->curtag;
 
 			cmd = sc->index;
@@ -225,15 +234,14 @@ htif_blk_task(void *arg)
 				cmd |= (HTIF_CMD_READ << HTIF_CMD_SHIFT);
 			else
 				cmd |= (HTIF_CMD_WRITE << HTIF_CMD_SHIFT);
-			paddr = vtophys(&req);
-			KASSERT(paddr != 0, ("paddr is 0"));
-			cmd |= paddr;
+			req_paddr = vtophys(&req);
+			KASSERT(req_paddr != 0, ("req_paddr is 0"));
+			cmd |= req_paddr;
 
 			sc->cmd_done = 0;
 			htif_command(cmd);
 
 			/* Wait for interrupt */
-			HTIF_BLK_LOCK(sc);
 			i = 0;
 			while (sc->cmd_done == 0) {
 				msleep(&sc->intr_chan, &sc->sc_mtx, PRIBIO, "intr", hz/2);

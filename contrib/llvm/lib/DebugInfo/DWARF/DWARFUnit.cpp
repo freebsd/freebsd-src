@@ -14,29 +14,37 @@
 #include "llvm/Support/Path.h"
 #include <cstdio>
 
-using namespace llvm;
+namespace llvm {
 using namespace dwarf;
 
 void DWARFUnitSectionBase::parse(DWARFContext &C, const DWARFSection &Section) {
   parseImpl(C, Section, C.getDebugAbbrev(), C.getRangeSection(),
             C.getStringSection(), StringRef(), C.getAddrSection(),
-            C.isLittleEndian());
+            C.getLineSection().Data, C.isLittleEndian());
 }
 
 void DWARFUnitSectionBase::parseDWO(DWARFContext &C,
-                                    const DWARFSection &DWOSection) {
+                                    const DWARFSection &DWOSection,
+                                    DWARFUnitIndex *Index) {
   parseImpl(C, DWOSection, C.getDebugAbbrevDWO(), C.getRangeDWOSection(),
             C.getStringDWOSection(), C.getStringOffsetDWOSection(),
-            C.getAddrSection(), C.isLittleEndian());
+            C.getAddrSection(), C.getLineDWOSection().Data, C.isLittleEndian());
 }
 
 DWARFUnit::DWARFUnit(DWARFContext &DC, const DWARFSection &Section,
                      const DWARFDebugAbbrev *DA, StringRef RS, StringRef SS,
-                     StringRef SOS, StringRef AOS, bool LE,
-                     const DWARFUnitSectionBase &UnitSection)
+                     StringRef SOS, StringRef AOS, StringRef LS, bool LE,
+                     const DWARFUnitSectionBase &UnitSection,
+                     const DWARFUnitIndex::Entry *IndexEntry)
     : Context(DC), InfoSection(Section), Abbrev(DA), RangeSection(RS),
-      StringSection(SS), StringOffsetSection(SOS), AddrOffsetSection(AOS),
-      isLittleEndian(LE), UnitSection(UnitSection) {
+      LineSection(LS), StringSection(SS), StringOffsetSection([&]() {
+        if (IndexEntry)
+          if (const auto *C = IndexEntry->getOffset(DW_SECT_STR_OFFSETS))
+            return SOS.slice(C->Offset, C->Offset + C->Length);
+        return SOS;
+      }()),
+      AddrOffsetSection(AOS), isLittleEndian(LE), UnitSection(UnitSection),
+      IndexEntry(IndexEntry) {
   clear();
 }
 
@@ -69,6 +77,17 @@ bool DWARFUnit::extractImpl(DataExtractor debug_info, uint32_t *offset_ptr) {
   Length = debug_info.getU32(offset_ptr);
   Version = debug_info.getU16(offset_ptr);
   uint64_t AbbrOffset = debug_info.getU32(offset_ptr);
+  if (IndexEntry) {
+    if (AbbrOffset)
+      return false;
+    auto *UnitContrib = IndexEntry->getOffset();
+    if (!UnitContrib || UnitContrib->Length != (Length + 4))
+      return false;
+    auto *AbbrEntry = IndexEntry->getOffset(DW_SECT_ABBREV);
+    if (!AbbrEntry)
+      return false;
+    AbbrOffset = AbbrEntry->Offset;
+  }
   AddrSize = debug_info.getU8(offset_ptr);
 
   bool LengthOK = debug_info.isValidOffset(getNextUnitOffset() - 1);
@@ -374,4 +393,13 @@ DWARFUnit::getInlinedChainForAddress(uint64_t Address) {
   if (!SubprogramDIE)
     return DWARFDebugInfoEntryInlinedChain();
   return SubprogramDIE->getInlinedChainForAddress(ChainCU, Address);
+}
+
+const DWARFUnitIndex &getDWARFUnitIndex(DWARFContext &Context,
+                                        DWARFSectionKind Kind) {
+  if (Kind == DW_SECT_INFO)
+    return Context.getCUIndex();
+  assert(Kind == DW_SECT_TYPES);
+  return Context.getTUIndex();
+}
 }

@@ -42,6 +42,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_rwlock.h>
+#include <net/route.h>
 
 #ifdef _KERNEL
 #include <sys/lock.h>
@@ -120,7 +121,7 @@ struct in_conninfo {
  */
 #define	INC_ISIPV6	0x01
 
-#define inc_isipv6	inc_flags	/* temp compatability */
+#define	inc_isipv6	inc_flags	/* temp compatibility */
 #define	inc_fport	inc_ie.ie_fport
 #define	inc_lport	inc_ie.ie_lport
 #define	inc_faddr	inc_ie.ie_faddr
@@ -238,8 +239,14 @@ struct inpcb {
 #define inp_zero_size offsetof(struct inpcb, inp_gencnt)
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
 	struct llentry	*inp_lle;	/* cached L2 information */
-	struct rtentry	*inp_rt;	/* cached L3 information */
 	struct rwlock	inp_lock;
+	rt_gen_t	inp_rt_cookie;	/* generation for route entry */
+	union {				/* cached L3 information */
+		struct route inpu_route;
+		struct route_in6 inpu_route6;
+	} inp_rtu;
+#define inp_route inp_rtu.inpu_route
+#define inp_route6 inp_rtu.inpu_route6
 };
 #define	inp_fport	inp_inc.inc_fport
 #define	inp_lport	inp_inc.inc_lport
@@ -722,6 +729,7 @@ void	in_pcbrehash_mbuf(struct inpcb *, struct mbuf *);
 int	in_pcbrele(struct inpcb *);
 int	in_pcbrele_rlocked(struct inpcb *);
 int	in_pcbrele_wlocked(struct inpcb *);
+void	in_losing(struct inpcb *);
 void	in_pcbsetsolabel(struct socket *so);
 int	in_getpeeraddr(struct socket *so, struct sockaddr **nam);
 int	in_getsockaddr(struct socket *so, struct sockaddr **nam);

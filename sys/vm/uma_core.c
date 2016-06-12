@@ -31,7 +31,7 @@
  *
  * This allocator is intended to replace the multitude of similar object caches
  * in the standard FreeBSD kernel.  The intent is to be flexible as well as
- * effecient.  A primary design goal is to return unused memory to the rest of
+ * efficient.  A primary design goal is to return unused memory to the rest of
  * the system.  This will make the system as a whole more flexible due to the
  * ability to move memory to subsystems which most need it instead of leaving
  * pools of reserved memory unused.
@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -111,7 +112,6 @@ static uma_zone_t zones = &masterzone_z;
 
 /* This is the zone from which all of uma_slab_t's are allocated. */
 static uma_zone_t slabzone;
-static uma_zone_t slabrefzone;	/* With refcounters (for UMA_ZONE_REFCNT) */
 
 /*
  * The initial hash tables come out of this zone so they can be allocated
@@ -152,12 +152,6 @@ static struct sx uma_drain_lock;
 static int booted = 0;
 #define	UMA_STARTUP	1
 #define	UMA_STARTUP2	2
-
-/*
- * Only mbuf clusters use ref zones.  Just provide enough references
- * to support the one user.  New code should not use the ref facility.
- */
-static const u_int uma_max_ipers_ref = PAGE_SIZE / MCLBYTES;
 
 /*
  * This is the handle used to schedule events that need to happen
@@ -274,6 +268,11 @@ void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
 static int sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS);
 static int sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS);
+
+#ifdef INVARIANTS
+static void uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item);
+static void uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item);
+#endif
 
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 
@@ -434,8 +433,9 @@ zone_log_warning(uma_zone_t zone)
 static inline void
 zone_maxaction(uma_zone_t zone)
 {
-	if (zone->uz_maxaction)
-		(*zone->uz_maxaction)(zone);
+
+	if (zone->uz_maxaction.ta_func != NULL)
+		taskqueue_enqueue(taskqueue_thread, &zone->uz_maxaction);
 }
 
 static void
@@ -531,7 +531,7 @@ zone_timeout(uma_zone_t zone)
  *	hash  A new hash structure with the old hash size in uh_hashsize
  *
  * Returns:
- *	1 on sucess and 0 on failure.
+ *	1 on success and 0 on failure.
  */
 static int
 hash_alloc(struct uma_hash *hash)
@@ -944,7 +944,6 @@ zone_drain(uma_zone_t zone)
 static uma_slab_t
 keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 {
-	uma_slabrefcnt_t slabref;
 	uma_alloc allocf;
 	uma_slab_t slab;
 	uint8_t *mem;
@@ -1007,11 +1006,6 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 #ifdef INVARIANTS
 	BIT_ZERO(SLAB_SETSIZE, &slab->us_debugfree);
 #endif
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		slabref = (uma_slabrefcnt_t)slab;
-		for (i = 0; i < keg->uk_ipers; i++)
-			slabref->us_refcnt[i] = 0;
-	}
 
 	if (keg->uk_init != NULL) {
 		for (i = 0; i < keg->uk_ipers; i++)
@@ -1259,9 +1253,6 @@ keg_small_init(uma_keg_t keg)
 	    keg->uk_rsize < sizeof(struct pcpu),
 	    ("%s: size %u too large", __func__, keg->uk_rsize));
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT)
-		rsize += sizeof(uint32_t);
-
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 		shsize = 0;
 	else 
@@ -1349,8 +1340,6 @@ keg_large_init(uma_keg_t keg)
 	/* Check whether we have enough space to not do OFFPAGE. */
 	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) == 0) {
 		shsize = sizeof(struct uma_slab);
-		if (keg->uk_flags & UMA_ZONE_REFCNT)
-			shsize += keg->uk_ipers * sizeof(uint32_t);
 		if (shsize & UMA_ALIGN_PTR)
 			shsize = (shsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
@@ -1439,7 +1428,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	if (arg->flags & UMA_ZONE_ZINIT)
 		keg->uk_init = zero_init;
 
-	if (arg->flags & UMA_ZONE_REFCNT || arg->flags & UMA_ZONE_MALLOC)
+	if (arg->flags & UMA_ZONE_MALLOC)
 		keg->uk_flags |= UMA_ZONE_VTOSLAB;
 
 	if (arg->flags & UMA_ZONE_PCPU)
@@ -1451,13 +1440,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 
 	if (keg->uk_flags & UMA_ZONE_CACHESPREAD) {
 		keg_cachespread_init(keg);
-	} else if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		if (keg->uk_size >
-		    (UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt) -
-		    sizeof(uint32_t)))
-			keg_large_init(keg);
-		else
-			keg_small_init(keg);
 	} else {
 		if (keg->uk_size > (UMA_SLAB_SIZE - sizeof(struct uma_slab)))
 			keg_large_init(keg);
@@ -1465,15 +1447,8 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 			keg_small_init(keg);
 	}
 
-	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
-		if (keg->uk_flags & UMA_ZONE_REFCNT) {
-			if (keg->uk_ipers > uma_max_ipers_ref)
-				panic("Too many ref items per zone: %d > %d\n",
-				    keg->uk_ipers, uma_max_ipers_ref);
-			keg->uk_slabzone = slabrefzone;
-		} else
-			keg->uk_slabzone = slabzone;
-	}
+	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
+		keg->uk_slabzone = slabzone;
 
 	/*
 	 * If we haven't booted yet we need allocations to go through the
@@ -1510,10 +1485,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		/* Size of the slab struct and free list */
 		totsize = sizeof(struct uma_slab);
 
-		/* Size of the reference counts. */
-		if (keg->uk_flags & UMA_ZONE_REFCNT)
-			totsize += keg->uk_ipers * sizeof(uint32_t);
-
 		if (totsize & UMA_ALIGN_PTR)
 			totsize = (totsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
@@ -1527,8 +1498,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		 * sure here anyway.
 		 */
 		totsize = keg->uk_pgoff + sizeof(struct uma_slab);
-		if (keg->uk_flags & UMA_ZONE_REFCNT)
-			totsize += keg->uk_ipers * sizeof(uint32_t);
 		if (totsize > PAGE_SIZE * keg->uk_ppera) {
 			printf("zone %s ipers %d rsize %d size %d\n",
 			    zone->uz_name, keg->uk_ipers, keg->uk_rsize,
@@ -1585,7 +1554,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_flags = 0;
 	zone->uz_warning = NULL;
 	timevalclear(&zone->uz_ratecheck);
-	zone->uz_maxaction = NULL;
 	keg = arg->keg;
 
 	ZONE_LOCK_INIT(zone, (arg->flags & UMA_ZONE_MTXCLASS));
@@ -1791,7 +1759,6 @@ uma_startup(void *bootmem, int boot_pages)
 {
 	struct uma_zctor_args args;
 	uma_slab_t slab;
-	u_int slabsize;
 	int i;
 
 #ifdef UMA_DEBUG
@@ -1849,18 +1816,6 @@ uma_startup(void *bootmem, int boot_pages)
 				sizeof(struct uma_slab),
 				NULL, NULL, NULL, NULL,
 				UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
-
-	/*
-	 * We also create a zone for the bigger slabs with reference
-	 * counts in them, to accomodate UMA_ZONE_REFCNT zones.
-	 */
-	slabsize = sizeof(struct uma_slab_refcnt);
-	slabsize += uma_max_ipers_ref * sizeof(uint32_t);
-	slabrefzone = uma_zcreate("UMA RCntSlabs",
-				  slabsize,
-				  NULL, NULL, NULL, NULL,
-				  UMA_ALIGN_PTR,
-				  UMA_ZFLAG_INTERNAL);
 
 	hashzone = uma_zcreate("UMA Hash",
 	    sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT,
@@ -2084,14 +2039,7 @@ uma_zsecond_add(uma_zone_t zone, uma_zone_t master)
 		error = EINVAL;
 		goto out;
 	}
-	/*
-	 * Both must either be refcnt, or not be refcnt.
-	 */
-	if ((zone->uz_flags & UMA_ZONE_REFCNT) !=
-	    (master->uz_flags & UMA_ZONE_REFCNT)) {
-		error = EINVAL;
-		goto out;
-	}
+
 	/*
 	 * The underlying object must be the same size.  rsize
 	 * may be different.
@@ -2164,16 +2112,10 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	if (memguard_cmp_zone(zone)) {
 		item = memguard_alloc(zone->uz_size, flags);
 		if (item != NULL) {
-			/*
-			 * Avoid conflict with the use-after-free
-			 * protecting infrastructure from INVARIANTS.
-			 */
 			if (zone->uz_init != NULL &&
-			    zone->uz_init != mtrash_init &&
 			    zone->uz_init(item, zone->uz_size, flags) != 0)
 				return (NULL);
 			if (zone->uz_ctor != NULL &&
-			    zone->uz_ctor != mtrash_ctor &&
 			    zone->uz_ctor(item, zone->uz_size, udata,
 			    flags) != 0) {
 			    	zone->uz_fini(item, zone->uz_size);
@@ -2309,7 +2251,7 @@ zalloc_start:
 
 	/*
 	 * Now lets just fill a bucket and put it on the free list.  If that
-	 * works we'll restart the allocation from the begining and it
+	 * works we'll restart the allocation from the beginning and it
 	 * will use the just filled bucket.
 	 */
 	bucket = zone_alloc_bucket(zone, udata, flags);
@@ -2707,9 +2649,9 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
                 return;
 #ifdef DEBUG_MEMGUARD
 	if (is_memguard_addr(item)) {
-		if (zone->uz_dtor != NULL && zone->uz_dtor != mtrash_dtor)
+		if (zone->uz_dtor != NULL)
 			zone->uz_dtor(item, zone->uz_size, udata);
-		if (zone->uz_fini != NULL && zone->uz_fini != mtrash_fini)
+		if (zone->uz_fini != NULL)
 			zone->uz_fini(item, zone->uz_size);
 		memguard_free(item);
 		return;
@@ -3022,7 +2964,7 @@ uma_zone_set_maxaction(uma_zone_t zone, uma_maxaction_t maxaction)
 {
 
 	ZONE_LOCK(zone);
-	zone->uz_maxaction = maxaction;
+	TASK_INIT(&zone->uz_maxaction, 0, (task_fn_t *)maxaction, zone);
 	ZONE_UNLOCK(zone);
 }
 
@@ -3214,26 +3156,6 @@ uma_prealloc(uma_zone_t zone, int items)
 }
 
 /* See uma.h */
-uint32_t *
-uma_find_refcnt(uma_zone_t zone, void *item)
-{
-	uma_slabrefcnt_t slabref;
-	uma_slab_t slab;
-	uma_keg_t keg;
-	uint32_t *refcnt;
-	int idx;
-
-	slab = vtoslab((vm_offset_t)item & (~UMA_SLAB_MASK));
-	slabref = (uma_slabrefcnt_t)slab;
-	keg = slab->us_keg;
-	KASSERT(keg->uk_flags & UMA_ZONE_REFCNT,
-	    ("uma_find_refcnt(): zone possibly not UMA_ZONE_REFCNT"));
-	idx = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
-	refcnt = &slabref->us_refcnt[idx];
-	return refcnt;
-}
-
-/* See uma.h */
 static void
 uma_reclaim_locked(bool kmem_danger)
 {
@@ -3254,7 +3176,6 @@ uma_reclaim_locked(bool kmem_danger)
 	 * zones are drained.  We have to do the same for buckets.
 	 */
 	zone_drain(slabzone);
-	zone_drain(slabrefzone);
 	bucket_zone_drain();
 }
 
@@ -3607,6 +3528,102 @@ sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &cur, 0, req));
 }
 
+#ifdef INVARIANTS
+static uma_slab_t
+uma_dbg_getslab(uma_zone_t zone, void *item)
+{
+	uma_slab_t slab;
+	uma_keg_t keg;
+	uint8_t *mem;
+
+	mem = (uint8_t *)((uintptr_t)item & (~UMA_SLAB_MASK));
+	if (zone->uz_flags & UMA_ZONE_VTOSLAB) {
+		slab = vtoslab((vm_offset_t)mem);
+	} else {
+		/*
+		 * It is safe to return the slab here even though the
+		 * zone is unlocked because the item's allocation state
+		 * essentially holds a reference.
+		 */
+		ZONE_LOCK(zone);
+		keg = LIST_FIRST(&zone->uz_kegs)->kl_keg;
+		if (keg->uk_flags & UMA_ZONE_HASH)
+			slab = hash_sfind(&keg->uk_hash, mem);
+		else
+			slab = (uma_slab_t)(mem + keg->uk_pgoff);
+		ZONE_UNLOCK(zone);
+	}
+
+	return (slab);
+}
+
+/*
+ * Set up the slab's freei data such that uma_dbg_free can function.
+ *
+ */
+static void
+uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
+{
+	uma_keg_t keg;
+	int freei;
+
+	if (zone_first_keg(zone) == NULL)
+		return;
+	if (slab == NULL) {
+		slab = uma_dbg_getslab(zone, item);
+		if (slab == NULL) 
+			panic("uma: item %p did not belong to zone %s\n",
+			    item, zone->uz_name);
+	}
+	keg = slab->us_keg;
+	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
+
+	if (BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
+		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+	BIT_SET_ATOMIC(SLAB_SETSIZE, freei, &slab->us_debugfree);
+
+	return;
+}
+
+/*
+ * Verifies freed addresses.  Checks for alignment, valid slab membership
+ * and duplicate frees.
+ *
+ */
+static void
+uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
+{
+	uma_keg_t keg;
+	int freei;
+
+	if (zone_first_keg(zone) == NULL)
+		return;
+	if (slab == NULL) {
+		slab = uma_dbg_getslab(zone, item);
+		if (slab == NULL) 
+			panic("uma: Freed item %p did not belong to zone %s\n",
+			    item, zone->uz_name);
+	}
+	keg = slab->us_keg;
+	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
+
+	if (freei >= keg->uk_ipers)
+		panic("Invalid free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+
+	if (((freei * keg->uk_rsize) + slab->us_data) != item) 
+		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+
+	if (!BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
+		panic("Duplicate free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+
+	BIT_CLR_ATOMIC(SLAB_SETSIZE, freei, &slab->us_debugfree);
+}
+#endif /* INVARIANTS */
+
 #ifdef DDB
 DB_SHOW_COMMAND(uma, db_show_uma)
 {
@@ -3664,4 +3681,4 @@ DB_SHOW_COMMAND(umacache, db_show_umacache)
 			return;
 	}
 }
-#endif
+#endif	/* DDB */

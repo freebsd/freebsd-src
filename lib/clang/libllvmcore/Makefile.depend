@@ -6,37 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AsmWriter.o: Intrinsics.inc.h
-AsmWriter.po: Intrinsics.inc.h
-AutoUpgrade.o: Intrinsics.inc.h
-AutoUpgrade.po: Intrinsics.inc.h
-BasicBlock.o: Intrinsics.inc.h
-BasicBlock.po: Intrinsics.inc.h
-ConstantFold.o: Intrinsics.inc.h
-ConstantFold.po: Intrinsics.inc.h
-Core.o: Intrinsics.inc.h
-Core.po: Intrinsics.inc.h
-DIBuilder.o: Intrinsics.inc.h
-DIBuilder.po: Intrinsics.inc.h
-DebugInfo.o: Intrinsics.inc.h
-DebugInfo.po: Intrinsics.inc.h
-Function.o: Intrinsics.inc.h
-Function.po: Intrinsics.inc.h
-IRBuilder.o: Intrinsics.inc.h
-IRBuilder.po: Intrinsics.inc.h
-IntrinsicInst.o: Intrinsics.inc.h
-IntrinsicInst.po: Intrinsics.inc.h
-Statepoint.o: Intrinsics.inc.h
-Statepoint.po: Intrinsics.inc.h
-Value.o: Intrinsics.inc.h
-Value.po: Intrinsics.inc.h
-Verifier.o: Intrinsics.inc.h
-Verifier.po: Intrinsics.inc.h
 .endif

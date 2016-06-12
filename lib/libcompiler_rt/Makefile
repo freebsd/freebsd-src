@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	compiler_rt
 NO_PIC=
 WARNS?=	2
@@ -44,6 +45,7 @@ SRCF=	absvdi2 \
 	divmoddi4 \
 	divmodsi4 \
 	divsc3 \
+	divtc3 \
 	divti3 \
 	divxc3 \
 	enable_execute_stack \
@@ -197,9 +199,10 @@ SRCF+=	stdatomic
 .endif
 
 .for file in ${SRCF}
-. if ${MACHINE_ARCH:Marm*hf*} != "" && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
+.if ${MACHINE_ARCH:Marmv6*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "") && \
+    exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
 SRCS+= ${file}vfp.S
-. elif !(${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH:Marm*hf*} == "") && exists(${CRTSRC}/${CRTARCH}/${file}.S)
+. elif exists(${CRTSRC}/${CRTARCH}/${file}.S)
 SRCS+=	${file}.S
 . else
 SRCS+=	${file}.c

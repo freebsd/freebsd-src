@@ -17,6 +17,7 @@ DIRDEPS = \
 	kerberos5/lib/libsl \
 	kerberos5/lib/libvers \
 	kerberos5/lib/libwind \
+	kerberos5/tools/slc.host \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcom_err \
@@ -32,28 +33,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-add.o: ktutil-commands.h
-add.po: ktutil-commands.h
-change.o: ktutil-commands.h
-change.po: ktutil-commands.h
-copy.o: ktutil-commands.h
-copy.po: ktutil-commands.h
-destroy.o: ktutil-commands.h
-destroy.po: ktutil-commands.h
-get.o: ktutil-commands.h
-get.po: ktutil-commands.h
-ktutil-commands.o: ktutil-commands.c
-ktutil-commands.o: ktutil-commands.h
-ktutil-commands.po: ktutil-commands.c
-ktutil-commands.po: ktutil-commands.h
-ktutil.o: ktutil-commands.h
-ktutil.po: ktutil-commands.h
-list.o: ktutil-commands.h
-list.po: ktutil-commands.h
-purge.o: ktutil-commands.h
-purge.po: ktutil-commands.h
-remove.o: ktutil-commands.h
-remove.po: ktutil-commands.h
-rename.o: ktutil-commands.h
-rename.po: ktutil-commands.h
 .endif

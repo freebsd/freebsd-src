@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 LIBADD=	ssl crypto
 
 PROG=	dma
@@ -22,6 +24,11 @@ YFLAGS+=	-i
 CLEANFILES=	aliases_parse.i
 FILES=	mailer.conf
 FILESDIR=	${SHAREDIR}/examples/dma
+.if ${MK_SENDMAIL} == no
+CONFGROUPS=	CONFS MAILER
+MAILERDIR=	/etc/mail
+MAILER=		mailer.conf
+.endif
 
 BINMODE=	2555
 

@@ -46,6 +46,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #define	VCHIQ_AUDIO_PACKET_SIZE	4000
 #define	VCHIQ_AUDIO_BUFFER_SIZE	128000
+#define	VCHIQ_AUDIO_PREBUFFER	10 /* Number of pre-buffered audio messages */
 
 #define	VCHIQ_AUDIO_MAX_VOLUME	
 /* volume in terms of 0.01dB */
@@ -91,6 +92,7 @@ struct bcm2835_audio_chinfo {
 	uint32_t free_buffer;
 	uint32_t buffered_ptr;
 	int playback_state;
+	int prebuffered;
 };
 
 struct bcm2835_audio_info {
@@ -170,11 +172,10 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 
 		ch->complete_pos = (ch->complete_pos + count) % sndbuf_getsize(ch->buffer);
 		ch->free_buffer += count;
+		chn_intr(sc->pch.channel);
 
-		if (perr || ch->free_buffer >= VCHIQ_AUDIO_PACKET_SIZE) {
-			chn_intr(ch->channel);
+		if (perr || ch->free_buffer >= VCHIQ_AUDIO_PACKET_SIZE)
 			cv_signal(&sc->data_cv);
-		}
 	} else
 		printf("%s: unknown m.type: %d\n", __func__, m.type);
 }
@@ -244,6 +245,7 @@ bcm2835_audio_reset_channel(struct bcm2835_audio_chinfo *ch)
 	ch->playback_state = 0;
 	ch->buffered_ptr = 0;
 	ch->complete_pos = 0;
+	ch->prebuffered = 0;
 
 	sndbuf_reset(ch->buffer);
 }
@@ -478,21 +480,29 @@ bcm2835_audio_worker(void *data)
 		if (sc->unloading)
 			break;
 
-		if ((ch->playback_state == PLAYBACK_PLAYING) &&
-		    (vchiq_unbuffered_bytes(ch) >= VCHIQ_AUDIO_PACKET_SIZE)
-		    && (ch->free_buffer >= VCHIQ_AUDIO_PACKET_SIZE)) {
-			bcm2835_audio_write_samples(ch);
-		} else {
-			if (ch->playback_state == PLAYBACK_STOPPING) {
-				bcm2835_audio_reset_channel(&sc->pch);
-				ch->playback_state = PLAYBACK_IDLE;
-			}
-
+		if (ch->playback_state == PLAYBACK_IDLE) {
 			cv_wait_sig(&sc->data_cv, &sc->data_lock);
+			continue;
+		}
 
-			if (ch->playback_state == PLAYBACK_STARTING) {
-				/* Give it initial kick */
-				chn_intr(sc->pch.channel);
+		if (ch->playback_state == PLAYBACK_STOPPING) {
+			bcm2835_audio_reset_channel(&sc->pch);
+			ch->playback_state = PLAYBACK_IDLE;
+			continue;
+		}
+
+		if (ch->free_buffer < vchiq_unbuffered_bytes(ch)) {
+			cv_timedwait_sig(&sc->data_cv, &sc->data_lock, 10);
+			continue;
+		}
+
+
+		bcm2835_audio_write_samples(ch);
+
+		if (ch->playback_state == PLAYBACK_STARTING) {
+			ch->prebuffered++;
+			if (ch->prebuffered == VCHIQ_AUDIO_PREBUFFER) {
+				bcm2835_audio_start(ch);
 				ch->playback_state = PLAYBACK_PLAYING;
 			}
 		}
@@ -514,7 +524,7 @@ bcm2835_audio_create_worker(struct bcm2835_audio_info *sc)
 }
 
 /* -------------------------------------------------------------------- */
-/* channel interface for ESS18xx */
+/* channel interface for VCHI audio */
 static void *
 bcmchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
@@ -612,7 +622,6 @@ bcmchan_trigger(kobj_t obj, void *data, int go)
 
 	switch (go) {
 	case PCMTRIG_START:
-		bcm2835_audio_start(ch);
 		ch->playback_state = PLAYBACK_STARTING;
 		/* wakeup worker thread */
 		cv_signal(&sc->data_cv);
@@ -620,7 +629,7 @@ bcmchan_trigger(kobj_t obj, void *data, int go)
 
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
-		ch->playback_state = 1;
+		ch->playback_state = PLAYBACK_STOPPING;
 		bcm2835_audio_stop(ch);
 		break;
 
@@ -757,7 +766,7 @@ static int
 bcm2835_audio_probe(device_t dev)
 {
 
-	device_set_desc(dev, "VCHQI audio");
+	device_set_desc(dev, "VCHIQ audio");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -819,7 +828,7 @@ bcm2835_audio_attach(device_t dev)
 
 	/* 
 	 * We need interrupts enabled for VCHI to work properly,
-	 * so delay intialization until it happens
+	 * so delay initialization until it happens.
 	 */
 	sc->intr_hook.ich_func = bcm2835_audio_delayed_init;
 	sc->intr_hook.ich_arg = sc;

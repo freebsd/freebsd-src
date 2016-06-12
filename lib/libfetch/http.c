@@ -114,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
 			    || (xyz) == HTTP_MOVED_TEMP \
 			    || (xyz) == HTTP_TEMP_REDIRECT \
+			    || (xyz) == HTTP_PERM_REDIRECT \
 			    || (xyz) == HTTP_USE_PROXY \
 			    || (xyz) == HTTP_SEE_OTHER)
 
@@ -875,7 +876,7 @@ http_parse_mtime(const char *p, time_t *mtime)
 	char locale[64], *r;
 	struct tm tm;
 
-	strncpy(locale, setlocale(LC_TIME, NULL), sizeof(locale));
+	strlcpy(locale, setlocale(LC_TIME, NULL), sizeof(locale));
 	setlocale(LC_TIME, "C");
 	r = strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
 	/*
@@ -1435,7 +1436,6 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 	}
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
 	    fetch_ssl(conn, URL, verbose) == -1) {
-		fetch_close(conn);
 		/* grrr */
 		errno = EAUTH;
 		fetch_syserr();
@@ -1768,6 +1768,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 			break;
 		case HTTP_MOVED_PERM:
 		case HTTP_MOVED_TEMP:
+		case HTTP_TEMP_REDIRECT:
+		case HTTP_PERM_REDIRECT:
 		case HTTP_SEE_OTHER:
 		case HTTP_USE_PROXY:
 			/*

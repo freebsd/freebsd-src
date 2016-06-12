@@ -45,6 +45,7 @@ _rc_subr_loaded="YES"
 SYSCTL="/sbin/sysctl"
 SYSCTL_N="${SYSCTL} -n"
 SYSCTL_W="${SYSCTL}"
+PROTECT="/usr/bin/protect"
 ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
@@ -755,6 +756,8 @@ check_startmsgs()
 #
 #	${name}_nice	n	Nice level to run ${command} at.
 #
+#	${name}_oomprotect n	Don't kill ${command} when swap space is exhausted.
+#
 #	${name}_user	n	User to run ${command} as, using su(1) if not
 #				using ${name}_chroot.
 #				Requires /usr to be mounted.
@@ -841,6 +844,10 @@ check_startmsgs()
 #
 #	enabled		Return true if the service is enabled.
 #
+#	describe	Show the service's description
+#
+#	extracommands	Show the service's extra commands
+#
 #	Variables available to methods, and after run_rc_command() has
 #	completed:
 #
@@ -909,7 +916,7 @@ run_rc_command()
 	eval _override_command=\$${name}_program
 	command=${_override_command:-$command}
 
-	_keywords="start stop restart rcvar enabled $extra_commands"
+	_keywords="start stop restart rcvar enabled describe extracommands $extra_commands"
 	rc_pid=
 	_pidcmd=
 	_procname=${procname:-${command}}
@@ -944,7 +951,8 @@ run_rc_command()
 	    _nice=\$${name}_nice	_user=\$${name}_user \
 	    _group=\$${name}_group	_groups=\$${name}_groups \
 	    _fib=\$${name}_fib		_env=\$${name}_env \
-	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon}
+	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
+	    _oomprotect=\$${name}_oomprotect
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
@@ -958,12 +966,13 @@ run_rc_command()
 		if [ "$_elem" != "$rc_arg" ]; then
 			continue
 		fi
-					# if ${rcvar} is set, $1 is not "rcvar"
+					# if ${rcvar} is set, $1 is not "rcvar" and not "describe"
 					# and ${rc_pid} is not set, then run
 					#	checkyesno ${rcvar}
 					# and return if that failed
 					#
-		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" ] ||
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" \
+		    -a "$rc_arg" != "describe" ] ||
 		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
 				if [ -n "${rc_quiet}" ]; then
@@ -999,6 +1008,16 @@ run_rc_command()
 		fi
 
 		case "$rc_arg" in	# default operations...
+
+		describe)
+			if [ -n "$desc" ]; then
+				echo "$desc"
+			fi
+			;;
+	
+		extracommands)
+			echo "$extra_commands"
+			;;
 
 		status)
 			_run_rc_precmd || return 1
@@ -1182,6 +1201,26 @@ $command $rc_flags $command_args"
 			;;
 
 		esac
+
+		# Apply protect(1) to the PID if ${name}_oomprotect is set.
+		case "$rc_arg" in
+		start)
+			if [ -n "$_oomprotect" ]; then
+				if [ -f "${PROTECT}" ]; then
+					pid=$(check_process $command)
+					case $_oomprotect in
+					[Aa][Ll][Ll])
+						${PROTECT} -i -p ${pid}
+						;;
+					[Yy][Ee][Ss])
+						${PROTECT} -p ${pid}
+						;;
+					esac
+				fi
+			fi	
+		;;
+		esac
+
 		return $_return
 	done
 
@@ -1913,6 +1952,37 @@ geli_make_list()
 	done
 
 	echo ${devices2}
+}
+
+# Originally, root mount hold had to be released before mounting
+# the root filesystem.  This delayed the boot, so it was changed
+# to only wait if the root device isn't readily available.  This
+# can result in rc scripts executing before all the devices - such
+# as graid(8), or USB disks - can be accessed.  This function can
+# be used to explicitly wait for root mount holds to be released.
+root_hold_wait()
+{
+	local wait waited holders
+
+	waited=0
+	while true; do
+		holders="$(sysctl -n vfs.root_mount_hold)"
+		if [ -z "${holders}" ]; then
+			break;
+		fi
+		if [ ${waited} -eq 0 ]; then
+			echo -n "Waiting ${root_hold_delay}s" \
+			"for the root mount holders: ${holders}"
+		else
+			echo -n .
+		fi
+		if [ ${waited} -ge ${root_hold_delay} ]; then
+			echo
+			break
+		fi
+		sleep 1
+		waited=$(($waited + 1))
+	done
 }
 
 # Find scripts in local_startup directories that use the old syntax

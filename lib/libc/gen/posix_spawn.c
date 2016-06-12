@@ -140,7 +140,7 @@ process_spawnattr(const posix_spawnattr_t sa)
 static int
 process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 {
-	int fd;
+	int fd, saved_errno;
 
 	switch (fae->fae_action) {
 	case FAE_OPEN:
@@ -149,8 +149,11 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 		if (fd < 0)
 			return (errno);
 		if (fd != fae->fae_fildes) {
-			if (_dup2(fd, fae->fae_fildes) == -1)
-				return (errno);
+			if (_dup2(fd, fae->fae_fildes) == -1) {
+				saved_errno = errno;
+				(void)_close(fd);
+				return (saved_errno);
+			}
 			if (_close(fd) != 0) {
 				if (errno == EBADF)
 					return (EBADF);

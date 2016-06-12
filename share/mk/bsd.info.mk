@@ -125,9 +125,10 @@ CLEANFILES+=	${IFILENS}
 .if !defined(NO_INFOCOMPRESS)
 CLEANFILES+=	${IFILENS:S/$/${ICOMPRESS_EXT}/}
 IFILES=	${IFILENS:S/$/${ICOMPRESS_EXT}/:S/.html${ICOMPRESS_EXT}/.html/}
-all: ${IFILES}
 .else
 IFILES=	${IFILENS}
+.endif
+.if !defined(_SKIP_BUILD)
 all: ${IFILES}
 .endif
 

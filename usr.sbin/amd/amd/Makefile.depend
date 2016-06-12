@@ -22,12 +22,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-conf_parse.o: conf_parse.c
-conf_parse.po: conf_parse.c
-conf_tok.o: conf_parse.h
-conf_tok.o: conf_tok.c
-conf_tok.po: conf_parse.h
-conf_tok.po: conf_tok.c
-mount_xdr.o: mount_xdr.c
-mount_xdr.po: mount_xdr.c
 .endif

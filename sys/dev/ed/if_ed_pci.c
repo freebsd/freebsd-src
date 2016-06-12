@@ -144,5 +144,5 @@ DRIVER_MODULE(ed, pci, ed_pci_driver, ed_devclass, 0, 0);
 MODULE_DEPEND(ed, pci, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
 MODULE_PNP_INFO("W32:vendor/device;D:human", pci, ed, pci_ids, sizeof(pci_ids[0]),
-    sizeof(pci_ids) / sizeof(pci_ids[0]) - 1);
+    nitems(pci_ids) - 1);
 

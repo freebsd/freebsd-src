@@ -60,24 +60,24 @@
 #define ASSERT(x) if(!(x)) panic("EM: x")
 
 #define usec_delay(x) DELAY(x)
-#define usec_delay_irq(x) DELAY(x)
+#define usec_delay_irq(x) usec_delay(x)
 #define msec_delay(x) DELAY(1000*(x))
 #define msec_delay_irq(x) DELAY(1000*(x))
 
-#define DEBUGFUNC(F)        DEBUGOUT(F);
-#define DEBUGOUT(S)			do {} while (0)
-#define DEBUGOUT1(S,A)			do {} while (0)
-#define DEBUGOUT2(S,A,B)		do {} while (0)
-#define DEBUGOUT3(S,A,B,C)		do {} while (0)
-#define DEBUGOUT7(S,A,B,C,D,E,F,G)	do {} while (0)
+/* Enable/disable debugging statements in shared code */
+#define DBG		0
+
+#define DEBUGOUT(...) \
+    do { if (DBG) printf(__VA_ARGS__); } while (0)
+#define DEBUGOUT1(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT2(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT3(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT7(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGFUNC(F)			DEBUGOUT(F "\n")
 
 #define STATIC			static
 #define FALSE			0
 #define TRUE			1
-#ifndef __bool_true_false_are_defined
-#define false			FALSE 
-#define true			TRUE
-#endif
 #define CMD_MEM_WRT_INVALIDATE	0x0010  /* BIT_4 */
 #define PCI_COMMAND_REGISTER	PCIR_COMMAND
 
@@ -99,9 +99,6 @@ typedef int64_t		s64;
 typedef int32_t		s32;
 typedef int16_t		s16;
 typedef int8_t		s8;
-#ifndef __bool_true_false_are_defined
-typedef boolean_t	bool;
-#endif
 
 #define __le16		u16
 #define __le32		u32

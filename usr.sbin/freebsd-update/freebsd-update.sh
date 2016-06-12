@@ -45,7 +45,7 @@ Options:
                   (default: /etc/freebsd-update.conf)
   -F           -- Force a fetch operation to proceed
   -k KEY       -- Trust an RSA key with SHA256 hash of KEY
-  -r release   -- Target for upgrade (e.g., 6.2-RELEASE)
+  -r release   -- Target for upgrade (e.g., 11.1-RELEASE)
   -s server    -- Server from which to fetch updates
                   (default: update.FreeBSD.org)
   -t address   -- Mail output of cron command, if any, to address

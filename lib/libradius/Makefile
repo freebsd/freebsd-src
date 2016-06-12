@@ -26,6 +26,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=		radius
 SRCS=		radlib.c
 INCS=		radlib.h radlib_vs.h

@@ -90,6 +90,7 @@ void	sched_nice(struct proc *p, int nice);
  * priorities inherited from their procs, and use up cpu time.
  */
 void	sched_exit_thread(struct thread *td, struct thread *child);
+u_int	sched_estcpu(struct thread *td);
 void	sched_fork_thread(struct thread *td, struct thread *child);
 void	sched_lend_prio(struct thread *td, u_char prio);
 void	sched_lend_user_prio(struct thread *td, u_char pri);
@@ -102,7 +103,6 @@ void	sched_unlend_prio(struct thread *td, u_char prio);
 void	sched_user_prio(struct thread *td, u_char prio);
 void	sched_userret(struct thread *td);
 void	sched_wakeup(struct thread *td);
-void	sched_preempt(struct thread *td);
 #ifdef	RACCT
 #ifdef	SCHED_4BSD
 fixpt_t	sched_pctcpu_delta(struct thread *td);
@@ -114,8 +114,8 @@ fixpt_t	sched_pctcpu_delta(struct thread *td);
  */
 void	sched_add(struct thread *td, int flags);
 void	sched_clock(struct thread *td);
+void	sched_preempt(struct thread *td);
 void	sched_rem(struct thread *td);
-void	sched_tick(int cnt);
 void	sched_relinquish(struct thread *td);
 struct thread *sched_choose(void);
 void	sched_idletd(void *);
@@ -222,14 +222,13 @@ struct sched_param {
  */
 #ifndef _KERNEL
 #include <sys/cdefs.h>
+#include <sys/_timespec.h>
 #include <sys/_types.h>
 
 #ifndef _PID_T_DECLARED
 typedef __pid_t         pid_t;
 #define _PID_T_DECLARED
 #endif
-
-struct timespec;
 
 __BEGIN_DECLS
 int     sched_get_priority_max(int);

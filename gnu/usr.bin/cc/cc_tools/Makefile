@@ -5,6 +5,9 @@
 CFLAGS+=	-I.
 
 .include "../Makefile.inc"
+# Some of the logic needed in here is defined in Makefile.hdrs as it is shared
+# with gnu/lib.
+.include "Makefile.hdrs"
 
 CFLAGS+=	-g
 CFLAGS+=	-DGENERATOR_FILE -DHAVE_CONFIG_H
@@ -21,51 +24,6 @@ LIBIBERTY=	libiberty.a
 #
 # The list of headers to go into tm.h
 #
-TARGET_INC+=	options.h
-.if ${TARGET_CPUARCH} == "amd64"
-TARGET_INC+=	i386/biarch64.h
-.endif
-.if ${TARGET_CPUARCH} != "arm"
-TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
-.endif
-.if ${TARGET_CPUARCH} == "i386" || ${TARGET_CPUARCH} == "amd64"
-TARGET_INC+=	${GCC_CPU}/unix.h
-TARGET_INC+=	${GCC_CPU}/att.h
-.endif
-TARGET_INC+=	dbxelf.h
-TARGET_INC+=	elfos-undef.h
-TARGET_INC+=	elfos.h
-TARGET_INC+=	freebsd-native.h
-TARGET_INC+=	freebsd-spec.h
-TARGET_INC+=	freebsd.h
-.if ${TARGET_CPUARCH} != "i386" && ${TARGET_CPUARCH} != "amd64"
-. if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
-TARGET_INC+=	${GCC_CPU}/sysv4.h
-. endif
-.endif
-.if ${TARGET_CPUARCH} == "amd64"
-TARGET_INC+=	${GCC_CPU}/x86-64.h
-.endif
-.if ${TARGET_CPUARCH} == "arm" || ${TARGET_CPUARCH} == "mips"
-TARGET_INC+=	${GCC_CPU}/elf.h
-.endif
-.if ${TARGET_CPUARCH} == "arm"
-TARGET_INC+=	${GCC_CPU}/aout.h
-TARGET_INC+=	${GCC_CPU}/bpabi.h
-.endif
-.if ${TARGET_ARCH} == "powerpc64"
-TARGET_INC+=	${GCC_CPU}/biarch64.h
-TARGET_INC+=    ${GCC_CPU}/default64.h
-.endif
-TARGET_INC+=	${GCC_CPU}/freebsd.h
-.if ${TARGET_CPUARCH} == "amd64"
-TARGET_INC+=	${GCC_CPU}/freebsd64.h
-.endif
-.if ${TARGET_CPUARCH} == "arm"
-TARGET_INC+=	${GCC_CPU}/arm.h
-.endif
-TARGET_INC+=	defaults.h
-
 .for H in ${TARGET_INC}
 .for D in ${GCCDIR}/config ${GCCDIR} ${.CURDIR}
 .if exists($D/$H)
@@ -155,31 +113,6 @@ TREE_DEF_FILES=
 TREE_DEF_FILES+=	cp/cp-tree.def
 .endif
 
-#
-# Option files.
-#
-OPT_FILES=	c.opt common.opt
-
-.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.opt)
-OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.opt
-.endif
-
-.if exists(${.CURDIR}/${GCC_CPU}-freebsd.opt)
-OPT_FILES+=	${.CURDIR}/${GCC_CPU}-freebsd.opt
-.endif
-
-.if ${TARGET_CPUARCH} == "powerpc"
-OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/sysv4.opt
-.endif
-
-.if ${TARGET_CPUARCH} == "sparc64"
-OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/long-double-switch.opt
-.endif
-
-.if exists(${.CURDIR}/freebsd.opt)
-OPT_FILES+=	${.CURDIR}/freebsd.opt
-.endif
-
 #-----------------------------------------------------------------------
 # Build rules for header files and generator tools
 
@@ -207,41 +140,13 @@ GENSRCS+=	bconfig.h
 CLEANFILES+=	cs-bconfig.h
 
 # tconfig.h
-tconfig.h:
-	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
-	HEADERS="auto-host.h ansidecl.h" \
-	DEFINES="USED_FOR_TARGET" \
-	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
-
 GENSRCS+=	tconfig.h
 CLEANFILES+=	cs-tconfig.h
 
 # Options
-optionlist: ${OPT_FILES}
-	LC_ALL=C awk -f ${GCCDIR}/opt-gather.awk ${.ALLSRC} > ${.TARGET}
-
-options.h:	optionlist
-	LC_ALL=C awk -f ${GCCDIR}/opt-functions.awk \
-	    -f ${GCCDIR}/opth-gen.awk \
-		< ${.ALLSRC} > ${.TARGET}
-
-options.c:	optionlist
-	LC_ALL=C awk -f ${GCCDIR}/opt-functions.awk \
-	    -f ${GCCDIR}/optc-gen.awk \
-		-v header_name="config.h system.h coretypes.h tm.h" \
-		< ${.ALLSRC} > ${.TARGET}
 GENONLY+=	optionlist options.h options.c
 
 # Target machine config
-tm.h:
-	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
-	HEADERS="${TARGET_INC}" \
-	DEFINES="" \
-	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
-.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
-	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
-.endif
-
 GENSRCS+=	tm.h
 CLEANFILES+=	cs-tm.h
 
@@ -294,9 +199,6 @@ gtyp-gen.h:	${GTFILES}
 GENSRCS+=	gtyp-gen.h
 
 # Version header for gcov
-gcov-iov.h:
-	echo "#define GCOV_VERSION ((gcov_unsigned_t)0x34303270)" >> ${.TARGET}
-
 GENSRCS+=	gcov-iov.h
 
 # Multilib config file
@@ -346,19 +248,7 @@ gstdint.h:
 GENSRCS+=	gstdint.h
 
 # Linked headers
-gthr-default.h: ${GCCDIR}/gthr-posix.h .NOMETA
-	ln -sf ${.ALLSRC} ${.TARGET}
-
 GENSRCS+=	gthr-default.h
-
-.if ${TARGET_CPUARCH} == "arm"
-unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
-.else
-unwind.h: ${GCCDIR}/unwind-generic.h
-.endif
-
-unwind.h: .NOMETA
-	ln -sf ${.ALLSRC} ${.TARGET}
 
 GENSRCS+=	unwind.h
 
@@ -389,7 +279,7 @@ gengtype: gengtype.o gengtype-yacc+%DIKED.o gengtype-lex.o errors.o \
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 gtype-desc.h:	gengtype
-	./gengtype
+	${BTOOLSPATH:U.}/gengtype
 	touch ${.TARGET}
 
 gtype-desc.c:	gtype-desc.h
@@ -419,7 +309,7 @@ gencondmd:	gencondmd.o
 # Generated .md files.
 #
 insn-conditions.md:	gencondmd
-	./gencondmd > ${.TARGET}
+	${BTOOLSPATH:U.}/gencondmd > ${.TARGET}
 GENSRCS+=	insn-conditions.md
 
 #
@@ -428,35 +318,35 @@ GENSRCS+=	insn-conditions.md
 
 .for F in constants
 insn-$F.h:	gen$F ${MD_FILE}
-	./gen$F ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/gen$F ${MD_FILE} > ${.TARGET}
 GENSRCS+=	insn-$F.h
 .endfor
 
 .for F in attr codes config flags
 insn-$F.h:	gen$F ${MD_FILE} insn-conditions.md
-	./gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
+	${BTOOLSPATH:U.}/gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
 GENSRCS+=	insn-$F.h
 .endfor
 
 # Header files with irregular names.
 genrtl.h:	gengenrtl
-	./gengenrtl -h > ${.TARGET}
+	${BTOOLSPATH:U.}/gengenrtl -h > ${.TARGET}
 GENSRCS+=	genrtl.h
 
 tm-preds.h:	genpreds
-	./genpreds -h ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/genpreds -h ${MD_FILE} > ${.TARGET}
 GENSRCS+=	tm-preds.h
 
 tm-constrs.h:	genpreds
-	./genpreds -c ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/genpreds -c ${MD_FILE} > ${.TARGET}
 GENSRCS+=	tm-constrs.h
 
 tree-check.h:	gencheck
-	./gencheck > ${.TARGET}
+	${BTOOLSPATH:U.}/gencheck > ${.TARGET}
 GENSRCS+=	tree-check.h
 
 insn-modes.h:	genmodes
-	./genmodes -h > ${.TARGET}
+	${BTOOLSPATH:U.}/genmodes -h > ${.TARGET}
 GENSRCS+=	insn-modes.h
 
 #
@@ -464,31 +354,31 @@ GENSRCS+=	insn-modes.h
 #
 .for F in attrtab automata emit extract opinit output peep preds recog
 insn-$F.c:	gen$F ${MD_FILE} insn-conditions.md
-	./gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
+	${BTOOLSPATH:U.}/gen$F ${MD_FILE} insn-conditions.md > ${.TARGET}
 GENONLY+=	insn-$F.c
 .endfor
 
 .for F in conditions
 insn-$F.c:	gen$F ${MD_FILE}
-	./gen$F ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/gen$F ${MD_FILE} > ${.TARGET}
 GENSRCS+=	insn-$F.c
 .endfor
 
 # Source files with irregular names.
 insn-modes.c:	genmodes
-	./genmodes > ${.TARGET}
+	${BTOOLSPATH:U.}/genmodes > ${.TARGET}
 GENONLY+=	insn-modes.c
 
 min-insn-modes.c:	genmodes
-	./genmodes -m > ${.TARGET}
+	${BTOOLSPATH:U.}/genmodes -m > ${.TARGET}
 GENSRCS+=	min-insn-modes.c
 
 genrtl.c:	gengenrtl
-	./gengenrtl > ${.TARGET}
+	${BTOOLSPATH:U.}/gengenrtl > ${.TARGET}
 GENONLY+=	genrtl.c
 
 gencondmd.c:	genconditions ${MD_FILE}
-	./genconditions ${MD_FILE} > ${.TARGET}
+	${BTOOLSPATH:U.}/genconditions ${MD_FILE} > ${.TARGET}
 GENSRCS+=	gencondmd.c
 
 #-----------------------------------------------------------------------
@@ -499,6 +389,7 @@ GNTOOLS+=	genattr genattrtab genautomata gencodes gencheck genchecksum \
 		genextract genflags gengenrtl gengtype genmodes genopinit \
 		genoutput genpeep genpreds genrecog
 
+${GNTOOLS:C,$,.o,} ${GNTOOLS}: ${BUILD_TOOLS_META}
 all: ${GNTOOLS} ${GENSRCS} ${GENONLY}
 beforedepend: ${GENONLY}
 
@@ -514,11 +405,11 @@ LIBIBERTY_SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \
 LIBIBERTY_OBJS=	${LIBIBERTY_SRCS:R:S/$/.o/g}
 
 .for _src in ${LIBIBERTY_SRCS}
-${_src:R:S/$/.o/}: ${_src}
+${_src:R:S/$/.o/}: ${_src} ${BUILD_TOOLS_META}
 	${CC} -c -I ${.CURDIR}/../libiberty ${CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 
-${LIBIBERTY}: ${LIBIBERTY_OBJS}
+${LIBIBERTY}: ${LIBIBERTY_OBJS} ${BUILD_TOOLS_META}
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
 	${RANLIB} ${.TARGET}
@@ -542,6 +433,7 @@ SRCS=		errors.c genattr.c genattrtab.c \
 SRCS+=		${GENSRCS}
 OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 GENOBJS+=	${GENSRCS:N*.h:R:S/$/.o/g}
+${OBJS} ${GENOBJS}: ${BUILD_TOOLS_META}
 CLEANFILES+=	${GENSRCS} ${GENONLY} ${GENOBJS} ${GNTOOLS}
 
 #-----------------------------------------------------------------------

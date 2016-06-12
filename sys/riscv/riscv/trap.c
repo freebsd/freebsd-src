@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -57,10 +60,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
-#include <machine/vmparam.h>
 
 #include <machine/resource.h>
 #include <machine/intr.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
+
+int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 extern register_t fsu_intr_fault;
 
@@ -168,6 +176,13 @@ data_abort(struct trapframe *frame, int lower)
 	int error;
 	int sig;
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	td = curthread;
 	pcb = td->td_pcb;
 
@@ -262,6 +277,11 @@ do_trap_supervisor(struct trapframe *frame)
 		return;
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, exception))
+		return;
+#endif
+
 	CTR3(KTR_TRAP, "do_trap_supervisor: curthread: %p, sepc: %lx, frame: %p",
 	    curthread, frame->tf_sepc, frame);
 
@@ -270,6 +290,24 @@ do_trap_supervisor(struct trapframe *frame)
 	case EXCP_STORE_ACCESS_FAULT:
 	case EXCP_INSTR_ACCESS_FAULT:
 		data_abort(frame, 0);
+		break;
+	case EXCP_INSTR_BREAKPOINT:
+#ifdef KDTRACE_HOOKS
+		if (dtrace_invop_jump_addr != 0) {
+			dtrace_invop_jump_addr(frame);
+			break;
+		}
+#endif
+#ifdef KDB
+		kdb_trap(exception, 0, frame);
+#else
+		dump_regs(frame);
+		panic("No debugger in kernel.\n");
+#endif
+		break;
+	case EXCP_INSTR_ILLEGAL:
+		dump_regs(frame);
+		panic("Illegal instruction at 0x%016lx\n", frame->tf_sepc);
 		break;
 	default:
 		dump_regs(frame);
@@ -282,6 +320,10 @@ void
 do_trap_user(struct trapframe *frame)
 {
 	uint64_t exception;
+	struct thread *td;
+
+	td = curthread;
+	td->td_frame = frame;
 
 	exception = (frame->tf_scause & EXCP_MASK);
 	if (frame->tf_scause & EXCP_INTR) {
@@ -302,6 +344,14 @@ do_trap_user(struct trapframe *frame)
 	case EXCP_UMODE_ENV_CALL:
 		frame->tf_sepc += 4;	/* Next instruction */
 		svc_handler(frame);
+		break;
+	case EXCP_INSTR_ILLEGAL:
+		call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)frame->tf_sepc);
+		userret(td, frame);
+		break;
+	case EXCP_INSTR_BREAKPOINT:
+		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_sepc);
+		userret(td, frame);
 		break;
 	default:
 		dump_regs(frame);

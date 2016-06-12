@@ -727,9 +727,9 @@ CountValue *HexagonHardwareLoops::computeCount(MachineLoop *Loop,
   // Phis that may feed into the loop.
   LoopFeederMap LoopFeederPhi;
 
-  // Check if the inital value may be zero and can be decremented in the first
+  // Check if the initial value may be zero and can be decremented in the first
   // iteration. If the value is zero, the endloop instruction will not decrement
-  // the loop counter, so we shoudn't generate a hardware loop in this case.
+  // the loop counter, so we shouldn't generate a hardware loop in this case.
   if (loopCountMayWrapOrUnderFlow(Start, End, Loop->getLoopPreheader(), Loop,
                                   LoopFeederPhi))
       return nullptr;
@@ -1288,14 +1288,14 @@ bool HexagonHardwareLoops::orderBumpCompare(MachineInstr *BumpI,
 
   typedef MachineBasicBlock::instr_iterator instr_iterator;
   // Check if things are in order to begin with.
-  for (instr_iterator I = BumpI, E = BB->instr_end(); I != E; ++I)
+  for (instr_iterator I(BumpI), E = BB->instr_end(); I != E; ++I)
     if (&*I == CmpI)
       return true;
 
   // Out of order.
   unsigned PredR = CmpI->getOperand(0).getReg();
   bool FoundBump = false;
-  instr_iterator CmpIt = CmpI, NextIt = std::next(CmpIt);
+  instr_iterator CmpIt = CmpI->getIterator(), NextIt = std::next(CmpIt);
   for (instr_iterator I = NextIt, E = BB->instr_end(); I != E; ++I) {
     MachineInstr *In = &*I;
     for (unsigned i = 0, n = In->getNumOperands(); i < n; ++i) {
@@ -1307,9 +1307,7 @@ bool HexagonHardwareLoops::orderBumpCompare(MachineInstr *BumpI,
     }
 
     if (In == BumpI) {
-      instr_iterator After = BumpI;
-      instr_iterator From = CmpI;
-      BB->splice(std::next(After), BB, From);
+      BB->splice(++BumpI->getIterator(), BB, CmpI->getIterator());
       FoundBump = true;
       break;
     }
@@ -1440,7 +1438,7 @@ bool HexagonHardwareLoops::loopCountMayWrapOrUnderFlow(
     if (Comparison::isSigned(Cmp))
       return false;
 
-    // Check if there is a comparison of the inital value. If the initial value
+    // Check if there is a comparison of the initial value. If the initial value
     // is greater than or not equal to another value, then assume this is a
     // range check.
     if ((Cmp & Comparison::G) || Cmp == Comparison::NE)
@@ -1850,7 +1848,7 @@ MachineBasicBlock *HexagonHardwareLoops::createPreheaderForLoop(
   }
 
   MachineBasicBlock *NewPH = MF->CreateMachineBasicBlock();
-  MF->insert(Header, NewPH);
+  MF->insert(Header->getIterator(), NewPH);
 
   if (Header->pred_size() > 2) {
     // Ensure that the header has only two predecessors: the preheader and

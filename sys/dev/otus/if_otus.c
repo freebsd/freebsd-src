@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_otus.c,v 1.46 2015/03/14 03:38:49 jsg Exp $	*/
+/*	$OpenBSD: if_otus.c,v 1.49 2015/11/24 13:33:18 mpi Exp $	*/
 
 /*-
  * Copyright (c) 2009 Damien Bergamini <damien.bergamini@free.fr>
@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -49,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_ratectl.h>
-#include <net80211/ieee80211_input.h>
 #ifdef	IEEE80211_SUPPORT_SUPERG
 #include <net80211/ieee80211_superg.h>
 #endif
@@ -132,6 +131,8 @@ static device_detach_t otus_detach;
 
 static int	otus_attachhook(struct otus_softc *);
 void		otus_get_chanlist(struct otus_softc *);
+static void	otus_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 int		otus_load_firmware(struct otus_softc *, const char *,
 		    uint32_t);
 int		otus_open_pipes(struct otus_softc *);
@@ -179,6 +180,8 @@ int		otus_set_multi(struct otus_softc *);
 static int	otus_updateedca(struct ieee80211com *);
 static void	otus_updateedca_locked(struct otus_softc *);
 static void	otus_updateslot(struct otus_softc *);
+static void	otus_set_operating_mode(struct otus_softc *sc);
+static void	otus_set_rx_filter(struct otus_softc *sc);
 int		otus_init_mac(struct otus_softc *);
 uint32_t	otus_phy_get_def(struct otus_softc *, uint32_t);
 int		otus_set_board_values(struct otus_softc *,
@@ -624,7 +627,6 @@ otus_attachhook(struct otus_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	usb_device_request_t req;
 	uint32_t in, out;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int error;
 
 	/* Not locked */
@@ -742,20 +744,8 @@ otus_attachhook(struct otus_softc *sc)
 	/* Build the list of supported channels. */
 	otus_get_chanlist(sc);
 #else
-	/* Set supported .11b and .11g rates. */
-	memset(bands, 0, sizeof(bands));
-	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
-		setbit(bands, IEEE80211_MODE_11B);
-		setbit(bands, IEEE80211_MODE_11G);
-	}
-	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
-		setbit(bands, IEEE80211_MODE_11A);
-	}
-#if 0
-	if (sc->sc_ht)
-		setbit(bands, IEEE80211_MODE_11NG);
-#endif
-	ieee80211_init_channels(ic, NULL, bands);
+	otus_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 #endif
 
 	ieee80211_ifattach(ic);
@@ -763,6 +753,7 @@ otus_attachhook(struct otus_softc *sc)
 	ic->ic_scan_start = otus_scan_start;
 	ic->ic_scan_end = otus_scan_end;
 	ic->ic_set_channel = otus_set_channel;
+	ic->ic_getradiocaps = otus_getradiocaps;
 	ic->ic_vap_create = otus_vap_create;
 	ic->ic_vap_delete = otus_vap_delete;
 	ic->ic_update_mcast = otus_update_mcast;
@@ -817,6 +808,32 @@ otus_get_chanlist(struct otus_softc *sc)
 			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_5GHZ);
 			ic->ic_channels[chan].ic_flags = IEEE80211_CHAN_A;
 		}
+	}
+}
+
+static void
+otus_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct otus_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	/* Set supported .11b and .11g rates. */
+	memset(bands, 0, sizeof(bands));
+	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
+#if 0
+		if (sc->sc_ht)
+			setbit(bands, IEEE80211_MODE_11NG);
+#endif
+		ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+		    ar_chans, 14, bands, 0);
+	}
+	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
+		setbit(bands, IEEE80211_MODE_11A);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+                    &ar_chans[14], nitems(ar_chans) - 14, bands, 0);
 	}
 }
 
@@ -948,7 +965,7 @@ otus_alloc_cmd_list(struct otus_softc *sc, struct otus_tx_cmd cmd[],
 
 	for (i = 0; i < ndata; i++) {
 		struct otus_tx_cmd *dp = &cmd[i];
-		dp->buf = malloc(maxsz, M_USBDEV, M_NOWAIT);
+		dp->buf = malloc(maxsz, M_USBDEV, M_NOWAIT | M_ZERO);
 		dp->odata = NULL;
 		if (dp->buf == NULL) {
 			device_printf(sc->sc_dev,
@@ -1012,7 +1029,7 @@ otus_alloc_list(struct otus_softc *sc, struct otus_data data[],
 		struct otus_data *dp = &data[i];
 		dp->sc = sc;
 		dp->m = NULL;
-		dp->buf = malloc(maxsz, M_USBDEV, M_NOWAIT);
+		dp->buf = malloc(maxsz, M_USBDEV, M_NOWAIT | M_ZERO);
 		if (dp->buf == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not allocate buffer\n");
@@ -1126,6 +1143,7 @@ _otus_getbuf(struct otus_softc *sc)
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_inactive, next);
 	else
 		bf = NULL;
+	/* XXX bzero? */
 	return (bf);
 }
 
@@ -1208,7 +1226,6 @@ otus_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct otus_vap *uvp = OTUS_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
 	struct otus_softc *sc = ic->ic_softc;
-	struct ieee80211_node *ni;
 	enum ieee80211_state ostate;
 
 	ostate = vap->iv_state;
@@ -1223,18 +1240,20 @@ otus_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	/* XXX TODO: more fleshing out! */
 
 	switch (nstate) {
+	case IEEE80211_S_INIT:
+		otus_set_operating_mode(sc);
+		otus_set_rx_filter(sc);
+		break;
 	case IEEE80211_S_RUN:
-		ni = ieee80211_ref_node(vap->iv_bss);
-
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			otus_updateslot(sc);
-			otus_set_bssid(sc, ni->ni_bssid);
+			otus_set_operating_mode(sc);
+			otus_set_rx_filter(sc);
 
 			/* Start calibration timer. */
 			taskqueue_enqueue_timeout(taskqueue_thread,
 			    &sc->calib_to, hz);
 		}
-		ieee80211_free_node(ni);
 		break;
 	default:
 		break;
@@ -2306,7 +2325,7 @@ otus_set_multi(struct otus_softc *sc)
 				uint32_t val;
 
 				dl = LLADDR((struct sockaddr_dl *) ifma->ifma_addr);
-				val = LE_READ_4(dl + 4);
+				val = le32dec(dl + 4);
 				/* Get address byte 5 */
 				val = val & 0x0000ff00;
 				val = val >> 8;
@@ -2339,6 +2358,7 @@ otus_set_multi(struct otus_softc *sc)
 	otus_write(sc, AR_MAC_REG_GROUP_HASH_TBL_L, lo);
 	otus_write(sc, AR_MAC_REG_GROUP_HASH_TBL_H, hi);
 	r = otus_write_barrier(sc);
+	/* XXX operating mode? filter? */
 	OTUS_UNLOCK(sc);
 	return (r);
 }
@@ -2437,7 +2457,6 @@ otus_init_mac(struct otus_softc *sc)
 
 	otus_write(sc, AR_MAC_REG_ACK_EXTENSION, 0x40);
 	otus_write(sc, AR_MAC_REG_RETRY_MAX, 0);
-	otus_write(sc, AR_MAC_REG_SNIFFER, 0x2000000);
 	otus_write(sc, AR_MAC_REG_RX_THRESHOLD, 0xc1f80);
 	otus_write(sc, AR_MAC_REG_RX_PE_DELAY, 0x70);
 	otus_write(sc, AR_MAC_REG_EIFS_AND_SIFS, 0xa144000);
@@ -2449,13 +2468,14 @@ otus_init_mac(struct otus_softc *sc)
 	otus_write(sc, AR_MAC_REG_BCN_HT1, 0x8000170);
 	otus_write(sc, AR_MAC_REG_BACKOFF_PROTECT, 0x105);
 	otus_write(sc, AR_MAC_REG_AMPDU_FACTOR, 0x10000a);
-	/* Filter any control frames, BAR is bit 24. */
-//	otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, 0x0500ffff);
-//	otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
+
+	otus_set_rx_filter(sc);
+
 	otus_write(sc, AR_MAC_REG_BASIC_RATE, 0x150f);
 	otus_write(sc, AR_MAC_REG_MANDATORY_RATE, 0x150f);
 	otus_write(sc, AR_MAC_REG_RTS_CTS_RATE, 0x10b01bb);
 	otus_write(sc, AR_MAC_REG_ACK_TPC, 0x4003c1e);
+
 	/* Enable LED0 and LED1. */
 	otus_write(sc, AR_GPIO_REG_PORT_TYPE, 0x3);
 	otus_write(sc, AR_GPIO_REG_PORT_DATA, 0x3);
@@ -3051,55 +3071,88 @@ otus_led_newstate_type3(struct otus_softc *sc)
 #endif
 }
 
+static uint8_t zero_macaddr[IEEE80211_ADDR_LEN] = { 0,0,0,0,0,0 };
+
 /*
- * TODO:
- *
- * + If in monitor mode, set BSSID to all zeros, else the node BSSID.
- * + Handle STA + monitor (eg tcpdump/promisc/radiotap) as well as
- *   pure monitor mode.
+ * Set up operating mode, MAC/BSS address and RX filter.
  */
-static int
+static void
 otus_set_operating_mode(struct otus_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint32_t rx_ctrl;
-	uint32_t frm_filt;
-	uint32_t cam_mode;
-	uint32_t rx_sniffer;
+	struct ieee80211vap *vap;
+	uint32_t cam_mode = AR_MAC_CAM_DEFAULTS;
+	uint32_t rx_ctrl = AR_MAC_RX_CTRL_DEAGG | AR_MAC_RX_CTRL_SHORT_FILTER;
+	uint32_t sniffer = AR_MAC_SNIFFER_DEFAULTS;
+	uint32_t enc_mode = 0x78; /* XXX */
+	const uint8_t *macaddr;
+	uint8_t bssid[IEEE80211_ADDR_LEN];
+	struct ieee80211_node *ni;
 
 	OTUS_LOCK_ASSERT(sc);
 
-	/* XXX TODO: too many magic constants */
-	rx_ctrl = 0x1;
-	/* Filter any control frames, BAR is bit 24. */
-	frm_filt = 0x0500ffff;
-	cam_mode = 0x0f000002;	/* XXX STA */
-	rx_sniffer = 0x20000000;
+	/*
+	 * If we're in sniffer mode or we don't have a MAC
+	 * address assigned, ensure it gets reset to all-zero.
+	 */
+	IEEE80211_ADDR_COPY(bssid, zero_macaddr);
+	vap = TAILQ_FIRST(&ic->ic_vaps);
+	macaddr = ic->ic_macaddr;
 
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_STA:
-		cam_mode = 0x0f000002;	/* XXX STA */
-		rx_ctrl = 0x1;
-		frm_filt = 0x0500ffff;
-		rx_sniffer = 0x20000000;
+		if (vap) {
+			ni = ieee80211_ref_node(vap->iv_bss);
+			IEEE80211_ADDR_COPY(bssid, ni->ni_bssid);
+			ieee80211_free_node(ni);
+		}
+		cam_mode |= AR_MAC_CAM_STA;
+		rx_ctrl |= AR_MAC_RX_CTRL_PASS_TO_HOST;
 		break;
 	case IEEE80211_M_MONITOR:
-		cam_mode = 0x0f000002;	/* XXX STA */
-		rx_ctrl = 0x1;
-		frm_filt = 0xffffffff;
-		rx_sniffer = 0x20000001;
-		break;
+		/*
+		 * Note: monitor mode ends up causing the MAC to
+		 * generate ACK frames for everything it sees.
+		 * So don't do that; instead just put it in STA mode
+		 * and disable RX filters.
+		 */
 	default:
+		cam_mode |= AR_MAC_CAM_STA;
+		rx_ctrl |= AR_MAC_RX_CTRL_PASS_TO_HOST;
 		break;
 	}
 
-	otus_write(sc, AR_MAC_REG_SNIFFER, rx_sniffer);
+	/*
+	 * TODO: if/when we do hardware encryption, ensure it's
+	 * disabled if the NIC is in monitor mode.
+	 */
+	otus_write(sc, AR_MAC_REG_SNIFFER, sniffer);
 	otus_write(sc, AR_MAC_REG_CAM_MODE, cam_mode);
-	otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, frm_filt);
-	otus_write(sc, AR_MAC_REG_RX_CONTROL, cam_mode);
+	otus_write(sc, AR_MAC_REG_ENCRYPTION, enc_mode);
+	otus_write(sc, AR_MAC_REG_RX_CONTROL, rx_ctrl);
+	otus_set_macaddr(sc, macaddr);
+	otus_set_bssid(sc, bssid);
+	/* XXX barrier? */
+}
 
-	(void) otus_write_barrier(sc);
-	return (0);
+static void
+otus_set_rx_filter(struct otus_softc *sc)
+{
+//	struct ieee80211com *ic = &sc->sc_ic;
+
+	OTUS_LOCK_ASSERT(sc);
+
+#if 0
+	if (ic->ic_allmulti > 0 || ic->ic_promisc > 0 ||
+	    ic->ic_opmode == IEEE80211_M_MONITOR) {
+		otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, 0xff00ffff);
+	} else {
+#endif
+		/* Filter any control frames, BAR is bit 24. */
+		otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, 0x0500ffff);
+#if 0
+	}
+#endif
 }
 
 int
@@ -3123,7 +3176,8 @@ otus_init(struct otus_softc *sc)
 		return error;
 	}
 
-	(void) otus_set_macaddr(sc, ic->ic_macaddr);
+	otus_set_operating_mode(sc);
+	otus_set_rx_filter(sc);
 	(void) otus_set_operating_mode(sc);
 
 	sc->bb_reset = 1;	/* Force cold reset. */

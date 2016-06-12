@@ -5,7 +5,7 @@
 
 PROG=   ibnetdiscover
 SRCS=   ibnetdiscover.c grouping.c ibdiag_common.c
-LIBADD= ibumad ibcommon ibmad osmcomp pthread
+LIBADD= ibumad ibcommon ibmad osmcomp
 CFLAGS+= -I${DIAGPATH}/include
 MAN=	ibnetdiscover.8
 

@@ -7,7 +7,7 @@ SRCS+=	_ctx_start.S _setjmp.S _set_tp.c alloca.S fabs.c \
 	arm_initfini.c \
 	trivial-getcontextx.c
 
-.if ${MACHINE_ARCH} == "armv6hf"
+.if ${MACHINE_ARCH:Marmv6*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 SRCS+=	fpgetmask_vfp.c fpgetround_vfp.c fpgetsticky_vfp.c fpsetmask_vfp.c \
 	fpsetround_vfp.c fpsetsticky_vfp.c
 .endif

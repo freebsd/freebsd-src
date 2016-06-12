@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 TELNETDIR=	${.CURDIR}/../../contrib/telnet
 .PATH:		${TELNETDIR}/libtelnet
 

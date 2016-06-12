@@ -29,6 +29,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitset.h>
@@ -58,11 +61,22 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/vmparam.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ifq.h>
+#include <net/bpf.h>
+#include <net/ethernet.h>
+
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/sctp.h>
+#include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
+#include <netinet/udp.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -85,7 +99,6 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_NICVF);
 
 static void nicvf_free_snd_queue(struct nicvf *, struct snd_queue *);
-static int nicvf_tx_mbuf_locked(struct snd_queue *, struct mbuf *);
 static struct mbuf * nicvf_get_rcv_mbuf(struct nicvf *, struct cqe_rx_t *);
 static void nicvf_sq_disable(struct nicvf *, int);
 static void nicvf_sq_enable(struct nicvf *, struct snd_queue *, int);
@@ -93,6 +106,8 @@ static void nicvf_put_sq_desc(struct snd_queue *, int);
 static void nicvf_cmp_queue_config(struct nicvf *, struct queue_set *, int,
     boolean_t);
 static void nicvf_sq_free_used_descs(struct nicvf *, struct snd_queue *, int);
+
+static int nicvf_tx_mbuf_locked(struct snd_queue *, struct mbuf **);
 
 static void nicvf_rbdr_task(void *, int);
 static void nicvf_rbdr_task_nowait(void *, int);
@@ -624,10 +639,12 @@ nicvf_rcv_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
     struct cqe_rx_t *cqe_rx, int cqe_type)
 {
 	struct mbuf *mbuf;
+	struct rcv_queue *rq;
 	int rq_idx;
 	int err = 0;
 
 	rq_idx = cqe_rx->rq_idx;
+	rq = &nic->qs->rq[rq_idx];
 
 	/* Check for errors */
 	err = nicvf_check_cqe_rx_errs(nic, cq, cqe_rx);
@@ -646,6 +663,19 @@ nicvf_rcv_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 		return (0);
 	}
 
+	if (rq->lro_enabled &&
+	    ((cqe_rx->l3_type == L3TYPE_IPV4) && (cqe_rx->l4_type == L4TYPE_TCP)) &&
+	    (mbuf->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) ==
+            (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) {
+		/*
+		 * At this point it is known that there are no errors in the
+		 * packet. Attempt to LRO enqueue. Send to stack if no resources
+		 * or enqueue error.
+		 */
+		if ((rq->lro.lro_cnt != 0) &&
+		    (tcp_lro_rx(&rq->lro, mbuf, 0) == 0))
+			return (0);
+	}
 	/*
 	 * Push this packet to the stack later to avoid
 	 * unlocking completion task in the middle of work.
@@ -662,7 +692,7 @@ nicvf_rcv_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 	return (0);
 }
 
-static int
+static void
 nicvf_snd_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
     struct cqe_send_t *cqe_tx, int cqe_type)
 {
@@ -673,15 +703,10 @@ nicvf_snd_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 
 	mbuf = NULL;
 	sq = &nic->qs->sq[cqe_tx->sq_idx];
-	/* Avoid blocking here since we hold a non-sleepable NICVF_CMP_LOCK */
-	if (NICVF_TX_TRYLOCK(sq) == 0)
-		return (EAGAIN);
 
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, cqe_tx->sqe_ptr);
-	if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER) {
-		NICVF_TX_UNLOCK(sq);
-		return (0);
-	}
+	if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER)
+		return;
 
 	dprintf(nic->dev,
 	    "%s Qset #%d SQ #%d SQ ptr #%d subdesc count %d\n",
@@ -695,13 +720,10 @@ nicvf_snd_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 	if (mbuf != NULL) {
 		m_freem(mbuf);
 		sq->snd_buff[cqe_tx->sqe_ptr].mbuf = NULL;
+		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	}
 
 	nicvf_check_cqe_tx_errs(nic, cq, cqe_tx);
-	nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
-
-	NICVF_TX_UNLOCK(sq);
-	return (0);
 }
 
 static int
@@ -713,7 +735,11 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 	int cqe_count, cqe_head;
 	struct queue_set *qs = nic->qs;
 	struct cmp_queue *cq = &qs->cq[cq_idx];
+	struct snd_queue *sq = &qs->sq[cq_idx];
+	struct rcv_queue *rq;
 	struct cqe_rx_t *cq_desc;
+	struct lro_ctrl	*lro;
+	int rq_idx;
 	int cmp_err;
 
 	NICVF_CMP_LOCK(cq);
@@ -736,6 +762,8 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 		cq_desc = (struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head);
 		cqe_head++;
 		cqe_head &= (cq->dmem.q_len - 1);
+		/* Prefetch next CQ descriptor */
+		__builtin_prefetch((struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head));
 
 		dprintf(nic->dev, "CQ%d cq_desc->cqe_type %d\n", cq_idx,
 		    cq_desc->cqe_type);
@@ -753,16 +781,8 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 			work_done++;
 			break;
 		case CQE_TYPE_SEND:
-			cmp_err = nicvf_snd_pkt_handler(nic, cq,
-			    (void *)cq_desc, CQE_TYPE_SEND);
-			if (__predict_false(cmp_err != 0)) {
-				/*
-				 * Ups. Cannot finish now.
-				 * Let's try again later.
-				 */
-				goto done;
-			}
-
+			nicvf_snd_pkt_handler(nic, cq, (void *)cq_desc,
+			    CQE_TYPE_SEND);
 			tx_done++;
 			break;
 		case CQE_TYPE_INVALID:
@@ -786,8 +806,17 @@ done:
 	    ((if_getdrvflags(nic->ifp) & IFF_DRV_RUNNING) != 0)) {
 		/* Reenable TXQ if its stopped earlier due to SQ full */
 		if_setdrvflagbits(nic->ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
+		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
 	}
 out:
+	/*
+	 * Flush any outstanding LRO work
+	 */
+	rq_idx = cq_idx;
+	rq = &nic->qs->rq[rq_idx];
+	lro = &rq->lro;
+	tcp_lro_flush_all(lro);
+
 	NICVF_CMP_UNLOCK(cq);
 
 	ifp = nic->ifp;
@@ -845,7 +874,6 @@ nicvf_qs_err_task(void *arg, int pending)
 static void
 nicvf_cmp_task(void *arg, int pending)
 {
-	uint64_t cq_head;
 	struct cmp_queue *cq;
 	struct nicvf *nic;
 	int cmp_err;
@@ -855,11 +883,6 @@ nicvf_cmp_task(void *arg, int pending)
 
 	/* Handle CQ descriptors */
 	cmp_err = nicvf_cq_intr_handler(nic, cq->idx);
-	/* Re-enable interrupts */
-	cq_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD, cq->idx);
-	nicvf_clear_intr(nic, NICVF_INTR_CQ, cq->idx);
-	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_HEAD, cq->idx, cq_head);
-
 	if (__predict_false(cmp_err != 0)) {
 		/*
 		 * Schedule another thread here since we did not
@@ -869,6 +892,7 @@ nicvf_cmp_task(void *arg, int pending)
 
 	}
 
+	nicvf_clear_intr(nic, NICVF_INTR_CQ, cq->idx);
 	/* Reenable interrupt (previously disabled in nicvf_intr_handler() */
 	nicvf_enable_intr(nic, NICVF_INTR_CQ, cq->idx);
 
@@ -896,7 +920,7 @@ nicvf_init_cmp_queue(struct nicvf *nic, struct cmp_queue *cq, int q_len,
 	}
 
 	cq->desc = cq->dmem.base;
-	cq->thresh = CMP_QUEUE_CQE_THRESH;
+	cq->thresh = pass1_silicon(nic->dev) ? 0 : CMP_QUEUE_CQE_THRESH;
 	cq->nic = nic;
 	cq->idx = qidx;
 	nic->cq_coalesce_usecs = (CMP_QUEUE_TIMER_THRESH * 0.05) - 1;
@@ -953,25 +977,62 @@ nicvf_free_cmp_queue(struct nicvf *nic, struct cmp_queue *cq)
 	memset(cq->mtx_name, 0, sizeof(cq->mtx_name));
 }
 
+int
+nicvf_xmit_locked(struct snd_queue *sq)
+{
+	struct nicvf *nic;
+	struct ifnet *ifp;
+	struct mbuf *next;
+	int err;
+
+	NICVF_TX_LOCK_ASSERT(sq);
+
+	nic = sq->nic;
+	ifp = nic->ifp;
+	err = 0;
+
+	while ((next = drbr_peek(ifp, sq->br)) != NULL) {
+		err = nicvf_tx_mbuf_locked(sq, &next);
+		if (err != 0) {
+			if (next == NULL)
+				drbr_advance(ifp, sq->br);
+			else
+				drbr_putback(ifp, sq->br, next);
+
+			break;
+		}
+		drbr_advance(ifp, sq->br);
+		/* Send a copy of the frame to the BPF listener */
+		ETHER_BPF_MTAP(ifp, next);
+	}
+	return (err);
+}
+
 static void
 nicvf_snd_task(void *arg, int pending)
 {
 	struct snd_queue *sq = (struct snd_queue *)arg;
-	struct mbuf *mbuf;
+	struct nicvf *nic;
+	struct ifnet *ifp;
+	int err;
+
+	nic = sq->nic;
+	ifp = nic->ifp;
+
+	/*
+	 * Skip sending anything if the driver is not running,
+	 * SQ full or link is down.
+	 */
+	if (((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) || !nic->link_up)
+		return;
 
 	NICVF_TX_LOCK(sq);
-	while (1) {
-		mbuf = drbr_dequeue(NULL, sq->br);
-		if (mbuf == NULL)
-			break;
-
-		if (nicvf_tx_mbuf_locked(sq, mbuf) != 0) {
-			/* XXX ARM64TODO: Increase Tx drop counter */
-			m_freem(mbuf);
-			break;
-		}
-	}
+	err = nicvf_xmit_locked(sq);
 	NICVF_TX_UNLOCK(sq);
+	/* Try again */
+	if (err != 0)
+		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
 }
 
 /* Initialize transmit queue */
@@ -1026,8 +1087,8 @@ nicvf_init_snd_queue(struct nicvf *nic, struct snd_queue *sq, int q_len,
 	    BUS_SPACE_MAXADDR,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL, NULL,				/* filtfunc, filtfuncarg */
-	    NICVF_TXBUF_MAXSIZE,		/* maxsize */
-	    NICVF_TXBUF_NSEGS,			/* nsegments */
+	    NICVF_TSO_MAXSIZE,			/* maxsize */
+	    NICVF_TSO_NSEGS,			/* nsegments */
 	    MCLBYTES,				/* maxsegsize */
 	    0,					/* flags */
 	    NULL, NULL,				/* lockfunc, lockfuncarg */
@@ -1228,16 +1289,37 @@ nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	union nic_mbx mbx = {};
 	struct rcv_queue *rq;
 	struct rq_cfg rq_cfg;
+	struct ifnet *ifp;
+	struct lro_ctrl	*lro;
+
+	ifp = nic->ifp;
 
 	rq = &qs->rq[qidx];
 	rq->enable = enable;
+
+	lro = &rq->lro;
 
 	/* Disable receive queue */
 	nicvf_queue_reg_write(nic, NIC_QSET_RQ_0_7_CFG, qidx, 0);
 
 	if (!rq->enable) {
 		nicvf_reclaim_rcv_queue(nic, qs, qidx);
+		/* Free LRO memory */
+		tcp_lro_free(lro);
+		rq->lro_enabled = FALSE;
 		return;
+	}
+
+	/* Configure LRO if enabled */
+	rq->lro_enabled = FALSE;
+	if ((if_getcapenable(ifp) & IFCAP_LRO) != 0) {
+		if (tcp_lro_init(lro) != 0) {
+			device_printf(nic->dev,
+			    "Failed to initialize LRO for RXQ%d\n", qidx);
+		} else {
+			rq->lro_enabled = TRUE;
+			lro->ifp = nic->ifp;
+		}
 	}
 
 	rq->cq_qs = qs->vnic_id;
@@ -1514,8 +1596,7 @@ nicvf_set_qset_resources(struct nicvf *nic)
 
 	/* Set count of each queue */
 	qs->rbdr_cnt = RBDR_CNT;
-	/* With no RSS we stay with single RQ */
-	qs->rq_cnt = 1;
+	qs->rq_cnt = RCV_QUEUE_CNT;
 
 	qs->sq_cnt = SND_QUEUE_CNT;
 	qs->cq_cnt = CMP_QUEUE_CNT;
@@ -1658,11 +1739,21 @@ nicvf_sq_free_used_descs(struct nicvf *nic, struct snd_queue *sq, int qidx)
  * Add SQ HEADER subdescriptor.
  * First subdescriptor for every send descriptor.
  */
-static __inline void
+static __inline int
 nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 			 int subdesc_cnt, struct mbuf *mbuf, int len)
 {
+	struct nicvf *nic;
 	struct sq_hdr_subdesc *hdr;
+	struct ether_vlan_header *eh;
+#ifdef INET
+	struct ip *ip;
+	struct tcphdr *th;
+#endif
+	uint16_t etype;
+	int ehdrlen, iphlen, poff;
+
+	nic = sq->nic;
 
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
 	sq->snd_buff[qentry].mbuf = mbuf;
@@ -1675,7 +1766,102 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 	hdr->subdesc_cnt = subdesc_cnt;
 	hdr->tot_len = len;
 
-	/* ARM64TODO: Implement HW checksums calculation */
+	eh = mtod(mbuf, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		etype = ntohs(eh->evl_proto);
+	} else {
+		ehdrlen = ETHER_HDR_LEN;
+		etype = ntohs(eh->evl_encap_proto);
+	}
+
+	switch (etype) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		/* ARM64TODO: Add support for IPv6 */
+		hdr->csum_l3 = 0;
+		sq->snd_buff[qentry].mbuf = NULL;
+		return (ENXIO);
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+		if (mbuf->m_len < ehdrlen + sizeof(struct ip)) {
+			mbuf = m_pullup(mbuf, ehdrlen + sizeof(struct ip));
+			sq->snd_buff[qentry].mbuf = mbuf;
+			if (mbuf == NULL)
+				return (ENOBUFS);
+		}
+
+		ip = (struct ip *)(mbuf->m_data + ehdrlen);
+		iphlen = ip->ip_hl << 2;
+		poff = ehdrlen + iphlen;
+
+		if (mbuf->m_pkthdr.csum_flags != 0) {
+			hdr->csum_l3 = 1; /* Enable IP csum calculation */
+			switch (ip->ip_p) {
+			case IPPROTO_TCP:
+				if ((mbuf->m_pkthdr.csum_flags & CSUM_TCP) == 0)
+					break;
+
+				if (mbuf->m_len < (poff + sizeof(struct tcphdr))) {
+					mbuf = m_pullup(mbuf, poff + sizeof(struct tcphdr));
+					sq->snd_buff[qentry].mbuf = mbuf;
+					if (mbuf == NULL)
+						return (ENOBUFS);
+				}
+				hdr->csum_l4 = SEND_L4_CSUM_TCP;
+				break;
+			case IPPROTO_UDP:
+				if ((mbuf->m_pkthdr.csum_flags & CSUM_UDP) == 0)
+					break;
+
+				if (mbuf->m_len < (poff + sizeof(struct udphdr))) {
+					mbuf = m_pullup(mbuf, poff + sizeof(struct udphdr));
+					sq->snd_buff[qentry].mbuf = mbuf;
+					if (mbuf == NULL)
+						return (ENOBUFS);
+				}
+				hdr->csum_l4 = SEND_L4_CSUM_UDP;
+				break;
+			case IPPROTO_SCTP:
+				if ((mbuf->m_pkthdr.csum_flags & CSUM_SCTP) == 0)
+					break;
+
+				if (mbuf->m_len < (poff + sizeof(struct sctphdr))) {
+					mbuf = m_pullup(mbuf, poff + sizeof(struct sctphdr));
+					sq->snd_buff[qentry].mbuf = mbuf;
+					if (mbuf == NULL)
+						return (ENOBUFS);
+				}
+				hdr->csum_l4 = SEND_L4_CSUM_SCTP;
+				break;
+			default:
+				break;
+			}
+			hdr->l3_offset = ehdrlen;
+			hdr->l4_offset = ehdrlen + iphlen;
+		}
+
+		if ((mbuf->m_pkthdr.tso_segsz != 0) && nic->hw_tso) {
+			/*
+			 * Extract ip again as m_data could have been modified.
+			 */
+			ip = (struct ip *)(mbuf->m_data + ehdrlen);
+			th = (struct tcphdr *)((caddr_t)ip + iphlen);
+
+			hdr->tso = 1;
+			hdr->tso_start = ehdrlen + iphlen + (th->th_off * 4);
+			hdr->tso_max_paysize = mbuf->m_pkthdr.tso_segsz;
+			hdr->inner_l3_offset = ehdrlen - 2;
+			nic->drv_stats.tx_tso++;
+		}
+		break;
+#endif
+	default:
+		hdr->csum_l3 = 0;
+	}
+
+	return (0);
 }
 
 /*
@@ -1699,13 +1885,13 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 
 /* Put an mbuf to a SQ for packet transfer. */
 static int
-nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
+nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf **mbufp)
 {
 	bus_dma_segment_t segs[256];
 	struct snd_buff *snd_buff;
 	size_t seg;
 	int nsegs, qentry;
-	int subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT - 1;
+	int subdesc_cnt;
 	int err;
 
 	NICVF_TX_LOCK_ASSERT(sq);
@@ -1716,15 +1902,16 @@ nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 	snd_buff = &sq->snd_buff[sq->tail];
 
 	err = bus_dmamap_load_mbuf_sg(sq->snd_buff_dmat, snd_buff->dmap,
-	    mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
-	if (err != 0) {
+	    *mbufp, segs, &nsegs, BUS_DMA_NOWAIT);
+	if (__predict_false(err != 0)) {
 		/* ARM64TODO: Add mbuf defragmenting if we lack maps */
+		m_freem(*mbufp);
+		*mbufp = NULL;
 		return (err);
 	}
 
 	/* Set how many subdescriptors is required */
-	subdesc_cnt += nsegs;
-
+	subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT + nsegs - 1;
 	if (subdesc_cnt > sq->free_cnt) {
 		/* ARM64TODO: Add mbuf defragmentation if we lack descriptors */
 		bus_dmamap_unload(sq->snd_buff_dmat, snd_buff->dmap);
@@ -1734,8 +1921,17 @@ nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 	qentry = nicvf_get_sq_desc(sq, subdesc_cnt);
 
 	/* Add SQ header subdesc */
-	nicvf_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, mbuf,
-	    mbuf->m_pkthdr.len);
+	err = nicvf_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, *mbufp,
+	    (*mbufp)->m_pkthdr.len);
+	if (err != 0) {
+		nicvf_put_sq_desc(sq, subdesc_cnt);
+		bus_dmamap_unload(sq->snd_buff_dmat, snd_buff->dmap);
+		if (err == ENOBUFS) {
+			m_freem(*mbufp);
+			*mbufp = NULL;
+		}
+		return (err);
+	}
 
 	/* Add SQ gather subdescs */
 	for (seg = 0; seg < nsegs; seg++) {
@@ -1806,6 +2002,29 @@ nicvf_get_rcv_mbuf(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 		m_fixhdr(mbuf);
 		mbuf->m_pkthdr.flowid = cqe_rx->rq_idx;
 		M_HASHTYPE_SET(mbuf, M_HASHTYPE_OPAQUE);
+		if (__predict_true((if_getcapenable(nic->ifp) & IFCAP_RXCSUM) != 0)) {
+			/*
+			 * HW by default verifies IP & TCP/UDP/SCTP checksums
+			 */
+			if (__predict_true(cqe_rx->l3_type == L3TYPE_IPV4)) {
+				mbuf->m_pkthdr.csum_flags =
+				    (CSUM_IP_CHECKED | CSUM_IP_VALID);
+			}
+
+			switch (cqe_rx->l4_type) {
+			case L4TYPE_UDP:
+			case L4TYPE_TCP: /* fall through */
+				mbuf->m_pkthdr.csum_flags |=
+				    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+				mbuf->m_pkthdr.csum_data = 0xffff;
+				break;
+			case L4TYPE_SCTP:
+				mbuf->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
 	return (mbuf);

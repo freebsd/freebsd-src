@@ -28,7 +28,7 @@
 .\"     @(#)fgetln.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd February 15, 2016
 .Dt FGETLN 3
 .Os
 .Sh NAME
@@ -97,6 +97,9 @@ These changes are lost as soon as the pointer becomes invalid.
 The argument
 .Fa stream
 is not a stream open for reading.
+.It Bq Er ENOMEM
+The internal line buffer could not be expanded due to lack of available memory,
+or because it would need to expand beyond INT_MAX in size.
 .El
 .Pp
 The
