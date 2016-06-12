@@ -34,15 +34,19 @@ char *copyright =
  */
 
 #include "os.h"
-#include <errno.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <ctype.h>
+
 #include <sys/jail.h>
 #include <sys/time.h>
+
+#include <ctype.h>
+#include <errno.h>
 #include <jail.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <unistd.h>
 
 /* includes specific to top */
+#include "commands.h"
 #include "display.h"		/* interface to display package */
 #include "screen.h"		/* interface to screen package */
 #include "top.h"
@@ -50,6 +54,7 @@ char *copyright =
 #include "boolean.h"
 #include "machine.h"
 #include "utils.h"
+#include "username.h"
 
 /* Size of the stdio buffer given to stdout */
 #define Buffersize	2048
@@ -114,38 +119,21 @@ caddr_t get_process_info();
 char *username();
 char *itoa7();
 
-/* display routines that need to be predeclared */
-int i_loadave();
-int u_loadave();
-int i_procstates();
-int u_procstates();
-int i_cpustates();
-int u_cpustates();
-int i_memory();
-int u_memory();
-int i_arc();
-int u_arc();
-int i_swap();
-int u_swap();
-int i_message();
-int u_message();
-int i_header();
-int u_header();
-int i_process();
-int u_process();
-
 /* pointers to display routines */
-int (*d_loadave)() = i_loadave;
-int (*d_procstates)() = i_procstates;
-int (*d_cpustates)() = i_cpustates;
-int (*d_memory)() = i_memory;
-int (*d_arc)() = i_arc;
-int (*d_swap)() = i_swap;
-int (*d_message)() = i_message;
-int (*d_header)() = i_header;
-int (*d_process)() = i_process;
+void (*d_loadave)() = i_loadave;
+void (*d_procstates)() = i_procstates;
+void (*d_cpustates)() = i_cpustates;
+void (*d_memory)() = i_memory;
+void (*d_arc)() = i_arc;
+void (*d_swap)() = i_swap;
+void (*d_message)() = i_message;
+void (*d_header)() = i_header;
+void (*d_process)() = i_process;
+
+void reset_display(void);
 
 
+int
 main(argc, argv)
 
 int  argc;
@@ -1178,6 +1166,7 @@ restart:
  *	screen will get redrawn.
  */
 
+void
 reset_display()
 
 {
