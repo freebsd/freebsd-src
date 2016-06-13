@@ -167,14 +167,12 @@ struct hn_txdesc {
 #define HN_TXD_FLAG_DMAMAP	0x2
 
 /*
- * A unified flag for all outbound check sum flags is useful,
- * and it helps avoiding unnecessary check sum calculation in
- * network forwarding scenario.
+ * Only enable UDP checksum offloading when it is on 2012R2 or
+ * later.  UDP checksum offloading doesn't work on earlier
+ * Windows releases.
  */
-#define HV_CSUM_FOR_OUTBOUND						\
-    (CSUM_IP|CSUM_IP_UDP|CSUM_IP_TCP|CSUM_IP_SCTP|CSUM_IP_TSO|		\
-    CSUM_IP_ISCSI|CSUM_IP6_UDP|CSUM_IP6_TCP|CSUM_IP6_SCTP|		\
-    CSUM_IP6_TSO|CSUM_IP6_ISCSI)
+#define HN_CSUM_ASSIST_WIN8	(CSUM_TCP)
+#define HN_CSUM_ASSIST		(CSUM_IP | CSUM_UDP | CSUM_TCP)
 
 /* XXX move to netinet/tcp_lro.h */
 #define HN_LRO_HIWAT_MAX				65535
@@ -212,6 +210,14 @@ int hv_promisc_mode = 0;    /* normal mode by default */
 static int hn_trust_hosttcp = 1;
 TUNABLE_INT("dev.hn.trust_hosttcp", &hn_trust_hosttcp);
 
+/* Trust udp datagrams verification on host side. */
+static int hn_trust_hostudp = 1;
+TUNABLE_INT("dev.hn.trust_hostudp", &hn_trust_hostudp);
+
+/* Trust ip packets verification on host side. */
+static int hn_trust_hostip = 1;
+TUNABLE_INT("dev.hn.trust_hostip", &hn_trust_hostip);
+
 #if __FreeBSD_version >= 1100045
 /* Limit TSO burst size */
 static int hn_tso_maxlen = 0;
@@ -241,6 +247,7 @@ static void hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 #ifdef HN_LRO_HIWAT
 static int hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
+static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *sc);
@@ -255,62 +262,6 @@ hn_set_lro_hiwat(struct hn_softc *sc, int hiwat)
 #ifdef HN_LRO_HIWAT
 	sc->hn_lro.lro_hiwat = sc->hn_lro_hiwat;
 #endif
-}
-
-/*
- * NetVsc get message transport protocol type 
- */
-static uint32_t get_transport_proto_type(struct mbuf *m_head)
-{
-	uint32_t ret_val = TRANSPORT_TYPE_NOT_IP;
-	uint16_t ether_type = 0;
-	int ether_len = 0;
-	struct ether_vlan_header *eh;
-#ifdef INET
-	struct ip *iph;
-#endif
-#ifdef INET6
-	struct ip6_hdr *ip6;
-#endif
-
-	eh = mtod(m_head, struct ether_vlan_header*);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		ether_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-		ether_type = eh->evl_proto;
-	} else {
-		ether_len = ETHER_HDR_LEN;
-		ether_type = eh->evl_encap_proto;
-	}
-
-	switch (ntohs(ether_type)) {
-#ifdef INET6
-	case ETHERTYPE_IPV6:
-		ip6 = (struct ip6_hdr *)(m_head->m_data + ether_len);
-
-		if (IPPROTO_TCP == ip6->ip6_nxt) {
-			ret_val = TRANSPORT_TYPE_IPV6_TCP;
-		} else if (IPPROTO_UDP == ip6->ip6_nxt) {
-			ret_val = TRANSPORT_TYPE_IPV6_UDP;
-		}
-		break;
-#endif
-#ifdef INET
-	case ETHERTYPE_IP:
-		iph = (struct ip *)(m_head->m_data + ether_len);
-
-		if (IPPROTO_TCP == iph->ip_p) {
-			ret_val = TRANSPORT_TYPE_IPV4_TCP;
-		} else if (IPPROTO_UDP == iph->ip_p) {
-			ret_val = TRANSPORT_TYPE_IPV4_UDP;
-		}
-		break;
-#endif
-	default:
-		ret_val = TRANSPORT_TYPE_NOT_IP;
-		break;
-	}
-
-	return (ret_val);
 }
 
 static int
@@ -393,8 +344,13 @@ netvsc_attach(device_t dev)
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
 	sc->hn_lro_hiwat = HN_LRO_HIWAT_DEF;
-	sc->hn_trust_hosttcp = hn_trust_hosttcp;
 	sc->hn_direct_tx_size = hn_direct_tx_size;
+	if (hn_trust_hosttcp)
+		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_TCP;
+	if (hn_trust_hostudp)
+		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_UDP;
+	if (hn_trust_hostip)
+		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
 
 	sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
@@ -444,15 +400,12 @@ netvsc_attach(device_t dev)
 	ifp->if_capenable |=
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
 	    IFCAP_LRO;
-	/*
-	 * Only enable UDP checksum offloading when it is on 2012R2 or
-	 * later. UDP checksum offloading doesn't work on earlier
-	 * Windows releases.
-	 */
+
 	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
-		ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
+		sc->hn_csum_assist = HN_CSUM_ASSIST;
 	else
-		ifp->if_hwassist = CSUM_TCP | CSUM_TSO;
+		sc->hn_csum_assist = HN_CSUM_ASSIST_WIN8;
+	ifp->if_hwassist = sc->hn_csum_assist | CSUM_TSO;
 
 	error = hv_rf_on_device_add(device_ctx, &device_info);
 	if (error)
@@ -509,17 +462,30 @@ netvsc_attach(device_t dev)
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_hiwat_sysctl,
 	    "I", "LRO high watermark");
 #endif
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "trust_hosttcp",
-	    CTLFLAG_RW, &sc->hn_trust_hosttcp, 0,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
+	    hn_trust_hcsum_sysctl, "I",
 	    "Trust tcp segement verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostudp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_UDP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust udp datagram verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostip",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_IP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust ip packet verification on host side, "
 	    "when csum info is missing");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_ip",
 	    CTLFLAG_RW, &sc->hn_csum_ip, "RXCSUM IP");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_tcp",
 	    CTLFLAG_RW, &sc->hn_csum_tcp, "RXCSUM TCP");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_udp",
+	    CTLFLAG_RW, &sc->hn_csum_udp, "RXCSUM UDP");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_trusted",
 	    CTLFLAG_RW, &sc->hn_csum_trusted,
-	    "# of TCP segements that we trust host's csum verification");
+	    "# of packets that we trust host's csum verification");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "small_pkts",
 	    CTLFLAG_RW, &sc->hn_small_pkts, "# of small packets received");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_txdescs",
@@ -561,6 +527,14 @@ netvsc_attach(device_t dev)
 		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hosttcp",
 		    CTLFLAG_RD, &hn_trust_hosttcp, 0,
 		    "Trust tcp segement verification on host side, "
+		    "when csum info is missing (global setting)");
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hostudp",
+		    CTLFLAG_RD, &hn_trust_hostudp, 0,
+		    "Trust udp datagram verification on host side, "
+		    "when csum info is missing (global setting)");
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hostip",
+		    CTLFLAG_RD, &hn_trust_hostip, 0,
+		    "Trust ip packet verification on host side, "
 		    "when csum info is missing (global setting)");
 		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tx_chimney_size",
 		    CTLFLAG_RD, &hn_tx_chimney_size, 0,
@@ -778,16 +752,13 @@ hn_start_locked(struct ifnet *ifp, int len)
 	hn_softc_t *sc = ifp->if_softc;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	netvsc_dev *net_dev = sc->net_dev;
-	struct ether_vlan_header *eh;
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
 	rndis_per_packet_info *rppi;
 	ndis_8021q_info *rppi_vlan_info;
 	rndis_tcp_ip_csum_info *csum_info;
 	rndis_tcp_tso_info *tso_info;	
-	int ether_len;
 	uint32_t rndis_msg_size = 0;
-	uint32_t trans_proto_type;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
@@ -867,101 +838,81 @@ hn_start_locked(struct ifnet *ifp, int len)
 			    m_head->m_pkthdr.ether_vtag & 0xfff;
 		}
 
-		/* Only check the flags for outbound and ignore the ones for inbound */
-		if (0 == (m_head->m_pkthdr.csum_flags & HV_CSUM_FOR_OUTBOUND)) {
-			goto pre_send;
-		}
-
-		eh = mtod(m_head, struct ether_vlan_header*);
-		if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-			ether_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-		} else {
-			ether_len = ETHER_HDR_LEN;
-		}
-
-		trans_proto_type = get_transport_proto_type(m_head);
-		if (TRANSPORT_TYPE_NOT_IP == trans_proto_type) {
-			goto pre_send;
-		}
-
-		/*
-		 * TSO packet needless to setup the send side checksum
-		 * offload.
-		 */
 		if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-			goto do_tso;
-		}
+			struct ether_vlan_header *eh;
+			int ether_len;
 
-		/* setup checksum offload */
-		rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
-		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_CSUM_PPI_SIZE,
-		    tcpip_chksum_info);
-		csum_info = (rndis_tcp_ip_csum_info *)((char*)rppi +
-		    rppi->per_packet_info_offset);
+			eh = mtod(m_head, struct ether_vlan_header*);
+			if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+				ether_len = ETHER_HDR_LEN +
+				    ETHER_VLAN_ENCAP_LEN;
+			} else {
+				ether_len = ETHER_HDR_LEN;
+			}
 
-		if (trans_proto_type & (TYPE_IPV4 << 16)) {
-			csum_info->xmit.is_ipv4 = 1;
-		} else {
-			csum_info->xmit.is_ipv6 = 1;
-		}
+			rndis_msg_size += RNDIS_TSO_PPI_SIZE;
+			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_TSO_PPI_SIZE,
+			    tcp_large_send_info);
 
-		if (trans_proto_type & TYPE_TCP) {
-			csum_info->xmit.tcp_csum = 1;
-			csum_info->xmit.tcp_header_offset = 0;
-		} else if (trans_proto_type & TYPE_UDP) {
-			csum_info->xmit.udp_csum = 1;
-		}
+			tso_info = (rndis_tcp_tso_info *)((char *)rppi +
+			    rppi->per_packet_info_offset);
+			tso_info->lso_v2_xmit.type =
+			    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
 
-		goto pre_send;
-
-do_tso:
-		/* setup TCP segmentation offload */
-		rndis_msg_size += RNDIS_TSO_PPI_SIZE;
-		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_TSO_PPI_SIZE,
-		    tcp_large_send_info);
-		
-		tso_info = (rndis_tcp_tso_info *)((char *)rppi +
-		    rppi->per_packet_info_offset);
-		tso_info->lso_v2_xmit.type =
-		    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
-		
 #ifdef INET
-		if (trans_proto_type & (TYPE_IPV4 << 16)) {
-			struct ip *ip =
-			    (struct ip *)(m_head->m_data + ether_len);
-			unsigned long iph_len = ip->ip_hl << 2;
-			struct tcphdr *th =
-			    (struct tcphdr *)((caddr_t)ip + iph_len);
-		
-			tso_info->lso_v2_xmit.ip_version =
-			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
-			ip->ip_len = 0;
-			ip->ip_sum = 0;
-		
-			th->th_sum = in_pseudo(ip->ip_src.s_addr,
-			    ip->ip_dst.s_addr,
-			    htons(IPPROTO_TCP));
-		}
+			if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
+				struct ip *ip =
+				    (struct ip *)(m_head->m_data + ether_len);
+				unsigned long iph_len = ip->ip_hl << 2;
+				struct tcphdr *th =
+				    (struct tcphdr *)((caddr_t)ip + iph_len);
+			
+				tso_info->lso_v2_xmit.ip_version =
+				    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
+				ip->ip_len = 0;
+				ip->ip_sum = 0;
+			
+				th->th_sum = in_pseudo(ip->ip_src.s_addr,
+				    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+			}
 #endif
 #if defined(INET6) && defined(INET)
-		else
+			else
 #endif
 #ifdef INET6
-		{
-			struct ip6_hdr *ip6 =
-			    (struct ip6_hdr *)(m_head->m_data + ether_len);
-			struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
+			{
+				struct ip6_hdr *ip6 = (struct ip6_hdr *)
+				    (m_head->m_data + ether_len);
+				struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
 
-			tso_info->lso_v2_xmit.ip_version =
-			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
-			ip6->ip6_plen = 0;
-			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
-		}
+				tso_info->lso_v2_xmit.ip_version =
+				    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
+				ip6->ip6_plen = 0;
+				th->th_sum =
+				    in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+			}
 #endif
-		tso_info->lso_v2_xmit.tcp_header_offset = 0;
-		tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
+			tso_info->lso_v2_xmit.tcp_header_offset = 0;
+			tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
+		} else if (m_head->m_pkthdr.csum_flags & sc->hn_csum_assist) {
+			rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
+			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_CSUM_PPI_SIZE,
+			    tcpip_chksum_info);
+			csum_info = (rndis_tcp_ip_csum_info *)((char*)rppi +
+			    rppi->per_packet_info_offset);
 
-pre_send:
+			csum_info->xmit.is_ipv4 = 1;
+			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+				csum_info->xmit.ip_header_csum = 1;
+
+			if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
+				csum_info->xmit.tcp_csum = 1;
+				csum_info->xmit.tcp_header_offset = 0;
+			} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
+				csum_info->xmit.udp_csum = 1;
+			}
+		}
+
 		rndis_mesg->msg_len = packet->tot_data_buf_len + rndis_msg_size;
 		packet->tot_data_buf_len = rndis_mesg->msg_len;
 
@@ -1191,7 +1142,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 	struct mbuf *m_new;
 	struct ifnet *ifp;
 	device_t dev = device_ctx->device;
-	int size, do_lro = 0;
+	int size, do_lro = 0, do_csum = 1;
 
 	if (sc == NULL) {
 		return (0); /* TODO: KYS how can this be! */
@@ -1241,21 +1192,28 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 	}
 	m_new->m_pkthdr.rcvif = ifp;
 
+	if (__predict_false((ifp->if_capenable & IFCAP_RXCSUM) == 0))
+		do_csum = 0;
+
 	/* receive side checksum offload */
-	if (NULL != csum_info) {
+	if (csum_info != NULL) {
 		/* IP csum offload */
-		if (csum_info->receive.ip_csum_succeeded) {
+		if (csum_info->receive.ip_csum_succeeded && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			sc->hn_csum_ip++;
 		}
 
-		/* TCP csum offload */
-		if (csum_info->receive.tcp_csum_succeeded) {
+		/* TCP/UDP csum offload */
+		if ((csum_info->receive.tcp_csum_succeeded ||
+		     csum_info->receive.udp_csum_succeeded) && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
-			sc->hn_csum_tcp++;
+			if (csum_info->receive.tcp_csum_succeeded)
+				sc->hn_csum_tcp++;
+			else
+				sc->hn_csum_udp++;
 		}
 
 		if (csum_info->receive.ip_csum_succeeded &&
@@ -1286,7 +1244,8 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 
 			pr = hn_check_iplen(m_new, hoff);
 			if (pr == IPPROTO_TCP) {
-				if (sc->hn_trust_hosttcp) {
+				if (do_csum &&
+				    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_TCP)) {
 					sc->hn_csum_trusted++;
 					m_new->m_pkthdr.csum_flags |=
 					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
@@ -1295,6 +1254,20 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 				}
 				/* Rely on SW csum verification though... */
 				do_lro = 1;
+			} else if (pr == IPPROTO_UDP) {
+				if (do_csum &&
+				    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_UDP)) {
+					sc->hn_csum_trusted++;
+					m_new->m_pkthdr.csum_flags |=
+					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
+					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+					m_new->m_pkthdr.csum_data = 0xffff;
+				}
+			} else if (pr != IPPROTO_DONE && do_csum &&
+			    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
+				sc->hn_csum_trusted++;
+				m_new->m_pkthdr.csum_flags |=
+				    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			}
 		}
 	}
@@ -1508,47 +1481,40 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = 0;
 		break;
 	case SIOCSIFCAP:
+		NV_LOCK(sc);
+
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
-			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_TXCSUM;
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
-			} else {
-				ifp->if_capenable |= IFCAP_TXCSUM;
-				/*
-				 * Only enable UDP checksum offloading on
-				 * Windows Server 2012R2 or later releases.
-				 */
-				if (hv_vmbus_protocal_version >=
-				    HV_VMBUS_VERSION_WIN8_1) {
-					ifp->if_hwassist |=
-					    (CSUM_TCP | CSUM_UDP);
-				} else {
-					ifp->if_hwassist |= CSUM_TCP;
-				}
-			}
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if (ifp->if_capenable & IFCAP_TXCSUM)
+				ifp->if_hwassist |= sc->hn_csum_assist;
+			else
+				ifp->if_hwassist &= ~sc->hn_csum_assist;
 		}
 
-		if (mask & IFCAP_RXCSUM) {
-			if (IFCAP_RXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_RXCSUM;
-			} else {
-				ifp->if_capenable |= IFCAP_RXCSUM;
-			}
-		}
+		if (mask & IFCAP_RXCSUM)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+
 		if (mask & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
 
 		if (mask & IFCAP_TSO4) {
 			ifp->if_capenable ^= IFCAP_TSO4;
-			ifp->if_hwassist ^= CSUM_IP_TSO;
+			if (ifp->if_capenable & IFCAP_TSO4)
+				ifp->if_hwassist |= CSUM_IP_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_IP_TSO;
 		}
 
 		if (mask & IFCAP_TSO6) {
 			ifp->if_capenable ^= IFCAP_TSO6;
-			ifp->if_hwassist ^= CSUM_IP6_TSO;
+			if (ifp->if_capenable & IFCAP_TSO6)
+				ifp->if_hwassist |= CSUM_IP6_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_IP6_TSO;
 		}
 
+		NV_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -1735,6 +1701,30 @@ hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 #endif	/* HN_LRO_HIWAT */
+
+static int
+hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int hcsum = arg2;
+	int on, error;
+
+	on = 0;
+	if (sc->hn_trust_hcsum & hcsum)
+		on = 1;
+
+	error = sysctl_handle_int(oidp, &on, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	NV_LOCK(sc);
+	if (on)
+		sc->hn_trust_hcsum |= hcsum;
+	else
+		sc->hn_trust_hcsum &= ~hcsum;
+	NV_UNLOCK(sc);
+	return 0;
+}
 
 static int
 hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS)
