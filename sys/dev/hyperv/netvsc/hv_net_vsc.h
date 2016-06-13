@@ -1026,11 +1026,12 @@ struct hn_tx_ring {
 #endif
 	int		hn_txdesc_cnt;
 	int		hn_txdesc_avail;
-	int		hn_txeof;
+	int		hn_has_txeof;
 
 	int		hn_sched_tx;
+	void		(*hn_txeof)(struct hn_tx_ring *);
 	struct taskqueue *hn_tx_taskq;
-	struct task	hn_start_task;
+	struct task	hn_tx_task;
 	struct task	hn_txeof_task;
 
 	struct mtx	hn_tx_lock;
@@ -1087,7 +1088,6 @@ typedef struct hn_softc {
 extern int hv_promisc_mode;
 
 void netvsc_linkstatus_callback(struct hv_device *device_obj, uint32_t status);
-void netvsc_xmit_completion(void *context);
 void hv_nv_on_receive_completion(struct hv_device *device,
     uint64_t tid, uint32_t status);
 netvsc_dev *hv_nv_on_device_add(struct hv_device *device,
