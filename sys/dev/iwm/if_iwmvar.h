@@ -289,6 +289,7 @@ struct iwm_rx_ring {
 	uint32_t		*desc;
 	struct iwm_rb_status	*stat;
 	struct iwm_rx_data	data[IWM_RX_RING_COUNT];
+	bus_dmamap_t		spare_map;	/* for iwm_rx_addbuf() */
 	bus_dma_tag_t           data_dmat;
 	int			cur;
 };
