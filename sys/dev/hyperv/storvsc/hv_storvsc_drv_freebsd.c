@@ -1561,13 +1561,12 @@ static void
 storvsc_destroy_bounce_buffer(struct sglist *sgl)
 {
 	struct hv_sgl_node *sgl_node = NULL;
-
-	sgl_node = LIST_FIRST(&g_hv_sgl_page_pool.in_use_sgl_list);
-	LIST_REMOVE(sgl_node, link);
-	if (NULL == sgl_node) {
+	if (LIST_EMPTY(&g_hv_sgl_page_pool.in_use_sgl_list)) {
 		printf("storvsc error: not enough in use sgl\n");
 		return;
 	}
+	sgl_node = LIST_FIRST(&g_hv_sgl_page_pool.in_use_sgl_list);
+	LIST_REMOVE(sgl_node, link);
 	sgl_node->sgl_data = sgl;
 	LIST_INSERT_HEAD(&g_hv_sgl_page_pool.free_sgl_list, sgl_node, link);
 }
@@ -1593,12 +1592,12 @@ storvsc_create_bounce_buffer(uint16_t seg_count, int write)
 	struct hv_sgl_node *sgl_node = NULL;	
 
 	/* get struct sglist from free_sgl_list */
-	sgl_node = LIST_FIRST(&g_hv_sgl_page_pool.free_sgl_list);
-	LIST_REMOVE(sgl_node, link);
-	if (NULL == sgl_node) {
+	if (LIST_EMPTY(&g_hv_sgl_page_pool.free_sgl_list)) {
 		printf("storvsc error: not enough free sgl\n");
 		return NULL;
 	}
+	sgl_node = LIST_FIRST(&g_hv_sgl_page_pool.free_sgl_list);
+	LIST_REMOVE(sgl_node, link);
 	bounce_sgl = sgl_node->sgl_data;
 	LIST_INSERT_HEAD(&g_hv_sgl_page_pool.in_use_sgl_list, sgl_node, link);
 
