@@ -294,9 +294,10 @@ static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
 #if __FreeBSD_version < 1100095
 static int hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS);
+#else
+static int hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
 static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
-static int hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
@@ -1825,6 +1826,33 @@ hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	return 0;
 }
+#else
+static int
+hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error;
+	struct hn_rx_ring *rxr;
+	uint64_t stat;
+
+	stat = 0;
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		stat += *((uint64_t *)((uint8_t *)rxr + ofs));
+	}
+
+	error = sysctl_handle_64(oidp, &stat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	/* Zero out this stat. */
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		*((uint64_t *)((uint8_t *)rxr + ofs)) = 0;
+	}
+	return 0;
+}
+
 #endif
 
 static int
@@ -1849,32 +1877,6 @@ hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 		*((u_long *)((uint8_t *)rxr + ofs)) = 0;
-	}
-	return 0;
-}
-
-static int
-hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	struct hn_softc *sc = arg1;
-	int ofs = arg2, i, error;
-	struct hn_rx_ring *rxr;
-	uint64_t stat;
-
-	stat = 0;
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
-		rxr = &sc->hn_rx_ring[i];
-		stat += *((uint64_t *)((uint8_t *)rxr + ofs));
-	}
-
-	error = sysctl_handle_64(oidp, &stat, 0, req);
-	if (error || req->newptr == NULL)
-		return error;
-
-	/* Zero out this stat. */
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
-		rxr = &sc->hn_rx_ring[i];
-		*((uint64_t *)((uint8_t *)rxr + ofs)) = 0;
 	}
 	return 0;
 }
