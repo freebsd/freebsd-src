@@ -153,7 +153,7 @@ __FBSDID("$FreeBSD$");
 struct hn_txdesc {
 	SLIST_ENTRY(hn_txdesc) link;
 	struct mbuf	*m;
-	struct hn_softc	*sc;
+	struct hn_tx_ring *txr;
 	int		refs;
 	uint32_t	flags;		/* HN_TXD_FLAG_ */
 	netvsc_packet	netvsc_pkt;	/* XXX to be removed */
@@ -193,7 +193,6 @@ struct hn_txdesc {
 #define NV_LOCK_INIT(_sc, _name) \
 	    mtx_init(&(_sc)->hn_lock, _name, MTX_NETWORK_LOCK, MTX_DEF)
 #define NV_LOCK(_sc)		mtx_lock(&(_sc)->hn_lock)
-#define NV_TRYLOCK(_sc)		mtx_trylock(&(_sc)->hn_lock)
 #define NV_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->hn_lock, MA_OWNED)
 #define NV_UNLOCK(_sc)		mtx_unlock(&(_sc)->hn_lock)
 #define NV_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->hn_lock)
@@ -205,41 +204,57 @@ struct hn_txdesc {
 
 int hv_promisc_mode = 0;    /* normal mode by default */
 
+SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD, NULL, "Hyper-V network interface");
+
 /* Trust tcp segements verification on host side. */
 static int hn_trust_hosttcp = 1;
-TUNABLE_INT("dev.hn.trust_hosttcp", &hn_trust_hosttcp);
+SYSCTL_INT(_hw_hn, OID_AUTO, trust_hosttcp, CTLFLAG_RDTUN,
+    &hn_trust_hosttcp, 0,
+    "Trust tcp segement verification on host side, "
+    "when csum info is missing (global setting)");
 
 /* Trust udp datagrams verification on host side. */
 static int hn_trust_hostudp = 1;
-TUNABLE_INT("dev.hn.trust_hostudp", &hn_trust_hostudp);
+SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostudp, CTLFLAG_RDTUN,
+    &hn_trust_hostudp, 0,
+    "Trust udp datagram verification on host side, "
+    "when csum info is missing (global setting)");
 
 /* Trust ip packets verification on host side. */
 static int hn_trust_hostip = 1;
-TUNABLE_INT("dev.hn.trust_hostip", &hn_trust_hostip);
+SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostip, CTLFLAG_RDTUN,
+    &hn_trust_hostip, 0,
+    "Trust ip packet verification on host side, "
+    "when csum info is missing (global setting)");
 
 #if __FreeBSD_version >= 1100045
 /* Limit TSO burst size */
 static int hn_tso_maxlen = 0;
-TUNABLE_INT("dev.hn.tso_maxlen", &hn_tso_maxlen);
+SYSCTL_INT(_hw_hn, OID_AUTO, tso_maxlen, CTLFLAG_RDTUN,
+    &hn_tso_maxlen, 0, "TSO burst limit");
 #endif
 
 /* Limit chimney send size */
 static int hn_tx_chimney_size = 0;
-TUNABLE_INT("dev.hn.tx_chimney_size", &hn_tx_chimney_size);
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_chimney_size, CTLFLAG_RDTUN,
+    &hn_tx_chimney_size, 0, "Chimney send packet size limit");
 
 /* Limit the size of packet for direct transmission */
 static int hn_direct_tx_size = HN_DIRECT_TX_SIZE_DEF;
-TUNABLE_INT("dev.hn.direct_tx_size", &hn_direct_tx_size);
+SYSCTL_INT(_hw_hn, OID_AUTO, direct_tx_size, CTLFLAG_RDTUN,
+    &hn_direct_tx_size, 0, "Size of the packet for direct transmission");
 
 #if defined(INET) || defined(INET6)
 #if __FreeBSD_version >= 1100095
 static int hn_lro_entry_count = HN_LROENT_CNT_DEF;
-TUNABLE_INT("dev.hn.lro_entry_count", &hn_lro_entry_count);
+SYSCTL_INT(_hw_hn, OID_AUTO, lro_entry_count, CTLFLAG_RDTUN,
+    &hn_lro_entry_count, 0, "LRO entry count");
 #endif
 #endif
 
 static int hn_share_tx_taskq = 0;
-TUNABLE_INT("hw.hn.share_tx_taskq", &hn_share_tx_taskq);
+SYSCTL_INT(_hw_hn, OID_AUTO, share_tx_taskq, CTLFLAG_RDTUN,
+    &hn_share_tx_taskq, 0, "Enable shared TX taskqueue");
 
 static struct taskqueue	*hn_tx_taskq;
 
@@ -250,9 +265,9 @@ static void hn_stop(hn_softc_t *sc);
 static void hn_ifinit_locked(hn_softc_t *sc);
 static void hn_ifinit(void *xsc);
 static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-static int hn_start_locked(struct ifnet *ifp, int len);
+static int hn_start_locked(struct hn_tx_ring *txr, int len);
 static void hn_start(struct ifnet *ifp);
-static void hn_start_txeof(struct ifnet *ifp);
+static void hn_start_txeof(struct hn_tx_ring *);
 static int hn_ifmedia_upd(struct ifnet *ifp);
 static void hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 #if __FreeBSD_version >= 1100099
@@ -261,12 +276,22 @@ static int hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
 static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
-static int hn_create_tx_ring(struct hn_softc *sc);
-static void hn_destroy_tx_ring(struct hn_softc *sc);
+static int hn_create_tx_ring(struct hn_softc *, int);
+static void hn_destroy_tx_ring(struct hn_tx_ring *);
+static int hn_create_tx_data(struct hn_softc *);
+static void hn_destroy_tx_data(struct hn_softc *);
 static void hn_start_taskfunc(void *xsc, int pending);
 static void hn_txeof_taskfunc(void *xsc, int pending);
-static int hn_encap(struct hn_softc *, struct hn_txdesc *, struct mbuf **);
+static void hn_stop_tx_tasks(struct hn_softc *);
+static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
+static void hn_create_rx_data(struct hn_softc *sc);
+static void hn_destroy_rx_data(struct hn_softc *sc);
+static void hn_set_tx_chimney_size(struct hn_softc *, int);
 
 static int
 hn_ifmedia_upd(struct ifnet *ifp __unused)
@@ -332,16 +357,9 @@ netvsc_attach(device_t dev)
 	hn_softc_t *sc;
 	int unit = device_get_unit(dev);
 	struct ifnet *ifp = NULL;
-	struct sysctl_oid_list *child;
-	struct sysctl_ctx_list *ctx;
 	int error;
 #if __FreeBSD_version >= 1100045
 	int tso_maxlen;
-#endif
-#if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
-	int lroent_cnt;
-#endif
 #endif
 
 	sc = device_get_softc(dev);
@@ -352,35 +370,27 @@ netvsc_attach(device_t dev)
 	bzero(sc, sizeof(hn_softc_t));
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
-	sc->hn_direct_tx_size = hn_direct_tx_size;
-	if (hn_trust_hosttcp)
-		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_TCP;
-	if (hn_trust_hostudp)
-		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_UDP;
-	if (hn_trust_hostip)
-		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
 
 	if (hn_tx_taskq == NULL) {
-		sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+		sc->hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
 		    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
 		taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET, "%s tx",
 		    device_get_nameunit(dev));
 	} else {
 		sc->hn_tx_taskq = hn_tx_taskq;
 	}
-	TASK_INIT(&sc->hn_start_task, 0, hn_start_taskfunc, sc);
-	TASK_INIT(&sc->hn_txeof_task, 0, hn_txeof_taskfunc, sc);
-
-	error = hn_create_tx_ring(sc);
-	if (error)
-		goto failed;
-
 	NV_LOCK_INIT(sc, "NetVSCLock");
 
 	sc->hn_dev_obj = device_ctx;
 
 	ifp = sc->hn_ifp = sc->arpcom.ac_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
+
+	error = hn_create_tx_data(sc);
+	if (error)
+		goto failed;
+
+	hn_create_rx_data(sc);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_dunit = unit;
@@ -412,12 +422,7 @@ netvsc_attach(device_t dev)
 	ifp->if_capenable |=
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
 	    IFCAP_LRO;
-
-	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
-		sc->hn_csum_assist = HN_CSUM_ASSIST;
-	else
-		sc->hn_csum_assist = HN_CSUM_ASSIST_WIN8;
-	ifp->if_hwassist = sc->hn_csum_assist | CSUM_TSO;
+	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
 
 	error = hv_rf_on_device_add(device_ctx, &device_info);
 	if (error)
@@ -426,24 +431,6 @@ netvsc_attach(device_t dev)
 	if (device_info.link_state == 0) {
 		sc->hn_carrier = 1;
 	}
-
-#if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
-	lroent_cnt = hn_lro_entry_count;
-	if (lroent_cnt < TCP_LRO_ENTRIES)
-		lroent_cnt = TCP_LRO_ENTRIES;
-	tcp_lro_init_args(&sc->hn_lro, ifp, lroent_cnt, 0);
-	device_printf(dev, "LRO: entry count %d\n", lroent_cnt);
-#else
-	tcp_lro_init(&sc->hn_lro);
-	/* Driver private LRO settings */
-	sc->hn_lro.ifp = ifp;
-#endif
-#if __FreeBSD_version >= 1100099
-	sc->hn_lro.lro_length_lim = HN_LRO_LENLIM_DEF;
-	sc->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
-#endif
-#endif	/* INET || INET6 */
 
 #if __FreeBSD_version >= 1100045
 	tso_maxlen = hn_tso_maxlen;
@@ -464,134 +451,14 @@ netvsc_attach(device_t dev)
 #endif
 
 	sc->hn_tx_chimney_max = sc->net_dev->send_section_size;
-	sc->hn_tx_chimney_size = sc->hn_tx_chimney_max;
+	hn_set_tx_chimney_size(sc, sc->hn_tx_chimney_max);
 	if (hn_tx_chimney_size > 0 &&
 	    hn_tx_chimney_size < sc->hn_tx_chimney_max)
-		sc->hn_tx_chimney_size = hn_tx_chimney_size;
-
-	/*
-	 * Always schedule transmission instead of trying
-	 * to do direct transmission.  This one gives the
-	 * best performance so far.
-	 */
-	sc->hn_sched_tx = 1;
-
-	ctx = device_get_sysctl_ctx(dev);
-	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "lro_queued",
-	    CTLFLAG_RW, &sc->hn_lro.lro_queued, 0, "LRO queued");
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "lro_flushed",
-	    CTLFLAG_RW, &sc->hn_lro.lro_flushed, 0, "LRO flushed");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "lro_tried",
-	    CTLFLAG_RW, &sc->hn_lro_tried, "# of LRO tries");
-#if __FreeBSD_version >= 1100099
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_length_lim",
-	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_lro_lenlim_sysctl, "IU",
-	    "Max # of data bytes to be aggregated by LRO");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_ackcnt_lim",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_ackcnt_sysctl, "I",
-	    "Max # of ACKs to be aggregated by LRO");
-#endif
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
-	    hn_trust_hcsum_sysctl, "I",
-	    "Trust tcp segement verification on host side, "
-	    "when csum info is missing");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostudp",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_UDP,
-	    hn_trust_hcsum_sysctl, "I",
-	    "Trust udp datagram verification on host side, "
-	    "when csum info is missing");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostip",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_IP,
-	    hn_trust_hcsum_sysctl, "I",
-	    "Trust ip packet verification on host side, "
-	    "when csum info is missing");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_ip",
-	    CTLFLAG_RW, &sc->hn_csum_ip, "RXCSUM IP");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_tcp",
-	    CTLFLAG_RW, &sc->hn_csum_tcp, "RXCSUM TCP");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_udp",
-	    CTLFLAG_RW, &sc->hn_csum_udp, "RXCSUM UDP");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_trusted",
-	    CTLFLAG_RW, &sc->hn_csum_trusted,
-	    "# of packets that we trust host's csum verification");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "small_pkts",
-	    CTLFLAG_RW, &sc->hn_small_pkts, "# of small packets received");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_txdescs",
-	    CTLFLAG_RW, &sc->hn_no_txdescs, "# of times short of TX descs");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "send_failed",
-	    CTLFLAG_RW, &sc->hn_send_failed, "# of hyper-v sending failure");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "txdma_failed",
-	    CTLFLAG_RW, &sc->hn_txdma_failed, "# of TX DMA failure");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_collapsed",
-	    CTLFLAG_RW, &sc->hn_tx_collapsed, "# of TX mbuf collapsed");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_chimney",
-	    CTLFLAG_RW, &sc->hn_tx_chimney, "# of chimney send");
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_cnt",
-	    CTLFLAG_RD, &sc->hn_txdesc_cnt, 0, "# of total TX descs");
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_avail",
-	    CTLFLAG_RD, &sc->hn_txdesc_avail, 0, "# of available TX descs");
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "tx_chimney_max",
-	    CTLFLAG_RD, &sc->hn_tx_chimney_max, 0,
-	    "Chimney send packet size upper boundary");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney_size",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_tx_chimney_size_sysctl,
-	    "I", "Chimney send packet size limit");
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "direct_tx_size",
-	    CTLFLAG_RW, &sc->hn_direct_tx_size, 0,
-	    "Size of the packet for direct transmission");
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "sched_tx",
-	    CTLFLAG_RW, &sc->hn_sched_tx, 0,
-	    "Always schedule transmission "
-	    "instead of doing direct transmission");
-
-	if (unit == 0) {
-		struct sysctl_ctx_list *dc_ctx;
-		struct sysctl_oid_list *dc_child;
-		devclass_t dc;
-
-		/*
-		 * Add sysctl nodes for devclass
-		 */
-		dc = device_get_devclass(dev);
-		dc_ctx = devclass_get_sysctl_ctx(dc);
-		dc_child = SYSCTL_CHILDREN(devclass_get_sysctl_tree(dc));
-
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hosttcp",
-		    CTLFLAG_RD, &hn_trust_hosttcp, 0,
-		    "Trust tcp segement verification on host side, "
-		    "when csum info is missing (global setting)");
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hostudp",
-		    CTLFLAG_RD, &hn_trust_hostudp, 0,
-		    "Trust udp datagram verification on host side, "
-		    "when csum info is missing (global setting)");
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hostip",
-		    CTLFLAG_RD, &hn_trust_hostip, 0,
-		    "Trust ip packet verification on host side, "
-		    "when csum info is missing (global setting)");
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tx_chimney_size",
-		    CTLFLAG_RD, &hn_tx_chimney_size, 0,
-		    "Chimney send packet size limit");
-#if __FreeBSD_version >= 1100045
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tso_maxlen",
-		    CTLFLAG_RD, &hn_tso_maxlen, 0, "TSO burst limit");
-#endif
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "direct_tx_size",
-		    CTLFLAG_RD, &hn_direct_tx_size, 0,
-		    "Size of the packet for direct transmission");
-#if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "lro_entry_count",
-		    CTLFLAG_RD, &hn_lro_entry_count, 0, "LRO entry count");
-#endif
-#endif
-	}
+		hn_set_tx_chimney_size(sc, hn_tx_chimney_size);
 
 	return (0);
 failed:
-	hn_destroy_tx_ring(sc);
+	hn_destroy_tx_data(sc);
 	if (ifp != NULL)
 		if_free(ifp);
 	return (error);
@@ -622,16 +489,14 @@ netvsc_detach(device_t dev)
 
 	hv_rf_on_device_remove(hv_device, HV_RF_NV_DESTROY_CHANNEL);
 
-	taskqueue_drain(sc->hn_tx_taskq, &sc->hn_start_task);
-	taskqueue_drain(sc->hn_tx_taskq, &sc->hn_txeof_task);
-	if (sc->hn_tx_taskq != hn_tx_taskq)
-		taskqueue_free(sc->hn_tx_taskq);
+	hn_stop_tx_tasks(sc);
 
 	ifmedia_removeall(&sc->hn_media);
-#if defined(INET) || defined(INET6)
-	tcp_lro_free(&sc->hn_lro);
-#endif
-	hn_destroy_tx_ring(sc);
+	hn_destroy_rx_data(sc);
+	hn_destroy_tx_data(sc);
+
+	if (sc->hn_tx_taskq != hn_tx_taskq)
+		taskqueue_free(sc->hn_tx_taskq);
 
 	return (0);
 }
@@ -646,13 +511,13 @@ netvsc_shutdown(device_t dev)
 }
 
 static __inline int
-hn_txdesc_dmamap_load(struct hn_softc *sc, struct hn_txdesc *txd,
+hn_txdesc_dmamap_load(struct hn_tx_ring *txr, struct hn_txdesc *txd,
     struct mbuf **m_head, bus_dma_segment_t *segs, int *nsegs)
 {
 	struct mbuf *m = *m_head;
 	int error;
 
-	error = bus_dmamap_load_mbuf_sg(sc->hn_tx_data_dtag, txd->data_dmap,
+	error = bus_dmamap_load_mbuf_sg(txr->hn_tx_data_dtag, txd->data_dmap,
 	    m, segs, nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		struct mbuf *m_new;
@@ -662,13 +527,13 @@ hn_txdesc_dmamap_load(struct hn_softc *sc, struct hn_txdesc *txd,
 			return ENOBUFS;
 		else
 			*m_head = m = m_new;
-		sc->hn_tx_collapsed++;
+		txr->hn_tx_collapsed++;
 
-		error = bus_dmamap_load_mbuf_sg(sc->hn_tx_data_dtag,
+		error = bus_dmamap_load_mbuf_sg(txr->hn_tx_data_dtag,
 		    txd->data_dmap, m, segs, nsegs, BUS_DMA_NOWAIT);
 	}
 	if (!error) {
-		bus_dmamap_sync(sc->hn_tx_data_dtag, txd->data_dmap,
+		bus_dmamap_sync(txr->hn_tx_data_dtag, txd->data_dmap,
 		    BUS_DMASYNC_PREWRITE);
 		txd->flags |= HN_TXD_FLAG_DMAMAP;
 	}
@@ -676,20 +541,20 @@ hn_txdesc_dmamap_load(struct hn_softc *sc, struct hn_txdesc *txd,
 }
 
 static __inline void
-hn_txdesc_dmamap_unload(struct hn_softc *sc, struct hn_txdesc *txd)
+hn_txdesc_dmamap_unload(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 {
 
 	if (txd->flags & HN_TXD_FLAG_DMAMAP) {
-		bus_dmamap_sync(sc->hn_tx_data_dtag,
+		bus_dmamap_sync(txr->hn_tx_data_dtag,
 		    txd->data_dmap, BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->hn_tx_data_dtag,
+		bus_dmamap_unload(txr->hn_tx_data_dtag,
 		    txd->data_dmap);
 		txd->flags &= ~HN_TXD_FLAG_DMAMAP;
 	}
 }
 
 static __inline int
-hn_txdesc_put(struct hn_softc *sc, struct hn_txdesc *txd)
+hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 {
 
 	KASSERT((txd->flags & HN_TXD_FLAG_ONLIST) == 0,
@@ -699,7 +564,7 @@ hn_txdesc_put(struct hn_softc *sc, struct hn_txdesc *txd)
 	if (atomic_fetchadd_int(&txd->refs, -1) != 1)
 		return 0;
 
-	hn_txdesc_dmamap_unload(sc, txd);
+	hn_txdesc_dmamap_unload(txr, txd);
 	if (txd->m != NULL) {
 		m_freem(txd->m);
 		txd->m = NULL;
@@ -707,31 +572,31 @@ hn_txdesc_put(struct hn_softc *sc, struct hn_txdesc *txd)
 
 	txd->flags |= HN_TXD_FLAG_ONLIST;
 
-	mtx_lock_spin(&sc->hn_txlist_spin);
-	KASSERT(sc->hn_txdesc_avail >= 0 &&
-	    sc->hn_txdesc_avail < sc->hn_txdesc_cnt,
-	    ("txdesc_put: invalid txd avail %d", sc->hn_txdesc_avail));
-	sc->hn_txdesc_avail++;
-	SLIST_INSERT_HEAD(&sc->hn_txlist, txd, link);
-	mtx_unlock_spin(&sc->hn_txlist_spin);
+	mtx_lock_spin(&txr->hn_txlist_spin);
+	KASSERT(txr->hn_txdesc_avail >= 0 &&
+	    txr->hn_txdesc_avail < txr->hn_txdesc_cnt,
+	    ("txdesc_put: invalid txd avail %d", txr->hn_txdesc_avail));
+	txr->hn_txdesc_avail++;
+	SLIST_INSERT_HEAD(&txr->hn_txlist, txd, link);
+	mtx_unlock_spin(&txr->hn_txlist_spin);
 
 	return 1;
 }
 
 static __inline struct hn_txdesc *
-hn_txdesc_get(struct hn_softc *sc)
+hn_txdesc_get(struct hn_tx_ring *txr)
 {
 	struct hn_txdesc *txd;
 
-	mtx_lock_spin(&sc->hn_txlist_spin);
-	txd = SLIST_FIRST(&sc->hn_txlist);
+	mtx_lock_spin(&txr->hn_txlist_spin);
+	txd = SLIST_FIRST(&txr->hn_txlist);
 	if (txd != NULL) {
-		KASSERT(sc->hn_txdesc_avail > 0,
-		    ("txdesc_get: invalid txd avail %d", sc->hn_txdesc_avail));
-		sc->hn_txdesc_avail--;
-		SLIST_REMOVE_HEAD(&sc->hn_txlist, link);
+		KASSERT(txr->hn_txdesc_avail > 0,
+		    ("txdesc_get: invalid txd avail %d", txr->hn_txdesc_avail));
+		txr->hn_txdesc_avail--;
+		SLIST_REMOVE_HEAD(&txr->hn_txlist, link);
 	}
-	mtx_unlock_spin(&sc->hn_txlist_spin);
+	mtx_unlock_spin(&txr->hn_txlist_spin);
 
 	if (txd != NULL) {
 		KASSERT(txd->m == NULL && txd->refs == 0 &&
@@ -763,22 +628,24 @@ netvsc_xmit_completion(void *context)
 {
 	netvsc_packet *packet = context;
 	struct hn_txdesc *txd;
-	struct hn_softc *sc;
+	struct hn_tx_ring *txr;
 
 	txd = (struct hn_txdesc *)(uintptr_t)
 	    packet->compl.send.send_completion_tid;
 
-	sc = txd->sc;
-	sc->hn_txeof = 1;
-	hn_txdesc_put(sc, txd);
+	txr = txd->txr;
+	txr->hn_txeof = 1;
+	hn_txdesc_put(txr, txd);
 }
 
 void
 netvsc_channel_rollup(struct hv_device *device_ctx)
 {
 	struct hn_softc *sc = device_get_softc(device_ctx->device);
+	struct hn_tx_ring *txr = &sc->hn_tx_ring[0]; /* TODO: vRSS */
 #if defined(INET) || defined(INET6)
-	struct lro_ctrl *lro = &sc->hn_lro;
+	struct hn_rx_ring *rxr = &sc->hn_rx_ring[0]; /* TODO: vRSS */
+	struct lro_ctrl *lro = &rxr->hn_lro;
 	struct lro_entry *queued;
 
 	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
@@ -787,11 +654,11 @@ netvsc_channel_rollup(struct hv_device *device_ctx)
 	}
 #endif
 
-	if (!sc->hn_txeof)
+	if (!txr->hn_txeof)
 		return;
 
-	sc->hn_txeof = 0;
-	hn_start_txeof(sc->hn_ifp);
+	txr->hn_txeof = 0;
+	hn_start_txeof(txr);
 }
 
 /*
@@ -799,7 +666,7 @@ netvsc_channel_rollup(struct hv_device *device_ctx)
  * If this function fails, then both txd and m_head0 will be freed.
  */
 static int
-hn_encap(struct hn_softc *sc, struct hn_txdesc *txd, struct mbuf **m_head0)
+hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 {
 	bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
 	int error, nsegs, i;
@@ -902,7 +769,7 @@ hn_encap(struct hn_softc *sc, struct hn_txdesc *txd, struct mbuf **m_head0)
 #endif
 		tso_info->lso_v2_xmit.tcp_header_offset = 0;
 		tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
-	} else if (m_head->m_pkthdr.csum_flags & sc->hn_csum_assist) {
+	} else if (m_head->m_pkthdr.csum_flags & txr->hn_csum_assist) {
 		rndis_tcp_ip_csum_info *csum_info;
 
 		rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
@@ -929,8 +796,8 @@ hn_encap(struct hn_softc *sc, struct hn_txdesc *txd, struct mbuf **m_head0)
 	/*
 	 * Chimney send, if the packet could fit into one chimney buffer.
 	 */
-	if (packet->tot_data_buf_len < sc->hn_tx_chimney_size) {
-		netvsc_dev *net_dev = sc->net_dev;
+	if (packet->tot_data_buf_len < txr->hn_tx_chimney_size) {
+		netvsc_dev *net_dev = txr->hn_sc->net_dev;
 		uint32_t send_buf_section_idx;
 
 		send_buf_section_idx =
@@ -949,12 +816,12 @@ hn_encap(struct hn_softc *sc, struct hn_txdesc *txd, struct mbuf **m_head0)
 			packet->send_buf_section_size =
 			    packet->tot_data_buf_len;
 			packet->page_buf_count = 0;
-			sc->hn_tx_chimney++;
+			txr->hn_tx_chimney++;
 			goto done;
 		}
 	}
 
-	error = hn_txdesc_dmamap_load(sc, txd, &m_head, segs, &nsegs);
+	error = hn_txdesc_dmamap_load(txr, txd, &m_head, segs, &nsegs);
 	if (error) {
 		int freed;
 
@@ -964,12 +831,12 @@ hn_encap(struct hn_softc *sc, struct hn_txdesc *txd, struct mbuf **m_head0)
 		m_freem(m_head);
 		*m_head0 = NULL;
 
-		freed = hn_txdesc_put(sc, txd);
+		freed = hn_txdesc_put(txr, txd);
 		KASSERT(freed != 0,
 		    ("fail to free txd upon txdma error"));
 
-		sc->hn_txdma_failed++;
-		if_inc_counter(sc->hn_ifp, IFCOUNTER_OERRORS, 1);
+		txr->hn_txdma_failed++;
+		if_inc_counter(txr->hn_sc->hn_ifp, IFCOUNTER_OERRORS, 1);
 		return error;
 	}
 	*m_head0 = m_head;
@@ -1012,10 +879,14 @@ done:
  * Start a transmit of one or more packets
  */
 static int
-hn_start_locked(struct ifnet *ifp, int len)
+hn_start_locked(struct hn_tx_ring *txr, int len)
 {
-	struct hn_softc *sc = ifp->if_softc;
+	struct hn_softc *sc = txr->hn_sc;
+	struct ifnet *ifp = sc->hn_ifp;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
+
+	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
+	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
@@ -1040,15 +911,15 @@ hn_start_locked(struct ifnet *ifp, int len)
 			return 1;
 		}
 
-		txd = hn_txdesc_get(sc);
+		txd = hn_txdesc_get(txr);
 		if (txd == NULL) {
-			sc->hn_no_txdescs++;
+			txr->hn_no_txdescs++;
 			IF_PREPEND(&ifp->if_snd, m_head);
 			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 			break;
 		}
 
-		error = hn_encap(sc, txd, &m_head);
+		error = hn_encap(txr, txd, &m_head);
 		if (error) {
 			/* Both txd and m_head are freed */
 			continue;
@@ -1063,7 +934,7 @@ again:
 			ETHER_BPF_MTAP(ifp, m_head);
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
-		hn_txdesc_put(sc, txd);
+		hn_txdesc_put(txr, txd);
 
 		if (__predict_false(error)) {
 			int freed;
@@ -1075,9 +946,9 @@ again:
 			 * commands to run?  Ask netvsc_channel_rollup()
 			 * to kick start later.
 			 */
-			sc->hn_txeof = 1;
+			txr->hn_txeof = 1;
 			if (!send_failed) {
-				sc->hn_send_failed++;
+				txr->hn_send_failed++;
 				send_failed = 1;
 				/*
 				 * Try sending again after set hn_txeof;
@@ -1094,11 +965,11 @@ again:
 			 * DMA map in hn_txdesc_put(), if it was loaded.
 			 */
 			txd->m = NULL;
-			freed = hn_txdesc_put(sc, txd);
+			freed = hn_txdesc_put(txr, txd);
 			KASSERT(freed != 0,
 			    ("fail to free txd upon send error"));
 
-			sc->hn_send_failed++;
+			txr->hn_send_failed++;
 			IF_PREPEND(&ifp->if_snd, m_head);
 			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 			break;
@@ -1194,10 +1065,10 @@ int
 netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
     rndis_tcp_ip_csum_info *csum_info)
 {
-	hn_softc_t *sc = (hn_softc_t *)device_get_softc(device_ctx->device);
+	struct hn_softc *sc = device_get_softc(device_ctx->device);
+	struct hn_rx_ring *rxr = &sc->hn_rx_ring[0]; /* TODO: vRSS */
 	struct mbuf *m_new;
 	struct ifnet *ifp;
-	device_t dev = device_ctx->device;
 	int size, do_lro = 0, do_csum = 1;
 
 	if (sc == NULL) {
@@ -1224,7 +1095,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 		memcpy(mtod(m_new, void *), packet->data,
 		    packet->tot_data_buf_len);
 		m_new->m_pkthdr.len = m_new->m_len = packet->tot_data_buf_len;
-		sc->hn_small_pkts++;
+		rxr->hn_small_pkts++;
 	} else {
 		/*
 		 * Get an mbuf with a cluster.  For packets 2K or less,
@@ -1240,7 +1111,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 
 		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 		if (m_new == NULL) {
-			device_printf(dev, "alloc mbuf failed.\n");
+			if_printf(ifp, "alloc mbuf failed.\n");
 			return (0);
 		}
 
@@ -1257,7 +1128,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 		if (csum_info->receive.ip_csum_succeeded && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
-			sc->hn_csum_ip++;
+			rxr->hn_csum_ip++;
 		}
 
 		/* TCP/UDP csum offload */
@@ -1267,9 +1138,9 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
 			if (csum_info->receive.tcp_csum_succeeded)
-				sc->hn_csum_tcp++;
+				rxr->hn_csum_tcp++;
 			else
-				sc->hn_csum_udp++;
+				rxr->hn_csum_udp++;
 		}
 
 		if (csum_info->receive.ip_csum_succeeded &&
@@ -1301,8 +1172,9 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 			pr = hn_check_iplen(m_new, hoff);
 			if (pr == IPPROTO_TCP) {
 				if (do_csum &&
-				    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_TCP)) {
-					sc->hn_csum_trusted++;
+				    (rxr->hn_trust_hcsum &
+				     HN_TRUST_HCSUM_TCP)) {
+					rxr->hn_csum_trusted++;
 					m_new->m_pkthdr.csum_flags |=
 					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
@@ -1312,16 +1184,17 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 				do_lro = 1;
 			} else if (pr == IPPROTO_UDP) {
 				if (do_csum &&
-				    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_UDP)) {
-					sc->hn_csum_trusted++;
+				    (rxr->hn_trust_hcsum &
+				     HN_TRUST_HCSUM_UDP)) {
+					rxr->hn_csum_trusted++;
 					m_new->m_pkthdr.csum_flags |=
 					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
 			} else if (pr != IPPROTO_DONE && do_csum &&
-			    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
-				sc->hn_csum_trusted++;
+			    (rxr->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
+				rxr->hn_csum_trusted++;
 				m_new->m_pkthdr.csum_flags |=
 				    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			}
@@ -1343,10 +1216,10 @@ skip:
 
 	if ((ifp->if_capenable & IFCAP_LRO) && do_lro) {
 #if defined(INET) || defined(INET6)
-		struct lro_ctrl *lro = &sc->hn_lro;
+		struct lro_ctrl *lro = &rxr->hn_lro;
 
 		if (lro->lro_cnt) {
-			sc->hn_lro_tried++;
+			rxr->hn_lro_tried++;
 			if (tcp_lro_rx(lro, m_new, 0) == 0) {
 				/* DONE! */
 				return 0;
@@ -1427,8 +1300,16 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * Make sure that LRO aggregation length limit is still
 		 * valid, after the MTU change.
 		 */
-		if (sc->hn_lro.lro_length_lim < HN_LRO_LENLIM_MIN(ifp))
-			sc->hn_lro.lro_length_lim = HN_LRO_LENLIM_MIN(ifp);
+		NV_LOCK(sc);
+		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
+		    HN_LRO_LENLIM_MIN(ifp)) {
+			int i;
+			for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+				sc->hn_rx_ring[i].hn_lro.lro_length_lim =
+				    HN_LRO_LENLIM_MIN(ifp);
+			}
+		}
+		NV_UNLOCK(sc);
 #endif
 
 		do {
@@ -1469,8 +1350,10 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		sc->hn_tx_chimney_max = sc->net_dev->send_section_size;
-		if (sc->hn_tx_chimney_size > sc->hn_tx_chimney_max)
-			sc->hn_tx_chimney_size = sc->hn_tx_chimney_max;
+		if (sc->hn_tx_ring[0].hn_tx_chimney_size >
+		    sc->hn_tx_chimney_max)
+			hn_set_tx_chimney_size(sc, sc->hn_tx_chimney_max);
+
 		hn_ifinit_locked(sc);
 
 		NV_LOCK(sc);
@@ -1535,10 +1418,13 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if (ifp->if_capenable & IFCAP_TXCSUM)
-				ifp->if_hwassist |= sc->hn_csum_assist;
-			else
-				ifp->if_hwassist &= ~sc->hn_csum_assist;
+			if (ifp->if_capenable & IFCAP_TXCSUM) {
+				ifp->if_hwassist |=
+				    sc->hn_tx_ring[0].hn_csum_assist;
+			} else {
+				ifp->if_hwassist &=
+				    ~sc->hn_tx_ring[0].hn_csum_assist;
+			}
 		}
 
 		if (mask & IFCAP_RXCSUM)
@@ -1621,50 +1507,54 @@ static void
 hn_start(struct ifnet *ifp)
 {
 	struct hn_softc *sc = ifp->if_softc;
+	struct hn_tx_ring *txr = &sc->hn_tx_ring[0];
 
-	if (sc->hn_sched_tx)
+	if (txr->hn_sched_tx)
 		goto do_sched;
 
-	if (NV_TRYLOCK(sc)) {
+	if (mtx_trylock(&txr->hn_tx_lock)) {
 		int sched;
 
-		sched = hn_start_locked(ifp, sc->hn_direct_tx_size);
-		NV_UNLOCK(sc);
+		sched = hn_start_locked(txr, txr->hn_direct_tx_size);
+		mtx_unlock(&txr->hn_tx_lock);
 		if (!sched)
 			return;
 	}
 do_sched:
-	taskqueue_enqueue_fast(sc->hn_tx_taskq, &sc->hn_start_task);
+	taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_start_task);
 }
 
 static void
-hn_start_txeof(struct ifnet *ifp)
+hn_start_txeof(struct hn_tx_ring *txr)
 {
-	struct hn_softc *sc = ifp->if_softc;
+	struct hn_softc *sc = txr->hn_sc;
+	struct ifnet *ifp = sc->hn_ifp;
 
-	if (sc->hn_sched_tx)
+	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
+
+	if (txr->hn_sched_tx)
 		goto do_sched;
 
-	if (NV_TRYLOCK(sc)) {
+	if (mtx_trylock(&txr->hn_tx_lock)) {
 		int sched;
 
 		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-		sched = hn_start_locked(ifp, sc->hn_direct_tx_size);
-		NV_UNLOCK(sc);
+		sched = hn_start_locked(txr, txr->hn_direct_tx_size);
+		mtx_unlock(&txr->hn_tx_lock);
 		if (sched) {
-			taskqueue_enqueue_fast(sc->hn_tx_taskq,
-			    &sc->hn_start_task);
+			taskqueue_enqueue(txr->hn_tx_taskq,
+			    &txr->hn_start_task);
 		}
 	} else {
 do_sched:
 		/*
 		 * Release the OACTIVE earlier, with the hope, that
 		 * others could catch up.  The task will clear the
-		 * flag again with the NV_LOCK to avoid possible
+		 * flag again with the hn_tx_lock to avoid possible
 		 * races.
 		 */
 		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-		taskqueue_enqueue_fast(sc->hn_tx_taskq, &sc->hn_txeof_task);
+		taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
 }
 
@@ -1743,9 +1633,9 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	unsigned int lenlim;
-	int error;
+	int error, i;
 
-	lenlim = sc->hn_lro.lro_length_lim;
+	lenlim = sc->hn_rx_ring[0].hn_lro.lro_length_lim;
 	error = sysctl_handle_int(oidp, &lenlim, 0, req);
 	if (error || req->newptr == NULL)
 		return error;
@@ -1754,7 +1644,10 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 	    lenlim > TCP_LRO_LENGTH_MAX)
 		return EINVAL;
 
-	sc->hn_lro.lro_length_lim = lenlim;
+	NV_LOCK(sc);
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
+	NV_UNLOCK(sc);
 	return 0;
 }
 
@@ -1762,13 +1655,13 @@ static int
 hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
-	int ackcnt, error;
+	int ackcnt, error, i;
 
 	/*
 	 * lro_ackcnt_lim is append count limit,
 	 * +1 to turn it into aggregation limit.
 	 */
-	ackcnt = sc->hn_lro.lro_ackcnt_lim + 1;
+	ackcnt = sc->hn_rx_ring[0].hn_lro.lro_ackcnt_lim + 1;
 	error = sysctl_handle_int(oidp, &ackcnt, 0, req);
 	if (error || req->newptr == NULL)
 		return error;
@@ -1780,7 +1673,11 @@ hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 	 * Convert aggregation limit back to append
 	 * count limit.
 	 */
-	sc->hn_lro.lro_ackcnt_lim = ackcnt - 1;
+	--ackcnt;
+	NV_LOCK(sc);
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_lro.lro_ackcnt_lim = ackcnt;
+	NV_UNLOCK(sc);
 	return 0;
 }
 
@@ -1791,10 +1688,10 @@ hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	int hcsum = arg2;
-	int on, error;
+	int on, error, i;
 
 	on = 0;
-	if (sc->hn_trust_hcsum & hcsum)
+	if (sc->hn_rx_ring[0].hn_trust_hcsum & hcsum)
 		on = 1;
 
 	error = sysctl_handle_int(oidp, &on, 0, req);
@@ -1802,10 +1699,14 @@ hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	NV_LOCK(sc);
-	if (on)
-		sc->hn_trust_hcsum |= hcsum;
-	else
-		sc->hn_trust_hcsum &= ~hcsum;
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
+
+		if (on)
+			rxr->hn_trust_hcsum |= hcsum;
+		else
+			rxr->hn_trust_hcsum &= ~hcsum;
+	}
 	NV_UNLOCK(sc);
 	return 0;
 }
@@ -1816,7 +1717,7 @@ hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS)
 	struct hn_softc *sc = arg1;
 	int chimney_size, error;
 
-	chimney_size = sc->hn_tx_chimney_size;
+	chimney_size = sc->hn_tx_ring[0].hn_tx_chimney_size;
 	error = sysctl_handle_int(oidp, &chimney_size, 0, req);
 	if (error || req->newptr == NULL)
 		return error;
@@ -1824,8 +1725,109 @@ hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS)
 	if (chimney_size > sc->hn_tx_chimney_max || chimney_size <= 0)
 		return EINVAL;
 
-	if (sc->hn_tx_chimney_size != chimney_size)
-		sc->hn_tx_chimney_size = chimney_size;
+	hn_set_tx_chimney_size(sc, chimney_size);
+	return 0;
+}
+
+static int
+hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error;
+	struct hn_rx_ring *rxr;
+	u_long stat;
+
+	stat = 0;
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		stat += *((u_long *)((uint8_t *)rxr + ofs));
+	}
+
+	error = sysctl_handle_long(oidp, &stat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	/* Zero out this stat. */
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		*((u_long *)((uint8_t *)rxr + ofs)) = 0;
+	}
+	return 0;
+}
+
+static int
+hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error;
+	struct hn_rx_ring *rxr;
+	uint64_t stat;
+
+	stat = 0;
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		stat += *((uint64_t *)((uint8_t *)rxr + ofs));
+	}
+
+	error = sysctl_handle_64(oidp, &stat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	/* Zero out this stat. */
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		*((uint64_t *)((uint8_t *)rxr + ofs)) = 0;
+	}
+	return 0;
+}
+
+static int
+hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error;
+	struct hn_tx_ring *txr;
+	u_long stat;
+
+	stat = 0;
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		txr = &sc->hn_tx_ring[i];
+		stat += *((u_long *)((uint8_t *)txr + ofs));
+	}
+
+	error = sysctl_handle_long(oidp, &stat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	/* Zero out this stat. */
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		txr = &sc->hn_tx_ring[i];
+		*((u_long *)((uint8_t *)txr + ofs)) = 0;
+	}
+	return 0;
+}
+
+static int
+hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error, conf;
+	struct hn_tx_ring *txr;
+
+	txr = &sc->hn_tx_ring[0];
+	conf = *((int *)((uint8_t *)txr + ofs));
+
+	error = sysctl_handle_int(oidp, &conf, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	NV_LOCK(sc);
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		txr = &sc->hn_tx_ring[i];
+		*((int *)((uint8_t *)txr + ofs)) = conf;
+	}
+	NV_UNLOCK(sc);
+
 	return 0;
 }
 
@@ -1916,17 +1918,172 @@ hn_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	*paddr = segs->ds_addr;
 }
 
-static int
-hn_create_tx_ring(struct hn_softc *sc)
+static void
+hn_create_rx_data(struct hn_softc *sc)
 {
+	struct sysctl_oid_list *child;
+	struct sysctl_ctx_list *ctx;
+	device_t dev = sc->hn_dev;
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+	int lroent_cnt;
+#endif
+#endif
+	int i;
+
+	sc->hn_rx_ring_cnt = 1; /* TODO: vRSS */
+	sc->hn_rx_ring = malloc(sizeof(struct hn_rx_ring) * sc->hn_rx_ring_cnt,
+	    M_NETVSC, M_WAITOK | M_ZERO);
+
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+	lroent_cnt = hn_lro_entry_count;
+	if (lroent_cnt < TCP_LRO_ENTRIES)
+		lroent_cnt = TCP_LRO_ENTRIES;
+	device_printf(dev, "LRO: entry count %d\n", lroent_cnt);
+#endif
+#endif	/* INET || INET6 */
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
+
+		if (hn_trust_hosttcp)
+			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_TCP;
+		if (hn_trust_hostudp)
+			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_UDP;
+		if (hn_trust_hostip)
+			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
+
+		/*
+		 * Initialize LRO.
+		 */
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+		tcp_lro_init_args(&rxr->hn_lro, sc->hn_ifp, lroent_cnt, 0);
+#else
+		tcp_lro_init(&rxr->hn_lro);
+		rxr->hn_lro.ifp = sc->hn_ifp;
+#endif
+#if __FreeBSD_version >= 1100099
+		rxr->hn_lro.lro_length_lim = HN_LRO_LENLIM_DEF;
+		rxr->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
+#endif
+#endif	/* INET || INET6 */
+	}
+
+	ctx = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
+	    CTLTYPE_U64 | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_lro.lro_queued),
+	    hn_rx_stat_u64_sysctl, "LU", "LRO queued");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_flushed",
+	    CTLTYPE_U64 | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_lro.lro_flushed),
+	    hn_rx_stat_u64_sysctl, "LU", "LRO flushed");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_tried",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_lro_tried),
+	    hn_rx_stat_ulong_sysctl, "LU", "# of LRO tries");
+#if __FreeBSD_version >= 1100099
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_length_lim",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_lro_lenlim_sysctl, "IU",
+	    "Max # of data bytes to be aggregated by LRO");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_ackcnt_lim",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_ackcnt_sysctl, "I",
+	    "Max # of ACKs to be aggregated by LRO");
+#endif
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust tcp segement verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostudp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_UDP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust udp datagram verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostip",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_IP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust ip packet verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_ip",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_csum_ip),
+	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM IP");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_tcp",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_csum_tcp),
+	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM TCP");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_udp",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_csum_udp),
+	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM UDP");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_trusted",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_csum_trusted),
+	    hn_rx_stat_ulong_sysctl, "LU",
+	    "# of packets that we trust host's csum verification");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "small_pkts",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_small_pkts),
+	    hn_rx_stat_ulong_sysctl, "LU", "# of small packets received");
+}
+
+static void
+hn_destroy_rx_data(struct hn_softc *sc)
+{
+#if defined(INET) || defined(INET6)
+	int i;
+#endif
+
+	if (sc->hn_rx_ring_cnt == 0)
+		return;
+
+#if defined(INET) || defined(INET6)
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		tcp_lro_free(&sc->hn_rx_ring[i].hn_lro);
+#endif
+	free(sc->hn_rx_ring, M_NETVSC);
+	sc->hn_rx_ring = NULL;
+
+	sc->hn_rx_ring_cnt = 0;
+}
+
+static int
+hn_create_tx_ring(struct hn_softc *sc, int id)
+{
+	struct hn_tx_ring *txr = &sc->hn_tx_ring[id];
 	bus_dma_tag_t parent_dtag;
 	int error, i;
 
-	sc->hn_txdesc_cnt = HN_TX_DESC_CNT;
-	sc->hn_txdesc = malloc(sizeof(struct hn_txdesc) * sc->hn_txdesc_cnt,
+	txr->hn_sc = sc;
+
+	mtx_init(&txr->hn_txlist_spin, "hn txlist", NULL, MTX_SPIN);
+	mtx_init(&txr->hn_tx_lock, "hn tx", NULL, MTX_DEF);
+
+	txr->hn_txdesc_cnt = HN_TX_DESC_CNT;
+	txr->hn_txdesc = malloc(sizeof(struct hn_txdesc) * txr->hn_txdesc_cnt,
 	    M_NETVSC, M_WAITOK | M_ZERO);
-	SLIST_INIT(&sc->hn_txlist);
-	mtx_init(&sc->hn_txlist_spin, "hn txlist", NULL, MTX_SPIN);
+	SLIST_INIT(&txr->hn_txlist);
+
+	txr->hn_tx_taskq = sc->hn_tx_taskq;
+	TASK_INIT(&txr->hn_start_task, 0, hn_start_taskfunc, txr);
+	TASK_INIT(&txr->hn_txeof_task, 0, hn_txeof_taskfunc, txr);
+
+	txr->hn_direct_tx_size = hn_direct_tx_size;
+	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
+		txr->hn_csum_assist = HN_CSUM_ASSIST;
+	else
+		txr->hn_csum_assist = HN_CSUM_ASSIST_WIN8;
+
+	/*
+	 * Always schedule transmission instead of trying to do direct
+	 * transmission.  This one gives the best performance so far.
+	 */
+	txr->hn_sched_tx = 1;
 
 	parent_dtag = bus_get_dma_tag(sc->hn_dev);
 
@@ -1943,7 +2100,7 @@ hn_create_tx_ring(struct hn_softc *sc)
 	    0,				/* flags */
 	    NULL,			/* lockfunc */
 	    NULL,			/* lockfuncarg */
-	    &sc->hn_tx_rndis_dtag);
+	    &txr->hn_tx_rndis_dtag);
 	if (error) {
 		device_printf(sc->hn_dev, "failed to create rndis dmatag\n");
 		return error;
@@ -1962,21 +2119,21 @@ hn_create_tx_ring(struct hn_softc *sc)
 	    0,				/* flags */
 	    NULL,			/* lockfunc */
 	    NULL,			/* lockfuncarg */
-	    &sc->hn_tx_data_dtag);
+	    &txr->hn_tx_data_dtag);
 	if (error) {
 		device_printf(sc->hn_dev, "failed to create data dmatag\n");
 		return error;
 	}
 
-	for (i = 0; i < sc->hn_txdesc_cnt; ++i) {
-		struct hn_txdesc *txd = &sc->hn_txdesc[i];
+	for (i = 0; i < txr->hn_txdesc_cnt; ++i) {
+		struct hn_txdesc *txd = &txr->hn_txdesc[i];
 
-		txd->sc = sc;
+		txd->txr = txr;
 
 		/*
 		 * Allocate and load RNDIS messages.
 		 */
-        	error = bus_dmamem_alloc(sc->hn_tx_rndis_dtag,
+        	error = bus_dmamem_alloc(txr->hn_tx_rndis_dtag,
 		    (void **)&txd->rndis_msg,
 		    BUS_DMA_WAITOK | BUS_DMA_COHERENT,
 		    &txd->rndis_msg_dmap);
@@ -1986,7 +2143,7 @@ hn_create_tx_ring(struct hn_softc *sc)
 			return error;
 		}
 
-		error = bus_dmamap_load(sc->hn_tx_rndis_dtag,
+		error = bus_dmamap_load(txr->hn_tx_rndis_dtag,
 		    txd->rndis_msg_dmap,
 		    txd->rndis_msg, HN_RNDIS_MSG_LEN,
 		    hn_dma_map_paddr, &txd->rndis_msg_paddr,
@@ -1994,80 +2151,221 @@ hn_create_tx_ring(struct hn_softc *sc)
 		if (error) {
 			device_printf(sc->hn_dev,
 			    "failed to load rndis_msg, %d\n", i);
-			bus_dmamem_free(sc->hn_tx_rndis_dtag,
+			bus_dmamem_free(txr->hn_tx_rndis_dtag,
 			    txd->rndis_msg, txd->rndis_msg_dmap);
 			return error;
 		}
 
 		/* DMA map for TX data. */
-		error = bus_dmamap_create(sc->hn_tx_data_dtag, 0,
+		error = bus_dmamap_create(txr->hn_tx_data_dtag, 0,
 		    &txd->data_dmap);
 		if (error) {
 			device_printf(sc->hn_dev,
 			    "failed to allocate tx data dmamap\n");
-			bus_dmamap_unload(sc->hn_tx_rndis_dtag,
+			bus_dmamap_unload(txr->hn_tx_rndis_dtag,
 			    txd->rndis_msg_dmap);
-			bus_dmamem_free(sc->hn_tx_rndis_dtag,
+			bus_dmamem_free(txr->hn_tx_rndis_dtag,
 			    txd->rndis_msg, txd->rndis_msg_dmap);
 			return error;
 		}
 
 		/* All set, put it to list */
 		txd->flags |= HN_TXD_FLAG_ONLIST;
-		SLIST_INSERT_HEAD(&sc->hn_txlist, txd, link);
+		SLIST_INSERT_HEAD(&txr->hn_txlist, txd, link);
 	}
-	sc->hn_txdesc_avail = sc->hn_txdesc_cnt;
+	txr->hn_txdesc_avail = txr->hn_txdesc_cnt;
+
+	if (sc->hn_tx_sysctl_tree != NULL) {
+		struct sysctl_oid_list *child;
+		struct sysctl_ctx_list *ctx;
+		char name[16];
+
+		/*
+		 * Create per TX ring sysctl tree:
+		 * dev.hn.UNIT.tx.RINGID
+		 */
+		ctx = device_get_sysctl_ctx(sc->hn_dev);
+		child = SYSCTL_CHILDREN(sc->hn_tx_sysctl_tree);
+
+		snprintf(name, sizeof(name), "%d", id);
+		txr->hn_tx_sysctl_tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
+		    name, CTLFLAG_RD, 0, "");
+
+		if (txr->hn_tx_sysctl_tree != NULL) {
+			child = SYSCTL_CHILDREN(txr->hn_tx_sysctl_tree);
+
+			SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_avail",
+			    CTLFLAG_RD, &txr->hn_txdesc_avail, 0,
+			    "# of available TX descs");
+		}
+	}
 
 	return 0;
 }
 
 static void
-hn_destroy_tx_ring(struct hn_softc *sc)
+hn_destroy_tx_ring(struct hn_tx_ring *txr)
 {
 	struct hn_txdesc *txd;
 
-	while ((txd = SLIST_FIRST(&sc->hn_txlist)) != NULL) {
+	if (txr->hn_txdesc == NULL)
+		return;
+
+	while ((txd = SLIST_FIRST(&txr->hn_txlist)) != NULL) {
 		KASSERT(txd->m == NULL, ("still has mbuf installed"));
 		KASSERT((txd->flags & HN_TXD_FLAG_DMAMAP) == 0,
 		    ("still dma mapped"));
-		SLIST_REMOVE_HEAD(&sc->hn_txlist, link);
+		SLIST_REMOVE_HEAD(&txr->hn_txlist, link);
 
-		bus_dmamap_unload(sc->hn_tx_rndis_dtag,
+		bus_dmamap_unload(txr->hn_tx_rndis_dtag,
 		    txd->rndis_msg_dmap);
-		bus_dmamem_free(sc->hn_tx_rndis_dtag,
+		bus_dmamem_free(txr->hn_tx_rndis_dtag,
 		    txd->rndis_msg, txd->rndis_msg_dmap);
 
-		bus_dmamap_destroy(sc->hn_tx_data_dtag, txd->data_dmap);
+		bus_dmamap_destroy(txr->hn_tx_data_dtag, txd->data_dmap);
 	}
 
-	if (sc->hn_tx_data_dtag != NULL)
-		bus_dma_tag_destroy(sc->hn_tx_data_dtag);
-	if (sc->hn_tx_rndis_dtag != NULL)
-		bus_dma_tag_destroy(sc->hn_tx_rndis_dtag);
-	free(sc->hn_txdesc, M_NETVSC);
-	mtx_destroy(&sc->hn_txlist_spin);
+	if (txr->hn_tx_data_dtag != NULL)
+		bus_dma_tag_destroy(txr->hn_tx_data_dtag);
+	if (txr->hn_tx_rndis_dtag != NULL)
+		bus_dma_tag_destroy(txr->hn_tx_rndis_dtag);
+	free(txr->hn_txdesc, M_NETVSC);
+	txr->hn_txdesc = NULL;
+
+	mtx_destroy(&txr->hn_txlist_spin);
+	mtx_destroy(&txr->hn_tx_lock);
+}
+
+static int
+hn_create_tx_data(struct hn_softc *sc)
+{
+	struct sysctl_oid_list *child;
+	struct sysctl_ctx_list *ctx;
+	int i;
+
+	sc->hn_tx_ring_cnt = 1; /* TODO: vRSS */
+	sc->hn_tx_ring = malloc(sizeof(struct hn_tx_ring) * sc->hn_tx_ring_cnt,
+	    M_NETVSC, M_WAITOK | M_ZERO);
+
+	ctx = device_get_sysctl_ctx(sc->hn_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->hn_dev));
+
+	/* Create dev.hn.UNIT.tx sysctl tree */
+	sc->hn_tx_sysctl_tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "tx",
+	    CTLFLAG_RD, 0, "");
+
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		int error;
+
+		error = hn_create_tx_ring(sc, i);
+		if (error)
+			return error;
+	}
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "no_txdescs",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_tx_ring, hn_no_txdescs),
+	    hn_tx_stat_ulong_sysctl, "LU", "# of times short of TX descs");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "send_failed",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_tx_ring, hn_send_failed),
+	    hn_tx_stat_ulong_sysctl, "LU", "# of hyper-v sending failure");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "txdma_failed",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_tx_ring, hn_txdma_failed),
+	    hn_tx_stat_ulong_sysctl, "LU", "# of TX DMA failure");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_collapsed",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_tx_ring, hn_tx_collapsed),
+	    hn_tx_stat_ulong_sysctl, "LU", "# of TX mbuf collapsed");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_tx_ring, hn_tx_chimney),
+	    hn_tx_stat_ulong_sysctl, "LU", "# of chimney send");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_cnt",
+	    CTLFLAG_RD, &sc->hn_tx_ring[0].hn_txdesc_cnt, 0,
+	    "# of total TX descs");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "tx_chimney_max",
+	    CTLFLAG_RD, &sc->hn_tx_chimney_max, 0,
+	    "Chimney send packet size upper boundary");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney_size",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_tx_chimney_size_sysctl,
+	    "I", "Chimney send packet size limit");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "direct_tx_size",
+	    CTLTYPE_INT | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_tx_ring, hn_direct_tx_size),
+	    hn_tx_conf_int_sysctl, "I",
+	    "Size of the packet for direct transmission");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "sched_tx",
+	    CTLTYPE_INT | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_tx_ring, hn_sched_tx),
+	    hn_tx_conf_int_sysctl, "I",
+	    "Always schedule transmission "
+	    "instead of doing direct transmission");
+
+	return 0;
 }
 
 static void
-hn_start_taskfunc(void *xsc, int pending __unused)
+hn_set_tx_chimney_size(struct hn_softc *sc, int chimney_size)
 {
-	struct hn_softc *sc = xsc;
+	int i;
 
 	NV_LOCK(sc);
-	hn_start_locked(sc->hn_ifp, 0);
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+		sc->hn_tx_ring[i].hn_tx_chimney_size = chimney_size;
 	NV_UNLOCK(sc);
 }
 
 static void
-hn_txeof_taskfunc(void *xsc, int pending __unused)
+hn_destroy_tx_data(struct hn_softc *sc)
 {
-	struct hn_softc *sc = xsc;
-	struct ifnet *ifp = sc->hn_ifp;
+	int i;
 
-	NV_LOCK(sc);
-	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-	hn_start_locked(ifp, 0);
-	NV_UNLOCK(sc);
+	if (sc->hn_tx_ring_cnt == 0)
+		return;
+
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+		hn_destroy_tx_ring(&sc->hn_tx_ring[i]);
+
+	free(sc->hn_tx_ring, M_NETVSC);
+	sc->hn_tx_ring = NULL;
+
+	sc->hn_tx_ring_cnt = 0;
+}
+
+static void
+hn_start_taskfunc(void *xtxr, int pending __unused)
+{
+	struct hn_tx_ring *txr = xtxr;
+
+	mtx_lock(&txr->hn_tx_lock);
+	hn_start_locked(txr, 0);
+	mtx_unlock(&txr->hn_tx_lock);
+}
+
+static void
+hn_txeof_taskfunc(void *xtxr, int pending __unused)
+{
+	struct hn_tx_ring *txr = xtxr;
+
+	mtx_lock(&txr->hn_tx_lock);
+	atomic_clear_int(&txr->hn_sc->hn_ifp->if_drv_flags, IFF_DRV_OACTIVE);
+	hn_start_locked(txr, 0);
+	mtx_unlock(&txr->hn_tx_lock);
+}
+
+static void
+hn_stop_tx_tasks(struct hn_softc *sc)
+{
+	int i;
+
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_start_task);
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
+	}
 }
 
 static void
@@ -2076,7 +2374,7 @@ hn_tx_taskq_create(void *arg __unused)
 	if (!hn_share_tx_taskq)
 		return;
 
-	hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+	hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &hn_tx_taskq);
 	taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
 }
