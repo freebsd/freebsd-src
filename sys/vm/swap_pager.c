@@ -345,7 +345,6 @@ static struct sx sw_alloc_sx;
 #define NOBJLIST(handle)	\
 	(&swap_pager_object_list[((int)(intptr_t)handle >> 4) & (NOBJLISTS-1)])
 
-static struct mtx sw_alloc_mtx;	/* protect list manipulation */
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 static uma_zone_t	swap_zone;
 
@@ -486,7 +485,6 @@ swap_pager_init(void)
 
 	for (i = 0; i < NOBJLISTS; ++i)
 		TAILQ_INIT(&swap_pager_object_list[i]);
-	mtx_init(&sw_alloc_mtx, "swap_pager list", NULL, MTX_DEF);
 	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
 	sx_init(&sw_alloc_sx, "swspsx");
 	sx_init(&swdev_syscall_lock, "swsysc");
@@ -583,28 +581,46 @@ swap_pager_swap_init(void)
 	mtx_init(&swhash_mtx, "swap_pager swhash", NULL, MTX_DEF);
 }
 
+static vm_object_t
+swap_pager_alloc_init(void *handle, struct ucred *cred, vm_ooffset_t size,
+    vm_ooffset_t offset)
+{
+	vm_object_t object;
+
+	if (cred != NULL) {
+		if (!swap_reserve_by_cred(size, cred))
+			return (NULL);
+		crhold(cred);
+	}
+	object = vm_object_allocate(OBJT_SWAP, OFF_TO_IDX(offset +
+	    PAGE_MASK + size));
+	object->handle = handle;
+	if (cred != NULL) {
+		object->cred = cred;
+		object->charge = size;
+	}
+	object->un_pager.swp.swp_bcount = 0;
+	return (object);
+}
+
 /*
  * SWAP_PAGER_ALLOC() -	allocate a new OBJT_SWAP VM object and instantiate
  *			its metadata structures.
  *
  *	This routine is called from the mmap and fork code to create a new
- *	OBJT_SWAP object.  We do this by creating an OBJT_DEFAULT object
- *	and then converting it with swp_pager_meta_build().
+ *	OBJT_SWAP object.
  *
- *	This routine may block in vm_object_allocate() and create a named
- *	object lookup race, so we must interlock.
- *
- * MPSAFE
+ *	This routine must ensure that no live duplicate is created for
+ *	the named object request, which is protected against by
+ *	holding the sw_alloc_sx lock in case handle != NULL.
  */
 static vm_object_t
 swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t offset, struct ucred *cred)
 {
 	vm_object_t object;
-	vm_pindex_t pindex;
 
-	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
-	if (handle) {
+	if (handle != NULL) {
 		/*
 		 * Reference existing named region or allocate new one.  There
 		 * should not be a race here against swp_pager_meta_build()
@@ -614,38 +630,16 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		sx_xlock(&sw_alloc_sx);
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 		if (object == NULL) {
-			if (cred != NULL) {
-				if (!swap_reserve_by_cred(size, cred)) {
-					sx_xunlock(&sw_alloc_sx);
-					return (NULL);
-				}
-				crhold(cred);
+			object = swap_pager_alloc_init(handle, cred, size,
+			    offset);
+			if (object != NULL) {
+				TAILQ_INSERT_TAIL(NOBJLIST(object->handle),
+				    object, pager_object_list);
 			}
-			object = vm_object_allocate(OBJT_DEFAULT, pindex);
-			VM_OBJECT_WLOCK(object);
-			object->handle = handle;
-			if (cred != NULL) {
-				object->cred = cred;
-				object->charge = size;
-			}
-			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-			VM_OBJECT_WUNLOCK(object);
 		}
 		sx_xunlock(&sw_alloc_sx);
 	} else {
-		if (cred != NULL) {
-			if (!swap_reserve_by_cred(size, cred))
-				return (NULL);
-			crhold(cred);
-		}
-		object = vm_object_allocate(OBJT_DEFAULT, pindex);
-		VM_OBJECT_WLOCK(object);
-		if (cred != NULL) {
-			object->cred = cred;
-			object->charge = size;
-		}
-		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-		VM_OBJECT_WUNLOCK(object);
+		object = swap_pager_alloc_init(handle, cred, size, offset);
 	}
 	return (object);
 }
@@ -664,17 +658,22 @@ static void
 swap_pager_dealloc(vm_object_t object)
 {
 
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT((object->flags & OBJ_DEAD) != 0, ("dealloc of reachable obj"));
+
 	/*
 	 * Remove from list right away so lookups will fail if we block for
 	 * pageout completion.
 	 */
 	if (object->handle != NULL) {
-		mtx_lock(&sw_alloc_mtx);
-		TAILQ_REMOVE(NOBJLIST(object->handle), object, pager_object_list);
-		mtx_unlock(&sw_alloc_mtx);
+		VM_OBJECT_WUNLOCK(object);
+		sx_xlock(&sw_alloc_sx);
+		TAILQ_REMOVE(NOBJLIST(object->handle), object,
+		    pager_object_list);
+		sx_xunlock(&sw_alloc_sx);
+		VM_OBJECT_WLOCK(object);
 	}
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
 	vm_object_pip_wait(object, "swpdea");
 
 	/*
@@ -901,16 +900,19 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	 * If destroysource is set, we remove the source object from the
 	 * swap_pager internal queue now.
 	 */
-	if (destroysource) {
-		if (srcobject->handle != NULL) {
-			mtx_lock(&sw_alloc_mtx);
-			TAILQ_REMOVE(
-			    NOBJLIST(srcobject->handle),
-			    srcobject,
-			    pager_object_list
-			);
-			mtx_unlock(&sw_alloc_mtx);
-		}
+	if (destroysource && srcobject->handle != NULL) {
+		vm_object_pip_add(srcobject, 1);
+		VM_OBJECT_WUNLOCK(srcobject);
+		vm_object_pip_add(dstobject, 1);
+		VM_OBJECT_WUNLOCK(dstobject);
+		sx_xlock(&sw_alloc_sx);
+		TAILQ_REMOVE(NOBJLIST(srcobject->handle), srcobject,
+		    pager_object_list);
+		sx_xunlock(&sw_alloc_sx);
+		VM_OBJECT_WLOCK(dstobject);
+		vm_object_pip_wakeup(dstobject);
+		VM_OBJECT_WLOCK(srcobject);
+		vm_object_pip_wakeup(srcobject);
 	}
 
 	/*
@@ -1746,16 +1748,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 	if (object->type != OBJT_SWAP) {
 		object->type = OBJT_SWAP;
 		object->un_pager.swp.swp_bcount = 0;
-
-		if (object->handle != NULL) {
-			mtx_lock(&sw_alloc_mtx);
-			TAILQ_INSERT_TAIL(
-			    NOBJLIST(object->handle),
-			    object,
-			    pager_object_list
-			);
-			mtx_unlock(&sw_alloc_mtx);
-		}
+		KASSERT(object->handle == NULL, ("default pager with handle"));
 	}
 
 	/*
