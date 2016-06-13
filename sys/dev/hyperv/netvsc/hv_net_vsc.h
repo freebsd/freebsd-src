@@ -39,9 +39,11 @@
 #define __HV_NET_VSC_H__
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
+#include <sys/taskqueue.h>
 #include <sys/sx.h>
 
 #include <machine/bus.h>
@@ -1009,7 +1011,6 @@ typedef struct hn_softc {
 	struct hv_device  *hn_dev_obj;
 	netvsc_dev  	*net_dev;
 
-	int		hn_txdesc_cnt;
 	struct hn_txdesc *hn_txdesc;
 	bus_dma_tag_t	hn_tx_data_dtag;
 	bus_dma_tag_t	hn_tx_rndis_dtag;
@@ -1018,8 +1019,14 @@ typedef struct hn_softc {
 
 	struct mtx	hn_txlist_spin;
 	struct hn_txdesc_list hn_txlist;
+	int		hn_txdesc_cnt;
 	int		hn_txdesc_avail;
 	int		hn_txeof;
+
+	int		hn_direct_tx_size;
+	struct taskqueue *hn_tx_taskq;
+	struct task	hn_start_task;
+	struct task	hn_txeof_task;
 
 	struct lro_ctrl	hn_lro;
 	int		hn_lro_hiwat;

@@ -666,11 +666,11 @@ hv_vmbus_channel_send_packet_pagebuffer(
 {
 
 	int					ret = 0;
-	int					i = 0;
 	boolean_t				need_sig;
 	uint32_t				packet_len;
+	uint32_t				page_buflen;
 	uint32_t				packetLen_aligned;
-	hv_vmbus_sg_buffer_list			buffer_list[3];
+	hv_vmbus_sg_buffer_list			buffer_list[4];
 	hv_vmbus_channel_packet_page_buffer	desc;
 	uint32_t				descSize;
 	uint64_t				alignedData = 0;
@@ -682,36 +682,33 @@ hv_vmbus_channel_send_packet_pagebuffer(
 	 * Adjust the size down since hv_vmbus_channel_packet_page_buffer
 	 *  is the largest size we support
 	 */
-	descSize = sizeof(hv_vmbus_channel_packet_page_buffer) -
-			((HV_MAX_PAGE_BUFFER_COUNT - page_count) *
-			sizeof(hv_vmbus_page_buffer));
-	packet_len = descSize + buffer_len;
+	descSize = __offsetof(hv_vmbus_channel_packet_page_buffer, range);
+	page_buflen = sizeof(hv_vmbus_page_buffer) * page_count;
+	packet_len = descSize + page_buflen + buffer_len;
 	packetLen_aligned = HV_ALIGN_UP(packet_len, sizeof(uint64_t));
 
 	/* Setup the descriptor */
 	desc.type = HV_VMBUS_PACKET_TYPE_DATA_USING_GPA_DIRECT;
 	desc.flags = HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-	desc.data_offset8 = descSize >> 3; /* in 8-bytes granularity */
+	/* in 8-bytes granularity */
+	desc.data_offset8 = (descSize + page_buflen) >> 3;
 	desc.length8 = (uint16_t) (packetLen_aligned >> 3);
 	desc.transaction_id = request_id;
 	desc.range_count = page_count;
 
-	for (i = 0; i < page_count; i++) {
-		desc.range[i].length = page_buffers[i].length;
-		desc.range[i].offset = page_buffers[i].offset;
-		desc.range[i].pfn = page_buffers[i].pfn;
-	}
-
 	buffer_list[0].data = &desc;
 	buffer_list[0].length = descSize;
 
-	buffer_list[1].data = buffer;
-	buffer_list[1].length = buffer_len;
+	buffer_list[1].data = page_buffers;
+	buffer_list[1].length = page_buflen;
 
-	buffer_list[2].data = &alignedData;
-	buffer_list[2].length = packetLen_aligned - packet_len;
+	buffer_list[2].data = buffer;
+	buffer_list[2].length = buffer_len;
 
-	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3,
+	buffer_list[3].data = &alignedData;
+	buffer_list[3].length = packetLen_aligned - packet_len;
+
+	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 4,
 	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
