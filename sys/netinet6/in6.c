@@ -360,7 +360,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	case SIOCSPFXFLUSH_IN6:
 	case SIOCSRTRFLUSH_IN6:
 	case SIOCGIFALIFETIME_IN6:
-	case SIOCSIFALIFETIME_IN6:
 	case SIOCGIFSTAT_IN6:
 	case SIOCGIFSTAT_ICMP6:
 		sa6 = &ifr->ifr_addr;
@@ -459,34 +458,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			goto out;
 		}
 		break;
-
-	case SIOCSIFALIFETIME_IN6:
-	    {
-		struct in6_addrlifetime *lt;
-
-		if (td != NULL) {
-			error = priv_check(td, PRIV_NETINET_ALIFETIME6);
-			if (error)
-				goto out;
-		}
-		if (ia == NULL) {
-			error = EADDRNOTAVAIL;
-			goto out;
-		}
-		/* sanity for overflow - beware unsigned */
-		lt = &ifr->ifr_ifru.ifru_lifetime;
-		if (lt->ia6t_vltime != ND6_INFINITE_LIFETIME &&
-		    lt->ia6t_vltime + time_uptime < time_uptime) {
-			error = EINVAL;
-			goto out;
-		}
-		if (lt->ia6t_pltime != ND6_INFINITE_LIFETIME &&
-		    lt->ia6t_pltime + time_uptime < time_uptime) {
-			error = EINVAL;
-			goto out;
-		}
-		break;
-	    }
 	}
 
 	switch (cmd) {
@@ -570,21 +541,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			} else
 				retlt->ia6t_preferred = maxexpire;
 		}
-		break;
-
-	case SIOCSIFALIFETIME_IN6:
-		ia->ia6_lifetime = ifr->ifr_ifru.ifru_lifetime;
-		/* for sanity */
-		if (ia->ia6_lifetime.ia6t_vltime != ND6_INFINITE_LIFETIME) {
-			ia->ia6_lifetime.ia6t_expire =
-				time_uptime + ia->ia6_lifetime.ia6t_vltime;
-		} else
-			ia->ia6_lifetime.ia6t_expire = 0;
-		if (ia->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME) {
-			ia->ia6_lifetime.ia6t_preferred =
-				time_uptime + ia->ia6_lifetime.ia6t_pltime;
-		} else
-			ia->ia6_lifetime.ia6t_preferred = 0;
 		break;
 
 	case SIOCAIFADDR_IN6:
