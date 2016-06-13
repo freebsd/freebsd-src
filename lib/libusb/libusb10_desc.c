@@ -332,7 +332,7 @@ libusb_get_string_descriptor_ascii(libusb_device_handle *pdev,
 
 	if (libusb20_dev_req_string_simple_sync(pdev, desc_index,
 	    data, length) == 0)
-		return (strlen(data));
+		return (strlen((char *)data));
 
 	return (LIBUSB_ERROR_OTHER);
 }
