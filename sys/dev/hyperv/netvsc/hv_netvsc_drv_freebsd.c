@@ -146,6 +146,8 @@ __FBSDID("$FreeBSD$");
 #define HN_TX_DATA_SEGCNT_MAX		\
     (NETVSC_PACKET_MAXPAGE - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
 
+#define HN_DIRECT_TX_SIZE_DEF		128
+
 struct hn_txdesc {
 	SLIST_ENTRY(hn_txdesc) link;
 	struct mbuf	*m;
@@ -194,6 +196,7 @@ struct hn_txdesc {
 #define NV_LOCK_INIT(_sc, _name) \
 	    mtx_init(&(_sc)->hn_lock, _name, MTX_NETWORK_LOCK, MTX_DEF)
 #define NV_LOCK(_sc)		mtx_lock(&(_sc)->hn_lock)
+#define NV_TRYLOCK(_sc)		mtx_trylock(&(_sc)->hn_lock)
 #define NV_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->hn_lock, MA_OWNED)
 #define NV_UNLOCK(_sc)		mtx_unlock(&(_sc)->hn_lock)
 #define NV_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->hn_lock)
@@ -206,7 +209,7 @@ struct hn_txdesc {
 int hv_promisc_mode = 0;    /* normal mode by default */
 
 /* Trust tcp segements verification on host side. */
-static int hn_trust_hosttcp = 0;
+static int hn_trust_hosttcp = 1;
 TUNABLE_INT("dev.hn.trust_hosttcp", &hn_trust_hosttcp);
 
 #if __FreeBSD_version >= 1100045
@@ -219,6 +222,10 @@ TUNABLE_INT("dev.hn.tso_maxlen", &hn_tso_maxlen);
 static int hn_tx_chimney_size = 0;
 TUNABLE_INT("dev.hn.tx_chimney_size", &hn_tx_chimney_size);
 
+/* Limit the size of packet for direct transmission */
+static int hn_direct_tx_size = HN_DIRECT_TX_SIZE_DEF;
+TUNABLE_INT("dev.hn.direct_tx_size", &hn_direct_tx_size);
+
 /*
  * Forward declarations
  */
@@ -226,8 +233,9 @@ static void hn_stop(hn_softc_t *sc);
 static void hn_ifinit_locked(hn_softc_t *sc);
 static void hn_ifinit(void *xsc);
 static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-static void hn_start_locked(struct ifnet *ifp);
+static int hn_start_locked(struct ifnet *ifp, int len);
 static void hn_start(struct ifnet *ifp);
+static void hn_start_txeof(struct ifnet *ifp);
 static int hn_ifmedia_upd(struct ifnet *ifp);
 static void hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 #ifdef HN_LRO_HIWAT
@@ -237,6 +245,8 @@ static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *sc);
 static void hn_destroy_tx_ring(struct hn_softc *sc);
+static void hn_start_taskfunc(void *xsc, int pending);
+static void hn_txeof_taskfunc(void *xsc, int pending);
 
 static __inline void
 hn_set_lro_hiwat(struct hn_softc *sc, int hiwat)
@@ -384,6 +394,14 @@ netvsc_attach(device_t dev)
 	sc->hn_dev = dev;
 	sc->hn_lro_hiwat = HN_LRO_HIWAT_DEF;
 	sc->hn_trust_hosttcp = hn_trust_hosttcp;
+	sc->hn_direct_tx_size = hn_direct_tx_size;
+
+	sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+	    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
+	taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET, "%s tx",
+	    device_get_nameunit(dev));
+	TASK_INIT(&sc->hn_start_task, 0, hn_start_taskfunc, sc);
+	TASK_INIT(&sc->hn_txeof_task, 0, hn_txeof_taskfunc, sc);
 
 	error = hn_create_tx_ring(sc);
 	if (error)
@@ -524,6 +542,9 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney_size",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_tx_chimney_size_sysctl,
 	    "I", "Chimney send packet size limit");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "direct_tx_size",
+	    CTLFLAG_RW, &sc->hn_direct_tx_size, 0,
+	    "Size of the packet for direct transmission");
 
 	if (unit == 0) {
 		struct sysctl_ctx_list *dc_ctx;
@@ -548,6 +569,9 @@ netvsc_attach(device_t dev)
 		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tso_maxlen",
 		    CTLFLAG_RD, &hn_tso_maxlen, 0, "TSO burst limit");
 #endif
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "direct_tx_size",
+		    CTLFLAG_RD, &hn_direct_tx_size, 0,
+		    "Size of the packet for direct transmission");
 	}
 
 	return (0);
@@ -582,6 +606,10 @@ netvsc_detach(device_t dev)
 	 */
 
 	hv_rf_on_device_remove(hv_device, HV_RF_NV_DESTROY_CHANNEL);
+
+	taskqueue_drain(sc->hn_tx_taskq, &sc->hn_start_task);
+	taskqueue_drain(sc->hn_tx_taskq, &sc->hn_txeof_task);
+	taskqueue_free(sc->hn_tx_taskq);
 
 	ifmedia_removeall(&sc->hn_media);
 #if defined(INET) || defined(INET6)
@@ -733,30 +761,23 @@ void
 netvsc_channel_rollup(struct hv_device *device_ctx)
 {
 	struct hn_softc *sc = device_get_softc(device_ctx->device);
-	struct ifnet *ifp;
 
 	if (!sc->hn_txeof)
 		return;
 
 	sc->hn_txeof = 0;
-	ifp = sc->hn_ifp;
-	NV_LOCK(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	hn_start_locked(ifp);
-	NV_UNLOCK(sc);
+	hn_start_txeof(sc->hn_ifp);
 }
 
 /*
  * Start a transmit of one or more packets
  */
-static void
-hn_start_locked(struct ifnet *ifp)
+static int
+hn_start_locked(struct ifnet *ifp, int len)
 {
 	hn_softc_t *sc = ifp->if_softc;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	netvsc_dev *net_dev = sc->net_dev;
-	netvsc_packet *packet;
-	struct mbuf *m_head, *m;
 	struct ether_vlan_header *eh;
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
@@ -767,36 +788,42 @@ hn_start_locked(struct ifnet *ifp)
 	int ether_len;
 	uint32_t rndis_msg_size = 0;
 	uint32_t trans_proto_type;
-	uint32_t send_buf_section_idx =
-	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
-		return;
+		return 0;
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
 		int error, nsegs, i, send_failed = 0;
 		struct hn_txdesc *txd;
+		netvsc_packet *packet;
+		struct mbuf *m_head;
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
+		if (len > 0 && m_head->m_pkthdr.len > len) {
+			/*
+			 * This sending could be time consuming; let callers
+			 * dispatch this packet sending (and sending of any
+			 * following up packets) to tx taskqueue.
+			 */
+			IF_PREPEND(&ifp->if_snd, m_head);
+			return 1;
+		}
+
 		txd = hn_txdesc_get(sc);
 		if (txd == NULL) {
 			sc->hn_no_txdescs++;
 			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 			break;
 		}
 
 		packet = &txd->netvsc_pkt;
-		/* XXX not necessary */
-		memset(packet, 0, sizeof(*packet));
-
 		packet->is_data_pkt = TRUE;
-
 		/* Initialize it from the mbuf */
 		packet->tot_data_buf_len = m_head->m_pkthdr.len;
 
@@ -940,24 +967,21 @@ pre_send:
 
 		/* send packet with send buffer */
 		if (packet->tot_data_buf_len < sc->hn_tx_chimney_size) {
+			uint32_t send_buf_section_idx;
+
 			send_buf_section_idx =
 			    hv_nv_get_next_send_section(net_dev);
 			if (send_buf_section_idx !=
 			    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
-				char *dest = ((char *)net_dev->send_buf +
-				    send_buf_section_idx *
-				    net_dev->send_section_size);
+				uint8_t *dest = ((uint8_t *)net_dev->send_buf +
+				    (send_buf_section_idx *
+				     net_dev->send_section_size));
 
 				memcpy(dest, rndis_mesg, rndis_msg_size);
 				dest += rndis_msg_size;
-				for (m = m_head; m != NULL; m = m->m_next) {
-					if (m->m_len) {
-						memcpy(dest,
-						    (void *)mtod(m, vm_offset_t),
-						    m->m_len);
-						dest += m->m_len;
-					}
-				}
+
+				m_copydata(m_head, 0, m_head->m_pkthdr.len,
+				    dest);
 
 				packet->send_buf_section_idx =
 				    send_buf_section_idx;
@@ -1069,10 +1093,11 @@ again:
 
 			sc->hn_send_failed++;
 			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 			break;
 		}
 	}
+	return 0;
 }
 
 /*
@@ -1566,7 +1591,8 @@ hn_stop(hn_softc_t *sc)
 	if (bootverbose)
 		printf(" Closing Device ...\n");
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	atomic_clear_int(&ifp->if_drv_flags,
+	    (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	if_link_state_change(ifp, LINK_STATE_DOWN);
 	sc->hn_initdone = 0;
 
@@ -1582,13 +1608,43 @@ hn_start(struct ifnet *ifp)
 	hn_softc_t *sc;
 
 	sc = ifp->if_softc;
-	NV_LOCK(sc);
-	if (sc->temp_unusable) {
+	if (NV_TRYLOCK(sc)) {
+		int sched;
+
+		sched = hn_start_locked(ifp, sc->hn_direct_tx_size);
 		NV_UNLOCK(sc);
-		return;
+		if (!sched)
+			return;
 	}
-	hn_start_locked(ifp);
-	NV_UNLOCK(sc);
+	taskqueue_enqueue_fast(sc->hn_tx_taskq, &sc->hn_start_task);
+}
+
+static void
+hn_start_txeof(struct ifnet *ifp)
+{
+	hn_softc_t *sc;
+
+	sc = ifp->if_softc;
+	if (NV_TRYLOCK(sc)) {
+		int sched;
+
+		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+		sched = hn_start_locked(ifp, sc->hn_direct_tx_size);
+		NV_UNLOCK(sc);
+		if (sched) {
+			taskqueue_enqueue_fast(sc->hn_tx_taskq,
+			    &sc->hn_start_task);
+		}
+	} else {
+		/*
+		 * Release the OACTIVE earlier, with the hope, that
+		 * others could catch up.  The task will clear the
+		 * flag again with the NV_LOCK to avoid possible
+		 * races.
+		 */
+		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+		taskqueue_enqueue_fast(sc->hn_tx_taskq, &sc->hn_txeof_task);
+	}
 }
 
 /*
@@ -1615,8 +1671,8 @@ hn_ifinit_locked(hn_softc_t *sc)
 	} else {
 		sc->hn_initdone = 1;
 	}
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+	atomic_set_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
 	if_link_state_change(ifp, LINK_STATE_UP);
 }
 
@@ -1916,6 +1972,28 @@ hn_destroy_tx_ring(struct hn_softc *sc)
 		bus_dma_tag_destroy(sc->hn_tx_rndis_dtag);
 	free(sc->hn_txdesc, M_NETVSC);
 	mtx_destroy(&sc->hn_txlist_spin);
+}
+
+static void
+hn_start_taskfunc(void *xsc, int pending __unused)
+{
+	struct hn_softc *sc = xsc;
+
+	NV_LOCK(sc);
+	hn_start_locked(sc->hn_ifp, 0);
+	NV_UNLOCK(sc);
+}
+
+static void
+hn_txeof_taskfunc(void *xsc, int pending __unused)
+{
+	struct hn_softc *sc = xsc;
+	struct ifnet *ifp = sc->hn_ifp;
+
+	NV_LOCK(sc);
+	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+	hn_start_locked(ifp, 0);
+	NV_UNLOCK(sc);
 }
 
 static device_method_t netvsc_methods[] = {
