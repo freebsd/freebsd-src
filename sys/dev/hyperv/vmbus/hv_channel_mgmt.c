@@ -39,8 +39,10 @@ __FBSDID("$FreeBSD$");
  */
 
 static void vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr);
+static void vmbus_channel_on_offer_internal(void* context);
 static void vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_offer_rescind(hv_vmbus_channel_msg_header* hdr);
+static void vmbus_channel_on_offer_rescind_internal(void* context);
 static void vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_offers_delivered(hv_vmbus_channel_msg_header* hdr);
@@ -52,41 +54,46 @@ static void vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr);
 hv_vmbus_channel_msg_table_entry
     g_channel_message_table[HV_CHANNEL_MESSAGE_COUNT] = {
 	{ HV_CHANNEL_MESSAGE_INVALID,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGE_OFFER_CHANNEL,
-		0, vmbus_channel_on_offer },
+		vmbus_channel_on_offer },
 	{ HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER,
-		0, vmbus_channel_on_offer_rescind },
+		vmbus_channel_on_offer_rescind },
 	{ HV_CHANNEL_MESSAGE_REQUEST_OFFERS,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED,
-		1, vmbus_channel_on_offers_delivered },
+		vmbus_channel_on_offers_delivered },
 	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT,
-		1, vmbus_channel_on_open_result },
+		vmbus_channel_on_open_result },
 	{ HV_CHANNEL_MESSAGE_CLOSE_CHANNEL,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGEL_GPADL_HEADER,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGE_GPADL_BODY,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGE_GPADL_CREATED,
-		1, vmbus_channel_on_gpadl_created },
+		vmbus_channel_on_gpadl_created },
 	{ HV_CHANNEL_MESSAGE_GPADL_TEARDOWN,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGE_GPADL_TORNDOWN,
-		1, vmbus_channel_on_gpadl_torndown },
+		vmbus_channel_on_gpadl_torndown },
 	{ HV_CHANNEL_MESSAGE_REL_ID_RELEASED,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGE_INITIATED_CONTACT,
-		0, NULL },
+		NULL },
 	{ HV_CHANNEL_MESSAGE_VERSION_RESPONSE,
-		1, vmbus_channel_on_version_response },
+		vmbus_channel_on_version_response },
 	{ HV_CHANNEL_MESSAGE_UNLOAD,
-		0, NULL }
+		NULL }
 };
 
+typedef struct hv_work_item {
+	struct task	work;
+	void		(*callback)(void *);
+	void*		context;
+} hv_work_item;
 
 /**
  * Implementation of the work abstraction.
@@ -96,120 +103,30 @@ work_item_callback(void *work, int pending)
 {
 	struct hv_work_item *w = (struct hv_work_item *)work;
 
-	/*
-	 * Serialize work execution.
-	 */
-	if (w->wq->work_sema != NULL) {
-		sema_wait(w->wq->work_sema);
-	}
-
 	w->callback(w->context);
 
-	if (w->wq->work_sema != NULL) {
-		sema_post(w->wq->work_sema);
-	} 
-
 	free(w, M_DEVBUF);
-}
-
-struct hv_work_queue*
-hv_work_queue_create(char* name)
-{
-	static unsigned int	qid = 0;
-	char			qname[64];
-	int			pri;
-	struct hv_work_queue*	wq;
-
-	wq = malloc(sizeof(struct hv_work_queue), M_DEVBUF, M_NOWAIT | M_ZERO);
-	KASSERT(wq != NULL, ("Error VMBUS: Failed to allocate work_queue\n"));
-	if (wq == NULL)
-	    return (NULL);
-
-	/*
-	 * We use work abstraction to handle messages
-	 * coming from the host and these are typically offers.
-	 * Some FreeBsd drivers appear to have a concurrency issue
-	 * where probe/attach needs to be serialized. We ensure that
-	 * by having only one thread process work elements in a 
-	 * specific queue by serializing work execution.
-	 *
-	 */
-	if (strcmp(name, "vmbusQ") == 0) {
-	    pri = PI_DISK;
-	} else { /* control */
-	    pri = PI_NET;
-	    /*
-	     * Initialize semaphore for this queue by pointing
-	     * to the globale semaphore used for synchronizing all
-	     * control messages.
-	     */
-	    wq->work_sema = &hv_vmbus_g_connection.control_sema;
-	}
-
-	sprintf(qname, "hv_%s_%u", name, qid);
-
-	/*
-	 * Fixme:  FreeBSD 8.2 has a different prototype for
-	 * taskqueue_create(), and for certain other taskqueue functions.
-	 * We need to research the implications of these changes.
-	 * Fixme:  Not sure when the changes were introduced.
-	 */
-	wq->queue = taskqueue_create(qname, M_NOWAIT, taskqueue_thread_enqueue,
-	    &wq->queue
-	    #if __FreeBSD_version < 800000
-	    , &wq->proc
-	    #endif
-	    );
-
-	if (wq->queue == NULL) {
-	    free(wq, M_DEVBUF);
-	    return (NULL);
-	}
-
-	if (taskqueue_start_threads(&wq->queue, 1, pri, "%s taskq", qname)) {
-	    taskqueue_free(wq->queue);
-	    free(wq, M_DEVBUF);
-	    return (NULL);
-	}
-
-	qid++;
-
-	return (wq);
-}
-
-void
-hv_work_queue_close(struct hv_work_queue *wq)
-{
-	/*
-	 * KYS: Need to drain the taskqueue
-	 * before we close the hv_work_queue.
-	 */
-	/*KYS: taskqueue_drain(wq->tq, ); */
-	taskqueue_free(wq->queue);
-	free(wq, M_DEVBUF);
 }
 
 /**
  * @brief Create work item
  */
-int
+static int
 hv_queue_work_item(
-	struct hv_work_queue *wq,
 	void (*callback)(void *), void *context)
 {
 	struct hv_work_item *w = malloc(sizeof(struct hv_work_item),
-					M_DEVBUF, M_NOWAIT | M_ZERO);
+					M_DEVBUF, M_NOWAIT);
 	KASSERT(w != NULL, ("Error VMBUS: Failed to allocate WorkItem\n"));
 	if (w == NULL)
 	    return (ENOMEM);
 
 	w->callback = callback;
 	w->context = context;
-	w->wq = wq;
 
 	TASK_INIT(&w->work, 0, work_item_callback, w);
 
-	return (taskqueue_enqueue(wq->queue, &w->work));
+	return (taskqueue_enqueue(taskqueue_thread, &w->work));
 }
 
 
@@ -224,10 +141,7 @@ hv_vmbus_allocate_channel(void)
 	channel = (hv_vmbus_channel*) malloc(
 					sizeof(hv_vmbus_channel),
 					M_DEVBUF,
-					M_NOWAIT | M_ZERO);
-	KASSERT(channel != NULL, ("Error VMBUS: Failed to allocate channel!"));
-	if (channel == NULL)
-	    return (NULL);
+					M_WAITOK | M_ZERO);
 
 	mtx_init(&channel->inbound_lock, "channel inbound", NULL, MTX_DEF);
 	mtx_init(&channel->sc_lock, "vmbus multi channel", NULL, MTX_DEF);
@@ -238,16 +152,6 @@ hv_vmbus_allocate_channel(void)
 }
 
 /**
- * @brief Release the vmbus channel object itself
- */
-static inline void
-ReleaseVmbusChannel(void *context)
-{
-	hv_vmbus_channel* channel = (hv_vmbus_channel*) context;
-	free(channel, M_DEVBUF);
-}
-
-/**
  * @brief Release the resources used by the vmbus channel object
  */
 void
@@ -255,13 +159,8 @@ hv_vmbus_free_vmbus_channel(hv_vmbus_channel* channel)
 {
 	mtx_destroy(&channel->sc_lock);
 	mtx_destroy(&channel->inbound_lock);
-	/*
-	 * We have to release the channel's workqueue/thread in
-	 *  the vmbus's workqueue/thread context
-	 * ie we can't destroy ourselves
-	 */
-	hv_queue_work_item(hv_vmbus_g_connection.work_queue,
-	    ReleaseVmbusChannel, (void *) channel);
+
+	free(channel, M_DEVBUF);
 }
 
 /**
@@ -459,7 +358,7 @@ static void
 vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
 {
 	hv_vmbus_channel_offer_channel* offer;
-	hv_vmbus_channel* new_channel;
+	hv_vmbus_channel_offer_channel* copied;
 
 	offer = (hv_vmbus_channel_offer_channel*) hdr;
 
@@ -469,10 +368,25 @@ vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
 	guidType = &offer->offer.interface_type;
 	guidInstance = &offer->offer.interface_instance;
 
+	// copy offer data
+	copied = malloc(sizeof(*copied), M_DEVBUF, M_NOWAIT);
+	if (copied == NULL) {
+		printf("fail to allocate memory\n");
+		return;
+	}
+
+	memcpy(copied, hdr, sizeof(*copied));
+	hv_queue_work_item(vmbus_channel_on_offer_internal, copied);
+}
+
+static void
+vmbus_channel_on_offer_internal(void* context)
+{
+	hv_vmbus_channel* new_channel;
+
+	hv_vmbus_channel_offer_channel* offer = (hv_vmbus_channel_offer_channel*)context;
 	/* Allocate the channel object and save this offer */
 	new_channel = hv_vmbus_allocate_channel();
-	if (new_channel == NULL)
-	    return;
 
 	/*
 	 * By default we setup state to enable batched
@@ -512,6 +426,8 @@ vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
 	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;
 
 	vmbus_channel_process_offer(new_channel);
+
+	free(offer, M_DEVBUF);
 }
 
 /**
@@ -529,13 +445,20 @@ vmbus_channel_on_offer_rescind(hv_vmbus_channel_msg_header* hdr)
 	rescind = (hv_vmbus_channel_rescind_offer*) hdr;
 
 	channel = hv_vmbus_g_connection.channels[rescind->child_rel_id];
-	if (channel == NULL) 
+	if (channel == NULL)
 	    return;
 
-	hv_vmbus_child_device_unregister(channel->device);
-	mtx_lock(&hv_vmbus_g_connection.channel_lock);
+	hv_queue_work_item(vmbus_channel_on_offer_rescind_internal, channel);
 	hv_vmbus_g_connection.channels[rescind->child_rel_id] = NULL;
-	mtx_unlock(&hv_vmbus_g_connection.channel_lock);
+}
+
+static void
+vmbus_channel_on_offer_rescind_internal(void *context)
+{
+	hv_vmbus_channel*               channel;
+
+	channel = (hv_vmbus_channel*)context;
+	hv_vmbus_child_device_unregister(channel->device);
 }
 
 /**
@@ -712,35 +635,6 @@ vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr)
 }
 
 /**
- * @brief Handler for channel protocol messages.
- *
- * This is invoked in the vmbus worker thread context.
- */
-void
-hv_vmbus_on_channel_message(void *context)
-{
-	hv_vmbus_message*		msg;
-	hv_vmbus_channel_msg_header*	hdr;
-	int				size;
-
-	msg = (hv_vmbus_message*) context;
-	hdr = (hv_vmbus_channel_msg_header*) msg->u.payload;
-	size = msg->header.payload_size;
-
-	if (hdr->message_type >= HV_CHANNEL_MESSAGE_COUNT) {
-	    free(msg, M_DEVBUF);
-	    return;
-	}
-
-	if (g_channel_message_table[hdr->message_type].messageHandler) {
-	    g_channel_message_table[hdr->message_type].messageHandler(hdr);
-	}
-
-	/* Free the msg that was allocated in VmbusOnMsgDPC() */
-	free(msg, M_DEVBUF);
-}
-
-/**
  *  @brief Send a request to get all our pending offers.
  */
 int
@@ -765,8 +659,7 @@ hv_vmbus_request_channel_offers(void)
 
 	ret = hv_vmbus_post_message(msg, sizeof(hv_vmbus_channel_msg_header));
 
-	if (msg_info)
-	    free(msg_info, M_DEVBUF);
+	free(msg_info, M_DEVBUF);
 
 	return (ret);
 }
