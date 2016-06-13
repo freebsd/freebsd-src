@@ -132,6 +132,8 @@ __FBSDID("$FreeBSD$");
 /* YYY should get it from the underlying channel */
 #define HN_TX_DESC_CNT			512
 
+#define HN_LROENT_CNT_DEF		128
+
 #define HN_RNDIS_MSG_LEN		\
     (sizeof(rndis_msg) +		\
      RNDIS_VLAN_PPI_SIZE +		\
@@ -231,6 +233,13 @@ TUNABLE_INT("dev.hn.tx_chimney_size", &hn_tx_chimney_size);
 /* Limit the size of packet for direct transmission */
 static int hn_direct_tx_size = HN_DIRECT_TX_SIZE_DEF;
 TUNABLE_INT("dev.hn.direct_tx_size", &hn_direct_tx_size);
+
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+static int hn_lro_entry_count = HN_LROENT_CNT_DEF;
+TUNABLE_INT("dev.hn.lro_entry_count", &hn_lro_entry_count);
+#endif
+#endif
 
 /*
  * Forward declarations
@@ -335,6 +344,11 @@ netvsc_attach(device_t dev)
 #if __FreeBSD_version >= 1100045
 	int tso_maxlen;
 #endif
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+	int lroent_cnt;
+#endif
+#endif
 
 	sc = device_get_softc(dev);
 	if (sc == NULL) {
@@ -417,9 +431,17 @@ netvsc_attach(device_t dev)
 	}
 
 #if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+	lroent_cnt = hn_lro_entry_count;
+	if (lroent_cnt < TCP_LRO_ENTRIES)
+		lroent_cnt = TCP_LRO_ENTRIES;
+	tcp_lro_init_args(&sc->hn_lro, ifp, lroent_cnt, 0);
+	device_printf(dev, "LRO: entry count %d\n", lroent_cnt);
+#else
 	tcp_lro_init(&sc->hn_lro);
 	/* Driver private LRO settings */
 	sc->hn_lro.ifp = ifp;
+#endif
 #ifdef HN_LRO_HIWAT
 	sc->hn_lro.lro_hiwat = sc->hn_lro_hiwat;
 #endif
@@ -512,6 +534,10 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "direct_tx_size",
 	    CTLFLAG_RW, &sc->hn_direct_tx_size, 0,
 	    "Size of the packet for direct transmission");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "sched_tx",
+	    CTLFLAG_RW, &sc->hn_sched_tx, 0,
+	    "Always schedule transmission "
+	    "instead of doing direct transmission");
 
 	if (unit == 0) {
 		struct sysctl_ctx_list *dc_ctx;
@@ -547,6 +573,12 @@ netvsc_attach(device_t dev)
 		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "direct_tx_size",
 		    CTLFLAG_RD, &hn_direct_tx_size, 0,
 		    "Size of the packet for direct transmission");
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "lro_entry_count",
+		    CTLFLAG_RD, &hn_lro_entry_count, 0, "LRO entry count");
+#endif
+#endif
 	}
 
 	return (0);
@@ -736,6 +768,15 @@ void
 netvsc_channel_rollup(struct hv_device *device_ctx)
 {
 	struct hn_softc *sc = device_get_softc(device_ctx->device);
+#if defined(INET) || defined(INET6)
+	struct lro_ctrl *lro = &sc->hn_lro;
+	struct lro_entry *queued;
+
+	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lro->lro_active, next);
+		tcp_lro_flush(lro, queued);
+	}
+#endif
 
 	if (!sc->hn_txeof)
 		return;
@@ -1312,18 +1353,8 @@ skip:
 }
 
 void
-netvsc_recv_rollup(struct hv_device *device_ctx)
+netvsc_recv_rollup(struct hv_device *device_ctx __unused)
 {
-#if defined(INET) || defined(INET6)
-	hn_softc_t *sc = device_get_softc(device_ctx->device);
-	struct lro_ctrl *lro = &sc->hn_lro;
-	struct lro_entry *queued;
-
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
-#endif
 }
 
 /*
@@ -1577,9 +1608,11 @@ hn_stop(hn_softc_t *sc)
 static void
 hn_start(struct ifnet *ifp)
 {
-	hn_softc_t *sc;
+	struct hn_softc *sc = ifp->if_softc;
 
-	sc = ifp->if_softc;
+	if (sc->hn_sched_tx)
+		goto do_sched;
+
 	if (NV_TRYLOCK(sc)) {
 		int sched;
 
@@ -1588,15 +1621,18 @@ hn_start(struct ifnet *ifp)
 		if (!sched)
 			return;
 	}
+do_sched:
 	taskqueue_enqueue_fast(sc->hn_tx_taskq, &sc->hn_start_task);
 }
 
 static void
 hn_start_txeof(struct ifnet *ifp)
 {
-	hn_softc_t *sc;
+	struct hn_softc *sc = ifp->if_softc;
 
-	sc = ifp->if_softc;
+	if (sc->hn_sched_tx)
+		goto do_sched;
+
 	if (NV_TRYLOCK(sc)) {
 		int sched;
 
@@ -1608,6 +1644,7 @@ hn_start_txeof(struct ifnet *ifp)
 			    &sc->hn_start_task);
 		}
 	} else {
+do_sched:
 		/*
 		 * Release the OACTIVE earlier, with the hope, that
 		 * others could catch up.  The task will clear the

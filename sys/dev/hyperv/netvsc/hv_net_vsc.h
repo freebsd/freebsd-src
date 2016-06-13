@@ -1024,6 +1024,7 @@ typedef struct hn_softc {
 	int		hn_txdesc_avail;
 	int		hn_txeof;
 
+	int		hn_sched_tx;
 	int		hn_direct_tx_size;
 	struct taskqueue *hn_tx_taskq;
 	struct task	hn_start_task;
