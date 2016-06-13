@@ -856,8 +856,8 @@ hv_storvsc_rescan_target(struct storvsc_softc *sc)
 
 	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid, targetid,
 	    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		printf("unable to create path for rescan, pathid: %d,"
-		    "targetid: %d\n", pathid, targetid);
+		printf("unable to create path for rescan, pathid: %u,"
+		    "targetid: %u\n", pathid, targetid);
 		xpt_free_ccb(ccb);
 		return;
 	}
