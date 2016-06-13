@@ -360,7 +360,8 @@ stdnull(void)
 	if (dup2(fd, STDERR_FILENO) == -1)
 		errx(1, "Unable to cover stderr");
 
-	close(fd);
+	if (fd > STDERR_FILENO)
+		close(fd);
 }
 
 static void
