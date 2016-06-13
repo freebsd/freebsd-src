@@ -176,14 +176,11 @@ struct hn_txdesc {
 #define HN_CSUM_ASSIST_WIN8	(CSUM_TCP)
 #define HN_CSUM_ASSIST		(CSUM_IP | CSUM_UDP | CSUM_TCP)
 
-/* XXX move to netinet/tcp_lro.h */
-#define HN_LRO_HIWAT_MAX				65535
-#define HN_LRO_HIWAT_DEF				HN_LRO_HIWAT_MAX
+#define HN_LRO_LENLIM_DEF		(25 * ETHERMTU)
 /* YYY 2*MTU is a bit rough, but should be good enough. */
-#define HN_LRO_HIWAT_MTULIM(ifp)			(2 * (ifp)->if_mtu)
-#define HN_LRO_HIWAT_ISVALID(sc, hiwat)			\
-    ((hiwat) >= HN_LRO_HIWAT_MTULIM((sc)->hn_ifp) ||	\
-     (hiwat) <= HN_LRO_HIWAT_MAX)
+#define HN_LRO_LENLIM_MIN(ifp)		(2 * (ifp)->if_mtu)
+
+#define HN_LRO_ACKCNT_DEF		1
 
 /*
  * Be aware that this sleepable mutex will exhibit WITNESS errors when
@@ -241,6 +238,11 @@ TUNABLE_INT("dev.hn.lro_entry_count", &hn_lro_entry_count);
 #endif
 #endif
 
+static int hn_share_tx_taskq = 0;
+TUNABLE_INT("hw.hn.share_tx_taskq", &hn_share_tx_taskq);
+
+static struct taskqueue	*hn_tx_taskq;
+
 /*
  * Forward declarations
  */
@@ -253,8 +255,9 @@ static void hn_start(struct ifnet *ifp);
 static void hn_start_txeof(struct ifnet *ifp);
 static int hn_ifmedia_upd(struct ifnet *ifp);
 static void hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
-#ifdef HN_LRO_HIWAT
-static int hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS);
+#if __FreeBSD_version >= 1100099
+static int hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
 static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
@@ -264,15 +267,6 @@ static void hn_destroy_tx_ring(struct hn_softc *sc);
 static void hn_start_taskfunc(void *xsc, int pending);
 static void hn_txeof_taskfunc(void *xsc, int pending);
 static int hn_encap(struct hn_softc *, struct hn_txdesc *, struct mbuf **);
-
-static __inline void
-hn_set_lro_hiwat(struct hn_softc *sc, int hiwat)
-{
-	sc->hn_lro_hiwat = hiwat;
-#ifdef HN_LRO_HIWAT
-	sc->hn_lro.lro_hiwat = sc->hn_lro_hiwat;
-#endif
-}
 
 static int
 hn_ifmedia_upd(struct ifnet *ifp __unused)
@@ -358,7 +352,6 @@ netvsc_attach(device_t dev)
 	bzero(sc, sizeof(hn_softc_t));
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
-	sc->hn_lro_hiwat = HN_LRO_HIWAT_DEF;
 	sc->hn_direct_tx_size = hn_direct_tx_size;
 	if (hn_trust_hosttcp)
 		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_TCP;
@@ -367,10 +360,14 @@ netvsc_attach(device_t dev)
 	if (hn_trust_hostip)
 		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
 
-	sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
-	    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
-	taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET, "%s tx",
-	    device_get_nameunit(dev));
+	if (hn_tx_taskq == NULL) {
+		sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+		    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
+		taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET, "%s tx",
+		    device_get_nameunit(dev));
+	} else {
+		sc->hn_tx_taskq = hn_tx_taskq;
+	}
 	TASK_INIT(&sc->hn_start_task, 0, hn_start_taskfunc, sc);
 	TASK_INIT(&sc->hn_txeof_task, 0, hn_txeof_taskfunc, sc);
 
@@ -442,8 +439,9 @@ netvsc_attach(device_t dev)
 	/* Driver private LRO settings */
 	sc->hn_lro.ifp = ifp;
 #endif
-#ifdef HN_LRO_HIWAT
-	sc->hn_lro.lro_hiwat = sc->hn_lro_hiwat;
+#if __FreeBSD_version >= 1100099
+	sc->hn_lro.lro_length_lim = HN_LRO_LENLIM_DEF;
+	sc->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
 #endif
 #endif	/* INET || INET6 */
 
@@ -471,6 +469,13 @@ netvsc_attach(device_t dev)
 	    hn_tx_chimney_size < sc->hn_tx_chimney_max)
 		sc->hn_tx_chimney_size = hn_tx_chimney_size;
 
+	/*
+	 * Always schedule transmission instead of trying
+	 * to do direct transmission.  This one gives the
+	 * best performance so far.
+	 */
+	sc->hn_sched_tx = 1;
+
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
@@ -480,10 +485,13 @@ netvsc_attach(device_t dev)
 	    CTLFLAG_RW, &sc->hn_lro.lro_flushed, 0, "LRO flushed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "lro_tried",
 	    CTLFLAG_RW, &sc->hn_lro_tried, "# of LRO tries");
-#ifdef HN_LRO_HIWAT
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_hiwat",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_hiwat_sysctl,
-	    "I", "LRO high watermark");
+#if __FreeBSD_version >= 1100099
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_length_lim",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_lro_lenlim_sysctl, "IU",
+	    "Max # of data bytes to be aggregated by LRO");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_ackcnt_lim",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_ackcnt_sysctl, "I",
+	    "Max # of ACKs to be aggregated by LRO");
 #endif
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
@@ -616,7 +624,8 @@ netvsc_detach(device_t dev)
 
 	taskqueue_drain(sc->hn_tx_taskq, &sc->hn_start_task);
 	taskqueue_drain(sc->hn_tx_taskq, &sc->hn_txeof_task);
-	taskqueue_free(sc->hn_tx_taskq);
+	if (sc->hn_tx_taskq != hn_tx_taskq)
+		taskqueue_free(sc->hn_tx_taskq);
 
 	ifmedia_removeall(&sc->hn_media);
 #if defined(INET) || defined(INET6)
@@ -1412,12 +1421,15 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		/* Obtain and record requested MTU */
 		ifp->if_mtu = ifr->ifr_mtu;
+
+#if __FreeBSD_version >= 1100099
 		/*
-		 * Make sure that LRO high watermark is still valid,
-		 * after MTU change (the 2*MTU limit).
+		 * Make sure that LRO aggregation length limit is still
+		 * valid, after the MTU change.
 		 */
-		if (!HN_LRO_HIWAT_ISVALID(sc, sc->hn_lro_hiwat))
-			hn_set_lro_hiwat(sc, HN_LRO_HIWAT_MTULIM(ifp));
+		if (sc->hn_lro.lro_length_lim < HN_LRO_LENLIM_MIN(ifp))
+			sc->hn_lro.lro_length_lim = HN_LRO_LENLIM_MIN(ifp);
+#endif
 
 		do {
 			NV_LOCK(sc);
@@ -1724,26 +1736,55 @@ hn_watchdog(struct ifnet *ifp)
 }
 #endif
 
-#ifdef HN_LRO_HIWAT
+#if __FreeBSD_version >= 1100099
+
 static int
-hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS)
+hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
-	int hiwat, error;
+	unsigned int lenlim;
+	int error;
 
-	hiwat = sc->hn_lro_hiwat;
-	error = sysctl_handle_int(oidp, &hiwat, 0, req);
+	lenlim = sc->hn_lro.lro_length_lim;
+	error = sysctl_handle_int(oidp, &lenlim, 0, req);
 	if (error || req->newptr == NULL)
 		return error;
 
-	if (!HN_LRO_HIWAT_ISVALID(sc, hiwat))
+	if (lenlim < HN_LRO_LENLIM_MIN(sc->hn_ifp) ||
+	    lenlim > TCP_LRO_LENGTH_MAX)
 		return EINVAL;
 
-	if (sc->hn_lro_hiwat != hiwat)
-		hn_set_lro_hiwat(sc, hiwat);
+	sc->hn_lro.lro_length_lim = lenlim;
 	return 0;
 }
-#endif	/* HN_LRO_HIWAT */
+
+static int
+hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ackcnt, error;
+
+	/*
+	 * lro_ackcnt_lim is append count limit,
+	 * +1 to turn it into aggregation limit.
+	 */
+	ackcnt = sc->hn_lro.lro_ackcnt_lim + 1;
+	error = sysctl_handle_int(oidp, &ackcnt, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	if (ackcnt < 2 || ackcnt > (TCP_LRO_ACKCNT_MAX + 1))
+		return EINVAL;
+
+	/*
+	 * Convert aggregation limit back to append
+	 * count limit.
+	 */
+	sc->hn_lro.lro_ackcnt_lim = ackcnt - 1;
+	return 0;
+}
+
+#endif
 
 static int
 hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
@@ -2028,6 +2069,28 @@ hn_txeof_taskfunc(void *xsc, int pending __unused)
 	hn_start_locked(ifp, 0);
 	NV_UNLOCK(sc);
 }
+
+static void
+hn_tx_taskq_create(void *arg __unused)
+{
+	if (!hn_share_tx_taskq)
+		return;
+
+	hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+	    taskqueue_thread_enqueue, &hn_tx_taskq);
+	taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
+}
+SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+    hn_tx_taskq_create, NULL);
+
+static void
+hn_tx_taskq_destroy(void *arg __unused)
+{
+	if (hn_tx_taskq != NULL)
+		taskqueue_free(hn_tx_taskq);
+}
+SYSUNINIT(hn_txtq_destroy, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+    hn_tx_taskq_destroy, NULL);
 
 static device_method_t netvsc_methods[] = {
         /* Device interface */
