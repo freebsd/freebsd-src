@@ -136,12 +136,9 @@ hv_get_rndis_device(void)
 {
 	rndis_device *device;
 
-	device = malloc(sizeof(rndis_device), M_NETVSC, M_NOWAIT | M_ZERO);
-	if (device == NULL) {
-		return (NULL);
-	}
+	device = malloc(sizeof(rndis_device), M_NETVSC, M_WAITOK | M_ZERO);
 
-	mtx_init(&device->req_lock, "HV-FRL", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&device->req_lock, "HV-FRL", NULL, MTX_DEF);
 
 	/* Same effect as STAILQ_HEAD_INITIALIZER() static initializer */
 	STAILQ_INIT(&device->myrequest_list);
@@ -172,10 +169,7 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 	rndis_msg *rndis_mesg;
 	rndis_set_request *set;
 
-	request = malloc(sizeof(rndis_request), M_NETVSC, M_NOWAIT | M_ZERO);
-	if (request == NULL) {
-		return (NULL);
-	}
+	request = malloc(sizeof(rndis_request), M_NETVSC, M_WAITOK | M_ZERO);
 
 	sema_init(&request->wait_sema, 0, "rndis sema");
 	
@@ -194,9 +188,9 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 	set->request_id += 1;
 
 	/* Add to the request list */
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	STAILQ_INSERT_TAIL(&device->myrequest_list, request, mylist_entry);
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	return (request);
 }
@@ -207,14 +201,14 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 static inline void
 hv_put_rndis_request(rndis_device *device, rndis_request *request)
 {
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	/* Fixme:  Has O(n) performance */
 	/*
 	 * XXXKYS: Use Doubly linked lists.
 	 */
 	STAILQ_REMOVE(&device->myrequest_list, request, rndis_request_,
 	    mylist_entry);
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	sema_destroy(&request->wait_sema);
 	free(request, M_NETVSC);
@@ -271,7 +265,7 @@ hv_rf_receive_response(rndis_device *device, rndis_msg *response)
 	rndis_request *next_request;
 	boolean_t found = FALSE;
 
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	request = STAILQ_FIRST(&device->myrequest_list);
 	while (request != NULL) {
 		/*
@@ -286,7 +280,7 @@ hv_rf_receive_response(rndis_device *device, rndis_msg *response)
 		next_request = STAILQ_NEXT(request, mylist_entry);
 		request = next_request;
 	}
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	if (found) {
 		if (response->msg_len <= sizeof(rndis_msg)) {

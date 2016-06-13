@@ -83,8 +83,6 @@ vmbus_msg_swintr(void *arg)
 	hv_vmbus_channel_msg_table_entry *entry;
 	hv_vmbus_channel_msg_type msg_type;
 	hv_vmbus_message*	msg;
-	hv_vmbus_message*	copied;
-	static bool warned	= false;
 
 	cpu = (int)(long)arg;
 	KASSERT(cpu <= mp_maxid, ("VMBUS: vmbus_msg_swintr: "
@@ -100,31 +98,15 @@ vmbus_msg_swintr(void *arg)
 		hdr = (hv_vmbus_channel_msg_header *)msg->u.payload;
 		msg_type = hdr->message_type;
 
-		if (msg_type >= HV_CHANNEL_MESSAGE_COUNT && !warned) {
-			warned = true;
+		if (msg_type >= HV_CHANNEL_MESSAGE_COUNT) {
 			printf("VMBUS: unknown message type = %d\n", msg_type);
 			goto handled;
 		}
 
 		entry = &g_channel_message_table[msg_type];
 
-		if (entry->handler_no_sleep)
+		if (entry->messageHandler)
 			entry->messageHandler(hdr);
-		else {
-
-			copied = malloc(sizeof(hv_vmbus_message),
-					M_DEVBUF, M_NOWAIT);
-			KASSERT(copied != NULL,
-				("Error VMBUS: malloc failed to allocate"
-					" hv_vmbus_message!"));
-			if (copied == NULL)
-				continue;
-
-			memcpy(copied, msg, sizeof(hv_vmbus_message));
-			hv_queue_work_item(hv_vmbus_g_connection.work_queue,
-					   hv_vmbus_on_channel_message,
-					   copied);
-		}
 handled:
 	    msg->header.message_type = HV_MESSAGE_TYPE_NONE;
 
@@ -309,12 +291,7 @@ hv_vmbus_child_device_create(
 	 * Allocate the new child device
 	 */
 	child_dev = malloc(sizeof(hv_device), M_DEVBUF,
-			M_NOWAIT |  M_ZERO);
-	KASSERT(child_dev != NULL,
-	    ("Error VMBUS: malloc failed to allocate hv_device!"));
-
-	if (child_dev == NULL)
-		return (NULL);
+			M_WAITOK |  M_ZERO);
 
 	child_dev->channel = channel;
 	memcpy(&child_dev->class_id, &type, sizeof(hv_guid));
@@ -585,12 +562,7 @@ vmbus_bus_init(void)
 		 */
 		for(i = 0; i < 2; i++) {
 			setup_args.page_buffers[2 * j + i] =
-				malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (setup_args.page_buffers[2 * j + i] == NULL) {
-				KASSERT(setup_args.page_buffers[2 * j + i] != NULL,
-					("Error VMBUS: malloc failed!"));
-				goto cleanup1;
-			}
+				malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 		}
 	}
 

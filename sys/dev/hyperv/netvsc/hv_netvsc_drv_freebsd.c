@@ -787,7 +787,7 @@ netvsc_channel_rollup(struct hv_device *device_ctx)
 
 /*
  * NOTE:
- * This this function fails, then both txd and m_head0 will be freed
+ * If this function fails, then both txd and m_head0 will be freed.
  */
 static int
 hn_encap(struct hn_softc *sc, struct hn_txdesc *txd, struct mbuf **m_head0)

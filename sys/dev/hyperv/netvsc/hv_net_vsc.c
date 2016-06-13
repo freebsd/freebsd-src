@@ -73,10 +73,7 @@ hv_nv_alloc_net_device(struct hv_device *device)
 	netvsc_dev *net_dev;
 	hn_softc_t *sc = device_get_softc(device->device);
 
-	net_dev = malloc(sizeof(netvsc_dev), M_NETVSC, M_NOWAIT | M_ZERO);
-	if (net_dev == NULL) {
-		return (NULL);
-	}
+	net_dev = malloc(sizeof(netvsc_dev), M_NETVSC, M_WAITOK | M_ZERO);
 
 	net_dev->dev = device;
 	net_dev->destroy = FALSE;
@@ -223,11 +220,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hv_device *device)
 	    init_pkt->msgs.vers_1_msgs.send_rx_buf_complete.num_sections;
 
 	net_dev->rx_sections = malloc(net_dev->rx_section_count *
-	    sizeof(nvsp_1_rx_buf_section), M_NETVSC, M_NOWAIT);
-	if (net_dev->rx_sections == NULL) {
-		ret = EINVAL;
-		goto cleanup;
-	}
+	    sizeof(nvsp_1_rx_buf_section), M_NETVSC, M_WAITOK);
 	memcpy(net_dev->rx_sections, 
 	    init_pkt->msgs.vers_1_msgs.send_rx_buf_complete.sections,
 	    net_dev->rx_section_count * sizeof(nvsp_1_rx_buf_section));
@@ -325,11 +318,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hv_device *device)
 	    BITS_PER_LONG);
 	net_dev->send_section_bitsmap =
 	    malloc(net_dev->bitsmap_words * sizeof(long), M_NETVSC,
-	    M_NOWAIT | M_ZERO);
-	if (NULL == net_dev->send_section_bitsmap) {
-		ret = ENOMEM;
-		goto cleanup;
-	}
+	    M_WAITOK | M_ZERO);
 
 	goto exit;
 

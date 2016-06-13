@@ -69,9 +69,7 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 				+ ((channel->offer_msg.child_rel_id >> 5))));
 
 		monitor_page = (hv_vmbus_monitor_page *)
-			hv_vmbus_g_connection.monitor_pages;
-
-		monitor_page++; /* Get the child to parent monitor page */
+			hv_vmbus_g_connection.monitor_page_2;
 
 		synch_set_bit(channel->monitor_bit,
 			(uint32_t *)&monitor_page->
