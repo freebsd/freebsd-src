@@ -58,6 +58,8 @@
 
 #include <dev/hyperv/include/hyperv.h>
 
+#define HN_USE_TXDESC_BUFRING
+
 MALLOC_DECLARE(M_NETVSC);
 
 #define NVSP_INVALID_PROTOCOL_VERSION           (0xFFFFFFFF)
@@ -990,8 +992,12 @@ typedef struct {
 	hv_bool_uint8_t	link_state;
 } netvsc_device_info;
 
+#ifndef HN_USE_TXDESC_BUFRING
 struct hn_txdesc;
 SLIST_HEAD(hn_txdesc_list, hn_txdesc);
+#else
+struct buf_ring;
+#endif
 
 struct hn_rx_ring {
 	struct lro_ctrl	hn_lro;
@@ -1012,8 +1018,12 @@ struct hn_rx_ring {
 #define HN_TRUST_HCSUM_UDP	0x0004
 
 struct hn_tx_ring {
+#ifndef HN_USE_TXDESC_BUFRING
 	struct mtx	hn_txlist_spin;
 	struct hn_txdesc_list hn_txlist;
+#else
+	struct buf_ring	*hn_txdesc_br;
+#endif
 	int		hn_txdesc_cnt;
 	int		hn_txdesc_avail;
 	int		hn_txeof;
