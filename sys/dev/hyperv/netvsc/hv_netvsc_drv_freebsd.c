@@ -292,6 +292,9 @@ static int hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
 static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
+#if __FreeBSD_version < 1100095
+static int hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS);
+#endif
 static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
@@ -1783,6 +1786,34 @@ hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+#if __FreeBSD_version < 1100095
+static int
+hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error;
+	struct hn_rx_ring *rxr;
+	uint64_t stat;
+
+	stat = 0;
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		stat += *((int *)((uint8_t *)rxr + ofs));
+	}
+
+	error = sysctl_handle_64(oidp, &stat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	/* Zero out this stat. */
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		*((int *)((uint8_t *)rxr + ofs)) = 0;
+	}
+	return 0;
+}
+#endif
+
 static int
 hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -2031,11 +2062,21 @@ hn_create_rx_data(struct hn_softc *sc)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
 	    CTLTYPE_U64 | CTLFLAG_RW, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_queued),
-	    hn_rx_stat_u64_sysctl, "LU", "LRO queued");
+#if __FreeBSD_version < 1100095
+	    hn_rx_stat_int_sysctl,
+#else
+	    hn_rx_stat_u64_sysctl,
+#endif
+	    "LU", "LRO queued");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_flushed",
 	    CTLTYPE_U64 | CTLFLAG_RW, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_flushed),
-	    hn_rx_stat_u64_sysctl, "LU", "LRO flushed");
+#if __FreeBSD_version < 1100095
+	    hn_rx_stat_int_sysctl,
+#else
+	    hn_rx_stat_u64_sysctl,
+#endif
+	    "LU", "LRO flushed");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_tried",
 	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro_tried),
