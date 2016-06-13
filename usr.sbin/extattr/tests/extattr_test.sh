@@ -30,6 +30,7 @@ bad_namespace_head() {
 	atf_set "descr" "Can't set attributes for nonexistent namespaces"
 }
 bad_namespace_body() {
+	check_fs
 	touch foo
 	atf_check -s not-exit:0 -e match:"Invalid argument" \
 		setextattr badnamespace myattr X foo
@@ -42,6 +43,7 @@ hex_head() {
 	atf_set "descr" "Set and get attribute values in hexadecimal"
 }
 hex_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty setextattr user myattr XYZ foo
 	atf_check -s exit:0 -o inline:"58 59 5a\n" \
@@ -53,6 +55,7 @@ hex_nonascii_head() {
 	atf_set "descr" "Get binary attribute values in hexadecimal"
 }
 hex_nonascii_body() {
+	check_fs
 	touch foo
 	BINSTUFF=`echo $'\x20\x30\x40\x55\x66\x70\x81\xa2\xb3\xee\xff'`
 	atf_check -s exit:0 -o empty setextattr user myattr "$BINSTUFF" foo
@@ -66,6 +69,7 @@ long_name_head() {
 	atf_set "descr" "A maximum length attribute name"
 }
 long_name_body() {
+	check_fs
 	# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=208965
 	atf_expect_fail "BUG 208965 extattr(2) doesn't allow maxlen attr names"
 
@@ -84,6 +88,7 @@ loud_head() {
 	atf_set "descr" "Loud (non -q) output for each command"
 }
 loud_body() {
+	check_fs
 	touch foo
 	# setextattr(8) and friends print hard tabs.  Use printf to convert
 	# them to spaces before checking the output.
@@ -101,6 +106,7 @@ noattrs_head() {
 	atf_set "descr" "A file with no extended attributes"
 }
 noattrs_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty lsextattr -q user foo
 }	
@@ -110,6 +116,7 @@ nonexistent_file_head() {
 	atf_set "descr" "A file that does not exist"
 }
 nonexistent_file_body() {
+	check_fs
 	atf_check -s exit:1 -e match:"No such file or directory" \
 		lsextattr user foo
 	atf_check -s exit:1 -e match:"No such file or directory" \
@@ -125,6 +132,7 @@ null_head() {
 	atf_set "descr" "NUL-terminate an attribute value"
 }
 null_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty setextattr -n user myattr myvalue foo
 	atf_check -s exit:0 -o inline:"myvalue\0\n" getextattr -q user myattr foo
@@ -135,6 +143,7 @@ one_user_attr_head() {
 	atf_set "descr" "A file with one extended attribute"
 }
 one_user_attr_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty setextattr user myattr myvalue foo
 	atf_check -s exit:0 -o inline:"myattr\n" lsextattr -q user foo
@@ -149,6 +158,7 @@ one_system_attr_head() {
 	atf_set "require.user" "root"
 }
 one_system_attr_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty setextattr system myattr myvalue foo
 	atf_check -s exit:0 -o inline:"myattr\n" lsextattr -q system foo
@@ -162,6 +172,7 @@ stdin_head() {
 	atf_set "descr" "Set attribute value from stdin"
 }
 stdin_body() {
+	check_fs
 	dd if=/dev/random of=infile bs=1k count=8
 	touch foo
 	setextattr -i user myattr foo < infile || atf_fail "setextattr failed"
@@ -175,6 +186,7 @@ stringify_head() {
 	atf_set "descr" "Stringify the output of getextattr"
 }
 stringify_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty setextattr user myattr "my value" foo
 	atf_check -s exit:0 -o inline:"\"my\\\040value\"\n" \
@@ -186,6 +198,7 @@ symlink_head() {
 	atf_set "descr" "A symlink to an ordinary file"
 }
 symlink_body() {
+	check_fs
 	touch foo
 	ln -s foo foolink
 	atf_check -s exit:0 -o empty setextattr user myattr myvalue foolink
@@ -199,6 +212,7 @@ symlink_nofollow_head() {
 	atf_set "descr" "Operating directly on a symlink"
 }
 symlink_nofollow_body() {
+	check_fs
 	touch foo
 	ln -s foo foolink
 	# Check that with -h we can operate directly on the link
@@ -221,6 +235,7 @@ system_and_user_attrs_head() {
 	atf_set "require.user" "root"
 }
 system_and_user_attrs_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty setextattr user userattr userval foo
 	atf_check -s exit:0 -o empty setextattr system sysattr sysval foo
@@ -240,6 +255,7 @@ two_files_head() {
 	atf_set "descr" "Manipulate two files"
 }
 two_files_body() {
+	check_fs
 	touch foo bar
 	atf_check -s exit:0 -o empty setextattr user myattr myvalue foo bar
 	atf_check -s exit:0 -o inline:"foo\tmyattr\nbar\tmyattr\n" \
@@ -256,6 +272,7 @@ two_files_force_head() {
 	atf_set "descr" "Manipulate two files.  The first does not exist"
 }
 two_files_force_body() {
+	check_fs
 	touch bar
 	atf_check -s exit:1 -e match:"No such file or directory" \
 		setextattr user myattr myvalue foo bar
@@ -281,6 +298,7 @@ two_user_attrs_head() {
 	atf_set "descr" "A file with two extended attributes"
 }
 two_user_attrs_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty setextattr user myattr1 myvalue1 foo
 	atf_check -s exit:0 -o empty setextattr user myattr2 myvalue2 foo
@@ -305,6 +323,7 @@ unprivileged_user_cannot_set_system_attr_head() {
         atf_set "require.user" "unprivileged"
 }
 unprivileged_user_cannot_set_system_attr_body() {
+	check_fs
 	touch foo
 	atf_check -s exit:1 -e match:"Operation not permitted" \
 		setextattr system myattr myvalue foo
@@ -332,4 +351,12 @@ atf_init_test_cases() {
 	atf_add_test_case two_files_force
 	atf_add_test_case two_user_attrs
 	atf_add_test_case unprivileged_user_cannot_set_system_attr
+}
+
+check_fs() {
+	case `df -T . | tail -n 1 | cut -wf 2` in
+		"ufs") ;; # UFS is fine
+		"zfs") ;; # ZFS is fine
+		"tmpfs") atf_skip "tmpfs does not support extended attributes";;
+	esac
 }
