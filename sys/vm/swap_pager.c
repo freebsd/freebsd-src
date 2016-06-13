@@ -488,6 +488,7 @@ swap_pager_init(void)
 		TAILQ_INIT(&swap_pager_object_list[i]);
 	mtx_init(&sw_alloc_mtx, "swap_pager list", NULL, MTX_DEF);
 	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
+	sx_init(&sw_alloc_sx, "swspsx");
 	sx_init(&swdev_syscall_lock, "swsysc");
 
 	/*
