@@ -52,6 +52,7 @@ static int 	vmbus_channel_create_gpadl_header(
 			uint32_t*			message_count);
 
 static void 	vmbus_channel_set_event(hv_vmbus_channel* channel);
+static void	VmbusProcessChannelEvent(void* channel, int pending);
 
 /**
  *  @brief Trigger an event notification on the specified channel
@@ -114,6 +115,9 @@ hv_vmbus_channel_open(
 
 	new_channel->on_channel_callback = pfn_on_channel_callback;
 	new_channel->channel_callback_context = context;
+
+	new_channel->rxq = hv_vmbus_g_context.hv_event_queue[new_channel->target_cpu];
+	TASK_INIT(&new_channel->channel_task, 0, VmbusProcessChannelEvent, new_channel);
 
 	/* Allocate the ring buffer */
 	out = contigmalloc((send_ring_buffer_size + recv_ring_buffer_size),
@@ -518,12 +522,18 @@ static void
 hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 {
 	int ret = 0;
+	struct taskqueue *rxq = channel->rxq;
 	hv_vmbus_channel_close_channel* msg;
 	hv_vmbus_channel_msg_info* info;
 
 	channel->state = HV_CHANNEL_OPEN_STATE;
 	channel->sc_creation_callback = NULL;
 
+	/*
+	 * set rxq to NULL to avoid more requests be scheduled
+	 */
+	channel->rxq = NULL;
+	taskqueue_drain(rxq, &channel->channel_task);
 	/*
 	 * Grab the lock to prevent race condition when a packet received
 	 * and unloading driver is in the process.
@@ -876,4 +886,68 @@ hv_vmbus_channel_recv_packet_raw(
 	ret = hv_ring_buffer_read(&channel->inbound, buffer, packetLen, 0);
 
 	return (0);
+}
+
+
+/**
+ * Process a channel event notification
+ */
+static void
+VmbusProcessChannelEvent(void* context, int pending)
+{
+	void* arg;
+	uint32_t bytes_to_read;
+	hv_vmbus_channel* channel = (hv_vmbus_channel*)context;
+	boolean_t is_batched_reading;
+
+	/**
+	 * Find the channel based on this relid and invokes
+	 * the channel callback to process the event
+	 */
+
+	if (channel == NULL) {
+		return;
+	}
+	/**
+	 * To deal with the race condition where we might
+	 * receive a packet while the relevant driver is
+	 * being unloaded, dispatch the callback while
+	 * holding the channel lock. The unloading driver
+	 * will acquire the same channel lock to set the
+	 * callback to NULL. This closes the window.
+	 */
+
+	/*
+	 * Disable the lock due to newly added WITNESS check in r277723.
+	 * Will seek other way to avoid race condition.
+	 * -- whu
+	 */
+	// mtx_lock(&channel->inbound_lock);
+	if (channel->on_channel_callback != NULL) {
+		arg = channel->channel_callback_context;
+		is_batched_reading = channel->batched_reading;
+		/*
+		 * Optimize host to guest signaling by ensuring:
+		 * 1. While reading the channel, we disable interrupts from
+		 *    host.
+		 * 2. Ensure that we process all posted messages from the host
+		 *    before returning from this callback.
+		 * 3. Once we return, enable signaling from the host. Once this
+		 *    state is set we check to see if additional packets are
+		 *    available to read. In this case we repeat the process.
+		 */
+		do {
+			if (is_batched_reading)
+				hv_ring_buffer_read_begin(&channel->inbound);
+
+			channel->on_channel_callback(arg);
+
+			if (is_batched_reading)
+				bytes_to_read =
+				    hv_ring_buffer_read_end(&channel->inbound);
+			else
+				bytes_to_read = 0;
+		} while (is_batched_reading && (bytes_to_read != 0));
+	}
+	// mtx_unlock(&channel->inbound_lock);
 }

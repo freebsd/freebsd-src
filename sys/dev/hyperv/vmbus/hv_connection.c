@@ -339,78 +339,12 @@ hv_vmbus_disconnect(void) {
 }
 
 /**
- * Process a channel event notification
- */
-static void
-VmbusProcessChannelEvent(uint32_t relid) 
-{
-	void* arg;
-	uint32_t bytes_to_read;
-	hv_vmbus_channel* channel;
-	boolean_t is_batched_reading;
-
-	/**
-	 * Find the channel based on this relid and invokes
-	 * the channel callback to process the event
-	 */
-
-	channel = hv_vmbus_g_connection.channels[relid];
-
-	if (channel == NULL) {
-		return;
-	}
-	/**
-	 * To deal with the race condition where we might
-	 * receive a packet while the relevant driver is 
-	 * being unloaded, dispatch the callback while 
-	 * holding the channel lock. The unloading driver
-	 * will acquire the same channel lock to set the
-	 * callback to NULL. This closes the window.
-	 */
-
-	/*
-	 * Disable the lock due to newly added WITNESS check in r277723.
-	 * Will seek other way to avoid race condition.
-	 * -- whu
-	 */
-	// mtx_lock(&channel->inbound_lock);
-	if (channel->on_channel_callback != NULL) {
-		arg = channel->channel_callback_context;
-		is_batched_reading = channel->batched_reading;
-		/*
-		 * Optimize host to guest signaling by ensuring:
-		 * 1. While reading the channel, we disable interrupts from
-		 *    host.
-		 * 2. Ensure that we process all posted messages from the host
-		 *    before returning from this callback.
-		 * 3. Once we return, enable signaling from the host. Once this
-		 *    state is set we check to see if additional packets are
-		 *    available to read. In this case we repeat the process.
-		 */
-		do {
-			if (is_batched_reading)
-				hv_ring_buffer_read_begin(&channel->inbound);
-
-			channel->on_channel_callback(arg);
-
-			if (is_batched_reading)
-				bytes_to_read =
-				    hv_ring_buffer_read_end(&channel->inbound);
-			else
-				bytes_to_read = 0;
-		} while (is_batched_reading && (bytes_to_read != 0));
-	}
-	// mtx_unlock(&channel->inbound_lock);
-}
-
-/**
  * Handler for events
  */
 void
-hv_vmbus_on_events(void *arg) 
+hv_vmbus_on_events(int cpu)
 {
 	int bit;
-	int cpu;
 	int dword;
 	void *page_addr;
 	uint32_t* recv_interrupt_page = NULL;
@@ -419,7 +353,6 @@ hv_vmbus_on_events(void *arg)
 	hv_vmbus_synic_event_flags *event;
 	/* int maxdword = PAGE_SIZE >> 3; */
 
-	cpu = (int)(long)arg;
 	KASSERT(cpu <= mp_maxid, ("VMBUS: hv_vmbus_on_events: "
 	    "cpu out of range!"));
 
@@ -461,8 +394,14 @@ hv_vmbus_on_events(void *arg)
 				 */
 				continue;
 			    } else {
-				VmbusProcessChannelEvent(rel_id);
+				hv_vmbus_channel * channel = hv_vmbus_g_connection.channels[rel_id];
+				/* if channel is closed or closing */
+				if (channel == NULL || channel->rxq == NULL)
+					continue;
 
+				if (channel->batched_reading)
+					hv_ring_buffer_read_begin(&channel->inbound);
+				taskqueue_enqueue_fast(channel->rxq, &channel->channel_task);
 			    }
 			}
 		    }
