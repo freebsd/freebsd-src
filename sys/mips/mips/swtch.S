@@ -528,6 +528,7 @@ END(cpu_switch)
  *----------------------------------------------------------------------------
  */
 #if defined(CPU_HAVEFPU)
+.set hardfloat
 LEAF(MipsSwitchFPState)
 	mfc0	t1, MIPS_COP_0_STATUS	# Save old SR
 	li	t0, MIPS_SR_COP_1_BIT	# enable the coprocessor
