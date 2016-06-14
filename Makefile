@@ -151,8 +151,8 @@ TGTS+=	${BITGTS}
 META_TGT_WHITELIST+= \
 	_* build32 buildfiles buildincludes buildkernel buildsoft \
 	buildworld everything kernel-toolchains kernels libraries \
-	native-xtools tinderbox toolchain toolchains universe worlds \
-	xdev xdev-build
+	native-xtools showconfig tinderbox toolchain toolchains universe \
+	worlds xdev xdev-build
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distributeworld
