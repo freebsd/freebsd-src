@@ -760,7 +760,7 @@ process_socket_event(struct c4iw_ep *ep)
 	}
 
 	/* peer close */
-	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && state < CLOSING) {
+	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && state <= CLOSING) {
 		process_peer_close(ep);
 		return;
 	}
@@ -1223,9 +1223,23 @@ static int send_abort(struct c4iw_ep *ep)
 
 	CTR2(KTR_IW_CXGBE, "%s:abB %p", __func__, ep);
 	abort_socket(ep);
-	err = close_socket(&ep->com, 0);
+
+	/*
+	 * Since socket options were set as l_onoff=1 and l_linger=0 in in
+	 * abort_socket, invoking soclose here sends a RST (reset) to the peer.
+	 */
+	err = close_socket(&ep->com, 1);
 	set_bit(ABORT_CONN, &ep->com.history);
 	CTR2(KTR_IW_CXGBE, "%s:abE %p", __func__, ep);
+
+	/*
+	 * TBD: iw_cgbe driver should receive ABORT reply for every ABORT
+	 * request it has sent. But the current TOE driver is not propagating
+	 * this ABORT reply event (via do_abort_rpl) to iw_cxgbe. So as a work-
+	 * around de-refer 'ep' (which was refered before sending ABORT request)
+	 * here instead of doing it in abort_rpl() handler of iw_cxgbe driver.
+	 */
+	c4iw_put_ep(&ep->com);
 	return err;
 }
 
