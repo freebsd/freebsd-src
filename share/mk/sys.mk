@@ -60,10 +60,6 @@ META_MODE+=	missing-meta=yes
 META_MODE+=	silent=yes
 .endif
 .if !exists(/dev/filemon)
-.if ${UPDATE_DEPENDFILE:Uyes:tl} != "no" && !defined(NO_FILEMON) && \
-    !make(showconfig)
-.error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded.
-.endif
 META_MODE+= nofilemon
 .endif
 # Require filemon data with bmake
