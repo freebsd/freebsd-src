@@ -41,6 +41,9 @@ The meta files can also be useful for debugging.
 The build will hide commands ran unless
 .Va NO_SILENT
 is defined.
+Errors will cause
+.Xr make 1
+to show some of its environment for further debugging.
 .Pp
 The build operates as it normally would otherwise.
 This option originally invoked a different build system but that was renamed
