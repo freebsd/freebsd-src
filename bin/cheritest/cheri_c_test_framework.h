@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <cheritest.h>
 
+#undef assert
 #define	assert(x)							\
 do {									\
 	if (!(x)) 							\
