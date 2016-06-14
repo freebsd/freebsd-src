@@ -199,6 +199,9 @@ init_secondary(int cpu)
 	vfp_init();
 #endif
 
+	/* Configure the interrupt controller */
+	intr_pic_init_secondary();
+
 	mtx_lock_spin(&ap_boot_mtx);
 
 	atomic_add_rel_32(&smp_cpus, 1);
@@ -237,7 +240,6 @@ init_secondary(int cpu)
 	cpu_initclocks_ap();
 
 	CTR0(KTR_SMP, "go into scheduler");
-	intr_pic_init_secondary();
 
 	/* Enter the scheduler */
 	sched_throw(NULL);
