@@ -28,4 +28,14 @@ _SKIP_BUILD = not building at level 0
 .warning ${_SKIP_BUILD}
 .endif
 
+.if ${MK_META_MODE} == "yes"
+.if !exists(/dev/filemon) && \
+    ${UPDATE_DEPENDFILE:Uyes:tl} != "no" && !defined(NO_FILEMON) && \
+    !make(showconfig)
+.warning The filemon module (/dev/filemon) is not loaded.
+.warning META_MODE is less useful for incremental builds without filemon.
+.warning 'kldload filemon' or pass -DNO_FILEMON to suppress this warning.
+.endif
+.endif	# ${MK_META_MODE} == "yes"
+
 .endif	# !target(__<bsd.init.mk>__)

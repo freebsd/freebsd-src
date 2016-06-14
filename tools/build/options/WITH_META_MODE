@@ -7,9 +7,13 @@ using
 The meta file is created in the OBJDIR as
 .Pa target.meta .
 These meta files track the command ran, its output, and the current directory.
-When the
+The
 .Xr filemon 4
-module is loaded, any files used by the commands executed will be tracked as
+module is required unless
+.Va NO_FILEMON
+is defined.
+When the module is loaded, any files used by the commands executed will be
+tracked as
 dependencies for the target in its meta file.
 The target will be considered out-of-date and rebuilt if any of the following
 are true compared to the last build:
