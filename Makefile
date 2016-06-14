@@ -274,7 +274,7 @@ CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s ; echo
 # not included. One can argue that this target doesn't build everything
 # then.
 #
-world: upgrade_checks
+world: upgrade_checks .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make world started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
@@ -300,7 +300,7 @@ world: upgrade_checks
 	@echo "                   (started ${STARTTIME})"
 	@echo "--------------------------------------------------------------"
 .else
-world:
+world: .PHONY
 	@echo "WARNING: make world will overwrite your existing FreeBSD"
 	@echo "installation without also building and installing a new"
 	@echo "kernel.  This can be dangerous.  Please read the handbook,"
@@ -317,13 +317,13 @@ world:
 #
 # Short hand for `make buildkernel installkernel'
 #
-kernel: buildkernel installkernel
+kernel: buildkernel installkernel .PHONY
 
 #
 # Perform a few tests to determine if the installed tools are adequate
 # for building the world.
 #
-upgrade_checks:
+upgrade_checks: .PHONY
 .if defined(NEED_MAKE_UPGRADE)
 	@${_+_}(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
 .endif
@@ -359,19 +359,19 @@ regress: .PHONY
 
 tinderbox toolchains kernel-toolchains kernels worlds: upgrade_checks
 
-tinderbox:
+tinderbox: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} DOING_TINDERBOX=YES universe
 
-toolchains:
+toolchains: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=toolchain universe
 
-kernel-toolchains:
+kernel-toolchains: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
 
-kernels:
+kernels: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildkernel universe
 
-worlds:
+worlds: .PHONY
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildworld universe
 
 #
@@ -397,9 +397,9 @@ TARGET_ARCHES_${target}?= ${target}
 # It does not build with the in-tree linker.
 .if !exists(/usr/local/aarch64-freebsd/bin/ld) && empty(${TARGETS})
 _UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:Narm64}
-universe: universe_arm64_skip
-universe_epilogue: universe_arm64_skip
-universe_arm64_skip: universe_prologue
+universe: universe_arm64_skip .PHONY
+universe_epilogue: universe_arm64_skip .PHONY
+universe_arm64_skip: universe_prologue .PHONY
 	@echo ">> arm64 skipped - install aarch64-binutils port or package to build"
 .endif
 
@@ -437,16 +437,16 @@ universe_prologue: .PHONY
 .for target in ${_UNIVERSE_TARGETS}
 universe: universe_${target}
 universe_epilogue: universe_${target}
-universe_${target}: universe_${target}_prologue
-universe_${target}_prologue: universe_prologue
+universe_${target}: universe_${target}_prologue .PHONY
+universe_${target}_prologue: universe_prologue .PHONY
 	@echo ">> ${target} started on `LC_ALL=C date`"
-universe_${target}_worlds:
+universe_${target}_worlds: .PHONY
 
 .if !defined(MAKE_JUST_KERNELS)
-universe_${target}_done: universe_${target}_worlds
+universe_${target}_done: universe_${target}_worlds .PHONY
 .for target_arch in ${TARGET_ARCHES_${target}}
-universe_${target}_worlds: universe_${target}_${target_arch}
-universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
+universe_${target}_worlds: universe_${target}_${target_arch} .PHONY
+universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
@@ -461,9 +461,9 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 .endif # !MAKE_JUST_KERNELS
 
 .if !defined(MAKE_JUST_WORLDS)
-universe_${target}_done: universe_${target}_kernels
-universe_${target}_kernels: universe_${target}_worlds
-universe_${target}_kernels: universe_${target}_prologue .MAKE
+universe_${target}_done: universe_${target}_kernels .PHONY
+universe_${target}_kernels: universe_${target}_worlds .PHONY
+universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
@@ -479,7 +479,7 @@ universe_${target}: universe_${target}_done
 universe_${target}_done:
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
-universe_kernels: universe_kernconfs
+universe_kernels: universe_kernconfs .PHONY
 .if !defined(TARGET)
 TARGET!=	uname -m
 .endif
@@ -493,7 +493,7 @@ KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		-type f -maxdepth 0 \
 		! -name DEFAULTS ! -name NOTES | \
 		${_THINNER}
-universe_kernconfs:
+universe_kernconfs: .PHONY
 .for kernel in ${KERNCONFS}
 TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 	config -m ${KERNSRCDIR}/${TARGET}/conf/${kernel} 2> /dev/null | \
@@ -527,7 +527,7 @@ universe_epilogue: .PHONY
 .endif
 .endif
 
-buildLINT:
+buildLINT: .PHONY
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
 
 .if defined(.PARSEDIR)
