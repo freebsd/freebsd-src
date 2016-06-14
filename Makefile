@@ -219,6 +219,13 @@ _CAN_USE_META_MODE?= yes
 .if !defined(_CAN_USE_META_MODE)
 _MAKE+=	MK_META_MODE=no
 .unexport META_MODE
+.elif ${MK_META_MODE} == "yes"
+.if !exists(/dev/filemon) && !defined(NO_FILEMON) && !make(showconfig)
+# Require filemon be loaded to provide a working incremental build
+.error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded. \
+    ${.newline}ERROR: WITH_META_MODE is enabled but requires filemon for an incremental build. \
+    ${.newline}ERROR: 'kldload filemon' or pass -DNO_FILEMON to suppress this error.
+.endif	# !exists(/dev/filemon) && !defined(NO_FILEMON)
 .endif	# !defined(_CAN_USE_META_MODE)
 
 # Guess machine architecture from machine type, and vice versa.
