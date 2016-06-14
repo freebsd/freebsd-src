@@ -3,6 +3,7 @@
 
 DIRDEPS = \
 	include \
+	lib/libc++ \
 
 
 .include <dirdeps.mk>
