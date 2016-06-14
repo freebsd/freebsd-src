@@ -1418,7 +1418,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tp->rcv_nxt += len;
 	if (tp->rcv_wnd < len) {
-		KASSERT(toep->ulp_mode != ULP_MODE_RDMA,
+		KASSERT(toep->ulp_mode == ULP_MODE_RDMA,
 				("%s: negative window size", __func__));
 	}
 
