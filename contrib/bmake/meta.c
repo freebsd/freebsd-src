@@ -1474,6 +1474,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 		if (DEBUG(META))
 		    fprintf(debug_file, "%s: required but missing\n", fname);
 		oodate = TRUE;
+		needOODATE = TRUE;	/* assume the worst */
 	    }
 	}
     }
