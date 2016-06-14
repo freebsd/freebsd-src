@@ -113,7 +113,7 @@ static int     avgfilesize;	   /* expected average file size */
 static int     avgfpdir;	   /* expected number of files per directory */
 
 struct fs *
-ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
+ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 {
 	int fragsperinode, optimalfpg, origdensity, minfpg, lastminfpg;
 	int32_t cylno, i, csfrags;
@@ -434,7 +434,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 	sblock.fs_state = 0;
 	sblock.fs_clean = FS_ISCLEAN;
 	sblock.fs_ronly = 0;
-	sblock.fs_id[0] = start_time.tv_sec;
+	sblock.fs_id[0] = tstamp;
 	sblock.fs_id[1] = random();
 	sblock.fs_fsmnt[0] = '\0';
 	csfrags = howmany(sblock.fs_cssize, sblock.fs_fsize);
@@ -450,9 +450,9 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 	sblock.fs_cstotal.cs_nifree = sblock.fs_ncg * sblock.fs_ipg - ROOTINO;
 	sblock.fs_cstotal.cs_ndir = 0;
 	sblock.fs_dsize -= csfrags;
-	sblock.fs_time = start_time.tv_sec;
+	sblock.fs_time = tstamp;
 	if (Oflag <= 1) {
-		sblock.fs_old_time = start_time.tv_sec;
+		sblock.fs_old_time = tstamp;
 		sblock.fs_old_dsize = sblock.fs_dsize;
 		sblock.fs_old_csaddr = sblock.fs_csaddr;
 		sblock.fs_old_cstotal.cs_ndir = sblock.fs_cstotal.cs_ndir;
@@ -508,7 +508,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 
 	printf("super-block backups (for fsck -b #) at:");
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
-		initcg(cylno, start_time.tv_sec, fsopts);
+		initcg(cylno, tstamp, fsopts);
 		if (cylno % nprintcols == 0)
 			printf("\n");
 		printf(" %*lld,", printcolwidth,
@@ -521,7 +521,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 	 * Now construct the initial file system,
 	 * then write out the super-block.
 	 */
-	sblock.fs_time = start_time.tv_sec;
+	sblock.fs_time = tstamp;
 	if (Oflag <= 1) {
 		sblock.fs_old_cstotal.cs_ndir = sblock.fs_cstotal.cs_ndir;
 		sblock.fs_old_cstotal.cs_nbfree = sblock.fs_cstotal.cs_nbfree;

@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2015
+.Dd June 14, 2016
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -56,6 +56,7 @@
 .Op Fl R Ar roundup-size
 .Op Fl S Ar sector-size
 .Op Fl s Ar image-size
+.Op Fl T Ar timestamp
 .Op Fl t Ar fs-type
 .Ar image-file
 .Ar directory | manifest
@@ -212,6 +213,18 @@ Defaults to 512.
 .It Fl s Ar image-size
 Set the size of the file system image to
 .Ar image-size .
+.It Fl T Ar timestamp
+Specify a timestamp to be set for all filesystem files and directories
+created so that repeatable builds are possible.
+The
+.Ar timestamp
+can be a
+.Pa pathname ,
+where the timestamps are derived from that file, or an integer
+value interpreted as the number of seconds from the Epoch.
+Note that timestamps specified in an
+.Xr mtree 5
+spec file, override the default timestamp.
 .It Fl t Ar fs-type
 Create an
 .Ar fs-type
