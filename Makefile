@@ -133,11 +133,26 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	create-world-packages create-kernel-packages create-packages \
 	packages installconfig real-packages sign-packages package-pkg
 
+# XXX: r156740: This can't work since bsd.subdir.mk is not included ever.
+# It will only work for SUBDIR_TARGETS in make.conf.
 TGTS+=	${SUBDIR_TARGETS}
 
 BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 TGTS+=	${BITGTS}
+
+# Only some targets are allowed to use meta mode.  Others get it
+# disabled.  In some cases, such as 'install', meta mode can be dangerous
+# as a cookie may be used to prevent redundant installations (such as
+# for WORLDTMP staging).  For DESTDIR=/ we always want to install though.
+# For other cases, such as delete-old-libs, meta mode may break
+# the interactive tty prompt.  The safest route is to just whitelist
+# the ones that benefit from it.
+META_TGT_WHITELIST+= \
+	_* build32 buildfiles buildincludes buildkernel buildsoft \
+	buildworld everything kernel-toolchains kernels libraries \
+	native-xtools tinderbox toolchain toolchains universe worlds \
+	xdev xdev-build
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distributeworld
@@ -194,14 +209,17 @@ SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 
 _MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
-# Must disable META_MODE when installing to avoid missing anything.  The
-# main problem is that buildworld will create cookies for install targets
-# since they are being installed into WORLDTMP.  This avoids unneeded and
-# redundant restaging but is dangerous for user install targets.
-.if make(distrib*) || make(*install*)
+# Only allow meta mode for the whitelisted targets.  See META_TGT_WHITELIST
+# above.
+.for _tgt in ${META_TGT_WHITELIST}
+.if make(${_tgt})
+_CAN_USE_META_MODE?= yes
+.endif
+.endfor
+.if !defined(_CAN_USE_META_MODE)
 _MAKE+=	MK_META_MODE=no
 .unexport META_MODE
-.endif
+.endif	# !defined(_CAN_USE_META_MODE)
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
