@@ -1022,6 +1022,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			if (len + (path[0] == '/' && strcmp(mypr->pr_path, "/")
 			    ? strlen(mypr->pr_path) : 0) > MAXPATHLEN) {
 				error = ENAMETOOLONG;
+				vrele(root);
 				goto done_free;
 			}
 		}
