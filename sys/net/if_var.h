@@ -705,7 +705,7 @@ drbr_peek(struct ifnet *ifp, struct buf_ring *br)
 		return (m);
 	}
 #endif
-	return(buf_ring_peek(br));
+	return(buf_ring_peek_clear_sc(br));
 }
 
 static __inline void
