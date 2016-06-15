@@ -1488,6 +1488,7 @@ lun_set_pass_address(struct lun *lun, const char *value)
 	lun->l_pass_addr[0]='\0';
 	for( index = 0 ; value[index]!='\0' ; index++)
 		lun->l_pass_addr[index] = value[index];
+	lun->l_pass_addr[index] = '\0';
 }	
 
 void
