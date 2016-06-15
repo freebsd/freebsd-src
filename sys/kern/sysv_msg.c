@@ -326,12 +326,6 @@ msgunload()
 #endif
 
 	for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
-		/*
-		 * Look for an unallocated and unlocked msqid_ds.
-		 * msqid_ds's can be locked by msgsnd or msgrcv while
-		 * they are copying the message in/out.  We can't
-		 * re-use the entry until they release it.
-		 */
 		msqkptr = &msqids[msqid];
 		if (msqkptr->u.msg_qbytes != 0 ||
 		    (msqkptr->u.msg_perm.mode & MSG_LOCKED) != 0)
