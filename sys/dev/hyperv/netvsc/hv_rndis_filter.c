@@ -816,7 +816,8 @@ hv_rf_close_device(rndis_device *device)
  * RNDIS filter on device add
  */
 int
-hv_rf_on_device_add(struct hv_device *device, void *additl_info)
+hv_rf_on_device_add(struct hv_device *device, void *additl_info,
+    int nchan __unused)
 {
 	int ret;
 	netvsc_dev *net_dev;
