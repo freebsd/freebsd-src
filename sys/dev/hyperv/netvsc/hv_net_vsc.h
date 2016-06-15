@@ -893,7 +893,6 @@ typedef struct nvsp_msg_ {
  */
 typedef struct netvsc_dev_ {
 	struct hv_device			*dev;
-	int					num_outstanding_sends;
 
 	/* Send buffer allocated by us but manages by NetVSP */
 	void					*send_buf;
@@ -1000,6 +999,7 @@ struct buf_ring;
 #endif
 
 struct hn_rx_ring {
+	struct ifnet	*hn_ifp;
 	struct lro_ctrl	hn_lro;
 
 	/* Trust csum verification on host side */
@@ -1016,6 +1016,8 @@ struct hn_rx_ring {
 #define HN_TRUST_HCSUM_IP	0x0001
 #define HN_TRUST_HCSUM_TCP	0x0002
 #define HN_TRUST_HCSUM_UDP	0x0004
+
+struct hv_vmbus_channel;
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING
@@ -1039,6 +1041,7 @@ struct hn_tx_ring {
 
 	struct mtx	hn_tx_lock;
 	struct hn_softc	*hn_sc;
+	struct hv_vmbus_channel *hn_chan;
 
 	int		hn_direct_tx_size;
 	int		hn_tx_chimney_size;
@@ -1097,7 +1100,7 @@ netvsc_dev *hv_nv_on_device_add(struct hv_device *device,
     void *additional_info);
 int hv_nv_on_device_remove(struct hv_device *device,
     boolean_t destroy_channel);
-int hv_nv_on_send(struct hv_device *device, netvsc_packet *pkt);
+int hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
 
 #endif  /* __HV_NET_VSC_H__ */
