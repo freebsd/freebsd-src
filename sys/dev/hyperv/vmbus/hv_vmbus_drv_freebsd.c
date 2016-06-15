@@ -116,8 +116,12 @@ handled:
 	     * message_pending and EOMing. Otherwise, the EOMing will
 	     * not deliver any more messages
 	     * since there is no empty slot
+	     *
+	     * NOTE:
+	     * mb() is used here, since atomic_thread_fence_seq_cst()
+	     * will become compler fence on UP kernel.
 	     */
-	    wmb();
+	    mb();
 
 	    if (msg->header.message_flags.u.message_pending) {
 			/*
@@ -186,8 +190,12 @@ hv_vmbus_isr(struct trapframe *frame)
 		 * message_pending and EOMing. Otherwise, the EOMing will
 		 * not deliver any more messages
 		 * since there is no empty slot
+		 *
+		 * NOTE:
+		 * mb() is used here, since atomic_thread_fence_seq_cst()
+		 * will become compler fence on UP kernel.
 		 */
-		wmb();
+		mb();
 
 		if (msg->header.message_flags.u.message_pending) {
 			/*
