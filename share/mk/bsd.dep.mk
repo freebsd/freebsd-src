@@ -86,7 +86,7 @@ _SKIP_READ_DEPEND=	1
 CLEANFILES?=
 
 .for _S in ${SRCS:N*.[dhly]}
-OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.o+=	${_S}
 .endfor
 
 # Lexical analyzers
@@ -94,7 +94,7 @@ OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
-OBJS_DEPEND_GUESS.${_LC:R}.o=	${_LC}
+OBJS_DEPEND_GUESS.${_LC:R}.o+=	${_LC}
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
 CLEANFILES+= ${_LC}
 .endfor
@@ -125,7 +125,7 @@ CLEANFILES+= ${_YH}
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
-OBJS_DEPEND_GUESS.${_YC:R}.o=	${_YC}
+OBJS_DEPEND_GUESS.${_YC:R}.o+=	${_YC}
 .endfor
 .endfor
 
