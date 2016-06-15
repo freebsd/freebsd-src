@@ -1943,19 +1943,17 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		vrele(root);
  done_errmsg:
 	if (error) {
-		vfs_getopt(opts, "errmsg", (void **)&errmsg, &errmsg_len);
-		if (errmsg_len > 0) {
+		if (vfs_getopt(opts, "errmsg", (void **)&errmsg,
+		    &errmsg_len) == 0 && errmsg_len > 0) {
 			errmsg_pos = 2 * vfs_getopt_pos(opts, "errmsg") + 1;
-			if (errmsg_pos > 0) {
-				if (optuio->uio_segflg == UIO_SYSSPACE)
-					bcopy(errmsg,
-					   optuio->uio_iov[errmsg_pos].iov_base,
-					   errmsg_len);
-				else
-					copyout(errmsg,
-					   optuio->uio_iov[errmsg_pos].iov_base,
-					   errmsg_len);
-			}
+			if (optuio->uio_segflg == UIO_SYSSPACE)
+				bcopy(errmsg,
+				    optuio->uio_iov[errmsg_pos].iov_base,
+				    errmsg_len);
+			else
+				copyout(errmsg,
+				    optuio->uio_iov[errmsg_pos].iov_base,
+				    errmsg_len);
 		}
 	}
  done_free:
