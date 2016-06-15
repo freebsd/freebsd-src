@@ -932,6 +932,46 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 #endif
 
+	error = vfs_getopt(opts, "osrelease", (void **)&osrelstr, &len);
+	if (error == ENOENT)
+		osrelstr = NULL;
+	else if (error != 0)
+		goto done_free;
+	else {
+		if (flags & JAIL_UPDATE) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osrelease cannot be changed after creation");
+			goto done_errmsg;
+		}
+		if (len == 0 || len >= OSRELEASELEN) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osrelease string must be 1-%d bytes long",
+			    OSRELEASELEN - 1);
+			goto done_errmsg;
+		}
+	}
+
+	error = vfs_copyopt(opts, "osreldate", &osreldt, sizeof(osreldt));
+	if (error == ENOENT)
+		osreldt = 0;
+	else if (error != 0)
+		goto done_free;
+	else {
+		if (flags & JAIL_UPDATE) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osreldate cannot be changed after creation");
+			goto done_errmsg;
+		}
+		if (osreldt == 0) {
+			error = EINVAL;
+			vfs_opterror(opts, "osreldate cannot be 0");
+			goto done_errmsg;
+		}
+	}
+
 	fullpath_disabled = 0;
 	root = NULL;
 	error = vfs_getopt(opts, "path", (void **)&path, &len);
@@ -984,46 +1024,6 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				error = ENAMETOOLONG;
 				goto done_free;
 			}
-		}
-	}
-
-	error = vfs_getopt(opts, "osrelease", (void **)&osrelstr, &len);
-	if (error == ENOENT)
-		osrelstr = NULL;
-	else if (error != 0)
-		goto done_free;
-	else {
-		if (flags & JAIL_UPDATE) {
-			error = EINVAL;
-			vfs_opterror(opts,
-			    "osrelease cannot be changed after creation");
-			goto done_errmsg;
-		}
-		if (len == 0 || len >= OSRELEASELEN) {
-			error = EINVAL;
-			vfs_opterror(opts,
-			    "osrelease string must be 1-%d bytes long",
-			    OSRELEASELEN - 1);
-			goto done_errmsg;
-		}
-	}
-
-	error = vfs_copyopt(opts, "osreldate", &osreldt, sizeof(osreldt));
-	if (error == ENOENT)
-		osreldt = 0;
-	else if (error != 0)
-		goto done_free;
-	else {
-		if (flags & JAIL_UPDATE) {
-			error = EINVAL;
-			vfs_opterror(opts,
-			    "osreldate cannot be changed after creation");
-			goto done_errmsg;
-		}
-		if (osreldt == 0) {
-			error = EINVAL;
-			vfs_opterror(opts, "osreldate cannot be 0");
-			goto done_errmsg;
 		}
 	}
 
