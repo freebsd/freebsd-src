@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 #include "hv_vmbus_priv.h"
 
@@ -39,6 +40,47 @@ __FBSDID("$FreeBSD$");
 #define	HV_BYTES_AVAIL_TO_WRITE(r, w, z) ((w) >= (r))? \
 				((z) - ((w) - (r))):((r) - (w))
 
+static int
+hv_rbi_sysctl_stats(SYSCTL_HANDLER_ARGS)
+{
+	hv_vmbus_ring_buffer_info* rbi;
+	uint32_t read_index, write_index, interrupt_mask, sz;
+	uint32_t read_avail, write_avail;
+	char rbi_stats[256];
+
+	rbi = (hv_vmbus_ring_buffer_info*)arg1;
+	read_index = rbi->ring_buffer->read_index;
+	write_index = rbi->ring_buffer->write_index;
+	interrupt_mask = rbi->ring_buffer->interrupt_mask;
+	sz = rbi->ring_data_size;
+	write_avail = HV_BYTES_AVAIL_TO_WRITE(read_index,
+			write_index, sz);
+	read_avail = sz - write_avail;
+	snprintf(rbi_stats, sizeof(rbi_stats),
+		"r_idx:%d "
+		"w_idx:%d "
+		"int_mask:%d "
+		"r_avail:%d "
+		"w_avail:%d",
+		read_index, write_index, interrupt_mask,
+		read_avail, write_avail);
+
+	return (sysctl_handle_string(oidp, rbi_stats,
+			sizeof(rbi_stats), req));
+}
+
+void
+hv_ring_buffer_stat(
+	struct sysctl_ctx_list		*ctx,
+	struct sysctl_oid_list		*tree_node,
+	hv_vmbus_ring_buffer_info	*rbi,
+	const char			*desc)	
+{
+	SYSCTL_ADD_PROC(ctx, tree_node, OID_AUTO,
+	    "ring_buffer_stats",
+	    CTLTYPE_STRING|CTLFLAG_RD, rbi, 0,
+	    hv_rbi_sysctl_stats, "A", desc);
+}
 /**
  * @brief Get number of bytes available to read and to write to
  * for the specified ring buffer
