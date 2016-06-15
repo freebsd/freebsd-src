@@ -412,20 +412,21 @@ __res_vinit(res_state statp, int preinit) {
 			hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
 			hints.ai_flags = AI_NUMERICHOST;
 			sprintf(sbuf, "%u", NAMESERVER_PORT);
-			if (getaddrinfo(cp, sbuf, &hints, &ai) == 0 &&
-			    ai->ai_addrlen <= minsiz) {
-			    if (statp->_u._ext.ext != NULL) {
-				memcpy(&statp->_u._ext.ext->nsaddrs[nserv],
-				    ai->ai_addr, ai->ai_addrlen);
+			if (getaddrinfo(cp, sbuf, &hints, &ai) == 0) {
+			    if (ai->ai_addrlen <= minsiz) {
+				if (statp->_u._ext.ext != NULL) {
+				    memcpy(&statp->_u._ext.ext->nsaddrs[nserv],
+					ai->ai_addr, ai->ai_addrlen);
+				}
+				if (ai->ai_addrlen <=
+				    sizeof(statp->nsaddr_list[nserv])) {
+				    memcpy(&statp->nsaddr_list[nserv],
+					ai->ai_addr, ai->ai_addrlen);
+				} else
+				    statp->nsaddr_list[nserv].sin_family = 0;
+				nserv++;
 			    }
-			    if (ai->ai_addrlen <=
-			        sizeof(statp->nsaddr_list[nserv])) {
-				memcpy(&statp->nsaddr_list[nserv],
-				    ai->ai_addr, ai->ai_addrlen);
-			    } else
-				statp->nsaddr_list[nserv].sin_family = 0;
 			    freeaddrinfo(ai);
-			    nserv++;
 			}
 		    }
 		    continue;
