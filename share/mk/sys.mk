@@ -425,6 +425,10 @@ __MAKE_CONF?=/etc/make.conf
 # late include for customization
 .sinclude <local.sys.mk>
 
+.if defined(META_MODE)
+META_MODE:=	${META_MODE:O:u}
+.endif
+
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
