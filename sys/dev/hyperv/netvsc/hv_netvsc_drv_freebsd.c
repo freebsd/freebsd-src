@@ -281,6 +281,14 @@ static int hn_use_if_start = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
     &hn_use_if_start, 0, "Use if_start TX method");
 
+static int hn_ring_cnt = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, ring_cnt, CTLFLAG_RDTUN,
+    &hn_ring_cnt, 0, "# of TX/RX rings to used");
+
+static int hn_single_tx_ring = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, single_tx_ring, CTLFLAG_RDTUN,
+    &hn_single_tx_ring, 0, "Use one TX ring");
+
 /*
  * Forward declarations
  */
@@ -310,13 +318,13 @@ static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *, int);
 static void hn_destroy_tx_ring(struct hn_tx_ring *);
-static int hn_create_tx_data(struct hn_softc *);
+static int hn_create_tx_data(struct hn_softc *, int);
 static void hn_destroy_tx_data(struct hn_softc *);
 static void hn_start_taskfunc(void *, int);
 static void hn_start_txeof_taskfunc(void *, int);
 static void hn_stop_tx_tasks(struct hn_softc *);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
-static void hn_create_rx_data(struct hn_softc *sc);
+static void hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
 
@@ -405,7 +413,7 @@ netvsc_attach(device_t dev)
 	hn_softc_t *sc;
 	int unit = device_get_unit(dev);
 	struct ifnet *ifp = NULL;
-	int error;
+	int error, ring_cnt, tx_ring_cnt;
 #if __FreeBSD_version >= 1100045
 	int tso_maxlen;
 #endif
@@ -447,11 +455,24 @@ netvsc_attach(device_t dev)
 	ifp = sc->hn_ifp = sc->arpcom.ac_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
 
-	error = hn_create_tx_data(sc);
+	ring_cnt = hn_ring_cnt;
+	if (ring_cnt <= 0 || ring_cnt >= mp_ncpus)
+		ring_cnt = mp_ncpus;
+
+	tx_ring_cnt = ring_cnt;
+	if (hn_single_tx_ring || hn_use_if_start) {
+		/*
+		 * - Explicitly asked to use single TX ring.
+		 * - ifnet.if_start is used; ifnet.if_start only needs
+		 *   one TX ring.
+		 */
+		tx_ring_cnt = 1;
+	}
+	error = hn_create_tx_data(sc, tx_ring_cnt);
 	if (error)
 		goto failed;
 
-	hn_create_rx_data(sc);
+	hn_create_rx_data(sc, ring_cnt);
 
 	/*
 	 * Associate the first TX/RX ring w/ the primary channel.
@@ -498,9 +519,15 @@ netvsc_attach(device_t dev)
 	    IFCAP_LRO;
 	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
 
-	error = hv_rf_on_device_add(device_ctx, &device_info);
+	error = hv_rf_on_device_add(device_ctx, &device_info, ring_cnt);
 	if (error)
 		goto failed;
+
+	/* TODO: vRSS */
+	sc->hn_tx_ring_inuse = 1;
+	sc->hn_rx_ring_inuse = 1;
+	device_printf(dev, "%d TX ring, %d RX ring\n",
+	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
 
 	if (device_info.link_state == 0) {
 		sc->hn_carrier = 1;
@@ -1416,7 +1443,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
 		    HN_LRO_LENLIM_MIN(ifp)) {
 			int i;
-			for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+			for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
 				sc->hn_rx_ring[i].hn_lro.lro_length_lim =
 				    HN_LRO_LENLIM_MIN(ifp);
 			}
@@ -1453,7 +1480,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			NV_UNLOCK(sc);
 			break;
 		}
-		error = hv_rf_on_device_add(hn_dev, &device_info);
+		error = hv_rf_on_device_add(hn_dev, &device_info,
+		    sc->hn_rx_ring_inuse);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
@@ -1606,7 +1634,7 @@ hn_stop(hn_softc_t *sc)
 
 	atomic_clear_int(&ifp->if_drv_flags,
 	    (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_oactive = 0;
 
 	if_link_state_change(ifp, LINK_STATE_DOWN);
@@ -1699,7 +1727,7 @@ hn_ifinit_locked(hn_softc_t *sc)
 	}
 
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_oactive = 0;
 
 	atomic_set_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
@@ -1764,7 +1792,7 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 
 	NV_LOCK(sc);
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
 		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
 	NV_UNLOCK(sc);
 	return 0;
@@ -1794,7 +1822,7 @@ hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 	 */
 	--ackcnt;
 	NV_LOCK(sc);
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
 		sc->hn_rx_ring[i].hn_lro.lro_ackcnt_lim = ackcnt;
 	NV_UNLOCK(sc);
 	return 0;
@@ -1818,7 +1846,7 @@ hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	NV_LOCK(sc);
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
 
 		if (on)
@@ -1858,7 +1886,7 @@ hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS)
 	uint64_t stat;
 
 	stat = 0;
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 		stat += *((int *)((uint8_t *)rxr + ofs));
 	}
@@ -1868,7 +1896,7 @@ hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	/* Zero out this stat. */
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 		*((int *)((uint8_t *)rxr + ofs)) = 0;
 	}
@@ -1884,7 +1912,7 @@ hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
 	uint64_t stat;
 
 	stat = 0;
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 		stat += *((uint64_t *)((uint8_t *)rxr + ofs));
 	}
@@ -1894,7 +1922,7 @@ hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	/* Zero out this stat. */
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 		*((uint64_t *)((uint8_t *)rxr + ofs)) = 0;
 	}
@@ -1938,7 +1966,7 @@ hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
 	u_long stat;
 
 	stat = 0;
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
 		txr = &sc->hn_tx_ring[i];
 		stat += *((u_long *)((uint8_t *)txr + ofs));
 	}
@@ -1948,7 +1976,7 @@ hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	/* Zero out this stat. */
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
 		txr = &sc->hn_tx_ring[i];
 		*((u_long *)((uint8_t *)txr + ofs)) = 0;
 	}
@@ -1970,7 +1998,7 @@ hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	NV_LOCK(sc);
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
 		txr = &sc->hn_tx_ring[i];
 		*((int *)((uint8_t *)txr + ofs)) = conf;
 	}
@@ -2067,7 +2095,7 @@ hn_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 }
 
 static void
-hn_create_rx_data(struct hn_softc *sc)
+hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
@@ -2079,7 +2107,9 @@ hn_create_rx_data(struct hn_softc *sc)
 #endif
 	int i;
 
-	sc->hn_rx_ring_cnt = 1; /* TODO: vRSS */
+	sc->hn_rx_ring_cnt = ring_cnt;
+	sc->hn_rx_ring_inuse = sc->hn_rx_ring_cnt;
+
 	sc->hn_rx_ring = malloc(sizeof(struct hn_rx_ring) * sc->hn_rx_ring_cnt,
 	    M_NETVSC, M_WAITOK | M_ZERO);
 
@@ -2190,6 +2220,10 @@ hn_create_rx_data(struct hn_softc *sc)
 	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
 	    __offsetof(struct hn_rx_ring, hn_small_pkts),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of small packets received");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_cnt",
+	    CTLFLAG_RD, &sc->hn_rx_ring_cnt, 0, "# created RX rings");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_inuse",
+	    CTLFLAG_RD, &sc->hn_rx_ring_inuse, 0, "# used RX rings");
 }
 
 static void
@@ -2210,6 +2244,7 @@ hn_destroy_rx_data(struct hn_softc *sc)
 	sc->hn_rx_ring = NULL;
 
 	sc->hn_rx_ring_cnt = 0;
+	sc->hn_rx_ring_inuse = 0;
 }
 
 static int
@@ -2446,18 +2481,15 @@ hn_destroy_tx_ring(struct hn_tx_ring *txr)
 }
 
 static int
-hn_create_tx_data(struct hn_softc *sc)
+hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 {
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
 	int i;
 
-	if (hn_use_if_start) {
-		/* ifnet.if_start only needs one TX ring */
-		sc->hn_tx_ring_cnt = 1;
-	} else {
-		sc->hn_tx_ring_cnt = 1; /* TODO: vRSS */
-	}
+	sc->hn_tx_ring_cnt = ring_cnt;
+	sc->hn_tx_ring_inuse = sc->hn_tx_ring_cnt;
+
 	sc->hn_tx_ring = malloc(sizeof(struct hn_tx_ring) * sc->hn_tx_ring_cnt,
 	    M_NETVSC, M_WAITOK | M_ZERO);
 
@@ -2516,6 +2548,10 @@ hn_create_tx_data(struct hn_softc *sc)
 	    hn_tx_conf_int_sysctl, "I",
 	    "Always schedule transmission "
 	    "instead of doing direct transmission");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "tx_ring_cnt",
+	    CTLFLAG_RD, &sc->hn_tx_ring_cnt, 0, "# created TX rings");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "tx_ring_inuse",
+	    CTLFLAG_RD, &sc->hn_tx_ring_inuse, 0, "# used TX rings");
 
 	return 0;
 }
@@ -2526,7 +2562,7 @@ hn_set_tx_chimney_size(struct hn_softc *sc, int chimney_size)
 	int i;
 
 	NV_LOCK(sc);
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_tx_chimney_size = chimney_size;
 	NV_UNLOCK(sc);
 }
@@ -2546,6 +2582,7 @@ hn_destroy_tx_data(struct hn_softc *sc)
 	sc->hn_tx_ring = NULL;
 
 	sc->hn_tx_ring_cnt = 0;
+	sc->hn_tx_ring_inuse = 0;
 }
 
 static void
@@ -2574,7 +2611,7 @@ hn_stop_tx_tasks(struct hn_softc *sc)
 {
 	int i;
 
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
 		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
 
 		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
@@ -2650,7 +2687,7 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * Select the TX ring based on flowid
 	 */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
-		idx = m->m_pkthdr.flowid % sc->hn_tx_ring_cnt;
+		idx = m->m_pkthdr.flowid % sc->hn_tx_ring_inuse;
 	txr = &sc->hn_tx_ring[idx];
 
 	error = drbr_enqueue(ifp, txr->hn_mbuf_br, m);
@@ -2682,7 +2719,7 @@ hn_xmit_qflush(struct ifnet *ifp)
 	struct hn_softc *sc = ifp->if_softc;
 	int i;
 
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
 		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
 		struct mbuf *m;
 
