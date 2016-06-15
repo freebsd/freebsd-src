@@ -2820,6 +2820,8 @@ ntb_exchange_msix(void *ctx)
 
 	ntb = ctx;
 
+	if (ntb->peer_msix_good)
+		goto msix_good;
 	if (ntb->peer_msix_done)
 		goto msix_done;
 
@@ -2851,16 +2853,21 @@ msix_done:
 		goto reschedule;
 
 	ntb->peer_msix_good = true;
+	/* Give peer time to see our NTB_MSIX_RECEIVED. */
+	goto reschedule;
 
+msix_good:
 	ntb_poll_link(ntb);
 	ntb_link_event(ntb);
 	return;
 
 reschedule:
 	ntb->lnk_sta = pci_read_config(ntb->device, ntb->reg->lnk_sta, 2);
-	if (_xeon_link_is_up(ntb))
-		callout_reset(&ntb->peer_msix_work, hz / 100, ntb_exchange_msix, ntb);
-	else
+	if (_xeon_link_is_up(ntb)) {
+		callout_reset(&ntb->peer_msix_work,
+		    hz * (ntb->peer_msix_good ? 2 : 1) / 100,
+		    ntb_exchange_msix, ntb);
+	} else
 		ntb_spad_clear(ntb);
 }
 
