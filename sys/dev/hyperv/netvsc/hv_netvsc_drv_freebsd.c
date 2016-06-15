@@ -274,6 +274,10 @@ static int hn_bind_tx_taskq = -1;
 SYSCTL_INT(_hw_hn, OID_AUTO, bind_tx_taskq, CTLFLAG_RDTUN,
     &hn_bind_tx_taskq, 0, "Bind TX taskqueue to the specified cpu");
 
+static int hn_use_if_start = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
+    &hn_use_if_start, 0, "Use if_start TX method");
+
 /*
  * Forward declarations
  */
@@ -312,6 +316,13 @@ static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static void hn_create_rx_data(struct hn_softc *sc);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
+
+static int hn_transmit(struct ifnet *, struct mbuf *);
+static void hn_xmit_qflush(struct ifnet *);
+static int hn_xmit(struct hn_tx_ring *, int);
+static void hn_xmit_txeof(struct hn_tx_ring *);
+static void hn_xmit_taskfunc(void *, int);
+static void hn_xmit_txeof_taskfunc(void *, int);
 
 static int
 hn_ifmedia_upd(struct ifnet *ifp __unused)
@@ -444,13 +455,18 @@ netvsc_attach(device_t dev)
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
-	ifp->if_start = hn_start;
 	ifp->if_init = hn_ifinit;
 	/* needed by hv_rf_on_device_add() code */
 	ifp->if_mtu = ETHERMTU;
-	IFQ_SET_MAXLEN(&ifp->if_snd, 512);
-	ifp->if_snd.ifq_drv_maxlen = 511;
-	IFQ_SET_READY(&ifp->if_snd);
+	if (hn_use_if_start) {
+		ifp->if_start = hn_start;
+		IFQ_SET_MAXLEN(&ifp->if_snd, 512);
+		ifp->if_snd.ifq_drv_maxlen = 511;
+		IFQ_SET_READY(&ifp->if_snd);
+	} else {
+		ifp->if_transmit = hn_transmit;
+		ifp->if_qflush = hn_xmit_qflush;
+	}
 
 	ifmedia_init(&sc->hn_media, 0, hn_ifmedia_upd, hn_ifmedia_sts);
 	ifmedia_add(&sc->hn_media, IFM_ETHER | IFM_AUTO, 0, NULL);
@@ -946,6 +962,12 @@ again:
 	if (!error) {
 		ETHER_BPF_MTAP(ifp, txd->m);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if (!hn_use_if_start) {
+			if_inc_counter(ifp, IFCOUNTER_OBYTES,
+			    txd->m->m_pkthdr.len);
+			if (txd->m->m_flags & M_MCAST)
+				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
+		}
 	}
 	hn_txdesc_put(txr, txd);
 
@@ -998,6 +1020,8 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 	struct ifnet *ifp = sc->hn_ifp;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 
+	KASSERT(hn_use_if_start,
+	    ("hn_start_locked is called, when if_start is disabled"));
 	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
 	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
 
@@ -1555,7 +1579,7 @@ static void
 hn_stop(hn_softc_t *sc)
 {
 	struct ifnet *ifp;
-	int ret;
+	int ret, i;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 
 	ifp = sc->hn_ifp;
@@ -1565,6 +1589,9 @@ hn_stop(hn_softc_t *sc)
 
 	atomic_clear_int(&ifp->if_drv_flags,
 	    (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+		sc->hn_tx_ring[i].hn_oactive = 0;
+
 	if_link_state_change(ifp, LINK_STATE_DOWN);
 	sc->hn_initdone = 0;
 
@@ -1637,7 +1664,7 @@ hn_ifinit_locked(hn_softc_t *sc)
 {
 	struct ifnet *ifp;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
-	int ret;
+	int ret, i;
 
 	ifp = sc->hn_ifp;
 
@@ -1653,7 +1680,11 @@ hn_ifinit_locked(hn_softc_t *sc)
 	} else {
 		sc->hn_initdone = 1;
 	}
+
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+		sc->hn_tx_ring[i].hn_oactive = 0;
+
 	atomic_set_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
 	if_link_state_change(ifp, LINK_STATE_UP);
 }
@@ -2187,8 +2218,18 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 #endif
 
 	txr->hn_tx_taskq = sc->hn_tx_taskq;
-	TASK_INIT(&txr->hn_tx_task, 0, hn_start_taskfunc, txr);
-	TASK_INIT(&txr->hn_txeof_task, 0, hn_start_txeof_taskfunc, txr);
+
+	if (hn_use_if_start) {
+		txr->hn_txeof = hn_start_txeof;
+		TASK_INIT(&txr->hn_tx_task, 0, hn_start_taskfunc, txr);
+		TASK_INIT(&txr->hn_txeof_task, 0, hn_start_txeof_taskfunc, txr);
+	} else {
+		txr->hn_txeof = hn_xmit_txeof;
+		TASK_INIT(&txr->hn_tx_task, 0, hn_xmit_taskfunc, txr);
+		TASK_INIT(&txr->hn_txeof_task, 0, hn_xmit_txeof_taskfunc, txr);
+		txr->hn_mbuf_br = buf_ring_alloc(txr->hn_txdesc_cnt, M_NETVSC,
+		    M_WAITOK, &txr->hn_tx_lock);
+	}
 
 	txr->hn_direct_tx_size = hn_direct_tx_size;
 	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
@@ -2201,8 +2242,6 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	 * transmission.  This one gives the best performance so far.
 	 */
 	txr->hn_sched_tx = 1;
-
-	txr->hn_txeof = hn_start_txeof; /* TODO: if_transmit */
 
 	parent_dtag = bus_get_dma_tag(sc->hn_dev);
 
@@ -2320,6 +2359,11 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 			SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_avail",
 			    CTLFLAG_RD, &txr->hn_txdesc_avail, 0,
 			    "# of available TX descs");
+			if (!hn_use_if_start) {
+				SYSCTL_ADD_INT(ctx, child, OID_AUTO, "oactive",
+				    CTLFLAG_RD, &txr->hn_oactive, 0,
+				    "over active");
+			}
 		}
 	}
 
@@ -2354,8 +2398,10 @@ hn_destroy_tx_ring(struct hn_tx_ring *txr)
 		hn_txdesc_dmamap_destroy(txd);
 	}
 #else
+	mtx_lock(&txr->hn_tx_lock);
 	while ((txd = buf_ring_dequeue_sc(txr->hn_txdesc_br)) != NULL)
 		hn_txdesc_dmamap_destroy(txd);
+	mtx_unlock(&txr->hn_tx_lock);
 #endif
 
 	if (txr->hn_tx_data_dtag != NULL)
@@ -2370,6 +2416,9 @@ hn_destroy_tx_ring(struct hn_tx_ring *txr)
 	free(txr->hn_txdesc, M_NETVSC);
 	txr->hn_txdesc = NULL;
 
+	if (txr->hn_mbuf_br != NULL)
+		buf_ring_free(txr->hn_mbuf_br, M_NETVSC);
+
 #ifndef HN_USE_TXDESC_BUFRING
 	mtx_destroy(&txr->hn_txlist_spin);
 #endif
@@ -2383,7 +2432,12 @@ hn_create_tx_data(struct hn_softc *sc)
 	struct sysctl_ctx_list *ctx;
 	int i;
 
-	sc->hn_tx_ring_cnt = 1; /* TODO: vRSS */
+	if (hn_use_if_start) {
+		/* ifnet.if_start only needs one TX ring */
+		sc->hn_tx_ring_cnt = 1;
+	} else {
+		sc->hn_tx_ring_cnt = 1; /* TODO: vRSS */
+	}
 	sc->hn_tx_ring = malloc(sizeof(struct hn_tx_ring) * sc->hn_tx_ring_cnt,
 	    M_NETVSC, M_WAITOK | M_ZERO);
 
@@ -2506,6 +2560,166 @@ hn_stop_tx_tasks(struct hn_softc *sc)
 		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
 		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
+}
+
+static int
+hn_xmit(struct hn_tx_ring *txr, int len)
+{
+	struct hn_softc *sc = txr->hn_sc;
+	struct ifnet *ifp = sc->hn_ifp;
+	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
+	struct mbuf *m_head;
+
+	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
+	KASSERT(hn_use_if_start == 0,
+	    ("hn_xmit is called, when if_start is enabled"));
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || txr->hn_oactive)
+		return 0;
+
+	while ((m_head = drbr_peek(ifp, txr->hn_mbuf_br)) != NULL) {
+		struct hn_txdesc *txd;
+		int error;
+
+		if (len > 0 && m_head->m_pkthdr.len > len) {
+			/*
+			 * This sending could be time consuming; let callers
+			 * dispatch this packet sending (and sending of any
+			 * following up packets) to tx taskqueue.
+			 */
+			drbr_putback(ifp, txr->hn_mbuf_br, m_head);
+			return 1;
+		}
+
+		txd = hn_txdesc_get(txr);
+		if (txd == NULL) {
+			txr->hn_no_txdescs++;
+			drbr_putback(ifp, txr->hn_mbuf_br, m_head);
+			txr->hn_oactive = 1;
+			break;
+		}
+
+		error = hn_encap(txr, txd, &m_head);
+		if (error) {
+			/* Both txd and m_head are freed; discard */
+			drbr_advance(ifp, txr->hn_mbuf_br);
+			continue;
+		}
+
+		error = hn_send_pkt(ifp, device_ctx, txr, txd);
+		if (__predict_false(error)) {
+			/* txd is freed, but m_head is not */
+			drbr_putback(ifp, txr->hn_mbuf_br, m_head);
+			txr->hn_oactive = 1;
+			break;
+		}
+
+		/* Sent */
+		drbr_advance(ifp, txr->hn_mbuf_br);
+	}
+	return 0;
+}
+
+static int
+hn_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	struct hn_softc *sc = ifp->if_softc;
+	struct hn_tx_ring *txr;
+	int error;
+
+	/* TODO: vRSS, TX ring selection */
+	txr = &sc->hn_tx_ring[0];
+
+	error = drbr_enqueue(ifp, txr->hn_mbuf_br, m);
+	if (error)
+		return error;
+
+	if (txr->hn_oactive)
+		return 0;
+
+	if (txr->hn_sched_tx)
+		goto do_sched;
+
+	if (mtx_trylock(&txr->hn_tx_lock)) {
+		int sched;
+
+		sched = hn_xmit(txr, txr->hn_direct_tx_size);
+		mtx_unlock(&txr->hn_tx_lock);
+		if (!sched)
+			return 0;
+	}
+do_sched:
+	taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_tx_task);
+	return 0;
+}
+
+static void
+hn_xmit_qflush(struct ifnet *ifp)
+{
+	struct hn_softc *sc = ifp->if_softc;
+	int i;
+
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+		struct mbuf *m;
+
+		mtx_lock(&txr->hn_tx_lock);
+		while ((m = buf_ring_dequeue_sc(txr->hn_mbuf_br)) != NULL)
+			m_freem(m);
+		mtx_unlock(&txr->hn_tx_lock);
+	}
+	if_qflush(ifp);
+}
+
+static void
+hn_xmit_txeof(struct hn_tx_ring *txr)
+{
+
+	if (txr->hn_sched_tx)
+		goto do_sched;
+
+	if (mtx_trylock(&txr->hn_tx_lock)) {
+		int sched;
+
+		txr->hn_oactive = 0;
+		sched = hn_xmit(txr, txr->hn_direct_tx_size);
+		mtx_unlock(&txr->hn_tx_lock);
+		if (sched) {
+			taskqueue_enqueue(txr->hn_tx_taskq,
+			    &txr->hn_tx_task);
+		}
+	} else {
+do_sched:
+		/*
+		 * Release the oactive earlier, with the hope, that
+		 * others could catch up.  The task will clear the
+		 * oactive again with the hn_tx_lock to avoid possible
+		 * races.
+		 */
+		txr->hn_oactive = 0;
+		taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_txeof_task);
+	}
+}
+
+static void
+hn_xmit_taskfunc(void *xtxr, int pending __unused)
+{
+	struct hn_tx_ring *txr = xtxr;
+
+	mtx_lock(&txr->hn_tx_lock);
+	hn_xmit(txr, 0);
+	mtx_unlock(&txr->hn_tx_lock);
+}
+
+static void
+hn_xmit_txeof_taskfunc(void *xtxr, int pending __unused)
+{
+	struct hn_tx_ring *txr = xtxr;
+
+	mtx_lock(&txr->hn_tx_lock);
+	txr->hn_oactive = 0;
+	hn_xmit(txr, 0);
+	mtx_unlock(&txr->hn_tx_lock);
 }
 
 static void
