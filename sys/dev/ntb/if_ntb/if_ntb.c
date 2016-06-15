@@ -621,6 +621,10 @@ ntb_transport_probe(struct ntb_softc *ntb)
 		mw->xlat_size = 0;
 		mw->virt_addr = NULL;
 		mw->dma_addr = 0;
+
+		rc = ntb_mw_set_wc(nt->ntb, i, VM_MEMATTR_WRITE_COMBINING);
+		if (rc)
+			ntb_printf(0, "Unable to set mw%d caching\n", i);
 	}
 
 	qp_bitmap = ntb_db_valid_mask(ntb);
