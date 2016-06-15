@@ -1482,6 +1482,15 @@ lun_set_path(struct lun *lun, const char *value)
 }
 
 void
+lun_set_pass_address(struct lun *lun, const char *value)
+{
+	int index;
+	lun->l_pass_addr[0]='\0';
+	for( index = 0 ; value[index]!='\0' ; index++)
+		lun->l_pass_addr[index] = value[index];
+}	
+
+void
 lun_set_scsiname(struct lun *lun, const char *value)
 {
 	free(lun->l_scsiname);
