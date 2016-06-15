@@ -424,13 +424,13 @@ lint: ${SRCS:M*.c}
 .if defined(LIB) && !empty(LIB)
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .for _S in ${SRCS:N*.[hly]}
-OBJS_DEPEND_GUESS.${_S:R}.po=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.po+=	${_S}
 .endfor
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 .for _S in ${SRCS:N*.[hly]}
-OBJS_DEPEND_GUESS.${_S:R}.So=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.So+=	${_S}
 .endfor
 .endif
 
