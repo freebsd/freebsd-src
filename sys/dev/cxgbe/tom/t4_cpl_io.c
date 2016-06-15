@@ -577,7 +577,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_snd;
-	int tx_credits, shove, compl, space, sowwakeup;
+	int tx_credits, shove, compl, sowwakeup;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
 	INP_WLOCK_ASSERT(inp);
@@ -652,9 +652,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 		}
 
-		space = sbspace(sb);
-
-		if (space <= sb->sb_hiwat * 3 / 8 &&
+		if (sbused(sb) > sb->sb_hiwat * 5 / 8 &&
 		    toep->plen_nocompl + plen >= sb->sb_hiwat / 4)
 			compl = 1;
 		else
@@ -663,7 +661,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		if (sb->sb_flags & SB_AUTOSIZE &&
 		    V_tcp_do_autosndbuf &&
 		    sb->sb_hiwat < V_tcp_autosndbuf_max &&
-		    space < sb->sb_hiwat / 8) {
+		    sbused(sb) >= sb->sb_hiwat * 7 / 8) {
 			int newsize = min(sb->sb_hiwat + V_tcp_autosndbuf_inc,
 			    V_tcp_autosndbuf_max);
 
