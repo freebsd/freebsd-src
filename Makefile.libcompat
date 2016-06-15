@@ -72,12 +72,20 @@ LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 # -B is needed to find /usr/lib32/crti.o for GCC and /usr/libsoft/crti.o for
 # Clang/GCC.
 LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
+
 .if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
-# GCC requires -isystem when using a cross-compiler.
+# GCC requires -isystem when using a cross-compiler and --sysroot.  Note that
+# Makefile.inc1 only applies this with an external compiler but libcompat
+# always does since even in-tree GCC 4.2 needs this to override the built-in
+# sysroot path which --sysroot does not actually do for headers.
 LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
 # Force using libc++ for external GCC.
+# XXX: This should be checking MK_GNUCXX == no
+.if ${MK_CROSS_COMPILER} == "no" || \
+    (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
 LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
 			-nostdinc++ -L${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc++
+.endif
 .endif
 
 # Yes, the flags are redundant.
