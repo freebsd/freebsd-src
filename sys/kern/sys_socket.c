@@ -390,6 +390,12 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	return (0);	
 }
 
+/*
+ * Use the 'backend3' field in AIO jobs to store the amount of data
+ * completed by the AIO job so far.
+ */
+#define	aio_done	backend3
+
 static STAILQ_HEAD(, task) soaio_jobs;
 static struct mtx soaio_jobs_lock;
 static struct task soaio_kproc_task;
@@ -567,7 +573,7 @@ retry:
 	td_savedcred = td->td_ucred;
 	td->td_ucred = job->cred;
 
-	done = job->uaiocb._aiocb_private.status;
+	done = job->aio_done;
 	cnt = job->uaiocb.aio_nbytes - done;
 	iov.iov_base = (void *)((uintptr_t)job->uaiocb.aio_buf + done);
 	iov.iov_len = cnt;
@@ -604,7 +610,7 @@ retry:
 	}
 
 	done += cnt - uio.uio_resid;
-	job->uaiocb._aiocb_private.status = done;
+	job->aio_done = done;
 	td->td_ucred = td_savedcred;
 
 	if (error == EWOULDBLOCK) {
@@ -740,7 +746,7 @@ soo_aio_cancel(struct kaiocb *job)
 		sb->sb_flags &= ~SB_AIO;
 	SOCKBUF_UNLOCK(sb);
 
-	done = job->uaiocb._aiocb_private.status;
+	done = job->aio_done;
 	if (done != 0)
 		aio_complete(job, done, 0);
 	else
@@ -774,7 +780,6 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 	if (!aio_set_cancel_function(job, soo_aio_cancel))
 		panic("new job was cancelled");
 	TAILQ_INSERT_TAIL(&sb->sb_aiojobq, job, list);
-	job->uaiocb._aiocb_private.status = 0;
 	if (!(sb->sb_flags & SB_AIO_RUNNING)) {
 		if (soaio_ready(so, sb))
 			sowakeup_aio(so, sb);

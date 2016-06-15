@@ -74,6 +74,12 @@ VNET_DECLARE(int, tcp_autorcvbuf_inc);
 VNET_DECLARE(int, tcp_autorcvbuf_max);
 #define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
 
+/*
+ * Use the 'backend3' field in AIO jobs to store the amount of data
+ * received by the AIO job so far.
+ */
+#define	aio_received	backend3
+
 static void aio_ddp_requeue_task(void *context, int pending);
 static void ddp_complete_all(struct toepcb *toep, int error);
 static void t4_aio_cancel_active(struct kaiocb *job);
@@ -204,7 +210,7 @@ ddp_complete_one(struct kaiocb *job, int error)
 	 * it was cancelled, report it as a short read rather than an
 	 * error.
 	 */
-	copied = job->uaiocb._aiocb_private.status;
+	copied = job->aio_received;
 	if (copied != 0 || error == 0)
 		aio_complete(job, copied, 0);
 	else
@@ -350,7 +356,7 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
 		MPASS((toep->ddp_flags & db_flag) != 0);
 		db = &toep->db[db_idx];
 		job = db->job;
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		placed = n;
 		if (placed > job->uaiocb.aio_nbytes - copied)
 			placed = job->uaiocb.aio_nbytes - copied;
@@ -360,7 +366,7 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
 			 * t4_aio_cancel_active() completes this
 			 * request.
 			 */
-			job->uaiocb._aiocb_private.status += placed;
+			job->aio_received += placed;
 		} else if (copied + placed != 0) {
 			CTR4(KTR_CXGBE,
 			    "%s: completing %p (copied %ld, placed %lu)",
@@ -601,16 +607,16 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 		 * Update the job's length but defer completion to the
 		 * TCB_RPL callback.
 		 */
-		job->uaiocb._aiocb_private.status += len;
+		job->aio_received += len;
 		goto out;
 	} else if (!aio_clear_cancel_function(job)) {
 		/*
 		 * Update the copied length for when
 		 * t4_aio_cancel_active() completes this request.
 		 */
-		job->uaiocb._aiocb_private.status += len;
+		job->aio_received += len;
 	} else {
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 #ifdef VERBOSE_TRACES
 		CTR4(KTR_CXGBE, "%s: completing %p (copied %ld, placed %d)",
 		    __func__, job, copied, len);
@@ -698,7 +704,7 @@ handle_ddp_tcb_rpl(struct toepcb *toep, const struct cpl_set_tcb_rpl *cpl)
 		 * also take care of updating the tp, etc.
 		 */
 		job = db->job;
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		if (copied == 0) {
 			CTR2(KTR_CXGBE, "%s: cancelling %p", __func__, job);
 			aio_cancel(job);
@@ -746,7 +752,7 @@ handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, __be32 rcv_nxt)
 		MPASS((toep->ddp_flags & db_flag) != 0);
 		db = &toep->db[db_idx];
 		job = db->job;
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		placed = len;
 		if (placed > job->uaiocb.aio_nbytes - copied)
 			placed = job->uaiocb.aio_nbytes - copied;
@@ -756,7 +762,7 @@ handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, __be32 rcv_nxt)
 			 * t4_aio_cancel_active() completes this
 			 * request.
 			 */
-			job->uaiocb._aiocb_private.status += placed;
+			job->aio_received += placed;
 		} else {
 			CTR4(KTR_CXGBE, "%s: tid %d completed buf %d len %d",
 			    __func__, toep->tid, db_idx, placed);
@@ -1212,7 +1218,7 @@ aio_ddp_cancel_one(struct kaiocb *job)
 	 * it was cancelled, report it as a short read rather than an
 	 * error.
 	 */
-	copied = job->uaiocb._aiocb_private.status;
+	copied = job->aio_received;
 	if (copied != 0)
 		aio_complete(job, copied, 0);
 	else
@@ -1297,7 +1303,7 @@ restart:
 		 * a short read and leave the error to be reported by
 		 * a future request.
 		 */
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		if (copied != 0) {
 			SOCKBUF_UNLOCK(sb);
 			aio_complete(job, copied, 0);
@@ -1371,7 +1377,7 @@ restart:
 
 	SOCKBUF_LOCK(sb);
 	if (so->so_error && sbavail(sb) == 0) {
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		if (copied != 0) {
 			SOCKBUF_UNLOCK(sb);
 			recycle_pageset(toep, ps);
@@ -1421,9 +1427,9 @@ sbcopy:
 	 * copy those mbufs out directly.
 	 */
 	copied = 0;
-	offset = ps->offset + job->uaiocb._aiocb_private.status;
-	MPASS(job->uaiocb._aiocb_private.status <= job->uaiocb.aio_nbytes);
-	resid = job->uaiocb.aio_nbytes - job->uaiocb._aiocb_private.status;
+	offset = ps->offset + job->aio_received;
+	MPASS(job->aio_received <= job->uaiocb.aio_nbytes);
+	resid = job->uaiocb.aio_nbytes - job->aio_received;
 	m = sb->sb_mb;
 	KASSERT(m == NULL || toep->ddp_active_count == 0,
 	    ("%s: sockbuf data with active DDP", __func__));
@@ -1451,8 +1457,8 @@ sbcopy:
 	}
 	if (copied != 0) {
 		sbdrop_locked(sb, copied);
-		job->uaiocb._aiocb_private.status += copied;
-		copied = job->uaiocb._aiocb_private.status;
+		job->aio_received += copied;
+		copied = job->aio_received;
 		inp = sotoinpcb(so);
 		if (!INP_TRY_WLOCK(inp)) {
 			/*
@@ -1568,8 +1574,8 @@ sbcopy:
 	 * which will keep it open and keep the TCP PCB attached until
 	 * after the job is completed.
 	 */
-	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, ps,
-	    job->uaiocb._aiocb_private.status, ddp_flags, ddp_flags_mask);
+	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, ps, job->aio_received,
+	    ddp_flags, ddp_flags_mask);
 	if (wr == NULL) {
 		recycle_pageset(toep, ps);
 		aio_ddp_requeue_one(toep, job);
@@ -1727,7 +1733,6 @@ t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 	if (!aio_set_cancel_function(job, t4_aio_cancel_queued))
 		panic("new job was cancelled");
 	TAILQ_INSERT_TAIL(&toep->ddp_aiojobq, job, list);
-	job->uaiocb._aiocb_private.status = 0;
 	toep->ddp_waiting_count++;
 	toep->ddp_flags |= DDP_OK;
 

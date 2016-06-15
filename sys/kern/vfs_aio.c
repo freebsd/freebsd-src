@@ -520,7 +520,6 @@ aio_free_entry(struct kaiocb *job)
 	sigqueue_take(&job->ksi);
 	PROC_UNLOCK(p);
 
-	MPASS(job->bp == NULL);
 	AIO_UNLOCK(ki);
 
 	/*
