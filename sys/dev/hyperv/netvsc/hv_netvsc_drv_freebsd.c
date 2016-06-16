@@ -183,6 +183,7 @@ struct hn_txdesc {
 #define HN_CSUM_ASSIST_WIN8	(CSUM_IP | CSUM_TCP)
 #define HN_CSUM_ASSIST		(CSUM_IP | CSUM_UDP | CSUM_TCP)
 
+#define HN_LRO_LENLIM_MULTIRX_DEF	(12 * ETHERMTU)
 #define HN_LRO_LENLIM_DEF		(25 * ETHERMTU)
 /* YYY 2*MTU is a bit rough, but should be good enough. */
 #define HN_LRO_LENLIM_MIN(ifp)		(2 * (ifp)->if_mtu)
@@ -338,6 +339,17 @@ static int hn_xmit(struct hn_tx_ring *, int);
 static void hn_xmit_txeof(struct hn_tx_ring *);
 static void hn_xmit_taskfunc(void *, int);
 static void hn_xmit_txeof_taskfunc(void *, int);
+
+#if __FreeBSD_version >= 1100099
+static void
+hn_set_lro_lenlim(struct hn_softc *sc, int lenlim)
+{
+	int i;
+
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
+		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
+}
+#endif
 
 static int
 hn_ifmedia_upd(struct ifnet *ifp __unused)
@@ -549,6 +561,16 @@ netvsc_attach(device_t dev)
 	sc->hn_rx_ring_inuse = sc->net_dev->num_channel;
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
+
+#if __FreeBSD_version >= 1100099
+	if (sc->hn_rx_ring_inuse > 1) {
+		/*
+		 * Reduce TCP segment aggregation limit for multiple
+		 * RX rings to increase ACK timeliness.
+		 */
+		hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MULTIRX_DEF);
+	}
+#endif
 
 	if (device_info.link_state == 0) {
 		sc->hn_carrier = 1;
@@ -1258,8 +1280,10 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 		return (0);
 	} else if (packet->tot_data_buf_len <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
-		if (m_new == NULL)
+		if (m_new == NULL) {
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
+		}
 		memcpy(mtod(m_new, void *), packet->data,
 		    packet->tot_data_buf_len);
 		m_new->m_pkthdr.len = m_new->m_len = packet->tot_data_buf_len;
@@ -1279,7 +1303,7 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 
 		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 		if (m_new == NULL) {
-			if_printf(ifp, "alloc mbuf failed.\n");
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
 
@@ -1469,13 +1493,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 */
 		NV_LOCK(sc);
 		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
-		    HN_LRO_LENLIM_MIN(ifp)) {
-			int i;
-			for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
-				sc->hn_rx_ring[i].hn_lro.lro_length_lim =
-				    HN_LRO_LENLIM_MIN(ifp);
-			}
-		}
+		    HN_LRO_LENLIM_MIN(ifp))
+			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
 		NV_UNLOCK(sc);
 #endif
 
@@ -1808,7 +1827,7 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	unsigned int lenlim;
-	int error, i;
+	int error;
 
 	lenlim = sc->hn_rx_ring[0].hn_lro.lro_length_lim;
 	error = sysctl_handle_int(oidp, &lenlim, 0, req);
@@ -1820,8 +1839,7 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 
 	NV_LOCK(sc);
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
-		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
+	hn_set_lro_lenlim(sc, lenlim);
 	NV_UNLOCK(sc);
 	return 0;
 }
