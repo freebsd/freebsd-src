@@ -298,6 +298,18 @@ LIBUSB_ERROR_NO_DEVICE
 if the device has been disconnected, LIBUSB_ERROR_BUSY if the driver cannot be
 attached because the interface is claimed by a program or driver and a
 LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
+.Fn libusb_set_auto_detach_kernel_driver "libusb_device_handle *devh" "int enable"
+This function enables automatic kernel interface driver detach when an
+interface is claimed.
+When the interface is restored the kernel driver is allowed to be re-attached.
+If the
+.Fa enable
+argument is non-zero the feature is enabled.
+Else disabled.
+Returns 0 on success and a LIBUSB_ERROR code on
+failure.
 .Sh USB DESCRIPTORS
 .Ft int
 .Fn libusb_get_device_descriptor "libusb_device *dev" "libusb_device_descriptor *desc"
