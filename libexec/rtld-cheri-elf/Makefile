@@ -12,14 +12,15 @@ MK_SSP=		no
 PROG?=		ld-cheri-elf.so.1
 SRCS=		rtld_start.S \
 		reloc.c rtld.c rtld_lock.c rtld_printf.c map_object.c \
-		heap.c malloc.c xmalloc.c debug.c libmap.c
+		heap.c malloc.c xmalloc.c debug.c libmap.c write.S
 MAN=
 NEED_CHERI=	pure
 WANT_DUMP=yes
 MK_CHERI_SHARED=yes
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD -ffreestanding
-CFLAGS+=	-I${SRCTOP}/lib/csu/common
+CFLAGS+=	-I${SRCTOP}/lib/csu/common \
+		-I${SRCTOP}/lib/libc/${RTLD_ARCH}
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 RTLD_ARCH=	${MACHINE_ARCH}
 .else
