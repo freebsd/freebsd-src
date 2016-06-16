@@ -1115,8 +1115,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	/* Allocate PTE tables for kernel KVA. */
 	kernel_pdir = data_end;
-	kernel_ptbls = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS +
-	    PDIR_SIZE - 1) / PDIR_SIZE;
+	kernel_ptbls = howmany(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
+	    PDIR_SIZE);
 	data_end += kernel_ptbls * PTBL_PAGES * PAGE_SIZE;
 	debugf(" kernel ptbls: %d\n", kernel_ptbls);
 	debugf(" kernel pdir at 0x%08x end = 0x%08x\n", kernel_pdir, data_end);

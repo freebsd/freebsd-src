@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,28 +78,6 @@ fail1:
 	return (rc);
 }
 
-#if EFSYS_OPT_PCIE_TUNE
-
-	__checkReturn	efx_rc_t
-siena_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp)
-{
-	efx_rc_t rc;
-
-	if ((rc = efx_mcdi_set_workaround(enp, MC_CMD_WORKAROUND_BUG17230,
-		    B_TRUE, NULL) != 0))
-		goto fail1;
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
-#endif	/* EFSYS_OPT_PCIE_TUNE */
-
 static	__checkReturn	efx_rc_t
 siena_board_cfg(
 	__in		efx_nic_t *enp)
@@ -171,6 +149,10 @@ siena_board_cfg(
 	encp->enc_fw_assisted_tso_enabled = B_FALSE;
 	encp->enc_fw_assisted_tso_v2_enabled = B_FALSE;
 	encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
+
+	/* Siena supports two 10G ports, and 8 lanes of PCIe Gen2 */
+	encp->enc_required_pcie_bandwidth_mbps = 2 * 10000;
+	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN2;
 
 	return (0);
 

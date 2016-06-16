@@ -33,6 +33,7 @@
 . /etc/rc.subr
 
 name="bluetooth"
+desc="Bluetooth setup script"
 rcvar=
 start_cmd="bluetooth_start"
 stop_cmd="bluetooth_stop"

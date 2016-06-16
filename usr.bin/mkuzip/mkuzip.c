@@ -78,7 +78,6 @@ static struct mkuz_format ulzma_fmt = {
 static struct mkuz_blk *readblock(int, u_int32_t);
 static void usage(void);
 static void cleanup(void);
-int mkuz_memvcmp(const void *, unsigned char, size_t);
 
 static char *cleanfile = NULL;
 

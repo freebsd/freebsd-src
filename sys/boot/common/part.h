@@ -63,7 +63,7 @@ struct ptable_entry {
 
 /* The offset and size are in sectors */
 typedef int (diskread_t)(void *arg, void *buf, size_t blocks, off_t offset);
-typedef void (ptable_iterate_t)(void *arg, const char *partname,
+typedef int (ptable_iterate_t)(void *arg, const char *partname,
     const struct ptable_entry *part);
 
 struct ptable *ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
@@ -75,7 +75,7 @@ int ptable_getpart(const struct ptable *table, struct ptable_entry *part,
     int index);
 int ptable_getbestpart(const struct ptable *table, struct ptable_entry *part);
 
-void ptable_iterate(const struct ptable *table, void *arg,
+int ptable_iterate(const struct ptable *table, void *arg,
     ptable_iterate_t *iter);
 const char *parttype2str(enum partition_type type);
 

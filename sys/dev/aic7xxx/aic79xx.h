@@ -478,7 +478,7 @@ struct hardware_scb {
  * each S/G element is expired, its datacnt field is checked to see
  * if the LAST_SEG flag is set.  If so, SG_LIST_NULL is set in the
  * residual sg ptr and the transfer is considered complete.  If the
- * sequencer determines that there is a residual in the tranfer, or
+ * sequencer determines that there is a residual in the transfer, or
  * there is non-zero status, it will set the SG_STATUS_VALID flag in
  * sgptr and dma the scb back into host memory.  To sumarize:
  *
@@ -486,7 +486,7 @@ struct hardware_scb {
  *	o A residual has occurred if SG_FULL_RESID is set in sgptr,
  *	  or residual_sgptr does not have SG_LIST_NULL set.
  *
- *	o We are transfering the last segment if residual_datacnt has
+ *	o We are transferring the last segment if residual_datacnt has
  *	  the SG_LAST_SEG flag set.
  *
  * Host:
@@ -529,7 +529,7 @@ struct hardware_scb {
  */
 
 /*
- * Definition of a scatter/gather element as transfered to the controller.
+ * Definition of a scatter/gather element as transferred to the controller.
  * The aic7xxx chips only support a 24bit length.  We use the top byte of
  * the length to store additional address bits and a flag to indicate
  * that a given segment terminates the transfer.  This gives us an

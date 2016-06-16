@@ -23,6 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include "opt_ddb.h"
+#include "opt_smp.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
@@ -43,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
-#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -60,8 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvwin.h>
 #include <dev/fdt/fdt_common.h>
 #endif
-
-#include "opt_smp.h"
 
 extern struct pcpu __pcpu[];
 /* used to hold the AP's until we are ready to release them */
@@ -177,6 +177,9 @@ init_secondary(int cpu)
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
+#if __ARM_ARCH >= 6 && defined(DDB)
+	dbg_monitor_init_secondary();
+#endif
 	/* Signal our startup to BSP */
 	atomic_add_rel_32(&mp_naps, 1);
 
@@ -195,6 +198,9 @@ init_secondary(int cpu)
 #ifdef VFP
 	vfp_init();
 #endif
+
+	/* Configure the interrupt controller */
+	intr_pic_init_secondary();
 
 	mtx_lock_spin(&ap_boot_mtx);
 
@@ -234,7 +240,6 @@ init_secondary(int cpu)
 	cpu_initclocks_ap();
 
 	CTR0(KTR_SMP, "go into scheduler");
-	intr_pic_init_secondary();
 
 	/* Enter the scheduler */
 	sched_throw(NULL);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/actables.h>
+#include <contrib/dev/acpica/include/acevents.h>
 
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbxfload")
@@ -74,6 +75,25 @@ AcpiLoadTables (
     ACPI_FUNCTION_TRACE (AcpiLoadTables);
 
 
+    /*
+     * Install the default operation region handlers. These are the
+     * handlers that are defined by the ACPI specification to be
+     * "always accessible" -- namely, SystemMemory, SystemIO, and
+     * PCI_Config. This also means that no _REG methods need to be
+     * run for these address spaces. We need to have these handlers
+     * installed before any AML code can be executed, especially any
+     * module-level code (11/2015).
+     * Note that we allow OSPMs to install their own region handlers
+     * between AcpiInitializeSubsystem() and AcpiLoadTables() to use
+     * their customized default region handlers.
+     */
+    Status = AcpiEvInstallRegionHandlers ();
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status, "During Region initialization"));
+        return_ACPI_STATUS (Status);
+    }
+
     /* Load the namespace from the tables */
 
     Status = AcpiTbLoadNamespace ();
@@ -91,6 +111,22 @@ AcpiLoadTables (
             "While loading namespace from ACPI tables"));
     }
 
+    if (!AcpiGbl_GroupModuleLevelCode)
+    {
+        /*
+         * Initialize the objects that remain uninitialized. This
+         * runs the executable AML that may be part of the
+         * declaration of these objects:
+         * OperationRegions, BufferFields, Buffers, and Packages.
+         */
+        Status = AcpiNsInitializeObjects ();
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+    }
+
+    AcpiGbl_NamespaceInitialized = TRUE;
     return_ACPI_STATUS (Status);
 }
 
@@ -210,6 +246,7 @@ AcpiTbLoadNamespace (
         {
             ACPI_EXCEPTION ((AE_INFO, Status, "(%4.4s:%8.8s) while loading table",
                 Table->Signature.Ascii, Table->Pointer->OemTableId));
+
             TablesFailed++;
 
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
@@ -226,8 +263,8 @@ AcpiTbLoadNamespace (
 
     if (!TablesFailed)
     {
-        ACPI_INFO ((AE_INFO,
-            "%u ACPI AML tables successfully acquired and loaded",
+        ACPI_INFO ((
+            "%u ACPI AML tables successfully acquired and loaded\n",
             TablesLoaded));
     }
     else
@@ -339,12 +376,12 @@ AcpiLoadTable (
 
     /* Install the table and load it into the namespace */
 
-    ACPI_INFO ((AE_INFO, "Host-directed Dynamic ACPI Table Load:"));
+    ACPI_INFO (("Host-directed Dynamic ACPI Table Load:"));
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     Status = AcpiTbInstallStandardTable (ACPI_PTR_TO_PHYSADDR (Table),
-                ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL, TRUE, FALSE,
-                &TableIndex);
+        ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL, TRUE, FALSE,
+        &TableIndex);
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     if (ACPI_FAILURE (Status))
@@ -356,7 +393,8 @@ AcpiLoadTable (
      * Note: Now table is "INSTALLED", it must be validated before
      * using.
      */
-    Status = AcpiTbValidateTable (&AcpiGbl_RootTableList.Tables[TableIndex]);
+    Status = AcpiTbValidateTable (
+        &AcpiGbl_RootTableList.Tables[TableIndex]);
     if (ACPI_FAILURE (Status))
     {
         goto UnlockAndExit;
@@ -369,7 +407,7 @@ AcpiLoadTable (
     if (AcpiGbl_TableHandler)
     {
         (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_LOAD, Table,
-                    AcpiGbl_TableHandlerContext);
+            AcpiGbl_TableHandlerContext);
     }
 
 UnlockAndExit:
@@ -452,8 +490,8 @@ AcpiUnloadParentTable (
          * that can create namespace objects.
          */
         if (ACPI_COMPARE_NAME (
-            AcpiGbl_RootTableList.Tables[i].Signature.Ascii,
-            ACPI_SIG_DSDT))
+                AcpiGbl_RootTableList.Tables[i].Signature.Ascii,
+                ACPI_SIG_DSDT))
         {
             Status = AE_TYPE;
             break;
@@ -472,8 +510,8 @@ AcpiUnloadParentTable (
         if (AcpiGbl_TableHandler)
         {
             (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_UNLOAD,
-                        AcpiGbl_RootTableList.Tables[i].Pointer,
-                        AcpiGbl_TableHandlerContext);
+                AcpiGbl_RootTableList.Tables[i].Pointer,
+                AcpiGbl_TableHandlerContext);
         }
 
         /*

@@ -613,8 +613,7 @@ restart:
 	}
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
 		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
-			sblock.fs_cssize - i < sblock.fs_bsize ?
-			sblock.fs_cssize - i : sblock.fs_bsize,
+			MIN(sblock.fs_cssize - i, sblock.fs_bsize),
 			((char *)fscs) + i);
 	/*
 	 * Update information about this partition in pack
@@ -660,8 +659,7 @@ initcg(int cylno, time_t utime)
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
 	acg.cg_niblk = sblock.fs_ipg;
-	acg.cg_initediblk = sblock.fs_ipg < 2 * INOPB(&sblock) ?
-	    sblock.fs_ipg : 2 * INOPB(&sblock);
+	acg.cg_initediblk = MIN(sblock.fs_ipg, 2 * INOPB(&sblock));
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
@@ -771,7 +769,7 @@ initcg(int cylno, time_t utime)
 	 * Write out the duplicate super block, the cylinder group map
 	 * and two blocks worth of inodes in a single write.
 	 */
-	start = sblock.fs_bsize > SBLOCKSIZE ? sblock.fs_bsize : SBLOCKSIZE;
+	start = MAX(sblock.fs_bsize, SBLOCKSIZE);
 	bcopy((char *)&acg, &iobuf[start], sblock.fs_cgsize);
 	start += sblock.fs_bsize;
 	dp1 = (struct ufs1_dinode *)(&iobuf[start]);

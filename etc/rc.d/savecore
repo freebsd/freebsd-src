@@ -10,6 +10,8 @@
 . /etc/rc.subr
 
 name="savecore"
+rcvar="savecore_enable"
+desc="Save a core dump of the operating system"
 start_cmd="savecore_start"
 start_precmd="savecore_prestart"
 stop_cmd=":"

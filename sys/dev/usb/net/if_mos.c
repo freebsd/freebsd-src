@@ -418,7 +418,7 @@ mos_write_mcast(struct mos_softc *sc, u_char *hashtbl)
 }
 
 static int
-mos_miibus_readreg(struct device *dev, int phy, int reg)
+mos_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct mos_softc *sc = device_get_softc(dev);
 	uWord val;

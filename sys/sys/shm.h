@@ -43,6 +43,8 @@
 #include <sys/ipc.h>
 #include <sys/_types.h>
 
+#include <machine/param.h>
+
 #define SHM_RDONLY  010000  /* Attach read-only (else read-write) */
 #define SHM_RND     020000  /* Round attach address to SHMLBA */
 #define SHMLBA      PAGE_SIZE /* Segment low boundary address multiple */
@@ -56,7 +58,7 @@
 #define	SHM_LOCK	11
 #define	SHM_UNLOCK	12
 
-/* ipcs shmctl commands for Linux compatability */
+/* ipcs shmctl commands for Linux compatibility */
 #define	SHM_STAT	13
 #define	SHM_INFO	14
 

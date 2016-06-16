@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name=kadmind
+desc="Server for administrative access to Kerberos database"
 rcvar=${name}_enable
 required_vars=kdc_enable
 start_precmd=${name}_start_precmd

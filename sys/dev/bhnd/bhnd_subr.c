@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 
@@ -40,8 +41,17 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bhnd/cores/chipc/chipcreg.h>
 
+#include "nvram/bhnd_nvram.h"
+
+#include "bhnd_chipc_if.h"
+
+#include "bhnd_nvram_if.h"
+#include "bhnd_nvram_map.h"
+
 #include "bhndreg.h"
 #include "bhndvar.h"
+
+static device_t		find_nvram_child(device_t dev);
 
 /* BHND core device description table. */
 static const struct bhnd_core_desc {
@@ -76,7 +86,7 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, APHY,		WLAN_PHY,	"802.11a PHY"),
 	BHND_CDESC(BCM, BPHY,		WLAN_PHY,	"802.11b PHY"),
 	BHND_CDESC(BCM, GPHY,		WLAN_PHY,	"802.11g PHY"),
-	BHND_CDESC(BCM, MIPS33,		CPU,		"MIPS 3302 Core"),
+	BHND_CDESC(BCM, MIPS33,		CPU,		"MIPS3302 Core"),
 	BHND_CDESC(BCM, USB11H,		OTHER,		"USB 1.1 Host Controller"),
 	BHND_CDESC(BCM, USB11D,		OTHER,		"USB 1.1 Device Core"),
 	BHND_CDESC(BCM, USB20H,		OTHER,		"USB 2.0 Host Controller"),
@@ -98,7 +108,7 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, SDIOD,		OTHER,		"SDIO Device Core"),
 	BHND_CDESC(BCM, ARMCM3,		CPU,		"ARM Cortex-M3 CPU"),
 	BHND_CDESC(BCM, HTPHY,		WLAN_PHY,	"802.11n 4x4 PHY"),
-	BHND_CDESC(BCM, MIPS74K,	CPU,		"MIPS74k CPU"),
+	BHND_CDESC(MIPS,MIPS74K,	CPU,		"MIPS74k CPU"),
 	BHND_CDESC(BCM, GMAC,		ENET_MAC,	"Gigabit MAC core"),
 	BHND_CDESC(BCM, DMEMC,		MEMC,		"DDR1/DDR2 Memory Controller"),
 	BHND_CDESC(BCM, PCIERC,		OTHER,		"PCIe Root Complex"),
@@ -183,6 +193,8 @@ bhnd_port_type_name(bhnd_port_type port_type)
 		return ("bridge");
 	case BHND_PORT_AGENT:
 		return ("agent");
+	default:
+		return "unknown";
 	}
 }
 
@@ -291,13 +303,12 @@ device_t
 bhnd_find_child(device_t dev, bhnd_devclass_t class, int unit)
 {
 	struct bhnd_core_match md = {
-		.vendor = BHND_MFGID_INVALID,
-		.device = BHND_COREID_INVALID,
-		.hwrev.start = BHND_HWREV_INVALID,
-		.hwrev.end = BHND_HWREV_INVALID,
-		.class = class,
-		.unit = unit
+		BHND_MATCH_CORE_CLASS(class),
+		BHND_MATCH_CORE_UNIT(unit)
 	};
+
+	if (unit == -1)
+		md.m.match.core_unit = 0;
 
 	return bhnd_match_child(dev, &md);
 }
@@ -325,9 +336,10 @@ bhnd_match_child(device_t dev, const struct bhnd_core_match *desc)
 
 	match = NULL;
 	for (int i = 0; i < devcnt; i++) {
-		device_t dev = devlistp[i];
-		if (bhnd_device_matches(dev, desc)) {
-			match = dev;
+		struct bhnd_core_info ci = bhnd_get_core_info(devlistp[i]);
+
+		if (bhnd_core_matches(&ci, desc)) {
+			match = devlistp[i];
 			goto done;
 		}
 	}
@@ -335,6 +347,56 @@ bhnd_match_child(device_t dev, const struct bhnd_core_match *desc)
 done:
 	free(devlistp, M_TEMP);
 	return match;
+}
+
+/**
+ * Walk up the bhnd device hierarchy to locate the root device
+ * to which the bhndb bridge is attached.
+ * 
+ * This can be used from within bhnd host bridge drivers to locate the
+ * actual upstream host device.
+ * 
+ * @param dev A bhnd device.
+ * @param bus_class The expected bus (e.g. "pci") to which the bridge root
+ * should be attached.
+ * 
+ * @retval device_t if a matching parent device is found.
+ * @retval NULL @p dev is not attached via a bhndb bus
+ * @retval NULL no parent device is attached via @p bus_class.
+ */
+device_t
+bhnd_find_bridge_root(device_t dev, devclass_t bus_class)
+{
+	devclass_t	bhndb_class;
+	device_t	parent;
+
+	KASSERT(device_get_devclass(device_get_parent(dev)) == bhnd_devclass,
+	   ("%s not a bhnd device", device_get_nameunit(dev)));
+
+	bhndb_class = devclass_find("bhndb");
+
+	/* Walk the device tree until we hit a bridge */
+	parent = dev;
+	while ((parent = device_get_parent(parent)) != NULL) {
+		if (device_get_devclass(parent) == bhndb_class)
+			break;
+	}
+
+	/* No bridge? */
+	if (parent == NULL)
+		return (NULL);
+
+	/* Search for a parent attached to the expected bus class */
+	while ((parent = device_get_parent(parent)) != NULL) {
+		device_t bus;
+
+		bus = device_get_parent(parent);
+		if (bus != NULL && device_get_devclass(bus) == bus_class)
+			return (parent);
+	}
+
+	/* Not found */
+	return (NULL);
 }
 
 /**
@@ -375,12 +437,7 @@ bhnd_find_core(const struct bhnd_core_info *cores, u_int num_cores,
     bhnd_devclass_t class)
 {
 	struct bhnd_core_match md = {
-		.vendor = BHND_MFGID_INVALID,
-		.device = BHND_COREID_INVALID,
-		.hwrev.start = BHND_HWREV_INVALID,
-		.hwrev.end = BHND_HWREV_INVALID,
-		.class = class,
-		.unit = -1
+		BHND_MATCH_CORE_CLASS(class)
 	};
 
 	return bhnd_match_core(cores, num_cores, &md);
@@ -399,29 +456,81 @@ bool
 bhnd_core_matches(const struct bhnd_core_info *core,
     const struct bhnd_core_match *desc)
 {
-	if (desc->vendor != BHND_MFGID_INVALID &&
-	    desc->vendor != core->vendor)
+	if (desc->m.match.core_vendor && desc->core_vendor != core->vendor)
 		return (false);
 
-	if (desc->device != BHND_COREID_INVALID &&
-	    desc->device != core->device)
+	if (desc->m.match.core_id && desc->core_id != core->device)
 		return (false);
 
-	if (desc->unit != -1 && desc->unit != core->unit)
+	if (desc->m.match.core_unit && desc->core_unit != core->unit)
 		return (false);
 
-	if (!bhnd_hwrev_matches(core->hwrev, &desc->hwrev))
-		return (false);
-		
-	if (desc->hwrev.end != BHND_HWREV_INVALID &&
-	    desc->hwrev.end < core->hwrev)
+	if (desc->m.match.core_rev && 
+	    !bhnd_hwrev_matches(core->hwrev, &desc->core_rev))
 		return (false);
 
-	if (desc->class != BHND_DEVCLASS_INVALID &&
-	    desc->class != bhnd_core_class(core))
+	if (desc->m.match.core_class &&
+	    desc->core_class != bhnd_core_class(core))
 		return (false);
 
 	return true;
+}
+
+/**
+ * Return true if the @p chip matches @p desc.
+ * 
+ * @param chip A bhnd chip identifier.
+ * @param desc A match descriptor to compare against @p chip.
+ * 
+ * @retval true if @p chip matches @p match
+ * @retval false if @p chip does not match @p match.
+ */
+bool
+bhnd_chip_matches(const struct bhnd_chipid *chip,
+    const struct bhnd_chip_match *desc)
+{
+	if (desc->m.match.chip_id && chip->chip_id != desc->chip_id)
+		return (false);
+
+	if (desc->m.match.chip_pkg && chip->chip_pkg != desc->chip_pkg)
+		return (false);
+
+	if (desc->m.match.chip_rev &&
+	    !bhnd_hwrev_matches(chip->chip_rev, &desc->chip_rev))
+		return (false);
+
+	return (true);
+}
+
+/**
+ * Return true if the @p board matches @p desc.
+ * 
+ * @param board The bhnd board info.
+ * @param desc A match descriptor to compare against @p board.
+ * 
+ * @retval true if @p chip matches @p match
+ * @retval false if @p chip does not match @p match.
+ */
+bool
+bhnd_board_matches(const struct bhnd_board_info *board,
+    const struct bhnd_board_match *desc)
+{
+	if (desc->m.match.board_srom_rev &&
+	    !bhnd_hwrev_matches(board->board_srom_rev, &desc->board_srom_rev))
+		return (false);
+
+	if (desc->m.match.board_vendor &&
+	    board->board_vendor != desc->board_vendor)
+		return (false);
+
+	if (desc->m.match.board_type && board->board_type != desc->board_type)
+		return (false);
+
+	if (desc->m.match.board_rev &&
+	    !bhnd_hwrev_matches(board->board_rev, &desc->board_rev))
+		return (false);
+
+	return (true);
 }
 
 /**
@@ -457,16 +566,59 @@ bhnd_hwrev_matches(uint16_t hwrev, const struct bhnd_hwrev_match *desc)
  * @retval false if @p dev does not match @p match.
  */
 bool
-bhnd_device_matches(device_t dev, const struct bhnd_core_match *desc)
+bhnd_device_matches(device_t dev, const struct bhnd_device_match *desc)
 {
-	struct bhnd_core_info ci = {
-		.vendor = bhnd_get_vendor(dev),
-		.device = bhnd_get_device(dev),
-		.unit = bhnd_get_core_unit(dev),
-		.hwrev = bhnd_get_hwrev(dev)
-	};
+	struct bhnd_core_info		 core;
+	const struct bhnd_chipid	*chip;
+	struct bhnd_board_info		 board;
+	device_t			 parent;
+	int				 error;
 
-	return bhnd_core_matches(&ci, desc);
+	/* Construct individual match descriptors */
+	struct bhnd_core_match	m_core	= { _BHND_CORE_MATCH_COPY(desc) };
+	struct bhnd_chip_match	m_chip	= { _BHND_CHIP_MATCH_COPY(desc) };
+	struct bhnd_board_match	m_board	= { _BHND_BOARD_MATCH_COPY(desc) };
+
+	/* Fetch and match core info */
+	if (m_core.m.match_flags) {
+		/* Only applicable to bhnd-attached cores */
+		parent = device_get_parent(dev);
+		if (device_get_devclass(parent) != bhnd_devclass) {
+			device_printf(dev, "attempting to match core "
+			    "attributes against non-core device\n");
+			return (false);
+		}
+
+		core = bhnd_get_core_info(dev);
+		if (!bhnd_core_matches(&core, &m_core))
+			return (false);
+	}
+
+	/* Fetch and match chip info */
+	if (m_chip.m.match_flags) {
+		chip = bhnd_get_chipid(dev);
+
+		if (!bhnd_chip_matches(chip, &m_chip))
+			return (false);
+	}
+
+	/* Fetch and match board info.
+	 *
+	 * This is not available until  after NVRAM is up; earlier device
+	 * matches should not include board requirements */
+	if (m_board.m.match_flags) {
+		if ((error = bhnd_read_board_info(dev, &board))) {
+			device_printf(dev, "failed to read required board info "
+			    "during device matching: %d\n", error);
+			return (false);
+		}
+
+		if (!bhnd_board_matches(&board, &m_board))
+			return (false);
+	}
+
+	/* All matched */
+	return (true);
 }
 
 /**
@@ -483,9 +635,16 @@ const struct bhnd_device *
 bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
     size_t entry_size)
 {
-	const struct bhnd_device *entry;
+	const struct bhnd_device	*entry;
+	device_t			 hostb, parent;
+	bhnd_attach_type		 attach_type;
+	uint32_t			 dflags;
 
-	for (entry = table; entry->desc != NULL; entry =
+	parent = device_get_parent(dev);
+	hostb = bhnd_find_hostb_device(parent);
+	attach_type = bhnd_get_attach_type(dev);
+
+	for (entry = table; !BHND_DEVICE_IS_END(entry); entry =
 	    (const struct bhnd_device *) ((const char *) entry + entry_size))
 	{
 		/* match core info */
@@ -493,10 +652,23 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 			continue;
 
 		/* match device flags */
-		if (entry->device_flags & BHND_DF_HOSTB) {
-			if (!bhnd_is_hostb_device(dev))
+		dflags = entry->device_flags;
+
+		/* hostb implies BHND_ATTACH_ADAPTER requirement */
+		if (dflags & BHND_DF_HOSTB)
+			dflags |= BHND_DF_ADAPTER;
+	
+		if (dflags & BHND_DF_ADAPTER)
+			if (attach_type != BHND_ATTACH_ADAPTER)
 				continue;
-		}
+
+		if (dflags & BHND_DF_HOSTB)
+			if (dev != hostb)
+				continue;
+
+		if (dflags & BHND_DF_SOC)
+			if (attach_type != BHND_ATTACH_NATIVE)
+				continue;
 
 		/* device found */
 		return (entry);
@@ -507,11 +679,10 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 }
 
 /**
- * Scan @p table for all quirk flags applicable to @p dev.
+ * Scan the device @p table for all quirk flags applicable to @p dev.
  * 
  * @param dev A bhnd device to match against @p table.
  * @param table The device table to search.
- * @param entry_size The @p table entry size, in bytes.
  * 
  * @return returns all matching quirk flags.
  */
@@ -520,27 +691,22 @@ bhnd_device_quirks(device_t dev, const struct bhnd_device *table,
     size_t entry_size)
 {
 	const struct bhnd_device	*dent;
-	const struct bhnd_device_quirk	*qtable, *qent;
+	const struct bhnd_device_quirk	*qent, *qtable;
 	uint32_t			 quirks;
-	uint16_t			 hwrev;
 
-	hwrev = bhnd_get_hwrev(dev);
+	/* Locate the device entry */
+	if ((dent = bhnd_device_lookup(dev, table, entry_size)) == NULL)
+		return (0);
+
+	/* Quirks table is optional */
+	qtable = dent->quirks_table;
+	if (qtable == NULL)
+		return (0);
+
+	/* Collect matching device quirk entries */
 	quirks = 0;
-
-	/* Find the quirk table */
-	if ((dent = bhnd_device_lookup(dev, table, entry_size)) == NULL) {
-		/* This is almost certainly a (caller) implementation bug */
-		device_printf(dev, "quirk lookup did not match any device\n");
-		return (0);
-	}
-
-	/* Quirks aren't a mandatory field */
-	if ((qtable = dent->quirks_table) == NULL)
-		return (0);
-
-	/* Collect matching quirk entries */
 	for (qent = qtable; !BHND_DEVICE_QUIRK_IS_END(qent); qent++) {
-		if (bhnd_hwrev_matches(hwrev, &qent->hwrev))
+		if (bhnd_device_matches(dev, &qent->desc))
 			quirks |= qent->quirks;
 	}
 
@@ -623,11 +789,11 @@ bhnd_parse_chipid(uint32_t idreg, bhnd_addr_t enum_addr)
 	struct bhnd_chipid result;
 
 	/* Fetch the basic chip info */
-	result.chip_id = CHIPC_GET_ATTR(idreg, ID_CHIP);
-	result.chip_pkg = CHIPC_GET_ATTR(idreg, ID_PKG);
-	result.chip_rev = CHIPC_GET_ATTR(idreg, ID_REV);
-	result.chip_type = CHIPC_GET_ATTR(idreg, ID_BUS);
-	result.ncores = CHIPC_GET_ATTR(idreg, ID_NUMCORE);
+	result.chip_id = CHIPC_GET_BITS(idreg, CHIPC_ID_CHIP);
+	result.chip_pkg = CHIPC_GET_BITS(idreg, CHIPC_ID_PKG);
+	result.chip_rev = CHIPC_GET_BITS(idreg, CHIPC_ID_REV);
+	result.chip_type = CHIPC_GET_BITS(idreg, CHIPC_ID_BUS);
+	result.ncores = CHIPC_GET_BITS(idreg, CHIPC_ID_NUMCORE);
 
 	result.enum_addr = enum_addr;
 
@@ -735,24 +901,6 @@ bhnd_set_default_core_desc(device_t dev)
 }
 
 /**
- * Helper function for implementing BHND_BUS_IS_HOSTB_DEVICE().
- * 
- * If a parent device is available, this implementation delegates the
- * request to the BHND_BUS_IS_HOSTB_DEVICE() method on the parent of @p dev.
- * 
- * If no parent device is available (i.e. on a the bus root), false
- * is returned.
- */
-bool
-bhnd_bus_generic_is_hostb_device(device_t dev, device_t child) {
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_IS_HOSTB_DEVICE(device_get_parent(dev),
-		    child));
-
-	return (false);
-}
-
-/**
  * Helper function for implementing BHND_BUS_IS_HW_DISABLED().
  * 
  * If a parent device is available, this implementation delegates the
@@ -784,6 +932,126 @@ bhnd_bus_generic_get_chipid(device_t dev, device_t child)
 		return (BHND_BUS_GET_CHIPID(device_get_parent(dev), child));
 
 	panic("missing BHND_BUS_GET_CHIPID()");
+}
+
+/* nvram board_info population macros for bhnd_bus_generic_read_board_info() */
+#define	BHND_GV(_dest, _name)	\
+	bhnd_nvram_getvar(child, BHND_NVAR_ ## _name, &_dest, sizeof(_dest))
+
+#define	REQ_BHND_GV(_dest, _name)		do {			\
+	if ((error = BHND_GV(_dest, _name))) {				\
+		device_printf(dev,					\
+		    "error reading " __STRING(_name) ": %d\n", error);	\
+		return (error);						\
+	}								\
+} while(0)
+
+#define	OPT_BHND_GV(_dest, _name, _default)	do {			\
+	if ((error = BHND_GV(_dest, _name))) {				\
+		if (error != ENOENT) {					\
+			device_printf(dev,				\
+			    "error reading "				\
+			       __STRING(_name) ": %d\n", error);	\
+			return (error);					\
+		}							\
+		_dest = _default;					\
+	}								\
+} while(0)
+
+/**
+ * Helper function for implementing BHND_BUS_READ_BOARDINFO().
+ * 
+ * This implementation populates @p info with information from NVRAM,
+ * defaulting board_vendor and board_type fields to 0 if the
+ * requested variables cannot be found.
+ * 
+ * This behavior is correct for most SoCs, but must be overridden on
+ * bridged (PCI, PCMCIA, etc) devices to produce a complete bhnd_board_info
+ * result.
+ */
+int
+bhnd_bus_generic_read_board_info(device_t dev, device_t child,
+    struct bhnd_board_info *info)
+{
+	int	error;
+
+	OPT_BHND_GV(info->board_vendor,	BOARDVENDOR,	0);
+	OPT_BHND_GV(info->board_type,	BOARDTYPE,	0);	/* srom >= 2 */
+	REQ_BHND_GV(info->board_rev,	BOARDREV);
+	REQ_BHND_GV(info->board_srom_rev,SROMREV);
+	REQ_BHND_GV(info->board_flags,	BOARDFLAGS);
+	OPT_BHND_GV(info->board_flags2,	BOARDFLAGS2,	0);	/* srom >= 4 */
+	OPT_BHND_GV(info->board_flags3,	BOARDFLAGS3,	0);	/* srom >= 11 */
+
+	return (0);
+}
+
+#undef	BHND_GV
+#undef	BHND_GV_REQ
+#undef	BHND_GV_OPT
+
+
+/**
+ * Find an NVRAM child device on @p dev, if any.
+ * 
+ * @retval device_t An NVRAM device.
+ * @retval NULL If no NVRAM device is found.
+ */
+static device_t
+find_nvram_child(device_t dev)
+{
+	device_t	chipc, nvram;
+
+	/* Look for a directly-attached NVRAM child */
+	nvram = device_find_child(dev, "bhnd_nvram", 0);
+	if (nvram != NULL)
+		return (nvram);
+
+	/* Remaining checks are only applicable when searching a bhnd(4)
+	 * bus. */
+	if (device_get_devclass(dev) != bhnd_devclass)
+		return (NULL);
+
+	/* Look for a ChipCommon-attached NVRAM device */
+	if ((chipc = bhnd_find_child(dev, BHND_DEVCLASS_CC, -1)) != NULL) {
+		nvram = device_find_child(chipc, "bhnd_nvram", 0);
+		if (nvram != NULL)
+			return (nvram);
+	}
+
+	/* Not found */
+	return (NULL);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_GET_NVRAM_VAR().
+ * 
+ * This implementation searches @p dev for a usable NVRAM child device:
+ * - The first child device implementing the bhnd_nvram devclass is
+ *   returned, otherwise
+ * - If @p dev is a bhnd(4) bus, a ChipCommon core that advertises an
+ *   attached NVRAM source.
+ * 
+ * If no usable child device is found on @p dev, the request is delegated to
+ * the BHND_BUS_GET_NVRAM_VAR() method on the parent of @p dev.
+ */
+int
+bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
+    void *buf, size_t *size)
+{
+	device_t	nvram;
+	device_t	parent;
+
+	/* Try to find an NVRAM device applicable to @p child */
+	if ((nvram = find_nvram_child(dev)) != NULL)
+		return BHND_NVRAM_GETVAR(nvram, name, buf, size);
+
+	/* Try to delegate to parent */
+	if ((parent = device_get_parent(dev)) == NULL)
+		return (ENODEV);
+
+	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
+	    name, buf, size));
 }
 
 /**
@@ -890,3 +1158,22 @@ bhnd_bus_generic_deactivate_resource(device_t dev, device_t child,
 
 	return (EINVAL);
 };
+
+/**
+ * Helper function for implementing BHND_BUS_GET_ATTACH_TYPE().
+ *
+ * This implementation of BHND_BUS_GET_ATTACH_TYPE() simply calls the
+ * BHND_BUS_GET_ATTACH_TYPE() method of the parent of @p dev.
+ */
+bhnd_attach_type
+bhnd_bus_generic_get_attach_type(device_t dev, device_t child)
+{
+	/* iterate from cores via bhnd to bridge or SoC */
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_GET_ATTACH_TYPE(device_get_parent(dev),
+		    child));
+
+	panic("bhnd_bus_get_attach_type unimplemented");
+	/* Unreachable */
+	return (BHND_ATTACH_ADAPTER);
+}

@@ -578,7 +578,7 @@ p_simp_re(struct parse *p,
 	sopno subno;
 #	define	BACKSL	(1<<CHAR_BIT)
 
-	pos = HERE();		/* repetion op, if any, covers from here */
+	pos = HERE();		/* repetition op, if any, covers from here */
 
 	assert(MORE());		/* caller should have ensured this */
 	c = GETNEXT();
@@ -821,10 +821,10 @@ p_b_term(struct parse *p, cset *cs)
 				(void)REQUIRE((uch)start <= (uch)finish, REG_ERANGE);
 				CHaddrange(p, cs, start, finish);
 			} else {
-				(void)REQUIRE(__collate_range_cmp(table, start, finish) <= 0, REG_ERANGE);
+				(void)REQUIRE(__wcollate_range_cmp(table, start, finish) <= 0, REG_ERANGE);
 				for (i = 0; i <= UCHAR_MAX; i++) {
-					if (   __collate_range_cmp(table, start, i) <= 0
-					    && __collate_range_cmp(table, i, finish) <= 0
+					if (   __wcollate_range_cmp(table, start, i) <= 0
+					    && __wcollate_range_cmp(table, i, finish) <= 0
 					   )
 						CHadd(p, cs, i);
 				}

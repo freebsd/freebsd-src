@@ -279,7 +279,7 @@ SCI_STATUS scic_sds_unsolicited_frame_control_get_header(
 {
    if (frame_index < uf_control->address_table.count)
    {
-      // Skip the first word in the frame since this is a controll word used
+      // Skip the first word in the frame since this is a control word used
       // by the hardware.
       *frame_header = &uf_control->buffers.array[frame_index].header->data;
 

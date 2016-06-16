@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-//#include <machine/pmap.h>
 
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
@@ -166,7 +165,6 @@ mtk_spi_detach(device_t dev)
 static void
 mtk_spi_chip_activate(struct mtk_spi_softc *sc)
 {
-//        printf("%s\n", __func__);
         mtk_spi_wait(sc);
 	/*
 	 * Put all CSx to low
@@ -177,7 +175,6 @@ mtk_spi_chip_activate(struct mtk_spi_softc *sc)
 static void
 mtk_spi_chip_deactivate(struct mtk_spi_softc *sc)
 {
-//        printf("%s\n", __func__);
         mtk_spi_wait(sc);
 	/*
 	 * Put all CSx to high
@@ -212,14 +209,12 @@ mtk_spi_txrx(struct mtk_spi_softc *sc, uint8_t *data, int write)
 	if (write == MTK_SPI_WRITE) {
 		SPI_WRITE(sc, MTK_SPIDATA, *data);
 		SPI_SET_BITS(sc, MTK_SPICTL, START_WRITE);
-		//printf("%s(W:%d)\n", __func__, *data);
 	} else {/* MTK_SPI_READ */
 		SPI_SET_BITS(sc, MTK_SPICTL, START_READ);
 		if (mtk_spi_wait(sc))
 			return (EBUSY);
 
 		*data = SPI_READ(sc, MTK_SPIDATA) & 0xff;
-		//printf("%s(R:%d)\n", __func__, *data);
 	}
 	return (0);
 }

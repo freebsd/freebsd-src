@@ -274,6 +274,11 @@ DEFINE_TEST(test_archive_write_set_format_by_name_v7)
 	test_format_by_name("v7", NULL, ARCHIVE_FORMAT_TAR, 0, NULL, 0);
 }
 
+DEFINE_TEST(test_archive_write_set_format_by_name_warc)
+{
+	test_format_by_name("warc", NULL, ARCHIVE_FORMAT_WARC, 0, NULL, 0);
+}
+
 DEFINE_TEST(test_archive_write_set_format_by_name_xar)
 {
 	test_format_by_name("xar", "gzip", ARCHIVE_FORMAT_XAR, 0, NULL, 0);

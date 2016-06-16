@@ -260,7 +260,7 @@ reserve:
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_xbusy(m);
 	if (*mres != NULL) {
-		KASSERT(*mres != m, ("loosing %p %p", *mres, m));
+		KASSERT(*mres != m, ("losing %p %p", *mres, m));
 		vm_page_lock(*mres);
 		vm_page_free(*mres);
 		vm_page_unlock(*mres);
@@ -296,7 +296,7 @@ ttm_bo_vm_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * acquired either in ttm_bo_mmap() or ttm_bo_vm_open(). It's
 	 * then released in ttm_bo_vm_close().
 	 *
-	 * Here, this function is called during mmap() intialization.
+	 * Here, this function is called during mmap() initialization.
 	 * Thus, the reference acquired in ttm_bo_mmap_single() is
 	 * sufficient.
 	 */

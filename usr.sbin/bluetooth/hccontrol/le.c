@@ -32,9 +32,9 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
-#include <sys/bitstring.h>
 #include <sys/select.h>
 #include <assert.h>
+#include <bitstring.h>
 #include <err.h>
 #include <errno.h>
 #include <netgraph/ng_message.h>

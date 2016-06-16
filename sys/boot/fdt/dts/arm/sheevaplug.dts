@@ -218,7 +218,8 @@
 
 		crypto@30000 {
 			compatible = "mrvl,cesa";
-			reg = <0x30000 0x10000>;
+			reg = <0x30000 0x1000	/* tdma base reg chan 0 */
+			       0x3D000 0x1000>;	/* cesa base reg chan 0 */
 			interrupts = <22>;
 			interrupt-parent = <&PIC>;
 

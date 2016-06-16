@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="swap"
+desc="Setup swap space"
 start_cmd='/sbin/swapon -aq'
 stop_cmd=':'
 

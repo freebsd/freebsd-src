@@ -1949,7 +1949,7 @@ void ecore_init_mcast_obj(struct bxe_softc *sc,
  * the current command will be enqueued to the tail of the
  * pending commands list.
  *
- * Return: 0 is operation was successfull and there are no pending completions,
+ * Return: 0 is operation was successful and there are no pending completions,
  *         negative if there were errors, positive if there are pending
  *         completions.
  */

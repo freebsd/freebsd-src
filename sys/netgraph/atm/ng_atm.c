@@ -1343,7 +1343,7 @@ ng_atm_shutdown(node_p node)
 	}
 #else
 	/*
-	 * We are persistant - reinitialize
+	 * We are persistent - reinitialize.
 	 */
 	NG_NODE_REVIVE(node);
 #endif

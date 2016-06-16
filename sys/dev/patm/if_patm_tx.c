@@ -119,8 +119,8 @@ cbr2slots(struct patm_softc *sc, struct patm_vcc *vcc)
 {
 	/* compute the number of slots we need, make sure to get at least
 	 * the specified PCR */
-	return ((u_int)(((uint64_t)(sc->mmap->tst_size - 1) *
-	    vcc->vcc.tparam.pcr + IFP2IFATM(sc->ifp)->mib.pcr - 1) / IFP2IFATM(sc->ifp)->mib.pcr));
+	return ((u_int)howmany((uint64_t)(sc->mmap->tst_size - 1) *
+	    vcc->vcc.tparam.pcr, IFP2IFATM(sc->ifp)->mib.pcr));
 }
 
 static __inline u_int

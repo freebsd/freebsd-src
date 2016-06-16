@@ -968,7 +968,7 @@ struct nfsreq {
 
 /*
  * Name used by getnewvnode() to describe filesystem, "nfs".
- * For perfomance reasons it is useful to have the same string
+ * For performance reasons it is useful to have the same string
  * used in both places that call getnewvnode().
  */
 extern const char nfs_vnode_tag[];

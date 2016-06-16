@@ -122,3 +122,18 @@ devctl_set_driver(const char *device, const char *driver, bool force)
 		req.dr_flags |= DEVF_SET_DRIVER_DETACH;
 	return (devctl_request(DEV_SET_DRIVER, &req));
 }
+
+int
+devctl_rescan(const char *device)
+{
+
+	return (devctl_simple_request(DEV_RESCAN, device, 0));
+}
+
+int
+devctl_delete(const char *device, bool force)
+{
+
+	return (devctl_simple_request(DEV_DELETE, device, force ?
+	    DEVF_FORCE_DELETE : 0));
+}

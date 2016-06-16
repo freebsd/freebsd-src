@@ -149,7 +149,7 @@ kernacc(addr, len, rw)
  * the associated vm_map_entry range.  It does not determine whether the
  * contents of the memory is actually readable or writable.  vmapbuf(),
  * vm_fault_quick(), or copyin()/copout()/su*()/fu*() functions should be
- * used in conjuction with this call.
+ * used in conjunction with this call.
  */
 int
 useracc(addr, len, rw)
@@ -665,7 +665,7 @@ vm_forkproc(td, p2, td2, vm2, flags)
 }
 
 /*
- * Called after process has been wait(2)'ed apon and is being reaped.
+ * Called after process has been wait(2)'ed upon and is being reaped.
  * The idea is to reclaim resources that we could not reclaim while
  * the process was still executing.
  */
@@ -731,8 +731,6 @@ faultin(p)
  * This swapin algorithm attempts to swap-in processes only if there
  * is enough space for them.  Of course, if a process waits for a long
  * time, it will be swapped in anyway.
- *
- * Giant is held on entry.
  */
 void
 swapper(void)

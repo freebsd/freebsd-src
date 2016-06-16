@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #include "restore.h"
 #include "extern.h"
 
-#define round(a, b) (((a) + (b) - 1) / (b) * (b))
-
 /*
  * Things to handle interruptions.
  */
@@ -671,7 +669,7 @@ formatf(struct afile *list, int nentry)
 	columns = 81 / width;
 	if (columns == 0)
 		columns = 1;
-	lines = (nentry + columns - 1) / columns;
+	lines = howmany(nentry, columns);
 	for (i = 0; i < lines; i++) {
 		for (j = 0; j < columns; j++) {
 			fp = &list[j * lines + i];

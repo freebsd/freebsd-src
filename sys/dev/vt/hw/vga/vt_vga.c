@@ -815,9 +815,8 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 
 	col = area->tr_end.tp_col;
 	row = area->tr_end.tp_row;
-	x2 = (int)((col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col
-	      + VT_VGA_PIXELS_BLOCK - 1)
-	     / VT_VGA_PIXELS_BLOCK)
+	x2 = (int)howmany(col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col,
+	    VT_VGA_PIXELS_BLOCK)
 	    * VT_VGA_PIXELS_BLOCK;
 	y2 = row * vf->vf_height + vw->vw_draw_area.tr_begin.tp_row;
 
@@ -913,11 +912,10 @@ vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	uint8_t pattern_2colors;
 
 	/* Align coordinates with the 8-pxels grid. */
-	x1 = x / VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	x1 = rounddown(x, VT_VGA_PIXELS_BLOCK);
 	y1 = y;
 
-	x2 = (x + width + VT_VGA_PIXELS_BLOCK - 1) /
-	    VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	x2 = roundup(x + width, VT_VGA_PIXELS_BLOCK);
 	y2 = y + height;
 	x2 = min(x2, vd->vd_width - 1);
 	y2 = min(y2, vd->vd_height - 1);

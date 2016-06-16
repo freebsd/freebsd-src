@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
 #include "opt_rss.h"
@@ -217,8 +216,15 @@ ip6_init(void)
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
 	/* Skip global initialization stuff for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
+#ifdef VIMAGE
+	if (!IS_DEFAULT_VNET(curvnet)) {
+		netisr_register_vnet(&ip6_nh);
+#ifdef RSS
+		netisr_register_vnet(&ip6_direct_nh);
+#endif
 		return;
+	}
+#endif
 
 	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
@@ -305,10 +311,15 @@ ip6proto_unregister(short ip6proto)
 }
 
 #ifdef VIMAGE
-void
-ip6_destroy()
+static void
+ip6_destroy(void *unused __unused)
 {
 	int error;
+
+#ifdef RSS
+	netisr_unregister_vnet(&ip6_direct_nh);
+#endif
+	netisr_unregister_vnet(&ip6_nh);
 
 	if ((error = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to unregister pfil hook, "
@@ -329,6 +340,8 @@ ip6_destroy()
 	nd6_destroy();
 	in6_ifattach_destroy();
 }
+
+VNET_SYSUNINIT(inet6, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_destroy, NULL);
 #endif
 
 static int

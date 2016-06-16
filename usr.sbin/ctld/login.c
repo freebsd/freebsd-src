@@ -574,18 +574,14 @@ login_negotiate_key(struct pdu *request, const char *name,
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0) {
 			login_send_error(request, 0x02, 0x00);
-			log_errx(1, "received invalid "
-			    "FirstBurstLength");
+			log_errx(1, "received invalid FirstBurstLength");
 		}
-		if (tmp > conn->conn_data_segment_limit) {
-			log_debugx("capping FirstBurstLength from %zd to %zd",
-			    tmp, conn->conn_data_segment_limit);
-			tmp = conn->conn_data_segment_limit;
+		if (tmp > FIRST_BURST_LENGTH) {
+			log_debugx("capping FirstBurstLength from %zd to %d",
+			    tmp, FIRST_BURST_LENGTH);
+			tmp = FIRST_BURST_LENGTH;
 		}
-		/*
-		 * We don't pass the value to the kernel; it only enforces
-		 * hardcoded limit anyway.
-		 */
+		conn->conn_first_burst_length = tmp;
 		keys_add_int(response_keys, name, tmp);
 	} else if (strcmp(name, "DefaultTime2Wait") == 0) {
 		keys_add(response_keys, name, value);
@@ -767,10 +763,10 @@ login_wait_transition(struct connection *conn)
 		login_send_error(request, 0x02, 0x00);
 		log_errx(1, "got no \"T\" flag after answering AuthMethod");
 	}
-	pdu_delete(request);
 
 	log_debugx("got state transition request");
 	response = login_new_response(request);
+	pdu_delete(request);
 	login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	pdu_send(response);
 	pdu_delete(response);

@@ -1,1 +1,0 @@
-../Perl/pl_syscolors.d

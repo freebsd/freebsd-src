@@ -50,7 +50,7 @@ dma_pool_create(char *name, struct device *dev, size_t size,
 	pool = kmalloc(sizeof(*pool), GFP_KERNEL);
 	align--;
 	/*
-	 * XXX Eventually this could use a seperate allocf to honor boundary
+	 * XXX Eventually this could use a separate allocf to honor boundary
 	 * and physical address requirements of the device.
 	 */
 	pool->pool_zone = uma_zcreate(name, size, NULL, NULL, NULL, NULL,

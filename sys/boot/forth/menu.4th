@@ -282,7 +282,7 @@ also menu-infrastructure definitions
 ;
 
 \ This function parses $kernels into variables that are used by the menu to
-\ display wich kernel to boot when the [overloaded] `boot' word is interpreted.
+\ display which kernel to boot when the [overloaded] `boot' word is interpreted.
 \ Used internally by menu-create, you need not (nor should you) call this
 \ directly.
 \ 
@@ -790,7 +790,7 @@ also menu-infrastructure definitions
 	again
 ;
 
-: menu-erase ( -- ) \ Erases menu and resets positioning variable to positon 1.
+: menu-erase ( -- ) \ Erases menu and resets positioning variable to position 1.
 
 	\ Clear the screen area associated with the interactive menu
 	menuX @ menuY @

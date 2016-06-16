@@ -371,7 +371,9 @@ svn_auth_next_credentials(void **credentials,
       if (creds != NULL)
         {
           /* Put the creds in the cache */
-          svn_hash_sets(auth_baton->creds_cache, state->cache_key, creds);
+          svn_hash_sets(auth_baton->creds_cache,
+                        apr_pstrdup(auth_baton->pool, state->cache_key),
+                        creds);
           break;
         }
 

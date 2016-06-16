@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #define IRQUNK	-1
 #endif
 
-#define	TPM_ACCESS			0x0000	/* acess register */
+#define	TPM_ACCESS			0x0000	/* access register */
 #define	TPM_ACCESS_ESTABLISHMENT	0x01	/* establishment */
 #define	TPM_ACCESS_REQUEST_USE		0x02	/* request using locality */
 #define	TPM_ACCESS_REQUEST_PENDING	0x04	/* pending request */
@@ -820,7 +820,7 @@ tpm_waitfor(struct tpm_softc *sc, u_int8_t b0, int tmo, void *c)
 		b = b0;
 
 		/*
-		 * Wait for data ready.  This interrupt only occures
+		 * Wait for data ready.  This interrupt only occurs
 		 * when both TPM_STS_VALID and TPM_STS_DATA_AVAIL are asserted.
 		 * Thus we don't have to bother with TPM_STS_VALID
 		 * separately and can just return.

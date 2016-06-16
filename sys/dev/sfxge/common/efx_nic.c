@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,12 +42,6 @@ efx_family(
 {
 	if (venid == EFX_PCI_VENID_SFC) {
 		switch (devid) {
-#if EFSYS_OPT_FALCON
-		case EFX_PCI_DEVID_FALCON:
-			*efp = EFX_FAMILY_FALCON;
-			return (0);
-#endif /* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 		case EFX_PCI_DEVID_SIENA_F1_UNINIT:
 			/*
@@ -101,6 +95,7 @@ efx_family(
 			return (0);
 #endif /* EFSYS_OPT_MEDFORD */
 
+		case EFX_PCI_DEVID_FALCON:	/* Obsolete, not supported */
 		default:
 			break;
 		}
@@ -110,64 +105,6 @@ efx_family(
 	return (ENOTSUP);
 }
 
-/*
- * To support clients which aren't provided with any PCI context infer
- * the hardware family by inspecting the hardware. Obviously the caller
- * must be damn sure they're really talking to a supported device.
- */
-	__checkReturn	efx_rc_t
-efx_infer_family(
-	__in		efsys_bar_t *esbp,
-	__out		efx_family_t *efp)
-{
-	efx_family_t family;
-	efx_oword_t oword;
-	unsigned int portnum;
-	efx_rc_t rc;
-
-	EFSYS_BAR_READO(esbp, FR_AZ_CS_DEBUG_REG_OFST, &oword, B_TRUE);
-	portnum = EFX_OWORD_FIELD(oword, FRF_CZ_CS_PORT_NUM);
-	if ((portnum == 1) || (portnum == 2)) {
-#if EFSYS_OPT_SIENA
-		family = EFX_FAMILY_SIENA;
-		goto out;
-#endif
-	} else if (portnum == 0) {
-		efx_dword_t dword;
-		uint32_t hw_rev;
-
-		EFSYS_BAR_READD(esbp, ER_DZ_BIU_HW_REV_ID_REG_OFST, &dword,
-		    B_TRUE);
-		hw_rev = EFX_DWORD_FIELD(dword, ERF_DZ_HW_REV_ID);
-		if (hw_rev == ER_DZ_BIU_HW_REV_ID_REG_RESET) {
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-			/*
-			 * BIU_HW_REV_ID is the same for Huntington and Medford.
-			 * Assume Huntington, as Medford is very similar.
-			 */
-			family = EFX_FAMILY_HUNTINGTON;
-			goto out;
-#endif
-		} else {
-#if EFSYS_OPT_FALCON
-			family = EFX_FAMILY_FALCON;
-			goto out;
-#endif
-		}
-	}
-	rc = ENOTSUP;
-	goto fail1;
-
-out:
-	if (efp != NULL)
-		*efp = family;
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
 
 #define	EFX_BIU_MAGIC0	0x01234567
 #define	EFX_BIU_MAGIC1	0xfedcba98
@@ -240,29 +177,9 @@ fail1:
 	return (rc);
 }
 
-#if EFSYS_OPT_FALCON
-
-static efx_nic_ops_t	__efx_nic_falcon_ops = {
-	falcon_nic_probe,		/* eno_probe */
-	NULL,				/* eno_board_cfg */
-	NULL,				/* eno_set_drv_limits */
-	falcon_nic_reset,		/* eno_reset */
-	falcon_nic_init,		/* eno_init */
-	NULL,				/* eno_get_vi_pool */
-	NULL,				/* eno_get_bar_region */
-#if EFSYS_OPT_DIAG
-	falcon_sram_test,		/* eno_sram_test */
-	falcon_nic_register_test,	/* eno_register_test */
-#endif	/* EFSYS_OPT_DIAG */
-	falcon_nic_fini,		/* eno_fini */
-	falcon_nic_unprobe,		/* eno_unprobe */
-};
-
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 
-static efx_nic_ops_t	__efx_nic_siena_ops = {
+static const efx_nic_ops_t	__efx_nic_siena_ops = {
 	siena_nic_probe,		/* eno_probe */
 	NULL,				/* eno_board_cfg */
 	NULL,				/* eno_set_drv_limits */
@@ -271,7 +188,6 @@ static efx_nic_ops_t	__efx_nic_siena_ops = {
 	NULL,				/* eno_get_vi_pool */
 	NULL,				/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
-	siena_sram_test,		/* eno_sram_test */
 	siena_nic_register_test,	/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
 	siena_nic_fini,			/* eno_fini */
@@ -282,7 +198,7 @@ static efx_nic_ops_t	__efx_nic_siena_ops = {
 
 #if EFSYS_OPT_HUNTINGTON
 
-static efx_nic_ops_t	__efx_nic_hunt_ops = {
+static const efx_nic_ops_t	__efx_nic_hunt_ops = {
 	ef10_nic_probe,			/* eno_probe */
 	hunt_board_cfg,			/* eno_board_cfg */
 	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
@@ -291,7 +207,6 @@ static efx_nic_ops_t	__efx_nic_hunt_ops = {
 	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
 	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
-	ef10_sram_test,			/* eno_sram_test */
 	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
 	ef10_nic_fini,			/* eno_fini */
@@ -302,7 +217,7 @@ static efx_nic_ops_t	__efx_nic_hunt_ops = {
 
 #if EFSYS_OPT_MEDFORD
 
-static efx_nic_ops_t	__efx_nic_medford_ops = {
+static const efx_nic_ops_t	__efx_nic_medford_ops = {
 	ef10_nic_probe,			/* eno_probe */
 	medford_board_cfg,		/* eno_board_cfg */
 	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
@@ -311,7 +226,6 @@ static efx_nic_ops_t	__efx_nic_medford_ops = {
 	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
 	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
-	ef10_sram_test,			/* eno_sram_test */
 	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
 	ef10_nic_fini,			/* eno_fini */
@@ -346,16 +260,9 @@ efx_nic_create(
 	enp->en_magic = EFX_NIC_MAGIC;
 
 	switch (family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_falcon_ops;
-		enp->en_features = 0;
-		break;
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_siena_ops;
+		enp->en_enop = &__efx_nic_siena_ops;
 		enp->en_features =
 		    EFX_FEATURE_IPV6 |
 		    EFX_FEATURE_LFSR_HASH_INSERT |
@@ -371,7 +278,7 @@ efx_nic_create(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_hunt_ops;
+		enp->en_enop = &__efx_nic_hunt_ops;
 		/* FIXME: Add WOL support */
 		enp->en_features =
 		    EFX_FEATURE_IPV6 |
@@ -388,9 +295,9 @@ efx_nic_create(
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_medford_ops;
+		enp->en_enop = &__efx_nic_medford_ops;
 		/*
-		 * FW_ASSISTED_TSO ommitted as Medford only supports firmware
+		 * FW_ASSISTED_TSO omitted as Medford only supports firmware
 		 * assisted TSO version 2, not the v1 scheme used on Huntington.
 		 */
 		enp->en_features =
@@ -400,7 +307,8 @@ efx_nic_create(
 		    EFX_FEATURE_MCDI |
 		    EFX_FEATURE_MAC_HEADER_FILTERS |
 		    EFX_FEATURE_MCDI_DMA |
-		    EFX_FEATURE_PIO_BUFFERS;
+		    EFX_FEATURE_PIO_BUFFERS |
+		    EFX_FEATURE_FW_ASSISTED_TSO_V2;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
 
@@ -436,7 +344,7 @@ fail1:
 efx_nic_probe(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop;
+	const efx_nic_ops_t *enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -467,48 +375,12 @@ fail1:
 	return (rc);
 }
 
-#if EFSYS_OPT_PCIE_TUNE
-
-	__checkReturn	efx_rc_t
-efx_nic_pcie_tune(
-	__in		efx_nic_t *enp,
-	unsigned int	nlanes)
-{
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
-	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_NIC));
-
-#if EFSYS_OPT_FALCON
-	if (enp->en_family == EFX_FAMILY_FALCON)
-		return (falcon_nic_pcie_tune(enp, nlanes));
-#endif
-	return (ENOTSUP);
-}
-
-	__checkReturn	efx_rc_t
-efx_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp)
-{
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
-	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_NIC));
-
-#if EFSYS_OPT_SIENA
-	if (enp->en_family == EFX_FAMILY_SIENA)
-		return (siena_nic_pcie_extended_sync(enp));
-#endif
-
-	return (ENOTSUP);
-}
-
-#endif	/* EFSYS_OPT_PCIE_TUNE */
-
 	__checkReturn	efx_rc_t
 efx_nic_set_drv_limits(
 	__inout		efx_nic_t *enp,
 	__in		efx_drv_limits_t *edlp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -534,7 +406,7 @@ efx_nic_get_bar_region(
 	__out		uint32_t *offsetp,
 	__out		size_t *sizep)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -569,7 +441,7 @@ efx_nic_get_vi_pool(
 	__out		uint32_t *rxq_countp,
 	__out		uint32_t *txq_countp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_rc_t rc;
 
@@ -606,7 +478,7 @@ fail1:
 efx_nic_init(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -636,7 +508,7 @@ fail1:
 efx_nic_fini(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT(enp->en_mod_flags & EFX_MOD_PROBE);
@@ -655,7 +527,7 @@ efx_nic_fini(
 efx_nic_unprobe(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 #if EFSYS_OPT_MCDI
@@ -701,14 +573,14 @@ efx_nic_destroy(
 efx_nic_reset(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	unsigned int mod_flags;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT(enp->en_mod_flags & EFX_MOD_PROBE);
 	/*
-	 * All modules except the MCDI, PROBE, NVRAM, VPD, MON, LIC
+	 * All modules except the MCDI, PROBE, NVRAM, VPD, MON
 	 * (which we do not reset here) must have been shut down or never
 	 * initialized.
 	 *
@@ -718,7 +590,7 @@ efx_nic_reset(
 	 */
 	mod_flags = enp->en_mod_flags;
 	mod_flags &= ~(EFX_MOD_MCDI | EFX_MOD_PROBE | EFX_MOD_NVRAM |
-		    EFX_MOD_VPD | EFX_MOD_MON | EFX_MOD_LIC);
+		    EFX_MOD_VPD | EFX_MOD_MON);
 	EFSYS_ASSERT3U(mod_flags, ==, 0);
 	if (mod_flags != 0) {
 		rc = EINVAL;
@@ -727,8 +599,6 @@ efx_nic_reset(
 
 	if ((rc = enop->eno_reset(enp)) != 0)
 		goto fail2;
-
-	enp->en_reset_flags |= EFX_RESET_MAC;
 
 	return (0);
 
@@ -755,7 +625,7 @@ efx_nic_cfg_get(
 efx_nic_register_test(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -1095,3 +965,101 @@ fail1:
 }
 
 #endif /* EFSYS_OPT_LOOPBACK */
+
+	__checkReturn	efx_rc_t
+efx_nic_calculate_pcie_link_bandwidth(
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		uint32_t *bandwidth_mbpsp)
+{
+	uint32_t lane_bandwidth;
+	uint32_t total_bandwidth;
+	efx_rc_t rc;
+
+	if ((pcie_link_width == 0) || (pcie_link_width > 16) ||
+	    !ISP2(pcie_link_width)) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	switch (pcie_link_gen) {
+	case EFX_PCIE_LINK_SPEED_GEN1:
+		/* 2.5 Gb/s raw bandwidth with 8b/10b encoding */
+		lane_bandwidth = 2000;
+		break;
+	case EFX_PCIE_LINK_SPEED_GEN2:
+		/* 5.0 Gb/s raw bandwidth with 8b/10b encoding */
+		lane_bandwidth = 4000;
+		break;
+	case EFX_PCIE_LINK_SPEED_GEN3:
+		/* 8.0 Gb/s raw bandwidth with 128b/130b encoding */
+		lane_bandwidth = 7877;
+		break;
+	default:
+		rc = EINVAL;
+		goto fail2;
+	}
+
+	total_bandwidth = lane_bandwidth * pcie_link_width;
+	*bandwidth_mbpsp = total_bandwidth;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+
+	__checkReturn	efx_rc_t
+efx_nic_check_pcie_link_speed(
+	__in		efx_nic_t *enp,
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		efx_pcie_link_performance_t *resultp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t bandwidth;
+	efx_pcie_link_performance_t result;
+	efx_rc_t rc;
+
+	if ((encp->enc_required_pcie_bandwidth_mbps == 0) ||
+	    (pcie_link_width == 0) || (pcie_link_width == 32) ||
+	    (pcie_link_gen == 0)) {
+		/*
+		 * No usable info on what is required and/or in use. In virtual
+		 * machines, sometimes the PCIe link width is reported as 0 or
+		 * 32, or the speed as 0.
+		 */
+		result = EFX_PCIE_LINK_PERFORMANCE_UNKNOWN_BANDWIDTH;
+		goto out;
+	}
+
+	/* Calculate the available bandwidth in megabits per second */
+	rc = efx_nic_calculate_pcie_link_bandwidth(pcie_link_width,
+					    pcie_link_gen, &bandwidth);
+	if (rc != 0)
+		goto fail1;
+
+	if (bandwidth < encp->enc_required_pcie_bandwidth_mbps) {
+		result = EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_BANDWIDTH;
+	} else if (pcie_link_gen < encp->enc_max_pcie_link_gen) {
+		/* The link provides enough bandwidth but not optimal latency */
+		result = EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_LATENCY;
+	} else {
+		result = EFX_PCIE_LINK_PERFORMANCE_OPTIMAL;
+	}
+
+out:
+	*resultp = result;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}

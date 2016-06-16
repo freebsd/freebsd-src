@@ -427,7 +427,7 @@ IDTVEC(fast_syscall)
 
 /*
  * Here for CYA insurance, in case a "syscall" instruction gets
- * issued from 32 bit compatability mode. MSR_CSTAR has to point
+ * issued from 32 bit compatibility mode. MSR_CSTAR has to point
  * to *something* if EFER_SCE is enabled.
  */
 IDTVEC(fast_syscall32)

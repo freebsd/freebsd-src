@@ -58,7 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/mutex.h>
+
+#include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_var.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
@@ -118,7 +121,7 @@ typedef struct hv_kvp_sc {
 	struct hv_util_sc	util_sc;
 
 	/* Unless specified the pending mutex should be
-	 * used to alter the values of the following paramters:
+	 * used to alter the values of the following parameters:
 	 * 1. req_in_progress
 	 * 2. req_timed_out
 	 */
@@ -306,8 +309,7 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 	int UNUSED_FLAG = 1;
 	struct hv_device *hv_dev;       /* GUID Data Structure */
 	hn_softc_t *sc;                 /* hn softc structure  */
-	char if_name[4];
-	char buf[39];
+	char buf[HYPERV_GUID_STRLEN];
 
 	device_t *devs;
 	int devcnt;
@@ -335,11 +337,12 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 			/* Trying to find GUID of Network Device */
 			hv_dev = sc->hn_dev_obj;
 
-			snprintf_hv_guid(buf, sizeof(buf), &hv_dev->device_id);
-			sprintf(if_name, "%s%d", "hn", device_get_unit(devs[devcnt]));
+			hyperv_guid2str(&hv_dev->device_id, buf, sizeof(buf));
 
-			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id, 39) == 0) {
-				strcpy((char *)umsg->body.kvp_ip_val.adapter_id, if_name);
+			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id,
+			    HYPERV_GUID_STRLEN - 1) == 0) {
+				strlcpy((char *)umsg->body.kvp_ip_val.adapter_id,
+				    sc->hn_ifp->if_xname, MAX_ADAPTER_ID_SIZE);
 				break;
 			}
 		}
@@ -778,7 +781,7 @@ hv_kvp_dev_daemon_read(struct cdev *dev, struct uio *uio, int ioflag __unused)
 
 /*
  * hv_kvp_daemon write invokes this function
- * acts as a recieve from daemon
+ * acts as a receive from daemon
  */
 static int
 hv_kvp_dev_daemon_write(struct cdev *dev, struct uio *uio, int ioflag __unused)

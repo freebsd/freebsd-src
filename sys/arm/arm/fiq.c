@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/cpufunc.h>
 #include <machine/fiq.h>

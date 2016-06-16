@@ -18,6 +18,7 @@ SHLIB_MAJOR=	1
 SHLIB_LDSCRIPT=	libc++.ldscript
 
 SRCS+=		algorithm.cpp\
+		any.cpp\
 		bind.cpp\
 		chrono.cpp\
 		condition_variable.cpp\
@@ -62,7 +63,7 @@ cxxrt_${_S}: ${_LIBCXXRTDIR}/${_S} .NOMETA
 .endfor
 
 WARNS=		0
-CFLAGS+=	-I${HDRDIR} -I${_LIBCXXRTDIR} -nostdlib -DLIBCXXRT
+CFLAGS+=	-isystem ${HDRDIR} -isystem ${_LIBCXXRTDIR} -nostdinc++ -nostdlib -DLIBCXXRT
 .if empty(CXXFLAGS:M-std=*)
 CXXFLAGS+=	-std=c++11
 .endif
@@ -79,6 +80,7 @@ STD_HEADERS=	__bit_reference\
 		__hash_table\
 		__locale\
 		__mutex_base\
+		__nullptr\
 		__refstring\
 		__split_buffer\
 		__sso_allocator\
@@ -118,15 +120,19 @@ STD_HEADERS=	__bit_reference\
 		cstring\
 		ctgmath\
 		ctime\
+		ctype.h\
 		cwchar\
 		cwctype\
 		deque\
+		errno.h\
 		exception\
+		float.h\
 		forward_list\
 		fstream\
 		functional\
 		future\
 		initializer_list\
+		inttypes.h\
 		iomanip\
 		ios\
 		iosfwd\
@@ -137,6 +143,7 @@ STD_HEADERS=	__bit_reference\
 		list\
 		locale\
 		map\
+		math.h\
 		memory\
 		mutex\
 		new\
@@ -148,10 +155,14 @@ STD_HEADERS=	__bit_reference\
 		regex\
 		scoped_allocator\
 		set\
+		setjmp.h\
 		shared_mutex\
 		sstream\
 		stack\
+		stddef.h\
 		stdexcept\
+		stdio.h\
+		stdlib.h\
 		streambuf\
 		string\
 		strstream\
@@ -166,7 +177,9 @@ STD_HEADERS=	__bit_reference\
 		unordered_set\
 		utility\
 		valarray\
-		vector
+		vector\
+		wchar.h\
+		wctype.h
 RT_HEADERS=	cxxabi.h\
 		unwind.h\
 		unwind-arm.h\
@@ -174,7 +187,7 @@ RT_HEADERS=	cxxabi.h\
 
 .for hdr in ${STD_HEADERS}
 STD+=		${HDRDIR}/${hdr}
-INCSLINKS+=	${CXXINCLUDEDIR}/${hdr} ${CXXINCLUDEDIR}/tr1/${hdr}
+INCSLINKS+=	../${hdr} ${CXXINCLUDEDIR}/tr1/${hdr}
 .endfor
 .for hdr in ${RT_HEADERS}
 STD+=		${_LIBCXXRTDIR}/${hdr}
@@ -183,8 +196,10 @@ STDDIR=		${CXXINCLUDEDIR}
 
 EXP_HEADERS=	__config\
 		algorithm\
+		any\
 		chrono\
 		dynarray\
+		functional\
 		optional\
 		ratio\
 		string_view\

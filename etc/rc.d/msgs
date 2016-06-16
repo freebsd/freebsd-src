@@ -9,6 +9,7 @@
 . /etc/rc.subr
 
 name="msgs"
+desc="Make a bounds file for msgs(1)"
 start_cmd="msgs_start"
 stop_cmd=":"
 

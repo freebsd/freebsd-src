@@ -36,30 +36,35 @@
  * NVRAM data sources supported by bhnd(4) devices.
  */
 typedef enum {
-	BHND_NVRAM_SRC_CIS,	/**< Default CIS source; this may
-				  *  apply, for example, to PCMCIA cards
-				  *  vending Broadcom NVRAM data via
-				  *  their standard CIS table. */
 	
 	BHND_NVRAM_SRC_OTP,	/**< On-chip one-time-programmable
 				  *  memory. */
 
-	BHND_NVRAM_SRC_NFLASH,	/**< External flash device accessible
-				  *  via on-chip flash core, such
-				  *  as the NAND/QSPI controller cores
-				  *  used on Northstar devices to access
-				  *  NVRAM. */
+	BHND_NVRAM_SRC_FLASH,	/**< External flash */
 	BHND_NVRAM_SRC_SPROM,	/**< External serial EEPROM. */
 	
-	BHND_NVRAM_SRC_NONE	/**< No NVRAM source is directly
-				  *  attached. This is used on devices
-				  *  attached via PCI(e) to BHND SoCs,
-				  *  where to avoid unnecessary flash
-				  *  hardware, NVRAM configuration for
-				  *  individual devices is provided by
-				  *  hardware attached to the SoC
-				  *  itself.
+	BHND_NVRAM_SRC_UNKNOWN	/**< No NVRAM source is directly
+				  *  attached.
+				  *
+				  *  This will be returned by ChipCommon
+				  *  revisions (rev <= 31) used in early
+				  *  chipsets that vend SPROM/OTP via the
+				  *  native host bridge interface.
+				  *
+				  *  For example, PCMCIA cards may vend
+				  *  Broadcom NVRAM data via their standard CIS
+				  *  table, and earlier PCI(e) devices map
+				  *  SPROM statically into PCI BARs, and the
+				  *  control registers into PCI config space.
+				  
+				  *  This will also be returned on later
+				  *  devices that are attached via PCI(e) to
+				  *  BHND SoCs, but do not include an attached
+				  *  SPROM, or programmed OTP. On such SoCs,
+				  *  NVRAM configuration for individual devices
+				  *  is provided by a common platform NVRAM
+				  *  device.
 				  */
-} bhnd_nvram_src_t;
+} bhnd_nvram_src;
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_H_ */

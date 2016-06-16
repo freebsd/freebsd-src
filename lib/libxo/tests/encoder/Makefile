@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 LIBXOSRC=	${SRCTOP}/contrib/libxo
 
 .PATH: ${LIBXOSRC}/encoder/test

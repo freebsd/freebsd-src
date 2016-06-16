@@ -2,11 +2,6 @@
 
 .include <bsd.init.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-TESTS+=		Kyuafile
-
 TESTSDIR=	${TESTSBASE}/lib/atf/libatf-c/detail
 
 ATF=		${SRCTOP}/contrib/atf

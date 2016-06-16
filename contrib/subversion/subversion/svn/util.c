@@ -343,6 +343,7 @@ truncate_buffer_at_prefix(apr_size_t *new_len,
 static const char *prefixes[] = {
   "PR:",
   "Submitted by:",
+  "Reported by:",
   "Reviewed by:",
   "Approved by:",
   "Obtained from:",
@@ -420,6 +421,7 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "PR:\t\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Submitted by:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Reported by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Reviewed by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Approved by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Obtained from:\t" APR_EOL_STR);
@@ -445,8 +447,9 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_appendcstr(default_msg, EDITOR_EOF_PREFIX);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Description of fields to fill in above:                     76 columns --|" APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> PR:                       If a GNATS PR is affected by the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> PR:                       If and which Problem Report is related." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Submitted by:             If someone else sent in the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Reported by:              If someone else reported the issue." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Reviewed by:              If someone else reviewed your modification." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Approved by:              If you needed approval for this commit." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Obtained from:            If the change is from a third party." APR_EOL_STR);

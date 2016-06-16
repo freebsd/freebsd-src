@@ -3403,7 +3403,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	 * There seems to be a race in PCH platform hw (at least on some
 	 * outputs) where an enabled pipe still completes any pageflip right
 	 * away (as if the pipe is off) instead of waiting for vblank. As soon
-	 * as the first vblank happend, everything works as expected. Hence just
+	 * as the first vblank happened, everything works as expected. Hence just
 	 * wait for one vblank before returning to avoid strange things
 	 * happening.
 	 */
@@ -3480,7 +3480,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	 * There seems to be a race in PCH platform hw (at least on some
 	 * outputs) where an enabled pipe still completes any pageflip right
 	 * away (as if the pipe is off) instead of waiting for vblank. As soon
-	 * as the first vblank happend, everything works as expected. Hence just
+	 * as the first vblank happened, everything works as expected. Hence just
 	 * wait for one vblank before returning to avoid strange things
 	 * happening.
 	 */
@@ -7971,7 +7971,7 @@ bool intel_set_mode(struct drm_crtc *crtc,
 		crtc->mode = *mode;
 
 	/* Only after disabling all output pipelines that will be changed can we
-	 * update the the output configuration. */
+	 * update the output configuration. */
 	intel_modeset_update_state(dev, prepare_pipes);
 
 	if (dev_priv->display.modeset_global_resources)

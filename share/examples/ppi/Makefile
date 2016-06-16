@@ -2,6 +2,8 @@
 #
 # $FreeBSD$
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/ppi
 PROG=	ppilcd
 MAN=
 

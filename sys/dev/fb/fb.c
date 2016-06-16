@@ -86,7 +86,7 @@ vid_realloc_array(void)
 		return ENOMEM;
 
 	s = spltty();
-	newsize = ((adapters + ARRAY_DELTA)/ARRAY_DELTA)*ARRAY_DELTA;
+	newsize = rounddown(adapters + ARRAY_DELTA, ARRAY_DELTA);
 	new_adp = malloc(sizeof(*new_adp)*newsize, M_DEVBUF, M_WAITOK | M_ZERO);
 	new_vidsw = malloc(sizeof(*new_vidsw)*newsize, M_DEVBUF,
 	    M_WAITOK | M_ZERO);

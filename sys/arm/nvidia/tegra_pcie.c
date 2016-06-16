@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/endian.h>
+#include <sys/devmap.h>
 
 #include <machine/intr.h>
 
@@ -60,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
 
-#include <machine/devmap.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 

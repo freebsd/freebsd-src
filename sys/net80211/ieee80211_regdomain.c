@@ -69,10 +69,7 @@ ieee80211_regdomain_attach(struct ieee80211com *ic)
 {
 	if (ic->ic_regdomain.regdomain == 0 &&
 	    ic->ic_regdomain.country == CTRY_DEFAULT) {
-		ic->ic_regdomain.country = CTRY_UNITED_STATES;	/* XXX */
 		ic->ic_regdomain.location = ' ';		/* both */
-		ic->ic_regdomain.isocc[0] = 'U';		/* XXX */
-		ic->ic_regdomain.isocc[1] = 'S';		/* XXX */
 		/* NB: driver calls ieee80211_init_channels or similar */
 	}
 	ic->ic_getradiocaps = null_getradiocaps;
@@ -98,22 +95,14 @@ ieee80211_regdomain_vdetach(struct ieee80211vap *vap)
 {
 }
 
-static void
-addchan(struct ieee80211com *ic, int ieee, int flags)
-{
-	struct ieee80211_channel *c;
-
-	c = &ic->ic_channels[ic->ic_nchans++];
-	c->ic_freq = ieee80211_ieee2mhz(ieee, flags);
-	c->ic_ieee = ieee;
-	c->ic_flags = flags;
-	if (flags & IEEE80211_CHAN_HT40U)
-		c->ic_extieee = ieee + 4;
-	else if (flags & IEEE80211_CHAN_HT40D)
-		c->ic_extieee = ieee - 4;
-	else
-		c->ic_extieee = 0;
-}
+static const uint8_t def_chan_2ghz[] =
+    { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+static const uint8_t def_chan_5ghz_band1[] =
+    { 36, 40, 44, 48, 52, 56, 60, 64 };
+static const uint8_t def_chan_5ghz_band2[] =
+    { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140 };
+static const uint8_t def_chan_5ghz_band3[] =
+    { 149, 153, 157, 161 };
 
 /*
  * Setup the channel list for the specified regulatory domain,
@@ -125,82 +114,34 @@ int
 ieee80211_init_channels(struct ieee80211com *ic,
 	const struct ieee80211_regdomain *rd, const uint8_t bands[])
 {
-	int i;
+	struct ieee80211_channel *chans = ic->ic_channels;
+	int *nchans = &ic->ic_nchans;
+	int ht40;
 
 	/* XXX just do something for now */
-	ic->ic_nchans = 0;
+	ht40 = !!(ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40);
+	*nchans = 0;
 	if (isset(bands, IEEE80211_MODE_11B) ||
 	    isset(bands, IEEE80211_MODE_11G) ||
 	    isset(bands, IEEE80211_MODE_11NG)) {
-		int maxchan = 11;
-		if (rd != NULL && rd->ecm)
-			maxchan = 14;
-		for (i = 1; i <= maxchan; i++) {
-			if (isset(bands, IEEE80211_MODE_11B))
-				addchan(ic, i, IEEE80211_CHAN_B);
-			if (isset(bands, IEEE80211_MODE_11G))
-				addchan(ic, i, IEEE80211_CHAN_G);
-			if (isset(bands, IEEE80211_MODE_11NG)) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT20);
-			}
-			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
-				continue;
-			if (i <= 7) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U);
-				addchan(ic, i + 4,
-				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D);
-			}
-		}
+		int nchan = nitems(def_chan_2ghz);
+		if (!(rd != NULL && rd->ecm))
+			nchan -= 3;
+
+		ieee80211_add_channel_list_2ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_2ghz, nchan, bands, ht40);
 	}
 	if (isset(bands, IEEE80211_MODE_11A) ||
 	    isset(bands, IEEE80211_MODE_11NA)) {
-		for (i = 36; i <= 64; i += 4) {
-			addchan(ic, i, IEEE80211_CHAN_A);
-			if (isset(bands, IEEE80211_MODE_11NA)) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
-			}
-			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
-				continue;
-			if ((i % 8) == 4) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
-				addchan(ic, i + 4,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
-			}
-		}
-		for (i = 100; i <= 140; i += 4) {
-			addchan(ic, i, IEEE80211_CHAN_A);
-			if (isset(bands, IEEE80211_MODE_11NA)) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
-			}
-			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
-				continue;
-			if ((i % 8) == 4 && i != 140) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
-				addchan(ic, i + 4,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
-			}
-		}
-		for (i = 149; i <= 161; i += 4) {
-			addchan(ic, i, IEEE80211_CHAN_A);
-			if (isset(bands, IEEE80211_MODE_11NA)) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
-			}
-			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
-				continue;
-			if ((i % 8) == 5) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
-				addchan(ic, i + 4,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
-			}
-		}
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_5ghz_band1, nitems(def_chan_5ghz_band1),
+		    bands, ht40);
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_5ghz_band2, nitems(def_chan_5ghz_band2),
+		    bands, ht40);
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_5ghz_band3, nitems(def_chan_5ghz_band3),
+		    bands, ht40);
 	}
 	if (rd != NULL)
 		ic->ic_regdomain = *rd;
@@ -322,7 +263,7 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	 * Indoor/Outdoor portion of country string:
 	 *     'I' indoor only
 	 *     'O' outdoor only
-	 *     ' ' all enviroments
+	 *     ' ' all environments
 	 */
 	ie->cc[2] = (rd->location == 'I' ? 'I' :
 		     rd->location == 'O' ? 'O' : ' ');

@@ -706,7 +706,7 @@ bad:
  * may change in future.
  * Router alert options SHOULD be passed if running in IPSTEALTH mode and
  * we are not the endpoint.
- * Length checks on individual options should already have been peformed
+ * Length checks on individual options should already have been performed
  * by ip_dooptions() therefore they are folded under INVARIANTS here.
  *
  * Return zero if not present or options are invalid, non-zero if present.

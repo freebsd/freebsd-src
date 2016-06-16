@@ -51,6 +51,7 @@ typedef int (*bhndb_pci_set_regwin_t)(struct bhndb_pci_softc *sc,
 struct bhndb_pci_softc {
 	struct bhndb_softc	bhndb;		/**< parent softc */
 	device_t		dev;		/**< bridge device */
+	device_t		parent;		/**< parent PCI device */
 	bhnd_devclass_t		pci_devclass;	/**< PCI core's devclass */
 	bhndb_pci_set_regwin_t	set_regwin;	/**< regwin handler */
 };

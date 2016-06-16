@@ -172,7 +172,7 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
                ccbIO = pccb->pccbIO;               
                if (ccbIO->startTime == 0) /* IO has been completed. */
                {
-                   AGTIAPI_PRINTK("tiIntrEventTypeTaskManagement: TM failed becasue IO has been completed! pTMccb %p flag %x \n",
+                   AGTIAPI_PRINTK("tiIntrEventTypeTaskManagement: TM failed because IO has been completed! pTMccb %p flag %x \n",
                                    pccb, pccb->flags);
                }
                else
@@ -443,7 +443,7 @@ ostiInitiatorSMPCompleted(tiRoot_t      *ptiRoot,
     struct ccb_smpio *csmpio = &ccb->smpio;
     memcpy(csmpio->smp_response, tiFrameHandle, tiSMPInfoLen);
     csmpio->smp_response_len = tiSMPInfoLen;
-    agtiapi_hexdump("ostiInitiatorSMPCompleted: Responce Payload in CAM", (bit8 *)csmpio->smp_response, csmpio->smp_response_len);  
+    agtiapi_hexdump("ostiInitiatorSMPCompleted: Response Payload in CAM", (bit8 *)csmpio->smp_response, csmpio->smp_response_len);  
   }
   pccb->flags  |= REQ_DONE;
   agtiapi_QueueCCB(pCard, &pCard->smpDoneHead, &pCard->smpDoneTail

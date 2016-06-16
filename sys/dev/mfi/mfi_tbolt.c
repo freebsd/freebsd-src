@@ -1148,7 +1148,7 @@ mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 	 * This is a polled command, so busy-wait for it to complete.
 	 *
 	 * The value of hdr->cmd_status is updated directly by the hardware
-	 * so there is no garantee that mfi_tbolt_complete_cmd is called
+	 * so there is no guarantee that mfi_tbolt_complete_cmd is called
 	 * prior to this value changing.
 	 */
 	while (hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
@@ -1351,7 +1351,7 @@ mfi_process_fw_state_chg_isr(void *arg)
  * interrupt thread.
  *
  * The driver could get the RAID state via the MFI_DCMD_LD_MAP_GET_INFO
- * That requires a bunch of structure and it is simplier to just do
+ * That requires a bunch of structure and it is simpler to just do
  * the MFI_DCMD_LD_GET_LIST versus walking the RAID map.
  */
 

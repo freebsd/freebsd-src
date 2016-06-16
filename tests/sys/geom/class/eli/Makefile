@@ -1,10 +1,8 @@
 # $FreeBSD$
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
+
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
-TESTS+=		${FILES}
 
 TAP_TESTS_SH+= attach_d_test
 TAP_TESTS_SH+= configure_b_B_test
@@ -35,9 +33,7 @@ TEST_METADATA.integrity_hmac_test+=	timeout="600"
 TEST_METADATA.onetime_a_test+=	timeout="600"
 TEST_METADATA.onetime_test+=	timeout="600"
 
-FILES+=		conf.sh
-FILESNAME_conf.sh=	conf.sh
-FILESDIR=	${TESTSDIR}
+${PACKAGE}FILES+=		conf.sh
 
 .for t in ${TAP_TESTS_SH}
 TEST_METADATA.$t+=	required_user="root"

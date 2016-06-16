@@ -141,6 +141,8 @@ struct sysentvec {
 #define	SV_TIMEKEEP	0x040000
 
 #define	SV_ABI_MASK	0xff
+#define	SV_ABI_ERRNO(p, e)	((p)->p_sysent->sv_errsize <= 0 ? e :	\
+	((e) >= (p)->p_sysent->sv_errsize ? -1 : (p)->p_sysent->sv_errtbl[e]))
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
 #define	SV_PROC_ABI(p)		((p)->p_sysent->sv_flags & SV_ABI_MASK)
 #define	SV_CURPROC_FLAG(x)	SV_PROC_FLAG(curproc, x)
@@ -153,8 +155,6 @@ struct sysentvec {
 
 #ifdef _KERNEL
 extern struct sysentvec aout_sysvec;
-extern struct sysentvec elf_freebsd_sysvec;
-extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
 extern const char *syscallnames[];
 

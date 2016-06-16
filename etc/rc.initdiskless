@@ -103,7 +103,7 @@
 #		will be created. In case of multiple entries for the same
 #		directory M, the last one in the scanning order is used.
 #		NOTE: If you only need to create a memory filesystem but not
-#		initialize it from a template, it is preferrable to specify
+#		initialize it from a template, it is preferable to specify
 #		it in fstab e.g. as  "md /tmp mfs -s=30m,rw 0 0"
 #
 # /conf/T/SUBDIR.cpio.gz

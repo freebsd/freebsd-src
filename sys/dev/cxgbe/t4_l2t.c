@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
  * can change state or increment its ref count during allocation as both of
  * these perform lookups.
  *
- * Note: We do not take refereces to ifnets in this module because both
+ * Note: We do not take references to ifnets in this module because both
  * the TOE and the sockets already hold references to the interfaces and the
  * lifetime of an L2T entry is fully contained in the lifetime of the TOE.
  */

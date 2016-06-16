@@ -190,7 +190,7 @@ qls_rx_comp(qla_host_t *ha, uint32_t rxr_idx, uint32_t cq_idx, q81_rx_t *cq_e)
 			if ((cq_e->flags1 & Q81_RX_FLAGS1_RSS_MATCH_MASK)) {
 				rxr->rss_int++;
 				mp->m_pkthdr.flowid = cq_e->rss;
-				M_HASHTYPE_SET(mp, M_HASHTYPE_OPAQUE);
+				M_HASHTYPE_SET(mp, M_HASHTYPE_OPAQUE_HASH);
 			}
 			if (cq_e->flags0 & (Q81_RX_FLAGS0_TE |
 				Q81_RX_FLAGS0_NU | Q81_RX_FLAGS0_IE)) {
@@ -204,7 +204,7 @@ qls_rx_comp(qla_host_t *ha, uint32_t rxr_idx, uint32_t cq_idx, q81_rx_t *cq_e)
 			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			if (lro->lro_cnt && (tcp_lro_rx(lro, mp, 0) == 0)) {
-				/* LRO packet has been successfuly queued */
+				/* LRO packet has been successfully queued */
 			} else {
 				(*ifp->if_input)(ifp, mp);
 			}

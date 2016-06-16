@@ -114,4 +114,4 @@ random_command(const char *cmd, const nvlist_t *limits __unused,
 	return (0);
 }
 
-CREATE_SERVICE("system.random", NULL, random_command);
+CREATE_SERVICE("system.random", NULL, random_command, 0);

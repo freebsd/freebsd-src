@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -155,26 +155,24 @@ i40e_release_spinlock(struct i40e_spinlock *lock)
 void
 i40e_destroy_spinlock(struct i40e_spinlock *lock)
 {
-	mtx_destroy(&lock->mutex);
+	if (mtx_initialized(&lock->mutex))
+		mtx_destroy(&lock->mutex);
 }
 
 /*
-** i40e_debug_d - OS dependent version of shared code debug printing
-*/
-void i40e_debug_d(void *hw, u32 mask, char *fmt, ...)
+ * Helper function for debug statement printing
+ */
+void
+i40e_debug_d(struct i40e_hw *hw, enum i40e_debug_mask mask, char *fmt, ...)
 {
-        char buf[512];
-        va_list args;
+	va_list args;
 
-        if (!(mask & ((struct i40e_hw *)hw)->debug_mask))
-                return;
+	if (!(mask & ((struct i40e_hw *)hw)->debug_mask))
+		return;
 
 	va_start(args, fmt);
-        vsnprintf(buf, sizeof(buf), fmt, args);
+	device_printf(((struct i40e_osdep *)hw->back)->dev, fmt, args);
 	va_end(args);
-
-        /* the debug string is already formatted with a newline */
-        printf("%s", buf);
 }
 
 u16

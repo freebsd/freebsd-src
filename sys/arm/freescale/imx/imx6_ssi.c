@@ -738,7 +738,7 @@ ssi_attach(device_t dev)
 
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "ssi softc");
 	if (sc->lock == NULL) {
-		device_printf(dev, "Cant create mtx\n");
+		device_printf(dev, "Can't create mtx\n");
 		return (ENXIO);
 	}
 
@@ -764,7 +764,7 @@ ssi_attach(device_t dev)
 
 	/*
 	 * Maximum possible DMA buffer.
-	 * Will be used partialy to match 24 bit word.
+	 * Will be used partially to match 24 bit word.
 	 */
 	sc->dma_size = 131072;
 

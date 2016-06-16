@@ -223,6 +223,12 @@ options 	SCHED_STATS
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# EARLY_AP_STARTUP releases the Application Processors earlier in the
+# kernel startup process (before devices are probed) rather than at the
+# end.  This is a temporary option for use during the transition from
+# late to early AP startup.
+options		EARLY_AP_STARTUP
+
 # MAXCPU defines the maximum number of CPUs that can boot in the system.
 # A default value should be already present, for every architecture.
 options 	MAXCPU=32
@@ -292,7 +298,6 @@ options 	SX_NOINLINE
 #	  performance and increase the frequency of kernel panics by
 #	  design.  If you aren't sure that you need it then you don't.
 #	  Relies on the PREEMPTION option.  DON'T TURN THIS ON.
-# MUTEX_DEBUG enables various extra assertions in the mutex code.
 # SLEEPQUEUE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active sleep queues as well as sleep wait message
 #	  frequency.
@@ -308,7 +313,6 @@ options 	SX_NOINLINE
 # WITNESS_SKIPSPIN disables the witness checks on spin mutexes.
 options 	PREEMPTION
 options 	FULL_PREEMPTION
-options 	MUTEX_DEBUG
 options 	WITNESS
 options 	WITNESS_KDB
 options 	WITNESS_SKIPSPIN
@@ -1133,12 +1137,6 @@ options 	NFS_DEBUG		# Enable NFS Debugging
 #
 options 	EXT2FS
 
-#
-# Add support for the ReiserFS filesystem (used in Linux). Currently,
-# this is limited to read-only access.
-#
-options 	REISERFS
-
 # Cryptographically secure random number generator; /dev/random
 device		random
 
@@ -1402,6 +1400,17 @@ options 	LIBICONV
 
 # Size of the kernel message buffer.  Should be N * pagesize.
 options 	MSGBUF_SIZE=40960
+
+
+#####################################################################
+# HARDWARE BUS CONFIGURATION
+
+#
+# PCI bus & PCI options:
+#
+device		pci
+options 	PCI_HP			# PCI-Express native HotPlug
+options 	PCI_IOV			# PCI SR-IOV support
 
 
 #####################################################################
@@ -2004,6 +2013,8 @@ device		xmphy		# XaQti XMAC II
 #       the MPX 5030/5038, which is either a RealTek in disguise or a
 #       RealTek workalike.  Note that the D-Link DFE-530TX+ uses the RealTek
 #       chipset and is supported by this driver, not the 'vr' driver.
+# rtwn: RealTek wireless adapters.
+# rtwnfw: RealTek wireless firmware.
 # sf:   Support for Adaptec Duralink PCI fast ethernet adapters based on the
 #       Adaptec AIC-6915 "starfire" controller.
 #       This includes dual and quad port cards, as well as one 100baseFX card.
@@ -2175,6 +2186,8 @@ device		malo		# Marvell Libertas wireless NICs.
 device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		mwlfw
 device		ral		# Ralink Technology RT2500 wireless NICs.
+device		rtwn		# Realtek wireless NICs
+device		rtwnfw
 
 # Use sf_buf(9) interface for jumbo buffers on ti(4) controllers.
 #options 	TI_SF_BUF_JUMBO
@@ -3044,3 +3057,6 @@ options		EM_MULTIQUEUE # Activate multiqueue features/disable MSI-X
 # zlib I/O stream support
 # This enables support for compressed core dumps.
 options 	GZIO
+
+# BHND(4) drivers
+options		BHND_LOGLEVEL	# Logging threshold level

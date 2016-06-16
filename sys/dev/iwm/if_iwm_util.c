@@ -105,6 +105,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -222,7 +224,10 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 		    "large command paylen=%u len0=%u\n",
 			paylen, hcmd->len[0]);
 		/* Command is too large */
-		if (sizeof(cmd->hdr) + paylen > IWM_RBUF_SIZE) {
+		if (paylen > IWM_MAX_CMD_PAYLOAD_SIZE) {
+			device_printf(sc->sc_dev,
+			    "firmware command too long (%zd bytes)\n",
+			    paylen + sizeof(cmd->hdr));
 			error = EINVAL;
 			goto out;
 		}
@@ -267,7 +272,7 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	    (unsigned long) (hcmd->len[0] + hcmd->len[1] + sizeof(cmd->hdr)),
 	    async ? " (async)" : "");
 
-	if (hcmd->len[0] > sizeof(cmd->data)) {
+	if (paylen > sizeof(cmd->data)) {
 		bus_dmamap_sync(ring->data_dmat, data->map,
 		    BUS_DMASYNC_PREWRITE);
 	} else {

@@ -236,6 +236,7 @@ cpu_fork(td1, p2, td2, flags)
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+	td2->td_md.md_invl_gen.gen = 0;
 
 	/* As an i386, do not copy io permission bitmap. */
 	pcb2->pcb_tssp = NULL;
@@ -413,13 +414,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 
 	default:
-		if (td->td_proc->p_sysent->sv_errsize) {
-			if (error >= td->td_proc->p_sysent->sv_errsize)
-				error = -1;	/* XXX */
-			else
-				error = td->td_proc->p_sysent->sv_errtbl[error];
-		}
-		td->td_frame->tf_rax = error;
+		td->td_frame->tf_rax = SV_ABI_ERRNO(td->td_proc, error);
 		td->td_frame->tf_rflags |= PSL_C;
 		break;
 	}

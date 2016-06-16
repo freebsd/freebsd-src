@@ -2412,7 +2412,7 @@ lem_hardware_init(struct adapter *adapter)
 	 *   received after sending an XOFF.
 	 * - Low water mark works best when it is very near the high water mark.
 	 *   This allows the receiver to restart by sending XON when it has
-	 *   drained a bit. Here we use an arbitary value of 1500 which will
+	 *   drained a bit. Here we use an arbitrary value of 1500 which will
 	 *   restart after one full frame is pulled from the buffer. There
 	 *   could be several smaller frames in the buffer and if so they will
 	 *   not trigger the XON until their total number reduces the buffer
@@ -3838,7 +3838,7 @@ discard:
  * copy ethernet header to the new mbuf. The new mbuf is prepended into the
  * existing mbuf chain.
  *
- * Be aware, best performance of the 8254x is achived only when jumbo frame is
+ * Be aware, best performance of the 8254x is achieved only when jumbo frame is
  * not used at all on architectures with strict alignment.
  */
 static int

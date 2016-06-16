@@ -38,7 +38,6 @@
 
 #include "assym.s"
 
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <sys/errno.h>
 

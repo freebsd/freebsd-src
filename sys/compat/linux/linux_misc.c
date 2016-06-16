@@ -149,6 +149,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	int i, j;
 	struct timespec ts;
 
+	bzero(&sysinfo, sizeof(sysinfo));
 	getnanouptime(&ts);
 	if (ts.tv_nsec != 0)
 		ts.tv_sec++;
@@ -199,7 +200,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 #endif
 	secs = args->secs;
 	/*
-	 * Linux alarm() is always successfull. Limit secs to INT32_MAX / 2
+	 * Linux alarm() is always successful. Limit secs to INT32_MAX / 2
 	 * to match kern_setitimer()'s limit to avoid error from it.
 	 *
 	 * XXX. Linux limit secs to INT_MAX on 32 and does not limit on 64-bit

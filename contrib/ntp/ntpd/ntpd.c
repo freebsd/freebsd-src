@@ -332,6 +332,16 @@ my_pthread_warmup(void)
 
 #endif /*defined(NEED_PTHREAD_WARMUP)*/
 
+#ifdef NEED_EARLY_FORK
+static void
+dummy_callback(void) { return; }
+
+static void
+fork_nonchroot_worker(void) {
+	getaddrinfo_sometime("localhost", "ntp", NULL, INITIAL_DNS_RETRY,
+			     (gai_sometime_callback)&dummy_callback, NULL);
+}
+#endif /* NEED_EARLY_FORK */
 
 void
 parse_cmdline_opts(
@@ -931,6 +941,11 @@ ntpdmain(
 
 # ifdef HAVE_DROPROOT
 	if (droproot) {
+
+#ifdef NEED_EARLY_FORK
+		fork_nonchroot_worker();
+#endif
+
 		/* Drop super-user privileges and chroot now if the OS supports this */
 
 #  ifdef HAVE_LINUX_CAPABILITIES

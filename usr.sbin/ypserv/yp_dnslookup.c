@@ -489,9 +489,6 @@ yp_async_lookup_addr(struct svc_req *rqstp, char *addr, int af)
 	    yp_find_dnsqent(svcudp_get_xid(rqstp->rq_xprt),BY_RPC_XID) != NULL)
 		return(YP_TRUE);
 
-	if ((q = yp_malloc_dnsent()) == NULL)
-		return(YP_YPERR);
-
 	switch (af) {
 	case AF_INET:
 		if (inet_aton(addr, (struct in_addr *)uaddr) != 1)
@@ -515,6 +512,9 @@ yp_async_lookup_addr(struct svc_req *rqstp, char *addr, int af)
 	default:
 		return(YP_YPERR);
 	}
+
+	if ((q = yp_malloc_dnsent()) == NULL)
+		return(YP_YPERR);
 
 	if (debug)
 		yp_error("DNS address is: %s", buf);

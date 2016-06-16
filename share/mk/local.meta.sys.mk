@@ -43,7 +43,7 @@ OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 .endif
 
 # from src/Makefile (for universe)
-TARGET_ARCHES_arm?=     arm armeb armv6 armv6hf
+TARGET_ARCHES_arm?=     arm armeb armv6
 TARGET_ARCHES_arm64?=   aarch64
 TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
 TARGET_ARCHES_powerpc?= powerpc powerpc64
@@ -214,7 +214,7 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
-.if !defined(_RECURSING_PROGS)
+.if !defined(_RECURSING_PROGS) && !defined(_RECURSING_CRUNCH)
 WITH_META_STATS= t
 .endif
 
@@ -232,6 +232,13 @@ TOOLSDIR?= ${HOST_OBJTOP}/tools
 .elif defined(STAGE_HOST_OBJTOP)
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
+# Only define if it exists in case user didn't run bootstrap-tools.  Otherwise
+# the tool will be built during the build.  Building it assumes it is
+# TARGET==MACHINE.
+.if exists(${HOST_OBJTOP}/tools${.CURDIR})
+BTOOLSPATH= ${HOST_OBJTOP}/tools${.CURDIR}
+.endif
+
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
     !make(showconfig) && \
@@ -270,4 +277,9 @@ CROSS_TARGET_FLAGS= -target ${MACHINE_ARCH}-unknown-freebsd${FREEBSD_REVISION}
 CFLAGS+= ${CROSS_TARGET_FLAGS}
 ACFLAGS+= ${CROSS_TARGET_FLAGS}
 LDFLAGS+= -Wl,-m -Wl,elf_${MACHINE_ARCH}_fbsd
+.endif
+
+META_MODE+=	missing-meta=yes
+.if empty(META_MODE:Mnofilemon)
+META_MODE+=	missing-filemon=yes
 .endif

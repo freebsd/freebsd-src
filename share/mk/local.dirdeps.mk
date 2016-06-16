@@ -42,6 +42,7 @@ DIRDEPS_FILTER.host = \
 	Nlib/[mn]* \
 	Ngnu/lib/csu* \
 	Ngnu/lib/lib[a-r]* \
+	Nsecure/lib* \
 	Nusr.bin/xinstall* \
 
 

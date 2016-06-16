@@ -32,36 +32,7 @@
 
 #include <sys/systm.h>
 
-enum intr_map_data_type {
-	INTR_MAP_DATA_ACPI,
-	INTR_MAP_DATA_FDT,
-};
-
-#ifdef DEV_ACPI
-struct intr_map_data_acpi {
-	u_int			irq;
-	enum intr_polarity	pol;
-	enum intr_trigger	trig;
-};
-#endif
-#ifdef FDT
-struct intr_map_data_fdt {
-	u_int	ncells;
-	pcell_t	*cells;
-};
-#endif
-
-struct intr_map_data {
-	enum intr_map_data_type	type;
-	union {
-#ifdef DEV_ACPI
-		struct intr_map_data_acpi	acpi;
-#endif
-#ifdef FDT
-		struct intr_map_data_fdt	fdt;
-#endif
-	};
-};
+#define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifdef notyet
 #define	INTR_SOLO	INTR_MD1
@@ -69,12 +40,15 @@ typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
 #else
 typedef int intr_irq_filter_t(void *arg);
 #endif
+typedef int intr_child_irq_filter_t(void *arg, uintptr_t irq);
 
 #define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
 
 #define INTR_ISRCF_IPI		0x01	/* IPI interrupt */
 #define INTR_ISRCF_PPI		0x02	/* PPI interrupt */
 #define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
+
+struct intr_pic;
 
 /* Interrupt source definition. */
 struct intr_irqsrc {
@@ -105,9 +79,11 @@ bool intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu);
 int intr_isrc_dispatch(struct intr_irqsrc *, struct trapframe *);
 u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 
-int intr_pic_register(device_t, intptr_t);
+struct intr_pic *intr_pic_register(device_t, intptr_t);
 int intr_pic_deregister(device_t, intptr_t);
 int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *, u_int);
+struct intr_pic *intr_pic_add_handler(device_t, struct intr_pic *,
+    intr_child_irq_filter_t *, void *, uintptr_t, uintptr_t);
 
 extern device_t intr_irq_root_dev;
 
@@ -122,14 +98,15 @@ int intr_setup_irq(device_t, struct resource *, driver_filter_t, driver_intr_t,
 int intr_teardown_irq(device_t, struct resource *, void *);
 
 int intr_describe_irq(device_t, struct resource *, void *, const char *);
+int intr_child_irq_handler(struct intr_pic *, uintptr_t);
 
-#ifdef DEV_ACPI
-u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
-    enum intr_trigger);
-#endif
-#ifdef FDT
-u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
-#endif
+/* MSI/MSI-X handling */
+int intr_msi_register(device_t, intptr_t);
+int intr_alloc_msi(device_t, device_t, intptr_t, int, int, int *);
+int intr_release_msi(device_t, device_t, intptr_t, int, int *);
+int intr_map_msi(device_t, device_t, intptr_t, int, uint64_t *, uint32_t *);
+int intr_alloc_msix(device_t, device_t, intptr_t, int *);
+int intr_release_msix(device_t, device_t, intptr_t, int);
 
 #ifdef SMP
 int intr_bind_irq(device_t, struct resource *, int);

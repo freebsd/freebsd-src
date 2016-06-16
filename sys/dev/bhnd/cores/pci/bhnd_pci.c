@@ -68,8 +68,8 @@ static struct bhnd_device_quirk bhnd_pcie_quirks[];
 
 #define	BHND_PCI_QUIRKS		bhnd_pci_quirks
 #define	BHND_PCIE_QUIRKS	bhnd_pcie_quirks
-#define	BHND_PCI_DEV(_core, _desc, ...)				\
-	{ BHND_DEVICE(_core, _desc, BHND_ ## _core ## _QUIRKS,	\
+#define	BHND_PCI_DEV(_core, _desc, ...)					\
+	{ BHND_DEVICE(BCM, _core, _desc, BHND_ ## _core ## _QUIRKS,	\
 	    ## __VA_ARGS__), BHND_PCI_REGFMT_ ## _core }
 
 static const struct bhnd_pci_device {
@@ -77,9 +77,9 @@ static const struct bhnd_pci_device {
 	bhnd_pci_regfmt_t	regfmt;	/**< register format */
 } bhnd_pci_devs[] = {
 	BHND_PCI_DEV(PCI,	"Host-PCI bridge",		BHND_DF_HOSTB),	     
-	BHND_PCI_DEV(PCI,	"PCI-BHND bridge"),
+	BHND_PCI_DEV(PCI,	"PCI-BHND bridge",		BHND_DF_SOC),
 	BHND_PCI_DEV(PCIE,	"PCIe-G1 Host-PCI bridge",	BHND_DF_HOSTB),
-	BHND_PCI_DEV(PCIE,	"PCIe-G1 PCI-BHND bridge"),
+	BHND_PCI_DEV(PCIE,	"PCIe-G1 PCI-BHND bridge",	BHND_DF_SOC),
 
 	{ BHND_DEVICE_END, 0 }
 };
@@ -87,7 +87,8 @@ static const struct bhnd_pci_device {
 /* Device quirks tables */
 static struct bhnd_device_quirk bhnd_pci_quirks[] = { BHND_DEVICE_QUIRK_END };
 static struct bhnd_device_quirk bhnd_pcie_quirks[] = {
-	{ BHND_HWREV_GTE	(10),	BHND_PCI_QUIRK_SD_C22_EXTADDR },
+	BHND_CORE_QUIRK(HWREV_GTE(10),	BHND_PCI_QUIRK_SD_C22_EXTADDR),
+
 	BHND_DEVICE_QUIRK_END
 };
 
@@ -429,8 +430,7 @@ bhnd_pcie_mdio_read_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
     int reg)
 {
 	uint32_t	cmd;
-	uint16_t	blk, val;
-	uint8_t		blk_reg;
+	uint16_t	val;
 	int		error;
 
 	if (devaddr == MDIO_DEVADDR_NONE)
@@ -438,27 +438,23 @@ bhnd_pcie_mdio_read_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
 
 	/* Extended register access is only supported for the SerDes device,
 	 * using the non-standard C22 extended address mechanism */
-	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR))
+	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR) ||
+	    phy != BHND_PCIE_PHYADDR_SD)
+	{
 		return (~0U);	
-	if (phy != BHND_PCIE_PHYADDR_SD || devaddr != BHND_PCIE_DEVAD_SD)
-		return (~0U);
+	}
 
 	/* Enable MDIO access */
 	BHND_PCI_LOCK(sc);
 	bhnd_pcie_mdio_enable(sc);
 
-	/* Determine the block and register values */
-	blk = (reg & BHND_PCIE_SD_ADDREXT_BLK_MASK);
-	blk_reg = (reg & BHND_PCIE_SD_ADDREXT_REG_MASK);
-
 	/* Write the block address to the address extension register */
-	cmd = BHND_PCIE_MDIODATA_ADDR(phy, BHND_PCIE_SD_ADDREXT) |
-	    (blk & BHND_PCIE_MDIODATA_DATA_MASK);
+	cmd = BHND_PCIE_MDIODATA_ADDR(phy, BHND_PCIE_SD_ADDREXT) | devaddr;
 	if ((error = bhnd_pcie_mdio_cmd_write(sc, cmd)))
 		goto cleanup;
 
 	/* Issue the read */
-	cmd = BHND_PCIE_MDIODATA_ADDR(phy, blk_reg);
+	cmd = BHND_PCIE_MDIODATA_ADDR(phy, reg);
 	error = bhnd_pcie_mdio_cmd_read(sc, cmd, &val);
 
 cleanup:
@@ -476,8 +472,6 @@ bhnd_pcie_mdio_write_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
     int reg, int val)
 {	
 	uint32_t	cmd;
-	uint16_t	blk;
-	uint8_t		blk_reg;
 	int		error;
 
 	if (devaddr == MDIO_DEVADDR_NONE)
@@ -485,27 +479,23 @@ bhnd_pcie_mdio_write_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
 
 	/* Extended register access is only supported for the SerDes device,
 	 * using the non-standard C22 extended address mechanism */
-	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR))
+	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR) ||
+	    phy != BHND_PCIE_PHYADDR_SD)
+	{
 		return (~0U);	
-	if (phy != BHND_PCIE_PHYADDR_SD || devaddr != BHND_PCIE_DEVAD_SD)
-		return (~0U);
+	}
 
 	/* Enable MDIO access */
 	BHND_PCI_LOCK(sc);
 	bhnd_pcie_mdio_enable(sc);
 
-	/* Determine the block and register values */
-	blk = (reg & BHND_PCIE_SD_ADDREXT_BLK_MASK);
-	blk_reg = (reg & BHND_PCIE_SD_ADDREXT_REG_MASK);
-
 	/* Write the block address to the address extension register */
-	cmd = BHND_PCIE_MDIODATA_ADDR(phy, BHND_PCIE_SD_ADDREXT) |
-	    (blk & BHND_PCIE_MDIODATA_DATA_MASK);
+	cmd = BHND_PCIE_MDIODATA_ADDR(phy, BHND_PCIE_SD_ADDREXT) | devaddr;
 	if ((error = bhnd_pcie_mdio_cmd_write(sc, cmd)))
 		goto cleanup;
 
 	/* Issue the write */
-	cmd = BHND_PCIE_MDIODATA_ADDR(phy, blk_reg) |
+	cmd = BHND_PCIE_MDIODATA_ADDR(phy, reg) |
 	    (val & BHND_PCIE_MDIODATA_DATA_MASK);
 	error = bhnd_pcie_mdio_cmd_write(sc, cmd);
 
@@ -543,6 +533,6 @@ static device_method_t bhnd_pci_methods[] = {
 };
 
 DEFINE_CLASS_0(bhnd_pci, bhnd_pci_driver, bhnd_pci_methods, sizeof(struct bhnd_pci_softc));
-
-MODULE_VERSION(bhnd_pci, 1);
+MODULE_DEPEND(bhnd_pci, bhnd, 1, 1, 1);
 MODULE_DEPEND(bhnd_pci, pci, 1, 1, 1);
+MODULE_VERSION(bhnd_pci, 1);

@@ -39,6 +39,7 @@ CLEANFILES+= ${GENSRCS} ${GENHDRS}
 build-tools: mknodes mksyntax
 
 .ORDER: builtins.c builtins.h
+builtins.h: .NOMETA
 builtins.c builtins.h: mkbuiltins builtins.def
 	sh ${.CURDIR}/mkbuiltins ${.CURDIR}
 
@@ -51,12 +52,14 @@ mknodes: mknodes.o ${BUILD_TOOLS_META}
 mksyntax: mksyntax.o ${BUILD_TOOLS_META}
 
 .ORDER: nodes.c nodes.h
+nodes.h: .NOMETA
 nodes.c nodes.h: mknodes nodetypes nodes.c.pat
-	./mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
+	${BTOOLSPATH:U.}/mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
 
 .ORDER: syntax.c syntax.h
+syntax.h: .NOMETA
 syntax.c syntax.h: mksyntax
-	./mksyntax
+	${BTOOLSPATH:U.}/mksyntax
 
 token.h: mktokens
 	sh ${.CURDIR}/mktokens

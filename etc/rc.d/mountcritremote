@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="mountcritremote"
+desc="Mount critical remote filesystems"
 stop_cmd=":"
 start_cmd="mountcritremote_start"
 start_precmd="mountcritremote_precmd"
@@ -34,13 +35,16 @@ mountcritremote_precmd()
 
 mountcritremote_start()
 {
+	local mounted_remote_filesystem=false
+
 	# Mount nfs filesystems.
 	#
 	case "`/sbin/mount -d -a -t nfs`" in
 	'')
 		;;
 	*)
-		echo -n 'Mounting NFS file systems:'
+		mounted_remote_filesystem=true
+		echo -n 'Mounting NFS filesystems:'
 		mount -a -t nfs
 		echo '.'
 		;;
@@ -63,16 +67,23 @@ mountcritremote_start()
 
 		case "`mount -d -a -t ${fstype}`" in
 		*mount_${fstype}*)
-			echo -n "Mounting ${fsdecr} file systems:"
+			mounted_remote_filesystem=true
+			echo -n "Mounting ${fsdecr} filesystems:"
 			mount -a -t ${fstype}
 			echo '.'
 			;;
 		esac
 	done
 
-	# Cleanup /var again just in case it's a network mount.
-	/etc/rc.d/cleanvar quietreload
-	rm -f /var/run/clean_var /var/spool/lock/clean_var
+	if $mounted_remote_filesystem; then
+		# Cleanup /var again just in case it's a network mount.
+		/etc/rc.d/cleanvar quietreload
+		rm -f /var/run/clean_var /var/spool/lock/clean_var
+
+		# Regenerate the ldconfig hints in case there are additional
+		# library paths on remote file systems
+		/etc/rc.d/ldconfig quietstart
+	fi
 }
 
 load_rc_config $name

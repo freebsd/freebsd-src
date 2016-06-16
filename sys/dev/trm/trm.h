@@ -926,7 +926,7 @@ typedef struct NVRAM_TARGET_STRUCT
 #define NTC_DO_SEND_START       0x08    /* Send start command SPINUP*/
 #define NTC_DO_DISCONNECT   	0x04	/* Enable SCSI disconnect	*/
 #define NTC_DO_SYNC_NEGO    	0x02    /* Sync negotiation	    	*/
-#define NTC_DO_PARITY_CHK   	0x01    /* (it sould define at NAC )
+#define	NTC_DO_PARITY_CHK   	0x01    /* (it should define at NAC )
                                            Parity check enable		*/
 
 /*

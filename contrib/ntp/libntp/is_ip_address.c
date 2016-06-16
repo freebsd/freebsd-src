@@ -7,53 +7,13 @@
 # include <config.h>
 #endif
 
-#if 0
-#include <stdio.h>
-#include <signal.h>
-#ifdef HAVE_FNMATCH_H
-# include <fnmatch.h>
-# if !defined(FNM_CASEFOLD) && defined(FNM_IGNORECASE)
-#  define FNM_CASEFOLD FNM_IGNORECASE
-# endif
-#endif
-#ifdef HAVE_SYS_PARAM_H
-# include <sys/param.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#endif
-#ifdef HAVE_SYS_SOCKIO_H	/* UXPV: SIOC* #defines (Frank Vance <fvance@waii.com>) */
-# include <sys/sockio.h>
-#endif
-#ifdef HAVE_SYS_UIO_H
-# include <sys/uio.h>
-#endif
-#endif
-
 #include "ntp_assert.h"
 #include "ntp_stdlib.h"
 #include "safecast.h"
 
-#if 0
-#include "ntp_machine.h"
-#include "ntpd.h"
-#include "ntp_io.h"
-#include "iosignal.h"
-#include "ntp_lists.h"
-#include "ntp_refclock.h"
-#include "ntp_worker.h"
-#include "ntp_request.h"
-#include "timevalops.h"
-#include "timespecops.h"
-#include "ntpd-opts.h"
-#endif
-
 /* Don't include ISC's version of IPv6 variables and structures */
 #define ISC_IPV6_H 1
-#include <isc/mem.h>
-#include <isc/interfaceiter.h>
 #include <isc/netaddr.h>
-#include <isc/result.h>
 #include <isc/sockaddr.h>
 
 

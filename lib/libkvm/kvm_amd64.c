@@ -159,6 +159,7 @@ _amd64_initvtop(kvm_t *kd)
 	}
 	if (kvm_read2(kd, pa, PML4, AMD64_PAGE_SIZE) != AMD64_PAGE_SIZE) {
 		_kvm_err(kd, kd->program, "cannot read KPML4phys");
+		free(PML4);
 		return (-1);
 	}
 	kd->vmst->PML4 = PML4;

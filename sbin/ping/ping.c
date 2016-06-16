@@ -285,6 +285,16 @@ main(int argc, char *const *argv)
 		err(EX_NOPERM, "setuid() failed");
 	uid = getuid();
 
+	if (ssend < 0) {
+		errno = ssend_errno;
+		err(EX_OSERR, "ssend socket");
+	}
+
+	if (srecv < 0) {
+		errno = srecv_errno;
+		err(EX_OSERR, "srecv socket");
+	}
+
 	alarmtimeout = df = preload = tos = 0;
 
 	outpack = outpackhdr + sizeof(struct ip);
@@ -624,16 +634,6 @@ main(int argc, char *const *argv)
 			err(1, "unable to limit access to system.dns service");
 	}
 #endif
-
-	if (ssend < 0) {
-		errno = ssend_errno;
-		err(EX_OSERR, "ssend socket");
-	}
-
-	if (srecv < 0) {
-		errno = srecv_errno;
-		err(EX_OSERR, "srecv socket");
-	}
 
 	if (connect(ssend, (struct sockaddr *)&whereto, sizeof(whereto)) != 0)
 		err(1, "connect");

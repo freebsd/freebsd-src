@@ -169,7 +169,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 		 * Check for and do something with commands whose
 		 * IULEN extends past a single queue entry.
 		 */
-		len = at7iop->at_ta_len & 0xfffff;
+		len = at7iop->at_ta_len & 0x0fff;
 		if (len > (QENTRY_LEN - 8)) {
 			len -= (QENTRY_LEN - 8);
 			isp_prt(isp, ISP_LOGINFO, "long IU length (%d) ignored", len);
@@ -539,13 +539,22 @@ isp_endcmd(ispsoftc_t *isp, ...)
 		} else if (code & ECMD_SVALID) {
 			cto->ct_flags |= CT7_FLAG_MODE1 | CT7_SENDSTATUS;
 			cto->ct_scsi_status |= (FCP_SNSLEN_VALID << 8);
-			cto->rsp.m1.ct_resplen = cto->ct_senselen = min(16, MAXRESPLEN_24XX);
+			cto->ct_senselen = min(16, MAXRESPLEN_24XX);
 			ISP_MEMZERO(cto->rsp.m1.ct_resp, sizeof (cto->rsp.m1.ct_resp));
 			cto->rsp.m1.ct_resp[0] = 0xf0;
 			cto->rsp.m1.ct_resp[2] = (code >> 12) & 0xf;
 			cto->rsp.m1.ct_resp[7] = 8;
 			cto->rsp.m1.ct_resp[12] = (code >> 16) & 0xff;
 			cto->rsp.m1.ct_resp[13] = (code >> 24) & 0xff;
+		} else if (code & ECMD_RVALID) {
+			cto->ct_flags |= CT7_FLAG_MODE1 | CT7_SENDSTATUS;
+			cto->ct_scsi_status |= (FCP_RSPLEN_VALID << 8);
+			cto->rsp.m1.ct_resplen = 4;
+			ISP_MEMZERO(cto->rsp.m1.ct_resp, sizeof (cto->rsp.m1.ct_resp));
+			cto->rsp.m1.ct_resp[0] = (code >> 12) & 0xf;
+			cto->rsp.m1.ct_resp[1] = (code >> 16) & 0xff;
+			cto->rsp.m1.ct_resp[2] = (code >> 24) & 0xff;
+			cto->rsp.m1.ct_resp[3] = 0;
 		} else {
 			cto->ct_flags |= CT7_FLAG_MODE1 | CT7_SENDSTATUS;
 		}
@@ -764,6 +773,7 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 	isp_notify_t notify;
 	static const char f1[] = "%s from PortID 0x%06x lun %x seq 0x%08x";
 	static const char f2[] = "unknown Task Flag 0x%x lun %x PortID 0x%x tag 0x%08x";
+	fcportdb_t *lp;
 	uint16_t chan;
 	uint32_t sid, did;
 
@@ -774,21 +784,23 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 	notify.nt_tagval = aep->at_rxid;
 	notify.nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
 	notify.nt_lreserved = aep;
-	sid = (aep->at_hdr.s_id[0] << 16) | (aep->at_hdr.s_id[1] <<  8) | (aep->at_hdr.s_id[2]);
-
-	/* Channel has to derived from D_ID */
+	sid = (aep->at_hdr.s_id[0] << 16) | (aep->at_hdr.s_id[1] << 8) | aep->at_hdr.s_id[2];
 	did = (aep->at_hdr.d_id[0] << 16) | (aep->at_hdr.d_id[1] << 8) | aep->at_hdr.d_id[2];
-	for (chan = 0; chan < isp->isp_nchan; chan++) {
-		if (FCPARAM(isp, chan)->isp_portid == did) {
-			break;
+	if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
+		/* Channel has to be derived from D_ID */
+		isp_find_chan_by_did(isp, did, &chan);
+		if (chan == ISP_NOCHAN) {
+			isp_prt(isp, ISP_LOGWARN, "%s: D_ID 0x%x not found on any channel", __func__, did);
+			isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN, ECMD_TERMINATE, 0);
+			return;
 		}
+	} else {
+		chan = 0;
 	}
-	if (chan == isp->isp_nchan) {
-		isp_prt(isp, ISP_LOGWARN, "%s: D_ID 0x%x not found on any channel", __func__, did);
-		/* just drop on the floor */
-		return;
-	}
-	notify.nt_nphdl = NIL_HANDLE; /* unknown here */
+	if (isp_find_pdb_by_portid(isp, chan, sid, &lp))
+		notify.nt_nphdl = lp->handle;
+	else
+		notify.nt_nphdl = NIL_HANDLE;
 	notify.nt_sid = sid;
 	notify.nt_did = did;
 	notify.nt_channel = chan;
@@ -816,6 +828,7 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 	} else {
 		isp_prt(isp, ISP_LOGWARN, f2, aep->at_cmnd.fcp_cmnd_task_management, notify.nt_lun, sid, aep->at_rxid);
 		notify.nt_ncode = NT_UNKNOWN;
+		isp_endcmd(isp, aep, notify.nt_nphdl, chan, ECMD_RVALID | (0x4 << 12), 0);
 		return;
 	}
 	isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);

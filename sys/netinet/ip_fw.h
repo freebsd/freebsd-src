@@ -791,9 +791,9 @@ typedef struct  _ipfw_obj_tlv {
 typedef struct _ipfw_obj_ntlv {
 	ipfw_obj_tlv	head;		/* TLV header			*/
 	uint16_t	idx;		/* Name index			*/
-	uint8_t		spare;		/* unused			*/
+	uint8_t		set;		/* set, if applicable		*/
 	uint8_t		type;		/* object type, if applicable	*/
-	uint32_t	set;		/* set, if applicable		*/
+	uint32_t	spare;		/* unused			*/
 	char		name[64];	/* Null-terminated name		*/
 } ipfw_obj_ntlv;
 
@@ -861,9 +861,9 @@ typedef struct	_ipfw_obj_tentry {
 #define	IPFW_CTF_ATOMIC	0x01		/* Perform atomic operation	*/
 /* Operation results */
 #define	IPFW_TR_IGNORED		0	/* Entry was ignored (rollback)	*/
-#define	IPFW_TR_ADDED		1	/* Entry was succesfully added	*/
-#define	IPFW_TR_UPDATED		2	/* Entry was succesfully updated*/
-#define	IPFW_TR_DELETED		3	/* Entry was succesfully deleted*/
+#define	IPFW_TR_ADDED		1	/* Entry was successfully added	*/
+#define	IPFW_TR_UPDATED		2	/* Entry was successfully updated*/
+#define	IPFW_TR_DELETED		3	/* Entry was successfully deleted*/
 #define	IPFW_TR_LIMIT		4	/* Entry was ignored (limit)	*/
 #define	IPFW_TR_NOTFOUND	5	/* Entry was not found		*/
 #define	IPFW_TR_EXISTS		6	/* Entry already exists		*/

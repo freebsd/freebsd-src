@@ -171,7 +171,7 @@ void bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 	 *    - 12: the first 10 bytes correspond to the struct
 	 *          virtio_net_hdr, and the last 2 bytes store the
 	 *          "mergeable buffers" info, which is an optional
-	 *	    hint that can be zeroed for compability
+	 *	    hint that can be zeroed for compatibility
 	 *
 	 * The destination header is therefore built according to the
 	 * following table:

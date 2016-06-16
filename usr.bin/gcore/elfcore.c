@@ -560,8 +560,8 @@ elf_note_prpsinfo(void *arg, size_t *sizep)
 		err(1, "kern.proc.pid.%u", pid);
 	if (kip.ki_pid != pid)
 		err(1, "kern.proc.pid.%u", pid);
-	strncpy(psinfo->pr_fname, kip.ki_comm, MAXCOMLEN);
-	strncpy(psinfo->pr_psargs, psinfo->pr_fname, PRARGSZ);
+	strlcpy(psinfo->pr_fname, kip.ki_comm, sizeof(psinfo->pr_fname));
+	strlcpy(psinfo->pr_psargs, psinfo->pr_fname, sizeof(psinfo->pr_psargs));
 
 	*sizep = sizeof(*psinfo);
 	return (psinfo);

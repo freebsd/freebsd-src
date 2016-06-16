@@ -30,10 +30,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
-#include <machine/devmap.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platform.h> 
@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/fdt.h>
 
-extern const struct arm_devmap_entry at91_devmap[];
+extern const struct devmap_entry at91_devmap[];
 
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
@@ -91,7 +91,7 @@ vm_offset_t
 platform_lastaddr(void)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 void
@@ -106,9 +106,9 @@ int
 platform_devmap_init(void)
 {
 
-//	arm_devmap_add_entry(0xfff00000, 0x00100000); /* 1MB - uart, aic and timers*/
+//	devmap_add_entry(0xfff00000, 0x00100000); /* 1MB - uart, aic and timers*/
 
-	arm_devmap_register_table(at91_devmap);
+	devmap_register_table(at91_devmap);
 
 	return (0);
 }

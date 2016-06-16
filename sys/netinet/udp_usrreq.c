@@ -39,7 +39,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ipfw.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -269,20 +268,23 @@ udp_discardcb(struct udpcb *up)
 }
 
 #ifdef VIMAGE
-void
-udp_destroy(void)
+static void
+udp_destroy(void *unused __unused)
 {
 
 	in_pcbinfo_destroy(&V_udbinfo);
 	uma_zdestroy(V_udpcb_zone);
 }
+VNET_SYSUNINIT(udp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, udp_destroy, NULL);
 
-void
-udplite_destroy(void)
+static void
+udplite_destroy(void *unused __unused)
 {
 
 	in_pcbinfo_destroy(&V_ulitecbinfo);
 }
+VNET_SYSUNINIT(udplite, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, udplite_destroy,
+    NULL);
 #endif
 
 #ifdef INET
@@ -792,6 +794,21 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 				udp_notify(inp, inetctlerrmap[cmd]);
 			}
 			INP_RUNLOCK(inp);
+		} else {
+			inp = in_pcblookup(pcbinfo, faddr, uh->uh_dport,
+					   ip->ip_src, uh->uh_sport,
+					   INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
+			if (inp != NULL) {
+				struct udpcb *up;
+
+				up = intoudpcb(inp);
+				if (up->u_icmp_func != NULL) {
+					INP_RUNLOCK(inp);
+					(*up->u_icmp_func)(cmd, sa, vip, up->u_tun_ctx);
+				} else {
+					INP_RUNLOCK(inp);
+				}
+			}
 		}
 	} else
 		in_pcbnotifyall(pcbinfo, faddr, inetctlerrmap[cmd],
@@ -1748,7 +1765,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 #endif /* INET */
 
 int
-udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f, void *ctx)
+udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f, udp_tun_icmp_t i, void *ctx)
 {
 	struct inpcb *inp;
 	struct udpcb *up;
@@ -1759,11 +1776,13 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f, void *ctx)
 	KASSERT(inp != NULL, ("udp_set_kernel_tunneling: inp == NULL"));
 	INP_WLOCK(inp);
 	up = intoudpcb(inp);
-	if (up->u_tun_func != NULL) {
+	if ((up->u_tun_func != NULL) ||
+	    (up->u_icmp_func != NULL)) {
 		INP_WUNLOCK(inp);
 		return (EBUSY);
 	}
 	up->u_tun_func = f;
+	up->u_icmp_func = i;
 	up->u_tun_ctx = ctx;
 	INP_WUNLOCK(inp);
 	return (0);

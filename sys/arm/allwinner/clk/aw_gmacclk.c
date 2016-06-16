@@ -60,18 +60,41 @@ __FBSDID("$FreeBSD$");
 #define	GMAC_CLK_SRC_EXT_RGMII	1
 #define	GMAC_CLK_SRC_RGMII	2
 
+#define	EMAC_TXC_DIV_CFG	(1 << 15)
+#define	EMAC_TXC_DIV_CFG_SHIFT	15
+#define	EMAC_TXC_DIV_CFG_125MHZ	0
+#define	EMAC_TXC_DIV_CFG_25MHZ	1
+#define	EMAC_PHY_SELECT		(1 << 16)
+#define	EMAC_PHY_SELECT_SHIFT	16
+#define	EMAC_PHY_SELECT_INT	0
+#define	EMAC_PHY_SELECT_EXT	1
+#define	EMAC_ETXDC		(0x7 << 10)
+#define	EMAC_ETXDC_SHIFT	10
+#define	EMAC_ERXDC		(0x1f << 5)
+#define	EMAC_ERXDC_SHIFT	5
+
 #define	CLK_IDX_MII		0
 #define	CLK_IDX_RGMII		1
 #define	CLK_IDX_COUNT		2
 
+enum aw_gmacclk_type {
+	GMACCLK_A20 = 1,
+	GMACCLK_A83T,
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun7i-a20-gmac-clk",	1 },
+	{ "allwinner,sun7i-a20-gmac-clk",	GMACCLK_A20 },
+	{ "allwinner,sun8i-a83t-emac-clk",	GMACCLK_A83T },
 	{ NULL, 0 }
 };
 
 struct aw_gmacclk_sc {
 	device_t	clkdev;
 	bus_addr_t	reg;
+	enum aw_gmacclk_type type;
+
+	int		rx_delay;
+	int		tx_delay;
 };
 
 #define	GMACCLK_READ(sc, val)	CLKDEV_READ_4((sc)->clkdev, (sc)->reg, (val))
@@ -110,7 +133,7 @@ static int
 aw_gmacclk_set_mux(struct clknode *clk, int index)
 {
 	struct aw_gmacclk_sc *sc;
-	uint32_t val, clk_src, pit;
+	uint32_t val, clk_src, pit, txc_div;
 	int error;
 
 	sc = clknode_get_softc(clk);
@@ -120,10 +143,12 @@ aw_gmacclk_set_mux(struct clknode *clk, int index)
 	case CLK_IDX_MII:
 		clk_src = GMAC_CLK_SRC_MII;
 		pit = GMAC_CLK_PIT_MII;
+		txc_div = EMAC_TXC_DIV_CFG_25MHZ;
 		break;
 	case CLK_IDX_RGMII:
 		clk_src = GMAC_CLK_SRC_RGMII;
 		pit = GMAC_CLK_PIT_RGMII;
+		txc_div = EMAC_TXC_DIV_CFG_125MHZ;
 		break;
 	default:
 		return (ENXIO);
@@ -134,6 +159,20 @@ aw_gmacclk_set_mux(struct clknode *clk, int index)
 	val &= ~(GMAC_CLK_SRC | GMAC_CLK_PIT);
 	val |= (clk_src << GMAC_CLK_SRC_SHIFT);
 	val |= (pit << GMAC_CLK_PIT_SHIFT);
+	if (sc->type == GMACCLK_A83T) {
+		val &= ~EMAC_TXC_DIV_CFG;
+		val |= (txc_div << EMAC_TXC_DIV_CFG_SHIFT);
+		val &= ~EMAC_PHY_SELECT;
+		val |= (EMAC_PHY_SELECT_EXT << EMAC_PHY_SELECT_SHIFT);
+		if (sc->tx_delay >= 0) {
+			val &= ~EMAC_ETXDC;
+			val |= (sc->tx_delay << EMAC_ETXDC_SHIFT);
+		}
+		if (sc->rx_delay >= 0) {
+			val &= ~EMAC_ERXDC;
+			val |= (sc->rx_delay << EMAC_ERXDC_SHIFT);
+		}
+	}
 	GMACCLK_WRITE(sc, val);
 	DEVICE_UNLOCK(sc);
 
@@ -158,7 +197,7 @@ aw_gmacclk_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Allwinner Module Clock");
+	device_set_desc(dev, "Allwinner GMAC Clock");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -221,6 +260,10 @@ aw_gmacclk_attach(device_t dev)
 	sc = clknode_get_softc(clk);
 	sc->reg = paddr;
 	sc->clkdev = device_get_parent(dev);
+	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->tx_delay = sc->rx_delay = -1;
+	OF_getencprop(node, "tx-delay", &sc->tx_delay, sizeof(sc->tx_delay));
+	OF_getencprop(node, "rx-delay", &sc->rx_delay, sizeof(sc->rx_delay));
 
 	clknode_register(clkdom, clk);
 

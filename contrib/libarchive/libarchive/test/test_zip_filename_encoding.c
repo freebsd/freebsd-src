@@ -27,8 +27,7 @@ __FBSDID("$FreeBSD$");
 
 #include <locale.h>
 
-static void
-test_zip_filename_encoding_UTF8(void)
+DEFINE_TEST(test_zip_filename_encoding_UTF8)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -116,8 +115,7 @@ test_zip_filename_encoding_UTF8(void)
 	assertEqualMem(buff + 30, "abcABC", 6);
 }
 
-static void
-test_zip_filename_encoding_KOI8R(void)
+DEFINE_TEST(test_zip_filename_encoding_KOI8R)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -217,8 +215,7 @@ test_zip_filename_encoding_KOI8R(void)
 /*
  * Do not translate CP1251 into CP866 if non Windows platform.
  */
-static void
-test_zip_filename_encoding_ru_RU_CP1251(void)
+DEFINE_TEST(test_zip_filename_encoding_ru_RU_CP1251)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -261,8 +258,7 @@ test_zip_filename_encoding_ru_RU_CP1251(void)
  * into CP866 filenames and store it in the zip file.
  * Test above behavior works well.
  */
-static void
-test_zip_filename_encoding_Russian_Russia(void)
+DEFINE_TEST(test_zip_filename_encoding_Russian_Russia)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -331,8 +327,7 @@ test_zip_filename_encoding_Russian_Russia(void)
 	assertEqualMem(buff + 30, "\xAF\xE0\xA8", 3);
 }
 
-static void
-test_zip_filename_encoding_EUCJP(void)
+DEFINE_TEST(test_zip_filename_encoding_EUCJP)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -431,8 +426,7 @@ test_zip_filename_encoding_EUCJP(void)
 	assertEqualMem(buff + 30, "abcABC", 6);
 }
 
-static void
-test_zip_filename_encoding_CP932(void)
+DEFINE_TEST(test_zip_filename_encoding_CP932)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -530,14 +524,4 @@ test_zip_filename_encoding_CP932(void)
 	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	assertEqualMem(buff + 30, "abcABC", 6);
-}
-
-DEFINE_TEST(test_zip_filename_encoding)
-{
-	test_zip_filename_encoding_UTF8();
-	test_zip_filename_encoding_KOI8R();
-	test_zip_filename_encoding_ru_RU_CP1251();
-	test_zip_filename_encoding_Russian_Russia();
-	test_zip_filename_encoding_EUCJP();
-	test_zip_filename_encoding_CP932();
 }

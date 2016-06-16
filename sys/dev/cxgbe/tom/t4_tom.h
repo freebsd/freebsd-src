@@ -74,6 +74,8 @@ enum {
 	DDP_ON		= (1 << 2),	/* DDP is turned on */
 	DDP_BUF0_ACTIVE	= (1 << 3),	/* buffer 0 in use (not invalidated) */
 	DDP_BUF1_ACTIVE	= (1 << 4),	/* buffer 1 in use (not invalidated) */
+	DDP_TASK_ACTIVE = (1 << 5),	/* requeue task is queued / running */
+	DDP_DEAD	= (1 << 6),	/* toepcb is shutting down */
 };
 
 struct ofld_tx_sdesc {
@@ -81,19 +83,36 @@ struct ofld_tx_sdesc {
 	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
 };
 
-struct ddp_buffer {
-	uint32_t tag;	/* includes color, page pod addr, and DDP page size */
+struct pageset {
+	TAILQ_ENTRY(pageset) link;
+	vm_page_t *pages;
+	int npages;
+	int flags;
 	u_int ppod_addr;
 	int nppods;
-	int offset;
+	uint32_t tag;	/* includes color, page pod addr, and DDP page size */
+	int offset;		/* offset in first page */
 	int len;
-	int npages;
-	vm_page_t *pages;
+	struct vmspace *vm;
+	u_int vm_timestamp;
+};
+
+TAILQ_HEAD(pagesetq, pageset);
+
+#define	PS_WIRED		0x0001	/* Pages wired rather than held. */
+#define	PS_PPODS_WRITTEN	0x0002	/* Page pods written to the card. */
+
+struct ddp_buffer {
+	struct pageset *ps;
+
+	struct kaiocb *job;
+	int cancel_pending;
 };
 
 struct toepcb {
 	TAILQ_ENTRY(toepcb) link; /* toep_list */
 	u_int flags;		/* miscellaneous flags */
+	int refcount;
 	struct tom_data *td;
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
 	struct vi_info *vi;	/* virtual interface */
@@ -121,9 +140,16 @@ struct toepcb {
 	struct mbufq ulp_pdu_reclaimq;
 
 	u_int ddp_flags;
-	struct ddp_buffer *db[2];
-	time_t ddp_disabled;
-	uint8_t ddp_score;
+	struct ddp_buffer db[2];
+	TAILQ_HEAD(, pageset) ddp_cached_pagesets;
+	TAILQ_HEAD(, kaiocb) ddp_aiojobq;
+	u_int ddp_waiting_count;
+	u_int ddp_active_count;
+	u_int ddp_cached_count;
+	int ddp_active_id;	/* the currently active DDP buffer */
+	struct task ddp_requeue_task;
+	struct kaiocb *ddp_queueing;
+	struct mtx ddp_lock;
 
 	/* Tx software descriptor */
 	uint8_t txsd_total;
@@ -132,6 +158,10 @@ struct toepcb {
 	uint8_t txsd_avail;
 	struct ofld_tx_sdesc txsd[];
 };
+
+#define	DDP_LOCK(toep)		mtx_lock(&(toep)->ddp_lock)
+#define	DDP_UNLOCK(toep)	mtx_unlock(&(toep)->ddp_lock)
+#define	DDP_ASSERT_LOCKED(toep)	mtx_assert(&(toep)->ddp_lock, MA_OWNED)
 
 struct flowc_tx_params {
 	uint32_t snd_nxt;
@@ -242,6 +272,7 @@ mbuf_ulp_submode(struct mbuf *m)
 
 /* t4_tom.c */
 struct toepcb *alloc_toepcb(struct vi_info *, int, int, int);
+struct toepcb *hold_toepcb(struct toepcb *);
 void free_toepcb(struct toepcb *);
 void offload_socket(struct socket *, struct toepcb *);
 void undo_offload_socket(struct socket *);
@@ -289,11 +320,14 @@ void send_flowc_wr(struct toepcb *, struct flowc_tx_params *);
 void send_reset(struct adapter *, struct toepcb *, uint32_t);
 void make_established(struct toepcb *, uint32_t, uint32_t, uint16_t);
 void t4_rcvd(struct toedev *, struct tcpcb *);
+void t4_rcvd_locked(struct toedev *, struct tcpcb *);
 int t4_tod_output(struct toedev *, struct tcpcb *);
 int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
 void t4_set_tcb_field(struct adapter *, struct toepcb *, int, uint16_t,
     uint64_t, uint64_t);
+void t4_set_tcb_field_rpl(struct adapter *, struct toepcb *, int, uint16_t,
+    uint64_t, uint64_t, uint8_t);
 void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
 void t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop);
 
@@ -302,10 +336,17 @@ void t4_init_ddp(struct adapter *, struct tom_data *);
 void t4_uninit_ddp(struct adapter *, struct tom_data *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
-void enable_ddp(struct adapter *, struct toepcb *toep);
+int t4_aio_queue_ddp(struct socket *, struct kaiocb *);
+int t4_ddp_mod_load(void);
+void t4_ddp_mod_unload(void);
+void ddp_assert_empty(struct toepcb *);
+void ddp_init_toep(struct toepcb *);
+void ddp_uninit_toep(struct toepcb *);
+void ddp_queue_toep(struct toepcb *);
 void release_ddp_resources(struct toepcb *toep);
-void handle_ddp_close(struct toepcb *, struct tcpcb *, struct sockbuf *,
-    uint32_t);
+void handle_ddp_close(struct toepcb *, struct tcpcb *, uint32_t);
+void handle_ddp_indicate(struct toepcb *);
+void handle_ddp_tcb_rpl(struct toepcb *, const struct cpl_set_tcb_rpl *);
 void insert_ddp_data(struct toepcb *, uint32_t);
 
 #endif

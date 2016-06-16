@@ -261,7 +261,7 @@ error(const char *msg)
  * Something went wrong, unlink any files that we may have created and then
  * die.
  */
-void
+void __dead2
 crash(void)
 {
 	int i;

@@ -146,7 +146,7 @@ struct slccb {
 	 *****************************************/
 	struct sc_p ccb_scp;		/* given */
 	struct sc_p ccb_sscp;		/* saved scsi data pointer */
-	int ccb_datalen;		/* transfered data counter */
+	int ccb_datalen;		/* transferred data counter */
 
 	/*****************************************
 	 * Msgout 
@@ -165,7 +165,7 @@ struct slccb {
 #define	CCB_STARTQ	0x0010
 #define	CCB_POLLED	0x0100	/* polling ccb */
 #define	CCB_NORETRY	0x0200	/* do NOT retry */
-#define	CCB_AUTOSENSE	0x0400	/* do a sence after CA */
+#define	CCB_AUTOSENSE	0x0400	/* do a sense after CA */
 #define	CCB_URGENT	0x0800	/* an urgent ccb */
 #define	CCB_NOSDONE	0x1000	/* do not call an os done routine */
 #define	CCB_SCSIIO	0x2000	/* a normal scsi io coming from upper layer */

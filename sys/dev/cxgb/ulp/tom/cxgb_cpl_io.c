@@ -861,7 +861,7 @@ calc_opt0l(struct socket *so, int rcv_bufsize)
 	KASSERT(rcv_bufsize <= M_RCV_BUFSIZ,
 	    ("%s: rcv_bufsize (%d) is too high", __func__, rcv_bufsize));
 
-	if (so != NULL)		/* optional because noone cares about IP TOS */
+	if (so != NULL)		/* optional because no one cares about IP TOS */
 		opt0l |= V_TOS(INP_TOS(sotoinpcb(so)));
 
 	return (htobe32(opt0l));

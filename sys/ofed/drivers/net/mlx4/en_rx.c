@@ -552,7 +552,7 @@ mlx4_en_rx_mb(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
 /* For cpu arch with cache line of 64B the performance is better when cqe size==64B
  * To enlarge cqe size from 32B to 64B --> 32B of garbage (i.e. 0xccccccc)
  * was added in the beginning of each cqe (the real data is in the corresponding 32B).
- * The following calc ensures that when factor==1, it means we are alligned to 64B
+ * The following calc ensures that when factor==1, it means we are aligned to 64B
  * and we get the real cqe data*/
 #define CQE_FACTOR_INDEX(index, factor) ((index << factor) + factor)
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
@@ -619,7 +619,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		/* forward Toeplitz compatible hash value */
 		mb->m_pkthdr.flowid = be32_to_cpu(cqe->immed_rss_invalid);
-		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
 		    MLX4_CQE_VLAN_PRESENT_MASK) {

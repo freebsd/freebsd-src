@@ -803,16 +803,15 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * Update bss node channel to reflect where
 			 * we landed after CSA.
 			 */
-			ieee80211_node_set_chan(vap->iv_bss,
+			ieee80211_node_set_chan(ni,
 			    ieee80211_ht_adjust_channel(ic, ic->ic_curchan,
-				ieee80211_htchanflags(vap->iv_bss->ni_chan)));
+				ieee80211_htchanflags(ni->ni_chan)));
 			/* XXX bypass debug msgs */
 			break;
 		case IEEE80211_S_SCAN:
 		case IEEE80211_S_RUN:
 #ifdef IEEE80211_DEBUG
 			if (ieee80211_msg_debug(vap)) {
-				struct ieee80211_node *ni = vap->iv_bss;
 				ieee80211_note(vap,
 				    "synchronized with %s meshid ",
 				    ether_sprintf(ni->ni_meshid));
@@ -827,7 +826,7 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		default:
 			break;
 		}
-		ieee80211_node_authorize(vap->iv_bss);
+		ieee80211_node_authorize(ni);
 		callout_reset(&ms->ms_cleantimer, ms->ms_ppath->mpp_inact,
                     mesh_rt_cleanup_cb, vap);
 		mesh_gatemode_setup(vap);
@@ -1155,7 +1154,7 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	IEEE80211_TX_UNLOCK_ASSERT(ic);
 
 	/*
-	 * mesh ttl of 1 means we are the last one receving it,
+	 * mesh ttl of 1 means we are the last one receiving it,
 	 * according to amendment we decrement and then check if
 	 * 0, if so we dont forward.
 	 */
@@ -1510,10 +1509,11 @@ mesh_recv_group_data(struct ieee80211vap *vap, struct mbuf *m,
 			 * will sent it on another port member.
 			 */
 			if (ms->ms_flags & IEEE80211_MESHFLAGS_GATE &&
-			    ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
+			    ms->ms_flags & IEEE80211_MESHFLAGS_FWD) {
 				IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH,
 				    MC01(mc)->mc_addr4, "%s",
 				    "forward from MBSS to the DS");
+			}
 		}
 	}
 	return (0); /* process locally */
@@ -1526,7 +1526,6 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 {
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 #define	MC01(mc)	((const struct ieee80211_meshcntl_ae01 *)mc)
-#define	MC10(mc)	((const struct ieee80211_meshcntl_ae10 *)mc)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = vap->iv_ifp;
@@ -1826,7 +1825,6 @@ out:
 	return type;
 #undef	HAS_SEQ
 #undef	MC01
-#undef	MC10
 }
 
 static void
@@ -1981,7 +1979,6 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
 	{
 		uint8_t *ssid, *meshid, *rates, *xrates;
-		uint8_t *sfrm;
 
 		if (vap->iv_state != IEEE80211_S_RUN) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
@@ -2005,7 +2002,6 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		 *	[tlv] mesh id
 		 */
 		ssid = meshid = rates = xrates = NULL;
-		sfrm = frm;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -2116,10 +2112,10 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_meshpeer_ie *mpie;
 	uint16_t args[3];
-	const uint8_t *meshid, *meshconf, *meshpeer;
+	const uint8_t *meshid, *meshconf;
 	uint8_t sendclose = 0; /* 1 = MPM frame rejected, close will be sent */
 
-	meshid = meshconf = meshpeer = NULL;
+	meshid = meshconf = NULL;
 	while (efrm - frm > 1) {
 		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return NULL);
 		switch (*frm) {
@@ -2130,7 +2126,6 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 			meshconf = frm;
 			break;
 		case IEEE80211_ELEMID_MESHPEER:
-			meshpeer = frm;
 			mpie = (const struct ieee80211_meshpeer_ie *) frm;
 			memset(mp, 0, sizeof(*mp));
 			mp->peer_len = mpie->peer_len;
@@ -2660,7 +2655,6 @@ mesh_send_action(struct ieee80211_node *ni,
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_bpf_params params;
-	struct ieee80211_frame *wh;
 	int ret;
 
 	KASSERT(ni != NULL, ("null node"));
@@ -2681,7 +2675,6 @@ mesh_send_action(struct ieee80211_node *ni,
 	}
 
 	IEEE80211_TX_LOCK(ic);
-	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_ACTION,
 	     IEEE80211_NONQOS_TID, sa, da, sa);

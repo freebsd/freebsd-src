@@ -138,7 +138,7 @@ qla_rx_intr(qla_host_t *ha, uint64_t data, uint32_t sds_idx,
 	}
 
 	if (lro->lro_cnt && (tcp_lro_rx(lro, mp, 0) == 0)) {
-		/* LRO packet has been successfuly queued */
+		/* LRO packet has been successfully queued */
 	} else {
 		(*ifp->if_input)(ifp, mp);
 	}

@@ -161,7 +161,7 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 	extern struct sdt_probe sdt_##prov##_##mod##_##func##_##name[1]
 
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)	do {	\
-	if (sdt_##prov##_##mod##_##func##_##name->id)				\
+	if (__predict_false(sdt_##prov##_##mod##_##func##_##name->id))		\
 		(*sdt_probe_func)(sdt_##prov##_##mod##_##func##_##name->id,	\
 		    (uintptr_t) arg0, (uintptr_t) arg1, (uintptr_t) arg2,	\
 		    (uintptr_t) arg3, (uintptr_t) arg4);			\

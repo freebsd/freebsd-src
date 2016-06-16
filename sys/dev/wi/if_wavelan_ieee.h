@@ -431,7 +431,7 @@ struct wi_apinfo {
  */
 
 /*
- * standard hermes recieve frame used by wavelan/prism2 cards
+ * standard hermes receive frame used by wavelan/prism2 cards
  */
 struct wi_rx_frame {
 	/*

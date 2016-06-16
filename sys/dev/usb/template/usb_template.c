@@ -522,8 +522,8 @@ usb_make_device_desc(struct usb_temp_setup *temp,
  *	usb_hw_ep_match
  *
  * Return values:
- *    0: The endpoint profile does not match the criterias
- * Else: The endpoint profile matches the criterias
+ *    0: The endpoint profile does not match the criteria
+ * Else: The endpoint profile matches the criteria
  *------------------------------------------------------------------------*/
 static uint8_t
 usb_hw_ep_match(const struct usb_hw_ep_profile *pf,

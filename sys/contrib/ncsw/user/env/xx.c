@@ -561,7 +561,7 @@ XX_InitSpinlock(void)
 {
 	struct mtx *m;
 
-	m = malloc(sizeof(*m), M_NETCOMMSW, M_NOWAIT);
+	m = malloc(sizeof(*m), M_NETCOMMSW, M_NOWAIT | M_ZERO);
 	if (!m)
 		return (0);
 

@@ -46,12 +46,7 @@ template <class _Tp, class _VoidPtr>
 struct __hash_node
     : public __hash_node_base
              <
-                 typename pointer_traits<_VoidPtr>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                     rebind<__hash_node<_Tp, _VoidPtr> >
-#else
-                     rebind<__hash_node<_Tp, _VoidPtr> >::other
-#endif
+                 typename __rebind_pointer<_VoidPtr, __hash_node<_Tp, _VoidPtr> >::type
              >
 {
     typedef _Tp value_type;
@@ -98,13 +93,7 @@ public:
     typedef typename pointer_traits<__node_pointer>::element_type::value_type value_type;
     typedef typename pointer_traits<__node_pointer>::difference_type difference_type;
     typedef value_type&                                  reference;
-    typedef typename pointer_traits<__node_pointer>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                     rebind<value_type>
-#else
-                     rebind<value_type>::other
-#endif
-                                                         pointer;
+    typedef typename __rebind_pointer<__node_pointer, value_type>::type pointer;
 
     _LIBCPP_INLINE_VISIBILITY __hash_iterator() _NOEXCEPT
 #if _LIBCPP_STD_VER > 11
@@ -229,20 +218,8 @@ public:
     typedef typename __node::value_type                value_type;
     typedef typename pointer_traits<__node_pointer>::difference_type difference_type;
     typedef const value_type&                          reference;
-    typedef typename pointer_traits<__node_pointer>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind<const value_type>
-#else
-            rebind<const value_type>::other
-#endif
-                                                       pointer;
-    typedef typename pointer_traits<__node_pointer>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind<__node>
-#else
-            rebind<__node>::other
-#endif
-                                                      __non_const_node_pointer;
+    typedef typename __rebind_pointer<__node_pointer, const value_type>::type pointer;
+    typedef typename __rebind_pointer<__node_pointer, __node>::type __non_const_node_pointer;
     typedef __hash_iterator<__non_const_node_pointer> __non_const_iterator;
 
     _LIBCPP_INLINE_VISIBILITY __hash_const_iterator() _NOEXCEPT
@@ -376,13 +353,7 @@ public:
     typedef typename __pointer_traits::element_type::value_type value_type;
     typedef typename __pointer_traits::difference_type          difference_type;
     typedef value_type&                                         reference;
-    typedef typename __pointer_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind<value_type>
-#else
-            rebind<value_type>::other
-#endif
-                                                                pointer;
+    typedef typename __rebind_pointer<__node_pointer, value_type>::type pointer;
 
     _LIBCPP_INLINE_VISIBILITY __hash_local_iterator() _NOEXCEPT
     {
@@ -514,13 +485,9 @@ class _LIBCPP_TYPE_VIS_ONLY __hash_const_local_iterator
     typedef pointer_traits<__node_pointer>          __pointer_traits;
     typedef typename __pointer_traits::element_type __node;
     typedef typename remove_const<__node>::type     __non_const_node;
-    typedef typename pointer_traits<__node_pointer>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind<__non_const_node>
-#else
-            rebind<__non_const_node>::other
-#endif
-                                                    __non_const_node_pointer;
+    typedef typename __rebind_pointer<__node_pointer, __non_const_node>::type
+        __non_const_node_pointer;
+
     typedef __hash_local_iterator<__non_const_node_pointer>
                                                     __non_const_iterator;
 public:
@@ -530,13 +497,9 @@ public:
                      >::type                           value_type;
     typedef typename __pointer_traits::difference_type difference_type;
     typedef const value_type&                          reference;
-    typedef typename __pointer_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind<const value_type>
-#else
-            rebind<const value_type>::other
-#endif
-                                                       pointer;
+    typedef typename __rebind_pointer<__node_pointer, const value_type>::type
+        pointer;
+
 
     _LIBCPP_INLINE_VISIBILITY __hash_const_local_iterator() _NOEXCEPT
     {
@@ -780,13 +743,8 @@ public:
     typedef typename __node_traits::pointer          __node_pointer;
     typedef typename __node_traits::pointer          __node_const_pointer;
     typedef __hash_node_base<__node_pointer>         __first_node;
-    typedef typename pointer_traits<__node_pointer>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind<__first_node>
-#else
-            rebind<__first_node>::other
-#endif
-                                                     __node_base_pointer;
+    typedef typename __rebind_pointer<__node_pointer, __first_node>::type
+        __node_base_pointer;
 
 private:
 
@@ -836,6 +794,7 @@ public:
     typedef __hash_local_iterator<__node_pointer>             local_iterator;
     typedef __hash_const_local_iterator<__node_pointer>       const_local_iterator;
 
+    _LIBCPP_INLINE_VISIBILITY
     __hash_table()
         _NOEXCEPT_(
             is_nothrow_default_constructible<__bucket_list>::value &&
@@ -843,6 +802,7 @@ public:
             is_nothrow_default_constructible<__node_allocator>::value &&
             is_nothrow_default_constructible<hasher>::value &&
             is_nothrow_default_constructible<key_equal>::value);
+    _LIBCPP_INLINE_VISIBILITY
     __hash_table(const hasher& __hf, const key_equal& __eql);
     __hash_table(const hasher& __hf, const key_equal& __eql,
                  const allocator_type& __a);
@@ -863,6 +823,7 @@ public:
 
     __hash_table& operator=(const __hash_table& __u);
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+    _LIBCPP_INLINE_VISIBILITY
     __hash_table& operator=(__hash_table&& __u)
         _NOEXCEPT_(
             __node_traits::propagate_on_container_move_assignment::value &&
@@ -934,9 +895,13 @@ public:
         return __bucket_list_.get_deleter().size();
     }
 
+    _LIBCPP_INLINE_VISIBILITY
     iterator       begin() _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
     iterator       end() _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
     const_iterator begin() const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
     const_iterator end() const _NOEXCEPT;
 
     template <class _Key>
@@ -965,6 +930,7 @@ public:
     __node_holder remove(const_iterator __p) _NOEXCEPT;
 
     template <class _Key>
+        _LIBCPP_INLINE_VISIBILITY
         size_type __count_unique(const _Key& __k) const;
     template <class _Key>
         size_type __count_multi(const _Key& __k) const;
@@ -1130,11 +1096,12 @@ private:
 };
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
-inline _LIBCPP_INLINE_VISIBILITY
+inline
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::__hash_table()
     _NOEXCEPT_(
         is_nothrow_default_constructible<__bucket_list>::value &&
         is_nothrow_default_constructible<__first_node>::value &&
+        is_nothrow_default_constructible<__node_allocator>::value &&
         is_nothrow_default_constructible<hasher>::value &&
         is_nothrow_default_constructible<key_equal>::value)
     : __p2_(0),
@@ -1143,7 +1110,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__hash_table()
 }
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
-inline _LIBCPP_INLINE_VISIBILITY
+inline
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::__hash_table(const hasher& __hf,
                                                        const key_equal& __eql)
     : __bucket_list_(nullptr, __bucket_list_deleter()),
@@ -1203,6 +1170,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__hash_table(__hash_table&& __u)
         _NOEXCEPT_(
             is_nothrow_move_constructible<__bucket_list>::value &&
             is_nothrow_move_constructible<__first_node>::value &&
+            is_nothrow_move_constructible<__node_allocator>::value &&
             is_nothrow_move_constructible<hasher>::value &&
             is_nothrow_move_constructible<key_equal>::value)
     : __bucket_list_(_VSTD::move(__u.__bucket_list_)),
@@ -1410,7 +1378,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__move_assign(
 }
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
-inline _LIBCPP_INLINE_VISIBILITY
+inline
 __hash_table<_Tp, _Hash, _Equal, _Alloc>&
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::operator=(__hash_table&& __u)
     _NOEXCEPT_(
@@ -1495,7 +1463,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__assign_multi(_InputIterator __first,
 }
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
-inline _LIBCPP_INLINE_VISIBILITY
+inline
 typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::iterator
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::begin() _NOEXCEPT
 {
@@ -1507,7 +1475,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::begin() _NOEXCEPT
 }
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
-inline _LIBCPP_INLINE_VISIBILITY
+inline
 typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::iterator
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::end() _NOEXCEPT
 {
@@ -1519,7 +1487,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::end() _NOEXCEPT
 }
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
-inline _LIBCPP_INLINE_VISIBILITY
+inline
 typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::const_iterator
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::begin() const _NOEXCEPT
 {
@@ -1531,7 +1499,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::begin() const _NOEXCEPT
 }
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
-inline _LIBCPP_INLINE_VISIBILITY
+inline
 typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::const_iterator
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::end() const _NOEXCEPT
 {
@@ -2108,7 +2076,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__construct_node(const value_type& __v
     __h.get_deleter().__value_constructed = true;
     __h->__hash_ = hash_function()(__h->__value_);
     __h->__next_ = nullptr;
-    return _VSTD::move(__h);  // explicitly moved for C++03
+    return _LIBCPP_EXPLICIT_MOVE(__h);  // explicitly moved for C++03
 }
 
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
@@ -2124,7 +2092,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__construct_node(const value_type& __v
     __h.get_deleter().__value_constructed = true;
     __h->__hash_ = __hash;
     __h->__next_ = nullptr;
-    return _VSTD::move(__h);  // explicitly moved for C++03
+    return _LIBCPP_EXPLICIT_MOVE(__h);  // explicitly moved for C++03
 }
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
@@ -2256,7 +2224,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::remove(const_iterator __p) _NOEXCEPT
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
 template <class _Key>
-inline _LIBCPP_INLINE_VISIBILITY
+inline
 typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::size_type
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::__count_unique(const _Key& __k) const
 {

@@ -33,6 +33,7 @@
 #include <linux/pci.h>
 #include <linux/cache.h>
 #include <linux/rbtree.h>
+#include <linux/if_ether.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -542,6 +543,7 @@ struct mlx5_core_dev {
 	atomic_t		num_qps;
 	u32			issi;
 	struct mlx5_special_contexts special_contexts;
+	unsigned int module_status[MLX5_MAX_PORTS];
 };
 
 enum {
@@ -835,6 +837,7 @@ int mlx5_set_port_mtu(struct mlx5_core_dev *dev, int mtu);
 int mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu);
 int mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu);
 
+unsigned int mlx5_query_module_status(struct mlx5_core_dev *dev, int module_num);
 int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num);
 int mlx5_query_eeprom(struct mlx5_core_dev *dev, int i2c_addr, int page_num,
 		      int device_addr, int size, int module_num, u32 *data,

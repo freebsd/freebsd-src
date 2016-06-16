@@ -442,7 +442,7 @@ cd9660_parse_opts(const char *option, fsinfo_t *fsopts)
  */
 void
 cd9660_makefs(const char *image, const char *dir, fsnode *root,
-	      fsinfo_t *fsopts)
+    fsinfo_t *fsopts)
 {
 	int64_t startoffset;
 	int numDirectories;
@@ -619,7 +619,7 @@ typedef int (*cd9660node_func)(cd9660node *);
 static void
 cd9660_finalize_PVD(void)
 {
-	time_t tim;
+	time_t tstamp = stampst.st_ino ? stampst.st_mtime : time(NULL);
 
 	/* root should be a fixed size of 34 bytes since it has no name */
 	memcpy(diskStructure.primaryDescriptor.root_directory_record,
@@ -668,23 +668,26 @@ cd9660_finalize_PVD(void)
 		diskStructure.primaryDescriptor.bibliographic_file_id, 37);
 
 	/* Setup dates */
-	time(&tim);
 	cd9660_time_8426(
 	    (unsigned char *)diskStructure.primaryDescriptor.creation_date,
-	    tim);
+	    tstamp);
 	cd9660_time_8426(
 	    (unsigned char *)diskStructure.primaryDescriptor.modification_date,
-	    tim);
+	    tstamp);
 
-	/*
-	cd9660_set_date(diskStructure.primaryDescriptor.expiration_date, now);
-	*/
+#if 0
+	cd9660_set_date(diskStructure.primaryDescriptor.expiration_date,
+	    tstamp);
+#endif
 
 	memset(diskStructure.primaryDescriptor.expiration_date, '0', 16);
 	diskStructure.primaryDescriptor.expiration_date[16] = 0;
 	cd9660_time_8426(
 	    (unsigned char *)diskStructure.primaryDescriptor.effective_date,
-	    tim);
+	    tstamp);
+	/* make this sane */
+	cd9660_time_915(diskStructure.rootNode->dot_record->isoDirRecord->date,
+	    tstamp);
 }
 
 static void
@@ -774,7 +777,7 @@ cd9660_setup_volume_descriptors(void)
 	temp->next = t;
 	memset(t->volumeDescriptorData, 0, 2048);
 	t->volumeDescriptorData[0] = ISO_VOLUME_DESCRIPTOR_TERMINATOR;
-	t->next = 0;
+	t->next = NULL;
 	t->volumeDescriptorData[6] = 1;
 	t->sector = sector;
 	memcpy(t->volumeDescriptorData + 1,
@@ -805,7 +808,7 @@ cd9660_fill_extended_attribute_record(cd9660node *node)
 static int
 cd9660_translate_node_common(cd9660node *newnode)
 {
-	time_t tim;
+	time_t tstamp = stampst.st_ino ? stampst.st_mtime : time(NULL);
 	int test;
 	u_char flag;
 	char temp[ISO_FILENAME_MAXLENGTH_WITH_PADDING];
@@ -826,9 +829,8 @@ cd9660_translate_node_common(cd9660node *newnode)
 	/* Set the various dates */
 
 	/* If we want to use the current date and time */
-	time(&tim);
 
-	cd9660_time_915(newnode->isoDirRecord->date, tim);
+	cd9660_time_915(newnode->isoDirRecord->date, tstamp);
 
 	cd9660_bothendian_dword(newnode->fileDataLength,
 	    newnode->isoDirRecord->size);
@@ -873,7 +875,8 @@ cd9660_translate_node(fsnode *node, cd9660node *newnode)
 		return 0;
 
 	/* Finally, overwrite some of the values that are set by default */
-	cd9660_time_915(newnode->isoDirRecord->date, node->inode->st.st_mtime);
+	cd9660_time_915(newnode->isoDirRecord->date,
+	    stampst.st_ino ? stampst.st_mtime : node->inode->st.st_mtime);
 
 	return 1;
 }
@@ -1258,6 +1261,8 @@ cd9660_rrip_move_directory(cd9660node *dir)
 				diskStructure.rootNode, dir);
 		if (diskStructure.rr_moved_dir == NULL)
 			return 0;
+		cd9660_time_915(diskStructure.rr_moved_dir->isoDirRecord->date,
+		    stampst.st_ino ? stampst.st_mtime : start_time.tv_sec);
 	}
 
 	/* Create a file with the same ORIGINAL name */
@@ -1403,7 +1408,7 @@ cd9660_convert_structure(fsnode *root, cd9660node *parent_node, int level,
 						this_node->level =
 						    working_level - 1;
 						if (cd9660_rrip_move_directory(
-							this_node) == 0) {
+							this_node) == NULL) {
 							warnx("Failure in "
 							      "cd9660_rrip_"
 							      "move_directory"
@@ -1416,7 +1421,7 @@ cd9660_convert_structure(fsnode *root, cd9660node *parent_node, int level,
 				}
 
 				/* Do the recursive call on the children */
-				if (iterator->child != 0) {
+				if (iterator->child != NULL) {
 					cd9660_convert_structure(
 					    iterator->child, this_node,
 						working_level,
@@ -1445,7 +1450,7 @@ cd9660_convert_structure(fsnode *root, cd9660node *parent_node, int level,
 			}
 
 			/*Allocate new temp_node */
-			if (iterator->next != 0) {
+			if (iterator->next != NULL) {
 				this_node = cd9660_allocate_cd9660node();
 				if (this_node == NULL)
 					CD9660_MEM_ALLOC_ERROR(__func__);
@@ -1733,7 +1738,7 @@ cd9660_convert_filename(const char *oldname, char *newname, int is_file)
 {
 	assert(1 <= diskStructure.isoLevel && diskStructure.isoLevel <= 2);
 	/* NEW */
-	cd9660_filename_conversion_functor conversion_function = 0;
+	cd9660_filename_conversion_functor conversion_function = NULL;
 	if (diskStructure.isoLevel == 1)
 		conversion_function = &cd9660_level1_convert_filename;
 	else if (diskStructure.isoLevel == 2)

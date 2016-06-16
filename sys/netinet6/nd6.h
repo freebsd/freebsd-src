@@ -316,6 +316,10 @@ struct nd_pfxrouter {
 
 LIST_HEAD(nd_prhead, nd_prefix);
 
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_IP6NDP);
+#endif
+
 /* nd6.c */
 VNET_DECLARE(int, nd6_prune);
 VNET_DECLARE(int, nd6_delay);
@@ -424,7 +428,7 @@ void nd6_purge(struct ifnet *);
 int nd6_resolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
     char *desten, uint32_t *pflags);
 int nd6_resolve(struct ifnet *, int, struct mbuf *,
-    const struct sockaddr *, u_char *, uint32_t *);
+    const struct sockaddr *, u_char *, uint32_t *, struct llentry **);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);
 void nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 	char *, int, int, int);

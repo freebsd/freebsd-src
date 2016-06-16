@@ -53,6 +53,8 @@ struct siba_core_id;
 int			 siba_probe(device_t dev);
 int			 siba_attach(device_t dev);
 int			 siba_detach(device_t dev);
+int			 siba_resume(device_t dev);
+int			 siba_suspend(device_t dev);
 
 uint16_t		 siba_get_bhnd_mfgid(uint16_t ocp_vendor);
 
@@ -95,6 +97,8 @@ struct siba_addrspace {
 	u_int		sa_region_num;	/**< bhnd region id */
 	uint8_t		sa_sid;		/**< siba-assigned address space ID */
 	int		sa_rid;		/**< bus resource id */
+	uint32_t	sa_bus_reserved;/**< number of bytes at high end of
+					  *  address space reserved for the bus */
 
 	STAILQ_ENTRY(siba_addrspace) sa_link;
 };
@@ -145,6 +149,8 @@ struct siba_devinfo {
 /** siba(4) per-instance state */
 struct siba_softc {
 	struct bhnd_softc	bhnd_sc;	/**< bhnd state */
+	device_t		dev;		/**< siba device */
+	device_t		hostb_dev;	/**< host bridge core, or NULL */
 };
 
 #endif /* _SIBA_SIBAVAR_H_ */

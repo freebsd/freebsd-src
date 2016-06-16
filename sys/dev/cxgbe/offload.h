@@ -87,7 +87,7 @@ struct tid_info {
 	u_int nstids;
 	u_int stid_base;
 	u_int stids_in_use;
-	u_int nstids_free_head;	/* # of available stids at the begining */
+	u_int nstids_free_head;	/* # of available stids at the beginning */
 	struct stid_head stids;
 
 	struct mtx atid_lock __aligned(CACHE_LINE_SIZE);
@@ -145,8 +145,6 @@ struct uld_info {
 struct tom_tunables {
 	int sndbuf;
 	int ddp;
-	int indsz;
-	int ddp_thres;
 	int rx_coalesce;
 	int tx_align;
 };

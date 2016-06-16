@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2016
+.Dd June 6, 2016
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -542,6 +542,11 @@ Output is similar to
 but also includes the address of the TTY structure.
 .\"
 .Pp
+.It Ic show Cm all vnets
+Show the same output as "show vnet" does, but lists all
+virtualized network stacks within the system.
+.\"
+.Pp
 .It Ic show Cm allchains
 Show the same information like "show lockchain" does, but
 for every thread in the system.
@@ -592,6 +597,13 @@ present at
 See the
 .Pa sys/buf.h
 header file for more details on the exact meaning of the structure fields.
+.\"
+.Pp
+.It Ic show Cm callout Ar addr
+Show information about the callout structure
+.Vt struct callout
+present at
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm cbstat
@@ -674,6 +686,13 @@ Show IDT layout.
 The first column specifies the IDT vector.
 The second one is the name of the interrupt/trap handler.
 Those functions are machine dependent.
+.\"
+.Pp
+.It Ic show Cm igi_list Ar addr
+Show information about the IGMP structure
+.Vt struct igmp_ifsoftc
+present at
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm inodedeps Op Ar addr
@@ -827,6 +846,10 @@ If the
 .Cm f
 option is specified the
 complete object is printed.
+.\"
+.Pp
+.It Ic show Cm panic
+Print the panic message if set.
 .\"
 .Pp
 .It Ic show Cm page
@@ -1058,6 +1081,13 @@ VM object.
 Currently, it is not possible to use this command when
 .Xr witness 4
 is compiled in the kernel.
+.\"
+.Pp
+.It Ic show Cm vnet Ar addr
+Prints virtualized network stack
+.Vt struct vnet
+structure present at the address
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm vnode Op Ar addr

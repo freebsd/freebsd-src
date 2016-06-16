@@ -115,7 +115,8 @@ tsec_fdt_probe(device_t dev)
 	    strcmp(ofw_bus_get_type(dev), "network") != 0)
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "gianfar"))
+	if (!ofw_bus_is_compatible(dev, "gianfar") &&
+	    !ofw_bus_is_compatible(dev, "fsl,etsec2"))
 		return (ENXIO);
 
 	sc = device_get_softc(dev);

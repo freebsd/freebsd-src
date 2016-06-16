@@ -5,8 +5,7 @@
 #
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
+
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
 
 IMAGE=		1.img
@@ -26,16 +25,12 @@ ${UZIMAGE}: ${IMAGE} ${ZIMAGE}
 	printf "FreeBSD$$\n#\n\n" >> ${.TARGET}
 	uuencode ${ZIMAGE} ${ZIMAGE} >>${.TARGET}
 
-FILES+=		conf.sh
-FILESNAME_conf.sh=	conf.sh
+${PACKAGE}FILES+=		conf.sh \
+				${UZIMAGE}
 
-FILES+=		${UZIMAGE}
-FILESDIR=	${TESTSDIR}
-
-FILESGROUPS+=	FILES etalon
+FILESGROUPS+=	etalon
 etalon+=	etalon/etalon.txt
 etalonDIR=	${TESTSDIR}/etalon
-FILESPACKAGE=	${PACKAGE}
 etalonPACKAGE=	${PACKAGE}
 
 TAP_TESTS_SH+=	1_test

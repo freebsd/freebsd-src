@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/rwlock.h>
 
+#if defined(INTRNG)
+#include <machine/intr.h>
+#endif
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -158,6 +162,7 @@ pci_host_generic_attach(device_t dev)
 	uint64_t phys_base;
 	uint64_t pci_base;
 	uint64_t size;
+	phandle_t node;
 	int error;
 	int tuple;
 	int rid;
@@ -175,6 +180,29 @@ pci_host_generic_attach(device_t dev)
 	/* Attach OFW bus */
 	if (generic_pcie_ofw_bus_attach(dev) != 0)
 		return (ENXIO);
+
+	node = ofw_bus_get_node(dev);
+	if (sc->coherent == 0) {
+		sc->coherent = OF_hasprop(node, "dma-coherent");
+	}
+	if (bootverbose)
+		device_printf(dev, "Bus is%s cache-coherent\n",
+		    sc->coherent ? "" : " not");
+
+	/* Create the parent DMA tag to pass down the coherent flag */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
+	    1, 0,				/* alignment, bounds */
+	    BUS_SPACE_MAXADDR,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE,			/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,		/* nsegments */
+	    BUS_SPACE_MAXSIZE,			/* maxsegsize */
+	    sc->coherent ? BUS_DMA_COHERENT : 0, /* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->dmat);
+	if (error != 0)
+		return (error);
 
 	rid = 0;
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -227,8 +255,7 @@ pci_host_generic_attach(device_t dev)
 		}
 	}
 
-	ofw_bus_setup_iinfo(ofw_bus_get_node(dev), &sc->pci_iinfo,
-	    sizeof(cell_t));
+	ofw_bus_setup_iinfo(node, &sc->pci_iinfo, sizeof(cell_t));
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
@@ -496,7 +523,14 @@ static int
 generic_pcie_release_resource(device_t dev, device_t child, int type,
     int rid, struct resource *res)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct generic_pcie_softc *sc;
 
+	if (type == PCI_RES_BUS) {
+		sc = device_get_softc(dev);
+		return (pci_domain_release_bus(sc->ecam, child, rid, res));
+	}
+#endif
 	/* For PCIe devices that do not have FDT nodes, use PCIB method */
 	if ((int)ofw_bus_get_node(child) <= 0) {
 		return (generic_pcie_release_resource_pcie(dev,
@@ -512,7 +546,15 @@ struct resource *
 pci_host_generic_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct generic_pcie_softc *sc;
 
+	if (type == PCI_RES_BUS) {
+		sc = device_get_softc(dev);
+		return (pci_domain_alloc_bus(sc->ecam, child, rid, start, end,
+		    count, flags));
+	}
+#endif
 	/* For PCIe devices that do not have FDT nodes, use PCIB method */
 	if ((int)ofw_bus_get_node(child) <= 0)
 		return (generic_pcie_alloc_resource_pcie(dev, child, type, rid,
@@ -574,6 +616,11 @@ generic_pcie_adjust_resource(device_t dev, device_t child, int type,
 	struct rman *rm;
 
 	sc = device_get_softc(dev);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->ecam, child, res, start,
+		    end));
+#endif
 
 	rm = generic_pcie_rman(sc, type);
 	if (rm != NULL)
@@ -613,6 +660,7 @@ generic_pcie_activate_resource(device_t dev, device_t child, int type, int rid,
 		}
 		if (found) {
 			rman_set_start(r, rman_get_start(r) + phys_base);
+			rman_set_end(r, rman_get_end(r) + phys_base);
 			BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child,
 						type, rid, r);
 		} else {
@@ -656,12 +704,27 @@ generic_pcie_deactivate_resource(device_t dev, device_t child, int type, int rid
 	return (res);
 }
 
+static bus_dma_tag_t
+generic_pcie_get_dma_tag(device_t dev, device_t child)
+{
+	struct generic_pcie_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->dmat);
+}
+
 static int
 generic_pcie_alloc_msi(device_t pci, device_t child, int count, int maxcount,
     int *irqs)
 {
+#if defined(INTRNG)
+	phandle_t msi_parent;
 
-#if defined(__aarch64__)
+	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
+	    NULL);
+	return (intr_alloc_msi(pci, child, msi_parent, count, maxcount,
+	    irqs));
+#elif defined(__aarch64__)
 	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
 #else
 	return (ENXIO);
@@ -671,8 +734,13 @@ generic_pcie_alloc_msi(device_t pci, device_t child, int count, int maxcount,
 static int
 generic_pcie_release_msi(device_t pci, device_t child, int count, int *irqs)
 {
+#if defined(INTRNG)
+	phandle_t msi_parent;
 
-#if defined(__aarch64__)
+	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
+	    NULL);
+	return (intr_release_msi(pci, child, msi_parent, count, irqs));
+#elif defined(__aarch64__)
 	return (arm_release_msi(pci, child, count, irqs));
 #else
 	return (ENXIO);
@@ -683,8 +751,13 @@ static int
 generic_pcie_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
     uint32_t *data)
 {
+#if defined(INTRNG)
+	phandle_t msi_parent;
 
-#if defined(__aarch64__)
+	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
+	    NULL);
+	return (intr_map_msi(pci, child, msi_parent, irq, addr, data));
+#elif defined(__aarch64__)
 	return (arm_map_msi(pci, child, irq, addr, data));
 #else
 	return (ENXIO);
@@ -694,8 +767,13 @@ generic_pcie_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
 static int
 generic_pcie_alloc_msix(device_t pci, device_t child, int *irq)
 {
+#if defined(INTRNG)
+	phandle_t msi_parent;
 
-#if defined(__aarch64__)
+	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
+	    NULL);
+	return (intr_alloc_msix(pci, child, msi_parent, irq));
+#elif defined(__aarch64__)
 	return (arm_alloc_msix(pci, child, irq));
 #else
 	return (ENXIO);
@@ -705,12 +783,37 @@ generic_pcie_alloc_msix(device_t pci, device_t child, int *irq)
 static int
 generic_pcie_release_msix(device_t pci, device_t child, int irq)
 {
+#if defined(INTRNG)
+	phandle_t msi_parent;
 
-#if defined(__aarch64__)
+	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
+	    NULL);
+	return (intr_release_msix(pci, child, msi_parent, irq));
+#elif defined(__aarch64__)
 	return (arm_release_msix(pci, child, irq));
 #else
 	return (ENXIO);
 #endif
+}
+
+int
+generic_pcie_get_id(device_t pci, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	phandle_t node;
+	uint32_t rid;
+	uint16_t pci_rid;
+
+	if (type != PCI_ID_MSI)
+		return (pcib_get_id(pci, child, type, id));
+
+	node = ofw_bus_get_node(pci);
+	pci_rid = pci_get_rid(child);
+
+	ofw_bus_msimap(node, pci_rid, NULL, &rid);
+	*id = rid;
+
+	return (0);
 }
 
 static device_method_t generic_pcie_methods[] = {
@@ -726,6 +829,8 @@ static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
+	DEVMETHOD(bus_get_dma_tag,		generic_pcie_get_dma_tag),
+
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,		generic_pcie_maxslots),
 	DEVMETHOD(pcib_route_interrupt,		generic_pcie_route_interrupt),
@@ -736,6 +841,7 @@ static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(pcib_alloc_msix,		generic_pcie_alloc_msix),
 	DEVMETHOD(pcib_release_msix,		generic_pcie_release_msix),
 	DEVMETHOD(pcib_map_msi,			generic_pcie_map_msi),
+	DEVMETHOD(pcib_get_id,			generic_pcie_get_id),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,		generic_pcie_ofw_get_devinfo),
@@ -843,7 +949,9 @@ generic_pcie_ofw_bus_attach(device_t dev)
 			resource_list_init(&di->di_rl);
 			ofw_bus_reg_to_rl(dev, node, addr_cells, size_cells,
 			    &di->di_rl);
+#ifndef INTRNG
 			ofw_bus_intr_to_rl(dev, node, &di->di_rl, NULL);
+#endif
 
 			/* Add newbus device for this FDT node */
 			child = device_add_child(dev, NULL, -1);

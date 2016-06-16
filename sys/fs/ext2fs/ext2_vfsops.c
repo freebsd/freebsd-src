@@ -158,11 +158,9 @@ ext2_mount(struct mount *mp)
 			}
 			fs->e2fs_ronly = 1;
 			vfs_flagopt(opts, "ro", &mp->mnt_flag, MNT_RDONLY);
-			DROP_GIANT();
 			g_topology_lock();
 			g_access(ump->um_cp, 0, -1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			error = ext2_reload(mp, td);
@@ -187,11 +185,9 @@ ext2_mount(struct mount *mp)
 				return (error);
 			}
 			VOP_UNLOCK(devvp, 0);
-			DROP_GIANT();
 			g_topology_lock();
 			error = g_access(ump->um_cp, 0, 1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			if (error)
 				return (error);
 
@@ -357,10 +353,10 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg / fs->e2fs_ipb;
 	/* s_resuid / s_resgid ? */
-	fs->e2fs_gcount = (es->e2fs_bcount - es->e2fs_first_dblock +
-	    EXT2_BLOCKS_PER_GROUP(fs) - 1) / EXT2_BLOCKS_PER_GROUP(fs);
+	fs->e2fs_gcount = howmany(es->e2fs_bcount - es->e2fs_first_dblock,
+	    EXT2_BLOCKS_PER_GROUP(fs));
 	e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
-	db_count = (fs->e2fs_gcount + e2fs_descpb - 1) / e2fs_descpb;
+	db_count = howmany(fs->e2fs_gcount, e2fs_descpb);
 	fs->e2fs_gdbcount = db_count;
 	fs->e2fs_gd = malloc(db_count * fs->e2fs_bsize,
 	    M_EXT2MNT, M_WAITOK);
@@ -547,11 +543,9 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 
 	ronly = vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0);
 	/* XXX: use VOP_ACESS to check FS perms */
-	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ext2fs", ronly ? 0 : 1);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
@@ -559,11 +553,9 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	/* XXX: should we check for some sectorsize or 512 instead? */
 	if (((SBSIZE % cp->provider->sectorsize) != 0) ||
 	    (SBSIZE < cp->provider->sectorsize)) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 		return (EINVAL);
 	}
 
@@ -683,11 +675,9 @@ out:
 	if (bp)
 		brelse(bp);
 	if (cp != NULL) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 	}
 	if (ump) {
 		mtx_destroy(EXT2_MTX(ump));
@@ -729,11 +719,9 @@ ext2_unmount(struct mount *mp, int mntflags)
 		ext2_sbupdate(ump, MNT_WAIT);
 	}
 
-	DROP_GIANT();
 	g_topology_lock();
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	vrele(ump->um_devvp);
 	sump = fs->e2fs_clustersum;
 	for (i = 0; i < fs->e2fs_gcount; i++, sump++)
@@ -970,7 +958,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 */
 	if (!(ip->i_flag & IN_E4EXTENTS) &&
 	    (S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode))) {
-		used_blocks = (ip->i_size+fs->e2fs_bsize-1) / fs->e2fs_bsize;
+		used_blocks = howmany(ip->i_size, fs->e2fs_bsize);
 		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;
 	}
@@ -993,15 +981,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 * Finish inode initialization.
 	 */
 
-	/*
-	 * Set up a generation number for this inode if it does not
-	 * already have one. This should only happen on old filesystems.
-	 */
-	if (ip->i_gen == 0) {
-		ip->i_gen = random() + 1;
-		if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0)
-			ip->i_flag |= IN_MODIFIED;
-	}
 	*vpp = vp;
 	return (0);
 }

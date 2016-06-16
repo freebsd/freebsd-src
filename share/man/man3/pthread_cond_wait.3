@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 2006
+.Dd April 29, 2016
 .Dt PTHREAD_COND_WAIT 3
 .Os
 .Sh NAME
@@ -75,13 +75,25 @@ is invalid.
 The specified
 .Fa mutex
 was not locked by the calling thread.
+.It Bq Er EOWNERDEAD
+The argument
+.Fa mutex
+points to a robust mutex and the previous owning thread terminated
+while holding the mutex lock.
+The lock was granted to the caller and it is up to the new owner
+to make the state consistent.
+.It Bq Er ENOTRECOVERABLE
+The state protected by the
+.Fa mutex
+is not recoverable.
 .El
 .Sh SEE ALSO
 .Xr pthread_cond_broadcast 3 ,
 .Xr pthread_cond_destroy 3 ,
 .Xr pthread_cond_init 3 ,
 .Xr pthread_cond_signal 3 ,
-.Xr pthread_cond_timedwait 3
+.Xr pthread_cond_timedwait 3 ,
+.Xr pthread_mutex_consistent 3
 .Sh STANDARDS
 The
 .Fn pthread_cond_wait

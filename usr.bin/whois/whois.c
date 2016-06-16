@@ -101,6 +101,7 @@ static struct {
 	{ "-RIPE", RNICHOST },
 	/* Nominet's whois server doesn't return referrals to JANET */
 	{ ".ac.uk", "ac.uk" QNICHOST_TAIL },
+	{ ".gov.uk", "ac.uk" QNICHOST_TAIL },
 	{ "", IANAHOST }, /* default */
 	{ NULL, NULL } /* safety belt */
 };
@@ -285,19 +286,15 @@ s_asprintf(char **ret, const char *format, ...)
 	va_end(ap);
 }
 
-static void
-whois(const char *query, const char *hostname, int flags)
+static int
+connect_to_any_host(struct addrinfo *hostres)
 {
-	FILE *fp;
-	struct addrinfo *hostres, *res;
-	char *buf, *host, *nhost, *p;
-	int s = -1, f;
+	struct addrinfo *res;
 	nfds_t i, j;
-	size_t len, count;
+	size_t count;
 	struct pollfd *fds;
-	int timeout = 180;
+	int timeout = 180, s = -1;
 
-	hostres = gethostinfo(hostname, 1);
 	for (res = hostres, count = 0; res; res = res->ai_next)
 		count++;
 	fds = calloc(count, sizeof(*fds));
@@ -320,6 +317,11 @@ whois(const char *query, const char *hostname, int flags)
 				fds[i].fd = s;
 				fds[i].events = POLLERR | POLLHUP |
 						POLLIN | POLLOUT;
+				/*
+				 * From here until a socket connects, the
+				 * socket fd is owned by the fds[] poll array.
+				 */
+				s = -1;
 				count++;
 				i++;
 			} else {
@@ -361,7 +363,7 @@ whois(const char *query, const char *hostname, int flags)
 				 * after a new host have been added.
 				 */
 				if (timeout >= 3)
-					timeout <<= 1;
+					timeout >>= 1;
 
 				break;
 			} else if (n < 0) {
@@ -381,7 +383,7 @@ whois(const char *query, const char *hostname, int flags)
 				    fds[j].revents == 0)
 					continue;
 				if (fds[j].revents & ~(POLLIN | POLLOUT)) {
-					close(s);
+					close(fds[j].fd);
 					fds[j].fd = -1;
 					fds[j].events = 0;
 					count--;
@@ -389,6 +391,7 @@ whois(const char *query, const char *hostname, int flags)
 				} else if (fds[j].revents & (POLLIN | POLLOUT)) {
 					/* Connect succeeded. */
 					s = fds[j].fd;
+					fds[j].fd = -1;
 
 					goto done;
 				}
@@ -401,15 +404,29 @@ whois(const char *query, const char *hostname, int flags)
 	s = -1;
 	if (count == 0)
 		errno = ETIMEDOUT;
-done:
-	if (s == -1)
-		err(EX_OSERR, "connect()");
 
+done:
 	/* Close all watched fds except the succeeded one */
 	for (j = 0; j < i; j++)
-		if (fds[j].fd != s && fds[j].fd != -1)
+		if (fds[j].fd != -1)
 			close(fds[j].fd);
 	free(fds);
+	return (s);
+}
+
+static void
+whois(const char *query, const char *hostname, int flags)
+{
+	FILE *fp;
+	struct addrinfo *hostres;
+	char *buf, *host, *nhost, *p;
+	int s, f;
+	size_t len, i;
+
+	hostres = gethostinfo(hostname, 1);
+	s = connect_to_any_host(hostres);
+	if (s == -1)
+		err(EX_OSERR, "connect()");
 
 	/* Restore default blocking behavior.  */
 	if ((f = fcntl(s, F_GETFL)) == -1)

@@ -158,7 +158,7 @@ ahci_a10_phy_reset(device_t dev)
 	struct ahci_controller *ctlr = device_get_softc(dev);
 
 	/*
-	 * Here start the the magic -- most of the comments are based
+	 * Here starts the magic -- most of the comments are based
 	 * on guesswork, names of routines and printf error
 	 * messages.  The code works, but it will do that even if the
 	 * comments are 100% BS.

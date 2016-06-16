@@ -51,10 +51,15 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/md_var.h>
+#endif
+
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/cdev.h>
 #include <linux/file.h>
 #include <linux/sysfs.h>
@@ -66,8 +71,14 @@ __FBSDID("$FreeBSD$");
 #include <linux/workqueue.h>
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
+#include <linux/uaccess.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/compat.h>
 
 #include <vm/vm_pager.h>
+
+SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
@@ -373,13 +384,32 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	return kobject_add_complete(kobj, parent);
 }
 
+void
+linux_set_current(struct thread *td, struct task_struct *t)
+{
+	memset(t, 0, sizeof(*t));
+	task_struct_fill(td, t);
+	task_struct_set(td, t);
+}
+
+void
+linux_clear_current(struct thread *td)
+{
+	task_struct_set(td, NULL);
+}
+
 static void
 linux_file_dtor(void *cdp)
 {
 	struct linux_file *filp;
+	struct task_struct t;
+	struct thread *td;
 
+	td = curthread;
 	filp = cdp;
+	linux_set_current(td, &t);
 	filp->f_op->release(filp->f_vnode, filp);
+	linux_clear_current(td);
 	vdrop(filp->f_vnode);
 	kfree(filp);
 }
@@ -389,10 +419,11 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
+	struct task_struct t;
 	struct file *file;
 	int error;
 
-	file = curthread->td_fpop;
+	file = td->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (ENODEV);
@@ -402,21 +433,22 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	filp->f_flags = file->f_flag;
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
+	linux_set_current(td, &t);
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
 			kfree(filp);
-			return (error);
+			goto done;
 		}
 	}
 	error = devfs_set_cdevpriv(filp, linux_file_dtor);
 	if (error) {
 		filp->f_op->release(file->f_vnode, filp);
 		kfree(filp);
-		return (error);
 	}
-
-	return 0;
+done:
+	linux_clear_current(td);
+	return (error);
 }
 
 static int
@@ -427,7 +459,7 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	struct file *file;
 	int error;
 
-	file = curthread->td_fpop;
+	file = td->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (0);
@@ -440,33 +472,106 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	return (0);
 }
 
+#define	LINUX_IOCTL_MIN_PTR 0x10000UL
+#define	LINUX_IOCTL_MAX_PTR (LINUX_IOCTL_MIN_PTR + IOCPARM_MAX)
+
+static inline int
+linux_remap_address(void **uaddr, size_t len)
+{
+	uintptr_t uaddr_val = (uintptr_t)(*uaddr);
+
+	if (unlikely(uaddr_val >= LINUX_IOCTL_MIN_PTR &&
+	    uaddr_val < LINUX_IOCTL_MAX_PTR)) {
+		struct task_struct *pts = current;
+		if (pts == NULL) {
+			*uaddr = NULL;
+			return (1);
+		}
+
+		/* compute data offset */
+		uaddr_val -= LINUX_IOCTL_MIN_PTR;
+
+		/* check that length is within bounds */
+		if ((len > IOCPARM_MAX) ||
+		    (uaddr_val + len) > pts->bsd_ioctl_len) {
+			*uaddr = NULL;
+			return (1);
+		}
+
+		/* re-add kernel buffer address */
+		uaddr_val += (uintptr_t)pts->bsd_ioctl_data;
+
+		/* update address location */
+		*uaddr = (void *)uaddr_val;
+		return (1);
+	}
+	return (0);
+}
+
+int
+linux_copyin(const void *uaddr, void *kaddr, size_t len)
+{
+	if (linux_remap_address(__DECONST(void **, &uaddr), len)) {
+		if (uaddr == NULL)
+			return (-EFAULT);
+		memcpy(kaddr, uaddr, len);
+		return (0);
+	}
+	return (-copyin(uaddr, kaddr, len));
+}
+
+int
+linux_copyout(const void *kaddr, void *uaddr, size_t len)
+{
+	if (linux_remap_address(&uaddr, len)) {
+		if (uaddr == NULL)
+			return (-EFAULT);
+		memcpy(uaddr, kaddr, len);
+		return (0);
+	}
+	return (-copyout(kaddr, uaddr, len));
+}
+
 static int
 linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
+	struct task_struct t;
 	struct file *file;
+	unsigned size;
 	int error;
 
-	file = curthread->td_fpop;
+	file = td->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-	/*
-	 * Linux does not have a generic ioctl copyin/copyout layer.  All
-	 * linux ioctls must be converted to void ioctls which pass a
-	 * pointer to the address of the data.  We want the actual user
-	 * address so we dereference here.
-	 */
-	data = *(void **)data;
+	linux_set_current(td, &t);
+	size = IOCPARM_LEN(cmd);
+	/* refer to logic in sys_ioctl() */
+	if (size > 0) {
+		/*
+		 * Setup hint for linux_copyin() and linux_copyout().
+		 *
+		 * Background: Linux code expects a user-space address
+		 * while FreeBSD supplies a kernel-space address.
+		 */
+		t.bsd_ioctl_data = data;
+		t.bsd_ioctl_len = size;
+		data = (void *)LINUX_IOCTL_MIN_PTR;
+	} else {
+		/* fetch user-space pointer */
+		data = *(void **)data;
+	}
 	if (filp->f_op->unlocked_ioctl)
 		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
 	else
 		error = ENOTTY;
+	linux_clear_current(td);
 
 	return (error);
 }
@@ -476,20 +581,24 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
+	struct task_struct t;
+	struct thread *td;
 	struct file *file;
 	ssize_t bytes;
 	int error;
 
-	file = curthread->td_fpop;
+	td = curthread;
+	file = td->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
-		panic("linux_dev_read: uio %p iovcnt %d",
-		    uio, uio->uio_iovcnt);
+		return (EOPNOTSUPP);
+	linux_set_current(td, &t);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -502,6 +611,7 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 			error = -bytes;
 	} else
 		error = ENXIO;
+	linux_clear_current(td);
 
 	return (error);
 }
@@ -511,20 +621,24 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
+	struct task_struct t;
+	struct thread *td;
 	struct file *file;
 	ssize_t bytes;
 	int error;
 
-	file = curthread->td_fpop;
+	td = curthread;
+	file = td->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
-		panic("linux_dev_write: uio %p iovcnt %d",
-		    uio, uio->uio_iovcnt);
+		return (EOPNOTSUPP);
+	linux_set_current(td, &t);
 	if (filp->f_op->write) {
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -537,6 +651,7 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 			error = -bytes;
 	} else
 		error = ENXIO;
+	linux_clear_current(td);
 
 	return (error);
 }
@@ -546,21 +661,24 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
+	struct task_struct t;
 	struct file *file;
 	int revents;
 	int error;
 
-	file = curthread->td_fpop;
+	file = td->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+	linux_set_current(td, &t);
 	if (filp->f_op->poll)
 		revents = filp->f_op->poll(filp, NULL) & events;
 	else
 		revents = 0;
+	linux_clear_current(td);
 
 	return (revents);
 }
@@ -571,17 +689,21 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
+	struct thread *td;
+	struct task_struct t;
 	struct file *file;
 	struct vm_area_struct vma;
 	int error;
 
-	file = curthread->td_fpop;
+	td = curthread;
+	file = td->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (ENODEV);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+	linux_set_current(td, &t);
 	vma.vm_start = 0;
 	vma.vm_end = size;
 	vma.vm_pgoff = *offset / PAGE_SIZE;
@@ -596,10 +718,11 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 			sglist_append_phys(sg,
 			    (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT, vma.vm_len);
 			*object = vm_pager_allocate(OBJT_SG, sg, vma.vm_len,
-			    nprot, 0, curthread->td_ucred);
+			    nprot, 0, td->td_ucred);
 		        if (*object == NULL) {
 				sglist_free(sg);
-				return (EINVAL);
+				error = EINVAL;
+				goto done;
 			}
 			*offset = 0;
 			if (vma.vm_page_prot != VM_MEMATTR_DEFAULT) {
@@ -611,7 +734,8 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		}
 	} else
 		error = ENODEV;
-
+done:
+	linux_clear_current(td);
 	return (error);
 }
 
@@ -632,15 +756,17 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
 	struct linux_file *filp;
+	struct task_struct t;
 	ssize_t bytes;
 	int error;
 
 	error = 0;
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
+	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
-		panic("linux_file_read: uio %p iovcnt %d",
-		    uio, uio->uio_iovcnt);
+		return (EOPNOTSUPP);
+	linux_set_current(td, &t);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -653,6 +779,7 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 			error = -bytes;
 	} else
 		error = ENXIO;
+	linux_clear_current(td);
 
 	return (error);
 }
@@ -662,27 +789,33 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
     struct thread *td)
 {
 	struct linux_file *filp;
+	struct task_struct t;
 	int revents;
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
+	linux_set_current(td, &t);
 	if (filp->f_op->poll)
 		revents = filp->f_op->poll(filp, NULL) & events;
 	else
 		revents = 0;
+	linux_clear_current(td);
 
-	return (0);
+	return (revents);
 }
 
 static int
 linux_file_close(struct file *file, struct thread *td)
 {
 	struct linux_file *filp;
+	struct task_struct t;
 	int error;
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
+	linux_set_current(td, &t);
 	error = -filp->f_op->release(NULL, filp);
+	linux_clear_current(td);
 	funsetown(&filp->f_sigio);
 	kfree(filp);
 
@@ -694,12 +827,14 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
     struct thread *td)
 {
 	struct linux_file *filp;
+	struct task_struct t;
 	int error;
 
 	filp = (struct linux_file *)fp->f_data;
 	filp->f_flags = fp->f_flag;
 	error = 0;
 
+	linux_set_current(td, &t);
 	switch (cmd) {
 	case FIONBIO:
 		break;
@@ -721,6 +856,7 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 		error = ENOTTY;
 		break;
 	}
+	linux_clear_current(td);
 	return (error);
 }
 
@@ -960,6 +1096,8 @@ linux_complete_common(struct completion *c, int all)
 long
 linux_wait_for_common(struct completion *c, int flags)
 {
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
@@ -989,6 +1127,9 @@ long
 linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 {
 	long end = jiffies + timeout;
+
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
@@ -1227,6 +1368,47 @@ unregister_inetaddr_notifier(struct notifier_block *nb)
         return (0);
 }
 
+struct list_sort_thunk {
+	int (*cmp)(void *, struct list_head *, struct list_head *);
+	void *priv;
+};
+
+static inline int
+linux_le_cmp(void *priv, const void *d1, const void *d2)
+{
+	struct list_head *le1, *le2;
+	struct list_sort_thunk *thunk;
+
+	thunk = priv;
+	le1 = *(__DECONST(struct list_head **, d1));
+	le2 = *(__DECONST(struct list_head **, d2));
+	return ((thunk->cmp)(thunk->priv, le1, le2));
+}
+
+void
+list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
+    struct list_head *a, struct list_head *b))
+{
+	struct list_sort_thunk thunk;
+	struct list_head **ar, *le;
+	size_t count, i;
+
+	count = 0;
+	list_for_each(le, head)
+		count++;
+	ar = malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
+	i = 0;
+	list_for_each(le, head)
+		ar[i++] = le;
+	thunk.cmp = cmp;
+	thunk.priv = priv;
+	qsort_r(ar, count, sizeof(struct list_head *), &thunk, linux_le_cmp);
+	INIT_LIST_HEAD(head);
+	for (i = 0; i < count; i++)
+		list_add_tail(ar[i], head);
+	free(ar, M_KMALLOC);
+}
+
 void
 linux_irq_handler(void *ent)
 {
@@ -1236,12 +1418,19 @@ linux_irq_handler(void *ent)
 	irqe->handler(irqe->irq, irqe->arg);
 }
 
+#if defined(__i386__) || defined(__amd64__)
+bool linux_cpu_has_clflush;
+#endif
+
 static void
 linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 	int i;
 
+#if defined(__i386__) || defined(__amd64__)
+	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
+#endif
 	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
 
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,

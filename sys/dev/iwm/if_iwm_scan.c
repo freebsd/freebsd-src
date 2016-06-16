@@ -105,6 +105,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -441,7 +443,6 @@ iwm_mvm_scan_request(struct iwm_softc *sc, int flags,
 		 * to allocate the time events. Warn on it, but maybe we
 		 * should try to send the command again with different params.
 		 */
-		sc->sc_scanband = 0;
 		ret = EIO;
 	}
 	return ret;

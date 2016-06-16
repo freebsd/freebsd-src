@@ -720,7 +720,8 @@ unity_tests_LDADD = \
 
 AM_CFLAGS = $(CFLAGS_NTP)
 AM_CPPFLAGS = $(NTP_INCS) -I$(top_srcdir)/ntpq $(CPPFLAGS_NTP) \
-	-DUNITY_INCLUDE_CONFIG_H -I$(top_srcdir)/sntp/unity
+	-DUNITY_INCLUDE_CONFIG_H -I$(top_srcdir)/sntp/unity \
+	$(LIBOPTS_CFLAGS)
 AM_LDFLAGS = $(LDFLAGS_NTP)
 noinst_HEADERS = \
 	$(NULL)

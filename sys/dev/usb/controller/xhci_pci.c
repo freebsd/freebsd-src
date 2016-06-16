@@ -122,6 +122,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Wellsburg USB 3.0 controller");
 	case 0x9cb18086:
 		return ("Broadwell Integrated PCH-LP chipset USB 3.0 controller");
+	case 0xa12f8086:
+		return ("Intel Sunrise Point USB 3.0 controller");
 
 	case 0xa01b177d:
 		return ("Cavium ThunderX USB 3.0 controller");

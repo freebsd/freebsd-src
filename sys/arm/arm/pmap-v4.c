@@ -126,7 +126,7 @@
  *
  * pmap.c
  *
- * Machine dependant vm stuff
+ * Machine dependent vm stuff
  *
  * Created      : 20/09/94
  */
@@ -1386,9 +1386,9 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 				 *
 				 * Don't turn caching on again if this is a
 				 * modified emulation. This would be
-				 * inconsitent with the settings created by
+				 * inconsistent with the settings created by
 				 * pmap_fix_cache(). Otherwise, it's safe
-				 * to re-enable cacheing.
+				 * to re-enable caching.
 				 *
 				 * There's no need to call pmap_fix_cache()
 				 * here: all pages are losing their write
@@ -2285,7 +2285,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	    round_page(size * L2_TABLE_SIZE_REAL) / PAGE_SIZE,
 	    &pmap_kernel_l2ptp_kva, NULL);
 
-	size = (size + (L2_BUCKET_SIZE - 1)) / L2_BUCKET_SIZE;
+	size = howmany(size, L2_BUCKET_SIZE);
 	pmap_alloc_specials(&virtual_avail,
 	    round_page(size * sizeof(struct l2_dtable)) / PAGE_SIZE,
 	    &pmap_kernel_l2dtable_kva, NULL);

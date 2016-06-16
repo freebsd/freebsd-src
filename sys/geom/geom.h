@@ -56,6 +56,7 @@ struct bio;
 struct sbuf;
 struct gctl_req;
 struct g_configargs;
+struct disk_zone_args;
 
 typedef int g_config_t (struct g_configargs *ca);
 typedef void g_ctl_req_t (struct gctl_req *, struct g_class *cp, char const *verb);
@@ -318,6 +319,7 @@ struct bio * g_duplicate_bio(struct bio *);
 void g_destroy_bio(struct bio *);
 void g_io_deliver(struct bio *bp, int error);
 int g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr);
+int g_io_zonecmd(struct disk_zone_args *zone_args, struct g_consumer *cp);
 int g_io_flush(struct g_consumer *cp);
 int g_register_classifier(struct g_classifier_hook *hook);
 void g_unregister_classifier(struct g_classifier_hook *hook);
@@ -369,7 +371,6 @@ g_free(void *ptr)
 
 #define g_topology_lock() 					\
 	do {							\
-		mtx_assert(&Giant, MA_NOTOWNED);		\
 		sx_xlock(&topology_lock);			\
 	} while (0)
 

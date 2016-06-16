@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="random"
+desc="Harvest and save entropy for random device"
 start_cmd="random_start"
 stop_cmd="random_stop"
 
@@ -43,12 +44,12 @@ random_start()
 {
 
 	if [ ${harvest_mask} -gt 0 ]; then
-		echo -n 'Setting up harvesting:'
+		echo -n 'Setting up harvesting: '
 		${SYSCTL} kern.random.harvest.mask=${harvest_mask} > /dev/null
 		${SYSCTL_N} kern.random.harvest.mask_symbolic
 	fi
 
-	echo -n 'Feeding entropy:'
+	echo -n 'Feeding entropy: '
 
 	if [ ! -w /dev/random ] ; then
 		warn "/dev/random is not writeable"

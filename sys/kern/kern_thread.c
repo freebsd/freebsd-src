@@ -211,7 +211,6 @@ thread_init(void *mem, int size, int flags)
 	td->td_turnstile = turnstile_alloc();
 	td->td_rlqe = NULL;
 	EVENTHANDLER_INVOKE(thread_init, td);
-	td->td_sched = (struct td_sched *)&td[1];
 	umtx_thread_init(td);
 	td->td_kstack = 0;
 	td->td_sel = NULL;
@@ -950,6 +949,7 @@ thread_suspend_check(int return_instead)
 			 */
 			if (__predict_false(p->p_sysent->sv_thread_detach != NULL))
 				(p->p_sysent->sv_thread_detach)(td);
+			umtx_thread_exit(td);
 			kern_thr_exit(td);
 			panic("stopped thread did not exit");
 		}

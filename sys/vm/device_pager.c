@@ -299,7 +299,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	struct cdevsw *csw;
 	struct file *fpop;
 	struct thread *td;
-	vm_memattr_t memattr;
+	vm_memattr_t memattr, memattr1;
 	int ref, ret;
 
 	memattr = object->memattr;
@@ -327,10 +327,18 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 
 	/* If "paddr" is a real page, perform a sanity check on "memattr". */
 	if ((m_paddr = vm_phys_paddr_to_vm_page(paddr)) != NULL &&
-	    pmap_page_get_memattr(m_paddr) != memattr) {
-		memattr = pmap_page_get_memattr(m_paddr);
-		printf(
-	    "WARNING: A device driver has set \"memattr\" inconsistently.\n");
+	    (memattr1 = pmap_page_get_memattr(m_paddr)) != memattr) {
+		/*
+		 * For the /dev/mem d_mmap routine to return the
+		 * correct memattr, pmap_page_get_memattr() needs to
+		 * be called, which we do there.
+		 */
+		if ((csw->d_flags & D_MEM) == 0) {
+			printf("WARNING: Device driver %s has set "
+			    "\"memattr\" inconsistently (drv %u pmap %u).\n",
+			    csw->d_name, memattr, memattr1);
+		}
+		memattr = memattr1;
 	}
 	if (((*mres)->flags & PG_FICTITIOUS) != 0) {
 		/*

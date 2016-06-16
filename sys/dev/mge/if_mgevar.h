@@ -370,7 +370,7 @@ struct mge_softc {
 /* RX error codes */
 #define MGE_RX_ERROR_CE		(0 << 1)	/* CRC error */
 #define MGE_RX_ERROR_OR		(1 << 1)	/* Overrun error */
-#define MGE_RX_ERROR_MF		(2 << 1)	/* Max frame lenght error */
+#define	MGE_RX_ERROR_MF		(2 << 1)	/* Max frame length error */
 #define MGE_RX_ERROR_RE		(3 << 1)	/* Resource error */
 
 #endif /* __IF_MGE_H__ */

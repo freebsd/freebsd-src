@@ -42,7 +42,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 LDIRS=	bsm cam geom net net80211 netgraph netinet netinet6 \
 	netipsec netnatm netsmb nfs nfsclient nfsserver sys vm
 
-LSUBDIRS=	cam/ata cam/scsi \
+LSUBDIRS=	cam/ata cam/nvme cam/scsi \
 	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc \
 	dev/ic dev/iicbus dev/io dev/lmc dev/mfi dev/nvme \
@@ -130,7 +130,7 @@ _MARCHS=	${MACHINE_CPUARCH}
 _MARCHS+=	x86
 .endif
 
-META_TARGETS+=	compat copies symlinks
+META_TARGETS+=	compat
 stage_includes: ${SHARED}
 
 # Take care of stale directory-level symlinks.
@@ -144,7 +144,7 @@ compat:
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
 
-copies:
+copies: .PHONY .META
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
 	if [ -d ${DESTDIR}${INCLUDEDIR}/$i ]; then \
@@ -230,7 +230,7 @@ copies:
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
 
-symlinks:
+symlinks: .PHONY .META
 	@${ECHO} "Setting up symlinks to kernel source tree..."
 .for i in ${LDIRS}
 	cd ${.CURDIR}/../sys/$i; \

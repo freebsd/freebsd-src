@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/sys/fifo
 
 PLAIN_TESTS_C+=	fifo_create

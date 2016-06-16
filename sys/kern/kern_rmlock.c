@@ -375,7 +375,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	}
 
 	/*
-	 * We allow readers to aquire a lock even if a writer is blocked if
+	 * We allow readers to acquire a lock even if a writer is blocked if
 	 * the lock is recursive and the reader already holds the lock.
 	 */
 	if ((rm->lock_object.lo_flags & LO_RECURSABLE) != 0) {

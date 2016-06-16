@@ -3,6 +3,8 @@
 PROG=	rmextattr
 MAN=	rmextattr.8
 
+LIBADD=	sbuf
+
 LINKS+=	${BINDIR}/rmextattr ${BINDIR}/getextattr
 LINKS+=	${BINDIR}/rmextattr ${BINDIR}/setextattr
 LINKS+=	${BINDIR}/rmextattr ${BINDIR}/lsextattr

@@ -33,7 +33,7 @@
 
 KMOD=	gpiobus
 SRCS=	gpiobus.c gpioc.c
-SRCS+=	gpio_if.c gpio_if.h gpiobus_if.c gpiobus_if.h
+SRCS+=	gpio_if.c gpio_if.h gpiobus_if.c gpiobus_if.h ofw_bus_if.h
 SRCS+=	device_if.h bus_if.h opt_platform.h
 
 CFLAGS+=  -I. -I${.CURDIR}/../../../dev/gpio/

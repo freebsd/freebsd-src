@@ -293,6 +293,11 @@ ieee80211_ht_vattach(struct ieee80211vap *vap)
 		vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_RX;
 		if (vap->iv_htcaps & IEEE80211_HTC_AMSDU)
 			vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_TX;
+
+		if (vap->iv_htcaps & IEEE80211_HTCAP_TXSTBC)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_TX;
+		if (vap->iv_htcaps & IEEE80211_HTCAP_RXSTBC)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_RX;
 	}
 	/* NB: disable default legacy WDS, too many issues right now */
 	if (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY)
@@ -1638,6 +1643,7 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 	int i, maxequalmcs, maxunequalmcs;
 
 	maxequalmcs = ic->ic_txstream * 8 - 1;
+	maxunequalmcs = 0;
 	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
 		if (ic->ic_txstream >= 2)
 			maxunequalmcs = 38;
@@ -1645,8 +1651,7 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 			maxunequalmcs = 52;
 		if (ic->ic_txstream >= 4)
 			maxunequalmcs = 76;
-	} else
-		maxunequalmcs = 0;
+	}
 
 	rs = &ni->ni_htrates;
 	memset(rs, 0, sizeof(*rs));
@@ -2293,7 +2298,7 @@ bar_timeout(void *arg)
 		 * to make sure we notify the driver that a BAR
 		 * TX did occur and fail.  This gives the driver
 		 * a chance to undo any queue pause that may
-		 * have occured.
+		 * have occurred.
 		 */
 		ic->ic_bar_response(ni, tap, 1);
 		ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT);
@@ -2737,6 +2742,14 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 		rxmax = MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
 		density = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
 
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_11N,
+		    "%s: advertised rxmax=%d, density=%d, vap rxmax=%d, density=%d\n",
+		    __func__,
+		    rxmax,
+		    density,
+		    vap->iv_ampdu_rxmax,
+		    vap->iv_ampdu_density);
+
 		/* Cap at VAP rxmax */
 		if (rxmax > vap->iv_ampdu_rxmax)
 			rxmax = vap->iv_ampdu_rxmax;
@@ -2778,6 +2791,13 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0 ||
 	    (caps & IEEE80211_HTCAP_CHWIDTH40) == 0)
 		caps &= ~IEEE80211_HTCAP_SHORTGI40;
+
+	/* adjust STBC based on receive capabilities */
+	if ((vap->iv_flags_ht & IEEE80211_FHT_STBC_RX) == 0)
+		caps &= ~IEEE80211_HTCAP_RXSTBC;
+
+	/* XXX TODO: adjust LDPC based on receive capabilities */
+
 	ADDSHORT(frm, caps);
 
 	/* HT parameters */
