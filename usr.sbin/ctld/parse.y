@@ -58,6 +58,7 @@ extern void	yyrestart(FILE *);
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
 %token CLOSING_BRACKET CTL_LUN DEBUG DEVICE_ID DEVICE_TYPE
+%token PASSTHROUGH_DEVICE PASSTHROUGH_ADDRESS
 %token DISCOVERY_AUTH_GROUP DISCOVERY_FILTER FOREIGN
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 %token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
@@ -871,6 +872,10 @@ lun_entry:
 	|
 	lun_device_type
 	|
+	lun_passthrough_device
+	|
+	lun_passthrough_address
+	|
 	lun_ctl_lun
 	|
 	lun_option
@@ -930,7 +935,7 @@ lun_device_id:	DEVICE_ID STR
 	}
 	;
 
-lun_device_type:	DEVICE_TYPE STR ADDRESS
+lun_device_type:	DEVICE_TYPE STR 
 	{
 		uint64_t tmp;
 
@@ -944,11 +949,6 @@ lun_device_type:	DEVICE_TYPE STR ADDRESS
 		    strcasecmp($2, "dvd") == 0 ||
 		    strcasecmp($2, "dvdrom") == 0)
 			tmp = 5;
-		else if (strcasecmp($2, "pass")==0)
-		{
-			
-			tmp=19;	
-		}
 		else if (expand_number($2, &tmp) != 0 ||
 		    tmp > 15) {
 			yyerror("invalid numeric value");
@@ -957,6 +957,40 @@ lun_device_type:	DEVICE_TYPE STR ADDRESS
 		}
 
 		lun_set_device_type(lun, tmp);
+	}
+	;
+
+lun_passthrough_device:	 PASSTHROUGH_DEVICE STR
+	{
+		if (lun->l_path != NULL) {
+			log_warnx("path for lun \"%s\" "
+			    "specified more than once",
+			    lun->l_name);
+		
+			free($2);
+			return (1);
+		}
+		lun_set_path(lun, $2);
+		free($2);
+	}
+	;	
+
+lun_passthrough_address:  PASSTHROUGH_ADDRESS STR
+	{
+		char *tmp;
+		lun_set_pass_address(lun, $2);
+		free($2);
+	
+		tmp = strtok(lun->l_pass_addr,":");
+		if(tmp!=NULL && *tmp !='\0')
+		  lun->l_pass_bus = strtol(tmp,NULL,0);
+		  tmp = strtok(NULL,":");
+		  if(tmp!=NULL && *tmp != '\0')
+		    lun->l_pass_target = strtol(tmp,NULL,0);
+		    tmp = strtok(NULL,":");
+		    if(tmp!=NULL && *tmp != '\0')
+		      lun->l_pass_lun = strtol(tmp,NULL,0);
+
 	}
 	;
 
