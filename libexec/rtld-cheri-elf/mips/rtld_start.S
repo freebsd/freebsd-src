@@ -186,7 +186,7 @@ _rtld_bind_start:
 	cincoffset	$c12, $c12, t9
 	cjalr	$c17, $c12
 	nop
-	cmove	$c12, $c3
+	cgetpccsetoffset $c12, v0
 
 	move	sp, s0
 	clc	$c17, sp, XCALLFRAME_C17($c11)
