@@ -570,7 +570,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 
 	/* Try to find an empty slot. */
 	if (SLIST_EMPTY(&lc->lro_free))
-		return (TCP_LRO_CANNOT);
+		return (TCP_LRO_NO_ENTRIES);
 
 	/* Start a new segment chain. */
 	le = SLIST_FIRST(&lc->lro_free);
