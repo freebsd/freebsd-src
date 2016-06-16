@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2015
+.Dd June 16, 2016
 .Dt AR 1
 .Os
 .Sh NAME
@@ -205,7 +205,12 @@ When used in combination with the
 .Fl r
 or
 .Fl q
-option, insert 0's instead of the real mtime, uid and gid values
+option,
+with the
+.Fl s
+option without other options, or when invoked as
+.Nm ranlib ,
+insert 0's instead of the real mtime, uid and gid values
 and 0644 instead of file mode from the members named by arguments
 .Ar .
 This ensures that checksums on the resulting archives are reproducible
