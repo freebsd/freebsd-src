@@ -324,10 +324,7 @@ cpu_fork(td1, p2, td2, flags)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(td, func, arg)
-	struct thread *td;
-	void (*func)(void *);
-	void *arg;
+cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	/*
 	 * Note that the trap frame follows the args, so the function
@@ -458,14 +455,14 @@ cpu_set_syscall_retval(struct thread *td, int error)
 }
 
 /*
- * Initialize machine state (pcb and trap frame) for a new thread about to
- * upcall. Put enough state in the new thread's PCB to get it to go back 
- * userret(), where we can intercept it again to set the return (upcall)
- * Address and stack, along with those from upcals that are from other sources
- * such as those generated in thread_userret() itself.
+ * Initialize machine state, mostly pcb and trap frame for a new
+ * thread, about to return to userspace.  Put enough state in the new
+ * thread's PCB to get it to go back to the fork_return(), which
+ * finalizes the thread state and handles peculiarities of the first
+ * return to userspace for the new thread.
  */
 void
-cpu_set_upcall(struct thread *td, struct thread *td0)
+cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb2;
 
@@ -527,13 +524,12 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 /*
- * Set that machine state for performing an upcall that has to
- * be done in thread_userret() so that those upcalls generated
- * in thread_userret() itself can be done as well.
+ * Set that machine state for performing an upcall that starts
+ * the entry function with the given argument.
  */
 void
-cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
+cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
+    stack_t *stack)
 {
 
 	/* 
@@ -546,7 +542,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	cpu_thread_clean(td);
 
 	/*
-	 * Set the trap frame to point at the beginning of the uts
+	 * Set the trap frame to point at the beginning of the entry
 	 * function.
 	 */
 	td->td_frame->tf_ebp = 0; 
@@ -554,10 +550,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	    (((int)stack->ss_sp + stack->ss_size - 4) & ~0x0f) - 4;
 	td->td_frame->tf_eip = (int)entry;
 
-	/*
-	 * Pass the address of the mailbox for this kse to the uts
-	 * function as a parameter on the stack.
-	 */
+	/* Pass the argument to the entry point. */
 	suword((void *)(td->td_frame->tf_esp + sizeof(void *)),
 	    (int)arg);
 }

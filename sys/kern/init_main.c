@@ -862,7 +862,8 @@ create_init(const void *udata __unused)
 	PROC_UNLOCK(initproc);
 	sx_xunlock(&proctree_lock);
 	crfree(oldcred);
-	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
+	cpu_fork_kthread_handler(FIRST_THREAD_IN_PROC(initproc),
+	    start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL);
 

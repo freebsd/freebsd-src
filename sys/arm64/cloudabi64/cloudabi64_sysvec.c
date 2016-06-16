@@ -140,7 +140,7 @@ cloudabi64_thread_setregs(struct thread *td,
 	/* Perform standard register initialization. */
 	stack.ss_sp = (void *)attr->stack;
 	stack.ss_size = attr->stack_size;
-	cpu_set_upcall_kse(td, (void *)attr->entry_point, NULL, &stack);
+	cpu_set_upcall(td, (void *)attr->entry_point, NULL, &stack);
 
 	/*
 	 * Pass in the thread ID of the new thread and the argument

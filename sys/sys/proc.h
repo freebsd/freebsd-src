@@ -1005,12 +1005,12 @@ void	userret(struct thread *, struct trapframe *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
+void	cpu_copy_thread(struct thread *td, struct thread *td0);
 int	cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
-void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
+void	cpu_fork_kthread_handler(struct thread *, void (*)(void *), void *);
 void	cpu_set_syscall_retval(struct thread *, int);
-void	cpu_set_upcall(struct thread *td, struct thread *td0);
-void	cpu_set_upcall_kse(struct thread *, void (*)(void *), void *,
+void	cpu_set_upcall(struct thread *, void (*)(void *), void *,
 	    stack_t *);
 int	cpu_set_user_tls(struct thread *, void *tls_base);
 void	cpu_thread_alloc(struct thread *);
