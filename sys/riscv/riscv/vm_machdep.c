@@ -146,14 +146,14 @@ cpu_set_syscall_retval(struct thread *td, int error)
 }
 
 /*
- * Initialize machine state (pcb and trap frame) for a new thread about to
- * upcall. Put enough state in the new thread's PCB to get it to go back
- * userret(), where we can intercept it again to set the return (upcall)
- * Address and stack, along with those from upcals that are from other sources
- * such as those generated in thread_userret() itself.
+ * Initialize machine state, mostly pcb and trap frame for a new
+ * thread, about to return to userspace.  Put enough state in the new
+ * thread's PCB to get it to go back to the fork_return(), which
+ * finalizes the thread state and handles peculiarities of the first
+ * return to userspace for the new thread.
  */
 void
-cpu_set_upcall(struct thread *td, struct thread *td0)
+cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
@@ -170,12 +170,11 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 /*
- * Set that machine state for performing an upcall that has to
- * be done in thread_userret() so that those upcalls generated
- * in thread_userret() itself can be done as well.
+ * Set that machine state for performing an upcall that starts
+ * the entry function with the given argument.
  */
 void
-cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	stack_t *stack)
 {
 	struct trapframe *tf = td->td_frame;
@@ -231,7 +230,7 @@ cpu_thread_clean(struct thread *td)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
+cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 
 	td->td_pcb->pcb_s[0] = (uintptr_t)func;
