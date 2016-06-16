@@ -370,6 +370,9 @@ hv_vmbus_synic_init(void *arg)
 	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
 	    shared_sint.as_uint64_t);
 
+	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT,
+	    shared_sint.as_uint64_t);
+
 	/* Enable the global synic bit */
 	sctrl.as_uint64_t = rdmsr(HV_X64_MSR_SCONTROL);
 	sctrl.u.enable = 1;
@@ -406,12 +409,23 @@ void hv_vmbus_synic_cleanup(void *arg)
 	shared_sint.u.masked = 1;
 
 	/*
-	 * Disable the interrupt
+	 * Disable the interrupt 0
 	 */
 	wrmsr(
 	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
 	    shared_sint.as_uint64_t);
 
+	shared_sint.as_uint64_t = rdmsr(
+	    HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT);
+
+	shared_sint.u.masked = 1;
+
+	/*
+	 * Disable the interrupt 1
+	 */
+	wrmsr(
+	    HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT,
+	    shared_sint.as_uint64_t);
 	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
 	simp.u.simp_enabled = 0;
 	simp.u.base_simp_gpa = 0;
