@@ -890,6 +890,7 @@ int
 libusb_set_auto_detach_kernel_driver(libusb_device_handle *dev, int enable)
 {
 	dev->auto_detach = (enable ? 1 : 0);
+	return (0);
 }
 
 /* Asynchronous device I/O */
