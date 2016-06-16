@@ -1,6 +1,8 @@
 #!/bin/sh
 #-
-# Copyright (c) 2006-2016 Devin Teske
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013 Tom Rhodes
+# Copyright (c) 2013-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,10 +30,14 @@
 #
 ############################################################ INCLUDES
 
+# Prevent device.subr (included indirectly) from auto scanning on load
+DEVICE_SELF_SCAN_ALL=NO
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/wlan.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
@@ -39,57 +45,6 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
 	pgm="${ipgm:-$pgm}"
-
-############################################################ FUNCTIONS
-
-# dialog_menu_main
-#
-# Display the dialog(1)-based application main menu.
-#
-dialog_menu_main()
-{
-	local prompt=
-	local menu_list="
-		'X' '$msg_exit'
-		'1' '$msg_hostname_domain'
-		'2' '$msg_network_interfaces'
-		'3' '$msg_wireless_networks'
-		'4' '$msg_default_router'
-		'5' '$msg_dns_nameservers'
-	" # END-QUOTE
-	local defaultitem= # Calculated below
-	local hline="$hline_arrows_tab_enter"
-
-	local height width rows
-	eval f_dialog_menu_size height width rows \
-	                        \"\$DIALOG_TITLE\"     \
-	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\$prompt\"           \
-	                        \"\$hline\"            \
-	                        $menu_list
-
-	# Obtain default-item from previously stored selection
-	f_dialog_default_fetch defaultitem
-
-	local menu_choice
-	menu_choice=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\"                \
-		$height $width $rows               \
-		$menu_list                         \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-	local retval=$?
-	f_dialog_data_sanitize menu_choice
-	f_dialog_menutag_store "$menu_choice"
-	f_dialog_default_store "$menu_choice"
-	return $retval
-}
 
 ############################################################ MAIN
 
@@ -109,44 +64,14 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_title "$msg_network_management"
+f_dialog_title "$msg_wireless_networks"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
 #
-# Launch application main menu
+# Launch the wireless network menu
 #
-while :; do
-	dialog_menu_main || f_die
-	f_dialog_menutag_fetch mtag
-
-	command=
-	case "$mtag" in
-	X) break ;;
-	1) command=hostname      ;; # Hostname/Domain
-	2) command=devices       ;; # Network Interfaces
-	3) command=wlanconfig    ;; # Wireless Networks
-	4) command=defaultrouter ;; # Default Router/Gateway
-	5) command=nameservers   ;; # DNS nameservers
-	esac
-
-	if [ "$command" ]; then
-		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X}
-	else
-		f_die 1 "$msg_unknown_networking_menu_selection"
-	fi
-
-	if [ "$mtag" = "devices" ]; then
-		#
-		# Make subsequent uses of this menu faster by not performing
-		# "ifconfig up" (limiting the pain one must endure). See also
-		# `$BSDCFG_SHARE/networking/device.subr'.
-		#
-		export DIALOG_MENU_NETDEV_KICK_INTERFACES=
-	fi
-done
-
-exit $SUCCESS
+f_dialog_menu_wireless_edit
 
 ################################################################################
 # END
