@@ -106,35 +106,6 @@ siba_parse_core_id(uint32_t idhigh, uint32_t idlow, u_int core_idx, int unit)
 }
 
 /**
- * Initialize new port descriptor.
- * 
- * @param port_num Port number.
- * @param port_type Port type.
- */
-static void
-siba_init_port(struct siba_port *port, bhnd_port_type port_type, u_int port_num)
-{	
-	port->sp_num = port_num;
-	port->sp_type = port_type;
-	port->sp_num_addrs = 0;
-	STAILQ_INIT(&port->sp_addrs);
-}
-
-/**
- * Deallocate all resources associated with the given port descriptor.
- * 
- * @param port Port descriptor to be deallocated.
- */
-static void
-siba_release_port(struct siba_port *port) {
-	struct siba_addrspace *as, *as_next;
-
-	STAILQ_FOREACH_SAFE(as, &port->sp_addrs, sa_link, as_next) {
-		free(as, M_BHND);
-	}
-}
-
-/**
  * Allocate and initialize new device info structure, copying the
  * provided core id.
  * 
@@ -157,76 +128,153 @@ siba_alloc_dinfo(device_t bus, const struct siba_core_id *core_id)
 		dinfo->cfg_rid[i] = -1;
 	}
 
-	siba_init_port(&dinfo->device_port, BHND_PORT_DEVICE, 0);
 	resource_list_init(&dinfo->resources);
 
 	return dinfo;
 }
 
 /**
- * Return the @p dinfo port instance for @p type, or NULL.
+ * Map an addrspace index to its corresponding bhnd(4) port number.
  * 
- * @param dinfo The siba device info.
- * @param type The requested port type.
- * 
- * @retval siba_port If @p port_type and @p port_num are defined on @p dinfo.
- * @retval NULL If the requested port is not defined on @p dinfo.
+ * @param addrspace Address space index.
  */
-struct siba_port *
-siba_dinfo_get_port(struct siba_devinfo *dinfo, bhnd_port_type port_type,
-    u_int port_num)
+u_int
+siba_addrspace_port(u_int addrspace)
 {
-	/* We only define a single port for any given type. */
-	if (port_num != 0)
-		return (NULL);
-
-	switch (port_type) {
-	case BHND_PORT_DEVICE:
-		return (&dinfo->device_port);
-	case BHND_PORT_BRIDGE:
-		return (NULL);
-	case BHND_PORT_AGENT:
-		return (NULL);
-	default:
-		printf("%s: unknown port_type (%d)\n",
-		    __func__,
-		    port_type);
-		return (NULL);
-	}
+	/* The first addrspace is always mapped to device0; the remainder
+	 * are mapped to device1 */
+	if (addrspace == 0)
+		return (0);
+	else
+		return (1);
 }
 
+/**
+ * Map an addrspace index to its corresponding bhnd(4) region number.
+ * 
+ * @param addrspace Address space index.
+ */
+u_int
+siba_addrspace_region(u_int addrspace)
+{
+	/* The first addrspace is always mapped to device0.0; the remainder
+	 * are mapped to device1.0 + (n - 1) */
+	if (addrspace == 0)
+		return (0);
+	else
+		return (addrspace - 1);
+}
 
 /**
- * Find an address space with @p sid on @p port.
+ * Return the number of bhnd(4) ports to advertise for the given
+ * @p dinfo.
  * 
- * @param port The port to search for a matching address space.
- * @param sid The siba-assigned address space ID to search for.
+ * @param dinfo The device info to query.
+ */
+u_int
+siba_addrspace_port_count(struct siba_devinfo *dinfo)
+{
+	/* 0, 1, or 2 ports */
+	return min(dinfo->core_id.num_addrspace, 2);
+}
+
+/**
+ * Return the number of bhnd(4) regions to advertise on @p port
+ * given the provided @p num_addrspace address space count.
+ * 
+ * @param num_addrspace The number of core-mapped siba(4) Sonics/OCP address
+ * spaces.
+ */
+u_int
+siba_addrspace_region_count(struct siba_devinfo *dinfo, u_int port) 
+{
+	u_int num_addrspace = dinfo->core_id.num_addrspace;
+
+	/* The first address space, if any, is mapped to device0.0 */
+	if (port == 0)
+		return (min(num_addrspace, 1));
+
+	/* All remaining address spaces are mapped to device0.(n - 1) */
+	if (port == 1 && num_addrspace >= 2)
+		return (num_addrspace - 1);
+
+	/* No region mapping */
+	return (0);
+}
+
+/**
+ * Return true if @p port is defined on @p dinfo, false otherwise.
+ *
+ * Refer to the siba_find_addrspace() function for information on siba's
+ * mapping of bhnd(4) port and region identifiers.
+ * 
+ * @param dinfo The device info to verify the port against.
+ * @param type The bhnd(4) port type.
+ * @param port The bhnd(4) port number.
+ */
+bool
+siba_is_port_valid(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port)
+{
+	/* Only device ports are supported */
+	if (type != BHND_PORT_DEVICE)
+		return (false);
+
+	/* Verify the index against the port count */
+	if (siba_addrspace_port_count(dinfo) <= port)
+		return (false);
+
+	return (true);
+}
+
+/**
+ * Map an bhnd(4) type/port/region triplet to its associated address space
+ * entry, if any.
+ * 
+ * For compatibility with bcma(4), we map address spaces to port/region
+ * identifiers as follows:
+ * 
+ * 	[port]		[addrspace]
+ * 	device0.0	0
+ * 	device1.0	1
+ * 	device1.1	2
+ * 	device1.2	3
+ * 
+ * The only supported port type is BHND_PORT_DEVICE.
+ * 
+ * @param dinfo The device info to search for a matching address space.
+ * @param type The bhnd(4) port type.
+ * @param port The bhnd(4) port number.
+ * @param region The bhnd(4) port region.
  */
 struct siba_addrspace *
-siba_find_port_addrspace(struct siba_port *port, uint8_t sid)
+siba_find_addrspace(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port,
+    u_int region)
 {
-	struct siba_addrspace	*addrspace;
+	u_int			 addridx;
 
-	STAILQ_FOREACH(addrspace, &port->sp_addrs, sa_link) {
-		if (addrspace->sa_sid == sid)
-			return (addrspace);
-	}
+	if (!siba_is_port_valid(dinfo, type, port))
+		return (NULL);
 
-	/* not found */
-	return (NULL);
+	if (port == 0)
+		addridx = region;
+	else if (port == 1)
+		addridx = region + 1;
+	else
+		return (NULL);
+
+	/* Out of range? */
+	if (addridx >= dinfo->core_id.num_addrspace)
+		return (NULL);
+
+	/* Found */
+	return (&dinfo->addrspace[addridx]);
 }
 
 /**
- * Append a new address space entry to @p port_num of type @p port_type
- * in @p dinfo.
- * 
- * The range will also be registered in @p dinfo resource list.
+ * Append an address space entry to @p dinfo.
  * 
  * @param dinfo The device info entry to update.
- * @param port_type The port type.
- * @param port_num The port number.
- * @param region_num The region index number.
- * @param sid The siba-assigned core-unique address space identifier.
+ * @param addridx The address space index.
  * @param base The mapping's base address.
  * @param size The mapping size.
  * @param bus_reserved Number of bytes to reserve in @p size for bus use
@@ -237,12 +285,10 @@ siba_find_port_addrspace(struct siba_port *port, uint8_t sid)
  * @retval non-zero An error occurred appending the entry.
  */
 int
-siba_append_dinfo_region(struct siba_devinfo *dinfo, bhnd_port_type port_type, 
-    u_int port_num, u_int region_num, uint8_t sid, uint32_t base, uint32_t size,
-    uint32_t bus_reserved)
+siba_append_dinfo_region(struct siba_devinfo *dinfo, uint8_t addridx,
+    uint32_t base, uint32_t size, uint32_t bus_reserved)
 {
 	struct siba_addrspace	*sa;
-	struct siba_port	*port;
 	rman_res_t		 r_size;
 
 	/* Verify that base + size will not overflow */
@@ -257,30 +303,20 @@ siba_append_dinfo_region(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 	if (size == 0)
 		return (EINVAL);
 
-	/* Determine target port */
-	port = siba_dinfo_get_port(dinfo, port_type, port_num);
-	if (port == NULL)
+	/* Must not exceed addrspace array size */
+	if (addridx >= nitems(dinfo->addrspace))
 		return (EINVAL);
 
-	/* Allocate new addrspace entry */
-	sa = malloc(sizeof(*sa), M_BHND, M_NOWAIT|M_ZERO);
-	if (sa == NULL)
-		return (ENOMEM);
-
+	/* Initialize new addrspace entry */
+	sa = &dinfo->addrspace[addridx];
 	sa->sa_base = base;
 	sa->sa_size = size;
-	sa->sa_sid = sid;
-	sa->sa_region_num = region_num;
 	sa->sa_bus_reserved = bus_reserved;
 
 	/* Populate the resource list */
 	r_size = size - bus_reserved;
 	sa->sa_rid = resource_list_add_next(&dinfo->resources, SYS_RES_MEMORY,
 	    base, base + (r_size - 1), r_size);
-
-	/* Append to target port */
-	STAILQ_INSERT_TAIL(&port->sp_addrs, sa, sa_link);
-	port->sp_num_addrs++;
 
 	return (0);
 }
@@ -294,8 +330,6 @@ siba_append_dinfo_region(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 void
 siba_free_dinfo(device_t dev, struct siba_devinfo *dinfo)
 {
-	siba_release_port(&dinfo->device_port);
-	
 	resource_list_free(&dinfo->resources);
 
 	/* Free all mapped configuration blocks */
