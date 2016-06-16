@@ -1823,7 +1823,7 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 
 struct iwm_nvm_section {
 	uint16_t length;
-	const uint8_t *data;
+	uint8_t *data;
 };
 
 static int
@@ -1860,6 +1860,8 @@ iwm_nvm_init(struct iwm_softc *sc)
 	    "%s: Read NVM\n",
 	    __func__);
 
+	memset(nvm_sections, 0, sizeof(nvm_sections));
+
 	/* TODO: find correct NVM max size for a section */
 	nvm_buffer = malloc(IWM_OTP_LOW_IMAGE_SIZE, M_DEVBUF, M_NOWAIT);
 	if (nvm_buffer == NULL)
@@ -1883,10 +1885,15 @@ iwm_nvm_init(struct iwm_softc *sc)
 		nvm_sections[section].length = len;
 	}
 	free(nvm_buffer, M_DEVBUF);
-	if (error)
-		return error;
+	if (error == 0)
+		error = iwm_parse_nvm_sections(sc, nvm_sections);
 
-	return iwm_parse_nvm_sections(sc, nvm_sections);
+	for (i = 0; i < IWM_NVM_NUM_OF_SECTIONS; i++) {
+		if (nvm_sections[i].data != NULL)
+			free(nvm_sections[i].data, M_DEVBUF);
+	}
+
+	return error;
 }
 
 /*
@@ -5008,6 +5015,7 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		ieee80211_ifdetach(&sc->sc_ic);
 
 	/* Free descriptor rings */
+	iwm_free_rx_ring(sc, &sc->rxq);
 	for (i = 0; i < nitems(sc->txq); i++)
 		iwm_free_tx_ring(sc, &sc->txq[i]);
 
