@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2014
+.Dd June 16, 2016
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -43,6 +43,10 @@ The
 library contains interfaces for directly managing a usb device.
 The current implementation supports v1.0 of the libusb API.
 .Sh LIBRARY INITIALISATION AND DEINITIALISATION
+.Ft "const struct libusb_version *"
+.Fn libusb_get_version "void"
+This function returns version information about LibUSB.
+.Pp
 .Ft int
 .Fn libusb_init "libusb_context **ctx"
 This function initialises libusb.

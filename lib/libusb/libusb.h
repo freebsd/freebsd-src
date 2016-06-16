@@ -235,6 +235,15 @@ struct libusb_pollfd {
 	short	events;
 };
 
+struct libusb_version {
+	const uint16_t major;
+	const uint16_t minor;
+	const uint16_t micro;
+	const uint16_t nano;
+	const char *rc;
+	const char *describe;
+};
+
 typedef struct libusb_context libusb_context;
 typedef struct libusb_device libusb_device;
 typedef struct libusb_device_handle libusb_device_handle;
@@ -384,6 +393,7 @@ typedef struct libusb_transfer {
 /* Library initialisation */
 
 void	libusb_set_debug(libusb_context * ctx, int level);
+const struct libusb_version *libusb_get_version(void);
 const char *libusb_strerror(int code);
 const char *libusb_error_name(int code);
 int	libusb_init(libusb_context ** context);
