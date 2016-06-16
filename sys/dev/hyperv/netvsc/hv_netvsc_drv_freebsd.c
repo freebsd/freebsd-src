@@ -237,12 +237,10 @@ SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostip, CTLFLAG_RDTUN,
     "Trust ip packet verification on host side, "
     "when csum info is missing (global setting)");
 
-#if __FreeBSD_version >= 1100045
 /* Limit TSO burst size */
 static int hn_tso_maxlen = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, tso_maxlen, CTLFLAG_RDTUN,
     &hn_tso_maxlen, 0, "TSO burst limit");
-#endif
 
 /* Limit chimney send size */
 static int hn_tx_chimney_size = 0;
@@ -432,9 +430,7 @@ netvsc_attach(device_t dev)
 	int unit = device_get_unit(dev);
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
-#if __FreeBSD_version >= 1100045
 	int tso_maxlen;
-#endif
 
 	sc = device_get_softc(dev);
 	if (sc == NULL) {
@@ -584,7 +580,6 @@ netvsc_attach(device_t dev)
 		sc->hn_carrier = 1;
 	}
 
-#if __FreeBSD_version >= 1100045
 	tso_maxlen = hn_tso_maxlen;
 	if (tso_maxlen <= 0 || tso_maxlen > IP_MAXPACKET)
 		tso_maxlen = IP_MAXPACKET;
@@ -593,14 +588,11 @@ netvsc_attach(device_t dev)
 	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 	ifp->if_hw_tsomax = tso_maxlen -
 	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
-#endif
 
 	ether_ifattach(ifp, device_info.mac_addr);
 
-#if __FreeBSD_version >= 1100045
 	if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
 	    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
-#endif
 
 	sc->hn_tx_chimney_max = sc->net_dev->send_section_size;
 	hn_set_tx_chimney_size(sc, sc->hn_tx_chimney_max);
