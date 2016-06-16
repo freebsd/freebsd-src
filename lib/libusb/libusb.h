@@ -33,6 +33,8 @@
 #include <sys/types.h>
 #endif
 
+#define	LIBUSB_API_VERSION 0x01000102
+
 #define	LIBUSB_CALL
 
 #ifdef __cplusplus
