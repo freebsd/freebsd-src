@@ -376,7 +376,31 @@ freed using the libusb_free_ss_endpoint_comp function.
 .Pp
 .Ft void
 .Fn libusb_free_ss_endpoint_comp "libusb_ss_endpoint_companion_descriptor *ep_comp"
-This function is NULL safe and frees a parsed USB 3.0 endpoint companion descriptor.
+This function is NULL safe and frees a parsed USB 3.0 endpoint companion descriptor given by
+.Fa ep_comp .
+.Pp
+.Ft int
+.Fn libusb_get_ss_endpoint_companion_descriptor "struct libusb_context *ctx" "const struct libusb_endpoint_descriptor *endpoint" "struct libusb_ss_endpoint_companion_descriptor **ep_comp"
+This function finds and parses the USB 3.0 endpoint companion descriptor given by
+.Fa endpoint .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed USB 3.0 endpoint companion descriptor must be
+freed using the libusb_free_ss_endpoint_companion_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_ss_endpoint_companion_descriptor "struct libusb_ss_endpoint_companion_descriptor *ep_comp"
+This function is NULL safe and frees a parsed USB 3.0 endpoint companion descriptor given by
+.Fa ep_comp .
+.Pp
+.Ft int
+.Fn libusb_get_bos_descriptor "libusb_device_handle *handle" "struct libusb_bos_descriptor **bos"
+This function queries the USB device given by
+.Fa handle
+and stores a pointer to a parsed BOS descriptor into
+.Fa bos .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed BOS descriptor must be
+freed using the libusb_free_bos_descriptor function.
 .Pp
 .Ft int
 .Fn libusb_parse_bos_descriptor "const void *buf" "int len" "libusb_bos_descriptor **bos"
@@ -392,7 +416,53 @@ libusb_free_bos_descriptor function.
 .Pp
 .Ft void
 .Fn libusb_free_bos_descriptor "libusb_bos_descriptor *bos"
-This function is NULL safe and frees a parsed BOS descriptor.
+This function is NULL safe and frees a parsed BOS descriptor given by
+.Fa bos .
+.Pp
+.Ft int
+.Fn libusb_get_usb_2_0_extension_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_usb_2_0_extension_descriptor **usb_2_0_extension"
+This function parses the USB 2.0 extension descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa usb_2_0_extension .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed USB 2.0 extension descriptor must be freed using the
+libusb_free_usb_2_0_extension_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_usb_2_0_extension_descriptor "struct libusb_usb_2_0_extension_descriptor *usb_2_0_extension"
+This function is NULL safe and frees a parsed USB 2.0 extension descriptor given by
+.Fa usb_2_0_extension .
+.Pp
+.Ft int
+.Fn libusb_get_ss_usb_device_capability_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_ss_usb_device_capability_descriptor **ss_usb_device_capability"
+This function parses the SuperSpeed device capability descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa ss_usb_device_capability .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed SuperSpeed device capability descriptor must be freed using the
+libusb_free_ss_usb_device_capability_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_ss_usb_device_capability_descriptor "struct libusb_ss_usb_device_capability_descriptor *ss_usb_device_capability"
+This function is NULL safe and frees a parsed SuperSpeed device capability descriptor given by
+.Fa ss_usb_device_capability .
+.Pp
+.Ft int
+.Fn libusb_get_container_id_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_container_id_descriptor **container_id"
+This function parses the container ID descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa container_id .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed container ID descriptor must be freed using the
+libusb_free_container_id_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_container_id_descriptor "struct libusb_container_id_descriptor *container_id"
+This function is NULL safe and frees a parsed container ID descriptor given by
+.Fa container_id .
 .Sh USB ASYNCHRONOUS I/O
 .Ft struct libusb_transfer *
 .Fn libusb_alloc_transfer "int iso_packets"

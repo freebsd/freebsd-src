@@ -101,6 +101,10 @@ enum libusb_device_capability_type {
 #define	LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY_SIZE	7
 #define	LIBUSB_SS_USB_DEVICE_CAPABILITY_SIZE	10
 
+#define	LIBUSB_BT_USB_2_0_EXTENSION_SIZE	7
+#define	LIBUSB_BT_SS_USB_DEVICE_CAPABILITY_SIZE	10
+#define	LIBUSB_BT_CONTAINER_ID_SIZE		20
+
 #define	LIBUSB_ENDPOINT_ADDRESS_MASK	0x0f
 #define	LIBUSB_ENDPOINT_DIR_MASK	0x80
 
@@ -163,6 +167,13 @@ enum libusb_iso_usage_type {
 	LIBUSB_ISO_USAGE_TYPE_DATA = 0,
 	LIBUSB_ISO_USAGE_TYPE_FEEDBACK = 1,
 	LIBUSB_ISO_USAGE_TYPE_IMPLICIT = 2,
+};
+
+enum libusb_bos_type {
+	LIBUSB_BT_WIRELESS_USB_DEVICE_CAPABILITY = 1,
+	LIBUSB_BT_USB_2_0_EXTENSION = 2,
+	LIBUSB_BT_SS_USB_DEVICE_CAPABILITY = 3,
+	LIBUSB_BT_CONTAINER_ID = 4,
 };
 
 enum libusb_error {
@@ -349,6 +360,13 @@ typedef struct libusb_ss_usb_device_capability_descriptor {
 	uint16_t wU2DevExitLat;
 }	libusb_ss_usb_device_capability_descriptor __aligned(sizeof(void *));
 
+typedef struct libusb_bos_dev_capability_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bDevCapabilityType;
+	uint8_t dev_capability_data[0];
+}	libusb_bos_dev_capability_descriptor __aligned(sizeof(void *));
+
 typedef struct libusb_bos_descriptor {
 	uint8_t bLength;
 	uint8_t bDescriptorType;
@@ -357,6 +375,21 @@ typedef struct libusb_bos_descriptor {
 	struct libusb_usb_2_0_device_capability_descriptor *usb_2_0_ext_cap;
 	struct libusb_ss_usb_device_capability_descriptor *ss_usb_cap;
 }	libusb_bos_descriptor __aligned(sizeof(void *));
+
+typedef struct libusb_usb_2_0_extension_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bDevCapabilityType;
+	uint32_t bmAttributes;
+}	libusb_usb_2_0_extension_descriptor __aligned(sizeof(void *));
+
+typedef struct libusb_container_id_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bDevCapabilityType;
+	uint8_t	bReserved;
+	uint8_t ContainerID[16];
+}	libusb_container_id_descriptor __aligned(sizeof(void *));
 
 typedef struct libusb_control_setup {
 	uint8_t	bmRequestType;
@@ -442,6 +475,8 @@ int	libusb_get_active_config_descriptor(libusb_device * dev, struct libusb_confi
 int	libusb_get_config_descriptor(libusb_device * dev, uint8_t config_index, struct libusb_config_descriptor **config);
 int	libusb_get_config_descriptor_by_value(libusb_device * dev, uint8_t bConfigurationValue, struct libusb_config_descriptor **config);
 void	libusb_free_config_descriptor(struct libusb_config_descriptor *config);
+int	libusb_get_ss_endpoint_companion_descriptor(struct libusb_context *ctx, const struct libusb_endpoint_descriptor *endpoint, struct libusb_ss_endpoint_companion_descriptor **ep_comp);
+void	libusb_free_ss_endpoint_companion_descriptor(struct libusb_ss_endpoint_companion_descriptor *ep_comp);
 int	libusb_get_string_descriptor(libusb_device_handle * devh, uint8_t desc_index, uint16_t langid, unsigned char *data, int length);
 int	libusb_get_string_descriptor_ascii(libusb_device_handle * devh, uint8_t desc_index, uint8_t *data, int length);
 int	libusb_get_descriptor(libusb_device_handle * devh, uint8_t desc_type, uint8_t desc_index, uint8_t *data, int length);
@@ -449,6 +484,13 @@ int	libusb_parse_ss_endpoint_comp(const void *buf, int len, struct libusb_ss_end
 void	libusb_free_ss_endpoint_comp(struct libusb_ss_endpoint_companion_descriptor *ep_comp);
 int	libusb_parse_bos_descriptor(const void *buf, int len, struct libusb_bos_descriptor **bos);
 void	libusb_free_bos_descriptor(struct libusb_bos_descriptor *bos);
+int	libusb_get_bos_descriptor(libusb_device_handle *handle, struct libusb_bos_descriptor **bos);
+int	libusb_get_usb_2_0_extension_descriptor(struct libusb_context *ctx, struct libusb_bos_dev_capability_descriptor *dev_cap, struct libusb_usb_2_0_extension_descriptor **usb_2_0_extension);
+void	libusb_free_usb_2_0_extension_descriptor(struct libusb_usb_2_0_extension_descriptor *usb_2_0_extension);
+int	libusb_get_ss_usb_device_capability_descriptor(struct libusb_context *ctx, struct libusb_bos_dev_capability_descriptor *dev_cap, struct libusb_ss_usb_device_capability_descriptor **ss_usb_device_capability);
+void	libusb_free_ss_usb_device_capability_descriptor(struct libusb_ss_usb_device_capability_descriptor *ss_usb_device_capability);
+int	libusb_get_container_id_descriptor(struct libusb_context *ctx, struct libusb_bos_dev_capability_descriptor *dev_cap, struct libusb_container_id_descriptor **container_id);
+void	libusb_free_container_id_descriptor(struct libusb_container_id_descriptor *container_id);
 
 /* Asynchronous device I/O */
 
