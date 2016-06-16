@@ -37,6 +37,9 @@ _CHERI_CC+=	-cheri-linker
 CFLAGS+=	-Wno-error
 .endif
 ALLOW_SHARED_TEXTREL=	yes
+.ifdef LIBCHERI
+LDFLAGS+=	-Wl,-init=crt_init_globals
+.endif
 .endif
 
 .if ${MK_CHERI128} == "yes"
