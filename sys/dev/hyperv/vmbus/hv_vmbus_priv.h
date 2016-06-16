@@ -475,12 +475,23 @@ typedef enum {
 	HV_CPU_ID_FUNCTION_MS_HV_HARDWARE_FEATURE		= 0x40000006
 } hv_vmbus_cpuid_function;
 
-#define	HV_FEATURE_MSR_TIME_REFCNT	(1 << 1)
-#define	HV_FEATURE_MSR_SYNCIC		(1 << 2)
-#define	HV_FEATURE_MSR_STIMER		(1 << 3)
-#define	HV_FEATURE_MSR_APIC		(1 << 4)
-#define	HV_FEATURE_MSR_HYPERCALL	(1 << 5)
-#define	HV_FEATURE_MSR_GUEST_IDLE	(1 << 10)
+#define	HV_FEATURE_MSR_TIME_REFCNT	0x0002	/* MSR_TIME_REF_COUNT */
+#define	HV_FEATURE_MSR_SYNIC		0x0004	/* MSRs for SynIC */
+#define	HV_FEATURE_MSR_SYNTIMER		0x0008	/* MSRs for SynTimer */
+#define	HV_FEATURE_MSR_APIC		0x0010	/* MSR_{EOI,ICR,TPR} */
+#define	HV_FEATURE_MSR_HYPERCALL	0x0020	/* MSR_{GUEST_OS_ID,HYPERCALL} */
+#define	HV_FEATURE_MSR_GUEST_IDLE	0x0400	/* MSR_GUEST_IDLE */
+
+#define	HV_PM_FEATURE_CSTATE_MASK	0x000f
+#define	HV_PM_FEATURE_C3_HPET		0x0010	/* C3 requires HPET */
+#define	HV_PM_FEATURE_CSTATE(f)		((f) & HV_PM_FEATURE_CSTATE_MASK)
+
+#define	HV_FEATURE3_MWAIT		0x0001	/* MWAIT */
+#define	HV_FEATURE3_XMM_HYPERCALL	0x0010	/* hypercall input through XMM regs */
+#define	HV_FEATURE3_GUEST_IDLE		0x0020	/* guest idle support */
+#define	HV_FEATURE3_NUMA		0x0080	/* NUMA distance query support */
+#define	HV_FEATURE3_TIME_FREQ		0x0100	/* timer frequency query (TSC, LAPIC) */
+#define	HV_FEATURE3_MSR_CRASH		0x0400	/* MSRs for guest crash */
 
 /*
  * Define the format of the SIMP register
@@ -714,7 +725,6 @@ uint16_t		hv_vmbus_post_msg_via_msg_ipc(
 uint16_t		hv_vmbus_signal_event(void *con_id);
 void			hv_vmbus_synic_init(void *irq_arg);
 void			hv_vmbus_synic_cleanup(void *arg);
-int			hv_vmbus_query_hypervisor_presence(void);
 
 struct hv_device*	hv_vmbus_child_device_create(
 				hv_guid			device_type,
