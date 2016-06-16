@@ -308,6 +308,14 @@ libusb_get_bus_number(libusb_device *dev)
 	return (libusb20_dev_get_bus_number(dev->os_priv));
 }
 
+uint8_t
+libusb_get_port_number(libusb_device *dev)
+{
+	if (dev == NULL)
+		return (0);		/* should not happen */
+	return (libusb20_dev_get_parent_port(dev->os_priv));
+}
+
 int
 libusb_get_port_numbers(libusb_device *dev, uint8_t *buf, uint8_t bufsize)
 {
