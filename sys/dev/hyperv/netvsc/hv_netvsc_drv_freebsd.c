@@ -138,6 +138,8 @@ __FBSDID("$FreeBSD$");
 
 #define HN_LROENT_CNT_DEF		128
 
+#define HN_RING_CNT_DEF_MAX		8
+
 #define HN_RNDIS_MSG_LEN		\
     (sizeof(rndis_msg) +		\
      RNDIS_HASH_PPI_SIZE +		\
@@ -282,12 +284,12 @@ static int hn_use_if_start = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
     &hn_use_if_start, 0, "Use if_start TX method");
 
-static int hn_chan_cnt = 1;
+static int hn_chan_cnt = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, chan_cnt, CTLFLAG_RDTUN,
     &hn_chan_cnt, 0,
     "# of channels to use; each channel has one RX ring and one TX ring");
 
-static int hn_tx_ring_cnt = 1;
+static int hn_tx_ring_cnt = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, tx_ring_cnt, CTLFLAG_RDTUN,
     &hn_tx_ring_cnt, 0, "# of TX rings to use");
 
@@ -480,8 +482,14 @@ netvsc_attach(device_t dev)
 	 * The # of RX rings to use is same as the # of channels to use.
 	 */
 	ring_cnt = hn_chan_cnt;
-	if (ring_cnt <= 0 || ring_cnt > mp_ncpus)
+	if (ring_cnt <= 0) {
+		/* Default */
 		ring_cnt = mp_ncpus;
+		if (ring_cnt > HN_RING_CNT_DEF_MAX)
+			ring_cnt = HN_RING_CNT_DEF_MAX;
+	} else if (ring_cnt > mp_ncpus) {
+		ring_cnt = mp_ncpus;
+	}
 
 	tx_ring_cnt = hn_tx_ring_cnt;
 	if (tx_ring_cnt <= 0 || tx_ring_cnt > ring_cnt)

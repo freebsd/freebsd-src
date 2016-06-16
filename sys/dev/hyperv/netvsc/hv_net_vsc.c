@@ -741,10 +741,8 @@ cleanup:
 	 * Free the packet buffers on the netvsc device packet queue.
 	 * Release other resources.
 	 */
-	if (net_dev) {
-		sema_destroy(&net_dev->channel_init_sema);
-		free(net_dev, M_NETVSC);
-	}
+	sema_destroy(&net_dev->channel_init_sema);
+	free(net_dev, M_NETVSC);
 
 	return (NULL);
 }
