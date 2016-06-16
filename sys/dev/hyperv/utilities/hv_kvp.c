@@ -863,6 +863,10 @@ static int
 hv_kvp_probe(device_t dev)
 {
 	const char *p = vmbus_get_type(dev);
+
+	if (resource_disabled("hvkvp", 0))
+		return ENXIO;
+
 	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
 		device_set_desc(dev, "Hyper-V KVP Service");
 		return BUS_PROBE_DEFAULT;

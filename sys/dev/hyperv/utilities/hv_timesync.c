@@ -171,6 +171,10 @@ static int
 hv_timesync_probe(device_t dev)
 {
 	const char *p = vmbus_get_type(dev);
+
+	if (resource_disabled("hvtimesync", 0))
+		return ENXIO;
+
 	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
 		device_set_desc(dev, "Hyper-V Time Synch Service");
 		return BUS_PROBE_DEFAULT;

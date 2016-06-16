@@ -94,6 +94,10 @@ static int
 hv_heartbeat_probe(device_t dev)
 {
 	const char *p = vmbus_get_type(dev);
+
+	if (resource_disabled("hvheartbeat", 0))
+		return ENXIO;
+
 	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
 		device_set_desc(dev, "Hyper-V Heartbeat Service");
 		return BUS_PROBE_DEFAULT;
