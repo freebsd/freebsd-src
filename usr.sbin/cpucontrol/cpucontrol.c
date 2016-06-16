@@ -481,5 +481,5 @@ main(int argc, char *argv[])
 			usage();	/* Only one command can be selected. */
 	}
 	SLIST_FREE(&datadirs, next, free);
-	return (error);
+	return (error == 0 ? 0 : 1);
 }
