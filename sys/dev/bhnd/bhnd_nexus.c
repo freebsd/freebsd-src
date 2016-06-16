@@ -106,10 +106,26 @@ bhnd_nexus_activate_resource(device_t dev, device_t child, int type, int rid,
 	return (0);
 }
 
+static int
+bhnd_nexus_deactivate_resource(device_t dev, device_t child,
+    int type, int rid, struct bhnd_resource *r)
+{
+	int error;
+
+	/* Always direct */
+	KASSERT(r->direct, ("indirect resource delegated to bhnd_nexus\n"));
+
+	if ((error = bus_deactivate_resource(child, type, rid, r->res)))
+		return (error);
+
+	r->direct = false;
+	return (0);
+}
 
 static device_method_t bhnd_nexus_methods[] = {
 	/* bhnd interface */
 	DEVMETHOD(bhnd_bus_activate_resource,	bhnd_nexus_activate_resource),
+	DEVMETHOD(bhnd_bus_deactivate_resource, bhnd_nexus_deactivate_resource),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_nexus_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_nexus_get_attach_type),
 

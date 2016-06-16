@@ -84,11 +84,13 @@ struct chipc_region {
 	bhnd_addr_t		 cr_addr;	/**< region base address */
 	bhnd_addr_t		 cr_end;	/**< region end address */
 	bhnd_size_t		 cr_count;	/**< region count */
-	int			 cr_rid;	/**< rid, or -1 if no rid
-						  *  is allocated by the bus for
-						  *  this region */
+	int			 cr_rid;	/**< rid to use when performing
+						     resource allocation, or -1
+						     if region has no assigned
+						     resource ID */
 
 	struct bhnd_resource	*cr_res;	/**< bus resource, or NULL */
+	int			 cr_res_rid;	/**< cr_res RID, if any. */
 	u_int			 cr_refs;	/**< RF_ALLOCATED refcount */
 	u_int			 cr_act_refs;	/**< RF_ACTIVE refcount */
 
