@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2016
+.Dd June 17, 2016
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -105,6 +105,12 @@ counter decremented once.
 .Fn libusb_get_bus_number "libusb_device *dev"
 Returns the number of the bus contained by the device
 .Fa dev .
+.Pp
+.Ft uint8_t
+.Fn libusb_get_port_number "libusb_device *dev"
+Returns the port number which the device given by
+.Fa dev
+is attached to.
 .Pp
 .Ft int
 .Fn libusb_get_port_numbers "libusb_device *dev" "uint8_t *buf" "uint8_t bufsize"
