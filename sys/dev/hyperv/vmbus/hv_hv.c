@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/timetc.h>
@@ -49,6 +50,9 @@ __FBSDID("$FreeBSD$");
 
 
 static u_int hv_get_timecount(struct timecounter *tc);
+
+u_int	hyperv_features;
+u_int	hyperv_recommends;
 
 /**
  * Globals
@@ -206,8 +210,6 @@ hv_vmbus_init(void)
 	    goto cleanup;
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
-
-	tc_init(&hv_timecounter); /* register virtual timecount */
 
 	hv_et_init();
 	
@@ -423,3 +425,93 @@ void hv_vmbus_synic_cleanup(void *arg)
 	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 }
 
+static bool
+hyperv_identify(void)
+{
+	u_int regs[4];
+	unsigned int maxLeaf;
+	unsigned int op;
+
+	if (vm_guest != VM_GUEST_HV)
+		return (false);
+
+	op = HV_CPU_ID_FUNCTION_HV_VENDOR_AND_MAX_FUNCTION;
+	do_cpuid(op, regs);
+	maxLeaf = regs[0];
+	if (maxLeaf < HV_CPU_ID_FUNCTION_MS_HV_IMPLEMENTATION_LIMITS)
+		return (false);
+
+	op = HV_CPU_ID_FUNCTION_HV_INTERFACE;
+	do_cpuid(op, regs);
+	if (regs[0] != 0x31237648 /* HV#1 */)
+		return (false);
+
+	op = HV_CPU_ID_FUNCTION_MS_HV_FEATURES;
+	do_cpuid(op, regs);
+	if ((regs[0] & HV_FEATURE_MSR_HYPERCALL) == 0) {
+		/*
+		 * Hyper-V w/o Hypercall is impossible; someone
+		 * is faking Hyper-V.
+		 */
+		return (false);
+	}
+	hyperv_features = regs[0];
+
+	op = HV_CPU_ID_FUNCTION_MS_HV_VERSION;
+	do_cpuid(op, regs);
+	printf("Hyper-V Version: %d.%d.%d [SP%d]\n",
+	    regs[1] >> 16, regs[1] & 0xffff, regs[0], regs[2]);
+
+	printf("  Features: 0x%b\n", hyperv_features,
+	    "\020"
+	    "\001VPRUNTIME"
+	    "\002TMREFCNT"
+	    "\003SYNCIC"
+	    "\004SYNCTM"
+	    "\005APIC"
+	    "\006HYERCALL"
+	    "\007VPINDEX"
+	    "\010RESET"
+	    "\011STATS"
+	    "\012REFTSC"
+	    "\013IDLE"
+	    "\014TMFREQ"
+	    "\015DEBUG");
+
+	op = HV_CPU_ID_FUNCTION_MS_HV_ENLIGHTENMENT_INFORMATION;
+	do_cpuid(op, regs);
+	hyperv_recommends = regs[0];
+	if (bootverbose)
+		printf("  Recommends: %08x %08x\n", regs[0], regs[1]);
+
+	op = HV_CPU_ID_FUNCTION_MS_HV_IMPLEMENTATION_LIMITS;
+	do_cpuid(op, regs);
+	if (bootverbose) {
+		printf("  Limits: Vcpu:%d Lcpu:%d Int:%d\n",
+		    regs[0], regs[1], regs[2]);
+	}
+
+	if (maxLeaf >= HV_CPU_ID_FUNCTION_MS_HV_HARDWARE_FEATURE) {
+		op = HV_CPU_ID_FUNCTION_MS_HV_HARDWARE_FEATURE;
+		do_cpuid(op, regs);
+		if (bootverbose) {
+			printf("  HW Features: %08x AMD: %08x\n",
+			    regs[0], regs[3]);
+		}
+	}
+
+	return (true);
+}
+
+static void
+hyperv_init(void *dummy __unused)
+{
+	if (!hyperv_identify())
+		return;
+
+	if (hyperv_features & HV_FEATURE_MSR_TIME_REFCNT) {
+		/* Register virtual timecount */
+		tc_init(&hv_timecounter);
+	}
+}
+SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init, NULL);
