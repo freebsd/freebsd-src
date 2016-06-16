@@ -213,6 +213,9 @@ struct libusb20_device {
 	/* claimed interface */
 	uint8_t claimed_interface;
 
+	/* auto detach kernel driver */
+	uint8_t auto_detach;
+  
 	/* device file handle */
 	int	file;
 
