@@ -65,6 +65,7 @@ CFLAGS+=	-I ../../sys
 .endif
 
 # LibUSB v1.0
+MLINKS += libusb.3 libusb_get_version.3
 MLINKS += libusb.3 libusb_init.3
 MLINKS += libusb.3 libusb_exit.3
 MLINKS += libusb.3 libusb_strerror.3
