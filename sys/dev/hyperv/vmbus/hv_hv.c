@@ -48,11 +48,15 @@ __FBSDID("$FreeBSD$");
 
 #define HV_NANOSECONDS_PER_SEC		1000000000L
 
+#define	HYPERV_INTERFACE		0x31237648	/* HV#1 */
 
 static u_int hv_get_timecount(struct timecounter *tc);
 
 u_int	hyperv_features;
 u_int	hyperv_recommends;
+
+static u_int	hyperv_pm_features;
+static u_int	hyperv_features3;
 
 /**
  * Globals
@@ -71,47 +75,6 @@ hv_get_timecount(struct timecounter *tc)
 {
 	u_int now = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
 	return (now);
-}
-
-/**
- * @brief Query the cpuid for presence of windows hypervisor
- */
-int
-hv_vmbus_query_hypervisor_presence(void) 
-{
-	if (vm_guest != VM_GUEST_HV)
-		return (0);
-
-	return (hv_high >= HV_X64_CPUID_MIN && hv_high <= HV_X64_CPUID_MAX);
-}
-
-/**
- * @brief Get version of the windows hypervisor
- */
-static int
-hv_vmbus_get_hypervisor_version(void) 
-{
-	u_int regs[4];
-	unsigned int maxLeaf;
-	unsigned int op;
-
-	/*
-	 * Its assumed that this is called after confirming that
-	 * Viridian is present
-	 * Query id and revision.
-	 */
-	op = HV_CPU_ID_FUNCTION_HV_VENDOR_AND_MAX_FUNCTION;
-	do_cpuid(op, regs);
-
-	maxLeaf = regs[0];
-	op = HV_CPU_ID_FUNCTION_HV_INTERFACE;
-	do_cpuid(op, regs);
-
-	if (maxLeaf >= HV_CPU_ID_FUNCTION_MS_HV_VERSION) {
-	    op = HV_CPU_ID_FUNCTION_MS_HV_VERSION;
-	    do_cpuid(op, regs);
-	}
-	return (maxLeaf);
 }
 
 /**
@@ -163,7 +126,6 @@ hv_vmbus_do_hypercall(uint64_t control, void* input, void* output)
 int
 hv_vmbus_init(void) 
 {
-	int					max_leaf;
 	hv_vmbus_x64_msr_hypercall_contents	hypercall_msr;
 	void* 					virt_addr = 0;
 
@@ -179,8 +141,6 @@ hv_vmbus_init(void)
 
 	if (vm_guest != VM_GUEST_HV)
 	    goto cleanup;
-
-	max_leaf = hv_vmbus_get_hypervisor_version();
 
 	/*
 	 * Write our OS info
@@ -457,7 +417,7 @@ hyperv_identify(void)
 
 	op = HV_CPU_ID_FUNCTION_HV_INTERFACE;
 	do_cpuid(op, regs);
-	if (regs[0] != 0x31237648 /* HV#1 */)
+	if (regs[0] != HYPERV_INTERFACE)
 		return (false);
 
 	op = HV_CPU_ID_FUNCTION_MS_HV_FEATURES;
@@ -470,27 +430,50 @@ hyperv_identify(void)
 		return (false);
 	}
 	hyperv_features = regs[0];
+	hyperv_pm_features = regs[2];
+	hyperv_features3 = regs[3];
 
 	op = HV_CPU_ID_FUNCTION_MS_HV_VERSION;
 	do_cpuid(op, regs);
 	printf("Hyper-V Version: %d.%d.%d [SP%d]\n",
 	    regs[1] >> 16, regs[1] & 0xffff, regs[0], regs[2]);
 
-	printf("  Features: 0x%b\n", hyperv_features,
+	printf("  Features=0x%b\n", hyperv_features,
 	    "\020"
-	    "\001VPRUNTIME"
-	    "\002TMREFCNT"
-	    "\003SYNCIC"
-	    "\004SYNCTM"
-	    "\005APIC"
-	    "\006HYERCALL"
-	    "\007VPINDEX"
-	    "\010RESET"
-	    "\011STATS"
-	    "\012REFTSC"
-	    "\013IDLE"
-	    "\014TMFREQ"
-	    "\015DEBUG");
+	    "\001VPRUNTIME"	/* MSR_VP_RUNTIME */
+	    "\002TMREFCNT"	/* MSR_TIME_REF_COUNT */
+	    "\003SYNIC"		/* MSRs for SynIC */
+	    "\004SYNTM"		/* MSRs for SynTimer */
+	    "\005APIC"		/* MSR_{EOI,ICR,TPR} */
+	    "\006HYERCALL"	/* MSR_{GUEST_OS_ID,HYPERCALL} */
+	    "\007VPINDEX"	/* MSR_VP_INDEX */
+	    "\010RESET"		/* MSR_RESET */
+	    "\011STATS"		/* MSR_STATS_ */
+	    "\012REFTSC"	/* MSR_REFERENCE_TSC */
+	    "\013IDLE"		/* MSR_GUEST_IDLE */
+	    "\014TMFREQ"	/* MSR_{TSC,APIC}_FREQUENCY */
+	    "\015DEBUG");	/* MSR_SYNTH_DEBUG_ */
+	printf("  PM Features=max C%u, 0x%b\n",
+	    HV_PM_FEATURE_CSTATE(hyperv_pm_features),
+	    (hyperv_pm_features & ~HV_PM_FEATURE_CSTATE_MASK),
+	    "\020"
+	    "\005C3HPET");	/* HPET is required for C3 state */
+	printf("  Features3=0x%b\n", hyperv_features3,
+	    "\020"
+	    "\001MWAIT"		/* MWAIT */
+	    "\002DEBUG"		/* guest debug support */
+	    "\003PERFMON"	/* performance monitor */
+	    "\004PCPUDPE"	/* physical CPU dynamic partition event */
+	    "\005XMMHC"		/* hypercall input through XMM regs */
+	    "\006IDLE"		/* guest idle support */
+	    "\007SLEEP"		/* hypervisor sleep support */
+	    "\010NUMA"		/* NUMA distance query support */
+	    "\011TMFREQ"	/* timer frequency query (TSC, LAPIC) */
+	    "\012SYNCMC"	/* inject synthetic machine checks */
+	    "\013CRASH"		/* MSRs for guest crash */
+	    "\014DEBUGMSR"	/* MSRs for guest debug */
+	    "\015NPIEP"		/* NPIEP */
+	    "\016HVDIS");	/* disabling hypervisor */
 
 	op = HV_CPU_ID_FUNCTION_MS_HV_ENLIGHTENMENT_INFORMATION;
 	do_cpuid(op, regs);
@@ -528,4 +511,5 @@ hyperv_init(void *dummy __unused)
 		tc_init(&hv_timecounter);
 	}
 }
-SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init, NULL);
+SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
+    NULL);
