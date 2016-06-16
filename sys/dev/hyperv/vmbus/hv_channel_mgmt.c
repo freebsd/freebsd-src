@@ -277,7 +277,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	}
 }
 
-static void
+void
 vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 {
 	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu %d", cpu));

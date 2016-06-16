@@ -86,6 +86,92 @@ MALLOC_DECLARE(M_NETVSC);
  */
 #define NVSP_MAX_PACKETS_PER_RECEIVE            375
 
+/* vRSS stuff */
+#define RNDIS_OBJECT_TYPE_RSS_CAPABILITIES      0x88
+#define RNDIS_OBJECT_TYPE_RSS_PARAMETERS        0x89
+
+#define RNDIS_RECEIVE_SCALE_CAPABILITIES_REVISION_2     2
+#define RNDIS_RECEIVE_SCALE_PARAMETERS_REVISION_2       2
+
+struct rndis_obj_header {
+        uint8_t type;
+        uint8_t rev;
+        uint16_t size;
+} __packed;
+
+/* rndis_recv_scale_cap/cap_flag */
+#define RNDIS_RSS_CAPS_MESSAGE_SIGNALED_INTERRUPTS      0x01000000
+#define RNDIS_RSS_CAPS_CLASSIFICATION_AT_ISR            0x02000000
+#define RNDIS_RSS_CAPS_CLASSIFICATION_AT_DPC            0x04000000
+#define RNDIS_RSS_CAPS_USING_MSI_X                      0x08000000
+#define RNDIS_RSS_CAPS_RSS_AVAILABLE_ON_PORTS           0x10000000
+#define RNDIS_RSS_CAPS_SUPPORTS_MSI_X                   0x20000000
+#define RNDIS_RSS_CAPS_HASH_TYPE_TCP_IPV4               0x00000100
+#define RNDIS_RSS_CAPS_HASH_TYPE_TCP_IPV6               0x00000200
+#define RNDIS_RSS_CAPS_HASH_TYPE_TCP_IPV6_EX            0x00000400
+
+/* RNDIS_RECEIVE_SCALE_CAPABILITIES */
+struct rndis_recv_scale_cap {
+        struct rndis_obj_header hdr;
+        uint32_t cap_flag;
+        uint32_t num_int_msg;
+        uint32_t num_recv_que;
+        uint16_t num_indirect_tabent;
+} __packed;
+
+/* rndis_recv_scale_param flags */
+#define RNDIS_RSS_PARAM_FLAG_BASE_CPU_UNCHANGED         0x0001
+#define RNDIS_RSS_PARAM_FLAG_HASH_INFO_UNCHANGED        0x0002
+#define RNDIS_RSS_PARAM_FLAG_ITABLE_UNCHANGED           0x0004
+#define RNDIS_RSS_PARAM_FLAG_HASH_KEY_UNCHANGED         0x0008
+#define RNDIS_RSS_PARAM_FLAG_DISABLE_RSS                0x0010
+
+/* Hash info bits */
+#define RNDIS_HASH_FUNC_TOEPLITZ                0x00000001
+#define RNDIS_HASH_IPV4                         0x00000100
+#define RNDIS_HASH_TCP_IPV4                     0x00000200
+#define RNDIS_HASH_IPV6                         0x00000400
+#define RNDIS_HASH_IPV6_EX                      0x00000800
+#define RNDIS_HASH_TCP_IPV6                     0x00001000
+#define RNDIS_HASH_TCP_IPV6_EX                  0x00002000
+
+#define RNDIS_RSS_INDIRECTION_TABLE_MAX_SIZE_REVISION_2 (128 * 4)
+#define RNDIS_RSS_HASH_SECRET_KEY_MAX_SIZE_REVISION_2   40
+
+#define ITAB_NUM                                        128
+#define HASH_KEYLEN RNDIS_RSS_HASH_SECRET_KEY_MAX_SIZE_REVISION_2
+
+/* RNDIS_RECEIVE_SCALE_PARAMETERS */
+typedef struct rndis_recv_scale_param_ {
+        struct rndis_obj_header hdr;
+
+        /* Qualifies the rest of the information */
+        uint16_t flag;
+
+        /* The base CPU number to do receive processing. not used */
+        uint16_t base_cpu_number;
+
+        /* This describes the hash function and type being enabled */
+        uint32_t hashinfo;
+
+        /* The size of indirection table array */
+        uint16_t indirect_tabsize;
+
+        /* The offset of the indirection table from the beginning of this
+         * structure
+         */
+        uint32_t indirect_taboffset;
+
+        /* The size of the hash secret key */
+        uint16_t hashkey_size;
+
+        /* The offset of the secret key from the beginning of this structure */
+        uint32_t hashkey_offset;
+
+        uint32_t processor_masks_offset;
+        uint32_t num_processor_masks;
+        uint32_t processor_masks_entry_size;
+} rndis_recv_scale_param;
 
 typedef enum nvsp_msg_type_ {
 	nvsp_msg_type_none                      = 0,
@@ -146,6 +232,27 @@ typedef enum nvsp_msg_type_ {
 
 	nvsp_msg_2_type_alloc_chimney_handle,
 	nvsp_msg_2_type_alloc_chimney_handle_complete,
+
+	nvsp_msg2_max = nvsp_msg_2_type_alloc_chimney_handle_complete,
+
+	/*
+	 * Version 4 Messages
+	 */
+	nvsp_msg4_type_send_vf_association,
+	nvsp_msg4_type_switch_data_path,
+	nvsp_msg4_type_uplink_connect_state_deprecated,
+
+	nvsp_msg4_max = nvsp_msg4_type_uplink_connect_state_deprecated,
+
+	/*
+	 * Version 5 Messages
+	 */
+	nvsp_msg5_type_oid_query_ex,
+	nvsp_msg5_type_oid_query_ex_comp,
+	nvsp_msg5_type_subchannel,
+	nvsp_msg5_type_send_indirection_table,
+
+	nvsp_msg5_max = nvsp_msg5_type_send_indirection_table,
 } nvsp_msg_type;
 
 typedef enum nvsp_status_ {
@@ -793,6 +900,39 @@ typedef struct nvsp_2_msg_send_vmq_rndis_pkt_complete_
 	uint32_t                                status;
 } __packed nvsp_2_msg_send_vmq_rndis_pkt_complete;
 
+/*
+ * Version 5 messages
+ */
+enum nvsp_subchannel_operation {
+        NVSP_SUBCHANNEL_NONE = 0,
+        NVSP_SUBCHANNE_ALLOCATE,
+        NVSP_SUBCHANNE_MAX
+};
+
+typedef struct nvsp_5_subchannel_request_
+{
+        uint32_t                                op;
+        uint32_t                                num_subchannels;
+} __packed nvsp_5_subchannel_request;
+
+typedef struct nvsp_5_subchannel_complete_
+{
+        uint32_t                                status;
+        /* Actual number of subchannels allocated */
+        uint32_t                                num_subchannels;
+} __packed nvsp_5_subchannel_complete;
+
+typedef struct nvsp_5_send_indirect_table_
+{
+        /* The number of entries in the send indirection table */
+        uint32_t                                count;
+        /*
+         * The offset of the send indireciton table from top of
+         * this struct. The send indirection table tells which channel
+         * to put the send traffic on. Each entry is a channel number.
+         */
+        uint32_t                                offset;
+} __packed nvsp_5_send_indirect_table;
 
 typedef union nvsp_1_msg_uber_ {
 	nvsp_1_msg_send_ndis_version            send_ndis_vers;
@@ -838,11 +978,18 @@ typedef union nvsp_2_msg_uber_ {
 	nvsp_2_msg_alloc_chimney_handle_complete alloc_chimney_handle_complete;
 } __packed nvsp_2_msg_uber;
 
+typedef union nvsp_5_msg_uber_
+{
+        nvsp_5_subchannel_request               subchannel_request;
+        nvsp_5_subchannel_complete              subchn_complete;
+        nvsp_5_send_indirect_table              send_table;
+} __packed nvsp_5_msg_uber;
 
 typedef union nvsp_all_msgs_ {
 	nvsp_msg_init_uber                      init_msgs;
 	nvsp_1_msg_uber                         vers_1_msgs;
 	nvsp_2_msg_uber                         vers_2_msgs;
+	nvsp_5_msg_uber				vers_5_msgs;
 } __packed nvsp_all_msgs;
 
 /*
@@ -883,6 +1030,7 @@ typedef struct nvsp_msg_ {
 #define NETVSC_MAX_CONFIGURABLE_MTU		(9 * 1024)
 
 #define NETVSC_PACKET_SIZE			PAGE_SIZE
+#define VRSS_SEND_TABLE_SIZE			16
 
 /*
  * Data types
@@ -923,10 +1071,15 @@ typedef struct netvsc_dev_ {
 	hv_bool_uint8_t				destroy;
 	/* Negotiated NVSP version */
 	uint32_t				nvsp_version;
+
+	uint32_t                                num_channel;
+
+	uint32_t                                vrss_send_table[VRSS_SEND_TABLE_SIZE];
 } netvsc_dev;
 
+struct hv_vmbus_channel;
 
-typedef void (*pfn_on_send_rx_completion)(void *);
+typedef void (*pfn_on_send_rx_completion)(struct hv_vmbus_channel *, void *);
 
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
 #define NETVSC_PACKET_MAXPAGE		32 
@@ -1010,13 +1163,18 @@ struct hn_rx_ring {
 	u_long		hn_csum_trusted;
 	u_long		hn_lro_tried;
 	u_long		hn_small_pkts;
+	u_long		hn_pkts;
+
+	/* Rarely used stuffs */
+	struct sysctl_oid *hn_rx_sysctl_tree;
+	int		hn_rx_flags;
 } __aligned(CACHE_LINE_SIZE);
 
 #define HN_TRUST_HCSUM_IP	0x0001
 #define HN_TRUST_HCSUM_TCP	0x0002
 #define HN_TRUST_HCSUM_UDP	0x0004
 
-struct hv_vmbus_channel;
+#define HN_RX_FLAG_ATTACHED	0x1
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING
@@ -1053,12 +1211,16 @@ struct hn_tx_ring {
 	u_long		hn_txdma_failed;
 	u_long		hn_tx_collapsed;
 	u_long		hn_tx_chimney;
+	u_long		hn_pkts;
 
 	/* Rarely used stuffs */
 	struct hn_txdesc *hn_txdesc;
 	bus_dma_tag_t	hn_tx_rndis_dtag;
 	struct sysctl_oid *hn_tx_sysctl_tree;
+	int		hn_tx_flags;
 } __aligned(CACHE_LINE_SIZE);
+
+#define HN_TX_FLAG_ATTACHED	0x1
 
 /*
  * Device-specific softc structure
@@ -1085,9 +1247,12 @@ typedef struct hn_softc {
 	int		hn_tx_ring_cnt;
 	int		hn_tx_ring_inuse;
 	struct hn_tx_ring *hn_tx_ring;
+
+	int		hn_cpu;
 	int		hn_tx_chimney_max;
 	struct taskqueue *hn_tx_taskq;
 	struct sysctl_oid *hn_tx_sysctl_tree;
+	struct sysctl_oid *hn_rx_sysctl_tree;
 } hn_softc_t;
 
 /*

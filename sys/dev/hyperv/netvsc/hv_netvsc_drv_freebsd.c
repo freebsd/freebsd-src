@@ -281,13 +281,16 @@ static int hn_use_if_start = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
     &hn_use_if_start, 0, "Use if_start TX method");
 
-static int hn_ring_cnt = 1;
-SYSCTL_INT(_hw_hn, OID_AUTO, ring_cnt, CTLFLAG_RDTUN,
-    &hn_ring_cnt, 0, "# of TX/RX rings to used");
+static int hn_chan_cnt = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, chan_cnt, CTLFLAG_RDTUN,
+    &hn_chan_cnt, 0,
+    "# of channels to use; each channel has one RX ring and one TX ring");
 
-static int hn_single_tx_ring = 1;
-SYSCTL_INT(_hw_hn, OID_AUTO, single_tx_ring, CTLFLAG_RDTUN,
-    &hn_single_tx_ring, 0, "Use one TX ring");
+static int hn_tx_ring_cnt = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_ring_cnt, CTLFLAG_RDTUN,
+    &hn_tx_ring_cnt, 0, "# of TX rings to use");
+
+static u_int hn_cpu_index;
 
 /*
  * Forward declarations
@@ -327,6 +330,7 @@ static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static void hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
+static void hn_channel_attach(struct hn_softc *, struct hv_vmbus_channel *);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
 static void hn_xmit_qflush(struct ifnet *);
@@ -454,37 +458,46 @@ netvsc_attach(device_t dev)
 
 	ifp = sc->hn_ifp = sc->arpcom.ac_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-	ring_cnt = hn_ring_cnt;
-	if (ring_cnt <= 0 || ring_cnt >= mp_ncpus)
+	/*
+	 * Figure out the # of RX rings (ring_cnt) and the # of TX rings
+	 * to use (tx_ring_cnt).
+	 *
+	 * NOTE:
+	 * The # of RX rings to use is same as the # of channels to use.
+	 */
+	ring_cnt = hn_chan_cnt;
+	if (ring_cnt <= 0 || ring_cnt > mp_ncpus)
 		ring_cnt = mp_ncpus;
 
-	tx_ring_cnt = ring_cnt;
-	if (hn_single_tx_ring || hn_use_if_start) {
-		/*
-		 * - Explicitly asked to use single TX ring.
-		 * - ifnet.if_start is used; ifnet.if_start only needs
-		 *   one TX ring.
-		 */
+	tx_ring_cnt = hn_tx_ring_cnt;
+	if (tx_ring_cnt <= 0 || tx_ring_cnt > ring_cnt)
+		tx_ring_cnt = ring_cnt;
+	if (hn_use_if_start) {
+		/* ifnet.if_start only needs one TX ring. */
 		tx_ring_cnt = 1;
 	}
+
+	/*
+	 * Set the leader CPU for channels.
+	 */
+	sc->hn_cpu = atomic_fetchadd_int(&hn_cpu_index, ring_cnt) % mp_ncpus;
+
 	error = hn_create_tx_data(sc, tx_ring_cnt);
 	if (error)
 		goto failed;
-
 	hn_create_rx_data(sc, ring_cnt);
 
 	/*
 	 * Associate the first TX/RX ring w/ the primary channel.
 	 */
 	chan = device_ctx->channel;
-	chan->hv_chan_rxr = &sc->hn_rx_ring[0];
-	chan->hv_chan_txr = &sc->hn_tx_ring[0];
-	sc->hn_tx_ring[0].hn_chan = chan;
-
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_dunit = unit;
-	ifp->if_dname = NETVSC_DEVNAME;
+	KASSERT(HV_VMBUS_CHAN_ISPRIMARY(chan), ("not primary channel"));
+	KASSERT(chan->offer_msg.offer.sub_channel_index == 0,
+	    ("primary channel subidx %u",
+	     chan->offer_msg.offer.sub_channel_index));
+	hn_channel_attach(sc, chan);
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
@@ -522,10 +535,18 @@ netvsc_attach(device_t dev)
 	error = hv_rf_on_device_add(device_ctx, &device_info, ring_cnt);
 	if (error)
 		goto failed;
+	KASSERT(sc->net_dev->num_channel > 0 &&
+	    sc->net_dev->num_channel <= sc->hn_rx_ring_inuse,
+	    ("invalid channel count %u, should be less than %d",
+	     sc->net_dev->num_channel, sc->hn_rx_ring_inuse));
 
-	/* TODO: vRSS */
-	sc->hn_tx_ring_inuse = 1;
-	sc->hn_rx_ring_inuse = 1;
+	/*
+	 * Set the # of TX/RX rings that could be used according to
+	 * the # of channels that host offered.
+	 */
+	if (sc->hn_tx_ring_inuse > sc->net_dev->num_channel)
+		sc->hn_tx_ring_inuse = sc->net_dev->num_channel;
+	sc->hn_rx_ring_inuse = sc->net_dev->num_channel;
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
 
@@ -730,7 +751,7 @@ hn_txdesc_hold(struct hn_txdesc *txd)
 }
 
 static void
-hn_tx_done(void *xpkt)
+hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 {
 	netvsc_packet *packet = xpkt;
 	struct hn_txdesc *txd;
@@ -740,6 +761,11 @@ hn_tx_done(void *xpkt)
 	    packet->compl.send.send_completion_tid;
 
 	txr = txd->txr;
+	KASSERT(txr->hn_chan == chan,
+	    ("channel mismatch, on channel%u, should be channel%u",
+	     chan->offer_msg.offer.sub_channel_index,
+	     txr->hn_chan->offer_msg.offer.sub_channel_index));
+
 	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
 }
@@ -1025,6 +1051,7 @@ again:
 			if (txd->m->m_flags & M_MCAST)
 				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		}
+		txr->hn_pkts++;
 	}
 	hn_txdesc_put(txr, txd);
 
@@ -1357,6 +1384,7 @@ skip:
 	 */
 
 	ifp->if_ipackets++;
+	rxr->hn_pkts++;
 
 	if ((ifp->if_capenable & IFCAP_LRO) && do_lro) {
 #if defined(INET) || defined(INET6)
@@ -2122,6 +2150,13 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 #endif
 #endif	/* INET || INET6 */
 
+	ctx = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+
+	/* Create dev.hn.UNIT.rx sysctl tree */
+	sc->hn_rx_sysctl_tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "rx",
+	    CTLFLAG_RD, 0, "");
+
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
 
@@ -2149,10 +2184,27 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		rxr->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
 #endif
 #endif	/* INET || INET6 */
-	}
 
-	ctx = device_get_sysctl_ctx(dev);
-	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+		if (sc->hn_rx_sysctl_tree != NULL) {
+			char name[16];
+
+			/*
+			 * Create per RX ring sysctl tree:
+			 * dev.hn.UNIT.rx.RINGID
+			 */
+			snprintf(name, sizeof(name), "%d", i);
+			rxr->hn_rx_sysctl_tree = SYSCTL_ADD_NODE(ctx,
+			    SYSCTL_CHILDREN(sc->hn_rx_sysctl_tree),
+			    OID_AUTO, name, CTLFLAG_RD, 0, "");
+
+			if (rxr->hn_rx_sysctl_tree != NULL) {
+				SYSCTL_ADD_ULONG(ctx,
+				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
+				    OID_AUTO, "packets", CTLFLAG_RW,
+				    &rxr->hn_pkts, "# of packets received");
+			}
+		}
+	}
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
 	    CTLTYPE_U64 | CTLFLAG_RW, sc,
@@ -2419,6 +2471,9 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 				    CTLFLAG_RD, &txr->hn_oactive, 0,
 				    "over active");
 			}
+			SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "packets",
+			    CTLFLAG_RW, &txr->hn_pkts,
+			    "# of packets transmitted");
 		}
 	}
 
@@ -2780,6 +2835,55 @@ hn_xmit_txeof_taskfunc(void *xtxr, int pending __unused)
 	txr->hn_oactive = 0;
 	hn_xmit(txr, 0);
 	mtx_unlock(&txr->hn_tx_lock);
+}
+
+static void
+hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+{
+	struct hn_rx_ring *rxr;
+	int idx;
+
+	idx = chan->offer_msg.offer.sub_channel_index;
+
+	KASSERT(idx >= 0 && idx < sc->hn_rx_ring_inuse,
+	    ("invalid channel index %d, should > 0 && < %d",
+	     idx, sc->hn_rx_ring_inuse));
+	rxr = &sc->hn_rx_ring[idx];
+	KASSERT((rxr->hn_rx_flags & HN_RX_FLAG_ATTACHED) == 0,
+	    ("RX ring %d already attached", idx));
+	rxr->hn_rx_flags |= HN_RX_FLAG_ATTACHED;
+
+	chan->hv_chan_rxr = rxr;
+	if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
+	    idx, chan->offer_msg.child_rel_id);
+
+	if (idx < sc->hn_tx_ring_inuse) {
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[idx];
+
+		KASSERT((txr->hn_tx_flags & HN_TX_FLAG_ATTACHED) == 0,
+		    ("TX ring %d already attached", idx));
+		txr->hn_tx_flags |= HN_TX_FLAG_ATTACHED;
+
+		chan->hv_chan_txr = txr;
+		txr->hn_chan = chan;
+		if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
+		    idx, chan->offer_msg.child_rel_id);
+	}
+
+	/* Bind channel to a proper CPU */
+	vmbus_channel_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+}
+
+void
+netvsc_subchan_callback(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+{
+
+	KASSERT(!HV_VMBUS_CHAN_ISPRIMARY(chan),
+	    ("subchannel callback on primary channel"));
+	KASSERT(chan->offer_msg.offer.sub_channel_index > 0,
+	    ("invalid channel subidx %u",
+	     chan->offer_msg.offer.sub_channel_index));
+	hn_channel_attach(sc, chan);
 }
 
 static void
