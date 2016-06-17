@@ -1773,6 +1773,12 @@ efx_ev_qpoll(
 	__in_opt	void *arg);
 
 extern	__checkReturn	efx_rc_t
+efx_ev_usecs_to_ticks(
+	__in		efx_nic_t *enp,
+	__in		unsigned int usecs,
+	__out		unsigned int *ticksp);
+
+extern	__checkReturn	efx_rc_t
 efx_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us);
