@@ -209,9 +209,11 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, caddr_t relocbase)
 			assert(ELF_ST_BIND(sym->st_info) == STB_LOCAL);
 			val += (uintptr_t)relocbase;
 			//store_ptr(where, val, sizeof(Elf_Sword));
+#ifdef DEBUG_VERBOSE
 			dbg("REL32/L(%p) %p -> %p in <self>",
 			    where, (void *)(uintptr_t)old,
 			    (void *)(uintptr_t)val);
+#endif
 			store_ptr(where, val, rlen);
 			break;
 		}
@@ -298,8 +300,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	    got, obj->symtabno);
 	/* Now do the global GOT entries */
 	for (i = obj->gotsym; i < obj->symtabno; i++) {
+#ifdef DEBUG_VERBOSE
 		dbg(" doing got %d sym %p (%s, %lx)", i - obj->gotsym, sym,
 		    sym->st_name + obj->strtab, (u_long) *got);
+#endif
 
 #ifdef SUPPORT_OLD_BROKEN_LD
 		if (ELF_ST_TYPE(sym->st_info) == STT_FUNC &&
@@ -375,7 +379,9 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			}
 		}
 
+#ifdef DEBUG_VERBOSE
 		dbg("  --> now %lx", (u_long) *got);
+#endif
 		++sym;
 		++got;
 	}
@@ -407,10 +413,12 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 
 			if (r_symndx >= obj->gotsym) {
 				val += got[obj->local_gotno + r_symndx - obj->gotsym];
+#ifdef DEBUG_VERBOSE
 				dbg("REL32/G(%p) %p --> %p (%s) in %s",
 				    where, (void *)(uintptr_t)old, (void *)(uintptr_t)val,
 				    obj->strtab + def->st_name,
 				    obj->path);
+#endif
 			} else {
 				/*
 				 * XXX: ABI DIFFERENCE!
@@ -438,9 +446,11 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 
 				val += (Elf_Addr)obj->relocbase;
 
+#ifdef DEBUG_VERBOSE
 				dbg("REL32/L(%p) %p -> %p (%s) in %s",
 				    where, (void *)(uintptr_t)old, (void *)(uintptr_t)val,
 				    obj->strtab + def->st_name, obj->path);
+#endif
 			}
 			store_ptr(where, val, rlen);
 			break;
