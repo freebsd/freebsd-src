@@ -92,8 +92,10 @@ efx_mcdi_init_evq(
 	__in		unsigned int instance,
 	__in		efsys_mem_t *esmp,
 	__in		size_t nevs,
-	__in		uint32_t irq)
+	__in		uint32_t irq,
+	__in		uint32_t us)
 {
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
 	uint8_t payload[
 	    MAX(MC_CMD_INIT_EVQ_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
@@ -141,10 +143,26 @@ efx_mcdi_init_evq(
 	    INIT_EVQ_IN_FLAG_RX_MERGE, 1,
 	    INIT_EVQ_IN_FLAG_TX_MERGE, 1);
 
-	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_MODE,
-	    MC_CMD_INIT_EVQ_IN_TMR_MODE_DIS);
-	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_LOAD, 0);
-	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_RELOAD, 0);
+	if (us == 0) {
+		MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_MODE,
+		    MC_CMD_INIT_EVQ_IN_TMR_MODE_DIS);
+		MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_LOAD, 0);
+		MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_RELOAD, 0);
+	} else {
+		uint32_t timer_val;
+
+		/* Calculate the timer value in quanta */
+		timer_val = us * 1000 / encp->enc_evq_timer_quantum_ns;
+
+		/* Moderation value is base 0 so we need to deduct 1 */
+		if (timer_val > 0)
+			timer_val--;
+
+		MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_MODE,
+		    MC_CMD_INIT_EVQ_IN_TMR_INT_HLDOFF);
+		MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_LOAD, timer_val);
+		MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_TMR_RELOAD, timer_val);
+	}
 
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_COUNT_MODE,
 	    MC_CMD_INIT_EVQ_IN_COUNT_MODE_DIS);
@@ -246,6 +264,7 @@ ef10_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__in		efx_evq_t *eep)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
@@ -266,6 +285,11 @@ ef10_ev_qcreate(
 		goto fail2;
 	}
 
+	if (us > encp->enc_evq_timer_max_us) {
+		rc = EINVAL;
+		goto fail3;
+	}
+
 	/* Set up the handler table */
 	eep->ee_rx	= ef10_ev_rx;
 	eep->ee_tx	= ef10_ev_tx;
@@ -280,11 +304,13 @@ ef10_ev_qcreate(
 	 * Interrupts may be raised for events immediately after the queue is
 	 * created. See bug58606.
 	 */
-	if ((rc = efx_mcdi_init_evq(enp, index, esmp, n, irq)) != 0)
-		goto fail3;
+	if ((rc = efx_mcdi_init_evq(enp, index, esmp, n, irq, us)) != 0)
+		goto fail4;
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
