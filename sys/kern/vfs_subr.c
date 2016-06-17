@@ -4529,10 +4529,10 @@ vop_rename_pre(void *ap)
 		vhold(a->a_tvp);
 }
 
+#ifdef DEBUG_VFS_LOCKS
 void
 vop_strategy_pre(void *ap)
 {
-#ifdef DEBUG_VFS_LOCKS
 	struct vop_strategy_args *a;
 	struct buf *bp;
 
@@ -4552,56 +4552,48 @@ vop_strategy_pre(void *ap)
 		if (vfs_badlock_ddb)
 			kdb_enter(KDB_WHY_VFSLOCK, "lock violation");
 	}
-#endif
 }
 
 void
 vop_lock_pre(void *ap)
 {
-#ifdef DEBUG_VFS_LOCKS
 	struct vop_lock1_args *a = ap;
 
 	if ((a->a_flags & LK_INTERLOCK) == 0)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	else
 		ASSERT_VI_LOCKED(a->a_vp, "VOP_LOCK");
-#endif
 }
 
 void
 vop_lock_post(void *ap, int rc)
 {
-#ifdef DEBUG_VFS_LOCKS
 	struct vop_lock1_args *a = ap;
 
 	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	if (rc == 0 && (a->a_flags & LK_EXCLOTHER) == 0)
 		ASSERT_VOP_LOCKED(a->a_vp, "VOP_LOCK");
-#endif
 }
 
 void
 vop_unlock_pre(void *ap)
 {
-#ifdef DEBUG_VFS_LOCKS
 	struct vop_unlock_args *a = ap;
 
 	if (a->a_flags & LK_INTERLOCK)
 		ASSERT_VI_LOCKED(a->a_vp, "VOP_UNLOCK");
 	ASSERT_VOP_LOCKED(a->a_vp, "VOP_UNLOCK");
-#endif
 }
 
 void
 vop_unlock_post(void *ap, int rc)
 {
-#ifdef DEBUG_VFS_LOCKS
 	struct vop_unlock_args *a = ap;
 
 	if (a->a_flags & LK_INTERLOCK)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_UNLOCK");
-#endif
 }
+#endif
 
 void
 vop_create_post(void *ap, int rc)
