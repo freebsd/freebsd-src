@@ -699,13 +699,10 @@ sfxge_ev_qstart(struct sfxge_softc *sc, unsigned int index)
 
 	/* Create the common code event queue. */
 	if ((rc = efx_ev_qcreate(sc->enp, index, esmp, evq->entries,
-	    evq->buf_base_id, &evq->common)) != 0)
+	    evq->buf_base_id, sc->ev_moderation, &evq->common)) != 0)
 		goto fail;
 
 	SFXGE_EVQ_LOCK(evq);
-
-	/* Set the default moderation */
-	(void)efx_ev_qmoderate(evq->common, sc->ev_moderation);
 
 	/* Prime the event queue for interrupts */
 	if ((rc = efx_ev_qprime(evq->common, evq->read_ptr)) != 0)
