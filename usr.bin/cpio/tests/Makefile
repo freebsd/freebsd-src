@@ -39,6 +39,7 @@ TESTS_SRCS=	\
 	test_extract_cpio_gz.c			\
 	test_extract_cpio_lrz.c			\
 	test_extract_cpio_lz.c			\
+	test_extract_cpio_lz4.c			\
 	test_extract_cpio_lzma.c		\
 	test_extract_cpio_lzo.c			\
 	test_extract_cpio_xz.c			\
@@ -59,9 +60,11 @@ TESTS_SRCS=	\
 	test_option_help.c			\
 	test_option_l.c				\
 	test_option_lrzip.c			\
+	test_option_lz4.c			\
 	test_option_lzma.c			\
 	test_option_lzop.c			\
 	test_option_m.c				\
+	test_option_passphrase.c		\
 	test_option_t.c				\
 	test_option_u.c				\
 	test_option_uuencode.c			\
@@ -97,6 +100,7 @@ FILES+= test_extract.cpio.grz.uu
 FILES+= test_extract.cpio.gz.uu
 FILES+= test_extract.cpio.lrz.uu
 FILES+= test_extract.cpio.lz.uu
+FILES+=	test_extract.cpio.lz4.uu
 FILES+= test_extract.cpio.lzma.uu
 FILES+= test_extract.cpio.lzo.uu
 FILES+= test_extract.cpio.xz.uu
@@ -110,6 +114,7 @@ FILES+= test_gcpio_compat_ref_nosym.newc.uu
 FILES+= test_gcpio_compat_ref_nosym.ustar.uu
 FILES+= test_option_f.cpio.uu
 FILES+= test_option_m.cpio.uu
+FILES+=	test_option_passphrase.zip.uu
 FILES+= test_option_t.cpio.uu
 FILES+= test_option_t.stdout.uu
 FILES+= test_option_tv.stdout.uu

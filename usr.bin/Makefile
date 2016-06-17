@@ -16,6 +16,7 @@ SUBDIR=	alias \
 	banner \
 	basename \
 	brandelf \
+	bsdcat \
 	bsdiff \
 	bzip2 \
 	bzip2recover \

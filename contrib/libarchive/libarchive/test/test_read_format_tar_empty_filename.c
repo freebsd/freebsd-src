@@ -49,6 +49,8 @@ DEFINE_TEST(test_read_format_tar_empty_filename)
 	assertEqualInt(0, archive_entry_gid(ae));
 	assertEqualString("wheel", archive_entry_gname(ae));
 	assertEqualInt(040775, archive_entry_mode(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify the end-of-archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));

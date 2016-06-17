@@ -264,11 +264,11 @@ typedef unsigned char archive_sha512_ctx;
 #define ARCHIVE_HAS_MD5
 #endif
 #define archive_md5_init(ctx)\
-  __archive_crypto.md5init(ctx)
+  __archive_digest.md5init(ctx)
 #define archive_md5_final(ctx, md)\
-  __archive_crypto.md5final(ctx, md)
+  __archive_digest.md5final(ctx, md)
 #define archive_md5_update(ctx, buf, n)\
-  __archive_crypto.md5update(ctx, buf, n)
+  __archive_digest.md5update(ctx, buf, n)
 
 #if defined(ARCHIVE_CRYPTO_RMD160_LIBC) ||\
   defined(ARCHIVE_CRYPTO_RMD160_NETTLE) ||\
@@ -276,11 +276,11 @@ typedef unsigned char archive_sha512_ctx;
 #define ARCHIVE_HAS_RMD160
 #endif
 #define archive_rmd160_init(ctx)\
-  __archive_crypto.rmd160init(ctx)
+  __archive_digest.rmd160init(ctx)
 #define archive_rmd160_final(ctx, md)\
-  __archive_crypto.rmd160final(ctx, md)
+  __archive_digest.rmd160final(ctx, md)
 #define archive_rmd160_update(ctx, buf, n)\
-  __archive_crypto.rmd160update(ctx, buf, n)
+  __archive_digest.rmd160update(ctx, buf, n)
 
 #if defined(ARCHIVE_CRYPTO_SHA1_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA1_LIBMD) ||	\
@@ -291,11 +291,11 @@ typedef unsigned char archive_sha512_ctx;
 #define ARCHIVE_HAS_SHA1
 #endif
 #define archive_sha1_init(ctx)\
-  __archive_crypto.sha1init(ctx)
+  __archive_digest.sha1init(ctx)
 #define archive_sha1_final(ctx, md)\
-  __archive_crypto.sha1final(ctx, md)
+  __archive_digest.sha1final(ctx, md)
 #define archive_sha1_update(ctx, buf, n)\
-  __archive_crypto.sha1update(ctx, buf, n)
+  __archive_digest.sha1update(ctx, buf, n)
 
 #if defined(ARCHIVE_CRYPTO_SHA256_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA256_LIBC2) ||\
@@ -308,11 +308,11 @@ typedef unsigned char archive_sha512_ctx;
 #define ARCHIVE_HAS_SHA256
 #endif
 #define archive_sha256_init(ctx)\
-  __archive_crypto.sha256init(ctx)
+  __archive_digest.sha256init(ctx)
 #define archive_sha256_final(ctx, md)\
-  __archive_crypto.sha256final(ctx, md)
+  __archive_digest.sha256final(ctx, md)
 #define archive_sha256_update(ctx, buf, n)\
-  __archive_crypto.sha256update(ctx, buf, n)
+  __archive_digest.sha256update(ctx, buf, n)
 
 #if defined(ARCHIVE_CRYPTO_SHA384_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA384_LIBC2) ||\
@@ -324,11 +324,11 @@ typedef unsigned char archive_sha512_ctx;
 #define ARCHIVE_HAS_SHA384
 #endif
 #define archive_sha384_init(ctx)\
-  __archive_crypto.sha384init(ctx)
+  __archive_digest.sha384init(ctx)
 #define archive_sha384_final(ctx, md)\
-  __archive_crypto.sha384final(ctx, md)
+  __archive_digest.sha384final(ctx, md)
 #define archive_sha384_update(ctx, buf, n)\
-  __archive_crypto.sha384update(ctx, buf, n)
+  __archive_digest.sha384update(ctx, buf, n)
 
 #if defined(ARCHIVE_CRYPTO_SHA512_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA512_LIBC2) ||\
@@ -341,14 +341,14 @@ typedef unsigned char archive_sha512_ctx;
 #define ARCHIVE_HAS_SHA512
 #endif
 #define archive_sha512_init(ctx)\
-  __archive_crypto.sha512init(ctx)
+  __archive_digest.sha512init(ctx)
 #define archive_sha512_final(ctx, md)\
-  __archive_crypto.sha512final(ctx, md)
+  __archive_digest.sha512final(ctx, md)
 #define archive_sha512_update(ctx, buf, n)\
-  __archive_crypto.sha512update(ctx, buf, n)
+  __archive_digest.sha512update(ctx, buf, n)
 
-/* Minimal interface to crypto functionality for internal use in libarchive */
-struct archive_crypto
+/* Minimal interface to digest functionality for internal use in libarchive */
+struct archive_digest
 {
   /* Message Digest */
   int (*md5init)(archive_md5_ctx *ctx);
@@ -371,6 +371,6 @@ struct archive_crypto
   int (*sha512final)(archive_sha512_ctx *, void *);
 };
 
-extern const struct archive_crypto __archive_crypto;
+extern const struct archive_digest __archive_digest;
 
 #endif
