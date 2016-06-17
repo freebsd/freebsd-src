@@ -631,6 +631,9 @@
 	the &man.ipfw.4; packet filter has been added to the
 	<application>blacklistd-helper</application> script.</para>
 
+      <para revision="301843" contrib="sponsor" sponsor="&ff;">Support for
+	the &man.ipfilter.4; packet filter has been added to the
+	<application>blacklistd-helper</application> script.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
