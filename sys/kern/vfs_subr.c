@@ -107,7 +107,6 @@ static void	v_incr_usecount(struct vnode *);
 static void	v_incr_usecount_locked(struct vnode *);
 static void	v_incr_devcount(struct vnode *);
 static void	v_decr_devcount(struct vnode *);
-static void	vnlru_free(int);
 static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
@@ -942,15 +941,23 @@ relock_mnt:
 	return done;
 }
 
+static int max_vnlru_free = 10000; /* limit on vnode free requests per call */
+SYSCTL_INT(_debug, OID_AUTO, max_vnlru_free, CTLFLAG_RW, &max_vnlru_free,
+    0,
+    "limit on vnode free requests per call to the vnlru_free routine");
+
 /*
  * Attempt to reduce the free list by the requested amount.
  */
 static void
-vnlru_free(int count)
+vnlru_free_locked(int count, struct vfsops *mnt_op)
 {
 	struct vnode *vp;
+	struct mount *mp;
 
 	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
+	if (count > max_vnlru_free)
+		count = max_vnlru_free;
 	for (; count > 0; count--) {
 		vp = TAILQ_FIRST(&vnode_free_list);
 		/*
@@ -966,10 +973,17 @@ vnlru_free(int count)
 		KASSERT((vp->v_iflag & VI_ACTIVE) == 0,
 		    ("Mangling active vnode"));
 		TAILQ_REMOVE(&vnode_free_list, vp, v_actfreelist);
+
 		/*
-		 * Don't recycle if we can't get the interlock.
+		 * Don't recycle if our vnode is from different type
+		 * of mount point.  Note that mp is type-safe, the
+		 * check does not reach unmapped address even if
+		 * vnode is reclaimed.
+		 * Don't recycle if we can't get the interlock without
+		 * blocking.
 		 */
-		if (!VI_TRYLOCK(vp)) {
+		if ((mnt_op != NULL && (mp = vp->v_mount) != NULL &&
+		    mp->mnt_op != mnt_op) || !VI_TRYLOCK(vp)) {
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_actfreelist);
 			continue;
 		}
@@ -1000,6 +1014,16 @@ vnlru_free(int count)
 		mtx_lock(&vnode_free_list_mtx);
 	}
 }
+
+void
+vnlru_free(int count, struct vfsops *mnt_op)
+{
+
+	mtx_lock(&vnode_free_list_mtx);
+	vnlru_free_locked(count, mnt_op);
+	mtx_unlock(&vnode_free_list_mtx);
+}
+
 
 /* XXX some names and initialization are bad for limits and watermarks. */
 static int
@@ -1046,8 +1070,8 @@ vnlru_proc(void)
 		 * try to reduce it by discarding from the free list.
 		 */
 		if (numvnodes > desiredvnodes && freevnodes > 0)
-			vnlru_free(ulmin(numvnodes - desiredvnodes,
-			    freevnodes));
+			vnlru_free_locked(ulmin(numvnodes - desiredvnodes,
+			    freevnodes), NULL);
 		/*
 		 * Sleep if the vnode cache is in a good state.  This is
 		 * when it is not over-full and has space for about a 4%
@@ -1237,7 +1261,7 @@ getnewvnode_wait(int suspended)
 	}
 	/* Post-adjust like the pre-adjust in getnewvnode(). */
 	if (numvnodes + 1 > desiredvnodes && freevnodes > 1)
-		vnlru_free(1);
+		vnlru_free_locked(1, NULL);
 	return (numvnodes >= desiredvnodes ? ENFILE : 0);
 }
 
@@ -1254,8 +1278,8 @@ getnewvnode_reserve(u_int count)
 	/* XXX no longer so quick, but this part is not racy. */
 	mtx_lock(&vnode_free_list_mtx);
 	if (numvnodes + count > desiredvnodes && freevnodes > wantfreevnodes)
-		vnlru_free(ulmin(numvnodes + count - desiredvnodes,
-		    freevnodes - wantfreevnodes));
+		vnlru_free_locked(ulmin(numvnodes + count - desiredvnodes,
+		    freevnodes - wantfreevnodes), NULL);
 	mtx_unlock(&vnode_free_list_mtx);
 
 	td = curthread;
@@ -1337,7 +1361,7 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	if (numvnodes + 1 <= desiredvnodes)
 		;
 	else if (freevnodes > 0)
-		vnlru_free(1);
+		vnlru_free_locked(1, NULL);
 	else {
 		error = getnewvnode_wait(mp != NULL && (mp->mnt_kern_flag &
 		    MNTK_SUSPEND));
