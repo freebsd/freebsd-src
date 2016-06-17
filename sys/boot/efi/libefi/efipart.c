@@ -82,7 +82,7 @@ efipart_init(void)
 	EFI_HANDLE *hin, *hout, *aliases, handle;
 	EFI_STATUS status;
 	UINTN sz;
-	u_int n, nin, nout;
+	u_int n, nin, nout, nrdisk;
 	int err;
 
 	sz = 0;
@@ -103,6 +103,7 @@ efipart_init(void)
 	hout = hin + nin;
 	aliases = hout + nin;
 	nout = 0;
+	nrdisk = 0;
 
 	bzero(aliases, nin * sizeof(EFI_HANDLE));
 	pdinfo = malloc(nin * sizeof(*pdinfo));
@@ -120,8 +121,7 @@ efipart_init(void)
 		if (EFI_ERROR(status))
 			continue;
 		if (!blkio->Media->LogicalPartition) {
-			printf("%s%d isn't a logical partition, skipping\n",
-			    efipart_dev.dv_name, n);
+			nrdisk++;
 			continue;
 		}
 
@@ -156,6 +156,9 @@ efipart_init(void)
 	bcache_add_dev(npdinfo);
 	err = efi_register_handles(&efipart_dev, hout, aliases, nout);
 	free(hin);
+
+	if (nout == 0 && nrdisk > 0)
+		printf("Found %d disk(s) but no logical partition\n", nrdisk);
 	return (err);
 }
 
