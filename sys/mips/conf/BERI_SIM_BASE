@@ -17,3 +17,5 @@ options 	ALTERA_SDCARD_FAST_SIM
 device		altera_avgen
 device		altera_jtag_uart
 device		altera_sdcard
+
+options 	KSTACK_LARGE_PAGE	# Use a 16K page for kernel stack
