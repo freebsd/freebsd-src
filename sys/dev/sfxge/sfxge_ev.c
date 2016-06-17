@@ -123,8 +123,7 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	rxq->pending += delta;
 
 	if (delta != 1) {
-		if ((!efx_nic_cfg_get(sc->enp)->enc_rx_batching_enabled) ||
-		    (delta <= 0) ||
+		if ((delta <= 0) ||
 		    (delta > efx_nic_cfg_get(sc->enp)->enc_rx_batch_max)) {
 			evq->exception = B_TRUE;
 
