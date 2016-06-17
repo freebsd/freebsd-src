@@ -1,0 +1,330 @@
+	The text below describes the locking rules for VFS-related methods.
+It is (believed to be) up-to-date. *Please*, if you change anything in
+prototypes or locking protocols - update this file. And update the relevant
+instances in the tree, don't leave that to maintainers of filesystems/devices/
+etc. At the very least, put the list of dubious cases in the end of this file.
+Don't turn it into log - maintainers of out-of-the-tree code are supposed to
+be able to use diff(1).
+	Thing currently missing here: socket operations. Alexey?
+
+--------------------------- dentry_operations --------------------------
+prototypes:
+	int (*d_revalidate)(struct dentry *, int);
+	int (*d_hash) (struct dentry *, struct qstr *);
+	int (*d_compare) (struct dentry *, struct qstr *, struct qstr *);
+	int (*d_delete)(struct dentry *);
+	void (*d_release)(struct dentry *);
+	void (*d_iput)(struct dentry *, struct inode *);
+
+locking rules:
+	none have BKL
+		dcache_lock	may block
+d_revalidate:	no		yes
+d_hash		no		yes
+d_compare:	yes		no
+d_delete:	yes		no
+d_release:	no		yes
+d_iput:		no		yes
+
+--------------------------- inode_operations --------------------------- 
+prototypes:
+	int (*create) (struct inode *,struct dentry *,int);
+	struct dentry * (*lookup) (struct inode *,struct dentry *);
+	int (*link) (struct dentry *,struct inode *,struct dentry *);
+	int (*unlink) (struct inode *,struct dentry *);
+	int (*symlink) (struct inode *,struct dentry *,const char *);
+	int (*mkdir) (struct inode *,struct dentry *,int);
+	int (*rmdir) (struct inode *,struct dentry *);
+	int (*mknod) (struct inode *,struct dentry *,int,int);
+	int (*rename) (struct inode *, struct dentry *,
+			struct inode *, struct dentry *);
+	int (*readlink) (struct dentry *, char *,int);
+	int (*follow_link) (struct dentry *, struct nameidata *);
+	void (*truncate) (struct inode *);
+	int (*permission) (struct inode *, int);
+	int (*revalidate) (struct dentry *);
+	int (*setattr) (struct dentry *, struct iattr *);
+	int (*getattr) (struct dentry *, struct iattr *);
+	int (*setxattr) (struct dentry *, const char *, void *, size_t, int);
+	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
+	ssize_t (*listxattr) (struct dentry *, char *, size_t);
+	int (*removexattr) (struct dentry *, const char *);
+
+locking rules:
+	all may block
+		BKL	i_sem(inode)	i_zombie(inode)
+lookup:		yes	yes		no
+create:		yes	yes		yes
+link:		yes	yes		yes
+mknod:		yes	yes		yes
+mkdir:		yes	yes		yes
+unlink:		yes	yes		yes
+rmdir:		yes	yes		yes		(see below)
+rename:		yes	yes (both)	yes (both)	(see below)
+readlink:	no	no		no
+follow_link:	no	no		no
+truncate:	yes	yes		no		(see below)
+setattr:	yes	if ATTR_SIZE	no
+permission:	yes	no		no
+getattr:						(see below)
+revalidate:	no					(see below)
+setxattr:	yes	yes		no
+getxattr:	yes	yes		no
+listxattr:	yes	yes		no
+removexattr:	yes	yes		no
+	Additionally, ->rmdir() has i_zombie on victim and so does ->rename()
+in case when target exists and is a directory.
+	->rename() on directories has (per-superblock) ->s_vfs_rename_sem.
+	->revalidate(), it may be called both with and without the i_sem
+on dentry->d_inode. VFS never calls it with i_zombie on dentry->d_inode,
+but watch for other methods directly calling this one...
+	->truncate() is never called directly - it's a callback, not a
+method. It's called by vmtruncate() - library function normally used by
+->setattr(). Locking information above applies to that call (i.e. is
+inherited from ->setattr() - vmtruncate() is used when ATTR_SIZE had been
+passed).
+	->getattr() is currently unused.
+
+--------------------------- super_operations ---------------------------
+prototypes:
+	void (*read_inode) (struct inode *);
+	void (*write_inode) (struct inode *, int);
+	void (*put_inode) (struct inode *);
+	void (*delete_inode) (struct inode *);
+	void (*put_super) (struct super_block *);
+	void (*write_super) (struct super_block *);
+	int (*sync_fs) (struct super_block *);
+	int (*statfs) (struct super_block *, struct statfs *);
+	int (*remount_fs) (struct super_block *, int *, char *);
+	void (*clear_inode) (struct inode *);
+	void (*umount_begin) (struct super_block *);
+
+locking rules:
+	All may block.
+		BKL	s_lock	mount_sem
+read_inode:	yes				(see below)
+write_inode:	no	
+put_inode:	no	
+delete_inode:	no	
+clear_inode:	no	
+put_super:	yes	yes	maybe		(see below)
+write_super:	yes	yes	maybe		(see below)
+sync_fs:	yes	no	maybe		(see below)
+statfs:		yes	no	no
+remount_fs:	yes	yes	maybe		(see below)
+umount_begin:	yes	no	maybe		(see below)
+
+->read_inode() is not a method - it's a callback used in iget()/iget4().
+rules for mount_sem are not too nice - it is going to die and be replaced
+by better scheme anyway.
+
+--------------------------- file_system_type ---------------------------
+prototypes:
+	struct super_block *(*read_super) (struct super_block *, void *, int);
+locking rules:
+may block	BKL	->s_lock	mount_sem
+yes		yes	yes		maybe
+
+--------------------------- address_space_operations --------------------------
+prototypes:
+	int (*writepage)(struct page *);
+	int (*readpage)(struct file *, struct page *);
+	int (*sync_page)(struct page *);
+	int (*prepare_write)(struct file *, struct page *, unsigned, unsigned);
+	int (*commit_write)(struct file *, struct page *, unsigned, unsigned);
+	int (*bmap)(struct address_space *, long);
+	int (*flushpage) (struct page *, unsigned long);
+	int (*releasepage) (struct page *, int);
+	int (*direct_IO)(int, struct inode *, struct kiobuf *, unsigned long, int);
+
+locking rules:
+	All may block
+		BKL	PageLocked(page)
+writepage:	no	yes, unlocks
+readpage:	no	yes, unlocks
+sync_page:	no	maybe
+prepare_write:	no	yes
+commit_write:	no	yes
+bmap:		yes
+flushpage:	no	yes
+releasepage:	no	yes
+
+	->prepare_write(), ->commit_write(), ->sync_page() and ->readpage()
+may be called from the request handler (/dev/loop).
+	->readpage() and ->writepage() unlock the page.
+	->sync_page() locking rules are not well-defined - usually it is called
+with lock on page, but that is not guaranteed. Considering the currently
+existing instances of this method ->sync_page() itself doesn't look
+well-defined...
+	->bmap() is currently used by legacy ioctl() (FIBMAP) provided by some
+filesystems and by the swapper. The latter will eventually go away. All
+instances do not actually need the BKL. Please, keep it that way and don't
+breed new callers.
+	->flushpage() is called when the filesystem must attempt to drop
+some or all of the buffers from the page when it is being truncated.  It
+returns zero on success.  If ->flushpage is zero, the kernel uses
+block_flushpage() instead.
+	->releasepage() is called when the kernel is about to try to drop the
+buffers from the page in preparation for freeing it.  It returns zero to
+indicate that the buffers are (or may be) freeable.  If ->releasepage is zero,
+the kernel assumes that the fs has no private interest in the buffers.
+
+	Note: currently almost all instances of address_space methods are
+using BKL for internal serialization and that's one of the worst sources
+of contention. Normally they are calling library functions (in fs/buffer.c)
+and pass foo_get_block() as a callback (on local block-based filesystems,
+indeed). BKL is not needed for library stuff and is usually taken by
+foo_get_block(). It's an overkill, since block bitmaps can be protected by
+internal fs locking and real critical areas are much smaller than the areas
+filesystems protect now.
+
+--------------------------- file_lock ------------------------------------
+prototypes:
+	void (*fl_notify)(struct file_lock *);	/* unblock callback */
+	void (*fl_insert)(struct file_lock *);	/* lock insertion callback */
+	void (*fl_remove)(struct file_lock *);	/* lock removal callback */
+
+locking rules:
+		BKL	may block
+fl_notify:	yes	no
+fl_insert:	yes	maybe
+fl_remove:	yes	maybe
+	Currently only NLM provides instances of this class. None of the
+them block. If you have out-of-tree instances - please, show up. Locking
+in that area will change.
+
+--------------------------- buffer_head -----------------------------------
+prototypes:
+	void (*b_end_io)(struct buffer_head *bh, int uptodate);
+
+locking rules:
+	called from interrupts. In other words, extreme care is needed here.
+bh is locked, but that's all warranties we have here. Currently only RAID1,
+highmem and fs/buffer.c are providing these. Block devices call this method
+upon the IO completion.
+
+--------------------------- block_device_operations -----------------------
+prototypes:
+	int (*open) (struct inode *, struct file *);
+	int (*release) (struct inode *, struct file *);
+	int (*ioctl) (struct inode *, struct file *, unsigned, unsigned long);
+	int (*check_media_change) (kdev_t);
+	int (*revalidate) (kdev_t);
+locking rules:
+			BKL	bd_sem
+open:			yes	yes
+release:		yes	yes
+ioctl:			yes	no
+check_media_change:	yes	no
+revalidate:		yes	no
+
+The last two are called only from check_disk_change(). Prototypes are very
+bad - as soon as we'll get disk_struct they will change (and methods will
+become per-disk instead of per-partition).
+
+--------------------------- file_operations -------------------------------
+prototypes:
+	loff_t (*llseek) (struct file *, loff_t, int);
+	ssize_t (*read) (struct file *, char *, size_t, loff_t *);
+	ssize_t (*write) (struct file *, const char *, size_t, loff_t *);
+	int (*readdir) (struct file *, void *, filldir_t);
+	unsigned int (*poll) (struct file *, struct poll_table_struct *);
+	int (*ioctl) (struct inode *, struct file *, unsigned int, unsigned long);
+	int (*mmap) (struct file *, struct vm_area_struct *);
+	int (*open) (struct inode *, struct file *);
+	int (*flush) (struct file *);
+	int (*release) (struct inode *, struct file *);
+	int (*fsync) (struct file *, struct dentry *, int datasync);
+	int (*fasync) (int, struct file *, int);
+	int (*lock) (struct file *, int, struct file_lock *);
+	ssize_t (*readv) (struct file *, const struct iovec *, unsigned long, loff_t *);
+	ssize_t (*writev) (struct file *, const struct iovec *, unsigned long, loff_t *);
+};
+
+locking rules:
+	All except ->poll() may block.
+		BKL
+llseek:		yes
+read:		no
+write:		no
+readdir:	yes	(see below)
+poll:		no
+ioctl:		yes	(see below)
+mmap:		no
+open:		maybe	(see below)
+flush:		yes
+release:	no
+fsync:		yes	(see below)
+fasync:		yes	(see below)
+lock:		yes
+readv:		no
+writev:		no
+
+->open() locking is in-transit: big lock partially moved into the methods.
+The only exception is ->open() in the instances of file_operations that never
+end up in ->i_fop/->proc_fops, i.e. ones that belong to character devices
+(chrdev_open() takes lock before replacing ->f_op and calling the secondary
+method. As soon as we fix the handling of module reference counters all
+instances of ->open() will be called without the BKL.
+
+Note: ext2_release() was *the* source of contention on fs-intensive
+loads and dropping BKL on ->release() helps to get rid of that (we still
+grab BKL for cases when we close a file that had been opened r/w, but that
+can and should be done using the internal locking with smaller critical areas).
+Current worst offender is ext2_get_block()...
+
+->fasync() is a mess. This area needs a big cleanup and that will probably
+affect locking.
+
+->readdir() and ->ioctl() on directories must be changed. Ideally we would
+move ->readdir() to inode_operations and use a separate method for directory
+->ioctl() or kill the latter completely. One of the problems is that for
+anything that resembles union-mount we won't have a struct file for all
+components. And there are other reasons why the current interface is a mess...
+
+->read on directories probably must go away - we should just enforce -EISDIR
+in sys_read() and friends.
+
+->fsync() has i_sem on inode.
+
+--------------------------- dquot_operations -------------------------------
+prototypes:
+	void (*initialize) (struct inode *, short);
+	void (*drop) (struct inode *);
+	int (*alloc_block) (const struct inode *, unsigned long, char);
+	int (*alloc_inode) (const struct inode *, unsigned long);
+	void (*free_block) (const struct inode *, unsigned long);
+	void (*free_inode) (const struct inode *, unsigned long);
+	int (*transfer) (struct dentry *, struct iattr *);
+
+locking rules:
+		BKL
+initialize:	no
+drop:		no
+alloc_block:	yes
+alloc_inode:	yes
+free_block:	yes
+free_inode:	yes
+transfer:	no
+
+--------------------------- vm_operations_struct -----------------------------
+prototypes:
+	void (*open)(struct vm_area_struct*);
+	void (*close)(struct vm_area_struct*);
+	struct page *(*nopage)(struct vm_area_struct*, unsigned long, int);
+
+locking rules:
+		BKL	mmap_sem
+open:		no	yes
+close:		no	yes
+nopage:		no	yes
+
+================================================================================
+			Dubious stuff
+
+(if you break something or notice that it is broken and do not fix it yourself
+- at least put it here)
+
+ipc/shm.c::shm_delete() - may need BKL.
+->read() and ->write() in many drivers are (probably) missing BKL.
+drivers/sgi/char/graphics.c::sgi_graphics_nopage() - may need BKL.

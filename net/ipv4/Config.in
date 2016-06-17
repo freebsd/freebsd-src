@@ -1,0 +1,48 @@
+#
+# IP configuration
+#
+bool '  IP: multicasting' CONFIG_IP_MULTICAST
+bool '  IP: advanced router' CONFIG_IP_ADVANCED_ROUTER
+if [ "$CONFIG_IP_ADVANCED_ROUTER" = "y" ]; then
+   bool '    IP: policy routing' CONFIG_IP_MULTIPLE_TABLES
+   if [ "$CONFIG_IP_MULTIPLE_TABLES" = "y" ]; then
+      if [ "$CONFIG_NETFILTER" = "y" ]; then
+         bool '      IP: use netfilter MARK value as routing key' CONFIG_IP_ROUTE_FWMARK
+      fi
+      bool '      IP: fast network address translation' CONFIG_IP_ROUTE_NAT
+   fi
+   bool '    IP: equal cost multipath' CONFIG_IP_ROUTE_MULTIPATH
+   bool '    IP: use TOS value as routing key' CONFIG_IP_ROUTE_TOS
+   bool '    IP: verbose route monitoring' CONFIG_IP_ROUTE_VERBOSE
+fi
+bool '  IP: kernel level autoconfiguration' CONFIG_IP_PNP
+if [ "$CONFIG_IP_PNP" = "y" ]; then
+   bool '    IP: DHCP support' CONFIG_IP_PNP_DHCP
+   bool '    IP: BOOTP support' CONFIG_IP_PNP_BOOTP
+   bool '    IP: RARP support' CONFIG_IP_PNP_RARP
+# not yet ready..
+#   bool '    IP: ARP support' CONFIG_IP_PNP_ARP		
+fi
+tristate '  IP: tunneling' CONFIG_NET_IPIP
+tristate '  IP: GRE tunnels over IP' CONFIG_NET_IPGRE
+if [ "$CONFIG_IP_MULTICAST" = "y" ]; then
+   if [ "$CONFIG_NET_IPGRE" != "n" ]; then
+      bool '    IP: broadcast GRE over IP' CONFIG_NET_IPGRE_BROADCAST
+   fi
+   bool '  IP: multicast routing' CONFIG_IP_MROUTE
+   if [ "$CONFIG_IP_MROUTE" = "y" ]; then
+      bool '    IP: PIM-SM version 1 support' CONFIG_IP_PIMSM_V1
+      bool '    IP: PIM-SM version 2 support' CONFIG_IP_PIMSM_V2
+   fi
+fi
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   bool '  IP: ARP daemon support (EXPERIMENTAL)' CONFIG_ARPD
+fi
+bool '  IP: TCP Explicit Congestion Notification support' CONFIG_INET_ECN
+bool '  IP: TCP syncookie support (disabled per default)' CONFIG_SYN_COOKIES
+if [ "$CONFIG_NETFILTER" != "n" ]; then
+   source net/ipv4/netfilter/Config.in
+fi
+if [ "$CONFIG_NETFILTER" != "n" ]; then
+   source net/ipv4/ipvs/Config.in
+fi

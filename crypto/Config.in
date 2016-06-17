@@ -1,0 +1,87 @@
+#
+# Cryptographic API Configuration
+#
+mainmenu_option next_comment
+comment 'Cryptographic options'
+
+if [ "$CONFIG_INET_AH" = "y" -o \
+     "$CONFIG_INET_AH" = "m" -o \
+     "$CONFIG_INET_ESP" = "y" -o \
+     "$CONFIG_INET_ESP" = "m" -o \
+     "$CONFIG_INET6_AH" = "y" -o \
+     "$CONFIG_INET6_AH" = "m" -o \
+     "$CONFIG_INET6_ESP" = "y" -o \
+     "$CONFIG_INET6_ESP" = "m" ]; then
+  define_bool CONFIG_CRYPTO y
+else
+  bool 'Cryptographic API' CONFIG_CRYPTO
+fi
+
+if [ "$CONFIG_CRYPTO" = "y" ]; then
+  if [ "$CONFIG_INET_AH" = "y" -o \
+       "$CONFIG_INET_AH" = "m" -o \
+       "$CONFIG_INET_ESP" = "y" -o \
+       "$CONFIG_INET_ESP" = "m" -o \
+       "$CONFIG_INET6_AH" = "y" -o \
+       "$CONFIG_INET6_AH" = "m" -o \
+       "$CONFIG_INET6_ESP" = "y" -o \
+       "$CONFIG_INET6_ESP" = "m" ]; then
+    define_bool CONFIG_CRYPTO_HMAC y
+  else
+    bool           '  HMAC support' CONFIG_CRYPTO_HMAC
+  fi
+  tristate       '  NULL algorithms' CONFIG_CRYPTO_NULL
+  tristate       '  MD4 digest algorithm' CONFIG_CRYPTO_MD4
+  if [ "$CONFIG_INET_AH" = "y" -o \
+       "$CONFIG_INET_AH" = "m" -o \
+       "$CONFIG_INET_ESP" = "y" -o \
+       "$CONFIG_INET_ESP" = "m" -o \
+       "$CONFIG_INET6_AH" = "y" -o \
+       "$CONFIG_INET6_AH" = "m" -o \
+       "$CONFIG_INET6_ESP" = "y" -o \
+       "$CONFIG_INET6_ESP" = "m" ]; then
+    define_bool CONFIG_CRYPTO_MD5 y
+  else
+    tristate       '  MD5 digest algorithm' CONFIG_CRYPTO_MD5
+  fi
+  if [ "$CONFIG_INET_AH" = "y" -o \
+       "$CONFIG_INET_AH" = "m" -o \
+       "$CONFIG_INET_ESP" = "y" -o \
+       "$CONFIG_INET_ESP" = "m" -o \
+       "$CONFIG_INET6_AH" = "y" -o \
+       "$CONFIG_INET6_AH" = "m" -o \
+       "$CONFIG_INET6_ESP" = "y" -o \
+       "$CONFIG_INET6_ESP" = "m" ]; then
+    define_bool CONFIG_CRYPTO_SHA1 y
+  else
+    tristate       '  SHA1 digest algorithm' CONFIG_CRYPTO_SHA1
+  fi
+  tristate       '  SHA256 digest algorithm' CONFIG_CRYPTO_SHA256
+  tristate       '  SHA384 and SHA512 digest algorithms' CONFIG_CRYPTO_SHA512
+  if [ "$CONFIG_INET_ESP" = "y" -o \
+       "$CONFIG_INET_ESP" = "m" -o \
+       "$CONFIG_INET6_ESP" = "y" -o \
+       "$CONFIG_INET6_ESP" = "m" ]; then
+    define_bool CONFIG_CRYPTO_DES y
+  else
+    tristate       '  DES and Triple DES EDE cipher algorithms' CONFIG_CRYPTO_DES
+  fi
+  tristate       '  Blowfish cipher algorithm' CONFIG_CRYPTO_BLOWFISH
+  tristate       '  Twofish cipher algorithm' CONFIG_CRYPTO_TWOFISH
+  tristate       '  Serpent cipher algorithm' CONFIG_CRYPTO_SERPENT
+  tristate       '  AES cipher algorithms' CONFIG_CRYPTO_AES
+  tristate       '  CAST5 (CAST-128) cipher algorithm' CONFIG_CRYPTO_CAST5
+  tristate       '  CAST6 (CAST-256) cipher algorithm' CONFIG_CRYPTO_CAST6
+  tristate       '  ARC4 cipher algorithm' CONFIG_CRYPTO_ARC4
+  if [ "$CONFIG_INET_IPCOMP" = "y" -o \
+       "$CONFIG_INET_IPCOMP" = "m" -o \
+       "$CONFIG_INET6_IPCOMP" = "y" -o \
+       "$CONFIG_INET6_IPCOMP" = "m" ]; then
+    define_bool CONFIG_CRYPTO_DEFLATE y
+  else
+    tristate       '  Deflate compression algorithm' CONFIG_CRYPTO_DEFLATE
+  fi
+  tristate       '  Testing module' CONFIG_CRYPTO_TEST
+fi
+
+endmenu

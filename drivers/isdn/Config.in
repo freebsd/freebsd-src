@@ -1,0 +1,161 @@
+#
+# ISDN device configuration
+#
+
+# only included if CONFIG_ISDN != n
+
+define_bool CONFIG_ISDN_BOOL y
+if [ "$CONFIG_INET" != "n" ]; then
+   bool '  Support synchronous PPP' CONFIG_ISDN_PPP
+   if [ "$CONFIG_ISDN_PPP" != "n" ]; then
+      dep_bool     '    PPP filtering for ISDN' CONFIG_IPPP_FILTER $CONFIG_FILTER
+      bool         '    Use VJ-compression with synchronous PPP' CONFIG_ISDN_PPP_VJ
+      bool         '    Support generic MP (RFC 1717)' CONFIG_ISDN_MPP
+      dep_tristate '    Support BSD compression' CONFIG_ISDN_PPP_BSDCOMP $CONFIG_ISDN
+   fi
+fi
+bool '  Support audio via ISDN' CONFIG_ISDN_AUDIO
+if [ "$CONFIG_ISDN_AUDIO" != "n" ]; then
+   bool '    Support AT-Fax Class 1 and 2 commands' CONFIG_ISDN_TTY_FAX
+fi
+if [ "$CONFIG_X25" != "n" ]; then
+   bool '  X.25 PLP on top of ISDN' CONFIG_ISDN_X25
+fi
+
+mainmenu_option next_comment
+comment 'ISDN feature submodules'
+   dep_tristate 'isdnloop support' CONFIG_ISDN_DRV_LOOP $CONFIG_ISDN
+   dep_tristate 'Support isdn diversion services' CONFIG_ISDN_DIVERSION $CONFIG_ISDN
+endmenu
+
+comment 'low-level hardware drivers'
+
+mainmenu_option next_comment
+comment 'Passive ISDN cards'
+dep_tristate 'HiSax SiemensChipSet driver support' CONFIG_ISDN_DRV_HISAX $CONFIG_ISDN
+if [ "$CONFIG_ISDN_DRV_HISAX" != "n" ]; then
+   define_bool CONFIG_ISDN_HISAX y
+   comment '  D-channel protocol features'
+   bool '  HiSax Support for EURO/DSS1' CONFIG_HISAX_EURO
+   if [ "$CONFIG_HISAX_EURO" != "n" ]; then
+      bool '    Support for german chargeinfo' CONFIG_DE_AOC
+      bool '    Disable sending complete' CONFIG_HISAX_NO_SENDCOMPLETE
+      bool '    Disable sending low layer compatibility' CONFIG_HISAX_NO_LLC
+      bool '    Disable keypad protocol option' CONFIG_HISAX_NO_KEYPAD
+   fi
+   bool '  HiSax Support for german 1TR6' CONFIG_HISAX_1TR6
+   bool '  HiSax Support for US NI1' CONFIG_HISAX_NI1
+   int  '  Maximum number of cards supported by HiSax' CONFIG_HISAX_MAX_CARDS 8
+   comment '  HiSax supported cards'
+   if [ "$CONFIG_ISA" != "n" ]; then
+      bool '  Teles 16.0/8.0' CONFIG_HISAX_16_0
+      bool '  Teles 16.3 or PNP or PCMCIA' CONFIG_HISAX_16_3
+      bool '  AVM A1 (Fritz)' CONFIG_HISAX_AVM_A1
+      bool '  ITK ix1-micro Revision 2' CONFIG_HISAX_IX1MICROR2
+      bool '  ASUSCOM ISA cards' CONFIG_HISAX_ASUSCOM
+      bool '  TELEINT cards' CONFIG_HISAX_TELEINT
+      bool '  HFC-S based cards' CONFIG_HISAX_HFCS
+      bool '  USR Sportster internal TA' CONFIG_HISAX_SPORTSTER
+      bool '  MIC card' CONFIG_HISAX_MIC
+      bool '  Siemens I-Surf card' CONFIG_HISAX_ISURF
+      bool '  HST Saphir card' CONFIG_HISAX_HSTSAPHIR
+   fi
+   bool '  Teles PCI' CONFIG_HISAX_TELESPCI 
+   bool '  Teles S0Box' CONFIG_HISAX_S0BOX 
+   bool '  AVM PnP/PCI (Fritz!PnP/PCI)' CONFIG_HISAX_FRITZPCI
+   bool '  AVM A1 PCMCIA (Fritz)' CONFIG_HISAX_AVM_A1_PCMCIA
+   bool '  Elsa cards' CONFIG_HISAX_ELSA
+   bool '  Eicon.Diehl Diva cards' CONFIG_HISAX_DIEHLDIVA
+   bool '  Sedlbauer cards' CONFIG_HISAX_SEDLBAUER
+   bool '  NETjet card' CONFIG_HISAX_NETJET
+   bool '  NETspider U card' CONFIG_HISAX_NETJET_U
+   bool '  Niccy PnP/PCI card' CONFIG_HISAX_NICCY
+   bool '  Telekom A4T card' CONFIG_HISAX_BKM_A4T
+   bool '  Scitel Quadro card' CONFIG_HISAX_SCT_QUADRO
+   bool '  Gazel cards' CONFIG_HISAX_GAZEL
+   bool '  HFC PCI-Bus cards' CONFIG_HISAX_HFC_PCI
+   bool '  Winbond W6692 based cards' CONFIG_HISAX_W6692
+   bool '  HFC-S+, HFC-SP, HFC-PCMCIA cards' CONFIG_HISAX_HFC_SX
+   if [ "$CONFIG_EXPERIMENTAL" != "n" ]; then
+#      bool '  TESTEMULATOR (EXPERIMENTAL)' CONFIG_HISAX_TESTEMU
+      bool '  Formula-n enter:now PCI card' CONFIG_HISAX_ENTERNOW_PCI
+      if [ "$ARCH" = "sparc" -o "$ARCH" = "sparc64" ]; then
+	 bool '  Am7930' CONFIG_HISAX_AMD7930
+      fi
+   fi
+   bool '  HiSax debugging' CONFIG_HISAX_DEBUG
+
+   dep_tristate 'Sedlbauer PCMCIA cards'                              CONFIG_HISAX_SEDLBAUER_CS  $CONFIG_ISDN_DRV_HISAX $CONFIG_PCMCIA
+   dep_tristate 'ELSA PCMCIA MicroLink cards'                         CONFIG_HISAX_ELSA_CS       $CONFIG_ISDN_DRV_HISAX $CONFIG_PCMCIA
+   dep_tristate 'AVM A1 PCMCIA cards'                                 CONFIG_HISAX_AVM_A1_CS     $CONFIG_ISDN_DRV_HISAX $CONFIG_PCMCIA $CONFIG_HISAX_AVM_A1_PCMCIA
+   dep_tristate 'ST5481 USB ISDN modem (EXPERIMENTAL)'                CONFIG_HISAX_ST5481        $CONFIG_ISDN_DRV_HISAX    $CONFIG_EXPERIMENTAL
+   dep_tristate 'AVM Fritz!Card PCI/PCIv2/PnP support (EXPERIMENTAL)' CONFIG_HISAX_FRITZ_PCIPNP  $CONFIG_ISDN_DRV_HISAX                $CONFIG_EXPERIMENTAL
+   dep_tristate 'Auerswald devices ISDN support'                      CONFIG_USB_AUERISDN        $CONFIG_ISDN_DRV_HISAX
+
+fi
+endmenu
+
+### Active ISDN cards
+
+mainmenu_option next_comment
+comment 'Active ISDN cards'
+
+dep_tristate       'ICN 2B and 4B support' CONFIG_ISDN_DRV_ICN $CONFIG_ISDN
+dep_tristate       'PCBIT-D support' CONFIG_ISDN_DRV_PCBIT $CONFIG_ISDN
+dep_tristate       'Spellcaster support' CONFIG_ISDN_DRV_SC $CONFIG_ISDN
+dep_tristate       'IBM Active 2000 support' CONFIG_ISDN_DRV_ACT2000 $CONFIG_ISDN
+
+bool               'Eicon active card support' CONFIG_ISDN_DRV_EICON
+if [ "$CONFIG_ISDN_DRV_EICON" != "n" ]; then
+   if [ "$CONFIG_ISDN_DRV_EICON_OLD" != "y" ]; then
+      dep_tristate '  Build Eicon driver type standalone' CONFIG_ISDN_DRV_EICON_DIVAS $CONFIG_ISDN $CONFIG_PCI
+   fi
+   if [ "$CONFIG_ISDN_DRV_EICON_DIVAS" != "y" ]; then
+      dep_tristate '  Legacy Eicon driver' CONFIG_ISDN_DRV_EICON_OLD $CONFIG_ISDN
+      if [ "$CONFIG_ISDN_DRV_EICON_OLD" != "n" ]; then
+         dep_bool  '    Eicon PCI DIVA Server BRI/PRI/4BRI support' CONFIG_ISDN_DRV_EICON_PCI $CONFIG_PCI
+         bool      '    Eicon S,SX,SCOM,Quadro,S2M support' CONFIG_ISDN_DRV_EICON_ISA
+      fi
+   fi
+fi
+
+if [ "$CONFIG_EXPERIMENTAL" != "n" ]; then
+   dep_tristate    'Auvertech TurboPAM support' CONFIG_ISDN_DRV_TPAM $CONFIG_ISDN $CONFIG_PCI
+fi
+
+# CAPI subsystem
+
+tristate           'CAPI2.0 support' CONFIG_ISDN_CAPI
+if [ "$CONFIG_ISDN_CAPI" != "n" ]; then
+   bool            '  Verbose reason code reporting (kernel size +=7K)' CONFIG_ISDN_DRV_AVMB1_VERBOSE_REASON
+   dep_bool        '  CAPI2.0 Middleware support (EXPERIMENTAL)' CONFIG_ISDN_CAPI_MIDDLEWARE $CONFIG_EXPERIMENTAL
+   dep_tristate    '  CAPI2.0 /dev/capi support' CONFIG_ISDN_CAPI_CAPI20 $CONFIG_ISDN_CAPI
+   if [ "$CONFIG_ISDN_CAPI_MIDDLEWARE" = "y" ]; then
+      dep_mbool    '    CAPI2.0 filesystem support' CONFIG_ISDN_CAPI_CAPIFS_BOOL $CONFIG_ISDN_CAPI_CAPI20
+      if [ "$CONFIG_ISDN_CAPI_CAPIFS_BOOL" = "y" ]; then
+	 define_tristate CONFIG_ISDN_CAPI_CAPIFS $CONFIG_ISDN_CAPI_CAPI20
+      else
+	 define_tristate CONFIG_ISDN_CAPI_CAPIFS n
+      fi
+   fi
+   dep_tristate    '  CAPI2.0 capidrv interface support' CONFIG_ISDN_CAPI_CAPIDRV $CONFIG_ISDN_CAPI $CONFIG_ISDN
+fi
+
+# CAPI drivers
+
+if [ "$CONFIG_ISDN_CAPI" != "n" ]; then
+   dep_tristate '  AVM B1 ISA support' CONFIG_ISDN_DRV_AVMB1_B1ISA $CONFIG_ISDN_CAPI
+   dep_tristate '  AVM B1 PCI support' CONFIG_ISDN_DRV_AVMB1_B1PCI $CONFIG_ISDN_CAPI $CONFIG_PCI
+   dep_mbool    '    AVM B1 PCI V4 support' CONFIG_ISDN_DRV_AVMB1_B1PCIV4 $CONFIG_ISDN_DRV_AVMB1_B1PCI
+   dep_tristate '  AVM T1/T1-B ISA support' CONFIG_ISDN_DRV_AVMB1_T1ISA $CONFIG_ISDN_CAPI
+   dep_tristate '  AVM B1/M1/M2 PCMCIA support' CONFIG_ISDN_DRV_AVMB1_B1PCMCIA $CONFIG_ISDN_CAPI
+   dep_tristate '  AVM B1/M1/M2 PCMCIA cs module' CONFIG_ISDN_DRV_AVMB1_AVM_CS $CONFIG_ISDN_DRV_AVMB1_B1PCMCIA $CONFIG_PCMCIA
+   dep_tristate '  AVM T1/T1-B PCI support' CONFIG_ISDN_DRV_AVMB1_T1PCI $CONFIG_ISDN_CAPI $CONFIG_PCI
+   dep_tristate '  AVM C4/C2 support' CONFIG_ISDN_DRV_AVMB1_C4 $CONFIG_ISDN_CAPI $CONFIG_PCI
+fi
+
+# HYSDN
+
+dep_tristate '  Hypercope HYSDN cards (Champ, Ergo, Metro) support (module only)' CONFIG_HYSDN m $CONFIG_PROC_FS
+dep_mbool    '    HYSDN CAPI 2.0 support' CONFIG_HYSDN_CAPI $CONFIG_HYSDN $CONFIG_ISDN_CAPI
+endmenu

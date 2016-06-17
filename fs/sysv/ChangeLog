@@ -1,0 +1,29 @@
+Thu Jan 10 2002  Andrew Morton  <akpm@zip.com.au>
+
+	* dir_commit_chunk(): call writeout_one_page() as well as
+	  waitfor_one_page() for IS_SYNC directories, so that we
+	  actually do sync the directory.
+
+Sat Dec 15 2001  Christoph Hellwig  <hch@infradead.org>
+
+	* inode.c (sysv_read_inode): Mark inode as bad in case of failure.
+	* super.c (complete_read_super): Check for bad root inode.
+
+Wed Nov 21 2001  Andrew Morton  <andrewm@uow.edu.au>
+
+	* file.c (sysv_sync_file): Call fsync_inode_data_buffers.
+
+Fri Oct 26 2001  Christoph Hellwig  <hch@infradead.org>
+
+	* dir.c, ialloc.c, namei.c, include/linux/sysv_fs_i.h:
+	Implement per-Inode lookup offset cache.
+	Modelled after Ted's ext2 patch.
+
+Fri Oct 26 2001  Christoph Hellwig  <hch@infradead.org>
+
+	* inode.c, super.c, include/linux/sysv_fs.h,
+	  include/linux/sysv_fs_sb.h:
+	Remove symlink faking.	Noone really wants to use these as
+	linux filesystems and native OSes don't support it anyway.
+
+

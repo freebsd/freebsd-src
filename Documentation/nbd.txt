@@ -1,0 +1,57 @@
+                      Network Block Device (TCP version)
+                                       
+   Note: Network Block Device is now experimental, which approximately
+   means, that it works on my computer, and it worked on one of school
+   computers.
+   
+   What is it: With this compiled in the kernel, Linux can use a remote
+   server as one of its block devices. So every time the client computer
+   wants to read /dev/nd0, it sends a request over TCP to the server, which
+   will reply with the data read. This can be used for stations with
+   low disk space (or even diskless - if you boot from floppy) to
+   borrow disk space from another computer. Unlike NFS, it is possible to
+   put any filesystem on it etc. It is impossible to use NBD as a root
+   filesystem, since it requires a user-level program to start. It also
+   allows you to run block-device in user land (making server and client
+   physically the same computer, communicating using loopback).
+   
+   Current state: It currently works. Network block device looks like
+   being pretty stable. I originally thought that it is impossible to swap
+   over TCP. It turned out not to be true - swapping over TCP now works
+   and seems to be deadlock-free, but it requires heavy patches into
+   Linux's network layer.
+   
+   Devices: Network block device uses major 43, minors 0..n (where n is
+   configurable in nbd.h). Create these files by mknod when needed. After
+   that, your ls -l /dev/ should look like:
+
+brw-rw-rw-   1 root     root      43,   0 Apr 11 00:28 nd0
+brw-rw-rw-   1 root     root      43,   1 Apr 11 00:28 nd1
+...
+
+   Protocol: Userland program passes file handle with connected TCP
+   socket to actual kernel driver. This way, the kernel does not have to
+   care about connecting etc. Protocol is rather simple: If the driver is
+   asked to read from block device, it sends packet of following form
+   "request" (all data are in network byte order):
+   
+  __u32 magic;        must be equal to 0x12560953
+  __u32 from;         position in bytes to read from / write at
+  __u32 len;          number of bytes to be read / written
+  __u64 handle;       handle of operation
+  __u32 type;         0 = read
+                      1 = write
+  ...                 in case of write operation, this is
+                      immediately followed len bytes of data
+
+   When operation is completed, server responds with packet of following
+   structure "reply":
+   
+  __u32 magic;        must be equal to
+  __u64 handle;       handle copied from request
+  __u32 error;        0 = operation completed successfully,
+                      else error code
+  ...                 in case of read operation with no error,
+                      this is immediately followed len bytes of data
+
+   For more information, look at http://nbd.sf.net/.

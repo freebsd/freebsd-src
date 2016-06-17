@@ -1,0 +1,637 @@
+# FILE: header.tk
+# This file is boilerplate TCL/TK function definitions for 'make xconfig'.
+#
+# CHANGES
+# =======
+#
+# 8 January 1999, Michael Elizabeth Chastain, <mec@shout.net>
+# - Remove unused do_cmd function (part of the 2.0 sound support).
+# - Arrange buttons in three columns for better screen fitting.
+# - Add CONSTANT_Y, CONSTANT_M, CONSTANT_N for commands like:
+#     dep_tristate 'foo' CONFIG_FOO m
+#
+# 23 January 1999, Michael Elizabeth Chastain, <mec@shout.net>
+# - Shut vfix the hell up.
+#
+# 24 January 1999, Michael Elizabeth Chastain, <mec@shout.net>
+# - Improve the exit message (Jeff Ronne).
+
+#
+# This is a handy replacement for ".widget cget" that requires neither tk4
+# nor additional source code uglification.
+#
+proc cget { w option } {
+	return "[lindex [$w configure $option] 4]"
+}
+
+#
+# Function to compensate for broken config.in scripts like the sound driver,
+# which make dependencies on variables that are never even conditionally
+# defined.
+#
+proc vfix { var } {
+	global $var
+	if [ catch {eval concat $$var} ] {
+		set $var 4
+	}
+}
+
+#
+# Constant values used by certain dep_tristate commands.
+#
+set CONSTANT_Y 1
+set CONSTANT_M 2
+set CONSTANT_N 0
+set CONSTANT_E 4
+
+#
+# Create a "reference" object to steal colors from.
+#
+button .ref
+
+#
+# On monochrome displays, -disabledforeground is blank by default; that's
+# bad.  Fill it with -foreground instead.
+#
+if { [cget .ref -disabledforeground] == "" } {
+	.ref configure -disabledforeground [cget .ref -foreground]
+}
+
+
+#
+# Define some macros we will need to parse the config.in file.
+#
+
+proc mainmenu_name { text } {
+	wm title . "$text"
+}
+
+proc menu_option { w menu_num text } {
+	global menus_per_column
+	global processed_top_level
+	set processed_top_level [expr $processed_top_level + 1]
+	if { $processed_top_level <= $menus_per_column } then {
+	    set myframe left
+	} elseif { $processed_top_level <= [expr 2 * $menus_per_column] } then {
+	    set myframe middle
+	} else {
+	    set myframe right
+	} 
+	button .f0.x$menu_num -anchor w -text "$text" \
+	    -command "$w .$w \"$text\""
+	pack .f0.x$menu_num -pady 0 -side top -fill x -in .f0.$myframe
+}
+
+proc load_configfile { w title func } {
+	catch {destroy $w}
+	toplevel $w -class Dialog
+	global loadfile
+	frame $w.x
+	label $w.bm -bitmap questhead
+	pack  $w.bm -pady 10 -side top -padx 10
+	label $w.x.l -text "Enter filename:" -relief raised
+	entry $w.x.x -width 35 -relief sunken -borderwidth 2 \
+		-textvariable loadfile
+	pack $w.x.l $w.x.x -anchor w -side left
+	pack $w.x -side top -pady 10
+	wm title $w "$title" 
+
+	set oldFocus [focus]
+	frame $w.f
+	button $w.f.back -text "OK" -width 20 \
+		-command "destroy $w; focus $oldFocus;$func .fileio"
+	button $w.f.canc -text "Cancel" \
+		-width 20 -command "destroy $w; focus $oldFocus"
+	pack $w.f.back $w.f.canc -side left -pady 10 -padx 45
+	pack $w.f -pady 10 -side bottom -padx 10 -anchor w
+	focus $w
+	global winx; global winy
+	set winx [expr [winfo x .]+30]; set winy [expr [winfo y .]+30]
+	wm geometry $w +$winx+$winy
+}
+
+bind all <Alt-q> {maybe_exit .maybe}
+
+proc maybe_exit { w } {
+	catch {destroy $w}
+	toplevel $w -class Dialog
+	label $w.bm -bitmap questhead
+	pack  $w.bm -pady 10 -side top -padx 10
+	message $w.m -width 400 -aspect 300 \
+		-text "Changes will be lost.  Are you sure?" -relief flat
+	pack  $w.m -pady 10 -side top -padx 10
+	wm title $w "Are you sure?" 
+
+	set oldFocus [focus]
+	frame $w.f
+	button $w.f.back -text "OK" -width 20 \
+		-command "exit"
+	button $w.f.canc -text "Cancel" \
+		-width 20 -command "destroy $w; focus $oldFocus"
+	pack $w.f.back $w.f.canc -side left -pady 10 -padx 45
+	pack $w.f -pady 10 -side bottom -padx 10 -anchor w
+  	bind $w <Return> "exit"
+    	bind $w <Escape> "destroy $w; focus $oldFocus"
+	focus $w
+	global winx; global winy
+	set winx [expr [winfo x .]+30]; set winy [expr [winfo y .]+30]
+	wm geometry $w +$winx+$winy
+}
+
+proc read_config_file { w } {
+	global loadfile
+	if { [string length $loadfile] != 0 && [file readable $loadfile] == 1 } then {
+		read_config $loadfile
+	} else {
+		catch {destroy $w}
+		toplevel $w -class Dialog
+		message $w.m -width 400 -aspect 300 -text \
+			"Unable to read file $loadfile" \
+			 -relief raised 
+		label $w.bm -bitmap error
+		pack $w.bm $w.m -pady 10 -side top -padx 10
+		wm title $w "Xconfig Internal Error" 
+
+		set oldFocus [focus]
+		frame $w.f
+		button $w.f.back -text "Bummer" \
+			-width 10 -command "destroy $w; focus $oldFocus"
+		pack $w.f.back -side bottom -pady 10 -anchor s
+		pack $w.f -pady 10 -side top -padx 10 -anchor s
+		focus $w
+		global winx; global winy
+		set winx [expr [winfo x .]+30]; set winy [expr [winfo y .]+30]
+		wm geometry $w +$winx+$winy
+	}
+}
+
+proc write_config_file  { w } {
+	global loadfile
+	if { [string length $loadfile] != 0 
+    		&& ([file writable $loadfile] == 1 || ([file exists $loadfile] == 0 && [file writable [file dirname $loadfile]] == 1)) } then {
+		writeconfig $loadfile /dev/null
+	} else {
+		catch {destroy $w}
+		toplevel $w -class Dialog
+		message $w.m -width 400 -aspect 300 -text \
+			"Unable to write file $loadfile" \
+			 -relief raised 
+		label $w.bm -bitmap error
+		pack $w.bm $w.m -pady 10 -side top -padx 10
+		wm title $w "Xconfig Internal Error" 
+
+		set oldFocus [focus]
+		frame $w.f
+		button $w.f.back -text "OK" \
+			-width 10 -command "destroy $w; focus $oldFocus"
+		pack $w.f.back -side bottom -pady 10 -anchor s
+		pack $w.f -pady 10 -side top -padx 10 -anchor s
+		focus $w
+		global winx; global winy
+		set winx [expr [winfo x .]+30]; set winy [expr [winfo y .]+30]
+		wm geometry $w +$winx+$winy
+	}
+}
+
+proc read_config { filename } {
+	set file1 [open $filename r]
+	clear_choices
+	while { [gets $file1 line] >= 0} {
+		if [regexp {([0-9A-Za-z_]+)=([ynm])} $line foo var value] {
+			if { $value == "y" } then { set cmd "global $var; set $var 1" }
+			if { $value == "n" } then { set cmd "global $var; set $var 0" }
+			if { $value == "m" } then { set cmd "global $var; set $var 2" }
+			eval $cmd
+		}
+		if [regexp {# ([0-9A-Za-z_]+) is not set} $line foo var] {
+			set cmd "global $var; set $var 0"
+			eval $cmd
+		}
+		if [regexp {([0-9A-Za-z_]+)=([0-9A-Fa-f]+)} $line foo var value] {
+			set cmd "global $var; set $var $value"
+			eval $cmd
+		}
+		if [regexp {([0-9A-Za-z_]+)="([^"]*)"} $line foo var value] {
+			set cmd "global $var; set $var \"$value\""
+			eval $cmd
+		}
+	}
+	close $file1
+	update_choices
+	update_mainmenu
+}
+proc write_comment { file1 file2 text } {
+    	puts $file1 ""
+	puts $file1 "#"
+	puts $file1 "# $text"
+	puts $file1 "#"
+	puts $file2 "/*"
+	puts $file2 " * $text"
+	puts $file2 " */"
+}
+
+proc effective_dep { deplist } {
+	global CONFIG_MODULES
+	set depend 1
+	foreach i $deplist {
+		if {$i == 0} then {set depend 0}
+		if {$i == 2 && $depend == 1} then {set depend 2}
+	}
+	if {$depend == 2 && $CONFIG_MODULES == 0} then {set depend 0}
+	return $depend
+}
+
+proc sync_tristate { var dep } {
+	global CONFIG_MODULES
+	if {$dep == 0 && ($var == 1 || $var == 2)} then {
+		set var 0
+	} elseif {$dep == 2 && $var == 1} then {
+		set var 2
+	} elseif {$var == 2 && $CONFIG_MODULES == 0} then {
+		if {$dep == 1} then {set var 1} else {set var 0}
+	}
+	return $var
+}
+
+proc sync_bool { var dep modset } {
+	set var [sync_tristate $var $dep]
+	if {$dep == 2 && $var == 2} then {
+		set var $modset
+	}
+	return $var
+}
+
+proc write_tristate { file1 file2 varname variable deplist modset } {
+	set variable [sync_tristate $variable [effective_dep $deplist]]
+	if { $variable == 2 } \
+		then { set variable $modset }
+	if { $variable == 1 } \
+		then { puts $file1 "$varname=y"; \
+		       puts $file2 "#define $varname 1" } \
+	elseif { $variable == 2 } \
+		then { puts $file1 "$varname=m"; \
+		       puts $file2 "#undef  $varname"; \
+		       puts $file2 "#define ${varname}_MODULE 1" } \
+	elseif { $variable == 0 } \
+		then { puts $file1 "# $varname is not set"; \
+		       puts $file2 "#undef  $varname"} \
+	else { \
+	    puts stdout "ERROR - Attempting to write value for unconfigured variable ($varname)." \
+	}
+}
+
+proc write_int { file1 file2 varname variable dep } {
+	if { $dep == 0 } \
+		then { puts $file1 "# $varname is not set"; \
+		       puts $file2 "#undef  $varname"} \
+	else {
+		puts $file1 "$varname=$variable"; \
+		puts $file2 "#define $varname ($variable)"; \
+	}
+}
+
+proc write_hex { file1 file2 varname variable dep } {
+	if { $dep == 0 } \
+		then { puts $file1 "# $varname is not set"; \
+		       puts $file2 "#undef  $varname"} \
+	else {
+		puts $file1 "$varname=$variable"; \
+		puts -nonewline $file2 "#define $varname 0x"; \
+		puts $file2 [exec echo $variable | sed s/^0\[xX\]//]; \
+	}
+}
+
+proc write_string { file1 file2 varname variable dep } {
+	if { $dep == 0 } \
+		then { puts $file1 "# $varname is not set"; \
+		       puts $file2 "#undef  $varname"} \
+	else {
+		puts $file1 "$varname=\"$variable\""; \
+		puts $file2 "#define $varname \"$variable\""; \
+	}
+}
+
+proc option_name {w mnum line text helpidx} {
+	button $w.x$line.l -text "$text" -relief groove -anchor w
+	$w.x$line.l configure -activefore [cget $w.x$line.l -fg] \
+				-activeback [cget $w.x$line.l -bg]
+	button $w.x$line.help -text "Help" -relief raised \
+		-command "dohelp .dohelp $helpidx .menu$mnum"
+	pack $w.x$line.help -side right -fill y
+	pack $w.x$line.l -side right -fill both -expand on
+}
+
+proc toggle_switch2 {w mnum line text variable} {
+	frame $w.x$line -relief sunken
+	radiobutton $w.x$line.y -text "y" -variable $variable -value 1 \
+		-relief groove -width 2 -command "update_active"
+	radiobutton $w.x$line.m -text "-"  -variable $variable -value 2 \
+		-relief groove -width 2 -command "update_active"
+	radiobutton $w.x$line.n -text "n"  -variable $variable -value 0 \
+		-relief groove -width 2 -command "update_active"
+
+	option_name $w $mnum $line $text $variable
+
+	pack $w.x$line.n $w.x$line.m $w.x$line.y -side right -fill y
+}
+
+proc toggle_switch3 {w mnum line text variable} {
+	frame $w.x$line -relief sunken
+	radiobutton $w.x$line.y -text "y" -variable $variable -value 1 \
+		-relief groove -width 2 -command "update_active"
+	radiobutton $w.x$line.m -text "m"  -variable $variable -value 2 \
+		-relief groove -width 2 -command "update_active"
+	radiobutton $w.x$line.n -text "n"  -variable $variable -value 0 \
+		-relief groove -width 2 -command "update_active"
+
+	option_name $w $mnum $line $text $variable
+
+	global CONFIG_MODULES
+	if {($CONFIG_MODULES == 0)} then {
+		$w.x$line.m configure -state disabled
+	}
+	pack $w.x$line.n $w.x$line.m $w.x$line.y -side right -fill y
+}
+
+proc bool {w mnum line text variable} {
+	toggle_switch2 $w $mnum $line $text $variable
+	$w.x$line.m configure -state disabled
+	pack $w.x$line -anchor w -fill both -expand on
+}
+
+proc tristate {w mnum line text variable } {
+	toggle_switch3 $w $mnum $line $text $variable
+	pack $w.x$line -anchor w -fill both -expand on
+}
+
+proc dep_tristate {w mnum line text variable } {
+	tristate $w $mnum $line $text $variable
+}
+
+proc dep_bool {w mnum line text variable } {
+	bool $w $mnum $line $text $variable
+}
+
+proc int { w mnum line text variable } {
+	frame $w.x$line
+	entry $w.x$line.x -width 18 -relief sunken -borderwidth 2 \
+		-textvariable $variable
+	option_name $w $mnum $line $text $variable
+	pack $w.x$line.x -anchor w -side right -fill y
+	pack $w.x$line -anchor w -fill both -expand on
+}
+
+proc hex { w mnum line text variable } {
+	int $w $mnum $line $text $variable
+}
+
+proc istring { w mnum line text variable } {
+	frame $w.x$line
+	entry $w.x$line.x -width 18 -relief sunken -borderwidth 2 \
+		-textvariable $variable
+	option_name $w $mnum $line $text $variable
+	pack $w.x$line.x -anchor w -side right -fill y
+	pack $w.x$line -anchor w -fill both -expand on
+}
+
+proc minimenu { w mnum line text variable helpidx } {
+	frame $w.x$line
+	menubutton $w.x$line.x -textvariable $variable -menu \
+		$w.x$line.x.menu -relief raised \
+		-anchor w
+	option_name $w $mnum $line $text $helpidx
+	pack $w.x$line.x -anchor w -side right -fill y
+	pack $w.x$line -anchor w -fill both -expand on
+}
+
+proc menusplit {w m n} {
+	if { $n > 2 } then {
+		update idletasks
+		set menuoptsize [expr [$m yposition 2] - [$m yposition 1]]   
+		set maxsize [winfo screenheight $w]
+		set splitpoint [expr $maxsize * 4 / 5 / $menuoptsize - 1]
+		for {set i [expr $splitpoint + 1]} {$i <= $n} {incr i $splitpoint} {
+			$m entryconfigure $i -columnbreak 1
+		}
+	}
+}
+
+proc menutitle {text menu w} {
+	wm title $w "$text"
+}
+
+proc submenu { w mnum line text subnum } {
+	frame $w.x$line
+	button $w.x$line.l -text "" -width 15 -relief groove
+	$w.x$line.l configure -activefore [cget $w.x$line.l -fg] \
+		-activeback [cget $w.x$line.l -bg] -state disabled
+	button $w.x$line.m -text "$text" -relief raised -anchor w \
+		-command "catch {destroy .menu$subnum}; menu$subnum .menu$subnum \"$text\""
+	pack $w.x$line.l -side left -fill both
+	pack $w.x$line.m -anchor w -side right -fill both -expand on
+	pack $w.x$line -anchor w -fill both -expand on
+}
+
+proc comment {w mnum line text } {
+	frame $w.x$line
+	button $w.x$line.l -text "" -width 15 -relief groove
+	$w.x$line.l configure -activefore [cget $w.x$line.l -fg] \
+		-activeback [cget $w.x$line.l -bg] -state disabled
+	button $w.x$line.m -text "$text" -relief groove -anchor w
+	$w.x$line.m configure -activefore [cget $w.x$line.m -fg] \
+		-activeback [cget $w.x$line.m -bg]
+	pack $w.x$line.l -side left -fill both
+	pack $w.x$line.m -anchor w -side right -fill both -expand on
+	pack $w.x$line -anchor w -fill both -expand on
+}
+
+proc dohelp {w var parent}  {
+	catch {destroy $w}
+	toplevel $w -class Dialog
+
+	set filefound 0
+	set found 0
+	set lineno 0
+
+	if { [file readable Documentation/Configure.help] == 1} then {
+		set filefound 1
+		# First escape sed regexp special characters in var:
+		set var [exec echo "$var" | sed s/\[\]\[\/.^$*\]/\\\\&/g]
+		# Now pick out right help text:
+		set message [exec sed -n "
+			/^$var\[ 	\]*\$/,\${
+				/^$var\[ 	\]*\$/c\\
+${var}:\\
+
+				/^#/b
+				/^\[^ 	\]/q
+				s/^  //
+				/<file:\\(\[^>\]*\\)>/s//\\1/g
+				p
+			}
+			" Documentation/Configure.help]
+		set found [expr [string length "$message"] > 0]
+	}
+
+	frame $w.f1
+	pack $w.f1 -fill both -expand on
+
+	# Do the OK button
+	#
+	set oldFocus [focus]
+	frame $w.f2
+	button $w.f2.ok -text "OK" \
+		-width 10 -command "destroy $w; catch {focus $oldFocus}"
+	pack $w.f2.ok -side bottom -pady 6 -anchor n
+	pack $w.f2 -side bottom -padx 10 -anchor s
+
+	scrollbar $w.f1.vscroll -command "$w.f1.canvas yview"
+	pack $w.f1.vscroll -side right -fill y
+
+	canvas $w.f1.canvas -relief flat -borderwidth 0 \
+		-yscrollcommand "$w.f1.vscroll set"
+	frame $w.f1.f
+	pack $w.f1.canvas -side right -fill y -expand on
+
+	if { $found == 0 } then {
+		if { $filefound == 0 } then {
+		message $w.f1.f.m -width 750 -aspect 300 -relief flat -text \
+			"No help available - unable to open file Documentation/Configure.help.  This file should have come with your kernel."
+		} else {
+		message $w.f1.f.m -width 400 -aspect 300 -relief flat -text \
+			"No help available for $var"
+		}
+		label $w.f1.bm -bitmap error
+		wm title $w "RTFM"
+	} else {
+		text $w.f1.f.m -width 73 -relief flat -wrap word
+		$w.f1.f.m insert 0.0 $message
+		$w.f1.f.m conf -state disabled -height [$w.f1.f.m index end]
+
+		label $w.f1.bm -bitmap info
+		wm title $w "Configuration help" 
+	}
+	pack $w.f1.f.m -side left
+	pack $w.f1.bm $w.f1.f -side left -padx 10
+
+	focus $w
+	set winx [expr [winfo x $parent]+20]
+	set winy [expr [winfo y $parent]+20]
+	wm geometry $w +$winx+$winy
+	set sizok [expr [winfo reqheight $w.f2.ok] + 12]
+	set maxy [expr [winfo screenheight .] * 3 / 4]
+	set canvtotal [winfo reqheight $w.f1.f.m]
+	if [expr $sizok + $canvtotal < $maxy] {
+		set sizy $canvtotal
+	} else {
+		set sizy [expr $maxy - $sizok]
+	}
+	$w.f1.canvas configure -height $sizy -width [winfo reqwidth $w.f1.f.m] \
+		-scrollregion "0 0 [winfo reqwidth $w.f1.f.m] \
+			[winfo reqheight $w.f1.f.m]"
+	$w.f1.canvas create window 0 0 -anchor nw -window $w.f1.f
+	update idletasks
+
+	set maxy [winfo screenheight .]
+	if [expr $sizok + $canvtotal < $maxy] {
+		set sizy [expr $sizok + $canvtotal]
+	} else {
+		set sizy $maxy
+	}
+	wm maxsize $w [winfo width $w] $sizy
+}
+
+bind all <Alt-s> { catch {exec cp -f .config .config.old}; \
+		writeconfig .config include/linux/autoconf.h; wrapup .wrap }
+
+proc wrapup {w }  {
+	catch {destroy $w}
+	toplevel $w -class Dialog
+
+	global CONFIG_MODVERSIONS; vfix CONFIG_MODVERSIONS
+	if { ([file exists .hdepend] != 1) || ($CONFIG_MODVERSIONS == 1) } then {
+	    message $w.m -width 400 -aspect 300 -relief raised -text \
+		"End of Linux kernel configuration.  Check the top-level Makefile for additional configuration.  Next, you must run 'make dep'."
+	} else {
+	    message $w.m -width 400 -aspect 300 -relief raised -text \
+		"End of Linux kernel configuration.  Check the top-level Makefile for additional configuration.  Next, you may 'make bzImage', 'make bzdisk', or 'make bzlilo.'"
+	}
+	label $w.bm -bitmap info
+	pack $w.bm $w.m -pady 10 -side top -padx 10
+	wm title $w "Kernel build instructions" 
+
+	set oldFocus [focus]
+	frame $w.f
+	button $w.f.back -text "OK" \
+		-width 10 -command "exit"
+	pack $w.f.back -side bottom -pady 10 -anchor s
+	pack $w.f -pady 10 -side top -padx 10 -anchor s
+	focus $w
+        bind $w <Return> "exit"
+	global winx; global winy
+	set winx [expr [winfo x .]+30]; set winy [expr [winfo y .]+30]
+	wm geometry $w +$winx+$winy
+
+}
+
+proc unregister_active {num} {
+	global active_menus
+	set index [lsearch -exact $active_menus $num]
+	if {$index != -1} then {set active_menus [lreplace $active_menus $index $index]}
+}
+
+proc update_active {} {
+	global active_menus total_menus
+	set max 0
+	if {[llength $active_menus] > 0} then {
+		set max [lindex $active_menus end]
+		update_define [toplevel_menu [lindex $active_menus 0]] $max 0
+	}
+	foreach i $active_menus {
+		if {[winfo exists .menu$i] == 0} then {
+			unregister_active $i
+		} else {
+			update_menu$i
+		}
+	}
+	update_define [expr $max + 1] $total_menus 1
+	update_mainmenu
+}
+
+proc configure_entry {w option items} {
+	foreach i $items {
+		$w.$i configure -state $option
+	}
+}
+
+proc validate_int {name val default} {
+	if {([exec echo $val | sed s/^-//g | tr -d \[:digit:\] ] != "")} then {
+		global $name; set $name $default
+	}
+}
+
+proc validate_hex {name val default} {
+	if {([exec echo $val | tr -d \[:xdigit:\] ] != "")} then {
+		global $name; set $name $default
+	}
+}
+
+proc update_define {first last allow_update} {
+	for {set i $first} {$i <= $last} {incr i} {
+		update_define_menu$i
+		if {$allow_update == 1} then update
+	}
+}
+
+#
+# Next set up the particulars for the top level menu, and define a few
+# buttons which we will stick down at the bottom.
+#
+
+frame .f0 
+frame .f0.left
+frame .f0.middle
+frame .f0.right
+
+set active_menus [list]
+set processed_top_level 0

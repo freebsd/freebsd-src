@@ -1,0 +1,54 @@
+IBM's Journaled File System (JFS) for Linux
+
+JFS Homepage:  http://oss.software.ibm.com/jfs/
+
+Team members
+------------
+Dave Kleikamp      shaggy@austin.ibm.com  
+Dave Blaschke      blaschke@us.ibm.com
+Steve Best         sbest@us.ibm.com
+Barry Arndt        barndt@us.ibm.com
+
+The following mount options are supported:
+
+iocharset=name	Character set to use for converting from Unicode to
+		ASCII.  The default is compiled into the kernel as
+		CONFIG_NLS_DEFAULT.  Use iocharset=utf8 for UTF8
+		translations.  This requires CONFIG_NLS_UTF8 to be set
+		in the kernel .config file.
+
+resize=value	Resize the volume to <value> blocks.  JFS only supports
+		growing a volume, not shrinking it.  This option is only
+		valid during a remount, when the volume is mounted
+		read-write.  The resize keyword with no value will grow
+		the volume to the full size of the partition.
+
+nointegrity	Do not write to the journal.  The primary use of this option
+		is to allow for higher performance when restoring a volume
+		from backup media.  The integrity of the volume is not
+		guaranteed if the system abnormally abends.
+
+integrity	Default.  Commit metadata changes to the journal.  Use this
+		option to remount a volume where the nointegrity option was
+		previously specified in order to restore normal behavior.
+
+errors=continue		Keep going on a filesystem error.
+errors=remount-ro	Default. Remount the filesystem read-only on an error.
+errors=panic		Panic and halt the machine if an error occurs.
+
+JFS TODO list:
+
+Plans for our near term development items
+
+   - enhance support for logfile on dedicated partition
+
+Longer term work items
+
+   - implement defrag utility, for online defragmenting
+   - add quota support
+   - add support for block sizes (512,1024,2048)
+
+Please send bugs, comments, cards and letters to shaggy@austin.ibm.com.
+
+The JFS mailing list can be subscribed to by using the link labeled
+"Mail list Subscribe" at our web page http://oss.software.ibm.com/jfs/.

@@ -1,0 +1,33 @@
+    Copyright (C) 2001 Brad Boyer
+    Copyright (C) 2003 Ardis Technologies bv
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+
+HFS+ is the standard volume format for Mac OS X.
+
+A basic overview and also a detailed description of the HFS+ volume format
+is provided by Apple's technical note 1150.
+
+The new driver provides full access to HFS+ plus volumes under Linux. It
+bases on the driver by Brad Boyer at 
+http://sourceforge.net/projects/linux-hfsplus.
+
+This driver now supports full read and write access and has a better
+perfomance. It also supports hard links and the resource fork is accessible
+via /rsrc.
+
+This is a beta release, it was intensively tested, but use at your own risk.
+

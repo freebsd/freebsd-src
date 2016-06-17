@@ -1,0 +1,56 @@
+	This is the README for RISCom/8 multi-port serial driver
+	(C) 1994-1996 D.Gorodchanin (pgmdsg@ibi.com)
+	See file LICENSE for terms and conditions.
+
+NOTE: English is not my native language. 
+      I'm sorry for any mistakes in this text.
+
+Misc. notes for RISCom/8 serial driver, in no particular order :)
+
+1) This driver can support up to 4 boards at time.
+   Use string "riscom8=0xXXX,0xXXX,0xXXX,0xXXX" at LILO prompt, for
+   setting I/O base addresses for boards. If you compile driver
+   as module use insmod options "iobase=0xXXX iobase1=0xXXX iobase2=..."
+
+2) The driver partially supports famous 'setserial' program, you can use almost
+   any of its options, excluding port & irq settings.
+
+3) There are some misc. defines at the beginning of riscom8.c, please read the 
+   comments and try to change some of them in case of problems.
+	
+4) I consider the current state of the driver as BETA.
+   If you REALLY think you found a bug, send me e-mail, I hope I'll
+   fix it. For any other problems please ask support@sdlcomm.com.
+
+5) SDL Communications WWW page is http://www.sdlcomm.com.
+
+6) You can use the script at the end of this file to create RISCom/8 devices.
+
+7) Minor numbers for first board are 0-7, for second 8-15, etc.
+
+22 Apr 1996.
+
+-------------------------------cut here-------------------------------------
+#!/bin/bash
+NORMAL_DEVICE=/dev/ttyL
+CALLOUT_DEVICE=/dev/cuL
+NORMAL_MAJOR=48
+CALLOUT_MAJOR=49
+
+echo "Creating devices... "
+for i in 0 1 2 3; do
+	echo "Board No $[$i+1]"
+	for j in 0 1 2 3 4 5 6 7; do
+		k=$[ 8 * $i + $j]
+		rm -f $NORMAL_DEVICE$k 
+		mknod $NORMAL_DEVICE$k c $NORMAL_MAJOR $k
+		chmod a+rw $NORMAL_DEVICE$k
+		echo -n $NORMAL_DEVICE$k" "
+		rm -f $CALLOUT_DEVICE$k 
+		mknod $CALLOUT_DEVICE$k c $CALLOUT_MAJOR $k
+		chmod a+rw $CALLOUT_DEVICE$k
+		echo $CALLOUT_DEVICE$k
+	done
+done
+echo "done."
+-------------------------------cut here-------------------------------------

@@ -1,0 +1,36 @@
+#
+# Amateur Radio protocols and AX.25 device configuration
+#
+# 19971130	Now in an own category to make correct compilation of the 
+#		AX.25 stuff easier...
+#		Joerg Reuter DL1BKE <jreuter@yaina.de>
+# 19980129	Moved to net/ax25/Config.in, sourcing device drivers.
+
+mainmenu_option next_comment
+comment 'Amateur Radio support'
+bool 'Amateur Radio support' CONFIG_HAMRADIO
+
+if [ "$CONFIG_HAMRADIO" != "n" ]; then
+   if [ "$CONFIG_NET" != "n" ]; then
+      comment 'Packet Radio protocols'
+      tristate '  Amateur Radio AX.25 Level 2 protocol' CONFIG_AX25
+      if [ "$CONFIG_AX25" != "n" ]; then
+	 bool '    AX.25 DAMA Slave support' CONFIG_AX25_DAMA_SLAVE
+#	 bool '    AX.25 DAMA Master support' CONFIG_AX25_DAMA_MASTER
+	 dep_tristate '    Amateur Radio NET/ROM protocol' CONFIG_NETROM $CONFIG_AX25
+	 dep_tristate '    Amateur Radio X.25 PLP (Rose)' CONFIG_ROSE $CONFIG_AX25
+      fi
+
+      if [ "$CONFIG_AX25" != "n" ]; then
+	 mainmenu_option next_comment
+	 comment 'AX.25 network device drivers'
+
+	 source drivers/net/hamradio/Config.in
+
+	 endmenu
+      fi
+   fi
+
+fi
+
+endmenu

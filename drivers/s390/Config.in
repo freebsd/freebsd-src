@@ -1,0 +1,96 @@
+mainmenu_option next_comment
+comment 'Block device drivers'
+
+tristate 'Loopback device support' CONFIG_BLK_DEV_LOOP
+dep_tristate 'Network block device support' CONFIG_BLK_DEV_NBD $CONFIG_NET
+tristate 'RAM disk support' CONFIG_BLK_DEV_RAM
+if [ "$CONFIG_BLK_DEV_RAM" = "y" -o "$CONFIG_BLK_DEV_RAM" = "m" ]; then
+  int '   Default RAM disk size' CONFIG_BLK_DEV_RAM_SIZE 24576
+fi
+dep_bool '   Initial RAM disk (initrd) support' CONFIG_BLK_DEV_INITRD $CONFIG_BLK_DEV_RAM
+tristate 'XPRAM disk support' CONFIG_BLK_DEV_XPRAM
+
+comment 'S/390 block device drivers'
+
+tristate 'Support for DASD devices' CONFIG_DASD
+if [ "$CONFIG_DASD" != "n"  ]; then
+  dep_tristate '   Support for ECKD Disks' CONFIG_DASD_ECKD $CONFIG_DASD
+  if [ "$CONFIG_DASD_ECKD" = "m" ]; then
+    bool     '   Automatic activation of ECKD module' CONFIG_DASD_AUTO_ECKD
+  fi
+  dep_tristate '   Support for FBA  Disks' CONFIG_DASD_FBA $CONFIG_DASD
+  if [ "$CONFIG_DASD_FBA" = "m" ]; then
+    bool     '   Automatic activation of FBA  module' CONFIG_DASD_AUTO_FBA
+  fi
+#  dep_tristate '   Support for CKD  Disks' CONFIG_DASD_CKD $CONFIG_DASD
+  if [ "$CONFIG_ARCH_S390X" != "y" ]; then
+    dep_tristate '   Support for DIAG access to CMS reserved Disks' CONFIG_DASD_DIAG $CONFIG_DASD
+    if [ "$CONFIG_DASD_DIAG" = "m" ]; then
+      bool     '   Automatic activation of DIAG module' CONFIG_DASD_AUTO_DIAG
+    fi
+  fi
+fi
+
+endmenu
+
+source drivers/md/Config.in
+
+mainmenu_option next_comment
+comment 'Character device drivers'
+bool 'Unix98 PTY support' CONFIG_UNIX98_PTYS
+if [ "$CONFIG_UNIX98_PTYS" = "y" ]; then
+  int 'Maximum number of Unix98 PTYs in use (0-2048)' CONFIG_UNIX98_PTY_COUNT 256
+fi
+
+comment 'S/390 character device drivers'
+
+tristate 'Support for locally attached 3270 tubes' CONFIG_TN3270
+if [ "$CONFIG_TN3270" = "y" ]; then
+  bool 'Support for console on 3270 line mode terminal' CONFIG_TN3270_CONSOLE
+fi
+bool 'Support for 3215 line mode terminal' CONFIG_TN3215
+if [ "$CONFIG_TN3215" = "y" ]; then
+  bool 'Support for console on 3215 line mode terminal' CONFIG_TN3215_CONSOLE
+fi
+bool 'Support for HWC line mode terminal' CONFIG_HWC
+if [ "$CONFIG_HWC" = "y" ]; then
+  bool '   console on HWC line mode terminal' CONFIG_HWC_CONSOLE
+  tristate '   Control-Program Identification' CONFIG_HWC_CPI
+fi
+tristate 'S/390 tape device support' CONFIG_S390_TAPE
+if [ "$CONFIG_S390_TAPE" != "n" ]; then
+  comment 'S/390 tape interface support'
+  bool '   Support for tape character devices' CONFIG_S390_TAPE_CHAR
+  bool '   Support for tape block devices' CONFIG_S390_TAPE_BLOCK
+  comment 'S/390 tape hardware support'
+  bool '   Support for 3490 tape hardware' CONFIG_S390_TAPE_3490
+  bool '   Support for 3480 tape hardware' CONFIG_S390_TAPE_3480
+fi
+endmenu
+
+if [ "$CONFIG_NET" = "y" ]; then
+  mainmenu_option next_comment
+  comment 'Network device drivers'
+  bool 'Network device support' CONFIG_NETDEVICES
+
+  if [ "$CONFIG_NETDEVICES" = "y" ]; then
+    tristate 'Dummy net driver support' CONFIG_DUMMY
+    tristate 'Bonding driver support' CONFIG_BONDING
+    tristate 'EQL (serial line load balancing) support' CONFIG_EQUALIZER
+    tristate 'Universal TUN/TAP device driver support' CONFIG_TUN
+    bool 'Ethernet (10 or 100Mbit)' CONFIG_NET_ETHERNET
+    bool 'Token Ring driver support' CONFIG_TR
+    dep_tristate 'Cisco 7000 support' CONFIG_C7000 m
+    bool 'FDDI driver support' CONFIG_FDDI
+    comment 'S/390 network device drivers'
+    bool 'Channel Device Configuration' CONFIG_CHANDEV
+    if [ "$CONFIG_CHANDEV" = "y" ]; then
+	define_bool CONFIG_HOTPLUG y
+    fi
+
+    tristate 'CTC device support' CONFIG_CTC
+    tristate 'IUCV device support (VM only)' CONFIG_IUCV
+  fi
+  endmenu
+fi
+

@@ -1,0 +1,101 @@
+#
+# ATM device configuration
+#
+mainmenu_option next_comment
+comment 'ATM drivers'
+if [ "$CONFIG_INET" = "y" ]; then
+   dep_tristate 'ATM over TCP' CONFIG_ATM_TCP $CONFIG_ATM
+fi
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_tristate 'Efficient Networks Speedstream 3010' CONFIG_ATM_LANAI $CONFIG_ATM
+   dep_tristate 'Efficient Networks ENI155P' CONFIG_ATM_ENI $CONFIG_ATM
+   if [ "$CONFIG_ATM_ENI" != "n" ]; then
+      bool '  Enable extended debugging' CONFIG_ATM_ENI_DEBUG
+      bool '  Fine-tune burst settings' CONFIG_ATM_ENI_TUNE_BURST
+      if [ "$CONFIG_ATM_ENI_TUNE_BURST" = "y" ]; then
+	 bool '    Enable 16W TX bursts (discouraged)' CONFIG_ATM_ENI_BURST_TX_16W
+	 bool '    Enable 8W TX bursts (recommended)' CONFIG_ATM_ENI_BURST_TX_8W
+	 bool '    Enable 4W TX bursts (optional)' CONFIG_ATM_ENI_BURST_TX_4W
+	 bool '    Enable 2W TX bursts (optional)' CONFIG_ATM_ENI_BURST_TX_2W
+	 bool '    Enable 16W RX bursts (discouraged)' CONFIG_ATM_ENI_BURST_RX_16W
+	 bool '    Enable 8W RX bursts (discouraged)' CONFIG_ATM_ENI_BURST_RX_8W
+	 bool '    Enable 4W RX bursts (recommended)' CONFIG_ATM_ENI_BURST_RX_4W
+	 bool '    Enable 2W RX bursts (optional)' CONFIG_ATM_ENI_BURST_RX_2W
+      fi
+   fi
+   dep_tristate 'Fujitsu FireStream (FS50/FS155) ' CONFIG_ATM_FIRESTREAM $CONFIG_ATM
+   dep_tristate 'ZeitNet ZN1221/ZN1225' CONFIG_ATM_ZATM $CONFIG_ATM
+   if [ "$CONFIG_ATM_ZATM" != "n" ]; then
+      bool '  Enable extended debugging' CONFIG_ATM_ZATM_DEBUG
+      if [ "$CONFIG_X86" = "y" ]; then
+	bool '  Enable usec resolution timestamps' CONFIG_ATM_ZATM_EXACT_TS
+      fi
+   fi
+#   bool 'Rolfs TI TNETA1570' CONFIG_ATM_TNETA1570 y
+#   if [ "$CONFIG_ATM_TNETA1570" = "y" ]; then
+#      bool '  Enable extended debugging' CONFIG_ATM_TNETA1570_DEBUG n
+#   fi
+   dep_tristate 'IDT 77201 (NICStAR) (ForeRunnerLE)' CONFIG_ATM_NICSTAR $CONFIG_ATM
+   if [ "$CONFIG_ATM_NICSTAR" != "n" ]; then
+      bool '  Use suni PHY driver (155Mbps)' CONFIG_ATM_NICSTAR_USE_SUNI
+      bool '  Use IDT77015 PHY driver (25Mbps)' CONFIG_ATM_NICSTAR_USE_IDT77105
+   fi
+   dep_tristate 'IDT 77252 (NICStAR II)' CONFIG_ATM_IDT77252 $CONFIG_ATM
+   if [ "$CONFIG_ATM_IDT77252" != "n" ]; then
+      bool '  Enable debugging messages' CONFIG_ATM_IDT77252_DEBUG
+      bool '  Receive ALL cells in raw queue' CONFIG_ATM_IDT77252_RCV_ALL
+      define_bool CONFIG_ATM_IDT77252_USE_SUNI y
+   fi
+   dep_tristate 'Madge Ambassador (Collage PCI 155 Server)' CONFIG_ATM_AMBASSADOR $CONFIG_ATM
+   if [ "$CONFIG_ATM_AMBASSADOR" != "n" ]; then
+      bool '  Enable debugging messages' CONFIG_ATM_AMBASSADOR_DEBUG
+   fi
+   dep_tristate 'Madge Horizon [Ultra] (Collage PCI 25 and Collage PCI 155 Client)' CONFIG_ATM_HORIZON $CONFIG_ATM
+   if [ "$CONFIG_ATM_HORIZON" != "n" ]; then
+      bool '  Enable debugging messages' CONFIG_ATM_HORIZON_DEBUG
+   fi
+   dep_tristate 'Interphase ATM PCI x575/x525/x531' CONFIG_ATM_IA $CONFIG_ATM
+   if [ "$CONFIG_ATM_IA" != "n" ]; then
+     bool '  Enable debugging messages' CONFIG_ATM_IA_DEBUG
+   fi
+fi
+if [ "$CONFIG_PCI" = "y" -o "$CONFIG_SBUS" = "y" ]; then
+  dep_tristate 'FORE Systems 200E-series' CONFIG_ATM_FORE200E_MAYBE $CONFIG_ATM
+  if [ "$CONFIG_ATM_FORE200E_MAYBE" != "n" ]; then
+    if [ "$CONFIG_PCI" = "y" ]; then
+      bool '  PCA-200E support' CONFIG_ATM_FORE200E_PCA
+      if [ "$CONFIG_ATM_FORE200E_PCA" = "y" ]; then
+	bool '   Use default PCA-200E firmware (normally enabled)' CONFIG_ATM_FORE200E_PCA_DEFAULT_FW
+        if [ "$CONFIG_ATM_FORE200E_PCA_DEFAULT_FW" = "n" ]; then
+          string '   Pathname of user-supplied binary firmware' CONFIG_ATM_FORE200E_PCA_FW ""
+        fi
+      fi
+    fi
+    if [ "$CONFIG_SBUS" = "y" ]; then
+      bool '  SBA-200E support' CONFIG_ATM_FORE200E_SBA
+      if [ "$CONFIG_ATM_FORE200E_SBA" = "y" ]; then
+        bool '   Use default SBA-200E firmware (normally enabled)' CONFIG_ATM_FORE200E_SBA_DEFAULT_FW
+        if [ "$CONFIG_ATM_FORE200E_SBA_DEFAULT_FW" = "n" ]; then
+          string '   Pathname of user-supplied binary firmware' CONFIG_ATM_FORE200E_SBA_FW ""
+        fi
+      fi
+    fi
+  fi
+  if [ "$CONFIG_ATM_FORE200E_PCA" = "y" -o "$CONFIG_ATM_FORE200E_SBA" = "y" ]; \
+    then
+    int  '  Maximum number of tx retries' CONFIG_ATM_FORE200E_TX_RETRY 16
+    int  '  Debugging level (0-3)' CONFIG_ATM_FORE200E_DEBUG 0
+    if [ "$CONFIG_ATM_FORE200E_MAYBE" = "y" ]; then
+      define_tristate CONFIG_ATM_FORE200E y
+    else
+      define_tristate CONFIG_ATM_FORE200E m
+    fi
+  fi
+fi
+if [ "$CONFIG_PCI" = "y" ]; then
+  dep_tristate 'ForeRunner HE Series' CONFIG_ATM_HE $CONFIG_ATM
+  if [ "$CONFIG_ATM_HE" != "n" ]; then
+    bool 'Use S/UNI PHY driver' CONFIG_ATM_HE_USE_SUNI
+  fi
+fi
+endmenu

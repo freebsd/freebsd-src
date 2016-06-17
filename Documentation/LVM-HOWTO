@@ -1,0 +1,119 @@
+Heinz Mauelshagen's LVM (Logical Volume Manager) howto.             02/10/1999
+
+
+Abstract:
+---------
+The LVM adds a kind of virtual disks and virtual partitions functionality
+to the Linux operating system.
+
+It achieves this by adding an additional layer between the physical peripherals
+and the i/o interface in the kernel.
+
+This allows the concatenation of several disk partitions or total disks
+(so-called physical volumes or PVs) or even multiple devices
+to form a storage pool (so-called Volume Group or VG) with
+allocation units called physical extents (called PE).
+You can think of the volume group as a virtual disk.
+Please see scenario below.
+
+Some or all PEs of this VG then can be allocated to so-called Logical Volumes
+or LVs in units called logical extents or LEs.
+Each LE is mapped to a corresponding PE.
+LEs and PEs are equal in size.
+Logical volumes are a kind of virtual partitions.
+
+
+The LVs can be used through device special files similar to the known
+/dev/sd[a-z]* or /dev/hd[a-z]* named /dev/VolumeGroupName/LogicalVolumeName.
+
+But going beyond this, you are able to extend or reduce
+VGs _AND_ LVs at runtime!
+
+So...
+If for example the capacity of a LV gets too small and your VG containing
+this LV is full, you could add another PV to that VG and simply extend
+the LV afterwards.
+If you reduce or delete a LV you can use the freed capacity for different
+LVs in the same VG.
+
+
+The above scenario looks like this:
+
+     /------------------------------------------\
+     |  /--PV2---\      VG 1      /--PVn---\    |
+     |  |-VGDA---|                |-VGDA-- |    |
+     |  |PE1PE2..|                |PE1PE2..|    |
+     |  |        |     ......     |        |    |
+     |  |        |                |        |    |
+     |  |    /-----------------------\     |    |
+     |  |    \-------LV 1------------/     |    |
+     |  |   ..PEn|                |   ..PEn|    |
+     |  \--------/                \--------/    |
+     \------------------------------------------/
+
+PV 1 could be /dev/sdc1 sized 3GB
+PV n could be /dev/sde1 sized 4GB
+VG 1 could be test_vg
+LV 1 could be /dev/test_vg/test_lv
+VGDA is the volume group descriptor area holding the LVM metadata
+PE1 up to PEn is the number of physical extents on each disk(partition)
+
+
+
+Installation steps see INSTALL and insmod(1)/modprobe(1), kmod/kerneld(8)
+to load the logical volume manager module if you did not bind it
+into the kernel.
+
+
+Configuration steps for getting the above scenario:
+
+1. Set the partition system id to 0x8e on /dev/sdc1 and /dev/sde1.
+
+2. do a "pvcreate /dev/sd[ce]1"
+   For testing purposes you can use more than one partition on a disk.
+   You should not use more than one partition because in the case of
+   a striped LV you'll have a performance breakdown.
+
+3. do a "vgcreate test_vg /dev/sd[ce]1" to create the new VG named "test_vg"
+   which has the total capacity of both partitions.
+   vgcreate activates (transfers the metadata into the LVM driver in the kernel)
+   the new volume group too to be able to create LVs in the next step.
+
+4. do a "lvcreate -L1500 -ntest_lv test_vg" to get a 1500MB linear LV named
+   "test_lv" and it's block device special "/dev/test_vg/test_lv".
+
+   Or do a "lvcreate -i2 -I4 -l1500 -nanother_test_lv test_vg" to get a 100 LE
+   large logical volume with 2 stripes and stripesize 4 KB.
+
+5. For example generate a filesystem in one LV with
+   "mke2fs /dev/test_vg/test_lv" and mount it.
+
+6. extend /dev/test_vg/test_lv to 1600MB with relative size by
+   "lvextend -L+100 /dev/test_vg/test_lv"
+   or with absolute size by
+   "lvextend -L1600 /dev/test_vg/test_lv"
+ 
+7. reduce /dev/test_vg/test_lv to 900 logical extents with relative extents by
+   "lvreduce -l-700 /dev/test_vg/test_lv"
+   or with absolute extents by
+   "lvreduce -l900 /dev/test_vg/test_lv"
+ 
+9. rename a VG by deactivating it with
+   "vgchange -an test_vg"   # only VGs with _no_ open LVs can be deactivated!
+   "vgrename test_vg whatever"
+   and reactivate it again by
+   "vgchange -ay whatever"
+
+9. rename a LV after closing it by
+   "lvchange -an /dev/whatever/test_lv" # only closed LVs can be deactivated
+   "lvrename  /dev/whatever/test_lv  /dev/whatever/whatvolume"
+   or by
+   "lvrename  whatever test_lv whatvolume"
+   and reactivate it again by
+   "lvchange -ay /dev/whatever/whatvolume"
+
+10. if you own Ted Tso's/Powerquest's resize2fs program, you are able to
+    resize the ext2 type filesystems contained in logical volumes without
+    destroyiing the data by
+    "e2fsadm -L+100 /dev/test_vg/another_test_lv"
+

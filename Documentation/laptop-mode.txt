@@ -1,0 +1,72 @@
+Laptop mode
+===========
+
+This small doc describes the 2.4 laptop mode patch.
+
+Last updated 2003-05-25, Jens Axboe <axboe@suse.de>
+
+Introduction
+------------
+
+A few properties of the Linux vm makes it virtually impossible to attempt
+to spin down the hard drive in a laptop for a longer period of time (more
+than a handful of seconds). This means you are lucky if you can even reach
+the break even point with regards to power consumption, let alone expect any
+decrease.
+
+One problem is the age time of dirty buffers. Linux uses 30 seconds per
+default, so if you dirty any data then flusing of that data will commence
+at most 30 seconds from then. Another is the journal commit interval of
+journalled file systems such as ext3, which is 5 seconds on a stock kernel.
+Both of these are tweakable either from proc/sysctl or as mount options
+though, and thus partly solvable from user space.
+
+The kernel update daemon (kupdated) also runs at specific intervals, flushing
+old dirty data out. Default is every 5 seconds, this too can be tweaked
+from sysctl.
+
+So what does the laptop mode patch do? It attempts to fully utilize the
+hard drive once it has been spun up, flushing the old dirty data out to
+disk. Instead of flushing just the expired data, it will clean everything.
+When a read causes the disk to spin up, we kick off this flushing after
+a few seconds. This means that once the disk spins down again, everything
+is up to date. That allows longer dirty data and journal expire times.
+
+It follows that you have to set long expire times to get long spin downs.
+This means you could potentially loose 10 minutes worth of data, if you
+set a 10 minute expire count instead of just 30 seconds worth. The biggest
+risk here is undoubtedly running out of battery.
+
+Settings
+--------
+
+The main knob is /proc/sys/vm/laptop_mode. Setting that to 1 switches the
+vm (and block layer) to laptop mode. Leaving it to 0 makes the kernel work
+like before. When in laptop mode, you also want to extend the intervals
+desribed above. See the laptop-mode.sh script for how to do that.
+
+It can happen that the disk still keeps spinning up and you don't quite
+know why or what causes it. The laptop mode patch has a little helper for
+that as well, /proc/sys/vm/block_dump. When set to 1, it will dump info to
+the kernel message buffer about what process caused the io. Be very careful
+when playing with this setting, it is advisable to shut down syslog first!
+
+Result
+------
+
+Using the laptop-mode.sh script with its default settings, I get the full
+10 minutes worth of drive spin down. Provided your work load is cached,
+the disk will only spin up every 10 minutes (well actually, 9 minutes and 55
+seconds due to the 5 second delay in flushing dirty data after the last read
+completes). I can't tell you exactly how much extra battery life you will
+gain in laptop mode, it will vary greatly on the laptop and workload in
+question. The only way to know for sure is to try it out. Getting 10% extra
+battery life is not unrealistic.
+
+Notes
+-----
+
+Patch only changes journal expire time for ext3. reiserfs uses a hardwire
+value, should be trivial to adapt though (basically just make it call
+get_buffer_flushtime() and uses that). I have not looked at other
+journalling file systems, I'll happily accept patches to rectify that!

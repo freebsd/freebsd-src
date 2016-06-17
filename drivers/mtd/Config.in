@@ -1,0 +1,44 @@
+
+# $Id: Config.in,v 1.74 2002/04/23 13:52:14 mag Exp $
+
+mainmenu_option next_comment
+comment 'Memory Technology Devices (MTD)'
+
+tristate 'Memory Technology Device (MTD) support' CONFIG_MTD
+
+if [ "$CONFIG_MTD" = "y" -o "$CONFIG_MTD" = "m" ]; then
+   bool 'Debugging' CONFIG_MTD_DEBUG
+   if [ "$CONFIG_MTD_DEBUG" = "y" ]; then
+      int '  Debugging verbosity (0 = quiet, 3 = noisy)' CONFIG_MTD_DEBUG_VERBOSE 0
+   fi
+   dep_tristate '  MTD partitioning support' CONFIG_MTD_PARTITIONS $CONFIG_MTD
+   dep_tristate '  MTD concatenating support' CONFIG_MTD_CONCAT $CONFIG_MTD
+   dep_tristate '  RedBoot partition table parsing' CONFIG_MTD_REDBOOT_PARTS $CONFIG_MTD_PARTITIONS
+   dep_tristate '  Command line partition table parsing' CONFIG_MTD_CMDLINE_PARTS $CONFIG_MTD_PARTITIONS
+   if [ "$CONFIG_ARM" = "y" ]; then
+      dep_tristate '  ARM Firmware Suite partition parsing' CONFIG_MTD_AFS_PARTS $CONFIG_MTD_PARTITIONS
+   fi
+
+comment 'User Modules And Translation Layers'
+   dep_tristate '  Direct char device access to MTD devices' CONFIG_MTD_CHAR $CONFIG_MTD
+   dep_tristate '  Caching block device access to MTD devices' CONFIG_MTD_BLOCK $CONFIG_MTD
+   if [ "$CONFIG_MTD_BLOCK" = "n" -o "$CONFIG_MTD_BLOCK" = "m" ]; then
+   	dep_tristate '  Readonly block device access to MTD devices' CONFIG_MTD_BLOCK_RO $CONFIG_MTD
+   fi
+   dep_tristate '  FTL (Flash Translation Layer) support' CONFIG_FTL $CONFIG_MTD
+   dep_tristate '  NFTL (NAND Flash Translation Layer) support' CONFIG_NFTL $CONFIG_MTD
+   if [ "$CONFIG_NFTL" = "y" -o "$CONFIG_NFTL" = "m" ]; then
+      bool '    Write support for NFTL (BETA)' CONFIG_NFTL_RW
+   fi
+
+   source drivers/mtd/chips/Config.in
+
+   source drivers/mtd/maps/Config.in
+
+   source drivers/mtd/devices/Config.in
+
+   source drivers/mtd/nand/Config.in
+
+fi
+
+endmenu

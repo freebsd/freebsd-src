@@ -1,0 +1,213 @@
+1998-12-04  Andrew T. Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.8.2.2
+
+	* Add msndreset program to shell archive.
+
+1998-11-11  Andrew T. Veliath  <andrewv@usa.net>
+
+	* msnd_pinnacle.c (mixer_ioctl): Add a mixer ioctl for
+	SOUND_MIXER_PRIVATE1 which does a full reset on the card.
+	(mixer_set): Move line in recording source to input monitor, aux
+	input level added, some mixer fixes.
+
+1998-09-10  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.8.2
+
+	* Add SNDCTL_DSP_GETOSPACE and SNDCTL_DSP_GETISPACE ioctls.
+
+1998-09-09  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.8.1
+	
+	* msnd_pinnacle.c: Fix resetting of default audio parameters. Turn
+	flush code from dsp_halt into dsp_write_flush, and use that for
+	SNDCTL_DSP_SYNC.
+
+1998-09-07  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.8.0
+
+	* Provide separate signal parameters for play and record.
+	
+	* Cleanups to locking and interrupt handling, change default
+	fifosize to 128kB.
+
+	* Update version to 0.7.15
+
+	* Interprocess full-duplex support (ie `cat /dev/dsp > /dev/dsp').
+
+	* More mutex sections for read and write fifos (read + write locks
+	added).
+
+1998-09-05  Andrew Veliath  <andrewtv@usa.net>
+
+	* msnd_pinnacle.c: (chk_send_dsp_cmd) Do full DSP reset upon DSP
+	timeout (when not in interrupt; maintains mixer settings).  Fixes
+	to flushing and IRQ ref counting. Rewrote queuing for smoother
+	playback and fixed initial playback cutoff problem.
+
+1998-09-03  Andrew Veliath  <andrewtv@usa.net>
+
+	* Replaced packed structure accesses with standard C equivalents.
+
+1998-09-01  Andrew Veliath  <andrewtv@usa.net>
+
+	* msnd_pinnacle.c: Add non-PnP configuration to driver code, which
+	  will facilitate compiled-in operation.
+
+1998-08-29  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.7.6
+	
+	* msnd_pinnacle.c (dsp_ioctl): Add DSP_GETFMTS, change SAMPLESIZE
+	  to DSP_SETFMT.
+
+	* Update version to 0.7.5
+	
+	* Create pinnaclecfg.c and turn MultiSound doc into a shell
+	  archive with pinnaclecfg.c included.  pinnaclecfg.c can
+	  now fully configure the card in non-PnP mode, including the
+	  joystick and IDE controller.  Also add an isapnp conf
+	  example.
+
+	* Reduce DSP reset timeout from 20000 to 100
+
+1998-08-06  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.7.2
+	
+	* After A/D calibration, do an explicit set to the line input,
+	  rather than using set_recsrc
+
+1998-07-20  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.7.1
+
+	* Add more OSS ioctls
+	
+1998-07-19  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update doc file
+	
+	* Bring back DIGITAL1 with digital parameter to msnd_pinnacle.c
+	  and CONFIG_MSNDPIN_DIGITAL.  I'm not sure this actually works,
+	  since I find audio playback goes into a very speeded mode of
+	  operation, however it might be due to a lack of a digital
+	  source, which I don't have to test.
+
+1998-07-18  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.7.0
+
+	* Can now compile with Alan Cox' 2.0.34-modular-sound patch (so
+	  now it requires >= 2.1.106 or 2.0.34-ms) (note for 2.0.34-ms it
+	  is in the Experimental section)
+
+	* More modularization, consolidation, also some MIDI hooks
+	  installed for future MIDI modules
+
+	* Write flush
+
+	* Change default speed, channels, bit size to OSS/Free defaults
+
+1998-06-02  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.5b
+
+	* Fix version detection
+	
+	* Remove underflow and overflow resets (delay was too long)
+
+	* Replace spinlocked bitops with atomic bit ops
+
+1998-05-27  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.5a
+	
+	* Better recovery from underflow or overflow conditions
+	
+	* Fix a deadlock condition with one thread reading and the other
+	  writing
+
+1998-05-26  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.5
+	
+	* Separate reset queue functions for play and record
+
+	* Add delays in dsp_halt
+
+1998-05-24  Andrew Veliath  <andrewtv@usa.net>
+
+	* Add a check for Linux >= 2.1.95
+	
+	* Remove DIGITAL1 input until I figure out how to make it work
+	
+	* Add HAVE_DSPCODEH which when not defined will load firmware from
+	  files using mod_firmware_load, then release memory after they
+	  are uploaded (requires reorganized OSS).
+
+1998-05-22  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.4c
+
+	* Hopefully fix the mixer volume problem
+
+1998-05-19  Andrew Veliath  <andrewtv@usa.net>
+
+	* Add __initfuncs and __initdatas to reduce resident code size
+
+	* Move bunch of code around, remove some protos
+
+	* Integrate preliminary changes for Alan Cox's OSS reorganization
+	  for non-OSS drivers to coexist with OSS devices on the same
+	  major.  To compile standalone, must now define STANDALONE.
+
+1998-05-16  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.4b
+	
+	* Integrated older card support into a unified driver, tested on a
+	  MultiSound Classic c/o Kendrick Vargas.
+
+1998-05-15  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.4
+	
+	* Fix read/write return values
+
+1998-05-13  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.3
+
+	* Stop play gracefully
+
+	* Add busy flag
+	
+	* Add major and calibrate_signal module parameters
+	
+	* Add ADC calibration
+
+	* Add some OSS compatibility ioctls
+
+	* Add mixer record selection
+	
+	* Add O_NONBLOCK support, separate read/write wait queues
+
+	* Add sample bit size ioctl, expanded sample rate ioctl
+
+	* Playback suspension now resumes
+
+	* Use signal_pending after interruptible_sleep_on
+	
+	* Add recording, change ints to bit flags
+
+1998-05-11  Andrew Veliath  <andrewtv@usa.net>
+
+	* Update version to 0.2
+
+	* Add preliminary playback support
+
+	* Use new Turtle Beach DSP code

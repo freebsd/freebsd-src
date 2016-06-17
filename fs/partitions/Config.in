@@ -1,0 +1,71 @@
+#
+# Partition configuration
+#
+bool 'Advanced partition selection' CONFIG_PARTITION_ADVANCED
+if [ "$CONFIG_PARTITION_ADVANCED" = "y" ]; then
+   bool '  Acorn partition support' CONFIG_ACORN_PARTITION
+   if [ "$CONFIG_ACORN_PARTITION" != "n" ]; then
+#      bool '    Cumana partition support' CONFIG_ACORN_PARTITION_CUMANA
+      bool '    ICS partition support' CONFIG_ACORN_PARTITION_ICS
+      bool '    Native filecore partition support' CONFIG_ACORN_PARTITION_ADFS
+      bool '    PowerTec partition support' CONFIG_ACORN_PARTITION_POWERTEC
+      bool '    RISCiX partition support' CONFIG_ACORN_PARTITION_RISCIX
+   fi
+   bool '  Alpha OSF partition support' CONFIG_OSF_PARTITION
+   bool '  Amiga partition table support' CONFIG_AMIGA_PARTITION
+   bool '  Atari partition table support' CONFIG_ATARI_PARTITION
+   if [ "$CONFIG_ARCH_S390" = "y" ]; then
+      bool '  IBM disk label and partition support' CONFIG_IBM_PARTITION
+   fi
+   bool '  Macintosh partition map support' CONFIG_MAC_PARTITION
+   bool '  PC BIOS (MSDOS partition tables) support' CONFIG_MSDOS_PARTITION
+   if [ "$CONFIG_MSDOS_PARTITION" = "y" ]; then
+      bool '    BSD disklabel (FreeBSD partition tables) support' CONFIG_BSD_DISKLABEL
+      bool '    Minix subpartition support' CONFIG_MINIX_SUBPARTITION
+      bool '    Solaris (x86) partition table support' CONFIG_SOLARIS_X86_PARTITION
+      bool '    Unixware slices support' CONFIG_UNIXWARE_DISKLABEL
+   fi
+   dep_bool '  Windows Logical Disk Manager (Dynamic Disk) support (EXPERIMENTAL)' CONFIG_LDM_PARTITION $CONFIG_EXPERIMENTAL
+   if [ "$CONFIG_LDM_PARTITION" = "y" ]; then
+      bool '    Windows LDM extra logging' CONFIG_LDM_DEBUG
+   fi
+   bool '  SGI partition support' CONFIG_SGI_PARTITION
+   bool '  Ultrix partition table support' CONFIG_ULTRIX_PARTITION
+   bool '  Sun partition tables support' CONFIG_SUN_PARTITION
+   bool '  EFI GUID Partition support' CONFIG_EFI_PARTITION
+else
+   if [ "$CONFIG_ALPHA" = "y" ]; then
+      define_bool CONFIG_OSF_PARTITION y
+   fi
+   if [ "$CONFIG_AMIGA" != "y" -a "$CONFIG_ATARI" != "y" -a \
+        "$CONFIG_MAC" != "y" -a "$CONFIG_SGI_IP22" != "y" -a \
+	"$CONFIG_SGI_IP27" != "y" ]; then
+      define_bool CONFIG_MSDOS_PARTITION y
+   fi
+   if [ "$CONFIG_AMIGA" = "y" -o "$CONFIG_AFFS_FS" = "y" ]; then
+      define_bool CONFIG_AMIGA_PARTITION y
+   fi
+   if [ "$CONFIG_MAC" = "y" ]; then
+      define_bool CONFIG_MAC_PARTITION y
+   fi
+   if [ "$CONFIG_ARCH_ACORN" = "y" ]; then
+      define_bool CONFIG_ACORN_PARTITION y
+      define_bool CONFIG_ACORN_PARTITION_ADFS y
+#      define_bool CONFIG_ACORN_PARTITION_CUMANA y
+      define_bool CONFIG_ACORN_PARTITION_ICS y
+      define_bool CONFIG_ACORN_PARTITION_POWERTEC y
+      define_bool CONFIG_ACORN_PARTITION_RISCIX y
+   fi
+   if [ "$CONFIG_ATARI" = "y" ]; then
+      define_bool CONFIG_ATARI_PARTITION y
+   fi
+   if [ "$CONFIG_SGI_IP22" = "y" -o "$CONFIG_SGI_IP27" = "y" ]; then
+      define_bool CONFIG_SGI_PARTITION y
+   fi
+   if [ "$CONFIG_DECSTATION" = "y" ]; then
+      define_bool CONFIG_ULTRIX_PARTITION y
+   fi
+   if [ "$CONFIG_SPARC32" = "y" -o "$CONFIG_SPARC64" = "y" ]; then
+      define_bool CONFIG_SUN_PARTITION y
+   fi
+fi

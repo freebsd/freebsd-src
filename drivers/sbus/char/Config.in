@@ -1,0 +1,28 @@
+mainmenu_option next_comment
+comment 'Misc Linux/SPARC drivers'
+tristate '/dev/openprom device support' CONFIG_SUN_OPENPROMIO
+tristate 'Mostek real time clock support' CONFIG_SUN_MOSTEK_RTC
+if [ "$CONFIG_SPARC64" = "y" ]; then
+   if [ "$CONFIG_PCI" = "y" ]; then
+      tristate 'Siemens SAB82532 serial support' CONFIG_SAB82532
+   fi
+   tristate 'OBP Flash Device support' CONFIG_OBP_FLASH
+fi
+
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   tristate 'Bidirectional parallel port support (OBSOLETE)' CONFIG_SUN_BPP
+   tristate 'Videopix Frame Grabber (EXPERIMENTAL)' CONFIG_SUN_VIDEOPIX
+   tristate 'Aurora Multiboard 1600se (EXPERIMENTAL)' CONFIG_SUN_AURORA
+
+   if [ "$CONFIG_SPARC32" = "y" ]; then
+      tristate 'Tadpole TS102 Microcontroller support (EXPERIMENTAL)' CONFIG_TADPOLE_TS102_UCTRL
+
+      tristate 'JavaStation OS Flash SIMM (EXPERIMENTAL)' CONFIG_SUN_JSFLASH
+      # XXX Why don't we do "source drivers/char/Config.in" somewhere?
+      if [ "$CONFIG_PCI" = "y" ]; then
+	 define_bool CONFIG_APM_RTC_IS_GMT y		# no shit
+	 bool 'PC-style RTC' CONFIG_RTC
+      fi
+   fi
+fi
+endmenu

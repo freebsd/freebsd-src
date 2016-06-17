@@ -1,0 +1,576 @@
+/*
+ * sim710.scr - Copyright (C) 1999 Richard Hirst
+ */
+
+/* Offsets from DSA, allow 128 elements of scatter/gather */
+
+ABSOLUTE dsa_select  = 0
+ABSOLUTE dsa_msgout  = 8
+ABSOLUTE dsa_cmnd    = 16
+ABSOLUTE dsa_status  = 24
+ABSOLUTE dsa_msgin   = 32
+ABSOLUTE dsa_datain  = 40	/* 8 * 128 = 1024 bytes */
+ABSOLUTE dsa_dataout = 1064	/* 8 * 128 = 1024 bytes */
+ABSOLUTE dsa_size     = 2088
+
+ABSOLUTE reselected_identify = 0
+ABSOLUTE msgin_buf = 0
+ABSOLUTE msg_reject = 0
+ABSOLUTE test1_src = 0
+ABSOLUTE test1_dst = 0
+
+/* Interrupt values passed back to driver */
+
+ABSOLUTE int_bad_msg1		= 0xab930006
+ABSOLUTE int_bad_msg2		= 0xab930007
+ABSOLUTE int_bad_msg3		= 0xab930008
+ABSOLUTE int_cmd_bad_phase	= 0xab930009
+ABSOLUTE int_cmd_complete	= 0xab93000a
+ABSOLUTE int_data_bad_phase	= 0xab93000b
+ABSOLUTE int_msg_sdtr1		= 0xab93000c
+ABSOLUTE int_msg_sdtr2		= 0xab93000d
+ABSOLUTE int_msg_sdtr3		= 0xab93000e
+ABSOLUTE int_no_msgout1		= 0xab93000f
+ABSOLUTE int_no_msgout2		= 0xab930010
+ABSOLUTE int_no_msgout3		= 0xab930011
+ABSOLUTE int_not_cmd_complete	= 0xab930012
+ABSOLUTE int_sel_no_ident	= 0xab930013
+ABSOLUTE int_sel_not_cmd	= 0xab930014
+ABSOLUTE int_status_not_msgin	= 0xab930015
+ABSOLUTE int_resel_not_msgin	= 0xab930016
+ABSOLUTE int_reselected		= 0xab930017
+ABSOLUTE int_selected		= 0xab930018
+ABSOLUTE int_disc1		= 0xab930019
+ABSOLUTE int_disc2		= 0xab93001a
+ABSOLUTE int_disc3		= 0xab93001b
+ABSOLUTE int_not_rej		= 0xab93001c
+ABSOLUTE int_test1		= 0xab93001d
+
+/* Bit field settings used to record status in SCRATCH0 */
+
+ABSOLUTE had_select	= 0x01
+ABSOLUTE had_msgout	= 0x02
+ABSOLUTE had_cmdout	= 0x04
+ABSOLUTE had_datain	= 0x08
+ABSOLUTE had_dataout	= 0x10
+ABSOLUTE had_status	= 0x20
+ABSOLUTE had_msgin	= 0x40
+ABSOLUTE had_extmsg	= 0x80
+
+/* Bit field settings used to record status in SCRATCH1 */
+
+ABSOLUTE did_reject	= 0x01
+
+/* These scripts are heavily based on the examples in the NCR 53C710
+ * Programmer's Guide (Preliminary).
+ */
+
+ENTRY do_select
+do_select:
+	CLEAR TARGET
+	; Enable selection timer
+	MOVE CTEST7 & 0xef TO CTEST7
+	SELECT ATN FROM dsa_select, reselect
+	JUMP get_status, WHEN STATUS
+	; Disable selection timer
+	MOVE CTEST7 | 0x10 TO CTEST7
+	MOVE SCRATCH0 | had_select TO SCRATCH0
+	INT int_sel_no_ident, IF NOT MSG_OUT
+	MOVE SCRATCH0 | had_msgout TO SCRATCH0
+	MOVE FROM dsa_msgout, when MSG_OUT
+ENTRY done_ident
+done_ident:
+	JUMP get_status, IF STATUS
+redo_msgin1:
+	JUMP get_msgin1, WHEN MSG_IN
+	INT int_sel_not_cmd, IF NOT CMD
+ENTRY resume_cmd
+resume_cmd:
+	MOVE SCRATCH0 | had_cmdout TO SCRATCH0
+	MOVE FROM dsa_cmnd, WHEN CMD
+ENTRY resume_pmm
+resume_pmm:
+redo_msgin2:
+	JUMP get_msgin2, WHEN MSG_IN
+	JUMP get_status, IF STATUS
+	JUMP input_data, IF DATA_IN
+	JUMP output_data, IF DATA_OUT
+	INT int_cmd_bad_phase
+
+get_status:
+	; Disable selection timer
+	MOVE CTEST7 | 0x10 TO CTEST7
+	MOVE FROM dsa_status, WHEN STATUS
+	INT int_status_not_msgin, WHEN NOT MSG_IN
+	MOVE FROM dsa_msgin, WHEN MSG_IN
+	INT int_not_cmd_complete, IF NOT 0x00
+	CLEAR ACK
+ENTRY wait_disc_complete
+wait_disc_complete:
+	WAIT DISCONNECT
+	INT int_cmd_complete
+
+input_data:
+	MOVE SCRATCH0 | had_datain TO SCRATCH0
+ENTRY patch_input_data
+patch_input_data:
+	JUMP 0
+	MOVE FROM dsa_datain+0x0000, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0008, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0010, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0018, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0020, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0028, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0030, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0038, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0040, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0048, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0050, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0058, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0060, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0068, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0070, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0078, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0080, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0088, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0090, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0098, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00a0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00a8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00b0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00b8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00c0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00c8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00d0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00d8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00e0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00e8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00f0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x00f8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0100, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0108, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0110, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0118, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0120, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0128, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0130, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0138, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0140, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0148, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0150, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0158, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0160, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0168, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0170, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0178, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0180, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0188, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0190, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0198, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01a0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01a8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01b0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01b8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01c0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01c8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01d0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01d8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01e0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01e8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01f0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x01f8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0200, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0208, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0210, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0218, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0220, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0228, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0230, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0238, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0240, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0248, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0250, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0258, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0260, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0268, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0270, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0278, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0280, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0288, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0290, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0298, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02a0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02a8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02b0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02b8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02c0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02c8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02d0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02d8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02e0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02e8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02f0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x02f8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0300, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0308, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0310, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0318, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0320, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0328, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0330, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0338, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0340, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0348, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0350, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0358, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0360, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0368, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0370, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0378, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0380, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0388, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0390, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x0398, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03a0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03a8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03b0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03b8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03c0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03c8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03d0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03d8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03e0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03e8, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03f0, WHEN DATA_IN
+	MOVE FROM dsa_datain+0x03f8, WHEN DATA_IN
+	JUMP end_data_trans
+
+output_data:
+	MOVE SCRATCH0 | had_dataout TO SCRATCH0
+ENTRY patch_output_data
+patch_output_data:
+	JUMP 0
+	MOVE FROM dsa_dataout+0x0000, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0008, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0010, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0018, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0020, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0028, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0030, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0038, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0040, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0048, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0050, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0058, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0060, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0068, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0070, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0078, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0080, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0088, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0090, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0098, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00a0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00a8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00b0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00b8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00c0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00c8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00d0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00d8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00e0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00e8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00f0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x00f8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0100, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0108, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0110, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0118, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0120, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0128, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0130, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0138, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0140, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0148, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0150, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0158, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0160, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0168, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0170, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0178, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0180, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0188, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0190, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0198, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01a0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01a8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01b0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01b8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01c0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01c8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01d0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01d8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01e0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01e8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01f0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x01f8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0200, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0208, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0210, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0218, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0220, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0228, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0230, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0238, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0240, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0248, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0250, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0258, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0260, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0268, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0270, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0278, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0280, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0288, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0290, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0298, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02a0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02a8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02b0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02b8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02c0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02c8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02d0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02d8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02e0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02e8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02f0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x02f8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0300, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0308, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0310, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0318, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0320, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0328, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0330, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0338, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0340, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0348, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0350, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0358, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0360, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0368, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0370, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0378, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0380, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0388, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0390, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x0398, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03a0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03a8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03b0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03b8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03c0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03c8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03d0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03d8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03e0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03e8, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03f0, WHEN DATA_OUT
+	MOVE FROM dsa_dataout+0x03f8, WHEN DATA_OUT
+ENTRY end_data_trans
+end_data_trans:
+redo_msgin3:
+	JUMP get_status, WHEN STATUS
+	JUMP get_msgin3, WHEN MSG_IN
+	INT int_data_bad_phase
+
+get_msgin1:
+	MOVE SCRATCH0 | had_msgin TO SCRATCH0
+	MOVE 1, msgin_buf, WHEN MSG_IN
+	JUMP ext_msg1, IF 0x01		; Extended Message
+	JUMP ignore_msg1, IF 0x02	; Save Data Pointers
+	JUMP ignore_msg1, IF 0x03	; Save Restore Pointers
+	JUMP disc1, IF 0x04		; Disconnect
+	INT int_bad_msg1
+ignore_msg1:
+	CLEAR ACK
+	JUMP redo_msgin1
+ext_msg1:
+	MOVE SCRATCH0 | had_extmsg TO SCRATCH0
+	CLEAR ACK
+	MOVE 1, msgin_buf + 1, WHEN MSG_IN
+	JUMP reject_msg1, IF NOT 0x03	; Only handle SDTR
+	CLEAR ACK
+	MOVE 1, msgin_buf + 2, WHEN MSG_IN
+	JUMP reject_msg1, IF NOT 0x01	; Only handle SDTR
+	CLEAR ACK
+	MOVE 2, msgin_buf + 3, WHEN MSG_IN
+	INT int_msg_sdtr1
+reject_msg1:
+	MOVE SCRATCH1 | did_reject TO SCRATCH1
+	SET ATN
+	CLEAR ACK
+	JUMP reject_msg1a, WHEN NOT MSG_IN
+	MOVE 1, msgin_buf + 7, WHEN MSG_IN
+	JUMP reject_msg1
+reject_msg1a:
+	MOVE 1, msg_reject, WHEN MSG_OUT
+	JUMP redo_msgin1
+disc1:
+	CLEAR ACK
+ENTRY wait_disc1
+wait_disc1:
+	WAIT DISCONNECT
+	INT int_disc1
+ENTRY resume_msgin1a
+resume_msgin1a:
+	CLEAR ACK
+	JUMP redo_msgin1
+ENTRY resume_msgin1b
+resume_msgin1b:
+	SET ATN
+	CLEAR ACK
+	INT int_no_msgout1, WHEN NOT MSG_OUT
+	MOVE SCRATCH0 | had_msgout TO SCRATCH0
+	MOVE FROM dsa_msgout, when MSG_OUT
+	JUMP redo_msgin1
+
+get_msgin2:
+	MOVE SCRATCH0 | had_msgin TO SCRATCH0
+	MOVE 1, msgin_buf, WHEN MSG_IN
+	JUMP ext_msg2, IF 0x01		; Extended Message
+	JUMP ignore_msg2, IF 0x02	; Save Data Pointers
+	JUMP ignore_msg2, IF 0x03	; Save Restore Pointers
+	JUMP disc2, IF 0x04		; Disconnect
+	INT int_bad_msg2
+ignore_msg2:
+	CLEAR ACK
+	JUMP redo_msgin2
+ext_msg2:
+	MOVE SCRATCH0 | had_extmsg TO SCRATCH0
+	CLEAR ACK
+	MOVE 1, msgin_buf + 1, WHEN MSG_IN
+	JUMP reject_msg2, IF NOT 0x03	; Only handle SDTR
+	CLEAR ACK
+	MOVE 1, msgin_buf + 2, WHEN MSG_IN
+	JUMP reject_msg2, IF NOT 0x01	; Only handle SDTR
+	CLEAR ACK
+	MOVE 2, msgin_buf + 3, WHEN MSG_IN
+	INT int_msg_sdtr2
+reject_msg2:
+	MOVE SCRATCH1 | did_reject TO SCRATCH1
+	SET ATN
+	CLEAR ACK
+	JUMP reject_msg2a, WHEN NOT MSG_IN
+	MOVE 1, msgin_buf + 7, WHEN MSG_IN
+	JUMP reject_msg2
+reject_msg2a:
+	MOVE 1, msg_reject, WHEN MSG_OUT
+	JUMP redo_msgin2
+disc2:
+	CLEAR ACK
+ENTRY wait_disc2
+wait_disc2:
+	WAIT DISCONNECT
+	INT int_disc2
+ENTRY resume_msgin2a
+resume_msgin2a:
+	CLEAR ACK
+	JUMP redo_msgin2
+ENTRY resume_msgin2b
+resume_msgin2b:
+	SET ATN
+	CLEAR ACK
+	INT int_no_msgout2, WHEN NOT MSG_OUT
+	MOVE SCRATCH0 | had_msgout TO SCRATCH0
+	MOVE FROM dsa_msgout, when MSG_OUT
+	JUMP redo_msgin2
+
+get_msgin3:
+	MOVE SCRATCH0 | had_msgin TO SCRATCH0
+	MOVE 1, msgin_buf, WHEN MSG_IN
+	JUMP ext_msg3, IF 0x01		; Extended Message
+	JUMP ignore_msg3, IF 0x02	; Save Data Pointers
+	JUMP ignore_msg3, IF 0x03	; Save Restore Pointers
+	JUMP disc3, IF 0x04		; Disconnect
+	INT int_bad_msg3
+ignore_msg3:
+	CLEAR ACK
+	JUMP redo_msgin3
+ext_msg3:
+	MOVE SCRATCH0 | had_extmsg TO SCRATCH0
+	CLEAR ACK
+	MOVE 1, msgin_buf + 1, WHEN MSG_IN
+	JUMP reject_msg3, IF NOT 0x03	; Only handle SDTR
+	CLEAR ACK
+	MOVE 1, msgin_buf + 2, WHEN MSG_IN
+	JUMP reject_msg3, IF NOT 0x01	; Only handle  SDTR
+	CLEAR ACK
+	MOVE 2, msgin_buf + 3, WHEN MSG_IN
+	INT int_msg_sdtr3
+reject_msg3:
+	MOVE SCRATCH1 | did_reject TO SCRATCH1
+	SET ATN
+	CLEAR ACK
+	JUMP reject_msg3a, WHEN NOT MSG_IN
+	MOVE 1, msgin_buf + 7, WHEN MSG_IN
+	JUMP reject_msg3
+reject_msg3a:
+	MOVE 1, msg_reject, WHEN MSG_OUT
+	JUMP redo_msgin3
+disc3:
+	CLEAR ACK
+ENTRY wait_disc3
+wait_disc3:
+	WAIT DISCONNECT
+	INT int_disc3
+ENTRY resume_msgin3a
+resume_msgin3a:
+	CLEAR ACK
+	JUMP redo_msgin3
+ENTRY resume_msgin3b
+resume_msgin3b:
+	SET ATN
+	CLEAR ACK
+	INT int_no_msgout3, WHEN NOT MSG_OUT
+	MOVE SCRATCH0 | had_msgout TO SCRATCH0
+	MOVE FROM dsa_msgout, when MSG_OUT
+	JUMP redo_msgin3
+
+ENTRY resume_rej_ident
+resume_rej_ident:
+	CLEAR ATN
+	MOVE 1, msgin_buf, WHEN MSG_IN
+	INT int_not_rej, IF NOT 0x07		; Reject
+	CLEAR ACK
+	JUMP done_ident
+
+ENTRY reselect
+reselect:
+	; Disable selection timer
+	MOVE CTEST7 | 0x10 TO CTEST7
+	WAIT RESELECT resel_err
+	INT int_resel_not_msgin, WHEN NOT MSG_IN
+	MOVE 1, reselected_identify, WHEN MSG_IN
+	INT int_reselected
+resel_err:
+	MOVE CTEST2 & 0x40 TO SFBR
+	JUMP selected, IF 0x00
+	MOVE SFBR & 0 TO SFBR
+ENTRY patch_new_dsa
+patch_new_dsa:
+	MOVE SFBR | 0x11 TO DSA0
+	MOVE SFBR | 0x22 TO DSA1
+	MOVE SFBR | 0x33 TO DSA2
+	MOVE SFBR | 0x44 TO DSA3
+	JUMP do_select
+
+selected:
+	INT int_selected
+
+ENTRY test1
+test1:
+	MOVE MEMORY 4, test1_src, test1_dst
+	INT int_test1
+

@@ -1,0 +1,179 @@
+#
+# File system configuration
+#
+mainmenu_option next_comment
+comment 'File systems'
+
+bool 'Quota support' CONFIG_QUOTA
+dep_tristate '  VFS v0 quota format support' CONFIG_QFMT_V2 $CONFIG_QUOTA
+
+tristate 'Kernel automounter support' CONFIG_AUTOFS_FS
+tristate 'Kernel automounter version 4 support (also supports v3)' CONFIG_AUTOFS4_FS
+
+tristate 'Reiserfs support' CONFIG_REISERFS_FS
+dep_mbool '  Enable reiserfs debug mode' CONFIG_REISERFS_CHECK $CONFIG_REISERFS_FS
+dep_mbool '  Stats in /proc/fs/reiserfs' CONFIG_REISERFS_PROC_INFO $CONFIG_REISERFS_FS
+
+dep_tristate 'ADFS file system support (EXPERIMENTAL)' CONFIG_ADFS_FS $CONFIG_EXPERIMENTAL
+dep_mbool '  ADFS write support (DANGEROUS)' CONFIG_ADFS_FS_RW $CONFIG_ADFS_FS $CONFIG_EXPERIMENTAL
+
+dep_tristate 'Amiga FFS file system support (EXPERIMENTAL)' CONFIG_AFFS_FS $CONFIG_EXPERIMENTAL
+
+dep_tristate 'Apple HFS file system support (EXPERIMENTAL)' CONFIG_HFS_FS $CONFIG_EXPERIMENTAL
+
+dep_tristate 'Apple HFS+ (Extended HFS) file system support (EXPERIMENTAL)' CONFIG_HFSPLUS_FS $CONFIG_EXPERIMENTAL
+
+dep_tristate 'BeOS file systemv(BeFS) support (read only) (EXPERIMENTAL)' CONFIG_BEFS_FS $CONFIG_EXPERIMENTAL
+dep_mbool '  Debug Befs' CONFIG_BEFS_DEBUG $CONFIG_BEFS_FS
+
+dep_tristate 'BFS file system support (EXPERIMENTAL)' CONFIG_BFS_FS $CONFIG_EXPERIMENTAL
+
+tristate 'Ext3 journalling file system support' CONFIG_EXT3_FS
+# CONFIG_JBD could be its own option (even modular), but until there are
+# other users than ext3, we will simply make it be the same as CONFIG_EXT3_FS
+# dep_tristate '  Journal Block Device support (JBD for ext3)' CONFIG_JBD $CONFIG_EXT3_FS
+define_bool CONFIG_JBD $CONFIG_EXT3_FS
+dep_mbool '  JBD (ext3) debugging support' CONFIG_JBD_DEBUG $CONFIG_JBD
+
+# msdos file systems
+tristate 'DOS FAT fs support' CONFIG_FAT_FS
+dep_tristate '  MSDOS fs support' CONFIG_MSDOS_FS $CONFIG_FAT_FS
+dep_tristate '    UMSDOS: Unix-like file system on top of standard MSDOS fs' CONFIG_UMSDOS_FS $CONFIG_MSDOS_FS
+dep_tristate '  VFAT (Windows-95) fs support' CONFIG_VFAT_FS $CONFIG_FAT_FS
+dep_tristate 'EFS file system support (read only) (EXPERIMENTAL)' CONFIG_EFS_FS $CONFIG_EXPERIMENTAL
+dep_tristate 'Journalling Flash File System (JFFS) support' CONFIG_JFFS_FS $CONFIG_MTD
+if [ "$CONFIG_JFFS_FS" = "y" -o "$CONFIG_JFFS_FS" = "m" ] ; then
+   int 'JFFS debugging verbosity (0 = quiet, 3 = noisy)' CONFIG_JFFS_FS_VERBOSE 0
+   bool 'JFFS stats available in /proc filesystem' CONFIG_JFFS_PROC_FS
+fi
+dep_tristate 'Journalling Flash File System v2 (JFFS2) support' CONFIG_JFFS2_FS $CONFIG_MTD
+if [ "$CONFIG_JFFS2_FS" = "y" -o "$CONFIG_JFFS2_FS" = "m" ] ; then
+   int 'JFFS2 debugging verbosity (0 = quiet, 2 = noisy)' CONFIG_JFFS2_FS_DEBUG 0
+fi
+tristate 'Compressed ROM file system support' CONFIG_CRAMFS
+bool 'Virtual memory file system support (former shm fs)' CONFIG_TMPFS
+define_bool CONFIG_RAMFS y
+
+tristate 'ISO 9660 CDROM file system support' CONFIG_ISO9660_FS
+dep_mbool '  Microsoft Joliet CDROM extensions' CONFIG_JOLIET $CONFIG_ISO9660_FS
+dep_mbool '  Transparent decompression extension' CONFIG_ZISOFS $CONFIG_ISO9660_FS
+
+tristate 'JFS filesystem support' CONFIG_JFS_FS
+dep_mbool '  JFS debugging' CONFIG_JFS_DEBUG $CONFIG_JFS_FS
+dep_mbool '  JFS statistics' CONFIG_JFS_STATISTICS $CONFIG_JFS_FS
+
+tristate 'Minix fs support' CONFIG_MINIX_FS
+
+tristate 'FreeVxFS file system support (VERITAS VxFS(TM) compatible)' CONFIG_VXFS_FS
+tristate 'NTFS file system support (read only)' CONFIG_NTFS_FS
+dep_mbool '  NTFS write support (DANGEROUS)' CONFIG_NTFS_RW $CONFIG_NTFS_FS $CONFIG_EXPERIMENTAL
+
+tristate 'OS/2 HPFS file system support' CONFIG_HPFS_FS
+
+bool '/proc file system support' CONFIG_PROC_FS
+
+# For some reason devfs corrupts memory badly on x86-64. Disable it 
+# for now.
+if [ "$CONFIG_X86_64" != "y" ] ; then
+dep_bool '/dev file system support (EXPERIMENTAL)' CONFIG_DEVFS_FS $CONFIG_EXPERIMENTAL
+dep_bool '  Automatically mount at boot' CONFIG_DEVFS_MOUNT $CONFIG_DEVFS_FS
+dep_bool '  Debug devfs' CONFIG_DEVFS_DEBUG $CONFIG_DEVFS_FS
+fi
+
+# It compiles as a module for testing only.  It should not be used
+# as a module in general.  If we make this "tristate", a bunch of people
+# who don't know what they are doing turn it on and complain when it
+# breaks.
+dep_bool '/dev/pts file system for Unix98 PTYs' CONFIG_DEVPTS_FS $CONFIG_UNIX98_PTYS
+
+tristate 'QNX4 file system support (read only)' CONFIG_QNX4FS_FS
+dep_mbool '  QNX4FS write support (DANGEROUS)' CONFIG_QNX4FS_RW $CONFIG_QNX4FS_FS $CONFIG_EXPERIMENTAL
+
+tristate 'ROM file system support' CONFIG_ROMFS_FS
+
+tristate 'Second extended fs support' CONFIG_EXT2_FS
+
+tristate 'System V/Xenix/V7/Coherent file system support' CONFIG_SYSV_FS
+
+tristate 'UDF file system support (read only)' CONFIG_UDF_FS
+dep_mbool '  UDF write support (DANGEROUS)' CONFIG_UDF_RW $CONFIG_UDF_FS $CONFIG_EXPERIMENTAL
+
+tristate 'UFS file system support (read only)' CONFIG_UFS_FS
+dep_mbool '  UFS file system write support (DANGEROUS)' CONFIG_UFS_FS_WRITE $CONFIG_UFS_FS $CONFIG_EXPERIMENTAL
+
+tristate 'XFS filesystem support' CONFIG_XFS_FS
+dep_mbool    '  Quota support' CONFIG_XFS_QUOTA $CONFIG_XFS_FS
+dep_mbool    '  Realtime support (EXPERIMENTAL)' CONFIG_XFS_RT $CONFIG_XFS_FS $CONFIG_EXPERIMENTAL
+dep_mbool    '  Tracing support (EXPERIMENTAL)' CONFIG_XFS_TRACE $CONFIG_XFS_FS $CONFIG_EXPERIMENTAL
+dep_mbool    '  Debugging support (EXPERIMENTAL)' CONFIG_XFS_DEBUG $CONFIG_XFS_FS $CONFIG_EXPERIMENTAL
+
+if [ "$CONFIG_NET" = "y" ]; then
+
+   mainmenu_option next_comment
+   comment 'Network File Systems'
+
+   dep_tristate 'Coda file system support (advanced network fs)' CONFIG_CODA_FS $CONFIG_INET
+   dep_tristate 'InterMezzo file system support (replicating fs) (EXPERIMENTAL)' CONFIG_INTERMEZZO_FS $CONFIG_INET $CONFIG_EXPERIMENTAL
+   dep_tristate 'NFS file system support' CONFIG_NFS_FS $CONFIG_INET
+   dep_mbool '  Provide NFSv3 client support' CONFIG_NFS_V3 $CONFIG_NFS_FS
+   dep_mbool '  Allow direct I/O on NFS files (EXPERIMENTAL)' CONFIG_NFS_DIRECTIO $CONFIG_NFS_FS $CONFIG_EXPERIMENTAL
+   dep_bool '  Root file system on NFS' CONFIG_ROOT_NFS $CONFIG_NFS_FS $CONFIG_IP_PNP
+
+   dep_tristate 'NFS server support' CONFIG_NFSD $CONFIG_INET
+   dep_mbool '  Provide NFSv3 server support' CONFIG_NFSD_V3 $CONFIG_NFSD
+   dep_mbool '  Provide NFS server over TCP support (EXPERIMENTAL)' CONFIG_NFSD_TCP $CONFIG_NFSD $CONFIG_EXPERIMENTAL
+
+   if [ "$CONFIG_NFS_FS" = "y" -o "$CONFIG_NFSD" = "y" ]; then
+      define_tristate CONFIG_SUNRPC y
+      define_tristate CONFIG_LOCKD y
+   else
+      if [ "$CONFIG_NFS_FS" = "m" -o "$CONFIG_NFSD" = "m" ]; then
+	 define_tristate CONFIG_SUNRPC m
+	 define_tristate CONFIG_LOCKD m
+   else
+	 define_tristate CONFIG_SUNRPC n
+	 define_tristate CONFIG_LOCKD n
+      fi
+   fi
+   if [ "$CONFIG_NFSD_V3" = "y" -o "$CONFIG_NFS_V3" = "y" ]; then
+     define_bool CONFIG_LOCKD_V4 y
+   fi
+
+   dep_tristate 'SMB file system support (to mount Windows shares etc.)' CONFIG_SMB_FS $CONFIG_INET
+   if [ "$CONFIG_SMB_FS" != "n" ]; then
+      bool '  Use a default NLS' CONFIG_SMB_NLS_DEFAULT
+      if [ "$CONFIG_SMB_NLS_DEFAULT" = "y" ]; then
+         string '    Default Remote NLS Option' CONFIG_SMB_NLS_REMOTE "cp437"
+      fi
+      bool '  Enable Unix Extensions' CONFIG_SMB_UNIX
+   fi
+   if [ "$CONFIG_IPX" != "n" -o "$CONFIG_INET" != "n" ]; then
+      tristate 'NCP file system support (to mount NetWare volumes)' CONFIG_NCP_FS
+      source fs/ncpfs/Config.in
+   else
+      # for fs/nls/Config.in
+      define_bool CONFIG_NCPFS_NLS n
+   fi
+   endmenu
+
+else
+   # for fs/nls/Config.in
+   define_bool CONFIG_NCPFS_NLS n
+   define_bool CONFIG_SMB_FS n
+fi
+
+#
+# Do we need the compression support?
+#
+if [ "$CONFIG_ZISOFS" = "y" ]; then
+   define_tristate CONFIG_ZISOFS_FS $CONFIG_ISO9660_FS
+else
+   define_tristate CONFIG_ZISOFS_FS n
+fi
+
+mainmenu_option next_comment
+comment 'Partition Types'
+source fs/partitions/Config.in
+endmenu
+source fs/nls/Config.in
+endmenu

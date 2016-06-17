@@ -1,0 +1,254 @@
+NTFS Overview
+=============
+
+Legato Systems, Inc. (http://www.legato.com) have sponsored Anton Altaparmakov
+to develop NTFS on Linux since June 2001.
+
+To mount an NTFS volume, use the filesystem type 'ntfs'. The driver
+currently works only in read-only mode, with no fault-tolerance supported.
+
+If you enable the dangerous(!) write support, make sure you can recover
+from a complete loss of data. Also, download the Linux-NTFS project
+distribution from Sourceforge at http://sourceforge.net/projects/linux-ntfs/
+and always run the included ntfsfix utility after performing a write to an
+NTFS partition from Linux to fix some of the damage done by the Linux NTFS
+driver and to schedule an automatic chkdsk when Windows reboots. You should
+run ntfsfix _after_ unmounting the partition in Linux but _before_ rebooting
+into Windows. During the next reboot into Windows, chkdsk will be run
+automatically fixing the remaining damage. If no errors are found it is a
+good indication that the driver + ntfsfix together worked to full
+satisfaction. (-;
+
+Please note that the experimental write support is limited to Windows NT4 and
+earlier versions at the moment.
+
+If you think you have discovered a bug please have look at the "Known bugs"
+section below to see whether it isn't known already.
+
+For ftdisk support, limited success was reported with volume sets on top of
+the md driver, although mirror and stripe sets should work as well - if the
+md driver can be talked into using the same layout as Windows NT. However,
+using the md driver will fail if any of your NTFS partitions have an odd
+number of sectors.
+
+Supported mount options
+=======================
+
+iocharset=name		Character set to use when returning file names.
+			Unlike VFAT, NTFS suppresses names that contain
+			unconvertible characters. Note that most character
+			sets contain insufficient characters to represent all
+			possible Unicode characters that can exist on NTFS. To
+			be sure you are not missing any files, you are advised
+			to use the iocharset=utf8 which should be capable of
+			representing all Unicode characters.
+
+utf8=<bool>		Use UTF-8 for converting file names. - It is preferable
+			to use iocharset=utf8 instead, but if the utf8 NLS is
+			not available, you can use this utf8 option, which
+			enables the driver's builtin utf8 conversion functions.
+
+uid=
+gid=
+umask=			These options work as documented in mount(8).
+			By default, the files are owned by root and
+			not readable by anyone else.
+
+posix=<bool>		If enabled, the file system distinguishes between
+			upper and lower case. The 8.3 alias names are presented
+			as hard links instead of being suppressed.
+
+show_sys_files=<bool>	If enabled, show all system files as normal files. Note
+			that $MFT does not appear unless specifically
+			requested. For example in bash, use: "ls -l \$MFT".
+			Be careful not to write anything to them or you could
+			crash the kernel and/or corrupt your file system!
+
+mft_zone_multiplier=	Set the MFT zone multiplier for the volume (this
+			setting is not persistent across mounts and can be
+			changed from mount to mount but cannot be changed on
+			remount). Values of 1 to 4 are allowed, 1 being the
+			default. The MFT zone multiplier determines how much
+			space is reserved for the MFT on the volume. If all
+			other space is used up, then the MFT zone will be
+			shrunk dynamically, so this has no impact on the
+			amount of free space. However, it can have an impact
+			on performance by affecting fragmentation of the MFT.
+			In general use the default. If you have a lot of small
+			files then use a higher value. The values have the
+			following meaning:
+			      Value	     MFT zone size (% of volume size)
+				1		12.5%
+				2		25%
+				3		37.5%
+				4		50%
+
+Known bugs and (mis-)features
+=============================
+
+- Do not use the driver for writing as it corrupts the file system. If you do
+  use it, get the Linux-NTFS tools and use the ntfsfix utility after
+  dismounting a partition you wrote to.
+
+- Writing of extension records is not supported properly.
+
+Please send bug reports/comments/feed back/abuse to the Linux-NTFS development
+list at sourceforge: linux-ntfs-dev@lists.sourceforge.net
+
+ChangeLog
+=========
+
+NTFS 1.1.21:
+	- Fixed bug with reading $MFT where we try to read higher mft records
+	  before having read the $DATA attribute of $MFT. (Note this is only a
+	  partial solution which will only work in the case that the attribute
+	  list is resident or non-resident but $DATA is in the first 1024
+	  bytes. But this should be enough in the majority of cases. I am not
+	  going to bother fixing the general case until someone finds this to
+	  be a problem for them, which I doubt very much will ever happen...)
+	- Fixed bogus BUG() call in readdir().
+
+NTFS 1.1.20:
+	- Fixed two bugs in ntfs_readwrite_attr(). Thanks to Jan Kara for
+	  spotting the out of bounds one.
+	- Check return value of set_blocksize() in ntfs_read_super() and make
+	  use of get_hardsect_size() to determine the minimum block size.
+	- Fix return values of ntfs_vcn_to_lcn(). This should stop
+	  peoples start of partition being overwritten at random.
+
+NTFS 1.1.19:
+	- Fixed ntfs_getdir_unsorted(), ntfs_readdir() and ntfs_printcb() to
+	  cope with arbitrary cluster sizes. Very important for Win2k+. Also,
+	  make them detect directories which are too large and truncate the
+	  enumeration pretending end of directory was reached. Detect more
+	  error conditions and overflows. All this fixes the problem where the
+	  driver could end up in an infinite loop under certain circumstances.
+	- Fixed potential memory leaks in Unicode conversion functions and
+	  setup correct NULL return values.
+
+NTFS 1.1.18:
+
+	- Enhanced & bug fixed cluster deallocation (race fixes, etc.)
+	- Complete rewrite of cluster allocation, now race free.
+	- Fixed several bugs in the attribute modification codepaths.
+	- Hopefully fixed bug where the first sectors of some people's
+	  partitions would be overwritten by the mft. And in general fixed up
+	  mft extension code a bit (still incomplete though).
+	- Introduce splice_runlist() to allow generic splicing of two run
+	  lists into one.
+	- MFT zone is now implemented. [Stage 2 of 3; only lack dynamic
+	  growing of mft zone but that is AFAIK not even done by Windows, and
+	  the overhead would be so large that it is probably not worth doing
+	  at all, so Stage 3 might never happen...]
+	- Complete rewrite of $MFT extension and ntfs inode allocation code.
+	- Made the NTFS driver initialization string show the compile options
+	  used (i.e. whether read-only or read-write, whether a module, and
+	  whether with debug support).
+	- Modify ntfs_fill_mft_header() to set all fields and to accept more
+	  arguments.
+	- Get rid of superfluous add_mft_header().
+	- Get rid of some unused code.
+	- Fixed several bugs in and generally cleaned up ntfs_readdir,
+	  ntfs_getdir_unsorted(), and ntfs_printcb. Now they spew out huge
+	  amounts of debug output if debugging is enabled. This will be
+	  removed once I know that this works for everyone.
+	- ntfs_readdir now shows hidden files. The only files that are now
+	  hidden are the first 16 inodes (i.e. the hard coded system files),
+	  which is consistent with Windows NT4. Using the show_sys_files mount
+	  option, these files are then shown, too.
+	- Fixed the displaying of the "." and ".." directories. We still cannot
+	  cope with more than 65536 files in a directory index block which is
+	  not a problem and we now cannot cope with more than 32766 directory
+	  index blocks which should not be a problem unless you have a
+	  directory with an insanely large number of files in it. The exact
+	  number depends on the length of the file names of the directory
+	  entries and on the size of the dircetory index blocks.
+	- Fixed all problems with the last file in a directory (e.g. the last
+	  file should no longer disappear and tab completion should work). If
+	  there are still disappearing files or any other problems with the
+	  last file in a directory, please report them! Thanks.
+	- Rewrote ntfs_extend_attr() to use the new cluster allocator and the
+	  freshly introduced splice_runlists() function. This simplified
+	  ntfs_extend_attr() a lot which in turn seems to have removed one or
+	  more bugs from it.
+	- Probably other things I have forgotten... (-;
+	- Removed dollar signs from the names in the system file enumeration.
+	  Apparently gcc doesn't support dollar signs on PPC architecture.
+	  (Andrzej Krzysztofowicz)
+
+NTFS 1.1.17:
+
+	- Fixed system file handling. No longer need to use show_sys_files
+	  option for driver to work fine. System files are now always treated
+	  the same, but without the option, they are made invisible to
+	  directory listings. As a result system files can once again be opened
+	  even without the show_sys_files option. This is important for the
+	  statfs system call to work properly, for example.
+	- Implemented MFT zone including mount parameter to tune it (just like
+	  in Windows via the registry, only we make it per mount rather than
+	  global for the whole driver, so we are better but we have no way of
+	  storing the value as we don't have a registry so either specify on
+	  each mount or put it in /etc/fstab). [Stage 1 of 3, mount parameter
+	  handling.]
+	- Fixed fixup functions to handle corruption cases and to return error
+	  codes to the caller.
+	- Made fixup functions apply hotfixes where sensible. [Stage 1 of 2+,
+	  in memory only.]
+	- Fixed ommission of "NTFS: " string in ntfs_error() output.
+	- Fixed stupid if statement bug in unistr.c. Thanks to Yann E. Morin
+	  for spotting it. 
+	- Get rid of all uses of max and min macros. This actually allowed for
+	  optimizing the code in several places so it was a Good Thing(TM).
+	- Make ntfs use generic_file_open to enforce the O_LARGEFILE flag.
+	- Detect encrypted files and refuse to access them (return EACCES
+	  error code to user space).
+	- Fix handling of encrypted & compressed files so that an encrypted
+	  file no longer is considered to be compressed (this was causing
+	  kernel segmentation faults).
+
+NTFS 1.1.16:
+
+	- Removed non-functional uni_xlate mount options.
+	- Clarified the semantics of the utf8 and iocharset mount options.
+	- Threw out the non-functional mount options for using hard coded
+	  character set conversion. Only kept utf8 one.
+	- Fixed handling of mount options and proper handling of faulty mount
+	  options on remount.
+	- Cleaned up character conversion which basically became simplified a
+	  lot due to the removal of the above mentioned mount options.
+	- Made character conversion to be always consistent. Previously we
+	  could output to the VFS file names which we would then not accept
+	  back from the VFS so in effect we were generating ghost entries in
+	  the directory listings which could not be accessed by any means.
+	- Simplified time conversion functions drastically without sacrificing
+	  accuracy. (-8
+	- Fixed a use of a pointer before the check for the pointer being
+	  NULL, reported by the Stanford checker.
+	- Fixed several missing error checks, reported by the Stanford
+	  checker and fixed by Rasmus Andersen.
+
+NTFS 1.1.15 (changes since kernel 2.4.4's NTFS driver):
+
+	- New mount option show_sys_files=<bool> to show all system files as
+	  normal files.
+	- Support for files and in general any attributes up to the full 2TiB
+	  size supported by the NTFS filesystem. Note we only support up to
+	  32-bits worth of inodes/clusters at this point.
+	- Support for more than 128kiB sized runlists (using vmalloc_32()
+	  instead of kmalloc()).
+	- Fixed races in allocation of clusters and mft records.
+	- Fixed major bugs in attribute handling / searching / collation.
+	- Fixed major bugs in compressing a run list into a mapping pairs array.
+	- Fixed major bugs in inode allocation. Especially file create and
+	  mkdir.
+	- Fixed memory leaks.
+	- Fixed major bug in inode layout assignment of sequence numbers.
+	- Lots of other bug fixes I can't think of right now...
+	- Fixed NULL bug found by the Stanford checker in ntfs_dupuni2map().
+	- Convert large stack variable to dynamically allocated one in
+	  ntfs_get_free_cluster_count() (found by Stanford checker).
+
+Kernel 2.4.4:
+
+	- Started ChangeLog.
+

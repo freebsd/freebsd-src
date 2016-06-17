@@ -1,0 +1,36 @@
+#
+# Wireless LAN device configuration
+#
+
+if [ "$CONFIG_ISA" = "y" -o "$CONFIG_PCI" = "y" ]; then
+   tristate '  Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards' CONFIG_AIRO
+fi
+
+tristate '  Hermes chipset 802.11b support (Orinoco/Prism2/Symbol)' CONFIG_HERMES
+
+if [ "$CONFIG_ALL_PPC" = "y" ]; then
+   dep_tristate '    Apple Airport support (built-in)' CONFIG_APPLE_AIRPORT $CONFIG_HERMES
+fi
+
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_tristate '    Hermes in PLX9052 based PCI adaptor support (Netgear MA301 etc.) (EXPERIMENTAL)' CONFIG_PLX_HERMES $CONFIG_HERMES $CONFIG_EXPERIMENTAL
+   dep_tristate '    Hermes in TMD7160/NCP130 based PCI adaptor support (Pheecom WL-PCI etc.) (EXPERIMENTAL)' CONFIG_TMD_HERMES $CONFIG_HERMES $CONFIG_EXPERIMENTAL
+   dep_tristate '    Prism 2.5 PCI 802.11b adaptor support (EXPERIMENTAL)' CONFIG_PCI_HERMES $CONFIG_HERMES $CONFIG_EXPERIMENTAL
+fi
+
+# If Pcmcia is compiled in, offer Pcmcia cards...
+if [ "$CONFIG_PCMCIA" != "n" ]; then
+   comment 'Wireless Pcmcia cards support' 
+
+   dep_tristate '  Hermes PCMCIA card support' CONFIG_PCMCIA_HERMES $CONFIG_HERMES
+   tristate '  Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards' CONFIG_AIRO_CS
+   dep_tristate '  Atmel at76c502/at76c504 PCMCIA cards' CONFIG_PCMCIA_ATMEL $CONFIG_FW_LOADER
+fi
+
+# yes, this works even when no drivers are selected
+if [ "$CONFIG_ISA" = "y" -o "$CONFIG_PCI" = "y" -o \
+     "$CONFIG_ALL_PPC" = "y" -o "$CONFIG_PCMCIA" != "n" ]; then
+   define_bool CONFIG_NET_WIRELESS y
+else
+   define_bool CONFIG_NET_WIRELESS n
+fi

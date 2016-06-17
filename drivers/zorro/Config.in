@@ -1,0 +1,7 @@
+#
+# Zorro configuration
+#
+
+if [ "$CONFIG_ZORRO" = "y" ]; then
+   bool 'Zorro device name database' CONFIG_ZORRO_NAMES
+fi

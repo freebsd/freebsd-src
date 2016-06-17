@@ -1,321 +1,48 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+ #
+# Makefile for some libs needed in the kernel.
+#
+# Note! Dependencies are done automagically by 'make dep', which also
+# removes any old dependencies. DON'T put your own dependencies here
+# unless it's something special (ie not a .c file).
+#
 
-.include <src.opts.mk>
+L_TARGET := lib.a
 
-# The SUBDIR_ORDERED list is a small set of libraries which are used by many
-# of the other libraries.  These are built first with a .WAIT between them
-# and the main list to avoid needing a SUBDIR_DEPEND line on every library
-# naming just these few items.
+export-objs := cmdline.o dec_and_lock.o rwsem-spinlock.o rwsem.o \
+	       rbtree.o crc32.o firmware_class.o
 
-SUBDIR_ORDERED=	csu \
-	.WAIT \
-	libc \
-	libc_nonshared \
-	libcompiler_rt \
-	${_libclang_rt} \
-	${_libcplusplus} \
-	${_libcxxrt} \
-	libelf \
-	msun
+obj-y := errno.o ctype.o string.o vsprintf.o brlock.o cmdline.o \
+	 bust_spinlocks.o rbtree.o dump_stack.o
 
-# The main list; please keep these sorted alphabetically.
+obj-$(CONFIG_FW_LOADER) += firmware_class.o
+obj-$(CONFIG_RWSEM_GENERIC_SPINLOCK) += rwsem-spinlock.o
+obj-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += rwsem.o
 
-SUBDIR=	${SUBDIR_ORDERED} \
-	.WAIT \
-	libalias \
-	libarchive \
-	${_libatm} \
-	libauditd \
-	libbegemot \
-	${_libblacklist} \
-	libblocksruntime \
-	${_libbluetooth} \
-	${_libbsnmp} \
-	libbsdstat \
-	libbsm \
-	libbz2 \
-	libcalendar \
-	libcam \
-	${_libcasper} \
-	${_libcom_err} \
-	libcompat \
-	libcrypt \
-	libdevctl \
-	libdevdctl \
-	libdevinfo \
-	libdevstat \
-	libdpv \
-	libdwarf \
-	libedit \
-	${_libelftc} \
-	libevent \
-	libexecinfo \
-	libexpat \
-	libfetch \
-	libfigpar \
-	libgeom \
-	${_libgpio} \
-	${_libgssapi} \
-	${_librpcsec_gss} \
-	${_libiconv_modules} \
-	libipsec \
-	libjail \
-	libkiconv \
-	libkvm \
-	${_libldns} \
-	liblzma \
-	${_libmagic} \
-	libmemstat \
-	libmd \
-	${_libmilter} \
-	${_libmp} \
-	libmt \
-	${_libnandfs} \
-	lib80211 \
-	libnetbsd \
-	${_libnetgraph} \
-	${_libngatm} \
-	libnv \
-	libopenbsd \
-	libopie \
-	libpam \
-	libpcap \
-	${_libpe} \
-	libpjdlog \
-	${_libpmc} \
-	${_libproc} \
-	libprocstat \
-	${_libradius} \
-	librpcsvc \
-	librt \
-	${_librtld_db} \
-	libsbuf \
-	${_libsdp} \
-	${_libsm} \
-	libsmb \
-	${_libsmdb} \
-	${_libsmutil} \
-	libsqlite3 \
-	libstand \
-	libstdbuf \
-	libstdthreads \
-	libsysdecode \
-	libtacplus \
-	${_libtelnet} \
-	${_libthr} \
-	libthread_db \
-	libucl \
-	libufs \
-	libugidfw \
-	libulog \
-	${_libunbound} \
-	${_libusbhid} \
-	${_libusb} \
-	libutil \
-	${_libvgl} \
-	${_libvmmapi} \
-	libwrap \
-	libxo \
-	liby \
-	${_libypclnt} \
-	libz \
-	ncurses \
-	${_atf} \
-	${_clang} \
-	${_cuse} \
-	${_tests}
+ifneq ($(CONFIG_HAVE_DEC_LOCK),y) 
+  obj-y += dec_and_lock.o
+endif
 
-# Inter-library dependencies.  When the makefile for a library contains LDADD
-# libraries, those libraries should be listed as build order dependencies here.
+obj-$(CONFIG_CRC32)     += crc32.o
 
-SUBDIR_DEPEND_libarchive= libz libbz2 libexpat liblzma libmd
-SUBDIR_DEPEND_libatm= libmd
-SUBDIR_DEPEND_libauditdm= libbsm
-SUBDIR_DEPEND_libbsnmp= ${_libnetgraph}
-SUBDIR_DEPEND_libc++:= libcxxrt
-SUBDIR_DEPEND_libc= libcompiler_rt
-SUBDIR_DEPEND_libcam= libsbuf
-SUBDIR_DEPEND_libcasper= libnv
-SUBDIR_DEPEND_libdevstat= libkvm
-SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
-SUBDIR_DEPEND_libedit= ncurses
-SUBDIR_DEPEND_libgeom= libexpat libsbuf
-SUBDIR_DEPEND_liblibrpcsec_gss= libgssapi
-SUBDIR_DEPEND_libmagic= libz
-SUBDIR_DEPEND_libmemstat= libkvm
-SUBDIR_DEPEND_libopie= libmd
-SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
-SUBDIR_DEPEND_libpjdlog= libutil
-SUBDIR_DEPEND_libprocstat= libkvm libutil
-SUBDIR_DEPEND_libradius= libmd
-SUBDIR_DEPEND_libsmb= libkiconv
-SUBDIR_DEPEND_libtacplus= libmd
-SUBDIR_DEPEND_libulog= libmd
-SUBDIR_DEPEND_libunbound= ${_libldns}
-SUBDIR_DEPEND_liblzma= ${_libthr}
+subdir-$(CONFIG_ZLIB_INFLATE) += zlib_inflate
+subdir-$(CONFIG_ZLIB_DEFLATE) += zlib_deflate
 
-# NB: keep these sorted by MK_* knobs
+include $(TOPDIR)/drivers/net/Makefile.lib
+include $(TOPDIR)/drivers/usb/Makefile.lib
+include $(TOPDIR)/drivers/bluetooth/Makefile.lib
+include $(TOPDIR)/fs/Makefile.lib
+include $(TOPDIR)/net/bluetooth/bnep/Makefile.lib
 
-.if ${MK_ATM} != "no"
-_libngatm=	libngatm
-.endif
+# Include the subdirs, if necessary.
+obj-y += $(join $(subdir-y),$(subdir-y:%=/%.o))
 
-.if ${MK_BLACKLIST} != "no"
-_libblacklist=	libblacklist
-.endif
 
-.if ${MK_BLUETOOTH} != "no"
-_libbluetooth=	libbluetooth
-_libsdp=	libsdp
-.endif
+include $(TOPDIR)/Rules.make
 
-.if ${MK_BSNMP} != "no"
-_libbsnmp=	libbsnmp
-.endif
+crc32.o: crc32table.h
 
-.if ${MK_CASPER} != "no"
-_libcasper=	libcasper
-.endif
+gen_crc32table: gen_crc32table.c
+	$(HOSTCC) $(HOSTCFLAGS) -o $@ $<
 
-.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
-_clang=		clang
-.endif
-
-.if ${MK_CUSE} != "no"
-_cuse=		libcuse
-.endif
-
-.if ${MK_TOOLCHAIN} != "no"
-_libelftc=	libelftc
-_libpe=		libpe
-.endif
-
-.if ${MK_FILE} != "no"
-_libmagic=	libmagic
-.endif
-
-.if ${MK_GPIO} != "no"
-_libgpio=	libgpio
-.endif
-
-.if ${MK_GSSAPI} != "no"
-_libgssapi=	libgssapi
-_librpcsec_gss=	librpcsec_gss
-.endif
-
-.if ${MK_ICONV} != "no"
-_libiconv_modules=	libiconv_modules
-.endif
-
-.if ${MK_KERBEROS_SUPPORT} != "no"
-_libcom_err= libcom_err
-.endif
-
-.if ${MK_LDNS} != "no"
-_libldns=	libldns
-.endif
-
-# The libraries under libclang_rt can only be built by clang, and only make
-# sense to build when clang is enabled at all.  Furthermore, they can only be
-# built for certain architectures.
-.if ${MK_CLANG} != "no" && ${COMPILER_TYPE} == "clang" && \
-    (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb") || \
-    (${MACHINE_CPUARCH} == "i386"))
-_libclang_rt=	libclang_rt
-.endif
-
-.if ${MK_LIBCPLUSPLUS} != "no"
-_libcxxrt=	libcxxrt
-_libcplusplus=	libc++
-.endif
-
-.if ${MK_LIBTHR} != "no"
-_libthr=	libthr
-.endif
-
-.if ${MK_NAND} != "no"
-_libnandfs=	libnandfs
-.endif
-
-.if ${MK_NETGRAPH} != "no"
-_libnetgraph=	libnetgraph
-.endif
-
-.if ${MK_NIS} != "no"
-_libypclnt=	libypclnt
-.endif
-
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-_libvgl=	libvgl
-_libproc=	libproc
-_librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_BHYVE} != "no"
-_libvmmapi=	libvmmapi
-.endif
-.endif
-
-.if ${MACHINE_CPUARCH} == "mips"
-_libproc=	libproc
-_librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "powerpc"
-_libproc=	libproc
-_librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
-    ${MACHINE_CPUARCH} == "riscv"
-_libproc=	libproc
-_librtld_db=	librtld_db
-.endif
-
-.if ${MK_OPENSSL} != "no"
-_libmp=		libmp
-.endif
-
-.if ${MK_PMC} != "no"
-_libpmc=	libpmc
-.endif
-
-.if ${MK_RADIUS_SUPPORT} != "no"
-_libradius=	libradius
-.endif
-
-.if ${MK_SENDMAIL} != "no"
-_libmilter=	libmilter
-_libsm=		libsm
-_libsmdb=	libsmdb
-_libsmutil=	libsmutil
-.endif
-
-.if ${MK_TELNET} != "no"
-_libtelnet=	libtelnet
-.endif
-
-.if ${MK_TESTS_SUPPORT} != "no"
-_atf=		atf
-.endif
-.if ${MK_TESTS} != "no"
-_tests=		tests
-.endif
-
-.if ${MK_UNBOUND} != "no"
-_libunbound=	libunbound
-.endif
-
-.if ${MK_USB} != "no"
-_libusbhid=	libusbhid
-_libusb=	libusb
-.endif
-
-.if !make(install)
-SUBDIR_PARALLEL=
-.endif
-
-.include <bsd.subdir.mk>
+crc32table.h: gen_crc32table
+	./$< > $@

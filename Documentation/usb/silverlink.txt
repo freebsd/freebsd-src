@@ -1,0 +1,76 @@
+-------------------------------------------------------------------------
+Readme for Linux device driver for the Texas Instruments SilverLink cable
+-------------------------------------------------------------------------
+
+Author: Romain Liévin & Julien Blache
+Homepage: http://lpg.ticalc.org/prj_usb
+
+INTRODUCTION:
+
+This is a driver for the TI-GRAPH LINK USB (aka SilverLink) cable, a cable 
+designed by TI for connecting their TI8x/9x calculators to a computer 
+(PC or Mac usually).
+
+If you need more information, please visit the 'SilverLink drivers' homepage 
+at the above URL.
+
+WHAT YOU NEED:
+
+A TI calculator of course and a program capable to communicate with your 
+calculator.
+TiLP will work for sure (since I am his developer !). yal92 may be able to use
+it by changing tidev for tiglusb (may require some hacking...).
+
+HOW TO USE IT:
+
+You must have first compiled USB support, support for your specific USB host
+controller (UHCI or OHCI).
+
+Next, (as root) from your appropriate modules directory (lib/modules/2.5.XX):
+
+       insmod usb/usbcore.o
+       insmod usb/usb-uhci.o  <OR>  insmod usb/ohci-hcd.o
+       insmod tiglusb.o
+
+If it is not already there (it usually is), create the device:
+
+       mknod /dev/tiglusb0 c 115 16
+
+You will have to set permissions on this device to allow you to read/write
+from it:
+
+       chmod 666 /dev/tiglusb0
+       
+Now you are ready to run a linking program such as TiLP. Be sure to configure 
+it properly (RTFM).
+       
+MODULE PARAMETERS:
+
+  You can set these with:  insmod tiglusb NAME=VALUE
+  There is currently no way to set these on a per-cable basis.
+
+  NAME: timeout
+  TYPE: integer
+  DEFAULT: 15
+  DESC: Timeout value in tenth of seconds. If no data is available once this 
+       time has expired then the driver will return with a timeout error.
+
+QUIRKS:
+
+The following problem seems to be specific to the link cable since it appears 
+on all platforms (Linux, Windows, Mac OS-X). 
+
+In some very particular cases, the driver returns with success but
+without any data. The application should retry a read operation at least once.
+
+HOW TO CONTACT US:
+
+You can email me at roms@lpg.ticalc.org. Please prefix the subject line
+with "TIGLUSB: " so that I am certain to notice your message.
+You can also mail JB at jb@jblache.org: he has written the first release of 
+this driver but he better knows the Mac OS-X driver.
+
+CREDITS:
+
+The code is based on dabusb.c, printer.c and scanner.c !
+The driver has been developed independantly of Texas Instruments.

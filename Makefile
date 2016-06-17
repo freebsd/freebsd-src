@@ -1,580 +1,581 @@
-#
-# $FreeBSD$
-#
-# The user-driven targets are:
-#
-# universe            - *Really* build *everything* (buildworld and
-#                       all kernels on all architectures).
-# tinderbox           - Same as universe, but presents a list of failed build
-#                       targets and exits with an error if there were any.
-# buildworld          - Rebuild *everything*, including glue to help do
-#                       upgrades.
-# installworld        - Install everything built by "buildworld".
-# world               - buildworld + installworld, no kernel.
-# buildkernel         - Rebuild the kernel and the kernel-modules.
-# installkernel       - Install the kernel and the kernel-modules.
-# installkernel.debug
-# reinstallkernel     - Reinstall the kernel and the kernel-modules.
-# reinstallkernel.debug
-# kernel              - buildkernel + installkernel.
-# kernel-toolchain    - Builds the subset of world necessary to build a kernel
-# kernel-toolchains   - Build kernel-toolchain for all universe targets.
-# doxygen             - Build API documentation of the kernel, needs doxygen.
-# update              - Convenient way to update your source tree(s).
-# checkworld          - Run test suite on installed world.
-# check-old           - List obsolete directories/files/libraries.
-# check-old-dirs      - List obsolete directories.
-# check-old-files     - List obsolete files.
-# check-old-libs      - List obsolete libraries.
-# delete-old          - Delete obsolete directories/files.
-# delete-old-dirs     - Delete obsolete directories.
-# delete-old-files    - Delete obsolete files.
-# delete-old-libs     - Delete obsolete libraries.
-# targets             - Print a list of supported TARGET/TARGET_ARCH pairs
-#                       for world and kernel targets.
-# toolchains          - Build a toolchain for all world and kernel targets.
-# xdev                - xdev-build + xdev-install for the architecture
-#                       specified with XDEV and XDEV_ARCH.
-# xdev-build          - Build cross-development tools.
-# xdev-install        - Install cross-development tools.
-# xdev-links          - Create traditional links in /usr/bin for cc, etc
-# native-xtools       - Create host binaries that produce target objects
-#                       for use in qemu user-mode jails.
-# 
-# "quick" way to test all kernel builds:
-# 	_jflag=`sysctl -n hw.ncpu`
-# 	_jflag=$(($_jflag * 2))
-# 	[ $_jflag -gt 12 ] && _jflag=12
-# 	make universe -DMAKE_JUST_KERNELS JFLAG=-j${_jflag}
-#
-# This makefile is simple by design. The FreeBSD make automatically reads
-# the /usr/share/mk/sys.mk unless the -m argument is specified on the
-# command line. By keeping this makefile simple, it doesn't matter too
-# much how different the installed mk files are from those in the source
-# tree. This makefile executes a child make process, forcing it to use
-# the mk files from the source tree which are supposed to DTRT.
-#
-# Most of the user-driven targets (as listed above) are implemented in
-# Makefile.inc1.  The exceptions are universe, tinderbox and targets.
-#
-# If you want to build your system from source be sure that /usr/obj has
-# at least 6GB of diskspace available.  A complete 'universe' build requires
-# about 100GB of space.
-#
-# For individuals wanting to build from the sources currently on their
-# system, the simple instructions are:
-#
-# 1.  `cd /usr/src'  (or to the directory containing your source tree).
-# 2.  Define `HISTORICAL_MAKE_WORLD' variable (see README).
-# 3.  `make world'
-#
-# For individuals wanting to upgrade their sources (even if only a
-# delta of a few days):
-#
-#  1.  `cd /usr/src'       (or to the directory containing your source tree).
-#  2.  `make buildworld'
-#  3.  `make buildkernel KERNCONF=YOUR_KERNEL_HERE'     (default is GENERIC).
-#  4.  `make installkernel KERNCONF=YOUR_KERNEL_HERE'   (default is GENERIC).
-#       [steps 3. & 4. can be combined by using the "kernel" target]
-#  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
-#  6.  `mergemaster -p'
-#  7.  `make installworld'
-#  8.  `mergemaster'		(you may wish to use -i, along with -U or -F).
-#  9.  `make delete-old'
-# 10.  `reboot'
-# 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
-#
-# See src/UPDATING `COMMON ITEMS' for more complete information.
-#
-# If TARGET=machine (e.g. powerpc, sparc64, ...) is specified you can
-# cross build world for other machine types using the buildworld target,
-# and once the world is built you can cross build a kernel using the
-# buildkernel target.
-#
-# Define the user-driven targets. These are listed here in alphabetical
-# order, but that's not important.
-#
-# Targets that begin with underscore are internal targets intended for
-# developer convenience only.  They are intentionally not documented and
-# completely subject to change without notice.
-#
-# For more information, see the build(7) manual page.
-#
+VERSION = 2
+PATCHLEVEL = 4
+SUBLEVEL = 26
+EXTRAVERSION =
 
-# This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
-# can be cached for sub-makes.
-.if ${MAKE_VERSION} >= 20140620
-.include <bsd.compiler.mk>
-.endif
+KERNELRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
-# Note: we use this awkward construct to be compatible with FreeBSD's
-# old make used in 10.0 and 9.2 and earlier.
-.if defined(MK_DIRDEPS_BUILD) && ${MK_DIRDEPS_BUILD} == "yes" && !make(showconfig)
-# targets/Makefile plays the role of top-level
-.include "targets/Makefile"
-.else
+ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
+KERNELPATH=kernel-$(shell echo $(KERNELRELEASE) | sed -e "s/-//g")
 
-TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
-	check check-old check-old-dirs check-old-files check-old-libs \
-	checkdpadd checkworld clean cleandepend cleandir cleanworld \
-	delete-old delete-old-dirs delete-old-files delete-old-libs \
-	depend distribute distributekernel distributekernel.debug \
-	distributeworld distrib-dirs distribution doxygen \
-	everything hier hierarchy install installcheck installkernel \
-	installkernel.debug packagekernel packageworld \
-	reinstallkernel reinstallkernel.debug \
-	installworld kernel-toolchain libraries lint maninstall \
-	obj objlink rerelease showconfig tags toolchain update \
-	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
-	_build-tools _cross-tools _includes _libraries \
-	build32 distribute32 install32 buildsoft distributesoft installsoft \
-	builddtb xdev xdev-build xdev-install \
-	xdev-links native-xtools stageworld stagekernel stage-packages \
-	create-world-packages create-kernel-packages create-packages \
-	packages installconfig real-packages sign-packages package-pkg
+CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
+	  else if [ -x /bin/bash ]; then echo /bin/bash; \
+	  else echo sh; fi ; fi)
+TOPDIR	:= $(shell /bin/pwd)
 
-# XXX: r156740: This can't work since bsd.subdir.mk is not included ever.
-# It will only work for SUBDIR_TARGETS in make.conf.
-TGTS+=	${SUBDIR_TARGETS}
+HPATH   	= $(TOPDIR)/include
+FINDHPATH	= $(HPATH)/asm $(HPATH)/linux $(HPATH)/scsi $(HPATH)/net $(HPATH)/math-emu
 
-BITGTS=	files includes
-BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
-TGTS+=	${BITGTS}
+HOSTCC  	= gcc
+HOSTCFLAGS	= -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
 
-# Only some targets are allowed to use meta mode.  Others get it
-# disabled.  In some cases, such as 'install', meta mode can be dangerous
-# as a cookie may be used to prevent redundant installations (such as
-# for WORLDTMP staging).  For DESTDIR=/ we always want to install though.
-# For other cases, such as delete-old-libs, meta mode may break
-# the interactive tty prompt.  The safest route is to just whitelist
-# the ones that benefit from it.
-META_TGT_WHITELIST+= \
-	_* build32 buildfiles buildincludes buildkernel buildsoft \
-	buildworld everything kernel-toolchains kernel kernels libraries \
-	native-xtools showconfig tinderbox toolchain toolchains universe \
-	world worlds xdev xdev-build
-
-.ORDER: buildworld installworld
-.ORDER: buildworld distributeworld
-.ORDER: buildworld buildkernel
-.ORDER: installworld distribution
-.ORDER: installworld installkernel
-.ORDER: buildkernel installkernel
-.ORDER: buildkernel installkernel.debug
-.ORDER: buildkernel reinstallkernel
-.ORDER: buildkernel reinstallkernel.debug
-
-PATH=	/sbin:/bin:/usr/sbin:/usr/bin
-MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} MK_AUTO_OBJ=no ${MAKE} \
-    ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
-    -f /dev/null -V MAKEOBJDIRPREFIX dummy
-.if !empty(_MAKEOBJDIRPREFIX)
-.error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
-	(in make.conf(5)) or command-line variable.
-.endif
-
-# We often need to use the tree's version of make to build it.
-# Choices add to complexity though.
-# We cannot blindly use a make which may not be the one we want
-# so be exlicit - until all choice is removed.
-WANT_MAKE=	bmake
-.if !empty(.MAKE.MODE:Mmeta)
-# 20160604 - support missing-meta,missing-filemon and performance improvements
-WANT_MAKE_VERSION= 20160604
-.else
-# 20160220 - support .dinclude for FAST_DEPEND.
-WANT_MAKE_VERSION= 20160220
-.endif
-MYMAKE=		${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}/${WANT_MAKE}
-.if defined(.PARSEDIR)
-HAVE_MAKE=	bmake
-.else
-HAVE_MAKE=	fmake
-.endif
-.if ${HAVE_MAKE} != ${WANT_MAKE} || \
-    (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
-NEED_MAKE_UPGRADE= t
-.endif
-.if exists(${MYMAKE})
-SUB_MAKE:= ${MYMAKE} -m ${.CURDIR}/share/mk
-.elif defined(NEED_MAKE_UPGRADE)
-# It may not exist yet but we may cause it to.
-# In the case of fmake, upgrade_checks may cause a newer version to be built.
-SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
-	-m ${.CURDIR}/share/mk
-.else
-SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
-.endif
-
-_MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
-
-# Only allow meta mode for the whitelisted targets.  See META_TGT_WHITELIST
-# above.
-.for _tgt in ${META_TGT_WHITELIST}
-.if make(${_tgt})
-_CAN_USE_META_MODE?= yes
-.endif
-.endfor
-.if !defined(_CAN_USE_META_MODE)
-_MAKE+=	MK_META_MODE=no
-.unexport META_MODE
-.elif defined(MK_META_MODE) && ${MK_META_MODE} == "yes"
-.if !exists(/dev/filemon) && !defined(NO_FILEMON) && !make(showconfig)
-# Require filemon be loaded to provide a working incremental build
-.error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded. \
-    ${.newline}ERROR: WITH_META_MODE is enabled but requires filemon for an incremental build. \
-    ${.newline}ERROR: 'kldload filemon' or pass -DNO_FILEMON to suppress this error.
-.endif	# !exists(/dev/filemon) && !defined(NO_FILEMON)
-.endif	# !defined(_CAN_USE_META_MODE)
-
-# Guess machine architecture from machine type, and vice versa.
-.if !defined(TARGET_ARCH) && defined(TARGET)
-_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/arm64/aarch64/}
-.elif !defined(TARGET) && defined(TARGET_ARCH) && \
-    ${TARGET_ARCH} != ${MACHINE_ARCH}
-_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/aarch64/arm64/:C/powerpc64/powerpc/:C/riscv64/riscv/}
-.endif
-.if defined(TARGET) && !defined(_TARGET)
-_TARGET=${TARGET}
-.endif
-.if defined(TARGET_ARCH) && !defined(_TARGET_ARCH)
-_TARGET_ARCH=${TARGET_ARCH}
-.endif
-# for historical compatibility for xdev targets
-.if defined(XDEV)
-_TARGET=	${XDEV}
-.endif
-.if defined(XDEV_ARCH)
-_TARGET_ARCH=	${XDEV_ARCH}
-.endif
-# Otherwise, default to current machine type and architecture.
-_TARGET?=	${MACHINE}
-_TARGET_ARCH?=	${MACHINE_ARCH}
+CROSS_COMPILE 	=
 
 #
-# Make sure we have an up-to-date make(1). Only world and buildworld
-# should do this as those are the initial targets used for upgrades.
-# The user can define ALWAYS_CHECK_MAKE to have this check performed
-# for all targets.
-#
-.if defined(ALWAYS_CHECK_MAKE) || !defined(.PARSEDIR)
-${TGTS}: upgrade_checks
-.else
-buildworld: upgrade_checks
-.endif
-
-#
-# Handle the user-driven targets, using the source relative mk files.
+# Include the make variables (CC, etc...)
 #
 
-tinderbox toolchains kernel-toolchains: .MAKE
-${TGTS}: .PHONY .MAKE
-	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
+AS		= $(CROSS_COMPILE)as
+LD		= $(CROSS_COMPILE)ld
+CC		= $(CROSS_COMPILE)gcc
+CPP		= $(CC) -E
+AR		= $(CROSS_COMPILE)ar
+NM		= $(CROSS_COMPILE)nm
+STRIP		= $(CROSS_COMPILE)strip
+OBJCOPY		= $(CROSS_COMPILE)objcopy
+OBJDUMP		= $(CROSS_COMPILE)objdump
+MAKEFILES	= $(TOPDIR)/.config
+GENKSYMS	= /sbin/genksyms
+DEPMOD		= /sbin/depmod
+MODFLAGS	= -DMODULE
+CFLAGS_KERNEL	=
+PERL		= perl
+AWK		= awk
+RPM 		:= $(shell if [ -x "/usr/bin/rpmbuild" ]; then echo rpmbuild; \
+		    	else echo rpm; fi)
 
-# The historic default "all" target creates files which may cause stale
-# or (in the cross build case) unlinkable results. Fail with an error
-# when no target is given. The users can explicitly specify "all"
-# if they want the historic behavior.
-.MAIN:	_guard
+export	VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION KERNELRELEASE ARCH \
+	CONFIG_SHELL TOPDIR HPATH HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC \
+	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE MAKEFILES GENKSYMS MODFLAGS PERL AWK
 
-_guard: .PHONY
-	@echo
-	@echo "Explicit target required.  Likely \"${SUBDIR_OVERRIDE:Dall:Ubuildworld}\" is wanted.  See build(7)."
-	@echo
-	@false
-
-STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s ; echo
-.if !empty(CHECK_TIME)
-.error check your date/time: ${STARTTIME}
-.endif
-
-.if defined(HISTORICAL_MAKE_WORLD) || defined(DESTDIR)
-#
-# world
-#
-# Attempt to rebuild and reinstall everything. This target is not to be
-# used for upgrading an existing FreeBSD system, because the kernel is
-# not included. One can argue that this target doesn't build everything
-# then.
-#
-world: upgrade_checks .PHONY
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make world started on ${STARTTIME}"
-	@echo "--------------------------------------------------------------"
-.if target(pre-world)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making 'pre-world' target"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}; ${_MAKE} pre-world
-.endif
-	${_+_}@cd ${.CURDIR}; ${_MAKE} buildworld
-	${_+_}@cd ${.CURDIR}; ${_MAKE} -B installworld
-.if target(post-world)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making 'post-world' target"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}; ${_MAKE} post-world
-.endif
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make world completed on `LC_ALL=C date`"
-	@echo "                   (started ${STARTTIME})"
-	@echo "--------------------------------------------------------------"
-.else
-world: .PHONY
-	@echo "WARNING: make world will overwrite your existing FreeBSD"
-	@echo "installation without also building and installing a new"
-	@echo "kernel.  This can be dangerous.  Please read the handbook,"
-	@echo "'Rebuilding world', for how to upgrade your system."
-	@echo "Define DESTDIR to where you want to install FreeBSD,"
-	@echo "including /, to override this warning and proceed as usual."
-	@echo ""
-	@echo "Bailing out now..."
-	@false
-.endif
+all:	do-it-all
 
 #
-# kernel
+# Make "config" the default target if there is no configuration file or
+# "depend" the target if there is no top-level dependency information.
 #
-# Short hand for `make buildkernel installkernel'
-#
-kernel: buildkernel installkernel .PHONY
 
-#
-# Perform a few tests to determine if the installed tools are adequate
-# for building the world.
-#
-upgrade_checks: .PHONY
-.if defined(NEED_MAKE_UPGRADE)
-	@${_+_}(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
-.endif
-
-#
-# Upgrade make(1) to the current version using the installed
-# headers, libraries and tools.  Also, allow the location of
-# the system bsdmake-like utility to be overridden.
-#
-MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
-		DESTDIR= \
-		INSTALL="sh ${.CURDIR}/tools/install.sh"
-MMAKE=		${MMAKEENV} ${MAKE} \
-		MAN= -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WERROR \
-		-DNO_SUBDIR \
-		DESTDIR= PROGNAME=${MYMAKE:T}
-
-bmake: .PHONY
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building an up-to-date ${.TARGET}(1)"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
-		${MMAKE} obj; \
-		${MMAKE} depend; \
-		${MMAKE} all; \
-		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
-
-regress: .PHONY
-	@echo "'make regress' has been renamed 'make check'" | /usr/bin/fmt
-	@false
-
-tinderbox toolchains kernel-toolchains kernels worlds: upgrade_checks
-
-tinderbox: .PHONY
-	@cd ${.CURDIR}; ${SUB_MAKE} DOING_TINDERBOX=YES universe
-
-toolchains: .PHONY
-	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=toolchain universe
-
-kernel-toolchains: .PHONY
-	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
-
-kernels: .PHONY
-	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildkernel universe
-
-worlds: .PHONY
-	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildworld universe
+ifeq (.config,$(wildcard .config))
+include .config
+ifeq (.depend,$(wildcard .depend))
+include .depend
+do-it-all:	Version vmlinux
+else
+CONFIGURATION = depend
+do-it-all:	depend
+endif
+else
+CONFIGURATION = config
+do-it-all:	config
+endif
 
 #
-# universe
+# INSTALL_PATH specifies where to place the updated kernel and system map
+# images.  Uncomment if you want to place them anywhere other than root.
 #
-# Attempt to rebuild *everything* for all supported architectures,
-# with a reasonable chance of success, regardless of how old your
-# existing system is.
+
+#export	INSTALL_PATH=/boot
+
 #
-.if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm arm64 i386 mips pc98 powerpc sparc64
-_UNIVERSE_TARGETS=	${TARGETS}
-TARGET_ARCHES_arm?=	arm armeb armv6
-TARGET_ARCHES_arm64?=	aarch64
-TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
-TARGET_ARCHES_powerpc?=	powerpc powerpc64
-TARGET_ARCHES_pc98?=	i386
-.for target in ${TARGETS}
-TARGET_ARCHES_${target}?= ${target}
-.endfor
+# INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
+# relocations required by build roots.  This is not defined in the
+# makefile but the arguement can be passed to make if needed.
+#
 
-# XXX Remove arm64 from universe if the required binutils package is missing.
-# It does not build with the in-tree linker.
-.if !exists(/usr/local/aarch64-freebsd/bin/ld) && ${TARGETS:Marm64}
-_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:Narm64}
-universe: universe_arm64_skip .PHONY
-universe_epilogue: universe_arm64_skip .PHONY
-universe_arm64_skip: universe_prologue .PHONY
-	@echo ">> arm64 skipped - install aarch64-binutils port or package to build"
-.endif
+MODLIB	:= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
+export MODLIB
 
-.if defined(UNIVERSE_TARGET)
-MAKE_JUST_WORLDS=	YES
-.else
-UNIVERSE_TARGET?=	buildworld
-.endif
-KERNSRCDIR?=		${.CURDIR}/sys
+#
+# standard CFLAGS
+#
 
-targets:	.PHONY
-	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
-.for target in ${TARGETS}
-.for target_arch in ${TARGET_ARCHES_${target}}
-	@echo "    ${target}/${target_arch}"
-.endfor
-.endfor
+CPPFLAGS := -D__KERNEL__ -I$(HPATH)
 
-.if defined(DOING_TINDERBOX)
-FAILFILE=${.CURDIR}/_.tinderbox.failed
-MAKEFAIL=tee -a ${FAILFILE}
-.else
-MAKEFAIL=cat
-.endif
+CFLAGS := $(CPPFLAGS) -Wall -Wstrict-prototypes -Wno-trigraphs -O2 \
+	  -fno-strict-aliasing -fno-common
+ifndef CONFIG_FRAME_POINTER
+CFLAGS += -fomit-frame-pointer
+endif
+AFLAGS := -D__ASSEMBLY__ $(CPPFLAGS)
 
-universe_prologue:  upgrade_checks
-universe: universe_prologue
-universe_prologue: .PHONY
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make universe started on ${STARTTIME}"
-	@echo "--------------------------------------------------------------"
-.if defined(DOING_TINDERBOX)
-	@rm -f ${FAILFILE}
-.endif
-.for target in ${_UNIVERSE_TARGETS}
-universe: universe_${target}
-universe_epilogue: universe_${target}
-universe_${target}: universe_${target}_prologue .PHONY
-universe_${target}_prologue: universe_prologue .PHONY
-	@echo ">> ${target} started on `LC_ALL=C date`"
-universe_${target}_worlds: .PHONY
+#
+# ROOT_DEV specifies the default root-device when making the image.
+# This can be either FLOPPY, CURRENT, /dev/xxxx or empty, in which case
+# the default of FLOPPY is used by 'build'.
+# This is i386 specific.
+#
 
-.if !defined(MAKE_JUST_KERNELS)
-universe_${target}_done: universe_${target}_worlds .PHONY
-.for target_arch in ${TARGET_ARCHES_${target}}
-universe_${target}_worlds: universe_${target}_${target_arch} .PHONY
-universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
-	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
-	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
-	    TARGET=${target} \
-	    TARGET_ARCH=${target_arch} \
-	    > _.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
-	    (echo "${target}.${target_arch} ${UNIVERSE_TARGET} failed," \
-	    "check _.${target}.${target_arch}.${UNIVERSE_TARGET} for details" | \
-	    ${MAKEFAIL}))
-	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} completed on `LC_ALL=C date`"
-.endfor
-.endif # !MAKE_JUST_KERNELS
+export ROOT_DEV = CURRENT
 
-.if !defined(MAKE_JUST_WORLDS)
-universe_${target}_done: universe_${target}_kernels .PHONY
-universe_${target}_kernels: universe_${target}_worlds .PHONY
-universe_${target}_kernels: universe_${target}_prologue .MAKE .PHONY
-.if exists(${KERNSRCDIR}/${target}/conf/NOTES)
-	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
-	    ${SUB_MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
-	    (echo "${target} 'make LINT' failed," \
-	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
-.endif
-	@cd ${.CURDIR}; ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
-	    universe_kernels
-.endif # !MAKE_JUST_WORLDS
+#
+# If you want to preset the SVGA mode, uncomment the next line and
+# set SVGA_MODE to whatever number you want.
+# Set it to -DSVGA_MODE=NORMAL_VGA if you just want the EGA/VGA mode.
+# The number is the same as you would ordinarily press at bootup.
+# This is i386 specific.
+#
 
-# Tell the user the worlds and kernels have completed
-universe_${target}: universe_${target}_done
-universe_${target}_done:
-	@echo ">> ${target} completed on `LC_ALL=C date`"
-.endfor
-universe_kernels: universe_kernconfs .PHONY
-.if !defined(TARGET)
-TARGET!=	uname -m
-.endif
-.if defined(MAKE_ALL_KERNELS)
-_THINNER=cat
-.else
-_THINNER=xargs grep -L "^.NO_UNIVERSE" || true
-.endif
-KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
-		find [[:upper:][:digit:]]*[[:upper:][:digit:]] \
-		-type f -maxdepth 0 \
-		! -name DEFAULTS ! -name NOTES | \
-		${_THINNER}
-universe_kernconfs: .PHONY
-.for kernel in ${KERNCONFS}
-TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
-	config -m ${KERNSRCDIR}/${TARGET}/conf/${kernel} 2> /dev/null | \
-	grep -v WARNING: | cut -f 2
-.if empty(TARGET_ARCH_${kernel})
-.error "Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old."
-.endif
-universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
-universe_kernconf_${TARGET}_${kernel}: .MAKE
-	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${SUB_MAKE} ${JFLAG} buildkernel \
-	    TARGET=${TARGET} \
-	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
-	    KERNCONF=${kernel} \
-	    > _.${TARGET}.${kernel} 2>&1 || \
-	    (echo "${TARGET} ${kernel} kernel failed," \
-	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
-.endfor
-universe: universe_epilogue
-universe_epilogue: .PHONY
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make universe completed on `LC_ALL=C date`"
-	@echo "                      (started ${STARTTIME})"
-	@echo "--------------------------------------------------------------"
-.if defined(DOING_TINDERBOX)
-	@if [ -e ${FAILFILE} ] ; then \
-		echo "Tinderbox failed:" ;\
-		cat ${FAILFILE} ;\
-		exit 1 ;\
+export SVGA_MODE = -DSVGA_MODE=NORMAL_VGA
+
+#
+# If you want the RAM disk device, define this to be the size in blocks.
+# This is i386 specific.
+#
+
+#export RAMDISK = -DRAMDISK=512
+
+CORE_FILES	=kernel/kernel.o mm/mm.o fs/fs.o ipc/ipc.o
+NETWORKS	=net/network.o
+
+LIBS		=$(TOPDIR)/lib/lib.a
+SUBDIRS		=kernel drivers mm fs net ipc lib crypto
+
+DRIVERS-n :=
+DRIVERS-y :=
+DRIVERS-m :=
+DRIVERS-  :=
+
+DRIVERS-$(CONFIG_ACPI_BOOT) += drivers/acpi/acpi.o
+DRIVERS-$(CONFIG_PARPORT) += drivers/parport/driver.o
+DRIVERS-y += drivers/char/char.o \
+	drivers/block/block.o \
+	drivers/misc/misc.o \
+	drivers/net/net.o
+DRIVERS-$(CONFIG_AGP) += drivers/char/agp/agp.o
+DRIVERS-$(CONFIG_DRM_NEW) += drivers/char/drm/drm.o
+DRIVERS-$(CONFIG_DRM_OLD) += drivers/char/drm-4.0/drm.o
+DRIVERS-$(CONFIG_NUBUS) += drivers/nubus/nubus.a
+DRIVERS-$(CONFIG_NET_FC) += drivers/net/fc/fc.o
+DRIVERS-$(CONFIG_DEV_APPLETALK) += drivers/net/appletalk/appletalk.o
+DRIVERS-$(CONFIG_TR) += drivers/net/tokenring/tr.o
+DRIVERS-$(CONFIG_WAN) += drivers/net/wan/wan.o
+DRIVERS-$(CONFIG_ARCNET) += drivers/net/arcnet/arcnetdrv.o
+DRIVERS-$(CONFIG_ATM) += drivers/atm/atm.o
+DRIVERS-$(CONFIG_IDE) += drivers/ide/idedriver.o
+DRIVERS-$(CONFIG_FC4) += drivers/fc4/fc4.a
+DRIVERS-$(CONFIG_SCSI) += drivers/scsi/scsidrv.o
+DRIVERS-$(CONFIG_FUSION_BOOT) += drivers/message/fusion/fusion.o
+DRIVERS-$(CONFIG_IEEE1394) += drivers/ieee1394/ieee1394drv.o
+
+ifneq ($(CONFIG_CD_NO_IDESCSI)$(CONFIG_BLK_DEV_IDECD)$(CONFIG_BLK_DEV_SR)$(CONFIG_PARIDE_PCD),)
+DRIVERS-y += drivers/cdrom/driver.o
+endif
+
+DRIVERS-$(CONFIG_SOUND) += drivers/sound/sounddrivers.o
+DRIVERS-$(CONFIG_PCI) += drivers/pci/driver.o
+DRIVERS-$(CONFIG_MTD) += drivers/mtd/mtdlink.o
+DRIVERS-$(CONFIG_PCMCIA) += drivers/pcmcia/pcmcia.o
+DRIVERS-$(CONFIG_NET_PCMCIA) += drivers/net/pcmcia/pcmcia_net.o
+DRIVERS-$(CONFIG_NET_WIRELESS) += drivers/net/wireless/wireless_net.o
+DRIVERS-$(CONFIG_PCMCIA_CHRDEV) += drivers/char/pcmcia/pcmcia_char.o
+DRIVERS-$(CONFIG_DIO) += drivers/dio/dio.a
+DRIVERS-$(CONFIG_SBUS) += drivers/sbus/sbus_all.o
+DRIVERS-$(CONFIG_ZORRO) += drivers/zorro/driver.o
+DRIVERS-$(CONFIG_FC4) += drivers/fc4/fc4.a
+DRIVERS-$(CONFIG_PPC32) += drivers/macintosh/macintosh.o
+DRIVERS-$(CONFIG_MAC) += drivers/macintosh/macintosh.o
+DRIVERS-$(CONFIG_ISAPNP) += drivers/pnp/pnp.o
+DRIVERS-$(CONFIG_VT) += drivers/video/video.o
+DRIVERS-$(CONFIG_PARIDE) += drivers/block/paride/paride.a
+DRIVERS-$(CONFIG_HAMRADIO) += drivers/net/hamradio/hamradio.o
+DRIVERS-$(CONFIG_TC) += drivers/tc/tc.a
+DRIVERS-$(CONFIG_USB) += drivers/usb/usbdrv.o
+DRIVERS-$(CONFIG_USB_GADGET) += drivers/usb/gadget/built-in.o
+DRIVERS-y +=drivers/media/media.o
+DRIVERS-$(CONFIG_INPUT) += drivers/input/inputdrv.o
+DRIVERS-$(CONFIG_HIL) += drivers/hil/hil.o
+DRIVERS-$(CONFIG_I2O) += drivers/message/i2o/i2o.o
+DRIVERS-$(CONFIG_IRDA) += drivers/net/irda/irda.o
+DRIVERS-$(CONFIG_I2C) += drivers/i2c/i2c.o
+DRIVERS-$(CONFIG_PHONE) += drivers/telephony/telephony.o
+DRIVERS-$(CONFIG_MD) += drivers/md/mddev.o
+DRIVERS-$(CONFIG_GSC) += drivers/gsc/gscbus.o
+DRIVERS-$(CONFIG_BLUEZ) += drivers/bluetooth/bluetooth.o
+DRIVERS-$(CONFIG_HOTPLUG_PCI) += drivers/hotplug/vmlinux-obj.o
+DRIVERS-$(CONFIG_ISDN_BOOL) += drivers/isdn/vmlinux-obj.o
+DRIVERS-$(CONFIG_CRYPTO) += crypto/crypto.o
+
+DRIVERS := $(DRIVERS-y)
+
+
+# files removed with 'make clean'
+CLEAN_FILES = \
+	kernel/ksyms.lst include/linux/compile.h \
+	vmlinux System.map \
+	.tmp* \
+	drivers/char/consolemap_deftbl.c drivers/video/promcon_tbl.c \
+	drivers/char/conmakehash \
+	drivers/char/drm/*-mod.c \
+	drivers/pci/devlist.h drivers/pci/classlist.h drivers/pci/gen-devlist \
+	drivers/zorro/devlist.h drivers/zorro/gen-devlist \
+	drivers/sound/bin2hex drivers/sound/hex2hex \
+	drivers/atm/fore200e_mkfirm drivers/atm/{pca,sba}*{.bin,.bin1,.bin2} \
+	drivers/scsi/aic7xxx/aicasm/aicasm \
+	drivers/scsi/aic7xxx/aicasm/aicasm_gram.c \
+	drivers/scsi/aic7xxx/aicasm/aicasm_gram.h \
+	drivers/scsi/aic7xxx/aicasm/aicasm_macro_gram.c \
+	drivers/scsi/aic7xxx/aicasm/aicasm_macro_gram.h \
+	drivers/scsi/aic7xxx/aicasm/aicasm_macro_scan.c \
+	drivers/scsi/aic7xxx/aicasm/aicasm_scan.c \
+	drivers/scsi/aic7xxx/aicasm/aicdb.h \
+	drivers/scsi/aic7xxx/aicasm/y.tab.h \
+	drivers/scsi/53c700_d.h \
+	drivers/tc/lk201-map.c \
+	net/khttpd/make_times_h \
+	net/khttpd/times.h \
+	submenu* \
+	drivers/ieee1394/oui.c
+# directories removed with 'make clean'
+CLEAN_DIRS = \
+	modules
+
+# files removed with 'make mrproper'
+MRPROPER_FILES = \
+	include/linux/autoconf.h include/linux/version.h \
+	lib/crc32table.h lib/gen_crc32table \
+	drivers/net/hamradio/soundmodem/sm_tbl_{afsk1200,afsk2666,fsk9600}.h \
+	drivers/net/hamradio/soundmodem/sm_tbl_{hapn4800,psk4800}.h \
+	drivers/net/hamradio/soundmodem/sm_tbl_{afsk2400_7,afsk2400_8}.h \
+	drivers/net/hamradio/soundmodem/gentbl \
+	drivers/sound/*_boot.h drivers/sound/.*.boot \
+	drivers/sound/msndinit.c \
+	drivers/sound/msndperm.c \
+	drivers/sound/pndsperm.c \
+	drivers/sound/pndspini.c \
+	drivers/atm/fore200e_*_fw.c drivers/atm/.fore200e_*.fw \
+	.version .config* config.in config.old \
+	scripts/tkparse scripts/kconfig.tk scripts/kconfig.tmp \
+	scripts/lxdialog/*.o scripts/lxdialog/lxdialog \
+	.menuconfig.log \
+	include/asm \
+	.hdepend scripts/mkdep scripts/split-include scripts/docproc \
+	$(TOPDIR)/include/linux/modversions.h \
+	kernel.spec
+
+# directories removed with 'make mrproper'
+MRPROPER_DIRS = \
+	include/config \
+	$(TOPDIR)/include/linux/modules
+
+
+include arch/$(ARCH)/Makefile
+
+# Extra cflags for kbuild 2.4.  The default is to forbid includes by kernel code
+# from user space headers.  Some UML code requires user space headers, in the
+# UML Makefiles add 'kbuild_2_4_nostdinc :=' before include Rules.make.  No
+# other kernel code should include user space headers, if you need
+# 'kbuild_2_4_nostdinc :=' or -I/usr/include for kernel code and you are not UML
+# then your code is broken!  KAO.
+
+kbuild_2_4_nostdinc	:= -nostdinc -iwithprefix include
+export kbuild_2_4_nostdinc
+
+export	CPPFLAGS CFLAGS CFLAGS_KERNEL AFLAGS AFLAGS_KERNEL
+
+export	NETWORKS DRIVERS LIBS HEAD LDFLAGS LINKFLAGS MAKEBOOT ASFLAGS
+
+.S.s:
+	$(CPP) $(AFLAGS) $(AFLAGS_KERNEL) -traditional -o $*.s $<
+.S.o:
+	$(CC) $(AFLAGS) $(AFLAGS_KERNEL) -traditional -c -o $*.o $<
+
+Version: dummy
+	@rm -f include/linux/compile.h
+
+boot: vmlinux
+	@$(MAKE) CFLAGS="$(CFLAGS) $(CFLAGS_KERNEL)" -C arch/$(ARCH)/boot
+
+vmlinux: include/linux/version.h $(CONFIGURATION) init/main.o init/version.o init/do_mounts.o linuxsubdirs
+	$(LD) $(LINKFLAGS) $(HEAD) init/main.o init/version.o init/do_mounts.o \
+		--start-group \
+		$(CORE_FILES) \
+		$(DRIVERS) \
+		$(NETWORKS) \
+		$(LIBS) \
+		--end-group \
+		-o vmlinux
+	$(NM) vmlinux | grep -v '\(compiled\)\|\(\.o$$\)\|\( [aUw] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)' | sort > System.map
+
+symlinks:
+	rm -f include/asm
+	( cd include ; ln -sf asm-$(ARCH) asm)
+	@if [ ! -d include/linux/modules ]; then \
+		mkdir include/linux/modules; \
 	fi
-.endif
-.endif
 
-buildLINT: .PHONY
-	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
+oldconfig: symlinks
+	$(CONFIG_SHELL) scripts/Configure -d arch/$(ARCH)/config.in
 
-.if defined(.PARSEDIR)
-# This makefile does not run in meta mode
-.MAKE.MODE= normal
-# Normally the things we run from here don't either.
-# Using -DWITH_META_MODE
-# we can buildworld with meta files created which are useful 
-# for debugging, but without any of the rest of a meta mode build.
-MK_DIRDEPS_BUILD= no
-MK_STAGING= no
-# tell meta.autodep.mk to not even think about updating anything.
-UPDATE_DEPENDFILE= NO
-.if !make(showconfig)
-.export MK_DIRDEPS_BUILD MK_STAGING UPDATE_DEPENDFILE
-.endif
+xconfig: symlinks
+	$(MAKE) -C scripts kconfig.tk
+	wish -f scripts/kconfig.tk
 
-.if make(universe)
-# we do not want a failure of one branch abort all.
-MAKE_JOB_ERROR_TOKEN= no
-.export MAKE_JOB_ERROR_TOKEN
-.endif
-.endif # bmake
+menuconfig: include/linux/version.h symlinks
+	$(MAKE) -C scripts/lxdialog all
+	$(CONFIG_SHELL) scripts/Menuconfig arch/$(ARCH)/config.in
 
-.endif				# DIRDEPS_BUILD
+config: symlinks
+	$(CONFIG_SHELL) scripts/Configure arch/$(ARCH)/config.in
+
+include/config/MARKER: scripts/split-include include/linux/autoconf.h
+	scripts/split-include include/linux/autoconf.h include/config
+	@ touch include/config/MARKER
+
+linuxsubdirs: $(patsubst %, _dir_%, $(SUBDIRS))
+
+$(patsubst %, _dir_%, $(SUBDIRS)) : dummy include/linux/version.h include/config/MARKER
+	$(MAKE) CFLAGS="$(CFLAGS) $(CFLAGS_KERNEL)" -C $(patsubst _dir_%, %, $@)
+
+$(TOPDIR)/include/linux/version.h: include/linux/version.h
+$(TOPDIR)/include/linux/compile.h: include/linux/compile.h
+
+newversion:
+	. scripts/mkversion > .tmpversion
+	@mv -f .tmpversion .version
+
+uts_len		:= 64
+uts_truncate	:= sed -e 's/\(.\{1,$(uts_len)\}\).*/\1/'
+
+include/linux/compile.h: $(CONFIGURATION) include/linux/version.h newversion
+	@echo -n \#`cat .version` > .ver1
+	@if [ -n "$(CONFIG_SMP)" ] ; then echo -n " SMP" >> .ver1; fi
+	@if [ -f .name ]; then  echo -n \-`cat .name` >> .ver1; fi
+	@LANG=C echo ' '`date` >> .ver1
+	@echo \#define UTS_VERSION \"`cat .ver1 | $(uts_truncate)`\" > .ver
+	@LANG=C echo \#define LINUX_COMPILE_TIME \"`date +%T`\" >> .ver
+	@echo \#define LINUX_COMPILE_BY \"`whoami`\" >> .ver
+	@echo \#define LINUX_COMPILE_HOST \"`hostname | $(uts_truncate)`\" >> .ver
+	@([ -x /bin/dnsdomainname ] && /bin/dnsdomainname > .ver1) || \
+	 ([ -x /bin/domainname ] && /bin/domainname > .ver1) || \
+	 echo > .ver1
+	@echo \#define LINUX_COMPILE_DOMAIN \"`cat .ver1 | $(uts_truncate)`\" >> .ver
+	@echo \#define LINUX_COMPILER \"`$(CC) $(CFLAGS) -v 2>&1 | tail -n 1`\" >> .ver
+	@mv -f .ver $@
+	@rm -f .ver1
+
+include/linux/version.h: ./Makefile
+	@expr length "$(KERNELRELEASE)" \<= $(uts_len) > /dev/null || \
+	  (echo KERNELRELEASE \"$(KERNELRELEASE)\" exceeds $(uts_len) characters >&2; false)
+	@echo \#define UTS_RELEASE \"$(KERNELRELEASE)\" > .ver
+	@echo \#define LINUX_VERSION_CODE `expr $(VERSION) \\* 65536 + $(PATCHLEVEL) \\* 256 + $(SUBLEVEL)` >> .ver
+	@echo '#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))' >>.ver
+	@mv -f .ver $@
+
+comma	:= ,
+
+init/version.o: init/version.c include/linux/compile.h include/config/MARKER
+	$(CC) $(CFLAGS) $(CFLAGS_KERNEL) -DUTS_MACHINE='"$(ARCH)"' -DKBUILD_BASENAME=$(subst $(comma),_,$(subst -,_,$(*F))) -c -o init/version.o init/version.c
+
+init/main.o: init/main.c include/config/MARKER
+	$(CC) $(CFLAGS) $(CFLAGS_KERNEL) $(PROFILING) -DKBUILD_BASENAME=$(subst $(comma),_,$(subst -,_,$(*F))) -c -o $@ $<
+
+init/do_mounts.o: init/do_mounts.c include/config/MARKER
+	$(CC) $(CFLAGS) $(CFLAGS_KERNEL) $(PROFILING) -DKBUILD_BASENAME=$(subst $(comma),_,$(subst -,_,$(*F))) -c -o $@ $<
+
+fs lib mm ipc kernel drivers net: dummy
+	$(MAKE) CFLAGS="$(CFLAGS) $(CFLAGS_KERNEL)" $(subst $@, _dir_$@, $@)
+
+TAGS: dummy
+	{ find include/asm-${ARCH} -name '*.h' -print ; \
+	find include -type d \( -name "asm-*" -o -name config \) -prune -o -name '*.h' -print ; \
+	find $(SUBDIRS) init arch/${ARCH} -name '*.[chS]' ; } | grep -v SCCS | grep -v '\.svn' | etags -
+
+# Exuberant ctags works better with -I
+tags: dummy
+	CTAGSF=`ctags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_NOVERS"`; \
+	ctags $$CTAGSF `find include/asm-$(ARCH) -name '*.h'` && \
+	find include -type d \( -name "asm-*" -o -name config \) -prune -o -name '*.h' -print | xargs ctags $$CTAGSF -a && \
+	find $(SUBDIRS) init -name '*.[ch]' | xargs ctags $$CTAGSF -a
+
+ifdef CONFIG_MODULES
+ifdef CONFIG_MODVERSIONS
+MODFLAGS += -DMODVERSIONS -include $(HPATH)/linux/modversions.h
+endif
+
+.PHONY: modules
+modules: $(patsubst %, _mod_%, $(SUBDIRS))
+
+.PHONY: $(patsubst %, _mod_%, $(SUBDIRS))
+$(patsubst %, _mod_%, $(SUBDIRS)) : include/linux/version.h include/config/MARKER
+	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
+
+.PHONY: modules_install
+modules_install: _modinst_ $(patsubst %, _modinst_%, $(SUBDIRS)) _modinst_post
+
+.PHONY: _modinst_
+_modinst_:
+	@rm -rf $(MODLIB)/kernel
+	@rm -f $(MODLIB)/build
+	@mkdir -p $(MODLIB)/kernel
+	@ln -s $(TOPDIR) $(MODLIB)/build
+
+# If System.map exists, run depmod.  This deliberately does not have a
+# dependency on System.map since that would run the dependency tree on
+# vmlinux.  This depmod is only for convenience to give the initial
+# boot a modules.dep even before / is mounted read-write.  However the
+# boot script depmod is the master version.
+ifeq "$(strip $(INSTALL_MOD_PATH))" ""
+depmod_opts	:=
+else
+depmod_opts	:= -b $(INSTALL_MOD_PATH) -r
+endif
+.PHONY: _modinst_post
+_modinst_post: _modinst_post_pcmcia
+	if [ -r System.map ]; then $(DEPMOD) -ae -F System.map $(depmod_opts) $(KERNELRELEASE); fi
+
+# Backwards compatibilty symlinks for people still using old versions
+# of pcmcia-cs with hard coded pathnames on insmod.  Remove
+# _modinst_post_pcmcia for kernel 2.4.1.
+.PHONY: _modinst_post_pcmcia
+_modinst_post_pcmcia:
+	cd $(MODLIB); \
+	mkdir -p pcmcia; \
+	find kernel -path '*/pcmcia/*' -name '*.o' | xargs -i -r ln -sf ../{} pcmcia
+
+.PHONY: $(patsubst %, _modinst_%, $(SUBDIRS))
+$(patsubst %, _modinst_%, $(SUBDIRS)) :
+	$(MAKE) -C $(patsubst _modinst_%, %, $@) modules_install
+
+# modules disabled....
+
+else
+modules modules_install: dummy
+	@echo
+	@echo "The present kernel configuration has modules disabled."
+	@echo "Type 'make config' and enable loadable module support."
+	@echo "Then build a kernel with module support enabled."
+	@echo
+	@exit 1
+endif
+
+clean:	archclean
+	find . \( -name '*.[oas]' -o -name core -o -name '.*.flags' \) -type f -print \
+		| grep -v lxdialog/ | xargs rm -f
+	rm -f $(CLEAN_FILES)
+	rm -rf $(CLEAN_DIRS)
+	$(MAKE) -C Documentation/DocBook clean
+
+mrproper: clean archmrproper
+	find . \( -size 0 -o -name .depend \) -type f -print | xargs rm -f
+	rm -f $(MRPROPER_FILES)
+	rm -rf $(MRPROPER_DIRS)
+	$(MAKE) -C Documentation/DocBook mrproper
+
+distclean: mrproper
+	rm -f core `find . \( -not -type d \) -and \
+		\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
+		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
+		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -type f -print` TAGS tags
+
+backup: mrproper
+	cd .. && tar cf - linux/ | gzip -9 > backup.gz
+	sync
+
+sgmldocs: 
+	chmod 755 $(TOPDIR)/scripts/docgen
+	chmod 755 $(TOPDIR)/scripts/gen-all-syms
+	chmod 755 $(TOPDIR)/scripts/kernel-doc
+	$(MAKE) -C $(TOPDIR)/Documentation/DocBook books
+
+psdocs: sgmldocs
+	$(MAKE) -C Documentation/DocBook ps
+
+pdfdocs: sgmldocs
+	$(MAKE) -C Documentation/DocBook pdf
+
+htmldocs: sgmldocs
+	$(MAKE) -C Documentation/DocBook html
+
+mandocs:
+	chmod 755 $(TOPDIR)/scripts/kernel-doc
+	chmod 755 $(TOPDIR)/scripts/split-man
+	$(MAKE) -C Documentation/DocBook man
+
+sums:
+	find . -type f -print | sort | xargs sum > .SUMS
+
+dep-files: scripts/mkdep archdep include/linux/version.h
+	rm -f .depend .hdepend
+	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)"
+ifdef CONFIG_MODVERSIONS
+	$(MAKE) update-modverfile
+endif
+	scripts/mkdep -- `find $(FINDHPATH) \( -name SCCS -o -name .svn \) -prune -o -follow -name \*.h ! -name modversions.h -print` > .hdepend
+	scripts/mkdep -- init/*.c > .depend
+
+ifdef CONFIG_MODVERSIONS
+MODVERFILE := $(TOPDIR)/include/linux/modversions.h
+else
+MODVERFILE :=
+endif
+export	MODVERFILE
+
+depend dep: dep-files
+
+checkconfig:
+	find * -name '*.[hcS]' -type f -print | sort | xargs $(PERL) -w scripts/checkconfig.pl
+
+checkhelp:
+	find * -name [cC]onfig.in -print | sort | xargs $(PERL) -w scripts/checkhelp.pl
+
+checkincludes:
+	find * -name '*.[hcS]' -type f -print | sort | xargs $(PERL) -w scripts/checkincludes.pl
+
+ifdef CONFIGURATION
+..$(CONFIGURATION):
+	@echo
+	@echo "You have a bad or nonexistent" .$(CONFIGURATION) ": running 'make" $(CONFIGURATION)"'"
+	@echo
+	$(MAKE) $(CONFIGURATION)
+	@echo
+	@echo "Successful. Try re-making (ignore the error that follows)"
+	@echo
+	exit 1
+
+#dummy: ..$(CONFIGURATION)
+dummy:
+
+else
+
+dummy:
+
+endif
+
+include Rules.make
+
+#
+# This generates dependencies for the .h files.
+#
+
+scripts/mkdep: scripts/mkdep.c
+	$(HOSTCC) $(HOSTCFLAGS) -o scripts/mkdep scripts/mkdep.c
+
+scripts/split-include: scripts/split-include.c
+	$(HOSTCC) $(HOSTCFLAGS) -o scripts/split-include scripts/split-include.c
+
+#
+# RPM target
+#
+#	If you do a make spec before packing the tarball you can rpm -ta it
+#
+spec:
+	. scripts/mkspec >kernel.spec
+
+#
+#	Build a tar ball, generate an rpm from it and pack the result
+#	There arw two bits of magic here
+#	1) The use of /. to avoid tar packing just the symlink
+#	2) Removing the .dep files as they have source paths in them that
+#	   will become invalid
+#
+rpm:	clean spec
+	find . \( -size 0 -o -name .depend -o -name .hdepend \) -type f -print | xargs rm -f
+	set -e; \
+	cd $(TOPDIR)/.. ; \
+	ln -sf $(TOPDIR) $(KERNELPATH) ; \
+	tar -cvz --exclude CVS -f $(KERNELPATH).tar.gz $(KERNELPATH)/. ; \
+	rm $(KERNELPATH) ; \
+	cd $(TOPDIR) ; \
+	. scripts/mkversion > .version ; \
+	$(RPM) -ta $(TOPDIR)/../$(KERNELPATH).tar.gz ; \
+	rm $(TOPDIR)/../$(KERNELPATH).tar.gz

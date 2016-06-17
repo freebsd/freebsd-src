@@ -1,0 +1,36 @@
+if [ "$CONFIG_SCSI_AIC7XXX_OLD" != "y" ]; then
+   dep_tristate 'Adaptec AIC7xxx support' CONFIG_SCSI_AIC7XXX $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_AIC7XXX" != "n" ]; then
+      int  '  Maximum number of TCQ commands per device' \
+	CONFIG_AIC7XXX_CMDS_PER_DEVICE 32
+      int  '  Initial bus reset delay in milli-seconds' \
+	CONFIG_AIC7XXX_RESET_DELAY_MS 15000
+      bool  '  Probe for EISA and VL AIC7XXX Adapters' \
+	CONFIG_AIC7XXX_PROBE_EISA_VL
+      bool  '  Build Adapter Firmware with Kernel Build' \
+	CONFIG_AIC7XXX_BUILD_FIRMWARE
+      bool  '  Compile in Debugging Code' \
+	CONFIG_AIC7XXX_DEBUG_ENABLE
+      int  '  Debug code enable mask (2048 for all debugging)' \
+	CONFIG_AIC7XXX_DEBUG_MASK 0
+      bool  '  Decode registers during diagnostics' \
+	CONFIG_AIC7XXX_REG_PRETTY_PRINT
+   fi
+fi
+dep_tristate 'Adaptec AIC79xx support' CONFIG_SCSI_AIC79XX $CONFIG_SCSI
+if [ "$CONFIG_SCSI_AIC79XX" != "n" ]; then
+   int  '  Maximum number of TCQ commands per device' \
+	CONFIG_AIC79XX_CMDS_PER_DEVICE 32
+   int  '  Initial bus reset delay in milli-seconds' \
+	CONFIG_AIC79XX_RESET_DELAY_MS 15000
+   bool  '  Build Adapter Firmware with Kernel Build' \
+	CONFIG_AIC79XX_BUILD_FIRMWARE
+   bool  '  Enable Read Streaming for All Targets' \
+	CONFIG_AIC79XX_ENABLE_RD_STRM
+   bool  '  Compile in Debugging Code' \
+	CONFIG_AIC79XX_DEBUG_ENABLE
+   int  '  Debug code enable mask (16384 for all debugging)' \
+	CONFIG_AIC79XX_DEBUG_MASK 0
+   bool  '  Decode registers during diagnostics' \
+	CONFIG_AIC79XX_REG_PRETTY_PRINT
+fi

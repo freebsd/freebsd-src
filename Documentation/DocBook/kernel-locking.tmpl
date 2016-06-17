@@ -1,0 +1,1229 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V3.1//EN"[]>
+
+<book id="LKLockingGuide">
+ <bookinfo>
+  <title>Unreliable Guide To Locking</title>
+  
+  <authorgroup>
+   <author>
+    <firstname>Paul</firstname>
+    <othername>Rusty</othername>
+    <surname>Russell</surname>
+    <affiliation>
+     <address>
+      <email>rusty@rustcorp.com.au</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>2000</year>
+   <holder>Paul Russell</holder>
+  </copyright>
+
+  <legalnotice>
+   <para>
+     This documentation is free software; you can redistribute
+     it and/or modify it under the terms of the GNU General Public
+     License as published by the Free Software Foundation; either
+     version 2 of the License, or (at your option) any later
+     version.
+   </para>
+      
+   <para>
+     This program is distributed in the hope that it will be
+     useful, but WITHOUT ANY WARRANTY; without even the implied
+     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+     See the GNU General Public License for more details.
+   </para>
+      
+   <para>
+     You should have received a copy of the GNU General Public
+     License along with this program; if not, write to the Free
+     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+     MA 02111-1307 USA
+   </para>
+      
+   <para>
+     For more details see the file COPYING in the source
+     distribution of Linux.
+   </para>
+  </legalnotice>
+ </bookinfo>
+
+ <toc></toc>
+  <chapter id="intro">
+   <title>Introduction</title>
+   <para>
+     Welcome, to Rusty's Remarkably Unreliable Guide to Kernel
+     Locking issues.  This document describes the locking systems in
+     the Linux Kernel as we approach 2.4.
+   </para>
+   <para>
+     It looks like <firstterm linkend="gloss-smp"><acronym>SMP</acronym>
+     </firstterm> is here to stay; so everyone hacking on the kernel 
+     these days needs to know the fundamentals of concurrency and locking 
+     for SMP.
+   </para>
+
+   <sect1 id="races">
+    <title>The Problem With Concurrency</title>
+    <para>
+      (Skip this if you know what a Race Condition is).
+    </para>
+    <para>
+      In a normal program, you can increment a counter like so:
+    </para>
+    <programlisting>
+      very_important_count++;
+    </programlisting>
+
+    <para>
+      This is what they would expect to happen:
+    </para>
+
+    <table>
+     <title>Expected Results</title>
+
+     <tgroup cols=2 align=left>
+
+      <thead>
+       <row>
+        <entry>Instance 1</entry>
+        <entry>Instance 2</entry>
+       </row>
+      </thead>
+
+      <tbody>
+       <row>
+        <entry>read very_important_count (5)</entry>
+        <entry></entry>
+       </row>
+       <row>
+        <entry>add 1 (6)</entry>
+        <entry></entry>
+       </row>
+       <row>
+        <entry>write very_important_count (6)</entry>
+        <entry></entry>
+       </row>
+       <row>
+        <entry></entry>
+        <entry>read very_important_count (6)</entry>
+       </row>
+       <row>
+        <entry></entry>
+        <entry>add 1 (7)</entry>
+       </row>
+       <row>
+        <entry></entry>
+        <entry>write very_important_count (7)</entry>
+       </row>
+      </tbody>
+
+     </tgroup>
+    </table>
+
+    <para>
+     This is what might happen:
+    </para>
+
+    <table>
+     <title>Possible Results</title>
+
+     <tgroup cols=2 align=left>
+      <thead>
+       <row>
+        <entry>Instance 1</entry>
+        <entry>Instance 2</entry>
+       </row>
+      </thead>
+
+      <tbody>
+       <row>
+        <entry>read very_important_count (5)</entry>
+        <entry></entry>
+       </row>
+       <row>
+        <entry></entry>
+        <entry>read very_important_count (5)</entry>
+       </row>
+       <row>
+        <entry>add 1 (6)</entry>
+        <entry></entry>
+       </row>
+       <row>
+        <entry></entry>
+        <entry>add 1 (6)</entry>
+       </row>
+       <row>
+        <entry>write very_important_count (6)</entry>
+        <entry></entry>
+       </row>
+       <row>
+        <entry></entry>
+        <entry>write very_important_count (6)</entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+    <para>
+      This overlap, where what actually happens depends on the
+      relative timing of multiple tasks, is called a race condition.
+      The piece of code containing the concurrency issue is called a
+      critical region.  And especially since Linux starting running
+      on SMP machines, they became one of the major issues in kernel
+      design and implementation.
+    </para>
+    <para>
+      The solution is to recognize when these simultaneous accesses
+      occur, and use locks to make sure that only one instance can
+      enter the critical region at any time.  There are many
+      friendly primitives in the Linux kernel to help you do this.
+      And then there are the unfriendly primitives, but I'll pretend
+      they don't exist.
+    </para>
+   </sect1>
+  </chapter>
+
+  <chapter id="locks">
+   <title>Two Main Types of Kernel Locks: Spinlocks and Semaphores</title>
+
+   <para>
+     There are two main types of kernel locks.  The fundamental type
+     is the spinlock 
+     (<filename class=headerfile>include/asm/spinlock.h</filename>), 
+     which is a very simple single-holder lock: if you can't get the 
+     spinlock, you keep trying (spinning) until you can.  Spinlocks are 
+     very small and fast, and can be used anywhere.
+   </para>
+   <para>
+     The second type is a semaphore
+     (<filename class=headerfile>include/asm/semaphore.h</filename>): it
+     can have more than one holder at any time (the number decided at
+     initialization time), although it is most commonly used as a
+     single-holder lock (a mutex).  If you can't get a semaphore,
+     your task will put itself on the queue, and be woken up when the
+     semaphore is released.  This means the CPU will do something
+     else while you are waiting, but there are many cases when you
+     simply can't sleep (see <xref linkend="sleeping-things">), and so
+     have to use a spinlock instead.
+   </para>
+   <para>
+     Neither type of lock is recursive: see
+     <xref linkend="techniques-deadlocks">.
+   </para>
+ 
+   <sect1 id="uniprocessor">
+    <title>Locks and Uniprocessor Kernels</title>
+
+    <para>
+      For kernels compiled without <symbol>CONFIG_SMP</symbol>, spinlocks 
+      do not exist at all.  This is an excellent design decision: when
+      no-one else can run at the same time, there is no reason to
+      have a lock at all.
+    </para>
+
+    <para>
+      You should always test your locking code with <symbol>CONFIG_SMP</symbol>
+      enabled, even if you don't have an SMP test box, because it
+      will still catch some (simple) kinds of deadlock.
+    </para>
+
+    <para>
+      Semaphores still exist, because they are required for
+      synchronization between <firstterm linkend="gloss-usercontext">user 
+      contexts</firstterm>, as we will see below.
+    </para>
+   </sect1>
+
+   <sect1 id="rwlocks">
+    <title>Read/Write Lock Variants</title>
+
+    <para>
+      Both spinlocks and semaphores have read/write variants:
+      <type>rwlock_t</type> and <structname>struct rw_semaphore</structname>. 
+      These divide users into two classes: the readers and the writers.  If 
+      you are only reading the data, you can get a read lock, but to write to 
+      the data you need the write lock.  Many people can hold a read lock,
+      but a writer must be sole holder.
+    </para>
+
+    <para>
+      This means much smoother locking if your code divides up
+      neatly along reader/writer lines.  All the discussions below
+      also apply to read/write variants.
+    </para>
+   </sect1>
+
+    <sect1 id="usercontextlocking">
+     <title>Locking Only In User Context</title>
+
+     <para>
+       If you have a data structure which is only ever accessed from
+       user context, then you can use a simple semaphore
+       (<filename>linux/asm/semaphore.h</filename>) to protect it.  This 
+       is the most trivial case: you initialize the semaphore to the number 
+       of resources available (usually 1), and call
+       <function>down_interruptible()</function> to grab the semaphore, and 
+       <function>up()</function> to release it.  There is also a 
+       <function>down()</function>, which should be avoided, because it 
+       will not return if a signal is received.
+     </para>
+
+     <para>
+       Example: <filename>linux/net/core/netfilter.c</filename> allows 
+       registration of new <function>setsockopt()</function> and 
+       <function>getsockopt()</function> calls, with
+       <function>nf_register_sockopt()</function>.  Registration and 
+       de-registration are only done on module load and unload (and boot 
+       time, where there is no concurrency), and the list of registrations 
+       is only consulted for an unknown <function>setsockopt()</function>
+       or <function>getsockopt()</function> system call.  The 
+       <varname>nf_sockopt_mutex</varname> is perfect to protect this,
+       especially since the setsockopt and getsockopt calls may well
+       sleep.
+     </para>
+   </sect1>
+
+   <sect1 id="lock-user-bh">
+    <title>Locking Between User Context and BHs</title>
+
+    <para>
+      If a <firstterm linkend="gloss-bh">bottom half</firstterm> shares 
+      data with user context, you have two problems.  Firstly, the current 
+      user context can be interrupted by a bottom half, and secondly, the 
+      critical region could be entered from another CPU.  This is where
+      <function>spin_lock_bh()</function> 
+      (<filename class=headerfile>include/linux/spinlock.h</filename>) is 
+      used.  It disables bottom halves on that CPU, then grabs the lock.
+      <function>spin_unlock_bh()</function> does the reverse.
+    </para>
+
+    <para>
+      This works perfectly for <firstterm linkend="gloss-up"><acronym>UP
+      </acronym></firstterm> as well: the spin lock vanishes, and this macro 
+      simply becomes <function>local_bh_disable()</function>
+      (<filename class=headerfile>include/asm/softirq.h</filename>), which 
+      protects you from the bottom half being run.
+    </para>
+   </sect1>
+
+   <sect1 id="lock-user-tasklet">
+    <title>Locking Between User Context and Tasklets/Soft IRQs</title>
+
+    <para>
+      This is exactly the same as above, because
+      <function>local_bh_disable()</function> actually disables all 
+      softirqs and <firstterm linkend="gloss-tasklet">tasklets</firstterm>
+      on that CPU as well.  It should really be 
+      called `local_softirq_disable()', but the name has been preserved 
+      for historical reasons.  Similarly,
+      <function>spin_lock_bh()</function> would now be called 
+      spin_lock_softirq() in a perfect world.
+    </para>
+   </sect1>
+
+   <sect1 id="lock-bh">
+    <title>Locking Between Bottom Halves</title>
+
+    <para>
+      Sometimes a bottom half might want to share data with
+      another bottom half (especially remember that timers are run
+      off a bottom half).
+    </para>
+
+    <sect2 id="lock-bh-same">
+     <title>The Same BH</title>
+
+     <para>
+       Since a bottom half is never run on two CPUs at once, you
+       don't need to worry about your bottom half being run twice
+       at once, even on SMP.
+     </para>
+    </sect2>
+
+    <sect2 id="lock-bh-different">
+     <title>Different BHs</title>
+
+     <para>
+       Since only one bottom half ever runs at a time once, you
+       don't need to worry about race conditions with other bottom
+       halves.  Beware that things might change under you, however,
+       if someone changes your bottom half to a tasklet.  If you
+       want to make your code future-proof, pretend you're already
+       running from a tasklet (see below), and doing the extra
+       locking.  Of course, if it's five years before that happens,
+       you're gonna look like a damn fool.
+     </para>
+    </sect2>
+   </sect1>
+
+   <sect1 id="lock-tasklets">
+    <title>Locking Between Tasklets</title>
+
+    <para>
+      Sometimes a tasklet might want to share data with another
+      tasklet, or a bottom half.
+    </para>
+
+    <sect2 id="lock-tasklets-same">
+     <title>The Same Tasklet</title>
+     <para>
+       Since a tasklet is never run on two CPUs at once, you don't
+       need to worry about your tasklet being reentrant (running
+       twice at once), even on SMP.
+     </para>
+    </sect2>
+
+    <sect2 id="lock-tasklets-different">
+     <title>Different Tasklets</title>
+     <para>
+       If another tasklet (or bottom half, such as a timer) wants
+       to share data with your tasklet, you will both need to use
+       <function>spin_lock()</function> and
+       <function>spin_unlock()</function> calls.  
+       <function>spin_lock_bh()</function> is
+       unnecessary here, as you are already in a tasklet, and
+       none will be run on the same CPU.
+     </para>
+    </sect2>
+   </sect1>
+
+   <sect1 id="lock-softirqs">
+    <title>Locking Between Softirqs</title>
+
+    <para>
+      Often a <firstterm linkend="gloss-softirq">softirq</firstterm> might 
+      want to share data with itself, a tasklet, or a bottom half.
+    </para>
+
+    <sect2 id="lock-softirqs-same">
+     <title>The Same Softirq</title>
+
+     <para>
+       The same softirq can run on the other CPUs: you can use a
+       per-CPU array (see <xref linkend="per-cpu">) for better
+       performance.  If you're going so far as to use a softirq,
+       you probably care about scalable performance enough
+       to justify the extra complexity.
+     </para>
+
+     <para>
+       You'll need to use <function>spin_lock()</function> and 
+       <function>spin_unlock()</function> for shared data.
+     </para>
+    </sect2>
+
+    <sect2 id="lock-softirqs-different">
+     <title>Different Softirqs</title>
+
+     <para>
+       You'll need to use <function>spin_lock()</function> and 
+       <function>spin_unlock()</function> for shared data, whether it 
+       be a timer (which can be running on a different CPU), bottom half, 
+       tasklet or the same or another softirq.
+     </para>
+    </sect2>
+   </sect1>
+  </chapter>
+
+  <chapter id="hardirq-context">
+   <title>Hard IRQ Context</title>
+
+   <para>
+     Hardware interrupts usually communicate with a bottom half,
+     tasklet or softirq.  Frequently this involves putting work in a
+     queue, which the BH/softirq will take out.
+   </para>
+
+   <sect1 id="hardirq-softirq">
+    <title>Locking Between Hard IRQ and Softirqs/Tasklets/BHs</title>
+
+    <para>
+      If a hardware irq handler shares data with a softirq, you have
+      two concerns.  Firstly, the softirq processing can be
+      interrupted by a hardware interrupt, and secondly, the
+      critical region could be entered by a hardware interrupt on
+      another CPU.  This is where <function>spin_lock_irq()</function> is 
+      used.  It is defined to disable interrupts on that cpu, then grab 
+      the lock. <function>spin_unlock_irq()</function> does the reverse.
+    </para>
+
+    <para>
+      This works perfectly for UP as well: the spin lock vanishes,
+      and this macro simply becomes <function>local_irq_disable()</function>
+      (<filename class=headerfile>include/asm/smp.h</filename>), which 
+      protects you from the softirq/tasklet/BH being run.
+    </para>
+
+    <para>
+      <function>spin_lock_irqsave()</function> 
+      (<filename>include/linux/spinlock.h</filename>) is a variant
+      which saves whether interrupts were on or off in a flags word,
+      which is passed to <function>spin_lock_irqrestore()</function>.  This 
+      means that the same code can be used inside an hard irq handler (where
+      interrupts are already off) and in softirqs (where the irq
+      disabling is required).
+    </para>
+   </sect1>
+  </chapter>
+
+  <chapter id="common-techniques">
+   <title>Common Techniques</title>
+
+   <para>
+     This section lists some common dilemmas and the standard
+     solutions used in the Linux kernel code.  If you use these,
+     people will find your code simpler to understand.
+   </para>
+
+   <para>
+     If I could give you one piece of advice: never sleep with anyone
+     crazier than yourself.  But if I had to give you advice on
+     locking: <emphasis>keep it simple</emphasis>.
+   </para>
+
+   <para>
+     Lock data, not code.
+   </para>
+
+   <para>
+     Be reluctant to introduce new locks.
+   </para>
+
+   <para>
+     Strangely enough, this is the exact reverse of my advice when
+     you <emphasis>have</emphasis> slept with someone crazier than yourself.
+   </para>
+
+   <sect1 id="techniques-no-writers">
+    <title>No Writers in Interrupt Context</title>
+
+    <para>
+      There is a fairly common case where an interrupt handler needs
+      access to a critical region, but does not need write access.
+      In this case, you do not need to use
+      <function>read_lock_irq()</function>, but only
+      <function>read_lock()</function> everywhere (since if an interrupt 
+      occurs, the irq handler will only try to grab a read lock, which 
+      won't deadlock).  You will still need to use 
+      <function>write_lock_irq()</function>.
+    </para>
+
+    <para>
+      Similar logic applies to locking between softirqs/tasklets/BHs
+      which never need a write lock, and user context: 
+      <function>read_lock()</function> and
+      <function>write_lock_bh()</function>.
+    </para>
+   </sect1>
+
+   <sect1 id="techniques-deadlocks">
+    <title>Deadlock: Simple and Advanced</title>
+
+    <para>
+      There is a coding bug where a piece of code tries to grab a
+      spinlock twice: it will spin forever, waiting for the lock to
+      be released (spinlocks, rwlocks and semaphores are not
+      recursive in Linux).  This is trivial to diagnose: not a
+      stay-up-five-nights-talk-to-fluffy-code-bunnies kind of
+      problem.
+    </para>
+
+    <para>
+      For a slightly more complex case, imagine you have a region
+      shared by a bottom half and user context.  If you use a
+      <function>spin_lock()</function> call to protect it, it is 
+      possible that the user context will be interrupted by the bottom 
+      half while it holds the lock, and the bottom half will then spin 
+      forever trying to get the same lock.
+    </para>
+
+    <para>
+      Both of these are called deadlock, and as shown above, it can
+      occur even with a single CPU (although not on UP compiles,
+      since spinlocks vanish on kernel compiles with 
+      <symbol>CONFIG_SMP</symbol>=n. You'll still get data corruption 
+      in the second example).
+    </para>
+
+    <para>
+      This complete lockup is easy to diagnose: on SMP boxes the
+      watchdog timer or compiling with <symbol>DEBUG_SPINLOCKS</symbol> set
+      (<filename>include/linux/spinlock.h</filename>) will show this up 
+      immediately when it happens.
+    </para>
+
+    <para>
+      A more complex problem is the so-called `deadly embrace',
+      involving two or more locks.  Say you have a hash table: each
+      entry in the table is a spinlock, and a chain of hashed
+      objects.  Inside a softirq handler, you sometimes want to
+      alter an object from one place in the hash to another: you
+      grab the spinlock of the old hash chain and the spinlock of
+      the new hash chain, and delete the object from the old one,
+      and insert it in the new one.
+    </para>
+
+    <para>
+      There are two problems here.  First, if your code ever
+      tries to move the object to the same chain, it will deadlock
+      with itself as it tries to lock it twice.  Secondly, if the
+      same softirq on another CPU is trying to move another object
+      in the reverse direction, the following could happen:
+    </para>
+
+    <table>
+     <title>Consequences</title>
+
+     <tgroup cols=2 align=left>
+
+      <thead>
+       <row>
+        <entry>CPU 1</entry>
+        <entry>CPU 2</entry>
+       </row>
+      </thead>
+
+      <tbody>
+       <row>
+        <entry>Grab lock A -&gt; OK</entry>
+        <entry>Grab lock B -&gt; OK</entry>
+       </row>
+       <row>
+        <entry>Grab lock B -&gt; spin</entry>
+        <entry>Grab lock A -&gt; spin</entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+    <para>
+      The two CPUs will spin forever, waiting for the other to give up
+      their lock.  It will look, smell, and feel like a crash.
+    </para>
+
+    <sect2 id="techs-deadlock-prevent">
+     <title>Preventing Deadlock</title>
+
+     <para>
+       Textbooks will tell you that if you always lock in the same
+       order, you will never get this kind of deadlock.  Practice
+       will tell you that this approach doesn't scale: when I
+       create a new lock, I don't understand enough of the kernel
+       to figure out where in the 5000 lock hierarchy it will fit.
+     </para>
+
+     <para>
+       The best locks are encapsulated: they never get exposed in
+       headers, and are never held around calls to non-trivial
+       functions outside the same file.  You can read through this
+       code and see that it will never deadlock, because it never
+       tries to grab another lock while it has that one.  People
+       using your code don't even need to know you are using a
+       lock.
+     </para>
+
+     <para>
+       A classic problem here is when you provide callbacks or
+       hooks: if you call these with the lock held, you risk simple
+       deadlock, or a deadly embrace (who knows what the callback
+       will do?).  Remember, the other programmers are out to get
+       you, so don't do this.
+     </para>
+    </sect2>
+
+    <sect2 id="techs-deadlock-overprevent">
+     <title>Overzealous Prevention Of Deadlocks</title>
+
+     <para>
+       Deadlocks are problematic, but not as bad as data
+       corruption.  Code which grabs a read lock, searches a list,
+       fails to find what it wants, drops the read lock, grabs a
+       write lock and inserts the object has a race condition.
+     </para>
+
+     <para>
+       If you don't see why, please stay the fuck away from my code.
+     </para>
+    </sect2>
+   </sect1>
+
+   <sect1 id="per-cpu">
+    <title>Per-CPU Data</title>
+      
+    <para>
+      A great technique for avoiding locking which is used fairly
+      widely is to duplicate information for each CPU.  For example,
+      if you wanted to keep a count of a common condition, you could
+      use a spin lock and a single counter.  Nice and simple.
+    </para>
+
+    <para>
+      If that was too slow [it's probably not], you could instead
+      use a counter for each CPU [don't], then none of them need an
+      exclusive lock [you're wasting your time here].  To make sure
+      the CPUs don't have to synchronize caches all the time, align
+      the counters to cache boundaries by appending
+      `__cacheline_aligned' to the declaration
+      (<filename class=headerfile>include/linux/cache.h</filename>). 
+      [Can't you think of anything better to do?]
+    </para>
+
+    <para>
+      They will need a read lock to access their own counters,
+      however.  That way you can use a write lock to grant exclusive
+      access to all of them at once, to tally them up.
+    </para>
+   </sect1>
+
+   <sect1 id="brlock">
+    <title>Big Reader Locks</title>
+
+    <para>
+      A classic example of per-CPU information is Ingo's `big
+      reader' locks 
+      (<filename class=headerfile>linux/include/brlock.h</filename>).  These 
+      use the Per-CPU Data techniques described above to create a lock which 
+      is very fast to get a read lock, but agonizingly slow for a write
+      lock.
+    </para>
+
+    <para>
+      Fortunately, there are a limited number of these locks
+      available: you have to go through a strict interview process
+      to get one.
+    </para>
+   </sect1>
+
+   <sect1 id="lock-avoidance-rw">
+    <title>Avoiding Locks: Read And Write Ordering</title>
+
+    <para>
+      Sometimes it is possible to avoid locking.  Consider the
+      following case from the 2.2 firewall code, which inserted an
+      element into a single linked list in user context:
+    </para>
+
+    <programlisting>
+        new-&gt;next = i-&gt;next;
+        i-&gt;next = new;
+    </programlisting>
+
+    <para>
+      Here the author (Alan Cox, who knows what he's doing) assumes
+      that the pointer assignments are atomic.  This is important,
+      because networking packets would traverse this list on bottom
+      halves without a lock.  Depending on their exact timing, they
+      would either see the new element in the list with a valid 
+      <structfield>next</structfield> pointer, or it would not be in the 
+      list yet.  A lock is still required against other CPUs inserting
+      or deleting from the list, of course.
+    </para>
+
+    <para>
+      Of course, the writes <emphasis>must</emphasis> be in this
+      order, otherwise the new element appears in the list with an
+      invalid <structfield>next</structfield> pointer, and any other 
+      CPU iterating at the wrong time will jump through it into garbage.  
+      Because modern CPUs reorder, Alan's code actually read as follows:
+    </para>
+      
+    <programlisting>
+        new-&gt;next = i-&gt;next;
+        wmb();
+        i-&gt;next = new;
+    </programlisting>
+
+    <para>
+      The <function>wmb()</function> is a write memory barrier 
+      (<filename class=headerfile>include/asm/system.h</filename>): neither 
+      the compiler nor the CPU will allow any writes to memory after the 
+      <function>wmb()</function> to be visible to other hardware
+      before any of the writes before the <function>wmb()</function>.
+    </para>
+
+    <para>
+      As i386 does not do write reordering, this bug would never
+      show up on that platform.  On other SMP platforms, however, it
+      will.
+    </para>
+
+    <para>
+      There is also <function>rmb()</function> for read ordering: to ensure 
+      any previous variable reads occur before following reads.  The simple
+      <function>mb()</function> macro combines both 
+      <function>rmb()</function> and <function>wmb()</function>.
+    </para>
+
+    <para>
+      Some atomic operations are defined to act as a memory barrier
+      (ie. as per the <function>mb()</function> macro, but if in
+      doubt, be explicit.
+      <!-- Rusty Russell 2 May 2001, 2.4.4 -->
+      Also,
+      spinlock operations act as partial barriers: operations after
+      gaining a spinlock will never be moved to precede the
+      <function>spin_lock()</function> call, and operations before
+      releasing a spinlock will never be moved after the
+      <function>spin_unlock()</function> call.
+      <!-- Manfred Spraul <manfreds@colorfullife.com>
+           24 May 2000 2.3.99-pre9 -->
+    </para>
+   </sect1>
+
+   <sect1 id="lock-avoidance-atomic-ops">
+    <title>Avoiding Locks: Atomic Operations</title>
+
+    <para>
+      There are a number of atomic operations defined in
+      <filename class=headerfile>include/asm/atomic.h</filename>: these 
+      are guaranteed to be seen atomically from all CPUs in the system, thus 
+      avoiding races. If your shared data consists of a single counter, say, 
+      these operations might be simpler than using spinlocks (although for
+      anything non-trivial using spinlocks is clearer).
+    </para>
+
+    <para>
+      Note that the atomic operations do in general not act as memory
+      barriers. Instead you can insert a memory barrier before or
+      after <function>atomic_inc()</function> or
+      <function>atomic_dec()</function> by inserting
+      <function>smp_mb__before_atomic_inc()</function>,
+      <function>smp_mb__after_atomic_inc()</function>,
+      <function>smp_mb__before_atomic_dec()</function> or
+      <function>smp_mb__after_atomic_dec()</function>
+      respectively. The advantage of using those macros instead of
+      <function>smp_mb()</function> is, that they are cheaper on some
+      platforms.    
+      <!-- Sebastian Wilhelmi <seppi@seppi.de> 2002-03-04 -->
+    </para>
+   </sect1>
+
+   <sect1 id="ref-counts">
+    <title>Protecting A Collection of Objects: Reference Counts</title>
+
+    <para>
+      Locking a collection of objects is fairly easy: you get a
+      single spinlock, and you make sure you grab it before
+      searching, adding or deleting an object.
+    </para>
+
+    <para>
+      The purpose of this lock is not to protect the individual
+      objects: you might have a separate lock inside each one for
+      that.  It is to protect the <emphasis>data structure
+      containing the objects</emphasis> from race conditions.  Often
+      the same lock is used to protect the contents of all the
+      objects as well, for simplicity, but they are inherently
+      orthogonal (and many other big words designed to confuse).
+    </para>
+
+    <para>
+      Changing this to a read-write lock will often help markedly if
+      reads are far more common that writes.  If not, there is
+      another approach you can use to reduce the time the lock is
+      held: reference counts.
+    </para>
+
+    <para>
+      In this approach, an object has an owner, who sets the
+      reference count to one.  Whenever you get a pointer to the
+      object, you increment the reference count (a `get' operation).
+      Whenever you relinquish a pointer, you decrement the reference
+      count (a `put' operation).  When the owner wants to destroy
+      it, they mark it dead, and do a put.
+    </para>
+
+    <para>
+      Whoever drops the reference count to zero (usually implemented
+      with <function>atomic_dec_and_test()</function>) actually cleans 
+      up and frees the object.
+    </para>
+
+    <para>
+      This means that you are guaranteed that the object won't
+      vanish underneath you, even though you no longer have a lock
+      for the collection.
+    </para>
+
+    <para>
+      Here's some skeleton code:
+    </para>
+
+    <programlisting>
+        void create_foo(struct foo *x)
+        {
+                atomic_set(&amp;x-&gt;use, 1);
+                spin_lock_bh(&amp;list_lock);
+                ... insert in list ...
+                spin_unlock_bh(&amp;list_lock);
+        }
+
+        struct foo *get_foo(int desc)
+        {
+                struct foo *ret;
+
+                spin_lock_bh(&amp;list_lock);
+                ... find in list ...
+                if (ret) atomic_inc(&amp;ret-&gt;use);
+                spin_unlock_bh(&amp;list_lock);
+
+                return ret;
+        }
+
+        void put_foo(struct foo *x)
+        {
+                if (atomic_dec_and_test(&amp;x-&gt;use))
+                        kfree(foo);
+        }
+
+        void destroy_foo(struct foo *x)
+        {
+                spin_lock_bh(&amp;list_lock);
+                ... remove from list ...
+                spin_unlock_bh(&amp;list_lock);
+
+                put_foo(x);
+        }
+    </programlisting>
+
+    <sect2 id="helpful-macros">
+     <title>Macros To Help You</title>
+     <para>
+       There are a set of debugging macros tucked inside
+       <filename class=headerfile>include/linux/netfilter_ipv4/lockhelp.h</filename>
+       and <filename class=headerfile>listhelp.h</filename>: these are very
+       useful for ensuring that locks are held in the right places to protect
+       infrastructure.
+     </para>
+    </sect2>
+   </sect1>
+   
+   <sect1 id="sleeping-things">
+    <title>Things Which Sleep</title>
+
+    <para>
+      You can never call the following routines while holding a
+      spinlock, as they may sleep.  This also means you need to be in
+      user context.
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>
+        Accesses to 
+        <firstterm linkend="gloss-userspace">userspace</firstterm>:
+      </para>
+      <itemizedlist>
+       <listitem>
+        <para>
+          <function>copy_from_user()</function>
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+          <function>copy_to_user()</function>
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+          <function>get_user()</function>
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+          <function> put_user()</function>
+        </para>
+       </listitem>
+      </itemizedlist>
+     </listitem>
+
+     <listitem>
+      <para>
+        <function>kmalloc(GFP_KERNEL)</function>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+      <function>down_interruptible()</function> and
+      <function>down()</function>
+      </para>
+      <para>
+       There is a <function>down_trylock()</function> which can be
+       used inside interrupt context, as it will not sleep.
+       <function>up()</function> will also never sleep.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     <function>printk()</function> can be called in
+     <emphasis>any</emphasis> context, interestingly enough.
+    </para>
+   </sect1>
+
+   <sect1 id="sparc">
+    <title>The Fucked Up Sparc</title>
+
+    <para>
+      Alan Cox says <quote>the irq disable/enable is in the register
+      window on a sparc</quote>.  Andi Kleen says <quote>when you do
+      restore_flags in a different function you mess up all the
+      register windows</quote>.
+    </para>
+
+    <para>
+      So never pass the flags word set by 
+      <function>spin_lock_irqsave()</function> and brethren to another 
+      function (unless it's declared <type>inline</type>.  Usually no-one 
+      does this, but now you've been warned.  Dave Miller can never do 
+      anything in a straightforward manner (I can say that, because I have
+      pictures of him and a certain PowerPC maintainer in a compromising 
+      position).
+    </para>
+   </sect1>
+
+   <sect1 id="racing-timers">
+    <title>Racing Timers: A Kernel Pastime</title>
+
+    <para>
+      Timers can produce their own special problems with races.
+      Consider a collection of objects (list, hash, etc) where each
+      object has a timer which is due to destroy it.
+    </para>
+
+    <para>
+      If you want to destroy the entire collection (say on module
+      removal), you might do the following:
+    </para>
+
+    <programlisting>
+        /* THIS CODE BAD BAD BAD BAD: IF IT WAS ANY WORSE IT WOULD USE
+           HUNGARIAN NOTATION */
+        spin_lock_bh(&amp;list_lock);
+
+        while (list) {
+                struct foo *next = list-&gt;next;
+                del_timer(&amp;list-&gt;timer);
+                kfree(list);
+                list = next;
+        }
+
+        spin_unlock_bh(&amp;list_lock);
+    </programlisting>
+
+    <para>
+      Sooner or later, this will crash on SMP, because a timer can
+      have just gone off before the <function>spin_lock_bh()</function>, 
+      and it will only get the lock after we 
+      <function>spin_unlock_bh()</function>, and then try to free
+      the element (which has already been freed!).
+    </para>
+
+    <para>
+      This can be avoided by checking the result of 
+      <function>del_timer()</function>: if it returns
+      <returnvalue>1</returnvalue>, the timer has been deleted.  
+      If <returnvalue>0</returnvalue>, it means (in this
+      case) that it is currently running, so we can do:
+    </para>
+
+    <programlisting>
+        retry:  
+                spin_lock_bh(&amp;list_lock);
+
+                while (list) {
+                        struct foo *next = list-&gt;next;
+                        if (!del_timer(&amp;list-&gt;timer)) {
+                                /* Give timer a chance to delete this */
+                                spin_unlock_bh(&amp;list_lock);
+                                goto retry;
+                        }
+                        kfree(list);
+                        list = next;
+                }
+
+                spin_unlock_bh(&amp;list_lock);
+    </programlisting>
+
+    <para>
+      Another common problem is deleting timers which restart
+      themselves (by calling <function>add_timer()</function> at the end 
+      of their timer function).  Because this is a fairly common case 
+      which is prone to races, you should use <function>del_timer_sync()</function> 
+      (<filename class=headerfile>include/linux/timer.h</filename>) 
+      to handle this case.  It returns the number of times the timer 
+      had to be deleted before we finally stopped it from adding itself back 
+      in.
+    </para>
+   </sect1>
+  </chapter>
+
+  <chapter id="references">
+   <title>Further reading</title>
+
+   <itemizedlist>
+    <listitem>
+     <para>
+       <filename>Documentation/spinlocks.txt</filename>: 
+       Linus Torvalds' spinlocking tutorial in the kernel sources.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+       Unix Systems for Modern Architectures: Symmetric
+       Multiprocessing and Caching for Kernel Programmers:
+     </para>
+
+     <para>
+       Curt Schimmel's very good introduction to kernel level
+       locking (not written for Linux, but nearly everything
+       applies).  The book is expensive, but really worth every
+       penny to understand SMP locking. [ISBN: 0201633388]
+     </para>
+    </listitem>
+   </itemizedlist>
+  </chapter>
+
+  <chapter id="thanks">
+    <title>Thanks</title>
+
+    <para>
+      Thanks to Telsa Gwynne for DocBooking, neatening and adding
+      style.
+    </para>
+
+    <para>
+      Thanks to Martin Pool, Philipp Rumpf, Stephen Rothwell, Paul
+      Mackerras, Ruedi Aschwanden, Alan Cox, Manfred Spraul and Tim
+      Waugh for proofreading, correcting, flaming, commenting.
+    </para>
+
+    <para>
+      Thanks to the cabal for having no influence on this document.
+    </para>
+  </chapter>
+
+  <glossary id="glossary">
+   <title>Glossary</title>
+
+   <glossentry id="gloss-bh">
+    <glossterm>bh</glossterm>
+     <glossdef>
+      <para>
+        Bottom Half: for historical reasons, functions with
+        `_bh' in them often now refer to any software interrupt, e.g.
+        <function>spin_lock_bh()</function> blocks any software interrupt 
+        on the current CPU.  Bottom halves are deprecated, and will 
+        eventually be replaced by tasklets.  Only one bottom half will be 
+        running at any time.
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-hwinterrupt">
+    <glossterm>Hardware Interrupt / Hardware IRQ</glossterm>
+    <glossdef>
+     <para>
+       Hardware interrupt request.  <function>in_irq()</function> returns 
+       <returnvalue>true</returnvalue> in a hardware interrupt handler (it 
+       also returns true when interrupts are blocked).
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-interruptcontext">
+    <glossterm>Interrupt Context</glossterm>
+    <glossdef>
+     <para>
+       Not user context: processing a hardware irq or software irq.
+       Indicated by the <function>in_interrupt()</function> macro 
+       returning <returnvalue>true</returnvalue> (although it also
+       returns true when interrupts or BHs are blocked).
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-smp">
+    <glossterm><acronym>SMP</acronym></glossterm>
+    <glossdef>
+     <para>
+       Symmetric Multi-Processor: kernels compiled for multiple-CPU
+       machines.  (CONFIG_SMP=y).
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-softirq">
+    <glossterm>softirq</glossterm>
+    <glossdef>
+     <para>
+       Strictly speaking, one of up to 32 enumerated software
+       interrupts which can run on multiple CPUs at once.
+       Sometimes used to refer to tasklets and bottom halves as
+       well (ie. all software interrupts).
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-swinterrupt">
+    <glossterm>Software Interrupt / Software IRQ</glossterm>
+    <glossdef>
+     <para>
+       Software interrupt handler.  <function>in_irq()</function> returns 
+       <returnvalue>false</returnvalue>; <function>in_softirq()</function>
+       returns <returnvalue>true</returnvalue>.  Tasklets, softirqs and 
+       bottom halves all fall into the category of `software interrupts'.
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-tasklet">
+    <glossterm>tasklet</glossterm>
+    <glossdef>
+     <para>
+       A dynamically-registrable software interrupt,
+       which is guaranteed to only run on one CPU at a time.
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-up">
+    <glossterm><acronym>UP</acronym></glossterm>
+    <glossdef>
+     <para>
+       Uni-Processor: Non-SMP.  (CONFIG_SMP=n).
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-usercontext">
+    <glossterm>User Context</glossterm>
+    <glossdef>
+     <para>
+       The kernel executing on behalf of a particular
+       process or kernel thread (given by the <function>current()</function>
+       macro.)  Not to be confused with userspace.  Can be interrupted by 
+       software  or hardware interrupts.
+     </para>
+    </glossdef>
+   </glossentry>
+
+   <glossentry id="gloss-userspace">
+    <glossterm>Userspace</glossterm>
+    <glossdef>
+     <para>
+       A process executing its own code outside the kernel.
+     </para>
+    </glossdef>
+   </glossentry>      
+
+  </glossary>
+</book>
+

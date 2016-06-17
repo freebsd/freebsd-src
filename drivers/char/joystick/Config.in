@@ -1,0 +1,53 @@
+#
+# Joystick driver configuration
+#
+
+mainmenu_option next_comment
+comment 'Joysticks'
+
+if [ "$CONFIG_INPUT" != "n" ]; then
+   dep_tristate 'Game port support' CONFIG_INPUT_GAMEPORT $CONFIG_INPUT
+      dep_tristate '  Classic ISA/PnP gameports' CONFIG_INPUT_NS558 $CONFIG_INPUT_GAMEPORT
+      dep_tristate '  PDPI Lightning 4 gamecard' CONFIG_INPUT_LIGHTNING $CONFIG_INPUT_GAMEPORT
+      dep_tristate '  Aureal Vortex, Trident 4DWave, and ALi 5451 gameports' CONFIG_INPUT_PCIGAME $CONFIG_INPUT_GAMEPORT
+      dep_tristate '  Crystal SoundFusion gameports' CONFIG_INPUT_CS461X  $CONFIG_INPUT_GAMEPORT
+      dep_tristate '  SoundBlaster Live! gameports' CONFIG_INPUT_EMU10K1 $CONFIG_INPUT_GAMEPORT
+   tristate 'Serial port device support' CONFIG_INPUT_SERIO
+      dep_tristate '  Serial port input line discipline' CONFIG_INPUT_SERPORT $CONFIG_INPUT_SERIO
+else
+   # Must explicitly set to n for drivers/sound/Config.in
+   define_tristate CONFIG_INPUT_GAMEPORT n
+   comment 'Input core support is needed for gameports'
+fi
+
+if [ "$CONFIG_INPUT" != "n" ]; then
+   comment 'Joysticks'
+
+   dep_tristate '  Classic PC analog joysticks and gamepads' CONFIG_INPUT_ANALOG $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  Assasin 3D and MadCatz Panther devices' CONFIG_INPUT_A3D $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  Logitech ADI digital joysticks and gamepads' CONFIG_INPUT_ADI $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  Creative Labs Blaster Cobra gamepad' CONFIG_INPUT_COBRA $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  Genius Flight2000 Digital joysticks and gamepads' CONFIG_INPUT_GF2K $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  Gravis GrIP joysticks and gamepads' CONFIG_INPUT_GRIP $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  InterAct digital joysticks and gamepads' CONFIG_INPUT_INTERACT $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  ThrustMaster DirectConnect joysticks and gamepads' CONFIG_INPUT_TMDC $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  Microsoft SideWinder digital joysticks and gamepads' CONFIG_INPUT_SIDEWINDER $CONFIG_INPUT $CONFIG_INPUT_GAMEPORT
+   dep_tristate '  I-Force USB joysticks and wheels' CONFIG_INPUT_IFORCE_USB $CONFIG_INPUT $CONFIG_USB
+   dep_tristate '  I-Force Serial joysticks and wheels' CONFIG_INPUT_IFORCE_232 $CONFIG_INPUT $CONFIG_INPUT_SERIO
+   dep_tristate '  Logitech WingMan Warrior joystick' CONFIG_INPUT_WARRIOR $CONFIG_INPUT $CONFIG_INPUT_SERIO
+   dep_tristate '  LogiCad3d Magellan/SpaceMouse 6dof controller' CONFIG_INPUT_MAGELLAN $CONFIG_INPUT $CONFIG_INPUT_SERIO
+   dep_tristate '  SpaceTec SpaceOrb/Avenger 6dof controller' CONFIG_INPUT_SPACEORB $CONFIG_INPUT $CONFIG_INPUT_SERIO
+   dep_tristate '  SpaceTec SpaceBall 4000 FLX 6dof controller' CONFIG_INPUT_SPACEBALL $CONFIG_INPUT $CONFIG_INPUT_SERIO
+   dep_tristate '  Gravis Stinger gamepad' CONFIG_INPUT_STINGER $CONFIG_INPUT $CONFIG_INPUT_SERIO
+   dep_tristate '  Multisystem, Sega Genesis, Saturn joysticks and gamepads' CONFIG_INPUT_DB9 $CONFIG_INPUT $CONFIG_PARPORT
+   dep_tristate '  Multisystem, NES, SNES, N64, PSX joysticks and gamepads' CONFIG_INPUT_GAMECON $CONFIG_INPUT $CONFIG_PARPORT
+   dep_tristate '  Multisystem joysticks via TurboGraFX device' CONFIG_INPUT_TURBOGRAFX $CONFIG_INPUT $CONFIG_PARPORT
+
+   if [ "$CONFIG_AMIGA" = "y" ]; then
+      dep_tristate '  Amiga joysticks' CONFIG_INPUT_AMIJOY $CONFIG_INPUT
+   fi
+else
+   comment 'Input core support is needed for joysticks'
+fi
+
+endmenu

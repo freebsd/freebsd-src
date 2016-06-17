@@ -1,0 +1,45 @@
+#
+# MPC8xx Communication options
+#
+mainmenu_option next_comment
+comment 'MPC8xx Options'
+
+comment 'Generic MPC8xx Options'
+bool 'Copy-Back Data Cache (else Writethrough)' CONFIG_8xx_COPYBACK
+bool 'CPU6 Silicon Errata (860 Pre Rev. C)' CONFIG_8xx_CPU6
+bool 'I2C/SPI Microcode Patch' CONFIG_UCODE_PATCH
+
+comment 'MPC8xx CPM Options'
+if [ "$CONFIG_NET_ETHERNET" = "y" ]; then
+  bool 'CPM SCC Ethernet' CONFIG_SCC_ENET
+  if [ "$CONFIG_SCC_ENET" = "y" ]; then
+    choice 'SCC used for Ethernet'	\
+  	"SCC1	CONFIG_SCC1_ENET	\
+	 SCC2	CONFIG_SCC2_ENET	\
+	 SCC3	CONFIG_SCC3_ENET"	SCC1
+  fi
+  bool '8xxT FEC Ethernet' CONFIG_FEC_ENET
+  if [ "$CONFIG_FEC_ENET" = "y" ]; then
+    bool 'Use MDIO for PHY configuration' CONFIG_USE_MDIO
+  fi
+  bool 'Use Big CPM Ethernet Buffers' CONFIG_ENET_BIG_BUFFERS
+fi
+if [ "$CONFIG_SCC3_ENET" != "y" ]; then
+  bool 'Use SMC1 for UART' CONFIG_8xx_SMC1
+fi
+bool 'Use SMC2 for UART' CONFIG_8xx_SMC2
+if [ "$CONFIG_8xx_SMC2" = "y" ]; then
+  bool 'Use Alternate SMC2 I/O (823/850)' CONFIG_ALTSMC2
+  bool 'Use SMC2 for Console' CONFIG_CONS_SMC2
+fi
+if [ "$CONFIG_SCC1_ENET" != "y" ]; then
+  bool 'Use SCC1 for UART' CONFIG_8xx_SCC1 
+fi
+if [ "$CONFIG_SCC2_ENET" != "y" ]; then
+  bool 'Use SCC2 for UART' CONFIG_8xx_SCC2
+fi
+if [ "$CONFIG_SCC3_ENET" != "y" ]; then
+  bool 'Use SCC3 for UART' CONFIG_8xx_SCC3
+fi
+bool 'Use SCC4 for UART' CONFIG_8xx_SCC4
+endmenu

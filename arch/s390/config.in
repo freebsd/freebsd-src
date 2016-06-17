@@ -1,0 +1,89 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+
+define_bool CONFIG_ISA n
+define_bool CONFIG_EISA n
+define_bool CONFIG_MCA n
+define_bool CONFIG_UID16 y
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK n
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM y
+define_bool CONFIG_GENERIC_BUST_SPINLOCK n
+
+mainmenu_name "Linux Kernel Configuration"
+define_bool CONFIG_ARCH_S390 y
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+   bool '  Set version information on all module symbols' CONFIG_MODVERSIONS
+   bool '  Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Processor type and features'
+bool 'Symmetric multi-processing support' CONFIG_SMP
+bool 'IEEE FPU emulation' CONFIG_MATHEMU
+if [ "$CONFIG_SMP" = "y" ]; then
+   int  'Maximum number of CPUs (2-32)' CONFIG_NR_CPUS 32
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+bool 'Fast IRQ handling' CONFIG_FAST_IRQ
+bool 'Process warning machine checks' CONFIG_MACHCHK_WARNING
+bool 'Use chscs for Common I/O' CONFIG_CHSC
+tristate 'QDIO support' CONFIG_QDIO
+if [ "$CONFIG_QDIO" != "n" ]; then
+  bool '   Performance statistics in /proc' CONFIG_QDIO_PERF_STATS
+fi
+bool 'Builtin IPL record support' CONFIG_IPL
+if [ "$CONFIG_IPL" = "y" ]; then
+  choice 'IPL method generated into head.S' \
+          "tape                   CONFIG_IPL_TAPE \
+           vm_reader              CONFIG_IPL_VM" tape
+fi
+bool 'Networking support' CONFIG_NET
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+define_bool CONFIG_KCORE_ELF y
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+bool 'Show crashed user process info' CONFIG_PROCESS_DEBUG
+bool 'Pseudo page fault support' CONFIG_PFAULT
+bool 'VM shared kernel support' CONFIG_SHARED_KERNEL
+endmenu
+
+source drivers/s390/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+  source net/Config.in
+fi
+
+source fs/Config.in
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+#bool 'Debug kmalloc/kfree' CONFIG_DEBUG_MALLOC
+#if [ "$CONFIG_CTC" = "y" ]; then
+#  bool 'Remote GDB kernel debugging' CONFIG_REMOTE_DEBUG
+#fi
+bool 'Magic SysRq key' CONFIG_MAGIC_SYSRQ
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source crypto/Config.in
+source lib/Config.in

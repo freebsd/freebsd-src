@@ -1,0 +1,15 @@
+#
+# Block device driver configuration
+#
+mainmenu_option next_comment
+comment 'Acorn-specific block devices'
+
+if [ "$CONFIG_ARCH_ARC" = "y" -o "$CONFIG_ARCH_A5K" = "y" ]; then
+   tristate 'Old Archimedes floppy (1772) support' CONFIG_BLK_DEV_FD1772
+   tristate 'MFM harddisk support' CONFIG_BLK_DEV_MFM
+   if [ "$CONFIG_BLK_DEV_MFM" != "n" ]; then
+      bool '  Autodetect hard drive geometry' CONFIG_BLK_DEV_MFM_AUTODETECT
+   fi
+fi
+
+endmenu

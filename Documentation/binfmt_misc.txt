@@ -1,0 +1,86 @@
+     Kernel Support for miscellaneous (your favourite) Binary Formats v1.1
+     =====================================================================
+
+This Kernel feature allows you to invoke almost (for restrictions see below)
+every program by simply typing its name in the shell.
+This includes for example compiled Java(TM), Python or Emacs programs.
+
+To achieve this you must tell binfmt_misc which interpreter has to be invoked
+with which binary. Binfmt_misc recognises the binary-type by matching some bytes
+at the beginning of the file with a magic byte sequence (masking out specified
+bits) you have supplied. Binfmt_misc can also recognise a filename extension
+aka '.com' or '.exe'.
+
+To actually register a new binary type, you have to set up a string looking like
+:name:type:offset:magic:mask:interpreter: (where you can choose the ':' upon
+your needs) and echo it to /proc/sys/fs/binfmt_misc/register.
+Here is what the fields mean:
+ - 'name' is an identifier string. A new /proc file will be created with this
+   name below /proc/sys/fs/binfmt_misc
+ - 'type' is the type of recognition. Give 'M' for magic and 'E' for extension.
+ - 'offset' is the offset of the magic/mask in the file, counted in bytes. This
+   defaults to 0 if you omit it (i.e. you write ':name:type::magic...')
+ - 'magic' is the byte sequence binfmt_misc is matching for. The magic string
+   may contain hex-encoded characters like \x0a or \xA4. In a shell environment
+   you will have to write \\x0a to prevent the shell from eating your \.
+   If you chose filename extension matching, this is the extension to be
+   recognised (without the '.', the \x0a specials are not allowed). Extension
+   matching is case sensitive!
+ - 'mask' is an (optional, defaults to all 0xff) mask. You can mask out some
+   bits from matching by supplying a string like magic and as long as magic.
+   The mask is anded with the byte sequence of the file.
+ - 'interpreter' is the program that should be invoked with the binary as first
+   argument (specify the full path)
+
+There are some restrictions:
+ - the whole register string may not exceed 255 characters
+ - the magic must reside in the first 128 bytes of the file, i.e.
+   offset+size(magic) has to be less than 128
+ - the interpreter string may not exceed 127 characters
+
+You may want to add the binary formats in one of your /etc/rc scripts during
+boot-up. Read the manual of your init program to figure out how to do this
+right.
+
+Think about the order of adding entries! Later added entries are matched first!
+
+
+A few examples (assumed you are in /proc/sys/fs/binfmt_misc):
+
+- enable support for em86 (like binfmt_em86, for Alpha AXP only):
+  echo ':i386:M::\x7fELF\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03:\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfb\xff\xff:/bin/em86:' > register
+  echo ':i486:M::\x7fELF\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x06:\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfb\xff\xff:/bin/em86:' > register
+
+- enable support for packed DOS applications (pre-configured dosemu hdimages):
+  echo ':DEXE:M::\x0eDEX::/usr/bin/dosexec:' > register
+
+- enable support for Windows executables using wine:
+  echo ':DOSWin:M::MZ::/usr/local/bin/wine:' > register
+
+For java support see Documentation/java.txt
+
+
+You can enable/disable binfmt_misc or one binary type by echoing 0 (to disable)
+or 1 (to enable) to /proc/sys/fs/binfmt_misc/status or /proc/.../the_name.
+Catting the file tells you the current status of binfmt_misc/the entry.
+
+You can remove one entry or all entries by echoing -1 to /proc/.../the_name
+or /proc/sys/fs/binfmt_misc/status.
+
+
+HINTS:
+======
+
+If you want to pass special arguments to your interpreter, you can
+write a wrapper script for it. See Documentation/java.txt for an
+example.
+
+Your interpreter should NOT look in the PATH for the filename; the
+kernel passes it the full filename to use.  Using the PATH can cause
+unexpected behaviour and be a security hazard.
+
+
+There is a web page about binfmt_misc at
+http://www.tat.physik.uni-tuebingen.de/~rguenth/linux/binfmt_misc.html
+
+Richard Günther <rguenth@tat.physik.uni-tuebingen.de>

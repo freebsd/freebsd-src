@@ -1,0 +1,19 @@
+#
+# Input core configuration
+#
+
+mainmenu_option next_comment
+comment 'Input core support'
+
+tristate 'Input core support' CONFIG_INPUT
+dep_tristate '  Keyboard support' CONFIG_INPUT_KEYBDEV $CONFIG_INPUT
+dep_tristate '  Mouse support' CONFIG_INPUT_MOUSEDEV $CONFIG_INPUT
+if [ "$CONFIG_INPUT_MOUSEDEV" != "n" ]; then
+   int '   Horizontal screen resolution' CONFIG_INPUT_MOUSEDEV_SCREEN_X 1024
+   int '   Vertical screen resolution' CONFIG_INPUT_MOUSEDEV_SCREEN_Y 768
+fi
+dep_tristate '  Joystick support' CONFIG_INPUT_JOYDEV $CONFIG_INPUT
+dep_tristate '  Event interface support' CONFIG_INPUT_EVDEV $CONFIG_INPUT
+dep_tristate '  User level driver support' CONFIG_INPUT_UINPUT $CONFIG_INPUT
+
+endmenu

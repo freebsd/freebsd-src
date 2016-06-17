@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+#
+#      split-man: create man pages from kernel-doc -man output
+#
+# Author:	Tim Waugh <twaugh@redhat.com>
+# Modified by:	Christoph Hellwig <hch@infradead.org>
+#
+
+use strict;
+
+die "$0: where do I put the results?\n" unless ($#ARGV >= 0);
+die "$0: can't create $ARGV[0]: $!\n" unless mkdir $ARGV[0], 0777;
+
+my $state = 0;
+
+while (<STDIN>) {
+	s/&amp;(\w+)/\\fB\1\\fP/g; # fix smgl uglinesses
+	if (/^\.TH \"[^\"]*\" 9 \"([^\"]*)\"/) {
+		close OUT unless ($state++ == 0);
+		my $fn = "$ARGV[0]/$1.9";
+		if (open OUT, ">$fn") {
+			print STDERR "creating $fn\n";
+		} else {
+			die "can't open $fn: $!\n";
+		}
+
+		print OUT $_;
+	} elsif ($state != 0) {
+		print OUT $_;
+	}
+}
+
+close OUT;

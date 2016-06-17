@@ -1,0 +1,34 @@
+#
+# Token Ring driver configuration
+#
+
+mainmenu_option next_comment
+comment 'Token Ring devices'
+
+# So far, we only have PCI, ISA, and MCA token ring devices
+if [ "$CONFIG_PCI" = "y" -o "$CONFIG_ISA" = "y" -o "$CONFIG_MCA" = "y" ]; then
+   bool 'Token Ring driver support' CONFIG_TR
+else
+   define_bool CONFIG_TR n
+fi
+
+if [ "$CONFIG_TR" != "n" ]; then
+   if [ "$CONFIG_ISA" = "y" -o "$CONFIG_MCA" = "y" ]; then
+      tristate '  IBM Tropic chipset based adapter support' CONFIG_IBMTR
+   fi
+   dep_tristate '  IBM Olympic chipset PCI adapter support' CONFIG_IBMOL $CONFIG_TR $CONFIG_PCI
+   dep_tristate '  IBM Lanstreamer chipset PCI adapter support' CONFIG_IBMLS $CONFIG_TR $CONFIG_PCI
+   dep_tristate '  3Com 3C359 Token Link Velocity XL adapter support' CONFIG_3C359 $CONFIG_TR $CONFIG_PCI
+   tristate '  Generic TMS380 Token Ring ISA/PCI adapter support' CONFIG_TMS380TR
+
+   dep_tristate '    Generic TMS380 PCI support' CONFIG_TMSPCI $CONFIG_PCI $CONFIG_TMS380TR
+   dep_tristate '    Generic TMS380 ISA support' CONFIG_TMSISA $CONFIG_ISA $CONFIG_TMS380TR
+   dep_tristate '    Madge Smart 16/4 PCI Mk2 support' CONFIG_ABYSS $CONFIG_PCI $CONFIG_TMS380TR
+   dep_tristate '    Madge Smart 16/4 Ringnode MicroChannel' CONFIG_MADGEMC $CONFIG_MCA $CONFIG_TMS380TR
+
+   if [ "$CONFIG_ISA" = "y" -o "$CONFIG_MCA" = "y" ]; then
+      tristate '  SMC ISA/MCA adapter support' CONFIG_SMCTR
+   fi
+fi
+
+endmenu

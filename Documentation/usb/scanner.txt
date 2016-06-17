@@ -1,0 +1,335 @@
+Copyright (C) 1999, 2000 David E. Nelson <dnelson@jump.net>
+Updated 2003 by Henning Meier-Geinitz <henning@meier-geinitz.de>
+
+
+OVERVIEW
+
+This README addresses issues regarding how to configure the kernel to access a
+USB scanner.  Although the driver was originally conceived for USB HP
+scanners, it's general enough so that it can be used with most other USB
+scanners.  Also, one can pass the USB Vendor and Product IDs using module
+parameters for unknown scanners.
+
+There are two drivers for SCSI-over-USB scanners: 
+* The "hpusbscsi" module for Hewlett-Packard 53xx series, Hewlett-Packard 7400,
+  Minolta Scan Dual II, Minolta Elite II
+* The "microtek" module for the Microtek Scanmaker X6
+
+In addition to the kernel driver, user-space tools like SANE are necessary to
+actually use the scanner.  SANE ("Scanner Access Now Easy") provides drivers
+for a variety of USB scanners.  See the appropriate SANE man page for details,
+e.g. man sane-usb and man sane-hp (for HP scanners).
+
+NOTE: Just because a product is detected by this driver does not mean that
+applications exist that support the product.  It's in the hopes that this will
+allow developers a means to produce applications that will support the listed
+USB products.
+
+
+ADDITIONAL INFORMATION
+
+http://www.linux-usb.org/           (General information, mailing lists, links)
+http://www.mostang.com/sane/        (SANE user-space tools)
+http://www.meier-geinitz.de/kernel/ (USB scanner driver information and patches)
+
+
+REQUIREMENTS
+
+A host with a USB port.  Ideally, either a UHCI (Intel), OHCI (Compaq and
+others) or EHCI hardware should work.  
+
+Using "make menuconfig" or your preferred method for configuring the kernel,
+select "Support for USB", "OHCI/UHCI/EHCI" depending on your hardware, "USB
+Scanner support", and "Preliminary USB device filesystem".  Compile and
+install the modules (you may need to execute "depmod -a" to update the module
+dependencies).  If any of the USB sections were compiled into the kernel, a
+reboot is necessary.  NOTE: Updating the boot disk with "lilo" may also be
+required.  Testing was performed only as modules, YMMV.
+
+Up to 16 scanners can be connected/used simultaneously.  If devfs support is
+enabled, see next section.  Otherwise, the device files must be created
+manually if they don't exist yet, either by MAKEDEV or mknod.
+
+MAKEDEV method:
+  cd /dev
+  MAKEDEV usb
+  Check that the device files "/dev/usb/scanner0" - "/dev/usb/scanner15" have
+  been created.
+
+mknod method:
+  mknod /dev/usb/scanner0 c 180 48
+  mknod /dev/usb/scanner1 c 180 49
+                  . 
+                  .
+  mknod /dev/usb/scanner15 c 180 63
+
+Set appropriate permissions for /dev/usb/scanner[0-15] (don't forget
+about group and world permissions).  Both read and write permissions
+are required for proper operation.  For example:
+  chmod 666 /dev/usb/scanner0
+
+Load the appropriate modules (if compiled as modules):
+
+  modprobe usb-ohci (or uhci, usb-uhci, ehci)
+  modprobe scanner
+
+
+DEVFS
+
+The later versions of the Linux kernel (2.4.8'ish) included a dynamic
+device filesystem call "devfs".  With devfs, there is no need to
+create the device files as explained above; instead, they are
+dynamically created for you.  For USB Scanner, the device is created
+in /dev/usb/scannerX where X can range from 0 to 15 depending on the
+number of scanners connected to the system.
+
+To see if you have devfs, issue the command "cat /proc/filesytems".
+If devfs is listed you should be ready to go.  You should also have a
+process running called "devfsd".  In order to make sure, issue the
+command "ps aux | grep '[d]evfsd'".
+
+
+CONCLUSION
+
+That's it.  SANE should now be able to access the device.  To make sure the
+device was detected, use "cat /proc/bus/usb/devices".  Your scanner should be
+listed and the line starting with "I:" should look similar to this example:
+
+  I:  If#= 0 Alt= 0 #EPs= 2 Cls=ff(vend.) Sub=ff Prot=ff Driver=usbscanner
+
+The important part is "Driver=usbscanner".  If it reads "Driver=(none)", the
+USB scanner driver didn't recognize the scanner.  Have a look at the MODULE
+PARAMETERS section for what to do in this case.
+
+For more details on the format of "/proc/bus/usb/devices" see
+Documentation/usb/proc_usb_info.txt.
+
+
+MESSAGES
+
+usb_control/bulk_msg: timeout -- On occasions this message will appear
+in "/var/adm/messages", on the console, or both depending on how
+your system is configured.  This is a side effect that scanners are
+sometimes very slow at warming up and/or initializing.  In most cases,
+however, only several of these messages should appear and is generally
+considered to be normal.  
+
+excessive NAK's received -- This message should be considered abnormal
+and generally indicates that the USB system is unable to communicate
+with the scanner for some particular reason.
+
+probe_scanner: Undetected endpoint -- The USB Scanner driver is fairly
+general when it comes to communicating to scanners.  Unfortunately,
+some vendors have designed their scanners in one way or another that
+this driver doesn't account for.
+
+probe_scanner: Endpoint determination failed -- This means that the
+driver is unable to detect a supported configuration for means to
+communicate with the scanner.  See also "probe_scanner: Undetected
+endpoint".
+
+funky result -- Most of the time the data flow between the computer
+and the scanner goes smoothly.  However, due to whatever reason,
+whether it be solar flares or stray neutrons, sometimes the
+communications don't work as expected.  The driver tries to handle
+most types of errors but not all.  When this message is seen,
+something weird happened.  Please contact the mailing list (see
+CONTACT section for details).
+
+
+MODULE PARAMETERS
+
+If you have a device that you wish to experiment with or try using
+this driver with, but the Vendor and Product IDs are not coded in,
+don't despair.  If the driver was compiled as a module, you can pass
+options to the driver.  Simply add 
+
+  options scanner vendor=0x#### product=0x****
+
+to the /etc/modules.conf file replacing the #'s and the *'s with the
+correct IDs.  The IDs can be retrieved from the messages file or
+using "cat /proc/bus/usb/devices".
+
+If the default timeout is too low, i.e. there are frequent "timeout" messages,
+you may want to increase the timeout manually by using the parameter
+"read_timeout".  The time is given in seconds.  This is an example for
+modules.conf with a timeout of 60 seconds:
+
+  options scanner read_timeout=60
+ 
+If the "scanner" module is already loaded into memory, it must be reloaded for
+the module parameters to take effect.  In essence, "rmmod scanner; modprobe
+scanner" must be performed.
+
+
+BUGS
+
+Just look at the list of fixes in the source files. 
+
+
+CONTACT
+
+For asking about problems and fixes, use the linux-usb-users mailing list. For
+patches, linux-usb-devel should be used. Information on both lists can be
+found on http://www.linux-usb.org/.
+
+
+CHANGES
+
+- Added information about read_timeout
+- Added more details about /proc/bus/usb/devices
+- Added/updated links
+- Added pointers two "special" scanner drivers
+- Reordering, spell-checking, formatting
+- Used /dev/usb/scanner[0-15] instead of /dev/usbscanner[0-15]
+- Removed some basic USB configuration stuff
+- Added EHCI
+- Removed some more references to HP
+- Amended for linux-2.4.12
+- Updated devfs support
+- Amended for linux-2.3.99-pre6-3
+- Appended hp_scan.c to end of this README
+- Removed most references to HP
+- Updated uhci/ohci host controller info
+- Updated support for multiple scanner support
+- Updated supported scanners list
+- Updated usbdevfs info
+- Spellcheck
+
+
+HP TEST PROGRAM
+
+There is a small test program (hp_scan.c -- appended below) that can
+be used to test the scanner device if it's an HP scanner that supports
+SCL (Scanner Control Language).  Known HP scanner that support SCL are
+the 4100, 5200, 6200, the 6300 -- note that the 4200 is *not*
+supported since it does not understand SCL; it's also strongly
+suspected that the 3300 and the PhotoSmart S20 are not SCL compliant.
+Hp_scan.c's purpose is to test the driver without having to
+retrieve/configure SANE.  Hp_scan.c will scan the entire bed and put
+the output into a file called "out.dat" in the current directory.  The
+data in the file is raw data so it's not very useful for imaging.
+
+--------------- snip -- hp_scan.c -- snip ---------------
+/*
+
+This is a really crude attempt at writing a short test program.  It's
+mostly only to be used to test connectivity with USB HP scanners that
+understand SCL.  Currently, the supported models are 4100C, 5200C,
+6200C, and the 6300C.  Note that the 4200C is *NOT* acceptable.
+
+Copyright (C) David E. Nelson <dnelson@jump.net>, 1999
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or (at
+your option) any later version.
+
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <error.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+/*
+   Gray Output produces about a 8945400 byte file.
+   Color Output produces a 26836200 byte file. 
+   
+   To compile: gcc -o hp_scan hp_scan.c
+*/
+
+// #define COLOR /* Undef to scan GrayScale */
+
+int send_cmd(int, const char *, int);
+int read_cmd(int, char *, int);
+
+int
+main(void) {
+
+	ssize_t cnt = 0, total_cnt = 0;
+
+	FILE *fpout;
+
+	int fp;
+	int data_size = 32768;
+
+	char *data;
+
+	static char reset_cmd[] = {'\x1b','E'};
+
+#ifdef COLOR
+	static char data_type_cmd[] = {'\x1b','*','a','5','T'}; /* Color */
+	static char data_width_cmd[] = {'\x1b','*','a','2','4','G'}; /* 24 Bit Color */
+#else
+	static char data_type_cmd[] = {'\x1b','*','a','4','T'}; /* Gray */
+	static char data_width_cmd[] = {'\x1b','*','a','8','G'}; /* 8 Bit Gray */
+#endif
+
+	static char query_cmd[] = {'\x1b', '*', 's', '2', '5', '7', 'E'};
+	static char start_scan_cmd[] = {'\x1b','*','f','0','S'};
+	
+	if(!(data=malloc(data_size))) {
+		perror("malloc failed");
+		exit (1);
+	}
+	
+	if((fp=open("/dev/usb/scanner0", O_RDWR)) < 0) {
+		perror("Unable to open scanner device");
+		exit (1);
+	}
+
+	if((fpout=fopen("out.dat", "w+")) == NULL) {
+		perror("Unable to open ouput file");
+		exit(1);
+	}
+
+	send_cmd(fp, reset_cmd, sizeof(reset_cmd));
+	send_cmd(fp, data_type_cmd, sizeof(data_type_cmd));
+	send_cmd(fp, data_width_cmd, sizeof(data_width_cmd));
+	send_cmd(fp, start_scan_cmd, sizeof(start_scan_cmd));
+
+	while ((cnt = read(fp, data, data_size)) > 0) {
+		printf("Read: %u\n", cnt); 
+		if(fwrite(data, sizeof(char), cnt, fpout) < 0) {
+			perror("Write to output file failed");
+			exit (1);
+		}
+		total_cnt += cnt;
+	}
+	if (cnt < 0) {
+		perror("Read from scanner failed");
+		exit (1);
+	}
+
+	printf("\nRead %lu bytes.\n", total_cnt);
+
+	send_cmd(fp, reset_cmd, sizeof(reset_cmd));
+
+	close(fp);
+	fclose(fpout);
+	return (0);
+}
+
+int
+send_cmd(int fp, const char * cmd, int length) {
+
+	int result;
+	int x;
+
+	if((result = write(fp, cmd, length)) != length) {
+		printf ("Write warning: %d bytes requested, %d written\n");
+	} else if (result < 0) {
+		perror ("send_cmd failure");
+		exit (1);
+	}
+	return (result);
+}
+	
+int
+read_cmd(int fp, char * response, int length) {
+
+	return read(fp, response, length);
+
+}

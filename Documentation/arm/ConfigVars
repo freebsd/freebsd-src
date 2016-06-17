@@ -1,0 +1,26 @@
+CONFIG_ARCH_CO285		- co-ebsa285
+CONFIG_ARCH_FOOTBRIDGE		- all other footbridge systems
+
+  CONFIG_ARCH_CATS		- CATS support
+  CONFIG_ARCH_PERSONAL_SERVER	- personal server support
+  CONFIG_ARCH_EBSA285_ADDIN	- add-in ebsa285 support
+  CONFIG_ARCH_EBSA285_HOST	- host ebsa285 support
+  CONFIG_ARCH_NETWINDER 	- netwinder support
+
+CONFIG_FOOTBRIDGE		- any system with a footbridge chip
+ |- (CONFIG_ARCH_CO285)
+ \- (CONFIG_ARCH_FOOTBRIDGE)
+
+CONFIG_FOOTBRIDGE_HOST		- any system with host mode footbridge support
+ |- (CONFIG_ARCH_CATS)
+ |- (CONFIG_ARCH_EBSA285_HOST)
+ |- (CONFIG_ARCH_NETWINDER)
+ \- (CONFIG_ARCH_PERSONAL_SERVER)
+
+CONFIG_FOOTBRIDGE_ADDIN 	- any system with addin mode footbridge support
+ |- (CONFIG_ARCH_CO285)
+ \- (CONFIG_ARCH_EBSA285_ADDIN)
+
+CONFIG_ARCH_EBSA285		- either host or add-in ebsa285 support, but
+ |- (CONFIG_ARCH_EBSA285_ADDIN)   not co-ebsa285
+ \- (CONFIG_ARCH_EBSA285_HOST)

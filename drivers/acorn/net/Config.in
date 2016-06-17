@@ -1,0 +1,7 @@
+#
+# Acorn Network device configuration
+#  These are for Acorn's Expansion card network interfaces
+#
+tristate '  Acorn Ether1 support' CONFIG_ARM_ETHER1
+tristate '  Acorn/ANT Ether3 support' CONFIG_ARM_ETHER3
+tristate '  I-cubed EtherH/ANT EtherM support' CONFIG_ARM_ETHERH

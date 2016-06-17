@@ -1,0 +1,210 @@
+This is the main documentation for the CVF-FAT filesystem extension.  18Nov1998
+
+
+Table of Contents:
+
+1. The idea of CVF-FAT
+2. Restrictions
+3. Mount options
+4. Description of the CVF-FAT interface
+5. CVF Modules
+
+------------------------------------------------------------------------------
+
+
+1. The idea of CVF-FAT
+------------------------------------------------------------------------------
+
+CVF-FAT is a FAT filesystem extension that provides a generic interface for
+Compressed Volume Files in FAT partitions. Popular CVF software, for
+example, are Microsoft's Doublespace/Drivespace and Stac's Stacker.
+Using the CVF-FAT interface, it is possible to load a module that handles
+all the low-level disk access that has to do with on-the-fly compression
+and decompression. Any other part of FAT filesystem access is still handled
+by the FAT, MSDOS or VFAT or even UMSDOS driver.
+
+CVF access works by redirecting certain low-level routines from the FAT
+driver to a loadable, CVF-format specific module. This module must fake
+a normal FAT filesystem to the FAT driver while doing all the extra stuff
+like compression and decompression silently.
+
+
+2. Restrictions
+------------------------------------------------------------------------------
+
+- BMAP problems
+
+  CVF filesystems cannot do bmap. It's impossible in principle. Thus
+  all actions that require bmap do not work (swapping, writable mmapping).
+  Read-only mmapping works because the FAT driver has a hack for this
+  situation :) Well, writable mmapping should now work using the readpage
+  interface function which has been hacked into the FAT driver just for 
+  CVF-FAT :)
+  
+- attention, DOSEmu users 
+
+  You may have to unmount all CVF partitions before running DOSEmu depending 
+  on your configuration. If DOSEmu is configured to use wholedisk or 
+  partition access (this is often the case to let DOSEmu access 
+  compressed partitions) there's a risk of destroying your compressed 
+  partitions or crashing your system because of confused drivers.
+  
+  Note that it is always safe to redirect the compressed partitions with 
+  lredir or emufs.sys. Refer to the DOSEmu documentation for details.
+
+
+3. Mount options
+------------------------------------------------------------------------------
+
+The CVF-FAT extension currently adds the following options to the FAT
+driver's standard options:
+
+  cvf_format=xxx
+    Forces the driver to use the CVF module "xxx" instead of auto-detection.
+    Without this option, the CVF-FAT interface asks all currently loaded
+    CVF modules whether they recognize the CVF. Therefore, this option is
+    only necessary if the CVF format is not recognized correctly
+    because of bugs or incompatibilities in the CVF modules. (It skips
+    the detect_cvf call.) "xxx" may be the text "none" (without the quotes)
+    to inhibit using any of the loaded CVF modules, just in case a CVF
+    module insists on mounting plain FAT filesystems by misunderstanding.
+    "xxx" may also be the text "autoload", which has a special meaning for
+    a module loader, but does not skip auto-detection.
+
+    If the kernel supports kmod, the cvf_format=xxx option also controls
+    on-demand CVF module loading. Without this option, nothing is loaded
+    on demand. With cvf_format=xxx, a module "xxx" is requested automatically
+    before mounting the compressed filesystem (unless "xxx" is "none"). In 
+    case there is a difference between the CVF format name and the module 
+    name, setup aliases in your modules configuration. If the string "xxx" 
+    is "autoload", a non-existent module "cvf_autoload" is requested which 
+    can be used together with a special modules configuration (alias and 
+    pre-install statements) in order to load more than one CVF module, let 
+    them detect automatically which kind of CVF is to be mounted, and only 
+    keep the "right" module in memory. For examples please refer to the 
+    dmsdos documentation (ftp and http addresses see below).
+
+  cvf_options=yyy
+    Option string passed to the CVF module. I.e. only the "yyy" is passed
+    (without the quotes). The documentation for each CVF module should 
+    explain it since it is interpreted only by the CVF module. Note that 
+    the string must not contain a comma (",") - this would lead to 
+    misinterpretation by the FAT driver, which would recognize the text 
+    after a comma as a FAT driver option and might get confused or print 
+    strange error messages. The documentation for the CVF module should 
+    offer a different separation symbol, for example the dot "." or the
+    plus sign "+", which is only valid inside the string "yyy".
+
+
+4. Description of the CVF-FAT interface
+------------------------------------------------------------------------------
+
+Assuming you want to write your own CVF module, you need to write a lot of
+interface functions. Most of them are covered in the kernel documentation
+you can find on the net, and thus won't be described here. They have been
+marked with "[...]" :-) Take a look at include/linux/fat_cvf.h.
+
+struct cvf_format
+{ int cvf_version;
+  char* cvf_version_text;
+  unsigned long int flags;
+  int (*detect_cvf) (struct super_block*sb);
+  int (*mount_cvf) (struct super_block*sb,char*options);
+  int (*unmount_cvf) (struct super_block*sb);
+  [...]
+  void (*zero_out_cluster) (struct inode*, int clusternr);
+}
+
+This structure defines the capabilities of a CVF module. It must be filled
+out completely by a CVF module. Consider it as a kind of form that is used
+to introduce the module to the FAT/CVF-FAT driver.
+
+It contains...
+  - cvf_version:
+      A version id which must be unique. Choose one.
+  - cvf_version_text:
+      A human readable version string that should be one short word 
+      describing the CVF format the module implements. This text is used
+      for the cvf_format option. This name must also be unique.
+  - flags:
+      Bit coded flags, currently only used for a readpage/mmap hack that 
+      provides both mmap and readpage functionality. If CVF_USE_READPAGE
+      is set, mmap is set to generic_file_mmap and readpage is caught
+      and redirected to the cvf_readpage function. If it is not set,
+      readpage is set to generic_readpage and mmap is caught and redirected
+      to cvf_mmap. (If you want writable mmap use the readpage interface.)
+  - detect_cvf:
+      A function that is called to decide whether the filesystem is a CVF of
+      the type the module supports. The detect_cvf function must return 0
+      for "NO, I DON'T KNOW THIS GARBAGE" or anything >0 for "YES, THIS IS
+      THE KIND OF CVF I SUPPORT". The function must maintain the module
+      usage counters for safety, i.e. do MOD_INC_USE_COUNT at the beginning
+      and MOD_DEC_USE_COUNT at the end. The function *must not* assume that
+      successful recognition would lead to a call of the mount_cvf function
+      later. 
+  - mount_cvf:
+      A function that sets up some values or initializes something additional
+      to what has to be done when a CVF is mounted. This is called at the
+      end of fat_read_super and must return 0 on success. Definitely, this
+      function must increment the module usage counter by MOD_INC_USE_COUNT.
+      This mount_cvf function is also responsible for interpreting a CVF
+      module specific option string (the "yyy" from the FAT mount option
+      "cvf_options=yyy") which cannot contain a comma (use for example the
+      dot "." as option separator symbol).
+  - unmount_cvf:
+      A function that is called when the filesystem is unmounted. Most likely
+      it only frees up some memory and calls MOD_DEC_USE_COUNT. The return
+      value might be ignored (it currently is ignored).
+  - [...]:
+      All other interface functions are "caught" FAT driver functions, i.e.
+      are executed by the FAT driver *instead* of the original FAT driver
+      functions. NULL means use the original FAT driver functions instead.
+      If you really want "no action", write a function that does nothing and 
+      hang it in instead.
+  - zero_out_cluster:
+      The zero_out_cluster function is called when the fat driver wants to
+      zero out a (new) cluster. This is important for directories (mkdir).
+      If it is NULL, the FAT driver defaults to overwriting the whole
+      cluster with zeros. Note that clusternr is absolute, not relative
+      to the provided inode.
+
+Notes:
+  1. The cvf_bmap function should be ignored. It really should never
+     get called from somewhere. I recommend redirecting it to a panic
+     or fatal error message so bugs show up immediately.
+  2. The cvf_writepage function is ignored. This is because the fat
+     driver doesn't support it. This might change in future. I recommend
+     setting it to NULL (i.e use default).
+
+int register_cvf_format(struct cvf_format*cvf_format);
+  If you have just set up a variable containing the above structure,
+  call this function to introduce your CVF format to the FAT/CVF-FAT
+  driver. This is usually done in init_module. Be sure to check the
+  return value. Zero means success, everything else causes a kernel
+  message printed in the syslog describing the error that occurred.
+  Typical errors are:
+    - a module with the same version id is already registered or 
+    - too many CVF formats. Hack fs/fat/cvf.c if you need more.
+
+int unregister_cvf_format(struct cvf_format*cvf_format);
+  This is usually called in cleanup_module. Return value =0 means
+  success. An error only occurs if you try to unregister a CVF format
+  that has not been previously registered. The code uses the version id
+  to distinguish the modules, so be sure to keep it unique.
+
+5. CVF Modules
+------------------------------------------------------------------------------
+
+Refer to the dmsdos module (the successor of the dmsdos filesystem) for a
+sample implementation.  It can currently be found at
+
+  ftp://fb9nt.uni-duisburg.de/pub/linux/dmsdos/dmsdos-x.y.z.tgz
+  ftp://sunsite.unc.edu/pub/Linux/system/Filesystems/dosfs/dmsdos-x.y.z.tgz
+  ftp://ftp.uni-stuttgart.de/pub/systems/linux/local/system/dmsdos-x.y.z.tgz
+
+(where x.y.z is to be replaced with the actual version number). Full
+documentation about dmsdos is included in the dmsdos package, but can also
+be found at
+
+  http://fb9nt.uni-duisburg.de/mitarbeiter/gockel/software/dmsdos/index.html
+  http://www.yk.rim.or.jp/~takafumi/dmsdos/index.html (in Japanese).

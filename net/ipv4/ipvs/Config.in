@@ -1,0 +1,26 @@
+#
+# IP VS configuration
+#
+mainmenu_option next_comment
+comment '  IP: Virtual Server Configuration'
+
+tristate 'virtual server support (EXPERIMENTAL)' CONFIG_IP_VS
+if [ "$CONFIG_IP_VS" != "n" ]; then
+  bool '  IP virtual server debugging' CONFIG_IP_VS_DEBUG
+  int '  IPVS connection table size (the Nth power of 2)' CONFIG_IP_VS_TAB_BITS 12
+  comment 'IPVS scheduler'
+  dep_tristate '  round-robin scheduling' CONFIG_IP_VS_RR $CONFIG_IP_VS
+  dep_tristate '  weighted round-robin scheduling' CONFIG_IP_VS_WRR $CONFIG_IP_VS
+  dep_tristate '  least-connection scheduling' CONFIG_IP_VS_LC $CONFIG_IP_VS
+  dep_tristate '  weighted least-connection scheduling' CONFIG_IP_VS_WLC $CONFIG_IP_VS
+  dep_tristate '  locality-based least-connection scheduling' CONFIG_IP_VS_LBLC $CONFIG_IP_VS
+  dep_tristate '  locality-based least-connection with replication scheduling' CONFIG_IP_VS_LBLCR $CONFIG_IP_VS
+  dep_tristate '  destination hashing scheduling' CONFIG_IP_VS_DH $CONFIG_IP_VS
+  dep_tristate '  source hashing scheduling' CONFIG_IP_VS_SH $CONFIG_IP_VS
+  dep_tristate '  shortest expected delay scheduling' CONFIG_IP_VS_SED $CONFIG_IP_VS
+  dep_tristate '  never queue scheduling' CONFIG_IP_VS_NQ $CONFIG_IP_VS
+  comment 'IPVS application helper'
+  dep_tristate '  FTP protocol helper' CONFIG_IP_VS_FTP $CONFIG_IP_VS
+fi
+
+endmenu

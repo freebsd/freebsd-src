@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Set to not build and install
-.Pa /usr/sbin/fmtree .

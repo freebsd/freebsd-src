@@ -1,0 +1,342 @@
+  Frequently Asked Questions about the HFS filesystem for
+  Linux
+  Paul H. Hargrove, hargrove@sccm.Stanford.EDU
+  version 1.0.3, 27 Apr 1997
+
+  This document provides answers to some of the most frequently asked
+  questions about the HFS filesystem for Linux.  It is currently pretty
+  rough and totally unorganized.  Corrections, additions and clarifica-
+  tions are appreciated.  The most current version of this document is
+  kept on The HFS for Linux Page <http://www-sccm.Stanford.EDU/~har-
+  grove/HFS/>.
+  ______________________________________________________________________
+
+  Table of Contents:
+
+  1.      What is this FAQ about?
+
+  2.      What is HFS?
+
+  3.      How I mount AppleShare volumes?
+
+  4.      What is the current version of the HFS filesystem.
+
+  5.      How stable is the current version?
+
+  6.      Is there a mailing list for discussion of the HFS filesystem?
+
+  7.      What version of Linux do I need to be running?
+
+  8.      Will it run on my (your processor type here)?
+
+  9.      Will it run under (your non-Linux operating system here)?
+
+  10.     Why can I mount some HFS CDROMs but not others?
+
+  11.     What does ``only 1024-char blocks implemented (512)'' mean?
+
+  12.     Why do I get a message about a bad or unknown partition table?
+
+  13.     Can I mount multiple HFS partitions from the same Macintosh
+  disk?
+
+  14.     In what ways can I write to HFS filesystems?
+
+  15.     Does the HFS filesystem work with 400 kB or 800 kB Macintosh
+  diskettes?
+
+  16.     How can I format an HFS filesystem?
+
+  17.     How can I fsck an HFS filesystem?
+
+  18.     Why do I get ``error -50'' messages from my Mac when using
+  netatalk?
+
+  19.     Why does my Macintosh show generic application and document
+  icons?
+
+  20.     How owns all the copyrights and trademarks? ;-)
+
+  20.1.   This Document
+
+  20.2.   The Software
+
+  20.3.   Trademarks
+  ______________________________________________________________________
+
+  11..  WWhhaatt iiss tthhiiss FFAAQQ aabboouutt??
+
+  This FAQ is about the HFS filesystem for Linux, which is available in
+  two forms.  The stand-alone version (called hfs_fs) is a Linux kernel
+  loadable module implementing the Macintosh HFS filesystem.  The HFS
+  filesystem is also included in some distributions of the Linux kernel
+  source (in the directory linux/fs/hfs).  This version can be compiled
+  as a loadable module or compiled into the kernel.
+
+  Either version allows a machine running Linux to read and write disks
+  from a Macintosh (almost) as though they were native Linux disks.
+
+  22..  WWhhaatt iiss HHFFSS??
+
+  HFS stands for ``Hierarchical File System'' and is the filesystem used
+  by the Mac Plus and all later Macintosh models.  Earlier Macintosh
+  models used MFS (``Macintosh File System''), which is not supported.
+
+  33..  HHooww II mmoouunntt AApppplleeSShhaarree vvoolluummeess??
+
+  The HFS filesystem is for mounting local filesystems only.  There is
+  an experimental afpfs by Ben Hekster heksterb@acm.org available from
+  http://www.odyssey.co.il/~heksterb/Software/afpfs/.
+
+  44..  WWhhaatt iiss tthhee ccuurrrreenntt vveerrssiioonn ooff tthhee HHFFSS ffiilleessyysstteemm..
+
+  As of version 1.0.3 of this FAQ, version 0.95 is the most recent.  You
+  can always find the most recent version on The HFS for Linux Page
+  <http://www-sccm.Stanford.EDU/~hargrove/HFS/>.  Announcements of new
+  versions are made to the comp.os.linux.announce newsgroup.
+
+  55..  HHooww ssttaabbllee iiss tthhee ccuurrrreenntt vveerrssiioonn??
+
+  Version 0.95 is considered to be ``beta'' software, so I recommend
+  making backups of anything important before you start playing.  It is
+  relatively free of bugs due to lots of testing of the previous
+  releases.
+
+  After a suitable period without new bugs the I will consider the
+  software to be ``stable'' and the version number will jump to 1.0.
+
+  66..  IIss tthheerree aa mmaaiilliinngg lliisstt ffoorr ddiissccuussssiioonn ooff tthhee HHFFSS ffiilleessyysstteemm??
+
+  There is no mailing list devoted exclusively to the HFS filesystem.
+  However, announcements of new versions are posted to the ``linux-
+  atalk'' and ``hfs-interest'' lists.  I will see bug reports sent to
+  those lists but e-mail is more reliable (hargrove@sccm.Stanford.EDU).
+
+  To subscribe to hfs-interest send e-mail with a body of ``subscribe
+  hfs-interest (your e-mail address)'' to majordomo@ccs.neu.edu.
+
+  To subscribe to linux-atalk send e-mail with a body of ``SUBSCRIBE
+  LINUX-ATALK (Your full name)'' to listserv@netspace.org.
+
+  77..  WWhhaatt vveerrssiioonn ooff LLiinnuuxx ddoo II nneeeedd ttoo bbee rruunnnniinngg??
+
+  To compile and use the stand-alone distribution of the HFS filesystem
+  you will need Linux kernel version 2.0.1 or newer compiled with
+  modules enabled (CONFIG_MODULES).  To compile you will need the kernel
+  headers which match the kernel you are running.  This is covered in
+  more detail in the installation instructions in INSTALL.txt.
+
+  If your kernel came with HFS in the kernel source tree then HFS should
+  work with your Linux version.  There may be small problems with a few
+  of the development kernel releases.  For these releases check the HFS
+  for Linux Page <http://www-sccm.Stanford.EDU/~hargrove/HFS/> for
+  patches.
+
+  88..  WWiillll iitt rruunn oonn mmyy ((yyoouurr pprroocceessssoorr ttyyppee hheerree))??
+
+  The code is carefully written to be independent of your processor's
+  word size and byte-order, so if your machine runs Linux it can run the
+  HFS filesystem.  However some younger ports don't yet have support for
+  loadable modules.
+
+  Note that HFS is tested most extensively on Intel platforms.  So there
+  could be subtle compilation problems on other platforms.  If you
+  encounter any that are not addressed by the documentation then please
+  let me know.
+
+  99..  WWiillll iitt rruunn uunnddeerr ((yyoouurr nnoonn--LLiinnuuxx ooppeerraattiinngg ssyysstteemm hheerree))??
+
+  No.  There is a port in progress to NetBSD.  I know of no other active
+  porting attempts.  If you are interested in porting the HFS filesystem
+  to another Unix-like operating system, I am interested in providing
+  what guidance I can.
+
+  1100..  WWhhyy ccaann II mmoouunntt ssoommee HHFFSS CCDDRROOMMss bbuutt nnoott ootthheerrss??
+
+  In the past there was a known incompatibility with some ``hybrid''
+  CDROMs that appear as HFS disks on Macs and as ISO9660 disks on other
+  systems.  I think I have fixed the problem.  So, if you encounter this
+  particular problem or have problems with specific non-hybrid CDROMs
+  please e-mail me with the title and manufacturer of the CD.
+
+  1111..  WWhhaatt ddooeess ````oonnllyy 11002244--cchhaarr bblloocckkss iimmpplleemmeenntteedd ((551122))'''' mmeeaann??
+
+  This message comes from the kernel and indicates that an attempt was
+  made to read a 512-byte block from a device that doesn't support
+  512-byte blocks.  The HFS filesystem only works with 512-byte blocks,
+  and therefore doesn't function with these devices.  Eventually it may
+  be able to use 1024-byte (or even 2048-byte) blocks when necessary.
+  Ideally the device driver should be enhanced to support 512-byte
+  blocks so that the various filesystems which need 512-byte blocks
+  don't each need to work around it.
+
+  1122..  WWhhyy ddoo II ggeett aa mmeessssaaggee aabboouutt aa bbaadd oorr uunnkknnoowwnn ppaarrttiittiioonn ttaabbllee??
+
+  If your Linux kernel doesn't understand Macintosh partition tables it
+  gives this warning when it can't find a partition table it recognizes.
+  To support partitioned media with such kernels, decoding of Mac
+  partition tables is done by the HFS filesystem so you should still be
+  able to mount the disk.  However, to do so you will need to mount the
+  raw device (such as /dev/sdb instead of /dev/sdb4) and use the part
+  mount option to indicate which partition you want.
+
+  1133..  CCaann II mmoouunntt mmuullttiippllee HHFFSS ppaarrttiittiioonnss ffrroomm tthhee ssaammee MMaacciinnttoosshh ddiisskk??
+
+  Only if your kernel understands Macintosh partition tables.  It the
+  kernel doesn't understand the Macintosh partition table, the HFS
+  filesystem must access the raw device.  Therefore, the kernel thinks
+  the entire drive is in use and prevents additional mounts on it.
+
+  1144..  IInn wwhhaatt wwaayyss ccaann II wwrriittee ttoo HHFFSS ffiilleessyysstteemmss??
+
+  The HFS filesystem is as capable as the MS-DOS or VFAT filesystems,
+  except that certain things can only be done with a file's data fork.
+
+  You ccaann:
+
+  +o  Create, delete and rename directories and data forks of files with
+     the caveat that names are case insensitive (so foo and Foo are the
+     same file or directory).
+
+  +o  Run Linux executables or shared libraries on an HFS disk if they
+     are stored in the data fork of a file.
+
+  +o  Read, write and truncate both forks of files and the Finder's
+     metadata of files and directories.
+
+  +o  Mmap data forks of files (and the resource fork if the filesystem
+     is mounted with the fork=cap option).
+
+  +o  Toggle the 'w' permission bits (as a group) of data forks.
+
+  +o  Change the i_mtime of files and directories.
+
+  You ccaannnnoott:
+
+  +o  Create, delete or rename resource forks of files or the Finder's
+     metadata.  Note, however, that they are created (with defaults
+     values), deleted and renamed along with the corresponding data fork
+     or directory.
+
+  +o  Run Linux executables or shared libraries on an HFS disk if they
+     are stored in the resource fork of a file.
+
+  +o  Mmap the Finder's metadata (when fork=cap) or AppleDouble header
+     files (when fork=double or fork=netatalk).
+
+  +o  Change permissions on directories.
+
+  +o  Change the uid or gid of files or directories.
+
+  +o  Set the set-uid, set-gid or sticky permission bits.
+
+  +o  Create multiple links to files.
+
+  +o  Create symlinks, device files, sockets or FIFOs.
+
+  1155..  DDooeess tthhee HHFFSS ffiilleessyysstteemm wwoorrkk wwiitthh 440000kk oorr 880000kk MMaacciinnttoosshh
+  ddiisskkeetttteess??
+
+  Yes and no.  The software is fully capable of dealing with HFS disks
+  of any size.  However, the 400k and 800k diskettes are written in a
+  physical format that is incompatible with most non-Macintosh floppy
+  drives.  Note also that almost all 400k Macintosh diskettes are MFS,
+  not HFS.
+
+  1166..  HHooww ccaann II ffoorrmmaatt aann HHFFSS ffiilleessyysstteemm??
+
+  Robert Leslie (rob@mars.org) has written a package for working with
+  HFS filesystems (like mtools plus a graphical interface).  One program
+  in the package is hformat which can format HFS filesystems.  The
+  latest version can be found on the HFS Utilities home page
+  <http://www.mars.org/home/rob/proj/hfs/>.
+
+  1177..  HHooww ccaann II ffsscckk aann HHFFSS ffiilleessyysstteemm??
+
+  Right now you'll have to use a Macintosh to do this.  However, Rob
+  Leslie is working on an fsck for HFS filesystems.
+
+  1188..  WWhhyy ddoo II ggeett ````eerrrroorr --5500'''' mmeessssaaggeess ffrroomm mmyy MMaacc wwhheenn uussiinngg
+  nneettaattaallkk??
+
+  To be compatible with netatalk's afpd you will need to use netatalk
+  version 1.4b1 or newer and mount the HFS filesystem with the ``afpd''
+  mount option.  More information is provided in the ``afpd'' subsection
+  of the ``Mount Options'' section of the HFS documentation (HFS.txt if
+  you have the stand-alone HFS distribution or
+  linux/Documentation/filesystems/hfs.txt if HFS is in your kernel
+  source tree.)
+
+  1199..  WWhhyy ddooeess mmyy MMaacciinnttoosshh sshhooww ggeenneerriicc aapppplliiccaattiioonn aanndd ddooccuummeenntt
+  iiccoonnss??
+
+  When using the ``afpd'' mount option the Desktop database on the disk
+  is not made available to Netatalk's afpd.  Because of this mounting an
+  HFS filesystem across the network to a Macintosh may result in the
+  Finder showing generic application and document icons.  Additionally
+  double clicking on a document will fail to start the correct
+  application.
+
+  If the disk is writable you can make Netatalk build a new Desktop
+  database in its own format by holding down the Option key while
+  selecting the volume in the Chooser.  If the disk is not writable then
+  these problems can be worked around by copying the application to a
+  local disk on the Macintosh.
+
+  2200..  HHooww oowwnnss aallll tthhee ccooppyyrriigghhttss aanndd ttrraaddeemmaarrkkss?? ;;--))
+
+  2200..11..  TThhiiss DDooccuummeenntt
+
+  This document is Copyright (c) 1996, 1997 by Paul H. Hargrove.
+
+  Permission is granted to make and distribute verbatim copies of this
+  document provided the copyright notice and this permission notice are
+  preserved on all copies.
+
+  Permission is granted to copy and distribute modified versions of this
+  document under the conditions for verbatim copies above, provided a
+  notice clearly stating that the document is a modified version is also
+  included in the modified document.
+
+  Permission is granted to copy and distribute translations of this
+  document into another language, under the conditions specified above
+  for modified versions.
+
+  Permission is granted to convert this document into another media
+  under the conditions specified above for modified versions provided
+  the requirement to acknowledge the source document is fulfilled by
+  inclusion of an obvious reference to the source document in the new
+  media. Where there is any doubt as to what defines ``obvious'' the
+  copyright owner reserves the right to decide.
+
+  2200..22..  TThhee SSooffttwwaarree
+
+  The HFS filesystem software is Copyright (c) 1994-1997 by Paul H.
+  Hargrove.
+
+  The software is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+  any later version.
+
+  The software is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with the software in the file ``COPYING''; if not, write to the
+  Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
+  USA.
+
+  2200..33..  TTrraaddeemmaarrkkss
+
+  +o  ``Finder'' is a trademark of Apple Computer, Inc.
+
+  +o  ``Apple'', ``AppleShare'', and ``Macintosh'' are registered
+     trademarks of Apple Computer, Inc.
+
+  +o  ``MS-DOS'' is a registered trademarks of Microsoft Corporation.
+
+  +o  All other trademarks are the property of their respective owners.
+

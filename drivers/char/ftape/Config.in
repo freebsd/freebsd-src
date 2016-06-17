@@ -1,0 +1,42 @@
+#
+# Ftape configuration
+#
+dep_tristate '  Zftape, the VFS interface' CONFIG_ZFTAPE $CONFIG_FTAPE
+if [ "$CONFIG_ZFTAPE" != "n" ]; then
+   int '  Default block size' CONFIG_ZFT_DFLT_BLK_SZ 10240
+   comment '  The compressor will be built as a module only!'
+   define_tristate CONFIG_ZFT_COMPRESSOR m
+fi
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   int '  Number of ftape buffers (EXPERIMENTAL)' CONFIG_FT_NR_BUFFERS 3
+fi
+if [ "$CONFIG_PROC_FS" = "y" ]; then
+   bool '  Enable procfs status report (+2kb)' CONFIG_FT_PROC_FS
+fi
+choice 'Debugging output'			\
+	"Normal		CONFIG_FT_NORMAL_DEBUG	\
+	 Excessive	CONFIG_FT_FULL_DEBUG	\
+	 Reduced	CONFIG_FT_NO_TRACE	\
+	 None		CONFIG_FT_NO_TRACE_AT_ALL" Normal
+comment 'Hardware configuration'
+choice 'Floppy tape controllers'				\
+	"Standard			CONFIG_FT_STD_FDC	\
+	 MACH-2				CONFIG_FT_MACH2		\
+	 FC-10/FC-20			CONFIG_FT_PROBE_FC10	\
+	 Alt/82078			CONFIG_FT_ALT_FDC" Standard
+if [ "$CONFIG_FT_STD_FDC" != "y" ]; then
+   comment '   Consult the manuals of your tape drive for the correct settings!'
+   hex '  IO base of the floppy disk controller' CONFIG_FT_FDC_BASE 0
+   int '  IRQ channel of the floppy disk controller' CONFIG_FT_FDC_IRQ 0
+   int '  DMA channel of the floppy disk controller' CONFIG_FT_FDC_DMA 0
+fi
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   int '  Default FIFO threshold (EXPERIMENTAL)' CONFIG_FT_FDC_THR 8
+   int '  Maximal data rate to use (EXPERIMENTAL)' CONFIG_FT_FDC_MAX_RATE 2000
+fi
+
+if [ "$CONFIG_ALPHA" = "y" ]; then
+   int '  CPU clock frequency of your DEC Alpha' CONFIG_FT_ALPHA_CLOCK 0
+else
+   define_int CONFIG_FT_ALPHA_CLOCK 0
+fi

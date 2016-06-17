@@ -1,0 +1,448 @@
+
+		"8139too" Fast Ethernet driver for Linux
+	 RTL-8139, -8129, and -8130 10/100 Fast Ethernet adapters
+
+	Copyright 2000,2001 Jeff Garzik <jgarzik@pobox.com>
+
+                http://sourceforge.net/projects/gkernel/
+
+
+	      Architectures supported (all PCI platforms):
+		    x86, Alpha AXP, PowerPC, Sparc64
+
+		    Kernel versions supported: 2.4.x
+
+
+
+Disclaimer
+----------
+
+DO NOT CONTACT DONALD BECKER FOR SUPPORT OF THIS DRIVER, his driver is
+completely different and maintained independently of the 8139too code base.
+
+
+
+Requirements
+------------
+Kernel 2.4.3 or later.
+A Fast Ethernet adapter containing an RTL8139-based chip.
+
+
+
+Introduction
+------------
+
+The "8139too" Fast Ethernet driver for Linux 2.4.0 is a substantial
+modification of the experimental rtl8139 driver from Donald Becker,
+some versions of which appeared in 2.2.x and 2.3.x kernels.  The
+RTL-8139 is a very low-cost Fast Ethernet chip, which makes it very
+popular.
+
+The step from 2.2.x to 2.4.x kernels brings many new features to Linux
+device drivers.  Features for MMIO resources, a standard hot-plug API,
+and other interfaces are now becoming requirements, as drivers move
+off the x86 platform.  With that in mind, I have begun updating the
+RTL-8139 driver to current 2.3.x (2.4) kernel standards and APIs, and
+fixing the problems that users have been encountering.
+
+
+
+Features of 8139too
+-------------------
+[note - this list intended for people familiar with kernel drivers]
+
+** 100% MMIO, for full speed operation.  All users (so far) have
+reported performance increases over their existing RTL drivers.
+
+** Multi-platform support:  x86, Alpha, PPC, ...
+
+** Use proper SMP spinlocking, fixing SMP interrupt bugs, making the
+driver portable to non-x86 SMP platforms in the process.
+
+** Use new PCI driver API for seamless, low-maintenance hot-plug support
+
+** Several bugs fixes from original rtl8139 1.08r (October 5, 1999),
+including the very common "transmit timeout" problem.
+
+* Use new resource allocation API, required for hot-plug support
+* Use new register read/write macros
+* initcall support (module_init/exit)
+* vastly improved debug tracing support
+* code formatting in many places for readability
+* use new init_etherdev() facilities
+
+...and probably some other less important changes which I forgot.
+
+
+
+Installation
+------------
+
+OPTION 1: Build inside kernel tree (into kernel image, or as module)
+
+	(overwrite 8139too driver in kernel tree with different version)
+	1) cp 8139too.c $my_source_tree/drivers/net/8139too.c
+
+OPTION 2: Build outside kernel tree
+
+	Use the included Makefile.
+
+
+
+Tested Adapters
+---------------
+AOpen ALN-325C
+AT-2500TX 10/100 PCI Fast Ethernet Network Adapter Card
+Cnet CNF401 'SinglePoint' 10/100 Base-TX
+Genius GF 100TXR4 Fast Ethernet 10/100M PCI Network Card
+KTI KF-230TX
+KTI KF-230TX/2
+Lantech FastNet TX
+Ovislink Fast Ethernet
+Planet ENW-9504 (V.4) 10/100
+SDT Jeoun Fast PCI-TX
+SMC EZNET 10/100
+UNEX NexNIC ND012C
+
+(please add your adapter model to this list)
+
+
+
+Status of Platform Support
+--------------------------
+
+(see errata below for details)
+
+x86:		tested, stable
+Alpha AXP:	tested, stable
+PowerPC:	tested, unstable
+Sparc64:	not tested
+
+
+
+Special Thanks
+--------------
+The following people contributed invaluable testing time, feedback
+and/or patches during the development of this driver.  Thanks to all
+of them.
+
+Donald Becker, Alan Cox, Richard Stallman, Linus Torvalds - inspiration
+
+Alan Cox, Gerard Roudier - insight on posted MMIO writes
+
+Martin Mares - code review
+
+Tigran Aivazian - testing, code review, and a bug fix
+
+Chmouel Boudjnah, Alexander Dietrich, Oleg Drokin,
+James Fidell, Taso Hatzi, Peter K - intrepid test team
+
+And thanks to every supporter free software.
+
+(see top of 8139too.c for further credits and kudos)
+
+
+
+Submitting Bug Reports
+----------------------
+Obtain and compile the modified rtl8139-diag source code from the
+8139too driver Web site, http://sourceforge.net/projects/gkernel/
+This diagnostics programs, originally from Donald Becker, has been
+modified to display all registers on your RTL8139 chip, not just the
+first 0x80.
+
+If possible, send the output of a working and broken driver with
+	rtl8139-diag -mmaaavvveefN > my-output-file.txt
+
+Send "lspci -vvv" or "cat /proc/pci" output for PCI information.
+
+
+
+Known Bugs / Errata / To-Do
+---------------------------
+The following issues are known, and are actively being pursued.  Patches
+to resolve these issues is welcome.  If a problem occurs which is not in
+the list, please report it.  That's why we do beta releases, after all...
+
+
+
+1) Work with Donald to merge fixes and updates into his driver.
+
+2) ETHTOOL_SSET support
+
+3) PPC platform has stability problems. (XXX: verify this is still true)
+
+4) Sparc64 platform not tested at all.
+
+8) Much improved command line / module parameter setup.  (patches and
+suggestions welcome)  (WIP)
+
+9) Better documentation.  (patches welcome)
+
+12) 10base-T support flaky or slow (todo: verify this is still true)
+
+
+
+
+Change History
+--------------
+
+Version 0.9.26 - August 9, 2002
+
+* Fix MII ioctl phy id corruption.
+* Fix big-endian multicast bug.
+* Support register dumps via ethtool.
+* Fix several uses of 'len' after potential skb free, in dev->hard_start_xmit
+* Replace several "magic numbers" with their proper representation
+  constants in linux/mii.h.
+* Support ethtool media interface via generic kernel MII API
+* Export NIC-specific statistics via ethtool.
+* Proper support for RTL8139 rev K. (can be disabled via
+  compile-time conditional)
+* Add PCI ids for new 8139 boards.
+* Use ethernet crc via generic linux/crc32.h kernel API.
+* Better RX reset.  Old rx-reset method still available via
+  a compile-time conditional.
+* Only account specific RX errors if rx_status is !OK
+
+
+Version 0.9.22 - November 8, 2001
+
+* Additional retries before aborting Tx
+* Do not write other TxConfig bits when writing clear-abort bit.
+* Ack TxErr intr status after each Tx abort, too.
+* Fix oops in interface restart
+
+
+Version 0.9.21 - November 1, 2001
+
+* Disable early Rx, it hurts performance and creates races.
+* Remove DPRINTK macro function tracing.
+* Better interrupt sharing behavior.
+* Acknowledge PCI errors.
+* Remove early-Rx acknowledgement, unnecessary
+* Remove code for uncommon case where Tx packets are
+  properly aligned, and do not need to be copied.
+  Tx packets are now always copied into a static DMA buffer,
+  which is allocated at interface open.
+* Fix problems with kernel thread exit.
+
+
+Version 0.9.20 - October 18, 2001
+
+* Print out notice when 8139C+ chip is detected
+* Add id for D-Link DFE690TXD pcmcia cardbus card (Gert Dewit)
+
+
+Version 0.9.19 - October 9, 2001
+
+* Eliminate buffer copy for unaligned Tx's (manfred)
+* Better RX error recovery (manfred)
+* Wake-On-LAN and ETHTOOL_GSET support (Kalle Niemitalo)
+* Fix assertion in PIO mode (various)
+
+
+Version 0.9.18 - July 6, 2001
+
+* Fix race leading to crashes on some machines.
+* Minimize race leading to low performance.
+* Correct interrupt acknowledgement to cover all three
+  relevant Rx events.
+* Add ethtool driver info support.
+* Collect additional driver-internal statistics.
+* Add descriptions for module parameters.
+* Support new SIOCxMIIxxx ioctls added in kernel 2.4.6.
+* Multicast filter big endian fix.
+* Support new PCI PM API added in kernel 2.4.6.
+
+
+Version 0.9.17 - May 7, 2001
+
+* Fix chipset wakeup bug which prevent media connection for 8139B
+* Print out "media is unconnected..." instead of
+  "partner ability 0000"
+
+
+Version 0.9.16 - April 14, 2001
+
+* Complete MMIO audit, disable read-after-every-write
+* Update Rx interrupt handling
+* Enable Early Rx thresholds, highly recommended to reduce
+  Rx FIFO overflow
+* Make 8129 support conditional
+* Support for new 2.4.3 kernel APIs
+* More correct PIO/MMIO PCI BAR region size checking
+* Add check for totally dead/missing hardware
+* Disable media timer code to "set full duplex"
+* s/spin_lock_irq/spin_lock_irqsave/
+* Only set AcceptMulticast if more than one mc address
+* Only set rx_mode if changed, in set_rx_mode
+* Only suspend/resume if interface is up
+* Always print out version upon module load, even if no devices found
+
+
+Version 0.9.15 - February 20, 2001
+
+* Call pci_enable_device to wake up/assign resource to device,
+  before actually using it.
+* Support wacky clone PCI ids (report from Norival Toniato Junior)
+* Text spelling corrections
+* Make sure tp->phys[] is signed
+* Always wake queue after hw restart, in tx_timeout
+* Record time of last received packet
+
+
+Version 0.9.14 - January 11, 2001
+
+* Merge some changes from Becker version 1.13:
+	* Add DFE 538TX PCI id
+	* MII read/write functions updated
+	* Cfg93[45]6 lock/unlock fix
+	* RTL-8129 (MII) support
+* Clean up spinlocking
+
+
+Version 0.9.13 - December, 2000
+
+* Clear blocked signals, avoid buffer overrun setting current->comm
+* Remove bogus PCI BAR length assertions
+* Remove unused 'debug' module parameter
+
+
+Version 0.9.12 - November 23, 2000
+
+* Kill major Tx stop/wake queue race
+* Use SET_MODULE_OWNER and fix module unload race
+* Fix cable length ("Twister") tuning
+* Proper media[] array length checking
+* Replace timer with kernel thread for twister tuning state machine
+  and media checking.  Fixes mdio_xxx locking, now mdio_xxx is always
+  protected by rtnl_lock semaphore.
+* Correct some sledgehammer a.k.a. overzealous spin-locks
+* Performance: Eliminate atomic_t for Tx counters, we don't need it
+* Performance: Don't copy Tx buffer if the rare case occurs where it
+  is aligned perfectly for us.
+* Eliminate needless casting of dev->priv
+* PIO mode selection and Twister tuning are now CONFIG_xxx options
+  (though purposefully not in net/Config.in... yet)
+
+
+Version 0.9.11 - October 28, 2000
+
+* Do not fail when PIO and MMIO region lengths do not match.
+  (They don't on some CardBus models, at least)
+* Sanity check Rx packet status and size (Tobias)
+* When handling a Tx timeout, disable Tx ASAP if not already.
+* Do not inline Tx interrupt handler (better register usage)
+* Handle dirty_tx signed integer wrap
+* Do not abort Rx processing on lack of memory, keep going
+  until the current Rx ring is completely handling. (Tobias)
+* Clean up rtl8139_close
+* Whitespace correction for dev_kfree_skb_irq call
+
+
+Version 0.9.10 - September 12, 2000
+
+* Never wrap an Rx packet (faster Rx interrupt handling)
+* Clear all TxAborted conditions (bug fix)
+* Correct copyright
+* More credits
+* Update NWay doc URL
+* Clean up commonly used ifdef switches
+* Reorg info displayed at bootup/modprobe time
+* Remove some unneeded spinlocks
+* Misc cosmetic code cleanup
+* Always print interrupt status for abnormal interrupts
+* Use RealTek-recommended FIFO and DMA burst settings (1024 bytes)
+
+
+Version 0.9.9 - September 9, 2000
+
+* Fix oops-able bug in Rx ring wrap calculation (David Ford)
+* Use PIO instead of MMIO when USE_IO_OPS is defined
+* Move Rx error handling out of Rx interrupt handler, resulting in
+  tighter Rx interrupt processing
+
+
+Version 0.9.8 - September 7, 2000
+
+* Propagate request_irq error value (andrew morton)
+* Correct potential oops bug in PCI DMA unmap code
+* Fix bugs related to counting/discounting of 32-bit CRC in each Rx packet
+* Fix 16/32-bit bug in interrupt status check
+* Timer cleanups (andrew morton)
+
+
+Version 0.9.7 - June 11, 2000
+
+* Fix support for older chips (RTL8139 early chips should now work again)
+
+
+Version 0.9.6 - May 30, 2000
+
+* Fix 4-extra-bytes bug
+  (thanks to Markus Westergren, via Santiago Garcia Mantinan)
+* Yet more improved chip recognition
+
+
+Version 0.9.5 - May 17, 2000
+
+* Improved chip version recognition
+* Continue banging away at receiver hang problem
+* Use spin_lock_irq in another spot
+* Don't print anything on pci_enable_device, it does so for us
+* Disable buggy NWay code
+* Define TxConfig bitmasks
+
+
+Version 0.9.4.1 - April 27, 2000 - third public beta release
+
+* Replace several "magic numbers" with symbolic constants
+* Differentiate between board-specific info and chip-specific info
+  (allows for easier support of specific boards or chips)
+* Move some of the transmit side outside of the spinlock
+  by using atomic variables.  Use spin_lock_irq instead of
+  spin_lock_irq{save,restore} in select places, for better performance.
+* New module option "media" for forcing media selection.  Functions the
+  same as "options" in other drivers, and will soon be renamed
+  'options' to be homogeneous.
+* New power management wake-up code
+* Slightly more verbose chip id messages in kernel log
+* Add/correct chip register constant list
+* New chipset wake up (open) logic
+* No longer locks CONFIGx updates
+* Do not set Interfame Gap (IFG) bits in TxConfig
+* Better Rx reset logic in case of Rx FIFO Overflow
+* For chips which support it, enable bit to automatically clear Rx
+  FIFO overflow
+* No longer enable and disable interrupts in interrupt handler
+  (technique borrowed from BSD driver, appears to have problems
+   with some chips)
+* H/W spinlock now protects ioctl
+* Chipset-dependent RxConfig settings
+
+
+Version 0.9.3.3.2 - Feb 22, 2000 - second public beta release
+
+* Begin integration of Daniel Kobras' MMIO flush patch (disabled for now)
+* Softnet logic updates to fix bugs and improve performance
+* Dynamic sizing of I/O resources (0x80 for older chips, 0xFF for newer ones)
+* Remove bogus SiS entries from PCI probe table
+* Add support for cards
+	"Delta Electronics 8139 10/100BaseTX"
+	"Addtron Technolgy 8139 10/100BaseTX"
+* Fix major bug with rx ring buffer size (also present in rtl8139.c 1.08r)
+* PCI DMA mapping by Dave Miller
+* Complete rewrite of SMP locking logic
+* Hotplug support
+* Call rtl8139_hw_start from rtl8139_open, and remove duplicated code
+  from rtl8139_open
+* Reset NWay registers to sane defaults on rtl8139_open/hw_start
+* Miscellaneous code cleanup
+
+
+Version 0.7.0 - Feb 7, 2000 - first public beta release
+* Initial public version, derived from Donald Becker's rtl8139.c v1.08r
+
+[EOF]
+

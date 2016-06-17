@@ -1,0 +1,33 @@
+Index: Config.in
+===================================================================
+RCS file: /usr/local/cvs/linux/os/linux/arch/cris/drivers/Config.in,v
+retrieving revision 1.46
+diff -u -d -r1.46 Config.in
+--- Config.in	11 Oct 2002 16:14:33 -0000	1.46
++++ Config.in	31 Oct 2002 08:44:37 -0000
+@@ -317,3 +317,8 @@
+ fi
+ 
+ endmenu
++
++# The following if statement was added by arch/cris/drivers/bluetooth/Makefile
++if [ "$CONFIG_ETRAX_SERIAL" = "y" ]; then
++  source arch/cris/drivers/bluetooth/src/Config.in
++fi
+Index: Makefile
+===================================================================
+RCS file: /usr/local/cvs/linux/os/linux/arch/cris/drivers/Makefile,v
+retrieving revision 1.20
+diff -u -d -r1.20 Makefile
+--- Makefile	14 Aug 2002 18:32:33 -0000	1.20
++++ Makefile	31 Oct 2002 08:44:37 -0000
+@@ -24,5 +24,9 @@
+ obj-$(CONFIG_ETRAX_ETHERNET_LPSLAVE)    += lpslave/lpslavedrivers.o
+ subdir-$(CONFIG_ETRAX_ETHERNET_LPSLAVE) += lpslave
+ 
++# The following two lines were added by arch/cris/drivers/bluetooth/Makefile
++obj-$(CONFIG_BLUETOOTH)                 += bluetooth/src/bt.o
++subdir-$(CONFIG_BLUETOOTH)              += bluetooth/src
++
+ include $(TOPDIR)/Rules.make
+ 

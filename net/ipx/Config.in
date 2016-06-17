@@ -1,0 +1,8 @@
+#
+# IPX configuration
+#
+
+bool '  IPX: Full internal IPX network' CONFIG_IPX_INTERN
+#if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+#  dep_tristate '  IPX: SPX networking (EXPERIMENTAL)' CONFIG_SPX $CONFIG_IPX
+#fi

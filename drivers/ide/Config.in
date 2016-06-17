@@ -1,0 +1,197 @@
+#
+# IDE ATA ATAPI Block device driver configuration
+#
+# Andre Hedrick <andre@linux-ide.org>
+#
+mainmenu_option next_comment
+comment 'IDE, ATA and ATAPI Block devices'
+
+dep_tristate 'Enhanced IDE/MFM/RLL disk/cdrom/tape/floppy support' CONFIG_BLK_DEV_IDE $CONFIG_IDE
+comment 'Please see Documentation/ide.txt for help/info on IDE drives'
+if [ "$CONFIG_BLK_DEV_IDE" != "n" ]; then
+   dep_bool '  Use old disk-only driver on primary interface' CONFIG_BLK_DEV_HD_IDE $CONFIG_X86
+   define_bool CONFIG_BLK_DEV_HD $CONFIG_BLK_DEV_HD_IDE
+
+   dep_tristate '  Include IDE/ATA-2 DISK support' CONFIG_BLK_DEV_IDEDISK $CONFIG_BLK_DEV_IDE
+   dep_mbool '    Use multi-mode by default' CONFIG_IDEDISK_MULTI_MODE $CONFIG_BLK_DEV_IDEDISK
+   dep_mbool '    Auto-Geometry Resizing support' CONFIG_IDEDISK_STROKE $CONFIG_BLK_DEV_IDEDISK
+
+   dep_tristate '  PCMCIA IDE support' CONFIG_BLK_DEV_IDECS $CONFIG_BLK_DEV_IDE $CONFIG_PCMCIA
+   dep_tristate '  Include IDE/ATAPI CDROM support' CONFIG_BLK_DEV_IDECD $CONFIG_BLK_DEV_IDE
+   dep_tristate '  Include IDE/ATAPI TAPE support' CONFIG_BLK_DEV_IDETAPE $CONFIG_BLK_DEV_IDE
+   dep_tristate '  Include IDE/ATAPI FLOPPY support' CONFIG_BLK_DEV_IDEFLOPPY $CONFIG_BLK_DEV_IDE
+   dep_tristate '  SCSI emulation support' CONFIG_BLK_DEV_IDESCSI $CONFIG_BLK_DEV_IDE $CONFIG_SCSI
+
+   bool '  IDE Taskfile Access' CONFIG_IDE_TASK_IOCTL
+#   bool '  IDE Taskfile IO' CONFIG_IDE_TASKFILE_IO
+
+   comment 'IDE chipset support/bugfixes'
+   if [ "$CONFIG_BLK_DEV_IDE" != "n" ]; then
+      dep_bool '  CMD640 chipset bugfix/support' CONFIG_BLK_DEV_CMD640 $CONFIG_X86
+      dep_bool '    CMD640 enhanced support' CONFIG_BLK_DEV_CMD640_ENHANCED $CONFIG_BLK_DEV_CMD640
+      dep_bool '  ISA-PNP EIDE support' CONFIG_BLK_DEV_ISAPNP $CONFIG_ISAPNP
+      if [ "$CONFIG_PCI" = "y" ]; then
+	 bool '  PCI IDE chipset support' CONFIG_BLK_DEV_IDEPCI
+	 if [ "$CONFIG_BLK_DEV_IDEPCI" = "y" ]; then
+	    dep_bool '    Generic PCI IDE Chipset Support' CONFIG_BLK_DEV_GENERIC $CONFIG_BLK_DEV_IDEPCI
+	    bool '    Sharing PCI IDE interrupts support' CONFIG_IDEPCI_SHARE_IRQ
+	    bool '    Generic PCI bus-master DMA support' CONFIG_BLK_DEV_IDEDMA_PCI
+	    bool '    Boot off-board chipsets first support' CONFIG_BLK_DEV_OFFBOARD
+	    dep_bool '      Force enable legacy 2.0.X HOSTS to use DMA' CONFIG_BLK_DEV_IDEDMA_FORCED $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_bool '      Use PCI DMA by default when available' CONFIG_IDEDMA_PCI_AUTO $CONFIG_BLK_DEV_IDEDMA_PCI
+            dep_bool '    Enable DMA only for disks ' CONFIG_IDEDMA_ONLYDISK $CONFIG_IDEDMA_PCI_AUTO
+	    define_bool CONFIG_BLK_DEV_IDEDMA $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_bool '      ATA Work(s) In Progress (EXPERIMENTAL)' CONFIG_IDEDMA_PCI_WIP $CONFIG_BLK_DEV_IDEDMA_PCI $CONFIG_EXPERIMENTAL
+#	    dep_bool '      Good-Bad DMA Model-Firmware (WIP)' CONFIG_IDEDMA_NEW_DRIVE_LISTINGS $CONFIG_IDEDMA_PCI_WIP
+            dep_tristate '    Pacific Digital ADMA-100 basic support' CONFIG_BLK_DEV_ADMA100 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    AEC62XX chipset support' CONFIG_BLK_DEV_AEC62XX $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    ALI M15x3 chipset support' CONFIG_BLK_DEV_ALI15X3 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_mbool    '      ALI M15x3 WDC support (DANGEROUS)' CONFIG_WDC_ALI15X3 $CONFIG_BLK_DEV_ALI15X3
+	    dep_tristate '    AMD and nVidia IDE support' CONFIG_BLK_DEV_AMD74XX $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_mbool    '      AMD Viper ATA-66 Override' CONFIG_AMD74XX_OVERRIDE $CONFIG_BLK_DEV_AMD74XX
+	    dep_tristate '    ATI IXP chipset IDE support' CONFIG_BLK_DEV_ATIIXP $CONFIG_BLK_DEV_IDEDMA_PCI $CONFIG_X86
+	    dep_tristate '    CMD64{3|6|8|9} chipset support' CONFIG_BLK_DEV_CMD64X $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    Compaq Triflex IDE support' CONFIG_BLK_DEV_TRIFLEX $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    CY82C693 chipset support' CONFIG_BLK_DEV_CY82C693 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    Cyrix CS5530 MediaGX chipset support' CONFIG_BLK_DEV_CS5530 $CONFIG_BLK_DEV_IDEDMA_PCI
+  	    dep_tristate '    HPT34X chipset support' CONFIG_BLK_DEV_HPT34X $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_mbool    '      HPT34X AUTODMA support (WIP)' CONFIG_HPT34X_AUTODMA $CONFIG_BLK_DEV_HPT34X $CONFIG_IDEDMA_PCI_WIP
+	    dep_tristate '    HPT36X/37X chipset support' CONFIG_BLK_DEV_HPT366 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    Intel PIIXn chipsets support' CONFIG_BLK_DEV_PIIX $CONFIG_BLK_DEV_IDEDMA_PCI
+	    if [ "$CONFIG_MIPS_ITE8172" = "y" -o "$CONFIG_MIPS_IVR" = "y" ]; then
+	       dep_mbool '    IT8172 IDE support' CONFIG_BLK_DEV_IT8172 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    fi
+	    dep_tristate '    NS87415 chipset support' CONFIG_BLK_DEV_NS87415 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    OPTi 82C621 chipset enhanced support (EXPERIMENTAL)' CONFIG_BLK_DEV_OPTI621 $CONFIG_EXPERIMENTAL
+	    dep_tristate '    PROMISE PDC202{46|62|65|67} support' CONFIG_BLK_DEV_PDC202XX_OLD $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_mbool     '      Special UDMA Feature' CONFIG_PDC202XX_BURST $CONFIG_BLK_DEV_PDC202XX_OLD $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    PROMISE PDC202{68|69|70|71|75|76|77} support' CONFIG_BLK_DEV_PDC202XX_NEW $CONFIG_BLK_DEV_IDEDMA_PCI
+	    if [ "$CONFIG_BLK_DEV_PDC202XX_OLD" = "y" -o "$CONFIG_BLK_DEV_PDC202XX_OLD" = "m" -o "$CONFIG_BLK_DEV_PDC202XX_NEW" = "y" -o "$CONFIG_BLK_DEV_PDC202XX_NEW" = "m" ]; then
+	        bool     '    Special FastTrak Feature' CONFIG_PDC202XX_FORCE
+	    fi
+	    dep_tristate '    RZ1000 chipset bugfix/support' CONFIG_BLK_DEV_RZ1000 $CONFIG_X86
+	    dep_tristate '    SCx200 chipset support' CONFIG_BLK_DEV_SC1200 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    ServerWorks OSB4/CSB5/CSB6 chipsets support' CONFIG_BLK_DEV_SVWKS $CONFIG_BLK_DEV_IDEDMA_PCI
+	    if [ "$CONFIG_IA64_GENERIC" = "y" -o "$CONFIG_IA64_SGI_SN2" = "y" ] ; then
+		dep_tristate '    SGI IOC4 chipset support' CONFIG_BLK_DEV_SGIIOC4 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    fi
+	    dep_tristate '    Silicon Image chipset support' CONFIG_BLK_DEV_SIIMAGE $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    SiS5513 chipset support' CONFIG_BLK_DEV_SIS5513 $CONFIG_BLK_DEV_IDEDMA_PCI $CONFIG_X86
+	    dep_tristate '    SLC90E66 chipset support' CONFIG_BLK_DEV_SLC90E66 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    Tekram TRM290 chipset support' CONFIG_BLK_DEV_TRM290 $CONFIG_BLK_DEV_IDEDMA_PCI
+	    dep_tristate '    VIA82CXXX chipset support' CONFIG_BLK_DEV_VIA82CXXX $CONFIG_BLK_DEV_IDEDMA_PCI
+	    if [ "$CONFIG_PPC" = "y" -o "$CONFIG_ARM" = "y" ]; then
+	       dep_tristate '    Winbond SL82c105 support' CONFIG_BLK_DEV_SL82C105 $CONFIG_BLK_DEV_IDEPCI
+	    fi
+         fi
+      fi
+      if [ "$CONFIG_ALL_PPC" = "y" ]; then
+	 bool '    Builtin PowerMac IDE support' CONFIG_BLK_DEV_IDE_PMAC
+	 dep_bool '      Probe internal Kauai ATA/100 first' CONFIG_BLK_DEV_IDE_PMAC_ATA100FIRST $CONFIG_BLK_DEV_IDE_PMAC
+	 dep_bool '      PowerMac IDE DMA support' CONFIG_BLK_DEV_IDEDMA_PMAC $CONFIG_BLK_DEV_IDE_PMAC
+	 dep_bool '        Use DMA by default' CONFIG_BLK_DEV_IDEDMA_PMAC_AUTO $CONFIG_BLK_DEV_IDEDMA_PMAC
+	 if [ "$CONFIG_BLK_DEV_IDE_PMAC" = "y" ]; then
+	   define_bool CONFIG_BLK_DEV_IDEDMA $CONFIG_BLK_DEV_IDEDMA_PMAC
+	 fi
+	 if [ "$CONFIG_BLK_DEV_IDEDMA_PMAC" = "y" ]; then
+	   define_bool CONFIG_BLK_DEV_IDEPCI $CONFIG_BLK_DEV_IDEDMA_PMAC
+	 fi
+      fi
+      if [ "$CONFIG_SIBYTE_GENBUS_IDE" = "y" ]; then
+	 bool '  Broadcom SiByte onboard IDE support' CONFIG_BLK_DEV_IDE_SIBYTE
+      fi
+      if [ "$CONFIG_ARCH_ACORN" = "y" ]; then
+	 dep_bool '    ICS IDE interface support' CONFIG_BLK_DEV_IDE_ICSIDE $CONFIG_ARCH_ACORN
+	 dep_bool '      ICS DMA support' CONFIG_BLK_DEV_IDEDMA_ICS $CONFIG_BLK_DEV_IDE_ICSIDE
+	 dep_bool '        Use ICS DMA by default' CONFIG_IDEDMA_ICS_AUTO $CONFIG_BLK_DEV_IDEDMA_ICS
+	 define_bool CONFIG_BLK_DEV_IDEDMA $CONFIG_BLK_DEV_IDEDMA_ICS
+	 dep_bool '    RapIDE interface support' CONFIG_BLK_DEV_IDE_RAPIDE $CONFIG_ARCH_ACORN
+      fi
+      if [ "$CONFIG_AMIGA" = "y" ]; then
+	 dep_bool '  Amiga Gayle IDE interface support' CONFIG_BLK_DEV_GAYLE $CONFIG_AMIGA
+	 dep_mbool '    Amiga IDE Doubler support (EXPERIMENTAL)' CONFIG_BLK_DEV_IDEDOUBLER $CONFIG_BLK_DEV_GAYLE $CONFIG_EXPERIMENTAL
+      fi
+      if [ "$CONFIG_ZORRO" = "y" -a "$CONFIG_EXPERIMENTAL" = "y" ]; then
+	 dep_mbool '  Buddha/Catweasel/X-Surf IDE interface support (EXPERIMENTAL)' CONFIG_BLK_DEV_BUDDHA $CONFIG_ZORRO $CONFIG_EXPERIMENTAL
+      fi
+      if [ "$CONFIG_ATARI" = "y" ]; then
+	 dep_bool '  Falcon IDE interface support' CONFIG_BLK_DEV_FALCON_IDE $CONFIG_ATARI
+      fi
+      if [ "$CONFIG_CPCI405" = "y" ]; then
+	 dep_bool '  CPCI-405 IDE interface support' CONFIG_BLK_DEV_CPCI405_IDE $CONFIG_CPCI405
+      fi
+      if [ "$CONFIG_MAC" = "y" ]; then
+	 dep_bool '  Macintosh Quadra/Powerbook IDE interface support' CONFIG_BLK_DEV_MAC_IDE $CONFIG_MAC
+      fi
+      if [ "$CONFIG_Q40" = "y" ]; then
+	 dep_bool '  Q40/Q60 IDE interface support' CONFIG_BLK_DEV_Q40IDE $CONFIG_Q40
+      fi
+      if [ "$CONFIG_8xx" = "y" ]; then
+         dep_bool '  MPC8xx IDE support' CONFIG_BLK_DEV_MPC8xx_IDE $CONFIG_8xx
+      fi
+
+      if [ "$CONFIG_BLK_DEV_MPC8xx_IDE" = "y" ]; then
+         choice 'Type of MPC8xx IDE interface'		\
+		"8xx_PCCARD	CONFIG_IDE_8xx_PCCARD	\
+		 8xx_DIRECT	CONFIG_IDE_8xx_DIRECT	\
+		 EXT_DIRECT	CONFIG_IDE_EXT_DIRECT"	8xx_PCCARD
+      fi
+
+      # no isa -> no vlb
+      dep_bool '  Other IDE chipset support' CONFIG_IDE_CHIPSETS $CONFIG_ISA
+      if [ "$CONFIG_IDE_CHIPSETS" = "y" ]; then
+	 comment 'Note: most of these also require special kernel boot parameters'
+	 bool '    Generic 4 drives/port support' CONFIG_BLK_DEV_4DRIVES
+	 dep_tristate '    ALI M14xx support' CONFIG_BLK_DEV_ALI14XX $CONFIG_BLK_DEV_IDE
+	 dep_tristate '    DTC-2278 support' CONFIG_BLK_DEV_DTC2278 $CONFIG_BLK_DEV_IDE
+	 dep_tristate '    Holtek HT6560B support' CONFIG_BLK_DEV_HT6560B $CONFIG_BLK_DEV_IDE
+	 dep_tristate '    PROMISE DC4030 support (EXPERIMENTAL)' CONFIG_BLK_DEV_PDC4030 $CONFIG_BLK_DEV_IDEDISK $CONFIG_EXPERIMENTAL
+	 dep_tristate '    QDI QD65xx support' CONFIG_BLK_DEV_QD65XX $CONFIG_BLK_DEV_IDE
+	 dep_tristate '    UMC-8672 support' CONFIG_BLK_DEV_UMC8672 $CONFIG_BLK_DEV_IDE
+      fi
+   fi
+else
+   bool 'Old hard disk (MFM/RLL/IDE) driver' CONFIG_BLK_DEV_HD_ONLY
+   define_bool CONFIG_BLK_DEV_HD $CONFIG_BLK_DEV_HD_ONLY
+fi
+
+if [ "$CONFIG_IDEDMA_PCI_AUTO" = "y" -o \
+     "$CONFIG_BLK_DEV_IDEDMA_PMAC_AUTO" = "y" -o \
+     "$CONFIG_IDEDMA_ICS_AUTO" = "y" ]; then
+   define_bool CONFIG_IDEDMA_AUTO y
+else
+   define_bool CONFIG_IDEDMA_AUTO n
+fi
+
+if [ "$CONFIG_BLK_DEV_IDEDMA_PCI" = "y" -o \
+     "$CONFIG_BLK_DEV_IDEDMA_PMAC" = "y" -o \
+     "$CONFIG_BLK_DEV_IDEDMA_ICS" = "y" ]; then
+   bool '  IGNORE word93 Validation BITS' CONFIG_IDEDMA_IVB
+fi
+
+if [ "$CONFIG_BLK_DEV_TIVO" = "y" ]; then
+  define_bool CONFIG_DMA_NONPCI y
+else
+  define_bool CONFIG_DMA_NONPCI n
+fi
+
+if [ "$CONFIG_BLK_DEV_IDEDMA_PCI" = "y" ]; then
+   if [ "$CONFIG_BLK_DEV_PDC202XX_OLD" != "n" -o \
+        "$CONFIG_BLK_DEV_PDC202XX_NEW" != "n" ]; then
+      define_bool CONFIG_BLK_DEV_PDC202XX y
+   fi
+fi
+
+##if [ "$CONFIG_IDE_TASKFILE_IO" = "y" ]; then
+##  dep_mbool CONFIG_BLK_DEV_TF_DISK $CONFIG_BLK_DEV_IDEDISK
+##else
+##  dep_mbool CONFIG_BLK_DEV_NTF_DISK $CONFIG_BLK_DEV_IDEDISK
+##fi
+
+dep_tristate 'Support for IDE Raid controllers (EXPERIMENTAL)' CONFIG_BLK_DEV_ATARAID $CONFIG_BLK_DEV_IDE $CONFIG_EXPERIMENTAL
+dep_tristate '   Support Promise software RAID (Fasttrak(tm)) (EXPERIMENTAL)' CONFIG_BLK_DEV_ATARAID_PDC $CONFIG_BLK_DEV_IDE $CONFIG_EXPERIMENTAL $CONFIG_BLK_DEV_ATARAID
+dep_tristate '   Highpoint 370 software RAID (EXPERIMENTAL)' CONFIG_BLK_DEV_ATARAID_HPT $CONFIG_BLK_DEV_IDE $CONFIG_EXPERIMENTAL $CONFIG_BLK_DEV_ATARAID
+dep_tristate '   CMD/Silicon Image Medley Software RAID (EXPERIMENTAL)' CONFIG_BLK_DEV_ATARAID_MEDLEY $CONFIG_BLK_DEV_IDE $CONFIG_EXPERIMENTAL $CONFIG_BLK_DEV_ATARAID
+dep_tristate '   Silicon Image Medley software RAID (EXPERIMENTAL)' CONFIG_BLK_DEV_ATARAID_SII $CONFIG_BLK_DEV_IDE $CONFIG_EXPERIMENTAL $CONFIG_BLK_DEV_ATARAID
+
+endmenu

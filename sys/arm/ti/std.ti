@@ -1,7 +1,0 @@
-# $FreeBSD$
-
-cpu 		CPU_CORTEXA
-machine 	arm	armv6
-makeoptions	CONF_CFLAGS="-march=armv7a"
-
-files		"../ti/files.ti"

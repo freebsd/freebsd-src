@@ -1,0 +1,46 @@
+#
+# USB Serial device configuration
+#
+mainmenu_option next_comment
+comment 'USB Serial Converter support'
+
+dep_tristate 'USB Serial Converter support' CONFIG_USB_SERIAL $CONFIG_USB
+if [ "$CONFIG_USB_SERIAL" != "n" ]; then
+   dep_bool '  USB Serial Converter verbose debug' CONFIG_USB_SERIAL_DEBUG $CONFIG_USB_SERIAL
+   dep_mbool '  USB Generic Serial Driver' CONFIG_USB_SERIAL_GENERIC $CONFIG_USB_SERIAL
+   dep_tristate '  USB Belkin and Peracom Single Port Serial Driver' CONFIG_USB_SERIAL_BELKIN $CONFIG_USB_SERIAL
+   dep_tristate '  USB ConnectTech WhiteHEAT Serial Driver' CONFIG_USB_SERIAL_WHITEHEAT $CONFIG_USB_SERIAL
+   dep_tristate '  USB Digi International AccelePort USB Serial Driver' CONFIG_USB_SERIAL_DIGI_ACCELEPORT $CONFIG_USB_SERIAL
+   dep_tristate '  USB Empeg empeg-car Mark I/II Driver' CONFIG_USB_SERIAL_EMPEG $CONFIG_USB_SERIAL
+   dep_tristate '  USB FTDI Single Port Serial Driver' CONFIG_USB_SERIAL_FTDI_SIO $CONFIG_USB_SERIAL
+   dep_tristate '  USB Handspring Visor / Palm m50x / Sony Clie Driver' CONFIG_USB_SERIAL_VISOR $CONFIG_USB_SERIAL
+   dep_tristate '  USB Compaq iPAQ / HP Jornada / Casio EM500 Driver' CONFIG_USB_SERIAL_IPAQ $CONFIG_USB_SERIAL
+   dep_tristate '  USB IR Dongle Serial Driver (EXPERIMENTAL)' CONFIG_USB_SERIAL_IR $CONFIG_USB_SERIAL $CONFIG_EXPERIMENTAL
+   dep_tristate '  USB Inside Out Edgeport Serial Driver' CONFIG_USB_SERIAL_EDGEPORT $CONFIG_USB_SERIAL
+   dep_tristate '  USB Inside Out Edgeport Serial Driver (TI devices)' CONFIG_USB_SERIAL_EDGEPORT_TI $CONFIG_USB_SERIAL
+   dep_tristate '  USB Keyspan PDA Single Port Serial Driver (EXPERIMENTAL)' CONFIG_USB_SERIAL_KEYSPAN_PDA $CONFIG_USB_SERIAL $CONFIG_EXPERIMENTAL
+   dep_tristate '  USB Keyspan USA-xxx Serial Driver' CONFIG_USB_SERIAL_KEYSPAN $CONFIG_USB_SERIAL
+   if [ "$CONFIG_USB_SERIAL_KEYSPAN" != "n" ]; then
+      bool '    USB Keyspan USA-28 Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA28
+      bool '    USB Keyspan USA-28X Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA28X
+      bool '    USB Keyspan USA-28XA Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA28XA
+      bool '    USB Keyspan USA-28XB Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA28XB
+      bool '    USB Keyspan USA-19 Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA19
+      bool '    USB Keyspan USA-18X Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA18X
+      bool '    USB Keyspan USA-19W Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA19W
+      bool '    USB Keyspan USA-19QW Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA19QW
+      bool '    USB Keyspan USA-19QI Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA19QI
+      bool '    USB Keyspan MPR Firmware' CONFIG_USB_SERIAL_KEYSPAN_MPR
+      bool '    USB Keyspan USA-49W Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA49W
+      bool '    USB Keyspan USA-49WLC Firmware' CONFIG_USB_SERIAL_KEYSPAN_USA49WLC
+   fi
+   dep_tristate '  USB MCT Single Port Serial Driver' CONFIG_USB_SERIAL_MCT_U232 $CONFIG_USB_SERIAL
+   dep_tristate '  USB KL5KUSB105 (Palmconnect) Driver' CONFIG_USB_SERIAL_KLSI $CONFIG_USB_SERIAL
+   dep_tristate '  USB KOBIL chipcard reader (EXPERIMENTAL)' CONFIG_USB_SERIAL_KOBIL_SCT $CONFIG_USB_SERIAL $CONFIG_EXPERIMENTAL
+   dep_tristate '  USB Prolific 2303 Single Port Serial Driver' CONFIG_USB_SERIAL_PL2303 $CONFIG_USB_SERIAL
+   dep_tristate '  USB REINER SCT cyberJack pinpad/e-com chipcard reader (EXPERIMENTAL)' CONFIG_USB_SERIAL_CYBERJACK $CONFIG_USB_SERIAL $CONFIG_EXPERIMENTAL
+   dep_tristate '  USB Xircom / Entregra Single Port Serial Driver (EXPERIMENTAL)' CONFIG_USB_SERIAL_XIRCOM $CONFIG_USB_SERIAL $CONFIG_EXPERIMENTAL
+   dep_tristate '  USB ZyXEL omni.net LCD Plus Driver (EXPERIMENTAL)' CONFIG_USB_SERIAL_OMNINET $CONFIG_USB_SERIAL $CONFIG_EXPERIMENTAL
+fi
+
+endmenu

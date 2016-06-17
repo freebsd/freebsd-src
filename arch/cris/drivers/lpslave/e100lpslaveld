@@ -1,0 +1,22 @@
+MEMORY 
+	{
+	cache : ORIGIN = 0x380000f0,
+	       	LENGTH = 784
+	}
+
+SECTIONS
+{
+	.text :
+	{
+		*(.text)
+	} > cache
+	.data :
+	{
+		*(.data)
+		*(COMMON)
+	} > cache
+	.bss :
+	{
+		*(.bss)
+	} > cache
+}

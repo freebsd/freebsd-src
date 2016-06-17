@@ -1,0 +1,168 @@
+#!/bin/sh
+#
+# Build a textsym file for use in the Arium ITP probe.
+#
+#
+# This file is subject to the terms and conditions of the GNU General Public
+# License.  See the file "COPYING" in the main directory of this archive
+# for more details.
+#
+# Copyright (c) 2001-2003 Silicon Graphics, Inc.  All rights reserved.
+#
+
+help() {
+cat <<END
+Build a WinDD "symtxt" file for use with the Arium ECM-30 probe.
+
+	Usage: $0 [<vmlinux file> [<output file>]]
+		If no input file is specified, it defaults to vmlinux.
+		If no output file name is specified, it defaults to "textsym".
+END
+exit 1
+}
+
+err () {
+	echo "ERROR - $*" >&2
+	exit 1
+}
+
+
+OPTS="H"
+while getopts "$OPTS" c ; do
+	case $c in
+		H)  help;;
+		\?) help;;
+	esac
+
+done
+shift `expr $OPTIND - 1`
+
+if [ -f /usr/bin/ia64-linux-objdump ] ; then
+	OBJDUMP=${OBJDUMP:-/usr/bin/ia64-linux-objdump}
+else
+	OBJDUMP=${OBJDUMP:-objdump}
+fi
+
+LINUX=${1:-vmlinux}
+TEXTSYM=${2:-${LINUX}.sym}
+TMPSYM=${2:-${LINUX}.sym.tmp}
+trap "/bin/rm -f $TMPSYM" 0
+
+[ -f $VMLINUX ] || help
+
+$OBJDUMP -t $LINUX | egrep -v '__ks' | sort > $TMPSYM
+
+# pipe everything thru sort
+echo "TEXTSYM V1.0" >$TEXTSYM
+(cat <<END 
+GLOBAL | e000000004400000 | CODE | VEC_VHPT_Translation_0000
+GLOBAL | e000000004400400 | CODE | VEC_ITLB_0400
+GLOBAL | e000000004400800 | CODE | VEC_DTLB_0800
+GLOBAL | e000000004400c00 | CODE | VEC_Alt_ITLB_0c00
+GLOBAL | e000000004401000 | CODE | VEC_Alt_DTLB_1000
+GLOBAL | e000000004401400 | CODE | VEC_Data_nested_TLB_1400
+GLOBAL | e000000004401800 | CODE | VEC_Instruction_Key_Miss_1800
+GLOBAL | e000000004401c00 | CODE | VEC_Data_Key_Miss_1c00
+GLOBAL | e000000004402000 | CODE | VEC_Dirty-bit_2000
+GLOBAL | e000000004402400 | CODE | VEC_Instruction_Access-bit_2400
+GLOBAL | e000000004402800 | CODE | VEC_Data_Access-bit_2800
+GLOBAL | e000000004402c00 | CODE | VEC_Break_instruction_2c00
+GLOBAL | e000000004403000 | CODE | VEC_External_Interrupt_3000
+GLOBAL | e000000004403400 | CODE | VEC_Reserved_3400
+GLOBAL | e000000004403800 | CODE | VEC_Reserved_3800
+GLOBAL | e000000004403c00 | CODE | VEC_Reserved_3c00
+GLOBAL | e000000004404000 | CODE | VEC_Reserved_4000
+GLOBAL | e000000004404400 | CODE | VEC_Reserved_4400
+GLOBAL | e000000004404800 | CODE | VEC_Reserved_4800
+GLOBAL | e000000004404c00 | CODE | VEC_Reserved_4c00
+GLOBAL | e000000004405000 | CODE | VEC_Page_Not_Present_5000
+GLOBAL | e000000004405100 | CODE | VEC_Key_Permission_5100
+GLOBAL | e000000004405200 | CODE | VEC_Instruction_Access_Rights_5200
+GLOBAL | e000000004405300 | CODE | VEC_Data_Access_Rights_5300
+GLOBAL | e000000004405400 | CODE | VEC_General_Exception_5400
+GLOBAL | e000000004405500 | CODE | VEC_Disabled_FP-Register_5500
+GLOBAL | e000000004405600 | CODE | VEC_Nat_Consumption_5600
+GLOBAL | e000000004405700 | CODE | VEC_Speculation_5700
+GLOBAL | e000000004405800 | CODE | VEC_Reserved_5800
+GLOBAL | e000000004405900 | CODE | VEC_Debug_5900
+GLOBAL | e000000004405a00 | CODE | VEC_Unaligned_Reference_5a00
+GLOBAL | e000000004405b00 | CODE | VEC_Unsupported_Data_Reference_5b00
+GLOBAL | e000000004405c00 | CODE | VEC_Floating-Point_Fault_5c00
+GLOBAL | e000000004405d00 | CODE | VEC_Floating_Point_Trap_5d00
+GLOBAL | e000000004405e00 | CODE | VEC_Lower_Privilege_Tranfer_Trap_5e00
+GLOBAL | e000000004405f00 | CODE | VEC_Taken_Branch_Trap_5f00
+GLOBAL | e000000004406000 | CODE | VEC_Single_Step_Trap_6000
+GLOBAL | e000000004406100 | CODE | VEC_Reserved_6100
+GLOBAL | e000000004406200 | CODE | VEC_Reserved_6200
+GLOBAL | e000000004406300 | CODE | VEC_Reserved_6300
+GLOBAL | e000000004406400 | CODE | VEC_Reserved_6400
+GLOBAL | e000000004406500 | CODE | VEC_Reserved_6500
+GLOBAL | e000000004406600 | CODE | VEC_Reserved_6600
+GLOBAL | e000000004406700 | CODE | VEC_Reserved_6700
+GLOBAL | e000000004406800 | CODE | VEC_Reserved_6800
+GLOBAL | e000000004406900 | CODE | VEC_IA-32_Exeception_6900
+GLOBAL | e000000004406a00 | CODE | VEC_IA-32_Intercept_6a00
+GLOBAL | e000000004406b00 | CODE | VEC_IA-32_Interrupt_6b00
+GLOBAL | e000000004406c00 | CODE | VEC_Reserved_6c00
+GLOBAL | e000000004406d00 | CODE | VEC_Reserved_6d00
+GLOBAL | e000000004406e00 | CODE | VEC_Reserved_6e00
+GLOBAL | e000000004406f00 | CODE | VEC_Reserved_6f00
+GLOBAL | e000000004407000 | CODE | VEC_Reserved_7000
+GLOBAL | e000000004407100 | CODE | VEC_Reserved_7100
+GLOBAL | e000000004407200 | CODE | VEC_Reserved_7200
+GLOBAL | e000000004407300 | CODE | VEC_Reserved_7300
+GLOBAL | e000000004407400 | CODE | VEC_Reserved_7400
+GLOBAL | e000000004407500 | CODE | VEC_Reserved_7500
+GLOBAL | e000000004407600 | CODE | VEC_Reserved_7600
+GLOBAL | e000000004407700 | CODE | VEC_Reserved_7700
+GLOBAL | e000000004407800 | CODE | VEC_Reserved_7800
+GLOBAL | e000000004407900 | CODE | VEC_Reserved_7900
+GLOBAL | e000000004407a00 | CODE | VEC_Reserved_7a00
+GLOBAL | e000000004407b00 | CODE | VEC_Reserved_7b00
+GLOBAL | e000000004407c00 | CODE | VEC_Reserved_7c00
+GLOBAL | e000000004407d00 | CODE | VEC_Reserved_7d00
+GLOBAL | e000000004407e00 | CODE | VEC_Reserved_7e00
+GLOBAL | e000000004407f00 | CODE | VEC_Reserved_7f00
+END
+
+
+awk '
+/ _start$/ {start=1}
+/ start_ap$/ {start=1}
+/__start_gate_section/ {start=1}
+/^e0000000/ {
+	if ($4 == ".kdb")
+		next
+	if (start && substr($NF,1,1) != "0") {
+		type = substr($0,26,5)
+		if (type == ".text")
+			printf "GLOBAL | %s | CODE | %s\n", $1, $NF
+		else {
+			n = 0
+			s = $(NF-1)
+			while (length(s) > 0) {
+				n = n*16 + (index("0123456789abcdef", substr(s,1,1)) - 1)
+				s = substr(s,2)
+			}
+			printf "GLOBAL | %s | DATA | %s | %d\n", $1, $NF, n
+		}
+	}
+	if($NF == "_end") 
+		exit
+
+}
+' $TMPSYM ) | egrep -v " __device| __vendor" | awk '
+/GLOBAL/ {
+	print $0
+	/* 38 bits of sn2 physical addrs, need addr space bits */
+	if (substr($0,19,1) == "4")
+		print substr($0,1,9) "3004" substr($0,20,16) "Phy_" substr($0,36)
+	else
+		print substr($0,1,9) "3005" substr($0,20,16) "Phy_" substr($0,36)
+
+} ' | sort -k3 >>$TEXTSYM
+
+N=`wc -l $TEXTSYM|awk '{print $1}'`
+echo "Generated TEXTSYM file" >&2
+echo "  $LINUX --> $TEXTSYM" >&2
+echo "  Found $N symbols" >&2

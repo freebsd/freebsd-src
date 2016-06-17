@@ -1,0 +1,17 @@
+#
+# PCI Hotplug support
+#
+mainmenu_option next_comment
+comment 'PCI Hotplug Support'
+
+dep_tristate 'Support for PCI Hotplug (EXPERIMENTAL)' CONFIG_HOTPLUG_PCI $CONFIG_EXPERIMENTAL $CONFIG_PCI
+
+dep_tristate '  Compaq PCI Hotplug driver' CONFIG_HOTPLUG_PCI_COMPAQ $CONFIG_HOTPLUG_PCI $CONFIG_X86
+dep_mbool '    Save configuration into NVRAM on Compaq servers' CONFIG_HOTPLUG_PCI_COMPAQ_NVRAM $CONFIG_HOTPLUG_PCI_COMPAQ
+if [ "$CONFIG_X86_IO_APIC" = "y" ]; then
+   dep_tristate '  IBM PCI Hotplug driver' CONFIG_HOTPLUG_PCI_IBM $CONFIG_HOTPLUG_PCI $CONFIG_X86_IO_APIC $CONFIG_X86
+fi
+if [ "$CONFIG_ACPI_INTERPRETER" = "y" ]; then
+   dep_tristate '  ACPI PCI Hotplug driver' CONFIG_HOTPLUG_PCI_ACPI $CONFIG_HOTPLUG_PCI
+fi
+endmenu

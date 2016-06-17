@@ -1,0 +1,202 @@
+#! /bin/sh
+# Script to apply kernel patches.
+#   usage: patch-kernel [ sourcedir [ patchdir [ stopversion ] [ -acxx ] ] ]
+#     The source directory defaults to /usr/src/linux, and the patch
+#     directory defaults to the current directory.
+# e.g.
+#   scripts/patch-kernel . ..
+#      Update the kernel tree in the current directory using patches in the
+#      directory above to the latest Linus kernel
+#   scripts/patch-kernel . .. -ac
+#      Get the latest Linux kernel and patch it with the latest ac patch
+#   scripts/patch-kernel . .. 2.4.9
+#      Gets standard kernel 2.4.9
+#   scripts/patch-kernel . .. 2.4.9 -ac
+#      Gets 2.4.9 with latest ac patches
+#   scripts/patch-kernel . .. 2.4.9 -ac11
+#      Gets 2.4.9 with ac patch ac11
+#   Note: It uses the patches relative to the Linus kernels, not the
+#   ac to ac relative patches
+#
+# It determines the current kernel version from the top-level Makefile.
+# It then looks for patches for the next sublevel in the patch directory.
+# This is applied using "patch -p1 -s" from within the kernel directory.
+# A check is then made for "*.rej" files to see if the patch was
+# successful.  If it is, then all of the "*.orig" files are removed.
+#
+#       Nick Holloway <Nick.Holloway@alfie.demon.co.uk>, 2nd January 1995.
+#
+# Added support for handling multiple types of compression. What includes
+# gzip, bzip, bzip2, zip, compress, and plaintext. 
+#
+#       Adam Sulmicki <adam@cfar.umd.edu>, 1st January 1997.
+#
+# Added ability to stop at a given version number
+# Put the full version number (i.e. 2.3.31) as the last parameter
+#       Dave Gilbert <linux@treblig.org>, 11th December 1999.
+
+# Fixed previous patch so that if we are already at the correct version
+# not to patch up.
+#
+# Added -ac option, use -ac or -ac9 (say) to stop at a particular version
+#       Dave Gilbert <linux@treblig.org>, 29th September 2001.
+
+# Set directories from arguments, or use defaults.
+sourcedir=${1-/usr/src/linux}
+patchdir=${2-.}
+stopvers=${3-imnotaversion}
+
+if [ "$1" = -h -o "$1" = --help -o ! -r "$sourcedir/Makefile" ]; then
+cat << USAGE
+usage: patch-kernel [-h] [ sourcedir [ patchdir [ stopversion ] [ -acxx ] ] ]
+  The source directory defaults to /usr/src/linux, and
+  the patch directory defaults to the current directory.
+USAGE
+exit 1
+fi
+
+# See if we have any -ac options
+for PARM in $*
+do
+  case $PARM in
+	  -ac*)
+		  gotac=$PARM;
+
+	esac;
+done
+
+# ---------------------------------------------------------------------------
+# Find a file, first parameter is basename of file
+# it tries many compression mechanisms and sets variables to say how to get it
+findFile () {
+  filebase=$1;
+
+  if [ -r ${filebase}.gz ]; then
+		ext=".gz"
+		name="gzip"
+		uncomp="gunzip -dc"
+  elif [ -r ${filebase}.bz  ]; then
+		ext=".bz"
+    name="bzip"
+		uncomp="bunzip -dc"
+  elif [ -r ${filebase}.bz2 ]; then
+		ext=".bz2"
+		name="bzip2"
+		uncomp="bunzip2 -dc"
+  elif [ -r ${filebase}.zip ]; then
+		ext=".zip"
+		name="zip"
+		uncomp="unzip -d"
+  elif [ -r ${filebase}.Z ]; then
+		ext=".Z"
+		name="uncompress"
+		uncomp="uncompress -c"
+  elif [ -r ${filebase} ]; then
+		ext=""
+		name="plaintext"
+		uncomp="cat"
+  else
+	  return 1;
+	fi
+
+  return 0;
+}
+
+# ---------------------------------------------------------------------------
+# Apply a patch and check it goes in cleanly
+# First param is patch name (e.g. patch-2.4.9-ac5) - without path or extension
+
+applyPatch () {
+  echo -n "Applying $1 (${name})... "
+  if $uncomp ${patchdir}/$1${ext} | patch -p1 -s -N -E -d $sourcedir
+  then
+    echo "done."
+  else
+    echo "failed.  Clean up yourself."
+    return 1;
+  fi
+  if [ "`find $sourcedir/ '(' -name '*.rej' -o -name '.*.rej' ')' -print`" ]
+  then
+    echo "Aborting.  Reject files found."
+    return 1;
+  fi
+  # Remove backup files
+  find $sourcedir/ '(' -name '*.orig' -o -name '.*.orig' ')' -exec rm -f {} \;
+ 
+  return 0;
+}
+
+# set current VERSION, PATCHLEVEL, SUBLEVEL, EXTERVERSION
+eval `sed -n -e 's/^\([A-Z]*\) = \([0-9]*\)$/\1=\2/p' -e 's/^\([A-Z]*\) = \(-[-a-z0-9]*\)$/\1=\2/p' $sourcedir/Makefile`
+if [ -z "$VERSION" -o -z "$PATCHLEVEL" -o -z "$SUBLEVEL" ]
+then
+    echo "unable to determine current kernel version" >&2
+    exit 1
+fi
+
+echo "Current kernel version is $VERSION.$PATCHLEVEL.$SUBLEVEL${EXTRAVERSION}"
+
+if [ x$EXTRAVERSION != "x" ]
+then
+  echo "I'm sorry but patch-kernel can't work with a kernel source tree that is not a base version"
+	exit 1;
+fi
+
+while :
+do
+    CURRENTFULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL"
+    if [ $stopvers = $CURRENTFULLVERSION ]
+    then
+        echo "Stoping at $CURRENTFULLVERSION base as requested."
+        break
+    fi
+
+    SUBLEVEL=`expr $SUBLEVEL + 1`
+    FULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL"
+
+    patch=patch-$FULLVERSION
+
+		# See if the file exists and find extension
+		findFile $patchdir/${patch} || break
+
+    # Apply the patch and check all is OK
+    applyPatch $patch || break
+done
+
+if [ x$gotac != x ]; then
+  # Out great user wants the -ac patches
+	# They could have done -ac (get latest) or -acxx where xx=version they want
+	if [ $gotac == "-ac" ]
+	then
+	  # They want the latest version
+		HIGHESTPATCH=0
+		for PATCHNAMES in $patchdir/patch-${CURRENTFULLVERSION}-ac*\.*
+		do
+			ACVALUE=`echo $PATCHNAMES | sed -e 's/^.*patch-[0-9.]*-ac\([0-9]*\).*/\1/'`
+			# Check it is actually a recognised patch type
+			findFile $patchdir/patch-${CURRENTFULLVERSION}-ac${ACVALUE} || break
+
+		  if [ $ACVALUE -gt $HIGHESTPATCH ]
+			then
+			  HIGHESTPATCH=$ACVALUE
+		  fi
+		done
+
+		if [ $HIGHESTPATCH -ne 0 ]
+		then
+			findFile $patchdir/patch-${CURRENTFULLVERSION}-ac${HIGHESTPATCH} || break
+			applyPatch patch-${CURRENTFULLVERSION}-ac${HIGHESTPATCH}
+		else
+		  echo "No ac patches found"
+		fi
+	else
+	  # They want an exact version
+		findFile $patchdir/patch-${CURRENTFULLVERSION}${gotac} || {
+		  echo "Sorry, I couldn't find the $gotac patch for $CURRENTFULLVERSION.  Hohum."
+			exit 1
+		}
+		applyPatch patch-${CURRENTFULLVERSION}${gotac}
+	fi
+fi
+
+

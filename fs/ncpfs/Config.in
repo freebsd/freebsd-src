@@ -1,0 +1,11 @@
+#
+# NCP Filesystem configuration
+#
+dep_mbool '  Packet signatures' CONFIG_NCPFS_PACKET_SIGNING $CONFIG_NCP_FS
+dep_mbool '  Proprietary file locking' CONFIG_NCPFS_IOCTL_LOCKING $CONFIG_NCP_FS
+dep_mbool '  Clear remove/delete inhibit when needed' CONFIG_NCPFS_STRONG $CONFIG_NCP_FS
+dep_mbool '  Use NFS namespace if available' CONFIG_NCPFS_NFS_NS $CONFIG_NCP_FS
+dep_mbool '  Use LONG (OS/2) namespace if available' CONFIG_NCPFS_OS2_NS $CONFIG_NCP_FS
+dep_mbool '  Lowercase DOS filenames' CONFIG_NCPFS_SMALLDOS $CONFIG_NCP_FS
+dep_mbool '  Use Native Language Support' CONFIG_NCPFS_NLS $CONFIG_NCP_FS
+dep_mbool '  Enable symbolic links and execute flags' CONFIG_NCPFS_EXTRAS $CONFIG_NCP_FS

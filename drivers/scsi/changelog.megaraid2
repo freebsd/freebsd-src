@@ -1,0 +1,152 @@
+### Version 2.10.1
+Wed Dec  3 15:34:42 EST 2003 - Atul Mukker <atulm@lsil.com>
+1.	pci_dma_sync_sg(), 2nd argument is pointer to scatter-gather list. All
+	previous drivers have a pointer which is incremented beyond the end of
+	the scatter-gather list
+2.	Remove 'ipdev', pci device pointer, to allocate memory for internal
+	commands. pci_alloc_consistent() guaranteed to allocate memory below
+	4GB, which is a requirement for these commands -
+		Tom Coughlan <coughlan@redhat.com>
+3.	Added support for LSI SATA PCI-X controllers
+4.	Advanced Server 3.0 version of the driver is the reference driver now.
+	For all other kernels, we create patches.
+5.	Removed superfluous white spaces.
+6.	Corrected some comments
+
+### Version 2.10.0
+Tue Nov  4 14:33:43 EST 2003 - Atul Mukker <atulm@lsil.com>
+1.	Added vendor ids and device ids for PCI-Express controllers,
+	PERC4E/Si, PERC4E/Di, PERC4E/DC, PERC4E/SC
+2.	Backport some minor changes from 2.6 kernel version of the driver.
+
+### Version 2.00.9a
+Fri Oct  3 18:04:29 EDT 2003 - Atul Mukker <atulm@lsil.com>
+1.	Minor changes which are brough in when sync'ing with kernel 2.9-test6.
+2.	Use sizeof(mbox_t) in synchronous routines instead of hard-coded value
+	of 16 bytes.
+3.	De-couple adapter->host->pci_dev. Replace with adapter->pdev
+
+### Version 2.00.9
+Thu Sep  4 17:49:42 EDT 2003 - Atul Mukker <atulm@lsil.com>
+i.	For extended passthru commands, 64-bit scatter-gather list and 64-bit
+	mailbox address must only be used if the controller supports extended
+	CDBs and 64-bit addressing and the kernel is configured to support
+	memory beyond 4GB.
+	With 2.00.8 and previous drivers, if the controllers supports extended
+	CDBs but the kernel does not support high memory - the driver prepares
+	a 32-bit sg list but the mailbox address is chosen to be 64-bit. This
+	causes FW to incorrectly read 32-bit (8 bytes) sg list as 64-bit
+	(12 bytes) sglist. This would cause IO from non-disk devices to fail
+
+### Version 2.00.8
+Wed Aug 27 16:40:05 EDT 2003 - Atul Mukker <atulm@lsil.com>
+i.	Make sure the value of number of statuses, completed command id array,
+	and the mailbox status fields are updated in host memory before we
+	read and interpret them. For this to happen - mailbox numstatus and
+	command id array's first element are invalidated. The ISR busy waits
+	till valid values are obtained in these two fields. Now since the
+	status field is between these two fields it is assumed that status
+	values is sane when write to numstatus and completed id array is
+	complete
+ii.	while returning from the ioctl handler for the SCSI passthru commands
+	a direct access was made to the user address. Now the user structure
+	is copied in before the required field is accessed.
+iii.	Remove redundant volatile casts from pending command counter pend_cmds.
+
+### Version 2.00.7
+Fri Aug  1 11:01:11 EDT 2003 - Atul Mukker <atulm@lsil.com>
+i.	Adapter lock re-definition so that patch for kernels w/o per host lock
+	is less intrusive - Jens Axboe <axboe@suse.de>
+
+ii.	While in abort and reset handling, check for non-empty pending list is
+	invalid. The intent is to wait for pending commands in FW to complete,
+	not the pending commands with the driver - Atul Mukker <atulm@lsil.com>
+
+### Version 2.00.6
+Wed Jul 30 11:35:31 EDT 2003 - Sreenivas Bagalkote <sreenib@lsil.com>
+i.	Declare the function prototypes used for "/proc" within the compiler
+	directives #ifdef CONFIG_PROC_FS. Similary, move global/local variable
+	declarations and code fragments related to /proc within the directives.
+	- Mark Haverkamp <markh@osdl.org>
+
+ii.	Initialize host->lock with adapter->lock.
+
+iii.	Wait for mailbox status to become valid
+	- Haruo Tomita <haruo.tomita@toshiba.co.jp>
+
+iv.	Right structure is passed to FW for 4-span read configuration command.
+	- Sreenivas Bagalkote <sreenivas.bagalkote@lsil.com>
+
+### Version 2.00.5
+Thu Apr 24 14:06:55 EDT 2003 - Atul Mukker <atulm@lsil.com>
+i.	Do not use repeated allocations for "pci_dev" for internal
+	allocations. Allocate the handle at load time and set the DMA mask for
+	allocations below 4GB.
+
+ii.	Remove superfluous definitions, mid-layer /proc entry and synchronous
+	commands
+
+iii.	Logical drive numbers were incremented in passthru structure after
+	random-deletion operation! Also, the logical drive deletion command is
+	issued in polled mode because of the racy nature of interrupt based
+	operation.
+
+iv.	Add support for Intel's subsystem vendor id
+
+### Version 2.00.4
+Thu Apr 17 15:58:58 EDT 2003
+i.	Do not put the completed SCSI commands in a list. Complete them to
+	mid-layer as soon as we have completed them and reclaimed our
+	associated resources
+
+ii.	Break ISR functionality in two portions. The lower half serves as
+	interrupt acknowledgment sequence for the firmware. This half can also
+	be called from other places in the driver, e.g., the abort and reset
+	handlers.
+
+iii.	New abort and reset handling. In these situations, driver allows more
+	time for the firmware to complete outstanding requests instead of
+	failing handlers right-away.
+
+### Version 2.00.3
+Wed Jan 29 09:13:44 EST 200 - Atul Mukker <atulm@lsil.com>
+i.	Change the handshake in ISR while acknowledging interrupts. Write the
+	valid interrupt pattern 0x10001234 as soon as it is read from the
+	outdoor register. In existing driver and on certain platform, invalid
+	command ids were being returned.
+
+	Also, do not wait on status be become 0xFF, since FW can return this
+	status in certain circumstances.
+
+	Initialize the numstatus field of mailbox to 0xFF so that we can wait
+	on this wait in next interrupt. Firmware does not change its value
+	unless there are some status to be posted
+
+ii.	Specify the logical drive number while issuing the RESERVATION_STATUS
+
+iii.	Reduce the default mailbox busy wait time from 300us to 10us. This is
+	done to avoid a possible deadlock in FW because of longer bust waits.
+
+iv.	The max outstanding commands are reduced to 126 because that's the
+	safest value on all FW.
+
+v.	Number of sectors per IO are reduced to 128 (64kb), because FW needs
+	resources in special circumstances like check consistency, rebuilds
+	etc.
+
+vi.	max_commands is no longer a module parameter because of iv.
+
+### Version: 2.00.2
+i.	Intermediate release with kernel specific code
+
+
+### Version: 2.00.1i
+Wed Dec  4 14:34:51 EST 2002 - Atul Mukker <atulm@lsil.com>
+i.	Making the older IO based controllers to work with this driver
+
+
+### Version 2.00.1
+Fri Nov 15 10:59:44 EST 2002 - Atul Mukker <atulm@lsil.com>
+i.	Release host lock before issuing internal command to reset
+	reservations in megaraid_reset() and reacquire after internal command
+	is completed.

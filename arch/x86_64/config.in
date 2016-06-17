@@ -1,0 +1,264 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+mainmenu_name "Linux Kernel Configuration"
+
+define_bool CONFIG_X86_64 y
+
+define_bool CONFIG_X86 y
+define_bool CONFIG_ISA n
+define_bool CONFIG_SBUS n
+
+define_bool CONFIG_UID16 n
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK y
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM n
+define_bool CONFIG_X86_CMPXCHG y
+define_bool CONFIG_EARLY_PRINTK y
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+   bool '  Set version information on all module symbols' CONFIG_MODVERSIONS
+   bool '  Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Processor type and features'
+choice 'Processor family' \
+	"AMD-Hammer			CONFIG_MK8 \
+	 Intel-x86-64			CONFIG_MPSC \
+	 Generic-x86-64			CONFIG_GENERIC_CPU" AMD-Hammer
+	
+#
+# Define implied options from the CPU selection here
+#
+if [ "$CONFIG_GENERIC_CPU" = "y" -o "$CONFIG_MPSC" = "y" ]; then
+define_int CONFIG_X86_L1_CACHE_BYTES 128
+define_int CONFIG_X86_L1_CACHE_SHIFT 7
+else
+define_int CONFIG_X86_L1_CACHE_BYTES 64
+define_int CONFIG_X86_L1_CACHE_SHIFT 6
+fi
+define_bool CONFIG_X86_TSC y
+define_bool CONFIG_X86_GOOD_APIC y
+
+tristate '/dev/cpu/*/msr - Model-specific register support' CONFIG_X86_MSR
+tristate '/dev/cpu/*/cpuid - CPU information support' CONFIG_X86_CPUID
+
+define_bool CONFIG_MATH_EMULATION n
+define_bool CONFIG_MCA n
+define_bool CONFIG_EISA n
+
+define_bool CONFIG_X86_IO_APIC y
+define_bool CONFIG_X86_LOCAL_APIC y
+
+bool 'MTRR (Memory Type Range Register) support' CONFIG_MTRR
+bool 'Symmetric multi-processing support' CONFIG_SMP
+bool 'HPET timers' CONFIG_HPET_TIMER
+bool 'IOMMU support' CONFIG_GART_IOMMU
+if [ "$CONFIG_GART_IOMMU" = "y" ]; then
+    bool 'SWIOTLB support' CONFIG_SWIOTLB
+fi
+
+if [ "$CONFIG_GART_IOMMU" != "y" ]; then
+   define_bool CONFIG_DUMMY_IOMMU y
+fi
+if [ "$CONFIG_SMP" != "y" ]; then
+   define_bool CONFIG_X86_UP_IOAPIC y
+else
+   define_bool CONFIG_HAVE_DEC_LOCK y
+   int  'Maximum number of CPUs (2-8)' CONFIG_NR_CPUS 4
+fi
+
+bool 'Machine check support' CONFIG_MCE
+if [ "$CONFIG_SMP" = "y" ]; then
+   bool 'K8 NUMA support' CONFIG_K8_NUMA
+   if [ "$CONFIG_K8_NUMA" = "y" ]; then
+   define_bool CONFIG_DISCONTIGMEM y 
+   define_bool CONFIG_NUMA y
+   fi
+fi
+
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+
+bool 'Networking support' CONFIG_NET
+bool 'PCI support' CONFIG_PCI
+if [ "$CONFIG_PCI" = "y" ]; then
+   define_bool CONFIG_PCI_DIRECT y 
+fi
+
+source drivers/pci/Config.in
+
+bool 'Support for hot-pluggable devices' CONFIG_HOTPLUG
+
+if [ "$CONFIG_HOTPLUG" = "y" ] ; then
+   source drivers/pcmcia/Config.in
+   source drivers/hotplug/Config.in
+else
+   define_bool CONFIG_PCMCIA n
+   define_bool CONFIG_HOTPLUG_PCI n
+fi
+
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+if [ "$CONFIG_PROC_FS" = "y" ]; then
+   define_bool CONFIG_KCORE_ELF y
+fi
+#tristate 'Kernel support for a.out binaries' CONFIG_BINFMT_AOUT
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+
+bool 'Power Management support' CONFIG_PM
+
+bool 'IA32 Emulation' CONFIG_IA32_EMULATION
+
+source drivers/acpi/Config.in
+
+endmenu
+
+source drivers/mtd/Config.in
+
+source drivers/parport/Config.in
+
+source drivers/block/Config.in
+
+source drivers/md/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   source net/Config.in
+fi
+
+source drivers/telephony/Config.in
+
+mainmenu_option next_comment
+comment 'ATA/IDE/MFM/RLL support'
+
+tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+if [ "$CONFIG_IDE" != "n" ]; then
+  source drivers/ide/Config.in
+else
+  define_bool CONFIG_BLK_DEV_IDE_MODES n
+  define_bool CONFIG_BLK_DEV_HD n
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+tristate 'SCSI support' CONFIG_SCSI
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+   source drivers/scsi/Config.in
+fi
+endmenu
+
+source drivers/message/fusion/Config.in
+
+source drivers/ieee1394/Config.in
+
+#Currently not 64bit safe
+#source drivers/message/i2o/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Network device support'
+
+   bool 'Network device support' CONFIG_NETDEVICES
+   if [ "$CONFIG_NETDEVICES" = "y" ]; then
+      source drivers/net/Config.in
+# seems to be largely not 64bit safe	   
+#      if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+#         source drivers/atm/Config.in
+#      fi
+   fi
+   endmenu
+fi
+
+source net/ax25/Config.in
+
+source net/irda/Config.in
+
+mainmenu_option next_comment
+comment 'ISDN subsystem'
+if [ "$CONFIG_NET" != "n" ]; then
+   tristate 'ISDN support' CONFIG_ISDN
+   if [ "$CONFIG_ISDN" != "n" ]; then
+      source drivers/isdn/Config.in
+   fi
+fi
+endmenu
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source drivers/input/Config.in
+source drivers/char/Config.in
+
+
+#source drivers/misc/Config.in
+
+source drivers/media/Config.in
+
+source fs/Config.in
+
+if [ "$CONFIG_VT" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Console drivers'
+   bool 'VGA text console' CONFIG_VGA_CONSOLE
+   bool 'Video mode selection support' CONFIG_VIDEO_SELECT
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      tristate 'MDA text console (dual-headed) (EXPERIMENTAL)' CONFIG_MDA_CONSOLE
+      source drivers/video/Config.in
+   fi
+   endmenu
+fi
+
+mainmenu_option next_comment
+comment 'Sound'
+
+tristate 'Sound card support' CONFIG_SOUND
+if [ "$CONFIG_SOUND" != "n" ]; then
+   source drivers/sound/Config.in
+fi
+endmenu
+
+source drivers/usb/Config.in
+
+source net/bluetooth/Config.in
+
+source crypto/Config.in
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+bool 'Kernel debugging' CONFIG_DEBUG_KERNEL
+if [ "$CONFIG_DEBUG_KERNEL" != "n" ]; then
+   bool '  Debug memory allocations' CONFIG_DEBUG_SLAB
+#   bool '  Memory mapped I/O debugging' CONFIG_DEBUG_IOVIRT
+   bool '  Magic SysRq key' CONFIG_MAGIC_SYSRQ
+   bool '  Spinlock debugging' CONFIG_DEBUG_SPINLOCK
+   bool '  Additional run-time checks' CONFIG_CHECKING
+   bool '  Debug __init statements' CONFIG_INIT_DEBUG
+   bool '  IOMMU debugging' CONFIG_IOMMU_DEBUG
+   bool '  IOMMU leak tracing' CONFIG_IOMMU_LEAK
+   bool '  Probalistic stack overflow check' CONFIG_DEBUG_STACKOVERFLOW
+fi
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source lib/Config.in

@@ -1,0 +1,326 @@
+Intro
+=====
+
+This file describes some issues involved when using the "ftape"
+floppy tape device driver that comes with the Linux kernel. This
+document deals with ftape-3.04 and later. Please read the section
+"Changes" for the most striking differences between version 3.04 and
+2.08; the latter was the version of ftape delivered with the kernel
+until kernel version 2.0.30 and 2.1.57. ftape-3.x developed as the
+re-unification of ftape-2.x and zftape. zftape was developed in
+parallel with the stock ftape-2.x driver sharing the same hardware
+support but providing an enhanced file system interface. zftape also
+provided user transparent block-wise on-the-fly compression (regard it
+as a feature or bug of zftape).
+
+ftape has a home page at
+
+http://www-math.math.rwth-aachen.de/~LBFM/claus/ftape
+
+which contains further information about ftape. Please cross check
+this WWW address against the address given (if any) in the MAINTAINERS
+file located in the top level directory of the Linux kernel source
+tree.
+
+Contents
+========
+
+A minus 1: Ftape documentation
+
+A. Changes
+   1. Goal
+   2. I/O Block Size
+   3. Write Access when not at EOD (End Of Data) or BOT (Begin Of Tape)
+   4. MTBSF - backspace over file mark and position at its EOT side
+   5. Formatting
+   6. Interchanging cartridges with other operating systems
+
+B. Debugging Output
+   1. Introduction
+   2. Tuning the debugging output
+
+C. Boot and load time configuration
+   1. Setting boot time parameters
+   2. Module load time parameters
+   3. Ftape boot- and load time options
+   4. Example kernel parameter setting
+   5. Example module parameter setting
+
+D. Support and contacts
+
+*******************************************************************************
+
+A minus 1. Ftape documentation
+==============================
+
+Unluckily, the ftape-HOWTO is out of date. This really needs to be
+changed. Up to date documentation as well as recent development
+versions of ftape and useful links to related topics can be found at
+the ftape home page at
+
+http://www-math.math.rwth-aachen.de/~LBFM/claus/ftape
+
+*******************************************************************************
+
+A. Changes
+==========
+
+1. Goal
+   ~~~~
+   The goal of all that incompatibilities was to give ftape an interface
+   that resembles the interface provided by SCSI tape drives as close
+   as possible. Thus any Unix backup program that is known to work
+   with SCSI tape drives should also work with ftape-3.04 and above.
+
+   The concept of a fixed block size for read/write transfers is
+   rather unrelated to this SCSI tape compatibility at the file system
+   interface level. It developed out of a feature of zftape, a
+   block wise user transparent on-the-fly compression. That compression
+   support will not be dropped in future releases for compatibility
+   reasons with previous releases of zftape.
+
+2. I/O Block Size
+   ~~~~~~~~~~~~~~
+   The probably most striking difference between ftape-2.x and
+   ftape-3.x with the zftape file system interface is the concept of a
+   fixed block size: data must be written to or read from the tape in
+   multiples of a fixed block size. The block size defaults to 10k
+   which is the default block size of GNU tar. While this is quite
+   usual for SCSI tapes (block size of 32k?) and the QIC-150 driver
+   `./drivers/char/tpqic02.c' ftape-2.x allowed data to be written in
+   arbitrary portions to the tape.
+
+   The block size can be tuned either during kernel configuration or
+   at runtime with the MTIOCTOP ioctl using the MTSETBLK operation
+   (i.e. do "mt -f /dev/qft0" setblk #BLKSZ). A block size of 0
+   switches to variable block size mode i.e. "mt setblk 0" switches
+   off the block size restriction. However, this disables zftape's
+   built in on-the-fly compression which doesn't work with variable
+   block size mode.
+
+   The BLKSZ parameter must be given as a byte count and must be a
+   multiple of 32k or 0, i.e. use "mt setblk 32768" to switch to a
+   block size of 32k.
+
+   The typical symptom of a block size mismatch is an "invalid
+   argument" error message.
+
+3. Write Access when not at EOD (End Of Data) or BOT (Begin Of Tape)
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   zftape (the file system interface of ftape-3.x) denies write access
+   to the tape cartridge when it isn't positioned either at BOT or
+   EOD. This inconvenience has been introduced as it was reported that
+   the former behavior of ftape-2.x which allowed write access at
+   arbitrary locations already has caused data loss with some backup
+   programs.
+
+4. MTBSF - backspace over file mark and position at its EOT side
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   ftape-2.x didn't handle the MTBSF tape operation correctly. A MTBSF
+   call (i.e. "mt -f /dev/nqft0 bsf #COUNT") should space over #COUNT
+   file marks and then position at the EOT tape side of the file
+   mark. This has to be taken literally, i.e. "mt -f /dev/nqft0 bsf 1"
+   should simply position at the start of the current volume.
+
+5. Formatting
+   ~~~~~~~~~~
+   ftape-3.x DOES support formatting of floppy tape cartridges. You
+   need the `ftformat' program that is shipped with the modules version
+   of ftape-3.x. Please get the latest version of ftape from
+
+   ftp://sunsite.unc.edu/pub/Linux/kernel/tapes
+
+   or from the ftape home page at
+
+   http://www-math.math.rwth-aachen.de/~LBFM/claus/ftape
+
+   `ftformat' is contained in the `./contrib/' subdirectory of that
+   separate ftape package.
+
+6. Interchanging cartridges with other operating systems
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   The internal emulation of Unix tape device file marks has changed
+   completely. ftape-3.x now uses the volume table segment as specified
+   by the QIC-40/80/3010/3020/113 standards to emulate file marks. As
+   a consequence there is limited support to interchange cartridges
+   with other operating systems.
+
+   To be more precise: ftape will detect volumes written by other OS's
+   programs and other OS's programs will detect volumes written by
+   ftape-3.x.
+
+   However, it isn't possible to extract the data dumped to the tape
+   by some MSDOG program with ftape-3.x. This exceeds the scope of a
+   kernel device driver. If you need such functionality, then go ahead
+   and write a user space utility that is able to do
+   that. ftape-3.x/zftape already provides all kernel level support
+   necessary to do that.
+
+*******************************************************************************
+
+B. Debugging Output
+   ================
+
+1. Introduction
+   ~~~~~~~~~~~~
+   The ftape driver can be very noisy in that is can print lots of
+   debugging messages to the kernel log files and the system console.
+   While this is useful for debugging it might be annoying during
+   normal use and enlarges the size of the driver by several kilobytes.
+
+   To reduce the size of the driver you can trim the maximal amount of
+   debugging information available during kernel configuration. Please
+   refer to the kernel configuration script and its on-line help
+   functionality.
+
+   The amount of debugging output maps to the "tracing" boot time
+   option and the "ft_tracing" modules option as follows:
+
+   0              bugs
+   1              + errors (with call-stack dump)
+   2              + warnings
+   3              + information
+   4              + more information
+   5              + program flow
+   6              + fdc/dma info
+   7              + data flow
+   8              + everything else
+
+2. Tuning the debugging output
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   To reduce the amount of debugging output printed to the system
+   console you can
+
+   i)  trim the debugging output at run-time with
+
+       mt -f /dev/nqft0 setdensity #DBGLVL
+
+       where "#DBGLVL" is a number between 0 and 9
+
+   ii) trim the debugging output at module load time with
+
+       insmod ftape.o ft_tracing=#DBGLVL
+
+       Of course, this applies only if you have configured ftape to be
+       compiled as a module.
+
+   iii) trim the debugging output during system boot time. Add the
+       following to the kernel command line:
+
+       ftape=#DBGLVL,tracing
+
+       Please refer also to the next section if you don't know how to
+       set boot time parameters.
+
+*******************************************************************************
+
+C. Boot and load time configuration
+   ================================
+
+1. Setting boot time parameters
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+   Assuming that you use lilo, the LI)nux LO)ader, boot time kernel
+   parameters can be set by adding a line
+
+   append some_kernel_boot_time_parameter
+
+   to `/etc/lilo.conf' or at real boot time by typing in the options
+   at the prompt provided by LILO. I can't give you advice on how to
+   specify those parameters with other loaders as I don't use them.
+
+   For ftape, each "some_kernel_boot_time_parameter" looks like
+   "ftape=value,option". As an example, the debugging output can be
+   increased with
+
+   ftape=4,tracing
+
+   NOTE: the value precedes the option name.
+
+2. Module load time parameters
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Module parameters can be specified either directly when invoking
+   the program 'insmod' at the shell prompt:
+
+   insmod ftape.o ft_tracing=4
+
+   or by editing the file `/etc/modules.conf' in which case they take
+   effect each time when the module is loaded with `modprobe' (please
+   refer to the modules documentation, i.e. `modules.txt' and the
+   respective manual pages). Thus, you should add a line
+
+   options ftape ft_tracing=4
+
+   to `/etc/modules.conf` if you intend to increase the debugging
+   output of the driver.
+
+
+3. Ftape boot- and load time options
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   i.   Controlling the amount of debugging output
+        DBGLVL has to be replaced by a number between 0 and 8.
+
+        module                 |  kernel command line
+        -----------------------|----------------------
+        ft_tracing=DBGLVL      |  ftape=DBGLVL,tracing
+
+   ii.  Hardware setup
+	BASE is the base address of your floppy disk controller,
+        IRQ and DMA give its interrupt and DMA channel, respectively.
+        BOOL is an integer, "0" means "no"; any other value means
+	"yes". You don't need to specify anything if connecting your tape
+        drive to the standard floppy disk controller. All of these
+	values have reasonable defaults. The defaults can be modified
+	during kernel configuration, i.e. while running "make config",
+	"make menuconfig" or "make xconfig" in the top level directory
+	of the Linux kernel source tree. Please refer also to the on
+	line documentation provided during that kernel configuration
+	process.
+
+        module                 |  kernel command line
+        -----------------------|----------------------
+        ft_fdc_base=BASE       |  ftape=BASE,ioport
+        ft_fdc_irq=IRQ         |  ftape=IRQ,irq
+        ft_fdc_dma=DMA         |  ftape=DMA,dma
+        ft_probe_fc10=BOOL     |  ftape=BOOL,fc10
+        ft_mach2=BOOL          |  ftape=BOOL,mach2
+        ft_fdc_threshold=THR   |  ftape=THR,threshold
+        ft_fdc_rate_limit=RATE |  ftape=RATE,datarate
+
+4. Example kernel parameter setting
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+   To configure ftape to probe for a Colorado FC-10/FC-20 controller
+   and to increase the amount of debugging output a little bit, add
+   the following line to `/etc/lilo.conf':
+
+   append ftape=1,fc10 ftape=4,tracing
+
+5. Example module parameter setting
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   To do the same, but with ftape compiled as a loadable kernel
+   module, add the following line to `/etc/modules.conf':
+
+   options ftape ft_probe_fc10=1 ft_tracing=4
+
+*******************************************************************************
+
+D. Support and contacts
+   ====================
+
+   Ftape is distributed under the GNU General Public License. There is
+   absolutely no warranty for this software. However, you can reach
+   the current maintainer of the ftape package under the email address
+   given in the MAINTAINERS file which is located in the top level
+   directory of the Linux kernel source tree. There you'll find also
+   the relevant mailing list to use as a discussion forum and the web
+   page to query for the most recent documentation, related work and
+   development versions of ftape.
+
+
+ LocalWords:  ftape Linux zftape http www rwth aachen LBFM claus EOD config
+ LocalWords:  datarate LocalWords BOT MTBSF EOT HOWTO QIC tpqic menuconfig
+ LocalWords:  MTIOCTOP MTSETBLK mt dev qft setblk BLKSZ bsf zftape's xconfig
+ LocalWords:  nqft ftformat ftp sunsite unc edu contrib ft MSDOG fdc
+ LocalWords:  dma setdensity DBGLVL insmod lilo LI nux ader conf txt
+ LocalWords:  modprobe IRQ BOOL ioport irq fc mach THR

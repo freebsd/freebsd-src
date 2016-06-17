@@ -1,0 +1,56 @@
+#
+# Multimedia Video device configuration
+#
+mainmenu_option next_comment
+comment 'Video For Linux'
+
+bool '  V4L information in proc filesystem' CONFIG_VIDEO_PROC_FS
+dep_tristate '  I2C on parallel port' CONFIG_I2C_PARPORT $CONFIG_PARPORT $CONFIG_I2C
+
+comment 'Video Adapters'
+dep_tristate '  BT848 Video For Linux' CONFIG_VIDEO_BT848 $CONFIG_VIDEO_DEV $CONFIG_PCI $CONFIG_I2C_ALGOBIT $CONFIG_SOUND
+dep_tristate '  Mediavision Pro Movie Studio Video For Linux' CONFIG_VIDEO_PMS $CONFIG_VIDEO_DEV
+if [ "$CONFIG_ALL_PPC" = "y" ]; then
+   dep_tristate '  PlanB Video-In on PowerMac' CONFIG_VIDEO_PLANB $CONFIG_VIDEO_DEV
+fi
+if [ "$CONFIG_PARPORT" != "n" ]; then
+   dep_tristate '  Quickcam BW Video For Linux' CONFIG_VIDEO_BWQCAM $CONFIG_VIDEO_DEV $CONFIG_PARPORT
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      dep_tristate '  QuickCam Colour Video For Linux (EXPERIMENTAL)' CONFIG_VIDEO_CQCAM $CONFIG_VIDEO_DEV $CONFIG_PARPORT
+   fi
+fi
+if [ "$CONFIG_PARPORT" != "n" ]; then
+   if [ "$CONFIG_PARPORT_1284" != "n" ]; then
+      dep_tristate '  W9966CF Webcam (FlyCam Supra and others) Video For Linux' CONFIG_VIDEO_W9966 $CONFIG_VIDEO_DEV $CONFIG_PARPORT
+   fi
+fi
+if [ "$CONFIG_SIBYTE_SWARM" = "y" -a "$CONFIG_I2C" != "n" ]; then
+   dep_tristate '  Philips 7114H decoder (for Swarm)' CONFIG_VIDEO_SWARM_7114H $CONFIG_VIDEO_DEV $CONFIG_I2C_ALGO_SIBYTE
+fi
+dep_tristate '  CPiA Video For Linux' CONFIG_VIDEO_CPIA $CONFIG_VIDEO_DEV
+if [ "$CONFIG_VIDEO_CPIA" != "n" ]; then
+  if [ "$CONFIG_PARPORT_1284" != "n" ]; then
+    dep_tristate '    CPiA Parallel Port Lowlevel Support' CONFIG_VIDEO_CPIA_PP $CONFIG_VIDEO_CPIA $CONFIG_PARPORT
+  fi
+  if [ "$CONFIG_USB" != "n" ]; then
+    dep_tristate '    CPiA USB Lowlevel Support' CONFIG_VIDEO_CPIA_USB $CONFIG_VIDEO_CPIA $CONFIG_USB
+  fi
+fi
+dep_tristate '  SAA5249 Teletext processor' CONFIG_VIDEO_SAA5249 $CONFIG_VIDEO_DEV $CONFIG_I2C
+dep_tristate '  SAB3036 tuner' CONFIG_TUNER_3036 $CONFIG_VIDEO_DEV $CONFIG_I2C
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   if [ "$CONFIG_SGI_IP22" = "y" -a "$CONFIG_I2C" != "n" ]; then
+      dep_tristate '  SGI VINO (EXPERIMENTAL)' CONFIG_VIDEO_VINO $CONFIG_VIDEO_DEV $CONFIG_I2C_ALGO_SGI
+   fi
+   dep_tristate '  Stradis 4:2:2 MPEG-2 video driver  (EXPERIMENTAL)' CONFIG_VIDEO_STRADIS $CONFIG_VIDEO_DEV $CONFIG_PCI
+fi
+dep_tristate '  Zoran ZR36057/36060 Video For Linux' CONFIG_VIDEO_ZORAN $CONFIG_VIDEO_DEV $CONFIG_PCI $CONFIG_I2C
+dep_tristate '  Iomega Buz support' CONFIG_VIDEO_ZORAN_BUZ $CONFIG_VIDEO_ZORAN $CONFIG_VIDEO_DEV $CONFIG_PCI $CONFIG_I2C
+dep_tristate '  Miro DC10(+) support' CONFIG_VIDEO_ZORAN_DC10 $CONFIG_VIDEO_ZORAN $CONFIG_VIDEO_DEV $CONFIG_PCI $CONFIG_I2C
+dep_tristate '  Linux Media Labs LML33 support' CONFIG_VIDEO_ZORAN_LML33 $CONFIG_VIDEO_ZORAN $CONFIG_VIDEO_DEV $CONFIG_PCI $CONFIG_I2C
+dep_tristate '  Zoran ZR36120/36125 Video For Linux' CONFIG_VIDEO_ZR36120 $CONFIG_VIDEO_DEV $CONFIG_PCI $CONFIG_I2C
+if [ "$CONFIG_EXPERIMENTAL" = "y" -a "$CONFIG_HIGHMEM64G" != "y" ]; then
+  dep_tristate '  Sony Vaio Picturebook Motion Eye Video For Linux (EXPERIMENTAL)' CONFIG_VIDEO_MEYE $CONFIG_VIDEO_DEV $CONFIG_PCI $CONFIG_SONYPI
+fi
+
+endmenu

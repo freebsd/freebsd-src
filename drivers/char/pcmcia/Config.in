@@ -1,0 +1,16 @@
+#
+# PCMCIA character device configuration
+#
+
+mainmenu_option next_comment
+comment 'PCMCIA character devices'
+
+dep_tristate 'PCMCIA serial device support' CONFIG_PCMCIA_SERIAL_CS $CONFIG_SERIAL
+if [ "$CONFIG_PCMCIA_SERIAL_CS" = "y" ]; then
+   define_bool CONFIG_PCMCIA_CHRDEV y
+fi
+
+tristate 'SyncLink PC Card support' CONFIG_SYNCLINK_CS
+
+endmenu
+

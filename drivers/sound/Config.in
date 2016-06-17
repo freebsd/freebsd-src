@@ -1,0 +1,247 @@
+# drivers/sound/Config.in
+#
+# 18 Apr 1998, Michael Elizabeth Chastain, <mailto:mec@shout.net>
+# More hacking for modularisation.
+#
+
+# Prompt user for primary drivers.
+
+dep_tristate '  ALi5455 audio support' CONFIG_SOUND_ALI5455 $CONFIG_SOUND $CONFIG_PCI
+if [ "$CONFIG_SOUND_ALI5455" = "y" -o "$CONFIG_SOUND_ALI5455" = "m" ]; then
+    bool  '   Enable Codec SPDIF OUT ( Pcm Out Share )' CONFIG_SOUND_ALI5455_CODECSPDIFOUT_PCMOUTSHARE
+    bool  '   Enable Codec SPDIF OUT ( Codec Independent DMA )' CONFIG_SOUND_ALI5455_CODECSPDIFOUT_CODECINDEPENDENTDMA
+    bool  '   Enable Controller SPDIF OUT ( Pcm Out Share )' CONFIG_SOUND_ALI5455_CONTROLLERSPDIFOUT_PCMOUTSHARE
+    bool  '   Enable Controller SPDIF OUT ( Controller Independent DMA )' CONFIG_SOUND_ALI5455_CONTROLLERSPDIFOUT_CONTROLLERINDEPENDENTDMA
+fi
+dep_tristate '  BT878 audio dma' CONFIG_SOUND_BT878 $CONFIG_SOUND $CONFIG_PCI
+dep_tristate '  C-Media PCI (CMI8338/8738)' CONFIG_SOUND_CMPCI $CONFIG_SOUND $CONFIG_PCI
+if [ "$CONFIG_SOUND_CMPCI" = "y" -o "$CONFIG_SOUND_CMPCI" = "m" ]; then
+    bool '    Enable legacy FM' CONFIG_SOUND_CMPCI_FM
+    if [ "$CONFIG_SOUND_CMPCI_FM" = "y" ]; then
+	define_hex CONFIG_SOUND_CMPCI_FMIO 388
+        hex '    FM I/O 388, 3C8, 3E0, 3E8' CONFIG_SOUND_CMPCI_FMIO 388
+    fi
+    bool '    Enable legacy MPU-401' CONFIG_SOUND_CMPCI_MIDI
+    if [ "$CONFIG_SOUND_CMPCI_MIDI" = "y" ]; then
+        hex '    MPU-401 I/O 330, 320, 310, 300' CONFIG_SOUND_CMPCI_MPUIO 330
+    fi
+    bool '    Enable joystick' CONFIG_SOUND_CMPCI_JOYSTICK
+    bool '    Support CMI8738 based audio cards' CONFIG_SOUND_CMPCI_CM8738
+    if [ "$CONFIG_SOUND_CMPCI_CM8738" = "y" ]; then
+	bool '      Inverse S/PDIF in for CMI8738' CONFIG_SOUND_CMPCI_SPDIFINVERSE
+	bool '      Enable S/PDIF loop for CMI8738' CONFIG_SOUND_CMPCI_SPDIFLOOP
+	int  '      Number of speakers 2, 4, 5, 6' CONFIG_SOUND_CMPCI_SPEAKERS 2
+	if [ "$CONFIG_SOUND_CMPCI_SPEAKERS" != "2" ]; then
+	    bool '        Use Line-in as Read-out' CONFIG_SOUND_CMPCI_LINE_REAR
+	    bool '        Use Line-in as Bass' CONFIG_SOUND_CMPCI_LINE_BASS
+	fi
+    fi
+fi
+dep_tristate '  Creative SBLive! (EMU10K1)' CONFIG_SOUND_EMU10K1 $CONFIG_SOUND $CONFIG_PCI
+dep_mbool    '    Creative SBLive! MIDI' CONFIG_MIDI_EMU10K1 $CONFIG_SOUND_EMU10K1 $CONFIG_EXPERIMENTAL
+dep_tristate '  Crystal SoundFusion (CS4280/461x)' CONFIG_SOUND_FUSION $CONFIG_SOUND $CONFIG_PCI
+dep_tristate '  Crystal Sound CS4281' CONFIG_SOUND_CS4281 $CONFIG_SOUND $CONFIG_PCI
+if [ "$CONFIG_SIBYTE_SWARM" = "y" ]; then
+    dep_tristate '  Crystal Sound CS4297a (for Swarm)' CONFIG_SOUND_BCM_CS4297A $CONFIG_SOUND
+fi
+dep_tristate '  Ensoniq AudioPCI (ES1370)' CONFIG_SOUND_ES1370 $CONFIG_SOUND $CONFIG_PCI
+dep_tristate '  Creative Ensoniq AudioPCI 97 (ES1371)' CONFIG_SOUND_ES1371 $CONFIG_SOUND $CONFIG_PCI
+dep_tristate '  ESS Technology Solo1' CONFIG_SOUND_ESSSOLO1 $CONFIG_SOUND $CONFIG_PCI
+dep_tristate '  ESS Maestro, Maestro2, Maestro2E driver' CONFIG_SOUND_MAESTRO $CONFIG_SOUND $CONFIG_PCI
+dep_tristate '  ESS Maestro3/Allegro driver (EXPERIMENTAL)' CONFIG_SOUND_MAESTRO3 $CONFIG_SOUND $CONFIG_PCI $CONFIG_EXPERIMENTAL
+dep_tristate '  ForteMedia FM801 driver (EXPERIMENTAL)' CONFIG_SOUND_FORTE $CONFIG_SOUND $CONFIG_PCI $CONFIG_EXPERIMENTAL
+dep_tristate '  Intel ICH (i8xx), SiS 7012, NVidia nForce Audio or AMD 768/811x' CONFIG_SOUND_ICH $CONFIG_PCI
+if [ "$CONFIG_GSC_LASI" = "y" ]; then
+   dep_tristate '  PA Harmony audio driver' CONFIG_SOUND_HARMONY $CONFIG_SOUND
+fi
+if [ "$CONFIG_MIPS_ITE8172" = "y" -o "$CONFIG_MIPS_IVR" = "y" ]; then
+    dep_tristate '  IT8172G Sound' CONFIG_SOUND_IT8172 $CONFIG_SOUND
+fi
+dep_tristate '  RME Hammerfall (RME96XX) support' CONFIG_SOUND_RME96XX $CONFIG_SOUND $CONFIG_PCI $CONFIG_EXPERIMENTAL
+dep_tristate '  S3 SonicVibes' CONFIG_SOUND_SONICVIBES $CONFIG_SOUND $CONFIG_PCI
+if [ "$CONFIG_VISWS" = "y" ]; then
+    dep_tristate '  SGI Visual Workstation sound' CONFIG_SOUND_VWSND $CONFIG_SOUND
+fi
+if [ "$CONFIG_SGI_IP22" = "y" ] ; then
+   dep_tristate '  SGI HAL2 sound (EXPERIMENTAL)' CONFIG_SOUND_HAL2 $CONFIG_SOUND $CONFIG_SGI_IP22 $CONFIG_EXPERIMENTAL
+fi
+
+if [ "$CONFIG_MIPS_ITE8172" = "y" -o "$CONFIG_MIPS_IVR" = "y" ]; then
+    dep_tristate '  IT8172G Sound' CONFIG_SOUND_IT8172 $CONFIG_SOUND
+fi
+if [ "$CONFIG_DDB5477" = "y" ]; then
+    dep_tristate '  NEC Vrc5477 AC97 sound' CONFIG_SOUND_VRC5477 $CONFIG_SOUND
+fi
+if [ "$CONFIG_SOC_AU1X00" = "y" -o  "$CONFIG_SOC_AU1500" = "y" ]; then
+    dep_tristate '  Au1x00 Sound' CONFIG_SOUND_AU1X00 $CONFIG_SOUND
+fi
+
+dep_tristate '  Trident 4DWave DX/NX, SiS 7018 or ALi 5451 PCI Audio Core' CONFIG_SOUND_TRIDENT $CONFIG_SOUND $CONFIG_PCI
+
+dep_tristate '  Support for Turtle Beach MultiSound Classic, Tahiti, Monterey' CONFIG_SOUND_MSNDCLAS $CONFIG_SOUND
+if [ "$CONFIG_SOUND_MSNDCLAS" = "y" -o "$CONFIG_SOUND_MSNDCLAS" = "m" ]; then
+   if [ "$CONFIG_SOUND_MSNDCLAS" = "y" ]; then
+     comment '  Compiled-in MSND Classic support requires firmware during compilation.'
+     define_bool CONFIG_MSNDCLAS_HAVE_BOOT y
+   else
+     define_bool CONFIG_MSNDCLAS_HAVE_BOOT n
+   fi
+   string 'Full pathname of MSNDINIT.BIN firmware file' CONFIG_MSNDCLAS_INIT_FILE "/etc/sound/msndinit.bin"
+   string 'Full pathname of MSNDPERM.BIN firmware file' CONFIG_MSNDCLAS_PERM_FILE "/etc/sound/msndperm.bin"
+fi
+if [ "$CONFIG_SOUND_MSNDCLAS" = "y" ]; then
+   int '  MSND Classic IRQ 5, 7, 9, 10, 11, 12' CONFIG_MSNDCLAS_IRQ 5
+   hex '  MSND Classic memory B0000, C8000, D0000, D8000, E0000, E8000' CONFIG_MSNDCLAS_MEM D0000
+   hex '  MSND Classic I/O 210, 220, 230, 240, 250, 260, 290, 3E0' CONFIG_MSNDCLAS_IO 290
+fi
+
+dep_tristate '  Support for Turtle Beach MultiSound Pinnacle, Fiji' CONFIG_SOUND_MSNDPIN $CONFIG_SOUND
+if [ "$CONFIG_SOUND_MSNDPIN" = "y" -o "$CONFIG_SOUND_MSNDPIN" = "m" ]; then
+   if [ "$CONFIG_SOUND_MSNDPIN" = "y" ]; then
+     comment 'Compiled-in MSND Pinnacle support requires firmware during compilation.'
+     define_bool CONFIG_MSNDPIN_HAVE_BOOT y
+   else
+     define_bool CONFIG_MSNDPIN_HAVE_BOOT n
+   fi
+   string '  Full pathname of PNDSPINI.BIN firmware file' CONFIG_MSNDPIN_INIT_FILE "/etc/sound/pndspini.bin"
+   string '  Full pathname of PNDSPERM.BIN firmware file' CONFIG_MSNDPIN_PERM_FILE "/etc/sound/pndsperm.bin"
+fi
+if [ "$CONFIG_SOUND_MSNDPIN" = "y" ]; then
+   int '    MSND Pinnacle IRQ 5, 7, 9, 10, 11, 12' CONFIG_MSNDPIN_IRQ 5
+   hex '    MSND Pinnacle memory B0000, C8000, D0000, D8000, E0000, E8000' CONFIG_MSNDPIN_MEM D0000
+   hex 'MSND Pinnacle I/O 210, 220, 230, 240, 250, 260, 290, 3E0' CONFIG_MSNDPIN_IO 290
+   bool '  MSND Pinnacle has S/PDIF I/O' CONFIG_MSNDPIN_DIGITAL
+   bool '  MSND Pinnacle non-PnP Mode' CONFIG_MSNDPIN_NONPNP
+   if [ "$CONFIG_MSNDPIN_NONPNP" = "y" ]; then
+      comment 'MSND Pinnacle DSP section will be configured to above parameters.'
+      hex 'MSND Pinnacle config port 250,260,270' CONFIG_MSNDPIN_CFG 250
+      comment 'Pinnacle-specific Device Configuration (0 disables)'
+      hex 'MSND Pinnacle MPU I/O (e.g. 330)' CONFIG_MSNDPIN_MPU_IO 0
+      int 'MSND Pinnacle MPU IRQ (e.g. 9)' CONFIG_MSNDPIN_MPU_IRQ 0
+      hex 'MSND Pinnacle IDE I/O 0 (e.g. 170)' CONFIG_MSNDPIN_IDE_IO0 0
+      hex 'MSND Pinnacle IDE I/O 1 (e.g. 376)' CONFIG_MSNDPIN_IDE_IO1 0
+      int 'MSND Pinnacle IDE IRQ (e.g. 15)' CONFIG_MSNDPIN_IDE_IRQ 0
+      hex 'MSND Pinnacle joystick I/O (e.g. 200)' CONFIG_MSNDPIN_JOYSTICK_IO 0
+   fi
+fi
+if [ "$CONFIG_SOUND_MSNDPIN" = "y" -o "$CONFIG_SOUND_MSNDCLAS" = "y" ]; then
+   int 'MSND buffer size (kB)' CONFIG_MSND_FIFOSIZE 128
+fi
+
+dep_tristate '  VIA 82C686 Audio Codec' CONFIG_SOUND_VIA82CXXX $CONFIG_PCI
+dep_mbool    '  VIA 82C686 MIDI' CONFIG_MIDI_VIA82CXXX $CONFIG_SOUND_VIA82CXXX
+
+dep_tristate '  OSS sound modules' CONFIG_SOUND_OSS $CONFIG_SOUND
+
+if [ "$CONFIG_SOUND_OSS" = "y" -o "$CONFIG_SOUND_OSS" = "m" ]; then
+   bool '      Verbose initialisation' CONFIG_SOUND_TRACEINIT
+   bool '      Persistent DMA buffers' CONFIG_SOUND_DMAP
+
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      dep_tristate '    AD1816(A) based cards (EXPERIMENTAL)' CONFIG_SOUND_AD1816 $CONFIG_SOUND_OSS
+      dep_tristate '    AD1889 based cards (AD1819 codec) (EXPERIMENTAL)' CONFIG_SOUND_AD1889 $CONFIG_SOUND_OSS
+   fi
+   dep_tristate '    Aztech Sound Galaxy (non-PnP) cards' CONFIG_SOUND_SGALAXY $CONFIG_SOUND_OSS
+   dep_tristate '    Adlib Cards' CONFIG_SOUND_ADLIB $CONFIG_SOUND_OSS
+   dep_tristate '    ACI mixer (miroSOUND PCM1-pro/PCM12/PCM20)' CONFIG_SOUND_ACI_MIXER $CONFIG_SOUND_OSS
+   dep_tristate '    Crystal CS4232 based (PnP) cards' CONFIG_SOUND_CS4232 $CONFIG_SOUND_OSS
+   dep_tristate '    Ensoniq SoundScape support' CONFIG_SOUND_SSCAPE $CONFIG_SOUND_OSS
+   dep_tristate '    Gravis Ultrasound support' CONFIG_SOUND_GUS $CONFIG_SOUND_OSS
+   if [ "$CONFIG_SOUND_GUS" != "n" ]; then
+      bool '      16 bit sampling option of GUS (_NOT_ GUS MAX)' CONFIG_SOUND_GUS16 
+      bool '      GUS MAX support' CONFIG_SOUND_GUSMAX
+   fi
+   dep_tristate '    Loopback MIDI device support' CONFIG_SOUND_VMIDI $CONFIG_SOUND_OSS
+   dep_tristate '    MediaTrix AudioTrix Pro support' CONFIG_SOUND_TRIX $CONFIG_SOUND_OSS
+   if [ "$CONFIG_SOUND_TRIX" = "y" ]; then
+      bool '      Have TRXPRO.HEX firmware file' CONFIG_TRIX_HAVE_BOOT
+      if [ "$CONFIG_TRIX_HAVE_BOOT" = "y" ]; then
+  	string '  Full pathname of TRXPRO.HEX firmware file' CONFIG_TRIX_BOOT_FILE /etc/sound/trxpro.hex
+      fi
+   fi
+  
+   dep_tristate '    Microsoft Sound System support' CONFIG_SOUND_MSS $CONFIG_SOUND_OSS
+   dep_tristate '    MPU-401 support (NOT for SB16)' CONFIG_SOUND_MPU401 $CONFIG_SOUND_OSS
+   dep_tristate '    NM256AV/NM256ZX audio support' CONFIG_SOUND_NM256 $CONFIG_SOUND_OSS
+   dep_tristate '    OPTi MAD16 and/or Mozart based cards' CONFIG_SOUND_MAD16 $CONFIG_SOUND_OSS
+   if [ "$CONFIG_SOUND_MAD16" = "y" -o "$CONFIG_SOUND_MAD16" = "m" ]; then
+     bool '      Support MIDI in older MAD16 based cards (requires SB)' CONFIG_MAD16_OLDCARD
+   fi
+   dep_tristate '    ProAudioSpectrum 16 support' CONFIG_SOUND_PAS $CONFIG_SOUND_OSS
+   dep_bool '      Enable PAS16 joystick port' CONFIG_PAS_JOYSTICK $CONFIG_SOUND_PAS
+
+   dep_tristate '    PSS (AD1848, ADSP-2115, ESC614) support' CONFIG_SOUND_PSS $CONFIG_SOUND_OSS
+   if [ "$CONFIG_SOUND_PSS" = "y" -o "$CONFIG_SOUND_PSS" = "m" ]; then
+      bool '      Enable PSS mixer (Beethoven ADSP-16 and other compatibile)' CONFIG_PSS_MIXER
+      bool '      Have DSPxxx.LD firmware file' CONFIG_PSS_HAVE_BOOT
+      if [ "$CONFIG_PSS_HAVE_BOOT" = "y" ]; then
+         string '        Full pathname of DSPxxx.LD firmware file' CONFIG_PSS_BOOT_FILE /etc/sound/dsp001.ld
+      fi
+   fi
+
+   dep_tristate '    100% Sound Blaster compatibles (SB16/32/64, ESS, Jazz16) support' CONFIG_SOUND_SB $CONFIG_SOUND_OSS
+   dep_tristate '    AWE32 synth' CONFIG_SOUND_AWE32_SYNTH $CONFIG_SOUND_OSS
+   dep_tristate '    XpressAudio Sound Blaster emulation' CONFIG_SOUND_KAHLUA $CONFIG_SOUND_SB $CONFIG_SOUND_OSS
+   dep_tristate '    Full support for Turtle Beach WaveFront (Tropez Plus, Tropez, Maui) synth/soundcards' CONFIG_SOUND_WAVEFRONT $CONFIG_SOUND_OSS m
+   dep_tristate '    Limited support for Turtle Beach Wave Front (Maui, Tropez) synthesizers' CONFIG_SOUND_MAUI $CONFIG_SOUND_OSS
+   if [ "$CONFIG_SOUND_MAUI" = "y" ]; then
+      bool '      Have OSWF.MOT firmware file' CONFIG_MAUI_HAVE_BOOT
+      if [ "$CONFIG_MAUI_HAVE_BOOT" = "y" ]; then
+  	 string '  Full pathname of OSWF.MOT firmware file' CONFIG_MAUI_BOOT_FILE /etc/sound/oswf.mot
+      fi
+   fi
+
+   dep_tristate '    Yamaha FM synthesizer (YM3812/OPL-3) support' CONFIG_SOUND_YM3812 $CONFIG_SOUND_OSS
+   dep_tristate '    Yamaha OPL3-SA1 audio controller' CONFIG_SOUND_OPL3SA1 $CONFIG_SOUND_OSS
+   dep_tristate '    Yamaha OPL3-SA2 and SA3 based PnP cards' CONFIG_SOUND_OPL3SA2 $CONFIG_SOUND_OSS
+   dep_tristate '    Yamaha YMF7xx PCI audio (native mode)' CONFIG_SOUND_YMFPCI $CONFIG_SOUND_OSS $CONFIG_PCI
+   dep_mbool '      Yamaha PCI legacy ports support' CONFIG_SOUND_YMFPCI_LEGACY $CONFIG_SOUND_YMFPCI
+   dep_tristate '    6850 UART support' CONFIG_SOUND_UART6850 $CONFIG_SOUND_OSS
+  
+   dep_tristate '    Gallant Audio Cards (SC-6000 and SC-6600 based)' CONFIG_SOUND_AEDSP16 $CONFIG_SOUND_OSS
+   if [ "$CONFIG_SOUND_AEDSP16" = "y" -o "$CONFIG_SOUND_AEDSP16" = "m" ]; then
+      bool '      SC-6600 based audio cards (new Audio Excel DSP 16)' CONFIG_SC6600
+      if [ "$CONFIG_SC6600" = "y" ]; then
+         bool '        Activate SC-6600 Joystick Interface' CONFIG_SC6600_JOY
+         int '        SC-6600 CDROM Interface (4=None, 3=IDE, 1=Panasonic, 0=?Sony?)' CONFIG_SC6600_CDROM 4
+         hex '        SC-6600 CDROM Interface I/O Address' CONFIG_SC6600_CDROMBASE 0
+      fi
+      if [ "$CONFIG_SOUND_SB" = "y" -o "$CONFIG_SOUND_SB" = "m" ]; then
+         if [ "$CONFIG_AEDSP16_MSS" != "y" ]; then
+            bool '      Audio Excel DSP 16 (SBPro emulation)' CONFIG_AEDSP16_SBPRO
+         fi
+      fi
+      if [ "$CONFIG_SOUND_MSS" = "y" -o "$CONFIG_SOUND_MSS" = "m" ]; then
+         if [ "$CONFIG_AEDSP16_SBPRO" != "y" ]; then
+            bool '      Audio Excel DSP 16 (MSS emulation)' CONFIG_AEDSP16_MSS
+         fi
+      fi
+      if [ "$CONFIG_SOUND_MPU401" = "y" -o "$CONFIG_SOUND_MPU401" = "m" ]; then
+         bool '      Audio Excel DSP 16 (MPU401 emulation)' CONFIG_AEDSP16_MPU401
+      fi
+   fi
+
+   if [ "$CONFIG_ARM" = "y" ]; then
+      if [ "$CONFIG_ARCH_ACORN" = "y" -o "$CONFIG_ARCH_CLPS7500" = "y" ]; then
+         dep_tristate '    VIDC 16-bit sound' CONFIG_SOUND_VIDC $CONFIG_SOUND_OSS
+      fi
+      dep_tristate '    Netwinder WaveArtist' CONFIG_SOUND_WAVEARTIST $CONFIG_SOUND_OSS $CONFIG_ARCH_NETWINDER
+   fi
+
+fi
+
+dep_tristate '  TV card (bt848) mixer support' CONFIG_SOUND_TVMIXER $CONFIG_SOUND $CONFIG_I2C
+
+dep_tristate '  AD1980 front/back switch plugin' CONFIG_SOUND_AD1980 $CONFIG_SOUND 
+
+dep_tristate '  Wolfson Touchscreen/BMON plugin' CONFIG_SOUND_WM97XX $CONFIG_SOUND 
+
+# A cross directory dependence. The sound modules will need gameport.o compiled in,
+# but it resides in the drivers/char/joystick directory. This define_tristate takes
+# care of that. --Vojtech
+
+if [ "$CONFIG_INPUT_GAMEPORT" != "n" ]; then
+  if [ "$CONFIG_SOUND_ESSSOLO1" = "y" -o "$CONFIG_SOUND_ES1370" = "y" -o "$CONFIG_SOUND_ES1371" = "y" -o "$CONFIG_SOUND_SONICVIBES" = "y" ]; then
+    define_tristate CONFIG_INPUT_GAMEPORT y
+  fi
+fi

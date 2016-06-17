@@ -1,0 +1,43 @@
+#
+# SCTP configuration
+#
+mainmenu_option next_comment
+comment '   SCTP Configuration (EXPERIMENTAL)'
+
+tristate '  The SCTP Protocol (EXPERIMENTAL)' CONFIG_IP_SCTP
+
+if [ "$CONFIG_IP_SCTP" = "y" -a "$CONFIG_IPV6" = "m" ]; then
+	define_tristate CONFIG_IP_SCTP m
+fi
+
+if [ "$CONFIG_IP_SCTP" != "n" ]; then
+  bool '    SCTP: Debug messages' CONFIG_SCTP_DBG_MSG
+  bool '    SCTP: Debug object counts' CONFIG_SCTP_DBG_OBJCNT
+  if [ "$CONFIG_CRYPTO_HMAC" = "n" ]; then
+    choice '    SCTP: Cookie HMAC Algorithm' \
+      "HMAC-NONE		CONFIG_SCTP_HMAC_NONE" HMAC-NONE
+  else
+    if [ "$CONFIG_CRYPTO_MD5" = "n" -a "$CONFIG_CRYPTO_SHA1" = "n" ]; then
+      choice '    SCTP: Cookie HMAC Algorithm' \
+        "HMAC-NONE		CONFIG_SCTP_HMAC_NONE" HMAC-NONE
+    else
+      if [ "$CONFIG_CRYPTO_MD5" != "n" -a "$CONFIG_CRYPTO_SHA1" != "n" ]; then
+        choice '    SCTP: Cookie HMAC Algorithm' \
+          "HMAC-NONE		CONFIG_SCTP_HMAC_NONE \
+           HMAC-SHA1              CONFIG_SCTP_HMAC_SHA1 \
+           HMAC-MD5		CONFIG_SCTP_HMAC_MD5"	HMAC-MD5
+      else
+        if [ "$CONFIG_CRYPTO_MD5" != "n" ]; then
+          choice 'SCTP: Cookie HMAC Algorithm' \
+          "HMAC-NONE		CONFIG_SCTP_HMAC_NONE \
+           HMAC-MD5		CONFIG_SCTP_HMAC_MD5"	HMAC-MD5
+        else
+          choice 'SCTP: Cookie HMAC Algorithm' \
+          "HMAC-NONE		CONFIG_SCTP_HMAC_NONE \
+           HMAC-SHA1		CONFIG_SCTP_HMAC_SHA1"	HMAC-SHA1
+        fi
+      fi
+    fi
+  fi
+fi
+endmenu

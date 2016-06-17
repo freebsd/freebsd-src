@@ -1,0 +1,278 @@
+#
+# For a description of the syntax of this configuration file,
+# see the Configure script.
+#
+mainmenu_name "Linux/CRIS Kernel Configuration"
+
+define_bool CONFIG_UID16 y
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK y
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM n
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+   bool '  Set version information on all module symbols' CONFIG_MODVERSIONS
+   bool '  Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+
+bool 'Networking support' CONFIG_NET
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+
+string 'Kernel command line' CONFIG_ETRAX_CMDLINE "root=/dev/mtdblock3"
+
+bool 'Use kernel gdb debugger' CONFIG_ETRAX_KGDB
+
+bool 'Use Artpec gdb debugger' CONFIG_ETRAX_AGDB
+
+bool 'Enable ETRAX watchdog' CONFIG_ETRAX_WATCHDOG
+if [ "$CONFIG_ETRAX_WATCHDOG" = "y" ]; then
+	bool '  Disable watchdog during Oops printouts' CONFIG_ETRAX_WATCHDOG_NICE_DOGGY
+fi
+
+bool 'Enable ETRAX interrupt debugging' CONFIG_ETRAX_DEBUG_INTERRUPT
+
+bool 'Enable ETRAX fast timer API' CONFIG_ETRAX_FAST_TIMER
+if [ "$CONFIG_ETRAX_FAST_TIMER" = "y" ]; then
+	bool '  Enable fast timer logging' CONFIG_ETRAX_FAST_TIMER_LOGGING
+	bool '  Enable fast timer debug' CONFIG_ETRAX_FAST_TIMER_DEBUG
+	bool '  Enable fast timer sanity checks' CONFIG_ETRAX_FAST_TIMER_SANITY_CHECKS
+fi
+
+bool 'Enable reboot at out of memory' CONFIG_OOM_REBOOT
+
+endmenu
+
+mainmenu_option next_comment
+comment 'Hardware setup'
+
+choice 'Processor type' \
+	"Etrax-100-LX-v1	CONFIG_ETRAX100LX	\
+	 Etrax-100-LX-v2	CONFIG_ETRAX100LX_V2	\
+	 Etrax-100-LX-for-xsim-simulator   CONFIG_SVINTO_SIM" Etrax-100-LX-v1
+
+# ETRAX 100LX v1 has a MMU "feature" requiring a low mapping
+
+if [ "$CONFIG_ETRAX100LX" = "y" ]; then
+	define_bool CONFIG_CRIS_LOW_MAP y
+	define_hex  CONFIG_ETRAX_DRAM_VIRTUAL_BASE 60000000
+else
+	define_hex  CONFIG_ETRAX_DRAM_VIRTUAL_BASE c0000000
+fi
+
+int 'DRAM size (dec, in MB)' CONFIG_ETRAX_DRAM_SIZE 8
+
+int 'Buswidth of flash in bytes' CONFIG_ETRAX_FLASH_BUSWIDTH 2
+
+choice 'Product LED port' \
+	"Port-PA-LEDs	CONFIG_ETRAX_PA_LEDS	\
+	 Port-PB-LEDs	CONFIG_ETRAX_PB_LEDS	\
+	 Port-CSP0-LEDs	CONFIG_ETRAX_CSP0_LEDS  \
+	 None	CONFIG_ETRAX_NO_LEDS" Port-PA-LEDs
+
+if [ "$CONFIG_ETRAX_NO_LEDS" != "y" ]; then
+	int '  First green LED bit' CONFIG_ETRAX_LED1G 2
+	int '  First red LED bit' CONFIG_ETRAX_LED1R 3
+	int '  Second green LED bit' CONFIG_ETRAX_LED2G 4
+	int '  Second red LED bit' CONFIG_ETRAX_LED2R 5
+	int '  Third green LED bit' CONFIG_ETRAX_LED3G 2
+	int '  Third red LED bit' CONFIG_ETRAX_LED3R 2
+fi
+
+if [ "$CONFIG_ETRAX_CSP0_LEDS" = "y" ]; then
+	int '  Fourth red LED bit' CONFIG_ETRAX_LED4R 2
+	int '  Fourth green LED bit' CONFIG_ETRAX_LED4G 2
+	int '  Fifth red LED bit' CONFIG_ETRAX_LED5R 2
+	int '  Fifth green LED bit' CONFIG_ETRAX_LED5G 2
+	int '  Sixth red LED bit' CONFIG_ETRAX_LED6R 2
+	int '  Sixth green LED bit' CONFIG_ETRAX_LED6G 2
+	int '  Seventh red LED bit' CONFIG_ETRAX_LED7R 2
+	int '  Seventh green LED bit' CONFIG_ETRAX_LED7G 2
+	int '  Eigth yellow LED bit' CONFIG_ETRAX_LED8Y 2
+	int '  Ninth yellow LED bit' CONFIG_ETRAX_LED9Y 2
+	int '  Tenth yellow LED bit' CONFIG_ETRAX_LED10Y 2
+	int '  Eleventh yellow LED bit' CONFIG_ETRAX_LED11Y 2
+	int '  Twelfth red LED bit' CONFIG_ETRAX_LED12R 2
+fi
+
+choice 'Product debug-port' \
+	"Serial-0	CONFIG_ETRAX_DEBUG_PORT0	\
+	 Serial-1	CONFIG_ETRAX_DEBUG_PORT1	\
+	 Serial-2	CONFIG_ETRAX_DEBUG_PORT2	\
+	 Serial-3	CONFIG_ETRAX_DEBUG_PORT3	\
+	 disabled	CONFIG_ETRAX_DEBUG_PORT_NULL" Serial-0
+
+choice 'Product rescue-port' \
+	"Serial-0	CONFIG_ETRAX_RESCUE_SER0	\
+	 Serial-1	CONFIG_ETRAX_RESCUE_SER1	\
+	 Serial-2	CONFIG_ETRAX_RESCUE_SER2	\
+	 Serial-3	CONFIG_ETRAX_RESCUE_SER3" Serial-0
+
+hex 'R_WAITSTATES' CONFIG_ETRAX_DEF_R_WAITSTATES 95a6
+hex 'R_BUS_CONFIG' CONFIG_ETRAX_DEF_R_BUS_CONFIG 104
+
+bool 'SDRAM support' CONFIG_ETRAX_SDRAM
+if [ "$CONFIG_ETRAX_SDRAM" = "n" ]; then
+	hex '  R_DRAM_CONFIG' CONFIG_ETRAX_DEF_R_DRAM_CONFIG 1a200040
+	hex '  R_DRAM_TIMING' CONFIG_ETRAX_DEF_R_DRAM_TIMING 5611
+fi
+
+if [ "$CONFIG_ETRAX_SDRAM" = "y" ]; then
+	hex '  R_SDRAM_CONFIG' CONFIG_ETRAX_DEF_R_SDRAM_CONFIG d2fa7878
+	hex '  R_SDRAM_TIMING' CONFIG_ETRAX_DEF_R_SDRAM_TIMING 80004801
+fi
+
+hex 'R_PORT_PA_DIR' CONFIG_ETRAX_DEF_R_PORT_PA_DIR 1c
+hex 'R_PORT_PA_DATA' CONFIG_ETRAX_DEF_R_PORT_PA_DATA 00
+hex 'R_PORT_PB_CONFIG' CONFIG_ETRAX_DEF_R_PORT_PB_CONFIG 00
+hex 'R_PORT_PB_DIR' CONFIG_ETRAX_DEF_R_PORT_PB_DIR 00
+hex 'R_PORT_PB_DATA' CONFIG_ETRAX_DEF_R_PORT_PB_DATA ff
+
+bool 'Software Shutdown Support' CONFIG_ETRAX_SOFT_SHUTDOWN
+if [ "$CONFIG_ETRAX_SOFT_SHUTDOWN" = "y" ]; then
+   int '  Shutdown bit on port CSP0' CONFIG_ETRAX_SHUTDOWN_BIT 12
+   int '  Power button bit on port G' CONFIG_ETRAX_POWERBUTTON_BIT 25
+fi
+
+endmenu
+
+# bring in ETRAX built-in drivers
+
+source arch/cris/drivers/Config.in
+
+# standard linux drivers
+
+source drivers/mtd/Config.in
+
+source drivers/parport/Config.in
+
+source drivers/pnp/Config.in
+
+source drivers/block/Config.in
+
+source drivers/md/Config.in
+
+source drivers/pcmcia/Config.in
+if [ "$CONFIG_PCMCIA" != "n" ]; then
+   define_bool CONFIG_VIRTUAL_BUS y
+fi
+
+if [ "$CONFIG_NET" = "y" ]; then
+  source net/Config.in
+fi
+
+source drivers/telephony/Config.in
+
+mainmenu_option next_comment
+comment 'ATA/IDE/MFM/RLL support'
+
+tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+if [ "$CONFIG_IDE" != "n" ]; then
+  source drivers/ide/Config.in
+else
+  define_bool CONFIG_BLK_DEV_HD n
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+tristate 'SCSI support' CONFIG_SCSI
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+  source drivers/scsi/Config.in
+fi
+endmenu
+
+source drivers/ieee1394/Config.in
+
+source drivers/message/i2o/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+  mainmenu_option next_comment
+  comment 'Network device support'
+
+  bool 'Network device support' CONFIG_NETDEVICES
+  if [ "$CONFIG_NETDEVICES" = "y" ]; then
+    source drivers/net/Config.in
+      if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+         source drivers/atm/Config.in
+      fi
+  fi
+  endmenu
+fi
+
+source net/ax25/Config.in
+
+source net/irda/Config.in
+
+mainmenu_option next_comment
+comment 'ISDN subsystem'
+if [ "$CONFIG_NET" != "n" ]; then
+   tristate 'ISDN support' CONFIG_ISDN
+   if [ "$CONFIG_ISDN" != "n" ]; then
+      source drivers/isdn/Config.in
+   fi
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Old CD-ROM drivers (not SCSI, not IDE)'
+
+bool 'Support non-SCSI/IDE/ATAPI CDROM drives' CONFIG_CD_NO_IDESCSI
+if [ "$CONFIG_CD_NO_IDESCSI" != "n" ]; then
+   source drivers/cdrom/Config.in
+fi
+endmenu
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source drivers/input/Config.in
+source drivers/char/Config.in
+
+#source drivers/misc/Config.in
+
+source drivers/media/Config.in
+
+source fs/Config.in
+
+mainmenu_option next_comment
+comment 'Sound'
+
+tristate 'Sound card support' CONFIG_SOUND
+if [ "$CONFIG_SOUND" != "n" ]; then
+  source drivers/sound/Config.in
+fi
+endmenu
+
+source drivers/usb/Config.in
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+#bool 'Debug kmalloc/kfree' CONFIG_DEBUG_MALLOC
+bool 'Kernel profiling support' CONFIG_PROFILE
+if [ "$CONFIG_PROFILE" = "y" ]; then
+  int '  Profile shift count' CONFIG_PROFILE_SHIFT 2
+fi
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+source crypto/Config.in
+source lib/Config.in
+endmenu

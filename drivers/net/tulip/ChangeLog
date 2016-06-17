@@ -1,0 +1,563 @@
+2002-09-18  Ryan Bradetich  <rbradetich@uswest.net>
+
+	tulip hppa support:
+	* eeprom.c (tulip_build_fake_mediatable): new function
+	(tulip_parse_eeprom): call it, when no media table
+	* interrupt.c (phy_interrupt): new function
+	(tulip_interrupt): call it, before checking for no-irq-work
+	* tulip.c: add HAS_PHY_IRQ chip feature flag.
+	add csr12_shadow to tulip_private struct, only for hppa currently.
+	* tulip_core (tulip_init_one): support hppa wonky eeproms
+
+2002-05-11  Juan Quintela  <quintela@mandrakesoft.com>
+
+	* 21142.c (t21142_lnk_change): Revert earlier patch
+	to always reset phy; only conditionally do so now.
+
+2002-05-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core (tulip_pci_tbl): Add new "comet"
+	pci id.  Contributed by Ohta Kyuma.
+
+2002-03-07  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core (tulip_mwi_config): Use new PCI API functions
+	for enabling and disabled Memory-Write-Invalidate
+	PCI transaction.
+	Fix bugs in tulip MWI config also.
+
+2002-02-07  Uwe Bonnes  <bon@elektron.ikp.physik.tu-darmstadt.de>
+
+	* tulip_core (tulip_pci_tbl[]):
+	Add PCI id for comet tulip clone.
+
+2001-12-19  John Zielinski
+
+	* tulip_core.c (tulip_up, tulip_init_one):
+	More places to revert PHY autoconfiguration bit removal.
+
+2001-12-16  Andrew Lambeth  <wal@vmware.com>
+
+	* tulip_core.c (tulip_start_xmit): Use the more-portable
+	spin_lock_irqsave.
+
+2001-11-13  David S. Miller  <davem@redhat.com>
+
+	* tulip_core.c (tulip_mwi_config): Kill unused label early_out.
+
+2001-11-06  Richard Mortimer  <richm@oldelvet.netscapeonline.co.uk>
+
+	* tulip_core.c:  Correct set of values to mask out of csr0,
+	for DM9102A chips.  Limit burst/alignment of DM9102A chips
+	on Sparcs.
+
+2001-11-06  Jun Sun  <jsun@mvista.com>
+
+	* tulip_core.c:  Support finding MAC address on
+	two MIPS boards, DDB5476 and DDB5477.
+
+2001-11-06  Kevin B. Hendricks  <khendricks@ivey.uwo.ca>
+
+	* Makefile, tulip.h, tulip_core.c, pnic2.c, 21142.c:
+	Fixes for PNIC II support.
+
+2001-11-06  David S. Miller  <davem@redhat.com>
+
+	* tulip_core.c: Support reading MAC address from
+	Sparc OBP property local-mac-address.
+
+2001-07-17  Erik A. Hendriks  <hendriks@lanl.gov>
+
+	* 21142.c: Merge fix from tulip.c 0.92w which prevents the
+	overwriting of csr6 bits we want to preserve.
+
+2001-07-10  Jeff Golds  <jgolds@resilience.com>
+
+	* tulip_core.c: Fix two comments
+
+2001-07-06  Stephen Degler  <sdegler@degler.net>
+
+	* media.c:
+	The media selection process at the end of NWAY is busted
+	because for the case of MII/SYM it needs to be:
+
+        csr13 <- 0
+        csr14 <- 0
+        csr6 <-  the value calculated is okay.
+
+	In the other media cases csr14 is computed by
+	t21142_csr14val[dev->if_port], which seems ok.  The value of
+	zero as opposed to 3FFFFF comes straight from appendix D of the
+	21143 data book, and it makes logical sense because you're
+	bypassing all the SIA interface when you usa MII or SYM (see
+	figure 1-1 in the data book if your're visually oriented)
+
+2001-07-03  Jeff Golds  <jgolds@resilience.com>
+
+	* tulip_core.c (tulip_clean_tx_ring):
+	Clear status for in-progress Tx's, and count
+	Tx errors for all packets being released.
+
+2001-06-16  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip.h, tulip_core.c:
+	Integrate MMIO support from devel branch, but default
+	it to off for stable kernel and driver series.
+
+2001-06-16  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_init_one):
+	Free descriptor rings on error.
+
+2001-06-16  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_mwi_config, tulip_init_one):
+	Large update to csr0 bus configuration code.  This is not stable
+	yet, so it is only conditionally enabled, via CONFIG_TULIP_MWI.
+
+2001-06-16  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c:
+	Initialize timer in tulip_init_one and tulip_down,
+	not in tulip_up.
+
+2001-06-14  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c:
+	- Update tulip_suspend, tulip_resume for new PCI PM API.
+	- Surround suspend/resume code with CONFIG_PM.
+
+2001-06-12  Jeff Golds  <jgolds@resilience.com>
+
+	* tulip_core.c:
+	- Reset sw ring ptrs in tulip_up.  Fixes PM resume case.
+	- Clean rx and tx rings on device down.
+
+2001-06-05  David Miller  <davem@redhat.com>
+
+	* tulip_core (set_rx_mode):  Do not use set_bit
+	on an integer variable.  Also fix endianness issue.
+
+2001-06-04  Jeff Garzik  <jgarzik@pobox.com>
+
+	* interrupt.c:
+	Simplify rx processing when CONFIG_NET_HW_FLOWCONTROL is
+	active, and in the process fix a bug where flow control
+	and low load caused rx not to be acknowledged properly.
+
+2001-06-01  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip.h:
+	- Remove tulip_outl_csr helper, redundant.
+	- Add tulip_start_rxtx inline helper.
+	- tulip_stop_rxtx helper: Add synchronization. Always use current
+	  csr6 value, instead of tp->csr6 value or value passed as arg.
+	- tulip_restart_rxtx helper: Add synchronization. Always
+	  use tp->csr6 for desired mode, not value passed as arg.
+	- New RxOn, TxOn, RxTx constants for csr6 modes.
+	- Remove now-redundant constants csr6_st, csr6_sr.
+
+	* 21142.c, interrupt.c, media.c, pnic.c, tulip_core.c:
+	Update for above rxtx helper changes.
+
+	* interrupt.c:
+	- whitespace cleanup around #ifdef CONFIG_NET_HW_FLOWCONTROL,
+	  convert tabs to spaces.
+	- Move tp->stats.rx_missed_errors update outside the ifdef.
+
+2001-05-18  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: Added ethtool support.
+	  ETHTOOL_GDRVINFO ioctl only, for now.
+
+2001-05-14  Robert Olsson <Robert.Olsson@data.slu.se>
+
+	* Restored HW_FLOWCONTROL from Linux 2.1 series tulip (ANK)
+	  plus Jamal's NETIF_RX_* feedback control.
+
+2001-05-14  Robert Olsson <Robert.Olsson@data.slu.se>
+
+	* Added support for 21143's Interrupt Mitigation.
+	  Jamal original instigator.
+
+2001-05-14  Robert Olsson <Robert.Olsson@data.slu.se>
+
+	* tulip_refill_rx prototype added to tulip.h
+
+2001-05-13  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: Remove HAS_PCI_MWI flag from Comet, untested.
+
+2001-05-12  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c, tulip.h: Remove Conexant PCI id, no chip
+	docs are available to fix problems with support.
+
+2001-05-12  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_init_one): Do not call
+	unregister_netdev in error cleanup.  Remnant of old
+	usage of init_etherdev.
+
+2001-05-12  Jeff Garzik  <jgarzik@pobox.com>
+
+	* media.c (tulip_find_mii): Simple write the updated BMCR
+	twice, as it seems the best thing to do for both broken and
+	sane chips.
+	If the mii_advert value, as read from MII_ADVERTISE, is zero,
+	then generate a value we should advertise from the capability
+	bits in BMSR.
+	Fill in tp->advertising for all cases.
+	Just to be safe, clear all unwanted bits.
+
+2001-05-12  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (private_ioctl):  Fill in tp->advertising
+	when advertising value is changed by the user.
+
+2001-05-12  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: Mark Comet chips as needed the updated MWI
+	csr0 configuration.
+
+2001-05-12  Jeff Garzik  <jgarzik@pobox.com>
+
+	* media.c, tulip_core.c:  Move MII scan into
+	from inlined inside tulip_init_one to new function
+	tulip_find_mii in media.c.
+
+2001-05-12  Jeff Garzik  <jgarzik@pobox.com>
+
+	* media.c (tulip_check_duplex):
+	Only restart Rx/Tx engines if they are active
+	(and csr6 changes)
+
+2001-05-12  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_mwi_config):
+	Clamp values read from PCI cache line size register to
+	values acceptable to tulip chip.  Done for safety and
+	-almost- certainly unneeded.
+
+2001-05-11  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_init_one):
+	Instead of unconditionally enabling autonegotiation, disable
+	autonegotiation if not using the default port.  Further,
+	flip the nway bit immediately, and then update the
+	speed/duplex in a separate MII transaction.  We do this
+	because some boards require that nway be disabled separately,
+	before media selection is forced.
+
+	TODO: Investigate if we can simply write the same value
+	to BMCR twice, to avoid setting unnecessarily changing
+	phy settings.
+
+2001-05-11  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip.h, tulip_core.c:  If HAS_PCI_MWI is set for a
+	given chip, adjust the csr0 values not according to
+	provided values but according to system cache line size.
+	Currently cache alignment is matched as closely to cache
+	line size as possible.  Currently programmable burst limit
+	is set (ie. never unlimited), and always equal to cache
+	alignment and system cache size.  Currently MWI bit is set
+	only if the MWI bit is present in the PCI command register.
+
+2001-05-11  Jeff Garzik  <jgarzik@pobox.com>
+
+	* media.c (tulip_select_media):
+	For media types 1 and 3, only use the provided eeprom
+	advertising value if it is non-zero.
+	(tulip_check_duplex):
+	Do not exit ASAP if full_duplex_lock is set.  This
+	ensures that the csr6 value is written if an update
+	is needed.
+
+2001-05-10  Jeff Garzik  <jgarzik@pobox.com>
+
+	Merge PNIC-II-specific stuff from Becker's tulip.c:
+
+	* tulip.h, 21142.c (pnic2_lnk_change): new function
+	* tulip_core.c (tulip_init_one): use it
+
+	* tulip_core.c (tulip_tx_timeout): Add specific
+	debugging for PNIC2.
+
+2001-05-10  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_init_one): Print out
+	tulip%d instead of PCI device number, for
+	consistency.
+
+2001-05-10  Jeff Garzik  <jgarzik@pobox.com>
+
+	* Merge changes from Becker's tulip.c:
+	Fix bugs in ioctl.
+	Fix several bugs by distinguishing between MII
+	and SYM advertising values.
+	Set CSR14 autonegotiation bit for media types 2 and 4,
+	where the SIA CSR setup values are not provided.
+
+2001-05-10  Jeff Garzik  <jgarzik@pobox.com>
+
+	* media.c (tulip_select_media): Only update MII
+	advertising value if startup arg < 2.
+
+	* tulip.h: Do not enable CSR13/14/15 autoconfiguration
+	for 21041.
+
+	* tulip_core.c:
+	21041: add specific code for reset, and do not set CAC bit
+	When resetting media, for media table type 11 media, pass
+	value 2 as 'startup' arg to select_media, to avoid updating
+	MII advertising value.
+
+2001-05-10  Jeff Garzik  <jgarzik@pobox.com>
+
+	* pnic.c (pnic_check_duplex): remove
+	pnic.c (pnic_lnk_change, pnic_timer): use
+	tulip_check_duplex not pnic_check_duplex.
+
+	* media.c (tulip_check_duplex):
+	Clean up to use symbolic names instead of numeric constants.
+	Set TxThreshold mode as necessary as well as clearing it.
+	Update csr6 if csr6 changes, not simply if duplex changes.
+
+	(found by Manfred Spraul)
+
+2001-05-10  Jeff Garzik  <jgarzik@pobox.com>
+
+	* 21142.c, eeprom.c, tulip.h, tulip_core.c:
+	Remove DPRINTK as another, better method of
+	debug message printing is available.
+
+2001-05-09  Jeff Garzik  <jgarzik@pobox.com>
+
+	* 21142.c (t21142_lnk_change): Pass arg startup==1
+	to tulip_select_media, in order to force csr13 to be
+	zeroed out prior to going to full duplex mode.  Fixes
+	autonegotiation on a quad-port Znyx card.
+	(from Stephen Dengler)
+
+2001-05-09  Russell King  <rmk@arm.linux.org.uk>
+
+	* interrupt.c: Better PCI bus error reporting.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: Now that dev->name is only available late
+	  in the probe, insert a hack to replace a not-evaluated
+	  "eth%d" string with an evaluated "tulip%d" string.
+	  Also, remove obvious comment and an indentation cleanup.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: If we are a module, always print out the
+	  version string.  If we are built into the kernel, only print
+	  the version string if at least one tulip is detected.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	Merged from Becker's tulip.c 0.92t:
+
+	* tulip_core.c: Add support for Conexant LANfinity.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: Only suspend/resume if the interface
+	  is up and running.  Use alloc_etherdev and pci_request_regions.
+	  Spelling fix.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: Remove code that existed when one or more of
+	  the following defines existed.  These defines were never used
+	  by normal users in practice: TULIP_FULL_DUPLEX,
+	  TULIP_DEFAULT_MEDIA, and TULIP_NO_MEDIA_SWITCH.
+
+	* tulip.h, eeprom.c: Move EE_* constants from tulip.h to eeprom.c.
+	* tulip.h, media.c: Move MDIO_* constants from tulip.h to media.c.
+
+	* media.c: Add barrier() to mdio_read/write's PNIC status check
+	  loops.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	Merged from Becker's tulip.c 0.92t:
+
+	* tulip.h: Add MEDIA_MASK constant for bounding medianame[]
+	  array lookups.
+	* eeprom.c, media.c, timer.c, tulip_core.c: Use it.
+
+	* media.c, tulip_core.c: mdio_{read,write} cleanup.  Since this
+	  is called [pretty much] directly from ioctl, we mask
+	  read/write arguments to limit the values passed.
+	  Added mii_lock.  Added comet_miireg2offset and better
+	  Comet-specific mdio_read/write code.	Pay closer attention
+	  to the bits we set in ioctl.	Remove spinlocks from ioctl,
+	  they are in mdio_read/write now.  Use mask to limit
+	  phy number in tulip_init_one's MII scan.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	Merged from Becker's tulip.c 0.92t:
+
+	* 21142.c, tulip_core.c: PNIC2 MAC address and NWay fixes.
+	* tulip.h: Add FullDuplex constant, used in above change.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	* timer.c: Do not call netif_carrier_{on,off}, it is not used in
+	  the main tree.  Leave code in, disabled, as markers for future
+	  carrier notification.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	Merged from Becker's tulip.c 0.92t, except for the tulip.h
+	whitespace cleanup:
+
+	* interrupt.c: If Rx stops, make sure to update the
+	  multicast filter before restarting.
+	* tulip.h: Add COMET_MAC_ADDR feature flag, clean up flags.
+	  Add Accept* Rx mode bit constants.
+	  Add mc_filter[] to driver private struct.
+	* tulip_core.c: Add new Comet PCI id 0x1113:0x9511.
+	  Add COMET_MAC_ADDR feature flag to comet entry in board info array.
+	  Prefer to test COMET_MAC_ADDR flag to testing chip_id for COMET,
+	  when dealing with the Comet's MAC address.
+	  Enable Tx underrun recovery for Comet chips.
+	  Use new Accept* constants in set_rx_mode.
+	  Prefer COMET_MAC_ADDR flag test to chip_id test in set_rx_mode.
+	  Store built mc_filter for later use in intr handler by Comets.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: Use tp->cur_tx when building the
+	  setup frame, instead of assuming that the setup
+	  frame is always built in slot zero.  This case is
+	  hit during PM resume.
+
+2001-04-03  Jeff Garzik  <jgarzik@pobox.com>
+
+	* *.c: Update file headers (copyright, urls, etc.)
+	* Makefile: re-order to that chip-specific modules on own line
+	* eeprom.c: BSS/zero-init cleanup (Andrey Panin)
+	* tulip_core.c: merge medianame[] update from tulip.c.
+	  Additional arch-specific rx_copybreak, csr0 values. (various)
+
+2001-02-20  Jeff Garzik  <jgarzik@pobox.com>
+
+	* media.c (tulip_select_media): No need to initialize
+	new_csr6, all cases initialize it properly.
+
+2001-02-18  Manfred Spraul  <manfred@colorfullife.com>
+
+	* interrupt.c (tulip_refill_rx): Make public.
+	If PNIC chip stops due to lack of Rx buffers, restart it.
+	(tulip_interrupt): PNIC doesn't have a h/w timer, emulate
+	with software timers.
+	* pnic.c (pnic_check_duplex): New function, PNIC-specific
+	version of tulip_check_duplex.
+	(pnic_lnk_change): Call pnic_check_duplex.  If we use an
+	external MII, then we mustn't use the internal negotiation.
+	(pnic_timer): Support Rx refilling on work overflow in
+	interrupt handler, as PNIC doesn't support a h/w timer.
+	* tulip_core.c (tulip_tbl[]): Modify default csr6
+
+2001-02-11  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_init_one): Call pci_enable_device
+	to ensure wakeup/resource assignment before checking those
+	values.
+	(tulip_init_one): Replace PCI ids with constants from pci_id.h.
+	(tulip_suspend, tulip_resume, tulip_remove_one): Call
+	pci_power_on/off (commented out for now).
+
+2001-02-10  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip.h: Add CFDD_xxx bits for Tulip power management
+	* tulip_core.c (tulip_set_power_state): New function,
+	manipulating Tulip chip power state where supported.
+	(tulip_up, tulip_down, tulip_init_one): Use it.
+
+2001-02-10  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_tx_timeout): Call netif_wake_queue
+	to ensure the next Tx is always sent to us.
+
+2001-01-27  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (tulip_remove_one): Fix mem leak by freeing
+	tp->media_tbl.  Add check for !dev, reformat code appropriately.
+
+2001-01-27  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_tbl[]: Comment all entries to make order and chip_id
+	relationship more clear.
+	* tulip_pci_tbl[]: Add new Accton PCI id (COMET chipset).
+
+2001-01-16  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: static vars no longer explicitly
+	initialized to zero.
+	* eeprom.c (tulip_read_eeprom): Make sure to delay between
+	EE_ENB and EE_ENB|EE_SHIFT_CLK.  Merged from becker tulip.c.
+
+2001-01-05  Peter De Schrijver  <p2@mind.be>
+
+	* eeprom.c (tulip_parse_eeprom): Interpret a bit more of 21142
+	extended format type 3 info blocks in a tulip SROM.
+
+2001-01-03  Matti Aarnio  <matti.aarnio@zmailer.org>
+
+	* media.c (tulip_select_media): Support media types 5 and 6
+
+2001-??-??  ??
+
+	* tulip_core.c: Add comment about LanMedia needing
+	a different driver.
+	Enable workarounds for early PCI chipsets.
+	Add IA64 csr0 support, update HPPA csr0 support.
+
+2000-12-17  Alan Cox  <alan@redhat.com>
+
+        * eeprom.c, timer.c, tulip.h, tulip_core.c: Merge support
+	for the Davicom's quirks into the main tulip.
+	Patch by Tobias Ringstrom
+
+2000-11-08  Jim Studt  <jim@federated.com>
+
+	* eeprom.c (tulip_parse_eeprom):  Check array bounds for
+	medianame[] and block_name[] arrays to avoid oops due
+	to bad values returned from hardware.
+
+2000-11-02  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c (set_rx_mode): This is synchronized via
+	dev->xmit_lock, so only the queueing of the setup frame needs to
+	be locked, against tulip_interrupt.
+
+2000-11-02  Alexey Kuznetov  <kuznet@ms2.inr.ac.ru>
+
+	* timer.c (tulip_timer): Call netif_carrier_{on,off} to report
+	link state to the rest of the kernel, and userspace.
+	* interrupt.c (tulip_interrupt): Remove tx_full.
+	* tulip.h: Likewise.
+	* tulip_core.c (tulip_init_ring, tulip_start_xmit, set_rx_mode):
+	Likewise.
+
+2000-10-18  Jeff Garzik  <jgarzik@pobox.com>
+
+	* tulip_core.c: (tulip_init_one) Print out ethernet interface
+	on error.  Print out a message when pci_enable_device fails.
+	Handle DMA alloc failure.
+
+2000-10-18  Jeff Garzik  <jgarzik@pobox.com>
+
+	* Makefile: New file.
+	* tulip_core.c (tulip_init_one): Correct error messages
+	on PIO/MMIO region reserve failure.
+	(tulip_init_one) Add new check to ensure that PIO region is
+	sufficient for our needs.
+

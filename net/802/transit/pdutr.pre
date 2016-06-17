@@ -1,0 +1,1121 @@
+COMPILE pdutr INDEX
+;
+; Transition tables for incoming pdu events.
+; translate this thing into C with
+;  	awk -f ./compile.awk pdu.trans > pdutr.h
+;
+TABLE ADM
+;Transition table for the ADM state:
+;
+;frame type   p bit     action    newstate
+;received     in frame
+;
+I_CMD         0         ADM5      ADM
+I_CMD         1         ADM4      ADM
+RR_CMD        0         ADM5      ADM
+RR_CMD        1         ADM4      ADM
+RNR_CMD       0         ADM5      ADM
+RNR_CMD       1         ADM4      ADM
+REJ_CMD       0         ADM5      ADM
+REJ_CMD       1         ADM4      ADM
+DISC_CMD      0         ADM3      ADM
+DISC_CMD      1         ADM3      ADM
+SABME_CMD     0         ADM2      CONN  
+SABME_CMD     1         ADM2      CONN  
+I_RSP         0         ADM5      ADM
+I_RSP         1         ADM5      ADM
+RR_RSP        0         ADM5      ADM
+RR_RSP        1         ADM5      ADM
+RNR_RSP       0         ADM5      ADM
+RNR_RSP       1         ADM5      ADM
+REJ_RSP       0         ADM5      ADM
+REJ_RSP       1         ADM5      ADM
+UA_RSP        0         ADM5      ADM
+UA_RSP        1         ADM5      ADM
+DM_RSP        0         ADM5      ADM
+DM_RSP        1         ADM5      ADM
+FRMR_RSP      0         ADM5      ADM
+FRMR_RSP      1         ADM5      ADM
+;
+TABLE CONN
+;
+;Transition table for the CONN state:
+;
+;frame type   action    newstate
+;received     
+;
+I_CMD         CONN5     CONN
+RR_CMD        CONN5     CONN
+RNR_CMD       CONN5     CONN
+REJ_CMD       CONN5     CONN
+DISC_CMD      CONN5     CONN
+SABME_CMD     CONN3     CONN  
+I_RSP         CONN5     CONN
+RR_RSP        CONN5     CONN
+RNR_RSP       CONN5     CONN
+REJ_RSP       CONN5     CONN
+UA_RSP        CONN5     CONN
+DM_RSP        CONN4     ADM
+FRMR_RSP      CONN5     CONN
+;
+TABLE RESET_WAIT
+;Transition table for the RESET_WAIT
+;
+;frame type   action    newstate
+;received     
+;
+I_CMD         RESWAIT8  RESET_WAIT
+RR_CMD        RESWAIT8  RESET_WAIT
+RNR_CMD       RESWAIT8  RESET_WAIT
+REJ_CMD       RESWAIT8  RESET_WAIT
+DISC_CMD      RESWAIT7  RESET_WAIT
+SABME_CMD     RESWAIT6  RESET_WAIT
+I_RSP         RESWAIT8  RESET_WAIT
+RR_RSP        RESWAIT8  RESET_WAIT
+RNR_RSP       RESWAIT8  RESET_WAIT
+REJ_RSP       RESWAIT8  RESET_WAIT
+UA_RSP        RESWAIT8  RESET_WAIT
+DM_RSP        RESWAIT5  ADM
+FRMR_RSP      RESWAIT8  RESET_WAIT
+;
+;
+TABLE RESET_CHECK
+;Transition table for the RESET_CHECK state
+;
+;frame type   action    newstate
+;received     
+;
+I_CMD         RESCHK6  RESET_CHECK
+RR_CMD        RESCHK6  RESET_CHECK
+RNR_CMD       RESCHK6  RESET_CHECK
+REJ_CMD       RESCHK6  RESET_CHECK
+DISC_CMD      RESCHK5  ADM
+SABME_CMD     RESCHK4  RESET_CHECK
+I_RSP         RESCHK6  RESET_CHECK
+RR_RSP        RESCHK6  RESET_CHECK
+RNR_RSP       RESCHK6  RESET_CHECK
+REJ_RSP       RESCHK6  RESET_CHECK
+UA_RSP        RESCHK6  RESET_CHECK
+DM_RSP        RESCHK3  ADM
+FRMR_RSP      RESCHK6  RESET_CHECK
+;
+;
+TABLE SETUP
+;Transition table for the SETUP state
+;
+;frame type   p flag    action    newstate
+;received     = f
+;
+I_CMD         0         SETUP6      SETUP
+I_CMD         1         SETUP6      SETUP
+RR_CMD        0         SETUP6      SETUP
+RR_CMD        1         SETUP6      SETUP
+RNR_CMD       0         SETUP6      SETUP
+RNR_CMD       1         SETUP6      SETUP
+REJ_CMD       0         SETUP6      SETUP
+REJ_CMD       1         SETUP6      SETUP
+DISC_CMD      0         SETUP4      ADM
+DISC_CMD      1         SETUP4      ADM  
+SABME_CMD     0         SETUP1      SETUP 
+SABME_CMD     1         SETUP1      SETUP 
+I_RSP         0         SETUP6      SETUP
+I_RSP         1         SETUP6      SETUP
+RR_RSP        0         SETUP6      SETUP
+RR_RSP        1         SETUP6      SETUP
+RNR_RSP       0         SETUP6      SETUP
+RNR_RSP       1         SETUP6      SETUP
+REJ_RSP       0         SETUP6      SETUP
+REJ_RSP       1         SETUP6      SETUP
+UA_RSP        0         SETUP6      SETUP
+UA_RSP        1         SETUP2      NORMAL
+DM_RSP        0         SETUP5      ADM  
+DM_RSP        1         SETUP5      ADM  
+FRMR_RSP      0         SETUP6      SETUP
+FRMR_RSP      1         SETUP6      SETUP
+;
+;
+TABLE RESET
+;Transition table for the RESET state:
+;
+;frame type   p flag    action    newstate
+;received     = f
+;
+I_CMD         0         RESET6      RESET
+I_CMD         1         RESET6      RESET
+RR_CMD        0         RESET6      RESET
+RR_CMD        1         RESET6      RESET
+RNR_CMD       0         RESET6      RESET
+RNR_CMD       1         RESET6      RESET
+REJ_CMD       0         RESET6      RESET
+REJ_CMD       1         RESET6      RESET
+DISC_CMD      0         RESET4      ADM
+DISC_CMD      1         RESET4      ADM  
+SABME_CMD     0         RESET1      RESET 
+SABME_CMD     1         RESET1      RESET 
+I_RSP         0         RESET6      RESET
+I_RSP         1         RESET6      RESET
+RR_RSP        0         RESET6      RESET
+RR_RSP        1         RESET6      RESET
+RNR_RSP       0         RESET6      RESET
+RNR_RSP       1         RESET6      RESET
+REJ_RSP       0         RESET6      RESET
+REJ_RSP       1         RESET6      RESET
+UA_RSP        0         RESET6      RESET
+UA_RSP        1         RESET2      NORMAL
+DM_RSP        0         RESET5      ADM  
+DM_RSP        1         RESET5      ADM  
+FRMR_RSP      0         RESET6      RESET
+FRMR_RSP      1         RESET6      RESET
+;
+;
+TABLE D_CONN
+;Transition table for the D_CONN state:
+;
+;frame type   p bit     action    newstate
+;received     in frame  
+I_CMD         0         D_CONN5      D_CONN
+I_CMD         1         D_CONN5      D_CONN
+RR_CMD        0         D_CONN5      D_CONN
+RR_CMD        1         D_CONN5      D_CONN
+RNR_CMD       0         D_CONN5      D_CONN
+RNR_CMD       1         D_CONN5      D_CONN
+REJ_CMD       0         D_CONN5      D_CONN
+REJ_CMD       1         D_CONN5      D_CONN
+DISC_CMD      0         D_CONN3      D_CONN
+DISC_CMD      1         D_CONN3      D_CONN
+SABME_CMD     0         D_CONN1      ADM  
+SABME_CMD     1         D_CONN1      ADM    
+I_RSP         0         D_CONN5      D_CONN
+I_RSP         1         D_CONN5      D_CONN
+RR_RSP        0         D_CONN5      D_CONN
+RR_RSP        1         D_CONN5      D_CONN
+RNR_RSP       0         D_CONN5      D_CONN
+RNR_RSP       1         D_CONN5      D_CONN
+REJ_RSP       0         D_CONN5      D_CONN
+REJ_RSP       1         D_CONN5      D_CONN
+UA_RSP        0         D_CONN5      D_CONN
+UA_RSP        1         D_CONN4      ADM   
+DM_RSP        0         D_CONN4      ADM  
+DM_RSP        1         D_CONN5      ADM  
+FRMR_RSP      0         D_CONN5      D_CONN
+FRMR_RSP      1         D_CONN5      D_CONN
+;
+;
+TABLE ERROR
+;Transition table for the ERROR state:
+;
+;frame type   action    newstate
+;received     
+;
+I_CMD         ERR5      ERROR
+RR_CMD        ERR5      ERROR
+RNR_CMD       ERR5      ERROR
+REJ_CMD       ERR5      ERROR
+DISC_CMD      ERR2      ADM
+SABME_CMD     ERR1      RESET_CHECK
+I_RSP         ERR6      ERROR
+RR_RSP        ERR6      ERROR
+RNR_RSP       ERR6      ERROR
+REJ_RSP       ERR6      ERROR
+UA_RSP        ERR6      ERROR
+DM_RSP        ERR3      ADM
+FRMR_RSP      ERR4      RESET_WAIT
+;
+TABLE NORMAL
+;Transition table for the NORMAL state:
+;
+;frame type   uexpect   p bit     p_flag    
+;received     N(S)      in frame            
+;
+I_CMD          	0	0	0	NORMAL8B	NORMAL
+I_CMD          	0	0	1	NORMAL9		NORMAL
+I_CMD          	0	1	0	NORMAL10	NORMAL
+I_CMD          	0	1	1	NORMAL10	NORMAL
+I_CMD          	1	0	0	NORMAL5		REJECT
+I_CMD          	1	0	1	NORMAL6		REJECT
+I_CMD          	1	1	0	NORMAL7		REJECT
+I_CMD          	1	1	1	NORMAL7		REJECT
+RR_CMD         	0	0	0	NORMAL11	NORMAL
+RR_CMD         	0	0	1	NORMAL11	NORMAL
+RR_CMD         	0	1	0	NORMAL12	NORMAL
+RR_CMD         	0	1	1	NORMAL12	NORMAL
+RR_CMD         	1	0	0	NORMAL11	NORMAL
+RR_CMD         	1	0	1	NORMAL11	NORMAL
+RR_CMD         	1	1	0	NORMAL12	NORMAL
+RR_CMD         	1	1	1	NORMAL12	NORMAL
+RNR_CMD        	0	0	0	NORMAL13	NORMAL
+RNR_CMD        	0	0	1	NORMAL13	NORMAL
+RNR_CMD        	0	1	0	NORMAL14	NORMAL
+RNR_CMD        	0	1	1	NORMAL14	NORMAL
+RNR_CMD        	1	0	0	NORMAL13	NORMAL
+RNR_CMD        	1	0	1	NORMAL13	NORMAL
+RNR_CMD        	1	1	0	NORMAL14	NORMAL
+RNR_CMD        	1	1	1	NORMAL14	NORMAL
+REJ_CMD        	0	0	0	NORMAL15	NORMAL
+REJ_CMD        	0	0	1	NORMAL16	NORMAL
+REJ_CMD        	0	1	0	NORMAL17	NORMAL 
+REJ_CMD        	0	1	1	NORMAL17	NORMAL 
+REJ_CMD        	1	0	0	NORMAL15	NORMAL
+REJ_CMD        	1	0	1	NORMAL16	NORMAL
+REJ_CMD        	1	1	0	NORMAL17	NORMAL 
+REJ_CMD        	1	1	1	NORMAL17	NORMAL 
+DISC_CMD       	0	0	0	SH4		ADM
+DISC_CMD       	0	0	1	SH4		ADM
+DISC_CMD       	0	1	0	SH4		ADM
+DISC_CMD       	0	1	1	SH4		ADM
+DISC_CMD       	1	0	0	SH4		ADM
+DISC_CMD       	1	0	1	SH4		ADM
+DISC_CMD       	1	1	0	SH4		ADM
+DISC_CMD       	1	1	1	SH4		ADM
+SABME_CMD      	0	0	0	SH3		RESET_CHECK
+SABME_CMD      	0	0	1	SH3		RESET_CHECK
+SABME_CMD      	0	1	0	SH3		RESET_CHECK
+SABME_CMD      	0	1	1	SH3		RESET_CHECK
+SABME_CMD      	1	0	0	SH3		RESET_CHECK
+SABME_CMD      	1	0	1	SH3		RESET_CHECK
+SABME_CMD      	1	1	0	SH3		RESET_CHECK
+SABME_CMD      	1	1	1	SH3		RESET_CHECK
+I_RSP          	0	0	0	NORMAL8B	NORMAL
+I_RSP          	0	0	1	NORMAL9		NORMAL
+I_RSP          	0	1	0	SH10		ERROR
+I_RSP          	0	1	1	NORMAL8A	NORMAL
+I_RSP          	1	0	0	NORMAL5		REJECT
+I_RSP          	1	0	1	NORMAL6		REJECT
+I_RSP          	1	1	0	SH10		ERROR
+I_RSP          	1	1	1	NORMAL5		REJECT
+RR_RSP         	0	0	0	NORMAL11	NORMAL
+RR_RSP         	0	0	1	NORMAL11	NORMAL
+RR_RSP         	0	1	0	SH10		ERROR
+RR_RSP         	0	1	1	NORMAL11	NORMAL
+RR_RSP         	1	0	0	NORMAL11	NORMAL
+RR_RSP         	1	0	1	NORMAL11	NORMAL
+RR_RSP         	1	1	0	SH10		ERROR
+RR_RSP         	1	1	1	NORMAL11	NORMAL
+RNR_RSP        	0	0	0	NORMAL13	NORMAL
+RNR_RSP        	0	0	1	NORMAL13	NORMAL
+RNR_RSP        	0	1	0	SH10		ERROR
+RNR_RSP        	0	1	1	NORMAL13	NORMAL
+RNR_RSP        	1	0	0	NORMAL13	NORMAL
+RNR_RSP        	1	0	1	NORMAL13	NORMAL
+RNR_RSP        	1	1	0	SH10		ERROR
+RNR_RSP        	1	1	1	NORMAL13	NORMAL
+REJ_RSP        	0	0	0	NORMAL15	NORMAL
+REJ_RSP        	0	0	1	NORMAL16	NORMAL
+REJ_RSP        	0	1	0	SH10		ERROR
+REJ_RSP        	0	1	1	NORMAL15	NORMAL
+REJ_RSP        	1	0	0	NORMAL15	NORMAL
+REJ_RSP        	1	0	1	NORMAL16	NORMAL
+REJ_RSP        	1	1	0	SH10		ERROR
+REJ_RSP        	1	1	1	NORMAL15	NORMAL
+UA_RSP         	0	0	0	SH9		ERROR
+UA_RSP         	0	0	1	SH9		ERROR
+UA_RSP         	0	1	0	SH9		ERROR
+UA_RSP         	0	1	1	SH9		ERROR
+UA_RSP         	1	0	0	SH9		ERROR
+UA_RSP         	1	0	1	SH9		ERROR
+UA_RSP         	1	1	0	SH9		ERROR
+UA_RSP         	1	1	1	SH9		ERROR
+DM_RSP         	0	0	0	SH6		ADM
+DM_RSP         	0	0	1	SH6		ADM
+DM_RSP         	0	1	0	SH6		ADM
+DM_RSP         	0	1	1	SH6		ADM
+DM_RSP         	1	0	0	SH6		ADM
+DM_RSP         	1	0	1	SH6		ADM
+DM_RSP         	1	1	0	SH6		ADM
+DM_RSP         	1	1	1	SH6		ADM
+FRMR_RSP       	0	0	0	SH5		RESET_WAIT
+FRMR_RSP       	0	0	1	SH5		RESET_WAIT
+FRMR_RSP       	0	1	0	SH5		RESET_WAIT
+FRMR_RSP       	0	1	1	SH5		RESET_WAIT
+FRMR_RSP       	1	0	0	SH5		RESET_WAIT
+FRMR_RSP       	1	0	1	SH5		RESET_WAIT
+FRMR_RSP       	1	1	0	SH5		RESET_WAIT
+FRMR_RSP       	1	1	1	SH5		RESET_WAIT
+BAD_FRAME      	0	0	0	SH7		ERROR
+BAD_FRAME      	0	0	1	SH7		ERROR
+BAD_FRAME      	0	1	0	SH7		ERROR
+BAD_FRAME      	0	1	1	SH7		ERROR
+BAD_FRAME      	1	0	0	SH7		ERROR
+BAD_FRAME      	1	0	1	SH7		ERROR
+BAD_FRAME      	1	1	0	SH7		ERROR
+BAD_FRAME      	1	1	1	SH7		ERROR
+;
+;112 entries in table, 8 modified by tredit4 SABME_CMD x x x SH3 RESET_CHECK
+;112 entries in table, 8 modified by tredit4 DISC_CMD x x x SH4 ADM
+;112 entries in table, 8 modified by tredit4 FRMR_RSP x x x SH5 RESET_WAIT
+;112 entries in table, 8 modified by tredit4 DM_RSP x x x SH6 ADM
+;112 entries in table, 8 modified by tredit4 BAD_FRAME x x x SH7 ERROR
+;112 entries in table, 8 modified by tredit4 UA_RSP x x x SH9 ERROR
+;112 entries in table, 8 modified by tredit4 anyrsp x 1 0 SH10 ERROR
+;112 entries in table, 1 modified by tredit4 I_CMD 1 0 0 NORMAL5 REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP 1 0 0 NORMAL5 REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP 1 1 1 NORMAL5 REJECT
+;112 entries in table, 1 modified by tredit4 I_CMD 1 0 1 NORMAL6 REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP 1 0 1 NORMAL6 REJECT
+;112 entries in table, 2 modified by tredit4 I_CMD 1 1 x NORMAL7 REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP x 1 1 NORMAL8A NORMAL
+;112 entries in table, 1 modified by tredit4 I_RSP x 0 0 NORMAL8B NORMAL
+;112 entries in table, 1 modified by tredit4 I_CMD x 0 0 NORMAL8B NORMAL
+;112 entries in table, 1 modified by tredit4 I_RSP x 0 1 NORMAL9 NORMAL
+;112 entries in table, 1 modified by tredit4 I_CMD x 0 1 NORMAL9 NORMAL
+;112 entries in table, 2 modified by tredit4 I_CMD x 1 x NORMAL10 NORMAL
+;112 entries in table, 4 modified by tredit4 RR_CMD x 0 x NORMAL11 NORMAL
+;112 entries in table, 4 modified by tredit4 RR_RSP x 0 x NORMAL11 NORMAL
+;112 entries in table, 2 modified by tredit4 RR_RSP x 1 1 NORMAL11 NORMAL
+;112 entries in table, 4 modified by tredit4 RR_CMD x 1 x NORMAL12 NORMAL
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 0 x NORMAL13 NORMAL
+;112 entries in table, 4 modified by tredit4 RNR_RSP x 0 x NORMAL13 NORMAL
+;112 entries in table, 2 modified by tredit4 RNR_RSP x 1 1 NORMAL13 NORMAL
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 1 x NORMAL14 NORMAL
+;112 entries in table, 2 modified by tredit4 REJ_CMD x 0 0 NORMAL15 NORMAL
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 1 1 NORMAL15 NORMAL
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 0 0 NORMAL15 NORMAL
+;112 entries in table, 2 modified by tredit4 REJ_CMD x 0 1 NORMAL16 NORMAL
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 0 1 NORMAL16 NORMAL
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 1 x NORMAL17 NORMAL
+;
+TABLE BUSY
+;Transition table for the BUSY state:
+;
+;frame type   uexpect   p bit     p_flag    
+;received     N(S)      in frame            
+;
+I_CMD          	0	0	0	BUSY13	BUSY
+I_CMD          	0	0	1	BUSY14	BUSY
+I_CMD          	0	1	0	BUSY12	BUSY
+I_CMD          	0	1	1	BUSY12	BUSY
+I_CMD          	1	0	0	BUSY9	BUSY
+I_CMD          	1	0	1	BUSY10	BUSY
+I_CMD          	1	1	0	BUSY11	BUSY
+I_CMD          	1	1	1	BUSY11	BUSY
+RR_CMD         	0	0	0	BUSY15	BUSY
+RR_CMD         	0	0	1	BUSY15	BUSY
+RR_CMD         	0	1	0	BUSY16	BUSY
+RR_CMD         	0	1	1	BUSY16	BUSY
+RR_CMD         	1	0	0	BUSY15	BUSY
+RR_CMD         	1	0	1	BUSY15	BUSY
+RR_CMD         	1	1	0	BUSY16	BUSY
+RR_CMD         	1	1	1	BUSY16	BUSY
+RNR_CMD        	0	0	0	BUSY17	BUSY
+RNR_CMD        	0	0	1	BUSY17	BUSY
+RNR_CMD        	0	1	0	BUSY18	BUSY
+RNR_CMD        	0	1	1	BUSY18	BUSY
+RNR_CMD        	1	0	0	BUSY17	BUSY
+RNR_CMD        	1	0	1	BUSY17	BUSY
+RNR_CMD        	1	1	0	BUSY18	BUSY
+RNR_CMD        	1	1	1	BUSY18	BUSY
+REJ_CMD        	0	0	0	BUSY19	BUSY
+REJ_CMD        	0	0	1	BUSY20	BUSY
+REJ_CMD        	0	1	0	BUSY21	BUSY 
+REJ_CMD        	0	1	1	BUSY21	BUSY 
+REJ_CMD        	1	0	0	BUSY19	BUSY
+REJ_CMD        	1	0	1	BUSY20	BUSY
+REJ_CMD        	1	1	0	BUSY21	BUSY 
+REJ_CMD        	1	1	1	BUSY21	BUSY 
+DISC_CMD       	0	0	0	SH4	ADM
+DISC_CMD       	0	0	1	SH4	ADM
+DISC_CMD       	0	1	0	SH4	ADM
+DISC_CMD       	0	1	1	SH4	ADM
+DISC_CMD       	1	0	0	SH4	ADM
+DISC_CMD       	1	0	1	SH4	ADM
+DISC_CMD       	1	1	0	SH4	ADM
+DISC_CMD       	1	1	1	SH4	ADM
+SABME_CMD      	0	0	0	SH3	RESET_CHECK
+SABME_CMD      	0	0	1	SH3	RESET_CHECK
+SABME_CMD      	0	1	0	SH3	RESET_CHECK
+SABME_CMD      	0	1	1	SH3	RESET_CHECK
+SABME_CMD      	1	0	0	SH3	RESET_CHECK
+SABME_CMD      	1	0	1	SH3	RESET_CHECK
+SABME_CMD      	1	1	0	SH3	RESET_CHECK
+SABME_CMD      	1	1	1	SH3	RESET_CHECK
+I_RSP          	0	0	0	BUSY13	BUSY
+I_RSP          	0	0	1	BUSY14	BUSY
+I_RSP          	0	1	0	SH10	ERROR
+I_RSP          	0	1	1	BUSY13	BUSY
+I_RSP          	1	0	0	BUSY9	BUSY
+I_RSP          	1	0	1	BUSY10	BUSY
+I_RSP          	1	1	0	SH10	ERROR
+I_RSP          	1	1	1	BUSY9	BUSY
+RR_RSP         	0	0	0	BUSY15	BUSY
+RR_RSP         	0	0	1	BUSY15	BUSY
+RR_RSP         	0	1	0	SH10	ERROR
+RR_RSP         	0	1	1	BUSY15	BUSY
+RR_RSP         	1	0	0	BUSY15	BUSY
+RR_RSP         	1	0	1	BUSY15	BUSY
+RR_RSP         	1	1	0	SH10	ERROR
+RR_RSP         	1	1	1	BUSY15	BUSY
+RNR_RSP        	0	0	0	BUSY17	BUSY
+RNR_RSP        	0	0	1	BUSY17	BUSY
+RNR_RSP        	0	1	0	SH10	ERROR
+RNR_RSP        	0	1	1	BUSY17	BUSY
+RNR_RSP        	1	0	0	BUSY17	BUSY
+RNR_RSP        	1	0	1	BUSY17	BUSY
+RNR_RSP        	1	1	0	SH10	ERROR
+RNR_RSP        	1	1	1	BUSY17	BUSY
+REJ_RSP        	0	0	0	BUSY19	BUSY
+REJ_RSP        	0	0	1	BUSY20	BUSY
+REJ_RSP        	0	1	0	SH10	ERROR
+REJ_RSP        	0	1	1	BUSY19	BUSY
+REJ_RSP        	1	0	0	BUSY19	BUSY
+REJ_RSP        	1	0	1	BUSY20	BUSY
+REJ_RSP        	1	1	0	SH10	ERROR
+REJ_RSP        	1	1	1	BUSY19	BUSY
+UA_RSP         	0	0	0	SH9	ERROR
+UA_RSP         	0	0	1	SH9	ERROR
+UA_RSP         	0	1	0	SH9	ERROR
+UA_RSP         	0	1	1	SH9	ERROR
+UA_RSP         	1	0	0	SH9	ERROR
+UA_RSP         	1	0	1	SH9	ERROR
+UA_RSP         	1	1	0	SH9	ERROR
+UA_RSP         	1	1	1	SH9	ERROR
+DM_RSP         	0	0	0	SH6	ADM
+DM_RSP         	0	0	1	SH6	ADM
+DM_RSP         	0	1	0	SH6	ADM
+DM_RSP         	0	1	1	SH6	ADM
+DM_RSP         	1	0	0	SH6	ADM
+DM_RSP         	1	0	1	SH6	ADM
+DM_RSP         	1	1	0	SH6	ADM
+DM_RSP         	1	1	1	SH6	ADM
+FRMR_RSP       	0	0	0	SH5	RESET_WAIT
+FRMR_RSP       	0	0	1	SH5	RESET_WAIT
+FRMR_RSP       	0	1	0	SH5	RESET_WAIT
+FRMR_RSP       	0	1	1	SH5	RESET_WAIT
+FRMR_RSP       	1	0	0	SH5	RESET_WAIT
+FRMR_RSP       	1	0	1	SH5	RESET_WAIT
+FRMR_RSP       	1	1	0	SH5	RESET_WAIT
+FRMR_RSP       	1	1	1	SH5	RESET_WAIT
+BAD_FRAME      	0	0	0	SH7	ERROR
+BAD_FRAME      	0	0	1	SH7	ERROR
+BAD_FRAME      	0	1	0	SH7	ERROR
+BAD_FRAME      	0	1	1	SH7	ERROR
+BAD_FRAME      	1	0	0	SH7	ERROR
+BAD_FRAME      	1	0	1	SH7	ERROR
+BAD_FRAME      	1	1	0	SH7	ERROR
+BAD_FRAME      	1	1	1	SH7	ERROR
+;
+;112 entries in table, 8 modified by tredit4 SABME_CMD x x x SH3 RESET_CHECK
+;112 entries in table, 8 modified by tredit4 DISC_CMD x x x SH4 ADM
+;112 entries in table, 8 modified by tredit4 FRMR_RSP x x x SH5 RESET_WAIT
+;112 entries in table, 8 modified by tredit4 DM_RSP x x x SH6 ADM
+;112 entries in table, 8 modified by tredit4 BAD_FRAME x x x SH7 ERROR
+;112 entries in table, 8 modified by tredit4 UA_RSP x x x SH9 ERROR
+;112 entries in table, 8 modified by tredit4 anyrsp x 1 0 SH10 ERROR
+;112 entries in table, 1 modified by tredit4 I_RSP 1 0 0 BUSY9 BUSY
+;112 entries in table, 1 modified by tredit4 I_RSP 1 1 1 BUSY9 BUSY
+;112 entries in table, 1 modified by tredit4 I_CMD 1 0 0 BUSY9 BUSY
+;112 entries in table, 1 modified by tredit4 I_RSP 1 0 1 BUSY10 BUSY
+;112 entries in table, 1 modified by tredit4 I_CMD 1 0 1 BUSY10 BUSY
+;112 entries in table, 2 modified by tredit4 I_CMD 1 1 x BUSY11 BUSY
+;112 entries in table, 2 modified by tredit4 I_CMD x 1 x BUSY12 BUSY
+;112 entries in table, 1 modified by tredit4 I_RSP x 0 0 BUSY13 BUSY
+;112 entries in table, 1 modified by tredit4 I_RSP x 1 1 BUSY13 BUSY
+;112 entries in table, 1 modified by tredit4 I_CMD x 0 0 BUSY13 BUSY
+;112 entries in table, 1 modified by tredit4 I_RSP x 0 1 BUSY14 BUSY
+;112 entries in table, 1 modified by tredit4 I_CMD x 0 1 BUSY14 BUSY
+;112 entries in table, 4 modified by tredit4 RR_CMD x 0 x BUSY15 BUSY
+;112 entries in table, 4 modified by tredit4 RR_RSP x 0 x BUSY15 BUSY
+;112 entries in table, 2 modified by tredit4 RR_RSP x 1 1 BUSY15 BUSY
+;112 entries in table, 4 modified by tredit4 RR_CMD x 1 x BUSY16 BUSY
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 0 x BUSY17 BUSY
+;112 entries in table, 4 modified by tredit4 RNR_RSP x 0 x BUSY17 BUSY
+;112 entries in table, 2 modified by tredit4 RNR_RSP x 1 1 BUSY17 BUSY
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 1 x BUSY18 BUSY
+;112 entries in table, 2 modified by tredit4 REJ_CMD x 0 0 BUSY19 BUSY
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 0 0 BUSY19 BUSY
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 1 1 BUSY19 BUSY
+;112 entries in table, 2 modified by tredit4 REJ_CMD x 0 1 BUSY20 BUSY
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 0 1 BUSY20 BUSY
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 1 x BUSY21 BUSY
+;
+TABLE REJECT
+;Transition table for the REJECT state:
+;
+;frame type   uexpect   p bit     p_flag    
+;received     N(S)      in frame            
+;
+I_CMD          	0	0	0	REJECT7		REJECT
+I_CMD          	0	0	1	REJECT8		REJECT
+I_CMD          	0	1	0	REJECT9		REJECT
+I_CMD          	0	1	1	REJECT9		REJECT
+I_CMD          	1	0	0	REJECT5		REJECT
+I_CMD          	1	0	1	REJECT5		REJECT
+I_CMD          	1	1	0	REJECT6		REJECT
+I_CMD          	1	1	1	REJECT6		REJECT
+RR_CMD         	0	0	0	REJECT10	REJECT
+RR_CMD         	0	0	1	REJECT10	REJECT
+RR_CMD         	0	1	0	REJECT11	REJECT
+RR_CMD         	0	1	1	REJECT11	REJECT
+RR_CMD         	1	0	0	REJECT10	REJECT
+RR_CMD         	1	0	1	REJECT10	REJECT
+RR_CMD         	1	1	0	REJECT11	REJECT
+RR_CMD         	1	1	1	REJECT11	REJECT
+RNR_CMD        	0	0	0	REJECT12	REJECT
+RNR_CMD        	0	0	1	REJECT12	REJECT
+RNR_CMD        	0	1	0	REJECT13	REJECT
+RNR_CMD        	0	1	1	REJECT13	REJECT
+RNR_CMD        	1	0	0	REJECT12	REJECT
+RNR_CMD        	1	0	1	REJECT12	REJECT
+RNR_CMD        	1	1	0	REJECT13	REJECT
+RNR_CMD        	1	1	1	REJECT13	REJECT
+REJ_CMD        	0	0	0	REJECT14	REJECT
+REJ_CMD        	0	0	1	REJECT15	REJECT
+REJ_CMD        	0	1	0	REJECT16	REJECT 
+REJ_CMD        	0	1	1	REJECT16	REJECT 
+REJ_CMD        	1	0	0	REJECT14	REJECT
+REJ_CMD        	1	0	1	REJECT15	REJECT
+REJ_CMD        	1	1	0	REJECT16	REJECT 
+REJ_CMD        	1	1	1	REJECT16	REJECT 
+DISC_CMD       	0	0	0	SH4		ADM
+DISC_CMD       	0	0	1	SH4		ADM
+DISC_CMD       	0	1	0	SH4		ADM
+DISC_CMD       	0	1	1	SH4		ADM
+DISC_CMD       	1	0	0	SH4		ADM
+DISC_CMD       	1	0	1	SH4		ADM
+DISC_CMD       	1	1	0	SH4		ADM
+DISC_CMD       	1	1	1	SH4		ADM
+SABME_CMD      	0	0	0	SH3		RESET_CHECK
+SABME_CMD      	0	0	1	SH3		RESET_CHECK
+SABME_CMD      	0	1	0	SH3		RESET_CHECK
+SABME_CMD      	0	1	1	SH3		RESET_CHECK
+SABME_CMD      	1	0	0	SH3		RESET_CHECK
+SABME_CMD      	1	0	1	SH3		RESET_CHECK
+SABME_CMD      	1	1	0	SH3		RESET_CHECK
+SABME_CMD      	1	1	1	SH3		RESET_CHECK
+I_RSP          	0	0	0	REJECT7		REJECT
+I_RSP          	0	0	1	REJECT8		REJECT
+I_RSP          	0	1	0	SH10		ERROR
+I_RSP          	0	1	1	REJECT7		REJECT
+I_RSP          	1	0	0	REJECT5		REJECT
+I_RSP          	1	0	1	REJECT5		REJECT
+I_RSP          	1	1	0	SH10		ERROR
+I_RSP          	1	1	1	REJECT5		REJECT
+RR_RSP         	0	0	0	REJECT10	REJECT
+RR_RSP         	0	0	1	REJECT10	REJECT
+RR_RSP         	0	1	0	SH10		ERROR
+RR_RSP         	0	1	1	REJECT10	REJECT
+RR_RSP         	1	0	0	REJECT10	REJECT
+RR_RSP         	1	0	1	REJECT10	REJECT
+RR_RSP         	1	1	0	SH10		ERROR
+RR_RSP         	1	1	1	REJECT10	REJECT
+RNR_RSP        	0	0	0	REJECT12	REJECT
+RNR_RSP        	0	0	1	REJECT12	REJECT
+RNR_RSP        	0	1	0	SH10		ERROR
+RNR_RSP        	0	1	1	REJECT12	REJECT
+RNR_RSP        	1	0	0	REJECT12	REJECT
+RNR_RSP        	1	0	1	REJECT12	REJECT
+RNR_RSP        	1	1	0	SH10		ERROR
+RNR_RSP        	1	1	1	REJECT12	REJECT
+REJ_RSP        	0	0	0	REJECT14	REJECT
+REJ_RSP        	0	0	1	REJECT15	REJECT
+REJ_RSP        	0	1	0	SH10		ERROR
+REJ_RSP        	0	1	1	REJECT14	REJECT
+REJ_RSP        	1	0	0	REJECT14	REJECT
+REJ_RSP        	1	0	1	REJECT15	REJECT
+REJ_RSP        	1	1	0	SH10		ERROR
+REJ_RSP        	1	1	1	REJECT14	REJECT
+UA_RSP         	0	0	0	SH9		ERROR
+UA_RSP         	0	0	1	SH9		ERROR
+UA_RSP         	0	1	0	SH9		ERROR
+UA_RSP         	0	1	1	SH9		ERROR
+UA_RSP         	1	0	0	SH9		ERROR
+UA_RSP         	1	0	1	SH9		ERROR
+UA_RSP         	1	1	0	SH9		ERROR
+UA_RSP         	1	1	1	SH9		ERROR
+DM_RSP         	0	0	0	SH6		ADM
+DM_RSP         	0	0	1	SH6		ADM
+DM_RSP         	0	1	0	SH6		ADM
+DM_RSP         	0	1	1	SH6		ADM
+DM_RSP         	1	0	0	SH6		ADM
+DM_RSP         	1	0	1	SH6		ADM
+DM_RSP         	1	1	0	SH6		ADM
+DM_RSP         	1	1	1	SH6		ADM
+FRMR_RSP       	0	0	0	SH5		RESET_WAIT
+FRMR_RSP       	0	0	1	SH5		RESET_WAIT
+FRMR_RSP       	0	1	0	SH5		RESET_WAIT
+FRMR_RSP       	0	1	1	SH5		RESET_WAIT
+FRMR_RSP       	1	0	0	SH5		RESET_WAIT
+FRMR_RSP       	1	0	1	SH5		RESET_WAIT
+FRMR_RSP       	1	1	0	SH5		RESET_WAIT
+FRMR_RSP       	1	1	1	SH5		RESET_WAIT
+BAD_FRAME      	0	0	0	SH7		ERROR
+BAD_FRAME      	0	0	1	SH7		ERROR
+BAD_FRAME      	0	1	0	SH7		ERROR
+BAD_FRAME      	0	1	1	SH7		ERROR
+BAD_FRAME      	1	0	0	SH7		ERROR
+BAD_FRAME      	1	0	1	SH7		ERROR
+BAD_FRAME      	1	1	0	SH7		ERROR
+BAD_FRAME      	1	1	1	SH7		ERROR
+;
+;112 entries in table, 8 modified by tredit4 SABME_CMD x x x SH3 RESET_CHECK
+;112 entries in table, 8 modified by tredit4 DISC_CMD x x x SH4 ADM
+;112 entries in table, 8 modified by tredit4 FRMR_RSP x x x SH5 RESET_WAIT
+;112 entries in table, 8 modified by tredit4 DM_RSP x x x SH6 ADM
+;112 entries in table, 8 modified by tredit4 BAD_FRAME x x x SH7 ERROR
+;112 entries in table, 8 modified by tredit4 UA_RSP x x x SH9 ERROR
+;112 entries in table, 8 modified by tredit4 anyrsp x 1 0 SH10 ERROR
+;112 entries in table, 2 modified by tredit4 I_CMD 1 0 x REJECT5 REJECT
+;112 entries in table, 2 modified by tredit4 I_RSP 1 0 x REJECT5 REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP 1 1 1 REJECT5 REJECT
+;112 entries in table, 2 modified by tredit4 I_CMD 1 1 x REJECT6 REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP x 1 1 REJECT7 REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP x 0 0 REJECT7 REJECT
+;112 entries in table, 1 modified by tredit4 I_CMD x 0 0 REJECT7 REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP x 0 1 REJECT8 REJECT
+;112 entries in table, 1 modified by tredit4 I_CMD x 0 1 REJECT8 REJECT
+;112 entries in table, 2 modified by tredit4 I_CMD x 1 x REJECT9 REJECT
+;112 entries in table, 4 modified by tredit4 RR_CMD x 0 x REJECT10 REJECT
+;112 entries in table, 4 modified by tredit4 RR_RSP x 0 x REJECT10 REJECT
+;112 entries in table, 2 modified by tredit4 RR_RSP x 1 1 REJECT10 REJECT
+;112 entries in table, 4 modified by tredit4 RR_CMD x 1 x REJECT11 REJECT
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 0 x REJECT12 REJECT
+;112 entries in table, 4 modified by tredit4 RNR_RSP x 0 x REJECT12 REJECT
+;112 entries in table, 2 modified by tredit4 RNR_RSP x 1 1 REJECT12 REJECT
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 1 x REJECT13 REJECT
+;112 entries in table, 2 modified by tredit4 REJ_CMD x 0 0 REJECT14 REJECT
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 0 0 REJECT14 REJECT
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 1 1 REJECT14 REJECT
+;112 entries in table, 2 modified by tredit4 REJ_CMD x 0 1 REJECT15 REJECT
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 0 1 REJECT15 REJECT
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 1 x REJECT16 REJECT
+;
+TABLE AWAIT
+;Transition table for the AWAIT state:
+;
+;frame type   uexpect   p bit     p_flag    
+;received     N(S)      in frame            
+;
+I_CMD          	0	0	0	AWAIT6	AWAIT
+I_CMD          	0	0	1	AWAIT6	AWAIT
+I_CMD          	0	1	0	AWAIT7	AWAIT
+I_CMD          	0	1	1	AWAIT7	AWAIT
+I_CMD          	1	0	0	AWAIT3	AWAIT_REJECT
+I_CMD          	1	0	1	AWAIT3	AWAIT_REJECT
+I_CMD          	1	1	0	AWAIT4	AWAIT_REJECT
+I_CMD          	1	1	1	AWAIT4	AWAIT_REJECT
+RR_CMD         	0	0	0	AWAIT9	AWAIT
+RR_CMD         	0	0	1	AWAIT9	AWAIT
+RR_CMD         	0	1	0	AWAIT10	AWAIT
+RR_CMD         	0	1	1	AWAIT10	AWAIT
+RR_CMD         	1	0	0	AWAIT9	AWAIT
+RR_CMD         	1	0	1	AWAIT9	AWAIT
+RR_CMD         	1	1	0	AWAIT10	AWAIT
+RR_CMD         	1	1	1	AWAIT10	AWAIT
+RNR_CMD        	0	0	0	AWAIT12	AWAIT
+RNR_CMD        	0	0	1	AWAIT12	AWAIT
+RNR_CMD        	0	1	0	AWAIT13	AWAIT 
+RNR_CMD        	0	1	1	AWAIT13	AWAIT 
+RNR_CMD        	1	0	0	AWAIT12	AWAIT
+RNR_CMD        	1	0	1	AWAIT12	AWAIT
+RNR_CMD        	1	1	0	AWAIT13	AWAIT 
+RNR_CMD        	1	1	1	AWAIT13	AWAIT 
+REJ_CMD        	0	0	0	AWAIT9	AWAIT
+REJ_CMD        	0	0	1	AWAIT9	AWAIT
+REJ_CMD        	0	1	0	AWAIT10	AWAIT
+REJ_CMD        	0	1	1	AWAIT10	AWAIT
+REJ_CMD        	1	0	0	AWAIT9	AWAIT
+REJ_CMD        	1	0	1	AWAIT9	AWAIT
+REJ_CMD        	1	1	0	AWAIT10	AWAIT
+REJ_CMD        	1	1	1	AWAIT10	AWAIT
+DISC_CMD       	0	0	0	SH4	ADM
+DISC_CMD       	0	0	1	SH4	ADM
+DISC_CMD       	0	1	0	SH4	ADM
+DISC_CMD       	0	1	1	SH4	ADM
+DISC_CMD       	1	0	0	SH4	ADM
+DISC_CMD       	1	0	1	SH4	ADM
+DISC_CMD       	1	1	0	SH4	ADM
+DISC_CMD       	1	1	1	SH4	ADM
+SABME_CMD      	0	0	0	SH3	RESET_CHECK
+SABME_CMD      	0	0	1	SH3	RESET_CHECK
+SABME_CMD      	0	1	0	SH3	RESET_CHECK
+SABME_CMD      	0	1	1	SH3	RESET_CHECK
+SABME_CMD      	1	0	0	SH3	RESET_CHECK
+SABME_CMD      	1	0	1	SH3	RESET_CHECK
+SABME_CMD      	1	1	0	SH3	RESET_CHECK
+SABME_CMD      	1	1	1	SH3	RESET_CHECK
+I_RSP          	0	0	0	AWAIT6	AWAIT
+I_RSP          	0	0	1	AWAIT6	AWAIT
+I_RSP          	0	1	0	SH10	ERROR
+I_RSP          	0	1	1	AWAIT5	NORMAL
+I_RSP          	1	0	0	AWAIT3	AWAIT_REJECT
+I_RSP          	1	0	1	AWAIT3	AWAIT_REJECT
+I_RSP          	1	1	0	SH10	ERROR
+I_RSP          	1	1	1	AWAIT2	REJECT
+RR_RSP         	0	0	0	AWAIT9	AWAIT
+RR_RSP         	0	0	1	AWAIT9	AWAIT
+RR_RSP         	0	1	0	SH10	ERROR
+RR_RSP         	0	1	1	AWAIT8	AWAIT
+RR_RSP         	1	0	0	AWAIT9	AWAIT
+RR_RSP         	1	0	1	AWAIT9	AWAIT
+RR_RSP         	1	1	0	SH10	ERROR
+RR_RSP         	1	1	1	AWAIT8	AWAIT
+RNR_RSP        	0	0	0	AWAIT12	AWAIT
+RNR_RSP        	0	0	1	AWAIT12	AWAIT
+RNR_RSP        	0	1	0	SH10	ERROR
+RNR_RSP        	0	1	1	AWAIT11	AWAIT
+RNR_RSP        	1	0	0	AWAIT12	AWAIT
+RNR_RSP        	1	0	1	AWAIT12	AWAIT
+RNR_RSP        	1	1	0	SH10	ERROR
+RNR_RSP        	1	1	1	AWAIT11	AWAIT
+REJ_RSP        	0	0	0	AWAIT9	AWAIT
+REJ_RSP        	0	0	1	AWAIT9	AWAIT
+REJ_RSP        	0	1	0	SH10	ERROR
+REJ_RSP        	0	1	1	AWAIT8	AWAIT
+REJ_RSP        	1	0	0	AWAIT9	AWAIT
+REJ_RSP        	1	0	1	AWAIT9	AWAIT
+REJ_RSP        	1	1	0	SH10	ERROR
+REJ_RSP        	1	1	1	AWAIT8	AWAIT
+UA_RSP         	0	0	0	SH9	ERROR
+UA_RSP         	0	0	1	SH9	ERROR
+UA_RSP         	0	1	0	SH9	ERROR
+UA_RSP         	0	1	1	SH9	ERROR
+UA_RSP         	1	0	0	SH9	ERROR
+UA_RSP         	1	0	1	SH9	ERROR
+UA_RSP         	1	1	0	SH9	ERROR
+UA_RSP         	1	1	1	SH9	ERROR
+DM_RSP         	0	0	0	SH6	ADM
+DM_RSP         	0	0	1	SH6	ADM
+DM_RSP         	0	1	0	SH6	ADM
+DM_RSP         	0	1	1	SH6	ADM
+DM_RSP         	1	0	0	SH6	ADM
+DM_RSP         	1	0	1	SH6	ADM
+DM_RSP         	1	1	0	SH6	ADM
+DM_RSP         	1	1	1	SH6	ADM
+FRMR_RSP       	0	0	0	SH5	RESET_WAIT
+FRMR_RSP       	0	0	1	SH5	RESET_WAIT
+FRMR_RSP       	0	1	0	SH5	RESET_WAIT
+FRMR_RSP       	0	1	1	SH5	RESET_WAIT
+FRMR_RSP       	1	0	0	SH5	RESET_WAIT
+FRMR_RSP       	1	0	1	SH5	RESET_WAIT
+FRMR_RSP       	1	1	0	SH5	RESET_WAIT
+FRMR_RSP       	1	1	1	SH5	RESET_WAIT
+BAD_FRAME      	0	0	0	SH7	ERROR
+BAD_FRAME      	0	0	1	SH7	ERROR
+BAD_FRAME      	0	1	0	SH7	ERROR
+BAD_FRAME      	0	1	1	SH7	ERROR
+BAD_FRAME      	1	0	0	SH7	ERROR
+BAD_FRAME      	1	0	1	SH7	ERROR
+BAD_FRAME      	1	1	0	SH7	ERROR
+BAD_FRAME      	1	1	1	SH7	ERROR
+;
+;112 entries in table, 8 modified by tredit4 SABME_CMD x x x SH3 RESET_CHECK
+;112 entries in table, 8 modified by tredit4 DISC_CMD x x x SH4 ADM
+;112 entries in table, 8 modified by tredit4 FRMR_RSP x x x SH5 RESET_WAIT
+;112 entries in table, 8 modified by tredit4 DM_RSP x x x SH6 ADM
+;112 entries in table, 8 modified by tredit4 BAD_FRAME x x x SH7 ERROR
+;112 entries in table, 8 modified by tredit4 UA_RSP x x x SH9 ERROR
+;112 entries in table, 8 modified by tredit4 anyrsp x 1 0 SH10 ERROR
+;112 entries in table, 1 modified by tredit4 I_RSP 1 1 x AWAIT2 REJECT
+;112 entries in table, 2 modified by tredit4 I_CMD 1 0 x AWAIT3 AWAIT_REJECT
+;112 entries in table, 2 modified by tredit4 I_RSP 1 0 x AWAIT3 AWAIT_REJECT
+;112 entries in table, 2 modified by tredit4 I_CMD 1 1 x AWAIT4 AWAIT_REJECT
+;112 entries in table, 1 modified by tredit4 I_RSP x 1 x AWAIT5 NORMAL
+;112 entries in table, 2 modified by tredit4 I_RSP x 0 x AWAIT6 AWAIT
+;112 entries in table, 2 modified by tredit4 I_CMD x 0 x AWAIT6 AWAIT
+;112 entries in table, 2 modified by tredit4 I_CMD x 1 x AWAIT7 AWAIT
+;112 entries in table, 2 modified by tredit4 RR_RSP x 1 x AWAIT8 AWAIT
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 1 x AWAIT8 AWAIT
+;112 entries in table, 4 modified by tredit4 RR_CMD x 0 x AWAIT9 AWAIT
+;112 entries in table, 4 modified by tredit4 RR_RSP x 0 x AWAIT9 AWAIT
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 0 x AWAIT9 AWAIT
+;112 entries in table, 4 modified by tredit4 REJ_RSP x 0 x AWAIT9 AWAIT
+;112 entries in table, 4 modified by tredit4 RR_CMD x 1 x AWAIT10 AWAIT
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 1 x AWAIT10 AWAIT
+;112 entries in table, 2 modified by tredit4 RNR_RSP x 1 x AWAIT11 AWAIT
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 0 x AWAIT12 AWAIT
+;112 entries in table, 4 modified by tredit4 RNR_RSP x 0 x AWAIT12 AWAIT
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 1 x AWAIT13 AWAIT
+;
+TABLE AWAIT_BUSY
+;Transition table for the AWAIT_BUSY state:
+;
+;frame type   uexpect   p bit     p_flag    
+;received     N(S)      in frame            
+;
+I_CMD          	0	0	0	AWAIT_BUSY8	AWAIT_BUSY
+I_CMD          	0	0	1	AWAIT_BUSY8	AWAIT_BUSY
+I_CMD          	0	1	0	AWAIT_BUSY9	AWAIT_BUSY
+I_CMD          	0	1	1	AWAIT_BUSY9	AWAIT_BUSY
+I_CMD          	1	0	0	AWAIT_BUSY5	AWAIT_BUSY
+I_CMD          	1	0	1	AWAIT_BUSY5	AWAIT_BUSY
+I_CMD          	1	1	0	AWAIT_BUSY6	AWAIT_BUSY
+I_CMD          	1	1	1	AWAIT_BUSY6	AWAIT_BUSY
+RR_CMD         	0	0	0	AWAIT_BUSY11	AWAIT_BUSY
+RR_CMD         	0	0	1	AWAIT_BUSY11	AWAIT_BUSY
+RR_CMD         	0	1	0	AWAIT_BUSY12	AWAIT_BUSY
+RR_CMD         	0	1	1	AWAIT_BUSY12	AWAIT_BUSY
+RR_CMD         	1	0	0	AWAIT_BUSY11	AWAIT_BUSY
+RR_CMD         	1	0	1	AWAIT_BUSY11	AWAIT_BUSY
+RR_CMD         	1	1	0	AWAIT_BUSY12	AWAIT_BUSY
+RR_CMD         	1	1	1	AWAIT_BUSY12	AWAIT_BUSY
+RNR_CMD        	0	0	0	AWAIT_BUSY14	AWAIT_BUSY
+RNR_CMD        	0	0	1	AWAIT_BUSY14	AWAIT_BUSY
+RNR_CMD        	0	1	0	AWAIT_BUSY15	AWAIT_BUSY 
+RNR_CMD        	0	1	1	AWAIT_BUSY15	AWAIT_BUSY 
+RNR_CMD        	1	0	0	AWAIT_BUSY14	AWAIT_BUSY
+RNR_CMD        	1	0	1	AWAIT_BUSY14	AWAIT_BUSY
+RNR_CMD        	1	1	0	AWAIT_BUSY15	AWAIT_BUSY 
+RNR_CMD        	1	1	1	AWAIT_BUSY15	AWAIT_BUSY 
+REJ_CMD        	0	0	0	AWAIT_BUSY11	AWAIT_BUSY
+REJ_CMD        	0	0	1	AWAIT_BUSY11	AWAIT_BUSY
+REJ_CMD        	0	1	0	AWAIT_BUSY12	AWAIT_BUSY
+REJ_CMD        	0	1	1	AWAIT_BUSY12	AWAIT_BUSY
+REJ_CMD        	1	0	0	AWAIT_BUSY11	AWAIT_BUSY
+REJ_CMD        	1	0	1	AWAIT_BUSY11	AWAIT_BUSY
+REJ_CMD        	1	1	0	AWAIT_BUSY12	AWAIT_BUSY
+REJ_CMD        	1	1	1	AWAIT_BUSY12	AWAIT_BUSY
+DISC_CMD       	0	0	0	SH4		ADM
+DISC_CMD       	0	0	1	SH4		ADM
+DISC_CMD       	0	1	0	SH4		ADM
+DISC_CMD       	0	1	1	SH4		ADM
+DISC_CMD       	1	0	0	SH4		ADM
+DISC_CMD       	1	0	1	SH4		ADM
+DISC_CMD       	1	1	0	SH4		ADM
+DISC_CMD       	1	1	1	SH4		ADM
+SABME_CMD      	0	0	0	SH3		RESET_CHECK
+SABME_CMD      	0	0	1	SH3		RESET_CHECK
+SABME_CMD      	0	1	0	SH3		RESET_CHECK
+SABME_CMD      	0	1	1	SH3		RESET_CHECK
+SABME_CMD      	1	0	0	SH3		RESET_CHECK
+SABME_CMD      	1	0	1	SH3		RESET_CHECK
+SABME_CMD      	1	1	0	SH3		RESET_CHECK
+SABME_CMD      	1	1	1	SH3		RESET_CHECK
+I_RSP          	0	0	0	AWAIT_BUSY8	AWAIT_BUSY
+I_RSP          	0	0	1	AWAIT_BUSY8	AWAIT_BUSY
+I_RSP          	0	1	0	SH10		ERROR
+I_RSP          	0	1	1	AWAIT_BUSY7	BUSY
+I_RSP          	1	0	0	AWAIT_BUSY5	AWAIT_BUSY
+I_RSP          	1	0	1	AWAIT_BUSY5	AWAIT_BUSY
+I_RSP          	1	1	0	SH10		ERROR
+I_RSP          	1	1	1	AWAIT_BUSY4	BUSY
+RR_RSP         	0	0	0	AWAIT_BUSY11	AWAIT_BUSY
+RR_RSP         	0	0	1	AWAIT_BUSY11	AWAIT_BUSY
+RR_RSP         	0	1	0	SH10		ERROR
+RR_RSP         	0	1	1	AWAIT_BUSY10	BUSY
+RR_RSP         	1	0	0	AWAIT_BUSY11	AWAIT_BUSY
+RR_RSP         	1	0	1	AWAIT_BUSY11	AWAIT_BUSY
+RR_RSP         	1	1	0	SH10		ERROR
+RR_RSP         	1	1	1	AWAIT_BUSY10	BUSY
+RNR_RSP        	0	0	0	AWAIT_BUSY14	AWAIT_BUSY
+RNR_RSP        	0	0	1	AWAIT_BUSY14	AWAIT_BUSY
+RNR_RSP        	0	1	0	SH10		ERROR
+RNR_RSP        	0	1	1	AWAIT_BUSY13	BUSY
+RNR_RSP        	1	0	0	AWAIT_BUSY14	AWAIT_BUSY
+RNR_RSP        	1	0	1	AWAIT_BUSY14	AWAIT_BUSY
+RNR_RSP        	1	1	0	SH10		ERROR
+RNR_RSP        	1	1	1	AWAIT_BUSY13	BUSY
+REJ_RSP        	0	0	0	AWAIT_BUSY11	AWAIT_BUSY
+REJ_RSP        	0	0	1	AWAIT_BUSY11	AWAIT_BUSY
+REJ_RSP        	0	1	0	SH10		ERROR
+REJ_RSP        	0	1	1	AWAIT_BUSY10	BUSY
+REJ_RSP        	1	0	0	AWAIT_BUSY11	AWAIT_BUSY
+REJ_RSP        	1	0	1	AWAIT_BUSY11	AWAIT_BUSY
+REJ_RSP        	1	1	0	SH10		ERROR
+REJ_RSP        	1	1	1	AWAIT_BUSY10	BUSY
+UA_RSP         	0	0	0	SH9		ERROR
+UA_RSP         	0	0	1	SH9		ERROR
+UA_RSP         	0	1	0	SH9		ERROR
+UA_RSP         	0	1	1	SH9		ERROR
+UA_RSP         	1	0	0	SH9		ERROR
+UA_RSP         	1	0	1	SH9		ERROR
+UA_RSP         	1	1	0	SH9		ERROR
+UA_RSP         	1	1	1	SH9		ERROR
+DM_RSP         	0	0	0	SH6		ADM
+DM_RSP         	0	0	1	SH6		ADM
+DM_RSP         	0	1	0	SH6		ADM
+DM_RSP         	0	1	1	SH6		ADM
+DM_RSP         	1	0	0	SH6		ADM
+DM_RSP         	1	0	1	SH6		ADM
+DM_RSP         	1	1	0	SH6		ADM
+DM_RSP         	1	1	1	SH6		ADM
+FRMR_RSP       	0	0	0	SH5		RESET_WAIT
+FRMR_RSP       	0	0	1	SH5		RESET_WAIT
+FRMR_RSP       	0	1	0	SH5		RESET_WAIT
+FRMR_RSP       	0	1	1	SH5		RESET_WAIT
+FRMR_RSP       	1	0	0	SH5		RESET_WAIT
+FRMR_RSP       	1	0	1	SH5		RESET_WAIT
+FRMR_RSP       	1	1	0	SH5		RESET_WAIT
+FRMR_RSP       	1	1	1	SH5		RESET_WAIT
+BAD_FRAME      	0	0	0	SH7		ERROR
+BAD_FRAME      	0	0	1	SH7		ERROR
+BAD_FRAME      	0	1	0	SH7		ERROR
+BAD_FRAME      	0	1	1	SH7		ERROR
+BAD_FRAME      	1	0	0	SH7		ERROR
+BAD_FRAME      	1	0	1	SH7		ERROR
+BAD_FRAME      	1	1	0	SH7		ERROR
+BAD_FRAME      	1	1	1	SH7		ERROR
+;
+;112 entries in table, 8 modified by tredit4 SABME_CMD x x x SH3 RESET_CHECK
+;112 entries in table, 8 modified by tredit4 DISC_CMD x x x SH4 ADM
+;112 entries in table, 8 modified by tredit4 FRMR_RSP x x x SH5 RESET_WAIT
+;112 entries in table, 8 modified by tredit4 DM_RSP x x x SH6 ADM
+;112 entries in table, 8 modified by tredit4 BAD_FRAME x x x SH7 ERROR
+;112 entries in table, 8 modified by tredit4 UA_RSP x x x SH9 ERROR
+;112 entries in table, 8 modified by tredit4 anyrsp x 1 0 SH10 ERROR
+;112 entries in table, 1 modified by tredit4 I_RSP 1 1 x AWAIT_BUSY4 BUSY
+;112 entries in table, 2 modified by tredit4 I_CMD 1 0 x AWAIT_BUSY5 AWAIT_BUSY
+;112 entries in table, 2 modified by tredit4 I_RSP 1 0 x AWAIT_BUSY5 AWAIT_BUSY
+;112 entries in table, 2 modified by tredit4 I_CMD 1 1 x AWAIT_BUSY6 AWAIT_BUSY
+;112 entries in table, 1 modified by tredit4 I_RSP x 1 x AWAIT_BUSY7 BUSY
+;112 entries in table, 2 modified by tredit4 I_RSP x 0 x AWAIT_BUSY8 AWAIT_BUSY
+;112 entries in table, 2 modified by tredit4 I_CMD x 0 x AWAIT_BUSY8 AWAIT_BUSY
+;112 entries in table, 2 modified by tredit4 I_CMD x 1 x AWAIT_BUSY9 AWAIT_BUSY
+;112 entries in table, 2 modified by tredit4 RR_RSP x 1 x AWAIT_BUSY10 BUSY
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 1 x AWAIT_BUSY10 BUSY
+;112 entries in table, 4 modified by tredit4 RR_CMD x 0 x AWAIT_BUSY11 AWAIT_BUSY
+;112 entries in table, 4 modified by tredit4 RR_RSP x 0 x AWAIT_BUSY11 AWAIT_BUSY
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 0 x AWAIT_BUSY11 AWAIT_BUSY
+;112 entries in table, 4 modified by tredit4 REJ_RSP x 0 x AWAIT_BUSY11 AWAIT_BUSY
+;112 entries in table, 4 modified by tredit4 RR_CMD x 1 x AWAIT_BUSY12 AWAIT_BUSY
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 1 x AWAIT_BUSY12 AWAIT_BUSY
+;112 entries in table, 2 modified by tredit4 RNR_RSP x 1 x AWAIT_BUSY13 BUSY
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 0 x AWAIT_BUSY14 AWAIT_BUSY
+;112 entries in table, 4 modified by tredit4 RNR_RSP x 0 x AWAIT_BUSY14 AWAIT_BUSY
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 1 x AWAIT_BUSY15 AWAIT_BUSY
+;
+TABLE AWAIT_REJECT
+;Transition table for the AWAIT_REJECT state:
+;
+;frame type   uexpect   p bit     p_flag    
+;received     N(S)      in frame            
+;
+I_CMD          	0	0	0	AWAIT_REJECT5	AWAIT
+I_CMD          	0	0	1	AWAIT_REJECT5	AWAIT
+I_CMD          	0	1	0	AWAIT_REJECT6	AWAIT
+I_CMD          	0	1	1	AWAIT_REJECT6	AWAIT
+I_CMD          	1	0	0	AWAIT_REJECT2	AWAIT_REJECT
+I_CMD          	1	0	1	AWAIT_REJECT2	AWAIT_REJECT
+I_CMD          	1	1	0	AWAIT_REJECT3	AWAIT_REJECT
+I_CMD          	1	1	1	AWAIT_REJECT3	AWAIT_REJECT
+RR_CMD         	0	0	0	AWAIT_REJECT8	AWAIT_REJECT
+RR_CMD         	0	0	1	AWAIT_REJECT8	AWAIT_REJECT
+RR_CMD         	0	1	0	AWAIT_REJECT9	AWAIT_REJECT
+RR_CMD         	0	1	1	AWAIT_REJECT9	AWAIT_REJECT
+RR_CMD         	1	0	0	AWAIT_REJECT8	AWAIT_REJECT
+RR_CMD         	1	0	1	AWAIT_REJECT8	AWAIT_REJECT
+RR_CMD         	1	1	0	AWAIT_REJECT9	AWAIT_REJECT
+RR_CMD         	1	1	1	AWAIT_REJECT9	AWAIT_REJECT
+RNR_CMD        	0	0	0	AWAIT_REJECT11	AWAIT_REJECT
+RNR_CMD        	0	0	1	AWAIT_REJECT11	AWAIT_REJECT
+RNR_CMD        	0	1	0	AWAIT_REJECT12	AWAIT_REJECT
+RNR_CMD        	0	1	1	AWAIT_REJECT12	AWAIT_REJECT
+RNR_CMD        	1	0	0	AWAIT_REJECT11	AWAIT_REJECT
+RNR_CMD        	1	0	1	AWAIT_REJECT11	AWAIT_REJECT
+RNR_CMD        	1	1	0	AWAIT_REJECT12	AWAIT_REJECT
+RNR_CMD        	1	1	1	AWAIT_REJECT12	AWAIT_REJECT
+REJ_CMD        	0	0	0	AWAIT_REJECT8	AWAIT_REJECT
+REJ_CMD        	0	0	1	AWAIT_REJECT8	AWAIT_REJECT
+REJ_CMD        	0	1	0	AWAIT_REJECT9	AWAIT_REJECT
+REJ_CMD        	0	1	1	AWAIT_REJECT9	AWAIT_REJECT
+REJ_CMD        	1	0	0	AWAIT_REJECT8	AWAIT_REJECT
+REJ_CMD        	1	0	1	AWAIT_REJECT8	AWAIT_REJECT
+REJ_CMD        	1	1	0	AWAIT_REJECT9	AWAIT_REJECT
+REJ_CMD        	1	1	1	AWAIT_REJECT9	AWAIT_REJECT
+DISC_CMD       	0	0	0	SH4	ADM
+DISC_CMD       	0	0	1	SH4	ADM
+DISC_CMD       	0	1	0	SH4	ADM
+DISC_CMD       	0	1	1	SH4	ADM
+DISC_CMD       	1	0	0	SH4	ADM
+DISC_CMD       	1	0	1	SH4	ADM
+DISC_CMD       	1	1	0	SH4	ADM
+DISC_CMD       	1	1	1	SH4	ADM
+SABME_CMD      	0	0	0	SH3	RESET_CHECK
+SABME_CMD      	0	0	1	SH3	RESET_CHECK
+SABME_CMD      	0	1	0	SH3	RESET_CHECK
+SABME_CMD      	0	1	1	SH3	RESET_CHECK
+SABME_CMD      	1	0	0	SH3	RESET_CHECK
+SABME_CMD      	1	0	1	SH3	RESET_CHECK
+SABME_CMD      	1	1	0	SH3	RESET_CHECK
+SABME_CMD      	1	1	1	SH3	RESET_CHECK
+I_RSP          	0	0	0	AWAIT_REJECT5	AWAIT
+I_RSP          	0	0	1	AWAIT_REJECT5	AWAIT
+I_RSP          	0	1	0	SH10	ERROR
+I_RSP          	0	1	1	AWAIT_REJECT4	NORMAL
+I_RSP          	1	0	0	AWAIT_REJECT2	AWAIT_REJECT
+I_RSP          	1	0	1	AWAIT_REJECT2	AWAIT_REJECT
+I_RSP          	1	1	0	SH10	ERROR
+I_RSP          	1	1	1	AWAIT_REJECT4	NORMAL
+RR_RSP         	0	0	0	AWAIT_REJECT8	AWAIT_REJECT
+RR_RSP         	0	0	1	AWAIT_REJECT8	AWAIT_REJECT
+RR_RSP         	0	1	0	SH10	ERROR
+RR_RSP         	0	1	1	AWAIT_REJECT7	REJECT
+RR_RSP         	1	0	0	AWAIT_REJECT8	AWAIT_REJECT
+RR_RSP         	1	0	1	AWAIT_REJECT8	AWAIT_REJECT
+RR_RSP         	1	1	0	SH10	ERROR
+RR_RSP         	1	1	1	AWAIT_REJECT7	REJECT
+RNR_RSP        	0	0	0	AWAIT_REJECT11	AWAIT_REJECT
+RNR_RSP        	0	0	1	AWAIT_REJECT11	AWAIT_REJECT
+RNR_RSP        	0	1	0	SH10	ERROR
+RNR_RSP        	0	1	1	AWAIT_REJECT10	REJECT
+RNR_RSP        	1	0	0	AWAIT_REJECT11	AWAIT_REJECT
+RNR_RSP        	1	0	1	AWAIT_REJECT11	AWAIT_REJECT
+RNR_RSP        	1	1	0	SH10	ERROR
+RNR_RSP        	1	1	1	AWAIT_REJECT10	REJECT
+REJ_RSP        	0	0	0	AWAIT_REJECT8	AWAIT_REJECT
+REJ_RSP        	0	0	1	AWAIT_REJECT8	AWAIT_REJECT
+REJ_RSP        	0	1	0	SH10	ERROR
+REJ_RSP        	0	1	1	AWAIT_REJECT7	REJECT
+REJ_RSP        	1	0	0	AWAIT_REJECT8	AWAIT_REJECT
+REJ_RSP        	1	0	1	AWAIT_REJECT8	AWAIT_REJECT
+REJ_RSP        	1	1	0	SH10	ERROR
+REJ_RSP        	1	1	1	AWAIT_REJECT7	REJECT
+UA_RSP         	0	0	0	SH9	ERROR
+UA_RSP         	0	0	1	SH9	ERROR
+UA_RSP         	0	1	0	SH9	ERROR
+UA_RSP         	0	1	1	SH9	ERROR
+UA_RSP         	1	0	0	SH9	ERROR
+UA_RSP         	1	0	1	SH9	ERROR
+UA_RSP         	1	1	0	SH9	ERROR
+UA_RSP         	1	1	1	SH9	ERROR
+DM_RSP         	0	0	0	SH6	ADM
+DM_RSP         	0	0	1	SH6	ADM
+DM_RSP         	0	1	0	SH6	ADM
+DM_RSP         	0	1	1	SH6	ADM
+DM_RSP         	1	0	0	SH6	ADM
+DM_RSP         	1	0	1	SH6	ADM
+DM_RSP         	1	1	0	SH6	ADM
+DM_RSP         	1	1	1	SH6	ADM
+FRMR_RSP       	0	0	0	SH5	RESET_WAIT
+FRMR_RSP       	0	0	1	SH5	RESET_WAIT
+FRMR_RSP       	0	1	0	SH5	RESET_WAIT
+FRMR_RSP       	0	1	1	SH5	RESET_WAIT
+FRMR_RSP       	1	0	0	SH5	RESET_WAIT
+FRMR_RSP       	1	0	1	SH5	RESET_WAIT
+FRMR_RSP       	1	1	0	SH5	RESET_WAIT
+FRMR_RSP       	1	1	1	SH5	RESET_WAIT
+BAD_FRAME      	0	0	0	SH7	ERROR
+BAD_FRAME      	0	0	1	SH7	ERROR
+BAD_FRAME      	0	1	0	SH7	ERROR
+BAD_FRAME      	0	1	1	SH7	ERROR
+BAD_FRAME      	1	0	0	SH7	ERROR
+BAD_FRAME      	1	0	1	SH7	ERROR
+BAD_FRAME      	1	1	0	SH7	ERROR
+BAD_FRAME      	1	1	1	SH7	ERROR
+;
+;112 entries in table, 8 modified by tredit4 SABME_CMD x x x SH3 RESET_CHECK
+;112 entries in table, 8 modified by tredit4 DISC_CMD x x x SH4 ADM
+;112 entries in table, 8 modified by tredit4 FRMR_RSP x x x SH5 RESET_WAIT
+;112 entries in table, 8 modified by tredit4 DM_RSP x x x SH6 ADM
+;112 entries in table, 8 modified by tredit4 BAD_FRAME x x x SH7 ERROR
+;112 entries in table, 8 modified by tredit4 UA_RSP x x x SH9 ERROR
+;112 entries in table, 8 modified by tredit4 anyrsp x 1 0 SH10 ERROR
+;112 entries in table, 2 modified by tredit4 I_CMD 1 0 x AWAIT_REJECT2 AWAIT_REJECT
+;112 entries in table, 2 modified by tredit4 I_RSP 1 0 x AWAIT_REJECT2 AWAIT_REJECT
+;112 entries in table, 2 modified by tredit4 I_CMD 1 1 x AWAIT_REJECT3 AWAIT_REJECT
+;112 entries in table, 2 modified by tredit4 I_RSP x 1 x AWAIT_REJECT4 NORMAL
+;112 entries in table, 2 modified by tredit4 I_RSP x 0 x AWAIT_REJECT5 AWAIT
+;112 entries in table, 2 modified by tredit4 I_CMD x 0 x AWAIT_REJECT5 AWAIT
+;112 entries in table, 2 modified by tredit4 I_CMD x 1 x AWAIT_REJECT6 AWAIT
+;112 entries in table, 2 modified by tredit4 RR_RSP x 1 x AWAIT_REJECT7 REJECT
+;112 entries in table, 2 modified by tredit4 REJ_RSP x 1 x AWAIT_REJECT7 REJECT
+;112 entries in table, 0 modified by tredit4 I_RSP 1 1 x AWAIT_REJECT7 REJECT
+;112 entries in table, 4 modified by tredit4 RR_CMD x 0 x AWAIT_REJECT8 AWAIT_REJECT
+;112 entries in table, 4 modified by tredit4 RR_RSP x 0 x AWAIT_REJECT8 AWAIT_REJECT
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 0 x AWAIT_REJECT8 AWAIT_REJECT
+;112 entries in table, 4 modified by tredit4 REJ_RSP x 0 x AWAIT_REJECT8 AWAIT_REJECT
+;112 entries in table, 4 modified by tredit4 RR_CMD x 1 x AWAIT_REJECT9 AWAIT_REJECT
+;112 entries in table, 4 modified by tredit4 REJ_CMD x 1 x AWAIT_REJECT9 AWAIT_REJECT
+;112 entries in table, 2 modified by tredit4 RNR_RSP x 1 x AWAIT_REJECT10 REJECT
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 0 x AWAIT_REJECT11 AWAIT_REJECT
+;112 entries in table, 4 modified by tredit4 RNR_RSP x 0 x AWAIT_REJECT11 AWAIT_REJECT
+;112 entries in table, 4 modified by tredit4 RNR_CMD x 1 x AWAIT_REJECT12 AWAIT_REJECT
+;112 entries in table, 0 modified by tredit4 RNR_CMD x 1 x AWAIT_REJECT15 AWAIT_BUSY

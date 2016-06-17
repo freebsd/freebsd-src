@@ -1,4 +1,0 @@
-# $FreeBSD$
-# A background command has an implicit </dev/null redirection.
-
-echo bad | ${SH} -c '{ cat & wait; }'

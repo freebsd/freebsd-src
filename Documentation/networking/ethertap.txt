@@ -1,0 +1,268 @@
+NOTE: Ethertap is now an obsolete facility, and is scheduled
+      to be removed in the 2.5.x kernel series.  Those writing
+      applications using ethertap should convert their code to
+      use the TUN/TAP driver instead, see 'tuntap.txt' in this
+      directory for more details.  -DaveM
+
+Ethertap programming mini-HOWTO
+-------------------------------
+
+The ethertap driver was written by Jay Schulist <jschlst@samba.org>,
+you should contact him for further information. This document was written by
+bert hubert <bert.hubert@netherlabs.nl>. Updates are welcome.
+
+What ethertap can do for you
+----------------------------
+
+Ethertap allows you to easily run your own network stack from userspace.
+Tunnels can benefit greatly from this. You can also use it to do network
+experiments. The alternative would be to use a raw socket to send data and
+use libpcap to receive it. Using ethertap saves you this multiplicity and
+also does ARP for you if you want.
+
+The more technical blurb:
+
+Ethertap provides packet reception and transmission for user space programs.
+It can be viewed as a simple Ethernet device, which instead of receiving
+packets from a network wire, it receives them from user space.
+
+Ethertap can be used for anything from AppleTalk to IPX to even building
+bridging tunnels. It also has many other general purpose uses.
+
+Configuring your kernel
+-----------------------
+
+Firstly, you need this in Networking Options:
+
+	#
+	# Code maturity level options
+	#
+	CONFIG_EXPERIMENTAL=y
+
+Then you need Netlink support:
+
+	CONFIG_NETLINK=y
+
+This allows the kernel to exchange data with userspace applications. There
+are two ways of doing this, the new way works with netlink sockets and I
+have no experience with that yet. ANK uses it in his excellent iproute2
+package, see for example rtmon.c. iproute2 can be found on
+ftp://ftp.inr.ac.ru/ip-routing/iproute2*
+
+The new way is described, partly in netlink(7), available on 
+http://www.europe.redhat.com/documentation/man-pages/man7/netlink.7.php3
+
+There is also a Netlink-HOWTO, available on http://snafu.freedom.org/linux2.2/docs/netlink-HOWTO.html
+Sadly I know of no code using ethertap with this new interface.
+
+The older way works by opening character special files with major node 36.
+Enable this with:
+
+	CONFIG_NETLINK_DEV=m
+
+Please be advised that this support is going to be dropped somewhere in the
+future!
+
+Then finally in the Network Devices section, 
+
+	CONFIG_ETHERTAP=m
+
+You can include it directly in the kernel if you want, of course, no need
+for modules.
+
+Setting it all up
+-----------------
+
+First we need to create the /dev/tap0 device node:
+
+	# mknod /dev/tap0 c 36 16
+	# mknod /dev/tap1 c 36 17
+	(etc)
+
+Include the relevant modules (ethertap.o, netlink_dev.o, perhaps netlink.o),
+and bring up your tap0 device:
+
+	# ifconfig tap0 10.0.0.123 up
+
+Now your device is up and running, you can ping it as well. This is what
+confused me to no end, because nothing is connected to our ethertap as yet,
+how is it that we can ping it?
+
+It turns out that the ethertap is just like a regular network interface -
+even when it's down you can ping it. We need to route stuff to it:
+
+	# route add -host 10.0.0.124 gw 10.0.0.123
+
+Now we can read /dev/tap0 and when we ping 10.0.0.124 from our
+localhost, output should appear on the screen.
+
+	# cat /dev/tap0
+	:ßVU:9````````````````````````þýþET@?'
+
+
+Getting this to work from other hosts
+-------------------------------------
+
+For this to work, you often need proxy ARP. 
+
+	# echo 1 > /proc/sys/net/ipv4/conf/eth0/proxy_arp 
+
+eth0 here stands for the interface that connects to 'other hosts'.
+
+Chances are that you are trying this on a non-routing desktop computer, so
+you need to enable ip forwarding:
+
+	# echo 1 > /proc/sys/net/ipv4/ip_forward 
+
+You should now be able to ping 10.0.0.124 from other hosts on your
+10.0.0.0/8 subnet. If you are using public ip space, it should work from
+everywhere.
+
+ARP
+---
+
+If we were to take things very literally, your tcp/ip pseudo stack would
+also have to implement ARP and MAC addresses. This is often a bit silly as
+the ethertap device is a figment of our imagination anyway. However, should
+you want to go 'all the way', you can add the 'arp' flag to ifconfig:
+
+	# ifconfig tap0 10.0.0.123 up arp
+
+This may also be useful when implementing a bridge, which needs to bridge
+ARP packets as well.
+
+The sample program below will no longer work then, because it does not
+implement ARP. 
+
+Sample program
+--------------
+
+A sample program is included somewhere in the bowels of the netfilter
+source. I've extracted this program and list it here. It implements a very
+tiny part of the IP stack and can respond to any pings it receives. It gets
+confused if it receives ARP, as it tries to parse it by treating it as an IP
+packet.
+
+/* Simple program to listen to /dev/tap0 and reply to pings. */
+#include <fcntl.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
+#if defined(__GLIBC__) && (__GLIBC__ == 2)
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+#else
+#include <linux/tcp.h>
+#include <linux/udp.h>
+#endif
+#include <string.h>
+#include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
+
+u_int16_t csum_partial(void *buffer, unsigned int len, u_int16_t prevsum)
+{
+	u_int32_t sum = 0;
+	u_int16_t *ptr = buffer;
+
+	while (len > 1)  {
+		sum += *ptr++;
+		len -= 2;
+	}
+	if (len) {
+		union {
+			u_int8_t byte;
+			u_int16_t wyde;
+		} odd;
+		odd.wyde = 0;
+		odd.byte = *((u_int8_t *)ptr);
+		sum += odd.wyde;
+	}
+	sum = (sum >> 16) + (sum & 0xFFFF);
+	sum += prevsum;
+	return (sum + (sum >> 16));
+}
+
+int main()
+{
+	int fd, len;
+	union {
+		struct {
+			char etherhdr[16];
+			struct iphdr ip;
+		} fmt;
+		unsigned char raw[65536];
+	} u;
+
+	fd = open("/dev/tap0", O_RDWR);
+	if (fd < 0) {
+		perror("Opening `/dev/tap0'");
+		return 1;
+	}
+
+	/* u.fmt.ip.ihl in host order!  Film at 11. */
+	while ((len = read(fd, &u, sizeof(u))) > 0) {
+		u_int32_t tmp;
+ 		struct icmphdr *icmp
+			= (void *)((u_int32_t *)&u.fmt.ip + u.fmt.ip.ihl );
+		struct tcphdr *tcp = (void *)icmp;
+		struct udphdr *udp = (void *)icmp;
+		
+		fprintf(stderr, "SRC = %u.%u.%u.%u DST = %u.%u.%u.%u\n",
+			(ntohl(u.fmt.ip.saddr) >> 24) & 0xFF,
+			(ntohl(u.fmt.ip.saddr) >> 16) & 0xFF,
+			(ntohl(u.fmt.ip.saddr) >> 8) & 0xFF,
+			(ntohl(u.fmt.ip.saddr) >> 0) & 0xFF,
+			(ntohl(u.fmt.ip.daddr) >> 24) & 0xFF,
+			(ntohl(u.fmt.ip.daddr) >> 16) & 0xFF,
+			(ntohl(u.fmt.ip.daddr) >> 8) & 0xFF,
+			(ntohl(u.fmt.ip.daddr) >> 0) & 0xFF);
+
+		switch (u.fmt.ip.protocol) {
+		case IPPROTO_ICMP:
+			if (icmp->type == ICMP_ECHO) {
+				fprintf(stderr, "PONG! (iphdr = %u bytes)\n",
+					(unsigned int)((char *)icmp
+						       - (char *)&u.fmt.ip));
+
+				/* Turn it around */
+				tmp = u.fmt.ip.saddr;
+				u.fmt.ip.saddr = u.fmt.ip.daddr;
+				u.fmt.ip.daddr = tmp;
+
+				icmp->type = ICMP_ECHOREPLY;
+				icmp->checksum = 0;
+				icmp->checksum
+					= ~csum_partial(icmp,
+							ntohs(u.fmt.ip.tot_len)
+							- u.fmt.ip.ihl*4, 0);
+
+				{
+					unsigned int i;
+					for (i = 44;
+					     i < ntohs(u.fmt.ip.tot_len); i++){
+						printf("%u:0x%02X ", i,
+						       ((unsigned char *)
+							&u.fmt.ip)[i]);
+					}
+					printf("\n");
+				}
+				write(fd, &u, len);
+			}
+			break;
+		case IPPROTO_TCP:
+			fprintf(stderr, "TCP: %u -> %u\n", ntohs(tcp->source),
+				ntohs(tcp->dest));
+			break;
+
+		case IPPROTO_UDP:
+			fprintf(stderr, "UDP: %u -> %u\n", ntohs(udp->source),
+				ntohs(udp->dest));
+			break;
+		}
+	}
+	if (len < 0)
+		perror("Reading from `/dev/tap0'");
+	else fprintf(stderr, "Empty read from `/dev/tap0'");
+	return len < 0 ? 1 : 0;
+}
+			

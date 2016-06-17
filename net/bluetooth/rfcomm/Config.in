@@ -1,0 +1,10 @@
+#
+# Bluetooth RFCOMM layer configuration
+#
+
+dep_tristate 'RFCOMM protocol support' CONFIG_BLUEZ_RFCOMM $CONFIG_BLUEZ_L2CAP
+
+if [ "$CONFIG_BLUEZ_RFCOMM" != "n" ]; then
+   bool '  RFCOMM TTY support' CONFIG_BLUEZ_RFCOMM_TTY
+fi
+

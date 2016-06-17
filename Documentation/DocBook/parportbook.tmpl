@@ -1,0 +1,2736 @@
+<!-- -*- sgml -*- -->
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V4.1//EN"[]>
+
+<book id="ParportGuide">
+ <bookinfo>
+  <title>The Linux 2.4 Parallel Port Subsystem</title>
+
+  <authorgroup>
+   <author>
+    <firstname>Tim</firstname>
+    <surname>Waugh</surname>
+    <affiliation>
+     <address>
+      <email>twaugh@redhat.com</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>1999-2000</year>
+   <holder>Tim Waugh</holder>
+  </copyright>
+
+  <legalnotice>
+   <para>
+    Permission is granted to copy, distribute and/or modify this
+    document under the terms of the GNU Free Documentation License,
+    Version 1.1 or any later version published by the Free Software
+    Foundation; with no Invariant Sections, with no Front-Cover Texts,
+    and with no Back-Cover Texts.  A copy of the license is included
+    in the section entitled "GNU Free Documentation License".
+   </para>
+  </legalnotice>
+ </bookinfo>
+
+ <toc></toc>
+
+ <chapter id="design">
+  <title>Design goals</title>
+
+  <sect1>
+   <title>The problems</title>
+
+   <para>
+    The first parallel port support for Linux came with the line
+    printer driver, <literal>lp</literal>.  The printer driver is a
+    character special device, and (in Linux 2.0) had support for
+    writing, via <function>write</function>, and configuration and
+    statistics reporting via <function>ioctl</function>.
+   </para>
+
+   <para>
+    The printer driver could be used on any computer that had an IBM
+    PC-compatible parallel port.  Because some architectures have
+    parallel ports that aren't really the same as PC-style ports,
+    other variants of the printer driver were written in order to
+    support Amiga and Atari parallel ports.
+   </para>
+
+   <para>
+    When the Iomega Zip drive was released, and a driver written for
+    it, a problem became apparent.  The Zip drive is a parallel port
+    device that provides a parallel port of its own---it is designed
+    to sit between a computer and an attached printer, with the
+    printer plugged into the Zip drive, and the Zip drive plugged into
+    the computer.
+   </para>
+
+   <para>
+    The problem was that, although printers and Zip drives were both
+    supported, for any given port only one could be used at a time.
+    Only one of the two drivers could be present in the kernel at
+    once.  This was because of the fact that both drivers wanted to
+    drive the same hardware---the parallel port.  When the printer
+    driver initialised, it would call the
+    <function>check_region</function> function to make sure that the
+    IO region associated with the parallel port was free, and then it
+    would call <function>request_region</function> to allocate it.
+    The Zip drive used the same mechanism.  Whichever driver
+    initialised first would gain exclusive control of the parallel
+    port.
+   </para>
+
+   <para>
+    The only way around this problem at the time was to make sure that
+    both drivers were available as loadable kernel modules.  To use
+    the printer, load the printer driver module; then for the Zip
+    drive, unload the printer driver module and load the Zip driver
+    module.
+   </para>
+
+   <para>
+    The net effect was that printing a document that was stored on a
+    Zip drive was a bit of an ordeal, at least if the Zip drive and
+    printer shared a parallel port.  A better solution was
+    needed.
+   </para>
+
+   <para>
+    Zip drives are not the only devices that presented problems for
+    Linux.  There are other devices with pass-through ports, for
+    example parallel port CD-ROM drives.  There are also printers that
+    report their status textually rather than using simple error pins:
+    sending a command to the printer can cause it to report the number
+    of pages that it has ever printed, or how much free memory it has,
+    or whether it is running out of toner, and so on.  The printer
+    driver didn't originally offer any facility for reading back this
+    information (although Carsten Gross added nibble mode readback
+    support for kernel 2.2).
+   </para>
+
+   <para>
+    The IEEE has issued a standards document called IEEE 1284, which
+    documents existing practice for parallel port communications in a
+    variety of modes.  Those modes are: <quote>compatibility</quote>,
+    reverse nibble, reverse byte, ECP and EPP.  Newer devices often
+    use the more advanced modes of transfer (ECP and EPP).  In Linux
+    2.0, the printer driver only supported <quote>compatibility
+    mode</quote> (i.e. normal printer protocol) and reverse nibble
+    mode.
+   </para>
+
+  </sect1>
+
+  <sect1>
+   <title>The solutions</title>
+
+<!-- How they are addressed
+     - sharing model
+     - overview of structure (i.e. port drivers) in 2.2 and 2.3.
+     - IEEE 1284 stuff
+     - whether or not 'platform independence' goal was met
+  -->
+
+   <para>
+    The <literal>parport</literal> code in Linux 2.2 was designed to
+    meet these problems of architectural differences in parallel
+    ports, of port-sharing between devices with pass-through ports,
+    and of lack of support for IEEE 1284 transfer modes.
+   </para>
+
+   <!-- platform differences -->
+
+   <para>
+    There are two layers to the <literal>parport</literal>
+    subsystem, only one of which deals directly with the hardware.
+    The other layer deals with sharing and IEEE 1284 transfer modes.
+    In this way, parallel support for a particular architecture comes
+    in the form of a module which registers itself with the generic
+    sharing layer.
+   </para>
+
+   <!-- sharing model -->
+
+   <para>
+    The sharing model provided by the <literal>parport</literal>
+    subsystem is one of exclusive access.  A device driver, such as
+    the printer driver, must ask the <literal>parport</literal>
+    layer for access to the port, and can only use the port once
+    access has been granted.  When it has finished a
+    <quote>transaction</quote>, it can tell the
+    <literal>parport</literal> layer that it may release the port
+    for other device drivers to use.
+   </para>
+
+   <!-- talk a bit about how drivers can share devices on the same port -->
+
+   <para>
+    Devices with pass-through ports all manage to share a parallel
+    port with other devices in generally the same way.  The device has
+    a latch for each of the pins on its pass-through port.  The normal
+    state of affairs is pass-through mode, with the device copying the
+    signal lines between its host port and its pass-through port.
+    When the device sees a special signal from the host port, it
+    latches the pass-through port so that devices further downstream
+    don't get confused by the pass-through device's conversation with
+    the host parallel port: the device connected to the pass-through
+    port (and any devices connected in turn to it) are effectively cut
+    off from the computer.  When the pass-through device has completed
+    its transaction with the computer, it enables the pass-through
+    port again.
+   </para>
+
+   <mediaobject>
+    <imageobject>
+     <imagedata fileref="parport-share" format="eps">
+    </imageobject>
+    <imageobject>
+     <imagedata fileref="parport-share.png" format="png">
+    </imageobject>
+   </mediaobject>
+
+   <para>
+    This technique relies on certain <quote>special signals</quote>
+    being invisible to devices that aren't watching for them.  This
+    tends to mean only changing the data signals and leaving the
+    control signals alone.  IEEE 1284.3 documents a standard protocol
+    for daisy-chaining devices together with parallel ports.
+   </para>
+
+   <!-- transfer modes -->
+
+   <para>
+    Support for standard transfer modes are provided as operations
+    that can be performed on a port, along with operations for setting
+    the data lines, or the control lines, or reading the status lines.
+    These operations appear to the device driver as function pointers;
+    more later.
+   </para>
+
+  </sect1>
+
+ </chapter>
+
+ <chapter id="transfermodes">
+  <title>Standard transfer modes</title>
+
+  <!-- Defined by IEEE, but in common use (even though there are widely -->
+  <!-- varying implementations). -->
+
+  <para>
+   The <quote>standard</quote> transfer modes in use over the parallel
+   port are <quote>defined</quote> by a document called IEEE 1284.  It
+   really just codifies existing practice and documents protocols (and
+   variations on protocols) that have been in common use for quite
+   some time.
+  </para>
+
+  <para>
+   The original definitions of which pin did what were set out by
+   Centronics Data Computer Corporation, but only the printer-side
+   interface signals were specified.
+  </para>
+
+  <para>
+   By the early 1980s, IBM's host-side implementation had become the
+   most widely used.  New printers emerged that claimed Centronics
+   compatibility, but although compatible with Centronics they
+   differed from one another in a number of ways.
+  </para>
+
+  <para>
+   As a result of this, when IEEE 1284 was published in 1994, all that
+   it could really do was document the various protocols that are used
+   for printers (there are about six variations on a theme).
+  </para>
+
+  <para>
+   In addition to the protocol used to talk to Centronics-compatible
+   printers, IEEE 1284 defined other protocols that are used for
+   unidirectional peripheral-to-host transfers (reverse nibble and
+   reverse byte) and for fast bidirectional transfers (ECP and
+   EPP).
+  </para>
+
+ </chapter>
+
+ <chapter id="structure">
+  <title>Structure</title>
+
+<!-- Main structure
+     - sharing core
+     - parports and their IEEE 1284 overrides
+       - IEEE 1284 transfer modes for generic ports
+       - maybe mention muxes here
+     - pardevices
+     - IEEE 1284.3 API
+  -->
+
+  <mediaobject>
+   <imageobject>
+    <imagedata fileref="parport-structure" format="eps">
+   </imageobject>
+   <imageobject>
+    <imagedata fileref="parport-structure.png" format="png">
+   </imageobject>
+  </mediaobject>
+
+  <sect1>
+   <title>Sharing core</title>
+
+   <para>
+    At the core of the <literal>parport</literal> subsystem is the
+    sharing mechanism (see
+    <filename>drivers/parport/share.c</filename>).  This module,
+    <literal>parport</literal>, is responsible for keeping track of
+    which ports there are in the system, which device drivers might be
+    interested in new ports, and whether or not each port is available
+    for use (or if not, which driver is currently using it).
+   </para>
+
+  </sect1>
+
+  <sect1>
+   <title>Parports and their overrides</title>
+
+   <para>
+    The generic <literal>parport</literal> sharing code doesn't
+    directly handle the parallel port hardware.  That is done instead
+    by <quote>low-level</quote> <literal>parport</literal> drivers.
+    The function of a low-level <literal>parport</literal> driver is
+    to detect parallel ports, register them with the sharing code, and
+    provide a list of access functions for each port.
+   </para>
+
+   <para>
+    The most basic access functions that must be provided are ones for
+    examining the status lines, for setting the control lines, and for
+    setting the data lines.  There are also access functions for
+    setting the direction of the data lines; normally they are in the
+    <quote>forward</quote> direction (that is, the computer drives
+    them), but some ports allow switching to <quote>reverse</quote>
+    mode (driven by the peripheral).  There is an access function for
+    examining the data lines once in reverse mode.
+   </para>
+
+  </sect1>
+
+  <sect1>
+   <title>IEEE 1284 transfer modes</title>
+
+   <para>
+    Stacked on top of the sharing mechanism, but still in the
+    <literal>parport</literal> module, are functions for
+    transferring data.  They are provided for the device drivers to
+    use, and are very much like library routines.  Since these
+    transfer functions are provided by the generic
+    <literal>parport</literal> core they must use the <quote>lowest
+    common denominator</quote> set of access functions: they can set
+    the control lines, examine the status lines, and use the data
+    lines.  With some parallel ports the data lines can only be set
+    and not examined, and with other ports accessing the data register
+    causes control line activity; with these types of situations, the
+    IEEE 1284 transfer functions make a best effort attempt to do the
+    right thing.  In some cases, it is not physically possible to use
+    particular IEEE 1284 transfer modes.
+   </para>
+
+   <para>
+    The low-level <literal>parport</literal> drivers also provide
+    IEEE 1284 transfer functions, as names in the access function
+    list.  The low-level driver can just name the generic IEEE 1284
+    transfer functions for this.  Some parallel ports can do IEEE 1284
+    transfers in hardware; for those ports, the low-level driver can
+    provide functions to utilise that feature.
+   </para>
+
+  </sect1>
+
+  <!-- muxes? -->
+
+  <sect1>
+   <title>Pardevices and parport_drivers</title>
+
+   <para>
+    When a parallel port device driver (such as
+    <literal>lp</literal>) initialises it tells the sharing layer
+    about itself using <function>parport_register_driver</function>.
+    The information is put into a <structname>struct
+    parport_driver</structname>, which is put into a linked list.  The
+    information in a <structname>struct parport_driver</structname>
+    really just amounts to some function pointers to callbacks in the
+    parallel port device driver.
+   </para>
+
+   <para>
+    During its initialisation, a low-level port driver tells the
+    sharing layer about all the ports that it has found (using
+    <function>parport_register_port</function>), and the sharing layer
+    creates a <structname>struct parport</structname> for each of
+    them.  Each <structname>struct parport</structname> contains
+    (among other things) a pointer to a <structname>struct
+    parport_operations</structname>, which is a list of function
+    pointers for the various operations that can be performed on a
+    port.  You can think of a <structname>struct parport</structname>
+    as a parallel port <quote>object</quote>, if
+    <quote>object-orientated</quote> programming is your thing.  The
+    <structname>parport</structname> structures are chained in a
+    linked list, whose head is <varname>portlist</varname> (in
+    <filename>drivers/parport/share.c</filename>).
+   </para>
+
+   <para>
+    Once the port has been registered, the low-level port driver
+    announces it.  The <function>parport_announce_port</function>
+    function walks down the list of parallel port device drivers
+    (<structname>struct parport_driver</structname>s) calling the
+    <function>attach</function> function of each (which may block).
+   </para>
+
+   <para>
+    Similarly, a low-level port driver can undo the effect of
+    registering a port with the
+    <function>parport_unregister_port</function> function, and device
+    drivers are notified using the <function>detach</function>
+    callback (which may not block).
+   </para>
+
+   <para>
+    Device drivers can undo the effect of registering themselves with
+    the <function>parport_unregister_driver</function>
+    function.
+   </para>
+
+  </sect1>
+
+  <!-- IEEE 1284.3 API -->
+
+  <sect1>
+   <title>The IEEE 1284.3 API</title>
+
+   <para>
+    The ability to daisy-chain devices is very useful, but if every
+    device does it in a different way it could lead to lots of
+    complications for device driver writers.  Fortunately, the IEEE
+    are standardising it in IEEE 1284.3, which covers daisy-chain
+    devices and port multiplexors.
+   </para>
+
+   <para>
+    At the time of writing, IEEE 1284.3 has not been published, but
+    the draft specifies the on-the-wire protocol for daisy-chaining
+    and multiplexing, and also suggests a programming interface for
+    using it.  That interface (or most of it) has been implemented in
+    the <literal>parport</literal> code in Linux.
+   </para>
+
+   <para>
+    At initialisation of the parallel port <quote>bus</quote>,
+    daisy-chained devices are assigned addresses starting from zero.
+    There can only be four devices with daisy-chain addresses, plus
+    one device on the end that doesn't know about daisy-chaining and
+    thinks it's connected directly to a computer.
+   </para>
+
+   <para>
+    Another way of connecting more parallel port devices is to use a
+    multiplexor.  The idea is to have a device that is connected
+    directly to a parallel port on a computer, but has a number of
+    parallel ports on the other side for other peripherals to connect
+    to (two or four ports are allowed).  The multiplexor switches
+    control to different ports under software control---it is, in
+    effect, a programmable printer switch.
+   </para>
+
+   <para>
+    Combining the ability of daisy-chaining five devices together with
+    the ability to multiplex one parallel port between four gives the
+    potential to have twenty peripherals connected to the same
+    parallel port!
+   </para>
+
+   <para>
+    In addition, of course, a single computer can have multiple
+    parallel ports.  So, each parallel port peripheral in the system
+    can be identified with three numbers, or co-ordinates: the
+    parallel port, the multiplexed port, and the daisy-chain
+    address.
+   </para>
+
+   <mediaobject>
+    <imageobject>
+     <imagedata fileref="parport-multi" format="eps">
+    </imageobject>
+    <imageobject>
+     <imagedata fileref="parport-multi.png" format="png">
+    </imageobject>
+   </mediaobject>
+
+   <para>
+    Each device in the system is numbered at initialisation (by
+    <function>parport_daisy_init</function>).  You can convert between
+    this device number and its co-ordinates with
+    <function>parport_device_num</function> and
+    <function>parport_device_coords</function>.
+   </para>
+
+   <funcsynopsis>
+    <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+    </funcsynopsisinfo>
+    <funcprototype>
+     <funcdef>int <function>parport_device_num</function></funcdef>
+     <paramdef>int <parameter>parport</parameter></paramdef>
+     <paramdef>int <parameter>mux</parameter></paramdef>
+     <paramdef>int <parameter>daisy</parameter></paramdef>
+    </funcprototype>
+   </funcsynopsis>
+
+   <funcsynopsis>
+    <funcprototype>
+     <funcdef>int <function>parport_device_coords</function></funcdef>
+     <paramdef>int <parameter>devnum</parameter></paramdef>
+     <paramdef>int *<parameter>parport</parameter></paramdef>
+     <paramdef>int *<parameter>mux</parameter></paramdef>
+     <paramdef>int *<parameter>daisy</parameter></paramdef>
+    </funcprototype>
+   </funcsynopsis>
+
+   <para>
+    Any parallel port peripheral will be connected directly or
+    indirectly to a parallel port on the system, but it won't have a
+    daisy-chain address if it does not know about daisy-chaining, and
+    it won't be connected through a multiplexor port if there is no
+    multiplexor.  The special co-ordinate value
+    <constant>-1</constant> is used to indicate these cases.
+   </para>
+
+   <para>
+    Two functions are provided for finding devices based on their IEEE
+    1284 Device ID: <function>parport_find_device</function> and
+    <function>parport_find_class</function>.
+   </para>
+
+   <funcsynopsis>
+    <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+    </funcsynopsisinfo>
+    <funcprototype>
+     <funcdef>int <function>parport_find_device</function></funcdef>
+     <paramdef>const char *<parameter>mfg</parameter></paramdef>
+     <paramdef>const char *<parameter>mdl</parameter></paramdef>
+     <paramdef>int <parameter>from</parameter></paramdef>
+    </funcprototype>
+   </funcsynopsis>
+
+   <funcsynopsis>
+    <funcprototype>
+     <funcdef>int <function>parport_find_class</function></funcdef>
+     <paramdef>parport_device_class <parameter>cls</parameter></paramdef>
+     <paramdef>int <parameter>from</parameter></paramdef>
+    </funcprototype>
+   </funcsynopsis>
+
+   <para>
+    These functions take a device number (in addition to some other
+    things), and return another device number.  They walk through the
+    list of detected devices until they find one that matches the
+    requirements, and then return that device number (or
+    <constant>-1</constant> if there are no more such devices).  They
+    start their search at the device after the one in the list with
+    the number given (at <parameter>from</parameter>+1, in other
+    words).
+   </para>
+
+  </sect1>
+
+ </chapter>
+
+ <chapter id="drivers">
+  <title>Device driver's view</title>
+
+<!-- Cover:
+     - sharing interface, preemption, interrupts, wakeups...
+     - IEEE 1284.3 interface
+     - port operations
+       - why can read data but ctr is faked, etc.
+  -->
+
+<!-- I should take a look at the kernel hackers' guide bit I wrote, -->
+<!-- as that deals with a lot of this.  The main complaint with it  -->
+<!-- was that there weren't enough examples, but 'The printer -->
+<!-- driver' should deal with that later; might be worth mentioning -->
+<!-- in the text. -->
+
+  <para>
+   This section is written from the point of view of the device driver
+   programmer, who might be writing a driver for a printer or a
+   scanner or else anything that plugs into the parallel port.  It
+   explains how to use the <literal>parport</literal> interface to
+   find parallel ports, use them, and share them with other device
+   drivers.
+  </para>
+
+  <para>
+   We'll start out with a description of the various functions that
+   can be called, and then look at a reasonably simple example of
+   their use: the printer driver.
+  </para>
+
+  <para>
+   The interactions between the device driver and the
+   <literal>parport</literal> layer are as follows.  First, the
+   device driver registers its existence with
+   <literal>parport</literal>, in order to get told about any
+   parallel ports that have been (or will be) detected.  When it gets
+   told about a parallel port, it then tells
+   <literal>parport</literal> that it wants to drive a device on
+   that port.  Thereafter it can claim exclusive access to the port in
+   order to talk to its device.
+  </para>
+
+  <para>
+   So, the first thing for the device driver to do is tell
+   <literal>parport</literal> that it wants to know what parallel
+   ports are on the system.  To do this, it uses the
+   <function>parport_register_driver</function> function:
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+
+struct parport_driver {
+        const char *name;
+        void (*attach) (struct parport *);
+        void (*detach) (struct parport *);
+        struct parport_driver *next;
+};
+   </funcsynopsisinfo>
+
+   <funcprototype>
+    <funcdef>int <function>parport_register_driver</function></funcdef>
+    <paramdef>struct parport_driver *<parameter>driver</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   In other words, the device driver passes pointers to a couple of
+   functions to <literal>parport</literal>, and
+   <literal>parport</literal> calls <function>attach</function> for
+   each port that's detected (and <function>detach</function> for each
+   port that disappears---yes, this can happen).
+  </para>
+
+  <para>
+   The next thing that happens is that the device driver tells
+   <literal>parport</literal> that it thinks there's a device on the
+   port that it can drive.  This typically will happen in the driver's
+   <function>attach</function> function, and is done with
+   <function>parport_register_device</function>:
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>struct pardevice *<function>parport_register_device</function></funcdef>
+    <paramdef>struct parport *<parameter>port</parameter></paramdef>
+    <paramdef>const char *<parameter>name</parameter></paramdef>
+    <paramdef>int <parameter>(*pf)</parameter>
+     <funcparams>void *</funcparams></paramdef>
+    <paramdef>void <parameter>(*kf)</parameter>
+     <funcparams>void *</funcparams></paramdef>
+    <paramdef>void <parameter>(*irq_func)</parameter>
+     <funcparams>int, void *, struct pt_regs *</funcparams></paramdef>
+    <paramdef>int <parameter>flags</parameter></paramdef>
+    <paramdef>void *<parameter>handle</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   The <parameter>port</parameter> comes from the parameter supplied
+   to the <function>attach</function> function when it is called, or
+   alternatively can be found from the list of detected parallel ports
+   directly with the (now deprecated)
+   <function>parport_enumerate</function> function.  A better way of
+   doing this is with <function>parport_find_number</function> or
+   <function>parport_find_base</function> functions, which find ports
+   by number and by base I/O address respectively.
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>struct parport *<function>parport_find_number</function></funcdef>
+    <paramdef>int <parameter>number</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>struct parport *<function>parport_find_base</function></funcdef>
+    <paramdef>unsigned long <parameter>base</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   The next three parameters, <parameter>pf</parameter>,
+   <parameter>kf</parameter>, and <parameter>irq_func</parameter>, are
+   more function pointers.  These callback functions get called under
+   various circumstances, and are always given the
+   <parameter>handle</parameter> as one of their parameters.
+  </para>
+
+  <para>
+   The preemption callback, <parameter>pf</parameter>, is called when
+   the driver has claimed access to the port but another device driver
+   wants access.  If the driver is willing to let the port go, it
+   should return zero and the port will be released on its behalf.
+   There is no need to call <function>parport_release</function>.  If
+   <parameter>pf</parameter> gets called at a bad time for letting the
+   port go, it should return non-zero and no action will be taken.  It
+   is good manners for the driver to try to release the port at the
+   earliest opportunity after its preemption callback is
+   called.
+  </para>
+
+  <para>
+   The <quote>kick</quote> callback, <parameter>kf</parameter>, is
+   called when the port can be claimed for exclusive access; that is,
+   <function>parport_claim</function> is guaranteed to succeed inside
+   the <quote>kick</quote> callback.  If the driver wants to claim the
+   port it should do so; otherwise, it need not take any
+   action.
+  </para>
+
+  <para>
+   The <parameter>irq_func</parameter> callback is called,
+   predictably, when a parallel port interrupt is generated.  But it
+   is not the only code that hooks on the interrupt.  The sequence is
+   this: the lowlevel driver is the one that has done
+   <function>request_irq</function>; it then does whatever
+   hardware-specific things it needs to do to the parallel port
+   hardware (for PC-style ports, there is nothing special to do); it
+   then tells the IEEE 1284 code about the interrupt, which may
+   involve reacting to an IEEE 1284 event, depending on the current
+   IEEE 1284 phase; and finally the <parameter>irq_func</parameter>
+   function is called.
+  </para>
+
+  <para>
+   None of the callback functions are allowed to block.
+  </para>
+
+  <para>
+   The <parameter>flags</parameter> are for telling
+   <literal>parport</literal> any requirements or hints that are
+   useful.  The only useful value here (other than
+   <constant>0</constant>, which is the usual value) is
+   <constant>PARPORT_DEV_EXCL</constant>.  The point of that flag is
+   to request exclusive access at all times---once a driver has
+   successfully called <function>parport_register_device</function>
+   with that flag, no other device drivers will be able to register
+   devices on that port (until the successful driver deregisters its
+   device, of course).
+  </para>
+
+  <para>
+   The <constant>PARPORT_DEV_EXCL</constant> flag is for preventing
+   port sharing, and so should only be used when sharing the port with
+   other device drivers is impossible and would lead to incorrect
+   behaviour.  Use it sparingly!
+  </para>
+
+  <para>
+   Devices can also be registered by device drivers based on their
+   device numbers (the same device numbers as in the previous
+   section).
+  </para>
+
+  <para>
+   The <function>parport_open</function> function is similar to
+   <function>parport_register_device</function>, and
+   <function>parport_close</function> is the equivalent of
+   <function>parport_unregister_device</function>.  The difference is
+   that <function>parport_open</function> takes a device number rather
+   than a pointer to a <structname>struct parport</structname>.
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>struct pardevice *<function>parport_open</function></funcdef>
+    <paramdef>int <parameter>devnum</parameter></paramdef>
+    <paramdef>const char *<parameter>name</parameter></paramdef>
+    <paramdef>int <parameter>(*pf)</parameter>
+     <funcparams>void *</funcparams></paramdef>
+    <paramdef>int <parameter>(*kf)</parameter>
+     <funcparams>void *</funcparams></paramdef>
+    <paramdef>int <parameter>(*irqf)</parameter>
+     <funcparams>int, void *, struct pt_regs *</funcparams></paramdef>
+    <paramdef>int <parameter>flags</parameter></paramdef>
+    <paramdef>void *<parameter>handle</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <funcsynopsis>
+   <funcprototype>
+    <funcdef>void <function>parport_close</function></funcdef>
+    <paramdef>struct pardevice *<parameter>dev</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <funcsynopsis>
+   <funcprototype>
+    <funcdef>struct pardevice *<function>parport_register_device</function></funcdef>
+    <paramdef>struct parport *<parameter>port</parameter></paramdef>
+    <paramdef>const char *<parameter>name</parameter></paramdef>
+    <paramdef>int <parameter>(*pf)</parameter>
+     <funcparams>void *</funcparams></paramdef>
+    <paramdef>int <parameter>(*kf)</parameter>
+     <funcparams>void *</funcparams></paramdef>
+    <paramdef>int <parameter>(*irqf)</parameter>
+     <funcparams>int, void *, struct pt_regs *</funcparams></paramdef>
+    <paramdef>int <parameter>flags</parameter></paramdef>
+    <paramdef>void *<parameter>handle</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <funcsynopsis>
+   <funcprototype>
+    <funcdef>void <function>parport_unregister_device</function></funcdef>
+    <paramdef>struct pardevice *<parameter>dev</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   The intended use of these functions is during driver initialisation
+   while the driver looks for devices that it supports, as
+   demonstrated by the following code fragment:
+  </para>
+
+  <programlisting>
+   <![CDATA[
+int devnum = -1;
+while ((devnum = parport_find_class (PARPORT_CLASS_DIGCAM,
+                                     devnum)) != -1) {
+    struct pardevice *dev = parport_open (devnum, ...);
+    ...
+}
+   ]]></programlisting>
+
+  <para>
+   Once your device driver has registered its device and been handed a
+   pointer to a <structname>struct pardevice</structname>, the next
+   thing you are likely to want to do is communicate with the device
+   you think is there.  To do that you'll need to claim access to the
+   port.
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>int <function>parport_claim</function></funcdef>
+    <paramdef>struct pardevice *<parameter>dev</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <funcsynopsis>
+   <funcprototype>
+    <funcdef>int <function>parport_claim_or_block</function></funcdef>
+    <paramdef>struct pardevice *<parameter>dev</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <funcsynopsis>
+   <funcprototype>
+    <funcdef>void <function>parport_release</function></funcdef>
+    <paramdef>struct pardevice *<parameter>dev</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   To claim access to the port, use <function>parport_claim</function>
+   or <function>parport_claim_or_block</function>.  The first of these
+   will not block, and so can be used from interrupt context.  If
+   <function>parport_claim</function> succeeds it will return zero and
+   the port is available to use.  It may fail (returning non-zero) if
+   the port is in use by another driver and that driver is not willing
+   to relinquish control of the port.
+  </para>
+
+  <para>
+   The other function, <function>parport_claim_or_block</function>,
+   will block if necessary to wait for the port to be free.  If it
+   slept, it returns <constant>1</constant>; if it succeeded without
+   needing to sleep it returns <constant>0</constant>.  If it fails it
+   will return a negative error code.
+  </para>
+
+  <para>
+   When you have finished communicating with the device, you can give
+   up access to the port so that other drivers can communicate with
+   their devices.  The <function>parport_release</function> function
+   cannot fail, but it should not be called without the port claimed.
+   Similarly, you should not try to claim the port if you already have
+   it claimed.
+  </para>
+
+  <para>
+   You may find that although there are convenient points for your
+   driver to relinquish the parallel port and allow other drivers to
+   talk to their devices, it would be preferable to keep hold of the
+   port.  The printer driver only needs the port when there is data to
+   print, for example, but a network driver (such as PLIP) could be
+   sent a remote packet at any time.  With PLIP, it is no huge
+   catastrophe if a network packet is dropped, since it will likely be
+   sent again, so it is possible for that kind of driver to share the
+   port with other (pass-through) devices.
+  </para>
+
+  <para>
+   The <function>parport_yield</function> and
+   <function>parport_yield_blocking</function> functions are for
+   marking points in the driver at which other drivers may claim the
+   port and use their devices.  Yielding the port is similar to
+   releasing it and reclaiming it, but is more efficient because
+   nothing is done if there are no other devices needing the port.  In
+   fact, nothing is done even if there are other devices waiting but
+   the current device is still within its <quote>timeslice</quote>.
+   The default timeslice is half a second, but it can be adjusted via
+   a <filename>/proc</filename> entry.
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>int <function>parport_yield</function></funcdef>
+    <paramdef>struct pardevice *<parameter>dev</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <funcsynopsis>
+   <funcprototype>
+    <funcdef>int <function>parport_yield_blocking</function></funcdef>
+    <paramdef>struct pardevice *<parameter>dev</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   The first of these, <function>parport_yield</function>, will not
+   block but as a result may fail.  The return value for
+   <function>parport_yield</function> is the same as for
+   <function>parport_claim</function>.  The blocking version,
+   <function>parport_yield_blocking</function>, has the same return
+   code as <function>parport_claim_or_block</function>.
+  </para>
+
+  <para>
+   Once the port has been claimed, the device driver can use the
+   functions in the <structname>struct parport_operations</structname>
+   pointer in the <structname>struct parport</structname> it has a
+   pointer to.  For example:
+  </para>
+
+  <programlisting>
+   <![CDATA[
+port->ops->write_data (port, d);
+   ]]></programlisting>
+
+  <para>
+   Some of these operations have <quote>shortcuts</quote>.  For
+   instance, <function>parport_write_data</function> is equivalent to
+   the above, but may be a little bit faster (it's a macro that in
+   some cases can avoid needing to indirect through
+   <varname>port</varname> and <varname>ops</varname>).
+  </para>
+
+ </chapter>
+
+ <chapter id="portdrivers">
+  <title>Port drivers</title>
+
+  <!-- What port drivers are for (i.e. implementing parport objects). -->
+
+  <para>
+   To recap, then:</para>
+
+  <itemizedlist spacing=compact>
+
+   <listitem>
+    <para>
+     The device driver registers itself with <literal>parport</literal>.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     A low-level driver finds a parallel port and registers it with
+     <literal>parport</literal> (these first two things can happen
+     in either order).  This registration creates a <structname>struct
+     parport</structname> which is linked onto a list of known ports.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     <literal>parport</literal> calls the
+     <function>attach</function> function of each registered device
+     driver, passing it the pointer to the new <structname>struct
+     parport</structname>.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     The device driver gets a handle from
+     <literal>parport</literal>, for use with
+     <function>parport_claim</function>/<function>release</function>.
+     This handle takes the form of a pointer to a <structname>struct
+     pardevice</structname>, representing a particular device on the
+     parallel port, and is acquired using
+     <function>parport_register_device</function>.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     The device driver claims the port using
+     <function>parport_claim</function> (or
+     <function>function_claim_or_block</function>).
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Then it goes ahead and uses the port.  When finished it releases
+     the port.
+    </para>
+   </listitem>
+
+  </itemizedlist>
+
+  <para>
+   The purpose of the low-level drivers, then, is to detect parallel
+   ports and provide methods of accessing them (i.e. implementing the
+   operations in <structname>struct
+   parport_operations</structname>).
+  </para>
+
+  <!-- Should DocBookise this -->
+  <para>
+   A more complete description of which operation is supposed to do
+   what is available in
+   <filename>Documentation/parport-lowlevel.txt</filename>.
+  </para>
+
+ </chapter>
+
+ <chapter id="lp">
+  <title>The printer driver</title>
+
+  <!-- Talk the reader through the printer driver. -->
+  <!-- Could even talk about parallel port console here. -->
+
+  <para>
+   The printer driver, <literal>lp</literal> is a character special
+   device driver and a <literal>parport</literal> client.  As a
+   character special device driver it registers a <structname>struct
+   file_operations</structname> using
+   <function>register_chrdev</function>, with pointers filled in for
+   <structfield>write</structfield>, <structfield>ioctl</structfield>,
+   <structfield>open</structfield> and
+   <structfield>release</structfield>.  As a client of
+   <literal>parport</literal>, it registers a <structname>struct
+   parport_driver</structname> using
+   <function>parport_register_driver</function>, so that
+   <literal>parport</literal> knows to call
+   <function>lp_attach</function> when a new parallel port is
+   discovered (and <function>lp_detach</function> when it goes
+   away).
+  </para>
+
+  <para>
+   The parallel port console functionality is also implemented in
+   <filename>drivers/char/lp.c</filename>, but that won't be covered
+   here (it's quite simple though).
+  </para>
+
+  <para>
+   The initialisation of the driver is quite easy to understand (see
+   <function>lp_init</function>).  The <varname>lp_table</varname> is
+   an array of structures that contain information about a specific
+   device (the <structname>struct pardevice</structname> associated
+   with it, for example).  That array is initialised to sensible
+   values first of all.
+  </para>
+
+  <para>
+   Next, the printer driver calls <function>register_chrdev</function>
+   passing it a pointer to <varname>lp_fops</varname>, which contains
+   function pointers for the printer driver's implementation of
+   <function>open</function>, <function>write</function>, and so on.
+   This part is the same as for any character special device
+   driver.
+  </para>
+
+  <para>
+   After successfully registering itself as a character special device
+   driver, the printer driver registers itself as a
+   <literal>parport</literal> client using
+   <function>parport_register_driver</function>.  It passes a pointer
+   to this structure:
+  </para>
+
+  <programlisting>
+   <![CDATA[
+static struct parport_driver lp_driver = {
+        "lp",
+        lp_attach,
+        lp_detach,
+        NULL
+};
+   ]]></programlisting>
+
+  <para>
+   The <function>lp_detach</function> function is not very interesting
+   (it does nothing); the interesting bit is
+   <function>lp_attach</function>.  What goes on here depends on
+   whether the user supplied any parameters.  The possibilities are:
+   no parameters supplied, in which case the printer driver uses every
+   port that is detected; the user supplied the parameter
+   <quote>auto</quote>, in which case only ports on which the device
+   ID string indicates a printer is present are used; or the user
+   supplied a list of parallel port numbers to try, in which case only
+   those are used.
+  </para>
+
+  <para>
+   For each port that the printer driver wants to use (see
+   <function>lp_register</function>), it calls
+   <function>parport_register_device</function> and stores the
+   resulting <structname>struct pardevice</structname> pointer in the
+   <varname>lp_table</varname>.  If the user told it to do so, it then
+   resets the printer.
+  </para>
+
+  <para>
+   The other interesting piece of the printer driver, from the point
+   of view of <literal>parport</literal>, is
+   <function>lp_write</function>.  In this function, the user space
+   process has data that it wants printed, and the printer driver
+   hands it off to the <literal>parport</literal> code to deal with.
+  </para>
+
+  <para>
+   The <literal>parport</literal> functions it uses that we have not
+   seen yet are <function>parport_negotiate</function>,
+   <function>parport_set_timeout</function>, and
+   <function>parport_write</function>.  These functions are part of
+   the IEEE 1284 implementation.
+  </para>
+
+  <para>
+   The way the IEEE 1284 protocol works is that the host tells the
+   peripheral what transfer mode it would like to use, and the
+   peripheral either accepts that mode or rejects it; if the mode is
+   rejected, the host can try again with a different mode.  This is
+   the negotation phase.  Once the peripheral has accepted a
+   particular transfer mode, data transfer can begin that mode.
+  </para>
+
+  <para>
+   The particular transfer mode that the printer driver wants to use
+   is named in IEEE 1284 as <quote>compatibility</quote> mode, and the
+   function to request a particular mode is called
+   <function>parport_negotiate</function>.
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>int <function>parport_negotiate</function></funcdef>
+    <paramdef>struct parport *<parameter>port</parameter></paramdef>
+    <paramdef>int <parameter>mode</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   The <parameter>modes</parameter> parameter is a symbolic constant
+   representing an IEEE 1284 mode; in this instance, it is
+   <constant>IEEE1284_MODE_COMPAT</constant>. (Compatibility mode is
+   slightly different to the other modes---rather than being
+   specifically requested, it is the default until another mode is
+   selected.)
+  </para>
+
+  <para>
+   Back to <function>lp_write</function> then.  First, access to the
+   parallel port is secured with
+   <function>parport_claim_or_block</function>.  At this point the
+   driver might sleep, waiting for another driver (perhaps a Zip drive
+   driver, for instance) to let the port go.  Next, it goes to
+   compatibility mode using <function>parport_negotiate</function>.
+  </para>
+
+  <para>
+   The main work is done in the write-loop.  In particular, the line
+   that hands the data over to <literal>parport</literal> reads:
+  </para>
+
+<programlisting>
+<![CDATA[
+        written = parport_write (port, kbuf, copy_size);
+]]></programlisting>
+
+  <para>
+   The <function>parport_write</function> function writes data to the
+   peripheral using the currently selected transfer mode
+   (compatibility mode, in this case).  It returns the number of bytes
+   successfully written:
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>ssize_t <function>parport_write</function></funcdef>
+    <paramdef>struct parport *<parameter>port</parameter></paramdef>
+    <paramdef>const void *<parameter>buf</parameter></paramdef>
+    <paramdef>size_t <parameter>len</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <funcsynopsis>
+   <funcprototype>
+    <funcdef>ssize_t <function>parport_read</function></funcdef>
+    <paramdef>struct parport *<parameter>port</parameter></paramdef>
+    <paramdef>void *<parameter>buf</parameter></paramdef>
+    <paramdef>size_t <parameter>len</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   (<function>parport_read</function> does what it sounds like, but
+   only works for modes in which reverse transfer is possible.  Of
+   course, <function>parport_write</function> only works in modes in
+   which forward transfer is possible, too.)
+  </para>
+
+  <para>
+   The <parameter>buf</parameter> pointer should be to kernel space
+   memory, and obviously the <parameter>len</parameter> parameter
+   specifies the amount of data to transfer.
+  </para>
+
+  <para>
+   In fact what <function>parport_write</function> does is call the
+   appropriate block transfer function from the <structname>struct
+   parport_operations</structname>:
+  </para>
+
+  <programlisting>
+   <![CDATA[
+struct parport_operations {
+        [...]
+
+        /* Block read/write */
+        size_t (*epp_write_data) (struct parport *port,
+                                  const void *buf,
+                                  size_t len, int flags);
+        size_t (*epp_read_data) (struct parport *port,
+                                 void *buf, size_t len,
+                                 int flags);
+        size_t (*epp_write_addr) (struct parport *port,
+                                  const void *buf,
+                                  size_t len, int flags);
+        size_t (*epp_read_addr) (struct parport *port,
+                                 void *buf, size_t len,
+                                 int flags);
+
+        size_t (*ecp_write_data) (struct parport *port,
+                                  const void *buf,
+                                  size_t len, int flags);
+        size_t (*ecp_read_data) (struct parport *port,
+                                 void *buf, size_t len,
+                                 int flags);
+        size_t (*ecp_write_addr) (struct parport *port,
+                                  const void *buf,
+                                  size_t len, int flags);
+
+        size_t (*compat_write_data) (struct parport *port,
+                                     const void *buf,
+                                     size_t len, int flags);
+        size_t (*nibble_read_data) (struct parport *port,
+                                    void *buf, size_t len,
+                                    int flags);
+        size_t (*byte_read_data) (struct parport *port,
+                                  void *buf, size_t len,
+                                  int flags);
+};
+   ]]></programlisting>
+
+  <para>
+   The transfer code in <literal>parport</literal> will tolerate a
+   data transfer stall only for so long, and this timeout can be
+   specified with <function>parport_set_timeout</function>, which
+   returns the previous timeout:
+  </para>
+
+  <funcsynopsis>
+   <funcsynopsisinfo>
+#include &lt;parport.h&gt;
+   </funcsynopsisinfo>
+   <funcprototype>
+    <funcdef>long <function>parport_set_timeout</function></funcdef>
+    <paramdef>struct pardevice *<parameter>dev</parameter></paramdef>
+    <paramdef>long <parameter>inactivity</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   This timeout is specific to the device, and is restored on
+   <function>parport_claim</function>.
+  </para>
+
+  <para>
+   The next function to look at is the one that allows processes to
+   read from <filename>/dev/lp0</filename>:
+   <function>lp_read</function>.  It's short, like
+   <function>lp_write</function>.
+  </para>
+
+  <para>
+   The semantics of reading from a line printer device are as follows:
+  </para>
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     Switch to reverse nibble mode.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Try to read data from the peripheral using reverse nibble mode,
+     until either the user-provided buffer is full or the peripheral
+     indicates that there is no more data.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     If there was data, stop, and return it.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Otherwise, we tried to read data and there was none.  If the user
+     opened the device node with the <constant>O_NONBLOCK</constant>
+     flag, return.  Otherwise wait until an interrupt occurs on the
+     port (or a timeout elapses).
+    </para>
+   </listitem>
+  </itemizedlist>
+
+ </chapter>
+
+ <chapter id="ppdev">
+  <title>User-level device drivers</title>
+
+  <!-- ppdev -->
+  <sect1>
+   <title>Introduction to ppdev</title>
+
+   <para>
+    The printer is accessible through <filename>/dev/lp0</filename>;
+    in the same way, the parallel port itself is accessible through
+    <filename>/dev/parport0</filename>.  The difference is in the
+    level of control that you have over the wires in the parallel port
+    cable.
+   </para>
+
+   <para>
+    With the printer driver, a user-space program (such as the printer
+    spooler) can send bytes in <quote>printer protocol</quote>.
+    Briefly, this means that for each byte, the eight data lines are
+    set up, then a <quote>strobe</quote> line tells the printer to
+    look at the data lines, and the printer sets an
+    <quote>acknowledgement</quote> line to say that it got the byte.
+    The printer driver also allows the user-space program to read
+    bytes in <quote>nibble mode</quote>, which is a way of
+    transferring data from the peripheral to the computer half a byte
+    at a time (and so it's quite slow).
+   </para>
+
+   <para>
+    In contrast, the <literal>ppdev</literal> driver (accessed via
+    <filename>/dev/parport0</filename>) allows you to:
+   </para>
+
+   <itemizedlist spacing=compact>
+
+    <listitem>
+     <para>
+      examine status lines,
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      set control lines,
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      set/examine data lines (and control the direction of the data
+      lines),
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      wait for an interrupt (triggered by one of the status lines),
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      find out how many new interrupts have occurred,
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      set up a response to an interrupt,
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      use IEEE 1284 negotiation (for telling peripheral which transfer
+      mode, to use)
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      transfer data using a specified IEEE 1284 mode.
+     </para>
+    </listitem>
+
+   </itemizedlist>
+
+  </sect1>
+
+  <sect1>
+   <title>User-level or kernel-level driver?</title>
+
+   <para>
+    The decision of whether to choose to write a kernel-level device
+    driver or a user-level device driver depends on several factors.
+    One of the main ones from a practical point of view is speed:
+    kernel-level device drivers get to run faster because they are not
+    preemptable, unlike user-level applications.
+   </para>
+
+   <para>
+    Another factor is ease of development.  It is in general easier to
+    write a user-level driver because (a) one wrong move does not
+    result in a crashed machine, (b) you have access to user libraries
+    (such as the C library), and (c) debugging is easier.
+   </para>
+
+  </sect1>
+
+  <sect1>
+   <title>Programming interface</title>
+
+   <para>
+    The <literal>ppdev</literal> interface is largely the same as that
+    of other character special devices, in that it supports
+    <function>open</function>, <function>close</function>,
+    <function>read</function>, <function>write</function>, and
+    <function>ioctl</function>.  The constants for the
+    <function>ioctl</function> commands are in
+    <filename>include/linux/ppdev.h</filename>.
+   </para>
+
+   <sect2>
+    <title>
+     Starting and stopping: <function>open</function> and
+     <function>close</function>
+    </title>
+
+    <para>
+     The device node <filename>/dev/parport0</filename> represents any
+     device that is connected to <filename>parport0</filename>, the
+     first parallel port in the system.  Each time the device node is
+     opened, it represents (to the process doing the opening) a
+     different device.  It can be opened more than once, but only one
+     instance can actually be in control of the parallel port at any
+     time.  A process that has opened
+     <filename>/dev/parport0</filename> shares the parallel port in
+     the same way as any other device driver.  A user-land driver may
+     be sharing the parallel port with in-kernel device drivers as
+     well as other user-land drivers.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Control: <function>ioctl</function></title>
+
+    <para>
+     Most of the control is done, naturally enough, via the
+     <function>ioctl</function> call.  Using
+     <function>ioctl</function>, the user-land driver can control both
+     the <literal>ppdev</literal> driver in the kernel and the
+     physical parallel port itself.  The <function>ioctl</function>
+     call takes as parameters a file descriptor (the one returned from
+     opening the device node), a command, and optionally (a pointer
+     to) some data.
+    </para>
+
+    <variablelist>
+     <varlistentry><term><constant>PPCLAIM</constant></term>
+      <listitem>
+
+       <para>
+	Claims access to the port.  As a user-land device driver
+	writer, you will need to do this before you are able to
+	actually change the state of the parallel port in any way.
+	Note that some operations only affect the
+	<literal>ppdev</literal> driver and not the port, such as
+	<constant>PPSETMODE</constant>; they can be performed while
+	access to the port is not claimed.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPEXCL</constant></term>
+      <listitem>
+
+       <para>
+	Instructs the kernel driver to forbid any sharing of the port
+	with other drivers, i.e. it requests exclusivity.  The
+	<constant>PPEXCL</constant> command is only valid when the
+	port is not already claimed for use, and it may mean that the
+	next <constant>PPCLAIM</constant> <function>ioctl</function>
+	will fail: some other driver may already have registered
+	itself on that port.
+       </para>
+
+       <para>
+	Most device drivers don't need exclusive access to the port.
+	It's only provided in case it is really needed, for example
+	for devices where access to the port is required for extensive
+	periods of time (many seconds).
+       </para>
+
+       <para>
+	Note that the <constant>PPEXCL</constant>
+	<function>ioctl</function> doesn't actually claim the port
+	there and then---action is deferred until the
+	<constant>PPCLAIM</constant> <function>ioctl</function> is
+	performed.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPRELEASE</constant></term>
+      <listitem>
+
+       <para>
+	Releases the port.  Releasing the port undoes the effect of
+	claiming the port.  It allows other device drivers to talk to
+	their devices (assuming that there are any).
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPYIELD</constant></term>
+      <listitem>
+
+       <para>
+	Yields the port to another driver.  This
+	<function>ioctl</function> is a kind of short-hand for
+	releasing the port and immediately reclaiming it.  It gives
+	other drivers a chance to talk to their devices, but
+	afterwards claims the port back.  An example of using this
+	would be in a user-land printer driver: once a few characters
+	have been written we could give the port to another device
+	driver for a while, but if we still have characters to send to
+	the printer we would want the port back as soon as possible.
+       </para>
+
+       <para>
+	It is important not to claim the parallel port for too long,
+	as other device drivers will have no time to service their
+	devices.  If your device does not allow for parallel port
+	sharing at all, it is better to claim the parallel port
+	exclusively (see <constant>PPEXCL</constant>).
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPNEGOT</constant></term>
+      <listitem>
+
+       <para>
+	Performs IEEE 1284 negotiation into a particular mode.
+	Briefly, negotiation is the method by which the host and the
+	peripheral decide on a protocol to use when transferring data.
+       </para>
+
+       <para>
+	An IEEE 1284 compliant device will start out in compatibility
+	mode, and then the host can negotiate to another mode (such as
+	ECP).
+       </para>
+
+       <para>
+	The <function>ioctl</function> parameter should be a pointer
+	to an <type>int</type>; values for this are in
+	<filename>incluce/linux/parport.h</filename> and include:
+       </para>
+
+       <itemizedlist spacing=compact>
+	<listitem><para>
+	  <constant>IEEE1284_MODE_COMPAT</constant></para></listitem>
+	<listitem><para>
+	  <constant>IEEE1284_MODE_NIBBLE</constant></para></listitem>
+	<listitem><para>
+	  <constant>IEEE1284_MODE_BYTE</constant></para></listitem>
+	<listitem><para>
+	  <constant>IEEE1284_MODE_EPP</constant></para></listitem>
+	<listitem><para>
+	  <constant>IEEE1284_MODE_ECP</constant></para></listitem>
+       </itemizedlist>
+
+       <para>
+	The <constant>PPNEGOT</constant> <function>ioctl</function>
+	actually does two things: it performs the on-the-wire
+	negotiation, and it sets the behaviour of subsequent
+	<function>read</function>/<function>write</function> calls so
+	that they use that mode (but see
+	<constant>PPSETMODE</constant>).
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPSETMODE</constant></term>
+      <listitem>
+
+       <para>
+	Sets which IEEE 1284 protocol to use for the
+	<function>read</function> and <function>write</function>
+	calls.
+       </para>
+
+       <para>
+	The <function>ioctl</function> parameter should be a pointer
+	to an <type>int</type>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPGETMODE</constant></term>
+      <listitem>
+
+       <para>
+	Retrieves the current IEEE 1284 mode to use for
+	<function>read</function> and <function>write</function>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPGETTIME</constant></term>
+      <listitem>
+
+       <para>
+	Retrieves the time-out value.  The <function>read</function>
+	and <function>write</function> calls will time out if the
+	peripheral doesn't respond quickly enough.  The
+	<constant>PPGETTIME</constant> <function>ioctl</function>
+	retrieves the length of time that the peripheral is allowed to
+	have before giving up.
+       </para>
+
+       <para>
+	The <function>ioctl</function> parameter should be a pointer
+	to a <structname>struct timeval</structname>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPSETTIME</constant></term>
+      <listitem>
+
+       <para>
+	Sets the time-out.  The <function>ioctl</function> parameter
+	should be a pointer to a <structname>struct
+	timeval</structname>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPGETMODES</constant></term>
+      <listitem>
+
+       <para>
+	Retrieves the capabilities of the hardware (i.e. the
+	<structfield>modes</structfield> field of the
+	<structname>parport</structname> structure).
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPSETFLAGS</constant></term>
+      <listitem>
+
+       <para>
+	Sets flags on the <literal>ppdev</literal> device which can
+	affect future I/O operations.  Available flags are:
+       </para>
+
+       <itemizedlist spacing=compact>
+	<listitem><para>
+	  <constant>PP_FASTWRITE</constant></para></listitem>
+	<listitem><para>
+	  <constant>PP_FASTREAD</constant></para></listitem>
+	<listitem><para>
+	  <constant>PP_W91284PIC</constant></para></listitem>
+       </itemizedlist>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPWCONTROL</constant></term>
+      <listitem>
+
+       <para>
+	Sets the control lines.  The <function>ioctl</function>
+	parameter is a pointer to an <type>unsigned char</type>, the
+	bitwise OR of the control line values in
+	<filename>include/linux/parport.h</filename>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPRCONTROL</constant></term>
+      <listitem>
+
+       <para>
+	Returns the last value written to the control register, in the
+	form of an <type>unsigned char</type>: each bit corresponds to
+	a control line (although some are unused).  The
+	<function>ioctl</function> parameter should be a pointer to an
+	<type>unsigned char</type>.
+       </para>
+
+       <para>
+	This doesn't actually touch the hardware; the last value
+	written is remembered in software.  This is because some
+	parallel port hardware does not offer read access to the
+	control register.
+       </para>
+
+       <para>
+	The control lines bits are defined in
+	<filename>include/linux/parport.h</filename>:
+       </para>
+
+       <itemizedlist spacing=compact>
+	<listitem><para>
+	  <constant>PARPORT_CONTROL_STROBE</constant></para></listitem>
+	  <listitem><para>
+	  <constant>PARPORT_CONTROL_AUTOFD</constant></para></listitem>
+	  <listitem><para>
+	  <constant>PARPORT_CONTROL_SELECT</constant></para></listitem>
+	  <listitem><para>
+	  <constant>PARPORT_CONTROL_INIT</constant></para></listitem>
+       </itemizedlist>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPFCONTROL</constant></term>
+      <listitem>
+
+       <para>
+	Frobs the control lines.  Since a common operation is to
+	change one of the control signals while leaving the others
+	alone, it would be quite inefficient for the user-land driver
+	to have to use <constant>PPRCONTROL</constant>, make the
+	change, and then use <constant>PPWCONTROL</constant>.  Of
+	course, each driver could remember what state the control
+	lines are supposed to be in (they are never changed by
+	anything else), but in order to provide
+	<constant>PPRCONTROL</constant>, <literal>ppdev</literal>
+	must remember the state of the control lines anyway.
+       </para>
+
+       <para>
+	The <constant>PPFCONTROL</constant> <function>ioctl</function>
+	is for <quote>frobbing</quote> control lines, and is like
+	<constant>PPWCONTROL</constant> but acts on a restricted set
+	of control lines.  The <function>ioctl</function> parameter is
+	a pointer to a <structname>struct
+	ppdev_frob_struct</structname>:
+       </para>
+
+       <programlisting>
+	<![CDATA[
+struct ppdev_frob_struct {
+        unsigned char mask;
+        unsigned char val;
+};
+	]]>
+       </programlisting>
+
+       <para>
+	The <structfield>mask</structfield> and
+	<structfield>val</structfield> fields are bitwise ORs of
+	control line names (such as in
+	<constant>PPWCONTROL</constant>).  The operation performed by
+	<constant>PPFCONTROL</constant> is:
+       </para>
+
+       <programlisting>
+	<![CDATA[
+	new_ctr = (old_ctr & ~mask) | val;]]>
+       </programlisting>
+
+       <para>
+	In other words, the signals named in
+	<structfield>mask</structfield> are set to the values in
+	<structfield>val</structfield>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPRSTATUS</constant></term>
+      <listitem>
+
+       <para>
+	Returns an <type>unsigned char</type> containing bits set for
+	each status line that is set (for instance,
+	<constant>PARPORT_STATUS_BUSY</constant>).  The
+	<function>ioctl</function> parameter should be a pointer to an
+	<type>unsigned char</type>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPDATADIR</constant></term>
+      <listitem>
+
+       <para>
+	Controls the data line drivers.  Normally the computer's
+	parallel port will drive the data lines, but for byte-wide
+	transfers from the peripheral to the host it is useful to turn
+	off those drivers and let the peripheral drive the
+	signals. (If the drivers on the computer's parallel port are
+	left on when this happens, the port might be damaged.)
+       </para>
+
+       <para>
+	This is only needed in conjunction with
+	<constant>PPWDATA</constant> or
+	<constant>PPRDATA</constant>.
+       </para>
+
+       <para>
+	The <function>ioctl</function> parameter is a pointer to an
+	<type>int</type>.  If the <type>int</type> is zero, the
+	drivers are turned on (forward direction); if non-zero, the
+	drivers are turned off (reverse direction).
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPWDATA</constant></term>
+      <listitem>
+
+       <para>
+	Sets the data lines (if in forward mode).  The
+	<function>ioctl</function> parameter is a pointer to an
+	<type>unsigned char</type>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPRDATA</constant></term>
+      <listitem>
+
+       <para>
+	Reads the data lines (if in reverse mode).  The
+	<function>ioctl</function> parameter is a pointer to an
+	<type>unsigned char</type>.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPCLRIRQ</constant></term>
+      <listitem>
+
+       <para>
+	Clears the interrupt count.  The <literal>ppdev</literal>
+	driver keeps a count of interrupts as they are triggered.
+	<constant>PPCLRIRQ</constant> stores this count in an
+	<type>int</type>, a pointer to which is passed in as the
+	<function>ioctl</function> parameter.
+       </para>
+
+       <para>
+	In addition, the interrupt count is reset to zero.
+       </para>
+
+      </listitem></varlistentry>
+
+     <varlistentry><term><constant>PPWCTLONIRQ</constant></term>
+      <listitem>
+
+       <para>
+	Set a trigger response.  Afterwards when an interrupt is
+	triggered, the interrupt handler will set the control lines as
+	requested.  The <function>ioctl</function> parameter is a
+	pointer to an <type>unsigned char</type>, which is interpreted
+	in the same way as for <constant>PPWCONTROL</constant>.
+       </para>
+
+       <para>
+	The reason for this <function>ioctl</function> is simply
+	speed.  Without this <function>ioctl</function>, responding to
+	an interrupt would start in the interrupt handler, switch
+	context to the user-land driver via <function>poll</function>
+	or <function>select</function>, and then switch context back
+	to the kernel in order to handle
+	<constant>PPWCONTROL</constant>.  Doing the whole lot in the
+	interrupt handler is a lot faster.
+       </para>
+
+      </listitem></varlistentry>
+
+     <!-- PPSETPHASE? -->
+
+    </variablelist>
+
+   </sect2>
+
+   <sect2>
+    <title>Transferring data: <function>read</function> and
+     <function>write</function></title>
+
+    <para>
+     Transferring data using <function>read</function> and
+     <function>write</function> is straightforward.  The data is
+     transferring using the current IEEE 1284 mode (see the
+     <constant>PPSETMODE</constant> <function>ioctl</function>).  For
+     modes which can only transfer data in one direction, only the
+     appropriate function will work, of course.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Waiting for events: <function>poll</function> and
+     <function>select</function></title>
+
+    <para>
+     The <literal>ppdev</literal> driver provides user-land device
+     drivers with the ability to wait for interrupts, and this is done
+     using <function>poll</function> (and <function>select</function>,
+     which is implemented in terms of <function>poll</function>).
+    </para>
+
+    <para>
+     When a user-land device driver wants to wait for an interrupt, it
+     sleeps with <function>poll</function>.  When the interrupt
+     arrives, <literal>ppdev</literal> wakes it up (with a
+     <quote>read</quote> event, although strictly speaking there is
+     nothing to actually <function>read</function>).
+    </para>
+
+   </sect2>
+
+  </sect1>
+
+  <sect1>
+   <title>Examples</title>
+
+   <para>
+    Presented here are two demonstrations of how to write a simple
+    printer driver for <literal>ppdev</literal>.  Firstly we will
+    use the <function>write</function> function, and after that we
+    will drive the control and data lines directly.
+   </para>
+
+   <para>
+    The first thing to do is to actually open the device.
+   </para>
+
+   <programlisting><![CDATA[
+int drive_printer (const char *name)
+{
+    int fd;
+    int mode; /* We'll need this later. */
+
+    fd = open (name, O_RDWR);
+    if (fd == -1) {
+        perror ("open");
+        return 1;
+    }
+    ]]></programlisting>
+
+   <para>
+    Here <varname>name</varname> should be something along the lines
+    of <filename>"/dev/parport0"</filename>. (If you don't have any
+    <filename>/dev/parport</filename> files, you can make them with
+    <command>mknod</command>; they are character special device nodes
+    with major 99.)
+   </para>
+
+   <para>
+    In order to do anything with the port we need to claim access to
+    it.
+   </para>
+
+   <programlisting><![CDATA[
+    if (ioctl (fd, PPCLAIM)) {
+        perror ("PPCLAIM");
+        close (fd);
+        return 1;
+    }
+    ]]></programlisting>
+
+   <para>
+    Our printer driver will copy its input (from
+    <varname>stdin</varname>) to the printer, and it can do that it
+    one of two ways.  The first way is to hand it all off to the
+    kernel driver, with the knowledge that the protocol that the
+    printer speaks is IEEE 1284's <quote>compatibility</quote>
+    mode.
+   </para>
+
+   <programlisting><![CDATA[
+    /* Switch to compatibility mode.  (In fact we don't need
+     * to do this, since we start off in compatibility mode
+     * anyway, but this demonstrates PPNEGOT.)
+    mode = IEEE1284_MODE_COMPAT;
+    if (ioctl (fd, PPNEGOT, &mode)) {
+        perror ("PPNEGOT");
+        close (fd);
+        return 1;
+    }
+
+    for (;;) {
+        char buffer[1000];
+        char *ptr = buffer;
+        size_t got;
+
+        got = read (0 /* stdin */, buffer, 1000);
+        if (got < 0) {
+            perror ("read");
+            close (fd);
+            return 1;
+        }
+
+        if (got == 0)
+            /* End of input */
+            break;
+
+        while (got > 0) {
+            int written = write_printer (fd, ptr, got);
+
+            if (written < 0) {
+                perror ("write");
+                close (fd);
+                return 1;
+            }
+
+            ptr += written;
+            got -= written;
+        }
+    }
+    ]]></programlisting>
+
+   <para>
+    The <function>write_printer</function> function is not pictured
+    above.  This is because the main loop that is shown can be used
+    for both methods of driving the printer.  Here is one
+    implementation of <function>write_printer</function>:
+   </para>
+
+   <programlisting><![CDATA[
+ssize_t write_printer (int fd, const void *ptr, size_t count)
+{
+    return write (fd, ptr, count);
+}
+    ]]></programlisting>
+
+   <para>
+    We hand the data to the kernel-level driver (using
+    <function>write</function>) and it handles the printer
+    protocol.
+   </para>
+
+   <para>
+    Now let's do it the hard way!  In this particular example there is
+    no practical reason to do anything other than just call
+    <function>write</function>, because we know that the printer talks
+    an IEEE 1284 protocol.  On the other hand, this particular example
+    does not even need a user-land driver since there is already a
+    kernel-level one; for the purpose of this discussion, try to
+    imagine that the printer speaks a protocol that is not already
+    implemented under Linux.
+   </para>
+
+   <para>
+    So, here is the alternative implementation of
+    <function>write_printer</function> (for brevity, error checking
+    has been omitted):
+   </para>
+
+   <programlisting><![CDATA[
+ssize_t write_printer (int fd, const void *ptr, size_t count)
+{
+    ssize_t wrote = 0;
+
+    while (wrote < count) {
+        unsigned char status, control, data;
+        unsigned char mask = (PARPORT_STATUS_ERROR
+                              | PARPORT_STATUS_BUSY);
+        unsigned char val = (PARPORT_STATUS_ERROR
+                              | PARPORT_STATUS_BUSY);
+        struct ppdev_frob_struct frob;
+        struct timespec ts;
+
+        /* Wait for printer to be ready */
+        for (;;) {
+            ioctl (fd, PPRSTATUS, &status);
+
+            if ((status & mask) == val)
+                break;
+
+            ioctl (fd, PPRELEASE);
+            sleep (1);
+            ioctl (fd, PPCLAIM);
+        }
+
+        /* Set the data lines */
+        data = * ((char *) ptr)++;
+        ioctl (fd, PPWDATA, &data);
+
+        /* Delay for a bit */
+        ts.tv_sec = 0;
+        ts.tv_nsec = 1000;
+        nanosleep (&ts, NULL);
+
+        /* Pulse strobe */
+        frob.mask = PARPORT_CONTROL_STROBE;
+        frob.val = PARPORT_CONTROL_STROBE;
+        ioctl (fd, PPFCONTROL, &frob);
+        nanosleep (&ts, NULL);
+
+        /* End the pulse */
+        frob.val = 0;
+        ioctl (fd, PPFCONTROL, &frob);
+        nanosleep (&ts, NULL);
+
+        wrote++;
+    }
+
+    return wrote;
+}
+    ]]></programlisting>
+
+   <para>
+    To show a bit more of the <literal>ppdev</literal> interface,
+    here is a small piece of code that is intended to mimic the
+    printer's side of printer protocol.
+   </para>
+
+   <programlisting><![CDATA[
+  for (;;)
+    {
+      int irqc;
+      int busy = nAck | nFault;
+      int acking = nFault;
+      int ready = Busy | nAck | nFault;
+      char ch;
+
+      /* Set up the control lines when an interrupt happens. */
+      ioctl (fd, PPWCTLONIRQ, &busy);
+
+      /* Now we're ready. */
+      ioctl (fd, PPWCONTROL, &ready);
+
+      /* Wait for an interrupt. */
+      {
+        fd_set rfds;
+        FD_ZERO (&rfds);
+        FD_SET (fd, &rfds);
+        if (!select (fd + 1, &rfds, NULL, NULL, NULL))
+          /* Caught a signal? */
+          continue;
+      }
+
+      /* We are now marked as busy. */
+
+      /* Fetch the data. */
+      ioctl (fd, PPRDATA, &ch);
+
+      /* Clear the interrupt. */
+      ioctl (fd, PPCLRIRQ, &irqc);
+      if (irqc > 1)
+        fprintf (stderr, "Arghh! Missed %d interrupt%s!\n",
+         irqc - 1, irqc == 2 ? "s" : "");
+
+      /* Ack it. */
+      ioctl (fd, PPWCONTROL, &acking);
+      usleep (2);
+      ioctl (fd, PPWCONTROL, &busy);
+
+      putchar (ch);
+    }
+    ]]></programlisting>
+
+   <para>
+    And here is an example (with no error checking at all) to show how
+    to read data from the port, using ECP mode, with optional
+    negotiation to ECP mode first.
+   </para>
+
+   <programlisting><![CDATA[
+    {
+      int fd, mode;
+      fd = open ("/dev/parport0", O_RDONLY | O_NOCTTY);
+      ioctl (fd, PPCLAIM);
+      mode = IEEE1284_MODE_ECP;
+      if (negotiate_first) {
+        ioctl (fd, PPNEGOT, &mode);
+        /* no need for PPSETMODE */
+      } else {
+        ioctl (fd, PPSETMODE, &mode);
+      }
+
+      /* Now do whatever we want with fd */
+      close (0);
+      dup2 (fd, 0);
+      if (!fork()) {
+        /* child */
+        execlp ("cat", "cat", NULL);
+        exit (1);
+      } else {
+        /* parent */
+        wait (NULL);
+      }
+
+      /* Okay, finished */
+      ioctl (fd, PPRELEASE);
+      close (fd);
+    }
+    ]]></programlisting>
+
+  </sect1>
+
+ </chapter>
+
+ <appendix id="api">
+  <title>
+   Linux parallel port driver API reference
+  </title>
+
+!Fdrivers/parport/daisy.c parport_device_num
+!Fdrivers/parport/daisy.c parport_device_coords
+!Fdrivers/parport/daisy.c parport_find_device
+!Fdrivers/parport/daisy.c parport_find_class
+!Fdrivers/parport/share.c parport_register_driver
+!Fdrivers/parport/share.c parport_unregister_driver
+!Fdrivers/parport/share.c parport_get_port
+!Fdrivers/parport/share.c parport_put_port
+!Fdrivers/parport/share.c parport_find_number parport_find_base
+!Fdrivers/parport/share.c parport_register_device
+!Fdrivers/parport/share.c parport_unregister_device
+!Fdrivers/parport/daisy.c parport_open
+!Fdrivers/parport/daisy.c parport_close
+!Fdrivers/parport/share.c parport_claim
+!Fdrivers/parport/share.c parport_claim_or_block
+!Fdrivers/parport/share.c parport_release
+!Finclude/linux/parport.h parport_yield
+!Finclude/linux/parport.h parport_yield_blocking
+!Fdrivers/parport/ieee1284.c parport_negotiate
+!Fdrivers/parport/ieee1284.c parport_write
+!Fdrivers/parport/ieee1284.c parport_read
+!Fdrivers/parport/ieee1284.c parport_set_timeout
+
+ </appendix>
+
+ <appendix>
+  <title>
+   The Linux 2.2 Parallel Port Subsystem
+  </title>
+
+  <para>
+   Although the interface described in this document is largely new
+   with the 2.4 kernel, the sharing mechanism is available in the 2.2
+   kernel as well.  The functions available in 2.2 are:
+  </para>
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     <function>parport_register_device</function>
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     <function>parport_unregister_device</function>
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     <function>parport_claim</function>
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     <function>parport_claim_or_block</function>
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     <function>parport_release</function>
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     <function>parport_yield</function>
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     <function>parport_yield_blocking</function>
+    </para>
+   </listitem>
+  </itemizedlist>
+
+  <para>
+   In addition, negotiation to reverse nibble mode is supported:
+  </para>
+
+  <funcsynopsis>
+   <funcprototype>
+     <funcdef>int <function>parport_ieee1284_nibble_mode_ok</function></funcdef>
+    <paramdef>struct parport *<parameter>port</parameter></paramdef>
+    <paramdef>unsigned char <parameter>mode</parameter></paramdef>
+   </funcprototype>
+  </funcsynopsis>
+
+  <para>
+   The only valid values for <parameter>mode</parameter> are 0 (for
+   reverse nibble mode) and 4 (for Device ID in reverse nibble mode).
+  </para>
+
+  <para>
+   This function is obsoleted by
+   <function>parport_negotiate</function> in Linux 2.4, and has been
+   removed.
+  </para>
+ </appendix>
+
+ <appendix id="fdl">
+  <title>
+   GNU Free Documentation License
+  </title>
+
+  <literallayout class="monospaced">
+                GNU Free Documentation License
+                   Version 1.1, March 2000
+
+ Copyright (C) 2000  Free Software Foundation, Inc.
+     59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+
+0. PREAMBLE
+
+The purpose of this License is to make a manual, textbook, or other
+written document "free" in the sense of freedom: to assure everyone
+the effective freedom to copy and redistribute it, with or without
+modifying it, either commercially or noncommercially.  Secondarily,
+this License preserves for the author and publisher a way to get
+credit for their work, while not being considered responsible for
+modifications made by others.
+
+This License is a kind of "copyleft", which means that derivative
+works of the document must themselves be free in the same sense.  It
+complements the GNU General Public License, which is a copyleft
+license designed for free software.
+
+We have designed this License in order to use it for manuals for free
+software, because free software needs free documentation: a free
+program should come with manuals providing the same freedoms that the
+software does.  But this License is not limited to software manuals;
+it can be used for any textual work, regardless of subject matter or
+whether it is published as a printed book.  We recommend this License
+principally for works whose purpose is instruction or reference.
+
+
+1. APPLICABILITY AND DEFINITIONS
+
+This License applies to any manual or other work that contains a
+notice placed by the copyright holder saying it can be distributed
+under the terms of this License.  The "Document", below, refers to any
+such manual or work.  Any member of the public is a licensee, and is
+addressed as "you".
+
+A "Modified Version" of the Document means any work containing the
+Document or a portion of it, either copied verbatim, or with
+modifications and/or translated into another language.
+
+A "Secondary Section" is a named appendix or a front-matter section of
+the Document that deals exclusively with the relationship of the
+publishers or authors of the Document to the Document's overall subject
+(or to related matters) and contains nothing that could fall directly
+within that overall subject.  (For example, if the Document is in part a
+textbook of mathematics, a Secondary Section may not explain any
+mathematics.)  The relationship could be a matter of historical
+connection with the subject or with related matters, or of legal,
+commercial, philosophical, ethical or political position regarding
+them.
+
+The "Invariant Sections" are certain Secondary Sections whose titles
+are designated, as being those of Invariant Sections, in the notice
+that says that the Document is released under this License.
+
+The "Cover Texts" are certain short passages of text that are listed,
+as Front-Cover Texts or Back-Cover Texts, in the notice that says that
+the Document is released under this License.
+
+A "Transparent" copy of the Document means a machine-readable copy,
+represented in a format whose specification is available to the
+general public, whose contents can be viewed and edited directly and
+straightforwardly with generic text editors or (for images composed of
+pixels) generic paint programs or (for drawings) some widely available
+drawing editor, and that is suitable for input to text formatters or
+for automatic translation to a variety of formats suitable for input
+to text formatters.  A copy made in an otherwise Transparent file
+format whose markup has been designed to thwart or discourage
+subsequent modification by readers is not Transparent.  A copy that is
+not "Transparent" is called "Opaque".
+
+Examples of suitable formats for Transparent copies include plain
+ASCII without markup, Texinfo input format, LaTeX input format, SGML
+or XML using a publicly available DTD, and standard-conforming simple
+HTML designed for human modification.  Opaque formats include
+PostScript, PDF, proprietary formats that can be read and edited only
+by proprietary word processors, SGML or XML for which the DTD and/or
+processing tools are not generally available, and the
+machine-generated HTML produced by some word processors for output
+purposes only.
+
+The "Title Page" means, for a printed book, the title page itself,
+plus such following pages as are needed to hold, legibly, the material
+this License requires to appear in the title page.  For works in
+formats which do not have any title page as such, "Title Page" means
+the text near the most prominent appearance of the work's title,
+preceding the beginning of the body of the text.
+
+
+2. VERBATIM COPYING
+
+You may copy and distribute the Document in any medium, either
+commercially or noncommercially, provided that this License, the
+copyright notices, and the license notice saying this License applies
+to the Document are reproduced in all copies, and that you add no other
+conditions whatsoever to those of this License.  You may not use
+technical measures to obstruct or control the reading or further
+copying of the copies you make or distribute.  However, you may accept
+compensation in exchange for copies.  If you distribute a large enough
+number of copies you must also follow the conditions in section 3.
+
+You may also lend copies, under the same conditions stated above, and
+you may publicly display copies.
+
+
+3. COPYING IN QUANTITY
+
+If you publish printed copies of the Document numbering more than 100,
+and the Document's license notice requires Cover Texts, you must enclose
+the copies in covers that carry, clearly and legibly, all these Cover
+Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
+the back cover.  Both covers must also clearly and legibly identify
+you as the publisher of these copies.  The front cover must present
+the full title with all words of the title equally prominent and
+visible.  You may add other material on the covers in addition.
+Copying with changes limited to the covers, as long as they preserve
+the title of the Document and satisfy these conditions, can be treated
+as verbatim copying in other respects.
+
+If the required texts for either cover are too voluminous to fit
+legibly, you should put the first ones listed (as many as fit
+reasonably) on the actual cover, and continue the rest onto adjacent
+pages.
+
+If you publish or distribute Opaque copies of the Document numbering
+more than 100, you must either include a machine-readable Transparent
+copy along with each Opaque copy, or state in or with each Opaque copy
+a publicly-accessible computer-network location containing a complete
+Transparent copy of the Document, free of added material, which the
+general network-using public has access to download anonymously at no
+charge using public-standard network protocols.  If you use the latter
+option, you must take reasonably prudent steps, when you begin
+distribution of Opaque copies in quantity, to ensure that this
+Transparent copy will remain thus accessible at the stated location
+until at least one year after the last time you distribute an Opaque
+copy (directly or through your agents or retailers) of that edition to
+the public.
+
+It is requested, but not required, that you contact the authors of the
+Document well before redistributing any large number of copies, to give
+them a chance to provide you with an updated version of the Document.
+
+
+4. MODIFICATIONS
+
+You may copy and distribute a Modified Version of the Document under
+the conditions of sections 2 and 3 above, provided that you release
+the Modified Version under precisely this License, with the Modified
+Version filling the role of the Document, thus licensing distribution
+and modification of the Modified Version to whoever possesses a copy
+of it.  In addition, you must do these things in the Modified Version:
+
+A. Use in the Title Page (and on the covers, if any) a title distinct
+   from that of the Document, and from those of previous versions
+   (which should, if there were any, be listed in the History section
+   of the Document).  You may use the same title as a previous version
+   if the original publisher of that version gives permission.
+B. List on the Title Page, as authors, one or more persons or entities
+   responsible for authorship of the modifications in the Modified
+   Version, together with at least five of the principal authors of the
+   Document (all of its principal authors, if it has less than five).
+C. State on the Title page the name of the publisher of the
+   Modified Version, as the publisher.
+D. Preserve all the copyright notices of the Document.
+E. Add an appropriate copyright notice for your modifications
+   adjacent to the other copyright notices.
+F. Include, immediately after the copyright notices, a license notice
+   giving the public permission to use the Modified Version under the
+   terms of this License, in the form shown in the Addendum below.
+G. Preserve in that license notice the full lists of Invariant Sections
+   and required Cover Texts given in the Document's license notice.
+H. Include an unaltered copy of this License.
+I. Preserve the section entitled "History", and its title, and add to
+   it an item stating at least the title, year, new authors, and
+   publisher of the Modified Version as given on the Title Page.  If
+   there is no section entitled "History" in the Document, create one
+   stating the title, year, authors, and publisher of the Document as
+   given on its Title Page, then add an item describing the Modified
+   Version as stated in the previous sentence.
+J. Preserve the network location, if any, given in the Document for
+   public access to a Transparent copy of the Document, and likewise
+   the network locations given in the Document for previous versions
+   it was based on.  These may be placed in the "History" section.
+   You may omit a network location for a work that was published at
+   least four years before the Document itself, or if the original
+   publisher of the version it refers to gives permission.
+K. In any section entitled "Acknowledgements" or "Dedications",
+   preserve the section's title, and preserve in the section all the
+   substance and tone of each of the contributor acknowledgements
+   and/or dedications given therein.
+L. Preserve all the Invariant Sections of the Document,
+   unaltered in their text and in their titles.  Section numbers
+   or the equivalent are not considered part of the section titles.
+M. Delete any section entitled "Endorsements".  Such a section
+   may not be included in the Modified Version.
+N. Do not retitle any existing section as "Endorsements"
+   or to conflict in title with any Invariant Section.
+
+If the Modified Version includes new front-matter sections or
+appendices that qualify as Secondary Sections and contain no material
+copied from the Document, you may at your option designate some or all
+of these sections as invariant.  To do this, add their titles to the
+list of Invariant Sections in the Modified Version's license notice.
+These titles must be distinct from any other section titles.
+
+You may add a section entitled "Endorsements", provided it contains
+nothing but endorsements of your Modified Version by various
+parties--for example, statements of peer review or that the text has
+been approved by an organization as the authoritative definition of a
+standard.
+
+You may add a passage of up to five words as a Front-Cover Text, and a
+passage of up to 25 words as a Back-Cover Text, to the end of the list
+of Cover Texts in the Modified Version.  Only one passage of
+Front-Cover Text and one of Back-Cover Text may be added by (or
+through arrangements made by) any one entity.  If the Document already
+includes a cover text for the same cover, previously added by you or
+by arrangement made by the same entity you are acting on behalf of,
+you may not add another; but you may replace the old one, on explicit
+permission from the previous publisher that added the old one.
+
+The author(s) and publisher(s) of the Document do not by this License
+give permission to use their names for publicity for or to assert or
+imply endorsement of any Modified Version.
+
+
+5. COMBINING DOCUMENTS
+
+You may combine the Document with other documents released under this
+License, under the terms defined in section 4 above for modified
+versions, provided that you include in the combination all of the
+Invariant Sections of all of the original documents, unmodified, and
+list them all as Invariant Sections of your combined work in its
+license notice.
+
+The combined work need only contain one copy of this License, and
+multiple identical Invariant Sections may be replaced with a single
+copy.  If there are multiple Invariant Sections with the same name but
+different contents, make the title of each such section unique by
+adding at the end of it, in parentheses, the name of the original
+author or publisher of that section if known, or else a unique number.
+Make the same adjustment to the section titles in the list of
+Invariant Sections in the license notice of the combined work.
+
+In the combination, you must combine any sections entitled "History"
+in the various original documents, forming one section entitled
+"History"; likewise combine any sections entitled "Acknowledgements",
+and any sections entitled "Dedications".  You must delete all sections
+entitled "Endorsements."
+
+
+6. COLLECTIONS OF DOCUMENTS
+
+You may make a collection consisting of the Document and other documents
+released under this License, and replace the individual copies of this
+License in the various documents with a single copy that is included in
+the collection, provided that you follow the rules of this License for
+verbatim copying of each of the documents in all other respects.
+
+You may extract a single document from such a collection, and distribute
+it individually under this License, provided you insert a copy of this
+License into the extracted document, and follow this License in all
+other respects regarding verbatim copying of that document.
+
+
+
+7. AGGREGATION WITH INDEPENDENT WORKS
+
+A compilation of the Document or its derivatives with other separate
+and independent documents or works, in or on a volume of a storage or
+distribution medium, does not as a whole count as a Modified Version
+of the Document, provided no compilation copyright is claimed for the
+compilation.  Such a compilation is called an "aggregate", and this
+License does not apply to the other self-contained works thus compiled
+with the Document, on account of their being thus compiled, if they
+are not themselves derivative works of the Document.
+
+If the Cover Text requirement of section 3 is applicable to these
+copies of the Document, then if the Document is less than one quarter
+of the entire aggregate, the Document's Cover Texts may be placed on
+covers that surround only the Document within the aggregate.
+Otherwise they must appear on covers around the whole aggregate.
+
+
+8. TRANSLATION
+
+Translation is considered a kind of modification, so you may
+distribute translations of the Document under the terms of section 4.
+Replacing Invariant Sections with translations requires special
+permission from their copyright holders, but you may include
+translations of some or all Invariant Sections in addition to the
+original versions of these Invariant Sections.  You may include a
+translation of this License provided that you also include the
+original English version of this License.  In case of a disagreement
+between the translation and the original English version of this
+License, the original English version will prevail.
+
+
+9. TERMINATION
+
+You may not copy, modify, sublicense, or distribute the Document except
+as expressly provided for under this License.  Any other attempt to
+copy, modify, sublicense or distribute the Document is void, and will
+automatically terminate your rights under this License.  However,
+parties who have received copies, or rights, from you under this
+License will not have their licenses terminated so long as such
+parties remain in full compliance.
+
+
+10. FUTURE REVISIONS OF THIS LICENSE
+
+The Free Software Foundation may publish new, revised versions
+of the GNU Free Documentation License from time to time.  Such new
+versions will be similar in spirit to the present version, but may
+differ in detail to address new problems or concerns. See
+http:///www.gnu.org/copyleft/.
+
+Each version of the License is given a distinguishing version number.
+If the Document specifies that a particular numbered version of this
+License "or any later version" applies to it, you have the option of
+following the terms and conditions either of that specified version or
+of any later version that has been published (not as a draft) by the
+Free Software Foundation.  If the Document does not specify a version
+number of this License, you may choose any version ever published (not
+as a draft) by the Free Software Foundation.
+
+
+ADDENDUM: How to use this License for your documents
+
+To use this License in a document you have written, include a copy of
+the License in the document and put the following copyright and
+license notices just after the title page:
+
+      Copyright (c)  YEAR  YOUR NAME.
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.1
+      or any later version published by the Free Software Foundation;
+      with the Invariant Sections being LIST THEIR TITLES, with the
+      Front-Cover Texts being LIST, and with the Back-Cover Texts being LIST.
+      A copy of the license is included in the section entitled "GNU
+      Free Documentation License".
+
+If you have no Invariant Sections, write "with no Invariant Sections"
+instead of saying which ones are invariant.  If you have no
+Front-Cover Texts, write "no Front-Cover Texts" instead of
+"Front-Cover Texts being LIST"; likewise for Back-Cover Texts.
+
+If your document contains nontrivial examples of program code, we
+recommend releasing these examples in parallel under your choice of
+free software license, such as the GNU General Public License,
+to permit their use in free software.
+  </literallayout>
+ </appendix>
+
+</book>
+
+<!-- Local Variables: -->
+<!-- sgml-indent-step: 1 -->
+<!-- sgml-indent-data: 1 -->
+<!-- End: -->

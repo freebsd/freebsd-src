@@ -1,0 +1,202 @@
+ISA Plug & Play support by Jaroslav Kysela <perex@suse.cz>
+==========================================================
+
+Interface /proc/isapnp
+======================
+
+Read commands:
+--------------
+
+No comment.
+
+Write commands:
+---------------
+
+With the write interface you can activate or modify the configuration of
+ISA Plug & Play devices.  It is mainly useful for drivers which have not
+been rewritten to use the ISA Plug & Play kernel support yet.
+
+card <idx> <vendor>	- select PnP device by vendor identification
+csn <CSN>		- select PnP device by CSN
+dev <idx> <logdev>	- select logical device
+auto			- run autoconfigure
+activate		- activate logical device
+deactivate		- deactivate logical device
+port <idx> <value>	- set port 0-7 to value
+irq <idx> <value>	- set IRQ 0-1 to value
+dma <idx> <value>	- set DMA 0-1 to value
+memory <idx> <value>	- set memory 0-3 to value
+poke <reg> <value>	- poke configuration byte to selected register
+pokew <reg> <value>	- poke configuration word to selected register
+poked <reg> <value>	- poke configuration dword to selected register
+allow_dma0 <value>	- allow dma channel 0 during auto activation: 0=off, 1=on
+
+Explanation:
+	- variable <idx> begins with zero
+	- variable <CSN> begins with one
+	- <vendor> is in the standard format 'ABC1234'
+	- <logdev> is in the standard format 'ABC1234'
+
+Example:
+
+cat > /proc/isapnp <<EOF
+card 0 CSC7537
+dev 0 CSC0000
+port 0 0x534
+port 1 0x388
+port 2 0x220
+irq 0 5
+dma 0 1
+dma 1 3
+poke 0x70 9
+activate
+logdev 0 CSC0001
+port 0 0x240
+activate
+EOF
+
+
+Information for developers
+==========================
+
+Finding a device
+----------------
+
+extern struct pci_bus *isapnp_find_card(unsigned short vendor,
+                                        unsigned short device,
+                                        struct pci_bus *from);
+
+This function finds an ISA PnP card.  For the vendor argument, the
+ISAPNP_VENDOR(a,b,c) macro should be used, where a,b,c are characters or
+integers.  For the device argument the ISAPNP_DEVICE(x) macro should be
+used, where x is an integer value.  Both vendor and device arguments
+can be taken from contents of the /proc/isapnp file.
+
+extern struct pci_dev *isapnp_find_dev(struct pci_bus *card,
+                                       unsigned short vendor,
+                                       unsigned short function,
+                                       struct pci_dev *from);
+
+This function finds an ISA PnP device. If card is NULL, then the global
+search mode is used (all devices are used for the searching).  Otherwise
+only devices which belong to the specified card are checked.  For the
+function number the ISAPNP_FUNCTION(x) macro can be used; it works
+similarly to the ISAPNP_DEVICE(x) macro.
+
+extern int isapnp_probe_cards(const struct isapnp_card_id *ids,
+                              int (*probe)(struct pci_bus *card,
+                              const struct isapnp_card_id *id));
+
+
+This function is a helper for drivers which need to use more than
+one device from an ISA PnP card.  The probe callback is called with
+appropriate arguments for each card.
+
+Example for ids parameter initialization:
+
+static struct isapnp_card_id card_ids[] __devinitdata = {
+	{
+        	ISAPNP_CARD_ID('A','D','V', 0x550a),
+                devs: {
+			ISAPNP_DEVICE_ID('A', 'D', 'V', 0x0010),
+			ISAPNP_DEVICE_ID('A', 'D', 'V', 0x0011)
+		},
+		driver_data: 0x1234,
+	},
+	{
+		ISAPNP_CARD_END,
+	}
+};
+ISAPNP_CARD_TABLE(card_ids);
+
+extern int isapnp_probe_devs(const struct isapnp_device_id *ids,
+                             int (*probe)(struct pci_bus *card,
+                             const struct isapnp_device_id *id));
+
+
+This function is a helper for drivers which need to use one
+device from an ISA PnP card.  The probe callback is called with
+appropriate arguments for each matched device.
+
+Example for ids parameter initialization:
+
+static struct isapnp_device_id device_ids[] __devinitdata = {
+	{ ISAPNP_DEVICE_SINGLE('E','S','S', 0x0968, 'E','S','S', 0x0968), },
+	{ ISAPNP_DEVICE_SINGLE_END, }
+};
+MODULE_DEVICE_TABLE(isapnp, device_ids);
+
+
+ISA PnP configuration
+=====================
+
+There are two ways in which the ISA PnP interface can be used.
+
+First way: low-level
+--------------------
+
+All ISA PNP configuration registers are accessible via the low-level
+isapnp_(read|write)_(byte|word|dword) functions.
+
+The function isapnp_cfg_begin() must be called before any lowlevel function.
+The function isapnp_cfg_end() must be always called after configuration
+otherwise the access to the ISA PnP configuration functions will be blocked.
+
+Second way: auto-configuration
+------------------------------
+
+This feature gives to the driver the real power of the ISA PnP driver.
+The function dev->prepare() initializes the resource members in the device
+structure.  This structure contains all resources set to auto configuration
+values after the initialization.  The device driver may modify some resources
+to skip the auto configuration for a given resource.
+
+Once the device structure contains all requested resource values, the function
+dev->activate() must be called to assign free resources to resource members
+with the auto configuration value.
+
+Function dev->activate() does:
+   - resources with the auto configuration value are configured
+   - the auto configuration is created using ISA PnP resource map
+   - the function writes configuration to ISA PnP configuration registers
+   - the function returns to the caller actual used resources
+
+When the device driver is removed, function dev->deactivate() has to be
+called to free all assigned resources.
+
+Example (game port initialization)
+==================================
+
+/*** initialization ***/
+
+	struct pci_dev *dev;
+
+	/* find the first game port, use standard PnP IDs */
+	dev = isapnp_find_dev(NULL,
+			      ISAPNP_VENDOR('P','N','P'),
+			      ISAPNP_FUNCTION(0xb02f),
+			      NULL);
+	if (!dev)
+		return -ENODEV;
+	if (dev->active)
+		return -EBUSY;
+	if (dev->prepare(dev)<0)
+		return -EAGAIN;
+	if (!(dev->resource[0].flags & IORESOURCE_IO))
+		return -ENODEV;
+	if (!dev->ro) {
+		/* override resource */
+		if (user_port != USER_PORT_AUTO_VALUE)
+			isapnp_resource_change(&dev->resource[0], user_port, 1);
+	}
+	if (dev->activate(dev)<0) {
+		printk("isapnp configure failed (out of resources?)\n");
+		return -ENOMEM;
+	}
+	user_port = dev->resource[0].start;		/* get real port */
+
+/*** deactivation ***/
+
+	/* to deactivate use: */
+ 	if (dev)
+ 		dev->deactivate(dev);

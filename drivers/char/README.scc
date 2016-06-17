@@ -1,0 +1,5 @@
+The z8530drv is now a network device driver, you can find it in
+	../net/scc.c
+
+A subset of the documentation is in
+	../../Documentation/networking/z8530drv.txt

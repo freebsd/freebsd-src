@@ -1,0 +1,111 @@
+14 April 2000
+david-b@pacbell.net
+
+This is an overview of how to use the "dc2xx" USB driver with certain
+digital still cameras from Kodak and other vendors.
+
+
+CAMERAS
+
+This driver will mostly be used with Kodak DC-2xx series digital still
+cameras, but it should be trivial to tell it about several non-Kodak
+USB-enabled cameras.
+
+You'll most likely want to hook it up to recent versions of "gPhoto"
+(www.gphoto.org), since version 0.4 and later know how to use it to talk
+to Kodak DC-240 and DC-280 cameras over USB.
+
+In addition the DC-220, DC-260, DC-265, and DC-290 are also recognized.
+However, like other cameras using the "Digita OS" (from www.flashpoint.com)
+there is no gPhoto support for this camera.  There is a python script
+for accessing these cameras (see archives of the linux-usb mailing list)
+and a "Digita Services" library that can also use this driver.
+
+The HP PhotoSmart C500 should also work, since it's another Digita camera
+with USB support.
+
+
+USB HARDWARE
+
+Recent kernels have had no particular problems using this driver with
+either OHCI or UHCI chipsets, and have worked on the PowerMac platform.
+
+Note that in some cases changes in BIOS settings may be needed before
+your USB works.  At least one user has reported a need for SMP-related 
+settings as well, and some old hardware may not handle USB correctly.
+
+
+SETUP
+
+Configure in the DC2XX USB driver, and have it in your kernel.  It works
+as a module, or compiled in directly.
+
+Create at least one device, perhaps like this (both read and write):
+
+    # mknod -m 0660 /dev/usb/dc2xx0 c 180 80
+    # mknod -m 0660 /dev/usb/dc2xx1 c 180 81
+    ...
+
+NOTE:  you would normally configure PAM so that the user logged in at
+the console is granted ownership of these devices.  console.perms(5)
+explains how to do this.
+
+The driver supports multiple device nodes.  The USB framework supports
+a maximum of sixteen device nodes (up to minor device number 96).
+
+When you plug in one camera, it will use the first device node (dc2xx0
+in the example above).  A second camera will use the second device node,
+and so on.
+
+
+SANITY TESTING
+
+First:  if you've got /proc support, make sure that the driver has hooked
+itself up correctly.
+
+    - You should see an entry in /proc/bus/usb/drivers for "dc2xx",
+      if you enabled USB /proc support and correctly mounted the
+      usbdevfs on /proc/bus/usb.
+
+Second:  when you connect your camera to the computer, does it get recognized
+by the driver?  (Make sure the camera is powered on!)
+
+    - if you've got /proc/bus/usb/devices, you should see an entry
+      something like this.  The "ProdID" may be different if you didn't
+      plug in a DC-240, as may the strings presented, but "Driver=dc2xx"
+      had better be there.
+
+	T:  Lev=01 Prnt=00 Port=00 Cnt=01 Dev#=  1 Spd=12  MxCh= 0
+	D:  Ver= 1.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+	P:  Vendor=040a ProdID=0120 Rev= 1.08
+	S:  Manufacturer=Eastman Kodak Company
+	S:  Product=KODAK DC240 Zoom Digital Camera
+	C:* #Ifs= 1 Cfg#= 1 Atr=40 MxPwr=100mA
+	I:  If#= 0 Alt= 0 #EPs= 2 Cls=00(>ifc ) Sub=00 Prot=00 Driver=dc2xx
+	E:  Ad=01(O) Atr=02(Bulk) MxPS=  64 Ivl=  0ms
+	E:  Ad=82(I) Atr=02(Bulk) MxPS=  64 Ivl=  0ms
+
+    - see if "dmesg" output tells you that you plugged in your camera.
+
+	Manufacturer: Eastman Kodak Company
+	Product: KODAK DC240 Zoom Digital Camera
+	dc2xx.c: USB Camera #0 connected
+
+Third:  (optional) can you use gPhoto to talk to the camera?
+
+    - When you configure your camera, tell it to use "/dev/usb/dc2xx0"
+      (or whatever name you used).  Right now, gPhoto emits a diagnostic
+      message (non-GUI) saying that it since it didn't act like a TTY,
+      it's assuming it's got a USB connection.
+
+    - With the camera turned on, get the "camera summary".  It'll
+      talk to the camera -- and tell you you're using USB.
+
+If you got that far, you should be able to use everything fine.
+
+
+ADDITIONAL INFORMATION
+
+You may find that you need more driver-specific information, which is
+currently accessible through a link from http://www.linux-usb.org/
+along with other Linux USB resources.

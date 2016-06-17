@@ -1,0 +1,364 @@
+
+                          The Linux IPMI Driver
+			  ---------------------
+			      Corey Minyard
+			  <minyard@mvista.com>
+			    <minyard@acm.org>
+
+The Intelligent Platform Management Interface, or IPMI, is a
+standard for controlling intelligent devices that monitor a system.
+It provides for dynamic discovery of sensors in the system and the
+ability to monitor the sensors and be informed when the sensor's
+values change or go outside certain boundaries.  It also has a
+standardized database for field-replacable units (FRUs) and a watchdog
+timer.
+
+To use this, you need an interface to an IPMI controller in your
+system (called a Baseboard Management Controller, or BMC) and
+management software that can use the IPMI system.
+
+This document describes how to use the IPMI driver for Linux.  If you
+are not familiar with IPMI itself, see the web site at
+http://www.intel.com/design/servers/ipmi/index.htm.  IPMI is a big
+subject and I can't cover it all here!
+
+Basic Design
+------------
+
+The Linux IPMI driver is designed to be very modular and flexible, you
+only need to take the pieces you need and you can use it in many
+different ways.  Because of that, it's broken into many chunks of
+code.  These chunks are:
+
+ipmi_msghandler - This is the central piece of software for the IPMI
+system.  It handles all messages, message timing, and responses.  The
+IPMI users tie into this, and the IPMI physical interfaces (called
+System Management Interfaces, or SMIs) also tie in here.  This
+provides the kernelland interface for IPMI, but does not provide an
+interface for use by application processes.
+
+ipmi_devintf - This provides a userland IOCTL interface for the IPMI
+driver, each open file for this device ties in to the message handler
+as an IPMI user.
+
+ipmi_kcs_drv - A driver for the KCS SMI.  Most system have a KCS
+interface for IPMI.
+
+
+Much documentation for the interface is in the include files.  The
+IPMI include files are:
+
+ipmi.h - Contains the user interface and IOCTL interface for IPMI.
+
+ipmi_smi.h - Contains the interface for SMI drivers to use.
+
+ipmi_msgdefs.h - General definitions for base IPMI messaging.
+
+
+Addressing
+----------
+
+The IPMI addressing works much like IP addresses, you have an overlay
+to handle the different address types.  The overlay is:
+
+  struct ipmi_addr
+  {
+	int   addr_type;
+	short channel;
+	char  data[IPMI_MAX_ADDR_SIZE];
+  };
+
+The addr_type determines what the address really is.  The driver
+currently understands two different types of addresses.
+
+"System Interface" addresses are defined as:
+
+  struct ipmi_system_interface_addr
+  {
+	int   addr_type;
+	short channel;
+  };
+
+and the type is IPMI_SYSTEM_INTERFACE_ADDR_TYPE.  This is used for talking
+straight to the BMC on the current card.  The channel must be
+IPMI_BMC_CHANNEL.
+
+Messages that are destined to go out on the IPMB bus use the
+IPMI_IPMB_ADDR_TYPE address type.  The format is
+
+  struct ipmi_ipmb_addr
+  {
+	int           addr_type;
+	short         channel;
+	unsigned char slave_addr;
+	unsigned char lun;
+  };
+
+The "channel" here is generally zero, but some devices support more
+than one channel, it corresponds to the channel as defined in the IPMI
+spec.
+
+
+Messages
+--------
+
+Messages are defined as:
+
+struct ipmi_msg
+{
+	unsigned char netfn;
+	unsigned char lun;
+	unsigned char cmd;
+	unsigned char *data;
+	int           data_len;
+};
+
+The driver takes care of adding/stripping the header information.  The
+data portion is just the data to be send (do NOT put addressing info
+here) or the response.  Note that the completion code of a response is
+the first item in "data", it is not stripped out because that is how
+all the messages are defined in the spec (and thus makes counting the
+offsets a little easier :-).
+
+When using the IOCTL interface from userland, you must provide a block
+of data for "data", fill it, and set data_len to the length of the
+block of data, even when receiving messages.  Otherwise the driver
+will have no place to put the message.
+
+Messages coming up from the message handler in kernelland will come in
+as:
+
+  struct ipmi_recv_msg
+  {
+	struct list_head link;
+
+	/* The type of message as defined in the "Receive Types"
+           defines above. */
+	int         recv_type;
+
+	ipmi_user_t      *user;
+	struct ipmi_addr addr;
+	long             msgid;
+	struct ipmi_msg  msg;
+
+	/* Call this when done with the message.  It will presumably free
+	   the message and do any other necessary cleanup. */
+	void (*done)(struct ipmi_recv_msg *msg);
+
+	/* Place-holder for the data, don't make any assumptions about
+	   the size or existence of this, since it may change. */
+	unsigned char   msg_data[IPMI_MAX_MSG_LENGTH];
+  };
+
+You should look at the receive type and handle the message
+appropriately.
+
+
+The Upper Layer Interface (Message Handler)
+-------------------------------------------
+
+The upper layer of the interface provides the users with a consistent
+view of the IPMI interfaces.  It allows multiple SMI interfaces to be
+addressed (because some boards actually have multiple BMCs on them)
+and the user should not have to care what type of SMI is below them.
+
+
+Creating the User
+
+To user the message handler, you must first create a user using
+ipmi_create_user.  The interface number specifies which SMI you want
+to connect to, and you must supply callback functions to be called
+when data comes in.  The callback function can run at interrupt level,
+so be careful using the callbacks.  This also allows to you pass in a
+piece of data, the handler_data, that will be passed back to you on
+all calls.
+
+Once you are done, call ipmi_destroy_user() to get rid of the user.
+
+From userland, opening the device automatically creates a user, and
+closing the device automatically destroys the user.
+
+
+Messaging
+
+To send a message from kernel-land, the ipmi_request() call does
+pretty much all message handling.  Most of the parameter are
+self-explanatory.  However, it takes a "msgid" parameter.  This is NOT
+the sequence number of messages.  It is simply a long value that is
+passed back when the response for the message is returned.  You may
+use it for anything you like.
+
+Responses come back in the function pointed to by the ipmi_recv_hndl
+field of the "handler" that you passed in to ipmi_create_user().
+Remember again, these may be running at interrupt level.  Remember to
+look at the receive type, too.
+
+From userland, you fill out an ipmi_req_t structure and use the
+IPMICTL_SEND_COMMAND ioctl.  For incoming stuff, you can use select()
+or poll() to wait for messages to come in.  However, you cannot use
+read() to get them, you must call the IPMICTL_RECEIVE_MSG with the
+ipmi_recv_t structure to actually get the message.  Remember that you
+must supply a pointer to a block of data in the msg.data field, and
+you must fill in the msg.data_len field with the size of the data.
+This gives the receiver a place to actually put the message.
+
+If the message cannot fit into the data you provide, you will get an
+EMSGSIZE error and the driver will leave the data in the receive
+queue.  If you want to get it and have it truncate the message, us
+the IPMICTL_RECEIVE_MSG_TRUNC ioctl.
+
+When you send a command (which is defined by the lowest-order bit of
+the netfn per the IPMI spec) on the IPMB bus, the driver will
+automatically assign the sequence number to the command and save the
+command.  If the response is not receive in the IPMI-specified 5
+seconds, it will generate a response automatically saying the command
+timed out.  If an unsolicited response comes in (if it was after 5
+seconds, for instance), that response will be ignored.
+
+In kernelland, after you receive a message and are done with it, you
+MUST call ipmi_free_recv_msg() on it, or you will leak messages.  Note
+that you should NEVER mess with the "done" field of a message, that is
+required to properly clean up the message.
+
+Note that when sending, there is an ipmi_request_supply_msgs() call
+that lets you supply the smi and receive message.  This is useful for
+pieces of code that need to work even if the system is out of buffers
+(the watchdog timer uses this, for instance).  You supply your own
+buffer and own free routines.  This is not recommended for normal use,
+though, since it is tricky to manage your own buffers.
+
+
+Events and Incoming Commands
+
+The driver takes care of polling for IPMI events and receiving
+commands (commands are messages that are not responses, they are
+commands that other things on the IPMB bus have sent you).  To receive
+these, you must register for them, they will not automatically be sent
+to you.
+
+To receive events, you must call ipmi_set_gets_events() and set the
+"val" to non-zero.  Any events that have been received by the driver
+since startup will immediately be delivered to the first user that
+registers for events.  After that, if multiple users are registered
+for events, they will all receive all events that come in.
+
+For receiving commands, you have to individually register commands you
+want to receive.  Call ipmi_register_for_cmd() and supply the netfn
+and command name for each command you want to receive.  Only one user
+may be registered for each netfn/cmd, but different users may register
+for different commands.
+
+From userland, equivalent IOCTLs are provided to do these functions.
+
+
+The Lower Layer (SMI) Interface
+-------------------------------
+
+As mentioned before, multiple SMI interfaces may be registered to the
+message handler, each of these is assigned an interface number when
+they register with the message handler.  They are generally assigned
+in the order they register, although if an SMI unregisters and then
+another one registers, all bets are off.
+
+The ipmi_smi.h defines the interface for SMIs, see that for more
+details.
+
+
+The KCS Driver
+--------------
+
+The KCS driver allows up to 4 KCS interfaces to be configured in the
+system.  By default, the driver will register one KCS interface at the
+spec-specified I/O port 0xca2 without interrupts.  You can change this
+at module load time (for a module) with:
+
+  insmod ipmi_kcs_drv.o kcs_ports=<port1>,<port2>... kcs_addrs=<addr1>,<addr2>
+       kcs_irqs=<irq1>,<irq2>... kcs_trydefaults=[0|1]
+
+The KCS driver supports two types of interfaces, ports (for I/O port
+based KCS interfaces) and memory addresses (for KCS interfaces in
+memory).  The driver will support both of them simultaneously, setting
+the port to zero (or just not specifying it) will allow the memory
+address to be used.  The port will override the memory address if it
+is specified and non-zero.  kcs_trydefaults sets whether the standard
+IPMI interface at 0xca2 and any interfaces specified by ACPE are
+tried.  By default, the driver tries it, set this value to zero to
+turn this off.
+
+When compiled into the kernel, the addresses can be specified on the
+kernel command line as:
+
+  ipmi_kcs=<bmc1>:<irq1>,<bmc2>:<irq2>....,[nodefault]
+
+The <bmcx> values is either "p<port>" or "m<addr>" for port or memory
+addresses.  So for instance, a KCS interface at port 0xca2 using
+interrupt 9 and a memory interface at address 0xf9827341 with no
+interrupt would be specified "ipmi_kcs=p0xca2:9,m0xf9827341".
+If you specify zero for in irq or don't specify it, the driver will
+run polled unless the software can detect the interrupt to use in the
+ACPI tables.
+
+By default, the driver will attempt to detect a KCS device at the
+spec-specified 0xca2 address and any address specified by ACPI.  If
+you want to turn this off, use the "nodefault" option.
+
+If you have high-res timers compiled into the kernel, the driver will
+use them to provide much better performance.  Note that if you do not
+have high-res timers enabled in the kernel and you don't have
+interrupts enabled, the driver will run VERY slowly.  Don't blame me,
+the KCS interface sucks.
+
+
+Other Pieces
+------------
+
+Watchdog
+
+A watchdog timer is provided that implements the Linux-standard
+watchdog timer interface.  It has three module parameters that can be
+used to control it:
+
+  insmod ipmi_watchdog timeout=<t> pretimeout=<t> action=<action type>
+      preaction=<preaction type> preop=<preop type>
+
+The timeout is the number of seconds to the action, and the pretimeout
+is the amount of seconds before the reset that the pre-timeout panic will
+occur (if pretimeout is zero, then pretimeout will not be enabled).
+
+The action may be "reset", "power_cycle", or "power_off", and
+specifies what to do when the timer times out, and defaults to
+"reset".
+
+The preaction may be "pre_smi" for an indication through the SMI
+interface, "pre_int" for an indication through the SMI with an
+interrupts, and "pre_nmi" for a NMI on a preaction.  This is how
+the driver is informed of the pretimeout.
+
+The preop may be set to "preop_none" for no operation on a pretimeout,
+"preop_panic" to set the preoperation to panic, or "preop_give_data"
+to provide data to read from the watchdog device when the pretimeout
+occurs.  A "pre_nmi" setting CANNOT be used with "preop_give_data"
+because you can't do data operations from an NMI.
+
+When preop is set to "preop_give_data", one byte comes ready to read
+on the device when the pretimeout occurs.  Select and fasync work on
+the device, as well.
+
+When compiled into the kernel, the kernel command line is available
+for configuring the watchdog:
+
+  ipmi_wdog=<timeout>[,<pretimeout>[,<option>[,<options>....]]]
+
+The options are the actions and preaction above (if an option
+controlling the same thing is specified twice, the last is taken).  An
+options "start_now" is also there, if included, the watchdog will
+start running immediately when all the drivers are ready, it doesn't
+have to have a user hooked up to start it.
+
+The watchdog will panic and start a 120 second reset timeout if it
+gets a pre-action.  During a panic or a reboot, the watchdog will
+start a 120 timer if it is running to make sure the reboot occurs.
+
+Note that if you use the NMI preaction for the watchdog, you MUST
+NOT use nmi watchdog mode 1.  If you use the NMI watchdog, you
+must use mode 2.

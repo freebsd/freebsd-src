@@ -1,0 +1,23 @@
+#
+# Appletalk driver configuration
+#
+
+mainmenu_option next_comment
+comment 'Appletalk devices'
+dep_mbool 'Appletalk interfaces support' CONFIG_DEV_APPLETALK $CONFIG_ATALK
+if [ "$CONFIG_DEV_APPLETALK" = "y" ]; then
+   if [ "$CONFIG_ISA" = "y" -o "$CONFIG_EISA" = "y" ]; then
+      tristate '  Apple/Farallon LocalTalk PC support' CONFIG_LTPC
+      tristate '  COPS LocalTalk PC support' CONFIG_COPS
+   fi
+   if [ "$CONFIG_COPS" != "n" ]; then
+      bool '    Dayna firmware support' CONFIG_COPS_DAYNA
+      bool '    Tangent firmware support' CONFIG_COPS_TANGENT
+   fi
+   dep_tristate '  Appletalk-IP driver support' CONFIG_IPDDP $CONFIG_ATALK
+   if [ "$CONFIG_IPDDP" != "n" ]; then
+      bool '    IP to Appletalk-IP Encapsulation support' CONFIG_IPDDP_ENCAP
+      bool '    Appletalk-IP to IP Decapsulation support' CONFIG_IPDDP_DECAP
+   fi
+fi
+endmenu

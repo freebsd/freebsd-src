@@ -1,0 +1,57 @@
+	<<NinjaSCSI-32Bi/UDE CardBus/PCI card driver for Linux>>
+
+
+1. What's this?
+
+ This is Workbit corp.'s(http://www.workbit.co.jp/) NinjaSCSI-32Bi
+(http://www.workbit.co.jp/ts/z_njsc32bi.html) PCMCIA card and NinjaSCSI-32UDE
+PCI card driver module for Linux.
+
+
+
+2. Install
+
+[1] This driver requires Kernel 2.4.x/2.6.x or later.
+    And you want to load the module when Ninja card was inserted, you also
+    install "hotplug" (http://linux-hotplug.sourceforge.net/) utility.
+
+[2] Insert Ninja card to your PC, and check your card is NinjaSCSI-32Bi/UDE
+    card.
+
+# lspci
+....
+01:00.0 SCSI storage controller: I-O Data Device, Inc. CBSC-II duo SCSI PCMCIA card (rev 01)
+
+[3] This driver requires Kernel 2.4/2.6's source code. Please install cernel
+    source code.
+
+[4] Please check your kernel have PCI, CardBus, PCMCIA and SCSI support.
+    If not, rebuild your kernel. And also requires PCMCIA-CS if you use
+    CardBus card.
+
+[5] Extract this archive somewhere.
+
+[6] Edit "Makefile" and type "make" to compile the driver.
+
+[7] Copy "nsp32.o" to /lib/modules/<kernel version>/kernel/driver/scsi/pcmcia/ .
+
+[8] Type "depmod -ae" to re-made "/lib/modules/<kernel version>/modules.pcimap"
+
+[9] Ok. Now you can use Ninja card in CardBus mode. Check your Ninja card is in
+    CardBus mode, and insert the card to PC card slot.
+
+
+
+3. Caution
+ If you eject card when doing some operation for your SCSI device or suspend
+your computer, you encount some *BAD* error like disk crash.
+ It works good when I using this driver right way. But I'm not guarantee
+your data. Please backup your data when you use this driver.
+
+
+4. Copyright.
+
+ No, no, this is Copyleft software. See GPL.
+
+
+YOKOTA Hiroshi

@@ -1,0 +1,47 @@
+The Aurora Linux 2.4.* software package for the Siemens/Infineon 8253X
+based PCI adapter card product line (2520, 4520, 4020, 8520, WMS and LMS
+communications controllers) provides the following benefits to the user.
+
+ 
+
+1.        A Linux Asynchronous TTY driver that supports serial
+connections to asynchronous TTYs with the standard Linux/Unix terminal
+capabilities as well as custom baud rates.  The asynchronous TTY driver
+can also support connections to computers that support standard
+asynchronous terminal emulation programs, such as cu, tip, kermit or
+hyperterm.  The asynchronous TTY driver can also support file transfer
+via standard asynchronous file transfer programs like kermit.  In
+addition, the asynchronous TTY driver can be used by asynchronous SLIP
+or PPP to provide network connectivity.
+
+2.        A Linux Synchronous TTY driver that supports all of the above
+for synchronous TTY connections.  Because one cannot generally purchase
+synchronous TTYs, this functionality is most useful with software
+terminal emulators and with synchronous PPP implementations that assume
+an underlying synchronous terminal driver.
+
+3.        A Linux Synchronous Network driver that provides a synchronous
+serial ethernet interface.  This interface provides a simple
+straightforward method of synchronous wide-area interconnection that
+works via the standard Linux Ethernet network and bridging interfaces. 
+Some routers and bridges support this interface.
+
+4.        A Linux Synchronous Character driver that provides a standard
+read/write interface to the network driver functionality (i.e., packet
+read and packet write capability) and that can emulate the Solaris
+putmsg/getmsg interface.  This driver is useful for users that wish to
+implement their own protocol software within user applications.
+
+5.        The Aurora Linux software provides the capability of dial-up
+connection set-up for any of the previous drivers.  This dial-up
+capability follows the /dev/cua convention of Linux 2.2* and Linux 2.4.*
+kernels.
+
+6.        Source is provided so that users may make custom modifications
+to drivers.  Adding BISYNC or cHDLC support would be fairly
+straightforward and may become available in later releases.  This source
+could provide a starting point for implementing drivers for other
+operating systems.  The source is partitioned by functionality and comes
+with functional and design specifications as well as other documentation
+useful to users and implementers.
+

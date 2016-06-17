@@ -1,0 +1,52 @@
+The hfs_fs "to do" list.
+------------------------
+Items are broken down into groups and the groups are listed in order
+from most important to least important.  The items within each group
+are not placed in any particular order.  The order in which items are
+listed probably doesn't correlate well with the order they will be
+addressed.
+
+Genuine bugs:
+1.	Header files have compiled-in limit (currently 10) on descriptors.
+
+Missing features:
+1.	1k block support is needed for some devices.
+2.	An ioctl()-based interface is needed to provide a consistent way
+	to do things under all of the representations of forked files.
+
+Possible additional "fork" mount options:
+1.	AppleSingle.
+2.	The scheme MacOS uses on FAT disks (PC Exchange).
+3.	"Flat" (no resource forks or metadata).
+
+Performance issues:
+1.	Use drAllocPtr to speed block allocations.
+2.	Keep a real cache of bnodes, rather than just a hash table of
+	the ones that are currently in use.
+3.	Keep a real cache of extent records, rather than just a linked
+	list of the ones that are currently in use and the one most
+	recently used.  This is particularly needed to get acceptable
+	performance with multiple readers on a file.  Perhaps simply
+	keep them in memory once they've been read until the file is
+	closed.
+
+Implementation details:
+1.	Allocation scheme could/should be closer to that used by Apple.
+2.	B*-tree insertion could/should be closer to that used by Apple.
+3.	Magic-number checks on data structures are rarely done.
+4.	Error recovery is needed for failed binsert(), bdelete() and rename().
+5.	Deadlock detection is needed to make insert_empty_bnode() and
+	bdelete() less likely to hang on a corrupted B-tree.
+6.	Metadata for covered directories shouldn't appear in the filesystem.
+	Under CAP and AppleDouble it currently does.  However, the obvious
+	solution is a real performance killer and is not worth implementing.
+
+Fantasy features:
+1.	Access Desktop file/database for comment and icon.
+2.	Implement mmap() for AppleDouble header files and CAP info files.
+3.	Implement AppleShare client support.
+
+Suggestions/comments/questions are welcome.
+Code addressing any of the issues listed above is especially welcome.
+Paul H. Hargrove
+hargrove@sccm.Stanford.EDU

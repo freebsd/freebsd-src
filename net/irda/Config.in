@@ -1,0 +1,28 @@
+#
+# IrDA protocol configuration
+#
+
+if [ "$CONFIG_NET" != "n" ]; then
+
+   mainmenu_option next_comment
+   comment 'IrDA (infrared) support'
+   dep_tristate 'IrDA subsystem support' CONFIG_IRDA $CONFIG_NET
+
+   if [ "$CONFIG_IRDA" != "n" ]; then
+      comment 'IrDA protocols'
+      source net/irda/irlan/Config.in
+      source net/irda/irnet/Config.in
+      source net/irda/ircomm/Config.in
+      bool '  Ultra (connectionless) protocol' CONFIG_IRDA_ULTRA
+      comment 'IrDA options'
+      bool '  Cache last LSAP' CONFIG_IRDA_CACHE_LAST_LSAP
+      bool '  Fast RRs (low latency)' CONFIG_IRDA_FAST_RR
+      bool '  Debug information' CONFIG_IRDA_DEBUG
+   fi
+
+   if [ "$CONFIG_IRDA" != "n" ]; then
+      source drivers/net/irda/Config.in
+   fi
+   endmenu
+fi
+

@@ -1,0 +1,247 @@
+=====
+
+kHTTPd  -  Kernel httpd accelerator
+
+(C) 1999 by Arjan van de Ven
+Licensed under the terms of the GNU General Public License
+
+=====
+
+
+1. Introduction
+---------------
+   kHTTPd is a http-daemon (webserver) for Linux. kHTTPd is different from 
+   other webservers in that it runs from within the Linux-kernel as a module 
+   (device-driver).
+
+   kHTTPd handles only static (file based) web-pages, and passes all requests 
+   for non-static information to a regular userspace-webserver such as Apache 
+   or Zeus. The userspace-daemon doesn't have to be altered in any way.
+
+   Static web-pages are not a very complex thing to serve, but these are very
+   important nevertheless, since virtually all images are static, and a large
+   portion of the html-pages are static also. A "regular" webserver has little
+   added value for static pages, it is simply a "copy file to network"
+   operation.
+   This can be done very efficiently from within the Linux-kernel, for example 
+   the nfs (network file system) daemon performs a similar task and also runs 
+   in the kernel.
+
+   By "accelerating" the simple case within the kernel, userspace daemons can
+   do what they are very good at: Generating user-specific, dynamic content.
+
+   Note: This document sometimes uses "Apache" instead of "any webserver you
+   ever might want to use", just for reasons of readability.
+   
+
+2. Quick Start  
+--------------
+
+   1) compile and load the module
+   2) configure the module in /proc/sys/net/khttpd if needed
+   3) echo 1 > /proc/sys/net/khttpd/start
+
+   unloading:
+ 
+   echo 1 > /proc/sys/net/khttpd/stop
+   echo 1 > /proc/sys/net/khttpd/unload 
+   sleep 2
+   rmmod khttpd
+   
+
+
+3. Configuration 
+----------------
+
+   Modes of operation
+   ==================
+
+
+   There are two recommended modes of operation:
+
+   1) "Apache" is main webserver, kHTTPd is assistant
+	clientport   -> 80
+  	serverport   -> 8080 (or whatever)
+
+   2) kHTTPd is main webserver, "Apache" is assistant
+	clientport   -> 8080 (or whatever)
+ 	serverport   -> 80
+
+   
+   Configuring kHTTPd
+   ==================
+
+   Before you can start using kHTTPd, you have to configure it. This
+   is done through the /proc filesystem, and can thus be done from inside
+   a script. Most parameters can only be set when kHTTPd is stopped.
+
+   The following things need configuration:
+
+   1) The port where kHTTPd should listen for requests
+   2) The port (on "localhost") where "Apache" is listening
+   3) The location of the documents (documentroot)
+   4) The strings that indicate dynamic content (optional)
+      [  "cgi-bin" is added by default ]
+
+   It is very important that the documentroot for kHTTPd matches the
+   documentroot for the userspace-daemon, as kHTTPd might "redirect"
+   any request to this userspace-daemon.
+
+   A typical script (for the first mode of operation) to do this would 
+   look like:
+
+#!/bin/sh
+modprobe khttpd
+echo 80 > /proc/sys/net/khttpd/clientport
+echo 8080 > /proc/sys/net/khttpd/serverport
+echo /var/www > /proc/sys/net/khttpd/documentroot
+echo php3 > /proc/sys/net/khttpd/dynamic
+echo shtml > /proc/sys/net/khttpd/dynamic
+echo 1 > /proc/sys/net/khttpd/start
+
+   For the second mode of operation, this would be:
+
+#!/bin/sh
+modprobe khttpd
+echo 8080 > /proc/sys/net/khttpd/clientport
+echo 80 > /proc/sys/net/khttpd/serverport
+echo /var/www > /proc/sys/net/khttpd/documentroot
+echo php3 > /proc/sys/net/khttpd/dynamic
+echo shtml > /proc/sys/net/khttpd/dynamic
+echo 1 > /proc/sys/net/khttpd/start
+
+   In this case, you also have to change the configuration of the 
+   userspace-daemon. For Apache, you do this by changing
+
+   Port 80
+
+   to 
+
+   Port 8080
+
+   Starting kHTTPd
+   ===============
+   Once you have set up the configuration, start kHTTPD by running
+   echo 1 > /proc/sys/net/khttpd/start
+   It may take a jiffie or two to start.
+
+   Stopping kHTTPd
+   ===============
+   To stop kHTTPd, do
+   echo 1 > /proc/sys/net/khttpd/stop
+   It should stop in a jiffy or two.
+
+   Unloading kHTTPd
+   ===============
+   To unload the module, do
+   echo 1 > /proc/sys/net/khttpd/stop
+   echo 1 > /proc/sys/net/khttpd/unload
+   #killall -HUP khttpd
+   sleep 2
+   rmmod khttpd
+
+   If this doesn't work fast enough for you (unloading can wait for 
+   a remote connection to close down), you can send the daemons a "HUP"
+   signal after you told them to stop. This will cause the daemon-threads to
+   stop immediately. 
+   
+
+4. Permissions
+--------------
+   The security model of kHTTPd is very strict. It can be, since there is a 
+   userspace daemon that can handle the complex exceptions. 
+
+   kHTTPd only serves a file if
+
+	1)  There is no "?" in the URL
+	2)  The URL starts with a "/"
+	3)  The file indicated by the URL exists
+	4)  The file is world-readable (*)
+	5)  The file is not a directory, executable or has the Sticky-bit
+	    set (*)
+	6)  The URL doesn't contain any "forbidden" substrings such as ".."
+	    and "cgi-bin" (*)
+	7)  The mime-type is known (*)
+
+   The items marked with a (*) are configurable through the
+   sysctl-parameters in /proc/sys/net/khttpd.
+
+
+   In all cases where any of the above conditions isn't met, the
+   userspace-daemon is handed the request.
+
+
+
+5. Parameters
+-------------
+   The following parameters are settable through /proc/sys/net/khttpd:
+ 
+	Name		Default		Description
+
+	serverport	8080		The port where kHTTPd listens on
+
+	clientport	80		The port of the userspace
+					http-daemon
+
+	threads		2		The number of server-threads. Should
+					be 1 per CPU for small websites, 2
+					per CPU for big (the active files
+					do not fit in the RAM) websites.
+
+	documentroot	/var/www	the directory where the
+					document-files are
+
+	start		0		Set to 1 to start kHTTPd 
+					(this also resets "stop" to 0)
+
+	stop		0		Set to 1 to stop kHTTPd
+					(this also resets "start" to 0)
+
+	unload		0		Set to 1 to prepare kHTTPd for
+					unloading of the module
+
+	sloppymime	0		If set to 1, unknown mime-types are
+					set to text/html. If set to 0,
+					files with unknown mime-types are
+					handled by the userspace daemon
+
+	perm_required	S_IROTH		Minimum permissions required
+					(for values see "man 2 stat")
+	
+	perm_forbid	dir+sticky+	Permission-mask with "forbidden"
+			execute		permissions.
+					(for values see "man 2 stat")
+
+	dynamic		cgi-bin ..	Strings that, if they are a subset
+					of the URL, indicate "dynamic
+					content"
+
+	maxconnect	1000		Maximum number of concurrent
+					connections
+
+6. Known Issues
+   kHTTPd is *not* currently compatible with tmpfs.  Trying to serve
+   files stored on a tmpfs partition is known to cause kernel oopses
+   as of 2.4.18.  This is due to the same problem that prevents sendfile()
+   from being usable with tmpfs.  A tmpfs patch is floating around that seems
+   to fix this, but has not been released as of 27 May 2002.
+   kHTTPD does work fine with ramfs, though.
+
+   There is debate about whether to remove kHTTPd from the main
+   kernel sources.  This will probably happen in the 2.5 kernel series,
+   after which khttpd will still be available as a patch.
+
+   The kHTTPd source code could use a good spring cleaning.
+
+7. More information
+-------------------
+   More information about the architecture of kHTTPd, the mailinglist and
+   configuration-examples can be found at the kHTTPd homepage:
+
+	http://www.fenrus.demon.nl
+
+   Bugreports, patches, etc can be send to the mailinglist
+   (khttpd-users@zgp.org) or to khttpd@fenrus.demon.nl
+   Mailing list archives are at 
+      http://lists.alt.org/mailman/listinfo/khttpd-users
+

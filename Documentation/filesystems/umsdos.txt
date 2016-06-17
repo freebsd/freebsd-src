@@ -1,0 +1,100 @@
+Firstly, let me say that UMSDOS is going through some major code changes,
+and has some KNOWN BUGS (and quite a few unknown :-). Please read
+fs/umsdos/README-WIP.txt for more information on current status. Thanks.
+
+----------------------------------------------------------------------------
+Very short explanation for the impatient!
+
+Umsdos is a file system driver that run on top the MSDOS fs driver.
+It is written by Jacques Gelinas (jacques@solucorp.qc.ca)
+and is currently maintained by Matija Nalis (mnalis@jagor.srce.hr)
+
+Umsdos is not a file system per se, but a twist to make a boring
+one into a useful one.
+
+It gives you:
+
+	long file names
+	Permissions and owners
+	Links
+	Special files (devices, pipes...)
+	All that is needed to be a linux root fs.
+
+There is plenty of documentation on it in the source. A formatted document
+made from those comments is available from
+sunsite.unc.edu:/pub/Linux/system/Filesystems/umsdos.
+
+You mount a DOS partition like this:
+
+mount -t umsdos /dev/hda3 /mnt
+         ^
+---------|
+
+All options are passed to the msdos drivers. Option like uid,gid etc are
+given to msdos.
+
+The default behavior of Umsdos is to do the same thing as the msdos driver
+mostly passing commands to it without much processing. Again, this is
+the default. After doing the mount on a DOS partition, nothing special
+happens. This is why all mount options are passed to the msdos fs driver.
+
+Umsdos uses a special DOS file --linux-.--- to store the information
+which can't be handled by the normal MS-DOS filesystem. This is the trick.
+
+--linux-.--- is optional. There is one per directory.
+
+**** If --linux-.--- is missing, then Umsdos process the directory the
+     same way the msdos driver does. Short file names, no goodies, default
+     owner and permissions. So each directory may have or not this
+     --linux-.---
+
+Now, how to get those --linux-.---.
+
+\begin joke_section
+
+	Well send me a directory content
+	and I will send you one customised for you.
+	$5 per directory. Add any applicable taxes.
+\end joke_section
+
+A utility umssync creates those. The kernel maintains them. It is available
+from the same directory above (sunsite) in the file umsdos_progs-0.7.tar.gz.
+A compiled version is available in umsdos_progs-0.7.bin.tar.gz.
+
+So in our example, after mounting mnt, we do
+
+	umssync .
+
+This will promote this directory (a recursive option is available) to full
+umsdos capabilities (long name, etc.).  However, an "ls -l" before and after
+won't show much difference.  The files which were there are still there, but
+now you can do all this:
+
+	chmod 644 *
+	chown you.your_group *
+	ls >THIS_IS.A.VERY.LONG.NAME
+	ln -s toto tata
+	ls -l
+
+Once a directory is promoted, all subdirectories created will inherit that
+promotion.
+
+What happens if you boot DOS and create files in those promoted directories ?
+Umsdos won't notice new files, but will signal removed files (it won't crash).
+Using umssync in /etc/rc will make sure the DOS directory is in sync with
+the --linux-.---.
+
+It is a good idea to put the following command in your RC file just
+after the "mount -a":
+
+	mount -a
+	/sbin/umssync -i+ -c+ -r99 /umsdos_mount_point
+
+	(You put one for each umsdos mount point in the fstab)
+
+This will ensure nice operation.  A umsdos.fsck is in the making,
+so you will be allowed to manage umsdos partitions in the same way
+other filesystems are, using the generic fsck front end.
+
+Hope this helps!
+

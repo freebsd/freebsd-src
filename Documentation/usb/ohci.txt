@@ -1,0 +1,98 @@
+
+The OHCI HCD layer is a simple but nearly complete implementation of what the
+USB people would call a HCD  for the OHCI. 
+ (ISO coming soon, Bulk, INT u. CTRL transfers enabled)
+It is based on Linus Torvalds UHCI code and Gregory Smith OHCI fragments (0.03 source tree).
+The layer (functions) on top of it, is for interfacing to the alternate-usb device-drivers. 
+
+- Roman Weissgaerber <weissg@vienna.at>
+
+ * v4.0 1999/08/18 removed all dummy eds, unlink unused eds, code cleanup, bulk transfers 
+ * v2.1 1999/05/09 ep_addr correction, code cleanup
+ * v0.2.0 1999/05/04 
+ * everything has been moved into 2 files (ohci-hcd.c, ohci-hub-root.c and headers)
+ * virtual root hub is now an option, 
+ * memory allocation based on kmalloc and kfree now, simple Bus error handling, 
+ * INT and CTRL transfers enabled, Bulk included but disabled, ISO needs completion
+ * 
+ * from Linus Torvalds (uhci.c): APM (not tested); hub, usb_device, bus and related stuff
+ * from Greg Smith (ohci.c): better reset ohci-controller handling, hub
+ * 
+ * v0.1.0 1999/04/27 initial release
+ 
+to remove the module try:
+rmmod usb-ohci
+
+Features:
+- virtual root hub, all basic hub descriptors and commands (state: complete) 
+  this is an option now (v0.2.0)
+  #define  CONFIG_USB_OHCI_VROOTHUB includes the virtual hub code, (VROOTHUB)
+  default is with. 
+  (at the moment: the Virtual Root Hub is included automatically)
+  
+  files: ohci-root-hub.c, ohci-root-hub.h 
+ 
+
+- Endpoint Descriptor (ED) handling more static approach 
+ (EDs should be allocated in parallel to the SET CONFIGURATION command and they live
+ as long as the function (device) is alive or another configuration is chosen.
+ In the HCD layer the EDs has to be allocated manually either by calling a subroutine
+ or by sending a USB root hub vendor specific command to the virtual root hub.
+ At the alternate linux usb stack EDs will be added (allocated) at their first use.
+ ED will be unlinked from the HC chains if they are not busy.
+ 
+ files: ohci-hcd.c ohci-hcd.h
+ routines:   (do not use for drivers, use the top layer alternate usb commands instead)
+ 
+ int usb_ohci_add_ep(struct ohci * ohci, unsigned int ep_addr1, 
+            int interval, int load, f_handler handler, int ep_size, int speed)
+       adds an endpoint, (if the endpoint already exists some parameters will be updated)
+       
+ int usb_ohci_rm_ep( ) 
+       removes an endpoint and all pending TDs of that EP
+       
+  usb_ohci_rm_function( )
+       removes all Endpoints of a function (device)
+
+- Transfer Descriptors (TD): handling and allocation of TDs is transparent to the upper layers
+  The HCD takes care of TDs and EDs memory allocation whereas the upper layers (UBSD ...) has
+  to take care of buffer allocation.
+  files: ohci-hcd.c ohci-hcd.h 
+
+  There is one basic command for all types of bus transfers (INT, BULK, ISO, CTRL):
+  
+  int ohci_trans_req(struct ohci * ohci, hcd_ed, int ctrl_len, void  *ctrl, void * data, int data_len, __OHCI_BAG lw0, __OHCI_BAG lw1)
+  
+  CTRL: ctrl, ctrl_len ... cmd buffer 
+        data, data_len ... data buffer (in or out)
+  INT, BULK:  ctrl = NULL, ctrl_len=0,
+  		data, data_len ... data buffer (in or out)
+  ISO: tbd
+
+  There is no buffer reinsertion done by the internal HCD function. 
+  (The interface layer does this for a INT-pipe on request.)
+  If you want a transfer then you have to 
+  provide buffers by sending ohci_trans_req requests. As they are queued as TDs on an ED
+  you can send as many as you like. They should come back by the callback f_handler in
+  the same order (for each endpoint, not globally) If an error occurs all
+  queued transfers of an endpoint will return unsent. They will be marked with an error status.
+  
+  e.g double-buffering for int transfers:
+
+   	ohci_trans_req(ohci, ep_addr, 0, NULL, data0, data0_len, 0,0)
+  	ohci_trans_req(ohci, ep_addr, 0, NULL, data1, data1_len, 0,0)
+  	
+  and when a data0 packet returns by the callback f_handler requeue it:
+  	ohci_trans_req(ohci, ep_addr, 0, NULL, data0, data0_len, 0,0)
+  and when a data1 packet returns by the callback f_handler requeue it:
+  	ohci_trans_req(ohci, ep_addr, 0, NULL, data1, data1_len, 0,0)
+  	
+  lw0, lw1 are private fields for upper layers for ids or fine grained handlers.
+  The alternate usb uses them for dev_id and usb_device_irq handler.
+
+
+- Done list handling: returns the requests (callback f_handler in ED) and does 
+  some error handling, root-hub request dequeuing
+  (files: ohci-done-list.c in ohci-hcd.c now(v0.2.0))
+
+  

@@ -1,0 +1,48 @@
+#
+# PCMCIA bus subsystem configuration
+#
+# Right now the non-CardBus choices are not supported
+# by the integrated kernel driver.
+#
+mainmenu_option next_comment
+comment 'PCMCIA/CardBus support'
+
+#dep_tristate 'CardBus support' CONFIG_PCMCIA $CONFIG_PCI
+#if [ "$CONFIG_PCMCIA" != "n" ]; then
+#  define_bool CONFIG_CARDBUS y
+#fi
+
+tristate 'PCMCIA/CardBus support' CONFIG_PCMCIA
+if [ "$CONFIG_PCMCIA" != "n" ]; then
+   if [ "$CONFIG_PCI" != "n" ]; then
+      bool '  CardBus support' CONFIG_CARDBUS
+   fi
+   bool '  Databook TCIC host bridge support' CONFIG_TCIC
+   if [ "$CONFIG_HD64465" = "y" ]; then
+      dep_tristate '  HD64465 host bridge support' CONFIG_HD64465_PCMCIA $CONFIG_PCMCIA
+   fi
+   dep_bool '  i82092 compatible bridge support' CONFIG_I82092 $CONFIG_PCI
+   bool '  i82365 compatible bridge support' CONFIG_I82365
+   if [ "$CONFIG_ARCH_SA1100" = "y" ]; then
+      dep_tristate '  SA1100 support' CONFIG_PCMCIA_SA1100 $CONFIG_PCMCIA
+   fi
+   if [ "$CONFIG_8xx" = "y" ]; then
+      dep_tristate '  M8xx support' CONFIG_PCMCIA_M8XX $CONFIG_PCMCIA
+   fi
+   if [ "$CONFIG_SOC_AU1X00" = "y" ]; then
+      dep_tristate '  Au1x00 PCMCIA support' CONFIG_PCMCIA_AU1X00 $CONFIG_PCMCIA 
+      if [ "$CONFIG_PCMCIA_AU1X00" != "n" ]; then
+        bool '  Pb1x00 board support' CONFIG_PCMCIA_PB1X00
+        bool '  Db1x00 board support' CONFIG_PCMCIA_DB1X00
+        bool '  XXS1500 board support' CONFIG_PCMCIA_XXS1500
+      fi
+   fi
+   if [ "$CONFIG_SIBYTE_SB1xxx_SOC" = "y" ]; then
+      dep_bool '  SiByte PCMCIA support' CONFIG_PCMCIA_SIBYTE $CONFIG_PCMCIA $CONFIG_BLK_DEV_IDE_SIBYTE
+   fi
+   if [ "$CONFIG_VRC4173" = "y" -o "$CONFIG_VRC4173" = "m" ]; then
+      dep_tristate '  NEC VRC4173 CARDU support' CONFIG_PCMCIA_VRC4173 $CONFIG_PCMCIA
+   fi
+fi
+
+endmenu

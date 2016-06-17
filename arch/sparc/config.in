@@ -1,0 +1,284 @@
+# $Id: config.in,v 1.111 2001/06/01 08:12:10 davem Exp $
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+mainmenu_name "Linux/SPARC Kernel Configuration"
+
+define_bool CONFIG_UID16 y
+define_bool CONFIG_HIGHMEM y
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+   bool '  Set version information on all symbols for modules' CONFIG_MODVERSIONS
+   bool '  Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+
+define_bool CONFIG_VT y
+define_bool CONFIG_VT_CONSOLE y
+
+bool 'Symmetric multi-processing support (does not work on sun4/sun4c)' CONFIG_SMP
+
+if [ "$CONFIG_SMP" = "y" ]; then
+   int  'Maximum number of CPUs (2-32)' CONFIG_NR_CPUS 32
+fi
+
+# Identify this as a Sparc32 build
+define_bool CONFIG_SPARC32 y
+
+# Global things across all Sun machines.
+define_bool CONFIG_ISA n
+define_bool CONFIG_EISA n
+define_bool CONFIG_MCA n
+define_bool CONFIG_PCMCIA n
+define_bool CONFIG_SBUS y
+define_bool CONFIG_SBUSCHAR y
+define_bool CONFIG_BUSMOUSE y
+define_bool CONFIG_SUN_MOUSE y
+define_bool CONFIG_SERIAL y
+define_bool CONFIG_SUN_SERIAL y
+define_bool CONFIG_SERIAL_CONSOLE y
+define_bool CONFIG_SUN_KEYBOARD y
+define_bool CONFIG_SUN_CONSOLE y
+define_bool CONFIG_SUN_AUXIO y
+define_bool CONFIG_SUN_IO y
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK y
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM n
+define_bool CONFIG_SUN_PM y
+
+bool 'Support for SUN4 machines (disables SUN4[CDM] support)' CONFIG_SUN4
+if [ "$CONFIG_SUN4" != "y" ]; then
+   bool 'Support for PCI and PS/2 keyboard/mouse' CONFIG_PCI
+   source drivers/pci/Config.in
+else
+   define_bool CONFIG_PCI n
+fi
+
+tristate 'Openprom tree appears in /proc/openprom' CONFIG_SUN_OPENPROMFS
+bool 'Networking support' CONFIG_NET
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+if [ "$CONFIG_PROC_FS" = "y" ]; then
+   define_bool CONFIG_KCORE_ELF y
+fi
+tristate 'Kernel support for a.out binaries' CONFIG_BINFMT_AOUT
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+bool 'SunOS binary emulation' CONFIG_SUNOS_EMUL
+bool 'Select task to kill on out of memory condition' CONFIG_OOM_KILLER
+source drivers/parport/Config.in
+dep_tristate '  Parallel printer support' CONFIG_PRINTER $CONFIG_PARPORT
+endmenu
+
+mainmenu_option next_comment
+comment 'Console drivers'
+bool 'PROM console' CONFIG_PROM_CONSOLE
+source drivers/video/Config.in
+endmenu
+
+source drivers/mtd/Config.in
+
+if [ "$CONFIG_SUN4" != "y" ]; then
+   source drivers/sbus/char/Config.in
+   source drivers/sbus/audio/Config.in
+fi
+
+mainmenu_option next_comment
+comment 'Block devices'
+
+bool 'Normal floppy disk support' CONFIG_BLK_DEV_FD
+
+tristate 'Loopback device support' CONFIG_BLK_DEV_LOOP
+dep_tristate 'Network block device support' CONFIG_BLK_DEV_NBD $CONFIG_NET
+
+source drivers/md/Config.in
+
+tristate 'RAM disk support' CONFIG_BLK_DEV_RAM
+if [ "$CONFIG_BLK_DEV_RAM" = "y" -o "$CONFIG_BLK_DEV_RAM" = "m" ]; then
+	int '   Default RAM disk size' CONFIG_BLK_DEV_RAM_SIZE 4096
+fi
+dep_bool '  Initial RAM disk (initrd) support' CONFIG_BLK_DEV_INITRD $CONFIG_BLK_DEV_RAM
+
+endmenu
+
+if [ "$CONFIG_NET" = "y" ]; then
+   source net/Config.in
+fi
+
+# Don't frighten a common SBus user
+if [ "$CONFIG_PCI" = "y" ]; then
+
+  mainmenu_option next_comment
+  comment 'ATA/IDE/MFM/RLL support'
+
+  tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+  if [ "$CONFIG_IDE" != "n" ]; then
+    source drivers/ide/Config.in
+  else
+    define_bool CONFIG_BLK_DEV_HD n
+  fi
+  endmenu
+else
+
+  define_bool CONFIG_IDE n
+  define_bool CONFIG_BLK_DEV_HD n
+fi
+
+mainmenu_option next_comment
+comment 'ISDN subsystem'
+
+tristate 'ISDN support' CONFIG_ISDN
+if [ "$CONFIG_ISDN" != "n" ]; then
+   source drivers/isdn/Config.in
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+tristate 'SCSI support' CONFIG_SCSI
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+   comment 'SCSI support type (disk, tape, CDrom)'
+
+   dep_tristate '  SCSI disk support' CONFIG_BLK_DEV_SD $CONFIG_SCSI
+
+   if [ "$CONFIG_BLK_DEV_SD" != "n" ]; then
+      int  'Maximum number of SCSI disks that can be loaded as modules' CONFIG_SD_EXTRA_DEVS 40
+   fi
+
+   dep_tristate '  SCSI tape support' CONFIG_CHR_DEV_ST $CONFIG_SCSI
+
+   dep_tristate '  SCSI OnStream SC-x0 tape support' CONFIG_CHR_DEV_OSST $CONFIG_SCSI
+
+   dep_tristate '  SCSI CDROM support' CONFIG_BLK_DEV_SR $CONFIG_SCSI
+
+   if [ "$CONFIG_BLK_DEV_SR" != "n" ]; then
+      bool '    Enable vendor-specific extensions (for SCSI CDROM)' CONFIG_BLK_DEV_SR_VENDOR
+      int  'Maximum number of CDROM devices that can be loaded as modules' CONFIG_SR_EXTRA_DEVS 2
+   fi
+
+   dep_tristate '  SCSI generic support' CONFIG_CHR_DEV_SG $CONFIG_SCSI
+
+   comment 'Some SCSI devices (e.g. CD jukebox) support multiple LUNs'
+
+   bool '  Probe all LUNs on each SCSI device' CONFIG_SCSI_MULTI_LUN
+
+   bool '  Verbose SCSI error reporting (kernel size +=12K)' CONFIG_SCSI_CONSTANTS
+   bool '  SCSI logging facility' CONFIG_SCSI_LOGGING
+
+   mainmenu_option next_comment
+   comment 'SCSI low-level drivers'
+
+   dep_tristate 'Sparc ESP Scsi Driver' CONFIG_SCSI_SUNESP $CONFIG_SCSI
+   dep_tristate 'PTI Qlogic,ISP Driver' CONFIG_SCSI_QLOGICPTI $CONFIG_SCSI
+   endmenu
+fi
+endmenu
+
+source drivers/fc4/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Network device support'
+
+   bool 'Network device support' CONFIG_NETDEVICES
+   if [ "$CONFIG_NETDEVICES" = "y" ]; then
+      tristate '  Dummy net driver support' CONFIG_DUMMY
+      tristate '  Bonding driver support' CONFIG_BONDING
+      tristate '  Universal TUN/TAP device driver support' CONFIG_TUN
+      if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+        if [ "$CONFIG_NETLINK" = "y" ]; then
+          tristate '  Ethertap network tap (OBSOLETE)' CONFIG_ETHERTAP
+        fi
+      fi
+      tristate '  PPP (point-to-point protocol) support' CONFIG_PPP
+      if [ ! "$CONFIG_PPP" = "n" ]; then
+        dep_tristate '  PPP support for async serial ports' CONFIG_PPP_ASYNC $CONFIG_PPP
+        dep_tristate '  PPP support for sync tty ports' CONFIG_PPP_SYNC_TTY $CONFIG_PPP
+        dep_tristate '  PPP Deflate compression' CONFIG_PPP_DEFLATE $CONFIG_PPP
+        dep_tristate '  PPP BSD-Compress compression' CONFIG_PPP_BSDCOMP m
+	if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+	  dep_tristate '  PPP over Ethernet (EXPERIMENTAL)' CONFIG_PPPOE $CONFIG_PPP
+	  if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+	    dep_tristate '  PPP over ATM (EXPERIMENTAL)' CONFIG_PPPOATM $CONFIG_PPP $CONFIG_ATM
+	  fi
+	fi
+      fi
+      tristate '  SLIP (serial line) support' CONFIG_SLIP
+      if [ "$CONFIG_SLIP" != "n" ]; then
+	 bool '    CSLIP compressed headers' CONFIG_SLIP_COMPRESSED
+	 bool '    Keepalive and linefill' CONFIG_SLIP_SMART
+	 bool '    Six bit SLIP encapsulation' CONFIG_SLIP_MODE_SLIP6
+      fi
+      tristate '  Sun LANCE support' CONFIG_SUNLANCE
+      tristate '  Sun Happy Meal 10/100baseT support' CONFIG_HAPPYMEAL
+      if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+	 tristate '  Sun BigMAC 10/100baseT support (EXPERIMENTAL)' CONFIG_SUNBMAC
+      fi
+      tristate '  Sun QuadEthernet support' CONFIG_SUNQE
+      tristate '  MyriCOM Gigabit Ethernet support' CONFIG_MYRI_SBUS
+      if [ "$CONFIG_PCI" = "y" ]; then
+         tristate '3c590/3c900 series (592/595/597) "Vortex/Boomerang" support' CONFIG_VORTEX
+      fi
+
+#      bool '  FDDI driver support' CONFIG_FDDI
+#      if [ "$CONFIG_FDDI" = "y" ]; then
+#      fi
+
+      if [ "$CONFIG_ATM" != "n" ]; then
+	 source drivers/atm/Config.in
+      fi
+   fi
+   endmenu
+fi
+
+# This one must be before the filesystem configs. -DaveM
+mainmenu_option next_comment
+comment 'Unix98 PTY support'
+bool 'Unix98 PTY support' CONFIG_UNIX98_PTYS
+if [ "$CONFIG_UNIX98_PTYS" = "y" ]; then
+   int 'Maximum number of Unix98 PTYs in use (0-2048)' CONFIG_UNIX98_PTY_COUNT 256
+fi
+endmenu
+
+source fs/Config.in
+
+source net/bluetooth/Config.in
+
+mainmenu_option next_comment
+comment 'Watchdog'
+
+tristate 'Software watchdog' CONFIG_SOFT_WATCHDOG
+endmenu
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+bool 'Kernel debugging' CONFIG_DEBUG_KERNEL
+if [ "$CONFIG_DEBUG_KERNEL" != "n" ]; then
+   bool '  Debug high memory support' CONFIG_DEBUG_HIGHMEM
+   bool '  Debug memory allocations' CONFIG_DEBUG_SLAB
+   bool '  Memory mapped I/O debugging' CONFIG_DEBUG_IOVIRT
+   bool '  Magic SysRq key' CONFIG_MAGIC_SYSRQ
+   bool '  Spinlock debugging' CONFIG_DEBUG_SPINLOCK
+fi
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source crypto/Config.in
+source lib/Config.in

@@ -1,0 +1,144 @@
+#
+# wan devices configuration
+#
+
+mainmenu_option next_comment
+comment 'Wan interfaces'
+
+bool 'Wan interfaces support' CONFIG_WAN
+if [ "$CONFIG_WAN" = "y" ]; then
+# There is no way to detect a comtrol sv11 - force it modular for now.
+
+if [ "$CONFIG_ISA" = "y" ]; then
+
+   dep_tristate '  Comtrol Hostess SV-11 support' CONFIG_HOSTESS_SV11 m
+
+# The COSA/SRP driver has not been tested as non-modular yet.
+
+   dep_tristate '  COSA/SRP sync serial boards support' CONFIG_COSA m
+
+fi
+
+#
+# COMX drivers
+#
+
+   bool '  MultiGate (COMX) synchronous serial boards support' CONFIG_COMX
+   if [ "$CONFIG_COMX" != "n" ]; then
+      dep_tristate '    Support for COMX/CMX/HiCOMX boards' CONFIG_COMX_HW_COMX $CONFIG_COMX
+      dep_tristate '    Support for LoCOMX board' CONFIG_COMX_HW_LOCOMX $CONFIG_COMX
+      dep_tristate '    Support for MixCOM board' CONFIG_COMX_HW_MIXCOM $CONFIG_COMX
+      dep_tristate '    Support for MUNICH based boards: SliceCOM, PCICOM (WelCOM)' CONFIG_COMX_HW_MUNICH $CONFIG_COMX
+      dep_tristate '    Support for HDLC and syncPPP protocols on MultiGate boards' CONFIG_COMX_PROTO_PPP $CONFIG_COMX
+      if [ "$CONFIG_LAPB" = "y" ]; then
+	 dep_tristate '    Support for LAPB protocol on MultiGate boards' CONFIG_COMX_PROTO_LAPB $CONFIG_COMX
+      fi
+      if [ "$CONFIG_LAPB" = "m" ]; then
+	 dep_tristate '    Support for LAPB protocol on MultiGate boards' CONFIG_COMX_PROTO_LAPB $CONFIG_LAPB
+      fi
+      dep_tristate '    Support for Frame Relay on MultiGate boards' CONFIG_COMX_PROTO_FR $CONFIG_COMX
+   fi
+
+   dep_tristate '  DSCC4 support' CONFIG_DSCC4 m
+   if [ "$CONFIG_DSCC4" = "m" ]; then
+      bool '    Etinc PCISYNC features' CONFIG_DSCC4_PCISYNC
+      bool '    GPIO and PCI #RST pins wired together' CONFIG_DSCC4_PCI_RST
+   fi
+
+#
+# Lan Media's board. Currently 1000, 1200, 5200, 5245
+#
+
+   tristate '  LanMedia Corp. SSI/V.35, T1/E1, HSSI, T3 boards' CONFIG_LANMEDIA
+
+#
+# ATI's sync/async boards. Currently 2520, 4020, 4520, 8520 -- 0 in second digit means async only
+#
+
+   tristate '  Aurora Technology, Inc. synchronous asynchronous PCI cards V2' CONFIG_ATI_XX20
+
+# There is no way to detect a Sealevel board. Force it modular
+
+   dep_tristate '  Sealevel Systems 4021 support' CONFIG_SEALEVEL_4021 m
+
+   tristate '  SyncLink HDLC/SYNCPPP support' CONFIG_SYNCLINK_SYNCPPP
+
+# Generic HDLC
+
+   tristate '  Generic HDLC layer' CONFIG_HDLC
+   if [ "$CONFIG_HDLC" != "n" ]; then
+      bool '    Raw HDLC support' CONFIG_HDLC_RAW
+      bool '    Raw HDLC Ethernet device support' CONFIG_HDLC_RAW_ETH
+      bool '    Cisco HDLC support' CONFIG_HDLC_CISCO
+      bool '    Frame Relay support' CONFIG_HDLC_FR
+      bool '    Synchronous Point-to-Point Protocol (PPP) support' CONFIG_HDLC_PPP
+      if [ "$CONFIG_LAPB" = "m" -a "$CONFIG_HDLC" = "m" -o "$CONFIG_LAPB" = "y" ]; then
+	 bool '    X.25 protocol support' CONFIG_HDLC_X25
+      else
+	 comment '    X.25/LAPB support is disabled'
+      fi
+      if [ "$CONFIG_PCI" != "n" ]; then
+         dep_tristate '    Goramo PCI200SYN support' CONFIG_PCI200SYN $CONFIG_HDLC
+         dep_tristate '    Cyclades-PC300 support (RS-232/V.35, X.21, T1/E1 boards)' CONFIG_PC300 $CONFIG_HDLC
+         if [ "$CONFIG_PC300" != "n" ]; then
+               if [ "$CONFIG_PPP" != "n" -a "$CONFIG_PPP_MULTLINK" != "n" -a "$CONFIG_PPP_SYNCTTY" != "n" -a "$CONFIG_HDLC_PPP" = "y" ]; then
+                       bool '      Cyclades-PC300 MLPPP support' CONFIG_PC300_MLPPP
+               else
+                       comment '     Cyclades-PC300 MLPPP support is disabled.'
+                       comment '     Refer to the file README.mlppp, provided by PC300 package.'
+               fi
+         fi
+	 dep_tristate '    FarSync T-Series support' CONFIG_FARSYNC $CONFIG_HDLC
+      fi
+      if [ "$CONFIG_ISA" != "n" ]; then
+	 dep_tristate '    SDL RISCom/N2 support' CONFIG_N2 $CONFIG_HDLC
+	 dep_tristate '    Moxa C101 support' CONFIG_C101 $CONFIG_HDLC
+      fi
+   fi
+
+   tristate '  Frame relay DLCI support' CONFIG_DLCI
+   if [ "$CONFIG_DLCI" != "n" ]; then
+      int '    Max open DLCI' CONFIG_DLCI_COUNT 24
+      int '    Max DLCI per device' CONFIG_DLCI_MAX 8
+      dep_tristate '    SDLA (Sangoma S502/S508) support' CONFIG_SDLA $CONFIG_DLCI
+   fi
+
+# Wan router core.
+
+   if [ "$CONFIG_WAN_ROUTER" != "n" ]; then
+      bool '  WAN router drivers' CONFIG_WAN_ROUTER_DRIVERS
+      if [ "$CONFIG_WAN_ROUTER_DRIVERS" = "y" ]; then
+	 dep_tristate '    Sangoma WANPIPE(tm) multiprotocol cards' CONFIG_VENDOR_SANGOMA $CONFIG_WAN_ROUTER
+	 if [ "$CONFIG_VENDOR_SANGOMA" != "n" ]; then
+	    bool '      WANPIPE Cisco HDLC support' CONFIG_WANPIPE_CHDLC
+	    bool '      WANPIPE Frame Relay support' CONFIG_WANPIPE_FR
+	    bool '      WANPIPE X.25 support' CONFIG_WANPIPE_X25
+	    bool '      WANPIPE PPP support' CONFIG_WANPIPE_PPP
+	    bool '      WANPIPE Multi-Port PPP support' CONFIG_WANPIPE_MULTPPP
+	 fi
+	 if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+	    dep_tristate '    Cyclom 2X(tm) cards (EXPERIMENTAL)' CONFIG_CYCLADES_SYNC $CONFIG_WAN_ROUTER_DRIVERS $CONFIG_ISA
+	    if [ "$CONFIG_CYCLADES_SYNC" != "n" ]; then
+	       bool '      Cyclom 2X X.25 support (EXPERIMENTAL)' CONFIG_CYCLOMX_X25
+	    fi
+	 fi
+      fi
+   fi
+
+
+# X.25 network drivers
+
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      dep_tristate '  LAPB over Ethernet driver (EXPERIMENTAL)' CONFIG_LAPBETHER $CONFIG_LAPB $CONFIG_X25
+      dep_tristate '  X.25 async driver (EXPERIMENTAL)' CONFIG_X25_ASY $CONFIG_LAPB $CONFIG_X25
+   fi
+
+   if [ "$CONFIG_X86" = "y" ]; then
+      tristate '  Granch SBNI12 Leased Line adapter support' CONFIG_SBNI
+      if [ "$CONFIG_SBNI" != "n" ]; then
+         bool '    Multiple line feature support' CONFIG_SBNI_MULTILINE
+      fi
+   fi
+fi
+
+endmenu

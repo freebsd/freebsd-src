@@ -1,0 +1,57 @@
+#
+# Multimedia Video device configuration
+#
+mainmenu_option next_comment
+comment 'Radio Adapters'
+
+if [ "$CONFIG_ISA" = "y" ]; then
+   dep_tristate '  ADS Cadet AM/FM Tuner' CONFIG_RADIO_CADET $CONFIG_VIDEO_DEV
+   dep_tristate '  AIMSlab RadioTrack (aka RadioReveal) support' CONFIG_RADIO_RTRACK $CONFIG_VIDEO_DEV
+   if [ "$CONFIG_RADIO_RTRACK" = "y" ]; then
+      hex '  RadioTrack i/o port (0x20f or 0x30f)' CONFIG_RADIO_RTRACK_PORT 20f
+   fi
+   dep_tristate '  AIMSlab RadioTrack II support' CONFIG_RADIO_RTRACK2 $CONFIG_VIDEO_DEV
+   if [ "$CONFIG_RADIO_RTRACK2" = "y" ]; then
+      hex '    RadioTrack II i/o port (0x20c or 0x30c)' CONFIG_RADIO_RTRACK2_PORT 30c
+   fi
+   dep_tristate '  Aztech/Packard Bell Radio' CONFIG_RADIO_AZTECH $CONFIG_VIDEO_DEV
+   if [ "$CONFIG_RADIO_AZTECH" = "y" ]; then
+      hex '    Aztech/Packard Bell I/O port (0x350 or 0x358)' CONFIG_RADIO_AZTECH_PORT 350
+  fi
+   dep_tristate '  GemTek Radio Card support' CONFIG_RADIO_GEMTEK $CONFIG_VIDEO_DEV
+   if [ "$CONFIG_RADIO_GEMTEK" = "y" ]; then
+      hex '    GemTek i/o port (0x20c, 0x30c, 0x24c or 0x34c)' CONFIG_RADIO_GEMTEK_PORT 34c
+   fi
+fi
+dep_tristate '  GemTek PCI Radio Card support' CONFIG_RADIO_GEMTEK_PCI $CONFIG_VIDEO_DEV $CONFIG_PCI
+dep_tristate '  Guillemot MAXI Radio FM 2000 radio' CONFIG_RADIO_MAXIRADIO $CONFIG_VIDEO_DEV
+dep_tristate '  Maestro on board radio' CONFIG_RADIO_MAESTRO $CONFIG_VIDEO_DEV
+dep_tristate '  miroSOUND PCM20 radio' CONFIG_RADIO_MIROPCM20 $CONFIG_VIDEO_DEV $CONFIG_SOUND_ACI_MIXER
+if [ "$CONFIG_ISA" = "y" ]; then
+   dep_tristate '    miroSOUND PCM20 radio RDS user interface (EXPERIMENTAL)' CONFIG_RADIO_MIROPCM20_RDS $CONFIG_RADIO_MIROPCM20 $CONFIG_EXPERIMENTAL
+   dep_tristate '  SF16FMI Radio' CONFIG_RADIO_SF16FMI $CONFIG_VIDEO_DEV
+   dep_tristate '  SF16FMR2 Radio' CONFIG_RADIO_SF16FMR2 $CONFIG_VIDEO_DEV
+   dep_tristate '  TerraTec ActiveRadio ISA Standalone' CONFIG_RADIO_TERRATEC $CONFIG_VIDEO_DEV
+   if [ "$CONFIG_RADIO_TERRATEC" = "y" ]; then
+      hex '    Terratec i/o port (normally 0x590)' CONFIG_RADIO_TERRATEC_PORT 590
+   fi
+   dep_tristate '  Trust FM radio card' CONFIG_RADIO_TRUST $CONFIG_VIDEO_DEV
+   if [ "$CONFIG_RADIO_TRUST" = "y" ]; then
+      hex '    Trust i/o port (usually 0x350 or 0x358)' CONFIG_RADIO_TRUST_PORT 350
+   fi
+   dep_tristate '  Typhoon Radio (a.k.a. EcoRadio)' CONFIG_RADIO_TYPHOON $CONFIG_VIDEO_DEV
+   if [ "$CONFIG_PROC_FS" = "y" ]; then
+      if [ "$CONFIG_RADIO_TYPHOON" != "n" ]; then
+         bool '    Support for /proc/radio-typhoon' CONFIG_RADIO_TYPHOON_PROC_FS
+      fi
+   fi
+   if [ "$CONFIG_RADIO_TYPHOON" = "y" ]; then
+      hex '  Typhoon I/O port (0x316 or 0x336)' CONFIG_RADIO_TYPHOON_PORT 316
+      int '  Typhoon frequency set when muting the device (kHz)' CONFIG_RADIO_TYPHOON_MUTEFREQ 87500
+   fi
+   dep_tristate '  Zoltrix Radio' CONFIG_RADIO_ZOLTRIX $CONFIG_VIDEO_DEV
+   if [ "$CONFIG_RADIO_ZOLTRIX" = "y" ]; then
+      hex '    ZOLTRIX I/O port (0x20c or 0x30c)' CONFIG_RADIO_ZOLTRIX_PORT 20c
+   fi
+fi
+endmenu

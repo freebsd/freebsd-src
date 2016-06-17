@@ -1,0 +1,194 @@
+The paging design used on the x86-64 linux kernel port in 2.4.x provides:
+
+o	per process virtual address space limit of 512 Gigabytes
+o	top of userspace stack located at address 0x0000007fffffffff
+o	start of the kernel mapping =  0x0000010000000000
+o	global RAM per system 508*512GB=254 Terabytes
+o	no need of any common code change
+o       512GB of vmalloc/ioremap space
+
+Description:
+        x86-64 has a 4 level page structure, similar to ia32 PSE but with
+        some extensions. Each level consits of a 4K page with 512 64bit
+        entries. The levels are named in Linux PML4, PGD, PMD, PTE; AMD calls them
+        PML4E, PDPE, PDE, PTE respectively. For direct and kernel mapping
+        only 3 levels are used with the PMD pointing to 2MB pages.
+          
+	Userspace is able to modify and it sees only the 3rd/2nd/1st level
+	pagetables (pgd_offset() implicitly walks the 1st slot of the 4th
+	level pagetable and it returns an entry into the 3rd level pagetable).
+	This is where the per-process 512 Gigabytes limit cames from.
+
+	The common code pgd is the PDPE, the pmd is the PDE, the
+	pte is the PTE. The PML4 remains invisible to the common
+	code.
+
+	Since the per-process limit is 512 Gigabytes (due to kernel common
+	code 3 level pagetable limitation), the higher virtual address mapped
+	into userspace is 0x7fffffffff and it makes sense to use it
+	as the top of the userspace stack to allow the stack to grow as
+	much as possible.
+
+	The kernel mapping and the direct memory mapping are split. Direct memory
+	mapping starts directly after userspace after a 512GB gap, while 
+	kernel mapping is at the end of (negative) virtual address space to exploit 
+	the kernel code model. There is no support for discontig memory, this
+	implies that kernel mapping/vmalloc/ioremap/module mapping are not 
+	represented in their "real" mapping in mem_map, but only with their
+	direct mapped (but normally not used) alias.
+	
+Future:
+
+	During 2.5.x we can break the 512 Gigabytes per-process limit
+	possibly by removing from the common code any knowledge about the
+	architectural dependent physical layout of the virtual to physical
+	mapping.
+
+	Once the 512 Gigabytes limit will be removed the kernel stack will
+	be moved (most probably to virtual address 0x00007fffffffffff).
+	Nothing	will break in userspace due that move, as nothing breaks
+	in IA32 compiling the kernel with CONFIG_2G.
+
+Linus agreed on not breaking common code and to live with the 512 Gigabytes
+per-process limitation for the 2.4.x timeframe and he has given me and Andi
+some very useful hints... (thanks! :)
+
+Thanks also to H. Peter Anvin for his interesting and useful suggestions on
+the x86-64-discuss lists!
+
+Current PML4 Layout:
+	Each CPU has an PML4 page that never changes. 
+	Each slot is 512GB of virtual memory. 
+ 
+        0    user space pgd or 40MB low mapping at bootup.  Changed at context switch.
+        1    unmapped
+        2    __PAGE_OFFSET - start of direct mapping of physical memory
+        ...  direct mapping in further slots as needed.
+	509  some io mappings (others are in a memory hole below 4gb)
+        510  vmalloc and ioremap space
+	511  kernel code mapping, fixmaps and modules.  
+
+Other memory management related issues follows:
+
+PAGE_SIZE:
+
+	If somebody is wondering why these days we still have a so small
+	4k pagesize (16 or 32 kbytes would be much better for performance
+	of course), the PAGE_SIZE have to remain 4k for 32bit apps to
+	provide 100% backwards compatible IA32 API (we can't allow silent
+	fs corruption or as best a loss of coherency with the page cache
+	by allocating MAP_SHARED areas in MAP_ANONYMOUS memory with a
+	do_mmap_fake). I think it could be possible to have a dynamic page
+	size between 32bit and 64bit apps but it would need extremely
+	intrusive changes in the common code as first for page cache and
+	we sure don't want to depend on them right now even if the
+	hardware would support that.
+
+PAGETABLE SIZE:
+
+	In turn we can't afford to have pagetables larger than 4k because
+	we could not be able to allocate them due physical memory
+	fragmentation, and failing to allocate the kernel stack is a minor
+	issue compared to failing the allocation of a pagetable. If we
+	fail the allocation of a pagetable the only thing we can do is to
+	sched_yield polling the freelist (deadlock prone) or to segfault
+	the task (not even the sighandler would be sure to run).
+
+KERNEL STACK:
+
+	1st stage:
+
+	The kernel stack will be at first allocated with an order 2 allocation
+	(16k) (the utilization of the stack for a 64bit platform really
+	isn't exactly the double of a 32bit platform because the local
+	variables may not be all 64bit wide, but not much less). This will
+	make things even worse than they are right now on IA32 with
+	respect of failing fork/clone due memory fragmentation.
+
+	2nd stage:
+
+	We'll benchmark if reserving one register as task_struct
+	pointer will improve performance of the kernel (instead of
+	recalculating the task_struct pointer starting from the stack
+	pointer each time). My guess is that recalculating will be faster
+	but it worth a try.
+
+		If reserving one register for the task_struct pointer
+		will be faster we can as well split task_struct and kernel
+		stack. task_struct can be a slab allocation or a
+		PAGE_SIZEd allocation, and the kernel stack can then be
+		allocated in a order 1 allocation. Really this is risky,
+		since 8k on a 64bit platform is going to be less than 7k
+		on a 32bit platform but we could try it out. This would
+		reduce the fragmentation problem of an order of magnitude
+		making it equal to the current IA32.
+
+		We must also consider the x86-64 seems to provide in hardware a
+		per-irq stack that could allow us to remove the irq handler
+		footprint from the regular per-process-stack, so it could allow
+		us to live with a smaller kernel stack compared to the other
+		linux architectures.
+
+	3rd stage:
+
+	Before going into production if we still have the order 2
+	allocation we can add a sysctl that allows the kernel stack to be
+	allocated with vmalloc during memory fragmentation. This have to
+	remain turned off during benchmarks :) but it should be ok in real
+	life.
+
+Order of PAGE_CACHE_SIZE and other allocations:
+
+	On the long run we can increase the PAGE_CACHE_SIZE to be
+	an order 2 allocations and also the slab/buffercache etc.ec..
+	could be all done with order 2 allocations. To make the above
+	to work we should change lots of common code thus it can be done
+	only once the basic port will be in a production state. Having
+	a working PAGE_CACHE_SIZE would be a benefit also for
+	IA32 and other architectures of course.
+
+vmalloc:
+	vmalloc should be outside the first 512GB to keep that space free
+	for the user space. It needs an own pgd to work on in common code. 
+	It currently gets an own pgd in the 510th slot of the per CPU PML4.
+	
+PML4: 
+        Each CPU as an own PML4 (=top level of the 4 level page hierarchy). On 
+        context switch the first slot is rewritten to the pgd of the new process 
+        and CR3 is flushed.
+    
+Modules: 
+	Modules need to be in the same 4GB range as the core kernel. Otherwise
+	a GOT would be needed. Modules are currently at 0xffffffffa0000000
+        to 0xffffffffafffffff. This is inbetween the kernel text and the 
+        vsyscall/fixmap mappings.
+
+Vsyscalls: 
+        Vsyscalls have a reserved space near the end of user space that is 
+        acessible by user space. This address is part of the ABI and cannot be
+        changed. They have ffffffffff600000 to ffffffffffe00000 (but only 
+        some small space at the beginning is allocated and known to user space 
+        currently). See vsyscall.c for more details. 
+
+Fixmaps: 
+        Fixed mappings set up at boot. Used to access IO APIC and some other hardware. 
+        These are at the end of vsyscall space (ffffffffffe00000) downwards, 
+        but are not accessible by user space of course.
+
+Early mapping:
+        On a 120TB memory system bootmem could use upto 3.5GB
+        of memory for its bootmem bitmap. To avoid having to map 3.5GB by hand
+        for bootmem's purposes the full direct mapping is created before bootmem
+        is initialized. The direct mapping needs some memory for its page tables,
+        these are directly taken from the physical memory after the kernel. To
+        access these pages they need to be mapped, this is done by a temporary 
+        mapping with a few spare static 2MB PMD entries.
+
+Unsolved issues: 
+	 2MB pages for user space - may need to add a highmem zone for that again to 
+	 avoid fragmentation.
+  
+Andrea <andrea@suse.de> SuSE
+Andi Kleen <ak@suse.de> SuSE
+
+$Id$

@@ -1,0 +1,21 @@
+#
+# PCMCIA SCSI adapter configuration
+#
+
+mainmenu_option next_comment
+comment 'PCMCIA SCSI adapter support'
+
+bool 'PCMCIA SCSI adapter support' CONFIG_SCSI_PCMCIA
+if [ "$CONFIG_SCSI_PCMCIA" = "y" ]; then
+   dep_tristate '  Adaptec AHA152X PCMCIA support' CONFIG_PCMCIA_AHA152X m
+   dep_tristate '  Future Domain PCMCIA support' CONFIG_PCMCIA_FDOMAIN m
+   dep_tristate	'  NinjaSCSI-3 / NinjaSCSI-32Bi (16bit) PCMCIA support' CONFIG_PCMCIA_NINJA_SCSI m
+   dep_tristate '  Qlogic PCMCIA support' CONFIG_PCMCIA_QLOGIC m
+fi
+
+if [ "$CONFIG_PCMCIA_QLOGIC" = "y" -o "$CONFIG_PCMCIA_AHA152X" = "y" -o \
+     "$CONFIG_PCMCIA_FDOMAIN" = "y" -o "$CONFIG_PCMCIA_NINJA_SCSI" = "y" ]; then
+   define_bool CONFIG_PCMCIA_SCSICARD y
+fi
+
+endmenu

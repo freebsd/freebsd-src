@@ -1,0 +1,29 @@
+Remaining Problems:
+
+1. Serialization of access to variables in the llc structure
+by mac_data_indicate(), timer expired functions, and data_request() .
+There is not serialization of any kind right now.
+While testing, I have not seen any problems that stem from this lack of
+serialization, but it wories me...
+
+2. The code is currently able to handle one connection only,
+there is more work in register_cl2llc_client() to make a chain
+of llc structures and in mac_data_indicate() to find back
+the llc structure addressed by an incoming frame.
+According to IEEE, connections are identified by (remote mac + local mac
++ dsap + ssap). dsap and ssap do not seem important: existing applications
+always use the same dsap/ssap. Its probably sufficient to index on 
+the remote mac only. 
+ 
+3. There is no test to see if the transmit window is full in data_request()
+as described in the doc p73, "7.5.1 Sending I PDUs" 3th alinea.
+The pdus presented to data_request() could probably go on the 
+awaiting-transmit-queue (atq). The real difficulty is coding a test
+to see if the transmit window is used up and to send the queue
+when space in the window becomes available.
+As I have no network layer that can generate a continous flow of pdus it is
+difficult to simulate a remote busy condition and hence to test the code
+to handle it.
+ 
+4. A simple flow control algorithm, steering the size of the transmit
+window would be nice to have.

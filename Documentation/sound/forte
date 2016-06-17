@@ -1,0 +1,41 @@
+
+     forte - an OSS/Lite driver for FortéMedia FM801 sound chips
+     ===========================================================
+
+This is a driver for cards using the FortéMedia FM801 audio
+controller.  The Genius Sound Maker Live card and the onboard audio in
+HP Workstation zx2000 has been tested.
+
+Both IA-32 and IA-64 architectures are supported, but the driver
+should work on any platform.
+
+The FM801 controller supports a variety of AC'97 codecs.  This driver
+lets the OSS core code figure the codec out, and should thus support
+any codec with support in the Linux kernel.
+
+The driver supports /dev/mixer and /dev/dsp for generic OSS audio
+support.  In general it adheres to the OSS spec to the extent it can
+be done with the way the hardware works.  The FM801 controller doesn't
+support scatter-gather, so if the application sets fragment size too
+low, it puts strict requirements on interrupt processing speed.  The
+driver tries to compensate by enforcing bigger buffers than requested
+by the application if the fragment size is low.
+
+The forte driver includes both standard read()/write() and the
+unsupported mmap() interface used by Quake.  mmap() is only supported
+in playback mode.
+
+U8 and S16 audio formats are supported, mono/stereo, as well as most
+all sample rates implemented by the chip.  Default is 48 KHz, 16-bit,
+mono.
+
+MIDI, FM audio, and the gameport controller are not currently
+supported.
+
+
+The latest version of this driver can be found at:
+
+    http://mkp.net/forte/
+
+
+Martin K. Petersen, July 2002

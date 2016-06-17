@@ -1,0 +1,46 @@
+mainmenu_option next_comment
+comment 'Infrared-port device drivers'
+
+comment 'SIR device drivers'
+dep_tristate 'IrTTY (uses Linux serial driver)' CONFIG_IRTTY_SIR $CONFIG_IRDA
+dep_tristate 'IrPORT (IrDA serial driver)' CONFIG_IRPORT_SIR $CONFIG_IRDA
+
+comment 'Dongle support' 
+bool 'Serial dongle support' CONFIG_DONGLE
+if [ "$CONFIG_DONGLE" != "n" ]; then
+   dep_tristate '  ESI JetEye PC dongle' CONFIG_ESI_DONGLE $CONFIG_IRDA
+   dep_tristate '  ACTiSYS IR-220L and IR220L+ dongle' CONFIG_ACTISYS_DONGLE $CONFIG_IRDA
+   dep_tristate '  Tekram IrMate 210B dongle' CONFIG_TEKRAM_DONGLE $CONFIG_IRDA
+   dep_tristate '  Greenwich GIrBIL dongle' CONFIG_GIRBIL_DONGLE $CONFIG_IRDA
+   dep_tristate '  Parallax LiteLink dongle' CONFIG_LITELINK_DONGLE $CONFIG_IRDA
+   dep_tristate '  Microchip MCP2120' CONFIG_MCP2120_DONGLE $CONFIG_IRDA
+   dep_tristate '  Old Belkin dongle' CONFIG_OLD_BELKIN_DONGLE $CONFIG_IRDA   
+   if [ "$CONFIG_ARCH_EP7211" = "y" ]; then
+      dep_tristate '  EP7211 I/R support' CONFIG_EP7211_IR $CONFIG_IRDA
+   fi
+   if [ "$CONFIG_EXPERIMENTAL" != "n" ]; then
+      dep_tristate '  ACTiSYS IR-200L dongle (Experimental)' CONFIG_ACT200L_DONGLE $CONFIG_IRDA
+      dep_tristate '  Mobile Action MA600 dongle (Experimental)' CONFIG_MA600_DONGLE $CONFIG_IRDA
+   fi
+fi
+
+comment 'FIR device drivers'
+dep_tristate 'IrDA USB dongles (Experimental)' CONFIG_USB_IRDA $CONFIG_IRDA $CONFIG_USB $CONFIG_EXPERIMENTAL
+dep_tristate 'NSC PC87108/PC87338' CONFIG_NSC_FIR  $CONFIG_IRDA
+dep_tristate 'Winbond W83977AF (IR)' CONFIG_WINBOND_FIR $CONFIG_IRDA
+dep_tristate 'Toshiba Type-O IR Port (old driver)' CONFIG_TOSHIBA_OLD $CONFIG_IRDA
+dep_tristate 'Toshiba Type-O IR Port' CONFIG_TOSHIBA_FIR $CONFIG_IRDA
+if [ "$CONFIG_MIPS" = "y" ]; then
+   dep_tristate 'Alchemy Au1000 SIR/FIR' CONFIG_AU1000_FIR $CONFIG_IRDA
+fi
+if [ "$CONFIG_EXPERIMENTAL" != "n" ]; then
+dep_tristate 'SMC IrCC (Experimental)' CONFIG_SMC_IRCC_FIR $CONFIG_IRDA
+dep_tristate 'ALi M5123 FIR (Experimental)' CONFIG_ALI_FIR $CONFIG_IRDA
+dep_tristate 'VLSI 82C147 SIR/MIR/FIR (Experimental)' CONFIG_VLSI_FIR $CONFIG_IRDA
+dep_tristate 'VIA IrCC (Experimental)' CONFIG_VIA_IRCC_FIR $CONFIG_IRDA
+fi
+if [ "$CONFIG_ARCH_SA1100" = "y" ]; then
+   dep_tristate 'SA1100 Internal IR' CONFIG_SA1100_FIR $CONFIG_IRDA
+fi
+
+endmenu

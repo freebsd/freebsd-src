@@ -1,0 +1,90 @@
+	     LINUX DRIVER FOR SOUNDCARDS AS AX.25 MODEMS
+
+       Thomas M. Sailer, HB9JNX/AE4WA, <sailer@ife.ee.ethz.ch>
+
+This driver allows either SoundBlaster (sbc) or Windows Sound System (wss)
+compatible soundcards to be used as either 1200 baud AFSK or 9600 baud FSK
+AX.25 packet radio modems. Only half duplex operation is supported; an
+attempt to include full duplex support failed because the hardware did
+not support it (it appeared that the card only provides one DMA channel,
+although the codec chip would support two channels). The driver needs
+some processing power! A 66 MHz 486 DX2 is a minimum requirement.  Otherwise
+interactive performance of the computer may become sluggish. This driver
+does *not* support telephone modem standards, it is intended for radio
+use only.
+
+
+The Interface of the driver
+
+The driver provides kernel network drivers named sm[0-3]. sethdlc 
+from the ax25 utilities may be used to set driver states etc. Users
+of userland AX.25 stacks may use the net2kiss utility (also available
+in the ax25 utilities package) to convert packets of a network interface
+to a KISS stream on a pseudo tty. There's also a patch available from
+me for WAMPES which allows attaching a kernel network interface directly.
+
+
+Configuring the driver
+
+Some sound cards need to be initialized before they operate in either
+SoundBlaster or WSS compatibility mode. The driver does _NOT_ do this;
+you may use the standard linux sound driver to initialize the soundcard;
+compile it as a module, and do
+  insmod sound
+  rmmod sound
+The soundcard should then be initialized correctly. If this does not help,
+you'll have to write your own initialization utility.
+
+Every time the driver is inserted into the kernel, it has to know which
+modems it should access at which ports. This can be done with the setbaycom
+utility. If you are only using one modem, you can also configure the
+driver from the insmod command line (or by means of an option line in
+/etc/modules.conf).
+
+Examples:
+  insmod soundmodem mode="sbc:afsk1200" iobase=0x220 irq=5 dma=1
+  sethdlc -i sm0 -p mode "sbc:afsk1200" io 0x220 irq 5 dma 1
+
+Both lines configure the first port to drive a soundblaster card
+in 1200 baud AFSK mode.
+
+The channel access parameters can be set with sethdlc -a or kissparms.
+Note that both utilities interpret the values slightly different.
+
+
+Input and output levels
+
+It is important that the input and output levels are adjusted properly.
+There are two utilities, available in the ax25 utilities distribution,
+to facilitate this: smmixer and smdiag. smdiag allows you to display
+the input signal in an oscilloscope like display or an eye diagram.
+smmixer allows you to adjust input/output levels. See the respective
+man pages.
+
+
+Transmitter keying
+
+Since soundcards do not have a DC coupled output; PTT keying options include
+the following:
+* VOX circuitry
+* Serial port pin
+* Parallel port pin
+* MPU401 MIDI output via a retriggerable monoflop.
+Circuit schematics may be found at
+http://www.ife.ee.ethz.ch/~sailer/pcf/ptt_circ/ptt.html.
+
+
+Compatibility with the rest of the Linux kernel
+
+The sound driver and the soundcard modem driver compete for the same
+hardware resources. Of course only one driver can access a given
+interface at a time. Worse yet, the sound driver grabs the soundcard
+at startup time. Therefore the soundcard modem driver subsequently won't
+be able to access the soundcard. You might therefore find it necessary to
+unload the sound driver before using the soundcard modem driver.
+
+
+
+vy 73s de
+Tom Sailer, sailer@ife.ee.ethz.ch
+hb9jnx @ hb9w.ampr.org

@@ -1,0 +1,4 @@
+if [ "$CONFIG_NETDEVICES" != "n" ]; then
+   dep_tristate '  IrNET protocol' CONFIG_IRNET $CONFIG_IRDA $CONFIG_PPP
+fi
+

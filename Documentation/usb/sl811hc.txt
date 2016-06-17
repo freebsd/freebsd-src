@@ -1,0 +1,331 @@
+README for embedded host controller SL811 (i386)
+================================================
+
+Original drivers from Pei Liu <pbl@cypress.com> for ARM architecture only.
+Documentaion and readme for Architecture x86 (ADNP/1486) premealy.
+
+
+Kernel configuration:
+---------------------
+o Patch USB drivers into your kerneltree
+	cd Your_kernel_root
+
+	gunzip linux-2.4.20-usb-1.patch.gz
+	patch -p1 -T < linux-2.4.20-usb*.patch
+   OR
+	gunzip -dc linux-2.4.20-usb*.patch.gz | patch -p1 -T
+
+o Load default configuration for CP486SX/2 with ADNP/1486 and USB
+	arch/i386/adnp1486-usb104-SSV20030516
+
+o Run "make configure" and set / verify this entries
+    Code maturity level options  --->
+	[*] Prompt for development and/or incomplete code/drivers
+    General setup  --->
+	[*] PCI support
+	(BIOS)   PCI access mode
+	[ ] PCI device name database
+    SCSI support  --->
+	<M> SCSI support
+	<M>   SCSI disk support
+	(8) Maximum number of SCSI disks that can be loaded as modules
+	... Disable all other options ...
+	SCSI low-level drivers  ---> 
+	    ... Disable all low level drivers ...
+    Input core support  --->
+	<M> Input core support			(Need only for Keyboard or Mouse)
+	<M>   Keyboard support
+	<M>   Mouse support
+    Character devices  --->
+	[*] Virtual terminal			(Need only for Keyboard)
+    Console drivers  --->
+	[*] VGA text console			(Need only for Key/Mouse)
+	Frame-buffer support  --->		(... or use FB)
+    USB support  --->
+	<M> Support for USB
+	[ ]   USB verbose debug messages	(Optional)
+	[*]   Preliminary USB device filesystem	(Optional for debugging)
+    --- USB Host Controller Drivers
+	<M>   SL811HS Alternate (support isochronous mode)
+	...
+	<M>   SL811HS (x86, StrongARM)  support (old driver)
+	Disable all others "USB Host Controller Drivers"
+    --- USB Device Class drivers
+	<M>   USB Mass Storage support
+	... and some aditional devices ...
+	<M>   USB Printer support
+	<M>   USB HIDBP Keyboard (basic) support
+	<M>   USB HIDBP Mouse (basic) support
+	USB Serial Converter support  --->
+	    <M> USB Serial Converter support
+	    <M>   USB FTDI Single Port Serial Driver
+o We have no PCI- and no SCSI-System, but all USB-drivers need CONFIG_PCI=y.
+  USB-Floppy driver need the SCSI-Subsystem, so we must enable this global
+  and disable all low level drivers in this menu.
+--- OR ---
+  Download origanal kerneltree, and patch comlplete ADNP
+  with USB support and load configuration for this:
+	bunzip2 -c linux-2.4.20.tar.bz2 | tar xvf -
+	gunzip -c linux-2.4.20-SSV20030516.diff.gz | patch -p1 -T
+	Configuration: arch/i386/adnp1486-usb104-SSV20030516
+  
+o Compile the kernel
+  make dep
+  make ROOT_DEV=/dev/ram0 zImage
+  make modules
+  export INSTALL_MOD_PATH="`pwd`/_install" ; make modules_install
+
+
+Default device configuration hc_sl811.o for USB1/104:
+-----------------------------------------------------
+io	= 0x220
+irq	= 12
+Remember: Second Controller was handled internal with IO offset +2.
+
+
+Installation hc_sl811.o for CF1/USB:
+------------------------------------
+Compact Flash to USB adapter in io address of ide driver. It is for embedded
+deviced only.
+Please disable IDE driver in kernel configuration or do not load IDE drivers!
+Change MAX_CONTROLERS = 1 into source asm/sl811-hw.h, recompile driver!
+  First Controller only
+    insmod hc_sl811.o io=0x1F0 irq=14
+  Second Controller only
+    insmod hc_sl811.o io=0x3F6 irq=14
+
+Driver hc_sl811.o can not handle both controllers at same time.
+This driver need a address-offset of 2 between controllers.
+Please use alternate driver sl811.o instand.
+
+
+Installation Alternate driver sl811.o:
+--------------------------------------
+This driver have a better interrupt handler, but don't tested with all devices.
+
+Install both controllers on USB1-104 (default):
+    insmod sl811.o io=0x220,0x222 irq=12,12
+
+Install both controllers on CF/USB1:
+    insmod sl811.o io=0x1f0,0x3f6 irq=14,14
+
+Second controller can disable with specific IOBASE=0 for this controller.
+
+
+General about USB:
+------------------
+Please install first the driver for hardware,
+and than plugin the hardware into first USB port.
+
+If your hardware find no driver the usbcore give ub a massage for missing
+driver on conole or in file /proc/kmsg such as:
+    new USB device <NULL>-1.9, assigned address 7
+    USB device 7 (vend/prod 0x403/0x8372) is not claimed by any active drive
+In this case remove the hardware from USB port, install the driver and
+than plugin hardware again.
+A list of driver for this missing hardware can found in file
+/_install/lib/modules/2.4.20/modules.usbmap
+Search the number 8372 in this file an verify the vendor ID. So you will
+find the driver name "ftdi_sio" in this file.
+If your hardware not listen in this file. Look into source and search your
+numbers in source.
+More read file:/Documentation/usb/proc_usb_info.txt
+
+Drivers are all under contructions. So some drivers make a kernel panic. In
+this case read all about the drivers dokumentaiona and the drivers source.
+Some drivers need a other kernel driver, but not strictly checked in kenel
+configuration. Here can help the ksymsoops.
+
+
+
+Install a Floppy (NEC UF0001) or USB Stick Fujitsu/Siemens/iomega:
+------------------------------
+Copy files to target (FTP) and load all drivers.
+Load Generic USB-Handler
+	insmod usbcore.o
+Load USB-Host controller, parameters are optional (default urb_debug=0 io=220 irq=12)
+	insmod hc_sl811.o
+Run the USB-Filesystem
+	mount -t usbdevfs usbdevfs /proc/bus/usb
+Load drivers for disk storage and file systems
+	insmod scsi_mod.o
+	insmod usb-storage.o
+	insmod fat.o
+	insmod vfat.o
+	insmod sd_mod.o
+Create node for floppy
+	mknod /dev/sda b 8 0
+
+Put a disk into your floppy anth than plugin a USB-Floppy (such NEC Model UF0001)
+into first USB-Port. Some Messages will be list on console or in file /proc/kmsg.
+The disk is power on and the SCSI driver will search some partions on disk. Floppy
+have no partions, so must use the first SCSI device without a partion number for mount.
+Than mount the floppy:
+	mount /dev/sda /mnt -t vfat
+
+If you see a partions check with valid partion 1, you should mount this partion.
+Mostly Memory Sticks are formated with one partion. But if Windows format it again,
+no partions is use.
+
+You see that:
+	Partition check:
+	 sda: sda1
+Than mount with follow steps:
+	mknod /dev/sda1 b 8 1
+	mount /dev/sda1 /mnt -t vfat
+
+Create complete list of nodes for SCSI-devices:
+    # First inserted device
+    echo -n "Create /dev/sda... "
+    mknod /dev/sda b 8 0
+    for i in  1 2 3 4 5 6 7
+    do
+      echo -n "$i "
+      mknod sda$i c 8 $i
+    done
+    # Second inserted device
+    echo -n "Create /dev/sdb... "
+    mknod /dev/sdb b 8 16
+    mknod /dev/sdb1 b 8 17
+    echo " done"
+    # Set some rights
+    chown root.disk sd*
+    chmod 660 sd*
+
+
+Install a Keyboard:
+-------------------
+Copy files to target (FTP) and load all drivers.
+Load Generic USB-Handler
+	insmod usbcore.o
+Load USB-Host controller, parameters are optional (default urb_debug=0 io=220 irq=12)
+	insmod hc_sl811.o
+Run the USB-Filesystem
+	mount -t usbdevfs usbdevfs /proc/bus/usb
+Load drivers for USB-Keyboard
+	insmod input.o
+	insmod keybdev.o
+	insmod usbkbd.o
+Now you can plugin Keyboard into first USB-Port and login on first console.
+
+Something stuff:
+"Undefined Symbols handle_scancode, keyboard_tasklet, kbd_ledfunc" at install ???
+USB keyboard need PC-style keyboard driver, because the USB driver
+simulate standard AT-Keycodes. A normaly AT- or PS/2-Keyboard must not
+exist for this. The driver says normaly error (Timeout) on boot.
+You must enable CONFIG_VT in kernel konfiguration!
+Character devices  --->
+    [*] Virtual terminal
+    [ ]   Support for console on virtual terminal
+
+Read <file:Documentation/input/input.txt>
+
+
+Install a Mouse:
+----------------
+Load Generic USB-Handle
+	insmod usbcore.o
+Load USB-Host controller
+	insmod hc_sl811.o
+Run the USB-Filesystem
+	mount -t usbdevfs usbdevfs /proc/bus/usb
+Load Generic Input device
+	insmod input.o
+Load USB-Mouse driver
+	insmod input.o
+	insmod mousedev.o
+	insmod usbmouse.o
+
+Read <file:Documentation/input/input.txt>
+
+
+Install a serial adapter (Sample FTDI):
+---------------------------------------
+Load Generic USB-Handle
+	insmod usbcore.o
+Load USB-Host controller
+	insmod hc_sl811.o
+Run the USB-Filesystem
+	mount -t usbdevfs usbdevfs /proc/bus/usb
+Load Generic derial device and hardware specific device
+	insmod usbserial.o
+	insmod ftdi_sio.o
+Create node entry for this device
+	mknod /dev/ttyUSB0 c 188 0
+Than plugin the hardware into first USB port and
+use serial device on /dev/ttyUSB0, such call a login:
+	/sbin/getty 115200 ttyUSB0 vt100 &
+
+
+USB-Utils:
+----------
+- usb-0.6-7.rpm, usb-0.6-7.src.rpm
+  /usr/sbin/lsusb, /usr/share/usb.ids
+  Good tool to list devices parameters.
+  You must load usbcore.o, hc_sl811.o and proc-usb before
+  program works right (use script usb.sh).
+  More details: Install usb-0.6-7.rpm on Your desktop and use "man lsusb".
+
+
+Known Bugs:
+-----------
+
+PL2302 Profilic USB to serial converter will not work with hc_sl811.c (Bulk/Timeout).
+USB Floppy will not work with alternate driver sl811.o (Sector not found)
+
+
+CHANGELOG:
+----------
+* Fri 03 Okt 2003 hne
+- Patch for 2.4.23-pre6
+- Only low level port io in hardware include as inline functions.
+- Move hc_sl811 and sl811 into host directory.
+- sl811 for two controllers (alternate x86 only).
+
+* Mit 24 Sep 2003 hne
+- Misplaced "host/uhci.o" in Makefile.
+- Move all x86/arm arch depens from main sl811.c to sl811-hw.h.
+
+* Die 23 Sep 2003 hne
+- Put arm and x86 architectur into separate file in include directory.
+- Modifications for both controllers on CF/USB1, alternate sl811 only.
+  Parameter for CF/USB1: "io=0x1f0,0x3f6 irq=14".
+
+* Fri 19 Sep 2003 hne
+- First version for both controllers on USB1-104.
+- Alternative driver sl811.c from kernel 2.4.22 (thanks Yinah),
+  also for 2.4.20. USB Sticks works, Floppy not.
+
+* Die 02 Sep 2003 hne
+- IO range only 2 address. For CF1USB we need io addres 3F6 and 3F7,
+  but do not use 3f8 (ttyS0).
+
+* Mon 11 Aug 2003 hne
+- Comments for using iomega Memory Stick
+
+* Don 12 Jun 2003 hne
+- Added Bus-Name for Kernel 2.4.20, no pattern_test at unload driver.
+- more doc
+
+* Fri May 16 2003 hne
+- More comments, new patchfile, include usb-konfiguration as file
+
+* Wed May 14 2003 hne
+- Patch error: Old Sources was in Kerneltree!
+
+* Mon Mar 17 2003 hne
+- Copy usb SL811 from 2.4.19-rc into 2.4.20 kerneltree
+- Add SL811 in Config and Make
+
+* 18.11.2002 hne
+- hc_sl811_rh.c:
+  rh_unlink_urb: Use usb_dec_dev_use instand of usb_put_dev. Function
+  usb_put_dev isn't known in this module. Some others have a macro for
+  this. What is right usb_put_dev or usb_dec_dev_use?
+- hc_sl811.c:
+  Split into 3 files. Arcitectures store in hc_sl811-arm.c and hc_sl811-x86.c
+  Correct release_region() for both io address, so we can unload modul and
+  load again without reboot.
+  All IO access use 8 bit Data and register number (type __u8).
+  All functions static.
+  Only x86: base_addr renamed to io. data_reg_addr not used.

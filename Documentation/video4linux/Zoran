@@ -1,0 +1,517 @@
+DC10/DC10plus/LML33/Buz  Driver for Linux
+=========================================
+
+by Rainer Johanni <Rainer@Johanni.de> (for Iomega Buz Driver)
+
+Adapted for DC10/DC10plus by Wolfgang Scherr <scherr@net4you.net>
+
+Further changes for DC10/DC10plus and LML33 cards by
+Serguei Miridonov <mirsev@cicese.mx>
+
+Current homepage: http://www.cicese.mx/~mirsev/Linux/DC10plus/
+Current maintainer: Serguei Miridonov <mirsev@cicese.mx>
+
+  This is a driver for DC10plus capture cards from Pinnacle Systems
+  Inc., LML33 cards from Linux Media Labs and Buz from Iomega.
+  It also works with many old Miro DC10 cards with SAA7110A TV decoder
+  and ADV7176 TV encoder (please, make sure that your card has these
+  chips, otherwise the driver will not work).
+
+  The driver is Video4Linux compliant and contains extensions to
+  provide hardware support for full motion MJPEG compression and
+  decompression. Since this driver is a derivative from the driver for
+  Buz Iomega cards written by Dr. Rainer Johanni,
+  http://www.johanni.de/munich-vision/buz/ they both have compatible
+  API. I hope that this API will become a part of V4L standard.
+
+Copyright: This driver is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License. Please,
+check http://www.gnu.org/ for details.
+
+No warranty: This software is provided on AN "AS-IS" basis WITHOUT
+WARRANTY OF ANY KIND. YOU USE IT AT YOUR OWN RISK.
+
+
+
+CONTENTS
+~~~~~~~~
+
+Supported Formats
+Hardware compression
+Compiling and Loading the Driver
+Driver Options
+Tested applications
+Programming interface
+Features for testing
+Mailing lists
+Bug Reports
+
+
+Supported Formats
+=================
+
+Card:              DC10/DC10plus             LML33/Buz
+
+TV standard:       NTSC/PAL/SECAM(*)         NTSC/PAL
+
+Format:            Square pixel              CCIR.601
+                   640x480 NTSC              720x480 NTSC
+                   768x576 PAL/SECAM(*)      720x576 PAL
+
+Frame rates: 30 frames/60 fields per second NTSC
+             25 frames/50 fields per second PAL/SECAM(*)
+
+(*) - SECAM is supported for input only in DC10/DC10plus cards. The
+output of the recorded SECAM video stream will be in PAL standard.
+Also, please, note that monitoring of the SECAM input signal at the
+DC10/DC10plus analog output may not be available. Please, use
+appropriate application like XawTV to watch full color SECAM video at
+the card input.
+
+Hardware compression
+====================
+
+Since the card provides hardware compression, even low end machines can
+be successfully used for movie capture and playback. I'm testing the
+driver with with 2.2.16 kernel running on 233 MHz Pentium MMX with 64M
+RAM on 430TX motherboard and with 10GB IDE drive from Western Digital
+Corp.
+
+On one test run with DC10plus card I've got 0 frames dropped during
+about 20 minutes of full motion NTSC (I live in Mexico) video capture
+with fully synchronized audio. The command was
+
+  lavrec -fa -in -d1 -l -1 -q30 -w /dos/g/capture/Linux/test%03d.avi
+
+for recording, and
+
+  lavplay -n128 /dos/g/capture/Linux/test*.avi
+
+for playback. (See lavtools distribution for more information).
+
+Typical run of similar test can provide as few as 6-8 dropped frames per
+half of an hour. You mileage may vary, though.
+
+Compiling and Loading the Driver
+================================
+
+You should run a 2.2.x kernel in order to use this driver. The driver
+was also tested with 2.4-test6 kernel, so hopefully it will work
+with 2.4 kernels too.
+
+I would recommend to use only official kernels from www.kernel.org and
+its mirrors. Kernels supplied with some Linux distributions may be
+patched in some way to meet specific needs of particular Linux
+distributor and could be incompatible with this driver. As a driver
+maintainer, I am not able to follow every unofficial kernel release,
+and no unofficial kernels will be supported.
+
+Besides the files in this directory, the driver needs the 'videodev'
+and the 'i2c' module from the Linux kernel (i2c-old for 2.4 kernels).
+In order to get these modules available, enable module support for
+VIDEODEV and BTTV (which implies i2c) in your 2.2.x kernel
+configuration. You will find these devices in the menu "Character
+Devices" in your Kernel Configuration.
+
+In newer kernels (2.4) instead of BTTV you should enable support for
+Iomega Buz cards and for Zoran 36060/36067 chipset. This will include
+i2c or i2c-old modules and Buz/LML33 driver. However, instead of
+modules for Buz/LML33 driver from the kernel, use modules from _this_
+driver.
+
+To compile the driver, just type make.
+
+Before you load the driver you must have a video device at major device
+node 81. If you don't have it yet, do the following (as root!):
+
+cd /dev
+mknod video0 c 81 0
+ln -s video0 video
+
+If you have more than one card, add more nodes in /dev directory:
+
+mknod video1 c 81 1
+mknod video2 c 81 2
+...
+
+The driver should operate properly with several cards. It was tested
+with one DC10plus and one LML33 cards installed together and the driver
+correctly identifies both cards and works with both of them.
+
+Currently the driver does not support LML33 and Buz cards installed
+together in the same system. This will be fixed in future versions.
+
+Edit the 'update' script if you want to give the driver special options
+(see below for options descriptions) and then type (as root)
+
+./update <card_list>
+
+to insert all necessary modules into the kernel. <card_list> is a list of
+cards installed in your system separated by white space. Supported cards 
+are dc10, dc10plus, lml33, and buz. For example, if you have both dc10plus
+and lml33 cards, please type
+
+./update dc10 lml33
+
+If you want to make full use of the Video for Linux _uncompressed_
+grabbing facilities, you must either
+
+- obtain and install the "big_physarea patch" for your kernel and
+  set aside the necessary memory during boot time. There seem to be
+  several versions of this patch against various kernel versions
+  floating around in the net, you may obtain one e.g. from:
+  http://www.polyware.nl/~middelin/hob-v4l.html#bigphysarea
+  You also have to compile your driver AFTER installing that patch in
+  order to get it working
+
+  or
+
+- start your kernel with the mem=xxx option, where xxx is your
+  real memory minus the memory needed for the buffers.
+  For doing this add an entry in lilo.conf (if you use lilo):
+    append "mem=xxxM"
+  or add a line in your linux.par file (if you use loadlin):
+    mem=xxxM
+
+The second method is by far easier, however it is dangerous if more
+than one driver at a time has the idea to use the memory leftover by
+setting the mem=xxx parameter below the actual memory size.
+
+Read also below how to use this memory!
+
+
+  If you use only MJPEG compressed capture provided by the driver, you
+  should not need large memory areas for DMA. In this case, you will be
+  able to capture and playback movies with lavtools, however you will
+  not be able to use capture features of XawTV and other similar
+  programs (you can still watch video on the screen).
+
+
+
+Driver Options
+==============
+
+You are able to customize the behavior of the driver by giving
+it some options at start time.
+
+default_input, default_norm
+---------------------------
+
+As soon as the driver is loaded, the Buz samples video signals
+from one of its input ports and displays it on its output.
+The driver uses the Composite Input and the video norm PAL for this.
+If you want to change this default behavior, set default_input=1
+(for S-VHS input) or default_norm=1 for NTSC or default_norm=2
+for SECAM (DC10/DC10plus only).
+
+lock_norm
+---------
+
+This option was introduced to disable norm (TV standard) change by some
+not well behaving programs. For example, if you have some application
+which was written by somebody who lives in a country with PAL standard,
+this program may not have NTSC option and may always try to set the
+driver to PAL. In this case, you may load the driver with
+default_norm=1 and lock_norm=1 and the card will be forced to work in
+NTSC standard only.
+
+  Options:
+  
+  lock_norm=0   default, TV standard change is enabled;
+  lock_norm=1   TV standard change is disabled but the driver
+                will not notify the application about any error;
+  lock_norm=2   TV standard change is disabled and the driver
+                will notify the program that TV standards other
+                than set by default_norm=X option are not 
+                supported.
+
+pass_through
+------------
+
+When the driver is not in use (device is not opened by any program) and
+pass_through=0 (default) the driver will set the TV encoder to produce
+color bar signal at the output. If the driver was loaded with
+pass_through=1, the color bar will be disabled and input signal will be
+sent to the output even if the driver not in use. If you have LML33 card
+and wish the color bar signal at the output, you will also need to set
+lml33dpath=1 (please, see next section).
+
+lml33dpath
+----------
+
+LML33 card normally (lml33dpath=0) connects its output to the input
+using analog switch. Additionally, it also allows real-time monitoring
+of digitized video using TV monitor connected to the output. This
+"digital path" option can be enabled setting lml33dpath=1. In this
+mode, the input is connected only to the TV decoder, digital video data
+is sent via internal video bus to the TV encoder and resulting analog
+signal is sent to the output. This mode could be very useful for testing and
+picture adjustment while watching video at the TV monitor connected to
+the output. However, because of lack of 75 ohm terminating resistors at
+TV decoder input, the signal will suffer serious distortions.
+
+# These distortions could be eliminated by soldering two 75 ohm resistors
+# in LML33 card: in parallel to capacitors C73 and C82 (see schematics of
+# H33 board available at www.linuxmedialabs.com and www.zoran.com). Be
+# aware, however, that doing so will void card warranty and the card,
+# after this change, must always be used with loading option lml33dpath=1.
+# 
+# WARNING: I DID NOT TRY THIS CARD CHANGE YET, THIS IS JUST AN ASSUMPTION
+# AND I WILL NOT BE RESPONSIBLE FOR ANY DAMAGE ASSOCIATED WITH THIS
+# CHANGE. IF YOU WISH TO TRY IT, DO IT AT YOUR OWN RISK.
+
+Please, note that DC10/DC10plus cards always use "digital path" for
+signal monitoring. Its input and output are both properly terminated
+and the digitized signal quality does not depend on the connection of
+the output load.
+
+
+v4l_nbufs, v4l_bufsize
+----------------------
+
+In order to make to make full use of the Video for Linux uncompressed
+picture grabbing facilities of the driver (which are needed by many
+Video for Linux applications), the driver needs a set of physically
+contiguous buffers for grabbing. These parameters determine how many
+buffers of which size the driver will allocate at open (the open will
+fail if it is unable to do so!).
+
+These values do not affect the MJPEG grabbing facilities of the driver,
+they are needed for uncompressed image grabbing only!!!
+
+v4l_nbufs is the number of buffers to allocate, a value of 2 (the default)
+should be sufficient in almost all cases. Only special applications
+(streaming captures) will need more buffers and then mostly the
+MJPEG capturing features of the Buz will be more appropriate.
+So leave this parameter at it's default unless you know what you do.
+
+The things for v4l_bufsize are more complicated: v4l_bufsize is set by
+default to 128 [KB] which is the maximum amount of physically
+contiguous memory Linux is able to allocate without kernel changes.
+This is sufficient for grabbing 24 bit color images up to sizes of
+approx. 240x180 pixels (240*180*3 = 129600, 128 KB = 131072).
+
+In order to be able to capture bigger images you have either to
+- obtain and install the "big_physarea patch" and set aside
+  the necessary memory during boot time or
+- start your kernel with the mem=xxx option, where xxx is your
+  real memory minus the memory needed for the buffers.
+In that case, useful settings for v4l_bufsize are
+- 1296 [Kb] for grabbing 24 bit images of max size 768*576
+- 1728 [Kb] for 32bit images of same size (4*768*576 = 1728 Kb!)
+You may reduce these numbers accordingly if you know you are only
+grabbing 720 pixels wide images or NTSC images (max height 480).
+
+In some cases it may happen that Linux isn't even able to obtain
+the default 128 KB buffers. If you don't need uncompressed image
+grabbing at all, set v4l_bufsize to an arbitrary small value (e.g. 4)
+in order to be able to open the video device.
+
+triton, natoma
+--------------
+
+The driver tries to detect if you have a triton or natoma chipset
+in order to take special measures for these chipsets.
+If this detection fails but you are sure you have such a chipset,
+set the corresponding variable to 1.
+This is a very special option and may go away in the future.
+
+
+Tested applications
+===================
+
+  XawTV         to watch video on your computer monitor.
+
+  kwintv        the same (you might need to use option lock_norm=1).
+  
+  lavtools      To record and playback AVI or Quicktime files. Note: you
+                will need patched version, lavtools-1.2p2 to support new
+                features of this driver. Please visit driver homepage for
+                more info.
+
+  Broadcast2000 reportedly (I didn't try that) can accept movies recorded
+                by lavrec in Quicktime format for editing and then edited
+                movie can be played back by lavplay program.
+
+  MainActor 3.5x also can accept movies recorded by lavrec for editing.
+
+
+The driver can to be used by two programs at the same time
+(please, see warning note below regarding this feature). Using XawTV
+you can watch what you are recording or playing back with lavtools.
+I've tested the following sequence and it worked for me:
+
+* start xawtv and switch inputs, TV standards, and adjust video
+  (contrast, saturation, etc.). You may also run your favorite
+  audio mixer application to adjust audio inputs.
+
+* run lavrec with options: 
+
+    -i<set your input and norm here> (to choose proper input
+                                      and TV standard)
+
+    -l -1  (to use audio mixer settings)
+
+    Other lavrec option can be added at your choice.
+
+* watch the movie in xawtv window while recording it as AVI or
+  Quicktime file.
+
+* when recording is finished, run lavplay or xlav and watch your
+  clip in xawtv window.
+
+* Note: you should not quit xawtv during recording or playing back.
+  If you quit xawtv during recording or playback, another lavtools
+  program will stop and may even crash.
+
+I'm not sure that the same will work for you. You can try but,
+please, be careful.
+
+WARNING! This is an experimental feature and I'm not sure if it will be
+supported in the future. The original driver was not designed to be
+used like this and it has no protection against any interference
+between two running programs. THEREFORE, IT IS POTENTIALLY DANGEROUS
+AND SINCE THE DRIVER OPERATES IN KERNEL SPACE, USING THIS FEATURE MAY
+CRASH YOUR ENTIRE SYSTEM.
+
+
+Programming interface
+=====================
+
+This driver should be fully compliant to Video for Linux, so all
+tools working with Video for Linux should work with (hopefully)
+no problems.
+
+A description of the Video for Linux programming interface can be found at:
+http://roadrunner.swansea.linux.org.uk/v4lapi.shtml
+
+Besides the Video for Linux interface, the driver has a "proprietary"
+interface for accessing the Buz's MJPEG capture and playback facilities.
+
+For a full description of all members and ioctls see "zoran.h" (used to
+be buz.h or dc10.h in previous versions, so, please, update your
+programs accordingly).
+
+The ioctls for that interface are as follows:
+
+BUZIOC_G_PARAMS
+BUZIOC_S_PARAMS
+
+Get and set the parameters of the buz. The user should always do a
+BUZIOC_G_PARAMS (with a struct buz_params) to obtain the default
+settings, change what he likes and then make a BUZIOC_S_PARAMS call.
+
+BUZIOC_REQBUFS
+
+Before being able to capture/playback, the user has to request
+the buffers he is wanting to use. Fill the structure
+zoran_requestbuffers with the size (recommended: 256*1024) and
+the number (recommended 32 up to 256). There are no such restrictions
+as for the Video for Linux buffers, you should LEAVE SUFFICIENT
+MEMORY for your system however, else strange things will happen ....
+On return, the zoran_requestbuffers structure contains number and
+size of the actually allocated buffers.
+You should use these numbers for doing a mmap of the buffers
+into the user space.
+The BUZIOC_REQBUFS ioctl also makes it happen, that the next mmap
+maps the MJPEG buffer instead of the V4L buffers.
+
+BUZIOC_QBUF_CAPT
+BUZIOC_QBUF_PLAY
+
+Queue a buffer for capture or playback. The first call also starts
+streaming capture. When streaming capture is going on, you may
+only queue further buffers or issue syncs until streaming
+capture is switched off again with a argument of -1 to
+a BUZIOC_QBUF_CAPT/BUZIOC_QBUF_PLAY ioctl.
+
+BUZIOC_SYNC
+
+Issue this ioctl when all buffers are queued. This ioctl will
+block until the first buffer becomes free for saving its
+data to disk (after BUZIOC_QBUF_CAPT) or for reuse (after BUZIOC_QBUF_PLAY).
+
+BUZIOC_G_STATUS
+
+Get the status of the input lines (video source connected/norm).
+This ioctl may be subject to change.
+
+For programming example, please, look at lavrec.c and lavplay.c code in
+lavtools-1.2p2 package (URL: http://www.cicese.mx/~mirsev/DC10plus/)
+and the 'examples' directory in the original Buz driver distribution.
+
+Additional notes for software developers:
+
+   The driver returns maxwidth and maxheight parameters according to
+   the current TV standard (norm). Therefore, the software which
+   communicates with the driver and "asks" for these parameters should
+   first set the correct norm. Well, it seems logically correct: TV
+   standard is "more constant" for current country than geometry
+   settings of a variety of TV capture cards which may work in ITU or
+   square pixel format. Remember that users now can lock the norm to
+   avoid any ambiguity.
+
+Features for testing
+====================
+
+When loaded, the driver creates a /proc/zoranX entry for each card:
+using 'cat /proc/zoran0' for your first card you can see the contents
+of ZR36057/67 chip registers. It is also possible to modify the
+contents of some registers directly. WARNING: modified contents is not
+stored in the driver memory, if you restart any program which uses this
+driver or even change position or cause redraw of a window of xawtv or
+other program, the original registers contents will be restored by the
+driver. However, it can be used to change ZR36067 registers on the fly
+for fine tuning and then to include these changes into driver code.
+This feature is very limited and still requires some documentation.
+However, if you are impatient, look at zoran_procfs.c code and
+(IMPORTANT!) read ZR36057/67 manual. To set TopField bit, for example,
+you need to type as root:
+
+echo TopField=1 > /proc/zoranX # change X to 0 for your first card,
+                               # 1 for second and so on...
+
+If you use this feature and have found some interesting result, please, let
+me know.
+
+Mailing lists
+=============
+
+There are two mailing lists available to discuss application issues and
+suggest driver improvements:
+
+1. A mailing list buz-linux was set up to discuss Iomega Buz driver.
+Since this driver is derivative of that driver, you can also post your
+questions and suggestions there. Subscribe with a message (with
+"subscribe" in the subject) to  buz-linux-subscribe@webmages.com.
+Unsubscribe with a message (with "unsubscribe" in the subject) to
+buz-linux-unsubscribe@webmages.com. The mailing list archive can be
+found at http://buz.webmages.com/list/. 
+
+2. Video4Linux mailing list is set for more general discussions related
+to uncompressed video capture, V4L and V4L2 API, many Video4Linux
+applications, etc. to subscribe to this mailing list, please, visit
+https://listman.redhat.com/mailman/listinfo/video4linux-list
+
+Bug Reports
+===========
+
+If you have found a bug, please, do the following:
+
+1. Edit first line of zoran.c file and set DEBUGLEVEL to 3;
+2. Recompile the driver and install it running update script
+   in the driver directory;
+3. Run the application(s) which you used when you had found a
+   suspisious behavior;
+4. When application stops, look at you /var/log/messages file
+   (or whatever file you use to log kernel messages) and copy
+   all lines related to the driver activity to a separate file
+   in the same order of their appearence in your log file.
+5. Mail a message to <mirsev@cicese.mx> with a subject
+   "Linux DC10(plus)/LML33/Buz driver bug report" with a detailed
+   description of your problem, kernel version, application name and
+   attach that file with kernel messages as plain text (please, don't
+   attach it using base64, uuencode, or any other encoding).
+   
+   If you have a Buz card, please, also mail the same message to
+   Wolfgang Scherr <scherr@net4you.net>

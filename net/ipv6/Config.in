@@ -1,0 +1,10 @@
+#
+# IPv6 configuration
+# 
+
+#bool '    IPv6: flow policy support' CONFIG_RT6_POLICY
+#bool '    IPv6: firewall support' CONFIG_IPV6_FIREWALL
+
+if [ "$CONFIG_NETFILTER" != "n" ]; then
+   source net/ipv6/netfilter/Config.in
+fi

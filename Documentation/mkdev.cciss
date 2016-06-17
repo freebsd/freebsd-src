@@ -1,0 +1,40 @@
+#!/bin/sh
+# Script to create device nodes for SMART array controllers
+# Usage:
+#	mkdev.cciss [num controllers] [num log volumes] [num partitions]
+#
+# With no arguments, the script assumes 1 controller, 16 logical volumes,
+# and 16 partitions/volume, which is adequate for most configurations.
+#
+# If you had 5 controllers and were planning on no more than 4 logical volumes
+# each, using a maximum of 8 partitions per volume, you could say:
+#
+# mkdev.cciss 5 4 8
+#
+# Of course, this has no real benefit over "mkdev.cciss 5" except that it
+# doesn't create so many device nodes in /dev/cciss.
+
+NR_CTLR=${1-1}
+NR_VOL=${2-16}
+NR_PART=${3-16}
+
+if [ ! -d /dev/cciss ]; then
+	mkdir -p /dev/cciss
+fi
+
+C=0; while [ $C -lt $NR_CTLR ]; do
+	MAJ=`expr $C + 104`
+	D=0; while [ $D -lt $NR_VOL ]; do
+		P=0; while [ $P -lt $NR_PART ]; do
+			MIN=`expr $D \* 16 + $P`
+			if [ $P -eq 0 ]; then
+				mknod /dev/cciss/c${C}d${D} b $MAJ $MIN
+			else
+				mknod /dev/cciss/c${C}d${D}p${P} b $MAJ $MIN
+			fi
+			P=`expr $P + 1`
+		done
+		D=`expr $D + 1`
+	done
+	C=`expr $C + 1`
+done

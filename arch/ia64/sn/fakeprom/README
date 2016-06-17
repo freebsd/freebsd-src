@@ -1,0 +1,117 @@
+/*
+ * Copyright (c) 2002-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * 
+ * This program is free software; you can redistribute it and/or modify it 
+ * under the terms of version 2 of the GNU General Public License 
+ * as published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it would be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ * 
+ * Further, this software is distributed without any warranty that it is 
+ * free of the rightful claim of any third person regarding infringement 
+ * or the like.  Any license provided herein, whether implied or 
+ * otherwise, applies only to this software file.  Patent licenses, if 
+ * any, provided herein do not apply to combinations of this program with 
+ * other software, or any other product whatsoever.
+ * 
+ * You should have received a copy of the GNU General Public 
+ * License along with this program; if not, write the Free Software 
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+ * 
+ * Contact information:  Silicon Graphics, Inc., 1600 Amphitheatre Pkwy, 
+ * Mountain View, CA  94043, or:
+ * 
+ * http://www.sgi.com 
+ * 
+ * For further information regarding this notice, see: 
+ * 
+ * http://oss.sgi.com/projects/GenInfo/NoticeExplan
+ */
+
+This directory contains the files required to build
+the fake PROM image that is currently being used to
+boot IA64 kernels running under the SGI Medusa kernel.
+
+The FPROM currently provides the following functions:
+
+	- PAL emulation for all PAL calls we've made so far.
+	- SAL emulation for all SAL calls we've made so far.
+	- EFI emulation for all EFI calls we've made so far.
+	- builds the "ia64_bootparam" structure that is
+	  passed to the kernel from SAL. This structure 
+	  shows the cpu & memory configurations.
+	- supports medusa boottime options for changing
+	  the number of cpus present
+	- supports medusa boottime options for changing
+	  the memory configuration.
+
+
+
+At some point, this fake PROM will be replaced by the
+real PROM.
+
+
+
+
+To build a fake PROM, cd to this directory & type:
+
+	make
+
+This will (or should) build a fake PROM named "fprom".
+
+
+
+
+Use this fprom image when booting the Medusa simulator. The
+control file used to boot Medusa should include the 
+following lines:
+
+	load fprom
+	load vmlinux
+	sr pc 0x100000
+	sr g 9 <address of kernel _start function> #(currently 0xe000000000520000)
+
+NOTE: There is a script "runsim" in this directory that can be used to
+simplify setting up an environment for running under Medusa.
+
+
+
+
+The following parameters may be passed to the fake PROM to
+control the PAL/SAL/EFI parameters passed to the kernel:
+
+	GR[8] = # of cpus
+	GR[9] = address of primary entry point into the kernel
+	GR[20] = memory configuration for node 0
+	GR[21] = memory configuration for node 1
+	GR[22] = memory configuration for node 2
+	GR[23] = memory configuration for node 3
+
+
+Registers GR[20] - GR[23] contain information to specify the
+amount of memory present on nodes 0-3.
+
+  - if nothing is specified (all registers are 0), the configuration
+    defaults to 8 MB on node 0.
+
+  - a mem config entry for node N is passed in GR[20+N]
+
+  - a mem config entry consists of 8 hex digits. Each digit gives the
+    amount of physical memory available on the node starting at
+    1GB*<dn>, where dn is the digit number. The amount of memory
+    is 8MB*2**<d>. (If <d> = 0, the memory size is 0).
+
+    SN1 doesn't support dimms this small but small memory systems 
+    boot faster on Medusa.
+
+
+
+An example helps a lot. The following specifies that node 0 has
+physical memory 0 to 8MB and 1GB to 1GB+32MB, and that node 1 has
+64MB starting at address 0 of the node which is 8GB.
+
+      gr[20] = 0x21           # 0 to 8MB, 1GB to 1GB+32MB
+      gr[21] = 0x4            # 8GB to 8GB+64MB
+

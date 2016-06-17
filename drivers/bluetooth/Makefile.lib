@@ -1,0 +1,1 @@
+obj-$(CONFIG_BLUEZ_HCIBFUSB) += firmware_class.o

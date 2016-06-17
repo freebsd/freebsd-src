@@ -1,0 +1,22 @@
+Bug List
+21 January 1999
+Michael Elizabeth Chastain, <mailto:mec@shout.net>
+
+- If a variable has a value of "m" in the previous .config file,
+  and a type of bool in the Config script, then all the interpreters
+  get confused.  This happens frequently when someone changes a
+  tristate option to a bool option and people in the field have
+  .config files with a value of 'm'.  For example: CONFIG_PSMOUSE.
+
+- CONFIG_MODVERSIONS has incorrect dependencies.  If you have a
+  problem building the kernel, and you have CONFIG_MODVERSIONS turned
+  on, do a 'make dep' followed by 'make clean' before you try anything
+  else.
+
+- 'make dep' uses multistage dependencies, so the .hdepend file contains
+  'touch' commands.  As a result, building a kernel often touches files
+  in include/linux/*.h.  This messes up CVS and other systems which like
+  to rely on file dates.
+
+- 'make dep' fails for C files which include other C files, such as
+  drivers/cdrom/sbpcd2.c.

@@ -1,0 +1,92 @@
+Cisco 7000 (CLAW) support
+
+The c7000 module provides support for a channel attached Cisco 7xxx
+family router on Linux/390.  The parameters for the module are as follows:
+
+	base0=0xYYYY	This parameter defines the base unit address of the
+			channel attached router.
+
+	lhost0=s1    	This parameter defines the local host name and
+			must match the claw directive "host-name" field
+			(first string).  The default value is "UTS".
+
+	uhost0=s2	This parameter defines the unit's name and must
+			match the claw directive "device-name" field
+			(second string).  The default value is "C7011".
+
+	lappl0=s3	This parameter defines the local application name
+			and must match the claw directive "host-app" field
+			(third string).  The default value is "TCPIP".
+
+	uappl0=s4	This parameter defines the unit application name and
+			must match the claw directive "device-app" field
+			(fourth string).  The default value is "TCPIP".
+
+	dbg=x		This parameter defines the message level.  Higher
+			numbers will result in additional diagnostic messages.
+			The default value is 0.
+
+	noauto=z	This parameter controls the automatic detection of
+			the unit base address (base0).  When set to a non
+			zero value, automatic detection of unit base addresses
+			is not done.  The default value is 0.
+
+Note that the values coded in strings s1 - s4 are case sensitive.
+
+For example, assume that the following claw directive has been coded in
+the Cisco router:
+
+claw 0100 6C 129.212.61.101 UTS C7011 TCPIP TCPIP
+
+The module can be loaded using the following command:
+
+insmod c7000 base0=0x336c lhost0="UTS" uhost0="C7011" lappl0="TCPIP" \
+uappl0="TCPIP" dbg=0 noauto=1
+
+Additional interfaces can be defined via parameters base1 - base3,
+lhost1 - lhost3, lappl1 - lappl3, uhost1 - uhost3, uappl1 - uappl3.
+The interfaces are named "ci0" - "ci3".  After loading the module, the
+ifconfig command is used to configure the interface.  For example:
+
+ifconfig ci0 129.212.61.101
+ifconfig ci0 netmask 255.255.255.0 broadcast 129.212.61.0
+ifconfig ci0
+
+The route command is used to specify the router as the default route:
+
+route add default gw 129.212.61.200
+
+The interface can be automatically activated at boot time by following this
+procedure:
+
+1) Add the following two lines to file "/etc/conf.modules":
+
+alias ci0 c7000
+options c7000 base0=0xYYYY lhost0=s1 uhost0=s2 lappl0=s3 uappl0=s4
+
+2) Edit file "/etc/sysconfig/network" as follows:
+
+NETWORKING=yes
+FORWARD_IPV4=no
+HOSTNAME=your-hostname
+GATEWAYDEV=ci0
+GATEWAY=your-gateway-ip-address
+
+Substitute your own host name and gateway IP address.
+
+3) Create a file in directory "/etc/sysconfig/network-scripts" called
+"ifcfg-ci0".  The contents are as follows:
+
+DEVICE=ci0
+USERCTL=no
+ONBOOT=yes
+BOOTPROTO=none
+BROADCAST=your-broadcast-ip-address
+NETWORK=your-network-address
+NETMASK=your-netmask
+IPADDR=your-ip-address
+
+Substitute your IP address, broadcast IP address, network address and
+network mask.
+
+4) chmod +x ifcfg-ci0

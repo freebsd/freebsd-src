@@ -1,0 +1,33 @@
+#
+# Bluetooth HCI device drivers configuration
+#
+
+mainmenu_option next_comment
+comment 'Bluetooth device drivers'
+
+dep_tristate 'HCI USB driver' CONFIG_BLUEZ_HCIUSB $CONFIG_BLUEZ $CONFIG_USB
+if [ "$CONFIG_BLUEZ_HCIUSB" != "n" ]; then
+   bool '  SCO (voice) support'  CONFIG_BLUEZ_HCIUSB_SCO
+fi
+
+dep_tristate 'HCI UART driver' CONFIG_BLUEZ_HCIUART $CONFIG_BLUEZ
+if [ "$CONFIG_BLUEZ_HCIUART" != "n" ]; then
+   bool '  UART (H4) protocol support' CONFIG_BLUEZ_HCIUART_H4
+   bool '  BCSP protocol support' CONFIG_BLUEZ_HCIUART_BCSP
+   dep_bool '  Transmit CRC with every BCSP packet' CONFIG_BLUEZ_HCIUART_BCSP_TXCRC $CONFIG_BLUEZ_HCIUART_BCSP
+fi
+
+dep_tristate 'HCI BlueFRITZ! USB driver' CONFIG_BLUEZ_HCIBFUSB $CONFIG_BLUEZ $CONFIG_USB
+
+dep_tristate 'HCI DTL1 (PC Card) driver' CONFIG_BLUEZ_HCIDTL1 $CONFIG_PCMCIA $CONFIG_BLUEZ
+
+dep_tristate 'HCI BT3C (PC Card) driver' CONFIG_BLUEZ_HCIBT3C $CONFIG_PCMCIA $CONFIG_BLUEZ
+
+dep_tristate 'HCI BlueCard (PC Card) driver' CONFIG_BLUEZ_HCIBLUECARD $CONFIG_PCMCIA $CONFIG_BLUEZ
+
+dep_tristate 'HCI UART (PC Card) driver' CONFIG_BLUEZ_HCIBTUART $CONFIG_PCMCIA $CONFIG_BLUEZ
+
+dep_tristate 'HCI VHCI (Virtual HCI device) driver' CONFIG_BLUEZ_HCIVHCI $CONFIG_BLUEZ
+
+endmenu
+

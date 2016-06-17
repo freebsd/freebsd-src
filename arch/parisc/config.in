@@ -1,0 +1,206 @@
+#
+# For a description of the syntax of this configuration file,
+# see the Configure script.
+#
+
+mainmenu_name "Linux Kernel Configuration"
+
+define_bool CONFIG_PARISC y
+define_bool CONFIG_UID16 n
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK y
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM n
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ] ; then
+  bool 'Set version information on all module symbols' CONFIG_MODVERSIONS
+  bool 'Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Processor type'
+choice 'Processor family' \
+	"PA7000/PA7100		CONFIG_PA7100 \
+	 PA7200			CONFIG_PA7200 \
+	 PA7100LC/PA7300LC	CONFIG_PA7100LC \
+	 PA8x00			CONFIG_PA8X00" PA7000
+
+if [ "$CONFIG_PA8X00" = "y" ] ; then
+   define_bool CONFIG_PA20 y
+   bool '64-bit kernel' CONFIG_PARISC64
+   dep_bool '32-bit PDC' CONFIG_PDC_NARROW $CONFIG_PARISC64
+else
+   define_bool CONFIG_PA11 y
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'General options'
+
+bool 'Symmetric multi-processing support' CONFIG_SMP
+if [ "$CONFIG_SMP" = "y" ]; then
+   int  'Maximum number of CPUs (2-32)' CONFIG_NR_CPUS 32
+fi
+
+bool 'Chassis LCD and LED support' CONFIG_CHASSIS_LCD_LED
+
+bool 'Kernel Debugger support' CONFIG_KWDB
+# define_bool CONFIG_KWDB n
+
+bool 'U2/Uturn I/O MMU' CONFIG_IOMMU_CCIO
+bool 'VSC/GSC/HSC bus support' CONFIG_GSC
+dep_bool '  Lasi I/O support' CONFIG_GSC_LASI $CONFIG_GSC
+dep_bool '  Wax I/O support' CONFIG_GSC_WAX $CONFIG_GSC
+
+dep_bool 'EISA support' CONFIG_EISA $CONFIG_GSC
+define_bool CONFIG_ISA $CONFIG_EISA
+bool 'PCI support' CONFIG_PCI
+
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_bool '  GSCtoPCI/Dino PCI support' CONFIG_GSC_DINO $CONFIG_GSC
+   bool '  LBA/Elroy PCI support' CONFIG_PCI_LBA
+   define_bool CONFIG_IOSAPIC $CONFIG_PCI_LBA
+   define_bool CONFIG_IOMMU_SBA $CONFIG_PCI_LBA
+
+#   bool '  EPIC PCI support' CONFIG_PCI_EPIC n
+   bool '  SuperIO support' CONFIG_SUPERIO
+fi 
+
+source drivers/pci/Config.in
+
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+
+bool 'Support for hot-pluggable devices' CONFIG_HOTPLUG
+
+bool 'Networking support' CONFIG_NET
+
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+define_bool CONFIG_KCORE_ELF y
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for SOM binaries' CONFIG_BINFMT_SOM
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+
+# anyone want to get ACPI working on PA/RISC?
+define_bool CONFIG_PM n
+
+endmenu
+
+source drivers/parport/Config.in
+
+source drivers/block/Config.in
+
+source drivers/md/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   source net/Config.in
+fi
+
+if [ "$CONFIG_SUPERIO" = "y" ]; then
+    mainmenu_option next_comment
+    comment 'ATA/IDE/MFM/RLL support'
+
+    tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+    if [ "$CONFIG_IDE" != "n" ]; then
+      source drivers/ide/Config.in
+    else
+      define_bool CONFIG_BLK_DEV_HD n
+    fi
+    endmenu
+fi
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+tristate 'SCSI support' CONFIG_SCSI
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+   source drivers/scsi/Config.in
+fi
+endmenu
+
+if [ "$CONFIG_NET" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Network device support'
+
+   bool 'Network device support' CONFIG_NETDEVICES
+
+   if [ "$CONFIG_NETDEVICES" = "y" ]; then
+      source drivers/net/Config.in
+      if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+         source drivers/atm/Config.in
+      fi
+   fi
+   endmenu
+fi
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source drivers/input/Config.in
+source drivers/char/Config.in
+source drivers/hil/Config.in
+
+source drivers/media/Config.in
+
+source fs/Config.in
+
+if [ "$CONFIG_VT" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Console drivers'
+   source drivers/video/Config.in
+
+   bool 'STI console' CONFIG_STI_CONSOLE
+   if [ "$CONFIG_GSC_PS2" = "y" ]; then
+      define_bool CONFIG_DUMMY_CONSOLE y
+   fi
+   if [ "$CONFIG_STI_CONSOLE" = "y" ]; then
+      define_bool CONFIG_DUMMY_CONSOLE y
+      define_bool CONFIG_FBCON y
+      define_bool CONFIG_FBCON_FONT y
+#      define_bool CONFIG_FBCON_FONTWIDTH8_ONLY n
+      define_bool CONFIG_FONT_8x8 y
+      define_bool CONFIG_FONT_8x16 y
+      define_bool CONFIG_FONT_6x11 y
+      define_bool CONFIG_FONT_SUN12x22 y
+   fi
+   endmenu
+fi
+
+mainmenu_option next_comment
+comment 'Sound'
+
+tristate 'Sound card support' CONFIG_SOUND
+if [ "$CONFIG_SOUND" != "n" ]; then
+   source drivers/sound/Config.in
+fi
+endmenu
+
+if [ "$CONFIG_SUPERIO" = "y" ]; then
+    source drivers/usb/Config.in
+fi
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+#bool 'Debug kmalloc/kfree' CONFIG_DEBUG_MALLOC
+bool 'Magic SysRq key' CONFIG_MAGIC_SYSRQ
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source crypto/Config.in
+source lib/Config.in

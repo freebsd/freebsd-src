@@ -1,0 +1,55 @@
+AACRAID Driver for Linux (take two)
+
+Introduction
+-------------------------
+The aacraid driver adds support for Adaptec (http://www.adaptec.com)
+RAID controllers. This is a major rewrite from the original 
+Adaptec supplied driver. It has signficantly cleaned up both the code
+and the running binary size (the module is less than half the size of
+the original).
+
+Supported Cards/Chipsets
+-------------------------
+	Dell Computer Corporation PERC 2 Quad Channel
+	Dell Computer Corporation PERC 2/Si
+	Dell Computer Corporation PERC 3/Si
+	Dell Computer Corporation PERC 3/Di
+	HP NetRAID-4M
+	ADAPTEC 2120S
+	ADAPTEC 2200S
+	ADAPTEC 5400S
+	Legend S220
+	Legend S230
+	Adaptec 3230S
+	Adaptec 3240S
+	ASR-2020S PCI-X
+	AAR-2410SA SATA
+
+People
+-------------------------
+Alan Cox <alan@redhat.com>
+Christoph Hellwig <hch@infradead.org>	(small cleanups/fixes)
+Matt Domsch <matt_domsch@dell.com>	(revision ioctl, adapter messages)
+Deanna Bonds <deanna_bonds@adaptec.com> (non-DASD support, PAE fibs and 64 bit, added new adaptec controllers
+					 added new ioctls, changed scsi interface to use new error handler,
+					 increased the number of fibs and outstanding commands to a container)
+
+					(fixed 64bit and 64G memory model, changed confusing naming convention
+					 where fibs that go to the hardware are consistently called hw_fibs and
+					 not just fibs like the name of the driver tracking structure)
+Mark Salyzyn <Mark_Salyzyn@adaptec.com> Fixed panic issues and added some new product ids for upcoming hbas.
+
+Original Driver
+-------------------------
+Adaptec Unix OEM Product Group
+
+Mailing List
+-------------------------
+linux-aacraid-devel@dell.com (Interested parties troll here)
+http://mbserver.adaptec.com/ (Currently more Community Support than Devel Support)
+Also note this is very different to Brian's original driver
+so don't expect him to support it.
+Adaptec does support this driver.  Contact either tech support or Mark Salyzyn.
+
+Original by Brian Boerner February 2001
+Rewritten by Alan Cox, November 2001

@@ -1,0 +1,64 @@
+#
+# Native language support configuration
+#
+
+# smb wants NLS
+if [ "$CONFIG_SMB_FS" = "m" -o "$CONFIG_SMB_FS" = "y" ]; then
+  define_bool CONFIG_SMB_NLS y
+else
+  define_bool CONFIG_SMB_NLS n
+fi
+
+# msdos and Joliet want NLS
+if [ "$CONFIG_JOLIET" = "y" -o "$CONFIG_FAT_FS" != "n" \
+	-o "$CONFIG_NTFS_FS" != "n" -o "$CONFIG_NCPFS_NLS" = "y" \
+	-o "$CONFIG_SMB_NLS" = "y" -o "$CONFIG_JFS_FS" != "n" \
+	-o "$CONFIG_BEFS_FS" != "n" -o "$CONFIG_HFSPLUS_FS" != "n" ]; then
+  define_bool CONFIG_NLS y
+else
+  define_bool CONFIG_NLS n
+fi
+
+if [ "$CONFIG_NLS" = "y" ]; then
+  mainmenu_option next_comment
+  comment 'Native Language Support'
+  string 'Default NLS Option' CONFIG_NLS_DEFAULT "iso8859-1"
+  tristate 'Codepage 437 (United States, Canada)'  CONFIG_NLS_CODEPAGE_437
+  tristate 'Codepage 737 (Greek)'                  CONFIG_NLS_CODEPAGE_737
+  tristate 'Codepage 775 (Baltic Rim)'             CONFIG_NLS_CODEPAGE_775
+  tristate 'Codepage 850 (Europe)'                 CONFIG_NLS_CODEPAGE_850
+  tristate 'Codepage 852 (Central/Eastern Europe)' CONFIG_NLS_CODEPAGE_852
+  tristate 'Codepage 855 (Cyrillic)'               CONFIG_NLS_CODEPAGE_855
+  tristate 'Codepage 857 (Turkish)'                CONFIG_NLS_CODEPAGE_857
+  tristate 'Codepage 860 (Portuguese)'             CONFIG_NLS_CODEPAGE_860
+  tristate 'Codepage 861 (Icelandic)'              CONFIG_NLS_CODEPAGE_861
+  tristate 'Codepage 862 (Hebrew)'                 CONFIG_NLS_CODEPAGE_862
+  tristate 'Codepage 863 (Canadian French)'        CONFIG_NLS_CODEPAGE_863
+  tristate 'Codepage 864 (Arabic)'                 CONFIG_NLS_CODEPAGE_864
+  tristate 'Codepage 865 (Norwegian, Danish)'      CONFIG_NLS_CODEPAGE_865
+  tristate 'Codepage 866 (Cyrillic/Russian)'       CONFIG_NLS_CODEPAGE_866
+  tristate 'Codepage 869 (Greek)'                  CONFIG_NLS_CODEPAGE_869
+  tristate 'Simplified Chinese charset (CP936, GB2312)' CONFIG_NLS_CODEPAGE_936
+  tristate 'Traditional Chinese charset (Big5)'    CONFIG_NLS_CODEPAGE_950
+  tristate 'Japanese charsets (Shift-JIS, EUC-JP)' CONFIG_NLS_CODEPAGE_932
+  tristate 'Korean charset (CP949, EUC-KR)'        CONFIG_NLS_CODEPAGE_949
+  tristate 'Thai charset (CP874, TIS-620)'         CONFIG_NLS_CODEPAGE_874
+  tristate 'Hebrew charsets (ISO-8859-8, CP1255)'  CONFIG_NLS_ISO8859_8
+  tristate 'Windows CP1250 (Slavic/Central European Languages)' CONFIG_NLS_CODEPAGE_1250
+  tristate 'Windows CP1251 (Bulgarian, Belarusian)' CONFIG_NLS_CODEPAGE_1251
+  tristate 'NLS ISO 8859-1  (Latin 1; Western European Languages)' CONFIG_NLS_ISO8859_1
+  tristate 'NLS ISO 8859-2  (Latin 2; Slavic/Central European Languages)' CONFIG_NLS_ISO8859_2
+  tristate 'NLS ISO 8859-3  (Latin 3; Esperanto, Galician, Maltese, Turkish)' CONFIG_NLS_ISO8859_3
+  tristate 'NLS ISO 8859-4  (Latin 4; old Baltic charset)' CONFIG_NLS_ISO8859_4
+  tristate 'NLS ISO 8859-5  (Cyrillic)'             CONFIG_NLS_ISO8859_5
+  tristate 'NLS ISO 8859-6  (Arabic)'               CONFIG_NLS_ISO8859_6
+  tristate 'NLS ISO 8859-7  (Modern Greek)'         CONFIG_NLS_ISO8859_7
+  tristate 'NLS ISO 8859-9  (Latin 5; Turkish)'     CONFIG_NLS_ISO8859_9
+  tristate 'NLS ISO 8859-13 (Latin 7; Baltic)'      CONFIG_NLS_ISO8859_13
+  tristate 'NLS ISO 8859-14 (Latin 8; Celtic)'      CONFIG_NLS_ISO8859_14
+  tristate 'NLS ISO 8859-15 (Latin 9; Western European Languages with Euro)' CONFIG_NLS_ISO8859_15
+  tristate 'NLS KOI8-R (Russian)'                   CONFIG_NLS_KOI8_R
+  tristate 'NLS KOI8-U/RU (Ukrainian, Belarusian)' CONFIG_NLS_KOI8_U
+  tristate 'NLS UTF8'                               CONFIG_NLS_UTF8
+  endmenu
+fi

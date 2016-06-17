@@ -1,0 +1,68 @@
+Some notes on IODC, its general brokenness, and how to work around it.
+
+Short Version
+
+IODC is HP's pre-PCI standard for device identification (a la PCI vendor,
+device IDs), detection, configuration, initialization and so on.
+
+It also can provide firmware function to do the actual IO, which are slow,
+not really defined for runtime usage and generally not desirable.  (There
+are other firmware standards, such as STI, to do real IO).
+
+Usually, there are two parts to IODC.  The actual ROMs, which are laid out,
+detected aso in a bus-specific manner (IO_DC_ADDRESS / IO_DC_DATA on
+GSC/Runway, PCI spec - compliant ROMs for PCI, God-only-knows how on EISA),
+and the slightly cooked data read by PDC_IODC.
+
+The ROM layout is generally icky (only one byte out of every 4-byte-word
+might be valid, and many devices don't implement required options), so
+using PDC_IODC is highly recommended.  (In fact, you should use the device
+lists set up by the kernel proper instead of calling PDC_IODC yourself).
+
+Now, let's have a look at what the cooked ROM looks like (see iodc.pdf for
+the details, this is the simplified version).
+
+Basically, the first 8 bytes of IODC contain two 32-bit ids called HVERSION
+and SVERSION.  Those are further split up into bit fields, and
+unfortunately just ignoring this split up isn't an option.
+
+SVERSION consists of a 4-bit revision field, a 20-bit model field and a
+8-bit opt field.  Now, forget the revision and opt fields exist.  Basically,
+the model field is equivalent to a PCI device id (there is no vendor id.
+this is proprietary hardware we're talking about).  That is, all your
+driver cares for, in 90 % of the cases, is to find all devices that match
+the model field.
+
+The rev field is - you guessed it - roughly equivalent to the revision
+byte for PCI, with the exception that higher revisions should be strict
+supersets of lower revisions.
+
+The last byte of HVERSION, "type", and the last byte of SVERSION, "opt",
+belong together;  type gives a very rough indication of what the device
+is supposed to do, and opt contains some type-specific information. (For
+example, the "bus converter" (ie bus bridge) type encodes the kind of
+bus behind the bridge in the opt field.
+
+The rest of HVERSION contains, in most cases, a number identifying the
+machine the chip was used in, or a revision indicator that just fixed
+bugs and didn't add any features (or was done in a shrinked process or
+whatever).
+
+So, here's the interface you actually should use to find your devices:
+
+
+/* Find a device, matching the model field of sversion only (from=NULL
+ * for the first call */
+struct iodc_dev *iodc_find_device(u32 sversion, struct iodc_dev *from);
+
+
+Here's a function you should use if you have special requirements, such
+as finding devices by type rather than by model.  Generally, if you're
+using this, you should be me).
+
+/* Find a device, masking out bits as specified */
+struct iodc_dev *iodc_find_device_mask(u32 hversion, u32 sversion,
+	u32 hversion_mask, u32 sversion_mask, struct iodc_dev *from);
+
+
+	Philipp Rumpf <prumpf@tux.org>

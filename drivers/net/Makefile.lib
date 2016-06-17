@@ -1,0 +1,77 @@
+# These drivers all require crc32.o
+obj-$(CONFIG_8139CP)		+= crc32.o
+obj-$(CONFIG_8139TOO)		+= crc32.o
+obj-$(CONFIG_A2065)		+= crc32.o
+obj-$(CONFIG_ADAPTEC_STARFIRE)	+= crc32.o
+obj-$(CONFIG_AMD8111_ETH)	+= crc32.o
+obj-$(CONFIG_ARM_AM79C961A)	+= crc32.o
+obj-$(CONFIG_AT1700)		+= crc32.o
+obj-$(CONFIG_ATP)		+= crc32.o
+obj-$(CONFIG_BMAC)		+= crc32.o
+obj-$(CONFIG_DE4X5)		+= crc32.o
+obj-$(CONFIG_DECLANCE)		+= crc32.o
+obj-$(CONFIG_DEPCA)		+= crc32.o
+obj-$(CONFIG_DL2K)		+= crc32.o
+obj-$(CONFIG_DM9102)		+= crc32.o
+obj-$(CONFIG_EPIC100)		+= crc32.o
+obj-$(CONFIG_EWRK3)		+= crc32.o
+obj-$(CONFIG_FEALNX)		+= crc32.o
+obj-$(CONFIG_GMAC)		+= crc32.o
+obj-$(CONFIG_HAPPYMEAL)		+= crc32.o
+obj-$(CONFIG_MACE)		+= crc32.o
+obj-$(CONFIG_MACMACE)		+= crc32.o
+obj-$(CONFIG_PCNET32)		+= crc32.o
+obj-$(CONFIG_R8169)		+= crc32.o
+obj-$(CONFIG_SGI_IOC3_ETH)	+= crc32.o
+obj-$(CONFIG_SIS900)		+= crc32.o
+obj-$(CONFIG_SMC9194)		+= crc32.o
+obj-$(CONFIG_SUNBMAC)		+= crc32.o
+obj-$(CONFIG_SUNDANCE)		+= crc32.o
+obj-$(CONFIG_SUNGEM)		+= crc32.o
+obj-$(CONFIG_SUNLANCE)		+= crc32.o
+obj-$(CONFIG_SUNQE)		+= crc32.o
+obj-$(CONFIG_TYPHOON)		+= crc32.o
+obj-$(CONFIG_VIA_RHINE)		+= crc32.o
+obj-$(CONFIG_WINBOND_840)	+= crc32.o
+obj-$(CONFIG_YELLOWFIN)		+= crc32.o
+obj-$(CONFIG_NATSEMI)		+= crc32.o
+
+# These rely on drivers/net/7990.o which requires crc32.o
+obj-$(CONFIG_HPLANCE)		+= crc32.o	
+obj-$(CONFIG_MVME147_NET)	+= crc32.o	
+
+# These rely on drivers/net/8390.o which requires crc32.o
+obj-$(CONFIG_OAKNET)		+= crc32.o
+obj-$(CONFIG_NE2K_PCI)		+= crc32.o
+obj-$(CONFIG_STNIC)		+= crc32.o
+obj-$(CONFIG_MAC8390)		+= crc32.o
+obj-$(CONFIG_APNE)		+= crc32.o
+obj-$(CONFIG_PCMCIA_PCNET)	+= crc32.o
+obj-$(CONFIG_ARM_ETHERH)	+= crc32.o
+obj-$(CONFIG_WD80x3)		+= crc32.o
+obj-$(CONFIG_EL2)		+= crc32.o
+obj-$(CONFIG_NE2000)		+= crc32.o
+obj-$(CONFIG_NE2_MCA)		+= crc32.o
+obj-$(CONFIG_HPLAN)		+= crc32.o
+obj-$(CONFIG_HPLAN_PLUS)	+= crc32.o
+obj-$(CONFIG_ULTRA)		+= crc32.o
+obj-$(CONFIG_ULTRAMCA)		+= crc32.o
+obj-$(CONFIG_ULTRA32)		+= crc32.o
+obj-$(CONFIG_E2100)		+= crc32.o
+obj-$(CONFIG_ES3210)		+= crc32.o
+obj-$(CONFIG_LNE390)		+= crc32.o
+obj-$(CONFIG_NE3210)		+= crc32.o
+obj-$(CONFIG_AC3200)		+= crc32.o
+obj-$(CONFIG_ARIADNE2)		+= crc32.o
+obj-$(CONFIG_HYDRA)		+= crc32.o
+
+# drivers/net/pcmcia
+obj-$(CONFIG_PCMCIA_FMVJ18X)	+= crc32.o
+obj-$(CONFIG_PCMCIA_SMC91C92)	+= crc32.o
+obj-$(CONFIG_PCMCIA_XIRTULIP)	+= crc32.o
+
+# drivers/net/tulip
+obj-$(CONFIG_TULIP)		+= crc32.o
+
+# drivers/net/ibm_emac
+obj-$(CONFIG_OCP_NET)		+= crc32.o

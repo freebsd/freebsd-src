@@ -1,5 +1,0 @@
-# $FreeBSD$
-
-.if ${MK_HYPERV} != "no"
-SUBDIR+=	hyperv
-.endif

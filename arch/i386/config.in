@@ -1,0 +1,489 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+mainmenu_name "Linux Kernel Configuration"
+
+define_bool CONFIG_X86 y
+define_bool CONFIG_SBUS n
+
+define_bool CONFIG_UID16 y
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+   bool '  Set version information on all module symbols' CONFIG_MODVERSIONS
+   bool '  Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Processor type and features'
+choice 'Processor family' \
+	"386					CONFIG_M386 \
+	 486					CONFIG_M486 \
+	 586/K5/5x86/6x86/6x86MX		CONFIG_M586 \
+	 Pentium-Classic			CONFIG_M586TSC \
+	 Pentium-MMX				CONFIG_M586MMX \
+	 Pentium-Pro/Celeron/Pentium-II		CONFIG_M686 \
+	 Pentium-III/Celeron(Coppermine)	CONFIG_MPENTIUMIII \
+	 Pentium-4				CONFIG_MPENTIUM4 \
+	 K6/K6-II/K6-III			CONFIG_MK6 \
+	 Athlon/Duron/K7			CONFIG_MK7 \
+	 Opteron/Athlon64/Hammer/K8		CONFIG_MK8 \
+	 Elan					CONFIG_MELAN \
+	 Crusoe					CONFIG_MCRUSOE \
+	 Winchip-C6				CONFIG_MWINCHIPC6 \
+	 Winchip-2				CONFIG_MWINCHIP2 \
+	 Winchip-2A/Winchip-3			CONFIG_MWINCHIP3D \
+	 CyrixIII/VIA-C3			CONFIG_MCYRIXIII \
+	 VIA-C3-2				CONFIG_MVIAC3_2" Pentium-Pro
+#
+# Define implied options from the CPU selection here
+#
+
+if [ "$CONFIG_M386" = "y" ]; then
+   define_bool CONFIG_X86_CMPXCHG n
+   define_bool CONFIG_X86_XADD n
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 4
+   define_bool CONFIG_RWSEM_GENERIC_SPINLOCK y
+   define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM n
+   define_bool CONFIG_X86_PPRO_FENCE y
+   define_bool CONFIG_X86_F00F_WORKS_OK n
+else
+   define_bool CONFIG_X86_WP_WORKS_OK y
+   define_bool CONFIG_X86_INVLPG y
+   define_bool CONFIG_X86_CMPXCHG y
+   define_bool CONFIG_X86_XADD y
+   define_bool CONFIG_X86_BSWAP y
+   define_bool CONFIG_X86_POPAD_OK y
+   define_bool CONFIG_RWSEM_GENERIC_SPINLOCK n
+   define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM y
+fi
+if [ "$CONFIG_M486" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 4
+   define_bool CONFIG_X86_USE_STRING_486 y
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_PPRO_FENCE y
+   define_bool CONFIG_X86_F00F_WORKS_OK n
+fi
+if [ "$CONFIG_M586" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_USE_STRING_486 y
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_PPRO_FENCE y
+   define_bool CONFIG_X86_F00F_WORKS_OK n
+fi
+if [ "$CONFIG_M586TSC" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_USE_STRING_486 y
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_PPRO_FENCE y
+   define_bool CONFIG_X86_F00F_WORKS_OK n
+fi
+if [ "$CONFIG_M586MMX" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_USE_STRING_486 y
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_GOOD_APIC y
+   define_bool CONFIG_X86_PPRO_FENCE y
+   define_bool CONFIG_X86_F00F_WORKS_OK n
+fi
+if [ "$CONFIG_M686" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_GOOD_APIC y
+   bool 'PGE extensions (not for Cyrix/Transmeta)' CONFIG_X86_PGE
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_PPRO_FENCE y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MPENTIUMIII" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_GOOD_APIC y
+   define_bool CONFIG_X86_PGE y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MPENTIUM4" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 7
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_GOOD_APIC y
+   define_bool CONFIG_X86_PGE y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MK6" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+fi
+if [ "$CONFIG_MK8" = "y" ]; then
+   # for now. may later want to add SSE support and optimized
+   # functions
+   define_bool CONFIG_MK7 y
+fi
+if [ "$CONFIG_MK7" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 6
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_GOOD_APIC y
+   define_bool CONFIG_X86_USE_3DNOW y
+   define_bool CONFIG_X86_PGE y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MELAN" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 4
+   define_bool CONFIG_X86_USE_STRING_486 y
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MCYRIXIII" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_USE_3DNOW y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MVIAC3_2" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MCRUSOE" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MWINCHIPC6" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_OOSTORE y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MWINCHIP2" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_OOSTORE y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+if [ "$CONFIG_MWINCHIP3D" = "y" ]; then
+   define_int  CONFIG_X86_L1_CACHE_SHIFT 5
+   define_bool CONFIG_X86_ALIGNMENT_16 y
+   define_bool CONFIG_X86_HAS_TSC y
+   define_bool CONFIG_X86_USE_PPRO_CHECKSUM y
+   define_bool CONFIG_X86_OOSTORE y
+   define_bool CONFIG_X86_F00F_WORKS_OK y
+fi
+
+bool 'Machine Check Exception' CONFIG_X86_MCE
+
+tristate 'Toshiba Laptop support' CONFIG_TOSHIBA
+tristate 'Dell laptop support' CONFIG_I8K
+
+tristate '/dev/cpu/microcode - Intel IA32 CPU microcode support' CONFIG_MICROCODE
+tristate '/dev/cpu/*/msr - Model-specific register support' CONFIG_X86_MSR
+tristate '/dev/cpu/*/cpuid - CPU information support' CONFIG_X86_CPUID
+
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   tristate 'BIOS Enhanced Disk Drive calls determine boot disk (EXPERIMENTAL)' CONFIG_EDD
+fi
+
+choice 'High Memory Support' \
+	"off    CONFIG_NOHIGHMEM \
+	 4GB    CONFIG_HIGHMEM4G \
+	 64GB   CONFIG_HIGHMEM64G" off
+if [ "$CONFIG_HIGHMEM4G" = "y" -o "$CONFIG_HIGHMEM64G" = "y" ]; then
+   define_bool CONFIG_HIGHMEM y
+else
+   define_bool CONFIG_HIGHMEM n
+fi
+if [ "$CONFIG_HIGHMEM64G" = "y" ]; then
+   define_bool CONFIG_X86_PAE y
+fi
+
+if [ "$CONFIG_HIGHMEM" = "y" ]; then
+   bool 'HIGHMEM I/O support' CONFIG_HIGHIO
+fi
+
+bool 'Math emulation' CONFIG_MATH_EMULATION
+bool 'MTRR (Memory Type Range Register) support' CONFIG_MTRR
+bool 'Symmetric multi-processing support' CONFIG_SMP
+if [ "$CONFIG_SMP" != "y" ]; then
+   bool 'Local APIC support on uniprocessors' CONFIG_X86_UP_APIC
+   dep_bool 'IO-APIC support on uniprocessors' CONFIG_X86_UP_IOAPIC $CONFIG_X86_UP_APIC
+   if [ "$CONFIG_X86_UP_APIC" = "y" ]; then
+      define_bool CONFIG_X86_LOCAL_APIC y
+   fi
+   if [ "$CONFIG_X86_UP_IOAPIC" = "y" ]; then
+      define_bool CONFIG_X86_IO_APIC y
+   fi
+else
+   int  'Maximum number of CPUs (2-32)' CONFIG_NR_CPUS 32
+   bool 'Multi-node NUMA system support' CONFIG_X86_NUMA
+   if [ "$CONFIG_X86_NUMA" = "y" ]; then
+      #Platform Choices
+      bool ' Multiquad (IBM/Sequent) NUMAQ support' CONFIG_X86_NUMAQ
+      if [ "$CONFIG_X86_NUMAQ" = "y" ]; then
+         define_bool CONFIG_X86_CLUSTERED_APIC y
+         define_bool CONFIG_MULTIQUAD y
+      fi
+      bool ' IBM x440 (Summit/EXA) support' CONFIG_X86_SUMMIT
+      if [ "$CONFIG_X86_SUMMIT" = "y" ]; then
+         define_bool CONFIG_X86_CLUSTERED_APIC y
+      fi
+   fi
+fi
+
+if [ "$CONFIG_X86_NUMA" != "y" ]; then
+   bool 'Unsynced TSC support' CONFIG_X86_TSC_DISABLE
+   if [ "$CONFIG_X86_TSC_DISABLE" != "y" -a "$CONFIG_X86_HAS_TSC" = "y" ]; then
+      define_bool CONFIG_X86_TSC y
+   fi
+fi
+
+if [ "$CONFIG_SMP" = "y" -a "$CONFIG_X86_CMPXCHG" = "y" ]; then
+   define_bool CONFIG_HAVE_DEC_LOCK y
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+
+bool 'Networking support' CONFIG_NET
+
+# Visual Workstation support is utterly broken.
+# If you want to see it working mail an VW540 to hch@infradead.org 8)
+#bool 'SGI Visual Workstation support' CONFIG_VISWS
+if [ "$CONFIG_VISWS" = "y" ]; then
+   define_bool CONFIG_X86_VISWS_APIC y
+   define_bool CONFIG_X86_LOCAL_APIC y
+   define_bool CONFIG_PCI y
+   define_bool CONFIG_ISA n
+else
+   if [ "$CONFIG_SMP" = "y" ]; then
+      define_bool CONFIG_X86_IO_APIC y
+      define_bool CONFIG_X86_LOCAL_APIC y
+   fi
+   bool 'PCI support' CONFIG_PCI
+   if [ "$CONFIG_PCI" = "y" ]; then
+      choice '  PCI access mode' \
+	"BIOS		CONFIG_PCI_GOBIOS	\
+	 Direct		CONFIG_PCI_GODIRECT	\
+	 Any		CONFIG_PCI_GOANY"	Any
+      if [ "$CONFIG_PCI_GOBIOS" = "y" -o "$CONFIG_PCI_GOANY" = "y" ]; then
+         define_bool CONFIG_PCI_BIOS y
+      fi
+      if [ "$CONFIG_PCI_GODIRECT" = "y" -o "$CONFIG_PCI_GOANY" = "y" ]; then
+         define_bool CONFIG_PCI_DIRECT y
+      fi
+   fi
+   bool 'ISA bus support' CONFIG_ISA
+fi
+
+source drivers/pci/Config.in
+
+bool 'EISA support' CONFIG_EISA
+
+if [ "$CONFIG_VISWS" != "y" ]; then
+   bool 'MCA support' CONFIG_MCA
+else
+   define_bool CONFIG_MCA n
+fi
+
+bool 'Support for hot-pluggable devices' CONFIG_HOTPLUG
+
+if [ "$CONFIG_HOTPLUG" = "y" ] ; then
+   source drivers/pcmcia/Config.in
+   source drivers/hotplug/Config.in
+else
+   define_bool CONFIG_PCMCIA n
+   define_bool CONFIG_HOTPLUG_PCI n
+fi
+
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+if [ "$CONFIG_PROC_FS" = "y" ]; then
+   choice 'Kernel core (/proc/kcore) format' \
+	"ELF		CONFIG_KCORE_ELF	\
+	 A.OUT		CONFIG_KCORE_AOUT" ELF
+fi
+tristate 'Kernel support for a.out binaries' CONFIG_BINFMT_AOUT
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+bool 'Select task to kill on out of memory condition' CONFIG_OOM_KILLER
+
+bool 'Power Management support' CONFIG_PM
+
+dep_tristate '  Advanced Power Management BIOS support' CONFIG_APM $CONFIG_PM
+if [ "$CONFIG_APM" != "n" ]; then
+   bool '    Ignore USER SUSPEND' CONFIG_APM_IGNORE_USER_SUSPEND
+   bool '    Enable PM at boot time' CONFIG_APM_DO_ENABLE
+   bool '    Make CPU Idle calls when idle' CONFIG_APM_CPU_IDLE
+   bool '    Enable console blanking using APM' CONFIG_APM_DISPLAY_BLANK
+   bool '    RTC stores time in GMT' CONFIG_APM_RTC_IS_GMT
+   bool '    Allow interrupts during APM BIOS calls' CONFIG_APM_ALLOW_INTS
+   bool '    Use real mode APM BIOS call to power off' CONFIG_APM_REAL_MODE_POWER_OFF
+fi
+
+source drivers/acpi/Config.in
+
+endmenu
+
+source drivers/mtd/Config.in
+
+source drivers/parport/Config.in
+
+source drivers/pnp/Config.in
+
+source drivers/block/Config.in
+
+source drivers/md/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   source net/Config.in
+fi
+
+source drivers/telephony/Config.in
+
+mainmenu_option next_comment
+comment 'ATA/IDE/MFM/RLL support'
+
+tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+if [ "$CONFIG_IDE" != "n" ]; then
+   source drivers/ide/Config.in
+else
+   define_bool CONFIG_BLK_DEV_HD n
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+tristate 'SCSI support' CONFIG_SCSI
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+   source drivers/scsi/Config.in
+fi
+endmenu
+
+source drivers/message/fusion/Config.in
+
+source drivers/ieee1394/Config.in
+
+source drivers/message/i2o/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Network device support'
+
+   bool 'Network device support' CONFIG_NETDEVICES
+   if [ "$CONFIG_NETDEVICES" = "y" ]; then
+      source drivers/net/Config.in
+      if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+         source drivers/atm/Config.in
+      fi
+   fi
+   endmenu
+fi
+
+source net/ax25/Config.in
+
+source net/irda/Config.in
+
+mainmenu_option next_comment
+comment 'ISDN subsystem'
+if [ "$CONFIG_NET" != "n" ]; then
+   tristate 'ISDN support' CONFIG_ISDN
+   if [ "$CONFIG_ISDN" != "n" ]; then
+      source drivers/isdn/Config.in
+   fi
+fi
+endmenu
+
+if [ "$CONFIG_ISA" = "y" ]; then
+    mainmenu_option next_comment
+    comment 'Old CD-ROM drivers (not SCSI, not IDE)'
+
+    bool 'Support non-SCSI/IDE/ATAPI CDROM drives' CONFIG_CD_NO_IDESCSI
+    if [ "$CONFIG_CD_NO_IDESCSI" != "n" ]; then
+       source drivers/cdrom/Config.in
+    fi
+    endmenu
+fi
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source drivers/input/Config.in
+source drivers/char/Config.in
+
+#source drivers/misc/Config.in
+
+source drivers/media/Config.in
+
+source fs/Config.in
+
+if [ "$CONFIG_VT" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Console drivers'
+   bool 'VGA text console' CONFIG_VGA_CONSOLE
+   bool 'Video mode selection support' CONFIG_VIDEO_SELECT
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      tristate 'MDA text console (dual-headed) (EXPERIMENTAL)' CONFIG_MDA_CONSOLE
+      source drivers/video/Config.in
+   fi
+   endmenu
+fi
+
+mainmenu_option next_comment
+comment 'Sound'
+
+tristate 'Sound card support' CONFIG_SOUND
+if [ "$CONFIG_SOUND" != "n" ]; then
+   source drivers/sound/Config.in
+fi
+endmenu
+
+source drivers/usb/Config.in
+
+source net/bluetooth/Config.in
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+bool 'Kernel debugging' CONFIG_DEBUG_KERNEL
+if [ "$CONFIG_DEBUG_KERNEL" != "n" ]; then
+   bool '  Check for stack overflows' CONFIG_DEBUG_STACKOVERFLOW
+   bool '  Debug high memory support' CONFIG_DEBUG_HIGHMEM
+   bool '  Debug memory allocations' CONFIG_DEBUG_SLAB
+   bool '  Memory mapped I/O debugging' CONFIG_DEBUG_IOVIRT
+   bool '  Magic SysRq key' CONFIG_MAGIC_SYSRQ
+   bool '  Spinlock debugging' CONFIG_DEBUG_SPINLOCK
+   bool '  Compile the kernel with frame pointers' CONFIG_FRAME_POINTER
+fi
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source crypto/Config.in
+source lib/Config.in

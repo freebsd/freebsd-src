@@ -1,0 +1,54 @@
+***** MODIFICATIONS
+To use a 5600 as a slave device it has to somewhat modified.
+This has to be done on a 5600 (art no 16144 R2) to automatically set it to parallel port boot mode:
+
+1)
+Close to the LPT1 connector there are two resistors, between the "Pulse" inductor and
+the LS245. The one closest to the LS245 is a 4k7 pull up (R105). Remove it.
+
+2)
+Between the other "Pulse" inductor and Etrax there is a black 5-pin inverter
+(D15). Short connectors 2 and 3 with a solder blob.
+
+
+***** PINOUT
+To use this driver use cables connected like this:
+DSUB25-Male                DSUB25Male
+
+1	10
+2-9	2-9
+10 	1
+11	14
+12	18
+13	NC
+14	11
+15	NC
+16	NC	
+17	NC
+18	12
+19	NC
+20-25	20-25
+
+Thus the cables are symmetrical with most cables straight through,
+some crossed (1-10, 11-14 and 12-18) 
+and some Not connected (NC 13,15,16,17 and 19).
+
+
+******* Only for reference
+To ease the use of flat-cable connectors, here are the notes of wich wires to cross and cut with pin 1 being cable 1:
+Cross:
+1	19
+2	21
+10	23
+Cut:
+4
+6
+8
+12
+25
+
+jonas.dellenvall@axis.com
+
+
+
+

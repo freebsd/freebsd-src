@@ -1,0 +1,126 @@
+  Installation instructions for the HFS Filesystem for Linux
+  Paul H. Hargrove, hargrove@sccm.Stanford.EDU
+  version 0.95 28 Apr 1997
+
+  This document explains how to compile and install version 0.95 of
+  hfs_fs, the HFS filesystem for Linux.
+
+  11..  SSyysstteemm RReeqquuiirreemmeennttss
+
+  You will need the following to compile and use this release of hfs_fs:
+
+  +o  Kernel version 2.0.1 or newer compiled with modules enabled
+     (CONFIG_MODULES).
+
+  +o  The kernel sources (or at least the header files) available online.
+
+  +o  The module utilities package current for your kernel version and an
+     understanding of how to use it.  (The file
+     Documentation/modules.txt in the kernel source directory provides a
+     brief introduction.)
+
+  22..  IInnssttaallllaattiioonn
+
+  This release of the HFS filesystem is not part of the official kernel
+  distribution.  Therefore, it is compiled as a module and then loaded
+  into the kernel using the module utilities.  Therefore, your kernel
+  must be compiled with CONFIG_MODULES enabled.
+
+  22..11..  CCoommppiilliinngg tthhee llooaaddaabbllee mmoodduullee
+
+  To compile hfs.o you should only need to execute ``make'' in the
+  hfs_fs source directory.
+
+  If gcc complains about not finding a large number of header files with
+  names beginning with ``linux/'' then you probably don't have the
+  kernel header files installed correctly.  Either /usr/include/linux,
+  /usr/include/asm and /usr/include/scsi should be symbolic links to
+  include/linux, include/asm and include/scsi in the kernel source tree
+  for the kernel you wish to use hfs_fs with, or else they should be
+  directories containing the header files for the kernel you wish to use
+  hfs_fs with.
+
+  If gcc complains about not finding linux/version.h, then you will need
+  to run ``make dep'' in the kernel source directory to build it.  Under
+  MkLinux, run ``make include/linux/version.h'' instead.
+
+  If gcc complains about not finding the files linux/config.h or
+  linux/autoconf.h, then you will need to run ``make config'' and ``make
+  dep'' in the kernel source directory to build these two files.
+
+  If you are compiling on a DEC Alpha and receive messages saying
+  assignment from incompatible pointer type when compiling files dir_*.c
+  and file_*.c, then you need to change a single line in the file
+  linux/hfs_fs.h.  Remove the text ``&& !defined(__alpha__)'' from the
+  end of line 217.
+
+  22..22..  IInnssttaalllliinngg tthhee mmoodduullee iinn tthhee mmoodduulleess ddiirreeccttoorryy ((ooppttiioonnaall))
+
+  If you plan to use kerneld to automatically load the module or if you
+  wish to use modprobe or insmod without supplying a complete path to
+  hfs.o, then you will need to copy hfs.o into a directory where the
+  module utilities expect to find it.
+
+  The proper directory may depend slightly on your configuration.
+  However, /lib/modules/default/fs/ is a common one for filesystem
+  modules.  Once hfs.o is in the proper directory you should run depmod
+  -a to update the dependency list used by kerneld and modprobe.
+
+  22..33..  LLooaaddiinngg tthhee mmoodduullee iinnttoo tthhee rruunnnniinngg kkeerrnneell
+
+  There are three ways to accomplish this:
+
+  1. If you are running kerneld and have installed hfs.o in the modules
+     directory then you don't need to issue any commands; the module
+     will be loaded when you attempt to mount an HFS filesystem.
+
+  2. If you are _n_o_t running kerneld then you can load hfs.o manually by
+     running modprobe hfs.o.  If you have not installed hfs.o in one of
+     the standard module directories, then you will need provide a full
+     path to the file hfs.o.
+
+  3. If you have been experiencing kernel crashes with hfs_fs, then you
+     should file a bug report including the names of the functions which
+     the EIP and Stack Trace point into.  To help with this you can ask
+     for relocation map for the module when you load it.  To do this
+     load the module with ``insmod -m hfs.o >loadmap''.  Again, you may
+     need a full path to the file hfs.o if you have not placed it in one
+     of the standard module directories.
+
+  22..44..  UUssiinngg tthhee mmoodduullee wwiitthh vveerrssiioonneedd ssyymmbboollss
+
+  All the interface between the module and the kernel take place through
+  very stable (since the mid-1.3.x kernels) parts of the kernel.  If you
+  enabled versioned symbols (CONFIG_MODVERSIONS) when you compiled your
+  kernel you should often be able to compile this module once and then
+  use it with many kernels newer than the one you compiled it for.
+
+  In any case, it is unlikely that this module will need changes with
+  each new kernel patch; simple recompilation should usually suffice.
+
+  33..  LLeeggaall NNoottiicceess
+
+  33..11..  TThhiiss DDooccuummeenntt
+
+  This document is Copyright (c) 1996, 1997 by Paul H. Hargrove.
+
+  Permission is granted to make and distribute verbatim copies of this
+  document provided the copyright notice and this permission notice are
+  preserved on all copies.
+
+  Permission is granted to copy and distribute modified versions of this
+  document under the conditions for verbatim copies above, provided a
+  notice clearly stating that the document is a modified version is also
+  included in the modified document.
+
+  Permission is granted to copy and distribute translations of this
+  document into another language, under the conditions specified above
+  for modified versions.
+
+  Permission is granted to convert this document into another media
+  under the conditions specified above for modified versions provided
+  the requirement to acknowledge the source document is fulfilled by
+  inclusion of an obvious reference to the source document in the new
+  media. Where there is any doubt as to what defines ``obvious'' the
+  copyright owner reserves the right to decide.
+

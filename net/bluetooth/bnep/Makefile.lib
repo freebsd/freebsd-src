@@ -1,0 +1,1 @@
+obj-$(CONFIG_BLUEZ_BNEP) += crc32.o

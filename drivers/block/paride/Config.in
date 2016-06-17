@@ -1,0 +1,43 @@
+#
+# PARIDE configuration
+#
+
+# PARIDE doesn't need PARPORT, but if PARPORT is configured as a module,
+# PARIDE must also be a module.  The bogus CONFIG_PARIDE_PARPORT option
+# controls the choices given to the user ...
+ 
+if [ "$CONFIG_PARPORT" = "y" -o "$CONFIG_PARPORT" = "n" ]; then
+   define_tristate CONFIG_PARIDE_PARPORT y
+else
+   define_tristate CONFIG_PARIDE_PARPORT m
+fi
+
+comment 'Parallel IDE high-level drivers'
+dep_tristate '  Parallel port IDE disks' CONFIG_PARIDE_PD $CONFIG_PARIDE
+dep_tristate '  Parallel port ATAPI CD-ROMs' CONFIG_PARIDE_PCD $CONFIG_PARIDE
+dep_tristate '  Parallel port ATAPI disks' CONFIG_PARIDE_PF $CONFIG_PARIDE
+dep_tristate '  Parallel port ATAPI tapes' CONFIG_PARIDE_PT $CONFIG_PARIDE
+dep_tristate '  Parallel port generic ATAPI devices' CONFIG_PARIDE_PG $CONFIG_PARIDE
+comment 'Parallel IDE protocol modules'
+dep_tristate '    ATEN EH-100 protocol' CONFIG_PARIDE_ATEN $CONFIG_PARIDE
+dep_tristate '    MicroSolutions backpack (Series 5) protocol' CONFIG_PARIDE_BPCK $CONFIG_PARIDE
+dep_tristate '    MicroSolutions backpack (Series 6) protocol' CONFIG_PARIDE_BPCK6 $CONFIG_PARIDE
+dep_tristate '    DataStor Commuter protocol' CONFIG_PARIDE_COMM $CONFIG_PARIDE
+dep_tristate '    DataStor EP-2000 protocol' CONFIG_PARIDE_DSTR $CONFIG_PARIDE
+dep_tristate '    FIT TD-2000 protocol' CONFIG_PARIDE_FIT2 $CONFIG_PARIDE
+dep_tristate '    FIT TD-3000 protocol' CONFIG_PARIDE_FIT3 $CONFIG_PARIDE
+dep_tristate '    Shuttle EPAT/EPEZ protocol' CONFIG_PARIDE_EPAT $CONFIG_PARIDE
+if [ "$CONFIG_PARIDE_EPAT" != "n" ]; then
+  if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+    bool '     Support c7/c8 chips (EXPERIMENTAL)' CONFIG_PARIDE_EPATC8
+  fi
+fi
+
+dep_tristate '    Shuttle EPIA protocol' CONFIG_PARIDE_EPIA $CONFIG_PARIDE
+dep_tristate '    Freecom IQ ASIC-2 protocol' CONFIG_PARIDE_FRIQ $CONFIG_PARIDE
+dep_tristate '    FreeCom power protocol' CONFIG_PARIDE_FRPW $CONFIG_PARIDE
+dep_tristate '    KingByte KBIC-951A/971A protocols' CONFIG_PARIDE_KBIC $CONFIG_PARIDE
+dep_tristate '    KT PHd protocol' CONFIG_PARIDE_KTTI $CONFIG_PARIDE
+dep_tristate '    OnSpec 90c20 protocol' CONFIG_PARIDE_ON20 $CONFIG_PARIDE
+dep_tristate '    OnSpec 90c26 protocol' CONFIG_PARIDE_ON26 $CONFIG_PARIDE
+#

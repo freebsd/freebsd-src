@@ -1,0 +1,87 @@
+#!/bin/sh 
+#
+# Author: Francis Wiran <Francis.Wiran@hp.com>
+#
+# Script to remove device nodes for SMART Array controllers. This will
+# be the device nodes with major numbers which are dynamically allocated
+# by the kernel. This script will not attempt to remove the device
+# nodes with major number 104 thru 111 (c0 thru c7), which are 
+# the major numbers that's allocated for cciss controllers by kernel.org.
+#
+# Usage:
+# rmdev_dyn.cciss [ctlr num]
+#
+# With no arguments, the script will check to see if there are any nodes
+# under /dev/cciss, whose major number no longer shows in /proc/partitions,
+# or to be exact, no longer shows to be owned by cciss driver.
+# If there is, then it will be removed.
+#
+# Note that it is a good idea to run rmdev_dyn.cciss script if you remove
+# those controllers (the ones which major numbers were dynamically allocated)
+# This will unclutter /dev, as well as preventing possible problems due to
+# referenced devices and major numbers no longer available or taken by
+# other non-cciss drivers.
+#
+# Passing arguments:
+# If you know that one of your controllers, say cciss8, has been removed
+# and the nodes are no longer valid, you could do
+#
+# rmdev_dyn.cciss 8 
+#
+# This is the same as doing `rm -f /dev/cciss/c8*` 
+
+# Inputs
+NR_CTLR=${1}
+
+echo_usage()
+{
+	echo "Usage: rmdev_dyn.cciss [ctlr num]"
+	echo "The script will not attempt to remove nodes for controllers"
+	echo "0 thru 7, therefore if you want to pass an argument,"
+	echo "make sure that ctlr num is equal or greater than 8"
+}
+
+rm_nod1()
+{
+	if [ $1 -lt 8 ]; then
+		echo_usage;
+		exit
+	else
+		rm -f /dev/cciss/c${1}*
+		echo "removed /dev/cciss/c${1}*"
+	fi
+}
+
+rm_nod2()
+{
+	for X in `ls -l /dev/cciss/c* |\
+		awk '{print $5-i}' |\
+		uniq`; do
+		if [ \( $X -ge 104 \) -a \( $X -le 111 \) ]; then
+			:
+		elif [ `cat /proc/devices |\
+			grep cciss |\
+			grep $X |\
+			wc -l` -eq 0 ]; then
+
+			Y=`ls -l /dev/cciss/ |\
+				awk '{print $5-i ":"  $10}'|\
+				tr d ':' |\
+				grep $X |\
+				awk -F: '{print $2}' |\
+				uniq`
+
+			Z="/dev/cciss/${Y}*"
+
+			rm -f $Z
+			echo "removed $Z"
+		fi
+	done
+}
+
+# Start here
+if [ $# -gt 0 ]; then
+	rm_nod1 $NR_CTLR;
+else
+	rm_nod2;
+fi

@@ -1,0 +1,23 @@
+i2c-velleman driver
+-------------------
+This is a driver for i2c-hw access for Velleman K8000 and other adapters.
+
+Useful links
+------------
+Velleman:
+	http://www.velleman.be/
+
+Velleman K8000 Howto:
+	http://howto.htlw16.ac.at/k8000-howto.html
+
+K8000 and K8005 libraries
+-------------------------
+The project has lead to new libs for the Velleman K8000 and K8005:
+LIBK8000 v1.99.1 and LIBK8005 v0.21
+
+With these libs, you can control the K8000 interface card and the K8005
+stepper motor card with the simple commands which are in the original
+Velleman software, like SetIOchannel, ReadADchannel, SendStepCCWFull and
+many more, using /dev/velleman.
+
+The libs can be found on http://groups.yahoo.com/group/k8000/files/linux/

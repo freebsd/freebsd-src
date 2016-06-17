@@ -1,0 +1,46 @@
+# -*- shell-script -*-
+
+if [ "$CONFIG_PCI" = "y" -a "$CONFIG_EXPERIMENTAL" = "y" ]; then
+    mainmenu_option next_comment
+    comment 'IEEE 1394 (FireWire) support (EXPERIMENTAL)'
+
+    dep_tristate 'IEEE 1394 (FireWire) support (EXPERIMENTAL)' CONFIG_IEEE1394 $CONFIG_PCI
+
+    if [ "$CONFIG_IEEE1394" != "n" ]; then
+
+	comment "Device Drivers"
+
+	if [ "$CONFIG_I2C" = "n" -o "$CONFIG_I2C_ALGOBIT" = "n" ]; then
+	    comment '  Texas Instruments PCILynx requires I2C bit-banging'
+	else
+	    dep_tristate '  Texas Instruments PCILynx support' CONFIG_IEEE1394_PCILYNX $CONFIG_IEEE1394 $CONFIG_I2C $CONFIG_I2C_ALGOBIT
+	fi
+
+	# Non-maintained pcilynx options
+	# if [ "$CONFIG_IEEE1394_PCILYNX" != "n" ]; then
+	#     bool '    Use PCILynx local RAM' CONFIG_IEEE1394_PCILYNX_LOCALRAM
+	#     bool '    Support for non-IEEE1394 local ports' CONFIG_IEEE1394_PCILYNX_PORTS
+	# fi
+
+	dep_tristate '  OHCI-1394 support' CONFIG_IEEE1394_OHCI1394 $CONFIG_IEEE1394
+
+	comment "Protocol Drivers"
+	dep_tristate '  OHCI-1394 Video support' CONFIG_IEEE1394_VIDEO1394 $CONFIG_IEEE1394_OHCI1394
+	dep_tristate '  SBP-2 support (Harddisks etc.)' CONFIG_IEEE1394_SBP2 $CONFIG_SCSI $CONFIG_IEEE1394
+	if [ "$CONFIG_IEEE1394_SBP2" != "n" ]; then
+	    bool '    Enable Phys DMA support for SBP2 (Debug)' CONFIG_IEEE1394_SBP2_PHYS_DMA
+	fi
+	dep_tristate '  Ethernet over 1394' CONFIG_IEEE1394_ETH1394 $CONFIG_IEEE1394
+	dep_tristate '  OHCI-DV I/O support' CONFIG_IEEE1394_DV1394 $CONFIG_IEEE1394_OHCI1394
+	dep_tristate '  Raw IEEE1394 I/O support' CONFIG_IEEE1394_RAWIO $CONFIG_IEEE1394
+	dep_tristate '  IEC61883-1 Plug support' CONFIG_IEEE1394_CMP $CONFIG_IEEE1394
+
+	if [ "$CONFIG_IEEE1394_CMP" != "n" ]; then
+	    dep_tristate '    IEC61883-6 (Audio transmission) support' CONFIG_IEEE1394_AMDTP $CONFIG_IEEE1394_OHCI1394 $CONFIG_IEEE1394_CMP
+	fi
+
+	bool 'Excessive debugging output' CONFIG_IEEE1394_VERBOSEDEBUG
+	bool "OUI Database built-in" CONFIG_IEEE1394_OUI_DB
+    fi
+    endmenu
+fi

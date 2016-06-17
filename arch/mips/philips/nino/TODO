@@ -1,0 +1,18 @@
+This is a basic TODO list for the Philips Nino porting effort. Things
+will be added and removed from time to time. Pick an item and help
+me out! Thanks!
+
+- COMPACTFLASH
+  * get IDE/PCMCIA chip interface working to read flash cards and the
+    ethernet card
+- FRAMEBUFFER
+  * complete rewrite to match new framebuffer API
+  * get 2bpp and 4bpp working (use Microwindows driver examples)
+- GPIO
+  * go through all the interrupt sources in status registers 1-5
+    and see what all the different IO pins are hooked to
+- KGDB
+  * get stub working
+- MMU
+  * Use CONFIG_CPU_TX39XX instead of current CONFIG_CPU_R3000 and
+    start using 3912 specific MMU management.

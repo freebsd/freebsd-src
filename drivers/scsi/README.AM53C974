@@ -1,0 +1,246 @@
+SUBJECT
+-------
+AM53/79C974 PC-SCSI Driver
+
+
+DISCLAIMER
+----------
+***  THIS SHOULD BE CONSIDERED AS BETA SOFTWARE  ***
+***  USE AT YOUR OWN RISK!                       ***
+
+
+Copyright
+---------
+The architecture and much of the code of this device driver was 
+originally developed by Drew Eckhardt for the NCR5380. The 
+following copyrights apply:
+
+For the architecture and all pieces of code which can also be found 
+in the NCR5380 device driver:
+Copyright 1993, Drew Eckhardt
+  Visionary Computing 
+  (Unix and Linux consulting and custom programming)
+  drew@colorado.edu
+  +1 (303) 666-5836
+ 
+The AM53C974_nobios_detect code was originally developed by
+Robin Cutshaw (robin@xfree86.org) and is used here in a 
+slightly modified form.
+ 
+For the remaining code:
+  Copyright 1994, D. Frieauff
+  EMail: fri@rsx42sun0.dofn.de
+  Phone: x49-7545-8-2256 , x49-7541-42305
+
+
+Version
+-------
+AM53/79C974 (PC-SCSI) Linux driver ALPHA release 0.5, 19 November 1995
+
+
+Changelog
+---------
+0.1 -> 0.2: 
+  - Extended message handling re-written to eliminate 'invalid message 17' bug
+  - Parameters of AM53C974_intr adapted
+  - Debug messages structured
+  - Spelling improved
+0.2 -> 0.3:
+  - README file updated -- please read this file up to the end!
+  - Automatic scanning of io_port and irq implemented; no need for BIOS32 
+    anymore
+  - Improved configuration (now via LILO parameter string)
+  - Cleanup of probing and initialization code
+  - Improved sync. negotiation (can be setup individually for every device)
+  - Improved/ debugged code for reception of ext. messages
+0.3 -> 0.4:
+  - Improved PCI probing and initialization code
+  - Compatibility changes for Linux 1.3.x
+0.4 -> 0.5:
+  - Compatibility changes for Linux 1.3.42
+
+
+Bugs & Todo
+-----------
+ - Add proc info function
+ - Support SCSI-2 tagged queuing
+ - Finalize abort code 
+
+
+Features
+--------
+This driver supports asynchronous and synchronous SCSI-I and SCSI-II
+devices.  It is capable of transfer rate and synchronous negotiation
+(see below).  The driver supports scatter-gather.  Transfers are DMA
+based, but do not (yet) make use of the AM53/79C974 MDL mode.
+Max. transfer rate is 10MHz (whatever this is in real life).  The
+transfer rate is negotiated with each device (see dmesg output).  The
+AM53/79C974 has a 96-byte DMA FIFO to the PCI bus and a 16-byte SCSI
+FIFO.  It provides active negation and glitch suppression functions.
+Burst DMA transfer rate is 132 MBytes/sec.
+
+
+Configuration
+-------------
+
+The following communication characteristics can be set individually
+for every SCSI device on the bus:
+
+  - enable/disable sync. negotiation
+  - transfer rate
+  - asynchronous or synchronous communication
+  - in case of sync. communication, the sync. offset
+
+The sync. offset specifies the number of bytes that can be sent or 
+received from the SCSI bus without ACK resp. REQ signal.
+CAUTION: USING SYNCHRONOUS MODE ON LONG SCSI CABLES MAY CAUSE 
+         COMMUNICATION PROBLEMS LEADING TO LOSS OF DATA. 
+
+The default setting of the SCSI communication parameters is as follows:
+  - no negotiation
+  - 5.0 MHz transfer rate
+  - asynchronous mode
+  - zero offset
+
+The parameters can be modified by passing a string with the following
+syntax to the kernel:
+
+	AM53C974=host-scsi-id,target-scsi-id,max-rate,max-offset
+
+The parameters will be used by the driver as negotiation basis.  The
+range of the rate parameter is 3 to 10 MHz.  The range of the
+sync. offset parameter is 0 to 15 bytes. A value of 0 denotes
+asynchronous comm. mode.  If the target cannot cope with the specified
+transfer rate, sync. mode or sync.  offset, the negotiation result
+will differ from the specified values.  The negotiation result is
+printed out at the end of the negotiation process (to read it, use the
+dmesg program or the appropriate syslog).  The parameter strings
+(blank separated) can be passed to the kernel at the LILO prompt, or
+as part of the LILO configuration file.
+
+For example, the string "AM53C974=7,2,8,15" would be interpreted as
+follows:
+
+For communication between the controller with SCSI-ID 7 and the
+device with SCSI-ID 2 a transfer rate of 8MHz in synchronous mode with
+max. 15 bytes offset should be negotiated.
+
+As an example, here my LILO configuration file:
+  boot = /dev/sda
+  compact
+  #prompt
+  delay = 50	# optional, for systems that boot very quickly
+  vga = normal	# force sane state
+  ramdisk = 0	# paranoia setting
+  root = current  # use "current" root
+  image = /usr/src/linux/arch/i386/boot/zImage
+    label = linux
+    append = "AM53C974=7,0,10,0 AM53C974=7,1,10,0 AM53C974=7,2,10,15 AM53C974=7,4,10,0 AM53C974=7,5,10,0"
+    read-only
+  other = /dev/sda4
+    label = os2
+  other = /dev/sdb3
+    loader = /boot/any_d.b
+    table = /dev/sdb
+    label = setup
+
+The same parameters at the LILO prompt:
+
+  LILO boot: linux AM53C974=7,0,10,0 AM53C974=7,1,10,0 AM53C974=7,2,10,15 AM53C974=7,4,10,0 AM53C974=7,5,10,0
+
+You can override parameters specified in the LILO configuration file
+by parameters specified on the LILO command line.
+
+
+BIOS usage
+----------
+Version 0.4 of the driver will use the BIOS, if available. Otherwise
+it will try its internal PCI scan and access routines.  The driver
+assumes that the controller's SCSI-ID (usually 7) has been correctly
+loaded by the BIOS into the controller's register during system
+boot. If the driver detects that the controller's SCSI ID is not '7'
+it will print out a warning. If this happens to you please correct
+setting of the controller's SCSI-ID. If it is wrong, then edit the
+AM53C974_SCSI_ID definition in file AM53C974.h accordingly.
+
+
+Test environment
+----------------
+This driver was tested on a Compaq XL566 with the following SCSI configuration:
+2 x HP C2247 fixed disk (internal, rate=10MHz, async.)
+1 x Micropolis 1624 fixed disk (external, rate=8MHz, sync., offset=15 bytes)
+1 x Wangtek W5525ES cartridge streamer (internal, rate=5MHz, async.)
+1 x Toshiba XM-3301B CD-ROM (external, rate=5MHz, async.)
+
+
+Known problems
+--------------
+ - Compaq/Matsushita CD-ROM:
+   Use of this device with AM53C974 driver version 0.2 caused the kernel to
+   hang during Linux boot. If you encounter the problem, don't enable sync.
+   negotiation with the CD-ROM, i.e. simply don't specify comm. parameters 
+   for this device on the LILO command line or configuration file. 
+   The driver will thus use its default for the CD-ROM, which is 5MHz 
+   transfer rate async and no sync. negotiation.
+ - Some disks cause problems.
+
+
+What to do if there is a SCSI problem possibly related to the driver
+--------------------------------------------------------------------
+
+Read Klaus Liedl's WWW page (http://www-c724.uibk.ac.at/XL/).  In case
+this does not help: Send me a complete description of the problem,
+including your SCSI configuration plus as much debugging information
+as possible.  Don't wait until I ask you for this information. To
+enable the generation of debugging output, remove the comments from
+the following definitions in the AM53C974.h file:
+
+    AM53C974_DEBUG
+    AM53C974_DEBUG_MSG
+    AM53C974_DEBUG_KEYWAIT
+    AM53C974_DEBUG_INFO
+    AM53C974_DEBUG_INTR
+
+With these definitions enabled, the driver will enter single-step mode
+during Linux boot. Use the spacebar for stepping.  Take note of at
+least the last 10 printout sections (marked by dashes) before the
+crash/hangup or whatever happens and send me all of this information
+via email. If the system can boot, use the syslogd daemon to record
+the debugging output. Maybe you can use the ramdisk for this purpose
+too (if necessary, kindly ask K. Liedl (Klaus.Liedl@uibk.ac.at) for
+support, he knows how to do it -- I never tried). Stay in email
+contact with me. Be aware that the following weeks/months could be the
+worst of your life.  Note: If single-stepping takes up too much time,
+you can try to let the driver catch the problem by pressing the 'r'
+key. The driver will automatically enter single-step mode if it has
+detected something weird.
+
+
+Author's Contact Address
+-----------------------
+Email: fri@rsx42sun0.dofn.de
+Phone: x49-7545-2256 (office), x49-7541-42305 (home)
+Home address: D. Frieauff, Stockerholzstr. 27, 88048 Friedrichshafen, Germany
+
+
+!!!! Important Notice !!!!
+-----------------------------
+- Klaus Liedl maintains an excellent WWW page about Linux on Compaq XL.
+  It includes an FAQ, lots of tips & tricks as well as downloadable 
+  boot disk images. The URL is: http://www-c724.uibk.ac.at/XL/
+- Volunteer wanted for further maintenance of this driver software. I
+  don't have the time anymore to do serious support as some of you will know.
+
+
+Literature
+----------
+ - AMD AM53C974 PC-SCSI Technical Manual, publication #18624B
+ - Amendment to the AMD AM53C974 PC-SCSI Technical Manual
+ - AMD AM79C974 PC-NET Datasheet, publication #18681
+ - Amendment to the AMD AM79C974 PC-NET Datasheet
+
+
+THANKS to
+---------
+ - Drew Eckhardt, Robin Cutshaw, K. Liedl, Robert J. Pappas, A. Grenier, 
+   Mark Stockton, David C. Niemi, Ben Craft, and many others who have helped

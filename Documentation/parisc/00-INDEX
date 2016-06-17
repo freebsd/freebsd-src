@@ -1,0 +1,10 @@
+00-INDEX
+	- this file.
+IODC.txt
+	- Documentation for IODC
+debugging
+	- some debugging hints for real-mode code
+unwritten
+	- list of unwritten / incomplete functions
+registers
+	- current/planned usage of registers

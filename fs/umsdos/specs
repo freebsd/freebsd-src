@@ -1,0 +1,289 @@
+/* #Specification: umsdos / readdir
+ * umsdos_readdir() should fill a struct dirent with
+ * an inode number. The cheap way to get it is to
+ * do a lookup in the MSDOS directory for each
+ * entry processed by the readdir() function.
+ * This is not very efficient, but very simple. The
+ * other way around is to maintain a copy of the inode
+ * number in the EMD file. This is a problem because
+ * this has to be maintained in sync using tricks.
+ * Remember that MSDOS (the OS) does not update the
+ * modification time (mtime) of a directory. There is
+ * no easy way to tell that a directory was modified
+ * during a DOS session and synchronise the EMD file.
+ */
+		/* #Specification: readdir / . and ..
+		 * The msdos filesystem manages the . and .. entry properly
+		 * so the EMD file won't hold any info about it.
+		 * 
+		 * In readdir, we assume that for the root directory
+		 * the read position will be 0 for ".", 1 for "..". For
+		 * a non root directory, the read position will be 0 for "."
+		 * and 32 for "..".
+		 */
+		/*
+		 * This is a trick used by the msdos file system (fs/msdos/dir.c)
+		 * to manage . and .. for the root directory of a file system.
+		 * Since there is no such entry in the root, fs/msdos/dir.c
+		 * use the following:
+		 * 
+		 * if f_pos == 0, return ".".
+		 * if f_pos == 1, return "..".
+		 * 
+		 * So let msdos handle it
+		 * 
+		 * Since umsdos entries are much larger, we share the same f_pos.
+		 * if f_pos is 0 or 1 or 32, we are clearly looking at . and
+		 * ..
+		 * 
+		 * As soon as we get f_pos == 2 or f_pos == 64, then back to
+		 * 0, but this time we are reading the EMD file.
+		 * 
+		 * Well, not so true. The problem, is that UMSDOS_REC_SIZE is
+		 * also 64, so as soon as we read the first record in the
+		 * EMD, we are back at offset 64. So we set the offset
+		 * to UMSDOS_SPECIAL_DIRFPOS(3) as soon as we have read the
+		 * .. entry from msdos.
+		 * 
+		 * Now (linux 1.3), umsdos_readdir can read more than one
+		 * entry even if we limit (umsdos_dir_once) to only one:
+		 * It skips over hidden file. So we switch to
+		 * UMSDOS_SPECIAL_DIRFPOS as soon as we have read successfully
+		 * the .. entry.
+		 */
+			/* #Specification: umsdos / lookup / inode info
+			 * After successfully reading an inode from the MSDOS
+			 * filesystem, we use the EMD file to complete it.
+			 * We update the following field.
+			 * 
+			 * uid, gid, atime, ctime, mtime, mode.
+			 * 
+			 * We rely on MSDOS for mtime. If the file
+			 * was modified during an MSDOS session, at least
+			 * mtime will be meaningful. We do this only for regular
+			 * file.
+			 * 
+			 * We don't rely on MS-DOS for mtime for directories
+			 * because the MS-DOS date on a directory is its
+			 * creation time (strange MSDOS behavior) which
+			 * corresponds to none of the three Unix time stamps.
+			 */
+	/* #Specification: umsdos / conversion mode
+	 * The msdos filesystem can do some inline conversion
+	 * of the data of a file.  It can translate silently
+	 * from the MS-DOS text file format to the Unix one
+	 * (CRLF -> LF) while reading, and the reverse
+	 * while writing. This is activated using the mount
+	 * option conv=....
+	 * 
+	 * This is not useful for Linux files in a promoted
+	 * directory.  It can even be harmful.  For this
+	 * reason, the binary (no conversion) mode is
+	 * always activated.
+	 */
+	/* #Specification: umsdos / conversion mode / todo
+	 * A flag could be added to file and directories
+	 * forcing an automatic conversion mode (as
+	 * done with the msdos filesystem).
+	 * 
+	 * This flag could be setup on a directory basis
+	 * (instead of file) and all files in it would
+	 * logically inherit it.  If the conversion mode
+	 * is active (conv=) then the i_binary flag would
+	 * be left untouched in those directories.
+	 * 
+	 * It was proposed that the sticky bit be used to set
+	 * this.  A problem with that is that new files would
+	 * be written incorrectly.  The other problem is that
+	 * the sticky bit has a meaning for directories. So
+	 * another bit should be used (there is some space
+	 * in the EMD file for it) and a special utility
+	 * would be used to assign the flag to a directory).
+	 * I don't think it is useful to assign this flag
+	 * on a single file.
+	 */
+ * #Specification: weakness / rename
+ * There is a case where UMSDOS rename has a different behavior
+ * than a normal Unix file system.  Renaming an open file across
+ * directory boundary does not work.  Renaming an open file within
+ * a directory does work, however.
+ * 
+ * The problem may is in Linux VFS driver for msdos.
+ * I believe this is not a bug but a design feature, because
+ * an inode number represents some sort of directory address
+ * in the MSDOS directory structure, so moving the file into
+ * another directory does not preserve the inode number.
+ */
+/* #Specification: rename / new name exist
+ * If the destination name already exists, it will
+ * silently be removed.  EXT2 does it this way
+ * and this is the spec of SunOS.  So does UMSDOS.
+ * 
+ * If the destination is an empty directory it will
+ * also be removed.
+ */
+/* #Specification: rename / new name exist / possible flaw
+ * The code to handle the deletion of the target (file
+ * and directory) use to be in umsdos_rename_f, surrounded
+ * by proper directory locking.  This was ensuring that only
+ * one process could achieve a rename (modification) operation
+ * in the source and destination directory.  This was also
+ * ensuring the operation was "atomic".
+ * 
+ * This has been changed because this was creating a
+ * stack overflow (the stack is only 4 kB) in the kernel.  To avoid
+ * the code doing the deletion of the target (if exist) has
+ * been moved to a upper layer. umsdos_rename_f is tried
+ * once and if it fails with EEXIST, the target is removed
+ * and umsdos_rename_f is done again.
+ * 
+ * This makes the code cleaner and may solve a
+ * deadlock problem one tester was experiencing.
+ * 
+ * The point is to mention that possibly, the semantic of
+ * "rename" may be wrong. Anyone dare to check that :-)
+ * Be aware that IF it is wrong, to produce the problem you
+ * will need two process trying to rename a file to the
+ * same target at the same time. Again, I am not sure it
+ * is a problem at all.
+ */
+
+/* #Specification: hard link / strategy
+ * Hard links are difficult to implement on top of an MS-DOS FAT file
+ * system. Unlike Unix file systems, there are no inodes. A directory
+ * entry holds the functionality of the inode and the entry.
+ * 
+ * We will used the same strategy as a normal Unix file system
+ * (with inodes) except we will do it symbolically (using paths).
+ * 
+ * Because anything can happen during a DOS session (defragment,
+ * directory sorting, etc.), we can't rely on an MS-DOS pseudo
+ * inode number to record the link. For this reason, the link
+ * will be done using hidden symbolic links. The following
+ * scenario illustrates how it works.
+ * 
+ * Given a file /foo/file
+ * 
+ * #
+ * ln /foo/file /tmp/file2
+ * 
+ * become internally
+ * 
+ * mv /foo/file /foo/-LINK1
+ * ln -s /foo/-LINK1 /foo/file
+ * ln -s /foo/-LINK1 /tmp/file2
+ * #
+ * 
+ * Using this strategy, we can operate on /foo/file or /foo/file2.
+ * We can remove one and keep the other, like a normal Unix hard link.
+ * We can rename /foo/file or /tmp/file2 independently.
+ * 
+ * The entry -LINK1 will be hidden. It will hold a link count.
+ * When all link are erased, the hidden file is erased too.
+ */
+
+/* #Specification: weakness / hard link
+ * The strategy for hard link introduces a side effect that
+ * may or may not be acceptable. Here is the sequence
+ * 
+ * #
+ * mkdir subdir1
+ * touch subdir1/file
+ * mkdir subdir2
+ * ln    subdir1/file subdir2/file
+ * rm    subdir1/file
+ * rmdir subdir1
+ * rmdir: subdir1: Directory not empty
+ * #
+ * 
+ * This happen because there is an invisible file (--link) in
+ * subdir1 which is referenced by subdir2/file.
+ * 
+ * Any idea ?
+ */
+/* #Specification: weakness / hard link / rename directory
+ * Another weakness of hard link come from the fact that
+ * it is based on hidden symbolic links. Here is an example.
+ * 
+ * #
+ * mkdir /subdir1
+ * touch /subdir1/file
+ * mkdir /subdir2
+ * ln    /subdir1/file subdir2/file
+ * mv    /subdir1 subdir3
+ * ls -l /subdir2/file
+ * #
+ * 
+ * Since /subdir2/file is a hidden symbolic link
+ * to /subdir1/..hlinkNNN, accessing it will fail since
+ * /subdir1 does not exist anymore (has been renamed).
+ */
+/* #Specification: hard link / directory
+ * A hard link can't be made on a directory. EPERM is returned
+ * in this case.
+ */
+/* #Specification: hard link / first hard link
+ * The first time a hard link is done on a file, this
+ * file must be renamed and hidden. Then an internal
+ * symbolic link must be done on the hidden file.
+ * 
+ * The second link is done after on this hidden file.
+ * 
+ * It is expected that the Linux MSDOS file system
+ * keeps the same pseudo inode when a rename operation
+ * is done on a file in the same directory.
+ */
+/* #Specification: function name / convention
+ * A simple convention for function names has been used in
+ * the UMSDOS filesystem. First, all functions use the prefix
+ * umsdos_ to avoid name clashes with other parts of the kernel.
+ * 
+ * Standard VFS entry points use the prefix UMSDOS (upper case)
+ * so it's easier to tell them apart.
+ * N.B. (FIXME) PTW, the order and contents of this struct changed.
+ */
+
+/* #Specification: mount / options
+ * Umsdos run on top of msdos. Currently, it supports no
+ * mount option, but happily pass all option received to
+ * the msdos driver. I am not sure if all msdos mount option
+ * make sense with Umsdos. Here are at least those who
+ * are useful.
+ * uid=
+ * gid=
+ * 
+ * These options affect the operation of umsdos in directories
+ * which do not have an EMD file. They behave like normal
+ * msdos directory, with all limitation of msdos.
+ */
+
+/* #Specification: pseudo root / mount
+ * When a umsdos fs is mounted, a special handling is done
+ * if it is the root partition. We check for the presence
+ * of the file /linux/etc/init or /linux/etc/rc or
+ * /linux/sbin/init. If one is there, we do a chroot("/linux").
+ * 
+ * We check both because (see init/main.c) the kernel
+ * try to exec init at different place and if it fails
+ * it tries /bin/sh /etc/rc. To be consistent with
+ * init/main.c, many more test would have to be done
+ * to locate init. Any complain ?
+ * 
+ * The chroot is done manually in init/main.c but the
+ * info (the inode) is located at mount time and store
+ * in a global variable (pseudo_root) which is used at
+ * different place in the umsdos driver. There is no
+ * need to store this variable elsewhere because it
+ * will always be one, not one per mount.
+ * 
+ * This feature allows the installation
+ * of a linux system within a DOS system in a subdirectory.
+ * 
+ * A user may install its linux stuff in c:\linux
+ * avoiding any clash with existing DOS file and subdirectory.
+ * When linux boots, it hides this fact, showing a normal
+ * root directory with /etc /bin /tmp ...
+ * 
+ * The word "linux" is hardcoded in /usr/include/linux/umsdos_fs.h
+ * in the macro UMSDOS_PSDROOT_NAME.
+ */

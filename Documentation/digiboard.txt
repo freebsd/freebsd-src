@@ -1,0 +1,272 @@
+The Linux Digiboard Driver
+--------------------------
+
+The Digiboard Driver for Linux supports the following boards:
+
+ DigiBoard PC/Xi, PC/Xe, PC/Xeve(which is the newer, smaller Xe with
+ a 8K window which is also known as PC/Xe(8K) and has no memory/irq
+ switches) You can use up to 4 cards with this driver and it should work
+ on other architectures than intel also.
+
+A version of this driver has been taken by Digiboard to make a driver
+software package which supports also PC/Xem cards and newer PCI cards
+but it doesn't support the old PC/Xi cards and it isn't yet ported to
+linux-2.1.x and may not be usable on other architectures than intel now.
+It is available from ftp.digi.com/ftp.digiboard.com. You can write me if
+you need an patch for this driver.
+
+Bernhard Kaindl (bkaindl@netway.at)  6. April 1997.
+
+Configuring the Driver
+----------------------
+
+The driver can be built direct into the kernel or as a module.
+The pcxx driver can be configured using the command line feature while
+loading the kernel with LILO or LOADLIN or, if built as a module,
+with arguments to insmod and modprobe or with parameters in
+/etc/modules.conf for modprobe and kerneld.
+
+After configuring the driver you need to create the device special files
+as described in "Device file creation:" below and set the appropriate
+permissions for your application.
+
+As Module
+---------
+
+modprobe pcxx io=<io> \
+  membase=<membase> \
+  memsize=<memsize> \
+  numports=<numports>  \
+  altpin=<altpin> \
+  verbose=<verbose>
+
+or, if several cards are installed
+
+modprobe pcxx io=<io-1>,<io-2>,... \
+  membase=<membase-1>,<membase-2>,... \
+  memsize=<memsize-1>,<memsize-2>,... \
+  numports=<numports-1>,<numports-2>,... \
+  altpin=<altpin-1>,<altpin-2>,... \
+  verbose=<verbose>
+
+where <io-N> is the io address of the Nth card and <membase-N> is the
+memory base address of the Nth card, etc.
+
+The parameters can be specified in any order. For example, the numports
+parameter can precede the membase parameter, or vice versa. If several
+cards are installed the ordering within the comma separated parameter
+lists must be consistent, of course.
+
+io       - I/O port address of that card.
+membase  - Memory start address of that card.
+memsize  - Memory size of that card, in kilobytes. If given, this value
+           is compared against the card to verify configuration and
+           hinder the driver from using a misconfigured card. If the parameter
+           does not match the board it is disabled with a memory size error.
+numports - Number of ports on this card. This is the number of devices to
+           assign to this card or reserve if disabled.
+altpin   - 1: swap DCD and DSR for 8-pin RJ-45 with modems.
+	   0: don't swap DCD and DSR.
+           other values count as 1.
+verbose  - 1: give nice verbose output during initialisation of the driver,
+              possibly helpful during board configuration.
+           0: normal terse output.
+
+Only the parameters which differ from the defaults need to be specified.
+If the io= parameter is not given, the default config is used. This is
+
+  io=0x200 membase=0xD0000 numports=16 altpin=0
+
+Only applicable parameters need be specified. For example to configure
+2 boards, first one at 0x200 with 8 ports, rest defaults, second one at
+0x120, memory at 0xD80000, altpin enabled, rest defaults, you can do this
+by using these parameters:
+
+  modprobe pcxx io=0x200,0x120 numports=8,8 membase=,0xD80000 altpin=,1
+
+To disable a temporary unusable board without changing the mapping of the
+devices following that board, you can empty the io-value for that board:
+
+  modprobe pcxx io=,0x120 numports=8,8 membase=,0xD80000 altpin=,1
+
+The remaining board still uses ttyD8-ttyD15 and cud8-cud15.
+
+Example line for /etc/modules.conf for use with kerneld and as default
+parameters for modprobe:
+
+options pcxx           io=0x200 numports=8
+
+For kerneld to work you will likely need to add these two lines to your
+/etc/modules.conf:
+
+alias char-major-22    pcxx
+alias char-major-23    pcxx
+
+
+Boot-time configuration when linked into the kernel
+---------------------------------------------------
+
+Per board to be configured, pass a digi= command-line parameter to the
+kernel using lilo or loadlin. It consists of a string of comma separated
+identifiers or integers.  The 6 values in order are:
+
+Card status:      Enable      - use that board
+		  Disable     - don't actually use that board.
+
+Card type:        PC/Xi       - the old ones with 64/128/256/512K RAM.
+		  PC/Xe       - PC/Xe(old ones with 64k mem range).
+		  PC/Xeve     - PC/Xe(new ones with 8k mem range).
+
+Note: This is for documentation only, the type is detected from the board.
+
+Altpin setting:   Enable      - swap DCD and DSR for 8-pin RJ-45 with modems.
+		  Disable     - don't swap DCD and DSR.
+
+Number of ports:  1 ... 16    - Number of ports on this card. This is the
+				number of devices to assign to this card.
+
+I/O port address: eg. 200     - I/O Port address where the card is configured.
+
+Memory base addr: eg. 80000   - Memory address where the board's memory starts.
+
+This is an example for a line which you can insert into you lilo.conf:
+
+   append="digi=Enable,PC/Xi,Disable,4,120,D0000"
+
+there is an alternate form, in which you must use decimal values only:
+
+   append="digi=1,0,0,16,512,851968"
+
+If you don't give a digi= command line, the compiled-in defaults of
+board 1: io=0x200, membase=0xd0000, altpin=off and numports=16 are used.
+
+If you have the resources (io&mem) free for use, configure your board to
+these settings and you should be set up fine even if yours has not got 16 
+ports.
+
+
+Sources of Information
+----------------------
+
+Please contact digi directly digilnux@dgii.com. Forward any information of
+general interest to me so that I can include it on the webpage.
+
+Web page: http://lameter.com/digi
+
+Christoph Lameter (christoph@lameter.com) Aug 14, 2000.
+
+Device file creation
+--------------------
+
+Currently the Linux MAKEDEV command does not support generating the Digiboard
+Devices. 
+
+The /dev/cud devices behave like the /dev/cua devices
+and the ttyD devices are like the /dev/ttyS devices.
+
+Use the following script to generate the devices:
+
+------------------ mkdigidev begin
+#!/bin/sh
+#
+# Script to create Digiboard Devices
+# Christoph Lameter, April 16, 1996
+#
+# Usage:
+# mkdigidev [<number of devices>]
+# 
+
+DIGI_MAJOR=23
+DIGICU_MAJOR=22
+
+BOARDS=$1
+
+if [ "$BOARDS" = "" ]; then
+BOARDS=1
+fi
+
+boardnum=0
+while [ $boardnum -lt $BOARDS ];
+do
+  for c in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15;
+  do
+	name=`expr $boardnum \* 16 + $c`
+	mknod /dev/cud$name c $DIGICU_MAJOR $name
+	mknod /dev/ttyD$name c $DIGI_MAJOR $name
+  done
+  boardnum=`expr $boardnum + 1`
+done
+------------------ mkdigidev end
+
+or apply the following patch to /dev/MAKEDEV and do a 
+sh /dev/MAKEDEV digi
+
+----- MAKEDEV Patch
+--- /dev/MAKEDEV	Sun Aug 13 15:48:23 1995
++++ MAKEDEV	Tue Apr 16 17:53:27 1996
+@@ -120,7 +120,7 @@
+ 	while [ $# -ne 0 ]
+ 	do
+ 		case "$1" in
+-			mem|tty|ttyp|cua|cub)	;;
++			mem|tty|ttyp|cua|cub|cud)	;;
+ 			hd)	echo hda hdb hdc hdd ;;
+ 			xd)	echo xda xdb ;;
+ 			fd)	echo fd0 fd1 ;;
+@@ -140,6 +140,7 @@
+ 			dcf)		echo dcf ;;
+ 			pcmcia)	;; # taken care of by its own driver
+ 			ttyC)	echo cyclades ;;
++			ttyD)	echo digi ;;
+ 			*)	echo "$0: don't know what \"$1\" is" >&2 ;;
+ 		esac
+ 		shift
+@@ -208,6 +209,15 @@
+ 		do
+ 			makedev ttyC$i c $major1 `expr 32 + $i` $tty
+ 			makedev cub$i c $major2 `expr 32 + $i` $dialout
++		done
++		;;
++	digi)
++		major1=`Major ttyD` || continue
++		major2=`Major cud` || continue
++		for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
++		do
++			makedev ttyD$i c $major1 `expr 32 + $i` $tty
++			makedev cud$i c $major2 `expr 32 + $i` $dialout
+ 		done
+ 		;;
+ 	par[0-2])
+----- End Makedev patch
+
+-----------------------------------------------------------------------------
+
+Changes v1.5.5:
+
+The ability to use the kernel's command line to pass in the configuration for 
+boards.  Using LILO's APPEND command, a string of comma separated identifiers 
+or integers can be used.  The 6 values in order are:
+
+   Enable/Disable this card,
+   Type of card: PC/Xi(0), PC/Xe(1), PC/Xeve(2), PC/Xem(3)
+   Enable/Disable alternate pin arrangement,
+   Number of ports on this card,
+   I/O Port where card is configured (in HEX if using string identifiers),
+   Base of memory window (in HEX if using string identifiers), 
+
+Samples:
+   append="digi=E,PC/Xi,D,16,200,D0000"
+   append="digi=1,0,0,16,512,(whatever D0000 is in base 10 :)
+
+Drivers' minor device numbers are conserved. This means that instead of
+each board getting a block of 16 minors pre-assigned, it gets however
+many it should, with the next card following directly behind it.  A
+system with 4 2-port PC/Xi boards will use minor numbers 0-7.
+This conserves some memory, and removes a few hard coded constants.
+
+NOTE!! NOTE!! NOTE!!
+The definition of PC/Xem as a valid board type is the BEGINNING of support
+for this device.  The driver does not currently recognise the board, nor
+does it want to initialize it.  At least not the EISA version.
+
+Mike McLagan <mike.mclagan@linux.org> 5, April 1996.

@@ -1,0 +1,11 @@
+In order to use the ethernet bridging functionality you'll need the
+userspace tools available at http://www.math.leidenuniv.nl/~buytenh/bridge.
+The tarball available there contains extensive documentation, but if you
+still have questions, don't hesitate to post to the mailing list (more info
+at http://www.math.leidenuniv.nl/mailman/listinfo/bridge). You can also
+mail me at buytenh@gnu.org.
+
+
+
+Lennert Buytenhek
+<buytenh@gnu.org>

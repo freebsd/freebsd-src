@@ -1,0 +1,232 @@
+This driver is for Compaq's SMART Array Controllers.
+
+Supported Cards:
+----------------
+
+This driver is known to work with the following cards:
+
+	* SA 5300
+	* SA 5i 
+	* SA 532
+	* SA 5312
+	* SA 641
+	* SA 642
+	* SA 6400
+	* SA 6400 U320 Expansion Module
+	* SA 6i
+
+If nodes are not already created in the /dev/cciss directory
+
+# mkdev.cciss [ctlrs]
+
+Where ctlrs is the number of controllers you have (defaults to 1 if not
+specified).
+
+Device Naming:
+--------------
+
+You need some entries in /dev for the cciss device.  The mkdev.cciss script
+can make device nodes for you automatically.  Currently the device setup
+is as follows:
+
+Major numbers:
+	104	cciss0	
+	105	cciss1	
+	106	cciss2 
+	etc...
+
+Minor numbers:
+        b7 b6 b5 b4 b3 b2 b1 b0
+        |----+----| |----+----|
+             |           |
+             |           +-------- Partition ID (0=wholedev, 1-15 partition)
+             |
+             +-------------------- Logical Volume number
+
+The suggested device naming scheme is:
+/dev/cciss/c0d0			Controller 0, disk 0, whole device
+/dev/cciss/c0d0p1		Controller 0, disk 0, partition 1
+/dev/cciss/c0d0p2		Controller 0, disk 0, partition 2
+/dev/cciss/c0d0p3		Controller 0, disk 0, partition 3
+
+/dev/cciss/c1d1			Controller 1, disk 1, whole device
+/dev/cciss/c1d1p1		Controller 1, disk 1, partition 1
+/dev/cciss/c1d1p2		Controller 1, disk 1, partition 2
+/dev/cciss/c1d1p3		Controller 1, disk 1, partition 3
+
+Support for more than 8 controllers
+-----------------------------------
+Originally the driver only supports 8 controllers in the system,
+and this is due to the major numbers assigned to the driver
+(104 thru 111).
+
+The driver can now support up to 32 controllers in the system.
+
+For the ninth controller and beyond, the major numbers will be
+assigned dynamically by the kernel when it is discovered,
+and there is no guarantee what the major number you will get,
+but most likely it will start from 254 and goes down from there.
+
+You can check the assigned major numbers by typing
+	cat /proc/devices
+And look for cciss controllers
+
+Once you have this, you need to create device nodes in
+/dev/cciss directory. The nodes for the first 8 controllers
+should already be created by mkdev.cciss script or
+/etc/makedev.d/cciss script. You can add the major number(s)
+in those scripts, or create the nodes manually by using
+the mknod command.
+
+You can also use mknod_dyn.cciss and rmnod_dyn.cciss scripts
+to create or remove nodes easily. These scripts can be found
+in the Documentation directory.
+
+Then you can mount the devices and create partitions
+(You also need to make nodes for these partitions).
+
+As for the minor number, the disk device will have a minor
+number divisible by 16 (e.g: 0, 16, 32 etc), and the 
+partitions on those disk devices will have the minor number
+of the disk device plus the partition number (1-15).
+For example, disk d2 will have minor number 32, and its
+partitions 1 and 2 will have minor numbers 33 and 34.
+
+Look at the mkdev.cciss script for example.
+ 
+Note:
+ In 2.4 kernel, partition names are hard coded in
+ /usr/src/linux/fs/partitions/check.c
+ and only for the first 8 cciss controllers. The rest
+ will be reported as ccissXX. This should not affect 
+ I/O operation or performance. Please apply the 
+ cciss_2.4_partition_name.patch to address this. This 
+ will not be an issue under 2.5 kernel, since partition
+ names will be handled by the driver.
+
+SCSI tape drive and medium changer support
+------------------------------------------
+
+SCSI sequential access devices and medium changer devices are supported and 
+appropriate device nodes are automatically created.  (e.g.  
+/dev/st0, /dev/st1, etc.  See the "st" man page for more details.) 
+You must enable "SCSI tape drive support for Smart Array 5xxx" and 
+"SCSI support" in your kernel configuration to be able to use SCSI
+tape drives with your Smart Array 5xxx controller.
+
+Additionally, note that the driver will not engage the SCSI core at init 
+time.  The driver must be directed to dynamically engage the SCSI core via 
+the /proc filesystem entry which the "block" side of the driver creates as 
+/proc/driver/cciss/cciss* at runtime.  This is because at driver init time, 
+the SCSI core may not yet be initialized (because the driver is a block 
+driver) and attempting to register it with the SCSI core in such a case 
+would cause a hang.  This is best done via an initialization script 
+(typically in /etc/init.d, but could vary depending on distibution). 
+For example:
+
+	for x in /proc/driver/cciss/cciss[0-9]*
+	do
+		echo "engage scsi" > $x
+	done
+
+Once the SCSI core is engaged by the driver, it cannot be disengaged 
+(except by unloading the driver, if it happens to be linked as a module.)
+
+Note also that if no sequential access devices or medium changers are
+detected, the SCSI core will not be engaged by the action of the above
+script.
+
+Hot plug support for SCSI tape drives
+-------------------------------------
+
+Hot plugging of SCSI tape drives is supported, with some caveats.
+The cciss driver must be informed that changes to the SCSI bus
+have been made, in addition to and prior to informing the SCSI 
+mid layer.  This may be done via the /proc filesystem.  For example:
+
+	echo "rescan" > /proc/scsi/cciss0/1
+
+This causes the adapter to query the adapter about changes to the 
+physical SCSI buses and/or fibre channel arbitrated loop and the 
+driver to make note of any new or removed sequential access devices
+or medium changers.  The driver will output messages indicating what 
+devices have been added or removed and the controller, bus, target and 
+lun used to address the device.  Once this is done, the SCSI mid layer 
+can be informed of changes to the virtual SCSI bus which the driver 
+presents to it in the usual way. For example: 
+
+	echo scsi add-single-device 3 2 1 0 > /proc/scsi/scsi
+ 
+to add a device on controller 3, bus 2, target 1, lun 0.   Note that
+the driver makes an effort to preserve the devices positions
+in the virtual SCSI bus, so if you are only moving tape drives 
+around on the same adapter and not adding or removing tape drives 
+from the adapter, informing the SCSI mid layer may not be necessary.
+
+Note that the naming convention of the /proc filesystem entries 
+contains a number in addition to the driver name.  (E.g. "cciss0" 
+instead of just "cciss" which you might expect.)   This is because 
+of changes to the 2.4 kernel PCI interface related to PCI hot plug
+that imply the driver must register with the SCSI mid layer once per
+adapter instance rather than once per driver.
+
+Note: ONLY sequential access devices and medium changers are presented 
+as SCSI devices to the SCSI mid layer by the cciss driver.  Specifically, 
+physical SCSI disk drives are NOT presented to the SCSI mid layer.  The 
+physical SCSI disk drives are controlled directly by the array controller 
+hardware and it is important to prevent the OS from attempting to directly 
+access these devices too, as if the array controller were merely a SCSI 
+controller in the same way that we are allowing it to access SCSI tape drives.
+
+Monitor Threads
+---------------
+
+For multipath configurations (acheived via a higher level driver, such
+as the "md" driver) it is important that failure of a controller is detected.
+Ordinarily, the driver is entirely interrupt driven.  If a failure occurs
+in such a way that the processor cannot receive interrupts from an adapter,
+the driver will wait forever for i/o's to complete.  In a multipath
+configuration this is undesirable, as the md driver relies on i/o's being
+reported as failed by the low level driver to trigger failing over to an 
+alternate controller.  The monitor threads allow the driver to detect such 
+situations and report outstanding i/o's as having failed so that recovery 
+actions such switching to an alternate controller can occur.  The monitor 
+threads periodically sends a trivial "no-operation" command down to 
+the controllers and expect them to complete within a a reasonable (short)
+time period.  The firmware on the adapter is designed such that no matter
+how busy the adapter is serving i/o, it can respond quickly to a
+"no-operation" command.  In the event that a deadline elapses before a no 
+operation command completes, all outstanding commands on that controller 
+are reported back to the upper layers as having failed, and any new commands 
+sent to the controller are immediately reported back as failed. 
+
+To enable the monitor threads, the compile time option must be enabled
+(via the usual linux kernel configuration) and the monitor thread must
+be enabled at runtime as well.  A system may have many adapters, but 
+perhaps only a single pair operating in a multipath configuration.  
+In this way, it is possible to run monitoring threads only for those 
+adapters which require it.
+
+To start a monitoring thread on the first cciss adapter, "cciss0" with
+a polling interval of 30 seconds, execute the following command:
+
+	echo "monitor 30" > /proc/driver/cciss/cciss0
+
+To change the polling interval, to say, 60 seconds:
+
+	echo "monitor 60" > /proc/driver/cciss/cciss0
+
+(Note, the change will not take effect until the previous polling 
+interval elapses.)
+
+To disable the monitoring thread, set the polling interval to 0 seconds:
+
+	echo "monitor 0" > /proc/driver/cciss/cciss0
+
+(Again, the monitoring thread will not exit until the previous polling
+interval elapses.)
+
+The minimum monitoring period is 10 seconds, and the maximum monitoring
+period is 3600 seconds (1 hour).  The no-operation command must complete
+with 5 seconds of submission in all cases or the controller will be presumed
+failed.

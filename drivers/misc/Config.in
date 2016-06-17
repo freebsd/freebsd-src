@@ -1,0 +1,7 @@
+#
+# Misc strange devices
+#
+mainmenu_option next_comment
+comment 'Misc devices'
+
+endmenu

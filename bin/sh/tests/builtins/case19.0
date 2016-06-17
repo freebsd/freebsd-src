@@ -1,7 +1,0 @@
-# $FreeBSD$
-
-[ "`case x in
-x)	false ;&
-y)	;&
-z)	echo $? ;;
-esac`" != 0 ]

@@ -1,0 +1,243 @@
+Documentation for /proc/sys/vm/*	kernel version 2.4.19
+	(c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+
+For general info and legal blurb, please look in README.
+
+==============================================================
+
+This file contains the documentation for the sysctl files in
+/proc/sys/vm and is valid for Linux kernel version 2.4.
+
+The files in this directory can be used to tune the operation
+of the virtual memory (VM) subsystem of the Linux kernel, and
+one of the files (bdflush) also has a little influence on disk
+usage.
+
+Default values and initialization routines for most of these
+files can be found in mm/swap.c.
+
+Currently, these files are in /proc/sys/vm:
+- bdflush
+- buffermem
+- freepages
+- kswapd
+- max_map_count
+- overcommit_memory
+- page-cluster
+- pagecache
+- pagetable_cache
+
+==============================================================
+
+bdflush:
+
+This file controls the operation of the bdflush kernel
+daemon. The source code to this struct can be found in
+linux/fs/buffer.c. It currently contains 9 integer values,
+of which 6 are actually used by the kernel.
+
+From linux/fs/buffer.c:
+--------------------------------------------------------------
+union bdflush_param {
+	struct {
+		int nfract;	/* Percentage of buffer cache dirty to
+				   activate bdflush */
+		int ndirty;	/* Maximum number of dirty blocks to write out per
+				   wake-cycle */
+		int dummy2;	/* old "nrefill" */
+		int dummy3;	/* unused */
+		int interval;	/* jiffies delay between kupdate flushes */
+		int age_buffer;	/* Time for normal buffer to age before we flush it */
+		int nfract_sync;/* Percentage of buffer cache dirty to
+				   activate bdflush synchronously */
+		int nfract_stop_bdflush; /* Percentage of buffer cache dirty to stop bdflush */
+		int dummy5;	/* unused */
+	} b_un;
+	unsigned int data[N_PARAM];
+} bdf_prm = {{30, 500, 0, 0, 5*HZ, 30*HZ, 60, 20, 0}};
+--------------------------------------------------------------
+
+int nfract:
+The first parameter governs the maximum number of dirty
+buffers in the buffer cache. Dirty means that the contents
+of the buffer still have to be written to disk (as opposed
+to a clean buffer, which can just be forgotten about).
+Setting this to a high value means that Linux can delay disk
+writes for a long time, but it also means that it will have
+to do a lot of I/O at once when memory becomes short. A low
+value will spread out disk I/O more evenly, at the cost of
+more frequent I/O operations.  The default value is 30%,
+the minimum is 0%, and the maximum is 100%.
+
+int ndirty:
+The second parameter (ndirty) gives the maximum number of
+dirty buffers that bdflush can write to the disk in one time.
+A high value will mean delayed, bursty I/O, while a small
+value can lead to memory shortage when bdflush isn't woken
+up often enough.
+
+int interval:
+The fifth parameter, interval, is the minimum rate at
+which kupdate will wake and flush.  The value is expressed in
+jiffies (clockticks), the number of jiffies per second is
+normally 100 (Alpha is 1024). Thus, x*HZ is x seconds.  The
+default value is 5 seconds, the minimum is 0 seconds, and the
+maximum is 600 seconds.
+
+int age_buffer:
+The sixth parameter, age_buffer, governs the maximum time
+Linux waits before writing out a dirty buffer to disk.  The
+value is in jiffies.  The default value is 30 seconds,
+the minimum is 1 second, and the maximum 6,000 seconds.
+
+int nfract_sync:
+The seventh parameter, nfract_sync, governs the percentage
+of buffer cache that is dirty before bdflush activates
+synchronously.  This can be viewed as the hard limit before
+bdflush forces buffers to disk.  The default is 60%, the
+minimum is 0%, and the maximum is 100%.
+
+int nfract_stop_bdflush:
+The eighth parameter, nfract_stop_bdflush, governs the percentage
+of buffer cache that is dirty which will stop bdflush.
+The default is 20%, the miniumum is 0%, and the maxiumum is 100%.
+==============================================================
+buffermem:
+
+The three values in this file correspond to the values in
+the struct buffer_mem. It controls how much memory should
+be used for buffer memory. The percentage is calculated
+as a percentage of total system memory.
+
+The values are:
+min_percent	-- this is the minimum percentage of memory
+		   that should be spent on buffer memory
+borrow_percent  -- UNUSED
+max_percent     -- UNUSED
+
+==============================================================
+freepages:
+
+This file contains the values in the struct freepages. That
+struct contains three members: min, low and high.
+
+The meaning of the numbers is:
+
+freepages.min	When the number of free pages in the system
+		reaches this number, only the kernel can
+		allocate more memory.
+freepages.low	If the number of free pages gets below this
+		point, the kernel starts swapping aggressively.
+freepages.high	The kernel tries to keep up to this amount of
+		memory free; if memory comes below this point,
+		the kernel gently starts swapping in the hopes
+		that it never has to do real aggressive swapping.
+
+==============================================================
+
+kswapd:
+
+Kswapd is the kernel swapout daemon. That is, kswapd is that
+piece of the kernel that frees memory when it gets fragmented
+or full. Since every system is different, you'll probably want
+some control over this piece of the system.
+
+The numbers in this page correspond to the numbers in the
+struct pager_daemon {tries_base, tries_min, swap_cluster
+}; The tries_base and swap_cluster probably have the
+largest influence on system performance.
+
+tries_base	The maximum number of pages kswapd tries to
+		free in one round is calculated from this
+		number. Usually this number will be divided
+		by 4 or 8 (see mm/vmscan.c), so it isn't as
+		big as it looks.
+		When you need to increase the bandwidth to/from
+		swap, you'll want to increase this number.
+tries_min	This is the minimum number of times kswapd
+		tries to free a page each time it is called.
+		Basically it's just there to make sure that
+		kswapd frees some pages even when it's being
+		called with minimum priority.
+swap_cluster	This is the number of pages kswapd writes in
+		one turn. You want this large so that kswapd
+		does it's I/O in large chunks and the disk
+		doesn't have to seek often, but you don't want
+		it to be too large since that would flood the
+		request queue.
+
+==============================================================
+
+overcommit_memory:
+
+This value contains a flag that enables memory overcommitment.
+When this flag is 0, the kernel checks before each malloc()
+to see if there's enough memory left. If the flag is nonzero,
+the system pretends there's always enough memory.
+
+This feature can be very useful because there are a lot of
+programs that malloc() huge amounts of memory "just-in-case"
+and don't use much of it.
+
+Look at: mm/mmap.c::vm_enough_memory() for more information.
+
+==============================================================
+
+max_map_count:
+
+This file contains the maximum number of memory map areas a
+process may have. Memory map areas are used as a side-effect
+of calling malloc, directly by mmap and mprotect, and also
+when loading shared libraries.
+
+While most applications need less than a thousand maps,
+certain programs, particularly malloc debuggers, may consume 
+lots of them, e.g. up to one or two maps per allocation.
+
+==============================================================
+
+page-cluster:
+
+The Linux VM subsystem avoids excessive disk seeks by reading
+multiple pages on a page fault. The number of pages it reads
+is dependent on the amount of memory in your machine.
+
+The number of pages the kernel reads in at once is equal to
+2 ^ page-cluster. Values above 2 ^ 5 don't make much sense
+for swap because we only cluster swap data in 32-page groups.
+
+==============================================================
+
+pagecache:
+
+This file does exactly the same as buffermem, only this
+file controls the struct page_cache, and thus controls
+the amount of memory used for the page cache.
+
+In 2.2, the page cache is used for 3 main purposes:
+- caching read() data from files
+- caching mmap()ed data and executable files
+- swap cache
+
+When your system is both deep in swap and high on cache,
+it probably means that a lot of the swapped data is being
+cached, making for more efficient swapping than possible
+with the 2.0 kernel.
+
+==============================================================
+
+pagetable_cache:
+
+The kernel keeps a number of page tables in a per-processor
+cache (this helps a lot on SMP systems). The cache size for
+each processor will be between the low and the high value.
+
+On a low-memory, single CPU system you can safely set these
+values to 0 so you don't waste the memory. On SMP systems it
+is used so that the system can do fast pagetable allocations
+without having to acquire the kernel memory lock.
+
+For large systems, the settings are probably OK. For normal
+systems they won't hurt a bit. For small systems (<16MB ram)
+it might be advantageous to set both values to 0.
+

@@ -1,0 +1,76 @@
+How to use the Linux packet generator module.
+
+1. Enable CONFIG_NET_PKTGEN to compile and build pktgen.o, install it
+   in the place where insmod may find it.
+2. Cut script "ipg" (see below).
+3. Edit script to set preferred device and destination IP address.
+3a.  Create more scripts for different interfaces.  Up to thirty-two
+     pktgen processes can be configured and run at once by using the
+     32 /proc/net/pktgen/pg* files.
+4. Run in shell: ". ipg"
+5. After this two commands are defined:
+   A. "pg" to start generator and to get results.
+   B. "pgset" to change generator parameters. F.e.
+      pgset "multiskb 1"      use multiple SKBs for packet generation
+      pgset "multiskb 0"      use single SKB for all transmits
+      pgset "pkt_size 9014"   sets packet size to 9014
+      pgset "frags 5"         packet will consist of 5 fragments
+      pgset "count 200000"    sets number of packets to send, set to zero
+                              for continious sends untill explicitly
+                              stopped.
+      pgset "ipg 5000"        sets artificial gap inserted between packets
+                              to 5000 nanoseconds
+      pgset "dst 10.0.0.1"    sets IP destination address
+                              (BEWARE! This generator is very aggressive!)
+      pgset "dst_min 10.0.0.1"            Same as dst
+      pgset "dst_max 10.0.0.254"          Set the maximum destination IP.
+      pgset "src_min 10.0.0.1"            Set the minimum (or only) source IP.
+      pgset "src_max 10.0.0.254"          Set the maximum source IP.
+      pgset "dstmac 00:00:00:00:00:00"    sets MAC destination address
+      pgset "srcmac 00:00:00:00:00:00"    sets MAC source address
+      pgset "src_mac_count 1" Sets the number of MACs we'll range through.  The
+                              'minimum' MAC is what you set with srcmac.
+      pgset "dst_mac_count 1" Sets the number of MACs we'll range through.  The
+                              'minimum' MAC is what you set with dstmac.
+      pgset "flag [name]"     Set a flag to determine behaviour.  Current flags
+                              are: IPSRC_RND #IP Source is random (between min/max),
+                                   IPDST_RND, UDPSRC_RND,
+                                   UDPDST_RND, MACSRC_RND, MACDST_RND 
+      pgset "udp_src_min 9"   set UDP source port min, If < udp_src_max, then
+                              cycle through the port range.
+      pgset "udp_src_max 9"   set UDP source port max.
+      pgset "udp_dst_min 9"   set UDP destination port min, If < udp_dst_max, then
+                              cycle through the port range.
+      pgset "udp_dst_max 9"   set UDP destination port max.
+      pgset stop    	      aborts injection
+      
+  Also, ^C aborts generator.
+
+---- cut here
+
+#! /bin/sh
+
+modprobe pktgen
+
+PGDEV=/proc/net/pktgen/pg0
+
+function pgset() {
+    local result
+
+    echo $1 > $PGDEV
+
+    result=`cat $PGDEV | fgrep "Result: OK:"`
+    if [ "$result" = "" ]; then
+         cat $PGDEV | fgrep Result:
+    fi
+}
+
+function pg() {
+    echo inject > $PGDEV
+    cat $PGDEV
+}
+
+pgset "odev eth0"
+pgset "dst 0.0.0.0"
+
+---- cut here

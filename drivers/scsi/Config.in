@@ -1,0 +1,262 @@
+comment 'SCSI support type (disk, tape, CD-ROM)'
+
+dep_tristate '  SCSI disk support' CONFIG_BLK_DEV_SD $CONFIG_SCSI
+
+if [ "$CONFIG_BLK_DEV_SD" != "n" ]; then
+   int  'Maximum number of SCSI disks that can be loaded as modules' CONFIG_SD_EXTRA_DEVS 40
+fi
+
+dep_tristate '  SCSI tape support' CONFIG_CHR_DEV_ST $CONFIG_SCSI
+
+dep_tristate '  SCSI OnStream SC-x0 tape support' CONFIG_CHR_DEV_OSST $CONFIG_SCSI
+
+dep_tristate '  SCSI CD-ROM support' CONFIG_BLK_DEV_SR $CONFIG_SCSI
+
+if [ "$CONFIG_BLK_DEV_SR" != "n" ]; then
+   bool '    Enable vendor-specific extensions (for SCSI CDROM)' CONFIG_BLK_DEV_SR_VENDOR
+   int  'Maximum number of CDROM devices that can be loaded as modules' CONFIG_SR_EXTRA_DEVS 2
+fi
+dep_tristate '  SCSI generic support' CONFIG_CHR_DEV_SG $CONFIG_SCSI
+
+comment 'Some SCSI devices (e.g. CD jukebox) support multiple LUNs'
+
+#if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   bool '  Enable extra checks in new queueing code' CONFIG_SCSI_DEBUG_QUEUES
+#fi
+
+bool '  Probe all LUNs on each SCSI device' CONFIG_SCSI_MULTI_LUN
+  
+bool '  Verbose SCSI error reporting (kernel size +=12K)' CONFIG_SCSI_CONSTANTS
+bool '  SCSI logging facility' CONFIG_SCSI_LOGGING
+
+mainmenu_option next_comment
+comment 'SCSI low-level drivers'
+
+if [ "$CONFIG_SGI_IP22" = "y" ]; then
+   dep_tristate 'SGI WD93C93 SCSI Driver' CONFIG_SGIWD93_SCSI $CONFIG_SCSI
+fi
+if [ "$CONFIG_DECSTATION" = "y" ]; then
+   dep_tristate 'DEC NCR53C94 Scsi Driver' CONFIG_SCSI_DECNCR $CONFIG_SCSI $CONFIG_TC
+   dep_tristate 'DEC SII Scsi Driver' CONFIG_SCSI_DECSII $CONFIG_SCSI $CONFIG_MIPS32
+fi
+
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_tristate '3ware Hardware ATA-RAID support' CONFIG_BLK_DEV_3W_XXXX_RAID $CONFIG_SCSI
+fi
+dep_tristate '7000FASST SCSI support' CONFIG_SCSI_7000FASST $CONFIG_SCSI
+dep_tristate 'ACARD SCSI support' CONFIG_SCSI_ACARD $CONFIG_SCSI
+dep_tristate 'Adaptec AHA152X/2825 support' CONFIG_SCSI_AHA152X $CONFIG_SCSI
+dep_tristate 'Adaptec AHA1542 support' CONFIG_SCSI_AHA1542 $CONFIG_SCSI
+dep_tristate 'Adaptec AHA1740 support' CONFIG_SCSI_AHA1740 $CONFIG_SCSI
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   dep_tristate 'Adaptec AACRAID support (EXPERIMENTAL)' CONFIG_SCSI_AACRAID $CONFIG_SCSI $CONFIG_PCI
+fi
+source drivers/scsi/aic7xxx/Config.in
+if [ "$CONFIG_SCSI_AIC7XXX" != "y" ]; then
+   dep_tristate 'Old Adaptec AIC7xxx support' CONFIG_SCSI_AIC7XXX_OLD $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_AIC7XXX_OLD" != "n" ]; then
+      bool '  Enable Tagged Command Queueing (TCQ) by default' CONFIG_AIC7XXX_OLD_TCQ_ON_BY_DEFAULT
+      int  '  Maximum number of TCQ commands per device' CONFIG_AIC7XXX_OLD_CMDS_PER_DEVICE 8
+      bool '  Collect statistics to report in /proc' CONFIG_AIC7XXX_OLD_PROC_STATS
+   fi
+fi
+if [ "$CONFIG_X86_64" != "y" ]; then
+  dep_tristate 'Adaptec I2O RAID support ' CONFIG_SCSI_DPT_I2O $CONFIG_SCSI
+fi
+dep_tristate 'AdvanSys SCSI support' CONFIG_SCSI_ADVANSYS $CONFIG_SCSI
+dep_tristate 'Always IN2000 SCSI support' CONFIG_SCSI_IN2000 $CONFIG_SCSI
+dep_tristate 'AM53/79C974 PCI SCSI support' CONFIG_SCSI_AM53C974 $CONFIG_SCSI $CONFIG_PCI
+dep_tristate 'AMI MegaRAID support' CONFIG_SCSI_MEGARAID $CONFIG_SCSI
+dep_tristate 'AMI MegaRAID2 support' CONFIG_SCSI_MEGARAID2 $CONFIG_SCSI
+
+dep_tristate 'BusLogic SCSI support' CONFIG_SCSI_BUSLOGIC $CONFIG_SCSI
+if [ "$CONFIG_SCSI_BUSLOGIC" != "n" ]; then
+   bool '  Omit FlashPoint support' CONFIG_SCSI_OMIT_FLASHPOINT
+fi
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_tristate 'Compaq Fibre Channel 64-bit/66Mhz HBA support' CONFIG_SCSI_CPQFCTS $CONFIG_SCSI
+fi
+dep_tristate 'DMX3191D SCSI support' CONFIG_SCSI_DMX3191D $CONFIG_SCSI $CONFIG_PCI
+dep_tristate 'DTC3180/3280 SCSI support' CONFIG_SCSI_DTC3280 $CONFIG_SCSI
+dep_tristate 'EATA ISA/EISA/PCI (DPT and generic EATA/DMA-compliant boards) support' CONFIG_SCSI_EATA $CONFIG_SCSI
+if [ "$CONFIG_SCSI_EATA" != "n" ]; then
+   bool '  enable tagged command queueing' CONFIG_SCSI_EATA_TAGGED_QUEUE
+   bool '  enable elevator sorting' CONFIG_SCSI_EATA_LINKED_COMMANDS
+   int  '  maximum number of queued commands' CONFIG_SCSI_EATA_MAX_TAGS 16
+fi
+dep_tristate 'EATA-DMA [Obsolete] (DPT, NEC, AT&T, SNI, AST, Olivetti, Alphatronix) support' CONFIG_SCSI_EATA_DMA $CONFIG_SCSI
+dep_tristate 'EATA-PIO (old DPT PM2001, PM2012A) support' CONFIG_SCSI_EATA_PIO $CONFIG_SCSI
+dep_tristate 'Future Domain 16xx SCSI/AHA-2920A support' CONFIG_SCSI_FUTURE_DOMAIN $CONFIG_SCSI
+if [ "$CONFIG_MCA" = "y" ]; then
+   dep_tristate 'Future Domain MCS-600/700 SCSI support' CONFIG_SCSI_FD_MCS $CONFIG_SCSI
+fi
+dep_tristate 'Intel/ICP (former GDT SCSI Disk Array) RAID Controller support' CONFIG_SCSI_GDTH $CONFIG_SCSI
+dep_tristate 'Generic NCR5380/53c400 SCSI support' CONFIG_SCSI_GENERIC_NCR5380 $CONFIG_SCSI
+if [ "$CONFIG_SCSI_GENERIC_NCR5380" != "n" ]; then
+   bool '  Enable NCR53c400 extensions' CONFIG_SCSI_GENERIC_NCR53C400
+   choice 'NCR5380/53c400 mapping method (use Port for T130B)' \
+		"Port CONFIG_SCSI_G_NCR5380_PORT \
+		 Memory CONFIG_SCSI_G_NCR5380_MEM" Port
+fi
+if [ "$CONFIG_MCA" = "y" ]; then
+   dep_tristate 'IBMMCA SCSI support' CONFIG_SCSI_IBMMCA $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_IBMMCA" != "n" ]; then
+      bool '  Standard SCSI-order' CONFIG_IBMMCA_SCSI_ORDER_STANDARD
+      bool '  Reset SCSI-devices at boottime' CONFIG_IBMMCA_SCSI_DEV_RESET
+   fi
+fi
+if [ "$CONFIG_X86" = "y" ]; then
+   dep_tristate 'IBM ServeRAID support' CONFIG_SCSI_IPS $CONFIG_SCSI $CONFIG_PCI
+fi
+dep_tristate 'Initio 9100U(W) support' CONFIG_SCSI_INITIO $CONFIG_SCSI $CONFIG_PCI
+dep_tristate 'Initio INI-A100U2W support' CONFIG_SCSI_INIA100 $CONFIG_SCSI $CONFIG_PCI
+if [ "$CONFIG_PARPORT" != "n" ]; then
+   dep_tristate 'IOMEGA parallel port (ppa - older drives)' CONFIG_SCSI_PPA $CONFIG_SCSI $CONFIG_PARPORT
+   dep_tristate 'IOMEGA parallel port (imm - newer drives)' CONFIG_SCSI_IMM $CONFIG_SCSI $CONFIG_PARPORT
+   if [ "$CONFIG_SCSI_PPA" != "n" -o "$CONFIG_SCSI_IMM" != "n" ]; then
+      bool  '  ppa/imm option - Use slow (but safe) EPP-16' CONFIG_SCSI_IZIP_EPP16
+      bool  '  ppa/imm option - Assume slow parport control register' CONFIG_SCSI_IZIP_SLOW_CTR
+   fi
+fi
+dep_tristate 'NCR53c406a SCSI support' CONFIG_SCSI_NCR53C406A $CONFIG_SCSI
+if [ "$CONFIG_MCA" = "y" ]; then
+   dep_tristate 'NCR Dual 700 MCA SCSI support' CONFIG_SCSI_NCR_D700 $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_NCR_D700" != "n" ]; then
+      define_bool CONFIG_53C700_IO_MAPPED y
+   fi
+fi
+if [ "$CONFIG_PARISC" = "y" ]; then
+   dep_tristate 'HP LASI SCSI support for 53c700/710' CONFIG_SCSI_LASI700 $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_LASI700" != "n" ]; then
+      define_bool CONFIG_53C700_MEM_MAPPED y
+      define_bool CONFIG_53C700_LE_ON_BE y
+      define_bool CONFIG_53C700_USE_CONSISTENT y
+   fi
+fi
+dep_tristate 'NCR53c7,8xx SCSI support'  CONFIG_SCSI_NCR53C7xx $CONFIG_SCSI $CONFIG_PCI
+if [ "$CONFIG_SCSI_NCR53C7xx" != "n" ]; then
+   bool '  always negotiate synchronous transfers' CONFIG_SCSI_NCR53C7xx_sync
+   bool '  allow FAST-SCSI [10MHz]' CONFIG_SCSI_NCR53C7xx_FAST
+   bool '  allow DISCONNECT' CONFIG_SCSI_NCR53C7xx_DISCONNECT
+fi
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_tristate 'SYM53C8XX Version 2 SCSI support' CONFIG_SCSI_SYM53C8XX_2 $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_SYM53C8XX_2" != "n" ]; then
+      int  '  DMA addressing mode' CONFIG_SCSI_SYM53C8XX_DMA_ADDRESSING_MODE 1
+      int  '  default tagged command queue depth' CONFIG_SCSI_SYM53C8XX_DEFAULT_TAGS 16
+      int  '  maximum number of queued commands' CONFIG_SCSI_SYM53C8XX_MAX_TAGS 64
+      bool '  use normal IO' CONFIG_SCSI_SYM53C8XX_IOMAPPED
+   fi
+fi
+if [ "$CONFIG_PCI" = "y" -a "$CONFIG_SCSI_SYM53C8XX_2" != "y" ]; then
+   dep_tristate 'NCR53C8XX SCSI support' CONFIG_SCSI_NCR53C8XX $CONFIG_SCSI
+   dep_tristate 'SYM53C8XX SCSI support' CONFIG_SCSI_SYM53C8XX $CONFIG_SCSI
+   if [ "$CONFIG_PARISC" = "y" ]; then
+      dep_tristate 'Zalon SCSI support' CONFIG_SCSI_ZALON $CONFIG_GSC $CONFIG_SCSI
+   fi
+   if [ "$CONFIG_SCSI_NCR53C8XX" != "n" -o "$CONFIG_SCSI_ZALON" = "y" -o "$CONFIG_SCSI_ZALON" = "m" -o "$CONFIG_SCSI_SYM53C8XX" != "n" ]; then
+      int  '  default tagged command queue depth' CONFIG_SCSI_NCR53C8XX_DEFAULT_TAGS 8
+      int  '  maximum number of queued commands' CONFIG_SCSI_NCR53C8XX_MAX_TAGS 32
+      int  '  synchronous transfers frequency in MHz' CONFIG_SCSI_NCR53C8XX_SYNC 20
+      bool '  enable profiling' CONFIG_SCSI_NCR53C8XX_PROFILE
+      bool '  use normal IO' CONFIG_SCSI_NCR53C8XX_IOMAPPED
+      if [ "$CONFIG_SCSI_SYM53C8XX" != "n" ]; then
+	 bool '  include support for the NCR PQS/PDS SCSI card' CONFIG_SCSI_NCR53C8XX_PQS_PDS
+      fi
+      if [ "$CONFIG_SCSI_NCR53C8XX_DEFAULT_TAGS" = "0" ]; then
+	 bool '  not allow targets to disconnect' CONFIG_SCSI_NCR53C8XX_NO_DISCONNECT
+      fi
+      if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+	 bool '  assume boards are SYMBIOS compatible (EXPERIMENTAL)' CONFIG_SCSI_NCR53C8XX_SYMBIOS_COMPAT
+      fi
+   fi
+fi
+if [ "$CONFIG_MCA" = "y" ]; then
+   dep_tristate 'NCR MCA 53C9x SCSI support' CONFIG_SCSI_MCA_53C9X $CONFIG_SCSI
+fi
+dep_tristate 'PAS16 SCSI support' CONFIG_SCSI_PAS16 $CONFIG_SCSI
+dep_tristate 'PCI2000 support' CONFIG_SCSI_PCI2000 $CONFIG_SCSI
+dep_tristate 'PCI2220i support' CONFIG_SCSI_PCI2220I $CONFIG_SCSI
+dep_tristate 'PSI240i support' CONFIG_SCSI_PSI240I $CONFIG_SCSI
+dep_tristate 'Qlogic FAS SCSI support' CONFIG_SCSI_QLOGIC_FAS $CONFIG_SCSI
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_tristate 'Qlogic ISP SCSI support' CONFIG_SCSI_QLOGIC_ISP $CONFIG_SCSI
+   dep_tristate 'Qlogic ISP FC SCSI support' CONFIG_SCSI_QLOGIC_FC $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_QLOGIC_FC" != "n" ]; then
+      bool '   Include loadable firmware in driver' CONFIG_SCSI_QLOGIC_FC_FIRMWARE
+   fi
+   dep_tristate 'Qlogic QLA 1280 SCSI support' CONFIG_SCSI_QLOGIC_1280 $CONFIG_SCSI
+fi
+if [ "$CONFIG_X86" = "y" ]; then
+   dep_tristate 'Seagate ST-02 and Future Domain TMC-8xx SCSI support' CONFIG_SCSI_SEAGATE $CONFIG_SCSI
+fi
+dep_tristate 'Simple 53c710 SCSI support (Compaq, NCR machines)' CONFIG_SCSI_SIM710 $CONFIG_SCSI
+dep_tristate 'Symbios 53c416 SCSI support' CONFIG_SCSI_SYM53C416 $CONFIG_SCSI
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_tristate 'Tekram DC390(T) and Am53/79C974 SCSI support' CONFIG_SCSI_DC390T $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_DC390T" != "n" ]; then
+      bool '  _omit_ support for non-DC390 adapters' CONFIG_SCSI_DC390T_NOGENSUPP
+   fi
+fi
+dep_tristate 'Trantor T128/T128F/T228 SCSI support' CONFIG_SCSI_T128 $CONFIG_SCSI
+dep_tristate 'UltraStor 14F/34F support' CONFIG_SCSI_U14_34F $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_U14_34F" != "n" ]; then
+      bool '  enable elevator sorting' CONFIG_SCSI_U14_34F_LINKED_COMMANDS
+      int  '  maximum number of queued commands' CONFIG_SCSI_U14_34F_MAX_TAGS 8
+   fi
+if [ "$CONFIG_X86" = "y" ]; then
+   dep_tristate 'UltraStor SCSI support' CONFIG_SCSI_ULTRASTOR $CONFIG_SCSI
+fi
+dep_tristate 'Workbit NinjaSCSI-32Bi/UDE support' CONFIG_SCSI_NSP32 $CONFIG_SCSI
+#
+# Note - this is a very special 'host' adapter that simulates the presence of some disks.
+# It can come in very handy for troubleshooting.  Anyone else is welcome to use it - all
+# you do is hack it to simulate the condition you want to test for, and then use it.
+#
+# The actual configuration in any kernel release could change at any time as I hack it to
+# simulate various conditions that I am testing.
+#
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   dep_tristate 'SCSI debugging host simulator (EXPERIMENTAL)' CONFIG_SCSI_DEBUG $CONFIG_SCSI
+fi
+if [ "$CONFIG_ALL_PPC" = "y" ]; then
+   dep_tristate 'MESH (Power Mac internal SCSI) support' CONFIG_SCSI_MESH $CONFIG_SCSI
+   if [ "$CONFIG_SCSI_MESH" != "n" ]; then
+      int '  maximum synchronous transfer rate (MB/s) (0 = async)' CONFIG_SCSI_MESH_SYNC_RATE 5
+      int '  initial bus reset delay (ms) (0 = no reset)' CONFIG_SCSI_MESH_RESET_DELAY_MS 4000
+   fi
+   dep_tristate '53C94 (Power Mac external SCSI) support' CONFIG_SCSI_MAC53C94 $CONFIG_SCSI
+fi
+if [ "$CONFIG_ARCH_ACORN" = "y" ]; then
+   source drivers/acorn/scsi/Config.in
+fi
+if [ "$CONFIG_MIPS_JAZZ" = "y" ]; then
+   bool 'MIPS JAZZ FAS216 SCSI support' CONFIG_JAZZ_ESP
+fi
+
+if [ "$CONFIG_AMIGA" = "y" ]; then
+   dep_tristate 'A3000 WD33C93A support' CONFIG_A3000_SCSI $CONFIG_SCSI
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      bool 'Amiga NCR53c710 SCSI support (EXPERIMENTAL)' CONFIG_SCSI_AMIGA7XX
+   fi
+fi
+if [ "$CONFIG_ZORRO" = "y" ]; then
+   dep_tristate 'A2091/A590 WD33C93A support' CONFIG_A2091_SCSI $CONFIG_SCSI
+   dep_tristate 'GVP Series II WD33C93A support' CONFIG_GVP11_SCSI $CONFIG_SCSI
+   dep_tristate 'CyberStorm SCSI support' CONFIG_CYBERSTORM_SCSI $CONFIG_SCSI
+   dep_tristate 'CyberStorm Mk II SCSI support' CONFIG_CYBERSTORMII_SCSI $CONFIG_SCSI
+   dep_tristate 'Blizzard 2060 SCSI support' CONFIG_BLZ2060_SCSI $CONFIG_SCSI
+   dep_tristate 'Blizzard 1230IV/1260 SCSI support' CONFIG_BLZ1230_SCSI $CONFIG_SCSI
+   dep_tristate 'Fastlane SCSI support' CONFIG_FASTLANE_SCSI $CONFIG_SCSI
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      dep_tristate 'BSC Oktagon SCSI support (EXPERIMENTAL)' CONFIG_OKTAGON_SCSI $CONFIG_SCSI
+#      bool 'Cyberstorm Mk III SCSI support (EXPERIMENTAL)' CONFIG_CYBERSTORMIII_SCSI
+   fi
+fi
+
+endmenu
+
+if [ "$CONFIG_HOTPLUG" = "y" -a "$CONFIG_PCMCIA" != "n" ]; then
+   source drivers/scsi/pcmcia/Config.in
+fi
+

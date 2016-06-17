@@ -1,0 +1,36 @@
+Kernel Driver for the Tieman Voyager Braille Display (USB)
+
+Authors:
+Stéphane Dalton <sdalton@videotron.ca>
+Stéphane Doyon  <s.doyon@videotron.ca>
+
+Version 0.8, April 2002
+
+The brlvger driver supports a Braille display (aka Braille terminal)
+model Voyager from Tieman.
+
+The driver has been in heavy use for about six months now (as of April
+2002) by a very few users (about 3-4), who say it has worked very well
+for them.
+
+We have tested it with a Voyager 44, but it should also support
+the Voyager 70.
+
+This driver implements a character device which allows userspace programs
+access to the braille displays raw functions. You still need a userspace
+program to perform the screen-review functions and control the
+display. Get BRLTTY from http://mielke.cc/brltty/ (version 2.99.8 or
+later). It has a Voyager driver which interfaces with this kernel driver.
+
+The interface is through a character device, major 180, minor 128, called
+"brlvger" under devfs.
+
+Many thanks to the Tieman people: Corand van Strien, Ivar Illing, Daphne
+Vogelaar and Ingrid Vogel. They provided us with a Braille display (as
+well as programming information) so that we could write this driver. They
+replaced the display when it broke and they answered our technical
+questions. It is very motivating when companies take an interest in such
+projects and are so supportive.
+
+Thanks to Andor Demarteau <ademarte@students.cs.uu.nl> who got this whole
+project started and beta-tested all our early buggy attempts.

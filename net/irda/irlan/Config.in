@@ -1,0 +1,1 @@
+dep_tristate '  IrLAN protocol' CONFIG_IRLAN $CONFIG_IRDA

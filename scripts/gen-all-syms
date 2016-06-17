@@ -1,0 +1,7 @@
+#!/bin/sh
+for i in $*
+do
+	grep "EXPORT_SYMBOL.*(.*)" "$i" \
+		| sed -e "s/EXPORT_SYMBOL.*(/  /" \
+		| sed -e "s/).*$//" | sed -e "s/^  //"
+done

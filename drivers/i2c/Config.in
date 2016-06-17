@@ -1,0 +1,67 @@
+#
+# Character device configuration
+#
+mainmenu_option next_comment
+comment 'I2C support'
+
+tristate 'I2C support' CONFIG_I2C
+
+if [ "$CONFIG_I2C" != "n" ]; then
+   dep_tristate 'I2C bit-banging interfaces'  CONFIG_I2C_ALGOBIT $CONFIG_I2C
+   if [ "$CONFIG_I2C_ALGOBIT" != "n" ]; then
+      dep_tristate '  Philips style parallel port adapter' CONFIG_I2C_PHILIPSPAR $CONFIG_I2C_ALGOBIT $CONFIG_PARPORT
+      dep_tristate '  ELV adapter' CONFIG_I2C_ELV $CONFIG_I2C_ALGOBIT
+      dep_tristate '  Velleman K8000 adapter' CONFIG_I2C_VELLEMAN $CONFIG_I2C_ALGOBIT
+      dep_tristate '  NatSemi SCx200 I2C using GPIO pins' CONFIG_SCx200_I2C $CONFIG_SCx200_GPIO $CONFIG_I2C_ALGOBIT
+      if [ "$CONFIG_SCx200_I2C" != "n" ]; then
+         int  '    GPIO pin used for SCL' CONFIG_SCx200_I2C_SCL 12
+         int  '    GPIO pin used for SDA' CONFIG_SCx200_I2C_SDA 13
+      fi
+   fi
+
+   dep_tristate 'NatSemi SCx200 ACCESS.bus' CONFIG_SCx200_ACB $CONFIG_I2C
+
+   dep_tristate 'I2C PCF 8584 interfaces' CONFIG_I2C_ALGOPCF $CONFIG_I2C
+   if [ "$CONFIG_I2C_ALGOPCF" != "n" ]; then
+      dep_tristate '  Elektor ISA card' CONFIG_I2C_ELEKTOR $CONFIG_I2C_ALGOPCF
+   fi
+
+   if [ "$CONFIG_MIPS_ITE8172" = "y" ]; then
+      dep_tristate 'ITE I2C Algorithm' CONFIG_ITE_I2C_ALGO $CONFIG_I2C
+      if [ "$CONFIG_ITE_I2C_ALGO" != "n" ]; then
+         dep_tristate '  ITE I2C Adapter' CONFIG_ITE_I2C_ADAP $CONFIG_ITE_I2C_ALGO
+      fi
+   fi
+   if [ "$CONFIG_8xx" = "y" ]; then
+      dep_tristate 'MPC8xx CPM I2C interface' CONFIG_I2C_ALGO8XX $CONFIG_I2C
+      if [ "$CONFIG_RPXLITE" = "y" -o "$CONFIG_RPXCLASSIC" = "y" ]; then
+         dep_tristate '  Embedded Planet RPX Lite/Classic support' CONFIG_I2C_RPXLITE $CONFIG_I2C_ALGO8XX
+      fi
+   fi
+   if [ "$CONFIG_405" = "y" ]; then
+      dep_tristate 'PPC 405 I2C Algorithm' CONFIG_I2C_PPC405_ALGO $CONFIG_I2C
+      if [ "$CONFIG_I2C_PPC405_ALGO" != "n" ]; then
+         dep_tristate '  PPC 405 I2C Adapter' CONFIG_I2C_PPC405_ADAP $CONFIG_I2C_PPC405_ALGO
+      fi
+   fi
+
+   if [ "$CONFIG_ALL_PPC" = "y" ] ; then
+      dep_tristate 'Keywest I2C interface in Apple Core99 machines' CONFIG_I2C_KEYWEST $CONFIG_I2C
+   fi
+
+   if [ "$CONFIG_SIBYTE_SB1xxx_SOC" = "y" ]; then
+      dep_tristate 'SiByte SMBus interface' CONFIG_I2C_ALGO_SIBYTE $CONFIG_I2C
+      dep_tristate '  MAX1617 Temperature Sensor' CONFIG_I2C_MAX1617 $CONFIG_I2C_ALGO_SIBYTE
+   fi
+
+   if [ "$CONFIG_SGI_IP22" = "y" ]; then
+      dep_tristate 'I2C SGI interfaces' CONFIG_I2C_ALGO_SGI $CONFIG_I2C
+   fi
+ 
+# This is needed for automatic patch generation: sensors code starts here
+# This is needed for automatic patch generation: sensors code ends here
+
+   dep_tristate 'I2C device interface' CONFIG_I2C_CHARDEV $CONFIG_I2C
+   dep_tristate 'I2C /proc interface (required for hardware sensors)' CONFIG_I2C_PROC $CONFIG_I2C $CONFIG_SYSCTL
+fi
+endmenu

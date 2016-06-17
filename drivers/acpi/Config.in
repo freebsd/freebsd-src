@@ -1,0 +1,88 @@
+#
+# ACPI Configuration
+#
+
+if [ "$CONFIG_X86" = "y" ]; then
+
+  mainmenu_option next_comment
+  comment 'ACPI Support'
+  bool         'ACPI Support' CONFIG_ACPI
+  if [ "$CONFIG_ACPI" = "y" ]; then
+
+    define_bool CONFIG_ACPI_BOOT		y
+    define_bool CONFIG_ACPI_BUS			y
+    define_bool CONFIG_ACPI_INTERPRETER		y
+    define_bool CONFIG_ACPI_EC			y
+    define_bool CONFIG_ACPI_POWER		y
+    if [ "$CONFIG_PCI" = "y" ]; then
+      define_bool CONFIG_ACPI_PCI		y
+    fi
+    define_bool CONFIG_ACPI_SLEEP		y
+    define_bool CONFIG_ACPI_SYSTEM		y
+    tristate     '  AC Adapter'	CONFIG_ACPI_AC
+    tristate     '  Battery'		CONFIG_ACPI_BATTERY
+    tristate     '  Button'		CONFIG_ACPI_BUTTON
+    tristate     '  Fan'		CONFIG_ACPI_FAN
+    tristate     '  Processor'	CONFIG_ACPI_PROCESSOR
+    dep_tristate '  Thermal Zone' 	CONFIG_ACPI_THERMAL $CONFIG_ACPI_PROCESSOR
+    tristate     '  ASUS Laptop Extras'  CONFIG_ACPI_ASUS
+    tristate     '  Toshiba Laptop Extras'	CONFIG_ACPI_TOSHIBA
+    bool         '  Debug Statements'	CONFIG_ACPI_DEBUG
+    bool         '  Relaxed AML Checking'	CONFIG_ACPI_RELAXED_AML
+  else
+    if [ "$CONFIG_SMP" = "y" ]; then
+      define_bool CONFIG_ACPI_BOOT		y
+    fi
+  fi
+
+  endmenu
+
+fi
+
+
+if [ "$CONFIG_IA64" = "y" ]; then
+
+  if [ "$CONFIG_IA64_SGI_SN" = "y" ]; then
+    mainmenu_option next_comment
+    comment 'ACPI Support'
+    define_bool CONFIG_ACPI		y
+    define_bool CONFIG_ACPI_EFI		y
+    define_bool CONFIG_ACPI_BOOT	y
+    define_bool CONFIG_ACPI_BUS		n
+    define_bool CONFIG_ACPI_INTERPRETER n
+    define_bool CONFIG_ACPI_PCI		n
+    define_bool CONFIG_ACPI_POWER 	n
+    define_bool CONFIG_ACPI_SYSTEM 	n
+    define_bool CONFIG_ACPI_BUTTON	n
+    define_bool CONFIG_ACPI_FAN		n
+    define_bool CONFIG_ACPI_PROCESSOR	n
+    define_bool CONFIG_ACPI_THERMAL	n
+    define_bool CONFIG_ACPI_NUMA	y
+    endmenu
+  fi
+
+  if [ "$CONFIG_IA64_HP_SIM" = "n" ]; then
+    mainmenu_option next_comment
+    comment 'ACPI Support'
+    if [ "$CONFIG_PCI" = "y" ]; then
+      define_bool CONFIG_ACPI_PCI 	y
+    fi
+    define_bool CONFIG_ACPI		y
+    define_bool CONFIG_ACPI_EFI		y
+    define_bool CONFIG_ACPI_BOOT	y
+    define_bool CONFIG_ACPI_BUS		y
+    define_bool CONFIG_ACPI_INTERPRETER y
+    define_bool CONFIG_ACPI_POWER 	y
+    define_bool CONFIG_ACPI_SYSTEM 	y
+    tristate     '  Button'		CONFIG_ACPI_BUTTON
+    tristate     '  Fan'		CONFIG_ACPI_FAN
+    tristate     '  Processor'		CONFIG_ACPI_PROCESSOR
+    dep_tristate '  Thermal Zone'       CONFIG_ACPI_THERMAL $CONFIG_ACPI_PROCESSOR
+    if [ "$CONFIG_NUMA" = "y" ]; then
+      dep_bool       '  NUMA support'       CONFIG_ACPI_NUMA $CONFIG_NUMA
+    fi
+    bool         '  Debug Statements' 	CONFIG_ACPI_DEBUG
+    endmenu
+  fi
+
+fi

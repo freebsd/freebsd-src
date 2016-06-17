@@ -1,0 +1,194 @@
+Menuconfig gives the Linux kernel configuration a long needed face
+lift.  Featuring text based color menus and dialogs, it does not
+require X Windows.  With this utility you can easily select a kernel
+option to modify without sifting through 100 other options.
+
+Overview
+--------
+Some kernel features may be built directly into the kernel.
+Some may be made into loadable runtime modules.  Some features
+may be completely removed altogether.  There are also certain
+kernel parameters which are not really features, but must be 
+entered in as decimal or hexadecimal numbers or possibly text.
+
+Menu items beginning with [*], <M> or [ ] represent features 
+configured to be built in, modularized or removed respectively.
+Pointed brackets <> represent module capable features.
+                                                             more...
+
+To change any of these features, highlight it with the cursor 
+keys and press <Y> to build it in, <M> to make it a module or
+<N> to removed it.  You may also press the <Space Bar> to cycle
+through the available options (ie. Y->N->M->Y). 
+
+Items beginning with numbers or other text within parenthesis can 
+be changed by highlighting the item and pressing <Enter>.  Then
+enter the new parameter into the dialog box that pops up.
+
+
+Some additional keyboard hints:
+
+Menus
+----------
+o  Use the Up/Down arrow keys (cursor keys) to highlight the item 
+   you wish to change or submenu wish to select and press <Enter>.
+   Submenus are designated by "--->".
+
+   Shortcut: Press the option's highlighted letter (hotkey).
+             Pressing a hotkey more than once will sequence
+             through all visible items which use that hotkey.
+
+   You may also use the <PAGE UP> and <PAGE DOWN> keys to scroll
+   unseen options into view.
+
+o  To exit a menu use the cursor keys to highlight the <Exit> button
+   and press <ENTER>.  
+
+   Shortcut: Press <ESC><ESC> or <E> or <X> if there is no hotkey
+             using those letters.  You may press a single <ESC>, but
+             there is a delayed response which you may find annoying.
+
+   Also, the <TAB> and cursor keys will cycle between <Select>,
+   <Exit> and <Help>
+
+o  To get help with an item, use the cursor keys to highlight <Help>
+   and Press <ENTER>.
+
+   Shortcut: Press <H> or <?>.
+
+
+Radiolists  (Choice lists)
+-----------
+o  Use the cursor keys to select the option you wish to set and press
+   <S> or the <SPACE BAR>.
+
+   Shortcut: Press the first letter of the option you wish to set then
+             press <S> or <SPACE BAR>.
+
+o  To see available help for the item, use the cursor keys to highlight
+   <Help> and Press <ENTER>.
+
+   Shortcut: Press <H> or <?>.
+
+   Also, the <TAB> and cursor keys will cycle between <Select> and
+   <Help>
+
+
+Data Entry
+-----------
+o  Enter the requested information and press <ENTER>
+   If you are entering hexadecimal values, it is not necessary to
+   add the '0x' prefix to the entry.
+
+o  For help, use the <TAB> or cursor keys to highlight the help option
+   and press <ENTER>.  You can try <TAB><H> as well.
+
+
+Text Box    (Help Window)
+--------
+o  Use the cursor keys to scroll up/down/left/right.  The VI editor
+   keys h,j,k,l function here as do <SPACE BAR> and <B> for those
+   who are familiar with less and lynx.
+
+o  Press <E>, <X>, <Enter> or <Esc><Esc> to exit.
+
+
+Final Acceptance
+----------------
+With the exception of the old style sound configuration,
+YOUR CHANGES ARE NOT FINAL.  You will be given a last chance to
+confirm them prior to exiting Menuconfig.
+
+If Menuconfig quits with an error while saving your configuration,
+you may look in the file /usr/src/linux/.menuconfig.log for
+information which may help you determine the cause.
+
+Alternate Configuration Files
+-----------------------------
+Menuconfig supports the use of alternate configuration files for
+those who, for various reasons, find it necessary to switch 
+between different kernel configurations.
+
+At the end of the main menu you will find two options.  One is
+for saving the current configuration to a file of your choosing.
+The other option is for loading a previously saved alternate
+configuration.
+
+Even if you don't use alternate configuration files, but you 
+find during a Menuconfig session that you have completely messed
+up your settings, you may use the "Load Alternate..." option to
+restore your previously saved settings from ".config" without 
+restarting Menuconfig.
+
+Other information
+-----------------
+The windowing utility, lxdialog, will only be rebuilt if your kernel
+source tree is fresh, or changes are patched into it via a kernel
+patch or you do 'make mrproper'.  If changes to lxdialog are patched
+in, most likely the rebuild time will be short.  You may force a
+complete rebuild of lxdialog by changing to it's directory and doing
+'make clean all'
+
+If you use Menuconfig in an XTERM window make sure you have your 
+$TERM variable set to point to a xterm definition which supports color.
+Otherwise, Menuconfig will look rather bad.  Menuconfig will not 
+display correctly in a RXVT window because rxvt displays only one
+intensity of color, bright.
+
+Menuconfig will display larger menus on screens or xterms which are
+set to display more than the standard 25 row by 80 column geometry.
+In order for this to work, the "stty size" command must be able to 
+display the screen's current row and column geometry.  I STRONGLY
+RECOMMEND that you make sure you do NOT have the shell variables
+LINES and COLUMNS exported into your environment.  Some distributions
+export those variables via /etc/profile.  Some ncurses programs can
+become confused when those variables (LINES & COLUMNS) don't reflect
+the true screen size.
+
+
+NOTICE:  lxdialog requires the ncurses libraries to compile.  If you
+         don't already have ncurses you really should get it.
+
+         The makefile for lxdialog attempts to find your ncurses
+         header file.  Although it should find the header for older
+         versions of ncurses, it is probably a good idea to get the
+         latest ncurses anyway. 
+
+         If you have upgraded your ncurses libraries, MAKE SURE you
+         remove the old ncurses header files.  If you don't you
+         will most certainly get a segmentation fault.
+
+WARNING: It is not recommended that you change any defines in
+         lxdialog's header files.  If you have a grayscale display and
+         are brave, you may tinker with color.h to tune the colors to
+         your preference.
+
+COMPATIBILITY ISSUE:
+         There have been some compatibility problems reported with
+         older versions of bash and sed.  I am trying to work these
+         out but it is preferable that you upgrade those utilities.
+
+
+******** IMPORTANT, OPTIONAL ALTERNATE PERSONALITY AVAILABLE ********
+********                                                     ********
+If you prefer to have all of the kernel options listed in a single
+menu, rather than the default multimenu hierarchy, you may edit the
+Menuconfig script and change the line "single_menu_mode="  to 
+"single_menu_mode=TRUE".
+
+This mode is not recommended unless you have a fairly fast machine.
+*********************************************************************
+
+
+Propaganda
+----------
+The windowing support utility (lxdialog) is a VERY modified version of
+the dialog utility by Savio Lam <lam836@cs.cuhk.hk>.  Although lxdialog
+is significantly different from dialog, I have left Savio's copyrights
+intact.  Please DO NOT contact Savio with questions about lxdialog.
+He will not be able to assist.
+
+William Roadcap was the original author of Menuconfig.
+Michael Elizabeth Chastain <mec@shout.net> is the current maintainer.
+
+<END OF FILE>

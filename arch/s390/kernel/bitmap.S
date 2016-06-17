@@ -1,0 +1,37 @@
+/*
+ *  arch/s390/kernel/bitmap.S
+ *    Bitmaps for set_bit, clear_bit, test_and_set_bit, ...
+ *    See include/asm-s390/{bitops.h|posix_types.h} for details
+ *
+ *  S390 version
+ *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
+ */
+
+         .globl _oi_bitmap
+_oi_bitmap:
+         .byte  0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
+
+         .globl _ni_bitmap
+_ni_bitmap:
+         .byte  0xFE,0xFD,0xFB,0xF7,0xEF,0xDF,0xBF,0x7F
+
+         .globl _zb_findmap
+_zb_findmap:
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,5
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4 
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,6
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,5
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,7
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,5
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,6
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,5
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4
+         .byte  0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,8
+

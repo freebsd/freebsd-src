@@ -1,0 +1,53 @@
+i2c-core is the core i2c module (surprise!) which offers general routines on
+which other modules build. You will find that all i2c-related modules depend
+on this module, so it will (need to) be loaded whenever another i2c-related 
+module is loaded. Seen from the outside, the most interesting is the /proc 
+interface. Note that there is no corresponding sysctl interface!
+
+/proc/bus/i2c
+=============
+
+Whenever i2c-core is loaded, you will find a file /proc/bus/i2c, which lists
+all currently registered I2C adapters. Each line contains exactly one
+I2C adapter. Each line has the following format: "i2c-%d\t%9s\t%-32s't%-32s\n",
+which works out to four columns separated by tabs. Note that the file
+will be empty, if no adapters are registered at all.
+
+Adapters are numbered from 0 upwards. The first column contains the number
+of the adapter, for example "i2c-4" for adapter 4. The name listed is also
+the name of the /proc file which lists all devices attached to it, and
+of the /dev file which corresponds to this adapter.
+
+The second column documents what kind of adapter this is. Some adapters
+understand the full I2C protocol, others only a subset called SMBus,
+and yet others are some kind of pseudo-adapters that do not understand
+i2c at all. Possible values in here are "i2c", "smbus", "i2c/smbus"
+and "dummy". Because the SMBus protocol can be fully emulated by i2c
+adapters, if you see "i2c" here, SMBus is supported too. There may
+be some future adapters which support both specific SMBus commands and
+general I2C, and they will display "i2c/smbus".
+
+The third and fourth column are respectively the algorithm and adapter
+name of this adapter. Each adapter is associated with an algorithm,
+and several adapters can share the same algorithm. The combination of
+algorithm name and adapter name should be unique for an adapter, but
+you can't really count on that yet.
+
+
+/proc/bus/i2c-*
+===============
+
+Each registered adapter gets its own file in /proc/bus/, which lists
+the devices registered to the adapter. Each line in such a file contains
+one registered device. Each line has the following format:
+"%02x\t%-32s\t%-32s\n", which works out to three columns separated by
+tabs. Note that this file can be empty, if no devices are found on 
+the adapter.
+
+The first column contains the (hexadecimal) address of the client. As 
+only 7-bit addresses are supported at this moment, two digits are
+enough. 
+
+The second and third column are respectively the client name and the
+driver name of this client. Each client is associated with a driver,
+and several clients can share the same driver.

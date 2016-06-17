@@ -1,0 +1,125 @@
+OUTPUT_FORMAT("elf32-tradbigmips")
+OUTPUT_ARCH(mips)
+ENTRY(balo_entry)
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  . = 0x80400000;
+  .rel.text      : { *(.rel.text)	}
+  .rela.text     : { *(.rela.text) 	}
+  .rel.data      : { *(.rel.data)	}
+  .rela.data     : { *(.rela.data) 	}
+  .rel.rodata    : { *(.rel.rodata) 	}
+  .rela.rodata   : { *(.rela.rodata) 	}
+  .rel.got       : { *(.rel.got)	}
+  .rela.got      : { *(.rela.got)	}
+  .rel.ctors     : { *(.rel.ctors)	}
+  .rela.ctors    : { *(.rela.ctors)	}
+  .rel.dtors     : { *(.rel.dtors)	}
+  .rela.dtors    : { *(.rela.dtors)	}
+  .rel.init      : { *(.rel.init)	}
+  .rela.init     : { *(.rela.init)	}
+  .rel.fini      : { *(.rel.fini)	}
+  .rela.fini     : { *(.rela.fini)	}
+  .rel.bss       : { *(.rel.bss)	}
+  .rela.bss      : { *(.rela.bss)	}
+  .rel.plt       : { *(.rel.plt)	}
+  .rela.plt      : { *(.rela.plt)	}
+  .init          : { *(.init)		} =0
+  .text      :
+  {
+    _ftext = . ;
+    *(.text)
+    *(.rodata)
+    *(.rodata.*)
+    *(.rodata1)
+    /* .gnu.warning sections are handled specially by elf32.em.  */
+    *(.gnu.warning)
+
+  _etext = .;
+  PROVIDE (etext = .);
+
+  /* Startup code */
+  . = ALIGN(4096);
+  __init_begin = .;
+  *(.text.init)
+  *(.data.init)
+  . = ALIGN(4096);	/* Align double page for init_task_union */
+  __init_end = .;
+
+   *(.fini)
+  *(.reginfo)
+  /* Adjust the address for the data segment.  We want to adjust up to
+     the same address within the page on the next page up.  It would
+     be more correct to do this:
+       . = .;
+     The current expression does not correctly handle the case of a
+     text segment ending precisely at the end of a page; it causes the
+     data segment to skip a page.  The above expression does not have
+     this problem, but it will currently (2/95) cause BFD to allocate
+     a single segment, combining both text and data, for this case.
+     This will prevent the text segment from being shared among
+     multiple executions of the program; I think that is more
+     important than losing a page of the virtual address space (note
+     that no actual memory is lost; the page which is skipped can not
+     be referenced).  */
+  . = .;
+    _fdata = . ;
+    *(.data)
+    CONSTRUCTORS
+
+  *(.data1)
+  _gp = . + 0x8000;
+  *(.lit8)
+  *(.lit4)
+  *(.ctors)
+  *(.dtors)
+  *(.got.plt) *(.got)
+  *(.dynamic)
+  /* We want the small data sections together, so single-instruction offsets
+     can access them all, and initialized data all before uninitialized, so
+     we can shorten the on-disk segment size.  */
+  *(.sdata)
+  _edata  =  .;
+  PROVIDE (edata = .);
+
+  __bss_start = .;
+  _fbss = .;
+
+   *(.dynbss)
+   *(.bss)
+   *(COMMON)
+  _end = . ;
+  PROVIDE (end = .);
+   *(.sbss)
+   *(.scommon)
+
+  /* These are needed for ELF backends which have not yet been
+     converted to the new style linker.  */
+  *(.stab)
+  *(.stabstr)
+  /* DWARF debug sections.
+     Symbols in the .debug DWARF section are relative to the beginning of the
+     section so we begin .debug at 0.  It's not clear yet what needs to happen
+     for the others.   */
+  *(.debug)
+  *(.debug_srcinfo)
+  *(.debug_aranges)
+  *(.debug_pubnames)
+  *(.debug_sfnames)
+  *(.line)
+  /* These must appear regardless of  .  */
+  *(.gptab.data) *(.gptab.sdata)
+  *(.gptab.bss) *(.gptab.sbss)
+
+  _vmlinux_start = .;
+  *(.vmlinux)
+  _vmlinux_end = .;
+
+  _ramdisk_start = .;
+  *(.ramdisk)
+  _ramdisk_end = .;
+
+} =0
+
+}

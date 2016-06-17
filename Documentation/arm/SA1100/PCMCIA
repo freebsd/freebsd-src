@@ -1,0 +1,374 @@
+Kernel Low-Level PCMCIA Interface Documentation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+John G Dorsey <john+@cs.cmu.edu>
+Updated: 30 June, 2000
+
+
+Note: this interface has not been finalized!
+See also: http://www.cs.cmu.edu/~wearable/software/pcmcia-arm.html
+
+
+Introduction
+
+Early versions of PCMCIA Card Services for StrongARM were designed to
+permit a single socket driver to run on a variety of SA-1100 boards by
+using a userland configuration process. During the conversion to the 2.3
+kernel series, all of the configuration has moved into sub-drivers in the
+kernel proper (see linux/drivers/pcmcia/sa1100*). This document describes
+the low-level interface between those sub-drivers and the sa1100 socket
+driver module.
+
+Presently, there are six operations which must be provided by the
+board-specific code. Only functions whose implementation is likely to
+differ across board designs are required at this level. Some examples
+include:
+
+  - configuring card detect lines to generate interrupts
+  - sensing the legal voltage levels for inserted cards
+  - asserting the reset signal for a card
+
+Functions which are assumed to be the same across all designs are
+performed within the generic socket driver itself. Some examples of these
+kinds of operations include:
+
+  - configuring memory access times based on the core clock frequency
+  - reads/writes on memory, byte swizzling, ...
+
+The current implementation allows the specific per-board set of low-level
+operations to be determined at run time. For each specific board, the
+following structure should be filled in:
+
+  struct pcmcia_low_level {
+    int (*init)(struct pcmcia_init *);
+    int (*shutdown)(void);
+    int (*socket_state)(struct pcmcia_state_array *);
+    int (*get_irq_info)(struct pcmcia_irq_info *);
+    int (*configure_socket)(const struct pcmcia_configure *);
+  };
+
+The component functions are described in detail below. Using the
+machine_is_*() tests, the pointer `pcmcia_low_level' should be assigned to
+the location of the table for your board.
+
+
+0. init(struct pcmcia_init *init)
+
+This operation has three responsibilities:
+
+  - perform any board-specific initialization tasks
+  - associate the given handler with any interrupt-generating signals
+    such as card detection, or battery voltage detection
+  - set up any necessary edge detection for card ready signals
+
+Argument passing for this operation is implemented by the following
+structure:
+
+  struct pcmcia_init {
+    void (*handler)(int irq, void *dev, struct pt_regs *regs);
+    struct pcmcia_maps *maps;
+  };
+
+Here, `handler' is provided by the socket driver, and `maps' must be
+modified if the default mapping isn't appropriate. This operation should
+return one of two values:
+
+  - the highest-numbered socket available, plus one
+  - a negative number, indicating an error in configuration
+
+Note that the former case is _not_ the same as "the number of sockets
+available." In particular, if your design uses SA-1100 slot "one" but
+not slot "zero," you MUST report "2" to the socket driver.
+
+
+1. shutdown(void)
+
+This operation takes no arguments, and will be called during cleanup for
+the socket driver module. Any state associated with the socket controller,
+including allocated data structures, reserved IRQs, etc. should be
+released in this routine.
+
+The return value for this operation is not examined.
+
+
+2. socket_state(struct pcmcia_state_array *state_array)
+
+This operation will be invoked from the interrupt handler which was set up
+in the earlier call to init(). Note, however, that it should not include
+any side effects which would be inappropriate if the operation were to
+occur when no interrupt is pending. (An extra invocation of this operation
+currently takes place to initialize state in the socket driver.)
+
+Argument passing for this operation is handled by a structure which
+contains an array of the following type:
+
+  struct pcmcia_state {
+    unsigned detect: 1,
+              ready: 1,
+               bvd1: 1,
+               bvd2: 1,
+             wrprot: 1,
+              vs_3v: 1,
+              vs_Xv: 1;
+  };
+
+Upon return from the operation, a struct pcmcia_state should be filled in
+for each socket available in the hardware. For every array element (up to
+`size' in the struct pcmcia_state_saarray) which does not correspond to an
+available socket, zero the element bits. (This includes element [0] if
+socket zero is not used.)
+
+Regardless of how the various signals are routed to the SA-1100, the bits
+in struct pcmcia_state always have the following semantics:
+
+  detect - 1 if a card is fully inserted, 0 otherwise
+  ready  - 1 if the card ready signal is asserted, 0 otherwise
+  bvd1   - the value of the Battery Voltage Detect 1 signal
+  bvd2   - the value of the Battery Voltage Detect 2 signal
+  wrprot - 1 if the card is write-protected, 0 otherwise
+  vs_3v  - 1 if the card must be operated at 3.3V, 0 otherwise
+  vs_Xv  - 1 if the card must be operated at X.XV, 0 otherwise
+
+A note about the BVD signals: if your board does not make both lines
+directly observable to the processor, just return reasonable values. The
+standard interpretation of the BVD signals is:
+
+  BVD1  BVD2
+
+   0     x    battery is dead
+   1     0    battery warning
+   1     1    battery ok
+
+Regarding the voltage sense flags (vs_3v, vs_Xv), these bits should be set
+based on a sampling of the Voltage Sense pins, if available. The standard
+interpretation of the VS signals (for a "low-voltage" socket) is:
+
+  VS1   VS2
+
+   0     0    X.XV, else 3.3V, else none
+   0     1    3.3V, else none
+   1     0    X.XV, else none
+   1     1    5V, else none
+
+More information about the BVD and VS conventions is available in chapter
+5 of "PCMCIA System Architecture," 2nd ed., by Don Anderson.
+
+This operation should return 1 if an IRQ is actually pending for the
+socket controller, 0 if no IRQ is pending (but no error condition exists,
+such as an undersized state array), or -1 on any error.
+
+
+3. get_irq_info(struct pcmcia_irq_info *info)
+
+This operation obtains the IRQ assignment which is legal for the given
+socket. An argument of the following type is passed:
+
+  struct pcmcia_irq_info {
+    unsigned int sock;
+    unsigned int irq ;
+  };
+
+The `sock' field contains the socket index being queried. The `irq' field
+should contain the IRQ number corresponding to the card ready signal from
+the device.
+
+This operation should return 0 on success, or -1 on any error.
+
+
+4. configure_socket(const struct pcmcia_configure *configure)
+
+This operation allows the caller to apply power to the socket, issue a
+reset, or enable various outputs. The argument is of the following type:
+
+  struct pcmcia_configure {
+    unsigned sock: 8,
+              vcc: 8,
+              vpp: 8,
+           output: 1,
+          speaker: 1,
+            reset: 1;
+  };
+
+The `sock' field contains the index of the socket to be configured. The
+`vcc' and `vpp' fields contain the voltages to be applied for Vcc and Vpp,
+respectively, in units of 0.1V. (Note that vpp==120 indicates that
+programming voltage should be applied.)
+
+The two output enables, `output' and `speaker', refer to the card data
+signal enable and the card speaker enable, respectively. The `reset' bit,
+when set, indicates that the card reset should be asserted.
+
+This operation should return 0 on success, or -1 on any error.
+
+
+Board-Specific Notes
+
+The following information is known about various SA-11x0 board designs
+which may be used as reference while adding support to the kernel.
+
+
+Carnegie Mellon Itsy/Cue (http://www.cs.cmu.edu/~wearable/itsy/)
+
+  Itsy Chip Select 3 (CS3) Interface
+  ("ITSY MEMORY/PCMCIA ADD-ON BOARD with BATTERY and CHARGER CIRCUITRY,"
+   memo dated 5-20-99, from Tim Manns to Richard Martin, et. al)
+
+  Read:
+    ABVD2    (SS)D0          A slot, Battery Voltage Detect
+    ABVD1    (SS)D1
+    AVSS2    (SS)D2          A slot, Voltage Sense
+    AVSS1    (SS)D3
+    GND      (SS)D4
+    GND      (SS)D5
+    GND      (SS)D6
+    GND      (SS)D7
+  
+    BBVD2    (SS)D8          B slot, Battery Voltage Detect
+    BBVD1    (SS)D9
+    BVSS2    (SS)D10         B slot, Voltage Sense
+    BVSS1    (SS)D11
+    GND      (SS)D12
+    GND      (SS)D13
+    GND      (SS)D14
+    GND      (SS)D15
+  
+  Write:
+    (SS)D0   A_VPP_VCC       LTC1472 VPPEN1
+    (SS)D1   A_VPP_PGM       LTC1472 VPPEN0
+    (SS)D2   A_VCC_3         LTC1472 VCCEN0
+    (SS)D3   A_VCC_5         LTC1472 VCCEN1
+    (SS)D4   RESET (A SLOT)
+    (SS)D5   GND
+    (SS)D6   GND
+    (SS)D7   GND
+ 
+    (SS)D8   B_VPP_VCC       LTC1472 VPPEN1
+    (SS)D9   B_VPP_PGM       LTC1472 VPPEN0
+    (SS)D10  B_VCC_3         LTC1472 VCCEN0
+    (SS)D11  B_VCC_5         LTC1472 VCCEN1
+    (SS)D12  RESET (B SLOT)
+    (SS)D13  GND
+    (SS)D14  GND
+    (SS)D15  GND
+ 
+  GPIO pin assignments are as follows: (from schematics)
+ 
+    GPIO 10                  Slot 0 Card Detect
+    GPIO 11                  Slot 1 Card Detect
+    GPIO 12                  Slot 0 Ready/Interrupt
+    GPIO 13                  Slot 1 Ready/Interrupt
+
+
+
+Intel SA-1100 Multimedia Board (http://developer.intel.com/design/strong/)
+
+  CPLD Registers
+  SA-1100 Multimedia Development Board with Companion SA-1101 Development
+    Board User's Guide, p.4-42
+
+  This SA-1100/1101 development package uses only one GPIO pin (24) to
+  signal changes in card status, and requires software to inspect a
+  PCMCIA status register to determine the source.
+
+  Read: (PCMCIA Power Sense Register - 0x19400000)
+    S0VS1           0        Slot 0 voltage sense
+    S0VS2           1
+    S0BVD1          2        Slot 0 battery voltage sense
+    S0BVD2          3
+    S1VS1           4        Slot 1 voltage sense
+    S1VS2           5
+    S1BVD1          6        Slot 1 battery voltage sense
+    S1BVD2          7
+
+  Read/Write: (PCMCIA Power Control Register - 0x19400002)
+    S0VPP0          0        Slot 0 Vpp
+    S0VPP1          1
+    S0VCC0          2        Slot 0 Vcc
+    S0VCC1          3
+    S1VPP0          4        Slot 1 Vpp
+    S1VPP1          5
+    S1VCC0          6        Slot 1 Vcc
+    S1VCC1          7
+
+  Read: (PCMCIA Status Register - 0x19400004)
+    S0CD1           0        Slot 0 Card Detect 1
+    S0RDY           1        Slot 0 Ready/Interrupt
+    S0STSCHG        2        Slot 0 Status Change
+    S0Reset         3        Slot 0 Reset (RW)
+    S1CD1           4        Slot 1 Card Detect 1
+    S1RDY           5        Slot 1 Ready/Interrupt
+    S1STSCHG        6        Slot 1 Status Change
+    S1Reset         7        Slot 1 Reset (RW)
+
+
+
+Intel SA-1100 Evaluation Platform (http://developer.intel.com/design/strong/)
+
+  Brutus I/O Pins and Chipselect Register
+  pcmcia-brutus.c, by Ivo Clarysse
+  (What's the official reference for this info?)
+
+  This SA-1100 development board uses more GPIO pins than say, the Itsy
+  or the SA-1100/1101 multimedia package. The pin assignments are as
+  follows:
+
+    GPIO 2                   Slot 0 Battery Voltage Detect 1
+    GPIO 3                   Slot 0 Ready/Interrupt
+    GPIO 4                   Slot 0 Card Detect
+    GPIO 5                   Slot 1 Battery Voltage Detect 1
+    GPIO 6                   Slot 1 Ready/Interrupt
+    GPIO 7                   Slot 1 Card Detect
+
+  Like the Itsy, Brutus uses a chipselect register in static memory
+  bank 3 for the other signals, such as voltage sense or reset:
+
+  Read:
+    P0_VS1          8        Slot 0 Voltage Sense
+    P0_VS2          9
+    P0_STSCHG      10        Slot 0 Status Change
+    P1_VS1         12        Slot 1 Voltage Sense
+    P1_VS2         13
+    P1_STSCHG      14        Slot 1 Status Change
+
+  Read/Write:
+    P0_            16        Slot 0 MAX1600EAI control line
+    P0_            17        Slot 0 MAX1600EAI control line
+    P0_            18        Slot 0 MAX1600EAI control line
+    P0_            19        Slot 0 MAX1600EAI control line
+    P0_            20        Slot 0 12V
+    P0_            21        Slot 0 Vpp to Vcc (CONFIRM?)
+    P0_            22        Slot 0 enable fan-out drivers & xcvrs
+    P0_SW_RST      23        Slot 0 Reset
+    P1_            24        Slot 1 MAX1600EAI control line
+    P1_            25        Slot 1 MAX1600EAI control line
+    P1_            26        Slot 1 MAX1600EAI control line
+    P1_            27        Slot 1 MAX1600EAI control line
+    P1_            28        Slot 1 12V
+    P1_            29        Slot 1 Vpp to Vcc (CONFIRM?)
+    P1_            30        Slot 1 enable fan-out drivers & xcvrs
+    P1_SW_RST      31        Slot 1 Reset
+
+  For each slot, the bits labelled "MAX1600EAI" should (apparently)
+  be written with the value 0101 for Vcc 3.3V, and 1001 for Vcc 5V.
+
+
+
+Intel SA-1110 Development Platform (http://developer.intel.com/design/strong/)
+
+  GPIO Pin Descriptions and Board Control Register
+  SA-1110 Microprocessor Development Board User's Guide, p.4-7, 4-10
+
+  The Assabet board contains only a single Compact Flash slot,
+  attached to slot 1 on the SA-1110. Card detect, ready, and BVD
+  signals are routed through GPIO, with power and reset placed in a
+  control register. Note that the CF bus must be enabled before use.
+
+    GPIO 21                  Slot 1 Compact Flash interrupt
+    GPIO 22                  Slot 1 card detect (CD1 NOR CD2)
+    GPIO 24                  Slot 1 Battery Voltage Detect 2
+    GPIO 25                  Slot 1 Battery Voltage Detect 1
+
+  Write-only: (Board Control Register - 0x12000000)
+    CF_PWR          0        CF bus power (3.3V)
+    CF_RST          1        CF reset
+    CF_Bus_On       7        CF bus enable
+

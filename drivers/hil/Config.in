@@ -1,0 +1,48 @@
+#
+# HIL device driver configuration
+#
+
+mainmenu_option next_comment
+comment 'HIL support'
+
+
+if [ "$CONFIG_INPUT" = "n" ]; then
+   comment 'Input support needed for HIL support'
+else
+   bool 'HIL core support' CONFIG_HIL
+
+   if [ "$CONFIG_HIL" != "n" ]; then
+    dep_tristate '  HIL Keyboard (basic) support' CONFIG_HIL_KBD_BASIC $CONFIG_INPUT_KEYBDEV
+
+    comment ' HIL driver core support'
+    tristate '  HP System Device Controller i8042 Support' CONFIG_HP_SDC
+    dep_tristate '  HP SDC Real Time Clock' CONFIG_HP_SDC_RTC $CONFIG_HP_SDC
+
+    dep_tristate '  HIL MLC Support' CONFIG_HIL_MLC $CONFIG_HP_SDC $CONFIG_INPUT_SERIO
+    if [ "$CONFIG_INPUT_SERIO" = "n"  ]; then
+      comment '  Serial IO support needed for HIL keyboard and mouse support'
+    else
+      # This is not accurate but for now it will save confusion.
+      define_tristate CONFIG_HP_SDC_MLC $CONFIG_HIL_MLC
+    fi
+    
+    comment ' HIL device driver'
+  
+    if [ "$CONFIG_HIL_MLC" != "n"  ]; then
+      if [ "$CONFIG_INPUT_KEYBDEV" = "n" ]; then
+        comment '  Keyboard input needed for HIL keyboard support'
+      else
+        dep_tristate '  HIL Keyboard (full) support' CONFIG_HIL_KBD $CONFIG_INPUT_KEYBDEV $CONFIG_HIL_MLC
+      fi
+
+      if [ "$CONFIG_INPUT_MOUSEDEV" = "n" ]; then
+        comment '  Mouse input support needed for HIL mouse/pointer support'
+      else
+        dep_tristate '  HIL Mouse & Pointer support' CONFIG_HIL_PTR $CONFIG_INPUT_MOUSEDEV $CONFIG_HIL_MLC
+      fi
+    fi
+
+   fi
+fi
+
+endmenu

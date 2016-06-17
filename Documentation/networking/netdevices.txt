@@ -1,0 +1,50 @@
+
+Network Devices, the Kernel, and You!
+
+
+Introduction
+============
+The following is a random collection of documentation regarding
+network devices.
+
+
+
+struct net_device synchronization rules
+=======================================
+dev->open:
+	Synchronization: rtnl_lock() semaphore.
+	Context: process
+
+dev->stop:
+	Synchronization: rtnl_lock() semaphore.
+	Context: process
+	Note1: netif_running() is guaranteed false
+	Note2: dev->poll() is guaranteed to be stopped
+
+dev->do_ioctl:
+	Synchronization: rtnl_lock() semaphore.
+	Context: process
+
+dev->get_stats:
+	Synchronization: dev_base_lock rwlock.
+	Context: nominally process, but don't sleep inside an rwlock
+
+dev->hard_start_xmit:
+	Synchronization: dev->xmit_lock spinlock.
+	Context: BHs disabled
+	Notes: netif_queue_stopped() is guaranteed false
+
+dev->tx_timeout:
+	Synchronization: dev->xmit_lock spinlock.
+	Context: BHs disabled
+	Notes: netif_queue_stopped() is guaranteed true
+
+dev->set_multicast_list:
+	Synchronization: dev->xmit_lock spinlock.
+	Context: BHs disabled
+
+dev->poll:
+	Synchronization: __LINK_STATE_RX_SCHED bit in dev->state.  See
+		dev_close code and comments in net/core/dev.c for more info.
+	Context: softirq
+

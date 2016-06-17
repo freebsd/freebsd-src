@@ -1,0 +1,1153 @@
+Linux/390
+
+Common Device Support (CDS)
+Device Driver I/O Support Routines
+
+Author : Ingo Adlung
+
+Copyright, IBM Corp. 1999-2002
+
+ChangeLog: 02/01/2002   Cornelia Huck    brought up-to-date
+
+Introduction
+
+This document describes the common device support routines for Linux/390.
+Different than other hardware architectures, ESA/390 has defined a unified
+I/O access method. This gives relief to the device drivers as they don't
+have to deal with different bus types, polling versus interrupt
+processing, shared versus non-shared interrupt processing, DMA versus port
+I/O (PIO), and other hardware features more. However, this implies that
+either every single device driver needs to implement the hardware I/O
+attachment functionality itself, or the operating system provides for a
+unified method to access the hardware, providing all the functionality that
+every single device driver would have to provide itself.
+
+The document does not intend to explain the ESA/390 hardware architecture in
+every detail.This information can be obtained from the ESA/390 Principles of
+Operation manual (IBM Form. No. SA22-7201).
+
+In order to build common device support for ESA/390 I/O interfaces, a
+functional layer was introduced that provides generic I/O access methods to
+the hardware. 
+
+The common device support layer comprises the I/O support routines defined 
+below. Some of them implement common Linux device driver interfaces, while 
+some of them are ESA/390 platform specific.
+
+get_dev_info_by_irq() / get_dev_info_by_devno()	
+   allow a device driver to determine the devices attached (visible) to the
+   system and their current status.
+
+get_irq_by_devno() / get_devno_by_irq()	
+   get irq (subchannel) from device number and vice versa.
+
+read_dev_chars()	
+   read device characteristics
+   
+read_conf_data()
+   read configuration data.
+
+request_irq()	
+   obtain ownership for a specific device.
+
+s390_request_irq_special()
+   obtain ownership for a specific device. Similar to request_irq(), but
+   allows for device not operational notification too.
+
+free_irq()	
+   release ownership for a specific device.
+
+disable_irq()	
+   disable a device from presenting interrupts.
+
+enable_irq()	
+   enable a device, allowing for I/O interrupts.
+
+do_IO()	
+   initiate an I/O request.
+
+resume_IO()
+   resume channel program execution.
+
+halt_IO()	
+   terminate the current I/O request processed on the device.
+
+do_IRQ()	
+   generic interrupt routine. This function is called by the interrupt entry
+   routine whenever an I/O interrupt is presented to the system. The do_IRQ()
+   routine determines the interrupt status and calls the device specific
+   interrupt handler according to the rules (flags) defined during I/O request
+   initiation with do_IO().
+
+The next chapters describe the functions other than do_IRQ() in more details.
+The do_IRQ() interface is not described, as it is called from the Linux/390
+first level interrupt handler only and does not comprise a device driver
+callable interface. Instead, the functional description of do_IO() also
+describes the input to the device specific interrupt handler.
+
+Note: All explanations apply also to the 64 bit architecture s390x.
+
+
+Common Device Support (CDS) for Linux/390 Device Drivers
+
+General Information
+
+The following chapters describe the I/O related interface routines the
+Linux/390 common device support (CDS) provides to allow for device specific
+driver implementations on the IBM ESA/390 hardware platform. Those interfaces
+intend to provide the functionality required by every device driver
+implementaion to allow to drive a specific hardware device on the ESA/390
+platform. Some of the interface routines are specific to Linux/390 and some
+of them can be found on other Linux platforms implementations too.
+Miscellaneous function prototypes, data declarations, and macro definitions
+can be found in the architecture specific C header file
+linux/include/asm-s390/irq.h.
+
+Overview of CDS interface concepts
+
+Different to other hardware platforms, the ESA/390 architecture doesn't define
+interrupt lines managed by a specific interrupt controller and bus systems
+that may or may not allow for shared interrupts, DMA processing, etc.. Instead,
+the ESA/390 architecture has implemented a so called channel subsystem, that
+provides a unified view of the devices physically attached to the systems.
+Though the ESA/390 hardware platform knows about a huge variety of different
+peripheral attachments like disk devices (aka. DASDs), tapes, communication
+controllers, etc. they can all by accessed by a well defined access method and
+they are presenting I/O completion a unified way : I/O interruptions. Every
+single device is uniquely identified to the system by a so called subchannel,
+where the ESA/390 architecture allows for 64k devices be attached.
+
+Linux, however, was first built on the Intel PC architecture, with its two
+cascaded 8259 programmable interrupt controllers (PICs), that allow for a
+maximum of 15 different interrupt lines. All devices attached to such a system
+share those 15 interrupt levels. Devices attached to the ISA bus system must
+not share interrupt levels (aka. IRQs), as the ISA bus bases on edge triggered
+interrupts. MCA, EISA, PCI and other bus systems base on level triggered
+interrupts, and therewith allow for shared IRQs. However, if multiple devices
+present their hardware status by the same (shared) IRQ, the operating system
+has to call every single device driver registered on this IRQ in order to
+determine the device driver owning the device that raised the interrupt.
+
+In order not to introduce a new I/O concept to the common Linux code,
+Linux/390 preserves the IRQ concept and semantically maps the ESA/390
+subchannels to Linux as IRQs. This allows Linux/390 to support up to 64k
+different IRQs, uniquely representig a single device each.
+
+During its startup the Linux/390 system checks for peripheral devices. Each
+of those devices is uniquely defined by a so called subchannel by the ESA/390
+channel subsystem. While the subchannel numbers are system generated, each
+subchannel also takes a user defined attribute, the so called device number.
+Both subchannel number and device number can not exceed 65535. The
+init_IRQ() routine gathers the information about control unit type and device
+types that imply specific I/O commands (channel command words - CCWs) in
+order to operate the device. Device drivers can retrieve this set of hardware
+information during their initialization step to recognize the devices they
+support using get_dev_info_by_irq() or get_dev_info_by_devno() respectively.
+This methods implies that Linux/390 doesn't require to probe for free (not
+armed) interrupt request lines (IRQs) to drive its devices with. Where
+applicable, the device drivers can use the read_dev_chars() to retrieve device
+characteristics. This can be done without having to request device ownership
+previously.
+
+When a device driver has recognized a device it wants to claim ownership for,
+it calls request_irq() with the device's subchannel id serving as pseudo irq
+line. One of the required parameters it has to specify is dev_id, defining a
+device status block which the CDS layer will use to notify the device driver's
+interrupt handler about interrupt information observed. It depends on the
+device driver to properly handle those interrupts.
+
+In order to allow for easy I/O initiation the CDS layer provides a do_IO()
+interface that takes a device specific channel program (one or more CCWs) as
+input sets up the required architecture specific control blocks and initiates
+an I/O request on behalf of the device driver. The do_IO() routine allows for
+different I/O methods, synchronous and asynchronous, and allows to specify
+whether it expects the CDS layer to notify the device driver for every
+interrupt it observes, or with final status only. It also provides a scheme
+to allow for overlapped I/O processing. See do_IO() for more details. A device
+driver must never issue ESA/390 I/O commands itself, but must use the
+Linux/390 CDS interfaces instead.
+
+For long running I/O request to be canceled, the CDS layer provides the
+halt_IO() function. Some devices require to initially issue a HALT SUBCHANNEL
+(HSCH) command without having pending I/O requests. This function is also
+covered by halt_IO().
+
+When done with a device, the device driver calls free_irq() to release its
+ownership for the device. During free_irq() processing the CDS layer also
+disables the device from presenting further interrupts - the device driver
+doesn't need to assure it. The device will be reenabled for interrupts with
+the next call to request_irq().
+
+
+
+get_irq_first() / get_irq_next() - Retrieve Information about available IRQs 
+
+A device driver can use those interface routines to retrieve information for 
+those IRQs only that have valid device information available. As 
+Linux for S/390 supports a maximum of 65535 subchannels (devices), it might 
+be a waste of CPU to scan for the max number of  devices while a fraction is 
+available/usable only. get_irq_first() will retrieve the first usable IRQ. 
+Using this as input get_irq_next() will retrieve the next IRQ available, etc..
+
+int get_irq_first( void );
+int get_irq_next( int irq );
+
+irq - defines the subchannel to start scanning with. This must be
+      a valid subchannel or an error is returned. 
+
+The get_irq_first() / get_irq_next() functions return:
+
+non-negative value - next available IRQ
+          -ENODEV  - no more IRQs available
+
+Example : 
+
+ irq = get_irq_first();
+ while ( irq != -ENODEV) 
+ {
+  get_dev_info_by_irq( irq, &dinfo);
+  if (    dinfo.devno == devno_to_look_for 
+       || dinfo.sid_data.cu_type == cu_type_to_look_for )
+  {
+   do_some_action( irq, &dinfo ); 
+  } /* endif */
+    
+  irq = get_irq_next(irq);
+ }
+
+get_dev_info_by_irq() / get_dev_info_by_devno() - Retrieve Device Information
+
+During system startup - init_IRQ() processing - the generic I/O device support
+checks for the devices available. For all devices found it collects the
+SenseID information. For those devices supporting the command it also obtains
+extended SenseID information.
+
+int get_dev_info_by_irq( int             irq,
+                         s390_dev_info_t *pdi);
+
+int get_dev_info_by_devno( __u16           devno,
+                           s390_dev_info_t *pdi);
+
+irq     - defines the subchannel status information is to be
+          returned for.
+devno   - device number.
+pdi     - pointer to a user buffer of type s390_dev_info_t that should
+          be filled with device specific information.
+
+typedef struct {
+     int          irq;                  /* irq, aka. subchannel */
+     __u16        devno;                /* device number */
+     unsigned int status;               /* device status */
+     senseid_t    sid_data;             /* senseID data */
+} s390_dev_info_t;			
+
+irq       - subchannel.
+devno     - device number as configured in the IOCDS.
+status    - device status
+sid_data  - data obtained by a SenseID call
+
+Possible status values are :
+
+DEVSTAT_NOT_OPER -       device was found not-operational. In this case
+                         the caller should disregard the sid_data
+                         buffer content.
+DEVSTAT_UNFRIENDLY_DEV - device is locked by someone else. The sid_data buffer
+		         doesn't contain valid data.
+DEVSTAT_UNKNOWN_DEV -    The device is unknown, and the sid_data buffer doesn't
+		         contain valid data.
+DEVSTAT_DEVICE_OWNED -   An interrupt handler is registered.
+
+//
+// sense-id response buffer layout
+//
+typedef struct {
+  /* common part */
+      __u8           reserved;     /* always 0x'FF' */
+      __u16          cu_type;      /* control unit type */
+      __u8           cu_model;     /* control unit model */
+      __u16          dev_type;     /* device type */
+      __u8           dev_model;    /* device model */
+      __u8           unused;       /* padding byte */
+  /* extended part */
+      ciw_t    ciw[MAX_CIWS];      /* variable # of CIWs */
+}  __attribute__ ((packed,aligned(4))) senseid_t;
+
+MAX_CIWS is currently defined as 8.
+
+The ESA/390 I/O architecture defines certain device specific I/O functions.
+The device returns the device specific command code together with the SenseID
+data in so called Command Information Words (CIW) :
+
+typedef struct _ciw {
+   __u32        et       :  2; // entry type
+   __u32        reserved :  2; // reserved
+   __u32        ct       :  4; // command type
+   __u32        cmd      :  8; // command
+   __u32        count    : 16; // count
+} __attribute__ ((packed)) ciw_t;
+
+Possible CIW entry types are :
+
+#define CIW_TYPE_RDC    0x0;      // read configuration data
+#define CIW_TYPE_SII    0x1;      // set interface identifier
+#define CIW_TYPE_RNI    0x2;      // read node identifier
+
+The device driver may use these commands as appropriate.
+
+The get_dev_info_by_irq() / get_dev_info_by_devno() functions return:
+
+      0 - successful completion
+-ENODEV - irq or devno don't specify a known subchannel or device
+          number.
+-EINVAL - invalid devinfo value.
+-EUSERS - device is locked by someone else.
+
+Usage Notes :
+
+In order to scan for known devices a device driver should scan all irqs by
+calling     get_dev_info() until it returns -ENODEV as there aren't any more
+available devices.
+
+If a device driver wants to request ownership for a specific device, it must
+call request_irq() prior to be able to issue any I/O request for it, including
+above mentioned   device dependent commands.
+
+Please see the "ESA/390 Common I/O-Commandss and Self Description" manual,
+with IBM form number SA22-7204 for more details on how to read the Sense-ID
+output, CIWs and device independent commands.
+
+
+
+get_irq_by_devno() / get_devno_by_irq() - Convert device identifiers
+
+While some device drivers act on the irq (subchannel) only, others take user
+defined device configurations on device number base, according to the device
+numbers configured in the IOCDS. The following routines serve the purpose to
+convert irq values into device numbers and vice versa.
+
+int get_irq_by_devno( __u16 devno );
+
+unsigned int get_devno_by_irq( int irq );
+
+The functions return :
+
+the requested irq/devno values
+-1 if the requested conversion can't be accomplished.
+
+This could either be caused by irq/devno be outside the valid range
+( value > 0xffff or value < 0 ) or not identifying a known device.
+
+
+read_dev_chars() - Read Device Characteristics
+
+This routine returns the characteristics for the device specified.
+
+The function is meant to be called without an irq handler be in place.
+However, the irq for the requested device must not be locked or this will
+cause a deadlock situation ! Further, the driver must assure that nobody
+else has claimed ownership for the requested irq yet or the owning device
+driver's internal accounting may be affected.
+
+In case of a registered interrupt handler, the interrupt handler must be
+able to properly react on interrupts related to the read_dev_chars() I/O
+commands. While the request is procesed synchronously, the device interrupt
+handler is called for final ending status. In case of error situations the
+interrupt handler may recover appropriately. The device irq handler can
+recognize the corresponding interrupts by the interruption parameter be
+0x00524443. If using the function with an existing device interrupt handler
+in place, the irq must be locked prior to call read_dev_chars().
+
+The function may be called enabled or disabled.
+
+int read_dev_chars( int irq, void **buffer, int length );
+
+irq    - specifies the subchannel the device characteristic
+         retrieval is requested for
+buffer - pointer to a buffer pointer. The buffer pointer itself
+         may be NULL to have the function allocate a buffer or
+         must contain a valid buffer area.
+length - length of the buffer provided or to be allocated.
+
+The read_dev_chars() function returns :
+
+      0 - successful completion
+-ENODEV - irq doesn't specify a valid subchannel number
+-EINVAL - an invalid parameter was detected
+-EBUSY  - an irrecoverable I/O error occurred or the device is not
+          operational.
+
+Usage Notes :
+
+The function can be used in two ways :
+
+If the caller doesn't provide a data buffer, read_dev_chars() allocates a
+data buffer and provides the device characteristics together. It's the
+caller's responsability to release the kernel memory if not longer needed.
+This behaviour is triggered by specifying a NULL buffer area (*buffer == NULL).
+
+Alternatively, if the user specifies a buffer area himself, nothing is
+allocated.
+
+In either case the caller must provide the data area length - for the buffer
+he specifies, or the buffer he wants to be allocated.
+
+
+read_conf_data() - Read Configuration Data
+
+Retrieve the device dependent configuration data. Please have a look at your 
+device dependent I/O commands for the device specific layout of the node 
+descriptor elements. 
+
+The function is meant to be called without an irq handler be in place. However,
+the irq for the requested device must not be locked or this will cause a 
+deadlock situation ! 
+
+The function may be called enabled or disabled.
+
+int read_conf_data( int irq, void **buffer, int *length, __u8 lpm);
+
+irq    - Specifies the subchannel the configuration data is to be
+         retrieved for.
+buffer - Pointer to a buffer pointer. The read_conf_data() routine
+         will allocate a buffer and initialize the buffer pointer
+         accordingly. It's the device driver's responsability to
+         release the kernel memory if no longer needed. 
+length - Length of the buffer allocated and retrieved.
+lpm    - Logical path mask to be used for retrieving the data. If
+         zero the data is retrieved on the next path available.
+
+The read_conf_data() function returns :
+          0 - Successful completion
+-ENODEV     - irq doesn't specify a valid subchannel number
+-EINVAL     - An invalid parameter was detected
+-EIO        - An irrecoverable I/O error occured or the device is
+              not operational.
+-ENOMEM     - The read_conf_data() routine couldn't obtain storage.
+-EOPNOTSUPP - The device doesn't support the read configuration 
+              data command.
+
+
+request_irq() - Request Device Ownership
+
+As previously discussed a device driver will scan for the devices its supports
+by calling get_dev_info(). Once it has found a device it will call
+request_irq() to request ownership for it. This call causes the subchannel to
+be enabled for interrupts if it was found operational.
+
+Note: This function is obsolete and provided for compatibility purposes only. 
+Device drivers should use s390_request_irq_special() instead. 
+
+int request_irq( unsigned int   irq,
+                 int          (*handler)( int,
+                                          void *,
+                                          struct pt_regs *),
+                 unsigned long  irqflags,
+                 const char    *devname,
+                 void          *dev_id);
+
+irq      : specifies the subchannel the ownership is requested for
+handler  : specifies the device driver's interrupt handler to be
+           called for interrupt processing
+irqflags : IRQ flags, currently ignored
+devname  : device name
+dev_id   : required pointer to a device specific buffer of type
+           devstat_t
+
+typedef struct {
+     __u16         devno;    /* device number, aka. "cuu" from irb */
+     unsigned long intparm;  /* interrupt parameter */
+     __u8          cstat;    /* channel status - accumulated */
+     __u8          dstat;    /* device status - accumulated */
+     __u8          lpum;     /* last path used mask from irb */
+     __u8          unused;   /* not used - reserved */
+     unsigned int  flag;     /* flag : see below */
+     __u32         cpa;      /* CCW address from irb at primary status */
+     __u32         rescnt;   /* res. count from irb at primary status */
+     __u32         scnt;     /* sense count, if DEVSTAT_FLAG_SENSE_AVAIL */
+     union {
+        irb_t   irb;         /* interruption response block */
+        sense_t sense;       /* sense information */
+     } ii;                /* interrupt information */
+} devstat_t;
+
+
+During request_irq() processing, the devstat_t layout does not matter as it
+won't be used during request_irq() processing. See do_IO() for a functional
+description of its usage.
+
+The request_irq() function returns :
+
+      0 - successful completion
+-EINVAL - an invalid parameter was detected
+-EBUSY  - device (subchannel) already owned
+-ENODEV - the device is not-operational
+-ENOMEM - not enough kernel memory to process request
+
+Usage Notes :
+
+While Linux for Intel defines dev_id as a unique identifier for shared
+interrupt lines it has a totally different purpose on Linux/390. Here it
+serves as a shared interrupt status area between the generic device support
+layer, and the device specific driver. The value passed to request_irq()
+must therefore point to a valid devstat_t type buffer area the device driver
+must preserve for later usage. I.e. it must not be released prior to a call
+to free_irq().
+
+Irqflags are currently ignored by the cds layer.
+The Linux/390 kernel does neither know about "fast" interrupt handlers, nor
+does it allow for interrupt sharing. Remember, the term interrupt level (irq),
+device, and subchannel are used interchangeably in Linux/390.
+
+If request_irq() was called in enabled state, or if multiple CPUs are present,
+the device may present an interrupt to the specified handler prior to
+request_irq() return to the caller  already ! This includes the possibility
+of unsolicited interrupts or a pending interrupt status from an earlier
+solicited I/O request. The device driver must be able to handle this situation
+properly or the device may become unoperational otherwise !
+
+Although the interrupt handler is defined to be called with a pointer to a
+struct pt_regs buffer area, this is not implemented by the Linux/390 generic
+I/O device driver support layer. The device driver's interrupt handler must
+therefore not rely on this parameter on function entry.
+
+
+s390_request_irq_special() - Request Device Ownership 
+
+As previously discussed a device driver will scan for the devices its supports 
+by calling get_dev_info(). Once it has found a device it will call 
+request_irq() to request ownership.
+
+Note:  This function replaces request_irq() described previously.
+
+int s390_request_irq_special( 
+                     int                      irq,
+                     io_handler_func_t        io_handler,
+                     not_oper_handler_func_t  not_oper_handler,
+                     unsigned long            irqflags,
+                     const char              *devname,
+                     void                    *dev_id);
+
+irq              : specifies the subchannel the ownership is
+                    requested for
+io_handler       : specifies the device driver's interrupt handler
+                    to be called for interrupt processing
+not_oper_handler : specifies a device driver "not operational" handler
+irqflags         : IRQ flags, currently ignored
+devname          : device name
+dev_id           : required pointer to a device specific buffer of
+                    type devstat_t
+
+
+typedef struct {
+     __u16         devno;    /* device number, aka. "cuu" from irb */
+     unsigned long intparm;  /* interrupt parameter */
+     __u8          cstat;    /* channel status - accumulated */
+     __u8          dstat;    /* device status - accumulated */
+     __u8          lpum;     /* last path used mask from irb */
+     __u8          unused;   /* not used - reserved */
+     unsigned int  flag;     /* flag : see below */
+     __u32         cpa;      /* CCW address from irb at primary status */
+     __u32         rescnt;   /* res. count from irb at primary status */
+     __u32         scnt;     /* sense count, if DEVSTAT_FLAG_SENSE_AVAIL */
+     union {
+        irb_t   irb;         /* interruption response block */
+        sense_t sense;       /* sense information */
+     } ii;                   /* interrupt information */
+} devstat_t;
+
+During request_irq() processing, the devstat_t layout does not matter as it 
+won't be used during request_irq() processing. See do_IO() for a functional 
+description of its usage.
+
+typedef  void (* io_handler_func_t) ( int             irq,
+                                      void           *devstat,
+                                      struct pt_regs *rgs);
+
+irq     : IRQ the interrupt handler is called for
+devstat : device status block
+rgs     : obsolete
+
+typedef (void)(* not_oper_handler_func_t)( int irq, 
+                                           int status );
+
+irq    : IRQ the not operational status has been encountered for
+status : device status
+         DEVSTAT_NOT_OPER    - device is not operational
+         DEVSTAT_REVALIDATE  - revalidate device number
+         DEVSTAT_DEVICE_GONE - no such device (irq)  
+
+Note: Revalidate indicates that running under VM the device number has been 
+modified by means of a DEFINE xxxx [as] yyyy command. Therewith device number 
+xxxx was altered to yyyy. It's the device drivers responsibility to decide 
+whether device ownership can be retained.
+
+Gone indicates that the device was detached under VM, or the device number 
+became invalid (native, LPAR). In order to prevent further I/O the IRQ was 
+implicitly freed on behalf of the device driver. The driver must not call 
+free_irq itself.
+
+Not Oper indicates the device became not operational. It's the device driver's 
+responsibility whether it wants to maintain ownership for the IRQ, or not. 
+
+The s390_request_irq_special() function returns :
+      0 - successful completion
+-EINVAL - an invalid parameter was detected
+-EBUSY  - device (subchannel) already owned 
+-ENODEV - the device is not-operational
+-ENOMEM - not enough kernel memory to process request
+
+Usage Notes :
+ 
+While Linux for Intel defines dev_id as a unique identifier for shared 
+interrupt lines, it has a totally different purpose on Linux for S/390. Here 
+it serves as a shared interrupt status area between the generic device support 
+layer and the device specific driver. The value passed to request_irq() must 
+therefore point to a valid devstat_t type buffer area the device driver must 
+preserve for later usage. I.e. it must not be released prior to a call to 
+free_irq().
+ 
+Currently, the value of irqflags is ignored. The Linux for S/390 kernel does 
+neither know about "fast" interrupt handlers, nor does it allow for interrupt 
+sharing. Remember, the term interrupt level (irq), device, and subchannel are 
+used interchangeably in Linux for S/390.
+ 
+Other than request_irq(), this function does allow for a not operational 
+handler to be defined. This handler is called when a device either became not 
+operational, the last path to a device became not operational, or the device 
+was detached from the system. A detach could be a "detach" under VM or that 
+the device became unassigned by the Support Element (SE) or Hardware Management 
+Console (HMC). 
+ 
+If s390_request_irq_special() was called in enabled state, or if multiple CPUs 
+are present, the device may present an interrupt to the specified handler prior 
+to request_irq() return to the caller already ! This includes the possibility 
+of unsolicited interrupts or a pending interrupt status from an earlier 
+solicited I/O request. The device driver must be able to handle this situation 
+properly or the device may become unoperational otherwise !
+
+Although the interrupt handler is defined to be called with a pointer to a 
+struct pt_regs buffer area, this is not implemented by the Linux for S/390 
+platform specific common I/O support layer. The device driver's interrupt 
+handler must therefore not rely on this parameter on function entry.
+
+
+free_irq() - Release Device Ownership
+
+A device driver may call free_irq() to release ownership of a previously
+acquired device.
+
+void free_irq( unsigned int  irq,
+               void         *dev_id);
+
+irq      : specifies the subchannel the ownership is requested for
+dev_id   : required pointer to a device specific buffer of type
+           devstat_t. This must be the same as the one specified
+           during a previous call to request_irq().
+
+Usage Notes :
+
+Unfortunately the free_irq() is defined not to return error codes. I.e. if
+called with wrong  parameters a device may still be operational although there
+is no device driver available to handle its interrupts. Further, during
+free_irq() processing we may possibly find pending interrupt conditions. As
+those need to be processed, we have to delay free_irq() returning until a
+clean device status is found by synchronously handling them.
+
+The call to free_irq() will also cause the device (subchannel) be disabled for
+interrupts. The device driver must not release any data areas required for
+interrupt processing prior to free_irq() return to the caller as interrupts
+can occur prior to free_irq() returning. This is also true when called in
+disabled state if either multiple CPUs are presents or a pending interrupt
+status was found during free_irq() processing.
+
+
+disable_irq() - Disable Interrupts for a given Device
+
+This function may be called at any time to disable interrupt processing for
+the specified irq. However, as Linux/390 maps irqs to the device (subchannel)
+one-to-one, this may require more extensive I/O processing than anticipated,
+especially if an interrupt status is found pending on the subchannel that
+requires synchronous error processing.
+
+int disable_irq( unsigned int irq );
+
+irq : specifies the subchannel to be disabled
+
+The disable-irq() routine may return :
+
+      0 - successful completion
+-EBUSY  - device (subchannel) is currently processing an I/O
+          request
+-ENODEV - the device is not-operational or irq doesn't specify a
+          valid subchannel
+
+Usage Notes :
+
+Unlike the Intel based hardware architecture the ESA/390 architecture does
+not have a programmable interrupt controller (PIC) where a specific interrupt
+line can be disabled. Instead the subchannel logically representing the device
+in the channel subsystem must be disabled for interrupts. However, if there
+are still inetrrupt conditions pending they must   be processed first in order
+to allow for proper processing after reenabling the device at a later time.
+This may lead to delayed disable processing.
+
+As described above the disable processing may require extensive processing.
+Therefore    disabling and re-enabling the device using disable_irq() /
+enable_irq() should be avoided and is not suitable for high frequency
+operations.
+
+Linux for Intel defines this function
+
+void disable_irq( int irq);
+
+This is suitable for the Intel PC architecture as this only causes to mask
+the requested irq line in the PIC which is not applicable for the ESA/390
+architecture. Therefore we allow   for returning error codes.
+
+
+enable_irq() - Enable Interrupts for a given Device
+
+This function is used to enable a previously disabled device (subchannel).
+See disable_irq() for more details.
+
+int enable_irq( unsigned int irq );
+
+irq : specifies the subchannel to be enabled
+
+The enable-irq() routine may return :
+
+      0 - successful completion
+-EBUSY  - device (subchannel) is currently processing an I/O
+          request. This implies the device is already in enabled
+          state
+-ENODEV - the device is not-operational or irq doesn't specify a
+          valid subchannel
+
+
+
+do_IO() - Initiate I/O Request
+
+The do_IO() routines is the I/O request front-end processor. All device driver
+I/O requests must be issued using this routine. A device driver must not issue
+ESA/390 I/O commands itself. Instead the do_IO() routine provides all
+interfaces required to drive arbitrary devices.
+
+This description also covers the status information passed to the device
+driver's interrupt handler as this is related to the rules (flags) defined
+with the associated I/O request when calling do_IO().
+
+int do_IO( int            irq,
+           ccw1_t        *cpa,
+           unsigned long  user_intparm,
+           unsigned int   lpm,
+           unsigned long  flag);
+
+irq          : irq (subchannel) the I/O request is destined for
+cpa          : logical start address of channel program
+user_intparm : user specific interrupt information; will be presented
+	       back to the device driver's interrupt handler. Allows a
+               device driver to associate the interrupt with a
+               particular I/O request.
+lpm          : defines the channel path to be used for a specific I/O
+               request. Valid with flag value DOIO_VALID_LPM only.
+flag         : defines the action to e parformed for I/O processing
+
+Possible flag values are :
+
+DOIO_EARLY_NOTIFICATION  - allow for early interrupt notification
+DOIO_VALID_LPM           - LPM input parameter is valid (see usage
+                           notes below for details)
+DOIO_WAIT_FOR_INTERRUPT  - wait synchronously for final status
+DOIO_TIMEOUT             - perform a loop while waiting for final status
+			   and fail after a timeout
+DOIO_REPORT_ALL          - report all interrupt conditions
+DOIO_ALLOW_SUSPEND       - channel program may become suspended
+DOIO_DENY_PREFETCH       - don't allow for CCW prefetch; usually
+                           this implies the channel program might
+                           become modified 
+DOIO_CANCEL_ON_TIMEOUT   - do a cancel_IO if there is a timeout waiting
+			   for the channel program to finish (see usage
+                           notes below for details)
+
+The cpa parameter points to the first format 1 CCW of a channel program :
+
+typedef struct {
+      __u8  cmd_code;/* command code */
+      __u8  flags;   /* flags, like IDA adressing, etc. */
+      __u16 count;   /* byte count */
+      __u32 cda;     /* data address */
+} __attribute__ ((packed,aligned(8))) ccw1_t;
+
+with the following CCW flags values defined :
+
+CCW_FLAG_DC        - data chaining
+CCW_FLAG_CC        - command chaining
+CCW_FLAG_SLI       - suppress incorrct length
+CCW_FLAG_SKIP      - skip
+CCW_FLAG_PCI       - PCI
+CCW_FLAG_IDA       - indirect addressing
+CCW_FLAG_SUSPEND   - suspend
+
+
+
+The do_IO() function returns :
+
+      0 - successful completion or request successfully initiated
+-EBUSY  - the do_io() function was caled out of sequence. The
+          device is currently processing a previous I/O request
+-ENODEV - irq doesn't specify a valid subchannel, the device is
+          not operational (check dev_id.flags) or the irq is not
+          owned.
+-EINVAL - both, DOIO_EARLY_NOTIFICATION and DOIO_REORT_ALL flags
+          have been specified. The usage of those flags is mutual
+          exclusive.
+
+When the I/O request completes, the CDS first level interrupt handler will
+setup the dev_id buffer of type devstat_t defined during request_irq()
+processing. See request_irq() for the devstat_t data layout. The
+dev_id->intparm field in the device status area will contain the value the
+device driver has associated with a particular I/O request. If a pending
+device status was recognized dev_id->intparm will be set to 0 (zero). This
+may happen during I/O initiation or delayed by an alert status notification.
+In any case this status is not related to the current (last) I/O request. In
+case of a delayed status notification no special interrupt will be presented
+to indicate I/O completion as the I/O request was never started, even though
+do_IO() returned with successful completion.
+
+Possible dev_id->flag values are :
+
+DEVSTAT_FLAG_SENSE_AVAIL - sense data is available
+DEVSTAT_NOT_OPER         - device is not-operational
+DEVSTAT_START_FUNCTION   - interrupt is presented as result of a
+                           call to do_IO()
+DEVSTAT_HALT_FUNCTION    - interrupt is presented as result of a
+                           call to halt_IO()
+DEVSTAT_STATUS_PENDING   - a pending status was found. The I/O
+                           resquest (if any) was not initiated.
+                           This status might have been presented
+                           delayed, after do_IO() or halt_IO() have
+                           successfully be started previously.
+DEVSTAT_FINAL_STATUS     - This is a final interrupt status for the
+                           I/O requst identified by intparm.
+DEVSTAT_PCI              - A PCI was received. 
+DEVSTAT_SUSPENDED        - A "suspended" intermediate status was
+                           received.  
+
+If device status DEVSTAT_FLAG_SENSE_AVAIL is indicated in field dev_id->flag,
+field dev_id->scnt describes the numer of device specific sense bytes
+available in the sense area dev_id->ii.sense. No device sensing by the device
+driver itself is required.
+
+typedef struct {
+      __u8          res[32];   /* reserved   */
+      __u8          data[32];  /* sense data */
+   } __attribute__ ((packed)) sense_t;
+
+The device interrupt handler can use the following definitions to investigate
+the primary unit check source coded in sense byte 0 :
+
+SNS0_CMD_REJECT         0x80
+SNS0_INTERVENTION_REQ   0x40
+SNS0_BUS_OUT_CHECK      0x20
+SNS0_EQUIPMENT_CHECK    0x10
+SNS0_DATA_CHECK         0x08
+SNS0_OVERRUN            0x04
+SNS0_INCOMPL_DOMAIN     0x01
+
+Depending on the device status, multiple of those values may be set together.
+Please refer to the device specific documentation for details.
+
+The devi_id->cstat field provides the (accumulated) subchannel status :
+
+SCHN_STAT_PCI            - program controlled interrupt
+SCHN_STAT_INCORR_LEN     - incorrect length
+SCHN_STAT_PROG_CHECK     - program check
+SCHN_STAT_PROT_CHECK     - protection check
+SCHN_STAT_CHN_DATA_CHK   - channel data check
+SCHN_STAT_CHN_CTRL_CHK   - channel control check
+SCHN_STAT_INTF_CTRL_CHK  - interface control check
+SCHN_STAT_CHAIN_CHECK    - chaining check
+
+The dev_id->dstat field provides the (accumulated) device status :
+
+DEV_STAT_ATTENTION   - attention
+DEV_STAT_STAT_MOD    - status modifier
+DEV_STAT_CU_END      - control unit end
+DEV_STAT_BUSY        - busy
+DEV_STAT_CHN_END     - channel end
+DEV_STAT_DEV_END     - device end
+DEV_STAT_UNIT_CHECK  - unit check
+DEV_STAT_UNIT_EXCEP  - unit exception
+
+Please see the ESA/390 Principles of Operation manual for details on the
+individual flag meanings.
+
+In rare error situations the device driver may require access to the original
+hardware interrupt data beyond the scope of above mentioned infromation. For
+those situations the Linux/390 common device support provides the interrupt
+response block (IRB) as part of the device status block in dev_id->ii.irb.
+
+Usage Notes :
+
+Prior to call do_IO() the device driver must assure disabled state, i.e. the 
+I/O mask value in the PSW must be disabled. This can be accomplished by calling 
+__save_flags( flags). The current PSW flags are preserved and can be restored 
+by __restore_flags( flags) at a later time.
+
+If the device driver violates this rule while running in a uni-processor
+environment an interrupt might be presented prior to the do_IO() routine
+returning to the device driver main path. In this case we will end in a
+deadlock situation as the interrupt handler will try to obtain the irq
+lock the device driver still owns (see below) !
+
+The driver must assure to hold the device specific lock. This can be
+accomplished by
+
+(i)  s390irq_spin_lock( irq), or
+(ii) s390irq_spin_lock_irqsave(irq, flags)
+
+Option (i) should be used if the calling routine is running disabled for
+I/O interrupts (see above) already. Option (ii) obtains the device gate und
+puts the CPU into I/O disabled state by preserving the current PSW flags.
+See the descriptions of s390irq_spin_lock() or s390irq_spin_lock_irqsave()
+for more details.
+
+The device driver is allowed to issue the next do_IO() call from within its
+interrupt handler already. It is not required to schedule a bottom-half,
+unless an non deterministicly long running error recovery procedure or
+similar needs to be scheduled. During I/O processing the Linux/390 generic
+I/O device driver support has already obtained the IRQ lock, i.e. the handler
+must not try to obtain it again when calling do_IO() or we end in a deadlock
+situation ! Anyway, the device driver's interrupt handler must only call
+do_IO() if the handler itself can be entered recursively if do_IO() e.g. finds
+a status pending and needs to all the interrupt handler itself.
+
+Device drivers shouldn't heavily rely on DOIO_WAIT_FOR_INTERRUPT synchronous
+I/O request processing. All I/O devices, but the console device are driven
+using a single shared interrupt subclass (ISC). For sync. processing the
+device is temporarily mapped to a special ISC while the calling CPU waits for
+I/O completion. As this special ISC is gated, all sync. requests in a SMP
+environment are serialized which may cause other CPUs to spin. This service
+is therewith primarily meant to be used during device driver initialization
+for ease of device setup.
+
+If the device driver is using the DOIO_TIMEOUT parameter, it is a good idea
+also to specify DOIO_CANCEL_ON_TIMEOUT. Otherwise, the failing channel program
+may prevent the execution of any other channel program at the subchannel.
+
+The lpm input parameter might be used for multipath devices shared among
+multiple systems as the Linux/390 CDS isn't grouping channel paths. Therefore
+its use might be required if multiple access paths to a device are available
+and the device was reserved by means of a reserve device command (for devices
+supporting this technique). When issuing this command the device driver needs
+needs to extract the dev_id->lpum value and restrict all subsequent channel
+programs to this channel path until the device is released by a device release
+command. Otherwise a deadlock may occur.
+
+If a device driver relies on an I/O request to be completed prior to start the
+next it can reduce I/O processing overhead by chaining a NoOp I/O command
+CCW_CMD_NOOP to the end of the submitted CCW chain. This will force Channel-End
+and Device-End status to be presented together, with a single interrupt.
+However, this should be used with care as it implies the channel will remain
+busy, not being able to process I/O requests for other devices on the same
+channel. Therefore e.g. read commands should never use this technique, as the
+result will be presented by a single interrupt anyway.
+
+In order to minimize I/O overhead, a device driver should use the
+DOIO_REPORT_ALL  only if the device can report intermediate interrupt
+information prior to device-end the device driver urgently relies on. In this
+case all I/O interruptions are presented to the device driver until final
+status is recognized.
+
+If a device is able to recover from asynchronosly presented I/O errors, it can
+perform overlapping I/O using the DOIO_EARLY_NOTIFICATION flag. While some
+devices always report channel-end and device-end together, with a single
+interrupt, others present primary status (channel-end) when the channel is
+ready for the next I/O request and secondary status (device-end) when the data
+transmission has been completed at the device.
+
+Above flag allows to exploit this feature, e.g. for communication devices that
+can handle lost data on the network to allow for enhanced I/O processing.
+
+Unless the channel subsystem at any time presents a secondary status interrupt,
+exploiting this feature will cause only primary status interrups to be
+presented to the device driver while overlapping I/O is performed. When a
+secondary status without error (alert status) is presented, this indicates
+successful completion for all overlapping do_IO() requests that have been
+issued since the last secondary (final) status.
+
+During interrupt processing the device specific interrupt handler should avoid
+basing its processing decisions on the interruption response block (IRB) that
+is part of the dev_id buffer area. The IRB area represents the interruption
+parameters from the last interrupt received. Unless the device driver has
+specified DOIO_REPORT_ALL or is called with a pending status
+(DEVSTAT_STATUS_PENDING), the IRB information may or may not show the complete
+interruption status, but the last interrupt only. Therefore the device driver
+should usually base its processing decisions on the values of dev_id->cstat
+and dev_id->dstat that represent the accumulated subchannel and device status
+information gathered since do_IO() request initiation.
+
+Channel programs that intend to set the suspend flag on a channel command word 
+(CCW)  must start the I/O operation with the DOIO_ALLOW_SUSPEND option or the 
+suspend flag will cause a channel program check. At the time the channel program 
+becomes suspended an intermediate interrupt will be generated by the channel 
+subsystem.
+
+resume_IO() - Resume Channel Program Execution 
+
+If a device driver chooses to suspend the current channel program execution by 
+setting the CCW suspend flag on a particular CCW, the channel program execution 
+is suspended. In order to resume channel program execution the CIO layer 
+provides the resume_IO() routine. 
+
+int resume_IO( int irq);
+
+irq     : irq (subchannel) the halt operation is requested for
+
+The resume_IO() function returns:
+
+        0  - suspended channel program is resumed
+-EBUSY     - status pending
+-ENODEV    - invalid or not-operational subchannel 
+-EINVAL    - resume function not applicable  
+-ENOTCONN  - there is no I/O request pending for completion 
+
+Usage Notes:
+Please have a look at the do_IO()  usage notes for more details on suspended 
+channel programs.
+
+halt_IO() - Halt I/O Request Processing
+
+Sometimes a device driver might need a possibility to stop the processing of
+a long-running channel program or the device might require to initially issue
+a halt subchannel (HSCH) I/O command. For those purposes the halt_IO() command
+is provided.
+
+int halt_IO( int           irq,     /* subchannel number */
+             unsigned long intparm, /* dummy intparm */
+             unsigned long flag);   /* operation mode */
+
+irq     : irq (subchannel) the halt operation is requested for
+intparm : interruption parameter; value is only used if no I/O
+          is outstanding, otherwise the intparm associated with
+          the I/O request is returned
+flag    : 0 (zero) or DOIO_WAIT_FOR_INTERRUPT
+
+The halt_IO() function returns :
+
+      0 - successful completion or request successfully initiated
+-EBUSY  - the device is currently performing a synchronous I/O
+          operation : do_IO() with flag DOIO_WAIT_FOR_INTERRUPT
+          or an error was encountered and the device is currently
+          be sensed
+-ENODEV - the irq specified doesn't specify a valid subchannel, the
+          device is not operational (check dev_id.flags) or the irq
+          is not owned.
+
+Usage Notes :
+
+A device driver may write a never-ending channel program by writing a channel
+program that at its end loops back to its beginning by means of a transfer in
+channel (TIC)   command (CCW_CMD_TIC). Usually this is performed by network
+device drivers by setting the PCI CCW flag (CCW_FLAG_PCI). Once this CCW is
+executed a program controlled interrupt (PCI) is generated. The device driver
+can then perform an appropriate action. Prior to interrupt of an outstanding
+read to a network device (with or   without PCI flag) a halt_IO() is required
+to end the pending operation.
+
+We don't allow to stop sync. I/O requests by means of a halt_IO() call. The
+function will return -EBUSY instead.
+
+
+Miscellaneous Support Routines
+
+This chapter describes various routines to be used in a Linux/390 device
+driver programming environment.
+
+s390irq_spin_lock() / s390irq_spin_unlock()
+
+Those two macro definitions are required to obtain the device specific IRQ
+lock. The lock needs to be obtained if the device driver intends to call
+do_IO() or halt_IO() from anywhere but the device interrupt handler (where
+the lock is already owned). Those routines must only be used if running
+disabled for interrupts already. Otherwise use s390irq_spin_lock_irqsave()
+and the corresponding unlock routine instead (see below).
+
+s390irq_spin_lock( int irq);
+s390irq_spin_unlock( int irq);
+
+
+s390irq_spin_lock_irqsave() / s390_irq_spin_unlock_irqrestore()
+
+Those two macro definitions are required to obtain the device specific IRQ
+lock. The lock needs to be obtained if the device driver intends to call
+do_IO() or halt_IO() from anywhere but the device interrupt handler (where
+the lock is already owned). Those routines should only be used if running
+enabled for interrupts. If running disabled already, the driver should use
+s390irq_spin_lock() and the corresponding unlock routine instead (see above).
+
+s390irq_spin_lock_irqsave( int irq, unsigned long flags);
+s390irq_spin_unlock_irqrestore( int irq, unsigned long flags);
+
+
+
+
+Special Console Interface Routines
+
+This chapter describes the special interface routines required for system
+console processing. Though they are an extension to the Linux/390 device
+driver interface concept, they base on the same principles. It was necessary
+to build those extensions to assure a deterministic behaviour in critical
+situations e.g. printk() messages by other device drivers running disabled
+for interrupts during I/O interrupt handling or in case of a panic() message
+being raised.
+
+set_cons_dev - Set Console Device
+
+This routine allows to specify the system console device. This is necessary
+as the console isn't driven by the same ESA/390 interrupt subclass as are
+other devices, but it is assigned ist own interrupt subclass. Only one device
+can act as system console. See wait_cons_dev() for details.
+
+int set_cons_dev( int irq);
+
+irq : subchannel identifying the system console device
+
+The set_cons_dev() function returns
+
+      0 - successful completion
+-EIO    - an unhandled interrupt condition is pending for the
+          specified subchannel (irq) - status pending
+-ENODEV - irq doesn't specify a valid subchannel or the devive is
+          not operational
+-EBUSY  - the console device is already defined
+
+wait_cons_dev - Synchronously Wait for Console Processing
+
+The wait_cons_dev() routine is used by the console device driver when its
+buffer pool for intermediate request queuing is exhausted and a new output
+request is received. In this case the console driver uses the wait_cons_dev()
+routine to synchronously wait until enough buffer space is gained to enqueue
+the current request. Any pending interrupt condition for the console device
+found during wait_cons_dev() processing causes its interrupt handler to be
+called.
+
+int wait_cons_dev( int irq);
+
+irq : subchannel identifying the system console device
+
+The wait_cons_dev() function  returns :
+
+      0 - successful completion
+-EINVAL - the irq specified doesn't match the irq configured for
+          the console device by set_cons_dev()
+
+Usage Notes :
+
+The function should be used carefully. Especially in a SMP environment the
+wait_cons_dev() processing requires that all but the special console ISC are
+disabled. In a SMP system this requires the other CPUs to be signaled to
+disable/enable those ISCs.
+
+
+

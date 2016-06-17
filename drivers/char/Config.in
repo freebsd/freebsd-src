@@ -1,0 +1,405 @@
+#
+# Character device configuration
+#
+mainmenu_option next_comment
+comment 'Character devices'
+
+bool 'Virtual terminal' CONFIG_VT
+if [ "$CONFIG_VT" = "y" ]; then
+   bool '  Support for console on virtual terminal' CONFIG_VT_CONSOLE
+   if [ "$CONFIG_GSC_LASI" = "y" ]; then
+      bool '    Support for Lasi/Dino PS2 port' CONFIG_GSC_PS2
+   fi
+fi
+tristate 'Standard/generic (8250/16550 and compatible UARTs) serial support' CONFIG_SERIAL
+if [ "$CONFIG_SERIAL" = "y" ]; then
+   bool '  Support for console on serial port' CONFIG_SERIAL_CONSOLE
+   if [ "$CONFIG_GSC_LASI" = "y" ]; then
+      bool '   serial port on GSC support' CONFIG_SERIAL_GSC
+   fi
+   if [ "$CONFIG_IA64" = "y" ]; then
+      bool '  Support for serial port described by EFI HCDP table' CONFIG_SERIAL_HCDP
+   fi
+   if [ "$CONFIG_ARCH_ACORN" = "y" ]; then
+      tristate '   Atomwide serial port support' CONFIG_ATOMWIDE_SERIAL
+      tristate '   Dual serial port support' CONFIG_DUALSP_SERIAL
+   fi
+fi
+dep_mbool 'Extended dumb serial driver options' CONFIG_SERIAL_EXTENDED $CONFIG_SERIAL
+if [ "$CONFIG_SERIAL_EXTENDED" = "y" ]; then
+   bool '  Support more than 4 serial ports' CONFIG_SERIAL_MANY_PORTS
+   bool '  Support for sharing serial interrupts' CONFIG_SERIAL_SHARE_IRQ
+   bool '  Autodetect IRQ on standard ports (unsafe)' CONFIG_SERIAL_DETECT_IRQ
+   bool '  Support special multiport boards' CONFIG_SERIAL_MULTIPORT
+   bool '  Support the Bell Technologies HUB6 card' CONFIG_HUB6
+fi
+bool 'Non-standard serial port support' CONFIG_SERIAL_NONSTANDARD
+if [ "$CONFIG_SERIAL_NONSTANDARD" = "y" ]; then
+   tristate '  Computone IntelliPort Plus serial support' CONFIG_COMPUTONE
+   tristate '  Comtrol Rocketport support' CONFIG_ROCKETPORT
+   tristate '  Cyclades async mux support' CONFIG_CYCLADES
+   if [ "$CONFIG_EXPERIMENTAL" = "y" -a "$CONFIG_CYCLADES" != "n" ]; then
+      bool '    Cyclades-Z interrupt mode operation (EXPERIMENTAL)' CONFIG_CYZ_INTR
+   fi
+   if [ "$CONFIG_X86_64" != "y" ]; then
+      tristate '  Digiboard Intelligent Async Support' CONFIG_DIGIEPCA
+      if [ "$CONFIG_DIGIEPCA" = "n" ]; then
+         tristate '  Digiboard PC/Xx Support' CONFIG_DIGI
+      fi
+   fi
+   dep_tristate '  Hayes ESP serial port support' CONFIG_ESPSERIAL $CONFIG_ISA
+   tristate '  Moxa Intellio support' CONFIG_MOXA_INTELLIO
+   tristate '  Moxa SmartIO support' CONFIG_MOXA_SMARTIO
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      dep_tristate '  Multi-Tech multiport card support (EXPERIMENTAL)' CONFIG_ISI m
+   fi
+   tristate '  Microgate SyncLink card support' CONFIG_SYNCLINK
+   tristate '  SyncLink Multiport support' CONFIG_SYNCLINKMP
+   tristate '  HDLC line discipline support' CONFIG_N_HDLC
+   tristate '  SDL RISCom/8 card support' CONFIG_RISCOM8
+   if [ "$CONFIG_X86_64" != "y" ]; then
+      tristate '  Specialix IO8+ card support' CONFIG_SPECIALIX
+      if [ "$CONFIG_SPECIALIX" != "n" ]; then
+         bool '  Specialix DTR/RTS pin is RTS' CONFIG_SPECIALIX_RTSCTS
+      fi 
+      tristate '  Specialix SX (and SI) card support' CONFIG_SX
+      tristate '  Specialix RIO system support' CONFIG_RIO
+      if [ "$CONFIG_RIO" != "n" ]; then
+        bool '    Support really old RIO/PCI cards' CONFIG_RIO_OLDPCI
+      fi
+   fi
+   bool '  Stallion multiport serial support' CONFIG_STALDRV
+   if [ "$CONFIG_STALDRV" = "y" ]; then
+     tristate '    Stallion EasyIO or EC8/32 support' CONFIG_STALLION
+     tristate '    Stallion EC8/64, ONboard, Brumby support' CONFIG_ISTALLION
+   fi
+   if [ "$CONFIG_PARISC" = "y" ]; then
+     if [ "$CONFIG_PDC_CONSOLE" != "y" ]; then
+       bool '  Serial MUX support' CONFIG_SERIAL_MUX CONFIG_SERIAL_NONSTANDARD
+     fi
+     if [ "$CONFIG_SERIAL_MUX" != "y" ]; then
+       bool '  PDC software console support' CONFIG_PDC_CONSOLE CONFIG_SERIAL_NONSTANDARD
+     fi
+   fi
+   if [ "$CONFIG_MIPS" = "y" ]; then
+      bool '  TX3912/PR31700 serial port support' CONFIG_SERIAL_TX3912
+      dep_bool '     Console on TX3912/PR31700 serial port' CONFIG_SERIAL_TX3912_CONSOLE $CONFIG_SERIAL_TX3912
+      bool '  TMPTX39XX/49XX serial port support' CONFIG_SERIAL_TXX9
+      dep_bool '     Console on TMPTX39XX/49XX serial port' CONFIG_SERIAL_TXX9_CONSOLE $CONFIG_SERIAL_TXX9
+      if [ "$CONFIG_SOC_AU1X00" = "y" ]; then
+	 bool '  Enable Au1x00 UART Support' CONFIG_AU1X00_UART
+	 if [ "$CONFIG_AU1X00_UART" = "y" ]; then
+	    bool '        Enable Au1x00 serial console' CONFIG_AU1X00_SERIAL_CONSOLE
+         fi
+         dep_tristate '  Au1x00 USB TTY Device support' CONFIG_AU1X00_USB_TTY $CONFIG_SOC_AU1X00
+	    if [ "$CONFIG_AU1000_USB_TTY" != "y" ]; then
+	       dep_tristate '  Au1x00 USB Raw Device support' CONFIG_AU1X00_USB_RAW $CONFIG_SOC_AU1X00
+	    fi
+	    if [ "$CONFIG_AU1X00_USB_TTY" != "n" -o \
+	         "$CONFIG_AU1X00_USB_RAW" != "n" ]; then
+		 define_bool CONFIG_AU1X00_USB_DEVICE y
+	    fi
+      fi
+      bool '  TXx927 SIO support' CONFIG_TXX927_SERIAL 
+      if [ "$CONFIG_TXX927_SERIAL" = "y" ]; then
+         bool '    TXx927 SIO Console support' CONFIG_TXX927_SERIAL_CONSOLE  
+      fi                             
+      if [ "$CONFIG_SIBYTE_SB1xxx_SOC" = "y" ]; then
+         bool '  Support for BCM1xxx onchip DUART' CONFIG_SIBYTE_SB1250_DUART
+         if [ "$CONFIG_SIBYTE_SB1250_DUART" = "y" ]; then
+            bool '    Console on BCM1xxx DUART' CONFIG_SIBYTE_SB1250_DUART_CONSOLE
+            if [ "$CONFIG_SIBYTE_SB1250_DUART_CONSOLE" = "y" ]; then
+               define_bool CONFIG_SERIAL_CONSOLE y
+            fi
+         fi
+      fi
+   fi
+   if [ "$CONFIG_DECSTATION" = "y" ]; then
+      bool '  DECstation serial support' CONFIG_SERIAL_DEC
+      dep_bool '    Support for console on a DECstation serial port' CONFIG_SERIAL_DEC_CONSOLE $CONFIG_SERIAL_DEC
+      dep_bool '    DZ11 serial support' CONFIG_DZ $CONFIG_SERIAL_DEC $CONFIG_MIPS32
+      dep_bool '    Z85C30 serial support' CONFIG_ZS $CONFIG_SERIAL_DEC $CONFIG_TC
+   fi
+   if [ "$CONFIG_SGI_IP22" = "y" ]; then
+      bool '  SGI Zilog85C30 serial support' CONFIG_IP22_SERIAL
+   fi
+   if [ "$CONFIG_IA64" = "y" ]; then
+      bool '  SGI SN2 l1 serial port support' CONFIG_SGI_L1_SERIAL
+      if [ "$CONFIG_SGI_L1_SERIAL" = "y" ]; then
+	 bool '    SGI SN2 l1 Console support' CONFIG_SGI_L1_SERIAL_CONSOLE
+      fi
+      if [ "$CONFIG_IA64_GENERIC" = "y" -o "$CONFIG_IA64_SGI_SN2" = "y" ]; then
+	 bool '  SGI SN2 IOC4 serial port support' CONFIG_SGI_IOC4_SERIAL
+      fi
+   fi
+fi
+if [ "$CONFIG_EXPERIMENTAL" = "y" -a "$CONFIG_ZORRO" = "y" ]; then
+   tristate 'Commodore A2232 serial support (EXPERIMENTAL)' CONFIG_A2232
+fi
+if [ "$CONFIG_FOOTBRIDGE" = "y" ]; then
+   bool 'DC21285 serial port support' CONFIG_SERIAL_21285
+   if [ "$CONFIG_SERIAL_21285" = "y" ]; then
+      if [ "$CONFIG_OBSOLETE" = "y" ]; then
+         bool '  Use /dev/ttyS0 device (OBSOLETE)' CONFIG_SERIAL_21285_OLD
+      fi
+      bool '  Console on DC21285 serial port' CONFIG_SERIAL_21285_CONSOLE
+   fi
+   if [ "$CONFIG_PARISC" = "y" ]; then
+     bool '  PDC software console support' CONFIG_PDC_CONSOLE
+   fi
+fi
+if [ "$CONFIG_MIPS_ITE8172" = "y" ]; then
+   bool 'Enable Qtronix 990P Keyboard Support' CONFIG_QTRONIX_KEYBOARD
+   if [ "$CONFIG_QTRONIX_KEYBOARD" = "y" ]; then
+     define_bool CONFIG_IT8172_CIR y
+   else
+     bool '    Enable PS2 Keyboard Support' CONFIG_PC_KEYB
+   fi
+   bool 'Enable Smart Card Reader 0 Support ' CONFIG_IT8172_SCR0
+   bool 'Enable Smart Card Reader 1 Support ' CONFIG_IT8172_SCR1
+fi
+if [ "$CONFIG_MIPS_IVR" = "y" ]; then
+   bool 'Enable Qtronix 990P Keyboard Support' CONFIG_QTRONIX_KEYBOARD
+   if [ "$CONFIG_QTRONIX_KEYBOARD" = "y" ]; then
+     define_bool CONFIG_IT8172_CIR y
+   fi
+   bool 'Enable Smart Card Reader 0 Support ' CONFIG_IT8172_SCR0
+fi
+if [ "$CONFIG_CPU_VR41XX" = "y" ]; then
+   bool 'NEC VR4100 series Keyboard Interface Unit Support ' CONFIG_VR41XX_KIU
+fi
+bool 'Unix98 PTY support' CONFIG_UNIX98_PTYS
+if [ "$CONFIG_UNIX98_PTYS" = "y" ]; then
+   int 'Maximum number of Unix98 PTYs in use (0-2048)' CONFIG_UNIX98_PTY_COUNT 256
+fi
+if [ "$CONFIG_PARPORT" != "n" ]; then
+   dep_tristate 'Parallel printer support' CONFIG_PRINTER $CONFIG_PARPORT
+   if [ "$CONFIG_PRINTER" != "n" ]; then
+      bool '  Support for console on line printer' CONFIG_LP_CONSOLE
+   fi
+   dep_tristate 'Support for user-space parallel port device drivers' CONFIG_PPDEV $CONFIG_PARPORT
+   dep_tristate 'Texas Instruments parallel link cable support' CONFIG_TIPAR $CONFIG_PARPORT
+fi
+
+if [ "$CONFIG_PPC64" = "y" ] ; then 
+   bool 'pSeries Hypervisor Virtual Console support' CONFIG_HVC_CONSOLE
+fi
+if [ "$CONFIG_ALL_PPC" = "y" ]; then
+   tristate 'Total Impact briQ front panel driver' CONFIG_BRIQ_PANEL
+fi
+
+source drivers/i2c/Config.in
+
+mainmenu_option next_comment
+comment 'Mice'
+tristate 'Bus Mouse Support' CONFIG_BUSMOUSE
+if [ "$CONFIG_BUSMOUSE" != "n" ]; then
+   dep_tristate '  ATIXL busmouse support' CONFIG_ATIXL_BUSMOUSE $CONFIG_BUSMOUSE
+   dep_tristate '  Logitech busmouse support' CONFIG_LOGIBUSMOUSE $CONFIG_BUSMOUSE
+   dep_tristate '  Microsoft busmouse support' CONFIG_MS_BUSMOUSE $CONFIG_BUSMOUSE
+   if [ "$CONFIG_ADB" = "y" -a "$CONFIG_ADB_KEYBOARD" = "y" ]; then
+      dep_tristate '  Apple Desktop Bus mouse support (old driver)' CONFIG_ADBMOUSE $CONFIG_BUSMOUSE
+   fi
+#   if [ "$CONFIG_DECSTATION" = "y" ]; then
+#      dep_bool '  MAXINE Access.Bus mouse (VSXXX-BB/GB) support' CONFIG_DTOP_MOUSE $CONFIG_ACCESSBUS
+#   fi
+fi
+
+tristate 'Mouse Support (not serial and bus mice)' CONFIG_MOUSE
+if [ "$CONFIG_MOUSE" != "n" ]; then
+   bool '  PS/2 mouse (aka "auxiliary device") support' CONFIG_PSMOUSE
+   tristate '  C&T 82C710 mouse port support (as on TI Travelmate)' CONFIG_82C710_MOUSE
+   tristate '  PC110 digitizer pad support' CONFIG_PC110_PAD
+   tristate '  MK712 touch screen support' CONFIG_MK712_MOUSE
+fi
+endmenu
+
+source drivers/char/joystick/Config.in
+
+tristate 'QIC-02 tape support' CONFIG_QIC02_TAPE
+if [ "$CONFIG_QIC02_TAPE" != "n" ]; then
+   bool '  Do you want runtime configuration for QIC-02' CONFIG_QIC02_DYNCONF
+   if [ "$CONFIG_QIC02_DYNCONF" != "y" ]; then
+      comment '  Edit configuration parameters in ./include/linux/tpqic02.h!'
+   else
+      comment '  Setting runtime QIC-02 configuration is done with qic02conf'
+      comment '  from the tpqic02-support package.  It is available at'
+      comment '  metalab.unc.edu or ftp://titus.cfw.com/pub/Linux/util/'
+   fi
+fi
+
+tristate 'IPMI top-level message handler' CONFIG_IPMI_HANDLER
+dep_mbool '  Generate a panic event to all BMCs on a panic' CONFIG_IPMI_PANIC_EVENT $CONFIG_IPMI_HANDLER
+dep_tristate '  Device interface for IPMI' CONFIG_IPMI_DEVICE_INTERFACE $CONFIG_IPMI_HANDLER
+dep_tristate '  IPMI KCS handler' CONFIG_IPMI_KCS $CONFIG_IPMI_HANDLER
+dep_tristate '  IPMI Watchdog Timer' CONFIG_IPMI_WATCHDOG $CONFIG_IPMI_HANDLER
+
+mainmenu_option next_comment
+comment 'Watchdog Cards'
+bool 'Watchdog Timer Support'	CONFIG_WATCHDOG
+if [ "$CONFIG_WATCHDOG" != "n" ]; then
+   bool '  Disable watchdog shutdown on close' CONFIG_WATCHDOG_NOWAYOUT
+   tristate '  Acquire SBC Watchdog Timer' CONFIG_ACQUIRE_WDT
+   tristate '  Advantech SBC Watchdog Timer' CONFIG_ADVANTECH_WDT
+   tristate '  ALi M7101 PMU on ALi 1535D+ Watchdog Timer' CONFIG_ALIM1535_WDT
+   tristate '  ALi M7101 PMU Watchdog Timer' CONFIG_ALIM7101_WDT
+   tristate '  AMD "Elan" SC520 Watchdog Timer' CONFIG_SC520_WDT
+   tristate '  Berkshire Products PC Watchdog' CONFIG_PCWATCHDOG
+   if [ "$CONFIG_FOOTBRIDGE" = "y" ]; then
+      tristate '  DC21285 watchdog' CONFIG_21285_WATCHDOG
+      if [ "$CONFIG_ARCH_NETWINDER" = "y" ]; then
+         tristate '  NetWinder WB83C977 watchdog' CONFIG_977_WATCHDOG
+      fi
+   fi
+   tristate '  Eurotech CPU-1220/1410 Watchdog Timer' CONFIG_EUROTECH_WDT
+   tristate '  IB700 SBC Watchdog Timer' CONFIG_IB700_WDT
+   tristate '  ICP ELectronics Wafer 5823 Watchdog' CONFIG_WAFER_WDT
+   tristate '  Intel i810 TCO timer / Watchdog' CONFIG_I810_TCO
+   tristate '  Mixcom Watchdog' CONFIG_MIXCOMWD 
+   tristate '  SBC-60XX Watchdog Timer' CONFIG_60XX_WDT
+   dep_tristate '  SC1200 Watchdog Timer (EXPERIMENTAL)' CONFIG_SC1200_WDT $CONFIG_EXPERIMENTAL
+   tristate '  NatSemi SCx200 Watchdog' CONFIG_SCx200_WDT
+   tristate '  Software Watchdog' CONFIG_SOFT_WATCHDOG
+   tristate '  W83877F (EMACS) Watchdog Timer' CONFIG_W83877F_WDT
+   tristate '  WDT Watchdog timer' CONFIG_WDT
+   tristate '  WDT PCI Watchdog timer' CONFIG_WDTPCI
+   if [ "$CONFIG_WDT" != "n" ]; then
+      bool '    WDT501 features' CONFIG_WDT_501
+      if [ "$CONFIG_WDT_501" = "y" ]; then
+         bool '      Fan Tachometer' CONFIG_WDT_501_FAN
+      fi
+   fi
+   tristate '  ZF MachZ Watchdog' CONFIG_MACHZ_WDT
+   if [ "$CONFIG_SGI_IP22" = "y" ]; then
+      dep_tristate '  Indy/I2 Hardware Watchdog' CONFIG_INDYDOG $CONFIG_SGI_IP22
+   fi
+   dep_tristate '  AMD 766/768 TCO Timer/Watchdog' CONFIG_AMD7XX_TCO $CONFIG_EXPERIMENTAL
+   if [ "$CONFIG_8xx" = "y" ]; then
+      tristate '  MPC8xx Watchdog Timer' CONFIG_8xx_WDT
+   fi
+fi
+endmenu
+
+if [ "$CONFIG_ARCH_NETWINDER" = "y" ]; then
+   tristate 'NetWinder thermometer support' CONFIG_DS1620
+   tristate 'NetWinder Button' CONFIG_NWBUTTON
+   if [ "$CONFIG_NWBUTTON" != "n" ]; then
+      bool '  Reboot Using Button' CONFIG_NWBUTTON_REBOOT
+   fi
+   tristate 'NetWinder flash support' CONFIG_NWFLASH
+fi
+tristate 'NatSemi SCx200 Support' CONFIG_SCx200
+dep_tristate '  NatSemi SCx200 GPIO Support' CONFIG_SCx200_GPIO $CONFIG_SCx200
+
+if [ "$CONFIG_IA64_GENERIC" = "y" -o "$CONFIG_IA64_SGI_SN2" = "y" ] ; then
+   bool 'SGI SN2 fetchop support' CONFIG_FETCHOP
+fi
+
+if [ "$CONFIG_X86" = "y" -o "$CONFIG_X86_64" = "y" ]; then
+   dep_tristate 'AMD 768/8111 Random Number Generator support' CONFIG_AMD_RNG $CONFIG_PCI
+fi
+if [ "$CONFIG_X86" = "y" -o "$CONFIG_IA64" = "y" ]; then
+   dep_tristate 'Intel i8x0 Random Number Generator support' CONFIG_INTEL_RNG $CONFIG_PCI
+fi
+if [ "$CONFIG_X86" = "y" -o "$CONFIG_IA64" = "y" -o \
+     "$CONFIG_X86_64" = "y" ]; then
+   dep_tristate 'Intel/AMD/VIA HW Random Number Generator support' CONFIG_HW_RANDOM $CONFIG_PCI
+fi
+dep_tristate 'AMD 76x native power management (Experimental)' CONFIG_AMD_PM768 $CONFIG_PCI
+tristate '/dev/nvram support' CONFIG_NVRAM
+tristate 'Enhanced Real Time Clock Support' CONFIG_RTC
+if [ "$CONFIG_IA64" = "y" ]; then
+   bool 'EFI Real Time Clock Services' CONFIG_EFI_RTC
+fi
+if [ "$CONFIG_OBSOLETE" = "y" -a "$CONFIG_ALPHA_BOOK1" = "y" ]; then
+   bool 'Tadpole ANA H8 Support (OBSOLETE)'  CONFIG_H8
+fi
+if [ "$CONFIG_MIPS" = "y" -a "$CONFIG_NEW_TIME_C" = "y" ]; then
+   tristate 'Generic MIPS RTC Support' CONFIG_MIPS_RTC
+fi
+if [ "$CONFIG_SGI_IP22" = "y" ]; then
+   bool 'SGI DS1286 RTC support' CONFIG_SGI_DS1286
+fi
+if [ "$CONFIG_SGI_IP27" = "y" ]; then
+   bool 'SGI M48T35 RTC support' CONFIG_SGI_IP27_RTC
+fi
+if [ "$CONFIG_TOSHIBA_RBTX4927" = "y" -o "$CONFIG_TOSHIBA_JMR3927" = "y" ]; then
+   tristate 'Dallas DS1742 RTC support' CONFIG_DS1742
+fi
+
+tristate 'Double Talk PC internal speech card support' CONFIG_DTLK
+tristate 'Siemens R3964 line discipline' CONFIG_R3964
+tristate 'Applicom intelligent fieldbus card support' CONFIG_APPLICOM
+if [ "$CONFIG_EXPERIMENTAL" = "y" -a "$CONFIG_X86" = "y" -a "$CONFIG_X86_64" != "y" ]; then
+   dep_tristate 'Sony Vaio Programmable I/O Control Device support (EXPERIMENTAL)' CONFIG_SONYPI $CONFIG_PCI
+fi
+
+mainmenu_option next_comment
+comment 'Ftape, the floppy tape device driver'
+tristate 'Ftape (QIC-80/Travan) support' CONFIG_FTAPE
+if [ "$CONFIG_FTAPE" != "n" ]; then
+   source drivers/char/ftape/Config.in
+fi
+
+endmenu
+
+if [ "$CONFIG_GART_IOMMU" = "y" ]; then
+	bool '/dev/agpgart (AGP Support)' CONFIG_AGP
+	define_bool CONFIG_AGP_AMD_K8 y
+else
+	tristate '/dev/agpgart (AGP Support)' CONFIG_AGP
+fi      
+if [ "$CONFIG_AGP" != "n" ]; then
+   bool '  Intel 440LX/BX/GX and I815/I820/I830M/I830MP/I840/I845/I850/I860 support' CONFIG_AGP_INTEL
+   bool '  Intel I810/I815/I830M (on-board) support' CONFIG_AGP_I810
+   bool '  VIA chipset support' CONFIG_AGP_VIA
+   bool '  AMD Irongate, 761, and 762 support' CONFIG_AGP_AMD
+   if [ "$CONFIG_GART_IOMMU" != "y" ]; then
+      bool '  AMD Opteron/Athlon64 on-CPU GART support' CONFIG_AGP_AMD_K8
+   fi   
+   bool '  Generic SiS support' CONFIG_AGP_SIS
+   bool '  ALI chipset support' CONFIG_AGP_ALI
+   bool '  Serverworks LE/HE support' CONFIG_AGP_SWORKS
+   if [ "$CONFIG_X86" = "y" ]; then
+      bool '  NVIDIA chipset support' CONFIG_AGP_NVIDIA
+   fi
+   if [ "$CONFIG_IA64" = "y" ]; then
+      bool '  Intel 460GX support' CONFIG_AGP_I460
+      bool '  HP ZX1 AGP support' CONFIG_AGP_HP_ZX1
+   fi
+   bool '  ATI IGP chipset support' CONFIG_AGP_ATI
+fi
+
+mainmenu_option next_comment
+comment 'Direct Rendering Manager (XFree86 DRI support)'
+bool 'Direct Rendering Manager (XFree86 DRI support)' CONFIG_DRM
+if [ "$CONFIG_DRM" = "y" ]; then
+   bool '  Build drivers for old (XFree 4.0) DRM' CONFIG_DRM_OLD
+   if [ "$CONFIG_DRM_OLD" = "y" ]; then
+      comment 'DRM 4.0 drivers'
+      source drivers/char/drm-4.0/Config.in
+   else
+      comment 'DRM 4.1 drivers'
+      define_bool CONFIG_DRM_NEW y
+      source drivers/char/drm/Config.in
+   fi
+fi
+endmenu
+
+if [ "$CONFIG_HOTPLUG" = "y" -a "$CONFIG_PCMCIA" != "n" ]; then
+   source drivers/char/pcmcia/Config.in
+fi
+if [ "$CONFIG_SOC_AU1X00" = "y" ]; then
+   tristate ' Alchemy Au1x00 GPIO device support' CONFIG_AU1X00_GPIO
+   tristate ' Au1000/ADS7846 touchscreen support' CONFIG_TS_AU1X00_ADS7846
+fi
+if [ "$CONFIG_MIPS_ITE8172" = "y" ]; then
+  tristate ' ITE GPIO' CONFIG_ITE_GPIO
+fi
+
+if [ "$CONFIG_X86" = "y" ]; then
+   tristate 'ACP Modem (Mwave) support' CONFIG_MWAVE
+   dep_tristate 'HP OB600 C/CT Pop-up mouse support' CONFIG_OBMOUSE $CONFIG_INPUT_MOUSEDEV
+fi
+
+endmenu

@@ -1,0 +1,24 @@
+	Wireless Todo
+	-------------
+
+1) Bring other kernel Wireless LAN drivers here
+	Already done :
+	 o hermes.c/orinoco.c	-> Wavelan IEEE driver + Airport driver
+	Drivers I have control over :
+	 o wavelan.c		-> old Wavelan ISA driver
+	 o wavelan_cs.c		-> old Wavelan Pcmcia driver (warning : header)
+	 o netwave_cs.c		-> Netwave Pcmcia driver
+	Drivers likely to go :
+	 o ray_cs.c		-> Raytheon/Aviator driver (maintainer MIA)
+	Drivers I have absolutely no control over :
+	 o arlan.c		-> old Aironet Arlan 655 (need to ask Elmer)
+	 o aironet4500_xxx.c	-> Elmer's Aironet driver (need to ask Elmer)
+	 o airo.c/airo_cs.c	-> Ben's Aironet driver (not yet in kernel)
+	 o strip.c		-> Metricom's stuff. Not a wlan. Hum...
+
+	ETA : Kernel 2.5.X
+
+2) Bring new Wireless LAN driver not yet in the kernel there
+	See my web page for details
+
+	Jean II

@@ -1,0 +1,103 @@
+This driver is for Compaq's SMART2 Intelligent Disk Array Controllers.
+
+Supported Cards:
+----------------
+
+This driver is known to work with the following cards:
+
+	* SMART (EISA)
+	* SMART-2/E (EISA)
+	* SMART-2/P
+	* SMART-2DH
+	* SMART-2SL
+	* SMART-221
+	* SMART-3100ES
+	* SMART-3200
+	* Integrated Smart Array Controller
+	* SA 4200
+	* SA 4250ES
+	* SA 431
+	* RAID LC2 Controller
+
+It should also work with some really old Disk array adapters, but I am
+unable to test against these cards:
+
+	* IDA
+	* IDA-2
+	* IAES
+
+Installing:
+-----------
+
+You need to build a new kernel to use this device, even if you want to
+use a loadable module.  
+
+Apply the patch to a 2.2.x kernel:
+
+# cd linux
+# patch -p1 <smart2.patch
+
+Then build a new kernel and turn on Compaq SMART2 Disk Array support.
+Create device nodes for the diskarray device:
+
+# mkdev.ida [ctlrs]
+
+Where ctlrs is the number of controllers you have (defaults to 1 if not
+specified).
+
+EISA Controllers:
+-----------------
+
+If you want to use an EISA controller you'll have to supply some
+insmod/lilo paramaters.  If the driver is compiled into the kernel, must
+give it the controller's IO port address at boot time (it is no longer
+necessary to specifiy the IRQ).  For example, if you had two SMART-2/E
+controllers, in EISA slots 1 and 2 you'd give it a boot argument like
+this:
+
+	smart2=0x1000,0x2000
+
+If you were loading the driver as a module, you'd give load it like this:
+
+	insmod cpqarray.o eisa=0x1000,0x2000
+
+You can use EISA and PCI adapters at the same time.
+
+Booting:
+--------
+
+You'll need to use a modified lilo if you want to boot from a disk array.
+Its simply a version of lilo with some code added to tell it how to
+understand Compaq diskarray devices.
+
+Device Naming:
+--------------
+
+You need some entries in /dev for the ida device.  The mkdev.ida script
+can make device nodes for you automatically.  Currently the device setup
+is as follows:
+
+Major numbers:
+	72	ida0
+	73	ida1
+	74	ida2
+	etc...
+
+Minor numbers:
+        b7 b6 b5 b4 b3 b2 b1 b0
+        |----+----| |----+----|
+             |           |
+             |           +-------- Partition ID (0=wholedev, 1-15 partition)
+             |
+             +-------------------- Logical Volume number
+
+The suggested device naming scheme is:
+/dev/ida/c0d0		Controller 0, disk 0, whole device
+/dev/ida/c0d0p1		Controller 0, disk 0, partition 1
+/dev/ida/c0d0p2		Controller 0, disk 0, partition 2
+/dev/ida/c0d0p3		Controller 0, disk 0, partition 3
+
+/dev/ida/c1d1		Controller 1, disk 1, whole device
+/dev/ida/c1d1p1		Controller 1, disk 1, partition 1
+/dev/ida/c1d1p2		Controller 1, disk 1, partition 2
+/dev/ida/c1d1p3		Controller 1, disk 1, partition 3

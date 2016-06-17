@@ -1,9 +1,0 @@
-# Omap4430 generic configuration
-#$FreeBSD$
-files		"../ti/omap4/files.omap4"
-include		"../ti/std.ti"
-
-options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
-makeoptions	KERNVIRTADDR=0xc0200000
-
-options		SOC_OMAP4

@@ -1,0 +1,495 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+mainmenu_name "Linux/SuperH Kernel Configuration"
+
+define_bool CONFIG_SUPERH y
+
+define_bool CONFIG_UID16 y
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK y
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM n
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+   bool '  Set version information on all module symbols' CONFIG_MODVERSIONS
+   bool '  Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Processor type and features'
+choice 'SuperH system type'					\
+	"Generic		CONFIG_SH_GENERIC		\
+	 SH4-202-MicroDev	CONFIG_SH_SH4202_MICRODEV	\
+	 SolutionEngine		CONFIG_SH_SOLUTION_ENGINE	\
+	 SolutionEngine7751	CONFIG_SH_7751_SOLUTION_ENGINE	\
+	 SHMobileSolutionEngine	CONFIG_SH_MOBILE_SOLUTION_ENGINE \
+	 STB1_Harp		CONFIG_SH_STB1_HARP		\
+	 STB1_Overdrive		CONFIG_SH_STB1_OVERDRIVE	\
+	 HP620			CONFIG_SH_HP620			\
+	 HP680			CONFIG_SH_HP680			\
+	 HP690			CONFIG_SH_HP690			\
+	 CqREEK			CONFIG_SH_CQREEK		\
+	 DMIDA			CONFIG_SH_DMIDA    		\
+	 EC3104			CONFIG_SH_EC3104		\
+	 Dreamcast		CONFIG_SH_DREAMCAST		\
+	 CAT68701		CONFIG_SH_CAT68701		\
+	 BigSur			CONFIG_SH_BIGSUR		\
+	 SH2000			CONFIG_SH_SH2000		\
+	 HS7729PCI		CONFIG_SH_HS7729PCI		\
+	 ADX			CONFIG_SH_ADX			\
+	 SecureEdge5410		CONFIG_SH_SECUREEDGE5410	\
+	 KeyWest		CONFIG_SH_KEYWEST		\
+	 BareCPU		CONFIG_SH_UNKNOWN" Generic
+
+# The SH7750 RTC module is disabled in the Dreamcast and SH-Mobile SolutionEngine
+if [ "$CONFIG_SH_DREAMCAST" = "y" -o \
+     "$CONFIG_SH_MOBILE_SOLUTION_ENGINE" = "y" ]; then
+   define_bool CONFIG_SH_RTC n
+else
+   define_bool CONFIG_SH_RTC y
+fi
+
+if [ "$CONFIG_SH_HP620" = "y" -o "$CONFIG_SH_HP680" = "y" -o \
+     "$CONFIG_SH_HP690" = "y" ]; then
+	define_bool CONFIG_SH_HP600 y
+fi
+
+choice 'Processor type' \
+   "SH7300 CONFIG_CPU_SUBTYPE_SH7300 \
+    SH7707 CONFIG_CPU_SUBTYPE_SH7707 \
+    SH7708 CONFIG_CPU_SUBTYPE_SH7708 \
+    SH7709 CONFIG_CPU_SUBTYPE_SH7709 \
+    SH7750 CONFIG_CPU_SUBTYPE_SH7750 \
+    SH7751R CONFIG_CPU_SUBTYPE_SH7751R \
+    SH7751 CONFIG_CPU_SUBTYPE_SH7751 \
+    SH4-202 CONFIG_CPU_SUBTYPE_SH4_202 \
+    ST40RA/ST40STB1 CONFIG_CPU_SUBTYPE_ST40STB1 \
+    ST40GX1 CONFIG_CPU_SUBTYPE_ST40GX1" SH7708
+if [ "$CONFIG_CPU_SUBTYPE_SH7300" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 y
+   define_bool CONFIG_CPU_SH4 n
+fi
+if [ "$CONFIG_CPU_SUBTYPE_SH7707" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 y
+   define_bool CONFIG_CPU_SH4 n
+fi
+if [ "$CONFIG_CPU_SUBTYPE_SH7708" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 y
+   define_bool CONFIG_CPU_SH4 n
+fi
+if [ "$CONFIG_CPU_SUBTYPE_SH7709" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 y
+   define_bool CONFIG_CPU_SH4 n
+fi
+if [ "$CONFIG_CPU_SUBTYPE_SH7750" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 n
+   define_bool CONFIG_CPU_SH4 y
+fi
+if [ "$CONFIG_CPU_SUBTYPE_SH7751" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 n
+   define_bool CONFIG_CPU_SH4 y
+fi
+if [ "$CONFIG_CPU_SUBTYPE_SH7751R" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 n
+   define_bool CONFIG_CPU_SH4 y
+   define_bool CONFIG_CPU_SUBTYPE_SH7751 y
+fi
+if [ "$CONFIG_CPU_SUBTYPE_SH4_202" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 n
+   define_bool CONFIG_CPU_SH4 y
+fi
+if [ "$CONFIG_CPU_SUBTYPE_SH7751R" = "y" -o \
+     "$CONFIG_CPU_SUBTYPE_SH4_202" = "y" ]; then
+   bool 'Use 2-way set associative caches' CONFIG_SH_CACHE_ASSOC
+fi
+if [ "$CONFIG_CPU_SUBTYPE_ST40STB1" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 n
+   define_bool CONFIG_CPU_SH4 y
+   define_bool CONFIG_CPU_SUBTYPE_ST40 y
+fi
+if [ "$CONFIG_CPU_SUBTYPE_ST40GX1" = "y" ]; then
+   define_bool CONFIG_CPU_SH3 n
+   define_bool CONFIG_CPU_SH4 y
+   define_bool CONFIG_CPU_SUBTYPE_ST40 y
+fi
+bool 'Little Endian' CONFIG_CPU_LITTLE_ENDIAN
+# Platform-specific memory start and size definitions
+if [ "$CONFIG_SH_SOLUTION_ENGINE" = "y" ]; then
+   define_hex CONFIG_MEMORY_START 0c000000
+   define_hex CONFIG_MEMORY_SIZE 02000000
+   define_bool CONFIG_MEMORY_SET y
+fi
+if [ "$CONFIG_SH_7751_SOLUTION_ENGINE" = "y" ]; then
+   define_hex CONFIG_MEMORY_START 0c000000
+   define_hex CONFIG_MEMORY_SIZE 04000000
+   define_bool CONFIG_MEMORY_SET y
+fi
+if [ "$CONFIG_SH_MOBILE_SOLUTION_ENGINE" = "y" ]; then
+   define_hex CONFIG_MEMORY_START 0c000000
+   define_hex CONFIG_MEMORY_SIZE 04000000
+   define_bool CONFIG_MEMORY_SET y
+fi
+if [ "$CONFIG_SH_HP600" = "y" -o "$CONFIG_SH_BIGSUR" = "y" -o \
+     "$CONFIG_SH_DREAMCAST" = "y" -o "$CONFIG_SH_SH2000" = "y" -o \
+     "$CONFIG_SH_KEYWEST" = "y" ]; then
+   define_hex CONFIG_MEMORY_START 0c000000
+   define_hex CONFIG_MEMORY_SIZE 00400000
+   define_bool CONFIG_MEMORY_SET y
+fi
+if [ "$CONFIG_CPU_SUBTYPE_ST40" = "y" ]; then
+   bool 'Memory on LMI' CONFIG_ST40_LMI_MEMORY
+   if [ "$CONFIG_ST40_LMI_MEMORY" = "y" ] ; then
+      define_hex CONFIG_MEMORY_START 08000000
+      define_hex CONFIG_MEMORY_SIZE 00400000
+      define_bool CONFIG_MEMORY_SET y
+   fi
+fi
+if [ "$CONFIG_SH_ADX" = "y" ]; then
+   define_hex CONFIG_MEMORY_START 08000000
+   define_hex CONFIG_MEMORY_SIZE 00400000
+   define_bool CONFIG_MEMORY_SET y
+fi
+if [ "$CONFIG_SH_SECUREEDGE5410" = "y" ]; then
+   define_hex CONFIG_MEMORY_START 08000000
+   define_hex CONFIG_MEMORY_SIZE 01000000
+   define_bool CONFIG_MEMORY_SET y
+fi
+if [ "$CONFIG_SH_HS7729PCI" = "y" ]; then
+   define_hex CONFIG_MEMORY_START 0c000000
+   define_hex CONFIG_MEMORY_SIZE 04000000
+   define_bool CONFIG_MEMORY_SET y
+fi
+# If none of the above have set memory start/size, ask the user.
+if [ "$CONFIG_MEMORY_SET" != "y" ]; then
+   hex 'Physical memory start address' CONFIG_MEMORY_START 08000000
+   hex 'Physical memory size' CONFIG_MEMORY_SIZE 00400000
+fi
+
+hex 'Link address offset for booting' CONFIG_BOOT_LINK_OFFSET 00210000
+
+dep_bool 'Enable OC RAM zone (experimental)' CONFIG_SCRATCH_SPACE $CONFIG_EXPERIMENTAL
+bool 'DSP mode support' CONFIG_SH_DSP
+
+if [ "$CONFIG_CPU_SUBTYPE_ST40" = "y" ]; then
+   bool 'PCI emulation of on-chip peripherals' CONFIG_SH_PCI_EMULATION
+   if [ "$CONFIG_SH_PCI_EMULATION" = "y" -a "$CONFIG_CPU_SUBTYPE_ST40GX1" = "y" ]; then
+      bool '  USB OHCI Host Controller' CONFIG_SH_PCI_USB
+   fi
+fi
+endmenu
+
+if [ "$CONFIG_SH_HP690" = "y" ]; then
+  define_bool CONFIG_DISCONTIGMEM y
+else
+  define_bool CONFIG_DISCONTIGMEM n
+fi
+
+mainmenu_option next_comment
+comment 'General setup'
+
+# Even on SuperH devices which don't have an ISA bus,
+# this variable helps the PCMCIA modules handle
+# IRQ requesting properly -- Greg Banks.
+
+if [ "$CONFIG_SH_SECUREEDGE5410" = "y" ]; then
+   define_bool CONFIG_ISA n
+else
+   define_bool CONFIG_ISA y
+fi
+
+define_bool CONFIG_EISA n
+define_bool CONFIG_MCA n
+define_bool CONFIG_SBUS n
+
+bool 'Networking support' CONFIG_NET
+
+if [ "$CONFIG_SH_GENERIC" = "y" -o "$CONFIG_SH_SOLUTION_ENGINE" = "y" -o \
+     "$CONFIG_SH_UNKNOWN" = "y" -o "$CONFIG_SH_CAT68701" = "y" -o \
+     "$CONFIG_SH_ADX" = "y" -o "$CONFIG_SH_HS7729PCI" = "y" ]; then
+  bool 'Compact Flash Enabler support' CONFIG_CF_ENABLER
+fi
+
+if [ "$CONFIG_CF_ENABLER" = "y" ]; then
+   choice 'Compact Flash Connection Area' \
+	"Area5 CONFIG_CF_AREA5 \
+	 Area6 CONFIG_CF_AREA6" Area6
+   if [ "$CONFIG_CF_AREA5" = "y" ]; then
+      define_hex CONFIG_CF_BASE_ADDR b4000000
+   fi
+   if [ "$CONFIG_CF_AREA6" = "y" ]; then
+      define_hex CONFIG_CF_BASE_ADDR b8000000
+   fi
+fi
+
+bool 'Hitachi HD64461 companion chip support' CONFIG_HD64461
+if [ "$CONFIG_HD64461" = "y" ]; then
+   int 'HD64461 IRQ' CONFIG_HD64461_IRQ 36
+   bool 'HD64461 PCMCIA enabler' CONFIG_HD64461_ENABLER
+fi
+
+bool 'Hitachi HD64465 companion chip support' CONFIG_HD64465
+if [ "$CONFIG_HD64465" = "y" ]; then
+   hex 'HD64465 start address' CONFIG_HD64465_IOBASE b0000000
+   int 'HD64465 IRQ' CONFIG_HD64465_IRQ 5
+fi
+
+bool 'Wakeup UBC on startup' CONFIG_UBC_WAKEUP
+bool 'DMA controller (DMAC) support' CONFIG_SH_DMA
+int  'Peripheral clock frequency(Hz) (0: auto detect)' CONFIG_SH_PCLK_FREQ 0 0 1000000000
+
+bool 'Default bootloader kernel arguments' CONFIG_CMDLINE_BOOL
+if [ "$CONFIG_CMDLINE_BOOL" = "y" ] ; then
+  string 'Initial kernel command string' CONFIG_CMDLINE "console=ttySC1,115200"
+fi
+
+bool 'PCI support' CONFIG_PCI
+if [ "$CONFIG_PCI" = "y" ]; then
+  if [ "$CONFIG_SH_HS7729PCI" = "y" ]; then
+     define_bool CONFIG_PCI_SD0001 y
+     define_hex CONFIG_PCI_SD0001_IRQ 0
+     define_hex CONFIG_PCI_SD0001_BASE b0000000
+     define_bool CONFIG_SH_PCIDMA_NONCOHERENT y
+  else
+     define_bool CONFIG_PCI_SD0001 n
+     bool 'Cache and PCI noncoherent' CONFIG_SH_PCIDMA_NONCOHERENT
+  fi
+fi
+
+source drivers/pci/Config.in
+
+bool 'Support for hot-pluggable devices' CONFIG_HOTPLUG
+
+if [ "$CONFIG_HOTPLUG" = "y" ] ; then
+   source drivers/pcmcia/Config.in
+else
+   define_bool CONFIG_PCMCIA n
+fi
+
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+if [ "$CONFIG_PROC_FS" = "y" ]; then
+   choice 'Kernel core (/proc/kcore) format' \
+	"ELF		CONFIG_KCORE_ELF	\
+	 A.OUT		CONFIG_KCORE_AOUT" ELF
+fi
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+
+bool 'Select task to kill on out of memory condition' CONFIG_OOM_KILLER
+
+source drivers/parport/Config.in
+
+endmenu
+
+source drivers/mtd/Config.in
+
+source drivers/block/Config.in
+
+source drivers/md/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   source net/Config.in
+fi
+
+mainmenu_option next_comment
+comment 'ATA/IDE/MFM/RLL support'
+
+tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+if [ "$CONFIG_IDE" != "n" ]; then
+  source drivers/ide/Config.in
+else
+  define_bool CONFIG_BLK_DEV_HD n
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+tristate 'SCSI support' CONFIG_SCSI
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+   source drivers/scsi/Config.in
+fi
+endmenu
+
+source drivers/ieee1394/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Network device support'
+
+   bool 'Network device support' CONFIG_NETDEVICES
+   if [ "$CONFIG_NETDEVICES" = "y" ]; then
+      source drivers/net/Config.in
+      if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+         source drivers/atm/Config.in
+      fi
+   fi
+   endmenu
+fi
+
+mainmenu_option next_comment
+comment 'Old CD-ROM drivers (not SCSI, not IDE)'
+
+bool 'Support non-SCSI/IDE/ATAPI CDROM drives' CONFIG_CD_NO_IDESCSI
+if [ "$CONFIG_CD_NO_IDESCSI" != "n" ]; then
+   source drivers/cdrom/Config.in
+fi
+endmenu
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source drivers/input/Config.in
+
+#if [ "$CONFIG_SH_DREAMCAST" = "y" ]; then
+#   source drivers/maple/Config.in
+#fi
+
+mainmenu_option next_comment
+comment 'Character devices'
+
+bool 'Virtual terminal' CONFIG_VT
+if [ "$CONFIG_VT" = "y" ]; then
+   bool '  Support for console on virtual terminal' CONFIG_VT_CONSOLE
+fi
+
+tristate 'Serial (8250, 16450, 16550 or compatible) support' CONFIG_SERIAL
+tristate 'Serial (SCI, SCIF) support' CONFIG_SH_SCI
+if [ "$CONFIG_SERIAL" = "y" -o "$CONFIG_SH_SCI" = "y" ]; then
+   bool '  Support for console on serial port' CONFIG_SERIAL_CONSOLE
+fi
+comment 'Unix 98 PTY support'
+bool 'Unix98 PTY support' CONFIG_UNIX98_PTYS
+if [ "$CONFIG_UNIX98_PTYS" = "y" ]; then
+   int 'Maximum number of Unix98 PTYs in use (0-2048)' CONFIG_UNIX98_PTY_COUNT 256
+fi
+
+if [ "$CONFIG_SH_GENERIC" = "y" -o \
+     "$CONFIG_SH_CAT68701" = "y" -o \
+     "$CONFIG_SH_STB1_HARP" = "y" -o \
+     "$CONFIG_SH_STB1_OVERDRIVE" = "y" -o \
+     "$CONFIG_SH_BIGSUR" = "y" -o \
+     "$CONFIG_SH_7751_SOLUTION_ENGINE" = "y" -o \
+     "$CONFIG_SH_MOBILE_SOLUTION_ENGINE" = "y" -o \
+     "$CONFIG_SH_SOLUTION_ENGINE" = "y" ]; then
+   bool 'Heartbeat LED' CONFIG_HEARTBEAT
+fi
+
+if [ "$CONFIG_SH_DREAMCAST" = "y" -a "$CONFIG_MAPLE" != "n" ]; then
+   mainmenu_option next_comment
+   comment 'Maple Bus input peripherals'
+   if [ "$CONFIG_INPUT" != "n" ]; then
+      dep_tristate '  Maple Bus keyboard support' CONFIG_MAPLE_KEYBOARD $CONFIG_INPUT
+      dep_tristate '  Maple Bus mouse support' CONFIG_MAPLE_MOUSE $CONFIG_INPUT
+   else
+      comment 'Input core support is required for Maple input peripherals'
+   fi
+   endmenu
+fi
+
+source drivers/char/joystick/Config.in
+
+if [ "$CONFIG_PARPORT" != "n" ]; then
+   dep_tristate 'Parallel printer support' CONFIG_PRINTER $CONFIG_PARPORT
+   if [ "$CONFIG_PRINTER" != "n" ]; then
+      bool '  Support for console on line printer' CONFIG_LP_CONSOLE
+   fi
+   dep_tristate 'Support for user-space parallel port device drivers' CONFIG_PPDEV $CONFIG_PARPORT
+fi
+bool 'PS/2 mouse (aka "auxiliary device") support' CONFIG_PSMOUSE
+
+mainmenu_option next_comment
+comment 'Watchdog Cards'
+bool 'Watchdog Timer Support' CONFIG_WATCHDOG
+if [ "$CONFIG_WATCHDOG" != "n" ]; then
+   bool '  Disable watchdog shutdown on close' CONFIG_WATCHDOG_NOWAYOUT
+   dep_tristate '  SuperH Watchdog' CONFIG_SH_WDT $CONFIG_SUPERH
+fi
+endmenu
+
+tristate 'Enhanced Real Time Clock Support' CONFIG_RTC
+if [ "$CONFIG_HOTPLUG" = "y" -a "$CONFIG_PCMCIA" != "n" ]; then
+   source drivers/char/pcmcia/Config.in
+fi
+endmenu
+
+source fs/Config.in
+
+source drivers/media/Config.in
+
+if [ "$CONFIG_VT" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Console drivers'
+   bool 'VGA text console' CONFIG_VGA_CONSOLE
+   bool 'Video mode selection support' CONFIG_VIDEO_SELECT
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      tristate 'MDA text console (dual-headed) (EXPERIMENTAL)' CONFIG_MDA_CONSOLE
+      source drivers/video/Config.in
+   fi
+   endmenu
+fi
+
+
+mainmenu_option next_comment
+comment 'Sound'
+
+tristate 'Sound card support' CONFIG_SOUND
+if [ "$CONFIG_SOUND" != "n" ]; then
+   source drivers/sound/Config.in
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+bool 'Magic SysRq key' CONFIG_MAGIC_SYSRQ
+bool 'Use LinuxSH standard BIOS' CONFIG_SH_STANDARD_BIOS
+if [ "$CONFIG_SH_STANDARD_BIOS" = "y" ]; then
+   bool 'Early printk support' CONFIG_SH_EARLY_PRINTK
+fi
+bool 'Include KGDB kernel debugger' CONFIG_SH_KGDB
+if [ "$CONFIG_SH_KGDB" = "y" ]; then
+   bool ' Enter KGDB on NMI' CONFIG_KGDB_NMI
+   bool ' Include KGDB thread support' CONFIG_KGDB_THREAD
+   bool ' Console messages through GDB' CONFIG_SH_KGDB_CONSOLE
+   bool ' Allow SysRq "G" to enter KGDB?' CONFIG_KGDB_SYSRQ
+   if [ "$CONFIG_KGDB_SYSRQ" != "n" ]; then
+      define_bool CONFIG_MAGIC_SYSRQ y
+   fi
+   bool ' Include KGDB kernel asserts' CONFIG_KGDB_KERNEL_ASSERTS
+   bool ' Add additional compile options' CONFIG_KGDB_MORE
+   if [ "$CONFIG_KGDB_MORE" = "y" ]; then
+      string ' Additional compile options' CONFIG_KGDB_OPTIONS "-O1"
+   fi
+   mainmenu_option next_comment
+   comment '     Default KGDB port setup'
+      int 'Port number (ttySCn)' CONFIG_KGDB_DEFPORT 1
+      int 'Baud rate' CONFIG_KGDB_DEFBAUD 115200
+      choice 'Parity' \
+         "None CONFIG_KGDB_DEFPARITY_N	\
+          Even CONFIG_KGDB_DEFPARITY_E	\
+          Odd  CONFIG_KGDB_DEFPARITY_O"	None
+      choice 'DataBits' \
+         "7 CONFIG_KGDB_DEFBITS_7	\
+          8 CONFIG_KGDB_DEFBITS_8"	8
+   endmenu
+fi
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source crypto/Config.in
+source lib/Config.in

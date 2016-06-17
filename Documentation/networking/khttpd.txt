@@ -1,0 +1,1 @@
+See net/khttpd/README for documentation on khttpd, the kernel http server.

@@ -1,0 +1,532 @@
+user.doc
+Digi International driver package for the PC/Xe, PC/Xi, PC/Xr, PC/Xem as well
+the EISA and PCI variants of these boards where applicable.
+Copyright (C) 1996 Digi International.  Written by Ronnie Sanford digilnux@dgii.com
+
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 2 of the License, or (At your
+   option) any later version.
+
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+   for more details.
+
+   You should have received a copy of the GNU General Public License along 
+   with this program; if not write to the Free Software Foundation, Inc., 
+   675 Mass Ave, Cambridge, MA 02139, USA. 
+
+
+This document describes the software used with the Digi/Linux driver package.
+The four user programs listed below are described in this document:
+
+  1.  digiConfig   -> Application that configures the Digi driver.
+
+  2.  digiDload    -> Application which initializes the Digi hardware.
+
+  3.  buildPCI     -> Application which provides the user a method of
+                      building device nodes for PCI devices. 
+
+  4.  ditty        -> Application which provides the user a method of
+                      configuring terminal options on Digi hardware.
+
+
+
+--------------------------------------------------------------------------
+1.  Configuring driver/kernel for Digi products
+--------------------------------------------------------------------------
+
+   The Digi driver must be configured each time Digi hardware is added
+   or removed.  There are two supported methods of doing this.  The
+   first method configures the driver dynamically at boot time but requires
+   the user to utilize the lilo loader.  This method is the preffered method
+   as it does not require the rebuilding of the kernel.  In order to use lilo
+   to configure Digi boards at boot time an appropriate append command should
+   be added to /etc/lilo.conf below the appropriate label decleration.  
+   See footer 4.  The append commands format is a string of comma separated
+   identifiers or integers used to configure supported boards.  These six
+   values in order are:
+
+     Enable/Disable this card or Override,
+     Type of card: PC/Xe (AccelePort) (0), PC/Xeve (1), PC/Xem or PC/Xr (2),
+                   EISA/Xem (3), PC/Xe (64K) (4), PC/Xi (5).
+     Enable/Disable alternate pin arrangement,
+     Number of ports on this card,
+     I/O Port where card is configured (in HEX if using string identifiers),
+     Base of memory window (in HEX if using string identifiers) 
+
+   A sample append command is given below which if used would configure and 
+   enable a PC/Xe with 8 ports, at i/o address 200, memory address 0xd0000 
+   with alt pin turned off.  The lilo.conf file should look like this:
+
+     image = /vmlinuz
+       root = /dev/hda2
+       label = vmlinuz
+       append="digiepca=E,PC/Xe,D,8,200,D0000"
+
+   likewise the below will perform the same function:
+
+     image = /vmlinuz
+       root = /dev/hda2
+       label = vmlinuz
+       append="digiepca=1,0,0,8,512,851968"
+
+   Note:
+
+     PCI boards are auto-detected and configured (Hence their codes are
+     not given here).  Do not attempt to configure PCI boards with the lilo 
+     append command.
+
+     If configuration data has been specified by using digiConfig (Described
+     below), and you wish to override this configuration using lilo without
+     specifying a specific card (Example if there are PCI cards in the system)
+     the following override command will accomplish this:
+
+     -> append="digiepca=2"
+   
+   If lilo is not enabled, the second method of configuring Digi hardware 
+   will have to be used.  digiConfig is an application that can be used 
+   to inform the system of any additions, deletions, or modifications
+   involving Digi hardware.  To use this method the operator executes  
+   digiConfig anytime an EISA or ISA card is added that he wishes to use. 
+   This routine is also used to remove cards from the system, and to modify 
+   parameters of those cards already present in the system.  Upon being 
+   executed digiConfig modifies files accessed by the Digi driver.  To make 
+   these changes permanent; the operating system must be recompiled.  After 
+   the operating system has been recompiled and booted, the changes made with
+   digiConfig will be introduced to the user.  This program MUST be executed
+   every time Digi EISA/ISA hardware configuration changes.  Note, it is not
+   necessary to execute digiConfig in order to configure the Digi PCI cards.
+   These cards are self-identifying and will be recognized by the driver.  
+   They cannot be displayed using digiConfig nor will digiConfig build the 
+   device nodes their device nodes. See footer 1.
+
+   To execute digiConfig; simply type: digiConfig
+
+   The application will query you for the type, memory address, port 
+   address, number of ports, alt pin disposition and status of each board
+   that exist on the system.  Note, currently this driver only supports 
+   PC/Xe, PC/Xeve, PC/Xi, PC/Xr, and PC/Xem as well as their EISA and PCI 
+   implementations if applicable.  All supported cards (Other than PCI) that
+   are present should be registered via digiConfig.  See footer 2.
+
+   After all cards have been configured select exit.  The system will then
+   inform you if any changes have been made, and ask you if it is okay to
+   make these changes permanent.  If the data entered is correct, select okay.
+   Selecting cancel will prevent the changes from becoming active.  digiConfig
+   can then be re-executed to configure the system again.
+
+--------------------------------------------------------------------------
+2.  Initializing Digi hardware with digiDload
+--------------------------------------------------------------------------
+
+   digiDload is the application executed after the Digi driver has been
+   loaded.  It is responsible for initializing the hardware and leaving
+   it in a state such that the Digi board may be operated by the user.
+   The application may be placed anywhere on the path, but its related
+   support files must be located in /etc/digi.  The related files are:
+
+         sxfep.bin
+         sxbios.bin
+         xxfep.bin
+         xxbios.bin
+
+   The format for this command is "digiDload [v]".  If given the "v"
+   option turns on verbosity.  If not given the application runs in quite
+   mode.  To execute the program simply type:
+
+        digiDload 
+
+   Upon completion digiDload will generate the below message:
+
+        "digiDload complete: Card initialized"
+
+   At this point the card is configured and ready for normal usage.  See
+   technotes.doc for information on how how ports are determined and 
+   assigned.
+
+--------------------------------------------------------------------------
+3.  Build PCI device nodes with buildPCI 
+--------------------------------------------------------------------------
+
+   buildPCI is an application useful for building the necessary device nodes
+   for Digi PCI cards.  It is reccomended that this tool be used because the
+   current digiConfig application does not provide this function for PCI cards
+   (Though it does build device nodes for non-PCI cards).  To use this program
+   execute the following:first install the driver, and execute digiDload (See above).  After digiDload
+   has successfully loaded, execute the following:
+
+        buildPCI <arg1> <arg2>
+
+   Where arg1 is the number of ports connected to Digi cards that are not PCI 
+   (As shown by the digiConfig utility), and arg2 is the number of ports 
+   connected to Digi cards that are PCI.
+
+   Note, buildPCI only has to be ran once to build the necessary device 
+   nodes.  Though this program may be executed at anytime, we reccomend 
+   delaying execution until the first time you install the package and after 
+   digiDload has been executed.
+
+--------------------------------------------------------------------------
+4.  Setting Terminal Options with ditty
+--------------------------------------------------------------------------
+
+ditty is a utility program that sets and displays the terminal options 
+for Digi intelligent serial products.  See man ditty for detailed information.
+
+
+Footnotes:
+
+1.  The 1.2.x kernel does not provide a method of mapping the high 
+    addresses (Normally higher than RAM) associated with PCI.  For this
+    reason, this driver disables PCI support while running under the 1.2.x
+    kernels.
+
+2.  PCI cards should not and cannot be registered with digiConfig.  After
+    the driver has been loaded buildPCI may be executed to construct the 
+    necessary device nodes.  This step is not necessary for system not 
+    having Digi PCI cards.
+
+3.  This is because we forsee a time when buildPCI may auto-detect the
+    available Digi PCI cards and this would only work if the program is 
+    executed after digiDload.
+
+4.  A complete example is given in install.doc.
+
+-------------CHANGES--------------------
+
+All changes should be recorded here.  All changes should be explained in 
+verbose detail.  
+-----------------------------------------------------------------------
+Programmer            : Ronnie Sanford
+Date                  : June 1, 1996
+Description (Verbose) : Initial release of driver package.
+Files affected        : all
+Release version       : 1.0.0f  (BETA)
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+Programmer            : Ronnie Sanford
+Date                  : August 7, 1996
+Description (Verbose) : Made several modifications to provide PCI and EISA
+                        support:
+
+                        1.  We now allocate the termios structures based on
+                            the maximum number of channels that COULD be 
+                            available to the system.  We no longer use the
+                            number of channels declared in epcaconfig.h 
+                            (NBDEVS) as the total channel number.  This is 
+                            because this value does not represent channels
+                            available to potential PCI cards.  This new 
+                            larger value is also passed back to the os in
+                            the num field of tty_driver. 
+
+                        2.  Added code to copy the previous board structure
+                            (Now called static_boards) into a new local 
+                            copy of the boards structure.  This has been 
+                            done so that PCI cards may be added to this 
+                            board array and later referenced (And even 
+                            queried.). 
+
+                        3.  Added code to pc_init that checks for supported
+                            PCI cards.  If found this code initializes a new
+                            entry into the drivers local board structure 
+                            with the PCI cards address, and type, etc..  It 
+                            also bumps the card count (num_cards).
+
+                        4.  Modified code in post_fep_init so that when this
+                            routine is executed the number of ports supported
+                            by a particular PCI card will be determined and
+                            loaded into the board structure.  It would be 
+                            much better if this code was placed in pc_init
+                            (Because we could then report to the os the true
+                            number of ports available; not just the max), but
+                            since the card has to be booted to determine the
+                            number of ports it supports, we are forced to do it
+                            after DIGI_INIT has called post_fep_init.  In the 
+                            future we may attempt to read the num ports 
+                            attached directly (address 0x1ac).
+
+                        5.  Added board types to epca.h in support of various
+                            PCI boards (Some of which do not exist yet).  
+                            Added procedures for these boards throughout the
+                            code.  Note, windowing is not necessary for PCI
+                            boards.  
+
+                        6.  Added code supporting the EISA/XEM.  This included
+                            modifying epca.h with the new board type and 
+                            adding this type into the driver.  The EISA/XEM
+                            is basically identical to the PC/XEM, other than
+                            it's base address does not have to be (And cannot
+                            be configured directly).
+
+                        7.  Modified digiConfig to prompt for EISA/XEM cards.
+                             
+Files affected        : epca.c, epca.h, digi1.h, digiConfig
+Release version       : 1.0.0g  (BETA)
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+Programmer            : Ronnie Sanford
+Date                  : August 21, 1996
+Description (Verbose) : Made the following modifications:
+
+                        1.  A problem affecting hard flow control was found 
+                            in the termios2digi_h routine.  Specifically,
+                            when the user activated hard flow control using
+                            the CRTSCTS specification, the values used to 
+                            program hard flow control on the board were 
+                            incorrect.  The solution was to change a line
+                            that read "res |= ((ch->m_dtr) | (ch->m_rts));"
+                            to "res |= ((ch->m_cts) | (ch->m_rts));"  This 
+                            line only applies if cflag & CRTSCTS.  Special
+                            thanks to Matt Robinson (matt@mania.com.au) who
+                            found and fixed this problem.
+
+                        2.  In previous betas the cud device was set to  CLOCAL
+                            on driver boot up.  Likewise the ttyD device was
+                            set to ~CLOCAL.  This has been fixed in this driver.
+                            Now ttyD is CLOCAL and cud is ~CLOCAL.  The fix
+                            for this can be found in pc_init.
+
+                        3.  In ditty.c many changes were made to eliminate bugs
+                            and warning messages.  Two ioctl calls were eliminated
+                            as well a problem involving using the returned baud
+                            index to determine the drivers baud rate.  Newer 
+                            Linux kernels support higher baud rates by using
+                            0x1000 bit.  When the returned value (ored with
+                            0x1000) was used to reference our fbaud table a 
+                            serious memory problem occurred.  This has been fixed.
+
+                        4.  Added a request_region call to post_fep_init.  This
+                            should cause the i/o ports being used to be 
+                            registered with proc.
+ 
+                        5.  Modified digiConfig to set all cud and ttyD devices
+                            to read/write all permission.
+
+                        6.  Developed a new apps called buildPCI that provides 
+                            an easy way to build device nodes for PCI cards.
+         
+                        7.  Modified user.doc and technotes.doc document the
+                            use of buildPCI.
+
+Files affected        : epca.c, ditty.c, digiConfig, user.doc, technotes.doc 
+Release version       : 1.0.0 (Official release)
+-----------------------------------------------------------------------
+Programmer            : Ronnie Sanford
+Date                  : August 21, 1996
+Description (Verbose) : Made the following modifications:
+
+                        1.  Removed code from pc_close which closes the 
+                            drivers line discipline and restores its original
+                            line discipline.  This is currently unnecessary,
+                            though future fast cook enhancements may require
+                            this.
+
+                        2.  Removed code in block_til_ready that set the 
+                            asyncflags to either ASYNC_CALLOUT_ACTIVE, or
+                            ASYNC_NORMAL_ACTIVE.  This code was redundant
+                            as it already existed in block_til_ready.
+
+                        3.  Added code in block_til_ready to cause a return
+                            prior to schedule being called if the device 
+                            was a CALLOUT device.  CALLOUT devices never
+                            block on CD. (This was a serious bug that 
+                            prevented the CALLOUT devices (ttyD) from 
+                            functioning properly in some instances.
+
+                            Make a change in the MODEMCHG_IND case of doevent
+                            such that it does not require ASYNC_CALLOUT_ACTIVE
+                            or ASYNC_NORMAL_ACTIVE to be set in order to 
+                            unblock an open (Using wait_interruptible).
+
+                            Thanks to Mike McLagan (mike.mclagan@linux.org)
+                            for diagnosing and fixing this problem. 
+
+                        4.  Made changes to the disposition of CLOCAL on 
+                            both SERIAL NORMAL and CALLOUT devices.  Both
+                            device types now have CLOCAL active at default.
+                            This may be changed with a stty command.
+
+                        5.  Made changes to digiConfig such that it checks
+                            major.h (If valid) for the correct major
+                            numbers to use.
+
+Files affected        : epca.c, digiConfig 
+Release version       : 1.0.1a 
+
+
+-----------------------------------------------------------------------
+Programmer            : Ronnie Sanford
+Date                  : September 17, 1996
+Description (Verbose) : Made the following modifications:
+	
+                        1. Modified pc_open such that it no longer checks 
+                           the cflag value returned by termios2digi_c for
+                           CLOCAL.  Digi hardware does not use this value
+                           and thus termios2digi_c rightly screens this 
+                           value out.  This driver checks for CLOCAL using
+                           the drivers cflag value as known by the Linux OS.
+                           (The value passed into termios2digi_c)
+
+                        2. Modified termios2digi_c to screen out the 
+                           CBAUDEX in CBAUD.  This error caused parity to
+                           automaticaly be enabled on at higher baud rates.
+		
+
+                        3. Added the "disable_bh()" call to the shutdown
+                           subroutine.  Hopefully this will allow the driver
+                           to correctly clean up after itself when used as a
+                           module. 
+
+                        4. Added support for the PC/XI and 64K PC/XE cards.
+                           This involved primarily modifying digiDload to
+                           initialize and boot the new cards; however 
+                           driver modifications were also required to 
+                           provide the proper windowing for the newly 
+                           supported cards. (Code was also added to 
+                           determine the memory segment of the XI card as
+                           that card may have more than 64K.  Currently
+                           digiDload assumes a 64K XI card.)
+
+                        5. Added subroutine called epca_setup that can be 
+                           called during LILO boot up.  This provides the 
+                           user an easy way to change cards; without 
+                           running digiConfig and without recompiling the
+                           kernel.  Added code in pc_init and pc_open to
+                           support the epca_setup routine.  pc_init checks
+                           the liloconfig flag (Which is set by epca_setup)
+                           to determine if the driver is using the LILO 
+                           arguments.  If not pc_init loads the board data 
+                           found in epcaconfig.h; if so it DOESN'T load
+                           epcaconfig data depending on epca_setup to handle 
+                           board configuration.  pc_open has been modified 
+                           such that it checks to ensure that no errors
+                           occurred during the LILO boot process.  If a 
+                           user attempts to boot the driver (via. LILO)
+                           with incorrect data, the open will fail. 
+
+                        6. Modified the windowing routines pcxe_rxwinon
+                           and pcxe_txwinon routines.  A bug existed such
+                           that those routines checked to see if the rxwin 
+                           and txwin flags were reset.  If so they assumed 
+                           the board was an XI or 64K XE.  Furthermore since
+                           these flags were never initialized in our driver
+                           sometimes they were 0 and therefore caused a 
+                           memory fault (Or at least a window overrun).  This
+                           code has been removed since the pcxe shares 
+                           nothing in common with the 64K XI and XE. 
+
+                        7. Added code in pc_init to set the memory_seg for
+                           the various boards.  This code was necessary to
+                           correct a bug in the PCXE, PCXEVE code where 
+                           receive and transmit pointers were being calculated
+                           from an uninitialized variable (memory_seg). 
+
+                        8. Modified digiConfig to allow 64K PC/XI and 64K
+                           PC/XE cards to be configured.
+                           
+                        9. Made changes to support the new 2.1.x development 
+                           kernel.  In particular this required changing all
+                           references to vremap to ioremap. 
+
+                       10. Modified digiConfig such that it now generates 
+                           node names corresponding to their internal 
+                           as opposed to the label on the port itself.  Nodes
+                           (ttyD?? and cud??) now start at 0.  Example:
+                           ttyD0 and cud0 represent port 1 on any supported
+                           Digi product.  A similar change has been made
+                           in buildPCI.c. 
+
+                       12. At the early portion of post_fep_init if a PCI
+                           card is detected a warning message could be given
+                           incorrectly if 64 ports were attached to a PCI 
+                           card.  The below line :
+
+                           epcaassert(bd->numports > 64,"PCI returned a invalid number of ports"); 
+    
+                           was changed to :
+
+                           epcaassert(bd->numports <= 64,"PCI returned a invalid number of ports"); 
+
+                           Remember that epcaassert checks for NOT true.
+                           Special thanks to Daniel Taylor for fixing this.
+
+                       13. Modified the epcaparam routine.  In version 100
+                           and 101a there was a line that looked like the 
+                           below:
+
+                             if (ch->omodem != mval)
+                           
+                           The problem with this line was that the first time
+                           through omodem was not initialized.  Secondly, since
+                           many TIOC commands did not alter mval (They use
+                           a different variable) changes made by these commands
+                           could be lost.  This line was changed to:
+
+                             mval ^= ch->modemfake & (mval ^ ch->modem);
+
+                             if (ch->omodem ^ mval)
+
+                       14. Modified digiConfig in such a way that it checks 
+                           the version number of the kernel and if it finds
+                           a 2.x.x kernel or higher it reads the necessary 
+                           major numbers for cud and ttyD devices from major.h.
+                           This was also done in prior versions but these
+                           versions required a #define which identified the 
+                           kernel as a version which did not have major numbers
+                           assigned to Digi systems.  This #define is no 
+                           longer required allowing the same source tree for
+                           multiple kernel releases.
+
+                       15. Used macros to replace kernel specific calls such
+                           as put_fs_long, get_fs_long, put_user, and get_user
+                           the kernel version is now detected and the macro
+                           is defined as to correspond with the kernel it
+                           is being compiled into.  Again this was done to
+                           allow one source tree for multiple kernel releases. 
+
+                       16. Added support for the new 2.1.x development kernels
+                           to digiInstall.
+
+Files affected        : epca.c, digiConfig 
+Release version       : 1.1.0
+-----------------------------------------------------------------------
+Programmer            : Daniel Taylor
+Date                  : April 25, 1997
+Description (Verbose) : Updated driver:
+                        1.  Fixed DCD bug. (&tq scheduler)
+                        2.  Removed BH handler code, as it was only handling
+                            hangups, and not being called for that.
+                        3.  Namespace cleanup (DIGI_TIMER2 => DIGI_TIMER)
+                        4.  Updated to 2.1.36, removed #ifdefs for earlier
+                            kernel revisions.
+Files affected        : epca.c
+Release version       : 1.1.1  (BETA)
+-----------------------------------------------------------------------
+Programmer            : Daniel Taylor
+Date                  : March 11, 1999
+Description (Verbose) : Updated driver:
+                        1.  Simultaneous data and modem change events were
+			    resulting in the modem change events not being
+			    recognized. Fixed.
+                        2.  Modified pc_info device name to work better
+			    with devfs.
+Files affected        : epca.c
+Release version       : 1.3.0-K 
+-----------------------------------------------------------------------
+Programmer            : Jeff Garzik
+Date                  : February 26, 2000
+Description (Verbose) : Updated driver:
+			1.  Use new kernel PCI interfaces.
+			2.  Updated list of includes.
+Files affected        : epca.c
+Release version       : 1.3.0.1-LK
+-----------------------------------------------------------------------
+Programmer            : Arjan van de Ven <adve@oce.nl>
+Date                  : March 10, 2000
+Description (Verbose) : Fixed includes to make it actually compile
+			for kernel 2.3.51
+Files affected        : epca.c
+Release version       : 1.3.0.2-LK
+-----------------------------------------------------------------------

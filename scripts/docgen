@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+if [ -z "$scripts_objtree" ]
+then
+	X=`$TOPDIR/scripts/gen-all-syms "$*"`
+	$TOPDIR/scripts/docproc $X
+else
+	X=`${scripts_objtree}gen-all-syms "$*"`
+	TOPDIR=. ${scripts_objtree}docproc $X
+fi

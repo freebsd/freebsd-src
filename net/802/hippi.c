@@ -1,0 +1,154 @@
+/*
+ * INET		An implementation of the TCP/IP protocol suite for the LINUX
+ *		operating system.  INET is implemented using the  BSD Socket
+ *		interface as the means of communication with the user level.
+ *
+ *		HIPPI-type device handling.
+ *
+ * Version:	@(#)hippi.c	1.0.0	05/29/97
+ *
+ * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
+ *		Mark Evans, <evansmp@uhura.aston.ac.uk>
+ *		Florian  La Roche, <rzsfl@rz.uni-sb.de>
+ *		Alan Cox, <gw4pts@gw4pts.ampr.org>
+ *		Jes Sorensen, <Jes.Sorensen@cern.ch>
+ *
+ *		This program is free software; you can redistribute it and/or
+ *		modify it under the terms of the GNU General Public License
+ *		as published by the Free Software Foundation; either version
+ *		2 of the License, or (at your option) any later version.
+ */
+
+#include <linux/types.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/socket.h>
+#include <linux/in.h>
+#include <linux/inet.h>
+#include <linux/netdevice.h>
+#include <linux/hippidevice.h>
+#include <linux/skbuff.h>
+#include <linux/errno.h>
+#include <net/arp.h>
+#include <net/sock.h>
+#include <asm/uaccess.h>
+#include <asm/checksum.h>
+#include <asm/segment.h>
+#include <asm/system.h>
+
+/*
+ * hippi_net_init()
+ *
+ * Do nothing, this is just to pursuade the stupid linker to behave.
+ */
+
+void hippi_net_init(void)
+{
+	return;
+}
+
+/*
+ * Create the HIPPI MAC header for an arbitrary protocol layer 
+ *
+ * saddr=NULL	means use device source address
+ * daddr=NULL	means leave destination address (eg unresolved arp)
+ */
+
+int hippi_header(struct sk_buff *skb, struct net_device *dev,
+		 unsigned short type, void *daddr, void *saddr,
+		 unsigned len)
+{
+	struct hippi_hdr *hip = (struct hippi_hdr *)skb_push(skb, HIPPI_HLEN);
+
+	if (!len){
+		len = skb->len - HIPPI_HLEN;
+		printk("hippi_header(): length not supplied\n");
+	}
+
+	/*
+	 * Due to the stupidity of the little endian byte-order we
+	 * have to set the fp field this way.
+	 */
+	hip->fp.fixed		= __constant_htonl(0x04800018);
+	hip->fp.d2_size		= htonl(len + 8);
+	hip->le.fc		= 0;
+	hip->le.double_wide	= 0;	/* only HIPPI 800 for the time being */
+	hip->le.message_type	= 0;	/* Data PDU */
+
+	hip->le.dest_addr_type	= 2;	/* 12 bit SC address */
+	hip->le.src_addr_type	= 2;	/* 12 bit SC address */
+
+	memcpy(hip->le.src_switch_addr, dev->dev_addr + 3, 3);
+	memset(&hip->le.reserved, 0, 16);
+
+	hip->snap.dsap		= HIPPI_EXTENDED_SAP;
+	hip->snap.ssap		= HIPPI_EXTENDED_SAP;
+	hip->snap.ctrl		= HIPPI_UI_CMD;
+	hip->snap.oui[0]	= 0x00;
+	hip->snap.oui[1]	= 0x00;
+	hip->snap.oui[2]	= 0x00;
+	hip->snap.ethertype	= htons(type);
+
+	if (daddr)
+	{
+		memcpy(hip->le.dest_switch_addr, daddr + 3, 3);
+		memcpy(&skb->private.ifield, daddr + 2, 4);
+		return HIPPI_HLEN;
+	}
+	return -((int)HIPPI_HLEN);
+}
+
+
+/*
+ * Rebuild the HIPPI MAC header. This is called after an ARP has
+ * completed on this sk_buff. We now let ARP fill in the other fields.
+ */
+
+int hippi_rebuild_header(struct sk_buff *skb)
+{
+	struct hippi_hdr *hip = (struct hippi_hdr *)skb->data;
+
+	/*
+	 * Only IP is currently supported
+	 */
+	 
+	if(hip->snap.ethertype != __constant_htons(ETH_P_IP)) 
+	{
+		printk(KERN_DEBUG "%s: unable to resolve type %X addresses.\n",skb->dev->name,ntohs(hip->snap.ethertype));
+		return 0;
+	}
+
+	/*
+	 * We don't support dynamic ARP on HIPPI, but we use the ARP
+	 * static ARP tables to hold the I-FIELDs.
+	 */
+	return arp_find(hip->le.daddr, skb);
+}
+
+
+/*
+ *	Determine the packet's protocol ID.
+ */
+ 
+unsigned short hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
+{
+	struct hippi_hdr *hip;
+	
+	hip = (struct hippi_hdr *) skb->data;
+
+	/*
+	 * This is actually wrong ... question is if we really should
+	 * set the raw address here.
+	 */
+	 skb->mac.raw = skb->data;
+	 skb_pull(skb, HIPPI_HLEN);
+
+	/*
+	 * No fancy promisc stuff here now.
+	 */
+
+	return hip->snap.ethertype;
+}

@@ -1,0 +1,19 @@
+#
+# USB Host Controller Drivers
+#
+comment 'USB Host Controller Drivers'
+dep_tristate '  EHCI HCD (USB 2.0) support (EXPERIMENTAL)' CONFIG_USB_EHCI_HCD $CONFIG_USB $CONFIG_EXPERIMENTAL
+if [ "$CONFIG_USB_UHCI_ALT" != "y" ]; then
+   dep_tristate '  UHCI (Intel PIIX4, VIA, ...) support' CONFIG_USB_UHCI $CONFIG_USB
+fi
+if [ "$CONFIG_USB_UHCI" != "y" ]; then
+   dep_tristate '  UHCI Alternate Driver (JE) support' CONFIG_USB_UHCI_ALT $CONFIG_USB
+else
+   define_bool CONFIG_USB_UHCI_ALT n
+fi
+dep_tristate '  OHCI (Compaq, iMacs, OPTi, SiS, ALi, ...) support' CONFIG_USB_OHCI $CONFIG_USB
+if [ "$CONFIG_ARM" = "y" -o "$CONFIG_X86" = "y" -a "$CONFIG_X86_64" != "y" ]; then
+   # Cypress embedded USB controller on StrongARM or on x86 in PC/104
+   dep_tristate '  SL811HS Alternate (x86, StrongARM, isosynchronous mode)' CONFIG_USB_SL811HS_ALT $CONFIG_USB $CONFIG_EXPERIMENTAL
+   dep_tristate '  SL811HS (x86, StrongARM) support, old driver' CONFIG_USB_SL811HS $CONFIG_USB $CONFIG_EXPERIMENTAL
+fi

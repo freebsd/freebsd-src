@@ -1,0 +1,116 @@
+#
+# USB device configuration
+#
+mainmenu_option next_comment
+comment 'USB support'
+
+dep_tristate 'Support for USB' CONFIG_USB $CONFIG_PCI
+if [ "$CONFIG_USB" = "y" -o  "$CONFIG_USB" = "m" ]; then
+   bool '  USB verbose debug messages' CONFIG_USB_DEBUG
+
+   comment 'Miscellaneous USB options'
+   bool '  Preliminary USB device filesystem' CONFIG_USB_DEVICEFS
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      bool '  Enforce USB bandwidth allocation (EXPERIMENTAL)' CONFIG_USB_BANDWIDTH
+   else
+      define_bool CONFIG_USB_BANDWIDTH n
+   fi
+
+   source drivers/usb/host/Config.in
+
+   comment 'USB Device Class drivers'
+   dep_tristate '  USB Audio support' CONFIG_USB_AUDIO $CONFIG_USB $CONFIG_SOUND
+   dep_tristate '    EMI 2|6 USB Audio interface support' CONFIG_USB_EMI26 $CONFIG_USB_AUDIO
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      if [ "$CONFIG_BLUEZ" = "n" ]; then
+         dep_tristate '  USB Bluetooth support (EXPERIMENTAL)' CONFIG_USB_BLUETOOTH $CONFIG_USB
+      else
+         comment '  USB Bluetooth can only be used with disabled Bluetooth subsystem'
+      fi
+   fi
+   dep_tristate '  USB MIDI support' CONFIG_USB_MIDI $CONFIG_USB $CONFIG_SOUND
+   if [ "$CONFIG_SCSI" = "n" ]; then
+      comment '  SCSI support is needed for USB Storage'
+   fi
+   dep_tristate '  USB Mass Storage support' CONFIG_USB_STORAGE $CONFIG_USB $CONFIG_SCSI
+      dep_mbool '    USB Mass Storage verbose debug' CONFIG_USB_STORAGE_DEBUG $CONFIG_USB_STORAGE
+      dep_mbool '    Datafab MDCFE-B Compact Flash Reader support' CONFIG_USB_STORAGE_DATAFAB $CONFIG_USB_STORAGE $CONFIG_EXPERIMENTAL
+      dep_mbool '    Freecom USB/ATAPI Bridge support' CONFIG_USB_STORAGE_FREECOM  $CONFIG_USB_STORAGE
+      dep_mbool '    ISD-200 USB/ATA Bridge support' CONFIG_USB_STORAGE_ISD200 $CONFIG_USB_STORAGE $CONFIG_IDE
+      dep_mbool '    Microtech CompactFlash/SmartMedia support' CONFIG_USB_STORAGE_DPCM $CONFIG_USB_STORAGE
+      dep_mbool '    HP CD-Writer 82xx support' CONFIG_USB_STORAGE_HP8200e $CONFIG_USB_STORAGE $CONFIG_EXPERIMENTAL
+      dep_mbool '    SanDisk SDDR-09 (and other SmartMedia) support' CONFIG_USB_STORAGE_SDDR09 $CONFIG_USB_STORAGE $CONFIG_EXPERIMENTAL
+      dep_mbool '    SanDisk SDDR-55 SmartMedia support' CONFIG_USB_STORAGE_SDDR55 $CONFIG_USB_STORAGE $CONFIG_EXPERIMENTAL
+      dep_mbool '    Lexar Jumpshot Compact Flash Reader' CONFIG_USB_STORAGE_JUMPSHOT $CONFIG_USB_STORAGE $CONFIG_EXPERIMENTAL
+   dep_tristate '  USB Modem (CDC ACM) support' CONFIG_USB_ACM $CONFIG_USB
+   dep_tristate '  USB Printer support' CONFIG_USB_PRINTER $CONFIG_USB
+
+   comment 'USB Human Interface Devices (HID)'
+   dep_tristate '  USB Human Interface Device (full HID) support' CONFIG_USB_HID $CONFIG_USB
+   if [ "$CONFIG_INPUT" = "n" ]; then
+      comment '    Input core support is needed for USB HID input layer or HIDBP support'
+   fi
+      dep_mbool '    HID input layer support' CONFIG_USB_HIDINPUT $CONFIG_INPUT $CONFIG_USB_HID
+      dep_mbool '    /dev/hiddev raw HID device support' CONFIG_USB_HIDDEV $CONFIG_USB_HID
+   if [ "$CONFIG_USB_HID" != "y" ]; then
+      dep_tristate '  USB HIDBP Keyboard (basic) support' CONFIG_USB_KBD $CONFIG_USB $CONFIG_INPUT
+      dep_tristate '  USB HIDBP Mouse (basic) support' CONFIG_USB_MOUSE $CONFIG_USB $CONFIG_INPUT
+   fi
+   dep_tristate '  Aiptek 6000U/8000U tablet support' CONFIG_USB_AIPTEK $CONFIG_USB $CONFIG_INPUT
+   dep_tristate '  Wacom Intuos/Graphire tablet support' CONFIG_USB_WACOM $CONFIG_USB $CONFIG_INPUT
+   dep_tristate '  KB Gear JamStudio tablet support' CONFIG_USB_KBTAB $CONFIG_USB $CONFIG_INPUT
+   dep_tristate '  Griffin Technology PowerMate support' CONFIG_USB_POWERMATE $CONFIG_USB $CONFIG_INPUT
+
+   comment 'USB Imaging devices'
+   dep_tristate '  USB Kodak DC-2xx Camera support' CONFIG_USB_DC2XX $CONFIG_USB
+   dep_tristate '  USB Mustek MDC800 Digital Camera support (EXPERIMENTAL)' CONFIG_USB_MDC800 $CONFIG_USB $CONFIG_EXPERIMENTAL
+   dep_tristate '  USB Scanner support' CONFIG_USB_SCANNER $CONFIG_USB
+   dep_tristate '  Microtek X6USB scanner support' CONFIG_USB_MICROTEK $CONFIG_USB $CONFIG_SCSI
+   dep_tristate '  HP53xx USB scanner support (EXPERIMENTAL)' CONFIG_USB_HPUSBSCSI $CONFIG_USB $CONFIG_SCSI $CONFIG_EXPERIMENTAL
+
+   comment 'USB Multimedia devices'
+   if [ "$CONFIG_VIDEO_DEV" = "n" ]; then
+      comment '  Video4Linux support is needed for USB Multimedia device support'
+   else
+      dep_tristate '  USB IBM (Xirlink) C-it Camera support' CONFIG_USB_IBMCAM $CONFIG_USB $CONFIG_VIDEO_DEV
+      dep_tristate '  USB Konica Webcam support' CONFIG_USB_KONICAWC $CONFIG_USB $CONFIG_VIDEO_DEV
+      dep_tristate '  USB OV511 Camera support' CONFIG_USB_OV511 $CONFIG_USB $CONFIG_VIDEO_DEV
+      dep_tristate '  USB Philips Cameras' CONFIG_USB_PWC $CONFIG_USB $CONFIG_VIDEO_DEV
+      dep_tristate '  USB SE401 Camera support' CONFIG_USB_SE401 $CONFIG_USB $CONFIG_VIDEO_DEV
+      dep_tristate '  USB STV680 (Pencam) Camera support' CONFIG_USB_STV680 $CONFIG_USB $CONFIG_VIDEO_DEV
+      dep_tristate '  USB W996[87]CF Camera support' CONFIG_USB_W9968CF $CONFIG_USB $CONFIG_VIDEO_DEV $CONFIG_I2C
+      dep_tristate '  USB 3com HomeConnect (aka vicam) support (EXPERIMENTAL)' CONFIG_USB_VICAM $CONFIG_USB $CONFIG_VIDEO_DEV $CONFIG_EXPERIMENTAL
+      dep_tristate '  D-Link USB FM radio support (EXPERIMENTAL)' CONFIG_USB_DSBR $CONFIG_USB $CONFIG_VIDEO_DEV $CONFIG_EXPERIMENTAL
+      dep_tristate '  DABUSB driver' CONFIG_USB_DABUSB $CONFIG_USB
+   fi
+
+   comment 'USB Network adaptors'
+   if [ "$CONFIG_NET" = "n" ]; then
+      comment '  Networking support is needed for USB Networking device support'
+   else
+      dep_tristate '  USB Pegasus/Pegasus-II based ethernet device support (EXPERIMENTAL)' CONFIG_USB_PEGASUS $CONFIG_USB $CONFIG_NET $CONFIG_EXPERIMENTAL
+      dep_tristate '  USB Realtek RTL8150 based ethernet device support (EXPERIMENTAL)' CONFIG_USB_RTL8150 $CONFIG_USB $CONFIG_NET $CONFIG_EXPERIMENTAL
+      dep_tristate '  USB KLSI KL5USB101-based ethernet device support (EXPERIMENTAL)' CONFIG_USB_KAWETH $CONFIG_USB $CONFIG_NET $CONFIG_EXPERIMENTAL
+      dep_tristate '  USB CATC NetMate-based Ethernet device support (EXPERIMENTAL)' CONFIG_USB_CATC $CONFIG_USB $CONFIG_NET $CONFIG_EXPERIMENTAL
+      dep_tristate '  USB Communication Class Ethernet device support (EXPERIMENTAL)' CONFIG_USB_CDCETHER $CONFIG_USB $CONFIG_NET $CONFIG_EXPERIMENTAL
+      dep_tristate '  USB-to-USB Networking cables, Linux PDAs, ... (EXPERIMENTAL)' CONFIG_USB_USBNET $CONFIG_USB $CONFIG_NET $CONFIG_EXPERIMENTAL
+   fi
+
+   comment 'USB port drivers'
+   dep_tristate '  USS720 parport driver' CONFIG_USB_USS720 $CONFIG_USB $CONFIG_PARPORT
+   source drivers/usb/serial/Config.in
+
+   comment 'USB Miscellaneous drivers'
+   dep_tristate '  USB Diamond Rio500 support (EXPERIMENTAL)' CONFIG_USB_RIO500 $CONFIG_USB $CONFIG_EXPERIMENTAL
+   dep_tristate '  Auerswald device support' CONFIG_USB_AUERSWALD $CONFIG_USB
+   dep_tristate '  Texas Instruments Graph Link USB (aka SilverLink) cable support' CONFIG_USB_TIGL $CONFIG_USB
+   dep_tristate '  Tieman Voyager USB Braille display support (EXPERIMENTAL)' CONFIG_USB_BRLVGER $CONFIG_USB $CONFIG_EXPERIMENTAL
+   dep_tristate '  USB LCD device support' CONFIG_USB_LCD $CONFIG_USB
+   if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+      dep_tristate '  Alcatel Speedtouch USB support' CONFIG_USB_SPEEDTOUCH $CONFIG_ATM $CONFIG_USB
+   fi
+fi
+
+source drivers/usb/gadget/Config.in
+
+endmenu

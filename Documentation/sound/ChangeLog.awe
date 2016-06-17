@@ -1,0 +1,230 @@
+ver.0.4.3p4
+	- Bug fix for invalid memory detection when initialized twice
+	- Add sample sharing function - works together with awesfx-0.4.3p3
+	- Add AWE_PROBE_DATA for probing sample id
+
+ver.0.4.3p3
+	- Replace memset to MEMSET (for FreeBSD)
+	- Add PAN_EXCHANGE switch
+
+ver.0.4.3p2
+	- MIDI emulation device is added
+	- Controls volume and filter targets
+	- Include chorus/reverb/equalizer values in MISC_MODE
+
+ver.0.4.3p1
+	- Change the volume calculation method
+	- Support for Tom Lees' PnP driver (v0.3)
+
+ver.0.4.2d
+	- Support for OSS/Free 3.8 on 2.0 kernels.
+	- Support for Linux PnP driver
+	- Support for module (for recent 2.1 kernels and RH5.0)
+	- Support for FreeBSD-3.0 system
+
+ver.0.4.2c
+	- Add a mode to enable drum channel toggle via bank number
+	  change.
+
+ver.0.4.2b
+	- Clear voice position after note on
+	- Change nrvoices according to the current playing mode
+
+ver.0.4.2a
+	- Fix a bug in pitch calculation with scale parameter
+	- Change default chorus & reverb modes
+
+ver.0.4.2
+	- Use indirect voice allocation mode; used as default mode
+	- Add preset mapping
+	- Free buffers when resetting samples
+	- Set default preset/bank/drumset as variable
+	- Fix a bug in exclusive note-off
+	- Add channel reset control macro
+	- Change modwheel sensitivity as variable
+	- Add lock option in open_patch
+	- Add channel priority mode macro, and disable it as default
+	- Add unset effect macro
+	- Add user defined chorus/reverb modes
+	- Do not initialize effect parameters when allocating voices
+	- Accept realtime filter-Q parameter change
+	- Check value range of set/add effects
+	- Change drum flags automatically when receiving bank #128
+
+ver.0.4.1	development versions
+
+ver.0.4.0c
+	- Fix kernel oops when setting AWE_FX_ATTEN
+
+ver.0.4.0b
+	- Do not kill_note in start_note when velocity is zero
+
+ver.0.4.0a
+	- Fix a bug in channel pressure effects
+
+ver.0.4.0
+	- Support dynamic buffer allocation
+	- Add functions to open/close/unload a patch
+	- Change from pointer to integer index in voice/sample lists
+	- Support for Linux/Alpha-AXP
+	- Fix for FreeBSD
+	- Add sostenuto control
+	- Add midi channel priority
+	- Fix a bug in all notes off control
+	- Use AWE_DEFAULT_MEMSIZE always if defined
+	- Fix a bug in awe_reset causes seg fault when no DRAM onboard
+	- Use awe_mem_start variable instead of constant
+
+ver.0.3.3c
+	- Fix IOCTL_TO_USER for OSS-3.8 (on Linux-2.1.25)
+	- Fix i/o macros for mixer controls
+
+ver.0.3.3b
+	- Fix version number in awe_version.h
+	- Fix a small bug in noteoff/release all
+
+ver.0.3.3a
+	- Fix all notes/sounds off
+	- Add layer effect control
+	- Add misc mode controls; realtime pan, version number, etc.
+	- Move gus bank control in misc mode control
+	- Modify awe_operations for OSS3.8b5
+	- Fix installation script
+
+ver.0.3.3
+	- Add bass/treble control in Emu8000 chip
+	- Add mixer device
+	- Fix sustain on to value 127
+
+ver.0.3.2
+	- Refuse linux-2.0.0 at installation
+	- Move awe_voice.h to /usr/include/linux
+
+ver.0.3.1b (not released)
+	- Rewrite chorus/reverb mode change functions
+	- Rewrite awe_detect & awe_check_dram routines
+
+ver.0.3.1a
+	- Fix a bug to reset voice counter in awe_reset
+	- Fix voice balance on GUS mode
+	- Make symlink on /usr/include/asm in install script
+
+ver.0.3.1
+	- Remove zero size arrays from awe_voice.h
+	- Fix init_fm routine
+	- Remove all samples except primary samples in REMOVE_LAST_SAMPLES
+
+ver.0.3.0a
+	- Add AWE_NOTEOFF_ALL control
+	- Remove AWE_INIT_ATTEN control
+
+ver.0.3.0
+	- Fix decay time table
+	- Add exclusive sounds mode
+	- Add capability to get current status
+
+ver.0.2.99e
+	- Add #ifdef for all sounds/notes off controls.
+	- Fix bugs on searching the default drumset/preset.
+	- Fix usslite patch to modify the default Config.in.
+
+ver.0.2.99d
+	- Fix bugs of attack/hold parameters
+	- Fix attack & decay time table
+
+ver.0.2.99c
+	- Change volume control messages (main & expression volume)
+	  to accesspt normal MIDI parameters in channel mode.
+	- Use channel mode in SEQ2 controls.
+
+ver.0.2.99b
+	- #ifdef patch manager functions (for OSS-3.7)
+
+ver.0.2.99a
+	- Fix sustain bug
+
+ver.0.2.99 (0.3 beta)
+	- Support multiple instruments
+
+ver.0.2.0c
+	- Add copyright notice
+	- FreeBSD 2.2-ALPHA integration
+
+ver.0.2.0b
+	- Remove buffered reading appended in v0.2.0a
+	- Remove SMAxW register check on writing
+	- Support Linux 2.1.x kernel
+	- Rewrite installation script
+
+ver.0.2.0a
+	- Define SEQUENCER_C for tuning.h for FreeBSD system
+	- Improvement of sample loading speed
+	- Fix installation script
+	- Add PnP driver functions for ISA PnP driver support
+
+ver.0.2.0
+	- Includes FreeBSD port
+	- Can load GUS compatible patches
+	- Change values of hardware control parameters for compatibility
+	  with GUS driver
+	- Accept 8bit or unsigned wave data
+	- Accept no blank loop data
+	- Add sample mode flags in sample_info
+
+ver.0.1.6
+	- Add voice effects control
+	- Fix awe_voice.h for word alignment
+
+ver.0.1.5c
+	- Fix FM(OPL) playback problem
+
+ver.0.1.5b
+	- Fix pitch calculation for fixed midi key
+
+ver.0.1.5a
+	- Fix bugs in removing samples from linked list.
+
+ver.0.1.5
+	- Add checksum verification for sample uploading
+	  (not compatible from older sample_info structure)
+	- Fix sample offset pointers to (actual value - 1)
+	- Add sequencer command to initialize awe32
+
+ver.0.1.4c
+	- Fix card detection and memory check function to avoid system crash
+	  at booting
+
+ver.0.1.4b
+	- Add release sustain mode
+	- Initialize FM each time after loading samples
+
+ver.0.1.4a
+	- Fix AWE card detection code
+	- Correct FM initialize position 
+	- Add non-releasing mode on voice info
+
+ver.0.1.4
+	- Add AWE card and DRAM detection codes
+	- Add FM initialization code
+	- Modify volume control
+	- Remove linear volume mode
+	- Change memory management; not using malloc dynamically
+	- Add remove-samples command
+	- Use internal id implicitly at loading samples
+
+ver.0.1.3
+	- Fix a bug on patch uploading to RAM
+
+ver.0.1.2
+	- Divide to separated packages
+	- Fix disagreed macro conditions
+	- Fix unresolved function bugs
+	- Integrate VoxWare and USS-Lite driver source (awe_voice.c)
+	  and remove awe_card.c
+
+ver.0.1.1
+	- Fix wrong sample numbers in sbktext
+	- Fix txt2sfx bug
+	- Fix pan parameter calculation
+	- Append USS-Lite/Linux2.0 driver
+

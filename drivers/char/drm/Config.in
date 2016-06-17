@@ -1,0 +1,20 @@
+#
+# drm device configuration
+#
+# This driver provides support for the
+# Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
+#
+
+tristate '  3dfx Banshee/Voodoo3+' CONFIG_DRM_TDFX
+tristate '  3dlabs GMX 2000' CONFIG_DRM_GAMMA
+tristate '  ATI Rage 128' CONFIG_DRM_R128
+tristate '  ATI Radeon' CONFIG_DRM_RADEON
+dep_tristate '  Intel I810' CONFIG_DRM_I810 $CONFIG_AGP
+dep_mbool    '    Enabled XFree 4.1 ioctl interface by default' CONFIG_DRM_I810_XFREE_41 $CONFIG_DRM_I810
+dep_tristate '  Intel 830M' CONFIG_DRM_I830 $CONFIG_AGP
+dep_tristate '  Matrox g200/g400' CONFIG_DRM_MGA $CONFIG_AGP
+dep_tristate '  SiS' CONFIG_DRM_SIS $CONFIG_AGP
+#
+# Not ready yet. XFree DRI folks have to fix this up.
+# dep_tristate '  S3 Savage' CONFIG_DRM_SAVAGE $CONFIG_AGP
+# dep_tristate '  VIA CLE266' CONFIG_DRM_VIA $CONFIG_AGP

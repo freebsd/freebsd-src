@@ -1,0 +1,37 @@
+#
+# PCMCIA Network device configuration
+#
+
+mainmenu_option next_comment
+comment 'PCMCIA network device support'
+
+bool 'PCMCIA network device support' CONFIG_NET_PCMCIA
+if [ "$CONFIG_NET_PCMCIA" = "y" ]; then
+   dep_tristate '  3Com 3c589 PCMCIA support' CONFIG_PCMCIA_3C589 $CONFIG_PCMCIA
+   dep_tristate '  3Com 3c574 PCMCIA support' CONFIG_PCMCIA_3C574 $CONFIG_PCMCIA
+   dep_tristate '  Fujitsu FMV-J18x PCMCIA support' CONFIG_PCMCIA_FMVJ18X $CONFIG_PCMCIA
+   dep_tristate '  NE2000 compatible PCMCIA support' CONFIG_PCMCIA_PCNET $CONFIG_PCMCIA
+   dep_tristate '  Asix AX88190 PCMCIA support' CONFIG_PCMCIA_AXNET $CONFIG_PCMCIA
+   dep_tristate '  New Media PCMCIA support' CONFIG_PCMCIA_NMCLAN $CONFIG_PCMCIA
+   dep_tristate '  SMC 91Cxx PCMCIA support' CONFIG_PCMCIA_SMC91C92 $CONFIG_PCMCIA
+   dep_tristate '  Xircom 16-bit PCMCIA support' CONFIG_PCMCIA_XIRC2PS $CONFIG_PCMCIA
+   dep_tristate '  COM20020 ARCnet PCMCIA support' CONFIG_ARCNET_COM20020_CS $CONFIG_ARCNET_COM20020 $CONFIG_ARCNET $CONFIG_PCMCIA
+   if [ "$CONFIG_IBMTR" != "y" ]; then
+      dep_tristate '  IBM PCMCIA tokenring adapter support' CONFIG_PCMCIA_IBMTR $CONFIG_TR $CONFIG_PCMCIA
+   fi
+
+   if [ "$CONFIG_CARDBUS" = "y" ]; then
+      tristate '  Xircom CardBus support (new driver)' CONFIG_PCMCIA_XIRCOM
+      tristate '  Xircom Tulip-like CardBus support (old driver)' CONFIG_PCMCIA_XIRTULIP
+   fi
+
+   bool '  Pcmcia Wireless LAN' CONFIG_NET_PCMCIA_RADIO
+   if [ "$CONFIG_NET_PCMCIA_RADIO" = "y" ]; then
+      dep_tristate '    Aviator/Raytheon 2.4MHz wireless support' CONFIG_PCMCIA_RAYCS $CONFIG_PCMCIA
+      dep_tristate '    Xircom Netwave AirSurfer wireless support' CONFIG_PCMCIA_NETWAVE $CONFIG_PCMCIA
+      dep_tristate '    AT&T/Lucent Wavelan wireless support' CONFIG_PCMCIA_WAVELAN $CONFIG_PCMCIA
+      dep_tristate '    Aironet 4500/4800 PCMCIA support' CONFIG_AIRONET4500_CS $CONFIG_AIRONET4500 $CONFIG_PCMCIA
+   fi
+fi
+
+endmenu

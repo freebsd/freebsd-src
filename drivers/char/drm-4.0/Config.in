@@ -1,0 +1,13 @@
+#
+# drm device configuration
+#
+# This driver provides support for the
+# Direct Rendering Infrastructure (DRI) in XFree86 4.0 (old version).
+#
+
+tristate '  3dfx Banshee/Voodoo3+' CONFIG_DRM40_TDFX
+tristate '  3dlabs GMX 2000' CONFIG_DRM40_GAMMA
+dep_tristate '  ATI Rage 128' CONFIG_DRM40_R128 $CONFIG_AGP
+dep_tristate '  ATI Radeon' CONFIG_DRM40_RADEON $CONFIG_AGP
+dep_tristate '  Intel I810' CONFIG_DRM40_I810 $CONFIG_AGP
+dep_tristate '  Matrox G200/G400/G450' CONFIG_DRM40_MGA $CONFIG_AGP

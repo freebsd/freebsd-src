@@ -1,0 +1,1303 @@
+*_Functional Specification of SAB8253X ASLX Driver for Linux_*
+
+ 
+
+
+The SAB8253X serial interface chip is very flexible.  It supports most
+of the standard asynchronous serial transmission modes as well as
+synchronous Bit Oriented Protocols (BOPs) and character oriented
+protocols.  The Linux ASLX Driver system provides an extremely flexible
+Linux interface to the SAB8253X serial interface chips that are used on
+the Aurora <http://www.auroratech.com/> XX20 adapter cards and
+Multichannel server units whether they are inserted directly into a host
+bus or whether they are connected via a PCI extension system such as the
+Aurora XP7.
+
+ 
+
+
+  Supported Hardware
+
+ 
+
+The Linux ASLX Driver supports Aurora SAB8253X communications adapter
+cards and systems for PCI bus systems.  Possible adapter card
+configurations are identified as MN20 where M is 1, 2, 4, 8 and N is 0
+or 5.  M is the number of ports.  N = 0 means that the adapter card does
+not support synchronous modes.  N = 5 means the adapter card modes are
+unrestricted.  The multichannel server system consists of an host
+adapter card that attaches to an expansion box via the G-Link connection
+cable.  The expansion box can host 2000, 2500 and 3500 type Expansion
+Boards (EBs).  The 2000 EB provides 15 asynchronous-only RS-232 ports
+and 1 unrestricted RS-232 port.  The 2500 EB provides 16 unrestricted
+RS-232 ports.  The 3500 EB provides 16 unrestricted serial ports, whose
+physical signaling is under software control.  The XP7 is a PCI
+expansion chassis. 
+
+ 
+
+The ASLX correctly identifies the Aurora adapter card or Multichannel
+server and EBs, determines capabilities and provides a software
+interface to configurable capabilities (e.g., a choice of RS-232 [= the
+default], RS 422/423, RS 449, EIA 530, V.35, X.21, RS-485 and none
+[=off] signaling for 3500 EBs).  The use of an XP7 should be transparent
+to the driver.  The ASLX driver will automatically correct incorrectly
+programmed adapter card or Multichannel server serial EEPROMs. 
+Moreover, in addition to the primary serial communications interface,
+the ASLX driver provides a ^Ómaintenance^Ô interface to the serial EEPROMs
+so that user intervention can correct an incorrectly programmed EEPROM.
+
+ 
+
+
+  Serial Communications Interface
+
+ 
+
+The ASLX driver conforms to the standard Linux driver formalism for TTY
+devices, network devices and character devices.
+
+ 
+
+The ASLX Linux driver can like all standard Linux drivers either be
+linked into the kernel or be built as a downloadable module that can
+also be cleanly deloaded.
+
+ 
+
+The ASLX Linux driver functionality provides more than the usual serial
+device driver functionality because it provides the TTY device, network
+device and character device functionality in one package.  Moreover, the
+ASLX Linux driver TTY functionality supports asynchronous TTY devices,
+asynchronous CUA devices and synchronous TTY devices.  The CUA devices
+can also be used in conjunction with the network device and synchronous
+character device functionalities for the purpose of dynamically setting
+up a dialed link via a modem device.
+
+ 
+
+The ASLX Linux driver has been developed for Linux on i386 hardware, but
+it has no specific i386 dependence and after recompilation should be
+able to run with Linux that has been compiled for other hardware.
+
+ 
+
+The driver is structured to minimize Linux 2.4.*-isms.  While it has not
+been built as a Linux 2.2.* driver, rebuilding it to work under Linux
+2.2.* should not be too difficult.
+
+ 
+
+
+  Driver Initialization
+
+ 
+
+Drivers for physical devices usually must provide device detection and
+device initialization.
+
+ 
+
+The initialization or probe routines of the driver detect all the Aurora
+SAB8253X devices in the system (i.e., these routines look for PCI
+devices that have Aurora device and manufacturer IDs) and carry out any
+necessary low-level PCI initialization of the PLX9050 (XX20 adapter
+cards) or AMCC5920 bridge device (Multichannel server host card). 
+
+ 
+
+The initialization routines of the ASLX driver dynamically allocate all
+structures.  The number of Aurora adapter cards in a given system is
+solely limited by the amount of dynamically allocatable kernel memory.
+
+ 
+
+Note that the performance of a system will be dependent on the number of
+active SAB8253X ports, port modes and speeds, the speed of the CPU, the
+number of CPUs, memory design and similar hardware related considerations.
+
+ 
+
+This driver currently does not initialize serial adapter cards of
+similar design but with different device or manufacturer IDs, but users
+will be able to access all the functionality described in this document
+for serial ports on SAB8253X based Aurora adapter cards. 
+
+ 
+
+Extending the initialization to the intrinsic SAB8253X ports of SPARC
+hardware or to similar adapter cards of other manufacturers would not be
+difficult.
+
+ 
+
+Note that the intrinsic SAB8253X ports of the SPARC hardware can serve
+as boot serial consoles because they do not depend on PCI initialization
+as the Aurora adapter cards and multichannel units do.  Currently, the
+Aurora ASLX driver does not support boot console or serial console
+functionality, but extending the driver to provide such functionality
+would not be difficult.
+
+ 
+
+Note further the ASLX driver is designed (viz the Design Specification
+of SAB8253X ASLX Driver for Linux) for hardware that utilizes none of
+the DMA capabilities of SAB8253X extended serial interface controllers. 
+Because the ASLX driver transmits data from sk_buffs and receives data
+into sk_buffs extending the driver to support SAB8253X based adapter
+cards that support DMA would not be particularly difficult..
+
+ 
+
+In addition, the Zilog 85X30, Intel 8X530 and the AMD 85X30 serial
+communication controllers are character oriented devices that could
+easily be supported within the logic of the ASLX driver.  These devices
+do not have the same sort of visible FIFO that the SAB8253X devices
+have, but a FIFO operation looks like a sequence of operations to an
+output or an input register on a device that does not have a visible FIFO. 
+
+ 
+
+
+  The Communications Port
+
+ 
+
+From the standpoint of the Linux operating system, after initialization,
+the device that the operating system accesses is neither the Aurora
+adapter card or Multichannel server nor the SAB8253X chip but is the
+individual communications port of a SAB8253X chip.  Thus a SAB82532 is
+logically two devices, a SAB82538 is logically 8 devices, an Aurora 4520
+logically provides 4 devices, and an Aurora Multichannel server can
+logically provide up to 64 serial communications devices.
+
+ 
+
+Each communications port according to board capabilities and device
+configuration can provide asynchronous communications or synchronous
+communications as well as access to modem signal status.  On a given
+port synchronous communications can either be bit-oriented or
+character-oriented.  Currently, the driver only supports bit-oriented
+HDLC flag-framing and bit-stuffing, but the driver source can be easily
+modified to support BSC character-oriented synchronous communications. 
+
+ 
+
+There are two obvious possible ways to extend the driver to support BSC
+communications.  Either a configuration flag could be added to indicate
+that the synchronous TTY, network and character devices were running in
+BSC mode and not in BOP mode, or new BSC specific TTY, network and
+character devices could be created.  The latter approach would probably
+minimize potential user confusion and errors of connecting BSC ports to
+BOP configured lines and vice-versa.
+
+ 
+
+/Asynchronous Serial Communications Initialization for a Specific Port/
+
+ 
+
+After probing for the hardware, the driver registers the asynchronous
+device dependent routines, whose addresses are values of elements of
+/struct tty_driver/ variables with the device independent TTY driver by
+means of the /tty_register_driver()/ function. 
+
+ 
+
+These functions handle the device dependent aspects of opening a TTY
+port (i.e., completing initialization in asynchronous mode), closing a
+physical TTY port, writing an array of characters to a physical TTY
+port, putting a single character to a physical TTY port, flushing the
+characters in the process of being written to a single TTY port,
+determining how much buffer space is currently available to a single
+physical TTY port, determining how many characters are in the buffer
+space associated with a single physical TTY port, carrying out the
+device dependent aspects of IOCTLs invoked by a user application,
+carrying out flow control at the physical port, carrying out the device
+dependent aspects of setting TERMIOs, handling asynchronous break, and
+waiting for a physical TTY port to transmit all characters associated
+with the port.  Other elements of the /struct_tty_driver/ are
+initialized with information used for proc files and other TTY driver
+functionality. 
+
+ 
+
+/Asynchronous Serial Communications Functionality/
+
+ 
+
+The driver supports the standard Linux asynchronous TTY and call out
+functionality, which includes all standard STTY and TERMIO IOCTLs, all
+the standard speeds, all the standard flow control formalisms, etc.,
+that can be found in the Linux STTY and TERMIO manual pages. 
+
+ 
+
+Note that custom IOCTLs have been added to support the configuration of
+signaling on the WAN multichannel server 3500 cards.
+
+ 
+
+In addition, customized IOCTLs have been added to support reading and
+programming the serial EEPROM associated with the various Aurora adapter
+cards and units.  These are of limited use for users but are helpful in
+debugging cards.  Changing the manufacturer or device IDs can render an
+adapter card or unit unusable.
+
+ 
+
+The asynchronous TTY and call out functionality obey the standard Linux
+block_til_ready logic than enforces arbitration between call out and
+asynchronous TTY access.  Current Linux design documents deprecate the
+separate asynchronous call out functionality, but it is not particularly
+obvious how to provide asynchronous call out functionality to set up
+synchronous point-to-point links dynamically without the separate call
+out devices. 
+
+ 
+
+To wit, ckermit does not use the cua devices.  The ckermit user sets a
+tty line, turns off carrier watch, executes the connect command, dials
+out and then continues with his terminal session using the same tty
+device on which he dialed out after the modems connect.  This procedure
+would not work if the point-to-point connection were to be synchronous
+(or in fact if the point-to-point session were to carry X.25 traffic for
+a PAD session).  The cua devices are useful to deal with such /mixed
+mode/ dynamically connected sessions.
+
+ 
+
+Note that in the past Linux has required that TTY devices be named
+/dev/ttyS* and that call out devices be named /dev/cua*.  The devices
+can still be so named, but this naming convention is not obligatory.
+
+ 
+
+The asynchronous TTY devices use major device 4 and the call out device
+uses major device 5.  This assignment is a convention and can be changed
+if necessary.
+
+ 
+
+Ports are selected by the minor device number.  Port minor device
+numbers increase strictly monotonically in accord with the numbering
+convention of the adapter card or adapter unit.[1] <#_ftn1> 
+
+ 
+
+The file /proc/tty/driver/auraserial that is created by the ASLX driver
+helps in mapping port to minor device number.  The call out device and
+TTY device of a single port have the same minor device number.  To
+calculate the port number of an asynchronous TTY device or of a call out
+device, subtract the minor device number of the first ASLX port from the
+minor device number of the TTY or CUA device of interest.
+
+ 
+
+/Synchronous Serial TTY Communications Initialization for a Specific Port/
+
+ 
+
+After probing for the hardware, the driver registers the synchronous
+device dependent routines, whose addresses are values of elements of
+/struct_tty_driver/ variables with the device independent TTY driver by
+means of the /tty_register_driver()/ function. 
+
+ 
+
+Just as in the case of asynchronous TTYs, these functions handle the
+device dependent aspects of opening a TTY port (i.e., completing
+initialization in synchronous mode), closing a physical TTY port,
+writing an array of characters to a physical TTY port, putting a single
+character to a physical TTY port, flushing the characters in the process
+of being written to a single TTY port, determining how much buffer space
+is currently available to a single physical TTY port, determining how
+many characters are in the buffer space associated with a single
+physical TTY port, carrying out the device dependent aspects of IOCTLs
+invoked by a user application, carrying out flow control at the physical
+port, carrying out the device dependent aspects of setting TERMIOs, and
+waiting for a physical TTY port to transmit all characters associated
+with the port.  Other elements of the /struct tty_driver/ are
+initialized with information used for proc files and other TTY driver
+functionality. 
+
+
+   
+
+
+  Synchronous Serial TTY Communications Functionality
+
+ 
+
+By default synchronous serial TTY communications takes place on devices
+named /dev/sttyS*, but such names are not required.  The major device
+number associated with these ports is dynamically allocated and can be
+found in the /proc/tty/driver/auraserial file.
+
+ 
+
+Synchronous TTYs act just like asynchronous TTYs (e.g., getty^Òs may be
+associated with them, and a user may invoke cu on them) in so far as
+possible (to wit, break processing is not possible on a synchronous TTY).
+
+ 
+
+As one cannot generally purchase synchronous TTY hardware, synchronous
+TTYs are probably most useful in porting a synchronous TTY application
+from another type of Unix that made use of line disciplines in some
+legacy application.
+
+ 
+
+Note that the synchronous TTY driver logic obeys the block_til_ready
+arbitration logic so that asynchronous call out devices can be used to
+set up point-to-point synchronous TTY links.
+
+ 
+
+The synchronous TTY devices support all the standard STTY and TERMIO
+IOCTLs as well as the custom IOCTLs that are described in the previous
+section.  Because these IOCTLs do not deal with the issue of synchronous
+clock mode, IOCTLs for setting custom bit rates as well as for
+programming and reading synchronous clock modes are provided.  These
+IOCTLs are also accessible through the asynchronous TTY and call out
+devices.  Configuring a port to provide clock only affects the port when
+it is used as a synchronous device.
+
+ 
+
+The minor device number associated with a specific port is the same
+whether it is used as a synchronous TTY, an asynchronous TTY or a call
+out device.  To calculate the port number of a synchronous TTY device,
+subtract the minor device number of the first ASLX port from the minor
+device number of the TTY device of interest.
+
+ 
+
+
+  Synchronous Serial Network Device Initialization
+
+
+   
+
+The synchronous network device functionality is to some extent an
+extension of the synchronous TTY functionality.
+
+ 
+
+After probing for the SAB8253X hardware, the software in addition to
+invoking /tty_register_driver()/ also invokes /register_netdev()/ for
+each SAB8253X port.  This registration makes it possible to connect
+SAB8253X ports into the Linux network layer via ifconfig commands like
+the following, which opens the device.
+
+ 
+
+*ifconfig 8253x001 */{network address or host name}/
+
+*ifconfig 8253x001* *hw ether* /{MAC address}/
+
+ 
+
+Note that by default the number part of the network device name
+corresponds to the serial port number (i.e., the minor device number of
+the associated serial port minus the value of an internal kernel
+variable called sab8253x_minor_start [equal to the minor device number
+of the first TTY device listed in the /proc/tty/driver/auraserial
+file]).  The module parameter, sab8253x_minor_start, identifies the
+minor device number at which Aurora asynchronous TTY, synchronous TTY
+and call out devices start. 
+
+ 
+
+The network driver dynamically allocates memory specifically for its use
+as needed on network device open and frees up network device driver
+memory on network device close.
+
+ 
+
+
+  Synchronous Serial Network Devices
+
+ 
+
+The network devices like all standard Linux network devices are not
+visible in the /dev directory. 
+
+ 
+
+If an 8 port adapter card is installed in a Linux system that has an
+Ethernet port, the new SAB8253X Linux driver makes it possible to use
+the system as an 8 WAN x 1 LAN port router.
+
+ 
+
+The SAB8253X network device functionality emulates an Ethernet device. 
+The network device functionality requires the implementation of the
+following functions.  As a consequence, the network portion of the ASLX
+driver implements the standard Ethernet functionality as far as
+possible.  In addition, the network driver requires a special IOCTL to
+set a pseudomac address.
+
+ 
+
+In addition, the network driver needs some functionality that goes
+beyond the standard Ethernet functionality, for it must be possible
+dynamically to establish or reestablish synchronous links by means of
+the asynchronous call out device logic.
+
+ 
+
+Using the call out device logic in conjunction with the network device
+requires an extension of the call out device arbitration logic.
+
+ 
+
+The standard call out device arbitration logic requires that the call
+out device start first and be invoked from the same process or process
+group that opens the TTY device while the TTY device blocks until the
+call out succeeds.  Such logic is inapplicable to the network device. 
+The call out device must be opened while the corresponding network
+device is open.  The corresponding network device never blocks but
+informs the network layer of outgoing network congestion.
+
+ 
+
+ 
+
+
+  Synchronous Serial Character Device Initialization
+
+
+   
+
+The synchronous character device functionality is to some extent an
+extension of the synchronous network functionality.
+
+ 
+
+After probing for the SAB8253X hardware, the software besides invoking
+/tty_register_driver()/ also invokes /register_chardev()/ in addition to
+/register_netdev()/ for each SAB8253X port.  This registration makes it
+possible to access SAB8253X port packet functionality independently of
+the Linux network layer via function calls associated with a standard
+character device.
+
+ 
+
+The major device number of the synchronous serial character device can
+be found in the /proc/devices file.  Note that by default the minor
+device number of each synchronous serial character device file (e.g.,
+/dev/sab8253xC* if mknod is invoked as below) corresponds to the minor
+device number of the associated serial port minus the value of an
+internal kernel variable/module parameter called sab8253x_minor_start
+(equal to the minor device number of the first TTY device indentified in
+the /proc/tty/driver/auraserial file).  The variable
+sab8253x_minor_start identifies the minor device number at which Aurora
+asynchronous TTY, synchronous TTY and call out devices start. 
+
+ 
+
+*mknod /dev/sab8253xC*{number} *c* {major dev number} {minor dev number}
+
+ 
+
+The character driver dynamically allocates memory specifically for its
+use as needed on network device open and frees up network device driver
+memory on network device close.
+
+ 
+
+/Synchronous Serial Character Device/
+
+/
+/
+
+/ /
+
+ 
+
+The SAB8253X synchronous character device functionality implements
+essentially the same functions as the SAB8253X synchronous network
+device functionality with the addition of a read/receive function that
+will pass received data packets to a user application and with the
+addition of an fasync helper function if the driver is to support
+asynchronous notification to the user application.  This functionality
+is provided so that users that wish to implement their own bit oriented
+synchronous protocols may directly access the serial data stream without
+having to work around the TTY driver or the Linux network layer. 
+
+ 
+
+Note that while the network device is only opened once by the Linux
+network layer, the character device may be opened multiple times by a
+process or defined process group just like the TTY driver.
+
+ 
+
+In a sense, the synchronous character device implements an emulation of
+Solaris putmsg/getmsg functionality for Aurora^Òs synchronous serial
+device.  The availability of such emulation should help the portation of
+applications from Solaris to a Linux platform that uses Aurora hardware
+and software.
+
+ 
+
+The asynchronous functionality is useful for those protocols like LAPB,
+which do not work well if the physical driver buffers up low priority
+packets while other packets are being transmitted.  The asynchronous
+notification can provide notification that there are no packets of any
+sort in the process of being transmitted and that there are no high
+priority packets buffered within the driver.  On receiving this
+notification, the user application could transmit the next low priority
+packet.
+
+ 
+
+Note that the synchronous serial character device interacts with the
+call out device almost exactly like the TTY devices.
+
+ 
+
+In the interest of keeping the interfaces simple and not introducing
+extra foci for bugs, there are no IOCTLs implemented for this device. 
+If it is necessary to set a clocking mode or baud rate etc., the IOCTL
+call is made via the STTY, TERMIO or extended IOCTLs associated with the
+TTY driver functionalities. 
+
+ 
+
+
+  Common Interrupt Handling Functionality
+
+ 
+
+All the above functionality shares a common interrupt handler that
+invokes indirectly functionality-specific receive_chars, transmit_chars
+and check_status functions to receive character data, to transmit
+character data and to check signal status.
+
+ 
+
+In other words, the interrupt handler must support all possible
+functionalities simultaneously on a group of ports associated with a
+single interrupt simultaneously. 
+
+ 
+
+Linux is not capable of registering an interrupt handler for each port
+separately (when there are many ports ^Ö the specialty of Aurora
+hardware), and such an approach would have lower performance than having
+a single interrupt handler that polled the ports.  In any case,
+interrupt status registers associated with the Aurora hardware often
+indicate interrupt status on several ports simultaneous.  It is
+preferable to read such registers once especially with the Multichannel
+server hardware.
+
+ 
+
+
+  Proc Files
+
+ 
+
+The following traces show how the driver interacts with (or creates)
+various /proc status files.
+
+ 
+
+
+martillo@ylith:~ > cat /proc/tty/driver/auraserial
+
+serinfo:2.01N driver:1.22
+
+TTY MAJOR = 4, CUA MAJOR = 5, STTY MAJOR = 254.
+
+128: port 0: sab82538: v3: chip 0: ATI 8520P: bus 2: slot 10: NR: close:
+NOPRG
+
+129: port 1: sab82538: v3: chip 0: ATI 8520P: bus 2: slot 10: NR: openA:
+NOPRG
+
+130: port 2: sab82538: v3: chip 0: ATI 8520P: bus 2: slot 10: NR: openA:
+NOPRG
+
+131: port 3: sab82538: v3: chip 0: ATI 8520P: bus 2: slot 10: NR: close:
+NOPRG
+
+132: port 4: sab82538: v3: chip 0: ATI 8520P: bus 2: slot 10: NR: close:
+NOPRG
+
+133: port 5: sab82538: v3: chip 0: ATI 8520P: bus 2: slot 10: NR: openS:
+NOPRG
+
+134: port 6: sab82538: v3: chip 0: ATI 8520P: bus 2: slot 10: NR: close:
+NOPRG
+
+135: port 7: sab82538: v3: chip 0: ATI 8520P: bus 2: slot 10: NR: close:
+NOPRG
+
+136: port 0: sab82538: v2: chip 0: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+137: port 1: sab82538: v2: chip 0: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+138: port 2: sab82538: v2: chip 0: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+139: port 3: sab82538: v2: chip 0: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+140: port 4: sab82538: v2: chip 0: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+141: port 5: sab82538: v2: chip 0: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+142: port 6: sab82538: v2: chip 0: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+143: port 7: sab82538: v2: chip 0: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+144: port 0: sab82538: v2: chip 1: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+145: port 1: sab82538: v2: chip 1: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+146: port 2: sab82538: v2: chip 1: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+147: port 3: sab82538: v2: chip 1: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+148: port 4: sab82538: v2: chip 1: ATI WANMS: bus 2: slot 11: NR: close:
+RS530
+
+149: port 5: sab82538: v2: chip 1: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+150: port 6: sab82538: v2: chip 1: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+151: port 7: sab82538: v2: chip 1: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+152: port 0: sab82538: v2: chip 2: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+153: port 1: sab82538: v2: chip 2: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+154: port 2: sab82538: v2: chip 2: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+155: port 3: sab82538: v2: chip 2: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+156: port 4: sab82538: v2: chip 2: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+157: port 5: sab82538: v2: chip 2: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+158: port 6: sab82538: v2: chip 2: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+159: port 7: sab82538: v2: chip 2: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+160: port 0: sab82538: v2: chip 3: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+161: port 1: sab82538: v2: chip 3: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+162: port 2: sab82538: v2: chip 3: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+163: port 3: sab82538: v2: chip 3: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+164: port 4: sab82538: v2: chip 3: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+165: port 5: sab82538: v2: chip 3: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+166: port 6: sab82538: v2: chip 3: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+167: port 7: sab82538: v2: chip 3: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+168: port 0: sab82538: v2: chip 4: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+169: port 1: sab82538: v2: chip 4: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+170: port 2: sab82538: v2: chip 4: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+171: port 3: sab82538: v2: chip 4: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+172: port 4: sab82538: v2: chip 4: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+173: port 5: sab82538: v2: chip 4: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+174: port 6: sab82538: v2: chip 4: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+175: port 7: sab82538: v2: chip 4: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+176: port 0: sab82538: v2: chip 5: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+177: port 1: sab82538: v2: chip 5: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+178: port 2: sab82538: v2: chip 5: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+179: port 3: sab82538: v2: chip 5: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+180: port 4: sab82538: v2: chip 5: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+181: port 5: sab82538: v2: chip 5: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+182: port 6: sab82538: v2: chip 5: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+183: port 7: sab82538: v2: chip 5: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+184: port 0: sab82538: v2: chip 6: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+185: port 1: sab82538: v2: chip 6: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+186: port 2: sab82538: v2: chip 6: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+187: port 3: sab82538: v2: chip 6: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+188: port 4: sab82538: v2: chip 6: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+189: port 5: sab82538: v2: chip 6: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+190: port 6: sab82538: v2: chip 6: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+191: port 7: sab82538: v2: chip 6: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+192: port 0: sab82538: v2: chip 7: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+193: port 1: sab82538: v2: chip 7: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+194: port 2: sab82538: v2: chip 7: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+195: port 3: sab82538: v2: chip 7: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+196: port 4: sab82538: v2: chip 7: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+197: port 5: sab82538: v2: chip 7: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+198: port 6: sab82538: v2: chip 7: ATI WANMS: bus 2: slot 11: NR: close:
+RS232
+
+199: port 7: sab82538: v2: chip 7: ATI WANMS: bus 2: slot 11: NR: openA:
+RS232
+
+ 
+
+The above file indicates the minor device number, port number relative
+to chip, chip type, chip version number, chip number (meaningful for
+4X20 and multichannel servers), interface type, bus number, slot number,
+port availability (AO = asynchronous only, NR = No Restrictions, or NA =
+Not Available),  status (closed, open Synchronous, open Asynchronous,
+open Character, or open Network), and signaling type (NOPRG = not
+selectable programmatically; other possibilities inclue OFF, RS232,
+RS442, RS449, RS530 and V.35).
+
+ 
+
+
+martillo@ylith:/proc > cat /proc/pci
+
+PCI devices found:
+
+  Bus  0, device   0, function  0:
+
+    Host bridge: Intel Corporation 82820 820 (Camino) Chipset Host
+Bridge (MCH) (rev 4).
+
+      Prefetchable 32 bit memory at 0xf8000000 [0xfbffffff].
+
+  Bus  0, device   1, function  0:
+
+    PCI bridge: Intel Corporation 82820 820 (Camino) Chipset PCI to AGP
+Bridge (rev 4).
+
+      Master Capable.  Latency=64.  Min Gnt=8.
+
+  Bus  0, device  30, function  0:
+
+    PCI bridge: Intel Corporation 82801AA PCI Bridge (rev 2).
+
+      Master Capable.  No bursts.  Min Gnt=2.
+
+  Bus  0, device  31, function  0:
+
+    ISA bridge: Intel Corporation 82801AA ISA Bridge (LPC) (rev 2).
+
+  Bus  0, device  31, function  1:
+
+    IDE interface: Intel Corporation 82801AA IDE (rev 2).
+
+      I/O at 0xffa0 [0xffaf].
+
+  Bus  0, device  31, function  2:
+
+    USB Controller: Intel Corporation 82801AA USB (rev 2).
+
+      IRQ 10.
+
+      I/O at 0xef80 [0xef9f].
+
+  Bus  0, device  31, function  3:
+
+    SMBus: Intel Corporation 82801AA SMBus (rev 2).
+
+      IRQ 9.
+
+      I/O at 0xefa0 [0xefaf].
+
+  Bus  1, device   0, function  0:
+
+    VGA compatible controller: nVidia Corporation NV15 (Geforce2 GTS)
+(rev 164).
+
+      IRQ 11.
+
+      Master Capable.  Latency=64.  Min Gnt=5.Max Lat=1.
+
+      Non-prefetchable 32 bit memory at 0xfd000000 [0xfdffffff].
+
+      Prefetchable 32 bit memory at 0xe8000000 [0xefffffff].
+
+  Bus  2, device   8, function  0:
+
+    Ethernet controller: 3Com Corporation 3c905C-TX [Fast Etherlink]
+(rev 120).
+
+      IRQ 11.
+
+      Master Capable.  Latency=64.  Min Gnt=10.Max Lat=10.
+
+      I/O at 0xdc00 [0xdc7f].
+
+      Non-prefetchable 32 bit memory at 0xfeacfc00 [0xfeacfc7f].
+
+  Bus  2, device   9, function  0:
+
+    Unknown mass storage controller: Promise Technology, Inc. 20267 (rev 2).
+
+      IRQ 9.
+
+      Master Capable.  Latency=64. 
+
+      I/O at 0xdff0 [0xdff7].
+
+      I/O at 0xdfe4 [0xdfe7].
+
+      I/O at 0xdfa8 [0xdfaf].
+
+      I/O at 0xdfe0 [0xdfe3].
+
+      I/O at 0xdf00 [0xdf3f].
+
+      Non-prefetchable 32 bit memory at 0xfeae0000 [0xfeafffff].
+
+  Bus  2, device  10, function  0:
+
+    Communication controller: PCI device 125c:0101 (Aurora Technologies,
+Inc.) (rev 1).
+
+      IRQ 3.
+
+      Non-prefetchable 32 bit memory at 0xfeacf800 [0xfeacf87f].
+
+      Non-prefetchable 32 bit memory at 0xfeacf400 [0xfeacf5ff].
+
+      Non-prefetchable 32 bit memory at 0xfeacf000 [0xfeacf1ff].
+
+  Bus  2, device  11, function  0:
+
+    Communication controller: PCI device 125c:0101 (Aurora Technologies,
+Inc.) (rev 1).
+
+      IRQ 10.
+
+      Non-prefetchable 32 bit memory at 0xfeacec00 [0xfeacec7f].
+
+      Non-prefetchable 32 bit memory at 0xfeace000 [0xfeace7ff].
+
+      Non-prefetchable 32 bit memory at 0xfeacd800 [0xfeacdfff].
+
+ 
+
+The above file indications PCI resources that the Aurora adapter card or
+unit uses.
+
+ 
+
+
+martillo@ylith:/proc > cat /proc/devices
+
+Character devices:
+
+  1 mem
+
+  2 pty
+
+  3 ttyp
+
+  4 ttyS
+
+  5 cua
+
+  7 vcs
+
+ 10 misc
+
+ 14 sound
+
+128 ptm
+
+136 pts
+
+162 raw
+
+180 usb
+
+253 sab8253xc
+
+254 sttyS
+
+ 
+
+Block devices:
+
+  2 fd
+
+ 22 ide1
+
+ 33 ide2
+
+ 
+
+The above file provides the major device number associated with the
+synchronous serial character device.
+
+ 
+
+martillo@ylith:/proc > cat /proc/modules
+
+ASLX                   84336   5 (autoclean)
+
+ 
+
+The above file indicates that the ASLX module has been dynamically
+linked into the kernel.  If the ASLX is statically linked into the
+kernel, it will not appear in this file.
+
+ 
+
+martillo@ylith:/proc > cat /proc/interrupts
+
+           CPU0      
+
+  0:      25311          XT-PIC  timer
+
+  1:        401          XT-PIC  keyboard
+
+  2:          0          XT-PIC  cascade
+
+  3:         22          XT-PIC  sab8253x
+
+  9:      20055          XT-PIC  ide2
+
+ 10:         27          XT-PIC  usb-uhci, sab8253x
+
+ 11:         38          XT-PIC  eth0
+
+ 12:       2720          XT-PIC  PS/2 Mouse
+
+ 15:          7          XT-PIC  ide1
+
+NMI:          0
+
+LOC:          0
+
+ERR:          0
+
+MIS:          0
+
+ 
+
+The above file indicates the interrupts that are being used by Aurora
+adapter cards.
+
+
+martillo@ylith:/proc/net > cat /proc/net/dev
+
+Inter-|   Receive                                                |  Transmit
+
+ face |bytes    packets errs drop fifo frame compressed
+multicast|bytes    packets errs drop fifo colls carrier compressed
+
+    lo:    1080      16    0    0    0     0          0         0    
+1080      16    0    0    0     0       0          0
+
+  eth0:    2316      19    0    0    0     0          0         0 
+   1836      19    0    0    0     1       0          0
+
+8253x000:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x001:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x002:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x003:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x004:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x005:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x006:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x007:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x008:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x009:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x010:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+8253x011:       0       0    0    0    0     0          0        
+0        0       0    0    0    0     0       0          0
+
+ 
+
+The above file provides statistics on ASLX network interfaces.
+
+ 
+
+martillo@ylith:/proc > cat /proc/iomem
+
+00000000-0009fbff : System RAM
+
+0009fc00-0009ffff : reserved
+
+000a0000-000bffff : Video RAM area
+
+000c0000-000c7fff : Video ROM
+
+000cc000-000cdfff : Extension ROM
+
+000ce000-000ce7ff : Extension ROM
+
+000f0000-000fffff : System ROM
+
+00100000-0ffbffff : System RAM
+
+  00100000-00260dfe : Kernel code
+
+  00260dff-002f325f : Kernel data
+
+0ffc0000-0fff7fff : ACPI Tables
+
+0fff8000-0fffffff : ACPI Non-volatile Storage
+
+e4600000-f46fffff : PCI Bus #01
+
+  e8000000-efffffff : nVidia Corporation NV15 (Geforce2 GTS)
+
+f4700000-f47fffff : PCI Bus #02
+
+f8000000-fbffffff : Intel Corporation 82820 820 (Camino) Chipset Host
+Bridge (MCH)
+
+fc900000-fe9fffff : PCI Bus #01
+
+  fd000000-fdffffff : nVidia Corporation NV15 (Geforce2 GTS)
+
+fea00000-feafffff : PCI Bus #02
+
+  feacd800-feacdfff : PCI device 125c:0101 (Aurora Technologies, Inc.)
+
+  feace000-feace7ff : PCI device 125c:0101 (Aurora Technologies, Inc.)
+
+  feacec00-feacec7f : PCI device 125c:0101 (Aurora Technologies, Inc.)
+
+  feacf000-feacf1ff : PCI device 125c:0101 (Aurora Technologies, Inc.)
+
+  feacf400-feacf5ff : PCI device 125c:0101 (Aurora Technologies, Inc.)
+
+  feacf800-feacf87f : PCI device 125c:0101 (Aurora Technologies, Inc.)
+
+  feacfc00-feacfc7f : 3Com Corporation 3c905C-TX [Fast Etherlink]
+
+  feae0000-feafffff : Promise Technology, Inc. 20267
+
+ffb80000-ffbfffff : reserved
+
+fff00000-ffffffff : reserved
+
+ 
+
+The above file indicate the I/O memory mapping of the Aurora devices.
+
+ 
+
+
+  ASLX IOCTL Summary
+
+ 
+
+The ASLX driver supports the standard TTY and Ethernet driver IOCTLs. 
+In addition, the following TTY driver IOCTLs are supported (on
+asynchronous/synchronous TTY devices and on asynchronous CUA devices):
+
+ 
+
+/1.     /set custom baud rate,//
+
+/2.     /get baud rate,//
+
+/3.     /read EEPROM,//
+
+/4.     /set EEPROM,//
+
+/5.     /get clocking mode,//
+
+/6.     /set clocking mode//
+
+/7.     /get WAN MCS signaling configuration,//
+
+/8.     /set WAN MCS signaling configuration,//
+
+/9.     /clear network driver statistics.//
+
+ 
+
+In addition, the ASLX driver supports a network IOCTL to clear interface
+statistics.
+
+ 
+
+/Source Code Functionality/
+
+ 
+
+To facilitate user modification and extension of the ASLX driver, the
+code has been written as clearly as possible, and the various
+functionalities (asynchronous TTY, synchronous TTY, network device and
+character devices, initialization, interrupt, bridge initialization,
+etc) have their own files to discourage massive unsupportable changes to
+driver logic.
+
+ 
+
+/Summary/
+
+ 
+
+The driver attempts to provide as much as possible of the functionality
+of the SAB8253X communication controller and the Aurora hardware in a
+form that is both useful and friendly to the Linux user with as much
+self-configuration as possible and by means of the standard Linux
+interfaces.  The custom portion of the interface has been minimized as
+much as possible, and duplication of this interface across the TTY,
+network, and synchronous serial character interface has been eschewed. 
+
+ 
+
+In this version of the driver for each type of custom configuration,
+there is only one IOCTL, and this custom configuration is shared among
+all the functionalities that share a given physical port. 
+
+ 
+
+In most applications of this driver, the user will generally not have to
+use any of the custom IOCTLs unless he is using a serial port as a
+synchronous device that is providing clock, in which case he would have
+to use an IOCTL to make the port provide clock and he might have to use
+another IOCTL to set a custom baud rate.  In all cases, if the network
+driver is used on a given port, that port would have to be assigned a
+pseudomac address by means of the standard ifconfig command.
+
+ 
+
+Altogether the driver provides the functionality needed for massive
+asynchronous and synchronous TTY connectivity, for shake-and-bake WAN
+networking and for synchronous legacy interconnect by means of a custom
+application.  Linux systems that host Aurora communications cards that
+interface to the OS via the ASLX driver can replace a massive
+point-of-sales servers, expensive WAN networking systems or custom
+synchronous legacy protocol-to-standard protocol interconnect hardware.
+
+ 
+
+
+------------------------------------------------------------------------
+
+[1] <#_ftnref1> In the ASLX driver internal device lists, adapter cards
+and adapter units are ordered in reverse order to the ordering on the
+kernel PCI device list by type.  Multiport adapter cards are ordered
+last.  Compact multiport adapter cards are ordered next.  And
+Multichannel units are ordered next, i.e., first.   The ordering of
+adapter cards and interface chips on internal driver lists currently
+does not affect external functionality with one possible exception. 
+Adapter cards are also listed on per type per interrupt lists.   If
+there are many cards associated with a given interrupt, it is possible
+that list order might cause maximum delay in loading and emptying port
+FIFOs to be exceeded.  As every card on the interrupt list must be
+interrogated when an interrupt is received, avoiding the problem might
+require moving to a faster processor based system.  Multi-CPU hardware
+would not help.
+
+ 
+

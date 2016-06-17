@@ -1,0 +1,13 @@
+#
+# Multimedia device configuration
+#
+mainmenu_option next_comment
+comment 'Multimedia devices'
+
+tristate 'Video For Linux' CONFIG_VIDEO_DEV
+if [ "$CONFIG_VIDEO_DEV" != "n" ]; then
+   source drivers/media/video/Config.in
+   source drivers/media/radio/Config.in
+fi
+
+endmenu

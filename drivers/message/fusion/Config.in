@@ -1,0 +1,38 @@
+mainmenu_option next_comment
+comment 'Fusion MPT device support'
+
+dep_tristate "Fusion MPT (base + ScsiHost) drivers" CONFIG_FUSION $CONFIG_SCSI $CONFIG_BLK_DEV_SD
+
+if [ "$CONFIG_FUSION" = "y" -o "$CONFIG_FUSION" = "m" ]; then
+
+  if [ "$CONFIG_BLK_DEV_SD" = "y" -a "$CONFIG_FUSION" = "y" ]; then
+    define_bool CONFIG_FUSION_BOOT y
+  else
+    define_bool CONFIG_FUSION_BOOT n
+  fi
+  int  "  Maximum number of scatter gather entries" CONFIG_FUSION_MAX_SGE 40 
+
+  if [ "$CONFIG_MODULES" = "y" ]; then
+    #  How can we force these options to module or nothing?
+    dep_tristate "  Enhanced SCSI error reporting" CONFIG_FUSION_ISENSE $CONFIG_FUSION m
+    dep_tristate "  Fusion MPT misc device (ioctl) driver" CONFIG_FUSION_CTL $CONFIG_FUSION m
+  fi
+
+  dep_tristate "  Fusion MPT LAN driver" CONFIG_FUSION_LAN $CONFIG_FUSION $CONFIG_NET
+  if [ "$CONFIG_FUSION_LAN" != "n" ]; then
+    define_bool CONFIG_NET_FC y
+  fi
+
+else
+
+  define_bool CONFIG_FUSION_BOOT n
+  # These <should> be define_tristate, but we leave them define_bool
+  # for backward compatibility with pre-linux-2.2.15 kernels.
+  # (Bugzilla:fibrebugs, #384)
+  define_bool CONFIG_FUSION_ISENSE n
+  define_bool CONFIG_FUSION_CTL n
+  define_bool CONFIG_FUSION_LAN n
+
+fi
+
+endmenu

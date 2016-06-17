@@ -1,0 +1,344 @@
+StrongARM SA-1100 USB function Driver
+Ward Willats <ward.willats@extenex.com> -  08Mar01
+
+1. History
+''''''''''
+Brad Parker <brad@parker.boston.ma.us> ported the DEC/Compaq "Itsy"
+SA-1100 USB Function driver to the 2.4.x code base in late 2000, for
+use as an "ethernet over usb" link. His original notes are here in
+section 4. Nicolas Pitre <nico@cam.org> rewrote the transmitter and
+reciver (endpoints 1 and 2) in late 2000 to use the standard SA DMA
+API and I added a bulk character interface and reworked the control
+control module code and rewrote endpoint zero in early 2001.
+
+This release (22Feb01) is the first that completely separates
+client modules (usb-eth.c and usb-char.c) from the SA-1100 USB core.
+(usb_ctl, usb_ep0, usb_send and usb_receive)and makes the whole
+mess a module. Oleg Drokin has done a huge amount of work, fixing
+things I break and adding support for the generic usbnet driver
+from the AC tree.
+
+2. Usage
+''''''''
+Turn on CONFIG_SA1100_USB_NETLINK to use the "ethernet over usb"
+functionality. Turn it off to use the character oriented
+interface. The character driver currently uses mknod c 10 240.
+
+Programming:
+The public interface is in sa1100_usb.h. For a client USB service
+to use the SA-1100 USB core driver it should:
+
+1. Call sa1100_usb_open() to get the usb core assigned to it.
+
+2. Setup descriptors as appropriate for the task at hand. Esp.
+important are endpoint max packet lengths, vendor and product IDs,
+and type of endpoint (bulk or interrupt). Call
+sa1100_get_descriptor_ptr() to get this.
+
+3. Call sa1100_usb_start() to actually start the usb hardware.
+At this time the host will configure the device.
+
+...at shutdown...
+
+4. Call sa1100_usb_stop() to stop the USB core.
+5. Call sa1100_usb_close() to free the core for use by another
+client.
+
+3. Netlink Usage
+''''''''''''''''
+StrongARM SA-1100 USB function "ethernet over usb driver"
+Brad Parker <brad@parker.boston.ma.us>
+
+I ported the DEC "Itsy" usb "ethernet over usb driver" code to the 2.4.x
+base and made some enhacements and bug fixes.  This code has 2 sides and
+implements a simple "ethernet over usb" functionality.
+
+function (SA1100) side:
+- the driver has two endpoints and uses interrupt and bulk transfer to
+receive/send packets.  the driver does not require any other usb code
+and should work on most any sa1100.
+
+host (SA1111) side:
+- because the SA1111 usb host is not working yet I tested this driver
+(usb-net-host.c) on a 2.2.14 based PC with the latest usb backport.
+It has been fully converted to use URBs and worked well with my UHCI
+based controller.
+
+TESTING:
+
+To test you need an assabet on the 'function' side, a PC on the 'host'
+side and a USB A-B cable to connect them together.
+
+Boot a kernel on the assabet with "USB function and net-host support"
+(CONFIG_SA1100_USB) turned on.  This will define an interface named
+"usbf".  Once it's booted you can setup the interface with
+
+	mount -t proc /proc /proc
+	/sbin/ifconfig usbf 1.1.1.2
+
+I used a 2.2.14 kernel on a x86 PC for the host side.  It has a built
+in UHCI usb controller chip.  I installed the latest USB backport from
+http://www.linux-usb.org onto the 2.2.14 kernel sources and turned on
+"USB net-host" (CONFIG_USB_NET_HOST) as a module.  Load the module
+"usb-net-host.o" and connect the USB cable to the assabet.  Configure
+the usb network interface with
+
+	/sbin/ifconfig usb0 1.1.1.1
+
+You should be able to "ping" the assabet now with
+
+	ping -c 1 1.1.1.2
+
+If the assabet is running inetd the usual network services such as
+telnet and ftp should work.
+
+Oleg Drokin in 2.4.2-rmk1-np2 (08Mar01) added module config params for
+read and write size to the usb-eth.c client to allow dynamic setting
+of the DATA0/DATA1 packet size on the usb wire:
+
+usb_rsize - number of bytes in OUT packets from host to SA1100
+usb_wsize - number of bytes in IN packets from SA1100 to host
+
+This allows dynamic tuning for performance or to prevent overruning
+the the host with data.
+
+4. Known Issues
+'''''''''''''''
+- We are fiddling with various ways to set the IMP register in
+usb_send.c. A small percentage of the time, this value does not
+"take."
+
+- I've started to bring back the /proc interface, but clients
+of the sa-usb core currently don't have a directory or something
+to put their stats into.
+
+- Only a useful subset of ep0 setup calls have been implemented.
+
+
+5. Mysteries of the Universe
+''''''''''''''''''''''''''''
+This driver has been hard to develop because the documentation
+provided by Intel is incomplete, and the UDC itself seems to have a
+variety of bugs. The errata for the part is particularly scary! This
+section is an attempt to document some of the discoveries and
+questions I have come across while working on this thing.
+
+pp 11-63 of the "Intel Strong ARM SA-1110 Microprocessor Advanced
+Developer Information" give an ominous warning about how "due to
+internal synchronization required by the UDC configuration registers,
+it is possible for the procesor to write the UDC refisters and FIFOs
+too fast." This has led to a variety of approaches that attempt to
+bang on the hardware repeatedly and read it back until the write
+"sticks."
+
+All of these approaches have been problematic. Currently some macros
+in udc_ctl.h that Nicolas wrote are being used. My hardware guy told
+me that writes would never be "lost" but stuck on some internal bus in
+the UDC module and propagated to the rest of the circuit when the time
+was right. Indeed this seemed to be the case, for example, it seems
+impossible to reliably read back the interrupt mask register of the UDC when in
+the interrupt service routine. Often times the state was not reflected
+on a read until after pending interrupt sources were cleared.
+
+I was feeling prety good about this and was ripping out the looping
+macros right and left until I came upon a situation where, while
+receiving a continuous set of 1 character packets, ep1 (usb_receive.c)
+could not clear receive packet complete (RPC). After much desperate
+faliling about it turns out changing the UDC_flip() macro to bang like
+crazy on the RPC bit did in fact clear it, and clear it
+consistently. So go figure.
+
+Other items of interest:
+
+- Upon emerging from a reset, the UDC will clear the mask register except
+for a mask on suspend.
+
+- USB 1.0 spec says maximum size of a DATA0/1 packet is 64 bytes,
+which is what the character driver is using. However, the UDC can do
+256 bytes and every host I've tried can handle it, even though they
+are not required to. (Perhaps it is a problem when hubs are on the
+line, but the SA UDC has other problems in a hub environment -- like
+even getting the correct address -- per the errata).
+
+- Endpoint zero FIFOs: ARGHHH! Just leave those routines alone.
+Believe me, I have tried every other variation you can think of.
+Probably.
+
+- Sometimes I get a setup request of 0x80 from Windows hosts. I have
+not determined if this is a read_fifo error (none is reported) or if
+this is some undocumented secret Redmond handshake only known to
+initiates of the inner-order.
+
+6. Test Program
+'''''''''''''''
+This is now in the /proc interface. (For good or ill, probably don't
+actually need to dump all this stuff..)
+
+7. Errors and Notes on Intel's 1110 Documentation
+'''''''''''''''''''''''''''''''''''''''''''''''''
+These corrections apply to "Intel StrongARM SA-1110 Microprocessor,
+Advanced Developer's Manual of December 1999" Some of these have been
+corrected in later editions, some not. There have been several updates
+to this document published through 2000. Always use the latest
+available on http://developer.intel.com/design/strong/collateral.htm.
+
+pp 11-65 section 11.8.3.8 bit 2, reserved is now the resume interrupt
+mask. SRM is now SUSIM on SA-1110, and masks only the suspend
+interrupt.
+
+pp 11-67 section 11.8.6, Max IN register, end should be 9 _bytes_
+not 9 bits.
+
+pp 11-68 section 11.8.7.3, SST. This is set by the CPU _not_ the UDC.
+And it looks like you don't get a SST if you FST yourself.
+
+pp 11-68 section 11.8.7.5, DE. This is set by the CPU _not_ the UDC.
+
+pp 11-73 section 11.8.9.7, UDCCS2 table, bit 2, Should be "valid only
+when _TPC_ (not RPC) is set.
+
+pp 11-74 section 11.8.10, should end with a GET_DESCRIPTOR _or
+similar_ command. (Like, for example, GET_CONFIGURATION).
+
+
+8. Change History
+'''''''''''''''''
+Following are current chages  8Mar01 (released in 2.4.2-rmk1-np2?)
+
+- Resetting UDC when coming out of suspend helped enumeration get
+going considerably.
+
+- Added support for client-supplied notify routine to be called
+by the USB core when core reaches "configured" state.
+
+- Added error returns from interrupt reads and buffer flush ioctl
+calls to usb-char. Added usb-char.h file for ioctl calls.
+
+- Fixed bug that kept usb-char transmitter from working the second
+time the module was loaded.
+
+- Turned off a lot of the noise in /proc
+
+- Added specialty routines in ep0 to set and clear bits.
+
+- More enumeration fiddling.
+
+- There are horrible hacks to set max IN length in usb_send
+  that ARE GOING AWAY SOON! REALLY!
+
+*** Following changes 26Feb01 (released in 2.4.2-rmk1-np1)
+
+- usb-eth integration with generic usbnet from AC tree.
+
+- Creation of public interface for usb clients in sa1100_usb.h
+and final separation into a "core" driver (usb_ctl.c, usb_ep0.c
+usb_recv.c usb_send.c) and "client" services (usb-eth.c and
+usb-char.c). Modularized.
+
+- Descriptor handling rewritten. Support for string descriptors
+added. More bugs in ep0 fixed. More setup packets handled.
+
+- /proc interface in usb_ctl returning
+
+- removed client specific stuff from usbd_info_t and hid the
+structure in usb_ctl. Removed RAM-backing of address and pktsize
+in this structure. Now the descriptor values are gospel.
+
+- usb_dbg.h eliminated
+
+- Many bugs fixed in usb-char.c
+
+- Fiddled startup sequence so should start everytime.
+
+- Arch specific "soft connect" hook in usb_ctl.c
+
+- Bumped the interation count in write/set/clear macros
+in usb_ctl.h up to 10000. This seemed to help various bit
+setting in ep0 and usb_send.c.
+
+*** Following changes 10Feb01 release:
+
+- endpoint zero entirely rewitten
+
+- Various changes by Oleg to make Netlink work again after the
+  2.4.1-rmk1-np1 release.
+
+- Resetting of new max packet length done after clearing TPC
+in usb_send, per Nicolas Pitre.
+
+
+*** Following changes 23Jan01 (came out in 2.4.1-rmk1-np1):
+
+- Moved host initiated SET/GET feature stall into endpoint code of
+usb_send.c and usb_receive.c and removed stallep from usb_ctl.c
+Opposite of a SET_FEATURE stall is a reset, so no code to unstall is
+provided.
+
+- Added explicit USB state machine to usb_ctl so driver and device
+state can be tracked closely and explicitly. Added hard-wired
+notification routines in endpoints 1 and 2 so they can track device
+state changes as required. State machine has notion of "zombie" state
+the covers USB states NONATTACHED, ATTACHED and POWERED since these
+are murky, and USB driver currently has no way to differentiate
+between the two.
+
+- Reworked ISR in usb_ctl so reset has higher priority than any other
+event. Stopped using sync macros to clear interrupt pending flags and set
+mask registers since it appears mask register changes are not
+always reflected on a mask register read until the pending flag is
+cleared (yet other tests show they are always cleared
+eventually). Toggle suspend/resume interrupt masks back and forth during
+suspend and resume to debounce and keep UDC internal state machine in
+sync per Intel documentation.
+
+- Flipped UDC flip, clear, write and set macros from do{}while to
+while() loops. Theory is you might save a loop iteration if value
+becomes valid immediately. Also, my hardware guy says writes are never
+"lost", just pipelined and not executed immediately depending on
+internal device conditions (like setting int masks when ints
+pending), so moved write cycles in macros outside of loops.
+
+- Added #defines to SA-1110.h for suspend and resume interrupt mask
+bits per Intel eratta. Submitted to ARM patch system (444/1).
+
+- Removed task queue and defered execution of configure() from
+usb_ctl.
+
+- Removed usb_write_reg() from usb_ctl.c, and various cruft from
+usb_ctl.h.
+
+- Added sa1100_usb_xmitter_avail() to usb_send.c. Makes implementing
+poll() fileop easier.
+
+- Added sa1100_usb_send_reset() to usb_send.c. Makes implementing
+transmitter timeout easier.
+
+- Added API to usb_ctl to set vendor and product ID
+
+- Changed BMATTR descriptor fron int to bulk, when not using netlink. (All
+the docs say UDC does not support INT xfers -- though, at the protocol
+level I don't see why not, since bulk and int are both just
+IN-DATA-ACK. I figure netlink may rely on this, and not just a
+continuous pending read from the host, but for "pure bulk" host
+polling may not be generally correct.)
+
+- Removed unused rx_lock and tx_lock from usb_ctl
+
+- Converted everyone to SA-1100.h and nuked hardware defines in usb_ctl.h
+
+- Removed udc_init() in usb_ctl.c and folded functionality into udc_start().
+
+- Clear force stall (FST) in udc_start and reset so UDC actually runs when
+first turned on.
+
+- Emit NAK in receiver until ep1_start() for error (RPE) case too.
+
+- Remove enable/disable UDC from reset handler in udc_ctl. The UDC has
+already been reset, so no need to do this again.
+
+- Explicitly set address to zero in ep0_reset()
+
+- Added "naking" boolean to usb_receiv.c. An attempt to solve a
+hypothetical race condition where we are in the critical section
+initiating a read from base-level code, a RPC happens, and start()
+might clear the condition before the packet is handled by the ISR.

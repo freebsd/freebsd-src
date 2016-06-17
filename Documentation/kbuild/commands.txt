@@ -1,0 +1,113 @@
+Overview of Kbuild Commands
+24 January 1999
+Michael Elizabeth Chastain, <mailto:mec@shout.net>
+
+
+
+=== Introduction
+
+Someday we'll get our arms around all this stuff and clean it up
+a little!  Meanwhile, this file describes the system as it is today.
+
+
+
+=== Quick Start
+
+If you are building a kernel for the first time, here are the commands
+you need:
+
+    make config
+    make dep
+    make bzImage
+
+Instead of 'make config', you can run 'make menuconfig' for a full-screen
+text interface, or 'make xconfig' for an X interface using TCL/TK.
+
+'make bzImage' will leave your new kernel image in arch/i386/boot/bzImage.
+You can also use 'make bzdisk' or 'make bzlilo'.
+
+See the lilo documentation for more information on how to use lilo.
+You can also use the 'loadlin' program to boot Linux from MS-DOS.
+
+Some computers won't work with 'make bzImage', either due to hardware
+problems or very old versions of lilo or loadlin.  If your kernel image
+is small, you may use 'make zImage', 'make zdisk', or 'make zlilo'
+on theses systems.
+
+If you find a file name 'vmlinux' in the top directory of the source tree,
+just ignore it.  This is an intermediate file and you can't boot from it.
+
+Other architectures: the information above is oriented towards the
+i386.  On other architectures, there are no 'bzImage' files; simply
+use 'zImage' or 'vmlinux' as appropriate for your architecture.
+
+Note: the difference between 'zImage' files and 'bzImage' files is that
+'bzImage' uses a different layout and a different loading algorithm,
+and thus has a larger capacity.  Both files use gzip compression.
+The 'bz' in 'bzImage' stands for 'big zImage', not for 'bzip'!
+
+
+
+=== Top Level Makefile targets
+
+Here are the targets available at the top level:
+
+    make config, make oldconfig, make menuconfig, make xconfig
+
+	Configure the Linux kernel.  You must do this before almost
+	anything else.
+
+	config		line-oriented interface
+	oldconfig	line-oriented interface, re-uses old values
+	menuconfig	curses-based full-screen interface
+	xconfig		X window system interface
+
+    make checkconfig
+
+	This runs a little perl script that checks the source tree for
+	missing instances of #include <linux/config.h>.  Someone needs to
+	do this occasionally, because the C preprocessor will silently give
+	bad results if these symbols haven't been included (it treats
+	undefined symbols in preprocessor directives as defined to 0).
+	Superfluous uses of #include <linux/config.h> are also reported,
+	but you can ignore these, because smart CONFIG_* dependencies
+	make them harmless.
+
+	You can run 'make checkconfig' without configuring the kernel.
+	Also, 'make checkconfig' does not modify any files.
+
+    make checkhelp
+
+	This runs another little perl script that checks the source tree
+	for options that are in Config.in files but are not documented
+	in scripts/Configure.help.  Again, someone needs to do this
+	occasionally.  If you are adding configuration options, it's
+	nice if you do it before you publish your patch!
+
+	You can run 'make checkhelp' without configuring the kernel.
+	Also, 'make checkhelp' does not modify any files.
+
+    make dep, make depend
+
+	'make dep' is a synonym for the long form, 'make depend'.
+
+	This command does two things.  First, it computes dependency
+	information about which .o files depend on which .h files.
+	It records this information in a top-level file named .hdepend
+	and in one file per source directory named .depend.
+
+	Second, if you have CONFIG_MODVERSIONS enabled, 'make dep'
+	computes symbol version information for all of the files that
+	export symbols (note that both resident and modular files may
+	export symbols).
+
+	If you do not enable CONFIG_MODVERSIONS, you only have to run
+	'make dep' once, right after the first time you configure
+	the kernel.  The .hdepend files and the .depend file are
+	independent of your configuration.
+
+	If you do enable CONFIG_MODVERSIONS, you must run 'make dep'
+	every time you change your configuration, because the module
+	symbol version information depends on the configuration.
+
+[to be continued ...]

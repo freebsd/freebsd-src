@@ -1,0 +1,136 @@
+#
+# IP netfilter configuration
+#
+mainmenu_option next_comment
+comment '  IP: Netfilter Configuration'
+
+tristate 'Connection tracking (required for masq/NAT)' CONFIG_IP_NF_CONNTRACK
+if [ "$CONFIG_IP_NF_CONNTRACK" != "n" ]; then
+  dep_tristate '  FTP protocol support' CONFIG_IP_NF_FTP $CONFIG_IP_NF_CONNTRACK
+  dep_tristate '  Amanda protocol support' CONFIG_IP_NF_AMANDA $CONFIG_IP_NF_CONNTRACK
+  dep_tristate '  TFTP protocol support' CONFIG_IP_NF_TFTP $CONFIG_IP_NF_CONNTRACK
+  dep_tristate '  IRC protocol support' CONFIG_IP_NF_IRC $CONFIG_IP_NF_CONNTRACK
+fi
+
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+  tristate 'Userspace queueing via NETLINK (EXPERIMENTAL)' CONFIG_IP_NF_QUEUE
+fi
+tristate 'IP tables support (required for filtering/masq/NAT)' CONFIG_IP_NF_IPTABLES
+if [ "$CONFIG_IP_NF_IPTABLES" != "n" ]; then
+# The simple matches.
+  dep_tristate '  limit match support' CONFIG_IP_NF_MATCH_LIMIT $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  MAC address match support' CONFIG_IP_NF_MATCH_MAC $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  Packet type match support' CONFIG_IP_NF_MATCH_PKTTYPE $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  netfilter MARK match support' CONFIG_IP_NF_MATCH_MARK $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  Multiple port match support' CONFIG_IP_NF_MATCH_MULTIPORT $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  TOS match support' CONFIG_IP_NF_MATCH_TOS $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  recent match support' CONFIG_IP_NF_MATCH_RECENT $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  ECN match support' CONFIG_IP_NF_MATCH_ECN $CONFIG_IP_NF_IPTABLES
+ 
+  dep_tristate '  DSCP match support' CONFIG_IP_NF_MATCH_DSCP $CONFIG_IP_NF_IPTABLES
+ 
+  dep_tristate '  AH/ESP match support' CONFIG_IP_NF_MATCH_AH_ESP $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  LENGTH match support' CONFIG_IP_NF_MATCH_LENGTH $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  TTL match support' CONFIG_IP_NF_MATCH_TTL $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  tcpmss match support' CONFIG_IP_NF_MATCH_TCPMSS $CONFIG_IP_NF_IPTABLES
+  if [ "$CONFIG_IP_NF_CONNTRACK" != "n" ]; then
+    dep_tristate '  Helper match support' CONFIG_IP_NF_MATCH_HELPER $CONFIG_IP_NF_IPTABLES
+  fi
+  if [ "$CONFIG_IP_NF_CONNTRACK" != "n" ]; then
+    dep_tristate '  Connection state match support' CONFIG_IP_NF_MATCH_STATE $CONFIG_IP_NF_CONNTRACK $CONFIG_IP_NF_IPTABLES 
+    dep_tristate '  Connection tracking match support' CONFIG_IP_NF_MATCH_CONNTRACK $CONFIG_IP_NF_CONNTRACK $CONFIG_IP_NF_IPTABLES 
+  fi
+  if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+    dep_tristate '  Unclean match support (EXPERIMENTAL)' CONFIG_IP_NF_MATCH_UNCLEAN $CONFIG_IP_NF_IPTABLES
+    dep_tristate '  Owner match support (EXPERIMENTAL)' CONFIG_IP_NF_MATCH_OWNER $CONFIG_IP_NF_IPTABLES
+  fi
+# The targets
+  dep_tristate '  Packet filtering' CONFIG_IP_NF_FILTER $CONFIG_IP_NF_IPTABLES 
+  if [ "$CONFIG_IP_NF_FILTER" != "n" ]; then
+    dep_tristate '    REJECT target support' CONFIG_IP_NF_TARGET_REJECT $CONFIG_IP_NF_FILTER
+    if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      dep_tristate '    MIRROR target support (EXPERIMENTAL)' CONFIG_IP_NF_TARGET_MIRROR $CONFIG_IP_NF_FILTER
+    fi
+  fi
+
+  if [ "$CONFIG_IP_NF_CONNTRACK" != "n" ]; then
+    dep_tristate '  Full NAT' CONFIG_IP_NF_NAT $CONFIG_IP_NF_IPTABLES $CONFIG_IP_NF_CONNTRACK
+    if [ "$CONFIG_IP_NF_NAT" != "n" ]; then
+      define_bool CONFIG_IP_NF_NAT_NEEDED y
+      dep_tristate '    MASQUERADE target support' CONFIG_IP_NF_TARGET_MASQUERADE $CONFIG_IP_NF_NAT
+      dep_tristate '    REDIRECT target support' CONFIG_IP_NF_TARGET_REDIRECT $CONFIG_IP_NF_NAT
+      if [ "$CONFIG_IP_NF_AMANDA" = "m" ]; then
+        define_tristate CONFIG_IP_NF_NAT_AMANDA m
+      else
+        if [ "$CONFIG_IP_NF_AMANDA" = "y" ]; then
+          define_tristate CONFIG_IP_NF_NAT_AMANDA $CONFIG_IP_NF_NAT
+        fi
+      fi
+      bool '    NAT of local connections (READ HELP)' CONFIG_IP_NF_NAT_LOCAL
+      if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+        dep_tristate '    Basic SNMP-ALG support (EXPERIMENTAL)' CONFIG_IP_NF_NAT_SNMP_BASIC $CONFIG_IP_NF_NAT
+      fi
+      if [ "$CONFIG_IP_NF_IRC" = "m" ]; then
+        define_tristate CONFIG_IP_NF_NAT_IRC m
+      else
+        if [ "$CONFIG_IP_NF_IRC" = "y" ]; then
+          define_tristate CONFIG_IP_NF_NAT_IRC $CONFIG_IP_NF_NAT
+        fi
+      fi
+      # If they want FTP, set to $CONFIG_IP_NF_NAT (m or y), 
+      # or $CONFIG_IP_NF_FTP (m or y), whichever is weaker.  Argh.
+      if [ "$CONFIG_IP_NF_FTP" = "m" ]; then
+	define_tristate CONFIG_IP_NF_NAT_FTP m
+      else
+        if [ "$CONFIG_IP_NF_FTP" = "y" ]; then
+          define_tristate CONFIG_IP_NF_NAT_FTP $CONFIG_IP_NF_NAT
+        fi
+      fi
+      if [ "$CONFIG_IP_NF_TFTP" = "m" ]; then
+	define_tristate CONFIG_IP_NF_NAT_TFTP m
+      else
+        if [ "$CONFIG_IP_NF_TFTP" = "y" ]; then
+          define_tristate CONFIG_IP_NF_NAT_TFTP $CONFIG_IP_NF_NAT
+        fi
+      fi
+    fi
+  fi
+
+  dep_tristate '  Packet mangling' CONFIG_IP_NF_MANGLE $CONFIG_IP_NF_IPTABLES 
+  if [ "$CONFIG_IP_NF_MANGLE" != "n" ]; then
+    dep_tristate '    TOS target support' CONFIG_IP_NF_TARGET_TOS $CONFIG_IP_NF_MANGLE
+    dep_tristate '    ECN target support' CONFIG_IP_NF_TARGET_ECN $CONFIG_IP_NF_MANGLE
+ 
+    dep_tristate '    DSCP target support' CONFIG_IP_NF_TARGET_DSCP $CONFIG_IP_NF_MANGLE
+ 
+    dep_tristate '    MARK target support' CONFIG_IP_NF_TARGET_MARK $CONFIG_IP_NF_MANGLE
+  fi
+  dep_tristate '  LOG target support' CONFIG_IP_NF_TARGET_LOG $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  ULOG target support' CONFIG_IP_NF_TARGET_ULOG $CONFIG_IP_NF_IPTABLES
+  dep_tristate '  TCPMSS target support' CONFIG_IP_NF_TARGET_TCPMSS $CONFIG_IP_NF_IPTABLES
+fi
+
+tristate 'ARP tables support' CONFIG_IP_NF_ARPTABLES
+if [ "$CONFIG_IP_NF_ARPTABLES" != "n" ]; then
+  dep_tristate '  ARP packet filtering' CONFIG_IP_NF_ARPFILTER $CONFIG_IP_NF_ARPTABLES 
+fi
+if [ "$CONFIG_IP_NF_ARPTABLES" != "n" ]; then
+  dep_tristate '  ARP payload mangling' CONFIG_IP_NF_ARP_MANGLE $CONFIG_IP_NF_ARPTABLES
+fi
+
+# Backwards compatibility modules: only if you don't build in the others.
+if [ "$CONFIG_IP_NF_CONNTRACK" != "y" ]; then
+  if [ "$CONFIG_IP_NF_IPTABLES" != "y" ]; then
+    tristate 'ipchains (2.2-style) support' CONFIG_IP_NF_COMPAT_IPCHAINS
+    if [ "$CONFIG_IP_NF_COMPAT_IPCHAINS" != "n" ]; then
+      define_bool CONFIG_IP_NF_NAT_NEEDED y
+    fi
+    if [ "$CONFIG_IP_NF_COMPAT_IPCHAINS" != "y" ]; then
+      tristate 'ipfwadm (2.0-style) support' CONFIG_IP_NF_COMPAT_IPFWADM
+      if [ "$CONFIG_IP_NF_COMPAT_IPFWADM" != "n" ]; then
+	define_bool CONFIG_IP_NF_NAT_NEEDED y
+      fi
+    fi
+  fi
+fi
+endmenu

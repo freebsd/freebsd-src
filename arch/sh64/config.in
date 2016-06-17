@@ -1,0 +1,314 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+mainmenu_name "Linux/SH64 Kernel Configuration"
+
+define_bool CONFIG_SUPERH y
+
+define_bool CONFIG_UID16 y
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK y
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM n
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+   bool '  Set version information on all module symbols' CONFIG_MODVERSIONS
+   bool '  Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'System type'
+choice 'SuperH system type'					\
+	"Generic		CONFIG_SH_GENERIC		\
+	 Simulator		CONFIG_SH_SIMULATOR		\
+	 Cayman		        CONFIG_SH_CAYMAN		\
+	 ST50-Harp		CONFIG_SH_HARP" Simulator
+endmenu
+
+mainmenu_option next_comment
+comment 'Processor type and features'
+comment 'Processor options'
+choice 'Processor family'					\
+	"SH-5			CONFIG_CPU_SH5" SH-5
+
+if [ "$CONFIG_CPU_SH5" = "y" ]; then
+   choice 'Processor type' \
+   	"SH5-101		CONFIG_CPU_SUBTYPE_SH5_101	\
+	 SH5-103		CONFIG_CPU_SUBTYPE_SH5_103" SH5-101
+fi
+
+choice 'Endianness' \
+       "Little-Endian		CONFIG_LITTLE_ENDIAN		\
+	Big-Endian		CONFIG_BIG_ENDIAN" Little-Endian
+
+bool 'Flush floating point denorms to zero' CONFIG_SH64_FPU_DENORM_FLUSH
+choice 'Page table levels' \
+	"2			CONFIG_SH64_PGTABLE_2_LEVEL \
+	 3			CONFIG_SH64_PGTABLE_3_LEVEL" 2
+
+bool 'Fixup misaligned loads/stores occurring in user mode' CONFIG_SH64_USER_MISALIGNED_FIXUP
+
+# Use 32-bit addressing for now.
+# EMI based.
+# P2 (UNCACHED) required to use identity mapping
+# P1 (CACHED) assumes non-identity.
+
+#
+# Memory options
+#
+comment 'Memory options'
+
+int 'Memory size (in MB)' CONFIG_MEMORY_SIZE_IN_MB 64
+hex 'Cached Area Offset' CONFIG_CACHED_MEMORY_OFFSET 20000000
+hex 'Uncached Area Offset' CONFIG_UNCACHED_MEMORY_OFFSET 00000000
+hex 'Physical memory start address' CONFIG_MEMORY_START 80000000
+
+#
+# Cache options
+#
+comment 'Cache options'
+bool 'DCache Disabling' CONFIG_DCACHE_DISABLED
+
+if [ "$CONFIG_SH_SIMULATOR" != "y" -a \
+     "$CONFIG_DCACHE_DISABLED" != "y" ]; then
+     choice 'DCache mode'                                 \
+         "Write-back             CONFIG_DCACHE_WRITE_BACK \
+          Write-through          CONFIG_DCACHE_WRITE_THROUGH" Write-back
+fi
+
+bool 'ICache Disabling' CONFIG_ICACHE_DISABLED
+
+
+#
+# CPU Subtype specific options (errata and such)
+#
+comment 'CPU Subtype specific options'
+if [ "$CONFIG_CPU_SUBTYPE_SH5_101" = "y" ]; then
+  bool "Include workaround for SH5-101 cut2 silicon defect ID2815" CONFIG_SH64_ID2815_WORKAROUND
+fi
+
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+
+define_bool CONFIG_ISA n
+define_bool CONFIG_SBUS n
+
+bool 'Networking support' CONFIG_NET
+
+bool 'PCI support' CONFIG_PCI
+if [ "$CONFIG_SH_SIMULATOR" = "y" ]; then
+  define_bool CONFIG_PCI n
+  define_bool CONFIG_NET n
+fi
+
+if [ "$CONFIG_SH_HARP" = "y" ]; then
+  define_bool CONFIG_PCI n
+  define_bool CONFIG_NET y
+  define_bool CONFIG_NET_PCI y
+fi
+
+if [ "$CONFIG_PCI" = "y" ]; then
+   choice '  PCI access mode' \
+	"BIOS		CONFIG_PCI_GOBIOS	\
+	 Direct		CONFIG_PCI_GODIRECT	\
+	 Any		CONFIG_PCI_GOANY"	Any
+   if [ "$CONFIG_PCI_GOBIOS" = "y" -o "$CONFIG_PCI_GOANY" = "y" ]; then
+      define_bool CONFIG_PCI_BIOS y
+   fi
+   if [ "$CONFIG_PCI_GODIRECT" = "y" -o "$CONFIG_PCI_GOANY" = "y" ]; then
+      define_bool CONFIG_PCI_DIRECT y
+   fi
+fi
+
+source drivers/pci/Config.in
+
+# bool 'Support for hot-pluggable devices' CONFIG_HOTPLUG
+# 
+define_bool CONFIG_HOTPLUG n
+
+if [ "$CONFIG_HOTPLUG" = "y" ] ; then
+   source drivers/pcmcia/Config.in
+else
+   define_bool CONFIG_PCMCIA n
+fi
+
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+# bool 'Sysctl support' CONFIG_SYSCTL
+define_bool CONFIG_SYSCTL y
+
+if [ "$CONFIG_PROC_FS" = "y" ]; then
+   choice 'Kernel core (/proc/kcore) format' \
+	"ELF		CONFIG_KCORE_ELF	\
+	 A.OUT		CONFIG_KCORE_AOUT" ELF
+fi
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+
+bool 'Select task to kill on out of memory condition' CONFIG_OOM_KILLER
+
+# source drivers/parport/Config.in
+
+endmenu
+
+# source drivers/mtd/Config.in
+
+source drivers/block/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   source net/Config.in
+fi
+
+mainmenu_option next_comment
+comment 'ATA/IDE/MFM/RLL support'
+
+tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+if [ "$CONFIG_IDE" != "n" ]; then
+  source drivers/ide/Config.in
+else
+   define_bool CONFIG_BLK_DEV_HD n
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+ tristate 'SCSI support' CONFIG_SCSI
+##define_bool CONFIG_SCSI n
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+   source drivers/scsi/Config.in
+fi
+endmenu
+
+# source drivers/ieee1394/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Network device support'
+
+   bool 'Network device support' CONFIG_NETDEVICES
+   if [ "$CONFIG_NETDEVICES" = "y" ]; then
+      source drivers/net/Config.in
+      if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+         source drivers/atm/Config.in
+      fi
+   fi
+   endmenu
+fi
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source drivers/input/Config.in
+
+mainmenu_option next_comment
+comment 'Character devices'
+
+bool 'Virtual terminal' CONFIG_VT
+
+if [ "$CONFIG_VT" = "y" ]; then
+   bool '  Support for console on virtual terminal' CONFIG_VT_CONSOLE
+fi
+
+
+# insert for SCIF serial console support 
+tristate 'Serial (SCI, SCIF) support' CONFIG_SH_SCI
+tristate 'Serial (8250, 16450, 16550 or compatible) support' CONFIG_SERIAL
+
+if [ "$CONFIG_SERIAL" = "y" -o "$CONFIG_SH_SCI" = "y" ]; then
+   bool '  Support for console on serial port' CONFIG_SERIAL_CONSOLE
+fi
+
+
+comment 'Unix 98 PTY support'
+bool 'Unix98 PTY support' CONFIG_UNIX98_PTYS
+if [ "$CONFIG_UNIX98_PTYS" = "y" ]; then
+   int 'Maximum number of Unix98 PTYs in use (0-2048)' CONFIG_UNIX98_PTY_COUNT 256
+fi
+if [ "$CONFIG_PARPORT" != "n" ]; then
+   dep_tristate 'Parallel printer support' CONFIG_PRINTER $CONFIG_PARPORT
+   if [ "$CONFIG_PRINTER" != "n" ]; then
+      bool '  Support for console on line printer' CONFIG_LP_CONSOLE
+   fi
+   dep_tristate 'Support for user-space parallel port device drivers' CONFIG_PPDEV $CONFIG_PARPORT
+fi
+
+bool 'Heartbeat LED' CONFIG_HEARTBEAT
+dep_bool 'Support for HDSP-253 LED' CONFIG_HDSP253_LED $CONFIG_SH_CAYMAN
+tristate 'DMA controller (DMAC) support' CONFIG_SH_DMA
+bool 'PS/2 mouse (aka "auxiliary device") support' CONFIG_PSMOUSE
+
+mainmenu_option next_comment
+comment 'Watchdog Cards'
+bool 'Watchdog Timer Support' CONFIG_WATCHDOG
+if [ "$CONFIG_WATCHDOG" != "n" ]; then
+   bool '  Disable watchdog shutdown on close' CONFIG_WATCHDOG_NOWAYOUT
+   dep_tristate '  SuperH Watchdog' CONFIG_SH_WDT $CONFIG_SUPERH
+fi
+endmenu
+
+endmenu
+
+if [ "$CONFIG_HOTPLUG" = "y" -a "$CONFIG_PCMCIA" != "n" ]; then
+   source drivers/char/pcmcia/Config.in
+fi
+
+source fs/Config.in
+
+source drivers/media/Config.in
+
+
+if [ "$CONFIG_VT" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Console drivers'
+   bool 'VGA text console' CONFIG_VGA_CONSOLE
+   bool 'Video mode selection support' CONFIG_VIDEO_SELECT
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      tristate 'MDA text console (dual-headed) (EXPERIMENTAL)' CONFIG_MDA_CONSOLE
+      source drivers/video/Config.in
+   fi
+   endmenu
+fi
+
+
+mainmenu_option next_comment
+comment 'Sound'
+
+tristate 'Sound card support' CONFIG_SOUND
+# define_bool CONFIG_SOUND n
+
+if [ "$CONFIG_SOUND" != "n" ]; then
+   source drivers/sound/Config.in
+fi
+endmenu
+
+source drivers/usb/Config.in
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+bool 'Magic SysRq key' CONFIG_MAGIC_SYSRQ
+bool 'GDB Stub kernel debug' CONFIG_DEBUG_KERNEL_WITH_GDB_STUB
+bool "Debug: audit page tables on return from syscall/exception/interrupt" CONFIG_SH64_PAGE_TABLE_AUDIT
+dep_bool "Debug: report TLB fill/purge activity through /proc/tlb" CONFIG_SH64_PROC_TLB $CONFIG_PROC_FS
+dep_bool "Debug: report ASIDS through /proc/asids" CONFIG_SH64_PROC_ASIDS $CONFIG_PROC_FS
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source lib/Config.in
+source crypto/Config.in
+

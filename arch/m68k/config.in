@@ -1,0 +1,559 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+
+define_bool CONFIG_UID16 y
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK y
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM n
+
+mainmenu_name "Linux/68k Kernel Configuration"
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+   bool '  Set version information on all module symbols' CONFIG_MODVERSIONS
+   bool '  Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Platform dependent setup'
+
+define_bool CONFIG_EISA n
+define_bool CONFIG_MCA n
+define_bool CONFIG_PCMCIA n
+
+bool 'Amiga support' CONFIG_AMIGA
+bool 'Atari support' CONFIG_ATARI
+dep_bool '  Hades support' CONFIG_HADES $CONFIG_ATARI
+if [ "$CONFIG_HADES" = "y" ]; then
+   define_bool CONFIG_PCI y
+else
+   define_bool CONFIG_PCI n
+fi  
+bool 'Macintosh support' CONFIG_MAC
+if [ "$CONFIG_MAC" = "y" ]; then
+   define_bool CONFIG_NUBUS y
+   define_bool CONFIG_M68K_L2_CACHE y
+fi
+bool 'Apollo support' CONFIG_APOLLO
+bool 'VME (Motorola and BVM) support' CONFIG_VME
+if [ "$CONFIG_VME" = "y" ]; then
+   bool '  MVME147 support' CONFIG_MVME147
+   bool '  MVME162, 166 and 167 support' CONFIG_MVME16x
+   bool '  BVME4000 and BVME6000 support' CONFIG_BVME6000
+fi
+bool 'HP9000/300 support' CONFIG_HP300
+if [ "$CONFIG_HP300" = "y" ]; then
+   bool '  DIO bus support' CONFIG_DIO
+fi
+bool 'Sun3x support' CONFIG_SUN3X
+bool 'Sun3 support' CONFIG_SUN3
+  
+bool 'Q40/Q60 support' CONFIG_Q40
+
+comment 'Processor type'
+bool '68020 support' CONFIG_M68020
+bool '68030 support' CONFIG_M68030
+bool '68040 support' CONFIG_M68040
+bool '68060 support' CONFIG_M68060
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   bool 'Math emulation support (EXPERIMENTAL)' CONFIG_M68KFPU_EMU
+   if [ "$CONFIG_M68KFPU_EMU" = "y" ]; then
+      bool '  Math emulation extra precision' CONFIG_M68KFPU_EMU_EXTRAPREC
+      bool '  Math emulation only kernel' CONFIG_M68KFPU_EMU_ONLY
+   fi
+fi
+bool 'Advanced configuration options' CONFIG_ADVANCED
+if [ "$CONFIG_ADVANCED" = "y" ]; then
+   bool 'Use read-modify-write instructions' CONFIG_RMW_INSNS
+   if [ "$CONFIG_SUN3" = "y" ]; then
+      define_bool CONFIG_SINGLE_MEMORY_CHUNK n
+   else
+      bool 'Use one physical chunk of memory only' CONFIG_SINGLE_MEMORY_CHUNK
+   fi
+   if [ "$CONFIG_M68060" = "y" ]; then
+      bool 'Use write-through caching for 68060 supervisor accesses' CONFIG_060_WRITETHROUGH
+   fi
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+
+bool 'Networking support' CONFIG_NET
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+if [ "$CONFIG_PROC_FS" = "y" ]; then
+   choice 'Kernel core (/proc/kcore) format' \
+	"ELF		CONFIG_KCORE_ELF	\
+	 A.OUT		CONFIG_KCORE_AOUT" ELF
+fi
+tristate 'Kernel support for a.out binaries' CONFIG_BINFMT_AOUT
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+
+if [ "$CONFIG_AMIGA" = "y" ]; then
+  bool 'Amiga Zorro (AutoConfig) bus support' CONFIG_ZORRO
+  if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+     bool 'Amiga 1200/600 PCMCIA support (EXPERIMENTAL)' CONFIG_AMIGA_PCMCIA
+  fi
+fi
+if [ "$CONFIG_ATARI" = "y" ]; then
+   bool 'Support for ST-RAM as swap space' CONFIG_STRAM_SWAP
+   bool 'ST-RAM statistics in /proc' CONFIG_STRAM_PROC
+fi
+if [ "$CONFIG_AMIGA" = "y" -o "$CONFIG_APOLLO" = "y" -o \
+     "$CONFIG_ATARI" = "y" -o "$CONFIG_MAC" = "y" -o \
+     "$CONFIG_Q40" = "y" ]; then
+   bool 'Use power LED as a heartbeat' CONFIG_HEARTBEAT
+else
+  if [ "$CONFIG_HP300" = "y" ]; then
+     # We have a dedicated heartbeat LED. :-)
+     define_bool CONFIG_HEARTBEAT y
+  fi
+fi
+bool '/proc/hardware support' CONFIG_PROC_HARDWARE
+
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   tristate 'Parallel port support (EXPERIMENTAL)' CONFIG_PARPORT
+   if [ "$CONFIG_PARPORT" != "n" ]; then
+      if [ "$CONFIG_AMIGA" != "n" ]; then
+         dep_tristate '  Amiga builtin port' CONFIG_PARPORT_AMIGA $CONFIG_PARPORT
+	 if [ "$CONFIG_ZORRO" != "n" ]; then
+            dep_tristate '  Multiface III parallel port' CONFIG_PARPORT_MFC3 $CONFIG_PARPORT
+	 fi
+      fi
+      if [ "$CONFIG_Q40" != "n" ]; then
+	 if [ "$CONFIG_PARPORT" != "n" ]; then
+	    define_bool CONFIG_PARPORT_PC y
+	 fi
+      fi
+   fi
+   if [ "$CONFIG_ATARI" = "y" ]; then
+      dep_tristate '  Atari builtin port' CONFIG_PARPORT_ATARI $CONFIG_PARPORT
+   fi
+   dep_tristate '  Parallel printer support' CONFIG_PRINTER $CONFIG_PARPORT
+   if [ "$CONFIG_PRINTER" != "n" ]; then
+      bool '    IEEE 1284 transfer modes' CONFIG_PARPORT_1284
+   fi
+fi
+
+if [ "$CONFIG_Q40" = "y" -o "$CONFIG_AMIGA_PCMCIA" = "y" \
+      -o "$CONFIG_GG2" = "y" ]; then
+   define_bool CONFIG_ISA y
+else
+   define_bool CONFIG_ISA n
+fi
+
+source drivers/pci/Config.in
+source drivers/zorro/Config.in
+
+if [ "$CONFIG_Q40" = "y" ]; then
+   source drivers/pnp/Config.in
+fi
+
+endmenu
+
+source drivers/mtd/Config.in
+
+source drivers/block/Config.in
+
+source drivers/md/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+   source net/Config.in
+fi
+
+if [ "$CONFIG_MAC" = "y" ]; then
+   source drivers/input/Config.in
+fi
+
+mainmenu_option next_comment
+comment 'ATA/IDE/MFM/RLL support'
+
+tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+if [ "$CONFIG_IDE" != "n" ]; then
+  source drivers/ide/Config.in
+else
+  define_bool CONFIG_BLK_DEV_HD n
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+tristate 'SCSI support' CONFIG_SCSI
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+
+   comment 'SCSI support type (disk, tape, CD-ROM)'
+
+   dep_tristate '  SCSI disk support' CONFIG_BLK_DEV_SD $CONFIG_SCSI
+   if [ "$CONFIG_BLK_DEV_SD" != "n" ]; then
+      int  'Maximum number of SCSI disks that can be loaded as modules' CONFIG_SD_EXTRA_DEVS 40
+   fi
+   dep_tristate '  SCSI tape support' CONFIG_CHR_DEV_ST $CONFIG_SCSI
+   if [ "$CONFIG_CHR_DEV_ST" != "n" ]; then
+      int  'Maximum number of SCSI tapes that can be loaded as modules' CONFIG_ST_EXTRA_DEVS 2
+   fi
+   dep_tristate '  SCSI CD-ROM support' CONFIG_BLK_DEV_SR $CONFIG_SCSI
+   if [ "$CONFIG_BLK_DEV_SR" != "n" ]; then
+      bool '    Enable vendor-specific extensions (for SCSI CDROM)' CONFIG_BLK_DEV_SR_VENDOR
+      int  'Maximum number of CDROM devices that can be loaded as modules' CONFIG_SR_EXTRA_DEVS 2
+   fi
+   dep_tristate '  SCSI generic support' CONFIG_CHR_DEV_SG $CONFIG_SCSI
+
+   comment 'Some SCSI devices (e.g. CD jukebox) support multiple LUNs'
+
+   bool '  Probe all LUNs on each SCSI device' CONFIG_SCSI_MULTI_LUN
+
+   bool '  Verbose SCSI error reporting (kernel size +=12K)' CONFIG_SCSI_CONSTANTS
+   bool '  SCSI logging facility' CONFIG_SCSI_LOGGING
+
+   mainmenu_option next_comment
+   comment 'SCSI low-level drivers'
+
+   if [ "$CONFIG_AMIGA" = "y" ]; then
+      dep_tristate 'A3000 WD33C93A support' CONFIG_A3000_SCSI $CONFIG_SCSI
+      if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+	 bool 'Amiga NCR53c710 SCSI support (EXPERIMENTAL)' CONFIG_SCSI_AMIGA7XX
+      fi
+   fi
+   if [ "$CONFIG_ZORRO" = "y" ]; then
+      dep_tristate 'A2091 WD33C93A support' CONFIG_A2091_SCSI $CONFIG_SCSI
+      dep_tristate 'GVP Series II WD33C93A support' CONFIG_GVP11_SCSI $CONFIG_SCSI
+      dep_tristate 'CyberStorm SCSI support' CONFIG_CYBERSTORM_SCSI $CONFIG_SCSI
+      dep_tristate 'CyberStorm Mk II SCSI support' CONFIG_CYBERSTORMII_SCSI $CONFIG_SCSI
+      dep_tristate 'Blizzard 2060 SCSI support' CONFIG_BLZ2060_SCSI $CONFIG_SCSI
+      dep_tristate 'Blizzard 1230IV/1260 SCSI support' CONFIG_BLZ1230_SCSI $CONFIG_SCSI
+      dep_tristate 'Fastlane SCSI support' CONFIG_FASTLANE_SCSI $CONFIG_SCSI
+      if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+	 dep_tristate 'BSC Oktagon SCSI support (EXPERIMENTAL)' CONFIG_OKTAGON_SCSI $CONFIG_SCSI
+#	 bool 'Cyberstorm Mk III SCSI support (EXPERIMENTAL)' CONFIG_CYBERSTORMIII_SCSI
+      fi
+   fi
+   if [ "$CONFIG_ATARI" = "y" ]; then
+      dep_tristate 'Atari native SCSI support' CONFIG_ATARI_SCSI $CONFIG_SCSI
+      if [ "$CONFIG_ATARI_SCSI" != "n" ]; then
+	 bool '  Long delays for Toshiba CD-ROMs' CONFIG_ATARI_SCSI_TOSHIBA_DELAY
+	 bool '  Reset SCSI-devices at boottime' CONFIG_ATARI_SCSI_RESET_BOOT
+	 if [ "$CONFIG_HADES" = "y" ]; then
+	    bool '  Hades SCSI DMA emulator' CONFIG_TT_DMA_EMUL
+	 fi
+      fi
+   fi
+   if [ "$CONFIG_MAC" = "y" ]; then
+      bool 'Macintosh NCR5380 SCSI' CONFIG_MAC_SCSI
+      dep_tristate 'Macintosh NCR53c9[46] SCSI' CONFIG_SCSI_MAC_ESP $CONFIG_SCSI
+   fi
+#   dep_tristate 'SCSI debugging host adapter' CONFIG_SCSI_DEBUG $CONFIG_SCSI
+
+   if [ "$CONFIG_VME" = "y" -a "$CONFIG_MVME147" = "y" ]; then
+      bool 'WD33C93 SCSI driver for MVME147' CONFIG_MVME147_SCSI
+   fi
+
+   if [ "$CONFIG_VME" = "y" -a "$CONFIG_MVME16x" = "y" ]; then
+      bool 'NCR53C710 SCSI driver for MVME16x' CONFIG_MVME16x_SCSI
+   fi
+
+   if [ "$CONFIG_VME" = "y" -a "$CONFIG_BVME6000" = "y" ]; then
+      bool 'NCR53C710 SCSI driver for BVME6000' CONFIG_BVME6000_SCSI
+   fi
+
+   if [ "$CONFIG_SUN3" = "y" ]; then
+	dep_tristate 'Sun3 NCR5380 OBIO SCSI' CONFIG_SUN3_SCSI $CONFIG_SCSI
+   fi
+
+   if [ "$CONFIG_SUN3X" = "y" ]; then
+      bool 'Sun3x ESP SCSI' CONFIG_SUN3X_ESP
+   fi
+
+   endmenu
+
+fi
+endmenu
+
+if [ "$CONFIG_NET" = "y" ]; then
+
+   mainmenu_option next_comment
+   comment 'Network device support'
+
+   bool 'Network device support' CONFIG_NETDEVICES
+   if [ "$CONFIG_NETDEVICES" = "y" ]; then
+      #
+      # Network device configuration
+      #
+      tristate '  Dummy net driver support' CONFIG_DUMMY
+      tristate '  SLIP (serial line) support' CONFIG_SLIP
+      if [ "$CONFIG_SLIP" != "n" ]; then
+	 bool '    CSLIP compressed headers' CONFIG_SLIP_COMPRESSED
+	 bool '    Keepalive and linefill' CONFIG_SLIP_SMART
+	 bool '    Six bit SLIP encapsulation' CONFIG_SLIP_MODE_SLIP6
+      fi
+      tristate 'PPP (point-to-point protocol) support' CONFIG_PPP
+      if [ ! "$CONFIG_PPP" = "n" ]; then
+         dep_bool '  PPP multilink support (EXPERIMENTAL)' CONFIG_PPP_MULTILINK $CONFIG_EXPERIMENTAL
+         dep_bool '  PPP filtering' CONFIG_PPP_FILTER $CONFIG_FILTER
+         dep_tristate '  PPP support for async serial ports' CONFIG_PPP_ASYNC $CONFIG_PPP
+         dep_tristate '  PPP support for sync tty ports' CONFIG_PPP_SYNC_TTY $CONFIG_PPP
+         dep_tristate '  PPP Deflate compression' CONFIG_PPP_DEFLATE $CONFIG_PPP
+         dep_tristate '  PPP BSD-Compress compression' CONFIG_PPP_BSDCOMP $CONFIG_PPP
+         if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+             dep_tristate '  PPP over Ethernet (EXPERIMENTAL)' CONFIG_PPPOE $CONFIG_PPP
+         fi
+      fi
+      tristate '  EQL (serial line load balancing) support' CONFIG_EQUALIZER
+      if [ "$CONFIG_ZORRO" = "y" ]; then
+	 tristate '  Ariadne support' CONFIG_ARIADNE
+	 tristate '  A2065 support' CONFIG_A2065
+	 tristate '  Hydra support' CONFIG_HYDRA
+	 tristate '  Zorro NS8390-based Ethernet support' CONFIG_ZORRO8390
+      fi
+      if [ "$CONFIG_AMIGA_PCMCIA" = "y" ]; then
+	 tristate '  PCMCIA NE2000 support' CONFIG_APNE
+      fi
+      if [ "$CONFIG_APOLLO" = "y" ]; then
+	 tristate '  Apollo 3c505 support' CONFIG_APOLLO_ELPLUS
+      fi
+      if [ "$CONFIG_MAC" = "y" ]; then
+	 bool '  Macintosh NS 8390 based ethernet cards' CONFIG_MAC8390
+	 tristate '  Macintosh SONIC based ethernet (onboard, NuBus, LC, CS)' CONFIG_MACSONIC
+	 tristate '  Macintosh SMC 9194 based ethernet cards' CONFIG_SMC9194
+	 tristate '  Macintosh CS89x0 based ethernet cards' CONFIG_MAC89x0
+	 if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+		bool '  Macintosh (AV) onboard MACE ethernet (EXPERIMENTAL)' CONFIG_MACMACE
+	 fi
+      fi
+      if [ "$CONFIG_VME" = "y" -a "$CONFIG_MVME147" = "y" ]; then
+	 tristate '  MVME147 (Lance) Ethernet support' CONFIG_MVME147_NET
+      fi
+      if [ "$CONFIG_VME" = "y" -a "$CONFIG_MVME16x" = "y" ]; then
+	 tristate '  MVME16x Ethernet support' CONFIG_MVME16x_NET
+      fi
+      if [ "$CONFIG_VME" = "y" -a "$CONFIG_BVME6000" = "y" ]; then
+	 tristate '  BVME6000 Ethernet support' CONFIG_BVME6000_NET
+      fi
+      if [ "$CONFIG_ATARI" = "y" ]; then
+	 tristate '  Atari Lance support' CONFIG_ATARILANCE
+	 if [ "$CONFIG_ATARI_ACSI" != "n" ]; then
+	    tristate '  BioNet-100 support' CONFIG_ATARI_BIONET
+	    tristate '  PAMsNet support' CONFIG_ATARI_PAMSNET
+	 fi
+      fi
+      if [ "$CONFIG_SUN3" = "y" -o "$CONFIG_SUN3X" = "y" ]; then
+	tristate '  Sun3/Sun3x on-board LANCE support' CONFIG_SUN3LANCE
+      fi
+      if [ "$CONFIG_SUN3" = "y" ]; then
+	tristate '  Sun3 on-board Intel 82586 support' CONFIG_SUN3_82586
+      fi
+      if [ "$CONFIG_HP300" = "y" ]; then
+	 bool '  HP on-board LANCE support' CONFIG_HPLANCE
+      fi
+      if [ "$CONFIG_Q40" = "y" ]; then
+         if [  "$CONFIG_PARPORT" != "n" ]; then
+	    dep_tristate '  PLIP (parallel port) support' CONFIG_PLIP $CONFIG_PARPORT
+	 fi
+         dep_tristate 'NE2000/NE1000 support' CONFIG_NE2000 m
+      fi
+   fi
+   endmenu
+
+fi
+
+mainmenu_option next_comment
+comment 'Character devices'
+ 
+bool 'Virtual terminal' CONFIG_VT
+if [ "$CONFIG_VT" = "y" ]; then
+   bool 'Support for console on virtual terminal' CONFIG_VT_CONSOLE
+fi
+
+if [ "$CONFIG_Q40" = "y" ]; then
+   tristate 'Q40 Standard/generic serial support' CONFIG_SERIAL
+fi
+
+if [ "$CONFIG_SERIAL" = "y" ]; then
+   bool '  Extended dumb serial driver options' CONFIG_SERIAL_EXTENDED
+fi
+
+if [ "$CONFIG_SERIAL_EXTENDED" = "y" ]; then
+   bool '    Support more than 4 serial ports' CONFIG_SERIAL_MANY_PORTS
+   bool '    Support for sharing serial interrupts' CONFIG_SERIAL_SHARE_IRQ
+   bool '    Support special multiport boards' CONFIG_SERIAL_MULTIPORT
+   bool '    Support the Bell Technologies HUB6 card' CONFIG_HUB6
+fi
+
+if [ "$CONFIG_ATARI" = "y" ]; then
+   define_bool CONFIG_NVRAM y
+fi
+
+if [ "$CONFIG_AMIGA" = "y" ]; then
+   tristate 'Amiga mouse support' CONFIG_AMIGAMOUSE
+   if [ "$CONFIG_AMIGAMOUSE" != "n" ]; then
+      define_bool CONFIG_BUSMOUSE y
+   fi
+fi
+if [ "$CONFIG_ATARI" = "y" -a "$CONFIG_VT" = "y" ]; then
+   tristate 'Atari mouse support' CONFIG_ATARIMOUSE
+   if [ "$CONFIG_ATARIMOUSE" != "n" ]; then
+      define_bool CONFIG_BUSMOUSE y
+   fi
+fi
+if [ "$CONFIG_ATARI" = "y" ]; then
+   tristate 'Atari MFP serial support' CONFIG_ATARI_MFPSER
+   tristate 'Atari SCC serial support' CONFIG_ATARI_SCC
+   if [ "$CONFIG_ATARI_SCC" = "y" -o "$CONFIG_ATARI_SCC" = "m" ]; then
+      bool '  Atari SCC serial DMA support' CONFIG_ATARI_SCC_DMA
+   fi
+   tristate 'Atari MIDI serial support' CONFIG_ATARI_MIDI
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      tristate 'Atari DSP56k support (EXPERIMENTAL)' CONFIG_ATARI_DSP56K
+   fi
+fi
+if [ "$CONFIG_AMIGA" = "y" ]; then
+   tristate 'Amiga builtin serial support' CONFIG_AMIGA_BUILTIN_SERIAL
+   if [ "$CONFIG_AMIGA_PCMCIA" = "y" ]; then
+      tristate 'Hisoft Whippet PCMCIA serial support' CONFIG_WHIPPET_SERIAL
+   fi
+   tristate 'Multiface Card III serial support' CONFIG_MULTIFACE_III_TTY
+   if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      tristate 'Commodore A2232 serial support (EXPERIMENTAL)' CONFIG_A2232
+   fi
+fi
+if [ "$CONFIG_PARPORT" = "n" ]; then
+   if [ "$CONFIG_ZORRO" = "y" ]; then
+      tristate 'GVP IO-Extender support' CONFIG_GVPIOEXT
+      dep_tristate '  GVP IO-Extender parallel printer support' CONFIG_GVPIOEXT_LP $CONFIG_GVPIOEXT
+      dep_tristate '  GVP IO-Extender PLIP support' CONFIG_GVPIOEXT_PLIP $CONFIG_GVPIOEXT
+   fi
+fi
+if [ "$CONFIG_MAC" = "y" ]; then
+   tristate 'Macintosh serial support' CONFIG_MAC_SCC
+   bool 'Apple Desktop Bus (ADB) support' CONFIG_ADB
+   if [ "$CONFIG_ADB" = "y" ]; then
+      bool '   Include Mac II ADB driver' CONFIG_ADB_MACII
+      bool '   Include Mac IIsi ADB driver' CONFIG_ADB_MACIISI
+      bool '   Include CUDA ADB driver' CONFIG_ADB_CUDA
+      bool '   Include IOP (IIfx/Quadra 9x0) ADB driver' CONFIG_ADB_IOP
+      bool '   Include PMU (Powerbook) ADB driver' CONFIG_ADB_PMU68K
+   fi
+   dep_bool '   Use input layer for ADB devices' CONFIG_INPUT_ADBHID $CONFIG_INPUT
+   if [ "$CONFIG_INPUT_ADBHID" = "y" ]; then
+      define_bool CONFIG_MAC_HID y
+      bool '     Support for ADB raw keycodes' CONFIG_MAC_ADBKEYCODES
+      bool '     Support for mouse button 2+3 emulation' CONFIG_MAC_EMUMOUSEBTN
+   else
+      bool '   Support for ADB keyboard (old driver)' CONFIG_ADB_KEYBOARD
+   fi
+fi
+if [ "$CONFIG_HP300" = "y" -a "$CONFIG_DIO" = "y" ]; then
+   tristate 'HP DCA serial support' CONFIG_HPDCA
+fi
+if [ "$CONFIG_MVME147" = "y" ]; then
+   bool 'SCC support for MVME147 serial ports' CONFIG_MVME147_SCC
+fi
+if [ "$CONFIG_MVME16x" = "y" ]; then
+   bool 'CD2401 support for MVME166/7 serial ports' CONFIG_SERIAL167
+   bool 'SCC support for MVME162 serial ports' CONFIG_MVME162_SCC
+fi
+if [ "$CONFIG_BVME6000" = "y" ]; then
+   bool 'SCC support for BVME6000 serial ports' CONFIG_BVME6000_SCC
+fi
+if [ "$CONFIG_APOLLO" = "y" ]; then
+   bool 'Support for DN serial port (dummy)' CONFIG_DN_SERIAL
+   define_tristate CONFIG_SERIAL $CONFIG_DN_SERIAL
+fi 
+
+if [ "$CONFIG_SUN3" = "y" -o "$CONFIG_SUN3X" = "y" ]; then
+   bool 'Sun3/3x builtin serial support' CONFIG_SUN3X_ZS
+else
+   define_bool CONFIG_SUN3X_ZS n
+fi
+if [ "$CONFIG_SUN3X_ZS" = "y" ]; then
+   define_bool CONFIG_SUN_KEYBOARD y
+   define_bool CONFIG_SUN_MOUSE y
+   define_bool CONFIG_BUSMOUSE y
+   define_bool CONFIG_SBUS y
+   define_bool CONFIG_SBUSCHAR y
+   define_bool CONFIG_SUN_SERIAL y
+else
+   define_bool CONFIG_SUN_KEYBOARD n
+   define_bool CONFIG_SUN_MOUSE n
+   define_bool CONFIG_SBUS n
+fi
+
+if [ "$CONFIG_ATARI_MFPSER" = "y" -o "$CONFIG_ATARI_SCC" = "y" -o \
+     "$CONFIG_ATARI_MIDI" = "y" -o "$CONFIG_MAC_SCC" = "y" -o \
+     "$CONFIG_AMIGA_BUILTIN_SERIAL" = "y" -o "$CONFIG_GVPIOEXT" = "y" -o \
+     "$CONFIG_MULTIFACE_III_TTY" = "y" -o "$CONFIG_HPDCA" = "y" -o \
+     "$CONFIG_SUN3X_ZS" = "y" -o "$CONFIG_SERIAL" = "y" -o \
+     "$CONFIG_MVME147_SCC" -o "$CONFIG_SERIAL167" = "y" -o \
+     "$CONFIG_MVME162_SCC" -o "$CONFIG_BVME6000_SCC" = "y" -o \
+     "$CONFIG_DN_SERIAL" ]; then
+   bool 'Support for serial port console' CONFIG_SERIAL_CONSOLE
+fi
+bool 'Support for user serial device modules' CONFIG_USERIAL
+bool 'Watchdog Timer Support'	CONFIG_WATCHDOG
+if [ "$CONFIG_WATCHDOG" != "n" ]; then
+   bool '  Disable watchdog shutdown on close' CONFIG_WATCHDOG_NOWAYOUT
+   bool '  Software Watchdog' CONFIG_SOFT_WATCHDOG
+fi
+if [ "$CONFIG_SUN3" = "y" ]; then
+   define_bool CONFIG_GEN_RTC y
+else
+   tristate 'Generic /dev/rtc emulation' CONFIG_GEN_RTC      
+fi
+if [ "$CONFIG_GEN_RTC" != "n" ]; then
+   bool '   Extended RTC operation' CONFIG_GEN_RTC_X
+fi
+bool 'Unix98 PTY support' CONFIG_UNIX98_PTYS
+if [ "$CONFIG_UNIX98_PTYS" = "y" ]; then
+   int '  Maximum number of Unix98 PTYs in use (0-2048)' CONFIG_UNIX98_PTY_COUNT 256
+fi
+
+endmenu
+
+mainmenu_option next_comment
+comment 'Sound support'
+
+tristate 'Sound card support' CONFIG_SOUND
+if [ "$CONFIG_SOUND" != "n" ]; then
+   source drivers/sound/dmasound/Config.in
+fi
+endmenu
+
+source fs/Config.in
+
+if [ "$CONFIG_VT" = "y" ]; then
+   mainmenu_option next_comment
+   comment 'Console drivers'
+   source drivers/video/Config.in
+   endmenu
+fi
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+bool 'Kernel debugging' CONFIG_DEBUG_KERNEL
+if [ "$CONFIG_DEBUG_KERNEL" != "n" ]; then
+   bool '  Magic SysRq key' CONFIG_MAGIC_SYSRQ
+   bool '  Debug memory allocations' CONFIG_DEBUG_SLAB
+   bool '  Verbose BUG() reporting' CONFIG_DEBUG_BUGVERBOSE
+fi
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source crypto/Config.in
+source lib/Config.in

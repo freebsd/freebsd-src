@@ -1,0 +1,7 @@
+#
+# PCI configuration
+#
+
+if [ "$CONFIG_PCI" = "y" ]; then
+   bool 'PCI device name database' CONFIG_PCI_NAMES
+fi

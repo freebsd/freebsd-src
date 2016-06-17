@@ -1,0 +1,26 @@
+#
+# MPC8260 Communication options
+#
+mainmenu_option next_comment
+comment 'MPC8260 CPM Options'
+bool 'Enable SCC Console' CONFIG_SCC_CONSOLE
+if [ "$CONFIG_NET_ETHERNET" = "y" ]; then
+  bool 'CPM SCC Ethernet' CONFIG_SCC_ENET
+  if [ "$CONFIG_SCC_ENET" = "y" ]; then
+  bool 'Ethernet on SCC1' CONFIG_SCC1_ENET
+    if [ "$CONFIG_SCC1_ENET" != "y" ]; then
+      bool 'Ethernet on SCC2' CONFIG_SCC2_ENET
+    fi
+  fi
+#
+#  CONFIG_FEC_ENET is only used to get netdevices to call our init
+#    function.  Any combination of FCC1,2,3 are supported.
+#
+  bool 'FCC Ethernet' CONFIG_FEC_ENET
+  if [ "$CONFIG_FEC_ENET" = "y" ]; then
+    bool 'Ethernet on FCC1' CONFIG_FCC1_ENET
+    bool 'Ethernet on FCC2' CONFIG_FCC2_ENET
+    bool 'Ethernet on FCC3' CONFIG_FCC3_ENET
+  fi
+fi
+endmenu

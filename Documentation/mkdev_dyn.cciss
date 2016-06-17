@@ -1,0 +1,171 @@
+#!/bin/sh
+#
+# Author: Francis Wiran <Francis.Wiran@hp.com>
+#
+# Script to create device nodes for SMART Array controllers, idea from
+# mkdev.cciss found in Documentation. The argument syntax is different,
+# hence, the name change.
+#
+# Usage:
+# 	mkdev_dyn.cciss [ctlr num] [major num] [num log vol] [num partitions]
+#
+# With no arguments, the script will check to see if there are any cciss
+# nodes already created in the /dev directory. If so, then it will assume
+# that the nodes for the first 8 controllers are already created by
+# /etc/makedev.d, which is likely. If not, then the script will create 
+# them, using the major numbers reserved for cciss controllers (104 thru 111).
+#
+# After that, it will start creating nodes for the controllers which major
+# numbers are dynamically allocated by the kernel. It will check 
+# /proc/devices for any cciss controllers with major numbers other than
+# 104 thru 111 and creates the nodes.
+#
+# Note that it is a good idea to run rmdev_dyn.cciss script if you remove
+# those controllers (the ones which major numbers were dynamically allocated)
+# This will unclutter /dev, as well as preventing possible problems due to 
+# referenced devices and major numbers no longer available or taken by
+# other non-cciss drivers.
+#
+# With no arguments, the script assumes 16 logical volumes per controller
+# and 16 partitions per volume; 
+#
+# Passing arguments:
+# If you know that one of your controllers, say cciss8, has been dynamically 
+# assigned major number 254, and were planning on no more than 2 logical 
+# volumes, using a maximum of 4 partitions per volume, you could do:
+#
+# mkdev_dyn.cciss 8 254 2 4
+#
+# Of course, this has no real benefit over "mkdev_dyn.cciss 8 254" except 
+# that it doesn't create as many device nodes in /dev/cciss.
+#
+
+# Inputs
+NR_CTLR=${1-8}
+NR_MAJOR=${2-254}
+NR_VOL=${3-16}
+NR_PART=${4-16}
+
+echo_usage()
+{
+	echo "Usage: mkdev_dyn.cciss [ctlr num] [maj] [volumes] [partitions]"
+	echo "The script assumes that ctlr 0 thru 7 is statically created"
+	echo "Therefore, if you want to pass arguments make sure that"
+	echo "ctlr num is equal or greater than 8, and the major number"
+	echo "is not one that's statically assigned for cciss controller."
+	echo "Check the correct major number in /proc/devices"
+
+	# Hmm... we don't support volumes and partitions greater than 16
+	# either.
+}
+
+echo_create()
+{
+	echo "created /dev/cciss/c${1}* nodes using major number ${2}"
+}
+
+
+# Function: do_mknod()
+#           Creates devices nodes under /dev/cciss
+# Inputs: $1 - ctlr number
+#	  $2 - major number
+#	  $3 - number of devices on controller
+#	  $4 - number of partitions per device
+do_mknod()
+{
+	D=0;
+	while [ $D -lt $3 ]; do
+		P=0;
+		while [ $P -lt $4 ]; do
+			MIN=`expr $D \* 16 + $P`;
+			if [ $P -eq 0 ]; then
+				mknod /dev/cciss/c${1}d${D} b $2 $MIN
+			else
+				mknod /dev/cciss/c${1}d${D}p${P} b $2 $MIN
+			fi
+			P=`expr $P + 1`;
+		done
+		D=`expr $D + 1`;
+	done
+}
+
+# Function: do_dyn
+#           Search and create cciss nodes for the controllers which
+#           major numbers are allocated dynamically by the kernel
+#           instead of using kernel.org 's value of 104 to 111.
+#
+# Input: $1 - ctlr num - will create nodes /dev/cciss/c${1}
+#	 $2 - major num - the major number to assign to the nodes
+#	 $3 - volumes - max number of volumes per controller
+#	 $4 - partitions - max number of partitions per volume
+#
+# Note: Without input, this function will start creating nodes
+#       for controller c8 and above, making assumption that 
+#       c0 thru c7 are already made, and the name c8 and above 
+#       are not already taken.
+do_dyn()
+{
+	if [ $# -eq 0 ]; then
+		C=0;
+		for MAJ in `cat /proc/devices |\
+			grep cciss |\
+			awk '/cciss[0-9]$/ { sub("cciss", "cciss0") }; {print}' |\
+			sort -k 2,2 |\
+			awk '{print $1-i}'`;
+		do
+			if [ `ls -l /dev/cciss/c* |\
+				awk '{print $5-i}' |\
+				uniq |\
+				grep $MAJ |\
+				wc -l` -gt 0 ]; then
+				:
+			else
+				do_mknod $C $MAJ $NR_VOL $NR_PART;
+				echo_create $C $MAJ;
+			fi
+			C=`expr $C + 1`;
+		done
+	else
+		do_mknod $1 $2 $3 $4;
+		echo_create $1 $2;
+	fi
+	
+	exit
+}
+
+# Start here
+
+# Check the input values
+if [ $NR_CTLR -lt 8 ]; then
+	echo_usage;
+	exit
+fi
+
+if [ $NR_CTLR -ge 8 ]; then
+	if [ \( $NR_MAJOR -ge 104 \) -a \( $NR_MAJOR -le 111 \) ]; then
+		echo_usage;
+		exit
+	fi
+fi
+
+if [ ! -d /dev/cciss ]; then
+        mkdir -p /dev/cciss
+fi
+
+# Assume that if c0d0p1 node already exist, then all nodes from c0d0p1
+# to c7d15p15 have been created for us.
+if [ ! -b /dev/cciss/c0d0p1 ]; then
+	C=0; 
+	while [ $C -lt 8 ]; do
+		MAJ=`expr $C + 104`;
+		do_mknod $C $MAJ $NR_VOL $NR_PART;
+		echo_create $C $MAJ;
+		C=`expr $C + 1`;
+	done
+fi
+
+if [ $# -gt 0 ]; then
+	do_dyn $NR_CTLR $NR_MAJOR $NR_VOL $NR_PART;
+else
+	do_dyn;
+fi

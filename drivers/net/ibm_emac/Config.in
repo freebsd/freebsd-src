@@ -1,0 +1,24 @@
+#
+#	On-chip network configuration
+#
+mainmenu_option next_comment
+comment 'On-chip net devices'
+if [ "$CONFIG_IBM_OCP" = "y" ]; then
+   bool '  IBM on-chip ethernet' CONFIG_IBM_OCP_ENET
+   if [ "$CONFIG_IBM_OCP_ENET" = "y" ]; then
+      bool '    Verbose error messages' CONFIG_IBM_OCP_ENET_ERROR_MSG
+      int '    Number of receive buffers' CONFIG_IBM_OCP_ENET_RX_BUFF 64
+      int '    Number of transmit buffers' CONFIG_IBM_OCP_ENET_TX_BUFF 8
+      int '    Frame gap' CONFIG_IBM_OCP_ENET_GAP 8
+      int '    Skb reserve amount' CONFIG_IBM_OCP_ENET_SKB_RES 0
+   fi
+   if [ "$CONFIG_IBM_OCP_ENET" = "y" ]; then
+      define_bool CONFIG_OCP_NET y
+      if [ "$CONFIG_NP405H" = "y" -o  "$CONFIG_NP405L" = "y"	\
+	   -o "$CONFIG_440" = "y" ]; then
+	 define_int CONFIG_IBM_OCP_MAL_CNT 1
+	 define_bool CONFIG_IBM_OCP_ZMII  y
+      fi
+   fi
+fi
+endmenu

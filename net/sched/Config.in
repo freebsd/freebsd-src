@@ -1,0 +1,42 @@
+#
+# Traffic control configuration.
+# 
+tristate '  CBQ packet scheduler' CONFIG_NET_SCH_CBQ
+tristate '  HTB packet scheduler' CONFIG_NET_SCH_HTB
+tristate '  CSZ packet scheduler' CONFIG_NET_SCH_CSZ
+#tristate '  H-PFQ packet scheduler' CONFIG_NET_SCH_HPFQ
+tristate '  H-FSC packet scheduler' CONFIG_NET_SCH_HFSC
+if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+   dep_tristate '  ATM pseudo-scheduler' CONFIG_NET_SCH_ATM $CONFIG_ATM
+fi
+tristate '  The simplest PRIO pseudoscheduler' CONFIG_NET_SCH_PRIO
+tristate '  RED queue' CONFIG_NET_SCH_RED
+tristate '  SFQ queue' CONFIG_NET_SCH_SFQ
+tristate '  TEQL queue' CONFIG_NET_SCH_TEQL
+tristate '  TBF queue' CONFIG_NET_SCH_TBF
+tristate '  GRED queue' CONFIG_NET_SCH_GRED
+tristate '  Network delay simulator' CONFIG_NET_SCH_DELAY
+tristate '  Diffserv field marker' CONFIG_NET_SCH_DSMARK
+if [ "$CONFIG_NETFILTER" = "y" ]; then
+   tristate '  Ingress Qdisc' CONFIG_NET_SCH_INGRESS
+fi
+bool '  QoS support' CONFIG_NET_QOS
+if [ "$CONFIG_NET_QOS" = "y" ]; then
+   bool '    Rate estimator' CONFIG_NET_ESTIMATOR
+fi
+bool '  Packet classifier API' CONFIG_NET_CLS
+if [ "$CONFIG_NET_CLS" = "y" ]; then
+   tristate '    TC index classifier' CONFIG_NET_CLS_TCINDEX
+   tristate '    Routing table based classifier' CONFIG_NET_CLS_ROUTE4
+   if [ "$CONFIG_NET_CLS_ROUTE4" != "n" ]; then
+      define_bool CONFIG_NET_CLS_ROUTE y
+   fi
+   tristate '    Firewall based classifier' CONFIG_NET_CLS_FW
+   tristate '    U32 classifier' CONFIG_NET_CLS_U32
+   if [ "$CONFIG_NET_QOS" = "y" ]; then
+      tristate '    Special RSVP classifier' CONFIG_NET_CLS_RSVP
+      tristate '    Special RSVP classifier for IPv6' CONFIG_NET_CLS_RSVP6
+      bool '    Traffic policing (needed for in/egress)' CONFIG_NET_CLS_POLICE
+   fi
+fi
+

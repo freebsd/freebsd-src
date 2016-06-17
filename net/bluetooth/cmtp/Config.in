@@ -1,0 +1,7 @@
+#
+# Bluetooth CMTP layer configuration
+#
+
+if [ "$CONFIG_ISDN" = "y" -o "$CONFIG_ISDN" = "m" ]; then 
+   dep_tristate 'CMTP protocol support' CONFIG_BLUEZ_CMTP $CONFIG_ISDN_CAPI $CONFIG_BLUEZ_L2CAP
+fi

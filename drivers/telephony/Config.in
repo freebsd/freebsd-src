@@ -1,0 +1,10 @@
+#
+# Telephony device configuration
+#
+mainmenu_option next_comment
+comment 'Telephony Support'
+
+tristate 'Linux telephony support' CONFIG_PHONE
+dep_tristate 'QuickNet Internet LineJack/PhoneJack support' CONFIG_PHONE_IXJ $CONFIG_PHONE
+dep_tristate 'QuickNet Internet LineJack/PhoneJack PCMCIA support' CONFIG_PHONE_IXJ_PCMCIA $CONFIG_PHONE_IXJ $CONFIG_PCMCIA
+endmenu

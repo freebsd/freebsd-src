@@ -1,0 +1,149 @@
+
+IMPORTANT:  Don't send me mails with images attached unless I ask you
+to do so.  Mails with images attached will go to /dev/null unseen.
+
+
+Release notes for bttv-0.7.x
+============================
+
+This version is based on Ralphs 0.6.4 release.  There are alot of
+changes.  Bugfixes, merged patches from other people, merged fixes
+from the kernel version, port to the new i2c stack, removed support
+for 2.0.x, code cleanups, ...
+
+To compile this bttv version, you'll the new i2c stack.  Kernels
+newer than 2.3.34 have this already included.  If you have a older
+kernel, download it from:
+	http://www2.lm-sensors.nu/~lm78/download.html
+
+You'll need at least these config options for bttv:
+CONFIG_I2C=m
+CONFIG_I2C_ALGOBIT=m
+CONFIG_VIDEO_DEV=m
+
+The latest bttv version is available from http://bytesex.org/bttv/
+
+You'll find Ralphs original (mostly outdated) documentation in the
+ralphs-doc subdirectory.
+
+
+Compile bttv
+------------
+
+If you are compiling the kernel version, just say 'm' if you are asked
+for bttv.  I /strongly/ recommend to compile bttv as module, because
+there are some insmod options for configuring the driver.  Starting
+with 0.7.49 the most important ones are available as kernel args too.
+
+If you downloaded the separate bttv bundle:  You need configured kernel
+sources to compile the bttv driver.  The driver uses some Makefile
+magic to compile the modules with your kernel's configuration
+(wrt. module-versions, SMP, ...).  If you already have compiled the
+kernel at least once, you probably don't have do worry about this.  If
+not, go to /usr/src/linux and run at least "make config".  Even
+better, compile your own kernel, you'll never become a real hacker
+else ;-)
+Note that you have to turn on video4linux support (CONFIG_VIDEO_DEV)
+in the kernel to get the videodev.o module which is required by bttv.
+
+
+Make bttv work with your card
+-----------------------------
+
+Setup your /etc/modules.conf file and let kmod load the modules.
+See also:
+
+Modules.conf:	some sample entries for /etc/modules.conf
+Insmod-options:	list of all insmod options available for bttv and
+		the helper modules.
+MAKEDEV:	a script to create the special files for v4l
+CARDLIST:	List of all supported cards
+Cards:		more detailed descriptions of known TV cards:
+		OEM name variants, used i2c chips, ...
+		also includes non-bttv cards.
+
+Loading just the bttv modules isn't enouth for most cards.  The
+drivers for the i2c tuner/sound chips must also be loaded.  bttv tries
+to load them automagically by calling request_module() now, but this
+obviously works only with kmod enabled.
+
+If bttv takes very long to load (happens sometimes with the cheap
+cards which have no tuner), try adding this to your modules.conf:
+	options i2c-algo-bit bit_test=1
+
+The most important insmod option for bttv is "card=n" to select the
+correct card type in case the autodetection does'nt work. If you get
+video but no sound you've very likely specified the wrong (or no)
+card type.  A list of supported cards is in CARDLIST.
+
+For the WinTV/PVR you need one firmware file from the driver CD:
+hcwamc.rbf.  The file is in the pvr45xxx.exe archive (self-extracting
+zip file, unzip can unpack it).  Put it into the /etc/pvr directory or
+use the firm_altera=<path> insmod option to point the driver to the
+location of the file.
+
+If your card isn't listed in CARDLIST or if you have trouble making
+audio work, you should read the Sound-FAQ.
+
+
+Autodetecting cards
+-------------------
+
+bttv uses the PCI Subsystem ID to autodetect the card type.  lspci lists
+the Subsystem ID in the second line, looks like this:
+
+00:0a.0 Multimedia video controller: Brooktree Corporation Bt878 (rev 02)
+        Subsystem: Hauppauge computer works Inc. WinTV/GO
+        Flags: bus master, medium devsel, latency 32, IRQ 5
+        Memory at e2000000 (32-bit, prefetchable) [size=4K]
+
+only bt878-based cards can have a subsystem ID (which does not mean
+that every card really has one).  bt848 cards can't have a Subsystem
+ID and therefore can't be autodetected.  There is a list with the ID's
+in bttv-cards.c (in case you are intrested or want to mail patches
+with updates).
+
+Old driver versions used to have a heuristic which could identify some
+bt848-based cards.  It worked for Hauppauge and Miro cards in most
+cases (simply because these where the first cards available on the
+market), but misdetected other bt848 cards.  That code is gone now for
+exactly this reason, the misdetection confused lots of people.  If you
+have a old Hauppauge or Miro card, you'll have to load the driver with
+card=1 or card=2 these days.
+
+
+Still doesn't work?
+-------------------
+
+I do NOT have a lab with 30+ different grabber boards and a
+PAL/NTSC/SECAM test signal generator at home, so I often can't
+reproduce your problems.  This makes debugging very difficult for me.
+If you have some knowledge and spare time, please try to fix this
+yourself (patches very welcome of course...)  You know: The linux
+slogan is "Do it yourself".
+
+There is a mailing list: video4linux-list@redhat.com.
+https://listman.redhat.com/mailman/listinfo/video4linux-list
+
+If you have trouble with some specific TV card, try to ask there
+instead of mailing me directly.  The chance that someone with the
+same card listens there is much higher...
+
+For problems with sound:  There are alot of different systems used
+for TV sound all over the world.  And there are also different chips
+which decode the audio signal.  Reports about sound problems ("stereo
+does'nt work") are pretty useless unless you include some details
+about your hardware and the TV sound scheme used in your country (or
+at least the country you are living in).
+
+
+Finally: If you mail some patches for bttv around the world (to
+linux-kernel/Alan/Linus/...), please Cc: me.
+
+
+Have fun with bttv,
+
+  Gerd
+
+--
+Gerd Knorr <kraxel@goldbach.in-berlin.de>

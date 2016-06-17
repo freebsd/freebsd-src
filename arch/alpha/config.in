@@ -1,0 +1,470 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+
+define_bool CONFIG_ALPHA y
+define_bool CONFIG_UID16 n
+define_bool CONFIG_RWSEM_GENERIC_SPINLOCK n
+define_bool CONFIG_RWSEM_XCHGADD_ALGORITHM y
+
+mainmenu_name "Kernel configuration of Linux for Alpha machines"
+
+mainmenu_option next_comment
+comment 'Code maturity level options'
+bool 'Prompt for development and/or incomplete code/drivers' CONFIG_EXPERIMENTAL
+endmenu
+
+mainmenu_option next_comment
+comment 'Loadable module support'
+bool 'Enable loadable module support' CONFIG_MODULES
+if [ "$CONFIG_MODULES" = "y" ]; then
+  bool 'Set version information on all symbols for modules' CONFIG_MODVERSIONS
+  bool 'Kernel module loader' CONFIG_KMOD
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'General setup'
+
+choice 'Alpha system type' \
+	"Generic		CONFIG_ALPHA_GENERIC		\
+	 Alcor/Alpha-XLT	CONFIG_ALPHA_ALCOR		\
+	 Alpha-XL		CONFIG_ALPHA_XL			\
+	 AlphaBook1		CONFIG_ALPHA_BOOK1		\
+	 Avanti			CONFIG_ALPHA_AVANTI		\
+	 Cabriolet		CONFIG_ALPHA_CABRIOLET		\
+	 DP264			CONFIG_ALPHA_DP264		\
+	 EB164			CONFIG_ALPHA_EB164		\
+	 EB64+			CONFIG_ALPHA_EB64P		\
+	 EB66			CONFIG_ALPHA_EB66		\
+	 EB66+			CONFIG_ALPHA_EB66P		\
+	 Eiger			CONFIG_ALPHA_EIGER		\
+	 Jensen			CONFIG_ALPHA_JENSEN		\
+	 LX164			CONFIG_ALPHA_LX164		\
+	 Lynx			CONFIG_ALPHA_LYNX		\
+	 Marvel			CONFIG_ALPHA_MARVEL		\
+	 Miata			CONFIG_ALPHA_MIATA		\
+	 Mikasa			CONFIG_ALPHA_MIKASA		\
+	 Nautilus		CONFIG_ALPHA_NAUTILUS		\
+	 Noname			CONFIG_ALPHA_NONAME		\
+	 Noritake		CONFIG_ALPHA_NORITAKE		\
+	 PC164			CONFIG_ALPHA_PC164		\
+	 Platform2000		CONFIG_ALPHA_P2K		\
+	 Rawhide		CONFIG_ALPHA_RAWHIDE		\
+	 Ruffian		CONFIG_ALPHA_RUFFIAN		\
+	 RX164			CONFIG_ALPHA_RX164		\
+	 SX164			CONFIG_ALPHA_SX164		\
+	 Sable			CONFIG_ALPHA_SABLE		\
+	 Shark			CONFIG_ALPHA_SHARK		\
+	 Takara			CONFIG_ALPHA_TAKARA		\
+	 Titan			CONFIG_ALPHA_TITAN		\
+	 Wildfire		CONFIG_ALPHA_WILDFIRE" Generic
+
+# clear all implied options (don't want default values for those):
+unset CONFIG_ALPHA_EV4 CONFIG_ALPHA_EV5 CONFIG_ALPHA_EV6 CONFIG_ALPHA_EV67
+unset CONFIG_ALPHA_EISA
+unset CONFIG_ALPHA_LCA CONFIG_ALPHA_APECS CONFIG_ALPHA_CIA
+unset CONFIG_ALPHA_T2 CONFIG_ALPHA_PYXIS CONFIG_ALPHA_POLARIS
+unset CONFIG_ALPHA_TSUNAMI CONFIG_ALPHA_MCPCIA
+unset CONFIG_ALPHA_IRONGATE
+unset CONFIG_ALPHA_BROKEN_IRQ_MASK
+
+# Most of these machines have ISA slots; not exactly sure which don't,
+# and this doesn't activate hordes of code, so do it always.
+define_bool CONFIG_ISA y
+define_bool CONFIG_EISA y
+define_bool CONFIG_SBUS n
+define_bool CONFIG_MCA n
+
+if [ "$CONFIG_ALPHA_JENSEN" = "y" ]
+then
+	define_bool CONFIG_PCI n
+else
+	define_bool CONFIG_PCI y
+fi
+
+if [ "$CONFIG_ALPHA_BOOK1" = "y" ]
+then
+	define_bool CONFIG_ALPHA_NONAME y
+fi
+if [ "$CONFIG_ALPHA_NONAME" = "y" -o "$CONFIG_ALPHA_EB66" = "y" \
+	-o "$CONFIG_ALPHA_EB66P" = "y" -o "$CONFIG_ALPHA_P2K" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV4 y
+	define_bool CONFIG_ALPHA_LCA y
+fi
+if [ "$CONFIG_ALPHA_CABRIOLET" = "y" -o "$CONFIG_ALPHA_AVANTI" = "y" \
+	-o "$CONFIG_ALPHA_EB64P" = "y" -o "$CONFIG_ALPHA_XL" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV4 y
+	define_bool CONFIG_ALPHA_APECS y
+fi
+if [ "$CONFIG_ALPHA_CABRIOLET" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EB64P y
+fi
+if [ "$CONFIG_ALPHA_ALCOR" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV5 y
+	define_bool CONFIG_ALPHA_CIA y
+	bool 'EV56 CPU (speed >= 366MHz)?' CONFIG_ALPHA_EV56
+fi
+if [ "$CONFIG_ALPHA_EB164" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV5 y
+	define_bool CONFIG_ALPHA_CIA y
+fi
+if [ "$CONFIG_ALPHA_PC164" = "y" -o "$CONFIG_ALPHA_TAKARA" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV5 y
+	define_bool CONFIG_ALPHA_EV56 y
+	define_bool CONFIG_ALPHA_CIA y
+fi
+if [ "$CONFIG_ALPHA_MIKASA" = "y" ]
+then
+	bool 'EV5 CPU daughtercard (model 5/xxx)?' CONFIG_ALPHA_PRIMO
+	if [ "$CONFIG_ALPHA_PRIMO" = "y" ]
+	then
+		define_bool CONFIG_ALPHA_EV5 y
+		define_bool CONFIG_ALPHA_CIA y
+		bool 'EV56 CPU (speed >= 333MHz)?' CONFIG_ALPHA_EV56
+	else
+		define_bool CONFIG_ALPHA_EV4 y
+		define_bool CONFIG_ALPHA_APECS y
+	fi
+fi
+if [ "$CONFIG_ALPHA_NORITAKE" = "y" ]
+then
+	bool 'EV5 CPU (model 5/xxx)?' CONFIG_ALPHA_PRIMO
+	if [ "$CONFIG_ALPHA_PRIMO" = "y" ]
+	then
+		define_bool CONFIG_ALPHA_EV5 y
+		define_bool CONFIG_ALPHA_CIA y
+		bool 'EV56 CPU (speed >= 333MHz)?' CONFIG_ALPHA_EV56
+	else
+		define_bool CONFIG_ALPHA_EV4 y
+		define_bool CONFIG_ALPHA_APECS y
+	fi
+fi
+if [ "$CONFIG_ALPHA_SABLE" = "y" ]
+then
+	bool 'EV5 CPU(s) (model 5/xxx)?' CONFIG_ALPHA_GAMMA
+	if [ "$CONFIG_ALPHA_GAMMA" = "y" ]
+	then
+		define_bool CONFIG_ALPHA_EV5 y
+	else
+		define_bool CONFIG_ALPHA_EV4 y
+	fi
+	define_bool CONFIG_ALPHA_T2 y
+fi
+if [ "$CONFIG_ALPHA_LYNX" = "y" ]
+then
+	bool 'EV5 CPU(s) (model 5/xxx)?' CONFIG_ALPHA_EV5
+	if [ "$CONFIG_ALPHA_EV5" != "y" ]
+	then
+		define_bool CONFIG_ALPHA_EV4 y
+	fi
+	define_bool CONFIG_ALPHA_GAMMA y
+	define_bool CONFIG_ALPHA_T2 y
+fi
+if [ "$CONFIG_ALPHA_MIATA" = "y" -o "$CONFIG_ALPHA_LX164" = "y" \
+	-o "$CONFIG_ALPHA_SX164" = "y" -o "$CONFIG_ALPHA_RUFFIAN" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV5 y
+	define_bool CONFIG_ALPHA_EV56 y
+	define_bool CONFIG_ALPHA_CIA y
+	define_bool CONFIG_ALPHA_PYXIS y
+fi
+if [ "$CONFIG_ALPHA_DP264" = "y" -o "$CONFIG_ALPHA_EIGER" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV6 y
+	define_bool CONFIG_ALPHA_TSUNAMI y
+	bool 'EV67 (or later) CPU (speed > 600MHz)?' CONFIG_ALPHA_EV67
+fi
+if [ "$CONFIG_ALPHA_SHARK" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV6 y
+	define_bool CONFIG_ALPHA_EV67 y
+	define_bool CONFIG_ALPHA_TSUNAMI y
+fi
+if [ "$CONFIG_ALPHA_WILDFIRE" = "y" -o "$CONFIG_ALPHA_TITAN" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV6 y
+	define_bool CONFIG_ALPHA_EV67 y
+fi
+if [ "$CONFIG_ALPHA_MARVEL" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV6 y
+	define_bool CONFIG_ALPHA_EV67 y
+	define_bool CONFIG_ALPHA_EV7 y
+fi
+if [ "$CONFIG_ALPHA_RAWHIDE" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV5 y
+	define_bool CONFIG_ALPHA_MCPCIA y
+	bool 'EV56 CPU (speed >= 400MHz)?' CONFIG_ALPHA_EV56
+fi
+if [ "$CONFIG_ALPHA_RX164" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV5 y
+	define_bool CONFIG_ALPHA_EV56 y
+	define_bool CONFIG_ALPHA_POLARIS y
+fi
+if [ "$CONFIG_ALPHA_JENSEN" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EV4 y
+fi
+if [ "$CONFIG_ALPHA_NAUTILUS" = "y" ]
+then
+	define_bool CONFIG_ALPHA_IRONGATE y
+	define_bool CONFIG_ALPHA_EV6 y
+	define_bool CONFIG_ALPHA_EV67 y
+fi
+
+if [ "$CONFIG_ALPHA_JENSEN" = "y" -o "$CONFIG_ALPHA_MIKASA" = "y" \
+	-o "$CONFIG_ALPHA_SABLE" = "y" -o "$CONFIG_ALPHA_NORITAKE" = "y" \
+	-o "$CONFIG_ALPHA_DP264" = "y" -o "$CONFIG_ALPHA_RAWHIDE" = "y" \
+	-o "$CONFIG_ALPHA_EIGER" = "y" -o "$CONFIG_ALPHA_WILDFIRE" = "y" \
+	-o "$CONFIG_ALPHA_TITAN" = "y" -o "$CONFIG_ALPHA_SHARK" = "y" \
+	-o "$CONFIG_ALPHA_MARVEL" = "y" -o "$CONFIG_ALPHA_LYNX" = "y" ]
+then
+	define_bool CONFIG_ALPHA_SRM y
+fi
+if [ "$CONFIG_ALPHA_CABRIOLET" = "y" -o "$CONFIG_ALPHA_AVANTI" = "y" \
+	-o "$CONFIG_ALPHA_EB64P" = "y" 	-o "$CONFIG_ALPHA_PC164" = "y" \
+	-o "$CONFIG_ALPHA_TAKARA" = "y" -o "$CONFIG_ALPHA_EB164" = "y" \
+	-o "$CONFIG_ALPHA_ALCOR" = "y"  -o "$CONFIG_ALPHA_MIATA" = "y" \
+	-o "$CONFIG_ALPHA_LX164" = "y"  -o "$CONFIG_ALPHA_SX164" = "y" \
+	-o "$CONFIG_ALPHA_NAUTILUS" = "y" -o "$CONFIG_ALPHA_NONAME" = "y" ]
+then
+  bool 'Use SRM as bootloader' CONFIG_ALPHA_SRM
+fi
+
+bool 'Verbose Machine Checks' CONFIG_VERBOSE_MCHECK
+
+if [ "$CONFIG_ALPHA_ALCOR" = "y" -o "$CONFIG_ALPHA_MIKASA" = "y" \
+	-o "$CONFIG_ALPHA_SABLE" = "y" -o "$CONFIG_ALPHA_NORITAKE" = "y" \
+	-o "$CONFIG_ALPHA_RAWHIDE" = "y" -o "$CONFIG_ALPHA_LYNX" = "y" ]
+then
+	define_bool CONFIG_ALPHA_EISA y
+fi
+if [ "$CONFIG_ALPHA_XL" = "y" ]
+then
+	define_bool CONFIG_ALPHA_AVANTI y
+fi
+if [ "$CONFIG_ALPHA_GENERIC" = "y" -o "$CONFIG_ALPHA_PC164" = "y" ]
+then
+	define_bool CONFIG_ALPHA_BROKEN_IRQ_MASK y
+fi
+
+if [ "$CONFIG_ALPHA_SABLE" = "y" -o "$CONFIG_ALPHA_RAWHIDE" = "y" \
+	-o "$CONFIG_ALPHA_DP264" = "y" -o "$CONFIG_ALPHA_WILDFIRE" = "y" \
+	-o "$CONFIG_ALPHA_TITAN" = "y" -o "$CONFIG_ALPHA_GENERIC" = "y" \
+	-o "$CONFIG_ALPHA_SHARK" = "y" -o "$CONFIG_ALPHA_MARVEL" = "y" \
+	-o "$CONFIG_ALPHA_LYNX" = "y" ]
+then
+	bool 'Symmetric multi-processing support' CONFIG_SMP
+fi
+
+if [ "$CONFIG_SMP" = "y" ]; then
+   define_bool CONFIG_HAVE_DEC_LOCK y
+   int  'Maximum number of CPUs (2-32)' CONFIG_NR_CPUS 32
+fi
+
+if [ "$CONFIG_ALPHA_GENERIC" = "y" -o "$CONFIG_ALPHA_SRM" = "y" ]; then
+	define_bool CONFIG_EARLY_PRINTK y
+fi
+
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   bool 'Discontiguous Memory Support (EXPERIMENTAL)' CONFIG_DISCONTIGMEM
+   if [ "$CONFIG_DISCONTIGMEM" = "y" ]; then
+      bool ' NUMA Support (EXPERIMENTAL)' CONFIG_NUMA
+   fi
+fi
+
+# LARGE_VMALLOC is racy, if you *really* need it then fix it first
+define_bool CONFIG_ALPHA_LARGE_VMALLOC n
+
+source drivers/pci/Config.in
+
+bool 'Support for hot-pluggable devices' CONFIG_HOTPLUG
+ 
+if [ "$CONFIG_HOTPLUG" = "y" ] ; then
+   source drivers/pcmcia/Config.in
+else
+   define_bool CONFIG_PCMCIA n
+fi
+
+bool 'Networking support' CONFIG_NET
+bool 'System V IPC' CONFIG_SYSVIPC
+bool 'BSD Process Accounting' CONFIG_BSD_PROCESS_ACCT
+bool 'Sysctl support' CONFIG_SYSCTL
+if [ "$CONFIG_PROC_FS" = "y" ]; then
+   choice 'Kernel core (/proc/kcore) format' \
+	"ELF		CONFIG_KCORE_ELF	\
+	 A.OUT		CONFIG_KCORE_AOUT" ELF
+fi
+if [ "$CONFIG_PROC_FS" != "n" ]; then
+   tristate 'SRM environment through procfs' CONFIG_SRM_ENV
+fi
+ 
+tristate 'Kernel support for a.out (ECOFF) binaries' CONFIG_BINFMT_AOUT
+if [ "$CONFIG_BINFMT_AOUT" != "n" ]; then
+	bool '  OSF/1 v4 readv/writev compatibility' CONFIG_OSF4_COMPAT
+fi
+
+tristate 'Kernel support for ELF binaries' CONFIG_BINFMT_ELF
+tristate 'Kernel support for MISC binaries' CONFIG_BINFMT_MISC
+tristate 'Kernel support for Linux/Intel ELF binaries' CONFIG_BINFMT_EM86
+source drivers/parport/Config.in
+endmenu
+
+source drivers/mtd/Config.in
+
+source drivers/pnp/Config.in
+
+source drivers/block/Config.in
+
+source drivers/md/Config.in
+
+if [ "$CONFIG_NET" = "y" ]; then
+  source net/Config.in
+fi
+
+mainmenu_option next_comment
+comment 'ATA/IDE/MFM/RLL support'
+
+tristate 'ATA/IDE/MFM/RLL support' CONFIG_IDE
+
+if [ "$CONFIG_IDE" != "n" ]; then
+  int '  Maximum IDE interfaces' MAX_HWIFS 4
+  source drivers/ide/Config.in
+else
+  define_bool CONFIG_BLK_DEV_HD n
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'SCSI support'
+
+tristate 'SCSI support' CONFIG_SCSI
+
+if [ "$CONFIG_SCSI" != "n" ]; then
+  source drivers/scsi/Config.in
+fi
+endmenu
+
+if [ "$CONFIG_PCI" = "y" ]; then
+  source drivers/message/fusion/Config.in
+  source drivers/ieee1394/Config.in
+fi
+
+if [ "$CONFIG_NET" = "y" ]; then
+  mainmenu_option next_comment
+  comment 'Network device support'
+
+  bool 'Network device support' CONFIG_NETDEVICES
+  if [ "$CONFIG_NETDEVICES" = "y" ]; then
+    source drivers/net/Config.in
+    if [ "$CONFIG_ATM" = "y" -o "$CONFIG_ATM" = "m" ]; then
+      source drivers/atm/Config.in
+    fi
+  fi
+  endmenu
+fi
+
+source net/ax25/Config.in
+
+mainmenu_option next_comment
+comment 'ISDN subsystem'
+
+tristate 'ISDN support' CONFIG_ISDN
+if [ "$CONFIG_ISDN" != "n" ]; then
+  source drivers/isdn/Config.in
+fi
+endmenu
+
+mainmenu_option next_comment
+comment 'Old CD-ROM drivers (not SCSI, not IDE)'
+
+bool 'Support non-SCSI/IDE/ATAPI CDROM drives' CONFIG_CD_NO_IDESCSI
+if [ "$CONFIG_CD_NO_IDESCSI" != "n" ]; then
+  source drivers/cdrom/Config.in
+fi
+endmenu
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source drivers/input/Config.in
+source drivers/char/Config.in
+
+#source drivers/misc/Config.in
+
+source drivers/media/Config.in
+
+source fs/Config.in
+
+if [ "$CONFIG_VT" = "y" ]; then
+  mainmenu_option next_comment
+  comment 'Console drivers'
+  bool 'VGA text console' CONFIG_VGA_CONSOLE
+#  if [ "$CONFIG_PCI" = "y" -a "$CONFIG_VGA_CONSOLE" = "y" ]; then
+#    bool '   Allow VGA on any bus?' CONFIG_VGA_HOSE
+#    if [ "$CONFIG_VGA_HOSE" = "y" ]; then
+#      define_bool CONFIG_DUMMY_CONSOLE y
+#    fi
+#  fi
+  source drivers/video/Config.in
+  if [ "$CONFIG_FB" = "y" ]; then
+    define_bool CONFIG_PCI_CONSOLE y
+  fi
+  endmenu
+fi
+
+mainmenu_option next_comment
+comment 'Sound'
+
+tristate 'Sound card support' CONFIG_SOUND
+if [ "$CONFIG_SOUND" != "n" ]; then
+  source drivers/sound/Config.in
+fi
+endmenu
+
+source drivers/usb/Config.in
+
+source net/bluetooth/Config.in
+
+mainmenu_option next_comment
+comment 'Kernel hacking'
+
+if [ "$CONFIG_ALPHA_TITAN" = "y" -o "$CONFIG_ALPHA_WILDFIRE" = "y" -o \
+     "$CONFIG_ALPHA_MARVEL" = "y" ]; then
+   define_bool CONFIG_ALPHA_LEGACY_START_ADDRESS n
+else
+   if [ "$CONFIG_ALPHA_GENERIC" = "y" ]; then
+      bool 'Legacy kernel start address' CONFIG_ALPHA_LEGACY_START_ADDRESS
+   else
+      define_bool CONFIG_ALPHA_LEGACY_START_ADDRESS y
+   fi
+fi
+
+bool 'Kernel debugging' CONFIG_DEBUG_KERNEL
+if [ "$CONFIG_DEBUG_KERNEL" != "n" ]; then
+   tristate '  Kernel FP software completion' CONFIG_MATHEMU
+   bool '  Debug memory allocations' CONFIG_DEBUG_SLAB
+   bool '  Magic SysRq key' CONFIG_MAGIC_SYSRQ
+   bool '  Spinlock debugging' CONFIG_DEBUG_SPINLOCK
+   bool '  Read-write spinlock debugging' CONFIG_DEBUG_RWLOCK
+   bool '  Semaphore debugging' CONFIG_DEBUG_SEMAPHORE
+else
+   define_tristate CONFIG_MATHEMU y
+fi
+
+int 'Kernel messages buffer length shift (0 = default)' CONFIG_LOG_BUF_SHIFT 0
+
+endmenu
+
+source crypto/Config.in
+source lib/Config.in

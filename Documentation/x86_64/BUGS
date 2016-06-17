@@ -1,0 +1,10 @@
+Some known problems:
+
+-- Compiling the kernel with -j for parallel makes is not completely safe
+due to missing dependencies with offset.h. Usually it is safe when it 
+already exists, but not always.
+
+Current hack is to rerun make depend manually when you change anything
+that would touch offset.h (see arch/x86-64/tools/offset.c on what that is).
+Do not use -j with depend. 
+

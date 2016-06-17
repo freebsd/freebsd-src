@@ -1,0 +1,89 @@
+# FILE: tail.tk
+# This file is boilerplate TCL/TK function definitions for 'make xconfig'.
+#
+# CHANGES
+# =======
+#
+# 8 January 1998, Michael Elizabeth Chastain, <mec@shout.net>
+# Arrange buttons in three columns for better screen fitting.
+#
+
+#
+# Read the user's settings from .config.  These will override whatever is
+# in config.in.  Don't do this if the user specified a -D to force
+# the defaults.
+#
+if { [file readable .config] == 1} then {
+	if { $argc > 0 } then {
+		if { [lindex $argv 0] != "-D" } then {
+			read_config .config
+		}
+		else
+		{
+			read_config $defaults
+		}
+	} else {
+		read_config .config
+	}
+} else {
+	read_config $defaults
+}
+
+update_define 1 $total_menus 0
+update_mainmenu
+
+button .f0.right.save -anchor w -text "Save and Exit" -underline 0\
+    -command { catch {exec cp -f .config .config.old}; \
+		writeconfig .config include/linux/autoconf.h; wrapup .wrap }
+
+button .f0.right.quit -anchor w -text "Quit Without Saving" -underline 0\
+    -command { maybe_exit .maybe }
+
+button .f0.right.load -anchor w -text "Load Configuration from File" \
+    -command { load_configfile .load "Load Configuration from file" read_config_file
+}
+
+button .f0.right.store -anchor w -text "Store Configuration to File" \
+    -command { load_configfile .load "Store Configuration to file" write_config_file }
+
+#
+# Now pack everything.
+#
+
+pack .f0.right.store .f0.right.load .f0.right.quit .f0.right.save \
+    -padx 0 -pady 0 -side bottom -fill x
+pack .f0.left .f0.middle .f0.right -side left -padx 5 -pady 0 -fill y
+pack .f0 -padx 5 -pady 5
+
+update idletasks
+set winy [expr 10 + [winfo reqheight .f0]]
+set scry [lindex [wm maxsize .] 1]
+set winx [expr 10 + [winfo reqwidth .f0]]
+set scrx [lindex [wm maxsize .] 0]
+if {$winx < $scrx} then {set maxx -1} else {set maxx $winx}
+if {$winy < $scry} then {set maxy -1} else {set maxy $winy}
+.f0 configure -width $winx -height $winy 
+wm maxsize . $maxx $maxy
+
+#
+# If we cannot write our config files, disable the write button.
+#
+if { [file exists .config] == 1 } then {
+		if { [file writable .config] == 0 } then {
+			.f0.right.save configure -state disabled
+		}
+	} else {
+		if { [file writable .] == 0 } then {
+			.f0.right.save configure -state disabled
+		}
+	}
+
+if { [file exists include/linux/autoconf.h] == 1 } then {
+		if { [file writable include/linux/autoconf.h] == 0 } then {
+			.f0.right.save configure -state disabled
+		}
+	} else {
+		if { [file writable include/linux/] == 0 } then {
+			.f0.right.save configure -state disabled
+		}
+	}

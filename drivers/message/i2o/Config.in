@@ -1,0 +1,16 @@
+mainmenu_option next_comment
+comment 'I2O device support'
+
+tristate 'I2O support' CONFIG_I2O
+
+if [ "$CONFIG_PCI" = "y" ]; then
+   dep_tristate '  I2O PCI support' CONFIG_I2O_PCI $CONFIG_I2O
+fi
+dep_tristate '  I2O Block OSM' CONFIG_I2O_BLOCK $CONFIG_I2O
+if [ "$CONFIG_NET" = "y" ]; then
+   dep_tristate '  I2O LAN OSM' CONFIG_I2O_LAN $CONFIG_I2O
+fi
+dep_tristate '  I2O SCSI OSM' CONFIG_I2O_SCSI $CONFIG_I2O $CONFIG_SCSI
+dep_tristate '  I2O /proc support' CONFIG_I2O_PROC $CONFIG_I2O
+
+endmenu

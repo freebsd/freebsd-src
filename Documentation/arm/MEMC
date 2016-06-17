@@ -1,0 +1,57 @@
+MEMC enhancements for Linux 2.3
+-------------------------------
+
+The current interface:
+
+  There is a cache of the MEMC settings held in tsk->tss.memcmap, which is
+  kept up to date by the following functions (from the page tables):
+
+  update_memc_all()				hits:	2
+	Updates all MEMC caches on all processes.  Update the real MEMC
+	to reflect the `current' tasks page tables.
+
+  update_memc_tsk(tsk)				hits:	0
+	Update the MEMC cache for the specified task.  If tsk is the
+	`current' task, then update the real MEMC as well.
+
+  update_memc_mm(mm)				hits:	16
+	Update the MEMC cache for any task which has a mm_struct
+	corresponding to `mm'.  If the `current' tasks mm_struct
+	includes this, then update the real MEMC as well.
+
+  update_memc_addr(mm, addr, pte)		hits:	8
+	Update the MEMC cache entry defined by the physical address
+	in pte for any task which has a mm_struct corresponding to `mm'.
+	If the `current' tasks mm_struct includes this, then update the
+	real MEMC as well.
+
+The proposed interface:
+
+  Couple the MEMC cache into the mm_struct so that we only have to
+  keep one copy per mm_struct.  This also allows us to reduce the
+  number of loops through all existing tasks on each MEMC change.
+
+  memc_clear(mm, physaddr)			hits:	6
+	Clear the MEMC mapping associated with the physical address
+	`physaddr'.  If the `current' tasks mm_struct is `mm', then
+	update the real MEMC as well.	(should equate to a possible
+	two writes and zero reads).
+
+  memc_update_addr(mm, pte, logaddr)		hits:	10
+	Change the MEMC mapping for the physical address specified
+	in `pte' to point to the logical address `logaddr', with the
+	protection specified in `pte'.  If the `current' tasks mm_struct
+	is `mm', then update the real MEMC as well.  (should again equate
+	to a possible two writes and zero reads).
+
+  memc_update_mm(mm)				hits:	7
+	Rebuild the MEMC mappings for the specified `mm' in the same way
+	that update_memc_mm used to.  If the `current' tasks mm_struct
+	is `mm', update the real MEMC as well.
+
+  memc_update_all()				hits:	2
+	Rebuild the MEMC mappings for all mm_structs, including the real
+	MEMC.
+
+The hit numbers are approximate usage of each function in the 2.2.7
+memory management (mm) code, and there are other uses outside this area.

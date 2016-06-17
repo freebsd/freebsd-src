@@ -1,0 +1,4562 @@
+*_Design Specification of SAB8253X ASLX Driver for Linux_*
+
+ 
+
+
+  The effort to design and implement the ASLX SAB8253X Driver for Aurora
+  <http://www.auroratech.com/> hardware with the functionality described
+  in *_Functional Specification of SAB8253X ASLX Driver for Linux
+  <http://www.telfordtools.com/sab8253x/sab8253xfs.html>_* requires
+  solutions to seven separate problems:
+
+ 
+
+   1. creating a development environment for maintaining and extending
+      the driver,
+   2. integrating the driver into the kernel sources,
+   3. creating a file structure of the driver that aids understanding,
+   4. crafting a reasonable and easy to use user interface,
+   5. developing simple tools and example programs for the driver, and
+   6. designing the driver data structures and
+   7. designing the driver program logic.
+
+ 
+
+
+  _Development Environment_
+
+ 
+
+
+      There are several possible approaches to creating a development
+      environment.  The development environments for many drivers seem
+      to have consisted simply of a single machine, and the developer
+      used only /printk()/ in the driver code to debug.  I used such an
+      environment to develop a driver for an IOP480 based intelligent
+      adapter card.
+
+ 
+
+For a driver that provides the functionality described in the Functional
+Specification, a more sophisticated development and debugging
+environment is useful.  (One could even occasionally wish for an ICE,
+but that level of resources was not available to me.)
+
+ 
+
+The development environment consisted of two 686 class machines, on
+which the Linux operating system was installed.  One machine ran at 800
+Mhz, the other at 1Ghz.  It probably would have been worthwhile to have
+dual processor machine, and one was added to the development environment
+later.  The 800 Mhz machine hosted the remote gdb application.  It ran
+Redhat Linux 7.0, but because the machine served only as an NFS and
+remote gdb host, the details of the Linux distribution on this machine
+are not particularly important.
+
+ 
+
+The target machine on which the driver was developed and debugged hosted
+Suse Linux 7.1 and was later upgraded to Suse Linux 7.3.  Suse Linux
+seemed to provide the most complete Linux distribution with the least
+hassle in installation.  (As the Suse distribution comes on 7 standard
+CDs or 1 DVD, there is a lot of value in having a DVD drive in the
+target machine [and the gdb host if it runs a Suse distribution].)
+
+ 
+
+The target and remote gdb machines are connected by a 100 Mbps Ethernet
+network and by a serial crossover cable between the Com1 (ttyS0) ports. 
+
+ 
+
+When I started developing the driver, I obtained the Linux 2.4.3 sources
+from The Linux Kernel Archives <http://www.kernel.org/>.  Later as later
+distributions became stable, I switched to the Linux 2.4.6
+distribution.  The sources were installed first in
+/home/martillo/kernel/linux-2.4.3 and then in
+/home/martillo/kernel/linux-2.4.6 on the remote gdb host machine, which
+was named frolix.
+
+ 
+
+The sources were imported into CVS on frolix, and the core directory
+into CVS  was added manually because the cvs import function ignores
+it.  I consider it safer to maintain the CVS repository on the remote
+gdb host machine instead of the target machine because the target
+machine is likely to crash frequently, and its file system may be put
+into bad states.
+
+ 
+
+I executed the following commands on the remote gdb host machine.
+
+ 
+
+*ln ^Ös /home/martillo/kernel/linux-2.4.3/include/asm-i386
+/home/martillo/kernel/linux-2.4.3/include/asm*
+
+* *
+
+or
+
+* *
+
+*ln ^Ös /home/martillo/kernel/linux-2.4.6/include/asm-i386
+/home/martillo/kernel/linux-2.4.6/include/asm*
+
+* *
+
+*ln ^Ös / /frolix *
+
+ 
+
+I edited the /etc/exports file to contain the following.
+
+ 
+
+/               ylith(rw)
+
+/               fireball(rw)
+
+/               bohun(rw)
+
+/               indefatigable(rw)
+
+ 
+
+Ylith is the original 1 Ghz target machine.  Fireball is a 400 Mhz
+compact PCI target machine.  Indefatigable is a dual 1 Ghz target
+machine.  Bohun is a Solaris target machine used for another project.
+
+ 
+
+On the frolix, I started NFS with the following commands (contained in a
+shell script).
+
+ 
+
+*/etc/rc.d/init.d/nfs start*
+
+*exportfs -va*
+
+ 
+
+If it had been a Suse Linux machine, I would have used the yast2 control
+center to start NFS service.
+
+ 
+
+On ylith, I created an empty directory /frolix and executed the
+following command.
+
+ 
+
+*mount frolix:/ /frolix*
+
+* *
+
+At this point both the remote gdb host (frolix) and the target
+development and debugging machine can refer to the same files by the
+same paths.  I could have guaranteed the same paths to the source files
+on both machines if I had simply used /home/martillo as my home
+directory on frolix and exported /home from frolix to all the other
+machines so that there would only be one /home directory for all the
+machines in my network.  I was lazy about the network configuration.
+
+ 
+
+After making sure that the user martillo had read write access
+permissions to all the kernel sources, I built the kernel on the target
+machine from within xemacs with the following sequence of commands.
+
+ 
+
+From a shell window:
+
+*xemacs ^Öe shell&*
+
+ 
+
+Inside xemacs:
+
+ 
+
+*cd /frolix/home/martillo/kernel/linux-2.4.3*
+
+ 
+
+or
+
+ 
+
+*cd /frolix/home/martillo/kernel/linux-2.4.6*
+
+ 
+
+Then make sure that linux-2.4.x/include/asm-i386 is symbolically linked to
+linux-2.4.x/include/asm.
+
+ 
+
+Execute the following emacs command.
+
+ 
+
+
+          M-x compile
+
+ 
+
+This command prompts for targets.
+
+ 
+
+In the development environment the most useful target string was usually
+/clean xconfig dep bzImage modules./ The target /xconfig /brings up a
+configuration window.  In the basic development environment, it was
+generally worthwhile to add SCSI CD ROM, SCSI legacy support, an
+Ethernet driver and DOS file system support
+
+ 
+
+The target/ dep/ creates the dependencies (note that if the kernel tree
+is ever removed, the .depend and .hdepend files must be regenerated). 
+The /bzImage /target builds the kernel.  The /modules/ target generates
+all the modules to be dynamically installed in the kernel via the
+*insmod* command.
+
+ 
+
+After building the kernel, installing the modules in the /lib tree
+requires the execution (as root) of
+
+ 
+
+make modules_install
+
+ 
+
+The command *make install* *INSTALL_PATH=/boot* will install the
+compressed kernel image as vmlinuz along with other files in the /boot
+partition.  I preferred to use a shell script with commands like the
+following.
+
+ 
+
+cp /frolix/home/martillo/kernel/linux-2.4.6/arch/i386/boot/bzImage
+/boot/vmlinuz_246
+
+cp /frolix/home/martillo/kernel/linux-2.4.6/System.map
+/boot/System.map-2.4.6
+
+cp /frolix/home/martillo/kernel/linux-2.4.6/.config /boot/vmlinuz_246.config
+
+cp /frolix/home/martillo/kernel/linux-2.4.6/include/linux/autoconf.h
+/boot/vmlinuz_246.autoconf.h
+
+cp /frolix/home/martillo/kernel/linux-2.4.6/include/linux/version.h
+/boot/vmlinuz_246.version.h
+
+ 
+
+When the kernel comes from a linux-2.4.3 tree, the obvious substitutions
+of 3 for 6 are required.
+
+ 
+
+Once all the modules and the kernel image are installed, the next step
+in giving the system the ability to boot with the new linux-2.4.3 or
+linux-2.4.6 kernel image is the modification of the lilo.conf file.
+
+ 
+
+I added the following directives to the lilo.conf file.
+
+ 
+
+  image  = /boot/vmlinuz_243
+
+  label  = linux_2.4.3
+
+  root   = /dev/hde7
+
+  optional
+
+ 
+
+  image  = /boot/vmlinuz_246
+
+  label  = linux_2.4.6
+
+  root   = /dev/hde7
+
+  optional
+
+ 
+
+In this case /dev/hde7 corresponds to the /boot partition, and the
+options linux_2.4.3 and linux_2.4.6 will be added to the boot menu once
+the *lilo* command has been executed.  In other system setups the disk
+partition that corresponds to /boot might have a different name like
+/dev/hda7.
+
+ 
+
+Once the new kernel successfully boots, the next step to creating a
+driver development and debugging environment is patching the kernel for
+remote gdb debugging.
+
+ 
+
+The necessary patch can be obtained from kgdb: Source level debugging of
+linux kernel <http://kgdb.sourceforge.net/downloads.html>.
+
+ 
+
+Now the kernel can be built again with the extra step of configuring for
+remote gdb support in the kernel configuration menu. 
+
+ 
+
+The following directives should be added to lilo.conf.
+
+ 
+
+  image  = /boot/vmlinuz_243
+
+  label  = debug243
+
+  append = "gdb gdbttyS=0 gdbbaud=115200"
+
+  root   = /dev/hde7
+
+  optional
+
+ 
+
+  image  = /boot/vmlinuz_246
+
+  label  = debug246
+
+  append = "gdb gdbttyS=0 gdbbaud=115200"
+
+  root   = /dev/hde7
+
+  optional
+
+ 
+
+
+      Then lilo can be executed.  On reboot the boot menu will include
+      options for debug243 and debug246.
+
+ 
+
+To test the patch, select one of the debug options.  Then, on the remote
+gdb host machine execute the following command.
+
+ 
+
+stty 115200 < /dev/ttyS0
+
+ 
+
+Start up an *xemacs* process.  Execute the following commands within
+*xemacs.*
+
+ 
+
+
+          M-x shell
+
+ 
+
+Then within the shell window execute the following command.
+
+ 
+
+cd /frolix/home/martillo/kernel/linux-2.4./X/
+
+/ /
+
+Then invoke the remote debugger.
+
+ 
+
+
+          M-x gdb
+
+ 
+
+Reply to the file prompt with *vmlinux.*
+
+* *
+
+In the gdb window, execute the following command.
+
+ 
+
+target remote /dev/ttyS0
+
+ 
+
+The gdb window should break in gdbstub.c which will be displayed in the
+gdb source window.
+
+ 
+
+At this point, all the basic gdb remote debugging capabilities are ready
+to use.
+
+ 
+
+To access the hardware breakpoint capability of the i386 processor, the
+following commands can be loaded directly or from a file with the
+*script* command.
+
+ 
+
+#Hardware breakpoints in gdb
+
+#
+
+#Using ia-32 hardware breakpoints.
+
+#
+
+#4 hardware breakpoints are available in ia-32 processors. These breakpoints
+
+#do not need code modification. They are set using debug registers.
+
+#
+
+#Each hardware breakpoint can be of one of the
+
+#three types: execution, write, access.
+
+#1. An Execution breakpoint is triggered when code at the breakpoint
+address is
+
+#executed.
+
+#2. A write breakpoint ( aka watchpoints ) is triggered when memory location
+
+#at the breakpoint address is written.
+
+#3. An access breakpoint is triggered when memory location at the breakpoint
+
+#address is either read or written.
+
+#
+
+#As hardware breakpoints are available in limited number, use software
+
+#breakpoints ( br command in gdb ) instead of execution hardware
+breakpoints.
+
+#
+
+#Length of an access or a write breakpoint defines length of the datatype to
+
+#be watched. Length is 1 for char, 2 short , 3 int.
+
+#
+
+#For placing execution, write and access breakpoints, use commands
+
+#hwebrk, hwwbrk, hwabrk
+
+#To remove a breakpoint use hwrmbrk command.
+
+#
+
+#These commands take following types of arguments. For arguments associated
+
+#with each command, use help command.
+
+#1. breakpointno: 0 to 3
+
+#2. length: 1 to 3
+
+#3. address: Memory location in hex ( without 0x ) e.g c015e9bc
+
+#
+
+#Use the command exinfo to find which hardware breakpoint occured.
+
+ 
+
+ 
+
+#hwebrk breakpointno address
+
+define hwebrk
+
+        maintenance packet Y$arg0,0,0,$arg1
+
+end
+
+document hwebrk
+
+        hwebrk breakpointno address
+
+        Places a hardware execution breakpoint
+
+end
+
+ 
+
+#hwwbrk breakpointno length address
+
+define hwwbrk
+
+        maintenance packet Y$arg0,1,$arg1,$arg2
+
+end
+
+document hwwbrk
+
+        hwwbrk breakpointno length address
+
+        Places a hardware write breakpoint
+
+end
+
+ 
+
+#hwabrk breakpointno length address
+
+define hwabrk
+
+        maintenance packet Y$arg0,1,$arg1,$arg2
+
+end
+
+document hwabrk
+
+        hwabrk breakpointno length address
+
+        Places a hardware access breakpoint
+
+end
+
+ 
+
+#hwrmbrk breakpointno
+
+define hwrmbrk
+
+        maintenance packet y$arg0
+
+end
+
+document hwrmbrk
+
+        hwrmbrk breakpointno
+
+        Removes a hardware breakpoint
+
+end
+
+ 
+
+#exinfo
+
+define exinfo
+
+        maintenance packet qE
+
+end
+
+document exinfo
+
+        exinfo
+
+        Gives information about a breakpoint.
+
+end
+
+ 
+
+Once the above macros are define, the developer can set hardware
+breakpoints.
+
+ 
+
+The next step to creating a useful development and debugging environment
+is to provide a shell script to for remote debugging of dynamically
+loaded modules.  The following shell script (called *loadmodule.sh*)
+creates a gdb script called *load/ModuleName/* in
+/frolix/home/martillo/kernel/linux-2.4.6 when it is invoked (as root)
+with the following command.
+
+loadmodule.sh modulename
+
+ 
+
+In order to decrease the probability of confusion, I usually make a link
+in kernel root directory,  /frolix/home/martillo/kernel/linux-2.4.6, to
+the location of the module to be debugged in the kernel tree.  The above
+command is invoked on the target machine (ylith) in the root directory. 
+On the remote debug machine, in the gdb command window, whose working
+directory should be the kernel root directory,
+/frolix/home/martillo/kernel/linux-2.4.6, the command, *script
+load/ModuleName/*, is invoked.  Once the script is executed the symbols
+for the module are available for remote symbolic debugging.
+
+ 
+
+#!/bin/sh
+
+# This script loads a module on a target machine and generates a gdb script.
+
+# source generated gdb script to load the module file at appropriate
+addresses
+
+# in gdb.
+
+#
+
+# Usage:
+
+# Loading the module on target machine and generating gdb script)
+
+#       [foo]$ loadmodule.sh <modulename>
+
+#
+
+# Loading the module file into gdb
+
+#       (gdb) source <gdbscriptpath>
+
+#
+
+# Modify following variables according to your setup.
+
+#       TESTMACHINE - Name of the target machine
+
+#       GDBSCRIPTS - The directory where a gdb script will be generated
+
+#
+
+# Author: Amit S. Kale (akale@veritas.com).
+
+#
+
+# If you run into problems, please check files pointed to by following
+
+# variables.
+
+#       ERRFILE - /tmp/<modulename>.errs contains stderr output of insmod
+
+#       MAPFILE - /tmp/<modulename>.map contains stdout output of insmod
+
+#       GDBSCRIPT - $GDBSCRIPTS/load<modulename> gdb script.
+
+ 
+
+TESTMACHINE=ylith
+
+GDBSCRIPTS=/frolix/home/martillo/kernel/linux-2.4.6
+
+ 
+
+if [ $# -lt 1 ] ; then {
+
+        echo Usage: $0 modulefile
+
+        exit
+
+} ; fi
+
+ 
+
+MODULEFILE=$1
+
+MODULEFILEBASENAME=`basename $1`
+
+ 
+
+if [ $MODULEFILE = $MODULEFILEBASENAME ] ; then {
+
+        MODULEFILE=`pwd`/$MODULEFILE
+
+} fi
+
+ 
+
+ERRFILE=/tmp/$MODULEFILEBASENAME.errs
+
+MAPFILE=/tmp/$MODULEFILEBASENAME.map
+
+GDBSCRIPT=$GDBSCRIPTS/load$MODULEFILEBASENAME
+
+ 
+
+function findaddr() {
+
+        local ADDR=0x$(echo "$SEGMENTS" | \
+
+                grep "$1" | sed 's/^[^ ]*[ ]*[^ ]*[ ]*//' | \
+
+                sed 's/[ ]*[^ ]*$//')
+
+        echo $ADDR
+
+}
+
+ 
+
+function checkerrs() {
+
+        if [ "`cat $ERRFILE`" != "" ] ; then {
+
+                cat $ERRFILE
+
+        } fi
+
+}
+
+ 
+
+#load the module
+
+#echo Copying $MODULEFILE to $TESTMACHINE
+
+#*rcp $MODULEFILE root@${TESTMACHINE}:
+
+ 
+
+echo Loading module $MODULEFILE
+
+#rsh -l root $TESTMACHINE  /sbin/insmod -m ./`basename $MODULEFILE` \
+
+#       > $MAPFILE 2> $ERRFILE &
+
+/sbin/insmod -m ./`basename $MODULEFILE` $2 . .  > $MAPFILE 2> $ERRFILE &
+
+sleep 5
+
+checkerrs
+
+ 
+
+NUMLINES=`grep -n '^$' $MAPFILE | sed -e 's/:.*//g'`
+
+SEGMENTS=`head -n $NUMLINES $MAPFILE | tail -n $(eval expr $NUMLINES - 1)`
+
+TEXTADDR=$(findaddr "\\.text[^.]")
+
+LOADSTRING="add-symbol-file $MODULEFILE $TEXTADDR"
+
+SEGADDRS=`echo "$SEGMENTS" | awk '//{
+
+        if ($1 != ".text" && $1 != ".this" &&
+
+            $1 != ".kstrtab" && $1 != ".kmodtab") {
+
+                print " -s " $1 " 0x" $3 " "
+
+        }
+
+}'`
+
+LOADSTRING="$LOADSTRING $SEGADDRS"
+
+echo Generating script $GDBSCRIPT
+
+echo $LOADSTRING > $GDBSCRIPT
+
+ 
+
+With the addition of the above shell script, the driver development and
+debugging environment is almost complete.  Other useful tools for
+developing and debugging this type of serial driver would include a
+Wanalyzer (I used an Interview 7700 and an HP 4952A in developing this
+driver), a breakout box that displays interface signal states and  (for
+developing the serial Ethernet-like network driver) several WAN LAN VLAN
+routers as described in *Packet Switching Software and Platforms
+<http://members.aol.com/Telford001/vrouter2g.html>*, *Routing in a
+Bridged Network <http://members.aol.com/Telford001/routetti2.html>, **A
+WAN SUBSYSTEM for a High Performance Packet Switch
+<http://members.aol.com/Keleustes/syncdob.html>* and *A New High
+Performance Architecture for Routers, Bridges and LAN Switches (Software
+Defined Internetworking)
+<http://members.aol.com/Ishtar7713/private/sdi4.html>.*
+
+ 
+
+
+  _Integration into the Kernel Sources_
+
+
+   
+
+The driver has its own directory, {kernel root
+directory}/drivers/net/wan/8253x, in the 2.4.* kernel source tree.
+
+ 
+
+To facilitate the automatic build of the 8253x driver, the following
+standard kernel files were modified.
+
+ 
+
+1.                  {kernel root directory}/drivers/net/wan/Config.in to
+which the line
+
+ 
+
+tristate '  Aurora Technology, Inc. synchronous asynchronous PCI cards
+V2' CONFIG_ATI_XX20
+
+
+ 
+
+was added,
+
+2.                  {kernel root directory}/drivers/net/wan/Makefile to
+which the following lines were added,
+
+ 
+
+subdir-$(CONFIG_ATI_XX20) += 8253x
+
+ 
+
+ifeq ($(CONFIG_ATI_XX20),y)
+
+  obj-y += 8253x/ASLX.o
+
+endif
+
+ 
+
+When the driver is built as a dynamically loaded module, the following
+macro commands in the file 8253xini.c puts the module entry points in
+the special module entry point segment.
+
+ 
+
+module_init(auraXX20_probe);
+
+module_exit(auraXX20_cleanup);
+
+ 
+
+The sources are provided to the users in a patch file, tentatively named
+8253x.patch <http://www.telfordtools.com/sab8253x/8253x.patch>.
+
+ 
+
+To install it the user sets his directory to the top level of the kernel
+sources and executes the following command.
+
+ 
+
+patch ^Öp1 < /{directory-patch}//8253x.patch
+
+
+   
+
+
+  _File Structure of the ASLX Driver Source Code_
+
+ 
+
+The following files are present in the driver directory.
+
+ 
+
+8253x.h
+
+8253xdbg.c
+
+8253xmac.c
+
+8253xsyn.c
+
+PciRegs.h
+
+crc32.h
+
+sp502.h
+
+8253xcfg.c
+
+8253xini.c
+
+8253xnet.c
+
+8253xtty.c
+
+Reg9050.h
+
+crc32dcl.h
+
+ring.h
+
+8253xctl.h
+
+8253xioc.h
+
+8253xplx.c
+
+8253xint.c
+
+crc32.c
+
+endian.h
+
+Makefile
+
+Amcc5920.c
+
+8253xmcs.h
+
+8253xmcs.c
+
+8253xchr.c
+
+8253xutl.c
+
+ 
+
+ 
+
+ 
+
+The source code is divided functionally among the files of the ASLX driver.
+
+ 
+
+8253xcfg.c is the source for a user application that configures 8253x
+control registers to provide clocking.  8253xmac.c is the source for a
+user application that sets a pseudo-MAC address for the network driver.
+
+ 
+
+8253xini.c contains the initialization/probe logic.
+
+ 
+
+8253xint.c contains the common interrupt logic.
+
+ 
+
+8253xtty.c contains the asynchronous TTY logic.
+
+ 
+
+8253xsyn.c contains the synchronous TTY logic.
+
+ 
+
+8253xnet.c contains the network driver logic.
+
+ 
+
+8253xchr.c contains the character driver logic.
+
+
+ 
+
+8253xdbg.c contains some debugging functions.
+
+ 
+
+8253xutl.c contains most of the functions that are common among the
+different driver functional subunits.
+
+ 
+
+8253xplx.c contains some functions specific to the PLX9050 (a PCI bridge
+chip) and specifically to reading and reprogramming the associated
+serial EEPROM.
+
+ 
+
+amcc5920.c contains some functions specific to the AMCC5920 (a PCI
+bridge chip) and specifically to reading and reprogramming the
+associated serial EEPROM.
+
+ 
+
+8253xmcs.c contains functions specific to programming the multichannel
+server (mostly G-LINK related logic, programming the sp502 driver chip
+and reading or programming the serial EEPROM associated with the
+interface cards contained within the MCS unit).
+
+ 
+
+crc32.c contains logic to append a CRC32 to a pseudo MAC frame that is
+generated by the network driver.
+
+ 
+
+8253x.h contains symbols, structures and macros that relate mostly to
+the 8253x chips and ports.
+
+ 
+
+8253xctl.h contains symbols, structures and macros that relate mostly to
+the adapter cards.
+
+ 
+
+8253xmcs.h contains symbols and structures that relate mostly to the
+multichannel server.  A lot of this file relates to G-LINK.
+
+ 
+
+sp502.h contains symbols and structures that relate to the programming
+of the hardware interface line drivers of the 3500 adapter cards of the
+multichannel server.
+
+ 
+
+8253xioc.h contains symbols and structures that relate to private ioctls.
+
+ 
+
+PciRegs.h contains symbols and structures that relate to PCI
+configuration space.
+
+ 
+
+Reg9050.h contains symbols and structures that relate to the PLX9050 PCI
+interface chip and its serial eprom
+
+ 
+
+crc32.h, crc32dcl.h and .endian.h contain symbols, structures and macros
+that relate to generating a correct CRC32.
+
+ 
+
+ring.h contains symbols and structures that relate to the network driver
+frame transmission ring and frame reception.
+
+ 
+
+The Makefile is a standard Linux kernel Makefile whose structure is
+dictated by the current Linux build formalism.
+
+ 
+
+
+  _Using the ASLX Driver _
+
+
+   
+
+
+  The ASLX driver is designed to be a ^Óplug-and-play^Ô driver as far as
+  possible.  If it is built as a dynamically loadable module, the user
+  (or relevant system configuration file) invokes /insmod /to load the
+  ASLX.o file. 
+
+ 
+
+The following parameters can be set on the /insmod/ command line.
+
+ 
+
+MODULE_PARM(xx20_minorstart, "i");/*when statically linked autodected
+otherwise 128 by default*/
+
+MODULE_PARM(sab8253xc_major, "i");/*major dev for character device, by
+default dynamic */
+
+MODULE_PARM(auraXX20n_debug, "i");/*turns on debugging messages, default
+off*/
+
+MODULE_PARM(auraXX20n_name, "s"); /*base network driver name = 8253x000*/
+
+MODULE_PARM(sab8253xn_listsize, "i"); /*transmit ring size default 32*/
+
+MODULE_PARM(sab8253xc_name, "s");/*registered name for char driver =
+sab8253xc*/
+
+MODULE_PARM(sab8253x_default_sp502_mode, "i");
+
+ 
+
+
+  The asynchronous TTY functionality can immediately be used without
+  extra configuration.  [Note that immediate use of the WMS3500 products
+  is possible because the default value of sab8253x_default_sp502_mode
+  is SP502_RS232_MODE (== 1).  If a different default mode is needed, it
+  can be set as options in the /etc/modules.conf file.  OFF = 0.
+
+RS232 = 1, RS422 = 2, RS485 = 3, RS449 = 4, EIA530 = 5 and V.35 = 6, as
+defined in 8253xioc.h.]
+
+ 
+
+The MAKETERMS script below parses the /proc/tty/driver/auraserial file
+to make the asynchronous TTY device files in the /dev directory.
+
+ 
+
+TTYDEV=$1
+
+MDEVS=`cat /proc/tty/driver/auraserial | gawk '{print $1}' | sed -e
+'/[a-zA-Z]/d' | sed -e 's/://'`
+
+ 
+
+for i in $MDEVS
+
+do
+
+        TTYNAME=/dev/ttyS${TTYDEV}
+
+        mknod $TTYNAME c 4 $i
+
+        TTYDEV=$((${TTYDEV}+1))
+
+done
+
+ 
+
+The MAKEPROTO script below provides a prototype to modify the
+/etc/inittab file so that an agetty process can be spawned on every
+other /dev/ttyS* at 9600 bps
+
+ 
+
+TTYDEV=$1
+
+MDEVS=`cat /proc/tty/driver/auraserial | gawk '{print $1}' | sed -e
+'/[a-zA-Z]/d' | sed -e 's/://'`
+
+LEADCHAR=""
+
+ 
+
+for i in $MDEVS
+
+do
+
+        NAME=S${TTYDEV}
+
+        TTYNAME=ttyS${TTYDEV}
+
+        echo ${LEADCHAR}${NAME}:35:respawn:/sbin/agetty 9600 ${TTYNAME}
+
+        TTYDEV=$((${TTYDEV}+1))
+
+        if [ -z "$LEADCHAR" ]
+
+        then
+
+                LEADCHAR="#"
+
+        else
+
+                LEADCHAR=""
+
+        fi
+
+done
+
+ 
+
+
+  If loopback cables are connected between successive TTY ports on each
+  Aurora adapter card or unit, the command
+
+ 
+
+cu ^Öl /dev/ttyS{n} ^Ös 9600
+
+ 
+
+would connect to the login that was spawned on /dev/ttyS{n-1}.
+
+ 
+
+The script MAKESTERMS (viz below) creates synchronous TTY dev files for
+all the Aurora serial ports.
+
+ 
+
+TTYDEV=$1
+
+MDEVS=`cat /proc/tty/driver/auraserial | gawk '{print $1}' | sed -e
+'/[a-zA-Z]/d' | sed -e 's/://'`
+
+ 
+
+for i in $MDEVS
+
+do
+
+        TTYNAME=/dev/sttyS${TTYDEV}
+
+        mknod $TTYNAME c 5 $i
+
+        TTYDEV=$((${TTYDEV}+1))
+
+done
+
+ 
+
+The MAKESPROTO script below creates a prototype with which to modify the
+/etc/inittab file to spawn an agetty process on every other
+/dev/sttyS{N} device.
+
+ 
+
+TTYDEV=$1
+
+MDEVS=`cat /proc/tty/driver/auraserial | gawk '{print $1}' | sed -e
+'/[a-zA-Z]/d' | sed -e 's/://'`
+
+LEADCHAR=""
+
+ 
+
+for i in $MDEVS
+
+do
+
+        NAME=sS${TTYDEV}
+
+        TTYNAME=sttyS${TTYDEV}
+
+        echo ${LEADCHAR}${NAME}:35:respawn:/sbin/agetty 9600 ${TTYNAME}
+
+        TTYDEV=$((${TTYDEV}+1))
+
+        if [ -z "$LEADCHAR" ]
+
+        then
+
+                LEADCHAR="#"
+
+        else
+
+                LEADCHAR=""
+
+        fi
+
+done
+
+ 
+
+
+  The simplest way to use these terminals with the agetty process that
+  comes with the Linux distribution is to leave externally clocked (the
+  default) the terminals on which agetty has been spawned.
+
+ 
+
+The loopback cable can be connected to a port on which agetty is not
+being run.  The clockside of the cable is connected to this port.  The
+user can run the MAKECLOCKING script below.
+
+ 
+
+echo 8253xcfg $1 -n 64 158 56 4 192 140 15
+
+8253xcfg $1 -n 64 158 56 4 192 140 15
+
+ 
+
+The numbers on the 8253xcfg command line are new (decimal) values for
+the channel control, mode and baud rate registers.  The file 8253xioc.h
+and sab8253x manuals from Siemens/Infineon can assist in explaining the
+reasoning behind these values. The 8253xcfg sets the mode, channel
+control and baudrate generator registers of the port specified by
+/dev/sttyS{N-1} which is the argument $1 of this script file.  8253xcfg
+is a simple example program that is included with the driver sources. 
+It is described in the next section of this document.
+
+ 
+
+At this point, the user could execute the following command to connect
+synchronously to the peer synchronous TTY port.
+
+ 
+
+cu ^Öl /dev/sttyS{n} ^Ös 9600
+
+ 
+
+To turn off internal clocking use the following command.
+
+ 
+
+8253xcfg /dev/sttyS? ^Ön 64 152 0 4 0 140 15
+
+ 
+
+To use an ASLX network device the following commands would be used.
+
+ 
+
+*MAKECLOCKING /dev/sttyS*/{N} [if the interface is to provide clock]/
+
+*stty */{speed} /*< /dev/sttyS*/{N} [if the interface is to provide clock]/
+
+ 
+
+To set the MAC address, which defaults to 00:00:00:00:00:00 and which
+consequently must be changed, use the following command.
+
+ 
+
+*ifconfig 8253x*/{mdev} /*hw ether*/ {mac address} [as root]/
+
+ 
+
+[Note that the 8253x{mdev} interface must not be running when the above
+command is executed.]
+
+ 
+
+To set the IP address, use the command.
+
+/ /
+
+*ifconfig 8253x*/{mdev} {ipadress} [as root]/
+
+ 
+
+[Note that the two ifconfig commands can be combined on one line.  If
+they are executed separately the MAC address command must be executed
+before the IP address command.]
+
+ 
+
+After the completion of the above commands, assuming there is an active
+network peer that uses the same serial Ethernet frame structure, it
+should be possible to ping or telnet to the peer networking device.
+
+ 
+
+{mdev} is the minor device number (in decimal, 3 digits including
+leading 0s required) associated with /dev/sttyS{N}.//
+
+* *
+
+To disable the network interface use the following command.
+
+ 
+
+*ifconfig 8253x*/{mdev} /*down*/ [as root]/
+
+ 
+
+If there is a need to disable clocking on a serial port, the
+MAKENONCLOCKING shell script is invoked with the TTY device as an
+argument as follows.
+
+ 
+
+MAKENONCLOCKING /dev/ttyS{N}
+
+ 
+
+The shell script contains the following commands.
+
+ 
+
+echo 8253xcfg $1 -n 64 152 0 4 192 140 255
+
+8253xcfg $1 -n 64 152 0 4 192 140 255
+
+ 
+
+The numbers on the 8253xcfg command line are new (decimal) values for
+the channel control, mode and baud rate registers.  The file 8253xioc.h
+and sab8253x manuals from Siemens/Infineon can assist in explaining the
+reasoning behind these values. The 8253xcfg sets the mode, channel
+control and baudrate generator registers of the port specified by
+/dev/sttyS{N-1} which is the argument $1 of this script file.  8253xcfg
+is a simple example program that is included with the driver sources. 
+It is described in the next section of this document.
+
+
+         
+
+
+  _Simple Tools and Example Programs_
+
+ 
+
+The tools and example programs supplied with the SAB8253X ASLX driver
+are the following.
+
+1.      eprom9050
+
+2.      8253xcfg
+
+3.      8253xspeed
+
+4.      8253xpeer
+
+5.      8253xmode
+
+
+    eprom9050
+
+ 
+
+This program performs the bit-banging necessary to read and to program
+the serial eprom of the PLX9050. 
+
+ 
+
+To access the serial eprom on an adapter card the program opens up a TTY
+device on   the adapter card, whose serial eprom is to be modified. 
+This TTY device can either be synchronous, asynchronous or callout.  The
+TTY device is passed as an argument when the program is invoked.
+
+ 
+
+The program uses the ATIS_IOCGSEP9050 IOCTL to get the current serial
+eprom values and the ATIS_IOCSSEP9050 IOCTL to set the new serial eprom
+values.
+
+ 
+
+Here is the source code of the program.
+
+ 
+
+/*
+
+ * Copyright (C) 2001 By Joachim Martillo, Telford Tools, Inc.
+
+ *
+
+ * This program is free software; you can redistribute it and/or
+
+ * modify it under the terms of the GNU General Public License
+
+ * as published by the Free Software Foundation; either version
+
+ * 2 of the License, or (at your option) any later version.
+
+ *
+
+ **/
+
+ 
+
+#include <sys/types.h>
+
+#include <sys/stat.h>
+
+#include <fcntl.h>
+
+#include <stdio.h>
+
+#include <stdlib.h>
+
+#include "8253xioc.h"
+
+#include "Reg9050.h"
+
+ 
+
+ 
+
+                                /* This application shows how to load the */
+
+                                /* channel control, mode and rx frame
+length */
+
+                                /* check registers via an ioctl.*/
+
+ 
+
+int main(int argc, char **argv)
+
+{
+
+  int fd;
+
+  unsigned short oldeeprom[EPROM9050_SIZE], neweeprom[EPROM9050_SIZE];
+
+  char buffer[200];
+
+  int count;
+
+  int value;
+
+  unsigned short *pointer;
+
+  unsigned short *pointerold;
+
+  int noprompt = 0;
+
+  int epromindex;
+
+ 
+
+  if(argc < 2)
+
+    {
+
+      fprintf(stderr, "Syntax: %s {portname} [-n] {prom values}.\n", *argv);
+
+      exit(-1);
+
+    }
+
+  fd = open(argv[1], O_RDWR);
+
+  if(fd < 0)
+
+    {
+
+      perror("open failed.");
+
+      exit(-2);
+
+    }
+
+ 
+
+  if((argc > 2) && !strcmp("-n", argv[2]))
+
+    {
+
+      noprompt = 1;
+
+    }
+
+ 
+
+                                /* get the current values */
+
+  if(ioctl(fd, ATIS_IOCGSEP9050, &oldeeprom) < 0)
+
+    {
+
+      perror("ioctl failed.");
+
+      exit(-3);
+
+    }
+
+                                /* set up the existing values as defaults */
+
+  memcpy(neweeprom, oldeeprom, sizeof(oldeeprom));
+
+                                /* gather all new values from the
+command line */
+
+                                /* or via tty input.*/
+
+  for(count = (2+noprompt), pointer = neweeprom; count < argc; ++count,
+++pointer)
+
+    {
+
+      *pointer = atoi(argv[count]);
+
+    }
+
+  pointer = neweeprom;
+
+  pointerold = oldeeprom;
+
+  for(epromindex = 0; epromindex < EPROM9050_SIZE; ++epromindex)
+
+    {
+
+      fprintf(stderr, "LOCATION %i [%4.4x/%4.4x]: ", epromindex,
+*pointerold, *pointer);
+
+ 
+
+      if(!noprompt)
+
+        {
+
+          if(count = read(0, buffer, 150), count <= 0)
+
+            {
+
+              exit(0);
+
+            }
+
+          buffer[count] = '\0';
+
+          if(buffer[0] != '\n')
+
+            {
+
+              sscanf(buffer, "%x", &value);
+
+              *pointer = (unsigned short) value;
+
+            }
+
+        }
+
+      else
+
+        {
+
+          fprintf(stderr, "\n");
+
+        }
+
+      ++pointerold;
+
+      ++pointer;
+
+    }
+
+                                /* This ioctl does the actual register
+load. */
+
+  if(ioctl(fd, ATIS_IOCSSEP9050, neweeprom) < 0)
+
+    {
+
+      perror("ioctl failed.");
+
+      exit(-3);
+
+    }
+
+ 
+
+  fflush(stdout);
+
+}
+
+ 
+
+With the above program it is possible to change PCI vendor and device ID
+values of the adapter card.  At that point the card would no longer be
+visible to the driver.  To correct the vendor and device IDs use the
+*lspci* Linux command to find out what new values are and recompile the
+driver code after modifying the symbols that correspond to the correct
+vendor and device Ids of the card to the new values.  (I should make the
+vendor and device IDs module parameters that can be set from the
+*insmod* command line.)  The eprom9050 can be invoked to write the
+device and vendor IDs to the correct values.  Of course, then the card
+will no longer be visible to the new version of the driver, and the
+original version of the driver must be used to communicate with this card.
+
+ 
+
+
+    8253xcfg
+
+ 
+
+The 8253xcfg command provides access to images of the channel control,
+mode and baud rate generator registers of the serial port that is
+specified by the minor device number (port number = minor device number
+^Ö minor_start) of the TTY device (either synchronous, asynchronous or
+callout) specified on the command line by which 8253xcfg is invoked. 
+The next time the port is initialized (usually on the first open after
+every process that currently has the port open has closed it) these
+registers are set with the values of their images.  The 8253xcfg command
+can make a synchronous port clocking or non-clocking.  Note that even
+though 8253xcfg operates on a TTY device, the open that finally sets the
+registers with the values from the images can be either a synchronous
+TTY, a network device or a synchronous character device open.  The
+program uses the ATIS_IOCGPARAMS IOCTL to get the current values of the
+images of the registers and employs the ATIS_IOCSPARAMS IOCTL to set the
+current values of the images of the registers.  Here is the source of
+the 8253xcfg program.
+
+ 
+
+/*
+
+ * Copyright (C) 2001 By Joachim Martillo, Telford Tools, Inc.
+
+ *
+
+ * This program is free software; you can redistribute it and/or
+
+ * modify it under the terms of the GNU General Public License
+
+ * as published by the Free Software Foundation; either version
+
+ * 2 of the License, or (at your option) any later version.
+
+ *
+
+ **/
+
+ 
+
+#include <sys/types.h>
+
+#include <sys/stat.h>
+
+#include <fcntl.h>
+
+#include <stdio.h>
+
+#include <stdlib.h>
+
+#include "8253xioc.h"
+
+ 
+
+char *prompts[] =
+
+  {
+
+    "ccr0",
+
+    "ccr1",
+
+    "ccr2",
+
+    "ccr3",
+
+    "ccr4",
+
+    "mode",
+
+    "rlcr",
+
+    0
+
+  };
+
+ 
+
+                                /* This application shows how to load the */
+
+                                /* channel control, mode and rx frame
+length */
+
+                                /* check registers via an ioctl.*/
+
+ 
+
+int main(int argc, char **argv)
+
+{
+
+  int fd;
+
+  struct channelcontrol ccontrolold, ccontrolnew;
+
+  char buffer[200];
+
+  int count;
+
+  int value;
+
+  unsigned char *pointer;
+
+  unsigned char *pointerold;
+
+  char **promptpointer = prompts;
+
+  int noprompt = 0;
+
+ 
+
+  if(argc < 2)
+
+    {
+
+      fprintf(stderr, "Syntax: %s {portname} [-n] [ccr0 [ccr1 [ccr2
+[ccr3 [ccr4 [mode [rlcr]]]]]]].\n", *argv);
+
+      exit(-1);
+
+    }
+
+  fd = open(argv[1], O_RDWR);
+
+  if(fd < 0)
+
+    {
+
+      perror("open failed.");
+
+      exit(-2);
+
+    }
+
+ 
+
+  if((argc > 2) && !strcmp("-n", argv[2]))
+
+    {
+
+      noprompt = 1;
+
+    }
+
+ 
+
+                                /* get the current values */
+
+  if(ioctl(fd, ATIS_IOCGPARAMS, &ccontrolold) < 0)
+
+    {
+
+      perror("ioctl failed.");
+
+      exit(-3);
+
+    }
+
+                                /* set up the existing values as defaults */
+
+  ccontrolnew = ccontrolold;
+
+ 
+
+                                /* gather all new values from the
+command line */
+
+                                /* or via tty input.*/
+
+  for(count = (2+noprompt), pointer = (unsigned char*) &ccontrolnew;
+count < argc; ++count, ++pointer)
+
+    {
+
+      *pointer = atoi(argv[count]);
+
+    }
+
+  pointer = (unsigned char*) &ccontrolnew;
+
+  pointerold = (unsigned char*) &ccontrolold;
+
+  while(*promptpointer)
+
+    {
+
+      fprintf(stderr, "%s [%2.2x/%2.2x]: ",*promptpointer, *pointerold,
+*pointer);
+
+ 
+
+      if(!noprompt)
+
+        {
+
+          if(count = read(0, buffer, 150), count <= 0)
+
+            {
+
+              exit(0);
+
+            }
+
+          buffer[count] = '\0';
+
+          if(buffer[0] != '\n')
+
+            {
+
+              sscanf(buffer, "%x", &value);
+
+              *pointer = (unsigned char) value;
+
+            }
+
+        }
+
+      else
+
+        {
+
+          fprintf(stderr, "\n");
+
+        }
+
+      ++pointerold;
+
+      ++pointer;
+
+      ++promptpointer;
+
+    }
+
+                                /* This ioctl does the actual register
+load. */
+
+  if(ioctl(fd, ATIS_IOCSPARAMS, &ccontrolnew) < 0)
+
+    {
+
+      perror("ioctl failed.");
+
+      exit(-3);
+
+    }
+
+ 
+
+  fflush(stdout);
+
+}
+
+ 
+
+ 
+
+
+    8253xspeed
+
+ 
+
+This program sets the custom baud rate of a serial port.  If the custom
+baud rate of a serial port is non-zero, and if the standard baud rate
+has been set to 38,400 bps, the next time the port is initialized, the
+port will run at the custom baud rate.  If the custom baud rate were 0,
+the port would run at the standard baud rate.   The 8352xpeed program is
+invoked with a TTY device (either asynchronous, synchronous or callout),
+but the effect also applies to the network device and the synchronous
+character device that correspond to the same physical serial port.
+
+ 
+
+Here is the source code for the 8253xspeed.
+
+ 
+
+/*
+
+ * Copyright (C) 2001 By Joachim Martillo, Telford Tools, Inc.
+
+ *
+
+ * This program is free software; you can redistribute it and/or
+
+ * modify it under the terms of the GNU General Public License
+
+ * as published by the Free Software Foundation; either version
+
+ * 2 of the License, or (at your option) any later version.
+
+ *
+
+ **/
+
+ 
+
+#include <sys/types.h>
+
+#include <sys/stat.h>
+
+#include <fcntl.h>
+
+#include <stdio.h>
+
+#include <stdlib.h>
+
+#include "8253xioc.h"
+
+ 
+
+ 
+
+int main(int argc, char **argv)
+
+{
+
+  int fd;
+
+  unsigned long oldspeed, newspeed;
+
+  char buffer[200];
+
+  int count;
+
+  long value;
+
+  int noprompt = 0;
+
+  int epromindex;
+
+ 
+
+  if(argc < 2)
+
+    {
+
+      fprintf(stderr, "Syntax: %s {portname} [-n] {new speed}.\n", *argv);
+
+      exit(-1);
+
+    }
+
+  fd = open(argv[1], O_RDWR);
+
+  if(fd < 0)
+
+    {
+
+      perror("open failed.");
+
+      exit(-2);
+
+    }
+
+ 
+
+  if((argc > 2) && !strcmp("-n", argv[2]))
+
+    {
+
+      noprompt = 1;
+
+    }
+
+ 
+
+                                                                                                       
+/* get the current values */
+
+  if(ioctl(fd, ATIS_IOCGSPEED, &oldspeed) < 0)
+
+    {
+
+      perror("ioctl failed.");
+
+      exit(-3);
+
+    }
+
+                                                                                                       
+/* set up the existing values as defaults */
+
+  newspeed = oldspeed;
+
+                                                                                                       
+/* gather all new values from the command line */
+
+                                                                                                       
+/* or via tty input.*/
+
+  if(argc == (noprompt + 3))
+
+    {
+
+      newspeed = atoi(argv[count]);
+
+    }
+
+ 
+
+  fprintf(stderr, "speed [%ld/%ld]: ", oldspeed, newspeed);
+
+ 
+
+  if(!noprompt)
+
+    {
+
+      if(count = read(0, buffer, 150), count <= 0)
+
+                                                                                    
+{
+
+                                                                                    
+  exit(0);
+
+                                                                                    
+}
+
+      buffer[count] = '\0';
+
+      if(buffer[0] != '\n')
+
+                                                                                    
+{
+
+                                                                                    
+  sscanf(buffer, "%ld", &newspeed);
+
+                                                                                    
+}
+
+    }
+
+  else
+
+    {
+
+      fprintf(stderr, "\n");
+
+    }
+
+ 
+
+                                                                                                       
+/* This ioctl does the actual register load. */
+
+  if(ioctl(fd, ATIS_IOCSSPEED, &newspeed) < 0)
+
+    {
+
+      perror("ioctl failed.");
+
+      exit(-3);
+
+    }
+
+ 
+
+  fflush(stdout);
+
+}
+
+ 
+
+The ATIS_IOCGSPEED gets the value the custom baud rate for a serial port
+while ATIS_IOCSSPEED sets the value of the custom baud rate for a serial
+port.
+
+ 
+
+ 
+
+
+    8253xpeer
+
+ 
+
+The 8253xpeer example program reads and writes packets to the serial
+port in synchronous mode.  The synchronous character driver to some
+extent emulates the getmsg/putmsg functionality found in Solaris.  This
+driver returns only one packet at a time to read and returns ENOMEM if
+the receive buffer is not large enough to receive the current packet. 
+The driver assumes that the data from a write is to be packetized into a
+single packet.  The driver can provide asynchronous notification that
+there is no more data queued to be transmitted at the serial port.  This
+asynchronous notification informs the application program that a low
+priority packet can now be written to the driver.  Such functionality is
+useful to protocols like LAPB that distinguish low priority information
+frames from high priority control frames.
+
+ 
+
+To try out this program find the major device number associated with the
+8253xc device in the /proc/devices file.  Select two ports to loop
+together.  Connect them with a synchronous loopback cable.  Then execute
+the following command for each of the ports.
+
+ 
+
+mknod /dev//DevName1/ c /major-dev-num minor-dev-num-1/
+
+/ /
+
+mknod /dev//DevName2/ c /major-dev-num minor-dev-num-2/
+
+ 
+
+Minor-dev-num-[1/2] correspond to the selected ports.
+
+ 
+
+Select one of the ports to be clocking (the clocking end of the loopback
+cable should connect to this port) and apply MAKECLOCKING to the
+corresponding TTY.  Use stty or 8253xspeed and stty to set the speed on
+the corresponding TTY port.
+
+ 
+
+Then in one window run *8253xpeer /dev//DevName1/* and in another window
+execute *8253xpeer /dev//DevName2./*  It should now be possible to send
+and receive data in each of the windows.
+
+ 
+
+Here is the program source.
+
+ 
+
+/*
+
+ * Copyright (C) 2001 By Joachim Martillo, Telford Tools, Inc.
+
+ *
+
+ * This program is free software; you can redistribute it and/or
+
+ * modify it under the terms of the GNU General Public License
+
+ * as published by the Free Software Foundation; either version
+
+ * 2 of the License, or (at your option) any later version.
+
+ *
+
+ **/
+
+ 
+
+#include <sys/types.h>
+
+#include <sys/stat.h>
+
+#include <fcntl.h>
+
+#include <stdio.h>
+
+#include <stdlib.h>
+
+#include "8253xioc.h"
+
+#include <sys/poll.h>
+
+ 
+
+struct pollfd pollarray[2];
+
+ 
+
+ 
+
+char buffer[8192];
+
+ 
+
+int main(int argc, char **argv)
+
+{
+
+  int fd;
+
+  int status;
+
+  int prompt = 1;
+
+  int count;
+
+ 
+
+  if(argc != 2)
+
+    {
+
+      fprintf(stderr, "Syntax: %s {portname}\n", *argv);
+
+      exit(-1);
+
+    }
+
+  fd = open(argv[1], O_RDWR);
+
+  if(fd < 0)
+
+    {
+
+      perror("open failed.");
+
+      exit(-2);
+
+    }
+
+  do
+
+    {
+
+      if(prompt)
+
+        {
+
+          printf("Enter data: ");
+
+          fflush(stdout);
+
+          prompt = 0;
+
+        }
+
+      pollarray[0].fd = 0;
+
+      pollarray[0].events = POLLIN;
+
+      pollarray[0].revents = 0;
+
+      pollarray[1].fd = fd;
+
+      pollarray[1].events = POLLIN|POLLOUT;
+
+      pollarray[1].revents = 0;
+
+      status = poll(pollarray, 2, 10);
+
+      switch(status)
+
+        {
+
+        case 0:
+
+          break;
+
+ 
+
+        case 1:
+
+        case 2:
+
+          if(pollarray[0].revents == POLLIN)
+
+            {
+
+              if(count = read(0, buffer, 150), count <= 0)
+
+                {
+
+                  perror("unable to read stdio.\n");
+
+                  exit(0);
+
+                }
+
+              buffer[count] = '\0';
+
+              if(count)
+
+                {
+
+                  if(pollarray[1].revents & POLLOUT)
+
+                    {
+
+                      if(write(pollarray[1].fd, buffer, count) <= 0)
+
+                        {
+
+                          perror("unable to write protodevice.\n");
+
+                          exit(-1);
+
+                        }
+
+                    }
+
+                  else
+
+                    {
+
+                      printf("Write of protodevice would block.\n");
+
+                      fflush(stdout);
+
+                    }
+
+                }
+
+              prompt = 1;
+
+            }
+
+          if(pollarray[1].revents & POLLIN)
+
+            {
+
+              if(count = read(pollarray[1].fd, buffer, 8192), count <= 0)
+
+                {
+
+                  perror("unable to read protodevice.\n");
+
+                  exit(0);
+
+                }
+
+              buffer[count] = '\0';
+
+              printf("\nRead: %s", buffer);
+
+              fflush(stdout);
+
+              prompt = 1;
+
+            }
+
+          break;
+
+ 
+
+        default:
+
+          break;
+
+        }
+
+    }
+
+  while(status >= 0);
+
+}
+
+ 
+
+ 
+
+
+    8253xmode
+
+ 
+
+The 8253xmode program sets the signaling mode of port on a multichannel
+server 3500 extension board which has a programmable Sipex sp502
+physical driver chip for each port.
+
+ 
+
+The command syntax is the following
+
+ 
+
+*8253xmode* /dev//{dev name} {mode}/
+
+ 
+
+where mode is one of the following.
+
+    * off
+    * 232
+    * 422
+    * 485
+    * 530
+    * v.35
+
+ 
+
+Note the minor devices associated with a multiserver increase
+monotonically starting from the first connector on the upper left corner
+if you are facing the connector side of the multiserver.  The numbering
+goes from left to right and top to bottom without gaps  Thus, the
+numbers on the multiserver itself may not map to the minor device number
+as port number + minor device number of first port if the multiserver is
+not fully populated.
+
+ 
+
+Here is the source for the 8253xmode program.
+
+ 
+
+/* -*- linux-c -*- */
+
+/*
+
+ * Copyright (C) 2001 By Joachim Martillo, Telford Tools, Inc.
+
+ *
+
+ * This program is free software; you can redistribute it and/or
+
+ * modify it under the terms of the GNU General Public License
+
+ * as published by the Free Software Foundation; either version
+
+ * 2 of the License, or (at your option) any later version.
+
+ *
+
+ **/
+
+ 
+
+#include <sys/types.h>
+
+#include <sys/stat.h>
+
+#include <fcntl.h>
+
+#include <stdio.h>
+
+#include <stdlib.h>
+
+#include "8253xioc.h"
+
+ 
+
+static char *signaling[] =
+
+{
+
+        "OFF",
+
+        "RS232",
+
+        "RS422",
+
+        "RS485",
+
+        "RS449",
+
+        "RS530",
+
+        "V.35"
+
+};
+
+ 
+
+                                /* This application shows how to set sigmode
+
+                                 * on those devices that support software
+
+                                 * programmable signaling. */
+
+int main(int argc, char **argv)
+
+{
+
+        int fd;
+
+        unsigned int oldmode, newmode;
+
+       
+
+        if(argc != 3)
+
+        {
+
+                fprintf(stderr, "Syntax: %s {portname} {new mode}.\n",
+*argv);
+
+                fprintf(stderr, "{new mode} = off | 232 | 422 | 485 |
+449 | 530 | v.35\n");
+
+                exit(-1);
+
+        }
+
+        fd = open(argv[1], O_RDWR);
+
+        if(fd < 0)
+
+        {
+
+                perror("open failed.");
+
+                exit(-2);
+
+        }
+
+        if(!strcmp("off", argv[2]))
+
+        {
+
+                newmode = SP502_OFF_MODE;
+
+        }
+
+        else if(!strcmp("232", argv[2]))
+
+        {
+
+                newmode = SP502_RS232_MODE;
+
+        }
+
+        else if(!strcmp("422", argv[2]))
+
+        {
+
+                newmode = SP502_RS422_MODE;
+
+        }
+
+        else if(!strcmp("485", argv[2]))
+
+        {
+
+                newmode = SP502_RS485_MODE;
+
+        }
+
+        else if(!strcmp("449", argv[2]))
+
+        {
+
+                newmode = SP502_RS449_MODE;
+
+        }
+
+        else if(!strcmp("530", argv[2]))
+
+        {
+
+                newmode = SP502_EIA530_MODE;
+
+        }
+
+        else if(!strcmp("v.35", argv[2]))
+
+        {
+
+                newmode = SP502_V35_MODE;
+
+        }
+
+        else
+
+        {
+
+                fprintf(stderr, "Unknown mode %s.\n", argv[2]);
+
+                fprintf(stderr, "Syntax: %s {portname} {new mode}.\n",
+*argv);
+
+                fprintf(stderr, "{new mode} = off | 232 | 422 | 485 |
+449 | 530 | v.35\n");
+
+                exit(-1);
+
+        }
+
+       
+
+        /* get the current values */
+
+        if(ioctl(fd, ATIS_IOCGSIGMODE, &oldmode) < 0)
+
+        {
+
+                perror("ATIS_IOCGSIGMODE ioctl failed.");
+
+                exit(-3);
+
+        }
+
+        fprintf(stderr, "old mode = %s.\n", signaling[oldmode]);
+
+       
+
+        if(ioctl(fd, ATIS_IOCSSIGMODE, &newmode) < 0)
+
+        {
+
+                perror("ATIS_IOCSSIGMODE ioctl failed.");
+
+                exit(-3);
+
+        }
+
+ 
+
+        /* get the current values */
+
+        if(ioctl(fd, ATIS_IOCGSIGMODE, &oldmode) < 0)
+
+        {
+
+                perror("ATIS_IOCGSIGMODE ioctl failed.");
+
+                exit(-3);
+
+        }      
+
+        fprintf(stderr, "new mode = %s.\n", signaling[oldmode]);
+
+        fflush(stdout);
+
+}
+
+ 
+
+The 8253xmode program uses the ATIS_IOCSSIGMODE ioctl to set the new
+physical signaling mode and employs the ATIS_IOCGSIGMODE ioctl to get
+the original value and to verify the new mode.
+
+ 
+
+
+  _Logic Structure of the ASLX Driver_
+
+ 
+
+
+  /Data Structure Summary/
+
+ 
+
+The key data structures that enable the driver logic are:
+
+ 
+
+1.      SAB_BOARD structure ^Ö driver specific
+
+2.      SAB_CHIP structure ^Ö driver specific
+
+3.      SAB_PORT structure ^Ö driver specific
+
+4.      AURA_CIM structure ^Ö driver specific (actually specific to the
+multichannel server)
+
+5.      RING_DESCRIPTOR ^Ö used by all the driver functionalities in the
+transmission of data.
+
+6.      DCONTROL2 ^Ö used by all the driver functionalities in managing
+the transmission of data.
+
+7.      struct sk_buff_head ^Ö two buffer lists are associated with the
+SAB_PORT structure are used to track all the sk_buffs that are currently
+in use at each port.
+
+8.      struct tty_struct ^Ö one per port, standard structure by which
+the TTY driver access low level routines for either asynchronous TTY,
+synchronous TTY and callout functionality.  The SAB_PORT serves as the
+private data structure associated with each 8253x TTY, which on a given
+open can instantiate itself as a synchronous TTY, an asynchronous TTY or
+as a call out device.
+
+9.      struct net_device ^Ö one per port, standard network device
+structure.  The SAB_PORT serves as the private data structure associated
+with each 8253x network interface.
+
+10. struct file_operations ^Ö one per port, standard character device
+structure.  The SAB_PORT serves as the private data structure associated
+with each 8253x character interface.
+
+ 
+
+Thus the fundamental driver functionalities, the TTY device, the network
+interface and the character device, share the port structure; and the
+port structure contains the data is used to arbitrate driver
+functionality access to a given physical port.  All the above driver
+specific structures are dynamically allocated at driver initialization. 
+They are maintained on lists (in come cases several lists, e.g., global,
+per board, by interrupt+by board type and per chip lists).  The global
+port list is used to map minor device numbers sequentially to ports. 
+The per chip port list is used in interrupt processing.  Likewise the by
+interrupt+by board type board lists are also used in interrupt processing.
+
+ 
+
+The use and definition of the tty_struct (TTY and callout drivers),
+net_device (network drivers) and file_operations (character drivers)
+structures are found in the Linux. 
+
+
+     
+
+
+    Quick Overview of Standard Linux TTY, Network and Character Devices
+    and Interaction with the ASLX Driver Design
+
+ 
+
+The basic design of TTY/callout drivers, network drivers and character
+drivers is specified by the Linux interface. 
+
+ 
+
+The TTY driver uses the standard circular transmit buffer as found in
+serial.c, which handles the PC com ports) while received characters pass
+into a line disciple via the standard flip buffer logic found in serial.c
+
+ 
+
+The network and character driver parts just follow the design described
+in /Linux Device Drivers/ by Alessandro Rubini.
+
+All the driver functionalities use a circular transmit buffer descriptor
+ring and sk_buffers for receiving and transmitting data.  This uniform
+approach to transception simplifies the driver logic immensely.
+
+ 
+
+There is no use of a transmit done interrupt equivalent (unnecessary for
+a non-dma design).  The driver can be compiled to free up transmitted
+sk_buffs in the interrupt handler or in write routines. Investigation
+shows that the driver performs better when transmitted buffers are freed
+outside of the interrupt handlers.  The sk_* routines are in general
+fairly performance costly.  As a further optimization, when sk_buffs are
+freed in the write routines, if system write gets ahead of the
+transmitter, the program logic will try to avoid releasing transmitted
+buffers (in the TTY driver) but will try to reuse them if possible.
+
+ 
+
+When data is received, chains of receive buffers are passed back to the
+character device read routine or to a flush-to-line-discipline function
+(defined in the ASLX driver to override the default flush_to_ldisc
+routine defined in tty_io.c) in the case of the TTY driver
+functionalities. The network driver just invokes the /netif_rx()/ 
+routine at interrupt level to receive packets. Currently, the network
+driver pre-allocates a receive buffer, but such pre-allocation is not
+necessary, and no other driver functionalities make use of
+pre-allocation of buffers.
+
+
+    From Standard Driver Architectures to the ASLX Driver
+
+ 
+
+The main difficulties to be overcome in the ASLX design fit into two
+categories.
+
+ 
+
+1.      No other Linux driver attempts to combine multiple TTY
+functionalities with network and character driver functionalities.
+
+2.      Even though the members of this Aurora product line all use
+basically the same Siemens/Infineon interface chip, the details of
+accessing this chip differ radically over the product line.  The adapter
+cards use the PLX 9050 PCI bridge chip while the multichannel servers
+use the AMCC 5920 PCI bridge chip.  In the latter case there is a
+somewhat complex G-Link hardware protocol used for communication between
+the host adapter card and the expansion chassis that hosts the extension
+boards where the serial interface chips are located.  The adapter cards
+differ in detecting and causing modem signal changes.
+
+ 
+
+
+  /Creating a Uniform Device Programming Interface/
+
+ 
+
+The most painful aspect of  of creating a multifunction driver for the
+Aurora hardware is the difference of each Aurora adapter card or unit
+from every other Aurora adapter card or unit. 
+
+ 
+
+Signals are handled differently on ESCC2 (SAB82532) versus ESCC8
+(SAB82538) based devices.  Interrupt processing is different on ESCC2,
+ESCC8 and multichannel server devices.  The multichannel servers use an
+AMCC bridge chip while the other devices use a PLX bridge chip.  
+Multichannel servers and all other Aurora adapter cards access device
+registers completely differently.
+
+ 
+
+There are a set of data structures and macros that simplify access to
+control registers for serial ports and that try to provide uniformity in
+line control signal handling, which is complex because some signals are
+defined in the serial port interface of the 8253X serial interface chip
+while other signals are handled through the general parallel ports of
+the 8253X chip. 
+
+ 
+
+The bitwise definition of the line control signals differ on the
+parallel ports of the 82532 and the 82538 based cards (including
+multichannel server units). 
+
+ 
+
+The macros (courtesy Francois Wautier) below provide a common interface
+for raising and lowering control signals as well as for querying them.
+
+
+   
+
+/*
+
+ * Raise a modem signal y on port x, tmpval must exist! */
+
+#define RAISE(xx,y) \
+
+{ \
+
+          unsigned char __tmpval__; \
+
+          __tmpval__= (xx)->readbyte((xx),(xx)->y.reg);\
+
+          if((xx)->y.inverted)\
+
+            __tmpval__ &= ~((xx)->y.mask);\
+
+          else\
+
+            __tmpval__ |= (xx)->y.mask;\
+
+          __tmpval__ |= (xx)->y.cnst;\
+
+          (xx)->y.val=1;\
+
+          (xx)->writebyte((xx),(xx)->y.reg,__tmpval__);\
+
+}
+
+/*
+
+ * Lower a modem signal y on port x, __tmpval__ must exist! */
+
+#define LOWER(xx,y) \
+
+{\
+
+          unsigned char __tmpval__; \
+
+          __tmpval__= (xx)->readbyte((xx),(xx)->y.reg);\
+
+          if((xx)->y.inverted)\
+
+            __tmpval__ |= (xx)->y.mask;\
+
+          else\
+
+            __tmpval__ &= ~((xx)->y.mask);\
+
+          __tmpval__ |= (xx)->y.cnst;\
+
+          (xx)->y.val=0;\
+
+          (xx)->writebyte((xx),(xx)->y.reg,__tmpval__);\
+
+}
+
+ 
+
+#define ISON(xx,y) \
+
+          ((xx)->y.inverted !=
+(((xx)->readbyte((xx),(xx)->y.reg)&(xx)->y.mask)==(xx)->y.mask))
+
+ 
+
+The inverted, cnst, and mask fields of the modem signal structure (y)
+are specific to the type of serial communications controller.  The
+readbyte and writebyte functions are specific to the different types of
+Aurora hardware.
+
+ 
+
+To hide the details of accessing control and data registers, the
+SAB_PORT structure has a fields whose values are the functions to read a
+device register, to write a device register,to  read a device FIFO and
+to write a device FIFO (as well as to read and to write short words,
+functions that could be used in implementing the readfifo and writefifo
+routines).
+
+ 
+
+Here is readfifo for non-multichannel server hardware.
+
+ 
+
+/***************************************************************************
+
+ * aura_readfifo:    Function to read the FIFO on a 4X20P, 8X20P or Sun
+serial
+
+ *               
+
+ *
+
+ *     Parameters   :
+
+ *                   port:  The port being accessed
+
+ *                   buf:   The address of a buffer where we should put
+
+ *                          what we read
+
+ *                  nbytes: How many chars to read.
+
+ *
+
+ *     Return value : none
+
+ *
+
+ *     Prerequisite : The port must have been opened
+
+ *
+
+ *     Remark       :
+
+ *
+
+ *     Author       : fw
+
+ *
+
+ *     Revision     : Oct 13 2000, creation
+
+ ***************************************************************************/
+
+void aura_readfifo(struct sab_port *port, unsigned char *buf, unsigned
+int nbytes)
+
+{
+
+  int i;
+
+  unsigned short *wptr = (unsigned short*) buf;
+
+  int nwords = ((nbytes+1)/2);
+
+  for(i = 0; i < nwords; i ++)
+
+    {
+
+      wptr[i] = readw(((unsigned short *)port->regs));
+
+    }
+
+}
+
+ 
+
+Here is the readfifo function for multichannel servers.
+
+ 
+
+void wmsaura_readfifo(struct sab_port *port, unsigned char *buf,
+unsigned int nbytes)
+
+{
+
+#ifdef FIFO_DIRECT
+
+  unsigned short fifo[32/2];    /* this array is word aligned
+
+                                 * buf may not be word aligned*/
+
+  unsigned int nwords;
+
+  int i;
+
+  int wcount;
+
+  unsigned int address;
+
+ 
+
+  if (nbytes == 0)
+
+    {
+
+      return;
+
+    }
+
+ 
+
+  wcount = ((nbytes + 1) >> 1);
+
+  /* Read the thing into the local FIFO and copy it out. */
+
+  address = (unsigned int) port->regs;
+
+ 
+
+  for(i = 0; i < wcount; ++i)
+
+    {
+
+      fifo[i] = readw((unsigned short*)(address + CIMCMD_RDFIFOW));
+
+    }
+
+ 
+
+  memcpy((unsigned char*) buf, (unsigned char*) &(fifo[0]), (unsigned
+int) nbytes);
+
+ 
+
+#else           /* FIFO_DIRECT */
+
+  unsigned short fifo[32/2];
+
+  int i;
+
+  int wcount;
+
+  SAB_BOARD *bptr;
+
+  unsigned int channel;
+
+ 
+
+  if (nbytes == 0)
+
+    {
+
+      return;
+
+    }
+
+ 
+
+  bptr = port->board;
+
+  wcount = ((nbytes + 1) >> 1);
+
+  channel = (((unsigned char*) port->regs) - bptr->CIMCMD_REG); /*
+should be properly shifted */
+
+ 
+
+  /*
+
+   * Trigger a cache read by writing the nwords - 1 to the
+
+   *  magic place.
+
+   */
+
+ 
+
+  writeb((unsigned char) wcount, bptr->MICCMD_REG + (MICCMD_CACHETRIG +
+channel));
+
+ 
+
+  /*
+
+   * Now, read out the contents.
+
+   */
+
+ 
+
+  channel >>= 1;
+
+ 
+
+  for(i = 0; i < wcount; ++i)
+
+    {
+
+      fifo[i] = readw((unsigned short*)(bptr->FIFOCACHE_REG + (channel +
+(i << 1))));
+
+    }
+
+ 
+
+  memcpy((unsigned char*) buf, (unsigned char*) &(fifo[0]), (unsigned
+int) nbytes);
+
+#endif          /* !FIFO_DIRECT */
+
+}
+
+
+   
+
+Except at initialization time the driver code accesses serial
+communications controller device registers only through fields in the
+port structure.  The details of accessing the different types of
+hardware are almost completely hidden from the driver program logic.
+
+ 
+
+The only exception is the interrupt handler, which must understand some
+of the details of the multichannel server.  Nevertheless, as is made
+clear in the following section, from the standpoint of processing
+interrupts there are really only two types of Aurora hardware, that
+which is ESCC2 based and that which is ESCC8 based.  The details of the
+difference of the two types of hardware is contained solely within the
+8253xint.c file which also contains the logic by which an interrupt from
+a multichannel server can be processed almost exactly like an interrupt
+from an 8520P adapter card.
+
+ 
+
+
+  /Code Structure Summary/
+
+
+   
+
+
+  The SAB8253X driver code has the following logic components
+
+ 
+
+1.      a probe/initialization logic,
+
+a.      bridge initialization/EEPROM parsing logic,
+
+b.      structure allocation logic,
+
+c.      interrupt request logic,
+
+2.      the core logic, which handles all the non-interrupt processing
+of the driver functionality,
+
+a.      per port startup/shutdown logic,
+
+b.      driver arbitration logic,
+
+c.      skbuffer management logic,
+
+3.      the interrupt handler logic,
+
+a.      common interrupt port polling logic,
+
+b.      skbuffer management logic,
+
+4.      the termination/driver unload logic,
+
+a.      interrupt shutdown logic,
+
+b.      device shutdown logic,
+
+c.      structure deallocation logic.
+
+ 
+
+ 
+
+/Probe/Initialization Logic/
+
+ 
+
+The probe/initialization logic sets up the CRC structures for the
+network driver and then the tty_struct for the synchronous and
+asynchronous TTY drivers.  Initializing the tty_struct involves setting
+up pointers to the standard functions that the Linux TTY driver invokes
+as well as some standard data and the /proc/tty/driver/auraserial
+function and data.
+
+ 
+
+
+The probe/initialization logic identifies all the multiport serial
+adapters, compact PCI adapters and multiserver adapters in the system
+and puts them on a list of board structures.  After identifying all the
+boards, initializing the bridge chips and analyzing (possibly rewriting)
+the serial EEPROM, the logic sets up all the chips on the boards and all
+the ports on the chips. 
+
+ 
+
+All chips are linked together in a list.  All ports are linked together
+in a list.  The port list is linked together so that minor device N
+corresponds to the Nth element of the port list.  A board structure
+points to a list of chips on the board as well as a list of all ports on
+the board.  Likewise a chip structure points to a list of all ports on
+the chip.  Chip structures point back to the board structure associated
+with the board on which the chip resides.  Likewise port structures
+point back to the board and to the chip on which they reside.  This
+interconnected list structure facilitates access to one type of
+structure when a routine has been passed a pointer to another type of
+structure.  All these structures are dynamically allocated via
+/kmalloc()/.  When the driver is unloaded, memory is released by walking
+the list. 
+
+ 
+
+After setting up the board, chip and port structures, initialization of
+the tty_struct is completed at this point because the maximum possible
+number of serial TTYs is now known.  The, the standard network device
+structure that is associated with each port is allocated and
+initialized.  The network devices point to the associated port
+structure.  The network devices are chained via a pointer in the
+associated port structure.  This chaining facilitates release of the
+network device structure memory when the driver is unloaded.
+
+ 
+
+Each network device is registered after its network device structure is
+initialized.  Network device initialization invokes the network device
+initialization, which installs the standard network functions in the
+network device structure and which sets up the sk_buff transmit ring as
+well as the receive sk_buf.  Unlike the Solaris driver, when a complete
+frame is received with no errors, it is immediately passed into the
+network layer.  Thus, there is no receive ring of sk_buffs as one might
+find in the driver of a device that could carry out chained DMA (e.g. a
+DEC Tulip or an Hitachi SCA).
+
+ 
+
+All sk_buffs associated with a network device that are currently in use
+by the network driver are linked together in an sk_buff list (viz core
+logic).   This list facilitates release of all sk_buff associated with a
+network device when that network device is shut down.  This list may be
+a problem if it becomes possible for a single sk_buff to be used
+simultaneously by multiple network devices.  Currently, sk_buff headers
+are not shared among network devices although sk_buff data can be
+shared.  Thus, for the nonce this logic works correctly.
+
+ 
+
+After completing of network device initialization, the
+probe/initialization logic register the character driver.  Next, the
+probe/initialization creates three lists of boards for each interrupt
+(0-31).  One list contains 82532 based boards at that interrupt level. 
+The next list contains 82538 based adapter cards at that interrupt
+level.  The third list contains all multichannel server units at that
+interrupt level.
+
+ 
+
+Next the probe/initialization logic checks the lists associated with
+each interrupt level.  If either list is non-null, the
+probe/initialization logic requests that the general interrupt handler
+be installed at this interrupt level and then it turns on PLX9050 or
+AMCC5920 interrupts (as needed) into the Linux host for each card
+associated with that interrupt level.  Thus, the interrupt handler polls
+all boards/ports at a given interrupt level when the interrupt occurs. 
+This approach is more efficient that installing one interrupt per board
+and avoids some internal Linux limits on the number of interrupt
+handlers that can be installed per interrupt.
+
+ 
+
+At this point probe/intialization is complete and any serial port may be
+used for asynchronous TTY, synchronous TTY, call out, network device
+service or synchronous character device service.
+
+ 
+
+
+/Core Logic/
+
+ 
+
+The main problem of the core logic is arbitration of access to the
+serial port, when and by which part of the driver a port is started and
+when the port is shut down.
+
+ 
+
+The asynchronous callout, asynchronous TTY, synchronous TTY devices,
+synchronous character device and network device follow the following rules.
+
+ 
+
+1.                  If there is an established point-to-point
+connection, only the current process or process group that owns the
+serial port may open the device.
+
+2.                  If the asynchronous callout is open, opens of a
+single TTY or character device type block until the connection completes.
+
+3.                  Network device opens never block, and the network
+layer opens a network device only once.
+
+4.                  If a connection that belongs to a TTY device or
+character device hangs up, eventually all opens of that device will close.
+
+5.                  Hangup of on a network device does not guarantee a
+close of the device, but a flag bit is set that permits a call out open
+to restore the connection (note that a one-to-one map of TTY devices,
+callout devices, character devices and network devices is implied.)
+
+ 
+
+The network device open and block_til_ready* functions invoked from TTY
+opens enforce this arbitration.
+
+ 
+
+The logic works as follows:
+
+ 
+
+    * The cua device associated with a port may only be opened one.
+    * If a TTY or character device is open, the cua device may not be
+      opened.
+    * If the cua device is open, the network device cannot be opened and
+      the TTY or character device block (multiple opens from the same
+      process or process group are allowed).
+    * If the network device is open, the TTY or character devices cannot
+      be opened while the cua device blocks.
+    * A hangup sends an interrupt to the TTY or character device while
+      the network device shuts down its port and a (network blocked) cua
+      device proceeds.
+    * On the close of the cua device, blocked TTY and character devices
+      proceed and the network device restarts its port.
+
+ 
+
+When an open completes, the transmit_chars, receive_chars,  check_status
+functions and associated data fields are set in the port structure,
+these are used in the interrupt handler that never changes until the
+driver is unloaded.
+
+ 
+
+When a port is not in use, the asynchronous version of these fields and
+functions are set in the port structure.  Some values must be present,
+and the asynchronous ones are probably the least dangerous.
+
+ 
+
+Besides the arbitration problem, the core logic addresses buffer
+management for the network and character drivers.
+
+ 
+
+The network layer passes a transmit sk_buff to the network driver.   The
+buffer is inserted in the transmit ring or sets a transmit congestion
+flag.  In either case, transmit is initialized if not already in
+progress.  If the sk_buff is successfully inserted, it is also linked
+into the driver sk_buff list which tracks all sk_buffs used by the
+network driver.  On network device close all sk_buffs on the per port
+sk_buff list are released.  This sk_buff list mechanism is used to avoid
+memory leaks.
+
+ 
+
+The TTY and character drivers packetize write data in an sk_buff (each
+write creates a single sk_buff) and inserts it in the transmit ring if
+possible or blocks (returns a failure in the case of TTY drivers). 
+Transmit sk_buffs are also linked into the driver sk_buff list.  This
+list is a convenience to assist deallocation during driver close.
+
+ 
+
+The TTY and character drivers also maintains a receive sk_buff list. 
+When the user application invokes the read system call, the data from
+one sk_buff is passed up to the user application (or an error if the
+read were not invoked with sufficient buffer space). 
+
+ 
+
+The character driver can be configured via IOCTL to send asynchronous
+user notification when the transmit ring empties (a design choice for
+the standard driver fasync functionality).  This character driver design
+emulates the Solaris putmsg/getmsg interface as far as possible and
+makes it possible to implement in a user application protocols like
+LAPB, which require that low priority packets only be queued to the
+driver when the driver currently has no frames in the process of
+transmission or queued for transmission.
+
+ 
+
+On character device close all sk_buffs on the per port sk_buff and per
+port receive sk_buff list are released.  This double sk_buff list
+mechanism is used to avoid memory leaks.
+
+ 
+
+/Interrupt Handler Logic/
+
+ 
+
+
+      The following code comprises the combined interrupt and board/port
+      polling logic.  The actual handler is /sab8253x_interrupt()/.  It
+      walks through the 82532, adapter 82538 adapter and multichannel
+      server lists at the interrupt level that is being processed and
+      invokes inline /sab82532_interrupt()/ and /sab82538_interrupt()/. 
+      Note that it temporary modifies multichannel server lists so that
+      it like an 8520P adapter card to the /sab8253x_interrupt()/.  This
+      logic works because the granularity of the PCI interrupt
+      associated with the Aurora hardware is basically either a list of
+      ESCC2s (the 4520P and 4520CP adapter cards) or a single ESCC8 (an
+      8520P or one ESCC8 on a multichannel server remote card after the
+      interrupt status has been queried).
+
+
+       
+
+
+      The current interrupt sources are identified and processed.  If
+      any characters are available to be received, they are received one
+      fifo at a time into the TTY flip buffer (a structure that is
+      supposed to decrease TTY latency) or into an sk_buf (something
+      like a Solaris mblk/dblk structure( in the case of the network or
+      character driver.  Then if there are characters in the TTY
+      circular transmit buffer or in the network or character driver
+      sk_buff, they are loaded into the transmit fifo, one fifo at a
+      time.  Finally, modem control status is checked.  If a hang up is
+      detected, the serial driver hang up is scheduled at kernel
+      scheduler priority (a slight difference from the standard serial
+      driver which processes hang-ups at interrupt level) in order to
+      avoid certain race conditions in the TTY driver that can occur on
+      fast machines with many serial ports.  /do_serial_hangup()/
+      invokes the TTY hangup routines in the case of TTY driver.  For a
+      network connection in the event of a line disconnection, carrier
+      is marked as off on the interface and the blocked cua device is
+      woken so that it can proceed after the network port has shut down.
+
+ 
+
+static void __inline__ sab82532_interrupt(int irq, void *dev_id, struct
+pt_regs *regs)
+
+{
+
+  struct sab_port *port;
+
+  struct sab_chip *chip=NULL;
+
+  struct sab_board *bptr = (struct sab_board*) dev_id;
+
+  union sab8253x_irq_status status;
+
+  unsigned char gis;
+
+ 
+
+  for(chip = bptr->board_chipbase; chip != NULL; chip =
+chip->next_by_board)
+
+    {
+
+      port= chip->c_portbase;
+
+      gis = READB(port, gis); /* Global! */
+
+      status.stat=0;
+
+     
+
+            /* Since the PORT interrupt are global,
+
+             * we do check all the ports for this chip
+
+             */
+
+           
+
+                                /* A 2 ports chip */
+
+         
+
+      if(!(gis & SAB82532_GIS_MASK))
+
+        {
+
+          continue; /* no interrupt on this chip */
+
+        }
+
+         
+
+      if (gis & SAB82532_GIS_ISA0)
+
+        {
+
+          status.sreg.isr0 = READB(port, isr0);
+
+        }
+
+      else
+
+        {
+
+          status.sreg.isr0 = 0;
+
+        }
+
+      if (gis & SAB82532_GIS_ISA1)
+
+        {
+
+          status.sreg.isr1 = READB(port, isr1);
+
+        }
+
+      else
+
+        {
+
+          status.sreg.isr1 = 0;
+
+        }
+
+         
+
+      if (gis & SAB82532_GIS_PI)
+
+        {
+
+          status.sreg.pis = READB(port, pis);
+
+        }
+
+      else
+
+        {
+
+          status.sreg.pis = 0;
+
+        }
+
+               
+
+      if (status.stat)
+
+        {
+
+          if (status.images[ISR0_IDX] & port->receive_test)
+
+            {
+
+              (*port->receive_chars)(port, &status);    /* when the fifo
+is full */
+
+                                                /* no time to schedule
+thread*/
+
+            }
+
+         
+
+          if ((status.images[port->dcd.irq] & port->dcd.irqmask) ||
+
+              (status.images[port->cts.irq] & port->cts.irqmask) ||
+
+              (status.images[port->dsr.irq] & port->dsr.irqmask) ||
+
+              (status.images[ISR1_IDX] & port->check_status_test))
+
+            {
+
+              (*port->check_status)(port, &status); /* this stuff should
+be */
+
+              /* be moveable to scheduler */
+
+              /* thread*/
+
+            }
+
+         
+
+          if (status.images[ISR1_IDX] & port->transmit_test)
+
+            {
+
+              (*port->transmit_chars)(port, &status); /* needs to be
+moved to task */
+
+            }
+
+        }
+
+     
+
+                                /* Get to next port on chip */
+
+      port = port->next_by_chip;
+
+      /* Port B */
+
+      if (gis & SAB82532_GIS_ISB0)
+
+        {
+
+          status.images[ISR0_IDX] = READB(port, isr0);
+
+        }
+
+      else
+
+        {
+
+          status.images[ISR0_IDX] = 0;
+
+        }
+
+      if (gis & SAB82532_GIS_ISB1)
+
+        {
+
+          status.images[ISR1_IDX] = READB(port,isr1);
+
+        }
+
+      else
+
+        {
+
+          status.images[ISR1_IDX] = 0;
+
+        }
+
+      /* DO NOT SET PIS. IT was reset! */
+
+     
+
+     
+
+      if (status.stat)
+
+        {
+
+          if (status.images[ISR0_IDX] & port->receive_test)
+
+            {
+
+              (*port->receive_chars)(port, &status);
+
+            }
+
+          if ((status.images[port->dcd.irq] & port->dcd.irqmask) ||
+
+              (status.images[port->cts.irq] & port->cts.irqmask) ||
+
+              (status.images[port->dsr.irq] & port->dsr.irqmask) ||
+
+              (status.images[ISR1_IDX] & port->check_status_test))
+
+            {
+
+              (*port->check_status)(port, &status);
+
+            }
+
+          if (status.images[ISR1_IDX] & port->transmit_test)
+
+            {
+
+              (*port->transmit_chars)(port, &status);
+
+            }
+
+        }
+
+    }
+
+}
+
+ 
+
+static void __inline__ sab82538_interrupt(int irq, void *dev_id, struct
+pt_regs *regs)
+
+{
+
+  struct sab_port *port;
+
+  struct sab_chip *chip=NULL;
+
+  struct sab_board *bptr = (struct sab_board*) dev_id;
+
+  union sab8253x_irq_status status;
+
+  unsigned char gis,i;
+
+ 
+
+  chip = bptr->board_chipbase;
+
+  port= chip->c_portbase;
+
+ 
+
+  gis = READB(port, gis); /* Global! */
+
+  status.stat=0;
+
+     
+
+            /* Since the PORT interrupt are global,
+
+             * we do check all the ports for this chip
+
+             */
+
+           
+
+  /* 8 ports chip */
+
+  if(!(gis & SAB82538_GIS_MASK))
+
+    {
+
+      return;
+
+    }
+
+             
+
+  if(gis & SAB82538_GIS_CII)
+
+    { /* A port interrupt! */
+
+      /* Get the port */
+
+      int portindex;
+
+     
+
+      portindex = (gis & SAB82538_GIS_CHNL_MASK);
+
+     
+
+      port = chip->c_portbase;
+
+     
+
+      while(portindex)
+
+        {
+
+          port = port->next_by_chip;
+
+          --portindex;
+
+        }
+
+     
+
+      status.images[ISR0_IDX] = READB(port,isr0);
+
+      status.images[ISR1_IDX] = READB(port,isr1);
+
+      if (gis & SAB82538_GIS_PIC)
+
+        {
+
+          status.images[PIS_IDX] =
+
+            (*port->readbyte)(port,
+
+                              ((unsigned char *)(port->regs)) +
+
+                              SAB82538_REG_PIS_C);
+
+        }
+
+      else
+
+        {
+
+          status.images[PIS_IDX] = 0;
+
+        }
+
+     
+
+      if (status.stat)
+
+        {
+
+          if (status.images[ISR0_IDX] & port->receive_test)
+
+            {
+
+              (*port->receive_chars)(port, &status);
+
+            }
+
+          if ((status.images[port->dcd.irq] & port->dcd.irqmask) ||
+
+              (status.images[port->cts.irq] & port->cts.irqmask) ||
+
+              (status.images[port->dsr.irq] & port->dsr.irqmask) ||
+
+              (status.images[ISR1_IDX] & port->check_status_test))
+
+            {
+
+              (*port->check_status)(port, &status);
+
+            }
+
+          /*
+
+           * We know that with 8 ports chip, the bit corresponding to
+channel
+
+           * number is used in the parallel port... So we clear it
+
+           * Not too elegant!
+
+           */
+
+          status.images[PIS_IDX] &= ~(1 << (gis&SAB82538_GIS_CHNL_MASK));
+
+          if (status.images[ISR1_IDX] & port->transmit_test)
+
+            {
+
+              (*port->transmit_chars)(port, &status);
+
+            }
+
+        }
+
+    }
+
+ 
+
+  /*
+
+   * Now we handle the "channel interrupt" case. The chip manual for the
+
+   * 8 ports chip states that "channel" and "port" interrupt are set
+
+   * independently so we still must check the parrallel port
+
+   *
+
+   * We should probably redesign the whole thing to be less AD HOC that we
+
+   * are now... We know that port C is used for DSR so we only check
+that one.
+
+   * PIS for port C was already recorded in  status.images[PIS_IDX], so we
+
+   * check the ports that are set
+
+   */
+
+ 
+
+  if (status.images[PIS_IDX])
+
+    {
+
+      for(i=0, port = chip->c_portbase;
+
+          i < chip->c_nports;
+
+          i++, port=port->next_by_chip)
+
+        {
+
+          if(status.images[PIS_IDX] & (0x1 << i))
+
+            { /* Match */
+
+              /* Checking DSR */
+
+              if(port->dsr.inverted)
+
+                {
+
+                  port->dsr.val = (((*port->readbyte)
+
+                                    (port, port->dsr.reg) &
+
+                                    port->dsr.mask) ? 0 : 1);
+
+                }
+
+              else
+
+                {
+
+                  port->dsr.val = ((*port->readbyte)(port, port->dsr.reg) &
+
+                                   port->dsr.mask);
+
+                }
+
+             
+
+              port->icount.dsr++;
+
+              wake_up_interruptible(&port->delta_msr_wait);
+
+            }
+
+        }
+
+    }
+
+}
+
+ 
+
+/*
+
+ * This is the serial driver's generic interrupt routine
+
+ */
+
+ 
+
+void sab8253x_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+
+{
+
+  extern SAB_BOARD *AuraBoardESCC2IrqRoot[];
+
+  extern SAB_BOARD *AuraBoardESCC8IrqRoot[];
+
+  extern SAB_BOARD *AuraBoardMCSIrqRoot[];
+
+  AURA_CIM *cim;
+
+  SAB_CHIP *chip;
+
+  SAB_PORT *port;
+
+  register SAB_BOARD *boardptr;
+
+  register unsigned char intrmask;
+
+  unsigned char stat;
+
+  SAB_CHIP *save_chiplist;
+
+  SAB_PORT *save_portlist;
+
+ 
+
+  if((irq < 0) || (irq >= NUMINTS))
+
+    {
+
+      printk(KERN_ALERT "sab8253x: bad interrupt value %i.\n", irq);
+
+      return;
+
+    }
+
+  /* walk through all the cards on the interrupt that occurred. */
+
+  for(boardptr = AuraBoardESCC2IrqRoot[irq]; boardptr != NULL; boardptr
+= boardptr->next_on_interrupt)
+
+    {
+
+      sab82532_interrupt(irq, boardptr, regs);
+
+    }
+
+ 
+
+  for(boardptr = AuraBoardESCC8IrqRoot[irq]; boardptr != NULL; boardptr
+= boardptr->next_on_interrupt)
+
+    {
+
+      sab82538_interrupt(irq, boardptr, regs);
+
+    } 
+
+ 
+
+  for(boardptr = AuraBoardMCSIrqRoot[irq]; boardptr != NULL; boardptr =
+boardptr->next_on_interrupt)
+
+    {
+
+ 
+
+      while(1)
+
+        {
+
+          writeb(0, (unsigned char*)(boardptr->CIMCMD_REG +
+CIMCMD_WRINTDIS)); /* prevent EBs from raising
+
+                                                                               
+* any more ints through the
+
+                                                                               
+* host card */
+
+          stat = ~(unsigned char) /* active low !!!!! */
+
+            readw((unsigned short*)
+
+                  (((unsigned char*)boardptr->CIMCMD_REG) +
+CIMCMD_RDINT)); /* read out the ints */
+
+                                /* write to the MIC csr to reset the PCI
+interrupt */
+
+          writeb(0, (unsigned char*)(boardptr->MICCMD_REG +
+MICCMD_MICCSR)); /* reset the interrupt generation
+
+                                                                       
+      * hardware on the host card*/
+
+                                /* now, write to the CIM interrupt ena
+to re-enable interrupt generation */
+
+          writeb(0, (unsigned char*)(boardptr->CIMCMD_REG +
+CIMCMD_WRINTENA)); /* allow EBs to request ints
+
+                                                                               
+* through the host card */
+
+          if(!stat)
+
+            {
+
+              break;
+
+            }
+
+          cim = boardptr->b_cimbase; /* cims in reverse order */
+
+          for(intrmask = boardptr->b_intrmask;
+
+              intrmask != 0;
+
+              intrmask <<= 2, stat <<=2)
+
+            {
+
+              if(cim == NULL)
+
+                {
+
+                  break;        /* no cim no ports */
+
+                }
+
+              if((intrmask & 0xc0) == 0) /* means no cim for these ints */
+
+                {               /* cim not on list do not go to next */
+
+                  continue;
+
+                }
+
+              save_portlist = boardptr->board_portbase;
+
+              save_chiplist = boardptr->board_chipbase;
+
+                                /* the goal is temporarily to make the
+structures
+
+                                 * look like 8x20 structures -- thus if
+I find
+
+                                 * a bug related to escc8s I need fix it in
+
+                                 * only one place. */
+
+              switch(stat & 0xc0) /* possible ints */
+
+                {
+
+                default:
+
+                  break;
+
+                 
+
+                case 0x80:      /* esccB */
+
+                  chip = cim->ci_chipbase;
+
+                  if(!chip)
+
+                    {
+
+                      printk(KERN_ALERT "aura mcs: missing cim.\n");
+
+                      break;
+
+                    }
+
+                  chip = chip->next_by_cim;
+
+                  if(!chip)
+
+                    {
+
+                      printk(KERN_ALERT "aura mcs: missing 2nd cim.\n");
+
+                      break;
+
+                    }
+
+                  port = chip->c_portbase;
+
+                  boardptr->board_portbase = port;
+
+                  boardptr->board_chipbase = chip;
+
+                  sab82538_interrupt(irq, boardptr, regs);               
+
+                  break;
+
+                 
+
+                case 0x40:      /* esccA */
+
+                  chip = cim->ci_chipbase;
+
+                  if(!chip)
+
+                    {
+
+                      printk(KERN_ALERT "aura mcs: missing cim.\n");
+
+                      break;
+
+                    }
+
+                  port = chip->c_portbase;
+
+                  boardptr->board_portbase = port;
+
+                  boardptr->board_chipbase = chip;
+
+                  sab82538_interrupt(irq, boardptr, regs);               
+
+                  break;
+
+                 
+
+                case 0xc0:      /* esccB and esccA */
+
+                  chip = cim->ci_chipbase;
+
+                  if(!chip)
+
+                    {
+
+                      printk(KERN_ALERT "aura mcs: missing cim.\n");
+
+                      break;
+
+                    }
+
+                  port = chip->c_portbase;
+
+                  boardptr->board_portbase = port;
+
+                  boardptr->board_chipbase = chip;
+
+                  sab82538_interrupt(irq, boardptr, regs);               
+
+ 
+
+                  chip = cim->ci_chipbase;
+
+                  if(!chip)
+
+                    {
+
+                      printk(KERN_ALERT "aura mcs: missing cim.\n");
+
+                      break;
+
+                    }
+
+                  chip = chip->next_by_cim;
+
+                  if(!chip)
+
+                    {
+
+                      printk(KERN_ALERT "aura mcs: missing 2nd cim.\n");
+
+                      break;
+
+                    }
+
+                  port = chip->c_portbase;
+
+                  boardptr->board_portbase = port;
+
+                  boardptr->board_chipbase = chip;
+
+                  sab82538_interrupt(irq, boardptr, regs);               
+
+                  break;
+
+                }
+
+              boardptr->board_portbase = save_portlist;
+
+              boardptr->board_chipbase = save_chiplist;
+
+              cim = cim->next_by_mcs;
+
+            }
+
+        }
+
+    }
+
+}
+
+ 
+
+Note that if there is no transmit in process when the
+write/hard_start_transmit routine is invoked,  transmit is intitiated
+from the core logic as if it took place in the interrupt handler.  This
+approach differs from the ASE driver, which used to force an interrupt,
+and then start the transmission.  Francois Wautier may have fixed that
+logic to start the transmission either in the STREAMS put or service
+routine.
+
+ 
+
+/Driver Unload Logic/
+
+ 
+
+The driver unload logic inverts the probe intialization logic.
+
+ 
+
+At this point no ports should be in use and in fact every port should
+have been put in the 8253x powered down state when each port underwent
+its last close (or hangup which can actually complete after a close).
+
+ 
+
+The tty driver is cleaned up, some dynamic TTY data structures are
+deallocated, the bottom half associated with this driver is removed and
+all TTY ports are deregistered.
+
+ 
+
+The PLX or AMCC interrupts to the Linux host are disabled on each board,
+and all interrupt handlers are freed.
+
+ 
+
+Next all board and chip structures are deallocated (including physical
+memory to virtual memory mappings associated with PLX9050 or AMCC 5920
+and chip registers).  Then all network device structures are
+deallocated.  (Note that all lingering sk_buffs were freed during the
+close of the network device, which must have completed before the unload
+of the driver module.)  And finally the port structures are
+deallocated.  In deallocating the port structures, network driver
+transmit rings and the receive sk_buff descriptor are deallocated if
+they are present.  (They were only allocated if the port had ever been
+used for a network device.)  At this point the driver has been
+gracefully unloaded.
+
+ 
+
+                                /* cleanup module/free up virtual memory */
+
+                                /* space*/
+
+void cleanup_module(void)
+
+{
+
+  SAB_BOARD *boardptr;
+
+  SAB_CHIP *chipptr;
+
+  SAB_PORT *portptr;
+
+  int intr_val;
+
+  extern void sab8253x_cleanup_ttydriver(void);
+
+ 
+
+  printk(KERN_ALERT "auraXX50n: unloading AURAXX50 driver.\n");
+
+ 
+
+  sab8253x_cleanup_ttydriver(); /* clean up tty */
+
+ 
+
+                                /* unallocate and turn off ints */
+
+  for(intr_val = 0; intr_val < NUMINTS; ++intr_val)
+
+    {
+
+      if((AuraBoardESCC2IrqRoot[intr_val] != NULL) ||
+(AuraBoardESCC8IrqRoot[intr_val] != NULL))
+
+        {
+
+          for(boardptr = AuraBoardESCC2IrqRoot[intr_val]; boardptr !=
+NULL; boardptr = boardptr->next_on_interrupt)
+
+            {
+
+              writel(PLX_INT_OFF, &(boardptr->b_bridge->intr));
+
+            }
+
+          for(boardptr = AuraBoardESCC8IrqRoot[intr_val]; boardptr !=
+NULL; boardptr = boardptr->next_on_interrupt)
+
+            {
+
+              writel(PLX_INT_OFF, &(boardptr->b_bridge->intr));
+
+            }
+
+ 
+
+          free_irq(intr_val, &AuraBoardESCC2IrqRoot[intr_val]); /* free
+up board int
+
+                                                                 * note
+that if two boards
+
+                                                                 * share
+an int, two int
+
+                                                                 *
+handlers were registered
+
+                                                                 *
+
+                                                                 */
+
+        }
+
+    }
+
+ 
+
+                                /* disable chips and free board memory*/
+
+  while(AuraBoardRoot)
+
+    {
+
+      boardptr = AuraBoardRoot;
+
+      for(chipptr = boardptr->board_chipbase; chipptr != NULL; chipptr =
+chipptr->next_by_board)
+
+        {
+
+          (*chipptr->int_disable)(chipptr); /* make sure no ints can
+come int */
+
+        }
+
+      AuraBoardRoot = boardptr->nextboard;
+
+      if(boardptr->virtbaseaddress0)
+
+        {
+
+          DEBUGPRINT((KERN_ALERT
+
+                      "auraXX50n: unmapping virtual address %p.\n",
+
+                      (void*)boardptr->virtbaseaddress0));
+
+          iounmap((void*)boardptr->virtbaseaddress0);
+
+          boardptr->virtbaseaddress0 = 0;
+
+        }
+
+      if(boardptr->virtbaseaddress2)
+
+        {
+
+          DEBUGPRINT((KERN_ALERT
+
+                      "auraXX50n: unmapping virtual address %p.\n",
+
+                      (void*)boardptr->virtbaseaddress2));
+
+          iounmap((void*)boardptr->virtbaseaddress2);
+
+          boardptr->virtbaseaddress2 = 0;
+
+        }
+
+      kfree(boardptr);
+
+    }
+
+ 
+
+  while(AuraChipRoot)           /* free chip memory */
+
+    {
+
+      chipptr = AuraChipRoot;
+
+      AuraChipRoot = chipptr->next;
+
+      kfree(chipptr);
+
+    }
+
+ 
+
+  while(Sab8253xRoot)           /* free up network stuff */
+
+    {
+
+      SAB_PORT *priv;
+
+      priv = (SAB_PORT *)Sab8253xRoot->priv;
+
+      unregister_netdev(Sab8253xRoot);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 0)
+
+      kfree(Sab8253xRoot.name);
+
+#endif
+
+      kfree(Sab8253xRoot);
+
+      Sab8253xRoot = priv->next_dev;
+
+    }
+
+ 
+
+  while(AuraPortRoot)           /* free up port memory */
+
+    {
+
+      portptr = AuraPortRoot;
+
+      AuraPortRoot = portptr->next;
+
+      if(portptr->dcontrol2.receive)
+
+        {
+
+          kfree(portptr->dcontrol2.receive);
+
+        }
+
+      if(portptr->dcontrol2.transmit)
+
+        {
+
+          kfree(portptr->dcontrol2.transmit);
+
+        }
+
+      kfree(portptr);
+
+    }
+
+}
+
+ 
+
+_Design Summary_
+
+ 
+
+The 10 key data structures are shared by all the logic of the system. 
+The logic enforces both exclusive and cooperative access to the physical
+hardware on the basis of certain rules established by the core logic at
+device/port open time. While the driver is mostly self-configuring, the
+data structure sharing simplifies the user interface because an ioctl to
+one driver functionality (e.g., the TTY functionality) configures the
+rest of the driver functionality (e.g., the network and character device
+functionality).   In other words, a single serial port acts virtually as
+three arbitrated devices:  a TTY device, which may be asynchronous,
+synchronous or call out, a network device or a character device.  Yet,
+except at the time of initialization, time of driver unload and very
+early in interrupt processing all hardware details are concealed and the
+driver logic is applied to an abstract, simplified port entity.  Thus,
+the user application interfaces to three abstract virtual devices, which
+have a single configuration interface (otherwise it might be possible to
+have an inconsistent configuration) and not to a complex real single
+port in the context of an equally complex adapter card or unit. This
+simplification makes it possible to provide a high degree of serial
+functionality across the family of Aurora synchronous/asynchronous PCI
+hardware through a straightforward uniform application interface.
+
+ 
+

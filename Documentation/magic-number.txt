@@ -1,0 +1,99 @@
+This file is a registry of magic numbers which are in use.  When you
+add a magic number to a structure, you should also add it to this
+file, since it is best if the magic numbers used by various structures
+are unique.
+
+It is a *very* good idea to protect kernel data structures with magic
+numbers.  This allows you to check at run time whether (a) a structure
+has been clobbered, or (b) you've passed the wrong structure to a
+routine.  This last is especially useful --- particularly when you are
+passing pointers to structures via a void * pointer.  The tty code,
+for example, does this frequently to pass driver-specific and line
+discipline-specific structures back and forth.
+
+The way to use magic numbers is to declare then at the beginning of
+the structure, like so:
+
+struct tty_ldisc {
+	int	magic;
+	...
+};
+
+Please follow this discipline when you are adding future enhancements
+to the kernel!  It has saved me countless hours of debugging,
+especially in the screwy cases where an array has been overrun and
+structures following the array have been overwritten.  Using this
+discipline, these cases get detected quickly and safely.
+
+					Theodore Ts'o
+					31 Mar 94
+
+The magic table is current to Linux 2.1.55.
+
+					Michael Chastain
+					<mailto:mec@shout.net>
+					22 Sep 1997
+
+Now it should be up to date with Linux 2.1.112. Because
+we are in feature freeze time it is very unlikely that
+something will change before 2.2.x. The entries are
+sorted by number field.
+
+					Krzysztof G. Baranowski
+					<mailto: kgb@knm.org.pl>
+					29 Jul 1998
+
+Magic Name            Number      Structure            File
+===========================================================================
+PG_MAGIC	      'P'	  pg_{read,write}_hdr include/linux/pg.h
+MKISS_DRIVER_MAGIC    0x04bf      mkiss_channel     drivers/net/mkiss.h
+RISCOM8_MAGIC         0x0907      riscom_port       drivers/char/riscom8.h
+APM_BIOS_MAGIC        0x4101      apm_user          arch/i386/kernel/apm.c
+CYCLADES_MAGIC        0x4359      cyclades_port     include/linux/cyclades.h
+FASYNC_MAGIC          0x4601      fasync_struct     include/linux/fs.h
+PTY_MAGIC	      0x5001	  (none at the moment)
+					            drivers/char/pty.c
+PPP_MAGIC             0x5002      ppp               include/linux/if_ppp.h
+SERIAL_MAGIC          0x5301      async_struct      include/linux/serial.h
+SSTATE_MAGIC          0x5302      serial_state      include/linux/serial.h
+SLIP_MAGIC            0x5302      slip              drivers/net/slip.h
+STRIP_MAGIC           0x5303      strip             drivers/net/strip.c
+X25_ASY_MAGIC         0x5303      x25_asy           drivers/net/x25_asy.h
+SIXPACK_MAGIC	      0x5304      sixpack	    drivers/net/hamradio/6pack.h
+AX25_MAGIC            0x5316      ax_disp           drivers/net/mkiss.h
+ESP_MAGIC             0x53ee      esp_struct        drivers/char/esp.h
+TTY_MAGIC             0x5401      tty_struct        include/linux/tty.h
+TTY_DRIVER_MAGIC      0x5402      tty_driver        include/linux/tty_driver.h
+TTY_LDISC_MAGIC       0x5403      tty_ldisc         include/linux/tty_ldisc.h
+SPECIALIX_MAGIC       0x0907      specialix_port    drivers/char/specialix_io8.h
+CG_MAGIC	      0x090255    ufs_cylinder_group include/linux/ufs_fs.h
+RPORT_MAGIC           0x525001    r_port            drivers/char/rocket_int.h
+GDTIOCTL_MAGIC	      0x06030f07  gdth_iowr_str     drivers/scsi/gdth_ioctl.h
+NBD_REQUEST_MAGIC     0x12560953  nbd_request       include/linux/nbd.h
+SLAB_RED_MAGIC2       0x170fc2a5  (any)             mm/slab.c
+BAYCOM_MAGIC          0x19730510  baycom_state      drivers/net/baycom_epp.c
+ISDN_X25IFACE_MAGIC   0x1e75a2b9  isdn_x25iface_proto_data
+                                                    drivers/isdn/isdn_x25iface.h
+ECP_MAGIC             0x21504345  cdkecpsig         include/linux/cdk.h
+LSMAGIC               0x2a3b4d2a  ls                drivers/fc4/fc.c
+LSOMAGIC              0x2a3c4e3c  lso               drivers/fc4/fc.c
+WANPIPE_MAGIC         0x414C4453  sdla_{dump,exec}  include/linux/wanpipe.h
+CODA_CNODE_MAGIC      0x47114711  coda_inode_info   include/linux/coda_fs_i.h
+ISDN_ASYNC_MAGIC      0x49344C01  modem_info        include/linux/isdn.h
+ISDN_NET_MAGIC        0x49344C02  isdn_net_local_s  include/linux/isdn.h
+STLI_BOARDMAGIC       0x4bc6c825  stlibrd           include/linux/istallion.h
+SLAB_C_MAGIC          0x4f17a36d  kmem_cache_s      mm/slab.c
+ROUTER_MAGIC          0x524d4157  wan_device        include/linux/wanrouter.h
+SLAB_RED_MAGIC1       0x5a2cf071  (any)             mm/slab.c
+STL_PORTMAGIC         0x5a7182c9  stlport           include/linux/stallion.h
+HDLCDRV_MAGIC         0x5ac6e778  hdlcdrv_state     include/linux/hdlcdrv.h
+EPCA_MAGIC     	      0x5c6df104  channel           include/linux/epca.h
+PCXX_MAGIC            0x5c6df104  channel           drivers/char/pcxx.h
+LO_MAGIC              0x68797548  nbd_device        include/linux/nbd.h
+STL_PANELMAGIC        0x7ef621a1  stlpanel          include/linux/stallion.h
+NBD_REPLY_MAGIC       0x96744668  nbd_reply         include/linux/nbd.h
+STL_BOARDMAGIC        0xa2267f52  stlbrd            include/linux/stallion.h
+SLAB_MAGIC_ALLOC      0xa5c32f2b  kmem_slab_s       mm/slab.c
+SLAB_MAGIC_DESTROYED  0xb2f23c5a  kmem_slab_s       mm/slab.c
+STLI_PORTMAGIC        0xe671c7a1  stliport          include/linux/istallion.h
+CCB_MAGIC             0xf2691ad2  ccb               drivers/scsi/ncr53c8xx.c

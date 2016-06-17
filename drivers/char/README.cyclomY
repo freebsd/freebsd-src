@@ -1,0 +1,23 @@
+
+NOTE: Earlier versions of the driver mapped ttyC0 to minor
+number 32, but this is changed in this distribution.  Port ttyC0
+now maps to minor number 0.)  The following patch should be
+applied to /dev/MAKEDEV and the script should then be re-run
+to create new entries for the ports.
+--------------------------- CUT HERE ----------------------------
+--- /dev/MAKEDEV	Sun Aug 20 10:51:55 1995
++++ MAKEDEV.new	Fri Apr 19 06:48:12 1996
+@@ -206,8 +206,8 @@
+ 		major2=`Major cub` || continue
+ 		for i in 0 1 2 3 4 5 6 7 # 8 9 10 11 12 13 14 15
+ 		do
+-			makedev ttyC$i c $major1 `expr 32 + $i` $tty
+-			makedev cub$i c $major2 `expr 32 + $i` $dialout
++			makedev ttyC$i c $major1 $i $tty
++			makedev cub$i c $major2 $i $dialout
+ 		done
+ 		;;
+ 	par[0-2])
+--------------------------- CUT HERE ----------------------------
+
+

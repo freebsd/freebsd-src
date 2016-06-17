@@ -1,0 +1,57 @@
+Steve's quick list of things that need finishing off:
+[they are in no particular order and range from the trivial to the long winded]
+
+ o Proper timeouts on each neighbour (in routing mode) rather than
+   just the 60 second On-Ethernet cache value.
+
+ o Support for X.25 linklayer
+
+ o Support for DDCMP link layer
+
+ o The DDCMP device itself
+
+ o PPP support (rfc1762)
+
+ o Lots of testing with real applications
+
+ o Verify errors etc. against POSIX 1003.1g (draft)
+
+ o Using send/recvmsg() to get at connect/disconnect data (POSIX 1003.1g) 
+   [maybe this should be done at socket level... the control data in the
+    send/recvmsg() calls should simply be a vector of set/getsockopt()
+    calls]
+
+ o check MSG_CTRUNC is set where it should be.
+
+ o Start to hack together user level software and add more DECnet support
+   in ifconfig for example. 
+
+ o Test adding/deleting of routes
+
+ o Test route lookup
+
+ o Test /proc/net/decnet_route route listing works correctly (maybe I'll
+   change the format of this file... atm its very similar to the IPv4 route
+   file)
+
+ o Find all the commonality between DECnet and IPv4 routing code and extract 
+   it into a small library of routines. [probably a project for 2.5.xx]
+
+ o Test ip_gre tunneling works... it did the last time I tested it and it
+   will have to if I'm to test routing properly.
+
+ o Hello messages should be generated for each primary address on each
+   interface.
+
+ o Add the routing message grabbing netfilter module [written, tested,
+   awaiting merge]
+
+ o Add perfect socket hashing - an idea suggested by Paul Koning [part written,
+   awaiting debugging and merge]
+
+ o Add session control message flow control
+
+ o Add NSP message flow control
+
+ o DECnet sendpages() function
+

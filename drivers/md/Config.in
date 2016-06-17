@@ -1,0 +1,18 @@
+#
+# Block device driver configuration
+#
+mainmenu_option next_comment
+comment 'Multi-device support (RAID and LVM)'
+
+bool 'Multiple devices driver support (RAID and LVM)' CONFIG_MD
+
+dep_tristate ' RAID support' CONFIG_BLK_DEV_MD $CONFIG_MD
+dep_tristate '  Linear (append) mode' CONFIG_MD_LINEAR $CONFIG_BLK_DEV_MD
+dep_tristate '  RAID-0 (striping) mode' CONFIG_MD_RAID0 $CONFIG_BLK_DEV_MD
+dep_tristate '  RAID-1 (mirroring) mode' CONFIG_MD_RAID1 $CONFIG_BLK_DEV_MD
+dep_tristate '  RAID-4/RAID-5 mode' CONFIG_MD_RAID5 $CONFIG_BLK_DEV_MD
+dep_tristate '  Multipath I/O support' CONFIG_MD_MULTIPATH $CONFIG_BLK_DEV_MD
+
+dep_tristate ' Logical volume manager (LVM) support' CONFIG_BLK_DEV_LVM $CONFIG_MD
+
+endmenu

@@ -1,0 +1,4 @@
+This driver does not support XA or MultiSession CDs (PhotoCDs). Use the
+experimental driver mcdx.c for that.
+
+You can use mcd for one interface, and mcdx for another.

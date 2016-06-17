@@ -1,0 +1,58 @@
+# drivers/mtd/maps/Config.in
+
+# $Id: Config.in,v 1.8 2003/01/24 23:25:14 dwmw2 Exp $
+
+mainmenu_option next_comment
+
+comment 'Self-contained MTD device drivers'
+dep_tristate '  Ramix PMC551 PCI Mezzanine RAM card support' CONFIG_MTD_PMC551 $CONFIG_MTD $CONFIG_PCI
+if [ "$CONFIG_MTD_PMC551" = "y" -o  "$CONFIG_MTD_PMC551" = "m" ]; then
+   bool '    PMC551 256M DRAM Bugfix' CONFIG_MTD_PMC551_BUGFIX
+   bool '    PMC551 Debugging' CONFIG_MTD_PMC551_DEBUG
+fi
+if [ "$CONFIG_DECSTATION" = "y" ]; then
+   dep_tristate '  DEC MS02-NV NVRAM module support' CONFIG_MTD_MS02NV $CONFIG_MTD
+fi
+dep_tristate '  Uncached system RAM' CONFIG_MTD_SLRAM $CONFIG_MTD
+if [ "$CONFIG_SA1100_LART" = "y" ]; then
+   dep_tristate '  28F160xx flash driver for LART' CONFIG_MTD_LART $CONFIG_MTD
+fi
+dep_tristate '  Test driver using RAM' CONFIG_MTD_MTDRAM $CONFIG_MTD
+if [ "$CONFIG_MTD_MTDRAM" = "y" -o "$CONFIG_MTD_MTDRAM" = "m" ]; then
+   int 'MTDRAM device size in KiB' CONFIG_MTDRAM_TOTAL_SIZE 4096
+   int 'MTDRAM erase block size in KiB' CONFIG_MTDRAM_ERASE_SIZE 128
+   if [ "$CONFIG_MTD_MTDRAM" = "y" ]; then #If not a module (I don't want to test it as a module)
+      hex 'SRAM Hexadecimal Absolute position or 0' CONFIG_MTDRAM_ABS_POS 0
+   fi
+fi
+dep_tristate '  MTD emulation using block device' CONFIG_MTD_BLKMTD $CONFIG_MTD
+
+comment 'Disk-On-Chip Device Drivers'
+   dep_tristate '  M-Systems Disk-On-Chip 1000' CONFIG_MTD_DOC1000 $CONFIG_MTD
+   dep_tristate '  M-Systems Disk-On-Chip 2000 and Millennium' CONFIG_MTD_DOC2000 $CONFIG_MTD
+   dep_tristate '  M-Systems Disk-On-Chip Millennium-only alternative driver (see help)' CONFIG_MTD_DOC2001 $CONFIG_MTD
+   if [ "$CONFIG_MTD_DOC2001" = "y" -o "$CONFIG_MTD_DOC2000" = "y" ]; then
+      define_bool CONFIG_MTD_DOCPROBE y
+   else
+      if [ "$CONFIG_MTD_DOC2001" = "m" -o "$CONFIG_MTD_DOC2000" = "m" ]; then
+	 define_bool CONFIG_MTD_DOCPROBE m
+      else
+	 define_bool CONFIG_MTD_DOCPROBE n
+      fi
+   fi
+
+   if [ "$CONFIG_MTD_DOCPROBE" = "y" -o "$CONFIG_MTD_DOCPROBE" = "m" ]; then
+      bool '    Advanced detection options for DiskOnChip' CONFIG_MTD_DOCPROBE_ADVANCED
+      if [ "$CONFIG_MTD_DOCPROBE_ADVANCED" = "n" ]; then
+         define_hex CONFIG_MTD_DOCPROBE_ADDRESS 0
+         define_bool CONFIG_MTD_DOCPROBE_HIGH n
+         define_bool CONFIG_MTD_DOCPROBE_55AA n
+      else
+         hex  '    Physical address of DiskOnChip' CONFIG_MTD_DOCPROBE_ADDRESS 0x0000
+         bool '    Probe high addresses' CONFIG_MTD_DOCPROBE_HIGH
+         bool '    Probe for 0x55 0xAA BIOS Extension Signature' CONFIG_MTD_DOCPROBE_55AA
+      fi
+   fi
+
+
+endmenu

@@ -1,0 +1,11 @@
+#
+# Bluetooth BNEP layer configuration
+#
+
+dep_tristate 'BNEP protocol support' CONFIG_BLUEZ_BNEP $CONFIG_BLUEZ_L2CAP
+
+if [ "$CONFIG_BLUEZ_BNEP" != "n" ]; then
+   bool '  Multicast filter support' CONFIG_BLUEZ_BNEP_MC_FILTER
+   bool '  Protocol filter support'  CONFIG_BLUEZ_BNEP_PROTO_FILTER
+fi
+

@@ -1,0 +1,18 @@
+#
+# Configuration script for sparcaudio subsystem
+#
+
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+
+   mainmenu_option next_comment
+   comment 'Linux/SPARC audio subsystem (EXPERIMENTAL)'
+
+   tristate 'Audio support (EXPERIMENTAL)' CONFIG_SPARCAUDIO
+   if [ "$CONFIG_SPARC64" != "y" ]; then
+     dep_tristate '  AMD7930 Lowlevel Driver' CONFIG_SPARCAUDIO_AMD7930 $CONFIG_SPARCAUDIO
+     dep_tristate '  DBRI Lowlevel Driver' CONFIG_SPARCAUDIO_DBRI $CONFIG_SPARCAUDIO
+   fi
+   dep_tristate '  CS4231 Lowlevel Driver' CONFIG_SPARCAUDIO_CS4231 $CONFIG_SPARCAUDIO
+   dep_tristate '  Dummy Lowlevel Driver' CONFIG_SPARCAUDIO_DUMMY $CONFIG_SPARCAUDIO
+   endmenu
+fi

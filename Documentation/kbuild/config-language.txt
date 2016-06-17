@@ -1,0 +1,710 @@
+Config Language Specification
+18 October 1999
+Michael Elizabeth Chastain, <mailto:mec@shout.net>
+
+
+
+=== Introduction
+
+Config Language is not 'bash'.
+
+This document describes Config Language, the Linux Kernel Configuration
+Language.  config.in and Config.in files are written in this language.
+
+Although it looks, and usually acts, like a subset of the 'sh' language,
+Config Language has a restricted syntax and different semantics.
+
+Here is a basic guideline for Config Language programming: use only the
+programming idioms that you see in existing Config.in files.  People often
+draw on their shell programming experience to invent idioms that look
+reasonable to shell programmers, but silently fail in Config Language.
+
+Config Language is not 'bash'.
+
+
+
+=== Interpreters
+
+Four different configuration programs read Config Language:
+
+    scripts/Configure   make config, make oldconfig
+    scripts/Menuconfig  make menuconfig
+    scripts/tkparse     make xconfig
+    mconfig             ftp.kernel.org/pub/linux/kernel/people/hch/mconfig/
+
+'Configure' is a bash script which interprets Config.in files by sourcing
+them.  Some of the Config Language commands are native bash commands;
+simple bash functions implement the rest of the commands.
+
+'Menuconfig' is another bash script.  It scans the input files with a
+small awk script, builds a shell function for each menu, sources the
+shell functions that it builds, and then executes the shell functions
+in a user-driven order.  Menuconfig uses 'lxdialog', a back-end utility
+program, to perform actual screen output.  'lxdialog' is a C program
+which uses curses.
+
+'scripts/tkparse' is a C program with an ad hoc parser which translates
+a Config Language script to a huge TCL/TK program.  'make xconfig'
+then hands this TCL/TK program to 'wish', which executes it.
+
+'mconfig' is the next generation of Config Language interpreters.  It is a
+C program with a bison parser which translates a Config Language script
+into an internal syntax tree and then hands the syntax tree to one of
+several user-interface front ends.
+
+
+
+=== Statements
+
+A Config Language script is a list of statements.  There are 21 simple
+statements; an 'if' statement; menu blocks; and a 'source' statement.
+
+A '\' at the end of a line marks a line continuation.
+
+'#' usually introduces a comment, which continues to the end of the line.
+Lines of the form '# ... is not set', however, are not comments.  They
+are semantically meaningful, and all four config interpreters implement
+this meaning.
+
+Newlines are significant.  You may not substitute semicolons for newlines.
+The 'if' statement does accept a semicolon in one position; you may use
+a newline in that position instead.
+
+Here are the basic grammar elements.
+
+    A /prompt/ is a single-quoted string or a double-quoted string.
+    If the word is double-quoted, it may not have any $ substitutions.
+
+    A /word/ is a single unquoted word, a single-quoted string, or a
+    double-quoted string.  If the word is unquoted or double quoted,
+    then $-substitution will be performed on the word.
+
+    A /symbol/ is a single unquoted word.  A symbol must have a name of
+    the form CONFIG_*.  scripts/mkdep.c relies on this convention in order
+    to generate dependencies on individual CONFIG_* symbols instead of
+    making one massive dependency on include/linux/autoconf.h.
+
+    A /dep/ is a dependency.  Syntactically, it is a /word/.  At run
+    time, a /dep/ must evaluate to "y", "m", "n", or "".
+
+    An /expr/ is a bash-like expression using the operators
+    '=', '!=', '-a', '-o', and '!'.
+
+Here are all the statements:
+
+    Text statements:
+
+        mainmenu_name   /prompt/
+        comment         /prompt/
+        text            /prompt/
+
+    Ask statements:
+
+        bool            /prompt/ /symbol/
+        hex             /prompt/ /symbol/ /word/
+        int             /prompt/ /symbol/ /word/
+        string          /prompt/ /symbol/ /word/
+        tristate        /prompt/ /symbol/
+
+    Define statements:
+
+        define_bool     /symbol/ /word/
+        define_hex      /symbol/ /word/
+        define_int      /symbol/ /word/
+        define_string   /symbol/ /word/
+        define_tristate /symbol/ /word/
+
+    Dependent statements:
+
+        dep_bool        /prompt/ /symbol/ /dep/ ...
+        dep_mbool       /prompt/ /symbol/ /dep/ ...
+        dep_hex         /prompt/ /symbol/ /word/ /dep/ ...
+        dep_int         /prompt/ /symbol/ /word/ /dep/ ...
+        dep_string      /prompt/ /symbol/ /word/ /dep/ ...
+        dep_tristate    /prompt/ /symbol/ /dep/ ...
+
+    Unset statement:
+
+        unset /symbol/ ...
+
+    Choice statements:
+
+        choice          /prompt/ /word/ /word/
+        nchoice         /prompt/ /symbol/ /prompt/ /symbol/ ...
+
+    If statements:
+
+        if [ /expr/ ] ; then
+	  /statement/
+	  ...
+        fi
+
+        if [ /expr/ ] ; then
+	  /statement/
+	  ...
+        else
+	  /statement/
+	  ...
+        fi
+
+    Menu block:
+
+        mainmenu_option next_comment
+        comment /prompt/
+          /statement/
+	  ...
+        endmenu
+
+    Source statement:
+
+        source /word/
+
+
+
+=== mainmenu_name /prompt/
+
+This verb is a lot less important than it looks.  It specifies the top-level
+name of this Config Language file.
+
+Configure:  ignores this line
+Menuconfig: ignores this line
+Xconfig:    uses /prompt/ for the label window.
+mconfig:    ignores this line (mconfig does a better job without it).
+
+Example:
+
+    # arch/sparc/config.in
+    mainmenu_name "Linux/SPARC Kernel Configuration"
+
+
+
+=== comment /prompt/
+
+This verb displays its prompt to the user during the configuration process
+and also echoes it to the output files during output.  Note that the
+prompt, like all prompts, is a quoted string with no dollar substitution.
+
+The 'comment' verb is not a Config Language comment.  It causes the
+user interface to display text, and it causes output to appear in the
+output files.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # drivers/net/Config.in
+    comment 'CCP compressors for PPP are only built as modules.'
+
+
+
+=== text /prompt/
+
+This verb displays the prompt to the user with no adornment whatsoever.
+It does not echo the prompt to the output file.  mconfig uses this verb
+internally for its help facility.
+
+Configure:  not implemented
+Menuconfig: not implemented
+Xconfig:    not implemented
+mconfig:    implemented
+
+Example:
+
+    # mconfig internal help text
+    text 'Here are all the mconfig command line options.'
+
+
+
+=== bool /prompt/ /symbol/
+
+This verb displays /prompt/ to the user, accepts a value from the user,
+and assigns that value to /symbol/.  The legal input values are "n" and
+"y".
+
+Note that the bool verb does not have a default value.  People keep
+trying to write Config Language scripts with a default value for bool,
+but *all* of the existing language interpreters discard additional values.
+Feel free to submit a multi-interpreter patch to linux-kbuild if you
+want to implement this as an enhancement.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # arch/i386/config.in
+    bool 'Symmetric multi-processing support' CONFIG_SMP
+
+
+
+=== hex /prompt/ /symbol/ /word/
+
+This verb displays /prompt/ to the user, accepts a value from the user,
+and assigns that value to /symbol/.  Any hexadecimal number is a legal
+input value.  /word/ is the default value.
+
+The hex verb does not accept range parameters.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # drivers/sound/Config.in
+    hex 'I/O base for SB Check from manual of the card' CONFIG_SB_BASE 220
+
+
+
+=== int /prompt/ /symbol/ /word/
+
+This verb displays /prompt/ to the user, accepts a value from the user,
+and assigns that value to /symbol/.  /word/ is the default value.
+Any decimal number is a legal input value.
+
+The int verb does not accept range parameters.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # drivers/char/Config.in
+    int 'Maximum number of Unix98 PTYs in use (0-2048)' \
+        CONFIG_UNIX98_PTY_COUNT 256
+
+
+
+=== string /prompt/ /symbol/ /word/
+
+This verb displays /prompt/ to the user, accepts a value from the user,
+and assigns that value to /symbol/.  /word/ is the default value.  Legal
+input values are any ASCII string, except for the characters '"' and '\\'.
+Configure will trap an input string of "?" to display help.
+
+The default value is mandatory.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # drivers/sound/Config.in
+    string '  Full pathname of DSPxxx.LD firmware file' \
+        CONFIG_PSS_BOOT_FILE /etc/sound/dsp001.ld
+
+
+
+=== tristate /prompt/ /symbol/
+
+This verb displays /prompt/ to the user, accepts a value from the user,
+and assigns that value to /symbol/.  Legal values are "n", "m", or "y".
+
+The value "m" stands for "module"; it indicates that /symbol/ should
+be built as a kernel module.  The value "m" is legal only if the symbol
+CONFIG_MODULES currently has the value "y".
+
+The tristate verb does not have a default value.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # fs/Config.in
+    tristate 'NFS filesystem support' CONFIG_NFS_FS
+
+
+
+=== define_bool /symbol/ /word/
+
+This verb the value of /word/ to /symbol/.  Legal values are "n" or "y".
+
+For compatibility reasons, the value of "m" is also legal, because it
+will be a while before define_tristate is implemented everywhere.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # arch/alpha/config.in
+    if [ "$CONFIG_ALPHA_GENERIC" = "y" ]
+    then
+            define_bool CONFIG_PCI y
+            define_bool CONFIG_ALPHA_NEED_ROUNDING_EMULATION y
+    fi
+
+
+
+=== define_hex /symbol/ /word/
+
+This verb assigns the value of /word/ to /symbol/.  Any hexadecimal
+number is a legal value.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # Not from the corpus
+    bool 'Specify custom serial port' CONFIG_SERIAL_PORT_CUSTOM
+    if [ "$CONFIG_SERIAL_PORT_CUSTOM" = "y" ]; then
+	hex 'Serial port number' CONFIG_SERIAL_PORT
+    else
+	define_hex CONFIG_SERIAL_PORT 0x3F8
+    fi
+
+
+
+=== define_int /symbol/ /word/
+
+This verb assigns /symbol/ the value /word/.  Any decimal number is a
+legal value.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # drivers/char/ftape/Config.in
+    define_int CONFIG_FT_ALPHA_CLOCK 0
+
+
+
+=== define_string /symbol/ /word/
+
+This verb assigns the value of /word/ to /symbol/.  Legal input values
+are any ASCII string, except for the characters '"' and '\\'.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example
+
+    # Not from the corpus
+    define_string CONFIG_VERSION "2.2.0"
+
+
+
+=== define_tristate /symbol/ /word/
+
+This verb assigns the value of /word/ to /symbol/.  Legal input values
+are "n", "m", and "y".
+
+As soon as this verb is implemented in all interpreters, please use it
+instead of define_bool to define tristate values.  This aids in static
+type checking.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # drivers/video/Config.in
+    if [ "$CONFIG_FB_AMIGA" = "y" ]; then
+       define_tristate CONFIG_FBCON_AFB y
+       define_tristate CONFIG_FBCON_ILBM y
+    else
+       if [ "$CONFIG_FB_AMIGA" = "m" ]; then
+          define_tristate CONFIG_FBCON_AFB m
+          define_tristate CONFIG_FBCON_ILBM m
+       fi
+    fi
+
+
+
+=== dep_bool /prompt/ /symbol/ /dep/ ...
+
+This verb evaluates all of the dependencies in the dependency list.
+Any dependency which has a value of "y" does not restrict the input
+range.  Any dependency which has an empty value is ignored.
+Any dependency which has a value of "n", or which has some other value,
+(like "m") restricts the input range to "n".  Quoting dependencies is not
+allowed. Using dependencies with an empty value possible is not
+recommended.  See also dep_mbool below.
+
+If the input range is restricted to the single choice "n", dep_bool
+silently assigns "n" to /symbol/.  If the input range has more than
+one choice, dep_bool displays /prompt/ to the user, accepts a value
+from the user, and assigns that value to /symbol/.
+
+Configure:  implemented
+Menuconfig: implemented
+XConfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # drivers/net/Config.in
+    dep_bool 'Aironet 4500/4800 PCI support 'CONFIG_AIRONET4500_PCI $CONFIG_PCI
+
+Known bugs:
+- Xconfig does not write "# foo is not set" to .config (as well as
+  "#undef foo" to autoconf.h) if command is disabled by its dependencies.
+
+
+=== dep_mbool /prompt/ /symbol/ /dep/ ...
+
+This verb evaluates all of the dependencies in the dependency list.
+Any dependency which has a value of "y" or "m" does not restrict the
+input range.  Any dependency which has an empty value is ignored.
+Any dependency which has a value of "n", or which has some other value,
+restricts the input range to "n".  Quoting dependencies is not allowed.
+Using dependencies with an empty value possible is not recommended.
+
+If the input range is restricted to the single choice "n", dep_bool
+silently assigns "n" to /symbol/.  If the input range has more than
+one choice, dep_bool displays /prompt/ to the user, accepts a value
+from the user, and assigns that value to /symbol/.
+
+Notice that the only difference between dep_bool and dep_mbool
+is in the way of treating the "m" value as a dependency.
+
+Configure:  implemented
+Menuconfig: implemented
+XConfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # Not from the corpus
+    dep_mbool 'Packet socket: mmapped IO' CONFIG_PACKET_MMAP $CONFIG_PACKET
+
+Known bugs:
+- Xconfig does not write "# foo is not set" to .config (as well as
+  "#undef foo" to autoconf.h) if command is disabled by its dependencies.
+
+
+=== dep_hex /prompt/ /symbol/ /word/ /dep/ ...
+=== dep_int /prompt/ /symbol/ /word/ /dep/ ...
+=== dep_string /prompt/ /symbol/ /word/ /dep/ ...
+
+I am still thinking about the semantics of these verbs.
+
+Configure:  not implemented
+Menuconfig: not implemented
+XConfig:    not implemented
+mconfig:    not implemented
+
+
+
+=== dep_tristate /prompt/ /symbol/ /dep/ ...
+
+This verb evaluates all of the dependencies in the dependency list.
+Any dependency which has a value of "y" does not restrict the input range.
+Any dependency which has a value of "m" restricts the input range to
+"m" or "n".  Any dependency which has an empty value is ignored.
+Any dependency which has a value of "n", or which has some other value,
+restricts the input range to "n".  Quoting dependencies is not allowed.
+Using dependencies with an empty value possible is not recommended.
+
+If the input range is restricted to the single choice "n", dep_tristate
+silently assigns "n" to /symbol/.  If the input range has more than
+one choice, dep_tristate displays /prompt/ to the user, accepts a value
+from the user, and assigns that value to /symbol/.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # drivers/char/Config.in
+    dep_tristate 'Parallel printer support' CONFIG_PRINTER $CONFIG_PARPORT
+
+Known bugs:
+- Xconfig does not write "# foo is not set" to .config (as well as
+  "#undef foo" to autoconf.h) if command is disabled by its dependencies.
+
+
+=== unset /symbol/ ...
+
+This verb assigns the value "" to /symbol/, but does not cause /symbol/
+to appear in the output.  The existence of this verb is a hack; it covers
+up deeper problems with variable semantics in a random-execution language.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented (with bugs)
+mconfig:    implemented
+
+Example:
+
+    # arch/mips/config.in
+    unset CONFIG_PCI
+    unset CONFIG_MIPS_JAZZ
+    unset CONFIG_VIDEO_G364
+
+
+
+=== choice /prompt/ /word/ /word/
+
+This verb implements a choice list or "radio button list" selection.
+It displays /prompt/ to the user, as well as a group of sub-prompts
+which have corresponding symbols.
+
+When the user selects a value, the choice verb sets the corresponding
+symbol to "y" and sets all the other symbols in the choice list to "n".
+
+The second argument is a single-quoted or double-quoted word that
+describes a series of sub-prompts and symbol names.  The interpreter
+breaks up the word at white space boundaries into a list of sub-words.
+The first sub-word is the first prompt; the second sub-word is the
+first symbol.  The third sub-word is the second prompt; the fourth
+sub-word is the second symbol.  And so on, for all the sub-words.
+
+The third word is a literal word.  Its value must be a unique abbreviation
+for exactly one of the prompts.  The symbol corresponding to this prompt
+is the default enabled symbol.
+
+Note that because of the syntax of the choice verb, the sub-prompts
+may not have spaces in them.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+Example:
+
+    # arch/i386/config.in
+    choice '  PCI access mode' \
+        "BIOS           CONFIG_PCI_GOBIOS       \
+         Direct         CONFIG_PCI_GODIRECT     \
+         Any            CONFIG_PCI_GOANY"       Any
+
+
+
+=== nchoice /prompt/ /symbol/ /prompt/ /symbol/ ...
+
+This verb has the same semantics as the choice verb, but with a sensible
+syntax.
+
+The first /prompt/ is the master prompt for the entire choice list.
+
+The first /symbol/ is the default symbol to enable (notice that this
+is a symbol, not a unique prompt abbreviation).
+
+The subsequent /prompt/ and /symbol/ pairs are the prompts and symbols
+for the choice list.
+
+Configure:  not implemented
+Menuconfig: not implemented
+XConfig:    not implemented
+mconfig:    implemented
+
+
+
+=== if [ /expr/ ] ; then
+
+This is a conditional statement, with an optional 'else' clause.  You may
+substitute a newline for the semicolon if you choose.
+
+/expr/ may contain the following atoms and operators.  Note that, unlike
+shell, you must use double quotes around every atom.
+
+    /atom/:
+	"..."			a literal
+	"$..."			a variable
+
+    /expr/:
+	/atom/  = /atom/	true if atoms have identical value
+	/atom/ != /atom/	true if atoms have different value
+
+    /expr/:
+	/expr/ -o /expr/	true if either expression is true
+	/expr/ -a /expr/	true if both expressions are true
+	! /expr/		true if expression is not true
+
+Note that a naked /atom/ is not a valid /expr/.  If you try to use it
+as such:
+
+    # Do not do this.
+    if [ "$CONFIG_EXPERIMENTAL" ]; then
+	bool 'Bogus experimental feature' CONFIG_BOGUS
+    fi
+
+... then you will be surprised, because CONFIG_EXPERIMENTAL never has a
+value of the empty string!  It is always "y" or "n", and both of these
+are treated as true (non-empty) by the bash-based interpreters Configure
+and Menuconfig.
+
+Configure:  implemented
+Menuconfig: implemented
+XConfig:    implemented, with bugs
+mconfig:    implemented
+
+Xconfig has some known bugs, and probably some unknown bugs too:
+
+- literals with an empty "" value are not properly handled.
+
+
+
+=== mainmenu_option next_comment
+
+This verb introduces a new menu.  The next statement must have a comment
+verb.  The /prompt/ of that comment verb becomes the title of the menu.
+(I have no idea why the original designer didn't create a 'menu ...' verb).
+
+Statements outside the scope of any menu are in the implicit top menu.
+The title of the top menu comes from a variety of sources, depending on
+the interpreter.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+
+
+=== endmenu
+
+This verb closes the scope of a menu.
+
+Configure:  implemented
+Menuconfig: implemented
+Xconfig:    implemented
+mconfig:    implemented
+
+
+
+=== source /word/
+
+This verb interprets the literal /word/ as a filename, and interpolates
+the contents of that file.  The word must be a single unquoted literal
+word.
+
+Some interpreters interpret this verb at run time; some interpreters
+interpret it at parse time.
+
+Inclusion is textual inclusion, like the C preprocessor #include facility.
+The source verb does not imply a submenu or any kind of block nesting.
+
+Configure:  implemented (run time)
+Menuconfig: implemented (parse time)
+Xconfig:    implemented (parse time)
+mconfig:    implemented (parse time)

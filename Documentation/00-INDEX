@@ -1,0 +1,223 @@
+
+This is a brief list of all the files in ./linux/Documentation and what
+they contain. If you add a documentation file, please list it here in 
+alphabetical order as well, or risk being hunted down like a rabid dog. 
+Please try and keep the descriptions small enough to fit on one line.
+							 Thanks -- Paul G.
+
+Following translations are available on the WWW:
+
+   - Japanese, maintained by the JF Project (JF@linux.or.jp), at
+     http://www.linux.or.jp/JF/
+
+00-INDEX
+	- this file.
+BUG-HUNTING
+	- brute force method of doing binary search of patches to find bug.
+Changes
+	- list of changes that break older software packages.
+CodingStyle
+	- how the boss likes the C code in the kernel to look.
+Configure.help
+	- text file that is used for help when you run "make config"
+DMA-mapping.txt
+	- info for PCI drivers using DMA portably across all platforms.
+DocBook/
+	- directory with DocBook templates etc. for kernel documentation.
+IO-mapping.txt
+	- how to access I/O mapped memory from within device drivers.
+IRQ-affinity.txt
+	- how to select which CPU(s) handle which interrupt events on SMP.
+LVM-HOWTO
+	- info on setting up logical volume management (virtual disks etc.)
+README.DAC960
+	- info on Mylex DAC960/DAC1100 PCI RAID Controller Driver for Linux
+README.moxa
+	- release notes for Moxa mutiport serial card.
+SubmittingDrivers
+	- procedure to get a new driver source included into the kernel tree.
+SubmittingPatches
+	- procedure to get a source patch included into the kernel tree.
+VGA-softcursor.txt
+	- how to change your VGA cursor from a blinking underscore.
+arm/
+	- directory with info about Linux on the ARM architecture.
+binfmt_misc.txt
+	- info on the kernel support for extra binary formats.
+cachetlb.txt
+	- describes the cache/TLB flushing interfaces Linux uses.
+cciss.txt
+	- info, major/minor #'s for Compaq's SMART Array Controllers.
+cdrom/
+	- directory with information on the CD-ROM drivers that Linux has.
+computone.txt
+	- info on Computone Intelliport II/Plus Multiport Serial Driver
+cpqarray.txt
+	- info on using Compaq's SMART2 Intelligent Disk Array Controllers.
+devices.txt
+	- plain ASCII listing of all the nodes in /dev/ with major minor #'s
+digiboard.txt
+	- info on the Digiboard PC/X{i,e,eve} multiport boards.
+digiepca.txt
+	- info on Digi Intl. {PC,PCI,EISA}Xx and Xem series cards.
+dnotify.txt
+	- info about directory notification in Linux.
+exception.txt
+	- how Linux v2.2 handles exceptions without verify_area etc.
+fb/
+	- directory with info on the frame buffer graphics abstraction layer.
+filesystems/
+	- directory with info on the various filesystems that Linux supports.
+floppy.txt
+	- notes and driver options for the floppy disk driver.
+ftape.txt
+	- notes about the floppy tape device driver
+hayes-esp.txt
+	- info on using the Hayes ESP serial driver.
+highuid.txt
+	- notes on the change from 16 bit to 32 bit user/group IDs.
+i2c/
+	- directory with info about the I2C bus/protocol (2 wire, kHz speed)
+i386/
+	- directory with info about Linux on intel 32 bit architecture.
+ia64/
+	- directory with info about Linux on intel 64 bit architecture.
+ide.txt
+	- important info for users of ATA devices (IDE/EIDE disks and CD-ROMS)
+initrd.txt
+	- how to use the RAM disk as an initial/temporary root filesystem.
+ioctl-number.txt
+	- how to implement and register device/driver ioctl calls.
+isapnp.txt
+	- info on Linux ISA Plug & Play support
+isdn/
+	- directory with info on the Linux ISDN support, and supported cards.
+java.txt
+	- info on the in-kernel binary support for Java(tm)
+joystick-api.txt
+	- API specification for applications that will be using the joystick.
+joystick-parport.txt 
+	- info on how to hook joysticks/gamepads to the parallel port.
+joystick.txt
+	- info on using joystick devices (and driver) with Linux.
+kbuild/
+	- directory with info about the kernel build process
+kernel-doc-nano-HOWTO.txt
+	- mini HowTo on generation and location of kernel documentation files.
+kernel-docs.txt
+	- listing of various WWW + books that document kernel internals.
+kernel-parameters.txt
+	- summary listing of command line / boot prompt args for the kernel.
+kmod.txt
+	- info on the kernel module loader/unloader (kerneld replacement).
+locks.txt
+	- info on file locking implementations, flock() vs. fcntl(), etc.
+logo.gif
+	- Full colour GIF image of Linux logo (penguin)
+logo.txt
+	- Info on creator of above logo & site to get additional images from.
+m68k/
+	- directory with info about Linux on Motorola 68k architecture.
+magic-number.txt
+	- list of magic numbers used to mark/protect kernel data structures.
+mandatory.txt
+	- info on the Linux implementation of Sys V mandatory file locking.
+mca.txt
+	- info on supporting Micro Channel Architecture (e.g. PS/2) systems.
+md.txt
+	- info on boot arguments for the multiple devices driver
+memory.txt
+	- info on typical Linux memory problems.
+mkdev.cciss
+	- script to make /dev entries for SMART controllers (see cciss.txt)
+mkdev.ida
+	- script to make /dev entries for Intelligent Disk Array Controllers.
+modules.txt
+	- short guide on how to make kernel parts into loadable modules
+moxa-smartio
+	- info on installing/using Moxa multiport serial driver.
+mtrr.txt
+	- how to use PPro Memory Type Range Registers to increase performance
+nbd.txt
+	- info on a TCP implementation of a network block device.
+networking/
+	- directory with info on various aspects of networking with Linux.
+nfsroot.txt
+	- short guide on setting up a diskless box with NFS root filesystem
+nmi_watchdog.txt
+	- info on NMI watchdog for SMP systems
+oops-tracing.txt
+	- how to decode those nasty internal kernel error dump messages.
+paride.txt
+	- information about the parallel port IDE subsystem.
+parisc/
+	- directory with info on using Linux on PA-RISC architecture.
+parport.txt
+	- how to use the parallel-port driver.
+parport-lowlevel.txt
+	- description and usage of the low level parallel port functions.
+pci.txt
+	- info on the PCI subsystem for device driver authors
+pcwd-watchdog.txt
+	- info and sample code for using with the PC Watchdog reset card.
+pm.txt
+	- info on Linux power management support
+powerpc/
+	- directory with info on using Linux with the PowerPC.
+ramdisk.txt
+	- short guide on how to set up and use the RAM disk.
+riscom8.txt
+	- notes on using the RISCom/8 multi-port serial driver.
+rtc.txt
+	- notes on how to use the Real Time Clock (aka CMOS clock) driver.
+s390/
+	- directory with info on using Linux on the IBM S390.
+scsi-generic.txt
+	- info on the sg driver for generic (non-disk/CD/tape) SCSI devices.
+scsi.txt
+	- short blurb on using SCSI support as a module.
+serial-console.txt
+	- how to set up Linux with a serial line console as the default.
+sgi-visws.txt
+	- short blurb on the SGI Visual Workstations.
+smart-config.txt
+	- description of the Smart Config makefile feature.
+smp.tex
+	- LaTeX document describing implementation of Multiprocessor Linux
+smp.txt
+	- a few more notes on symmetric multi-processing
+sound/
+	- directory with info on sound card support
+sparc/
+	- directory with info on using Linux on Sparc architecture.
+specialix.txt
+	- info on hardware/driver for specialix IO8+ multiport serial card.
+spinlocks.txt
+	- info on using spinlocks to provide exclusive access in kernel.
+stallion.txt
+	- info on using the Stallion multiport serial driver.
+svga.txt
+	- short guide on selecting video modes at boot via VGA BIOS.
+sx.txt
+	- info on the Specialix SX/SI multiport serial driver.
+sysctl/
+	- directory with info on the /proc/sys/* files
+sysrq.txt
+	- info on the magic SysRq key
+telephony/
+	- directory with info on telephony (e.g. voice over IP) support.
+unicode.txt
+	- info on the Unicode character/font mapping used in Linux.
+usb/
+	- directory with info regarding the Universal Serial Bus.
+video4linux/
+	- directory with info regarding video/TV/radio cards and linux.
+vm/
+	- directory with info on the Linux vm code.
+watchdog.txt
+	- how to auto-reboot Linux if it has "fallen and can't get up". ;-)
+xterm-linux.xpm
+	- XPM image of penguin logo (see logo.txt) sitting on an xterm.
+zorro.txt
+	- info on writing drivers for Zorro bus devices found on Amigas.
+

@@ -1,0 +1,36 @@
+# drivers/mtd/nand/Config.in
+
+# $Id: Config.in,v 1.11 2002/12/01 13:23:05 gleixner Exp $
+
+mainmenu_option next_comment
+
+comment 'NAND Flash Device Drivers'
+
+dep_tristate '  NAND Device Support' CONFIG_MTD_NAND $CONFIG_MTD
+if [ "$CONFIG_MTD_NAND" = "y" -o "$CONFIG_MTD_NAND" = "m" ]; then
+   bool '    Verify NAND page writes' CONFIG_MTD_NAND_VERIFY_WRITE
+fi
+
+if [ "$CONFIG_ARM" = "y" -a "$CONFIG_ARCH_P720T" = "y" ]; then
+   dep_tristate '  NAND Flash device on SPIA board' CONFIG_MTD_NAND_SPIA $CONFIG_MTD_NAND
+fi
+
+if [ "$CONFIG_ARCH_AUTCPU12" = "y" ]; then
+   dep_tristate ' SmartMedia Card on AUTCPU12 board' CONFIG_MTD_NAND_AUTCPU12 $CONFIG_MTD_NAND
+fi
+
+if [ "$CONFIG_ARCH_EDB7312" = "y" ]; then
+   dep_tristate '  NAND Flash device on EDP7312 board' CONFIG_MTD_NAND_EDB7312 $CONFIG_MTD_NAND
+fi
+
+if [ "$CONFIG_MTD_DOC2001" = "y" -o "$CONFIG_MTD_DOC2000" = "y" -o "$CONFIG_MTD_NAND" = "y" ]; then
+   define_bool CONFIG_MTD_NAND_IDS y
+fi
+
+if [ "$CONFIG_MTD_NAND_IDS" != "y" ]; then
+if [ "$CONFIG_MTD_DOC2001" = "m" -o "$CONFIG_MTD_DOC2000" = "m" -o "$CONFIG_MTD_NAND" = "m" ]; then
+   define_bool CONFIG_MTD_NAND_IDS m
+fi
+fi
+
+endmenu

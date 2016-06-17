@@ -1,0 +1,71 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/config-language.txt.
+#
+# Parport configuration.
+#
+
+mainmenu_option next_comment
+comment 'Parallel port support'
+
+tristate 'Parallel port support' CONFIG_PARPORT
+if [ "$CONFIG_PARPORT" != "n" ]; then
+   dep_tristate '  PC-style hardware' CONFIG_PARPORT_PC $CONFIG_PARPORT
+   if [ "$CONFIG_PARPORT_PC" != "n" -a "$CONFIG_SERIAL" != "n" ]; then
+      if [ "$CONFIG_SERIAL" = "m" ]; then
+         define_tristate CONFIG_PARPORT_PC_CML1 m
+      else
+         define_tristate CONFIG_PARPORT_PC_CML1 $CONFIG_PARPORT_PC
+      fi
+      dep_tristate '    Multi-IO cards (parallel and serial)' CONFIG_PARPORT_SERIAL $CONFIG_PARPORT_PC_CML1
+   fi
+   if [ "$CONFIG_PARPORT_PC" != "n" ]; then
+      if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+         bool '    Use FIFO/DMA if available (EXPERIMENTAL)' CONFIG_PARPORT_PC_FIFO
+         bool '    SuperIO chipset support (EXPERIMENTAL)' CONFIG_PARPORT_PC_SUPERIO
+      fi
+      dep_tristate '    Support for PCMCIA management for PC-style ports' CONFIG_PARPORT_PC_PCMCIA $CONFIG_PCMCIA $CONFIG_PARPORT_PC $CONFIG_HOTPLUG
+   fi
+   if [ "$CONFIG_ARM" = "y" ]; then
+      dep_tristate '  Archimedes hardware' CONFIG_PARPORT_ARC $CONFIG_PARPORT
+   fi
+   if [ "$CONFIG_AMIGA" = "y" ]; then
+      dep_tristate '  Amiga builtin port' CONFIG_PARPORT_AMIGA $CONFIG_PARPORT
+      if [ "$CONFIG_ZORRO" != "n" ]; then
+	 dep_tristate '  Multiface III parallel port' CONFIG_PARPORT_MFC3 $CONFIG_PARPORT
+      fi
+   else
+      define_tristate CONFIG_PARPORT_AMIGA n
+      define_tristate CONFIG_PARPORT_MFC3 n
+   fi
+   if [ "$CONFIG_ATARI" = "y" ]; then
+      dep_tristate '  Atari hardware' CONFIG_PARPORT_ATARI $CONFIG_PARPORT
+   else
+      define_tristate CONFIG_PARPORT_ATARI n
+   fi
+   if [ "$CONFIG_GSC_LASI" = "y" ]; then
+      dep_tristate '  LASI/ASP builtin parallel-port' CONFIG_PARPORT_GSC $CONFIG_PARPORT
+   else
+      define_tristate CONFIG_PARPORT_GSC n
+   fi
+
+   if [ "$CONFIG_SBUS" = "y" -a "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      dep_tristate '  Sparc hardware (EXPERIMENTAL)' CONFIG_PARPORT_SUNBPP $CONFIG_PARPORT
+   else
+      define_tristate CONFIG_PARPORT_SUNBPP n
+   fi
+
+   if [ "$CONFIG_SGI_IP22" = "y" -a "$CONFIG_EXPERIMENTAL" = "y" ]; then
+      dep_tristate '  SGI Indy/Indigo2 hardware (EXPERIMENTAL)' CONFIG_PARPORT_IP22 $CONFIG_PARPORT
+   else
+      define_tristate CONFIG_PARPORT_IP22 n
+   fi
+
+   # If exactly one hardware type is selected then parport will optimise away
+   # support for loading any others.  Defeat this if the user is keen.
+   bool '  Support foreign hardware' CONFIG_PARPORT_OTHER
+
+   bool '  IEEE 1284 transfer modes' CONFIG_PARPORT_1284
+fi
+
+endmenu

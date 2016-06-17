@@ -1,0 +1,23 @@
+#
+# SCSI driver configuration for Acorn
+#
+dep_tristate 'Acorn SCSI card (aka30) support' CONFIG_SCSI_ACORNSCSI_3 $CONFIG_SCSI
+if [ "$CONFIG_SCSI_ACORNSCSI_3" != "n" ]; then
+   bool '  Support SCSI 2 Tagged queueing' CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
+   bool '  Support SCSI 2 Synchronous Transfers' CONFIG_SCSI_ACORNSCSI_SYNC
+fi
+dep_tristate 'ARXE SCSI support' CONFIG_SCSI_ARXESCSI $CONFIG_SCSI
+dep_tristate 'CumanaSCSI II support' CONFIG_SCSI_CUMANA_2 $CONFIG_SCSI
+dep_tristate 'EESOX support' CONFIG_SCSI_EESOXSCSI $CONFIG_SCSI
+dep_tristate 'PowerTec support' CONFIG_SCSI_POWERTECSCSI $CONFIG_SCSI
+
+if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
+   comment 'The following drivers are not fully supported'
+
+   dep_tristate 'CumanaSCSI I support (EXPERIMENTAL)' CONFIG_SCSI_CUMANA_1 $CONFIG_SCSI
+   if [ "$CONFIG_ARCH_ARC" = "y" -o "$CONFIG_ARCH_A5K" = "y" ]; then
+      dep_tristate 'EcoScsi support (EXPERIMENTAL)' CONFIG_SCSI_ECOSCSI $CONFIG_SCSI
+   fi
+   dep_tristate 'Oak SCSI support (EXPERIMENTAL)' CONFIG_SCSI_OAK1 $CONFIG_SCSI
+fi
+

@@ -1,0 +1,248 @@
+Support functions for the SA11x0 internal DMA channels
+======================================================
+
+Nicolas Pitre <nico@cam.org>
+Last updated: 2001/07/15
+
+
+The DMA controller consists of six independent DMA channels. Each channel
+can be configured to service any of the serial controllers. Two channels
+are required to service a full-duplex serial controller. The DMA
+controller is intended to relieve the processor of the interrupt overhead
+in servicing these ports with programmed I/ O.
+
+If desired, any or all peripherals (except the UDC) may be serviced with
+programmed I/ O instead of DMA. Each peripheral is capable of requesting
+processor service through its own interrupt lines or through a DMA
+request.
+
+A set of functions is provided to support drivers working with DMA buffers
+through a generic interface for (wishfully) all DMA usages.  Those
+functions will take care of buffer queueing and splitting, DMA register
+management, interrupt handling, etc.
+
+
+SA11x0 DMA API
+--------------
+
+Here is the description for the DMA API.
+
+
+int sa1100_request_dma( dmach_t *channel, const char *device_id,
+			dma_device_t device );
+
+This function will search for a free DMA channel and returns the channel
+number in '*channel'.  'device_id' should point to a string identifying
+the DMA usage or device (mainly for /proc).  'device' is the SA11x0
+peripheral's ports.  Note that reading from a port and writing to the
+same port are actually considered as two different streams requiring
+two DMA channels with their own device type.  All possible dma_device_t
+are defined in include/asm-arm/arch-sa1100/dma.h.  If no channel is
+available, or if the desired device is already in use by another DMA
+channel, then an error code is returned.  This function must be called
+before any other DMA calls.
+
+
+int sa1100_dma_queue_buffer( dmach_t channel, void *buf_id,
+                             dma_addr_t data, int size );
+
+This function enqueue the specified buffer for DMA processing.  The buffer
+will be transmitted or filled with incoming data depending on the channel
+configuration made through sa1100_dma_set_device().  If the queue is
+empty, DMA starts immediately on the given buffer.
+
+Arguments are:
+
+dmach_t channel:	the channel number.
+void *buf_id:		a buffer identification known by the caller.
+dma_addr_t data:	the buffer's physical address.
+int size:		the buffer size in bytes.
+
+Note here the dma_addr_t which is not the same as the virtual address as
+returned by kmalloc() and friends.  The DMA controller must be given a
+physical address to a buffer which is not cached bye the CPU data cache.
+To get such address, the DMA mapping functions (see
+Documentation/DMA-mapping.txt) are recommended.  The only relevant
+functions are pci_alloc_consistent(), pci_map_single() and their unmap
+counterparts.  The PCI dev argument is NULL of course.
+
+There is no restriction on the buffer size.  The DMA code will split it up
+internally to acommodate the DMA controller as needed.  If the buffer
+can't be enqueued the appropriate error code is returned.
+
+
+int sa1100_dma_set_callback( dmach_t channel, dma_callback_t cb );
+
+As soon as the DMa completes with a buffer, a callback function is used to
+notify the driver which would have registered one.  The callback function
+is prototyped as:
+
+void dma_callback( void *buf_id, int size );
+
+The 'buf_id' argument is the buffer identifier as passed to
+sa1100_dma_queue_buffer().  The 'size' argument is the number of bytes the
+DMA processed (should be the same as the buffer size).
+
+Note that this callback function is called while in interrupt context.
+So it has to be small and efficient while posponing more complex
+processing to a bottom-half function or similar.  All
+restrictions for interrupt handlers still apply.
+
+
+int sa1100_dma_get_current( dmach_t channel, void **buf_id,
+                            dma_addr_t *addr );
+
+This returns the buffer ID and the DMA address pointer within the buffer
+currently being processed.  If no such buffer is currently processed, an
+error code is returned.  This is useful for mmap()'ed buffers like in
+audio drivers.
+
+
+int sa1100_dma_stop( dmach_t channel );
+
+This call stops any DMA transfer on the given channel.
+
+
+int sa1100_dma_resume( dmach_t channel );
+
+This call resumes a DMA transfer which would have been stopped through
+sa1100_dma_stop().
+
+
+int sa1100_dma_flush_all( dmach_t channel );
+
+This completely flushes all queued buffers and on-going DMA transfers on a
+given channel.  The next enqueued buffer following this call will be
+processed right away.
+
+
+int sa1100_dma_set_spin( dmach_t channel, dma_addr_t addr, int size );
+
+Because there is at least one device out there that uses its receive
+signal for its transmit clock reference, we need a mecanism to make the
+DMA "spin" on a certain buffer for when there is no more actual buffer to
+process.  The 'addr' argument is the physical memory address to use, and
+the 'size' argument determines the spin DMA chunk.  This size can't be
+larger than 8191 (if so, it is clamped to 4096).  When the size is 0,
+the spin function is turned off.
+
+When activated, DMA will "spin" until there is any buffer in the queue.
+The current DMA chunk will terminate before a newly queued buffer is
+processed.  The spin buffer will only be reused when there is no more
+acctual buffer to process.
+
+It is important not to choose a too small 'size' value since it will
+greatly increase the interrupt load required to restart the spin.  Since
+this feature will typically be used on transmit DMAs, and because a buffer
+full of zeros is probably the best thing to spin out, the 'addr' argument
+may well be used with FLUSH_BASE_PHYS for which no allocation nor memory
+bus request are needed.
+
+The spinning DMA is affected by sa1100_dma_stop() and sa1100_dma_resume()
+but not bu sa1100_dma_flush_all().
+
+
+void sa1100_free_dma( dmach_t channel );
+
+This clears all activities on a given DMA channel and releases it for
+future requests.
+
+
+Buffer allocation
+-----------------
+
+Like mentionned above, it is the driver's responsibility to allocate, free
+and keep track of buffer space with dma_addr_t type addresses. However the
+driver must not change the state of any buffer after it has been sent to
+sa1100-dma_queue_buffer().  When that function has been called, the buffer
+becomes the DMA's ownership until one of these events occur:
+
+- The callback function is called by the DMA code with a buffer ID to
+  indicate that DMA processing terminated on that buffer.  Then the
+  driver owns the buffer again.
+- The sa1100-dma_flush_all() function is called by the driver at which
+  point *all* queued buffers are owned by the driver again.
+- The sa1100-free_dma() does the same as sa1100-dma_flush_all().
+
+This doesn't mean that you can't change the content of a queued buffer in
+conjonction with the usage of pci_map_consistent() and
+sa1100_dma_get_current()... but then you must be sure you know what you're
+doing (this doesn't work with pci_map_single()).
+
+
+Examples
+--------
+
+A real example of audio ring buffers is implemented in the
+drivers/sound/sa1100-audio.c driver.  The SA1110 USB client and the
+SA11x0 FIR drivers are also using this interface to implement packetized
+DMA.
+
+A transmit DMA for network packets could look like this (largely simplified):
+
+struct sk_buff *tx_ring_skb[RING_SIZE];
+dma_addr_t      tx_ring_dma[RING_SIZE];
+int cur_tx;
+...
+
+transmit function:
+
+	tx_ring_skb[cur_tx] = skb;
+	tx_ring_dma[cur_tx] = pci_map_single(NULL, skb->data, skb->len,
+	                                     PCI_DMA_TODEVICE);
+	sa1100_dma_queue_buffer(channel, (void*)cur_tx,
+	                        tx_ring_dma[cur_tx], skb->len);
+	cur_tx++; cur_tx %= RING_SIZE;
+	...
+
+and the callback function:
+
+void tx_done_callback( void *buf_id, int size ) {
+	int done_tx = (int) buf_id;
+	struct sk_buff *skb = tx_ring_skb[done_tx];
+	pci_unmap_single(NULL, tx_ring_dma[done_tx], skb->len,
+	                 PCI_DMA_TODEVICE);
+	stats.tx_packets++;
+	stats.tx_bytes += size;
+	dev_kfree_skb_irq(skb);
+	tx_ring_skb[done_tx] = NULL;
+}
+
+
+For drivers expecting variable length packets i.e. USB client, it is
+necessary to register the appropriate IRQ to be notified when the receiver
+is idle, the packet is complete, etc.  We could use one buffer at a time
+with its ID being the virtual address of the buffer.
+
+Then the sequence:
+
+	/* be sure DMA won't continue under our feet */
+	sa1100_dma_stop(channel);
+	/* get the actual DMA length */
+	sa1100_get_current(channel, &data, &dma_ptr);
+	/* acquire ownership for the buffer */
+	sa1100_dma_flush_all(channel);
+	/* unmap the DMA buffer (actually doing cache coherency on ARM) */
+	pci_unmap_single (NULL, dma_addr, MAX_PKT_SIZE, PCI_DMA_FROMDEVICE);
+	/* get remaining bytes from the fifo */
+	ptr = data + dma_ptr - dma_addr;
+	while (fifo_not_empty)
+		*ptr++ = get_byte_from_fifo;
+	/* feed another free buffer for the next packet */
+	dma_addr2 = pci_map_single(NULL, data2, MAX_PKT_SIZE,
+					PCI_DMA_FROMDEVICE);
+	sa1100_dma_queue_buffer(channel, data2, dma_addr2, MAX_PKT_SIZE);
+	/* process the current packet */
+	...
+
+might do the trick.  This looks a bit ugly but that's a starting point for
+improvements.
+
+
+TODO
+----
+
+- Create kernel-doc comments in the source to document the API and
+  let the documentation be generated automatically.
+
+

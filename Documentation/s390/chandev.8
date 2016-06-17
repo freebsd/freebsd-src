@@ -1,0 +1,430 @@
+.TH chandev 8
+.SH NAME
+channel device layer
+.Dd December 6, 2000
+.Os Linux for Zseries
+
+.SH SYNOPSIS
+The channel device layer is a layer to provide a consistent interface for
+configuration & default machine check (devices appearing & disappearing )
+handling on Linux for s/390 & z/Series channel devices.
+
+
+s/390 & z/Series channel devices include among others
+
+.Bl -item
+.It
+lcs ( the most common ethernet/token ring/fddi standard on zSeries )
+.It
+ctc/escon hi speed like serial link standard on s/390 & z/Series.
+.It
+claw used to talk to cisco routers.
+.It
+qeth gigabit ethernet.
+.It
+osad used by osa/sf to configure osa devices, e.g. to share a osa card between 2 or more vm guests. osad is just added to the channel device layer for completeness, there are no plans at the current time to write a driver to exploit this under linux.
+.It
+These devices use two channels one read & one write for configuration &
+or communication ( & a third channel the data channel in the case of gigabit ethernet ).
+The motivation behind developing this layer was that there was a lot of
+duplicate code among the channel device drivers for configuration. 
+Also the lcs & ctc drivers tended to fight over 3088/08's & 3088/1F's which could 
+be either 2216/3172 channel attached lcs compatible devices or escon/ctc pipes 
+between guests & to resolve this fight both device drivers had to be configured 
+separately,  this is now simplified by doing the configuration in a single place
+( the channel device layer ).
+
+This layer isn't invasive & it is quite okay to use channel drivers
+which don't use the channel device layer in conjunction with
+drivers which do.
+.El
+
+.SH DESCRIPTION
+The current setup can be read from /proc/chandev
+arguments can be entered by...
+.Bl -enum
+.It
+Piping to /proc/chandev.
+e.g. echo reprobe >/proc/chandev
+will cause uninitialised channel devices to be probed.
+.It
+Entering them into /etc/chandev.conf comments are prefixed with #.
+.It
+Or from the boot command line using the 'chandev=' keyword
+e.g. chandev=noauto,0x0,0x480d;noauto,0x4810,0xffff
+will allow only devno's 0x480e & 0x480f to be autodetected.
+.El
+.Bl -item
+.It
+Multiple options can be passed separated by semicolons, no spaces or newlines are allowed between parameters on the kernel parameter line as it complicates parsing, spaces are allowed in /proc/chandev & chandev.conf, newlines are allowed in chandev.conf only. To be consistent with other hotpluggable architectures the script pointed to /proc/sys/kernel/hotplug (normally /sbin/hotplug) will be called automatically on startup or a machine check of a device as follows.
+/sbin/hotplug chandev <start starting_devnames> <machine_check (devname last/pre_recovery_status) (current/post_recovery_status)>.
+The chandev layer doesn't open stdin stdout or stderr so it is advisable that you add the following lines to the start of your script, here is a sample script which starts devices as they become available.
+.It
+#!/bin/bash
+.It
+exec >/dev/console 2>&1 0>&1
+.It
+# Uncomment line below for debugging.
+.It
+# echo $*
+.It
+if [ "$1" = "chandev" ] && [ "$2" = "start" ]
+.It
+then
+.It
+    shift 2
+.It
+    while [ "$1" != "" ]  && [ "$1" != "machine_check" ]
+.It
+    do
+.It
+        isup=`ifconfig $1 2>/dev/null | grep UP`
+.It
+	if [ "$isup" = "" ]
+.It
+	then
+.It
+	     ifup $1
+.It
+	fi
+.It
+	shift
+.It
+    done
+.It
+fi
+.It
+.It
+e.g. if tr0 & ctc0 were starting up & eth0 & eth1 devices disappeared & eth2 got a revalidate machine check ( which is normally fully recoverable ) nearly simultainously the parameters would be.
+.It
+/sbin/hotplug chandev start tr0 ctc0 machine_check eth0 gone gone eth1 gone gone eth2 revalidate good
+.It
+This can be used for example to call /etc/rc.d/init.d/network start when a device appears & make the ipldelay kernel boot parameter obselete on native machines or recover from bad machine checks where the default machine check handling isn't adequete. The machine checks that can be presented as parameters are good not_operational no_path revalidate device_gone. Normally you wouldn't want to do anything like stop networking when a device disappears as this is hopefully temporary, I just added it to be complete. The chandev layer waits a few seconds for machine checks to settle before running /sbin/hotplug because several machine checks usually happen at once & the forked scripts would possibly race against each other to shutdown & start resources at the same time & behave rather stupidly.
+.El
+
+
+
+valid chandev arguments are <> indicate optional parameters, | indicate a choice.
+
+.B glossary
+.Bl -item
+.It
+devno: is a 16 bit unsigned number used to uniquely identify a subchannel to a device.
+.It
+force list: is a term specific to channel device layer describing a range of devno's to be forced to configure in a particular manner as opposed to autodetect
+.El
+
+.B commonly used options
+
+.Bl -item
+.It
+
+.Bl -item
+.It
+.B (ctc|escon|lcs|osad|qeth)<devif_num>, 
+read_devno,write_devno,<data_devno,memory_usage_in_k,port_no/protocol_no,checksum_received_ip_pkts,use_hw_stats>
+.It
+devif_num of -1 indicates you don't care what device interface number is chosen, omitting it indicates this is a range of devices for which you want to force to be detected as a particular type, qeth devices can't be forced as a range as it makes no sense for them.
+The data_devno field is only valid for qeth devices, all parameters including & after memory_usage_in_k can be set optionally, if not set they
+go to default values. memory_usage_in_k ( 0 the default ) means let the driver choose,checksum_received_ip_pkts & use_hw_stats are set to false
+.It
+e.g. ctc0,0x7c00,0x7c01
+.It
+Tells the channel layer to force ctc0 if detected to use cuu's 7c00 & 7c01 port,port_no is the relative adapter no on lcs, on ctc/escon this field is the ctc/escon protocol number ( default 0 ), don't do checksumming on received ip packets & as ctc doesn't have hardware stats so it ignores this parameter. This can be used for instance to force a device if it presents bad sense data to the IO layer & thus autodetection fails.
+.It
+lcs,0x7c00,0x7d00,4096,-1
+All devices between 0x7c00 & 7d00 should be detected as lcs, let the driver use 4096k for each instance, don't care what port relative adapter number is chosen, don't checksum received ip packets & use hw stats .
+.It
+qeth1,0x7c00,0x7c01,0x7c02
+.It
+devif_num=1,read=0x7c00,write=0x7c01,data=0x7c02, don't checksum received ip packets & use hw stats.
+.El
+.It
+.Bl -item
+.B claw devif_num, 
+read_devno,write_devno<,memory_usage_in_k,checksum_received_ip_pkts,use_hw_stats,>
+host_name,adapter_name,api_type
+.It
+CLAW currently is not autodetected as the host_name,adapter_name & api_type
+need to be set up, possibly some convention for setting these automatically
+may be contrived in the future & auto detection may be done but currently there isn't any.
+The names host_name,adapter_name,api_type may be 8 upto characters in length,
+host_name is the name of this host, adapter_name is the name of the adjacent host,
+api_type may be name 1 to 8 chars in length API & TCPIP are common values.
+The remainder of the parameters are the same as the description for other ctc escon etc. 
+.It
+A typical setup may be
+.It
+claw0,0xe00,0xe01,linuxa,rs6k,TCPIP
+.It
+.El
+.Bl -item
+.It
+.B add_parms
+,chan_type,<lo_devno,hi_devno,>string
+.It
+chan_type bitfield 
+.It
+ctc=0x1, escon=0x2, lcs=0x4, osad=0x8, qeth=0x10, claw=0x20.
+.It
+This is for device driver specific options passed as a string to the driver
+not dealt with by the channel device layer it can't contain spaces.
+low_devno & hi_devno are optional parameters to specify a range.
+The channel device layer doesn't concatenate strings if device ranges overlap,
+before passing to a device driver.
+.El
+.It
+
+.Bl -item
+.It
+.B del_parms
+<,chan_type,exact_match,lo_devno>
+.It
+This deletes some or all device driver specific options not specifying chan_type causes it to delete all the strings. exact_match=1 specifies only to remove driver parms where chan_type is exactly equal exact_match=0 specifies to remove parms where any bit matches chan_type.
+lo_devno is an optional parameter the delete to only happen if lo_devno matches a lo_devno in one of the ranges.
+.El
+.It
+
+.Bl -item
+.It
+.B noauto
+<,lo_devno,hi_devno>
+.It
+Don't probe a range of device numbers for channel devices.
+.El
+.It
+
+.Bl -item
+.It
+.B use_devno_names
+.It
+Tells the channel layer to assign device names based on the read channel cuu number.
+.It
+e.g. a token ring read channel 0x7c00 would have an interface called tr0x7c00 this avoids name collisions on devices.
+.El
+
+
+.B power user options
+
+
+.Bl -item
+
+.It
+.Bl -item
+.It
+.B del_noauto
+,<devno>
+.It
+ Delete a range or all noauto ranges when devno is within a range.
+.El
+
+.It
+.Bl -item
+.It
+.B del_force
+,read_devno
+.It
+Delete a forced channel device from force list.
+.El
+
+.It
+.Bl -item
+.It
+.B dont_use_devno_names
+.It
+Opposite to use_devno_names described above.
+.El
+
+
+.It
+.Bl -item
+.It
+.B add_model
+,chan_type, cu_type, cu_model, dev_type, dev_model, max_port_no, automatic_machine_check_handling
+.It
+Tells the channel layer to probe for the device described, -1 for any of the parameters other than chan_type & automatic_machine_check_handling is a wildcard.
+Set max_port_no to 0 for non lcs devices.
+.It
+auto machine check recovery bitfield
+.It
+not_operational=0x1, no_path=0x2, revalidate=0x4, gone=0x8
+.It
+chan_type bitfield
+.It
+ctc=0x1, escon=0x2, lcs=0x4, osad=0x8, qeth=0x10, claw=0x20
+.El
+.Bl -item
+.It
+.B del_model
+,cu_type,cu_model,dev_type,dev_model
+.It
+-1 for any parameter is a wildcard.
+.El
+
+.Bl -item
+.It
+.B del_all_models
+.It 
+should be obvious.
+.El
+.Bl -item
+.It
+.B  non_cautious_auto_detect
+.It
+Tells the channel device layer to attempt to auto detect devices even if their type/model pairs don't unambigously identify the device, e.g. 3088/1F's can either be escon CTC's or channel attached 3172 lcs compatible devices. If the wrong device driver attempts to probe these channels there may be big delays on startup or even a kernel lockup, use this option with caution.
+.El
+.Bl -item
+.It
+.B cautious_auto_detect
+.It
+ See non_cautious_auto_detect this is the default.
+.El
+.Bl -item
+.It
+.B auto_msck
+<,lo_devno>,<hi_devno>,auto_msck_recovery
+.It
+This is used to specify the kind of machine check recovery that occurs over a device range.
+.El
+.It
+.Bl -item
+.It
+.B del_auto_msck
+<,devno>
+.It
+Delete a range or all machine check recovery ranges when devno is within a range.
+.El
+.It
+.Bl -item
+.It
+.B reset_clean
+.It
+Resets all model info, forced devices & noauto lists to null.
+.El
+.It
+.Bl -item
+.It
+.B reset_conf
+.It
+Resets all model info, forced devices & noauto lists back to default settings.
+.El
+.It
+.Bl -item
+.It
+.B reset_conf_clean
+.It
+Resets all model info, forced devices & noauto lists to empty.
+.El
+.It
+.Bl -item
+.It
+.B shutdown
+<device name|read devno>
+.It
+Shuts down a particular device by device name or read devno,
+deregisters it & releases its interrupts
+or shuts down all devices if no parameter is used.
+.El
+.It
+.Bl -item
+.It
+.B reprobe
+.It
+Calls probe method for channels whose interrupts are not owned.
+.El
+.It
+.Bl -item
+.It
+.B unregister_probe <probefunc_addr>
+.It
+unregisters a single probe function or all of them.
+.El
+.Bl -item
+.It
+.B unregister_probe_by_chan_type
+.It
+unregisters all probe functions which match the chan_type bitfield exactly,
+useful if you want a configuration to survice a kernel upgrade.
+.El
+.Bl -item
+.It
+.B read_conf
+.It
+Read instructions from /etc/chandev.conf.
+.El
+.It
+.Bl -item
+.It
+.B dont_read_conf
+.It
+Don't automatically read /etc/chandev.conf on boot.
+.El
+.Bl -item
+.It
+.B persist 
+,chan_type
+.It
+Force drivers modules to stay loaded even if no device is found,
+this is useful for debugging & one wishes to examine debug entries in 
+/proc/s390dbf/ to find out why a module failed to load.
+.It
+e.g.
+.It
+persist,-1 forces all devices to persist.
+.It
+persist,0 forces all channel devices to be non persistent.
+.El
+
+.It
+e.g the following sequence of commands should be roughly equivalent
+to rebooting for channel devices.
+.Bl -item
+.It
+shutdown
+.It
+reset_conf
+.It
+read_conf
+.It
+reprobe
+.El
+.El
+
+.SH SEE ALSO
+.Bl -item
+.It
+If you wish to write a driver channel device layer compatible
+.It
+/linux/include/asm-s390/chandev.h for the apis which are commented.
+.It
+/linux/drivers/s390/misc/chandev.c for the code.
+.El
+
+.SH FILES
+.Bl -item
+.It
+.B /proc/chandev
+.It
+cat /proc/chandev to see current options chosen.
+.It
+echo <command> >/proc/chandev to enter a new command
+.It
+.B /etc/chandev.conf 
+.It
+A file which can be used to configure the channel 
+device layer.
+.It
+kernel parameters with the 
+.B 'chandev=' 
+keyword.
+.It
+.B /sbin/hotplug
+.It 
+A user script/executable which is run when devices come online "appear"
+or go offline "disappear".
+.El
+
+
+.SH AUTHORS
+DJ Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
+

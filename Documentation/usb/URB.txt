@@ -1,0 +1,228 @@
+Revised: 2000-Dec-05.
+
+1. Specification of the API
+
+1.1. Basic concept or 'What is an URB?'
+
+The basic idea of the new driver is message passing, the message itself is 
+called USB Request Block, or URB for short. 
+
+- An URB consists of all relevant information to execute any USB transaction 
+and deliver the data and status back. 
+
+- Execution of an URB is inherently an asynchronous operation, i.e. the 
+usb_submit_urb(urb) call returns immediately after it has successfully queued 
+the requested action. 
+
+- Ongoing transfers for one URB (e.g. ISO) can simply be canceled with
+usb_unlink_urb(urb) at any time. 
+
+- Each URB has a completion handler, which is called after the action
+has been successfully completed or canceled (INT transfers behave a bit
+differently, see below). The URB also contains a context-pointer for free 
+usage and information passing to the completion handler.
+
+- URBs can be linked. After completing one URB, the next one can be
+automatically submitted. This is especially useful for ISO transfers:
+You only have read/write the data from/to the buffers in the completion 
+handler, the continuous streaming itself is transparently done by the 
+URB-machinery.
+
+
+1.2. The URB structure
+
+typedef struct urb
+{
+	spinlock_t lock;		// lock for the URB
+
+// ignore, for host controller/URB machine internal use
+	void *hcpriv;                   // private data for host controller
+	struct list_head urb_list;      // list pointer to all active urbs 
+
+// This is used for urb linking
+	struct urb* next;               // pointer to next URB  
+	struct usb_device *dev;         // pointer to associated USB device
+
+// pipe is assembled by the various well-known pipe macros in usb.h
+	unsigned int pipe;              // pipe information
+
+// status after each completion
+	int status;                     // returned status
+	unsigned int transfer_flags;    // ASAP, DISABLE_SPD, etc.
+
+// for data stage (CTRL), BULK, INT and ISO
+	void *transfer_buffer;          // associated data buffer
+
+// expected length
+	int transfer_buffer_length;     // data buffer length
+	int actual_length;              // actual data buffer length    
+
+// setup stage for CTRL (always 8 bytes!)
+	unsigned char* setup_packet;    // setup packet (control only)
+
+// with ASAP, start_frame is set to the determined frame
+	int start_frame;                // start frame (iso/irq)
+	int number_of_packets;          // # of packets (iso/int)
+	int interval;                   // polling interval (irq only)
+	int error_count;                // number of errors (iso only)
+	//
+	void *context;                  // context for completion routine
+	usb_complete_t complete;        // pointer to completion routine
+	//
+// specification of the requested data offsets and length for ISO
+	iso_packet_descriptor_t iso_frame_desc[0];
+} urb_t, *purb_t;
+
+
+1.3. How to get an URB?
+
+URBs are allocated with the following call
+
+	purb_t usb_alloc_urb(int isoframes)
+
+Return value is a pointer to the allocated URB, 0 if allocation failed.
+The parameter isoframes specifies the number of isochronous transfer frames
+you want to schedule. For CTRL/BULK/INT, use 0.
+
+To free an URB, use
+
+	void usb_free_urb(purb_t purb)
+
+This call also may free internal (host controller specific) memory in the
+future.
+
+
+1.4. What has to be filled in?
+
+Depending on the type of transaction, there are some macros 
+(FILL_CONTROL_URB, FILL_CONTROL_URB_TO, FILL_BULK_URB,
+FILL_BULK_URB_TO, and FILL_INT_URB, defined in usb.h)
+that simplify the URB creation. In general, all macros need the usb
+device pointer, the pipe (usual format from usb.h), the transfer buffer,
+the desired transfer length, the completion  handler, and its context. 
+Take a look at the usb_control_msg function that converts the old API 
+into the URB API.
+
+Flags:
+For ISO there are two startup behaviors: Specified start_frame or ASAP.
+For ASAP set USB_ISO_ASAP in transfer_flags.
+
+If short packets should NOT be tolerated, set USB_DISABLE_SPD in 
+transfer_flags.
+
+Usually, to reduce restart time, the completion handler is called
+AFTER the URB re-submission.  However, it is called BEFORE URB
+re-submission for INT transfers that are being continued.
+
+
+1.5. How to submit an URB?
+
+Just call
+
+	int usb_submit_urb(purb_t purb)
+
+It immediately returns, either with status 0 (request queued) or some
+error code, usually caused by the following:
+
+- Out of memory (-ENOMEM)
+- Wrong pipe handle (-ENXIO)
+- Unplugged device (-ENODEV)
+- Stalled endpoint (-EPIPE)
+- Too many queued ISO transfers (-EAGAIN)
+- Too many requested ISO frames (-EFBIG)
+- Invalid INT interval (-EINVAL)
+- More than one packet for INT (-EINVAL)
+
+After submission, urb->status is USB_ST_URB_PENDING (-EINPROGRESS).
+
+For isochronous endpoints, subsequent submitting of URBs to the same endpoint
+with the ASAP flag result in a seamless ISO streaming. Exception: The 
+execution cannot be scheduled later than 900 frames from the 'now'-time. 
+The same applies to INT transfers, but here the seamless continuation is 
+independent of the transfer flags (implicitly ASAP).
+
+
+1.6. How to cancel an already running URB?
+
+For an URB which you've submitted, but which hasn't been returned to
+your driver by the host controller, call
+
+	int usb_unlink_urb(purb_t purb)
+
+It removes the urb from the internal list and frees all allocated
+HW descriptors. The status is changed to USB_ST_URB_KILLED. After 
+usb_unlink_urb() returns, you can safely free the URB with usb_free_urb(urb)
+and all other possibly associated data (urb->context etc.)
+
+There is also an asynchronous unlink mode.  To use this, set the
+the USB_ASYNC_UNLINK flag in urb->transfer flags before calling
+usb_unlink_urb().  When using async unlinking, the URB will not
+normally be unlinked when usb_unlink_urb() returns.  Instead, wait
+for the completion handler to be called.
+
+
+1.7. What about the completion handler?
+
+The completion handler is optional, but useful for fast data processing
+or wakeup of a sleeping process (as shown in the compatibility wrapper's 
+completion handler).
+
+The handler is of the following type:
+
+	typedef void (*usb_complete_t)(struct urb *);
+
+i.e. it gets just the URB that caused the completion call.
+In the completion handler, you should have a look at urb->status to
+detect any USB errors. Since the context parameter is included in the URB,
+you can pass information to the completion handler. 
+
+NOTE:  ***** WARNING *****
+AVOID using the urb->dev field in your completion handler; it's cleared
+as part of URB unlinking.  Instead, use urb->context to hold all the
+data your driver needs.
+
+NOTE:  ***** WARNING *****
+Also, NEVER SLEEP IN A COMPLETION HANDLER.  These are normally called
+during hardware interrupt processing.  If you can, defer substantial
+work to a tasklet (bottom half) to keep system latencies low.  You'll
+probably need to use spinlocks to protect data structures you manipulate
+in completion handlers.
+
+
+1.8. How to do isochronous (ISO) transfers?
+
+For ISO transfers you have to append the iso_packet_descriptor_t structure 
+to the URB for each frame you want to schedule. When using usb_alloc_urb(n)
+(recommended), the iso_packets parameter can be used to allocate the
+structures for iso_packets frames.
+
+For each entry you have to specify the data offset for this frame (base is
+transfer_buffer), and the length you want to write/expect to read.
+After completion, actual_length contains the actual transferred length and 
+status contains the resulting USB-status for the ISO transfer for this frame.
+It is allowed to specify a varying length from frame to frame (e.g. for
+audio synchronisation/adaptive transfer rates). You can also use the length 
+0 to omit one or more frames (striping).
+
+As can be concluded from above, the UHCI-driver does not care for continuous
+data in case of short packet ISO reads! There's no fixup_isoc() like in the 
+old driver. There may be a common routine to do this in the future, but this 
+has nothing to do with the UHCI-driver!
+
+For scheduling you can choose your own start frame or ASAP. As written above,
+queuing more than one ISO frame with ASAP to the same device&endpoint result 
+in seamless ISO streaming. For continuous streaming you have to use URB
+linking. 
+
+
+1.9. How to start interrupt (INT) transfers?
+
+INT transfers are currently implemented with different queues for intervals 
+for 1, 2, 4,... 128ms. Only one URB is allocated for each interrupt. After
+calling the completion handler, that URB is recycled by the host controller
+driver (HCD).
+With the submission of one URB, the interrupt is scheduled until it is
+canceled by usb_unlink_urb.
+
+The usb_submit_urb() call modifies urb->interval to the implemented interval
+value that is less than or equal to the requested interval value.

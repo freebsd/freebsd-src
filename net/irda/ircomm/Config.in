@@ -1,0 +1,3 @@
+
+dep_tristate '  IrCOMM protocol' CONFIG_IRCOMM $CONFIG_IRDA
+

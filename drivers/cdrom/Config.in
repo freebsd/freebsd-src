@@ -1,0 +1,27 @@
+#
+# CDROM driver configuration
+#
+tristate '  Aztech/Orchid/Okano/Wearnes/TXC/CyDROM  CDROM support' CONFIG_AZTCD
+tristate '  Goldstar R420 CDROM support' CONFIG_GSCD
+tristate '  Matsushita/Panasonic/Creative, Longshine, TEAC CDROM support' CONFIG_SBPCD
+if [ "$CONFIG_SBPCD" = "y" ]; then
+   bool '    Matsushita/Panasonic, ... second CDROM controller support' CONFIG_SBPCD2
+   if [ "$CONFIG_SBPCD2" = "y" ]; then
+      bool '    Matsushita/Panasonic, ... third CDROM controller support' CONFIG_SBPCD3
+      if [ "$CONFIG_SBPCD3" = "y" ]; then
+	 bool '    Matsushita/Panasonic, ... fourth CDROM controller support' CONFIG_SBPCD4
+      fi
+   fi
+fi
+tristate '  Mitsumi (standard) [no XA/Multisession] CDROM support' CONFIG_MCD
+if [ "$CONFIG_MCD" != "n" ]; then
+   int 'MCD IRQ' CONFIG_MCD_IRQ 11
+   hex 'MCD I/O base' CONFIG_MCD_BASE 300
+fi
+tristate '  Mitsumi [XA/MultiSession] CDROM support' CONFIG_MCDX
+tristate '  Optics Storage DOLPHIN 8000AT CDROM support' CONFIG_OPTCD
+tristate '  Philips/LMS CM206 CDROM support' CONFIG_CM206
+tristate '  Sanyo CDR-H94A CDROM support' CONFIG_SJCD
+tristate '  ISP16/MAD16/Mozart soft configurable cdrom interface support' CONFIG_ISP16_CDI
+tristate '  Sony CDU31A/CDU33A CDROM support' CONFIG_CDU31A
+tristate '  Sony CDU535 CDROM support' CONFIG_CDU535

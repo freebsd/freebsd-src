@@ -1,0 +1,206 @@
+#
+# Automatically generated make config: don't edit
+#
+CONFIG_ARM=y
+
+#
+# System and processor type
+#
+# CONFIG_ARCH_ARC is not set
+# CONFIG_ARCH_A5K is not set
+# CONFIG_ARCH_RPC is not set
+# CONFIG_ARCH_EBSA110 is not set
+# CONFIG_FOOTBRIDGE is not set
+CONFIG_ARCH_SA1100=y
+CONFIG_CPU_SA1100=y
+# CONFIG_SA1100_BRUTUS is not set
+# CONFIG_SA1100_EMPEG is not set
+# CONFIG_SA1100_ITSY is not set
+# CONFIG_SA1100_PLEB is not set
+CONFIG_SA1100_VICTOR=y
+# CONFIG_VICTOR_BOARD1 is not set
+# CONFIG_ARCH_ACORN is not set
+# CONFIG_ISA_DMA is not set
+CONFIG_CPU_32=y
+# CONFIG_CPU_26 is not set
+# CONFIG_CPU_ARM2 is not set
+# CONFIG_CPU_ARM3 is not set
+# CONFIG_CPU_ARM6 is not set
+# CONFIG_CPU_ARM7 is not set
+CONFIG_CPU_SA110=y
+
+#
+# Code maturity level options
+#
+CONFIG_EXPERIMENTAL=y
+# CONFIG_ALIGNMENT_TRAP is not set
+# CONFIG_TEXT_SECTIONS is not set
+
+#
+# Loadable module support
+#
+CONFIG_MODULES=y
+# CONFIG_MODVERSIONS is not set
+# CONFIG_KMOD is not set
+
+#
+# General setup
+#
+CONFIG_ZBOOT_ROM=y
+CONFIG_ZBOOT_ROM_TEXT=0x00002000
+CONFIG_ZBOOT_ROM_BSS=0xc0200000
+# CONFIG_NET is not set
+# CONFIG_SYSVIPC is not set
+# CONFIG_BSD_PROCESS_ACCT is not set
+# CONFIG_SYSCTL is not set
+CONFIG_NWFPE=y
+# CONFIG_BINFMT_AOUT is not set
+CONFIG_BINFMT_ELF=y
+# CONFIG_BINFMT_MISC is not set
+# CONFIG_ARTHUR is not set
+# CONFIG_PARPORT is not set
+CONFIG_CMDLINE=""
+
+#
+# Plug and Play support
+#
+# CONFIG_PNP is not set
+
+#
+# Block devices
+#
+# CONFIG_BLK_DEV_FD is not set
+CONFIG_BLK_DEV_IDE=y
+
+#
+# Please see Documentation/ide.txt for help/info on IDE drives
+#
+# CONFIG_BLK_DEV_HD_IDE is not set
+# CONFIG_BLK_DEV_IDEDISK is not set
+CONFIG_BLK_DEV_IDECD=y
+# CONFIG_BLK_DEV_IDETAPE is not set
+# CONFIG_BLK_DEV_IDEFLOPPY is not set
+# CONFIG_BLK_DEV_IDESCSI is not set
+# CONFIG_BLK_DEV_CMD640 is not set
+# CONFIG_IDE_CHIPSETS is not set
+# CONFIG_BLK_DEV_LOOP is not set
+# CONFIG_BLK_DEV_MD is not set
+# CONFIG_BLK_DEV_RAM is not set
+# CONFIG_BLK_DEV_XD is not set
+CONFIG_PARIDE_PARPORT=y
+# CONFIG_PARIDE is not set
+# CONFIG_BLK_DEV_HD is not set
+
+#
+# Character devices
+#
+# CONFIG_VT is not set
+CONFIG_SERIAL_SA1100=y
+CONFIG_SERIAL_SA1100_CONSOLE=y
+# CONFIG_SERIAL is not set
+# CONFIG_SERIAL_EXTENDED is not set
+# CONFIG_SERIAL_NONSTANDARD is not set
+# CONFIG_UNIX98_PTYS is not set
+# CONFIG_MOUSE is not set
+# CONFIG_QIC02_TAPE is not set
+# CONFIG_WATCHDOG is not set
+# CONFIG_NVRAM is not set
+# CONFIG_RTC is not set
+
+#
+# Video For Linux
+#
+# CONFIG_VIDEO_DEV is not set
+
+#
+# Joystick support
+#
+# CONFIG_JOYSTICK is not set
+# CONFIG_DTLK is not set
+
+#
+# Ftape, the floppy tape device driver
+#
+# CONFIG_FTAPE is not set
+
+#
+# SCSI support
+#
+# CONFIG_SCSI is not set
+
+#
+# Filesystems
+#
+# CONFIG_QUOTA is not set
+# CONFIG_AUTOFS_FS is not set
+# CONFIG_ADFS_FS is not set
+# CONFIG_AFFS_FS is not set
+# CONFIG_HFS_FS is not set
+# CONFIG_FAT_FS is not set
+# CONFIG_MSDOS_FS is not set
+# CONFIG_UMSDOS_FS is not set
+# CONFIG_VFAT_FS is not set
+CONFIG_ISO9660_FS=y
+CONFIG_JOLIET=y
+# CONFIG_MINIX_FS is not set
+# CONFIG_NTFS_FS is not set
+# CONFIG_HPFS_FS is not set
+# CONFIG_PROC_FS is not set
+# CONFIG_QNX4FS_FS is not set
+# CONFIG_ROMFS_FS is not set
+CONFIG_EXT2_FS=y
+# CONFIG_SYSV_FS is not set
+# CONFIG_UFS_FS is not set
+
+#
+# Partition Types
+#
+# CONFIG_OSF_PARTITION is not set
+# CONFIG_MAC_PARTITION is not set
+# CONFIG_MSDOS_PARTITION is not set
+# CONFIG_SGI_PARTITION is not set
+# CONFIG_SUN_PARTITION is not set
+# CONFIG_AMIGA_PARTITION is not set
+# CONFIG_ACORN_PARTITION is not set
+CONFIG_NLS=y
+
+#
+# Native Language Support
+#
+CONFIG_NLS_CODEPAGE_437=y
+# CONFIG_NLS_CODEPAGE_737 is not set
+# CONFIG_NLS_CODEPAGE_775 is not set
+CONFIG_NLS_CODEPAGE_850=y
+# CONFIG_NLS_CODEPAGE_852 is not set
+# CONFIG_NLS_CODEPAGE_855 is not set
+# CONFIG_NLS_CODEPAGE_857 is not set
+# CONFIG_NLS_CODEPAGE_860 is not set
+# CONFIG_NLS_CODEPAGE_861 is not set
+# CONFIG_NLS_CODEPAGE_862 is not set
+# CONFIG_NLS_CODEPAGE_863 is not set
+# CONFIG_NLS_CODEPAGE_864 is not set
+# CONFIG_NLS_CODEPAGE_865 is not set
+# CONFIG_NLS_CODEPAGE_866 is not set
+# CONFIG_NLS_CODEPAGE_869 is not set
+# CONFIG_NLS_CODEPAGE_874 is not set
+CONFIG_NLS_ISO8859_1=y
+# CONFIG_NLS_ISO8859_2 is not set
+# CONFIG_NLS_ISO8859_3 is not set
+# CONFIG_NLS_ISO8859_4 is not set
+# CONFIG_NLS_ISO8859_5 is not set
+# CONFIG_NLS_ISO8859_6 is not set
+# CONFIG_NLS_ISO8859_7 is not set
+# CONFIG_NLS_ISO8859_8 is not set
+# CONFIG_NLS_ISO8859_9 is not set
+# CONFIG_NLS_ISO8859_15 is not set
+# CONFIG_NLS_KOI8_R is not set
+
+#
+# Kernel hacking
+#
+CONFIG_FRAME_POINTER=y
+CONFIG_DEBUG_ERRORS=y
+CONFIG_DEBUG_USER=y
+# CONFIG_DEBUG_INFO is not set
+# CONFIG_MAGIC_SYSRQ is not set
+# CONFIG_DEBUG_LL is not set

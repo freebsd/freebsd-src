@@ -1,0 +1,1042 @@
+  Macintosh HFS Filesystem for Linux
+  Paul H. Hargrove, hargrove@sccm.Stanford.EDU
+  version 0.95, 28 Apr 1997
+
+  This document describes version 0.95 of the Macintosh HFS filesystem
+  for Linux.  The most current versions of this document and the
+  software are kept at The HFS for Linux Page
+  <http://www-sccm.Stanford.EDU/~hargrove/HFS/>.
+  ______________________________________________________________________
+
+  Table of Contents:
+
+  1.      Introduction
+
+  2.      Mounting HFS Filesystems
+
+  2.1.    afpd
+
+  2.2.    case={asis, lower}
+
+  2.3.    conv={auto, binary, text}
+
+  2.4.    creator=cccc
+
+  2.5.    fork={cap, double, netatalk}
+
+  2.6.    gid=n
+
+  2.7.    names={7bit, 8bit, alpha, cap, latin, netatalk, trivial}
+
+  2.8.    part=n
+
+  2.9.    quiet
+
+  2.10.   type=cccc
+
+  2.11.   uid=n
+
+  2.12.   umask=n
+
+  3.      Writing to HFS Filesystems
+
+  3.1.    Writing with fork=cap
+
+  3.2.    Writing with fork=double
+
+  3.3.    Writing with fork=netatalk
+
+  4.      A Guide to Special File Formats
+
+  4.1.    CAP .finderinfo Files
+
+  4.2.    AppleDouble Header Files
+
+  5.      Reporting Bugs
+
+  5.1.    What Goes in a Bug Report
+
+  5.2.    How to Report a Kernel Oops or GPF
+
+  6.      Legal Notices
+
+  6.1.    This Document
+
+  6.2.    The Software
+
+  6.2.1.  The Columbia AppleTalk Package for UNIX
+
+  6.2.2.  Netatalk
+
+  6.3.    Trademarks
+  ______________________________________________________________________
+
+  11..  IInnttrroodduuccttiioonn
+
+  This software implements the Macintosh HFS filesystem under Linux.  It
+  allows you to read and write HFS filesystems on floppy disks, CDROMs,
+  hard drives, ZIP drives, etc.  It is _n_o_t an AppleShare client.
+
+  If you use this software, please send me a note telling of your
+  success or failure with it.  Your feedback lets me know that this
+  project is not a waste of my time.
+
+  This code is still experimental, so backup anything important before
+  you start playing.  I'd like you to know that I've never lost any
+  files while using this software, or I would not release it.  However,
+  a ``better safe than sorry'' attitude is probably best.
+
+  If, for instance, the buffer cache were to become corrupted you could
+  start losing things on other disks.  Because of this, if you get a
+  General Protection Fault, or a kernel Oops, I _s_t_r_o_n_g_l_y recommend that
+  you reboot before writing any files.
+
+  22..  MMoouunnttiinngg HHFFSS FFiilleessyysstteemmss
+
+  Once you have the HFS filesystem compiled into the kernel or installed
+  as a loadable module, you will be able to use hfs as a filesystem type
+  option to mount.  For instance, to mount a Macintosh floppy disk on
+  the directory /mnt using the default mount options you would execute
+  ``mount -t hfs /dev/fd0 /mnt''.
+
+  The remainder of this section describes the several mount options
+  available to control how the HFS filesystem is mapped onto a Linux
+  filesystem structure.  The values for the multiple-choice options
+  (case, conv, fork and names) can be abbreviated by their first
+  character.
+
+  22..11..  aaffppdd
+
+  If included in the options, then the behavior of the filesystem is
+  changed to make it fully read-write compatible with Netatalk's afpd.
+  In this mode you should not use normal user-level tools to modify the
+  filesystem, though reading from it is acceptable.  This is because the
+  return codes from some system calls are changed to fool afpd.  These
+  changes will confuse many user-level tools.  In particular ``rm -r''
+  will loop forever.
+
+  This option implies fork=netatalk, which in turn implies
+  names=netatalk.  If either of these options are explicitly set to
+  something else they will take precedence and will confuse afpd.  The
+  quiet option has no effect.  The case= option functions normally, but
+  afpd usually does the same thing for you.  The conv= and part= options
+  also function normally.
+
+  You will probably want to use the uid=, gid= and umask= mount options.
+  Note that because all the files on an HFS filesystem belong to a
+  single user and group and have a single umask, the full AppleShare
+  permission scheme will not work through Netatalk.
+
+  One additional limitation is that the Desktop database on the disk is
+  stored in afpd's format and is separate from any existing database
+  maintained by the Finder when the volume is used on a Macintosh.
+  Because of this mounting an HFS CDROM across the network to a
+  Macintosh may result in applications and documents showing up with
+  default application and document icons.  Additionally double clicking
+  on a document will fail to start the correct application.  Both of
+  these problems can be worked around by copying the application to a
+  local disk on the Macintosh.
+
+  This mode is known to be compatible with afpd from Netatalk versions
+  1.4b1 and 1.4b2, and known to be incompatible with the afpd from
+  version 1.3.3.  As of this writing Netatalk version 1.4 has not yet
+  been released.  However, it is expected that this mode will be
+  compatible with afpd from Netatalk version 1.4 when it is released.
+
+  22..22..  ccaassee=={{aassiiss,, lloowweerr}}
+
+  default value: asis
+
+  This option determines if Macintosh filenames are presented in their
+  original case or in all lowercase.  Filename lookup is always case
+  insensitive, so either way foo and Foo refer to the same file but ls
+  will list Foo with case=asis, and foo with case=lower.  (Same as for
+  the HPFS filesystem.)
+
+     aassiiss
+        Filenames are reported in the case they were created with.
+
+     lloowweerr
+        Filenames are reported in lowercase.
+
+  22..33..  ccoonnvv=={{aauuttoo,, bbiinnaarryy,, tteexxtt}}
+
+  default value: binary
+
+  This option controls CR<->NL conversion of Macintosh _d_a_t_a _f_o_r_k_s.  Any
+  translation takes place only for files accessed with the read() and
+  write() system calls (either directly or through the stdio functions).
+  Access through mmap() is unaffected.  (Similar to the conv= option for
+  the MS-DOS filesystem.)
+
+     aauuttoo
+        If the Finder's type for a file is TEXT or ttro, then CR
+        characters are converted to NL characters when read, and NL
+        characters are converted to CR characters when written.
+
+        Be warned that some Macintosh applications create files with
+        type TEXT even though the contents is clearly binary.
+
+     bbiinnaarryy
+        No CR<->NL conversion is done.
+
+     tteexxtt
+        In all data forks, regardless of the Finder's type for the file,
+        CR characters are converted to NL characters when read, and NL
+        characters are converted to CR characters when written.
+
+  22..44..  ccrreeaattoorr==cccccccc
+
+  default value: ``????''
+
+  Specifies the 4-character string specifying the Finder's Creator for
+  new files.
+
+  22..55..  ffoorrkk=={{ccaapp,, ddoouubbllee,, nneettaattaallkk}}
+
+  default value: cap
+
+  This option determines how resource forks and the Finder's metadata
+  are represented within the structure of the Linux filesystem.
+
+     ccaapp
+        The scheme used by the Columbia AppleTalk Package's AUFS.
+
+        Associated with each directory are two special directories and a
+        metadata file.  The directory ./bar is represented by:
+
+        ..//bbaarr
+           The directory itself, containing subdirectories, the data
+           forks of files, and the following two special directories.
+
+        ..//bbaarr//..rreessoouurrccee
+           A special directory holding resource forks of the files in
+           ./bar.
+
+        ..//bbaarr//..ffiinnddeerriinnffoo
+           A special directory holding metadata files for the files and
+           subdirectories in ./bar.
+
+        ..//..ffiinnddeerriinnffoo//bbaarr
+           The metadata file for the directory ./bar.
+
+        The files in a directory are represented as three files:
+
+        ..//ffoooo
+           The data fork of the file ./foo.
+
+        ..//..rreessoouurrccee//ffoooo
+           The resource fork of the file ./foo.
+
+        ..//..ffiinnddeerriinnffoo//ffoooo
+           The metadata file for the file ./foo.
+
+        Additionally, the file .rootinfo in the root directory of the
+        HFS filesystem is a metadata file for the root directory.
+
+        Brief documentation on the format of file containing the
+        Finder's metadata is included in the section ``A Guide to
+        Special File Formats'' in this document.  More detailed
+        information is available in the Columbia AppleTalk Package.
+
+     ddoouubbllee
+        The ``AppleDouble'' format recommended by Apple.  (Apple's other
+        recommended format, ``AppleSingle'', is not yet implemented.)
+
+        Associated with each directory is an AppleDouble ``header
+        file''.  The directory ./bar is represented by:
+
+        ..//bbaarr
+           The directory itself, containing subdirectories, the data
+           forks for files, and the header files for files and
+           subdirectories.
+
+        ..//%%bbaarr
+           The header file for the directory ./bar, containing the
+           Finder's metadata for the directory.
+
+        The files in a directory are represented as two files:
+
+        ..//ffoooo
+           The data fork of the file ./foo.
+
+        ..//%%ffoooo
+           The header file for the file ./foo, containing the resource
+           fork and the Finder's metadata for the file.
+
+        Additionally, the file %RootInfo in the root directory of the
+        HFS filesystem is a header file for the root directory.  This is
+        not quite the %RootInfo file referred to in the AppleDouble
+        specification.
+
+        The header files used in this scheme are version 2 AppleDouble
+        header files.  Their format is described briefly in the section
+        ``A Guide to Special File Formats'' in this document.  They are
+        documented in detail in ``AppleSingle/AppleDouble Formats:
+        Developer's Note (9/94)'', available from Apple's Developer
+        Services Page <http://devworld.apple.com>.
+
+        Note that the naming convention for the header file can cause
+        name conflicts.  For instance, using Apple's 7-bit ASCII name
+        conversion (see the names mount option) the name %Desktop could
+        be interpreted either as the header file for the file Desktop or
+        as the file with 0xDE as the hexadecimal representation of its
+        first character, and "sktop" as the remaining 5 characters.  The
+        problem arises when both files exist, since only one will be
+        accessible.  The behavior of the HFS filesystem in the case of
+        such a conflict is undefined, and may change in future releases.
+        (If this causes problems for you, please don't report it as a
+        bug; I didn't design this ``standard'', Apple did.)
+
+     nneettaattaallkk
+        The scheme used by the Netatalk afpd.
+
+        Associated with each directory is a special directory and a
+        metadata file.  The directory ./bar is represented by:
+
+        ..//bbaarr
+           The directory itself, containing subdirectories, the data
+           forks of files, and the following special directory.
+
+        ..//bbaarr//..AApppplleeDDoouubbllee
+           A special directory holding AppleDouble header files for
+           ./bar and the files it contains, but not for the
+           subdirectories it contains.
+
+        ..//bbaarr//..AApppplleeDDoouubbllee//..PPaarreenntt
+           The header file for the directory ./bar, containing the
+           Finder's metadata for the directory.
+
+        The files in a directory are represented as two files:
+
+        ..//ffoooo
+           The data fork of the file ./foo.
+
+        ..//..AApppplleeDDoouubbllee//ffoooo
+           The header file for file ./foo, containing the resource fork
+           and the Finder's metadata.
+
+        The header files used in this scheme are version 1 AppleDouble
+        header files.  They are described briefly in the section ``A
+        Guide to Special File Formats'' in this document.  The format is
+        documented in detail in the ``Apple II File Type Notes'' under
+        the type ``$E0.0002/$E0.0003-AppleDouble'', and in Appendix B of
+        the ``A/UX Toolbox: Macintosh ROM Interface'' manual.
+
+  22..66..  ggiidd==nn
+
+  default value: gid of the mounting process
+
+  Specifies the group that owns all files and directories on the
+  filesystem.  (Same as for the MS-DOS and HPFS filesystems.)
+
+  22..77..  nnaammeess=={{77bbiitt,, 88bbiitt,, aallpphhaa,, ccaapp,, llaattiinn,, nneettaattaallkk,, ttrriivviiaall}}
+
+  default value: varies as follows
+
+  +o  If the fork option is set to double, then names defaults to alpha.
+
+  +o  If the fork option is set to netatalk, then names defaults to
+     netatalk.
+
+  +o  If the fork option is set to cap (or has taken that value by
+     default), then names defaults to cap.
+
+  This option determines how to convert between valid Macintosh
+  filenames and valid Linux filenames.  The 7bit, 8bit and alpha options
+  correspond to Apple's recommended conventions named ``7-bit ASCII'',
+  ``8-bit'' and ``7-bit alphanumeric''.
+
+     77bbiitt
+        When converting from Macintosh filenames to Linux filenames the
+        NULL (0x00), slash (/) and percent (%) characters and the
+        extended 8-bit characters (hexadecimal codes 0x80-0xff) are
+        replaced by a percent character (%) followed by the two-digit
+        hexadecimal code for the character.
+
+        When converting from Linux filenames to Macintosh filenames the
+        string "%YZ" is replaced by the character with hexadecimal code
+        0xYZ.  If 0xYZ is not a valid hexadecimal number or is the code
+        for NULL or colon (:) then the string "%YZ" is unchanged.  A
+        colon (:) is replaced by a pipe character (|).
+
+     88bbiitt
+        When converting from Macintosh filenames to Linux filenames the
+        NULL (0x00), slash (/) and percent (%) characters are replaced
+        by a percent character (%) followed by the two-digit hexadecimal
+        code for the character.
+
+        When converting from Linux filenames to Macintosh filenames the
+        string "%YZ" is replaced by the character with hexadecimal code
+        0xYZ.  If 0xYZ is not a valid hexadecimal number or is the code
+        for NULL or colon (:) then the string "%YZ" is unchanged.  A
+        colon (:) is replaced by a pipe character (|).
+
+     aallpphhaa
+        When converting from Macintosh filenames to Linux filenames only
+        the alphanumeric characters (a-z, A-Z and 0-9), the underscore
+        (_) and the last period (.) in the filename are unchanged.  The
+        remaining characters are replaced by a percent character (%)
+        followed by the two-digit hexadecimal code for the character.
+
+        When converting from Linux filenames to Macintosh filenames the
+        string "%YZ" is replaced by the character with hexadecimal code
+        0xYZ.  If 0xYZ is not a valid hexadecimal number or is the code
+        for NULL or colon (:) then the string "%YZ" is unchanged.  A
+        colon (:) is replaced by a pipe character (|).
+
+     ccaapp
+        The convention used by the Columbia AppleTalk Package's AUFS.
+
+        When converting from Macintosh filenames to Linux filenames the
+        characters from space ( ) through tilde (~) (ASCII 32-126) are
+        unchanged, with the exception of slash (/).  The slash (/) and
+        all characters outside the range 32-126 are replaced by a colon
+        (:) followed by the two-digit hexadecimal code for the
+        character.
+
+        When converting from Linux filenames to Macintosh filenames the
+        string ":YZ" is replaced by the character with hexadecimal code
+        0xYZ.  If 0xYZ is not a valid hexadecimal number or is the code
+        for NULL or colon (:) then the colon is replaced by a pipe
+        character (|).
+
+     llaattiinn
+        When converting from Macintosh filenames to Linux filenames the
+        characters from space ( ) through tilde (~) (ASCII 32-126) are
+        unchanged, with the exception of slash (/) and percent (%).  The
+        extended 8-bit Macintosh characters with equivalents in the
+        Latin-1 character set are replaced by those equivalents.  The
+        remaining characters are replaced by a percent character (%)
+        followed by the two-digit hexadecimal code for the character.
+
+        When converting from Linux filenames to Macintosh filenames the
+        string "%YZ" is replaced by the character with hexadecimal code
+        0xYZ.  If 0xYZ is not a valid hexadecimal number or is the code
+        for NULL or colon (:) then the string "%YZ" is unchanged. The
+        Latin-1 characters with equivalents in the extended 8-bit
+        Macintosh character set are replaced by those equivalents.  A
+        colon (:) is replaced by a pipe character (|).
+
+        Thanks to Holger Schemel (aeglos@valinor.owl.de) for
+        contributing this conversion mode.
+
+     nneettaattaallkk
+        The convention used by the Netatalk afpd.
+
+        When converting from Macintosh filenames to Linux filenames the
+        characters from space ( ) through tilde (~) (ASCII 32-126) are
+        unchanged, with the exception of slash (/) and any initial
+        period (.).  The slash (/) and any initial period (.)  and all
+        characters outside the range 32-126 are replaced by a colon (:)
+        followed by the two-digit hexadecimal code for the character.
+
+        When converting from Linux filenames to Macintosh filenames the
+        string ":YZ" is replaced by the character with hexadecimal code
+        0xYZ.  If 0xYZ is not a valid hexadecimal number or is the code
+        for NULL or colon (:) then the colon is replaced by a pipe
+        character (|).
+
+     ttrriivviiaall
+        When converting from Macintosh filenames to Linux filenames a
+        slash character (/) is replaced by a colon (:).
+
+        When converting from Linux filenames to Macintosh filenames a
+        colon (:) is replaced by a slash character (/).
+
+  22..88..  ppaarrtt==nn
+
+  default value: 0
+
+  Specifies which HFS partition to mount from a Macintosh CDROM or hard
+  drive.  Partitions are numbered from 0 and count only those identified
+  in the partition table as containing HFS filesystems.  This option is
+  only useful when the Linux platform doesn't fully support Macintosh
+  partition tables.  In particular on MkLinux and Linux-Pmac this option
+  is useless.
+
+  Note that in versions before 0.8.3 partitions were numbered from 1.
+
+  22..99..  qquuiieett
+
+  If included in the options, then chown and chmod operations will not
+  return errors, but will instead fail silently.  (Same as for the MS-
+  DOS and HPFS filesystems.)
+
+  22..1100..  ttyyppee==cccccccc
+
+  default value: ``????''
+
+  Specifies the 4-character string specifying the Finder's Type for new
+  files.
+
+  22..1111..  uuiidd==nn
+
+  default value: uid of the mounting process
+
+  Specifies the user that owns all files and directories on the
+  filesystem.  (Same as for the MS-DOS and HPFS filesystems.)
+
+  22..1122..  uummaasskk==nn
+
+  default value: umask of the mounting process
+
+  Specifies (in octal) the umask used for all files and directories.
+  (Same as for the MS-DOS and HPFS filesystems.)
+
+  33..  WWrriittiinngg ttoo HHFFSS FFiilleessyysstteemmss
+
+  Each of the values of the fork mount option yields a different
+  representation of the Macintosh-specific parts of a file within the
+  structure of the Linux filesystem.  There are, therefore, slightly
+  different steps involved in copying files if you want to preserve the
+  resource forks and the Finder's metadata.
+
+  It is important to remember not to use normal user-level tools to
+  modify a filesystem mounted with the afpd mount option.
+
+  Regardless of the value of the fork mount option you can do virtually
+  everything to the data fork of a file that you can to a file on any
+  other filesystem.  The limitations are essentially the same as those
+  imposed by the MS-DOS filesystem:
+
+  +o  You can't change the uid or gid of files.
+
+  +o  You can't set the set-uid, set-gid or sticky permission bits.
+
+  +o  You can't clear the execute permission bits.
+
+  Likewise you can do virtually everything to a directory that you can
+  to a directory on another file system with the following exceptions:
+
+  +o  You can't create, delete or rename resource forks of files or the
+     Finder's metadata.  Note, however, that they are created (with
+     defaults values), deleted and renamed along with the corresponding
+     data fork or directory.
+
+  +o  You can't change permissions on directories.
+
+  +o  You can't change the uid or gid of directories.
+
+  +o  You can't create multiple links to files.
+
+  +o  You can't create symlinks, device files, sockets or FIFOs.
+
+  33..11..  WWrriittiinngg wwiitthh ffoorrkk==ccaapp
+
+  Unlike the other schemes for representing forked files, the CAP scheme
+  presents the resource fork as an independent file; the resource fork
+  of ./foo is ./.resource/foo.  Therefore, you can treat it as a normal
+  file.  You can do anything to a resource fork that you can do to a
+  data fork, except that you cannot enable execute permissions on a
+  resource fork.  Therefore, resource forks are not suitable for holding
+  Linux executables or shared libraries.
+
+  If you plan to use the resource fork on a Macintosh then you must obey
+  the format of a valid resource fork.  This format is documented in
+  Chapter 1 of Apple's _I_n_s_i_d_e _M_a_c_i_n_t_o_s_h_: _M_o_r_e _M_a_c_i_n_t_o_s_h _T_o_o_l_b_o_x.  The
+  filesystem knows nothing about this format and so does nothing to
+  enforce it.
+
+  The current support for reading and writing is sufficient to allow
+  copying of entire directories with tar, as long as both the source and
+  destination are mounted with fork=cap.  tar may complain about being
+  unable to change the uid, gid or mode of files.  This is normal and is
+  an unavoidable side effect of the having a single uid, gid and umask
+  for the entire filesystem.
+
+  It is impossible to create a resource fork or a Finder metadata file.
+  However, they are created automatically when the data fork is created.
+  Therefore, if you wish to copy a single file including both forks and
+  the Finder's metadata then you must create the data fork first.  Then
+  you can copy the resource fork and the Finder's metadata.  For
+  instance to copy the file foo to dir/bar you should do the following:
+
+  1. cp foo dir/bar
+
+  2. cp .resource/foo dir/.resource/bar
+
+  3. cp .finderinfo/foo dir/.finderinfo/bar
+
+  You may get ``Operation not permitted'' errors from cp when it tries
+  to change the permissions on files.  These errors can safely be
+  ignored.  This method will work even if the file dir/bar exists.
+
+  If you wish to move foo to dir/bar and foo and dir are on the same
+  filesystem then you only need to execute ``mv foo dir/bar'' and the
+  resource fork and the Finder's metadata will move too.  However, if
+  foo and dir are on different filesystem then this will lose the
+  resource fork and metadata.  Therefore, it is safest to always move
+  files as follows:
+
+  1. cp foo dir/bar
+
+  2. cp .resource/foo dir/.resource/bar
+
+  3. cp .finderinfo/foo dir/.finderinfo/bar
+
+  4. rm foo
+
+  You may get ``Operation not permitted'' errors from cp when it tries
+  to change the permissions on files.  These errors can safely be
+  ignored.  This method will work even if the file dir/bar exists.
+
+  Directories have no resource fork but you may wish to create a
+  directory which has the same location and view on the Finder's screen
+  as an existing one.  This can be done by copying the Finder metadata
+  file.  To give the directory bar the same location, layout, creation
+  date and modify date as foo you simply execute ``cp .finderinfo/foo
+  .finderinfo/bar''.
+
+  When copying an entire directory with ``cp -R'' you may also wish to
+  copy the metadata for the directory:
+
+  1. cp -R foo bar
+
+  2. cp .finderinfo/foo .finderinfo/bar
+
+  You may get ``Operation not permitted'' errors from cp when it tries
+  to change the permissions on files.  These errors can safely be
+  ignored.
+
+  33..22..  WWrriittiinngg wwiitthh ffoorrkk==ddoouubbllee
+
+  The current support for reading and writing header files is sufficient
+  to allow copying of entire directories with tar, as long as both the
+  source and destination are mounted with fork=double.  tar may complain
+  about being unable to change the uid, gid or mode of files.  This is
+  normal and is an unavoidable side effect of the having a single uid,
+  gid and umask for the entire filesystem.
+
+  It is impossible to create a header file.  However, they are created
+  automatically when the data fork is created.  Therefore, if you wish
+  to copy a single file including both forks and the Finder's metadata
+  then you must create the data fork first.  Then you can copy the
+  header file.  instance to copy the file foo to dir/bar you should do
+  the following:
+
+  1. cp foo dir/bar
+
+  2. cp %foo dir/%bar
+
+  You may get ``Operation not permitted'' errors from cp when it tries
+  to change the permissions on files.  These errors can safely be
+  ignored.  This method will work even if the file dir/bar exists.
+
+  If you wish to move foo to dir/bar and foo and dir are on the same
+  filesystem then you only need to execute ``mv foo dir/bar'' and the
+  header file will move too.  However, if foo and dir are on different
+  filesystem then this will lose the header file.  Therefore, it is
+  safest to always move files as follows:
+
+  1. cp foo dir/bar
+
+  2. cp %foo dir/%bar
+
+  3. rm foo
+
+  You may get ``Operation not permitted'' errors from cp when it tries
+  to change the permissions on files.  These errors can safely be
+  ignored.  This method will work even if the file dir/bar exists.
+
+  Directories have no resource fork but you may wish to create a
+  directory which has the same location and view on the Finder's screen
+  as an existing one.  This can be done by copying the corresponding
+  header file.  To give the directory bar the same location, layout,
+  creation date and modify date as foo simply execute ``cp %foo %bar''.
+
+  When copying an entire directory with ``cp -R'' you may also wish to
+  copy the header file for the directory as well:
+
+  1. cp -R foo bar
+
+  2. cp %foo %bar
+
+  You may get ``Operation not permitted'' errors from cp when it tries
+  to change the permissions on files.  These errors can safely be
+  ignored.
+
+  33..33..  WWrriittiinngg wwiitthh ffoorrkk==nneettaattaallkk
+
+  The current support for reading and writing header files is sufficient
+  to allow copying of entire directories with tar, as long as both the
+  source and destination are mounted fork=netatalk.  tar may complain
+  about being unable to change the uid, gid or mode of files.  This is
+  normal and is an unavoidable side effect of the having a single uid,
+  gid and umask for the entire filesystem.
+
+  It is impossible to create a header file.  However, they are created
+  automatically when the data fork is created.  Therefore, if you wish
+  to copy a single file including both forks and the Finder's metadata
+  then you must create the data fork first.  Then you can copy the
+  header file.  instance to copy the file foo to dir/bar you should do
+  the following:
+
+  1. cp foo dir/bar
+
+  2. cp .AppleDouble/foo dir/.AppleDouble/bar
+
+  You may get ``Operation not permitted'' errors from cp when it tries
+  to change the permissions on files.  These errors can safely be
+  ignored.  This method will work even if the file dir/bar exists.
+
+  If you wish to move foo to dir/bar and foo and dir are on the same
+  filesystem then you only need to execute ``mv foo dir/bar'' and the
+  header file will move too.  However, if foo and dir are on different
+  filesystem then this will lose the header file.  Therefore, it is
+  safest to always move files as follows:
+
+  1. cp foo dir/bar
+
+  2. cp .AppleDouble/foo dir/.AppleDouble/bar
+
+  3. rm foo
+
+  You may get ``Operation not permitted'' errors from cp when it tries
+  to change the permissions on files.  These errors can safely be
+  ignored.  This method will work even if the file dir/bar exists.
+
+  Directories have no resource fork but you may wish to create a
+  directory which has the same location and view on the Finder's screen
+  as an existing one.  This can be done by copying the corresponding
+  header file.  To give the directory bar the same location, layout,
+  creation date and modify date as foo you simply execute ``cp
+  foo/.AppleDouble/.Parent bar/.AppleDouble/.Parent''.
+
+  Because the fork=netatalk scheme holds the header file for a directory
+  within that directory, directories can safely be copied with ``cp -R
+  foo bar'' with no loss of information.  However, you may get
+  ``Operation not permitted'' errors from cp when it tries to change the
+  permissions on files.  These errors can safely be ignored.
+
+  44..  AA GGuuiiddee ttoo SSppeecciiaall FFiillee FFoorrmmaattss
+
+  Each of the values of the fork mount option yields different special
+  files to represent the Macintosh-specific parts of a file within the
+  structure of the Linux filesystem.  You can write to these special
+  files to change things such as the Creator and Type of a file.
+  However, to do so safely you must follow certain rules to avoid
+  corrupting the data.  Additionally, there are certain fields in the
+  special files that you can't change (writes to them will fail
+  silently).
+
+  44..11..  CCAAPP ..ffiinnddeerriinnffoo FFiilleess
+
+  The Finder's metadata for the file ./foo in held in the file
+  ./.finderinfo/foo.  The file has a fixed format defined in hfs_fs.h as
+  follows:
+
+       ______________________________________________________________________
+       struct hfs_cap_info {
+               __u8    fi_fndr[32];            /* Finder's info */
+               __u16   fi_attr;                /* AFP attributes */
+               __u8    fi_magic1;              /* Magic number: */
+       #define HFS_CAP_MAGIC1          0xFF
+               __u8    fi_version;             /* Version of this structure: */
+       #define HFS_CAP_VERSION         0x10
+               __u8    fi_magic;               /* Another magic number: */
+       #define HFS_CAP_MAGIC           0xDA
+               __u8    fi_bitmap;              /* Bitmap of which names are valid: */
+       #define HFS_CAP_SHORTNAME       0x01
+       #define HFS_CAP_LONGNAME        0x02
+               __u8    fi_shortfilename[12+1]; /* "short name" (unused) */
+               __u8    fi_macfilename[32+1];   /* Original (Macintosh) name */
+               __u8    fi_comln;               /* Length of comment (always 0) */
+               __u8    fi_comnt[200];          /* Finder comment (unused) */
+               /* optional:    used by aufs only if compiled with USE_MAC_DATES */
+               __u8    fi_datemagic;           /* Magic number for dates extension: */
+       #define HFS_CAP_DMAGIC          0xDA
+               __u8    fi_datevalid;           /* Bitmap of which dates are valid: */
+       #define HFS_CAP_MDATE           0x01
+       #define HFS_CAP_CDATE           0x02
+               __u8    fi_ctime[4];            /* Creation date (in AFP format) */
+               __u8    fi_mtime[4];            /* Modify date (in AFP format) */
+               __u8    fi_utime[4];            /* Un*x time of last mtime change */
+       };
+       ______________________________________________________________________
+
+  The type __u8 is an unsigned character, and __u16 is an unsigned
+  16-bit integer.
+
+  Currently only the fields fi_fndr, fi_attr, fi_ctime and fi_mtime can
+  be changed.  Writes to the other fields are silently ignored.
+  However, you shouldn't write random bytes to the other fields, since
+  they may be writable in the future.
+
+  The fi_fndr field is the ``Finder info'' and ``Extended Finder info''
+  for a file or directory.  These structures are described in various
+  books on Macintosh programming.  The portion of the most interest is
+  probably the first 8 bytes which, for a file, give the 4-byte Type
+  followed by the 4-byte Creator.
+
+  The fi_attr field is the AFP attributes of the file or directory.
+  While you can write any value to this field, only the ``write-
+  inhibit'' bit is significant.  Setting or clearing this bit will clear
+  or set the write bits in the file's permissions.  When you read from
+  this field anything you may have written is lost.  If the file has
+  write permissions enabled then you will read zero from this field.
+  With write permission disabled you will read back 0x01 0xA0, which
+  corresponds to setting the ``write-inhibit'', ``rename-inhibit'' and
+  ``delete-inhibit'' bits.
+
+  The fi_ctime and fi_mtime are the Macintosh created and modified time
+  for the file or directory, and are 32-bit signed integers in network
+  byteorder giving seconds from 00:00 GMT Jan. 1, 2000.
+
+  44..22..  AApppplleeDDoouubbllee HHeeaaddeerr FFiilleess
+
+  Both the fork=double and fork=netatalk schemes for representing forked
+  files use AppleDouble header files to contain the resource fork and
+  the Finder's metadata together in a single file.
+
+  The AppleDouble format specifies a fixed-format header which describes
+  which fields are contained in the remainder of the file, where they
+  are located in the file and how long they are.  A full description of
+  the version 1 format used when fork=netatalk is available from ??????.
+  The version 2 format used when fork=double is documented in ??????.
+  The discussion that follows assumes you have read and understood these
+  documents, which may be difficult until I've replaced the ``??????''s
+  above with something more informative :-).
+
+  Due to the variable structure of an AppleDouble header file you must
+  not use buffered I/O when reading or writing them; you should only use
+  the read() and write() system calls.  It is also important that you
+  make some effort to coordinate processes that are reading and writing
+  the same header file, since a reader will receive the wrong data if
+  the location of a given entry has changed since it read the descriptor
+  for the entry.  If a process tries to read the descriptor table while
+  it is changing then it is possible to read totally meaningless data.
+
+  When a header file is opened it is initially presented with a default
+  header layout.  You may write to the header to change the layout, but
+  when all file descriptors for the file or directory have been closed
+  the change in format is lost and subsequent opens will yield the
+  default layout.  Changes to supported entries are made directly to the
+  filesystem and are thus preserved when the file is closed and
+  reopened.
+
+  The HFS filesystem currently uses a fixed-size table to hold the
+  descriptors.  Therefore you are limited to HFS_HDR_MAX (currently 10)
+  descriptors.  In the unlikely event that you try to write a header
+  with more descriptors, a warning will be issued by the kernel, and
+  extra descriptors will be ignored.  This should be considered a bug
+  and will hopefully change sooner rather than later.
+
+  The results of specifying overlapping entries is undefined and should
+  not be relied upon to remain unchanged from one version of the HFS
+  filesystem to the next.  There is no valid reason to define
+  overlapping entries, so just don't do it!
+
+  Changes to the magic number and version fields are preserved until all
+  file descriptors are closed, however the only significance given to
+  them internally is that the 16 bytes following the version changes
+  meaning according to the version.  For version 1 header files these 16
+  bytes contain the string ``Macintosh'' followed by 7 spaces.  For any
+  other value of the version field these 16 bytes are all zeros.  In
+  either case writes to these 16 bytes are silently ignored.
+
+  Since the magic number and version are given no other significance
+  internally, you are free to do many things that violate the official
+  formats.  For instance you can create an entry for the data fork in a
+  header file with an AppleDouble magic number or create ``File Info''
+  (id=7) entries in version 2 header files and ``File Dates Info''
+  (id=8) entries in version 1 header files.  However, future versions of
+  the filesystem may enforce the format more strictly.
+
+  Entry id 1 (``Data Fork'') is read-only.  You should use the data file
+  to modify the data fork.  The data fork is, of course, not supported
+  for directories.
+
+  Entry ids 2, 7, 8, 9 and 10 (``Resource Fork'', ``File Info'', ``File
+  Dates Info'', ``Finder Info'' and ``Macintosh File Info'') are fully
+  supported, meaning that their contents may be read and written and
+  that data written is preserved when the file is closed and reopened.
+  The resource fork is, of course, not supported for directories.
+
+  Entry id 7 specifies some of the same data given by ids 8 and 10.  If
+  you create a header file with an entry for id 7 and for ids 8 or 10,
+  then the behavior with respect to their interaction is undefined.  A
+  header that contains an entry for id 7 and for ids 8 or 10 is not
+  valid as either a version 1 or a version 2 header file, so there is no
+  reason to do this and future versions may prevent it.
+
+  Entry id 3 (``Real Name'') is read-only, since it will change
+  automatically when a file is renamed.  Writes to the corresponding
+  entry are silently ignored.
+
+  All other entry ids are ignored.  You may create descriptors for them;
+  in fact the default header layout when fork=netatalk includes a
+  descriptor for id 4 (``Comment'').  However writes to the entries
+  corresponding to the ignored ids fail silently and reads from the
+  entries always return zeros.  However, you shouldn't write random
+  bytes to unsupported entries, since they may be supported in the
+  future.
+
+  All of the supported entry types except the data and resource forks
+  have a fixed length.  If you give them a smaller length in the
+  descriptor then you are unable to access part of the corresponding
+  entry.  If you give them a larger length in the descriptor, then the
+  corresponding entry is padded with zeros and writes to the extra space
+  are silently ignored.
+
+  Writes to the length field of descriptors for the data and resource
+  forks will cause the corresponding fork to grow (with zero padding) or
+  shrink to the indicated length.
+
+  If you have an entry for the data fork then the descriptor's length
+  field does not change automatically to reflect any modification of the
+  data fork directly (the data does change however).  If the data fork
+  is longer than the descriptor indicates, then a portion of it is
+  inaccessible.  If the data fork is shorter than the descriptor
+  indicates then reads will be padded with zeros.
+
+  Writes beyond the end of the resource fork that extend into empty
+  space between entries or beyond the end of the file will extend the
+  fork, automatically changing the length field of the corresponding
+  descriptor.  Writes to any other space between entries are silently
+  ignored and read of such spaces always return zeros.
+
+  Calling truncate() on a header file can change the length of the
+  resource fork and such a change will automatically be reflected in the
+  length field of the corresponding descriptor.  If truncate() shortens
+  the file so that the entry for the resource fork would extend beyond
+  the new end of the file then the fork is shortened to fit in the space
+  that remains, or to zero bytes if the entry is now entirely beyond the
+  end of the file.  If the last entry in a header file is the resource
+  fork then a call to truncate() that extends the header file will
+  extend the fork with zeros.  Note that this happens even if there was
+  previously space between the end of the fork and the end of the file.
+
+  55..  RReeppoorrttiinngg BBuuggss
+
+  If you'd like any problems you encounter fixed, you'll need to provide
+  a detailed bug report.  However, you should check the FAQ (available
+  from the HFS for Linux Page <http://www-sccm.Stanford.EDU/~hargrove/HFS/>)
+  first to be certain that your problem is not a known limitation of the
+  filesystem.  If your bug doesn't appear in the FAQ then you should e-mail
+  me at hargrove@sccm.Stanford.EDU.
+
+  55..11..  WWhhaatt GGooeess iinn aa BBuugg RReeppoorrtt
+
+  When writing your bug report, include any facts you think might be
+  relevant; I'd much rather have a bunch of extra facts than need to
+  e-mail you to get the information.  At a minimum the following
+  information should be included:
+
+  +o  The version of the HFS filesystem you are using (see
+     linux/fs/hfs/version.h).
+
+  +o  The kernel version you are using.
+
+  +o  Any unofficial kernel patches or loadable modules you are using.
+
+  +o  If you are loading the HFS filesystem as a module, then version of
+     the module utilities used to load hfs.o.
+
+  +o  The type of media you are working with (floppy, CDROM, ZIP Drive,
+     etc.).
+
+  +o  The steps required to reproduce the bug, including mount options
+     used.  (If you can't reproduce the bug tell me everything you did
+     the one time it did occur, but be warned that non-reproducible bugs
+     can only rarely be fixed.)
+
+  55..22..  HHooww ttoo RReeppoorrtt aa KKeerrnneell OOooppss oorr GGPPFF
+
+  If you encounter a bug that causes a kernel Oops or a General
+  Protection Fault then you'll need to collect some additional
+  information for the bug report.  If you are loading the HFS filesystem
+  as a module, then is important that you do this before rebooting,
+  since the module is unlikely to be loaded at the same address after
+  the reboot.
+
+  You should include all the information that the kernel prints to the
+  console or to the system logs.  However, the EIP and Stack Trace are
+  addresses in _y_o_u_r kernel and mean nothing to me without more
+  information.  Using your System.map file (or either ksymoops or klogd)
+  determine which functions the EIP and Stack Trace are in.  If you do
+  this by hand using your System.map file then the correct symbol is the
+  one of type t or T with the largest address less than or equal to the
+  one you are resolving.
+
+  If you are loading the HFS filesystem as a module and the Oops or GPF
+  was in the HFS code then the EIP and the top levels of the Stack Trace
+  will be in a loadable module, rather than in the kernel proper.  So,
+  their symbols will not be in the file System.map.  Therefore, you will
+  need to use /proc/ksyms, or a loadmap produced by passing the -m
+  option to insmod, to locate those symbols.
+
+  66..  LLeeggaall NNoottiicceess
+
+  66..11..  TThhiiss DDooccuummeenntt
+
+  This document is Copyright (c) 1996, 1997 by Paul H. Hargrove.
+
+  Permission is granted to make and distribute verbatim copies of this
+  document provided the copyright notice and this permission notice are
+  preserved on all copies.
+
+  Permission is granted to copy and distribute modified versions of this
+  document under the conditions for verbatim copies above, provided a
+  notice clearly stating that the document is a modified version is also
+  included in the modified document.
+
+  Permission is granted to copy and distribute translations of this
+  document into another language, under the conditions specified above
+  for modified versions.
+
+  Permission is granted to convert this document into another media
+  under the conditions specified above for modified versions provided
+  the requirement to acknowledge the source document is fulfilled by
+  inclusion of an obvious reference to the source document in the new
+  media. Where there is any doubt as to what defines ``obvious'' the
+  copyright owner reserves the right to decide.
+
+  66..22..  TThhee SSooffttwwaarree
+
+  The HFS filesystem for Linux is Copyright (c) 1994-1997 by Paul H.
+  Hargrove.
+
+  This software is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+  any later version.
+
+  This software is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this software in the file ``COPYING''; if not, write to the
+  Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
+  USA.
+
+  66..22..11..  TThhee CCoolluummbbiiaa AApppplleeTTaallkk PPaacckkaaggee ffoorr UUNNIIXX
+
+  The source code distribution of the Columbia AppleTalk Package for
+  UNIX, version 6.0, (CAP) was used as a _s_p_e_c_i_f_i_c_a_t_i_o_n of the location
+  and format of files used by CAP's Aufs.  No code from CAP appears in
+  the HFS filesystem. The HFS filesystem is not a work ``derived'' from
+  CAP in the sense of intellectual property law.
+
+  66..22..22..  NNeettaattaallkk
+
+  The source code distributions of Netatalk, versions 1.3.3b2 and 1.4b2,
+  were used as a _s_p_e_c_i_f_i_c_a_t_i_o_n of the location and format of files used
+  by Netatalk's afpd.  No code from Netatalk appears in the HFS
+  filesystem.  The HFS filesystem is not a work ``derived'' from
+  Netatalk in the sense of intellectual property law.
+
+  66..33..  TTrraaddeemmaarrkkss
+
+  +o  ``Finder'' is a trademarks of Apple Computer, Inc.
+
+  +o  ``Apple'', ``AppleShare'', ``AppleTalk'' and ``Macintosh'' are
+     registered trademarks of Apple Computer, Inc.
+
+  +o  ``Microsoft'' and ``MS-DOS'' are registered trademarks of Microsoft
+     Corporation.
+
+  +o  All other trademarks are the property of their respective owners.
+

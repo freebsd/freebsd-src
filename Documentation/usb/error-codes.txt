@@ -1,0 +1,130 @@
+Revised: 2000-Dec-05.
+
+This is the documentation of (hopefully) all possible error codes (and
+their interpretation) that can be returned from the host controller drivers 
+and from usbcore.
+
+NOTE:
+The USB_ST_* codes are deprecated and are only listed for compatibility;
+new software should use only -E* instead!
+
+
+
+**************************************************************************
+*                   Error codes returned by usb_submit_urb               *
+**************************************************************************
+
+Non-USB-specific:
+
+USB_ST_NOERROR
+0		URB submission went fine
+
+-ENOMEM		no memory for allocation of internal structures	
+
+USB-specific:
+
+-ENODEV		specified USB-device or bus doesn't exist
+
+USB_ST_REQUEST_ERROR
+-ENXIO		a control or interrupt URB is already queued to this endpoint; or
+		  a bulk URB is already queued to this endpoint and
+		  USB_QUEUE_BULK wasn't used (UHCI HCDs only)
+
+USB_ST_URB_INVALID_ERROR
+-EINVAL		a) Invalid transfer type specified (or not supported)
+		b) Invalid interrupt interval (0<=n<256)
+		c) more than one interrupt packet requested
+		d) ISO: number_of_packets is < 0
+
+-EAGAIN		a) specified ISO start frame too early
+		b) (using ISO-ASAP) too much scheduled for the future
+		   wait some time and try again.
+
+-EFBIG		too much ISO frames requested (currently uhci>900)
+
+USB_ST_STALL
+-EPIPE		specified pipe-handle is already stalled
+
+-EMSGSIZE	endpoint message size is zero, do interface/alternate setting
+
+USB_ST_BANDWIDTH_ERROR
+-ENOSPC		The host controller's bandwidth is already consumed and
+		this request would push it past its allowed limit.
+
+-ESHUTDOWN	The host controller has been disabled due to some
+		problem that could not be worked around.
+
+
+**************************************************************************
+*                   Error codes returned by in urb->status               *
+*                   or in iso_frame_desc[n].status (for ISO)             *
+**************************************************************************
+
+USB_ST_NOERROR
+0			Transfer completed successfully
+
+USB_ST_URB_KILLED
+-ENOENT			URB was canceled by usb_unlink_urb
+
+USB_ST_URB_PENDING
+-EINPROGRESS		URB still pending, no results yet
+			(actually no error until now;-)
+
+USB_ST_BITSTUFF
+USB_ST_INTERNALERROR
+-EPROTO			a) bitstuff error
+			b) unknown USB error 
+
+USB_ST_CRC
+-EILSEQ			CRC mismatch
+
+USB_ST_STALL
+-EPIPE			endpoint stalled
+
+USB_ST_BUFFEROVERRUN
+-ECOMM			During an IN transfer, the host controller
+			received data from an endpoint faster than it
+			could be written to system memory
+
+USB_ST_BUFFERUNDERRUN
+-ENOSR			During an OUT transfer, the host controller
+			could not retrieve data from system memory fast
+			enough to keep up with the USB data rate
+
+USB_ST_DATAOVERRUN
+-EOVERFLOW		The amount of data returned by the endpoint was
+			greater than either the max packet size of the
+			endpoint or the remaining buffer size.  "Babble".
+
+USB_ST_DATAUNDERRUN
+-EREMOTEIO		The endpoint returned less than max packet size
+			and that amount did not fill the specified buffer
+USB_ST_NORESPONSE
+USB_ST_TIMEOUT
+-ETIMEDOUT		transfer timed out, NAK
+
+USB_ST_REMOVED	
+-ENODEV			device was removed
+
+USB_ST_SHORT_PACKET
+-EREMOTEIO		short packet detected
+
+USB_ST_PARTIAL_ERROR
+-EXDEV			ISO transfer only partially completed
+			look at individual frame status for details
+
+USB_ST_URB_INVALID_ERROR
+-EINVAL			ISO madness, if this happens: Log off and go home
+
+-ECONNRESET		the URB is being unlinked asynchronously
+
+**************************************************************************
+*              Error codes returned by usbcore-functions                 *
+*           (expect also other submit and transfer status codes)         *
+**************************************************************************
+
+usb_register():
+-EINVAL			error during registering new driver
+
+usb_get_*/usb_set_*():
+			All USB errors (submit/status) can occur
