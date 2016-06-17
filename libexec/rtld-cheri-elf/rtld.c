@@ -393,14 +393,9 @@ _LD(const char *var)
 #endif
 
 /*
- * Main entry point for dynamic linking.  The first argument is the
- * stack pointer.  The stack is expected to be laid out as described
- * in the SVR4 ABI specification, Intel 386 Processor Supplement.
- * Specifically, the stack pointer points to a word containing
- * ARGC.  Following that in the stack is a null-terminated sequence
- * of pointers to argument strings.  Then comes a null-terminated
- * sequence of pointers to environment strings.  Finally, there is a
- * sequence of "auxiliary vector" entries.
+ * Main entry point for dynamic linking.  The first argument is a struct
+ * cheri_execdata which contains capabilities to argv, envv, and the ELF
+ * "auxiliary vector".
  *
  * The second argument points to a place to store the dynamic linker's
  * exit procedure pointer and the third to a place to store the main
@@ -436,7 +431,7 @@ _rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
      * and string constants, and to call static and global functions.
      */
 
-    /* Find the auxiliary vector on the stack. */
+    /* Find the auxiliary vector. */
     argc = ce->ce_argc;
     argv = ce->ce_argv;
     env = ce->ce_envp;
@@ -460,6 +455,11 @@ _rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
     main_argc = argc;
     main_argv = argv;
 
+    /*
+     * XXX-BD: Do we really want stack canarys?  If we do, we probably
+     * want them to be unforgable capabilities, e.g. zero length sealed
+     * capabilities with kernel address space base addresses.
+     */
     if (aux_info[AT_CANARY] != NULL &&
 	aux_info[AT_CANARY]->a_un.a_ptr != NULL) {
 	    i = aux_info[AT_CANARYLEN]->a_un.a_val;
@@ -699,7 +699,7 @@ _rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
     /*
      * Setup TLS for main thread.  This must be done after the
      * relocations are processed, since tls initialization section
-     * might be the subject for relocations.
+     * might be the subject of relocations.
      */
     dbg("initializing initial thread local storage");
     allocate_initial_tls(globallist_curr(TAILQ_FIRST(&obj_list)));
