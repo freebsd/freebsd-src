@@ -5115,16 +5115,20 @@
 #define	MC_CMD_POLL_BIST_MEM_BUS_MC 0x0
 /* enum: CSR IREG bus. */
 #define	MC_CMD_POLL_BIST_MEM_BUS_CSR 0x1
-/* enum: RX DPCPU bus. */
+/* enum: RX0 DPCPU bus. */
 #define	MC_CMD_POLL_BIST_MEM_BUS_DPCPU_RX 0x2
 /* enum: TX0 DPCPU bus. */
 #define	MC_CMD_POLL_BIST_MEM_BUS_DPCPU_TX0 0x3
 /* enum: TX1 DPCPU bus. */
 #define	MC_CMD_POLL_BIST_MEM_BUS_DPCPU_TX1 0x4
-/* enum: RX DICPU bus. */
+/* enum: RX0 DICPU bus. */
 #define	MC_CMD_POLL_BIST_MEM_BUS_DICPU_RX 0x5
 /* enum: TX DICPU bus. */
 #define	MC_CMD_POLL_BIST_MEM_BUS_DICPU_TX 0x6
+/* enum: RX1 DPCPU bus. */
+#define	MC_CMD_POLL_BIST_MEM_BUS_DPCPU_RX1 0x7
+/* enum: RX1 DICPU bus. */
+#define	MC_CMD_POLL_BIST_MEM_BUS_DICPU_RX1 0x8
 /* Pattern written to RAM / register */
 #define	MC_CMD_POLL_BIST_OUT_MEM_EXPECT_OFST 16
 /* Actual value read from RAM / register */
@@ -6094,6 +6098,8 @@
 #define	MC_CMD_NVRAM_INFO_OUT_PROTECTED_WIDTH 1
 #define	MC_CMD_NVRAM_INFO_OUT_TLV_LBN 1
 #define	MC_CMD_NVRAM_INFO_OUT_TLV_WIDTH 1
+#define	MC_CMD_NVRAM_INFO_OUT_CMAC_LBN 6
+#define	MC_CMD_NVRAM_INFO_OUT_CMAC_WIDTH 1
 #define	MC_CMD_NVRAM_INFO_OUT_A_B_LBN 7
 #define	MC_CMD_NVRAM_INFO_OUT_A_B_WIDTH 1
 #define	MC_CMD_NVRAM_INFO_OUT_PHYSDEV_OFST 16
@@ -6887,6 +6893,8 @@
  * the command will fail with MC_CMD_ERR_FILTERS_PRESENT.
  */
 #define	MC_CMD_WORKAROUND_BUG26807 0x6
+/* enum: Bug 61265 work around (broken EVQ TMR writes). */
+#define	MC_CMD_WORKAROUND_BUG61265 0x7
 /* 0 = disable the workaround indicated by TYPE; any non-zero value = enable
  * the workaround
  */
@@ -7865,8 +7873,10 @@
 #define	NVRAM_PARTITION_TYPE_SPARE_1              0x1100
 /* enum: Spare partition 2 */
 #define	NVRAM_PARTITION_TYPE_SPARE_2              0x1200
-/* enum: Spare partition 3 */
-#define	NVRAM_PARTITION_TYPE_SPARE_3              0x1300
+/* enum: Manufacturing partition. Used during manufacture to pass information
+ * between XJTAG and Manftest.
+ */
+#define	NVRAM_PARTITION_TYPE_MANUFACTURING        0x1300
 /* enum: Spare partition 4 */
 #define	NVRAM_PARTITION_TYPE_SPARE_4              0x1400
 /* enum: Spare partition 5 */
@@ -7901,6 +7911,8 @@
 #define	LICENSED_APP_ID_CAPTURE_SOLARSYSTEM     0x40
 /* enum: Network Access Control */
 #define	LICENSED_APP_ID_NETWORK_ACCESS_CONTROL  0x80
+/* enum: TCP Direct */
+#define	LICENSED_APP_ID_TCP_DIRECT              0x100
 #define	LICENSED_APP_ID_ID_LBN 0
 #define	LICENSED_APP_ID_ID_WIDTH 32
 
@@ -7957,6 +7969,12 @@
 #define	LICENSED_V3_APPS_CAPTURE_SOLARSYSTEM_WIDTH 1
 #define	LICENSED_V3_APPS_NETWORK_ACCESS_CONTROL_LBN 7
 #define	LICENSED_V3_APPS_NETWORK_ACCESS_CONTROL_WIDTH 1
+#define	LICENSED_V3_APPS_TCP_DIRECT_LBN 8
+#define	LICENSED_V3_APPS_TCP_DIRECT_WIDTH 1
+#define	LICENSED_V3_APPS_LOW_LATENCY_LBN 9
+#define	LICENSED_V3_APPS_LOW_LATENCY_WIDTH 1
+#define	LICENSED_V3_APPS_SOLARCAPTURE_TAP_LBN 10
+#define	LICENSED_V3_APPS_SOLARCAPTURE_TAP_WIDTH 1
 #define	LICENSED_V3_APPS_MASK_LBN 0
 #define	LICENSED_V3_APPS_MASK_WIDTH 64
 
@@ -7985,6 +8003,8 @@
 #define	LICENSED_V3_FEATURES_TX_SNIFF_WIDTH 1
 #define	LICENSED_V3_FEATURES_PROXY_FILTER_OPS_LBN 8
 #define	LICENSED_V3_FEATURES_PROXY_FILTER_OPS_WIDTH 1
+#define	LICENSED_V3_FEATURES_EVENT_CUT_THROUGH_LBN 9
+#define	LICENSED_V3_FEATURES_EVENT_CUT_THROUGH_WIDTH 1
 #define	LICENSED_V3_FEATURES_MASK_LBN 0
 #define	LICENSED_V3_FEATURES_MASK_WIDTH 64
 
@@ -8142,6 +8162,109 @@
 /* Only valid if INTRFLAG was true */
 #define	MC_CMD_INIT_EVQ_OUT_IRQ_OFST 0
 
+/* MC_CMD_INIT_EVQ_V2_IN msgrequest */
+#define	MC_CMD_INIT_EVQ_V2_IN_LENMIN 44
+#define	MC_CMD_INIT_EVQ_V2_IN_LENMAX 548
+#define	MC_CMD_INIT_EVQ_V2_IN_LEN(num) (36+8*(num))
+/* Size, in entries */
+#define	MC_CMD_INIT_EVQ_V2_IN_SIZE_OFST 0
+/* Desired instance. Must be set to a specific instance, which is a function
+ * local queue index.
+ */
+#define	MC_CMD_INIT_EVQ_V2_IN_INSTANCE_OFST 4
+/* The initial timer value. The load value is ignored if the timer mode is DIS.
+ */
+#define	MC_CMD_INIT_EVQ_V2_IN_TMR_LOAD_OFST 8
+/* The reload value is ignored in one-shot modes */
+#define	MC_CMD_INIT_EVQ_V2_IN_TMR_RELOAD_OFST 12
+/* tbd */
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAGS_OFST 16
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_INTERRUPTING_LBN 0
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_INTERRUPTING_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_RPTR_DOS_LBN 1
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_RPTR_DOS_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_INT_ARMD_LBN 2
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_INT_ARMD_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_CUT_THRU_LBN 3
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_CUT_THRU_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_RX_MERGE_LBN 4
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_RX_MERGE_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_TX_MERGE_LBN 5
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_TX_MERGE_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_USE_TIMER_LBN 6
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_USE_TIMER_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_LBN 7
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_WIDTH 4
+/* enum: All initialisation flags specified by host. */
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_MANUAL 0x0
+/* enum: MEDFORD only. Certain initialisation flags specified by host may be
+ * over-ridden by firmware based on licenses and firmware variant in order to
+ * provide the lowest latency achievable. See
+ * MC_CMD_INIT_EVQ_V2/MC_CMD_INIT_EVQ_V2_OUT/FLAGS for list of affected flags.
+ */
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_LOW_LATENCY 0x1
+/* enum: MEDFORD only. Certain initialisation flags specified by host may be
+ * over-ridden by firmware based on licenses and firmware variant in order to
+ * provide the best throughput achievable. See
+ * MC_CMD_INIT_EVQ_V2/MC_CMD_INIT_EVQ_V2_OUT/FLAGS for list of affected flags.
+ */
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_THROUGHPUT 0x2
+/* enum: MEDFORD only. Certain initialisation flags may be over-ridden by
+ * firmware based on licenses and firmware variant. See
+ * MC_CMD_INIT_EVQ_V2/MC_CMD_INIT_EVQ_V2_OUT/FLAGS for list of affected flags.
+ */
+#define	MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_AUTO 0x3
+#define	MC_CMD_INIT_EVQ_V2_IN_TMR_MODE_OFST 20
+/* enum: Disabled */
+#define	MC_CMD_INIT_EVQ_V2_IN_TMR_MODE_DIS 0x0
+/* enum: Immediate */
+#define	MC_CMD_INIT_EVQ_V2_IN_TMR_IMMED_START 0x1
+/* enum: Triggered */
+#define	MC_CMD_INIT_EVQ_V2_IN_TMR_TRIG_START 0x2
+/* enum: Hold-off */
+#define	MC_CMD_INIT_EVQ_V2_IN_TMR_INT_HLDOFF 0x3
+/* Target EVQ for wakeups if in wakeup mode. */
+#define	MC_CMD_INIT_EVQ_V2_IN_TARGET_EVQ_OFST 24
+/* Target interrupt if in interrupting mode (note union with target EVQ). Use
+ * MC_CMD_RESOURCE_INSTANCE_ANY unless a specific one required for test
+ * purposes.
+ */
+#define	MC_CMD_INIT_EVQ_V2_IN_IRQ_NUM_OFST 24
+/* Event Counter Mode. */
+#define	MC_CMD_INIT_EVQ_V2_IN_COUNT_MODE_OFST 28
+/* enum: Disabled */
+#define	MC_CMD_INIT_EVQ_V2_IN_COUNT_MODE_DIS 0x0
+/* enum: Disabled */
+#define	MC_CMD_INIT_EVQ_V2_IN_COUNT_MODE_RX 0x1
+/* enum: Disabled */
+#define	MC_CMD_INIT_EVQ_V2_IN_COUNT_MODE_TX 0x2
+/* enum: Disabled */
+#define	MC_CMD_INIT_EVQ_V2_IN_COUNT_MODE_RXTX 0x3
+/* Event queue packet count threshold. */
+#define	MC_CMD_INIT_EVQ_V2_IN_COUNT_THRSHLD_OFST 32
+/* 64-bit address of 4k of 4k-aligned host memory buffer */
+#define	MC_CMD_INIT_EVQ_V2_IN_DMA_ADDR_OFST 36
+#define	MC_CMD_INIT_EVQ_V2_IN_DMA_ADDR_LEN 8
+#define	MC_CMD_INIT_EVQ_V2_IN_DMA_ADDR_LO_OFST 36
+#define	MC_CMD_INIT_EVQ_V2_IN_DMA_ADDR_HI_OFST 40
+#define	MC_CMD_INIT_EVQ_V2_IN_DMA_ADDR_MINNUM 1
+#define	MC_CMD_INIT_EVQ_V2_IN_DMA_ADDR_MAXNUM 64
+
+/* MC_CMD_INIT_EVQ_V2_OUT msgresponse */
+#define	MC_CMD_INIT_EVQ_V2_OUT_LEN 8
+/* Only valid if INTRFLAG was true */
+#define	MC_CMD_INIT_EVQ_V2_OUT_IRQ_OFST 0
+/* Actual configuration applied on the card */
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAGS_OFST 4
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAG_CUT_THRU_LBN 0
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAG_CUT_THRU_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAG_RX_MERGE_LBN 1
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAG_RX_MERGE_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAG_TX_MERGE_LBN 2
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAG_TX_MERGE_WIDTH 1
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAG_RXQ_FORCE_EV_MERGING_LBN 3
+#define	MC_CMD_INIT_EVQ_V2_OUT_FLAG_RXQ_FORCE_EV_MERGING_WIDTH 1
+
 /* QUEUE_CRC_MODE structuredef */
 #define	QUEUE_CRC_MODE_LEN 1
 #define	QUEUE_CRC_MODE_MODE_LBN 0
@@ -8206,8 +8329,8 @@
 #define	MC_CMD_INIT_RXQ_IN_FLAG_PREFIX_WIDTH 1
 #define	MC_CMD_INIT_RXQ_IN_FLAG_DISABLE_SCATTER_LBN 9
 #define	MC_CMD_INIT_RXQ_IN_FLAG_DISABLE_SCATTER_WIDTH 1
-#define	MC_CMD_INIT_RXQ_IN_FLAG_FORCE_EV_MERGING_LBN 10
-#define	MC_CMD_INIT_RXQ_IN_FLAG_FORCE_EV_MERGING_WIDTH 1
+#define	MC_CMD_INIT_RXQ_IN_UNUSED_LBN 10
+#define	MC_CMD_INIT_RXQ_IN_UNUSED_WIDTH 1
 /* Owner ID to use if in buffer mode (zero if physical) */
 #define	MC_CMD_INIT_RXQ_IN_OWNER_ID_OFST 20
 /* The port ID associated with the v-adaptor which should contain this DMAQ. */
@@ -10427,6 +10550,12 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVENT_CUT_THROUGH_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_CUT_THROUGH_LBN 4
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_CUT_THROUGH_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_VFIFO_ULL_MODE_LBN 5
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_VFIFO_ULL_MODE_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_MAC_STATS_40G_TX_SIZE_BINS_LBN 6
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_MAC_STATS_40G_TX_SIZE_BINS_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_INIT_EVQ_V2_LBN 7
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_INIT_EVQ_V2_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC. Not present
  * on older firmware (check the length).
  */
@@ -13013,29 +13142,39 @@
 #define	MC_CMD_0xd4_PRIVILEGE_CTG SRIOV_CTG_GENERAL
 
 /* MC_CMD_LICENSED_V3_VALIDATE_APP_IN msgrequest */
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_LEN 72
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_LEN 62
+/* challenge for validation (384 bits) */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_CHALLENGE_OFST 0
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_CHALLENGE_LEN 48
 /* application ID expressed as a single bit mask */
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_OFST 0
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_OFST 48
 #define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_LEN 8
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_LO_OFST 0
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_HI_OFST 4
-/* challenge for validation */
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_CHALLENGE_OFST 8
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_CHALLENGE_LEN 64
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_LO_OFST 48
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_HI_OFST 52
+/* MAC address of the calling client MC_CMD_ERR_EPERM is returned if the
+ * calling client is not allowed to use this MAC address.
+ */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_MACADDR_OFST 56
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_MACADDR_LEN 6
 
 /* MC_CMD_LICENSED_V3_VALIDATE_APP_OUT msgresponse */
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_LEN 72
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_LEN 104
+/* validation response to challenge in the form of ECDSA signature consisting
+ * of two 384-bit integers, r and s, in big-endian order. The signature signs a
+ * SHA-384 digest of a message constructed from the concatenation of the input
+ * message and the remaining fields of this output message, e.g. challenge[48
+ * bytes] ... expiry_time[4 bytes] ...
+ */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_RESPONSE_OFST 0
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_RESPONSE_LEN 96
 /* application expiry time */
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_TIME_OFST 0
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_TIME_OFST 96
 /* application expiry units */
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNITS_OFST 4
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNITS_OFST 100
 /* enum: expiry units are accounting units */
 #define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNIT_ACC  0x0
 /* enum: expiry units are calendar days */
 #define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNIT_DAYS  0x1
-/* validation response to challenge */
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_RESPONSE_OFST 8
-#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_RESPONSE_LEN 64
 
 
 /***********************************/
@@ -13063,6 +13202,71 @@
 
 /* MC_CMD_LICENSED_V3_MASK_FEATURES_OUT msgresponse */
 #define	MC_CMD_LICENSED_V3_MASK_FEATURES_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_LICENSING_V3_TEMPORARY
+ * Perform operations to support installation of a single temporary license in
+ * the adapter, in addition to those found in the licensing partition. See
+ * SF-116124-SW for an overview of how this could be used. The license is
+ * stored in MC persistent data and so will survive a MC reboot, but will be
+ * erased when the adapter is power cycled
+ */
+#define	MC_CMD_LICENSING_V3_TEMPORARY 0xd6
+#undef	MC_CMD_0xd6_PRIVILEGE_CTG
+
+#define	MC_CMD_0xd6_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_LICENSING_V3_TEMPORARY_IN msgrequest */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_LEN 4
+/* operation code */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_OP_OFST 0
+/* enum: install a new license, overwriting any existing temporary license.
+ * This is an asynchronous operation owing to the time taken to validate an
+ * ECDSA license
+ */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_SET  0x0
+/* enum: clear the license immediately rather than waiting for the next power
+ * cycle
+ */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_CLEAR  0x1
+/* enum: get the status of the asynchronous MC_CMD_LICENSING_V3_TEMPORARY_SET
+ * operation
+ */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_STATUS  0x2
+
+/* MC_CMD_LICENSING_V3_TEMPORARY_IN_SET msgrequest */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_SET_LEN 164
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_SET_OP_OFST 0
+/* ECDSA license and signature */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_SET_LICENSE_OFST 4
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_SET_LICENSE_LEN 160
+
+/* MC_CMD_LICENSING_V3_TEMPORARY_IN_CLEAR msgrequest */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_CLEAR_LEN 4
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_CLEAR_OP_OFST 0
+
+/* MC_CMD_LICENSING_V3_TEMPORARY_IN_STATUS msgrequest */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_STATUS_LEN 4
+#define	MC_CMD_LICENSING_V3_TEMPORARY_IN_STATUS_OP_OFST 0
+
+/* MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS msgresponse */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LEN 12
+/* status code */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_STATUS_OFST 0
+/* enum: finished validating and installing license */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_STATUS_OK  0x0
+/* enum: license validation and installation in progress */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_STATUS_IN_PROGRESS  0x1
+/* enum: licensing error. More specific error messages are not provided to
+ * avoid exposing details of the licensing system to the client
+ */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_STATUS_ERROR  0x2
+/* bitmask of licensed features */
+#define	MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_OFST 4
+#define	MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_LEN 8
+#define	MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_LO_OFST 4
+#define	MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_HI_OFST 8
 
 
 /***********************************/
@@ -13414,6 +13618,8 @@
 #define	MC_CMD_GET_WORKAROUNDS_OUT_BUG42008 0x20
 /* enum: Bug 26807 features present in firmware (multicast filter chaining) */
 #define	MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 0x40
+/* enum: Bug 61265 work around (broken EVQ TMR writes). */
+#define	MC_CMD_GET_WORKAROUNDS_OUT_BUG61265 0x80
 
 
 /***********************************/
@@ -14342,19 +14548,15 @@
 #define	MC_CMD_0x118_PRIVILEGE_CTG SRIOV_CTG_ADMIN
 
 /* MC_CMD_RX_BALANCING_IN msgrequest */
-#define	MC_CMD_RX_BALANCING_IN_LEN 4
+#define	MC_CMD_RX_BALANCING_IN_LEN 16
 /* The RX port whose upconverter table will be modified */
 #define	MC_CMD_RX_BALANCING_IN_PORT_OFST 0
-#define	MC_CMD_RX_BALANCING_IN_PORT_LEN 1
 /* The VLAN priority associated to the table index and vFIFO */
-#define	MC_CMD_RX_BALANCING_IN_PRIORITY_OFST 1
-#define	MC_CMD_RX_BALANCING_IN_PRIORITY_LEN 1
+#define	MC_CMD_RX_BALANCING_IN_PRIORITY_OFST 4
 /* The resulting bit of SRC^DST for indexing the table */
-#define	MC_CMD_RX_BALANCING_IN_SRC_DST_OFST 2
-#define	MC_CMD_RX_BALANCING_IN_SRC_DST_LEN 1
+#define	MC_CMD_RX_BALANCING_IN_SRC_DST_OFST 8
 /* The RX engine to which the vFIFO in the table entry will point to */
-#define	MC_CMD_RX_BALANCING_IN_ENG_OFST 3
-#define	MC_CMD_RX_BALANCING_IN_ENG_LEN 1
+#define	MC_CMD_RX_BALANCING_IN_ENG_OFST 12
 
 /* MC_CMD_RX_BALANCING_OUT msgresponse */
 #define	MC_CMD_RX_BALANCING_OUT_LEN 0
@@ -14368,6 +14570,9 @@
  * available to host software.
  */
 #define	MC_CMD_TSA_BIND 0x119
+#undef	MC_CMD_0x119_PRIVILEGE_CTG
+
+#define	MC_CMD_0x119_PRIVILEGE_CTG SRIOV_CTG_ADMIN
 
 /* MC_CMD_TSA_BIND_IN msgrequest: Protocol operation code */
 #define	MC_CMD_TSA_BIND_IN_LEN 4
@@ -14431,9 +14636,11 @@
 #define	MC_CMD_TSA_BIND_IN_SET_KEY_DATKEY_MAXNUM 248
 
 /* MC_CMD_TSA_BIND_IN_UNBIND msgrequest: Asks for the un-binding procedure */
-#define	MC_CMD_TSA_BIND_IN_UNBIND_LEN 6
+#define	MC_CMD_TSA_BIND_IN_UNBIND_LEN 10
+/* The operation requested. */
+#define	MC_CMD_TSA_BIND_IN_UNBIND_OP_OFST 0
 /* TSAN unique identifier for the network adapter */
-#define	MC_CMD_TSA_BIND_IN_UNBIND_TSANID_OFST 0
+#define	MC_CMD_TSA_BIND_IN_UNBIND_TSANID_OFST 4
 #define	MC_CMD_TSA_BIND_IN_UNBIND_TSANID_LEN 6
 
 /* MC_CMD_TSA_BIND_OUT_GET_ID msgresponse */
@@ -14549,5 +14756,292 @@
 #define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_VERSION_LEN 1
 #define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_VERSION_MINNUM 1
 #define	MC_CMD_MANAGE_SECURITY_RULESET_CACHE_OUT_VERSION_MAXNUM 248
+
+
+/***********************************/
+/* MC_CMD_NVRAM_PRIVATE_APPEND
+ * Append a single TLV to the MC_USAGE_TLV partition. Returns MC_CMD_ERR_EEXIST
+ * if the tag is already present.
+ */
+#define	MC_CMD_NVRAM_PRIVATE_APPEND 0x11c
+#undef	MC_CMD_0x11c_PRIVILEGE_CTG
+
+#define	MC_CMD_0x11c_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_NVRAM_PRIVATE_APPEND_IN msgrequest */
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_LENMIN 9
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_LENMAX 252
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_LEN(num) (8+1*(num))
+/* The tag to be appended */
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_TAG_OFST 0
+/* The length of the data */
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_LENGTH_OFST 4
+/* The data to be contained in the TLV structure */
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_DATA_BUFFER_OFST 8
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_DATA_BUFFER_LEN 1
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_DATA_BUFFER_MINNUM 1
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_IN_DATA_BUFFER_MAXNUM 244
+
+/* MC_CMD_NVRAM_PRIVATE_APPEND_OUT msgresponse */
+#define	MC_CMD_NVRAM_PRIVATE_APPEND_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_XPM_VERIFY_CONTENTS
+ * Verify that the contents of the XPM memory is correct (Medford only). This
+ * is used during manufacture to check that the XPM memory has been programmed
+ * correctly at ATE.
+ */
+#define	MC_CMD_XPM_VERIFY_CONTENTS 0x11b
+#undef	MC_CMD_0x11b_PRIVILEGE_CTG
+
+#define	MC_CMD_0x11b_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_XPM_VERIFY_CONTENTS_IN msgrequest */
+#define	MC_CMD_XPM_VERIFY_CONTENTS_IN_LEN 4
+/* Data type to be checked */
+#define	MC_CMD_XPM_VERIFY_CONTENTS_IN_DATA_TYPE_OFST 0
+
+/* MC_CMD_XPM_VERIFY_CONTENTS_OUT msgresponse */
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_LENMIN 12
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_LENMAX 252
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_LEN(num) (12+1*(num))
+/* Number of sectors found (test builds only) */
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_NUM_SECTORS_OFST 0
+/* Number of bytes found (test builds only) */
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_NUM_BYTES_OFST 4
+/* Length of signature */
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_SIG_LENGTH_OFST 8
+/* Signature */
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_SIGNATURE_OFST 12
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_SIGNATURE_LEN 1
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_SIGNATURE_MINNUM 0
+#define	MC_CMD_XPM_VERIFY_CONTENTS_OUT_SIGNATURE_MAXNUM 240
+
+
+/***********************************/
+/* MC_CMD_SET_EVQ_TMR
+ * Update the timer load, timer reload and timer mode values for a given EVQ.
+ * The requested timer values (in TMR_LOAD_REQ_NS and TMR_RELOAD_REQ_NS) will
+ * be rounded up to the granularity supported by the hardware, then truncated
+ * to the range supported by the hardware. The resulting value after the
+ * rounding and truncation will be returned to the caller (in TMR_LOAD_ACT_NS
+ * and TMR_RELOAD_ACT_NS).
+ */
+#define	MC_CMD_SET_EVQ_TMR 0x120
+#undef	MC_CMD_0x120_PRIVILEGE_CTG
+
+#define	MC_CMD_0x120_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_SET_EVQ_TMR_IN msgrequest */
+#define	MC_CMD_SET_EVQ_TMR_IN_LEN 16
+/* Function-relative queue instance */
+#define	MC_CMD_SET_EVQ_TMR_IN_INSTANCE_OFST 0
+/* Requested value for timer load (in nanoseconds) */
+#define	MC_CMD_SET_EVQ_TMR_IN_TMR_LOAD_REQ_NS_OFST 4
+/* Requested value for timer reload (in nanoseconds) */
+#define	MC_CMD_SET_EVQ_TMR_IN_TMR_RELOAD_REQ_NS_OFST 8
+/* Timer mode. Meanings as per EVQ_TMR_REG.TC_TIMER_VAL */
+#define	MC_CMD_SET_EVQ_TMR_IN_TMR_MODE_OFST 12
+#define	MC_CMD_SET_EVQ_TMR_IN_TIMER_MODE_DIS  0x0 /* enum */
+#define	MC_CMD_SET_EVQ_TMR_IN_TIMER_MODE_IMMED_START  0x1 /* enum */
+#define	MC_CMD_SET_EVQ_TMR_IN_TIMER_MODE_TRIG_START  0x2 /* enum */
+#define	MC_CMD_SET_EVQ_TMR_IN_TIMER_MODE_INT_HLDOFF  0x3 /* enum */
+
+/* MC_CMD_SET_EVQ_TMR_OUT msgresponse */
+#define	MC_CMD_SET_EVQ_TMR_OUT_LEN 8
+/* Actual value for timer load (in nanoseconds) */
+#define	MC_CMD_SET_EVQ_TMR_OUT_TMR_LOAD_ACT_NS_OFST 0
+/* Actual value for timer reload (in nanoseconds) */
+#define	MC_CMD_SET_EVQ_TMR_OUT_TMR_RELOAD_ACT_NS_OFST 4
+
+
+/***********************************/
+/* MC_CMD_GET_EVQ_TMR_PROPERTIES
+ * Query properties about the event queue timers.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES 0x122
+#undef	MC_CMD_0x122_PRIVILEGE_CTG
+
+#define	MC_CMD_0x122_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_GET_EVQ_TMR_PROPERTIES_IN msgrequest */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_IN_LEN 0
+
+/* MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT msgresponse */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_LEN 36
+/* Reserved for future use. */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_FLAGS_OFST 0
+/* For timers updated via writes to EVQ_TMR_REG, this is the time interval (in
+ * nanoseconds) for each increment of the timer load/reload count. The
+ * requested duration of a timer is this value multiplied by the timer
+ * load/reload count.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_NS_PER_COUNT_OFST 4
+/* For timers updated via writes to EVQ_TMR_REG, this is the maximum value
+ * allowed for timer load/reload counts.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_MAX_COUNT_OFST 8
+/* For timers updated via writes to EVQ_TMR_REG, timer load/reload counts not a
+ * multiple of this step size will be rounded in an implementation defined
+ * manner.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_STEP_OFST 12
+/* Maximum timer duration (in nanoseconds) for timers updated via MCDI. Only
+ * meaningful if MC_CMD_SET_EVQ_TMR is implemented.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_MAX_NS_OFST 16
+/* Timer durations requested via MCDI that are not a multiple of this step size
+ * will be rounded up. Only meaningful if MC_CMD_SET_EVQ_TMR is implemented.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_STEP_NS_OFST 20
+/* For timers updated using the bug35388 workaround, this is the time interval
+ * (in nanoseconds) for each increment of the timer load/reload count. The
+ * requested duration of a timer is this value multiplied by the timer
+ * load/reload count. This field is only meaningful if the bug35388 workaround
+ * is enabled.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_NS_PER_COUNT_OFST 24
+/* For timers updated using the bug35388 workaround, this is the maximum value
+ * allowed for timer load/reload counts. This field is only meaningful if the
+ * bug35388 workaround is enabled.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_MAX_COUNT_OFST 28
+/* For timers updated using the bug35388 workaround, timer load/reload counts
+ * not a multiple of this step size will be rounded in an implementation
+ * defined manner. This field is only meaningful if the bug35388 workaround is
+ * enabled.
+ */
+#define	MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_STEP_OFST 32
+
+
+/***********************************/
+/* MC_CMD_ALLOCATE_TX_VFIFO_CP
+ * When we use the TX_vFIFO_ULL mode, we can allocate common pools using the
+ * non used switch buffers.
+ */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP 0x11d
+#undef	MC_CMD_0x11d_PRIVILEGE_CTG
+
+#define	MC_CMD_0x11d_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_ALLOCATE_TX_VFIFO_CP_IN msgrequest */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_LEN 20
+/* Desired instance. Must be set to a specific instance, which is a function
+ * local queue index.
+ */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_INSTANCE_OFST 0
+/* Will the common pool be used as TX_vFIFO_ULL (1) */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_MODE_OFST 4
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_ENABLED       0x1 /* enum */
+/* enum: Using this interface without TX_vFIFO_ULL is not supported for now */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_DISABLED      0x0
+/* Number of buffers to reserve for the common pool */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_SIZE_OFST 8
+/* TX datapath to which the Common Pool is connected to. */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_INGRESS_OFST 12
+/* enum: Extracts information from function */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_USE_FUNCTION_VALUE          -0x1
+/* Network port or RX Engine to which the common pool connects. */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_EGRESS_OFST 16
+/* enum: Extracts information from function */
+/*               MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_USE_FUNCTION_VALUE          -0x1 */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_PORT0          0x0 /* enum */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_PORT1          0x1 /* enum */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_PORT2          0x2 /* enum */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_PORT3          0x3 /* enum */
+/* enum: To enable Switch loopback with Rx engine 0 */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_RX_ENGINE0     0x4
+/* enum: To enable Switch loopback with Rx engine 1 */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_RX_ENGINE1     0x5
+
+/* MC_CMD_ALLOCATE_TX_VFIFO_CP_OUT msgresponse */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_OUT_LEN 4
+/* ID of the common pool allocated */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_CP_OUT_CP_ID_OFST 0
+
+
+/***********************************/
+/* MC_CMD_ALLOCATE_TX_VFIFO_VFIFO
+ * When we use the TX_vFIFO_ULL mode, we can allocate vFIFOs using the
+ * previously allocated common pools.
+ */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO 0x11e
+#undef	MC_CMD_0x11e_PRIVILEGE_CTG
+
+#define	MC_CMD_0x11e_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN msgrequest */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_LEN 20
+/* Common pool previously allocated to which the new vFIFO will be associated
+ */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_CP_OFST 0
+/* Port or RX engine to associate the vFIFO egress */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_EGRESS_OFST 4
+/* enum: Extracts information from common pool */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_USE_CP_VALUE   -0x1
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_PORT0          0x0 /* enum */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_PORT1          0x1 /* enum */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_PORT2          0x2 /* enum */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_PORT3          0x3 /* enum */
+/* enum: To enable Switch loopback with Rx engine 0 */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_RX_ENGINE0     0x4
+/* enum: To enable Switch loopback with Rx engine 1 */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_RX_ENGINE1     0x5
+/* Minimum number of buffers that the pool must have */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_SIZE_OFST 8
+/* enum: Do not check the space available */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_NO_MINIMUM     0x0
+/* Will the vFIFO be used as TX_vFIFO_ULL */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_MODE_OFST 12
+/* Network priority of the vFIFO,if applicable */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_PRIORITY_OFST 16
+/* enum: Search for the lowest unused priority */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_LOWEST_AVAILABLE  -0x1
+
+/* MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_OUT msgresponse */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_OUT_LEN 8
+/* Short vFIFO ID */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_OUT_VID_OFST 0
+/* Network priority of the vFIFO */
+#define	MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_OUT_PRIORITY_OFST 4
+
+
+/***********************************/
+/* MC_CMD_TEARDOWN_TX_VFIFO_VF
+ * This interface clears the configuration of the given vFIFO and leaves it
+ * ready to be re-used.
+ */
+#define	MC_CMD_TEARDOWN_TX_VFIFO_VF 0x11f
+#undef	MC_CMD_0x11f_PRIVILEGE_CTG
+
+#define	MC_CMD_0x11f_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_TEARDOWN_TX_VFIFO_VF_IN msgrequest */
+#define	MC_CMD_TEARDOWN_TX_VFIFO_VF_IN_LEN 4
+/* Short vFIFO ID */
+#define	MC_CMD_TEARDOWN_TX_VFIFO_VF_IN_VFIFO_OFST 0
+
+/* MC_CMD_TEARDOWN_TX_VFIFO_VF_OUT msgresponse */
+#define	MC_CMD_TEARDOWN_TX_VFIFO_VF_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_DEALLOCATE_TX_VFIFO_CP
+ * This interface clears the configuration of the given common pool and leaves
+ * it ready to be re-used.
+ */
+#define	MC_CMD_DEALLOCATE_TX_VFIFO_CP 0x121
+#undef	MC_CMD_0x121_PRIVILEGE_CTG
+
+#define	MC_CMD_0x121_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_DEALLOCATE_TX_VFIFO_CP_IN msgrequest */
+#define	MC_CMD_DEALLOCATE_TX_VFIFO_CP_IN_LEN 4
+/* Common pool ID given when pool allocated */
+#define	MC_CMD_DEALLOCATE_TX_VFIFO_CP_IN_POOL_ID_OFST 0
+
+/* MC_CMD_DEALLOCATE_TX_VFIFO_CP_OUT msgresponse */
+#define	MC_CMD_DEALLOCATE_TX_VFIFO_CP_OUT_LEN 0
 
 #endif /* _SIENA_MC_DRIVER_PCOL_H */
