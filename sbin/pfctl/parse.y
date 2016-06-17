@@ -217,6 +217,8 @@ struct filter_opts {
 #define FOM_TOS		0x04
 #define FOM_KEEP	0x08
 #define FOM_SRCTRACK	0x10
+#define FOM_SETPRIO	0x0400
+#define FOM_PRIO	0x2000
 	struct node_uid		*uid;
 	struct node_gid		*gid;
 	struct {
@@ -240,6 +242,8 @@ struct filter_opts {
 	char			*match_tag;
 	u_int8_t		 match_tag_not;
 	u_int			 rtableid;
+	u_int8_t		 prio;
+	u_int8_t		 set_prio[2];
 	struct {
 		struct node_host	*addr;
 		u_int16_t		port;
@@ -453,7 +457,7 @@ int	parseport(char *, struct range *r, int);
 %token	BITMASK RANDOM SOURCEHASH ROUNDROBIN STATICPORT PROBABILITY
 %token	ALTQ CBQ CODEL PRIQ HFSC FAIRQ BANDWIDTH TBRSIZE LINKSHARE REALTIME
 %token	UPPERLIMIT QUEUE PRIORITY QLIMIT HOGS BUCKETS RTABLE TARGET INTERVAL
-%token	LOAD RULESET_OPTIMIZATION
+%token	LOAD RULESET_OPTIMIZATION PRIO
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
@@ -468,7 +472,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.i>			no dir af fragcache optimizer
 %type	<v.i>			sourcetrack flush unaryop statelock
 %type	<v.b>			action nataction natpasslog scrubaction
-%type	<v.b>			flags flag blockspec
+%type	<v.b>			flags flag blockspec prio
 %type	<v.range>		portplain portstar portrange
 %type	<v.hashkey>		hashkey
 %type	<v.proto>		proto proto_list proto_item
@@ -504,6 +508,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.codel_opts>		codelopts_list codelopts_item codel_opts
 %type	<v.queue_bwspec>	bandwidth
 %type	<v.filter_opts>		filter_opts filter_opt filter_opts_l
+%type	<v.filter_opts>		filter_sets filter_set filter_sets_l
 %type	<v.antispoof_opts>	antispoof_opts antispoof_opt antispoof_opts_l
 %type	<v.queue_opts>		queue_opts queue_opt queue_opts_l
 %type	<v.scrub_opts>		scrub_opts scrub_opt scrub_opts_l
@@ -889,6 +894,17 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 					YYERROR;
 				}
 			r.match_tag_not = $9.match_tag_not;
+			if ($9.marker & FOM_PRIO) {
+				if ($9.prio == 0)
+					r.prio = PF_PRIO_ZERO;
+				else
+					r.prio = $9.prio;
+			}
+			if ($9.marker & FOM_SETPRIO) {
+				r.set_prio[0] = $9.set_prio[0];
+				r.set_prio[1] = $9.set_prio[1];
+				r.scrub_flags |= PFSTATE_SETPRIO;
+			}
 
 			decide_address_family($8.src.host, &r.af);
 			decide_address_family($8.dst.host, &r.af);
@@ -2014,6 +2030,18 @@ pfrule		: action dir logquick interface route af proto fromto
 			r.prob = $9.prob;
 			r.rtableid = $9.rtableid;
 
+			if ($9.marker & FOM_PRIO) {
+				if ($9.prio == 0)
+					r.prio = PF_PRIO_ZERO;
+				else
+					r.prio = $9.prio;
+			}
+			if ($9.marker & FOM_SETPRIO) {
+				r.set_prio[0] = $9.set_prio[0];
+				r.set_prio[1] = $9.set_prio[1];
+				r.scrub_flags |= PFSTATE_SETPRIO;
+			}
+
 			r.af = $6;
 			if ($9.tag)
 				if (strlcpy(r.tagname, $9.tag,
@@ -2434,6 +2462,18 @@ filter_opt	: USER uids {
 			filter_opts.marker |= FOM_ICMP;
 			filter_opts.icmpspec = $1;
 		}
+		| PRIO NUMBER {
+			if (filter_opts.marker & FOM_PRIO) {
+				yyerror("prio cannot be redefined");
+				YYERROR;
+			}
+			if ($2 < 0 || $2 > PF_PRIO_MAX) {
+				yyerror("prio must be 0 - %u", PF_PRIO_MAX);
+				YYERROR;
+			}
+			filter_opts.marker |= FOM_PRIO;
+			filter_opts.prio = $2;
+		}
 		| TOS tos {
 			if (filter_opts.marker & FOM_TOS) {
 				yyerror("tos cannot be redefined");
@@ -2531,6 +2571,42 @@ filter_opt	: USER uids {
 #else
 			filter_opts.divert.port = 1;	/* some random value */
 #endif
+		}
+		| filter_sets
+		;
+
+filter_sets	: SET '(' filter_sets_l ')'	{ $$ = filter_opts; }
+		| SET filter_set		{ $$ = filter_opts; }
+		;
+
+filter_sets_l	: filter_sets_l comma filter_set
+		| filter_set
+		;
+
+filter_set	: prio {
+			if (filter_opts.marker & FOM_SETPRIO) {
+				yyerror("prio cannot be redefined");
+				YYERROR;
+			}
+			filter_opts.marker |= FOM_SETPRIO;
+			filter_opts.set_prio[0] = $1.b1;
+			filter_opts.set_prio[1] = $1.b2;
+		}
+prio		: PRIO NUMBER {
+			if ($2 < 0 || $2 > PF_PRIO_MAX) {
+				yyerror("prio must be 0 - %u", PF_PRIO_MAX);
+				YYERROR;
+			}
+			$$.b1 = $$.b2 = $2;
+		}
+		| PRIO '(' NUMBER comma NUMBER ')' {
+			if ($3 < 0 || $3 > PF_PRIO_MAX ||
+			    $5 < 0 || $5 > PF_PRIO_MAX) {
+				yyerror("prio must be 0 - %u", PF_PRIO_MAX);
+				YYERROR;
+			}
+			$$.b1 = $3;
+			$$.b2 = $5;
 		}
 		;
 
@@ -5426,6 +5502,7 @@ lookup(char *s)
 		{ "overload",		OVERLOAD},
 		{ "pass",		PASS},
 		{ "port",		PORT},
+		{ "prio",		PRIO},
 		{ "priority",		PRIORITY},
 		{ "priq",		PRIQ},
 		{ "probability",	PROBABILITY},
