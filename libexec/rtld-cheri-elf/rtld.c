@@ -799,7 +799,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 
     dbg("\"%s\" in \"%s\" ==> %p in \"%s\"",
       defobj->strtab + def->st_name, basename(obj->path),
-      (void *)target, basename(defobj->path));
+      (void *)(uintptr_t)target, basename(defobj->path));
 
     /*
      * Write the new contents for the jmpslot. Note that depending on
@@ -2493,7 +2493,7 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 	    }
 	    if (elm->obj->fini != (Elf_Addr)NULL) {
 		dbg("calling fini function for %s at %p", elm->obj->path,
-		    (void *)elm->obj->fini);
+		    (void *)(uintptr_t)elm->obj->fini);
 		LD_UTRACE(UTRACE_FINI_CALL, elm->obj, (void *)(intptr_t)elm->obj->fini,
 		    0, 0, elm->obj->path);
 		call_initfini_pointer(elm->obj, elm->obj->fini);
@@ -2560,7 +2560,7 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
          */
 	if (elm->obj->init != (Elf_Addr)NULL) {
 	    dbg("calling init function for %s at %p", elm->obj->path,
-	        (void *)elm->obj->init);
+	        (void *)(uintptr_t)elm->obj->init);
 	    LD_UTRACE(UTRACE_INIT_CALL, elm->obj, (void *)(intptr_t)elm->obj->init,
 	        0, 0, elm->obj->path);
 	    call_initfini_pointer(elm->obj, elm->obj->init);
@@ -2570,7 +2570,7 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 	    for (index = 0; index < elm->obj->init_array_num; index++) {
 		if (init_addr[index] != 0 && init_addr[index] != 1) {
 		    dbg("calling init function for %s at %p", elm->obj->path,
-			(void *)init_addr[index]);
+			(void *)(uintptr_t)init_addr[index]);
 		    LD_UTRACE(UTRACE_INIT_CALL, elm->obj,
 			(void *)(uintptr_t)init_addr[index], 0, 0, elm->obj->path);
 		    call_init_pointer(elm->obj, init_addr[index]);

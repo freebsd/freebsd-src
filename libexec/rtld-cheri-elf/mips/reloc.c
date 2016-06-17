@@ -210,7 +210,8 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, caddr_t relocbase)
 			val += (uintptr_t)relocbase;
 			//store_ptr(where, val, sizeof(Elf_Sword));
 			dbg("REL32/L(%p) %p -> %p in <self>",
-			    where, (void *)old, (void *)val);
+			    where, (void *)(uintptr_t)old,
+			    (void *)(uintptr_t)val);
 			store_ptr(where, val, rlen);
 			break;
 		}
@@ -244,8 +245,8 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 	dbg("bind now/fixup at %s sym # %jd in %s --> was=%p new=%p",
 	    obj->path,
 	    (intmax_t)reloff, defobj->strtab + def->st_name,
-	    (void *)got[obj->local_gotno + reloff - obj->gotsym],
-	    (void *)target);
+	    (void *)(uintptr_t)got[obj->local_gotno + reloff - obj->gotsym],
+	    (void *)(uintptr_t)target);
 	got[obj->local_gotno + reloff - obj->gotsym] = target;
 	return (Elf_Addr)target;
 }
@@ -407,7 +408,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			if (r_symndx >= obj->gotsym) {
 				val += got[obj->local_gotno + r_symndx - obj->gotsym];
 				dbg("REL32/G(%p) %p --> %p (%s) in %s",
-				    where, (void *)old, (void *)val,
+				    where, (void *)(uintptr_t)old, (void *)(uintptr_t)val,
 				    obj->strtab + def->st_name,
 				    obj->path);
 			} else {
@@ -438,7 +439,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 				val += (Elf_Addr)obj->relocbase;
 
 				dbg("REL32/L(%p) %p -> %p (%s) in %s",
-				    where, (void *)old, (void *)val,
+				    where, (void *)(uintptr_t)old, (void *)(uintptr_t)val,
 				    obj->strtab + def->st_name, obj->path);
 			}
 			store_ptr(where, val, rlen);
@@ -466,7 +467,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			store_ptr(where, val, rlen);
 			dbg("DTPMOD %s in %s %p --> %p in %s",
 			    obj->strtab + obj->symtab[r_symndx].st_name,
-			    obj->path, (void *)old, (void*)val, defobj->path);
+			    obj->path, (void *)(uintptr_t)old, (void*)(uintptr_t)val, defobj->path);
 			break;
 		}
 
@@ -493,7 +494,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 
 			dbg("DTPREL %s in %s %p --> %p in %s",
 			    obj->strtab + obj->symtab[r_symndx].st_name,
-			    obj->path, (void*)old, (void *)val, defobj->path);
+			    obj->path, (void*)(uintptr_t)old, (void *)(uintptr_t)val, defobj->path);
 			break;
 		}
 
@@ -522,7 +523,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 
 			dbg("TPREL %s in %s %p --> %p in %s",
 			    obj->strtab + obj->symtab[r_symndx].st_name,
-			    obj->path, (void*)old, (void *)val, defobj->path);
+			    obj->path, (void*)(uintptr_t)old, (void *)(uintptr_t)val, defobj->path);
 			break;
 		}
 
@@ -532,8 +533,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			dbg("sym = %lu, type = %lu, offset = %p, "
 			    "contents = %p, symbol = %s",
 			    (u_long)r_symndx, (u_long)ELF_R_TYPE(rel->r_info),
-			    (void *)rel->r_offset,
-			    (void *)load_ptr(where, sizeof(Elf_Sword)),
+			    (void *)(uintptr_t)rel->r_offset,
+			    (void *)(uintptr_t)load_ptr(where, sizeof(Elf_Sword)),
 			    obj->strtab + obj->symtab[r_symndx].st_name);
 			_rtld_error("%s: Unsupported relocation type %ld "
 			    "in non-PLT relocations",
