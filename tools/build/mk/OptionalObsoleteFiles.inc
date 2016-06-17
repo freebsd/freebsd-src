@@ -1237,6 +1237,7 @@ OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 
 .if ${MK_CLANG_EXTRAS} == no
 OLD_FILES+=usr/bin/bugpoint
+OLD_FILES+=usr/bin/clang-format
 OLD_FILES+=usr/bin/llc
 OLD_FILES+=usr/bin/lli
 OLD_FILES+=usr/bin/llvm-ar
