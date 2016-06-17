@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <net/altq/altq.h>
 #endif
 
-static int		 pfattach(void);
 static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t);
 
@@ -189,7 +188,7 @@ static struct cdevsw pf_cdevsw = {
 
 static volatile VNET_DEFINE(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
-VNET_DEFINE(int,		pf_end_threads);
+int pf_end_threads;
 
 struct rwlock			pf_rules_lock;
 struct sx			pf_ioctl_lock;
@@ -279,21 +278,6 @@ pfattach_vnet(void)
 		return;
 }
 
-static int
-pfattach(void)
-{
-	int error;
-
-	pf_mtag_initialize();
-
-	error = kproc_create(pf_purge_thread, NULL, NULL, 0, 0, "pf purge");
-	if (error != 0) {
-		pf_mtag_cleanup();
-		return (error);
-	}
-
-	return (0);
-}
 
 static struct pf_pool *
 pf_get_pool(char *anchor, u_int32_t ticket, u_int8_t rule_action,
@@ -3707,9 +3691,6 @@ pf_load_vnet(void)
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		V_pf_pfil_hooked = 0;
-#if 0
-		V_pf_end_threads = 0;
-#endif
 		TAILQ_INIT(&V_pf_tags);
 		TAILQ_INIT(&V_pf_qids);
 		CURVNET_RESTORE();
@@ -3727,8 +3708,15 @@ pf_load(void)
 	rw_init(&pf_rules_lock, "pf rulesets");
 	sx_init(&pf_ioctl_lock, "pf ioctl");
 
+	pf_mtag_initialize();
+
 	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
-	if ((error = pfattach()) != 0)
+	if (pf_dev == NULL)
+		return (ENOMEM);
+
+	pf_end_threads = 0;
+	error = kproc_create(pf_purge_thread, NULL, NULL, 0, 0, "pf purge");
+	if (error != 0)
 		return (error);
 
 	return (0);
@@ -3751,16 +3739,13 @@ pf_unload_vnet()
 		printf("%s : pfil unregisteration fail\n", __FUNCTION__);
 		return;
 	}
+
+	pf_unload_vnet_purge();
+
 	PF_RULES_WLOCK();
 	shutdown_pf();
-#if 0
-	V_pf_end_threads = 1;
-	while (V_pf_end_threads < 2) {
-		wakeup_one(pf_purge_thread);
-		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
-	}
-#endif
 	PF_RULES_WUNLOCK();
+
 	pf_normalize_cleanup();
 	pfi_cleanup_vnet();
 	pfr_cleanup();
@@ -3775,9 +3760,17 @@ pf_unload(void)
 {
 	int error = 0;
 
+	pf_end_threads = 1;
+	while (pf_end_threads < 2) {
+		wakeup_one(pf_purge_thread);
+		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
+	}
+
+	if (pf_dev != NULL)
+		destroy_dev(pf_dev);
+
 	pfi_cleanup();
 
-	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);
 
