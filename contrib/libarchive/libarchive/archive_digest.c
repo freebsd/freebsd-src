@@ -28,7 +28,7 @@
 #include "archive_platform.h"
 
 #include "archive.h"
-#include "archive_crypto_private.h"
+#include "archive_digest_private.h"
 
 /* In particular, force the configure probe to break if it tries
  * to test a combination of OpenSSL and libmd. */
@@ -1216,8 +1216,8 @@ __archive_stub_sha512final(archive_sha512_ctx *ctx, void *md)
 
 #endif
 
-/* NOTE: Crypto functions are set based on availability and by the following
- * order of preference.
+/* NOTE: Message Digest functions are set based on availability and by the
+ * following order of preference.
  * 1. libc
  * 2. libc2
  * 3. libc3
@@ -1227,7 +1227,7 @@ __archive_stub_sha512final(archive_sha512_ctx *ctx, void *md)
  * 7. libmd
  * 8. Windows API
  */
-const struct archive_crypto __archive_crypto =
+const struct archive_digest __archive_digest =
 {
 /* MD5 */
 #if defined(ARCHIVE_CRYPTO_MD5_LIBC)
@@ -1412,7 +1412,7 @@ const struct archive_crypto __archive_crypto =
 #elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
   &__archive_nettle_sha512init,
   &__archive_nettle_sha512update,
-  &__archive_nettle_sha512final,
+  &__archive_nettle_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
   &__archive_openssl_sha512init,
   &__archive_openssl_sha512update,

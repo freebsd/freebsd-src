@@ -5,8 +5,8 @@
 PROG=	ar
 SRCS=	ar.c acplex.l acpyacc.y read.c util.c write.c y.tab.h
 
-DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBZ}
-LDADD=	-larchive -lelf -lz
+DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBZ} ${LIBBZ2}
+LDADD=	-larchive -lelf -lz -lbz2
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 

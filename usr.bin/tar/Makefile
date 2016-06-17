@@ -4,7 +4,7 @@
 LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=	3.1.2
+BSDTAR_VERSION_STRING=	3.2.0
 
 .PATH: ${LIBARCHIVEDIR}/tar
 SRCS=	bsdtar.c	\
@@ -17,7 +17,8 @@ SRCS=	bsdtar.c	\
 
 .PATH: ${LIBARCHIVEDIR}/libarchive_fe
 SRCS+=	err.c		\
-	line_reader.c
+	line_reader.c	\
+	passphrase.c
 
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA} ${LIBPTHREAD} ${LIBBSDXML}
 LDADD=	-larchive -lbz2 -lz -llzma -lpthread -lbsdxml
