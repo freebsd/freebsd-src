@@ -159,6 +159,10 @@ static kmutex_t		arc_user_evicts_lock;
 static kcondvar_t	arc_user_evicts_cv;
 static boolean_t	arc_user_evicts_thread_exit;
 
+static kmutex_t		arc_dnlc_evicts_lock;
+static kcondvar_t	arc_dnlc_evicts_cv;
+static boolean_t	arc_dnlc_evicts_thread_exit;
+
 uint_t arc_reduce_dnlc_percent = 3;
 
 /*
@@ -3749,6 +3753,57 @@ arc_user_evicts_thread(void *dummy __unused)
 	thread_exit();
 }
 
+static u_int arc_dnlc_evicts_arg;
+extern struct vfsops zfs_vfsops;
+
+static void
+arc_dnlc_evicts_thread(void *dummy __unused)
+{
+	callb_cpr_t cpr;
+	u_int percent;
+
+	CALLB_CPR_INIT(&cpr, &arc_dnlc_evicts_lock, callb_generic_cpr, FTAG);
+
+	mutex_enter(&arc_dnlc_evicts_lock);
+	while (!arc_dnlc_evicts_thread_exit) {
+		CALLB_CPR_SAFE_BEGIN(&cpr);
+		(void) cv_wait(&arc_dnlc_evicts_cv, &arc_dnlc_evicts_lock);
+		CALLB_CPR_SAFE_END(&cpr, &arc_dnlc_evicts_lock);
+		if (arc_dnlc_evicts_arg != 0) {
+			percent = arc_dnlc_evicts_arg;
+			mutex_exit(&arc_dnlc_evicts_lock);
+#ifdef _KERNEL
+			vnlru_free(desiredvnodes * percent / 100, &zfs_vfsops);
+#endif
+			mutex_enter(&arc_dnlc_evicts_lock);
+			/*
+			 * Clear our token only after vnlru_free()
+			 * pass is done, to avoid false queueing of
+			 * the requests.
+			 */
+			arc_dnlc_evicts_arg = 0;
+		}
+	}
+	arc_dnlc_evicts_thread_exit = FALSE;
+	cv_broadcast(&arc_dnlc_evicts_cv);
+	CALLB_CPR_EXIT(&cpr);
+	thread_exit();
+}
+
+void
+dnlc_reduce_cache(void *arg)
+{
+	u_int percent;
+
+	percent = (u_int)arg;
+	mutex_enter(&arc_dnlc_evicts_lock);
+	if (arc_dnlc_evicts_arg == 0) {
+		arc_dnlc_evicts_arg = percent;
+		cv_broadcast(&arc_dnlc_evicts_cv);
+	}
+	mutex_exit(&arc_dnlc_evicts_lock);
+}
+
 /*
  * Adapt arc info given the number of bytes we are trying to add and
  * the state that we are comming from.  This function is only called
@@ -5311,6 +5366,9 @@ arc_init(void)
 	mutex_init(&arc_user_evicts_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arc_user_evicts_cv, NULL, CV_DEFAULT, NULL);
 
+	mutex_init(&arc_dnlc_evicts_lock, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&arc_dnlc_evicts_cv, NULL, CV_DEFAULT, NULL);
+
 	/* Convert seconds to clock ticks */
 	arc_min_prefetch_lifespan = 1 * hz;
 
@@ -5463,6 +5521,7 @@ arc_init(void)
 
 	arc_reclaim_thread_exit = FALSE;
 	arc_user_evicts_thread_exit = FALSE;
+	arc_dnlc_evicts_thread_exit = FALSE;
 	arc_eviction_list = NULL;
 	bzero(&arc_eviction_hdr, sizeof (arc_buf_hdr_t));
 
@@ -5484,6 +5543,9 @@ arc_init(void)
 #endif
 
 	(void) thread_create(NULL, 0, arc_user_evicts_thread, NULL, 0, &p0,
+	    TS_RUN, minclsyspri);
+
+	(void) thread_create(NULL, 0, arc_dnlc_evicts_thread, NULL, 0, &p0,
 	    TS_RUN, minclsyspri);
 
 	arc_dead = FALSE;
@@ -5568,6 +5630,18 @@ arc_fini(void)
 	}
 	mutex_exit(&arc_user_evicts_lock);
 
+	mutex_enter(&arc_dnlc_evicts_lock);
+	arc_dnlc_evicts_thread_exit = TRUE;
+	/*
+	 * The user evicts thread will set arc_user_evicts_thread_exit
+	 * to FALSE when it is finished exiting; we're waiting for that.
+	 */
+	while (arc_dnlc_evicts_thread_exit) {
+		cv_signal(&arc_dnlc_evicts_cv);
+		cv_wait(&arc_dnlc_evicts_cv, &arc_dnlc_evicts_lock);
+	}
+	mutex_exit(&arc_dnlc_evicts_lock);
+
 	/* Use TRUE to ensure *all* buffers are evicted */
 	arc_flush(NULL, TRUE);
 
@@ -5584,6 +5658,9 @@ arc_fini(void)
 
 	mutex_destroy(&arc_user_evicts_lock);
 	cv_destroy(&arc_user_evicts_cv);
+
+	mutex_destroy(&arc_dnlc_evicts_lock);
+	cv_destroy(&arc_dnlc_evicts_cv);
 
 	refcount_destroy(&arc_anon->arcs_size);
 	refcount_destroy(&arc_mru->arcs_size);
