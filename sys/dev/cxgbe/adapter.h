@@ -54,6 +54,7 @@
 #include <netinet/tcp_lro.h>
 
 #include "offload.h"
+#include "t4_ioctl.h"
 #include "common/t4_msg.h"
 #include "firmware/t4fw_interface.h"
 
@@ -264,6 +265,17 @@ struct vi_info {
 	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
 };
 
+enum {
+	/* tx_sched_class flags */
+	TX_SC_OK	= (1 << 0),	/* Set up in hardware, active. */
+};
+
+struct tx_sched_class {
+	int refcount;
+	int flags;
+	struct t4_sched_class_params params;
+};
+
 struct port_info {
 	device_t dev;
 	struct adapter *adapter;
@@ -272,6 +284,8 @@ struct port_info {
 	int nvi;
 	int up_vis;
 	int uld_vis;
+
+	struct tx_sched_class *tc;	/* traffic classes for this channel */
 
 	struct mtx pi_lock;
 	char lockname[16];
@@ -522,6 +536,7 @@ struct sge_txq {
 	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
 	struct sglist *gl;
 	__be32 cpl_ctrl0;	/* for convenience */
+	int tc_idx;		/* traffic class */
 
 	struct task tx_reclaim_task;
 	/* stats for common events first */
@@ -621,7 +636,7 @@ struct sge_wrq {
 
 	/*
 	 * Scratch space for work requests that wrap around after reaching the
-	 * status page, and some infomation about the last WR that used it.
+	 * status page, and some information about the last WR that used it.
 	 */
 	uint16_t ss_pidx;
 	uint16_t ss_len;

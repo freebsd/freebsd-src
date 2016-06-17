@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/bhndreg.h>
 
 #include <dev/bhnd/cores/chipc/chipcreg.h>
+#include <dev/bhnd/nvram/bhnd_nvram.h>
+
+#include "bhnd_chipc_if.h"
+#include "bhnd_nvram_if.h"
 
 #include "bhndbvar.h"
 #include "bhndb_bus_if.h"
@@ -190,13 +194,15 @@ bhndb_hw_matches(device_t *devlist, int num_devs, const struct bhndb_hw *hw)
 {
 	for (u_int i = 0; i < hw->num_hw_reqs; i++) {
 		const struct bhnd_core_match	*match;
+		struct bhnd_core_info		 ci;
 		bool				 found;
 
 		match =  &hw->hw_reqs[i];
 		found = false;
 
 		for (int d = 0; d < num_devs; d++) {
-			if (!bhnd_device_matches(devlist[d], match))
+			ci = bhnd_get_core_info(devlist[d]);
+			if (!bhnd_core_matches(&ci, match))
 				continue;
 
 			found = true;
@@ -259,9 +265,9 @@ bhndb_initialize_region_cfg(struct bhndb_softc *sc, device_t *devs, int ndevs,
 				continue;
 			
 			/* Fetch the base address of the mapped port. */
-			error = bhnd_get_region_addr(child, 
-			    regw->core.port_type, regw->core.port, 
-			    regw->core.region, &addr, &size);
+			error = bhnd_get_region_addr(child,
+			    regw->d.core.port_type, regw->d.core.port,
+			    regw->d.core.region, &addr, &size);
 			if (error)
 			    return (error);
 
@@ -536,8 +542,7 @@ bhndb_attach(device_t dev, bhnd_devclass_t bridge_devclass)
 	}
 
 	/* Attach our bridged bus device */
-	sc->bus_dev = BUS_ADD_CHILD(dev, 0, devclass_get_name(bhnd_devclass),
-	    -1);
+	sc->bus_dev = BUS_ADD_CHILD(dev, 0, "bhnd", -1);
 	if (sc->bus_dev == NULL) {
 		error = ENXIO;
 		goto failed;
@@ -590,18 +595,12 @@ bhndb_generic_init_full_config(device_t dev, device_t child,
 	sc = device_get_softc(dev);
 	hostb = NULL;
 
-	/* Fetch the full set of attached devices */
+	/* Fetch the full set of bhnd-attached cores */
 	if ((error = device_get_children(sc->bus_dev, &devs, &ndevs)))
 		return (error);
 
 	/* Find our host bridge device */
-	for (int i = 0; i < ndevs; i++) {
-		if (bhnd_is_hostb_device(devs[i])) {
-			hostb = devs[i];
-			break;
-		}
-	}
-
+	hostb = BHNDB_FIND_HOSTB_DEVICE(dev, child);
 	if (hostb == NULL) {
 		device_printf(sc->dev, "no host bridge core found\n");
 		error = ENODEV;
@@ -616,7 +615,7 @@ bhndb_generic_init_full_config(device_t dev, device_t child,
 		goto cleanup;
 	}
 
-	if (bootverbose)
+	if (bootverbose || BHNDB_DEBUG(PRIO))
 		device_printf(sc->dev, "%s resource configuration\n", hw->name);
 
 	/* Release existing resource state */
@@ -868,6 +867,9 @@ bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
 			return (NULL);
 		};
 	}
+
+	/* Quieten gcc */
+	return (NULL);
 }
 
 /**
@@ -948,13 +950,13 @@ bhndb_is_hw_disabled(device_t dev, device_t child) {
 	/* Otherwise, we treat bridge-capable cores as unpopulated if they're
 	 * not the configured host bridge */
 	if (BHND_DEVCLASS_SUPPORTS_HOSTB(bhnd_core_class(&core)))
-		return (!BHND_BUS_IS_HOSTB_DEVICE(dev, child));
+		return (BHNDB_FIND_HOSTB_DEVICE(dev, sc->bus_dev) != child);
 
 	/* Otherwise, assume the core is populated */
 	return (false);
 }
 
-/* ascending core index comparison used by bhndb_is_hostb_device() */ 
+/* ascending core index comparison used by bhndb_find_hostb_device() */ 
 static int
 compare_core_index(const void *lhs, const void *rhs)
 {
@@ -970,7 +972,7 @@ compare_core_index(const void *lhs, const void *rhs)
 }
 
 /**
- * Default bhndb(4) implementation of BHND_BUS_IS_HOSTB_DEVICE().
+ * Default bhndb(4) implementation of BHND_BUS_FIND_HOSTB_DEVICE().
  * 
  * This function uses a heuristic valid on all known PCI/PCIe/PCMCIA-bridged
  * bhnd(4) devices to determine the hostb core:
@@ -980,48 +982,33 @@ compare_core_index(const void *lhs, const void *rhs)
  * - The core must be the first device on the bus with the bridged device
  *   class.
  * 
- * @param sc The bridge device state.
- * @param cores The table of bridge-enumerated cores.
- * @param num_cores The length of @p cores.
- * @param core The core to check.
+ * @param dev The bhndb device
+ * @param child The requesting bhnd bus.
  */
-static bool
-bhndb_is_hostb_device(device_t dev, device_t child)
+static device_t
+bhndb_find_hostb_device(device_t dev, device_t child)
 {
-	struct bhndb_softc	*sc;
-	struct bhnd_core_match	 md;
-	device_t		 hostb_dev, *devlist;
-	int                      devcnt, error;
+	struct bhndb_softc		*sc;
+	struct bhnd_device_match	 md;
+	device_t			 hostb_dev, *devlist;
+	int				 devcnt, error;
 
-	
 	sc = device_get_softc(dev);
 
-	/* Requestor must be attached to the bhnd bus */
-	if (device_get_parent(child) != sc->bus_dev)
-		return (BHND_BUS_IS_HOSTB_DEVICE(device_get_parent(dev),
-		    child));
-
-	/* Determine required device class and set up a match descriptor. */
-	md = (struct bhnd_core_match) {
-		.vendor = BHND_MFGID_BCM,
-		.device = BHND_COREID_INVALID,
-		.hwrev = { BHND_HWREV_INVALID, BHND_HWREV_INVALID },
-		.class = sc->bridge_class,
-		.unit = 0
+	/* Set up a match descriptor for the required device class. */
+	md = (struct bhnd_device_match) {
+		BHND_MATCH_CORE_CLASS(sc->bridge_class),
+		BHND_MATCH_CORE_UNIT(0)
 	};
-
-	/* Pre-screen the device before searching over the full device list. */
-	if (!bhnd_device_matches(child, &md))
-		return (false);
 	
 	/* Must be the absolute first matching device on the bus. */
-	if ((error = device_get_children(sc->bus_dev, &devlist, &devcnt)))
+	if ((error = device_get_children(child, &devlist, &devcnt)))
 		return (false);
 
 	/* Sort by core index value, ascending */
 	qsort(devlist, devcnt, sizeof(*devlist), compare_core_index);
 
-	/* Find the actual hostb device */
+	/* Find the hostb device */
 	hostb_dev = NULL;
 	for (int i = 0; i < devcnt; i++) {
 		if (bhnd_device_matches(devlist[i], &md)) {
@@ -1033,7 +1020,7 @@ bhndb_is_hostb_device(device_t dev, device_t child)
 	/* Clean up */
 	free(devlist, M_TEMP);
 
-	return (child == hostb_dev);
+	return (hostb_dev);
 }
 
 /**
@@ -1156,10 +1143,15 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 {
 	struct bhndb_softc		*sc;
 	struct rman			*rm;
+	rman_res_t			 mstart, mend;
 	int				 error;
 	
 	sc = device_get_softc(dev);
 	error = 0;
+
+	/* Verify basic constraints */
+	if (end <= start)
+		return (EINVAL);
 
 	/* Fetch resource manager */
 	rm = bhndb_get_rman(sc, child, type);
@@ -1169,16 +1161,29 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 	if (!rman_is_region_manager(r, rm))
 		return (ENXIO);
 
-	/* If active, adjustment is limited by the assigned window. */
 	BHNDB_LOCK(sc);
 
-	// TODO: Currently unsupported
-	error = ENODEV;
+	/* If not active, allow any range permitted by the resource manager */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		goto done;
 
-	BHNDB_UNLOCK(sc);
+	/* Otherwise, the range is limited to the existing register window
+	 * mapping */
+	error = bhndb_find_resource_limits(sc->bus_res, r, &mstart, &mend);
+	if (error)
+		goto done;
+
+	if (start < mstart || end > mend) {
+		error = EINVAL;
+		goto done;
+	}
+
+	/* Fall through */
+done:
 	if (!error)
 		error = rman_adjust_resource(r, start, end);
 
+	BHNDB_UNLOCK(sc);
 	return (error);
 }
 
@@ -1314,9 +1319,10 @@ bhndb_retain_dynamic_window(struct bhndb_softc *sc, struct resource *r)
 	    rman_get_size(r));
 	if (error) {
 		device_printf(sc->dev, "dynamic window initialization "
-			"for 0x%llx-0x%llx failed\n",
+			"for 0x%llx-0x%llx failed: %d\n",
 			(unsigned long long) r_start,
-			(unsigned long long) r_start + r_size - 1);
+			(unsigned long long) r_start + r_size - 1,
+			error);
 		return (NULL);
 	}
 
@@ -1515,7 +1521,7 @@ bhndb_get_resource_list(device_t dev, device_t child)
  * Default bhndb(4) implementation of BHND_BUS_ACTIVATE_RESOURCE().
  *
  * For BHNDB_ADDRSPACE_NATIVE children, all resources may be assumed to
- * be actived by the bridge.
+ * be activated by the bridge.
  * 
  * For BHNDB_ADDRSPACE_BRIDGED children, attempts to activate a static register
  * window, a dynamic register window, or configures @p r as an indirect
@@ -1547,7 +1553,8 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 	if (bhndb_get_addrspace(sc, child) == BHNDB_ADDRSPACE_BRIDGED) {
 		bhndb_priority_t r_prio;
 
-		region = bhndb_find_resource_region(sc->bus_res, r_start, r_size);
+		region = bhndb_find_resource_region(sc->bus_res, r_start,
+		    r_size);
 		if (region != NULL)
 			r_prio = region->priority;
 		else
@@ -1753,37 +1760,68 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 	BHNDB_UNLOCK(sc);
 
 /* Defines a bhndb_bus_read_* method implementation */
-#define	BHNDB_IO_READ(_type, _size)				\
+#define	BHNDB_IO_READ(_type, _name)				\
 static _type							\
-bhndb_bus_read_ ## _size (device_t dev, device_t child,		\
+bhndb_bus_read_ ## _name (device_t dev, device_t child,		\
     struct bhnd_resource *r, bus_size_t offset)			\
 {								\
 	_type v;						\
 	BHNDB_IO_COMMON_SETUP(sizeof(_type));			\
-	v = bus_read_ ## _size (io_res, io_offset);		\
+	v = bus_read_ ## _name (io_res, io_offset);		\
 	BHNDB_IO_COMMON_TEARDOWN();				\
 								\
 	return (v);						\
 }
 
 /* Defines a bhndb_bus_write_* method implementation */
-#define	BHNDB_IO_WRITE(_type, _size)				\
+#define	BHNDB_IO_WRITE(_type, _name)				\
 static void							\
-bhndb_bus_write_ ## _size (device_t dev, device_t child,	\
+bhndb_bus_write_ ## _name (device_t dev, device_t child,	\
     struct bhnd_resource *r, bus_size_t offset, _type value)	\
 {								\
 	BHNDB_IO_COMMON_SETUP(sizeof(_type));			\
-	bus_write_ ## _size (io_res, io_offset, value);		\
+	bus_write_ ## _name (io_res, io_offset, value);		\
 	BHNDB_IO_COMMON_TEARDOWN();				\
 }
 
-BHNDB_IO_READ(uint8_t, 1);
-BHNDB_IO_READ(uint16_t, 2);
-BHNDB_IO_READ(uint32_t, 4);
+/* Defines a bhndb_bus_(read|write|set)_(multi|region)_* method */
+#define	BHNDB_IO_MISC(_type, _ptr, _op, _size)			\
+static void							\
+bhndb_bus_ ## _op ## _ ## _size (device_t dev,			\
+    device_t child, struct bhnd_resource *r, bus_size_t offset,	\
+    _type _ptr datap, bus_size_t count)				\
+{								\
+	BHNDB_IO_COMMON_SETUP(sizeof(_type) * count);		\
+	bus_ ## _op ## _ ## _size (io_res, io_offset,		\
+	    datap, count);					\
+	BHNDB_IO_COMMON_TEARDOWN();				\
+}
 
-BHNDB_IO_WRITE(uint8_t, 1);
-BHNDB_IO_WRITE(uint16_t, 2);
-BHNDB_IO_WRITE(uint32_t, 4);
+/* Defines a complete set of read/write methods */
+#define	BHNDB_IO_METHODS(_type, _size)				\
+	BHNDB_IO_READ(_type, _size)				\
+	BHNDB_IO_WRITE(_type, _size)				\
+								\
+	BHNDB_IO_READ(_type, stream_ ## _size)			\
+	BHNDB_IO_WRITE(_type, stream_ ## _size)			\
+								\
+	BHNDB_IO_MISC(_type, *, read_multi, _size)		\
+	BHNDB_IO_MISC(_type, *, write_multi, _size)		\
+								\
+	BHNDB_IO_MISC(_type, *, read_multi_stream, _size)	\
+	BHNDB_IO_MISC(_type, *, write_multi_stream, _size)	\
+								\
+	BHNDB_IO_MISC(_type,  , set_multi, _size)		\
+	BHNDB_IO_MISC(_type,  , set_region, _size)		\
+	BHNDB_IO_MISC(_type, *, read_region, _size)		\
+	BHNDB_IO_MISC(_type, *, write_region, _size)		\
+								\
+	BHNDB_IO_MISC(_type, *, read_region_stream, _size)	\
+	BHNDB_IO_MISC(_type, *, write_region_stream, _size)
+
+BHNDB_IO_METHODS(uint8_t, 1);
+BHNDB_IO_METHODS(uint16_t, 2);
+BHNDB_IO_METHODS(uint32_t, 4);
 
 /**
  * Default bhndb(4) implementation of BHND_BUS_BARRIER().
@@ -1792,24 +1830,9 @@ static void
 bhndb_bus_barrier(device_t dev, device_t child, struct bhnd_resource *r,
     bus_size_t offset, bus_size_t length, int flags)
 {
-	bus_size_t remain;
-
 	BHNDB_IO_COMMON_SETUP(length);
 
-	/* TODO: It's unclear whether we need a barrier implementation,
-	 * and if we do, what it needs to actually do. This may need
-	 * revisiting once we have a better idea of requirements after
-	 * porting the core drivers. */
-	panic("implementation incorrect");
-
-	/* Use 4-byte reads where possible */
-	remain = length % sizeof(uint32_t);
-	for (bus_size_t i = 0; i < (length - remain); i += 4)
-		bus_read_4(io_res, io_offset + offset + i);
-
-	/* Use 1 byte reads for the remainder */
-	for (bus_size_t i = 0; i < remain; i++)
-		bus_read_1(io_res, io_offset + offset + length + i);
+	bus_barrier(io_res, io_offset + offset, length, flags);
 
 	BHNDB_IO_COMMON_TEARDOWN();
 }
@@ -1920,21 +1943,65 @@ static device_method_t bhndb_methods[] = {
 	/* BHNDB interface */
 	DEVMETHOD(bhndb_get_chipid,		bhndb_get_chipid),
 	DEVMETHOD(bhndb_init_full_config,	bhndb_generic_init_full_config),
+	DEVMETHOD(bhndb_find_hostb_device,	bhndb_find_hostb_device),
 	DEVMETHOD(bhndb_suspend_resource,	bhndb_suspend_resource),
 	DEVMETHOD(bhndb_resume_resource,	bhndb_resume_resource),
 
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhndb_is_hw_disabled),
-	DEVMETHOD(bhnd_bus_is_hostb_device,	bhndb_is_hostb_device),
 	DEVMETHOD(bhnd_bus_get_chipid,		bhndb_get_chipid),
 	DEVMETHOD(bhnd_bus_activate_resource,	bhndb_activate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_deactivate_resource,	bhndb_deactivate_bhnd_resource),
+	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_bus_generic_get_nvram_var),
 	DEVMETHOD(bhnd_bus_read_1,		bhndb_bus_read_1),
 	DEVMETHOD(bhnd_bus_read_2,		bhndb_bus_read_2),
 	DEVMETHOD(bhnd_bus_read_4,		bhndb_bus_read_4),
 	DEVMETHOD(bhnd_bus_write_1,		bhndb_bus_write_1),
 	DEVMETHOD(bhnd_bus_write_2,		bhndb_bus_write_2),
 	DEVMETHOD(bhnd_bus_write_4,		bhndb_bus_write_4),
+
+	DEVMETHOD(bhnd_bus_read_stream_1,	bhndb_bus_read_stream_1),
+	DEVMETHOD(bhnd_bus_read_stream_2,	bhndb_bus_read_stream_2),
+	DEVMETHOD(bhnd_bus_read_stream_4,	bhndb_bus_read_stream_4),
+	DEVMETHOD(bhnd_bus_write_stream_1,	bhndb_bus_write_stream_1),
+	DEVMETHOD(bhnd_bus_write_stream_2,	bhndb_bus_write_stream_2),
+	DEVMETHOD(bhnd_bus_write_stream_4,	bhndb_bus_write_stream_4),
+
+	DEVMETHOD(bhnd_bus_read_multi_1,	bhndb_bus_read_multi_1),
+	DEVMETHOD(bhnd_bus_read_multi_2,	bhndb_bus_read_multi_2),
+	DEVMETHOD(bhnd_bus_read_multi_4,	bhndb_bus_read_multi_4),
+	DEVMETHOD(bhnd_bus_write_multi_1,	bhndb_bus_write_multi_1),
+	DEVMETHOD(bhnd_bus_write_multi_2,	bhndb_bus_write_multi_2),
+	DEVMETHOD(bhnd_bus_write_multi_4,	bhndb_bus_write_multi_4),
+	
+	DEVMETHOD(bhnd_bus_read_multi_stream_1,	bhndb_bus_read_multi_stream_1),
+	DEVMETHOD(bhnd_bus_read_multi_stream_2,	bhndb_bus_read_multi_stream_2),
+	DEVMETHOD(bhnd_bus_read_multi_stream_4,	bhndb_bus_read_multi_stream_4),
+	DEVMETHOD(bhnd_bus_write_multi_stream_1,bhndb_bus_write_multi_stream_1),
+	DEVMETHOD(bhnd_bus_write_multi_stream_2,bhndb_bus_write_multi_stream_2),
+	DEVMETHOD(bhnd_bus_write_multi_stream_4,bhndb_bus_write_multi_stream_4),
+
+	DEVMETHOD(bhnd_bus_set_multi_1,		bhndb_bus_set_multi_1),
+	DEVMETHOD(bhnd_bus_set_multi_2,		bhndb_bus_set_multi_2),
+	DEVMETHOD(bhnd_bus_set_multi_4,		bhndb_bus_set_multi_4),
+	DEVMETHOD(bhnd_bus_set_region_1,	bhndb_bus_set_region_1),
+	DEVMETHOD(bhnd_bus_set_region_2,	bhndb_bus_set_region_2),
+	DEVMETHOD(bhnd_bus_set_region_4,	bhndb_bus_set_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_1,	bhndb_bus_read_region_1),
+	DEVMETHOD(bhnd_bus_read_region_2,	bhndb_bus_read_region_2),
+	DEVMETHOD(bhnd_bus_read_region_4,	bhndb_bus_read_region_4),
+	DEVMETHOD(bhnd_bus_write_region_1,	bhndb_bus_write_region_1),
+	DEVMETHOD(bhnd_bus_write_region_2,	bhndb_bus_write_region_2),
+	DEVMETHOD(bhnd_bus_write_region_4,	bhndb_bus_write_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_stream_1,bhndb_bus_read_region_stream_1),
+	DEVMETHOD(bhnd_bus_read_region_stream_2,bhndb_bus_read_region_stream_2),
+	DEVMETHOD(bhnd_bus_read_region_stream_4,bhndb_bus_read_region_stream_4),
+	DEVMETHOD(bhnd_bus_write_region_stream_1,bhndb_bus_write_region_stream_1),
+	DEVMETHOD(bhnd_bus_write_region_stream_2,bhndb_bus_write_region_stream_2),
+	DEVMETHOD(bhnd_bus_write_region_stream_4,bhndb_bus_write_region_stream_4),
+
 	DEVMETHOD(bhnd_bus_barrier,		bhndb_bus_barrier),
 
 	DEVMETHOD_END

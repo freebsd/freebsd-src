@@ -175,7 +175,7 @@ pcbmap(struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int *sp)
 
 	/*
 	 * Rummage around in the fat cache, maybe we can avoid tromping
-	 * thru every fat entry for the file. And, keep track of how far
+	 * through every fat entry for the file. And, keep track of how far
 	 * off the cache was from where we wanted to be.
 	 */
 	i = 0;

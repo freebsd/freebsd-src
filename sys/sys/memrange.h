@@ -1,5 +1,5 @@
 /*
- * Memory range attribute operations, peformed on /dev/mem
+ * Memory range attribute operations, performed on /dev/mem
  *
  * $FreeBSD$
  */

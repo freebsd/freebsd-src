@@ -802,7 +802,7 @@ rx_accept:
 	 * This code should be removed once the actual
 	 * root cause of the issue has been identified.
 	 * For example, it may be that the rs_antenna
-	 * field is only valid for the lsat frame of
+	 * field is only valid for the last frame of
 	 * an aggregate and it just happens that it is
 	 * "mostly" right. (This is a general statement -
 	 * the majority of the statistics are only valid

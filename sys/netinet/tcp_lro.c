@@ -69,6 +69,20 @@ static MALLOC_DEFINE(M_LRO, "LRO", "LRO control structures");
 
 static void	tcp_lro_rx_done(struct lro_ctrl *lc);
 
+static __inline void
+tcp_lro_active_insert(struct lro_ctrl *lc, struct lro_entry *le)
+{
+
+	LIST_INSERT_HEAD(&lc->lro_active, le, next);
+}
+
+static __inline void
+tcp_lro_active_remove(struct lro_entry *le)
+{
+
+	LIST_REMOVE(le, next);
+}
+
 int
 tcp_lro_init(struct lro_ctrl *lc)
 {
@@ -97,9 +111,9 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	LIST_INIT(&lc->lro_active);
 
 	/* compute size to allocate */
-	size = (lro_mbufs * sizeof(struct mbuf *)) +
+	size = (lro_mbufs * sizeof(struct lro_mbuf_sort)) +
 	    (lro_entries * sizeof(*le));
-	lc->lro_mbuf_data = (struct mbuf **)
+	lc->lro_mbuf_data = (struct lro_mbuf_sort *)
 	    malloc(size, M_LRO, M_NOWAIT | M_ZERO);
 
 	/* check for out of memory */
@@ -129,13 +143,13 @@ tcp_lro_free(struct lro_ctrl *lc)
 
 	/* free active mbufs, if any */
 	while ((le = LIST_FIRST(&lc->lro_active)) != NULL) {
-		LIST_REMOVE(le, next);
+		tcp_lro_active_remove(le);
 		m_freem(le->m_head);
 	}
 
 	/* free mbuf array, if any */
 	for (x = 0; x != lc->lro_mbuf_count; x++)
-		m_freem(lc->lro_mbuf_data[x]);
+		m_freem(lc->lro_mbuf_data[x].mb);
 	lc->lro_mbuf_count = 0;
 	
 	/* free allocated memory, if any */
@@ -234,7 +248,7 @@ tcp_lro_rx_done(struct lro_ctrl *lc)
 	struct lro_entry *le;
 
 	while ((le = LIST_FIRST(&lc->lro_active)) != NULL) {
-		LIST_REMOVE(le, next);
+		tcp_lro_active_remove(le);
 		tcp_lro_flush(lc, le);
 	}
 }
@@ -252,7 +266,7 @@ tcp_lro_flush_inactive(struct lro_ctrl *lc, const struct timeval *timeout)
 	timevalsub(&tv, timeout);
 	LIST_FOREACH_SAFE(le, &lc->lro_active, next, le_tmp) {
 		if (timevalcmp(&tv, &le->mtime, >=)) {
-			LIST_REMOVE(le, next);
+			tcp_lro_active_remove(le);
 			tcp_lro_flush(lc, le);
 		}
 	}
@@ -351,32 +365,99 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 	LIST_INSERT_HEAD(&lc->lro_free, le, next);
 }
 
-static int
-tcp_lro_mbuf_compare_header(const void *ppa, const void *ppb)
+#ifdef HAVE_INLINE_FLSLL
+#define	tcp_lro_msb_64(x) (1ULL << (flsll(x) - 1))
+#else
+static inline uint64_t
+tcp_lro_msb_64(uint64_t x)
 {
-	const struct mbuf *ma = *((const struct mbuf * const *)ppa);
-	const struct mbuf *mb = *((const struct mbuf * const *)ppb);
-	int ret;
+	x |= (x >> 1);
+	x |= (x >> 2);
+	x |= (x >> 4);
+	x |= (x >> 8);
+	x |= (x >> 16);
+	x |= (x >> 32);
+	return (x & ~(x >> 1));
+}
+#endif
 
-	ret = M_HASHTYPE_GET(ma) - M_HASHTYPE_GET(mb);
-	if (ret != 0)
-		goto done;
+/*
+ * The tcp_lro_sort() routine is comparable to qsort(), except it has
+ * a worst case complexity limit of O(MIN(N,64)*N), where N is the
+ * number of elements to sort and 64 is the number of sequence bits
+ * available. The algorithm is bit-slicing the 64-bit sequence number,
+ * sorting one bit at a time from the most significant bit until the
+ * least significant one, skipping the constant bits. This is
+ * typically called a radix sort.
+ */
+static void
+tcp_lro_sort(struct lro_mbuf_sort *parray, uint32_t size)
+{
+	struct lro_mbuf_sort temp;
+	uint64_t ones;
+	uint64_t zeros;
+	uint32_t x;
+	uint32_t y;
 
-	if (ma->m_pkthdr.flowid > mb->m_pkthdr.flowid)
-		return (1);
-	else if (ma->m_pkthdr.flowid < mb->m_pkthdr.flowid)
-		return (-1);
+repeat:
+	/* for small arrays insertion sort is faster */
+	if (size <= 12) {
+		for (x = 1; x < size; x++) {
+			temp = parray[x];
+			for (y = x; y > 0 && temp.seq < parray[y - 1].seq; y--)
+				parray[y] = parray[y - 1];
+			parray[y] = temp;
+		}
+		return;
+	}
 
-	ret = TCP_LRO_SEQUENCE(ma) - TCP_LRO_SEQUENCE(mb);
-done:
-	return (ret);
+	/* compute sequence bits which are constant */
+	ones = 0;
+	zeros = 0;
+	for (x = 0; x != size; x++) {
+		ones |= parray[x].seq;
+		zeros |= ~parray[x].seq;
+	}
+
+	/* compute bits which are not constant into "ones" */
+	ones &= zeros;
+	if (ones == 0)
+		return;
+
+	/* pick the most significant bit which is not constant */
+	ones = tcp_lro_msb_64(ones);
+
+	/*
+	 * Move entries having cleared sequence bits to the beginning
+	 * of the array:
+	 */
+	for (x = y = 0; y != size; y++) {
+		/* skip set bits */
+		if (parray[y].seq & ones)
+			continue;
+		/* swap entries */
+		temp = parray[x];
+		parray[x] = parray[y];
+		parray[y] = temp;
+		x++;
+	}
+
+	KASSERT(x != 0 && x != size, ("Memory is corrupted\n"));
+
+	/* sort zeros */
+	tcp_lro_sort(parray, x);
+
+	/* sort ones */
+	parray += x;
+	size -= x;
+	goto repeat;
 }
 
 void
 tcp_lro_flush_all(struct lro_ctrl *lc)
 {
-	uint32_t hashtype;
-	uint32_t flowid;
+	uint64_t seq;
+	uint64_t nseq;
 	unsigned x;
 
 	/* check if no mbufs to flush */
@@ -384,30 +465,27 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 		goto done;
 
 	/* sort all mbufs according to stream */
-	qsort(lc->lro_mbuf_data, lc->lro_mbuf_count, sizeof(struct mbuf *),
-	    &tcp_lro_mbuf_compare_header);
+	tcp_lro_sort(lc->lro_mbuf_data, lc->lro_mbuf_count);
 
 	/* input data into LRO engine, stream by stream */
-	flowid = 0;
-	hashtype = M_HASHTYPE_NONE;
+	seq = 0;
 	for (x = 0; x != lc->lro_mbuf_count; x++) {
 		struct mbuf *mb;
 
-		mb = lc->lro_mbuf_data[x];
+		/* get mbuf */
+		mb = lc->lro_mbuf_data[x].mb;
+
+		/* get sequence number, masking away the packet index */
+		nseq = lc->lro_mbuf_data[x].seq & (-1ULL << 24);
 
 		/* check for new stream */
-		if (mb->m_pkthdr.flowid != flowid ||
-		    M_HASHTYPE_GET(mb) != hashtype) {
-			flowid = mb->m_pkthdr.flowid;
-			hashtype = M_HASHTYPE_GET(mb);
+		if (seq != nseq) {
+			seq = nseq;
 
 			/* flush active streams */
 			tcp_lro_rx_done(lc);
 		}
-#ifdef TCP_LRO_RESET_SEQUENCE
-		/* reset sequence number */
-		TCP_LRO_SEQUENCE(mb) = 0;
-#endif
+
 		/* add packet to LRO engine */
 		if (tcp_lro_rx(lc, mb, 0) != 0) {
 			/* input packet to network layer */
@@ -569,7 +647,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0)
 		return (TCP_LRO_CANNOT);
 
-	/* XXX-BZ We lose a AKC|PUSH flag concatinating multiple segments. */
+	/* XXX-BZ We lose a ACK|PUSH flag concatenating multiple segments. */
 	/* XXX-BZ Ideally we'd flush on PUSH? */
 
 	/*
@@ -620,7 +698,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 
 		/* Flush now if appending will result in overflow. */
 		if (le->p_len > (lc->lro_length_lim - tcp_data_len)) {
-			LIST_REMOVE(le, next);
+			tcp_lro_active_remove(le);
 			tcp_lro_flush(lc, le);
 			break;
 		}
@@ -629,7 +707,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		if (__predict_false(seq != le->next_seq ||
 		    (tcp_data_len == 0 && le->ack_seq == th->th_ack))) {
 			/* Out of order packet or duplicate ACK. */
-			LIST_REMOVE(le, next);
+			tcp_lro_active_remove(le);
 			tcp_lro_flush(lc, le);
 			return (TCP_LRO_CANNOT);
 		}
@@ -662,7 +740,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 			 * be further delayed.
 			 */
 			if (le->append_cnt >= lc->lro_ackcnt_lim) {
-				LIST_REMOVE(le, next);
+				tcp_lro_active_remove(le);
 				tcp_lro_flush(lc, le);
 			}
 			return (0);
@@ -686,7 +764,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		 * overflow, pro-actively flush now.
 		 */
 		if (le->p_len > (lc->lro_length_lim - lc->ifp->if_mtu)) {
-			LIST_REMOVE(le, next);
+			tcp_lro_active_remove(le);
 			tcp_lro_flush(lc, le);
 		} else
 			getmicrotime(&le->mtime);
@@ -701,7 +779,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	/* Start a new segment chain. */
 	le = LIST_FIRST(&lc->lro_free);
 	LIST_REMOVE(le, next);
-	LIST_INSERT_HEAD(&lc->lro_active, le, next);
+	tcp_lro_active_insert(lc, le);
 	getmicrotime(&le->mtime);
 
 	/* Start filling in details. */
@@ -785,11 +863,14 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 	if (__predict_false(lc->lro_mbuf_count == lc->lro_mbuf_max))
 		tcp_lro_flush_all(lc);
 
-	/* store sequence number */
-	TCP_LRO_SEQUENCE(mb) = lc->lro_mbuf_count;
+	/* create sequence number */
+	lc->lro_mbuf_data[lc->lro_mbuf_count].seq =
+	    (((uint64_t)M_HASHTYPE_GET(mb)) << 56) |
+	    (((uint64_t)mb->m_pkthdr.flowid) << 24) |
+	    ((uint64_t)lc->lro_mbuf_count);
 
 	/* enter mbuf */
-	lc->lro_mbuf_data[lc->lro_mbuf_count++] = mb;
+	lc->lro_mbuf_data[lc->lro_mbuf_count++].mb = mb;
 }
 
 /* end */

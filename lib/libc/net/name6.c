@@ -239,8 +239,8 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		/*
 		 * TODO:
 		 * Note that implementation dependent test for address
-		 * configuration should be done everytime called
-		 * (or apropriate interval),
+		 * configuration should be done every time called
+		 * (or appropriate interval),
 		 * because addresses will be dynamically assigned or deleted.
 		 */
 		_close(s);
@@ -655,7 +655,6 @@ _hpreorder(struct hostent *hp)
 #endif
 		break;
 	default:
-		free_addrselectpolicy(&policyhead);
 		return hp;
 	}
 

@@ -9355,6 +9355,10 @@ dtrace_helper_provide_one(dof_helper_t *dhp, dof_sec_t *sec, pid_t pid)
 		probe = (dof_probe_t *)(uintptr_t)(daddr +
 		    prb_sec->dofs_offset + i * prb_sec->dofs_entsize);
 
+		/* See the check in dtrace_helper_provider_validate(). */
+		if (strlen(strtab + probe->dofpr_func) >= DTRACE_FUNCNAMELEN)
+			continue;
+
 		dhpb.dthpb_mod = dhp->dofhp_mod;
 		dhpb.dthpb_func = strtab + probe->dofpr_func;
 		dhpb.dthpb_name = strtab + probe->dofpr_name;
@@ -12022,7 +12026,7 @@ err:
 
 	*factor = 1;
 #if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__mips__) || defined(__powerpc__)
+    defined(__mips__) || defined(__powerpc__) || defined(__riscv__)
 	/*
 	 * FreeBSD isn't good at limiting the amount of memory we
 	 * ask to malloc, so let's place a limit here before trying
@@ -16042,7 +16046,13 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 
 		if (strlen(strtab + probe->dofpr_func) >= DTRACE_FUNCNAMELEN) {
 			dtrace_dof_error(dof, "function name too long");
-			return (-1);
+			/*
+			 * Keep going if the function name is too long.
+			 * Unlike provider and probe names, we cannot reasonably
+			 * impose restrictions on function names, since they're
+			 * a property of the code being instrumented. We will
+			 * skip this probe in dtrace_helper_provide_one().
+			 */
 		}
 
 		if (probe->dofpr_name >= str_sec->dofs_size ||

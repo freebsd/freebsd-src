@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.98 2016/02/18 18:29:14 christos Exp $	*/
+/*	$NetBSD: make.h,v 1.100 2016/06/07 00:40:00 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -199,6 +199,7 @@ typedef struct GNode {
 #define DONE_ALLSRC	0x40	/* We do it once only */
 #define CYCLE		0x1000  /* Used by MakePrintStatus */
 #define DONECYCLE	0x2000  /* Used by MakePrintStatus */
+#define INTERNAL	0x4000	/* Internal use only */
     enum enum_made {
 	UNMADE, DEFERRED, REQUESTED, BEINGMADE,
 	MADE, UPTODATE, ERROR, ABORTED
@@ -505,6 +506,8 @@ void Main_ExportMAKEFLAGS(Boolean);
 Boolean Main_SetObjdir(const char *);
 int mkTempFile(const char *, char **);
 int str2Lst_Append(Lst, char *, const char *);
+int cached_lstat(const char *, void *);
+int cached_stat(const char *, void *);
 
 #define	VARF_UNDEFERR	1
 #define	VARF_WANTRES	2

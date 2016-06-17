@@ -1738,6 +1738,15 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 #endif
 
+#if 0
+	/*
+	 * Placeholder: if you want to transmit with the azimuth
+	 * timestamp in the end of the payload, here's where you
+	 * should set the TXDESC field.
+	 */
+	flags |= HAL_TXDESC_HWTS;
+#endif
+
 	/*
 	 * Determine if a tx interrupt should be generated for
 	 * this descriptor.  We take a tx interrupt to reap
@@ -3125,7 +3134,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * If we're not doing A-MPDU, be prepared to direct dispatch
 	 * up to both limits if possible.  This particular corner
 	 * case may end up with packet starvation between aggregate
-	 * traffic and non-aggregate traffic: we wnat to ensure
+	 * traffic and non-aggregate traffic: we want to ensure
 	 * that non-aggregate stations get a few frames queued to the
 	 * hardware before the aggregate station(s) get their chance.
 	 *
@@ -3949,7 +3958,7 @@ ath_tx_tid_reset(struct ath_softc *sc, struct ath_tid *tid)
 	 * XXX TODO: it may just be enough to walk the HWQs and mark
 	 * frames for that node as non-aggregate; or mark the ath_node
 	 * with something that indicates that aggregation is no longer
-	 * occuring.  Then we can just toss the BAW complaints and
+	 * occurring.  Then we can just toss the BAW complaints and
 	 * do a complete hard reset of state here - no pause, no
 	 * complete counter, etc.
 	 */
@@ -4876,7 +4885,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	/* AR5416 BA bug; this requires an interface reset */
 	if (isaggr && tx_ok && (! hasba)) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
+		device_printf(sc->sc_dev,
 		    "%s: AR5416 bug: hasba=%d; txok=%d, isaggr=%d, "
 		    "seq_st=%d\n",
 		    __func__, hasba, tx_ok, isaggr, seq_st);

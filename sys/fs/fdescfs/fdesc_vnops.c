@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -92,8 +92,7 @@ static void fdesc_remove_entry(struct fdescnode *);
  * Initialise cache headers
  */
 int
-fdesc_init(vfsp)
-	struct vfsconf *vfsp;
+fdesc_init(struct vfsconf *vfsp)
 {
 
 	mtx_init(&fdesc_hashmtx, "fdescfs_hash", NULL, MTX_DEF);
@@ -105,8 +104,7 @@ fdesc_init(vfsp)
  * Uninit ready for unload.
  */
 int
-fdesc_uninit(vfsp)
-	struct vfsconf *vfsp;
+fdesc_uninit(struct vfsconf *vfsp)
 {
 
 	hashdestroy(fdhashtbl, M_CACHE, fdhash);
@@ -146,12 +144,8 @@ fdesc_remove_entry(struct fdescnode *fd)
 }
 
 int
-fdesc_allocvp(ftype, fd_fd, ix, mp, vpp)
-	fdntype ftype;
-	unsigned fd_fd;
-	int ix;
-	struct mount *mp;
-	struct vnode **vpp;
+fdesc_allocvp(fdntype ftype, unsigned fd_fd, int ix, struct mount *mp,
+    struct vnode **vpp)
 {
 	struct fdescmount *fmp;
 	struct fdhashhead *fc;
@@ -274,12 +268,7 @@ fdesc_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
  * ndp is the name to locate in that directory...
  */
 static int
-fdesc_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode * a_dvp;
-		struct vnode ** a_vpp;
-		struct componentname * a_cnp;
-	} */ *ap;
+fdesc_lookup(struct vop_lookup_args *ap)
 {
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
@@ -381,13 +370,7 @@ bad:
 }
 
 static int
-fdesc_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+fdesc_open(struct vop_open_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
@@ -407,12 +390,7 @@ fdesc_open(ap)
 }
 
 static int
-fdesc_getattr(ap)
-	struct vop_getattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-	} */ *ap;
+fdesc_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
@@ -456,12 +434,7 @@ fdesc_getattr(ap)
 }
 
 static int
-fdesc_setattr(ap)
-	struct vop_setattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-	} */ *ap;
+fdesc_setattr(struct vop_setattr_args *ap)
 {
 	struct vattr *vap = ap->a_vap;
 	struct vnode *vp;
@@ -513,15 +486,7 @@ fdesc_setattr(ap)
 #define UIO_MX 16
 
 static int
-fdesc_readdir(ap)
-	struct vop_readdir_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		struct ucred *a_cred;
-		int *a_eofflag;
-		u_long *a_cookies;
-		int a_ncookies;
-	} */ *ap;
+fdesc_readdir(struct vop_readdir_args *ap)
 {
 	struct uio *uio = ap->a_uio;
 	struct filedesc *fdp;
@@ -588,10 +553,7 @@ done:
 }
 
 static int
-fdesc_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+fdesc_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp;
 	struct fdescnode *fd;

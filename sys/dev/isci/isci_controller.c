@@ -470,7 +470,7 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 
 	/* Create DMA tag for our I/O requests.  Then we can create DMA maps based off
 	 *  of this tag and store them in each of our ISCI_IO_REQUEST objects.  This
-	 *  will enable better performance than creating the DMA maps everytime we get
+	 *  will enable better performance than creating the DMA maps every time we get
 	 *  an I/O.
 	 */
 	status = bus_dma_tag_create(bus_get_dma_tag(device), 0x1, 0x0,

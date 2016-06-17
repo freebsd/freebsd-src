@@ -41,32 +41,86 @@
 #define	PCI_VENDOR_BROADCOM		0x14e4
 #define	PCI_VENDOR_LINKSYS		0x1737
 
-#define	BWN_BFL_BTCOEXIST		0x0001
-#define	BWN_BFL_PACTRL			0x0002
-#define	BWN_BFL_RSSI			0x0008
-#define	BWN_BFL_CRYSTAL_NOSLOW		0x0020
-#define	BWN_BFL_FEM			0x0800
-#define	BWN_BFL_EXTLNA			0x1000
-#define	BWN_BFL_HGPA			0x2000	/* had high gain PA */
-#define	BWN_BFL_BTCMOD			0x4000
-#define	BWN_BFL_ALTIQ			0x8000
+/* SPROM flags */
+#define	BWN_BFL_BTCOEXIST		0x0001  /* implements Bluetooth coexistance */
+#define	BWN_BFL_PACTRL			0x0002  /* GPIO 9 controlling the PA */
+#define	BWN_BFL_AIRLINEMODE		0x0004  /* implements GPIO 13 radio disable indication */
+#define	BWN_BFL_RSSI			0x0008  /* software calculates nrssi slope. */
+#define	BWN_BFL_ENETSPI			0x0010  /* has ephy roboswitch spi */
+#define	BWN_BFL_CRYSTAL_NOSLOW		0x0020  /* no slow clock available */
+#define	BWN_BFL_CCKHIPWR		0x0040  /* can do high power CCK transmission */
+#define	BWN_BFL_ENETADM			0x0080  /* has ADMtek switch */
+#define	BWN_BFL_ENETVLAN		0x0100  /* can do vlan */
+#define	BWN_BFL_AFTERBURNER		0x0200  /* supports Afterburner mode */
+#define	BWN_BFL_NOPCI			0x0400  /* leaves PCI floating */
+#define	BWN_BFL_FEM			0x0800  /* supports the Front End Module */
+#define	BWN_BFL_EXTLNA			0x1000  /* has an external LNA */
+#define	BWN_BFL_HGPA			0x2000  /* had high gain PA */
+#define	BWN_BFL_BTCMOD			0x4000  /* BFL_BTCOEXIST is given in alternate GPIOs */
+#define	BWN_BFL_ALTIQ			0x8000  /* alternate I/Q settings */
 
-#define	BWN_BFH_NOPA			0x0001
-#define	BWN_BFH_RSSIINV			0x0002
-#define	BWN_BFH_LDO_PAREF		0x0004
-#define	BWN_BFH_FEM_BT			0x0040
+/* SPROM boardflags_hi values */
+#define	BWN_BFH_NOPA			0x0001  /* has no PA */
+#define	BWN_BFH_RSSIINV			0x0002  /* RSSI uses positive slope (not TSSI) */
+#define	BWN_BFH_LDO_PAREF		0x0004  /* uses the PARef LDO */
+#define	BWN_BFH_3TSWITCH		0x0008  /* uses a triple throw switch shared
+						 * with bluetooth */
+#define	BWN_BFH_PHASESHIFT		0x0010  /* can support phase shifter */
+#define	BWN_BFH_BUCKBOOST		0x0020  /* has buck/booster */
+#define	BWN_BFH_FEM_BT			0x0040  /* has FEM and switch to share antenna
+						 * with bluetooth */
+#define	BWN_BFH_NOCBUCK			0x0080
+#define	BWN_BFH_PALDO			0x0200
+#define	BWN_BFH_EXTLNA_5GHZ		0x1000  /* has an external LNA (5GHz mode) */
 
-#define	BWN_TGSLOW_SUPPORT_G		0x20000000
-#define	BWN_TGSLOW_PHYRESET		0x00080000
+/* SPROM boardflags2_lo values */
+#define	BWN_BFL2_RXBB_INT_REG_DIS	0x0001  /* external RX BB regulator present */
+#define	BWN_BFL2_APLL_WAR		0x0002  /* alternative A-band PLL settings implemented */
+#define	BWN_BFL2_TXPWRCTRL_EN		0x0004  /* permits enabling TX Power Control */
+#define	BWN_BFL2_2X4_DIV		0x0008  /* 2x4 diversity switch */
+#define	BWN_BFL2_5G_PWRGAIN		0x0010  /* supports 5G band power gain */
+#define	BWN_BFL2_PCIEWAR_OVR		0x0020  /* overrides ASPM and Clkreq settings */
+#define	BWN_BFL2_CAESERS_BRD		0x0040  /* is Caesers board (unused) */
+#define	BWN_BFL2_BTC3WIRE		0x0080  /* used 3-wire bluetooth coexist */
+#define	BWN_BFL2_SKWRKFEM_BRD		0x0100  /* 4321mcm93 uses Skyworks FEM */
+#define	BWN_BFL2_SPUR_WAR		0x0200  /* has a workaround for clock-harmonic spurs */
+#define	BWN_BFL2_GPLL_WAR		0x0400  /* altenative G-band PLL settings implemented */
+#define	BWN_BFL2_SINGLEANT_CCK		0x1000
+#define	BWN_BFL2_2G_SPUR_WAR		0x2000
+
+/* SPROM boardflags2_hi values */
+#define	BWN_BFH2_GPLL_WAR2		0x0001
+#define	BWN_BFH2_IPALVLSHIFT_3P3	0x0002
+#define	BWN_BFH2_INTERNDET_TXIQCAL	0x0004
+#define	BWN_BFH2_XTALBUFOUTEN		0x0008
+
+/* SIBA control registers */
 #define	BWN_TGSLOW_PHYCLOCK_ENABLE	0x00040000
+#define	BWN_TGSLOW_PHYRESET		0x00080000
+#define	BWN_TGSLOW_MACPHYCLKEN		0x00100000      /* MAC PHY Clock Control Enable (rev >= 5) */
+#define	BWN_TGSLOW_PLLREFSEL		0x00200000      /* PLL Frequency Reference Select (rev >= 5) */
+/* PHY_BANDWIDTH: N-PHY only */
+#define	BWN_TGSLOW_PHY_BANDWIDTH	0x00C00000
+#define	BWN_TGSLOW_PHY_BANDWIDTH_10MHZ	0x00000000
+#define	BWN_TGSLOW_PHY_BANDWIDTH_20MHZ	0x00400000
+#define	BWN_TGSLOW_PHY_BANDWIDTH_40MHZ	0x00800000
+#define	BWN_TGSLOW_SUPPORT_G		0x20000000
+
 #define	BWN_TGSHIGH_HAVE_2GHZ		0x00010000
 #define	BWN_TGSHIGH_HAVE_5GHZ		0x00020000
+#define	BWN_TGSHIGH_DUALPHY		0x00080000
 
 #define	BWN_PHYTYPE_A			0x00
 #define	BWN_PHYTYPE_B			0x01
 #define	BWN_PHYTYPE_G			0x02
 #define	BWN_PHYTYPE_N			0x04
 #define	BWN_PHYTYPE_LP			0x05
+#define	BWN_PHYTYPE_SSLPN		0x06
+#define	BWN_PHYTYPE_HT			0x07
+#define	BWN_PHYTYPE_LCN			0x08
+#define	BWN_PHYTYPE_LCNXN		0x09
+#define	BWN_PHYTYPE_LCN40		0x0a
+#define	BWN_PHYTYPE_AC			0x0b
 
 #define	BWN_DMA0_REASON			0x20
 #define	BWN_DMA0_INTR_MASK		0x24
@@ -79,6 +133,7 @@
 #define	BWN_DMA4_REASON			0x40
 #define	BWN_DMA4_INTR_MASK		0x44
 #define	BWN_DMA5_INTR_MASK		0x4c
+
 #define	BWN_MACCTL			0x120
 #define	BWN_MACCTL_ON			0x00000001
 #define	BWN_MACCTL_MCODE_RUN		0x00000002
@@ -92,12 +147,18 @@
 #define	BWN_MACCTL_RADIO_LOCK		0x00080000
 #define	BWN_MACCTL_BEACON_PROMISC	0x00100000
 #define	BWN_MACCTL_PASS_BADPLCP		0x00200000
+#define	BWN_MACCTL_PHY_LOCK		0x00200000	/* PHY-N? */
 #define	BWN_MACCTL_PASS_CTL		0x00400000
 #define	BWN_MACCTL_PASS_BADFCS		0x00800000
 #define	BWN_MACCTL_PROMISC		0x01000000
 #define	BWN_MACCTL_HWPS			0x02000000
 #define	BWN_MACCTL_AWAKE		0x04000000
+#define	BWN_MACCTL_CLOSEDNET		0x08000000
+#define	BWN_MACCTL_TBTT_HOLD		0x10000000
+#define	BWN_MACCTL_DISC_TXSTAT		0x20000000
+#define	BWN_MACCTL_DISC_PMQ		0x40000000
 #define	BWN_MACCTL_GMODE		0x80000000
+
 #define	BWN_MACCMD			0x124	/* MAC command */
 #define	BWN_MACCMD_BEACON0_VALID	0x00000001
 #define	BWN_MACCMD_BEACON1_VALID	0x00000002
@@ -108,6 +169,7 @@
 #define	BWN_RAM_CONTROL			0x130
 #define	BWN_RAM_DATA			0x134
 #define	BWN_PS_STATUS			0x140
+#define	BWN_MAC_HW_CAP			0x15c	/* core rev >= 13 */
 #define	BWN_RF_HWENABLED_HI		0x158
 #define	BWN_RF_HWENABLED_HI_MASK	(1 << 16)
 #define	BWN_SHM_CONTROL			0x160
@@ -169,6 +231,13 @@
 #define	BWN_MACFILTER_CONTROL		0x420
 #define	BWN_MACFILTER_DATA		0x422
 #define	BWN_RCMTA_COUNT			0x43c
+
+#define	BWN_PSM_PHY_HDR			0x492
+/* BWN_PSM_PHY_HDR bits */
+#define	BWN_PSM_HDR_MAC_PHY_RESET	0x00000001
+#define	BWN_PSM_HDR_MAC_PHY_CLOCK_EN	0x00000002
+#define	BWN_PSM_HDR_MAC_PHY_FORCE_CLK	0x00000004
+
 #define	BWN_RF_HWENABLED_LO		0x49a
 #define	BWN_RF_HWENABLED_LO_MASK	(1 << 4)
 #define	BWN_GPIO_CONTROL		0x49c
@@ -176,6 +245,8 @@
 #define	BWN_TSF_CFP_START_LOW		0x604
 #define	BWN_TSF_CFP_START_HIGH		0x606
 #define	BWN_TSF_CFP_PRETBTT		0x612
+#define	BWN_TSF_CLK_FRAC_LOW		0x62e
+#define	BWN_TSF_CLK_FRAC_HIGH		0x630
 #define	BWN_RNG				0x65a
 #define	BWN_IFSCTL			0x688 /* Interframe space control */
 #define	BWN_IFSCTL_USE_EDCF		0x0004
@@ -214,11 +285,22 @@
 #define	BWN_SHARED_SPU_WAKEUP		0x0094
 #define	BWN_SHARED_PRETBTT		0x0096
 #define	BWN_SHARED_CHAN			0x00a0
+#define	BWN_SHARED_MACHW_L		0x00c0
+#define	BWN_SHARED_MACHW_H		0x00c2
 #define	BWN_SHARED_AUTOINC		0x0100
 #define	BWN_SHARED_PROBE_RESP_PHYCTL	0x0188
 #define	BWN_SHARED_EDCFQ		0x0240
 #define	BWN_SHARED_KEYIDX_BLOCK		0x05d4
 #define	BWN_SHARED_PSM			0x05f4
+
+/* SHM_SHARED tx iq workarounds */
+#define	BWN_SHM_SH_NPHY_TXIQW0		0x0700
+#define	BWN_SHM_SH_NPHY_TXIQW1		0x0702
+#define	BWN_SHM_SH_NPHY_TXIQW2		0x0704
+#define	BWN_SHM_SH_NPHY_TXIQW3		0x0706
+/* SHM_SHARED tx pwr ctrl */
+#define	BWN_SHM_SH_NPHY_TXPWR_INDX0	0x0708
+#define	BWN_SHM_SH_NPHY_TXPWR_INDX1	0x070E
 
 /* SHM_SCRATCH offsets */
 #define	BWN_SCRATCH			0x2
@@ -266,6 +348,13 @@
 #define	BWN_HF_HW_POWERCTL		0x000000800000ull
 #define	BWN_HF_BT_COEXISTALT		0x000001000000ull
 #define	BWN_HF_SKIP_CFP_UPDATE		0x000004000000ull
+#define	BWN_HF_N40W			0x000008000000ULL /* N PHY 40 MHz workaround (rev >= 13 only) */
+#define	BWN_HF_ANTSEL			0x000020000000ULL /* Antenna selection (for testing antenna div.) */
+#define	BWN_HF_BT3COEXT			0x000020000000ULL /* Bluetooth 3-wire coexistence (rev >= 13 only) */
+#define	BWN_HF_BTCANT			0x000040000000ULL /* Bluetooth coexistence (antenna mode) (rev >= 13 only) */
+#define	BWN_HF_ANTSELEN			0x000100000000ULL /* Antenna selection enabled (rev >= 13 only) */
+#define	BWN_HF_ANTSELMODE		0x000200000000ULL /* Antenna selection mode (rev >= 13 only) */
+#define	BWN_HF_MLADVW			0x001000000000ULL /* N PHY ML ADV workaround (rev >= 13 only) */
 #define	BWN_HF_PR45960W			0x080000000000ULL
 
 #define	BWN_TX_PHY_ENC_CCK		0x0000
@@ -367,16 +456,21 @@
 #define	BWN_DMA64_RXSTAT		0xf0000000
 #define	BWN_DMA64_RXSTAT_DISABLED	0x00000000
 #define	BWN_DMA_RINGMEMSIZE		PAGE_SIZE
-#define	BWN_DMA0_RX_FRAMEOFFSET		30
+#define	BWN_DMA0_RX_FRAMEOFFSET_FW351	30
+#define	BWN_DMA0_RX_FRAMEOFFSET_FW598	38
 
 #define	BWN_TXRING_SLOTS		64
 #define	BWN_RXRING_SLOTS		64
-#define	BWN_DMA0_RX_BUFFERSIZE		IEEE80211_MAX_LEN
+#define	BWN_DMA0_RX_BUFFERSIZE_FW351	(IEEE80211_MAX_LEN + BWN_DMA0_RX_FRAMEOFFSET_FW351)
+#define	BWN_DMA0_RX_BUFFERSIZE_FW598	(IEEE80211_MAX_LEN + BWN_DMA0_RX_FRAMEOFFSET_FW598)
 
 #define	BWN_PHYROUTE_BASE		0x0000
+#define	BWN_PHYROUTE_MASK		0x0c00
 #define	BWN_PHYROUTE_OFDM_GPHY		0x0400
 #define	BWN_PHYROUTE_EXT_GPHY		0x0800
+#define	BWN_PHYROUTE_N_BMODE		0x0C00
 #define	BWN_PHY_CCK(reg)		((reg) | BWN_PHYROUTE_BASE)
+#define	BWN_PHY_N(reg)			((reg) | BWN_PHYROUTE_BASE) /* PHY-N */
 #define	BWN_PHY_N_BMODE(reg)		((reg) | BWN_PHYROUTE_N_BMODE)
 #define	BWN_PHY_OFDM(reg)		((reg) | BWN_PHYROUTE_OFDM_GPHY)
 #define	BWN_PHY_EXTG(reg)		((reg) | BWN_PHYROUTE_EXT_GPHY)
@@ -994,5 +1088,33 @@
 #define	BWN_B2063_PA_CTL1		BWN_LP_RADIO(0x10B)
 #define	BWN_B2063_PA_CTL11		BWN_LP_RADIO(0x115)
 #define	BWN_B2063_VREG_CTL1		BWN_LP_RADIO(0x11D)
+
+/* N-PHY, etc TX configuration */
+
+#define	BWN_TXH_PHY1_BW			0x0007 /* Bandwidth */
+#define	 BWN_TXH_PHY1_BW_10		0x0000 /* 10 MHz */
+#define	 BWN_TXH_PHY1_BW_10U		0x0001 /* 10 MHz upper */
+#define	 BWN_TXH_PHY1_BW_20		0x0002 /* 20 MHz */
+#define	 BWN_TXH_PHY1_BW_20U		0x0003 /* 20 MHz upper */
+#define	 BWN_TXH_PHY1_BW_40		0x0004 /* 40 MHz */
+#define	 BWN_TXH_PHY1_BW_40DUP		0x0005 /* 40 MHz duplicate */
+#define	BWN_TXH_PHY1_MODE		0x0038 /* Mode */
+#define	 BWN_TXH_PHY1_MODE_SISO		0x0000 /* SISO */
+#define	 BWN_TXH_PHY1_MODE_CDD		0x0008 /* CDD */
+#define	 BWN_TXH_PHY1_MODE_STBC		0x0010 /* STBC */
+#define	 BWN_TXH_PHY1_MODE_SDM		0x0018 /* SDM */
+#define	BWN_TXH_PHY1_CRATE		0x0700 /* Coding rate */
+#define	 BWN_TXH_PHY1_CRATE_1_2		0x0000 /* 1/2 */
+#define	 BWN_TXH_PHY1_CRATE_2_3		0x0100 /* 2/3 */
+#define	 BWN_TXH_PHY1_CRATE_3_4		0x0200 /* 3/4 */
+#define	 BWN_TXH_PHY1_CRATE_4_5		0x0300 /* 4/5 */
+#define	 BWN_TXH_PHY1_CRATE_5_6		0x0400 /* 5/6 */
+#define	 BWN_TXH_PHY1_CRATE_7_8		0x0600 /* 7/8 */
+#define	BWN_TXH_PHY1_MODUL		0x3800 /* Modulation scheme */
+#define	 BWN_TXH_PHY1_MODUL_BPSK	0x0000 /* BPSK */
+#define	 BWN_TXH_PHY1_MODUL_QPSK	0x0800 /* QPSK */
+#define	 BWN_TXH_PHY1_MODUL_QAM16	0x1000 /* QAM16 */
+#define	 BWN_TXH_PHY1_MODUL_QAM64	0x1800 /* QAM64 */
+#define	 BWN_TXH_PHY1_MODUL_QAM256	0x2000 /* QAM256 */
 
 #endif	/* !_IF_BWNREG_H */

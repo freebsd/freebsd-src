@@ -216,14 +216,12 @@ CLEANFILES+=	${SOBJS}
 _LIBS+=		${SHLIB_NAME}
 
 SOLINKOPTS+=	-shared -Wl,-x
-.if !defined(ALLOW_SHARED_TEXTREL)
 .if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
 SOLINKOPTS+=	-Wl,--no-fatal-warnings
 .else
 SOLINKOPTS+=	-Wl,--fatal-warnings
 .endif
 SOLINKOPTS+=	-Wl,--warn-shared-textrel
-.endif
 
 .if target(beforelinking)
 beforelinking: ${SOBJS}
@@ -246,7 +244,7 @@ CLEANFILES+=	${SHLIB_LINK}
 ${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
-.if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
+.if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld) && ${MK_DEBUG_FILES} == "no"
 	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
@@ -261,6 +259,9 @@ CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
 ${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
+.if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
+	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
+.endif
 
 ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
@@ -423,13 +424,13 @@ lint: ${SRCS:M*.c}
 .if defined(LIB) && !empty(LIB)
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .for _S in ${SRCS:N*.[hly]}
-OBJS_DEPEND_GUESS.${_S:R}.po=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.po+=	${_S}
 .endfor
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 .for _S in ${SRCS:N*.[hly]}
-OBJS_DEPEND_GUESS.${_S:R}.So=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.So+=	${_S}
 .endfor
 .endif
 

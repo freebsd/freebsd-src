@@ -140,7 +140,7 @@ recvjob(const char *printer)
 
 /*
  * Read printer jobs sent by lpd and copy them to the spooling directory.
- * Return the number of jobs successfully transfered.
+ * Return the number of jobs successfully transferred.
  */
 static int
 readjob(struct printer *pp)
@@ -356,7 +356,7 @@ read_number(const char *fn)
 }
 
 /*
- * Remove all the files associated with the current job being transfered.
+ * Remove all the files associated with the current job being transferred.
  */
 static void
 rcleanup(int signo __unused)

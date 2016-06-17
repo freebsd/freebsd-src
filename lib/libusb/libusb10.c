@@ -51,6 +51,8 @@
 #include "libusb.h"
 #include "libusb10.h"
 
+#define	LIBUSB_NUM_SW_ENDPOINTS	(16 * 4)
+
 static pthread_mutex_t default_context_lock = PTHREAD_MUTEX_INITIALIZER;
 struct libusb_context *usbi_default_context = NULL;
 
@@ -66,6 +68,22 @@ static void libusb10_ctrl_proxy(struct libusb20_transfer *);
 static void libusb10_submit_transfer_sub(struct libusb20_device *, uint8_t);
 
 /*  Library initialisation / deinitialisation */
+
+static const struct libusb_version libusb_version = {
+	.major = 1,
+	.minor = 0,
+	.micro = 0,
+	.nano = 2016,
+	.rc = "",
+	.describe = "http://www.freebsd.org"
+};
+
+const struct libusb_version *
+libusb_get_version(void)
+{
+
+	return (&libusb_version);
+}
 
 void
 libusb_set_debug(libusb_context *ctx, int level)
@@ -442,7 +460,7 @@ libusb_open(libusb_device *dev, libusb_device_handle **devh)
 	if (dev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	err = libusb20_dev_open(pdev, 16 * 4 /* number of endpoints */ );
+	err = libusb20_dev_open(pdev, LIBUSB_NUM_SW_ENDPOINTS);
 	if (err) {
 		libusb_unref_device(dev);
 		return (LIBUSB_ERROR_NO_MEM);
@@ -1482,7 +1500,17 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 UNEXPORTED void
 libusb10_cancel_all_transfer(libusb_device *dev)
 {
-	/* TODO */
+	struct libusb20_device *pdev = dev->os_priv;
+	unsigned x;
+
+	for (x = 0; x != LIBUSB_NUM_SW_ENDPOINTS; x++) {
+		struct libusb20_transfer *xfer;
+
+		xfer = libusb20_tr_get_pointer(pdev, x);
+		if (xfer == NULL)
+			continue;
+		libusb20_tr_close(xfer);
+	}
 }
 
 uint16_t

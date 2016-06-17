@@ -550,7 +550,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	/* Substract the guard page ... */
+	/* Subtract the guard page ... */
 	drm_mm_init(&dev_priv->mm.gtt_space, start, end - start - PAGE_SIZE);
 	if (!HAS_LLC(dev))
 		dev_priv->mm.gtt_space.color_adjust = i915_gtt_color_adjust;

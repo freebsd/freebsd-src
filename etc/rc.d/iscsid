@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="iscsid"
+desc="iSCSI initiator daemon"
 rcvar="iscsid_enable"
 pidfile="/var/run/${name}.pid"
 command="/usr/sbin/${name}"

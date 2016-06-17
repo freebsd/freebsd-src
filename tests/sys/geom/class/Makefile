@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
+
 TESTSDIR=	${TESTSBASE}/sys/geom/class
 
 TESTS_SUBDIRS+=	concat
@@ -17,8 +16,6 @@ TESTS_SUBDIRS+=	shsec
 TESTS_SUBDIRS+=	stripe
 TESTS_SUBDIRS+=	uzip
 
-BINDIR=		${TESTSDIR}
-
-FILES+=		geom_subr.sh
+${PACKAGE}FILES+=	geom_subr.sh
 
 .include <bsd.test.mk>

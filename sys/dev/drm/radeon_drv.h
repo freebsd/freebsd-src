@@ -365,7 +365,7 @@ typedef struct drm_radeon_private {
 
 	u32 scratch_ages[5];
 
-	/* starting from here on, data is preserved accross an open */
+	/* starting from here on, data is preserved across an open */
 	uint32_t flags;		/* see radeon_chip_flags */
 	unsigned long fb_aper_offset;
 

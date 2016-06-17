@@ -632,7 +632,7 @@ ng_ksocket_connect(hook_p hook)
 	 * first created and now (on another processesor) will
 	 * be earlier on the queue than the request to finalise the hook.
 	 * By the time the hook is finalised,
-	 * The queued upcalls will have happenned and the code
+	 * The queued upcalls will have happened and the code
 	 * will have discarded them because of a lack of a hook.
 	 * (socket not open).
 	 *
@@ -642,9 +642,9 @@ ng_ksocket_connect(hook_p hook)
 	 * Since we are a netgraph operation
 	 * We know that we hold a lock on this node. This forces the
 	 * request we make below to be queued rather than implemented
-	 * immediatly which will cause the upcall function to be called a bit
+	 * immediately which will cause the upcall function to be called a bit
 	 * later.
-	 * However, as we will run any waiting queued operations immediatly
+	 * However, as we will run any waiting queued operations immediately
 	 * after doing this one, if we have not finalised the other end
 	 * of the hook, those queued operations will fail.
 	 */

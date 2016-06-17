@@ -11,6 +11,8 @@
         boot
             kernel
             ..
+            modules
+            ..
         ..
         lib
             casper

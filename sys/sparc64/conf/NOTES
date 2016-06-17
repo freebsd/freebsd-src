@@ -20,7 +20,6 @@ cpu		SUN4U
 
 device		ebus
 device		isa
-device		pci
 device		sbus
 device		central
 device		fhc

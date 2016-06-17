@@ -134,7 +134,7 @@ vendor MEGATRENDS	0x046b	American Megatrends
 vendor LOGITECH		0x046d	Logitech
 vendor BTC		0x046e	Behavior Tech. Computer
 vendor PHILIPS		0x0471	Philips
-vendor SUN2		0x0472	Sun Microsystems (offical)
+vendor SUN2		0x0472	Sun Microsystems (official)
 vendor SANYO		0x0474	Sanyo Electric
 vendor SEAGATE		0x0477	Seagate
 vendor CONNECTIX	0x0478	Connectix

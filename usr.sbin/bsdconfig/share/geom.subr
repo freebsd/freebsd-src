@@ -91,7 +91,7 @@ f_struct_define GEOM_PROVIDER_CONFIG \
 # f_geom_get_all
 #
 # Parse sysctl(8) `kern.geom.confxml' data into a series of structs. GEOM
-# classes are at the top of the heirarchy and are stored as numbered structs
+# classes are at the top of the hierarchy and are stored as numbered structs
 # from 1 to $NGEOM_CLASSES (set by this function) named `geom_class_C'. GEOM
 # objects within each class are stored as numbered structs from 1 to `ngeoms'
 # (a property of the GEOM class struct) named `geom_class_C_geom_N' (where C

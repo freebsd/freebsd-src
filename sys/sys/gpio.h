@@ -60,16 +60,26 @@
 #define GPIOMAXNAME		64
 
 /* GPIO pin configuration flags */
-#define GPIO_PIN_INPUT		0x0001	/* input direction */
-#define GPIO_PIN_OUTPUT		0x0002	/* output direction */
-#define GPIO_PIN_OPENDRAIN	0x0004	/* open-drain output */
-#define GPIO_PIN_PUSHPULL	0x0008	/* push-pull output */
-#define GPIO_PIN_TRISTATE	0x0010	/* output disabled */
-#define GPIO_PIN_PULLUP		0x0020	/* internal pull-up enabled */
-#define GPIO_PIN_PULLDOWN	0x0040	/* internal pull-down enabled */
-#define GPIO_PIN_INVIN		0x0080	/* invert input */
-#define GPIO_PIN_INVOUT		0x0100	/* invert output */
-#define GPIO_PIN_PULSATE	0x0200	/* pulsate in hardware */
+#define GPIO_PIN_INPUT		0x00000001	/* input direction */
+#define GPIO_PIN_OUTPUT		0x00000002	/* output direction */
+#define GPIO_PIN_OPENDRAIN	0x00000004	/* open-drain output */
+#define GPIO_PIN_PUSHPULL	0x00000008	/* push-pull output */
+#define GPIO_PIN_TRISTATE	0x00000010	/* output disabled */
+#define GPIO_PIN_PULLUP		0x00000020	/* internal pull-up enabled */
+#define GPIO_PIN_PULLDOWN	0x00000040	/* internal pull-down enabled */
+#define GPIO_PIN_INVIN		0x00000080	/* invert input */
+#define GPIO_PIN_INVOUT		0x00000100	/* invert output */
+#define GPIO_PIN_PULSATE	0x00000200	/* pulsate in hardware */
+/* GPIO interrupt capabilities */
+#define GPIO_INTR_NONE		0x00000000	/* no interrupt support */
+#define GPIO_INTR_LEVEL_LOW	0x00010000	/* level trigger, low */
+#define GPIO_INTR_LEVEL_HIGH	0x00020000	/* level trigger, high */
+#define GPIO_INTR_EDGE_RISING	0x00040000	/* edge trigger, rising */
+#define GPIO_INTR_EDGE_FALLING	0x00080000	/* edge trigger, falling */
+#define GPIO_INTR_EDGE_BOTH	0x00100000	/* edge trigger, both */
+#define GPIO_INTR_MASK		(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | \
+				GPIO_INTR_EDGE_RISING |			      \
+				GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
 
 struct gpio_pin {
 	uint32_t gp_pin;			/* pin number */

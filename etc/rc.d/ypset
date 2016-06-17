@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ypset"
+desc="tell ypbind(8) which YP server process to use"
 rcvar="nis_ypset_enable"
 
 load_rc_config $name

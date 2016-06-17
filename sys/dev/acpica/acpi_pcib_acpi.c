@@ -29,6 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_pci.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -130,6 +132,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+    DEVMETHOD(bus_get_cpus,		acpi_pcib_get_cpus),
 
     /* pcib interface */
     DEVMETHOD(pcib_maxslots,		pcib_maxslots),
@@ -311,6 +314,11 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc)
 
 	/* Control Field */
 	cap_set[2] = 0;
+
+#ifdef PCI_HP
+	/* Control Field: PCI Express Native Hot Plug */
+	cap_set[2] |= 0x1;
+#endif
 
 	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
 	    nitems(cap_set), cap_set, cap_set, false);
@@ -502,7 +510,13 @@ acpi_pcib_acpi_attach(device_t dev)
     if (sc->ap_segment == 0 && sc->ap_bus == 0)
 	    bus0_seen = 1;
 
-    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_bus));
+    acpi_pcib_fetch_prt(dev, &sc->ap_prt);
+
+    if (device_add_child(dev, "pci", -1) == NULL) {
+	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
+	return (ENXIO);
+    }
+    return (bus_generic_attach(dev));
 }
 
 /*

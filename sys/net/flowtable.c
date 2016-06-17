@@ -689,20 +689,15 @@ flowtable_lookup(sa_family_t sa, struct mbuf *m, struct route *ro)
 		return (EHOSTUNREACH);
 
 	if (M_HASHTYPE_GET(m) == M_HASHTYPE_NONE) {
-		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE_HASH);
 		m->m_pkthdr.flowid = fle->f_hash;
 	}
 
 	ro->ro_rt = fle->f_rt;
 	ro->ro_flags |= RT_NORTREF;
 	lle = fle->f_lle;
-	if (lle != NULL && (lle->la_flags & LLE_VALID)) {
-		ro->ro_prepend = lle->r_linkdata;
-		ro->ro_plen = lle->r_hdrlen;
-		ro->ro_flags |= RT_MAY_LOOP;
-		if (lle->la_flags & LLE_IFADDR)
-			ro->ro_flags |= RT_L2_ME;
-	}
+	if (lle != NULL && (lle->la_flags & LLE_VALID))
+		ro->ro_lle = lle;	/* share ref with fle->f_lle */
 
 	return (0);
 }
@@ -741,10 +736,6 @@ flowtable_lookup_common(struct flowtable *ft, uint32_t *key, int keylen,
 	return (flowtable_insert(ft, hash, key, keylen, fibnum));
 }
 
-/*
- * used by the bit_alloc macro
- */
-#define calloc(count, size) malloc((count)*(size), M_FTABLE, M_WAITOK | M_ZERO)
 static void
 flowtable_alloc(struct flowtable *ft)
 {
@@ -759,11 +750,10 @@ flowtable_alloc(struct flowtable *ft)
 		bitstr_t **b;
 
 		b = zpcpu_get_cpu(ft->ft_masks, i);
-		*b = bit_alloc(ft->ft_size);
+		*b = bit_alloc(ft->ft_size, M_FTABLE, M_WAITOK);
 	}
-	ft->ft_tmpmask = bit_alloc(ft->ft_size);
+	ft->ft_tmpmask = bit_alloc(ft->ft_size, M_FTABLE, M_WAITOK);
 }
-#undef calloc
 
 static void
 flowtable_free_stale(struct flowtable *ft, struct rtentry *rt, int maxidle)

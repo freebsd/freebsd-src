@@ -41,7 +41,7 @@ static int	currentOffset;
 /*
  * .KB_C_FN_DEFINITION_START
  * int ReadCharFromEnvironment(char *)
- *  This private function reads characters from the enviroment variables
+ *  This private function reads characters from the environment variables
  * to service the command prompt during auto-boot or just to setup the
  * default environment.  Returns positive value if valid character was
  * set in the pointer.  Returns negative value to signal input stream

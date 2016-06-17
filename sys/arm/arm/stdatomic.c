@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdatomic.h>
 #include <sys/types.h>
 
-#include <machine/acle-compat.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/sysarch.h>

@@ -28,6 +28,7 @@
 
 #include "sun7i-a20-olimex-som-evb.dts"
 #include "sun7i-a20-hdmi.dtsi"
+#include "xpowers-axp209.dtsi"
 
 / {
 	soc@01c00000 {

@@ -749,7 +749,7 @@ SCI_STATUS scic_sds_phy_initialize(
       this_phy, link_layer_registers
    ));
 
-   // Perfrom the initialization of the TL hardware
+   // Perform the initialization of the TL hardware
    scic_sds_phy_transport_layer_initialization(this_phy, transport_layer_registers);
 
    // Perofrm the initialization of the PE hardware
@@ -1029,7 +1029,7 @@ SCI_STATUS scic_sds_phy_reset(
 }
 
 /**
- * @brief This method will process the event code recieved.
+ * @brief This method will process the event code received.
  *
  * @param[in] this_phy
  * @param[in] event_code
@@ -1052,7 +1052,7 @@ SCI_STATUS scic_sds_phy_event_handler(
 }
 
 /**
- * @brief This method will process the frame index recieved.
+ * @brief This method will process the frame index received.
  *
  * @param[in] this_phy
  * @param[in] frame_index
@@ -1754,7 +1754,7 @@ SCI_STATUS scic_sds_phy_default_frame_handler(
    SCIC_LOG_WARNING((
       sci_base_object_get_logger(this_phy),
       SCIC_LOG_OBJECT_PHY,
-      "SCIC Phy 0x%08x recieved unexpected frame data %d while in state %d\n",
+      "SCIC Phy 0x%08x received unexpected frame data %d while in state %d\n",
       this_phy, frame_index,
       sci_base_state_machine_get_state(&this_phy->parent.state_machine)
    ));
@@ -1866,7 +1866,7 @@ SCI_STATUS scic_sds_phy_stopped_state_start_handler(
  * This method takes the SCIC_SDS_PHY from a stopped state and destroys it.
  *    - This function takes no action.
  *
- * @todo Shouldnt this function transition the SCI_BASE_PHY::state_machine to
+ * @todo Shouldn't this function transition the SCI_BASE_PHY::state_machine to
  *        the SCI_BASE_PHY_STATE_FINAL?
  *
  * @param[in] phy This is the SCI_BASE_PHY object which is cast into a
@@ -1964,7 +1964,7 @@ SCI_STATUS scic_sds_phy_ready_state_reset_handler(
  *    - decoded event is a link failure
  *       - transition the SCIC_SDS_PHY back to the SCI_BASE_PHY_STATE_STARTING
  *         state.
- *    - any other event recived will report a warning message
+ *    - any other event received will report a warning message
  *
  * @param[in] phy This is the SCIC_SDS_PHY object which has received the
  *       event.
@@ -2020,7 +2020,7 @@ SCI_STATUS scic_sds_phy_ready_state_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "SCIC PHY 0x%x ready state machine recieved unexpected event_code %x\n",
+         "SCIC PHY 0x%x ready state machine received unexpected event_code %x\n",
          this_phy, event_code
       ));
       result = SCI_FAILURE_INVALID_STATE;
@@ -2066,7 +2066,7 @@ SCI_STATUS scic_sds_phy_resetting_state_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "SCIC PHY 0x%x resetting state machine recieved unexpected event_code %x\n",
+         "SCIC PHY 0x%x resetting state machine received unexpected event_code %x\n",
          this_phy, event_code
       ));
 
@@ -2691,7 +2691,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_ossp_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "PHY starting substate machine recieved unexpected event_code %x\n",
+         "PHY starting substate machine received unexpected event_code %x\n",
          event_code
       ));
 
@@ -2772,7 +2772,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_sas_phy_speed_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "PHY starting substate machine recieved unexpected event_code %x\n",
+         "PHY starting substate machine received unexpected event_code %x\n",
          event_code
       ));
 
@@ -2834,7 +2834,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_iaf_uf_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "PHY starting substate machine recieved unexpected event_code %x\n",
+         "PHY starting substate machine received unexpected event_code %x\n",
          event_code
       ));
 
@@ -2879,7 +2879,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_sas_power_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "PHY starting substate machine recieved unexpected event_code %x\n",
+         "PHY starting substate machine received unexpected event_code %x\n",
          event_code
       ));
 
@@ -2935,7 +2935,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_sata_power_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "PHY starting substate machine recieved unexpected event_code %x\n",
+         "PHY starting substate machine received unexpected event_code %x\n",
          event_code
       ));
 
@@ -3003,7 +3003,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_sata_phy_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "PHY starting substate machine recieved unexpected event_code %x\n",
+         "PHY starting substate machine received unexpected event_code %x\n",
          event_code
       ));
 
@@ -3090,7 +3090,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_sata_speed_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "PHY starting substate machine recieved unexpected event_code %x\n",
+         "PHY starting substate machine received unexpected event_code %x\n",
          event_code
       ));
 
@@ -3147,7 +3147,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_sig_fis_event_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_RECEIVED_EVENTS,
-         "PHY starting substate machine recieved unexpected event_code %x\n",
+         "PHY starting substate machine received unexpected event_code %x\n",
          event_code
       ));
 
@@ -3246,7 +3246,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_iaf_uf_frame_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_UNSOLICITED_FRAMES,
-         "PHY starting substate machine recieved unexpected frame id %x\n",
+         "PHY starting substate machine received unexpected frame id %x\n",
          frame_index
       ));
    }
@@ -3332,7 +3332,7 @@ SCI_STATUS scic_sds_phy_starting_substate_await_sig_fis_frame_handler(
       SCIC_LOG_WARNING((
          sci_base_object_get_logger(this_phy),
          SCIC_LOG_OBJECT_PHY | SCIC_LOG_OBJECT_UNSOLICITED_FRAMES,
-         "PHY starting substate machine recieved unexpected frame id %x\n",
+         "PHY starting substate machine received unexpected frame id %x\n",
          frame_index
       ));
    }

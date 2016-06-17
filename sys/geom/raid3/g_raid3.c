@@ -1587,7 +1587,7 @@ g_raid3_sync_release(struct g_raid3_softc *sc)
  * Handle synchronization requests.
  * Every synchronization request is two-steps process: first, READ request is
  * send to active provider and then WRITE request (with read data) to the provider
- * beeing synchronized. When WRITE is finished, new synchronization request is
+ * being synchronized. When WRITE is finished, new synchronization request is
  * send.
  */
 static void
@@ -3543,7 +3543,6 @@ g_raid3_shutdown_post_sync(void *arg, int howto)
 	int error;
 
 	mp = arg;
-	DROP_GIANT();
 	g_topology_lock();
 	g_raid3_shutdown = 1;
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
@@ -3562,7 +3561,6 @@ g_raid3_shutdown_post_sync(void *arg, int howto)
 		g_topology_lock();
 	}
 	g_topology_unlock();
-	PICKUP_GIANT();
 }
 
 static void

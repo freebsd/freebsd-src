@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * This interface creates a virtual listener for all the services
- * started thru rpc_reg(). It listens on the same endpoint for
+ * started through rpc_reg(). It listens on the same endpoint for
  * all the services and then executes the corresponding service
  * for the given prognum and procnum.
  */
@@ -229,7 +229,7 @@ rpc_reg(rpcprog_t prognum, rpcvers_t versnum, rpcproc_t procnum,
 	mutex_unlock(&proglst_lock);
 
 	if (done == FALSE) {
-		warnx("%s cant find suitable transport for %s",
+		warnx("%s can't find suitable transport for %s",
 			rpc_reg_msg, nettype);
 		return (-1);
 	}

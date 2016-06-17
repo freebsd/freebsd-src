@@ -37,12 +37,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+
+#include <machine/atomic.h>
 #include <machine/bus.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_reg.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 static int 	vmbus_channel_create_gpadl_header(
 			/* must be phys and virt contiguous*/
@@ -61,17 +66,16 @@ static void	VmbusProcessChannelEvent(void* channel, int pending);
 static void
 vmbus_channel_set_event(hv_vmbus_channel *channel)
 {
-	hv_vmbus_monitor_page *monitor_page;
-
 	if (channel->offer_msg.monitor_allocated) {
-		/* Each uint32_t represents 32 channels */
-		synch_set_bit((channel->offer_msg.child_rel_id & 31),
-			((uint32_t *)hv_vmbus_g_connection.send_interrupt_page
-				+ ((channel->offer_msg.child_rel_id >> 5))));
+		struct vmbus_softc *sc = vmbus_get_softc();
+		hv_vmbus_monitor_page *monitor_page;
+		uint32_t chanid = channel->offer_msg.child_rel_id;
 
-		monitor_page = (hv_vmbus_monitor_page *)
-			hv_vmbus_g_connection.monitor_page_2;
+		atomic_set_long(
+		    &sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
+		    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
+		monitor_page = sc->vmbus_mnf2;
 		synch_set_bit(channel->monitor_bit,
 			(uint32_t *)&monitor_page->
 				trigger_group[channel->monitor_group].u.pending);
@@ -118,21 +122,21 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
 	devch_sysctl = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "channel", CTLFLAG_RD, 0, "");
+		    OID_AUTO, "channel", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	/* This creates dev.DEVNAME.DEVUNIT.channel.CHANID tree */
 	snprintf(name, sizeof(name), "%d", ch_id);
 	devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
 	    	    SYSCTL_CHILDREN(devch_sysctl),
-	    	    OID_AUTO, name, CTLFLAG_RD, 0, "");
+	    	    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 	if (primary_ch != NULL) {
 		devch_sub_sysctl = SYSCTL_ADD_NODE(ctx,
 			SYSCTL_CHILDREN(devch_id_sysctl),
-			OID_AUTO, "sub", CTLFLAG_RD, 0, "");
+			OID_AUTO, "sub", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 		snprintf(name, sizeof(name), "%d", sub_ch_id);
 		devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
 			SYSCTL_CHILDREN(devch_sub_sysctl),
-			OID_AUTO, name, CTLFLAG_RD, 0, "");
+			OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
 		    OID_AUTO, "chanid", CTLFLAG_RD,
@@ -141,20 +145,20 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
 	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
-	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD, channel, 0,
-	    vmbus_channel_sysctl_monalloc, "I",
+	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    channel, 0, vmbus_channel_sysctl_monalloc, "I",
 	    "is monitor allocated to this channel");
 
 	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
                     SYSCTL_CHILDREN(devch_id_sysctl),
                     OID_AUTO,
 		    "in",
-		    CTLFLAG_RD, 0, "");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	devch_id_out_sysctl = SYSCTL_ADD_NODE(ctx,
                     SYSCTL_CHILDREN(devch_id_sysctl),
                     OID_AUTO,
 		    "out",
-		    CTLFLAG_RD, 0, "");
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	hv_ring_buffer_stat(ctx,
 		SYSCTL_CHILDREN(devch_id_in_sysctl),
 		&(channel->inbound),
@@ -199,7 +203,10 @@ hv_vmbus_channel_open(
 	new_channel->on_channel_callback = pfn_on_channel_callback;
 	new_channel->channel_callback_context = context;
 
-	new_channel->rxq = hv_vmbus_g_context.hv_event_queue[new_channel->target_cpu];
+	vmbus_on_channel_open(new_channel);
+
+	new_channel->rxq = VMBUS_PCPU_GET(vmbus_get_softc(), event_tq,
+	    new_channel->target_cpu);
 	TASK_INIT(&new_channel->channel_task, 0, VmbusProcessChannelEvent, new_channel);
 
 	/* Allocate the ring buffer */
@@ -618,7 +625,6 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	hv_vmbus_channel_msg_info* info;
 
 	channel->state = HV_CHANNEL_OPEN_STATE;
-	channel->sc_creation_callback = NULL;
 
 	/*
 	 * set rxq to NULL to avoid more requests be scheduled

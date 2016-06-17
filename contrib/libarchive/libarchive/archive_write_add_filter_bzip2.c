@@ -105,7 +105,7 @@ archive_write_add_filter_bzip2(struct archive *_a)
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	return (ARCHIVE_OK);
 #else
-	data->pdata = __archive_write_program_allocate();
+	data->pdata = __archive_write_program_allocate("bzip2");
 	if (data->pdata == NULL) {
 		free(data);
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");

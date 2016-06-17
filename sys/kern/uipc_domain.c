@@ -135,6 +135,7 @@ protosw_init(struct protosw *pr)
 
 #define DEFAULT(foo, bar)	if ((foo) == NULL)  (foo) = (bar)
 	DEFAULT(pu->pru_accept, pru_accept_notsupp);
+	DEFAULT(pu->pru_aio_queue, pru_aio_queue_notsupp);
 	DEFAULT(pu->pru_bind, pru_bind_notsupp);
 	DEFAULT(pu->pru_bindat, pru_bindat_notsupp);
 	DEFAULT(pu->pru_connect, pru_connect_notsupp);
@@ -195,11 +196,7 @@ void
 vnet_domain_uninit(void *arg)
 {
 	struct domain *dp = arg;
-	struct protosw *pr;
 
-	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-		if (pr->pr_destroy)
-			(*pr->pr_destroy)();
 	if (dp->dom_destroy)
 		(*dp->dom_destroy)();
 }

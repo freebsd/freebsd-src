@@ -142,7 +142,7 @@ get_inode(int fd, struct fs *super, ino_t ino)
 		if (!ipbuf
 		    && !(ipbuf = malloc(INOSZ(super))))
 			errx(1, "allocate inodes");
-		last = (ino / INOCNT(super)) * INOCNT(super);
+		last = rounddown(ino, INOCNT(super));
 		if (lseek(fd, (off_t)ino_to_fsba(super, last) << super->fs_fshift, 0) < (off_t)0
 		    || read(fd, ipbuf, INOSZ(super)) != (ssize_t)INOSZ(super))
 			err(1, "read inodes");
@@ -414,7 +414,7 @@ dofsizes(int fd, struct fs *super, char *name)
 					errx(1, "allocate fsize structure");
 				fp->fsz_next = *fsp;
 				*fsp = fp;
-				fp->fsz_first = (ksz / FSZCNT) * FSZCNT;
+				fp->fsz_first = rounddown(ksz, FSZCNT);
 				fp->fsz_last = fp->fsz_first + FSZCNT;
 				for (i = FSZCNT; --i >= 0;) {
 					fp->fsz_count[i] = 0;

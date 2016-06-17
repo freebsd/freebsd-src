@@ -1276,7 +1276,7 @@ mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 
 	dest = SLOT(mlabel);
 
-	/* XXX: where is the label for the firewall really comming from? */
+	/* XXX: where is the label for the firewall really coming from? */
 	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
 }
 

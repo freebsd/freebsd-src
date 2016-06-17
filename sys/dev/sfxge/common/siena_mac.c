@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -158,8 +158,17 @@ siena_mac_reconfigure(
 	 * so we always add bit 0xff to the mask (bit 0x7f in the
 	 * second octword).
 	 */
-	if (epp->ep_brdcst)
+	if (epp->ep_brdcst) {
+		/*
+		 * NOTE: due to constant folding, some of this evaluates
+		 * to null expressions, giving E_EXPR_NULL_EFFECT during
+		 * lint on Illumos.  No good way to fix this without
+		 * explicit coding the individual word/bit setting.
+		 * So just suppress lint for this one line.
+		 */
+		/* LINTED */
 		EFX_SET_OWORD_BIT(multicast_hash[1], 0x7f);
+	}
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_MCAST_HASH;
@@ -197,7 +206,7 @@ siena_mac_loopback_set(
 	__in		efx_loopback_type_t loopback_type)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_phy_ops_t *epop = epp->ep_epop;
+	const efx_phy_ops_t *epop = epp->ep_epop;
 	efx_loopback_type_t old_loopback_type;
 	efx_link_mode_t old_loopback_link_mode;
 	efx_rc_t rc;
@@ -431,5 +440,13 @@ siena_mac_stats_update(
 }
 
 #endif	/* EFSYS_OPT_MAC_STATS */
+
+	__checkReturn		efx_rc_t
+siena_mac_pdu_get(
+	__in		efx_nic_t *enp,
+	__out		size_t *pdu)
+{
+	return (ENOTSUP);
+}
 
 #endif	/* EFSYS_OPT_SIENA */

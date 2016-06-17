@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="route6d"
+desc="RIP6 routing daemon"
 rcvar="route6d_enable"
 
 set_rcvar_obsolete ipv6_router_enable route6d_enable

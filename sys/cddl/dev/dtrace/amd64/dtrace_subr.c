@@ -246,6 +246,26 @@ static uint64_t	nsec_scale;
 /* See below for the explanation of this macro. */
 #define SCALE_SHIFT	28
 
+static void
+dtrace_gethrtime_init_cpu(void *arg)
+{
+	uintptr_t cpu = (uintptr_t) arg;
+
+	if (cpu == curcpu)
+		tgt_cpu_tsc = rdtsc();
+	else
+		hst_cpu_tsc = rdtsc();
+}
+
+#ifdef EARLY_AP_STARTUP
+static void
+dtrace_gethrtime_init(void *arg)
+{
+	struct pcpu *pc;
+	uint64_t tsc_f;
+	cpuset_t map;
+	int i;
+#else
 /*
  * Get the frequency and scale factor as early as possible so that they can be
  * used for boot-time tracing.
@@ -254,6 +274,7 @@ static void
 dtrace_gethrtime_init_early(void *arg)
 {
 	uint64_t tsc_f;
+#endif
 
 	/*
 	 * Get TSC frequency known at this moment.
@@ -282,20 +303,10 @@ dtrace_gethrtime_init_early(void *arg)
 	 *   (terahertz) values;
 	 */
 	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tsc_f;
+#ifndef EARLY_AP_STARTUP
 }
 SYSINIT(dtrace_gethrtime_init_early, SI_SUB_CPU, SI_ORDER_ANY,
     dtrace_gethrtime_init_early, NULL);
-
-static void
-dtrace_gethrtime_init_cpu(void *arg)
-{
-	uintptr_t cpu = (uintptr_t) arg;
-
-	if (cpu == curcpu)
-		tgt_cpu_tsc = rdtsc();
-	else
-		hst_cpu_tsc = rdtsc();
-}
 
 static void
 dtrace_gethrtime_init(void *arg)
@@ -303,6 +314,7 @@ dtrace_gethrtime_init(void *arg)
 	struct pcpu *pc;
 	cpuset_t map;
 	int i;
+#endif
 
 	/* The current CPU is the reference one. */
 	sched_pin();
@@ -323,8 +335,13 @@ dtrace_gethrtime_init(void *arg)
 	}
 	sched_unpin();
 }
+#ifdef EARLY_AP_STARTUP
+SYSINIT(dtrace_gethrtime_init, SI_SUB_DTRACE, SI_ORDER_ANY,
+    dtrace_gethrtime_init, NULL);
+#else
 SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init,
     NULL);
+#endif
 
 /*
  * DTrace needs a high resolution time function which can

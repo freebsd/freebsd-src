@@ -2706,7 +2706,7 @@ int t4_seeprom_read(struct adapter *adapter, u32 addr, u32 *data)
 	}
 
 	/*
-	 * Grab the returned data, swizzle it into our endianess and
+	 * Grab the returned data, swizzle it into our endianness and
 	 * return success.
 	 */
 	t4_os_pci_read_cfg4(adapter, base + PCI_VPD_DATA, data);
@@ -7739,7 +7739,7 @@ static void read_filter_mode_and_ingress_config(struct adapter *adap)
 
 	/*
 	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
-	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 * represents the presence of an Outer VLAN instead of a VNIC ID.
 	 */
 	if ((tpp->ingress_config & F_VNIC) == 0)
 		tpp->vnic_shift = -1;
@@ -9121,7 +9121,7 @@ int t4_config_watchdog(struct adapter *adapter, unsigned int mbox,
 	/*
 	 * The watchdog command expects a timeout in units of 10ms so we need
 	 * to convert it here (via rounding) and force a minimum of one 10ms
-	 * "tick" if the timeout is non-zero but the convertion results in 0
+	 * "tick" if the timeout is non-zero but the conversion results in 0
 	 * ticks.
 	 */
 	ticks = (timeout + 5)/10;

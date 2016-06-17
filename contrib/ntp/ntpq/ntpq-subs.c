@@ -1679,7 +1679,8 @@ doprintpeers(
 		} else if (!strcmp("hmode", name)) {
 			decodeint(value, &hmode);
 		} else if (!strcmp("refid", name)) {
-			if (pvl == peervarlist) {
+			if (   (pvl == peervarlist)
+			    && (drefid == REFID_IPV4)) {
 				have_da_rid = TRUE;
 				drlen = strlen(value);
 				if (0 == drlen) {
@@ -1700,7 +1701,9 @@ doprintpeers(
 				} else {
 					have_da_rid = FALSE;
 				}
-			} else if (pvl == apeervarlist) {
+			} else if (   (pvl == apeervarlist)
+				   || (pvl == peervarlist)) {
+				/* no need to check drefid == REFID_HASH */
 				have_da_rid = TRUE;
 				drlen = strlen(value);
 				if (0 == drlen) {
@@ -2030,15 +2033,19 @@ peers(
 	FILE *fp
 	)
 {
-	int af = 0;
+	if (drefid == REFID_HASH) {
+		apeers(pcmd, fp);
+	} else {
+		int af = 0;
 
-	if (pcmd->nargs == 1) {
-		if (pcmd->argval->ival == 6)
-			af = AF_INET6;
-		else
-			af = AF_INET;
+		if (pcmd->nargs == 1) {
+			if (pcmd->argval->ival == 6)
+				af = AF_INET6;
+			else
+				af = AF_INET;
+		}
+		dopeers(0, fp, af);
 	}
-	dopeers(0, fp, af);
 }
 
 
@@ -2244,6 +2251,10 @@ config (
  *    Longer lines will lead to unpredictable results.
  * 3. Since this function is sending a line at a time, we can't update
  *    the control key through the configuration file (YUCK!!)
+ *
+ * Pearly: There are a few places where 'size_t' is cast to 'int' based
+ * on the assumption that 'int' can hold the size of the involved
+ * buffers without overflow.
  */
 static void 
 config_from_file (
@@ -2254,6 +2265,7 @@ config_from_file (
 	u_short rstatus;
 	size_t rsize;
 	const char *rdata;
+	char * cp;
 	int res;
 	FILE *config_fd;
 	char config_cmd[MAXLINE];
@@ -2278,33 +2290,47 @@ config_from_file (
 	printf("Sending configuration file, one line at a time.\n");
 	i = 0;
 	while (fgets(config_cmd, MAXLINE, config_fd) != NULL) {
-		config_len = strlen(config_cmd);
-		/* ensure even the last line has newline, if possible */
-		if (config_len > 0 && 
-		    config_len + 2 < sizeof(config_cmd) &&
-		    '\n' != config_cmd[config_len - 1])
-			config_cmd[config_len++] = '\n';
+		/* Eliminate comments first. */
+		cp = strchr(config_cmd, '#');
+		config_len = (NULL != cp)
+		    ? (size_t)(cp - config_cmd)
+		    : strlen(config_cmd);
+		
+		/* [Bug 3015] make sure there's no trailing whitespace;
+		 * the fix for [Bug 2853] on the server side forbids
+		 * those. And don't transmit empty lines, as this would
+		 * just be waste.
+		 */
+		while (config_len != 0 &&
+		       (u_char)config_cmd[config_len-1] <= ' ')
+			--config_len;
+		config_cmd[config_len] = '\0';
+
 		++i;
+		if (0 == config_len)
+			continue;
+
 		retry_limit = 2;
 		do 
 			res = doquery(CTL_OP_CONFIGURE, 0, 1,
-				      strlen(config_cmd), config_cmd,
+				      config_len, config_cmd,
 				      &rstatus, &rsize, &rdata);
 		while (res != 0 && retry_limit--);
 		if (res != 0) {
-			printf("Line No: %d query failed: %s", i,
-			       config_cmd);
-			printf("Subsequent lines not sent.\n");
+			printf("Line No: %d query failed: %.*s\n"
+			       "Subsequent lines not sent.\n",
+			       i, (int)config_len, config_cmd);
 			fclose(config_fd);
 			return;
 		}
 
-		if (rsize > 0 && '\n' == rdata[rsize - 1])
-			rsize--;
-		if (rsize > 0 && '\r' == rdata[rsize - 1])
-			rsize--;
-		printf("Line No: %d %.*s: %s", i, (int)rsize, rdata, /* cast is wobbly */
-		       config_cmd);
+		/* Right-strip the result code string, then output the
+		 * last line executed, with result code. */
+		while (rsize != 0 && (u_char)rdata[rsize - 1] <= ' ')
+			--rsize;
+		printf("Line No: %d %.*s: %.*s\n", i,
+		       (int)rsize, rdata,
+		       (int)config_len, config_cmd);
 	}
 	printf("Done sending file\n");
 	fclose(config_fd);

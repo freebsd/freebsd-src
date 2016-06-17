@@ -27,9 +27,9 @@ __FBSDID("$FreeBSD");
 
 #include <locale.h>
 
-static void
-test_read_format_zip_filename_CP932_eucJP(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_CP932_eucJP)
 {
+	const char *refname = "test_read_format_zip_filename_cp932.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -40,6 +40,7 @@ test_read_format_zip_filename_CP932_eucJP(const char *refname)
 		skipping("ja_JP.eucJP locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -58,6 +59,8 @@ test_read_format_zip_filename_CP932_eucJP(const char *refname)
 	    "\xc9\xbd\xa4\xc0\xa4\xe8\x2f\xb0\xec\xcd\xf7\xc9\xbd\x2e\x74\x78\x74",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -65,10 +68,14 @@ test_read_format_zip_filename_CP932_eucJP(const char *refname)
 	    "\xc9\xbd\xa4\xc0\xa4\xe8\x2f\xb4\xc1\xbb\xfa\x2e\x74\x78\x74",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify archive format. */
 	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
@@ -80,9 +87,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_CP932_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_CP932_UTF8)
 {
+	const char *refname = "test_read_format_zip_filename_cp932.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -93,6 +100,7 @@ test_read_format_zip_filename_CP932_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -107,6 +115,8 @@ test_read_format_zip_filename_CP932_UTF8(const char *refname)
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 #if defined(__APPLE__)
 	/* Compare NFD string. */
 	assertEqualUTF8String(
@@ -124,6 +134,8 @@ test_read_format_zip_filename_CP932_UTF8(const char *refname)
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 #if defined(__APPLE__)
 	/* Compare NFD string. */
 	assertEqualUTF8String(
@@ -153,9 +165,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_UTF8_eucJP(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_UTF8_eucJP)
 {
+	const char *refname = "test_read_format_zip_filename_utf8_jp.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -165,9 +177,11 @@ test_read_format_zip_filename_UTF8_eucJP(const char *refname)
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
 	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
-		skipping("ja_JP.eucJP locale not availablefilename_ on this system.");
+		skipping("ja_JP.eucJP locale not availablefilename_ on "
+			 "this system.");
 		return;
 	}
+	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=UTF-8")) {
@@ -189,6 +203,8 @@ test_read_format_zip_filename_UTF8_eucJP(const char *refname)
 	assertEqualString("\xc9\xbd\xa4\xc0\xa4\xe8\x2f",
 	    archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -197,6 +213,8 @@ test_read_format_zip_filename_UTF8_eucJP(const char *refname)
 	    "\xc9\xbd\xa4\xc0\xa4\xe8\x2f\xb0\xec\xcd\xf7\xc9\xbd\x2e\x74\x78\x74",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -205,6 +223,8 @@ test_read_format_zip_filename_UTF8_eucJP(const char *refname)
 	    "\xc9\xbd\xa4\xc0\xa4\xe8\x2f\xb4\xc1\xbb\xfa\x2e\x74\x78\x74",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -220,9 +240,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_UTF8_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_UTF8_UTF8)
 {
+	const char *refname = "test_read_format_zip_filename_utf8_jp.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -235,6 +255,7 @@ test_read_format_zip_filename_UTF8_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -257,6 +278,8 @@ test_read_format_zip_filename_UTF8_UTF8(const char *refname)
 	    archive_entry_pathname(ae));
 #endif
 	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -275,6 +298,8 @@ test_read_format_zip_filename_UTF8_UTF8(const char *refname)
 	    archive_entry_pathname(ae));
 #endif
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -293,6 +318,8 @@ test_read_format_zip_filename_UTF8_UTF8(const char *refname)
 	    archive_entry_pathname(ae));
 #endif
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -307,9 +334,9 @@ test_read_format_zip_filename_UTF8_UTF8(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_CP866_KOI8R(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_CP866_KOI8R)
 {
+	const char *refname = "test_read_format_zip_filename_cp866.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -321,6 +348,7 @@ test_read_format_zip_filename_CP866_KOI8R(const char *refname)
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -338,12 +366,16 @@ test_read_format_zip_filename_CP866_KOI8R(const char *refname)
 	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xd0\xd2\xc9\xd7\xc5\xd4",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -359,9 +391,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_CP866_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_CP866_UTF8)
 {
+	const char *refname = "test_read_format_zip_filename_cp866.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -372,6 +404,7 @@ test_read_format_zip_filename_CP866_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -389,12 +422,16 @@ test_read_format_zip_filename_CP866_UTF8(const char *refname)
 	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -410,9 +447,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_KOI8R_CP866(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_KOI8R_CP866)
 {
+	const char *refname = "test_read_format_zip_filename_koi8r.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -424,6 +461,7 @@ test_read_format_zip_filename_KOI8R_CP866(const char *refname)
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -441,12 +479,16 @@ test_read_format_zip_filename_KOI8R_CP866(const char *refname)
 	assertEqualString("\xaf\xe0\xa8\xa2\xa5\xe2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\x8f\x90\x88\x82\x85\x92",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -462,9 +504,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_KOI8R_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_KOI8R_UTF8)
 {
+	const char *refname = "test_read_format_zip_filename_koi8r.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -475,6 +517,7 @@ test_read_format_zip_filename_KOI8R_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -492,12 +535,16 @@ test_read_format_zip_filename_KOI8R_UTF8(const char *refname)
 	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -513,9 +560,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_UTF8_KOI8R(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_UTF8_KOI8R)
 {
+	const char *refname = "test_read_format_zip_filename_utf8_ru.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -527,6 +574,7 @@ test_read_format_zip_filename_UTF8_KOI8R(const char *refname)
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -549,12 +597,16 @@ test_read_format_zip_filename_UTF8_KOI8R(const char *refname)
 	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xd0\xd2\xc9\xd7\xc5\xd4",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -570,9 +622,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_UTF8_CP866(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_UTF8_CP866)
 {
+	const char *refname = "test_read_format_zip_filename_utf8_ru.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -586,6 +638,7 @@ test_read_format_zip_filename_UTF8_CP866(const char *refname)
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -609,12 +662,16 @@ test_read_format_zip_filename_UTF8_CP866(const char *refname)
 	assertEqualString("\x8f\x90\x88\x82\x85\x92",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xaf\xe0\xa8\xa2\xa5\xe2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -630,9 +687,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_UTF8_UTF8_ru)
 {
+	const char *refname = "test_read_format_zip_filename_utf8_ru.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -645,6 +702,7 @@ test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -657,12 +715,16 @@ test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
 	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -677,9 +739,9 @@ test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_CP932_CP932(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_CP932_CP932)
 {
+	const char *refname = "test_read_format_zip_filename_cp932.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -691,6 +753,7 @@ test_read_format_zip_filename_CP932_CP932(const char *refname)
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -709,6 +772,8 @@ test_read_format_zip_filename_CP932_CP932(const char *refname)
 		"\x95\x5c\x82\xbe\x82\xe6\x2f\x88\xea\x97\x97\x95\x5c.txt",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -716,6 +781,8 @@ test_read_format_zip_filename_CP932_CP932(const char *refname)
 		"\x95\x5c\x82\xbe\x82\xe6\x2f\x8a\xbf\x8e\x9a.txt",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -731,9 +798,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_UTF8_CP932(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_UTF8_CP932)
 {
+	const char *refname = "test_read_format_zip_filename_utf8_jp.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -747,6 +814,7 @@ test_read_format_zip_filename_UTF8_CP932(const char *refname)
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
@@ -771,6 +839,8 @@ test_read_format_zip_filename_UTF8_CP932(const char *refname)
 		"\x95\x5c\x82\xbe\x82\xe6\x2f",
 	    archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify directory file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -779,6 +849,8 @@ test_read_format_zip_filename_UTF8_CP932(const char *refname)
 		"\x95\x5c\x82\xbe\x82\xe6\x2f\x88\xea\x97\x97\x95\x5c.txt",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -787,6 +859,8 @@ test_read_format_zip_filename_UTF8_CP932(const char *refname)
 		"\x95\x5c\x82\xbe\x82\xe6\x2f\x8a\xbf\x8e\x9a.txt",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -801,9 +875,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_CP866_CP1251(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_CP866_CP1251)
 {
+	const char *refname = "test_read_format_zip_filename_cp866.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -815,6 +889,7 @@ test_read_format_zip_filename_CP866_CP1251(const char *refname)
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -832,12 +907,16 @@ test_read_format_zip_filename_CP866_CP1251(const char *refname)
 	assertEqualString("\xcf\xd0\xc8\xc2\xc5\xd2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -859,9 +938,9 @@ cleanup:
  * filenames and store it in the zip file and so we should read
  * it by default on Windows.
  */
-static void
-test_read_format_zip_filename_CP866_CP1251_win(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_CP866_CP1251_win)
 {
+	const char *refname = "test_read_format_zip_filename_cp866.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -872,6 +951,7 @@ test_read_format_zip_filename_CP866_CP1251_win(const char *refname)
 		skipping("Russian_Russia locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -884,12 +964,16 @@ test_read_format_zip_filename_CP866_CP1251_win(const char *refname)
 	assertEqualString("\xcf\xd0\xc8\xc2\xc5\xd2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -904,9 +988,9 @@ test_read_format_zip_filename_CP866_CP1251_win(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_KOI8R_CP1251(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_KOI8R_CP1251)
 {
+	const char *refname = "test_read_format_zip_filename_koi8r.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -918,6 +1002,7 @@ test_read_format_zip_filename_KOI8R_CP1251(const char *refname)
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -935,12 +1020,16 @@ test_read_format_zip_filename_KOI8R_CP1251(const char *refname)
 	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xcf\xd0\xc8\xc2\xc5\xd2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -956,9 +1045,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_zip_filename_UTF8_CP1251(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_UTF8_CP1251)
 {
+	const char *refname = "test_read_format_zip_filename_utf8_ru.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -972,6 +1061,7 @@ test_read_format_zip_filename_UTF8_CP1251(const char *refname)
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
@@ -994,12 +1084,16 @@ test_read_format_zip_filename_UTF8_CP1251(const char *refname)
 	assertEqualString("\xcf\xd0\xc8\xc2\xc5\xd2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -1025,9 +1119,9 @@ cleanup:
  * filename of sencod file, which is stored in UTF-8.
  */
 
-static void
-test_read_format_zip_filename_KOI8R_UTF8_2(const char *refname)
+DEFINE_TEST(test_read_format_zip_filename_KOI8R_UTF8_2)
 {
+	const char *refname = "test_read_format_zip_filename_utf8_ru2.zip";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -1038,6 +1132,7 @@ test_read_format_zip_filename_KOI8R_UTF8_2(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -1055,6 +1150,8 @@ test_read_format_zip_filename_KOI8R_UTF8_2(const char *refname)
 	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/*
 	 * Verify regular second file.
@@ -1065,6 +1162,8 @@ test_read_format_zip_filename_KOI8R_UTF8_2(const char *refname)
 	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -1100,12 +1199,16 @@ next_test:
 	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */
@@ -1118,45 +1221,4 @@ next_test:
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-}
-
-DEFINE_TEST(test_read_format_zip_filename)
-{
-	const char *refname1 = "test_read_format_zip_filename_cp932.zip";
-	const char *refname2 = "test_read_format_zip_filename_utf8_jp.zip";
-	const char *refname3 = "test_read_format_zip_filename_cp866.zip";
-	const char *refname4 = "test_read_format_zip_filename_koi8r.zip";
-	const char *refname5 = "test_read_format_zip_filename_utf8_ru.zip";
-	const char *refname6 = "test_read_format_zip_filename_utf8_ru2.zip";
-
-	extract_reference_file(refname1);
-	test_read_format_zip_filename_CP932_eucJP(refname1);
-	test_read_format_zip_filename_CP932_UTF8(refname1);
-	test_read_format_zip_filename_CP932_CP932(refname1);
-
-	extract_reference_file(refname2);
-	test_read_format_zip_filename_UTF8_eucJP(refname2);
-	test_read_format_zip_filename_UTF8_UTF8(refname2);
-	test_read_format_zip_filename_UTF8_CP932(refname2);
-
-	extract_reference_file(refname3);
-	test_read_format_zip_filename_CP866_KOI8R(refname3);
-	test_read_format_zip_filename_CP866_UTF8(refname3);
-	test_read_format_zip_filename_CP866_CP1251(refname3);
-	test_read_format_zip_filename_CP866_CP1251_win(refname3);
-
-	extract_reference_file(refname4);
-	test_read_format_zip_filename_KOI8R_CP866(refname4);
-	test_read_format_zip_filename_KOI8R_UTF8(refname4);
-	test_read_format_zip_filename_KOI8R_CP1251(refname4);
-
-	extract_reference_file(refname5);
-	test_read_format_zip_filename_UTF8_KOI8R(refname5);
-	test_read_format_zip_filename_UTF8_CP866(refname5);
-	test_read_format_zip_filename_UTF8_UTF8_ru(refname5);
-	test_read_format_zip_filename_UTF8_CP1251(refname5);
-
-	/* The filenames contained in refname6 are different charset. */
-	extract_reference_file(refname6);
-	test_read_format_zip_filename_KOI8R_UTF8_2(refname6);
 }

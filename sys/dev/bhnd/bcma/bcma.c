@@ -97,9 +97,10 @@ bcma_attach(device_t dev)
 		r_count = size;
 		r_end = r_start + r_count - 1;
 
-		dinfo->rid_agent = 0;
-		dinfo->res_agent = bhnd_alloc_resource(dev, SYS_RES_MEMORY,
-		    &dinfo->rid_agent, r_start, r_end, r_count, RF_ACTIVE);
+		dinfo->rid_agent = i + 1;
+		dinfo->res_agent = BHND_BUS_ALLOC_RESOURCE(dev, dev,
+		    SYS_RES_MEMORY, &dinfo->rid_agent, r_start, r_end, r_count,
+		    RF_ACTIVE);
 		if (dinfo->res_agent == NULL) {
 			device_printf(dev, "failed allocating agent register "
 			    "block for core %d\n", i);
@@ -194,6 +195,14 @@ bcma_get_resource_list(device_t dev, device_t child)
 	return (&dinfo->resources);
 }
 
+static device_t
+bcma_find_hostb_device(device_t dev)
+{
+	struct bcma_softc *sc = device_get_softc(dev);
+
+	/* This is set (or not) by the concrete bcma driver subclass. */
+	return (sc->hostb_dev);
+}
 
 static int
 bcma_reset_core(device_t dev, device_t child, uint16_t flags)
@@ -251,6 +260,11 @@ bcma_get_port_count(device_t dev, device_t child, bhnd_port_type type)
 		return (dinfo->corecfg->num_bridge_ports);
 	case BHND_PORT_AGENT:
 		return (dinfo->corecfg->num_wrapper_ports);
+	default:
+		device_printf(dev, "%s: unknown type (%d)\n",
+		    __func__,
+		    type);
+		return (0);
 	}
 }
 
@@ -466,6 +480,7 @@ static device_method_t bcma_methods[] = {
 	DEVMETHOD(bus_get_resource_list,	bcma_get_resource_list),
 
 	/* BHND interface */
+	DEVMETHOD(bhnd_bus_find_hostb_device,	bcma_find_hostb_device),
 	DEVMETHOD(bhnd_bus_reset_core,		bcma_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	bcma_suspend_core),
 	DEVMETHOD(bhnd_bus_get_port_count,	bcma_get_port_count),

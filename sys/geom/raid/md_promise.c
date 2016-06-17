@@ -893,7 +893,7 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	struct g_raid_md_promise_perdisk *pd;
 	struct g_raid_md_promise_pervolume *pv;
 	struct promise_raid_conf *meta;
-	int i;
+	u_int i;
 
 	sc = vol->v_softc;
 	md = sc->sc_md;

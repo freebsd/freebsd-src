@@ -48,7 +48,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 3179 2015-03-31 19:38:56Z emaste $");
+ELFTC_VCSID("$Id: nm.c 3472 2016-05-17 20:11:16Z emaste $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);
@@ -790,7 +790,8 @@ is_sec_debug(const char *shname)
 	};
 	const char **p;
 
-	assert(shname != NULL && "shname is NULL");
+	if (shname == NULL)
+		return (false);
 
 	for (p = dbg_sec; *p; p++) {
 		if (!strncmp(shname, *p, strlen(*p)))
@@ -1716,7 +1717,7 @@ sym_elem_print_all_sysv(char type, const char *sec, const GElf_Sym *sym,
 	case STT_NOTYPE:
 	default:
 		printf("%18s|", "NOTYPE");
-	};
+	}
 
 	if (sym->st_size != 0)
 		nm_opts.size_print_fn(sym);
@@ -1945,7 +1946,7 @@ sym_list_print_each(struct sym_entry *ep, struct sym_print_data *p,
 			return;
 		sec = p->s_table[ep->sym->st_shndx];
 		break;
-	};
+	}
 
 	nm_opts.elem_print_fn(type, sec, ep->sym, ep->name);
 

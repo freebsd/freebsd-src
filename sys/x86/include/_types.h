@@ -43,6 +43,8 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#include <machine/_limits.h>
+
 #define __NO_STRICT_ALIGNMENT
 
 /*

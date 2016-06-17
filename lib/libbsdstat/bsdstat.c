@@ -53,7 +53,7 @@ bsdstat_setfmt(struct bsdstat *sf, const char *fmt0)
 				"skipped\n", sf->name, tok);
 			continue;
 		}
-		if (j+3 > (int) sizeof(sf->fmts)) {
+		if (j+4 > (int) sizeof(sf->fmts)) {
 			fprintf(stderr, "%s: not enough room for all stats; "
 				"stopped at %s\n", sf->name, tok);
 			break;

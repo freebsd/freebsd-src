@@ -3071,7 +3071,7 @@ bound_all_plan_b:
 		    ifn, num_preferred);
 		if (num_preferred == 0) {
 			/* None on this interface. */
-			SCTPDBG(SCTP_DEBUG_OUTPUT2, "No prefered -- skipping to next\n");
+			SCTPDBG(SCTP_DEBUG_OUTPUT2, "No preferred -- skipping to next\n");
 			continue;
 		}
 		SCTPDBG(SCTP_DEBUG_OUTPUT2,
@@ -3156,7 +3156,7 @@ again_with_private_addresses_allowed:
 				 * It is restricted for some reason..
 				 * probably not yet added.
 				 */
-				SCTPDBG(SCTP_DEBUG_OUTPUT2, "Its resticted\n");
+				SCTPDBG(SCTP_DEBUG_OUTPUT2, "Its restricted\n");
 				sifa = NULL;
 				continue;
 			}
@@ -3643,7 +3643,8 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 					for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 						stcb->asoc.strmout[i].chunks_on_queues = 0;
-						stcb->asoc.strmout[i].next_sequence_send = 0;
+						stcb->asoc.strmout[i].next_mid_ordered = 0;
+						stcb->asoc.strmout[i].next_mid_unordered = 0;
 #if defined(SCTP_DETAILED_STR_STATS)
 						for (j = 0; j < SCTP_PR_SCTP_MAX + 1; j++) {
 							stcb->asoc.strmout[i].abandoned_sent[j] = 0;
@@ -3677,7 +3678,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 					*error = EINVAL;
 					return (1);
 				}
-				if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin, NULL,
+				if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin, NULL, stcb->asoc.port,
 				    SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 					*error = ENOBUFS;
 					return (1);
@@ -3709,14 +3710,14 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 						*error = EINVAL;
 						return (1);
 					}
-					if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin, NULL,
+					if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin, NULL, stcb->asoc.port,
 					    SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 						*error = ENOBUFS;
 						return (1);
 					}
 				} else
 #endif
-					if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin6, NULL,
+					if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin6, NULL, stcb->asoc.port,
 				    SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 					*error = ENOBUFS;
 					return (1);
@@ -5390,7 +5391,7 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 			}
 		}
 		if (fnd == 0) {
-			/* New address added! no need to look futher. */
+			/* New address added! no need to look further. */
 			return (1);
 		}
 	}
@@ -5631,7 +5632,7 @@ do_a_abort:
 	stc.peerport = sh->src_port;
 
 	/*
-	 * If we wanted to honor cookie life extentions, we would add to
+	 * If we wanted to honor cookie life extensions, we would add to
 	 * stc.cookie_life. For now we should NOT honor any extension
 	 */
 	stc.site_scope = stc.local_scope = stc.loopback_scope = 0;
@@ -5686,7 +5687,7 @@ do_a_abort:
 			{
 				stc.addr_type = SCTP_IPV6_ADDRESS;
 				memcpy(&stc.address, &src6->sin6_addr, sizeof(struct in6_addr));
-				stc.scope_id = in6_getscope(&src6->sin6_addr);
+				stc.scope_id = ntohs(in6_getscope(&src6->sin6_addr));
 				if (sctp_is_address_on_local_host(src, vrf_id)) {
 					stc.loopback_scope = 1;
 					stc.local_scope = 0;
@@ -5828,7 +5829,7 @@ do_a_abort:
 	/* Now lets put the SCTP header in place */
 	initack = mtod(m, struct sctp_init_ack_chunk *);
 	/* Save it off for quick ref */
-	stc.peers_vtag = init_chk->init.initiate_tag;
+	stc.peers_vtag = ntohl(init_chk->init.initiate_tag);
 	/* who are we */
 	memcpy(stc.identification, SCTP_VERSION_STRING,
 	    min(strlen(SCTP_VERSION_STRING), sizeof(stc.identification)));
@@ -6206,7 +6207,7 @@ sctp_prune_prsctp(struct sctp_tcb *stcb,
 							return;
 						}
 					}	/* if chunk was present */
-				}	/* if of sufficent priority */
+				}	/* if of sufficient priority */
 			}	/* if chunk has enabled */
 		}		/* tailqforeach */
 
@@ -6381,7 +6382,6 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	sp->ppid = srcv->sinfo_ppid;
 	sp->context = srcv->sinfo_context;
 	sp->fsn = 0;
-	sp->msg_id = atomic_fetchadd_int(&stcb->asoc.assoc_msg_id, 1);
 	if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 		sp->net = net;
 		atomic_add_int(&sp->net->ref_count, 1);
@@ -6564,7 +6564,7 @@ error_out:
 			}
 		}
 		/*
-		 * save off the end and update the end-chain postion
+		 * save off the end and update the end-chain position
 		 */
 		m = appendchain;
 		while (m) {
@@ -6576,7 +6576,7 @@ error_out:
 		}
 		return (outchain);
 	} else {
-		/* save off the end and update the end-chain postion */
+		/* save off the end and update the end-chain position */
 		m = appendchain;
 		while (m) {
 			if (SCTP_BUF_NEXT(m) == NULL) {
@@ -6810,7 +6810,7 @@ sctp_sendall_completes(void *ptr, uint32_t val SCTP_UNUSED)
 	/*
 	 * Do a notify here? Kacheong suggests that the notify be done at
 	 * the send time.. so you would push up a notification if any send
-	 * failed. Don't know if this is feasable since the only failures we
+	 * failed. Don't know if this is feasible since the only failures we
 	 * have is "memory" related and if you cannot get an mbuf to send
 	 * the data you surely can't get an mbuf to send up to notify the
 	 * user you can't send the data :->
@@ -7468,7 +7468,7 @@ dont_do_it:
 		chk->copy_by_ref = 0;
 	}
 	/*
-	 * get last_mbuf and counts of mb useage This is ugly but hopefully
+	 * get last_mbuf and counts of mb usage This is ugly but hopefully
 	 * its only one mbuf.
 	 */
 	if (chk->last_mbuf == NULL) {
@@ -7568,10 +7568,28 @@ dont_do_it:
 	chk->asoc = &stcb->asoc;
 	chk->pad_inplace = 0;
 	chk->no_fr_allowed = 0;
-	chk->rec.data.stream_seq = strq->next_sequence_send;
-	if ((rcv_flags & SCTP_DATA_LAST_FRAG) &&
-	    !(rcv_flags & SCTP_DATA_UNORDERED)) {
-		strq->next_sequence_send++;
+	if (stcb->asoc.idata_supported == 0) {
+		if (rcv_flags & SCTP_DATA_UNORDERED) {
+			/* Just use 0. The receiver ignores the values. */
+			chk->rec.data.stream_seq = 0;
+		} else {
+			chk->rec.data.stream_seq = strq->next_mid_ordered;
+			if (rcv_flags & SCTP_DATA_LAST_FRAG) {
+				strq->next_mid_ordered++;
+			}
+		}
+	} else {
+		if (rcv_flags & SCTP_DATA_UNORDERED) {
+			chk->rec.data.stream_seq = strq->next_mid_unordered;
+			if (rcv_flags & SCTP_DATA_LAST_FRAG) {
+				strq->next_mid_unordered++;
+			}
+		} else {
+			chk->rec.data.stream_seq = strq->next_mid_ordered;
+			if (rcv_flags & SCTP_DATA_LAST_FRAG) {
+				strq->next_mid_ordered++;
+			}
+		}
 	}
 	chk->rec.data.stream_number = sp->stream;
 	chk->rec.data.payloadtype = sp->ppid;
@@ -7630,7 +7648,7 @@ dont_do_it:
 		dchkh->ch.chunk_flags = chk->rec.data.rcv_flags;
 		dchkh->dp.tsn = htonl(chk->rec.data.TSN_seq);
 		dchkh->dp.stream_id = htons((strq->stream_no & 0x0000ffff));
-		dchkh->dp.stream_sequence = htons(chk->rec.data.stream_seq);
+		dchkh->dp.stream_sequence = htons((uint16_t) chk->rec.data.stream_seq);
 		dchkh->dp.protocol_id = chk->rec.data.payloadtype;
 		dchkh->ch.chunk_length = htons(chk->send_size);
 	} else {
@@ -7638,9 +7656,8 @@ dont_do_it:
 		ndchkh->ch.chunk_flags = chk->rec.data.rcv_flags;
 		ndchkh->dp.tsn = htonl(chk->rec.data.TSN_seq);
 		ndchkh->dp.stream_id = htons(strq->stream_no);
-		/* WHAT DO WE DO HERE??? */
 		ndchkh->dp.reserved = htons(0);
-		ndchkh->dp.msg_id = htonl(sp->msg_id);
+		ndchkh->dp.msg_id = htonl(chk->rec.data.stream_seq);
 		if (sp->fsn == 0)
 			ndchkh->dp.ppid_fsn.protocol_id = chk->rec.data.payloadtype;
 		else
@@ -9537,7 +9554,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 	cnt_thru = 0;
 	/* do we have control chunks to retransmit? */
 	if (m != NULL) {
-		/* Start a timer no matter if we suceed or fail */
+		/* Start a timer no matter if we succeed or fail */
 		if (chk->rec.chunk_id.id == SCTP_COOKIE_ECHO) {
 			sctp_timer_start(SCTP_TIMER_TYPE_COOKIE, inp, stcb, chk->whoTo);
 		} else if (chk->rec.chunk_id.id == SCTP_ASCONF)
@@ -9802,7 +9819,7 @@ one_chunk_around:
 		/* Is there something to send for this destination? */
 		if (m) {
 			/*
-			 * No matter if we fail/or suceed we should start a
+			 * No matter if we fail/or succeed we should start a
 			 * timer. A failure is like a lost IP packet :-)
 			 */
 			if (!SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
@@ -12235,7 +12252,8 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 			stcb->asoc.strmout[i].chunks_on_queues = oldstream[i].chunks_on_queues;
-			stcb->asoc.strmout[i].next_sequence_send = oldstream[i].next_sequence_send;
+			stcb->asoc.strmout[i].next_mid_ordered = oldstream[i].next_mid_ordered;
+			stcb->asoc.strmout[i].next_mid_unordered = oldstream[i].next_mid_unordered;
 			stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].state = oldstream[i].state;
@@ -12267,7 +12285,8 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 			stcb->asoc.strmout[i].abandoned_sent[0] = 0;
 			stcb->asoc.strmout[i].abandoned_unsent[0] = 0;
 #endif
-			stcb->asoc.strmout[i].next_sequence_send = 0x0;
+			stcb->asoc.strmout[i].next_mid_ordered = 0;
+			stcb->asoc.strmout[i].next_mid_unordered = 0;
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].last_msg_incomplete = 0;
 			stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
@@ -12425,7 +12444,6 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	sp->ppid = srcv->sinfo_ppid;
 	sp->context = srcv->sinfo_context;
 	sp->fsn = 0;
-	sp->msg_id = atomic_fetchadd_int(&stcb->asoc.assoc_msg_id, 1);
 	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
 
 	sp->stream = srcv->sinfo_stream;
@@ -12765,8 +12783,8 @@ sctp_lower_sosend(struct socket *so,
 #endif
 			stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id,
 			    inp->sctp_ep.pre_open_stream_count,
-			    p
-			    );
+			    inp->sctp_ep.port,
+			    p);
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
 				goto out_unlocked;

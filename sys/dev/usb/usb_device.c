@@ -190,7 +190,7 @@ usbd_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val)
 	ea_val &= EA_MASK;
 
 	/*
-	 * Iterate accross all the USB endpoints searching for a match
+	 * Iterate across all the USB endpoints searching for a match
 	 * based on the endpoint address:
 	 */
 	for (; ep != ep_end; ep++) {
@@ -300,7 +300,7 @@ usbd_get_endpoint(struct usb_device *udev, uint8_t iface_index,
 	}
 
 	/*
-	 * Iterate accross all the USB endpoints searching for a match
+	 * Iterate across all the USB endpoints searching for a match
 	 * based on the endpoint address. Note that we are searching
 	 * the endpoints from the beginning of the "udev->endpoints" array.
 	 */
@@ -1774,7 +1774,9 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 
 	scratch_ptr = udev->scratch.data;
 
-	if (udev->ddesc.iManufacturer ||
+	if (udev->flags.no_strings) {
+		err = USB_ERR_INVAL;
+	} else if (udev->ddesc.iManufacturer ||
 	    udev->ddesc.iProduct ||
 	    udev->ddesc.iSerialNumber) {
 		/* read out the language ID string */
@@ -2738,7 +2740,7 @@ usbd_device_attached(struct usb_device *udev)
 /*
  * The following function locks enumerating the given USB device. If
  * the lock is already grabbed this function returns zero. Else a
- * non-zero value is returned.
+ * a value of one is returned.
  */
 uint8_t
 usbd_enum_lock(struct usb_device *udev)
@@ -2756,6 +2758,27 @@ usbd_enum_lock(struct usb_device *udev)
 	mtx_lock(&Giant);
 	return (1);
 }
+
+#if USB_HAVE_UGEN
+/*
+ * This function is the same like usbd_enum_lock() except a value of
+ * 255 is returned when a signal is pending:
+ */
+uint8_t
+usbd_enum_lock_sig(struct usb_device *udev)
+{
+	if (sx_xlocked(&udev->enum_sx))
+		return (0);
+	if (sx_xlock_sig(&udev->enum_sx))
+		return (255);
+	if (sx_xlock_sig(&udev->sr_sx)) {
+		sx_xunlock(&udev->enum_sx);
+		return (255);
+	}
+	mtx_lock(&Giant);
+	return (1);
+}
+#endif
 
 /* The following function unlocks enumerating the given USB device. */
 

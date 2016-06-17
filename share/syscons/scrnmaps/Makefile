@@ -15,7 +15,7 @@ FILESDIR= ${SHAREDIR}/syscons/scrnmaps
 build-tools: ${SCRMAPS_MK}
 
 ${SCRMAPS}: ${.TARGET:R}.mk
-	./${.TARGET:R}.mk ${.TARGET:R}.tmp
+	${BTOOLSPATH:U.}/${.TARGET:R}.mk ${.TARGET:R}.tmp
 	uuencode ${.TARGET:R}.tmp ${.TARGET:R} > ${.TARGET}
 	rm -f ${.TARGET:R}.tmp
 

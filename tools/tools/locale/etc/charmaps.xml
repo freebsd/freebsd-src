@@ -2,13 +2,13 @@
 <data>
 <languages>
 	<!-- Attributes known:
-		name = langugage name - only one
-		encoding = encodings to be done - seperated by space
-		countries = countries to create - seperated by space
+		name = language name - only one
+		encoding = encodings to be done - separated by space
+		countries = countries to create - separated by space
 		family = which font family - only one
 		countryname_link = only with family, link this original file \
 			too - only one
-		encoding_link = link this original encoding too - seperated \
+		encoding_link = link this original encoding too - separated \
 			by space
 		fallback = read this file if name_countries doesn't exist - \
 			only one

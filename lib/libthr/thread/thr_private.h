@@ -45,6 +45,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -85,7 +86,7 @@ TAILQ_HEAD(mutex_queue, pthread_mutex);
 /*
  * Kernel fatal error handler macro.
  */
-#define PANIC(string)		_thread_exit(__FILE__,__LINE__,string)
+#define PANIC(args...)		_thread_exitf(__FILE__, __LINE__, ##args)
 
 /* Output debug messages like this: */
 #define stdout_debug(args...)	_thread_printf(STDOUT_FILENO, ##args)
@@ -141,8 +142,10 @@ TAILQ_HEAD(mutex_queue, pthread_mutex);
 
 #define PMUTEX_FLAG_TYPE_MASK	0x0ff
 #define PMUTEX_FLAG_PRIVATE	0x100
-#define PMUTEX_FLAG_DEFERED	0x200
+#define PMUTEX_FLAG_DEFERRED	0x200
 #define PMUTEX_TYPE(mtxflags)	((mtxflags) & PMUTEX_FLAG_TYPE_MASK)
+
+#define	PMUTEX_OWNER_ID(m)	((m)->m_lock.m_owner & ~UMUTEX_CONTESTED)
 
 #define MAX_DEFER_WAITERS       50
 
@@ -159,7 +162,6 @@ struct pthread_mutex {
 	 */
 	struct umutex			m_lock;
 	int				m_flags;
-	uint32_t			m_owner;
 	int				m_count;
 	int				m_spinloops;
 	int				m_yieldloops;
@@ -171,6 +173,7 @@ struct pthread_mutex {
 	TAILQ_ENTRY(pthread_mutex)	m_qe;
 	/* Link for all private mutexes a thread currently owns. */
 	TAILQ_ENTRY(pthread_mutex)	m_pqe;
+	struct pthread_mutex		*m_rb_prev;
 };
 
 struct pthread_mutex_attr {
@@ -178,16 +181,16 @@ struct pthread_mutex_attr {
 	int			m_protocol;
 	int			m_ceiling;
 	int			m_pshared;
+	int			m_robust;
 };
 
 #define PTHREAD_MUTEXATTR_STATIC_INITIALIZER \
-	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, MUTEX_FLAGS_PRIVATE }
+	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, MUTEX_FLAGS_PRIVATE, \
+	    PTHREAD_MUTEX_STALLED }
 
 struct pthread_cond {
 	__uint32_t	__has_user_waiters;
-	__uint32_t	__has_kern_waiters;
-	__uint32_t	__flags;
-	__uint32_t	__clock_id;
+	struct ucond	kcond;
 };
 
 struct pthread_cond_attr {
@@ -491,7 +494,9 @@ struct pthread {
 #define	TMQ_NORM_PRIV		1	/* NORMAL or PRIO_INHERIT normal priv */
 #define	TMQ_NORM_PP		2	/* PRIO_PROTECT normal mutexes */
 #define	TMQ_NORM_PP_PRIV	3	/* PRIO_PROTECT normal priv */
-#define	TMQ_NITEMS		4
+#define	TMQ_ROBUST_PP		4	/* PRIO_PROTECT robust mutexes */
+#define	TMQ_ROBUST_PP_PRIV	5	/* PRIO_PROTECT robust priv */	
+#define	TMQ_NITEMS		6
 	struct mutex_queue	mq[TMQ_NITEMS];
 
 	void				*ret;
@@ -544,6 +549,11 @@ struct pthread {
 
 	/* Number of threads deferred. */
 	int			nwaiter_defer;
+
+	int			robust_inited;
+	uintptr_t		robust_list;
+	uintptr_t		priv_robust_list;
+	uintptr_t		inact_mtx;
 
 	/* Deferred threads from pthread_cond_signal. */
 	unsigned int 		*defer_waiters[MAX_DEFER_WAITERS];
@@ -754,16 +764,22 @@ extern struct pthread	*_single_thread __hidden;
  */
 __BEGIN_DECLS
 int	_thr_setthreaded(int) __hidden;
-int	_mutex_cv_lock(struct pthread_mutex *, int) __hidden;
+int	_mutex_cv_lock(struct pthread_mutex *, int, bool) __hidden;
 int	_mutex_cv_unlock(struct pthread_mutex *, int *, int *) __hidden;
 int     _mutex_cv_attach(struct pthread_mutex *, int) __hidden;
 int     _mutex_cv_detach(struct pthread_mutex *, int *) __hidden;
 int     _mutex_owned(struct pthread *, const struct pthread_mutex *) __hidden;
 int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
+int	_mutex_enter_robust(struct pthread *curthread, struct pthread_mutex *m)
+	    __hidden;
+void	_mutex_leave_robust(struct pthread *curthread, struct pthread_mutex *m)
+	    __hidden;
 void	_libpthread_init(struct pthread *) __hidden;
 struct pthread *_thr_alloc(struct pthread *) __hidden;
 void	_thread_exit(const char *, int, const char *) __hidden __dead2;
+void	_thread_exitf(const char *, int, const char *, ...) __hidden __dead2
+	    __printflike(3, 4);
 int	_thr_ref_add(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
 void	_thr_ref_delete_unlocked(struct pthread *, struct pthread *) __hidden;
@@ -775,7 +791,8 @@ void	_thr_stack_free(struct pthread_attr *) __hidden;
 void	_thr_free(struct pthread *, struct pthread *) __hidden;
 void	_thr_gc(struct pthread *) __hidden;
 void    _thread_cleanupspecific(void) __hidden;
-void	_thread_printf(int, const char *, ...) __hidden;
+void	_thread_printf(int, const char *, ...) __hidden __printflike(2, 3);
+void	_thread_vprintf(int, const char *, va_list) __hidden;
 void	_thr_spinlock_init(void) __hidden;
 void	_thr_cancel_enter(struct pthread *) __hidden;
 void	_thr_cancel_enter2(struct pthread *, int) __hidden;
@@ -819,6 +836,11 @@ void	_pthread_cleanup_pop(int);
 void	_pthread_exit_mask(void *status, sigset_t *mask) __dead2 __hidden;
 void	_pthread_cancel_enter(int maycancel);
 void 	_pthread_cancel_leave(int maycancel);
+int	_pthread_mutex_consistent(pthread_mutex_t *) __nonnull(1);
+int	_pthread_mutexattr_getrobust(pthread_mutexattr_t *__restrict,
+	    int *__restrict) __nonnull_all;
+int	_pthread_mutexattr_setrobust(pthread_mutexattr_t *, int)
+	    __nonnull(1);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_

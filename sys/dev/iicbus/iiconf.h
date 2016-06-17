@@ -82,7 +82,7 @@
 /*
  * adapter layer errors
  */
-#define IIC_NOERR	0x0	/* no error occured */
+#define	IIC_NOERR	0x0	/* no error occurred */
 #define IIC_EBUSERR	0x1	/* bus error (hardware not in expected state) */
 #define IIC_ENOACK	0x2	/* ack not received until timeout */
 #define IIC_ETIMEOUT	0x3	/* timeout */

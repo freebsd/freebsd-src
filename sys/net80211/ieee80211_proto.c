@@ -1082,7 +1082,7 @@ ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 	/* NB: check ic_bss to avoid NULL deref on initial attach */
 	if (vap->iv_bss != NULL) {
 		/*
-		 * Calculate agressive mode switching threshold based
+		 * Calculate aggressive mode switching threshold based
 		 * on beacon interval.  This doesn't need locking since
 		 * we're only called before entering the RUN state at
 		 * which point we start sending beacon frames.
@@ -1164,11 +1164,11 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		mode = IEEE80211_MODE_AUTO;
 
 	/*
-	 * This implements agressive mode as found in certain
+	 * This implements aggressive mode as found in certain
 	 * vendors' AP's.  When there is significant high
 	 * priority (VI/VO) traffic in the BSS throttle back BE
 	 * traffic by using conservative parameters.  Otherwise
-	 * BE uses agressive params to optimize performance of
+	 * BE uses aggressive params to optimize performance of
 	 * legacy/non-QoS traffic.
 	 */
 

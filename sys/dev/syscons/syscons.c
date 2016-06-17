@@ -3541,7 +3541,7 @@ next_code:
 		if (cold) {
 		    /*
 		     * While devices are being probed, the screen saver need
-		     * to be invoked explictly. XXX
+		     * to be invoked explicitly. XXX
 		     */
 		    if (sc->flags & SC_SCRN_BLANKED) {
 			scsplash_stick(FALSE);

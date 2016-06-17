@@ -82,7 +82,7 @@
 
 /* Channel Address Register */
 #define CAR_CHAN        0x07    /* Channel Number Mask                    */
-#define CAR_A7          0x08    /* Addres bit 7 (unused)                  */
+#define	CAR_A7          0x08    /* Address bit 7 (unused)                  */
 
 /* Receive Character Status Register */
 #define RCSR_OE         0x01    /* Overrun Error                          */

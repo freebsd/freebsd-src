@@ -414,7 +414,7 @@ typedef enum {
 						/* Allow all mcast/bcast frames */
 
 	/*
-	 * Magic RX filter flags that aren't targetting hardware bits
+	 * Magic RX filter flags that aren't targeting hardware bits
 	 * but instead the HAL sets individual bits - eg PHYERR will result
 	 * in OFDM/CCK timing error frames being received.
 	 */
@@ -1097,137 +1097,7 @@ typedef enum {
 /*
  * BT Co-existence definitions
  */
-typedef enum {
-	HAL_BT_MODULE_CSR_BC4	= 0,	/* CSR BlueCore v4 */
-	HAL_BT_MODULE_JANUS	= 1,	/* Kite + Valkyrie combo */
-	HAL_BT_MODULE_HELIUS	= 2,	/* Kiwi + Valkyrie combo */
-	HAL_MAX_BT_MODULES
-} HAL_BT_MODULE;
-
-typedef struct {
-	HAL_BT_MODULE	bt_module;
-	u_int8_t	bt_coex_config;
-	u_int8_t	bt_gpio_bt_active;
-	u_int8_t	bt_gpio_bt_priority;
-	u_int8_t	bt_gpio_wlan_active;
-	u_int8_t	bt_active_polarity;
-	HAL_BOOL	bt_single_ant;
-	u_int8_t	bt_dutyCycle;
-	u_int8_t	bt_isolation;
-	u_int8_t	bt_period;
-} HAL_BT_COEX_INFO;
-
-typedef enum {
-	HAL_BT_COEX_MODE_LEGACY		= 0,	/* legacy rx_clear mode */
-	HAL_BT_COEX_MODE_UNSLOTTED	= 1,	/* untimed/unslotted mode */
-	HAL_BT_COEX_MODE_SLOTTED	= 2,	/* slotted mode */
-	HAL_BT_COEX_MODE_DISALBED	= 3,	/* coexistence disabled */
-} HAL_BT_COEX_MODE;
-
-typedef enum {
-	HAL_BT_COEX_CFG_NONE,		/* No bt coex enabled */
-	HAL_BT_COEX_CFG_2WIRE_2CH,	/* 2-wire with 2 chains */
-	HAL_BT_COEX_CFG_2WIRE_CH1,	/* 2-wire with ch1 */
-	HAL_BT_COEX_CFG_2WIRE_CH0,	/* 2-wire with ch0 */
-	HAL_BT_COEX_CFG_3WIRE,		/* 3-wire */
-	HAL_BT_COEX_CFG_MCI		/* MCI */
-} HAL_BT_COEX_CFG;
-
-typedef enum {
-	HAL_BT_COEX_SET_ACK_PWR		= 0,	/* Change ACK power setting */
-	HAL_BT_COEX_LOWER_TX_PWR,		/* Change transmit power */
-	HAL_BT_COEX_ANTENNA_DIVERSITY,	/* Enable RX diversity for Kite */
-	HAL_BT_COEX_MCI_MAX_TX_PWR,	/* Set max tx power for concurrent tx */
-	HAL_BT_COEX_MCI_FTP_STOMP_RX,	/* Use a different weight for stomp low */
-} HAL_BT_COEX_SET_PARAMETER;
-
-#define	HAL_BT_COEX_FLAG_LOW_ACK_PWR	0x00000001
-#define	HAL_BT_COEX_FLAG_LOWER_TX_PWR	0x00000002
-/* Check Rx Diversity is allowed */
-#define	HAL_BT_COEX_FLAG_ANT_DIV_ALLOW	0x00000004
-/* Check Diversity is on or off */
-#define	HAL_BT_COEX_FLAG_ANT_DIV_ENABLE	0x00000008
-
-#define	HAL_BT_COEX_ANTDIV_CONTROL1_ENABLE	0x0b
-/* main: LNA1, alt: LNA2 */
-#define	HAL_BT_COEX_ANTDIV_CONTROL2_ENABLE	0x09
-#define	HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_A	0x04
-#define	HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_A	0x09
-#define	HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_B	0x02
-#define	HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_B	0x06
-
-#define	HAL_BT_COEX_ISOLATION_FOR_NO_COEX	30
-
-#define	HAL_BT_COEX_ANT_DIV_SWITCH_COM	0x66666666
-
-#define	HAL_BT_COEX_HELIUS_CHAINMASK	0x02
-
-#define	HAL_BT_COEX_LOW_ACK_POWER	0x0
-#define	HAL_BT_COEX_HIGH_ACK_POWER	0x3f3f3f
-
-typedef enum {
-	HAL_BT_COEX_NO_STOMP = 0,
-	HAL_BT_COEX_STOMP_ALL,
-	HAL_BT_COEX_STOMP_LOW,
-	HAL_BT_COEX_STOMP_NONE,
-	HAL_BT_COEX_STOMP_ALL_FORCE,
-	HAL_BT_COEX_STOMP_LOW_FORCE,
-} HAL_BT_COEX_STOMP_TYPE;
-
-typedef struct {
-	/* extend rx_clear after tx/rx to protect the burst (in usec). */
-	u_int8_t	bt_time_extend;
-
-	/*
-	 * extend rx_clear as long as txsm is
-	 * transmitting or waiting for ack.
-	 */
-	HAL_BOOL	bt_txstate_extend;
-
-	/*
-	 * extend rx_clear so that when tx_frame
-	 * is asserted, rx_clear will drop.
-	 */
-	HAL_BOOL	bt_txframe_extend;
-
-	/*
-	 * coexistence mode
-	 */
-	HAL_BT_COEX_MODE	bt_mode;
-
-	/*
-	 * treat BT high priority traffic as
-	 * a quiet collision
-	 */
-	HAL_BOOL	bt_quiet_collision;
-
-	/*
-	 * invert rx_clear as WLAN_ACTIVE
-	 */
-	HAL_BOOL	bt_rxclear_polarity;
-
-	/*
-	 * slotted mode only. indicate the time in usec
-	 * from the rising edge of BT_ACTIVE to the time
-	 * BT_PRIORITY can be sampled to indicate priority.
-	 */
-	u_int8_t	bt_priority_time;
-
-	/*
-	 * slotted mode only. indicate the time in usec
-	 * from the rising edge of BT_ACTIVE to the time
-	 * BT_PRIORITY can be sampled to indicate tx/rx and
-	 * BT_FREQ is sampled.
-	 */
-	u_int8_t	bt_first_slot_time;
-
-	/*
-	 * slotted mode only. rx_clear and bt_ant decision
-	 * will be held the entire time that BT_ACTIVE is asserted,
-	 * otherwise the decision is made before every slot boundry.
-	 */
-	HAL_BOOL	bt_hold_rxclear;
-} HAL_BT_COEX_CONFIG;
+#include "ath_hal/ah_btcoex.h"
 
 struct hal_bb_panic_info {
 	u_int32_t	status;
@@ -1643,7 +1513,7 @@ struct ath_hal {
 				HAL_BOOL, HAL_BOOL);
 	uint32_t    __ahdecl(*ah_btMciGetInterrupt)(struct ath_hal *,
 				uint32_t *, uint32_t *);
-	uint32_t    __ahdecl(*ah_btMciGetState)(struct ath_hal *,
+	uint32_t    __ahdecl(*ah_btMciState)(struct ath_hal *,
 				uint32_t, uint32_t *);
 	void	    __ahdecl(*ah_btMciDetach)(struct ath_hal *);
 

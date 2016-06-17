@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * This node is used for high speed packet geneneration.  It queues
- * all data recieved on its 'input' hook and when told to start via
+ * all data received on its 'input' hook and when told to start via
  * a control message it sends the packets out its 'output' hook.  In
  * this way this node can be preloaded with a packet stream which it
  * can then send continuously as fast as possible.

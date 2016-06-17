@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 NETBSD_ATF_TESTS_SH=	basename_test
 
 .include <netbsd-tests.test.mk>

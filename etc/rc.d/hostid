@@ -35,6 +35,7 @@
 . /etc/rc.subr
 
 name="hostid"
+desc="Generate a unique host ID"
 start_cmd="hostid_start"
 stop_cmd=":"
 reset_cmd="hostid_reset"

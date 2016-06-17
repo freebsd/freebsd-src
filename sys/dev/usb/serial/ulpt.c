@@ -419,7 +419,7 @@ ulpt_open(struct usb_fifo *fifo, int fflags)
 
 	if (sc->sc_fflags == 0) {
 
-		/* reset USB paralell port */
+		/* reset USB parallel port */
 
 		ulpt_reset(sc);
 	}

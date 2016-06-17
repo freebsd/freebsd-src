@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ipnat"
+desc="user interface to the NAT subsystem"
 rcvar="ipnat_enable"
 load_rc_config $name
 start_cmd="ipnat_start"

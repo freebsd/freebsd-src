@@ -24,6 +24,8 @@ ident		ZEDBOARD
 include 	"std.armv6"
 include 	"../xilinx/std.zynq7"
 
+makeoptions	MODULES_EXTRA="dtb/zynq"
+
 options 	SCHED_ULE		# ULE scheduler
 #options 	NFSSD			# Network Filesystem Server
 options 	SMP			# Enable multiple cores

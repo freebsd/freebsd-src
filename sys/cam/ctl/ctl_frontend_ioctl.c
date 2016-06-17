@@ -339,7 +339,7 @@ cfi_submit_wait(union ctl_io *io)
 		mtx_lock(&params.ioctl_mtx);
 		/*
 		 * Check the state here, and don't sleep if the state has
-		 * already changed (i.e. wakeup has already occured, but we
+		 * already changed (i.e. wakeup has already occurred, but we
 		 * weren't waiting yet).
 		 */
 		if (params.state == last_state) {

@@ -601,7 +601,7 @@ lzip_init(struct archive_read_filter *self)
 		return (ARCHIVE_FATAL);
 	}
 	ret = lzma_raw_decoder(&(state->stream), filters);
-#if LZMA_VERSION < 50000030
+#if LZMA_VERSION < 50010000
 	free(filters[0].options);
 #endif
 	if (ret != LZMA_OK) {
@@ -627,7 +627,7 @@ lzip_tail(struct archive_read_filter *self)
 	f = __archive_read_filter_ahead(self->upstream, tail, &avail_in);
 	if (f == NULL && avail_in < 0)
 		return (ARCHIVE_FATAL);
-	if (avail_in < tail) {
+	if (f == NULL || avail_in < tail) {
 		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
 		    "Lzip: Remaining data is less bytes");
 		return (ARCHIVE_FAILED);

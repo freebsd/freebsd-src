@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.58 2016/03/15 23:39:12 sjg Exp $
+#	$Id: Makefile,v 1.67 2016/06/07 00:46:12 sjg Exp $
 
 # Base version on src date
-_MAKE_VERSION= 20160315
+_MAKE_VERSION= 20160606
 
 PROG=	bmake
 
@@ -131,9 +131,9 @@ OPTIONS_DEFAULT_NO+= \
 .include <own.mk>
 
 .if ${MK_PROG_VERSION} == "yes"
-PROG_NAME= ${PROG}-${MAKE_VERSION}
+PROG_NAME= ${PROG}-${_MAKE_VERSION}
 .if ${MK_PROG_LINK} == "yes"
-SYMLINKS+= ${PROG}-${MAKE_VERSION} ${BINDIR}/${PROG}
+SYMLINKS+= ${PROG_NAME} ${BINDIR}/${PROG}
 .endif
 .endif
 

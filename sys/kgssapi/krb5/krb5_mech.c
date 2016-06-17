@@ -1339,7 +1339,7 @@ krb5_wrap_old(struct krb5_context *kc, int conf_req_flag,
 	 * SND_SEQ:
 	 *
 	 * Take the four bytes of the sequence number least
-	 * significant first (most signficant first for ARCFOUR)
+	 * significant first (most significant first for ARCFOUR)
 	 * followed by four bytes of direction marker (zero for
 	 * initiator and 0xff for acceptor). Encrypt that data using
 	 * the SGN_CKSUM as IV.

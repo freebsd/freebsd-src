@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
  * The services list
  * Each entry represents a set of procedures (an rpc program).
  * The dispatch routine takes request structs and runs the
- * apropriate procedure.
+ * appropriate procedure.
  */
 static struct svc_callout {
 	struct svc_callout *sc_next;

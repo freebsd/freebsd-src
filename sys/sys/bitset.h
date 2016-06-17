@@ -32,6 +32,13 @@
 #ifndef _SYS_BITSET_H_
 #define	_SYS_BITSET_H_
 
+#define	__bitset_mask(_s, n)						\
+	(1L << ((__bitset_words((_s)) == 1) ?				\
+	    (__size_t)(n) : ((n) % _BITSET_BITS)))
+
+#define	__bitset_word(_s, n)						\
+	((__bitset_words((_s)) == 1) ? 0 : ((n) / _BITSET_BITS))
+
 #define	BIT_CLR(_s, n, p)						\
 	((p)->__bits[__bitset_word(_s, n)] &= ~__bitset_mask((_s), (n)))
 
@@ -185,5 +192,17 @@
 		__count += __bitcountl((p)->__bits[__i]);		\
 	__count;							\
 })
-	
+
+#define	BITSET_T_INITIALIZER(x)						\
+	{ .__bits = { x } }
+
+#define	BITSET_FSET(n)							\
+	[ 0 ... ((n) - 1) ] = (-1L)
+
+/*
+ * Dynamically allocate a bitset.
+ */
+#define BITSET_ALLOC(_s, mt, mf)					\
+	malloc(__bitset_words(_s) * sizeof(long), mt, (mf))
+
 #endif /* !_SYS_BITSET_H_ */

@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ypserv"
+desc="NIS database server"
 rcvar="nis_server_enable"
 
 load_rc_config $name

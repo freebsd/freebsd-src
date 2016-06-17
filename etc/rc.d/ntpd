@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="ntpd"
+desc="Network Time Protocol daemon"
 rcvar="ntpd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
@@ -107,8 +108,8 @@ ntpd_fetch_leapfile() {
 			$verbose fetching $url
 			fetch $ntp_leapfile_fetch_opts -o $ntp_tmp_leapfile $url && break
 		done
-		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $ntp_tmp_leapfile)
-		if [ "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" ]; then
+		ntp_expiry_tmp=$(get_ntp_leapfile_expiry $ntp_tmp_leapfile)
+		if [ "$ntp_expiry_tmp" -gt "$ntp_leap_expiry" ]; then
 			$verbose using $url as $ntp_db_leapfile
 			mv $ntp_tmp_leapfile $ntp_db_leapfile
 		else

@@ -126,26 +126,12 @@ _start:
 	csrr	a0, mhartid
 	bnez	a0, mpentry
 
-#if defined(DDR_CLEAR_SIZE)
-	/* Clear DDR memory */
-	la	t0, _end
-	li	t1, DDR_CLEAR_SIZE
-1:
-	sd	zero, 0(t0)
-	addi	t0, t0, 8
-	bltu	t0, t1, 1b
-	/* End */
-#endif
-
 	/* Build event queue for current core */
 	build_ring
 
 	/* Setup machine-mode stack for CPU 0 */
 	la	t0, hardstack_end
 	csrw	mscratch, t0
-
-	la	t0, mentry
-	csrw	mtvec, t0
 
 	li	t0, 0
 	csrw	sscratch, t0
@@ -155,36 +141,31 @@ _start:
 
 	/* Page tables */
 
-	/* Level 0 */
-	la	s1, pagetable_l0
-	la	s2, pagetable_l1	/* Link to next level PN */
+	/* Create an L1 page for early devmap */
+	la	s1, pagetable_l1
+	la	s2, pagetable_l2_devmap	/* Link to next level PN */
 	srli	s2, s2, PAGE_SHIFT
 
+	li	a5, (VM_MAX_KERNEL_ADDRESS - L2_SIZE)
+	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
+	andi	a5, a5, 0x1ff		/* & 0x1ff */
 	li	t4, (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S))
 	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
 	or	t6, t4, t5
 
-	/* Store single level0 PTE entry to position */
-	li	a5, 0x1ff
+	/* Store single level1 PTE entry to position */
 	li	a6, PTE_SIZE
 	mulw	a5, a5, a6
 	add	t0, s1, a5
-	/* Store it to pagetable_l0 for each cpu */
-	li	t1, MAXCPU
-	li	t2, PAGE_SIZE
-1:
-	sd	t6, 0(t0)
-	add	t0, t0, t2
-	addi	t1, t1, -1
-	bnez	t1, 1b
+	sd	t6, (t0)
 
-	/* Level 1 */
+	/* Add single Level 1 entry for kernel */
 	la	s1, pagetable_l1
 	la	s2, pagetable_l2	/* Link to next level PN */
 	srli	s2, s2, PAGE_SHIFT
 
 	li	a5, KERNBASE
-	srli	a5, a5, 0x1e		/* >> 30 */
+	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
 	andi	a5, a5, 0x1ff		/* & 0x1ff */
 	li	t4, (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S))
 	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
@@ -212,13 +193,13 @@ _start:
 	bltu	t4, t3, 2b
 
 	/* Set page tables base register */
-	la	s1, pagetable_l0
+	la	s1, pagetable_l1
 	csrw	sptbr, s1
 
 	/* Page tables END */
 
 	/* Enter supervisor mode */
-	li	s0, ((MSTATUS_VM_SV48 << MSTATUS_VM_SHIFT) | \
+	li	s0, ((MSTATUS_VM_SV39 << MSTATUS_VM_SHIFT) | \
 		     (MSTATUS_PRV_M << MSTATUS_PRV_SHIFT) | \
 		     (MSTATUS_PRV_S << MSTATUS_PRV1_SHIFT) | \
 		     (MSTATUS_PRV_U << MSTATUS_PRV2_SHIFT));
@@ -304,14 +285,12 @@ szsigcode:
 	.quad	esigcode - sigcode
 
 	.align	12
-	.globl pagetable_l0
-pagetable_l0:
-	.space (PAGE_SIZE * MAXCPU)
 pagetable_l1:
 	.space	PAGE_SIZE
 pagetable_l2:
 	.space	PAGE_SIZE
-pagetable_end:
+pagetable_l2_devmap:
+	.space	PAGE_SIZE
 
 	.globl init_pt_va
 init_pt_va:
@@ -346,23 +325,15 @@ ENTRY(mpentry)
 	lw	t1, 0(t0)
 	beqz	t1, 1b
 
-	/* Setup machine exception vector */
-	la	t0, mentry
-	csrw	mtvec, t0
-
 	/* Build event queue ring for this core */
 	build_ring
 
 	/* Set page tables base register */
-	la	t0, pagetable_l0
-	li	t1, PAGE_SIZE
-	mulw	t1, t1, a0
-	add	t0, t0, t1
+	la	t0, pagetable_l1
 	csrw	sptbr, t0
-	/* Page tables END */
 
 	/* Configure mstatus */
-	li	s0, ((MSTATUS_VM_SV48 << MSTATUS_VM_SHIFT) | \
+	li	s0, ((MSTATUS_VM_SV39 << MSTATUS_VM_SHIFT) | \
 		     (MSTATUS_PRV_M << MSTATUS_PRV_SHIFT) | \
 		     (MSTATUS_PRV_S << MSTATUS_PRV1_SHIFT) | \
 		     (MSTATUS_PRV_U << MSTATUS_PRV2_SHIFT));

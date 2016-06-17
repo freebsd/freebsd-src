@@ -55,14 +55,8 @@ ENTRY(cpu_throw)
 	sfence.vm
 
 	/* Switch to the new pmap */
-	ld	t1, PCB_L1ADDR(x13)	/* Link to next level PN */
-	srli	t1, t1, PAGE_SHIFT	/* PN no */
-	li	t2, (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S))
-	slli	t3, t1, PTE_PPN0_S	/* (t1 << PTE_PPN0_S) */
-	or	t4, t2, t3
-	/* Store single level0 PTE entry to position */
-	ld	t0, PC_SPTBR(gp)
-	sd	t4, 0(t0)
+	ld	t0, PCB_L1ADDR(x13)
+	csrw	sptbr, t0
 
 	/* TODO: Invalidate the TLB */
 
@@ -140,14 +134,8 @@ ENTRY(cpu_switch)
 	sfence.vm
 
 	/* Switch to the new pmap */
-	ld	t1, PCB_L1ADDR(x13)	/* Link to next level PN */
-	srli	t1, t1, PAGE_SHIFT	/* PN no */
-	li	t2, (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S))
-	slli	t3, t1, PTE_PPN0_S	/* (t1 << PTE_PPN0_S) */
-	or	t4, t2, t3
-	/* Store single level0 PTE entry to position */
-	ld	t0, PC_SPTBR(gp)
-	sd	t4, 0(t0)
+	ld	t0, PCB_L1ADDR(x13)
+	csrw	sptbr, t0
 
 	/* TODO: Invalidate the TLB */
 

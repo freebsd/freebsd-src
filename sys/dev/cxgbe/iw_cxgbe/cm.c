@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 struct sge_iq;
 struct rss_header;
+struct cpl_set_tcb_rpl;
 #include <linux/types.h>
 #include "offload.h"
 #include "tom/t4_tom.h"
@@ -759,7 +760,7 @@ process_socket_event(struct c4iw_ep *ep)
 	}
 
 	/* peer close */
-	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && state < CLOSING) {
+	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && state <= CLOSING) {
 		process_peer_close(ep);
 		return;
 	}
@@ -1222,9 +1223,23 @@ static int send_abort(struct c4iw_ep *ep)
 
 	CTR2(KTR_IW_CXGBE, "%s:abB %p", __func__, ep);
 	abort_socket(ep);
-	err = close_socket(&ep->com, 0);
+
+	/*
+	 * Since socket options were set as l_onoff=1 and l_linger=0 in in
+	 * abort_socket, invoking soclose here sends a RST (reset) to the peer.
+	 */
+	err = close_socket(&ep->com, 1);
 	set_bit(ABORT_CONN, &ep->com.history);
 	CTR2(KTR_IW_CXGBE, "%s:abE %p", __func__, ep);
+
+	/*
+	 * TBD: iw_cgbe driver should receive ABORT reply for every ABORT
+	 * request it has sent. But the current TOE driver is not propagating
+	 * this ABORT reply event (via do_abort_rpl) to iw_cxgbe. So as a work-
+	 * around de-refer 'ep' (which was refered before sending ABORT request)
+	 * here instead of doing it in abort_rpl() handler of iw_cxgbe driver.
+	 */
+	c4iw_put_ep(&ep->com);
 	return err;
 }
 
@@ -1860,14 +1875,16 @@ process_mpa_request(struct c4iw_ep *ep)
 	/* drive upcall */
 	mutex_lock(&ep->parent_ep->com.mutex);
 	if (ep->parent_ep->com.state != DEAD) {
-		if(connect_request_upcall(ep))
-			goto err_out;
-	}else {
-		goto err_out;
-	}
+		if (connect_request_upcall(ep))
+			goto err_unlock_parent;
+	} else
+		goto err_unlock_parent;
 	mutex_unlock(&ep->parent_ep->com.mutex);
 	return 0;
 
+err_unlock_parent:
+	mutex_unlock(&ep->parent_ep->com.mutex);
+	goto err_out;
 err_stop_timer:
 	STOP_EP_TIMER(ep);
 err_out:

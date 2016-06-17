@@ -200,7 +200,7 @@ extern int	authnumfreekeys;
 extern keyid_t	cache_keyid;		/* key identifier */
 extern int	cache_type;		/* key type */
 extern u_char *	cache_secret;		/* secret */
-extern u_short	cache_secretsize;	/* secret octets */
+extern size_t	cache_secretsize;	/* secret octets */
 extern u_short	cache_flags;		/* KEY_ bit flags */
 
 /* getopt.c */

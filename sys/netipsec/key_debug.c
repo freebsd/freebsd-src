@@ -506,6 +506,8 @@ kdebug_secpolicy(struct secpolicy *sp)
 void
 kdebug_secpolicyindex(struct secpolicyindex *spidx)
 {
+	char buf[INET6_ADDRSTRLEN];
+
 	/* sanity check */
 	if (spidx == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
@@ -513,19 +515,15 @@ kdebug_secpolicyindex(struct secpolicyindex *spidx)
 	printf("secpolicyindex{ dir=%u prefs=%u prefd=%u ul_proto=%u\n",
 		spidx->dir, spidx->prefs, spidx->prefd, spidx->ul_proto);
 
-	ipsec_hexdump((caddr_t)&spidx->src,
-		((struct sockaddr *)&spidx->src)->sa_len);
-	printf("\n");
-	ipsec_hexdump((caddr_t)&spidx->dst,
-		((struct sockaddr *)&spidx->dst)->sa_len);
-	printf("}\n");
-
-	return;
+	printf("%s -> ", ipsec_address(&spidx->src, buf, sizeof(buf)));
+	printf("%s }\n", ipsec_address(&spidx->dst, buf, sizeof(buf)));
 }
 
 void
 kdebug_secasindex(struct secasindex *saidx)
 {
+	char buf[INET6_ADDRSTRLEN];
+
 	/* sanity check */
 	if (saidx == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
@@ -533,14 +531,8 @@ kdebug_secasindex(struct secasindex *saidx)
 	printf("secasindex{ mode=%u proto=%u\n",
 		saidx->mode, saidx->proto);
 
-	ipsec_hexdump((caddr_t)&saidx->src,
-		((struct sockaddr *)&saidx->src)->sa_len);
-	printf("\n");
-	ipsec_hexdump((caddr_t)&saidx->dst,
-		((struct sockaddr *)&saidx->dst)->sa_len);
-	printf("\n");
-
-	return;
+	printf("%s -> ", ipsec_address(&saidx->src, buf, sizeof(buf)));
+	printf("%s }\n", ipsec_address(&saidx->dst, buf, sizeof(buf)));
 }
 
 static void

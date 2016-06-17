@@ -932,7 +932,7 @@ ipfw_nat_cfg(struct sockopt *sopt)
 
 	/*
 	 * Allocate 2x buffer to store converted structures.
-	 * new redir_cfg has shrinked, so we're sure that
+	 * new redir_cfg has shrunk, so we're sure that
 	 * new buffer size is enough.
 	 */
 	buf = malloc(roundup2(len, 8) + len2, M_TEMP, M_WAITOK | M_ZERO);

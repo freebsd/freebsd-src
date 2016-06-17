@@ -105,6 +105,7 @@ spibus_print_child(device_t dev, device_t child)
 
 	retval += bus_print_child_header(dev, child);
 	retval += printf(" at cs %d", devi->cs);
+	retval += printf(" mode %d", devi->mode);
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -117,6 +118,7 @@ spibus_probe_nomatch(device_t bus, device_t child)
 
 	device_printf(bus, "<unknown card>");
 	printf(" at cs %d\n", devi->cs);
+	printf(" mode %d", devi->mode);
 	return;
 }
 
@@ -139,7 +141,7 @@ spibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 }
 
 static int
-spibus_read_ivar(device_t bus, device_t child, int which, u_int *result)
+spibus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct spibus_ivar *devi = SPIBUS_IVAR(child);
 
@@ -148,6 +150,12 @@ spibus_read_ivar(device_t bus, device_t child, int which, u_int *result)
 		return (EINVAL);
 	case SPIBUS_IVAR_CS:
 		*(uint32_t *)result = devi->cs;
+		break;
+	case SPIBUS_IVAR_MODE:
+		*(uint32_t *)result = devi->mode;
+		break;
+	case SPIBUS_IVAR_CLOCK:
+		*(uint32_t *)result = devi->clock;
 		break;
 	}
 	return (0);
@@ -179,7 +187,9 @@ spibus_hinted_child(device_t bus, const char *dname, int dunit)
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
 	devi = SPIBUS_IVAR(child);
+	devi->mode = SPIBUS_MODE_NONE;
 	resource_int_value(dname, dunit, "cs", &devi->cs);
+	resource_int_value(dname, dunit, "mode", &devi->mode);
 }
 
 static int

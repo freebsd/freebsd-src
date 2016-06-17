@@ -112,7 +112,7 @@ extern int ptblread(void *d, void *buf, size_t blocks, off_t offset);
 /*
  * Print information about slices on a disk.
  */
-extern void disk_print(struct disk_devdesc *dev, char *prefix, int verbose);
+extern int disk_print(struct disk_devdesc *dev, char *prefix, int verbose);
 extern char* disk_fmtdev(struct disk_devdesc *dev);
 extern int disk_parsedev(struct disk_devdesc *dev, const char *devspec,
     const char **path);

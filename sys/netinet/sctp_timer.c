@@ -1076,8 +1076,8 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 		return (1);
 	}
 	/*
-	 * cleared theshold management now lets backoff the address & select
-	 * an alternate
+	 * Cleared threshold management, now lets backoff the address and
+	 * select an alternate
 	 */
 	stcb->asoc.dropped_special_cnt = 0;
 	sctp_backoff_on_timeout(stcb, cookie->whoTo, 1, 0, 0);
@@ -1122,8 +1122,8 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		return (1);
 	}
 	/*
-	 * cleared theshold management now lets backoff the address & select
-	 * an alternate
+	 * Cleared threshold management, now lets backoff the address and
+	 * select an alternate
 	 */
 	sctp_backoff_on_timeout(stcb, strrst->whoTo, 1, 0, 0);
 	alt = sctp_find_alternate_net(stcb, strrst->whoTo, 0);
@@ -1282,7 +1282,7 @@ sctp_shutdown_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 {
 	struct sctp_nets *alt;
 
-	/* first threshold managment */
+	/* first threshold management */
 	if (sctp_threshold_management(inp, stcb, net, stcb->asoc.max_send_times)) {
 		/* Assoc is over */
 		return (1);
@@ -1305,7 +1305,7 @@ sctp_shutdownack_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 {
 	struct sctp_nets *alt;
 
-	/* first threshold managment */
+	/* first threshold management */
 	if (sctp_threshold_management(inp, stcb, net, stcb->asoc.max_send_times)) {
 		/* Assoc is over */
 		return (1);

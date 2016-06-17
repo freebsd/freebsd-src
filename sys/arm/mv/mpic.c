@@ -274,7 +274,7 @@ mv_mpic_attach(device_t dev)
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
 		return (ENXIO);
 	}
-	if (intr_pic_register(dev, OF_xref_from_device(dev)) != 0) {
+	if (intr_pic_register(dev, OF_xref_from_device(dev)) == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
 		return (ENXIO);
@@ -339,15 +339,19 @@ static int
 mpic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
+	struct intr_map_data_fdt *daf;
 	struct mv_mpic_softc *sc;
 
-	sc = device_get_softc(dev);
+	if (data->type != INTR_MAP_DATA_FDT)
+		return (ENOTSUP);
 
-	if (data->type != INTR_MAP_DATA_FDT || data->fdt.ncells !=1 ||
-	    data->fdt.cells[0] >= sc->nirqs)
+	sc = device_get_softc(dev);
+	daf = (struct intr_map_data_fdt *)data;
+
+	if (daf->ncells !=1 || daf->cells[0] >= sc->nirqs)
 		return (EINVAL);
 
-	*isrcp = &sc->mpic_isrcs[data->fdt.cells[0]].mmi_isrc;
+	*isrcp = &sc->mpic_isrcs[daf->cells[0]].mmi_isrc;
 	return (0);
 }
 
@@ -364,6 +368,11 @@ mpic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	mpic_enable_intr(dev, isrc);
 }
+
+static void
+mpic_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+}
 #endif
 
 static device_method_t mv_mpic_methods[] = {
@@ -374,6 +383,7 @@ static device_method_t mv_mpic_methods[] = {
 	DEVMETHOD(pic_disable_intr,	mpic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mpic_enable_intr),
 	DEVMETHOD(pic_map_intr,		mpic_map_intr),
+	DEVMETHOD(pic_post_filter,	mpic_post_filter),
 	DEVMETHOD(pic_post_ithread,	mpic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mpic_pre_ithread),
 #endif
@@ -564,7 +574,7 @@ mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
 
 	node = ofw_bus_get_node(mv_mpic_sc->sc_dev);
 
-	/* Get physical addres of register space */
+	/* Get physical address of register space */
 	error = fdt_get_range(OF_parent(node), 0, &phys, &size);
 	if (error) {
 		printf("%s: Cannot get register physical address, err:%d",

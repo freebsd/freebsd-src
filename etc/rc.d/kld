@@ -33,6 +33,7 @@
 . /etc/rc.subr
 
 name="kld"
+desc="Load kernel modules"
 
 start_cmd="${name}_start"
 stop_cmd=':'

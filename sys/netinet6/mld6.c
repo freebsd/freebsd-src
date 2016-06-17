@@ -300,7 +300,8 @@ mld_restore_context(struct mbuf *m)
 
 #if defined(VIMAGE) && defined(INVARIANTS)
 	KASSERT(curvnet == m->m_pkthdr.PH_loc.ptr,
-	    ("%s: called when curvnet was not restored", __func__));
+	    ("%s: called when curvnet was not restored: cuvnet %p m ptr %p",
+	    __func__, curvnet, m->m_pkthdr.PH_loc.ptr));
 #endif
 	return (m->m_pkthdr.flowid);
 }
@@ -971,9 +972,9 @@ out_locked:
 }
 
 /*
- * Process a recieved MLDv2 group-specific or group-and-source-specific
+ * Process a received MLDv2 group-specific or group-and-source-specific
  * query.
- * Return <0 if any error occured. Currently this is ignored.
+ * Return <0 if any error occurred. Currently this is ignored.
  */
 static int
 mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,

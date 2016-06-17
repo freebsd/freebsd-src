@@ -4,13 +4,13 @@
 #
 # Run nightly periodic scripts
 #
-# usage: periodic { daily | weekly | monthly } - run standard periodic scripts
+# usage: periodic { daily | weekly | monthly | security } - run standard scripts
 #        periodic /absolute/path/to/directory  - run periodic scripts in dir
 #
 
 usage () {
     echo "usage: $0 <directory of files to execute>" 1>&2
-    echo "or     $0 { daily | weekly | monthly }"    1>&2
+    echo "or     $0 { daily | weekly | monthly | security }"    1>&2
     exit 1
 }
 

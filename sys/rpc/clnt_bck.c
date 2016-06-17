@@ -175,14 +175,9 @@ clnt_bck_create(
 	return (cl);
 
 err:
-	if (cl) {
-		if (ct) {
-			mtx_destroy(&ct->ct_lock);
-			mem_free(ct, sizeof (struct ct_data));
-		}
-		if (cl)
-			mem_free(cl, sizeof (CLIENT));
-	}
+	mtx_destroy(&ct->ct_lock);
+	mem_free(ct, sizeof (struct ct_data));
+	mem_free(cl, sizeof (CLIENT));
 	return (NULL);
 }
 
@@ -431,7 +426,7 @@ got_reply:
 			}
 		}		/* end successful completion */
 		/*
-		 * If unsuccesful AND error is an authentication error
+		 * If unsuccessful AND error is an authentication error
 		 * then refresh credentials and try again, else break
 		 */
 		else if (stat == RPC_AUTHERROR)

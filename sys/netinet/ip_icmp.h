@@ -140,9 +140,10 @@ struct icmp {
 /*
  * ICMP_ADVLENPREF is the preferred number of bytes which should be contiguous.
  * SCTP needs additional 12 bytes to be able to access the initiate tag
- * in packets containing an INIT chunk.
+ * in packets containing an INIT chunk. For also supporting SCTP/UDP,
+ * additional 8 bytes are needed.
  */
-#define	ICMP_ADVLENPREF(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8 + 12)
+#define	ICMP_ADVLENPREF(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8 + 8 + 12)
 
 /*
  * Definition of type and code field values.

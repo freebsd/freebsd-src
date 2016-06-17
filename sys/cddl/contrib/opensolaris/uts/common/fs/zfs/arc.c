@@ -140,7 +140,6 @@
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 
-#include <vm/vm_pageout.h>
 #include <machine/vmparam.h>
 
 #ifdef illumos
@@ -2250,6 +2249,7 @@ arc_buf_l2_cdata_free(arc_buf_hdr_t *hdr)
 		ASSERT3P(hdr->b_l1hdr.b_tmp_cdata, ==,
 		    hdr->b_l1hdr.b_buf->b_data);
 		ASSERT3U(hdr->b_l2hdr.b_compress, ==, ZIO_COMPRESS_OFF);
+		hdr->b_l1hdr.b_tmp_cdata = NULL;
 		return;
 	}
 

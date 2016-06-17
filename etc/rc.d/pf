@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="pf"
+desc="Packet filter"
 rcvar="pf_enable"
 load_rc_config $name
 start_cmd="pf_start"

@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define	SIGN_POSN_USED		0x02	/* '+' or '(' usage flag */
 #define	LOCALE_POSN		0x04	/* use locale defined +/- (default) */
 #define	PARENTH_POSN		0x08	/* enclose negative amount in () */
-#define	SUPRESS_CURR_SYMBOL	0x10	/* supress the currency from output */
+#define	SUPRESS_CURR_SYMBOL	0x10	/* suppress the currency from output */
 #define	LEFT_JUSTIFY		0x20	/* left justify */
 #define	USE_INTL_CURRENCY	0x40	/* use international currency symbol */
 #define IS_NEGATIVE		0x80	/* is argument value negative ? */
@@ -580,7 +580,7 @@ __format_grouped_double(double value, int *flags,
 	}
 	bufend = rslt + bufsize - 1;	/* reserve space for trailing '\0' */
 
-	/* skip spaces at beggining */
+	/* skip spaces at beginning */
 	padded = 0;
 	while (avalue[padded] == ' ') {
 		padded++;

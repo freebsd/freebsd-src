@@ -257,6 +257,15 @@
 #define RT2860_TX_DMA_BUSY		(1 << 1)
 #define RT2860_TX_DMA_EN		(1 << 0)
 
+/* flags for register WPDMA_RST_IDX */
+#define RT2860_RST_DRX_IDX0		(1 << 16)
+#define RT2860_RST_DTX_IDX5		(1 <<  5)
+#define RT2860_RST_DTX_IDX4		(1 <<  4)
+#define RT2860_RST_DTX_IDX3		(1 <<  3)
+#define RT2860_RST_DTX_IDX2		(1 <<  2)
+#define RT2860_RST_DTX_IDX1		(1 <<  1)
+#define RT2860_RST_DTX_IDX0		(1 <<  0)
+
 /* possible flags for register DELAY_INT_CFG */
 #define RT2860_TXDLY_INT_EN		(1U << 31)
 #define RT2860_TXMAX_PINT_SHIFT		24
@@ -900,18 +909,19 @@ struct rt2860_rxwi {
 #define RT2860_RF3	1
 #define RT2860_RF4	3
 
-#define RT2860_RF_2820	1	/* 2T3R */
-#define RT2860_RF_2850	2	/* dual-band 2T3R */
-#define RT2860_RF_2720	3	/* 1T2R */
-#define RT2860_RF_2750	4	/* dual-band 1T2R */
-#define RT3070_RF_3020	5	/* 1T1R */
-#define RT3070_RF_2020	6	/* b/g */
-#define RT3070_RF_3021	7	/* 1T2R */
-#define RT3070_RF_3022	8	/* 2T2R */
-#define RT3070_RF_3052	9	/* dual-band 2T2R */
-#define RT3070_RF_3320	11	/* 1T1R */
-#define RT3070_RF_3053	13	/* dual-band 3T3R */
-#define RT5390_RF_5390	15	/* b/g/n */
+#define RT2860_RF_2820	0x0001	/* 2T3R */
+#define RT2860_RF_2850	0x0002	/* dual-band 2T3R */
+#define RT2860_RF_2720	0x0003	/* 1T2R */
+#define RT2860_RF_2750	0x0004	/* dual-band 1T2R */
+#define RT3070_RF_3020	0x0005	/* 1T1R */
+#define RT3070_RF_2020	0x0006	/* b/g */
+#define RT3070_RF_3021	0x0007	/* 1T2R */
+#define RT3070_RF_3022	0x0008	/* 2T2R */
+#define RT3070_RF_3052	0x0009	/* dual-band 2T2R */
+#define RT3070_RF_3320	0x000b	/* 1T1R */
+#define RT3070_RF_3053	0x000d	/* dual-band 3T3R */
+#define RT5390_RF_5360	0x5360	/* 1T1R */
+#define RT5390_RF_5390	0x5390	/* 1T1R */
 
 /* USB commands for RT2870 only */
 #define RT2870_RESET		1
@@ -922,6 +932,7 @@ struct rt2860_rxwi {
 
 #define RT2860_EEPROM_DELAY	1	/* minimum hold time (microsecond) */
 
+#define RT2860_EEPROM_CHIPID		0x00
 #define RT2860_EEPROM_VERSION		0x01
 #define RT2860_EEPROM_MAC01		0x02
 #define RT2860_EEPROM_MAC23		0x03
@@ -1231,7 +1242,7 @@ static const struct rt2860_rate {
 	{ 20, 0xba },	\
 	{ 21, 0xdb },	\
 	{ 24, 0x16 },	\
-	{ 25, 0x01 },	\
+	{ 25, 0x03 },	\
 	{ 29, 0x1f }
 
 #define RT5390_DEF_RF	\

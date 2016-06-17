@@ -182,7 +182,7 @@ cmdscanner(void)
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				quit(0, NULL);
 
-			len = (num > MAX_CMDLINE - 1) ? MAX_CMDLINE - 1 : num;
+			len = MIN(MAX_CMDLINE - 1, num);
 			memcpy(cmdline, bp, len);
 			cmdline[len] = 0; 
 			history(hist, &he, H_ENTER, bp);

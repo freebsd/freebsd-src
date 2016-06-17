@@ -28,7 +28,6 @@
 #include <sys/bus.h>
 
 #include <dev/bhnd/bhnd.h>
-#include <dev/bhnd/nvram/bhnd_nvram.h>
 
 INTERFACE bhnd_chipc;
 
@@ -36,11 +35,91 @@ INTERFACE bhnd_chipc;
 # bhnd(4) ChipCommon interface.
 #
 
+HEADER {
+	#include <dev/bhnd/nvram/bhnd_nvram.h>
+	/* forward declarations */
+	struct chipc_caps;
+	struct chipc_caps	*bhnd_chipc_generic_get_caps(device_t dev);
+}
+
+CODE {
+
+	/**
+	 * Helper function for implementing BHND_CHIPC_GET_CAPS().
+	 *
+	 * This implementation of BHND_CHIPC_GET_CAPS() simply calls the
+	 * BHND_CHIPC_GET_CAPS() method of the parent of @p dev.
+	 */
+	struct chipc_caps*
+	bhnd_chipc_generic_get_caps(device_t dev)
+	{
+	
+		if (device_get_parent(dev) != NULL)
+			return (BHND_CHIPC_GET_CAPS(device_get_parent(dev)));
+	
+		panic("bhnd_chipc_generic_get_caps unimplemented");
+		/* Unreachable */
+		return (NULL);
+	}
+
+}
+
 /**
- * Return the preferred NVRAM data source.
+ * Write @p value with @p mask directly to the chipctrl register.
  *
  * @param dev A bhnd(4) ChipCommon device.
+ * @param value The value to write.
+ * @param mask The mask of bits to be written from @p value.
+ *
+ * Drivers should only use function for functionality that is not
+ * available via another bhnd_chipc() function.
+ *
+ * Currently, the only known valid use-case is in implementing a hardware
+ * work-around for the BCM4321 PCIe rev7 core revision.
  */
-METHOD bhnd_nvram_src_t nvram_src {
+METHOD void write_chipctrl {
+	device_t dev;
+	uint32_t value;
+	uint32_t mask;
+}
+
+/**
+ * Return a borrowed reference to ChipCommon's capability
+ * table.
+ *
+ * @param dev A bhnd(4) ChipCommon device
+ */
+METHOD struct chipc_caps * get_caps {
+	device_t dev;
+} DEFAULT bhnd_chipc_generic_get_caps;
+
+/**
+ * Enable hardware access to the SPROM/OTP source.
+ * 
+ * @param sc chipc driver state.
+ *
+ * @retval 0		success
+ * @retval EBUSY	If enabling the hardware may conflict with
+ *			other active devices.
+ */
+METHOD int enable_sprom {
+	device_t dev;
+}
+
+/**
+ * Release hardware access to the SPROM/OTP source.
+ * 
+ * @param sc chipc driver state.
+ */
+METHOD void disable_sprom {
+	device_t dev;
+}
+
+/**
+ * Return the flash configuration register value
+ *
+ * @param dev A bhnd(4) ChipCommon device
+ */
+METHOD uint32_t get_flash_cfg {
 	device_t dev;
 }

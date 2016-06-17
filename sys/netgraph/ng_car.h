@@ -69,9 +69,9 @@ struct ng_car_bulkstats {
 
 /* Per hook configuration */
 struct ng_car_hookconf {
-	u_int64_t cbs;		/* Commited burst size (bytes) */
+	u_int64_t cbs;		/* Committed burst size (bytes) */
 	u_int64_t ebs;		/* Exceeded/Peak burst size (bytes) */
-	u_int64_t cir;		/* Commited information rate (bits/s) */
+	u_int64_t cir;		/* Committed information rate (bits/s) */
 	u_int64_t pir;		/* Peak information rate (bits/s) */
 	u_int8_t green_action;	/* Action for green packets */
 	u_int8_t yellow_action;	/* Action for yellow packets */

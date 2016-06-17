@@ -56,6 +56,7 @@ __DEFAULT_YES_OPTIONS = \
     BHYVE \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
+    BLACKLIST \
     BLUETOOTH \
     BOOT \
     BOOTPARAMD \
@@ -187,7 +188,9 @@ __DEFAULT_NO_OPTIONS = \
     OPENLDAP \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
-    SVN
+    SVN \
+    SYSTEM_COMPILER \
+
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -349,6 +352,10 @@ MK_ELFTOOLCHAIN_BOOTSTRAP:= no
 MK_GCC_BOOTSTRAP:= no
 .endif
 
+.if ${MK_META_MODE} == "yes"
+MK_SYSTEM_COMPILER:= no
+.endif
+
 .if ${MK_TOOLCHAIN} == "no"
 MK_BINUTILS:=	no
 MK_CLANG:=	no
@@ -372,6 +379,7 @@ MK_CLANG_FULL:= no
 # MK_* variable is set to "no".
 #
 .for var in \
+    BLACKLIST \
     BZIP2 \
     GNU \
     INET \
@@ -411,6 +419,9 @@ MK_LLDB:=	no
 # gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
 # while in theory we could build it with that, we don't want to do
 # that since it creates too much confusion for too little gain.
+# XXX: This is incomplete and needs X_COMPILER_TYPE/VERSION checks too
+#      to prevent Makefile.inc1 from bootstrapping unneeded dependencies
+#      and to support 'make delete-old' when supplying an external toolchain.
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
 MK_GNUCXX:=no
 MK_GCC:=no

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008-2015 Solarflare Communications Inc.
+ * Copyright (c) 2008-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_SIENA
 
-static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
+static const efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_init,		/* emco_init */
 	siena_mcdi_send_request,	/* emco_send_request */
 	siena_mcdi_poll_reboot,		/* emco_poll_reboot */
@@ -73,7 +73,7 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
-static efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
+static const efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
 	ef10_mcdi_init,			/* emco_init */
 	ef10_mcdi_send_request,		/* emco_send_request */
 	ef10_mcdi_poll_reboot,		/* emco_poll_reboot */
@@ -92,35 +92,28 @@ efx_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
-	efx_mcdi_ops_t *emcop;
+	const efx_mcdi_ops_t *emcop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, ==, 0);
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		emcop = NULL;
-		emtp = NULL;
-		break;
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_siena_ops;
+		emcop = &__efx_mcdi_siena_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_ef10_ops;
+		emcop = &__efx_mcdi_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_ef10_ops;
+		emcop = &__efx_mcdi_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
 
@@ -168,7 +161,7 @@ efx_mcdi_fini(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, ==, EFX_MOD_MCDI);
@@ -204,7 +197,7 @@ efx_mcdi_send_request(
 	__in		void *sdup,
 	__in		size_t sdu_len)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	emcop->emco_send_request(enp, hdrp, hdr_len, sdup, sdu_len);
 }
@@ -213,7 +206,7 @@ static			efx_rc_t
 efx_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	rc = emcop->emco_poll_reboot(enp);
@@ -224,7 +217,7 @@ static			boolean_t
 efx_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	boolean_t available;
 
 	available = emcop->emco_poll_response(enp);
@@ -238,7 +231,7 @@ efx_mcdi_read_response(
 	__in		size_t offset,
 	__in		size_t length)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	emcop->emco_read_response(enp, bufferp, offset, length);
 }
@@ -526,6 +519,11 @@ efx_mcdi_request_poll(
 		if ((rc = efx_mcdi_poll_reboot(enp)) != 0) {
 			emip->emi_pending_req = NULL;
 			EFSYS_UNLOCK(enp->en_eslp, state);
+
+			/* Reboot/Assertion */
+			if (rc == EIO || rc == EINTR)
+				efx_mcdi_raise_exception(enp, emrp, rc);
+
 			goto fail1;
 		}
 	}
@@ -542,6 +540,9 @@ efx_mcdi_request_poll(
 	/* Request complete */
 	emip->emi_pending_req = NULL;
 
+	/* Ensure stale MCDI requests fail after an MC reboot. */
+	emip->emi_new_epoch = B_FALSE;
+
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
 	if ((rc = emrp->emr_rc) != 0)
@@ -556,10 +557,6 @@ fail2:
 fail1:
 	if (!emrp->emr_quiet)
 		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	/* Reboot/Assertion */
-	if (rc == EIO || rc == EINTR)
-		efx_mcdi_raise_exception(enp, emrp, rc);
 
 	return (B_TRUE);
 }
@@ -639,6 +636,8 @@ efx_mcdi_request_errcode(
 		return (EALREADY);
 
 		/* MCDI v2 */
+	case MC_CMD_ERR_EEXIST:
+		return (EEXIST);
 #ifdef MC_CMD_ERR_EAGAIN
 	case MC_CMD_ERR_EAGAIN:
 		return (EAGAIN);
@@ -796,7 +795,6 @@ efx_mcdi_get_proxy_handle(
 	__in		efx_mcdi_req_t *emrp,
 	__out		uint32_t *handlep)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_rc_t rc;
 
 	/*
@@ -1435,10 +1433,6 @@ efx_mcdi_get_phy_cfg(
 			    (1 << EFX_PHY_LED_ON));
 #endif	/* EFSYS_OPT_PHY_LED_CONTROL */
 
-#if EFSYS_OPT_PHY_PROPS
-	encp->enc_phy_nprops  = 0;
-#endif	/* EFSYS_OPT_PHY_PROPS */
-
 	/* Get the media type of the fixed port, if recognised. */
 	EFX_STATIC_ASSERT(MC_CMD_MEDIA_XAUI == EFX_PHY_MEDIA_XAUI);
 	EFX_STATIC_ASSERT(MC_CMD_MEDIA_CX4 == EFX_PHY_MEDIA_CX4);
@@ -1497,7 +1491,7 @@ efx_mcdi_firmware_update_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1522,7 +1516,7 @@ efx_mcdi_macaddr_change_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1547,7 +1541,7 @@ efx_mcdi_link_control_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1572,7 +1566,7 @@ efx_mcdi_mac_spoofing_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {

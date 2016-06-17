@@ -57,7 +57,6 @@ MAN=	acct.5 \
 	rc.conf.5 \
 	rctl.conf.5 \
 	regdomain.5 \
-	reiserfs.5 \
 	remote.5 \
 	resolver.5 \
 	services.5 \

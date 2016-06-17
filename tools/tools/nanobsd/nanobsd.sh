@@ -55,7 +55,7 @@ set -e
 set -- $args
 for i
 do
-	case "$i" 
+	case "$i"
 	in
 	-K)
 		do_installkernel=false

@@ -143,7 +143,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			 * the I-D. Using min_rtt in the tf_cwnd calculation
 			 * causes w_tf to grow much faster than it should if the
 			 * RTT is dominated by network buffering rather than
-			 * propogation delay.
+			 * propagation delay.
 			 */
 			w_tf = tf_cwnd(ticks_since_cong,
 			    cubic_data->mean_rtt_ticks, cubic_data->max_cwnd,

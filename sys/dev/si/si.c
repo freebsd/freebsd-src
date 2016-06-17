@@ -541,7 +541,7 @@ try_next:
 	pp = sc->sc_ports;
 	nmodule = 0;
 	modp = (struct si_module *)(maddr + 0x80);
-	uart_type = 1000;	/* arbitary, > uchar_max */
+	uart_type = 1000;	/* arbitrary, > uchar_max */
 	for (;;) {
 		switch (modp->sm_type) {
 		case TA4:

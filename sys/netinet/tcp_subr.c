@@ -244,7 +244,6 @@ static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static void tcp_mtudisc(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
-static void	tcp_timer_discard(struct tcpcb *, uint32_t);
 
 
 static struct tcp_function_block tcp_def_funcblk = {
@@ -254,7 +253,6 @@ static struct tcp_function_block tcp_def_funcblk = {
 	tcp_default_ctloutput,
 	NULL,
 	NULL,	
-	NULL,
 	NULL,
 	NULL,
 	NULL,
@@ -528,7 +526,6 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 		return (EINVAL);
 	}
 	if (blk->tfb_tcp_timer_stop_all ||
-	    blk->tfb_tcp_timers_left ||
 	    blk->tfb_tcp_timer_activate ||
 	    blk->tfb_tcp_timer_active ||
 	    blk->tfb_tcp_timer_stop) {
@@ -537,7 +534,6 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 		 * must have them all.
 		 */
 		if ((blk->tfb_tcp_timer_stop_all == NULL) ||
-		    (blk->tfb_tcp_timers_left  == NULL) ||
 		    (blk->tfb_tcp_timer_activate == NULL) ||
 		    (blk->tfb_tcp_timer_active == NULL) ||
 		    (blk->tfb_tcp_timer_stop == NULL)) {
@@ -732,8 +728,8 @@ tcp_init(void)
 }
 
 #ifdef VIMAGE
-void
-tcp_destroy(void)
+static void
+tcp_destroy(void *unused __unused)
 {
 	int error;
 
@@ -776,6 +772,7 @@ tcp_destroy(void)
 		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT, error);
 	}
 }
+VNET_SYSUNINIT(tcp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, tcp_destroy, NULL);
 #endif
 
 void
@@ -938,16 +935,54 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		}
 		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
 		flags = TH_ACK;
+	} else if (!M_WRITABLE(m)) {
+		struct mbuf *n;
+
+		/* Can't reuse 'm', allocate a new mbuf. */
+		n = m_gethdr(M_NOWAIT, MT_DATA);
+		if (n == NULL) {
+			m_freem(m);
+			return;
+		}
+
+		if (!m_dup_pkthdr(n, m, M_NOWAIT)) {
+			m_freem(m);
+			m_freem(n);
+			return;
+		}
+
+		n->m_data += max_linkhdr;
+		/* m_len is set later */
+#define xchg(a,b,type) { type t; t=a; a=b; b=t; }
+#ifdef INET6
+		if (isipv6) {
+			bcopy((caddr_t)ip6, mtod(n, caddr_t),
+			      sizeof(struct ip6_hdr));
+			ip6 = mtod(n, struct ip6_hdr *);
+			xchg(ip6->ip6_dst, ip6->ip6_src, struct in6_addr);
+			nth = (struct tcphdr *)(ip6 + 1);
+		} else
+#endif /* INET6 */
+		{
+			bcopy((caddr_t)ip, mtod(n, caddr_t), sizeof(struct ip));
+			ip = mtod(n, struct ip *);
+			xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
+			nth = (struct tcphdr *)(ip + 1);
+		}
+		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
+		xchg(nth->th_dport, nth->th_sport, uint16_t);
+		th = nth;
+		m_freem(m);
+		m = n;
 	} else {
 		/*
 		 *  reuse the mbuf. 
-		 * XXX MRT We inherrit the FIB, which is lucky.
+		 * XXX MRT We inherit the FIB, which is lucky.
 		 */
 		m_freem(m->m_next);
 		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
 		/* m_len is set later */
-#define xchg(a,b,type) { type t; t=a; a=b; b=t; }
 #ifdef INET6
 		if (isipv6) {
 			xchg(ip6->ip6_dst, ip6->ip6_src, struct in6_addr);
@@ -1343,13 +1378,21 @@ tcp_discardcb(struct tcpcb *tp)
 	 * callout, and the last discard function called will take care of
 	 * deleting the tcpcb.
 	 */
+	tp->t_timers->tt_draincnt = 0;
 	tcp_timer_stop(tp, TT_REXMT);
 	tcp_timer_stop(tp, TT_PERSIST);
 	tcp_timer_stop(tp, TT_KEEP);
 	tcp_timer_stop(tp, TT_2MSL);
 	tcp_timer_stop(tp, TT_DELACK);
 	if (tp->t_fb->tfb_tcp_timer_stop_all) {
-		/* Call the stop-all function of the methods */
+		/* 
+		 * Call the stop-all function of the methods, 
+		 * this function should call the tcp_timer_stop()
+		 * method with each of the function specific timeouts.
+		 * That stop will be called via the tfb_tcp_timer_stop()
+		 * which should use the async drain function of the 
+		 * callout system (see tcp_var.h).
+		 */
 		tp->t_fb->tfb_tcp_timer_stop_all(tp);
 	}
 
@@ -1372,7 +1415,7 @@ tcp_discardcb(struct tcpcb *tp)
 		 * Update the ssthresh always when the conditions below
 		 * are satisfied. This gives us better new start value
 		 * for the congestion avoidance for new connections.
-		 * ssthresh is only set if packet loss occured on a session.
+		 * ssthresh is only set if packet loss occurred on a session.
 		 *
 		 * XXXRW: 'so' may be NULL here, and/or socket buffer may be
 		 * being torn down.  Ideally this code would not use 'so'.
@@ -1434,13 +1477,8 @@ tcp_discardcb(struct tcpcb *tp)
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
-	if ((tp->t_timers->tt_flags & TT_MASK) == 0) {
+	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on tcpcb, let's free it. */
-		if ((tp->t_fb->tfb_tcp_timers_left) &&
-		    (tp->t_fb->tfb_tcp_timers_left(tp))) {
-			    /* Some fb timers left running! */
-			    return;
-		}
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
 		refcount_release(&tp->t_fb->tfb_refcnt);
@@ -1453,45 +1491,12 @@ tcp_discardcb(struct tcpcb *tp)
 }
 
 void
-tcp_timer_2msl_discard(void *xtp)
-{
-
-	tcp_timer_discard((struct tcpcb *)xtp, TT_2MSL);
-}
-
-void
-tcp_timer_keep_discard(void *xtp)
-{
-
-	tcp_timer_discard((struct tcpcb *)xtp, TT_KEEP);
-}
-
-void
-tcp_timer_persist_discard(void *xtp)
-{
-
-	tcp_timer_discard((struct tcpcb *)xtp, TT_PERSIST);
-}
-
-void
-tcp_timer_rexmt_discard(void *xtp)
-{
-
-	tcp_timer_discard((struct tcpcb *)xtp, TT_REXMT);
-}
-
-void
-tcp_timer_delack_discard(void *xtp)
-{
-
-	tcp_timer_discard((struct tcpcb *)xtp, TT_DELACK);
-}
-
-void
-tcp_timer_discard(struct tcpcb *tp, uint32_t timer_type)
+tcp_timer_discard(void *ptp)
 {
 	struct inpcb *inp;
-
+	struct tcpcb *tp;
+	
+	tp = (struct tcpcb *)ptp;
 	CURVNET_SET(tp->t_vnet);
 	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
@@ -1500,16 +1505,9 @@ tcp_timer_discard(struct tcpcb *tp, uint32_t timer_type)
 	INP_WLOCK(inp);
 	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) != 0,
 		("%s: tcpcb has to be stopped here", __func__));
-	KASSERT((tp->t_timers->tt_flags & timer_type) != 0,
-		("%s: discard callout should be running", __func__));
-	tp->t_timers->tt_flags &= ~timer_type;
-	if ((tp->t_timers->tt_flags & TT_MASK) == 0) {
+	tp->t_timers->tt_draincnt--;
+	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on this tcpcb, let's free it. */
-		if ((tp->t_fb->tfb_tcp_timers_left) &&
-		    (tp->t_fb->tfb_tcp_timers_left(tp))) {
-			    /* Some fb timers left running! */
-			    goto leave;
-		}
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
 		refcount_release(&tp->t_fb->tfb_refcnt);
@@ -1521,7 +1519,6 @@ tcp_timer_discard(struct tcpcb *tp, uint32_t timer_type)
 			return;
 		}
 	}
-leave:
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	CURVNET_RESTORE();
@@ -1684,7 +1681,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr == NULL) {
 		n = V_tcbinfo.ipi_count +
-		    counter_u64_fetch(VNET(tcps_states)[TCPS_SYN_RECEIVED]);
+		    counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
@@ -1701,7 +1698,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = V_tcbinfo.ipi_count;
 	INP_LIST_RUNLOCK(&V_tcbinfo);
 
-	m = counter_u64_fetch(VNET(tcps_states)[TCPS_SYN_RECEIVED]);
+	m = counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ (n + m) * sizeof(struct xtcpcb));

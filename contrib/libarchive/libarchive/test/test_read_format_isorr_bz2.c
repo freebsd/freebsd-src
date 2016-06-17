@@ -73,6 +73,9 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	 * verify that each one is what we expect. */
 	for (i = 0; i < 10; ++i) {
 		assertEqualInt(0, archive_read_next_header(a, &ae));
+		
+		assertEqualInt(archive_entry_is_encrypted(ae), 0);
+		assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 		if (strcmp(".", archive_entry_pathname(ae)) == 0) {
 			/* '.' root directory. */

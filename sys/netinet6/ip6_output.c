@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_sctp.h"
 #include "opt_route.h"
@@ -135,6 +134,8 @@ struct ip6_exthdrs {
 	struct mbuf *ip6e_dest2;
 };
 
+static MALLOC_DEFINE(M_IP6OPT, "ip6opt", "IPv6 options");
+
 static int ip6_pcbopt(int, u_char *, int, struct ip6_pktopts **,
 			   struct ucred *, int);
 static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *,
@@ -149,10 +150,10 @@ static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
 static int ip6_getpmtu(struct route_in6 *, int,
-	struct ifnet *, struct in6_addr *, u_long *, int *, u_int);
+	struct ifnet *, const struct in6_addr *, u_long *, int *, u_int);
 static int ip6_calcmtu(struct ifnet *, const struct in6_addr *, u_long,
 	u_long *, int *);
-static int ip6_getpmtu_ctl(u_int, struct in6_addr *, u_long *);
+static int ip6_getpmtu_ctl(u_int, const struct in6_addr *, u_long *);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -313,7 +314,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int alwaysfrag, dontfrag;
 	u_int32_t optlen = 0, plen = 0, unfragpartlen = 0;
 	struct ip6_exthdrs exthdrs;
-	struct in6_addr finaldst, src0, dst0;
+	struct in6_addr src0, dst0;
 	u_int32_t zone;
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
@@ -322,12 +323,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	uint32_t fibnum;
 	struct m_tag *fwd_tag = NULL;
 	uint32_t id;
-
-	ip6 = mtod(m, struct ip6_hdr *);
-	if (ip6 == NULL) {
-		printf ("ip6 is NULL");
-		goto bad;
-	}
 
 	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
@@ -338,7 +333,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		}
 	}
 
-	finaldst = ip6->ip6_dst;
 	bzero(&exthdrs, sizeof(exthdrs));
 	if (opt) {
 		/* Hop-by-Hop options header */
@@ -411,7 +405,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		hdrsplit++;
 	}
 
-	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* adjust mbuf packet header length */
@@ -506,7 +499,8 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	if (ro == NULL) {
 		ro = &ip6route;
 		bzero((caddr_t)ro, sizeof(*ro));
-	}
+	} else
+		ro->ro_flags |= RT_LLE_CACHE;
 	ro_pmtu = ro;
 	if (opt && opt->ip6po_rthdr)
 		ro = &opt->ip6po_route;
@@ -542,10 +536,6 @@ again:
 		else
 			ip6->ip6_hlim = V_ip6_defmcasthlim;
 	}
-
-	/* adjust pointer */
-	ip6 = mtod(m, struct ip6_hdr *);
-
 	/*
 	 * Validate route against routing table additions;
 	 * a better/more specific route might have been added.
@@ -727,8 +717,8 @@ again:
 		*ifpp = ifp;
 
 	/* Determine path MTU. */
-	if ((error = ip6_getpmtu(ro_pmtu, ro != ro_pmtu, ifp, &finaldst, &mtu,
-	    &alwaysfrag, fibnum)) != 0)
+	if ((error = ip6_getpmtu(ro_pmtu, ro != ro_pmtu, ifp, &ip6->ip6_dst,
+	    &mtu, &alwaysfrag, fibnum)) != 0)
 		goto bad;
 
 	/*
@@ -804,6 +794,7 @@ again:
 	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
+	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	needfiblookup = 0;
@@ -826,8 +817,10 @@ again:
 #endif
 			error = netisr_queue(NETISR_IPV6, m);
 			goto done;
-		} else
+		} else {
+			RO_RTFREE(ro);
 			needfiblookup = 1; /* Redo the routing table lookup. */
+		}
 	}
 	/* See if fib was changed by packet filter. */
 	if (fibnum != M_GETFIB(m)) {
@@ -1060,7 +1053,11 @@ sendorfree:
 		IP6STAT_INC(ip6s_fragmented);
 
 done:
-	if (ro == &ip6route)
+	/*
+	 * Release the route if using our private route, or if
+	 * (with flowtable) we don't have our own reference.
+	 */
+	if (ro == &ip6route || ro->ro_flags & RT_NORTREF)
 		RO_RTFREE(ro);
 	return (error);
 
@@ -1237,7 +1234,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
  * Returns 0 on success.
  */
 static int
-ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
+ip6_getpmtu_ctl(u_int fibnum, const struct in6_addr *dst, u_long *mtup)
 {
 	struct nhop6_extended nh6;
 	struct in6_addr kdst;
@@ -1271,7 +1268,7 @@ ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
  */
 static int
 ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
-    struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
+    struct ifnet *ifp, const struct in6_addr *dst, u_long *mtup,
     int *alwaysfragp, u_int fibnum)
 {
 	struct nhop6_basic nh6;

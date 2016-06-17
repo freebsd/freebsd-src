@@ -1128,6 +1128,13 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			ireq->i_val =
 			    (vap->iv_flags_ht & IEEE80211_FHT_RIFS) != 0;
 		break;
+	case IEEE80211_IOC_STBC:
+		ireq->i_val = 0;
+		if (vap->iv_flags_ht & IEEE80211_FHT_STBC_TX)
+			ireq->i_val |= 1;
+		if (vap->iv_flags_ht & IEEE80211_FHT_STBC_RX)
+			ireq->i_val |= 2;
+		break;
 	default:
 		error = ieee80211_ioctl_getdefault(vap, ireq);
 		break;
@@ -2479,6 +2486,11 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 	 * Otherwise just invoke the scan machinery directly.
 	 */
 	IEEE80211_LOCK(ic);
+	if (ic->ic_nrunning == 0) {
+		IEEE80211_UNLOCK(ic);
+		return ENXIO;
+	}
+
 	if (vap->iv_state == IEEE80211_S_INIT) {
 		/* NB: clobbers previous settings */
 		vap->iv_scanreq_flags = sr->sr_flags;
@@ -3265,6 +3277,31 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (isvapht(vap))
 			error = ERESTART;
 		break;
+	case IEEE80211_IOC_STBC:
+		/* Check if we can do STBC TX/RX before changing the setting */
+		if ((ireq->i_val & 1) &&
+		    ((vap->iv_htcaps & IEEE80211_HTCAP_TXSTBC) == 0))
+			return EOPNOTSUPP;
+		if ((ireq->i_val & 2) &&
+		    ((vap->iv_htcaps & IEEE80211_HTCAP_RXSTBC) == 0))
+			return EOPNOTSUPP;
+
+		/* TX */
+		if (ireq->i_val & 1)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_TX;
+		else
+			vap->iv_flags_ht &= ~IEEE80211_FHT_STBC_TX;
+
+		/* RX */
+		if (ireq->i_val & 2)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_RX;
+		else
+			vap->iv_flags_ht &= ~IEEE80211_FHT_STBC_RX;
+
+		/* NB: reset only if we're operating on an 11n channel */
+		if (isvapht(vap))
+			error = ERESTART;
+		break;
 	default:
 		error = ieee80211_ioctl_setdefault(vap, ireq);
 		break;
@@ -3350,8 +3387,18 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		IEEE80211_UNLOCK(ic);
 		/* Wait for parent ioctl handler if it was queued */
-		if (wait)
+		if (wait) {
 			ieee80211_waitfor_parent(ic);
+
+			/*
+			 * Check if the MAC address was changed
+			 * via SIOCSIFLLADDR ioctl.
+			 */
+			if ((ifp->if_flags & IFF_UP) == 0 &&
+			    !IEEE80211_ADDR_EQ(vap->iv_myaddr, IF_LLADDR(ifp)))
+				IEEE80211_ADDR_COPY(vap->iv_myaddr,
+				    IF_LLADDR(ifp));
+		}
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -3386,10 +3433,10 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFADDR:
 		/*
-		 * XXX Handle this directly so we can supress if_init calls.
+		 * XXX Handle this directly so we can suppress if_init calls.
 		 * XXX This should be done in ether_ioctl but for the moment
 		 * XXX there are too many other parts of the system that
-		 * XXX set IFF_UP and so supress if_init being called when
+		 * XXX set IFF_UP and so suppress if_init being called when
 		 * XXX it should be.
 		 */
 		ifa = (struct ifaddr *) data;

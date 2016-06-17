@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 ATF_TESTS_CXX=	\
 	dnv_tests \
 	nv_array_tests \

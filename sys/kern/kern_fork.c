@@ -827,6 +827,10 @@ fork1(struct thread *td, struct fork_req *fr)
 		/* Must provide a place to put a procdesc if creating one. */
 		if (fr->fr_pd_fd == NULL)
 			return (EINVAL);
+
+		/* Check if we are using supported flags. */
+		if ((fr->fr_pd_flags & ~PD_ALLOWED_AT_FORK) != 0)
+			return (EINVAL);
 	}
 
 	p1 = td->td_proc;
@@ -878,8 +882,8 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * later.
 	 */
 	if (flags & RFPROCDESC) {
-		error = falloc_caps(td, &fp_procdesc, fr->fr_pd_fd, 0,
-		    fr->fr_pd_fcaps);
+		error = procdesc_falloc(td, &fp_procdesc, fr->fr_pd_fd,
+		    fr->fr_pd_flags, fr->fr_pd_fcaps);
 		if (error != 0)
 			goto fail2;
 	}
@@ -918,7 +922,7 @@ fork1(struct thread *td, struct fork_req *fr)
 			/*
 			 * The swap reservation failed. The accounting
 			 * from the entries of the copied vm2 will be
-			 * substracted in vmspace_free(), so force the
+			 * subtracted in vmspace_free(), so force the
 			 * reservation there.
 			 */
 			swap_reserve_force(mem_charged);
@@ -1011,7 +1015,7 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
 
 	CTR4(KTR_PROC, "fork_exit: new thread %p (td_sched %p, pid %d, %s)",
-		td, td->td_sched, p->p_pid, td->td_name);
+	    td, td_get_sched(td), p->p_pid, td->td_name);
 
 	sched_fork_exit(td);
 	/*

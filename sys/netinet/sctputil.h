@@ -128,16 +128,6 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 #endif
 );
 
-int
-sctp_append_to_readq(struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb,
-    struct sctp_queued_to_read *control,
-    struct mbuf *m,
-    int end,
-    int new_cumack,
-    struct sockbuf *sb);
-
-
 void sctp_iterator_worker(void);
 
 uint32_t sctp_get_prev_mtu(uint32_t);

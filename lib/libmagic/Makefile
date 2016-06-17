@@ -36,7 +36,7 @@ magic: ${MAGFILES}
 	cat ${.ALLSRC:O} > ${.TARGET}
 
 magic.mgc: mkmagic magic
-	./mkmagic magic
+	${BTOOLSPATH:U.}/mkmagic magic
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,30 +42,11 @@
 extern "C" {
 #endif
 
-#if EFSYS_OPT_PHY_PROPS
-
-/* START MKCONFIG GENERATED SienaPhyHeaderPropsBlock a8db1f8eb5106efd */
-typedef enum siena_phy_prop_e {
-	SIENA_PHY_NPROPS
-} siena_phy_prop_t;
-
-/* END MKCONFIG GENERATED SienaPhyHeaderPropsBlock */
-
-#endif  /* EFSYS_OPT_PHY_PROPS */
-
 #define	SIENA_NVRAM_CHUNK 0x80
 
 extern	__checkReturn	efx_rc_t
 siena_nic_probe(
 	__in		efx_nic_t *enp);
-
-#if EFSYS_OPT_PCIE_TUNE
-
-extern	__checkReturn	efx_rc_t
-siena_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp);
-
-#endif
 
 extern	__checkReturn	efx_rc_t
 siena_nic_reset(
@@ -368,32 +349,6 @@ siena_phy_stats_update(
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
-#if EFSYS_OPT_PHY_PROPS
-
-#if EFSYS_OPT_NAMES
-
-extern		const char *
-siena_phy_prop_name(
-	__in	efx_nic_t *enp,
-	__in	unsigned int id);
-
-#endif	/* EFSYS_OPT_NAMES */
-
-extern	__checkReturn	efx_rc_t
-siena_phy_prop_get(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t flags,
-	__out		uint32_t *valp);
-
-extern	__checkReturn	efx_rc_t
-siena_phy_prop_set(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t val);
-
-#endif	/* EFSYS_OPT_PHY_PROPS */
-
 #if EFSYS_OPT_BIST
 
 extern	__checkReturn		efx_rc_t
@@ -432,6 +387,11 @@ siena_mac_up(
 extern	__checkReturn	efx_rc_t
 siena_mac_reconfigure(
 	__in	efx_nic_t *enp);
+
+extern	__checkReturn	efx_rc_t
+siena_mac_pdu_get(
+	__in	efx_nic_t *enp,
+	__out	size_t *pdu);
 
 #if EFSYS_OPT_LOOPBACK
 

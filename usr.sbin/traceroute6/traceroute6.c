@@ -342,7 +342,7 @@ struct ip6_rthdr *rth;
 #endif
 struct cmsghdr *cmsg;
 
-char *source = 0;
+char *source = NULL;
 char *hostname;
 
 u_long nprobes = 3;

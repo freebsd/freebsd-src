@@ -3,7 +3,7 @@
 # we need a keyword, this noise is to prevent it being expanded
 GENDIRDEPS_HEADER= echo '\# ${FreeBSD:L:@v@$$$v$$ @:M*F*}';
 
-# supress optional/auto dependecies
+# suppress optional/auto dependencies
 # local.dirdeps.mk will put them in if necessary
 GENDIRDEPS_FILTER+= \
 	Nbin/cat.host \
@@ -21,21 +21,26 @@ GENDIRDEPS_FILTER.host+= \
 	Ngnu/usr.bin/cc/* \
 
 .endif
-GENDIRDEPS_FILTER+= \
-	Nlib/clang/include.host \
-	Nusr.bin/addr2line.host \
-	Nusr.bin/ar.host \
-	Nusr.bin/clang/clang.host \
-	Nusr.bin/elfcopy.host \
-	Nusr.bin/elfdump.host \
-	Nusr.bin/nm.host \
-	Nusr.bin/readelf.host \
-	Nusr.bin/size.host \
-	Nusr.bin/strings.host \
-	Nusr.bin/strip.host \
+GENDIRDEPS_FILTER_HOST_TOOLS+= \
+	Nlib/clang/include \
+	Nusr.bin/addr2line \
+	Nusr.bin/ar \
+	Nusr.bin/clang/clang \
+	Nusr.bin/elfcopy \
+	Nusr.bin/elfdump \
+	Nusr.bin/nm \
+	Nusr.bin/readelf \
+	Nusr.bin/size \
+	Nusr.bin/strings \
+	Nusr.bin/strip \
 	Ngnu/usr.bin/cc* \
-	Ngnu/usr.bin/binutils*.host \
+	Ngnu/usr.bin/binutils* \
 
+.if ${MACHINE} != "host"
+GENDIRDEPS_FILTER+=	${GENDIRDEPS_FILTER_HOST_TOOLS:C,$,.host,}
+.else
+GENDIRDEPS_FILTER+=	${GENDIRDEPS_FILTER_HOST_TOOLS}
+.endif
 .endif
 
 GENDIRDEPS_FILTER+= ${GENDIRDEPS_FILTER.${MACHINE}:U}

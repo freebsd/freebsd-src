@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
+ASSYM(VM_MAX_KERNEL_ADDRESS, VM_MAX_KERNEL_ADDRESS);
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 
@@ -75,7 +76,6 @@ ASSYM(PCB_A, offsetof(struct pcb, pcb_a));
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
-ASSYM(PC_SPTBR, offsetof(struct pcpu, pc_sptbr));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));

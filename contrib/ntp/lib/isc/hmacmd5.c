@@ -145,5 +145,5 @@ isc_hmacmd5_verify2(isc_hmacmd5_t *ctx, unsigned char *digest, size_t len) {
 
 	REQUIRE(len <= ISC_MD5_DIGESTLENGTH);
 	isc_hmacmd5_sign(ctx, newdigest);
-	return (ISC_TF(memcmp(digest, newdigest, len) == 0));
+	return (ISC_TF(isc_tsmemcmp(digest, newdigest, len) == 0));
 }

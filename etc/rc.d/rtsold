@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="rtsold"
+desc="Router solicitation daemon"
 rcvar="rtsold_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"

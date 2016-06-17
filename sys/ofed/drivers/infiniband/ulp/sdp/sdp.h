@@ -1,6 +1,8 @@
 #ifndef _SDP_H_
 #define _SDP_H_
 
+#define	LINUXKPI_PARAM_PREFIX ib_sdp_
+
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_ofed.h"
@@ -66,7 +68,7 @@ struct name {                                                           \
         struct type *lh_first;  /* first element */                     \
 }
 
-/* Interval between sucessive polls in the Tx routine when polling is used
+/* Interval between successive polls in the Tx routine when polling is used
    instead of interrupts (in per-core Tx rings) - should be power of 2 */
 #define SDP_TX_POLL_MODER	16
 #define SDP_TX_POLL_TIMEOUT	(HZ / 20)
@@ -424,8 +426,8 @@ struct sdp_sock {
 
 	/* SDP slow start */
 	int recv_request_head; 	/* mark the rx_head when the resize request
-				   was recieved */
-	int recv_request; 	/* XXX flag if request to resize was recieved */
+				   was received */
+	int recv_request; 	/* XXX flag if request to resize was received */
 
 	unsigned long tx_packets;
 	unsigned long rx_packets;

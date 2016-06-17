@@ -99,7 +99,7 @@ typedef struct _RaidArray
 } RaidArray;
 
 /***************************************************************************
- *            Array Descripton on disk
+ *            Array Description on disk
  ***************************************************************************/
 #pragma pack(1)	
 typedef struct _ArrayDescript

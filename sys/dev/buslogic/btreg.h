@@ -595,7 +595,7 @@ struct sg_map_node {
 };
 	
 struct bt_softc {
-	struct device		*dev;
+	device_t		dev;
 	struct resource		*port;
 	struct resource		*irq;
 	struct resource		*drq;

@@ -12,6 +12,7 @@
 . /etc/rc.subr
 
 name="gbde"
+desc="GEOM Based Disk Encryption"
 start_precmd="find_gbde_devices start"
 stop_precmd="find_gbde_devices stop"
 start_cmd="gbde_start"

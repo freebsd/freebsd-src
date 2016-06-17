@@ -249,16 +249,14 @@ sha1_loop(ctxt, input, len)
 }
 
 void
-sha1_result(ctxt, digest0)
-	struct sha1_ctxt *ctxt;
-	caddr_t digest0;
+sha1_result(struct sha1_ctxt *ctxt, char digest0[static SHA1_RESULTLEN])
 {
 	u_int8_t *digest;
 
 	digest = (u_int8_t *)digest0;
 	sha1_pad(ctxt);
 #if BYTE_ORDER == BIG_ENDIAN
-	bcopy(&ctxt->h.b8[0], digest, 20);
+	bcopy(&ctxt->h.b8[0], digest, SHA1_RESULTLEN);
 #else
 	digest[0] = ctxt->h.b8[3]; digest[1] = ctxt->h.b8[2];
 	digest[2] = ctxt->h.b8[1]; digest[3] = ctxt->h.b8[0];

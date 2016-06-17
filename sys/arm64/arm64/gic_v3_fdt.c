@@ -32,18 +32,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 
+#include <machine/intr.h>
 #include <machine/resource.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include "pic_if.h"
 
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
@@ -116,6 +116,9 @@ gic_v3_fdt_attach(device_t dev)
 {
 	struct gic_v3_softc *sc;
 	pcell_t redist_regions;
+#ifdef INTRNG
+	intptr_t xref;
+#endif
 	int err;
 
 	sc = device_get_softc(dev);
@@ -131,8 +134,25 @@ gic_v3_fdt_attach(device_t dev)
 		sc->gic_redists.nregions = redist_regions;
 
 	err = gic_v3_attach(dev);
-	if (err)
+	if (err != 0)
 		goto error;
+
+#ifdef INTRNG
+	xref = OF_xref_from_node(ofw_bus_get_node(dev));
+	sc->gic_pic = intr_pic_register(dev, xref);
+	if (sc->gic_pic == NULL) {
+		device_printf(dev, "could not register PIC\n");
+		err = ENXIO;
+		goto error;
+	}
+
+	if (intr_pic_claim_root(dev, xref, arm_gic_v3_intr, sc,
+	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
+		err = ENXIO;
+		goto error;
+	}
+#endif
+
 	/*
 	 * Try to register ITS to this GIC.
 	 * GIC will act as a bus in that case.
@@ -144,6 +164,11 @@ gic_v3_fdt_attach(device_t dev)
 			    "Failed to attach ITS to this GIC\n");
 		}
 	}
+
+#ifdef INTRNG
+	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) != 0)
+		sc->gic_nchildren = 0;
+#endif
 
 	return (err);
 
@@ -278,6 +303,7 @@ gic_v3_ofw_bus_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+#ifndef INTRNG
 static int gic_v3_its_fdt_probe(device_t dev);
 
 static device_method_t gic_v3_its_fdt_methods[] = {
@@ -309,3 +335,4 @@ gic_v3_its_fdt_probe(device_t dev)
 	device_set_desc(dev, GIC_V3_ITS_DEVSTR);
 	return (BUS_PROBE_DEFAULT);
 }
+#endif

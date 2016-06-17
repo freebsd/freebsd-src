@@ -15,6 +15,7 @@
 . /etc/rc.subr
 
 name="sendmail"
+desc="Electronic mail transport agent"
 rcvar="sendmail_enable"
 required_files="/etc/mail/${name}.cf"
 start_precmd="sendmail_precmd"
@@ -78,7 +79,7 @@ sendmail_cert_create()
 		crlnumber	= \$dir/crlnumber	# the current crl number
 		crl		= \$dir/crl.pem 	# The current CRL
 		private_key	= \$dir/cakey.pem
-		x509_extensions	= usr_cert		# The extentions to add to the cert
+		x509_extensions	= usr_cert		# The extensions to add to the cert
 		name_opt 	= ca_default		# Subject Name options
 		cert_opt 	= ca_default		# Certificate field options
 		default_days	= 365			# how long to certify for
@@ -99,7 +100,7 @@ sendmail_cert_create()
 		default_keyfile 	= privkey.pem
 		distinguished_name	= req_distinguished_name
 		attributes		= req_attributes
-		x509_extensions	= v3_ca	# The extentions to add to the self signed cert
+		x509_extensions	= v3_ca	# The extensions to add to the self signed cert
 		string_mask = utf8only
 		prompt = no
 		[ req_distinguished_name ]

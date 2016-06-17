@@ -1017,7 +1017,7 @@ ioread(struct open_file *f, off_t pos, void *buf, u_int length)
 
 	off = pos % bsize;
 	pos /= bsize;
-	nsec = (length + (bsize - 1)) / bsize;
+	nsec = howmany(length, bsize);
 
 	NANDFS_DEBUG("pos=%lld length=%d off=%d nsec=%d\n", pos, length,
 	    off, nsec);

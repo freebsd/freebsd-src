@@ -57,6 +57,7 @@ void		pci_add_resources(device_t bus, device_t dev, int force,
 void		pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov);
 struct pci_devinfo *pci_alloc_devinfo_method(device_t dev);
 int		pci_attach_common(device_t dev);
+int		pci_rescan_method(device_t dev);
 void		pci_driver_added(device_t dev, driver_t *driver);
 int		pci_ea_is_enabled(device_t dev, int rid);
 int		pci_print_child(device_t dev, device_t child);

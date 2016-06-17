@@ -63,7 +63,7 @@ enum {
  * status word to PENDING. The card sets it to COMPLETE upon completion of
  * the transmit/receive or command. An unused queue entry contains FREE.
  * The ERROR can be ored into the COMPLETE. Note, that there are circumstances
- * when ERROR is set without COMPLETE beeing set (when you try to activate
+ * when ERROR is set without COMPLETE being set (when you try to activate
  * a bad VCI like, for example, VCI 0).
  */
 enum {

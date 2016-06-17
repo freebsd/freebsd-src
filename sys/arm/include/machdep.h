@@ -4,8 +4,6 @@
 #ifndef _MACHDEP_BOOT_MACHDEP_H_
 #define _MACHDEP_BOOT_MACHDEP_H_
 
-#include <machine/acle-compat.h>
-
 /* Structs that need to be initialised by initarm */
 #if __ARM_ARCH >= 6
 extern vm_offset_t irqstack;
@@ -48,5 +46,10 @@ void board_set_revision(uint32_t);
 
 int arm_predict_branch(void *, u_int, register_t, register_t *,
     u_int (*)(void*, int), u_int (*)(void*, vm_offset_t, u_int*));
+
+#ifdef MULTIDELAY
+typedef void delay_func(int, void *);
+void arm_set_delay(delay_func *, void *);
+#endif
 
 #endif /* !_MACHINE_MACHDEP_H_ */

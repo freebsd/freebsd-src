@@ -169,6 +169,7 @@ static moduledata_t streams_mod = {
 };
 DECLARE_MODULE(streams, streams_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(streams, 1);
+MODULE_DEPEND(streams, svr4elf, 1, 1, 1);
 
 /*
  * We only need open() and close() routines.  open() calls socreate()
@@ -320,19 +321,6 @@ svr4_ptm_alloc(td)
 	return ENOENT;
 }
 
-
-struct svr4_strm *
-svr4_stream_get(fp)
-	struct file *fp;
-{
-	struct socket *so;
-
-	if (fp == NULL || fp->f_type != DTYPE_SOCKET)
-		return NULL;
-
-	so = fp->f_data;
-	return so->so_emuldata;
-}
 
 static int
 svr4_soo_close(struct file *fp, struct thread *td)

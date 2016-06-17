@@ -49,24 +49,32 @@ __FBSDID("$FreeBSD$");
 
 #include "clkdev_if.h"
 
-#define	APB0_CLK_RATIO		(0x3 << 8)
-#define	APB0_CLK_RATIO_SHIFT	8
-#define	APB1_CLK_SRC_SEL	(0x3 << 24)
-#define	APB1_CLK_SRC_SEL_SHIFT	24
-#define	APB1_CLK_SRC_SEL_MAX	0x3
-#define	APB1_CLK_RAT_N		(0x3 << 16)
-#define	APB1_CLK_RAT_N_SHIFT	16
-#define	APB1_CLK_RAT_M		(0x1f << 0)
-#define	APB1_CLK_RAT_M_SHIFT	0
+#define	A10_APB0_CLK_RATIO		(0x3 << 8)
+#define	A10_APB0_CLK_RATIO_SHIFT	8
+#define	A10_APB1_CLK_SRC_SEL		(0x3 << 24)
+#define	A10_APB1_CLK_SRC_SEL_SHIFT	24
+#define	A10_APB1_CLK_SRC_SEL_MAX	0x3
+#define	A10_APB1_CLK_RAT_N		(0x3 << 16)
+#define	A10_APB1_CLK_RAT_N_SHIFT	16
+#define	A10_APB1_CLK_RAT_M		(0x1f << 0)
+#define	A10_APB1_CLK_RAT_M_SHIFT	0
+#define	A23_APB0_CLK_RATIO		(0x3 << 0)
+#define	A23_APB0_CLK_RATIO_SHIFT	0
+#define	A83T_APB1_CLK_RATIO		(0x3 << 8)
+#define	A83T_APB1_CLK_RATIO_SHIFT	8
 
 enum aw_apbclk_type {
 	AW_A10_APB0 = 1,
 	AW_A10_APB1,
+	AW_A23_APB0,
+	AW_A83T_APB1,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-apb0-clk",	AW_A10_APB0 },
 	{ "allwinner,sun4i-a10-apb1-clk",	AW_A10_APB1 },
+	{ "allwinner,sun8i-a23-apb0-clk",	AW_A23_APB0 },
+	{ "allwinner,sun8i-a83t-apb1-clk",	AW_A83T_APB1 },
 	{ NULL, 0 }
 };
 
@@ -91,13 +99,16 @@ aw_apbclk_init(struct clknode *clk, device_t dev)
 
 	switch (sc->type) {
 	case AW_A10_APB0:
+	case AW_A23_APB0:
+	case AW_A83T_APB1:
 		index = 0;
 		break;
 	case AW_A10_APB1:
 		DEVICE_LOCK(sc);
 		APBCLK_READ(sc, &val);
 		DEVICE_UNLOCK(sc);
-		index = (val & APB1_CLK_SRC_SEL) >> APB1_CLK_SRC_SEL_SHIFT;
+		index = (val & A10_APB1_CLK_SRC_SEL) >>
+		    A10_APB1_CLK_SRC_SEL_SHIFT;
 		break;
 	default:
 		return (ENXIO);
@@ -121,15 +132,28 @@ aw_apbclk_recalc_freq(struct clknode *clk, uint64_t *freq)
 
 	switch (sc->type) {
 	case AW_A10_APB0:
-		div = 1 << ((val & APB0_CLK_RATIO) >> APB0_CLK_RATIO_SHIFT);
+		div = 1 << ((val & A10_APB0_CLK_RATIO) >>
+		    A10_APB0_CLK_RATIO_SHIFT);
 		if (div == 1)
 			div = 2;
 		*freq = *freq / div;
 		break;
 	case AW_A10_APB1:
-		n = 1 << ((val & APB1_CLK_RAT_N) >> APB1_CLK_RAT_N_SHIFT);
-		m = ((val & APB1_CLK_RAT_N) >> APB1_CLK_RAT_M_SHIFT) + 1;
+		n = 1 << ((val & A10_APB1_CLK_RAT_N) >>
+		    A10_APB1_CLK_RAT_N_SHIFT);
+		m = ((val & A10_APB1_CLK_RAT_N) >>
+		    A10_APB1_CLK_RAT_M_SHIFT) + 1;
 		*freq = *freq / n / m;
+		break;
+	case AW_A23_APB0:
+		div = 1 << ((val & A23_APB0_CLK_RATIO) >>
+		    A23_APB0_CLK_RATIO_SHIFT);
+		*freq = *freq / div;
+		break;
+	case AW_A83T_APB1:
+		div = ((val & A83T_APB1_CLK_RATIO) >>
+		    A83T_APB1_CLK_RATIO_SHIFT) + 1;
+		*freq = *freq / div;
 		break;
 	default:
 		return (ENXIO);
@@ -149,13 +173,13 @@ aw_apbclk_set_mux(struct clknode *clk, int index)
 	if (sc->type != AW_A10_APB1)
 		return (ENXIO);
 
-	if (index < 0 || index > APB1_CLK_SRC_SEL_MAX)
+	if (index < 0 || index > A10_APB1_CLK_SRC_SEL_MAX)
 		return (ERANGE);
 
 	DEVICE_LOCK(sc);
 	APBCLK_READ(sc, &val);
-	val &= ~APB1_CLK_SRC_SEL;
-	val |= (index << APB1_CLK_SRC_SEL_SHIFT);
+	val &= ~A10_APB1_CLK_SRC_SEL;
+	val |= (index << A10_APB1_CLK_SRC_SEL_SHIFT);
 	APBCLK_WRITE(sc, val);
 	DEVICE_UNLOCK(sc);
 

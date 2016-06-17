@@ -2,10 +2,6 @@
 
 .include <bsd.own.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 TAP_TESTS_SH=			pgrep-F_test
 TAP_TESTS_SH+=			pgrep-LF_test
 TAP_TESTS_SH+=			pgrep-P_test

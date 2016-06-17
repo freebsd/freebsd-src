@@ -444,7 +444,7 @@ struct ahci_channel {
 	int			numtslotspd[16];/* Number of tagged slots per dev */
 	int			numhslots;	/* Number of held slots */
 	int			recoverycmd;	/* Our READ LOG active */
-	int			fatalerr;	/* Fatal error happend */
+	int			fatalerr;	/* Fatal error happened */
 	int			resetting;	/* Hard-reset in progress. */
 	int			resetpolldiv;	/* Hard-reset poll divider. */
 	int			listening;	/* SUD bit is cleared. */
@@ -465,7 +465,7 @@ struct ahci_enclosure {
 	device_t		dev;            /* Device handle */
 	struct resource		*r_memc;	/* Control register */
 	struct resource		*r_memt;	/* Transmit buffer */
-	struct resource		*r_memr;	/* Recieve buffer */
+	struct resource		*r_memr;	/* Receive buffer */
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct mtx		mtx;		/* state lock */

@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
  * Columbia University, New York City
  */
 /*
- * The 3c90x series chips use a bus-master DMA interface for transfering
+ * The 3c90x series chips use a bus-master DMA interface for transferring
  * packets to and from the controller chip. Some of the "vortex" cards
  * (3c59x) also supported a bus master mode, however for those chips
  * you could only DMA packets to/from a contiguous memory buffer. For

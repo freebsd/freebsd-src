@@ -187,6 +187,11 @@ siba_dinfo_get_port(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 		return (NULL);
 	case BHND_PORT_AGENT:
 		return (NULL);
+	default:
+		printf("%s: unknown port_type (%d)\n",
+		    __func__,
+		    port_type);
+		return (NULL);
 	}
 }
 
@@ -238,9 +243,14 @@ siba_append_dinfo_region(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 {
 	struct siba_addrspace	*sa;
 	struct siba_port	*port;
-	
+	rman_res_t		 r_size;
+
 	/* Verify that base + size will not overflow */
-	if (UINT32_MAX - size < base)
+	if (size > 0 && UINT32_MAX - (size - 1) < base)
+		return (ERANGE);
+
+	/* Verify that size - bus_reserved will not underflow */
+	if (size < bus_reserved)
 		return (ERANGE);
 
 	/* Must not be 0-length */
@@ -261,11 +271,12 @@ siba_append_dinfo_region(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 	sa->sa_size = size;
 	sa->sa_sid = sid;
 	sa->sa_region_num = region_num;
-	
+	sa->sa_bus_reserved = bus_reserved;
+
 	/* Populate the resource list */
-	size -= bus_reserved;
+	r_size = size - bus_reserved;
 	sa->sa_rid = resource_list_add_next(&dinfo->resources, SYS_RES_MEMORY,
-	    base, base + size - 1, size);
+	    base, base + (r_size - 1), r_size);
 
 	/* Append to target port */
 	STAILQ_INSERT_TAIL(&port->sp_addrs, sa, sa_link);
@@ -337,7 +348,7 @@ siba_admatch_offset(uint8_t addrspace)
  * @param[out] size The parsed size.
  * 
  * @retval 0 success
- * @retval non-zero a parse error occured.
+ * @retval non-zero a parse error occurred.
  */
 int
 siba_parse_admatch(uint32_t am, uint32_t *addr, uint32_t *size)

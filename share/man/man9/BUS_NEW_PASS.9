@@ -44,7 +44,7 @@ The
 method is called on each bus device to rescan the device tree when the pass
 level has been changed.
 This method is responsible for invoking
-.Xr BUS_NEW_PASS 9
+.Nm
 on child bus devices to propagate the rescan to child devices.
 It is also responsible for reprobing any unattached child devices and
 allowing drivers for the current pass to identify new children.

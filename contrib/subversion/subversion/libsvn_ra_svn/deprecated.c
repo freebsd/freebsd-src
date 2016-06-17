@@ -256,7 +256,8 @@ svn_ra_svn_create_conn3(apr_socket_t *sock,
     out_stream = svn_stream_from_aprfile2(out_file, FALSE, pool);
 
   return svn_ra_svn_create_conn4(sock, in_stream, out_stream,
-                                 compression_level, 0, 0, pool);
+                                 compression_level, zero_copy_limit,
+                                 error_check_interval, pool);
 }
 
 svn_ra_svn_conn_t *

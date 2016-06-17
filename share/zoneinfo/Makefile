@@ -82,10 +82,10 @@ zoneinfo: yearistype ${TDATA}
 beforeinstall: install-zoneinfo
 install-zoneinfo:
 	cd ${TZBUILDDIR} && \
-	    find -s * -type f -print -exec ${INSTALL} \
+	    find -s * -type f -print -exec ${INSTALL} -T ${TAGS} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} -T ${TAGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
 afterinstall:

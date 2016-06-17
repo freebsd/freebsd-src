@@ -18,6 +18,13 @@ SRC_ENV_CONF?= /etc/src-env.conf
 _src_env_conf_included_:	.NOTMAIN
 .endif
 
+# Top-level installs should not use meta mode as it may prevent installing
+# based on cookies.
+.if make(*install*) && ${.MAKE.LEVEL} == 0
+META_MODE=	normal
+MK_META_MODE=	no
+.endif
+
 # If we were found via .../share/mk we need to replace that
 # with ${.PARSEDIR:tA} so that we can be found by
 # sub-makes launched from objdir.
@@ -26,5 +33,8 @@ _src_env_conf_included_:	.NOTMAIN
 .endif
 .if ${MAKESYSPATH:Uno:M*.../*} != ""
 MAKESYSPATH:= ${MAKESYSPATH:S,.../share/mk,${.PARSEDIR:tA},}
+.export MAKESYSPATH
+.elif empty(MAKESYSPATH)
+MAKESYSPATH:=	${.PARSEDIR:tA}
 .export MAKESYSPATH
 .endif
