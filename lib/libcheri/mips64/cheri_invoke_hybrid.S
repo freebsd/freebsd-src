@@ -233,6 +233,16 @@ cheri_invoke_return:
 	nop				# Branch-delay slot
 
 set_cheri_errno:
+#ifndef __PIC__
+	lui     $at, %tprel_hi(cherierrno)
+	.set    push
+	.set    mips32r2
+	rdhwr   $t0, $29
+	.set    pop
+	daddiu  $at, $at, %tprel_lo(cherierrno)
+	daddu   $at, $t0, $at
+	sw      $a0, 0($at)
+#else
 	ld	$t9, 88($sp)
 	sd	$a0, 88($sp)
 	#
@@ -254,6 +264,7 @@ set_cheri_errno:
 	#
 	ld	$a0, 88($sp)
 	sw	$a0, 0($v0)
+#endif // __PIC__
 	#
 	# Store the values in v0 / v1 that code that doesn't know about
 	# cherierrno might be expecting.
