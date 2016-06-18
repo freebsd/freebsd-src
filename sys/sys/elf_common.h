@@ -472,6 +472,7 @@ typedef struct {
 #define	SHF_OS_NONCONFORMING	0x100	/* OS-specific processing required. */
 #define	SHF_GROUP		0x200	/* Member of section group. */
 #define	SHF_TLS			0x400	/* Section contains TLS data. */
+#define	SHF_COMPRESSED		0x800	/* Section contains compressed data. */
 #define	SHF_MASKOS	0x0ff00000	/* OS-specific semantics. */
 #define	SHF_MASKPROC	0xf0000000	/* Processor-specific semantics. */
 
@@ -607,6 +608,8 @@ typedef struct {
  */
 #define	DT_ADDRRNGLO	0x6ffffe00
 #define	DT_GNU_HASH	0x6ffffef5	/* GNU-style hash table */
+#define	DT_TLSDESC_PLT	0x6ffffef6	/* loc. of PLT for tlsdesc resolver */
+#define	DT_TLSDESC_GOT	0x6ffffef7	/* loc. of GOT for tlsdesc resolver */
 #define	DT_GNU_CONFLICT	0x6ffffef8	/* address of conflict section */
 #define	DT_GNU_LIBLIST	0x6ffffef9	/* address of library list */
 #define	DT_CONFIG	0x6ffffefa	/* configuration information */
