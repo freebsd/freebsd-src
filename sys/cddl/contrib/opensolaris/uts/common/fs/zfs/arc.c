@@ -3795,7 +3795,7 @@ dnlc_reduce_cache(void *arg)
 {
 	u_int percent;
 
-	percent = (u_int)arg;
+	percent = (u_int)(uintptr_t)arg;
 	mutex_enter(&arc_dnlc_evicts_lock);
 	if (arc_dnlc_evicts_arg == 0) {
 		arc_dnlc_evicts_arg = percent;
