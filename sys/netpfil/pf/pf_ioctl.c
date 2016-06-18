@@ -3719,6 +3719,8 @@ pf_load(void)
 	if (error != 0)
 		return (error);
 
+	pfi_initialize();
+
 	return (0);
 }
 
