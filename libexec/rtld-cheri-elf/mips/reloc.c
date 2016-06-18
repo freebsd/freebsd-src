@@ -263,6 +263,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	const Elf_Sym *sym, *def;
 	const Obj_Entry *defobj;
 	Elf_Word i;
+	char symbuf[64];
+	SymLook req, defreq;
 #ifdef SUPPORT_OLD_BROKEN_LD
 	int broken;
 #endif
@@ -364,6 +366,42 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			/* TODO: add cache here */
 			def = find_symdef(i, obj, &defobj, flags, NULL,
 			    lockstate);
+
+			/*
+			 * XXX-BD: Undefined variables currently end up with
+			 * defined, but zero, .size.<var> variables.  This is
+			 * a linker bug.  Work around it by finding the one in
+			 * the object that provided <var>.
+			 */
+			if ((ELF_ST_TYPE(sym->st_info) == STT_NOTYPE ||
+			     ELF_ST_TYPE(sym->st_info) == STT_OBJECT) &&
+			    defobj != obj &&
+			    strncmp(sym->st_name + obj->strtab, ".size.",
+			    6) != 0) {
+				strcpy(symbuf, ".size.");
+				strlcat(symbuf, sym->st_name + obj->strtab,
+				    sizeof(symbuf) - strlen(".size."));
+				dbg("looking for %s in %s and %s", symbuf,
+				    obj->path, defobj->path);
+				symlook_init(&req, symbuf);
+				symlook_init(&defreq, symbuf);
+				if (symlook_obj(&req, obj) == 0 &&
+				    symlook_obj(&defreq, defobj) == 0) {
+					size_t osize, nsize;
+					osize = *((size_t*)(obj->relocbase +
+					    req.sym_out->st_value));
+					nsize = *((size_t* )(defobj->relocbase +
+					    defreq.sym_out->st_value));
+					dbg("found %s in %s and %s", symbuf,
+					    obj->path, defobj->path);
+					if (osize == 0) {
+						dbg("%zx -> %zx", osize, nsize);
+						*((size_t*)(obj->relocbase +
+						    req.sym_out->st_value)) =
+						    nsize;
+					}
+				}
+			}
 			if (def == NULL) {
 				dbg("Warning4, can't find symbole %d", i);
 				return -1;
