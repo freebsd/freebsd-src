@@ -724,20 +724,8 @@ _rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
       NULL) == -1)
 	rtld_die();
 
-    if (!obj_main->crt_no_init) {
-	/*
-	 * Make sure we don't call the main program's init and fini
-	 * functions for binaries linked with old crt1 which calls
-	 * _init itself.
-	 */
-	obj_main->init = obj_main->fini = (Elf_Addr)NULL;
-	obj_main->preinit_array = obj_main->init_array =
-	    obj_main->fini_array = (Elf_Addr)NULL;
-    }
-
     wlock_acquire(rtld_bind_lock, &lockstate);
-    if (obj_main->crt_no_init)
-	preinit_main();
+    preinit_main();
     objlist_call_init(&initlist, &lockstate);
     _r_debug_postinit(&obj_main->linkmap);
     objlist_clear(&initlist);
@@ -1458,6 +1446,8 @@ digest_notes(Obj_Entry *obj, caddr_t note_start, caddr_t note_end)
 			break;
 		}
 	}
+	/* We don't support old-style binaries that call init. */
+	assert(obj->crt_no_init == true);
 }
 
 static Obj_Entry *
