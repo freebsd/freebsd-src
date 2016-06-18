@@ -252,7 +252,7 @@ esac
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h copyfile.h ctype.h])
+AC_CHECK_HEADERS([copyfile.h ctype.h])
 AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h grp.h])
 
 AC_CACHE_CHECK([whether EXT2_IOC_GETFLAGS is usable],
@@ -272,7 +272,7 @@ AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pthread.h pwd.h])
 AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
-AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h])
+AC_CHECK_HEADERS([sys/cdefs.h sys/extattr.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
@@ -644,7 +644,7 @@ AC_CHECK_MEMBER(struct dirent.d_namlen,,,
 # Check for Extended Attributes support
 AC_ARG_ENABLE([xattr],
 		AS_HELP_STRING([--disable-xattr],
-		[Enable Extended Attributes support (default: check)]))
+		[Disable Extended Attributes support (default: check)]))
 
 if test "x$enable_xattr" != "xno"; then
 	AC_CHECK_HEADERS([attr/xattr.h])
@@ -670,9 +670,10 @@ fi
 #
 AC_ARG_ENABLE([acl],
 		AS_HELP_STRING([--disable-acl],
-		[Enable ACL support (default: check)]))
+		[Disable ACL support (default: check)]))
 
 if test "x$enable_acl" != "xno"; then
+   AC_CHECK_HEADERS([acl/libacl.h])
    AC_CHECK_HEADERS([sys/acl.h])
    AC_CHECK_LIB([acl],[acl_get_file])
    AC_CHECK_FUNCS([acl_create_entry acl_init acl_set_fd acl_set_fd_np acl_set_file])
