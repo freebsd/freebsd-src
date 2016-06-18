@@ -533,6 +533,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_cpio_newc.c \
 	libarchive/test/test_write_format_cpio_odc.c \
 	libarchive/test/test_write_format_gnutar.c \
+	libarchive/test/test_write_format_gnutar_filenames.c \
 	libarchive/test/test_write_format_iso9660.c \
 	libarchive/test/test_write_format_iso9660_boot.c \
 	libarchive/test/test_write_format_iso9660_empty.c \
@@ -909,6 +910,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_format_newc.c \
 	tar/test/test_help.c \
 	tar/test/test_leading_slash.c \
+	tar/test/test_missing_file.c \
 	tar/test/test_option_C_upper.c \
 	tar/test/test_option_H_upper.c \
 	tar/test/test_option_L_upper.c \
@@ -1064,6 +1066,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_extract_cpio_xz.c \
 	cpio/test/test_format_newc.c \
 	cpio/test/test_gcpio_compat.c \
+	cpio/test/test_missing_file.c \
 	cpio/test/test_option_0.c \
 	cpio/test/test_option_B_upper.c \
 	cpio/test/test_option_C_upper.c \
