@@ -53,7 +53,7 @@ PGFZAy
 %p%I:%M:%S
 #
 # x_fmt
-%y#/%m#/%e
+%y#/%m#/%d
 #
 # c_fmt
 %YDj%mTB%eHU %p%I:%M:%S
@@ -80,7 +80,7 @@ J.R;TB
 J.6~TB
 #
 # md_order
-m
+md
 #
 # ampm_fmt
 %p%I:%M:%S

@@ -53,7 +53,7 @@ Saturday
 %I:%M:%S %p
 #
 # x_fmt
-%m/%e/%y
+%m/%d/%y
 #
 # c_fmt
 %A, %B %e, %Y at %I:%M:%S %p
@@ -80,7 +80,7 @@ November
 December
 #
 # md_order
-m
+md
 #
 # ampm_fmt
 %I:%M:%S %p

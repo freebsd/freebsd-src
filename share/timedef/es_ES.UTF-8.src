@@ -53,7 +53,7 @@ sábado
 %H:%M:%S
 #
 # x_fmt
-%e/%m/%y
+%d/%m/%y
 #
 # c_fmt
 %e de %B de %Y, %H:%M:%S
@@ -80,7 +80,7 @@ noviembre
 diciembre
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I:%M:%S %p

@@ -53,7 +53,7 @@ Cumartesi
 %H:%M:%S
 #
 # x_fmt
-%e.%m.%Y
+%d.%m.%Y
 #
 # c_fmt
 %A %e %B %Y %H:%M:%S
@@ -80,7 +80,7 @@ Kasım
 Aralık
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %p %I:%M:%S

@@ -53,7 +53,7 @@
 %I:%M:%S %p
 #
 # x_fmt
-%e/%m/%y
+%d/%m/%y
 #
 # c_fmt
 %A %e %B %Y ³å %I:%M:%S %p
@@ -80,7 +80,7 @@
 ÄÛ×¢ÊÏ
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I:%M:%S %p

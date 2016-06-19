@@ -53,7 +53,7 @@
 %H.%M.%S
 #
 # x_fmt
-%e.%m.%y
+%d.%m.%y
 #
 # c_fmt
 %A %e %B %Y %H.%M.%S
@@ -80,7 +80,7 @@
 снежань
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I.%M.%S %p
