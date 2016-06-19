@@ -912,6 +912,12 @@ ieee80211_ff_node_init(struct ieee80211_node *ni)
 	ieee80211_ff_node_cleanup(ni);
 }
 
+/*
+ * Note: this comlock acquisition LORs with the node lock:
+ *
+ * 1: sta_join1 -> NODE_LOCK -> node_free -> node_cleanup -> ff_node_cleanup -> COM_LOCK
+ * 2: TBD
+ */
 void
 ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 {
