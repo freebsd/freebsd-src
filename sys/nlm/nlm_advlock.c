@@ -713,7 +713,37 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 	newfl.l_pid = svid;
 	newfl.l_sysid = NLM_SYSID_CLIENT | sysid;
 
-	error = lf_advlockasync(&a, &vp->v_lockf, size);
+	for (;;) {
+		error = lf_advlockasync(&a, &vp->v_lockf, size);
+		if (error == EDEADLK) {
+			/*
+			 * Locks are associated with the processes and
+			 * not with threads.  Suppose we have two
+			 * threads A1 A2 in one process, A1 locked
+			 * file f1, A2 is locking file f2, and A1 is
+			 * unlocking f1. Then remote server may
+			 * already unlocked f1, while local still not
+			 * yet scheduled A1 to make the call to local
+			 * advlock manager. The process B owns lock on
+			 * f2 and issued the lock on f1.  Remote would
+			 * grant B the request on f1, but local would
+			 * return EDEADLK.
+			*/
+			pause("nlmdlk", 1);
+			/* XXXKIB allow suspend */
+		} else if (error == EINTR) {
+			/*
+			 * lf_purgelocks() might wake up the lock
+			 * waiter and removed our lock graph edges.
+			 * There is no sense in re-trying recording
+			 * the lock to the local manager after
+			 * reclaim.
+			 */
+			error = 0;
+			break;
+		} else
+			break;
+	}
 	KASSERT(error == 0 || error == ENOENT,
 	    ("Failed to register NFS lock locally - error=%d", error));
 }
