@@ -107,28 +107,6 @@ typedef struct {
 	mtx_assert(IEEE80211_NODE_LOCK_OBJ(_nt), MA_OWNED)
 
 /*
- * Node table iteration locking definitions; this protects the
- * scan generation # used to iterate over the station table
- * while grabbing+releasing the node lock.
- */
-typedef struct {
-	char		name[16];		/* e.g. "ath0_scan_lock" */
-	struct mtx	mtx;
-} ieee80211_scan_lock_t;
-#define	IEEE80211_NODE_ITERATE_LOCK_INIT(_nt, _name) do {		\
-	ieee80211_scan_lock_t *sl = &(_nt)->nt_scanlock;		\
-	snprintf(sl->name, sizeof(sl->name), "%s_scan_lock", _name);	\
-	mtx_init(&sl->mtx, sl->name, NULL, MTX_DEF);			\
-} while (0)
-#define	IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt)	(&(_nt)->nt_scanlock.mtx)
-#define	IEEE80211_NODE_ITERATE_LOCK_DESTROY(_nt) \
-	mtx_destroy(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
-#define	IEEE80211_NODE_ITERATE_LOCK(_nt) \
-	mtx_lock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
-#define	IEEE80211_NODE_ITERATE_UNLOCK(_nt) \
-	mtx_unlock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
-
-/*
  * Power-save queue definitions. 
  */
 typedef struct mtx ieee80211_psq_lock_t;
