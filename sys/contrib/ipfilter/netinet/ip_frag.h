@@ -78,6 +78,7 @@ typedef struct ipf_frag_softc_s  {
 	int		ipfr_ttl;
 	int		ipfr_lock;
 	int		ipfr_inited;
+	ipftuneable_t	*ipf_frag_tune;
 	ipfr_t		*ipfr_list;
 	ipfr_t		**ipfr_tail;
 	ipfr_t		*ipfr_natlist;
