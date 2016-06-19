@@ -53,7 +53,7 @@
 %p%I:%M:%S
 #
 # x_fmt
-%e/%m/%y
+%d/%m/%y
 #
 # c_fmt
 %Y年%m月%e日 %p%I:%M:%S [%Z]
@@ -80,7 +80,7 @@
 12月
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %p%I:%M:%S

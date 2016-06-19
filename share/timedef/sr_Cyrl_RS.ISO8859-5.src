@@ -87,7 +87,7 @@ subota
 %H.%M.%S""%H.%M.%S
 #
 # x_fmt
-%e.%m.%y.""%e.%m.%y.
+%d.%m.%y.""%e.%m.%y.
 #
 # c_fmt
 %d. %B %Y. %H.%M.%S""%d. %B %Y. %H.%M.%S %Z
@@ -126,7 +126,7 @@ novembar
 decembar
 #
 # md_order
-mm
+dmdm
 #
 # ampm_fmt
 %I.%M.%S %p""%I.%M.%S %p
