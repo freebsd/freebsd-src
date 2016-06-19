@@ -68,6 +68,7 @@ my %callback = (
 	mdorder => \&callback_mdorder,
 	altmon => \&callback_altmon,
 	cformat => \&callback_cformat,
+	dformat => \&callback_dformat,
 	dtformat => \&callback_dtformat,
 	cbabmon => \&callback_abmon,
 	cbampm => \&callback_ampm,
@@ -183,10 +184,9 @@ if ($TYPE eq "timedef") {
 	    "abday"		=> "as",
 	    "day"		=> "as",
 	    "t_fmt"		=> "s",
-	    "d_fmt"		=> "s",
+	    "d_fmt"		=> "<dformat<d_fmt<s",
 	    "c_fmt"		=> "<cformat<d_t_fmt<s",
 	    "am_pm"		=> "<cbampm<am_pm<as",
-	    "d_fmt"		=> "s",
 	    "d_t_fmt"		=> "<dtformat<d_t_fmt<s",
 	    "altmon"		=> "<altmon<mon<as",
 	    "md_order"		=> "<mdorder<d_fmt<s",
@@ -225,6 +225,14 @@ sub callback_cformat {
 	return $s;
 };
 
+sub callback_dformat {
+	my $s = shift;
+
+	$s =~ s/(%m(<SOLIDUS>|[-.]))%e/$1%d/;
+	$s =~ s/%e((<SOLIDUS>|[-.])%m)/%d$1/;
+	return $s;
+};
+
 sub callback_dtformat {
 	my $s = shift;
 	my $nl = $callback{data}{l} . "_" . $callback{data}{c};
@@ -241,7 +249,8 @@ sub callback_dtformat {
 sub callback_mdorder {
 	my $s = shift;
 	return undef if (!defined $s);
-	$s =~ s/[^dm]//g;
+	$s =~ s/[^dem]//g;
+	$s =~ s/e/d/g;
 	return $s;
 };
 
