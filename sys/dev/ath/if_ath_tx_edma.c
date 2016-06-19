@@ -138,14 +138,145 @@ MALLOC_DECLARE(M_ATHDEV);
 
 static void ath_edma_tx_processq(struct ath_softc *sc, int dosched);
 
+#ifdef	ATH_DEBUG_ALQ
+static void
+ath_tx_alq_edma_push(struct ath_softc *sc, int txq, int nframes,
+    int fifo_depth, int frame_cnt)
+{
+	struct if_ath_alq_tx_fifo_push aq;
+
+	aq.txq = htobe32(txq);
+	aq.nframes = htobe32(nframes);
+	aq.fifo_depth = htobe32(fifo_depth);
+	aq.frame_cnt = htobe32(frame_cnt);
+
+	if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TX_FIFO_PUSH,
+	    sizeof(aq),
+	    (const char *) &aq);
+}
+#endif	/* ATH_DEBUG_ALQ */
+
+static void
+ath_tx_edma_push_staging_list(struct ath_softc *sc, struct ath_txq *txq,
+    int limit)
+{
+	struct ath_buf *bf, *bf_last;
+	struct ath_buf *bfi, *bfp;
+	int i, sqdepth;
+	TAILQ_HEAD(axq_q_f_s, ath_buf)  sq;
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	/*
+	 * Don't bother doing any work if it's full.
+	 */
+	if (txq->axq_fifo_depth >= HAL_TXFIFO_DEPTH)
+		return;
+
+	if (TAILQ_EMPTY(&txq->axq_q))
+		return;
+
+	TAILQ_INIT(&sq);
+
+	/*
+	 * First pass - walk sq, queue up to 'limit' entries,
+	 * subtract them from the staging queue.
+	 */
+	sqdepth = 0;
+	for (i = 0; i < limit; i++) {
+		/* Grab the head entry */
+		bf = ATH_TXQ_FIRST(txq);
+		if (bf == NULL)
+			break;
+		ATH_TXQ_REMOVE(txq, bf, bf_list);
+
+		/* Queue it into our staging list */
+		TAILQ_INSERT_TAIL(&sq, bf, bf_list);
+		sqdepth++;
+	}
+
+	/*
+	 * Ok, so now we have a staging list of up to 'limit'
+	 * frames from the txq.  Now let's wrap that up
+	 * into its own list and pass that to the hardware
+	 * as one FIFO entry.
+	 */
+
+	bf = TAILQ_FIRST(&sq);
+	bf_last = TAILQ_LAST(&sq, axq_q_s);
+
+	/*
+	 * Ok, so here's the gymnastics reqiured to make this
+	 * all sensible.
+	 */
+
+	/*
+	 * Tag the first/last buffer appropriately.
+	 */
+	bf->bf_flags |= ATH_BUF_FIFOPTR;
+	bf_last->bf_flags |= ATH_BUF_FIFOEND;
+
+	/*
+	 * Walk the descriptor list and link them appropriately.
+	 */
+	bfp = NULL;
+	TAILQ_FOREACH(bfi, &sq, bf_list) {
+		if (bfp != NULL) {
+			ath_hal_settxdesclink(sc->sc_ah, bfp->bf_lastds,
+			    bfi->bf_daddr);
+		}
+		bfp = bfi;
+	}
+
+	i = 0;
+	TAILQ_FOREACH(bfi, &sq, bf_list) {
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
+			ath_printtxbuf(sc, bfi, txq->axq_qnum, i, 0);
+#endif/* ATH_DEBUG */
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+			ath_tx_alq_post(sc, bfi);
+#endif /* ATH_DEBUG_ALQ */
+		i++;
+	}
+
+	/*
+	 * We now need to push this set of frames onto the tail
+	 * of the FIFO queue.  We don't adjust the aggregate
+	 * count, only the queue depth counter(s).
+	 * We also need to blank the link pointer now.
+	 */
+
+	TAILQ_CONCAT(&txq->fifo.axq_q, &sq, bf_list);
+	/* Bump total queue tracking in FIFO queue */
+	txq->fifo.axq_depth += sqdepth;
+
+	/* Bump FIFO queue */
+	txq->axq_fifo_depth++;
+	DPRINTF(sc, ATH_DEBUG_XMIT,
+	    "%s: queued %d packets; depth=%d, fifo depth=%d\n",
+	    __func__, sqdepth, txq->fifo.axq_depth, txq->axq_fifo_depth);
+
+	/* Push the first entry into the hardware */
+	ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
+
+	/* Push start on the DMA if it's not already started */
+	ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
+
+#ifdef	ATH_DEBUG_ALQ
+	ath_tx_alq_edma_push(sc, txq->axq_qnum, sqdepth,
+	    txq->axq_fifo_depth,
+	    txq->fifo.axq_depth);
+#endif /* ATH_DEBUG_ALQ */
+}
+
 /*
  * Push some frames into the TX FIFO if we have space.
  */
 static void
 ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_buf *bf, *bf_last;
-	int i = 0;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -153,64 +284,40 @@ ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 	    __func__,
 	    txq->axq_qnum);
 
-	TAILQ_FOREACH(bf, &txq->axq_q, bf_list) {
-		if (txq->axq_fifo_depth >= HAL_TXFIFO_DEPTH)
-			break;
-
-		/*
-		 * We have space in the FIFO - so let's push a frame
-		 * into it.
-		 */
-
-		/*
-		 * Remove it from the normal list
-		 */
-		ATH_TXQ_REMOVE(txq, bf, bf_list);
-
-		/*
-		 * XXX for now, we only dequeue a frame at a time, so
-		 * that's only one buffer.  Later on when we just
-		 * push this staging _list_ into the queue, we'll
-		 * set bf_last to the end pointer in the list.
-		 */
-		bf_last = bf;
-		DPRINTF(sc, ATH_DEBUG_TX_PROC,
-		    "%s: Q%d: depth=%d; pushing %p->%p\n",
-		    __func__,
-		    txq->axq_qnum,
-		    txq->axq_fifo_depth,
-		    bf,
-		    bf_last);
-
-		/*
-		 * Append it to the FIFO staging list
-		 */
-		ATH_TXQ_INSERT_TAIL(&txq->fifo, bf, bf_list);
-
-		/*
-		 * Set fifo start / fifo end flags appropriately
-		 *
-		 */
-		bf->bf_flags |= ATH_BUF_FIFOPTR;
-		bf_last->bf_flags |= ATH_BUF_FIFOEND;
-
-		/*
-		 * Push _into_ the FIFO.
-		 */
-		ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
-#ifdef	ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
-			ath_printtxbuf(sc, bf, txq->axq_qnum, i, 0);
-#endif/* ATH_DEBUG */
-#ifdef	ATH_DEBUG_ALQ
-		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
-			ath_tx_alq_post(sc, bf);
-#endif /* ATH_DEBUG_ALQ */
-		txq->axq_fifo_depth++;
-		i++;
-	}
-	if (i > 0)
-		ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
+	/*
+	 * For now, push up to 4 frames per TX FIFO slot.
+	 * If more are in the hardware queue then they'll
+	 * get populated when we try to send another frame
+	 * or complete a frame - so at most there'll be
+	 * 32 non-AMPDU frames per TXQ.
+	 *
+	 * Note that the hardware staging queue will limit
+	 * how many frames in total we will have pushed into
+	 * here.
+	 *
+	 * Later on, we'll want to push less frames into
+	 * the TX FIFO since we don't want to necessarily
+	 * fill tens or hundreds of milliseconds of potential
+	 * frames.
+	 *
+	 * However, we need more frames right now because of
+	 * how the MAC implements the frame scheduling policy.
+	 * It only ungates a single FIFO entry at a time,
+	 * and will run that until CHNTIME expires or the
+	 * end of that FIFO entry descriptor list is reached.
+	 * So for TDMA we suffer a big performance penalty -
+	 * single TX FIFO entries mean the MAC only sends out
+	 * one frame per DBA event, which turned out on average
+	 * 6ms per TX frame.
+	 *
+	 * So, for aggregates it's okay - it'll push two at a
+	 * time and this will just do them more efficiently.
+	 * For non-aggregates it'll do 4 at a time, up to the
+	 * non-aggr limit (non_aggr, which is 32.)  They should
+	 * be time based rather than a hard count, but I also
+	 * do need sleep.
+	 */
+	ath_tx_edma_push_staging_list(sc, txq, 4);
 }
 
 /*
