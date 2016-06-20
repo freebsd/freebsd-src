@@ -2494,9 +2494,10 @@ v_decr_devcount(struct vnode *vp)
  *
  * Notes on lockless counter manipulation:
  * _vhold, vputx and other routines make various decisions based
- * on either holdcnt or usecount being 0. As long as either contuner
+ * on either holdcnt or usecount being 0. As long as either counter
  * is not transitioning 0->1 nor 1->0, the manipulation can be done
- * with atomic operations. Otherwise the interlock is taken.
+ * with atomic operations. Otherwise the interlock is taken covering
+ * both the atomic and additional actions.
  */
 int
 vget(struct vnode *vp, int flags, struct thread *td)
