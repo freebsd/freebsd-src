@@ -188,6 +188,15 @@ static struct cdevsw pf_cdevsw = {
 
 static volatile VNET_DEFINE(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
+
+/*
+ * We need a flag that is neither hooked nor running to know when
+ * the VNET is "valid".  We primarily need this to control (global)
+ * external event, e.g., eventhandlers.
+ */
+VNET_DEFINE(int, pf_vnet_active);
+#define V_pf_vnet_active	VNET(pf_vnet_active)
+
 int pf_end_threads;
 
 struct rwlock			pf_rules_lock;
@@ -3465,21 +3474,6 @@ shutdown_pf(void)
 	u_int32_t t[5];
 	char nn = '\0';
 
-	V_pf_status.running = 0;
-
-	counter_u64_free(V_pf_default_rule.states_cur);
-	counter_u64_free(V_pf_default_rule.states_tot);
-	counter_u64_free(V_pf_default_rule.src_nodes);
-
-	for (int i = 0; i < PFRES_MAX; i++)
-		counter_u64_free(V_pf_status.counters[i]);
-	for (int i = 0; i < LCNT_MAX; i++)
-		counter_u64_free(V_pf_status.lcounters[i]);
-	for (int i = 0; i < FCNT_MAX; i++)
-		counter_u64_free(V_pf_status.fcounters[i]);
-	for (int i = 0; i < SCNT_MAX; i++)
-		counter_u64_free(V_pf_status.scounters[i]);
-
 	do {
 		if ((error = pf_begin_rules(&t[0], PF_RULESET_SCRUB, &nn))
 		    != 0) {
@@ -3531,6 +3525,20 @@ shutdown_pf(void)
 
 		/* status does not use malloced mem so no need to cleanup */
 		/* fingerprints and interfaces have their own cleanup code */
+
+		/* Free counters last as we updated them during shutdown. */
+		counter_u64_free(V_pf_default_rule.states_cur);
+		counter_u64_free(V_pf_default_rule.states_tot);
+		counter_u64_free(V_pf_default_rule.src_nodes);
+
+		for (int i = 0; i < PFRES_MAX; i++)
+			counter_u64_free(V_pf_status.counters[i]);
+		for (int i = 0; i < LCNT_MAX; i++)
+			counter_u64_free(V_pf_status.lcounters[i]);
+		for (int i = 0; i < FCNT_MAX; i++)
+			counter_u64_free(V_pf_status.fcounters[i]);
+		for (int i = 0; i < SCNT_MAX; i++)
+			counter_u64_free(V_pf_status.scounters[i]);
 	} while(0);
 
 	return (error);
@@ -3698,6 +3706,7 @@ pf_load_vnet(void)
 	VNET_LIST_RUNLOCK();
 
 	pfattach_vnet();
+	V_pf_vnet_active = 1;
 }
 
 static int
@@ -3729,6 +3738,7 @@ pf_unload_vnet()
 {
 	int error;
 
+	V_pf_vnet_active = 0;
 	V_pf_status.running = 0;
 	swi_remove(V_pf_swi_cookie);
 	error = dehook_pf();
@@ -3749,7 +3759,9 @@ pf_unload_vnet()
 	PF_RULES_WUNLOCK();
 
 	pf_normalize_cleanup();
+	PF_RULES_WLOCK();
 	pfi_cleanup_vnet();
+	PF_RULES_WUNLOCK();
 	pfr_cleanup();
 	pf_osfp_flush();
 	pf_cleanup();
