@@ -4,47 +4,47 @@
 # -----------------------------------------------------------------------------
 #
 # int_curr_symbol (last character always SPACE)
-RSD ""RSD 
+RSD 
 #
 # currency_symbol
-RSD""RSD
+RSD
 #
 # mon_decimal_point
-,"",
+,
 #
 # mon_thousands_sep
-."".
+.
 #
 # mon_grouping
-33
+3
 #
 # positive_sign
-""
+
 #
 # negative_sign
--""-
+-
 #
 # int_frac_digits
-00
+0
 #
 # frac_digits
-00
+0
 #
 # p_cs_precedes
-00
+0
 #
 # p_sep_by_space
-11
+1
 #
 # n_cs_precedes
-00
+0
 #
 # n_sep_by_space
-11
+1
 #
 # p_sign_posn
-11
+1
 #
 # n_sign_posn
-11
+1
 # EOF
