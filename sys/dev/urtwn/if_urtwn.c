@@ -208,6 +208,10 @@ static struct ieee80211vap *urtwn_vap_create(struct ieee80211com *,
                     const uint8_t [IEEE80211_ADDR_LEN],
                     const uint8_t [IEEE80211_ADDR_LEN]);
 static void		urtwn_vap_delete(struct ieee80211vap *);
+static void		urtwn_vap_clear_tx(struct urtwn_softc *,
+			    struct ieee80211vap *);
+static void		urtwn_vap_clear_tx_queue(struct urtwn_softc *,
+			    urtwn_datahead *, struct ieee80211vap *);
 static struct mbuf *	urtwn_rx_copy_to_mbuf(struct urtwn_softc *,
 			    struct r92c_rx_stat *, int);
 static struct mbuf *	urtwn_report_intr(struct usb_xfer *,
@@ -824,14 +828,57 @@ urtwn_vap_delete(struct ieee80211vap *vap)
 	struct urtwn_softc *sc = ic->ic_softc;
 	struct urtwn_vap *uvp = URTWN_VAP(vap);
 
+	/* Guarantee that nothing will go through this vap. */
+	ieee80211_new_state(vap, IEEE80211_S_INIT, -1);
+	ieee80211_draintask(ic, &vap->iv_nstate_task);
+
+	URTWN_LOCK(sc);
 	if (uvp->bcn_mbuf != NULL)
 		m_freem(uvp->bcn_mbuf);
+	/* Cancel any unfinished Tx. */
+	urtwn_vap_clear_tx(sc, vap);
+	URTWN_UNLOCK(sc);
 	if (vap->iv_opmode == IEEE80211_M_IBSS)
 		ieee80211_draintask(ic, &uvp->tsf_task_adhoc);
 	if (URTWN_CHIP_HAS_RATECTL(sc))
 		ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(uvp, M_80211_VAP);
+}
+
+static void
+urtwn_vap_clear_tx(struct urtwn_softc *sc, struct ieee80211vap *vap)
+{
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	urtwn_vap_clear_tx_queue(sc, &sc->sc_tx_active, vap);
+	urtwn_vap_clear_tx_queue(sc, &sc->sc_tx_pending, vap);
+}
+
+static void
+urtwn_vap_clear_tx_queue(struct urtwn_softc *sc, urtwn_datahead *head,
+    struct ieee80211vap *vap)
+{
+	struct urtwn_data *dp, *tmp;
+
+	STAILQ_FOREACH_SAFE(dp, head, next, tmp) {
+		if (dp->ni != NULL) {
+			if (dp->ni->ni_vap == vap) {
+				ieee80211_free_node(dp->ni);
+				dp->ni = NULL;
+
+				if (dp->m != NULL) {
+					m_freem(dp->m);
+					dp->m = NULL;
+				}
+
+				STAILQ_REMOVE(head, dp, urtwn_data, next);
+				STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, dp,
+				    next);
+			}
+		}
+	}
 }
 
 static struct mbuf *
