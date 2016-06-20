@@ -241,6 +241,8 @@ mpssas_alloc_tm(struct mps_softc *sc)
 void
 mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm)
 {
+	int target_id = 0xFFFFFFFF;
+ 
 	if (tm == NULL)
 		return;
 
@@ -251,10 +253,11 @@ mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm)
 	 */
 	if (tm->cm_targ != NULL) {
 		tm->cm_targ->flags &= ~MPSSAS_TARGET_INRESET;
+		target_id = tm->cm_targ->tid;
 	}
 	if (tm->cm_ccb) {
 		mps_dprint(sc, MPS_INFO, "Unfreezing devq for target ID %d\n",
-		    tm->cm_targ->tid);
+		    target_id);
 		xpt_release_devq(tm->cm_ccb->ccb_h.path, 1, TRUE);
 		xpt_free_path(tm->cm_ccb->ccb_h.path);
 		xpt_free_ccb(tm->cm_ccb);
@@ -372,12 +375,11 @@ mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 		return;
 	}
 
-	if (reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) {
-		mps_dprint(sc, MPS_FAULT,
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS) {
+		mps_dprint(sc, MPS_ERROR,
 		   "IOCStatus = 0x%x while resetting device 0x%x\n",
-		   reply->IOCStatus, handle);
-		mpssas_free_tm(sc, tm);
-		return;
+		   le16toh(reply->IOCStatus), handle);
 	}
 
 	mps_dprint(sc, MPS_XINFO,
@@ -394,7 +396,8 @@ mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 	 * this target id if possible, and so we can assign the same target id
 	 * to this device if it comes back in the future.
 	 */
-	if (reply->IOCStatus == MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) ==
+	    MPI2_IOCSTATUS_SUCCESS) {
 		targ = tm->cm_targ;
 		targ->handle = 0x0;
 		targ->encl_handle = 0x0;
@@ -567,24 +570,22 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 		    "%s: cm_flags = %#x for remove of handle %#04x! "
 		    "This should not happen!\n", __func__, tm->cm_flags,
 		    handle);
-		mpssas_free_tm(sc, tm);
-		return;
 	}
 
 	if (reply == NULL) {
 		/* XXX retry the remove after the diag reset completes? */
 		mps_dprint(sc, MPS_FAULT,
-		    "%s NULL reply reseting device 0x%04x\n", __func__, handle);
+		    "%s NULL reply resetting device 0x%04x\n", __func__,
+		    handle);
 		mpssas_free_tm(sc, tm);
 		return;
 	}
 
-	if (le16toh(reply->IOCStatus) != MPI2_IOCSTATUS_SUCCESS) {
-		mps_dprint(sc, MPS_FAULT,
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS) {
+		mps_dprint(sc, MPS_ERROR,
 		   "IOCStatus = 0x%x while resetting device 0x%x\n",
 		   le16toh(reply->IOCStatus), handle);
-		mpssas_free_tm(sc, tm);
-		return;
 	}
 
 	mps_dprint(sc, MPS_XINFO, "Reset aborted %u commands\n",
@@ -662,7 +663,8 @@ mpssas_remove_complete(struct mps_softc *sc, struct mps_command *tm)
 	 * this target id if possible, and so we can assign the same target id
 	 * to this device if it comes back in the future.
 	 */
-	if (le16toh(reply->IOCStatus) == MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) ==
+	    MPI2_IOCSTATUS_SUCCESS) {
 		targ = tm->cm_targ;
 		targ->handle = 0x0;
 		targ->encl_handle = 0x0;
@@ -880,7 +882,6 @@ mps_detach_sas(struct mps_softc *sc)
 		cam_sim_free(sassc->sim, FALSE);
 	}
 
-	sassc->flags |= MPSSAS_SHUTDOWN;
 	mps_unlock(sc);
 
 	if (sassc->devq != NULL)
