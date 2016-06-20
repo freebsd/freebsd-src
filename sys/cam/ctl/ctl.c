@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_cd.h>
 #include <cam/scsi/scsi_da.h>
-#include <cam/scsi/scsi_passthrough.c>
+
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
@@ -83,6 +83,11 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_error.h>
+
+//#ifndef PASS_H
+//#define PASS_H
+
+#include <cam/scsi/scsi_passthrough.c>
 
 struct ctl_softc *control_softc = NULL;
 
@@ -524,7 +529,8 @@ static uint64_t ctl_get_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_clr_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_alloc_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_set_prkey(struct ctl_lun *lun, uint32_t residx, uint64_t key);
-
+static void ctl_passthrough_done(union ctl_io *io);
+//void ctl_done(union ctl_io *io);
 /*
  * Load the serialization table.  This isn't very pretty, but is probably
  * the easiest way to do it.
@@ -4404,21 +4410,26 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	const char *eui, *naa, *scsiname, *vendor, *value;
 	int lun_number, i, lun_malloced;
 	int devidlen, idlen1, idlen2 = 0, len;
-
+	
+	printf("ctl alloc lun");
 	if (be_lun == NULL)
 		return (EINVAL);
-
+	printf("ctl_alloc lun after if statement");
 	/*
 	 * We currently only support Direct Access or Processor LUN types.
 	 */
+
+		
 	switch (be_lun->lun_type) {
-	case T_DIRECT:
-	case T_PROCESSOR:
+	case T_PASSTHROUGH: break;
+	case T_DIRECT:break;
+	case T_PROCESSOR:break;
 	case T_CDROM:
 		break;
 	case T_SEQUENTIAL:
 	case T_CHANGER:
 	default:
+		printf("default getting called\n");
 		be_lun->lun_config_status(be_lun->be_lun,
 					  CTL_LUN_CONFIG_FAILURE);
 		break;
@@ -4434,7 +4445,8 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	memset(lun, 0, sizeof(*lun));
 	if (lun_malloced)
 		lun->flags = CTL_LUN_MALLOCED;
-
+	
+	printf("if statement before generating lun id");
 	/* Generate LUN ID. */
 	devidlen = max(CTL_DEVID_MIN_LEN,
 	    strnlen(be_lun->device_id, CTL_DEVID_LEN));
@@ -4501,6 +4513,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	}
 	lun->lun_devid->len = len;
 
+	printf("checking caller requested for a particular number");
 	mtx_lock(&ctl_softc->ctl_lock);
 	/*
 	 * See if the caller requested a particular LUN number.  If so, see
@@ -4581,6 +4594,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	STAILQ_INIT(&lun->error_list);
 	ctl_tpc_lun_init(lun);
 
+	printf("initialxe the mode amd log index");
 	/*
 	 * Initialize the mode and log page index.
 	 */
@@ -4602,6 +4616,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	ctl_softc->ctl_luns[lun_number] = lun;
 
 	ctl_softc->num_luns++;
+	printf("setup statistics gathering");
 
 	/* Setup statistics gathering */
 	lun->stats.device_type = be_lun->lun_type;
@@ -4613,7 +4628,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		lun->stats.ports[i].targ_port = i;
 
 	mtx_unlock(&ctl_softc->ctl_lock);
-
+	printf("before lun config status");
 	lun->be_lun->lun_config_status(lun->be_lun->be_lun, CTL_LUN_CONFIG_OK);
 	return (0);
 }
@@ -4675,10 +4690,12 @@ ctl_free_lun(struct ctl_lun *lun)
 static void
 ctl_create_lun(struct ctl_be_lun *be_lun)
 {
-
+	printf("ctl_create_lun");
 	/*
 	 * ctl_alloc_lun() should handle all potential failure cases.
 	 */
+	if(be_lun->lun_type==T_PASSTHROUGH)
+		printf("passthrough device type it is");
 	ctl_alloc_lun(control_softc, NULL, be_lun);
 }
 
@@ -4686,7 +4703,8 @@ int
 ctl_add_lun(struct ctl_be_lun *be_lun)
 {
 	struct ctl_softc *softc = control_softc;
-
+	
+		
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_INSERT_TAIL(&softc->pending_lun_queue, be_lun, links);
 	mtx_unlock(&softc->ctl_lock);
@@ -11833,6 +11851,10 @@ ctl_cmd_applicable(uint8_t lun_type, const struct ctl_cmd_entry *entry)
 		if ((entry->flags & CTL_CMD_FLAG_OK_ON_CDROM) == 0)
 			return (0);
 		break;
+	case T_PASSTHROUGH:
+		if((entry->flags & CTL_CMD_FLAG_OK_ON_PASSTHROUGH) == 0)
+			return (0);
+		break;
 	default:
 		return (0);
 	}
@@ -13475,7 +13497,73 @@ ctl_serseq_done(union ctl_io *io)
 	ctl_check_blocked(lun);
 	mtx_unlock(&lun->lun_lock);
 }
+static void ctl_passthrough_done(union ctl_io *io)
+{
+/*
+	 * Enable this to catch duplicate completion issues.
+	 */
+#if 0
+	if (io->io_hdr.flags & CTL_FLAG_ALREADY_DONE) {
+		printf("%s: type %d msg %d cdb %x iptl: "
+		       "%u:%u:%u tag 0x%04x "
+		       "flag %#x status %x\n",
+			__func__,
+			io->io_hdr.io_type,
+			io->io_hdr.msg_type,
+			io->scsiio.cdb[0],
+			io->io_hdr.nexus.initid,
+			io->io_hdr.nexus.targ_port,
+			io->io_hdr.nexus.targ_lun,
+			(io->io_hdr.io_type ==
+			CTL_IO_TASK) ?
+			io->taskio.tag_num :
+			io->scsiio.tag_num,
+		        io->io_hdr.flags,
+			io->io_hdr.status);
+	} else
+		io->io_hdr.flags |= CTL_FLAG_ALREADY_DONE;
+#endif
 
+	/*
+	 * This is an internal copy of an I/O, and should not go through
+	 * the normal done processing logic.
+	 */
+	if (io->io_hdr.flags & CTL_FLAG_INT_COPY)
+		return;
+
+#ifdef CTL_IO_DELAY
+	if (io->io_hdr.flags & CTL_FLAG_DELAY_DONE) {
+		struct ctl_lun *lun;
+
+		lun =(struct ctl_lun *)io->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+		io->io_hdr.flags &= ~CTL_FLAG_DELAY_DONE;
+	} else {
+		struct ctl_lun *lun;
+
+		lun =(struct ctl_lun *)io->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+		if ((lun != NULL)
+		 && (lun->delay_info.done_delay > 0)) {
+
+			callout_init(&io->io_hdr.delay_callout, /*mpsafe*/ 1);
+			io->io_hdr.flags |= CTL_FLAG_DELAY_DONE;
+			callout_reset(&io->io_hdr.delay_callout,
+				      lun->delay_info.done_delay * hz,
+				      ctl_done_timer_wakeup, io);
+			if (lun->delay_info.done_type == CTL_DELAY_TYPE_ONESHOT)
+				lun->delay_info.done_delay = 0;
+			return;
+		}
+	}
+#endif /* CTL_IO_DELAY */
+	printf("ctl_done");
+	ctl_enqueue_done(io);
+
+
+
+
+}
 void
 ctl_done(union ctl_io *io)
 {
@@ -13538,7 +13626,6 @@ ctl_done(union ctl_io *io)
 		}
 	}
 #endif /* CTL_IO_DELAY */
-
 	ctl_enqueue_done(io);
 }
 
@@ -13616,6 +13703,7 @@ ctl_lun_thread(void *arg)
 		mtx_lock(&softc->ctl_lock);
 		be_lun = STAILQ_FIRST(&softc->pending_lun_queue);
 		if (be_lun != NULL) {
+			printf("In ctl_lun_thread before entering pending_lun_queue");
 			STAILQ_REMOVE_HEAD(&softc->pending_lun_queue, links);
 			mtx_unlock(&softc->ctl_lock);
 			ctl_create_lun(be_lun);
@@ -13765,9 +13853,10 @@ ctl_enqueue_rtr(union ctl_io *io)
 static void
 ctl_enqueue_done(union ctl_io *io)
 {
+	
 	struct ctl_softc *softc = control_softc;
 	struct ctl_thread *thr;
-
+	
 	thr = &softc->threads[io->io_hdr.nexus.targ_mapped_lun % worker_threads];
 	mtx_lock(&thr->queue_lock);
 	STAILQ_INSERT_TAIL(&thr->done_queue, &io->io_hdr, links);

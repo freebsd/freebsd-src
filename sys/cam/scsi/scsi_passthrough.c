@@ -24,6 +24,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#ifndef CTL_PASS
+#define CTL_PASS
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -64,9 +66,11 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_passthrough.h>
-
+#include <cam/scsi/scsi_message.h>
 #include <cam/ctl/ctl_io.h>
-
+#include <cam/ctl/ctl.h>
+#endif
+//#include <cam/scsi/scsi_passthrough_dummy.c>
 typedef enum {
 	PASS_FLAG_OPEN			= 0x01,
 	PASS_FLAG_LOCKED		= 0x02,
@@ -102,10 +106,10 @@ typedef enum {
 	PASS_IO_ABANDONED	= 0x04
 } pass_io_flags; 
 
+
 struct passthrough_io_req {
 	union ccb			 ccb;
-	union ccb			*alloced_ccb;
-	union ccb			*user_ccb_ptr;
+	union ctl_io			*io;
 	camq_entry			 user_periph_links;
 	ccb_ppriv_area			 user_periph_priv;
 	struct cam_periph_map_info	 mapinfo;
@@ -150,6 +154,9 @@ struct passthrough_softc {
 	size_t			  io_zone_size;
 };
 
+struct cam_path *spath;
+union ctl_io *sio;
+struct cam_periph *speriph;
 static	d_open_t	passthroughopen;
 static	d_close_t	passthroughclose;
 static	periph_init_t	passthroughinit;
@@ -158,7 +165,7 @@ static	periph_oninv_t	passthroughoninvalidate;
 static	periph_dtor_t	passthroughcleanup;
 static	periph_start_t	passthroughstart;
 
-static	void		passthrough_add_physpath(void *context, int pending);
+//static	void		passthrough_add_physpath(void *context, int pending);
 static	void		passthroughasync(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
 static	void		passthroughdone(struct cam_periph *periph, 
@@ -166,9 +173,17 @@ static	void		passthroughdone(struct cam_periph *periph,
 static	void		passthroughiocleanup(struct passthrough_softc *softc, 
 				      struct passthrough_io_req *io_req);
 
-static	int		passthrougherror(union ccb *ccb, u_int32_t cam_flags, 
-				  u_int32_t sense_flags);
+//static	int		passthrougherror(union ccb *ccb, u_int32_t cam_flags, 
+//				  u_int32_t sense_flags);
 static 	int		ctlccb(union ctl_io *io); 
+
+	void		set_path(struct cam_path *path);
+	void		set_ctlio(union ctl_io *io);
+	void 		set_periph(struct cam_periph *periph);
+struct cam_path *get_path(void);
+union ctl_io *get_ctlio(void);
+struct cam_periph *get_periph(void);
+	
 
 static struct periph_driver passthroughdriver =
 {
@@ -207,11 +222,89 @@ passthroughinit(void)
 
 }
 
-static int ctlccb(union ctl_io *io)
+ int ctlccb(union ctl_io *io)
 {
 
-	return 1;
+struct cam_path *path;
+struct cam_periph *periph;
+struct passthrough_softc *softc;
+union ccb *ccb;
+struct ccb_scsiio *csio;
+int error=0;
+	set_ctlio(io);
+	path=get_path(); 
+	periph = get_periph();
+	if(path == NULL)
+		printf("path is NULL");
+	if(periph == NULL)
+		printf("periph is NULL");
+//	if(path->device==NULL)
+//		printf("path device is null");
+		
+	softc= periph->softc;
 
+	ccb = xpt_alloc_ccb();
+	csio = &ccb->csio;
+
+	ccb->ccb_h.func_code=XPT_SCSI_IO;
+	//csio->tag_id = softc->cur_tag_num++;
+	
+	switch(io->scsiio.tag_type)
+	{
+		case CTL_TAG_SIMPLE:
+			csio->tag_action = MSG_SIMPLE_TASK;
+			break;
+		case CTL_TAG_HEAD_OF_QUEUE:
+			csio->tag_action = MSG_HEAD_OF_QUEUE_TASK;
+			break;
+		case CTL_TAG_ORDERED:
+			csio->tag_action = MSG_ORDERED_TASK;
+			break;
+		case CTL_TAG_ACA:
+			csio->tag_action = MSG_ACA_TASK;
+			break;
+		default:
+			csio->tag_action = CAM_TAG_ACTION_NONE;
+			break;
+	}
+
+	csio->cdb_len = io->scsiio.cdb_len;
+	bcopy(io->scsiio.cdb, csio->cdb_io.cdb_bytes, csio->cdb_len);
+
+	/*
+	 *Some CCB types , like scan bus and scan lun can only go
+	 *through the transport layer device.
+	 */
+	if(ccb->ccb_h.func_code & XPT_FC_XPT_ONLY)
+	{
+	 
+ 	 xpt_print(periph->path, "CCB function code %#x is restricted to the XPT device\n", ccb->ccb_h.func_code);
+	  error = ENODEV;
+	 
+	}
+	//printf("path id %d and  target id %d and target lun %d",path->bus->path_id,path->target->target_id,path->device->lun_id);
+	printf("before xpt setup");	
+/*	ccb->ccb_h.pinfo.priority =CAM_PRIORITY_NORMAL;
+	ccb->ccb_h.path = periph->path;
+	ccb->ccb_h.path_id = xpt_path_path_id(periph->path);
+	ccb->ccb_h.target_id = xpt_path_target_id(periph->path);
+	ccb->ccb_h.target_lun = xpt_path_lun_id(periph->path);
+	ccb->ccb_h.pinfo.index = CAM_UNQUEUED_INDEX;
+	ccb->ccb_h.flags =0 ;
+	ccb->ccb_h.xflags=0;*/
+	xpt_setup_ccb(&ccb->ccb_h,periph->path,CAM_PRIORITY_NORMAL);
+	
+	ccb->ccb_h.cbfcnp = passthroughdone;
+	
+	if(ccb->ccb_h.path!=NULL)
+		printf(" path is not null");	
+	printf("before action after setup");
+	//ccb->ccb_h.status=CAM_REQ_INPROG;
+	//(*(ccb->ccb_h.path->bus->xport->action))(ccb);
+	xpt_action((union ccb *)ccb);
+
+
+	return 0;
 }
 
 
@@ -270,6 +363,44 @@ passrejectios(struct cam_periph *periph)
 		softc->flags |= PASS_FLAG_ABANDONED_REF_SET;
 	}
 }
+
+void set_periph(struct cam_periph *periph)
+{
+
+speriph = periph;
+
+}
+
+void set_path(struct cam_path *path)
+{
+
+spath =path;
+
+}
+
+void set_ctlio(union ctl_io *io)
+{
+
+	sio =io;
+}
+struct cam_path *get_path()
+{
+	return spath;
+
+}
+union ctl_io *get_ctlio()
+{
+
+	return sio;
+
+}	
+struct cam_periph *get_periph()
+{
+
+	return speriph;	
+
+}
+
 
 static void
 passthroughdevgonecb(void *arg)
@@ -462,7 +593,6 @@ passthroughasync(void *callback_arg, u_int32_t code,
 					  passthroughcleanup, passthroughstart, "passthrough",
 					  CAM_PERIPH_BIO, path,
 					  passthroughasync, AC_FOUND_DEVICE, cgd);
-
 		if (status != CAM_REQ_CMP
 		 && status != CAM_REQ_INPROG) {
 			const struct cam_status_entry *entry;
@@ -566,6 +696,8 @@ passthroughregister(struct cam_periph *periph, void *arg)
 	if (cpi.hba_misc & PIM_UNMAPPED)
 		softc->flags |= PASS_FLAG_UNMAPPED_CAPABLE;
 
+                set_path(periph->path);
+		set_periph(periph);
 	/*
 	 * We pass in 0 for a blocksize, since we don't 
 	 * know what the blocksize of this device is, if 
@@ -823,7 +955,7 @@ passthroughstart(struct cam_periph *periph, union ccb *start_ccb)
 		start_ccb->ccb_h.ccb_type = PASS_CCB_QUEUED_IO;
 		start_ccb->ccb_h.ccb_ioreq = io_req;
 		start_ccb->ccb_h.cbfcnp = passthroughdone;
-		io_req->alloced_ccb = start_ccb;
+	//	io_req->alloced_ccb = start_ccb;
 		binuptime(&io_req->start_time);
 		devstat_start_transaction(softc->device_stats,
 					  &io_req->start_time);
@@ -845,59 +977,79 @@ passthroughstart(struct cam_periph *periph, union ccb *start_ccb)
 static void
 passthroughdone(struct cam_periph *periph, union ccb *done_ccb)
 { 
-	struct passthrough_softc *softc;
-	struct ccb_scsiio *csio;
+//	struct passthrough_softc *softc;
 
-	softc = (struct passthrough_softc *)periph->softc;
+//	struct ccb_scsiio *csio;
+        union  ctl_io *io;
+	struct ccb_scsiio ctsio;
+	printf("passthroug done");
+	io=get_ctlio();
+	
+	if(io!=NULL)
+		printf("io is not null");
+	//softc = (struct passthrough_softc *)periph->softc;
 
 	cam_periph_assert(periph, MA_OWNED);
 
-	csio = &done_ccb->csio;
-	switch (csio->ccb_h.ccb_type) {
-	case PASS_CCB_QUEUED_IO: {
-		struct passthrough_io_req *io_req;
+	
+	ctsio = done_ccb->csio;
+	//switch (csio->ccb_h.ccb_type) {
+	//case PASS_CCB_QUEUED_IO: {
+	//	struct passthrough_io_req *io_req;
 
-		io_req = done_ccb->ccb_h.ccb_ioreq;
+	//	io_req = done_ccb->ccb_h.ccb_ioreq;
 #if 0
 		xpt_print(periph->path, "%s: called for user CCB %p\n",
 			  __func__, io_req->user_ccb_ptr);
 #endif
-		if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+	/*	if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		 && (done_ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER)
 		 && ((io_req->flags & PASS_IO_ABANDONED) == 0)) {
 			int error;
 
-			error = passthrougherror(done_ccb, CAM_RETRY_SELTO,
-					  SF_RETRY_UA | SF_NO_PRINT);
+		//	error = passthrougherror(done_ccb, CAM_RETRY_SELTO,
+		//			  SF_RETRY_UA | SF_NO_PRINT);
 
 			if (error == ERESTART) {
-				/*
+				*
 				 * A retry was scheduled, so
  				 * just return.
-				 */
+				 *
 				return;
 			}
 		}
-
+*/
 		/*
 		 * Copy the allocated CCB contents back to the malloced CCB
 		 * so we can give status back to the user when he requests it.
 		 */
-		bcopy(done_ccb, &io_req->ccb, sizeof(*done_ccb));
+//		bcopy(done_ccb, &io_req->ccb, sizeof(*done_ccb));
 
 		/*
 		 * Log data/transaction completion with devstat(9).
 		 */
 		switch (done_ccb->ccb_h.func_code) {
 		case XPT_SCSI_IO:
-			devstat_end_transaction(softc->device_stats,
+		/*	devstat_end_transaction(softc->device_stats,
 			    done_ccb->csio.dxfer_len - done_ccb->csio.resid,
 			    done_ccb->csio.tag_action & 0x3,
 			    ((done_ccb->ccb_h.flags & CAM_DIR_MASK) ==
 			    CAM_DIR_NONE) ? DEVSTAT_NO_DATA :
 			    (done_ccb->ccb_h.flags & CAM_DIR_OUT) ?
 			    DEVSTAT_WRITE : DEVSTAT_READ, NULL,
-			    &io_req->start_time);
+			    &io_req->start_time);*/
+		if(done_ccb->ccb_h.status==CAM_REQ_CMP)
+		{
+
+			io->scsiio.io_hdr.status=CTL_SUCCESS;
+			if(ctsio.data_ptr==NULL)
+			{
+			io->scsiio.ext_data_ptr=ctsio.data_ptr;
+			printf("\ndata pointer is null\n");
+			}
+			ctl_done((union ctl_io *)io);
+       			printf("xpr_scsi_io section");
+		}
 			break;
 		case XPT_SMP_IO:
 			/*
@@ -910,16 +1062,17 @@ passthroughdone(struct cam_periph *periph, union ccb *done_ccb)
 			 * response.  For now, so that we report something,
 			 * just treat the entire thing as a read.
 			 */
-			devstat_end_transaction(softc->device_stats,
+			/*devstat_end_transaction(softc->device_stats,
 			    done_ccb->smpio.smp_request_len +
 			    done_ccb->smpio.smp_response_len,
 			    DEVSTAT_TAG_SIMPLE, DEVSTAT_READ, NULL,
-			    &io_req->start_time);
+			    &io_req->start_time);*/
 			break;
 		default:
-			devstat_end_transaction(softc->device_stats, 0,
+			printf("dfault section");
+			/*devstat_end_transaction(softc->device_stats, 0,
 			    DEVSTAT_TAG_NONE, DEVSTAT_NO_DATA, NULL,
-			    &io_req->start_time);
+			    &io_req->start_time);*/
 			break;
 		}
 
@@ -927,50 +1080,50 @@ passthroughdone(struct cam_periph *periph, union ccb *done_ccb)
 		 * In the normal case, take the completed I/O off of the
 		 * active queue and put it on the done queue.  Notitfy the
 		 * user that we have a completed I/O.
-		 */
+		 *
 		if ((io_req->flags & PASS_IO_ABANDONED) == 0) {
 			TAILQ_REMOVE(&softc->active_queue, io_req, links);
 			TAILQ_INSERT_TAIL(&softc->done_queue, io_req, links);
 			selwakeuppri(&softc->read_select, PRIBIO);
 			KNOTE_LOCKED(&softc->read_select.si_note, 0);
 		} else {
-			/*
+			*
 			 * In the case of an abandoned I/O (final close
 			 * without fetching the I/O), take it off of the
 			 * abandoned queue and free it.
-			 */
+			 *
 			TAILQ_REMOVE(&softc->abandoned_queue, io_req, links);
 			passthroughiocleanup(softc, io_req);
 			uma_zfree(softc->pass_zone, io_req);
 
-			/*
+			*
 			 * Release the done_ccb here, since we may wind up
 			 * freeing the peripheral when we decrement the
 			 * reference count below.
-			 */
+			 *
 			xpt_release_ccb(done_ccb);
 
-			/*
+			*
 			 * If the abandoned queue is empty, we can release
 			 * our reference to the periph since we won't have
 			 * any more completions coming.
-			 */
+			 *
 			if ((TAILQ_EMPTY(&softc->abandoned_queue))
 			 && (softc->flags & PASS_FLAG_ABANDONED_REF_SET)) {
 				softc->flags &= ~PASS_FLAG_ABANDONED_REF_SET;
 				cam_periph_release_locked(periph);
 			}
 
-			/*
+			*
 			 * We have already released the CCB, so we can
 			 * return.
-			 */
+			 *
 			return;
 		}
 		break;
 	}
-	}
-	xpt_release_ccb(done_ccb);
+	}*/
+			xpt_release_ccb(done_ccb);
 }
 
 static void
@@ -982,6 +1135,7 @@ passthroughiocleanup(struct passthrough_softc *softc, struct passthrough_io_req 
 
 	ccb = &io_req->ccb;
 
+	printf("\n I am in passthrough io cleanup\n");
 	switch (ccb->ccb_h.func_code) {
 	case XPT_DEV_MATCH:
 		numbufs = min(io_req->num_bufs, 2);
@@ -1053,6 +1207,7 @@ passthroughiocleanup(struct passthrough_softc *softc, struct passthrough_io_req 
 	}
 
 }
+/*
 static int
 passthrougherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
@@ -1064,4 +1219,4 @@ passthrougherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	
 	return(cam_periph_error(ccb, cam_flags, sense_flags, 
 				 &softc->saved_ccb));
-}
+}*/

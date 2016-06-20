@@ -85,6 +85,7 @@ cam/ctl/ctl.c			optional ctl
 cam/ctl/ctl_backend.c		optional ctl
 cam/ctl/ctl_backend_block.c	optional ctl
 cam/ctl/ctl_backend_ramdisk.c	optional ctl
+cam/ctl/ctl_backend_passthrough.c   optional ctl
 cam/ctl/ctl_cmd_table.c		optional ctl
 cam/ctl/ctl_frontend.c		optional ctl
 cam/ctl/ctl_frontend_cam_sim.c	optional ctl

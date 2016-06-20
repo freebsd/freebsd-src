@@ -25,13 +25,13 @@
  * $FreeBSD$
  */
 
-#ifndef _SCSI_PASS_H
-#define _SCSI_PASS_H 1
+#ifndef _SCSI_PASSTHROUGH_H
+#define _SCSI_PASSTHROUGH_H 1
 
 #include <sys/ioccom.h>
 
-#include <cam/cam_ccb.h>
-
+//#include <cam/cam_ccb.h>
+//#include <cam/ctl/ctl.c>
 /*
  * Convert to using a pointer to a ccb in the next major version.
  * This should allow us to avoid an extra copy of the CCB data.
@@ -47,4 +47,5 @@
 #define CAMIOQUEUE	_IO(CAM_VERSION, 4)
 #define CAMIOGET	_IO(CAM_VERSION, 5)
 
+//	int		ctlccb(union ctl_io *io);
 #endif

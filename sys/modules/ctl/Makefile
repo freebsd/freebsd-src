@@ -8,6 +8,7 @@ SRCS=	ctl.c
 SRCS+=	ctl_backend.c
 SRCS+=	ctl_backend_block.c
 SRCS+=	ctl_backend_ramdisk.c
+SRCS+=  ctl_backend_passthrough.c
 SRCS+=	ctl_cmd_table.c
 SRCS+=	ctl_frontend.c
 SRCS+=	ctl_frontend_cam_sim.c
