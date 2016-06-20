@@ -218,7 +218,7 @@ choose_part_type(const char *def_scheme)
 		{"BSD", "BSD Labels",
 		    "Bootable on most x86 systems", 0 },
 		{"GPT", "GUID Partition Table",
-		    "Bootable on most x86 systems", 0 },
+		    "Bootable on most x86 systems and EFI aware ARM64", 0 },
 		{"MBR", "DOS Partitions",
 		    "Bootable on most x86 systems", 0 },
 		{"PC98", "NEC PC9801 Partition Table",
