@@ -15,18 +15,7 @@
 сеп
 окт
 нов
-дец""jan
-feb
-mar
-apr
-maj
-jun
-jul
-avg
-sep
-okt
-nov
-dec
+дец
 #
 # Long month names (as in a date)
 јануар
@@ -40,18 +29,7 @@ dec
 септембар
 октобар
 новембар
-децембар""januar
-februar
-mart
-april
-maj
-jun
-jul
-avgust
-septembar
-oktobar
-novembar
-decembar
+децембар
 #
 # Short weekday names
 нед
@@ -60,13 +38,7 @@ decembar
 сре
 чет
 пет
-суб""ned
-pon
-uto
-sre
-cet
-pet
-sub
+суб
 #
 # Long weekday names
 недеља
@@ -75,30 +47,23 @@ sub
 среда
 четвртак
 петак
-субота""nedelja
-ponedeljak
-utorak
-sreda
-cetvrtak
-petak
-subota
+субота
 #
 # X_fmt
-%H.%M.%S""%H.%M.%S
+%H.%M.%S
 #
 # x_fmt
-%d.%m.%y.""%e.%m.%y.
+%d.%m.%y.
 #
 # c_fmt
-%d. %B %Y. %H.%M.%S""%d. %B %Y. %H.%M.%S %Z
+%d. %B %Y. %H.%M.%S
 #
 # AM/PM
 пре подне
-по подне""pre podne
-po podne
+по подне
 #
 # date_fmt
-%d. %B %Y. %H.%M.%S %Z""%d. %B %Y. %H.%M.%S %Z
+%d. %B %Y. %H.%M.%S %Z
 #
 # Long month names (without case ending)
 јануар
@@ -112,22 +77,11 @@ po podne
 септембар
 октобар
 новембар
-децембар""januar
-februar
-mart
-april
-maj
-jun
-jul
-avgust
-septembar
-oktobar
-novembar
-decembar
+децембар
 #
 # md_order
-dmdm
+dm
 #
 # ampm_fmt
-%I.%M.%S %p""%I.%M.%S %p
+%I.%M.%S %p
 # EOF
