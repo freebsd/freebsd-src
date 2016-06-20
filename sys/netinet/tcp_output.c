@@ -1109,7 +1109,7 @@ send:
 	 * resend those bits a number of times as per
 	 * RFC 3168.
 	 */
-	if (tp->t_state == TCPS_SYN_SENT && V_tcp_do_ecn) {
+	if (tp->t_state == TCPS_SYN_SENT && V_tcp_do_ecn == 1) {
 		if (tp->t_rxtshift >= 1) {
 			if (tp->t_rxtshift <= V_tcp_ecn_maxretries)
 				flags |= TH_ECE|TH_CWR;
