@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
  * reads back to verify it.
  */
 
-static char filename[1024];
+static char filename[2048];
 
 DEFINE_TEST(test_write_format_gnutar_filenames)
 {
