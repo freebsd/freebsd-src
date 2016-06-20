@@ -64,21 +64,7 @@
 #define	CHERI_PERM_SEAL				(1 << 7)	/* 0x00000080 */
 #define	CHERI_PERM_RESERVED0			(1 << 8)	/* 0x00000100 */
 #define	CHERI_PERM_RESERVED1			(1 << 9)	/* 0x00000200 */
-
-/*
- * 256-bit CHERI has multiple exception-handling permissions, whereas 128-bit
- * CHERI has a single exception-handling permission.
- *
- * XXXRW: It would be nice to reconcile these lists in the future, as it's not
- * clear we need this level of granularity on 256-bit CHERI.
- */
-#define	CHERI256_PERM_ACCESS_EPCC		(1 << 10)	/* 0x00000400 */
-#define	CHERI256_PERM_ACCESS_KDC		(1 << 11)	/* 0x00000800 */
-#define	CHERI256_PERM_ACCESS_KCC		(1 << 12)	/* 0x00001000 */
-#define	CHERI256_PERM_ACCESS_KR1C		(1 << 13)	/* 0x00002000 */
-#define	CHERI256_PERM_ACCESS_KR2C		(1 << 14)	/* 0x00004000 */
-
-#define	CHERI128_PERM_ACCESS_SYSTEM_REGISTERS	(1 << 10)	/* 0x00000400 */
+#define	CHERI_PERM_SYSTEM_REGS			(1 << 10)	/* 0x00000400 */
 
 /*
  * User-defined permission bits.
@@ -157,27 +143,22 @@
 	CHERI_PERM_USER9 | CHERI_PERM_USER10 | CHERI_PERM_USER11 |	\
 	CHERI_PERM_USER12 | CHERI_PERM_USER13 | CHERI_PERM_USER14 |	\
 	CHERI_PERM_USER15)
+#else /* (!(CHERICAP_SIZE == 32)) */
+#define	CHERI_PERM_USER_PRIVS						\
+	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
+	CHERI_PERM_USER3)
+#endif /* (!(CHERICAP_SIZE == 32)) */
 
+/*
+ * No variation between 256-bia and 128-bit CHERI for privileged capability
+ * permissions -- at least, not anymore.
+ */
 #define	CHERI_PERM_PRIV							\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
 	CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |	\
 	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
 	CHERI_PERM_SEAL | CHERI_PERM_RESERVED0 | CHERI_PERM_RESERVED1 |	\
-	CHERI_PERM_ACCESS_EPCC | CHERI_PERM_ACCESS_KDC |		\
-	CHERI_PERM_ACCESS_KCC | CHERI_PERM_ACCESS_KR1C |		\
-	CHERI_PERM_ACCESS_KR2C | CHERI_PERM_USER_PRIVS)
-#else /* (!(CHERICAP_SIZE == 32)) */
-#define	CHERI_PERM_USER_PRIVS						\
-	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
-	CHERI_PERM_USER3)
-
-#define	CHERI_PERM_PRIV							\
-	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
-	CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |	\
-	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
-	CHERI_PERM_SEAL | CHERI_PERM_RESERVED0 | CHERI_PERM_RESERVED1)
-#endif /* (!(CHERICAP_SIZE == 32)) */
-
+	CHERI_PERM_SYSTEM_REGS | CHERI_PERM_USER_PRIVS)
 /*
  * Basic userspace permission mask; CHERI_PERM_EXECUTE will be added for
  * executable capabilities ($pcc); CHERI_PERM_STORE, CHERI_PERM_STORE_CAP,
@@ -302,15 +283,7 @@
 
 /*
  * List of CHERI capability cause code constants, which are used to
- * disambiguate various CP2 exceptions.
- *
- * XXXRW: I wonder if we really need different permissions for each exception-
- * handling capability.
- *
- * XXXRW: Curiously non-contiguous.
- *
- * XXXRW: KDC is listed as 0x1a in the spec, which collides with $epcc.  Not
- * sure what is actually used.
+ * characterise various CP2 exceptions.
  */
 #define	CHERI_EXCCODE_NONE		0x00
 #define	CHERI_EXCCODE_LENGTH		0x01
@@ -321,6 +294,7 @@
 #define	CHERI_EXCCODE_RETURN		0x06
 #define	CHERI_EXCCODE_UNDERFLOW		0x07
 #define	CHERI_EXCCODE_USER_PERM		0x08
+#define	CHERI_EXCCODE_PERM_USER		CHERI_EXCCODE_USER_PERM
 #define	CHERI_EXCCODE_TLBSTORE		0x09
 #define	CHERI_EXCCODE_IMPRECISE		0x0a
 #define	_CHERI_EXCCODE_RESERVED0b	0x0b
@@ -336,13 +310,13 @@
 #define	CHERI_EXCCODE_PERM_STORECAP	0x15
 #define	CHERI_EXCCODE_STORE_LOCALCAP	0x16
 #define	CHERI_EXCCODE_PERM_SEAL		0x17
-#define	_CHERI_EXCCODE_RESERVED18	0x18
+#define	CHERI_EXCCODE_SYSTEM_REGS	0x18
 #define	_CHERI_EXCCODE_RESERVED19	0x19
-#define	CHERI_EXCCODE_ACCESS_EPCC	0x1a
-#define	CHERI_EXCCODE_ACCESS_KDC	0x1b	/* XXXRW */
-#define	CHERI_EXCCODE_ACCESS_KCC	0x1c
-#define	CHERI_EXCCODE_ACCESS_KR1C	0x1d
-#define	CHERI_EXCCODE_ACCESS_KR2C	0x1e
+#define	_CHERI_EXCCODE_RESERVED1a	0x1a
+#define	_CHERI_EXCCODE_RESERVED1b	0x1b
+#define	_CHERI_EXCCODE_RESERVED1c	0x1c
+#define	_CHERI_EXCCODE_RESERVED1d	0x1d
+#define	_CHERI_EXCCODE_RESERVED1e	0x1e
 #define	_CHERI_EXCCODE_RESERVED1f	0x1f
 
 /*

@@ -122,7 +122,7 @@ static const struct cheri_test cheri_tests[] = {
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
+	  .ct_cp2_exccode = CHERI_EXCCODE_SYSTEM_REGS },
 
 	{ .ct_name = "test_nofault_cfromptr",
 	  .ct_desc = "Exercise CFromPtr success",
@@ -179,7 +179,7 @@ static const struct cheri_test cheri_tests[] = {
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_USER_PERM },
+	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_USER },
 
 	{ .ct_name = "test_nofault_ccheck_user_pass",
 	  .ct_desc = "Exercise CCheckPerm success",
@@ -192,7 +192,7 @@ static const struct cheri_test cheri_tests[] = {
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_KR1C },
+	  .ct_cp2_exccode = CHERI_EXCCODE_SYSTEM_REGS },
 
 	{ .ct_name = "test_fault_read_kr2c",
 	  .ct_desc = "Ensure KR2C is unavailable in userspace",
@@ -201,7 +201,7 @@ static const struct cheri_test cheri_tests[] = {
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_KR2C },
+	  .ct_cp2_exccode = CHERI_EXCCODE_SYSTEM_REGS },
 
 	{ .ct_name = "test_fault_read_kcc",
 	  .ct_desc = "Ensure KCC is unavailable in userspace",
@@ -210,7 +210,7 @@ static const struct cheri_test cheri_tests[] = {
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_KCC },
+	  .ct_cp2_exccode = CHERI_EXCCODE_SYSTEM_REGS },
 
 	{ .ct_name = "test_fault_read_kdc",
 	  .ct_desc = "Ensure KDC is unavailable in userspace",
@@ -219,7 +219,7 @@ static const struct cheri_test cheri_tests[] = {
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_KDC },
+	  .ct_cp2_exccode = CHERI_EXCCODE_SYSTEM_REGS },
 
 	{ .ct_name = "test_fault_read_epcc",
 	  .ct_desc = "Ensure EPCC is unavailable in userspace",
@@ -228,7 +228,7 @@ static const struct cheri_test cheri_tests[] = {
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
+	  .ct_cp2_exccode = CHERI_EXCCODE_SYSTEM_REGS },
 
 	/*
 	 * Test bounds on heap allocation.
