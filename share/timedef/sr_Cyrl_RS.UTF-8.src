@@ -4,50 +4,50 @@
 # -----------------------------------------------------------------------------
 #
 # Short month names
-jan
-feb
-mar
-apr
-maj
-jun
-jul
-avg
-sep
-okt
-nov
-dec
+јан
+феб
+мар
+апр
+мај
+јун
+јул
+авг
+сеп
+окт
+нов
+дец
 #
 # Long month names (as in a date)
-januar
-februar
-mart
-april
-maj
-jun
-jul
-avgust
-septembar
-oktobar
-novembar
-decembar
+јануар
+фебруар
+март
+април
+мај
+јун
+јул
+август
+септембар
+октобар
+новембар
+децембар
 #
 # Short weekday names
-ned
-pon
-uto
-sre
-čet
-pet
-sub
+нед
+пон
+уто
+сре
+чет
+пет
+суб
 #
 # Long weekday names
-nedelja
-ponedeljak
-utorak
-sreda
-četvrtak
-petak
-subota
+недеља
+понедељак
+уторак
+среда
+четвртак
+петак
+субота
 #
 # X_fmt
 %H.%M.%S
@@ -59,25 +59,25 @@ subota
 %d. %B %Y. %H.%M.%S
 #
 # AM/PM
-pre podne
-po podne
+пре подне
+по подне
 #
 # date_fmt
 %d. %B %Y. %H.%M.%S %Z
 #
 # Long month names (without case ending)
-januar
-februar
-mart
-april
-maj
-jun
-jul
-avgust
-septembar
-oktobar
-novembar
-decembar
+јануар
+фебруар
+март
+април
+мај
+јун
+јул
+август
+септембар
+октобар
+новембар
+децембар
 #
 # md_order
 dm
