@@ -192,6 +192,9 @@ ath_tx_edma_push_staging_list(struct ath_softc *sc, struct ath_txq *txq,
 
 		/* Queue it into our staging list */
 		TAILQ_INSERT_TAIL(&sq, bf, bf_list);
+
+		/* Ensure the flags are cleared */
+		bf->bf_flags &= ~(ATH_BUF_FIFOPTR | ATH_BUF_FIFOEND);
 		sqdepth++;
 	}
 
