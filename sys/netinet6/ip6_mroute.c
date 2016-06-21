@@ -1966,4 +1966,4 @@ static moduledata_t ip6_mroutemod = {
 	0
 };
 
-DECLARE_MODULE(ip6_mroute, ip6_mroutemod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(ip6_mroute, ip6_mroutemod, SI_SUB_PROTO_MC, SI_ORDER_ANY);
