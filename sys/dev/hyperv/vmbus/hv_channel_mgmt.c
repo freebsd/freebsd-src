@@ -375,12 +375,6 @@ vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
 
 	offer = (hv_vmbus_channel_offer_channel*) hdr;
 
-	hv_guid *guidType;
-	hv_guid *guidInstance;
-
-	guidType = &offer->offer.interface_type;
-	guidInstance = &offer->offer.interface_instance;
-
 	// copy offer data
 	copied = malloc(sizeof(*copied), M_DEVBUF, M_NOWAIT);
 	if (copied == NULL) {
