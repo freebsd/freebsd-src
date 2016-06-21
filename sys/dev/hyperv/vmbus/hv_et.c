@@ -28,6 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
@@ -40,8 +43,7 @@ __FBSDID("$FreeBSD$");
 #define HV_MAX_DELTA_TICKS		0xffffffffLL
 #define HV_MIN_DELTA_TICKS		1LL
 
-static struct eventtimer et;
-static uint64_t periodticks[MAXCPU];
+static struct eventtimer *et;
 
 static inline uint64_t
 sbintime2tick(sbintime_t time)
@@ -61,10 +63,6 @@ hv_et_start(struct eventtimer *et, sbintime_t firsttime, sbintime_t periodtime)
 	timer_cfg.as_uint64 = 0;
 	timer_cfg.auto_enable = 1;
 	timer_cfg.sintx = HV_VMBUS_TIMER_SINT;
-
-	periodticks[curcpu] = sbintime2tick(periodtime);
-	if (firsttime == 0)
-		firsttime = periodtime;
 
 	current = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
 	current += sbintime2tick(firsttime);
@@ -87,45 +85,77 @@ hv_et_stop(struct eventtimer *et)
 void
 hv_et_intr(struct trapframe *frame)
 {
-	union hv_timer_config timer_cfg;
 	struct trapframe *oldframe;
 	struct thread *td;
 
-	if (periodticks[curcpu] != 0) {
-		uint64_t tick = sbintime2tick(periodticks[curcpu]);
-		timer_cfg.as_uint64 = rdmsr(HV_X64_MSR_STIMER0_CONFIG);
-		timer_cfg.enable = 0;
-		timer_cfg.auto_enable = 1;
-		timer_cfg.periodic = 1;
-		periodticks[curcpu] = 0;
-
-		wrmsr(HV_X64_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
-		wrmsr(HV_X64_MSR_STIMER0_COUNT, tick);
-	}
-
-	if (et.et_active) {
+	if (et->et_active) {
 		td = curthread;
 		td->td_intr_nesting_level++;
 		oldframe = td->td_intr_frame;
 		td->td_intr_frame = frame;
-		et.et_event_cb(&et, et.et_arg);
+		et->et_event_cb(et, et->et_arg);
 		td->td_intr_frame = oldframe;
 		td->td_intr_nesting_level--;
 	}
 }
 
-void
-hv_et_init(void)
+static void
+hv_et_identify(driver_t *driver, device_t parent)
 {
-	et.et_name = "HyperV";
-	et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU | ET_FLAGS_PERIODIC;
-	et.et_quality = 1000;
-	et.et_frequency = HV_TIMER_FREQUENCY;
-	et.et_min_period = (1LL << 32) / HV_TIMER_FREQUENCY;
-	et.et_max_period = HV_MAX_DELTA_TICKS * ((1LL << 32) / HV_TIMER_FREQUENCY);
-	et.et_start = hv_et_start;
-	et.et_stop = hv_et_stop;
-	et.et_priv = &et;
-	et_register(&et);
+	if (device_find_child(parent, "hv_et", -1) != NULL)
+		return;
+
+	device_add_child(parent, "hv_et", -1);
 }
 
+static int
+hv_et_probe(device_t dev)
+{
+	device_set_desc(dev, "Hyper-V event timer");
+
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+static int
+hv_et_attach(device_t dev)
+{
+	/* XXX: need allocate SINT and remove global et */
+	et = device_get_softc(dev);
+
+	et->et_name = "Hyper-V";
+	et->et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU;
+	et->et_quality = 1000;
+	et->et_frequency = HV_TIMER_FREQUENCY;
+	et->et_min_period = HV_MIN_DELTA_TICKS * ((1LL << 32) / HV_TIMER_FREQUENCY);
+	et->et_max_period = HV_MAX_DELTA_TICKS * ((1LL << 32) / HV_TIMER_FREQUENCY);
+	et->et_start = hv_et_start;
+	et->et_stop = hv_et_stop;
+	et->et_priv = dev;
+
+	return (et_register(et));
+}
+
+static int
+hv_et_detach(device_t dev)
+{
+	return (et_deregister(et));
+}
+
+static device_method_t hv_et_methods[] = {
+	DEVMETHOD(device_identify,      hv_et_identify),
+	DEVMETHOD(device_probe,         hv_et_probe),
+	DEVMETHOD(device_attach,        hv_et_attach),
+	DEVMETHOD(device_detach,        hv_et_detach),
+
+	DEVMETHOD_END
+};
+
+static driver_t hv_et_driver = {
+	"hv_et",
+	hv_et_methods,
+	sizeof(struct eventtimer)
+};
+
+static devclass_t hv_et_devclass;
+DRIVER_MODULE(hv_et, vmbus, hv_et_driver, hv_et_devclass, NULL, 0);
+MODULE_VERSION(hv_et, 1);

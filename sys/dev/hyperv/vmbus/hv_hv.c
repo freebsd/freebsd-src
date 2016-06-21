@@ -171,8 +171,6 @@ hv_vmbus_init(void)
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
 
-	hv_et_init();
-	
 	return (0);
 
 	cleanup:
