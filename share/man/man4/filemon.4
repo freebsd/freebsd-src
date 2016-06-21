@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2016
+.Dd June 21, 2016
 .Dt FILEMON 4
 .Os
 .Sh NAME
@@ -83,8 +83,6 @@ System calls are denoted using the following single letters:
 .It Ql R
 .Xr open 2
 for read
-.It Ql S
-.Xr stat 2
 .It Ql W
 .Xr open 2
 for write
@@ -116,6 +114,10 @@ Each takes a single argument.
 Write the internal tracing buffer to the supplied open file descriptor.
 .It Dv FILEMON_SET_PID
 Child process ID to trace.
+This should normally be done under the control of a parent in the child after
+.Xr fork 2
+but before anything else.
+See the example below.
 .El
 .Sh RETURN VALUES
 .\" .Rv -std ioctl
@@ -137,6 +139,35 @@ will fail if:
 The
 .Nm
 handle is already associated with a file descriptor.
+.El
+.Pp
+The
+.Fn ioctl
+system call
+with
+.Dv FILEMON_SET_PID
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+No process having the specified process ID exists.
+.It Bq Er EBUSY
+The process ID specified is already being traced and was not the current
+process.
+.El
+.Pp
+The
+.Fn close
+system call on the filemon file descriptor may fail with the errors from
+.Xr write 2
+if any error is encountered while writing the log.
+It may also fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An invalid address was used for a traced system call argument, resulting in
+no log entry for the system call.
+.It Bq Er ENAMETOOLONG
+An argument for a traced system call was too long, resulting in
+no log entry for the system call.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/filemon"
@@ -198,14 +229,5 @@ A
 device appeared in
 .Fx 9.1 .
 .Sh BUGS
-Loading
-.Nm
-may reduce system performance for the noted syscalls.
-.Pp
-Only children of the set process are logged.
-Processes can escape being traced by double forking.
-This is not seen as a problem as the intended use is build monitoring, which
-does not make sense to have daemons for.
-.Pp
 Unloading the module may panic the system, thus requires using
 .Ic kldunload -f .
