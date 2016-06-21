@@ -227,7 +227,8 @@ static VNET_DEFINE(int, current_state_timers_running);	/* IGMPv1/v2 host
 #define	V_state_change_timers_running	VNET(state_change_timers_running)
 #define	V_current_state_timers_running	VNET(current_state_timers_running)
 
-static VNET_DEFINE(LIST_HEAD(, igmp_ifsoftc), igi_head);
+static VNET_DEFINE(LIST_HEAD(, igmp_ifsoftc), igi_head) =
+    LIST_HEAD_INITIALIZER(igi_head);
 static VNET_DEFINE(struct igmpstat, igmpstat) = {
 	.igps_version = IGPS_VERSION_3,
 	.igps_len = sizeof(struct igmpstat),
@@ -701,10 +702,6 @@ igi_delete_locked(const struct ifnet *ifp)
 			return;
 		}
 	}
-
-#ifdef INVARIANTS
-	panic("%s: igmp_ifsoftc not found for ifp %p\n", __func__,  ifp);
-#endif
 }
 
 /*
@@ -3595,57 +3592,28 @@ igmp_rec_type_to_str(const int type)
 }
 #endif
 
-static void
-igmp_init(void *unused __unused)
-{
-
-	CTR1(KTR_IGMPV3, "%s: initializing", __func__);
-
-	IGMP_LOCK_INIT();
-
-	m_raopt = igmp_ra_alloc();
-
-	netisr_register(&igmp_nh);
-}
-SYSINIT(igmp_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, igmp_init, NULL);
-
-static void
-igmp_uninit(void *unused __unused)
-{
-
-	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
-
-	netisr_unregister(&igmp_nh);
-
-	m_free(m_raopt);
-	m_raopt = NULL;
-
-	IGMP_LOCK_DESTROY();
-}
-SYSUNINIT(igmp_uninit, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, igmp_uninit, NULL);
-
+#ifdef VIMAGE
 static void
 vnet_igmp_init(const void *unused __unused)
 {
 
-	CTR1(KTR_IGMPV3, "%s: initializing", __func__);
-
-	LIST_INIT(&V_igi_head);
+	netisr_register_vnet(&igmp_nh);
 }
-VNET_SYSINIT(vnet_igmp_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_igmp_init,
-    NULL);
+VNET_SYSINIT(vnet_igmp_init, SI_SUB_PROTO_MC, SI_ORDER_ANY,
+    vnet_igmp_init, NULL);
 
 static void
 vnet_igmp_uninit(const void *unused __unused)
 {
 
+	/* This can happen when we shutdown the entire network stack. */
 	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
 
-	KASSERT(LIST_EMPTY(&V_igi_head),
-	    ("%s: igi list not empty; ifnets not detached?", __func__));
+	netisr_unregister_vnet(&igmp_nh);
 }
-VNET_SYSUNINIT(vnet_igmp_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_igmp_uninit, SI_SUB_PROTO_MC, SI_ORDER_ANY,
     vnet_igmp_uninit, NULL);
+#endif
 
 #ifdef DDB
 DB_SHOW_COMMAND(igi_list, db_show_igi_list)
@@ -3682,14 +3650,24 @@ static int
 igmp_modevent(module_t mod, int type, void *unused __unused)
 {
 
-    switch (type) {
-    case MOD_LOAD:
-    case MOD_UNLOAD:
-	break;
-    default:
-	return (EOPNOTSUPP);
-    }
-    return (0);
+	switch (type) {
+	case MOD_LOAD:
+		CTR1(KTR_IGMPV3, "%s: initializing", __func__);
+		IGMP_LOCK_INIT();
+		m_raopt = igmp_ra_alloc();
+		netisr_register(&igmp_nh);
+		break;
+	case MOD_UNLOAD:
+		CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
+		netisr_unregister(&igmp_nh);
+		m_free(m_raopt);
+		m_raopt = NULL;
+		IGMP_LOCK_DESTROY();
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+	return (0);
 }
 
 static moduledata_t igmp_mod = {
@@ -3697,4 +3675,4 @@ static moduledata_t igmp_mod = {
     igmp_modevent,
     0
 };
-DECLARE_MODULE(igmp, igmp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(igmp, igmp_mod, SI_SUB_PROTO_MC, SI_ORDER_MIDDLE);

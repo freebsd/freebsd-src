@@ -2890,7 +2890,7 @@ static moduledata_t ipfwmod = {
 };
 
 /* Define startup order. */
-#define	IPFW_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	IPFW_SI_SUB_FIREWALL	SI_SUB_PROTO_FIREWALL
 #define	IPFW_MODEVENT_ORDER	(SI_ORDER_ANY - 255) /* On boot slot in here. */
 #define	IPFW_MODULE_ORDER	(IPFW_MODEVENT_ORDER + 1) /* A little later. */
 #define	IPFW_VNET_ORDER		(IPFW_MODEVENT_ORDER + 2) /* Later still. */

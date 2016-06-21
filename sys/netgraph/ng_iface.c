@@ -786,5 +786,5 @@ vnet_ng_iface_uninit(const void *unused)
 
 	delete_unrhdr(V_ng_iface_unit);
 }
-VNET_SYSUNINIT(vnet_ng_iface_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_ng_iface_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_ng_iface_uninit, NULL);
