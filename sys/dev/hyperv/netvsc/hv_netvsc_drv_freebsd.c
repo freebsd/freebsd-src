@@ -216,7 +216,8 @@ struct hn_txdesc {
 
 int hv_promisc_mode = 0;    /* normal mode by default */
 
-SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD, NULL, "Hyper-V network interface");
+SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "Hyper-V network interface");
 
 /* Trust tcp segements verification on host side. */
 static int hn_trust_hosttcp = 1;
@@ -1020,6 +1021,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		netvsc_dev *net_dev = txr->hn_sc->net_dev;
 		uint32_t send_buf_section_idx;
 
+		txr->hn_tx_chimney_tried++;
 		send_buf_section_idx =
 		    hv_nv_get_next_send_section(net_dev);
 		if (send_buf_section_idx !=
@@ -2216,7 +2218,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 
 	/* Create dev.hn.UNIT.rx sysctl tree */
 	sc->hn_rx_sysctl_tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "rx",
-	    CTLFLAG_RD, 0, "");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
@@ -2256,7 +2258,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 			snprintf(name, sizeof(name), "%d", i);
 			rxr->hn_rx_sysctl_tree = SYSCTL_ADD_NODE(ctx,
 			    SYSCTL_CHILDREN(sc->hn_rx_sysctl_tree),
-			    OID_AUTO, name, CTLFLAG_RD, 0, "");
+			    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 			if (rxr->hn_rx_sysctl_tree != NULL) {
 				SYSCTL_ADD_ULONG(ctx,
@@ -2268,7 +2270,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	}
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
-	    CTLTYPE_U64 | CTLFLAG_RW, sc,
+	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_queued),
 #if __FreeBSD_version < 1100095
 	    hn_rx_stat_int_sysctl,
@@ -2277,7 +2279,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 #endif
 	    "LU", "LRO queued");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_flushed",
-	    CTLTYPE_U64 | CTLFLAG_RW, sc,
+	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_flushed),
 #if __FreeBSD_version < 1100095
 	    hn_rx_stat_int_sysctl,
@@ -2286,51 +2288,53 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 #endif
 	    "LU", "LRO flushed");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_tried",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro_tried),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of LRO tries");
 #if __FreeBSD_version >= 1100099
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_length_lim",
-	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_lro_lenlim_sysctl, "IU",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    hn_lro_lenlim_sysctl, "IU",
 	    "Max # of data bytes to be aggregated by LRO");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_ackcnt_lim",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_ackcnt_sysctl, "I",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    hn_lro_ackcnt_sysctl, "I",
 	    "Max # of ACKs to be aggregated by LRO");
 #endif
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, HN_TRUST_HCSUM_TCP,
 	    hn_trust_hcsum_sysctl, "I",
 	    "Trust tcp segement verification on host side, "
 	    "when csum info is missing");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostudp",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_UDP,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, HN_TRUST_HCSUM_UDP,
 	    hn_trust_hcsum_sysctl, "I",
 	    "Trust udp datagram verification on host side, "
 	    "when csum info is missing");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostip",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_IP,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, HN_TRUST_HCSUM_IP,
 	    hn_trust_hcsum_sysctl, "I",
 	    "Trust ip packet verification on host side, "
 	    "when csum info is missing");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_ip",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_csum_ip),
 	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM IP");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_tcp",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_csum_tcp),
 	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM TCP");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_udp",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_csum_udp),
 	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM UDP");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_trusted",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_csum_trusted),
 	    hn_rx_stat_ulong_sysctl, "LU",
 	    "# of packets that we trust host's csum verification");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "small_pkts",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_small_pkts),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of small packets received");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_cnt",
@@ -2523,7 +2527,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 
 		snprintf(name, sizeof(name), "%d", id);
 		txr->hn_tx_sysctl_tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
-		    name, CTLFLAG_RD, 0, "");
+		    name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 		if (txr->hn_tx_sysctl_tree != NULL) {
 			child = SYSCTL_CHILDREN(txr->hn_tx_sysctl_tree);
@@ -2618,7 +2622,7 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 
 	/* Create dev.hn.UNIT.tx sysctl tree */
 	sc->hn_tx_sysctl_tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "tx",
-	    CTLFLAG_RD, 0, "");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
 		int error;
@@ -2629,25 +2633,29 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	}
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "no_txdescs",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_no_txdescs),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of times short of TX descs");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "send_failed",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_send_failed),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of hyper-v sending failure");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "txdma_failed",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_txdma_failed),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of TX DMA failure");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_collapsed",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_tx_collapsed),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of TX mbuf collapsed");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney",
-	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_tx_chimney),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of chimney send");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney_tried",
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
+	    __offsetof(struct hn_tx_ring, hn_tx_chimney_tried),
+	    hn_tx_stat_ulong_sysctl, "LU", "# of chimney send tries");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_cnt",
 	    CTLFLAG_RD, &sc->hn_tx_ring[0].hn_txdesc_cnt, 0,
 	    "# of total TX descs");
@@ -2655,15 +2663,16 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLFLAG_RD, &sc->hn_tx_chimney_max, 0,
 	    "Chimney send packet size upper boundary");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney_size",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_tx_chimney_size_sysctl,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    hn_tx_chimney_size_sysctl,
 	    "I", "Chimney send packet size limit");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "direct_tx_size",
-	    CTLTYPE_INT | CTLFLAG_RW, sc,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_direct_tx_size),
 	    hn_tx_conf_int_sysctl, "I",
 	    "Size of the packet for direct transmission");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "sched_tx",
-	    CTLTYPE_INT | CTLFLAG_RW, sc,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_sched_tx),
 	    hn_tx_conf_int_sysctl, "I",
 	    "Always schedule transmission "

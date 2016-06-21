@@ -1211,6 +1211,7 @@ struct hn_tx_ring {
 	u_long		hn_send_failed;
 	u_long		hn_txdma_failed;
 	u_long		hn_tx_collapsed;
+	u_long		hn_tx_chimney_tried;
 	u_long		hn_tx_chimney;
 	u_long		hn_pkts;
 
