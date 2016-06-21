@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/vnode.h>
 
 #include "opt_compat.h"
@@ -65,7 +66,7 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 		bwillwrite();
 
 	error = fo_write(filemon->fp, &auio, curthread->td_ucred, 0, curthread);
-	if (error != 0)
+	if (error != 0 && filemon->error == 0)
 		filemon->error = error;
 }
 
@@ -402,33 +403,26 @@ filemon_event_process_fork(void *arg __unused, struct proc *p1,
 static void
 filemon_wrapper_install(void)
 {
-#if defined(__LP64__)
-	struct sysent *sv_table = elf64_freebsd_sysvec.sv_table;
-#else
-	struct sysent *sv_table = elf32_freebsd_sysvec.sv_table;
-#endif
 
-	sv_table[SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
-	sv_table[SYS_open].sy_call = (sy_call_t *) filemon_wrapper_open;
-	sv_table[SYS_openat].sy_call = (sy_call_t *) filemon_wrapper_openat;
-	sv_table[SYS_rename].sy_call = (sy_call_t *) filemon_wrapper_rename;
-	sv_table[SYS_unlink].sy_call = (sy_call_t *) filemon_wrapper_unlink;
-	sv_table[SYS_link].sy_call = (sy_call_t *) filemon_wrapper_link;
-	sv_table[SYS_symlink].sy_call = (sy_call_t *) filemon_wrapper_symlink;
-	sv_table[SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
+	sysent[SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
+	sysent[SYS_open].sy_call = (sy_call_t *) filemon_wrapper_open;
+	sysent[SYS_openat].sy_call = (sy_call_t *) filemon_wrapper_openat;
+	sysent[SYS_rename].sy_call = (sy_call_t *) filemon_wrapper_rename;
+	sysent[SYS_unlink].sy_call = (sy_call_t *) filemon_wrapper_unlink;
+	sysent[SYS_link].sy_call = (sy_call_t *) filemon_wrapper_link;
+	sysent[SYS_symlink].sy_call = (sy_call_t *) filemon_wrapper_symlink;
+	sysent[SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
 
-#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
-	sv_table = ia32_freebsd_sysvec.sv_table;
-
-	sv_table[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
-	sv_table[FREEBSD32_SYS_open].sy_call = (sy_call_t *) filemon_wrapper_open;
-	sv_table[FREEBSD32_SYS_openat].sy_call = (sy_call_t *) filemon_wrapper_openat;
-	sv_table[FREEBSD32_SYS_rename].sy_call = (sy_call_t *) filemon_wrapper_rename;
-	sv_table[FREEBSD32_SYS_unlink].sy_call = (sy_call_t *) filemon_wrapper_unlink;
-	sv_table[FREEBSD32_SYS_link].sy_call = (sy_call_t *) filemon_wrapper_link;
-	sv_table[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *) filemon_wrapper_symlink;
-	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
-#endif	/* COMPAT_ARCH32 */
+#if defined(COMPAT_FREEBSD32)
+	freebsd32_sysent[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
+	freebsd32_sysent[FREEBSD32_SYS_open].sy_call = (sy_call_t *) filemon_wrapper_open;
+	freebsd32_sysent[FREEBSD32_SYS_openat].sy_call = (sy_call_t *) filemon_wrapper_openat;
+	freebsd32_sysent[FREEBSD32_SYS_rename].sy_call = (sy_call_t *) filemon_wrapper_rename;
+	freebsd32_sysent[FREEBSD32_SYS_unlink].sy_call = (sy_call_t *) filemon_wrapper_unlink;
+	freebsd32_sysent[FREEBSD32_SYS_link].sy_call = (sy_call_t *) filemon_wrapper_link;
+	freebsd32_sysent[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *) filemon_wrapper_symlink;
+	freebsd32_sysent[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
+#endif	/* COMPAT_FREEBSD32 */
 
 	filemon_exec_tag = EVENTHANDLER_REGISTER(process_exec,
 	    filemon_event_process_exec, NULL, EVENTHANDLER_PRI_LAST);
@@ -441,33 +435,26 @@ filemon_wrapper_install(void)
 static void
 filemon_wrapper_deinstall(void)
 {
-#if defined(__LP64__)
-	struct sysent *sv_table = elf64_freebsd_sysvec.sv_table;
-#else
-	struct sysent *sv_table = elf32_freebsd_sysvec.sv_table;
-#endif
 
-	sv_table[SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
-	sv_table[SYS_open].sy_call = (sy_call_t *)sys_open;
-	sv_table[SYS_openat].sy_call = (sy_call_t *)sys_openat;
-	sv_table[SYS_rename].sy_call = (sy_call_t *)sys_rename;
-	sv_table[SYS_unlink].sy_call = (sy_call_t *)sys_unlink;
-	sv_table[SYS_link].sy_call = (sy_call_t *)sys_link;
-	sv_table[SYS_symlink].sy_call = (sy_call_t *)sys_symlink;
-	sv_table[SYS_linkat].sy_call = (sy_call_t *)sys_linkat;
+	sysent[SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
+	sysent[SYS_open].sy_call = (sy_call_t *)sys_open;
+	sysent[SYS_openat].sy_call = (sy_call_t *)sys_openat;
+	sysent[SYS_rename].sy_call = (sy_call_t *)sys_rename;
+	sysent[SYS_unlink].sy_call = (sy_call_t *)sys_unlink;
+	sysent[SYS_link].sy_call = (sy_call_t *)sys_link;
+	sysent[SYS_symlink].sy_call = (sy_call_t *)sys_symlink;
+	sysent[SYS_linkat].sy_call = (sy_call_t *)sys_linkat;
 
-#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
-	sv_table = ia32_freebsd_sysvec.sv_table;
-
-	sv_table[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
-	sv_table[FREEBSD32_SYS_open].sy_call = (sy_call_t *)sys_open;
-	sv_table[FREEBSD32_SYS_openat].sy_call = (sy_call_t *)sys_openat;
-	sv_table[FREEBSD32_SYS_rename].sy_call = (sy_call_t *)sys_rename;
-	sv_table[FREEBSD32_SYS_unlink].sy_call = (sy_call_t *)sys_unlink;
-	sv_table[FREEBSD32_SYS_link].sy_call = (sy_call_t *)sys_link;
-	sv_table[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *)sys_symlink;
-	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *)sys_linkat;
-#endif	/* COMPAT_ARCH32 */
+#if defined(COMPAT_FREEBSD32)
+	freebsd32_sysent[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
+	freebsd32_sysent[FREEBSD32_SYS_open].sy_call = (sy_call_t *)sys_open;
+	freebsd32_sysent[FREEBSD32_SYS_openat].sy_call = (sy_call_t *)sys_openat;
+	freebsd32_sysent[FREEBSD32_SYS_rename].sy_call = (sy_call_t *)sys_rename;
+	freebsd32_sysent[FREEBSD32_SYS_unlink].sy_call = (sy_call_t *)sys_unlink;
+	freebsd32_sysent[FREEBSD32_SYS_link].sy_call = (sy_call_t *)sys_link;
+	freebsd32_sysent[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *)sys_symlink;
+	freebsd32_sysent[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *)sys_linkat;
+#endif	/* COMPAT_FREEBSD32 */
 
 	EVENTHANDLER_DEREGISTER(process_exec, filemon_exec_tag);
 	EVENTHANDLER_DEREGISTER(process_exit, filemon_exit_tag);
