@@ -119,8 +119,10 @@ struct kaiocb {
 	TAILQ_ENTRY(kaiocb) plist;	/* (a) lists of pending / done jobs */
 	TAILQ_ENTRY(kaiocb) allist;	/* (a) list of all jobs in proc */
 	int	jobflags;		/* (a) job flags */
-	int	inputcharge;		/* (*) input blocks */
-	int	outputcharge;		/* (*) output blocks */
+	int	inblock;		/* (*) input blocks */
+	int	outblock;		/* (*) output blocks */
+	int	msgsnd;			/* (*) messages sent */
+	int	msgrcv;			/* (*) messages received */
 	struct	proc *userproc;		/* (*) user process */
 	struct	ucred *cred;		/* (*) active credential when created */
 	struct	file *fd_file;		/* (*) pointer to file structure */
