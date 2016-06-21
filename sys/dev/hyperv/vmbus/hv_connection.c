@@ -308,14 +308,18 @@ hv_vmbus_on_events(int cpu)
 	KASSERT(cpu <= mp_maxid, ("VMBUS: hv_vmbus_on_events: "
 	    "cpu out of range!"));
 
+	page_addr = hv_vmbus_g_context.syn_ic_event_page[cpu];
+	event = (hv_vmbus_synic_event_flags *)
+	    page_addr + HV_VMBUS_MESSAGE_SINT;
 	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
 	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
 		maxdword = HV_MAX_NUM_CHANNELS_SUPPORTED >> 5;
 		/*
 		 * receive size is 1/2 page and divide that by 4 bytes
 		 */
-		recv_interrupt_page =
-		    hv_vmbus_g_connection.recv_interrupt_page;
+		if (synch_test_and_clear_bit(0, &event->flags32[0]))
+			recv_interrupt_page =
+			    hv_vmbus_g_connection.recv_interrupt_page;
 	} else {
 		/*
 		 * On Host with Win8 or above, the event page can be
@@ -323,9 +327,6 @@ hv_vmbus_on_events(int cpu)
 		 * that has the pending interrupt.
 		 */
 		maxdword = HV_EVENT_FLAGS_DWORD_COUNT;
-		page_addr = hv_vmbus_g_context.syn_ic_event_page[cpu];
-		event = (hv_vmbus_synic_event_flags *)
-		    page_addr + HV_VMBUS_MESSAGE_SINT;
 		recv_interrupt_page = event->flags32;
 	}
 

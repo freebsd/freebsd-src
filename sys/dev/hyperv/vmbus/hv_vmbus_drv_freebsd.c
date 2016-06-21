@@ -145,7 +145,6 @@ hv_vmbus_isr(struct trapframe *frame)
 {
 	int				cpu;
 	hv_vmbus_message*		msg;
-	hv_vmbus_synic_event_flags*	event;
 	void*				page_addr;
 
 	cpu = PCPU_GET(cpuid);
@@ -156,26 +155,7 @@ hv_vmbus_isr(struct trapframe *frame)
 	 * in Windows when running as a guest in Hyper-V
 	 */
 
-	page_addr = hv_vmbus_g_context.syn_ic_event_page[cpu];
-	event = (hv_vmbus_synic_event_flags*)
-		    page_addr + HV_VMBUS_MESSAGE_SINT;
-
-	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
-	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
-		/* Since we are a child, we only need to check bit 0 */
-		if (synch_test_and_clear_bit(0, &event->flags32[0])) {
-			hv_vmbus_on_events(cpu);
-		}
-	} else {
-		/*
-		 * On host with Win8 or above, we can directly look at
-		 * the event page. If bit n is set, we have an interrupt 
-		 * on the channel with id n.
-		 * Directly schedule the event software interrupt on
-		 * current cpu.
-		 */
-		hv_vmbus_on_events(cpu);
-	}
+	hv_vmbus_on_events(cpu);
 
 	/* Check if there are actual msgs to be process */
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
@@ -672,7 +652,7 @@ vmbus_bus_exit(void)
 	smp_rendezvous(NULL, hv_vmbus_synic_cleanup, NULL, NULL);
 
 	for(i = 0; i < 2 * MAXCPU; i++) {
-		if (setup_args.page_buffers[i] != 0)
+		if (setup_args.page_buffers[i] != NULL)
 			free(setup_args.page_buffers[i], M_DEVBUF);
 	}
 

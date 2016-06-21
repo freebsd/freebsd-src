@@ -433,9 +433,6 @@ netvsc_attach(device_t dev)
 	int tso_maxlen;
 
 	sc = device_get_softc(dev);
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 
 	bzero(sc, sizeof(hn_softc_t));
 	sc->hn_unit = unit;
@@ -1185,10 +1182,6 @@ void
 netvsc_linkstatus_callback(struct hv_device *device_obj, uint32_t status)
 {
 	hn_softc_t *sc = device_get_softc(device_obj->device);
-
-	if (sc == NULL) {
-		return;
-	}
 
 	if (status == 1) {
 		sc->hn_carrier = 1;
