@@ -370,7 +370,6 @@ vmbus_probe(device_t dev) {
 	return (BUS_PROBE_DEFAULT);
 }
 
-#ifdef HYPERV
 extern inthand_t IDTVEC(rsvd), IDTVEC(hv_vmbus_callback);
 
 /**
@@ -429,21 +428,6 @@ vmbus_vector_free(int vector)
 
         setidt(vector, IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
 }
-
-#else /* HYPERV */
-
-static int
-vmbus_vector_alloc(void)
-{
-	return(0);
-}
-
-static void
-vmbus_vector_free(int vector)
-{
-}
-
-#endif /* HYPERV */
 
 static void
 vmbus_cpuset_setthread_task(void *xmask, int pending __unused)
