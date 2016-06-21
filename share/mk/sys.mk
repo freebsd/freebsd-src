@@ -75,6 +75,8 @@ META_MODE?= normal
 # buildworld -> installworld -> buildworld to rebuild everything.
 # Since the build is self-reliant and bootstraps everything it needs,
 # this should not be a real problem for incremental builds.
+# XXX: This relies on the existing host tools retaining ABI compatibility
+# through upgrades since they won't be rebuilt on header/library changes.
 # Note that these are prefix matching, so /lib matches /libexec.
 .MAKE.META.IGNORE_PATHS+= \
 	${__MAKE_SHELL} \

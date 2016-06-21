@@ -200,6 +200,7 @@ CLEANFILES+= ${OBJS}
 .include <bsd.libnames.mk>
 
 .if defined(PROG)
+.if !defined(NO_EXTRADEPEND)
 _EXTRADEPEND:
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-nostdlib)
 .if defined(DPADD) && !empty(DPADD)
@@ -215,6 +216,7 @@ _EXTRADEPEND:
 .endif
 .endif
 .endif
+.endif	# !defined(NO_EXTRADEPEND)
 .endif
 
 .if !target(install)
