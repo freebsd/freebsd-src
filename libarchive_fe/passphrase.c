@@ -121,14 +121,15 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 
 #else /* _WIN32 && !__CYGWIN__ */
 
-#include <termios.h>
-#include <signal.h>
+#include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
 #ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
+#include <signal.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #ifdef TCSASOFT
@@ -142,11 +143,18 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 #  define _POSIX_VDISABLE       VDISABLE
 #endif
 
-static volatile sig_atomic_t *signo;
+#define M(a,b) (a > b ? a : b)
+#define MAX_SIGNO M(M(M(SIGALRM, SIGHUP), \
+                      M(SIGINT, SIGPIPE)), \
+                    M(M(SIGQUIT, SIGTERM), \
+                      M(M(SIGTSTP, SIGTTIN), SIGTTOU)))
+
+static volatile sig_atomic_t signo[MAX_SIGNO + 1];
 
 static void
 handler(int s)
 {
+	assert(s <= MAX_SIGNO);
 	signo[s] = 1;
 }
 
@@ -166,12 +174,8 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 		return(NULL);
 	}
 
-	if (signo == NULL) {
-		signo = calloc(SIGRTMAX, sizeof(sig_atomic_t));
-	}
-
 restart:
-	for (i = 0; i < SIGRTMAX; i++)
+	for (i = 0; i <= MAX_SIGNO; i++)
 		signo[i] = 0;
 	nr = -1;
 	save_errno = 0;
@@ -198,6 +202,7 @@ restart:
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;		/* don't restart system calls */
 	sa.sa_handler = handler;
+	/* Keep this list in sync with MAX_SIGNO! */
 	(void)sigaction(SIGALRM, &sa, &savealrm);
 	(void)sigaction(SIGHUP, &sa, &savehup);
 	(void)sigaction(SIGINT, &sa, &saveint);
@@ -237,11 +242,11 @@ restart:
 			if (p < end) {
 				if ((flags & RPP_SEVENBIT))
 					ch &= 0x7f;
-				if (isalpha(ch)) {
+				if (isalpha((unsigned char)ch)) {
 					if ((flags & RPP_FORCELOWER))
-						ch = (char)tolower(ch);
+						ch = (char)tolower((unsigned char)ch);
 					if ((flags & RPP_FORCEUPPER))
-						ch = (char)toupper(ch);
+						ch = (char)toupper((unsigned char)ch);
 				}
 				*p++ = ch;
 			}
@@ -276,7 +281,7 @@ restart:
 	 * If we were interrupted by a signal, resend it to ourselves
 	 * now that we have restored the signal handlers.
 	 */
-	for (i = 0; i < SIGRTMAX; i++) {
+	for (i = 0; i <= MAX_SIGNO; i++) {
 		if (signo[i]) {
 			kill(getpid(), i);
 			switch (i) {
