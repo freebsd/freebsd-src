@@ -324,9 +324,6 @@ get_stor_device(struct hv_device *device,
 	struct storvsc_softc *sc;
 
 	sc = device_get_softc(device->device);
-	if (sc == NULL) {
-		return NULL;
-	}
 
 	if (outbound) {
 		/*
@@ -1009,10 +1006,6 @@ storvsc_attach(device_t dev)
 	root_mount_token = root_mount_hold("storvsc");
 
 	sc = device_get_softc(dev);
-	if (sc == NULL) {
-		ret = ENOMEM;
-		goto cleanup;
-	}
 
 	stor_type = storvsc_get_storage_type(dev);
 

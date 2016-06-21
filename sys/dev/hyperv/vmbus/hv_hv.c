@@ -127,7 +127,7 @@ int
 hv_vmbus_init(void) 
 {
 	hv_vmbus_x64_msr_hypercall_contents	hypercall_msr;
-	void* 					virt_addr = 0;
+	void* 					virt_addr = NULL;
 
 	memset(
 	    hv_vmbus_g_context.syn_ic_event_page,
@@ -445,7 +445,7 @@ hyperv_identify(void)
 	    "\003SYNIC"		/* MSRs for SynIC */
 	    "\004SYNTM"		/* MSRs for SynTimer */
 	    "\005APIC"		/* MSR_{EOI,ICR,TPR} */
-	    "\006HYERCALL"	/* MSR_{GUEST_OS_ID,HYPERCALL} */
+	    "\006HYPERCALL"	/* MSR_{GUEST_OS_ID,HYPERCALL} */
 	    "\007VPINDEX"	/* MSR_VP_INDEX */
 	    "\010RESET"		/* MSR_RESET */
 	    "\011STATS"		/* MSR_STATS_ */
