@@ -294,4 +294,4 @@ ipid_sysuninit(void)
 	counter_u64_free(V_ip_id);
 	mtx_destroy(&V_ip_id_mtx);
 }
-VNET_SYSUNINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipid_sysuninit, NULL);
+VNET_SYSUNINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ipid_sysuninit, NULL);

@@ -823,7 +823,7 @@ vnet_vlan_uninit(const void *unused __unused)
 
 	if_clone_detach(V_vlan_cloner);
 }
-VNET_SYSUNINIT(vnet_vlan_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
+VNET_SYSUNINIT(vnet_vlan_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     vnet_vlan_uninit, NULL);
 #endif
 

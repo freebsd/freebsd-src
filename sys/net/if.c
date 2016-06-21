@@ -914,6 +914,16 @@ if_detach(struct ifnet *ifp)
 	CURVNET_RESTORE();
 }
 
+/*
+ * The vmove flag, if set, indicates that we are called from a callpath
+ * that is moving an interface to a different vnet instance.
+ *
+ * The shutdown flag, if set, indicates that we are called in the
+ * process of shutting down a vnet instance.  Currently only the
+ * vnet_if_return SYSUNINIT function sets it.  Note: we can be called
+ * on a vnet instance shutdown without this flag being set, e.g., when
+ * the cloned interfaces are destoyed as first thing of teardown.
+ */
 static int
 if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 {
@@ -921,8 +931,10 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	int i;
 	struct domain *dp;
  	struct ifnet *iter;
- 	int found = 0;
+ 	int found = 0, shutdown;
 
+	shutdown = (ifp->if_vnet->vnet_state > SI_SUB_VNET &&
+		 ifp->if_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
 	IFNET_WLOCK();
 	TAILQ_FOREACH(iter, &V_ifnet, if_link)
 		if (iter == ifp) {
@@ -930,10 +942,6 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 			found = 1;
 			break;
 		}
-#ifdef VIMAGE
-	if (found)
-		curvnet->vnet_ifcnt--;
-#endif
 	IFNET_WUNLOCK();
 	if (!found) {
 		/*
@@ -951,19 +959,58 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 #endif
 	}
 
-	/* Check if this is a cloned interface or not. */
+	/*
+	 * At this point we know the interface still was on the ifnet list
+	 * and we removed it so we are in a stable state.
+	 */
+#ifdef VIMAGE
+	curvnet->vnet_ifcnt--;
+#endif
+
+	/*
+	 * In any case (destroy or vmove) detach us from the groups
+	 * and remove/wait for pending events on the taskq.
+	 * XXX-BZ in theory an interface could still enqueue a taskq change?
+	 */
+	if_delgroups(ifp);
+
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
+
+	/*
+	 * Check if this is a cloned interface or not. Must do even if
+	 * shutting down as a if_vmove_reclaim() would move the ifp and
+	 * the if_clone_addgroup() will have a corrupted string overwise
+	 * from a gibberish pointer.
+	 */
 	if (vmove && ifcp != NULL)
 		*ifcp = if_clone_findifc(ifp);
 
+	if_down(ifp);
+
 	/*
-	 * Remove/wait for pending events.
+	 * On VNET shutdown abort here as the stack teardown will do all
+	 * the work top-down for us.
 	 */
-	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
+	if (shutdown) {
+		/*
+		 * In case of a vmove we are done here without error.
+		 * If we would signal an error it would lead to the same
+		 * abort as if we did not find the ifnet anymore.
+		 * if_detach() calls us in void context and does not care
+		 * about an early abort notification, so life is splendid :)
+		 */
+		goto finish_vnet_shutdown;
+	}
+
+	/*
+	 * At this point we are not tearing down a VNET and are either
+	 * going to destroy or vmove the interface and have to cleanup
+	 * accordingly.
+	 */
 
 	/*
 	 * Remove routes and flush queues.
 	 */
-	if_down(ifp);
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(&ifp->if_snd))
 		altq_disable(&ifp->if_snd);
@@ -1018,8 +1065,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	}
 
 	rt_flushifroutes(ifp);
-	if_delgroups(ifp);
 
+finish_vnet_shutdown:
 	/*
 	 * We cannot hold the lock over dom_ifdetach calls as they might
 	 * sleep, for example trying to drain a callout, thus open up the
@@ -1048,7 +1095,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
  * unused if_index in target vnet and calls if_grow() if necessary,
  * and finally find an unused if_xname for the target vnet.
  */
-void
+static void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	struct if_clone *ifc;
@@ -1115,6 +1162,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 {
 	struct prison *pr;
 	struct ifnet *difp;
+	int shutdown;
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -1135,11 +1183,21 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	/* XXX Lock interfaces to avoid races. */
 	CURVNET_SET_QUIET(pr->pr_vnet);
 	difp = ifunit(ifname);
-	CURVNET_RESTORE();
 	if (difp != NULL) {
+		CURVNET_RESTORE();
 		prison_free(pr);
 		return (EEXIST);
 	}
+
+	/* Make sure the VNET is stable. */
+	shutdown = (ifp->if_vnet->vnet_state > SI_SUB_VNET &&
+		 ifp->if_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
+	if (shutdown) {
+		CURVNET_RESTORE();
+		prison_free(pr);
+		return (EBUSY);
+	}
+	CURVNET_RESTORE();
 
 	/* Move the interface into the child jail/vnet. */
 	if_vmove(ifp, pr->pr_vnet);
@@ -1157,6 +1215,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
+ 	int shutdown;
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -1182,6 +1241,15 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 		CURVNET_RESTORE();
 		prison_free(pr);
 		return (EEXIST);
+	}
+
+	/* Make sure the VNET is stable. */
+	shutdown = (ifp->if_vnet->vnet_state > SI_SUB_VNET &&
+		 ifp->if_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
+	if (shutdown) {
+		CURVNET_RESTORE();
+		prison_free(pr);
+		return (EBUSY);
 	}
 
 	/* Get interface back from child jail/vnet. */
@@ -2642,8 +2710,22 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	struct ifreq *ifr;
 	int error;
 	int oif_flags;
+#ifdef VIMAGE
+	int shutdown;
+#endif
 
 	CURVNET_SET(so->so_vnet);
+#ifdef VIMAGE
+	/* Make sure the VNET is stable. */
+	shutdown = (so->so_vnet->vnet_state > SI_SUB_VNET &&
+		 so->so_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
+	if (shutdown) {
+		CURVNET_RESTORE();
+		return (EBUSY);
+	}
+#endif
+
+
 	switch (cmd) {
 	case SIOCGIFCONF:
 		error = ifconf(cmd, data);
