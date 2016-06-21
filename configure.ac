@@ -27,6 +27,7 @@ AC_CONFIG_AUX_DIR([build/autoconf])
 AC_CONFIG_MACRO_DIR([build/autoconf])
 # Must follow AC_CONFIG macros above...
 AM_INIT_AUTOMAKE()
+AM_MAINTAINER_MODE([enable])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # Libtool's "interface version" can be computed from the libarchive version.
@@ -845,6 +846,7 @@ if test "x$with_openssl" != "xno"; then
     else
       AC_CHECK_FUNCS([PKCS5_PBKDF2_HMAC_SHA1])
     fi
+    AC_CHECK_LIB(crypto,EVP_CIPHER_CTX_init)
 fi
 
 # Probe libmd AFTER OpenSSL/libcrypto.
