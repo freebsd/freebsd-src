@@ -51,7 +51,7 @@ calls.
 .Pp
 .Nm
 is not intended to be a security auditing tool.
-Many syscalls are not tracked and binaries of foreign ABI will not be fully
+Many system calls are not tracked and binaries of foreign ABI will not be fully
 audited.
 It is intended for auditing of processes for the purpose of determining its
 dependencies in an efficient and easily parsable format.
@@ -64,6 +64,9 @@ to handle incremental builds more smartly.
 System calls are denoted using the following single letters:
 .Pp
 .Bl -tag -width indent -compact
+.It Ql A
+.Xr openat 2 .
+The next log entry may be lacking an absolute path or be inaccurate.
 .It Ql C
 .Xr chdir 2
 .It Ql D
@@ -82,9 +85,13 @@ System calls are denoted using the following single letters:
 .Xr rename 2
 .It Ql R
 .Xr open 2
+or
+.Xr openat 2
 for read
 .It Ql W
 .Xr open 2
+or
+.Xr openat 2
 for write
 .It Ql X
 .Xr _exit 2
