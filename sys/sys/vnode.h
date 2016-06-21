@@ -603,6 +603,7 @@ struct nstat;
 struct ucred;
 struct uio;
 struct vattr;
+struct vfsops;
 struct vnode;
 
 typedef int (*vn_get_ino_t)(struct mount *, void *, int, struct vnode **);
@@ -738,6 +739,7 @@ void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp, int flags);
 int	vfs_write_suspend(struct mount *mp, int flags);
 int	vfs_write_suspend_umnt(struct mount *mp);
+void	vnlru_free(int, struct vfsops *);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);
@@ -779,8 +781,6 @@ void	vop_close_post(void *a, int rc);
 void	vop_create_post(void *a, int rc);
 void	vop_deleteextattr_post(void *a, int rc);
 void	vop_link_post(void *a, int rc);
-void	vop_lock_pre(void *a);
-void	vop_lock_post(void *a, int rc);
 void	vop_lookup_post(void *a, int rc);
 void	vop_lookup_pre(void *a);
 void	vop_mkdir_post(void *a, int rc);
@@ -795,10 +795,21 @@ void	vop_rename_pre(void *a);
 void	vop_rmdir_post(void *a, int rc);
 void	vop_setattr_post(void *a, int rc);
 void	vop_setextattr_post(void *a, int rc);
-void	vop_strategy_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
+
+#ifdef DEBUG_VFS_LOCKS
+void	vop_strategy_pre(void *a);
+void	vop_lock_pre(void *a);
+void	vop_lock_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);
 void	vop_unlock_pre(void *a);
+#else
+#define	vop_strategy_pre(x)	do { } while (0)
+#define	vop_lock_pre(x)		do { } while (0)
+#define	vop_lock_post(x, y)	do { } while (0)
+#define	vop_unlock_post(x, y)	do { } while (0)
+#define	vop_unlock_pre(x)	do { } while (0)
+#endif
 
 void	vop_rename_fail(struct vop_rename_args *ap);
 

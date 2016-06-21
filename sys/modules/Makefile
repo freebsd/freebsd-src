@@ -353,7 +353,7 @@ SUBDIR=	\
 	${_syscons} \
 	sysvipc \
 	${_ti} \
-	tcp/fastpath \
+	${_tcp_fastpath} \
 	tests/framework \
 	tests/callout_test \
 	tl \
@@ -434,6 +434,10 @@ _random_other=	random_other
 
 .if ${MK_CUSE} != "no" || defined(ALL_MODULES)
 SUBDIR+=	cuse
+.endif
+
+.if ${MK_EXTRA_TCP_STACKS} != "no" || defined(ALL_MODULES)
+_tcp_fastpath=	tcp/fastpath
 .endif
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \

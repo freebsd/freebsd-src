@@ -915,11 +915,11 @@ if_detach(struct ifnet *ifp)
 }
 
 /*
- * The vmove, if set, flag indicates that we are called from a callpath
+ * The vmove flag, if set, indicates that we are called from a callpath
  * that is moving an interface to a different vnet instance.
  *
  * The shutdown flag, if set, indicates that we are called in the
- * progress of shutting down a vnet instance.  Currently only the
+ * process of shutting down a vnet instance.  Currently only the
  * vnet_if_return SYSUNINIT function sets it.  Note: we can be called
  * on a vnet instance shutdown without this flag being set, e.g., when
  * the cloned interfaces are destoyed as first thing of teardown.
@@ -1021,7 +1021,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	if_purgeaddrs(ifp);
 
 #ifdef INET
-	in_ifdetach(ifp, 1);
+	in_ifdetach(ifp);
 #endif
 
 #ifdef INET6
@@ -1031,7 +1031,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	 * routes are expected to be removed by the IPv6-specific kernel API.
 	 * Otherwise, the kernel will detect some inconsistency and bark it.
 	 */
-	in6_ifdetach(ifp, 1);
+	in6_ifdetach(ifp);
 #endif
 	if_purgemaddrs(ifp);
 

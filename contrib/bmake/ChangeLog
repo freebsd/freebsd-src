@@ -1,3 +1,9 @@
+2016-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160606
+	  Merge with NetBSD make, pick up
+	  o dir.c: extend mtimes cache to others via cached_stat()
+
 2016-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20160604

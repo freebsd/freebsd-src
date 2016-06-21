@@ -920,6 +920,46 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 #endif
 
+	error = vfs_getopt(opts, "osrelease", (void **)&osrelstr, &len);
+	if (error == ENOENT)
+		osrelstr = NULL;
+	else if (error != 0)
+		goto done_free;
+	else {
+		if (flags & JAIL_UPDATE) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osrelease cannot be changed after creation");
+			goto done_errmsg;
+		}
+		if (len == 0 || len >= OSRELEASELEN) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osrelease string must be 1-%d bytes long",
+			    OSRELEASELEN - 1);
+			goto done_errmsg;
+		}
+	}
+
+	error = vfs_copyopt(opts, "osreldate", &osreldt, sizeof(osreldt));
+	if (error == ENOENT)
+		osreldt = 0;
+	else if (error != 0)
+		goto done_free;
+	else {
+		if (flags & JAIL_UPDATE) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osreldate cannot be changed after creation");
+			goto done_errmsg;
+		}
+		if (osreldt == 0) {
+			error = EINVAL;
+			vfs_opterror(opts, "osreldate cannot be 0");
+			goto done_errmsg;
+		}
+	}
+
 	fullpath_disabled = 0;
 	root = NULL;
 	error = vfs_getopt(opts, "path", (void **)&path, &len);
@@ -970,48 +1010,9 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			if (len + (path[0] == '/' && strcmp(mypr->pr_path, "/")
 			    ? strlen(mypr->pr_path) : 0) > MAXPATHLEN) {
 				error = ENAMETOOLONG;
+				vrele(root);
 				goto done_free;
 			}
-		}
-	}
-
-	error = vfs_getopt(opts, "osrelease", (void **)&osrelstr, &len);
-	if (error == ENOENT)
-		osrelstr = NULL;
-	else if (error != 0)
-		goto done_free;
-	else {
-		if (flags & JAIL_UPDATE) {
-			error = EINVAL;
-			vfs_opterror(opts,
-			    "osrelease cannot be changed after creation");
-			goto done_errmsg;
-		}
-		if (len == 0 || len >= OSRELEASELEN) {
-			error = EINVAL;
-			vfs_opterror(opts,
-			    "osrelease string must be 1-%d bytes long",
-			    OSRELEASELEN - 1);
-			goto done_errmsg;
-		}
-	}
-
-	error = vfs_copyopt(opts, "osreldate", &osreldt, sizeof(osreldt));
-	if (error == ENOENT)
-		osreldt = 0;
-	else if (error != 0)
-		goto done_free;
-	else {
-		if (flags & JAIL_UPDATE) {
-			error = EINVAL;
-			vfs_opterror(opts,
-			    "osreldate cannot be changed after creation");
-			goto done_errmsg;
-		}
-		if (osreldt == 0) {
-			error = EINVAL;
-			vfs_opterror(opts, "osreldate cannot be 0");
-			goto done_errmsg;
 		}
 	}
 
@@ -1929,19 +1930,17 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		vrele(root);
  done_errmsg:
 	if (error) {
-		vfs_getopt(opts, "errmsg", (void **)&errmsg, &errmsg_len);
-		if (errmsg_len > 0) {
+		if (vfs_getopt(opts, "errmsg", (void **)&errmsg,
+		    &errmsg_len) == 0 && errmsg_len > 0) {
 			errmsg_pos = 2 * vfs_getopt_pos(opts, "errmsg") + 1;
-			if (errmsg_pos > 0) {
-				if (optuio->uio_segflg == UIO_SYSSPACE)
-					bcopy(errmsg,
-					   optuio->uio_iov[errmsg_pos].iov_base,
-					   errmsg_len);
-				else
-					copyout(errmsg,
-					   optuio->uio_iov[errmsg_pos].iov_base,
-					   errmsg_len);
-			}
+			if (optuio->uio_segflg == UIO_SYSSPACE)
+				bcopy(errmsg,
+				    optuio->uio_iov[errmsg_pos].iov_base,
+				    errmsg_len);
+			else
+				copyout(errmsg,
+				    optuio->uio_iov[errmsg_pos].iov_base,
+				    errmsg_len);
 		}
 	}
  done_free:
@@ -2383,7 +2382,14 @@ sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
 	if (error)
 		return (error);
 
-	sx_slock(&allprison_lock);
+	/*
+	 * Start with exclusive hold on allprison_lock to ensure that a possible
+	 * PR_METHOD_REMOVE call isn't concurrent with jail_set or jail_remove.
+	 * But then immediately downgrade it since we don't need to stop
+	 * readers.
+	 */
+	sx_xlock(&allprison_lock);
+	sx_downgrade(&allprison_lock);
 	pr = prison_find_child(td->td_ucred->cr_prison, uap->jid);
 	if (pr == NULL) {
 		sx_sunlock(&allprison_lock);
@@ -2601,9 +2607,11 @@ prison_complete(void *context, int pending)
 {
 	struct prison *pr = context;
 
+	sx_xlock(&allprison_lock);
 	mtx_lock(&pr->pr_mtx);
 	prison_deref(pr, pr->pr_uref
-	    ? PD_DEREF | PD_DEUREF | PD_LOCKED : PD_LOCKED);
+	    ? PD_DEREF | PD_DEUREF | PD_LOCKED | PD_LIST_XLOCKED
+	    : PD_LOCKED | PD_LIST_XLOCKED);
 }
 
 /*
@@ -2647,13 +2655,8 @@ prison_deref(struct prison *pr, int flags)
 		 */
 		if (lasturef) {
 			if (!(flags & (PD_LIST_SLOCKED | PD_LIST_XLOCKED))) {
-				if (ref > 1) {
-					sx_slock(&allprison_lock);
-					flags |= PD_LIST_SLOCKED;
-				} else {
-					sx_xlock(&allprison_lock);
-					flags |= PD_LIST_XLOCKED;
-				}
+				sx_xlock(&allprison_lock);
+				flags |= PD_LIST_XLOCKED;
 			}
 			(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
 			mtx_lock(&pr->pr_mtx);

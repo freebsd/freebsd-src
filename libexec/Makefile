@@ -34,7 +34,7 @@ SUBDIR=	${_atf} \
 _atrun=		atrun
 .endif
 
-.if ${MK_BLACKLIST_SUPPORT} != "no"
+.if ${MK_BLACKLIST} != "no"
 _blacklistd-helper+=	blacklistd-helper
 .endif
 

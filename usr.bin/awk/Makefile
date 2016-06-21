@@ -17,8 +17,10 @@ MLINKS=	awk.1 nawk.1
 
 CLEANFILES= maketab proctab.c ytab.h
 
-ytab.h: awkgram.h .NOMETA
-	ln -sf ${.ALLSRC} ${.TARGET}
+# XXX: awkgram.c isn't really needed here but it is added to keep
+# awkgram.h: .NOMETA respected.
+ytab.h: awkgram.c awkgram.h .NOMETA
+	ln -sf ${.ALLSRC:M*.h} ${.TARGET}
 
 proctab.c: maketab
 	${BTOOLSPATH:U.}/maketab > proctab.c

@@ -972,14 +972,12 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
  * On interface removal, clean up IPv4 data structures hung off of the ifnet.
  */
 void
-in_ifdetach(struct ifnet *ifp, int purgeulp)
+in_ifdetach(struct ifnet *ifp)
 {
 
-	if (purgeulp) {
-		in_pcbpurgeif0(&V_ripcbinfo, ifp);
-		in_pcbpurgeif0(&V_udbinfo, ifp);
-		in_pcbpurgeif0(&V_ulitecbinfo, ifp);
-	}
+	in_pcbpurgeif0(&V_ripcbinfo, ifp);
+	in_pcbpurgeif0(&V_udbinfo, ifp);
+	in_pcbpurgeif0(&V_ulitecbinfo, ifp);
 	in_purgemaddrs(ifp);
 }
 

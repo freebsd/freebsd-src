@@ -1,5 +1,5 @@
 /*-
- * Copyright 2001 Mark R V Murray
+ * Copyright (c) 2016 Jilles Tjoelker <jilles@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,41 +22,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _LEGACY_SYS_STAT_H_
+#define	_LEGACY_SYS_STAT_H_
 
-#include <libgen.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include_next <sys/stat.h>
 
-#include <security/pam_appl.h>
-#include <security/openpam.h>
-#include <security/pam_mod_misc.h>
+#ifndef	UTIME_NOW
+#define	UTIME_NOW	-1
+#define	UTIME_OMIT	-2
+#endif
 
-/* Print a verbose error, including the function name and a
- * cleaned up filename.
- */
-void
-_pam_verbose_error(pam_handle_t *pamh, int flags,
-    const char *file, const char *function, const char *format, ...)
-{
-	va_list ap;
-	char *fmtbuf, *modname, *period;
+__BEGIN_DECLS
 
-	if (!(flags & PAM_SILENT) && !openpam_get_option(pamh, "no_warn")) {
-		modname = basename(file);
-		period = strchr(modname, '.');
-		if (period == NULL)
-			period = strchr(modname, '\0');
-		va_start(ap, format);
-		asprintf(&fmtbuf, "%.*s: %s: %s\n", (int)(period - modname),
-		    modname, function, format);
-		pam_verror(pamh, fmtbuf, ap);
-		free(fmtbuf);
-		va_end(ap);
-	}
-}
+int futimens(int, const struct timespec *);
+int utimensat(int, const char *, const struct timespec *, int);
+
+__END_DECLS
+
+#endif /* !_LEGACY_SYS_STAT_H_ */

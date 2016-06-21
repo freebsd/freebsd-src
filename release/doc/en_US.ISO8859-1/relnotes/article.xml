@@ -505,8 +505,8 @@
 	<application>elftoolchain</application> utilities have been
 	updated to version 3179.</para>
 
-      <para revision="281316">The &man.xz.1; utility has been updated
-	to version 5.2.1.</para>
+      <para revision="291125">The &man.xz.1; utility has been updated
+	to version 5.2.2.</para>
 
       <para revision="281373">The &man.nvi.1; utility has been updated
 	to version 2.1.3.</para>
@@ -601,6 +601,39 @@
       <para revision="296417">The
 	<application>compiler_rt</application> utility has been
 	updated to version 3.8.0.</para>
+
+      <para revision="300879"><application>ACPICA</application> has been
+	updated to version 20160527.</para>
+
+      <para revision="292432"><application>OpenBSM</application> has been
+	updated to version 1.2 alpha 4.</para>
+
+      <para revision="301169" contrib="sponsor" sponsor="&ff;">The NetBSD
+	Project's &man.libblacklist.3; library and applications
+	have been ported and integrated into the system.  Packet
+	filtering support for the &man.pf.4; packet filtering systems
+	has been implemented.  The <application>blacklist</application>
+	system provides the <application>blacklistd</application>
+	daemon, the helper script
+	<application>blacklistd-helper</application> to make changes
+	to the running packet filter system and the
+	<application>blacklistctl</application> control program.
+	A selection of system daemons, including:
+	<application>fingerd</application>,
+	<application>ftpd</application>,
+	<application>rlogind</application>,
+	<application>rshd</application>, and
+	<application>sshd</application> have been modified to support
+	sending notifications to the <application>blacklistd</application>
+	daemon.</para>
+
+      <para revision="301736" contrib="sponsor" sponsor="&ff;">Support for
+	the &man.ipfw.4; packet filter has been added to the
+	<application>blacklistd-helper</application> script.</para>
+
+      <para revision="301843" contrib="sponsor" sponsor="&ff;">Support for
+	the &man.ipfilter.4; packet filter has been added to the
+	<application>blacklistd-helper</application> script.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -1517,6 +1550,13 @@
 	<acronym>TRIM</acronym>/<acronym>UNMAP</acronym> support on
 	<acronym>GELI</acronym>-backed <acronym>SSD</acronym> storage
 	providers.</para>
+
+      <para revision="300880" contrib="sponsor" sponsor="&spectralogic;">
+	Leading spaces are now stripped off <acronym>SCSI</acronym> disk serial
+	numbers when populating the CAM serial number. This affects the output of
+	&man.diskinfo.8; and the names of <filename>/dev/diskid/DISK-*</filename>
+	device nodes, among other things.</para>
+
     </sect2>
 
     <sect2 xml:id="storage-net">

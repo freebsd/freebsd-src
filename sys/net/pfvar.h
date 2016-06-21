@@ -540,7 +540,7 @@ struct pf_rule {
 	u_int16_t		 max_mss;
 	u_int16_t		 tag;
 	u_int16_t		 match_tag;
-	u_int16_t		 spare2;			/* netgraph */
+	u_int16_t		 scrub_flags;
 
 	struct pf_rule_uid	 uid;
 	struct pf_rule_gid	 gid;
@@ -577,6 +577,10 @@ struct pf_rule {
 #define PF_FLUSH		0x01
 #define PF_FLUSH_GLOBAL		0x02
 	u_int8_t		 flush;
+#define PF_PRIO_ZERO		0xff		/* match "prio 0" packets */
+#define PF_PRIO_MAX		7
+	u_int8_t		 prio;
+	u_int8_t		 set_prio[2];
 
 	struct {
 		struct pf_addr		addr;
@@ -739,6 +743,8 @@ struct pf_state {
 /*  was	PFSTATE_PFLOW		0x04 */
 #define	PFSTATE_NOSYNC		0x08
 #define	PFSTATE_ACK		0x10
+#define	PFSTATE_SETPRIO		0x0200
+#define	PFSTATE_SETMASK   (PFSTATE_SETPRIO)
 	u_int8_t		 timeout;
 	u_int8_t		 sync_state; /* PFSYNC_S_x */
 

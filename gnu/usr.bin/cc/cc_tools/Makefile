@@ -261,7 +261,7 @@ gengtype-lex.c:	gengtype-lex.l
 gengtype-yacc.h: gengtype-yacc.y
 	yacc -d -o gengtype-yacc.c ${.ALLSRC}
 
-gengtype-yacc.c: gengtype-yacc.h
+gengtype-yacc.c: gengtype-yacc.h .NOMETA
 
 gengtype-yacc+%DIKED.c: gengtype-yacc.c
 	cat    ${.ALLSRC} > ${.TARGET}
@@ -438,9 +438,7 @@ CLEANFILES+=	${GENSRCS} ${GENONLY} ${GENOBJS} ${GNTOOLS}
 
 #-----------------------------------------------------------------------
 # Manual dependencies.
-.if !exists(${DEPENDFILE})
 .include  "Makefile.dep"
-.endif
 
 .include <bsd.prog.mk>
 # DO NOT DELETE

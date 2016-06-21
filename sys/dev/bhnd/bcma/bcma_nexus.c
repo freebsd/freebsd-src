@@ -135,4 +135,5 @@ static device_method_t bcma_nexus_methods[] = {
 DEFINE_CLASS_2(bhnd, bcma_nexus_driver, bcma_nexus_methods,
     sizeof(struct bcma_nexus_softc), bhnd_nexus_driver, bcma_driver);
 
-DRIVER_MODULE(bcma_nexus, nexus, bcma_nexus_driver, bhnd_devclass, 0, 0);
+EARLY_DRIVER_MODULE(bcma_nexus, nexus, bcma_nexus_driver, bhnd_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

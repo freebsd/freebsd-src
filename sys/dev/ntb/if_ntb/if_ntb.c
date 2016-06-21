@@ -427,7 +427,7 @@ ntb_setup_interface(void)
 	    &handlers);
 	ifp->if_init = ntb_net_init;
 	ifp->if_softc = &net_softc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ntb_ioctl;
 	ifp->if_start = ntb_start;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);

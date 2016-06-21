@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 25, 2015
+.Dd June 9, 2016
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1785,6 +1785,25 @@ For example:
 pass in proto tcp to port 25 queue mail
 pass in proto tcp to port 22 queue(ssh_bulk, ssh_prio)
 .Ed
+.Pp
+.It Cm set prio Ar priority | Pq Ar priority , priority
+Packets matching this rule will be assigned a specific queueing priority.
+Priorities are assigned as integers 0 through 7.
+If the packet is transmitted on a
+.Xr vlan 4
+interface, the queueing priority will be written as the priority
+code point in the 802.1Q VLAN header.
+If two priorities are given, packets which have a TOS of
+.Cm lowdelay
+and TCP ACKs with no data payload will be assigned to the second one.
+.Pp
+For example:
+.Bd -literal -offset indent
+pass in proto tcp to port 25 set prio 2
+pass in proto tcp to port 22 set prio (2, 5)
+.Ed
+.Pp
+
 .It Ar tag Aq Ar string
 Packets matching this rule will be tagged with the
 specified string.
@@ -1845,6 +1864,9 @@ For example, the following rule will drop 20% of incoming ICMP packets:
 .Bd -literal -offset indent
 block in proto icmp probability 20%
 .Ed
+.It Ar prio Aq Ar number
+Only match packets which have the given queueing priority assigned.
+.Pp
 .El
 .Sh ROUTING
 If a packet matches a rule with a route option set, the packet filter will
@@ -2831,8 +2853,9 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "max-mss" number | "random-id" | "reassemble tcp" |
                  fragmentation | "allow-opts" |
                  "label" string | "tag" string | [ ! ] "tagged" string |
+                 "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
-                 "rtable" number | "probability" number"%"
+                 "rtable" number | "probability" number"%" | "prio" number
 
 nat-rule       = [ "no" ] "nat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" ifspec ] [ af ]

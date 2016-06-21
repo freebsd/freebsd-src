@@ -47,7 +47,8 @@
  */
 #define NVME_GLOBAL_NAMESPACE_TAG	((uint32_t)0xFFFFFFFF)
 
-#define NVME_MAX_XFER_SIZE		MAXPHYS
+/* Cap nvme to 1MB transfers driver explodes with larger sizes */
+#define NVME_MAX_XFER_SIZE		(MAXPHYS < (1<<20) ? MAXPHYS : (1<<20))
 
 union cap_lo_register {
 	uint32_t	raw;
@@ -902,6 +903,52 @@ uint32_t	nvme_ns_get_stripesize(struct nvme_namespace *ns);
 
 int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 			    nvme_cb_fn_t cb_fn);
+
+/* Command building helper functions -- shared with CAM */
+static inline
+void	nvme_ns_flush_cmd(struct nvme_command *cmd, uint16_t nsid)
+{
+
+	cmd->opc = NVME_OPC_FLUSH;
+	cmd->nsid = nsid;
+}
+
+static inline
+void	nvme_ns_rw_cmd(struct nvme_command *cmd, uint32_t rwcmd, uint16_t nsid,
+    uint64_t lba, uint32_t count)
+{
+	cmd->opc = rwcmd;
+	cmd->nsid = nsid;
+	*(uint64_t *)&cmd->cdw10 = lba;
+	cmd->cdw12 = count-1;
+	cmd->cdw13 = 0;
+	cmd->cdw14 = 0;
+	cmd->cdw15 = 0;
+}
+
+static inline
+void	nvme_ns_write_cmd(struct nvme_command *cmd, uint16_t nsid,
+    uint64_t lba, uint32_t count)
+{
+	nvme_ns_rw_cmd(cmd, NVME_OPC_WRITE, nsid, lba, count);
+}
+
+static inline
+void	nvme_ns_read_cmd(struct nvme_command *cmd, uint16_t nsid,
+    uint64_t lba, uint32_t count)
+{
+	nvme_ns_rw_cmd(cmd, NVME_OPC_READ, nsid, lba, count);
+}
+
+static inline
+void	nvme_ns_trim_cmd(struct nvme_command *cmd, uint16_t nsid,
+    uint32_t num_ranges)
+{
+	cmd->opc = NVME_OPC_DATASET_MANAGEMENT;
+	cmd->nsid = nsid;
+	cmd->cdw10 = num_ranges - 1;
+	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
+}
 
 #endif /* _KERNEL */
 

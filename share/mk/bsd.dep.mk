@@ -86,7 +86,7 @@ _SKIP_READ_DEPEND=	1
 CLEANFILES?=
 
 .for _S in ${SRCS:N*.[dhly]}
-OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.o+=	${_S}
 .endfor
 
 # Lexical analyzers
@@ -94,7 +94,7 @@ OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
-OBJS_DEPEND_GUESS.${_LC:R}.o=	${_LC}
+OBJS_DEPEND_GUESS.${_LC:R}.o+=	${_LC}
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
 CLEANFILES+= ${_LC}
 .endfor
@@ -125,7 +125,7 @@ CLEANFILES+= ${_YH}
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
-OBJS_DEPEND_GUESS.${_YC:R}.o=	${_YC}
+OBJS_DEPEND_GUESS.${_YC:R}.o+=	${_YC}
 .endfor
 .endfor
 
@@ -221,9 +221,11 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .elif defined(_meta_filemon)
 # For meta mode we still need to know which file to depend on to avoid
 # ambiguous suffix transformation rules from .PATH.  Meta mode does not
-# use .depend files.  We really only need source files, not headers.
+# use .depend files.  We really only need source files, not headers since
+# they are typically in SRCS/beforebuild already.  For target-specific
+# guesses do include headers though since they may not be in SRCS.
 ${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
-${__obj}: ${OBJS_DEPEND_GUESS.${__obj}:N*.h}
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endif
 .endfor
 

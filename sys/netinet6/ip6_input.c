@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
 #include "opt_rss.h"
@@ -353,7 +352,7 @@ ip6_destroy(void *unused __unused)
 			in6_purgeaddr(ifa);
 		}
 		/* IF_ADDR_UNLOCK(ifp); */
-		in6_ifdetach(ifp, 0);
+		in6_ifdetach_destroy(ifp);
 		mld_domifdetach(ifp);
 		/* Make sure any routes are gone as well. */
 		rt_flushifroutes_af(ifp, AF_INET6);
