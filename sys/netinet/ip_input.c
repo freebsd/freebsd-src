@@ -370,6 +370,7 @@ ip_init(void)
 static void
 ip_destroy(void *unused __unused)
 {
+	struct ifnet *ifp;
 	int error;
 
 #ifdef	RSS
@@ -393,11 +394,21 @@ ip_destroy(void *unused __unused)
 		    "type HHOOK_TYPE_IPSEC_OUT, id HHOOK_IPSEC_INET: "
 		    "error %d returned\n", __func__, error);
 	}
-	/* Cleanup in_ifaddr hash table; should be empty. */
-	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
+
+	/* Remove the IPv4 addresses from all interfaces. */
+	in_ifscrub_all();
+
+	/* Make sure the IPv4 routes are gone as well. */
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
+		rt_flushifroutes_af(ifp, AF_INET);
+	IFNET_RUNLOCK();
 
 	/* Destroy IP reassembly queue. */
 	ipreass_destroy();
+
+	/* Cleanup in_ifaddr hash table; should be empty. */
+	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
 }
 
 VNET_SYSUNINIT(ip, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip_destroy, NULL);

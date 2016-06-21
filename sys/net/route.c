@@ -334,7 +334,7 @@ vnet_route_uninit(const void *unused __unused)
 	free(V_rt_tables, M_RTABLE);
 	uma_zdestroy(V_rtzone);
 }
-VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     vnet_route_uninit, 0);
 #endif
 

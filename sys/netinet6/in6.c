@@ -2419,7 +2419,7 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
 
 	mld_domifdetach(ifp);
 	scope6_ifdetach(ext->scope6_id);
-	nd6_ifdetach(ext->nd_ifinfo);
+	nd6_ifdetach(ifp, ext->nd_ifinfo);
 	lltable_free(ext->lltable);
 	COUNTER_ARRAY_FREE(ext->in6_ifstat,
 	    sizeof(struct in6_ifstat) / sizeof(uint64_t));

@@ -963,7 +963,7 @@ vnet_epair_init(const void *unused __unused)
 	netisr_register_vnet(&epair_nh);
 #endif
 }
-VNET_SYSINIT(vnet_epair_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_epair_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_epair_init, NULL);
 
 static void
@@ -975,7 +975,7 @@ vnet_epair_uninit(const void *unused __unused)
 #endif
 	if_clone_detach(V_epair_cloner);
 }
-VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_epair_uninit, NULL);
 
 static int
@@ -1012,5 +1012,5 @@ static moduledata_t epair_mod = {
 	0
 };
 
-DECLARE_MODULE(if_epair, epair_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(if_epair, epair_mod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE);
 MODULE_VERSION(if_epair, 1);

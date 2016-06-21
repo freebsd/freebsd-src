@@ -895,6 +895,39 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 
 #undef rtinitflags
 
+void
+in_ifscrub_all(void)
+{
+	struct ifnet *ifp;
+	struct ifaddr *ifa, *nifa;
+	struct ifaliasreq ifr;
+
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		/* Cannot lock here - lock recursion. */
+		/* IF_ADDR_RLOCK(ifp); */
+		TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+
+			/*
+			 * This is ugly but the only way for legacy IP to
+			 * cleanly remove addresses and everything attached.
+			 */
+			bzero(&ifr, sizeof(ifr));
+			ifr.ifra_addr = *ifa->ifa_addr;
+			if (ifa->ifa_dstaddr)
+			ifr.ifra_broadaddr = *ifa->ifa_dstaddr;
+			(void)in_control(NULL, SIOCDIFADDR, (caddr_t)&ifr,
+			    ifp, NULL);
+		}
+		/* IF_ADDR_RUNLOCK(ifp); */
+		in_purgemaddrs(ifp);
+		igmp_domifdetach(ifp);
+	}
+	IFNET_RUNLOCK();
+}
+
 /*
  * Return 1 if the address might be a local broadcast address.
  */

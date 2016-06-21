@@ -331,8 +331,7 @@ vnet_init_done(void *unused __unused)
 
 	curvnet = NULL;
 }
-
-SYSINIT(vnet_init_done, SI_SUB_VNET_DONE, SI_ORDER_FIRST, vnet_init_done,
+SYSINIT(vnet_init_done, SI_SUB_VNET_DONE, SI_ORDER_ANY, vnet_init_done,
     NULL);
 
 /*

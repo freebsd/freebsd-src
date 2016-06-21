@@ -1715,7 +1715,7 @@ def_policy_init(const void *unused __unused)
 	V_def_policy.policy = IPSEC_POLICY_NONE;
 	V_def_policy.refcnt = 1;
 }
-VNET_SYSINIT(def_policy_init, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
+VNET_SYSINIT(def_policy_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     def_policy_init, NULL);
 
 

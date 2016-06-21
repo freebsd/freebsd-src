@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_ifattach.h>
+#include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
 
@@ -314,6 +315,8 @@ ip6proto_unregister(short ip6proto)
 static void
 ip6_destroy(void *unused __unused)
 {
+	struct ifaddr *ifa, *nifa;
+	struct ifnet *ifp;
 	int error;
 
 #ifdef RSS
@@ -336,9 +339,30 @@ ip6_destroy(void *unused __unused)
 		    "type HHOOK_TYPE_IPSEC_OUT, id HHOOK_IPSEC_INET6: "
 		    "error %d returned\n", __func__, error);
 	}
-	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
+
+	/* Cleanup addresses. */
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		/* Cannot lock here - lock recursion. */
+		/* IF_ADDR_LOCK(ifp); */
+		TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
+
+			if (ifa->ifa_addr->sa_family != AF_INET6)
+				continue;
+			in6_purgeaddr(ifa);
+		}
+		/* IF_ADDR_UNLOCK(ifp); */
+		in6_ifdetach_destroy(ifp);
+		mld_domifdetach(ifp);
+		/* Make sure any routes are gone as well. */
+		rt_flushifroutes_af(ifp, AF_INET6);
+	}
+	IFNET_RUNLOCK();
+
 	nd6_destroy();
 	in6_ifattach_destroy();
+
+	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 }
 
 VNET_SYSUNINIT(inet6, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_destroy, NULL);
