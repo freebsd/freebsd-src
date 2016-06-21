@@ -451,7 +451,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0)
 		return (TCP_LRO_CANNOT);
 
-	/* XXX-BZ We lose a AKC|PUSH flag concatinating multiple segments. */
+	/* XXX-BZ We lose a ACK|PUSH flag concatenating multiple segments. */
 	/* XXX-BZ Ideally we'd flush on PUSH? */
 
 	/*
