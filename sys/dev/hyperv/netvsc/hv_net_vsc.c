@@ -660,30 +660,12 @@ hv_nv_disconnect_from_vsp(netvsc_dev *net_dev)
 	hv_nv_destroy_send_buffer(net_dev);
 }
 
-/*
- * Callback handler for subchannel offer
- * @@param context new subchannel
- */
-static void
-hv_nv_subchan_callback(void *xchan)
+void
+hv_nv_subchan_attach(struct hv_vmbus_channel *chan)
 {
-	struct hv_vmbus_channel *chan = xchan;
-	netvsc_dev *net_dev;
-	uint16_t chn_index = chan->offer_msg.offer.sub_channel_index;
-	struct hv_device *device = chan->device;
-	hn_softc_t *sc = device_get_softc(device->device);
-	int ret;
-
-	net_dev = sc->net_dev;
-
-	if (chn_index >= net_dev->num_channel) {
-		/* Would this ever happen? */
-		return;
-	}
-	netvsc_subchan_callback(sc, chan);
 
 	chan->hv_chan_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
-	ret = hv_vmbus_channel_open(chan, NETVSC_DEVICE_RING_BUFFER_SIZE,
+	hv_vmbus_channel_open(chan, NETVSC_DEVICE_RING_BUFFER_SIZE,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NULL, 0,
 	    hv_nv_on_channel_callback, chan);
 }
@@ -720,7 +702,6 @@ hv_nv_on_device_add(struct hv_device *device, void *additional_info)
 		free(chan->hv_chan_rdbuf, M_NETVSC);
 		goto cleanup;
 	}
-	chan->sc_creation_callback = hv_nv_subchan_callback;
 
 	/*
 	 * Connect with the NetVsp

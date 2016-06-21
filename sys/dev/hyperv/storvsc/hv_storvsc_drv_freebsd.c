@@ -134,7 +134,6 @@ struct storvsc_softc {
 	uint32_t			hs_num_out_reqs;
 	boolean_t			hs_destroy;
 	boolean_t			hs_drain_notify;
-	boolean_t			hs_open_multi_channel;
 	struct sema 			hs_drain_sema;	
 	struct hv_storvsc_request	hs_init_req;
 	struct hv_storvsc_request	hs_reset_req;
@@ -347,29 +346,19 @@ get_stor_device(struct hv_device *device,
 	return sc;
 }
 
-/**
- * @brief Callback handler, will be invoked when receive mutil-channel offer
- *
- * @param context  new multi-channel
- */
 static void
-storvsc_handle_sc_creation(void *context)
+storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
 {
-	hv_vmbus_channel *new_channel;
 	struct hv_device *device;
 	struct storvsc_softc *sc;
 	struct vmstor_chan_props props;
 	int ret = 0;
 
-	new_channel = (hv_vmbus_channel *)context;
 	device = new_channel->device;
 	sc = get_stor_device(device, TRUE);
 	if (sc == NULL)
 		return;
 
-	if (FALSE == sc->hs_open_multi_channel)
-		return;
-	
 	memset(&props, 0, sizeof(props));
 
 	ret = hv_vmbus_channel_open(new_channel,
@@ -392,11 +381,12 @@ storvsc_handle_sc_creation(void *context)
 static void
 storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 {
+	struct hv_vmbus_channel **subchan;
 	struct storvsc_softc *sc;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;	
 	int request_channels_cnt = 0;
-	int ret;
+	int ret, i;
 
 	/* get multichannels count that need to create */
 	request_channels_cnt = MIN(max_chans, mp_ncpus);
@@ -409,9 +399,6 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 	}
 
 	request = &sc->hs_init_req;
-
-	/* Establish a handler for multi-channel */
-	dev->channel->sc_creation_callback = storvsc_handle_sc_creation;
 
 	/* request the host to create multi-channel */
 	memset(request, 0, sizeof(struct hv_storvsc_request));
@@ -448,7 +435,15 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 		return;
 	}
 
-	sc->hs_open_multi_channel = TRUE;
+	/* Wait for sub-channels setup to complete. */
+	subchan = vmbus_get_subchan(dev->channel, request_channels_cnt);
+
+	/* Attach the sub-channels. */
+	for (i = 0; i < request_channels_cnt; ++i)
+		storvsc_subchan_attach(subchan[i]);
+
+	/* Release the sub-channels. */
+	vmbus_rel_subchan(subchan, request_channels_cnt);
 
 	if (bootverbose)
 		printf("Storvsc create multi-channel success!\n");
@@ -1067,7 +1062,6 @@ storvsc_attach(device_t dev)
 
 	sc->hs_destroy = FALSE;
 	sc->hs_drain_notify = FALSE;
-	sc->hs_open_multi_channel = FALSE;
 	sema_init(&sc->hs_drain_sema, 0, "Store Drain Sema");
 
 	ret = hv_storvsc_connect_vsp(hv_dev);

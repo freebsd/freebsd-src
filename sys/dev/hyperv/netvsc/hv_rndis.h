@@ -1068,8 +1068,6 @@ struct hv_vmbus_channel;
 int netvsc_recv(struct hv_vmbus_channel *chan,
     netvsc_packet *packet, rndis_tcp_ip_csum_info *csum_info);
 void netvsc_channel_rollup(struct hv_vmbus_channel *chan);
-void netvsc_subchan_callback(struct hn_softc *sc,
-    struct hv_vmbus_channel *chan);
 
 void* hv_set_rppi_data(rndis_msg *rndis_mesg,
     uint32_t rppi_size,
