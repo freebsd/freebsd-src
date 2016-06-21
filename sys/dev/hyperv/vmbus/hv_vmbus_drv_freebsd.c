@@ -326,7 +326,6 @@ int
 hv_vmbus_child_device_register(struct hv_device *child_dev)
 {
 	device_t child;
-	int ret = 0;
 
 	if (bootverbose) {
 		char name[40];
@@ -337,10 +336,6 @@ hv_vmbus_child_device_register(struct hv_device *child_dev)
 	child = device_add_child(vmbus_devp, NULL, -1);
 	child_dev->device = child;
 	device_set_ivars(child, child_dev);
-
-	mtx_lock(&Giant);
-	ret = device_probe_and_attach(child);
-	mtx_unlock(&Giant);
 
 	return (0);
 }
@@ -562,6 +557,11 @@ vmbus_bus_init(void)
 		goto cleanup1;
 
 	hv_vmbus_request_channel_offers();
+
+	vmbus_scan();
+	bus_generic_attach(vmbus_devp);
+	device_printf(vmbus_devp, "device scan, probe and attach done\n");
+
 	return (ret);
 
 	cleanup1:

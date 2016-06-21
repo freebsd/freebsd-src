@@ -30,7 +30,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 
 #include "hv_vmbus_priv.h"
 
@@ -94,6 +97,14 @@ typedef struct hv_work_item {
 	void		(*callback)(void *);
 	void*		context;
 } hv_work_item;
+
+static struct mtx	vmbus_chwait_lock;
+MTX_SYSINIT(vmbus_chwait_lk, &vmbus_chwait_lock, "vmbus primarych wait lock",
+    MTX_DEF);
+static uint32_t		vmbus_chancnt;
+static uint32_t		vmbus_devcnt;
+
+#define VMBUS_CHANCNT_DONE	0x80000000
 
 /**
  * Implementation of the work abstraction.
@@ -279,6 +290,11 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 		mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 		hv_vmbus_free_vmbus_channel(new_channel);
 	}
+
+	mtx_lock(&vmbus_chwait_lock);
+	vmbus_devcnt++;
+	mtx_unlock(&vmbus_chwait_lock);
+	wakeup(&vmbus_devcnt);
 }
 
 void
@@ -384,6 +400,11 @@ vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
 
 	memcpy(copied, hdr, sizeof(*copied));
 	hv_queue_work_item(vmbus_channel_on_offer_internal, copied);
+
+	mtx_lock(&vmbus_chwait_lock);
+	if ((vmbus_chancnt & VMBUS_CHANCNT_DONE) == 0)
+		vmbus_chancnt++;
+	mtx_unlock(&vmbus_chwait_lock);
 }
 
 static void
@@ -475,6 +496,11 @@ vmbus_channel_on_offer_rescind_internal(void *context)
 static void
 vmbus_channel_on_offers_delivered(hv_vmbus_channel_msg_header* hdr)
 {
+
+	mtx_lock(&vmbus_chwait_lock);
+	vmbus_chancnt |= VMBUS_CHANCNT_DONE;
+	mtx_unlock(&vmbus_chwait_lock);
+	wakeup(&vmbus_chancnt);
 }
 
 /**
@@ -751,4 +777,19 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 	}
 
 	return(outgoing_channel);
+}
+
+void
+vmbus_scan(void)
+{
+	uint32_t chancnt;
+
+	mtx_lock(&vmbus_chwait_lock);
+	while ((vmbus_chancnt & VMBUS_CHANCNT_DONE) == 0)
+		mtx_sleep(&vmbus_chancnt, &vmbus_chwait_lock, 0, "waitch", 0);
+	chancnt = vmbus_chancnt & ~VMBUS_CHANCNT_DONE;
+
+	while (vmbus_devcnt != chancnt)
+		mtx_sleep(&vmbus_devcnt, &vmbus_chwait_lock, 0, "waitdev", 0);
+	mtx_unlock(&vmbus_chwait_lock);
 }
