@@ -189,11 +189,16 @@ genassym.o: $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
+.if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
+_meta_filemon=	1
+.endif
 # Skip reading .depend when not needed to speed up tree-walks
 # and simple lookups.
+# Also skip generating or including .depend.* files if in meta+filemon mode
+# since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
     make(install*) || make(kernel-obj) || make(kernel-clean*) || \
-    make(kernel-install*)
+    make(kernel-install*) || defined(_meta_filemon)
 _SKIP_READ_DEPEND=	1
 .MAKE.DEPENDFILE=	/dev/null
 .endif
@@ -203,11 +208,6 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
 DEPENDFILES=	.depend .depend.*
-# Skip generating or including .depend.* files if in meta+filemon mode since
-# it will track dependencies itself.  OBJS_DEPEND_GUESS is still used though.
-.if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
-_meta_filemon=	1
-.endif
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if ${MAKE_VERSION} < 20160220
