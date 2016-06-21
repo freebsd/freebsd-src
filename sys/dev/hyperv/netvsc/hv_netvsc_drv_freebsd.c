@@ -336,6 +336,7 @@ static void hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
 static void hn_channel_attach(struct hn_softc *, struct hv_vmbus_channel *);
+static void hn_subchan_attach(struct hn_softc *, struct hv_vmbus_channel *);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
 static void hn_xmit_qflush(struct ifnet *);
@@ -438,7 +439,7 @@ static int
 netvsc_attach(device_t dev)
 {
 	struct hv_device *device_ctx = vmbus_get_devctx(dev);
-	struct hv_vmbus_channel *chan;
+	struct hv_vmbus_channel *pri_chan;
 	netvsc_device_info device_info;
 	hn_softc_t *sc;
 	int unit = device_get_unit(dev);
@@ -518,12 +519,12 @@ netvsc_attach(device_t dev)
 	/*
 	 * Associate the first TX/RX ring w/ the primary channel.
 	 */
-	chan = device_ctx->channel;
-	KASSERT(HV_VMBUS_CHAN_ISPRIMARY(chan), ("not primary channel"));
-	KASSERT(chan->offer_msg.offer.sub_channel_index == 0,
+	pri_chan = device_ctx->channel;
+	KASSERT(HV_VMBUS_CHAN_ISPRIMARY(pri_chan), ("not primary channel"));
+	KASSERT(pri_chan->offer_msg.offer.sub_channel_index == 0,
 	    ("primary channel subidx %u",
-	     chan->offer_msg.offer.sub_channel_index));
-	hn_channel_attach(sc, chan);
+	     pri_chan->offer_msg.offer.sub_channel_index));
+	hn_channel_attach(sc, pri_chan);
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
@@ -577,6 +578,26 @@ netvsc_attach(device_t dev)
 	sc->hn_rx_ring_inuse = sc->net_dev->num_channel;
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
+
+	if (sc->net_dev->num_channel > 1) {
+		struct hv_vmbus_channel **subchan;
+		int subchan_cnt = sc->net_dev->num_channel - 1;
+		int i;
+
+		/* Wait for sub-channels setup to complete. */
+		subchan = vmbus_get_subchan(pri_chan, subchan_cnt);
+
+		/* Attach the sub-channels. */
+		for (i = 0; i < subchan_cnt; ++i) {
+			/* NOTE: Calling order is critical. */
+			hn_subchan_attach(sc, subchan[i]);
+			hv_nv_subchan_attach(subchan[i]);
+		}
+
+		/* Release the sub-channels */
+		vmbus_rel_subchan(subchan, subchan_cnt);
+		device_printf(dev, "%d sub-channels setup done\n", subchan_cnt);
+	}
 
 #if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
@@ -2910,8 +2931,8 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	vmbus_channel_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
 }
 
-void
-netvsc_subchan_callback(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+static void
+hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 {
 
 	KASSERT(!HV_VMBUS_CHAN_ISPRIMARY(chan),

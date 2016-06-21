@@ -1267,6 +1267,7 @@ int hv_nv_on_device_remove(struct hv_device *device,
     boolean_t destroy_channel);
 int hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
+void hv_nv_subchan_attach(struct hv_vmbus_channel *chan);
 
 #endif  /* __HV_NET_VSC_H__ */
 

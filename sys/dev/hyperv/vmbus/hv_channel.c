@@ -618,7 +618,6 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	hv_vmbus_channel_msg_info* info;
 
 	channel->state = HV_CHANNEL_OPEN_STATE;
-	channel->sc_creation_callback = NULL;
 
 	/*
 	 * set rxq to NULL to avoid more requests be scheduled
