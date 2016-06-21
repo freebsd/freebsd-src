@@ -434,7 +434,6 @@ netvsc_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	bzero(sc, sizeof(hn_softc_t));
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
 
