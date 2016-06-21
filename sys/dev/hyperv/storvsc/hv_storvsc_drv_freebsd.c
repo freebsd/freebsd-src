@@ -957,6 +957,7 @@ storvsc_probe(device_t dev)
 			if(bootverbose)
 				device_printf(dev,
 					"Enlightened ATA/IDE detected\n");
+			device_set_desc(dev, g_drv_props_table[DRIVER_BLKVSC].drv_desc);
 			ret = BUS_PROBE_DEFAULT;
 		} else if(bootverbose)
 			device_printf(dev, "Emulated ATA/IDE set (hw.ata.disk_enable set)\n");
@@ -964,6 +965,7 @@ storvsc_probe(device_t dev)
 	case DRIVER_STORVSC:
 		if(bootverbose)
 			device_printf(dev, "Enlightened SCSI device detected\n");
+		device_set_desc(dev, g_drv_props_table[DRIVER_STORVSC].drv_desc);
 		ret = BUS_PROBE_DEFAULT;
 		break;
 	default:
@@ -1015,7 +1017,6 @@ storvsc_attach(device_t dev)
 	/* fill in device specific properties */
 	sc->hs_unit	= device_get_unit(dev);
 	sc->hs_dev	= hv_dev;
-	device_set_desc(dev, g_drv_props_table[stor_type].drv_desc);
 
 	LIST_INIT(&sc->hs_free_list);
 	mtx_init(&sc->hs_lock, "hvslck", NULL, MTX_DEF);
