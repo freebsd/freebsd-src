@@ -87,7 +87,7 @@ vdev_geom_set_rotation_rate(vdev_t *vd, struct g_consumer *cp)
 static void
 vdev_geom_set_physpath(struct g_consumer *cp, boolean_t do_null_update)
 {
-	boolean_t needs_update;
+	boolean_t needs_update = B_FALSE;
 	vdev_t *vd;
 	char *physpath;
 	int error, physpath_len;
