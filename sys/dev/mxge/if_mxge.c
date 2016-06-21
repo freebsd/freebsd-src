@@ -2701,8 +2701,12 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
 	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 		mxge_vlan_tag_remove(m, &csum);
 	}
+	/* flowid only valid if RSS hashing is enabled */
+	if (sc->num_slices > 1) {
+		m->m_pkthdr.flowid = (ss - sc->ss);
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+	}
 	/* if the checksum is valid, mark it in the mbuf header */
-	
 	if ((ifp->if_capenable & (IFCAP_RXCSUM_IPV6 | IFCAP_RXCSUM)) &&
 	    (0 == mxge_rx_csum(m, csum))) {
 		/* Tell the stack that the  checksum is good */
@@ -2714,11 +2718,6 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
 		if (lro && (0 == tcp_lro_rx(&ss->lc, m, 0)))
 			return;
 #endif
-	}
-	/* flowid only valid if RSS hashing is enabled */
-	if (sc->num_slices > 1) {
-		m->m_pkthdr.flowid = (ss - sc->ss);
-		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
@@ -2770,6 +2769,11 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len,
 	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 		mxge_vlan_tag_remove(m, &csum);
 	}
+	/* flowid only valid if RSS hashing is enabled */
+	if (sc->num_slices > 1) {
+		m->m_pkthdr.flowid = (ss - sc->ss);
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+	}
 	/* if the checksum is valid, mark it in the mbuf header */
 	if ((ifp->if_capenable & (IFCAP_RXCSUM_IPV6 | IFCAP_RXCSUM)) &&
 	    (0 == mxge_rx_csum(m, csum))) {
@@ -2782,11 +2786,6 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len,
 		if (lro && (0 == tcp_lro_rx(&ss->lc, m, csum)))
 			return;
 #endif
-	}
-	/* flowid only valid if RSS hashing is enabled */
-	if (sc->num_slices > 1) {
-		m->m_pkthdr.flowid = (ss - sc->ss);
-		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
