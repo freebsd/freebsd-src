@@ -60,11 +60,21 @@ typedef	int	disk_ioctl_t(struct disk *, u_long cmd, void *data,
 struct g_geom;
 struct devstat;
 
+typedef enum {
+	DISK_INIT_NONE,
+	DISK_INIT_START,
+	DISK_INIT_DONE
+} disk_init_level;
+
 struct disk {
 	/* Fields which are private to geom_disk */
 	struct g_geom		*d_geom;
 	struct devstat		*d_devstat;
+	int			d_goneflag;
 	int			d_destroyed;
+	struct mtx		d_mtx;
+	char			d_mtx_name[24];
+	disk_init_level		d_init_level;
 
 	/* Shared fields */
 	u_int			d_flags;
@@ -125,7 +135,8 @@ int disk_resize(struct disk *dp, int flag);
 #define DISK_VERSION_02		0x5856105b
 #define DISK_VERSION_03		0x5856105c
 #define DISK_VERSION_04		0x5856105d
-#define DISK_VERSION		DISK_VERSION_04
+#define DISK_VERSION_05		0x5856105e
+#define DISK_VERSION		DISK_VERSION_05
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */
