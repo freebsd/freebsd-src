@@ -411,6 +411,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	bzero(&p2->p_startzero,
 	    __rangeof(struct proc, p_startzero, p_endzero));
 	p2->p_treeflag = 0;
+	p2->p_filemon = NULL;
 
 	p2->p_ucred = crhold(td->td_ucred);
 

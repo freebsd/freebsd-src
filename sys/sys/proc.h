@@ -158,6 +158,7 @@ struct pargs {
  * for write access.
  */
 struct cpuset;
+struct filemon;
 struct kaioinfo;
 struct kaudit_record;
 struct kdtrace_proc;
@@ -606,6 +607,7 @@ struct proc {
 					       reaper which spawned
 					       our subtree. */
 	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
+	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
 };
 
 #define	p_session	p_pgrp->pg_session
