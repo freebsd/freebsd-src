@@ -156,6 +156,17 @@ ath_tx_alq_edma_push(struct ath_softc *sc, int txq, int nframes,
 }
 #endif	/* ATH_DEBUG_ALQ */
 
+/*
+ * XXX TODO: push an aggregate as a single FIFO slot, even though
+ * it may not meet the TXOP for say, DBA-gated traffic in TDMA mode.
+ *
+ * The TX completion code handles a TX FIFO slot having multiple frames,
+ * aggregate or otherwise, but it may just make things easier to deal
+ * with.
+ *
+ * XXX TODO: track the number of aggregate subframes and put that in the
+ * push alq message.
+ */
 static void
 ath_tx_edma_push_staging_list(struct ath_softc *sc, struct ath_txq *txq,
     int limit)
@@ -274,6 +285,8 @@ ath_tx_edma_push_staging_list(struct ath_softc *sc, struct ath_txq *txq,
 #endif /* ATH_DEBUG_ALQ */
 }
 
+#define	TX_BATCH_SIZE	32
+
 /*
  * Push some frames into the TX FIFO if we have space.
  */
@@ -320,7 +333,50 @@ ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 	 * be time based rather than a hard count, but I also
 	 * do need sleep.
 	 */
-	ath_tx_edma_push_staging_list(sc, txq, 4);
+
+	/*
+	 * Do some basic, basic batching to the hardware
+	 * queue.
+	 *
+	 * If we have TX_BATCH_SIZE entries in the staging
+	 * queue, then let's try to send them all in one hit.
+	 *
+	 * Ensure we don't push more than TX_BATCH_SIZE worth
+	 * in, otherwise we end up draining 8 slots worth of
+	 * 32 frames into the hardware queue and then we don't
+	 * attempt to push more frames in until we empty the
+	 * FIFO.
+	 */
+	if (txq->axq_depth >= TX_BATCH_SIZE / 2 &&
+	    txq->fifo.axq_depth <= TX_BATCH_SIZE) {
+		ath_tx_edma_push_staging_list(sc, txq, TX_BATCH_SIZE);
+	}
+
+	/*
+	 * Aggregate check: if we have less than two FIFO slots
+	 * busy and we have some aggregate frames, queue it.
+	 *
+	 * Now, ideally we'd just check to see if the scheduler
+	 * has given us aggregate frames and push them into the FIFO
+	 * as individual slots, as honestly we should just be pushing
+	 * a single aggregate in as one FIFO slot.
+	 *
+	 * Let's do that next once I know this works.
+	 */
+	else if (txq->axq_aggr_depth > 0 && txq->axq_fifo_depth < 2)
+		ath_tx_edma_push_staging_list(sc, txq, TX_BATCH_SIZE);
+
+	/*
+	 *
+	 * If we have less, and the TXFIFO isn't empty, let's
+	 * wait until we've finished sending the FIFO.
+	 *
+	 * If we have less, and the TXFIFO is empty, then
+	 * send them.
+	 */
+	else if (txq->axq_fifo_depth == 0) {
+		ath_tx_edma_push_staging_list(sc, txq, TX_BATCH_SIZE);
+	}
 }
 
 /*
@@ -477,13 +533,6 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 
 	/* Push and update frame stats */
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-
-	/* For now, set the link pointer in the last descriptor
-	 * to be NULL.
-	 *
-	 * Later on, when it comes time to handling multiple descriptors
-	 * in one FIFO push, we can link descriptors together this way.
-	 */
 
 	/*
 	 * Finally, call the FIFO schedule routine to schedule some
@@ -722,6 +771,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 	struct ieee80211_node *ni;
 	int nacked = 0;
 	int idx;
+	int i;
 
 #ifdef	ATH_DEBUG
 	/* XXX */
@@ -927,28 +977,28 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		/* Handle frame completion and rate control update */
 		ath_tx_process_buf_completion(sc, txq, &ts, bf);
 
-		/* bf is invalid at this point */
-
-		/*
-		 * Now that there's space in the FIFO, let's push some
-		 * more frames into it.
-		 */
-		ATH_TXQ_LOCK(txq);
-		if (dosched)
-			ath_edma_tx_fifo_fill(sc, txq);
-		ATH_TXQ_UNLOCK(txq);
+		/* NB: bf is invalid at this point */
 	}
 
 	sc->sc_wd_timer = 0;
 
-	/* Kick software scheduler */
 	/*
 	 * XXX It's inefficient to do this if the FIFO queue is full,
 	 * but there's no easy way right now to only populate
 	 * the txq task for _one_ TXQ.  This should be fixed.
 	 */
-	if (dosched)
+	if (dosched) {
+		/* Attempt to schedule more hardware frames to the TX FIFO */
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
+				ath_edma_tx_fifo_fill(sc, &sc->sc_txq[i]);
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+		}
+		/* Kick software scheduler */
 		ath_tx_swq_kick(sc);
+	}
 }
 
 static void
