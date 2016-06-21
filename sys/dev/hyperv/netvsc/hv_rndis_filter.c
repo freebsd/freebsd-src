@@ -50,6 +50,22 @@ __FBSDID("$FreeBSD$");
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
 
+struct hv_rf_recvinfo {
+	const ndis_8021q_info		*vlan_info;
+	const rndis_tcp_ip_csum_info	*csum_info;
+	const struct rndis_hash_info	*hash_info;
+	const struct rndis_hash_value	*hash_value;
+};
+
+#define HV_RF_RECVINFO_VLAN	0x1
+#define HV_RF_RECVINFO_CSUM	0x2
+#define HV_RF_RECVINFO_HASHINF	0x4
+#define HV_RF_RECVINFO_HASHVAL	0x8
+#define HV_RF_RECVINFO_ALL		\
+	(HV_RF_RECVINFO_VLAN |		\
+	 HV_RF_RECVINFO_CSUM |		\
+	 HV_RF_RECVINFO_HASHINF |	\
+	 HV_RF_RECVINFO_HASHVAL)
 
 /*
  * Forward declarations
@@ -434,6 +450,84 @@ hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
 	}
 }
 
+static int
+hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hv_rf_recvinfo *info)
+{
+	const rndis_per_packet_info *ppi;
+	uint32_t mask, len;
+
+	info->vlan_info = NULL;
+	info->csum_info = NULL;
+	info->hash_info = NULL;
+	info->hash_value = NULL;
+
+	if (rpkt->per_pkt_info_offset == 0)
+		return 0;
+
+	ppi = (const rndis_per_packet_info *)
+	    ((const uint8_t *)rpkt + rpkt->per_pkt_info_offset);
+	len = rpkt->per_pkt_info_length;
+	mask = 0;
+
+	while (len != 0) {
+		const void *ppi_dptr;
+		uint32_t ppi_dlen;
+
+		if (__predict_false(ppi->size < ppi->per_packet_info_offset))
+			return EINVAL;
+		ppi_dlen = ppi->size - ppi->per_packet_info_offset;
+		ppi_dptr = (const uint8_t *)ppi + ppi->per_packet_info_offset;
+
+		switch (ppi->type) {
+		case ieee_8021q_info:
+			if (__predict_false(ppi_dlen < sizeof(ndis_8021q_info)))
+				return EINVAL;
+			info->vlan_info = ppi_dptr;
+			mask |= HV_RF_RECVINFO_VLAN;
+			break;
+
+		case tcpip_chksum_info:
+			if (__predict_false(ppi_dlen <
+			    sizeof(rndis_tcp_ip_csum_info)))
+				return EINVAL;
+			info->csum_info = ppi_dptr;
+			mask |= HV_RF_RECVINFO_CSUM;
+			break;
+
+		case nbl_hash_value:
+			if (__predict_false(ppi_dlen <
+			    sizeof(struct rndis_hash_value)))
+				return EINVAL;
+			info->hash_value = ppi_dptr;
+			mask |= HV_RF_RECVINFO_HASHVAL;
+			break;
+
+		case nbl_hash_info:
+			if (__predict_false(ppi_dlen <
+			    sizeof(struct rndis_hash_info)))
+				return EINVAL;
+			info->hash_info = ppi_dptr;
+			mask |= HV_RF_RECVINFO_HASHINF;
+			break;
+
+		default:
+			goto skip;
+		}
+
+		if (mask == HV_RF_RECVINFO_ALL) {
+			/* All found; done */
+			break;
+		}
+skip:
+		if (__predict_false(len < ppi->size))
+			return EINVAL;
+		len -= ppi->size;
+		ppi = (const rndis_per_packet_info *)
+		    ((const uint8_t *)ppi + ppi->size);
+	}
+	return 0;
+}
+
 /*
  * RNDIS filter receive data
  */
@@ -442,10 +536,9 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
     struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 {
 	rndis_packet *rndis_pkt;
-	ndis_8021q_info *rppi_vlan_info;
 	uint32_t data_offset;
-	rndis_tcp_ip_csum_info *csum_info = NULL;
 	device_t dev = device->net_dev->dev->device;
+	struct hv_rf_recvinfo info;
 
 	rndis_pkt = &message->msg.packet;
 
@@ -469,15 +562,18 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
 	pkt->tot_data_buf_len = rndis_pkt->data_length;
 	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
 
-	rppi_vlan_info = hv_get_ppi_data(rndis_pkt, ieee_8021q_info);
-	if (rppi_vlan_info) {
-		pkt->vlan_tci = rppi_vlan_info->u1.s1.vlan_id;
-	} else {
-		pkt->vlan_tci = 0;
+	if (hv_rf_find_recvinfo(rndis_pkt, &info)) {
+		pkt->status = nvsp_status_failure;
+		device_printf(dev, "recvinfo parsing failed\n");
+		return;
 	}
 
-	csum_info = hv_get_ppi_data(rndis_pkt, tcpip_chksum_info);
-	netvsc_recv(chan, pkt, csum_info);
+	if (info.vlan_info != NULL)
+		pkt->vlan_tci = info.vlan_info->u1.s1.vlan_id;
+	else
+		pkt->vlan_tci = 0;
+
+	netvsc_recv(chan, pkt, info.csum_info, info.hash_info, info.hash_value);
 }
 
 /*
