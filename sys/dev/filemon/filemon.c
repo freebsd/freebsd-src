@@ -54,15 +54,11 @@ __FBSDID("$FreeBSD$");
 
 #include "filemon.h"
 
-#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
+#if defined(COMPAT_FREEBSD32)
 #include <compat/freebsd32/freebsd32_syscall.h>
 #include <compat/freebsd32/freebsd32_proto.h>
-
-extern struct sysentvec ia32_freebsd_sysvec;
+#include <compat/freebsd32/freebsd32_util.h>
 #endif
-
-extern struct sysentvec elf32_freebsd_sysvec;
-extern struct sysentvec elf64_freebsd_sysvec;
 
 static d_close_t	filemon_close;
 static d_ioctl_t	filemon_ioctl;
@@ -188,7 +184,7 @@ filemon_drop(struct filemon *filemon)
 #include "filemon_wrapper.c"
 
 static void
-filemon_comment(struct filemon *filemon)
+filemon_write_header(struct filemon *filemon)
 {
 	int len;
 	struct timeval now;
@@ -377,7 +373,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		    &filemon->fp);
 		if (error == 0)
 			/* Write the file header. */
-			filemon_comment(filemon);
+			filemon_write_header(filemon);
 		break;
 
 	/* Set the monitored process ID. */
