@@ -103,7 +103,7 @@
 
 # This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
 # can be cached for sub-makes.
-.if ${MAKE_VERSION} >= 20140620
+.if ${MAKE_VERSION} >= 20140620 && defined(.PARSEDIR)
 .include <bsd.compiler.mk>
 .endif
 
@@ -218,7 +218,9 @@ _CAN_USE_META_MODE?= yes
 .endfor
 .if !defined(_CAN_USE_META_MODE)
 _MAKE+=	MK_META_MODE=no
+.if defined(.PARSEDIR)
 .unexport META_MODE
+.endif
 .elif defined(MK_META_MODE) && ${MK_META_MODE} == "yes"
 .if !exists(/dev/filemon) && !defined(NO_FILEMON) && !make(showconfig)
 # Require filemon be loaded to provide a working incremental build

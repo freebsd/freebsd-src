@@ -91,15 +91,15 @@
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits).
  *
- * armv4 and v5 require alignment to the type's size.  armv6 and later require
- * that an 8-byte type be aligned to at least a 4-byte boundary; access to
- * smaller types can be unaligned.
+ * armv4 and v5 require alignment to the type's size.  armv6 requires 8-byte
+ * alignment for the ldrd/strd instructions, but otherwise follows armv7 rules.
+ * armv7 requires that an 8-byte type be aligned to at least a 4-byte boundary;
+ * access to smaller types can be unaligned, except that the compiler may
+ * optimize access to adjacent uint32_t values into a single load/store-multiple
+ * instruction which requires 4-byte alignment, so we must provide the most-
+ * pessimistic answer possible even on armv7.
  */
-#if __ARM_ARCH >= 6
-#define	ALIGNED_POINTER(p, t)	(((sizeof(t) != 8) || ((unsigned)(p) & 3) == 0))
-#else
 #define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
-#endif
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an

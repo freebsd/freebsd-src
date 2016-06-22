@@ -134,24 +134,34 @@ libusb_init(libusb_context **context)
 	}
 	TAILQ_INIT(&ctx->pollfds);
 	TAILQ_INIT(&ctx->tr_done);
+	TAILQ_INIT(&ctx->hotplug_cbh);
+	TAILQ_INIT(&ctx->hotplug_devs);
 
 	if (pthread_mutex_init(&ctx->ctx_lock, NULL) != 0) {
 		free(ctx);
 		return (LIBUSB_ERROR_NO_MEM);
 	}
+	if (pthread_mutex_init(&ctx->hotplug_lock, NULL) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
 	if (pthread_condattr_init(&attr) != 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		free(ctx);
 		return (LIBUSB_ERROR_NO_MEM);
 	}
 	if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC) != 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		pthread_condattr_destroy(&attr);
 		free(ctx);
 		return (LIBUSB_ERROR_OTHER);
 	}
 	if (pthread_cond_init(&ctx->ctx_cond, &attr) != 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		pthread_condattr_destroy(&attr);
 		free(ctx);
 		return (LIBUSB_ERROR_NO_MEM);
@@ -159,10 +169,12 @@ libusb_init(libusb_context **context)
 	pthread_condattr_destroy(&attr);
 
 	ctx->ctx_handler = NO_THREAD;
+	ctx->hotplug_handler = NO_THREAD;
 
 	ret = pipe(ctx->ctrl_pipe);
 	if (ret < 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		pthread_cond_destroy(&ctx->ctx_cond);
 		free(ctx);
 		return (LIBUSB_ERROR_OTHER);
@@ -195,12 +207,27 @@ libusb_exit(libusb_context *ctx)
 	if (ctx == NULL)
 		return;
 
+	/* stop hotplug thread, if any */
+
+	if (ctx->hotplug_handler != NO_THREAD) {
+		pthread_t td;
+		void *ptr;
+
+		HOTPLUG_LOCK(ctx);
+		td = ctx->hotplug_handler;
+		ctx->hotplug_handler = NO_THREAD;
+		HOTPLUG_UNLOCK(ctx);
+
+		pthread_join(td, &ptr);
+	}
+
 	/* XXX cleanup devices */
 
 	libusb10_remove_pollfd(ctx, &ctx->ctx_poll);
 	close(ctx->ctrl_pipe[0]);
 	close(ctx->ctrl_pipe[1]);
 	pthread_mutex_destroy(&ctx->ctx_lock);
+	pthread_mutex_destroy(&ctx->hotplug_lock);
 	pthread_cond_destroy(&ctx->ctx_cond);
 
 	pthread_mutex_lock(&default_context_lock);
