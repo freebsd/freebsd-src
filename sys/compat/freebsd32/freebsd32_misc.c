@@ -272,6 +272,15 @@ freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfss
 }
 #endif
 
+#ifdef COMPAT_FREEBSD10
+int
+freebsd10_freebsd32_pipe(struct thread *td,
+    struct freebsd10_freebsd32_pipe_args *uap) {
+	
+	return (freebsd10_pipe(td, (struct freebsd10_pipe_args*)uap));
+}
+#endif
+
 int
 freebsd32_sigaltstack(struct thread *td,
 		      struct freebsd32_sigaltstack_args *uap)
