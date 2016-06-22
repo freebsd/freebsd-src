@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2002 Peter Grehan.
+ * Copyright (c) 2016 SRI International
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,25 +26,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-/*      $NetBSD: pipe.S,v 1.6 2000/09/28 08:38:54 kleink Exp $  */
 
-#include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+#include <sys/cdefs.h>
 
-#include "SYS.h"
+#include <unistd.h>
 
-ENTRY(pipe)
-	mr	%r5,%r3		/* save pointer */
-	li	%r0,SYS_pipe
-	sc			/* r5 is preserved */
-	bso	1f
-	stw	%r3,0(%r5)	/* success, store fds */
-	stw	%r4,4(%r5)
-	li	%r3,0
-	blr			/* and return 0 */
-1:
-	b	PIC_PLT(HIDENAME(cerror))
-END(pipe)
+__weak_reference(__sys_pipe, pipe);
+__weak_reference(__sys_pipe, _pipe);
 
-	.section .note.GNU-stack,"",%progbits
+extern int __sys_pipe2(int fildes[2], int flags);
+
+int
+__sys_pipe(int fildes[2])
+{
+
+	return (__sys_pipe2(fildes, 0));
+}
