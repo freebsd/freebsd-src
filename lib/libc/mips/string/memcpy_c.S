@@ -75,6 +75,15 @@ memcpy_c:
 	andi     $12, $v0, CAP_ALIGN_MASK # t4 = dst % CAP_SIZE
           CToPtr   $v0, $c0, $c3       # Return ptr in integer return
 	andi     $13, $v1, CAP_ALIGN_MASK # t5 = src % CAP_SIZE
+
+	CGetPerm $a5, $c3
+	CGetPerm $a6, $c4
+	andi     $a5, (1<<5)
+	andi     $a6, (1<<4)
+	xor      $a5, $a5, $a6
+	addi     $a6, $zero, ((1<<4)+(1<<5))
+	bne      $a5, $a6, slow_memcpy_loop
+
 	daddi    $a1, $zero, 0       # Store 0 in $a1 - we'll use that for the
 	                             # offset later.
 
