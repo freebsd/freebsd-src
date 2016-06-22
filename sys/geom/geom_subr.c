@@ -620,6 +620,8 @@ g_resize_provider_event(void *arg, int flag)
 	g_free(hh);
 
 	G_VALID_PROVIDER(pp);
+	KASSERT(!(pp->flags & G_PF_WITHER),
+	    ("g_resize_provider_event but withered"));
 	g_trace(G_T_TOPOLOGY, "g_resize_provider_event(%p)", pp);
 
 	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
@@ -662,6 +664,8 @@ g_resize_provider(struct g_provider *pp, off_t size)
 	struct g_hh00 *hh;
 
 	G_VALID_PROVIDER(pp);
+	if (pp->flags & G_PF_WITHER)
+		return;
 
 	if (size == pp->mediasize)
 		return;
@@ -909,8 +913,11 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	else if (dcw > 0 && pe > 0)
 		return (EPERM);
 	/* If we try to open more but provider is error'ed: fail */
-	else if ((dcr > 0 || dcw > 0 || dce > 0) && pp->error != 0)
+	else if ((dcr > 0 || dcw > 0 || dce > 0) && pp->error != 0) {
+		printf("%s(%d): provider %s has error\n",
+		       __func__, __LINE__, pp->name);
 		return (pp->error);
+	}
 
 	/* Ok then... */
 
