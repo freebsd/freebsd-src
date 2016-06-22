@@ -2322,10 +2322,16 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			sdl = &ndpc.sdl;
 			sdl->sdl_family = AF_LINK;
 			sdl->sdl_len = sizeof(*sdl);
-			sdl->sdl_alen = ifp->if_addrlen;
 			sdl->sdl_index = ifp->if_index;
 			sdl->sdl_type = ifp->if_type;
-			bcopy(lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+			if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
+				sdl->sdl_alen = ifp->if_addrlen;
+				bcopy(lle->ll_addr, LLADDR(sdl),
+				    ifp->if_addrlen);
+			} else {
+				sdl->sdl_alen = 0;
+				bzero(LLADDR(sdl), ifp->if_addrlen);
+			}
 			if (lle->la_expire != 0)
 				ndpc.rtm.rtm_rmx.rmx_expire = lle->la_expire +
 				    lle->lle_remtime / hz +
