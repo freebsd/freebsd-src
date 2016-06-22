@@ -2153,6 +2153,9 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 				return (-1);
 			if (UMAX_ENTRY < f[i].numUnpackStreams)
 				return (-1);
+			if (unpack_streams > SIZE_MAX - UMAX_ENTRY) {
+				return (-1);
+			}
 			unpack_streams += (size_t)f[i].numUnpackStreams;
 		}
 		if ((p = header_bytes(a, 1)) == NULL)

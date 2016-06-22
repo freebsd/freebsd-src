@@ -181,6 +181,14 @@ struct zip {
 	char			init_decryption;
 
 	/* Decryption buffer. */
+	/*
+	 * The decrypted data starts at decrypted_ptr and
+	 * extends for decrypted_bytes_remaining.  Decryption
+	 * adds new data to the end of this block, data is returned
+	 * to clients from the beginning.  When the block hits the
+	 * end of decrypted_buffer, it has to be shuffled back to
+	 * the beginning of the buffer.
+	 */
 	unsigned char 		*decrypted_buffer;
 	unsigned char 		*decrypted_ptr;
 	size_t 			decrypted_buffer_size;
@@ -1293,8 +1301,9 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 
 	if (zip->tctx_valid || zip->cctx_valid) {
 		if (zip->decrypted_bytes_remaining < (size_t)bytes_avail) {
-			size_t buff_remaining = zip->decrypted_buffer_size
-			    - (zip->decrypted_ptr - zip->decrypted_buffer);
+			size_t buff_remaining =
+			    (zip->decrypted_buffer + zip->decrypted_buffer_size)
+			    - (zip->decrypted_ptr + zip->decrypted_bytes_remaining);
 
 			if (buff_remaining > (size_t)bytes_avail)
 				buff_remaining = (size_t)bytes_avail;

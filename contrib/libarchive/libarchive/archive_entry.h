@@ -29,7 +29,7 @@
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
 /* Note: Compiler will complain if this does not match archive.h! */
-#define	ARCHIVE_VERSION_NUMBER 3002000
+#define	ARCHIVE_VERSION_NUMBER 3002001
 
 /*
  * Note: archive_entry.h is for use outside of libarchive; the
