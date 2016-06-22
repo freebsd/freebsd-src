@@ -1485,19 +1485,21 @@ vm_pageout_oom(int shortage)
 			PROC_UNLOCK(p);
 			continue;
 		}
-		_PHOLD(p);
+		_PHOLD_LITE(p);
+		PROC_UNLOCK(p);
+		sx_sunlock(&allproc_lock);
 		if (!vm_map_trylock_read(&vm->vm_map)) {
-			_PRELE(p);
-			PROC_UNLOCK(p);
 			vmspace_free(vm);
+			sx_slock(&allproc_lock);
+			PRELE(p);
 			continue;
 		}
-		PROC_UNLOCK(p);
 		size = vmspace_swap_count(vm);
 		if (shortage == VM_OOM_MEM)
 			size += vm_pageout_oom_pagecount(vm);
 		vm_map_unlock_read(&vm->vm_map);
 		vmspace_free(vm);
+		sx_slock(&allproc_lock);
 
 		/*
 		 * If this process is bigger than the biggest one,
@@ -1812,9 +1814,13 @@ again:
 			if ((p->p_flag & P_INMEM) == 0)
 				limit = 0;	/* XXX */
 			vm = vmspace_acquire_ref(p);
+			_PHOLD_LITE(p);
 			PROC_UNLOCK(p);
-			if (vm == NULL)
+			if (vm == NULL) {
+				PRELE(p);
 				continue;
+			}
+			sx_sunlock(&allproc_lock);
 
 			size = vmspace_resident_count(vm);
 			if (size >= limit) {
@@ -1859,6 +1865,8 @@ again:
 			}
 #endif
 			vmspace_free(vm);
+			sx_slock(&allproc_lock);
+			PRELE(p);
 		}
 		sx_sunlock(&allproc_lock);
 		if (tryagain != 0 && attempts <= 10)

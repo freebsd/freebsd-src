@@ -827,7 +827,20 @@ extern pid_t pid_max;
 #define	SESS_LOCKED(s)	mtx_owned(&(s)->s_mtx)
 #define	SESS_LOCK_ASSERT(s, type)	mtx_assert(&(s)->s_mtx, (type))
 
-/* Hold process U-area in memory, normally for ptrace/procfs work. */
+/*
+ * Non-zero p_lock ensures that:
+ * - exit1() is not performed until p_lock reaches zero;
+ * - the process' threads stack are not swapped out if they are currently
+ *   not (P_INMEM).
+ *
+ * PHOLD() asserts that the process (except the current process) is
+ * not exiting, increments p_lock and swaps threads stacks into memory,
+ * if needed.
+ * _PHOLD() is same as PHOLD(), it takes the process locked.
+ * _PHOLD_LITE() also takes the process locked, but comparing with
+ * _PHOLD(), it only guarantees that exit1() is not executed,
+ * faultin() is not called.
+ */
 #define	PHOLD(p) do {							\
 	PROC_LOCK(p);							\
 	_PHOLD(p);							\
@@ -840,6 +853,12 @@ extern pid_t pid_max;
 	(p)->p_lock++;							\
 	if (((p)->p_flag & P_INMEM) == 0)				\
 		faultin((p));						\
+} while (0)
+#define	_PHOLD_LITE(p) do {						\
+	PROC_LOCK_ASSERT((p), MA_OWNED);				\
+	KASSERT(!((p)->p_flag & P_WEXIT) || (p) == curproc,		\
+	    ("PHOLD of exiting process %p", p));			\
+	(p)->p_lock++;							\
 } while (0)
 #define	PROC_ASSERT_HELD(p) do {					\
 	KASSERT((p)->p_lock > 0, ("process %p not held", p));		\
