@@ -180,6 +180,7 @@ struct lun {
 	int 				l_pass_bus;
 	int 				l_pass_target;
 	int 				l_pass_lun;
+	bool				l_is_passthrough;
 	char 				l_pass_addr[10];
 };
 

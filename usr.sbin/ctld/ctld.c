@@ -1650,7 +1650,7 @@ static int
 conf_verify_lun(struct lun *lun)
 {
 	const struct lun *lun2;
-
+	
 	if (lun->l_backend == NULL)
 		lun_set_backend(lun, "block");
 	if (strcmp(lun->l_backend, "block") == 0) {
@@ -1687,6 +1687,7 @@ conf_verify_lun(struct lun *lun)
 		    "must be multiple of blocksize", lun->l_name);
 		return (1);
 	}
+	
 	TAILQ_FOREACH(lun2, &lun->l_conf->conf_luns, l_next) {
 		if (lun == lun2)
 			continue;
@@ -1698,7 +1699,7 @@ conf_verify_lun(struct lun *lun)
 			    lun->l_name, lun2->l_name);
 		}
 	}
-
+	
 	return (0);
 }
 
@@ -1972,6 +1973,12 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			    "CTL lun %d changed; removing",
 			    oldlun->l_name, oldlun->l_ctl_lun);
 			changed = 1;
+		}
+		if(newlun->l_pass_addr[0]!='\0' && oldlun->l_pass_addr[0]=='\0') {
+			log_debugx("lun is changed to passthrough \"%s\", "
+                            "CTL lun %d changed; removing",
+                            oldlun->l_name, oldlun->l_ctl_lun);
+                        changed = 1;
 		}
 		if (changed) {
 			error = kernel_lun_remove(oldlun);
