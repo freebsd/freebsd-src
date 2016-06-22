@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2016
+.Dd June 22, 2016
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -642,6 +642,47 @@ that libusb uses as an event source.
 Retrive a list of file descriptors that should be polled by your main loop as
 libusb event sources.
 Returns a NULL-terminated list on success or NULL on failure.
+.Pp
+.Ft int
+.Fn libusb_hotplug_register_callback "libusb_context *ctx" "libusb_hotplug_event events" "libusb_hotplug_flag flags" "int vendor_id" "int product_id" "int dev_class" "libusb_hotplug_callback_fn cb_fn" "void *user_data" "libusb_hotplug_callback_handle *handle"
+This function registers a hotplug filter.
+The
+.Fa events
+argument select which events makes the hotplug filter trigger.
+Available event values are LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED and LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT.
+One or more events must be specified.
+The
+.Fa vendor_id ,
+.Fa product_id
+and
+.Fa dev_class
+arguments can be set to LIBUSB_HOTPLUG_MATCH_ANY to match any value in the USB device descriptor.
+Else the specified value is used for matching.
+If the
+.Fa flags
+argument is set to LIBUSB_HOTPLUG_ENUMERATE, all currently attached and matching USB devices will be passed to the hotplug filter, given by the
+.Fa cb_fn
+argument.
+Else the
+.Fa flags
+argument should be set to LIBUSB_HOTPLUG_NO_FLAGS.
+This function returns 0 upon success or a LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
+.Fn libusb_hotplug_callback_fn "libusb_context *ctx" "libusb_device *device" "libusb_hotplug_event event" "void *user_data"
+The hotplug filter function.
+If this function returns non-zero, the filter is removed.
+Else the filter is kept and can receive more events.
+The
+.Fa user_data
+argument is the same as given when the filter was registered.
+The
+.Fa event
+argument can be either of LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED or LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT.
+.Pp
+.Ft void
+.Fn libusb_hotplug_deregister_callback "libusb_context *ctx" "libusb_hotplug_callback_handle handle"
+This function unregisters a hotplug filter.
 .Sh LIBUSB VERSION 0.1 COMPATIBILITY
 The library is also compliant with LibUSB version 0.1.12.
 .Pp

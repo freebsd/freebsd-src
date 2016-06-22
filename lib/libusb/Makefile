@@ -32,6 +32,7 @@ SRCS+=		libusb01.c
 INCS+=		libusb.h
 SRCS+=		libusb10.c
 SRCS+=		libusb10_desc.c
+SRCS+=		libusb10_hotplug.c
 SRCS+=		libusb10_io.c
 
 .if defined(COMPAT_32BIT)
@@ -142,6 +143,8 @@ MLINKS += libusb.3 libusb_handle_events_locked.3
 MLINKS += libusb.3 libusb_get_next_timeout.3
 MLINKS += libusb.3 libusb_set_pollfd_notifiers.3
 MLINKS += libusb.3 libusb_get_pollfds.3
+MLINKS += libusb.3 libusb_hotplug_register_callback.3
+MLINKS += libusb.3 libusb_hotplug_deregister_callback.3
 
 # LibUSB v0.1
 MLINKS += libusb.3 usb_open.3
