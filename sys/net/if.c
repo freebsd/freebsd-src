@@ -931,10 +931,13 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	int i;
 	struct domain *dp;
  	struct ifnet *iter;
- 	int found = 0, shutdown;
+ 	int found = 0;
+#ifdef VIMAGE
+	int shutdown;
 
 	shutdown = (ifp->if_vnet->vnet_state > SI_SUB_VNET &&
 		 ifp->if_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
+#endif
 	IFNET_WLOCK();
 	TAILQ_FOREACH(iter, &V_ifnet, if_link)
 		if (iter == ifp) {
@@ -987,6 +990,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 
 	if_down(ifp);
 
+#ifdef VIMAGE
 	/*
 	 * On VNET shutdown abort here as the stack teardown will do all
 	 * the work top-down for us.
@@ -1001,6 +1005,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		 */
 		goto finish_vnet_shutdown;
 	}
+#endif
 
 	/*
 	 * At this point we are not tearing down a VNET and are either
@@ -1066,7 +1071,9 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 
 	rt_flushifroutes(ifp);
 
+#ifdef VIMAGE
 finish_vnet_shutdown:
+#endif
 	/*
 	 * We cannot hold the lock over dom_ifdetach calls as they might
 	 * sleep, for example trying to drain a callout, thus open up the
