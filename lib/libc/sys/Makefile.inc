@@ -31,6 +31,8 @@ SRCS+=	\
 SRCS+= futimens.c utimensat.c
 PSEUDO+= _futimens.o _utimensat.o
 
+SRCS+= pipe.c
+
 # Don't generate default code for these syscalls:
 NOASM+=  break.o openbsd_poll.o sstk.o yield.o
 

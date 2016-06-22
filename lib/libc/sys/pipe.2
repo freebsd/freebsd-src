@@ -28,7 +28,7 @@
 .\"     @(#)pipe.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2013
+.Dd June 22, 2016
 .Dt PIPE 2
 .Os
 .Sh NAME
@@ -118,6 +118,9 @@ and
 .Fn pipe2
 system calls will fail if:
 .Bl -tag -width Er
+.It Bq Er EFAULT
+.Ar fildes
+argument points to an invalid memory location.
 .It Bq Er EMFILE
 Too many descriptors are active.
 .It Bq Er ENFILE
