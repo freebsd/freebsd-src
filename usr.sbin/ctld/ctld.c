@@ -1974,10 +1974,22 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			    oldlun->l_name, oldlun->l_ctl_lun);
 			changed = 1;
 		}
-		if(newlun->l_pass_addr[0]!='\0' && oldlun->l_pass_addr[0]=='\0') {
-			log_debugx("lun is changed to passthrough \"%s\", "
+		// check for passthrough 
+		if(newlun->l_pass_addr[0]!='\0' && oldlun->l_pass_addr[0]=='\0')
+		{
+			log_debugx("lun is changed to passthrough lun \"%s\", "
                             "CTL lun %d changed; removing",
                             oldlun->l_name, oldlun->l_ctl_lun);
+                        changed = 1;
+		}
+		if(newlun->l_pass_addr[0]!='\0' && 
+			oldlun->l_pass_addr[0]!='\0' && 
+			strcmp(newlun->l_pass_addr, oldlun->l_pass_addr)!=0)
+		{
+			log_debugx("passthrough address has been"
+				" modified for lun \"%s\", "
+                           	"CTL lun %d changed; removing",
+                            	oldlun->l_name, oldlun->l_ctl_lun);
                         changed = 1;
 		}
 		if (changed) {
