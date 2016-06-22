@@ -120,6 +120,8 @@ object.
 
 The following variables are common:
 
+AFLAGS.${SRC}
+		Flags dependent on source file name.
 ACFLAGS.${SRC}
 		Flags dependent on source file name.
 CFLAGS.${SRC}
@@ -254,6 +256,11 @@ It has seven targets:
 		create a tags file for the source files.
 
 It sets/uses the following variables:
+
+AFLAGS		Flags to the assembler when assembling .s files.
+
+ACFLAGS		Flags to the compiler when preprocessing and
+		assembling .S files.
 
 BINGRP		Binary group.
 
