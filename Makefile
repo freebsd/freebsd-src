@@ -150,9 +150,9 @@ TGTS+=	${BITGTS}
 # the ones that benefit from it.
 META_TGT_WHITELIST+= \
 	_* build32 buildfiles buildincludes buildkernel buildsoft \
-	buildworld everything kernel-toolchains kernel kernels libraries \
-	native-xtools showconfig tinderbox toolchain toolchains universe \
-	world worlds xdev xdev-build
+	buildworld everything kernel-toolchain kernel-toolchains kernel \
+	kernels libraries native-xtools showconfig tinderbox toolchain \
+	toolchains universe world worlds xdev xdev-build
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distributeworld
