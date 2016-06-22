@@ -504,6 +504,18 @@ error:
 }
 
 int
+sandbox_object_stack_reset(struct sandbox_object *sbop)
+{
+	if (mmap(sbop->sbo_stackmem, sbop->sbo_stacklen,
+	    PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED, -1, 0) ==
+	    MAP_FAILED) {
+		warn("%s: stack reset", __func__);
+		return (-1);
+	}
+	return 0;
+}
+
+int
 sandbox_object_reset(struct sandbox_object *sbop)
 {
 	struct sandbox_class *sbcp;
@@ -523,10 +535,7 @@ sandbox_object_reset(struct sandbox_object *sbop)
 	/*
 	 * Reset external stack.
 	 */
-	if (mmap(sbop->sbo_stackmem, sbop->sbo_stacklen,
-	    PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED, -1, 0) ==
-	    MAP_FAILED) {
-		warn("%s: stack reset", __func__);
+	if (sandbox_object_stack_reset(sbop)) {
 		return (-1);
 	}
 
