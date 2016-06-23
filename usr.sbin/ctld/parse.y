@@ -1037,6 +1037,7 @@ lun_path:	PATH STR
 			return (1);
 		}
 		lun_set_path(lun, $2);
+		lun->l_pass_addr[0] = '\0';
 		free($2);
 	}
 	;
