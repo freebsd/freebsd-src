@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <sys/sysproto.h>
+#include <sys/syscallsubr.h>
 
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_types.h>
@@ -250,3 +251,19 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 		return 0;	/* ENOSYS really */
 	}
 }
+
+int
+svr4_pipe(struct thread *td, struct svr4_pipe_args *uap) {
+	int error;
+	int fildes[2];
+
+	error = kern_pipe(td, fildes, 0, NULL, NULL);
+	if (error)
+	return (error);
+
+	td->td_retval[0] = fildes[0];
+	td->td_retval[1] = fildes[1];
+
+	return (0);
+}
+
