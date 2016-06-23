@@ -322,7 +322,7 @@ acpi_alloc_wakeup_handler(void)
 	 * page-aligned.
 	 */
 	wakeaddr = contigmalloc((ACPI_PAGETABLES + 1) * PAGE_SIZE, M_DEVBUF,
-	    M_WAITOK, 0x500, 0xa0000, PAGE_SIZE, 0ul);
+	    M_NOWAIT, 0x500, 0xa0000, PAGE_SIZE, 0ul);
 	if (wakeaddr == NULL) {
 		printf("%s: can't alloc wake memory\n", __func__);
 		return (NULL);
