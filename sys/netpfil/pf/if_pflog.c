@@ -91,19 +91,22 @@ static int	pflogioctl(struct ifnet *, u_long, caddr_t);
 static void	pflogstart(struct ifnet *);
 static int	pflog_clone_create(struct if_clone *, int, caddr_t);
 static void	pflog_clone_destroy(struct ifnet *);
-static struct if_clone *pflog_cloner;
 
 static const char pflogname[] = "pflog";
 
-struct ifnet	*pflogifs[PFLOGIFS_MAX];	/* for fast access */
+static VNET_DEFINE(struct if_clone *, pflog_cloner);
+#define	V_pflog_cloner		VNET(pflog_cloner)
+
+VNET_DEFINE(struct ifnet *, pflogifs[PFLOGIFS_MAX]);	/* for fast access */
+#define	V_pflogifs		VNET(pflogifs)
 
 static void
-pflogattach(int npflog)
+pflogattach(int npflog __unused)
 {
 	int	i;
 	for (i = 0; i < PFLOGIFS_MAX; i++)
-		pflogifs[i] = NULL;
-	pflog_cloner = if_clone_simple(pflogname, pflog_clone_create,
+		V_pflogifs[i] = NULL;
+	V_pflog_cloner = if_clone_simple(pflogname, pflog_clone_create,
 	    pflog_clone_destroy, 1);
 }
 
@@ -130,7 +133,7 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 
 	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
 
-	pflogifs[unit] = ifp;
+	V_pflogifs[unit] = ifp;
 
 	return (0);
 }
@@ -141,8 +144,8 @@ pflog_clone_destroy(struct ifnet *ifp)
 	int i;
 
 	for (i = 0; i < PFLOGIFS_MAX; i++)
-		if (pflogifs[i] == ifp)
-			pflogifs[i] = NULL;
+		if (V_pflogifs[i] == ifp)
+			V_pflogifs[i] = NULL;
 
 	bpfdetach(ifp);
 	if_detach(ifp);
@@ -206,7 +209,7 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	if (kif == NULL || m == NULL || rm == NULL || pd == NULL)
 		return ( 1);
 
-	if ((ifn = pflogifs[rm->logif]) == NULL || !ifn->if_bpf)
+	if ((ifn = V_pflogifs[rm->logif]) == NULL || !ifn->if_bpf)
 		return (0);
 
 	bzero(&hdr, sizeof(hdr));
@@ -259,6 +262,24 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	return (0);
 }
 
+static void
+vnet_pflog_init(const void *unused __unused)
+{
+
+	pflogattach(1);
+}
+VNET_SYSINIT(vnet_pflog_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_pflog_init, NULL);
+
+static void
+vnet_pflog_uninit(const void *unused __unused)
+{
+
+	if_clone_detach(V_pflog_cloner);
+}
+VNET_SYSUNINIT(vnet_pflog_uninit, SI_SUB_INIT_IF, SI_ORDER_SECOND,
+    vnet_pflog_uninit, NULL);
+
 static int
 pflog_modevent(module_t mod, int type, void *data)
 {
@@ -266,7 +287,6 @@ pflog_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		pflogattach(1);
 		PF_RULES_WLOCK();
 		pflog_packet_ptr = pflog_packet;
 		PF_RULES_WUNLOCK();
@@ -275,10 +295,9 @@ pflog_modevent(module_t mod, int type, void *data)
 		PF_RULES_WLOCK();
 		pflog_packet_ptr = NULL;
 		PF_RULES_WUNLOCK();
-		if_clone_detach(pflog_cloner);
 		break;
 	default:
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		break;
 	}
 
