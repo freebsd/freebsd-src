@@ -60,10 +60,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/apicvar.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
+
+struct vmbus_softc	*vmbus_sc;
 
 static device_t vmbus_devp;
 static int vmbus_inited;
@@ -143,6 +146,7 @@ handled:
 static inline int
 hv_vmbus_isr(struct trapframe *frame)
 {
+	struct vmbus_softc *sc = vmbus_get_softc();
 	int				cpu;
 	hv_vmbus_message*		msg;
 	void*				page_addr;
@@ -154,8 +158,7 @@ hv_vmbus_isr(struct trapframe *frame)
 	 * before checking for messages. This is the way they do it
 	 * in Windows when running as a guest in Hyper-V
 	 */
-
-	hv_vmbus_on_events(cpu);
+	sc->vmbus_event_proc(sc, cpu);
 
 	/* Check if there are actual msgs to be process */
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
@@ -455,6 +458,7 @@ vmbus_cpuset_setthread_task(void *xmask, int pending __unused)
 static int
 vmbus_bus_init(void)
 {
+	struct vmbus_softc *sc;
 	int i, j, n, ret;
 	char buf[MAXCOMLEN + 1];
 	cpuset_t cpu_mask;
@@ -463,6 +467,7 @@ vmbus_bus_init(void)
 		return (0);
 
 	vmbus_inited = 1;
+	sc = vmbus_get_softc();
 
 	ret = hv_vmbus_init();
 
@@ -559,6 +564,12 @@ vmbus_bus_init(void)
 	if (ret != 0)
 		goto cleanup1;
 
+	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
+	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)
+		sc->vmbus_event_proc = vmbus_event_proc_compat;
+	else
+		sc->vmbus_event_proc = vmbus_event_proc;
+
 	hv_vmbus_request_channel_offers();
 
 	vmbus_scan();
@@ -593,12 +604,26 @@ vmbus_bus_init(void)
 	return (ret);
 }
 
+static void
+vmbus_event_proc_dummy(struct vmbus_softc *sc __unused, int cpu __unused)
+{
+}
+
 static int
 vmbus_attach(device_t dev)
 {
 	if(bootverbose)
 		device_printf(dev, "VMBUS: attach dev: %p\n", dev);
+
 	vmbus_devp = dev;
+	vmbus_sc = device_get_softc(dev);
+
+	/*
+	 * Event processing logic will be configured:
+	 * - After the vmbus protocol version negotiation.
+	 * - Before we request channel offers.
+	 */
+	vmbus_sc->vmbus_event_proc = vmbus_event_proc_dummy;
 
 	/* 
 	 * If the system has already booted and thread
@@ -616,7 +641,7 @@ vmbus_attach(device_t dev)
 static void
 vmbus_init(void)
 {
-	if (vm_guest != VM_GUEST_HV)
+	if (vm_guest != VM_GUEST_HV || vmbus_get_softc() == NULL)
 		return;
 
 	/* 
@@ -720,9 +745,11 @@ static device_method_t vmbus_methods[] = {
 
 	{ 0, 0 } };
 
-static char driver_name[] = "vmbus";
-static driver_t vmbus_driver = { driver_name, vmbus_methods,0, };
-
+static driver_t vmbus_driver = {
+	"vmbus",
+	vmbus_methods,
+	sizeof(struct vmbus_softc)
+};
 
 devclass_t vmbus_devclass;
 
