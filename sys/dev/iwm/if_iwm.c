@@ -721,6 +721,7 @@ iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
 
 	dma->tag = NULL;
 	dma->size = size;
+	dma->vaddr = NULL;
 
 	error = bus_dma_tag_create(tag, alignment,
             0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
@@ -735,8 +736,11 @@ iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
 
         error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr, size,
             iwm_dma_map_addr, &dma->paddr, BUS_DMA_NOWAIT);
-        if (error != 0)
+        if (error != 0) {
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
                 goto fail;
+	}
 
 	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 
@@ -749,16 +753,12 @@ fail:	iwm_dma_contig_free(dma);
 static void
 iwm_dma_contig_free(struct iwm_dma_info *dma)
 {
-	if (dma->map != NULL) {
-		if (dma->vaddr != NULL) {
-			bus_dmamap_sync(dma->tag, dma->map,
-			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(dma->tag, dma->map);
-			bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
-			dma->vaddr = NULL;
-		}
-		bus_dmamap_destroy(dma->tag, dma->map);
-		dma->map = NULL;
+	if (dma->vaddr != NULL) {
+		bus_dmamap_sync(dma->tag, dma->map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(dma->tag, dma->map);
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
 	}
 	if (dma->tag != NULL) {
 		bus_dma_tag_destroy(dma->tag);
@@ -956,6 +956,8 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 {
 	bus_addr_t paddr;
 	bus_size_t size;
+	size_t maxsize;
+	int nsegments;
 	int i, error;
 
 	ring->qid = qid;
@@ -988,9 +990,18 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 	}
 	ring->cmd = ring->cmd_dma.vaddr;
 
+	/* FW commands may require more mapped space than packets. */
+	if (qid == IWM_MVM_CMD_QUEUE) {
+		maxsize = IWM_RBUF_SIZE;
+		nsegments = 1;
+	} else {
+		maxsize = MCLBYTES;
+		nsegments = IWM_MAX_SCATTER - 2;
+	}
+
 	error = bus_dma_tag_create(sc->sc_dmat, 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-            IWM_MAX_SCATTER - 2, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, maxsize,
+            nsegments, maxsize, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create TX buf DMA tag\n");
 		goto fail;
@@ -5013,6 +5024,8 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	iwm_stop_device(sc);
 	if (do_net80211)
 		ieee80211_ifdetach(&sc->sc_ic);
+
+	iwm_phy_db_free(sc);
 
 	/* Free descriptor rings */
 	iwm_free_rx_ring(sc, &sc->rxq);
