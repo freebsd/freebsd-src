@@ -152,7 +152,8 @@ hv_vmbus_negotiate_version(hv_vmbus_channel_msg_info *msg_info,
  * Send a connect request on the partition service connection
  */
 int
-hv_vmbus_connect(void) {
+hv_vmbus_connect(void)
+{
 	int					ret = 0;
 	uint32_t				version;
 	hv_vmbus_channel_msg_info*		msg_info = NULL;
@@ -274,7 +275,8 @@ hv_vmbus_connect(void) {
  * Send a disconnect request on the partition service connection
  */
 int
-hv_vmbus_disconnect(void) {
+hv_vmbus_disconnect(void)
+{
 	int			 ret = 0;
 	hv_vmbus_channel_unload  msg;
 
@@ -398,7 +400,8 @@ int hv_vmbus_post_message(void *buffer, size_t bufferLen)
  * Send an event notification to the parent
  */
 int
-hv_vmbus_set_event(hv_vmbus_channel *channel) {
+hv_vmbus_set_event(hv_vmbus_channel *channel)
+{
 	int ret = 0;
 	uint32_t child_rel_id = channel->offer_msg.child_rel_id;
 

@@ -346,12 +346,13 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 }
 
 static int
-vmbus_probe(device_t dev) {
+vmbus_probe(device_t dev)
+{
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
 	    device_get_unit(dev) != 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Vmbus Devices");
+	device_set_desc(dev, "Hyper-V Vmbus");
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -624,7 +625,7 @@ vmbus_attach(device_t dev)
 }
 
 static void
-vmbus_init(void)
+vmbus_sysinit(void *arg __unused)
 {
 	if (vm_guest != VM_GUEST_HV || vmbus_get_softc() == NULL)
 		return;
@@ -670,22 +671,23 @@ vmbus_detach(device_t dev)
 }
 
 static device_method_t vmbus_methods[] = {
-	/** Device interface */
-	DEVMETHOD(device_probe, vmbus_probe),
-	DEVMETHOD(device_attach, vmbus_attach),
-	DEVMETHOD(device_detach, vmbus_detach),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-	DEVMETHOD(device_suspend, bus_generic_suspend),
-	DEVMETHOD(device_resume, bus_generic_resume),
+	/* Device interface */
+	DEVMETHOD(device_probe,			vmbus_probe),
+	DEVMETHOD(device_attach,		vmbus_attach),
+	DEVMETHOD(device_detach,		vmbus_detach),
+	DEVMETHOD(device_shutdown,		bus_generic_shutdown),
+	DEVMETHOD(device_suspend,		bus_generic_suspend),
+	DEVMETHOD(device_resume,		bus_generic_resume),
 
-	/** Bus interface */
-	DEVMETHOD(bus_add_child, bus_generic_add_child),
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar, vmbus_read_ivar),
-	DEVMETHOD(bus_write_ivar, vmbus_write_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str, vmbus_child_pnpinfo_str),
+	/* Bus interface */
+	DEVMETHOD(bus_add_child,		bus_generic_add_child),
+	DEVMETHOD(bus_print_child,		bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
+	DEVMETHOD(bus_write_ivar,		vmbus_write_ivar),
+	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
 
-	{ 0, 0 } };
+	DEVMETHOD_END
+};
 
 static driver_t vmbus_driver = {
 	"vmbus",
@@ -693,12 +695,16 @@ static driver_t vmbus_driver = {
 	sizeof(struct vmbus_softc)
 };
 
-devclass_t vmbus_devclass;
+static devclass_t vmbus_devclass;
 
 DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
 MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
 MODULE_VERSION(vmbus, 1);
 
-/* We want to be started after SMP is initialized */
-SYSINIT(vmb_init, SI_SUB_SMP + 1, SI_ORDER_FIRST, vmbus_init, NULL);
+/*
+ * NOTE:
+ * We have to start as the last step of SI_SUB_SMP, i.e. after SMP is
+ * initialized.
+ */
+SYSINIT(vmbus_initialize, SI_SUB_SMP, SI_ORDER_ANY, vmbus_sysinit, NULL);
 
