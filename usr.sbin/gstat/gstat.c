@@ -167,20 +167,6 @@ main(int argc, char **argv)
 	if (sq == NULL)
 		err(1, "geom_stats_snapshot()");
 	if (!flag_b) {
-		/* Setup curses */
-		initscr();
-		start_color();
-		use_default_colors();
-		pair_content(0, &cf, &cb);
-		init_pair(1, COLOR_GREEN, cb);
-		init_pair(2, COLOR_MAGENTA, cb);
-		init_pair(3, COLOR_RED, cb);
-		cbreak();
-		noecho();
-		nonl();
-		nodelay(stdscr, 1);
-		intrflush(stdscr, FALSE);
-		keypad(stdscr, TRUE);
 		/* Setup libedit */
 		hist = history_init();
 		if (hist == NULL)
@@ -195,6 +181,20 @@ main(int argc, char **argv)
 		el_set(el, EL_PROMPT, el_prompt);
 		if (f_s[0] != '\0')
 			history(hist, &hist_ev, H_ENTER, f_s);
+		/* Setup curses */
+		initscr();
+		start_color();
+		use_default_colors();
+		pair_content(0, &cf, &cb);
+		init_pair(1, COLOR_GREEN, cb);
+		init_pair(2, COLOR_MAGENTA, cb);
+		init_pair(3, COLOR_RED, cb);
+		cbreak();
+		noecho();
+		nonl();
+		nodelay(stdscr, 1);
+		intrflush(stdscr, FALSE);
+		keypad(stdscr, TRUE);
 	}
 	geom_stats_snapshot_timestamp(sq, &tq);
 	for (quit = 0; !quit;) {
@@ -410,12 +410,15 @@ main(int argc, char **argv)
 				if ((p = strchr(tmp_f_s, '\n')) != NULL)
 					*p = '\0';
 				/*
-				 * We have to clear since we messed up
+				 * Fix the terminal.  We messed up
 				 * curses idea of the screen by using
 				 * libedit.
 				 */
 				clear();
 				refresh();
+				cbreak();
+				noecho();
+				nonl();
 				if (regcomp(&tmp_f_re, tmp_f_s, REG_EXTENDED)
 				    != 0) {
 					move(0, 0);
@@ -440,8 +443,8 @@ main(int argc, char **argv)
 	}
 
 	if (!flag_b) {
-		endwin();
 		el_end(el);
+		endwin();
 	}
 	exit(EX_OK);
 }
