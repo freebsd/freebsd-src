@@ -6965,8 +6965,7 @@ sctp_recv_icmp_tunneled_packet(int cmd, struct sockaddr *sa, void *vip, void *ct
 	    SCTP_DEFAULT_VRFID);
 	if ((stcb != NULL) &&
 	    (net != NULL) &&
-	    (inp != NULL) &&
-	    (inp->sctp_socket != NULL)) {
+	    (inp != NULL)) {
 		/* Check the UDP port numbers */
 		if ((udp->uh_dport != net->port) ||
 		    (udp->uh_sport != htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)))) {
@@ -7092,8 +7091,7 @@ sctp_recv_icmp6_tunneled_packet(int cmd, struct sockaddr *sa, void *d, void *ctx
 	    &inp, &net, 1, SCTP_DEFAULT_VRFID);
 	if ((stcb != NULL) &&
 	    (net != NULL) &&
-	    (inp != NULL) &&
-	    (inp->sctp_socket != NULL)) {
+	    (inp != NULL)) {
 		/* Check the UDP port numbers */
 		if ((udp.uh_dport != net->port) ||
 		    (udp.uh_sport != htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)))) {
