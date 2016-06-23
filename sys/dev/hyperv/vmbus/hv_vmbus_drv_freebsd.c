@@ -321,24 +321,34 @@ vmbus_synic_teardown(void *arg)
 	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 }
 
-static void
+static int
 vmbus_dma_alloc(struct vmbus_softc *sc)
 {
 	int cpu;
 
 	CPU_FOREACH(cpu) {
+		void *ptr;
+
 		/*
 		 * Per-cpu messages and event flags.
 		 */
-		VMBUS_PCPU_GET(sc, message, cpu) = hyperv_dmamem_alloc(
-		    bus_get_dma_tag(sc->vmbus_dev), PAGE_SIZE, 0, PAGE_SIZE,
+		ptr = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
+		    PAGE_SIZE, 0, PAGE_SIZE,
 		    VMBUS_PCPU_PTR(sc, message_dma, cpu),
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
-		VMBUS_PCPU_GET(sc, event_flag, cpu) = hyperv_dmamem_alloc(
-		    bus_get_dma_tag(sc->vmbus_dev), PAGE_SIZE, 0, PAGE_SIZE,
+		if (ptr == NULL)
+			return ENOMEM;
+		VMBUS_PCPU_GET(sc, message, cpu) = ptr;
+
+		ptr = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
+		    PAGE_SIZE, 0, PAGE_SIZE,
 		    VMBUS_PCPU_PTR(sc, event_flag_dma, cpu),
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+		if (ptr == NULL)
+			return ENOMEM;
+		VMBUS_PCPU_GET(sc, event_flag, cpu) = ptr;
 	}
+	return 0;
 }
 
 static void
@@ -516,6 +526,12 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 		if (hv_vmbus_g_context.hv_event_queue[cpu] != NULL) {
 			taskqueue_free(hv_vmbus_g_context.hv_event_queue[cpu]);
 			hv_vmbus_g_context.hv_event_queue[cpu] = NULL;
+		}
+		if (hv_vmbus_g_context.hv_msg_tq[cpu] != NULL) {
+			taskqueue_drain(hv_vmbus_g_context.hv_msg_tq[cpu],
+			    &hv_vmbus_g_context.hv_msg_task[cpu]);
+			taskqueue_free(hv_vmbus_g_context.hv_msg_tq[cpu]);
+			hv_vmbus_g_context.hv_msg_tq[cpu] = NULL;
 		}
 	}
 	vmbus_vector_free(sc->vmbus_idtvec);
@@ -699,7 +715,9 @@ vmbus_bus_init(void)
 	/*
 	 * Allocate DMA stuffs.
 	 */
-	vmbus_dma_alloc(sc);
+	ret = vmbus_dma_alloc(sc);
+	if (ret != 0)
+		goto cleanup;
 
 	if (bootverbose)
 		printf("VMBUS: Calling smp_rendezvous, smp_started = %d\n",
