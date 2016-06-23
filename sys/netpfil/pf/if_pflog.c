@@ -268,7 +268,7 @@ vnet_pflog_init(const void *unused __unused)
 
 	pflogattach(1);
 }
-VNET_SYSINIT(vnet_pflog_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_pflog_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
     vnet_pflog_init, NULL);
 
 static void
@@ -277,6 +277,10 @@ vnet_pflog_uninit(const void *unused __unused)
 
 	if_clone_detach(V_pflog_cloner);
 }
+/*
+ * Detach after pf is gone; otherwise we might touch pflog memory
+ * from within pf after freeing pflog.
+ */
 VNET_SYSUNINIT(vnet_pflog_uninit, SI_SUB_INIT_IF, SI_ORDER_SECOND,
     vnet_pflog_uninit, NULL);
 
@@ -308,6 +312,7 @@ static moduledata_t pflog_mod = { pflogname, pflog_modevent, 0 };
 
 #define PFLOG_MODVER 1
 
-DECLARE_MODULE(pflog, pflog_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+/* Do not run before pf is initialized as we depend on its locks. */
+DECLARE_MODULE(pflog, pflog_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY);
 MODULE_VERSION(pflog, PFLOG_MODVER);
 MODULE_DEPEND(pflog, pf, PF_MODVER, PF_MODVER, PF_MODVER);
