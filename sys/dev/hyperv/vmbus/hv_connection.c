@@ -336,13 +336,11 @@ vmbus_event_proc(struct vmbus_softc *sc, int cpu)
 {
 	hv_vmbus_synic_event_flags *event;
 
-	event = hv_vmbus_g_context.syn_ic_event_page[cpu] +
-	    HV_VMBUS_MESSAGE_SINT;
-
 	/*
 	 * On Host with Win8 or above, the event page can be checked directly
 	 * to get the id of the channel that has the pending interrupt.
 	 */
+	event = VMBUS_SC_PCPU_GET(sc, event_flag, cpu) + HV_VMBUS_MESSAGE_SINT;
 	vmbus_event_flags_proc(event->flagsul,
 	    VMBUS_SC_PCPU_GET(sc, event_flag_cnt, cpu));
 }
@@ -352,9 +350,7 @@ vmbus_event_proc_compat(struct vmbus_softc *sc __unused, int cpu)
 {
 	hv_vmbus_synic_event_flags *event;
 
-	event = hv_vmbus_g_context.syn_ic_event_page[cpu] +
-	    HV_VMBUS_MESSAGE_SINT;
-
+	event = VMBUS_SC_PCPU_GET(sc, event_flag, cpu) + HV_VMBUS_MESSAGE_SINT;
 	if (atomic_testandclear_int(&event->flags32[0], 0)) {
 		vmbus_event_flags_proc(
 		    hv_vmbus_g_connection.recv_interrupt_page,

@@ -30,10 +30,18 @@
 #define _VMBUS_VAR_H_
 
 #include <sys/param.h>
+#include <sys/bus_dma.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
 
 struct vmbus_pcpu_data {
-	int		event_flag_cnt;	/* # of event flags */
-	u_long		*intr_cnt;
+	u_long			*intr_cnt;	/* Hyper-V interrupt counter */
+	struct vmbus_message	*message;	/* shared messages */
+	int			event_flag_cnt;	/* # of event flags */
+	union vmbus_event_flags	*event_flag;	/* shared event flags */
+
+	/* Rarely used fields */
+	struct hyperv_dma	message_dma;	/* busdma glue */
+	struct hyperv_dma	event_flag_dma;	/* busdma glue */
 } __aligned(CACHE_LINE_SIZE);
 
 struct vmbus_softc {
