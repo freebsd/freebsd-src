@@ -299,7 +299,7 @@ static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
 
 int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
 
-VNET_DECLARE(int, pf_end_threads);
+extern int pf_end_threads;
 
 VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 
@@ -1421,51 +1421,25 @@ pf_intr(void *v)
 }
 
 void
-pf_purge_thread(void *v)
+pf_purge_thread(void *unused __unused)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	u_int idx = 0;
-
-	CURVNET_SET((struct vnet *)v);
 
 	for (;;) {
 		PF_RULES_RLOCK();
 		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftm", hz / 10);
+		PF_RULES_RUNLOCK();
 
-		if (V_pf_end_threads) {
-			/*
-			 * To cleanse up all kifs and rules we need
-			 * two runs: first one clears reference flags,
-			 * then pf_purge_expired_states() doesn't
-			 * raise them, and then second run frees.
-			 */
-			PF_RULES_RUNLOCK();
-			pf_purge_unlinked_rules();
-			pfi_kif_purge();
+		VNET_LIST_RLOCK();
+		VNET_FOREACH(vnet_iter) {
+			CURVNET_SET(vnet_iter);
 
-			/*
-			 * Now purge everything.
-			 */
-			pf_purge_expired_states(0, pf_hashmask);
-			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes();
-
-			/*
-			 * Now all kifs & rules should be unreferenced,
-			 * thus should be successfully freed.
-			 */
-			pf_purge_unlinked_rules();
-			pfi_kif_purge();
-
-			/*
-			 * Announce success and exit.
-			 */
-			PF_RULES_RLOCK();
-			V_pf_end_threads++;
-			PF_RULES_RUNLOCK();
+		if (pf_end_threads) {
+			pf_end_threads++;
 			wakeup(pf_purge_thread);
 			kproc_exit(0);
 		}
-		PF_RULES_RUNLOCK();
 
 		/* Process 1/interval fraction of the state table every run. */
 		idx = pf_purge_expired_states(idx, pf_hashmask /
@@ -1483,10 +1457,41 @@ pf_purge_thread(void *v)
 			pf_purge_unlinked_rules();
 			pfi_kif_purge();
 		}
+		CURVNET_RESTORE();
+		}
+		VNET_LIST_RUNLOCK();
 	}
 	/* not reached */
-	CURVNET_RESTORE();
 }
+
+void
+pf_unload_vnet_purge(void)
+{
+
+	/*
+	 * To cleanse up all kifs and rules we need
+	 * two runs: first one clears reference flags,
+	 * then pf_purge_expired_states() doesn't
+	 * raise them, and then second run frees.
+	 */
+	pf_purge_unlinked_rules();
+	pfi_kif_purge();
+
+	/*
+	 * Now purge everything.
+	 */
+	pf_purge_expired_states(0, pf_hashmask);
+	pf_purge_expired_fragments();
+	pf_purge_expired_src_nodes();
+
+	/*
+	 * Now all kifs & rules should be unreferenced,
+	 * thus should be successfully freed.
+	 */
+	pf_purge_unlinked_rules();
+	pfi_kif_purge();
+}
+
 
 u_int32_t
 pf_state_expires(const struct pf_state *state)
