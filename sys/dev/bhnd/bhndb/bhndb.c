@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "bhndb_private.h"
 
 /* Debugging flags */
-static u_long bhndb_debug = -1;
+static u_long bhndb_debug = 0;
 TUNABLE_ULONG("hw.bhndb.debug", &bhndb_debug);
 
 enum {
