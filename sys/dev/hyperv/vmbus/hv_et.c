@@ -37,11 +37,27 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/timeet.h>
 
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/hyperv_reg.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
 
 #define HV_TIMER_FREQUENCY		(10 * 1000 * 1000LL) /* 100ns period */
 #define HV_MAX_DELTA_TICKS		0xffffffffLL
 #define HV_MIN_DELTA_TICKS		1LL
+
+#define MSR_HV_STIMER0_CFG_SINT		\
+	((((uint64_t)HV_VMBUS_TIMER_SINT) << MSR_HV_STIMER_CFG_SINT_SHIFT) & \
+	 MSR_HV_STIMER_CFG_SINT_MASK)
+
+/*
+ * Two additionally required features:
+ * - SynIC is needed for interrupt generation.
+ * - Time reference counter is needed to set ABS reference count to
+ *   STIMER0_COUNT.
+ */
+#define CPUID_HV_ET_MASK		(CPUID_HV_MSR_TIME_REFCNT |	\
+					 CPUID_HV_MSR_SYNIC |		\
+					 CPUID_HV_MSR_SYNTIMER)
 
 static struct eventtimer *et;
 
@@ -57,18 +73,15 @@ sbintime2tick(sbintime_t time)
 static int
 hv_et_start(struct eventtimer *et, sbintime_t firsttime, sbintime_t periodtime)
 {
-	union hv_timer_config timer_cfg;
-	uint64_t current;
+	uint64_t current, config;
 
-	timer_cfg.as_uint64 = 0;
-	timer_cfg.auto_enable = 1;
-	timer_cfg.sintx = HV_VMBUS_TIMER_SINT;
+	config = MSR_HV_STIMER_CFG_AUTOEN | MSR_HV_STIMER0_CFG_SINT;
 
-	current = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
+	current = rdmsr(MSR_HV_TIME_REF_COUNT);
 	current += sbintime2tick(firsttime);
 
-	wrmsr(HV_X64_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
-	wrmsr(HV_X64_MSR_STIMER0_COUNT, current);
+	wrmsr(MSR_HV_STIMER0_CONFIG, config);
+	wrmsr(MSR_HV_STIMER0_COUNT, current);
 
 	return (0);
 }
@@ -76,8 +89,8 @@ hv_et_start(struct eventtimer *et, sbintime_t firsttime, sbintime_t periodtime)
 static int
 hv_et_stop(struct eventtimer *et)
 {
-	wrmsr(HV_X64_MSR_STIMER0_CONFIG, 0);
-	wrmsr(HV_X64_MSR_STIMER0_COUNT, 0);
+	wrmsr(MSR_HV_STIMER0_CONFIG, 0);
+	wrmsr(MSR_HV_STIMER0_COUNT, 0);
 
 	return (0);
 }
@@ -102,7 +115,8 @@ hv_et_intr(struct trapframe *frame)
 static void
 hv_et_identify(driver_t *driver, device_t parent)
 {
-	if (device_find_child(parent, "hv_et", -1) != NULL)
+	if (device_find_child(parent, "hv_et", -1) != NULL ||
+	    (hyperv_features & CPUID_HV_ET_MASK) != CPUID_HV_ET_MASK)
 		return;
 
 	device_add_child(parent, "hv_et", -1);
