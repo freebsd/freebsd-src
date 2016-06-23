@@ -216,11 +216,6 @@ typedef struct {
 	struct taskqueue		*hv_event_queue[MAXCPU];
 	struct taskqueue		*hv_msg_tq[MAXCPU];
 	struct task			hv_msg_task[MAXCPU];
-	/*
-	 * Host use this vector to intrrupt guest for vmbus channel
-	 * event and msg.
-	 */
-	unsigned int			hv_cb_vector;
 } hv_vmbus_context;
 
 /*
@@ -763,7 +758,6 @@ void			hv_et_intr(struct trapframe*);
 void			vmbus_scan(void);
 
 typedef struct {
-	unsigned int	vector;
 	void		*page_buffers[2 * MAXCPU];
 } hv_setup_args;
 
