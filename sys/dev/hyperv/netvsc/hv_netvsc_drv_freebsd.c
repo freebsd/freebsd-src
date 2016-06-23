@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
 #include "hv_net_vsc.h"
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
@@ -2217,18 +2218,6 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 }
 
 static void
-hn_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	bus_addr_t *paddr = arg;
-
-	if (error)
-		return;
-
-	KASSERT(nseg == 1, ("too many segments %d!", nseg));
-	*paddr = segs->ds_addr;
-}
-
-static void
 hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
 	struct sysctl_oid_list *child;
@@ -2528,7 +2517,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		error = bus_dmamap_load(txr->hn_tx_rndis_dtag,
 		    txd->rndis_msg_dmap,
 		    txd->rndis_msg, HN_RNDIS_MSG_LEN,
-		    hn_dma_map_paddr, &txd->rndis_msg_paddr,
+		    hyperv_dma_map_paddr, &txd->rndis_msg_paddr,
 		    BUS_DMA_NOWAIT);
 		if (error) {
 			device_printf(sc->hn_dev,
