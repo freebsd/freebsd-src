@@ -238,5 +238,9 @@ if [ -n "${SIZE}" ]; then
 SIZEFLAG="-s ${SIZE}"
 fi
 
+# Zero out subsecond component of time= keywords as they are currently not
+# supported by makefs
+sed -i '' -E 's/(time=[0-9]*)\.[0-9]*/\1.0/' ${manifest}
+
 cd ${BSDROOT}; makefs ${DUPFLAG} -N ${DBDIR} ${SIZEFLAG} ${BFLAG} \
      -t ffs ${LABELFLAG} -f 256 ${IMGFILE} ${manifest}
