@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -118,7 +119,7 @@ handled:
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
 			 */
-			wrmsr(HV_X64_MSR_EOM, 0);
+			wrmsr(MSR_HV_EOM, 0);
 		}
 	}
 }
@@ -170,7 +171,7 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
 			 */
-			wrmsr(HV_X64_MSR_EOM, 0);
+			wrmsr(MSR_HV_EOM, 0);
 		}
 	}
 
@@ -215,10 +216,21 @@ vmbus_synic_setup(void *xsc)
 	uint64_t val, orig;
 	uint32_t sint;
 
-	/*
-	 * Save virtual processor id.
-	 */
-	VMBUS_PCPU_GET(sc, vcpuid, cpu) = rdmsr(MSR_HV_VP_INDEX);
+	if (hyperv_features & CPUID_HV_MSR_VP_INDEX) {
+		/*
+		 * Save virtual processor id.
+		 */
+		VMBUS_PCPU_GET(sc, vcpuid, cpu) = rdmsr(MSR_HV_VP_INDEX);
+	} else {
+		/*
+		 * XXX
+		 * Virtual processoor id is only used by a pretty broken
+		 * channel selection code from storvsc.  It's nothing
+		 * critical even if CPUID_HV_MSR_VP_INDEX is not set; keep
+		 * moving on.
+		 */
+		VMBUS_PCPU_GET(sc, vcpuid, cpu) = cpu;
+	}
 
 	/*
 	 * Setup the SynIC message.
@@ -637,7 +649,8 @@ static int
 vmbus_probe(device_t dev)
 {
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
-	    device_get_unit(dev) != 0 || vm_guest != VM_GUEST_HV)
+	    device_get_unit(dev) != 0 || vm_guest != VM_GUEST_HV ||
+	    (hyperv_features & CPUID_HV_MSR_SYNIC) == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Hyper-V Vmbus");
