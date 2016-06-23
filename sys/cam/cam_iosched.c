@@ -61,7 +61,7 @@ static MALLOC_DEFINE(M_CAMSCHED, "CAM I/O Scheduler",
  * for trims.
  */
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 
 static int do_netflix_iosched = 1;
 TUNABLE_INT("kern.cam.do_netflix_iosched", &do_netflix_iosched);
@@ -250,7 +250,7 @@ struct cam_iosched_softc
 				/* scheduler flags < 16, user flags >= 16 */
 	uint32_t	flags;
 	int		sort_io_queue;
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	int		read_bias;		/* Read bias setting */
 	int		current_read_bias;	/* Current read bias state */
 	int		total_ticks;
@@ -269,7 +269,7 @@ struct cam_iosched_softc
 #endif
 };
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 /*
  * helper functions to call the limsw functions.
  */
@@ -624,7 +624,7 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 			/* Periph drivers set these flags to indicate work */
 #define CAM_IOSCHED_FLAG_WORK_FLAGS	((0xffffu) << 16)
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
     sbintime_t sim_latency, int cmd, size_t size);
@@ -639,7 +639,7 @@ cam_iosched_has_flagged_work(struct cam_iosched_softc *isc)
 static inline int
 cam_iosched_has_io(struct cam_iosched_softc *isc)
 {
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	if (do_netflix_iosched) {
 		struct bio *rbp = bioq_first(&isc->bio_queue);
 		struct bio *wbp = bioq_first(&isc->write_queue);
@@ -672,7 +672,7 @@ cam_iosched_has_more_trim(struct cam_iosched_softc *isc)
 static inline int
 cam_iosched_has_work(struct cam_iosched_softc *isc)
 {
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	if (iosched_debug > 2)
 		printf("has work: %d %d %d\n", cam_iosched_has_io(isc),
 		    cam_iosched_has_more_trim(isc),
@@ -684,7 +684,7 @@ cam_iosched_has_work(struct cam_iosched_softc *isc)
 		cam_iosched_has_flagged_work(isc);
 }
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 static void
 cam_iosched_iop_stats_init(struct cam_iosched_softc *isc, struct iop_stats *ios)
 {
@@ -946,14 +946,14 @@ cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
 	*iscp = malloc(sizeof(**iscp), M_CAMSCHED, M_NOWAIT | M_ZERO);
 	if (*iscp == NULL)
 		return ENOMEM;
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	if (iosched_debug)
 		printf("CAM IOSCHEDULER Allocating entry at %p\n", *iscp);
 #endif
 	(*iscp)->sort_io_queue = -1;
 	bioq_init(&(*iscp)->bio_queue);
 	bioq_init(&(*iscp)->trim_queue);
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	if (do_netflix_iosched) {
 		bioq_init(&(*iscp)->write_queue);
 		(*iscp)->read_bias = 100;
@@ -984,7 +984,7 @@ cam_iosched_fini(struct cam_iosched_softc *isc)
 {
 	if (isc) {
 		cam_iosched_flush(isc, NULL, ENXIO);
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 		cam_iosched_iop_stats_fini(&isc->read_stats);
 		cam_iosched_iop_stats_fini(&isc->write_stats);
 		cam_iosched_iop_stats_fini(&isc->trim_stats);
@@ -1009,7 +1009,7 @@ cam_iosched_fini(struct cam_iosched_softc *isc)
 void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
     struct sysctl_ctx_list *ctx, struct sysctl_oid *node)
 {
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	struct sysctl_oid_list *n;
 #endif
 
@@ -1018,7 +1018,7 @@ void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
 		&isc->sort_io_queue, 0,
 		"Sort IO queue to try and optimise disk access patterns");
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	if (!do_netflix_iosched)
 		return;
 
@@ -1060,13 +1060,13 @@ cam_iosched_flush(struct cam_iosched_softc *isc, struct devstat *stp, int err)
 {
 	bioq_flush(&isc->bio_queue, stp, err);
 	bioq_flush(&isc->trim_queue, stp, err);
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	if (do_netflix_iosched)
 		bioq_flush(&isc->write_queue, stp, err);
 #endif
 }
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 static struct bio *
 cam_iosched_get_write(struct cam_iosched_softc *isc)
 {
@@ -1132,7 +1132,7 @@ void
 cam_iosched_put_back_trim(struct cam_iosched_softc *isc, struct bio *bp)
 {
 	bioq_insert_head(&isc->trim_queue, bp);
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	isc->trim_stats.queued++;
 	isc->trim_stats.total--;		/* since we put it back, don't double count */
 	isc->trim_stats.pending--;
@@ -1155,7 +1155,7 @@ cam_iosched_next_trim(struct cam_iosched_softc *isc)
 	if (bp == NULL)
 		return NULL;
 	bioq_remove(&isc->trim_queue, bp);
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	isc->trim_stats.queued--;
 	isc->trim_stats.total++;
 	isc->trim_stats.pending++;
@@ -1201,7 +1201,7 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 	if ((bp = cam_iosched_get_trim(isc)) != NULL)
 		return bp;
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	/*
 	 * See if we have any pending writes, and room in the queue for them,
 	 * and if so, those are next.
@@ -1218,7 +1218,7 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 	if ((bp = bioq_first(&isc->bio_queue)) == NULL)
 		return NULL;
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	/*
 	 * For the netflix scheduler, bio_queue is only for reads, so enforce
 	 * the limits here. Enforce only for reads.
@@ -1230,7 +1230,7 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 	}
 #endif
 	bioq_remove(&isc->bio_queue, bp);
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	if (do_netflix_iosched) {
 		if (bp->bio_cmd == BIO_READ) {
 			isc->read_stats.queued--;
@@ -1262,12 +1262,12 @@ cam_iosched_queue_work(struct cam_iosched_softc *isc, struct bio *bp)
 	 */
 	if (bp->bio_cmd == BIO_DELETE) {
 		bioq_disksort(&isc->trim_queue, bp);
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 		isc->trim_stats.in++;
 		isc->trim_stats.queued++;
 #endif
 	}
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	else if (do_netflix_iosched &&
 	    (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_FLUSH)) {
 		if (cam_iosched_sort_queue(isc))
@@ -1287,7 +1287,7 @@ cam_iosched_queue_work(struct cam_iosched_softc *isc, struct bio *bp)
 			bioq_disksort(&isc->bio_queue, bp);
 		else
 			bioq_insert_tail(&isc->bio_queue, bp);
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 		if (iosched_debug > 9)
 			printf("Qr  : %p %#x\n", bp, bp->bio_cmd);
 		if (bp->bio_cmd == BIO_READ) {
@@ -1331,7 +1331,7 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
     union ccb *done_ccb)
 {
 	int retval = 0;
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 	if (!do_netflix_iosched)
 		return retval;
 
@@ -1399,7 +1399,7 @@ cam_iosched_clr_work_flags(struct cam_iosched_softc *isc, uint32_t flags)
 	isc->flags &= ~flags;
 }
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 /*
  * After the method presented in Jack Crenshaw's 1998 article "Integer
  * Suqare Roots," reprinted at
@@ -1523,7 +1523,7 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 	iop->sd = (int64_t)var < 0 ? 0 : isqrt64(var);
 }
 
-#ifdef CAM_NETFLIX_IOSCHED
+#ifdef CAM_IOSCHED_DYNAMIC
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
     sbintime_t sim_latency, int cmd, size_t size)
