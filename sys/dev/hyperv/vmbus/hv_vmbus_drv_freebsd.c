@@ -447,35 +447,18 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 {
 	int cpu;
 
-	/*
-	 * Find a free IDT vector for vmbus messages/events.
-	 */
-	sc->vmbus_idtvec = vmbus_vector_alloc();
-	if (sc->vmbus_idtvec == 0) {
-		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
-		return ENXIO;
-	}
-	if(bootverbose) {
-		device_printf(sc->vmbus_dev, "vmbus IDT vector %d\n",
-		    sc->vmbus_idtvec);
-	}
-
-	CPU_FOREACH(cpu) {
-		char buf[MAXCOMLEN + 1];
-
-		snprintf(buf, sizeof(buf), "cpu%d:hyperv", cpu);
-		intrcnt_add(buf, VMBUS_PCPU_PTR(sc, intr_cnt, cpu));
-	}
-
-	/*
-	 * Per cpu setup.
-	 */
 	CPU_FOREACH(cpu) {
 		struct task cpuset_task;
+		char buf[MAXCOMLEN + 1];
 		cpuset_t cpu_mask;
 
+		/* Allocate an interrupt counter for Hyper-V interrupt */
+		snprintf(buf, sizeof(buf), "cpu%d:hyperv", cpu);
+		intrcnt_add(buf, VMBUS_PCPU_PTR(sc, intr_cnt, cpu));
+
 		/*
-		 * Setup taskqueue to handle events
+		 * Setup taskqueue to handle events.  Task will be per-
+		 * channel.
 		 */
 		hv_vmbus_g_context.hv_event_queue[cpu] =
 		    taskqueue_create_fast("hyperv event", M_WAITOK,
@@ -493,7 +476,7 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		    &cpuset_task);
 
 		/*
-		 * Setup per-cpu tasks and taskqueues to handle msg.
+		 * Setup tasks and taskqueues to handle messages.
 		 */
 		hv_vmbus_g_context.hv_msg_tq[cpu] = taskqueue_create_fast(
 		    "hyperv msg", M_WAITOK, taskqueue_thread_enqueue,
@@ -511,6 +494,20 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		taskqueue_drain(hv_vmbus_g_context.hv_msg_tq[cpu],
 		    &cpuset_task);
 	}
+
+	/*
+	 * All Hyper-V ISR required resources are setup, now let's find a
+	 * free IDT vector for Hyper-V ISR and set it up.
+	 */
+	sc->vmbus_idtvec = vmbus_vector_alloc();
+	if (sc->vmbus_idtvec == 0) {
+		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
+		return ENXIO;
+	}
+	if(bootverbose) {
+		device_printf(sc->vmbus_dev, "vmbus IDT vector %d\n",
+		    sc->vmbus_idtvec);
+	}
 	return 0;
 }
 
@@ -519,9 +516,8 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 {
 	int cpu;
 
-	/*
-	 * remove swi and vmbus callback vector;
-	 */
+	vmbus_vector_free(sc->vmbus_idtvec);
+
 	CPU_FOREACH(cpu) {
 		if (hv_vmbus_g_context.hv_event_queue[cpu] != NULL) {
 			taskqueue_free(hv_vmbus_g_context.hv_event_queue[cpu]);
@@ -534,7 +530,6 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 			hv_vmbus_g_context.hv_msg_tq[cpu] = NULL;
 		}
 	}
-	vmbus_vector_free(sc->vmbus_idtvec);
 }
 
 static int
@@ -706,16 +701,16 @@ vmbus_bus_init(void)
 	sc = vmbus_get_softc();
 
 	/*
-	 * Setup interrupt.
+	 * Allocate DMA stuffs.
 	 */
-	ret = vmbus_intr_setup(sc);
+	ret = vmbus_dma_alloc(sc);
 	if (ret != 0)
 		goto cleanup;
 
 	/*
-	 * Allocate DMA stuffs.
+	 * Setup interrupt.
 	 */
-	ret = vmbus_dma_alloc(sc);
+	ret = vmbus_intr_setup(sc);
 	if (ret != 0)
 		goto cleanup;
 
@@ -747,8 +742,8 @@ vmbus_bus_init(void)
 	return (ret);
 
 cleanup:
-	vmbus_dma_free(sc);
 	vmbus_intr_teardown(sc);
+	vmbus_dma_free(sc);
 
 	return (ret);
 }
@@ -810,8 +805,8 @@ vmbus_detach(device_t dev)
 
 	smp_rendezvous(NULL, vmbus_synic_teardown, NULL, NULL);
 
-	vmbus_dma_free(sc);
 	vmbus_intr_teardown(sc);
+	vmbus_dma_free(sc);
 
 	return (0);
 }
