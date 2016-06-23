@@ -177,8 +177,8 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 
 	msg = msg_base + HV_VMBUS_MESSAGE_SINT;
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
-		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
-		    &hv_vmbus_g_context.hv_msg_task[cpu]);
+		taskqueue_enqueue(VMBUS_PCPU_GET(sc, message_tq, cpu),
+		    VMBUS_PCPU_PTR(sc, message_task, cpu));
 	}
 
 	return (FILTER_HANDLED);
@@ -460,38 +460,37 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		 * Setup taskqueue to handle events.  Task will be per-
 		 * channel.
 		 */
-		hv_vmbus_g_context.hv_event_queue[cpu] =
-		    taskqueue_create_fast("hyperv event", M_WAITOK,
-		    taskqueue_thread_enqueue,
-		    &hv_vmbus_g_context.hv_event_queue[cpu]);
-		taskqueue_start_threads(&hv_vmbus_g_context.hv_event_queue[cpu],
+		VMBUS_PCPU_GET(sc, event_tq, cpu) = taskqueue_create_fast(
+		    "hyperv event", M_WAITOK, taskqueue_thread_enqueue,
+		    VMBUS_PCPU_PTR(sc, event_tq, cpu));
+		taskqueue_start_threads(VMBUS_PCPU_PTR(sc, event_tq, cpu),
 		    1, PI_NET, "hvevent%d", cpu);
 
 		CPU_SETOF(cpu, &cpu_mask);
 		TASK_INIT(&cpuset_task, 0, vmbus_cpuset_setthread_task,
 		    &cpu_mask);
-		taskqueue_enqueue(hv_vmbus_g_context.hv_event_queue[cpu],
+		taskqueue_enqueue(VMBUS_PCPU_GET(sc, event_tq, cpu),
 		    &cpuset_task);
-		taskqueue_drain(hv_vmbus_g_context.hv_event_queue[cpu],
+		taskqueue_drain(VMBUS_PCPU_GET(sc, event_tq, cpu),
 		    &cpuset_task);
 
 		/*
 		 * Setup tasks and taskqueues to handle messages.
 		 */
-		hv_vmbus_g_context.hv_msg_tq[cpu] = taskqueue_create_fast(
+		VMBUS_PCPU_GET(sc, message_tq, cpu) = taskqueue_create_fast(
 		    "hyperv msg", M_WAITOK, taskqueue_thread_enqueue,
-		    &hv_vmbus_g_context.hv_msg_tq[cpu]);
-		taskqueue_start_threads(&hv_vmbus_g_context.hv_msg_tq[cpu], 1,
+		    VMBUS_PCPU_PTR(sc, message_tq, cpu));
+		taskqueue_start_threads(VMBUS_PCPU_PTR(sc, message_tq, cpu), 1,
 		    PI_NET, "hvmsg%d", cpu);
-		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[cpu], 0,
+		TASK_INIT(VMBUS_PCPU_PTR(sc, message_task, cpu), 0,
 		    vmbus_msg_task, sc);
 
 		CPU_SETOF(cpu, &cpu_mask);
 		TASK_INIT(&cpuset_task, 0, vmbus_cpuset_setthread_task,
 		    &cpu_mask);
-		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
+		taskqueue_enqueue(VMBUS_PCPU_GET(sc, message_tq, cpu),
 		    &cpuset_task);
-		taskqueue_drain(hv_vmbus_g_context.hv_msg_tq[cpu],
+		taskqueue_drain(VMBUS_PCPU_GET(sc, message_tq, cpu),
 		    &cpuset_task);
 	}
 
@@ -519,15 +518,15 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 	vmbus_vector_free(sc->vmbus_idtvec);
 
 	CPU_FOREACH(cpu) {
-		if (hv_vmbus_g_context.hv_event_queue[cpu] != NULL) {
-			taskqueue_free(hv_vmbus_g_context.hv_event_queue[cpu]);
-			hv_vmbus_g_context.hv_event_queue[cpu] = NULL;
+		if (VMBUS_PCPU_GET(sc, event_tq, cpu) != NULL) {
+			taskqueue_free(VMBUS_PCPU_GET(sc, event_tq, cpu));
+			VMBUS_PCPU_GET(sc, event_tq, cpu) = NULL;
 		}
-		if (hv_vmbus_g_context.hv_msg_tq[cpu] != NULL) {
-			taskqueue_drain(hv_vmbus_g_context.hv_msg_tq[cpu],
-			    &hv_vmbus_g_context.hv_msg_task[cpu]);
-			taskqueue_free(hv_vmbus_g_context.hv_msg_tq[cpu]);
-			hv_vmbus_g_context.hv_msg_tq[cpu] = NULL;
+		if (VMBUS_PCPU_GET(sc, message_tq, cpu) != NULL) {
+			taskqueue_drain(VMBUS_PCPU_GET(sc, message_tq, cpu),
+			    VMBUS_PCPU_PTR(sc, message_task, cpu));
+			taskqueue_free(VMBUS_PCPU_GET(sc, message_tq, cpu));
+			VMBUS_PCPU_GET(sc, message_tq, cpu) = NULL;
 		}
 	}
 }
