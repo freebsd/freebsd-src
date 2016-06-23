@@ -739,10 +739,11 @@ tcp_destroy(void *unused __unused)
 	 * Sleep to let all tcpcb timers really disappear and cleanup.
 	 */
 	do {
-		pause("tcpdes", hz/10);
 		INP_LIST_RLOCK(&V_tcbinfo);
 		n = V_tcbinfo.ipi_count;
 		INP_LIST_RUNLOCK(&V_tcbinfo);
+		if (n != 0)
+			pause("tcpdes", hz / 10);
 	} while (n != 0);
 	tcp_hc_destroy();
 	syncache_destroy();
