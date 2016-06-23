@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bcma_eromreg.h"
 #include "bcma_eromvar.h"
+#include <dev/bhnd/bhnd_core.h>
 
 int
 bcma_probe(device_t dev)
@@ -218,9 +219,33 @@ bcma_reset_core(device_t dev, device_t child, uint16_t flags)
 	if (dinfo->res_agent == NULL)
 		return (ENODEV);
 
-	// TODO - perform reset
+	/* Start reset */
+	bhnd_bus_write_4(dinfo->res_agent, BHND_RESET_CF, BHND_RESET_CF_ENABLE);
+	bhnd_bus_read_4(dinfo->res_agent, BHND_RESET_CF);
+	DELAY(10);
 
-	return (ENXIO);
+	/* Disable clock */
+	bhnd_bus_write_4(dinfo->res_agent, BHND_CF, flags);
+	bhnd_bus_read_4(dinfo->res_agent, BHND_CF);
+	DELAY(10);
+
+	/* Enable clocks & force clock gating */
+	bhnd_bus_write_4(dinfo->res_agent, BHND_CF, BHND_CF_CLOCK_EN |
+	    BHND_CF_FGC | flags);
+	bhnd_bus_read_4(dinfo->res_agent, BHND_CF);
+	DELAY(10);
+
+	/* Complete reset */
+	bhnd_bus_write_4(dinfo->res_agent, BHND_RESET_CF, 0);
+	bhnd_bus_read_4(dinfo->res_agent, BHND_RESET_CF);
+	DELAY(10);
+
+	/* Release force clock gating */
+	bhnd_bus_write_4(dinfo->res_agent, BHND_CF, BHND_CF_CLOCK_EN | flags);
+	bhnd_bus_read_4(dinfo->res_agent, BHND_CF);
+	DELAY(10);
+
+	return (0);
 }
 
 static int
