@@ -72,6 +72,8 @@ static int vmbus_inited;
 
 static char *vmbus_ids[] = { "VMBUS", NULL };
 
+extern inthand_t IDTVEC(rsvd), IDTVEC(hv_vmbus_callback);
+
 static void
 vmbus_msg_task(void *xsc, int pending __unused)
 {
@@ -360,6 +362,165 @@ vmbus_dma_free(struct vmbus_softc *sc)
 	}
 }
 
+/**
+ * @brief Find a free IDT slot and setup the interrupt handler.
+ */
+static int
+vmbus_vector_alloc(void)
+{
+	int vector;
+	uintptr_t func;
+	struct gate_descriptor *ip;
+
+	/*
+	 * Search backwards form the highest IDT vector available for use
+	 * as vmbus channel callback vector. We install 'hv_vmbus_callback'
+	 * handler at that vector and use it to interrupt vcpus.
+	 */
+	vector = APIC_SPURIOUS_INT;
+	while (--vector >= APIC_IPI_INTS) {
+		ip = &idt[vector];
+		func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
+		if (func == (uintptr_t)&IDTVEC(rsvd)) {
+#ifdef __i386__
+			setidt(vector , IDTVEC(hv_vmbus_callback), SDT_SYS386IGT,
+			    SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#else
+			setidt(vector , IDTVEC(hv_vmbus_callback), SDT_SYSIGT,
+			    SEL_KPL, 0);
+#endif
+
+			return (vector);
+		}
+	}
+	return (0);
+}
+
+/**
+ * @brief Restore the IDT slot to rsvd.
+ */
+static void
+vmbus_vector_free(int vector)
+{
+	uintptr_t func;
+	struct gate_descriptor *ip;
+
+	if (vector == 0)
+		return;
+
+	KASSERT(vector >= APIC_IPI_INTS && vector < APIC_SPURIOUS_INT,
+	    ("invalid vector %d", vector));
+
+	ip = &idt[vector];
+	func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
+	KASSERT(func == (uintptr_t)&IDTVEC(hv_vmbus_callback),
+	    ("invalid vector %d", vector));
+
+	setidt(vector, IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
+}
+
+static void
+vmbus_cpuset_setthread_task(void *xmask, int pending __unused)
+{
+	cpuset_t *mask = xmask;
+	int error;
+
+	error = cpuset_setthread(curthread->td_tid, mask);
+	if (error) {
+		panic("curthread=%ju: can't pin; error=%d",
+		    (uintmax_t)curthread->td_tid, error);
+	}
+}
+
+static int
+vmbus_intr_setup(struct vmbus_softc *sc)
+{
+	int cpu;
+
+	/*
+	 * Find a free IDT vector for vmbus messages/events.
+	 */
+	sc->vmbus_idtvec = vmbus_vector_alloc();
+	if (sc->vmbus_idtvec == 0) {
+		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
+		return ENXIO;
+	}
+	if(bootverbose) {
+		device_printf(sc->vmbus_dev, "vmbus IDT vector %d\n",
+		    sc->vmbus_idtvec);
+	}
+
+	CPU_FOREACH(cpu) {
+		char buf[MAXCOMLEN + 1];
+
+		snprintf(buf, sizeof(buf), "cpu%d:hyperv", cpu);
+		intrcnt_add(buf, VMBUS_PCPU_PTR(sc, intr_cnt, cpu));
+	}
+
+	/*
+	 * Per cpu setup.
+	 */
+	CPU_FOREACH(cpu) {
+		struct task cpuset_task;
+		cpuset_t cpu_mask;
+
+		/*
+		 * Setup taskqueue to handle events
+		 */
+		hv_vmbus_g_context.hv_event_queue[cpu] =
+		    taskqueue_create_fast("hyperv event", M_WAITOK,
+		    taskqueue_thread_enqueue,
+		    &hv_vmbus_g_context.hv_event_queue[cpu]);
+		taskqueue_start_threads(&hv_vmbus_g_context.hv_event_queue[cpu],
+		    1, PI_NET, "hvevent%d", cpu);
+
+		CPU_SETOF(cpu, &cpu_mask);
+		TASK_INIT(&cpuset_task, 0, vmbus_cpuset_setthread_task,
+		    &cpu_mask);
+		taskqueue_enqueue(hv_vmbus_g_context.hv_event_queue[cpu],
+		    &cpuset_task);
+		taskqueue_drain(hv_vmbus_g_context.hv_event_queue[cpu],
+		    &cpuset_task);
+
+		/*
+		 * Setup per-cpu tasks and taskqueues to handle msg.
+		 */
+		hv_vmbus_g_context.hv_msg_tq[cpu] = taskqueue_create_fast(
+		    "hyperv msg", M_WAITOK, taskqueue_thread_enqueue,
+		    &hv_vmbus_g_context.hv_msg_tq[cpu]);
+		taskqueue_start_threads(&hv_vmbus_g_context.hv_msg_tq[cpu], 1,
+		    PI_NET, "hvmsg%d", cpu);
+		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[cpu], 0,
+		    vmbus_msg_task, sc);
+
+		CPU_SETOF(cpu, &cpu_mask);
+		TASK_INIT(&cpuset_task, 0, vmbus_cpuset_setthread_task,
+		    &cpu_mask);
+		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
+		    &cpuset_task);
+		taskqueue_drain(hv_vmbus_g_context.hv_msg_tq[cpu],
+		    &cpuset_task);
+	}
+	return 0;
+}
+
+static void
+vmbus_intr_teardown(struct vmbus_softc *sc)
+{
+	int cpu;
+
+	/*
+	 * remove swi and vmbus callback vector;
+	 */
+	CPU_FOREACH(cpu) {
+		if (hv_vmbus_g_context.hv_event_queue[cpu] != NULL) {
+			taskqueue_free(hv_vmbus_g_context.hv_event_queue[cpu]);
+			hv_vmbus_g_context.hv_event_queue[cpu] = NULL;
+		}
+	}
+	vmbus_vector_free(sc->vmbus_idtvec);
+}
+
 static int
 vmbus_read_ivar(
 	device_t	dev,
@@ -504,78 +665,6 @@ vmbus_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-extern inthand_t IDTVEC(rsvd), IDTVEC(hv_vmbus_callback);
-
-/**
- * @brief Find a free IDT slot and setup the interrupt handler.
- */
-static int
-vmbus_vector_alloc(void)
-{
-	int vector;
-	uintptr_t func;
-	struct gate_descriptor *ip;
-
-	/*
-	 * Search backwards form the highest IDT vector available for use
-	 * as vmbus channel callback vector. We install 'hv_vmbus_callback'
-	 * handler at that vector and use it to interrupt vcpus.
-	 */
-	vector = APIC_SPURIOUS_INT;
-	while (--vector >= APIC_IPI_INTS) {
-		ip = &idt[vector];
-		func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
-		if (func == (uintptr_t)&IDTVEC(rsvd)) {
-#ifdef __i386__
-			setidt(vector , IDTVEC(hv_vmbus_callback), SDT_SYS386IGT,
-			    SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#else
-			setidt(vector , IDTVEC(hv_vmbus_callback), SDT_SYSIGT,
-			    SEL_KPL, 0);
-#endif
-
-			return (vector);
-		}
-	}
-	return (0);
-}
-
-/**
- * @brief Restore the IDT slot to rsvd.
- */
-static void
-vmbus_vector_free(int vector)
-{
-        uintptr_t func;
-        struct gate_descriptor *ip;
-
-	if (vector == 0)
-		return;
-
-        KASSERT(vector >= APIC_IPI_INTS && vector < APIC_SPURIOUS_INT,
-            ("invalid vector %d", vector));
-
-        ip = &idt[vector];
-        func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
-        KASSERT(func == (uintptr_t)&IDTVEC(hv_vmbus_callback),
-            ("invalid vector %d", vector));
-
-        setidt(vector, IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
-}
-
-static void
-vmbus_cpuset_setthread_task(void *xmask, int pending __unused)
-{
-	cpuset_t *mask = xmask;
-	int error;
-
-	error = cpuset_setthread(curthread->td_tid, mask);
-	if (error) {
-		panic("curthread=%ju: can't pin; error=%d",
-		    (uintmax_t)curthread->td_tid, error);
-	}
-}
-
 /**
  * @brief Main vmbus driver initialization routine.
  *
@@ -592,9 +681,7 @@ static int
 vmbus_bus_init(void)
 {
 	struct vmbus_softc *sc;
-	int ret, cpu;
-	char buf[MAXCOMLEN + 1];
-	cpuset_t cpu_mask;
+	int ret;
 
 	if (vmbus_inited)
 		return (0);
@@ -603,70 +690,14 @@ vmbus_bus_init(void)
 	sc = vmbus_get_softc();
 
 	/*
-	 * Find a free IDT vector for vmbus messages/events.
+	 * Setup interrupt.
 	 */
-	sc->vmbus_idtvec = vmbus_vector_alloc();
-	if (sc->vmbus_idtvec == 0) {
-		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
-		ret = ENXIO;
+	ret = vmbus_intr_setup(sc);
+	if (ret != 0)
 		goto cleanup;
-	}
-	if(bootverbose) {
-		device_printf(sc->vmbus_dev, "vmbus IDT vector %d\n",
-		    sc->vmbus_idtvec);
-	}
-
-	CPU_FOREACH(cpu) {
-		snprintf(buf, sizeof(buf), "cpu%d:hyperv", cpu);
-		intrcnt_add(buf, VMBUS_PCPU_PTR(sc, intr_cnt, cpu));
-	}
 
 	/*
-	 * Per cpu setup.
-	 */
-	CPU_FOREACH(cpu) {
-		struct task cpuset_task;
-
-		/*
-		 * Setup taskqueue to handle events
-		 */
-		hv_vmbus_g_context.hv_event_queue[cpu] =
-		    taskqueue_create_fast("hyperv event", M_WAITOK,
-		    taskqueue_thread_enqueue,
-		    &hv_vmbus_g_context.hv_event_queue[cpu]);
-		taskqueue_start_threads(&hv_vmbus_g_context.hv_event_queue[cpu],
-		    1, PI_NET, "hvevent%d", cpu);
-
-		CPU_SETOF(cpu, &cpu_mask);
-		TASK_INIT(&cpuset_task, 0, vmbus_cpuset_setthread_task,
-		    &cpu_mask);
-		taskqueue_enqueue(hv_vmbus_g_context.hv_event_queue[cpu],
-		    &cpuset_task);
-		taskqueue_drain(hv_vmbus_g_context.hv_event_queue[cpu],
-		    &cpuset_task);
-
-		/*
-		 * Setup per-cpu tasks and taskqueues to handle msg.
-		 */
-		hv_vmbus_g_context.hv_msg_tq[cpu] = taskqueue_create_fast(
-		    "hyperv msg", M_WAITOK, taskqueue_thread_enqueue,
-		    &hv_vmbus_g_context.hv_msg_tq[cpu]);
-		taskqueue_start_threads(&hv_vmbus_g_context.hv_msg_tq[cpu], 1,
-		    PI_NET, "hvmsg%d", cpu);
-		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[cpu], 0,
-		    vmbus_msg_task, sc);
-
-		CPU_SETOF(cpu, &cpu_mask);
-		TASK_INIT(&cpuset_task, 0, vmbus_cpuset_setthread_task,
-		    &cpu_mask);
-		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
-		    &cpuset_task);
-		taskqueue_drain(hv_vmbus_g_context.hv_msg_tq[cpu],
-		    &cpuset_task);
-	}
-
-	/*
-	 * Allocate vmbus DMA stuffs.
+	 * Allocate DMA stuffs.
 	 */
 	vmbus_dma_alloc(sc);
 
@@ -681,7 +712,7 @@ vmbus_bus_init(void)
 	ret = hv_vmbus_connect();
 
 	if (ret != 0)
-		goto cleanup1;
+		goto cleanup;
 
 	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
 	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)
@@ -697,22 +728,10 @@ vmbus_bus_init(void)
 
 	return (ret);
 
-cleanup1:
+cleanup:
 	vmbus_dma_free(sc);
+	vmbus_intr_teardown(sc);
 
-	/*
-	 * remove swi and vmbus callback vector;
-	 */
-	CPU_FOREACH(cpu) {
-		if (hv_vmbus_g_context.hv_event_queue[cpu] != NULL) {
-			taskqueue_free(hv_vmbus_g_context.hv_event_queue[cpu]);
-			hv_vmbus_g_context.hv_event_queue[cpu] = NULL;
-		}
-	}
-
-	vmbus_vector_free(sc->vmbus_idtvec);
-
-	cleanup:
 	return (ret);
 }
 
@@ -767,7 +786,6 @@ static int
 vmbus_detach(device_t dev)
 {
 	struct vmbus_softc *sc = device_get_softc(dev);
-	int i;
 
 	hv_vmbus_release_unattached_channels();
 	hv_vmbus_disconnect();
@@ -775,16 +793,7 @@ vmbus_detach(device_t dev)
 	smp_rendezvous(NULL, vmbus_synic_teardown, NULL, NULL);
 
 	vmbus_dma_free(sc);
-
-	/* remove swi */
-	CPU_FOREACH(i) {
-		if (hv_vmbus_g_context.hv_event_queue[i] != NULL) {
-			taskqueue_free(hv_vmbus_g_context.hv_event_queue[i]);
-			hv_vmbus_g_context.hv_event_queue[i] = NULL;
-		}
-	}
-
-	vmbus_vector_free(sc->vmbus_idtvec);
+	vmbus_intr_teardown(sc);
 
 	return (0);
 }
