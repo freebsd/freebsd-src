@@ -561,6 +561,13 @@ typedef int (*libusb_hotplug_callback_fn)(libusb_context *ctx,
 int	libusb_hotplug_register_callback(libusb_context *ctx, libusb_hotplug_event events, libusb_hotplug_flag flags, int vendor_id, int product_id, int dev_class, libusb_hotplug_callback_fn cb_fn, void *user_data, libusb_hotplug_callback_handle *handle);
 void	libusb_hotplug_deregister_callback(libusb_context *ctx, libusb_hotplug_callback_handle handle);
 
+/* Streams support */
+
+int	libusb_alloc_streams(libusb_device_handle *dev, uint32_t num_streams, unsigned char *endpoints, int num_endpoints);
+int	libusb_free_streams(libusb_device_handle *dev, unsigned char *endpoints, int num_endpoints);
+void	libusb_transfer_set_stream_id(struct libusb_transfer *transfer, uint32_t stream_id);
+uint32_t libusb_transfer_get_stream_id(struct libusb_transfer *transfer);
+
 #if 0
 {					/* indent fix */
 #endif

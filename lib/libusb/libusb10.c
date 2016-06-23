@@ -1403,7 +1403,8 @@ found:
 	maxframe = libusb10_get_maxframe(pdev, uxfer);
 
 	/* make sure the transfer is opened */
-	err = libusb20_tr_open(pxfer0, buffsize, maxframe, endpoint);
+	err = libusb20_tr_open_stream(pxfer0, buffsize, maxframe,
+	    endpoint, sxfer->stream_id);
 	if (err && (err != LIBUSB20_ERROR_BUSY)) {
 		goto failure;
 	}

@@ -69,6 +69,7 @@ struct libusb_super_transfer {
 	uint8_t *curr_data;
 	uint32_t rem_len;
 	uint32_t last_len;
+	uint32_t stream_id;
 	uint8_t	state;
 #define	LIBUSB_SUPER_XFER_ST_NONE 0
 #define	LIBUSB_SUPER_XFER_ST_PEND 1

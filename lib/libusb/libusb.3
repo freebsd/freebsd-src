@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2016
+.Dd June 23, 2016
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -521,6 +521,29 @@ if the transfer timed out, LIBUSB_ERROR_PIPE if the control request was not
 supported, LIBUSB_ERROR_OVERFLOW if the device offered more data,
 LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and
 a LIBUSB_ERROR code on other failure.
+.Sh USB STREAMS SUPPORT
+.Ft int
+.Fn libusb_alloc_streams "libusb_device_handle *dev" "uint32_t num_streams" "unsigned char *endpoints" "int num_endpoints"
+This function verifies that the given number of streams using the
+given number of endpoints is allowed and allocates the resources
+needed to use so-called USB streams.
+Currently only a single stream per endpoint is supported to simplify
+the internals of LibUSB.
+This function returns 0 on success or a LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
+.Fn libusb_free_streams "libusb_device_handle *dev" "unsigned char *endpoints" "int num_endpoints"
+This function release resources needed for streams usage.
+Returns 0 on success or a LIBUSB_ERROR code on failure.
+.Pp
+.Ft void
+.Fn libusb_transfer_set_stream_id "struct libusb_transfer *transfer" "uint32_t stream_id"
+This function sets the stream ID for the given USB transfer.
+.Pp
+.Ft uint32_t
+.Fn libusb_transfer_get_stream_id "struct libusb_transfer *transfer"
+This function returns the stream ID for the given USB transfer.
+If no stream ID is used a value of zero is returned.
 .Sh USB EVENTS
 .Ft int
 .Fn libusb_try_lock_events "libusb_context *ctx"
