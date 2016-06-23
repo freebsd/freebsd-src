@@ -157,19 +157,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_util.h>
 #include <dev/iwm/if_iwm_pcie_trans.h>
 
-static void
-iwm_dma_map_mem(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{
-        if (error != 0)
-                return;
-	KASSERT(nsegs <= 2, ("too many DMA segments, %d should be <= 2",
-	    nsegs));
-	if (nsegs > 1)
-		KASSERT(segs[1].ds_addr == segs[0].ds_addr + segs[0].ds_len,
-		    ("fragmented DMA memory"));
-	*(bus_addr_t *)arg = segs[0].ds_addr;
-}
-
 /*
  * Send a command to the firmware.  We try to implement the Linux
  * driver interface for the routine.
@@ -183,12 +170,15 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	struct iwm_tx_ring *ring = &sc->txq[IWM_MVM_CMD_QUEUE];
 	struct iwm_tfd *desc;
 	struct iwm_tx_data *data;
-	struct iwm_device_cmd *cmd = NULL;
+	struct iwm_device_cmd *cmd;
+	struct mbuf *m;
+	bus_dma_segment_t seg;
 	bus_addr_t paddr;
 	uint32_t addr_lo;
 	int error = 0, i, paylen, off;
 	int code;
 	int async, wantresp;
+	int nsegs;
 
 	code = hcmd->id;
 	async = hcmd->flags & IWM_CMD_ASYNC;
@@ -231,15 +221,24 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 			error = EINVAL;
 			goto out;
 		}
-		error = bus_dmamem_alloc(ring->data_dmat, (void **)&cmd,
-		    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &data->map);
-		if (error != 0)
+		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, IWM_RBUF_SIZE);
+		if (m == NULL) {
+			error = ENOBUFS;
 			goto out;
-		error = bus_dmamap_load(ring->data_dmat, data->map,
-		    cmd, paylen + sizeof(cmd->hdr), iwm_dma_map_mem,
-		    &paddr, BUS_DMA_NOWAIT);
-		if (error != 0)
+		}
+
+		m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
+		error = bus_dmamap_load_mbuf_sg(ring->data_dmat,
+		    data->map, m, &seg, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: can't map mbuf, error %d\n", __func__, error);
+			m_freem(m);
 			goto out;
+		}
+		data->m = m; /* mbuf will be freed in iwm_cmd_done() */
+		cmd = mtod(m, struct iwm_device_cmd *);
+		paddr = seg.ds_addr;
 	} else {
 		cmd = &ring->cmd[ring->cur];
 		paddr = data->cmd_paddr;
@@ -319,8 +318,6 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 		}
 	}
  out:
-	if (cmd && paylen > sizeof(cmd->data))
-		bus_dmamem_free(ring->data_dmat, cmd, data->map);
 	if (wantresp && error != 0) {
 		iwm_free_resp(sc, hcmd);
 	}
