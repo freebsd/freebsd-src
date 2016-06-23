@@ -186,7 +186,14 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	 * Make sure this is a new offer
 	 */
 	mtx_lock(&hv_vmbus_g_connection.channel_lock);
-	hv_vmbus_g_connection.channels[relid] = new_channel;
+	if (relid == 0) {
+		/*
+		 * XXX channel0 will not be processed; skip it.
+		 */
+		printf("VMBUS: got channel0 offer\n");
+	} else {
+		hv_vmbus_g_connection.channels[relid] = new_channel;
+	}
 
 	TAILQ_FOREACH(channel, &hv_vmbus_g_connection.channel_anchor,
 	    list_entry) {
