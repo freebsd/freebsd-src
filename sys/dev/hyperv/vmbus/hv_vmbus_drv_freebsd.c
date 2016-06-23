@@ -78,7 +78,7 @@ vmbus_msg_task(void *xsc, int pending __unused)
 	struct vmbus_softc *sc = xsc;
 	hv_vmbus_message *msg;
 
-	msg = VMBUS_SC_PCPU_GET(sc, message, curcpu) + HV_VMBUS_MESSAGE_SINT;
+	msg = VMBUS_PCPU_GET(sc, message, curcpu) + HV_VMBUS_MESSAGE_SINT;
 	for (;;) {
 		const hv_vmbus_channel_msg_table_entry *entry;
 		hv_vmbus_channel_msg_header *hdr;
@@ -141,7 +141,7 @@ hv_vmbus_isr(struct vmbus_softc *sc, struct trapframe *frame, int cpu)
 	sc->vmbus_event_proc(sc, cpu);
 
 	/* Check if there are actual msgs to be process */
-	msg_base = VMBUS_SC_PCPU_GET(sc, message, cpu);
+	msg_base = VMBUS_PCPU_GET(sc, message, cpu);
 	msg = msg_base + HV_VMBUS_TIMER_SINT;
 
 	/* we call eventtimer process the message */
@@ -196,7 +196,7 @@ hv_vector_handler(struct trapframe *trap_frame)
 	/*
 	 * Do a little interrupt counting.
 	 */
-	(*VMBUS_SC_PCPU_GET(sc, intr_cnt, cpu))++;
+	(*VMBUS_PCPU_GET(sc, intr_cnt, cpu))++;
 
 	hv_vmbus_isr(sc, trap_frame, cpu);
 
@@ -231,7 +231,7 @@ vmbus_synic_setup(void *arg __unused)
 	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
 	simp.u.simp_enabled = 1;
 	simp.u.base_simp_gpa =
-	    VMBUS_SC_PCPU_GET(sc, message_dma.hv_paddr, cpu) >> PAGE_SHIFT;
+	    VMBUS_PCPU_GET(sc, message_dma.hv_paddr, cpu) >> PAGE_SHIFT;
 
 	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
 
@@ -241,7 +241,7 @@ vmbus_synic_setup(void *arg __unused)
 	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
 	siefp.u.siefp_enabled = 1;
 	siefp.u.base_siefp_gpa =
-	    VMBUS_SC_PCPU_GET(sc, event_flag_dma.hv_paddr, cpu) >> PAGE_SHIFT;
+	    VMBUS_PCPU_GET(sc, event_flag_dma.hv_paddr, cpu) >> PAGE_SHIFT;
 
 	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 
@@ -328,13 +328,13 @@ vmbus_dma_alloc(struct vmbus_softc *sc)
 		/*
 		 * Per-cpu messages and event flags.
 		 */
-		VMBUS_SC_PCPU_GET(sc, message, cpu) = hyperv_dmamem_alloc(
+		VMBUS_PCPU_GET(sc, message, cpu) = hyperv_dmamem_alloc(
 		    bus_get_dma_tag(sc->vmbus_dev), PAGE_SIZE, 0, PAGE_SIZE,
-		    VMBUS_SC_PCPU_PTR(sc, message_dma, cpu),
+		    VMBUS_PCPU_PTR(sc, message_dma, cpu),
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
-		VMBUS_SC_PCPU_GET(sc, event_flag, cpu) = hyperv_dmamem_alloc(
+		VMBUS_PCPU_GET(sc, event_flag, cpu) = hyperv_dmamem_alloc(
 		    bus_get_dma_tag(sc->vmbus_dev), PAGE_SIZE, 0, PAGE_SIZE,
-		    VMBUS_SC_PCPU_PTR(sc, event_flag_dma, cpu),
+		    VMBUS_PCPU_PTR(sc, event_flag_dma, cpu),
 		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	}
 }
@@ -345,17 +345,17 @@ vmbus_dma_free(struct vmbus_softc *sc)
 	int cpu;
 
 	CPU_FOREACH(cpu) {
-		if (VMBUS_SC_PCPU_GET(sc, message, cpu) != NULL) {
+		if (VMBUS_PCPU_GET(sc, message, cpu) != NULL) {
 			hyperv_dmamem_free(
-			    VMBUS_SC_PCPU_PTR(sc, message_dma, cpu),
-			    VMBUS_SC_PCPU_GET(sc, message, cpu));
-			VMBUS_SC_PCPU_GET(sc, message, cpu) = NULL;
+			    VMBUS_PCPU_PTR(sc, message_dma, cpu),
+			    VMBUS_PCPU_GET(sc, message, cpu));
+			VMBUS_PCPU_GET(sc, message, cpu) = NULL;
 		}
-		if (VMBUS_SC_PCPU_GET(sc, event_flag, cpu) != NULL) {
+		if (VMBUS_PCPU_GET(sc, event_flag, cpu) != NULL) {
 			hyperv_dmamem_free(
-			    VMBUS_SC_PCPU_PTR(sc, event_flag_dma, cpu),
-			    VMBUS_SC_PCPU_GET(sc, event_flag, cpu));
-			VMBUS_SC_PCPU_GET(sc, event_flag, cpu) = NULL;
+			    VMBUS_PCPU_PTR(sc, event_flag_dma, cpu),
+			    VMBUS_PCPU_GET(sc, event_flag, cpu));
+			VMBUS_PCPU_GET(sc, event_flag, cpu) = NULL;
 		}
 	}
 }
@@ -618,7 +618,7 @@ vmbus_bus_init(void)
 
 	CPU_FOREACH(cpu) {
 		snprintf(buf, sizeof(buf), "cpu%d:hyperv", cpu);
-		intrcnt_add(buf, VMBUS_SC_PCPU_PTR(sc, intr_cnt, cpu));
+		intrcnt_add(buf, VMBUS_PCPU_PTR(sc, intr_cnt, cpu));
 	}
 
 	/*
