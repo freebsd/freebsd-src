@@ -813,8 +813,6 @@ vi_intr_iq(struct vi_info *vi, int idx)
 	if (sc->intr_count == 1)
 		return (&sc->sge.fwq);
 
-	KASSERT(!(vi->flags & VI_NETMAP),
-	    ("%s: called on netmap VI", __func__));
 	nintr = vi->nintr;
 	KASSERT(nintr != 0,
 	    ("%s: vi %p has no exclusive interrupts, total interrupts = %d",
@@ -881,6 +879,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 	struct sge_wrq *ofld_txq;
 #endif
 #ifdef DEV_NETMAP
+	int saved_idx;
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
 #endif
@@ -896,13 +895,18 @@ t4_setup_vi_queues(struct vi_info *vi)
 	intr_idx = first_vector(vi);
 
 #ifdef DEV_NETMAP
-	if (vi->flags & VI_NETMAP) {
+	saved_idx = intr_idx;
+	if (ifp->if_capabilities & IFCAP_NETMAP) {
+
+		/* netmap is supported with direct interrupts only. */
+		MPASS(vi->flags & INTR_RXQ);
+
 		/*
 		 * We don't have buffers to back the netmap rx queues
 		 * right now so we create the queues in a way that
 		 * doesn't set off any congestion signal in the chip.
 		 */
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "rxq",
+		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_rxq",
 		    CTLFLAG_RD, NULL, "rx queues");
 		for_each_nm_rxq(vi, i, nm_rxq) {
 			rc = alloc_nm_rxq(vi, nm_rxq, intr_idx, i, oid);
@@ -911,16 +915,18 @@ t4_setup_vi_queues(struct vi_info *vi)
 			intr_idx++;
 		}
 
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "txq",
+		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_txq",
 		    CTLFLAG_RD, NULL, "tx queues");
 		for_each_nm_txq(vi, i, nm_txq) {
-			iqid = vi->first_rxq + (i % vi->nrxq);
+			iqid = vi->first_nm_rxq + (i % vi->nnmrxq);
 			rc = alloc_nm_txq(vi, nm_txq, iqid, i, oid);
 			if (rc != 0)
 				goto done;
 		}
-		goto done;
 	}
+
+	/* Normal rx queues and netmap rx queues share the same interrupts. */
+	intr_idx = saved_idx;
 #endif
 
 	/*
@@ -949,6 +955,10 @@ t4_setup_vi_queues(struct vi_info *vi)
 			intr_idx++;
 		}
 	}
+#ifdef DEV_NETMAP
+	if (ifp->if_capabilities & IFCAP_NETMAP)
+		intr_idx = saved_idx + max(vi->nrxq, vi->nnmrxq);
+#endif
 #ifdef TCP_OFFLOAD
 	maxp = mtu_to_max_payload(sc, mtu, 1);
 	if (vi->flags & INTR_OFLD_RXQ) {
@@ -1101,7 +1111,7 @@ t4_teardown_vi_queues(struct vi_info *vi)
 	}
 
 #ifdef DEV_NETMAP
-	if (vi->flags & VI_NETMAP) {
+	if (vi->ifp->if_capabilities & IFCAP_NETMAP) {
 		for_each_nm_txq(vi, i, nm_txq) {
 			free_nm_txq(vi, nm_txq);
 		}
@@ -1109,7 +1119,6 @@ t4_teardown_vi_queues(struct vi_info *vi)
 		for_each_nm_rxq(vi, i, nm_rxq) {
 			free_nm_rxq(vi, nm_rxq);
 		}
-		return (0);
 	}
 #endif
 
@@ -1211,6 +1220,21 @@ t4_intr(void *arg)
 		service_iq(iq, 0);
 		atomic_cmpset_int(&iq->state, IQS_BUSY, IQS_IDLE);
 	}
+}
+
+void
+t4_vi_intr(void *arg)
+{
+	struct irq *irq = arg;
+
+#ifdef DEV_NETMAP
+	if (atomic_cmpset_int(&irq->nm_state, NM_ON, NM_BUSY)) {
+		t4_nm_intr(irq->nm_rxq);
+		atomic_cmpset_int(&irq->nm_state, NM_BUSY, NM_ON);
+	}
+#endif
+	if (irq->rxq != NULL)
+		t4_intr(irq->rxq);
 }
 
 /*

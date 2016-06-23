@@ -208,7 +208,6 @@ enum {
 	INTR_RXQ	= (1 << 4),	/* All NIC rxq's take interrupts */
 	INTR_OFLD_RXQ	= (1 << 5),	/* All TOE rxq's take interrupts */
 	INTR_ALL	= (INTR_RXQ | INTR_OFLD_RXQ),
-	VI_NETMAP	= (1 << 6),
 
 	/* adapter debug_flags */
 	DF_DUMP_MBOX	= (1 << 0),
@@ -230,7 +229,7 @@ struct vi_info {
 	unsigned long flags;
 	int if_flags;
 
-	uint16_t *rss;
+	uint16_t *rss, *nm_rss;
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
@@ -251,6 +250,10 @@ struct vi_info {
 	int first_ofld_txq;	/* index of first offload tx queue */
 	int nofldrxq;		/* # of offload rx queues */
 	int first_ofld_rxq;	/* index of first offload rx queue */
+	int nnmtxq;
+	int first_nm_txq;
+	int nnmrxq;
+	int first_nm_rxq;
 	int tmr_idx;
 	int pktc_idx;
 	int qsize_rxq;
@@ -362,6 +365,11 @@ enum {
 	IQS_DISABLED	= 0,
 	IQS_BUSY	= 1,
 	IQS_IDLE	= 2,
+
+	/* netmap related flags */
+	NM_OFF	= 0,
+	NM_ON	= 1,
+	NM_BUSY	= 2,
 };
 
 /*
@@ -765,8 +773,11 @@ struct adapter {
 	struct irq {
 		struct resource *res;
 		int rid;
+		volatile int nm_state;	/* NM_OFF, NM_ON, or NM_BUSY */
 		void *tag;
-	} *irq;
+		struct sge_rxq *rxq;
+		struct sge_nm_rxq *nm_rxq;
+	} __aligned(CACHE_LINE_SIZE) *irq;
 
 	bus_dma_tag_t dmat;	/* Parent DMA tag */
 
@@ -911,11 +922,11 @@ struct adapter {
 	for (q = &vi->pi->adapter->sge.ofld_rxq[vi->first_ofld_rxq], iter = 0; \
 	    iter < vi->nofldrxq; ++iter, ++q)
 #define for_each_nm_txq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.nm_txq[vi->first_txq], iter = 0; \
-	    iter < vi->ntxq; ++iter, ++q)
+	for (q = &vi->pi->adapter->sge.nm_txq[vi->first_nm_txq], iter = 0; \
+	    iter < vi->nnmtxq; ++iter, ++q)
 #define for_each_nm_rxq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.nm_rxq[vi->first_rxq], iter = 0; \
-	    iter < vi->nrxq; ++iter, ++q)
+	for (q = &vi->pi->adapter->sge.nm_rxq[vi->first_nm_rxq], iter = 0; \
+	    iter < vi->nnmrxq; ++iter, ++q)
 #define for_each_vi(_pi, _iter, _vi) \
 	for ((_vi) = (_pi)->vi, (_iter) = 0; (_iter) < (_pi)->nvi; \
 	     ++(_iter), ++(_vi))
@@ -1087,8 +1098,8 @@ void vi_tick(void *);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */
-int create_netmap_ifnet(struct port_info *);
-int destroy_netmap_ifnet(struct port_info *);
+void cxgbe_nm_attach(struct vi_info *);
+void cxgbe_nm_detach(struct vi_info *);
 void t4_nm_intr(void *);
 #endif
 
@@ -1109,6 +1120,7 @@ int t4_setup_vi_queues(struct vi_info *);
 int t4_teardown_vi_queues(struct vi_info *);
 void t4_intr_all(void *);
 void t4_intr(void *);
+void t4_vi_intr(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
 void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
