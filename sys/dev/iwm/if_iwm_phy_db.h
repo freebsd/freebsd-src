@@ -109,4 +109,5 @@
 extern	int iwm_phy_db_set_section(struct iwm_softc *sc,
 	     struct iwm_calib_res_notif_phy_db *phy_db_notif);
 extern	int iwm_send_phy_db_data(struct iwm_softc *sc);
+extern	void iwm_phy_db_free(struct iwm_softc *sc);
 #endif	/* __IF_IWM_PHY_DB_H__ */

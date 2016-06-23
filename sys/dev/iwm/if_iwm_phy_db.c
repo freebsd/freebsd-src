@@ -451,3 +451,33 @@ iwm_send_phy_db_data(struct iwm_softc *sc)
 	    __func__);
 	return 0;
 }
+
+static void
+iwm_phy_db_free_section(struct iwm_softc *sc,
+    enum iwm_phy_db_section_type type, uint16_t chg_id)
+{
+	struct iwm_phy_db_entry *entry =
+	    iwm_phy_db_get_section(sc, type, chg_id);
+	if (!entry)
+		return;
+
+	if (entry->data != NULL)
+		free(entry->data, M_DEVBUF);
+	entry->data = NULL;
+	entry->size = 0;
+}
+
+void
+iwm_phy_db_free(struct iwm_softc *sc)
+{
+	int i;
+
+	iwm_phy_db_free_section(sc, IWM_PHY_DB_CFG, 0);
+	iwm_phy_db_free_section(sc, IWM_PHY_DB_CALIB_NCH, 0);
+
+	for (i = 0; i < IWM_NUM_PAPD_CH_GROUPS; i++)
+		iwm_phy_db_free_section(sc, IWM_PHY_DB_CALIB_CHG_PAPD, i);
+
+	for (i = 0; i < IWM_NUM_TXP_CH_GROUPS; i++)
+		iwm_phy_db_free_section(sc, IWM_PHY_DB_CALIB_CHG_TXP, i);
+}

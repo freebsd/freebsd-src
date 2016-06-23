@@ -5014,6 +5014,8 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	if (do_net80211)
 		ieee80211_ifdetach(&sc->sc_ic);
 
+	iwm_phy_db_free(sc);
+
 	/* Free descriptor rings */
 	iwm_free_rx_ring(sc, &sc->rxq);
 	for (i = 0; i < nitems(sc->txq); i++)
