@@ -738,13 +738,14 @@ tcp_destroy(void *unused __unused)
 	 * up, which means, we should be past the tcp_discardcb() calls.
 	 * Sleep to let all tcpcb timers really disappear and cleanup.
 	 */
-	do {
+	for (;;) {
 		INP_LIST_RLOCK(&V_tcbinfo);
 		n = V_tcbinfo.ipi_count;
 		INP_LIST_RUNLOCK(&V_tcbinfo);
-		if (n != 0)
-			pause("tcpdes", hz / 10);
-	} while (n != 0);
+		if (n == 0)
+			break;
+		pause("tcpdes", hz / 10);
+	}
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
