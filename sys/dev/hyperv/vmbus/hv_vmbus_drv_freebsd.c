@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 struct vmbus_softc	*vmbus_sc;
 
-static device_t vmbus_devp;
 static int vmbus_inited;
 static hv_setup_args setup_args; /* only CPU 0 supported at this time */
 
@@ -79,8 +78,9 @@ vmbus_msg_task(void *arg __unused, int pending __unused)
 {
 	hv_vmbus_message *msg;
 
-	msg = ((hv_vmbus_message *)hv_vmbus_g_context.syn_ic_msg_page[curcpu]) +
+	msg = hv_vmbus_g_context.syn_ic_msg_page[curcpu] +
 	    HV_VMBUS_MESSAGE_SINT;
+
 	for (;;) {
 		const hv_vmbus_channel_msg_table_entry *entry;
 		hv_vmbus_channel_msg_header *hdr;
@@ -134,9 +134,8 @@ static inline int
 hv_vmbus_isr(struct trapframe *frame)
 {
 	struct vmbus_softc *sc = vmbus_get_softc();
+	hv_vmbus_message *msg, *msg_base;
 	int cpu = curcpu;
-	hv_vmbus_message *msg;
-	void *page_addr;
 
 	/*
 	 * The Windows team has advised that we check for events
@@ -146,8 +145,8 @@ hv_vmbus_isr(struct trapframe *frame)
 	sc->vmbus_event_proc(sc, cpu);
 
 	/* Check if there are actual msgs to be process */
-	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
-	msg = ((hv_vmbus_message *)page_addr) + HV_VMBUS_TIMER_SINT;
+	msg_base = hv_vmbus_g_context.syn_ic_msg_page[cpu];
+	msg = msg_base + HV_VMBUS_TIMER_SINT;
 
 	/* we call eventtimer process the message */
 	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
@@ -178,7 +177,7 @@ hv_vmbus_isr(struct trapframe *frame)
 		}
 	}
 
-	msg = ((hv_vmbus_message *)page_addr) + HV_VMBUS_MESSAGE_SINT;
+	msg = msg_base + HV_VMBUS_MESSAGE_SINT;
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
 		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
 		    &hv_vmbus_g_context.hv_msg_task[cpu]);
@@ -324,7 +323,7 @@ hv_vmbus_child_device_register(struct hv_device *child_dev)
 		printf("VMBUS: Class ID: %s\n", name);
 	}
 
-	child = device_add_child(vmbus_devp, NULL, -1);
+	child = device_add_child(vmbus_get_device(), NULL, -1);
 	child_dev->device = child;
 	device_set_ivars(child, child_dev);
 
@@ -340,7 +339,7 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 	 * device_add_child()
 	 */
 	mtx_lock(&Giant);
-	ret = device_delete_child(vmbus_devp, child_dev->device);
+	ret = device_delete_child(vmbus_get_device(), child_dev->device);
 	mtx_unlock(&Giant);
 	return(ret);
 }
@@ -349,7 +348,7 @@ static int
 vmbus_probe(device_t dev)
 {
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
-	    device_get_unit(dev) != 0)
+	    device_get_unit(dev) != 0 || vm_guest != VM_GUEST_HV)
 		return (ENXIO);
 
 	device_set_desc(dev, "Hyper-V Vmbus");
@@ -455,14 +454,6 @@ vmbus_bus_init(void)
 	vmbus_inited = 1;
 	sc = vmbus_get_softc();
 
-	ret = hv_vmbus_init();
-
-	if (ret) {
-		if(bootverbose)
-			printf("Error VMBUS: Hypervisor Initialization Failed!\n");
-		return (ret);
-	}
-
 	/*
 	 * Find a free IDT slot for vmbus callback.
 	 */
@@ -472,6 +463,7 @@ vmbus_bus_init(void)
 		if(bootverbose)
 			printf("Error VMBUS: Cannot find free IDT slot for "
 			    "vmbus callback!\n");
+		ret = ENXIO;
 		goto cleanup;
 	}
 
@@ -559,8 +551,8 @@ vmbus_bus_init(void)
 	hv_vmbus_request_channel_offers();
 
 	vmbus_scan();
-	bus_generic_attach(vmbus_devp);
-	device_printf(vmbus_devp, "device scan, probe and attach done\n");
+	bus_generic_attach(sc->vmbus_dev);
+	device_printf(sc->vmbus_dev, "device scan, probe and attach done\n");
 
 	return (ret);
 
@@ -585,8 +577,6 @@ vmbus_bus_init(void)
 	vmbus_vector_free(hv_vmbus_g_context.hv_cb_vector);
 
 	cleanup:
-	hv_vmbus_cleanup();
-
 	return (ret);
 }
 
@@ -598,11 +588,8 @@ vmbus_event_proc_dummy(struct vmbus_softc *sc __unused, int cpu __unused)
 static int
 vmbus_attach(device_t dev)
 {
-	if(bootverbose)
-		device_printf(dev, "VMBUS: attach dev: %p\n", dev);
-
-	vmbus_devp = dev;
 	vmbus_sc = device_get_softc(dev);
+	vmbus_sc->vmbus_dev = dev;
 
 	/*
 	 * Event processing logic will be configured:
@@ -654,8 +641,6 @@ vmbus_detach(device_t dev)
 		if (setup_args.page_buffers[i] != NULL)
 			free(setup_args.page_buffers[i], M_DEVBUF);
 	}
-
-	hv_vmbus_cleanup();
 
 	/* remove swi */
 	CPU_FOREACH(i) {

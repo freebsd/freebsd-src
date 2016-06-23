@@ -26,44 +26,12 @@
  * $FreeBSD$
  */
 
-#ifndef _VMBUS_VAR_H_
-#define _VMBUS_VAR_H_
+#ifndef _HYPERV_REG_H_
+#define _HYPERV_REG_H_
 
-#include <sys/param.h>
+#define MSR_HV_HYPERCALL		0x40000001
+#define MSR_HV_HYPERCALL_ENABLE		0x0001ULL
+#define MSR_HV_HYPERCALL_RSVD_MASK	0x0ffeULL
+#define MSR_HV_HYPERCALL_PGSHIFT	12
 
-struct vmbus_pcpu_data {
-	int		event_flag_cnt;	/* # of event flags */
-} __aligned(CACHE_LINE_SIZE);
-
-struct vmbus_softc {
-	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
-	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
-	device_t		vmbus_dev;
-};
-
-extern struct vmbus_softc	*vmbus_sc;
-
-static __inline struct vmbus_softc *
-vmbus_get_softc(void)
-{
-	return vmbus_sc;
-}
-
-static __inline device_t
-vmbus_get_device(void)
-{
-	return vmbus_sc->vmbus_dev;
-}
-
-#define VMBUS_SC_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
-#define VMBUS_SC_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
-#define VMBUS_PCPU_GET(field, cpu)		\
-	VMBUS_SC_PCPU_GET(vmbus_get_softc(), field, (cpu))
-#define VMBUS_PCPU_PTR(field, cpu)		\
-	VMBUS_SC_PCPU_PTR(vmbus_get_softc(), field, (cpu))
-
-void	vmbus_on_channel_open(const struct hv_vmbus_channel *);
-void	vmbus_event_proc(struct vmbus_softc *, int);
-void	vmbus_event_proc_compat(struct vmbus_softc *, int);
-
-#endif	/* !_VMBUS_VAR_H_ */
+#endif	/* !_HYPERV_REG_H_ */
