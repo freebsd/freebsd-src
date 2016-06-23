@@ -670,7 +670,7 @@ g_disk_create(void *arg, int flag)
 	g_topology_assert();
 	dp = arg;
 
-	mtx_lock(&dp->d_mtx);
+	mtx_pool_lock(mtxpool_sleep, dp);
 	dp->d_init_level = DISK_INIT_START;
 
 	/*
@@ -678,12 +678,12 @@ g_disk_create(void *arg, int flag)
 	 * call the user's callback to tell him we've cleaned things up.
 	 */
 	if (dp->d_goneflag != 0) {
-		mtx_unlock(&dp->d_mtx);
+		mtx_pool_unlock(mtxpool_sleep, dp);
 		if (dp->d_gone != NULL)
 			dp->d_gone(dp);
 		return;
 	}
-	mtx_unlock(&dp->d_mtx);
+	mtx_pool_unlock(mtxpool_sleep, dp);
 
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->start_mtx, "g_disk_start", NULL, MTX_DEF);
@@ -721,7 +721,7 @@ g_disk_create(void *arg, int flag)
 	dp->d_geom = gp;
 	g_error_provider(pp, 0);
 
-	mtx_lock(&dp->d_mtx);
+	mtx_pool_lock(mtxpool_sleep, dp);
 	dp->d_init_level = DISK_INIT_DONE;
 
 	/*
@@ -729,11 +729,11 @@ g_disk_create(void *arg, int flag)
 	 * process for it.
 	 */
 	if (dp->d_goneflag != 0) {
-		mtx_unlock(&dp->d_mtx);
+		mtx_pool_unlock(mtxpool_sleep, dp);
 		g_wither_provider(pp, ENXIO);
 		return;
 	}
-	mtx_unlock(&dp->d_mtx);
+	mtx_pool_unlock(mtxpool_sleep, dp);
 
 }
 
@@ -785,8 +785,6 @@ g_disk_destroy(void *ptr, int flag)
 		dp->d_geom = NULL;
 		g_wither_geom(gp, ENXIO);
 	}
-
-	mtx_destroy(&dp->d_mtx);
 
 	g_free(dp);
 }
@@ -852,9 +850,6 @@ disk_create(struct disk *dp, int version)
 		    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	dp->d_geom = NULL;
 
-	snprintf(dp->d_mtx_name, sizeof(dp->d_mtx_name), "%s%ddlk",
-		 dp->d_name, dp->d_unit);
-	mtx_init(&dp->d_mtx, dp->d_mtx_name, NULL, MTX_DEF);
 	dp->d_init_level = DISK_INIT_NONE;
 
 	g_disk_ident_adjust(dp->d_ident, sizeof(dp->d_ident));
@@ -878,7 +873,7 @@ disk_gone(struct disk *dp)
 	struct g_geom *gp;
 	struct g_provider *pp;
 
-	mtx_lock(&dp->d_mtx);
+	mtx_pool_lock(mtxpool_sleep, dp);
 	dp->d_goneflag = 1;
 
 	/*
@@ -897,10 +892,10 @@ disk_gone(struct disk *dp)
 	 * has not been fully setup in any case.
 	 */
 	if (dp->d_init_level < DISK_INIT_DONE) {
-		mtx_unlock(&dp->d_mtx);
+		mtx_pool_unlock(mtxpool_sleep, dp);
 		return;
 	}
-	mtx_unlock(&dp->d_mtx);
+	mtx_pool_unlock(mtxpool_sleep, dp);
 
 	gp = dp->d_geom;
 	if (gp != NULL) {

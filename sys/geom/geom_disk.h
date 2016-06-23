@@ -72,8 +72,6 @@ struct disk {
 	struct devstat		*d_devstat;
 	int			d_goneflag;
 	int			d_destroyed;
-	struct mtx		d_mtx;
-	char			d_mtx_name[24];
 	disk_init_level		d_init_level;
 
 	/* Shared fields */
