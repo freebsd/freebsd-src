@@ -50,6 +50,35 @@ __FBSDID("$FreeBSD$");
 
 #define	HYPERV_INTERFACE		0x31237648	/* HV#1 */
 
+/*
+ * The guest OS needs to register the guest ID with the hypervisor.
+ * The guest ID is a 64 bit entity and the structure of this ID is
+ * specified in the Hyper-V specification:
+ *
+ * http://msdn.microsoft.com/en-us/library/windows/
+ * hardware/ff542653%28v=vs.85%29.aspx
+ *
+ * While the current guideline does not specify how FreeBSD guest ID(s)
+ * need to be generated, our plan is to publish the guidelines for
+ * FreeBSD and other guest operating systems that currently are hosted
+ * on Hyper-V. The implementation here conforms to this yet
+ * unpublished guidelines.
+ *
+ * Bit(s)
+ * 63    - Indicates if the OS is Open Source or not; 1 is Open Source
+ * 62:56 - Os Type: FreeBSD is 0x02
+ * 55:48 - Distro specific identification
+ * 47:16 - FreeBSD kernel version number
+ * 15:0  - Distro specific identification
+ */
+#define HYPERV_GUESTID_OSS		(0x1ULL << 63)
+#define HYPERV_GUESTID_FREEBSD		(0x02ULL << 56)
+#define HYPERV_GUESTID(id)				\
+	(HYPERV_GUESTID_OSS | HYPERV_GUESTID_FREEBSD |	\
+	 (((uint64_t)(((id) & 0xff0000) >> 16)) << 48) |\
+	 (((uint64_t)__FreeBSD_version) << 16) |	\
+	 ((uint64_t)((id) & 0x00ffff)))
+
 static u_int hv_get_timecount(struct timecounter *tc);
 
 u_int	hyperv_features;
@@ -143,13 +172,6 @@ hv_vmbus_init(void)
 	    goto cleanup;
 
 	/*
-	 * Write our OS info
-	 */
-	uint64_t os_guest_info = HV_FREEBSD_GUEST_ID;
-	wrmsr(HV_X64_MSR_GUEST_OS_ID, os_guest_info);
-	hv_vmbus_g_context.guest_id = os_guest_info;
-
-	/*
 	 * See if the hypercall page is already set
 	 */
 	hypercall_msr.as_uint64_t = rdmsr(HV_X64_MSR_HYPERCALL);
@@ -192,16 +214,13 @@ hv_vmbus_init(void)
 void
 hv_vmbus_cleanup(void) 
 {
-	hv_vmbus_x64_msr_hypercall_contents hypercall_msr;
+	if (hv_vmbus_g_context.hypercall_page != NULL) {
+		hv_vmbus_x64_msr_hypercall_contents hypercall_msr;
 
-	if (hv_vmbus_g_context.guest_id == HV_FREEBSD_GUEST_ID) {
-	    if (hv_vmbus_g_context.hypercall_page != NULL) {
 		hypercall_msr.as_uint64_t = 0;
-		wrmsr(HV_X64_MSR_HYPERCALL,
-					hypercall_msr.as_uint64_t);
+		wrmsr(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64_t);
 		free(hv_vmbus_g_context.hypercall_page, M_DEVBUF);
 		hv_vmbus_g_context.hypercall_page = NULL;
-	    }
 	}
 }
 
@@ -501,8 +520,15 @@ hyperv_identify(void)
 static void
 hyperv_init(void *dummy __unused)
 {
-	if (!hyperv_identify())
+	if (!hyperv_identify()) {
+		/* Not Hyper-V; reset guest id to the generic one. */
+		if (vm_guest == VM_GUEST_HV)
+			vm_guest = VM_GUEST_VM;
 		return;
+	}
+
+	/* Write guest id */
+	wrmsr(HV_X64_MSR_GUEST_OS_ID, HYPERV_GUESTID(0));
 
 	if (hyperv_features & HV_FEATURE_MSR_TIME_REFCNT) {
 		/* Register virtual timecount */
