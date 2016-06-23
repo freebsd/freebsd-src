@@ -52,34 +52,24 @@ __FBSDID("$FreeBSD$");
 
 #define	HYPERV_INTERFACE		0x31237648	/* HV#1 */
 
-/*
- * The guest OS needs to register the guest ID with the hypervisor.
- * The guest ID is a 64 bit entity and the structure of this ID is
- * specified in the Hyper-V specification:
- *
- * http://msdn.microsoft.com/en-us/library/windows/
- * hardware/ff542653%28v=vs.85%29.aspx
- *
- * While the current guideline does not specify how FreeBSD guest ID(s)
- * need to be generated, our plan is to publish the guidelines for
- * FreeBSD and other guest operating systems that currently are hosted
- * on Hyper-V. The implementation here conforms to this yet
- * unpublished guidelines.
- *
- * Bit(s)
- * 63    - Indicates if the OS is Open Source or not; 1 is Open Source
- * 62:56 - Os Type: FreeBSD is 0x02
- * 55:48 - Distro specific identification
- * 47:16 - FreeBSD kernel version number
- * 15:0  - Distro specific identification
- */
-#define HYPERV_GUESTID_OSS		(0x1ULL << 63)
-#define HYPERV_GUESTID_FREEBSD		(0x02ULL << 56)
-#define HYPERV_GUESTID(id)				\
-	(HYPERV_GUESTID_OSS | HYPERV_GUESTID_FREEBSD |	\
-	 (((uint64_t)(((id) & 0xff0000) >> 16)) << 48) |\
-	 (((uint64_t)__FreeBSD_version) << 16) |	\
-	 ((uint64_t)((id) & 0x00ffff)))
+#define HYPERV_FREEBSD_BUILD		0ULL
+#define HYPERV_FREEBSD_VERSION		((uint64_t)__FreeBSD_version)
+#define HYPERV_FREEBSD_OSID		0ULL
+
+#define MSR_HV_GUESTID_BUILD_FREEBSD	\
+	(HYPERV_FREEBSD_BUILD & MSR_HV_GUESTID_BUILD_MASK)
+#define MSR_HV_GUESTID_VERSION_FREEBSD	\
+	((HYPERV_FREEBSD_VERSION << MSR_HV_GUESTID_VERSION_SHIFT) & \
+	 MSR_HV_GUESTID_VERSION_MASK)
+#define MSR_HV_GUESTID_OSID_FREEBSD	\
+	((HYPERV_FREEBSD_OSID << MSR_HV_GUESTID_OSID_SHIFT) & \
+	 MSR_HV_GUESTID_OSID_MASK)
+
+#define MSR_HV_GUESTID_FREEBSD		\
+	(MSR_HV_GUESTID_BUILD_FREEBSD |	\
+	 MSR_HV_GUESTID_VERSION_FREEBSD | \
+	 MSR_HV_GUESTID_OSID_FREEBSD |	\
+	 MSR_HV_GUESTID_OSTYPE_FREEBSD)
 
 struct hypercall_ctx {
 	void			*hc_addr;
@@ -321,8 +311,8 @@ hyperv_init(void *dummy __unused)
 		return;
 	}
 
-	/* Write guest id */
-	wrmsr(HV_X64_MSR_GUEST_OS_ID, HYPERV_GUESTID(0));
+	/* Set guest id */
+	wrmsr(MSR_HV_GUEST_OS_ID, MSR_HV_GUESTID_FREEBSD);
 
 	if (hyperv_features & HV_FEATURE_MSR_TIME_REFCNT) {
 		/* Register virtual timecount */
@@ -390,11 +380,14 @@ SYSINIT(hypercall_ctor, SI_SUB_DRIVERS, SI_ORDER_FIRST, hypercall_create, NULL);
 static void
 hypercall_destroy(void *arg __unused)
 {
+	uint64_t hc;
+
 	if (hypercall_context.hc_addr == NULL)
 		return;
 
 	/* Disable Hypercall */
-	wrmsr(MSR_HV_HYPERCALL, 0);
+	hc = rdmsr(MSR_HV_HYPERCALL);
+	wrmsr(MSR_HV_HYPERCALL, (hc & MSR_HV_HYPERCALL_RSVD_MASK));
 	hypercall_memfree();
 
 	if (bootverbose)
