@@ -424,7 +424,7 @@ thread_exit(void)
 	 * architecture specific resources that
 	 * would not be on a new untouched process.
 	 */
-	cpu_thread_exit(td);	/* XXXSMP */
+	cpu_thread_exit(td);
 
 	/*
 	 * The last thread is left attached to the process
@@ -851,8 +851,8 @@ thread_suspend_check(int return_instead)
 			/*
 			 * The only suspension in action is a
 			 * single-threading. Single threader need not stop.
-			 * XXX Should be safe to access unlocked
-			 * as it can only be set to be true by us.
+			 * It is safe to access p->p_singlethread unlocked
+			 * because it can only be set to our address by us.
 			 */
 			if (p->p_singlethread == td)
 				return (0);	/* Exempt from stopping. */
