@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 
 struct vmbus_softc	*vmbus_sc;
 
-static int vmbus_inited;
-
 static char *vmbus_ids[] = { "VMBUS", NULL };
 
 extern inthand_t IDTVEC(rsvd), IDTVEC(hv_vmbus_callback);
@@ -209,23 +207,16 @@ hv_vector_handler(struct trapframe *trap_frame)
 }
 
 static void
-vmbus_synic_setup(void *arg __unused)
+vmbus_synic_setup(void *xsc)
 {
-	struct vmbus_softc *sc = vmbus_get_softc();
+	struct vmbus_softc *sc = xsc;
 	int			cpu;
-	uint64_t		hv_vcpu_index;
 	hv_vmbus_synic_simp	simp;
 	hv_vmbus_synic_siefp	siefp;
 	hv_vmbus_synic_scontrol sctrl;
 	hv_vmbus_synic_sint	shared_sint;
-	uint64_t		version;
 
 	cpu = PCPU_GET(cpuid);
-
-	/*
-	 * TODO: Check the version
-	 */
-	version = rdmsr(HV_X64_MSR_SVERSION);
 
 	/*
 	 * Setup the Synic's message page
@@ -265,14 +256,11 @@ vmbus_synic_setup(void *arg __unused)
 
 	wrmsr(HV_X64_MSR_SCONTROL, sctrl.as_uint64_t);
 
-	hv_vmbus_g_context.syn_ic_initialized = TRUE;
-
 	/*
 	 * Set up the cpuid mapping from Hyper-V to FreeBSD.
 	 * The array is indexed using FreeBSD cpuid.
 	 */
-	hv_vcpu_index = rdmsr(HV_X64_MSR_VP_INDEX);
-	hv_vmbus_g_context.hv_vcpu_index[cpu] = (uint32_t)hv_vcpu_index;
+	VMBUS_PCPU_GET(sc, vcpuid, cpu) = rdmsr(HV_X64_MSR_VP_INDEX);
 }
 
 static void
@@ -281,9 +269,6 @@ vmbus_synic_teardown(void *arg)
 	hv_vmbus_synic_sint	shared_sint;
 	hv_vmbus_synic_simp	simp;
 	hv_vmbus_synic_siefp	siefp;
-
-	if (!hv_vmbus_g_context.syn_ic_initialized)
-	    return;
 
 	shared_sint.as_uint64_t = rdmsr(
 	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT);
@@ -532,16 +517,11 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 }
 
 static int
-vmbus_read_ivar(
-	device_t	dev,
-	device_t	child,
-	int		index,
-	uintptr_t*	result)
+vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
 	struct hv_device *child_dev_ctx = device_get_ivars(child);
 
 	switch (index) {
-
 	case HV_VMBUS_IVAR_TYPE:
 		*result = (uintptr_t) &child_dev_ctx->class_id;
 		return (0);
@@ -559,14 +539,9 @@ vmbus_read_ivar(
 }
 
 static int
-vmbus_write_ivar(
-	device_t	dev,
-	device_t	child,
-	int		index,
-	uintptr_t	value)
+vmbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 {
 	switch (index) {
-
 	case HV_VMBUS_IVAR_TYPE:
 	case HV_VMBUS_IVAR_INSTANCE:
 	case HV_VMBUS_IVAR_DEVCTX:
@@ -597,19 +572,16 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 	return (0);
 }
 
-struct hv_device*
-hv_vmbus_child_device_create(
-	hv_guid		type,
-	hv_guid		instance,
-	hv_vmbus_channel*	channel)
+struct hv_device *
+hv_vmbus_child_device_create(hv_guid type, hv_guid instance,
+    hv_vmbus_channel *channel)
 {
-	hv_device* child_dev;
+	hv_device *child_dev;
 
 	/*
 	 * Allocate the new child device
 	 */
-	child_dev = malloc(sizeof(hv_device), M_DEVBUF,
-			M_WAITOK |  M_ZERO);
+	child_dev = malloc(sizeof(hv_device), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	child_dev->channel = channel;
 	memcpy(&child_dev->class_id, &type, sizeof(hv_guid));
@@ -690,14 +662,12 @@ vmbus_probe(device_t dev)
 static int
 vmbus_bus_init(void)
 {
-	struct vmbus_softc *sc;
+	struct vmbus_softc *sc = vmbus_get_softc();
 	int ret;
 
-	if (vmbus_inited)
+	if (sc->vmbus_flags & VMBUS_FLAG_ATTACHED)
 		return (0);
-
-	vmbus_inited = 1;
-	sc = vmbus_get_softc();
+	sc->vmbus_flags |= VMBUS_FLAG_ATTACHED;
 
 	/*
 	 * Allocate DMA stuffs.
@@ -713,10 +683,13 @@ vmbus_bus_init(void)
 	if (ret != 0)
 		goto cleanup;
 
+	/*
+	 * Setup SynIC.
+	 */
 	if (bootverbose)
-		printf("VMBUS: Calling smp_rendezvous, smp_started = %d\n",
-		    smp_started);
-	smp_rendezvous(NULL, vmbus_synic_setup, NULL, NULL);
+		device_printf(sc->vmbus_dev, "smp_started = %d\n", smp_started);
+	smp_rendezvous(NULL, vmbus_synic_setup, NULL, sc);
+	sc->vmbus_flags |= VMBUS_FLAG_SYNIC;
 
 	/*
 	 * Connect to VMBus in the root partition
@@ -802,7 +775,10 @@ vmbus_detach(device_t dev)
 	hv_vmbus_release_unattached_channels();
 	hv_vmbus_disconnect();
 
-	smp_rendezvous(NULL, vmbus_synic_teardown, NULL, NULL);
+	if (sc->vmbus_flags & VMBUS_FLAG_SYNIC) {
+		sc->vmbus_flags &= ~VMBUS_FLAG_SYNIC;
+		smp_rendezvous(NULL, vmbus_synic_teardown, NULL, NULL);
+	}
 
 	vmbus_intr_teardown(sc);
 	vmbus_dma_free(sc);

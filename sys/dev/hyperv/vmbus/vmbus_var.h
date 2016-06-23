@@ -30,12 +30,12 @@
 #define _VMBUS_VAR_H_
 
 #include <sys/param.h>
-#include <sys/bus_dma.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
 
 struct vmbus_pcpu_data {
 	u_long			*intr_cnt;	/* Hyper-V interrupt counter */
 	struct vmbus_message	*message;	/* shared messages */
+	uint32_t		vcpuid;		/* virtual cpuid */
 	int			event_flag_cnt;	/* # of event flags */
 	union vmbus_event_flags	*event_flag;	/* shared event flags */
 
@@ -54,7 +54,11 @@ struct vmbus_softc {
 	/* Rarely used fields */
 	device_t		vmbus_dev;
 	int			vmbus_idtvec;
+	uint32_t		vmbus_flags;	/* see VMBUS_FLAG_ */
 };
+
+#define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
+#define VMBUS_FLAG_SYNIC	0x0002	/* SynIC was setup */
 
 extern struct vmbus_softc	*vmbus_sc;
 

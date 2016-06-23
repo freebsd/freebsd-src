@@ -35,7 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 /*
  * Internal functions
@@ -310,7 +311,7 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 	}
 
 	chan->target_cpu = cpu;
-	chan->target_vcpu = hv_vmbus_g_context.hv_vcpu_index[cpu];
+	chan->target_vcpu = VMBUS_PCPU_GET(vmbus_get_softc(), vcpuid, cpu);
 
 	if (bootverbose) {
 		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
@@ -751,7 +752,7 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 		return outgoing_channel;
 	}
 
-	cur_vcpu = hv_vmbus_g_context.hv_vcpu_index[smp_pro_id];
+	cur_vcpu = VMBUS_PCPU_GET(vmbus_get_softc(), vcpuid, smp_pro_id);
 	
 	TAILQ_FOREACH(new_channel, &primary->sc_list_anchor, sc_list_entry) {
 		if (new_channel->state != HV_CHANNEL_OPENED_STATE){
