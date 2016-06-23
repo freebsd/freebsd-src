@@ -802,7 +802,7 @@ pfi_attach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 
 	CURVNET_SET(ifp->if_vnet);
 	if (V_pf_vnet_active == 0) {
-		/* Avoid teardown race in the least expensie way. */
+		/* Avoid teardown race in the least expensive way. */
 		CURVNET_RESTORE();
 		return;
 	}
@@ -825,7 +825,7 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 
 	CURVNET_SET(ifp->if_vnet);
 	if (V_pf_vnet_active == 0) {
-		/* Avoid teardown race in the least expensie way. */
+		/* Avoid teardown race in the least expensive way. */
 		CURVNET_RESTORE();
 		return;
 	}
@@ -848,7 +848,7 @@ pfi_attach_group_event(void *arg , struct ifg_group *ifg)
 
 	CURVNET_SET((struct vnet *)arg);
 	if (V_pf_vnet_active == 0) {
-		/* Avoid teardown race in the least expensie way. */
+		/* Avoid teardown race in the least expensive way. */
 		CURVNET_RESTORE();
 		return;
 	}
@@ -863,7 +863,7 @@ pfi_change_group_event(void *arg, char *gname)
 
 	CURVNET_SET((struct vnet *)arg);
 	if (V_pf_vnet_active == 0) {
-		/* Avoid teardown race in the least expensie way. */
+		/* Avoid teardown race in the least expensive way. */
 		CURVNET_RESTORE();
 		return;
 	}
@@ -887,7 +887,7 @@ pfi_detach_group_event(void *arg, struct ifg_group *ifg)
 
 	CURVNET_SET((struct vnet *)arg);
 	if (V_pf_vnet_active == 0) {
-		/* Avoid teardown race in the least expensie way. */
+		/* Avoid teardown race in the least expensive way. */
 		CURVNET_RESTORE();
 		return;
 	}
@@ -908,7 +908,7 @@ pfi_ifaddr_event(void *arg __unused, struct ifnet *ifp)
 
 	CURVNET_SET(ifp->if_vnet);
 	if (V_pf_vnet_active == 0) {
-		/* Avoid teardown race in the least expensie way. */
+		/* Avoid teardown race in the least expensive way. */
 		CURVNET_RESTORE();
 		return;
 	}

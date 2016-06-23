@@ -1436,6 +1436,7 @@ pf_purge_thread(void *unused __unused)
 			CURVNET_SET(vnet_iter);
 
 		if (pf_end_threads) {
+			pf_end_threads++;
 			wakeup(pf_purge_thread);
 			kproc_exit(0);
 		}
