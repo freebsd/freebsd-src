@@ -278,6 +278,7 @@ dev/hyperv/vmbus/hv_hv.c				optional	hyperv
 dev/hyperv/vmbus/hv_et.c				optional	hyperv
 dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
 dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
+dev/hyperv/vmbus/hyperv_busdma.c			optional	hyperv
 dev/hyperv/vmbus/amd64/hv_vector.S			optional	hyperv
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/lindev/full.c		optional	lindev
