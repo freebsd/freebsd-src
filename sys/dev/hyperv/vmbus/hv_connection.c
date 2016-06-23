@@ -336,8 +336,8 @@ vmbus_event_proc(struct vmbus_softc *sc, int cpu)
 {
 	hv_vmbus_synic_event_flags *event;
 
-	event = ((hv_vmbus_synic_event_flags *)
-	    hv_vmbus_g_context.syn_ic_event_page[cpu]) + HV_VMBUS_MESSAGE_SINT;
+	event = hv_vmbus_g_context.syn_ic_event_page[cpu] +
+	    HV_VMBUS_MESSAGE_SINT;
 
 	/*
 	 * On Host with Win8 or above, the event page can be checked directly
@@ -352,8 +352,8 @@ vmbus_event_proc_compat(struct vmbus_softc *sc __unused, int cpu)
 {
 	hv_vmbus_synic_event_flags *event;
 
-	event = ((hv_vmbus_synic_event_flags *)
-	    hv_vmbus_g_context.syn_ic_event_page[cpu]) + HV_VMBUS_MESSAGE_SINT;
+	event = hv_vmbus_g_context.syn_ic_event_page[cpu] +
+	    HV_VMBUS_MESSAGE_SINT;
 
 	if (atomic_testandclear_int(&event->flags32[0], 0)) {
 		vmbus_event_flags_proc(

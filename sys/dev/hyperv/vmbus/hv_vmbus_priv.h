@@ -197,12 +197,14 @@ enum {
 
 #define HV_HYPERCALL_PARAM_ALIGN sizeof(uint64_t)
 
+struct vmbus_message;
+union vmbus_event_flags;
+
 typedef struct {
-	void*		hypercall_page;
 	hv_bool_uint8_t	syn_ic_initialized;
 
-	hv_vmbus_handle	syn_ic_msg_page[MAXCPU];
-	hv_vmbus_handle	syn_ic_event_page[MAXCPU];
+	struct vmbus_message	*syn_ic_msg_page[MAXCPU];
+	union vmbus_event_flags	*syn_ic_event_page[MAXCPU];
 	/*
 	 * For FreeBSD cpuid to Hyper-V vcpuid mapping.
 	 */
@@ -304,7 +306,7 @@ typedef struct {
 /*
  *  Define synthetic interrupt controller message format
  */
-typedef struct {
+typedef struct vmbus_message {
 	hv_vmbus_msg_header	header;
 	union {
 		uint64_t	payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
@@ -579,7 +581,7 @@ typedef struct {
 /*
  * Define the synthetic interrupt controller event flags format
  */
-typedef union {
+typedef union vmbus_event_flags {
 	uint8_t		flags8[HV_EVENT_FLAGS_BYTE_COUNT];
 	uint32_t	flags32[HV_EVENT_FLAGS_DWORD_COUNT];
 	unsigned long	flagsul[HV_EVENT_FLAGS_ULONG_COUNT];
@@ -722,8 +724,6 @@ hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
 int			hv_vmbus_request_channel_offers(void);
 void			hv_vmbus_release_unattached_channels(void);
-int			hv_vmbus_init(void);
-void			hv_vmbus_cleanup(void);
 
 uint16_t		hv_vmbus_post_msg_via_msg_ipc(
 				hv_vmbus_connection_id	connection_id,
