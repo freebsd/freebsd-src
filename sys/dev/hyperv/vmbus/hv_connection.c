@@ -303,7 +303,6 @@ hv_vmbus_on_events(int cpu)
 	int rel_id;
 	int maxdword;
 	hv_vmbus_synic_event_flags *event;
-	/* int maxdword = PAGE_SIZE >> 3; */
 
 	KASSERT(cpu <= mp_maxid, ("VMBUS: hv_vmbus_on_events: "
 	    "cpu out of range!"));
@@ -317,9 +316,12 @@ hv_vmbus_on_events(int cpu)
 		/*
 		 * receive size is 1/2 page and divide that by 4 bytes
 		 */
-		if (synch_test_and_clear_bit(0, &event->flags32[0]))
+		if (synch_test_and_clear_bit(0, &event->flags32[0])) {
 			recv_interrupt_page =
 			    hv_vmbus_g_connection.recv_interrupt_page;
+		} else {
+			return;
+		}
 	} else {
 		/*
 		 * On Host with Win8 or above, the event page can be
@@ -333,36 +335,32 @@ hv_vmbus_on_events(int cpu)
 	/*
 	 * Check events
 	 */
-	if (recv_interrupt_page != NULL) {
-	    for (dword = 0; dword < maxdword; dword++) {
-		if (recv_interrupt_page[dword]) {
-		    for (bit = 0; bit < HV_CHANNEL_DWORD_LEN; bit++) {
+	for (dword = 0; dword < maxdword; dword++) {
+		if (recv_interrupt_page[dword] == 0)
+			continue;
+
+	        for (bit = 0; bit < HV_CHANNEL_DWORD_LEN; bit++) {
 			if (synch_test_and_clear_bit(bit,
-			    (uint32_t *) &recv_interrupt_page[dword])) {
-			    rel_id = (dword << 5) + bit;
-			    if (rel_id == 0) {
-				/*
-				 * Special case -
-				 * vmbus channel protocol msg.
-				 */
-				continue;
-			    } else {
-				hv_vmbus_channel * channel = hv_vmbus_g_connection.channels[rel_id];
+			    (uint32_t *)&recv_interrupt_page[dword])) {
+				struct hv_vmbus_channel *channel;
+
+				rel_id = (dword << 5) + bit;
+				channel =
+				    hv_vmbus_g_connection.channels[rel_id];
+
 				/* if channel is closed or closing */
 				if (channel == NULL || channel->rxq == NULL)
 					continue;
 
-				if (channel->batched_reading)
-					hv_ring_buffer_read_begin(&channel->inbound);
-				taskqueue_enqueue_fast(channel->rxq, &channel->channel_task);
-			    }
+				if (channel->batched_reading) {
+					hv_ring_buffer_read_begin(
+					    &channel->inbound);
+				}
+				taskqueue_enqueue(channel->rxq,
+				    &channel->channel_task);
 			}
-		    }
-		}
-	    }
+	        }
 	}
-
-	return;
 }
 
 /**
