@@ -5274,8 +5274,14 @@ restart_nosblocks:
 			}
 		}
 	}
-	if ((so->so_rcv.sb_cc <= held_length) && block_allowed) {
-		/* we need to wait for data */
+	if (so->so_rcv.sb_cc <= held_length) {
+		if (so->so_error) {
+			error = so->so_error;
+			if ((in_flags & MSG_PEEK) == 0) {
+				so->so_error = 0;
+			}
+			goto out;
+		}
 		if ((so->so_rcv.sb_cc == 0) &&
 		    ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) {
@@ -5306,51 +5312,18 @@ restart_nosblocks:
 				goto out;
 			}
 		}
-		error = sbwait(&so->so_rcv);
-		if (error) {
-			goto out;
-		}
-		held_length = 0;
-		goto restart_nosblocks;
-	} else if (so->so_rcv.sb_cc == 0) {
-		if (so->so_error) {
-			error = so->so_error;
-			if ((in_flags & MSG_PEEK) == 0)
-				so->so_error = 0;
-		} else {
-			if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
-			    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
-				if ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0) {
-					/*
-					 * For active open side clear flags
-					 * for re-use passive open is
-					 * blocked by connect.
-					 */
-					if (inp->sctp_flags & SCTP_PCB_FLAGS_WAS_ABORTED) {
-						/*
-						 * You were aborted, passive
-						 * side always hits here
-						 */
-						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ECONNRESET);
-						error = ECONNRESET;
-					}
-					so->so_state &= ~(SS_ISCONNECTING |
-					    SS_ISDISCONNECTING |
-					    SS_ISCONFIRMING |
-					    SS_ISCONNECTED);
-					if (error == 0) {
-						if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) == 0) {
-							SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOTCONN);
-							error = ENOTCONN;
-						}
-					}
-					goto out;
-				}
+		if (block_allowed) {
+			error = sbwait(&so->so_rcv);
+			if (error) {
+				goto out;
 			}
+			held_length = 0;
+			goto restart_nosblocks;
+		} else {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EWOULDBLOCK);
 			error = EWOULDBLOCK;
+			goto out;
 		}
-		goto out;
 	}
 	if (hold_sblock == 1) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
