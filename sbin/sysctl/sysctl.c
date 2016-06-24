@@ -623,15 +623,15 @@ S_vmtotal(size_t l2, void *p)
 	    "%hd Sleep: %hd)\n",
 	    v->t_rq, v->t_dw, v->t_pw, v->t_sl);
 	printf(
-	    "Virtual Memory:\t\t(Total: %dK Active: %dK)\n",
-	    v->t_vm * pageKilo, v->t_avm * pageKilo);
-	printf("Real Memory:\t\t(Total: %dK Active: %dK)\n",
-	    v->t_rm * pageKilo, v->t_arm * pageKilo);
-	printf("Shared Virtual Memory:\t(Total: %dK Active: %dK)\n",
-	    v->t_vmshr * pageKilo, v->t_avmshr * pageKilo);
-	printf("Shared Real Memory:\t(Total: %dK Active: %dK)\n",
-	    v->t_rmshr * pageKilo, v->t_armshr * pageKilo);
-	printf("Free Memory:\t%dK", v->t_free * pageKilo);
+	    "Virtual Memory:\t\t(Total: %jdK Active: %jdK)\n",
+	    (intmax_t)v->t_vm * pageKilo, (intmax_t)v->t_avm * pageKilo);
+	printf("Real Memory:\t\t(Total: %jdK Active: %jdK)\n",
+	    (intmax_t)v->t_rm * pageKilo, (intmax_t)v->t_arm * pageKilo);
+	printf("Shared Virtual Memory:\t(Total: %jdK Active: %jdK)\n",
+	    (intmax_t)v->t_vmshr * pageKilo, (intmax_t)v->t_avmshr * pageKilo);
+	printf("Shared Real Memory:\t(Total: %jdK Active: %jdK)\n",
+	    (intmax_t)v->t_rmshr * pageKilo, (intmax_t)v->t_armshr * pageKilo);
+	printf("Free Memory:\t%jdK", (intmax_t)v->t_free * pageKilo);
 
 	return (0);
 }
