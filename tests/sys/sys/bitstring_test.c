@@ -102,6 +102,17 @@ ATF_TC_BODY(bitstr_in_struct, tc)
 	bit_nclear(test_struct.bitstr, 0, 8);
 }
 
+ATF_TC_WITHOUT_HEAD(bitstr_size);
+ATF_TC_BODY(bitstr_size, tc)
+{
+	size_t sob = sizeof(bitstr_t);
+
+	ATF_CHECK_EQ(0, bitstr_size(0));
+	ATF_CHECK_EQ(sob, bitstr_size(1));
+	ATF_CHECK_EQ(sob, bitstr_size(sob * 8));
+	ATF_CHECK_EQ(2 * sob, bitstr_size(sob * 8 + 1));
+}
+
 BITSTRING_TC_DEFINE(bit_set)
 /* bitstr_t *bitstr, int nbits, const char *memloc */
 {
@@ -407,6 +418,7 @@ ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, bitstr_in_struct);
+	ATF_TP_ADD_TC(tp, bitstr_size);
 	BITSTRING_TC_ADD(tp, bit_set);
 	BITSTRING_TC_ADD(tp, bit_clear);
 	BITSTRING_TC_ADD(tp, bit_ffs);
