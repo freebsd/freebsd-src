@@ -90,7 +90,11 @@ struct sandbox_class {
  * - Add atomically set flag and assertion to ensure single-threaded entry to
  *   the sandbox.
  */
-struct sandbox_object {
+struct
+#if _MIPS_SZCAP == 128
+__attribute__ ((aligned(4096)))
+#endif
+sandbox_object {
 	CHERI_SYSTEM_OBJECT_FIELDS;
 	struct sandbox_class	*sbo_sandbox_classp;
 	void			*sbo_datamem;
