@@ -26,24 +26,57 @@
  * $FreeBSD$
  */
 
-#include <machine/asmacros.h>
-#include <machine/specialreg.h>
+#ifndef _VMBUS_REG_H_
+#define _VMBUS_REG_H_
 
-#include "assym.s"
+#include <sys/param.h>
 
 /*
- * This is the Hyper-V vmbus channel direct callback interrupt.
- * Only used when it is running on Hyper-V.
+ * Hyper-V SynIC message format.
  */
-	.text
-	SUPERALIGN_TEXT
-IDTVEC(vmbus_isr)
-	PUSH_FRAME
-	SET_KERNEL_SREGS
-	cld
-	FAKE_MCOUNT(TF_EIP(%esp))
-	pushl	%esp
-	call	vmbus_handle_intr
-	add	$4, %esp
-	MEXITCOUNT
-	jmp	doreti
+
+#define VMBUS_MSG_DSIZE_MAX		240
+#define VMBUS_MSG_SIZE			256
+
+struct vmbus_message {
+	uint32_t	msg_type;	/* VMBUS_MSGTYPE_ */
+	uint8_t		msg_dsize;	/* data size */
+	uint8_t		msg_flags;	/* VMBUS_MSGFLAG_ */
+	uint16_t	msg_rsvd;
+	uint64_t	msg_id;
+	uint8_t		msg_data[VMBUS_MSG_DSIZE_MAX];
+} __packed;
+CTASSERT(sizeof(struct vmbus_message) == VMBUS_MSG_SIZE);
+
+#define VMBUS_MSGTYPE_NONE		0
+#define VMBUS_MSGTYPE_TIMER_EXPIRED	0x80000010
+
+#define VMBUS_MSGFLAG_PENDING		0x01
+
+/*
+ * Hyper-V SynIC event flags
+ */
+
+#ifdef __LP64__
+#define VMBUS_EVTFLAGS_MAX	32
+#define VMBUS_EVTFLAG_SHIFT	6
+#else
+#define VMBUS_EVTFLAGS_MAX	64
+#define VMBUS_EVTFLAG_SHIFT	5
+#endif
+#define VMBUS_EVTFLAG_LEN	(1 << VMBUS_EVTFLAG_SHIFT)
+#define VMBUS_EVTFLAGS_SIZE	256
+
+struct vmbus_evtflags {
+	u_long		evt_flags[VMBUS_EVTFLAGS_MAX];
+} __packed;
+CTASSERT(sizeof(struct vmbus_evtflags) == VMBUS_EVTFLAGS_SIZE);
+
+/*
+ * Channel
+ */
+
+#define VMBUS_CHAN_MAX_COMPAT	256
+#define VMBUS_CHAN_MAX		(VMBUS_EVTFLAG_LEN * VMBUS_EVTFLAGS_MAX)
+
+#endif	/* !_VMBUS_REG_H_ */

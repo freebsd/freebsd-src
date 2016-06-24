@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
 /*
@@ -212,8 +213,7 @@ hv_vmbus_connect(void)
 			M_DEVBUF, M_WAITOK | M_ZERO);
 
 	hv_vmbus_g_connection.channels = malloc(sizeof(hv_vmbus_channel*) *
-		HV_CHANNEL_MAX_COUNT,
-		M_DEVBUF, M_WAITOK | M_ZERO);
+	    VMBUS_CHAN_MAX, M_DEVBUF, M_WAITOK | M_ZERO);
 	/*
 	 * Find the highest vmbus version number we can support.
 	 */
@@ -295,20 +295,20 @@ hv_vmbus_disconnect(void)
 }
 
 static __inline void
-vmbus_event_flags_proc(unsigned long *event_flags, int flag_cnt)
+vmbus_event_flags_proc(volatile u_long *event_flags, int flag_cnt)
 {
 	int f;
 
 	for (f = 0; f < flag_cnt; ++f) {
 		uint32_t rel_id_base;
-		unsigned long flags;
+		u_long flags;
 		int bit;
 
 		if (event_flags[f] == 0)
 			continue;
 
 		flags = atomic_swap_long(&event_flags[f], 0);
-		rel_id_base = f << HV_CHANNEL_ULONG_SHIFT;
+		rel_id_base = f << VMBUS_EVTFLAG_SHIFT;
 
 		while ((bit = ffsl(flags)) != 0) {
 			struct hv_vmbus_channel *channel;
@@ -334,27 +334,27 @@ vmbus_event_flags_proc(unsigned long *event_flags, int flag_cnt)
 void
 vmbus_event_proc(struct vmbus_softc *sc, int cpu)
 {
-	hv_vmbus_synic_event_flags *event;
+	struct vmbus_evtflags *eventf;
 
 	/*
 	 * On Host with Win8 or above, the event page can be checked directly
 	 * to get the id of the channel that has the pending interrupt.
 	 */
-	event = VMBUS_PCPU_GET(sc, event_flag, cpu) + VMBUS_SINT_MESSAGE;
-	vmbus_event_flags_proc(event->flagsul,
-	    VMBUS_PCPU_GET(sc, event_flag_cnt, cpu));
+	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
+	vmbus_event_flags_proc(eventf->evt_flags,
+	    VMBUS_PCPU_GET(sc, event_flags_cnt, cpu));
 }
 
 void
 vmbus_event_proc_compat(struct vmbus_softc *sc __unused, int cpu)
 {
-	hv_vmbus_synic_event_flags *event;
+	struct vmbus_evtflags *eventf;
 
-	event = VMBUS_PCPU_GET(sc, event_flag, cpu) + VMBUS_SINT_MESSAGE;
-	if (atomic_testandclear_int(&event->flags32[0], 0)) {
+	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
+	if (atomic_testandclear_long(&eventf->evt_flags[0], 0)) {
 		vmbus_event_flags_proc(
 		    hv_vmbus_g_connection.recv_interrupt_page,
-		    HV_MAX_NUM_CHANNELS_SUPPORTED >> HV_CHANNEL_ULONG_SHIFT);
+		    VMBUS_CHAN_MAX_COMPAT >> VMBUS_EVTFLAG_SHIFT);
 	}
 }
 
@@ -417,8 +417,8 @@ vmbus_on_channel_open(const struct hv_vmbus_channel *chan)
 	volatile int *flag_cnt_ptr;
 	int flag_cnt;
 
-	flag_cnt = (chan->offer_msg.child_rel_id / HV_CHANNEL_ULONG_LEN) + 1;
-	flag_cnt_ptr = VMBUS_PCPU_PTR(vmbus_get_softc(), event_flag_cnt,
+	flag_cnt = (chan->offer_msg.child_rel_id / VMBUS_EVTFLAG_LEN) + 1;
+	flag_cnt_ptr = VMBUS_PCPU_PTR(vmbus_get_softc(), event_flags_cnt,
 	    chan->target_cpu);
 
 	for (;;) {
