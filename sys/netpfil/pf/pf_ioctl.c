@@ -3740,7 +3740,7 @@ pf_load(void)
 }
 
 static void
-pf_unload_vnet()
+pf_unload_vnet(void)
 {
 	int error;
 
