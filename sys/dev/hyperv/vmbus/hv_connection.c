@@ -77,8 +77,8 @@ hv_vmbus_get_next_version(uint32_t current_ver)
  * Negotiate the highest supported hypervisor version.
  */
 static int
-hv_vmbus_negotiate_version(hv_vmbus_channel_msg_info *msg_info,
-	uint32_t version)
+hv_vmbus_negotiate_version(struct vmbus_softc *sc,
+    hv_vmbus_channel_msg_info *msg_info, uint32_t version)
 {
 	int					ret = 0;
 	hv_vmbus_channel_initiate_contact	*msg;
@@ -89,14 +89,9 @@ hv_vmbus_negotiate_version(hv_vmbus_channel_msg_info *msg_info,
 	msg->header.message_type = HV_CHANNEL_MESSAGE_INITIATED_CONTACT;
 	msg->vmbus_version_requested = version;
 
-	msg->interrupt_page = hv_get_phys_addr(
-		hv_vmbus_g_connection.interrupt_page);
-
-	msg->monitor_page_1 = hv_get_phys_addr(
-		hv_vmbus_g_connection.monitor_page_1);
-
-	msg->monitor_page_2 = hv_get_phys_addr(
-		hv_vmbus_g_connection.monitor_page_2);
+	msg->interrupt_page = sc->vmbus_evtflags_dma.hv_paddr;
+	msg->monitor_page_1 = sc->vmbus_mnf1_dma.hv_paddr;
+	msg->monitor_page_2 = sc->vmbus_mnf2_dma.hv_paddr;
 
 	/**
 	 * Add to list before we send the request since we may receive the
@@ -153,7 +148,7 @@ hv_vmbus_negotiate_version(hv_vmbus_channel_msg_info *msg_info,
  * Send a connect request on the partition service connection
  */
 int
-hv_vmbus_connect(void)
+hv_vmbus_connect(struct vmbus_softc *sc)
 {
 	int					ret = 0;
 	uint32_t				version;
@@ -179,34 +174,6 @@ hv_vmbus_connect(void)
 	mtx_init(&hv_vmbus_g_connection.channel_lock, "vmbus channel",
 		NULL, MTX_DEF);
 
-	/**
-	 * Setup the vmbus event connection for channel interrupt abstraction
-	 * stuff
-	 */
-	hv_vmbus_g_connection.interrupt_page = malloc(
-					PAGE_SIZE, M_DEVBUF,
-					M_WAITOK | M_ZERO);
-
-	hv_vmbus_g_connection.recv_interrupt_page =
-		hv_vmbus_g_connection.interrupt_page;
-
-	hv_vmbus_g_connection.send_interrupt_page =
-		((uint8_t *) hv_vmbus_g_connection.interrupt_page +
-		    (PAGE_SIZE >> 1));
-
-	/**
-	 * Set up the monitor notification facility. The 1st page for
-	 * parent->child and the 2nd page for child->parent
-	 */
-	hv_vmbus_g_connection.monitor_page_1 = malloc(
-		PAGE_SIZE,
-		M_DEVBUF,
-		M_WAITOK | M_ZERO);
-	hv_vmbus_g_connection.monitor_page_2 = malloc(
-		PAGE_SIZE,
-		M_DEVBUF,
-		M_WAITOK | M_ZERO);
-
 	msg_info = (hv_vmbus_channel_msg_info*)
 		malloc(sizeof(hv_vmbus_channel_msg_info) +
 			sizeof(hv_vmbus_channel_initiate_contact),
@@ -220,7 +187,7 @@ hv_vmbus_connect(void)
 	version = HV_VMBUS_VERSION_CURRENT;
 
 	do {
-		ret = hv_vmbus_negotiate_version(msg_info, version);
+		ret = hv_vmbus_negotiate_version(sc, msg_info, version);
 		if (ret == EWOULDBLOCK) {
 			/*
 			 * We timed out.
@@ -254,14 +221,6 @@ hv_vmbus_connect(void)
 	mtx_destroy(&hv_vmbus_g_connection.channel_lock);
 	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
 
-	if (hv_vmbus_g_connection.interrupt_page != NULL) {
-		free(hv_vmbus_g_connection.interrupt_page, M_DEVBUF);
-		hv_vmbus_g_connection.interrupt_page = NULL;
-	}
-
-	free(hv_vmbus_g_connection.monitor_page_1, M_DEVBUF);
-	free(hv_vmbus_g_connection.monitor_page_2, M_DEVBUF);
-
 	if (msg_info) {
 		sema_destroy(&msg_info->wait_sema);
 		free(msg_info, M_DEVBUF);
@@ -283,8 +242,6 @@ hv_vmbus_disconnect(void)
 	msg.message_type = HV_CHANNEL_MESSAGE_UNLOAD;
 
 	ret = hv_vmbus_post_message(&msg, sizeof(hv_vmbus_channel_unload));
-
-	free(hv_vmbus_g_connection.interrupt_page, M_DEVBUF);
 
 	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
 
@@ -346,14 +303,13 @@ vmbus_event_proc(struct vmbus_softc *sc, int cpu)
 }
 
 void
-vmbus_event_proc_compat(struct vmbus_softc *sc __unused, int cpu)
+vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
 {
 	struct vmbus_evtflags *eventf;
 
 	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
 	if (atomic_testandclear_long(&eventf->evt_flags[0], 0)) {
-		vmbus_event_flags_proc(
-		    hv_vmbus_g_connection.recv_interrupt_page,
+		vmbus_event_flags_proc(sc->vmbus_rx_evtflags,
 		    VMBUS_CHAN_MAX_COMPAT >> VMBUS_EVTFLAG_SHIFT);
 	}
 }
@@ -376,8 +332,8 @@ int hv_vmbus_post_message(void *buffer, size_t bufferLen)
 	 * insufficient resources. 20 times should suffice in practice.
 	 */
 	for (retries = 0; retries < 20; retries++) {
-		ret = hv_vmbus_post_msg_via_msg_ipc(connId, 1, buffer,
-						    bufferLen);
+		ret = hv_vmbus_post_msg_via_msg_ipc(connId,
+		    VMBUS_MSGTYPE_CHANNEL, buffer, bufferLen);
 		if (ret == HV_STATUS_SUCCESS)
 			return (0);
 
@@ -398,14 +354,12 @@ int hv_vmbus_post_message(void *buffer, size_t bufferLen)
 int
 hv_vmbus_set_event(hv_vmbus_channel *channel)
 {
+	struct vmbus_softc *sc = vmbus_get_softc();
 	int ret = 0;
-	uint32_t child_rel_id = channel->offer_msg.child_rel_id;
+	uint32_t chanid = channel->offer_msg.child_rel_id;
 
-	/* Each uint32_t represents 32 channels */
-
-	synch_set_bit(child_rel_id & 31,
-		(((uint32_t *)hv_vmbus_g_connection.send_interrupt_page
-			+ (child_rel_id >> 5))));
+	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
+	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 	ret = hv_vmbus_signal_event(channel->signal_event_param);
 
 	return (ret);

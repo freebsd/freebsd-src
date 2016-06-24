@@ -37,12 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+
+#include <machine/atomic.h>
 #include <machine/bus.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
 static int 	vmbus_channel_create_gpadl_header(
@@ -62,17 +66,16 @@ static void	VmbusProcessChannelEvent(void* channel, int pending);
 static void
 vmbus_channel_set_event(hv_vmbus_channel *channel)
 {
-	hv_vmbus_monitor_page *monitor_page;
-
 	if (channel->offer_msg.monitor_allocated) {
-		/* Each uint32_t represents 32 channels */
-		synch_set_bit((channel->offer_msg.child_rel_id & 31),
-			((uint32_t *)hv_vmbus_g_connection.send_interrupt_page
-				+ ((channel->offer_msg.child_rel_id >> 5))));
+		struct vmbus_softc *sc = vmbus_get_softc();
+		hv_vmbus_monitor_page *monitor_page;
+		uint32_t chanid = channel->offer_msg.child_rel_id;
 
-		monitor_page = (hv_vmbus_monitor_page *)
-			hv_vmbus_g_connection.monitor_page_2;
+		atomic_set_long(
+		    &sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
+		    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
+		monitor_page = sc->vmbus_mnf2;
 		synch_set_bit(channel->monitor_bit,
 			(uint32_t *)&monitor_page->
 				trigger_group[channel->monitor_group].u.pending);
