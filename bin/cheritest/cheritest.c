@@ -478,7 +478,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = cheritest_vm_swap,
 	  .ct_check_xfail = xfail_swap_required},
 
-#if _MIPS_SZCAP != 128
+#if 0
 	/*
 	 * Simple CCall/CReturn tests that sometimes generate signals.
 	 */
@@ -1517,7 +1517,7 @@ main(int argc, char *argv[])
 		err(EX_OSERR, "minherit");
 
 	/* Run the actual tests. */
-#if _MIPS_SZCAP != 128
+#if 0
 	cheritest_ccall_setup();
 #endif
 	if (cheritest_libcheri_setup() < 0)
