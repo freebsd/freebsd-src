@@ -621,9 +621,8 @@
 	A selection of system daemons, including:
 	<application>fingerd</application>,
 	<application>ftpd</application>,
-	<application>rlogind</application>,
-	<application>rshd</application>, and
-	<application>sshd</application> have been modified to support
+	<application>rlogind</application>, and
+	<application>rshd</application> have been modified to support
 	sending notifications to the <application>blacklistd</application>
 	daemon.</para>
 
