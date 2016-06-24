@@ -98,9 +98,6 @@
 #include "ssh-gss.h"
 #endif
 #include "monitor_wrap.h"
-#ifdef USE_BLACKLIST
-#include "blacklist_client.h"
-#endif
 
 extern ServerOptions options;
 extern Buffer loginmsg;
@@ -797,9 +794,6 @@ sshpam_query(void *ctx, char **name, char **info,
 				free(msg);
 				return (0);
 			}
-#ifdef USE_BLACKLIST
-			blacklist_notify(1);
-#endif
 			error("PAM: %s for %s%.100s from %.100s", msg,
 			    sshpam_authctxt->valid ? "" : "illegal user ",
 			    sshpam_authctxt->user,
