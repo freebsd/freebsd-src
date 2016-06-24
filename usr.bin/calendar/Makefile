@@ -31,7 +31,7 @@ beforeinstall:
 	ln -s fr_FR.ISO8859-1 ${DESTDIR}${SHAREDIR}/calendar/${link}
 .endfor
 
-.if ${MK_TESTS} != "no"
+.if ${MK_TESTS} != "no" && ${MACHINE_CPUARCH} != "mips"
 SUBDIR+= tests
 .endif
 
