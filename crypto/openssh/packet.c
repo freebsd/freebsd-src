@@ -86,9 +86,6 @@ __RCSID("$FreeBSD$");
 #include "packet.h"
 #include "ssherr.h"
 #include "sshbuf.h"
-#ifdef USE_BLACKLIST
-#include "blacklist_client.h"
-#endif
 
 #ifdef PACKET_DEBUG
 #define DBG(x) x
@@ -2074,9 +2071,6 @@ sshpkt_fatal(struct ssh *ssh, const char *tag, int r)
 	case SSH_ERR_NO_KEX_ALG_MATCH:
 	case SSH_ERR_NO_HOSTKEY_ALG_MATCH:
 		if (ssh && ssh->kex && ssh->kex->failed_choice) {
-#ifdef USE_BLACKLIST
-			blacklist_notify(1);
-#endif
 			fatal("Unable to negotiate with %.200s port %d: %s. "
 			    "Their offer: %s", ssh_remote_ipaddr(ssh),
 			    ssh_remote_port(ssh), ssh_err(r),

@@ -40,13 +40,6 @@ CFLAGS+= -DUSE_BSM_AUDIT -DHAVE_GETAUDIT_ADDR
 LIBADD+=	bsm
 .endif
 
-.if ${MK_BLACKLIST_SUPPORT} != "no"
-CFLAGS+= -DUSE_BLACKLIST -I${SRCTOP}/contrib/blacklist/include
-SRCS+= blacklist.c
-LIBADD+= blacklist
-LDFLAGS+=-L${LIBBLACKLISTDIR}
-.endif
-
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
 SRCS+=	krb5_config.h

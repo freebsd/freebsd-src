@@ -135,9 +135,6 @@ __RCSID("$FreeBSD$");
 #include "ssh-sandbox.h"
 #include "version.h"
 #include "ssherr.h"
-#ifdef USE_BLACKLIST
-#include "blacklist_client.h"
-#endif
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -391,9 +388,6 @@ grace_alarm_handler(int sig)
 		kill(0, SIGTERM);
 	}
 
-#ifdef USE_BLACKLIST
-	blacklist_notify(1);
-#endif
 	/* Log error and exit. */
 	sigdie("Timeout before authentication for %s", get_remote_ipaddr());
 }
@@ -654,10 +648,6 @@ privsep_preauth_child(void)
 
 	/* Demote the private keys to public keys. */
 	demote_sensitive_data();
-
-#ifdef USE_BLACKLIST
-	blacklist_init();
-#endif
 
 	/* Demote the child */
 	if (getuid() == 0 || geteuid() == 0) {
@@ -1282,9 +1272,6 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 	for (i = 0; i < options.max_startups; i++)
 		startup_pipes[i] = -1;
 
-#ifdef USE_BLACKLIST
-	blacklist_init();
-#endif
 	/*
 	 * Stay listening for connections until the system crashes or
 	 * the daemon is killed with a signal.

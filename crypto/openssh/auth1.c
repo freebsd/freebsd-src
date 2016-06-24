@@ -43,9 +43,6 @@
 #endif
 #include "monitor_wrap.h"
 #include "buffer.h"
-#ifdef USE_BLACKLIST
-#include "blacklist_client.h"
-#endif
 
 /* import */
 extern ServerOptions options;
@@ -340,9 +337,6 @@ do_authloop(Authctxt *authctxt)
 			char *msg;
 			size_t len;
 
-#ifdef USE_BLACKLIST
-			blacklist_notify(1);
-#endif
 			error("Access denied for user %s by PAM account "
 			    "configuration", authctxt->user);
 			len = buffer_len(&loginmsg);
@@ -410,9 +404,6 @@ do_authentication(Authctxt *authctxt)
 	else {
 		debug("do_authentication: invalid user %s", user);
 		authctxt->pw = fakepw();
-#ifdef USE_BLACKLIST
-		blacklist_notify(1);
-#endif
 	}
 
 	/* Configuration may have changed as a result of Match */

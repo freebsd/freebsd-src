@@ -52,9 +52,6 @@ __RCSID("$FreeBSD$");
 #include "pathnames.h"
 #include "buffer.h"
 #include "canohost.h"
-#ifdef USE_BLACKLIST
-#include "blacklist_client.h"
-#endif
 
 #ifdef GSSAPI
 #include "ssh-gss.h"
@@ -251,9 +248,6 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		} else {
 			logit("input_userauth_request: invalid user %s", user);
 			authctxt->pw = fakepw();
-#ifdef USE_BLACKLIST
-			blacklist_notify(1);
-#endif
 #ifdef SSH_AUDIT_EVENTS
 			PRIVSEP(audit_event(SSH_INVALID_USER));
 #endif

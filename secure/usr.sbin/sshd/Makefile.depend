@@ -17,7 +17,6 @@ DIRDEPS = \
 	kerberos5/lib/libroken \
 	kerberos5/lib/libwind \
 	lib/${CSU_DIR} \
-	lib/libblacklist \
 	lib/libbsm \
 	lib/libc \
 	lib/libcom_err \
