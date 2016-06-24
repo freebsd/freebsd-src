@@ -22,63 +22,22 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _VMBUS_REG_H_
-#define _VMBUS_REG_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <dev/hyperv/vmbus/hyperv_machdep.h>
 
-/*
- * Hyper-V SynIC message format.
- */
+uint64_t
+hypercall_md(volatile void *hc_addr, uint64_t in_val,
+    uint64_t in_paddr, uint64_t out_paddr)
+{
+	uint64_t status;
 
-#define VMBUS_MSG_DSIZE_MAX		240
-#define VMBUS_MSG_SIZE			256
-
-struct vmbus_message {
-	uint32_t	msg_type;	/* VMBUS_MSGTYPE_ */
-	uint8_t		msg_dsize;	/* data size */
-	uint8_t		msg_flags;	/* VMBUS_MSGFLAG_ */
-	uint16_t	msg_rsvd;
-	uint64_t	msg_id;
-	uint8_t		msg_data[VMBUS_MSG_DSIZE_MAX];
-} __packed;
-CTASSERT(sizeof(struct vmbus_message) == VMBUS_MSG_SIZE);
-
-#define VMBUS_MSGTYPE_NONE		0
-#define VMBUS_MSGTYPE_CHANNEL		1
-#define VMBUS_MSGTYPE_TIMER_EXPIRED	0x80000010
-
-#define VMBUS_MSGFLAG_PENDING		0x01
-
-/*
- * Hyper-V SynIC event flags
- */
-
-#ifdef __LP64__
-#define VMBUS_EVTFLAGS_MAX	32
-#define VMBUS_EVTFLAG_SHIFT	6
-#else
-#define VMBUS_EVTFLAGS_MAX	64
-#define VMBUS_EVTFLAG_SHIFT	5
-#endif
-#define VMBUS_EVTFLAG_LEN	(1 << VMBUS_EVTFLAG_SHIFT)
-#define VMBUS_EVTFLAG_MASK	(VMBUS_EVTFLAG_LEN - 1)
-#define VMBUS_EVTFLAGS_SIZE	256
-
-struct vmbus_evtflags {
-	u_long		evt_flags[VMBUS_EVTFLAGS_MAX];
-} __packed;
-CTASSERT(sizeof(struct vmbus_evtflags) == VMBUS_EVTFLAGS_SIZE);
-
-/*
- * Channel
- */
-
-#define VMBUS_CHAN_MAX_COMPAT	256
-#define VMBUS_CHAN_MAX		(VMBUS_EVTFLAG_LEN * VMBUS_EVTFLAGS_MAX)
-
-#endif	/* !_VMBUS_REG_H_ */
+	__asm__ __volatile__ ("mov %0, %%r8" : : "r" (out_paddr): "r8");
+	__asm__ __volatile__ ("call *%3" : "=a" (status) :
+	    "c" (in_val), "d" (in_paddr), "m" (hc_addr));
+	return (status);
+}

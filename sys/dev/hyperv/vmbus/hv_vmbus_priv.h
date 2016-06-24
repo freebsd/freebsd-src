@@ -244,25 +244,7 @@ typedef enum {
 typedef struct {
 	hv_vmbus_connect_state			connect_state;
 	uint32_t				next_gpadl_handle;
-	/**
-	 * Represents channel interrupts. Each bit position
-	 * represents a channel.
-	 * When a channel sends an interrupt via VMBUS, it
-	 * finds its bit in the send_interrupt_page, set it and
-	 * calls Hv to generate a port event. The other end
-	 * receives the port event and parse the
-	 * recv_interrupt_page to see which bit is set
-	 */
-	void					*interrupt_page;
-	void					*send_interrupt_page;
-	void					*recv_interrupt_page;
-	/*
-	 * 2 pages - 1st page for parent->child
-	 * notification and 2nd is child->parent
-	 * notification
-	 */
-	void					*monitor_page_1;
-	void					*monitor_page_2;
+
 	TAILQ_HEAD(, hv_vmbus_channel_msg_info)	channel_msg_anchor;
 	struct mtx				channel_msg_lock;
 	/**
@@ -364,16 +346,6 @@ typedef enum {
 
 extern hv_vmbus_connection	hv_vmbus_g_connection;
 
-typedef void (*vmbus_msg_handler)(hv_vmbus_channel_msg_header *msg);
-
-typedef struct hv_vmbus_channel_msg_table_entry {
-	hv_vmbus_channel_msg_type    messageType;
-
-	vmbus_msg_handler   messageHandler;
-} hv_vmbus_channel_msg_table_entry;
-
-extern hv_vmbus_channel_msg_table_entry	g_channel_message_table[];
-
 /*
  * Private, VM Bus functions
  */
@@ -450,7 +422,8 @@ int			hv_vmbus_child_device_unregister(
 /**
  * Connection interfaces
  */
-int			hv_vmbus_connect(void);
+struct vmbus_softc;
+int			hv_vmbus_connect(struct vmbus_softc *);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
