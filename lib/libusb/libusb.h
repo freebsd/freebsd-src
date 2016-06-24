@@ -254,7 +254,7 @@ struct libusb_context;
 struct libusb_device;
 struct libusb_transfer;
 struct libusb_device_handle;
-struct libusb_hotplug_callback_handle;
+struct libusb_hotplug_callback_handle_struct;
 
 struct libusb_pollfd {
 	int	fd;
@@ -276,7 +276,7 @@ typedef struct libusb_device_handle libusb_device_handle;
 typedef struct libusb_pollfd libusb_pollfd;
 typedef void (*libusb_pollfd_added_cb) (int fd, short events, void *user_data);
 typedef void (*libusb_pollfd_removed_cb) (int fd, void *user_data);
-typedef struct libusb_hotplug_callback_handle *libusb_hotplug_callback_handle;
+typedef struct libusb_hotplug_callback_handle_struct *libusb_hotplug_callback_handle;
 
 typedef struct libusb_device_descriptor {
 	uint8_t	bLength;
