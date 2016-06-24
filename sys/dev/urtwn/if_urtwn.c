@@ -683,7 +683,6 @@ urtwn_detach(device_t self)
 {
 	struct urtwn_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	unsigned int x;
 
 	/* Prevent further ioctls. */
 	URTWN_LOCK(sc);
@@ -697,26 +696,6 @@ urtwn_detach(device_t self)
 
 	/* stop all USB transfers */
 	usbd_transfer_unsetup(sc->sc_xfer, URTWN_N_TRANSFER);
-
-	/* Prevent further allocations from RX/TX data lists. */
-	URTWN_LOCK(sc);
-	STAILQ_INIT(&sc->sc_tx_active);
-	STAILQ_INIT(&sc->sc_tx_inactive);
-	STAILQ_INIT(&sc->sc_tx_pending);
-
-	STAILQ_INIT(&sc->sc_rx_active);
-	STAILQ_INIT(&sc->sc_rx_inactive);
-	URTWN_UNLOCK(sc);
-
-	/* drain USB transfers */
-	for (x = 0; x != URTWN_N_TRANSFER; x++)
-		usbd_transfer_drain(sc->sc_xfer[x]);
-
-	/* Free data buffers. */
-	URTWN_LOCK(sc);
-	urtwn_free_tx_list(sc);
-	urtwn_free_rx_list(sc);
-	URTWN_UNLOCK(sc);
 
 	if (ic->ic_softc == sc) {
 		ieee80211_draintask(ic, &sc->cmdq_task);
@@ -1359,12 +1338,19 @@ static void
 urtwn_free_rx_list(struct urtwn_softc *sc)
 {
 	urtwn_free_list(sc, sc->sc_rx, URTWN_RX_LIST_COUNT);
+
+	STAILQ_INIT(&sc->sc_rx_active);
+	STAILQ_INIT(&sc->sc_rx_inactive);
 }
 
 static void
 urtwn_free_tx_list(struct urtwn_softc *sc)
 {
 	urtwn_free_list(sc, sc->sc_tx, URTWN_TX_LIST_COUNT);
+
+	STAILQ_INIT(&sc->sc_tx_active);
+	STAILQ_INIT(&sc->sc_tx_inactive);
+	STAILQ_INIT(&sc->sc_tx_pending);
 }
 
 static void
@@ -5579,6 +5565,8 @@ urtwn_stop(struct urtwn_softc *sc)
 
 	urtwn_abort_xfers(sc);
 	urtwn_drain_mbufq(sc);
+	urtwn_free_tx_list(sc);
+	urtwn_free_rx_list(sc);
 	urtwn_power_off(sc);
 	URTWN_UNLOCK(sc);
 }
