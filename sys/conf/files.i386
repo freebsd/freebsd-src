@@ -250,12 +250,12 @@ dev/hyperv/utilities/hv_util.c				optional	hyperv
 dev/hyperv/vmbus/hv_channel.c				optional	hyperv
 dev/hyperv/vmbus/hv_channel_mgmt.c			optional	hyperv
 dev/hyperv/vmbus/hv_connection.c			optional	hyperv
-dev/hyperv/vmbus/hv_hv.c				optional	hyperv
-dev/hyperv/vmbus/hv_et.c				optional	hyperv
 dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
-dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
+dev/hyperv/vmbus/hyperv.c				optional	hyperv
 dev/hyperv/vmbus/hyperv_busdma.c			optional	hyperv
-dev/hyperv/vmbus/i386/hv_vector.S			optional	hyperv
+dev/hyperv/vmbus/vmbus.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_et.c				optional	hyperv
+dev/hyperv/vmbus/i386/vmbus_vector.S			optional	hyperv
 dev/ichwd/ichwd.c		optional ichwd
 dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
