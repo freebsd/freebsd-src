@@ -895,14 +895,7 @@ urtwn_rx_copy_to_mbuf(struct urtwn_softc *sc, struct r92c_rx_stat *stat,
 		goto fail;
 	}
 
-	if (__predict_false(totlen > MCLBYTES)) {
-		/* convert to m_getjcl if this happens */
-		device_printf(sc->sc_dev, "%s: frame too long: %d (%d)\n",
-		    __func__, pktlen, totlen);
-		goto fail;
-	}
-
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	m = m_get2(totlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
 		device_printf(sc->sc_dev, "%s: could not allocate RX mbuf\n",
 		    __func__);
