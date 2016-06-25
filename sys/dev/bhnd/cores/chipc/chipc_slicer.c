@@ -54,58 +54,88 @@ __FBSDID("$FreeBSD$");
 #include <dev/cfi/cfi_var.h>
 #include "chipc_spi.h"
 
-static int	chipc_slicer_walk(device_t dev, struct resource* res,
+static int	chipc_slicer_walk(device_t dev, struct resource *res,
 		    struct flash_slice *slices, int *nslices);
+
+void
+chipc_register_slicer(chipc_flash flash_type)
+{
+	switch (flash_type) {
+	case CHIPC_SFLASH_AT:
+	case CHIPC_SFLASH_ST:
+		flash_register_slicer(chipc_slicer_spi);
+		break;
+	case CHIPC_PFLASH_CFI:
+		flash_register_slicer(chipc_slicer_cfi);
+		break;
+	default:
+		/* Unsupported */
+		break;
+	}
+}
 
 int
 chipc_slicer_cfi(device_t dev, struct flash_slice *slices, int *nslices)
 {
 	struct cfi_softc	*sc;
+	device_t		 parent;
 
-	if (strcmp("cfi", device_get_name(dev)) != 0)
-		return (0);
+	/* must be CFI flash */
+	if (device_get_devclass(dev) != devclass_find("cfi"))
+		return (ENXIO);
+
+	/* must be attached to chipc */
+	if ((parent = device_get_parent(dev)) == NULL) {
+		BHND_ERROR_DEV(dev, "no found ChipCommon device");
+		return (ENXIO);
+	}
+
+	if (device_get_devclass(parent) != devclass_find("bhnd_chipc")) {
+		BHND_ERROR_DEV(dev, "no found ChipCommon device");
+		return (ENXIO);
+	}
 
 	sc = device_get_softc(dev);
-
 	return (chipc_slicer_walk(dev, sc->sc_res, slices, nslices));
 }
 
 int
 chipc_slicer_spi(device_t dev, struct flash_slice *slices, int *nslices)
 {
-	/* flash(mx25l) <- spibus <- chipc_spi */
-	device_t		 spibus;
-	device_t		 chipc_spi;
 	struct chipc_spi_softc	*sc;
+	device_t		 chipc, spi, spibus;
 
 	BHND_DEBUG_DEV(dev, "initting SPI slicer: %s", device_get_name(dev));
 
-	if (strcmp("mx25l", device_get_name(dev)) != 0)
-		return (EINVAL);
-
+	/* must be SPI-attached flash */
 	spibus = device_get_parent(dev);
 	if (spibus == NULL) {
 		BHND_ERROR_DEV(dev, "no found ChipCommon SPI BUS device");
-		return (EINVAL);
+		return (ENXIO);
 	}
 
-	chipc_spi = device_get_parent(spibus);
-	if (chipc_spi == NULL) {
-		BHND_ERROR_DEV(spibus, "no found ChipCommon SPI device");
-		return (EINVAL);
+	spi = device_get_parent(spibus);
+	if (spi == NULL) {
+		BHND_ERROR_DEV(dev, "no found ChipCommon SPI device");
+		return (ENXIO);
 	}
 
-	sc = device_get_softc(chipc_spi);
+	chipc = device_get_parent(spi);
+	if (device_get_devclass(chipc) != devclass_find("bhnd_chipc")) {
+		BHND_ERROR_DEV(dev, "no found ChipCommon device");
+		return (ENXIO);
+	}
 
-	return (chipc_slicer_walk(dev, sc->sc_res, slices, nslices));
+	sc = device_get_softc(spi);
+	return (chipc_slicer_walk(dev, sc->sc_flash_res, slices, nslices));
 }
 
 /*
  * Main processing part
  */
 static int
-chipc_slicer_walk(device_t dev, struct resource* res,
-		struct flash_slice *slices, int *nslices)
+chipc_slicer_walk(device_t dev, struct resource *res,
+    struct flash_slice *slices, int *nslices)
 {
 	uint32_t	 fw_len;
 	uint32_t	 fs_ofs;

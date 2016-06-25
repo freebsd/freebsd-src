@@ -34,10 +34,13 @@
 
 #include <sys/slicer.h>
 
+#include "chipcvar.h"
+
 #define	TRX_MAGIC 	0x30524448
 #define	CFE_MAGIC 	0x43464531
 #define	NVRAM_MAGIC	0x48534C46
 
+void		chipc_register_slicer(chipc_flash flash_type);
 int		chipc_slicer_spi(device_t dev, struct flash_slice *slices,
 		    int *nslices);
 int		chipc_slicer_cfi(device_t dev, struct flash_slice *slices,

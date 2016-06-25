@@ -38,6 +38,93 @@ __FBSDID("$FreeBSD$");
 #include "chipcvar.h"
 
 /**
+ * Return a human-readable name for the given flash @p type.
+ */
+const char *
+chipc_flash_name(chipc_flash type)
+{
+	switch (type) {
+	case CHIPC_PFLASH_CFI:
+		return ("CFI Flash");
+
+	case CHIPC_SFLASH_ST:
+	case CHIPC_SFLASH_AT:
+		return ("SPI Flash");
+
+	case CHIPC_QSFLASH_ST:
+	case CHIPC_QSFLASH_AT:
+		return ("QSPI Flash");
+
+	case CHIPC_NFLASH:
+	case CHIPC_NFLASH_4706:
+		return ("NAND");
+
+	case CHIPC_FLASH_NONE:
+	default:
+		return ("unknown");
+	}
+}
+
+/**
+ * Return the name of the bus device class used by flash @p type,
+ * or NULL if @p type is unsupported.
+ */
+const char *
+chipc_flash_bus_name(chipc_flash type)
+{
+	switch (type) {
+	case CHIPC_PFLASH_CFI:
+		return ("cfi");
+
+	case CHIPC_SFLASH_ST:
+	case CHIPC_SFLASH_AT:
+		return ("spi");
+
+	case CHIPC_QSFLASH_ST:
+	case CHIPC_QSFLASH_AT:
+		/* unimplemented; spi? */
+		return (NULL);
+
+	case CHIPC_NFLASH:
+	case CHIPC_NFLASH_4706:
+		/* unimplemented; nandbus? */
+		return (NULL);
+
+	case CHIPC_FLASH_NONE:
+	default:
+		return (NULL);
+	}
+}
+
+/**
+ * Return the name of the flash device class for SPI flash @p type,
+ * or NULL if @p type does not use SPI, or is unsupported.
+ */
+const char *
+chipc_sflash_device_name(chipc_flash type)
+{
+	switch (type) {
+	case CHIPC_SFLASH_ST:
+		return ("mx25l");
+
+	case CHIPC_SFLASH_AT:
+		return ("at45d");
+
+	case CHIPC_QSFLASH_ST:
+	case CHIPC_QSFLASH_AT:
+		/* unimplemented */
+		return (NULL);
+
+	case CHIPC_PFLASH_CFI:
+	case CHIPC_NFLASH:
+	case CHIPC_NFLASH_4706:
+	case CHIPC_FLASH_NONE:
+	default:
+		return (NULL);
+	}
+}
+
+/**
  * Initialize child resource @p r with a virtual address, tag, and handle
  * copied from @p parent, adjusted to contain only the range defined by
  * @p offsize and @p size.
@@ -72,6 +159,72 @@ chipc_init_child_resource(struct resource *r,
 	rman_set_bushandle(r, child_bh);
 
 	return (0);
+}
+
+/**
+ * Associate a resource with a given resource ID, relative to the given
+ * port and region.
+ * 
+ * This function behaves identically to bus_set_resource() for all resource
+ * types other than SYS_RES_MEMORY.
+ * 
+ * For SYS_RES_MEMORY resources, the specified @p region's address and size
+ * will be fetched from the bhnd(4) bus, and bus_set_resource() will be called
+ * with @p start added the region's actual base address.
+ * 
+ * To use the default region values for @p start and @p count, specify
+ * a @p start value of 0ul, and an end value of RMAN_MAX_END
+ * 
+ * @param sc chipc driver state.
+ * @param child The device to set the resource on.
+ * @param type The resource type.
+ * @param rid The resource ID.
+ * @param start The resource start address (if SYS_RES_MEMORY, this is
+ * relative to @p region's base address).
+ * @param count The length of the resource.
+ * @param port The mapping port number (ignored if not SYS_RES_MEMORY).
+ * @param region The mapping region number (ignored if not SYS_RES_MEMORY).
+ */
+int
+chipc_set_resource(struct chipc_softc *sc, device_t child, int type, int rid,
+    rman_res_t start, rman_res_t count, u_int port, u_int region)
+{
+	bhnd_addr_t	region_addr;
+	bhnd_size_t	region_size;
+	bool		isdefault;
+	int		error;
+
+	if (type != SYS_RES_MEMORY)
+		return (bus_set_resource(child, type, rid, start, count));
+
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, count);
+
+	/* Fetch region address and size */
+	error = bhnd_get_region_addr(sc->dev, BHND_PORT_DEVICE, port,
+	    region, &region_addr, &region_size);
+	if (error) {
+		device_printf(sc->dev,
+		    "lookup of %s%u.%u failed: %d\n",
+		    bhnd_port_type_name(BHND_PORT_DEVICE), port, region, error);
+		return (error);
+	}
+
+	/* Populate defaults */
+	if (isdefault) {
+		start = 0;
+		count = region_size;
+	}
+
+	/* Verify requested range is mappable */
+	if (start > region_size || region_size - start < count) {
+		device_printf(sc->dev,
+		    "%s%u.%u region cannot map requested range %#jx+%#jx\n",
+		    bhnd_port_type_name(BHND_PORT_DEVICE), port, region, start,
+		    count);
+		return (ERANGE);
+	}
+
+	return (bus_set_resource(child, type, rid, region_addr + start, count));
 }
 
 

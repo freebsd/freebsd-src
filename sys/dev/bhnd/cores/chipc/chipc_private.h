@@ -55,6 +55,11 @@ int			 chipc_init_child_resource(struct resource *r,
 			     struct resource *parent, 
 			     bhnd_size_t offset, bhnd_size_t size);
 
+int			 chipc_set_resource(struct chipc_softc *sc,
+			     device_t child, int type, int rid,
+			     rman_res_t start, rman_res_t count, u_int port,
+			     u_int region);
+
 struct chipc_region	*chipc_alloc_region(struct chipc_softc *sc,
 			     bhnd_port_type type, u_int port,
 			     u_int region);

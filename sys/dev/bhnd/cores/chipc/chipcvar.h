@@ -59,6 +59,10 @@ typedef enum {
 	CHIPC_NFLASH_4706	= 7	/**< BCM4706 NAND flash */
 } chipc_flash;
 
+const char	*chipc_flash_name(chipc_flash type);
+const char	*chipc_flash_bus_name(chipc_flash type);
+const char	*chipc_sflash_device_name(chipc_flash type);
+
 /**
  * ChipCommon capability flags;
  */
@@ -69,15 +73,16 @@ struct chipc_caps {
 	uint8_t		uart_gpio;	/**< UARTs own GPIO pins 12-15 */
 
 	uint8_t		extbus_type;	/**< ExtBus type (CHIPC_CAP_EXTBUS_*) */
-	chipc_flash 	flash_type;	/**< Flash type */
-	bhnd_nvram_src	nvram_src;	/**< identified NVRAM source */
 
+	chipc_flash 	flash_type;	/**< flash type */
+	uint8_t		cfi_width;	/**< CFI bus width, 0 if unknown or CFI
+					     not present */
+
+	bhnd_nvram_src	nvram_src;	/**< identified NVRAM source */
 	bus_size_t	sprom_offset;	/**< Offset to SPROM data within
 					     SPROM/OTP, 0 if unknown or not
 					     present */
 	uint8_t		otp_size;	/**< OTP (row?) size, 0 if not present */
-	uint8_t		cfi_width;	/**< CFI bus width, 0 if unknown or CFI
-					     not present */
 
 	uint8_t		pll_type;	/**< PLL type */
 	bool		power_control;	/**< Power control available */
@@ -200,7 +205,6 @@ struct chipc_softc {
 	struct bhnd_resource	*core;		/**< core registers. */
 	struct chipc_region	*core_region;	/**< region containing core registers */
 
-	struct bhnd_chipid	 ccid;		/**< chip identification */
 	uint32_t		 quirks;	/**< chipc quirk flags */
 	struct chipc_caps	 caps;		/**< chipc capabilities */
 
