@@ -69,7 +69,9 @@ int			 bcma_add_children(device_t bus,
 struct bcma_sport_list	*bcma_corecfg_get_port_list(struct bcma_corecfg *cfg,
 			     bhnd_port_type type);
 
-struct bcma_devinfo	*bcma_alloc_dinfo(device_t bus,
+struct bcma_devinfo	*bcma_alloc_dinfo(device_t bus);
+int			 bcma_init_dinfo(device_t bus,
+			     struct bcma_devinfo *dinfo,
 			     struct bcma_corecfg *corecfg);
 void			 bcma_free_dinfo(device_t bus,
 			     struct bcma_devinfo *dinfo);
@@ -132,7 +134,9 @@ struct bcma_corecfg {
  * BCMA per-device info
  */
 struct bcma_devinfo {
-	struct resource_list	resources;	/**< Slave port memory regions. */
+	struct bhnd_devinfo	 bhnd_dinfo;	/**< superclass device info. */
+
+	struct resource_list	 resources;	/**< Slave port memory regions. */
 	struct bcma_corecfg	*corecfg;	/**< IP core/block config */
 
 	struct bhnd_resource	*res_agent;	/**< Agent (wrapper) resource, or NULL. Not
