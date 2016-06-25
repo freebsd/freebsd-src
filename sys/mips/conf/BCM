@@ -6,6 +6,7 @@
 #
 
 ident		BCM
+cpu		CPU_MIPS74K
 
 hints		"BCM.hints"
 include		"../broadcom/std.broadcom"
@@ -15,9 +16,6 @@ options 	CFE
 options 	ALT_BREAK_TO_DEBUGGER
 options 	BREAK_TO_DEBUGGER
 options		BOOTVERBOSE=0
-
-makeoptions	INTRNG
-options		INTRNG
 
 makeoptions	TRAMPLOADADDR=0x80800000
 makeoptions	DEBUG="-g3"		#Build kernel with gdb(1) debug symbols

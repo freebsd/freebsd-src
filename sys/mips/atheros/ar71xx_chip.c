@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar71xx_cpudef.h>
 
-#include <mips/sentry5/s5reg.h>
-
 /* XXX these should replace the current definitions in ar71xxreg.h */
 /* XXX perhaps an ar71xx_chip.h header file? */
 #define AR71XX_PLL_REG_CPU_CONFIG       AR71XX_PLL_CPU_BASE + 0x00

@@ -58,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_macaddr.h>
 
-#include <mips/sentry5/s5reg.h>
-
 extern char edata[], end[];
 
 /* 4KB static data aread to keep a copy of the bootload env until

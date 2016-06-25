@@ -35,9 +35,10 @@
 #include <machine/cpuregs.h>
 
 struct bcm_socinfo {
-	uint32_t id;
-	uint32_t cpurate;	/* in MHz */
-	uint32_t uartrate;	/* in Hz */
+	uint32_t	id;
+	uint32_t	cpurate;	/* in MHz */
+	uint32_t	uartrate;	/* in Hz */
+	int		double_count;
 };
 
 struct bcm_socinfo*	bcm_get_socinfo_by_socid(uint32_t key);

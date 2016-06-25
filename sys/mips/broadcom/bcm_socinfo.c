@@ -33,22 +33,23 @@ __FBSDID("$FreeBSD$");
 
 /* found on https://wireless.wiki.kernel.org/en/users/drivers/b43/soc */
 struct bcm_socinfo bcm_socinfos[] = {
-		{0x00005300, 600, 25000000}, /* BCM4706 to check */
-		{0x0022B83A, 300, 20000000}, /* BCM4716B0 ASUS RT-N12  */
-		{0x00914716, 354, 20000000}, /* BCM4717A1 to check  */
-		{0x00A14716, 480, 20000000}, /* BCM4718A1 ASUS RT-N16 */
-		{0x00435356, 300, 25000000}, /* BCM5356A1 (RT-N10, WNR1000v3) */
-		{0x00825357, 500, 20000000}, /* BCM5358UB0 ASUS RT-N53A1 */
-		{0x00845357, 300, 20000000}, /* BCM5357B0 to check */
-		{0x00945357, 500, 20000000}, /* BCM5358 */
-		{0x00A45357, 500, 20000000}, /* BCM47186B0 Tenda N60  */
-		{0x0085D144, 300, 20000000}, /* BCM5356C0 */
-		{0x00B5D144, 300, 20000000}, /* BCM5357C0 */
+		{0x00005300, 600, 25000000, 1}, /* BCM4706 to check */
+		{0x0022B83A, 300, 20000000, 1}, /* BCM4716B0 ASUS RT-N12  */
+		{0x00914716, 354, 20000000, 1}, /* BCM4717A1 to check  */
+		{0x00A14716, 480, 20000000, 1}, /* BCM4718A1 ASUS RT-N16 */
+		{0x00435356, 300, 25000000, 1}, /* BCM5356A1 (RT-N10, WNR1000v3) */
+		{0x00825357, 500, 20000000, 1}, /* BCM5358UB0 ASUS RT-N53A1 */
+		{0x00845357, 300, 20000000, 1}, /* BCM5357B0 to check */
+		{0x00945357, 500, 20000000, 1}, /* BCM5358 */
+		{0x00A45357, 500, 20000000, 1}, /* BCM47186B0 Tenda N60  */
+		{0x0085D144, 300, 20000000, 1}, /* BCM5356C0 */
+		{0x00B5D144, 300, 20000000, 1}, /* BCM5357C0 */
+		{0x00015365, 200, 0, 1},	/* BCM5365 */
 		{0,0,0}
 };
 
 /* Most popular BCM SoC info */
-struct bcm_socinfo BCM_DEFAULT_SOCINFO = {0x0, 300, 20000000};
+struct bcm_socinfo BCM_DEFAULT_SOCINFO = {0x0, 300, 20000000, 0};
 
 struct bcm_socinfo*
 bcm_get_socinfo_by_socid(uint32_t key)

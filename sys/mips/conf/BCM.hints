@@ -2,4 +2,3 @@
 hint.bhnd.0.at="nexus0"
 hint.bhnd.0.maddr="0x18000000" 
 hint.bhnd.0.msize="0x00100000"
-
