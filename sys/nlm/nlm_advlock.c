@@ -210,7 +210,7 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	struct rpc_callextra ext;
 	struct nlm_feedback_arg nf;
 	AUTH *auth;
-	struct ucred *cred;
+	struct ucred *cred, *cred1;
 	struct nlm_file_svid *ns;
 	int svid;
 	int error;
@@ -240,15 +240,17 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	else
 		retries = INT_MAX;
 
-	if (unlock_vp)
-		VOP_UNLOCK(vp, 0);
-
 	/*
 	 * We need to switch to mount-point creds so that we can send
-	 * packets from a privileged port.
+	 * packets from a privileged port.  Reference mnt_cred and
+	 * switch to them before unlocking the vnode, since mount
+	 * point could be unmounted right after unlock.
 	 */
 	cred = td->td_ucred;
 	td->td_ucred = vp->v_mount->mnt_cred;
+	crhold(td->td_ucred);
+	if (unlock_vp)
+		VOP_UNLOCK(vp, 0);
 
 	host = nlm_find_host_by_name(servername, sa, vers);
 	auth = authunix_create(cred);
@@ -373,7 +375,9 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	if (ns)
 		nlm_free_svid(ns);
 
+	cred1 = td->td_ucred;
 	td->td_ucred = cred;
+	crfree(cred1);
 	AUTH_DESTROY(auth);
 
 	nlm_host_release(host);
