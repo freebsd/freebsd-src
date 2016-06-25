@@ -338,7 +338,12 @@ gather_sctp(void)
 			sock->state = SCTP_LISTEN;
 		if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
 			sock->family = AF_INET6;
-			sock->vflag = INP_IPV6;
+			/*
+			 * Currently there is no way to distinguish between
+			 * IPv6 only sockets or dual family sockets.
+			 * So mark it as dual socket.
+			 */
+			sock->vflag = INP_IPV6 | INP_IPV4;
 		} else {
 			sock->family = AF_INET;
 			sock->vflag = INP_IPV4;
@@ -406,6 +411,7 @@ gather_sctp(void)
 			offset += sizeof(struct xsctp_tcb);
 			if (no_stcb) {
 				if (opt_l &&
+				    (sock->vflag & vflag) &&
 				    (!opt_L || !local_all_loopback) &&
 				    ((xinpcb->flags & SCTP_PCB_FLAGS_UDPTYPE) ||
 				     (xstcb->last == 1))) {
@@ -428,7 +434,12 @@ gather_sctp(void)
 				sock->state = (int)xstcb->state;
 				if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
 					sock->family = AF_INET6;
-					sock->vflag = INP_IPV6;
+				/*
+				 * Currently there is no way to distinguish
+				 * between IPv6 only sockets or dual family
+				 *  sockets. So mark it as dual socket.
+				 */
+					sock->vflag = INP_IPV6 | INP_IPV4;
 				} else {
 					sock->family = AF_INET;
 					sock->vflag = INP_IPV4;
@@ -519,7 +530,9 @@ gather_sctp(void)
 				prev_faddr = faddr;
 			}
 			if (opt_c) {
-				if (!opt_L || !(local_all_loopback || foreign_all_loopback)) {
+				if ((sock->vflag & vflag) &&
+				    (!opt_L ||
+				     !(local_all_loopback || foreign_all_loopback))) {
 					hash = (int)((uintptr_t)sock->socket % HASHSIZE);
 					sock->next = sockhash[hash];
 					sockhash[hash] = sock;
@@ -963,9 +976,11 @@ displaysock(struct sock *s, int pos)
 		pos += xprintf(" ");
 	pos += xprintf("%s", s->protoname);
 	if (s->vflag & INP_IPV4)
-		pos += xprintf("4 ");
+		pos += xprintf("4");
 	if (s->vflag & INP_IPV6)
-		pos += xprintf("6 ");
+		pos += xprintf("6");
+	if (s->vflag & (INP_IPV4 | INP_IPV6))
+		pos += xprintf(" ");
 	laddr = s->laddr;
 	faddr = s->faddr;
 	first = 1;
