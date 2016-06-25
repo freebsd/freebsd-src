@@ -282,9 +282,6 @@ struct thread {
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
-	uintptr_t	td_rb_list;	/* (k) Robust list head. */
-	uintptr_t	td_rbp_list;	/* (k) Robust priv list head. */
-	uintptr_t	td_rb_inact;	/* (k) Current in-action mutex loc. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -298,6 +295,9 @@ struct thread {
 	u_char		td_base_user_pri; /* (t) Base user pri */
 	u_int		td_dbg_sc_code;	/* (c) Syscall code to debugger. */
 	u_int		td_dbg_sc_narg;	/* (c) Syscall arg count to debugger.*/
+	uintptr_t	td_rb_list;	/* (k) Robust list head. */
+	uintptr_t	td_rbp_list;	/* (k) Robust priv list head. */
+	uintptr_t	td_rb_inact;	/* (k) Current in-action mutex loc. */
 #define	td_endcopy td_pcb
 
 /*

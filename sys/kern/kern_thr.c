@@ -234,6 +234,7 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
+	newtd->td_rb_list = newtd->td_rbp_list = newtd->td_rb_inact = 0;
 	thread_cow_get(newtd, td);
 
 	error = initialize_thread(newtd, thunk);
