@@ -7,6 +7,12 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 
+#if defined(KERNEL) || defined(_KERNEL)
+# undef KERNEL
+# undef _KERNEL
+# define	KERNEL  1
+# define	_KERNEL 1
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -19,6 +25,15 @@
 #if __FreeBSD_version >= 500000
 # include <sys/selinfo.h>
 # include <sys/jail.h>
+#endif
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000) && defined(_KERNEL)
+#include <net/vnet.h>
+#else
+#define CURVNET_SET(arg)
+#define CURVNET_RESTORE()
+#define	VNET_DEFINE(_t, _v)	_t _v
+#define	VNET_DECLARE(_t, _v)	extern _t _v
+#define	VNET(arg)	arg
 #endif
 #include <net/if.h>
 #include <netinet/in_systm.h>
