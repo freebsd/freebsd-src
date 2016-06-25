@@ -298,10 +298,12 @@ ipfioctl(dev, cmd, data, mode
 	int error = 0, unit = 0;
 	SPL_INT(s);
 
+	CURVNET_SET(TD_TO_VNET(p));
 #if (BSD >= 199306)
         if (securelevel_ge(p->p_cred, 3) && (mode & FWRITE))
 	{
 		V_ipfmain.ipf_interror = 130001;
+		CURVNET_RESTORE();
 		return EPERM;
 	}
 #endif
@@ -309,12 +311,14 @@ ipfioctl(dev, cmd, data, mode
 	unit = GET_MINOR(dev);
 	if ((IPL_LOGMAX < unit) || (unit < 0)) {
 		V_ipfmain.ipf_interror = 130002;
+		CURVNET_RESTORE();
 		return ENXIO;
 	}
 
 	if (V_ipfmain.ipf_running <= 0) {
 		if (unit != IPL_LOGIPF && cmd != SIOCIPFINTERROR) {
 			V_ipfmain.ipf_interror = 130003;
+			CURVNET_RESTORE();
 			return EIO;
 		}
 		if (cmd != SIOCIPFGETNEXT && cmd != SIOCIPFGET &&
@@ -322,13 +326,13 @@ ipfioctl(dev, cmd, data, mode
 		    cmd != SIOCGETFS && cmd != SIOCGETFF &&
 		    cmd != SIOCIPFINTERROR) {
 			V_ipfmain.ipf_interror = 130004;
+			CURVNET_RESTORE();
 			return EIO;
 		}
 	}
 
 	SPL_NET(s);
 
-	CURVNET_SET(TD_TO_VNET(p));
 	error = ipf_ioctlswitch(&V_ipfmain, unit, data, cmd, mode, p->p_uid, p);
 	CURVNET_RESTORE();
 	if (error != -1) {

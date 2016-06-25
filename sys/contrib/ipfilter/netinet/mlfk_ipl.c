@@ -513,7 +513,7 @@ static int ipfread(dev, uio)
 	if (unit < 0)
 		return ENXIO;
 
-	CURVNET_SET(CRED_TO_VNET(dev->si_cred));
+	CURVNET_SET(TD_TO_VNET(curthread));
 	if (V_ipfmain.ipf_running < 1) {
 		CURVNET_RESTORE();
 		return EIO;
@@ -556,7 +556,7 @@ static int ipfwrite(dev, uio)
 {
 	int error;
 
-	CURVNET_SET(CRED_TO_VNET(dev->si_cred));
+	CURVNET_SET(TD_TO_VNET(curthread));
 	if (V_ipfmain.ipf_running < 1) {
 		CURVNET_RESTORE();
 		return EIO;
