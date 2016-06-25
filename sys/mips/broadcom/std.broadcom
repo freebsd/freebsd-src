@@ -3,5 +3,7 @@
 
 machine		mips mipsel
 
-cpu		CPU_MIPS74K
+makeoptions	INTRNG
+options		INTRNG
+
 files		"../broadcom/files.broadcom"
