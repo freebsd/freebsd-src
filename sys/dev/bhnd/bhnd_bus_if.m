@@ -41,6 +41,7 @@ HEADER {
 	struct bhnd_board_info;
 	struct bhnd_core_info;
 	struct bhnd_chipid;
+	struct bhnd_devinfo;
 	struct bhnd_resource;
 }
 
@@ -66,6 +67,11 @@ CODE {
 	    struct bhnd_board_info *info)
 	{
 		panic("bhnd_bus_read_boardinfo unimplemented");
+	}
+	
+	static void
+	bhnd_bus_null_child_added(device_t dev, device_t child)
+	{
 	}
 
 	static device_t
@@ -226,6 +232,46 @@ METHOD int read_board_info {
 	device_t child;
 	struct bhnd_board_info *info;
 } DEFAULT bhnd_bus_null_read_board_info;
+
+/**
+ * Allocate and zero-initialize a buffer suitably sized and aligned for a
+ * bhnd_devinfo structure.
+ *
+ * @param dev The bhnd bus device.
+ *
+ * @retval non-NULL	success
+ * @retval NULL		allocation failed
+ */
+METHOD struct bhnd_devinfo * alloc_devinfo {
+	device_t dev;
+};
+
+/**
+ * Release memory previously allocated for @p devinfo.
+ *
+ * @param dev The bhnd bus device.
+ * @param dinfo A devinfo buffer previously allocated via
+ * BHND_BUS_ALLOC_DEVINFO().
+ */
+METHOD void free_devinfo {
+	device_t dev;
+	struct bhnd_devinfo *dinfo;
+};
+
+/**
+ * Notify a bhnd bus that a child was added.
+ *
+ * Called at the end of BUS_ADD_CHILD() to allow the concrete bhnd(4)
+ * driver instance to initialize any additional driver-specific state for the
+ * child.
+ *
+ * @param dev The bhnd bus whose child is being added.
+ * @param child The child added to @p dev.
+ */
+METHOD void child_added {
+	device_t dev;
+	device_t child;
+} DEFAULT bhnd_bus_null_child_added;
 
 /**
  * Reset the device's hardware core.

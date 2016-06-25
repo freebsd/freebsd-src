@@ -106,22 +106,20 @@ siba_parse_core_id(uint32_t idhigh, uint32_t idlow, u_int core_idx, int unit)
 }
 
 /**
- * Allocate and initialize new device info structure, copying the
- * provided core id.
+ * Allocate and return a new empty device info structure.
  * 
- * @param dev The requesting bus device.
- * @param core Device core info.
+ * @param bus The requesting bus device.
+ * 
+ * @retval NULL if allocation failed.
  */
 struct siba_devinfo *
-siba_alloc_dinfo(device_t bus, const struct siba_core_id *core_id)
+siba_alloc_dinfo(device_t bus)
 {
 	struct siba_devinfo *dinfo;
 	
-	dinfo = malloc(sizeof(struct siba_devinfo), M_BHND, M_NOWAIT);
+	dinfo = malloc(sizeof(struct siba_devinfo), M_BHND, M_NOWAIT|M_ZERO);
 	if (dinfo == NULL)
 		return NULL;
-
-	dinfo->core_id = *core_id;
 
 	for (u_int i = 0; i < nitems(dinfo->cfg); i++) {
 		dinfo->cfg[i] = NULL;
@@ -131,6 +129,25 @@ siba_alloc_dinfo(device_t bus, const struct siba_core_id *core_id)
 	resource_list_init(&dinfo->resources);
 
 	return dinfo;
+}
+
+/**
+ * Initialize a device info structure previously allocated via
+ * siba_alloc_dinfo, copying the provided core id.
+ * 
+ * @param dev The requesting bus device.
+ * @param dinfo The device info instance.
+ * @param core Device core info.
+ * 
+ * @retval 0 success
+ * @retval non-zero initialization failed.
+ */
+int
+siba_init_dinfo(device_t dev, struct siba_devinfo *dinfo,
+    const struct siba_core_id *core_id)
+{
+	dinfo->core_id = *core_id;
+	return (0);
 }
 
 /**

@@ -206,14 +206,6 @@ siba_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	}
 }
 
-static void
-siba_child_deleted(device_t dev, device_t child)
-{
-	struct siba_devinfo *dinfo = device_get_ivars(child);
-	if (dinfo != NULL)
-		siba_free_dinfo(dev, dinfo);
-}
-
 static struct resource_list *
 siba_get_resource_list(device_t dev, device_t child)
 {
@@ -436,6 +428,19 @@ siba_register_addrspaces(device_t dev, struct siba_devinfo *di,
 	return (0);
 }
 
+static struct bhnd_devinfo *
+siba_alloc_bhnd_dinfo(device_t dev)
+{
+	struct siba_devinfo *dinfo = siba_alloc_dinfo(dev);
+	return ((struct bhnd_devinfo *)dinfo);
+}
+
+static void
+siba_free_bhnd_dinfo(device_t dev, struct bhnd_devinfo *dinfo)
+{
+	siba_free_dinfo(dev, (struct siba_devinfo *)dinfo);
+}
+
 /**
  * Scan the core table and add all valid discovered cores to
  * the bus.
@@ -556,6 +561,13 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 			goto cleanup;
 		}
 
+		/* Add the child device */
+		child = BUS_ADD_CHILD(dev, 0, NULL, -1);
+		if (child == NULL) {
+			error = ENXIO;
+			goto cleanup;
+		}
+		
 		/* Read the core info */
 		idhigh = bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
 		idlow = bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_IDLOW));
@@ -570,27 +582,18 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 				cores[i].unit++;
 		}
 
-		/* Allocate per-device bus info */
-		dinfo = siba_alloc_dinfo(dev, &cid);
-		if (dinfo == NULL) {
+		/* Initialize per-device bus info */
+		if ((dinfo = device_get_ivars(child)) == NULL) {
 			error = ENXIO;
 			goto cleanup;
 		}
+
+		if ((error = siba_init_dinfo(dev, dinfo, &cid)))
+			goto cleanup;
 
 		/* Register the core's address space(s). */
 		if ((error = siba_register_addrspaces(dev, dinfo, r)))
 			goto cleanup;
-
-		/* Add the child device */
-		child = device_add_child(dev, NULL, -1);
-		if (child == NULL) {
-			error = ENXIO;
-			goto cleanup;
-		}
-
-		/* The child device now owns the dinfo pointer */
-		device_set_ivars(child, dinfo);
-		dinfo = NULL;
 
 		/* If pins are floating or the hardware is otherwise
 		 * unpopulated, the device shouldn't be used. */
@@ -605,9 +608,6 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 cleanup:
 	if (cores != NULL)
 		free(cores, M_BHND);
-
-	if (dinfo != NULL)
-		siba_free_dinfo(dev, dinfo);
 
 	if (r != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
@@ -624,13 +624,14 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(device_suspend,		siba_suspend),
 	
 	/* Bus interface */
-	DEVMETHOD(bus_child_deleted,		siba_child_deleted),
 	DEVMETHOD(bus_read_ivar,		siba_read_ivar),
 	DEVMETHOD(bus_write_ivar,		siba_write_ivar),
 	DEVMETHOD(bus_get_resource_list,	siba_get_resource_list),
 
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_find_hostb_device,	siba_find_hostb_device),
+	DEVMETHOD(bhnd_bus_alloc_devinfo,	siba_alloc_bhnd_dinfo),
+	DEVMETHOD(bhnd_bus_free_devinfo,	siba_free_bhnd_dinfo),
 	DEVMETHOD(bhnd_bus_reset_core,		siba_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	siba_suspend_core),
 	DEVMETHOD(bhnd_bus_get_port_count,	siba_get_port_count),
