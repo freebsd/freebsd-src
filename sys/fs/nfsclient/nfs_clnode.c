@@ -198,15 +198,41 @@ nfs_freesillyrename(void *arg, __unused int pending)
 	free(sp, M_NEWNFSREQ);
 }
 
-int
-ncl_inactive(struct vop_inactive_args *ap)
+static void
+ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 {
 	struct nfsnode *np;
 	struct sillyrename *sp;
+
+	ASSERT_VOP_ELOCKED(vp, "releasesillyrename");
+	np = VTONFS(vp);
+	mtx_lock(&np->n_mtx);
+	if (vp->v_type != VDIR) {
+		sp = np->n_sillyrename;
+		np->n_sillyrename = NULL;
+	} else
+		sp = NULL;
+	if (sp != NULL) {
+		mtx_unlock(&np->n_mtx);
+		(void) ncl_vinvalbuf(vp, 0, td, 1);
+		/*
+		 * Remove the silly file that was rename'd earlier
+		 */
+		ncl_removeit(sp, vp);
+		crfree(sp->s_cred);
+		TASK_INIT(&sp->s_task, 0, nfs_freesillyrename, sp);
+		taskqueue_enqueue(taskqueue_thread, &sp->s_task);
+		mtx_lock(&np->n_mtx);
+	}
+	np->n_flag &= NMODIFIED;
+	mtx_unlock(&np->n_mtx);
+}
+
+int
+ncl_inactive(struct vop_inactive_args *ap)
+{
 	struct vnode *vp = ap->a_vp;
 	boolean_t retv;
-
-	np = VTONFS(vp);
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		/*
@@ -228,26 +254,7 @@ ncl_inactive(struct vop_inactive_args *ap)
 		}
 	}
 
-	mtx_lock(&np->n_mtx);
-	if (vp->v_type != VDIR) {
-		sp = np->n_sillyrename;
-		np->n_sillyrename = NULL;
-	} else
-		sp = NULL;
-	if (sp) {
-		mtx_unlock(&np->n_mtx);
-		(void) ncl_vinvalbuf(vp, 0, ap->a_td, 1);
-		/*
-		 * Remove the silly file that was rename'd earlier
-		 */
-		ncl_removeit(sp, vp);
-		crfree(sp->s_cred);
-		TASK_INIT(&sp->s_task, 0, nfs_freesillyrename, sp);
-		taskqueue_enqueue(taskqueue_thread, &sp->s_task);
-		mtx_lock(&np->n_mtx);
-	}
-	np->n_flag &= NMODIFIED;
-	mtx_unlock(&np->n_mtx);
+	ncl_releasesillyrename(vp, ap->a_td);
 	return (0);
 }
 
@@ -267,6 +274,8 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	 */
 	if (nfs_reclaim_p != NULL)
 		nfs_reclaim_p(ap);
+
+	ncl_releasesillyrename(vp, ap->a_td);
 
 	/*
 	 * Destroy the vm object and flush associated pages.
