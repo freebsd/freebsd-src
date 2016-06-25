@@ -25,11 +25,11 @@
 #
 
 ident		SENTRY5
+cpu		CPU_MIPS4KC
+makeoptions	TRAMPLOADADDR=0x807963c0
 
-# XXX only siba should be hardwired for now; we will use
-# bus enumeration there
 hints		"SENTRY5.hints"
-include		"../sentry5/std.sentry5"
+include		"../broadcom/std.broadcom"
 
 # sentry5 normally ships with cfe firmware; use the console for now
 options 	CFE
@@ -78,11 +78,10 @@ device		usb			# USB Bus (required)
 device		uhci			# UHCI PCI->USB interface
 device		ehci			# EHCI PCI->USB interface (USB 2.0)
 
-# need to teach the code to ignore the bridge....
+device		cfi			# parallel flash
+device		cfid
 
-
-# XXX notyet; need to be auto probed children of siba_cc.
-#device		uart
+device		uart
 
 device		loop
 device		ether
