@@ -206,7 +206,7 @@ ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 
 	ASSERT_VOP_ELOCKED(vp, "releasesillyrename");
 	np = VTONFS(vp);
-	mtx_lock(&np->n_mtx);
+	mtx_assert(&np->n_mtx, MA_OWNED);
 	if (vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
 		np->n_sillyrename = NULL;
@@ -224,14 +224,13 @@ ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 		taskqueue_enqueue(taskqueue_thread, &sp->s_task);
 		mtx_lock(&np->n_mtx);
 	}
-	np->n_flag &= NMODIFIED;
-	mtx_unlock(&np->n_mtx);
 }
 
 int
 ncl_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
+	struct nfsnode *np;
 	boolean_t retv;
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
@@ -254,7 +253,17 @@ ncl_inactive(struct vop_inactive_args *ap)
 		}
 	}
 
+	np = VTONFS(vp);
+	mtx_lock(&np->n_mtx);
 	ncl_releasesillyrename(vp, ap->a_td);
+
+	/*
+	 * NMODIFIED means that there might be dirty/stale buffers
+	 * associated with the NFS vnode.  None of the other flags are
+	 * meaningful after the vnode is unused.
+	 */
+	np->n_flag &= NMODIFIED;
+	mtx_unlock(&np->n_mtx);
 	return (0);
 }
 
@@ -275,7 +284,9 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	if (nfs_reclaim_p != NULL)
 		nfs_reclaim_p(ap);
 
+	mtx_lock(&np->n_mtx);
 	ncl_releasesillyrename(vp, ap->a_td);
+	mtx_unlock(&np->n_mtx);
 
 	/*
 	 * Destroy the vm object and flush associated pages.
