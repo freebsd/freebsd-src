@@ -13136,6 +13136,7 @@ sctp_lower_sosend(struct socket *so,
 				    asoc, stcb->asoc.total_output_queue_size);
 			}
 			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+				SOCKBUF_UNLOCK(&so->so_snd);
 				goto out_unlocked;
 			}
 			inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
