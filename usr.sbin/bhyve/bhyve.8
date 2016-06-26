@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2016
+.Dd June 24, 2016
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
-.Op Fl m Ar size Ns Op Ar K|k|M|m|G|g|T|t
+.Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 .Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
 .Op Fl U Ar uuid
@@ -105,7 +105,7 @@ and
 .Ar com2
 and the boot ROM device
 .Ar bootrom .
-.It Fl m Ar size Ns Op Ar K|k|M|m|G|g|T|t
+.It Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 Guest physical memory size in bytes.
 This must be the same size that was given to
 .Xr bhyveload 8 .
@@ -114,6 +114,9 @@ The size argument may be suffixed with one of K, M, G or T (either upper
 or lower case) to indicate a multiple of kilobytes, megabytes, gigabytes,
 or terabytes.
 If no suffix is given, the value is assumed to be in megabytes.
+.Pp
+.Ar memsize
+defaults to 256M.
 .It Fl p Ar vcpu:hostcpu
 Pin guest's virtual CPU
 .Em vcpu
