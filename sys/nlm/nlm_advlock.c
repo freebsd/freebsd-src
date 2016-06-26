@@ -697,7 +697,8 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 {
 	struct vop_advlockasync_args a;
 	struct flock newfl;
-	int error;
+	struct proc *p;
+	int error, stops_deferred;
 
 	a.a_vp = vp;
 	a.a_id = NULL;
@@ -730,7 +731,12 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 			 * return EDEADLK.
 			*/
 			pause("nlmdlk", 1);
-			/* XXXKIB allow suspend */
+			p = curproc;
+			stops_deferred = sigdeferstop(SIGDEFERSTOP_OFF);
+			PROC_LOCK(p);
+			thread_suspend_check(0);
+			PROC_UNLOCK(p);
+			sigallowstop(stops_deferred);
 		} else if (error == EINTR) {
 			/*
 			 * lf_purgelocks() might wake up the lock
