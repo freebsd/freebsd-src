@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/machdep.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -50,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kdb.h>
 
-#include "a20/a20_cpu_cfg.h"
+#include <arm/allwinner/allwinner_machdep.h>
 
 /**
  * Timer registers addr
@@ -84,7 +85,6 @@ struct a10_timer_softc {
 	uint32_t 	sc_period;
 	uint32_t 	timer0_freq;
 	struct eventtimer et;
-	uint8_t 	sc_timer_type;	/* 0 for A10, 1 for A20 */
 };
 
 int a10_timer_get_timerfreq(struct a10_timer_softc *);
@@ -101,10 +101,11 @@ static int	a10_timer_timer_stop(struct eventtimer *);
 
 static uint64_t timer_read_counter64(void);
 
-static int a10_timer_initialized = 0;
 static int a10_timer_hardclock(void *);
 static int a10_timer_probe(device_t);
 static int a10_timer_attach(device_t);
+
+static delay_func a10_timer_delay;
 
 static struct timecounter a10_timer_timecounter = {
 	.tc_name           = "a10_timer timer0",
@@ -127,10 +128,6 @@ timer_read_counter64(void)
 {
 	uint32_t lo, hi;
 
-	/* In case of A20 get appropriate counter info */
-	if (a10_timer_sc->sc_timer_type)
-		return (a20_read_counter64());
-
 	/* Latch counter, wait for it to be ready to read. */
 	timer_write_4(a10_timer_sc, CNT64_CTRL_REG, CNT64_RL_EN);
 	while (timer_read_4(a10_timer_sc, CNT64_CTRL_REG) & CNT64_RL_EN)
@@ -146,14 +143,16 @@ static int
 a10_timer_probe(device_t dev)
 {
 	struct a10_timer_softc *sc;
+	u_int soc_family;
 
 	sc = device_get_softc(dev);
 
-	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-timer"))
-		sc->sc_timer_type = 0;
-	else if (ofw_bus_is_compatible(dev, "allwinner,sun7i-timer"))
-		sc->sc_timer_type = 1;
-	else
+	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-timer"))
+		return (ENXIO);
+
+	soc_family = allwinner_soc_family();
+	if (soc_family != ALLWINNERSOC_SUN4I &&
+	    soc_family != ALLWINNERSOC_SUN5I)
 		return (ENXIO);
 
 	device_set_desc(dev, "Allwinner A10/A20 timer");
@@ -212,8 +211,10 @@ a10_timer_attach(device_t dev)
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
 
-	if (device_get_unit(dev) == 0)
+	if (device_get_unit(dev) == 0) {
+		arm_set_delay(a10_timer_delay, sc);
 		a10_timer_sc = sc;
+	}
 
 	a10_timer_timecounter.tc_frequency = sc->timer0_freq;
 	tc_init(&a10_timer_timecounter);
@@ -226,8 +227,6 @@ a10_timer_attach(device_t dev)
 		device_printf(sc->sc_dev, "timecounter clock frequency %lld\n", 
 		    a10_timer_timecounter.tc_frequency);
 	}
-
-	a10_timer_initialized = 1;
 
 	return (0);
 }
@@ -352,25 +351,18 @@ static driver_t a10_timer_driver = {
 
 static devclass_t a10_timer_devclass;
 
-DRIVER_MODULE(a10_timer, simplebus, a10_timer_driver, a10_timer_devclass, 0, 0);
+EARLY_DRIVER_MODULE(a10_timer, simplebus, a10_timer_driver, a10_timer_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
-void
-DELAY(int usec)
+static void
+a10_timer_delay(int usec, void *arg)
 {
-	uint32_t counter;
+	struct a10_timer_softc *sc = arg;
 	uint64_t end, now;
 
-	if (!a10_timer_initialized) {
-		for (; usec > 0; usec--)
-			for (counter = 50; counter > 0; counter--)
-				cpufunc_nullop();
-		return;
-	}
-
 	now = timer_read_counter64();
-	end = now + (a10_timer_sc->timer0_freq / 1000000) * (usec + 1);
+	end = now + (sc->timer0_freq / 1000000) * (usec + 1);
 
 	while (now < end)
 		now = timer_read_counter64();
 }
-

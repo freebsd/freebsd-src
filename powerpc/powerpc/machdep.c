@@ -274,6 +274,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	} else {
 		bzero(__sbss_start, __sbss_end - __sbss_start);
 		bzero(__bss_start, _end - __bss_start);
+		init_static_kenv(NULL, 0);
 	}
 #ifdef BOOKE
 	tlb1_init();
@@ -449,7 +450,7 @@ cpu_flush_dcache(void *ptr, size_t len)
 	addr = (uintptr_t)ptr;
 	off = addr & (cacheline_size - 1);
 	addr -= off;
-	len = (len + off + cacheline_size - 1) & ~(cacheline_size - 1);
+	len = roundup2(len + off, cacheline_size);
 
 	while (len > 0) {
 		__asm __volatile ("dcbf 0,%0" :: "r"(addr));

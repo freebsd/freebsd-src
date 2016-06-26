@@ -100,12 +100,12 @@ ofw_pci_attach_common(device_t dev, bus_dma_tag_t dmat, u_long iosize,
 		if (sc->sc_pci_bh[j] != 0) {
 			device_printf(dev, "duplicate range for space %d\n",
 			    j);
-			free(range, M_OFWPROP);
+			OF_prop_free(range);
 			return (EINVAL);
 		}
 		sc->sc_pci_bh[j] = OFW_PCI_RANGE_PHYS(&range[i]);
 	}
-	free(range, M_OFWPROP);
+	OF_prop_free(range);
 
 	/*
 	 * Make sure that the expected ranges are actually present.
@@ -287,7 +287,7 @@ ofw_pci_read_ivar(device_t dev, device_t child __unused, int which,
 
 struct resource *
 ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ofw_pci_softc *sc;
 	struct resource *rv;
@@ -362,7 +362,7 @@ ofw_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 
 int
 ofw_pci_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct ofw_pci_softc *sc;
 	struct rman *rm;

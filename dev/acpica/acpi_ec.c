@@ -434,9 +434,7 @@ out:
 		 params->gpe_bit, (params->glk) ? ", GLK" : "",
 		 ecdt ? ", ECDT" : "");
 	device_set_desc_copy(dev, desc);
-    }
-
-    if (ret > 0 && params)
+    } else
 	free(params, M_TEMP);
     if (buf.Pointer)
 	AcpiOsFree(buf.Pointer);

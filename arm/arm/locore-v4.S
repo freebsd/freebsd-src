@@ -38,7 +38,7 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/cpuconf.h>
-#include <machine/pte.h>
+#include <machine/pte-v4.h>
 
 __FBSDID("$FreeBSD$");
 
@@ -114,7 +114,7 @@ ASENTRY_NP(_start)
 	 * If we're running with MMU disabled, test against the
 	 * physical address instead.
 	 */
-	mrc	p15, 0, r2, c1, c0, 0
+	mrc	CP15_SCTLR(r2)
 	ands	r2, r2, #CPU_CONTROL_MMU_ENABLE
 	ldreq	r6, =PHYSADDR
 	ldrne	r6, =LOADERRAMADDR
@@ -146,12 +146,12 @@ from_ram:
 
 disable_mmu:
 	/* Disable MMU for a while */
-	mrc	p15, 0, r2, c1, c0, 0
+	mrc	CP15_SCTLR(r2)
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
 	    CPU_CONTROL_WBUF_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr	p15, 0, r2, c1, c0, 0
+	mcr	CP15_SCTLR(r2)
 
 	nop
 	nop
@@ -213,9 +213,9 @@ Lunmapped:
 	/*
 	 * Enable MMU.
 	 */
-	mrc	p15, 0, r0, c1, c0, 0
+	mrc	CP15_SCTLR(r0)
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
-	mcr	p15, 0, r0, c1, c0, 0
+	mcr	CP15_SCTLR(r0)
 	nop
 	nop
 	nop
@@ -398,7 +398,7 @@ ENTRY_NP(cpu_halt)
 	 * Hurl ourselves into the ROM
 	 */
 	mov	r0, #(CPU_CONTROL_32BP_ENABLE | CPU_CONTROL_32BD_ENABLE)
-	mcr	p15, 0, r0, c1, c0, 0
+	mcr	CP15_SCTLR(r0)
 	mcrne	p15, 0, r2, c8, c7, 0 	/* nail I+D TLB on ARMv4 and greater */
 	mov	pc, r4
 

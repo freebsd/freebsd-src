@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #define	THUNDER_BGX_DEVSTR	"ThunderX BGX Ethernet I/O Interface"
 
-static MALLOC_DEFINE(M_BGX, "thunder_bgx", "ThunderX BGX dynamic memory");
+MALLOC_DEFINE(M_BGX, "thunder_bgx", "ThunderX BGX dynamic memory");
 
 #define BGX_NODE_ID_MASK	0x1
 #define BGX_NODE_ID_SHIFT	24
@@ -109,9 +109,10 @@ static driver_t thunder_bgx_driver = {
 static devclass_t thunder_bgx_devclass;
 
 DRIVER_MODULE(thunder_bgx, pci, thunder_bgx_driver, thunder_bgx_devclass, 0, 0);
+MODULE_VERSION(thunder_bgx, 1);
 MODULE_DEPEND(thunder_bgx, pci, 1, 1, 1);
 MODULE_DEPEND(thunder_bgx, ether, 1, 1, 1);
-MODULE_DEPEND(thunder_bgx, octeon_mdio, 1, 1, 1);
+MODULE_DEPEND(thunder_bgx, thunder_mdio, 1, 1, 1);
 
 static int
 thunder_bgx_probe(device_t dev)
@@ -135,12 +136,16 @@ static int
 thunder_bgx_attach(device_t dev)
 {
 	struct bgx *bgx;
-	uint8_t lmac;
+	uint8_t lmacid;
 	int err;
 	int rid;
+	struct lmac *lmac;
 
 	bgx = malloc(sizeof(*bgx), M_BGX, (M_WAITOK | M_ZERO));
 	bgx->dev = dev;
+
+	lmac = device_get_softc(dev);
+	lmac->bgx = bgx;
 	/* Enable bus mastering */
 	pci_enable_busmaster(dev);
 	/* Allocate resources - configuration registers */
@@ -167,11 +172,11 @@ thunder_bgx_attach(device_t dev)
 	bgx_init_hw(bgx);
 
 	/* Enable all LMACs */
-	for (lmac = 0; lmac < bgx->lmac_count; lmac++) {
-		err = bgx_lmac_enable(bgx, lmac);
+	for (lmacid = 0; lmacid < bgx->lmac_count; lmacid++) {
+		err = bgx_lmac_enable(bgx, lmacid);
 		if (err) {
 			device_printf(dev, "BGX%d failed to enable lmac%d\n",
-				bgx->bgx_id, lmac);
+				bgx->bgx_id, lmacid);
 			goto err_free_res;
 		}
 	}
@@ -201,6 +206,12 @@ thunder_bgx_detach(device_t dev)
 	/* Disable all LMACs */
 	for (lmacid = 0; lmacid < bgx->lmac_count; lmacid++)
 		bgx_lmac_disable(bgx, lmacid);
+
+	bgx_vnic[bgx->bgx_id] = NULL;
+	bus_release_resource(dev, SYS_RES_MEMORY,
+	    rman_get_rid(bgx->reg_base), bgx->reg_base);
+	free(bgx, M_BGX);
+	pci_disable_busmaster(dev);
 
 	return (0);
 }
@@ -240,7 +251,7 @@ static int
 bgx_poll_reg(struct bgx *bgx, uint8_t lmac, uint64_t reg, uint64_t mask,
     boolean_t zero)
 {
-	int timeout = 100;
+	int timeout = 10;
 	uint64_t reg_val;
 
 	while (timeout) {
@@ -250,7 +261,7 @@ bgx_poll_reg(struct bgx *bgx, uint8_t lmac, uint64_t reg, uint64_t mask,
 		if (!zero && (reg_val & mask))
 			return (0);
 
-		DELAY(1000);
+		DELAY(100);
 		timeout--;
 	}
 	return (ETIMEDOUT);

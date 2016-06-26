@@ -365,11 +365,11 @@ mca_print_child (device_t dev, device_t child)
 	rid = 0;
 	while ((rle = resource_list_find(&(m_dev->rl), SYS_RES_IOPORT, rid++))) {
 		if (rle->count == 1) {
-			snprintf(buf, sizeof(buf), "%s%lx",
+			snprintf(buf, sizeof(buf), "%s%jx",
 				((rid == 1) ? "io 0x" : "0x"),
 				rle->start);
 		} else {
-			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
+			snprintf(buf, sizeof(buf), "%s%jx-0x%jx",
 				((rid == 1) ? "io 0x" : "0x"),
 				rle->start,
 				(rle->start + rle->count));
@@ -381,11 +381,11 @@ mca_print_child (device_t dev, device_t child)
 	rid = 0;
 	while ((rle = resource_list_find(&(m_dev->rl), SYS_RES_MEMORY, rid++))) {
 		if (rle->count == 1) {
-			snprintf(buf, sizeof(buf), "%s%lx",
+			snprintf(buf, sizeof(buf), "%s%jx",
 				((rid == 1) ? "mem 0x" : "0x"),
 				rle->start);
 		} else {
-			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
+			snprintf(buf, sizeof(buf), "%s%jx-0x%jx",
 				((rid == 1) ? "mem 0x" : "0x"),
 				rle->start,
 				(rle->start + rle->count));
@@ -396,14 +396,14 @@ mca_print_child (device_t dev, device_t child)
 
 	rid = 0;
 	while ((rle = resource_list_find(&(m_dev->rl), SYS_RES_IRQ, rid++))) {
-		snprintf(buf, sizeof(buf), "irq %ld", rle->start);
+		snprintf(buf, sizeof(buf), "irq %jd", rle->start);
 		mca_reg_print(child, buf,
 			((rid == 1) ? &separator : NULL), &column);
 	}
 
 	rid = 0;
 	while ((rle = resource_list_find(&(m_dev->rl), SYS_RES_DRQ, rid++))) {
-		snprintf(buf, sizeof(buf), "drq %lx", rle->start);
+		snprintf(buf, sizeof(buf), "drq %jx", rle->start);
 		mca_reg_print(child, buf,
 			((rid == 1) ? &separator : NULL), &column);
 	}
@@ -456,14 +456,14 @@ mca_read_ivar (device_t dev, device_t child, int which, uintptr_t * result)
 
 static struct resource *
 mca_alloc_resource (device_t dev, device_t child, int type, int *rid,
-		    u_long start, u_long end, u_long count, u_int flags)
+		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct mca_device *		m_dev = device_get_ivars(child);
 	struct resource_list_entry *	rle;
 	int				isdefault;
 	int				passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != dev);
 
 	if (!passthrough && !isdefault) {

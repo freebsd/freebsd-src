@@ -47,7 +47,7 @@
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "2.5.2";
+char igb_driver_version[] = "2.5.3-k";
 
 
 /*********************************************************************
@@ -304,7 +304,7 @@ SYSCTL_INT(_hw_igb, OID_AUTO, buf_ring_size, CTLFLAG_RDTUN,
 
 /*
 ** Header split causes the packet header to
-** be dma'd to a seperate mbuf from the payload.
+** be dma'd to a separate mbuf from the payload.
 ** this can have memory alignment benefits. But
 ** another plus is that small packets often fit
 ** into the header and thus use no cluster. Its
@@ -551,9 +551,9 @@ igb_attach(device_t dev)
 		    "Disable Energy Efficient Ethernet");
 		if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 			if (adapter->hw.mac.type == e1000_i354)
-				e1000_set_eee_i354(&adapter->hw);
+				e1000_set_eee_i354(&adapter->hw, TRUE, TRUE);
 			else
-				e1000_set_eee_i350(&adapter->hw);
+				e1000_set_eee_i350(&adapter->hw, TRUE, TRUE);
 		}
 	}
 
@@ -659,7 +659,8 @@ igb_attach(device_t dev)
 	return (0);
 
 err_late:
-	igb_detach(dev);
+	if (igb_detach(dev) == 0) /* igb_detach() already did the cleanup */
+		return(error);
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
 	igb_release_hw_control(adapter);
@@ -1184,10 +1185,27 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif
+#if __FreeBSD_version >= 1000000
+		/* HW cannot turn these on/off separately */
+		if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
+			reinit = 1;
+		}
+		if (mask & IFCAP_TXCSUM) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			reinit = 1;
+		}
+		if (mask & IFCAP_TXCSUM_IPV6) {
+			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+			reinit = 1;
+		}
+#else
 		if (mask & IFCAP_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			reinit = 1;
 		}
+#endif
 		if (mask & IFCAP_TSO4) {
 			ifp->if_capenable ^= IFCAP_TSO4;
 			reinit = 1;
@@ -1266,16 +1284,31 @@ igb_init_locked(struct adapter *adapter)
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
+#if __FreeBSD_version >= 1000000
+		ifp->if_hwassist |= (CSUM_IP_TCP | CSUM_IP_UDP);
+		if (adapter->hw.mac.type != e1000_82575)
+			ifp->if_hwassist |= CSUM_IP_SCTP;
+#else
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
 #if __FreeBSD_version >= 800000
-		if ((adapter->hw.mac.type == e1000_82576) ||
-		    (adapter->hw.mac.type == e1000_82580))
+		if (adapter->hw.mac.type != e1000_82575)
 			ifp->if_hwassist |= CSUM_SCTP;
+#endif
 #endif
 	}
 
+#if __FreeBSD_version >= 1000000
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6) {
+		ifp->if_hwassist |= (CSUM_IP6_TCP | CSUM_IP6_UDP);
+		if (adapter->hw.mac.type != e1000_82575)
+			ifp->if_hwassist |= CSUM_IP6_SCTP;
+	}
+#endif
 	if (ifp->if_capenable & IFCAP_TSO)
 		ifp->if_hwassist |= CSUM_TSO;
+
+	/* Clear bad data from Rx FIFOs */
+	e1000_rx_fifo_flush_82575(&adapter->hw);
 
 	/* Configure for OS presence */
 	igb_init_manageability(adapter);
@@ -1304,7 +1337,6 @@ igb_init_locked(struct adapter *adapter)
 		return;
 	}
 	igb_initialize_receive_units(adapter);
-	e1000_rx_fifo_flush_82575(&adapter->hw);
 
         /* Enable VLAN support */
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
@@ -1341,9 +1373,9 @@ igb_init_locked(struct adapter *adapter)
 	/* Set Energy Efficient Ethernet */
 	if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 		if (adapter->hw.mac.type == e1000_i354)
-			e1000_set_eee_i354(&adapter->hw);
+			e1000_set_eee_i354(&adapter->hw, TRUE, TRUE);
 		else
-			e1000_set_eee_i350(&adapter->hw);
+			e1000_set_eee_i350(&adapter->hw, TRUE, TRUE);
 	}
 }
 
@@ -1835,7 +1867,8 @@ retry:
 			/* Try it again? - one try */
 			if (remap == TRUE) {
 				remap = FALSE;
-				m = m_defrag(*m_headp, M_NOWAIT);
+				m = m_collapse(*m_headp, M_NOWAIT,
+				    IGB_MAX_SCATTER);
 				if (m == NULL) {
 					adapter->mbuf_defrag_failed++;
 					m_freem(*m_headp);
@@ -1855,7 +1888,7 @@ retry:
 	}
 
 	/* Make certain there are enough descriptors */
-	if (nsegs > txr->tx_avail - 2) {
+	if (txr->tx_avail < (nsegs + 2)) {
 		txr->no_desc_avail++;
 		bus_dmamap_unload(txr->txtag, map);
 		return (ENOBUFS);
@@ -3136,6 +3169,12 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = igb_ioctl;
 	ifp->if_get_counter = igb_get_counter;
+
+	/* TSO parameters */
+	ifp->if_hw_tsomax = IP_MAXPACKET;
+	ifp->if_hw_tsomaxsegcount = IGB_MAX_SCATTER;
+	ifp->if_hw_tsomaxsegsize = IGB_TSO_SEG_SIZE;
+
 #ifndef IGB_LEGACY_TX
 	ifp->if_transmit = igb_mq_start;
 	ifp->if_qflush = igb_qflush;
@@ -3151,6 +3190,9 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
+#if __FreeBSD_version >= 1000000
+	ifp->if_capabilities |= IFCAP_HWCSUM_IPV6;
+#endif
 	ifp->if_capabilities |= IFCAP_TSO;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
@@ -3924,17 +3966,29 @@ igb_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 
 	switch (ipproto) {
 		case IPPROTO_TCP:
+#if __FreeBSD_version >= 1000000
+			if (mp->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP))
+#else
 			if (mp->m_pkthdr.csum_flags & CSUM_TCP)
+#endif
 				type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_TCP;
 			break;
 		case IPPROTO_UDP:
+#if __FreeBSD_version >= 1000000
+			if (mp->m_pkthdr.csum_flags & (CSUM_IP_UDP | CSUM_IP6_UDP))
+#else
 			if (mp->m_pkthdr.csum_flags & CSUM_UDP)
+#endif
 				type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_UDP;
 			break;
 
 #if __FreeBSD_version >= 800000
 		case IPPROTO_SCTP:
+#if __FreeBSD_version >= 1000000
+			if (mp->m_pkthdr.csum_flags & (CSUM_IP_SCTP | CSUM_IP6_SCTP))
+#else
 			if (mp->m_pkthdr.csum_flags & CSUM_SCTP)
+#endif
 				type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_SCTP;
 			break;
 #endif
@@ -4429,7 +4483,7 @@ skip_head:
 	** Now set up the LRO interface, we
 	** also only do head split when LRO
 	** is enabled, since so often they
-	** are undesireable in similar setups.
+	** are undesirable in similar setups.
 	*/
 	if (ifp->if_capenable & IFCAP_LRO) {
 		error = tcp_lro_init(lro);
@@ -4692,8 +4746,7 @@ igb_initialize_receive_units(struct adapter *adapter)
 		rxcsum |= E1000_RXCSUM_PCSD;
 #if __FreeBSD_version >= 800000
 		/* For SCTP Offload */
-		if (((hw->mac.type == e1000_82576) ||
-		     (hw->mac.type == e1000_82580)) &&
+		if ((hw->mac.type != e1000_82575) &&
 		    (ifp->if_capenable & IFCAP_RXCSUM))
 			rxcsum |= E1000_RXCSUM_CRCOFL;
 #endif
@@ -4702,8 +4755,7 @@ igb_initialize_receive_units(struct adapter *adapter)
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
 			rxcsum |= E1000_RXCSUM_IPPCSE;
 #if __FreeBSD_version >= 800000
-			if ((adapter->hw.mac.type == e1000_82576) ||
-			    (adapter->hw.mac.type == e1000_82580))
+			if (adapter->hw.mac.type != e1000_82575)
 				rxcsum |= E1000_RXCSUM_CRCOFL;
 #endif
 		} else
@@ -4923,7 +4975,6 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	struct rx_ring		*rxr = que->rxr;
 	struct ifnet		*ifp = adapter->ifp;
 	struct lro_ctrl		*lro = &rxr->lro;
-	struct lro_entry	*queued;
 	int			i, processed = 0, rxdone = 0;
 	u32			ptype, staterr = 0;
 	union e1000_adv_rx_desc	*cur;
@@ -5103,7 +5154,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 					default:
 						/* XXX fallthrough */
 						M_HASHTYPE_SET(rxr->fmp,
-						    M_HASHTYPE_OPAQUE);
+						    M_HASHTYPE_OPAQUE_HASH);
 				}
 			} else {
 #ifndef IGB_LEGACY_TX
@@ -5151,10 +5202,7 @@ next_desc:
 	/*
 	 * Flush any outstanding LRO work
 	 */
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(lro);
 
 	if (done != NULL)
 		*done += rxdone;
@@ -5826,12 +5874,15 @@ igb_add_hw_stats(struct adapter *adapter)
 	char namebuf[QUEUE_NAME_LEN];
 
 	/* Driver Statistics */
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq", 
-			CTLFLAG_RD, &adapter->link_irq,
-			"Link MSIX IRQ Handled");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped", 
 			CTLFLAG_RD, &adapter->dropped_pkts,
 			"Driver dropped packets");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq", 
+			CTLFLAG_RD, &adapter->link_irq,
+			"Link MSIX IRQ Handled");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_fail",
+			CTLFLAG_RD, &adapter->mbuf_defrag_failed,
+			"Defragmenting mbuf chain failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_dma_fail", 
 			CTLFLAG_RD, &adapter->no_tx_dma_setup,
 			"Driver tx dma failure in xmit");
@@ -5910,10 +5961,10 @@ igb_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
 				CTLFLAG_RD, &rxr->rx_bytes,
 				"Queue Bytes Received");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "lro_queued",
+		SYSCTL_ADD_U64(ctx, queue_list, OID_AUTO, "lro_queued",
 				CTLFLAG_RD, &lro->lro_queued, 0,
 				"LRO Queued");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "lro_flushed",
+		SYSCTL_ADD_U64(ctx, queue_list, OID_AUTO, "lro_flushed",
 				CTLFLAG_RD, &lro->lro_flushed, 0,
 				"LRO Flushed");
 	}

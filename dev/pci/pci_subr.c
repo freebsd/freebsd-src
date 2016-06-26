@@ -178,14 +178,14 @@ pcib_host_res_free(device_t pcib, struct pcib_host_resources *hr)
 }
 
 int
-pcib_host_res_decodes(struct pcib_host_resources *hr, int type, u_long start,
-    u_long end, u_int flags)
+pcib_host_res_decodes(struct pcib_host_resources *hr, int type, rman_res_t start,
+    rman_res_t end, u_int flags)
 {
 	struct resource_list_entry *rle;
 	int rid;
 
 	if (bootverbose)
-		device_printf(hr->hr_pcib, "decoding %d %srange %#lx-%#lx\n",
+		device_printf(hr->hr_pcib, "decoding %d %srange %#jx-%#jx\n",
 		    type, flags & RF_PREFETCHABLE ? "prefetchable ": "", start,
 		    end);
 	rid = resource_list_add_next(&hr->hr_rl, type, start, end,
@@ -201,11 +201,11 @@ pcib_host_res_decodes(struct pcib_host_resources *hr, int type, u_long start,
 
 struct resource *
 pcib_host_res_alloc(struct pcib_host_resources *hr, device_t dev, int type,
-    int *rid, u_long start, u_long end, u_long count, u_int flags)
+    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list_entry *rle;
 	struct resource *r;
-	u_long new_start, new_end;
+	rman_res_t new_start, new_end;
 
 	if (flags & RF_PREFETCHABLE)
 		KASSERT(type == SYS_RES_MEMORY,
@@ -229,8 +229,8 @@ restart:
 		if (((flags & RF_PREFETCHABLE) != 0) !=
 		    ((rle->flags & RLE_PREFETCH) != 0))
 			continue;
-		new_start = ulmax(start, rle->start);
-		new_end = ulmin(end, rle->end);
+		new_start = ummax(start, rle->start);
+		new_end = ummin(end, rle->end);
 		if (new_start > new_end ||
 		    new_start + count - 1 > new_end ||
 		    new_start + count < new_start)
@@ -240,7 +240,7 @@ restart:
 		if (r != NULL) {
 			if (bootverbose)
 				device_printf(hr->hr_pcib,
-			    "allocated type %d (%#lx-%#lx) for rid %x of %s\n",
+			    "allocated type %d (%#jx-%#jx) for rid %x of %s\n",
 				    type, rman_get_start(r), rman_get_end(r),
 				    *rid, pcib_child_name(dev));
 			return (r);
@@ -261,7 +261,7 @@ restart:
 
 int
 pcib_host_res_adjust(struct pcib_host_resources *hr, device_t dev, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct resource_list_entry *rle;
 
@@ -329,8 +329,8 @@ pci_find_domain(int domain)
 }
 
 struct resource *
-pci_domain_alloc_bus(int domain, device_t dev, int *rid, u_long start,
-    u_long end, u_long count, u_int flags)
+pci_domain_alloc_bus(int domain, device_t dev, int *rid, rman_res_t start,
+    rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pci_domain *d;
 	struct resource *res;
@@ -349,7 +349,7 @@ pci_domain_alloc_bus(int domain, device_t dev, int *rid, u_long start,
 
 int
 pci_domain_adjust_bus(int domain, device_t dev, struct resource *r,
-    u_long start, u_long end)
+    rman_res_t start, rman_res_t end)
 {
 #ifdef INVARIANTS
 	struct pci_domain *d;

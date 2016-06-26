@@ -104,8 +104,7 @@ MODULE_DEPEND(le, lebuffer, 1, 1, 1);
 static const int le_lebuffer_media[] = {
 	IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, 0)
 };
-#define	NLEMEDIA							\
-    (sizeof(le_lebuffer_media) / sizeof(le_lebuffer_media[0]))
+#define	NLEMEDIA nitems(le_lebuffer_media)
 
 static void le_lebuffer_wrcsr(struct lance_softc *, uint16_t, uint16_t);
 static uint16_t le_lebuffer_rdcsr(struct lance_softc *, uint16_t);

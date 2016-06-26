@@ -473,7 +473,7 @@ gethwvtrans(uint32_t hwbase, uint32_t size)
 	};
 	int i;
 
-	for (i = 0; i < sizeof hwvtrans / sizeof *hwvtrans; i++) {
+	for (i = 0; i < nitems(hwvtrans); i++) {
 		if (hwbase >= hwvtrans[i].hwbase &&
 		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size)
 			return &hwvtrans[i];
@@ -496,7 +496,7 @@ getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
 
 static struct resource *
 ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ixp425_softc *sc = device_get_softc(dev);
 	const struct hwvtrans *vtrans;
@@ -533,7 +533,7 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				    (start - vtrans->hwbase);
 				if (bootverbose)
 					device_printf(child,
-					    "%s: assign 0x%lx:0x%lx%s\n",
+					    "%s: assign 0x%jx:0x%jx%s\n",
 					    __func__, start, end - start,
 					    vtrans->isa4x ? " A4X" :
 					    vtrans->isslow ? " SLOW" : "");
@@ -542,14 +542,14 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			vtrans = gethwvtrans(start, end - start);
 		if (vtrans == NULL) {
 			/* likely means above table needs to be updated */
-			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			device_printf(child, "%s: no mapping for 0x%jx:0x%jx\n",
 			    __func__, start, end - start);
 			return NULL;
 		}
 		rv = rman_reserve_resource(&sc->sc_mem_rman, start, end,
 		    end - start, flags, child);
 		if (rv == NULL) {
-			device_printf(child, "%s: cannot reserve 0x%lx:0x%lx\n",
+			device_printf(child, "%s: cannot reserve 0x%jx:0x%jx\n",
 			    __func__, start, end - start);
 			return NULL;
 		}
@@ -586,7 +586,7 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY) {
 		vtrans = gethwvtrans(rman_get_start(r), rman_get_size(r));
 		if (vtrans == NULL) {		/* NB: should not happen */
-			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			device_printf(child, "%s: no mapping for 0x%jx:0x%jx\n",
 			    __func__, rman_get_start(r), rman_get_size(r));
 			return (ENOENT);
 		}

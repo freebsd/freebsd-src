@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010-2015 Solarflare Communications Inc.
+ * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
@@ -112,6 +112,43 @@
 #define	SFXGE_IP_ALIGN	2
 
 #define	SFXGE_ETHERTYPE_LOOPBACK	0x9000	/* Xerox loopback */
+
+
+#define	SFXGE_MAGIC_RESERVED		0x8000
+
+#define	SFXGE_MAGIC_DMAQ_LABEL_WIDTH	6
+#define	SFXGE_MAGIC_DMAQ_LABEL_MASK \
+	((1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH) - 1)
+
+enum sfxge_sw_ev {
+	SFXGE_SW_EV_RX_QFLUSH_DONE = 1,
+	SFXGE_SW_EV_RX_QFLUSH_FAILED,
+	SFXGE_SW_EV_RX_QREFILL,
+	SFXGE_SW_EV_TX_QFLUSH_DONE,
+};
+
+#define	SFXGE_SW_EV_MAGIC(_sw_ev) \
+	(SFXGE_MAGIC_RESERVED | ((_sw_ev) << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+
+static inline uint16_t
+sfxge_sw_ev_mk_magic(enum sfxge_sw_ev sw_ev, unsigned int label)
+{
+	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
+	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
+	return SFXGE_SW_EV_MAGIC(sw_ev) | label;
+}
+
+static inline uint16_t
+sfxge_sw_ev_rxq_magic(enum sfxge_sw_ev sw_ev, struct sfxge_rxq *rxq)
+{
+	return sfxge_sw_ev_mk_magic(sw_ev, 0);
+}
+
+static inline uint16_t
+sfxge_sw_ev_txq_magic(enum sfxge_sw_ev sw_ev, struct sfxge_txq *txq)
+{
+	return sfxge_sw_ev_mk_magic(sw_ev, txq->type);
+}
 
 enum sfxge_evq_state {
 	SFXGE_EVQ_UNINITIALIZED = 0,
@@ -273,14 +310,17 @@ struct sfxge_softc {
 	size_t				rx_prefix_size;
 	size_t				rx_buffer_size;
 	size_t				rx_buffer_align;
-	uma_zone_t			rx_buffer_zone;
+	int				rx_cluster_size;
 
 	unsigned int			evq_max;
 	unsigned int			evq_count;
 	unsigned int			rxq_count;
 	unsigned int			txq_count;
 
-	int				tso_fw_assisted;
+	unsigned int			tso_fw_assisted;
+#define	SFXGE_FATSOV1	(1 << 0)
+#define	SFXGE_FATSOV2	(1 << 1)
+
 #if EFSYS_OPT_MCDI_LOGGING
 	int				mcdi_logging;
 #endif

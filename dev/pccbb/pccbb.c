@@ -166,8 +166,8 @@ static int	cbb_cardbus_activate_resource(device_t brdev, device_t child,
 static int	cbb_cardbus_deactivate_resource(device_t brdev,
 		    device_t child, int type, int rid, struct resource *res);
 static struct resource	*cbb_cardbus_alloc_resource(device_t brdev,
-		    device_t child, int type, int *rid, u_long start,
-		    u_long end, u_long count, u_int flags);
+		    device_t child, int type, int *rid, rman_res_t start,
+		    rman_res_t end, rman_res_t count, u_int flags);
 static int	cbb_cardbus_release_resource(device_t brdev, device_t child,
 		    int type, int rid, struct resource *res);
 static int	cbb_cardbus_power_enable_socket(device_t brdev,
@@ -229,7 +229,7 @@ cbb_destroy_res(struct cbb_softc *sc)
 	while ((rle = SLIST_FIRST(&sc->rl)) != NULL) {
 		device_printf(sc->dev, "Danger Will Robinson: Resource "
 		    "left allocated!  This is a bug... "
-		    "(rid=%x, type=%d, addr=%lx)\n", rle->rid, rle->type,
+		    "(rid=%x, type=%d, addr=%jx)\n", rle->rid, rle->type,
 		    rman_get_start(rle->res));
 		SLIST_REMOVE_HEAD(&sc->rl, link);
 		free(rle, M_DEVBUF);
@@ -722,7 +722,7 @@ cbb_o2micro_power_hack(struct cbb_softc *sc)
 
 /*
  * Restore the damage that cbb_o2micro_power_hack does to EXCA_INTR so
- * we don't have an interrupt storm on power on.  This has the efect of
+ * we don't have an interrupt storm on power on.  This has the effect of
  * disabling card status change interrupts for the duration of poweron.
  */
 static void
@@ -1155,7 +1155,7 @@ cbb_cardbus_auto_open(struct cbb_softc *sc, int type)
 		if (starts[i] == START_NONE)
 			continue;
 		starts[i] &= ~(align - 1);
-		ends[i] = ((ends[i] + align - 1) & ~(align - 1)) - 1;
+		ends[i] = roundup2(ends[i], align) - 1;
 	}
 	if (starts[0] != START_NONE && starts[1] != START_NONE) {
 		if (starts[0] < starts[1]) {
@@ -1230,19 +1230,19 @@ cbb_cardbus_deactivate_resource(device_t brdev, device_t child, int type,
 
 static struct resource *
 cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
-    int *rid, u_long start, u_long end, u_long count, u_int flags)
+    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int tmp;
 	struct resource *res;
-	u_long align;
+	rman_res_t align;
 
 	switch (type) {
 	case SYS_RES_IRQ:
 		tmp = rman_get_start(sc->irq_res);
 		if (start > tmp || end < tmp || count != 1) {
-			device_printf(child, "requested interrupt %ld-%ld,"
-			    "count = %ld not supported by cbb\n",
+			device_printf(child, "requested interrupt %jd-%jd,"
+			    "count = %jd not supported by cbb\n",
 			    start, end, count);
 			return (NULL);
 		}
@@ -1395,7 +1395,7 @@ cbb_pcic_deactivate_resource(device_t brdev, device_t child, int type,
 
 static struct resource *
 cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res = NULL;
 	struct cbb_softc *sc = device_get_softc(brdev);
@@ -1425,8 +1425,8 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	case SYS_RES_IRQ:
 		tmp = rman_get_start(sc->irq_res);
 		if (start > tmp || end < tmp || count != 1) {
-			device_printf(child, "requested interrupt %ld-%ld,"
-			    "count = %ld not supported by cbb\n",
+			device_printf(child, "requested interrupt %jd-%jd,"
+			    "count = %jd not supported by cbb\n",
 			    start, end, count);
 			return (NULL);
 		}
@@ -1538,7 +1538,7 @@ cbb_deactivate_resource(device_t brdev, device_t child, int type,
 
 struct resource *
 cbb_alloc_resource(device_t brdev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 

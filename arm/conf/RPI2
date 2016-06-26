@@ -24,6 +24,8 @@ include 	"std.armv6"
 include 	"../broadcom/bcm2835/std.rpi"
 include 	"../broadcom/bcm2835/std.bcm2836"
 
+options 	INTRNG
+
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_BOOTCFG
@@ -75,7 +73,7 @@ efx_bootcfg_verify(
 	size_t used = 0;
 	efx_rc_t rc;
 
-	/* Start parsing tags immediatly after the checksum */
+	/* Start parsing tags immediately after the checksum */
 	for (offset = 1; offset < size; ) {
 		uint8_t tag;
 		uint8_t length;

@@ -119,7 +119,7 @@ struct iscsi_session {
 	char				is_reason[ISCSI_REASON_LEN];
 
 #ifdef ICL_KERNEL_PROXY
-	struct cv			is_login_cv;;
+	struct cv			is_login_cv;
 	struct icl_pdu			*is_login_pdu;
 #endif
 };
@@ -131,7 +131,8 @@ struct iscsi_softc {
 	TAILQ_HEAD(, iscsi_session)	sc_sessions;
 	struct cv			sc_cv;
 	unsigned int			sc_last_session_id;
-	eventhandler_tag		sc_shutdown_eh;
+	eventhandler_tag		sc_shutdown_pre_eh;
+	eventhandler_tag		sc_shutdown_post_eh;
 };
 
 #endif /* !ISCSI_H */

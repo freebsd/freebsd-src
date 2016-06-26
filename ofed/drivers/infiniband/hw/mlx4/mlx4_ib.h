@@ -507,7 +507,7 @@ struct mlx4_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[MLX4_MAX_PORTS];
 	struct net_device      *masters[MLX4_MAX_PORTS];
-	struct notifier_block 	nb;
+	struct notifier_block	nb;
 	struct notifier_block	nb_inet;
 	union ib_gid		gid_table[MLX4_MAX_PORTS][128];
 };

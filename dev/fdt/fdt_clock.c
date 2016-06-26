@@ -89,7 +89,7 @@ enable_disable_all(device_t consumer, boolean_t enable)
 			anyerrors = true;
 		}
 	}
-	free(clks, M_OFWPROP);
+	OF_prop_free(clks);
 	return (anyerrors ? ENXIO : 0);
 }
 
@@ -127,7 +127,7 @@ fdt_clock_get_info(device_t consumer, int n, struct fdt_clock_info *info)
 			err = FDT_CLOCK_GET_INFO(clockdev, clocknum, info);
 		}
 	}
-	free(clks, M_OFWPROP);
+	OF_prop_free(clks);
 	return (err);
 }
 

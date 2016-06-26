@@ -293,15 +293,23 @@ iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags)
 	struct iic_msg *buf, *m;
 	void **usrbufs;
 	device_t iicdev, parent;
-	int error, i;
+	int error;
+	uint32_t i;
 
 	iicdev = priv->sc->sc_dev;
 	parent = device_get_parent(iicdev);
 	error = 0;
 
+	if (d->nmsgs > IIC_RDRW_MAX_MSGS)
+		return (EINVAL);
+
 	buf = malloc(sizeof(*d->msgs) * d->nmsgs, M_IIC, M_WAITOK);
 
 	error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
+	if (error != 0) {
+		free(buf, M_IIC);
+		return (error);
+	}
 
 	/* Alloc kernel buffers for userland data, copyin write data */
 	usrbufs = malloc(sizeof(void *) * d->nmsgs, M_IIC, M_WAITOK | M_ZERO);
@@ -317,6 +325,8 @@ iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags)
 		m->buf = NULL;
 		if (error != 0)
 			continue;
+
+		/* m->len is uint16_t, so allocation size is capped at 64K. */
 		m->buf = malloc(m->len, M_IIC, M_WAITOK);
 		if (!(m->flags & IIC_M_RD))
 			error = copyin(usrbufs[i], m->buf, m->len);

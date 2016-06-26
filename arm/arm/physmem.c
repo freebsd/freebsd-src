@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 Ian Lepore <ian@freebsd.org>
- * All rights excluded.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
  */
 #define	MAX_HWCNT	10
 #define	MAX_EXCNT	10
+
+#define	MAX_PHYS_ADDR	0xFFFFFFFFull
 
 struct region {
 	vm_paddr_t	addr;
@@ -273,14 +275,25 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
  * Add a hardware memory region.
  */
 void
-arm_physmem_hardware_region(vm_paddr_t pa, vm_size_t sz)
+arm_physmem_hardware_region(uint64_t pa, uint64_t sz)
 {
 	vm_offset_t adj;
 
 	/*
 	 * Filter out the page at PA 0x00000000.  The VM can't handle it, as
 	 * pmap_extract() == 0 means failure.
-	 *
+	 */
+	if (pa == 0) {
+		if (sz <= PAGE_SIZE)
+			return;
+		pa  = PAGE_SIZE;
+		sz -= PAGE_SIZE;
+	} else if (pa > MAX_PHYS_ADDR) {
+		/* This range is past usable memory, ignore it */
+		return;
+	}
+
+	/*
 	 * Also filter out the page at the end of the physical address space --
 	 * if addr is non-zero and addr+size is zero we wrapped to the next byte
 	 * beyond what vm_paddr_t can express.  That leads to a NULL pointer
@@ -291,10 +304,10 @@ arm_physmem_hardware_region(vm_paddr_t pa, vm_size_t sz)
 	 * pointer deref in _vm_map_lock_read().  Better to give up a megabyte
 	 * than leave some folks with an unusable system while we investigate.
 	 */
-	if (pa == 0) {
-		pa  = PAGE_SIZE;
-		sz -= PAGE_SIZE;
-	} else if (pa + sz == 0) {
+	if ((pa + sz) > (MAX_PHYS_ADDR - 1024 * 1024)) {
+		sz = MAX_PHYS_ADDR - pa + 1;
+		if (sz <= 1024 * 1024)
+			return;
 		sz -= 1024 * 1024;
 	}
 
@@ -306,7 +319,7 @@ arm_physmem_hardware_region(vm_paddr_t pa, vm_size_t sz)
 	pa  = round_page(pa);
 	sz  = trunc_page(sz - adj);
 
-	if (hwcnt < nitems(hwregions))
+	if (sz > 0 && hwcnt < nitems(hwregions))
 		insert_region(hwregions, hwcnt++, pa, sz, 0);
 }
 

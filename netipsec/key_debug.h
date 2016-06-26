@@ -76,8 +76,8 @@ extern void kdebug_secpolicy(struct secpolicy *);
 extern void kdebug_secpolicyindex(struct secpolicyindex *);
 extern void kdebug_secasindex(struct secasindex *);
 extern void kdebug_secasv(struct secasvar *);
-extern void kdebug_mbufhdr(struct mbuf *);
-extern void kdebug_mbuf(struct mbuf *);
+extern void kdebug_mbufhdr(const struct mbuf *);
+extern void kdebug_mbuf(const struct mbuf *);
 #endif /*_KERNEL*/
 
 struct sockaddr;

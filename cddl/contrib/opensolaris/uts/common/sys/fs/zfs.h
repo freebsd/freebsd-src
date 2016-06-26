@@ -25,6 +25,7 @@
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -56,6 +57,10 @@ typedef enum {
 	ZFS_TYPE_BOOKMARK	= (1 << 4)
 } zfs_type_t;
 
+/*
+ * NB: lzc_dataset_type should be updated whenever a new objset type is added,
+ * if it represents a real type of a dataset that can be created from userland.
+ */
 typedef enum dmu_objset_type {
 	DMU_OST_NONE,
 	DMU_OST_META,
@@ -560,6 +565,9 @@ typedef struct zpool_rewind_policy {
 #define	ZPOOL_CONFIG_CAN_RDONLY		"can_rdonly"	/* not stored on disk */
 #define	ZPOOL_CONFIG_FEATURES_FOR_READ	"features_for_read"
 #define	ZPOOL_CONFIG_FEATURE_STATS	"feature_stats"	/* not stored on disk */
+#define	ZPOOL_CONFIG_VDEV_TOP_ZAP	"com.delphix:vdev_zap_top"
+#define	ZPOOL_CONFIG_VDEV_LEAF_ZAP	"com.delphix:vdev_zap_leaf"
+#define	ZPOOL_CONFIG_HAS_PER_VDEV_ZAPS	"com.delphix:has_per_vdev_zaps"
 /*
  * The persistent vdev state is stored as separate values rather than a single
  * 'vdev_state' entry.  This is because a device can be in multiple states, such
@@ -784,6 +792,10 @@ typedef struct ddt_histogram {
 #define	ZFS_DRIVER	"zfs"
 #define	ZFS_DEV_NAME	"zfs"
 #define	ZFS_DEV		"/dev/" ZFS_DEV_NAME
+#define	ZFS_DISK_ROOT	"/dev/dsk"
+#define	ZFS_DISK_ROOTD	ZFS_DISK_ROOT "/"
+#define	ZFS_RDISK_ROOT	"/dev/rdsk"
+#define	ZFS_RDISK_ROOTD	ZFS_RDISK_ROOT "/"
 
 /* general zvol path */
 #define	ZVOL_DIR		"/dev/zvol"

@@ -42,10 +42,9 @@ CLANG_NO_IAS34= -no-integrated-as
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
-.if ${COMPILER_VERSION} >= 40300
+.if ${COMPILER_VERSION} >= 40800
 # Catch-all for all the things that are in our tree, but for which we're
-# not yet ready for this compiler. Note: we likely only really "support"
-# building with gcc 4.8 and newer. Nothing older has been tested.
+# not yet ready for this compiler.
 CWARNEXTRA?=	-Wno-error=inline -Wno-error=enum-compare -Wno-error=unused-but-set-variable \
 		-Wno-error=aggressive-loop-optimizations -Wno-error=maybe-uninitialized \
 		-Wno-error=array-bounds -Wno-error=address \
@@ -102,6 +101,11 @@ INLINE_LIMIT?=	8000
 CFLAGS += -mgeneral-regs-only
 # Reserve x18 for pcpu data
 CFLAGS += -ffixed-x18
+.endif
+
+.if ${MACHINE_CPUARCH} == "riscv"
+CFLAGS.gcc+=	-mcmodel=medany
+INLINE_LIMIT?=	8000
 .endif
 
 #
@@ -205,10 +209,10 @@ CFLAGS+= ${CFLAGS.${COMPILER_TYPE}} ${CFLAGS.${.IMPSRC:T}}
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanobj configure \
-		depend dependall distclean distribute exe \
+		depend distclean distribute exe \
 		html includes install installfiles installincludes lint \
-		obj objlink objs objwarn realall realdepend \
-		realinstall regress subdir-all subdir-depend subdir-install \
+		obj objlink objs objwarn \
+		realinstall regress \
 		tags whereobj
 
 .PHONY: ${PHONY_NOTMAIN}

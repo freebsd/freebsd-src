@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010-2015 Solarflare Communications Inc.
+ * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
@@ -57,6 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include "common/efx.h"
 
@@ -127,7 +133,15 @@ sfxge_estimate_rsrc_limits(struct sfxge_softc *sc)
 	 *  - hardwire maximum RSS channels
 	 *  - administratively specified maximum RSS channels
 	 */
+#ifdef RSS
+	/*
+	 * Avoid extra limitations so that the number of queues
+	 * may be configured at administrator's will
+	 */
+	evq_max = MIN(MAX(rss_getnumbuckets(), 1), EFX_MAXRSS);
+#else
 	evq_max = MIN(mp_ncpus, EFX_MAXRSS);
+#endif
 	if (sc->max_rss_channels > 0)
 		evq_max = MIN(evq_max, sc->max_rss_channels);
 
@@ -162,6 +176,14 @@ sfxge_estimate_rsrc_limits(struct sfxge_softc *sc)
 
 	KASSERT(sc->evq_max <= evq_max,
 		("allocated more than maximum requested"));
+
+#ifdef RSS
+	if (sc->evq_max < rss_getnumbuckets())
+		device_printf(sc->dev, "The number of allocated queues (%u) "
+			      "is less than the number of RSS buckets (%u); "
+			      "performance degradation might be observed",
+			      sc->evq_max, rss_getnumbuckets());
+#endif
 
 	/*
 	 * NIC is kept initialized in the case of success to be able to
@@ -500,6 +522,30 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
 		break;
+#ifdef SIOCGI2C
+	case SIOCGI2C:
+	{
+		struct ifi2creq i2c;
+
+		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		if (error != 0)
+			break;
+
+		if (i2c.len > sizeof(i2c.data)) {
+			error = EINVAL;
+			break;
+		}
+
+		SFXGE_ADAPTER_LOCK(sc);
+		error = efx_phy_module_get_info(sc->enp, i2c.dev_addr,
+						i2c.offset, i2c.len,
+						&i2c.data[0]);
+		SFXGE_ADAPTER_UNLOCK(sc);
+		if (error == 0)
+			error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		break;
+	}
+#endif
 	case SIOCGPRIVATE_0:
 		error = priv_check(curthread, PRIV_DRIVER);
 		if (error != 0)
@@ -1123,6 +1169,11 @@ sfxge_probe(device_t dev)
 
 	if (family == EFX_FAMILY_HUNTINGTON) {
 		device_set_desc(dev, "Solarflare SFC9100 family");
+		return (0);
+	}
+
+	if (family == EFX_FAMILY_MEDFORD) {
+		device_set_desc(dev, "Solarflare SFC9200 family");
 		return (0);
 	}
 

@@ -106,6 +106,7 @@ void vmspace_exit(struct thread *);
 struct vmspace *vmspace_acquire_ref(struct proc *);
 void vmspace_free(struct vmspace *);
 void vmspace_exitfree(struct proc *);
+void vmspace_switch_aio(struct vmspace *);
 void vnode_pager_setsize(struct vnode *, vm_ooffset_t);
 int vslock(void *, size_t);
 void vsunlock(void *, size_t);

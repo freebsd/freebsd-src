@@ -50,6 +50,11 @@
  */
 struct route {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
+	/*
+	 * ro_prepend and ro_plen are only used for bpf to pass in a
+	 * preformed header.  They are not cacheable.
+	 */
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;
@@ -71,6 +76,7 @@ struct route {
 #define	RT_REJECT		0x0020		/* Destination is reject */
 #define	RT_BLACKHOLE		0x0040		/* Destination is blackhole */
 #define	RT_HAS_GW		0x0080		/* Destination has GW  */
+#define	RT_LLE_CACHE		0x0100		/* Cache link layer  */
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -97,6 +103,14 @@ struct rt_metrics {
 
 /* lle state is exported in rmx_state rt_metrics field */
 #define	rmx_state	rmx_weight
+
+/*
+ * Keep a generation count of routing table, incremented on route addition,
+ * so we can invalidate caches.  This is accessed without a lock, as precision
+ * is not required.
+ */
+typedef volatile u_int rt_gen_t;	/* tree generation (for adds) */
+#define RT_GEN(fibnum, af)	rt_tables_get_gen(fibnum, af)
 
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
@@ -175,7 +189,7 @@ struct rtentry {
 					/* 0x8000000 and up unassigned */
 #define	RTF_STICKY	 0x10000000	/* always route dst->src */
 
-#define	RTF_RNH_LOCKED	 0x40000000	/* radix node head is locked */
+#define	RTF_RNH_LOCKED	 0x40000000	/* unused */
 
 #define	RTF_GWFLAG_COMPAT 0x80000000	/* a compatibility bit for interacting
 					   with existing routing apps */
@@ -204,21 +218,6 @@ struct rtentry {
 /* Control plane route request flags */
 #define	NHR_COPY		0x100	/* Copy rte data */
 
-/* rte<>nhop translation */
-static inline uint16_t
-fib_rte_to_nh_flags(int rt_flags)
-{
-	uint16_t res;
-
-	res = (rt_flags & RTF_REJECT) ? NHF_REJECT : 0;
-	res |= (rt_flags & RTF_BLACKHOLE) ? NHF_BLACKHOLE : 0;
-	res |= (rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) ? NHF_REDIRECT : 0;
-	res |= (rt_flags & RTF_BROADCAST) ? NHF_BROADCAST : 0;
-	res |= (rt_flags & RTF_GATEWAY) ? NHF_GATEWAY : 0;
-
-	return (res);
-}
-
 #ifdef _KERNEL
 /* rte<>ro_flags translation */
 static inline void
@@ -228,7 +227,7 @@ rt_update_ro_flags(struct route *ro)
 
 	ro->ro_flags &= ~ (RT_REJECT|RT_BLACKHOLE|RT_HAS_GW);
 
-	ro->ro_flags = (rt_flags & RTF_REJECT) ? RT_REJECT : 0;
+	ro->ro_flags |= (rt_flags & RTF_REJECT) ? RT_REJECT : 0;
 	ro->ro_flags |= (rt_flags & RTF_BLACKHOLE) ? RT_BLACKHOLE : 0;
 	ro->ro_flags |= (rt_flags & RTF_GATEWAY) ? RT_HAS_GW : 0;
 }
@@ -406,6 +405,7 @@ struct rt_addrinfo {
 		if ((_ro)->ro_flags & RT_NORTREF) {		\
 			(_ro)->ro_flags &= ~RT_NORTREF;		\
 			(_ro)->ro_rt = NULL;			\
+			(_ro)->ro_lle = NULL;			\
 		} else {					\
 			RT_LOCK((_ro)->ro_rt);			\
 			RTFREE_LOCKED((_ro)->ro_rt);		\
@@ -413,9 +413,24 @@ struct rt_addrinfo {
 	}							\
 } while (0)
 
-struct radix_node_head *rt_tables_get_rnh(int, int);
+/*
+ * Validate a cached route based on a supplied cookie.  If there is an
+ * out-of-date cache, simply free it.  Update the generation number
+ * for the new allocation
+ */
+#define RT_VALIDATE(ro, cookiep, fibnum) do {				\
+	rt_gen_t cookie = RT_GEN(fibnum, (ro)->ro_dst.sa_family);	\
+	if (*(cookiep) != cookie) {					\
+		if ((ro)->ro_rt != NULL) {				\
+			RTFREE((ro)->ro_rt);				\
+			(ro)->ro_rt = NULL;				\
+		}							\
+		*(cookiep) = cookie;					\
+	}								\
+} while (0)
 
 struct ifmultiaddr;
+struct rib_head;
 
 void	 rt_ieee80211msg(struct ifnet *, int, void *, size_t);
 void	 rt_ifannouncemsg(struct ifnet *, int);
@@ -429,14 +444,15 @@ int	 rt_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
 int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
+struct rib_head *rt_table_init(int);
+void	rt_table_destroy(struct rib_head *);
+u_int	rt_tables_get_gen(int table, int fam);
 
 int	rtsock_addrmsg(int, struct ifaddr *, int);
 int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 
 /*
  * Note the following locking behavior:
- *
- *    rtalloc_ign() and rtalloc() return ro->ro_rt unlocked
  *
  *    rtalloc1() returns a locked rtentry
  *
@@ -445,28 +461,20 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
  *    RTFREE() uses an unlocked entry.
  */
 
-int	 rt_expunge(struct radix_node_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
-int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 void	rt_updatemtu(struct ifnet *);
 
 typedef int rt_walktree_f_t(struct rtentry *, void *);
-typedef void rt_setwarg_t(struct radix_node_head *, uint32_t, int, void *);
+typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
 void	rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void	rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
+void	rt_flushifroutes_af(struct ifnet *, int);
 void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
-void	 rtalloc_ign(struct route *ro, u_long ignflags);
-void	 rtalloc(struct route *ro); /* XXX deprecated, use rtalloc_ign(ro, 0) */
 struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 int	 rtinit(struct ifaddr *, int, int);
-int	 rtioctl(u_long, caddr_t);
-void	 rtredirect(struct sockaddr *, struct sockaddr *,
-	    struct sockaddr *, int, struct sockaddr *);
-int	 rtrequest(int, struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones
@@ -474,7 +482,6 @@ int	 rtrequest(int, struct sockaddr *,
  */
 int	 rt_getifa_fib(struct rt_addrinfo *, u_int fibnum);
 void	 rtalloc_ign_fib(struct route *ro, u_long ignflags, u_int fibnum);
-void	 rtalloc_fib(struct route *ro, u_int fibnum);
 struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
 int	 rtioctl_fib(u_long, caddr_t, u_int);
 void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,

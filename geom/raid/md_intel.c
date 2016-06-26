@@ -773,7 +773,7 @@ intel_meta_write(struct g_consumer *cp, struct intel_raid_conf *meta)
 	meta->checksum = checksum;
 
 	/* Create and fill buffer. */
-	sectors = (meta->config_size + pp->sectorsize - 1) / pp->sectorsize;
+	sectors = howmany(meta->config_size, pp->sectorsize);
 	buf = malloc(sectors * pp->sectorsize, M_MD_INTEL, M_WAITOK | M_ZERO);
 	if (sectors > 1) {
 		memcpy(buf, ((char *)meta) + pp->sectorsize,

@@ -221,8 +221,8 @@ vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
 vm_paddr_t dump_avail[PHYSMAP_SIZE + 2];
 
 /* must be 2 less so 0 0 can signal end of chunks */
-#define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(phys_avail[0])) - 2)
-#define DUMP_AVAIL_ARRAY_END ((sizeof(dump_avail) / sizeof(dump_avail[0])) - 2)
+#define	PHYS_AVAIL_ARRAY_END (nitems(phys_avail) - 2)
+#define	DUMP_AVAIL_ARRAY_END (nitems(dump_avail) - 2)
 
 struct kva_md_info kmi;
 
@@ -368,7 +368,7 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct osigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct osigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct osigframe));
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -515,7 +515,7 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe4 *)(td->td_sigstk.ss_sp +
+		sfp = (struct sigframe4 *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct sigframe4));
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -675,7 +675,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
+		sp = (char *)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
@@ -2463,8 +2463,8 @@ init386(first)
 		metadata_missing = 1;
 	}
 
-	if (bootinfo.bi_envp)
-		init_static_kenv((caddr_t)bootinfo.bi_envp + KERNBASE, 0);
+	if (bootinfo.bi_envp != 0)
+		init_static_kenv((char *)bootinfo.bi_envp + KERNBASE, 0);
 	else
 		init_static_kenv(NULL, 0);
 
@@ -2517,7 +2517,7 @@ init386(first)
 	/* make ldt memory segments */
 	ldt_segs[LUCODE_SEL].ssd_limit = atop(0 - 1);
 	ldt_segs[LUDATA_SEL].ssd_limit = atop(0 - 1);
-	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
+	for (x = 0; x < nitems(ldt_segs); x++)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
 
 	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);

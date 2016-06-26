@@ -1833,8 +1833,6 @@ sk_detach(dev)
 		ether_ifdetach(ifp);
 		SK_IF_LOCK(sc_if);
 	}
-	if (ifp)
-		if_free(ifp);
 	/*
 	 * We're generally called from skc_detach() which is using
 	 * device_delete_child() to get to here. It's already trashed
@@ -1848,6 +1846,8 @@ sk_detach(dev)
 	sk_dma_jumbo_free(sc_if);
 	sk_dma_free(sc_if);
 	SK_IF_UNLOCK(sc_if);
+	if (ifp)
+		if_free(ifp);
 
 	return(0);
 }
@@ -3275,7 +3275,7 @@ sk_init_xmac(sc_if)
 	 * that jumbo frames larger than 8192 bytes will be
 	 * truncated. Disabling all bad frame filtering causes
 	 * the RX FIFO to operate in streaming mode, in which
-	 * case the XMAC will start transfering frames out of the
+	 * case the XMAC will start transferring frames out of the
 	 * RX FIFO as soon as the FIFO threshold is reached.
 	 */
 	if (ifp->if_mtu > SK_MAX_FRAMELEN) {

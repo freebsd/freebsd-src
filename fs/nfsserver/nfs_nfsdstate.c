@@ -624,13 +624,13 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 			NFSBCOPY(sessid, nsep->sess_cbsess.nfsess_sessionid,
 			    NFSX_V4SESSIONID);
 			shp = NFSSESSIONHASH(nsep->sess_sessionid);
+			NFSLOCKSTATE();
 			NFSLOCKSESSION(shp);
 			LIST_INSERT_HEAD(&shp->list, nsep, sess_hash);
-			NFSLOCKSTATE();
 			LIST_INSERT_HEAD(&clp->lc_session, nsep, sess_list);
 			nsep->sess_clp = clp;
-			NFSUNLOCKSTATE();
 			NFSUNLOCKSESSION(shp);
+			NFSUNLOCKSTATE();
 		    }
 		}
 	} else if (clp->lc_flags & LCL_NEEDSCONFIRM) {
@@ -1635,7 +1635,7 @@ tryagain:
 	    if (new_stp->ls_flags & NFSLCK_TEST) {
 		/*
 		 * RFC 3530 does not list LockT as an op that renews a
-		 * lease, but the concensus seems to be that it is ok
+		 * lease, but the consensus seems to be that it is ok
 		 * for a server to do so.
 		 */
 		error = nfsrv_getclient(clientid, CLOPS_RENEW, &clp, NULL,
@@ -1742,7 +1742,7 @@ tryagain:
 	       * If the seqid part of the stateid isn't the same, return
 	       * NFSERR_OLDSTATEID for cases other than I/O Ops.
 	       * For I/O Ops, only return NFSERR_OLDSTATEID if
-	       * nfsrv_returnoldstateid is set. (The concensus on the email
+	       * nfsrv_returnoldstateid is set. (The consensus on the email
 	       * list was that most clients would prefer to not receive
 	       * NFSERR_OLDSTATEID for I/O Ops, but the RFC suggests that that
 	       * is what will happen, so I use the nfsrv_returnoldstateid to
@@ -1971,7 +1971,7 @@ tryagain:
 	 * - there is a conflict if a different client has any delegation
 	 * - there is a conflict if the same client has a read delegation
 	 *   (I don't understand why this isn't allowed, but that seems to be
-	 *    the current concensus?)
+	 *    the current consensus?)
 	 */
 	tstp = LIST_FIRST(&lfp->lf_deleg);
 	while (tstp != LIST_END(&lfp->lf_deleg)) {
@@ -2438,7 +2438,7 @@ tryagain:
 	 * For Open with other Write Access or any Deny except None
 	 * - there is a conflict if a different client has any delegation
 	 * - there is a conflict if the same client has a read delegation
-	 *   (The current concensus is that this last case should be
+	 *   (The current consensus is that this last case should be
 	 *    considered a conflict since the client with a read delegation
 	 *    could have done an Open with ReadAccess and WriteDeny
 	 *    locally and then not have checked for the WriteDeny.)
@@ -2731,7 +2731,7 @@ tryagain:
 	 * For Open with other Write Access or any Deny except None
 	 * - there is a conflict if a different client has any delegation
 	 * - there is a conflict if the same client has a read delegation
-	 *   (The current concensus is that this last case should be
+	 *   (The current consensus is that this last case should be
 	 *    considered a conflict since the client with a read delegation
 	 *    could have done an Open with ReadAccess and WriteDeny
 	 *    locally and then not have checked for the WriteDeny.)
@@ -4396,7 +4396,7 @@ tryagain:
  *   nfsrvboottime does not, somehow, get set to a previous one.
  *   (This is important so that Stale ClientIDs and StateIDs can
  *    be recognized.)
- *   The number of previous nfsvrboottime values preceeds the list.
+ *   The number of previous nfsvrboottime values precedes the list.
  * - followed by some number of appended records with:
  *   - client id string
  *   - flag that indicates it is a record revoking state via lease
@@ -5923,6 +5923,7 @@ nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
 	struct nfssessionhash *shp;
 	int i;
 
+	NFSLOCKSTATE();
 	if (sep == NULL) {
 		shp = NFSSESSIONHASH(sessionid);
 		NFSLOCKSESSION(shp);
@@ -5932,18 +5933,17 @@ nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
 		NFSLOCKSESSION(shp);
 	}
 	if (sep != NULL) {
-		NFSLOCKSTATE();
 		sep->sess_refcnt--;
 		if (sep->sess_refcnt > 0) {
-			NFSUNLOCKSTATE();
 			NFSUNLOCKSESSION(shp);
+			NFSUNLOCKSTATE();
 			return (0);
 		}
 		LIST_REMOVE(sep, sess_hash);
 		LIST_REMOVE(sep, sess_list);
-		NFSUNLOCKSTATE();
 	}
 	NFSUNLOCKSESSION(shp);
+	NFSUNLOCKSTATE();
 	if (sep == NULL)
 		return (NFSERR_BADSESSION);
 	for (i = 0; i < NFSV4_SLOTS; i++)

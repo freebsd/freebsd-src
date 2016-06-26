@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/capsicum.h>
@@ -46,7 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/hash.h>
 #include <sys/sysctl.h>
 #include <fs/nfs/nfsport.h>
+#include <netinet/in_fib.h>
 #include <netinet/if_ether.h>
+#include <netinet6/ip6_var.h>
 #include <net/if_types.h>
 
 #include <fs/nfsclient/nfs_kdtrace.h>
@@ -290,7 +293,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 }
 
 /*
- * Anothe variant of nfs_nget(). This one is only used by reopen. It
+ * Another variant of nfs_nget(). This one is only used by reopen. It
  * takes almost the same args as nfs_nget(), but only succeeds if an entry
  * exists in the cache. (Since files should already be "open" with a
  * vnode ref cnt on the node when reopen calls this, it should always
@@ -329,21 +332,24 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 		NFSVOPUNLOCK(nvp, 0);
 	} else if (error == EBUSY) {
 		/*
-		 * The LK_EXCLOTHER lock type tells nfs_lock1() to not try
-		 * and lock the vnode, but just get a v_usecount on it.
-		 * LK_NOWAIT is set so that when vget() returns ENOENT,
-		 * vfs_hash_get() fails instead of looping.
-		 * If this succeeds, it is safe so long as a vflush() with
+		 * It is safe so long as a vflush() with
 		 * FORCECLOSE has not been done. Since the Renew thread is
 		 * stopped and the MNTK_UNMOUNTF flag is set before doing
 		 * a vflush() with FORCECLOSE, we should be ok here.
 		 */
 		if ((mntp->mnt_kern_flag & MNTK_UNMOUNTF))
 			error = EINTR;
-		else
-			error = vfs_hash_get(mntp, hash,
-			    (LK_EXCLOTHER | LK_NOWAIT), td, &nvp,
-			    newnfs_vncmpf, nfhp);
+		else {
+			vfs_hash_ref(mntp, hash, td, &nvp, newnfs_vncmpf, nfhp);
+			if (nvp == NULL) {
+				error = ENOENT;
+			} else if ((nvp->v_iflag & VI_DOOMED) != 0) {
+				error = ENOENT;
+				vrele(nvp);
+			} else {
+				error = 0;
+			}
+		}
 	}
 	FREE(nfhp, M_NFSFH);
 	if (error)
@@ -922,7 +928,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
 		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
 		break;
-	};
+	}
 }
 
 /*
@@ -1038,73 +1044,67 @@ nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp)
 }
 
 /*
- * Get a pointer to my IP addrress and return it.
- * Return NULL if you can't find one.
+ * Lookups source address which should be used to communicate with
+ * @nmp and stores it inside @pdst.
+ *
+ * Returns 0 on success.
  */
 u_int8_t *
-nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
+nfscl_getmyip(struct nfsmount *nmp, struct in6_addr *paddr, int *isinet6p)
 {
-	struct sockaddr_in sad, *sin;
-	struct rtentry *rt;
-	u_int8_t *retp = NULL;
-	static struct in_addr laddr;
+#if defined(INET6) || defined(INET)
+	int error, fibnum;
 
-	*isinet6p = 0;
-	/*
-	 * Loop up a route for the destination address.
-	 */
-	if (nmp->nm_nam->sa_family == AF_INET) {
-		bzero(&sad, sizeof (sad));
-		sin = (struct sockaddr_in *)nmp->nm_nam;
-		sad.sin_family = AF_INET;
-		sad.sin_len = sizeof (struct sockaddr_in);
-		sad.sin_addr.s_addr = sin->sin_addr.s_addr;
-		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
-		rt = rtalloc1_fib((struct sockaddr *)&sad, 0, 0UL,
-		     curthread->td_proc->p_fibnum);
-		if (rt != NULL) {
-			if (rt->rt_ifp != NULL &&
-			    rt->rt_ifa != NULL &&
-			    ((rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) &&
-			    rt->rt_ifa->ifa_addr->sa_family == AF_INET) {
-				sin = (struct sockaddr_in *)
-				    rt->rt_ifa->ifa_addr;
-				laddr.s_addr = sin->sin_addr.s_addr;
-				retp = (u_int8_t *)&laddr;
-			}
-			RTFREE_LOCKED(rt);
-		}
-		CURVNET_RESTORE();
-#ifdef INET6
-	} else if (nmp->nm_nam->sa_family == AF_INET6) {
-		struct sockaddr_in6 sad6, *sin6;
-		static struct in6_addr laddr6;
-
-		bzero(&sad6, sizeof (sad6));
-		sin6 = (struct sockaddr_in6 *)nmp->nm_nam;
-		sad6.sin6_family = AF_INET6;
-		sad6.sin6_len = sizeof (struct sockaddr_in6);
-		sad6.sin6_addr = sin6->sin6_addr;
-		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
-		rt = rtalloc1_fib((struct sockaddr *)&sad6, 0, 0UL,
-		     curthread->td_proc->p_fibnum);
-		if (rt != NULL) {
-			if (rt->rt_ifp != NULL &&
-			    rt->rt_ifa != NULL &&
-			    ((rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) &&
-			    rt->rt_ifa->ifa_addr->sa_family == AF_INET6) {
-				sin6 = (struct sockaddr_in6 *)
-				    rt->rt_ifa->ifa_addr;
-				laddr6 = sin6->sin6_addr;
-				retp = (u_int8_t *)&laddr6;
-				*isinet6p = 1;
-			}
-			RTFREE_LOCKED(rt);
-		}
-		CURVNET_RESTORE();
+	fibnum = curthread->td_proc->p_fibnum;
 #endif
+#ifdef INET
+	if (nmp->nm_nam->sa_family == AF_INET) {
+		struct sockaddr_in *sin;
+		struct nhop4_extended nh_ext;
+
+		sin = (struct sockaddr_in *)nmp->nm_nam;
+		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
+		error = fib4_lookup_nh_ext(fibnum, sin->sin_addr, 0, 0,
+		    &nh_ext);
+		CURVNET_RESTORE();
+		if (error != 0)
+			return (NULL);
+
+		if ((ntohl(nh_ext.nh_src.s_addr) >> IN_CLASSA_NSHIFT) ==
+		    IN_LOOPBACKNET) {
+			/* Ignore loopback addresses */
+			return (NULL);
+		}
+
+		*isinet6p = 0;
+		*((struct in_addr *)paddr) = nh_ext.nh_src;
+
+		return (u_int8_t *)paddr;
 	}
-	return (retp);
+#endif
+#ifdef INET6
+	if (nmp->nm_nam->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6;
+
+		sin6 = (struct sockaddr_in6 *)nmp->nm_nam;
+
+		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
+		error = in6_selectsrc_addr(fibnum, &sin6->sin6_addr,
+		    sin6->sin6_scope_id, NULL, paddr, NULL);
+		CURVNET_RESTORE();
+		if (error != 0)
+			return (NULL);
+
+		if (IN6_IS_ADDR_LOOPBACK(paddr))
+			return (NULL);
+
+		/* Scope is embedded in */
+		*isinet6p = 1;
+
+		return (u_int8_t *)paddr;
+	}
+#endif
+	return (NULL);
 }
 
 /*

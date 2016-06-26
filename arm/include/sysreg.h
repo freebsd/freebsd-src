@@ -39,7 +39,23 @@
 #ifndef MACHINE_SYSREG_H
 #define	MACHINE_SYSREG_H
 
-#include <machine/acle-compat.h>
+/*
+ * CP14 registers
+ */
+#if __ARM_ARCH >= 6
+
+#define	CP14_DBGDIDR(rr)	p14, 0, rr, c0, c0, 0 /* Debug ID Register */
+#define	CP14_DBGDSCRext_V6(rr)	p14, 0, rr, c0, c1, 0 /* Debug Status and Ctrl Register v6 */
+#define	CP14_DBGDSCRext_V7(rr)	p14, 0, rr, c0, c2, 2 /* Debug Status and Ctrl Register v7 */
+#define	CP14_DBGVCR(rr)		p14, 0, rr, c0, c7, 0 /* Vector Catch Register */
+#define	CP14_DBGOSLAR(rr)	p14, 0, rr, c1, c0, 4 /* OS Lock Access Register */
+#define	CP14_DBGOSLSR(rr)	p14, 0, rr, c1, c1, 4 /* OS Lock Status Register */
+#define	CP14_DBGOSDLR(rr)	p14, 0, rr, c1, c3, 4 /* OS Double Lock Register */
+#define	CP14_DBGPRSR(rr)	p14, 0, rr, c1, c5, 4 /* Device Powerdown and Reset Status */
+
+#define	CP14_DBGDSCRint(rr)	CP14_DBGDSCRext_V6(rr) /* Debug Status and Ctrl internal view */
+
+#endif
 
 /*
  * CP15 C0 registers

@@ -1241,7 +1241,7 @@ static int hptiop_post_ioctl_command_mv(struct hpt_iop_hba *hba,
 	req->header.result = IOP_RESULT_PENDING;
 	req->header.flags = IOP_REQUEST_FLAG_OUTPUT_CONTEXT;
 	size = req->header.size >> 8;
-	size = size > 3 ? 3 : size;
+	size = imin(3, size);
 	req_phy = hba->ctlcfgcmd_phy | MVIOP_MU_QUEUE_ADDR_HOST_BIT | size;
 	hptiop_mv_inbound_write(req_phy, hba);
 
@@ -2052,8 +2052,8 @@ static int hptiop_attach(device_t dev)
 	xpt_action((union ccb *)&ccb);
 
 	rid = 0;
-	if ((hba->irq_res = bus_alloc_resource(hba->pcidev, SYS_RES_IRQ,
-			&rid, 0, ~0ul, 1, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+	if ((hba->irq_res = bus_alloc_resource_any(hba->pcidev, SYS_RES_IRQ,
+			&rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "allocate irq failed!\n");
 		goto free_hba_path;
 	}
@@ -2408,7 +2408,7 @@ static void hptiop_post_req_itl(struct hpt_iop_hba *hba,
 		iop_req32 = BUS_SPACE_RD4_ITL(inbound_queue);
 
 		if (iop_req32 == IOPMU_QUEUE_EMPTY) {
-			device_printf(hba->pcidev, "invaild req offset\n");
+			device_printf(hba->pcidev, "invalid req offset\n");
 			ccb->ccb_h.status = CAM_BUSY;
 			bus_dmamap_unload(hba->io_dmat, srb->dma_map);
 			hptiop_free_srb(hba, srb);
@@ -2561,7 +2561,7 @@ static void hptiop_post_req_mv(struct hpt_iop_hba *hba,
 	size = req->header.size >> 8;
 	hptiop_mv_inbound_write(req_phy
 			| MVIOP_MU_QUEUE_ADDR_HOST_BIT
-			| (size > 3 ? 3 : size), hba);
+			| imin(3, size), hba);
 }
 
 static void hptiop_post_req_mvfrey(struct hpt_iop_hba *hba,

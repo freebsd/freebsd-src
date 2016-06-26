@@ -195,7 +195,7 @@ TUNABLE_INT("hw.ixv.flow_control", &ixv_flow_control);
 
 /*
  * Header split: this causes the hardware to DMA
- * the header into a seperate mbuf from the payload,
+ * the header into a separate mbuf from the payload,
  * it can be a performance win in some workloads, but
  * in others it actually hurts, its off by default.
  */
@@ -1141,7 +1141,7 @@ ixv_local_timer(void *arg)
 
 	}
 
-	/* Only truely watchdog if all queues show hung */
+	/* Only truly watchdog if all queues show hung */
 	if (hung == adapter->num_queues)
 		goto watchdog;
 	else if (queues != 0) { /* Force an IRQ on queues with work */
@@ -1958,7 +1958,7 @@ ixv_handle_mbx(void *context, int pending)
 }
 
 /*
-** The VF stats registers never have a truely virgin
+** The VF stats registers never have a truly virgin
 ** starting point, so this routine tries to make an
 ** artificial one, marking ground zero on attach as
 ** it were.
@@ -2167,10 +2167,10 @@ ixv_print_debug_info(struct adapter *adapter)
                     rxr->me, (long long)rxr->rx_packets);
                 device_printf(dev,"RX(%d) Bytes Received: %lu\n",
                     rxr->me, (long)rxr->rx_bytes);
-                device_printf(dev,"RX(%d) LRO Queued= %d\n",
-                    rxr->me, lro->lro_queued);
-                device_printf(dev,"RX(%d) LRO Flushed= %d\n",
-                    rxr->me, lro->lro_flushed);
+                device_printf(dev,"RX(%d) LRO Queued= %lld\n",
+                    rxr->me, (long long)lro->lro_queued);
+                device_printf(dev,"RX(%d) LRO Flushed= %lld\n",
+                    rxr->me, (long long)lro->lro_flushed);
                 device_printf(dev,"TX(%d) Packets Sent: %lu\n",
                     txr->me, (long)txr->total_packets);
                 device_printf(dev,"TX(%d) NO Desc Avail: %lu\n",

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "platform/acfreebsd.h"
 #include "acconfig.h"
 #define ACPI_SYSTEM_XFACE
+#define ACPI_USE_SYSTEM_INTTYPES
 #include "actypes.h"
 #include "actbl.h"
 
@@ -74,8 +75,6 @@ elf64_exec(struct preloaded_file *fp)
 	size_t clean_size;
 	struct file_metadata *md;
 	ACPI_TABLE_RSDP *rsdp;
-	EFI_STATUS status;
-	EFI_PHYSICAL_ADDRESS addr;
 	Elf_Ehdr *ehdr;
 	char buf[24];
 	int err, revision;
@@ -114,13 +113,18 @@ elf64_exec(struct preloaded_file *fp)
 	ehdr = (Elf_Ehdr *)&(md->md_data);
 	entry = efi_translate(ehdr->e_entry);
 
+	efi_time_fini();
 	err = bi_load(fp->f_args, &modulep, &kernendp);
-	if (err != 0)
+	if (err != 0) {
+		efi_time_init();
 		return (err);
+	}
+
+	dev_cleanup();
 
 	/* Clean D-cache under kernel area and invalidate whole I-cache */
-	clean_addr = efi_translate(fp->f_addr);
-	clean_size = efi_translate(kernendp) - clean_addr;
+	clean_addr = (vm_offset_t)efi_translate(fp->f_addr);
+	clean_size = (vm_offset_t)efi_translate(kernendp) - clean_addr;
 
 	cpu_flush_dcache((void *)clean_addr, clean_size);
 	cpu_inval_icache(NULL, 0);

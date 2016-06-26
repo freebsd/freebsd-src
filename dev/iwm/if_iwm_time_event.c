@@ -105,6 +105,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -244,7 +246,7 @@ iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_node *in,
 
 void
 iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_node *in,
-	uint32_t duration, uint32_t min_duration, uint32_t max_delay)
+	uint32_t duration, uint32_t max_delay)
 {
 	struct iwm_time_event_cmd_v2 time_cmd;
 

@@ -211,7 +211,6 @@ thread_init(void *mem, int size, int flags)
 	td->td_turnstile = turnstile_alloc();
 	td->td_rlqe = NULL;
 	EVENTHANDLER_INVOKE(thread_init, td);
-	td->td_sched = (struct td_sched *)&td[1];
 	umtx_thread_init(td);
 	td->td_kstack = 0;
 	td->td_sel = NULL;
@@ -481,7 +480,7 @@ thread_exit(void)
 	 * architecture specific resources that
 	 * would not be on a new untouched process.
 	 */
-	cpu_thread_exit(td);	/* XXXSMP */
+	cpu_thread_exit(td);
 
 	/*
 	 * The last thread is left attached to the process
@@ -670,11 +669,6 @@ weed_inhib(int mode, struct thread *td2, struct proc *p)
 			wakeup_swapper |= sleepq_abort(td2, EINTR);
 		break;
 	case SINGLE_BOUNDARY:
-		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & TDF_BOUNDARY) == 0)
-			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
-		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
-			wakeup_swapper |= sleepq_abort(td2, ERESTART);
-		break;
 	case SINGLE_NO_EXIT:
 		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & TDF_BOUNDARY) == 0)
 			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
@@ -913,8 +907,8 @@ thread_suspend_check(int return_instead)
 			/*
 			 * The only suspension in action is a
 			 * single-threading. Single threader need not stop.
-			 * XXX Should be safe to access unlocked
-			 * as it can only be set to be true by us.
+			 * It is safe to access p->p_singlethread unlocked
+			 * because it can only be set to our address by us.
 			 */
 			if (p->p_singlethread == td)
 				return (0);	/* Exempt from stopping. */
@@ -950,6 +944,7 @@ thread_suspend_check(int return_instead)
 			 */
 			if (__predict_false(p->p_sysent->sv_thread_detach != NULL))
 				(p->p_sysent->sv_thread_detach)(td);
+			umtx_thread_exit(td);
 			kern_thr_exit(td);
 			panic("stopped thread did not exit");
 		}

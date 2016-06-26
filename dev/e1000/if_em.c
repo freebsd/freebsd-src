@@ -96,14 +96,9 @@
 #include "if_em.h"
 
 /*********************************************************************
- *  Set this to one to display debug statistics
- *********************************************************************/
-int	em_display_debug_stats = 0;
-
-/*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.4.2";
+char em_driver_version[] = "7.6.1-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -191,6 +186,13 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_PCH_I218_V2,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH_I218_LM3,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH_I218_V3,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_LM, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V,  PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_LM2,
+                                                PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V2, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LBG_I219_LM3,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -238,6 +240,7 @@ static void	em_free_pci_resources(struct adapter *);
 static void	em_local_timer(void *);
 static void	em_reset(struct adapter *);
 static int	em_setup_interface(device_t, struct adapter *);
+static void	em_flush_desc_rings(struct adapter *);
 
 static void	em_setup_transmit_structures(struct adapter *);
 static void	em_initialize_transmit_unit(struct adapter *);
@@ -577,10 +580,25 @@ em_attach(device_t dev)
 		adapter->osdep.flash_bus_space_handle =
 		    rman_get_bushandle(adapter->flash);
 	}
+	/*
+	** In the new SPT device flash is not  a
+	** separate BAR, rather it is also in BAR0,
+	** so use the same tag and an offset handle for the
+	** FLASH read/write macros in the shared code.
+	*/
+	else if (hw->mac.type == e1000_pch_spt) {
+		adapter->osdep.flash_bus_space_tag =
+		    adapter->osdep.mem_bus_space_tag;
+		adapter->osdep.flash_bus_space_handle =
+		    adapter->osdep.mem_bus_space_handle
+		    + E1000_FLASH_BASE_ADDR;
+	}
 
 	/* Do Shared Code initialization */
-	if (e1000_setup_init_funcs(hw, TRUE)) {
-		device_printf(dev, "Setup of Shared code failed\n");
+	error = e1000_setup_init_funcs(hw, TRUE);
+	if (error) {
+		device_printf(dev, "Setup of Shared code failed, error %d\n",
+		    error);
 		error = ENXIO;
 		goto err_pci;
 	}
@@ -1170,6 +1188,7 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 		case e1000_ich10lan:
 		case e1000_pch2lan:
 		case e1000_pch_lpt:
+		case e1000_pch_spt:
 		case e1000_82574:
 		case e1000_82583:
 		case e1000_80003es2lan:	/* 9K Jumbo Frame size */
@@ -1371,8 +1390,15 @@ em_init_locked(struct adapter *adapter)
 	if_clearhwassist(ifp);
 	if (if_getcapenable(ifp) & IFCAP_TXCSUM)
 		if_sethwassistbits(ifp, CSUM_TCP | CSUM_UDP, 0);
-	if (if_getcapenable(ifp) & IFCAP_TSO4)
-		if_sethwassistbits(ifp, CSUM_TSO, 0);
+	/* 
+	** There have proven to be problems with TSO when not
+	** at full gigabit speed, so disable the assist automatically
+	** when at lower speeds.  -jfv
+	*/
+	if (if_getcapenable(ifp) & IFCAP_TSO4) {
+		if (adapter->link_speed == SPEED_1000)
+			if_sethwassistbits(ifp, CSUM_TSO, 0);
+	}
 
 	/* Configure for OS presence */
 	em_init_manageability(adapter);
@@ -1903,7 +1929,7 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	 * so we firstly get a writable mbuf chain then coalesce ethernet/
 	 * IP/TCP header into a single buffer to meet the requirement of
 	 * controller. This also simplifies IP/TCP/UDP checksum offloading
-	 * which also has similiar restrictions.
+	 * which also has similar restrictions.
 	 */
 	if (do_tso || m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) {
 		if (do_tso || (m_head->m_next != NULL && 
@@ -2035,9 +2061,9 @@ retry:
 	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_NOWAIT);
+		m = m_collapse(*m_headp, M_NOWAIT, EM_MAX_SCATTER);
 		if (m == NULL) {
-			adapter->mbuf_alloc_failed++;
+			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (ENOBUFS);
@@ -2066,7 +2092,7 @@ retry:
 		txr->tx_tso = FALSE;
 	}
 
-        if (nsegs > (txr->tx_avail - EM_MAX_SCATTER)) {
+        if (txr->tx_avail < (nsegs + EM_MAX_SCATTER)) {
                 txr->no_desc_avail++;
 		bus_dmamap_unload(txr->txtag, map);
 		return (ENOBUFS);
@@ -2352,6 +2378,8 @@ em_update_link_status(struct adapter *adapter)
 	switch (hw->phy.media_type) {
 	case e1000_media_type_copper:
 		if (hw->mac.get_link_status) {
+			if (hw->mac.type == e1000_pch_spt)
+				msec_delay(50);
 			/* Do the work to read phy */
 			e1000_check_for_link(hw);
 			link_check = !hw->mac.get_link_status;
@@ -2442,6 +2470,10 @@ em_stop(void *arg)
 		txr->busy = EM_TX_IDLE;
 		EM_TX_UNLOCK(txr);
 	}
+
+	/* I219 needs some special flushing to avoid hangs */
+	if (adapter->hw.mac.type == e1000_pch_spt)
+		em_flush_desc_rings(adapter);
 
 	e1000_reset_hw(&adapter->hw);
 	E1000_WRITE_REG(&adapter->hw, E1000_WUC, 0);
@@ -2563,7 +2595,7 @@ em_allocate_legacy(struct adapter *adapter)
  *
  *  Setup the MSIX Interrupt handlers
  *   This is not really Multiqueue, rather
- *   its just seperate interrupt vectors
+ *   its just separate interrupt vectors
  *   for TX, RX, and Link.
  *
  **********************************************************************/
@@ -2862,6 +2894,116 @@ msi:
 }
 
 
+/*
+** The 3 following flush routines are used as a workaround in the
+** I219 client parts and only for them.
+**
+** em_flush_tx_ring - remove all descriptors from the tx_ring
+**
+** We want to clear all pending descriptors from the TX ring.
+** zeroing happens when the HW reads the regs. We  assign the ring itself as
+** the data of the next descriptor. We don't care about the data we are about
+** to reset the HW.
+*/
+static void
+em_flush_tx_ring(struct adapter *adapter)
+{
+	struct e1000_hw		*hw = &adapter->hw;
+	struct tx_ring		*txr = adapter->tx_rings;
+	struct e1000_tx_desc	*txd;
+	u32			tctl, txd_lower = E1000_TXD_CMD_IFCS;
+	u16			size = 512;
+
+	tctl = E1000_READ_REG(hw, E1000_TCTL);
+	E1000_WRITE_REG(hw, E1000_TCTL, tctl | E1000_TCTL_EN);
+
+	txd = &txr->tx_base[txr->next_avail_desc++];
+	if (txr->next_avail_desc == adapter->num_tx_desc)
+		txr->next_avail_desc = 0;
+
+	/* Just use the ring as a dummy buffer addr */
+	txd->buffer_addr = txr->txdma.dma_paddr;
+	txd->lower.data = htole32(txd_lower | size);
+	txd->upper.data = 0;
+
+	/* flush descriptors to memory before notifying the HW */
+	wmb();
+
+	E1000_WRITE_REG(hw, E1000_TDT(0), txr->next_avail_desc);
+	mb();
+	usec_delay(250);
+}
+
+/*
+** em_flush_rx_ring - remove all descriptors from the rx_ring
+**
+** Mark all descriptors in the RX ring as consumed and disable the rx ring
+*/
+static void
+em_flush_rx_ring(struct adapter *adapter)
+{
+	struct e1000_hw	*hw = &adapter->hw;
+	u32		rctl, rxdctl;
+
+	rctl = E1000_READ_REG(hw, E1000_RCTL);
+	E1000_WRITE_REG(hw, E1000_RCTL, rctl & ~E1000_RCTL_EN);
+	E1000_WRITE_FLUSH(hw);
+	usec_delay(150);
+
+	rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
+	/* zero the lower 14 bits (prefetch and host thresholds) */
+	rxdctl &= 0xffffc000;
+	/*
+	 * update thresholds: prefetch threshold to 31, host threshold to 1
+	 * and make sure the granularity is "descriptors" and not "cache lines"
+	 */
+	rxdctl |= (0x1F | (1 << 8) | E1000_RXDCTL_THRESH_UNIT_DESC);
+	E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl);
+
+	/* momentarily enable the RX ring for the changes to take effect */
+	E1000_WRITE_REG(hw, E1000_RCTL, rctl | E1000_RCTL_EN);
+	E1000_WRITE_FLUSH(hw);
+	usec_delay(150);
+	E1000_WRITE_REG(hw, E1000_RCTL, rctl & ~E1000_RCTL_EN);
+}
+
+/*
+** em_flush_desc_rings - remove all descriptors from the descriptor rings
+**
+** In i219, the descriptor rings must be emptied before resetting the HW
+** or before changing the device state to D3 during runtime (runtime PM).
+**
+** Failure to do this will cause the HW to enter a unit hang state which can
+** only be released by PCI reset on the device
+**
+*/
+static void
+em_flush_desc_rings(struct adapter *adapter)
+{
+	struct e1000_hw	*hw = &adapter->hw;
+	device_t	dev = adapter->dev;
+	u16		hang_state;
+	u32		fext_nvm11, tdlen;
+ 
+	/* First, disable MULR fix in FEXTNVM11 */
+	fext_nvm11 = E1000_READ_REG(hw, E1000_FEXTNVM11);
+	fext_nvm11 |= E1000_FEXTNVM11_DISABLE_MULR_FIX;
+	E1000_WRITE_REG(hw, E1000_FEXTNVM11, fext_nvm11);
+        
+	/* do nothing if we're not in faulty state, or if the queue is empty */
+	tdlen = E1000_READ_REG(hw, E1000_TDLEN(0));
+	hang_state = pci_read_config(dev, PCICFG_DESC_RING_STATUS, 2);
+	if (!(hang_state & FLUSH_DESC_REQUIRED) || !tdlen)
+		return;
+	em_flush_tx_ring(adapter);
+
+	/* recheck, maybe the fault is caused by the rx ring */
+	hang_state = pci_read_config(dev, PCICFG_DESC_RING_STATUS, 2);
+	if (hang_state & FLUSH_DESC_REQUIRED)
+		em_flush_rx_ring(adapter);
+}
+
+
 /*********************************************************************
  *
  *  Initialize the hardware to a configuration
@@ -2923,6 +3065,7 @@ em_reset(struct adapter *adapter)
 	case e1000_pchlan:
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
+	case e1000_pch_spt:
 		pba = E1000_PBA_26K;
 		break;
 	default:
@@ -2940,7 +3083,7 @@ em_reset(struct adapter *adapter)
 	 *   received after sending an XOFF.
 	 * - Low water mark works best when it is very near the high water mark.
 	 *   This allows the receiver to restart by sending XON when it has
-	 *   drained a bit. Here we use an arbitary value of 1500 which will
+	 *   drained a bit. Here we use an arbitrary value of 1500 which will
 	 *   restart after one full frame is pulled from the buffer. There
 	 *   could be several smaller frames in the buffer and if so they will
 	 *   not trigger the XON until their total number reduces the buffer
@@ -2981,6 +3124,7 @@ em_reset(struct adapter *adapter)
 		break;
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
+	case e1000_pch_spt:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
 		hw->fc.pause_time = 0x0650;
@@ -3004,6 +3148,10 @@ em_reset(struct adapter *adapter)
 			hw->fc.pause_time = 0xFFFF;
 		break;
 	}
+
+	/* I219 needs some special flushing to avoid hangs */
+	if (hw->mac.type == e1000_pch_spt)
+		em_flush_desc_rings(adapter);
 
 	/* Issue a global reset */
 	e1000_reset_hw(hw);
@@ -3045,9 +3193,11 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setioctlfn(ifp, em_ioctl);
 	if_setgetcounterfn(ifp, em_get_counter);
+
 	/* TSO parameters */
 	ifp->if_hw_tsomax = IP_MAXPACKET;
-	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER;
+	/* Take m_pullup(9)'s in em_xmit() w/ TSO into acount. */
+	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER - 5;
 	ifp->if_hw_tsomaxsegsize = EM_TSO_SEG_SIZE;
 
 #ifdef EM_MULTIQUEUE
@@ -3601,6 +3751,15 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	/* This write will effectively turn on the transmit unit. */
 	E1000_WRITE_REG(&adapter->hw, E1000_TCTL, tctl);
 
+	if (hw->mac.type == e1000_pch_spt) {
+		u32 reg;
+		reg = E1000_READ_REG(hw, E1000_IOSFPC);
+		reg |= E1000_RCTL_RDMTS_HEX;
+		E1000_WRITE_REG(hw, E1000_IOSFPC, reg);
+		reg = E1000_READ_REG(hw, E1000_TARC(0));
+		reg |= E1000_TARC0_CB_MULTIQ_3_REQ;
+		E1000_WRITE_REG(hw, E1000_TARC(0), reg);
+	}
 }
 
 
@@ -5493,18 +5652,15 @@ em_add_hw_stats(struct adapter *adapter)
 	char namebuf[QUEUE_NAME_LEN];
 	
 	/* Driver Statistics */
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
-			CTLFLAG_RD, &adapter->link_irq,
-			"Link MSIX IRQ Handled");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_alloc_fail", 
-			 CTLFLAG_RD, &adapter->mbuf_alloc_failed,
-			 "Std mbuf failed");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "cluster_alloc_fail", 
-			 CTLFLAG_RD, &adapter->mbuf_cluster_failed,
-			 "Std mbuf cluster failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped", 
 			CTLFLAG_RD, &adapter->dropped_pkts,
 			"Driver dropped packets");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
+			CTLFLAG_RD, &adapter->link_irq,
+			"Link MSIX IRQ Handled");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_fail", 
+			 CTLFLAG_RD, &adapter->mbuf_defrag_failed,
+			 "Defragmenting mbuf chain failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_dma_fail", 
 			CTLFLAG_RD, &adapter->no_tx_dma_setup,
 			"Driver tx dma failure in xmit");

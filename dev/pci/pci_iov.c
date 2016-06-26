@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015 Sandvine Inc.  All rights reserved.
+ * Copyright (c) 2013-2015 Sandvine Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -320,7 +320,7 @@ pci_iov_alloc_bar(struct pci_devinfo *dinfo, int bar, pci_addr_t bar_shift)
 	struct resource *res;
 	struct pcicfg_iov *iov;
 	device_t dev, bus;
-	u_long start, end;
+	rman_res_t start, end;
 	pci_addr_t bar_size;
 	int rid;
 
@@ -330,8 +330,8 @@ pci_iov_alloc_bar(struct pci_devinfo *dinfo, int bar, pci_addr_t bar_shift)
 	rid = iov->iov_pos + PCIR_SRIOV_BAR(bar);
 	bar_size = 1 << bar_shift;
 
-	res = pci_alloc_multi_resource(bus, dev, SYS_RES_MEMORY, &rid, 0ul,
-	    ~0ul, 1, iov->iov_num_vfs, RF_ACTIVE);
+	res = pci_alloc_multi_resource(bus, dev, SYS_RES_MEMORY, &rid, 0,
+	    ~0, 1, iov->iov_num_vfs, RF_ACTIVE);
 
 	if (res == NULL)
 		return (ENXIO);
@@ -442,6 +442,7 @@ pci_iov_set_ari(device_t bus)
 			}
 		}
 	}
+	free(devlist, M_TEMP);
 
 	/*
 	 * If we called this function some device must have the SR-IOV
@@ -451,10 +452,14 @@ pci_iov_set_ari(device_t bus)
 	    ("Could not find child of %s with SR-IOV capability",
 	    device_get_nameunit(bus)));
 
-	iov_ctl = pci_read_config(lowest, iov_pos + PCIR_SRIOV_CTL, 2);
+	iov_ctl = pci_read_config(lowest, lowest_pos + PCIR_SRIOV_CTL, 2);
 	iov_ctl |= PCIM_SRIOV_ARI_EN;
-	pci_write_config(lowest, iov_pos + PCIR_SRIOV_CTL, iov_ctl, 2);
-	free(devlist, M_TEMP);
+	pci_write_config(lowest, lowest_pos + PCIR_SRIOV_CTL, iov_ctl, 2);
+	if ((pci_read_config(lowest, lowest_pos + PCIR_SRIOV_CTL, 2) &
+	    PCIM_SRIOV_ARI_EN) == 0) {
+		device_printf(lowest, "failed to enable ARI\n");
+		return (ENXIO);
+	}
 	return (0);
 }
 
@@ -498,7 +503,7 @@ pci_iov_init_rman(device_t pf, struct pcicfg_iov *iov)
 	int error;
 
 	iov->rman.rm_start = 0;
-	iov->rman.rm_end = ~0ul;
+	iov->rman.rm_end = ~0;
 	iov->rman.rm_type = RMAN_ARRAY;
 	snprintf(iov->rman_name, sizeof(iov->rman_name), "%s VF I/O memory",
 	    device_get_nameunit(pf));
@@ -513,6 +518,37 @@ pci_iov_init_rman(device_t pf, struct pcicfg_iov *iov)
 }
 
 static int
+pci_iov_alloc_bar_ea(struct pci_devinfo *dinfo, int bar)
+{
+	struct pcicfg_iov *iov;
+	rman_res_t start, end;
+	struct resource *res;
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+
+	rl = &dinfo->resources;
+	iov = dinfo->cfg.iov;
+
+	rle = resource_list_find(rl, SYS_RES_MEMORY,
+	    iov->iov_pos + PCIR_SRIOV_BAR(bar));
+	if (rle == NULL)
+		rle = resource_list_find(rl, SYS_RES_IOPORT,
+		    iov->iov_pos + PCIR_SRIOV_BAR(bar));
+	if (rle == NULL)
+		return (ENXIO);
+	res = rle->res;
+
+	iov->iov_bar[bar].res = res;
+	iov->iov_bar[bar].bar_size = rman_get_size(res) / iov->iov_num_vfs;
+	iov->iov_bar[bar].bar_shift = pci_mapsize(iov->iov_bar[bar].bar_size);
+
+	start = rman_get_start(res);
+	end = rman_get_end(res);
+
+	return (rman_manage_region(&iov->rman, start, end));
+}
+
+static int
 pci_iov_setup_bars(struct pci_devinfo *dinfo)
 {
 	device_t dev;
@@ -524,7 +560,18 @@ pci_iov_setup_bars(struct pci_devinfo *dinfo)
 	dev = dinfo->cfg.dev;
 	last_64 = 0;
 
+	pci_add_resources_ea(device_get_parent(dev), dev, 1);
+
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
+		/* First, try to use BARs allocated with EA */
+		error = pci_iov_alloc_bar_ea(dinfo, i);
+		if (error == 0)
+			continue;
+
+		/* Allocate legacy-BAR only if EA is not enabled */
+		if (pci_ea_is_enabled(dev, iov->iov_pos + PCIR_SRIOV_BAR(i)))
+			continue;
+
 		/*
 		 * If a PCI BAR is a 64-bit wide BAR, then it spans two
 		 * consecutive registers.  Therefore if the last BAR that
@@ -558,14 +605,12 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 	device_t bus, dev, vf;
 	struct pcicfg_iov *iov;
 	struct pci_devinfo *vfinfo;
-	size_t size;
 	int i, error;
 	uint16_t vid, did, next_rid;
 
 	iov = dinfo->cfg.iov;
 	dev = dinfo->cfg.dev;
 	bus = device_get_parent(dev);
-	size = dinfo->cfg.devinfo_size;
 	next_rid = first_rid;
 	vid = pci_get_vendor(dev);
 	did = IOV_READ(dinfo, PCIR_SRIOV_VF_DID, 2);
@@ -598,7 +643,7 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		error = PCI_IOV_ADD_VF(dev, i, driver_config);
 		if (error != 0) {
 			device_printf(dev, "Failed to add VF %d\n", i);
-			pci_delete_child(bus, vf);
+			device_delete_child(bus, vf);
 		}
 	}
 
@@ -725,6 +770,29 @@ out:
 	return (error);
 }
 
+void
+pci_iov_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
+{
+	struct pcicfg_iov *iov;
+
+	iov = dinfo->cfg.iov;
+
+	IOV_WRITE(dinfo, PCIR_SRIOV_PAGE_SIZE, iov->iov_page_size, 4);
+	IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, iov->iov_num_vfs, 2);
+	IOV_WRITE(dinfo, PCIR_SRIOV_CTL, iov->iov_ctl, 2);
+}
+
+void
+pci_iov_cfg_save(device_t dev, struct pci_devinfo *dinfo)
+{
+	struct pcicfg_iov *iov;
+
+	iov = dinfo->cfg.iov;
+
+	iov->iov_page_size = IOV_READ(dinfo, PCIR_SRIOV_PAGE_SIZE, 4);
+	iov->iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
+}
+
 /* Return true if child is a VF of the given PF. */
 static int
 pci_iov_is_child_vf(struct pcicfg_iov *pf, device_t child)
@@ -791,7 +859,7 @@ pci_iov_delete(struct cdev *cdev)
 		vf = devlist[i];
 
 		if (pci_iov_is_child_vf(iov, vf))
-			pci_delete_child(bus, vf);
+			device_delete_child(bus, vf);
 	}
 	PCI_IOV_UNINIT(dev);
 
@@ -890,15 +958,15 @@ pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 }
 
 struct resource *
-pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid, u_long start,
-    u_long end, u_long count, u_int flags)
+pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pci_devinfo *dinfo;
 	struct pcicfg_iov *iov;
 	struct pci_map *map;
 	struct resource *res;
 	struct resource_list_entry *rle;
-	u_long bar_start, bar_end;
+	rman_res_t bar_start, bar_end;
 	pci_addr_t bar_length;
 	int error;
 

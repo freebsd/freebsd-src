@@ -41,8 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/signalvar.h>
+#include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 #include <vm/uma.h>
@@ -110,8 +112,8 @@ autofs_getattr(struct vop_getattr_args *ap)
 	vap->va_rdev = NODEV;
 	vap->va_fsid = mp->mnt_stat.f_fsid.val[0];
 	vap->va_fileid = anp->an_fileno;
-	vap->va_size = 512; /* XXX */
-	vap->va_blocksize = 512;
+	vap->va_size = S_BLKSIZE;
+	vap->va_blocksize = S_BLKSIZE;
 	vap->va_mtime = anp->an_ctime;
 	vap->va_atime = anp->an_ctime;
 	vap->va_ctime = anp->an_ctime;
@@ -119,7 +121,7 @@ autofs_getattr(struct vop_getattr_args *ap)
 	vap->va_gen = 0;
 	vap->va_flags = 0;
 	vap->va_rdev = 0;
-	vap->va_bytes = 512; /* XXX */
+	vap->va_bytes = S_BLKSIZE;
 	vap->va_filerev = 0;
 	vap->va_spare = 0;
 
@@ -214,7 +216,7 @@ autofs_lookup(struct vop_lookup_args *ap)
 	struct autofs_mount *amp;
 	struct autofs_node *anp, *child;
 	struct componentname *cnp;
-	int error, lock_flags;
+	int error;
 
 	dvp = ap->a_dvp;
 	vpp = ap->a_vpp;
@@ -257,23 +259,13 @@ autofs_lookup(struct vop_lookup_args *ap)
 			return (error);
 
 		if (newvp != NULL) {
-			error = VOP_LOOKUP(newvp, ap->a_vpp, ap->a_cnp);
-
 			/*
-			 * Instead of figuring out whether our vnode should
-			 * be locked or not given the error and cnp flags,
-			 * just "copy" the lock status from vnode returned
-			 * by mounted filesystem's VOP_LOOKUP().  Get rid
-			 * of that new vnode afterwards.
+			 * The target filesystem got automounted.
+			 * Let the lookup(9) go around with the same
+			 * path component.
 			 */
-			lock_flags = VOP_ISLOCKED(newvp);
-			if (lock_flags == 0) {
-				VOP_UNLOCK(dvp, 0);
-				vrele(newvp);
-			} else {
-				vput(newvp);
-			}
-			return (error);
+			vput(newvp);
+			return (ERELOOKUP);
 		}
 	}
 
@@ -339,24 +331,50 @@ autofs_mkdir(struct vop_mkdir_args *ap)
 	return (error);
 }
 
+/*
+ * Write out a single 'struct dirent', based on 'name' and 'fileno' arguments.
+ */
 static int
-autofs_readdir_one(struct uio *uio, const char *name, int fileno)
+autofs_readdir_one(struct uio *uio, const char *name, int fileno,
+    size_t *reclenp)
 {
 	struct dirent dirent;
-	int error, i;
+	size_t namlen, padded_namlen, reclen;
+	int error;
 
-	memset(&dirent, 0, sizeof(dirent));
-	dirent.d_type = DT_DIR;
-	dirent.d_reclen = AUTOFS_DELEN;
+	namlen = strlen(name);
+	padded_namlen = roundup2(namlen + 1, __alignof(struct dirent));
+	KASSERT(padded_namlen <= MAXNAMLEN, ("%zd > MAXNAMLEN", padded_namlen));
+	reclen = offsetof(struct dirent, d_name) + padded_namlen;
+
+	if (reclenp != NULL)
+		*reclenp = reclen;
+
+	if (uio == NULL)
+		return (0);
+
+	if (uio->uio_resid < reclen)
+		return (EINVAL);
+
 	dirent.d_fileno = fileno;
-	/* PFS_DELEN was picked to fit PFS_NAMLEN */
-	for (i = 0; i < AUTOFS_NAMELEN - 1 && name[i] != '\0'; ++i)
-		dirent.d_name[i] = name[i];
-	dirent.d_name[i] = 0;
-	dirent.d_namlen = i;
+	dirent.d_reclen = reclen;
+	dirent.d_type = DT_DIR;
+	dirent.d_namlen = namlen;
+	memcpy(dirent.d_name, name, namlen);
+	memset(dirent.d_name + namlen, 0, padded_namlen - namlen);
+	error = uiomove(&dirent, reclen, uio);
 
-	error = uiomove(&dirent, AUTOFS_DELEN, uio);
 	return (error);
+}
+
+static size_t
+autofs_dirent_reclen(const char *name)
+{
+	size_t reclen;
+
+	(void)autofs_readdir_one(NULL, name, -1, &reclen);
+
+	return (reclen);
 }
 
 static int
@@ -366,13 +384,15 @@ autofs_readdir(struct vop_readdir_args *ap)
 	struct autofs_mount *amp;
 	struct autofs_node *anp, *child;
 	struct uio *uio;
-	off_t offset;
-	int error, i, resid;
+	size_t reclen, reclens;
+	ssize_t initial_resid;
+	int error;
 
 	vp = ap->a_vp;
 	amp = VFSTOAUTOFS(vp->v_mount);
 	anp = vp->v_data;
 	uio = ap->a_uio;
+	initial_resid = ap->a_uio->uio_resid;
 
 	KASSERT(vp->v_type == VDIR, ("!VDIR"));
 
@@ -390,70 +410,94 @@ autofs_readdir(struct vop_readdir_args *ap)
 		}
 	}
 
-	/* only allow reading entire entries */
-	offset = uio->uio_offset;
-	resid = uio->uio_resid;
-	if (offset < 0 || offset % AUTOFS_DELEN != 0 ||
-	    (resid && resid < AUTOFS_DELEN))
+	if (uio->uio_offset < 0)
 		return (EINVAL);
-	if (resid == 0)
-		return (0);
+
+	if (ap->a_eofflag != NULL)
+		*ap->a_eofflag = FALSE;
+
+	/*
+	 * Write out the directory entry for ".".  This is conditional
+	 * on the current offset into the directory; same applies to the
+	 * other two cases below.
+	 */
+	if (uio->uio_offset == 0) {
+		error = autofs_readdir_one(uio, ".", anp->an_fileno, &reclen);
+		if (error != 0)
+			goto out;
+	}
+	reclens = autofs_dirent_reclen(".");
+
+	/*
+	 * Write out the directory entry for "..".
+	 */
+	if (uio->uio_offset <= reclens) {
+		if (uio->uio_offset != reclens)
+			return (EINVAL);
+		if (anp->an_parent == NULL) {
+			error = autofs_readdir_one(uio, "..",
+			    anp->an_fileno, &reclen);
+		} else {
+			error = autofs_readdir_one(uio, "..",
+			    anp->an_parent->an_fileno, &reclen);
+		}
+		if (error != 0)
+			goto out;
+	}
+
+	reclens += autofs_dirent_reclen("..");
+
+	/*
+	 * Write out the directory entries for subdirectories.
+	 */
+	AUTOFS_SLOCK(amp);
+	RB_FOREACH(child, autofs_node_tree, &anp->an_children) {
+		/*
+		 * Check the offset to skip entries returned by previous
+		 * calls to getdents().
+		 */
+		if (uio->uio_offset > reclens) {
+			reclens += autofs_dirent_reclen(child->an_name);
+			continue;
+		}
+
+		/*
+		 * Prevent seeking into the middle of dirent.
+		 */
+		if (uio->uio_offset != reclens) {
+			AUTOFS_SUNLOCK(amp);
+			return (EINVAL);
+		}
+
+		error = autofs_readdir_one(uio, child->an_name,
+		    child->an_fileno, &reclen);
+		reclens += reclen;
+		if (error != 0) {
+			AUTOFS_SUNLOCK(amp);
+			goto out;
+		}
+	}
+	AUTOFS_SUNLOCK(amp);
 
 	if (ap->a_eofflag != NULL)
 		*ap->a_eofflag = TRUE;
 
-	if (offset == 0 && resid >= AUTOFS_DELEN) {
-		error = autofs_readdir_one(uio, ".", anp->an_fileno);
-		if (error != 0)
-			return (error);
-		offset += AUTOFS_DELEN;
-		resid -= AUTOFS_DELEN;
-	}
-
-	if (offset == AUTOFS_DELEN && resid >= AUTOFS_DELEN) {
-		if (anp->an_parent == NULL) {
-			/*
-			 * XXX: Right?
-			 */
-			error = autofs_readdir_one(uio, "..", anp->an_fileno);
-		} else {
-			error = autofs_readdir_one(uio, "..",
-			    anp->an_parent->an_fileno);
-		}
-		if (error != 0)
-			return (error);
-		offset += AUTOFS_DELEN;
-		resid -= AUTOFS_DELEN;
-	}
-
-	i = 2; /* Account for "." and "..". */
-	AUTOFS_SLOCK(amp);
-	TAILQ_FOREACH(child, &anp->an_children, an_next) {
-		if (resid < AUTOFS_DELEN) {
-			if (ap->a_eofflag != NULL)
-				*ap->a_eofflag = 0;
-			break;
-		}
-
-		/*
-		 * Skip entries returned by previous call to getdents().
-		 */
-		i++;
-		if (i * AUTOFS_DELEN <= offset)
-			continue;
-
-		error = autofs_readdir_one(uio, child->an_name,
-		    child->an_fileno);
-		if (error != 0) {
-			AUTOFS_SUNLOCK(amp);
-			return (error);
-		}
-		offset += AUTOFS_DELEN;
-		resid -= AUTOFS_DELEN;
-	}
-
-	AUTOFS_SUNLOCK(amp);
 	return (0);
+
+out:
+	/*
+	 * Return error if the initial buffer was too small to do anything.
+	 */
+	if (uio->uio_resid == initial_resid)
+		return (error);
+
+	/*
+	 * Don't return an error if we managed to copy out some entries.
+	 */
+	if (uio->uio_resid < reclen)
+		return (0);
+
+	return (error);
 }
 
 static int
@@ -532,8 +576,8 @@ autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,
 	anp->an_parent = parent;
 	anp->an_mount = amp;
 	if (parent != NULL)
-		TAILQ_INSERT_TAIL(&parent->an_children, anp, an_next);
-	TAILQ_INIT(&anp->an_children);
+		RB_INSERT(autofs_node_tree, &parent->an_children, anp);
+	RB_INIT(&anp->an_children);
 
 	*anpp = anp;
 	return (0);
@@ -543,27 +587,28 @@ int
 autofs_node_find(struct autofs_node *parent, const char *name,
     int namelen, struct autofs_node **anpp)
 {
-	struct autofs_node *anp;
+	struct autofs_node *anp, find;
+	int error;
 
 	AUTOFS_ASSERT_LOCKED(parent->an_mount);
 
-	TAILQ_FOREACH(anp, &parent->an_children, an_next) {
-		if (namelen >= 0) {
-			if (strlen(anp->an_name) != namelen)
-				continue;
-			if (strncmp(anp->an_name, name, namelen) != 0)
-				continue;
-		} else {
-			if (strcmp(anp->an_name, name) != 0)
-				continue;
-		}
+	if (namelen >= 0)
+		find.an_name = strndup(name, namelen, M_AUTOFS);
+	else
+		find.an_name = strdup(name, M_AUTOFS);
 
+	anp = RB_FIND(autofs_node_tree, &parent->an_children, &find);
+	if (anp != NULL) {
+		error = 0;
 		if (anpp != NULL)
 			*anpp = anp;
-		return (0);
+	} else {
+		error = ENOENT;
 	}
 
-	return (ENOENT);
+	free(find.an_name, M_AUTOFS);
+
+	return (error);
 }
 
 void
@@ -572,13 +617,13 @@ autofs_node_delete(struct autofs_node *anp)
 	struct autofs_node *parent;
 
 	AUTOFS_ASSERT_XLOCKED(anp->an_mount);
-	KASSERT(TAILQ_EMPTY(&anp->an_children), ("have children"));
+	KASSERT(RB_EMPTY(&anp->an_children), ("have children"));
 
 	callout_drain(&anp->an_callout);
 
 	parent = anp->an_parent;
 	if (parent != NULL)
-		TAILQ_REMOVE(&parent->an_children, anp, an_next);
+		RB_REMOVE(autofs_node_tree, &parent->an_children, anp);
 	sx_destroy(&anp->an_vnode_lock);
 	free(anp->an_name, M_AUTOFS);
 	uma_zfree(autofs_node_zone, anp);
@@ -641,7 +686,7 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, int flags,
 
 	error = insmntque(vp, mp);
 	if (error != 0) {
-		AUTOFS_WARN("insmntque() failed with error %d", error);
+		AUTOFS_DEBUG("insmntque() failed with error %d", error);
 		sx_xunlock(&anp->an_vnode_lock);
 		return (error);
 	}

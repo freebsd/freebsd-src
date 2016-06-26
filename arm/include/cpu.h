@@ -4,7 +4,6 @@
 #ifndef MACHINE_CPU_H
 #define MACHINE_CPU_H
 
-#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/frame.h>
 
@@ -14,12 +13,8 @@ void	swi_vm(void *);
 #ifdef _KERNEL
 #if __ARM_ARCH >= 6
 #include <machine/cpu-v6.h>
-#ifdef DEV_PMU
-#include <sys/pcpu.h>
-#define	PMU_OVSR_C		0x80000000	/* Cycle Counter */
-extern uint32_t	ccnt_hi[MAXCPU];
-extern int pmu_attched;
-#endif /* DEV_PMU */
+#else
+#include <machine/cpu-v4.h>
 #endif /* __ARM_ARCH >= 6 */
 
 static __inline uint64_t

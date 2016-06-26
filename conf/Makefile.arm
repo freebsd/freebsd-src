@@ -68,7 +68,6 @@ SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
 
 FILES_CPU_FUNC = \
 	$S/$M/$M/cpufunc_asm_arm9.S \
-	$S/$M/$M/cpufunc_asm_arm10.S \
 	$S/$M/$M/cpufunc_asm_xscale.S $S/$M/$M/cpufunc_asm.S \
 	$S/$M/$M/cpufunc_asm_xscale_c3.S $S/$M/$M/cpufunc_asm_armv5_ec.S \
 	$S/$M/$M/cpufunc_asm_fa526.S $S/$M/$M/cpufunc_asm_sheeva.S \

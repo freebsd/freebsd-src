@@ -70,6 +70,10 @@ WR4HW(uint32_t devbase, uint32_t regoff, uint32_t val)
 	*(volatile uint32_t *)(AT91_BASE + devbase + regoff) = val;
 }
 
+/*
+ * This is the same calculation the at91 uart driver does, we use it to update
+ * the console uart baud rate after changing the MCK rate.
+ */
 #ifndef BAUD2DIVISOR
 #define BAUD2DIVISOR(b) \
 	((((at91_master_clock * 10) / ((b) * 16)) + 5) / 10)
@@ -94,34 +98,6 @@ struct tsc_bootinfo {
 
 static struct arm_boot_params	boot_params;
 static struct tsc_bootinfo	inkernel_bootinfo;
-
-/*
- * Override the default boot param parser (supplied via weak linkage) with one
- * that knows how to handle our custom tsc_bootinfo passed in from boot2.
- */
-vm_offset_t
-parse_boot_param(struct arm_boot_params *abp)
-{
-
-	boot_params = *abp;
-
-	/*
-	 * If the right magic is in r0 and a non-NULL pointer is in r1, then
-	 * it's our bootinfo, copy it.  The pointer in r1 is a physical address
-	 * passed from boot2.  This routine is called immediately upon entry to
-	 * initarm() and is in very nearly the same environment as boot2.  In
-	 * particular, va=pa and we can safely copy the args before we lose easy
-	 * access to the memory they're stashed in right now.
-	 *
-	 * Note that all versions of boot2 that we've ever shipped have put
-	 * zeroes into r2 and r3.  Maybe that'll be useful some day.
-	 */
-	if (abp->abp_r0 == TSC_BOOTINFO_MAGIC && abp->abp_r1 != 0) {
-		inkernel_bootinfo = *(struct tsc_bootinfo *)(abp->abp_r1);
-	}
-
-	return fake_preload_metadata(abp);
-}
 
 /*
  * Change the master clock config and wait for it to stabilize.
@@ -516,6 +492,8 @@ board_init(void)
 	 */
 	master_clock_init();
 
+	/* From this point on you can use printf. */
+
 	/*
 	 * Configure UARTs.
 	 */
@@ -596,6 +574,34 @@ board_init(void)
 	    AT91C_PIO_PB16 | AT91C_PIO_PB17 | AT91C_PIO_PB18 | AT91C_PIO_PB19);
 
 	return (at91_ramsize());
+}
+
+/*
+ * Override the default boot param parser (supplied via weak linkage) with one
+ * that knows how to handle our custom tsc_bootinfo passed in from boot2.
+ */
+vm_offset_t
+parse_boot_param(struct arm_boot_params *abp)
+{
+
+	boot_params = *abp;
+
+	/*
+	 * If the right magic is in r0 and a non-NULL pointer is in r1, then
+	 * it's our bootinfo, copy it.  The pointer in r1 is a physical address
+	 * passed from boot2.  This routine is called immediately upon entry to
+	 * initarm() and is in very nearly the same environment as boot2.  In
+	 * particular, va=pa and we can safely copy the args before we lose easy
+	 * access to the memory they're stashed in right now.
+	 *
+	 * Note that all versions of boot2 that we've ever shipped have put
+	 * zeroes into r2 and r3.  Maybe that'll be useful some day.
+	 */
+	if (abp->abp_r0 == TSC_BOOTINFO_MAGIC && abp->abp_r1 != 0) {
+		inkernel_bootinfo = *(struct tsc_bootinfo *)(abp->abp_r1);
+	}
+
+	return fake_preload_metadata(abp, NULL, 0);
 }
 
 ARM_BOARD(NONE, "TSC4370 Controller Board");

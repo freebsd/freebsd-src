@@ -66,7 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#include <netinet/tcp_lro.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -127,17 +129,20 @@ static driver_t nicvf_driver = {
 
 static devclass_t nicvf_devclass;
 
-DRIVER_MODULE(nicvf, pci, nicvf_driver, nicvf_devclass, 0, 0);
-MODULE_DEPEND(nicvf, pci, 1, 1, 1);
-MODULE_DEPEND(nicvf, ether, 1, 1, 1);
-MODULE_DEPEND(nicvf, vnic_pf, 1, 1, 1);
+DRIVER_MODULE(vnicvf, pci, nicvf_driver, nicvf_devclass, 0, 0);
+MODULE_VERSION(vnicvf, 1);
+MODULE_DEPEND(vnicvf, pci, 1, 1, 1);
+MODULE_DEPEND(vnicvf, ether, 1, 1, 1);
+MODULE_DEPEND(vnicvf, vnicpf, 1, 1, 1);
 
 static int nicvf_allocate_misc_interrupt(struct nicvf *);
 static int nicvf_enable_misc_interrupt(struct nicvf *);
 static int nicvf_allocate_net_interrupts(struct nicvf *);
 static void nicvf_release_all_interrupts(struct nicvf *);
+static int nicvf_update_hw_max_frs(struct nicvf *, int);
 static int nicvf_hw_set_mac_addr(struct nicvf *, uint8_t *);
 static void nicvf_config_cpi(struct nicvf *);
+static int nicvf_rss_init(struct nicvf *);
 static int nicvf_init_resources(struct nicvf *);
 
 static int nicvf_setup_ifnet(struct nicvf *);
@@ -193,6 +198,9 @@ nicvf_attach(device_t dev)
 	nic->pnicvf = nic;
 
 	NICVF_CORE_LOCK_INIT(nic);
+	/* Enable HW TSO on Pass2 */
+	if (!pass1_silicon(dev))
+		nic->hw_tso = TRUE;
 
 	rid = VNIC_VF_REG_RID;
 	nic->reg_base = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -240,6 +248,9 @@ nicvf_attach(device_t dev)
 	nic->cpi_alg = CPI_ALG_NONE;
 	NICVF_CORE_LOCK(nic);
 	nicvf_config_cpi(nic);
+	/* Configure receive side scaling */
+	if (nic->qs->rq_cnt > 1)
+		nicvf_rss_init(nic);
 	NICVF_CORE_UNLOCK(nic);
 
 	err = nicvf_setup_ifnet(nic);
@@ -347,18 +358,33 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	if_setinitfn(ifp, nicvf_if_init);
 	if_setgetcounterfn(ifp, nicvf_if_getcounter);
 
-	/* Set send queue len to number to default maximum */
-	if_setsendqlen(ifp, IFQ_MAXLEN);
-	if_setsendqready(ifp);
 	if_setmtu(ifp, ETHERMTU);
 
-	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
-#ifdef DEVICE_POLLING
-#error "DEVICE_POLLING not supported in VNIC driver yet"
-	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
-#endif
+	/* Reset caps */
+	if_setcapabilities(ifp, 0);
+
+	/* Set the default values */
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU | IFCAP_JUMBO_MTU, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
+	if (nic->hw_tso) {
+		/* TSO */
+		if_setcapabilitiesbit(ifp, IFCAP_TSO4, 0);
+		/* TSO parameters */
+		ifp->if_hw_tsomax = NICVF_TSO_MAXSIZE;
+		ifp->if_hw_tsomaxsegcount = NICVF_TSO_NSEGS;
+		ifp->if_hw_tsomaxsegsize = MCLBYTES;
+	}
+	/* IP/TCP/UDP HW checksums */
+	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
+	/*
+	 * HW offload enable
+	 */
+	if_clearhwassist(ifp);
+	if_sethwassistbits(ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP), 0);
+	if (nic->hw_tso)
+		if_sethwassistbits(ifp, (CSUM_TSO), 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
-	if_setmtu(ifp, ETHERMTU);
 
 	return (0);
 }
@@ -397,9 +423,11 @@ static int
 nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct nicvf *nic;
+	struct rcv_queue *rq;
 	struct ifreq *ifr;
 	uint32_t flags;
 	int mask, err;
+	int rq_idx;
 #if defined(INET) || defined(INET6)
 	struct ifaddr *ifa;
 	boolean_t avoid_reset = FALSE;
@@ -439,11 +467,16 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		err = ether_ioctl(ifp, cmd, data);
 		break;
 	case SIOCSIFMTU:
-		/*
-		 * ARM64TODO: Needs to be implemented.
-		 * Currently ETHERMTU is set by default.
-		 */
-		err = ether_ioctl(ifp, cmd, data);
+		if (ifr->ifr_mtu < NIC_HW_MIN_FRS ||
+		    ifr->ifr_mtu > NIC_HW_MAX_FRS) {
+			err = EINVAL;
+		} else {
+			NICVF_CORE_LOCK(nic);
+			err = nicvf_update_hw_max_frs(nic, ifr->ifr_mtu);
+			if (err == 0)
+				if_setmtu(ifp, ifr->ifr_mtu);
+			NICVF_CORE_UNLOCK(nic);
+		}
 		break;
 	case SIOCSIFFLAGS:
 		NICVF_CORE_LOCK(nic);
@@ -500,6 +533,36 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* No work to do except acknowledge the change took. */
 			ifp->if_capenable ^= IFCAP_VLAN_MTU;
 		}
+		if (mask & IFCAP_TXCSUM)
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+		if (mask & IFCAP_RXCSUM)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_TSO4) && nic->hw_tso)
+			ifp->if_capenable ^= IFCAP_TSO4;
+		if (mask & IFCAP_LRO) {
+			/*
+			 * Lock the driver for a moment to avoid
+			 * mismatch in per-queue settings.
+			 */
+			NICVF_CORE_LOCK(nic);
+			ifp->if_capenable ^= IFCAP_LRO;
+			if ((if_getdrvflags(nic->ifp) & IFF_DRV_RUNNING) != 0) {
+				/*
+				 * Now disable LRO for subsequent packets.
+				 * Atomicity of this change is not necessary
+				 * as we don't need precise toggle of this
+				 * feature for all threads processing the
+				 * completion queue.
+				 */
+				for (rq_idx = 0;
+				    rq_idx < nic->qs->rq_cnt; rq_idx++) {
+					rq = &nic->qs->rq[rq_idx];
+					rq->lro_enabled = !rq->lro_enabled;
+				}
+			}
+			NICVF_CORE_UNLOCK(nic);
+		}
+
 		break;
 
 	default:
@@ -591,6 +654,7 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 	struct nicvf *nic = if_getsoftc(ifp);
 	struct queue_set *qs = nic->qs;
 	struct snd_queue *sq;
+	struct mbuf *mtmp;
 	int qidx;
 	int err = 0;
 
@@ -608,20 +672,35 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 
 	sq = &qs->sq[qidx];
 
-	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING) {
-		if (mbuf != NULL)
-			err = drbr_enqueue(ifp, sq->br, mbuf);
+	if (mbuf->m_next != NULL &&
+	    (mbuf->m_pkthdr.csum_flags &
+	    (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP)) != 0) {
+		if (M_WRITABLE(mbuf) == 0) {
+			mtmp = m_dup(mbuf, M_NOWAIT);
+			m_freem(mbuf);
+			if (mtmp == NULL)
+				return (ENOBUFS);
+			mbuf = mtmp;
+		}
+	}
+
+	err = drbr_enqueue(ifp, sq->br, mbuf);
+	if (((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) || !nic->link_up || (err != 0)) {
+		/*
+		 * Try to enqueue packet to the ring buffer.
+		 * If the driver is not active, link down or enqueue operation
+		 * failed, return with the appropriate error code.
+		 */
 		return (err);
 	}
 
-	if (mbuf != NULL) {
-		err = drbr_enqueue(ifp, sq->br, mbuf);
-		if (err != 0)
-			return (err);
-	}
-
-	taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
+	if (NICVF_TX_TRYLOCK(sq) != 0) {
+		err = nicvf_xmit_locked(sq);
+		NICVF_TX_UNLOCK(sq);
+		return (err);
+	} else
+		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
 
 	return (0);
 }
@@ -872,6 +951,10 @@ nicvf_handle_mbx_intr(struct nicvf *nic)
 	case NIC_MBOX_MSG_NACK:
 		nic->pf_nacked = TRUE;
 		break;
+	case NIC_MBOX_MSG_RSS_SIZE:
+		nic->rss_info.rss_size = mbx.rss_size.ind_tbl_size;
+		nic->pf_acked = TRUE;
+		break;
 	case NIC_MBOX_MSG_BGX_STATS:
 		nicvf_read_bgx_stats(nic, &mbx.bgx_stats);
 		nic->pf_acked = TRUE;
@@ -898,6 +981,18 @@ nicvf_handle_mbx_intr(struct nicvf *nic)
 }
 
 static int
+nicvf_update_hw_max_frs(struct nicvf *nic, int mtu)
+{
+	union nic_mbx mbx = {};
+
+	mbx.frs.msg = NIC_MBOX_MSG_SET_MAX_FRS;
+	mbx.frs.max_frs = mtu;
+	mbx.frs.vf_id = nic->vf_id;
+
+	return nicvf_send_msg_to_pf(nic, &mbx);
+}
+
+static int
 nicvf_hw_set_mac_addr(struct nicvf *nic, uint8_t *hwaddr)
 {
 	union nic_mbx mbx = {};
@@ -920,6 +1015,100 @@ nicvf_config_cpi(struct nicvf *nic)
 	mbx.cpi_cfg.rq_cnt = nic->qs->rq_cnt;
 
 	nicvf_send_msg_to_pf(nic, &mbx);
+}
+
+static void
+nicvf_get_rss_size(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+
+	mbx.rss_size.msg = NIC_MBOX_MSG_RSS_SIZE;
+	mbx.rss_size.vf_id = nic->vf_id;
+	nicvf_send_msg_to_pf(nic, &mbx);
+}
+
+static void
+nicvf_config_rss(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+	struct nicvf_rss_info *rss;
+	int ind_tbl_len;
+	int i, nextq;
+
+	rss = &nic->rss_info;
+	ind_tbl_len = rss->rss_size;
+	nextq = 0;
+
+	mbx.rss_cfg.vf_id = nic->vf_id;
+	mbx.rss_cfg.hash_bits = rss->hash_bits;
+	while (ind_tbl_len != 0) {
+		mbx.rss_cfg.tbl_offset = nextq;
+		mbx.rss_cfg.tbl_len = MIN(ind_tbl_len,
+		    RSS_IND_TBL_LEN_PER_MBX_MSG);
+		mbx.rss_cfg.msg = mbx.rss_cfg.tbl_offset ?
+		    NIC_MBOX_MSG_RSS_CFG_CONT : NIC_MBOX_MSG_RSS_CFG;
+
+		for (i = 0; i < mbx.rss_cfg.tbl_len; i++)
+			mbx.rss_cfg.ind_tbl[i] = rss->ind_tbl[nextq++];
+
+		nicvf_send_msg_to_pf(nic, &mbx);
+
+		ind_tbl_len -= mbx.rss_cfg.tbl_len;
+	}
+}
+
+static void
+nicvf_set_rss_key(struct nicvf *nic)
+{
+	struct nicvf_rss_info *rss;
+	uint64_t key_addr;
+	int idx;
+
+	rss = &nic->rss_info;
+	key_addr = NIC_VNIC_RSS_KEY_0_4;
+
+	for (idx = 0; idx < RSS_HASH_KEY_SIZE; idx++) {
+		nicvf_reg_write(nic, key_addr, rss->key[idx]);
+		key_addr += sizeof(uint64_t);
+	}
+}
+
+static int
+nicvf_rss_init(struct nicvf *nic)
+{
+	struct nicvf_rss_info *rss;
+	int idx;
+
+	nicvf_get_rss_size(nic);
+
+	rss = &nic->rss_info;
+	if (nic->cpi_alg != CPI_ALG_NONE) {
+		rss->enable = FALSE;
+		rss->hash_bits = 0;
+		return (ENXIO);
+	}
+
+	rss->enable = TRUE;
+
+	/* Using the HW reset value for now */
+	rss->key[0] = 0xFEED0BADFEED0BADUL;
+	rss->key[1] = 0xFEED0BADFEED0BADUL;
+	rss->key[2] = 0xFEED0BADFEED0BADUL;
+	rss->key[3] = 0xFEED0BADFEED0BADUL;
+	rss->key[4] = 0xFEED0BADFEED0BADUL;
+
+	nicvf_set_rss_key(nic);
+
+	rss->cfg = RSS_IP_HASH_ENA | RSS_TCP_HASH_ENA | RSS_UDP_HASH_ENA;
+	nicvf_reg_write(nic, NIC_VNIC_RSS_CFG, rss->cfg);
+
+	rss->hash_bits = fls(rss->rss_size) - 1;
+	for (idx = 0; idx < rss->rss_size; idx++)
+		rss->ind_tbl[idx] = idx % nic->rx_queues;
+
+	nicvf_config_rss(nic);
+
+	return (0);
 }
 
 static int
@@ -1228,6 +1417,7 @@ nicvf_release_net_interrupts(struct nicvf *nic)
 static int
 nicvf_allocate_net_interrupts(struct nicvf *nic)
 {
+	u_int cpuid;
 	int irq, rid;
 	int qidx;
 	int ret = 0;
@@ -1264,6 +1454,20 @@ nicvf_allocate_net_interrupts(struct nicvf *nic)
 			    (irq - NICVF_INTR_ID_CQ), device_get_unit(nic->dev));
 			goto error;
 		}
+		cpuid = (device_get_unit(nic->dev) * CMP_QUEUE_CNT) + qidx;
+		cpuid %= mp_ncpus;
+		/*
+		 * Save CPU ID for later use when system-wide RSS is enabled.
+		 * It will be used to pit the CQ task to the same CPU that got
+		 * interrupted.
+		 */
+		nic->qs->cq[qidx].cmp_cpuid = cpuid;
+		if (bootverbose) {
+			device_printf(nic->dev, "bind CQ%d IRQ to CPU%d\n",
+			    qidx, cpuid);
+		}
+		/* Bind interrupts to the given CPU */
+		bus_bind_intr(nic->dev, nic->msix_entries[irq].irq_res, cpuid);
 	}
 
 	/* Register RBDR interrupt */

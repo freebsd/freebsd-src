@@ -45,15 +45,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/fdt.h>
 #include <machine/machdep.h>
 #include <machine/platform.h> 
+
+#if __ARM_ARCH < 6
+#include <machine/cpu-v4.h>
+#else
+#include <machine/cpu-v6.h>
+#endif
 
 #include <arm/mv/mvreg.h>	/* XXX */
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
@@ -65,6 +71,11 @@ static int platform_mpp_init(void);
 #if defined(SOC_MV_ARMADAXP)
 void armadaxp_init_coher_fabric(void);
 void armadaxp_l2_init(void);
+#endif
+#if defined(SOC_MV_ARMADA38X)
+int armada38x_win_set_iosync_barrier(void);
+int armada38x_scu_enable(void);
+int armada38x_open_bootrom_win(void);
 #endif
 
 #define MPP_PIN_MAX		68
@@ -249,17 +260,30 @@ platform_late_init(void)
 #endif
 	armadaxp_l2_init();
 #endif
+
+#if defined(SOC_MV_ARMADA38X)
+	/* Set IO Sync Barrier bit for all Mbus devices */
+	if (armada38x_win_set_iosync_barrier() != 0)
+		printf("WARNING: could not map CPU Subsystem registers\n");
+	if (armada38x_scu_enable() != 0)
+		printf("WARNING: could not enable SCU\n");
+#ifdef SMP
+	/* Open window to bootROM memory - needed for SMP */
+	if (armada38x_open_bootrom_win() != 0)
+		printf("WARNING: could not open window to bootROM\n");
+#endif
+#endif
 }
 
 #define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
-static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
+static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
+	{ 0, 0, 0, }
 };
 
 static int
-platform_sram_devmap(struct arm_devmap_entry *map)
+platform_sram_devmap(struct devmap_entry *map)
 {
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	phandle_t child, root;
 	u_long base, size;
 	/*
@@ -284,8 +308,6 @@ moveon:
 	map->pd_va = MV_CESA_SRAM_BASE; /* XXX */
 	map->pd_pa = base;
 	map->pd_size = size;
-	map->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	map->pd_cache = PTE_DEVICE;
 
 	return (0);
 out:
@@ -302,10 +324,10 @@ out:
  * real implementation of this function in arm/mv/mv_pci.c overrides the weak
  * alias defined here.
  */
-int mv_default_fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap,
+int mv_default_fdt_pci_devmap(phandle_t node, struct devmap_entry *devmap,
     vm_offset_t io_va, vm_offset_t mem_va);
 int
-mv_default_fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap,
+mv_default_fdt_pci_devmap(phandle_t node, struct devmap_entry *devmap,
     vm_offset_t io_va, vm_offset_t mem_va)
 {
 
@@ -319,7 +341,7 @@ __weak_reference(mv_default_fdt_pci_devmap, mv_pci_devmap);
  */
 
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Construct devmap table with DT-derived config data.
  */
 int
 platform_devmap_init(void)
@@ -329,7 +351,7 @@ platform_devmap_init(void)
 	int i, num_mapped;
 
 	i = 0;
-	arm_devmap_register_table(&fdt_devmap[0]);
+	devmap_register_table(&fdt_devmap[0]);
 
 #ifdef SOC_MV_ARMADAXP
 	vm_paddr_t cur_immr_pa;
@@ -350,8 +372,6 @@ platform_devmap_init(void)
 	fdt_devmap[i].pd_va = fdt_immr_va;
 	fdt_devmap[i].pd_pa = fdt_immr_pa;
 	fdt_devmap[i].pd_size = fdt_immr_size;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_DEVICE;
 	i++;
 
 	/*
@@ -439,9 +459,9 @@ DB_SHOW_COMMAND(cp15, db_show_cp15)
 	__asm __volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (reg));
 	db_printf("Current Cache Lvl ID: 0x%08x\n",reg);
 
-	__asm __volatile("mrc p15, 0, %0, c1, c0, 0" : "=r" (reg));
+	reg = cp15_sctlr_get();
 	db_printf("Ctrl: 0x%08x\n",reg);
-	__asm __volatile("mrc p15, 0, %0, c1, c0, 1" : "=r" (reg));
+	reg = cp15_actlr_get();
 	db_printf("Aux Ctrl: 0x%08x\n",reg);
 
 	__asm __volatile("mrc p15, 0, %0, c0, c1, 0" : "=r" (reg));

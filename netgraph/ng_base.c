@@ -63,6 +63,7 @@
 #include <sys/syslog.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
+#include <vm/uma.h>
 
 #include <net/netisr.h>
 #include <net/vnet.h>
@@ -758,7 +759,7 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 			/*
 			 * Well, blow me down if the node code hasn't declared
 			 * that it doesn't want to die.
-			 * Presumably it is a persistant node.
+			 * Presumably it is a persistent node.
 			 * If we REALLY want it to go away,
 			 *  e.g. hardware going away,
 			 * Our caller should set NGF_REALLY_DIE in nd_flags.
@@ -2055,7 +2056,7 @@ ng_acquire_read(node_p node, item_p item)
 			return (item);
 		}
 		cpu_spinwait();
-	};
+	}
 
 	/* Queue the request for later. */
 	ng_queue_rw(node, item, NGQRW_R);
@@ -2934,7 +2935,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 	 * Sometimes a generic message may be statically allocated
 	 * to avoid problems with allocating when in tight memory situations.
 	 * Don't free it if it is so.
-	 * I break them appart here, because erros may cause a free if the item
+	 * I break them apart here, because erros may cause a free if the item
 	 * in which case we'd be doing it twice.
 	 * they are kept together above, to simplify freeing.
 	 */

@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/libkern.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
@@ -75,8 +76,8 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
     bus_size_t *psize, pcell_t *ppci_hi)
 {
 	pcell_t cell[32], pci_hi;
-	bus_addr_t addr, raddr, baddr;
-	bus_size_t size, rsize;
+	uint64_t addr, raddr, baddr;
+	uint64_t size, rsize;
 	uint32_t c, nbridge, naddr, nsize;
 	phandle_t bridge, parent;
 	u_int spc, rspc;
@@ -166,6 +167,11 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 		parent = OF_parent(bridge);
 		get_addr_props(bridge, &naddr, &nsize, &pci);
 	}
+
+	KASSERT(addr <= BUS_SPACE_MAXADDR,
+	    ("Bus sddress is too large: %jx", (uintmax_t)addr));
+	KASSERT(size <= BUS_SPACE_MAXSIZE,
+	    ("Bus size is too large: %jx", (uintmax_t)size));
 
 	*paddr = addr;
 	*psize = size;

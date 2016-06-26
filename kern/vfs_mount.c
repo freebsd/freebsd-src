@@ -880,10 +880,10 @@ vfs_domount_update(
 	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
-	struct oexport_args oexport;
 	struct export_args export;
+	void *bufp;
 	struct mount *mp;
-	int error, export_error;
+	int error, export_error, len;
 	uint64_t flag;
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
@@ -951,23 +951,21 @@ vfs_domount_update(
 	error = VFS_MOUNT(mp);
 
 	export_error = 0;
-	if (error == 0) {
-		/* Process the export option. */
-		if (vfs_copyopt(mp->mnt_optnew, "export", &export,
-		    sizeof(export)) == 0) {
+	/* Process the export option. */
+	if (error == 0 && vfs_getopt(mp->mnt_optnew, "export", &bufp,
+	    &len) == 0) {
+		/* Assume that there is only 1 ABI for each length. */
+		switch (len) {
+		case (sizeof(struct oexport_args)):
+			bzero(&export, sizeof(export));
+			/* FALLTHROUGH */
+		case (sizeof(export)):
+			bcopy(bufp, &export, len);
 			export_error = vfs_export(mp, &export);
-		} else if (vfs_copyopt(mp->mnt_optnew, "export", &oexport,
-		    sizeof(oexport)) == 0) {
-			export.ex_flags = oexport.ex_flags;
-			export.ex_root = oexport.ex_root;
-			export.ex_anon = oexport.ex_anon;
-			export.ex_addr = oexport.ex_addr;
-			export.ex_addrlen = oexport.ex_addrlen;
-			export.ex_mask = oexport.ex_mask;
-			export.ex_masklen = oexport.ex_masklen;
-			export.ex_indexfile = oexport.ex_indexfile;
-			export.ex_numsecflavors = 0;
-			export_error = vfs_export(mp, &export);
+			break;
+		default:
+			export_error = EINVAL;
+			break;
 		}
 	}
 
@@ -1222,7 +1220,6 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		VI_LOCK(coveredvp);
 		vholdl(coveredvp);
 		vn_lock(coveredvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY);
-		vdrop(coveredvp);
 		/*
 		 * Check for mp being unmounted while waiting for the
 		 * covered vnode lock.
@@ -1230,18 +1227,22 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		if (coveredvp->v_mountedhere != mp ||
 		    coveredvp->v_mountedhere->mnt_gen != mnt_gen_r) {
 			VOP_UNLOCK(coveredvp, 0);
+			vdrop(coveredvp);
 			vfs_rel(mp);
 			return (EBUSY);
 		}
 	}
+
 	/*
 	 * Only privileged root, or (if MNT_USER is set) the user that did the
 	 * original mount is permitted to unmount this filesystem.
 	 */
 	error = vfs_suser(mp, td);
 	if (error != 0) {
-		if (coveredvp)
+		if (coveredvp != NULL) {
 			VOP_UNLOCK(coveredvp, 0);
+			vdrop(coveredvp);
+		}
 		vfs_rel(mp);
 		return (error);
 	}
@@ -1251,8 +1252,10 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
 		MNT_IUNLOCK(mp);
-		if (coveredvp)
+		if (coveredvp != NULL) {
 			VOP_UNLOCK(coveredvp, 0);
+			vdrop(coveredvp);
+		}
 		vn_finished_write(mp);
 		return (EBUSY);
 	}
@@ -1285,6 +1288,16 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	if (mp->mnt_flag & MNT_EXPUBLIC)
 		vfs_setpublicfs(NULL, NULL, NULL);
 
+	/*
+	 * From now, we can claim that the use reference on the
+	 * coveredvp is ours, and the ref can be released only by
+	 * successfull unmount by us, or left for later unmount
+	 * attempt.  The previously acquired hold reference is no
+	 * longer needed to protect the vnode from reuse.
+	 */
+	if (coveredvp != NULL)
+		vdrop(coveredvp);
+
 	vfs_msync(mp, MNT_WAIT);
 	MNT_ILOCK(mp);
 	async_flag = mp->mnt_flag & MNT_ASYNC;
@@ -1300,7 +1313,8 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	 */
 	if ((flags & MNT_FORCE) &&
 	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
-		if (mp->mnt_vnodecovered != NULL)
+		if (mp->mnt_vnodecovered != NULL &&
+		    (mp->mnt_flag & MNT_IGNORE) == 0)
 			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
 			vrele(rootvnode);
@@ -1321,7 +1335,8 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	if (error && error != ENXIO) {
 		if ((flags & MNT_FORCE) &&
 		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
-			if (mp->mnt_vnodecovered != NULL)
+			if (mp->mnt_vnodecovered != NULL &&
+			    (mp->mnt_flag & MNT_IGNORE) == 0)
 				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
 				rootvnode = fsrootvp;

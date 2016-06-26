@@ -49,9 +49,8 @@
 #define	FBT_RETURN	"return"
 
 int
-fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
+fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 {
-	struct trapframe *frame = (struct trapframe *)stack;
 	solaris_cpu_t *cpu = &solaris_cpu[curcpu];
 	fbt_probe_t *fbt = fbt_probetab[FBT_ADDR2NDX(addr)];
 	register_t fifthparam;
@@ -83,7 +82,7 @@ fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 {
 
 	*fbt->fbtp_patchpoint = val;
-	cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, sizeof(val));
+	icache_sync((vm_offset_t)fbt->fbtp_patchpoint, sizeof(val));
 }
 
 int

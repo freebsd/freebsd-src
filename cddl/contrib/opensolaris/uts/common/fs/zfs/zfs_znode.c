@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -573,9 +574,10 @@ zfs_znode_sa_init(zfsvfs_t *zfsvfs, znode_t *zp,
 	zp->z_is_sa = (obj_type == DMU_OT_SA) ? B_TRUE : B_FALSE;
 
 	/*
-	 * Slap on VROOT if we are the root znode
+	 * Slap on VROOT if we are the root znode unless we are the root
+	 * node of a snapshot mounted under .zfs.
 	 */
-	if (zp->z_id == zfsvfs->z_root)
+	if (zp->z_id == zfsvfs->z_root && zfsvfs->z_parent == zfsvfs)
 		ZTOV(zp)->v_flag |= VROOT;
 
 	mutex_exit(&zp->z_lock);
@@ -742,7 +744,9 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
 
+#ifdef illumos
 	VFS_HOLD(zfsvfs->z_vfs);
+#endif
 	return (zp);
 }
 
@@ -1175,13 +1179,13 @@ again:
 			*zpp = zp;
 			err = 0;
 		}
-		sa_buf_rele(db, NULL);
 
 		/* Don't let the vnode disappear after ZFS_OBJ_HOLD_EXIT. */
 		if (err == 0)
 			VN_HOLD(vp);
 
 		mutex_exit(&zp->z_lock);
+		sa_buf_rele(db, NULL);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 
 		if (err == 0) {
@@ -1338,7 +1342,7 @@ zfs_rezget(znode_t *zp)
 	 * recycled when the last vnode reference is dropped.
 	 */
 	vp = ZTOV(zp);
-	if (vp != NULL && vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
+	if (vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
 		zfs_znode_dmu_fini(zp);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 		return (EIO);
@@ -1346,11 +1350,9 @@ zfs_rezget(znode_t *zp)
 
 	zp->z_unlinked = (zp->z_links == 0);
 	zp->z_blksz = doi.doi_data_block_size;
-	if (vp != NULL) {
-		vn_pages_remove(vp, 0, 0);
-		if (zp->z_size != size)
-			vnode_pager_setsize(vp, zp->z_size);
-	}
+	vn_pages_remove(vp, 0, 0);
+	if (zp->z_size != size)
+		vnode_pager_setsize(vp, zp->z_size);
 
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 
@@ -1427,7 +1429,9 @@ zfs_znode_free(znode_t *zp)
 
 	kmem_cache_free(znode_cache, zp);
 
+#ifdef illumos
 	VFS_RELE(zfsvfs->z_vfs);
+#endif
 }
 
 void

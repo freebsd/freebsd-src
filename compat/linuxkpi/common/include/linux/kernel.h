@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * Copyright (c) 2014-2015 François Tigeot
  * All rights reserved.
  *
@@ -52,6 +52,8 @@
 #include <linux/log2.h> 
 #include <asm/byteorder.h>
 
+#include <machine/stdarg.h>
+
 #define KERN_CONT       ""
 #define	KERN_EMERG	"<0>"
 #define	KERN_ALERT	"<1>"
@@ -62,11 +64,59 @@
 #define	KERN_INFO	"<6>"
 #define	KERN_DEBUG	"<7>"
 
+#define	U8_MAX		((u8)~0U)
+#define	S8_MAX		((s8)(U8_MAX >> 1))
+#define	S8_MIN		((s8)(-S8_MAX - 1))
+#define	U16_MAX		((u16)~0U)
+#define	S16_MAX		((s16)(U16_MAX >> 1))
+#define	S16_MIN		((s16)(-S16_MAX - 1))
+#define	U32_MAX		((u32)~0U)
+#define	S32_MAX		((s32)(U32_MAX >> 1))
+#define	S32_MIN		((s32)(-S32_MAX - 1))
+#define	U64_MAX		((u64)~0ULL)
+#define	S64_MAX		((s64)(U64_MAX >> 1))
+#define	S64_MIN		((s64)(-S64_MAX - 1))
+
+#define	S8_C(x)  x
+#define	U8_C(x)  x ## U
+#define	S16_C(x) x
+#define	U16_C(x) x ## U
+#define	S32_C(x) x
+#define	U32_C(x) x ## U
+#define	S64_C(x) x ## LL
+#define	U64_C(x) x ## ULL
+
 #define	BUILD_BUG_ON(x)		CTASSERT(!(x))
 
-#define BUG()			panic("BUG")
-#define BUG_ON(condition)	do { if (condition) BUG(); } while(0)
-#define	WARN_ON			BUG_ON
+#define	BUG()			panic("BUG at %s:%d", __FILE__, __LINE__)
+#define	BUG_ON(cond)		do {				\
+	if (cond) {						\
+		panic("BUG ON %s failed at %s:%d",		\
+		    __stringify(cond), __FILE__, __LINE__);	\
+	}							\
+} while (0)
+
+#define	WARN_ON(cond) ({					\
+      bool __ret = (cond);					\
+      if (__ret) {						\
+		printf("WARNING %s failed at %s:%d\n",		\
+		    __stringify(cond), __FILE__, __LINE__);	\
+      }								\
+      unlikely(__ret);						\
+})
+
+#define	WARN_ON_SMP(cond)	WARN_ON(cond)
+
+#define	WARN_ON_ONCE(cond) ({					\
+      static bool __warn_on_once;				\
+      bool __ret = (cond);					\
+      if (__ret && !__warn_on_once) {				\
+		__warn_on_once = 1;				\
+		printf("WARNING %s failed at %s:%d\n",		\
+		    __stringify(cond), __FILE__, __LINE__);	\
+      }								\
+      unlikely(__ret);						\
+})
 
 #undef	ALIGN
 #define	ALIGN(x, y)		roundup2((x), (y))
@@ -76,7 +126,37 @@
 #define	DIV_ROUND_UP_ULL(x, n)	DIV_ROUND_UP((unsigned long long)(x), (n))
 #define	FIELD_SIZEOF(t, f)	sizeof(((t *)0)->f)
 
-#define	printk(X...)		printf(X)
+#define	printk(...)		printf(__VA_ARGS__)
+#define	vprintk(f, a)		vprintf(f, a)
+
+struct va_format {
+	const char *fmt;
+	va_list *va;
+};
+
+static inline int
+vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
+{
+	ssize_t ssize = size;
+	int i;
+
+	i = vsnprintf(buf, size, fmt, args);
+
+	return ((i >= ssize) ? (ssize - 1) : i);
+}
+
+static inline int
+scnprintf(char *buf, size_t size, const char *fmt, ...)
+{
+	va_list args;
+	int i;
+
+	va_start(args, fmt);
+	i = vscnprintf(buf, size, fmt, args);
+	va_end(args);
+
+	return (i);
+}
 
 /*
  * The "pr_debug()" and "pr_devel()" macros should produce zero code
@@ -116,7 +196,7 @@
 #define log_once(level,...) do {		\
 	static bool __log_once;			\
 						\
-	if (!__log_once) {			\
+	if (unlikely(!__log_once)) {		\
 		__log_once = true;		\
 		log(level, __VA_ARGS__);	\
 	}					\
@@ -132,7 +212,10 @@
 	log(LOG_ERR, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warning(fmt, ...) \
 	log(LOG_WARNING, pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_warn pr_warning
+#define pr_warn(...) \
+	pr_warning(__VA_ARGS__)
+#define pr_warn_once(fmt, ...) \
+	log_once(LOG_WARNING, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_notice(fmt, ...) \
 	log(LOG_NOTICE, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...) \
@@ -143,11 +226,20 @@
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
 
 #ifndef WARN
-#define WARN(condition, format...) ({                                   \
-        int __ret_warn_on = !!(condition);                              \
-        if (unlikely(__ret_warn_on))                                    \
-                pr_warning(format);                                     \
-        unlikely(__ret_warn_on);                                        \
+#define	WARN(condition, ...) ({			\
+        bool __ret_warn_on = (condition);	\
+        if (unlikely(__ret_warn_on))		\
+                pr_warning(__VA_ARGS__);	\
+        unlikely(__ret_warn_on);		\
+})
+#endif
+
+#ifndef WARN_ONCE
+#define	WARN_ONCE(condition, ...) ({		\
+        bool __ret_warn_on = (condition);	\
+        if (unlikely(__ret_warn_on))		\
+                pr_warn_once(__VA_ARGS__);	\
+        unlikely(__ret_warn_on);		\
 })
 #endif
 
@@ -159,9 +251,11 @@
   
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
-#define	simple_strtoul	strtoul
-#define	simple_strtol	strtol
-#define kstrtol(a,b,c) ({*(c) = strtol(a,0,b);})
+#define	simple_strtoul(...) strtoul(__VA_ARGS__)
+#define	simple_strtol(...) strtol(__VA_ARGS__)
+#define	kstrtol(a,b,c) ({*(c) = strtol(a,0,b); 0;})
+#define	kstrtoint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
+#define	kstrtouint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
 
 #define min(x, y)	((x) < (y) ? (x) : (y))
 #define max(x, y)	((x) > (y) ? (x) : (y))
@@ -169,11 +263,19 @@
 #define min3(a, b, c)	min(a, min(b,c))
 #define max3(a, b, c)	max(a, max(b,c))
 
-#define min_t(type, _x, _y)	((type)(_x) < (type)(_y) ? (type)(_x) : (type)(_y))
-#define max_t(type, _x, _y)	((type)(_x) > (type)(_y) ? (type)(_x) : (type)(_y))
+#define	min_t(type, x, y) ({			\
+	type __min1 = (x);			\
+	type __min2 = (y);			\
+	__min1 < __min2 ? __min1 : __min2; })
+
+#define	max_t(type, x, y) ({			\
+	type __max1 = (x);			\
+	type __max2 = (y);			\
+	__max1 > __max2 ? __max1 : __max2; })
 
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp(x, lo, hi)		min( max(x,lo), hi)
+#define	clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
 
 /*
  * This looks more complex than it should be. But we need to
@@ -185,8 +287,14 @@
 #define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
 
+#define	smp_processor_id()	PCPU_GET(cpuid)
 #define	num_possible_cpus()	mp_ncpus
 #define	num_online_cpus()	mp_ncpus
+
+#if defined(__i386__) || defined(__amd64__)
+extern bool linux_cpu_has_clflush;
+#define	cpu_has_clflush		linux_cpu_has_clflush
+#endif
 
 typedef struct pm_message {
         int event;
@@ -200,6 +308,13 @@ typedef struct pm_message {
 } while (0)
 
 #define	DIV_ROUND_CLOSEST(x, divisor)	(((x) + ((divisor) / 2)) / (divisor))
+
+#define	DIV_ROUND_CLOSEST_ULL(x, divisor) ({		\
+	__typeof(divisor) __d = (divisor);		\
+	unsigned long long __ret = (x) + (__d) / 2;	\
+	__ret /= __d;					\
+	__ret;						\
+})
 
 static inline uintmax_t
 mult_frac(uintmax_t x, uintmax_t multiplier, uintmax_t divisor)

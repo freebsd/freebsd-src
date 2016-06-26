@@ -57,6 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/md_var.h>
 
+#ifdef MULTIDELAY
+#include <machine/machdep.h> /* For arm_set_delay */
+#endif
+
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -96,7 +100,7 @@ static struct arm_tmr_softc *arm_tmr_sc = NULL;
 static struct resource_spec timer_spec[] = {
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Secure */
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* Non-secure */
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE },	/* Virt */
+	{ SYS_RES_IRQ,		2,	RF_ACTIVE | RF_OPTIONAL }, /* Virt */
 	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL	}, /* Hyp */
 	{ -1, 0 }
 };
@@ -126,6 +130,7 @@ static struct timecounter arm_tmr_timecount = {
 
 static uint32_t arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
     struct timecounter *tc);
+static void arm_tmr_do_delay(int usec, void *);
 
 static int
 get_freq(void)
@@ -209,7 +214,8 @@ static void
 tmr_setup_user_access(void *arg __unused)
 {
 
-	smp_rendezvous(NULL, setup_user_access, NULL, NULL);
+	if (arm_tmr_sc != NULL)
+		smp_rendezvous(NULL, setup_user_access, NULL, NULL);
 }
 SYSINIT(tmr_ua, SI_SUB_SMP, SI_ORDER_SECOND, tmr_setup_user_access, NULL);
 
@@ -221,7 +227,8 @@ arm_tmr_get_timecount(struct timecounter *tc)
 }
 
 static int
-arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
+arm_tmr_start(struct eventtimer *et, sbintime_t first,
+    sbintime_t period __unused)
 {
 	struct arm_tmr_softc *sc;
 	int counts, ctrl;
@@ -361,11 +368,10 @@ arm_tmr_attach(device_t dev)
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
 	if (node > 0) {
-		error = OF_getprop(node, "clock-frequency", &clock,
+		error = OF_getencprop(node, "clock-frequency", &clock,
 		    sizeof(clock));
-		if (error > 0) {
-			sc->clkfreq = fdt32_to_cpu(clock);
-		}
+		if (error > 0)
+			sc->clkfreq = clock;
 	}
 #endif
 
@@ -387,13 +393,17 @@ arm_tmr_attach(device_t dev)
 #ifdef __arm__
 	sc->physical = true;
 #else /* __aarch64__ */
-	sc->physical = false;
+	/* If we do not have a virtual timer use the physical. */
+	sc->physical = (sc->res[2] == NULL) ? true : false;
 #endif
 
 	arm_tmr_sc = sc;
 
 	/* Setup secure, non-secure and virtual IRQs handler */
 	for (i = 0; i < 3; i++) {
+		/* If we do not have the interrupt, skip it. */
+		if (sc->res[i] == NULL)
+			continue;
 		error = bus_setup_intr(dev, sc->res[i], INTR_TYPE_CLK,
 		    arm_tmr_intr, NULL, sc, &sc->ihl[i]);
 		if (error) {
@@ -412,12 +422,16 @@ arm_tmr_attach(device_t dev)
 	sc->et.et_quality = 1000;
 
 	sc->et.et_frequency = sc->clkfreq;
-	sc->et.et_min_period = (0x00000002LLU << 32) / sc->et.et_frequency;
+	sc->et.et_min_period = (0x00000010LLU << 32) / sc->et.et_frequency;
 	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
 	sc->et.et_start = arm_tmr_start;
 	sc->et.et_stop = arm_tmr_stop;
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
+
+#ifdef MULTIDELAY
+	arm_set_delay(arm_tmr_do_delay, sc);
+#endif
 
 	return (0);
 }
@@ -463,26 +477,12 @@ EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, arm_tmr_acpi_devclass,
     0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 #endif
 
-void
-DELAY(int usec)
+static void
+arm_tmr_do_delay(int usec, void *arg)
 {
+	struct arm_tmr_softc *sc = arg;
 	int32_t counts, counts_per_usec;
 	uint32_t first, last;
-
-	/*
-	 * Check the timers are setup, if not just
-	 * use a for loop for the meantime
-	 */
-	if (arm_tmr_sc == NULL) {
-		for (; usec > 0; usec--)
-			for (counts = 200; counts > 0; counts--)
-				/*
-				 * Prevent the compiler from optimizing
-				 * out the loop
-				 */
-				cpufunc_nullop();
-		return;
-	}
 
 	/* Get the number of times to count */
 	counts_per_usec = ((arm_tmr_timecount.tc_frequency / 1000000) + 1);
@@ -498,14 +498,37 @@ DELAY(int usec)
 	else
 		counts = usec * counts_per_usec;
 
-	first = get_cntxct(arm_tmr_sc->physical);
+	first = get_cntxct(sc->physical);
 
 	while (counts > 0) {
-		last = get_cntxct(arm_tmr_sc->physical);
+		last = get_cntxct(sc->physical);
 		counts -= (int32_t)(last - first);
 		first = last;
 	}
 }
+
+#ifndef MULTIDELAY
+void
+DELAY(int usec)
+{
+	int32_t counts;
+
+	/*
+	 * Check the timers are setup, if not just
+	 * use a for loop for the meantime
+	 */
+	if (arm_tmr_sc == NULL) {
+		for (; usec > 0; usec--)
+			for (counts = 200; counts > 0; counts--)
+				/*
+				 * Prevent the compiler from optimizing
+				 * out the loop
+				 */
+				cpufunc_nullop();
+	} else
+		arm_tmr_do_delay(usec, arm_tmr_sc);
+}
+#endif
 
 static uint32_t
 arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 #include <dev/mii/miivar.h>
 
 #include "thunder_bgx.h"
@@ -60,6 +61,11 @@ __FBSDID("$FreeBSD$");
 
 #define	CONN_TYPE_MAXLEN	16
 #define	CONN_TYPE_OFFSET	2
+
+#define	BGX_NODE_NAME		"bgx"
+#define	BGX_MAXID		9
+
+#define	FDT_NAME_MAXLEN		31
 
 int bgx_fdt_init_phy(struct bgx *);
 
@@ -119,28 +125,152 @@ bgx_fdt_phy_mode_match(struct bgx *bgx, char *qlm_mode, size_t size)
 	return (FALSE);
 }
 
+static phandle_t
+bgx_fdt_traverse_nodes(phandle_t start, char *name, size_t len)
+{
+	phandle_t node, ret;
+	size_t buf_size;
+	char *node_name;
+	int err;
+
+	buf_size = sizeof(*node_name) * FDT_NAME_MAXLEN;
+	if (len > buf_size) {
+		/*
+		 * This is an erroneous situation since the string
+		 * to compare cannot be longer than FDT_NAME_MAXLEN.
+		 */
+		return (0);
+	}
+
+	node_name = malloc(buf_size, M_BGX, M_WAITOK);
+	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
+		/* Clean-up the buffer */
+		memset(node_name, 0, buf_size);
+		/* Recurse to children */
+		if (OF_child(node) != 0) {
+			ret = bgx_fdt_traverse_nodes(node, name, len);
+			if (ret != 0) {
+				free(node_name, M_BGX);
+				return (ret);
+			}
+		}
+		err = OF_getprop(node, "name", node_name, FDT_NAME_MAXLEN);
+		if ((err > 0) && (strncmp(node_name, name, len) == 0)) {
+			free(node_name, M_BGX);
+			return (node);
+		}
+	}
+	free(node_name, M_BGX);
+
+	return (0);
+}
+
+/*
+ * Similar functionality to pci_find_pcie_root_port()
+ * but this one works for ThunderX.
+ */
+static device_t
+bgx_find_root_pcib(device_t dev)
+{
+	devclass_t pci_class;
+	device_t pcib, bus;
+
+	pci_class = devclass_find("pci");
+	KASSERT(device_get_devclass(device_get_parent(dev)) == pci_class,
+	    ("%s: non-pci device %s", __func__, device_get_nameunit(dev)));
+
+	/* Walk the bridge hierarchy until we find a non-PCI device */
+	for (;;) {
+		bus = device_get_parent(dev);
+		KASSERT(bus != NULL, ("%s: null parent of %s", __func__,
+		    device_get_nameunit(dev)));
+
+		if (device_get_devclass(bus) != pci_class)
+			return (NULL);
+
+		pcib = device_get_parent(bus);
+		KASSERT(pcib != NULL, ("%s: null bridge of %s", __func__,
+		    device_get_nameunit(bus)));
+
+		/*
+		 * If the parent of this PCIB is not PCI
+		 * then we found our root PCIB.
+		 */
+		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
+			return (pcib);
+
+		dev = pcib;
+	}
+}
+
+static __inline phandle_t
+bgx_fdt_find_node(struct bgx *bgx)
+{
+	device_t root_pcib;
+	phandle_t node;
+	char *bgx_sel;
+	size_t len;
+
+	KASSERT(bgx->bgx_id <= BGX_MAXID,
+	    ("Invalid BGX ID: %d, max: %d", bgx->bgx_id, BGX_MAXID));
+
+	len = sizeof(BGX_NODE_NAME) + 1; /* <bgx_name>+<digit>+<\0> */
+	/* Allocate memory for BGX node name + "/" character */
+	bgx_sel = malloc(sizeof(*bgx_sel) * (len + 1), M_BGX,
+	    M_ZERO | M_WAITOK);
+
+	/* Prepare node's name */
+	snprintf(bgx_sel, len + 1, "/"BGX_NODE_NAME"%d", bgx->bgx_id);
+	/* First try the root node */
+	node =  OF_finddevice(bgx_sel);
+	if ((int)node > 0) {
+		/* Found relevant node */
+		goto out;
+	}
+	/*
+	 * Clean-up and try to find BGX in DT
+	 * starting from the parent PCI bridge node.
+	 */
+	memset(bgx_sel, 0, sizeof(*bgx_sel) * (len + 1));
+	snprintf(bgx_sel, len, BGX_NODE_NAME"%d", bgx->bgx_id);
+
+	/* Find PCI bridge that we are connected to */
+
+	root_pcib = bgx_find_root_pcib(bgx->dev);
+	if (root_pcib == NULL) {
+		device_printf(bgx->dev, "Unable to find BGX root bridge\n");
+		node = 0;
+		goto out;
+	}
+
+	node = ofw_bus_get_node(root_pcib);
+	if ((int)node <= 0) {
+		device_printf(bgx->dev, "No parent FDT node for BGX\n");
+		goto out;
+	}
+
+	node = bgx_fdt_traverse_nodes(node, bgx_sel, len);
+out:
+	free(bgx_sel, M_BGX);
+	return (node);
+}
+
 int
 bgx_fdt_init_phy(struct bgx *bgx)
 {
 	phandle_t node, child;
 	phandle_t phy, mdio;
 	uint8_t lmac;
-	char bgx_sel[6];
 	char qlm_mode[CONN_TYPE_MAXLEN];
-	const char *mac;
 
-	(void)mac;
-
-	lmac = 0;
-	/* Get BGX node from DT */
-	snprintf(bgx_sel, 6, "/bgx%d", bgx->bgx_id);
-	node = OF_finddevice(bgx_sel);
-	if (node == 0 || node == -1) {
+	node = bgx_fdt_find_node(bgx);
+	if (node == 0) {
 		device_printf(bgx->dev,
-		    "Could not find %s node in FDT\n", bgx_sel);
+		    "Could not find bgx%d node in FDT\n", bgx->bgx_id);
 		return (ENXIO);
 	}
 
+	lmac = 0;
 	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
 		if (OF_getprop(child, "qlm-mode", qlm_mode,
 		    sizeof(qlm_mode)) <= 0) {
@@ -155,18 +285,9 @@ bgx_fdt_init_phy(struct bgx *bgx)
 			continue;
 		}
 
-		if (OF_getencprop(child, "phy-handle", &phy,
-		    sizeof(phy)) <= 0) {
-			if (bootverbose) {
-				device_printf(bgx->dev,
-				    "No phy-handle in PHY node. Skipping...\n");
-			}
-			continue;
-		}
 
 		/* Acquire PHY address */
-		phy = OF_node_from_xref(phy);
-		if (OF_getencprop(phy, "reg", &bgx->lmac[lmac].phyaddr,
+		if (OF_getencprop(child, "reg", &bgx->lmac[lmac].phyaddr,
 		    sizeof(bgx->lmac[lmac].phyaddr)) <= 0) {
 			if (bootverbose) {
 				device_printf(bgx->dev,
@@ -175,6 +296,15 @@ bgx_fdt_init_phy(struct bgx *bgx)
 			bgx->lmac[lmac].phyaddr = MII_PHY_ANY;
 		}
 
+		if (OF_getencprop(child, "phy-handle", &phy,
+		    sizeof(phy)) <= 0) {
+			if (bootverbose) {
+				device_printf(bgx->dev,
+				    "No phy-handle in PHY node. Skipping...\n");
+			}
+			continue;
+		}
+		phy = OF_instance_to_package(phy);
 		/*
 		 * Get PHY interface (MDIO bus) device.
 		 * Driver must be already attached.
@@ -191,7 +321,7 @@ bgx_fdt_init_phy(struct bgx *bgx)
 		}
 
 		/* Get mac address from FDT */
-		bgx_fdt_get_macaddr(phy, bgx->lmac[lmac].mac);
+		bgx_fdt_get_macaddr(child, bgx->lmac[lmac].mac);
 
 		bgx->lmac[lmac].lmacid = lmac;
 		lmac++;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015 Sandvine Inc.  All rights reserved.
+ * Copyright (c) 2013-2015 Sandvine Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,10 +47,16 @@ struct pcicfg_iov {
 	int iov_pos;
 	int iov_num_vfs;
 	uint32_t iov_flags;
+
+	uint16_t iov_ctl;
+	uint32_t iov_page_size;
 };
 
 #define	IOV_RMAN_INITED		0x0001
 #define	IOV_BUSY		0x0002
+
+void	pci_iov_cfg_restore(device_t dev, struct pci_devinfo *dinfo);
+void	pci_iov_cfg_save(device_t dev, struct pci_devinfo *dinfo);
 
 #endif
 

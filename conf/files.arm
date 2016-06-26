@@ -6,30 +6,29 @@ arm/arm/blockio.S		standard
 arm/arm/bus_space_asm_generic.S	standard
 arm/arm/bus_space_base.c	optional	fdt
 arm/arm/bus_space_generic.c	standard
-arm/arm/busdma_machdep.c 	optional	!armv6
+arm/arm/busdma_machdep-v4.c 	optional	!armv6
 arm/arm/busdma_machdep-v6.c 	optional	armv6
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
-arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9
-arm/arm/cpufunc_asm_arm10.S 	optional	cpu_arm9e
+arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9 | cpu_arm9e
 arm/arm/cpufunc_asm_arm11.S	optional	cpu_arm1176
 arm/arm/cpufunc_asm_arm11x6.S	optional	cpu_arm1176
-arm/arm/cpufunc_asm_armv4.S 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80321 | cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_80219 | cpu_xscale_81342
+arm/arm/cpufunc_asm_armv4.S 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_81342
 arm/arm/cpufunc_asm_armv5_ec.S 	optional	cpu_arm9e
 arm/arm/cpufunc_asm_armv6.S 	optional	cpu_arm1176
 arm/arm/cpufunc_asm_armv7.S	optional	cpu_cortexa | cpu_krait | cpu_mv_pj4b
 arm/arm/cpufunc_asm_fa526.S	optional	cpu_fa526
 arm/arm/cpufunc_asm_pj4b.S	optional	cpu_mv_pj4b
 arm/arm/cpufunc_asm_sheeva.S 	optional	cpu_arm9e
-arm/arm/cpufunc_asm_xscale.S	optional	cpu_xscale_80321 | cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_80219 | cpu_xscale_81342
+arm/arm/cpufunc_asm_xscale.S	optional	cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_81342
 arm/arm/cpufunc_asm_xscale_c3.S	optional	cpu_xscale_81342
 arm/arm/cpuinfo.c		standard
 arm/arm/cpu_asm-v6.S		optional	armv6
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
-arm/arm/devmap.c		standard
+arm/arm/debug_monitor.c		optional	ddb armv6
 arm/arm/disassem.c		optional	ddb
 arm/arm/dump_machdep.c		standard
 arm/arm/elf_machdep.c		standard
@@ -45,8 +44,8 @@ arm/arm/hdmi_if.m		optional	hdmi
 arm/arm/identcpu.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
-arm/arm/intr.c			optional	!arm_intrng
-kern/subr_intr.c		optional	arm_intrng
+arm/arm/intr.c			optional	!intrng
+kern/subr_intr.c		optional	intrng
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
 arm/arm/machdep_intr.c		standard
@@ -57,14 +56,12 @@ arm/arm/mpcore_timer.c		optional	mpcore_timer
 arm/arm/nexus.c			standard
 arm/arm/ofw_machdep.c		optional	fdt
 arm/arm/physmem.c		standard
-kern/pic_if.m			optional	arm_intrng
 arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
-arm/arm/pmap.c			optional	!armv6
-arm/arm/pmap-v6.c		optional	armv6 !arm_new_pmap
-arm/arm/pmap-v6-new.c		optional	armv6 arm_new_pmap
+arm/arm/pmap-v4.c		optional	!armv6
+arm/arm/pmap-v6.c		optional	armv6
 arm/arm/pmu.c			optional	pmu | fdt hwpmc
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
@@ -74,9 +71,11 @@ arm/arm/stdatomic.c		standard \
 	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 arm/arm/support.S		standard
 arm/arm/swtch.S			standard
+arm/arm/swtch-v4.S		optional	!armv6
+arm/arm/swtch-v6.S		optional	armv6
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
-arm/arm/trap.c			optional	!armv6
+arm/arm/trap-v4.c		optional	!armv6
 arm/arm/trap-v6.c		optional	armv6
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
@@ -100,6 +99,10 @@ dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
+dev/iicbus/twsi/twsi.c		optional	twsi
+dev/ofw/ofw_cpu.c		optional	fdt
+dev/ofw/ofwpci.c		optional	fdt pci
+dev/pci/pci_host_generic.c	optional	pci_host_generic pci fdt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc
@@ -111,7 +114,10 @@ font.h				optional	sc			\
 	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
+kern/msi_if.m			optional	intrng
+kern/pic_if.m			optional	intrng
 kern/subr_busdma_bufalloc.c	standard
+kern/subr_devmap.c		standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard
 libkern/arm/divsi3.S		standard

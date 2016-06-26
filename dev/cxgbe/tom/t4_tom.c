@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
+#include <sys/refcount.h>
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -52,10 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
-#include <netinet/tcp_var.h>
 #include <netinet6/scope6_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
 
 #ifdef TCP_OFFLOAD
@@ -129,7 +130,7 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	 * units of 16 byte.  Calculate the maximum work requests possible.
 	 */
 	txsd_total = tx_credits /
-	    howmany((sizeof(struct fw_ofld_tx_data_wr) + 1), 16);
+	    howmany(sizeof(struct fw_ofld_tx_data_wr) + 1, 16);
 
 	if (txqid < 0)
 		txqid = (arc4random() % vi->nofldtxq) + vi->first_ofld_txq;
@@ -152,6 +153,7 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	if (toep == NULL)
 		return (NULL);
 
+	refcount_init(&toep->refcount, 1);
 	toep->td = sc->tom_softc;
 	toep->vi = vi;
 	toep->tx_total = tx_credits;
@@ -165,7 +167,16 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	toep->txsd_avail = txsd_total;
 	toep->txsd_pidx = 0;
 	toep->txsd_cidx = 0;
+	ddp_init_toep(toep);
 
+	return (toep);
+}
+
+struct toepcb *
+hold_toepcb(struct toepcb *toep)
+{
+
+	refcount_acquire(&toep->refcount);
 	return (toep);
 }
 
@@ -173,11 +184,15 @@ void
 free_toepcb(struct toepcb *toep)
 {
 
+	if (refcount_release(&toep->refcount) == 0)
+		return;
+
 	KASSERT(!(toep->flags & TPF_ATTACHED),
 	    ("%s: attached to an inpcb", __func__));
 	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: CPL pending", __func__));
 
+	ddp_uninit_toep(toep);
 	free(toep, M_CXGBE);
 }
 
@@ -259,6 +274,8 @@ undo_offload_socket(struct socket *so)
 	mtx_lock(&td->toep_list_lock);
 	TAILQ_REMOVE(&td->toep_list, toep, link);
 	mtx_unlock(&td->toep_list_lock);
+
+	free_toepcb(toep);
 }
 
 static void
@@ -283,9 +300,9 @@ release_offload_resources(struct toepcb *toep)
 	 */
 	MPASS(mbufq_len(&toep->ulp_pduq) == 0);
 	MPASS(mbufq_len(&toep->ulp_pdu_reclaimq) == 0);
-
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
-		release_ddp_resources(toep);
+#ifdef INVARIANTS
+	ddp_assert_empty(toep);
+#endif
 
 	if (toep->l2te)
 		t4_l2t_release(toep->l2te);
@@ -389,6 +406,8 @@ final_cpl_received(struct toepcb *toep)
 	CTR6(KTR_CXGBE, "%s: tid %d, toep %p (0x%x), inp %p (0x%x)",
 	    __func__, toep->tid, toep, toep->flags, inp, inp->inp_flags);
 
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		release_ddp_resources(toep);
 	toep->inp = NULL;
 	toep->flags &= ~TPF_CPL_PENDING;
 	mbufq_drain(&toep->ulp_pdu_reclaimq);
@@ -599,7 +618,6 @@ set_tcpddp_ulp_mode(struct toepcb *toep)
 
 	toep->ulp_mode = ULP_MODE_TCPDDP;
 	toep->ddp_flags = DDP_OK;
-	toep->ddp_score = DDP_LOW_SCORE;
 }
 
 int
@@ -1109,12 +1127,16 @@ t4_tom_mod_load(void)
 	int rc;
 	struct protosw *tcp_protosw, *tcp6_protosw;
 
+	rc = t4_ddp_mod_load();
+	if (rc != 0)
+		return (rc);
+
 	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
 	if (tcp_protosw == NULL)
 		return (ENOPROTOOPT);
 	bcopy(tcp_protosw, &ddp_protosw, sizeof(ddp_protosw));
 	bcopy(tcp_protosw->pr_usrreqs, &ddp_usrreqs, sizeof(ddp_usrreqs));
-	ddp_usrreqs.pru_soreceive = t4_soreceive_ddp;
+	ddp_usrreqs.pru_aio_queue = t4_aio_queue_ddp;
 	ddp_protosw.pr_usrreqs = &ddp_usrreqs;
 
 	tcp6_protosw = pffindproto(PF_INET6, IPPROTO_TCP, SOCK_STREAM);
@@ -1122,7 +1144,7 @@ t4_tom_mod_load(void)
 		return (ENOPROTOOPT);
 	bcopy(tcp6_protosw, &ddp6_protosw, sizeof(ddp6_protosw));
 	bcopy(tcp6_protosw->pr_usrreqs, &ddp6_usrreqs, sizeof(ddp6_usrreqs));
-	ddp6_usrreqs.pru_soreceive = t4_soreceive_ddp;
+	ddp6_usrreqs.pru_aio_queue = t4_aio_queue_ddp;
 	ddp6_protosw.pr_usrreqs = &ddp6_usrreqs;
 
 	TIMEOUT_TASK_INIT(taskqueue_thread, &clip_task, 0, t4_clip_task, NULL);
@@ -1161,6 +1183,8 @@ t4_tom_mod_unload(void)
 		EVENTHANDLER_DEREGISTER(ifaddr_event, ifaddr_evhandler);
 		taskqueue_cancel_timeout(taskqueue_thread, &clip_task, NULL);
 	}
+
+	t4_ddp_mod_unload();
 
 	return (0);
 }

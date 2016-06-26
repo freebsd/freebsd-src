@@ -58,16 +58,40 @@
 #define	FBT_RETURN	"return"
 
 int
-fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
+fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 {
-	solaris_cpu_t *cpu = &solaris_cpu[curcpu];
-	uintptr_t stack0, stack1, stack2, stack3, stack4;
-	fbt_probe_t *fbt = fbt_probetab[FBT_ADDR2NDX(addr)];
+	solaris_cpu_t *cpu;
+	uintptr_t *stack;
+	uintptr_t arg0, arg1, arg2, arg3, arg4;
+	fbt_probe_t *fbt;
 
+#ifdef __amd64__
+	stack = (uintptr_t *)frame->tf_rsp;
+#else
+	/* Skip hardware-saved registers. */
+	stack = (uintptr_t *)frame->tf_isp + 3;
+#endif
+
+	cpu = &solaris_cpu[curcpu];
+	fbt = fbt_probetab[FBT_ADDR2NDX(addr)];
 	for (; fbt != NULL; fbt = fbt->fbtp_hashnext) {
 		if ((uintptr_t)fbt->fbtp_patchpoint == addr) {
 			if (fbt->fbtp_roffset == 0) {
+#ifdef __amd64__
+				/* fbt->fbtp_rval == DTRACE_INVOP_PUSHQ_RBP */
+				DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
+				cpu->cpu_dtrace_caller = stack[0];
+				DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT |
+				    CPU_DTRACE_BADADDR);
+
+				arg0 = frame->tf_rdi;
+				arg1 = frame->tf_rsi;
+				arg2 = frame->tf_rdx;
+				arg3 = frame->tf_rcx;
+				arg4 = frame->tf_r8;
+#else
 				int i = 0;
+
 				/*
 				 * When accessing the arguments on the stack,
 				 * we must protect against accessing beyond
@@ -77,16 +101,17 @@ fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
 				 */
 				DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 				cpu->cpu_dtrace_caller = stack[i++];
-				stack0 = stack[i++];
-				stack1 = stack[i++];
-				stack2 = stack[i++];
-				stack3 = stack[i++];
-				stack4 = stack[i++];
+				arg0 = stack[i++];
+				arg1 = stack[i++];
+				arg2 = stack[i++];
+				arg3 = stack[i++];
+				arg4 = stack[i++];
 				DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT |
 				    CPU_DTRACE_BADADDR);
+#endif
 
-				dtrace_probe(fbt->fbtp_id, stack0, stack1,
-				    stack2, stack3, stack4);
+				dtrace_probe(fbt->fbtp_id, arg0, arg1,
+				    arg2, arg3, arg4);
 
 				cpu->cpu_dtrace_caller = 0;
 			} else {
@@ -94,7 +119,7 @@ fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
 				/*
 				 * On amd64, we instrument the ret, not the
 				 * leave.  We therefore need to set the caller
-				 * to assure that the top frame of a stack()
+				 * to ensure that the top frame of a stack()
 				 * action is correct.
 				 */
 				DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);

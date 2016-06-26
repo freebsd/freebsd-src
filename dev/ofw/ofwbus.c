@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
+#ifdef INTRNG
+#include <sys/intr.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -77,6 +80,9 @@ static device_attach_t ofwbus_attach;
 static bus_alloc_resource_t ofwbus_alloc_resource;
 static bus_adjust_resource_t ofwbus_adjust_resource;
 static bus_release_resource_t ofwbus_release_resource;
+#ifdef INTRNG
+static bus_map_intr_t ofwbus_map_intr;
+#endif
 
 static device_method_t ofwbus_methods[] = {
 	/* Device interface */
@@ -90,6 +96,9 @@ static device_method_t ofwbus_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	ofwbus_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,	ofwbus_adjust_resource),
 	DEVMETHOD(bus_release_resource,	ofwbus_release_resource),
+#ifdef INTRNG
+	DEVMETHOD(bus_map_intr,		ofwbus_map_intr),
+#endif
 
 	DEVMETHOD_END
 };
@@ -178,7 +187,7 @@ ofwbus_attach(device_t dev)
 
 static struct resource *
 ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ofwbus_softc *sc;
 	struct rman *rm;
@@ -186,7 +195,7 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	int isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	sc = device_get_softc(bus);
 	rle = NULL;
@@ -200,8 +209,8 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 		}
 		start = rle->start;
-		count = ulmax(count, rle->count);
-		end = ulmax(rle->end, start + count - 1);
+		count = ummax(count, rle->count);
+		end = ummax(rle->end, start + count - 1);
 	}
 
 	switch (type) {
@@ -239,7 +248,7 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 ofwbus_adjust_resource(device_t bus, device_t child __unused, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct ofwbus_softc *sc;
 	struct rman *rm;
@@ -271,12 +280,17 @@ ofwbus_release_resource(device_t bus, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct resource_list_entry *rle;
+	int passthrough;
 	int error;
 
-	/* Clean resource list entry */
-	rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child), type, rid);
-	if (rle != NULL)
-		rle->res = NULL;
+	passthrough = (device_get_parent(child) != bus);
+	if (!passthrough) {
+		/* Clean resource list entry */
+		rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child),
+		    type, rid);
+		if (rle != NULL)
+			rle->res = NULL;
+	}
 
 	if ((rman_get_flags(r) & RF_ACTIVE) != 0) {
 		error = bus_deactivate_resource(child, type, rid, r);
@@ -285,3 +299,53 @@ ofwbus_release_resource(device_t bus, device_t child, int type,
 	}
 	return (rman_release_resource(r));
 }
+
+#ifdef INTRNG
+static void
+ofwbus_destruct_map_data(struct intr_map_data *map_data)
+{
+	struct intr_map_data_fdt *fdt_map_data;
+
+	KASSERT(map_data->type == INTR_MAP_DATA_FDT,
+	    ("%s: bad map_data type %d", __func__, map_data->type));
+
+	fdt_map_data = (struct intr_map_data_fdt *)map_data;
+	OF_prop_free(fdt_map_data->cells);
+	free(fdt_map_data, M_OFWPROP);
+}
+
+static int
+ofwbus_map_intr(device_t bus, device_t child, int *rid, rman_res_t *start,
+    rman_res_t *end, rman_res_t *count, struct intr_map_data **imd)
+{
+	phandle_t iparent, node;
+	pcell_t	*cells;
+	int ncells, rv;
+	u_int irq;
+	struct intr_map_data_fdt *fdt_data;
+
+	node = ofw_bus_get_node(child);
+	rv = ofw_bus_intr_by_rid(child, node, *rid, &iparent, &ncells, &cells);
+	if (rv != 0)
+		return (rv);
+
+	fdt_data = malloc(sizeof(*fdt_data), M_OFWPROP, M_WAITOK | M_ZERO);
+	fdt_data->hdr.type = INTR_MAP_DATA_FDT;
+	fdt_data->hdr.destruct = ofwbus_destruct_map_data;
+	fdt_data->iparent = iparent;
+	fdt_data->ncells = ncells;
+	fdt_data->cells = cells;
+	rv = intr_map_irq(NULL, iparent, (struct intr_map_data *)fdt_data,
+	    &irq);
+	if (rv != 0) {
+		ofwbus_destruct_map_data((struct intr_map_data *)fdt_data);
+		return (rv);
+	}
+
+	*start = irq;
+	*end = irq;
+	*count = 1;
+	*imd = (struct intr_map_data *)fdt_data;
+	return (0);
+}
+#endif

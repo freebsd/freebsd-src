@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/vmparam.h>
+#include <machine/intr.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
@@ -78,6 +79,7 @@ static int win_eth_can_remap(int i);
 static int decode_win_cpu_valid(void);
 #endif
 static int decode_win_usb_valid(void);
+static int decode_win_usb3_valid(void);
 static int decode_win_eth_valid(void);
 static int decode_win_pcie_valid(void);
 static int decode_win_sata_valid(void);
@@ -92,6 +94,7 @@ static void decode_win_cpu_setup(void);
 static int decode_win_sdram_fixup(void);
 #endif
 static void decode_win_usb_setup(u_long);
+static void decode_win_usb3_setup(u_long);
 static void decode_win_eth_setup(u_long);
 static void decode_win_sata_setup(u_long);
 
@@ -99,11 +102,16 @@ static void decode_win_idma_setup(u_long);
 static void decode_win_xor_setup(u_long);
 
 static void decode_win_usb_dump(u_long);
+static void decode_win_usb3_dump(u_long);
 static void decode_win_eth_dump(u_long base);
 static void decode_win_idma_dump(u_long base);
 static void decode_win_xor_dump(u_long base);
 
 static int fdt_get_ranges(const char *, void *, int, int *, int *);
+#ifdef SOC_MV_ARMADA38X
+int gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
+    int *trig, int *pol);
+#endif
 
 static int win_cpu_from_dt(void);
 static int fdt_win_setup(void);
@@ -129,6 +137,7 @@ struct soc_node_spec {
 static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
 	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
+	{ "marvell,armada-380-xhci", &decode_win_usb3_setup, &decode_win_usb3_dump },
 	{ "mrvl,sata", &decode_win_sata_setup, NULL },
 	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump },
 	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump },
@@ -260,7 +269,7 @@ write_cpu_ctrl(uint32_t reg, uint32_t val)
 	bus_space_write_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE, reg, val);
 }
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 uint32_t
 read_cpu_mp_clocks(uint32_t reg)
 {
@@ -294,7 +303,7 @@ void
 cpu_reset(void)
 {
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined (SOC_MV_ARMADA38X)
 	write_cpu_misc(RSTOUTn_MASK, SOFT_RST_OUT_EN);
 	write_cpu_misc(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
 #else
@@ -372,7 +381,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 	 * Notice: system identifiers are available in the registers range of
 	 * PCIE controller, so using this function is only allowed (and
 	 * possible) after the internal registers range has been mapped in via
-	 * pmap_devmap_bootstrap().
+	 * devmap_bootstrap().
 	 */
 	*dev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 0) >> 16;
 	*rev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 8) & 0xff;
@@ -441,6 +450,15 @@ soc_identify(void)
 			rev = "A0";
 		else if (r == 1)
 			rev = "A1";
+		break;
+	case MV_DEV_88F6828:
+		dev = "Marvell 88F6828";
+		break;
+	case MV_DEV_88F6820:
+		dev = "Marvell 88F6820";
+		break;
+	case MV_DEV_88F6810:
+		dev = "Marvell 88F6810";
 		break;
 	case MV_DEV_MV78100_Z0:
 		dev = "Marvell MV78100 Z0";
@@ -545,7 +563,7 @@ soc_decode_win(void)
 	if (!decode_win_cpu_valid() || !decode_win_usb_valid() ||
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
 	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
-	    !decode_win_xor_valid())
+	    !decode_win_xor_valid() || !decode_win_usb3_valid())
 		return (EINVAL);
 
 	decode_win_cpu_setup();
@@ -553,7 +571,7 @@ soc_decode_win(void)
 	if (!decode_win_usb_valid() ||
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
 	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
-	    !decode_win_xor_valid())
+	    !decode_win_xor_valid() || !decode_win_usb3_valid())
 		return (EINVAL);
 #endif
 	if (MV_DUMP_WIN)
@@ -585,6 +603,13 @@ WIN_REG_BASE_IDX_RD(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_RD(win_usb, br, MV_WIN_USB_BASE)
 WIN_REG_BASE_IDX_WR(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_WR(win_usb, br, MV_WIN_USB_BASE)
+
+#ifdef SOC_MV_ARMADA38X
+WIN_REG_BASE_IDX_RD(win_usb3, cr, MV_WIN_USB3_CTRL)
+WIN_REG_BASE_IDX_RD(win_usb3, br, MV_WIN_USB3_BASE)
+WIN_REG_BASE_IDX_WR(win_usb3, cr, MV_WIN_USB3_CTRL)
+WIN_REG_BASE_IDX_WR(win_usb3, br, MV_WIN_USB3_BASE)
+#endif
 
 WIN_REG_BASE_IDX_RD(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_RD(win_eth, sz, MV_WIN_ETH_SIZE)
@@ -719,6 +744,9 @@ win_cpu_can_remap(int i)
 	    (dev == MV_DEV_88F5281 && i < 4) ||
 	    (dev == MV_DEV_88F6281 && i < 4) ||
 	    (dev == MV_DEV_88F6282 && i < 4) ||
+	    (dev == MV_DEV_88F6828 && i < 20) ||
+	    (dev == MV_DEV_88F6820 && i < 20) ||
+	    (dev == MV_DEV_88F6810 && i < 20) ||
 	    (dev == MV_DEV_88RC8180 && i < 2) ||
 	    (dev == MV_DEV_88F6781 && i < 4) ||
 	    (dev == MV_DEV_MV78100_Z0 && i < 8) ||
@@ -795,7 +823,7 @@ decode_win_cpu_valid(void)
 			continue;
 		}
 
-		if (b != (b & ~(s - 1))) {
+		if (b != rounddown2(b, s)) {
 			printf("CPU window#%d: address 0x%08x is not aligned "
 			    "to 0x%08x\n", i, b, s);
 			rv = 0;
@@ -900,11 +928,11 @@ decode_win_sdram_fixup(void)
 {
 	struct mem_region mr[FDT_MEM_REGIONS];
 	uint8_t window_valid[MV_WIN_DDR_MAX];
-	int mr_cnt, memsize, err, i, j;
+	int mr_cnt, err, i, j;
 	uint32_t valid_win_num = 0;
 
 	/* Grab physical memory regions information from device tree. */
-	err = fdt_get_mem_regions(mr, &mr_cnt, &memsize);
+	err = fdt_get_mem_regions(mr, &mr_cnt, NULL);
 	if (err != 0)
 		return (err);
 
@@ -1101,6 +1129,85 @@ decode_win_usb_setup(u_long base)
 }
 
 /**************************************************************************
+ * USB3 windows routines
+ **************************************************************************/
+#ifdef SOC_MV_ARMADA38X
+static int
+decode_win_usb3_valid(void)
+{
+
+	return (decode_win_can_cover_ddr(MV_WIN_USB3_MAX));
+}
+
+static void
+decode_win_usb3_dump(u_long base)
+{
+	int i;
+
+	for (i = 0; i < MV_WIN_USB3_MAX; i++)
+		printf("USB3.0 window#%d: c 0x%08x, b 0x%08x\n", i,
+		    win_usb3_cr_read(base, i), win_usb3_br_read(base, i));
+}
+
+/*
+ * Set USB3 decode windows
+ */
+static void
+decode_win_usb3_setup(u_long base)
+{
+	uint32_t br, cr;
+	int i, j;
+
+	for (i = 0; i < MV_WIN_USB3_MAX; i++) {
+		win_usb3_cr_write(base, i, 0);
+		win_usb3_br_write(base, i, 0);
+	}
+
+	/* Only access to active DRAM banks is required */
+	for (i = 0; i < MV_WIN_DDR_MAX; i++) {
+		if (ddr_is_active(i)) {
+			br = ddr_base(i);
+			cr = (((ddr_size(i) - 1) &
+			    (IO_WIN_SIZE_MASK << IO_WIN_SIZE_SHIFT)) |
+			    (ddr_attr(i) << IO_WIN_ATTR_SHIFT) |
+			    (ddr_target(i) << IO_WIN_TGT_SHIFT) |
+			    IO_WIN_ENA_MASK);
+
+			/* Set the first free USB3.0 window */
+			for (j = 0; j < MV_WIN_USB3_MAX; j++) {
+				if (win_usb3_cr_read(base, j) & IO_WIN_ENA_MASK)
+					continue;
+
+				win_usb3_br_write(base, j, br);
+				win_usb3_cr_write(base, j, cr);
+				break;
+			}
+		}
+	}
+}
+#else
+/*
+ * Provide dummy functions to satisfy the build
+ * for SoCs not equipped with USB3
+ */
+static int
+decode_win_usb3_valid(void)
+{
+
+	return (1);
+}
+
+static void
+decode_win_usb3_setup(u_long base)
+{
+}
+
+static void
+decode_win_usb3_dump(u_long base)
+{
+}
+#endif
+/**************************************************************************
  * ETH windows routines
  **************************************************************************/
 
@@ -1291,7 +1398,7 @@ decode_win_pcie_setup(u_long base)
 
 	/*
 	 * Upper 16 bits in BAR register is interpreted as BAR size
-	 * (in 64 kB units) plus 64kB, so substract 0x10000
+	 * (in 64 kB units) plus 64kB, so subtract 0x10000
 	 * form value passed to register to get correct value.
 	 */
 	size -= 0x10000;
@@ -2000,6 +2107,37 @@ moveon:
 		return (EINVAL);
 
 	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
+#ifdef SOC_MV_ARMADA38X
+	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(0);
+#else
+	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(1);
+#endif
+	cpu_win_tbl[t].base = sram_base;
+	cpu_win_tbl[t].size = sram_size;
+	cpu_win_tbl[t].remap = ~0;
+	cpu_wins_no++;
+	debugf("sram: base = 0x%0lx size = 0x%0lx\n", sram_base, sram_size);
+
+	/* Check if there is a second CESA node */
+	while ((node = OF_peer(node)) != 0) {
+		if (fdt_is_compatible(node, "mrvl,cesa-sram")) {
+			if (fdt_regsize(node, &sram_base, &sram_size) != 0)
+				return (EINVAL);
+			break;
+		}
+	}
+
+	if (node == 0)
+		return (0);
+
+	t++;
+	if (t >= nitems(cpu_win_tbl)) {
+		debugf("cannot fit CESA tuple into cpu_win_tbl\n");
+		return (ENOMEM);
+	}
+
+	/* Configure window for CESA1 */
+	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
 	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(1);
 	cpu_win_tbl[t].base = sram_base;
 	cpu_win_tbl[t].size = sram_size;
@@ -2055,9 +2193,20 @@ fdt_win_setup(void)
 		 */
 		child = OF_peer(child);
 		if ((child == 0) && (node == OF_finddevice("/"))) {
-			node = fdt_find_compatible(node, "simple-bus", 1);
+			node = fdt_find_compatible(node, "simple-bus", 0);
 			if (node == 0)
 				return (ENXIO);
+			child = OF_child(node);
+		}
+		/*
+		 * Next, move one more level down to internal-regs node (if
+		 * it is present) and its children. This node also have
+		 * "simple-bus" compatible.
+		 */
+		if ((child == 0) && (node == OF_finddevice("simple-bus"))) {
+			node = fdt_find_compatible(node, "simple-bus", 0);
+			if (node == 0)
+				return (0);
 			child = OF_child(node);
 		}
 	}
@@ -2164,6 +2313,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef INTRNG
 static int
 fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
@@ -2181,9 +2331,13 @@ fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 }
 
 fdt_pic_decode_t fdt_pic_table[] = {
+#ifdef SOC_MV_ARMADA38X
+	&gic_decode_fdt,
+#endif
 	&fdt_pic_decode_ic,
 	NULL
 };
+#endif
 
 uint64_t
 get_sar_value(void)
@@ -2195,6 +2349,10 @@ get_sar_value(void)
 	    SAMPLE_AT_RESET_HI);
 	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
 	    SAMPLE_AT_RESET_LO);
+#elif defined(SOC_MV_ARMADA38X)
+	sar_high = 0;
+	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET);
 #else
 	/*
 	 * TODO: Add getting proper values for other SoC configurations

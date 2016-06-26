@@ -105,6 +105,10 @@ struct ata_params {
 /*069*/ u_int16_t       support3;
 #define ATA_SUPPORT_RZAT                0x0020
 #define ATA_SUPPORT_DRAT                0x4000
+#define	ATA_SUPPORT_ZONE_MASK		0x0003
+#define	ATA_SUPPORT_ZONE_NR		0x0000
+#define	ATA_SUPPORT_ZONE_HOST_AWARE	0x0001
+#define	ATA_SUPPORT_ZONE_DEV_MANAGED	0x0002
 	u_int16_t       reserved70;
 /*071*/ u_int16_t       rlsovlap;               /* rel time (us) for overlap */
 /*072*/ u_int16_t       rlsservice;             /* rel time (us) for service */
@@ -228,7 +232,14 @@ struct ata_params {
 #define ATA_SUPPORT_RWLOGDMAEXT		0x0008
 #define ATA_SUPPORT_MICROCODE3		0x0010
 #define ATA_SUPPORT_FREEFALL		0x0020
+#define ATA_SUPPORT_SENSE_REPORT	0x0040
+#define ATA_SUPPORT_EPC			0x0080
 /*120*/ u_int16_t       enabled2;
+#define ATA_ENABLED_WRITEREADVERIFY	0x0002
+#define ATA_ENABLED_WRITEUNCORREXT	0x0004
+#define ATA_ENABLED_FREEFALL		0x0020
+#define ATA_ENABLED_SENSE_REPORT	0x0040
+#define ATA_ENABLED_EPC			0x0080
 	u_int16_t       reserved121[6];
 /*127*/ u_int16_t       removable_status;
 /*128*/ u_int16_t       security_status;
@@ -298,8 +309,14 @@ struct ata_params {
 #define ATA_MAX_28BIT_LBA	268435455UL
 
 /* ATA Status Register */
-#define ATA_STATUS_ERROR	0x01
-#define ATA_STATUS_DEVICE_FAULT	0x20
+#define ATA_STATUS_ERROR		0x01
+#define ATA_STATUS_SENSE_AVAIL		0x02
+#define ATA_STATUS_ALIGN_ERR		0x04
+#define ATA_STATUS_DATA_REQ		0x08
+#define ATA_STATUS_DEF_WRITE_ERR	0x10
+#define ATA_STATUS_DEVICE_FAULT		0x20
+#define ATA_STATUS_DEVICE_READY		0x40
+#define ATA_STATUS_BUSY			0x80
 
 /* ATA Error Register */
 #define ATA_ERROR_ABORT		0x04
@@ -368,18 +385,36 @@ struct ata_params {
 #define ATA_WRITE_LOG_EXT               0x3f
 #define ATA_READ_VERIFY                 0x40
 #define ATA_READ_VERIFY48               0x42
+#define ATA_WRITE_UNCORRECTABLE48       0x45    /* write uncorrectable 48bit LBA */
+#define         ATA_WU_PSEUDO           0x55    /* pseudo-uncorrectable error */
+#define         ATA_WU_FLAGGED          0xaa    /* flagged-uncorrectable error */
 #define ATA_READ_LOG_DMA_EXT            0x47    /* read log DMA ext - PIO Data-In */
+#define	ATA_ZAC_MANAGEMENT_IN		0x4a	/* ZAC management in */
+#define		ATA_ZM_REPORT_ZONES	0x00	/* report zones */
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
 #define ATA_NCQ_NON_DATA		0x63	/* NCQ non-data command */
+#define		ATA_ABORT_NCQ_QUEUE	0x00	/* abort NCQ queue */
+#define		ATA_DEADLINE_HANDLING	0x01	/* deadline handling */
+#define		ATA_SET_FEATURES	0x05	/* set features */
+#define		ATA_ZERO_EXT		0x06	/* zero ext */
+#define		ATA_NCQ_ZAC_MGMT_OUT	0x07	/* NCQ ZAC mgmt out no data */
 #define ATA_SEND_FPDMA_QUEUED           0x64    /* send DMA NCQ */
 #define		ATA_SFPDMA_DSM		0x00	/* Data set management */
-#define			ATA_SFPDMA_DSM_TRIM	0x01	/* Set trim bit in auxilary */
+#define			ATA_SFPDMA_DSM_TRIM	0x01	/* Set trim bit in auxiliary */
 #define		ATA_SFPDMA_HYBRID_EVICT	0x01	/* Hybrid Evict */
 #define		ATA_SFPDMA_WLDMA	0x02	/* Write Log DMA EXT */
-#define ATA_RECV_FPDMA_QUEUED           0x65    /* recieve DMA NCQ */
+#define		ATA_SFPDMA_ZAC_MGMT_OUT	0x03	/* NCQ ZAC mgmt out w/data */
+#define ATA_RECV_FPDMA_QUEUED           0x65    /* receive DMA NCQ */
+#define		ATA_RFPDMA_RL_DMA_EXT	0x00	/* Read Log DMA EXT */
+#define		ATA_RFPDMA_ZAC_MGMT_IN	0x02	/* NCQ ZAC mgmt in w/data */
 #define ATA_SEP_ATTN                    0x67    /* SEP request */
 #define ATA_SEEK                        0x70    /* seek */
+#define	ATA_ZAC_MANAGEMENT_OUT		0x9f	/* ZAC management out */
+#define		ATA_ZM_CLOSE_ZONE	0x01	/* close zone */
+#define		ATA_ZM_FINISH_ZONE	0x02	/* finish zone */
+#define		ATA_ZM_OPEN_ZONE	0x03	/* open zone */
+#define		ATA_ZM_RWP		0x04	/* reset write pointer */
 #define ATA_PACKET_CMD                  0xa0    /* packet command */
 #define ATA_ATAPI_IDENTIFY              0xa1    /* get ATAPI params*/
 #define ATA_SERVICE                     0xa2    /* service command */
@@ -406,18 +441,29 @@ struct ata_params {
 #define ATA_FLUSHCACHE48                0xea    /* flush cache to disk */
 #define ATA_ATA_IDENTIFY                0xec    /* get ATA params */
 #define ATA_SETFEATURES                 0xef    /* features command */
-#define         ATA_SF_SETXFER          0x03    /* set transfer mode */
 #define         ATA_SF_ENAB_WCACHE      0x02    /* enable write cache */
 #define         ATA_SF_DIS_WCACHE       0x82    /* disable write cache */
+#define         ATA_SF_SETXFER          0x03    /* set transfer mode */
+#define		ATA_SF_APM		0x05	/* Enable APM feature set */
 #define         ATA_SF_ENAB_PUIS        0x06    /* enable PUIS */
 #define         ATA_SF_DIS_PUIS         0x86    /* disable PUIS */
 #define         ATA_SF_PUIS_SPINUP      0x07    /* PUIS spin-up */
+#define		ATA_SF_WRV		0x0b	/* Enable Write-Read-Verify */
+#define 	ATA_SF_DLC		0x0c	/* Enable device life control */
+#define 	ATA_SF_SATA		0x10	/* Enable use of SATA feature */
+#define 	ATA_SF_FFC		0x41	/* Free-fall Control */
+#define 	ATA_SF_MHIST		0x43	/* Set Max Host Sect. Times */
+#define 	ATA_SF_RATE		0x45	/* Set Rate Basis */
+#define 	ATA_SF_EPC		0x4A	/* Extended Power Conditions */
 #define         ATA_SF_ENAB_RCACHE      0xaa    /* enable readahead cache */
 #define         ATA_SF_DIS_RCACHE       0x55    /* disable readahead cache */
 #define         ATA_SF_ENAB_RELIRQ      0x5d    /* enable release interrupt */
 #define         ATA_SF_DIS_RELIRQ       0xdd    /* disable release interrupt */
 #define         ATA_SF_ENAB_SRVIRQ      0x5e    /* enable service interrupt */
 #define         ATA_SF_DIS_SRVIRQ       0xde    /* disable service interrupt */
+#define 	ATA_SF_LPSAERC		0x62	/* Long Phys Sect Align ErrRep*/
+#define 	ATA_SF_DSN		0x63	/* Device Stats Notification */
+#define ATA_CHECK_POWER_MODE		0xe5	/* Check Power Mode */
 #define ATA_SECURITY_SET_PASSWORD       0xf1    /* set drive password */
 #define ATA_SECURITY_UNLOCK             0xf2    /* unlock drive using passwd */
 #define ATA_SECURITY_ERASE_PREPARE      0xf3    /* prepare to erase drive */
@@ -543,6 +589,333 @@ struct atapi_sense {
     u_int8_t	specific1;		/* sense key specific */
     u_int8_t	specific2;		/* sense key specific */
 } __packed;
+
+/*
+ * SET FEATURES subcommands
+ */
+
+/*
+ * SET FEATURES command
+ * Extended Power Conditions subcommand -- ATA_SF_EPC (0x4A)
+ * These values go in the LBA 3:0.
+ */
+#define ATA_SF_EPC_RESTORE	0x00	/* Restore Power Condition Settings */
+#define ATA_SF_EPC_GOTO		0x01	/* Go To Power Condition */
+#define ATA_SF_EPC_SET_TIMER	0x02	/* Set Power Condition Timer */
+#define ATA_SF_EPC_SET_STATE	0x03	/* Set Power Condition State */
+#define ATA_SF_EPC_ENABLE	0x04	/* Enable the EPC feature set */
+#define ATA_SF_EPC_DISABLE	0x05	/* Disable the EPC feature set */
+#define ATA_SF_EPC_SET_SOURCE	0x06	/* Set EPC Power Source */
+
+/*
+ * SET FEATURES command
+ * Extended Power Conditions subcommand -- ATA_SF_EPC (0x4A)
+ * Power Condition ID field
+ * These values go in the count register.
+ */
+#define ATA_EPC_STANDBY_Z	0x00	/* Substate of PM2:Standby */
+#define ATA_EPC_STANDBY_Y	0x01	/* Substate of PM2:Standby */
+#define ATA_EPC_IDLE_A		0x81	/* Substate of PM1:Idle */
+#define ATA_EPC_IDLE_B		0x82	/* Substate of PM1:Idle */
+#define ATA_EPC_IDLE_C		0x83	/* Substate of PM1:Idle */
+#define ATA_EPC_ALL		0xff	/* All supported power conditions */
+
+/*
+ * SET FEATURES command
+ * Extended Power Conditions subcommand -- ATA_SF_EPC (0x4A)
+ * Restore Power Conditions Settings subcommand
+ * These values go in the LBA register.
+ */
+#define ATA_SF_EPC_RST_DFLT	0x40	/* 1=Rst from Default, 0= from Saved */
+#define ATA_SF_EPC_RST_SAVE	0x10	/* 1=Save on completion */
+
+/*
+ * SET FEATURES command
+ * Extended Power Conditions subcommand -- ATA_SF_EPC (0x4A)
+ * Got To Power Condition subcommand
+ * These values go in the LBA register.
+ */
+#define ATA_SF_EPC_GOTO_DELAY	0x02000000	/* Delayed entry bit */
+#define ATA_SF_EPC_GOTO_HOLD	0x01000000	/* Hold Power Cond bit */
+
+/*
+ * SET FEATURES command
+ * Extended Power Conditions subcommand -- ATA_SF_EPC (0x4A)
+ * Set Power Condition Timer subcommand
+ * These values go in the LBA register.
+ */
+#define ATA_SF_EPC_TIMER_MASK	0x00ffff00	/* Timer field */
+#define ATA_SF_EPC_TIMER_SHIFT	8
+#define ATA_SF_EPC_TIMER_SEC	0x00000080	/* Timer units, 1=sec, 0=.1s */
+#define ATA_SF_EPC_TIMER_EN	0x00000020	/* Enable/disable cond. */
+#define ATA_SF_EPC_TIMER_SAVE	0x00000010	/* Save settings on comp.  */
+
+/*
+ * SET FEATURES command
+ * Extended Power Conditions subcommand -- ATA_SF_EPC (0x4A)
+ * Set Power Condition State subcommand
+ * These values go in the LBA register.
+ */
+#define ATA_SF_EPC_SETCON_EN	0x00000020	/* Enable power cond. */
+#define ATA_SF_EPC_SETCON_SAVE	0x00000010	/* Save settings on comp */
+
+/*
+ * SET FEATURES command
+ * Extended Power Conditions subcommand -- ATA_SF_EPC (0x4A)
+ * Set EPC Power Source subcommand
+ * These values go in the count register.
+ */
+#define ATA_SF_EPC_SRC_UNKNOWN	0x0000	/* Unknown source */
+#define ATA_SF_EPC_SRC_BAT	0x0001	/* battery source */
+#define ATA_SF_EPC_SRC_NOT_BAT	0x0002	/* not battery source */
+
+#define	ATA_LOG_DIRECTORY	0x00	/* Directory of all logs */
+#define	ATA_POWER_COND_LOG	0x08	/* Power Conditions Log */
+#define	ATA_PCL_IDLE		0x00	/* Idle Power Conditions Page */
+#define	ATA_PCL_STANDBY		0x01	/* Standby Power Conditions Page */
+#define	ATA_IDENTIFY_DATA_LOG	0x30	/* Identify Device Data Log */
+#define	ATA_IDL_PAGE_LIST	0x00	/* List of supported pages */
+#define	ATA_IDL_IDENTIFY_DATA	0x01	/* Copy of Identify Device data */
+#define	ATA_IDL_CAPACITY	0x02	/* Capacity */
+#define	ATA_IDL_SUP_CAP		0x03	/* Supported Capabilities */
+#define	ATA_IDL_CUR_SETTINGS	0x04	/* Current Settings */
+#define	ATA_IDL_ATA_STRINGS	0x05	/* ATA Strings */
+#define	ATA_IDL_SECURITY	0x06	/* Security */
+#define	ATA_IDL_PARALLEL_ATA	0x07	/* Parallel ATA */
+#define	ATA_IDL_SERIAL_ATA	0x08	/* Seiral ATA */
+#define	ATA_IDL_ZDI		0x09	/* Zoned Device Information */
+
+struct ata_gp_log_dir {
+	uint8_t header[2];
+#define	ATA_GP_LOG_DIR_VERSION		0x0001
+	uint8_t num_pages[255*2];	/* Number of log pages at address */
+};
+
+/*
+ * ATA Power Conditions log descriptor
+ */
+struct ata_power_cond_log_desc {
+	uint8_t reserved1;
+	uint8_t flags;
+#define ATA_PCL_COND_SUPPORTED		0x80
+#define ATA_PCL_COND_SAVEABLE		0x40
+#define ATA_PCL_COND_CHANGEABLE		0x20
+#define ATA_PCL_DEFAULT_TIMER_EN	0x10
+#define ATA_PCL_SAVED_TIMER_EN		0x08
+#define ATA_PCL_CURRENT_TIMER_EN	0x04
+#define ATA_PCL_HOLD_PC_NOT_SUP		0x02
+	uint8_t reserved2[2];
+	uint8_t default_timer[4];
+	uint8_t saved_timer[4];
+	uint8_t current_timer[4];
+	uint8_t nom_time_to_active[4];
+	uint8_t min_timer[4];
+	uint8_t max_timer[4];
+	uint8_t num_transitions_to_pc[4];
+	uint8_t hours_in_pc[4];
+	uint8_t reserved3[28];
+};
+
+/*
+ * ATA Power Conditions Log (0x08), Idle power conditions page (0x00)
+ */
+struct ata_power_cond_log_idle {
+	struct ata_power_cond_log_desc idle_a_desc;
+	struct ata_power_cond_log_desc idle_b_desc;
+	struct ata_power_cond_log_desc idle_c_desc;
+	uint8_t reserved[320];
+};
+
+/*
+ * ATA Power Conditions Log (0x08), Standby power conditions page (0x01)
+ */
+struct ata_power_cond_log_standby {
+	uint8_t reserved[384];
+	struct ata_power_cond_log_desc standby_y_desc;
+	struct ata_power_cond_log_desc standby_z_desc;
+};
+
+/*
+ * ATA IDENTIFY DEVICE data log (0x30) page 0x00
+ * List of Supported IDENTIFY DEVICE data pages.
+ */
+struct ata_identify_log_pages {
+	uint8_t header[8];
+#define	ATA_IDLOG_REVISION	0x0000000000000001
+	uint8_t entry_count;
+	uint8_t entries[503];
+};
+
+/*
+ * ATA IDENTIFY DEVICE data log (0x30)
+ * Capacity (Page 0x02).
+ */
+struct ata_identify_log_capacity {
+	uint8_t header[8];
+#define	ATA_CAP_HEADER_VALID	0x8000000000000000
+#define	ATA_CAP_PAGE_NUM_MASK	0x0000000000ff0000
+#define	ATA_CAP_PAGE_NUM_SHIFT	16
+#define ATA_CAP_REV_MASK	0x00000000000000ff
+	uint8_t capacity[8];
+#define	ATA_CAP_CAPACITY_VALID	0x8000000000000000
+#define	ATA_CAP_ACCESSIBLE_CAP	0x0000ffffffffffff
+	uint8_t phys_logical_sect_size[8];
+#define	ATA_CAP_PL_VALID	0x8000000000000000
+#define	ATA_CAP_LTOP_REL_SUP	0x4000000000000000
+#define	ATA_CAP_LOG_SECT_SUP	0x2000000000000000
+#define	ATA_CAP_ALIGN_ERR_MASK	0x0000000000300000
+#define	ATA_CAP_LTOP_MASK	0x00000000000f0000
+#define	ATA_CAP_LOG_SECT_OFF	0x000000000000ffff
+	uint8_t logical_sect_size[8];
+#define	ATA_CAP_LOG_SECT_VALID	0x8000000000000000
+#define	ATA_CAP_LOG_SECT_SIZE	0x00000000ffffffff
+	uint8_t nominal_buffer_size[8];
+#define	ATA_CAP_NOM_BUF_VALID	0x8000000000000000
+#define	ATA_CAP_NOM_BUF_SIZE	0x7fffffffffffffff
+	uint8_t reserved[472];
+};
+
+/*
+ * ATA IDENTIFY DEVICE data log (0x30)
+ * Supported Capabilities (Page 0x03).
+ */
+
+struct ata_identify_log_sup_cap {
+	uint8_t header[8];
+#define	ATA_SUP_CAP_HEADER_VALID	0x8000000000000000
+#define	ATA_SUP_CAP_PAGE_NUM_MASK	0x0000000000ff0000
+#define	ATA_SUP_CAP_PAGE_NUM_SHIFT	16
+#define ATA_SUP_CAP_REV_MASK		0x00000000000000ff
+	uint8_t sup_cap[8];
+#define	ATA_SUP_CAP_VALID		0x8000000000000000
+#define	ATA_SC_SET_SECT_CONFIG_SUP	0x0002000000000000 /* Set Sect Conf*/
+#define	ATA_SC_ZERO_EXT_SUP		0x0001000000000000 /* Zero EXT */
+#define	ATA_SC_SUCC_NCQ_SENSE_SUP	0x0000800000000000 /* Succ. NCQ Sns */
+#define	ATA_SC_DLC_SUP			0x0000400000000000 /* DLC */
+#define	ATA_SC_RQSN_DEV_FAULT_SUP	0x0000200000000000 /* Req Sns Dev Flt*/
+#define	ATA_SC_DSN_SUP			0x0000100000000000 /* DSN */
+#define	ATA_SC_LP_STANDBY_SUP		0x0000080000000000 /* LP Standby */
+#define	ATA_SC_SET_EPC_PS_SUP		0x0000040000000000 /* Set EPC PS */
+#define	ATA_SC_AMAX_ADDR_SUP		0x0000020000000000 /* AMAX Addr */
+#define	ATA_SC_DRAT_SUP			0x0000008000000000 /* DRAT */
+#define	ATA_SC_LPS_MISALGN_SUP		0x0000004000000000 /* LPS Misalign */
+#define	ATA_SC_RB_DMA_SUP		0x0000001000000000 /* Read Buf DMA */
+#define	ATA_SC_WB_DMA_SUP		0x0000000800000000 /* Write Buf DMA */
+#define	ATA_SC_DNLD_MC_DMA_SUP		0x0000000200000000 /* DL MCode DMA */
+#define	ATA_SC_28BIT_SUP		0x0000000100000000 /* 28-bit */
+#define	ATA_SC_RZAT_SUP			0x0000000080000000 /* RZAT */
+#define	ATA_SC_NOP_SUP			0x0000000020000000 /* NOP */
+#define	ATA_SC_READ_BUFFER_SUP		0x0000000010000000 /* Read Buffer */
+#define	ATA_SC_WRITE_BUFFER_SUP		0x0000000008000000 /* Write Buffer */
+#define	ATA_SC_READ_LOOK_AHEAD_SUP	0x0000000002000000 /* Read Look-Ahead*/
+#define	ATA_SC_VOLATILE_WC_SUP		0x0000000001000000 /* Volatile WC */
+#define	ATA_SC_SMART_SUP		0x0000000000800000 /* SMART */
+#define	ATA_SC_FLUSH_CACHE_EXT_SUP	0x0000000000400000 /* Flush Cache Ext */
+#define	ATA_SC_48BIT_SUP		0x0000000000100000 /* 48-Bit */
+#define	ATA_SC_SPINUP_SUP		0x0000000000040000 /* Spin-Up */
+#define	ATA_SC_PUIS_SUP			0x0000000000020000 /* PUIS */
+#define	ATA_SC_APM_SUP			0x0000000000010000 /* APM */
+#define	ATA_SC_DL_MICROCODE_SUP		0x0000000000004000 /* DL Microcode */
+#define	ATA_SC_UNLOAD_SUP		0x0000000000002000 /* Unload */
+#define	ATA_SC_WRITE_FUA_EXT_SUP	0x0000000000001000 /* Write FUA EXT */
+#define	ATA_SC_GPL_SUP			0x0000000000000800 /* GPL */
+#define	ATA_SC_STREAMING_SUP		0x0000000000000400 /* Streaming */
+#define	ATA_SC_SMART_SELFTEST_SUP	0x0000000000000100 /* SMART self-test */
+#define	ATA_SC_SMART_ERR_LOG_SUP	0x0000000000000080 /* SMART Err Log */
+#define	ATA_SC_EPC_SUP			0x0000000000000040 /* EPC */
+#define	ATA_SC_SENSE_SUP		0x0000000000000020 /* Sense data */
+#define	ATA_SC_FREEFALL_SUP		0x0000000000000010 /* Free-Fall */
+#define	ATA_SC_DM_MODE3_SUP		0x0000000000000008 /* DM Mode 3 */
+#define	ATA_SC_GPL_DMA_SUP		0x0000000000000004 /* GPL DMA */
+#define ATA_SC_WRITE_UNCOR_SUP		0x0000000000000002 /* Write uncorr.  */
+#define ATA_SC_WRV_SUP			0x0000000000000001 /* WRV */
+	uint8_t download_code_cap[8];
+#define ATA_DL_CODE_VALID		0x8000000000000000
+#define	ATA_DLC_DM_OFFSETS_DEFER_SUP	0x0000000400000000
+#define	ATA_DLC_DM_IMMED_SUP		0x0000000200000000
+#define	ATA_DLC_DM_OFF_IMMED_SUP	0x0000000100000000
+#define	ATA_DLC_DM_MAX_XFER_SIZE_MASK	0x00000000ffff0000
+#define	ATA_DLC_DM_MAX_XFER_SIZE_SHIFT	16
+#define	ATA_DLC_DM_MIN_XFER_SIZE_MASK	0x000000000000ffff
+	uint8_t nom_media_rotation_rate[8];
+#define	ATA_NOM_MEDIA_ROTATION_VALID	0x8000000000000000
+#define	ATA_ROTATION_MASK		0x000000000000ffff
+	uint8_t form_factor[8];
+#define	ATA_FORM_FACTOR_VALID		0x8000000000000000
+#define	ATA_FF_MASK			0x000000000000000f
+#define	ATA_FF_NOT_REPORTED		0x0000000000000000 /* Not reported */
+#define	ATA_FF_525_IN			0x0000000000000001 /* 5.25 inch */
+#define	ATA_FF_35_IN			0x0000000000000002 /* 3.5 inch */
+#define	ATA_FF_25_IN			0x0000000000000003 /* 2.5 inch */
+#define	ATA_FF_18_IN			0x0000000000000004 /* 1.8 inch */
+#define	ATA_FF_LT_18_IN			0x0000000000000005 /* < 1.8 inch */
+#define	ATA_FF_MSATA			0x0000000000000006 /* mSATA */
+#define	ATA_FF_M2			0x0000000000000007 /* M.2 */
+#define	ATA_FF_MICROSSD			0x0000000000000008 /* MicroSSD */
+#define	ATA_FF_CFAST			0x0000000000000009 /* CFast */
+	uint8_t wrv_sec_cnt_mode3[8];
+#define ATA_WRV_MODE3_VALID		0x8000000000000000
+#define ATA_WRV_MODE3_COUNT		0x00000000ffffffff
+	uint8_t wrv_sec_cnt_mode2[8];
+#define	ATA_WRV_MODE2_VALID		0x8000000000000000
+#define ATA_WRV_MODE2_COUNT		0x00000000ffffffff
+	uint8_t wwn[16];
+	/* XXX KDM need to figure out how to handle 128-bit fields */
+	uint8_t dsm[8];
+#define	ATA_DSM_VALID			0x8000000000000000
+#define	ATA_LB_MARKUP_SUP		0x000000000000ff00
+#define	ATA_TRIM_SUP			0x0000000000000001
+	uint8_t util_per_unit_time[16];
+	/* XXX KDM need to figure out how to handle 128-bit fields */
+	uint8_t util_usage_rate_sup[8];
+#define	ATA_UTIL_USAGE_RATE_VALID	0x8000000000000000
+#define	ATA_SETTING_RATE_SUP		0x0000000000800000
+#define	ATA_SINCE_POWERON_SUP		0x0000000000000100
+#define	ATA_POH_RATE_SUP		0x0000000000000010
+#define	ATA_DATE_TIME_RATE_SUP		0x0000000000000001
+	uint8_t zoned_cap[8];
+#define	ATA_ZONED_VALID			0x8000000000000000
+#define	ATA_ZONED_MASK			0x0000000000000003
+	uint8_t sup_zac_cap[8];
+#define	ATA_SUP_ZAC_CAP_VALID		0x8000000000000000
+#define	ATA_ND_RWP_SUP			0x0000000000000010 /* Reset Write Ptr*/
+#define	ATA_ND_FINISH_ZONE_SUP		0x0000000000000008 /* Finish Zone */
+#define	ATA_ND_CLOSE_ZONE_SUP		0x0000000000000004 /* Close Zone */
+#define	ATA_ND_OPEN_ZONE_SUP		0x0000000000000002 /* Open Zone */
+#define	ATA_REPORT_ZONES_SUP		0x0000000000000001 /* Report Zones */
+	uint8_t reserved[392];
+};
+
+/*
+ * ATA Identify Device Data Log Zoned Device Information Page (0x09).
+ * Current as of ZAC r04a, August 25, 2015.
+ */
+struct ata_zoned_info_log {
+	uint8_t header[8];
+#define	ATA_ZDI_HEADER_VALID	0x8000000000000000
+#define	ATA_ZDI_PAGE_NUM_MASK	0x0000000000ff0000
+#define	ATA_ZDI_PAGE_NUM_SHIFT	16
+#define ATA_ZDI_REV_MASK	0x00000000000000ff
+	uint8_t zoned_cap[8];
+#define	ATA_ZDI_CAP_VALID	0x8000000000000000
+#define	ATA_ZDI_CAP_URSWRZ	0x0000000000000001
+	uint8_t zoned_settings[8];
+#define	ATA_ZDI_SETTINGS_VALID	0x8000000000000000
+	uint8_t optimal_seq_zones[8];
+#define	ATA_ZDI_OPT_SEQ_VALID	0x8000000000000000
+#define	ATA_ZDI_OPT_SEQ_MASK	0x00000000ffffffff
+	uint8_t optimal_nonseq_zones[8];
+#define	ATA_ZDI_OPT_NS_VALID	0x8000000000000000
+#define	ATA_ZDI_OPT_NS_MASK	0x00000000ffffffff
+	uint8_t max_seq_req_zones[8];
+#define	ATA_ZDI_MAX_SEQ_VALID	0x8000000000000000
+#define	ATA_ZDI_MAX_SEQ_MASK	0x00000000ffffffff
+	uint8_t version_info[8];
+#define	ATA_ZDI_VER_VALID	0x8000000000000000
+#define	ATA_ZDI_VER_ZAC_SUP	0x0100000000000000
+#define	ATA_ZDI_VER_ZAC_MASK	0x00000000000000ff
+	uint8_t reserved[456];
+};
 
 struct ata_ioc_request {
     union {

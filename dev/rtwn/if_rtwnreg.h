@@ -895,10 +895,6 @@
 #define R92C_RAID_11B	6
 
 
-/* Macros to access unaligned little-endian memory. */
-#define LE_READ_2(x)	((x)[0] | (x)[1] << 8)
-#define LE_READ_4(x)	((x)[0] | (x)[1] << 8 | (x)[2] << 16 | (x)[3] << 24)
-
 /*
  * Macros to access subfields in registers.
  */
@@ -1018,6 +1014,8 @@ struct r92c_rom {
 	uint8_t		rf_opt3;
 	uint8_t		rf_opt4;
 	uint8_t		channel_plan;
+#define R92C_CHANNEL_PLAN_BY_HW		0x80
+
 	uint8_t		version;
 	uint8_t		curstomer_id;
 } __packed;
@@ -1162,6 +1160,25 @@ struct r92c_tx_desc {
 	uint32_t	reserved[4];
 } __packed __attribute__((aligned(4)));
 
+static const uint8_t ridx2rate[] =
+	{ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
+
+/* HW rate indices. */
+#define RTWN_RIDX_CCK1		0
+#define RTWN_RIDX_CCK11		3
+#define RTWN_RIDX_OFDM6		4
+#define RTWN_RIDX_OFDM24	8
+#define RTWN_RIDX_OFDM54	11
+#define RTWN_RIDX_MCS0		12
+#define RTWN_RIDX_MCS15		27
+
+#define RTWN_RIDX_COUNT		28
+#define RTWN_RIDX_UNKNOWN	(uint8_t)-1
+
+#define RTWN_RATE_IS_CCK(rate)	((rate) <= RTWN_RIDX_CCK11)
+#define RTWN_RATE_IS_OFDM(rate)	((rate) >= RTWN_RIDX_OFDM6 && \
+				 (rate) <= RTWN_RIDX_OFDM54)
+
 
 /*
  * Driver definitions.
@@ -1187,8 +1204,6 @@ struct r92c_tx_desc {
 
 #define RTWN_RXBUFSZ	(16 * 1024)
 #define RTWN_TXBUFSZ	(sizeof(struct r92c_tx_desc) + IEEE80211_MAX_LEN)
-
-#define RTWN_RIDX_COUNT	28
 
 #define RTWN_TX_TIMEOUT	5000	/* ms */
 
@@ -1220,8 +1235,6 @@ struct rtwn_tx_radiotap_header {
 #define RTWN_TX_RADIOTAP_PRESENT			\
 	(1 << IEEE80211_RADIOTAP_FLAGS |		\
 	 1 << IEEE80211_RADIOTAP_CHANNEL)
-
-struct rtwn_softc;
 
 struct rtwn_rx_data {
 	bus_dmamap_t		map;
@@ -1257,23 +1270,6 @@ struct rtwn_tx_ring {
 	int			cur;
 };
 
-struct rtwn_host_cmd {
-	void	(*cb)(struct rtwn_softc *, void *);
-	uint8_t	data[256];
-};
-
-struct rtwn_cmd_key {
-	struct ieee80211_key	key;
-	uint16_t		associd;
-};
-
-struct rtwn_host_cmd_ring {
-	struct rtwn_host_cmd	cmd[RTWN_HOST_CMD_RING_COUNT];
-	int			cur;
-	int			next;
-	int			queued;
-};
-
 struct rtwn_vap {
 	struct ieee80211vap	vap;
 	int			(*newstate)(struct ieee80211vap *,
@@ -1295,7 +1291,6 @@ struct rtwn_softc {
 	bus_size_t			sc_mapsize;
 	int				sc_cap_off;
 
-	struct task			sc_reinit_task;
 	struct callout			calib_to;
 	struct callout			watchdog_to;
 

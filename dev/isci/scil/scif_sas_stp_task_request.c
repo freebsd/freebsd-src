@@ -227,7 +227,7 @@ void scif_sas_stp_task_request_abort_task_set_failure_handler(
       pending_request =
          (SCIF_SAS_REQUEST_T*) sci_fast_list_get_object(pending_request_element);
 
-      // The current element may be deleted from the list becasue of
+      // The current element may be deleted from the list because of
       // IO completion so advance to the next element early
       pending_request_element = sci_fast_list_get_next(pending_request_element);
 

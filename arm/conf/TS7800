@@ -76,6 +76,9 @@ device		da
 # SATA
 device		ata
 
+# GPIO
+device		gpio
+
 # Flattened Device Tree
 options 	FDT
 options 	FDT_DTB_STATIC

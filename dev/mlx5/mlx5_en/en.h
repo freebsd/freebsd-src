@@ -373,11 +373,11 @@ struct mlx5e_params {
 	bool	cqe_zipping_en;
 	u32	lro_wqe_sz;
 	u16	rx_hash_log_tbl_sz;
+	u32	tx_pauseframe_control;
+	u32	rx_pauseframe_control;
 };
 
 #define	MLX5E_PARAMS(m)							\
-  m(+1, u64 tx_pauseframe_control, "tx_pauseframe_control", "Set to enable TX pause frames. Clear to disable.") \
-  m(+1, u64 rx_pauseframe_control, "rx_pauseframe_control", "Set to enable RX pause frames. Clear to disable.") \
   m(+1, u64 tx_queue_size_max, "tx_queue_size_max", "Max send queue size") \
   m(+1, u64 rx_queue_size_max, "rx_queue_size_max", "Max receive queue size") \
   m(+1, u64 tx_queue_size, "tx_queue_size", "Default send queue size")	\
@@ -391,6 +391,8 @@ struct mlx5e_params {
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
+  m(+1, u64 tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
+  m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
   m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled")
 
@@ -496,6 +498,17 @@ struct mlx5e_sq {
 	/* dirtied @xmit */
 	u16	pc __aligned(MLX5E_CACHELINE_SIZE);
 	u16	bf_offset;
+	u16	cev_counter;		/* completion event counter */
+	u16	cev_factor;		/* completion event factor */
+	u32	cev_next_state;		/* next completion event state */
+#define	MLX5E_CEV_STATE_INITIAL 0	/* timer not started */
+#define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
+#define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
+	struct callout cev_callout;
+	union {
+		u32	d32[2];
+		u64	d64;
+	} doorbell;
 	struct	mlx5e_sq_stats stats;
 
 	struct	mlx5e_cq cq;
@@ -743,8 +756,7 @@ int	mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
 void	mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 static inline void
-mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
-    struct mlx5e_tx_wqe *wqe, int bf_sz)
+mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
 {
 	u16 ofst = MLX5_BF_OFFSET + sq->bf_offset;
 
@@ -760,13 +772,13 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	wmb();
 
 	if (bf_sz) {
-		__iowrite64_copy(sq->uar_bf_map + ofst, &wqe->ctrl, bf_sz);
+		__iowrite64_copy(sq->uar_bf_map + ofst, wqe, bf_sz);
 
 		/* flush the write-combining mapped buffer */
 		wmb();
 
 	} else {
-		mlx5_write64((__be32 *)&wqe->ctrl, sq->uar_map + ofst, NULL);
+		mlx5_write64(wqe, sq->uar_map + ofst, NULL);
 	}
 
 	sq->bf_offset ^= sq->bf_buf_size;
@@ -786,7 +798,8 @@ void	mlx5e_create_ethtool(struct mlx5e_priv *);
 void	mlx5e_create_stats(struct sysctl_ctx_list *,
     struct sysctl_oid_list *, const char *,
     const char **, unsigned, u64 *);
-void	mlx5e_send_nop(struct mlx5e_sq *, u32, bool);
+void	mlx5e_send_nop(struct mlx5e_sq *, u32);
+void	mlx5e_sq_cev_timeout(void *);
 int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
 
 #endif					/* _MLX5_EN_H_ */

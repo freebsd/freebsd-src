@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008-2015 Solarflare Communications Inc.
+ * Copyright (c) 2008-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,37 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
-#include "efx_regs_mcdi.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_MCDI
 
+/*
+ * There are three versions of the MCDI interface:
+ *  - MCDIv0: Siena BootROM. Transport uses MCDIv1 headers.
+ *  - MCDIv1: Siena firmware and Huntington BootROM.
+ *  - MCDIv2: EF10 firmware (Huntington/Medford) and Medford BootROM.
+ *            Transport uses MCDIv2 headers.
+ *
+ * MCDIv2 Header NOT_EPOCH flag
+ * ----------------------------
+ * A new epoch begins at initial startup or after an MC reboot, and defines when
+ * the MC should reject stale MCDI requests.
+ *
+ * The first MCDI request sent by the host should contain NOT_EPOCH=0, and all
+ * subsequent requests (until the next MC reboot) should contain NOT_EPOCH=1.
+ *
+ * After rebooting the MC will fail all requests with NOT_EPOCH=1 by writing a
+ * response with ERROR=1 and DATALEN=0 until a request is seen with NOT_EPOCH=0.
+ */
+
+
 
 #if EFSYS_OPT_SIENA
 
-static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
+static const efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_init,		/* emco_init */
-	siena_mcdi_request_copyin,	/* emco_request_copyin */
-	siena_mcdi_request_copyout,	/* emco_request_copyout */
+	siena_mcdi_send_request,	/* emco_send_request */
 	siena_mcdi_poll_reboot,		/* emco_poll_reboot */
 	siena_mcdi_poll_response,	/* emco_poll_response */
 	siena_mcdi_read_response,	/* emco_read_response */
@@ -56,20 +71,19 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
-static efx_mcdi_ops_t	__efx_mcdi_hunt_ops = {
-	hunt_mcdi_init,			/* emco_init */
-	hunt_mcdi_request_copyin,	/* emco_request_copyin */
-	hunt_mcdi_request_copyout,	/* emco_request_copyout */
-	hunt_mcdi_poll_reboot,		/* emco_poll_reboot */
-	hunt_mcdi_poll_response,	/* emco_poll_response */
-	hunt_mcdi_read_response,	/* emco_read_response */
-	hunt_mcdi_fini,			/* emco_fini */
-	hunt_mcdi_feature_supported,	/* emco_feature_supported */
+static const efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
+	ef10_mcdi_init,			/* emco_init */
+	ef10_mcdi_send_request,		/* emco_send_request */
+	ef10_mcdi_poll_reboot,		/* emco_poll_reboot */
+	ef10_mcdi_poll_response,	/* emco_poll_response */
+	ef10_mcdi_read_response,	/* emco_read_response */
+	ef10_mcdi_fini,			/* emco_fini */
+	ef10_mcdi_feature_supported,	/* emco_feature_supported */
 };
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 
 
@@ -78,31 +92,30 @@ efx_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
-	efx_mcdi_ops_t *emcop;
+	const efx_mcdi_ops_t *emcop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, ==, 0);
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		emcop = NULL;
-		emtp = NULL;
-		break;
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_siena_ops;
+		emcop = &__efx_mcdi_siena_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_hunt_ops;
+		emcop = &__efx_mcdi_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		emcop = &__efx_mcdi_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -148,7 +161,7 @@ efx_mcdi_fini(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, ==, EFX_MOD_MCDI);
@@ -177,33 +190,23 @@ efx_mcdi_new_epoch(
 }
 
 static			void
-efx_mcdi_request_copyin(
+efx_mcdi_send_request(
 	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp,
-	__in		unsigned int seq,
-	__in		boolean_t ev_cpl,
-	__in		boolean_t new_epoch)
+	__in		void *hdrp,
+	__in		size_t hdr_len,
+	__in		void *sdup,
+	__in		size_t sdu_len)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
-	emcop->emco_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
-}
-
-static			void
-efx_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp)
-{
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
-
-	emcop->emco_request_copyout(enp, emrp);
+	emcop->emco_send_request(enp, hdrp, hdr_len, sdup, sdu_len);
 }
 
 static			efx_rc_t
 efx_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	rc = emcop->emco_poll_reboot(enp);
@@ -214,7 +217,7 @@ static			boolean_t
 efx_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	boolean_t available;
 
 	available = emcop->emco_poll_response(enp);
@@ -228,7 +231,7 @@ efx_mcdi_read_response(
 	__in		size_t offset,
 	__in		size_t length)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	emcop->emco_read_response(enp, bufferp, offset, length);
 }
@@ -239,8 +242,15 @@ efx_mcdi_request_start(
 	__in		efx_mcdi_req_t *emrp,
 	__in		boolean_t ev_cpl)
 {
+#if EFSYS_OPT_MCDI_LOGGING
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+#endif
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	efx_dword_t hdr[2];
+	size_t hdr_len;
+	unsigned int max_version;
 	unsigned int seq;
+	unsigned int xflags;
 	boolean_t new_epoch;
 	int state;
 
@@ -267,13 +277,64 @@ efx_mcdi_request_start(
 	emip->emi_poll_cnt = 0;
 	seq = emip->emi_seq++ & EFX_MASK32(MCDI_HEADER_SEQ);
 	new_epoch = emip->emi_new_epoch;
+	max_version = emip->emi_max_version;
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	efx_mcdi_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
+	xflags = 0;
+	if (ev_cpl)
+		xflags |= MCDI_HEADER_XFLAGS_EVREQ;
+
+	/*
+	 * Huntington firmware supports MCDIv2, but the Huntington BootROM only
+	 * supports MCDIv1. Use MCDIv1 headers for MCDIv1 commands where
+	 * possible to support this.
+	 */
+	if ((max_version >= 2) &&
+	    ((emrp->emr_cmd > MC_CMD_CMD_SPACE_ESCAPE_7) ||
+	    (emrp->emr_in_length > MCDI_CTL_SDU_LEN_MAX_V1))) {
+		/* Construct MCDI v2 header */
+		hdr_len = sizeof (hdr);
+		EFX_POPULATE_DWORD_8(hdr[0],
+		    MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
+		    MCDI_HEADER_RESYNC, 1,
+		    MCDI_HEADER_DATALEN, 0,
+		    MCDI_HEADER_SEQ, seq,
+		    MCDI_HEADER_NOT_EPOCH, new_epoch ? 0 : 1,
+		    MCDI_HEADER_ERROR, 0,
+		    MCDI_HEADER_RESPONSE, 0,
+		    MCDI_HEADER_XFLAGS, xflags);
+
+		EFX_POPULATE_DWORD_2(hdr[1],
+		    MC_CMD_V2_EXTN_IN_EXTENDED_CMD, emrp->emr_cmd,
+		    MC_CMD_V2_EXTN_IN_ACTUAL_LEN, emrp->emr_in_length);
+	} else {
+		/* Construct MCDI v1 header */
+		hdr_len = sizeof (hdr[0]);
+		EFX_POPULATE_DWORD_8(hdr[0],
+		    MCDI_HEADER_CODE, emrp->emr_cmd,
+		    MCDI_HEADER_RESYNC, 1,
+		    MCDI_HEADER_DATALEN, emrp->emr_in_length,
+		    MCDI_HEADER_SEQ, seq,
+		    MCDI_HEADER_NOT_EPOCH, new_epoch ? 0 : 1,
+		    MCDI_HEADER_ERROR, 0,
+		    MCDI_HEADER_RESPONSE, 0,
+		    MCDI_HEADER_XFLAGS, xflags);
+	}
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context, EFX_LOG_MCDI_REQUEST,
+		    &hdr, hdr_len,
+		    emrp->emr_in_buf, emrp->emr_in_length);
+	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+
+	efx_mcdi_send_request(enp, &hdr[0], hdr_len,
+	    emrp->emr_in_buf, emrp->emr_in_length);
 }
 
 
-			void
+static			void
 efx_mcdi_read_response_header(
 	__in		efx_nic_t *enp,
 	__inout		efx_mcdi_req_t *emrp)
@@ -382,17 +443,54 @@ efx_mcdi_read_response_header(
 	return;
 
 fail3:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail3);
 fail2:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail2);
 fail1:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
 	emrp->emr_rc = rc;
 	emrp->emr_out_length_used = 0;
+}
+
+static			void
+efx_mcdi_finish_response(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp)
+{
+#if EFSYS_OPT_MCDI_LOGGING
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+	efx_dword_t hdr[2];
+	unsigned int hdr_len;
+	size_t bytes;
+
+	if (emrp->emr_out_buf == NULL)
+		return;
+
+	/* Read the command header to detect MCDI response format */
+	hdr_len = sizeof (hdr[0]);
+	efx_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
+		/*
+		 * Read the actual payload length. The length given in the event
+		 * is only correct for responses with the V1 format.
+		 */
+		efx_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
+		hdr_len += sizeof (hdr[1]);
+
+		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
+					    MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
+	}
+
+	/* Copy payload out into caller supplied buffer */
+	bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
+	efx_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context,
+		    EFX_LOG_MCDI_RESPONSE,
+		    &hdr, hdr_len,
+		    emrp->emr_out_buf, bytes);
+	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 }
 
 
@@ -421,6 +519,11 @@ efx_mcdi_request_poll(
 		if ((rc = efx_mcdi_poll_reboot(enp)) != 0) {
 			emip->emi_pending_req = NULL;
 			EFSYS_UNLOCK(enp->en_eslp, state);
+
+			/* Reboot/Assertion */
+			if (rc == EIO || rc == EINTR)
+				efx_mcdi_raise_exception(enp, emrp, rc);
+
 			goto fail1;
 		}
 	}
@@ -437,12 +540,15 @@ efx_mcdi_request_poll(
 	/* Request complete */
 	emip->emi_pending_req = NULL;
 
+	/* Ensure stale MCDI requests fail after an MC reboot. */
+	emip->emi_new_epoch = B_FALSE;
+
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
 	if ((rc = emrp->emr_rc) != 0)
 		goto fail2;
 
-	efx_mcdi_request_copyout(enp, emrp);
+	efx_mcdi_finish_response(enp, emrp);
 	return (B_TRUE);
 
 fail2:
@@ -451,10 +557,6 @@ fail2:
 fail1:
 	if (!emrp->emr_quiet)
 		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	/* Reboot/Assertion */
-	if (rc == EIO || rc == EINTR)
-		efx_mcdi_raise_exception(enp, emrp, rc);
 
 	return (B_TRUE);
 }
@@ -534,6 +636,8 @@ efx_mcdi_request_errcode(
 		return (EALREADY);
 
 		/* MCDI v2 */
+	case MC_CMD_ERR_EEXIST:
+		return (EEXIST);
 #ifdef MC_CMD_ERR_EAGAIN
 	case MC_CMD_ERR_EAGAIN:
 		return (EAGAIN);
@@ -636,8 +740,6 @@ efx_mcdi_ev_cpl(
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
-	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_mcdi_req_t *emrp;
 	int state;
 
@@ -662,7 +764,7 @@ efx_mcdi_ev_cpl(
 	emip->emi_pending_req = NULL;
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	if (encp->enc_mcdi_max_payload_length > MCDI_CTL_SDU_LEN_MAX_V1) {
+	if (emip->emi_max_version >= 2) {
 		/* MCDIv2 response details do not fit into an event. */
 		efx_mcdi_read_response_header(enp, emrp);
 	} else {
@@ -679,7 +781,7 @@ efx_mcdi_ev_cpl(
 		}
 	}
 	if (errcode == 0) {
-		emcop->emco_request_copyout(enp, emrp);
+		efx_mcdi_finish_response(enp, emrp);
 	}
 
 	emtp->emt_ev_cpl(emtp->emt_context);
@@ -693,7 +795,6 @@ efx_mcdi_get_proxy_handle(
 	__in		efx_mcdi_req_t *emrp,
 	__out		uint32_t *handlep)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_rc_t rc;
 
 	/*
@@ -1332,10 +1433,6 @@ efx_mcdi_get_phy_cfg(
 			    (1 << EFX_PHY_LED_ON));
 #endif	/* EFSYS_OPT_PHY_LED_CONTROL */
 
-#if EFSYS_OPT_PHY_PROPS
-	encp->enc_phy_nprops  = 0;
-#endif	/* EFSYS_OPT_PHY_PROPS */
-
 	/* Get the media type of the fixed port, if recognised. */
 	EFX_STATIC_ASSERT(MC_CMD_MEDIA_XAUI == EFX_PHY_MEDIA_XAUI);
 	EFX_STATIC_ASSERT(MC_CMD_MEDIA_CX4 == EFX_PHY_MEDIA_CX4);
@@ -1394,7 +1491,7 @@ efx_mcdi_firmware_update_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1419,7 +1516,7 @@ efx_mcdi_macaddr_change_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1444,7 +1541,7 @@ efx_mcdi_link_control_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1469,7 +1566,7 @@ efx_mcdi_mac_spoofing_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1491,7 +1588,7 @@ fail1:
 
 #if EFSYS_OPT_BIST
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 /*
  * Enter bist offline mode. This is a fw mode which puts the NIC into a state
  * where memory BIST tests can be run and not much else can interfere or happen.
@@ -1527,7 +1624,7 @@ fail1:
 
 	return (rc);
 }
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	__checkReturn		efx_rc_t
 efx_mcdi_bist_start(
@@ -1788,7 +1885,7 @@ fail1:
 
 #endif	/* EFSYS_OPT_MAC_STATS */
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 /*
  * This function returns the pf and vf number of a function.  If it is a pf the
@@ -1887,7 +1984,7 @@ fail1:
 	return (rc);
 }
 
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	__checkReturn		efx_rc_t
 efx_mcdi_set_workaround(
@@ -1975,5 +2072,217 @@ fail1:
 	return (rc);
 }
 
+/*
+ * Size of media information page in accordance with SFF-8472 and SFF-8436.
+ * It is used in MCDI interface as well.
+ */
+#define	EFX_PHY_MEDIA_INFO_PAGE_SIZE		0x80
+
+static	__checkReturn		efx_rc_t
+efx_mcdi_get_phy_media_info(
+	__in			efx_nic_t *enp,
+	__in			uint32_t mcdi_page,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN,
+			    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LEN(
+				EFX_PHY_MEDIA_INFO_PAGE_SIZE))];
+	efx_rc_t rc;
+
+	EFSYS_ASSERT((uint32_t)offset + len <= EFX_PHY_MEDIA_INFO_PAGE_SIZE);
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_PHY_MEDIA_INFO;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length =
+	    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LEN(EFX_PHY_MEDIA_INFO_PAGE_SIZE);
+
+	MCDI_IN_SET_DWORD(req, GET_PHY_MEDIA_INFO_IN_PAGE, mcdi_page);
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used !=
+	    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LEN(EFX_PHY_MEDIA_INFO_PAGE_SIZE)) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+
+	if (MCDI_OUT_DWORD(req, GET_PHY_MEDIA_INFO_OUT_DATALEN) !=
+	    EFX_PHY_MEDIA_INFO_PAGE_SIZE) {
+		rc = EIO;
+		goto fail3;
+	}
+
+	memcpy(data,
+	    MCDI_OUT2(req, uint8_t, GET_PHY_MEDIA_INFO_OUT_DATA) + offset,
+	    len);
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+/*
+ * 2-wire device address of the base information in accordance with SFF-8472
+ * Diagnostic Monitoring Interface for Optical Transceivers section
+ * 4 Memory Organization.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_BASE	0xA0
+
+/*
+ * 2-wire device address of the digital diagnostics monitoring interface
+ * in accordance with SFF-8472 Diagnostic Monitoring Interface for Optical
+ * Transceivers section 4 Memory Organization.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_DDM	0xA2
+
+/*
+ * Hard wired 2-wire device address for QSFP+ in accordance with SFF-8436
+ * QSFP+ 10 Gbs 4X PLUGGABLE TRANSCEIVER section 7.4 Device Addressing and
+ * Operation.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_QSFP	0xA0
+
+	__checkReturn		efx_rc_t
+efx_mcdi_phy_module_get_info(
+	__in			efx_nic_t *enp,
+	__in			uint8_t dev_addr,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data)
+{
+	efx_port_t *epp = &(enp->en_port);
+	efx_rc_t rc;
+	uint32_t mcdi_lower_page;
+	uint32_t mcdi_upper_page;
+
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
+
+	/*
+	 * Map device address to MC_CMD_GET_PHY_MEDIA_INFO pages.
+	 * Offset plus length interface allows to access page 0 only.
+	 * I.e. non-zero upper pages are not accessible.
+	 * See SFF-8472 section 4 Memory Organization and SFF-8436 section 7.6
+	 * QSFP+ Memory Map for details on how information is structured
+	 * and accessible.
+	 */
+	switch (epp->ep_fixed_port_type) {
+	case EFX_PHY_MEDIA_SFP_PLUS:
+		/*
+		 * In accordance with SFF-8472 Diagnostic Monitoring
+		 * Interface for Optical Transceivers section 4 Memory
+		 * Organization two 2-wire addresses are defined.
+		 */
+		switch (dev_addr) {
+		/* Base information */
+		case EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_BASE:
+			/*
+			 * MCDI page 0 should be used to access lower
+			 * page 0 (0x00 - 0x7f) at the device address 0xA0.
+			 */
+			mcdi_lower_page = 0;
+			/*
+			 * MCDI page 1 should be used to access  upper
+			 * page 0 (0x80 - 0xff) at the device address 0xA0.
+			 */
+			mcdi_upper_page = 1;
+			break;
+		/* Diagnostics */
+		case EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_DDM:
+			/*
+			 * MCDI page 2 should be used to access lower
+			 * page 0 (0x00 - 0x7f) at the device address 0xA2.
+			 */
+			mcdi_lower_page = 2;
+			/*
+			 * MCDI page 3 should be used to access upper
+			 * page 0 (0x80 - 0xff) at the device address 0xA2.
+			 */
+			mcdi_upper_page = 3;
+			break;
+		default:
+			rc = ENOTSUP;
+			goto fail1;
+		}
+		break;
+	case EFX_PHY_MEDIA_QSFP_PLUS:
+		switch (dev_addr) {
+		case EFX_PHY_MEDIA_INFO_DEV_ADDR_QSFP:
+			/*
+			 * MCDI page -1 should be used to access lower page 0
+			 * (0x00 - 0x7f).
+			 */
+			mcdi_lower_page = (uint32_t)-1;
+			/*
+			 * MCDI page 0 should be used to access upper page 0
+			 * (0x80h - 0xff).
+			 */
+			mcdi_upper_page = 0;
+			break;
+		default:
+			rc = ENOTSUP;
+			goto fail1;
+		}
+		break;
+	default:
+		rc = ENOTSUP;
+		goto fail1;
+	}
+
+	if (offset < EFX_PHY_MEDIA_INFO_PAGE_SIZE) {
+		uint8_t read_len =
+		    MIN(len, EFX_PHY_MEDIA_INFO_PAGE_SIZE - offset);
+
+		rc = efx_mcdi_get_phy_media_info(enp,
+		    mcdi_lower_page, offset, read_len, data);
+		if (rc != 0)
+			goto fail2;
+
+		data += read_len;
+		len -= read_len;
+
+		offset = 0;
+	} else {
+		offset -= EFX_PHY_MEDIA_INFO_PAGE_SIZE;
+	}
+
+	if (len > 0) {
+		EFSYS_ASSERT3U(len, <=, EFX_PHY_MEDIA_INFO_PAGE_SIZE);
+		EFSYS_ASSERT3U(offset, <, EFX_PHY_MEDIA_INFO_PAGE_SIZE);
+
+		rc = efx_mcdi_get_phy_media_info(enp,
+		    mcdi_upper_page, offset, len, data);
+		if (rc != 0)
+			goto fail3;
+	}
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
 
 #endif	/* EFSYS_OPT_MCDI */

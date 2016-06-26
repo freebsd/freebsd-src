@@ -226,7 +226,7 @@ typedef struct {
 #define	PXENV_UNDI_SET_STATION_ADDRESS	0x000A
 typedef struct {
 	PXENV_STATUS_t	Status;
-	MAC_ADDR	StationAddress;		/* Temp MAC addres to use */
+	MAC_ADDR	StationAddress;		/* Temp MAC address to use */
 } PACKED t_PXENV_UNDI_SET_STATION_ADDR;
 
 #define	PXENV_UNDI_SET_PACKET_FILTER	0x000B
@@ -330,7 +330,7 @@ typedef struct {
 	PXENV_STATUS_t	Status;
 	uint16_t	FuncFlag;		/* PXENV_UNDI_ISR_OUT_xxx */
 	uint16_t	BufferLength;		/* Length of Frame */
-	uint16_t	FrameLength;		/* Total length of reciever frame */
+	uint16_t	FrameLength;		/* Total length of receiver frame */
 	uint16_t	FrameHeaderLength;	/* Length of the media header in Frame */
 	SEGOFF16_t	Frame;			/* receive buffer */
 	uint8_t		ProtType;		/* Protocol type */
@@ -344,7 +344,7 @@ typedef struct {
 #	define PXENV_UNDI_ISR_OUT_NOT_OUTS	1
 
 	/*
-	 * one of these will bre returnd for PXEND_UNDI_ISR_IN_PROCESS
+	 * one of these will bre returned for PXEND_UNDI_ISR_IN_PROCESS
 	 * and PXENV_UNDI_ISR_IN_GET_NEXT
 	 */
 #	define PXENV_UNDI_ISR_OUT_DONE		0

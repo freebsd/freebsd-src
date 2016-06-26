@@ -51,7 +51,7 @@ pci_hostb_probe(device_t dev)
 
 	switch (id) {
 
-	/* VIA VT82C596 Power Managment Function */
+	/* VIA VT82C596 Power Management Function */
 	case 0x30501106:
 		return (ENXIO);
 
@@ -102,7 +102,7 @@ pci_hostb_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 static struct resource *
 pci_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 
 	return (bus_alloc_resource(dev, type, rid, start, end, count, flags));

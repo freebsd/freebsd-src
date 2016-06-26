@@ -93,9 +93,9 @@ static const struct siba_dev {
 	{ PCI_VENDOR_BROADCOM, 0x4324,
 	  "Broadcom BCM4309 802.11a/b/g Wireless" },
 	{ PCI_VENDOR_BROADCOM, 0x4325, "Broadcom BCM4306 802.11b/g Wireless" },
-	{ PCI_VENDOR_BROADCOM, 0x4328, "Unknown" },
+	{ PCI_VENDOR_BROADCOM, 0x4328, "Broadcom BCM4321 802.11a/b/g/n Wireless" },
 	{ PCI_VENDOR_BROADCOM, 0x4329, "Unknown" },
-	{ PCI_VENDOR_BROADCOM, 0x432b, "Unknown" }
+	{ PCI_VENDOR_BROADCOM, 0x432b, "Broadcom BCM4322 802.11a/b/g/n Wireless" }
 };
 
 int		siba_core_attach(struct siba_softc *);
@@ -177,43 +177,17 @@ siba_bwn_detach(device_t dev)
 }
 
 static int
-siba_bwn_shutdown(device_t dev)
-{
-	device_t *devlistp;
-	int devcnt, error = 0, i;
-
-	error = device_get_children(dev, &devlistp, &devcnt);
-	if (error != 0)
-		return (error);
-
-	for (i = 0 ; i < devcnt ; i++)
-		device_shutdown(devlistp[i]);
-	free(devlistp, M_TEMP);
-	return (0);
-}
-
-static int
 siba_bwn_suspend(device_t dev)
 {
 	struct siba_bwn_softc *ssc = device_get_softc(dev);
 	struct siba_softc *siba = &ssc->ssc_siba;
-	device_t *devlistp;
-	int devcnt, error = 0, i, j;
+	int error;
 
-	error = device_get_children(dev, &devlistp, &devcnt);
+	error = bus_generic_suspend(dev);
+
 	if (error != 0)
 		return (error);
 
-	for (i = 0 ; i < devcnt ; i++) {
-		error = DEVICE_SUSPEND(devlistp[i]);
-		if (error) {
-			for (j = 0; j < i; j++)
-				DEVICE_RESUME(devlistp[j]);
-			free(devlistp, M_TEMP);
-			return (error);
-		}
-	}
-	free(devlistp, M_TEMP);
 	return (siba_core_suspend(siba));
 }
 
@@ -222,27 +196,21 @@ siba_bwn_resume(device_t dev)
 {
 	struct siba_bwn_softc *ssc = device_get_softc(dev);
 	struct siba_softc *siba = &ssc->ssc_siba;
-	device_t *devlistp;
-	int devcnt, error = 0, i;
+	int error;
 
 	error = siba_core_resume(siba);
 	if (error != 0)
 		return (error);
 
-	error = device_get_children(dev, &devlistp, &devcnt);
-	if (error != 0)
-		return (error);
+	bus_generic_resume(dev);
 
-	for (i = 0 ; i < devcnt ; i++)
-		DEVICE_RESUME(devlistp[i]);
-	free(devlistp, M_TEMP);
 	return (0);
 }
 
 /* proxying to the parent */
 static struct resource *
 siba_bwn_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 
 	return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
@@ -410,7 +378,7 @@ static device_method_t siba_bwn_methods[] = {
 	DEVMETHOD(device_probe,		siba_bwn_probe),
 	DEVMETHOD(device_attach,	siba_bwn_attach),
 	DEVMETHOD(device_detach,	siba_bwn_detach),
-	DEVMETHOD(device_shutdown,	siba_bwn_shutdown),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	siba_bwn_suspend),
 	DEVMETHOD(device_resume,	siba_bwn_resume),
 

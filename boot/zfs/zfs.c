@@ -310,7 +310,7 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 	fzap_next:
 		chunk = fp->f_seekp & (bsize - 1);
 		if (chunk == ZAP_LEAF_NUMCHUNKS(&zl)) {
-			fp->f_seekp = (fp->f_seekp & ~(bsize - 1)) + bsize;
+			fp->f_seekp = rounddown2(fp->f_seekp, bsize) + bsize;
 			chunk = 0;
 
 			/*
@@ -413,7 +413,7 @@ struct zfs_probe_args {
 	int		fd;
 	const char	*devname;
 	uint64_t	*pool_guid;
-	uint16_t	secsz;
+	u_int		secsz;
 };
 
 static int
@@ -438,7 +438,7 @@ zfs_probe(int fd, uint64_t *pool_guid)
 	return (ret);
 }
 
-static void
+static int
 zfs_probe_partition(void *arg, const char *partname,
     const struct ptable_entry *part)
 {
@@ -450,7 +450,7 @@ zfs_probe_partition(void *arg, const char *partname,
 	/* Probe only freebsd-zfs and freebsd partitions */
 	if (part->type != PART_FREEBSD &&
 	    part->type != PART_FREEBSD_ZFS)
-		return;
+		return (0);
 
 	ppa = (struct zfs_probe_args *)arg;
 	strncpy(devname, ppa->devname, strlen(ppa->devname) - 1);
@@ -458,10 +458,10 @@ zfs_probe_partition(void *arg, const char *partname,
 	sprintf(devname, "%s%s:", devname, partname);
 	pa.fd = open(devname, O_RDONLY);
 	if (pa.fd == -1)
-		return;
+		return (0);
 	ret = zfs_probe(pa.fd, ppa->pool_guid);
 	if (ret == 0)
-		return;
+		return (0);
 	/* Do we have BSD label here? */
 	if (part->type == PART_FREEBSD) {
 		pa.devname = devname;
@@ -475,6 +475,7 @@ zfs_probe_partition(void *arg, const char *partname,
 		}
 	}
 	close(pa.fd);
+	return (0);
 }
 
 int
@@ -578,7 +579,7 @@ zfs_dev_close(struct open_file *f)
 }
 
 static int
-zfs_dev_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
+zfs_dev_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size, char *buf, size_t *rsize)
 {
 
 	return (ENOSYS);
@@ -709,6 +710,30 @@ zfs_list(const char *name)
 	return (zfs_list_dataset(spa, objid));
 }
 
+void
+init_zfs_bootenv(char *currdev)
+{
+	char *beroot;
+
+	if (strlen(currdev) == 0)
+		return;
+	if(strncmp(currdev, "zfs:", 4) != 0)
+		return;
+	/* Remove the trailing : */
+	currdev[strlen(currdev) - 1] = '\0';
+	setenv("zfs_be_active", currdev, 1);
+	setenv("zfs_be_currpage", "1", 1);
+	/* Forward past zfs: */
+	currdev = strchr(currdev, ':');
+	currdev++;
+	/* Remove the last element (current bootenv) */
+	beroot = strrchr(currdev, '/');
+	if (beroot != NULL)
+		beroot[0] = '\0';
+	beroot = currdev;
+	setenv("zfs_be_root", beroot, 1);
+}
+
 int
 zfs_bootenv(const char *name)
 {
@@ -779,8 +804,15 @@ int
 zfs_belist_add(const char *name)
 {
 
+	/* Skip special datasets that start with a $ character */
+	if (strncmp(name, "$", 1) == 0) {
+		return (0);
+	}
 	/* Add the boot environment to the head of the SLIST */
 	zfs_be = malloc(sizeof(struct zfs_be_entry));
+	if (zfs_be == NULL) {
+		return (ENOMEM);
+	}
 	zfs_be->name = name;
 	SLIST_INSERT_HEAD(&zfs_be_head, zfs_be, entries);
 	zfs_env_count++;

@@ -46,7 +46,7 @@
  * without an NDA (if at all). What they do release is an API library
  * called the HCF (Hardware Control Functions) which is supposed to
  * do the device-specific operations of a device driver for you. The
- * publically available version of the HCF library (the 'HCF Light') is 
+ * publicly available version of the HCF library (the 'HCF Light') is 
  * a) extremely gross, b) lacks certain features, particularly support
  * for 802.11 frames, and c) is contaminated by the GNU Public License.
  *
@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -154,9 +155,12 @@ static int  wi_mwrite_bap(struct wi_softc *, int, int, struct mbuf *, int);
 static int  wi_read_rid(struct wi_softc *, int, void *, int *);
 static int  wi_write_rid(struct wi_softc *, int, const void *, int);
 static int  wi_write_appie(struct wi_softc *, int, const struct ieee80211_appie *);
+static u_int16_t wi_read_chanmask(struct wi_softc *);
 
 static void wi_scan_start(struct ieee80211com *);
 static void wi_scan_end(struct ieee80211com *);
+static void wi_getradiocaps(struct ieee80211com *, int, int *,
+		struct ieee80211_channel[]);
 static void wi_set_channel(struct ieee80211com *);
 	
 static __inline int
@@ -334,23 +338,9 @@ wi_attach(device_t dev)
 	 * Query the card for available channels and setup the
 	 * channel table.  We assume these are all 11b channels.
 	 */
-	buflen = sizeof(val);
-	if (wi_read_rid(sc, WI_RID_CHANNEL_LIST, &val, &buflen) != 0)
-		val = htole16(0x1fff);	/* assume 1-11 */
-	KASSERT(val != 0, ("wi_attach: no available channels listed!"));
-
-	val <<= 1;			/* shift for base 1 indices */
-	for (i = 1; i < 16; i++) {
-		struct ieee80211_channel *c;
-
-		if (!isset((u_int8_t*)&val, i))
-			continue;
-		c = &ic->ic_channels[ic->ic_nchans++];
-		c->ic_freq = ieee80211_ieee2mhz(i, IEEE80211_CHAN_B);
-		c->ic_flags = IEEE80211_CHAN_B;
-		c->ic_ieee = i;
-		/* XXX txpowers? */
-	}
+	sc->sc_chanmask = wi_read_chanmask(sc);
+	wi_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	/*
 	 * Set flags based on firmware version.
@@ -438,6 +428,7 @@ wi_attach(device_t dev)
 	ic->ic_raw_xmit = wi_raw_xmit;
 	ic->ic_scan_start = wi_scan_start;
 	ic->ic_scan_end = wi_scan_end;
+	ic->ic_getradiocaps = wi_getradiocaps;
 	ic->ic_set_channel = wi_set_channel;
 	ic->ic_vap_create = wi_vap_create;
 	ic->ic_vap_delete = wi_vap_delete;
@@ -693,6 +684,26 @@ wi_stop(struct wi_softc *sc, int disable)
 	sc->sc_false_syns = 0;
 
 	sc->sc_flags &= ~WI_FLAGS_RUNNING;
+}
+
+static void
+wi_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct wi_softc *sc = ic->ic_softc;
+	u_int8_t bands[IEEE80211_MODE_BYTES];
+	int i;
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+
+	for (i = 1; i < 16; i++) {
+		if (sc->sc_chanmask & (1 << i)) {
+			/* XXX txpowers? */
+			ieee80211_add_channel(chans, maxchans, nchans,
+			    i, 0, 0, 0, bands);
+		}
+	}
 }
 
 static void
@@ -1987,6 +1998,22 @@ wi_write_appie(struct wi_softc *sc, int rid, const struct ieee80211_appie *ie)
 	return wi_write_rid(sc, rid, buf, ie->ie_len + sizeof(uint16_t));
 }
 
+static u_int16_t
+wi_read_chanmask(struct wi_softc *sc)
+{
+	u_int16_t val;
+	int buflen;
+
+	buflen = sizeof(val);
+	if (wi_read_rid(sc, WI_RID_CHANNEL_LIST, &val, &buflen) != 0)
+		val = htole16(0x1fff);	/* assume 1-13 */
+	KASSERT(val != 0, ("%s: no available channels listed!", __func__));
+
+	val <<= 1;			/* shift for base 1 indices */
+
+	return (val);
+}
+
 int
 wi_alloc(device_t dev, int rid)
 {
@@ -1994,8 +2021,8 @@ wi_alloc(device_t dev, int rid)
 
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
 		sc->iobase_rid = rid;
-		sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->iobase_rid, 0, ~0, (1 << 6),
+		sc->iobase = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+		    &sc->iobase_rid, (1 << 6),
 		    rman_make_alignment_flags(1 << 6) | RF_ACTIVE);
 		if (sc->iobase == NULL) {
 			device_printf(dev, "No I/O space?!\n");

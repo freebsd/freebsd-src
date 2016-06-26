@@ -2,15 +2,54 @@
 kern/kern_clocksource.c			standard
 
 arm/allwinner/a10_ahci.c		optional	ahci
-arm/allwinner/a10_clk.c			standard
+arm/allwinner/a10_codec.c		optional	sound
 arm/allwinner/a10_common.c		standard
+arm/allwinner/a10_dmac.c		standard
 arm/allwinner/a10_ehci.c		optional	ehci
+arm/allwinner/aw_usbphy.c		optional	ehci
 arm/allwinner/a10_gpio.c		optional	gpio
-arm/allwinner/a10_machdep.c		standard
 arm/allwinner/a10_mmc.c			optional	mmc
 arm/allwinner/a10_sramc.c		standard
-arm/allwinner/a10_wdog.c		standard
+arm/allwinner/aw_nmi.c			optional	intrng
+arm/allwinner/aw_if_dwc.c		optional	dwc
+arm/allwinner/aw_rsb.c			optional	rsb
+arm/allwinner/aw_rtc.c			standard
+arm/allwinner/aw_wdog.c			standard
 arm/allwinner/a20/a20_cpu_cfg.c 	standard
+arm/allwinner/allwinner_machdep.c	standard
+arm/allwinner/aw_mp.c			optional	smp
+arm/allwinner/axp209.c			optional	axp209
+arm/allwinner/axp81x.c			optional	axp81x
+arm/allwinner/if_awg.c			optional	awg
 arm/allwinner/if_emac.c			optional	emac
-arm/allwinner/timer.c			standard
+arm/allwinner/sunxi_dma_if.m		standard
+dev/iicbus/twsi/a10_twsi.c		optional	twsi
+dev/usb/controller/generic_ohci.c	optional	ohci
+dev/usb/controller/generic_usb_if.m	optional	ohci
+arm/allwinner/aw_sid.c			standard
+arm/allwinner/aw_thermal.c		standard
 #arm/allwinner/console.c		standard
+
+arm/allwinner/a10_fb.c			optional	vt
+arm/allwinner/a10_hdmi.c		optional	hdmi
+arm/allwinner/a10_hdmiaudio.c		optional	hdmi sound
+arm/arm/hdmi_if.m			optional	hdmi
+
+arm/allwinner/aw_reset.c		standard
+arm/allwinner/aw_ccu.c			standard
+arm/allwinner/clk/aw_ahbclk.c		standard
+arm/allwinner/clk/aw_apbclk.c		standard
+arm/allwinner/clk/aw_axiclk.c		standard
+arm/allwinner/clk/aw_codecclk.c		standard
+arm/allwinner/clk/aw_cpuclk.c		standard
+arm/allwinner/clk/aw_cpusclk.c		standard
+arm/allwinner/clk/aw_debeclk.c		standard
+arm/allwinner/clk/aw_gate.c		standard
+arm/allwinner/clk/aw_gmacclk.c		standard
+arm/allwinner/clk/aw_hdmiclk.c		standard
+arm/allwinner/clk/aw_lcdclk.c		standard
+arm/allwinner/clk/aw_modclk.c		standard
+arm/allwinner/clk/aw_mmcclk.c		standard
+arm/allwinner/clk/aw_oscclk.c		standard
+arm/allwinner/clk/aw_pll.c		standard
+arm/allwinner/clk/aw_usbclk.c		standard

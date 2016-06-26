@@ -330,10 +330,10 @@ get_bank(struct pad_softc *sc, int gpio_number,
 			*bank = sc->gpio_map[i];
 			*pin_shift = (gpio_number - n);
 			return (0);
-		};
+		}
 
 		n += ngpio;
-	};
+	}
 
 	return (-1);
 }
@@ -516,7 +516,7 @@ pad_attach(device_t dev)
 		break;
 	default:
 		goto fail;
-	};
+	}
 
 	if (bus_alloc_resources(dev, sc->pad_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
@@ -528,7 +528,7 @@ pad_attach(device_t dev)
 	for (i = 0; i < sc->nports; i++) {
 		sc->bst[i] = rman_get_bustag(sc->res[i]);
 		sc->bsh[i] = rman_get_bushandle(sc->res[i]);
-	};
+	}
 
 	sc->dev = dev;
 

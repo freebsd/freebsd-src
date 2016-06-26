@@ -91,63 +91,60 @@ ath_hal_mac_name(struct ath_hal *ah)
 	switch (ah->ah_macVersion) {
 	case AR_SREV_VERSION_CRETE:
 	case AR_SREV_VERSION_MAUI_1:
-		return "5210";
+		return "AR5210";
 	case AR_SREV_VERSION_MAUI_2:
 	case AR_SREV_VERSION_OAHU:
-		return "5211";
+		return "AR5211";
 	case AR_SREV_VERSION_VENICE:
-		return "5212";
+		return "AR5212";
 	case AR_SREV_VERSION_GRIFFIN:
-		return "2413";
+		return "AR2413";
 	case AR_SREV_VERSION_CONDOR:
-		return "5424";
+		return "AR5424";
 	case AR_SREV_VERSION_EAGLE:
-		return "5413";
+		return "AR5413";
 	case AR_SREV_VERSION_COBRA:
-		return "2415";
+		return "AR2415";
 	case AR_SREV_2425:	/* Swan */
-		return "2425";
+		return "AR2425";
 	case AR_SREV_2417:	/* Nala */
-		return "2417";
+		return "AR2417";
 	case AR_XSREV_VERSION_OWL_PCI:
-		return "5416";
+		return "AR5416";
 	case AR_XSREV_VERSION_OWL_PCIE:
-		return "5418";
+		return "AR5418";
 	case AR_XSREV_VERSION_HOWL:
-		return "9130";
+		return "AR9130";
 	case AR_XSREV_VERSION_SOWL:
-		return "9160";
+		return "AR9160";
 	case AR_XSREV_VERSION_MERLIN:
 		if (AH_PRIVATE(ah)->ah_ispcie)
-			return "9280";
-		return "9220";
+			return "AR9280";
+		return "AR9220";
 	case AR_XSREV_VERSION_KITE:
-		return "9285";
+		return "AR9285";
 	case AR_XSREV_VERSION_KIWI:
 		if (AH_PRIVATE(ah)->ah_ispcie)
-			return "9287";
-		return "9227";
+			return "AR9287";
+		return "AR9227";
 	case AR_SREV_VERSION_AR9380:
 		if (ah->ah_macRev >= AR_SREV_REVISION_AR9580_10)
-			return "9580";
-		return "9380";
+			return "AR9580";
+		return "AR9380";
 	case AR_SREV_VERSION_AR9460:
-		return "9460";
+		return "AR9460";
 	case AR_SREV_VERSION_AR9330:
-		return "9330";
+		return "AR9330";
 	case AR_SREV_VERSION_AR9340:
-		return "9340";
+		return "AR9340";
 	case AR_SREV_VERSION_QCA9550:
-		/* XXX should say QCA, not AR */
-		return "9550";
+		return "QCA9550";
 	case AR_SREV_VERSION_AR9485:
-		return "9485";
+		return "AR9485";
 	case AR_SREV_VERSION_QCA9565:
-		/* XXX should say QCA, not AR */
-		return "9565";
+		return "QCA9565";
 	case AR_SREV_VERSION_QCA9530:
-		/* XXX should say QCA, not AR */
-		return "9530";
+		return "QCA9530";
 	}
 	return "????";
 }
@@ -365,7 +362,7 @@ ath_hal_computetxtime(struct ath_hal *ah,
 
 	kbps = rates->info[rateix].rateKbps;
 	/*
-	 * index can be invalid duting dynamic Turbo transitions. 
+	 * index can be invalid during dynamic Turbo transitions. 
 	 * XXX
 	 */
 	if (kbps == 0)

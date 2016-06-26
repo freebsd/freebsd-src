@@ -72,7 +72,8 @@ static int  unin_chip_attach(device_t);
 static int  unin_chip_print_child(device_t dev, device_t child);
 static void unin_chip_probe_nomatch(device_t, device_t);
 static struct resource *unin_chip_alloc_resource(device_t, device_t, int, int *,
-						 u_long, u_long, u_long, u_int);
+						 rman_res_t, rman_res_t,
+						 rman_res_t, u_int);
 static int  unin_chip_activate_resource(device_t, device_t, int, int,
 					struct resource *);
 static int  unin_chip_deactivate_resource(device_t, device_t, int, int,
@@ -424,8 +425,8 @@ unin_chip_print_child(device_t dev, device_t child)
 
         retval += bus_print_child_header(dev, child);
 
-        retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+        retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
         retval += bus_print_child_footer(dev, child);
 
@@ -446,8 +447,8 @@ unin_chip_probe_nomatch(device_t dev, device_t child)
 		if ((type = ofw_bus_get_type(child)) == NULL)
 			type = "(unknown)";
 		device_printf(dev, "<%s, %s>", type, ofw_bus_get_name(child));
-		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 		printf(" (no driver attached)\n");
 	}
 }
@@ -455,7 +456,8 @@ unin_chip_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 unin_chip_alloc_resource(device_t bus, device_t child, int type, int *rid,
-			 u_long start, u_long end, u_long count, u_int flags)
+			 rman_res_t start, rman_res_t end, rman_res_t count,
+			 u_int flags)
 {
 	struct		unin_chip_softc *sc;
 	int		needactivate;
@@ -589,7 +591,7 @@ unin_chip_activate_resource(device_t bus, device_t child, int type, int rid,
 		start = (vm_offset_t) rman_get_start(res);
 
 		if (bootverbose)
-			printf("unin mapdev: start %zx, len %ld\n", start,
+			printf("unin mapdev: start %zx, len %jd\n", start,
 			       rman_get_size(res));
 
 		p = pmap_mapdev(start, (vm_size_t) rman_get_size(res));

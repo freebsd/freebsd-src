@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 static int	cons_set(struct env_var *ev, int flags, const void *value);
 static int	cons_find(const char *name);
 static int	cons_check(const char *string);
-static void	cons_change(const char *string);
+static int	cons_change(const char *string);
 static int	twiddle_set(struct env_var *ev, int flags, const void *value);
 
 /*
@@ -47,12 +47,12 @@ static int	twiddle_set(struct env_var *ev, int flags, const void *value);
  * as active.  Also create the console variable.
  */
 void
-cons_probe(void) 
+cons_probe(void)
 {
     int			cons;
     int			active;
     char		*prefconsole;
-    
+
     /* We want a callback to install the new value when this var changes. */
     env_setenv("twiddle_divisor", EV_VOLATILE, "1", twiddle_set, env_nounset);
 
@@ -162,54 +162,69 @@ cons_find(const char *name)
 static int
 cons_set(struct env_var *ev, int flags, const void *value)
 {
-    int		cons;
+    int		ret;
 
-    if ((value == NULL) || (cons_check(value) == -1)) {
-	if (value != NULL) 
-	    printf("no such console!\n");
-	printf("Available consoles:\n");
-	for (cons = 0; consoles[cons] != NULL; cons++)
-	    printf("    %s\n", consoles[cons]->c_name);
-	return(CMD_ERROR);
+    if ((value == NULL) || (cons_check(value) == 0)) {
+	/*
+	 * Return CMD_OK instead of CMD_ERROR to prevent forth syntax error,
+	 * which would prevent it processing any further loader.conf entries.
+	 */
+	return (CMD_OK);
     }
 
-    cons_change(value);
+    ret = cons_change(value);
+    if (ret != CMD_OK)
+	return (ret);
 
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-    return(CMD_OK);
+    return (CMD_OK);
 }
 
 /*
- * Check that all of the consoles listed in *string are valid consoles
+ * Check that at least one the consoles listed in *string is valid
  */
 static int
 cons_check(const char *string)
 {
-    int		cons;
+    int		cons, found, failed;
     char	*curpos, *dup, *next;
 
     dup = next = strdup(string);
-    cons = -1;
+    found = failed = 0;
     while (next != NULL) {
 	curpos = strsep(&next, " ,");
 	if (*curpos != '\0') {
 	    cons = cons_find(curpos);
-	    if (cons == -1)
-		break;
+	    if (cons == -1) {
+		printf("console %s is invalid!\n", curpos);
+		failed++;
+	    } else {
+		found++;
+	    }
 	}
     }
 
     free(dup);
-    return (cons);
+
+    if (found == 0)
+	printf("no valid consoles!\n");
+
+    if (found == 0 || failed != 0) {
+	printf("Available consoles:\n");
+	for (cons = 0; consoles[cons] != NULL; cons++)
+	    printf("    %s\n", consoles[cons]->c_name);
+    }
+
+    return (found);
 }
 
 /*
- * Activate all of the consoles listed in *string and disable all the others.
+ * Activate all the valid consoles listed in *string and disable all others.
  */
-static void
+static int
 cons_change(const char *string)
 {
-    int		cons;
+    int		cons, active;
     char	*curpos, *dup, *next;
 
     /* Disable all consoles */
@@ -219,6 +234,7 @@ cons_change(const char *string)
 
     /* Enable selected consoles */
     dup = next = strdup(string);
+    active = 0;
     while (next != NULL) {
 	curpos = strsep(&next, " ,");
 	if (*curpos == '\0')
@@ -227,14 +243,37 @@ cons_change(const char *string)
 	if (cons >= 0) {
 	    consoles[cons]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
 	    consoles[cons]->c_init(0);
-	    if ((consoles[cons]->c_flags & (C_PRESENTIN | C_PRESENTOUT)) !=
-		(C_PRESENTIN | C_PRESENTOUT))
-		printf("console %s failed to initialize\n",
-		    consoles[cons]->c_name);
+	    if ((consoles[cons]->c_flags & (C_PRESENTIN | C_PRESENTOUT)) ==
+		(C_PRESENTIN | C_PRESENTOUT)) {
+		active++;
+		continue;
+	    }
+
+	    if (active != 0) {
+		/* If no consoles have initialised we wouldn't see this. */
+		printf("console %s failed to initialize\n", consoles[cons]->c_name);
+	    }
 	}
     }
 
     free(dup);
+
+    if (active == 0) {
+	/* All requested consoles failed to initialise, try to recover. */
+	for (cons = 0; consoles[cons] != NULL; cons++) {
+	    consoles[cons]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
+	    consoles[cons]->c_init(0);
+	    if ((consoles[cons]->c_flags &
+		(C_PRESENTIN | C_PRESENTOUT)) ==
+		(C_PRESENTIN | C_PRESENTOUT))
+		active++;
+	}
+
+	if (active == 0)
+	    return (CMD_ERROR); /* Recovery failed. */
+    }
+
+    return (CMD_OK);
 }
 
 /*

@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef UFS_EXTATTR
 
+FEATURE(ufs_extattr, "ufs extended attribute support");
+
 static MALLOC_DEFINE(M_UFS_EXTATTR, "ufs_extattr", "ufs extended attribute");
 
 static int ufs_extattr_sync = 0;
@@ -597,8 +599,6 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 
 	attribute = malloc(sizeof(struct ufs_extattr_list_entry),
 	    M_UFS_EXTATTR, M_WAITOK);
-	if (attribute == NULL)
-		return (ENOMEM);
 
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED)) {
 		error = EOPNOTSUPP;

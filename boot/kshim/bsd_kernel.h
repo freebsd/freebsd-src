@@ -35,6 +35,8 @@
 #include <sys/queue.h>
 #include <sys/errno.h>
 
+#define	howmany(x, y)	(((x)+((y)-1))/(y))
+#define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define	isalpha(x) (((x) >= 'a' && (x) <= 'z') || ((x) >= 'A' && (x) <= 'Z'))
 #define	isdigit(x) ((x) >= '0' && (x) <= '9')
 #define	panic(...) do { printf("USB PANIC: " __VA_ARGS__); while (1) ; } while (0)
@@ -48,8 +50,15 @@
 #define	USB_BUS_EXPLORE_PROC(bus) (usb_process + 0)
 #define	USB_BUS_CONTROL_XFER_PROC(bus) (usb_process + 1)
 #define	SYSCTL_DECL(...)
+struct sysctl_req {
+	void		*newptr;
+};
+#define	SYSCTL_HANDLER_ARGS void *oidp, void *arg1,	\
+	uint32_t arg2, struct sysctl_req *req
 #define	SYSCTL_NODE(name,...) struct { } name __used
 #define	SYSCTL_INT(...)
+#define	SYSCTL_UINT(...)
+#define	SYSCTL_PROC(...)
 #define	TUNABLE_INT(...)
 #define	MALLOC_DECLARE(...)
 #define	MALLOC_DEFINE(...)
@@ -65,6 +74,7 @@
 #define	MOD_UNLOAD 2
 #define	DEVMETHOD(what,func) { #what, (void *)&func }
 #define	DEVMETHOD_END {0,0}
+#define	EARLY_DRIVER_MODULE(a, b, c, d, e, f, g)	DRIVER_MODULE(a, b, c, d, e, f)
 #define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
   static struct module_data bsd_##name##_##busname##_driver_mod = {	\
 	evh, arg, #busname, #name, #busname "/" #name,			\
@@ -202,11 +212,30 @@ typedef unsigned long u_long;
 typedef unsigned long bus_addr_t;
 typedef unsigned long bus_size_t;
 
+typedef struct bus_dma_segment {
+	bus_addr_t	ds_addr;	/* DMA address */
+	bus_size_t	ds_len;		/* length of transfer */
+} bus_dma_segment_t;
+
+struct bus_dma_tag {
+	uint32_t	alignment;
+	uint32_t	maxsize;
+};
+
 typedef void *bus_dmamap_t;
-typedef void *bus_dma_tag_t;
+typedef struct bus_dma_tag *bus_dma_tag_t;
+
+typedef enum {
+	BUS_DMA_LOCK	= 0x01,
+	BUS_DMA_UNLOCK	= 0x02,
+} bus_dma_lock_op_t;
 
 typedef void *bus_space_tag_t;
 typedef uint8_t *bus_space_handle_t;
+typedef int bus_dma_filter_t(void *, bus_addr_t);
+typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);
+
+typedef uint32_t bool;
 
 /* SYSINIT API */
 
@@ -578,5 +607,41 @@ extern int (*ofw_bus_is_compatible_cb)(device_t dev, char *name);
 #ifndef strlcpy
 #define	strlcpy(d,s,n) snprintf((d),(n),"%s",(s))
 #endif
+
+/* Should be defined in user application since it is machine-dependent */
+extern int delay(unsigned int);
+
+/* BUS dma */
+#define	BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
+#define	BUS_SPACE_MAXADDR_32BIT	0xFFFFFFFF
+#define	BUS_SPACE_MAXADDR	0xFFFFFFFF
+#define	BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
+#define	BUS_SPACE_MAXSIZE_32BIT	0xFFFFFFFF
+#define	BUS_SPACE_MAXSIZE	0xFFFFFFFF
+
+#define	BUS_DMA_WAITOK		0x00	/* safe to sleep (pseudo-flag) */
+#define	BUS_DMA_NOWAIT		0x01	/* not safe to sleep */
+#define	BUS_DMA_ALLOCNOW	0x02	/* perform resource allocation now */
+#define	BUS_DMA_COHERENT	0x04	/* hint: map memory in a coherent way */
+#define	BUS_DMA_ZERO		0x08	/* allocate zero'ed memory */
+#define	BUS_DMA_BUS1		0x10	/* placeholders for bus functions... */
+#define	BUS_DMA_BUS2		0x20
+#define	BUS_DMA_BUS3		0x40
+#define	BUS_DMA_BUS4		0x80
+
+typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
+
+int
+bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
+		   bus_size_t boundary, bus_addr_t lowaddr,
+		   bus_addr_t highaddr, bus_dma_filter_t *filter,
+		   void *filterarg, bus_size_t maxsize, int nsegments,
+		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+		   void *lockfuncarg, bus_dma_tag_t *dmat);
+
+int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+    bus_dmamap_t *mapp);
+void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
+int bus_dma_tag_destroy(bus_dma_tag_t dmat);
 
 #endif					/* _BSD_KERNEL_H_ */

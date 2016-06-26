@@ -6,7 +6,7 @@
 #include <sys/_cpuset.h>
 #include <machine/pcb.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 enum {
 	IPI_AST,
 	IPI_PREEMPT,
@@ -14,8 +14,8 @@ enum {
 	IPI_STOP,
 	IPI_STOP_HARD = IPI_STOP, /* These are synonyms on arm. */
 	IPI_HARDCLOCK,
-	IPI_TLB,
-	IPI_CACHE,
+	IPI_TLB,		/* Not used now, but keep it reserved. */
+	IPI_CACHE,		/* Not used now, but keep it reserved. */
 	INTR_IPI_COUNT
 };
 #else
@@ -25,8 +25,8 @@ enum {
 #define IPI_STOP	4
 #define IPI_STOP_HARD	4
 #define IPI_HARDCLOCK	6
-#define IPI_TLB		7
-#define IPI_CACHE	8
+#define IPI_TLB		7	/* Not used now, but keep it reserved. */
+#define IPI_CACHE	8	/* Not used now, but keep it reserved. */
 #endif /* INTRNG */
 
 void	init_secondary(int cpu);
@@ -37,19 +37,15 @@ void	ipi_cpu(int cpu, u_int ipi);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
 
 /* PIC interface */
+#ifndef INTRNG
 void	pic_ipi_send(cpuset_t cpus, u_int ipi);
-#ifndef ARM_INTRNG
 void	pic_ipi_clear(int ipi);
 int	pic_ipi_read(int arg);
 #endif
 
 /* Platform interface */
 void	platform_mp_setmaxid(void);
-int	platform_mp_probe(void);
 void	platform_mp_start_ap(void);
-void	platform_mp_init_secondary(void);
-
-void	platform_ipi_send(cpuset_t cpus, u_int ipi);
 
 /* global data in mp_machdep.c */
 extern struct pcb               stoppcbs[];

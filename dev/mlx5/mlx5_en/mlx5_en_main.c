@@ -222,8 +222,8 @@ mlx5e_media_status(struct ifnet *dev, struct ifmediareq *ifmr)
 
 	ifmr->ifm_status = priv->media_status_last;
 	ifmr->ifm_active = priv->media_active_last |
-	    (priv->params_ethtool.rx_pauseframe_control ? IFM_ETH_RXPAUSE : 0) |
-	    (priv->params_ethtool.tx_pauseframe_control ? IFM_ETH_TXPAUSE : 0);
+	    (priv->params.rx_pauseframe_control ? IFM_ETH_RXPAUSE : 0) |
+	    (priv->params.tx_pauseframe_control ? IFM_ETH_TXPAUSE : 0);
 
 }
 
@@ -250,6 +250,7 @@ mlx5e_media_change(struct ifnet *dev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 eth_proto_cap;
 	u32 link_mode;
+	int was_opened;
 	int locked;
 	int error;
 
@@ -263,24 +264,45 @@ mlx5e_media_change(struct ifnet *dev)
 	}
 	link_mode = mlx5e_find_link_mode(IFM_SUBTYPE(priv->media.ifm_media));
 
+	/* query supported capabilities */
 	error = mlx5_query_port_proto_cap(mdev, &eth_proto_cap, MLX5_PTYS_EN);
-	if (error) {
+	if (error != 0) {
 		if_printf(dev, "Query port media capability failed\n");
 		goto done;
 	}
-	if (IFM_SUBTYPE(priv->media.ifm_media) == IFM_AUTO)
+	/* check for autoselect */
+	if (IFM_SUBTYPE(priv->media.ifm_media) == IFM_AUTO) {
 		link_mode = eth_proto_cap;
-	else
+		if (link_mode == 0) {
+			if_printf(dev, "Port media capability is zero\n");
+			error = EINVAL;
+			goto done;
+		}
+	} else {
 		link_mode = link_mode & eth_proto_cap;
-
-	if (!link_mode) {
-		if_printf(dev, "Not supported link mode requested\n");
-		error = EINVAL;
-		goto done;
+		if (link_mode == 0) {
+			if_printf(dev, "Not supported link mode requested\n");
+			error = EINVAL;
+			goto done;
+		}
 	}
+	/* update pauseframe control bits */
+	priv->params.rx_pauseframe_control =
+	    (priv->media.ifm_media & IFM_ETH_RXPAUSE) ? 1 : 0;
+	priv->params.tx_pauseframe_control =
+	    (priv->media.ifm_media & IFM_ETH_TXPAUSE) ? 1 : 0;
+
+	/* check if device is opened */
+	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+
+	/* reconfigure the hardware */
 	mlx5_set_port_status(mdev, MLX5_PORT_DOWN);
 	mlx5_set_port_proto(mdev, link_mode, MLX5_PTYS_EN);
-	mlx5_set_port_status(mdev, MLX5_PORT_UP);
+	mlx5_set_port_pause(mdev, 1,
+	    priv->params.rx_pauseframe_control,
+	    priv->params.tx_pauseframe_control);
+	if (was_opened)
+		mlx5_set_port_status(mdev, MLX5_PORT_UP);
 
 done:
 	if (!locked)
@@ -828,7 +850,6 @@ mlx5e_open_rq(struct mlx5e_channel *c,
     struct mlx5e_rq *rq)
 {
 	int err;
-	int i;
 
 	err = mlx5e_create_rq(c, param, rq);
 	if (err)
@@ -844,12 +865,6 @@ mlx5e_open_rq(struct mlx5e_channel *c,
 
 	c->rq.enabled = 1;
 
-	/*
-	 * Test send queues, which will trigger
-	 * "mlx5e_post_rx_wqes()":
-	 */
-	for (i = 0; i != c->num_tc; i++)
-		mlx5e_send_nop(&c->sq[i], 1, true);
 	return (0);
 
 err_disable_rq:
@@ -1163,24 +1178,89 @@ err_destroy_sq:
 }
 
 static void
-mlx5e_close_sq(struct mlx5e_sq *sq)
+mlx5e_sq_send_nops_locked(struct mlx5e_sq *sq, int can_sleep)
 {
+	/* fill up remainder with NOPs */
+	while (sq->cev_counter != 0) {
+		while (!mlx5e_sq_has_room_for(sq, 1)) {
+			if (can_sleep != 0) {
+				mtx_unlock(&sq->lock);
+				msleep(4);
+				mtx_lock(&sq->lock);
+			} else {
+				goto done;
+			}
+		}
+		/* send a single NOP */
+		mlx5e_send_nop(sq, 1);
+		wmb();
+	}
+done:
+	/* Check if we need to write the doorbell */
+	if (likely(sq->doorbell.d64 != 0)) {
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		sq->doorbell.d64 = 0;
+	}
+	return;
+}
 
-	/* ensure hw is notified of all pending wqes */
-	if (mlx5e_sq_has_room_for(sq, 1))
-		mlx5e_send_nop(sq, 1, true);
+void
+mlx5e_sq_cev_timeout(void *arg)
+{
+	struct mlx5e_sq *sq = arg;
 
-	mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
+	mtx_assert(&sq->lock, MA_OWNED);
+
+	/* check next state */
+	switch (sq->cev_next_state) {
+	case MLX5E_CEV_STATE_SEND_NOPS:
+		/* fill TX ring with NOPs, if any */
+		mlx5e_sq_send_nops_locked(sq, 0);
+
+		/* check if completed */
+		if (sq->cev_counter == 0) {
+			sq->cev_next_state = MLX5E_CEV_STATE_INITIAL;
+			return;
+		}
+		break;
+	default:
+		/* send NOPs on next timeout */
+		sq->cev_next_state = MLX5E_CEV_STATE_SEND_NOPS;
+		break;
+	}
+
+	/* restart timer */
+	callout_reset_curcpu(&sq->cev_callout, hz, mlx5e_sq_cev_timeout, sq);
 }
 
 static void
 mlx5e_close_sq_wait(struct mlx5e_sq *sq)
 {
+
+	mtx_lock(&sq->lock);
+	/* teardown event factor timer, if any */
+	sq->cev_next_state = MLX5E_CEV_STATE_HOLD_NOPS;
+	callout_stop(&sq->cev_callout);
+
+	/* send dummy NOPs in order to flush the transmit ring */
+	mlx5e_sq_send_nops_locked(sq, 1);
+	mtx_unlock(&sq->lock);
+
+	/* make sure it is safe to free the callout */
+	callout_drain(&sq->cev_callout);
+
+	/* error out remaining requests */
+	mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
+
 	/* wait till SQ is empty */
+	mtx_lock(&sq->lock);
 	while (sq->cc != sq->pc) {
+		mtx_unlock(&sq->lock);
 		msleep(4);
 		sq->cq.mcq.comp(&sq->cq.mcq);
+		mtx_lock(&sq->lock);
 	}
+	mtx_unlock(&sq->lock);
 
 	mlx5e_disable_sq(sq);
 	mlx5e_destroy_sq(sq);
@@ -1390,21 +1470,10 @@ mlx5e_open_sqs(struct mlx5e_channel *c,
 	return (0);
 
 err_close_sqs:
-	for (tc--; tc >= 0; tc--) {
-		mlx5e_close_sq(&c->sq[tc]);
+	for (tc--; tc >= 0; tc--)
 		mlx5e_close_sq_wait(&c->sq[tc]);
-	}
 
 	return (err);
-}
-
-static void
-mlx5e_close_sqs(struct mlx5e_channel *c)
-{
-	int tc;
-
-	for (tc = 0; tc < c->num_tc; tc++)
-		mlx5e_close_sq(&c->sq[tc]);
 }
 
 static void
@@ -1424,9 +1493,19 @@ mlx5e_chan_mtx_init(struct mlx5e_channel *c)
 	mtx_init(&c->rq.mtx, "mlx5rx", MTX_NETWORK_LOCK, MTX_DEF);
 
 	for (tc = 0; tc < c->num_tc; tc++) {
-		mtx_init(&c->sq[tc].lock, "mlx5tx", MTX_NETWORK_LOCK, MTX_DEF);
-		mtx_init(&c->sq[tc].comp_lock, "mlx5comp", MTX_NETWORK_LOCK,
+		struct mlx5e_sq *sq = c->sq + tc;
+
+		mtx_init(&sq->lock, "mlx5tx", MTX_NETWORK_LOCK, MTX_DEF);
+		mtx_init(&sq->comp_lock, "mlx5comp", MTX_NETWORK_LOCK,
 		    MTX_DEF);
+
+		callout_init_mtx(&sq->cev_callout, &sq->lock, 0);
+
+		sq->cev_factor = c->priv->params_ethtool.tx_completion_fact;
+
+		/* ensure the TX completion event factor is not zero */
+		if (sq->cev_factor == 0)
+			sq->cev_factor = 1;
 	}
 }
 
@@ -1507,7 +1586,6 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	return (0);
 
 err_close_sqs:
-	mlx5e_close_sqs(c);
 	mlx5e_close_sqs_wait(c);
 
 err_close_rx_cq:
@@ -1532,7 +1610,6 @@ mlx5e_close_channel(struct mlx5e_channel *volatile *pp)
 	if (c == NULL)
 		return;
 	mlx5e_close_rq(&c->rq);
-	mlx5e_close_sqs(c);
 }
 
 static void
@@ -2537,9 +2614,15 @@ out:
 		if (error) {
 			if_printf(ifp, "Query module num failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
-
+		/* Check if module is present before doing an access */
+		if (mlx5_query_module_status(priv->mdev, module_num) !=
+		    MLX5_MODULE_STATUS_PLUGGED) {
+			error = EINVAL;
+			goto err_i2c;
+		}
 		/*
 		 * Currently 0XA0 and 0xA2 are the only addresses permitted.
 		 * The internal conversion is as follows:
@@ -2561,6 +2644,7 @@ out:
 		if (error) {
 			if_printf(ifp, "Query eeprom failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
 
@@ -2574,6 +2658,7 @@ out:
 		if (error) {
 			if_printf(ifp, "Query eeprom failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
 
@@ -2749,6 +2834,56 @@ mlx5e_add_hw_stats(struct mlx5e_priv *priv)
 	    "Board ID");
 }
 
+static void
+mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
+{
+#if (__FreeBSD_version < 1100000)
+	char path[64];
+
+#endif
+	/* Only receiving pauseframes is enabled by default */
+	priv->params.tx_pauseframe_control = 0;
+	priv->params.rx_pauseframe_control = 1;
+
+#if (__FreeBSD_version < 1100000)
+	/* compute path for sysctl */
+	snprintf(path, sizeof(path), "dev.mce.%d.tx_pauseframe_control",
+	    device_get_unit(priv->mdev->pdev->dev.bsddev));
+
+	/* try to fetch tunable, if any */
+	TUNABLE_INT_FETCH(path, &priv->params.tx_pauseframe_control);
+
+	/* compute path for sysctl */
+	snprintf(path, sizeof(path), "dev.mce.%d.rx_pauseframe_control",
+	    device_get_unit(priv->mdev->pdev->dev.bsddev));
+
+	/* try to fetch tunable, if any */
+	TUNABLE_INT_FETCH(path, &priv->params.rx_pauseframe_control);
+#endif
+
+	/* register pausframe SYSCTLs */
+	SYSCTL_ADD_INT(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
+	    OID_AUTO, "tx_pauseframe_control", CTLFLAG_RDTUN,
+	    &priv->params.tx_pauseframe_control, 0,
+	    "Set to enable TX pause frames. Clear to disable.");
+
+	SYSCTL_ADD_INT(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
+	    OID_AUTO, "rx_pauseframe_control", CTLFLAG_RDTUN,
+	    &priv->params.rx_pauseframe_control, 0,
+	    "Set to enable RX pause frames. Clear to disable.");
+
+	/* range check */
+	priv->params.tx_pauseframe_control =
+	    priv->params.tx_pauseframe_control ? 1 : 0;
+	priv->params.rx_pauseframe_control =
+	    priv->params.rx_pauseframe_control ? 1 : 0;
+
+	/* update firmware */
+	mlx5_set_port_pause(priv->mdev, 1,
+	    priv->params.rx_pauseframe_control,
+	    priv->params.tx_pauseframe_control);
+}
+
 static void *
 mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 {
@@ -2866,6 +3001,13 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	}
 	mlx5_query_nic_vport_mac_address(priv->mdev, 0, dev_addr);
 
+	/* check if we should generate a random MAC address */
+	if (MLX5_CAP_GEN(priv->mdev, vport_group_manager) == 0 &&
+	    is_zero_ether_addr(dev_addr)) {
+		random_ether_addr(dev_addr);
+		if_printf(ifp, "Assigned random MAC address\n");
+	}
+
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
 
@@ -2874,11 +3016,11 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	/* Set default media status */
 	priv->media_status_last = IFM_AVALID;
-	priv->media_active_last = IFM_ETHER | IFM_AUTO;
+	priv->media_active_last = IFM_ETHER | IFM_AUTO |
+	    IFM_ETH_RXPAUSE | IFM_FDX;
 
-	/* Pauseframes are enabled by default */
-	priv->params_ethtool.tx_pauseframe_control = 1;
-	priv->params_ethtool.rx_pauseframe_control = 1;
+	/* setup default pauseframes configuration */
+	mlx5e_setup_pauseframes(priv);
 
 	err = mlx5_query_port_proto_cap(mdev, &eth_proto_cap, MLX5_PTYS_EN);
 	if (err) {
@@ -2894,14 +3036,24 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
 		if (mlx5e_mode_table[i].baudrate == 0)
 			continue;
-		if (MLX5E_PROT_MASK(i) & eth_proto_cap)
+		if (MLX5E_PROT_MASK(i) & eth_proto_cap) {
 			ifmedia_add(&priv->media,
-			    IFM_ETHER | mlx5e_mode_table[i].subtype |
-			    IFM_FDX, 0, NULL);
+			    mlx5e_mode_table[i].subtype |
+			    IFM_ETHER, 0, NULL);
+			ifmedia_add(&priv->media,
+			    mlx5e_mode_table[i].subtype |
+			    IFM_ETHER | IFM_FDX |
+			    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+		}
 	}
 
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO, 0, NULL);
-	ifmedia_set(&priv->media, IFM_ETHER | IFM_AUTO);
+	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
+	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+
+	/* Set autoselect by default */
+	ifmedia_set(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
+	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE);
 	ether_ifattach(ifp, dev_addr);
 
 	/* Register for VLAN events */

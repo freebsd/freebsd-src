@@ -32,6 +32,7 @@
 #define	_LINUX_COMPLETION_H_
 
 #include <linux/errno.h>
+#include <linux/wait.h>
 
 struct completion {
 	unsigned int done;
@@ -40,7 +41,9 @@ struct completion {
 #define	INIT_COMPLETION(c) \
 	((c).done = 0)
 #define	init_completion(c) \
-	((c)->done = 0)
+	do { (c)->done = 0; } while (0)
+#define	reinit_completion(c) \
+	do { (c)->done = 0; } while (0)
 #define	complete(c)				\
 	linux_complete_common((c), 0)
 #define	complete_all(c)				\

@@ -88,7 +88,6 @@ static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
 SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0, "BSD security policy");
 
-static void crextend(struct ucred *cr, int n);
 static void crsetgroups_locked(struct ucred *cr, int ngrp,
     gid_t *groups);
 
@@ -165,7 +164,7 @@ sys_getpgrp(struct thread *td, struct getpgrp_args *uap)
 	return (0);
 }
 
-/* Get an arbitary pid's process group id */
+/* Get an arbitrary pid's process group id */
 #ifndef _SYS_SYSPROTO_H_
 struct getpgid_args {
 	pid_t	pid;
@@ -196,7 +195,7 @@ sys_getpgid(struct thread *td, struct getpgid_args *uap)
 }
 
 /*
- * Get an arbitary pid's session id.
+ * Get an arbitrary pid's session id.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct getsid_args {
@@ -1997,7 +1996,7 @@ crcopysafe(struct proc *p, struct ucred *cr)
 /*
  * Extend the passed in credential to hold n items.
  */
-static void
+void
 crextend(struct ucred *cr, int n)
 {
 	int cnt;

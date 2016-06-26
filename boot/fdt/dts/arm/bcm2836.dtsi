@@ -32,8 +32,8 @@
 	timer {
 		compatible = "arm,armv7-timer";
 		clock-frequency = <19200000>;
-		interrupts = <72 73 75 74>;
-		interrupt-parent = <&intc>;
+		interrupts = <0 1 3 2>;
+		interrupt-parent = <&local_intc>;
 	};
 
 	SOC: axi {
@@ -41,12 +41,23 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x3f000000 0x01000000>;
-		ranges = <0 0x3f000000 0x01000000>;
+		ranges = <0 0x3f000000 0x01000000>,
+		    <0x40000000 0x40000000 0x00001000>;
+
+		local_intc: local_intc {
+			compatible = "brcm,bcm2836-l1-intc";
+			reg = <0x40000000 0x100>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&local_intc>;
+		};
 
 		intc: interrupt-controller {
 			compatible = "broadcom,bcm2835-armctrl-ic",
 				     "broadcom,bcm2708-armctrl-ic";
 			reg = <0xB200 0x200>;
+			interrupt-parent = <&local_intc>;
+			interrupts = <8>;
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -126,7 +137,7 @@
 			#gpio-cells = <2>;
 
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&pins_reserved>;

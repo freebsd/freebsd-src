@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
  * chipset.
  * Copyright Roger Hardiman and Amancio Hasty.
  *
- * bktr_os : This has all the Operating System dependant code,
+ * bktr_os : This has all the Operating System dependent code,
  *             probe/attach and open/close/ioctl/read/mmap
  *             memory allocation
  *             PCI bus interfacing
@@ -304,7 +304,7 @@ bktr_probe( device_t dev )
 			device_set_desc(dev, "BrookTree 879");
 			return BUS_PROBE_DEFAULT;
 		}
-	};
+	}
 
         return ENXIO;
 }
@@ -395,12 +395,12 @@ bktr_attach( device_t dev )
         fun = fun | 1;	/* Enable writes to the sub-system vendor ID */
 
 #if defined( BKTR_430_FX_MODE )
-	if (bootverbose) printf("Using 430 FX chipset compatibilty mode\n");
+	if (bootverbose) printf("Using 430 FX chipset compatibility mode\n");
         fun = fun | 2;	/* Enable Intel 430 FX compatibility mode */
 #endif
 
 #if defined( BKTR_SIS_VIA_MODE )
-	if (bootverbose) printf("Using SiS/VIA chipset compatibilty mode\n");
+	if (bootverbose) printf("Using SiS/VIA chipset compatibility mode\n");
         fun = fun | 4;	/* Enable SiS/VIA compatibility mode (useful for
                            OPTi chipset motherboards too */
 #endif

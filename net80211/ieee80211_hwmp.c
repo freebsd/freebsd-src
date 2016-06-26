@@ -118,18 +118,6 @@ static void	hwmp_peerdown(struct ieee80211_node *);
 static struct timeval ieee80211_hwmp_preqminint = { 0, 100000 };
 static struct timeval ieee80211_hwmp_perrminint = { 0, 100000 };
 
-/* unalligned little endian access */
-#define LE_WRITE_2(p, v) do {				\
-	((uint8_t *)(p))[0] = (v) & 0xff;		\
-	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
-} while (0)
-#define LE_WRITE_4(p, v) do {				\
-	((uint8_t *)(p))[0] = (v) & 0xff;		\
-	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
-	((uint8_t *)(p))[2] = ((v) >> 16) & 0xff;	\
-	((uint8_t *)(p))[3] = ((v) >> 24) & 0xff;	\
-} while (0)
-
 
 /* NB: the Target Address set in a Proactive PREQ is the broadcast address. */
 static const uint8_t	broadcastaddr[IEEE80211_ADDR_LEN] =
@@ -140,7 +128,6 @@ typedef uint32_t ieee80211_hwmp_seq;
 #define	HWMP_SEQ_LEQ(a, b)	((int32_t)((a)-(b)) <= 0)
 #define	HWMP_SEQ_EQ(a, b)	((int32_t)((a)-(b)) == 0)
 #define	HWMP_SEQ_GT(a, b)	((int32_t)((a)-(b)) > 0)
-#define	HWMP_SEQ_GEQ(a, b)	((int32_t)((a)-(b)) >= 0)
 
 #define HWMP_SEQ_MAX(a, b)	(a > b ? a : b)
 
@@ -260,7 +247,7 @@ ieee80211_hwmp_init(void)
 }
 SYSINIT(wlan_hwmp, SI_SUB_DRIVERS, SI_ORDER_SECOND, ieee80211_hwmp_init, NULL);
 
-void
+static void
 hwmp_vattach(struct ieee80211vap *vap)
 {
 	struct ieee80211_hwmp_state *hs;
@@ -279,7 +266,7 @@ hwmp_vattach(struct ieee80211vap *vap)
 	vap->iv_hwmp = hs;
 }
 
-void
+static void
 hwmp_vdetach(struct ieee80211vap *vap)
 {
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
@@ -289,7 +276,7 @@ hwmp_vdetach(struct ieee80211vap *vap)
 	vap->iv_hwmp = NULL;
 } 
 
-int
+static int
 hwmp_newstate(struct ieee80211vap *vap, enum ieee80211_state ostate, int arg)
 {
 	enum ieee80211_state nstate = vap->iv_state;
@@ -440,18 +427,18 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 			preq->preq_flags = *iefrm_t++;
 			preq->preq_hopcount = *iefrm_t++;
 			preq->preq_ttl = *iefrm_t++;
-			preq->preq_id = LE_READ_4(iefrm_t); iefrm_t += 4;
+			preq->preq_id = le32dec(iefrm_t); iefrm_t += 4;
 			IEEE80211_ADDR_COPY(preq->preq_origaddr, iefrm_t);
 			iefrm_t += 6;
-			preq->preq_origseq = LE_READ_4(iefrm_t); iefrm_t += 4;
+			preq->preq_origseq = le32dec(iefrm_t); iefrm_t += 4;
 			/* NB: may have Originator Proxied Address */
 			if (preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_AE)  {
 				IEEE80211_ADDR_COPY(
 				    preq->preq_orig_ext_addr, iefrm_t);
 				iefrm_t += 6;
 			}
-			preq->preq_lifetime = LE_READ_4(iefrm_t); iefrm_t += 4;
-			preq->preq_metric = LE_READ_4(iefrm_t); iefrm_t += 4;
+			preq->preq_lifetime = le32dec(iefrm_t); iefrm_t += 4;
+			preq->preq_metric = le32dec(iefrm_t); iefrm_t += 4;
 			preq->preq_tcount = *iefrm_t++;
 			
 			for (i = 0; i < preq->preq_tcount; i++) {
@@ -460,7 +447,7 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 				    preq->preq_targets[i].target_addr, iefrm_t);
 				iefrm_t += 6;
 				preq->preq_targets[i].target_seq =
-				    LE_READ_4(iefrm_t);
+				    le32dec(iefrm_t);
 				iefrm_t += 4;
 			}
 
@@ -489,18 +476,18 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 			prep->prep_ttl = *iefrm_t++;
 			IEEE80211_ADDR_COPY(prep->prep_targetaddr, iefrm_t);
 			iefrm_t += 6;
-			prep->prep_targetseq = LE_READ_4(iefrm_t); iefrm_t += 4;
+			prep->prep_targetseq = le32dec(iefrm_t); iefrm_t += 4;
 			/* NB: May have Target Proxied Address */
 			if (prep->prep_flags & IEEE80211_MESHPREP_FLAGS_AE)  {
 				IEEE80211_ADDR_COPY(
 				    prep->prep_target_ext_addr, iefrm_t);
 				iefrm_t += 6;
 			}
-			prep->prep_lifetime = LE_READ_4(iefrm_t); iefrm_t += 4;
-			prep->prep_metric = LE_READ_4(iefrm_t); iefrm_t += 4;
+			prep->prep_lifetime = le32dec(iefrm_t); iefrm_t += 4;
+			prep->prep_metric = le32dec(iefrm_t); iefrm_t += 4;
 			IEEE80211_ADDR_COPY(prep->prep_origaddr, iefrm_t);
 			iefrm_t += 6;
-			prep->prep_origseq = LE_READ_4(iefrm_t); iefrm_t += 4;
+			prep->prep_origseq = le32dec(iefrm_t); iefrm_t += 4;
 
 			hwmp_recv_prep(vap, ni, wh, prep);
 			IEEE80211_FREE(prep, M_80211_MESH_PREP);
@@ -533,7 +520,7 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 				IEEE80211_ADDR_COPY(
 				    perr->perr_dests[i].dest_addr, iefrm_t);
 				iefrm_t += 6;
-				perr->perr_dests[i].dest_seq = LE_READ_4(iefrm_t);
+				perr->perr_dests[i].dest_seq = le32dec(iefrm_t);
 				iefrm_t += 4;
 				/* NB: May have Target Proxied Address */
 				if (perr->perr_dests[i].dest_flags &
@@ -544,7 +531,7 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 					iefrm_t += 6;
 				}
 				perr->perr_dests[i].dest_rcode =
-				    LE_READ_2(iefrm_t);
+				    le16dec(iefrm_t);
 				iefrm_t += 2;
 			}
 
@@ -566,9 +553,9 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 				return 1;
 			}
 			memcpy(&rann, mrann, sizeof(rann));
-			rann.rann_seq = LE_READ_4(&mrann->rann_seq);
-			rann.rann_interval = LE_READ_4(&mrann->rann_interval);
-			rann.rann_metric = LE_READ_4(&mrann->rann_metric);
+			rann.rann_seq = le32dec(&mrann->rann_seq);
+			rann.rann_interval = le32dec(&mrann->rann_interval);
+			rann.rann_metric = le32dec(&mrann->rann_metric);
 			hwmp_recv_rann(vap, ni, wh, &rann);
 			found++;
 			break;
@@ -682,12 +669,11 @@ hwmp_send_action(struct ieee80211vap *vap,
 }
 
 #define ADDSHORT(frm, v) do {		\
-	frm[0] = (v) & 0xff;		\
-	frm[1] = (v) >> 8;		\
+	le16enc(frm, v);		\
 	frm += 2;			\
 } while (0)
 #define ADDWORD(frm, v) do {		\
-	LE_WRITE_4(frm, v);		\
+	le32enc(frm, v);		\
 	frm += 4;			\
 } while (0)
 /*
@@ -958,7 +944,6 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_hwmp_route *hrorig = NULL;
 	struct ieee80211_hwmp_route *hrtarg = NULL;
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
-	struct ieee80211_meshprep_ie prep;
 	ieee80211_hwmp_seq preqid;	/* last seen preqid for orig */
 	uint32_t metric = 0;
 
@@ -1071,6 +1056,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    IEEE80211_ADDR_EQ(vap->iv_myaddr, rttarg->rt_mesh_gate) &&
 	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY &&
 	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)) {
+		struct ieee80211_meshprep_ie prep;
+
 		/*
 		 * When we are the target we shall update our own HWMP seq
 		 * number with max of (current and preq->seq) + 1
@@ -1153,6 +1140,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 */
 		if ((rtorig->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 ||
 		    (preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_PP)) {
+			struct ieee80211_meshprep_ie prep;
+
 			prep.prep_flags = 0;
 			prep.prep_hopcount = 0;
 			prep.prep_ttl = ms->ms_ttl;
@@ -1539,7 +1528,6 @@ hwmp_peerdown(struct ieee80211_node *ni)
 #define	PERR_DADDR(n)		perr->perr_dests[n].dest_addr
 #define	PERR_DSEQ(n)		perr->perr_dests[n].dest_seq
 #define	PERR_DEXTADDR(n)	perr->perr_dests[n].dest_ext_addr
-#define	PERR_DRCODE(n)		perr->perr_dests[n].dest_rcode
 static void
 hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
     const struct ieee80211_frame *wh, const struct ieee80211_meshperr_ie *perr)
@@ -1641,7 +1629,6 @@ done:
 #undef	PERR_DADDR
 #undef	PERR_DSEQ
 #undef	PERR_DEXTADDR
-#undef	PERR_DRCODE
 
 static int
 hwmp_send_perr(struct ieee80211vap *vap,
@@ -1750,7 +1737,6 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_hwmp_route *hr;
 	struct ieee80211_meshpreq_ie preq;
 	struct ieee80211_meshrann_ie prann;
-	uint32_t metric = 0;
 
 	if (IEEE80211_ADDR_EQ(rann->rann_addr, vap->iv_myaddr))
 		return;
@@ -1779,7 +1765,6 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	/* RANN ACCEPTED */
 
 	ieee80211_hwmp_rannint = rann->rann_interval; /* XXX: mtx lock? */
-	metric = rann->rann_metric + ms->ms_pmetric->mpm_metric(ni);
 
 	if (rt == NULL) {
 		rt = ieee80211_mesh_rt_add(vap, rann->rann_addr);

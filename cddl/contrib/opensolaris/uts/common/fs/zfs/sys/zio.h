@@ -82,9 +82,9 @@ enum zio_checksum {
 	ZIO_CHECKSUM_SHA256,
 	ZIO_CHECKSUM_ZILOG2,
 	ZIO_CHECKSUM_NOPARITY,
-#ifdef illumos
 	ZIO_CHECKSUM_SHA512,
 	ZIO_CHECKSUM_SKEIN,
+#ifdef illumos
 	ZIO_CHECKSUM_EDONR,
 #endif
 	ZIO_CHECKSUM_FUNCTIONS
@@ -455,6 +455,7 @@ struct zio {
 
 	uint64_t	io_offset;
 	hrtime_t	io_timestamp;
+	hrtime_t	io_target_timestamp;
 	avl_node_t	io_queue_node;
 	avl_node_t	io_offset_node;
 
@@ -548,6 +549,8 @@ extern int zio_wait(zio_t *zio);
 extern void zio_nowait(zio_t *zio);
 extern void zio_execute(zio_t *zio);
 extern void zio_interrupt(zio_t *zio);
+extern void zio_delay_init(zio_t *zio);
+extern void zio_delay_interrupt(zio_t *zio);
 
 extern zio_t *zio_walk_parents(zio_t *cio);
 extern zio_t *zio_walk_children(zio_t *pio);
@@ -609,7 +612,7 @@ extern int zio_handle_fault_injection(zio_t *zio, int error);
 extern int zio_handle_device_injection(vdev_t *vd, zio_t *zio, int error);
 extern int zio_handle_label_injection(zio_t *zio, int error);
 extern void zio_handle_ignored_writes(zio_t *zio);
-extern uint64_t zio_handle_io_delay(zio_t *zio);
+extern hrtime_t zio_handle_io_delay(zio_t *zio);
 
 /*
  * Checksum ereport functions

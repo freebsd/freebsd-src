@@ -47,6 +47,173 @@ static void ofw_gpiobus_destroy_devinfo(device_t, struct ofw_gpiobus_devinfo *);
 static int ofw_gpiobus_parse_gpios_impl(device_t, phandle_t, char *,
 	struct gpiobus_softc *, struct gpiobus_pin **);
 
+/*
+ * Utility functions for easier handling of OFW GPIO pins.
+ *
+ * !!! BEWARE !!!
+ * GPIOBUS uses children's IVARs, so we cannot use this interface for cross
+ * tree consumers.
+ *
+ */
+static int
+gpio_pin_get_by_ofw_impl(device_t consumer, phandle_t cnode,
+    char *prop_name, int idx, gpio_pin_t *out_pin)
+{
+	phandle_t xref;
+	pcell_t *cells;
+	device_t busdev;
+	struct gpiobus_pin pin;
+	int ncells, rv;
+
+	KASSERT(consumer != NULL && cnode > 0,
+	    ("both consumer and cnode required"));
+
+	rv = ofw_bus_parse_xref_list_alloc(cnode, prop_name, "#gpio-cells",
+	    idx, &xref, &ncells, &cells);
+	if (rv != 0)
+		return (rv);
+
+	/* Translate provider to device. */
+	pin.dev = OF_device_from_xref(xref);
+	if (pin.dev == NULL) {
+		OF_prop_free(cells);
+		return (ENODEV);
+	}
+
+	/* Test if GPIO bus already exist. */
+	busdev = GPIO_GET_BUS(pin.dev);
+	if (busdev == NULL) {
+		OF_prop_free(cells);
+		return (ENODEV);
+	}
+
+	/* Map GPIO pin. */
+	rv = gpio_map_gpios(pin.dev, cnode, OF_node_from_xref(xref), ncells,
+	    cells, &pin.pin, &pin.flags);
+	OF_prop_free(cells);
+	if (rv != 0)
+		return (ENXIO);
+
+	/* Reserve GPIO pin. */
+	rv = gpiobus_acquire_pin(busdev, pin.pin);
+	if (rv != 0)
+		return (EBUSY);
+
+	*out_pin = malloc(sizeof(struct gpiobus_pin), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
+	**out_pin = pin;
+	return (0);
+}
+
+int
+gpio_pin_get_by_ofw_idx(device_t consumer, phandle_t node,
+    int idx, gpio_pin_t *pin)
+{
+
+	return (gpio_pin_get_by_ofw_impl(consumer, node, "gpios", idx, pin));
+}
+
+int
+gpio_pin_get_by_ofw_property(device_t consumer, phandle_t node,
+    char *name, gpio_pin_t *pin)
+{
+
+	return (gpio_pin_get_by_ofw_impl(consumer, node, name, 0, pin));
+}
+
+int
+gpio_pin_get_by_ofw_name(device_t consumer, phandle_t node,
+    char *name, gpio_pin_t *pin)
+{
+	int rv, idx;
+
+	KASSERT(consumer != NULL && node > 0,
+	    ("both consumer and node required"));
+
+	rv = ofw_bus_find_string_index(node, "gpio-names", name, &idx);
+	if (rv != 0)
+		return (rv);
+	return (gpio_pin_get_by_ofw_idx(consumer, node, idx, pin));
+}
+
+void
+gpio_pin_release(gpio_pin_t gpio)
+{
+	device_t busdev;
+
+	if (gpio == NULL)
+		return;
+
+	KASSERT(gpio->dev != NULL, ("invalid pin state"));
+
+	busdev = GPIO_GET_BUS(gpio->dev);
+	if (busdev != NULL)
+		gpiobus_release_pin(busdev, gpio->pin);
+
+	/* XXXX Unreserve pin. */
+	free(gpio, M_DEVBUF);
+}
+
+int
+gpio_pin_getcaps(gpio_pin_t pin, uint32_t *caps)
+{
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	return (GPIO_PIN_GETCAPS(pin->dev, pin->pin, caps));
+}
+
+int
+gpio_pin_is_active(gpio_pin_t pin, bool *active)
+{
+	int rv;
+	uint32_t tmp;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	rv = GPIO_PIN_GET(pin->dev, pin->pin, &tmp);
+	if (rv  != 0) {
+		return (rv);
+	}
+
+	*active = tmp != 0;
+	if (pin->flags & GPIO_ACTIVE_LOW)
+		*active = !(*active);
+	return (0);
+}
+
+int
+gpio_pin_set_active(gpio_pin_t pin, bool active)
+{
+	int rv;
+	uint32_t tmp;
+
+	if (pin->flags & GPIO_ACTIVE_LOW)
+		tmp = active ? 0 : 1;
+	else
+		tmp = active ? 1 : 0;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	rv = GPIO_PIN_SET(pin->dev, pin->pin, tmp);
+	return (rv);
+}
+
+int
+gpio_pin_setflags(gpio_pin_t pin, uint32_t flags)
+{
+	int rv;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+
+	rv = GPIO_PIN_SETFLAGS(pin->dev, pin->pin, flags);
+	return (rv);
+}
+
+/*
+ * OFW_GPIOBUS driver.
+ */
 device_t
 ofw_gpiobus_add_fdt_child(device_t bus, const char *drvname, phandle_t child)
 {
@@ -154,11 +321,13 @@ ofw_gpiobus_setup_devinfo(device_t bus, device_t child, phandle_t node)
 		devi->pins[i] = pins[i].pin;
 	}
 	free(pins, M_DEVBUF);
+#ifndef INTRNG
 	/* Parse the interrupt resources. */
 	if (ofw_bus_intr_to_rl(bus, node, &dinfo->opd_dinfo.rl, NULL) != 0) {
 		ofw_gpiobus_destroy_devinfo(bus, dinfo);
 		return (NULL);
 	}
+#endif
 	device_set_ivars(child, dinfo);
 
 	return (dinfo);
@@ -228,7 +397,7 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 		    sizeof(gpiocells)) < 0) {
 			device_printf(consumer,
 			    "gpio reference is not a gpio-controller.\n");
-			free(gpios, M_OFWPROP);
+			OF_prop_free(gpios);
 			return (-1);
 		}
 		if (ncells - i < gpiocells + 1) {
@@ -243,13 +412,13 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 		if (npins == 0)
 			device_printf(consumer, "no pin specified in %s.\n",
 			    pname);
-		free(gpios, M_OFWPROP);
+		OF_prop_free(gpios);
 		return (npins);
 	}
 	*pins = malloc(sizeof(struct gpiobus_pin) * npins, M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (*pins == NULL) {
-		free(gpios, M_OFWPROP);
+		OF_prop_free(gpios);
 		return (-1);
 	}
 	/* Decode the gpio specifier on the second pass. */
@@ -299,17 +468,17 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 			goto fail;
 		}
 		/* Reserve the GPIO pin. */
-		if (gpiobus_map_pin(bussc->sc_busdev, (*pins)[j].pin) != 0)
+		if (gpiobus_acquire_pin(bussc->sc_busdev, (*pins)[j].pin) != 0)
 			goto fail;
 		j++;
 		i += gpiocells + 1;
 	}
-	free(gpios, M_OFWPROP);
+	OF_prop_free(gpios);
 
 	return (npins);
 
 fail:
-	free(gpios, M_OFWPROP);
+	OF_prop_free(gpios);
 	free(*pins, M_DEVBUF);
 	return (-1);
 }
@@ -411,10 +580,11 @@ static device_method_t ofw_gpiobus_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ofwgpiobus_devclass;
+devclass_t ofwgpiobus_devclass;
 
 DEFINE_CLASS_1(gpiobus, ofw_gpiobus_driver, ofw_gpiobus_methods,
     sizeof(struct gpiobus_softc), gpiobus_driver);
-DRIVER_MODULE(ofw_gpiobus, gpio, ofw_gpiobus_driver, ofwgpiobus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ofw_gpiobus, gpio, ofw_gpiobus_driver, ofwgpiobus_devclass,
+    0, 0, BUS_PASS_BUS);
 MODULE_VERSION(ofw_gpiobus, 1);
 MODULE_DEPEND(ofw_gpiobus, gpiobus, 1, 1, 1);

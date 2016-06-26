@@ -203,7 +203,7 @@ fe_probe_fmv(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
 	int n;
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 
 	static u_short const irqmap [ 4 ] = { 3, 7, 10, 15 };
 
@@ -364,7 +364,7 @@ fe_probe_fmv(device_t dev)
  *	u_short const * func (struct fe_softc * sc, u_char const * eeprom);
  *
  * where eeprom is a pointer to an array of 32 byte data read from the
- * config EEPROM on the board.  It retuns an IRQ mapping table for the
+ * config EEPROM on the board.  It returns an IRQ mapping table for the
  * board, when the corresponding implementation is detected.  It
  * returns a NULL otherwise.
  * 
@@ -698,7 +698,7 @@ fe_probe_jli(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
 	int i, n, error, xirq;
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 	u_char eeprom [JLI_EEPROM_SIZE];
 	u_short const * irqmap;
 
@@ -816,7 +816,7 @@ static int
 fe_probe_ssi(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 
 	u_char eeprom [SSI_EEPROM_SIZE];
 	static struct fe_simple_probe_struct probe_table [] = {
@@ -878,7 +878,7 @@ static int
 fe_probe_lnx(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 
 	u_char eeprom [LNX_EEPROM_SIZE];
 	static struct fe_simple_probe_struct probe_table [] = {
@@ -946,7 +946,7 @@ static int
 fe_probe_gwy(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 
 	static struct fe_simple_probe_struct probe_table [] = {
 	    /*	{ FE_DLCR2, 0x70, 0x00 }, */
@@ -999,7 +999,7 @@ static int
 fe_probe_ubn(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 #if 0
 	u_char sum;
 #endif

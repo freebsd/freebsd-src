@@ -106,14 +106,6 @@ static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td);
 
 /*
- * The module initialization routine for POSIX asynchronous I/O will
- * set this to the version of AIO that it implements.  (Zero means
- * that it is not implemented.)  This value is used here by pathconf()
- * and in kern_descrip.c by fpathconf().
- */
-int async_io_version;
-
-/*
  * Sync each mounted filesystem.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -987,7 +979,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	}
 
 	/*
-	 * Allocate the file descriptor, but don't install a descriptor yet.
+	 * Allocate a file structure. The descriptor to reference it
+	 * is allocated and set by finstall() below.
 	 */
 	error = falloc_noinstall(td, &fp);
 	if (error != 0)
@@ -2075,6 +2068,7 @@ cvtstat(st, ost)
 	struct ostat *ost;
 {
 
+	bzero(ost, sizeof(*ost));
 	ost->st_dev = st->st_dev;
 	ost->st_ino = st->st_ino;
 	ost->st_mode = st->st_mode;
@@ -2346,11 +2340,7 @@ kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name,
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	/* If asynchronous I/O is available, it works for all files. */
-	if (name == _PC_ASYNC_IO)
-		td->td_retval[0] = async_io_version;
-	else
-		error = VOP_PATHCONF(nd.ni_vp, name, td->td_retval);
+	error = VOP_PATHCONF(nd.ni_vp, name, td->td_retval);
 	vput(nd.ni_vp);
 	return (error);
 }
@@ -4532,10 +4522,10 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 int
 sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
 {
+	int error;
 
-	td->td_retval[0] = kern_posix_fallocate(td, uap->fd, uap->offset,
-	    uap->len);
-	return (0);
+	error = kern_posix_fallocate(td, uap->fd, uap->offset, uap->len);
+	return (kern_posix_error(td, error));
 }
 
 /*
@@ -4667,8 +4657,9 @@ out:
 int
 sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 {
+	int error;
 
-	td->td_retval[0] = kern_posix_fadvise(td, uap->fd, uap->offset,
-	    uap->len, uap->advice);
-	return (0);
+	error = kern_posix_fadvise(td, uap->fd, uap->offset, uap->len,
+	    uap->advice);
+	return (kern_posix_error(td, error));
 }

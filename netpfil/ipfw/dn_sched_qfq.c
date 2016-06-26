@@ -42,12 +42,16 @@
 #include <netinet/ip_dummynet.h>
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#ifdef NEW_AQM
+#include <netpfil/ipfw/dn_aqm.h>
+#endif
 #include <netpfil/ipfw/dn_sched.h>
 #else
 #include <dn_test.h>
 #endif
 
 #ifdef QFQ_DEBUG
+#define _P64	unsigned long long	/* cast for printing uint64_t */
 struct qfq_sched;
 static void dump_sched(struct qfq_sched *q, const char *msg);
 #define	NO(x)	x
@@ -60,6 +64,10 @@ typedef	unsigned long	bitmap;
 /*
  * bitmaps ops are critical. Some linux versions have __fls
  * and the bitmap ops. Some machines have ffs
+ * NOTE: fls() returns 1 for the least significant bit,
+ *       __fls() returns 0 for the same case.
+ * We use the base-0 version __fls() to match the description in
+ * the ToN QFQ paper
  */
 #if defined(_WIN32) || (defined(__MIPSEL__) && defined(LINUX_24))
 int fls(unsigned int n)
@@ -80,19 +88,19 @@ static inline unsigned long __fls(unsigned long word)
 
 #if !defined(_KERNEL) || !defined(__linux__)
 #ifdef QFQ_DEBUG
-int test_bit(int ix, bitmap *p)
+static int test_bit(int ix, bitmap *p)
 {
 	if (ix < 0 || ix > 31)
 		D("bad index %d", ix);
 	return *p & (1<<ix);
 }
-void __set_bit(int ix, bitmap *p)
+static void __set_bit(int ix, bitmap *p)
 {
 	if (ix < 0 || ix > 31)
 		D("bad index %d", ix);
 	*p |= (1<<ix);
 }
-void __clear_bit(int ix, bitmap *p)
+static void __clear_bit(int ix, bitmap *p)
 {
 	if (ix < 0 || ix > 31)
 		D("bad index %d", ix);
@@ -226,9 +234,9 @@ struct qfq_sched {
 	uint64_t	V;		/* Precise virtual time. */
 	uint32_t	wsum;		/* weight sum */
 	uint32_t	iwsum;		/* inverse weight sum */
-	NO(uint32_t	i_wsum;		/* ONE_FP/w_sum */
-	uint32_t	_queued;	/* debugging */
-	uint32_t	loops;	/* debugging */)
+	NO(uint32_t	i_wsum;)	/* ONE_FP/w_sum */
+	NO(uint32_t	queued;)	/* debugging */
+	NO(uint32_t	loops;)		/* debugging */
 	bitmap bitmaps[QFQ_MAX_STATE];	/* Group bitmaps. */
 	struct qfq_group groups[QFQ_MAX_INDEX + 1]; /* The groups. */
 };
@@ -409,8 +417,8 @@ qfq_make_eligible(struct qfq_sched *q, uint64_t old_V)
 	old_vslot = old_V >> QFQ_MIN_SLOT_SHIFT;
 
 	if (vslot != old_vslot) {
-		/* should be 1ULL not 2ULL */
-		mask = (1ULL << (__fls(vslot ^ old_vslot))) - 1;
+		/* must be 2ULL, see ToN QFQ article fig.5, we use base-0 fls */
+		mask = (2ULL << (__fls(vslot ^ old_vslot))) - 1;
 		qfq_move_groups(q, mask, IR, ER);
 		qfq_move_groups(q, mask, IB, EB);
 	}
@@ -482,6 +490,7 @@ qfq_slot_rotate(struct qfq_sched *q, struct qfq_group *grp, uint64_t roundedS)
 {
 	unsigned int i = (grp->S - roundedS) >> grp->slot_shift;
 
+	(void)q;
 	grp->full_slots <<= i;
 	grp->front = (grp->front - i) % QFQ_MAX_SLOTS;
 }
@@ -512,6 +521,7 @@ qfq_update_class(struct qfq_sched *q, struct qfq_group *grp,
 	    struct qfq_class *cl)
 {
 
+	(void)q;
 	cl->S = cl->F;
 	if (cl->_q.mq.head == NULL)  {
 		qfq_front_slot_remove(grp);
@@ -830,6 +840,9 @@ static struct dn_alg qfq_desc = {
 	_SI( .free_fsk = )  NULL,
 	_SI( .new_queue = ) qfq_new_queue,
 	_SI( .free_queue = ) qfq_free_queue,
+#ifdef NEW_AQM
+	_SI( .getconfig = )  NULL,
+#endif
 };
 
 DECLARE_DNSCHED_MODULE(dn_qfq, &qfq_desc);
@@ -849,9 +862,9 @@ dump_groups(struct qfq_sched *q, uint32_t mask)
 			if (g->slots[j])
 				D("    bucket %d %p", j, g->slots[j]);
 		}
-		D("full_slots 0x%x", g->full_slots);
+		D("full_slots 0x%llx", (_P64)g->full_slots);
 		D("        %2d S 0x%20llx F 0x%llx %c", i,
-			g->S, g->F,
+			(_P64)g->S, (_P64)g->F,
 			mask & (1<<i) ? '1' : '0');
 	}
 }
@@ -860,11 +873,11 @@ static void
 dump_sched(struct qfq_sched *q, const char *msg)
 {
 	D("--- in %s: ---", msg);
-	ND("loops %d queued %d V 0x%llx", q->loops, q->queued, q->V);
-	D("    ER 0x%08x", q->bitmaps[ER]);
-	D("    EB 0x%08x", q->bitmaps[EB]);
-	D("    IR 0x%08x", q->bitmaps[IR]);
-	D("    IB 0x%08x", q->bitmaps[IB]);
+	D("loops %d queued %d V 0x%llx", q->loops, q->queued, (_P64)q->V);
+	D("    ER 0x%08x", (unsigned)q->bitmaps[ER]);
+	D("    EB 0x%08x", (unsigned)q->bitmaps[EB]);
+	D("    IR 0x%08x", (unsigned)q->bitmaps[IR]);
+	D("    IB 0x%08x", (unsigned)q->bitmaps[IB]);
 	dump_groups(q, 0xffffffff);
 };
 #endif /* QFQ_DEBUG */

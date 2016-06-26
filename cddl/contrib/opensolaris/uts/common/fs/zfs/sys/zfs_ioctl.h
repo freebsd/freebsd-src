@@ -20,7 +20,9 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright 2016 RackTop Systems.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #ifndef	_SYS_ZFS_IOCTL_H
@@ -124,8 +126,22 @@ typedef enum dmu_send_resume_token_version {
 
 #define	DMU_BACKUP_MAGIC 0x2F5bacbacULL
 
+/*
+ * Send stream flags.  Bits 24-31 are reserved for vendor-specific
+ * implementations and should not be used.
+ */
 #define	DRR_FLAG_CLONE		(1<<0)
 #define	DRR_FLAG_CI_DATA	(1<<1)
+/*
+ * This send stream, if it is a full send, includes the FREE and FREEOBJECT
+ * records that are created by the sending process.  This means that the send
+ * stream can be received as a clone, even though it is not an incremental.
+ * This is not implemented as a feature flag, because the receiving side does
+ * not need to have implemented it to receive this stream; it is fully backwards
+ * compatible.  We need a flag, though, because full send streams without it
+ * cannot necessarily be received as a clone correctly.
+ */
+#define	DRR_FLAG_FREERECORDS	(1<<2)
 
 /*
  * flags in the drr_checksumflags field in the DRR_WRITE and
@@ -298,6 +314,7 @@ typedef struct zinject_record {
 	uint32_t	zi_iotype;
 	int32_t		zi_duration;
 	uint64_t	zi_timer;
+	uint64_t	zi_nlanes;
 	uint32_t	zi_cmd;
 	uint32_t	zi_pad;
 } zinject_record_t;

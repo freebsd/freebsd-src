@@ -172,7 +172,7 @@ typedef enum
 #define SCU_TASK_REGULAR                  0
 #define SCU_TASK_ABORTED                  1
 
-//direction bit defintion
+//direction bit definition
 /**
  * @name SATA_DIRECTION
  */
@@ -483,7 +483,7 @@ typedef struct SCU_SGL_ELEMENT
  * @brief This structure is the SCU hardware definition of a pair of SGL
  *        elements.
  *
- * The SCU hardware always works on SGL pairs.  They are refered to in the DS
+ * The SCU hardware always works on SGL pairs.  They are referred to in the DS
  * specification as SGL A and SGL B.  Each SGL pair is followed by the address
  * of the next pair.
  */
@@ -706,7 +706,7 @@ typedef struct SCU_TASK_CONTEXT
    U32    strict_ordering              : 1;
 
    /**
-    * This field indicates the type of endianess to be utilized for the
+    * This field indicates the type of endianness to be utilized for the
     * frame.  command, task, and response frames utilized control_frame
     * set to 1.
     */
@@ -793,7 +793,7 @@ typedef struct SCU_TASK_CONTEXT
 
    // OFFSET 0x14
    /**
-    * This filed is set to the number of bytes to be transfered in the request.
+    * This filed is set to the number of bytes to be transferred in the request.
     */
    U32    transfer_length_bytes       : 24;   // In terms of bytes
 
@@ -804,7 +804,7 @@ typedef struct SCU_TASK_CONTEXT
 
    // OFFSET 0x18-0x2C
    /**
-    * This union provides for the protocol specif part of the SCU Task Context.
+    * This union provides for the protocol specific part of the SCU Task Context.
     */
    union PROTOCOL_CONTEXT  type;
 

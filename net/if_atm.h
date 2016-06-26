@@ -96,7 +96,7 @@ struct ifatm_mib {
 
 /*
  * Traffic parameters for ATM connections. This contains all parameters
- * to accomodate UBR, UBR+MCR, CBR, VBR and ABR connections.
+ * to accommodate UBR, UBR+MCR, CBR, VBR and ABR connections.
  *
  * Keep in sync with ng_atm.h
  */

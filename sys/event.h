@@ -80,6 +80,7 @@ struct kevent {
 #define EV_SYSFLAGS	0xF000		/* reserved by system */
 #define	EV_DROP		0x1000		/* note should be dropped */
 #define EV_FLAG1	0x2000		/* filter-specific flag */
+#define EV_FLAG2	0x4000		/* filter-specific flag */
 
 /* returned values */
 #define EV_EOF		0x8000		/* EOF detected */
@@ -120,6 +121,12 @@ struct kevent {
 #define	NOTE_LINK	0x0010			/* link count changed */
 #define	NOTE_RENAME	0x0020			/* vnode was renamed */
 #define	NOTE_REVOKE	0x0040			/* vnode access was revoked */
+#define	NOTE_OPEN	0x0080			/* vnode was opened */
+#define	NOTE_CLOSE	0x0100			/* file closed, fd did not
+						   allowed write */
+#define	NOTE_CLOSE_WRITE 0x0200			/* file closed, fd did allowed
+						   write */
+#define	NOTE_READ	0x0400			/* file was read */
 
 /*
  * data/hint flags for EVFILT_PROC and EVFILT_PROCDESC, shared with userspace
@@ -221,7 +228,7 @@ struct knote {
 	union {
 		struct		file *p_fp;	/* file data pointer */
 		struct		proc *p_proc;	/* proc pointer */
-		struct		aiocblist *p_aio;	/* AIO job pointer */
+		struct		kaiocb *p_aio;	/* AIO job pointer */
 		struct		aioliojob *p_lio;	/* LIO job pointer */
 		sbintime_t	*p_nexttime;	/* next timer event fires at */
 		void		*p_v;		/* generic other pointer */

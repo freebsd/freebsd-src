@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010-2015 Solarflare Communications Inc.
+ * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
@@ -170,6 +170,7 @@ struct sfxge_txq {
 	struct sfxge_softc		*sc;
 	enum sfxge_txq_state		init_state;
 	enum sfxge_flush_state		flush_state;
+	unsigned int			tso_fw_assisted;
 	enum sfxge_txq_type		type;
 	unsigned int			txq_index;
 	unsigned int			evq_index;

@@ -46,11 +46,6 @@ options 	DDB			# Enable the kernel debugger
 #options 	DIAGNOSTIC
 
 
-#options 	COMPAT_FREEBSD5
-#options 	COMPAT_FREEBSD6
-#options 	COMPAT_FREEBSD7n
-
-
 options 	SCHED_ULE		# ULE scheduler
 #options 	SCHED_4BSD		# 4BSD scheduler
 options 	GEOM_PART_BSD		# BSD partition scheme

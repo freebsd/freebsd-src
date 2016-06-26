@@ -275,7 +275,8 @@
 #define	_Alignof(x)		__alignof(x)
 #endif
 
-#if !__has_extension(c_atomic) && !__has_extension(cxx_atomic)
+#if !defined(__cplusplus) && !__has_extension(c_atomic) && \
+    !__has_extension(cxx_atomic)
 /*
  * No native support for _Atomic(). Place object in structure to prevent
  * most forms of direct non-atomic access.
@@ -776,8 +777,16 @@
 #endif
 #endif
 
-#if defined(__mips) || defined(__powerpc64__)
+#if defined(__mips) || defined(__powerpc64__) || defined(__riscv__)
 #define	__NO_TLS 1
+#endif
+
+/*
+ * Old versions of GCC use non-standard ARM arch symbols; acle-compat.h
+ * translates them to __ARM_ARCH and the modern feature symbols defined by ARM.
+ */
+#if defined(__arm__) && !defined(__ARM_ARCH)
+#include <machine/acle-compat.h>
 #endif
 
 /*

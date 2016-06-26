@@ -35,7 +35,7 @@
  */
 
 /* used throughout this file... */
-#define	N(a)	(sizeof (a) / sizeof (a[0]))
+#define	N(a)		nitems(a)
 
 #define HAL_MODE_11A_TURBO	HAL_MODE_108A
 #define HAL_MODE_11G_TURBO	HAL_MODE_108G
@@ -99,30 +99,32 @@
 #include "ah_regdomain/ah_rd_domains.h"
 
 static const struct cmode modes[] = {
-	{ HAL_MODE_TURBO,	IEEE80211_CHAN_ST },
-	{ HAL_MODE_11A,		IEEE80211_CHAN_A },
-	{ HAL_MODE_11B,		IEEE80211_CHAN_B },
-	{ HAL_MODE_11G,		IEEE80211_CHAN_G },
-	{ HAL_MODE_11G_TURBO,	IEEE80211_CHAN_108G },
-	{ HAL_MODE_11A_TURBO,	IEEE80211_CHAN_108A },
+	{ HAL_MODE_TURBO,	IEEE80211_CHAN_ST,	&regDmn5GhzTurboFreq[0] },
+	{ HAL_MODE_11A,		IEEE80211_CHAN_A,	&regDmn5GhzFreq[0] },
+	{ HAL_MODE_11B,		IEEE80211_CHAN_B,	&regDmn2GhzFreq[0] },
+	{ HAL_MODE_11G,		IEEE80211_CHAN_G,	&regDmn2Ghz11gFreq[0] },
+	{ HAL_MODE_11G_TURBO,	IEEE80211_CHAN_108G,	&regDmn2Ghz11gTurboFreq[0] },
+	{ HAL_MODE_11A_TURBO,	IEEE80211_CHAN_108A,	&regDmn5GhzTurboFreq[0] },
 	{ HAL_MODE_11A_QUARTER_RATE,
-	  IEEE80211_CHAN_A | IEEE80211_CHAN_QUARTER },
+	  IEEE80211_CHAN_A | IEEE80211_CHAN_QUARTER,	&regDmn5GhzFreq[0] },
 	{ HAL_MODE_11A_HALF_RATE,
-	  IEEE80211_CHAN_A | IEEE80211_CHAN_HALF },
+	  IEEE80211_CHAN_A | IEEE80211_CHAN_HALF,	&regDmn5GhzFreq[0] },
 	{ HAL_MODE_11G_QUARTER_RATE,
-	  IEEE80211_CHAN_G | IEEE80211_CHAN_QUARTER },
+	  IEEE80211_CHAN_G | IEEE80211_CHAN_QUARTER,	&regDmn2Ghz11gFreq[0] },
 	{ HAL_MODE_11G_HALF_RATE,
-	  IEEE80211_CHAN_G | IEEE80211_CHAN_HALF },
-	{ HAL_MODE_11NG_HT20,	IEEE80211_CHAN_G | IEEE80211_CHAN_HT20 },
+	  IEEE80211_CHAN_G | IEEE80211_CHAN_HALF,	&regDmn2Ghz11gFreq[0] },
+	{ HAL_MODE_11NG_HT20,
+	  IEEE80211_CHAN_G | IEEE80211_CHAN_HT20,	&regDmn2Ghz11gFreq[0] },
 	{ HAL_MODE_11NG_HT40PLUS,
-	  IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U },
+	  IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U,	&regDmn2Ghz11gFreq[0] },
 	{ HAL_MODE_11NG_HT40MINUS,
-	  IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D },
-	{ HAL_MODE_11NA_HT20,	IEEE80211_CHAN_A | IEEE80211_CHAN_HT20 },
+	  IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D,	&regDmn2Ghz11gFreq[0] },
+	{ HAL_MODE_11NA_HT20,
+	  IEEE80211_CHAN_A | IEEE80211_CHAN_HT20,	&regDmn5GhzFreq[0] },
 	{ HAL_MODE_11NA_HT40PLUS,
-	  IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U },
+	  IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U,	&regDmn5GhzFreq[0] },
 	{ HAL_MODE_11NA_HT40MINUS,
-	  IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D },
+	  IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D,	&regDmn5GhzFreq[0] },
 };
 
 static void ath_hal_update_dfsdomain(struct ath_hal *ah);
@@ -358,6 +360,235 @@ getregstate(struct ath_hal *ah, HAL_CTRY_CODE cc, HAL_REG_DOMAIN regDmn,
 	return HAL_OK;
 }
 
+static uint64_t *
+getchannelBM(u_int mode, REG_DOMAIN *rd)
+{
+	switch (mode) {
+	case HAL_MODE_11B:
+		return (rd->chan11b);
+	case HAL_MODE_11G_QUARTER_RATE:
+		return (rd->chan11g_quarter);
+	case HAL_MODE_11G_HALF_RATE:
+		return (rd->chan11g_half);
+	case HAL_MODE_11G:
+	case HAL_MODE_11NG_HT20:
+	case HAL_MODE_11NG_HT40PLUS:
+	case HAL_MODE_11NG_HT40MINUS:
+		return (rd->chan11g);
+	case HAL_MODE_11G_TURBO:
+		return (rd->chan11g_turbo);
+	case HAL_MODE_11A_QUARTER_RATE:
+		return (rd->chan11a_quarter);
+	case HAL_MODE_11A_HALF_RATE:
+		return (rd->chan11a_half);
+	case HAL_MODE_11A:
+	case HAL_MODE_11NA_HT20:
+	case HAL_MODE_11NA_HT40PLUS:
+	case HAL_MODE_11NA_HT40MINUS:
+		return (rd->chan11a);
+	case HAL_MODE_TURBO:
+		return (rd->chan11a_turbo);
+	case HAL_MODE_11A_TURBO:
+		return (rd->chan11a_dyn_turbo);
+	default:
+		return (AH_NULL);
+	}
+}
+
+static void
+setchannelflags(struct ieee80211_channel *c, REG_DMN_FREQ_BAND *fband,
+    REG_DOMAIN *rd)
+{
+	if (fband->usePassScan & rd->pscan)
+		c->ic_flags |= IEEE80211_CHAN_PASSIVE;
+	if (fband->useDfs & rd->dfsMask)
+		c->ic_flags |= IEEE80211_CHAN_DFS;
+	if (IEEE80211_IS_CHAN_5GHZ(c) && (rd->flags & DISALLOW_ADHOC_11A))
+		c->ic_flags |= IEEE80211_CHAN_NOADHOC;
+	if (IEEE80211_IS_CHAN_TURBO(c) &&
+	    (rd->flags & DISALLOW_ADHOC_11A_TURB))
+		c->ic_flags |= IEEE80211_CHAN_NOADHOC;
+	if (rd->flags & NO_HOSTAP)
+		c->ic_flags |= IEEE80211_CHAN_NOHOSTAP;
+	if (rd->flags & LIMIT_FRAME_4MS)
+		c->ic_flags |= IEEE80211_CHAN_4MSXMIT;
+	if (rd->flags & NEED_NFC)
+		c->ic_flags |= CHANNEL_NFCREQUIRED;
+}
+
+static int
+addchan(struct ath_hal *ah, struct ieee80211_channel chans[],
+    u_int maxchans, int *nchans, uint16_t freq, uint32_t flags,
+    REG_DMN_FREQ_BAND *fband, REG_DOMAIN *rd)
+{
+	struct ieee80211_channel *c;
+
+	if (*nchans >= maxchans)
+		return (HAL_ENOMEM);
+
+	c = &chans[(*nchans)++];
+	c->ic_freq = freq;
+	c->ic_flags = flags;
+	setchannelflags(c, fband, rd);
+	c->ic_maxregpower = fband->powerDfs;
+	ath_hal_getpowerlimits(ah, c);
+	c->ic_maxantgain = fband->antennaMax;
+
+	return (0);
+}
+
+static int
+copychan_prev(struct ath_hal *ah, struct ieee80211_channel chans[],
+    u_int maxchans, int *nchans, uint16_t freq)
+{
+	struct ieee80211_channel *c;
+
+	if (*nchans == 0)
+		return (HAL_EINVAL);
+
+	if (*nchans >= maxchans)
+		return (HAL_ENOMEM);
+
+	c = &chans[(*nchans)++];
+	c[0] = c[-1];
+	c->ic_freq = freq;
+	/* XXX is it needed here? */
+	ath_hal_getpowerlimits(ah, c);
+
+	return (0);
+}
+
+static int
+add_chanlist_band(struct ath_hal *ah, struct ieee80211_channel chans[],
+    int maxchans, int *nchans, uint16_t freq_lo, uint16_t freq_hi, int step,
+    uint32_t flags, REG_DMN_FREQ_BAND *fband, REG_DOMAIN *rd)
+{
+	uint16_t freq = freq_lo;
+	int error;
+
+	if (freq_hi < freq_lo)
+		return (0);
+
+	error = addchan(ah, chans, maxchans, nchans, freq, flags, fband, rd);
+	for (freq += step; freq <= freq_hi && error == 0; freq += step)
+		error = copychan_prev(ah, chans, maxchans, nchans, freq);
+
+	return (error);
+}
+
+static void
+adj_freq_ht40(u_int mode, int *low_adj, int *hi_adj, int *channelSep)
+{
+
+	*low_adj = *hi_adj = *channelSep = 0;
+	switch (mode) {
+	case HAL_MODE_11NA_HT40PLUS:
+		*channelSep = 40;
+		/* FALLTHROUGH */
+	case HAL_MODE_11NG_HT40PLUS:
+		*hi_adj = -20;
+		break;
+	case HAL_MODE_11NA_HT40MINUS:
+		*channelSep = 40;
+		/* FALLTHROUGH */
+	case HAL_MODE_11NG_HT40MINUS:
+		*low_adj = 20;
+		break;
+	}
+}
+
+static void
+add_chanlist_mode(struct ath_hal *ah, struct ieee80211_channel chans[],
+    u_int maxchans, int *nchans, const struct cmode *cm, REG_DOMAIN *rd,
+    HAL_BOOL enableExtendedChannels)
+{
+	uint64_t *channelBM;
+	uint16_t freq_lo, freq_hi;
+	int b, error, low_adj, hi_adj, channelSep;
+
+	if (!ath_hal_getChannelEdges(ah, cm->flags, &freq_lo, &freq_hi)) {
+		/* channel not supported by hardware, skip it */
+		HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+		    "%s: channels 0x%x not supported by hardware\n",
+		    __func__, cm->flags);
+		return;
+	}
+
+	channelBM = getchannelBM(cm->mode, rd);
+	if (isChanBitMaskZero(channelBM))
+		return;
+
+	/*
+	 * Setup special handling for HT40 channels; e.g.
+	 * 5G HT40 channels require 40Mhz channel separation.
+	 */
+	adj_freq_ht40(cm->mode, &low_adj, &hi_adj, &channelSep);
+
+	for (b = 0; b < 64*BMLEN; b++) {
+		REG_DMN_FREQ_BAND *fband;
+		uint16_t bfreq_lo, bfreq_hi;
+		int step;
+
+		if (!IS_BIT_SET(b, channelBM))
+			continue;
+		fband = &cm->freqs[b];
+
+		if ((fband->usePassScan & IS_ECM_CHAN) &&
+		    !enableExtendedChannels) {
+			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+			    "skip ecm channels\n");
+			continue;
+		}
+#if 0
+		if ((fband->useDfs & rd->dfsMask) && 
+		    (cm->flags & IEEE80211_CHAN_HT40)) {
+			/* NB: DFS and HT40 don't mix */
+			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+			    "skip HT40 chan, DFS required\n");
+			continue;
+		}
+#endif
+		bfreq_lo = MAX(fband->lowChannel + low_adj, freq_lo);
+		bfreq_hi = MIN(fband->highChannel + hi_adj, freq_hi);
+		if (fband->channelSep >= channelSep)
+			step = fband->channelSep;
+		else
+			step = roundup(channelSep, fband->channelSep);
+
+		error = add_chanlist_band(ah, chans, maxchans, nchans,
+		    bfreq_lo, bfreq_hi, step, cm->flags, fband, rd);
+		if (error != 0)	{
+			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+			    "%s: too many channels for channel table\n",
+			    __func__);
+			return;
+		}
+	}
+}
+
+static u_int
+getmodesmask(struct ath_hal *ah, REG_DOMAIN *rd5GHz, u_int modeSelect)
+{
+#define	HAL_MODE_11A_ALL \
+	(HAL_MODE_11A | HAL_MODE_11A_TURBO | HAL_MODE_TURBO | \
+	 HAL_MODE_11A_QUARTER_RATE | HAL_MODE_11A_HALF_RATE)
+	u_int modesMask;
+
+	/* get modes that HW is capable of */
+	modesMask = ath_hal_getWirelessModes(ah);
+	modesMask &= modeSelect;
+	/* optimize work below if no 11a channels */
+	if (isChanBitMaskZero(rd5GHz->chan11a) &&
+	    (modesMask & HAL_MODE_11A_ALL)) {
+		HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
+		    "%s: disallow all 11a\n", __func__);
+		modesMask &= ~HAL_MODE_11A_ALL;
+	}
+
+	return (modesMask);
+#undef HAL_MODE_11A_ALL
+}
+
 /*
  * Construct the channel list for the specified regulatory config.
  */
@@ -369,16 +600,9 @@ getchannels(struct ath_hal *ah,
     COUNTRY_CODE_TO_ENUM_RD **pcountry,
     REG_DOMAIN **prd2GHz, REG_DOMAIN **prd5GHz)
 {
-#define CHANNEL_HALF_BW		10
-#define CHANNEL_QUARTER_BW	5
-#define	HAL_MODE_11A_ALL \
-	(HAL_MODE_11A | HAL_MODE_11A_TURBO | HAL_MODE_TURBO | \
-	 HAL_MODE_11A_QUARTER_RATE | HAL_MODE_11A_HALF_RATE)
 	REG_DOMAIN *rd5GHz, *rd2GHz;
-	u_int modesAvail;
+	u_int modesMask;
 	const struct cmode *cm;
-	struct ieee80211_channel *ic;
-	int next, b;
 	HAL_STATUS status;
 
 	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN, "%s: cc %u regDmn 0x%x mode 0x%x%s\n",
@@ -389,206 +613,43 @@ getchannels(struct ath_hal *ah,
 	if (status != HAL_OK)
 		return status;
 
-	/* get modes that HW is capable of */
-	modesAvail = ath_hal_getWirelessModes(ah);
-	/* optimize work below if no 11a channels */
-	if (isChanBitMaskZero(rd5GHz->chan11a) &&
-	    (modesAvail & HAL_MODE_11A_ALL)) {
-		HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-		    "%s: disallow all 11a\n", __func__);
-		modesAvail &= ~HAL_MODE_11A_ALL;
-	}
+	modesMask = getmodesmask(ah, rd5GHz, modeSelect);
+	/* XXX error? */
+	if (modesMask == 0)
+		goto done;
 
-	next = 0;
-	ic = &chans[0];
 	for (cm = modes; cm < &modes[N(modes)]; cm++) {
-		uint16_t c, c_hi, c_lo;
-		uint64_t *channelBM = AH_NULL;
-		REG_DMN_FREQ_BAND *fband = AH_NULL,*freqs;
-		int low_adj, hi_adj, channelSep, lastc;
-		uint32_t rdflags;
-		uint64_t dfsMask;
-		uint64_t pscan;
+		REG_DOMAIN *rd;
 
-		if ((cm->mode & modeSelect) == 0) {
+		if ((cm->mode & modesMask) == 0) {
 			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
 			    "%s: skip mode 0x%x flags 0x%x\n",
 			    __func__, cm->mode, cm->flags);
 			continue;
 		}
-		if ((cm->mode & modesAvail) == 0) {
-			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-			    "%s: !avail mode 0x%x (0x%x) flags 0x%x\n",
-			    __func__, modesAvail, cm->mode, cm->flags);
-			continue;
-		}
-		if (!ath_hal_getChannelEdges(ah, cm->flags, &c_lo, &c_hi)) {
-			/* channel not supported by hardware, skip it */
-			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-			    "%s: channels 0x%x not supported by hardware\n",
-			    __func__,cm->flags);
-			continue;
-		}
-		switch (cm->mode) {
-		case HAL_MODE_TURBO:
-		case HAL_MODE_11A_TURBO:
-			rdflags = rd5GHz->flags;
-			dfsMask = rd5GHz->dfsMask;
-			pscan = rd5GHz->pscan;
-			if (cm->mode == HAL_MODE_TURBO)
-				channelBM = rd5GHz->chan11a_turbo;
-			else
-				channelBM = rd5GHz->chan11a_dyn_turbo;
-			freqs = &regDmn5GhzTurboFreq[0];
-			break;
-		case HAL_MODE_11G_TURBO:
-			rdflags = rd2GHz->flags;
-			dfsMask = rd2GHz->dfsMask;
-			pscan = rd2GHz->pscan;
-			channelBM = rd2GHz->chan11g_turbo;
-			freqs = &regDmn2Ghz11gTurboFreq[0];
-			break;
-		case HAL_MODE_11A:
-		case HAL_MODE_11A_HALF_RATE:
-		case HAL_MODE_11A_QUARTER_RATE:
-		case HAL_MODE_11NA_HT20:
-		case HAL_MODE_11NA_HT40PLUS:
-		case HAL_MODE_11NA_HT40MINUS:
-			rdflags = rd5GHz->flags;
-			dfsMask = rd5GHz->dfsMask;
-			pscan = rd5GHz->pscan;
-			if (cm->mode == HAL_MODE_11A_HALF_RATE)
-				channelBM = rd5GHz->chan11a_half;
-			else if (cm->mode == HAL_MODE_11A_QUARTER_RATE)
-				channelBM = rd5GHz->chan11a_quarter;
-			else
-				channelBM = rd5GHz->chan11a;
-			freqs = &regDmn5GhzFreq[0];
-			break;
-		case HAL_MODE_11B:
-		case HAL_MODE_11G:
-		case HAL_MODE_11G_HALF_RATE:
-		case HAL_MODE_11G_QUARTER_RATE:
-		case HAL_MODE_11NG_HT20:
-		case HAL_MODE_11NG_HT40PLUS:
-		case HAL_MODE_11NG_HT40MINUS:
-			rdflags = rd2GHz->flags;
-			dfsMask = rd2GHz->dfsMask;
-			pscan = rd2GHz->pscan;
-			if (cm->mode == HAL_MODE_11G_HALF_RATE)
-				channelBM = rd2GHz->chan11g_half;
-			else if (cm->mode == HAL_MODE_11G_QUARTER_RATE)
-				channelBM = rd2GHz->chan11g_quarter;
-			else if (cm->mode == HAL_MODE_11B)
-				channelBM = rd2GHz->chan11b;
-			else
-				channelBM = rd2GHz->chan11g;
-			if (cm->mode == HAL_MODE_11B)
-				freqs = &regDmn2GhzFreq[0];
-			else
-				freqs = &regDmn2Ghz11gFreq[0];
-			break;
-		default:
-			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-			    "%s: Unkonwn HAL mode 0x%x\n", __func__, cm->mode);
-			continue;
-		}
-		if (isChanBitMaskZero(channelBM))
-			continue;
-		/*
-		 * Setup special handling for HT40 channels; e.g.
-		 * 5G HT40 channels require 40Mhz channel separation.
-		 */
-		hi_adj = (cm->mode == HAL_MODE_11NA_HT40PLUS ||
-		    cm->mode == HAL_MODE_11NG_HT40PLUS) ? -20 : 0;
-		low_adj = (cm->mode == HAL_MODE_11NA_HT40MINUS || 
-		    cm->mode == HAL_MODE_11NG_HT40MINUS) ? 20 : 0;
-		channelSep = (cm->mode == HAL_MODE_11NA_HT40PLUS ||
-		    cm->mode == HAL_MODE_11NA_HT40MINUS) ? 40 : 0;
 
-		for (b = 0; b < 64*BMLEN; b++) {
-			if (!IS_BIT_SET(b, channelBM))
-				continue;
-			fband = &freqs[b];
-			lastc = 0;
-
-			for (c = fband->lowChannel + low_adj;
-			     c <= fband->highChannel + hi_adj;
-			     c += fband->channelSep) {
-				if (!(c_lo <= c && c <= c_hi)) {
-					HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-					    "%s: c %u out of range [%u..%u]\n",
-					    __func__, c, c_lo, c_hi);
-					continue;
-				}
-				if (next >= maxchans){
-					HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-					    "%s: too many channels for channel table\n",
-					    __func__);
-					goto done;
-				}
-				if ((fband->usePassScan & IS_ECM_CHAN) &&
-				    !enableExtendedChannels) {
-					HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-					    "skip ecm channel\n");
-					continue;
-				}
-#if 0
-				if ((fband->useDfs & dfsMask) && 
-				    (cm->flags & IEEE80211_CHAN_HT40)) {
-					/* NB: DFS and HT40 don't mix */
-					HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
-					    "skip HT40 chan, DFS required\n");
-					continue;
-				}
-#endif
-				/*
-				 * Make sure that channel separation
-				 * meets the requirement.
-				 */
-				if (lastc && channelSep &&
-				    (c-lastc) < channelSep)
-					continue;
-				lastc = c;
-
-				OS_MEMZERO(ic, sizeof(*ic));
-				ic->ic_freq = c;
-				ic->ic_flags = cm->flags;
-				ic->ic_maxregpower = fband->powerDfs;
-				ath_hal_getpowerlimits(ah, ic);
-				ic->ic_maxantgain = fband->antennaMax;
-				if (fband->usePassScan & pscan)
-					ic->ic_flags |= IEEE80211_CHAN_PASSIVE;
-				if (fband->useDfs & dfsMask)
-					ic->ic_flags |= IEEE80211_CHAN_DFS;
-				if (IEEE80211_IS_CHAN_5GHZ(ic) &&
-				    (rdflags & DISALLOW_ADHOC_11A))
-					ic->ic_flags |= IEEE80211_CHAN_NOADHOC;
-				if (IEEE80211_IS_CHAN_TURBO(ic) &&
-				    (rdflags & DISALLOW_ADHOC_11A_TURB))
-					ic->ic_flags |= IEEE80211_CHAN_NOADHOC;
-				if (rdflags & NO_HOSTAP)
-					ic->ic_flags |= IEEE80211_CHAN_NOHOSTAP;
-				if (rdflags & LIMIT_FRAME_4MS)
-					ic->ic_flags |= IEEE80211_CHAN_4MSXMIT;
-				if (rdflags & NEED_NFC)
-					ic->ic_flags |= CHANNEL_NFCREQUIRED;
-
-				ic++, next++;
-			}
+		if (cm->flags & IEEE80211_CHAN_5GHZ)
+			rd = rd5GHz;
+		else if (cm->flags & IEEE80211_CHAN_2GHZ)
+			rd = rd2GHz;
+		else {
+			ath_hal_printf(ah, "%s: Unkonwn HAL flags 0x%x\n",
+			    __func__, cm->flags);
+			return HAL_EINVAL;
 		}
+
+		add_chanlist_mode(ah, chans, maxchans, nchans, cm,
+		    rd, enableExtendedChannels);
+		if (*nchans >= maxchans)
+			goto done;
 	}
 done:
-	*nchans = next;
 	/* NB: pcountry set above by getregstate */
 	if (prd2GHz != AH_NULL)
 		*prd2GHz = rd2GHz;
 	if (prd5GHz != AH_NULL)
 		*prd5GHz = rd5GHz;
 	return HAL_OK;
-#undef HAL_MODE_11A_ALL
-#undef CHANNEL_HALF_BW
-#undef CHANNEL_QUARTER_BW
 }
 
 /*

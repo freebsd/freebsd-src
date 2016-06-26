@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
 #include "opt_rss.h"
@@ -114,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_ifattach.h>
+#include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
 
@@ -156,9 +156,6 @@ static struct netisr_handler ip6_direct_nh = {
 };
 #endif
 
-VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
-#define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
-
 VNET_DEFINE(struct pfil_head, inet6_pfil_hook);
 
 VNET_PCPUSTAT_DEFINE(struct ip6stat, ip6stat);
@@ -170,7 +167,6 @@ VNET_PCPUSTAT_SYSUNINIT(ip6stat);
 struct rmlock in6_ifaddr_lock;
 RM_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
-static void ip6_init2(void *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
@@ -221,8 +217,15 @@ ip6_init(void)
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
 	/* Skip global initialization stuff for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
+#ifdef VIMAGE
+	if (!IS_DEFAULT_VNET(curvnet)) {
+		netisr_register_vnet(&ip6_nh);
+#ifdef RSS
+		netisr_register_vnet(&ip6_direct_nh);
+#endif
 		return;
+	}
+#endif
 
 	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
@@ -309,10 +312,17 @@ ip6proto_unregister(short ip6proto)
 }
 
 #ifdef VIMAGE
-void
-ip6_destroy()
+static void
+ip6_destroy(void *unused __unused)
 {
+	struct ifaddr *ifa, *nifa;
+	struct ifnet *ifp;
 	int error;
+
+#ifdef RSS
+	netisr_unregister_vnet(&ip6_direct_nh);
+#endif
+	netisr_unregister_vnet(&ip6_nh);
 
 	if ((error = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to unregister pfil hook, "
@@ -329,40 +339,34 @@ ip6_destroy()
 		    "type HHOOK_TYPE_IPSEC_OUT, id HHOOK_IPSEC_INET6: "
 		    "error %d returned\n", __func__, error);
 	}
-	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
+
+	/* Cleanup addresses. */
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		/* Cannot lock here - lock recursion. */
+		/* IF_ADDR_LOCK(ifp); */
+		TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
+
+			if (ifa->ifa_addr->sa_family != AF_INET6)
+				continue;
+			in6_purgeaddr(ifa);
+		}
+		/* IF_ADDR_UNLOCK(ifp); */
+		in6_ifdetach_destroy(ifp);
+		mld_domifdetach(ifp);
+		/* Make sure any routes are gone as well. */
+		rt_flushifroutes_af(ifp, AF_INET6);
+	}
+	IFNET_RUNLOCK();
+
 	nd6_destroy();
-	callout_drain(&V_in6_tmpaddrtimer_ch);
+	in6_ifattach_destroy();
+
+	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 }
+
+VNET_SYSUNINIT(inet6, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_destroy, NULL);
 #endif
-
-static int
-ip6_init2_vnet(const void *unused __unused)
-{
-
-	/* nd6_timer_init */
-	callout_init(&V_nd6_timer_ch, 0);
-	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, curvnet);
-
-	/* timer for regeneranation of temporary addresses randomize ID */
-	callout_init(&V_in6_tmpaddrtimer_ch, 0);
-	callout_reset(&V_in6_tmpaddrtimer_ch,
-		      (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
-		       V_ip6_temp_regen_advance) * hz,
-		      in6_tmpaddrtimer, curvnet);
-
-	return (0);
-}
-
-static void
-ip6_init2(void *dummy)
-{
-
-	ip6_init2_vnet(NULL);
-}
-
-/* cheat */
-/* This must be after route_init(), which is now SI_ORDER_THIRD */
-SYSINIT(netinet6init2, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ip6_init2, NULL);
 
 static int
 ip6_input_hbh(struct mbuf *m, uint32_t *plen, uint32_t *rtalert, int *off,

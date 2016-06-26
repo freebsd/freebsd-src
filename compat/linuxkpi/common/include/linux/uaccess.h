@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * Copyright (c) 2015 François Tigeot
  * All rights reserved.
  *
@@ -34,8 +34,23 @@
 
 #include <linux/compiler.h>
 
-#define	get_user(_x, _p)	-copyin((_p), &(_x), sizeof(*(_p)))
-#define	put_user(_x, _p)	-copyout(&(_x), (_p), sizeof(*(_p)))
+#define	__get_user(_x, _p) ({					\
+	int __err;						\
+	__typeof(*(_p)) __x;					\
+	__err = linux_copyin((_p), &(__x), sizeof(*(_p)));	\
+	(_x) = __x;						\
+	__err;							\
+})
+
+#define	__put_user(_x, _p) ({				\
+	__typeof(*(_p)) __x = (_x);			\
+	linux_copyout(&(__x), (_p), sizeof(*(_p)));	\
+})
+#define	get_user(_x, _p)	linux_copyin((_p), &(_x), sizeof(*(_p)))
+#define	put_user(_x, _p)	linux_copyout(&(_x), (_p), sizeof(*(_p)))
+
+extern int linux_copyin(const void *uaddr, void *kaddr, size_t len);
+extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
 
 /*
  * NOTE: The returned value from pagefault_disable() must be stored

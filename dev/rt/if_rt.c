@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015, Stanislav Galabov
+ * Copyright (c) 2015-2016, Stanislav Galabov
  * Copyright (c) 2014, Aleksandr A. Mityaev
  * Copyright (c) 2011, Aleksandr Rybalko
  * based on hard work
@@ -70,8 +70,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
+#if 0
 #include <mips/rt305x/rt305x_sysctlvar.h>
 #include <mips/rt305x/rt305xreg.h>
+#endif
 
 #ifdef IF_RT_PHY_SUPPORT
 #include "miibus_if.h"
@@ -90,19 +92,22 @@ __FBSDID("$FreeBSD$");
 #define	RT_TX_WATCHDOG_TIMEOUT		5
 
 #define RT_CHIPID_RT3050 0x3050
-#define RT_CHIPID_RT3052 0x3052
 #define RT_CHIPID_RT5350 0x5350
-#define RT_CHIPID_RT6855 0x6855
 #define RT_CHIPID_MT7620 0x7620
+#define RT_CHIPID_MT7621 0x7621
 
 #ifdef FDT
 /* more specific and new models should go first */
 static const struct ofw_compat_data rt_compat_data[] = {
-	{ "ralink,rt6855-eth", (uintptr_t)RT_CHIPID_RT6855 },
-	{ "ralink,rt5350-eth", (uintptr_t)RT_CHIPID_RT5350 },
-	{ "ralink,rt3052-eth", (uintptr_t)RT_CHIPID_RT3052 },
-	{ "ralink,rt305x-eth", (uintptr_t)RT_CHIPID_RT3050 },
-	{ NULL, (uintptr_t)NULL }
+	{ "ralink,rt3050-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt3352-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt3883-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt5350-eth",		RT_CHIPID_RT5350 },
+	{ "ralink,mt7620a-eth",		RT_CHIPID_MT7620 },
+	{ "mediatek,mt7620-eth",	RT_CHIPID_MT7620 },
+	{ "ralink,mt7621-eth",		RT_CHIPID_MT7621 },
+	{ "mediatek,mt7621-eth",	RT_CHIPID_MT7621 },
+	{ NULL,				0 }
 };
 #endif
 
@@ -183,21 +188,23 @@ rt_probe(device_t dev)
 	const struct ofw_compat_data * cd;
 
 	cd = ofw_bus_search_compatible(dev, rt_compat_data);
-	if (cd->ocd_data == (uintptr_t)NULL)
+	if (cd->ocd_data == 0)
 	        return (ENXIO);
 	        
 	sc->rt_chipid = (unsigned int)(cd->ocd_data);
 #else
 #if defined(MT7620)
 	sc->rt_chipid = RT_CHIPID_MT7620;
+#elif defined(MT7621)
+	sc->rt_chipid = RT_CHIPID_MT7621;
 #elif defined(RT5350)
 	sc->rt_chipid = RT_CHIPID_RT5350;
 #else
 	sc->rt_chipid = RT_CHIPID_RT3050;
 #endif
 #endif
-	snprintf(buf, sizeof(buf), "Ralink RT%x onChip Ethernet driver",
-		sc->rt_chipid);
+	snprintf(buf, sizeof(buf), "Ralink %cT%x onChip Ethernet driver",
+		sc->rt_chipid >= 0x7600 ? 'M' : 'R', sc->rt_chipid);
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_GENERIC);
 }
@@ -374,12 +381,26 @@ rt_attach(device_t dev)
 
 	/* Reset hardware */
 	reset_freng(sc);
+
+
+	if (sc->rt_chipid == RT_CHIPID_MT7620) {
+		sc->csum_fail_ip = MT7620_RXD_SRC_IP_CSUM_FAIL;
+		sc->csum_fail_l4 = MT7620_RXD_SRC_L4_CSUM_FAIL;
+	} else if (sc->rt_chipid == RT_CHIPID_MT7621) {
+		sc->csum_fail_ip = MT7621_RXD_SRC_IP_CSUM_FAIL;
+		sc->csum_fail_l4 = MT7621_RXD_SRC_L4_CSUM_FAIL;
+	} else {
+		sc->csum_fail_ip = RT305X_RXD_SRC_IP_CSUM_FAIL;
+		sc->csum_fail_l4 = RT305X_RXD_SRC_L4_CSUM_FAIL;
+	}
 	
 	/* Fill in soc-specific registers map */
 	switch(sc->rt_chipid) {
 	  case RT_CHIPID_MT7620:
+	  case RT_CHIPID_MT7621:
 	  case RT_CHIPID_RT5350:
-	  	device_printf(dev, "RT%x Ethernet MAC (rev 0x%08x)\n",
+	  	device_printf(dev, "%cT%x Ethernet MAC (rev 0x%08x)\n",
+			sc->rt_chipid >= 0x7600 ? 'M' : 'R',
 	  		sc->rt_chipid, sc->mac_rev);
 		/* RT5350: No GDMA, PSE, CDMA, PPE */
 		RT_WRITE(sc, GE_PORT_BASE + 0x0C00, // UDPCS, TCPCS, IPCS=1
@@ -406,10 +427,6 @@ rt_attach(device_t dev)
 		sc->rx_drx_idx[1]=RT5350_PDMA_BASE+RT5350_RX_DRX_IDX1;
 		sc->int_rx_done_mask=RT5350_INT_RXQ0_DONE;
 		sc->int_tx_done_mask=RT5350_INT_TXQ0_DONE;
-	  	break;
-	  case RT_CHIPID_RT6855:
-	  	device_printf(dev, "RT6855 Ethernet MAC (rev 0x%08x)\n",
-	  		sc->mac_rev);
 	  	break;
 	  default:
 		device_printf(dev, "RT305XF Ethernet MAC (rev 0x%08x)\n",
@@ -445,7 +462,7 @@ rt_attach(device_t dev)
 		sc->rx_drx_idx[0]=PDMA_BASE+RX_DRX_IDX0;
 		sc->int_rx_done_mask=INT_RX_DONE;
 		sc->int_tx_done_mask=INT_TXQ0_DONE;
-	};
+	}
 
 	/* allocate Tx and Rx rings */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
@@ -534,7 +551,8 @@ rt_attach(device_t dev)
 	/* set up interrupt */
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, (sc->rt_chipid == RT_CHIPID_RT5350 ||
-	    sc->rt_chipid == RT_CHIPID_MT7620) ? rt_rt5350_intr : rt_intr,
+	    sc->rt_chipid == RT_CHIPID_MT7620 ||
+	    sc->rt_chipid == RT_CHIPID_MT7621) ? rt_rt5350_intr : rt_intr,
 	    sc, &sc->irqh);
 	if (error != 0) {
 		printf("%s: could not set up interrupt\n",
@@ -764,7 +782,7 @@ rt_init_locked(void *priv)
 	//rt305x_sysctl_set(SYSCTL_RSTCTRL, SYSCTL_RSTCTRL_FRENG);
 
 	/* Fwd to CPU (uni|broad|multi)cast and Unknown */
-	if(sc->rt_chipid == RT_CHIPID_RT3050 || sc->rt_chipid == RT_CHIPID_RT3052)
+	if(sc->rt_chipid == RT_CHIPID_RT3050)
 	  RT_WRITE(sc, GDMA1_BASE + GDMA_FWD_CFG,
 	    (
 	    GDM_ICS_EN | /* Enable IP Csum */
@@ -832,7 +850,8 @@ rt_init_locked(void *priv)
 
 	/* write back DDONE, 16byte burst enable RX/TX DMA */
 	tmp = FE_TX_WB_DDONE | FE_DMA_BT_SIZE16 | FE_RX_DMA_EN | FE_TX_DMA_EN;
-	if (sc->rt_chipid == RT_CHIPID_MT7620)
+	if (sc->rt_chipid == RT_CHIPID_MT7620 ||
+	    sc->rt_chipid == RT_CHIPID_MT7621)
 		tmp |= (1<<31);
 	RT_WRITE(sc, sc->pdma_glo_cfg, tmp);
 
@@ -844,7 +863,8 @@ rt_init_locked(void *priv)
 
 	/* enable interrupts */
 	if (sc->rt_chipid == RT_CHIPID_RT5350 ||
-	    sc->rt_chipid == RT_CHIPID_MT7620)
+	    sc->rt_chipid == RT_CHIPID_MT7620 ||
+	    sc->rt_chipid == RT_CHIPID_MT7621)
 	  tmp = RT5350_INT_TX_COHERENT |
 	  	RT5350_INT_RX_COHERENT |
 	  	RT5350_INT_TXQ3_DONE |
@@ -946,7 +966,8 @@ rt_stop_locked(void *priv)
 	RT_WRITE(sc, sc->fe_int_enable, 0);
 	
 	if(sc->rt_chipid == RT_CHIPID_RT5350 ||
-	   sc->rt_chipid == RT_CHIPID_MT7620) {
+	   sc->rt_chipid == RT_CHIPID_MT7620 ||
+	   sc->rt_chipid == RT_CHIPID_MT7621) {
 	} else {
 	  /* reset adapter */
 	  RT_WRITE(sc, GE_PORT_BASE + FE_RST_GLO, PSE_RESET);
@@ -1056,22 +1077,29 @@ rt_tx_data(struct rt_softc *sc, struct mbuf *m, int qid)
 
 		/* TODO: this needs to be refined as MT7620 for example has
 		 * a different word3 layout than RT305x and RT5350 (the last
-		 * one doesn't use word3 at all).
+		 * one doesn't use word3 at all). And so does MT7621...
 		 */
 
-		/* Set destination */
-		if (sc->rt_chipid != RT_CHIPID_MT7620)
-			desc->dst = (TXDSCR_DST_PORT_GDMA1);
+		if (sc->rt_chipid != RT_CHIPID_MT7621) {
+			/* Set destination */
+			if (sc->rt_chipid != RT_CHIPID_MT7620)
+			    desc->dst = (TXDSCR_DST_PORT_GDMA1);
 
-		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-			desc->dst |= (TXDSCR_IP_CSUM_GEN|TXDSCR_UDP_CSUM_GEN|
-			    TXDSCR_TCP_CSUM_GEN);
-		/* Set queue id */
-		desc->qn = qid;
-		/* No PPPoE */
-		desc->pppoe = 0;
-		/* No VLAN */
-		desc->vid = 0;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				desc->dst |= (TXDSCR_IP_CSUM_GEN |
+				    TXDSCR_UDP_CSUM_GEN | TXDSCR_TCP_CSUM_GEN);
+			/* Set queue id */
+			desc->qn = qid;
+			/* No PPPoE */
+			desc->pppoe = 0;
+			/* No VLAN */
+			desc->vid = 0;
+		} else {
+			desc->vid = 0;
+			desc->pppoe = 0;
+			desc->qn = 0;
+			desc->dst = 2;
+		}
 
 		desc->sdp0 = htole32(dma_seg[i].ds_addr);
 		desc->sdl0 = htole16(dma_seg[i].ds_len |
@@ -1715,7 +1743,8 @@ rt_tx_done_task(void *context, int pending)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if(sc->rt_chipid == RT_CHIPID_RT5350 ||
-	   sc->rt_chipid == RT_CHIPID_MT7620)
+	   sc->rt_chipid == RT_CHIPID_MT7620 ||
+	   sc->rt_chipid == RT_CHIPID_MT7621)
 	  intr_mask = (
 		RT5350_INT_TXQ3_DONE |
 		RT5350_INT_TXQ2_DONE |
@@ -1871,15 +1900,13 @@ rt_rx_eof(struct rt_softc *sc, struct rt_softc_rx_ring *ring, int limit)
 			BUS_DMASYNC_PREREAD);
 
 		m = data->m;
-		desc_flags = desc->src;
+		desc_flags = desc->word3;
 
 		data->m = mnew;
 		/* Add 2 for proper align of RX IP header */
 		desc->sdp0 = htole32(segs[0].ds_addr+2);
 		desc->sdl0 = htole32(segs[0].ds_len-2);
-		desc->src = 0;
-		desc->ai = 0;
-		desc->foe = 0;
+		desc->word3 = 0;
 
 		RT_DPRINTF(sc, RT_DEBUG_RX,
 		    "Rx frame: rxdesc flags=0x%08x\n", desc_flags);
@@ -1892,8 +1919,7 @@ rt_rx_eof(struct rt_softc *sc, struct rt_softc_rx_ring *ring, int limit)
 		/* check for crc errors */
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 			/*check for valid checksum*/
-			if (desc_flags & (RXDSXR_SRC_IP_CSUM_FAIL|
-			    RXDSXR_SRC_L4_CSUM_FAIL)) {
+			if (desc_flags & (sc->csum_fail_ip|sc->csum_fail_l4)) {
 				RT_DPRINTF(sc, RT_DEBUG_RX,
 				    "rxdesc: crc error\n");
 
@@ -1904,7 +1930,7 @@ rt_rx_eof(struct rt_softc *sc, struct rt_softc_rx_ring *ring, int limit)
 				    goto skip;
 				}
 			}
-			if ((desc_flags & RXDSXR_SRC_IP_CSUM_FAIL) != 0) {
+			if ((desc_flags & sc->csum_fail_ip) == 0) {
 				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
 				m->m_pkthdr.csum_data = 0xffff;
@@ -2032,7 +2058,8 @@ rt_watchdog(struct rt_softc *sc)
 	int ntries;
 #endif
 	if(sc->rt_chipid != RT_CHIPID_RT5350 &&
-	   sc->rt_chipid != RT_CHIPID_MT7620) {
+	   sc->rt_chipid != RT_CHIPID_MT7620 &&
+	   sc->rt_chipid != RT_CHIPID_MT7621) {
 		tmp = RT_READ(sc, PSE_BASE + CDMA_OQ_STA);
 
 		RT_DPRINTF(sc, RT_DEBUG_WATCHDOG,

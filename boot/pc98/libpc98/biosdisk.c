@@ -96,8 +96,12 @@ static struct bdinfo
     int		bd_flags;
     int		bd_type;		/* BIOS 'drive type' (floppy only) */
     int		bd_da_unit;		/* kernel unit number for da */
+    int		bd_open;		/* reference counter */
+    void	*bd_bcache;		/* buffer cache data */
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
+
+#define	BD(dev)	(bdinfo[(dev)->d_unit])
 
 static int	bd_getgeom(struct open_disk *od);
 static int	bd_read(struct open_disk *od, daddr_t dblk, int blks,
@@ -107,16 +111,16 @@ static int	bd_write(struct open_disk *od, daddr_t dblk, int blks,
 
 static int	bd_int13probe(struct bdinfo *bd);
 
-static void	bd_printslice(struct open_disk *od, struct pc98_partition *dp,
+static int	bd_printslice(struct open_disk *od, struct pc98_partition *dp,
 		    char *prefix, int verbose);
-static void	bd_printbsdslice(struct open_disk *od, daddr_t offset,
+static int	bd_printbsdslice(struct open_disk *od, daddr_t offset,
 		    char *prefix, int verbose);
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+		    size_t offset, size_t size, char *buf, size_t *rsize);
 static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+		    size_t offset, size_t size, char *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static void	bd_print(int verbose);
@@ -176,6 +180,8 @@ bd_init(void)
     /* sequence 0x90, 0x80, 0xa0 */
     for (base = 0x90; base <= 0xa0; base += n, n += 0x30) {
 	for (unit = base; (nbdinfo < MAXBDDEV) || ((unit & 0x0f) < 4); unit++) {
+	    bdinfo[nbdinfo].bd_open = 0;
+	    bdinfo[nbdinfo].bd_bcache = NULL;
 	    bdinfo[nbdinfo].bd_unit = unit;
 	    bdinfo[nbdinfo].bd_flags = (unit & 0xf0) == 0x90 ? BD_FLOPPY : 0;
 
@@ -205,6 +211,7 @@ bd_init(void)
 	    nbdinfo++;
 	}
     }
+    bcache_add_dev(nbdinfo);
     return(0);
 }
 
@@ -245,15 +252,18 @@ bd_int13probe(struct bdinfo *bd)
 static void
 bd_print(int verbose)
 {
-    int				i, j;
+    int				i, j, done;
     char			line[80];
     struct i386_devdesc		dev;
     struct open_disk		*od;
     struct pc98_partition	*dptr;
     
-    for (i = 0; i < nbdinfo; i++) {
+    pager_open();
+    done = 0;
+    for (i = 0; i < nbdinfo && !done; i++) {
 	sprintf(line, "    disk%d:   BIOS drive %c:\n", i, 'A' + i);
-	pager_output(line);
+	if (pager_output(line))
+		break;
 
 	/* try to open the whole disk */
 	dev.d_unit = i;
@@ -269,12 +279,16 @@ bd_print(int verbose)
 		/* Check for a "dedicated" disk */
 		for (j = 0; j < od->od_nslices; j++) {
 		    sprintf(line, "      disk%ds%d", i, j + 1);
-		    bd_printslice(od, &dptr[j], line, verbose);
+		    if (bd_printslice(od, &dptr[j], line, verbose)) {
+			    done = 1;
+			    break;
+		    }
 		}
 	    }
 	    bd_closedisk(od);
 	}
     }
+    pager_close();
 }
 
 /* Given a size in 512 byte sectors, convert it to a human-readable number. */
@@ -304,7 +318,7 @@ display_size(uint64_t size)
  * Print information about slices on a disk.  For the size calculations we
  * assume a 512 byte sector.
  */
-static void
+static int
 bd_printslice(struct open_disk *od, struct pc98_partition *dp, char *prefix,
 	int verbose)
 {
@@ -324,10 +338,9 @@ bd_printslice(struct open_disk *od, struct pc98_partition *dp, char *prefix,
 
 	switch(dp->dp_mid & PC98_MID_MASK) {
 	case PC98_MID_386BSD:
-		bd_printbsdslice(od, start, prefix, verbose);
-		return;
+		return (bd_printbsdslice(od, start, prefix, verbose));
 	case 0x00:				/* unused partition */
-		return;
+		return (0);
 	case 0x01:
 		sprintf(line, "%s: FAT-12%s\n", prefix, stats);
 		break;
@@ -343,14 +356,14 @@ bd_printslice(struct open_disk *od, struct pc98_partition *dp, char *prefix,
 		sprintf(line, "%s: Unknown fs: 0x%x %s\n", prefix, dp->dp_mid,
 		    stats);
 	}
-	pager_output(line);
+	return (pager_output(line));
 }
 
 /*
  * Print out each valid partition in the disklabel of a FreeBSD slice.
  * For size calculations, we assume a 512 byte sector size.
  */
-static void
+static int
 bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
     int verbose)
 {
@@ -361,12 +374,11 @@ bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
 
     /* read disklabel */
     if (bd_read(od, offset + LABELSECTOR, 1, buf))
-	return;
+        return (0);
     lp =(struct disklabel *)(&buf[0]);
     if (lp->d_magic != DISKMAGIC) {
 	sprintf(line, "%s: FFS  bad disklabel\n", prefix);
-	pager_output(line);
-	return;
+	return (pager_output(line));
     }
     
     /* Print partitions */
@@ -397,9 +409,11 @@ bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
 		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : 
 		    (lp->d_partitions[i].p_fstype == FS_VINUM) ? "vinum" :
 		    "FFS");
-	    pager_output(line);
+	    if (pager_output(line))
+		    return (1);
 	}
     }
+    return (0);
 }
 
 
@@ -427,6 +441,10 @@ bd_open(struct open_file *f, ...)
     if ((error = bd_opendisk(&od, dev)))
 	return(error);
     
+    BD(dev).bd_open++;
+    if (BD(dev).bd_bcache == NULL)
+	BD(dev).bd_bcache = bcache_allocate();
+
     /*
      * Save our context
      */
@@ -696,7 +714,14 @@ bd_bestslice(struct open_disk *od)
 static int 
 bd_close(struct open_file *f)
 {
-    struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
+    struct i386_devdesc		*dev = f->f_devdata;
+    struct open_disk	*od = (struct open_disk *)(dev->d_kind.biosdisk.data);
+
+    BD(dev).bd_open--;
+    if (BD(dev).bd_open == 0) {
+	bcache_free(BD(dev).bd_bcache);
+	BD(dev).bd_bcache = NULL;
+    }
 
     bd_closedisk(od);
     return(0);
@@ -715,18 +740,23 @@ bd_closedisk(struct open_disk *od)
 }
 
 static int 
-bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
+bd_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+    char *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
-    struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
+    struct i386_devdesc		*dev = devdata;
+    struct open_disk	*od = (struct open_disk *)(dev->d_kind.biosdisk.data);
 
     bcd.dv_strategy = bd_realstrategy;
     bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, od->od_unit, rw, dblk+od->od_boff, size, buf, rsize));
+    bcd.dv_cache = BD(dev).bd_bcache;
+    return(bcache_strategy(&bcd, rw, dblk+od->od_boff, offset,
+	size, buf, rsize));
 }
 
 static int 
-bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
+bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
     int			blks;

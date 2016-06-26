@@ -388,7 +388,7 @@ wlprobe(device_t device)
     struct wl_softc	*sc;
     char		*str = "wl%d: board out of range [0..%d]\n";
     u_char		inbuf[100];
-    unsigned long	junk, sirq;
+    rman_res_t		junk, sirq;
     int			error, irq;
 
     error = ISA_PNP_PROBE(device_get_parent(device), device, wl_ids);
@@ -495,7 +495,7 @@ wlattach(device_t device)
     }
 
 #ifdef WLDEBUG
-    printf("wlattach: base %lx, unit %d\n", rman_get_start(sc->res_ioport),
+    printf("wlattach: base %jx, unit %d\n", rman_get_start(sc->res_ioport),
 	device_get_unit(device));
 #endif
 
@@ -604,8 +604,8 @@ wl_allocate_resources(device_t device)
     struct wl_softc *sc = device_get_softc(device);
     int ports = 16;		/* Number of ports */
 
-    sc->res_ioport = bus_alloc_resource(device, SYS_RES_IOPORT,
-	&sc->rid_ioport, 0ul, ~0ul, ports, RF_ACTIVE);
+    sc->res_ioport = bus_alloc_resource_anywhere(device, SYS_RES_IOPORT,
+	&sc->rid_ioport, ports, RF_ACTIVE);
     if (sc->res_ioport == NULL)
 	goto errexit;
 
@@ -1252,7 +1252,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    mode |= MOD_PROM;
 	}
 	/*
-	 * force a complete reset if the recieve multicast/
+	 * force a complete reset if the receive multicast/
 	 * promiscuous mode changes so that these take 
 	 * effect immediately.
 	 *
@@ -1479,11 +1479,11 @@ wlwatchdog(void *vsc)
  *
  *	This function is the interrupt handler for the WaveLAN
  *	board.  This routine will be called whenever either a packet
- *	is received, or a packet has successfully been transfered and
+ *	is received, or a packet has successfully been transferred and
  *	the unit is ready to transmit another packet.
  *
  * input	: board number that interrupted
- * output	: either a packet is received, or a packet is transfered
+ * output	: either a packet is received, or a packet is transferred
  *
  */
 static void
@@ -1500,7 +1500,7 @@ wlintr(void *arg)
 #endif
 
     if ((int_type = WL_READ_2(sc, HASR)) & HASR_MMC_INTR) {
-	/* handle interrupt from the modem management controler */
+	/* handle interrupt from the modem management controller */
 	/* This will clear the interrupt condition */ 
 	(void) wlmmcread(sc, MMC_DCE_STATUS); /* ignored for now */
     }

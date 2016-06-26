@@ -102,7 +102,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	register struct radix_node_head *rnh;
 	register int i;
 	struct radix_node *rn;
-	struct sockaddr *saddr, *smask = 0;
+	struct sockaddr *saddr, *smask = NULL;
 #if defined(INET6) || defined(INET)
 	int off;
 #endif
@@ -199,7 +199,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		goto out;
 	}
 	RADIX_NODE_HEAD_LOCK(rnh);
-	rn = (*rnh->rnh_addaddr)(saddr, smask, rnh, np->netc_rnodes);
+	rn = (*rnh->rnh_addaddr)(saddr, smask, &rnh->rh, np->netc_rnodes);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 	if (rn == NULL || np != (struct netcred *)rn) {	/* already exists */
 		error = EPERM;
@@ -231,7 +231,7 @@ vfs_free_netcred(struct radix_node *rn, void *w)
 	struct radix_node_head *rnh = (struct radix_node_head *) w;
 	struct ucred *cred;
 
-	(*rnh->rnh_deladdr) (rn->rn_key, rn->rn_mask, rnh);
+	(*rnh->rnh_deladdr) (rn->rn_key, rn->rn_mask, &rnh->rh);
 	cred = ((struct netcred *)rn)->netc_anon;
 	if (cred != NULL)
 		crfree(cred);
@@ -256,10 +256,10 @@ vfs_free_addrlist_af(struct radix_node_head **prnh)
 
 	rnh = *prnh;
 	RADIX_NODE_HEAD_LOCK(rnh);
-	(*rnh->rnh_walktree) (rnh, vfs_free_netcred, rnh);
+	(*rnh->rnh_walktree)(&rnh->rh, vfs_free_netcred, rnh);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 	RADIX_NODE_HEAD_DESTROY(rnh);
-	free(rnh, M_RTABLE);
+	rn_detachhead((void **)prnh);
 	prnh = NULL;
 }
 
@@ -470,7 +470,7 @@ vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
 			if (rnh != NULL) {
 				RADIX_NODE_HEAD_RLOCK(rnh);
 				np = (struct netcred *)
-				    (*rnh->rnh_matchaddr)(saddr, rnh);
+				    (*rnh->rnh_matchaddr)(saddr, &rnh->rh);
 				RADIX_NODE_HEAD_RUNLOCK(rnh);
 				if (np && np->netc_rnodes->rn_flags & RNF_ROOT)
 					np = NULL;

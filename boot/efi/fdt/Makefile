@@ -6,6 +6,7 @@
 
 LIB=		efi_fdt
 INTERNALLIB=
+WARNS?=		6
 
 SRCS=		efi_fdt.c
 
@@ -26,7 +27,7 @@ CFLAGS+=	-I${.CURDIR}/../../fdt
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
 
 CLEANFILES+=	machine

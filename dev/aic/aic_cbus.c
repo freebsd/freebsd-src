@@ -57,7 +57,8 @@ static int aic_isa_probe(device_t);
 static int aic_isa_attach(device_t);
 
 static u_int aic_isa_ports[] = { 0x1840 };
-#define	AIC_ISA_NUMPORTS (sizeof(aic_isa_ports) / sizeof(aic_isa_ports[0]))
+
+#define	AIC_ISA_NUMPORTS nitems(aic_isa_ports)
 #define	AIC_ISA_PORTSIZE 0x20
 
 #define	AIC98_GENERIC		0x00

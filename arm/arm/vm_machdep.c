@@ -40,6 +40,8 @@
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  */
 
+#include "opt_compat.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -55,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 
-#include <machine/acle-compat.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/pcb.h>
@@ -74,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
-#include <machine/acle-compat.h>
 #include <machine/md_var.h>
 #include <machine/vfp.h>
 
@@ -146,7 +146,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;;
+	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;
 #if __ARM_ARCH >= 6
 	td2->td_md.md_tp = td1->td_md.md_tp;
 #else
@@ -180,7 +180,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	/*
 	 * __syscall returns an off_t while most other syscalls return an
 	 * int. As an off_t is 64-bits and an int is 32-bits we need to
-	 * place the returned data into r1. As the lseek and frerebsd6_lseek
+	 * place the returned data into r1. As the lseek and freebsd6_lseek
 	 * syscalls also return an off_t they do not need this fixup.
 	 */
 	call = frame->tf_r7;
@@ -189,8 +189,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		register_t code = ap[_QUAD_LOWWORD];
 		if (td->td_proc->p_sysent->sv_mask)
 			code &= td->td_proc->p_sysent->sv_mask;
-		fixup = (code != SYS_freebsd6_lseek && code != SYS_lseek)
-		    ? 1 : 0;
+		fixup = (code != SYS_lseek);
 	}
 #endif
 
@@ -227,14 +226,14 @@ cpu_set_syscall_retval(struct thread *td, int error)
 }
 
 /*
- * Initialize machine state (pcb and trap frame) for a new thread about to
- * upcall. Put enough state in the new thread's PCB to get it to go back
- * userret(), where we can intercept it again to set the return (upcall)
- * Address and stack, along with those from upcals that are from other sources
- * such as those generated in thread_userret() itself.
+ * Initialize machine state, mostly pcb and trap frame for a new
+ * thread, about to return to userspace.  Put enough state in the new
+ * thread's PCB to get it to go back to the fork_return(), which
+ * finalizes the thread state and handles peculiarities of the first
+ * return to userspace for the new thread.
  */
 void
-cpu_set_upcall(struct thread *td, struct thread *td0)
+cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
@@ -254,12 +253,11 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 /*
- * Set that machine state for performing an upcall that has to
- * be done in thread_userret() so that those upcalls generated
- * in thread_userret() itself can be done as well.
+ * Set that machine state for performing an upcall that starts
+ * the entry function with the given argument.
  */
 void
-cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	stack_t *stack)
 {
 	struct trapframe *tf = td->td_frame;
@@ -328,7 +326,7 @@ cpu_thread_clean(struct thread *td)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
+cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	td->td_pcb->pcb_regs.sf_r4 = (register_t)func;	/* function */
 	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;	/* first arg */

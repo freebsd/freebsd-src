@@ -30,5 +30,7 @@
  * calls. Unfortunately, we don't have a separate system call table for
  * those, so rely on the system call table from COMPAT_CLOUDABI64.
  */
-#include <compat/cloudabi64/cloudabi64_syscalldefs.h>
+
+#include <contrib/cloudabi/cloudabi64_types.h>
+
 #include <compat/cloudabi64/cloudabi64_proto.h>

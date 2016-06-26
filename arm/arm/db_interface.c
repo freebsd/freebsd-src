@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/cons.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>	/* just for boothowto */
@@ -53,9 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/db_machdep.h>
+#include <machine/cpu.h>
 #include <machine/machdep.h>
 #include <machine/vmparam.h>
-#include <machine/cpu.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
@@ -63,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_output.h>
 #include <ddb/db_variables.h>
 #include <ddb/db_sym.h>
-#include <sys/cons.h>
+
 
 static int nil = 0;
 
@@ -99,7 +100,7 @@ struct db_variable db_regs[] = {
 	{ "irq_sp", &nil, db_access_irq_sp, },
 };
 
-struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 int
 db_access_und_sp(struct db_variable *vp, db_expr_t *valp, int rw)
@@ -170,7 +171,7 @@ db_validate_address(vm_offset_t addr)
 	    addr >= VM_MIN_KERNEL_ADDRESS
 #endif
 	   )
-		pmap = pmap_kernel();
+		pmap = kernel_pmap;
 	else
 		pmap = p->p_vmspace->vm_map.pmap;
 
@@ -245,11 +246,10 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	}
 
 	/* make sure the caches and memory are in sync */
-	cpu_icache_sync_range(addr, size);
+	icache_sync(addr, size);
 
 	/* In case the current page tables have been modified ... */
-	cpu_tlb_flushID();
-	cpu_cpwait();
+	tlb_flush_all();
 	return (0);
 }
 

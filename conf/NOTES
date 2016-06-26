@@ -177,7 +177,6 @@ options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
-options 	GEOM_UNCOMPRESS		# Read-only compressed disks (lzma, zip)
 options 	GEOM_UZIP		# Read-only compressed disks
 options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
@@ -224,13 +223,27 @@ options 	SCHED_STATS
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# EARLY_AP_STARTUP releases the Application Processors earlier in the
+# kernel startup process (before devices are probed) rather than at the
+# end.  This is a temporary option for use during the transition from
+# late to early AP startup.
+options		EARLY_AP_STARTUP
+
 # MAXCPU defines the maximum number of CPUs that can boot in the system.
 # A default value should be already present, for every architecture.
 options 	MAXCPU=32
 
 # MAXMEMDOM defines the maximum number of memory domains that can boot in the
 # system.  A default value should already be defined by every architecture.
-options 	MAXMEMDOM=1
+options 	MAXMEMDOM=2
+
+# VM_NUMA_ALLOC enables use of memory domain-aware allocation in the VM
+# system.
+options 	VM_NUMA_ALLOC
+
+# DEVICE_NUMA enables reporting of domain affinity of I/O devices via
+# bus_get_domain(), etc.
+options 	DEVICE_NUMA
 
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
@@ -285,7 +298,6 @@ options 	SX_NOINLINE
 #	  performance and increase the frequency of kernel panics by
 #	  design.  If you aren't sure that you need it then you don't.
 #	  Relies on the PREEMPTION option.  DON'T TURN THIS ON.
-# MUTEX_DEBUG enables various extra assertions in the mutex code.
 # SLEEPQUEUE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active sleep queues as well as sleep wait message
 #	  frequency.
@@ -301,7 +313,6 @@ options 	SX_NOINLINE
 # WITNESS_SKIPSPIN disables the witness checks on spin mutexes.
 options 	PREEMPTION
 options 	FULL_PREEMPTION
-options 	MUTEX_DEBUG
 options 	WITNESS
 options 	WITNESS_KDB
 options 	WITNESS_SKIPSPIN
@@ -711,8 +722,9 @@ options 	ALTQ
 options 	ALTQ_CBQ	# Class Based Queueing
 options 	ALTQ_RED	# Random Early Detection
 options 	ALTQ_RIO	# RED In/Out
+options 	ALTQ_CODEL	# CoDel Active Queueing
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
-options		ALTQ_FAIRQ	# Fair Packet Scheduler
+options 	ALTQ_FAIRQ	# Fair Packet Scheduler
 options 	ALTQ_CDNR	# Traffic conditioner
 options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
@@ -1078,6 +1090,14 @@ options 	UFS_GJOURNAL
 
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
+# This is now optional.
+# If not defined, the root filesystem passed in as the MFS_IMAGE makeoption
+# will be automatically embedded in the kernel during linking. Its exact size
+# will be consumed within the kernel.
+# If defined, the old way of embedding the filesystem in the kernel will be
+# used. That is to say MD_ROOT_SIZE KB will be allocated in the kernel and
+# later, the filesystem image passed in as the MFS_IMAGE makeoption will be
+# dd'd into the reserved space if it fits.
 options 	MD_ROOT_SIZE=10
 
 # Make the md device a potential root device, either with preloaded
@@ -1116,17 +1136,6 @@ options 	NFS_DEBUG		# Enable NFS Debugging
 # be dangerous (and even mounting read only could result in panics.)
 #
 options 	EXT2FS
-
-#
-# Add support for the ReiserFS filesystem (used in Linux). Currently,
-# this is limited to read-only access.
-#
-options 	REISERFS
-
-# Use real implementations of the aio_* system calls.  There are numerous
-# stability and security issues in the current aio code that make it
-# unsuitable for inclusion on machines with untrusted local users.
-options 	VFS_AIO
 
 # Cryptographically secure random number generator; /dev/random
 device		random
@@ -1336,6 +1345,7 @@ options 	CAM_MAX_HIGHPOWER=4
 options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
 options 	SCSI_DELAY=5000	# Be pessimistic about Joe SCSI device
+options 	CAM_IOSCHED_DYNAMIC
 
 # Options for the CAM CDROM driver:
 # CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN
@@ -1393,6 +1403,17 @@ options 	MSGBUF_SIZE=40960
 
 
 #####################################################################
+# HARDWARE BUS CONFIGURATION
+
+#
+# PCI bus & PCI options:
+#
+device		pci
+options 	PCI_HP			# PCI-Express native HotPlug
+options 	PCI_IOV			# PCI SR-IOV support
+
+
+#####################################################################
 # HARDWARE DEVICE CONFIGURATION
 
 # For ISA the required hints are listed.
@@ -1406,6 +1427,10 @@ options 	MSGBUF_SIZE=40960
 # These options are valid for other keyboard drivers as well.
 options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+
+device		kbdmux			# keyboard multiplexer
+options		KBDMUX_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	KBDMUX_DFLT_KEYMAP=it.iso
 
 options 	FB_DEBUG		# Frame buffer debugging
 
@@ -1988,6 +2013,8 @@ device		xmphy		# XaQti XMAC II
 #       the MPX 5030/5038, which is either a RealTek in disguise or a
 #       RealTek workalike.  Note that the D-Link DFE-530TX+ uses the RealTek
 #       chipset and is supported by this driver, not the 'vr' driver.
+# rtwn: RealTek wireless adapters.
+# rtwnfw: RealTek wireless firmware.
 # sf:   Support for Adaptec Duralink PCI fast ethernet adapters based on the
 #       Adaptec AIC-6915 "starfire" controller.
 #       This includes dual and quad port cards, as well as one 100baseFX card.
@@ -2159,6 +2186,8 @@ device		malo		# Marvell Libertas wireless NICs.
 device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		mwlfw
 device		ral		# Ralink Technology RT2500 wireless NICs.
+device		rtwn		# Realtek wireless NICs
+device		rtwnfw
 
 # Use sf_buf(9) interface for jumbo buffers on ti(4) controllers.
 #options 	TI_SF_BUF_JUMBO
@@ -2586,6 +2615,25 @@ device		pps
 device		lpbb
 device		pcfclock
 
+#
+# Etherswitch framework and drivers
+#
+# etherswitch	The etherswitch(4) framework
+# miiproxy	Proxy device for miibus(4) functionality
+# 
+# Switch hardware support:
+# arswitch	Atheros switches
+# ip17x 	IC+ 17x family switches
+# rtl8366r	Realtek RTL8366 switches
+# ukswitch	Multi-PHY switches
+#
+device		etherswitch
+device		miiproxy
+device		arswitch
+device		ip17x
+device		rtl8366rb
+device		ukswitch
+
 # Kernel BOOTP support
 
 options 	BOOTP		# Use BOOTP to obtain IP address/hostname
@@ -2770,9 +2818,6 @@ device		ural
 device		urndis
 # Realtek RTL8187B/L wireless driver
 device		urtw
-#
-# Realtek RTL8188CU/RTL8192CU wireless driver
-device		urtwn
 #
 # ZyDas ZD1211/ZD1211B wireless driver
 device		zyd
@@ -3012,3 +3057,6 @@ options		EM_MULTIQUEUE # Activate multiqueue features/disable MSI-X
 # zlib I/O stream support
 # This enables support for compressed core dumps.
 options 	GZIO
+
+# BHND(4) drivers
+options		BHND_LOGLEVEL	# Logging threshold level

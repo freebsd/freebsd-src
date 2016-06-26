@@ -1675,9 +1675,9 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_NOWAIT);
+		m = m_collapse(*m_headp, M_NOWAIT, EM_MAX_SCATTER);
 		if (m == NULL) {
-			adapter->mbuf_alloc_failed++;
+			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (ENOBUFS);
@@ -1699,7 +1699,7 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 		return (error);
 	}
 
-        if (nsegs > (adapter->num_tx_desc_avail - 2)) {
+        if (adapter->num_tx_desc_avail < (nsegs + 2)) {
                 adapter->no_tx_desc_avail2++;
 		bus_dmamap_unload(adapter->txtag, map);
 		return (ENOBUFS);
@@ -2412,7 +2412,7 @@ lem_hardware_init(struct adapter *adapter)
 	 *   received after sending an XOFF.
 	 * - Low water mark works best when it is very near the high water mark.
 	 *   This allows the receiver to restart by sending XON when it has
-	 *   drained a bit. Here we use an arbitary value of 1500 which will
+	 *   drained a bit. Here we use an arbitrary value of 1500 which will
 	 *   restart after one full frame is pulled from the buffer. There
 	 *   could be several smaller frames in the buffer and if so they will
 	 *   not trigger the XON until their total number reduces the buffer
@@ -3838,7 +3838,7 @@ discard:
  * copy ethernet header to the new mbuf. The new mbuf is prepended into the
  * existing mbuf chain.
  *
- * Be aware, best performance of the 8254x is achived only when jumbo frame is
+ * Be aware, best performance of the 8254x is achieved only when jumbo frame is
  * not used at all on architectures with strict alignment.
  */
 static int
@@ -4526,12 +4526,12 @@ lem_add_hw_stats(struct adapter *adapter)
 	struct sysctl_oid_list *stat_list;
 
 	/* Driver Statistics */
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_alloc_fail", 
-			 CTLFLAG_RD, &adapter->mbuf_alloc_failed,
-			 "Std mbuf failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "cluster_alloc_fail", 
 			 CTLFLAG_RD, &adapter->mbuf_cluster_failed,
 			 "Std mbuf cluster failed");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_fail", 
+			 CTLFLAG_RD, &adapter->mbuf_defrag_failed,
+			 "Defragmenting mbuf chain failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped", 
 			CTLFLAG_RD, &adapter->dropped_pkts,
 			"Driver dropped packets");

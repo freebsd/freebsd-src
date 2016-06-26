@@ -42,13 +42,15 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef INTRNG
+
 static int
 fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
 {
 	int offset;
 
-	if (fdt_is_compatible(node, "allwinner,sun4i-ic"))
+	if (fdt_is_compatible(node, "allwinner,sun4i-a10-ic"))
 		offset = 0;
 	else if (fdt_is_compatible(node, "arm,gic"))
 		offset = 32;
@@ -66,3 +68,5 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	&fdt_aintc_decode_ic,
 	NULL
 };
+
+#endif /* INTRNG */

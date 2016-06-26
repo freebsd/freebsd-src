@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "fdt_platform.h"
+#include "fdt_overlay.h"
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
@@ -157,7 +158,7 @@ fdt_find_static_dtb()
 	}
 
 	/*
-	 * The most efficent way to find a symbol would be to calculate a
+	 * The most efficient way to find a symbol would be to calculate a
 	 * hash, find proper bucket and chain, and thus find a symbol.
 	 * However, that would involve code duplication (e.g. for hash
 	 * function). So we're using simpler and a bit slower way: we're
@@ -276,6 +277,130 @@ fdt_load_dtb_file(const char * filename)
 	return (0);
 }
 
+static int
+fdt_load_dtb_overlay(const char * filename)
+{
+	struct preloaded_file *bfp, *oldbfp;
+	struct fdt_header header;
+	int err;
+
+	debugf("fdt_load_dtb_overlay(%s)\n", filename);
+
+	oldbfp = file_findfile(filename, "dtbo");
+
+	/* Attempt to load and validate a new dtb from a file. */
+	if ((bfp = file_loadraw(filename, "dtbo", 1)) == NULL) {
+		printf("failed to load file '%s'\n", filename);
+		return (1);
+	}
+
+	COPYOUT(bfp->f_addr, &header, sizeof(header));
+	err = fdt_check_header(&header);
+
+	if (err < 0) {
+		file_discard(bfp);
+		if (err == -FDT_ERR_BADVERSION)
+			printf("incompatible blob version: %d, should be: %d\n",
+			    fdt_version(fdtp), FDT_LAST_SUPPORTED_VERSION);
+
+		else
+			printf("error validating blob: %s\n",
+			    fdt_strerror(err));
+		return (1);
+	}
+
+	/* A new dtb was validated, discard any previous file. */
+	if (oldbfp)
+		file_discard(oldbfp);
+
+	return (0);
+}
+
+int
+fdt_load_dtb_overlays(const char * filenames)
+{
+	char *names;
+	char *name;
+	char *comaptr;
+
+	debugf("fdt_load_dtb_overlay(%s)\n", filenames);
+
+	names = strdup(filenames);
+	if (names == NULL)
+		return (1);
+	name = names;
+	do {
+		comaptr = strchr(name, ',');
+		if (comaptr)
+			*comaptr = '\0';
+		fdt_load_dtb_overlay(name);
+		name = comaptr + 1;
+	} while(comaptr);
+
+	free(names);
+	return (0);
+}
+
+void
+fdt_apply_overlays()
+{
+	struct preloaded_file *fp;
+	size_t overlays_size, max_overlay_size, new_fdtp_size;
+	void *new_fdtp;
+	void *overlay;
+	int rv;
+
+	if ((fdtp == NULL) || (fdtp_size == 0))
+		return;
+
+	overlays_size = 0;
+	max_overlay_size = 0;
+	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
+		if (max_overlay_size < fp->f_size)
+			max_overlay_size = fp->f_size;
+		overlays_size += fp->f_size;
+	}
+
+	/* Nothing to apply */
+	if (overlays_size == 0)
+		return;
+
+	/* It's actually more than enough */
+	new_fdtp_size = fdtp_size + overlays_size;
+	new_fdtp = malloc(new_fdtp_size);
+	if (new_fdtp == NULL) {
+		printf("failed to allocate memory for DTB blob with overlays\n");
+		return;
+	}
+
+	overlay = malloc(max_overlay_size);
+	if (overlay == NULL) {
+		printf("failed to allocate memory for DTB blob with overlays\n");
+		free(new_fdtp);
+		return;
+	}
+
+	rv = fdt_open_into(fdtp, new_fdtp, new_fdtp_size);
+	if (rv != 0) {
+		printf("failed to open DTB blob for applying overlays\n");
+		free(new_fdtp);
+		free(overlay);
+		return;
+	}
+
+	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
+		printf("applying DTB overlay '%s'\n", fp->f_name);
+		COPYOUT(fp->f_addr, overlay, fp->f_size);
+		fdt_overlay_apply(new_fdtp, overlay, fp->f_size);
+	}
+
+	free(fdtp);
+	fdtp = new_fdtp;
+	fdtp_size = new_fdtp_size;
+
+	free(overlay);
+}
+
 int
 fdt_setup_fdtp()
 {
@@ -296,8 +421,8 @@ fdt_setup_fdtp()
 	/* If we were given the address of a valid blob in memory, use it. */
 	if (fdt_to_load != NULL) {
 		if (fdt_load_dtb_addr(fdt_to_load) == 0) {
-			printf("Using DTB from memory address 0x%08X.\n",
-			    (unsigned int)fdt_to_load);
+			printf("Using DTB from memory address 0x%p.\n",
+			    fdt_to_load);
 			return (0);
 		}
 	}
@@ -427,6 +552,7 @@ fdt_fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 	}
 }
 
+#ifdef notyet
 static int
 fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 {
@@ -458,13 +584,14 @@ fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 	}
 	return (0);
 }
+#endif
 
 void
 fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 {
 	struct fdt_mem_region *curmr;
 	uint32_t addr_cells, size_cells;
-	uint32_t *addr_cellsp, *reg,  *size_cellsp;
+	uint32_t *addr_cellsp, *size_cellsp;
 	int err, i, len, memory, root;
 	size_t realmrno;
 	uint8_t *buf, *sb;
@@ -527,7 +654,7 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 			if (fdt_get_mem_rsv(fdtp, i, &rstart, &rsize))
 				break;
 			if (rsize) {
-				/* Ensure endianess, and put cells into a buffer */
+				/* Ensure endianness, and put cells into a buffer */
 				if (addr_cells == 2)
 					*(uint64_t *)buf =
 					    cpu_to_fdt64(rstart);
@@ -576,7 +703,7 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 	for (i = 0; i < num; i++) {
 		curmr = &region[i];
 		if (curmr->size != 0) {
-			/* Ensure endianess, and put cells into a buffer */
+			/* Ensure endianness, and put cells into a buffer */
 			if (addr_cells == 2)
 				*(uint64_t *)buf =
 				    cpu_to_fdt64(curmr->start);
@@ -845,40 +972,52 @@ fdt_cmd_hdr(int argc __unused, char *argv[] __unused)
 	ver = fdt_version(fdtp);
 	pager_open();
 	sprintf(line, "\nFlattened device tree header (%p):\n", fdtp);
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " magic                   = 0x%08x\n", fdt_magic(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " size                    = %d\n", fdt_totalsize(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " off_dt_struct           = 0x%08x\n",
 	    fdt_off_dt_struct(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " off_dt_strings          = 0x%08x\n",
 	    fdt_off_dt_strings(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " off_mem_rsvmap          = 0x%08x\n",
 	    fdt_off_mem_rsvmap(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " version                 = %d\n", ver); 
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " last compatible version = %d\n",
 	    fdt_last_comp_version(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	if (ver >= 2) {
 		sprintf(line, " boot_cpuid              = %d\n",
 		    fdt_boot_cpuid_phys(fdtp));
-		pager_output(line);
+		if (pager_output(line))
+			goto out;
 	}
 	if (ver >= 3) {
 		sprintf(line, " size_dt_strings         = %d\n",
 		    fdt_size_dt_strings(fdtp));
-		pager_output(line);
+		if (pager_output(line))
+			goto out;
 	}
 	if (ver >= 17) {
 		sprintf(line, " size_dt_struct          = %d\n",
 		    fdt_size_dt_struct(fdtp));
-		pager_output(line);
+		if (pager_output(line))
+			goto out;
 	}
+out:
 	pager_close();
 
 	return (CMD_OK);
@@ -1553,15 +1692,18 @@ fdt_cmd_mres(int argc, char *argv[])
 	pager_open();
 	total = fdt_num_mem_rsv(fdtp);
 	if (total > 0) {
-		pager_output("Reserved memory regions:\n");
+		if (pager_output("Reserved memory regions:\n"))
+			goto out;
 		for (i = 0; i < total; i++) {
 			fdt_get_mem_rsv(fdtp, i, &start, &size);
 			sprintf(line, "reg#%d: (start: 0x%jx, size: 0x%jx)\n", 
 			    i, start, size);
-			pager_output(line);
+			if (pager_output(line))
+				goto out;
 		}
 	} else
 		pager_output("No reserved memory regions\n");
+out:
 	pager_close();
 
 	return (CMD_OK);

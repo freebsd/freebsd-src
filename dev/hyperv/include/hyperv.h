@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -121,8 +121,12 @@ typedef uint8_t	hv_bool_uint8_t;
 		    HV_ALIGN_DOWN(addr, PAGE_SIZE)) >> PAGE_SHIFT )
 
 typedef struct hv_guid {
-	 unsigned char data[16];
+	uint8_t data[16];
 } __packed hv_guid;
+
+#define HYPERV_GUID_STRLEN	40
+
+int	hyperv_guid2str(const struct hv_guid *, char *, size_t);
 
 #define HV_NIC_GUID							\
 	.data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,	\
@@ -335,11 +339,6 @@ typedef enum {
 	HV_CHANNEL_MESSAGE_INITIATED_CONTACT		= 14,
 	HV_CHANNEL_MESSAGE_VERSION_RESPONSE		= 15,
 	HV_CHANNEL_MESSAGE_UNLOAD			= 16,
-
-#ifdef	HV_VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-	HV_CHANNEL_MESSAGE_VIEW_RANGE_ADD		= 17,
-	HV_CHANNEL_MESSAGE_VIEW_RANGE_REMOVE		= 18,
-#endif
 	HV_CHANNEL_MESSAGE_COUNT
 } hv_vmbus_channel_msg_type;
 
@@ -694,7 +693,6 @@ typedef struct {
 } hv_vmbus_ring_buffer_info;
 
 typedef void (*hv_vmbus_pfn_channel_callback)(void *context);
-typedef void (*hv_vmbus_sc_creation_callback)(void *context);
 
 typedef enum {
 	HV_CHANNEL_OFFER_STATE,
@@ -758,8 +756,8 @@ typedef struct hv_vmbus_channel {
 	 */
 	hv_vmbus_ring_buffer_info	inbound;
 
-	struct mtx			inbound_lock;
-
+	struct taskqueue *		rxq;
+	struct task			channel_task;
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
 	void*				channel_callback_context;
 
@@ -787,7 +785,7 @@ typedef struct hv_vmbus_channel {
 
 	/*
 	 * From Win8, this field specifies the target virtual process
-	 * on which to deliver the interupt from the host to guest.
+	 * on which to deliver the interrupt from the host to guest.
 	 * Before Win8, all channel interrupts would only be
 	 * delivered on cpu 0. Setting this value to 0 would preserve
 	 * the earlier behavior.
@@ -807,13 +805,6 @@ typedef struct hv_vmbus_channel {
 	 * response on the same channel.
 	 */
 
-	/*
-	 * Multi-channel creation callback. This callback will be called in
-	 * process context when a Multi-channel offer is received from the host.
-	 * The guest can open the Multi-channel in the context of this callback.
-	 */
-	hv_vmbus_sc_creation_callback	sc_creation_callback;
-
 	struct mtx			sc_lock;
 
 	/*
@@ -821,17 +812,23 @@ typedef struct hv_vmbus_channel {
 	 */
 	TAILQ_HEAD(, hv_vmbus_channel)	sc_list_anchor;
 	TAILQ_ENTRY(hv_vmbus_channel)	sc_list_entry;
+	int				subchan_cnt;
 
 	/*
 	 * The primary channel this sub-channle belongs to.
 	 * This will be NULL for the primary channel.
 	 */
 	struct hv_vmbus_channel		*primary_channel;
+
 	/*
-	 * Support per channel state for use by vmbus drivers.
+	 * Driver private data
 	 */
-	void				*per_channel_state;
+	void				*hv_chan_priv1;
+	void				*hv_chan_priv2;
+	void				*hv_chan_priv3;
 } hv_vmbus_channel;
+
+#define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)
 
 static inline void
 hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t state)
@@ -911,30 +908,11 @@ int		hv_vmbus_channel_teardown_gpdal(
 
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
-/*
- * Work abstraction defines
- */
-typedef struct hv_work_queue {
-	struct taskqueue*	queue;
-	struct proc*		proc;
-	struct sema*		work_sema;
-} hv_work_queue;
+void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
+struct hv_vmbus_channel **
+		vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
+void		vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt);
 
-typedef struct hv_work_item {
-	struct task	work;
-	void		(*callback)(void *);
-	void*		context;
-	hv_work_queue*	wq;
-} hv_work_item;
-
-struct hv_work_queue*	hv_work_queue_create(char* name);
-
-void			hv_work_queue_close(struct hv_work_queue* wq);
-
-int			hv_queue_work_item(
-				hv_work_queue*	wq,
-				void		(*callback)(void *),
-				void*		context);
 /**
  * @brief Get physical address from virtual
  */
@@ -946,35 +924,5 @@ hv_get_phys_addr(void *virt)
 	return (ret);
 }
 
-
-/**
- * KVP related structures
- * 
- */
-typedef struct hv_vmbus_service {
-        hv_guid       guid;             /* Hyper-V GUID */
-        char          *name;            /* name of service */
-        boolean_t     enabled;          /* service enabled */
-        hv_work_queue *work_queue;      /* background work queue */
-
-        /*
-         * function to initialize service
-         */
-        int (*init)(struct hv_vmbus_service *);
-
-        /*
-         * function to process Hyper-V messages
-         */
-        void (*callback)(void *);
-} hv_vmbus_service;
-
-extern uint8_t* receive_buffer[];
-extern hv_vmbus_service service_table[];
 extern uint32_t hv_vmbus_protocal_version;
-
-void hv_kvp_callback(void *context);
-int hv_kvp_init(hv_vmbus_service *serv);
-void hv_kvp_deinit(void);
-
 #endif  /* __HYPERV_H__ */
-

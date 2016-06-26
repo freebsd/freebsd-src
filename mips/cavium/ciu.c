@@ -75,7 +75,8 @@ static struct intr_event *ciu_en1_intr_events[CIU_IRQ_EN1_COUNT];
 static int		ciu_probe(device_t);
 static int		ciu_attach(device_t);
 static struct resource	*ciu_alloc_resource(device_t, device_t, int, int *,
-					    u_long, u_long, u_long, u_int);
+					    rman_res_t, rman_res_t, rman_res_t,
+					    u_int);
 static int		ciu_setup_intr(device_t, device_t, struct resource *,
 				       int, driver_filter_t *, driver_intr_t *,
 				       void *, void **);
@@ -171,7 +172,7 @@ ciu_attach(device_t dev)
 
 static struct resource *
 ciu_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		   u_long start, u_long end, u_long count, u_int flags)
+		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
 	struct ciu_softc *sc;

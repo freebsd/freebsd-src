@@ -366,9 +366,9 @@ static struct omap4_clk_details g_omap4_clk_details[] = {
 	OMAP4_GENERIC_CLOCK_DETAILS(UART2_CLK, FREQ_48MHZ, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x0148), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(UART3_CLK, FREQ_48MHZ, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0140), CLKCTRL_MODULEMODE_ENABLE),
+		(L4PER_CM2_OFFSET + 0x0150), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(UART4_CLK, FREQ_48MHZ, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0148), CLKCTRL_MODULEMODE_ENABLE),
+		(L4PER_CM2_OFFSET + 0x0158), CLKCTRL_MODULEMODE_ENABLE),
 
 	/* General purpose timers */
 	OMAP4_GENERIC_CLOCK_DETAILS(TIMER1_CLK,  -1, PRM_INSTANCE,
@@ -1329,7 +1329,7 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
  *	Inherits the locks from the omap_prcm driver, no internal locking.
  *
  *	RETURNS:
- *	Returns 0 if sucessful otherwise a negative error code on failure.
+ *	Returns 0 if successful otherwise a negative error code on failure.
  */
 static int
 omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,

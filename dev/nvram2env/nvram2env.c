@@ -127,7 +127,7 @@ nvram2env_probe(device_t dev)
 		    ivar == 0)
 			continue;
 
-		sc->addr = MIPS_PHYS_TO_KSEG1(ivar);
+		sc->addr = ivar;
 
 		if (bootverbose)
 			device_printf(dev, "base=0x%08x sig=0x%08x "
@@ -193,10 +193,12 @@ static uint32_t read_4(struct nvram2env_softc * sc, int offset)
 static int
 nvram2env_attach(device_t dev)
 {
-	struct nvram2env_softc * sc = device_get_softc(dev);
-	struct nvram * nv;
+	struct nvram2env_softc 	*sc;
+	struct nvram 		*nv;
 	char *pair, *value, *assign;
-	uint32_t sig, size, i;
+	uint32_t sig, size, i, *tmp;
+
+	sc = device_get_softc(dev);
 
 	if (sc->bst == 0 || sc->addr == 0)
 		return (ENXIO);
@@ -217,16 +219,22 @@ nvram2env_attach(device_t dev)
 	if (sig == sc->sig || (sc->flags & NVRAM_FLAGS_UBOOT))
 	{
 
-		/* align and shift size to 32bit size*/
+		/* align size to 32bit size*/
 		size += 3;
-		size >>= 2;
+		size &= ~3;
 
-		nv = malloc(size<<2, M_DEVBUF, M_WAITOK | M_ZERO);
+		nv = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
 		if (!nv)
 			return (ENOMEM);
+		/* set tmp pointer to begin of NVRAM */
+		tmp = (uint32_t *) nv;
 
-		for (i = 0; i < size; i ++)
-			((uint32_t *)nv)[i] = read_4(sc, i<<2);
+		/* use read_4 to swap bytes if it's required */
+		for (i = 0; i < size; i += 4) {
+			*tmp = read_4(sc, i);
+			tmp++;
+		}
+		/* now tmp pointer is end of NVRAM */
 
 		if (sc->flags & NVRAM_FLAGS_BROADCOM) {
 			device_printf(dev, "sig = %#x\n",  nv->sig);
@@ -246,49 +254,47 @@ nvram2env_attach(device_t dev)
 		else
 			pair = (char*)nv+4;
 
-		for ( ; 
-		    (u_int32_t)pair < ((u_int32_t)nv + size - 4); 
-		    pair = pair + strlen(pair) + 1 + strlen(value) + 1 ) {
+		/* iterate over buffer till end. tmp points to end of NVRAM */
+		for ( ; pair < (char*)tmp; 
+		    pair += strlen(pair) + strlen(value) + 2 ) {
 
-			if (pair && strlen(pair)) {
-
-#if 0
-				printf("ENV: %s\n", pair);
-#endif
-				/* hint.nvram.0. */
-				assign = strchr(pair,'=');
-				assign[0] = '\0';
-				value = assign+1;
-#if 1
-				if (bootverbose)
-					printf("ENV: %s=%s\n", pair, value);
-#endif
-				kern_setenv(pair, value);
-
-				if (strcasecmp(pair, "WAN_MAC_ADDR") == 0) {
-					/* Alias for MAC address of eth0 */
-					if (bootverbose)
-						printf("ENV: aliasing "
-						    "WAN_MAC_ADDR to ethaddr"
-						    " = %s\n",  value);
-					kern_setenv("ethaddr", value);
-				}
-				else if (strcasecmp(pair, "LAN_MAC_ADDR") == 0){
-					/* Alias for MAC address of eth1 */
-					if (bootverbose)
-						printf("ENV: aliasing "
-						    "LAN_MAC_ADDR to eth1addr"
-						    " = %s\n",  value);
-					kern_setenv("eth1addr", value);
-				}
-
-				if (strcmp(pair, "bootverbose") == 0)
-					bootverbose = strtoul(value, 0, 0);
-				if (strcmp(pair, "boothowto"  ) == 0)
-					boothowto   = strtoul(value, 0, 0);
-			}
-			else
+			if (!pair || (strlen(pair) == 0))
 				break;
+
+			/* hint.nvram.0. */
+			assign = strchr(pair,'=');
+			assign[0] = '\0';
+			value = assign+1;
+#if 1
+			if (bootverbose)
+				printf("ENV: %s=%s\n", pair, value);
+#else
+			printf("ENV: %s\n", pair);
+#endif
+			kern_setenv(pair, value);
+
+			if (strcasecmp(pair, "WAN_MAC_ADDR") == 0) {
+				/* Alias for MAC address of eth0 */
+				if (bootverbose)
+					printf("ENV: aliasing "
+					    "WAN_MAC_ADDR to ethaddr"
+					    " = %s\n",  value);
+				kern_setenv("ethaddr", value);
+			}
+			else if (strcasecmp(pair, "LAN_MAC_ADDR") == 0){
+				/* Alias for MAC address of eth1 */
+				if (bootverbose)
+					printf("ENV: aliasing "
+					    "LAN_MAC_ADDR to eth1addr"
+					    " = %s\n",  value);
+				kern_setenv("eth1addr", value);
+			}
+
+			if (strcmp(pair, "bootverbose") == 0)
+				bootverbose = strtoul(value, 0, 0);
+			if (strcmp(pair, "boothowto"  ) == 0)
+				boothowto   = strtoul(value, 0, 0);
+
 		}
 		free(nv, M_DEVBUF);
 	}

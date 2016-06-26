@@ -2,6 +2,8 @@
 #
 # $FreeBSD$
 
+options 	ARM_L2_PIPT		# Only L2 PIPT is supported
+
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -34,10 +36,11 @@ options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
 
-options 	ARM_NEW_PMAP		# Use new pmap code.
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 
 # DTrace support
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks

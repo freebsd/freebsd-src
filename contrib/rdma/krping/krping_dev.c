@@ -209,16 +209,6 @@ krping_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return(err);
 }
 
-void
-krping_printf(void *cookie, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vtprintf(cookie, -1, fmt, ap);
-	va_end(ap);
-}
-
 int
 krping_sigpending(void)
 {

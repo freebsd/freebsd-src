@@ -40,8 +40,8 @@
  * Ext4 file system extent on disk.
  */
 struct ext4_extent {
-	uint32_t e_blk;	/* first logical block */
-	uint16_t e_len;	/* number of blocks */
+	uint32_t e_blk;		/* first logical block */
+	uint16_t e_len;		/* number of blocks */
 	uint16_t e_start_hi;	/* high 16 bits of physical block */
 	uint32_t e_start_lo;	/* low 32 bits of physical block */
 };
@@ -84,7 +84,11 @@ struct ext4_extent_cache {
 struct ext4_extent_path {
 	uint16_t ep_depth;
 	struct buf *ep_bp;
-	struct ext4_extent *ep_ext;
+	bool ep_is_sparse;
+	union {
+		struct ext4_extent ep_sparse_ext;
+		struct ext4_extent *ep_ext;
+	};
 	struct ext4_extent_index *ep_index;
 	struct ext4_extent_header *ep_header;
 };

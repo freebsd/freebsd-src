@@ -90,7 +90,7 @@ struct dwc_softc {
 	struct dwc_hwdesc	*txdesc_ring;
 	bus_addr_t		txdesc_ring_paddr;
 	bus_dma_tag_t		txbuf_tag;
-	struct dwc_bufmap	txbuf_map[RX_DESC_COUNT];
+	struct dwc_bufmap	txbuf_map[TX_DESC_COUNT];
 	uint32_t		tx_idx_head;
 	uint32_t		tx_idx_tail;
 	int			txcount;

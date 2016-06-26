@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_QSTATS
@@ -47,18 +44,18 @@ __FBSDID("$FreeBSD$");
 #define	EFX_TX_QSTAT_INCR(_etp, _stat)
 #endif
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_init(
+siena_tx_init(
 	__in		efx_nic_t *enp);
 
 static			void
-falconsiena_tx_fini(
+siena_tx_fini(
 	__in		efx_nic_t *enp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qcreate(
+siena_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -71,11 +68,11 @@ falconsiena_tx_qcreate(
 	__out		unsigned int *addedp);
 
 static		void
-falconsiena_tx_qdestroy(
+siena_tx_qdestroy(
 	__in	efx_txq_t *etp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qpost(
+siena_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
 	__in		unsigned int n,
@@ -83,26 +80,26 @@ falconsiena_tx_qpost(
 	__inout		unsigned int *addedp);
 
 static			void
-falconsiena_tx_qpush(
+siena_tx_qpush(
 	__in	efx_txq_t *etp,
 	__in	unsigned int added,
 	__in	unsigned int pushed);
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qpace(
+siena_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns);
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qflush(
+siena_tx_qflush(
 	__in		efx_txq_t *etp);
 
 static			void
-falconsiena_tx_qenable(
+siena_tx_qenable(
 	__in	efx_txq_t *etp);
 
 	__checkReturn	efx_rc_t
-falconsiena_tx_qdesc_post(
+siena_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
 	__in		unsigned int n,
@@ -110,7 +107,7 @@ falconsiena_tx_qdesc_post(
 	__inout		unsigned int *addedp);
 
 	void
-falconsiena_tx_qdesc_dma_create(
+siena_tx_qdesc_dma_create(
 	__in	efx_txq_t *etp,
 	__in	efsys_dma_addr_t addr,
 	__in	size_t size,
@@ -119,94 +116,97 @@ falconsiena_tx_qdesc_dma_create(
 
 #if EFSYS_OPT_QSTATS
 static			void
-falconsiena_tx_qstats_update(
+siena_tx_qstats_update(
 	__in				efx_txq_t *etp,
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat);
 #endif
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
-
-#if EFSYS_OPT_FALCON
-static efx_tx_ops_t	__efx_tx_falcon_ops = {
-	falconsiena_tx_init,			/* etxo_init */
-	falconsiena_tx_fini,			/* etxo_fini */
-	falconsiena_tx_qcreate,			/* etxo_qcreate */
-	falconsiena_tx_qdestroy,		/* etxo_qdestroy */
-	falconsiena_tx_qpost,			/* etxo_qpost */
-	falconsiena_tx_qpush,			/* etxo_qpush */
-	falconsiena_tx_qpace,			/* etxo_qpace */
-	falconsiena_tx_qflush,			/* etxo_qflush */
-	falconsiena_tx_qenable,			/* etxo_qenable */
-	NULL,					/* etxo_qpio_enable */
-	NULL,					/* etxo_qpio_disable */
-	NULL,					/* etxo_qpio_write */
-	NULL,					/* etxo_qpio_post */
-	falconsiena_tx_qdesc_post,		/* etxo_qdesc_post */
-	falconsiena_tx_qdesc_dma_create,	/* etxo_qdesc_dma_create */
-	NULL,					/* etxo_qdesc_tso_create */
-	NULL,					/* etxo_qdesc_vlantci_create */
-#if EFSYS_OPT_QSTATS
-	falconsiena_tx_qstats_update,		/* etxo_qstats_update */
-#endif
-};
-#endif /* EFSYS_OPT_FALCON */
 
 #if EFSYS_OPT_SIENA
-static efx_tx_ops_t	__efx_tx_siena_ops = {
-	falconsiena_tx_init,			/* etxo_init */
-	falconsiena_tx_fini,			/* etxo_fini */
-	falconsiena_tx_qcreate,			/* etxo_qcreate */
-	falconsiena_tx_qdestroy,		/* etxo_qdestroy */
-	falconsiena_tx_qpost,			/* etxo_qpost */
-	falconsiena_tx_qpush,			/* etxo_qpush */
-	falconsiena_tx_qpace,			/* etxo_qpace */
-	falconsiena_tx_qflush,			/* etxo_qflush */
-	falconsiena_tx_qenable,			/* etxo_qenable */
+static const efx_tx_ops_t	__efx_tx_siena_ops = {
+	siena_tx_init,				/* etxo_init */
+	siena_tx_fini,				/* etxo_fini */
+	siena_tx_qcreate,			/* etxo_qcreate */
+	siena_tx_qdestroy,			/* etxo_qdestroy */
+	siena_tx_qpost,				/* etxo_qpost */
+	siena_tx_qpush,				/* etxo_qpush */
+	siena_tx_qpace,				/* etxo_qpace */
+	siena_tx_qflush,			/* etxo_qflush */
+	siena_tx_qenable,			/* etxo_qenable */
 	NULL,					/* etxo_qpio_enable */
 	NULL,					/* etxo_qpio_disable */
 	NULL,					/* etxo_qpio_write */
 	NULL,					/* etxo_qpio_post */
-	falconsiena_tx_qdesc_post,		/* etxo_qdesc_post */
-	falconsiena_tx_qdesc_dma_create,	/* etxo_qdesc_dma_create */
+	siena_tx_qdesc_post,			/* etxo_qdesc_post */
+	siena_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
 	NULL,					/* etxo_qdesc_tso_create */
+	NULL,					/* etxo_qdesc_tso2_create */
 	NULL,					/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
-	falconsiena_tx_qstats_update,		/* etxo_qstats_update */
+	siena_tx_qstats_update,			/* etxo_qstats_update */
 #endif
 };
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
-static efx_tx_ops_t	__efx_tx_hunt_ops = {
-	hunt_tx_init,				/* etxo_init */
-	hunt_tx_fini,				/* etxo_fini */
-	hunt_tx_qcreate,			/* etxo_qcreate */
-	hunt_tx_qdestroy,			/* etxo_qdestroy */
-	hunt_tx_qpost,				/* etxo_qpost */
-	hunt_tx_qpush,				/* etxo_qpush */
-	hunt_tx_qpace,				/* etxo_qpace */
-	hunt_tx_qflush,				/* etxo_qflush */
-	hunt_tx_qenable,			/* etxo_qenable */
-	hunt_tx_qpio_enable,			/* etxo_qpio_enable */
-	hunt_tx_qpio_disable,			/* etxo_qpio_disable */
-	hunt_tx_qpio_write,			/* etxo_qpio_write */
-	hunt_tx_qpio_post,			/* etxo_qpio_post */
-	hunt_tx_qdesc_post,			/* etxo_qdesc_post */
-	hunt_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
-	hunt_tx_qdesc_tso_create,		/* etxo_qdesc_tso_create */
-	hunt_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
+static const efx_tx_ops_t	__efx_tx_hunt_ops = {
+	ef10_tx_init,				/* etxo_init */
+	ef10_tx_fini,				/* etxo_fini */
+	ef10_tx_qcreate,			/* etxo_qcreate */
+	ef10_tx_qdestroy,			/* etxo_qdestroy */
+	ef10_tx_qpost,				/* etxo_qpost */
+	ef10_tx_qpush,				/* etxo_qpush */
+	ef10_tx_qpace,				/* etxo_qpace */
+	ef10_tx_qflush,				/* etxo_qflush */
+	ef10_tx_qenable,			/* etxo_qenable */
+	ef10_tx_qpio_enable,			/* etxo_qpio_enable */
+	ef10_tx_qpio_disable,			/* etxo_qpio_disable */
+	ef10_tx_qpio_write,			/* etxo_qpio_write */
+	ef10_tx_qpio_post,			/* etxo_qpio_post */
+	ef10_tx_qdesc_post,			/* etxo_qdesc_post */
+	ef10_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
+	ef10_tx_qdesc_tso_create,		/* etxo_qdesc_tso_create */
+	ef10_tx_qdesc_tso2_create,		/* etxo_qdesc_tso2_create */
+	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
-	hunt_tx_qstats_update,			/* etxo_qstats_update */
+	ef10_tx_qstats_update,			/* etxo_qstats_update */
 #endif
 };
 #endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+static const efx_tx_ops_t	__efx_tx_medford_ops = {
+	ef10_tx_init,				/* etxo_init */
+	ef10_tx_fini,				/* etxo_fini */
+	ef10_tx_qcreate,			/* etxo_qcreate */
+	ef10_tx_qdestroy,			/* etxo_qdestroy */
+	ef10_tx_qpost,				/* etxo_qpost */
+	ef10_tx_qpush,				/* etxo_qpush */
+	ef10_tx_qpace,				/* etxo_qpace */
+	ef10_tx_qflush,				/* etxo_qflush */
+	ef10_tx_qenable,			/* etxo_qenable */
+	ef10_tx_qpio_enable,			/* etxo_qpio_enable */
+	ef10_tx_qpio_disable,			/* etxo_qpio_disable */
+	ef10_tx_qpio_write,			/* etxo_qpio_write */
+	ef10_tx_qpio_post,			/* etxo_qpio_post */
+	ef10_tx_qdesc_post,			/* etxo_qdesc_post */
+	ef10_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
+	NULL,					/* etxo_qdesc_tso_create */
+	ef10_tx_qdesc_tso2_create,		/* etxo_qdesc_tso2_create */
+	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
+#if EFSYS_OPT_QSTATS
+	ef10_tx_qstats_update,			/* etxo_qstats_update */
+#endif
+};
+#endif /* EFSYS_OPT_MEDFORD */
 
 	__checkReturn	efx_rc_t
 efx_tx_init(
 	__in		efx_nic_t *enp)
 {
-	efx_tx_ops_t *etxop;
+	const efx_tx_ops_t *etxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -223,23 +223,23 @@ efx_tx_init(
 	}
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		etxop = (efx_tx_ops_t *)&__efx_tx_falcon_ops;
-		break;
-#endif /* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		etxop = (efx_tx_ops_t *)&__efx_tx_siena_ops;
+		etxop = &__efx_tx_siena_ops;
 		break;
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		etxop = (efx_tx_ops_t *)&__efx_tx_hunt_ops;
+		etxop = &__efx_tx_hunt_ops;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		etxop = &__efx_tx_medford_ops;
+		break;
+#endif /* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -274,7 +274,7 @@ fail1:
 efx_tx_fini(
 	__in	efx_nic_t *enp)
 {
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
@@ -300,7 +300,7 @@ efx_tx_qcreate(
 	__deref_out	efx_txq_t **etpp,
 	__out		unsigned int *addedp)
 {
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_txq_t *etp;
 	efx_rc_t rc;
@@ -349,7 +349,7 @@ efx_tx_qdestroy(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -371,7 +371,7 @@ efx_tx_qpost(
 	__inout		unsigned int *addedp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
@@ -394,7 +394,7 @@ efx_tx_qpush(
 	__in	unsigned int pushed)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -407,7 +407,7 @@ efx_tx_qpace(
 	__in		unsigned int ns)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
@@ -427,7 +427,7 @@ efx_tx_qflush(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
@@ -447,7 +447,7 @@ efx_tx_qenable(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -459,7 +459,7 @@ efx_tx_qpio_enable(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
@@ -491,7 +491,7 @@ efx_tx_qpio_disable(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -507,7 +507,7 @@ efx_tx_qpio_write(
 	__in			size_t pio_buf_offset)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
@@ -534,7 +534,7 @@ efx_tx_qpio_post(
 	__inout			unsigned int *addedp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
@@ -562,7 +562,7 @@ efx_tx_qdesc_post(
 	__inout		unsigned int *addedp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
@@ -587,7 +587,7 @@ efx_tx_qdesc_dma_create(
 	__out	efx_desc_t *edp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 	EFSYS_ASSERT(etxop->etxo_qdesc_dma_create != NULL);
@@ -604,12 +604,30 @@ efx_tx_qdesc_tso_create(
 	__out	efx_desc_t *edp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 	EFSYS_ASSERT(etxop->etxo_qdesc_tso_create != NULL);
 
 	etxop->etxo_qdesc_tso_create(etp, ipv4_id, tcp_seq, tcp_flags, edp);
+}
+
+	void
+efx_tx_qdesc_tso2_create(
+	__in			efx_txq_t *etp,
+	__in			uint16_t ipv4_id,
+	__in			uint32_t tcp_seq,
+	__in			uint16_t mss,
+	__out_ecount(count)	efx_desc_t *edp,
+	__in			int count)
+{
+	efx_nic_t *enp = etp->et_enp;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
+
+	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
+	EFSYS_ASSERT(etxop->etxo_qdesc_tso2_create != NULL);
+
+	etxop->etxo_qdesc_tso2_create(etp, ipv4_id, tcp_seq, mss, edp, count);
 }
 
 	void
@@ -619,7 +637,7 @@ efx_tx_qdesc_vlantci_create(
 	__out	efx_desc_t *edp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 	EFSYS_ASSERT(etxop->etxo_qdesc_vlantci_create != NULL);
@@ -635,7 +653,7 @@ efx_tx_qstats_update(
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat)
 {
 	efx_nic_t *enp = etp->et_enp;
-	efx_tx_ops_t *etxop = enp->en_etxop;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -644,10 +662,10 @@ efx_tx_qstats_update(
 #endif
 
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_init(
+siena_tx_init(
 	__in		efx_nic_t *enp)
 {
 	efx_oword_t oword;
@@ -710,7 +728,7 @@ falconsiena_tx_init(
 	} while (B_FALSE)
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qpost(
+siena_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
 	__in		unsigned int n,
@@ -748,7 +766,7 @@ fail1:
 }
 
 static		void
-falconsiena_tx_qpush(
+siena_tx_qpush(
 	__in	efx_txq_t *etp,
 	__in	unsigned int added,
 	__in	unsigned int pushed)
@@ -779,7 +797,7 @@ falconsiena_tx_qpush(
 #define	EFX_TX_PACE_CLOCK_BASE	104
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qpace(
+siena_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns)
 {
@@ -822,7 +840,7 @@ fail1:
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qflush(
+siena_tx_qflush(
 	__in		efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -842,7 +860,7 @@ falconsiena_tx_qflush(
 }
 
 static		void
-falconsiena_tx_qenable(
+siena_tx_qenable(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -866,7 +884,7 @@ falconsiena_tx_qenable(
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_tx_qcreate(
+siena_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -882,6 +900,8 @@ falconsiena_tx_qcreate(
 	efx_oword_t oword;
 	uint32_t size;
 	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(esmp))
 
 	EFX_STATIC_ASSERT(EFX_EV_TX_NLABELS ==
 	    (1 << FRF_AZ_TX_DESCQ_LABEL_WIDTH));
@@ -941,7 +961,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-falconsiena_tx_qdesc_post(
+siena_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
 	__in		unsigned int n,
@@ -982,7 +1002,7 @@ fail1:
 }
 
 	void
-falconsiena_tx_qdesc_dma_create(
+siena_tx_qdesc_dma_create(
 	__in	efx_txq_t *etp,
 	__in	efsys_dma_addr_t addr,
 	__in	size_t size,
@@ -1005,7 +1025,7 @@ falconsiena_tx_qdesc_dma_create(
 			    (uint32_t)(addr >> 32));
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_QSTATS
 #if EFSYS_OPT_NAMES
@@ -1030,11 +1050,11 @@ efx_tx_qstat_name(
 #endif	/* EFSYS_OPT_NAMES */
 #endif /* EFSYS_OPT_QSTATS */
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 #if EFSYS_OPT_QSTATS
 static					void
-falconsiena_tx_qstats_update(
+siena_tx_qstats_update(
 	__in				efx_txq_t *etp,
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat)
 {
@@ -1050,7 +1070,7 @@ falconsiena_tx_qstats_update(
 #endif	/* EFSYS_OPT_QSTATS */
 
 static		void
-falconsiena_tx_qdestroy(
+siena_tx_qdestroy(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -1064,10 +1084,10 @@ falconsiena_tx_qdestroy(
 }
 
 static		void
-falconsiena_tx_fini(
+siena_tx_fini(
 	__in	efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */

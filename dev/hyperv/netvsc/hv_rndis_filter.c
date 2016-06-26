@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2010-2012 Citrix Inc.
  * Copyright (c) 2012 NetApp Inc.
  * All rights reserved.
@@ -44,10 +44,27 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include "hv_net_vsc.h"
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
 
+struct hv_rf_recvinfo {
+	const ndis_8021q_info		*vlan_info;
+	const rndis_tcp_ip_csum_info	*csum_info;
+	const struct rndis_hash_info	*hash_info;
+	const struct rndis_hash_value	*hash_value;
+};
+
+#define HV_RF_RECVINFO_VLAN	0x1
+#define HV_RF_RECVINFO_CSUM	0x2
+#define HV_RF_RECVINFO_HASHINF	0x4
+#define HV_RF_RECVINFO_HASHVAL	0x8
+#define HV_RF_RECVINFO_ALL		\
+	(HV_RF_RECVINFO_VLAN |		\
+	 HV_RF_RECVINFO_CSUM |		\
+	 HV_RF_RECVINFO_HASHINF |	\
+	 HV_RF_RECVINFO_HASHVAL)
 
 /*
  * Forward declarations
@@ -58,6 +75,7 @@ static void hv_rf_receive_response(rndis_device *device, rndis_msg *response);
 static void hv_rf_receive_indicate_status(rndis_device *device,
 					  rndis_msg *response);
 static void hv_rf_receive_data(rndis_device *device, rndis_msg *message,
+			       struct hv_vmbus_channel *chan,
 			       netvsc_packet *pkt);
 static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
 			       void *result, uint32_t *result_size);
@@ -67,8 +85,8 @@ static int  hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter);
 static int  hv_rf_init_device(rndis_device *device);
 static int  hv_rf_open_device(rndis_device *device);
 static int  hv_rf_close_device(rndis_device *device);
-static void hv_rf_on_send_request_completion(void *context);
-static void hv_rf_on_send_request_halt_completion(void *context);
+static void hv_rf_on_send_request_completion(struct hv_vmbus_channel *, void *context);
+static void hv_rf_on_send_request_halt_completion(struct hv_vmbus_channel *, void *context);
 int
 hv_rf_send_offload_request(struct hv_device *device,
     rndis_offload_params *offloads);
@@ -135,12 +153,9 @@ hv_get_rndis_device(void)
 {
 	rndis_device *device;
 
-	device = malloc(sizeof(rndis_device), M_NETVSC, M_NOWAIT | M_ZERO);
-	if (device == NULL) {
-		return (NULL);
-	}
+	device = malloc(sizeof(rndis_device), M_NETVSC, M_WAITOK | M_ZERO);
 
-	mtx_init(&device->req_lock, "HV-FRL", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&device->req_lock, "HV-FRL", NULL, MTX_DEF);
 
 	/* Same effect as STAILQ_HEAD_INITIALIZER() static initializer */
 	STAILQ_INIT(&device->myrequest_list);
@@ -171,10 +186,7 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 	rndis_msg *rndis_mesg;
 	rndis_set_request *set;
 
-	request = malloc(sizeof(rndis_request), M_NETVSC, M_NOWAIT | M_ZERO);
-	if (request == NULL) {
-		return (NULL);
-	}
+	request = malloc(sizeof(rndis_request), M_NETVSC, M_WAITOK | M_ZERO);
 
 	sema_init(&request->wait_sema, 0, "rndis sema");
 	
@@ -193,9 +205,9 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 	set->request_id += 1;
 
 	/* Add to the request list */
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	STAILQ_INSERT_TAIL(&device->myrequest_list, request, mylist_entry);
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	return (request);
 }
@@ -206,14 +218,14 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 static inline void
 hv_put_rndis_request(rndis_device *device, rndis_request *request)
 {
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	/* Fixme:  Has O(n) performance */
 	/*
 	 * XXXKYS: Use Doubly linked lists.
 	 */
 	STAILQ_REMOVE(&device->myrequest_list, request, rndis_request_,
 	    mylist_entry);
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	sema_destroy(&request->wait_sema);
 	free(request, M_NETVSC);
@@ -228,6 +240,8 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 {
 	int ret;
 	netvsc_packet *packet;
+	netvsc_dev      *net_dev = device->net_dev;
+	int send_buf_section_idx;
 
 	/* Set up the packet to send it */
 	packet = &request->pkt;
@@ -242,6 +256,20 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 	packet->page_buffers[0].offset =
 	    (unsigned long)&request->request_msg & (PAGE_SIZE - 1);
 
+	if (packet->page_buffers[0].offset +
+		packet->page_buffers[0].length > PAGE_SIZE) {
+		packet->page_buf_count = 2;
+		packet->page_buffers[0].length =
+		        PAGE_SIZE - packet->page_buffers[0].offset;
+		packet->page_buffers[1].pfn =
+		        hv_get_phys_addr((char*)&request->request_msg +
+                		packet->page_buffers[0].length) >> PAGE_SHIFT;
+		packet->page_buffers[1].offset = 0;
+		packet->page_buffers[1].length =
+		        request->request_msg.msg_len -
+			        packet->page_buffers[0].length;
+	}
+
 	packet->compl.send.send_completion_context = request; /* packet */
 	if (message_type != REMOTE_NDIS_HALT_MSG) {
 		packet->compl.send.on_send_completion =
@@ -251,11 +279,26 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 		    hv_rf_on_send_request_halt_completion;
 	}
 	packet->compl.send.send_completion_tid = (unsigned long)device;
-	packet->send_buf_section_idx =
-	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	if (packet->tot_data_buf_len < net_dev->send_section_size) {
+		send_buf_section_idx = hv_nv_get_next_send_section(net_dev);
+		if (send_buf_section_idx !=
+			NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
+			char *dest = ((char *)net_dev->send_buf +
+				send_buf_section_idx * net_dev->send_section_size);
+
+			memcpy(dest, &request->request_msg, request->request_msg.msg_len);
+			packet->send_buf_section_idx = send_buf_section_idx;
+			packet->send_buf_section_size = packet->tot_data_buf_len;
+			packet->page_buf_count = 0;
+			goto sendit;
+		}
+		/* Failed to allocate chimney send buffer; move on */
+	}
+	packet->send_buf_section_idx = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
 	packet->send_buf_section_size = 0;
 
-	ret = hv_nv_on_send(device->net_dev->dev, packet);
+sendit:
+	ret = hv_nv_on_send(device->net_dev->dev->channel, packet);
 
 	return (ret);
 }
@@ -270,7 +313,7 @@ hv_rf_receive_response(rndis_device *device, rndis_msg *response)
 	rndis_request *next_request;
 	boolean_t found = FALSE;
 
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	request = STAILQ_FIRST(&device->myrequest_list);
 	while (request != NULL) {
 		/*
@@ -285,7 +328,7 @@ hv_rf_receive_response(rndis_device *device, rndis_msg *response)
 		next_request = STAILQ_NEXT(request, mylist_entry);
 		request = next_request;
 	}
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	if (found) {
 		if (response->msg_len <= sizeof(rndis_msg)) {
@@ -358,7 +401,7 @@ hv_rf_send_offload_request(struct hv_device *device,
 		goto cleanup;
 	}
 
-	ret = sema_timedwait(&request->wait_sema, 500);
+	ret = sema_timedwait(&request->wait_sema, 5 * hz);
 	if (ret != 0) {
 		device_printf(dev, "hv send offload request timeout\n");
 		goto cleanup;
@@ -378,8 +421,7 @@ hv_rf_send_offload_request(struct hv_device *device,
 	}
 
 cleanup:
-	if (request)
-		hv_put_rndis_request(rndis_dev, request);
+	hv_put_rndis_request(rndis_dev, request);
 
 	return (ret);
 }
@@ -407,17 +449,95 @@ hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
 	}
 }
 
+static int
+hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hv_rf_recvinfo *info)
+{
+	const rndis_per_packet_info *ppi;
+	uint32_t mask, len;
+
+	info->vlan_info = NULL;
+	info->csum_info = NULL;
+	info->hash_info = NULL;
+	info->hash_value = NULL;
+
+	if (rpkt->per_pkt_info_offset == 0)
+		return 0;
+
+	ppi = (const rndis_per_packet_info *)
+	    ((const uint8_t *)rpkt + rpkt->per_pkt_info_offset);
+	len = rpkt->per_pkt_info_length;
+	mask = 0;
+
+	while (len != 0) {
+		const void *ppi_dptr;
+		uint32_t ppi_dlen;
+
+		if (__predict_false(ppi->size < ppi->per_packet_info_offset))
+			return EINVAL;
+		ppi_dlen = ppi->size - ppi->per_packet_info_offset;
+		ppi_dptr = (const uint8_t *)ppi + ppi->per_packet_info_offset;
+
+		switch (ppi->type) {
+		case ieee_8021q_info:
+			if (__predict_false(ppi_dlen < sizeof(ndis_8021q_info)))
+				return EINVAL;
+			info->vlan_info = ppi_dptr;
+			mask |= HV_RF_RECVINFO_VLAN;
+			break;
+
+		case tcpip_chksum_info:
+			if (__predict_false(ppi_dlen <
+			    sizeof(rndis_tcp_ip_csum_info)))
+				return EINVAL;
+			info->csum_info = ppi_dptr;
+			mask |= HV_RF_RECVINFO_CSUM;
+			break;
+
+		case nbl_hash_value:
+			if (__predict_false(ppi_dlen <
+			    sizeof(struct rndis_hash_value)))
+				return EINVAL;
+			info->hash_value = ppi_dptr;
+			mask |= HV_RF_RECVINFO_HASHVAL;
+			break;
+
+		case nbl_hash_info:
+			if (__predict_false(ppi_dlen <
+			    sizeof(struct rndis_hash_info)))
+				return EINVAL;
+			info->hash_info = ppi_dptr;
+			mask |= HV_RF_RECVINFO_HASHINF;
+			break;
+
+		default:
+			goto skip;
+		}
+
+		if (mask == HV_RF_RECVINFO_ALL) {
+			/* All found; done */
+			break;
+		}
+skip:
+		if (__predict_false(len < ppi->size))
+			return EINVAL;
+		len -= ppi->size;
+		ppi = (const rndis_per_packet_info *)
+		    ((const uint8_t *)ppi + ppi->size);
+	}
+	return 0;
+}
+
 /*
  * RNDIS filter receive data
  */
 static void
-hv_rf_receive_data(rndis_device *device, rndis_msg *message, netvsc_packet *pkt)
+hv_rf_receive_data(rndis_device *device, rndis_msg *message,
+    struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 {
 	rndis_packet *rndis_pkt;
-	ndis_8021q_info *rppi_vlan_info;
 	uint32_t data_offset;
-	rndis_tcp_ip_csum_info *csum_info = NULL;
 	device_t dev = device->net_dev->dev->device;
+	struct hv_rf_recvinfo info;
 
 	rndis_pkt = &message->msg.packet;
 
@@ -441,22 +561,26 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message, netvsc_packet *pkt)
 	pkt->tot_data_buf_len = rndis_pkt->data_length;
 	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
 
-	rppi_vlan_info = hv_get_ppi_data(rndis_pkt, ieee_8021q_info);
-	if (rppi_vlan_info) {
-		pkt->vlan_tci = rppi_vlan_info->u1.s1.vlan_id;
-	} else {
-		pkt->vlan_tci = 0;
+	if (hv_rf_find_recvinfo(rndis_pkt, &info)) {
+		pkt->status = nvsp_status_failure;
+		device_printf(dev, "recvinfo parsing failed\n");
+		return;
 	}
 
-	csum_info = hv_get_ppi_data(rndis_pkt, tcpip_chksum_info);
-	netvsc_recv(device->net_dev->dev, pkt, csum_info);
+	if (info.vlan_info != NULL)
+		pkt->vlan_tci = info.vlan_info->u1.s1.vlan_id;
+	else
+		pkt->vlan_tci = 0;
+
+	netvsc_recv(chan, pkt, info.csum_info, info.hash_info, info.hash_value);
 }
 
 /*
  * RNDIS filter on receive
  */
 int
-hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device, netvsc_packet *pkt)
+hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device,
+    struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 {
 	rndis_device *rndis_dev;
 	rndis_msg *rndis_hdr;
@@ -479,7 +603,7 @@ hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device, netvsc_packet *p
 
 	/* data message */
 	case REMOTE_NDIS_PACKET_MSG:
-		hv_rf_receive_data(rndis_dev, rndis_hdr, pkt);
+		hv_rf_receive_data(rndis_dev, rndis_hdr, chan, pkt);
 		break;
 	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
@@ -529,6 +653,19 @@ hv_rf_query_device(rndis_device *device, uint32_t oid, void *result,
 	query->info_buffer_offset = sizeof(rndis_query_request); 
 	query->info_buffer_length = 0;
 	query->device_vc_handle = 0;
+
+	if (oid == RNDIS_OID_GEN_RSS_CAPABILITIES) {
+		struct rndis_recv_scale_cap *cap;
+
+		request->request_msg.msg_len += 
+			sizeof(struct rndis_recv_scale_cap);
+		query->info_buffer_length = sizeof(struct rndis_recv_scale_cap);
+		cap = (struct rndis_recv_scale_cap *)((unsigned long)query + 
+						query->info_buffer_offset);
+		cap->hdr.type = RNDIS_OBJECT_TYPE_RSS_CAPABILITIES;
+		cap->hdr.rev = RNDIS_RECEIVE_SCALE_CAPABILITIES_REVISION_2;
+		cap->hdr.size = sizeof(struct rndis_recv_scale_cap);
+	}
 
 	ret = hv_rf_send_request(device, request, REMOTE_NDIS_QUERY_MSG);
 	if (ret != 0) {
@@ -584,6 +721,114 @@ hv_rf_query_device_link_status(rndis_device *device)
 	    RNDIS_OID_GEN_MEDIA_CONNECT_STATUS, &device->link_status, &size));
 }
 
+static uint8_t netvsc_hash_key[HASH_KEYLEN] = {
+	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
+	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
+	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
+	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
+};
+
+/*
+ * RNDIS set vRSS parameters
+ */
+static int
+hv_rf_set_rss_param(rndis_device *device, int num_queue)
+{
+	rndis_request *request;
+	rndis_set_request *set;
+	rndis_set_complete *set_complete;
+	rndis_recv_scale_param *rssp;
+	uint32_t extlen = sizeof(rndis_recv_scale_param) +
+	    (4 * ITAB_NUM) + HASH_KEYLEN;
+	uint32_t *itab, status;
+	uint8_t *keyp;
+	int i, ret;
+
+
+	request = hv_rndis_request(device, REMOTE_NDIS_SET_MSG,
+	    RNDIS_MESSAGE_SIZE(rndis_set_request) + extlen);
+	if (request == NULL) {
+		if (bootverbose)
+			printf("Netvsc: No memory to set vRSS parameters.\n");
+		ret = -1;
+		goto cleanup;
+	}
+
+	set = &request->request_msg.msg.set_request;
+	set->oid = RNDIS_OID_GEN_RSS_PARAMETERS;
+	set->info_buffer_length = extlen;
+	set->info_buffer_offset = sizeof(rndis_set_request);
+	set->device_vc_handle = 0;
+
+	/* Fill out the rssp parameter structure */
+	rssp = (rndis_recv_scale_param *)(set + 1);
+	rssp->hdr.type = RNDIS_OBJECT_TYPE_RSS_PARAMETERS;
+	rssp->hdr.rev = RNDIS_RECEIVE_SCALE_PARAMETERS_REVISION_2;
+	rssp->hdr.size = sizeof(rndis_recv_scale_param);
+	rssp->flag = 0;
+	rssp->hashinfo = RNDIS_HASH_FUNC_TOEPLITZ | RNDIS_HASH_IPV4 |
+	    RNDIS_HASH_TCP_IPV4 | RNDIS_HASH_IPV6 | RNDIS_HASH_TCP_IPV6;
+	rssp->indirect_tabsize = 4 * ITAB_NUM;
+	rssp->indirect_taboffset = sizeof(rndis_recv_scale_param);
+	rssp->hashkey_size = HASH_KEYLEN;
+	rssp->hashkey_offset = rssp->indirect_taboffset +
+	    rssp->indirect_tabsize;
+
+	/* Set indirection table entries */
+	itab = (uint32_t *)(rssp + 1);
+	for (i = 0; i < ITAB_NUM; i++)
+		itab[i] = i % num_queue;
+
+	/* Set hash key values */
+	keyp = (uint8_t *)((unsigned long)rssp + rssp->hashkey_offset);
+	for (i = 0; i < HASH_KEYLEN; i++)
+		keyp[i] = netvsc_hash_key[i];
+
+	ret = hv_rf_send_request(device, request, REMOTE_NDIS_SET_MSG);
+	if (ret != 0) {
+		goto cleanup;
+	}
+
+	/*
+	 * Wait for the response from the host.  Another thread will signal
+	 * us when the response has arrived.  In the failure case,
+	 * sema_timedwait() returns a non-zero status after waiting 5 seconds.
+	 */
+	ret = sema_timedwait(&request->wait_sema, 5 * hz);
+	if (ret == 0) {
+		/* Response received, check status */
+		set_complete = &request->response_msg.msg.set_complete;
+		status = set_complete->status;
+		if (status != RNDIS_STATUS_SUCCESS) {
+			/* Bad response status, return error */
+			if (bootverbose)
+				printf("Netvsc: Failed to set vRSS "
+				    "parameters.\n");
+			ret = -2;
+		} else {
+			if (bootverbose)
+				printf("Netvsc: Successfully set vRSS "
+				    "parameters.\n");
+		}
+	} else {
+		/*
+		 * We cannot deallocate the request since we may still
+		 * receive a send completion for it.
+		 */
+		printf("Netvsc: vRSS set timeout, id = %u, ret = %d\n",
+		    request->request_msg.msg.init_request.request_id, ret);
+		goto exit;
+	}
+
+cleanup:
+	if (request != NULL) {
+		hv_put_rndis_request(device, request);
+	}
+exit:
+	return (ret);
+}
+
 /*
  * RNDIS filter set packet filter
  * Sends an rndis request with the new filter, then waits for a response
@@ -625,7 +870,7 @@ hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter)
 	 * us when the response has arrived.  In the failure case,
 	 * sema_timedwait() returns a non-zero status after waiting 5 seconds.
 	 */
-	ret = sema_timedwait(&request->wait_sema, 500);
+	ret = sema_timedwait(&request->wait_sema, 5 * hz);
 	if (ret == 0) {
 		/* Response received, check status */
 		set_complete = &request->response_msg.msg.set_complete;
@@ -757,10 +1002,8 @@ hv_rf_halt_device(rndis_device *device)
 	}
 
 	device->state = RNDIS_DEV_UNINITIALIZED;
-	
-	if (request != NULL) {
-		hv_put_rndis_request(device, request);
-	}
+
+	hv_put_rndis_request(device, request);
 
 	return (0);
 }
@@ -818,12 +1061,16 @@ hv_rf_close_device(rndis_device *device)
  * RNDIS filter on device add
  */
 int
-hv_rf_on_device_add(struct hv_device *device, void *additl_info)
+hv_rf_on_device_add(struct hv_device *device, void *additl_info,
+    int nchan)
 {
 	int ret;
 	netvsc_dev *net_dev;
 	rndis_device *rndis_dev;
+	nvsp_msg *init_pkt;
 	rndis_offload_params offloads;
+	struct rndis_recv_scale_cap rsscaps;
+	uint32_t rsscaps_size = sizeof(struct rndis_recv_scale_cap);
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
 	device_t dev = device->device;
 
@@ -889,6 +1136,67 @@ hv_rf_on_device_add(struct hv_device *device, void *additl_info)
 	
 	dev_info->link_state = rndis_dev->link_status;
 
+	net_dev->num_channel = 1;
+	if (net_dev->nvsp_version < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
+		return (0);
+
+	memset(&rsscaps, 0, rsscaps_size);
+	ret = hv_rf_query_device(rndis_dev,
+			RNDIS_OID_GEN_RSS_CAPABILITIES,
+			&rsscaps, &rsscaps_size);
+	if ((ret != 0) || (rsscaps.num_recv_que < 2)) {
+		device_printf(dev, "hv_rf_query_device failed or "
+			"rsscaps.num_recv_que < 2 \n");
+		goto out;
+	}
+	device_printf(dev, "channel, offered %u, requested %d\n",
+	    rsscaps.num_recv_que, nchan);
+	if (nchan > rsscaps.num_recv_que)
+		nchan = rsscaps.num_recv_que;
+	net_dev->num_channel = nchan;
+
+	if (net_dev->num_channel == 1) {
+		device_printf(dev, "net_dev->num_channel == 1 under VRSS\n");
+		goto out;
+	}
+	
+	/* request host to create sub channels */
+	init_pkt = &net_dev->channel_init_packet;
+	memset(init_pkt, 0, sizeof(nvsp_msg));
+
+	init_pkt->hdr.msg_type = nvsp_msg5_type_subchannel;
+	init_pkt->msgs.vers_5_msgs.subchannel_request.op =
+	    NVSP_SUBCHANNE_ALLOCATE;
+	init_pkt->msgs.vers_5_msgs.subchannel_request.num_subchannels =
+	    net_dev->num_channel - 1;
+
+	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
+	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
+	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
+	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	if (ret != 0) {
+		device_printf(dev, "Fail to allocate subchannel\n");
+		goto out;
+	}
+
+	sema_wait(&net_dev->channel_init_sema);
+
+	if (init_pkt->msgs.vers_5_msgs.subchn_complete.status !=
+	    nvsp_status_success) {
+		ret = ENODEV;
+		device_printf(dev, "sub channel complete error\n");
+		goto out;
+	}
+
+	net_dev->num_channel = 1 +
+	    init_pkt->msgs.vers_5_msgs.subchn_complete.num_subchannels;
+
+	ret = hv_rf_set_rss_param(rndis_dev, net_dev->num_channel);
+
+out:
+	if (ret)
+		net_dev->num_channel = 1;
+
 	return (ret);
 }
 
@@ -943,7 +1251,8 @@ hv_rf_on_close(struct hv_device *device)
  * RNDIS filter on send request completion callback
  */
 static void 
-hv_rf_on_send_request_completion(void *context)
+hv_rf_on_send_request_completion(struct hv_vmbus_channel *chan __unused,
+    void *context __unused)
 {
 }
 
@@ -951,7 +1260,8 @@ hv_rf_on_send_request_completion(void *context)
  * RNDIS filter on send request (halt only) completion callback
  */
 static void 
-hv_rf_on_send_request_halt_completion(void *context)
+hv_rf_on_send_request_halt_completion(struct hv_vmbus_channel *chan __unused,
+    void *context)
 {
 	rndis_request *request = context;
 
@@ -963,3 +1273,9 @@ hv_rf_on_send_request_halt_completion(void *context)
 	request->halt_complete_flag = 1;
 }
 
+void
+hv_rf_channel_rollup(struct hv_vmbus_channel *chan)
+{
+
+	netvsc_channel_rollup(chan);
+}

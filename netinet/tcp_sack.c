@@ -401,8 +401,8 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 
 	/*
 	 * Sort the SACK blocks so we can update the scoreboard with just one
-	 * pass. The overhead of sorting upto 4+1 elements is less than
-	 * making upto 4+1 passes over the scoreboard.
+	 * pass. The overhead of sorting up to 4+1 elements is less than
+	 * making up to 4+1 passes over the scoreboard.
 	 */
 	for (i = 0; i < num_sack_blks; i++) {
 		for (j = i + 1; j < num_sack_blks; j++) {

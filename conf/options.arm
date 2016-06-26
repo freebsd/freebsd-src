@@ -1,11 +1,9 @@
 #$FreeBSD$
 ARMV6			opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
-ARM_INTRNG		opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
-ARM_NEW_PMAP		opt_global.h
 NKPT2PG			opt_pmap.h
 ARM_WANT_TP_ADDRESS	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
@@ -16,8 +14,6 @@ CPU_CORTEXA		opt_global.h
 CPU_KRAIT		opt_global.h
 CPU_FA526		opt_global.h
 CPU_MV_PJ4B		opt_global.h
-CPU_XSCALE_80219	opt_global.h
-CPU_XSCALE_80321	opt_global.h
 CPU_XSCALE_81342	opt_global.h
 CPU_XSCALE_IXP425	opt_global.h
 CPU_XSCALE_IXP435	opt_global.h
@@ -27,6 +23,7 @@ DEV_PMU			opt_global.h
 EFI			opt_platform.h
 FLASHADDR		opt_global.h
 GIC_DEFAULT_ICFGR_INIT	opt_global.h
+INTRNG			opt_global.h
 IPI_IRQ_START		opt_smp.h
 IPI_IRQ_END		opt_smp.h
 FREEBSD_BOOT_LOADER	opt_global.h
@@ -35,18 +32,27 @@ KERNBASE		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h
 LOADERRAMADDR		opt_global.h
+MULTIDELAY		opt_global.h
 PHYSADDR		opt_global.h
 PLATFORM		opt_global.h
+PLATFORM_SMP		opt_global.h
 SOCDEV_PA		opt_global.h
 SOCDEV_VA		opt_global.h
 PV_STATS		opt_pmap.h
 QEMU_WORKAROUNDS	opt_global.h
+SOC_ALLWINNER_A10	opt_global.h
+SOC_ALLWINNER_A20	opt_global.h
+SOC_ALLWINNER_A31	opt_global.h
+SOC_ALLWINNER_A31S	opt_global.h
+SOC_ALLWINNER_A83T	opt_global.h
+SOC_ALLWINNER_H3	opt_global.h
 SOC_BCM2835		opt_global.h
 SOC_BCM2836		opt_global.h
 SOC_IMX51		opt_global.h
 SOC_IMX53		opt_global.h
 SOC_IMX6		opt_global.h
 SOC_MV_ARMADAXP		opt_global.h
+SOC_MV_ARMADA38X	opt_global.h
 SOC_MV_DISCOVERY	opt_global.h
 SOC_MV_DOVE		opt_global.h
 SOC_MV_FREY		opt_global.h

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -74,12 +75,12 @@ struct imx_sdhci_softc {
 	struct callout		r1bfix_callout;
 	sbintime_t		r1bfix_timeout_at;
 	uint32_t		baseclk_hz;
-	uint32_t		sdclockreg_freq_bits;
 	uint32_t		cmd_and_mode;
 	uint32_t		r1bfix_intmask;
+	boolean_t		force_card_present;
+	uint16_t		sdclockreg_freq_bits;
 	uint8_t			r1bfix_type;
 	uint8_t			hwtype;
-	boolean_t		force_card_present;
 };
 
 #define	R1BFIX_NONE	0	/* No fix needed at next interrupt. */
@@ -89,6 +90,12 @@ struct imx_sdhci_softc {
 #define	HWTYPE_NONE	0	/* Hardware not recognized/supported. */
 #define	HWTYPE_ESDHC	1	/* imx5x and earlier. */
 #define	HWTYPE_USDHC	2	/* imx6. */
+
+/*
+ * Freescale-specific registers, or in some cases the layout of bits within the
+ * sdhci-defined register is different on Freescale.  These names all begin with
+ * SDHC_ (not SDHCI_).
+ */
 
 #define	SDHC_WTMK_LVL		0x44	/* Watermark Level register. */
 #define	USDHC_MIX_CONTROL	0x48	/* Mix(ed) Control register. */
@@ -138,11 +145,20 @@ struct imx_sdhci_softc {
 #define	 SDHC_PROT_CDTL		(1 << 6)
 #define	 SDHC_PROT_CDSS		(1 << 7)
 
+#define	SDHC_SYS_CTRL		0x2c
 #define	SDHC_INT_STATUS		0x30
 
+/*
+ * The clock enable bits exist in different registers for ESDHC vs USDHC, but
+ * they are the same bits in both cases.  The divisor values go into the
+ * standard sdhci clock register, but in different bit positions and meanings
+   than the sdhci spec values.
+ */
 #define	SDHC_CLK_IPGEN		(1 << 0)
 #define	SDHC_CLK_HCKEN		(1 << 1)
 #define	SDHC_CLK_PEREN		(1 << 2)
+#define	SDHC_CLK_SDCLKEN	(1 << 3)
+#define	SDHC_CLK_ENABLE_MASK	0x0000000f
 #define	SDHC_CLK_DIVISOR_MASK	0x000000f0
 #define	SDHC_CLK_DIVISOR_SHIFT	4
 #define	SDHC_CLK_PRESCALE_MASK	0x0000ff00
@@ -156,7 +172,8 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,			HWTYPE_NONE},
 };
 
-static void imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable);
+static uint16_t imx_sdhc_get_clock(struct imx_sdhci_softc *sc);
+static void imx_sdhc_set_clock(struct imx_sdhci_softc *sc, uint16_t val);
 static void imx_sdhci_r1bfix_func(void *arg);
 
 static inline uint32_t
@@ -186,7 +203,7 @@ imx_sdhci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	 */
 	if (off == SDHCI_HOST_CONTROL) {
 		wrk32 = RD4(sc, SDHC_PROT_CTRL);
-                val32 = wrk32 & (SDHCI_CTRL_LED | SDHCI_CTRL_CARD_DET |
+		val32 = wrk32 & (SDHCI_CTRL_LED | SDHCI_CTRL_CARD_DET |
 		    SDHCI_CTRL_FORCE_CARD);
 		switch (wrk32 & SDHC_PROT_WIDTH_MASK) {
 		case SDHC_PROT_WIDTH_1BIT:
@@ -204,7 +221,7 @@ imx_sdhci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 			/* Value is already 0. */
 			break;
 		case SDHC_PROT_ADMA1:
-                        /* This value is deprecated, should never appear. */
+			/* This value is deprecated, should never appear. */
 			break;
 		case SDHC_PROT_ADMA2:
 			val32 |= SDHCI_CTRL_ADMA2;
@@ -221,7 +238,7 @@ imx_sdhci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	 * power is always on and always set to the same voltage.
 	 */
 	if (off == SDHCI_POWER_CONTROL) {
-                return (SDHCI_POWER_ON | SDHCI_POWER_300);
+		return (SDHCI_POWER_ON | SDHCI_POWER_300);
 	}
 
 
@@ -232,7 +249,7 @@ static uint16_t
 imx_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct imx_sdhci_softc *sc = device_get_softc(dev);
-	uint32_t val32, wrk32;
+	uint32_t val32;
 
 	if (sc->hwtype == HWTYPE_USDHC) {
 		/*
@@ -258,9 +275,9 @@ imx_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		 * cached values last written.
 		 */
 		if (off == SDHCI_TRANSFER_MODE) {
-			return (sc->cmd_and_mode >> 16);
-		} else if (off == SDHCI_COMMAND_FLAGS) {
 			return (sc->cmd_and_mode & 0x0000ffff);
+		} else if (off == SDHCI_COMMAND_FLAGS) {
+			return (sc->cmd_and_mode >> 16);
 		}
 	}
 
@@ -276,22 +293,11 @@ imx_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	}
 
 	/*
-	 * The clock enable bit is in the vendor register and the clock-stable
-	 * bit is in the present state register.  Transcribe them as if they
-	 * were in the clock control register where they should be.
-	 * XXX Is it important that we distinguish between "internal" and "card"
-	 * clocks?  Probably not; transcribe the card clock status to both bits.
+	 * Clock bits are scattered into various registers which differ by
+	 * hardware type, complex enough to have their own function.
 	 */
 	if (off == SDHCI_CLOCK_CONTROL) {
-		val32 = 0;
-		wrk32 = RD4(sc, SDHC_VEND_SPEC);
-		if (wrk32 & SDHC_VEND_FRC_SDCLK_ON)
-			val32 |= SDHCI_CLOCK_INT_EN | SDHCI_CLOCK_CARD_EN;
-		wrk32 = RD4(sc, SDHC_PRES_STATE);
-		if (wrk32 & SDHC_PRES_SDSTB)
-			val32 |= SDHCI_CLOCK_INT_STABLE;
-		val32 |= sc->sdclockreg_freq_bits;
-		return (val32);
+		return (imx_sdhc_get_clock(sc));
 	}
 
 	return ((RD4(sc, off & ~3) >> (off & 3) * 8) & 0xffff);
@@ -307,9 +313,11 @@ imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 
 	/*
 	 * The hardware leaves the base clock frequency out of the capabilities
-	 * register; fill it in.  The timeout clock is the same as the active
-	 * output sdclock; we indicate that with a quirk setting so don't
-	 * populate the timeout frequency bits.
+	 * register, but we filled it in by setting slot->max_clk at attach time
+	 * rather than here, because we can't represent frequencies above 63MHz
+	 * in an sdhci 2.0 capabliities register.  The timeout clock is the same
+	 * as the active output sdclock; we indicate that with a quirk setting
+	 * so don't populate the timeout frequency bits.
 	 *
 	 * XXX Turn off (for now) features the hardware can do but this driver
 	 * doesn't yet handle (1.8v, suspend/resume, etc).
@@ -318,7 +326,6 @@ imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		val32 &= ~SDHCI_CAN_VDD_180;
 		val32 &= ~SDHCI_CAN_DO_SUSPEND;
 		val32 |= SDHCI_CAN_DO_8BITBUS;
-		val32 |= (sc->baseclk_hz / 1000000) << SDHCI_CLOCK_BASE_SHIFT;
 		return (val32);
 	}
 	
@@ -326,7 +333,7 @@ imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	 * The hardware moves bits around in the present state register to make
 	 * room for all 8 data line state bits.  To translate, mask out all the
 	 * bits which are not in the same position in both registers (this also
-	 * masks out some freescale-specific bits in locations defined as
+	 * masks out some Freescale-specific bits in locations defined as
 	 * reserved by sdhci), then shift the data line and retune request bits
 	 * down to their standard locations.
 	 */
@@ -404,31 +411,13 @@ imx_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 	struct imx_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32;
 
-	/* The USDHC hardware moved the transfer mode bits to mixed control. */
-	if (sc->hwtype == HWTYPE_USDHC) {
-		if (off == SDHCI_TRANSFER_MODE) {
-			val32 = RD4(sc, USDHC_MIX_CONTROL);
-			val32 &= ~0x3f;
-			val32 |= val & 0x37;
-			// XXX acmd23 not supported here (or by sdhci driver)
-			WR4(sc, USDHC_MIX_CONTROL, val32);
-			return;
-		}
-	} 
-
 	/*
-	 * The clock control stuff is complex enough to have its own routine
-	 * that can both change speeds and en/disable the clock output. Also,
-	 * save the register bits in SDHCI format so that we can play them back
-	 * in the read2 routine without complex decoding.
+	 * The clock control stuff is complex enough to have its own function
+	 * that can handle the ESDHC versus USDHC differences.
 	 */
 	if (off == SDHCI_CLOCK_CONTROL) {
-		sc->sdclockreg_freq_bits = val & 0xffc0;
-		if (val & SDHCI_CLOCK_CARD_EN) {
-			imx_sdhc_set_clock(sc, true);
-		} else {
-			imx_sdhc_set_clock(sc, false);
-		}
+		imx_sdhc_set_clock(sc, val);
+		return;
 	}
 
 	/*
@@ -460,6 +449,35 @@ imx_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 		}
 	}
 
+	/*
+	 * The USDHC hardware moved the transfer mode bits to mixed control; we
+	 * just write them there and we're done.  The ESDHC hardware has the
+	 * typical combined cmd-and-mode register that allows only 32-bit
+	 * access, so when writing the mode bits just save them, then later when
+	 * writing the command bits, add in the saved mode bits.
+	 */
+	if (sc->hwtype == HWTYPE_USDHC) {
+		if (off == SDHCI_TRANSFER_MODE) {
+			val32 = RD4(sc, USDHC_MIX_CONTROL);
+			val32 &= ~0x3f;
+			val32 |= val & 0x37;
+			// XXX acmd23 not supported here (or by sdhci driver)
+			WR4(sc, USDHC_MIX_CONTROL, val32);
+			return;
+		}
+	} else if (sc->hwtype == HWTYPE_ESDHC) {
+		if (off == SDHCI_TRANSFER_MODE) {
+			sc->cmd_and_mode =
+			    (sc->cmd_and_mode & 0xffff0000) | val;
+			return;
+		} else if (off == SDHCI_COMMAND_FLAGS) {
+			sc->cmd_and_mode =
+			    (sc->cmd_and_mode & 0xffff) | (val << 16);
+			WR4(sc, SDHCI_TRANSFER_MODE, sc->cmd_and_mode);
+			return;
+		}
+	}
+
 	val32 = RD4(sc, off & ~3);
 	val32 &= ~(0xffff << (off & 3) * 8);
 	val32 |= ((val & 0xffff) << (off & 3) * 8);
@@ -488,40 +506,103 @@ imx_sdhci_write_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	bus_write_multi_4(sc->mem_res, off, data, count);
 }
 
-static void 
-imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable)
+static uint16_t
+imx_sdhc_get_clock(struct imx_sdhci_softc *sc)
 {
-	uint32_t divisor, enable_bits, enable_reg, freq, prescale, val32;
+	uint16_t val;
 
+	/*
+	 * Whenever the sdhci driver writes the clock register we save a
+	 * snapshot of just the frequency bits, so that we can play them back
+	 * here on a register read without recalculating the frequency from the
+	 * prescalar and divisor bits in the real register.  We'll start with
+	 * those bits, and mix in the clock status and enable bits that come
+	 * from different places depending on which hardware we've got.
+	 */
+	val = sc->sdclockreg_freq_bits;
+
+	/*
+	 * The internal clock is always enabled (actually, the hardware manages
+	 * it).  Whether the internal clock is stable yet after a frequency
+	 * change comes from the present-state register on both hardware types.
+	 */
+	val |= SDHCI_CLOCK_INT_EN;
+	if (RD4(sc, SDHC_PRES_STATE) & SDHC_PRES_SDSTB)
+	    val |= SDHCI_CLOCK_INT_STABLE;
+
+	/*
+	 * On ESDHC hardware the card bus clock enable is in the usual sdhci
+	 * register but it's a different bit, so transcribe it (note the
+	 * difference between standard SDHCI_ and Freescale SDHC_ prefixes
+	 * here). On USDHC hardware there is a force-on bit, but no force-off
+	 * for the card bus clock (the hardware runs the clock when transfers
+	 * are active no matter what), so we always say the clock is on.
+	 * XXX Maybe we should say it's in whatever state the sdhci driver last
+	 * set it to.
+	 */
 	if (sc->hwtype == HWTYPE_ESDHC) {
-		divisor = (sc->sdclockreg_freq_bits >> SDHCI_DIVIDER_SHIFT) &
-		    SDHCI_DIVIDER_MASK;
-		enable_reg = SDHCI_CLOCK_CONTROL;
-		enable_bits = SDHC_CLK_IPGEN | SDHC_CLK_HCKEN |
-		    SDHC_CLK_PEREN;
+		if (RD4(sc, SDHC_SYS_CTRL) & SDHC_CLK_SDCLKEN)
+			val |= SDHCI_CLOCK_CARD_EN;
 	} else {
-		divisor = (sc->sdclockreg_freq_bits >> SDHCI_DIVIDER_SHIFT) &
-		    SDHCI_DIVIDER_MASK;
-		divisor |= ((sc->sdclockreg_freq_bits >> 
-		    SDHCI_DIVIDER_HI_SHIFT) &
-		    SDHCI_DIVIDER_HI_MASK) << SDHCI_DIVIDER_MASK_LEN;
-		enable_reg = SDHCI_CLOCK_CONTROL;
-		enable_bits = SDHC_VEND_IPGEN | SDHC_VEND_HCKEN |
-		   SDHC_VEND_PEREN;
+		val |= SDHCI_CLOCK_CARD_EN;
 	}
 
-	WR4(sc, SDHC_VEND_SPEC, 
-	    RD4(sc, SDHC_VEND_SPEC) & ~SDHC_VEND_FRC_SDCLK_ON);
-	WR4(sc, enable_reg, RD4(sc, enable_reg) & ~enable_bits);
+	return (val);
+}
 
-	if (!enable)
-		return;
+static void 
+imx_sdhc_set_clock(struct imx_sdhci_softc *sc, uint16_t val)
+{
+	uint32_t divisor, freq, prescale, val32;
 
-	if (divisor == 0)
-		freq = sc->baseclk_hz;
-	else
-		freq = sc->baseclk_hz / (2 * divisor);
+	val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
 
+	/*
+	 * Save the frequency-setting bits in SDHCI format so that we can play
+	 * them back in get_clock without complex decoding of hardware regs,
+	 * then deal with the freqency part of the value based on hardware type.
+	 */
+	sc->sdclockreg_freq_bits = val & SDHCI_DIVIDERS_MASK;
+	if (sc->hwtype == HWTYPE_ESDHC) {
+		/*
+		 * The ESDHC hardware requires the driver to manually start and
+		 * stop the sd bus clock.  If the enable bit is not set, turn
+		 * off the clock in hardware and we're done, otherwise decode
+		 * the requested frequency.  ESDHC hardware is sdhci 2.0; the
+		 * sdhci driver will use the original 8-bit divisor field and
+		 * the "base / 2^N" divisor scheme.
+		 */
+		if ((val & SDHCI_CLOCK_CARD_EN) == 0) {
+			WR4(sc, SDHCI_CLOCK_CONTROL, val32 & ~SDHC_CLK_SDCLKEN);
+			return;
+
+		}
+		divisor = (val >> SDHCI_DIVIDER_SHIFT) & SDHCI_DIVIDER_MASK;
+		freq = sc->baseclk_hz >> ffs(divisor);
+	} else {
+		/*
+		 * The USDHC hardware provides only "force always on" control
+		 * over the sd bus clock, but no way to turn it off.  (If a cmd
+		 * or data transfer is in progress the clock is on, otherwise it
+		 * is off.)  If the clock is being disabled, we can just return
+		 * now, otherwise we decode the requested frequency.  USDHC
+		 * hardware is sdhci 3.0; the sdhci driver will use a 10-bit
+		 * divisor using the "base / 2*N" divisor scheme.
+		 */
+		if ((val & SDHCI_CLOCK_CARD_EN) == 0)
+			return;
+		divisor = ((val >> SDHCI_DIVIDER_SHIFT) & SDHCI_DIVIDER_MASK) |
+		    ((val >> SDHCI_DIVIDER_HI_SHIFT) & SDHCI_DIVIDER_HI_MASK) <<
+		    SDHCI_DIVIDER_MASK_LEN;
+		if (divisor == 0)
+			freq = sc->baseclk_hz;
+		else
+			freq = sc->baseclk_hz / (2 * divisor);
+	}
+
+	/*
+	 * Get a prescaler and final divisor to achieve the desired frequency.
+	 */
 	for (prescale = 2; freq < sc->baseclk_hz / (prescale * 16);)
 		prescale <<= 1;
 
@@ -535,19 +616,16 @@ imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable)
 	    prescale, divisor);
 #endif	
 
+	/*
+	 * Adjust to zero-based values, and store them to the hardware.
+	 */
 	prescale >>= 1;
 	divisor -= 1;
 
-	val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
-	val32 &= ~SDHC_CLK_DIVISOR_MASK;
+	val32 &= ~(SDHC_CLK_DIVISOR_MASK | SDHC_CLK_PRESCALE_MASK);
 	val32 |= divisor << SDHC_CLK_DIVISOR_SHIFT;
-	val32 &= ~SDHC_CLK_PRESCALE_MASK;
 	val32 |= prescale << SDHC_CLK_PRESCALE_SHIFT;
 	WR4(sc, SDHCI_CLOCK_CONTROL, val32);
-
-	WR4(sc, enable_reg, RD4(sc, enable_reg) | enable_bits);
-	WR4(sc, SDHC_VEND_SPEC, 
-	    RD4(sc, SDHC_VEND_SPEC) | SDHC_VEND_FRC_SDCLK_ON);
 }
 
 static boolean_t
@@ -624,7 +702,7 @@ imx_sdhci_intr(void *arg)
 	 * out of the hardware now so that we can present it later when the DAT0
 	 * line is released.
 	 *
-	 * If we need to wait for the the DAT0 line to be released, we set up a
+	 * If we need to wait for the DAT0 line to be released, we set up a
 	 * timeout point 250ms in the future.  This number comes from the SD
 	 * spec, which allows a command to take that long.  In the real world,
 	 * cards tend to take 10-20ms for a long-running command such as a write
@@ -732,6 +810,7 @@ imx_sdhci_attach(device_t dev)
 	WR4(sc, SDHC_WTMK_LVL, 0x08800880);
 
 	sc->baseclk_hz = imx_ccm_sdhci_hz();
+	sc->slot.max_clk = sc->baseclk_hz;
 
 	/*
 	 * If the slot is flagged with the non-removable property, set our flag
@@ -835,3 +914,4 @@ static driver_t imx_sdhci_driver = {
 DRIVER_MODULE(sdhci_imx, simplebus, imx_sdhci_driver, imx_sdhci_devclass, 0, 0);
 MODULE_DEPEND(sdhci_imx, sdhci, 1, 1, 1);
 DRIVER_MODULE(mmc, sdhci_imx, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(sdhci_imx, mmc, 1, 1, 1);

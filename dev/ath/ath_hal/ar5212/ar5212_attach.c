@@ -885,7 +885,7 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halRfSilentSupport = AH_TRUE;
 	}
 
-	/* NB: this is a guess, noone seems to know the answer */
+	/* NB: this is a guess, no one seems to know the answer */
 	ahpriv->ah_rxornIsFatal =
 	    (AH_PRIVATE(ah)->ah_macVersion < AR_SREV_VERSION_VENICE);
 

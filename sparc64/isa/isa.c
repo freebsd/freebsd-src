@@ -169,7 +169,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 		 */
 		if (strcmp(name, "8042") == 0) {
 			isa_setup_children(dev, node);
-			free(name, M_OFWPROP);
+			OF_prop_free(name);
 			continue;
 		}
 
@@ -179,7 +179,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 		if (ofw_isa_pnp_map[i].name == NULL) {
 			device_printf(dev, "no PnP map entry for node "
 			    "0x%lx: %s\n", (unsigned long)node, name);
-			free(name, M_OFWPROP);
+			OF_prop_free(name);
 			continue;
 		}
 
@@ -230,10 +230,10 @@ isa_setup_children(device_t dev, phandle_t parent)
 				}
 			}
 			if (regidx != NULL)
-				free(regidx, M_OFWPROP);
+				OF_prop_free(regidx);
 		}
 		if (regs != NULL)
-			free(regs, M_OFWPROP);
+			OF_prop_free(regs);
 
 		nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intrs),
 		    (void **)&intrs);
@@ -251,14 +251,14 @@ isa_setup_children(device_t dev, phandle_t parent)
 			bus_set_resource(cdev, SYS_RES_IRQ, i, rintr, 1);
 		}
 		if (intrs != NULL)
-			free(intrs, M_OFWPROP);
+			OF_prop_free(intrs);
 
 		ndrq = OF_getprop_alloc(node, "dma-channel", sizeof(*drqs),
 		    (void **)&drqs);
 		for (i = 0; i < ndrq; i++)
 			bus_set_resource(cdev, SYS_RES_DRQ, i, drqs[i], 1);
 		if (drqs != NULL)
-			free(drqs, M_OFWPROP);
+			OF_prop_free(drqs);
 
 		/*
 		 * Devices using DMA hang off of the `dma' node instead of
@@ -267,19 +267,19 @@ isa_setup_children(device_t dev, phandle_t parent)
 		if (strcmp(name, "dma") == 0)
 			isa_setup_children(dev, node);
 
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 	}
 }
 
 struct resource *
 isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	/*
 	 * Consider adding a resource definition.
 	 */
 	int passthrough = (device_get_parent(child) != bus);
-	int isdefault = (start == 0UL && end == ~0UL);
+	int isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
 	u_long base, limit;

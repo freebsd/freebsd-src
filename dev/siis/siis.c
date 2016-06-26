@@ -314,13 +314,13 @@ siis_intr(void *data)
 
 static struct resource *
 siis_alloc_resource(device_t dev, device_t child, int type, int *rid,
-		       u_long start, u_long end, u_long count, u_int flags)
+		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
 	int unit = ((struct siis_channel *)device_get_softc(child))->unit;
 	struct resource *res = NULL;
 	int offset = unit << 13;
-	long st;
+	rman_res_t st;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -856,7 +856,7 @@ siis_ch_intr(void *data)
 	/* Read command statuses. */
 	sstatus = ATA_INL(ch->r_mem, SIIS_P_SS);
 	ok = ch->rslots & ~sstatus;
-	/* Complete all successfull commands. */
+	/* Complete all successful commands. */
 	for (i = 0; i < SIIS_MAX_SLOTS; i++) {
 		if ((ok >> i) & 1)
 			siis_end_transaction(&ch->slot[i], SIIS_ERR_NONE);
@@ -1728,6 +1728,12 @@ siis_setup_fis(device_t dev, struct siis_cmd *ctp, union ccb *ccb, int tag)
 			fis[13] = ccb->ataio.cmd.sector_count_exp;
 		}
 		fis[15] = ATA_A_4BIT;
+		if (ccb->ataio.ata_flags & ATA_FLAG_AUX) {
+			fis[16] =  ccb->ataio.aux        & 0xff;
+			fis[17] = (ccb->ataio.aux >>  8) & 0xff;
+			fis[18] = (ccb->ataio.aux >> 16) & 0xff;
+			fis[19] = (ccb->ataio.aux >> 24) & 0xff;
+		}
 	} else {
 		/* Soft reset. */
 	}
@@ -1946,7 +1952,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
 		cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED | PIM_ATA_EXT;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 15;
 		cpi->max_lun = 0;

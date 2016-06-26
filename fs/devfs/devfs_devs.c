@@ -127,16 +127,11 @@ devfs_alloc(int flags)
 		return (NULL);
 
 	cdp->cdp_dirents = &cdp->cdp_dirent0;
-	cdp->cdp_dirent0 = NULL;
-	cdp->cdp_maxdirent = 0;
-	cdp->cdp_inode = 0;
 
 	cdev = &cdp->cdp_c;
-
 	LIST_INIT(&cdev->si_children);
 	vfs_timestamp(&ts);
 	cdev->si_atime = cdev->si_mtime = cdev->si_ctime = ts;
-	cdev->si_cred = NULL;
 
 	return (cdev);
 }
@@ -304,6 +299,13 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 void
 devfs_dirent_free(struct devfs_dirent *de)
 {
+	struct vnode *vp;
+
+	vp = de->de_vnode;
+	mtx_lock(&devfs_de_interlock);
+	if (vp != NULL && vp->v_data == de)
+		vp->v_data = NULL;
+	mtx_unlock(&devfs_de_interlock);
 	free(de, M_DEVFS3);
 }
 

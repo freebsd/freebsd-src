@@ -56,7 +56,8 @@
 #define	A10_MMC_IDIE		0x8C	/* IDMAC Interrupt Enable Register */
 #define	A10_MMC_CHDA		0x90
 #define	A10_MMC_CBDA		0x94
-#define	A10_MMC_FIFO		0x100	/* FIFO Access Address */
+#define	A10_MMC_FIFO		0x100	/* FIFO Access Address (A10/A20) */
+#define	A31_MMC_FIFO		0x200	/* FIFO Access Address (A31) */
 
 /* A10_MMC_GCTRL */
 #define	A10_MMC_SOFT_RESET		(1U << 0)

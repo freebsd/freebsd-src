@@ -523,11 +523,11 @@ ahci_intr_one_edge(void *data)
 
 struct resource *
 ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	struct resource *res;
-	long st;
+	rman_res_t st;
 	int offset, size, unit;
 
 	unit = (intptr_t)device_get_ivars(child);
@@ -1303,7 +1303,7 @@ ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus)
 		err = 0;
 		port = -1;
 	}
-	/* Complete all successfull commands. */
+	/* Complete all successful commands. */
 	ok = ch->rslots & ~cstatus;
 	for (i = 0; i < ch->numslots; i++) {
 		if ((ok >> i) & 1)
@@ -2411,14 +2411,19 @@ ahci_setup_fis(struct ahci_channel *ch, struct ahci_cmd_tab *ctp, union ccb *ccb
 		fis[11] = ccb->ataio.cmd.features_exp;
 		if (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) {
 			fis[12] = tag << 3;
-			fis[13] = 0;
 		} else {
 			fis[12] = ccb->ataio.cmd.sector_count;
-			fis[13] = ccb->ataio.cmd.sector_count_exp;
 		}
+		fis[13] = ccb->ataio.cmd.sector_count_exp;
 		fis[15] = ATA_A_4BIT;
 	} else {
 		fis[15] = ccb->ataio.cmd.control;
+	}
+	if (ccb->ataio.ata_flags & ATA_FLAG_AUX) {
+		fis[16] =  ccb->ataio.aux        & 0xff;
+		fis[17] = (ccb->ataio.aux >>  8) & 0xff;
+		fis[18] = (ccb->ataio.aux >> 16) & 0xff;
+		fis[19] = (ccb->ataio.aux >> 24) & 0xff;
 	}
 	return (20);
 }
@@ -2674,7 +2679,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED | PIM_ATA_EXT;
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->max_target = 15;

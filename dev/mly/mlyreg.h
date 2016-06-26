@@ -138,7 +138,7 @@ struct mly_sg_entry {
  */
 struct mly_lun_map {
     u_int8_t	res1:4;
-    u_int8_t	host_port_mapped:1;	/* this system drive visibile to host on this controller/port combination */
+    u_int8_t	host_port_mapped:1;	/* this system drive visible to host on this controller/port combination */
     u_int8_t	tid_valid:1;		/* target ID valid */
     u_int8_t	hid_valid:1;		/* host ID valid */
     u_int8_t	lun_valid:1;		/* LUN valid */
@@ -1208,7 +1208,7 @@ union mly_command_packet {
  * PG6: 5.4.4 Doorbell 1
  *
  * Note that the documentation claims that these bits are set when the
- * status queue(s) are empty, wheras the Linux driver and experience 
+ * status queue(s) are empty, whereas the Linux driver and experience 
  * suggest they are set when there is status available.
  */
 #define MLY_HM_STSREADY			(1<<0)

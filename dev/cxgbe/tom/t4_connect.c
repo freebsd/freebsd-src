@@ -49,9 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
-#include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
 
 #include "common/common.h"
@@ -142,16 +142,6 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 done:
 	INP_WUNLOCK(inp);
 	return (0);
-}
-
-static inline int
-act_open_has_tid(unsigned int status)
-{
-
-	return (status != CPL_ERR_TCAM_FULL &&
-	    status != CPL_ERR_TCAM_PARITY &&
-	    status != CPL_ERR_CONN_EXIST &&
-	    status != CPL_ERR_ARP_MISS);
 }
 
 /*
@@ -257,7 +247,7 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 		opt2 |= F_RX_COALESCE_VALID;
 	else {
 		opt2 |= F_T5_OPT_2_VALID;
-		opt2 |= F_CONG_CNTRL_VALID; /* OPT_2_ISS really, for T5 */
+		opt2 |= F_T5_ISS;
 	}
 	if (sc->tt.rx_coalesce)
 		opt2 |= V_RX_COALESCE(M_RX_COALESCE);

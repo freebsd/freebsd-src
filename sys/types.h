@@ -174,6 +174,11 @@ typedef	__off_t		off_t;		/* file offset */
 #define	_OFF_T_DECLARED
 #endif
 
+#ifndef _OFF64_T_DECLARED
+typedef	__off64_t	off64_t;	/* file offset (alias) */
+#define	_OFF64_T_DECLARED
+#endif
+
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;		/* process id */
 #define	_PID_T_DECLARED
@@ -249,6 +254,8 @@ typedef	__vm_ooffset_t	vm_ooffset_t;
 typedef	__vm_paddr_t	vm_paddr_t;
 typedef	__vm_pindex_t	vm_pindex_t;
 typedef	__vm_size_t	vm_size_t;
+
+typedef __rman_res_t    rman_res_t;
 
 #ifdef _KERNEL
 typedef	int		boolean_t;

@@ -47,7 +47,6 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
 
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL = 0,
@@ -116,7 +115,7 @@ dma_set_coherent_mask(struct device *dev, u64 mask)
 
 	if (!dma_supported(dev, mask))
 		return -EIO;
-	/* XXX Currently we don't support a seperate coherent mask. */
+	/* XXX Currently we don't support a separate coherent mask. */
 	return 0;
 }
 

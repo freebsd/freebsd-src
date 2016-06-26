@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
 
@@ -282,7 +281,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 * ipsec6_proces_packet will send the packet using ip6_output
 	 */
 	error = ipsec6_process_packet(m, sp->req);
-	/* Release SP if an error occured */
+	/* Release SP if an error occurred */
 	if (error != 0)
 		KEY_FREESP(&sp);
 	if (error == EJUSTRETURN) {
@@ -341,6 +340,7 @@ again:
 	dst->sin6_addr = ip6->ip6_dst;
 again2:
 	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
+	rt = rin6.ro_rt;
 	if (rin6.ro_rt != NULL)
 		RT_UNLOCK(rin6.ro_rt);
 	else {
@@ -352,7 +352,6 @@ again2:
 		}
 		goto bad;
 	}
-	rt = rin6.ro_rt;
 
 	/*
 	 * Source scope check: if a packet can't be delivered to its
@@ -505,8 +504,10 @@ again2:
 		/* If destination is now ourself drop to ip6_input(). */
 		if (in6_localip(&ip6->ip6_dst))
 			m->m_flags |= M_FASTFWD_OURS;
-		else
+		else {
+			RTFREE(rt);
 			goto again;	/* Redo the routing table lookup. */
+		}
 	}
 
 	/* See if local, if yes, send it to netisr. */
@@ -533,6 +534,7 @@ again2:
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP6_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
+		RTFREE(rt);
 		goto again2;
 	}
 

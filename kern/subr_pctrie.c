@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #define	PCTRIE_COUNT	(1 << PCTRIE_WIDTH)
 #define	PCTRIE_MASK	(PCTRIE_COUNT - 1)
-#define	PCTRIE_LIMIT	(howmany((sizeof(uint64_t) * NBBY), PCTRIE_WIDTH) - 1)
+#define	PCTRIE_LIMIT	(howmany(sizeof(uint64_t) * NBBY, PCTRIE_WIDTH) - 1)
 
 /* Flag bits stored in node pointers. */
 #define	PCTRIE_ISLEAF	0x1

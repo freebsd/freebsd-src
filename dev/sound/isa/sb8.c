@@ -265,16 +265,16 @@ sb_release_resources(struct sb_info *sb, device_t dev)
     		if (sb->ih)
 			bus_teardown_intr(dev, sb->irq, sb->ih);
  		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
-		sb->irq = 0;
+		sb->irq = NULL;
     	}
     	if (sb->drq) {
 		isa_dma_release(rman_get_start(sb->drq));
 		bus_release_resource(dev, SYS_RES_DRQ, 0, sb->drq);
-		sb->drq = 0;
+		sb->drq = NULL;
     	}
     	if (sb->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sb->io_base);
-		sb->io_base = 0;
+		sb->io_base = NULL;
     	}
     	if (sb->parent_dmat) {
 		bus_dma_tag_destroy(sb->parent_dmat);
@@ -749,7 +749,7 @@ sb_attach(device_t dev)
 		goto no;
     	}
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld bufsz %u %s",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd drq %jd bufsz %u %s",
     	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
 		rman_get_start(sb->drq), sb->bufsize, PCM_KLDSTRING(snd_sb8));
 

@@ -166,6 +166,8 @@ static uint8_t		ural_bbp_read(struct ural_softc *, uint8_t);
 static void		ural_rf_write(struct ural_softc *, uint8_t, uint32_t);
 static void		ural_scan_start(struct ieee80211com *);
 static void		ural_scan_end(struct ieee80211com *);
+static void		ural_getradiocaps(struct ieee80211com *, int, int *,
+			    struct ieee80211_channel[]);
 static void		ural_set_channel(struct ieee80211com *);
 static void		ural_set_chan(struct ural_softc *,
 			    struct ieee80211_channel *);
@@ -357,6 +359,14 @@ static const struct {
 	{ 161, 0x08808, 0x0242f, 0x00281 }
 };
 
+static const uint8_t ural_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
+static const uint8_t ural_chan_5ghz[] =
+	{ 36, 40, 44, 48, 52, 56, 60, 64,
+	  100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
+	  149, 153, 157, 161 };
+
 static const struct usb_config ural_config[URAL_N_TRANSFER] = {
 	[URAL_BULK_WR] = {
 		.type = UE_BULK,
@@ -424,7 +434,6 @@ ural_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ural_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	uint8_t iface_index;
 	int error;
 
@@ -474,18 +483,15 @@ ural_attach(device_t self)
 	    | IEEE80211_C_WPA		/* 802.11i */
 	    ;
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	if (sc->rf_rev == RAL_RF_5222)
-		setbit(bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, bands);
+	ural_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 	ic->ic_update_promisc = ural_update_promisc;
 	ic->ic_raw_xmit = ural_raw_xmit;
 	ic->ic_scan_start = ural_scan_start;
 	ic->ic_scan_end = ural_scan_end;
+	ic->ic_getradiocaps = ural_getradiocaps;
 	ic->ic_set_channel = ural_set_channel;
 	ic->ic_parent = ural_parent;
 	ic->ic_transmit = ural_transmit;
@@ -706,8 +712,8 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ural_update_slot(sc);
 			ural_set_txpreamble(sc);
 			ural_set_basicrates(sc, ic->ic_bsschan);
-			IEEE80211_ADDR_COPY(ic->ic_macaddr, ni->ni_bssid);
-			ural_set_bssid(sc, ic->ic_macaddr);
+			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
+			ural_set_bssid(sc, sc->sc_bssid);
 		}
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
@@ -1002,7 +1008,7 @@ ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
 	} else {
 		if (rate == 0)
 			rate = 2;	/* avoid division by zero */
-		plcp_length = (16 * len + rate - 1) / rate;
+		plcp_length = howmany(16 * len, rate);
 		if (rate == 22) {
 			remainder = (16 * len) % 22;
 			if (remainder != 0 && remainder < 7)
@@ -1582,9 +1588,29 @@ ural_scan_end(struct ieee80211com *ic)
 
 	RAL_LOCK(sc);
 	ural_enable_tsf_sync(sc);
-	ural_set_bssid(sc, ic->ic_macaddr);
+	ural_set_bssid(sc, sc->sc_bssid);
 	RAL_UNLOCK(sc);
 
+}
+
+static void
+ural_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct ural_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    ural_chan_2ghz, nitems(ural_chan_2ghz), bands, 0);
+
+	if (sc->rf_rev == RAL_RF_5222) {
+		setbit(bands, IEEE80211_MODE_11A);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+		    ural_chan_5ghz, nitems(ural_chan_5ghz), bands, 0);
+	}
 }
 
 static void

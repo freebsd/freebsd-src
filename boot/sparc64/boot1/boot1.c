@@ -24,8 +24,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/stdarg.h>
 
-#define	_PATH_LOADER	"/boot/loader"
-#define	_PATH_KERNEL	"/boot/kernel/kernel"
+#include "paths.h"
+
 #define	READ_BUF_SIZE	8192
 
 typedef int putc_func_t(char c, void *arg);
@@ -324,7 +324,7 @@ main(int ac, char **av)
 	const char *path;
 	int i;
 
-	path = _PATH_LOADER;
+	path = PATH_LOADER;
 	for (i = 0; i < ac; i++) {
 		switch (av[i][0]) {
 		case '-':
@@ -390,7 +390,7 @@ zbread(char *buf, off_t off, size_t bytes)
 
 	p = buf;
 	soff = VDEV_BOOT_OFFSET + off;
-	lb = (soff + bytes + DEV_BSIZE - 1) / DEV_BSIZE;
+	lb = howmany(soff + bytes, DEV_BSIZE);
 	poff = soff;
 	while (poff < soff + bytes) {
 		nb = lb - poff / DEV_BSIZE;

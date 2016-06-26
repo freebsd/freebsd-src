@@ -94,3 +94,28 @@ sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
+
+int
+sysctl_handle_counter_u64_array(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t *out;
+	int error;
+
+	out = malloc(arg2 * sizeof(uint64_t), M_TEMP, M_WAITOK);
+	for (int i = 0; i < arg2; i++)
+		out[i] = counter_u64_fetch(((counter_u64_t *)arg1)[i]);
+
+	error = SYSCTL_OUT(req, out, arg2 * sizeof(uint64_t));
+	free(out, M_TEMP);
+
+	if (error || !req->newptr)
+		return (error);
+
+	/*
+	 * Any write attempt to a counter zeroes it.
+	 */
+	for (int i = 0; i < arg2; i++)
+		counter_u64_zero(((counter_u64_t *)arg1)[i]);
+ 
+	return (0);
+}

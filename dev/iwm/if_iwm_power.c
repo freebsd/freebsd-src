@@ -89,6 +89,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -231,30 +233,6 @@ iwm_mvm_power_log(struct iwm_softc *sc, struct iwm_mac_power_cmd *cmd)
 		    "Disable power management\n");
 		return;
 	}
-	KASSERT(0, ("unhandled power management"));
-
-#if 0
-	DPRINTF(mvm, "Rx timeout = %u usec\n",
-			le32_to_cpu(cmd->rx_data_timeout));
-	DPRINTF(mvm, "Tx timeout = %u usec\n",
-			le32_to_cpu(cmd->tx_data_timeout));
-	if (cmd->flags & cpu_to_le16(IWM_POWER_FLAGS_SKIP_OVER_DTIM_MSK))
-		DPRINTF(mvm, "DTIM periods to skip = %u\n",
-				cmd->skip_dtim_periods);
-	if (cmd->flags & cpu_to_le16(IWM_POWER_FLAGS_LPRX_ENA_MSK))
-		DPRINTF(mvm, "LP RX RSSI threshold = %u\n",
-				cmd->lprx_rssi_threshold);
-	if (cmd->flags & cpu_to_le16(IWM_POWER_FLAGS_ADVANCE_PM_ENA_MSK)) {
-		DPRINTF(mvm, "uAPSD enabled\n");
-		DPRINTF(mvm, "Rx timeout (uAPSD) = %u usec\n",
-				le32_to_cpu(cmd->rx_data_timeout_uapsd));
-		DPRINTF(mvm, "Tx timeout (uAPSD) = %u usec\n",
-				le32_to_cpu(cmd->tx_data_timeout_uapsd));
-		DPRINTF(mvm, "QNDP TID = %d\n", cmd->qndp_tid);
-		DPRINTF(mvm, "ACs flags = 0x%x\n", cmd->uapsd_ac_flags);
-		DPRINTF(mvm, "Max SP = %d\n", cmd->uapsd_max_sp);
-	}
-#endif
 }
 
 static void

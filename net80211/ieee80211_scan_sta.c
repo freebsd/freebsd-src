@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/endian.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 
 #include <sys/socket.h>
@@ -127,11 +129,13 @@ static void sta_flush_table(struct sta_table *);
 #define	MATCH_NOTSEEN		0x00080	/* not seen in recent scans */
 #define	MATCH_RSSI		0x00100	/* rssi deemed too low to use */
 #define	MATCH_CC		0x00200	/* country code mismatch */
+#ifdef IEEE80211_SUPPORT_TDMA
 #define	MATCH_TDMA_NOIE		0x00400	/* no TDMA ie */
 #define	MATCH_TDMA_NOTMASTER	0x00800	/* not TDMA master */
 #define	MATCH_TDMA_NOSLOT	0x01000	/* all TDMA slots occupied */
 #define	MATCH_TDMA_LOCAL	0x02000	/* local address */
 #define	MATCH_TDMA_VERSION	0x04000	/* protocol version mismatch */
+#endif
 #define	MATCH_MESH_NOID		0x10000	/* no MESHID ie */
 #define	MATCH_MESHID		0x20000	/* meshid mismatch */
 static int match_bss(struct ieee80211vap *,
@@ -784,7 +788,7 @@ maxrate(const struct ieee80211_scan_entry *se)
 		} else
 			for (i = 31; i >= 0 && isclr(htcap->hc_mcsset, i); i--);
 		if (i >= 0) {
-			caps = LE_READ_2(&htcap->hc_cap);
+			caps = le16dec(&htcap->hc_cap);
 			if ((caps & IEEE80211_HTCAP_CHWIDTH40) &&
 			    (caps & IEEE80211_HTCAP_SHORTGI40))
 				rmax = ieee80211_htrates[i].ht40_rate_400ns;
@@ -1322,7 +1326,7 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	 * XXX deauth current ap
 	 */
 	if (curRate < roamRate || curRssi < roamRssi) {
-		if (time_after(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
+		if (ieee80211_time_after(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
 			/*
 			 * Scan cache contents are too old; force a scan now
 			 * if possible so we have current state to make a
@@ -1332,7 +1336,7 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			 * XXX force immediate switch on scan complete
 			 */
 			if (!IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
-			    time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle))
+			    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle))
 				ieee80211_bg_scan(vap, 0);
 			return;
 		}
@@ -1613,7 +1617,6 @@ notfound:
 			} else
 				chan = vap->iv_des_chan;
 			if (chan != NULL) {
-				struct ieee80211com *ic = vap->iv_ic;
 				/*
 				 * Create a HT capable IBSS; the per-node
 				 * probe request/response will result in
@@ -1713,7 +1716,6 @@ ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	st->st_scangen++;
 	st->st_newscan = 1;
 
-	ieee80211_promisc(vap, true);
 	return 0;
 }
 
@@ -1723,7 +1725,6 @@ ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 static int
 ap_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 {
-	ieee80211_promisc(vap, false);
 	return 0;
 }
 
@@ -1797,7 +1798,6 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			return 0;
 		}
 	}
-	ieee80211_promisc(vap, false);
 	if (ss->ss_flags & (IEEE80211_SCAN_NOPICK | IEEE80211_SCAN_NOJOIN)) {
 		/*
 		 * Manual/background scan, don't select+join the

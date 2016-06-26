@@ -318,12 +318,13 @@ struct sctp_assoc_change {
 #define SCTP_CANT_STR_ASSOC     0x0005
 
 /* sac_info values */
-#define SCTP_ASSOC_SUPPORTS_PR        0x01
-#define SCTP_ASSOC_SUPPORTS_AUTH      0x02
-#define SCTP_ASSOC_SUPPORTS_ASCONF    0x03
-#define SCTP_ASSOC_SUPPORTS_MULTIBUF  0x04
-#define SCTP_ASSOC_SUPPORTS_RE_CONFIG 0x05
-#define SCTP_ASSOC_SUPPORTS_MAX       0x05
+#define SCTP_ASSOC_SUPPORTS_PR			0x01
+#define SCTP_ASSOC_SUPPORTS_AUTH		0x02
+#define SCTP_ASSOC_SUPPORTS_ASCONF		0x03
+#define SCTP_ASSOC_SUPPORTS_MULTIBUF		0x04
+#define SCTP_ASSOC_SUPPORTS_RE_CONFIG		0x05
+#define SCTP_ASSOC_SUPPORTS_INTERLEAVING	0x06
+#define SCTP_ASSOC_SUPPORTS_MAX			0x06
 /*
  * Address event
  */
@@ -589,6 +590,7 @@ struct sctp_paddrthlds {
 	sctp_assoc_t spt_assoc_id;
 	uint16_t spt_pathmaxrxt;
 	uint16_t spt_pathpfthld;
+	uint16_t spt_pathcpthld;
 };
 
 struct sctp_paddrinfo {
@@ -1170,13 +1172,15 @@ struct xsctp_inpcb {
 	uint32_t total_nospaces;
 	uint32_t fragmentation_point;
 	uint16_t local_port;
-	uint16_t qlen;
-	uint16_t maxqlen;
+	uint16_t qlen_old;
+	uint16_t maxqlen_old;
 	void *socket;
+	uint32_t qlen;
+	uint32_t maxqlen;
 #if defined(__LP64__)
-	uint32_t extra_padding[29];	/* future */
+	uint32_t extra_padding[27];	/* future */
 #else
-	uint32_t extra_padding[30];	/* future */
+	uint32_t extra_padding[28];	/* future */
 #endif
 };
 

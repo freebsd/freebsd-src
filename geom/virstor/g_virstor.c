@@ -471,7 +471,7 @@ static void
 update_metadata(struct g_virstor_softc *sc)
 {
 	struct g_virstor_metadata md;
-	int n;
+	u_int n;
 
 	if (virstor_valid_components(sc) != sc->n_components)
 		return; /* Incomplete device */
@@ -928,7 +928,7 @@ virstor_geom_destroy(struct g_virstor_softc *sc, boolean_t force,
 {
 	struct g_provider *pp;
 	struct g_geom *gp;
-	int n;
+	u_int n;
 
 	g_topology_assert();
 
@@ -1257,7 +1257,7 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 		bs = MIN(MAXPHYS, sc->map_size - count);
 		if (bs % sc->sectorsize != 0) {
 			/* Check for alignment errors */
-			bs = (bs / sc->sectorsize) * sc->sectorsize;
+			bs = rounddown(bs, sc->sectorsize);
 			if (bs == 0)
 				break;
 			LOG_MSG(LVL_ERROR, "Trouble: map is not sector-aligned "
@@ -1723,13 +1723,12 @@ g_virstor_start(struct bio *b)
 				 * sc_offset will end up pointing to the drive
 				 * sector. */
 				s_offset = chunk_index * sizeof *me;
-				s_offset = (s_offset / sc->sectorsize) *
-				    sc->sectorsize;
+				s_offset = rounddown(s_offset, sc->sectorsize);
 
 				/* data_me points to map entry sector
-				 * in memory (analoguos to offset) */
-				data_me = &sc->map[(chunk_index /
-				    sc->me_per_sector) * sc->me_per_sector];
+				 * in memory (analogous to offset) */
+				data_me = &sc->map[rounddown(chunk_index,
+				    sc->me_per_sector)];
 
 				/* Commit sector with map entry to storage */
 				cb->bio_to = sc->components[0].gcons->provider;

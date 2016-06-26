@@ -105,6 +105,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -201,13 +203,13 @@ iwm_mvm_binding_cmd(struct iwm_softc *sc, struct iwm_node *in, uint32_t action)
 }
 
 int
-iwm_mvm_binding_update(struct iwm_softc *sc, struct iwm_node *in, int add)
+iwm_mvm_binding_update(struct iwm_softc *sc, struct iwm_node *in)
 {
-	return iwm_mvm_binding_cmd(sc, in, IWM_FW_CTXT_ACTION_ADD);
+	return iwm_mvm_binding_cmd(sc, in, IWM_FW_CTXT_ACTION_MODIFY);
 }
 
 int
 iwm_mvm_binding_add_vif(struct iwm_softc *sc, struct iwm_node *in)
 {
-	return iwm_mvm_binding_update(sc, in, IWM_FW_CTXT_ACTION_ADD);
+	return iwm_mvm_binding_cmd(sc, in, IWM_FW_CTXT_ACTION_ADD);
 }

@@ -819,7 +819,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			v2 = tcp->param[2];
 			switch (n) {
 			case 1:	/* flags only */
-				if (v0 < sizeof(cattrs)/sizeof(cattrs[0]))
+				if (v0 < nitems(cattrs))
 					v0 = cattrs[v0];
 				else	/* backward compatibility */
 					v0 = cattrs[v0 & 0x3];
@@ -884,7 +884,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 				v0 = 0;
 				/* FALL THROUGH */
 			case 1:
-				if (v0 < sizeof(tcattrs)/sizeof(tcattrs[0]))
+				if (v0 < nitems(tcattrs))
 					sc_change_cursor_shape(scp,
 					    tcattrs[v0], -1, -1);
 				break;

@@ -77,7 +77,7 @@
 						   if 0, no idea yet */
 #define	TCPTV_RTOBASE	(  3*hz)		/* assumed RTO if no info */
 
-#define	TCPTV_PERSMIN	(  5*hz)		/* retransmit persistence */
+#define	TCPTV_PERSMIN	(  5*hz)		/* minimum persist interval */
 #define	TCPTV_PERSMAX	( 60*hz)		/* maximum persist interval */
 
 #define	TCPTV_KEEP_INIT	( 75*hz)		/* initial connect keepalive */
@@ -146,7 +146,7 @@ struct tcp_timer {
 	struct	callout tt_2msl;	/* 2*msl TIME_WAIT timer */
 	struct	callout tt_delack;	/* delayed ACK timer */
 	uint32_t	tt_flags;	/* Timers flags */
-	uint32_t	tt_spare;	/* TDB */
+	uint32_t	tt_draincnt;	/* Count being drained */
 };
 
 /*
@@ -173,6 +173,8 @@ struct tcp_timer {
 #define	TP_KEEPCNT(tp)	((tp)->t_keepcnt ? (tp)->t_keepcnt : tcp_keepcnt)
 #define	TP_MAXIDLE(tp)	(TP_KEEPCNT(tp) * TP_KEEPINTVL(tp))
 
+extern int tcp_persmin;			/* minimum persist interval */
+extern int tcp_persmax;			/* maximum persist interval */
 extern int tcp_keepinit;		/* time to establish connection */
 extern int tcp_keepidle;		/* time before keepalive probes begin */
 extern int tcp_keepintvl;		/* time between keepalive probes */
@@ -191,17 +193,13 @@ extern int tcp_fast_finwait2_recycle;
 
 void	tcp_timer_init(void);
 void	tcp_timer_2msl(void *xtp);
+void	tcp_timer_discard(void *);
 struct tcptw *
 	tcp_tw_2msl_scan(int reuse);	/* XXX temporary? */
 void	tcp_timer_keep(void *xtp);
 void	tcp_timer_persist(void *xtp);
 void	tcp_timer_rexmt(void *xtp);
 void	tcp_timer_delack(void *xtp);
-void	tcp_timer_2msl_discard(void *xtp);
-void	tcp_timer_keep_discard(void *xtp);
-void	tcp_timer_persist_discard(void *xtp);
-void	tcp_timer_rexmt_discard(void *xtp);
-void	tcp_timer_delack_discard(void *xtp);
 void	tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
 	struct xtcp_timer *xtimer);
 

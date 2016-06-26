@@ -52,6 +52,13 @@ struct ofw_compat_data {
 	uintptr_t	 ocd_data;
 };
 
+struct intr_map_data_fdt {
+	struct intr_map_data	hdr;
+	phandle_t		iparent;
+	u_int			ncells;
+	pcell_t			*cells;
+};
+
 #define SIMPLEBUS_PNP_DESCR "Z:compat;P:private;"
 #define SIMPLEBUS_PNP_INFO(t) \
 	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0]));
@@ -76,10 +83,17 @@ int	ofw_bus_lookup_imap(phandle_t, struct ofw_bus_iinfo *, void *, int,
 int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
 	    void *, void *, int, phandle_t *);
 
+/* Routines for processing msi maps */
+int ofw_bus_msimap(phandle_t, uint16_t, phandle_t *, uint32_t *);
+
 /* Routines for parsing device-tree data into resource lists. */
 int ofw_bus_reg_to_rl(device_t, phandle_t, pcell_t, pcell_t,
     struct resource_list *);
+#ifndef INTRNG
 int ofw_bus_intr_to_rl(device_t, phandle_t, struct resource_list *, int *);
+#endif
+int ofw_bus_intr_by_rid(device_t, phandle_t, int, phandle_t *, int *,
+    pcell_t **);
 
 /* Helper to get device status property */
 const char *ofw_bus_get_status(device_t dev);
@@ -111,13 +125,15 @@ phandle_t ofw_bus_find_compatible(phandle_t, const char *);
 /* Helper to search for a child with a given name */
 phandle_t ofw_bus_find_child(phandle_t, const char *);
 
-/* Helper routine to find a device_t child matchig a given phandle_t */
+/* Helper routine to find a device_t child matching a given phandle_t */
 device_t ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node);
 
 /* Helper routines for parsing lists  */
 int ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
     const char *cells_name, int idx, phandle_t *producer, int *ncells,
     pcell_t **cells);
+int ofw_bus_parse_xref_list_get_length(phandle_t node, const char *list_name,
+    const char *cells_name, int *count);
 int ofw_bus_find_string_index(phandle_t node, const char *list_name,
     const char *name, int *idx);
 int ofw_bus_string_list_to_array(phandle_t node, const char *list_name,

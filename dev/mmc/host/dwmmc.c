@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	WRITE4(_sc, _reg, _val) \
 	bus_write_4((_sc)->res[0], _reg, _val)
 
-#define	DIV_ROUND_UP(n, d)		(((n) + (d) - 1) / (d))
+#define	DIV_ROUND_UP(n, d)		howmany(n, d)
 
 #define	DWMMC_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define	DWMMC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -191,7 +191,7 @@ dwmmc_ctrl_reset(struct dwmmc_softc *sc, int reset_bits)
 		if (!(READ4(sc, SDMMC_CTRL) & reset_bits))
 			return (0);
 		DELAY(10);
-	};
+	}
 
 	device_printf(sc->dev, "Reset failed\n");
 
@@ -722,6 +722,9 @@ dma_done(struct dwmmc_softc *sc, struct mmc_command *cmd)
 		bus_dmamap_sync(sc->buf_tag, sc->buf_map,
 			BUS_DMASYNC_POSTREAD);
 
+	bus_dmamap_sync(sc->desc_tag, sc->desc_map,
+	    BUS_DMASYNC_POSTWRITE);
+
 	bus_dmamap_unload(sc->buf_tag, sc->buf_map);
 
 	return (0);
@@ -765,6 +768,10 @@ dma_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
 		sc, BUS_DMA_NOWAIT);
 	if (err != 0)
 		panic("dmamap_load failed\n");
+
+	/* Ensure the device can see the desc */
+	bus_dmamap_sync(sc->desc_tag, sc->desc_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	if (data->flags & MMC_DATA_WRITE)
 		bus_dmamap_sync(sc->buf_tag, sc->buf_map,
@@ -1178,3 +1185,4 @@ static devclass_t dwmmc_devclass;
 DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, 0, 0);
 DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, 0, 0);
 DRIVER_MODULE(mmc, dwmmc, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(dwmmc, mmc, 1, 1, 1);

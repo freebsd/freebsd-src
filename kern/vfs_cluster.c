@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/vmmeter.h>
@@ -119,6 +120,8 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 	 * get the requested block
 	 */
 	*bpp = reqbp = bp = getblk(vp, lblkno, size, 0, 0, gbflags);
+	if (bp == NULL)
+		return (EBUSY);
 	origblkno = lblkno;
 
 	/*
@@ -239,6 +242,13 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 			BUF_KERNPROC(bp);
 		bp->b_iooffset = dbtob(bp->b_blkno);
 		bstrategy(bp);
+#ifdef RACCT
+		if (racct_enable) {
+			PROC_LOCK(curproc);
+			racct_add_buf(curproc, bp, 0);
+			PROC_UNLOCK(curproc);
+		}
+#endif /* RACCT */
 		curthread->td_ru.ru_inblock++;
 	}
 
@@ -292,13 +302,28 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 			BUF_KERNPROC(rbp);
 		rbp->b_iooffset = dbtob(rbp->b_blkno);
 		bstrategy(rbp);
+#ifdef RACCT
+		if (racct_enable) {
+			PROC_LOCK(curproc);
+			racct_add_buf(curproc, rbp, 0);
+			PROC_UNLOCK(curproc);
+		}
+#endif /* RACCT */
 		curthread->td_ru.ru_inblock++;
 	}
 
-	if (reqbp)
-		return (bufwait(reqbp));
-	else
-		return (error);
+	if (reqbp) {
+		/*
+		 * Like bread, always brelse() the buffer when
+		 * returning an error.
+		 */
+		error = bufwait(reqbp);
+		if (error != 0) {
+			brelse(reqbp);
+			*bpp = NULL;
+		}
+	}
+	return (error);
 }
 
 /*
@@ -343,7 +368,7 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 		return tbp;
 
 	bp = trypbuf(&cluster_pbuf_freecnt);
-	if (bp == 0)
+	if (bp == NULL)
 		return tbp;
 
 	/*
@@ -538,7 +563,7 @@ cluster_callback(bp)
 	int error = 0;
 
 	/*
-	 * Must propogate errors to all the components.
+	 * Must propagate errors to all the components.
 	 */
 	if (bp->b_ioflags & BIO_ERROR)
 		error = bp->b_error;

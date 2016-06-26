@@ -33,7 +33,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"20.00.00.00-fbsd"
+#define MPS_DRIVER_VERSION	"21.00.00.00-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -756,6 +756,8 @@ void mps_mapping_enclosure_dev_status_change_event(struct mps_softc *,
     Mpi2EventDataSasEnclDevStatusChange_t *event_data);
 void mps_mapping_ir_config_change_event(struct mps_softc *sc,
     Mpi2EventDataIrConfigChangeList_t *event_data);
+int mps_mapping_dump(SYSCTL_HANDLER_ARGS);
+int mps_mapping_encl_dump(SYSCTL_HANDLER_ARGS);
 
 void mpssas_evt_handler(struct mps_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *event);

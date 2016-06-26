@@ -80,9 +80,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#ifdef __arm__
-#include <machine/acle-compat.h>
-#endif
 
 #define ELF_NOTE_ROUNDSIZE	4
 #define OLD_EI_BRAND	8
@@ -139,8 +136,8 @@ SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
-#define	trunc_page_ps(va, ps)	((va) & ~(ps - 1))
-#define	round_page_ps(va, ps)	(((va) + (ps - 1)) & ~(ps - 1))
+#define	trunc_page_ps(va, ps)	rounddown2(va, ps)
+#define	round_page_ps(va, ps)	roundup2(va, ps)
 #define	aligned(a, t)	(trunc_page_ps((u_long)(a), sizeof(t)) == (u_long)(a))
 
 static const char FREEBSD_ABI_VENDOR[] = "FreeBSD";
@@ -258,7 +255,7 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
     int interp_name_len, int32_t *osrel)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
-	Elf_Brandinfo *bi;
+	Elf_Brandinfo *bi, *bi_m;
 	boolean_t ret;
 	int i;
 
@@ -270,6 +267,7 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	 */
 
 	/* Look for an ".note.ABI-tag" ELF section */
+	bi_m = NULL;
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
 		if (bi == NULL)
@@ -280,10 +278,28 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			/* Give brand a chance to veto check_note's guess */
 			if (ret && bi->header_supported)
 				ret = bi->header_supported(imgp);
+			/*
+			 * If note checker claimed the binary, but the
+			 * interpreter path in the image does not
+			 * match default one for the brand, try to
+			 * search for other brands with the same
+			 * interpreter.  Either there is better brand
+			 * with the right interpreter, or, failing
+			 * this, we return first brand which accepted
+			 * our note and, optionally, header.
+			 */
+			if (ret && bi_m == NULL && (strlen(bi->interp_path) +
+			    1 != interp_name_len || strncmp(interp,
+			    bi->interp_path, interp_name_len) != 0)) {
+				bi_m = bi;
+				ret = 0;
+			}
 			if (ret)
 				return (bi);
 		}
 	}
+	if (bi_m != NULL)
+		return (bi_m);
 
 	/* If the executable has a brand, search for it in the brand list. */
 	for (i = 0; i < MAX_BRANDS; i++) {
@@ -1351,10 +1367,6 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	 * and write it out following the notes.
 	 */
 	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
-	if (hdr == NULL) {
-		error = EINVAL;
-		goto done;
-	}
 	error = __elfN(corehdr)(&params, seginfo.count, hdr, hdrsize, &notelst,
 	    notesz);
 

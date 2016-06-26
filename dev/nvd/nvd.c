@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2013 Intel Corporation
+ * Copyright (C) 2012-2016 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
@@ -87,6 +88,19 @@ struct nvd_controller {
 
 static TAILQ_HEAD(, nvd_controller)	ctrlr_head;
 static TAILQ_HEAD(disk_list, nvd_disk)	disk_head;
+
+static SYSCTL_NODE(_hw, OID_AUTO, nvd, CTLFLAG_RD, 0, "nvd driver parameters");
+/*
+ * The NVMe specification does not define a maximum or optimal delete size, so
+ *  technically max delete size is min(full size of the namespace, 2^32 - 1
+ *  LBAs).  A single delete for a multi-TB NVMe namespace though may take much
+ *  longer to complete than the nvme(4) I/O timeout period.  So choose a sensible
+ *  default here that is still suitably large to minimize the number of overall
+ *  delete operations.
+ */
+static uint64_t nvd_delete_max = (1024 * 1024 * 1024);  /* 1GB */
+SYSCTL_UQUAD(_hw_nvd, OID_AUTO, delete_max, CTLFLAG_RDTUN, &nvd_delete_max, 0,
+	     "nvd maximum BIO_DELETE size in bytes");
 
 static int nvd_modevent(module_t mod, int type, void *arg)
 {
@@ -295,7 +309,9 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk->d_sectorsize = nvme_ns_get_sector_size(ns);
 	disk->d_mediasize = (off_t)nvme_ns_get_size(ns);
 	disk->d_delmaxsize = (off_t)nvme_ns_get_size(ns);
-	disk->d_stripesize = nvme_ns_get_optimal_sector_size(ns);
+	if (disk->d_delmaxsize > nvd_delete_max)
+		disk->d_delmaxsize = nvd_delete_max;
+	disk->d_stripesize = nvme_ns_get_stripesize(ns);
 
 	if (TAILQ_EMPTY(&disk_head))
 		disk->d_unit = 0;

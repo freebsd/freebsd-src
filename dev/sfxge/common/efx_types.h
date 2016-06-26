@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -536,7 +536,7 @@ extern int fix_lint;
 	    (_oword).eo_u32[3]) == ~((uint32_t)0))
 
 #define	EFX_QWORD_IS_SET64(_qword)					\
-	(((_qword).eq_u64[0]) == ~((uint32_t)0))
+	(((_qword).eq_u64[0]) == ~((uint64_t)0))
 
 #define	EFX_QWORD_IS_SET32(_qword)					\
 	(((_qword).eq_u32[0] &						\

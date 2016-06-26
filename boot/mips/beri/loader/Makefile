@@ -72,7 +72,7 @@ CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../../ficl
-CFLAGS+=	-I${.CURDIR}/../../../ficl/mips
+CFLAGS+=	-I${.CURDIR}/../../../ficl/mips64
 LIBFICL=	${.OBJDIR}/../../../ficl/libficl.a
 .endif
 

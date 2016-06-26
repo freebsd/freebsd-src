@@ -228,7 +228,7 @@ iir_pci_attach(device_t dev)
     /* check and reset interface area */
     bus_write_4(gdt->sc_dpmem, GDT_MPR_IC, htole32(GDT_MPR_MAGIC));
     if (bus_read_4(gdt->sc_dpmem, GDT_MPR_IC) != htole32(GDT_MPR_MAGIC)) {
-	device_printf(dev, "cannot access DPMEM at 0x%lx (shadowed?)\n",
+	device_printf(dev, "cannot access DPMEM at 0x%jx (shadowed?)\n",
 	    rman_get_start(gdt->sc_dpmem));
         error = ENXIO;
         goto err;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2012-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,10 @@
  * from client code (and do not reappear in merges from other branches).
  */
 
+#ifdef EFSYS_OPT_FALCON
+# error "FALCON is obsolete and is not supported."
+#endif
+
 /* Support NVRAM based boot config */
 #if EFSYS_OPT_BOOTCFG
 # if !EFSYS_OPT_NVRAM
@@ -52,98 +56,82 @@
 
 /* Verify chip implements accessed registers */
 #if EFSYS_OPT_CHECK_REG
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "CHECK_REG requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "CHECK_REG requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_CHECK_REG */
 
 /* Decode fatal errors */
 #if EFSYS_OPT_DECODE_INTR_FATAL
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  if EFSYS_OPT_HUNTINGTON
-#   error "INTR_FATAL not supported on HUNTINGTON"
-#  endif
-#  error "INTR_FATAL requires FALCON or SIENA"
+# if !EFSYS_OPT_SIENA
+#  error "INTR_FATAL requires SIENA"
 # endif
 #endif /* EFSYS_OPT_DECODE_INTR_FATAL */
 
 /* Support diagnostic hardware tests */
 #if EFSYS_OPT_DIAG
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "DIAG requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "DIAG requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_DIAG */
 
 /* Support optimized EVQ data access */
 #if EFSYS_OPT_EV_PREFETCH
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "EV_PREFETCH requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "EV_PREFETCH requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_EV_PREFETCH */
 
-/* Support overriding the NVRAM and VPD configuration */
-#if EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE
-# if !EFSYS_OPT_FALCON
-#  error "FALCON_NIC_CFG_OVERRIDE requires FALCON"
-# endif
-#endif /* EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE */
+#ifdef EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE
+# error "FALCON_NIC_CFG_OVERRIDE is obsolete and is not supported."
+#endif
 
 /* Support hardware packet filters */
 #if EFSYS_OPT_FILTER
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "FILTER requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "FILTER requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_FILTER */
 
-#if EFSYS_OPT_HUNTINGTON
+#if (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
 # if !EFSYS_OPT_FILTER
-#  error "HUNTINGTON requires FILTER"
+#  error "HUNTINGTON or MEDFORD requires FILTER"
 # endif
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 /* Support hardware loopback modes */
 #if EFSYS_OPT_LOOPBACK
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "LOOPBACK requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "LOOPBACK requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_LOOPBACK */
 
-/* Support Falcon GMAC */
-#if EFSYS_OPT_MAC_FALCON_GMAC
-# if !EFSYS_OPT_FALCON
-#  error "MAC_FALCON_GMAC requires FALCON"
-# endif
-#endif /* EFSYS_OPT_MAC_FALCON_GMAC */
+#ifdef EFSYS_OPT_MAC_FALCON_GMAC
+# error "MAC_FALCON_GMAC is obsolete and is not supported."
+#endif
 
-/* Support Falcon XMAC */
-#if EFSYS_OPT_MAC_FALCON_XMAC
-# if !EFSYS_OPT_FALCON
-#  error "MAC_FALCON_XMAC requires FALCON"
-# endif
-#endif /* EFSYS_OPT_MAC_FALCON_XMAC */
+#ifdef EFSYS_OPT_MAC_FALCON_XMAC
+# error "MAC_FALCON_XMAC is obsolete and is not supported."
+#endif
 
 /* Support MAC statistics */
 #if EFSYS_OPT_MAC_STATS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "MAC_STATS requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "MAC_STATS requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MAC_STATS */
 
 /* Support management controller messages */
 #if EFSYS_OPT_MCDI
-# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  if EFSYS_OPT_FALCON
-#   error "MCDI not supported on FALCON"
-#  endif
-#  error "MCDI requires SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "MCDI requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MCDI */
 
-#if EFSYS_OPT_SIENA && !EFSYS_OPT_MCDI
-# error "SIENA requires MCDI"
-#endif
-#if EFSYS_OPT_HUNTINGTON && !EFSYS_OPT_MCDI
-# error "HUNTINGTON requires MCDI"
+#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+# if !EFSYS_OPT_MCDI
+#  error "SIENA or HUNTINGTON or MEDFORD requires MCDI"
+# endif
 #endif
 
 /* Support MCDI logging */
@@ -160,221 +148,161 @@
 # endif
 #endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
 
-/* Support LM87 monitor */
-#if EFSYS_OPT_MON_LM87
-# if !EFSYS_OPT_FALCON
-#  error "MON_LM87 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_MON_LM87 */
+#ifdef EFSYS_OPT_MON_LM87
+# error "MON_LM87 is obsolete and is not supported."
+#endif
 
-/* Support MAX6647 monitor */
-#if EFSYS_OPT_MON_MAX6647
-# if !EFSYS_OPT_FALCON
-#  error "MON_MAX6647 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_MON_MAX6647 */
+#ifdef EFSYS_OPT_MON_MAX6647
+# error "MON_MAX6647 is obsolete and is not supported."
+#endif
 
-/* Support null monitor */
-#if EFSYS_OPT_MON_NULL
-# if !EFSYS_OPT_FALCON
-#  error "MON_NULL requires FALCON"
-# endif
-#endif /* EFSYS_OPT_MON_NULL */
+#ifdef EFSYS_OPT_MON_NULL
+# error "MON_NULL is obsolete and is not supported."
+#endif
 
-/* Support Siena monitor */
 #ifdef EFSYS_OPT_MON_SIENA
-#  error "MON_SIENA is obsolete use MON_MCDI"
-#endif /* EFSYS_OPT_MON_SIENA*/
+#  error "MON_SIENA is obsolete (replaced by MON_MCDI)."
+#endif
 
-/* Support Huntington monitor */
 #ifdef EFSYS_OPT_MON_HUNTINGTON
-#  error "MON_HUNTINGTON is obsolete use MON_MCDI"
-#endif /* EFSYS_OPT_MON_HUNTINGTON*/
+#  error "MON_HUNTINGTON is obsolete (replaced by MON_MCDI)."
+#endif
 
 /* Support monitor statistics (voltage/temperature) */
 #if EFSYS_OPT_MON_STATS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "MON_STATS requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "MON_STATS requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MON_STATS */
 
 /* Support Monitor via mcdi */
 #if EFSYS_OPT_MON_MCDI
-# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "MON_MCDI requires SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "MON_MCDI requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MON_MCDI*/
 
 /* Support printable names for statistics */
 #if EFSYS_OPT_NAMES
 # if !(EFSYS_OPT_LOOPBACK || EFSYS_OPT_MAC_STATS || EFSYS_OPT_MCDI || \
-	EFSYS_MON_STATS || EFSYS_OPT_PHY_PROPS || EFSYS_OPT_PHY_STATS || \
-	EFSYS_OPT_QSTATS)
-#  error "NAMES requires LOOPBACK or xxxSTATS or MCDI or PHY_PROPS"
+	EFSYS_MON_STATS || EFSYS_OPT_PHY_STATS || EFSYS_OPT_QSTATS)
+#  error "NAMES requires LOOPBACK or xxxSTATS or MCDI"
 # endif
 #endif /* EFSYS_OPT_NAMES */
 
 /* Support non volatile configuration */
 #if EFSYS_OPT_NVRAM
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "NVRAM requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "NVRAM requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_NVRAM */
 
-/* Support Falcon bootrom */
-#if EFSYS_OPT_NVRAM_FALCON_BOOTROM
-# if !EFSYS_OPT_NVRAM
-#  error "NVRAM_FALCON_BOOTROM requires NVRAM"
-# endif
-# if !EFSYS_OPT_FALCON
-#  error "NVRAM_FALCON_BOOTROM requires FALCON"
-# endif
-#endif /* EFSYS_OPT_NVRAM_FALCON_BOOTROM */
+#ifdef EFSYS_OPT_NVRAM_FALCON_BOOTROM
+# error "NVRAM_FALCON_BOOTROM is obsolete and is not supported."
+#endif
 
-/* Support NVRAM config for SFT9001 */
-#if EFSYS_OPT_NVRAM_SFT9001
-# if !EFSYS_OPT_NVRAM
-#  error "NVRAM_SFT9001 requires NVRAM"
-# endif
-# if !EFSYS_OPT_FALCON
-#  error "NVRAM_SFT9001 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_NVRAM_SFT9001 */
+#ifdef EFSYS_OPT_NVRAM_SFT9001
+# error "NVRAM_SFT9001 is obsolete and is not supported."
+#endif
 
-/* Support NVRAM config for SFX7101 */
-#if EFSYS_OPT_NVRAM_SFX7101
-# if !EFSYS_OPT_NVRAM
-#  error "NVRAM_SFX7101 requires NVRAM"
-# endif
-# if !EFSYS_OPT_FALCON
-#  error "NVRAM_SFX7101 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_NVRAM_SFX7101 */
+#ifdef EFSYS_OPT_NVRAM_SFX7101
+# error "NVRAM_SFX7101 is obsolete and is not supported."
+#endif
 
-/* Support PCIe interface tuning */
-#if EFSYS_OPT_PCIE_TUNE
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  error "PCIE_TUNE requires FALCON or SIENA"
-# endif
-#endif /* EFSYS_OPT_PCIE_TUNE */
+#ifdef EFSYS_OPT_PCIE_TUNE
+# error "PCIE_TUNE is obsolete and is not supported."
+#endif
 
-/* Support PHY BIST diagnostics */
-#if EFSYS_OPT_PHY_BIST
-#  error "PHY_BIST is obsolete. It has been replaced by the BIST option."
-#endif /* EFSYS_OPT_PHY_BIST */
+#ifdef EFSYS_OPT_PHY_BIST
+# error "PHY_BIST is obsolete (replaced by BIST)."
+#endif
 
 /* Support PHY flags */
 #if EFSYS_OPT_PHY_FLAGS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  error "PHY_FLAGS requires FALCON or SIENA"
+# if !EFSYS_OPT_SIENA
+#  error "PHY_FLAGS requires SIENA"
 # endif
 #endif /* EFSYS_OPT_PHY_FLAGS */
 
 /* Support for PHY LED control */
 #if EFSYS_OPT_PHY_LED_CONTROL
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  error "PHY_LED_CONTROL requires FALCON or SIENA"
+# if !EFSYS_OPT_SIENA
+#  error "PHY_LED_CONTROL requires SIENA"
 # endif
 #endif /* EFSYS_OPT_PHY_LED_CONTROL */
 
-/* Support NULL PHY */
-#if EFSYS_OPT_PHY_NULL
-# if !EFSYS_OPT_FALCON
-#  error "PHY_NULL requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_NULL */
-
-/* Obsolete option */
-#ifdef EFSYS_OPT_PHY_PM8358
-# error "EFSYS_OPT_PHY_PM8358 is obsolete and is not supported."
+#ifdef EFSYS_OPT_PHY_NULL
+# error "PHY_NULL is obsolete and is not supported."
 #endif
 
-/* Support PHY properties */
-#if EFSYS_OPT_PHY_PROPS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  error "PHY_PROPS requires FALCON or SIENA"
-# endif
-#endif /* EFSYS_OPT_PHY_PROPS */
+#ifdef EFSYS_OPT_PHY_PM8358
+# error "PHY_PM8358 is obsolete and is not supported."
+#endif
 
-/* Support QT2022C2 PHY */
-#if EFSYS_OPT_PHY_QT2022C2
-# if !EFSYS_OPT_FALCON
-#  error "PHY_QT2022C2 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_QT2022C2 */
+#ifdef EFSYS_OPT_PHY_PROPS
+# error "PHY_PROPS is obsolete and is not supported."
+#endif
 
-/* Support QT2025C PHY (Wakefield NIC) */
-#if EFSYS_OPT_PHY_QT2025C
-# if !EFSYS_OPT_FALCON
-#  error "PHY_QT2025C requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_QT2025C */
+#ifdef EFSYS_OPT_PHY_QT2022C2
+# error "PHY_QT2022C2 is obsolete and is not supported."
+#endif
 
-/* Support SFT9001 PHY (Starbolt NIC) */
-#if EFSYS_OPT_PHY_SFT9001
-# if !EFSYS_OPT_FALCON
-#  error "PHY_SFT9001 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_SFT9001 */
+#ifdef EFSYS_OPT_PHY_QT2025C
+# error "PHY_QT2025C is obsolete and is not supported."
+#endif
 
-/* Support SFX7101 PHY (SFE4001 NIC) */
-#if EFSYS_OPT_PHY_SFX7101
-# if !EFSYS_OPT_FALCON
-#  error "PHY_SFX7101 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_SFX7101 */
+#ifdef EFSYS_OPT_PHY_SFT9001
+# error "PHY_SFT9001 is obsolete and is not supported."
+#endif
+
+#ifdef EFSYS_OPT_PHY_SFX7101
+# error "PHY_SFX7101 is obsolete and is not supported."
+#endif
 
 /* Support PHY statistics */
 #if EFSYS_OPT_PHY_STATS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  error "PHY_STATS requires FALCON or SIENA"
+# if !EFSYS_OPT_SIENA
+#  error "PHY_STATS requires SIENA"
 # endif
 #endif /* EFSYS_OPT_PHY_STATS */
 
-/* Support TXC43128 PHY (SFE4003 NIC) */
-#if EFSYS_OPT_PHY_TXC43128
-# if !EFSYS_OPT_FALCON
-#  error "PHY_TXC43128 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_TXC43128 */
+#ifdef EFSYS_OPT_PHY_TXC43128
+# error "PHY_TXC43128 is obsolete and is not supported."
+#endif
 
 /* Support EVQ/RXQ/TXQ statistics */
 #if EFSYS_OPT_QSTATS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "QSTATS requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "QSTATS requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_QSTATS */
 
-/* Support receive header split */
-#if EFSYS_OPT_RX_HDR_SPLIT
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "RX_HDR_SPLIT requires FALCON or SIENA or HUNTINGTON"
-# endif
-#endif /* EFSYS_OPT_RX_HDR_SPLIT */
+#ifdef EFSYS_OPT_RX_HDR_SPLIT
+# error "RX_HDR_SPLIT is obsolete and is not supported"
+#endif
 
 /* Support receive scaling (RSS) */
 #if EFSYS_OPT_RX_SCALE
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "RX_SCALE requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "RX_SCALE requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_RX_SCALE */
 
 /* Support receive scatter DMA */
 #if EFSYS_OPT_RX_SCATTER
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "RX_SCATTER requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "RX_SCATTER requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_RX_SCATTER */
 
-/* Obsolete option */
 #ifdef EFSYS_OPT_STAT_NAME
-# error "EFSYS_OPT_STAT_NAME is obsolete (replaced by EFSYS_OPT_NAMES)."
+# error "STAT_NAME is obsolete (replaced by NAMES)."
 #endif
 
 /* Support PCI Vital Product Data (VPD) */
 #if EFSYS_OPT_VPD
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "VPD requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "VPD requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_VPD */
 
@@ -385,18 +313,33 @@
 # endif
 #endif /* EFSYS_OPT_WOL */
 
-/* Support calculating multicast pktfilter in common code */
-#if EFSYS_OPT_MCAST_FILTER_LIST
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "MCAST_FILTER_LIST requires FALCON or SIENA or HUNTINGTON"
-# endif
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
+#ifdef EFSYS_OPT_MCAST_FILTER_LIST
+#  error "MCAST_FILTER_LIST is obsolete and is not supported"
+#endif
 
 /* Support BIST */
 #if EFSYS_OPT_BIST
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "BIST requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "BIST requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_BIST */
+
+/* Support MCDI licensing API */
+#if EFSYS_OPT_LICENSING
+# if !EFSYS_OPT_MCDI
+#  error "LICENSING requires MCDI"
+# endif
+# if !EFSYS_HAS_UINT64
+#  error "LICENSING requires UINT64"
+# endif
+#endif /* EFSYS_OPT_LICENSING */
+
+/* Support adapters with missing static config (for factory use only) */
+#if EFSYS_OPT_ALLOW_UNCONFIGURED_NIC
+# if !EFSYS_OPT_MEDFORD
+#  error "ALLOW_UNCONFIGURED_NIC requires MEDFORD"
+# endif
+#endif /* EFSYS_OPT_ALLOW_UNCONFIGURED_NIC */
+
 
 #endif /* _SYS_EFX_CHECK_H */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010-2015 Solarflare Communications Inc.
+ * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
@@ -34,7 +34,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include "opt_rss.h"
+
+#include <sys/param.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
@@ -53,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 
 #include <machine/in_cksum.h>
+
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include "common/efx.h"
 
@@ -159,6 +166,9 @@ sfxge_rx_qflush_failed(struct sfxge_rxq *rxq)
 	rxq->flush_state = SFXGE_FLUSH_FAILED;
 }
 
+#ifdef RSS
+static uint8_t toep_key[RSS_KEYSIZE];
+#else
 static uint8_t toep_key[] = {
 	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
 	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
@@ -166,6 +176,7 @@ static uint8_t toep_key[] = {
 	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
+#endif
 
 static void
 sfxge_rx_post_refill(void *arg)
@@ -179,8 +190,7 @@ sfxge_rx_post_refill(void *arg)
 	sc = rxq->sc;
 	index = rxq->index;
 	evq = sc->evq[index];
-
-	magic = SFXGE_MAGIC_RX_QREFILL | index;
+	magic = sfxge_sw_ev_rxq_magic(SFXGE_SW_EV_RX_QREFILL, rxq);
 
 	/* This is guaranteed due to the start/stop order of rx and ev */
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
@@ -203,25 +213,6 @@ sfxge_rx_schedule_refill(struct sfxge_rxq *rxq, boolean_t retrying)
 
 	callout_reset_curcpu(&rxq->refill_callout, rxq->refill_delay,
 			     sfxge_rx_post_refill, rxq);
-}
-
-static struct mbuf *sfxge_rx_alloc_mbuf(struct sfxge_softc *sc)
-{
-	struct mb_args args;
-	struct mbuf *m;
-
-	/* Allocate mbuf structure */
-	args.flags = M_PKTHDR;
-	args.type = MT_DATA;
-	m = (struct mbuf *)uma_zalloc_arg(zone_mbuf, &args, M_NOWAIT);
-
-	/* Allocate (and attach) packet buffer */
-	if (m != NULL && !uma_zalloc_arg(sc->rx_buffer_zone, m, M_NOWAIT)) {
-		uma_zfree(zone_mbuf, m);
-		m = NULL;
-	}
-
-	return (m);
 }
 
 #define	SFXGE_REFILL_BATCH  64
@@ -273,7 +264,8 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 		KASSERT(rx_desc->mbuf == NULL, ("rx_desc->mbuf != NULL"));
 
 		rx_desc->flags = EFX_DISCARD;
-		m = rx_desc->mbuf = sfxge_rx_alloc_mbuf(sc);
+		m = rx_desc->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+		    sc->rx_cluster_size);
 		if (m == NULL)
 			break;
 
@@ -846,11 +838,11 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		if (rx_desc->flags & (EFX_ADDR_MISMATCH | EFX_DISCARD))
 			goto discard;
 
-		/* Read the length from the psuedo header if required */
+		/* Read the length from the pseudo header if required */
 		if (rx_desc->flags & EFX_PKT_PREFIX_LEN) {
 			uint16_t tmp_size;
 			int rc;
-			rc = efx_psuedo_hdr_pkt_length_get(sc->enp, 
+			rc = efx_psuedo_hdr_pkt_length_get(sc->enp,
 							   mtod(m, uint8_t *),
 							   &tmp_size);
 			KASSERT(rc == 0, ("cannot get packet length: %d", rc));
@@ -1041,7 +1033,7 @@ sfxge_rx_qstart(struct sfxge_softc *sc, unsigned int index)
 		return (rc);
 
 	/* Create the common code receive queue. */
-	if ((rc = efx_rx_qcreate(sc->enp, index, index, EFX_RXQ_TYPE_DEFAULT,
+	if ((rc = efx_rx_qcreate(sc->enp, index, 0, EFX_RXQ_TYPE_DEFAULT,
 	    esmp, sc->rxq_entries, rxq->buf_base_id, evq->common,
 	    &rxq->common)) != 0)
 		goto fail;
@@ -1117,7 +1109,7 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	EFSYS_ASSERT(ISP2(align));
 	sc->rx_buffer_size = P2ROUNDUP(sc->rx_buffer_size, align);
 
-	/* 
+	/*
 	 * Standard mbuf zones only guarantee pointer-size alignment;
 	 * we need extra space to align to the cache line
 	 */
@@ -1125,19 +1117,24 @@ sfxge_rx_start(struct sfxge_softc *sc)
 
 	/* Select zone for packet buffers */
 	if (reserved <= MCLBYTES)
-		sc->rx_buffer_zone = zone_clust;
+		sc->rx_cluster_size = MCLBYTES;
 	else if (reserved <= MJUMPAGESIZE)
-		sc->rx_buffer_zone = zone_jumbop;
+		sc->rx_cluster_size = MJUMPAGESIZE;
 	else if (reserved <= MJUM9BYTES)
-		sc->rx_buffer_zone = zone_jumbo9;
+		sc->rx_cluster_size = MJUM9BYTES;
 	else
-		sc->rx_buffer_zone = zone_jumbo16;
+		sc->rx_cluster_size = MJUM16BYTES;
 
 	/*
 	 * Set up the scale table.  Enable all hash types and hash insertion.
 	 */
 	for (index = 0; index < SFXGE_RX_SCALE_MAX; index++)
+#ifdef RSS
+		sc->rx_indir_table[index] =
+			rss_get_indirection_to_bucket(index) % sc->rxq_count;
+#else
 		sc->rx_indir_table[index] = index % sc->rxq_count;
+#endif
 	if ((rc = efx_rx_scale_tbl_set(sc->enp, sc->rx_indir_table,
 				       SFXGE_RX_SCALE_MAX)) != 0)
 		goto fail;
@@ -1145,6 +1142,9 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	    (1 << EFX_RX_HASH_IPV4) | (1 << EFX_RX_HASH_TCPIPV4) |
 	    (1 << EFX_RX_HASH_IPV6) | (1 << EFX_RX_HASH_TCPIPV6), B_TRUE);
 
+#ifdef RSS
+	rss_getkey(toep_key);
+#endif
 	if ((rc = efx_rx_scale_key_set(sc->enp, toep_key,
 				       sizeof(toep_key))) != 0)
 		goto fail;

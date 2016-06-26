@@ -35,12 +35,15 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
+#define	ATOMIC_LONG_INIT(x)	{ .counter = (x) }
+
 typedef struct {
-	volatile u_long counter;
+	volatile long counter;
 } atomic_long_t;
 
 #define	atomic_long_add(i, v)		atomic_long_add_return((i), (v))
 #define	atomic_long_inc_return(v)	atomic_long_add_return(1, (v))
+#define	atomic_long_inc_not_zero(v)	atomic_long_add_unless((v), 1, 0)
 
 static inline long
 atomic_long_add_return(long i, atomic_long_t *v)
@@ -70,6 +73,21 @@ static inline long
 atomic_long_dec(atomic_long_t *v)
 {
 	return atomic_fetchadd_long(&v->counter, -1) - 1;
+}
+
+static inline int
+atomic_long_add_unless(atomic_long_t *v, long a, long u)
+{
+	long c;
+
+	for (;;) {
+		c = atomic_long_read(v);
+		if (unlikely(c == u))
+			break;
+		if (likely(atomic_cmpset_long(&v->counter, c, c + a)))
+			break;
+	}
+	return (c != u);
 }
 
 static inline long

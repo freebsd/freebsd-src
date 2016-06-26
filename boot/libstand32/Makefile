@@ -23,6 +23,6 @@ CFLAGS+=	-m32 -I.
 .if ${MACHINE_CPUARCH} == "amd64"
 CLEANFILES+= machine
 beforedepend ${OBJS}: machine
-machine:
+machine: .NOMETA
 	ln -fs ${.CURDIR}/../../i386/include machine
 .endif

@@ -46,7 +46,6 @@ extern	int	szosigcode;
 #endif
 extern	uint32_t *vm_page_dump;
 
-typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 struct	segment_descriptor;
 union savefpu;
 

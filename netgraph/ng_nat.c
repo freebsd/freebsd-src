@@ -838,7 +838,7 @@ ng_nat_shutdown(node_p node)
 		struct ng_nat_rdr_lst *entry = STAILQ_FIRST(&priv->redirhead);
 		STAILQ_REMOVE_HEAD(&priv->redirhead, entries);
 		free(entry, M_NETGRAPH);
-	};
+	}
 
 	/* Final free. */
 	LibAliasUninit(priv->lib);

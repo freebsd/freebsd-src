@@ -33,6 +33,8 @@
 #ifndef _MACHINE_ARMREG_H_
 #define	_MACHINE_ARMREG_H_
 
+#define	INSN_SIZE		4
+
 #define	READ_SPECIALREG(reg)						\
 ({	uint64_t val;							\
 	__asm __volatile("mrs	%0, " __STRING(reg) : "=&r" (val));	\
@@ -63,6 +65,12 @@
 #define	CTR_ILINE_SHIFT		0
 #define	CTR_ILINE_MASK		(0xf << CTR_ILINE_SHIFT)
 #define	CTR_ILINE_SIZE(reg)	(((reg) & CTR_ILINE_MASK) >> CTR_ILINE_SHIFT)
+
+/* DCZID_EL0 - Data Cache Zero ID register */
+#define DCZID_DZP		(1 << 4) /* DC ZVA prohibited if non-0 */
+#define DCZID_BS_SHIFT		0
+#define DCZID_BS_MASK		(0xf << DCZID_BS_SHIFT)
+#define	DCZID_BS_SIZE(reg)	(((reg) & DCZID_BS_MASK) >> DCZID_BS_SHIFT)
 
 /* ESR_ELx */
 #define	ESR_ELx_ISS_MASK	0x00ffffff
@@ -99,6 +107,7 @@
 #define	 EXCP_SP_ALIGN		0x26	/* SP slignment fault */
 #define	 EXCP_TRAP_FP		0x2c	/* Trapped FP exception */
 #define	 EXCP_SERROR		0x2f	/* SError interrupt */
+#define	 EXCP_SOFTSTP_EL0	0x32	/* Software Step, from lower EL */
 #define	 EXCP_SOFTSTP_EL1	0x33	/* Software Step, from same EL */
 #define	 EXCP_WATCHPT_EL1	0x35	/* Watchpoint, from same EL */
 #define	 EXCP_BRK		0x3c	/* Breakpoint */
@@ -115,10 +124,20 @@
 /* ICC_PMR_EL1 */
 #define	ICC_PMR_EL1_PRIO_MASK	(0xFFUL)
 
+/* ICC_SGI1R_EL1 */
+#define	ICC_SGI1R_EL1_TL_MASK		0xffffUL
+#define	ICC_SGI1R_EL1_AFF1_SHIFT	16
+#define	ICC_SGI1R_EL1_SGIID_SHIFT	24
+#define	ICC_SGI1R_EL1_AFF2_SHIFT	32
+#define	ICC_SGI1R_EL1_AFF3_SHIFT	48
+#define	ICC_SGI1R_EL1_SGIID_MASK	0xfUL
+#define	ICC_SGI1R_EL1_IRM		(0x1UL << 40)
+
 /* ICC_SRE_EL1 */
 #define	ICC_SRE_EL1_SRE		(1U << 0)
 
 /* ICC_SRE_EL2 */
+#define	ICC_SRE_EL2_SRE		(1U << 0)
 #define	ICC_SRE_EL2_EN		(1U << 3)
 
 /* ID_AA64DFR0_EL1 */

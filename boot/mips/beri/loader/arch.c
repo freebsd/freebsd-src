@@ -86,7 +86,7 @@ beri_arch_loadaddr(u_int type, void *data, uint64_t addr)
 
 	/* Align ELF objects at page boundaries; others at cache lines. */
 	align = (type == LOAD_ELF) ? PAGE_SIZE : CACHE_LINE_SIZE;
-	return ((addr + align - 1) & ~(align - 1));
+	return (roundup2(addr, align));
 }
 
 static ssize_t

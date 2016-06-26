@@ -142,7 +142,7 @@ ncv_alloc_resource(device_t dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
 	u_int32_t		flags = device_get_flags(dev);
-	u_long			ioaddr, iosize, maddr, msize;
+	rman_res_t		ioaddr, iosize, maddr, msize;
 	int			error;
 	bus_addr_t		offset = 0;
 

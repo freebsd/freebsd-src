@@ -105,9 +105,10 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 	      const unsigned char *dst_dev_addr);
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id);
+int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id,
+				u32 scope_id);
 int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *smac,
-			       u16 *vlan_id);
+			       u16 *vlan_id, u32 scope_id);
 
 static inline int ip_addr_size(struct sockaddr *addr)
 {
@@ -164,7 +165,8 @@ static inline int rdma_ip2gid(struct sockaddr *addr, union ib_gid *gid)
 }
 
 /* Important - sockaddr should be a union of sockaddr_in and sockaddr_in6 */
-static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid)
+static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid,
+    uint32_t scope_id)
 {
 	if (ipv6_addr_v4mapped((struct in6_addr *)gid)) {
 		struct sockaddr_in *out_in = (struct sockaddr_in *)out;
@@ -175,11 +177,17 @@ static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid)
 	} else {
 		struct sockaddr_in6 *out_in = (struct sockaddr_in6 *)out;
 		memset(out_in, 0, sizeof(*out_in));
+		out_in->sin6_len = sizeof(*out_in);
 		out_in->sin6_family = AF_INET6;
 		memcpy(&out_in->sin6_addr.s6_addr, gid->raw, 16);
+		if (scope_id < 256 &&
+		    IN6_IS_SCOPE_LINKLOCAL(&out_in->sin6_addr))
+			out_in->sin6_scope_id = scope_id;
 	}
 	return 0;
 }
+
+u32 rdma_get_ipv6_scope_id(struct ib_device *ib, u8 port_num);
 
 /* This func is called only in loopback ip address (127.0.0.1)
  * case in which sgid is not relevant

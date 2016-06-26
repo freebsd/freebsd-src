@@ -477,7 +477,7 @@ dma_cb(void *p, bus_dma_segment_t *bds, int a, int b)
 static int
 via_attach(device_t dev)
 {
-	struct via_info *via = 0;
+	struct via_info *via = NULL;
 	char status[SND_STATUSLEN];
 	u_int32_t data, cnt;
 
@@ -590,7 +590,7 @@ via_attach(device_t dev)
 	    NSEGS * sizeof(struct via_dma_op), dma_cb, via, 0) != 0)
 		goto bad;
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
 		 rman_get_start(via->reg), rman_get_start(via->irq),
 		 PCM_KLDSTRING(snd_via82c686));
 
@@ -618,7 +618,7 @@ static int
 via_detach(device_t dev)
 {
 	int r;
-	struct via_info *via = 0;
+	struct via_info *via = NULL;
 
 	r = pcm_unregister(dev);
 	if (r)

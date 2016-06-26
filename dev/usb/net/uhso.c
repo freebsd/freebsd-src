@@ -1225,6 +1225,7 @@ uhso_mux_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		    ht->ht_muxport);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
+tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 1);
 		if (ucom_get_data(&sc->sc_ucom[ht->ht_muxport], pc,
 		    0, 32, &actlen)) {
@@ -1255,7 +1256,8 @@ uhso_mux_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		UHSO_DPRINTF(0, "error: %s\n", usbd_errstr(error));
 		if (error == USB_ERR_CANCELLED)
 			break;
-		break;
+		usbd_xfer_set_stall(xfer);
+		goto tr_setup;
 	}
 }
 
@@ -1666,7 +1668,7 @@ uhso_if_rxflush(void *arg)
 	struct ip6_hdr *ip6;
 #endif
 	uint16_t iplen;
-	int len, isr;
+	int isr;
 
 	m = NULL;
 	mwait = sc->sc_mwait;
@@ -1686,13 +1688,8 @@ uhso_if_rxflush(void *arg)
 
 			UHSO_DPRINTF(3, "partial m0=%p(%d), concat w/ m=%p(%d)\n",
 			    m0, m0->m_len, m, m->m_len);
-			len = m->m_len + m0->m_len;
 
-			/* Concat mbufs and fix headers */
-			m_cat(m0, m);
-			m0->m_pkthdr.len = len;
-			m->m_flags &= ~M_PKTHDR;
-
+			m_catpkt(m0, m);
 			m = m_pullup(m0, sizeof(struct ip));
 			if (m == NULL) {
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);

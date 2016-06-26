@@ -122,15 +122,8 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * During autoconfiguration, just give interrupts
-		 * a chance, then just return.  Don't run any other
-		 * thread or panic below, in case this is the idle
-		 * process and already asleep.
-		 */
+	if (SCHEDULER_STOPPED())
 		return;
-	}
 
 	sleepq_lock(cvp);
 
@@ -163,7 +156,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 
 /*
  * Wait on a condition variable.  This function differs from cv_wait by
- * not aquiring the mutex after condition variable was signaled.
+ * not acquiring the mutex after condition variable was signaled.
  */
 void
 _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
@@ -183,13 +176,7 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 	    ("cv_wait_unlock cannot be used with Giant"));
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * During autoconfiguration, just give interrupts
-		 * a chance, then just return.  Don't run any other
-		 * thread or panic below, in case this is the idle
-		 * process and already asleep.
-		 */
+	if (SCHEDULER_STOPPED()) {
 		class->lc_unlock(lock);
 		return;
 	}
@@ -240,15 +227,8 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * After a panic, or during autoconfiguration, just give
-		 * interrupts a chance, then just return; don't run any other
-		 * procs or panic below, in case this is the idle process and
-		 * already asleep.
-		 */
+	if (SCHEDULER_STOPPED())
 		return (0);
-	}
 
 	sleepq_lock(cvp);
 
@@ -307,15 +287,8 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * After a panic, or during autoconfiguration, just give
-		 * interrupts a chance, then just return; don't run any other
-		 * thread or panic below, in case this is the idle process and
-		 * already asleep.
-		 */
-		return 0;
-	}
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	sleepq_lock(cvp);
 
@@ -376,15 +349,8 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * After a panic, or during autoconfiguration, just give
-		 * interrupts a chance, then just return; don't run any other
-		 * thread or panic below, in case this is the idle process and
-		 * already asleep.
-		 */
-		return 0;
-	}
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	sleepq_lock(cvp);
 

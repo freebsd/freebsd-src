@@ -89,6 +89,8 @@
  * in the structure may have changed.
  */
 
+#include "opt_compat.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -445,9 +447,10 @@ kern_pipe(struct thread *td, int fildes[2], int flags, struct filecaps *fcaps1,
 	return (0);
 }
 
+#ifdef COMPAT_FREEBSD10
 /* ARGSUSED */
 int
-sys_pipe(struct thread *td, struct pipe_args *uap)
+freebsd10_pipe(struct thread *td, struct freebsd10_pipe_args *uap __unused)
 {
 	int error;
 	int fildes[2];
@@ -461,6 +464,7 @@ sys_pipe(struct thread *td, struct pipe_args *uap)
 
 	return (0);
 }
+#endif
 
 int
 sys_pipe2(struct thread *td, struct pipe2_args *uap)
@@ -1542,7 +1546,7 @@ pipe_stat(fp, ub, active_cred, td)
 		ub->st_size = pipe->pipe_map.cnt;
 	else
 		ub->st_size = pipe->pipe_buffer.cnt;
-	ub->st_blocks = (ub->st_size + ub->st_blksize - 1) / ub->st_blksize;
+	ub->st_blocks = howmany(ub->st_size, ub->st_blksize);
 	ub->st_atim = pipe->pipe_atime;
 	ub->st_mtim = pipe->pipe_mtime;
 	ub->st_ctim = pipe->pipe_ctime;

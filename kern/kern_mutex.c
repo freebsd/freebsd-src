@@ -419,7 +419,9 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	all_time -= lockstat_nsecs(&m->lock_object);
 #endif
 
-	while (!_mtx_obtain_lock(m, tid)) {
+	for (;;) {
+		if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+			break;
 #ifdef KDTRACE_HOOKS
 		spin_cnt++;
 #endif
@@ -602,8 +604,9 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 #ifdef KDTRACE_HOOKS
 	spin_time -= lockstat_nsecs(&m->lock_object);
 #endif
-	while (!_mtx_obtain_lock(m, tid)) {
-
+	for (;;) {
+		if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+			break;
 		/* Give interrupts a chance while we spin. */
 		spinlock_exit();
 		while (m->mtx_lock != MTX_UNOWNED) {
@@ -675,7 +678,9 @@ retry:
 			    m->lock_object.lo_name, file, line));
 		WITNESS_CHECKORDER(&m->lock_object,
 		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
-		while (!_mtx_obtain_lock(m, tid)) {
+		for (;;) {
+			if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+				break;
 			if (m->mtx_lock == tid) {
 				m->mtx_recurse++;
 				break;
@@ -714,7 +719,10 @@ retry:
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCKSTAT_RECORD1(thread__spin, m, spin_time);
+#ifdef KDTRACE_HOOKS
+	if (spin_time != 0)
+		LOCKSTAT_RECORD1(thread__spin, m, spin_time);
+#endif
 }
 
 struct mtx *
@@ -842,37 +850,6 @@ __mtx_assert(const volatile uintptr_t *c, int what, const char *file, int line)
 #endif
 
 /*
- * The MUTEX_DEBUG-enabled mtx_validate()
- *
- * Most of these checks have been moved off into the LO_INITIALIZED flag
- * maintained by the witness code.
- */
-#ifdef MUTEX_DEBUG
-
-void	mtx_validate(struct mtx *);
-
-void
-mtx_validate(struct mtx *m)
-{
-
-/*
- * XXX: When kernacc() does not require Giant we can reenable this check
- */
-#ifdef notyet
-	/*
-	 * Can't call kernacc() from early init386(), especially when
-	 * initializing Giant mutex, because some stuff in kernacc()
-	 * requires Giant itself.
-	 */
-	if (!cold)
-		if (!kernacc((caddr_t)m, sizeof(m),
-		    VM_PROT_READ | VM_PROT_WRITE))
-			panic("Can't read and write to mutex %p", m);
-#endif
-}
-#endif
-
-/*
  * General init routine used by the MTX_SYSINIT() macro.
  */
 void
@@ -904,11 +881,6 @@ _mtx_init(volatile uintptr_t *c, const char *name, const char *type, int opts)
 	ASSERT_ATOMIC_LOAD_PTR(m->mtx_lock,
 	    ("%s: mtx_lock not aligned for %s: %p", __func__, name,
 	    &m->mtx_lock));
-
-#ifdef MUTEX_DEBUG
-	/* Diagnostic and error correction */
-	mtx_validate(m);
-#endif
 
 	/* Determine lock class and lock flags. */
 	if (opts & MTX_SPIN)

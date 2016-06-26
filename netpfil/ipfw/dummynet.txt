@@ -86,7 +86,7 @@ USERLAND-KERNEL API	(ip_dummynet.h)
 
     struct dn_link:
 	contains data about the physical link such as
-	bandwith, delay, burst size;
+	bandwidth, delay, burst size;
 
     struct dn_fs:
 	describes a flowset, i.e. a template for queues.
@@ -444,7 +444,7 @@ of the object to remove
 
 Delete of pipe x
 ----------------
-A pipe can be deleted by the user throught the command 'ipfw pipe x delete'.
+A pipe can be deleted by the user through the command 'ipfw pipe x delete'.
 To delete a pipe, the pipe is removed from the pipe list, and then deleted.
 Also the scheduler associated with this pipe should be deleted.
 For compatibility with old dummynet syntax, the associated FIFO scheduler and
@@ -452,7 +452,7 @@ FIFO flowset must be deleted.
 
 Delete of flowset x
 -------------------
-To remove a flowset, we must be sure that is no loger referenced by any object.
+To remove a flowset, we must be sure that is no longer referenced by any object.
 If the flowset to remove is in the unlinked flowset list, there is not any
 issue, the flowset can be safely removed calling a free() (the flowset
 extension is not yet created if the flowset is in this list).
@@ -492,7 +492,7 @@ If the counter was not 0, we wait for it. Every time the dummynet_task()
 function extract a scheduler from the system_heap, the counter is decremented.
 If the scheduler has the delete flag enabled the dequeue() is not called and
 delete_scheduler_instance() is called to delete the instance.
-Obviously this scheduler instance is no loger inserted in the system_heap.
+Obviously this scheduler instance is no longer inserted in the system_heap.
 If the counter reaches 0, the delete_scheduler_template() function is called
 all memory is released.
 NOTE: Flowsets that belong to this scheduler are not deleted, so if a new
@@ -559,7 +559,7 @@ There are four request for old dummynet:
   depending of its version. There are two function that build the
   corrected buffer, ip_dummynet_get7() and ip_dummynet_get8(). These
   functions reproduce the buffer exactly as 'ipfw' expect. The only difference
-  is that the weight parameter for a queue is no loger sent by dummynet and so
+  is that the weight parameter for a queue is no longer sent by dummynet and so
   it is set to 0.
   Moreover, because of the internal structure has changed, the bucket size
   of a queue could not be correct, because now all flowset share the hash
@@ -581,7 +581,7 @@ I have to modify the ip_fw2.c file to manage these two case, and added a
 variable (is7) to store the ipfw version used, using an approach like the
 previous file:
 - when a new rule is added (option IP_FW_ADD) the is7 variable is set if the
-  size of the rule received corrispond to FreeBSD 7.2 ipfw version. If so, the
+  size of the rule received correspond to FreeBSD 7.2 ipfw version. If so, the
   rule is converted to version 8 calling the function convert_rule_to_8().
   Moreover, after the insertion of the rule, the rule is now reconverted to
   version 7 because the ipfw binary will print it.

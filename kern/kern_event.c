@@ -91,7 +91,7 @@ MTX_SYSINIT(kq_global, &kq_global, "kqueue order", MTX_DEF);
 	haslck = 0;				\
 } while (0)
 
-TASKQUEUE_DEFINE_THREAD(kqueue);
+TASKQUEUE_DEFINE_THREAD(kqueue_ctx);
 
 static int	kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int	kevent_copyin(void *arg, struct kevent *kevp, int count);
@@ -373,11 +373,21 @@ filt_procattach(struct knote *kn)
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 
 	/*
-	 * internal flag indicating registration done by kernel
+	 * Internal flag indicating registration done by kernel for the
+	 * purposes of getting a NOTE_CHILD notification.
 	 */
-	if (kn->kn_flags & EV_FLAG1) {
+	if (kn->kn_flags & EV_FLAG2) {
+		kn->kn_flags &= ~EV_FLAG2;
 		kn->kn_data = kn->kn_sdata;		/* ppid */
 		kn->kn_fflags = NOTE_CHILD;
+                kn->kn_sfflags &= ~NOTE_EXIT;
+		immediate = 1; /* Force immediate activation of child note. */
+	}
+	/*
+	 * Internal flag indicating registration done by kernel (for other than
+	 * NOTE_CHILD).
+	 */
+	if (kn->kn_flags & EV_FLAG1) {
 		kn->kn_flags &= ~EV_FLAG1;
 	}
 
@@ -385,9 +395,10 @@ filt_procattach(struct knote *kn)
 		knlist_add(&p->p_klist, kn, 1);
 
 	/*
-	 * Immediately activate any exit notes if the target process is a
-	 * zombie.  This is necessary to handle the case where the target
-	 * process, e.g. a child, dies before the kevent is registered.
+	 * Immediately activate any child notes or, in the case of a zombie
+	 * target process, exit notes.  The latter is necessary to handle the
+	 * case where the target process, e.g. a child, dies before the kevent
+	 * is registered.
 	 */
 	if (immediate && filt_proc(kn, NOTE_EXIT))
 		KNOTE_ACTIVATE(kn, 0);
@@ -495,7 +506,7 @@ knote_fork(struct knlist *list, int pid)
 
 		/*
 		 * The NOTE_TRACK case. In addition to the activation
-		 * of the event, we need to register new event to
+		 * of the event, we need to register new events to
 		 * track the child. Drop the locks in preparation for
 		 * the call to kqueue_register().
 		 */
@@ -504,8 +515,27 @@ knote_fork(struct knlist *list, int pid)
 		list->kl_unlock(list->kl_lockarg);
 
 		/*
-		 * Activate existing knote and register a knote with
+		 * Activate existing knote and register tracking knotes with
 		 * new process.
+		 *
+		 * First register a knote to get just the child notice. This
+		 * must be a separate note from a potential NOTE_EXIT
+		 * notification since both NOTE_CHILD and NOTE_EXIT are defined
+		 * to use the data field (in conflicting ways).
+		 */
+		kev.ident = pid;
+		kev.filter = kn->kn_filter;
+		kev.flags = kn->kn_flags | EV_ADD | EV_ENABLE | EV_ONESHOT | EV_FLAG2;
+		kev.fflags = kn->kn_sfflags;
+		kev.data = kn->kn_id;		/* parent */
+		kev.udata = kn->kn_kevent.udata;/* preserve udata */
+		error = kqueue_register(kq, &kev, NULL, 0);
+		if (error)
+			kn->kn_fflags |= NOTE_TRACKERR;
+
+		/*
+		 * Then register another knote to track other potential events
+		 * from the new process.
 		 */
 		kev.ident = pid;
 		kev.filter = kn->kn_filter;
@@ -534,34 +564,59 @@ knote_fork(struct knlist *list, int pid)
 #define NOTE_TIMER_PRECMASK	(NOTE_SECONDS|NOTE_MSECONDS|NOTE_USECONDS| \
 				NOTE_NSECONDS)
 
-static __inline sbintime_t
+static sbintime_t
 timer2sbintime(intptr_t data, int flags)
 {
-	sbintime_t modifier;
 
+        /*
+         * Macros for converting to the fractional second portion of an
+         * sbintime_t using 64bit multiplication to improve precision.
+         */
+#define NS_TO_SBT(ns) (((ns) * (((uint64_t)1 << 63) / 500000000)) >> 32)
+#define US_TO_SBT(us) (((us) * (((uint64_t)1 << 63) / 500000)) >> 32)
+#define MS_TO_SBT(ms) (((ms) * (((uint64_t)1 << 63) / 500)) >> 32)
 	switch (flags & NOTE_TIMER_PRECMASK) {
 	case NOTE_SECONDS:
-		modifier = SBT_1S;
-		break;
+#ifdef __LP64__
+		if (data > (SBT_MAX / SBT_1S))
+			return SBT_MAX;
+#endif
+		return ((sbintime_t)data << 32);
 	case NOTE_MSECONDS: /* FALLTHROUGH */
 	case 0:
-		modifier = SBT_1MS;
-		break;
-	case NOTE_USECONDS:
-		modifier = SBT_1US;
-		break;
-	case NOTE_NSECONDS:
-		modifier = SBT_1NS;
-		break;
-	default:
-		return (-1);
-	}
-
+		if (data >= 1000) {
+			int64_t secs = data / 1000;
 #ifdef __LP64__
-	if (data > SBT_MAX / modifier)
-		return (SBT_MAX);
+			if (secs > (SBT_MAX / SBT_1S))
+				return SBT_MAX;
 #endif
-	return (modifier * data);
+			return (secs << 32 | MS_TO_SBT(data % 1000));
+		}
+		return MS_TO_SBT(data);
+	case NOTE_USECONDS:
+		if (data >= 1000000) {
+			int64_t secs = data / 1000000;
+#ifdef __LP64__
+			if (secs > (SBT_MAX / SBT_1S))
+				return SBT_MAX;
+#endif
+			return (secs << 32 | US_TO_SBT(data % 1000000));
+		}
+		return US_TO_SBT(data);
+	case NOTE_NSECONDS:
+		if (data >= 1000000000) {
+			int64_t secs = data / 1000000000;
+#ifdef __LP64__
+			if (secs > (SBT_MAX / SBT_1S))
+				return SBT_MAX;
+#endif
+			return (secs << 32 | US_TO_SBT(data % 1000000000));
+		}
+		return NS_TO_SBT(data);
+	default:
+		break;
+	}
+	return (-1);
 }
 
 static void
@@ -1086,6 +1141,9 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 	int error, filt, event;
 	int haskqglobal, filedesc_unlock;
 
+	if ((kev->flags & (EV_ENABLE | EV_DISABLE)) == (EV_ENABLE | EV_DISABLE))
+		return (EINVAL);
+
 	fp = NULL;
 	kn = NULL;
 	error = 0;
@@ -1129,7 +1187,7 @@ findkn:
 
 		if (fp->f_type == DTYPE_KQUEUE) {
 			/*
-			 * if we add some inteligence about what we are doing,
+			 * If we add some intelligence about what we are doing,
 			 * we should be able to support events on ourselves.
 			 * We need to know when we are doing this to prevent
 			 * getting both the knlist lock and the kq lock since
@@ -1161,7 +1219,18 @@ findkn:
 			kqueue_expand(kq, fops, kev->ident, waitok);
 
 		KQ_LOCK(kq);
-		if (kq->kq_knhashmask != 0) {
+
+		/*
+		 * If possible, find an existing knote to use for this kevent.
+		 */
+		if (kev->filter == EVFILT_PROC &&
+		    (kev->flags & (EV_FLAG1 | EV_FLAG2)) != 0) {
+			/* This is an internal creation of a process tracking
+			 * note. Don't attempt to coalesce this with an
+			 * existing note.
+			 */
+			;			
+		} else if (kq->kq_knhashmask != 0) {
 			struct klist *list;
 
 			list = &kq->kq_knhash[
@@ -1173,7 +1242,7 @@ findkn:
 		}
 	}
 
-	/* knote is in the process of changing, wait for it to stablize. */
+	/* knote is in the process of changing, wait for it to stabilize. */
 	if (kn != NULL && (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
 		KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 		if (filedesc_unlock) {
@@ -1279,27 +1348,24 @@ findkn:
 	 * kn_knlist.
 	 */
 done_ev_add:
-	if ((kev->flags & EV_DISABLE) &&
-	    ((kn->kn_status & KN_DISABLED) == 0)) {
+	if ((kev->flags & EV_ENABLE) != 0)
+		kn->kn_status &= ~KN_DISABLED;
+	else if ((kev->flags & EV_DISABLE) != 0)
 		kn->kn_status |= KN_DISABLED;
-	}
 
 	if ((kn->kn_status & KN_DISABLED) == 0)
 		event = kn->kn_fop->f_event(kn, 0);
 	else
 		event = 0;
+
 	KQ_LOCK(kq);
 	if (event)
-		KNOTE_ACTIVATE(kn, 1);
+		kn->kn_status |= KN_ACTIVE;
+	if ((kn->kn_status & (KN_ACTIVE | KN_DISABLED | KN_QUEUED)) ==
+	    KN_ACTIVE)
+		knote_enqueue(kn);
 	kn->kn_status &= ~(KN_INFLUX | KN_SCAN);
 	KN_LIST_UNLOCK(kn);
-
-	if ((kev->flags & EV_ENABLE) && (kn->kn_status & KN_DISABLED)) {
-		kn->kn_status &= ~KN_DISABLED;
-		if ((kn->kn_status & KN_ACTIVE) &&
-		    ((kn->kn_status & KN_QUEUED) == 0))
-			knote_enqueue(kn);
-	}
 	KQ_UNLOCK_FLUX(kq);
 
 done:
@@ -1360,7 +1426,7 @@ kqueue_schedtask(struct kqueue *kq)
 	    ("scheduling kqueue task while draining"));
 
 	if ((kq->kq_state & KQ_TASKSCHED) != KQ_TASKSCHED) {
-		taskqueue_enqueue(taskqueue_kqueue, &kq->kq_task);
+		taskqueue_enqueue(taskqueue_kqueue_ctx, &kq->kq_task);
 		kq->kq_state |= KQ_TASKSCHED;
 	}
 }

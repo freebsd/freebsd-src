@@ -30,7 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -38,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -158,12 +158,17 @@ arm_gic_fdt_attach(device_t dev)
 	OF_getencprop(root, "#size-cells", &sc->sc_size_cells,
 	    sizeof(sc->sc_size_cells));
 
+	/* If we have no children don't probe for them */
+	child = OF_child(root);
+	if (child == 0)
+		return (0);
+
 	if (gic_fill_ranges(root, sc) < 0) {
 		device_printf(dev, "could not get ranges\n");
 		return (ENXIO);
 	}
 
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+	for (; child != 0; child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 
 		if (ofw_bus_gen_setup_devinfo(&dinfo->obdinfo, child) != 0) {
@@ -193,7 +198,7 @@ arm_gic_fdt_attach(device_t dev)
 
 static struct resource *
 arm_gic_fdt_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct arm_gic_fdt_softc *sc = device_get_softc(bus);
 	struct gic_devinfo *di;
@@ -206,7 +211,7 @@ arm_gic_fdt_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * Request for the default allocation with a given rid: use resource
 	 * list stored in the local device info.
 	 */
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 
@@ -290,3 +295,38 @@ EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_fdt_driver,
     arm_gic_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_fdt_driver, arm_gic_fdt_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+
+static struct ofw_compat_data gicv2m_compat_data[] = {
+	{"arm,gic-v2m-frame",	true},
+	{NULL,			false}
+};
+
+static int
+arm_gicv2m_fdt_probe(device_t dev)
+{
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_search_compatible(dev, gicv2m_compat_data)->ocd_data)
+		return (ENXIO);
+
+	device_set_desc(dev, "ARM Generic Interrupt Controller MSI/MSIX");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static device_method_t arm_gicv2m_fdt_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		arm_gicv2m_fdt_probe),
+
+	/* End */
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_1(gicv2m, arm_gicv2m_fdt_driver, arm_gicv2m_fdt_methods,
+    sizeof(struct gicv2m_softc), arm_gicv2m_driver);
+
+static devclass_t arm_gicv2m_fdt_devclass;
+
+EARLY_DRIVER_MODULE(gicv2m, gic, arm_gicv2m_fdt_driver,
+    arm_gicv2m_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

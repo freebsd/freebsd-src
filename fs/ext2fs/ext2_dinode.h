@@ -51,8 +51,8 @@
 /*
  * Inode flags
  * The system supports EXT2_IMMUTABLE, EXT2_APPEND and EXT2_NODUMP flags.
- * The current implementation also uses EXT4_INDEX, EXT4_EXTENTS and
- * EXT4_HUGE_FILE with some restrictions, imposed the lack of write
+ * The current implementation also uses EXT3_INDEX, EXT4_EXTENTS and
+ * EXT4_HUGE_FILE with some restrictions imposed by the lack of write
  * support.
  */
 #define	EXT2_SECRM		0x00000001	/* Secure deletion */
@@ -63,7 +63,7 @@
 #define	EXT2_APPEND		0x00000020 /* Writes to file may only append */
 #define	EXT2_NODUMP		0x00000040	/* Do not dump file */
 #define	EXT2_NOATIME		0x00000080	/* Do not update atime */
-#define	EXT4_INDEX		0x00001000	/* Hash-indexed directory */
+#define	EXT3_INDEX		0x00001000	/* Hash-indexed directory */
 #define	EXT4_IMAGIC		0x00002000	/* AFS directory */
 #define	EXT4_JOURNAL_DATA	0x00004000 /* File data should be journaled */
 #define	EXT4_NOTAIL		0x00008000 /* File tail should not be merged */
@@ -131,6 +131,7 @@ struct ext2fs_dinode {
 	uint32_t	e2di_crtime;	/* 144: Creation (birth)time */
 	uint32_t	e2di_crtime_extra; /* 148: Extra creation (birth)time */
 	uint32_t	e2di_version_hi;  /* 152: High bits of inode version */
+	uint32_t	e2di_projid;	/* 156: Project ID */
 };
 
 #endif /* !_FS_EXT2FS_EXT2_DINODE_H_ */

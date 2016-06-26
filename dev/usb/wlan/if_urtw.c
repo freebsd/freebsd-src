@@ -206,6 +206,9 @@ static uint8_t urtw_8225z2_agc[] = {
 	0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31
 };
 
+static const uint8_t urtw_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
 static uint32_t urtw_8225_channel[] = {
 	0x0000,		/* dummy channel 0  */
 	0x085c,		/* 1  */
@@ -662,6 +665,8 @@ static int		urtw_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
 static void		urtw_scan_start(struct ieee80211com *);
 static void		urtw_scan_end(struct ieee80211com *);
+static void		urtw_getradiocaps(struct ieee80211com *, int, int *,
+			   struct ieee80211_channel[]);
 static void		urtw_set_channel(struct ieee80211com *);
 static void		urtw_update_mcast(struct ieee80211com *);
 static int		urtw_tx_start(struct urtw_softc *,
@@ -785,7 +790,6 @@ urtw_attach(device_t dev)
 	struct urtw_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	uint8_t iface_index = URTW_IFACE_INDEX;		/* XXX */
 	uint16_t n_setup;
 	uint32_t data;
@@ -877,15 +881,16 @@ urtw_attach(device_t dev)
 	    IEEE80211_C_BGSCAN |	/* capable of bg scanning */
 	    IEEE80211_C_WPA;		/* 802.11i */
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, bands);
+	/* XXX TODO: setup regdomain if URTW_EPROM_CHANPLAN_BY_HW bit is set.*/
+ 
+	urtw_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = urtw_raw_xmit;
 	ic->ic_scan_start = urtw_scan_start;
 	ic->ic_scan_end = urtw_scan_end;
+	ic->ic_getradiocaps = urtw_getradiocaps;
 	ic->ic_set_channel = urtw_set_channel;
 	ic->ic_updateslot = urtw_updateslot;
 	ic->ic_vap_create = urtw_vap_create;
@@ -1564,6 +1569,19 @@ urtw_scan_end(struct ieee80211com *ic)
 }
 
 static void
+urtw_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    urtw_chan_2ghz, nitems(urtw_chan_2ghz), bands, 0);
+}
+
+static void
 urtw_set_channel(struct ieee80211com *ic)
 {
 	struct urtw_softc *sc = ic->ic_softc;
@@ -1771,8 +1789,8 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		flags |= (urtw_rate2rtl(11) & 0xf) << URTW_TX_FLAG_RTSRATE_SHIFT;
 		tx->flag = htole32(flags);
 		tx->retry = 3;		/* CW minimum  */
-		tx->retry = 7 << 4;	/* CW maximum  */
-		tx->retry = URTW_TX_MAXRETRY << 8;	/* retry limitation  */
+		tx->retry |= 7 << 4;	/* CW maximum  */
+		tx->retry |= URTW_TX_MAXRETRY << 8;	/* retry limitation  */
 		m_copydata(m0, 0, m0->m_pkthdr.len, (uint8_t *)(tx + 1));
 	}
 
@@ -1910,7 +1928,7 @@ fail:
 static uint16_t
 urtw_rate2rtl(uint32_t rate)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < nitems(urtw_ratetable); i++) {
 		if (rate == urtw_ratetable[i].reg)
@@ -1923,7 +1941,7 @@ urtw_rate2rtl(uint32_t rate)
 static uint16_t
 urtw_rtl2rate(uint32_t rate)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < nitems(urtw_ratetable); i++) {
 		if (rate == urtw_ratetable[i].val)
@@ -2450,7 +2468,7 @@ fail:
 static usb_error_t
 urtw_8225_rf_init(struct urtw_softc *sc)
 {
-	int i;
+	unsigned int i;
 	uint16_t data;
 	usb_error_t error;
 
@@ -2831,7 +2849,7 @@ fail:
 static usb_error_t
 urtw_8225v2_rf_init(struct urtw_softc *sc)
 {
-	int i;
+	unsigned int i;
 	uint16_t data;
 	uint32_t data32;
 	usb_error_t error;
@@ -3164,7 +3182,7 @@ static usb_error_t
 urtw_8225v2b_rf_init(struct urtw_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	int i;
+	unsigned int i;
 	uint8_t data8;
 	usb_error_t error;
 

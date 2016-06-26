@@ -82,17 +82,18 @@ static	int nexus_attach(device_t);
 static	int nexus_print_child(device_t, device_t);
 static	device_t nexus_add_child(device_t, u_int, const char *, int);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
-#ifdef ARM_INTRNG
+static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
+#ifdef INTRNG
 #ifdef SMP
 static	int nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
 #endif
 static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol);
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static	int nexus_describe_intr(device_t dev, device_t child,
     struct resource *irq, void *cookie, const char *descr);
 #endif
@@ -124,7 +125,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
-#ifdef ARM_INTRNG
+	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
+#ifdef INTRNG
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 #ifdef SMP
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
@@ -159,10 +161,11 @@ nexus_attach(device_t dev)
 {
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
+	mem_rman.rm_end = BUS_SPACE_MAXADDR;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory addresses";
-	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0))
+	if (rman_init(&mem_rman) ||
+	    rman_manage_region(&mem_rman, 0, BUS_SPACE_MAXADDR))
 		panic("nexus_probe mem_rman");
 
 	/*
@@ -212,7 +215,7 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
  */
 static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *rv;
 	struct rman *rm;
@@ -231,7 +234,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == 0)
+	if (rv == NULL)
 		return (NULL);
 
 	rman_set_rid(rv, *rid);
@@ -260,14 +263,26 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_release_resource(res));
 }
 
+static bus_space_tag_t
+nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
+{
+
+#ifdef FDT
+		return(fdtbus_bs_tag);
+#else
+		return((void *)1);
+#endif
+}
+
 static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	int ret = ENODEV;
 
-#ifdef ARM_INTRNG
-	ret = intr_irq_config(irq, trig, pol);
+#ifdef INTRNG
+	device_printf(dev, "bus_config_intr is obsolete and not supported!\n");
+	ret = EOPNOTSUPP;
 #else
 	if (arm_config_irq)
 		ret = (*arm_config_irq)(irq, trig, pol);
@@ -279,42 +294,43 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
+#ifndef INTRNG
 	int irq;
+#endif
 
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
-	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
-#ifdef ARM_INTRNG
-		intr_irq_add_handler(child, filt, intr, arg, irq, flags,
-		    cookiep);
+#ifdef INTRNG
+	return(intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
 #else
+	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
 		arm_setup_irqhandler(device_get_nameunit(child),
 		    filt, intr, arg, irq, flags, cookiep);
 		arm_unmask_irq(irq);
-#endif
 	}
 	return (0);
+#endif
 }
 
 static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
-#ifdef ARM_INTRNG
-	return (intr_irq_remove_handler(child, rman_get_start(r), ih));
+#ifdef INTRNG
+	return (intr_teardown_irq(child, r, ih));
 #else
 	return (arm_remove_irqhandler(rman_get_start(r), ih));
 #endif
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int
 nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie, const char *descr)
 {
 
-	return (intr_irq_describe(rman_get_start(irq), cookie, descr));
+	return (intr_describe_irq(child, irq, cookie, descr));
 }
 
 #ifdef SMP
@@ -322,7 +338,7 @@ static int
 nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 {
 
-	return (intr_irq_bind(rman_get_start(irq), cpu));
+	return (intr_bind_irq(child, irq, cpu));
 }
 #endif
 #endif
@@ -396,6 +412,10 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
 
+#ifdef INTRNG
+	return (INTR_IRQ_INVALID);
+#else
 	return (intr_fdt_map_irq(iparent, intr, icells));
+#endif
 }
 #endif

@@ -31,6 +31,7 @@
 #define _MACHINE_PMAP_VAR_H_
 
 #include <machine/cpu-v6.h>
+#include <machine/pte-v6.h>
 /*
  *  Various PMAP defines, exports, and inline functions
  *  definitions also usable in other MD code.
@@ -142,7 +143,8 @@ static __inline void
 pte1_store(pt1_entry_t *pte1p, pt1_entry_t pte1)
 {
 
-	atomic_store_rel_int(pte1p, pte1);
+	dmb();
+	*pte1p = pte1;
 	pte1_sync(pte1p);
 }
 
@@ -157,19 +159,8 @@ static __inline void
 pte1_clear_bit(pt1_entry_t *pte1p, uint32_t bit)
 {
 
-	atomic_clear_int(pte1p, bit);
+	*pte1p &= ~bit;
 	pte1_sync(pte1p);
-}
-
-static __inline boolean_t
-pte1_cmpset(pt1_entry_t *pte1p, pt1_entry_t opte1, pt1_entry_t npte1)
-{
-	boolean_t ret;
-
-	ret = atomic_cmpset_int(pte1p, opte1, npte1);
-	if (ret) pte1_sync(pte1p);
-
-	return (ret);
 }
 
 static __inline boolean_t
@@ -230,7 +221,8 @@ pte1_load_clear(pt1_entry_t *pte1p)
 {
 	pt1_entry_t opte1;
 
-	opte1 = atomic_readandclear_int(pte1p);
+	opte1 = *pte1p;
+	*pte1p = 0;
 	pte1_sync(pte1p);
 	return (opte1);
 }
@@ -239,7 +231,7 @@ static __inline void
 pte1_set_bit(pt1_entry_t *pte1p, uint32_t bit)
 {
 
-	atomic_set_int(pte1p, bit);
+	*pte1p |= bit;
 	pte1_sync(pte1p);
 }
 
@@ -291,7 +283,8 @@ static __inline void
 pte2_store(pt2_entry_t *pte2p, pt2_entry_t pte2)
 {
 
-	atomic_store_rel_int(pte2p, pte2);
+	dmb();
+	*pte2p = pte2;
 	pte2_sync(pte2p);
 }
 
@@ -306,19 +299,8 @@ static __inline void
 pte2_clear_bit(pt2_entry_t *pte2p, uint32_t bit)
 {
 
-	atomic_clear_int(pte2p, bit);
+	*pte2p &= ~bit;
 	pte2_sync(pte2p);
-}
-
-static __inline boolean_t
-pte2_cmpset(pt2_entry_t *pte2p, pt2_entry_t opte2, pt2_entry_t npte2)
-{
-	boolean_t ret;
-
-	ret = atomic_cmpset_int(pte2p, opte2, npte2);
-	if (ret) pte2_sync(pte2p);
-
-	return (ret);
 }
 
 static __inline boolean_t
@@ -363,7 +345,8 @@ pte2_load_clear(pt2_entry_t *pte2p)
 {
 	pt2_entry_t opte2;
 
-	opte2 = atomic_readandclear_int(pte2p);
+	opte2 = *pte2p;
+	*pte2p = 0;
 	pte2_sync(pte2p);
 	return (opte2);
 }
@@ -372,7 +355,7 @@ static __inline void
 pte2_set_bit(pt2_entry_t *pte2p, uint32_t bit)
 {
 
-	atomic_set_int(pte2p, bit);
+	*pte2p |= bit;
 	pte2_sync(pte2p);
 }
 
@@ -385,9 +368,9 @@ pte2_set_wired(pt2_entry_t *pte2p, boolean_t wired)
 	 * so pte2_sync() is not needed.
 	 */
 	if (wired)
-		atomic_set_int(pte2p, PTE2_W);
+		*pte2p |= PTE2_W;
 	else
-		atomic_clear_int(pte2p, PTE2_W);
+		*pte2p &= ~PTE2_W;
 }
 
 static __inline vm_paddr_t

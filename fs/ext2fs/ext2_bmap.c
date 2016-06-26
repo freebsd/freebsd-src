@@ -42,6 +42,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 
@@ -85,8 +86,8 @@ ext2_bmap(struct vop_bmap_args *ap)
 }
 
 /*
- * This function converts the logical block number of a file to
- * its physical block number on the disk within ext4 extents.
+ * Convert the logical block number of a file to its physical block number
+ * on the disk within ext4 extents.
  */
 static int
 ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
@@ -96,39 +97,49 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	struct ext4_extent *ep;
 	struct ext4_extent_path path = { .ep_bp = NULL };
 	daddr_t lbn;
-	int ret = 0;
+	int error;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
 	lbn = bn;
 
-	/*
-	 * TODO: need to implement read ahead to improve the performance.
-	 */
 	if (runp != NULL)
 		*runp = 0;
-
 	if (runb != NULL)
 		*runb = 0;
+	error = 0;
 
 	ext4_ext_find_extent(fs, ip, lbn, &path);
-	ep = path.ep_ext;
-	if (ep == NULL)
-		ret = EIO;
-	else {
+	if (path.ep_is_sparse) {
+		*bnp = -1;
+		if (runp != NULL)
+			*runp = path.ep_sparse_ext.e_len -
+			    (lbn - path.ep_sparse_ext.e_blk) - 1;
+		if (runb != NULL)
+			*runb = lbn - path.ep_sparse_ext.e_blk;
+	} else {
+		if (path.ep_ext == NULL) {
+			error = EIO;
+			goto out;
+		}
+		ep = path.ep_ext;
 		*bnp = fsbtodb(fs, lbn - ep->e_blk +
 		    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
 
 		if (*bnp == 0)
 			*bnp = -1;
+
+		if (runp != NULL)
+			*runp = ep->e_len - (lbn - ep->e_blk) - 1;
+		if (runb != NULL)
+			*runb = lbn - ep->e_blk;
 	}
 
-	if (path.ep_bp != NULL) {
+out:
+	if (path.ep_bp != NULL)
 		brelse(path.ep_bp);
-		path.ep_bp = NULL;
-	}
 
-	return (ret);
+	return (error);
 }
 
 /*
@@ -236,6 +247,13 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 			vfs_busy_pages(bp, 0);
 			bp->b_iooffset = dbtob(bp->b_blkno);
 			bstrategy(bp);
+#ifdef RACCT
+			if (racct_enable) {
+				PROC_LOCK(curproc);
+				racct_add_buf(curproc, bp, 0);
+				PROC_UNLOCK(curproc);
+			}
+#endif
 			curthread->td_ru.ru_inblock++;
 			error = bufwait(bp);
 			if (error) {

@@ -151,6 +151,33 @@ atrtc_restore(void)
 	rtcin(RTC_INTR);
 }
 
+void
+atrtc_set(struct timespec *ts)
+{
+	struct clocktime ct;
+
+	clock_ts_to_ct(ts, &ct);
+
+	/* Disable RTC updates and interrupts. */
+	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
+
+	writertc(RTC_SEC, bin2bcd(ct.sec)); 		/* Write back Seconds */
+	writertc(RTC_MIN, bin2bcd(ct.min)); 		/* Write back Minutes */
+	writertc(RTC_HRS, bin2bcd(ct.hour));		/* Write back Hours   */
+
+	writertc(RTC_WDAY, ct.dow + 1);			/* Write back Weekday */
+	writertc(RTC_DAY, bin2bcd(ct.day));		/* Write back Day */
+	writertc(RTC_MONTH, bin2bcd(ct.mon));           /* Write back Month   */
+	writertc(RTC_YEAR, bin2bcd(ct.year % 100));	/* Write back Year    */
+#ifdef USE_RTC_CENTURY
+	writertc(RTC_CENTURY, bin2bcd(ct.year / 100));	/* ... and Century    */
+#endif
+
+	/* Re-enable RTC updates and interrupts. */
+	writertc(RTC_STATUSB, rtc_statusb);
+	rtcin(RTC_INTR);
+}
+
 /**********************************************************************
  * RTC driver for subr_rtc
  */
@@ -241,7 +268,7 @@ static int
 atrtc_attach(device_t dev)
 {
 	struct atrtc_softc *sc;
-	u_long s;
+	rman_res_t s;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -297,28 +324,8 @@ atrtc_resume(device_t dev)
 static int
 atrtc_settime(device_t dev __unused, struct timespec *ts)
 {
-	struct clocktime ct;
 
-	clock_ts_to_ct(ts, &ct);
-
-	/* Disable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
-
-	writertc(RTC_SEC, bin2bcd(ct.sec)); 		/* Write back Seconds */
-	writertc(RTC_MIN, bin2bcd(ct.min)); 		/* Write back Minutes */
-	writertc(RTC_HRS, bin2bcd(ct.hour));		/* Write back Hours   */
-
-	writertc(RTC_WDAY, ct.dow + 1);			/* Write back Weekday */
-	writertc(RTC_DAY, bin2bcd(ct.day));		/* Write back Day */
-	writertc(RTC_MONTH, bin2bcd(ct.mon));           /* Write back Month   */
-	writertc(RTC_YEAR, bin2bcd(ct.year % 100));	/* Write back Year    */
-#ifdef USE_RTC_CENTURY
-	writertc(RTC_CENTURY, bin2bcd(ct.year / 100));	/* ... and Century    */
-#endif
-
-	/* Reenable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	atrtc_set(ts);
 	return (0);
 }
 

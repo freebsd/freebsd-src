@@ -484,7 +484,7 @@ aml8726_sdxc_finish_command(struct aml8726_sdxc_softc *sc, int mmc_error)
 	if (stop_cmd != NULL) {
 
 		/*
-		 * If the original command executed successfuly, then
+		 * If the original command executed successfully, then
 		 * the hardware will also have automatically executed
 		 * a stop command so don't bother with the one supplied
 		 * with the original request.
@@ -621,7 +621,7 @@ spurious:
 		stop = 1;
 		if ((sndr & AML_SDXC_SEND_RESP_136) != 0) {
 			start = 1;
-			stop = start + 4;;
+			stop = start + 4;
 		}
 		for (i = start; i < stop; i++) {
 			pdmar = CSR_READ_4(sc, AML_SDXC_PDMA_REG);
@@ -821,7 +821,7 @@ aml8726_sdxc_attach(device_t dev)
 			device_printf(dev,
 			    "unknown voltage attribute %.*s in FDT\n",
 			    len, voltage);
-			free(voltages, M_OFWPROP);
+			OF_prop_free(voltages);
 			return (ENXIO);
 		}
 
@@ -838,7 +838,7 @@ aml8726_sdxc_attach(device_t dev)
 		}
 	}
 
-	free(voltages, M_OFWPROP);
+	OF_prop_free(voltages);
 
 	sc->vselect.dev = NULL;
 
@@ -1378,3 +1378,4 @@ DRIVER_MODULE(aml8726_sdxc, simplebus, aml8726_sdxc_driver,
     aml8726_sdxc_devclass, 0, 0);
 MODULE_DEPEND(aml8726_sdxc, aml8726_gpio, 1, 1, 1);
 DRIVER_MODULE(mmc, aml8726_sdxc, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(aml8726_sdxc, mmc, 1, 1, 1);

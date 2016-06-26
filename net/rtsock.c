@@ -59,6 +59,7 @@
 #include <net/netisr.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -190,15 +191,33 @@ SYSCTL_PROC(_net_route, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
     "maximum routing socket dispatch queue length");
 
 static void
-rts_init(void)
+vnet_rts_init(void)
 {
 	int tmp;
 
-	if (TUNABLE_INT_FETCH("net.route.netisr_maxqlen", &tmp))
-		rtsock_nh.nh_qlimit = tmp;
-	netisr_register(&rtsock_nh);
+	if (IS_DEFAULT_VNET(curvnet)) {
+		if (TUNABLE_INT_FETCH("net.route.netisr_maxqlen", &tmp))
+			rtsock_nh.nh_qlimit = tmp;
+		netisr_register(&rtsock_nh);
+	}
+#ifdef VIMAGE
+	 else
+		netisr_register_vnet(&rtsock_nh);
+#endif
 }
-SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0);
+VNET_SYSINIT(vnet_rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    vnet_rts_init, 0);
+
+#ifdef VIMAGE
+static void
+vnet_rts_uninit(void)
+{
+
+	netisr_unregister_vnet(&rtsock_nh);
+}
+VNET_SYSUNINIT(vnet_rts_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    vnet_rts_uninit, 0);
+#endif
 
 static int
 raw_input_rts_cb(struct mbuf *m, struct sockproto *proto, struct sockaddr *src,
@@ -274,8 +293,6 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 
 	/* XXX */
 	rp = malloc(sizeof *rp, M_PCB, M_WAITOK | M_ZERO);
-	if (rp == NULL)
-		return ENOBUFS;
 
 	so->so_pcb = (caddr_t)rp;
 	so->so_fibnum = td->td_proc->p_fibnum;
@@ -520,7 +537,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 	struct rt_addrinfo info;
 	struct sockaddr_storage ss;
 #ifdef INET6
@@ -706,7 +723,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
 
-		RADIX_NODE_HEAD_RLOCK(rnh);
+		RIB_RLOCK(rnh);
 
 		if (info.rti_info[RTAX_NETMASK] == NULL &&
 		    rtm->rtm_type == RTM_GET) {
@@ -716,14 +733,14 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			 * 'route -n get addr'
 			 */
 			rt = (struct rtentry *) rnh->rnh_matchaddr(
-			    info.rti_info[RTAX_DST], rnh);
+			    info.rti_info[RTAX_DST], &rnh->head);
 		} else
 			rt = (struct rtentry *) rnh->rnh_lookup(
 			    info.rti_info[RTAX_DST],
-			    info.rti_info[RTAX_NETMASK], rnh);
+			    info.rti_info[RTAX_NETMASK], &rnh->head);
 
 		if (rt == NULL) {
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rnh);
 			senderr(ESRCH);
 		}
 #ifdef RADIX_MPATH
@@ -735,11 +752,11 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		 * if gate == NULL the first match is returned.
 		 * (no need to call rt_mpath_matchgate if gate == NULL)
 		 */
-		if (rn_mpath_capable(rnh) &&
+		if (rt_mpath_capable(rnh) &&
 		    (rtm->rtm_type != RTM_GET || info.rti_info[RTAX_GATEWAY])) {
 			rt = rt_mpath_matchgate(rt, info.rti_info[RTAX_GATEWAY]);
 			if (!rt) {
-				RADIX_NODE_HEAD_RUNLOCK(rnh);
+				RIB_RUNLOCK(rnh);
 				senderr(ESRCH);
 			}
 		}
@@ -770,15 +787,16 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			/* 
 			 * refactor rt and no lock operation necessary
 			 */
-			rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr, rnh);
+			rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr,
+			    &rnh->head);
 			if (rt == NULL) {
-				RADIX_NODE_HEAD_RUNLOCK(rnh);
+				RIB_RUNLOCK(rnh);
 				senderr(ESRCH);
 			}
 		} 
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
-		RADIX_NODE_HEAD_RUNLOCK(rnh);
+		RIB_RUNLOCK(rnh);
 
 report:
 		RT_LOCK_ASSERT(rt);
@@ -1199,7 +1217,7 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 
 /*
  * This routine is called to generate a message from the routing
- * socket indicating that a redirect has occured, a routing lookup
+ * socket indicating that a redirect has occurred, a routing lookup
  * has failed, or that a protocol has detected timeouts to a particular
  * destination.
  */
@@ -1803,7 +1821,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
-	struct radix_node_head *rnh = NULL; /* silence compiler. */
+	struct rib_head *rnh = NULL; /* silence compiler. */
 	int	i, lim, error = EINVAL;
 	int	fib = 0;
 	u_char	af;
@@ -1872,10 +1890,10 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		for (error = 0; error == 0 && i <= lim; i++) {
 			rnh = rt_tables_get_rnh(fib, i);
 			if (rnh != NULL) {
-				RADIX_NODE_HEAD_RLOCK(rnh); 
-			    	error = rnh->rnh_walktree(rnh,
+				RIB_RLOCK(rnh); 
+			    	error = rnh->rnh_walktree(&rnh->head,
 				    sysctl_dumpentry, &w);
-				RADIX_NODE_HEAD_RUNLOCK(rnh);
+				RIB_RUNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
 		}
@@ -1919,7 +1937,7 @@ static struct domain routedomain = {
 	.dom_family =		PF_ROUTE,
 	.dom_name =		 "route",
 	.dom_protosw =		routesw,
-	.dom_protoswNPROTOSW =	&routesw[sizeof(routesw)/sizeof(routesw[0])]
+	.dom_protoswNPROTOSW =	&routesw[nitems(routesw)]
 };
 
 VNET_DOMAIN_SET(route);

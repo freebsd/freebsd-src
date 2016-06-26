@@ -177,11 +177,6 @@ options 	MAXMEM=(128*1024)
 #options 	BROKEN_KEYBOARD_RESET
 
 #
-# PCI bus & PCI options:
-#
-device		pci
-
-#
 # AGP GART support
 device		agp
 
@@ -514,8 +509,7 @@ device		virtio_balloon	# VirtIO Memory Balloon device
 device		virtio_random	# VirtIO Entropy device
 device		virtio_console	# VirtIO Console device
 
-# Microsoft Hyper-V enchancement support
-options 	HYPERV		# Hyper-V kernel infrastructure
+# Microsoft Hyper-V enhancement support
 device 		hyperv		# HyperV drivers
 
 # Xen HVM Guest Optimizations

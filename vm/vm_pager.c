@@ -165,8 +165,6 @@ struct pagerops *pagertab[] = {
 	&mgtdevicepagerops,	/* OBJT_MGTDEVICE */
 };
 
-static const int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
-
 /*
  * Kernel address space for mapping pages.
  * Used by pagers where KVAs are needed for IO.
@@ -189,7 +187,7 @@ vm_pager_init()
 	/*
 	 * Initialize known pagers
 	 */
-	for (pgops = pagertab; pgops < &pagertab[npagers]; pgops++)
+	for (pgops = pagertab; pgops < &pagertab[nitems(pagertab)]; pgops++)
 		if ((*pgops)->pgo_init != NULL)
 			(*(*pgops)->pgo_init) ();
 }

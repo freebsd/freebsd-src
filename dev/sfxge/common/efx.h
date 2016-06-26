@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2015 Solarflare Communications Inc.
+ * Copyright (c) 2006-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 #define	_SYS_EFX_H
 
 #include "efsys.h"
+#include "efx_check.h"
 #include "efx_phy_ids.h"
 
 #ifdef	__cplusplus
@@ -58,9 +59,10 @@ typedef __success(return == 0) int efx_rc_t;
 
 typedef enum efx_family_e {
 	EFX_FAMILY_INVALID,
-	EFX_FAMILY_FALCON,
+	EFX_FAMILY_FALCON,	/* Obsolete and not supported */
 	EFX_FAMILY_SIENA,
 	EFX_FAMILY_HUNTINGTON,
+	EFX_FAMILY_MEDFORD,
 	EFX_FAMILY_NTYPES
 } efx_family_t;
 
@@ -70,10 +72,6 @@ efx_family(
 	__in		uint16_t devid,
 	__out		efx_family_t *efp);
 
-extern	__checkReturn	efx_rc_t
-efx_infer_family(
-	__in		efsys_bar_t *esbp,
-	__out		efx_family_t *efp);
 
 #define	EFX_PCI_VENID_SFC			0x1924
 
@@ -90,6 +88,9 @@ efx_infer_family(
 #define	EFX_PCI_DEVID_FARMINGDALE_VF		0x1903	/* SFC9120 VF */
 #define	EFX_PCI_DEVID_GREENPORT_VF		0x1923	/* SFC9140 VF */
 
+#define	EFX_PCI_DEVID_MEDFORD_PF_UNINIT		0x0913
+#define	EFX_PCI_DEVID_MEDFORD			0x0A03	/* SFC9240 PF */
+#define	EFX_PCI_DEVID_MEDFORD_VF		0x1A03	/* SFC9240 VF */
 
 #define	EFX_MEM_BAR	2
 
@@ -144,19 +145,6 @@ extern	__checkReturn	efx_rc_t
 efx_nic_probe(
 	__in		efx_nic_t *enp);
 
-#if EFSYS_OPT_PCIE_TUNE
-
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_tune(
-	__in		efx_nic_t *enp,
-	unsigned int	nlanes);
-
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp);
-
-#endif	/* EFSYS_OPT_PCIE_TUNE */
-
 extern	__checkReturn	efx_rc_t
 efx_nic_init(
 	__in		efx_nic_t *enp);
@@ -185,10 +173,34 @@ extern 		void
 efx_nic_destroy(
 	__in	efx_nic_t *enp);
 
+#define	EFX_PCIE_LINK_SPEED_GEN1		1
+#define	EFX_PCIE_LINK_SPEED_GEN2		2
+#define	EFX_PCIE_LINK_SPEED_GEN3		3
+
+typedef enum efx_pcie_link_performance_e {
+	EFX_PCIE_LINK_PERFORMANCE_UNKNOWN_BANDWIDTH,
+	EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_BANDWIDTH,
+	EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_LATENCY,
+	EFX_PCIE_LINK_PERFORMANCE_OPTIMAL
+} efx_pcie_link_performance_t;
+
+extern	__checkReturn	efx_rc_t
+efx_nic_calculate_pcie_link_bandwidth(
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		uint32_t *bandwidth_mbpsp);
+
+extern	__checkReturn	efx_rc_t
+efx_nic_check_pcie_link_speed(
+	__in		efx_nic_t *enp,
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		efx_pcie_link_performance_t *resultp);
+
 #if EFSYS_OPT_MCDI
 
-#if EFSYS_OPT_HUNTINGTON
-/* Huntington requires MCDIv2 commands */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+/* Huntington and Medford require MCDIv2 commands */
 #define	WITH_MCDI_V2 1
 #endif
 
@@ -258,7 +270,6 @@ efx_mcdi_fini(
 
 /* INTR */
 
-#define	EFX_NINTR_FALCON 64
 #define	EFX_NINTR_SIENA 1024
 
 typedef enum efx_intr_type_e {
@@ -431,16 +442,28 @@ typedef enum efx_link_mode_e {
 
 #define	EFX_MAC_SDU_MAX	9202
 
-#define	EFX_MAC_PDU(_sdu) 				\
-	P2ROUNDUP(((_sdu)				\
-		    + /* EtherII */ 14			\
-		    + /* VLAN */ 4			\
-		    + /* CRC */ 4			\
-		    + /* bug16011 */ 16),		\
-		    (1 << 3))
+#define	EFX_MAC_PDU_ADJUSTMENT					\
+	(/* EtherII */ 14					\
+	    + /* VLAN */ 4					\
+	    + /* CRC */ 4					\
+	    + /* bug16011 */ 16)				\
+
+#define	EFX_MAC_PDU(_sdu)					\
+	P2ROUNDUP((_sdu) + EFX_MAC_PDU_ADJUSTMENT, 8)
+
+/*
+ * Due to the P2ROUNDUP in EFX_MAC_PDU(), EFX_MAC_SDU_FROM_PDU() may give
+ * the SDU rounded up slightly.
+ */
+#define	EFX_MAC_SDU_FROM_PDU(_pdu)	((_pdu) - EFX_MAC_PDU_ADJUSTMENT)
 
 #define	EFX_MAC_PDU_MIN	60
 #define	EFX_MAC_PDU_MAX	EFX_MAC_PDU(EFX_MAC_SDU_MAX)
+
+extern	__checkReturn	efx_rc_t
+efx_mac_pdu_get(
+	__in		efx_nic_t *enp,
+	__out		size_t *pdu);
 
 extern	__checkReturn	efx_rc_t
 efx_mac_pdu_set(
@@ -501,38 +524,6 @@ efx_mac_fcntl_get(
 	__out		unsigned int *fcntl_wantedp,
 	__out		unsigned int *fcntl_linkp);
 
-#define	EFX_MAC_HASH_BITS	(1 << 8)
-
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_init(
-	__in				efx_nic_t *enp);
-
-extern					void
-efx_pktfilter_fini(
-	__in				efx_nic_t *enp);
-
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_set(
-	__in		efx_nic_t *enp,
-	__in		boolean_t unicst,
-	__in		boolean_t brdcst);
-
-extern	__checkReturn			efx_rc_t
-efx_mac_hash_set(
-	__in				efx_nic_t *enp,
-	__in_ecount(EFX_MAC_HASH_BITS)	unsigned int const *bucket);
-
-#if EFSYS_OPT_MCAST_FILTER_LIST
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_mcast_list_set(
-	__in				efx_nic_t *enp,
-	__in				uint8_t const *addrs,
-	__in				int count);
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
-
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_mcast_all(
-	__in				efx_nic_t *enp);
 
 #if EFSYS_OPT_MAC_STATS
 
@@ -585,11 +576,9 @@ efx_mac_stats_update(
 
 typedef enum efx_mon_type_e {
 	EFX_MON_INVALID = 0,
-	EFX_MON_NULL,
-	EFX_MON_LM87,
-	EFX_MON_MAX6647,
 	EFX_MON_SFC90X0,
 	EFX_MON_SFC91X0,
+	EFX_MON_SFC92X0,
 	EFX_MON_NTYPES
 } efx_mon_type_t;
 
@@ -610,7 +599,7 @@ efx_mon_init(
 #define	EFX_MON_STATS_PAGE_SIZE 0x100
 #define	EFX_MON_MASK_ELEMENT_SIZE 32
 
-/* START MKCONFIG GENERATED MonitorHeaderStatsBlock c79c86b62a144846 */
+/* START MKCONFIG GENERATED MonitorHeaderStatsBlock 5d4ee5185e419abe */
 typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_2_5V,
 	EFX_MON_STAT_VCCP1,
@@ -681,6 +670,14 @@ typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_CONTROLLER_SLAVE_INTERNAL_TEMP,
 	EFX_MON_STAT_CONTROLLER_SLAVE_VPTAT_EXT_ADC,
 	EFX_MON_STAT_CONTROLLER_SLAVE_INTERNAL_TEMP_EXT_ADC,
+	EFX_MON_STAT_SODIMM_VOUT,
+	EFX_MON_STAT_SODIMM_0_TEMP,
+	EFX_MON_STAT_SODIMM_1_TEMP,
+	EFX_MON_STAT_PHY0_VCC,
+	EFX_MON_STAT_PHY1_VCC,
+	EFX_MON_STAT_CONTROLLER_TDIODE_TEMP,
+	EFX_MON_STAT_BOARD_FRONT_TEMP,
+	EFX_MON_STAT_BOARD_BACK_TEMP,
 	EFX_MON_NSTATS
 } efx_mon_stat_t;
 
@@ -721,15 +718,6 @@ efx_mon_fini(
 	__in	efx_nic_t *enp);
 
 /* PHY */
-
-#define	PMA_PMD_MMD	1
-#define	PCS_MMD		3
-#define	PHY_XS_MMD	4
-#define	DTE_XS_MMD	5
-#define	AN_MMD		7
-#define	CL22EXT_MMD	29
-
-#define	MAXMMD		((1 << 5) - 1)
 
 extern	__checkReturn	efx_rc_t
 efx_phy_verify(
@@ -900,6 +888,14 @@ efx_phy_media_type_get(
 	__in		efx_nic_t *enp,
 	__out		efx_phy_media_type_t *typep);
 
+extern					efx_rc_t
+efx_phy_module_get_info(
+	__in				efx_nic_t *enp,
+	__in				uint8_t dev_addr,
+	__in				uint8_t offset,
+	__in				uint8_t len,
+	__out_bcount(len)		uint8_t *data);
+
 #if EFSYS_OPT_PHY_STATS
 
 /* START MKCONFIG GENERATED PhyHeaderStatsBlock 30ed56ad501f8e36 */
@@ -974,33 +970,6 @@ efx_phy_stats_update(
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
-#if EFSYS_OPT_PHY_PROPS
-
-#if EFSYS_OPT_NAMES
-
-extern		const char *
-efx_phy_prop_name(
-	__in	efx_nic_t *enp,
-	__in	unsigned int id);
-
-#endif	/* EFSYS_OPT_NAMES */
-
-#define	EFX_PHY_PROP_DEFAULT	0x00000001
-
-extern	__checkReturn	efx_rc_t
-efx_phy_prop_get(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t flags,
-	__out		uint32_t *valp);
-
-extern	__checkReturn	efx_rc_t
-efx_phy_prop_set(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t val);
-
-#endif	/* EFSYS_OPT_PHY_PROPS */
 
 #if EFSYS_OPT_BIST
 
@@ -1092,6 +1061,7 @@ efx_bist_stop(
 #define	EFX_FEATURE_TX_SRC_FILTERS	0x00000400
 #define	EFX_FEATURE_PIO_BUFFERS		0x00000800
 #define	EFX_FEATURE_FW_ASSISTED_TSO	0x00001000
+#define	EFX_FEATURE_FW_ASSISTED_TSO_V2	0x00002000
 
 typedef struct efx_nic_cfg_s {
 	uint32_t		enc_board_type;
@@ -1117,6 +1087,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_buftbl_limit;
 	uint32_t		enc_piobuf_limit;
 	uint32_t		enc_piobuf_size;
+	uint32_t		enc_piobuf_min_alloc_size;
 	uint32_t		enc_evq_timer_quantum_ns;
 	uint32_t		enc_evq_timer_max_us;
 	uint32_t		enc_clk_mult;
@@ -1135,32 +1106,30 @@ typedef struct efx_nic_cfg_s {
 #if EFSYS_OPT_PHY_STATS
 	uint64_t		enc_phy_stat_mask;
 #endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_PHY_PROPS
-	unsigned int		enc_phy_nprops;
-#endif	/* EFSYS_OPT_PHY_PROPS */
 #if EFSYS_OPT_SIENA
 	uint8_t			enc_mcdi_mdio_channel;
 #if EFSYS_OPT_PHY_STATS
 	uint32_t		enc_mcdi_phy_stat_mask;
 #endif	/* EFSYS_OPT_PHY_STATS */
 #endif /* EFSYS_OPT_SIENA */
-#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
+#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
 #if EFSYS_OPT_MON_STATS
 	uint32_t		*enc_mcdi_sensor_maskp;
 	uint32_t		enc_mcdi_sensor_mask_size;
 #endif	/* EFSYS_OPT_MON_STATS */
-#endif	/* (EFSYS_OPT_SIENA | EFSYS_OPT_HUNTINGTON) */
+#endif	/* (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD) */
 #if EFSYS_OPT_BIST
 	uint32_t		enc_bist_mask;
 #endif	/* EFSYS_OPT_BIST */
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 	uint32_t		enc_pf;
 	uint32_t		enc_vf;
 	uint32_t		enc_privilege_mask;
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 	boolean_t		enc_bug26807_workaround;
 	boolean_t		enc_bug35388_workaround;
 	boolean_t		enc_bug41750_workaround;
+	boolean_t		enc_bug61265_workaround;
 	boolean_t		enc_rx_batching_enabled;
 	/* Maximum number of descriptors completed in an rx event. */
 	uint32_t		enc_rx_batch_max;
@@ -1172,14 +1141,22 @@ typedef struct efx_nic_cfg_s {
 	 */
 	uint32_t                enc_tx_tso_tcp_header_offset_limit;
 	boolean_t               enc_fw_assisted_tso_enabled;
+	boolean_t               enc_fw_assisted_tso_v2_enabled;
 	boolean_t               enc_hw_tx_insert_vlan_enabled;
 	/* Datapath firmware vadapter/vport/vswitch support */
 	boolean_t		enc_datapath_cap_evb;
 	boolean_t               enc_rx_disable_scatter_supported;
 	boolean_t               enc_allow_set_mac_with_installed_filters;
+	boolean_t		enc_enhanced_set_mac_supported;
+	boolean_t		enc_init_evq_v2_supported;
 	/* External port identifier */
 	uint8_t			enc_external_port;
 	uint32_t		enc_mcdi_max_payload_length;
+	/* VPD may be per-PF or global */
+	boolean_t		enc_vpd_is_global;
+	/* Minimum unidirectional bandwidth in Mb/s to max out all ports */
+	uint32_t		enc_required_pcie_bandwidth_mbps;
+	uint32_t		enc_max_pcie_link_gen;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
@@ -1335,6 +1312,7 @@ typedef enum efx_nvram_type_e {
 	EFX_NVRAM_CPLD,
 	EFX_NVRAM_FPGA_BACKUP,
 	EFX_NVRAM_DYNAMIC_CFG,
+	EFX_NVRAM_LICENSE,
 	EFX_NVRAM_NTYPES,
 } efx_nvram_type_t;
 
@@ -1388,11 +1366,10 @@ efx_nvram_set_version(
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4]);
 
-/* Validate contents of TLV formatted partition */
 extern	__checkReturn		efx_rc_t
-efx_nvram_tlv_validate(
+efx_nvram_validate(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
+	__in			efx_nvram_type_t type,
 	__in_bcount(partn_size)	caddr_t partn_data,
 	__in			size_t partn_size);
 
@@ -1627,6 +1604,7 @@ efx_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__deref_out	efx_evq_t **eepp);
 
 extern		void
@@ -1796,6 +1774,12 @@ efx_ev_qpoll(
 	__in_opt	void *arg);
 
 extern	__checkReturn	efx_rc_t
+efx_ev_usecs_to_ticks(
+	__in		efx_nic_t *enp,
+	__in		unsigned int usecs,
+	__out		unsigned int *ticksp);
+
+extern	__checkReturn	efx_rc_t
 efx_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us);
@@ -1836,15 +1820,6 @@ efx_rx_init(
 extern		void
 efx_rx_fini(
 	__in		efx_nic_t *enp);
-
-#if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	efx_rc_t
-efx_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size);
-
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
 	__checkReturn	efx_rc_t
@@ -1912,7 +1887,7 @@ efx_rx_scale_key_set(
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
-extern uint32_t
+extern	__checkReturn	uint32_t
 efx_psuedo_hdr_hash_get(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t func,
@@ -1936,8 +1911,6 @@ efx_psuedo_hdr_pkt_length_get(
 
 typedef enum efx_rxq_type_e {
 	EFX_RXQ_TYPE_DEFAULT,
-	EFX_RXQ_TYPE_SPLIT_HEADER,
-	EFX_RXQ_TYPE_SPLIT_PAYLOAD,
 	EFX_RXQ_TYPE_SCATTER,
 	EFX_RXQ_NTYPES
 } efx_rxq_type_t;
@@ -2033,6 +2006,7 @@ efx_tx_fini(
 
 #define	EFX_TXQ_CKSUM_IPV4	0x0001
 #define	EFX_TXQ_CKSUM_TCPUDP	0x0002
+#define	EFX_TXQ_FATSOV2		0x0004
 
 extern	__checkReturn	efx_rc_t
 efx_tx_qcreate(
@@ -2119,6 +2093,21 @@ efx_tx_qdesc_tso_create(
 	__in	uint32_t tcp_seq,
 	__in	uint8_t  tcp_flags,
 	__out	efx_desc_t *edp);
+
+/* Number of FATSOv2 option descriptors */
+#define	EFX_TX_FATSOV2_OPT_NDESCS		2
+
+/* Maximum number of DMA segments per TSO packet (not superframe) */
+#define	EFX_TX_FATSOV2_DMA_SEGS_PER_PKT_MAX	24
+
+extern	void
+efx_tx_qdesc_tso2_create(
+	__in			efx_txq_t *etp,
+	__in			uint16_t ipv4_id,
+	__in			uint32_t tcp_seq,
+	__in			uint16_t tcp_mss,
+	__out_ecount(count)	efx_desc_t *edp,
+	__in			int count);
 
 extern	void
 efx_tx_qdesc_vlantci_create(
@@ -2266,14 +2255,14 @@ efx_filter_supported_filters(
 
 extern			void
 efx_filter_spec_init_rx(
-	__inout		efx_filter_spec_t *spec,
+	__out		efx_filter_spec_t *spec,
 	__in		efx_filter_priority_t priority,
 	__in		efx_filter_flag_t flags,
 	__in		efx_rxq_t *erp);
 
 extern			void
 efx_filter_spec_init_tx(
-	__inout		efx_filter_spec_t *spec,
+	__out		efx_filter_spec_t *spec,
 	__in		efx_txq_t *etp);
 
 extern	__checkReturn	efx_rc_t
@@ -2321,6 +2310,152 @@ efx_hash_bytes(
 	__in_ecount(length)	uint8_t const *input,
 	__in			size_t length,
 	__in			uint32_t init);
+
+#if EFSYS_OPT_LICENSING
+
+/* LICENSING */
+
+typedef struct efx_key_stats_s {
+	uint32_t	eks_valid;
+	uint32_t	eks_invalid;
+	uint32_t	eks_blacklisted;
+	uint32_t	eks_unverifiable;
+	uint32_t	eks_wrong_node;
+	uint32_t	eks_licensed_apps_lo;
+	uint32_t	eks_licensed_apps_hi;
+	uint32_t	eks_licensed_features_lo;
+	uint32_t	eks_licensed_features_hi;
+} efx_key_stats_t;
+
+extern	__checkReturn		efx_rc_t
+efx_lic_init(
+	__in			efx_nic_t *enp);
+
+extern				void
+efx_lic_fini(
+	__in			efx_nic_t *enp);
+
+extern	__checkReturn	boolean_t
+efx_lic_check_support(
+	__in			efx_nic_t *enp);
+
+extern	__checkReturn	efx_rc_t
+efx_lic_update_licenses(
+	__in		efx_nic_t *enp);
+
+extern	__checkReturn	efx_rc_t
+efx_lic_get_key_stats(
+	__in		efx_nic_t *enp,
+	__out		efx_key_stats_t *ksp);
+
+extern	__checkReturn	efx_rc_t
+efx_lic_app_state(
+	__in		efx_nic_t *enp,
+	__in		uint64_t app_id,
+	__out		boolean_t *licensedp);
+
+extern	__checkReturn	efx_rc_t
+efx_lic_get_id(
+	__in		efx_nic_t *enp,
+	__in		size_t buffer_size,
+	__out		uint32_t *typep,
+	__out		size_t *lengthp,
+	__out_opt	uint8_t *bufferp);
+
+
+extern	__checkReturn		efx_rc_t
+efx_lic_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
+#endif	/* EFSYS_OPT_LICENSING */
+
 
 
 #ifdef	__cplusplus

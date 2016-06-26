@@ -487,7 +487,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 				default:
 					error = NFSERR_BADXDR;
 					goto nfsmout;
-				};
+				}
 			} else {
 				ndp->nfsdl_flags = NFSCLDL_READ;
 			}
@@ -829,6 +829,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	u_int32_t lease;
 	static u_int32_t rev = 0;
 	struct nfsclds *dsp, *ndsp, *tdsp;
+	struct in6_addr a6;
 
 	if (nfsboottime.tv_sec == 0)
 		NFSSETBOOTTIME(nfsboottime);
@@ -889,7 +890,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	*tl = txdr_unsigned(NFS_CALLBCKPROG);
 	callblen = strlen(nfsv4_callbackaddr);
 	if (callblen == 0)
-		cp = nfscl_getmyip(nmp, &isinet6);
+		cp = nfscl_getmyip(nmp, &a6, &isinet6);
 	if (nfscl_enablecallb && nfs_numnfscbd > 0 &&
 	    (callblen > 0 || cp != NULL)) {
 		port = htons(nfsv4_cbport);
@@ -1700,7 +1701,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 				commit = fxdr_unsigned(int, *tl++);
 
 				/*
-				 * Return the lowest committment level
+				 * Return the lowest commitment level
 				 * obtained by any of the RPCs.
 				 */
 				if (committed == NFSWRITE_FILESYNC)
@@ -1733,7 +1734,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 		}
 		if (error)
 			goto nfsmout;
-		NFSWRITERPC_SETTIME(wccflag, np, (nd->nd_flag & ND_NFSV4));
+		NFSWRITERPC_SETTIME(wccflag, np, nap, (nd->nd_flag & ND_NFSV4));
 		mbuf_freem(nd->nd_mrep);
 		nd->nd_mrep = NULL;
 		tsiz -= len;
@@ -2085,7 +2086,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 				default:
 					error = NFSERR_BADXDR;
 					goto nfsmout;
-				};
+				}
 			} else {
 				dp->nfsdl_flags = NFSCLDL_READ;
 			}
@@ -2675,7 +2676,7 @@ nfsrpc_rmdir(vnode_t dvp, char *name, int namelen, struct ucred *cred,
  * 2 - pass the opaque directory offset cookies up into userland
  *     and let the libc functions deal with them, via the system call
  * 3 - return them to userland in the "struct dirent", so future versions
- *     of libc can use them and do whatever is necessary to amke things work
+ *     of libc can use them and do whatever is necessary to make things work
  *     above these rpc calls, in the meantime
  * For now, I do #3 by "hiding" the directory offset cookies after the
  * d_name field in struct dirent. This is space inside d_reclen that
@@ -2926,7 +2927,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		if (!more_dirs)
 			tryformoredirs = 0;
 	
-		/* loop thru the dir entries, doctoring them to 4bsd form */
+		/* loop through the dir entries, doctoring them to 4bsd form */
 		while (more_dirs && bigenough) {
 			if (nd->nd_flag & ND_NFSV4) {
 				NFSM_DISSECT(tl, u_int32_t *, 3*NFSX_UNSIGNED);
@@ -3341,7 +3342,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		if (!more_dirs)
 			tryformoredirs = 0;
 	
-		/* loop thru the dir entries, doctoring them to 4bsd form */
+		/* loop through the dir entries, doctoring them to 4bsd form */
 		while (more_dirs && bigenough) {
 			NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 			if (nd->nd_flag & ND_NFSV4) {
@@ -3697,7 +3698,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 		break;
 	default:
 		return (EINVAL);
-	};
+	}
 	if (start < 0)
 		return (EINVAL);
 	if (fl->l_len != 0) {
@@ -5781,7 +5782,7 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		commit = fxdr_unsigned(int, *tl++);
 
 		/*
-		 * Return the lowest committment level
+		 * Return the lowest commitment level
 		 * obtained by any of the RPCs.
 		 */
 		if (committed == NFSWRITE_FILESYNC)

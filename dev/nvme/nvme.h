@@ -47,7 +47,8 @@
  */
 #define NVME_GLOBAL_NAMESPACE_TAG	((uint32_t)0xFFFFFFFF)
 
-#define NVME_MAX_XFER_SIZE		MAXPHYS
+/* Cap nvme to 1MB transfers driver explodes with larger sizes */
+#define NVME_MAX_XFER_SIZE		(MAXPHYS < (1<<20) ? MAXPHYS : (1<<20))
 
 union cap_lo_register {
 	uint32_t	raw;
@@ -392,6 +393,34 @@ enum nvme_activate_action {
 	NVME_AA_ACTIVATE			= 0x2,
 };
 
+struct nvme_power_state {
+	/** Maximum Power */
+	uint16_t	mp;			/* Maximum Power */
+	uint8_t		ps_rsvd1;
+	uint8_t		mps      : 1;		/* Max Power Scale */
+	uint8_t		nops     : 1;		/* Non-Operational State */
+	uint8_t		ps_rsvd2 : 6;
+	uint32_t	enlat;			/* Entry Latency */
+	uint32_t	exlat;			/* Exit Latency */
+	uint8_t		rrt      : 5;		/* Relative Read Throughput */
+	uint8_t		ps_rsvd3 : 3;
+	uint8_t		rrl      : 5;		/* Relative Read Latency */
+	uint8_t		ps_rsvd4 : 3;
+	uint8_t		rwt      : 5;		/* Relative Write Throughput */
+	uint8_t		ps_rsvd5 : 3;
+	uint8_t		rwl      : 5;		/* Relative Write Latency */
+	uint8_t		ps_rsvd6 : 3;
+	uint16_t	idlp;			/* Idle Power */
+	uint8_t		ps_rsvd7 : 6;
+	uint8_t		ips      : 2;		/* Idle Power Scale */
+	uint8_t		ps_rsvd8;
+	uint16_t	actp;			/* Active Power */
+	uint8_t		apw      : 3;		/* Active Power Workload */
+	uint8_t		ps_rsvd9 : 3;
+	uint8_t		aps      : 2;		/* Active Power Scale */
+	uint8_t		ps_rsvd10[9];
+} __packed;
+
 #define NVME_SERIAL_NUMBER_LENGTH	20
 #define NVME_MODEL_NUMBER_LENGTH	40
 #define NVME_FIRMWARE_REVISION_LENGTH	8
@@ -532,7 +561,7 @@ struct nvme_controller_data {
 	uint8_t			reserved5[1344];
 
 	/* bytes 2048-3071: power state descriptors */
-	uint8_t			reserved6[1024];
+	struct nvme_power_state power_state[32];
 
 	/* bytes 3072-4095: vendor specific */
 	uint8_t			vs[1024];
@@ -870,11 +899,56 @@ const char *	nvme_ns_get_serial_number(struct nvme_namespace *ns);
 const char *	nvme_ns_get_model_number(struct nvme_namespace *ns);
 const struct nvme_namespace_data *
 		nvme_ns_get_data(struct nvme_namespace *ns);
-uint32_t	nvme_ns_get_optimal_sector_size(struct nvme_namespace *ns);
 uint32_t	nvme_ns_get_stripesize(struct nvme_namespace *ns);
 
 int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 			    nvme_cb_fn_t cb_fn);
+
+/* Command building helper functions -- shared with CAM */
+static inline
+void	nvme_ns_flush_cmd(struct nvme_command *cmd, uint16_t nsid)
+{
+
+	cmd->opc = NVME_OPC_FLUSH;
+	cmd->nsid = nsid;
+}
+
+static inline
+void	nvme_ns_rw_cmd(struct nvme_command *cmd, uint32_t rwcmd, uint16_t nsid,
+    uint64_t lba, uint32_t count)
+{
+	cmd->opc = rwcmd;
+	cmd->nsid = nsid;
+	*(uint64_t *)&cmd->cdw10 = lba;
+	cmd->cdw12 = count-1;
+	cmd->cdw13 = 0;
+	cmd->cdw14 = 0;
+	cmd->cdw15 = 0;
+}
+
+static inline
+void	nvme_ns_write_cmd(struct nvme_command *cmd, uint16_t nsid,
+    uint64_t lba, uint32_t count)
+{
+	nvme_ns_rw_cmd(cmd, NVME_OPC_WRITE, nsid, lba, count);
+}
+
+static inline
+void	nvme_ns_read_cmd(struct nvme_command *cmd, uint16_t nsid,
+    uint64_t lba, uint32_t count)
+{
+	nvme_ns_rw_cmd(cmd, NVME_OPC_READ, nsid, lba, count);
+}
+
+static inline
+void	nvme_ns_trim_cmd(struct nvme_command *cmd, uint16_t nsid,
+    uint32_t num_ranges)
+{
+	cmd->opc = NVME_OPC_DATASET_MANAGEMENT;
+	cmd->nsid = nsid;
+	cmd->cdw10 = num_ranges - 1;
+	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
+}
 
 #endif /* _KERNEL */
 

@@ -127,7 +127,6 @@ typedef uint64_t   UINTN;
 #define BAD_POINTER         0xFBFBFBFBFBFBFBFB
 #define MAX_ADDRESS         0xFFFFFFFFFFFFFFFF
 
-#pragma intrinsic (__break)  
 #define BREAKPOINT()  __break(0)
 
 //
@@ -177,10 +176,9 @@ typedef uint64_t   UINTN;
 #define VOLATILE    volatile
 
 //
-// BugBug: Need to find out if this is portable accross compliers.
+// BugBug: Need to find out if this is portable across compilers.
 //
 void __mfa (void);                       
-#pragma intrinsic (__mfa)  
 #define MEMORY_FENCE()    __mfa()
 
 #ifdef EFI_NO_INTERFACE_DECL
@@ -192,7 +190,7 @@ void __mfa (void);
 #endif
 
 //
-// When build similiar to FW, then link everything together as
+// When build similar to FW, then link everything together as
 // one big module.
 //
 

@@ -34,11 +34,13 @@ struct arm64_bootparams {
 	vm_offset_t	kern_l1pt;	/* L1 page table for the kernel */
 	uint64_t	kern_delta;
 	vm_offset_t	kern_stack;
+	vm_offset_t	kern_l0pt;	/* L1 page table for the kernel */
 };
 
 extern vm_paddr_t physmap[];
 extern u_int physmap_idx;
 
 void initarm(struct arm64_bootparams *);
+extern void (*pagezero)(void *);
 
 #endif /* _MACHINE_MACHDEP_H_ */

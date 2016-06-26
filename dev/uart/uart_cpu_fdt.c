@@ -42,9 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#ifndef __aarch64__
-#include <machine/fdt.h>
-#endif
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -53,10 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
-
-#ifdef __aarch64__
-extern bus_space_tag_t fdtbus_bs_tag;
-#endif
 
 /*
  * UART console routines.
@@ -133,12 +126,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	struct uart_class *class;
 	phandle_t node, chosen;
 	pcell_t shift, br, rclk;
-	u_long start, size, pbase, psize;
 	char *cp;
 	int err;
-
-	uart_bus_space_mem = fdtbus_bs_tag;
-	uart_bus_space_io = NULL;
 
 	/* Allow overriding the FDT using the environment. */
 	class = &uart_ns8250_class;
@@ -196,10 +185,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (uart_fdt_get_shift(node, &shift) != 0)
 		shift = uart_getregshift(class);
 
-	if (OF_getprop(node, "current-speed", &br, sizeof(br)) <= 0)
+	if (OF_getencprop(node, "current-speed", &br, sizeof(br)) <= 0)
 		br = 0;
-	else
-		br = fdt32_to_cpu(br);
 
 	/*
 	 * Finalize configuration.
@@ -212,16 +199,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
-	di->bas.bst = uart_bus_space_mem;
 
-	err = fdt_regsize(node, &start, &size);
-	if (err)
-		return (ENXIO);
-	err = fdt_get_range(OF_parent(node), 0, &pbase, &psize);
-	if (err)
-		pbase = 0;
+	err = OF_decode_addr(node, 0, &di->bas.bst, &di->bas.bsh, NULL);
+	uart_bus_space_mem = di->bas.bst;
+	uart_bus_space_io = NULL;
 
-	start += pbase;
-
-	return (bus_space_map(di->bas.bst, start, size, 0, &di->bas.bsh));
+	return (err);
 }

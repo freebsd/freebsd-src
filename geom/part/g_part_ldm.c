@@ -453,8 +453,7 @@ ldm_privhdr_check(struct ldm_db *db, struct g_consumer *cp, int is_gpt)
 		    cp2->provider->mediasize / cp2->provider->sectorsize - 1;
 	} else
 		last = pp->mediasize / pp->sectorsize - 1;
-	for (found = 0, i = is_gpt;
-	    i < sizeof(ldm_ph_off) / sizeof(ldm_ph_off[0]); i++) {
+	for (found = 0, i = is_gpt; i < nitems(ldm_ph_off); i++) {
 		offset = ldm_ph_off[i];
 		/*
 		 * In the GPT case consumer is attached to the LDM metadata
@@ -1014,8 +1013,7 @@ ldm_vmdb_parse(struct ldm_db *db, struct g_consumer *cp)
 	int error;
 
 	pp = cp->provider;
-	size = (db->dh.last_seq * db->dh.size +
-	    pp->sectorsize - 1) / pp->sectorsize;
+	size = howmany(db->dh.last_seq * db->dh.size, pp->sectorsize);
 	size -= 1; /* one sector takes vmdb header */
 	for (n = 0; n < size; n += MAXPHYS / pp->sectorsize) {
 		offset = db->ph.db_offset + db->th.conf_offset + n + 1;
@@ -1222,7 +1220,7 @@ ldm_gpt_probe(struct g_part_table *basetable, struct g_consumer *cp)
 	int error;
 
 	/*
-	 * XXX: We use some knowlege about GEOM_PART_GPT internal
+	 * XXX: We use some knowledge about GEOM_PART_GPT internal
 	 * structures, but it is easier than parse GPT by himself.
 	 */
 	g_topology_lock();
@@ -1468,8 +1466,7 @@ g_part_ldm_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	int i;
 
 	entry = (struct g_part_ldm_entry *)baseentry;
-	for (i = 0;
-	    i < sizeof(ldm_alias_match) / sizeof(ldm_alias_match[0]); i++) {
+	for (i = 0; i < nitems(ldm_alias_match); i++) {
 		if (ldm_alias_match[i].typ == entry->type)
 			return (g_part_alias_name(ldm_alias_match[i].alias));
 	}

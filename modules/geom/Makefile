@@ -21,7 +21,6 @@ SUBDIR=	geom_bde \
 	geom_sched \
 	geom_shsec \
 	geom_stripe \
-	geom_uncompress \
 	geom_uzip \
 	geom_vinum \
 	geom_virstor \

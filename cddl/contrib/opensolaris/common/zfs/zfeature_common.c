@@ -24,6 +24,7 @@
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014, Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #ifdef _KERNEL
@@ -231,8 +232,6 @@ zpool_feature_init(void)
 	    "org.open-zfs:large_blocks", "large_blocks",
 	    "Support for blocks larger than 128KB.",
 	    ZFEATURE_FLAG_PER_DATASET, large_blocks_deps);
-
-#ifdef illumos
 	zfeature_register(SPA_FEATURE_SHA512,
 	    "org.illumos:sha512", "sha512",
 	    "SHA-512/256 hash algorithm.",
@@ -241,6 +240,8 @@ zpool_feature_init(void)
 	    "org.illumos:skein", "skein",
 	    "Skein hash algorithm.",
 	    ZFEATURE_FLAG_PER_DATASET, NULL);
+
+#ifdef illumos
 	zfeature_register(SPA_FEATURE_EDONR,
 	    "org.illumos:edonr", "edonr",
 	    "Edon-R hash algorithm.",

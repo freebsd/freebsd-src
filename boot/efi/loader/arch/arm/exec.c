@@ -44,8 +44,9 @@ __FBSDID("$FreeBSD$");
 #include "loader_efi.h"
 
 extern vm_offset_t md_load(char *, vm_offset_t *);
+extern int bi_load(char *, vm_offset_t *, vm_offset_t *);
 
-int
+static int
 __elfN(arm_load)(char *filename, u_int64_t dest,
     struct preloaded_file **result)
 {
@@ -58,7 +59,7 @@ __elfN(arm_load)(char *filename, u_int64_t dest,
 	return (0);
 }
 
-int
+static int
 __elfN(arm_exec)(struct preloaded_file *fp)
 {
 	struct file_metadata *fmp;
@@ -66,15 +67,17 @@ __elfN(arm_exec)(struct preloaded_file *fp)
 	Elf_Ehdr *e;
 	int error;
 	void (*entry)(void *);
-	EFI_STATUS status;
 
 	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 		return (EFTYPE);
 
 	e = (Elf_Ehdr *)&fmp->md_data;
 
-	if ((error = bi_load(fp->f_args, &modulep, &kernend)) != 0)
+	efi_time_fini();
+	if ((error = bi_load(fp->f_args, &modulep, &kernend)) != 0) {
+		efi_time_init();
 		return (error);
+	}
 
 	entry = efi_translate(e->e_entry);
 	printf("Kernel entry at 0x%x...\n", (unsigned)entry);

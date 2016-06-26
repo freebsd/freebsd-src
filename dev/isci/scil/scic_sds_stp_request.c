@@ -337,7 +337,7 @@ void scu_sata_reqeust_construct_task_context(
 
    // Copy the physical address for the command buffer to the SCU Task Context
    // We must offset the command buffer by 4 bytes because the first 4 bytes are
-   // transfered in the body of the TC
+   // transferred in the body of the TC
    scic_cb_io_request_get_physical_address(
       scic_sds_request_get_controller(this_request),
       this_request,
@@ -398,7 +398,7 @@ void scic_sds_stp_optimized_request_construct(
    // Build the STP task context structure
    scu_sata_reqeust_construct_task_context(this_request, task_context);
 
-   // Copy over the number of bytes to be transfered
+   // Copy over the number of bytes to be transferred
    task_context->transfer_length_bytes = transfer_length;
 
    if ( data_direction == SCI_IO_REQUEST_DATA_OUT )
@@ -1267,7 +1267,7 @@ SCI_STATUS scic_sds_stp_request_pio_data_in_copy_data(
    }
    else
    {
-      // We are transfering the whole frame so copy
+      // We are transferring the whole frame so copy
       status = scic_sds_stp_request_pio_data_in_copy_data_buffer(
          this_request, data_buffer, SCU_MAX_FRAME_BUFFER_SIZE);
 
@@ -1667,7 +1667,7 @@ SCI_STATUS scic_sds_stp_request_pio_data_out_await_data_transmit_completion_tc_c
          }
          else if (this_scic_sds_stp_request->type.pio.pio_transfer_bytes == 0)
          {
-            //this will happen if the all data is written at the first time after the pio setup fis is recieved
+            //this will happen if the all data is written at the first time after the pio setup fis is received
             all_frames_transferred  = TRUE;
          }
 

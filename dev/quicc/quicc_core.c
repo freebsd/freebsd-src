@@ -101,7 +101,7 @@ quicc_bfe_attach(device_t dev)
 	struct quicc_softc *sc;
 	struct resource_list_entry *rle;
 	const char *sep;
-	u_long size, start;
+	rman_res_t size, start;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -110,8 +110,8 @@ quicc_bfe_attach(device_t dev)
 	 * Re-allocate. We expect that the softc contains the information
 	 * collected by quicc_bfe_probe() intact.
 	 */
-	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
-	    0, ~0, 0, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(dev, sc->sc_rtype, &sc->sc_rrid,
+	    RF_ACTIVE);
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
 
@@ -228,13 +228,13 @@ quicc_bfe_probe(device_t dev, u_int clock)
 
 	sc->sc_rrid = 0;
 	sc->sc_rtype = SYS_RES_MEMORY;
-	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
-	    0, ~0, 0, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(dev, sc->sc_rtype, &sc->sc_rrid,
+	    RF_ACTIVE);
 	if (sc->sc_rres == NULL) {
 		sc->sc_rrid = 0;
 		sc->sc_rtype = SYS_RES_IOPORT;
-		sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype,
-		    &sc->sc_rrid, 0, ~0, 0, RF_ACTIVE);
+		sc->sc_rres = bus_alloc_resource_any(dev, sc->sc_rtype,
+		    &sc->sc_rrid, RF_ACTIVE);
 		if (sc->sc_rres == NULL)
 			return (ENXIO);
 	}
@@ -254,7 +254,7 @@ quicc_bfe_probe(device_t dev, u_int clock)
 
 struct resource *
 quicc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct quicc_device *qd;
 	struct resource_list_entry *rle;
@@ -263,7 +263,7 @@ quicc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (NULL);
 
 	/* We only support default allocations. */
-	if (start != 0UL || end != ~0UL)
+	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
 	qd = device_get_ivars(child);
@@ -284,7 +284,7 @@ quicc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 int
 quicc_bus_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
+    rman_res_t *startp, rman_res_t *countp)
 {
 	struct quicc_device *qd;
 	struct resource_list_entry *rle;

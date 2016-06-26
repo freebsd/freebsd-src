@@ -70,7 +70,7 @@ static int	pxa_smi_print_child(device_t, device_t);
 static int	pxa_smi_read_ivar(device_t, device_t, int, uintptr_t *);
 
 static struct resource *	pxa_smi_alloc_resource(device_t, device_t,
-				    int, int *, u_long, u_long, u_long, u_int);
+				    int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int			pxa_smi_release_resource(device_t, device_t,
 				    int, int, struct resource *);
 static int			pxa_smi_activate_resource(device_t, device_t,
@@ -144,9 +144,9 @@ pxa_smi_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 
 	retval += resource_list_print_type(&smid->smid_resources, "at mem",
-	    SYS_RES_MEMORY, "%#lx");
+	    SYS_RES_MEMORY, "%#jx");
 	retval += resource_list_print_type(&smid->smid_resources, "irq",
-	    SYS_RES_IRQ, "%ld");
+	    SYS_RES_IRQ, "%jd");
 
 	retval += bus_print_child_footer(dev, child);
 
@@ -176,7 +176,7 @@ pxa_smi_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 static struct resource *
 pxa_smi_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	pxa_smi_softc *sc;
 	struct	smi_ivars *smid;

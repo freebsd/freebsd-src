@@ -163,7 +163,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	register struct inpcb *in6p;
-	struct inpcb *last = 0;
+	struct inpcb *last = NULL;
 	struct mbuf *opts = NULL;
 	struct sockaddr_in6 fromsa;
 

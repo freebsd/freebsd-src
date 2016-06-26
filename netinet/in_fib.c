@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/vnet.h>
 
 #ifdef RADIX_MPATH
@@ -133,7 +134,7 @@ int
 fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
     uint32_t flowid, struct nhop4_basic *pnh4)
 {
-	struct radix_node_head *rh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
@@ -148,19 +149,19 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin, rh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib4_rte_to_nh_basic(rte, dst, flags, pnh4);
-			RADIX_NODE_HEAD_RUNLOCK(rh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -181,7 +182,7 @@ int
 fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
     uint32_t flowid, struct nhop4_extended *pnh4)
 {
-	struct radix_node_head *rh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
@@ -196,22 +197,29 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin, rh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
+#ifdef RADIX_MPATH
+		rte = rt_mpath_select(rte, flowid);
+		if (rte == NULL) {
+			RIB_RUNLOCK(rh);
+			return (ENOENT);
+		}
+#endif
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib4_rte_to_nh_extended(rte, dst, flags, pnh4);
 			if ((flags & NHR_REF) != 0) {
 				/* TODO: lwref on egress ifp's ? */
 			}
-			RADIX_NODE_HEAD_RUNLOCK(rh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }

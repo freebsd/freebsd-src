@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2008 MARVELL INTERNATIONAL LTD.
  * Copyright (c) 2010 The FreeBSD Foundation
- * Copyright (c) 2010-2012 Semihalf
+ * Copyright (c) 2010-2015 Semihalf
  * All rights reserved.
  *
  * Developed by Semihalf.
@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/endian.h>
+#include <sys/devmap.h>
 
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -61,8 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
@@ -70,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include "ofw_bus_if.h"
 #include "pcib_if.h"
 
-#include <machine/devmap.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 
@@ -221,7 +221,7 @@ mv_pci_ranges(phandle_t node, struct mv_pci_range *io_space,
 }
 
 int
-mv_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va,
+mv_pci_devmap(phandle_t node, struct devmap_entry *devmap, vm_offset_t io_va,
     vm_offset_t mem_va)
 {
 	struct mv_pci_range io_space, mem_space;
@@ -233,15 +233,11 @@ mv_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va
 	devmap->pd_va = (io_va ? io_va : io_space.base_parent);
 	devmap->pd_pa = io_space.base_parent;
 	devmap->pd_size = io_space.len;
-	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_DEVICE;
 	devmap++;
 
 	devmap->pd_va = (mem_va ? mem_va : mem_space.base_parent);
 	devmap->pd_pa = mem_space.base_parent;
 	devmap->pd_size = mem_space.len;
-	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_DEVICE;
 	return (0);
 }
 
@@ -332,7 +328,7 @@ static int mv_pcib_probe(device_t);
 static int mv_pcib_attach(device_t);
 
 static struct resource *mv_pcib_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static int mv_pcib_release_resource(device_t, device_t, int, int,
     struct resource *);
 static int mv_pcib_read_ivar(device_t, device_t, int, uintptr_t *);
@@ -830,7 +826,7 @@ mv_pcib_init_all_bars(struct mv_pcib_softc *sc, int bus, int slot,
 
 static struct resource *
 mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct mv_pcib_softc *sc = device_get_softc(dev);
 	struct rman *rm = NULL;
@@ -846,9 +842,9 @@ mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	default:
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 		    type, rid, start, end, count, flags));
-	};
+	}
 
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		start = sc->sc_mem_base;
 		end = sc->sc_mem_base + sc->sc_mem_size - 1;
 		count = sc->sc_mem_size;
@@ -922,7 +918,7 @@ static inline void
 pcib_write_irq_mask(struct mv_pcib_softc *sc, uint32_t mask)
 {
 
-	if (!sc->sc_type != MV_TYPE_PCI)
+	if (sc->sc_type != MV_TYPE_PCI)
 		return;
 
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, PCIE_REG_IRQ_MASK, mask);
@@ -1016,6 +1012,25 @@ mv_pcib_maxslots(device_t dev)
 	return ((sc->sc_type != MV_TYPE_PCI) ? 1 : PCI_SLOTMAX);
 }
 
+static int
+mv_pcib_root_slot(device_t dev, u_int bus, u_int slot, u_int func)
+{
+#if defined(SOC_MV_ARMADA38X)
+	struct mv_pcib_softc *sc = device_get_softc(dev);
+	uint32_t vendor, device;
+
+	vendor = mv_pcib_hw_cfgread(sc, bus, slot, func, PCIR_VENDOR,
+	    PCIR_VENDOR_LENGTH);
+	device = mv_pcib_hw_cfgread(sc, bus, slot, func, PCIR_DEVICE,
+	    PCIR_DEVICE_LENGTH) & MV_DEV_FAMILY_MASK;
+
+	return (vendor == PCI_VENDORID_MRVL && device == MV_DEV_ARMADA38X);
+#else
+	/* On platforms other than Armada38x, root link is always at slot 0 */
+	return (slot == 0);
+#endif
+}
+
 static uint32_t
 mv_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
@@ -1024,7 +1039,7 @@ mv_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	/* Return ~0 if link is inactive or trying to read from Root */
 	if ((bus_space_read_4(sc->sc_bst, sc->sc_bsh, PCIE_REG_STATUS) &
-	    PCIE_STATUS_LINK_DOWN) || (slot == 0))
+	    PCIE_STATUS_LINK_DOWN) || mv_pcib_root_slot(dev, bus, slot, func))
 		return (~0U);
 
 	return (mv_pcib_hw_cfgread(sc, bus, slot, func, reg, bytes));
@@ -1038,7 +1053,7 @@ mv_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	/* Return if link is inactive or trying to write to Root */
 	if ((bus_space_read_4(sc->sc_bst, sc->sc_bsh, PCIE_REG_STATUS) &
-	    PCIE_STATUS_LINK_DOWN) || (slot == 0))
+	    PCIE_STATUS_LINK_DOWN) || mv_pcib_root_slot(dev, bus, slot, func))
 		return;
 
 	mv_pcib_hw_cfgwrite(sc, bus, slot, func, reg, val, bytes);

@@ -341,7 +341,7 @@ smbfs_setattr(ap)
  		    default:
 			error = EINVAL;
 			goto out;
-  		};
+  		}
 		if (isreadonly) {
 			error = EROFS;
 			goto out;
@@ -358,7 +358,8 @@ smbfs_setattr(ap)
 				doclose = 1;
 		}
 		if (error == 0)
-			error = smbfs_smb_setfsize(np, vap->va_size, scred);
+			error = smbfs_smb_setfsize(np,
+			    (int64_t)vap->va_size, scred);
 		if (doclose)
 			smbfs_smb_close(ssp, np->n_fid, NULL, scred);
 		if (error) {

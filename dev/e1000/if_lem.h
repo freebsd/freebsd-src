@@ -236,10 +236,8 @@
 #define HW_DEBUGOUT1(S, A)          if (DEBUG_HW) printf(S "\n", A)
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
 
-#define EM_MAX_SCATTER		64
+#define EM_MAX_SCATTER		40
 #define EM_VFTA_SIZE		128
-#define EM_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
-#define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
 #define EM_MSIX_MASK		0x01F00000 /* For 82574 use */
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
@@ -417,17 +415,17 @@ struct adapter {
 
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;
-	unsigned long	mbuf_alloc_failed;
+	unsigned long	link_irq;
 	unsigned long	mbuf_cluster_failed;
+	unsigned long	mbuf_defrag_failed;
 	unsigned long	no_tx_desc_avail1;
 	unsigned long	no_tx_desc_avail2;
+	unsigned long	no_tx_dma_setup;
 	unsigned long	no_tx_map_avail;
-        unsigned long	no_tx_dma_setup;
 	unsigned long	watchdog_events;
-	unsigned long	rx_overruns;
 	unsigned long	rx_irq;
+	unsigned long	rx_overruns;
 	unsigned long	tx_irq;
-	unsigned long	link_irq;
 
 	/* 82547 workaround */
 	uint32_t	tx_fifo_size;

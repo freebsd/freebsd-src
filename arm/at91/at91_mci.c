@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
  * speed is 25MHz and the next highest speed is 15MHz or less.  This appears
  * to work on virtually all SD cards, since it is what this driver has been
  * doing prior to the introduction of this option, where the overclocking vs
- * underclocking decision was automaticly "overclock".  Modern SD cards can
+ * underclocking decision was automatically "overclock".  Modern SD cards can
  * run at 45mhz/1-bit in standard mode (high speed mode enable commands not
  * sent) without problems.
  *
@@ -212,7 +212,7 @@ at91_bswap_buf(struct at91_mci_softc *sc, void * dptr, void * sptr, uint32_t mem
 	/*
 	 * If the hardware doesn't need byte-swapping, let bcopy() do the
 	 * work.  Use bounce buffer even if we don't need byteswap, since
-	 * buffer may straddle a page boundry, and we don't handle
+	 * buffer may straddle a page boundary, and we don't handle
 	 * multi-segment transfers in hardware.  Seen from 'bsdlabel -w' which
 	 * uses raw geom access to the volume.  Greg Ansley (gja (at)
 	 * ansley.com)
@@ -446,6 +446,9 @@ at91_mci_attach(device_t dev)
 	    CTLFLAG_RW, &sc->allow_overclock, 0,
 	    "Allow up to 30MHz clock for 25MHz request when next highest speed 15MHz or less.");
 
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "debug",
+	    CTLFLAG_RWTUN, &mci_debug, 0, "enable debug output");
+
 	/*
 	 * Our real min freq is master_clock/512, but upper driver layers are
 	 * going to set the min speed during card discovery, and the right speed
@@ -523,16 +526,16 @@ at91_mci_deactivate(device_t dev)
 	sc = device_get_softc(dev);
 	if (sc->intrhand)
 		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
-	sc->intrhand = 0;
+	sc->intrhand = NULL;
 	bus_generic_detach(sc->dev);
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
-	sc->mem_res = 0;
+	sc->mem_res = NULL;
 	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    rman_get_rid(sc->irq_res), sc->irq_res);
-	sc->irq_res = 0;
+	sc->irq_res = NULL;
 	return;
 }
 
@@ -783,15 +786,6 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 			WR4(sc, PDC_PTCR, PDC_PTCR_RXTEN);
 		} else {
 			len = min(BBSIZE, remaining);
-			/*
-			 * If this is MCI1 revision 2xx controller, apply
-			 * a work-around for the "Data Write Operation and
-			 * number of bytes" erratum.
-			 */
-			if ((sc->sc_cap & CAP_MCI1_REV2XX) && len < 12) {
-				len = 12;
-				memset(sc->bbuf_vaddr[0], 0, 12);
-			}
 			at91_bswap_buf(sc, sc->bbuf_vaddr[0], data->data, len);
 			err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[0],
 			    sc->bbuf_vaddr[0], len, at91_mci_getaddr,
@@ -800,8 +794,13 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				panic("IO write dmamap_load failed\n");
 			bus_dmamap_sync(sc->dmatag, sc->bbuf_map[0],
 			    BUS_DMASYNC_PREWRITE);
+			/*
+			 * Erratum workaround:  PDC transfer length on a write
+			 * must not be smaller than 12 bytes (3 words); only
+			 * blklen bytes (set above) are actually transferred.
+			 */
 			WR4(sc, PDC_TPR,paddr);
-			WR4(sc, PDC_TCR, len / 4);
+			WR4(sc, PDC_TCR, (len < 12) ? 3 : len / 4);
 			sc->bbuf_len[0] = len;
 			remaining -= len;
 			if (remaining == 0) {
@@ -818,7 +817,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				bus_dmamap_sync(sc->dmatag, sc->bbuf_map[1],
 				    BUS_DMASYNC_PREWRITE);
 				WR4(sc, PDC_TNPR, paddr);
-				WR4(sc, PDC_TNCR, len / 4);
+				WR4(sc, PDC_TNCR, (len < 12) ? 3 : len / 4);
 				sc->bbuf_len[1] = len;
 				remaining -= len;
 			}
@@ -1413,3 +1412,4 @@ DRIVER_MODULE(at91_mci, atmelarm, at91_mci_driver, at91_mci_devclass, NULL,
     NULL);
 #endif
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(at91_mci, mmc, 1, 1, 1);

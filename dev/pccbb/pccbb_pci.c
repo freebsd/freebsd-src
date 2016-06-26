@@ -313,7 +313,7 @@ cbb_pci_attach(device_t brdev)
 		mtx_destroy(&sc->mtx);
 		return (ENOMEM);
 	} else {
-		DEVPRINTF((brdev, "Found memory at %08lx\n",
+		DEVPRINTF((brdev, "Found memory at %jx\n",
 		    rman_get_start(sc->base_res)));
 	}
 
@@ -340,7 +340,7 @@ cbb_pci_attach(device_t brdev)
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "memory",
 	    CTLFLAG_RD, &sc->subbus, 0, "Memory window open");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "premem",
-	    CTLFLAG_RD, &sc->subbus, 0, "Prefetch memroy window open");
+	    CTLFLAG_RD, &sc->subbus, 0, "Prefetch memory window open");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "io1",
 	    CTLFLAG_RD, &sc->subbus, 0, "io range 1 open");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "io2",
@@ -435,6 +435,22 @@ err:
 	return (ENOMEM);
 }
 
+static int
+cbb_pci_detach(device_t brdev)
+{
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct cbb_softc *sc = device_get_softc(brdev);
+#endif
+	int error;
+
+	error = cbb_detach(brdev);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (error == 0)
+		pcib_free_secbus(brdev, &sc->bus);
+#endif
+	return (error);
+}
+
 static void
 cbb_chipinit(struct cbb_softc *sc)
 {
@@ -448,7 +464,7 @@ cbb_chipinit(struct cbb_softc *sc)
 	if (pci_read_config(sc->dev, PCIR_LATTIMER, 1) < 0x20)
 		pci_write_config(sc->dev, PCIR_LATTIMER, 0x20, 1);
 
-	/* Enable DMA, memory access for this card and I/O acces for children */
+	/* Enable DMA, memory access for this card and I/O access for children */
 	pci_enable_busmaster(sc->dev);
 	pci_enable_io(sc->dev, SYS_RES_IOPORT);
 	pci_enable_io(sc->dev, SYS_RES_MEMORY);
@@ -783,7 +799,7 @@ cbb_pci_filt(void *arg)
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static struct resource *
 cbb_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct cbb_softc *sc;
 
@@ -797,7 +813,7 @@ cbb_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 cbb_pci_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct cbb_softc *sc;
 
@@ -917,7 +933,7 @@ static device_method_t cbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			cbb_pci_probe),
 	DEVMETHOD(device_attach,		cbb_pci_attach),
-	DEVMETHOD(device_detach,		cbb_detach),
+	DEVMETHOD(device_detach,		cbb_pci_detach),
 	DEVMETHOD(device_shutdown,		cbb_pci_shutdown),
 	DEVMETHOD(device_suspend,		cbb_pci_suspend),
 	DEVMETHOD(device_resume,		cbb_pci_resume),

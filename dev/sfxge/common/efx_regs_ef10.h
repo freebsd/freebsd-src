@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ extern "C" {
  */
 
 #define	ER_DZ_BIU_HW_REV_ID_REG_OFST 0x00000000
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_BIU_HW_REV_ID_REG_RESET 0xeb14face
 
 
@@ -64,7 +64,7 @@ extern "C" {
  */
 
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_OFST 0x00000010
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_STEP 4
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_ROWS 8
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_RESET 0x1111face
@@ -80,7 +80,7 @@ extern "C" {
  */
 
 #define	ER_DZ_BIU_INT_ISR_REG_OFST 0x00000090
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_BIU_INT_ISR_REG_RESET 0x0
 
 
@@ -94,7 +94,7 @@ extern "C" {
  */
 
 #define	ER_DZ_MC_DB_LWRD_REG_OFST 0x00000200
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_MC_DB_LWRD_REG_RESET 0x0
 
 
@@ -108,7 +108,7 @@ extern "C" {
  */
 
 #define	ER_DZ_MC_DB_HWRD_REG_OFST 0x00000204
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_MC_DB_HWRD_REG_RESET 0x0
 
 
@@ -122,7 +122,7 @@ extern "C" {
  */
 
 #define	ER_DZ_EVQ_RPTR_REG_OFST 0x00000400
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_EVQ_RPTR_REG_STEP 8192
 #define	ER_DZ_EVQ_RPTR_REG_ROWS 2048
 #define	ER_DZ_EVQ_RPTR_REG_RESET 0x0
@@ -140,7 +140,7 @@ extern "C" {
  */
 
 #define	ER_DZ_EVQ_TMR_REG_OFST 0x00000420
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_EVQ_TMR_REG_STEP 8192
 #define	ER_DZ_EVQ_TMR_REG_ROWS 2048
 #define	ER_DZ_EVQ_TMR_REG_RESET 0x0
@@ -158,7 +158,7 @@ extern "C" {
  */
 
 #define	ER_DZ_RX_DESC_UPD_REG_OFST 0x00000830
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_RX_DESC_UPD_REG_STEP 8192
 #define	ER_DZ_RX_DESC_UPD_REG_ROWS 2048
 #define	ER_DZ_RX_DESC_UPD_REG_RESET 0x0
@@ -174,7 +174,7 @@ extern "C" {
  */
 
 #define	ER_DZ_TX_DESC_UPD_REG_OFST 0x00000a10
-/* hunta0=pcie_pf_bar2 */
+/* hunta0,medforda0=pcie_pf_bar2 */
 #define	ER_DZ_TX_DESC_UPD_REG_STEP 8192
 #define	ER_DZ_TX_DESC_UPD_REG_ROWS 2048
 #define	ER_DZ_TX_DESC_UPD_REG_RESET 0x0
@@ -248,8 +248,14 @@ extern "C" {
 #define	ESF_DZ_RX_OVERRIDE_HOLDOFF_WIDTH 1
 #define	ESF_DZ_RX_DROP_EVENT_LBN 58
 #define	ESF_DZ_RX_DROP_EVENT_WIDTH 1
-#define	ESF_DZ_RX_EV_RSVD2_LBN 54
-#define	ESF_DZ_RX_EV_RSVD2_WIDTH 4
+#define	ESF_DD_RX_EV_RSVD2_LBN 54
+#define	ESF_DD_RX_EV_RSVD2_WIDTH 4
+#define	ESF_EZ_RX_TCP_UDP_INNER_CHKSUM_ERR_LBN 57
+#define	ESF_EZ_RX_TCP_UDP_INNER_CHKSUM_ERR_WIDTH 1
+#define	ESF_EZ_RX_IP_INNER_CHKSUM_ERR_LBN 56
+#define	ESF_EZ_RX_IP_INNER_CHKSUM_ERR_WIDTH 1
+#define	ESF_EZ_RX_EV_RSVD2_LBN 54
+#define	ESF_EZ_RX_EV_RSVD2_WIDTH 2
 #define	ESF_DZ_RX_EV_SOFT2_LBN 52
 #define	ESF_DZ_RX_EV_SOFT2_WIDTH 2
 #define	ESF_DZ_RX_DSC_PTR_LBITS_LBN 48
@@ -293,10 +299,21 @@ extern "C" {
 #define	ESF_DZ_RX_MAC_CLASS_WIDTH 1
 #define	ESE_DZ_MAC_CLASS_MCAST 1
 #define	ESE_DZ_MAC_CLASS_UCAST 0
-#define	ESF_DZ_RX_EV_SOFT1_LBN 32
-#define	ESF_DZ_RX_EV_SOFT1_WIDTH 3
-#define	ESF_DZ_RX_EV_RSVD1_LBN 30
-#define	ESF_DZ_RX_EV_RSVD1_WIDTH 2
+#define	ESF_DD_RX_EV_SOFT1_LBN 32
+#define	ESF_DD_RX_EV_SOFT1_WIDTH 3
+#define	ESF_EZ_RX_EV_SOFT1_LBN 34
+#define	ESF_EZ_RX_EV_SOFT1_WIDTH 1
+#define	ESF_EZ_RX_ENCAP_HDR_LBN 32
+#define	ESF_EZ_RX_ENCAP_HDR_WIDTH 2
+#define	ESE_EZ_ENCAP_HDR_GRE 2
+#define	ESE_EZ_ENCAP_HDR_VXLAN 1
+#define	ESE_EZ_ENCAP_HDR_NONE 0
+#define	ESF_DD_RX_EV_RSVD1_LBN 30
+#define	ESF_DD_RX_EV_RSVD1_WIDTH 2
+#define	ESF_EZ_RX_EV_RSVD1_LBN 31
+#define	ESF_EZ_RX_EV_RSVD1_WIDTH 1
+#define	ESF_EZ_RX_ABORT_LBN 30
+#define	ESF_EZ_RX_ABORT_WIDTH 1
 #define	ESF_DZ_RX_ECC_ERR_LBN 29
 #define	ESF_DZ_RX_ECC_ERR_WIDTH 1
 #define	ESF_DZ_RX_CRC1_ERR_LBN 28
@@ -369,12 +386,22 @@ extern "C" {
 #define	ESF_DZ_TX_OVERRIDE_HOLDOFF_WIDTH 1
 #define	ESF_DZ_TX_DROP_EVENT_LBN 58
 #define	ESF_DZ_TX_DROP_EVENT_WIDTH 1
-#define	ESF_DZ_TX_EV_RSVD_LBN 48
-#define	ESF_DZ_TX_EV_RSVD_WIDTH 10
+#define	ESF_DD_TX_EV_RSVD_LBN 48
+#define	ESF_DD_TX_EV_RSVD_WIDTH 10
+#define	ESF_EZ_TCP_UDP_INNER_CHKSUM_ERR_LBN 57
+#define	ESF_EZ_TCP_UDP_INNER_CHKSUM_ERR_WIDTH 1
+#define	ESF_EZ_IP_INNER_CHKSUM_ERR_LBN 56
+#define	ESF_EZ_IP_INNER_CHKSUM_ERR_WIDTH 1
+#define	ESF_EZ_TX_EV_RSVD_LBN 48
+#define	ESF_EZ_TX_EV_RSVD_WIDTH 8
 #define	ESF_DZ_TX_SOFT2_LBN 32
 #define	ESF_DZ_TX_SOFT2_WIDTH 16
-#define	ESF_DZ_TX_SOFT1_LBN 24
-#define	ESF_DZ_TX_SOFT1_WIDTH 8
+#define	ESF_DD_TX_SOFT1_LBN 24
+#define	ESF_DD_TX_SOFT1_WIDTH 8
+#define	ESF_EZ_TX_CAN_MERGE_LBN 31
+#define	ESF_EZ_TX_CAN_MERGE_WIDTH 1
+#define	ESF_EZ_TX_SOFT1_LBN 24
+#define	ESF_EZ_TX_SOFT1_WIDTH 7
 #define	ESF_DZ_TX_QLABEL_LBN 16
 #define	ESF_DZ_TX_QLABEL_WIDTH 5
 #define	ESF_DZ_TX_DESCR_INDX_LBN 0
@@ -427,6 +454,48 @@ extern "C" {
 #define	ESF_DZ_TX_TSO_IP_ID_WIDTH 16
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_LBN 0
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_WIDTH 32
+
+
+/* TX_TSO_FATSO2A_DESC */
+#define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
+#define	ESF_DZ_TX_DESC_IS_OPT_WIDTH 1
+#define	ESF_DZ_TX_OPTION_TYPE_LBN 60
+#define	ESF_DZ_TX_OPTION_TYPE_WIDTH 3
+#define	ESE_DZ_TX_OPTION_DESC_TSO 7
+#define	ESE_DZ_TX_OPTION_DESC_VLAN 6
+#define	ESE_DZ_TX_OPTION_DESC_CRC_CSUM 0
+#define	ESF_DZ_TX_TSO_OPTION_TYPE_LBN 56
+#define	ESF_DZ_TX_TSO_OPTION_TYPE_WIDTH 4
+#define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B 3
+#define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A 2
+#define	ESE_DZ_TX_TSO_OPTION_DESC_ENCAP 1
+#define	ESE_DZ_TX_TSO_OPTION_DESC_NORMAL 0
+#define	ESF_DZ_TX_TSO_IP_ID_LBN 32
+#define	ESF_DZ_TX_TSO_IP_ID_WIDTH 16
+#define	ESF_DZ_TX_TSO_TCP_SEQNO_LBN 0
+#define	ESF_DZ_TX_TSO_TCP_SEQNO_WIDTH 32
+
+
+/* TX_TSO_FATSO2B_DESC */
+#define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
+#define	ESF_DZ_TX_DESC_IS_OPT_WIDTH 1
+#define	ESF_DZ_TX_OPTION_TYPE_LBN 60
+#define	ESF_DZ_TX_OPTION_TYPE_WIDTH 3
+#define	ESE_DZ_TX_OPTION_DESC_TSO 7
+#define	ESE_DZ_TX_OPTION_DESC_VLAN 6
+#define	ESE_DZ_TX_OPTION_DESC_CRC_CSUM 0
+#define	ESF_DZ_TX_TSO_OPTION_TYPE_LBN 56
+#define	ESF_DZ_TX_TSO_OPTION_TYPE_WIDTH 4
+#define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B 3
+#define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A 2
+#define	ESE_DZ_TX_TSO_OPTION_DESC_ENCAP 1
+#define	ESE_DZ_TX_TSO_OPTION_DESC_NORMAL 0
+#define	ESF_DZ_TX_TSO_OUTER_IP_ID_LBN 16
+#define	ESF_DZ_TX_TSO_OUTER_IP_ID_WIDTH 16
+#define	ESF_DZ_TX_TSO_TCP_MSS_LBN 32
+#define	ESF_DZ_TX_TSO_TCP_MSS_WIDTH 16
+#define	ESF_DZ_TX_TSO_INNER_PE_CSUM_LBN 0
+#define	ESF_DZ_TX_TSO_INNER_PE_CSUM_WIDTH 16
 
 
 /* ES_TX_VLAN_DESC */

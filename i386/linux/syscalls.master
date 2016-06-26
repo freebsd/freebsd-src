@@ -270,12 +270,12 @@
 152	AUE_MLOCKALL	NOPROTO	{ int mlockall(int how); }
 153	AUE_MUNLOCKALL	NOPROTO	{ int munlockall(void); }
 154	AUE_SCHED_SETPARAM	STD	{ int linux_sched_setparam(l_pid_t pid, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 155	AUE_SCHED_GETPARAM	STD	{ int linux_sched_getparam(l_pid_t pid, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 156	AUE_SCHED_SETSCHEDULER	STD { int linux_sched_setscheduler( \
 				    l_pid_t pid, l_int policy, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 157	AUE_SCHED_GETSCHEDULER	STD { int linux_sched_getscheduler( \
 				    l_pid_t pid); }
 158	AUE_NULL	NOPROTO	{ int sched_yield(void); }
@@ -452,7 +452,7 @@
 267	AUE_NULL	STD	{ int linux_clock_nanosleep(clockid_t which, int flags, \
 					struct l_timespec *rqtp, struct l_timespec *rmtp); }
 268	AUE_STATFS	STD	{ int linux_statfs64(char *path, size_t bufsize, struct l_statfs64_buf *buf); }
-269	AUE_FSTATFS	STD	{ int linux_fstatfs64(void); }
+269	AUE_FSTATFS	STD	{ int linux_fstatfs64(l_uint fd, size_t bufsize, struct l_statfs64_buf *buf); }
 270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
 271	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 					struct l_timeval *tptr); }
@@ -528,8 +528,8 @@
 ; linux 2.6.17:
 311	AUE_NULL	STD	{ int linux_set_robust_list(struct linux_robust_list_head *head, \
 					l_size_t len); }
-312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, struct linux_robust_list_head **head, \
-					l_size_t *len); }
+312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, \
+				    struct linux_robust_list_head **head, l_size_t *len); }
 313	AUE_NULL	STD	{ int linux_splice(void); }
 314	AUE_NULL	STD	{ int linux_sync_file_range(void); }
 315	AUE_NULL	STD	{ int linux_tee(void); }

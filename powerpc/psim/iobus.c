@@ -50,7 +50,6 @@
 #include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
 #include <machine/resource.h>
 
@@ -72,7 +71,8 @@ static void iobus_probe_nomatch(device_t, device_t);
 static int  iobus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int  iobus_write_ivar(device_t, device_t, int, uintptr_t);
 static struct   resource *iobus_alloc_resource(device_t, device_t, int, int *,
-					       u_long, u_long, u_long, u_int);
+					       rman_res_t, rman_res_t, rman_res_t,
+					       u_int);
 static int  iobus_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
 static int  iobus_deactivate_resource(device_t, device_t, int, int,
@@ -232,7 +232,7 @@ iobus_attach(device_t dev)
 			iobus_add_reg(child, dinfo, sc->sc_addr);
                         device_set_ivars(cdev, dinfo);
                 } else {
-                        free(name, M_OFWPROP);
+                        OF_prop_free(name);
                 }
         }
 
@@ -253,7 +253,7 @@ iobus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	
         retval += printf(" offset 0x%x", dinfo->id_reg[1]);
-        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	
         retval += bus_print_child_footer(dev, child);
 
@@ -272,7 +272,7 @@ iobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
         struct iobus_devinfo *dinfo;
 
-        if ((dinfo = device_get_ivars(child)) == 0)
+        if ((dinfo = device_get_ivars(child)) == NULL)
                 return (ENOENT);
 
         switch (which) {
@@ -305,7 +305,8 @@ iobus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 static struct resource *
 iobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
+		     rman_res_t start, rman_res_t end, rman_res_t count,
+		     u_int flags)
 {
 	struct iobus_softc *sc;
 	int  needactivate;

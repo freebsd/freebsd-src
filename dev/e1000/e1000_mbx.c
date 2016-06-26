@@ -67,7 +67,7 @@ static s32 e1000_null_mbx_transact(struct e1000_hw E1000_UNUSEDARG *hw,
  *  @size: Length of buffer
  *  @mbx_id: id of mailbox to read
  *
- *  returns SUCCESS if it successfuly read message from buffer
+ *  returns SUCCESS if it successfully read message from buffer
  **/
 s32 e1000_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
@@ -426,15 +426,21 @@ static s32 e1000_check_for_rst_vf(struct e1000_hw *hw,
 static s32 e1000_obtain_mbx_lock_vf(struct e1000_hw *hw)
 {
 	s32 ret_val = -E1000_ERR_MBX;
+	int count = 10;
 
 	DEBUGFUNC("e1000_obtain_mbx_lock_vf");
 
-	/* Take ownership of the buffer */
-	E1000_WRITE_REG(hw, E1000_V2PMAILBOX(0), E1000_V2PMAILBOX_VFU);
+	do {
+		/* Take ownership of the buffer */
+		E1000_WRITE_REG(hw, E1000_V2PMAILBOX(0), E1000_V2PMAILBOX_VFU);
 
-	/* reserve mailbox for vf use */
-	if (e1000_read_v2p_mailbox(hw) & E1000_V2PMAILBOX_VFU)
-		ret_val = E1000_SUCCESS;
+		/* reserve mailbox for vf use */
+		if (e1000_read_v2p_mailbox(hw) & E1000_V2PMAILBOX_VFU) {
+			ret_val = E1000_SUCCESS;
+			break;
+		}
+		usec_delay(1000);
+	} while (count-- > 0);
 
 	return ret_val;
 }
@@ -487,7 +493,7 @@ out_no_write:
  *  @size: Length of buffer
  *  @mbx_id: id of mailbox to read
  *
- *  returns SUCCESS if it successfuly read message from buffer
+ *  returns SUCCESS if it successfully read message from buffer
  **/
 static s32 e1000_read_mbx_vf(struct e1000_hw *hw, u32 *msg, u16 size,
 			     u16 E1000_UNUSEDARG mbx_id)
@@ -639,18 +645,26 @@ static s32 e1000_obtain_mbx_lock_pf(struct e1000_hw *hw, u16 vf_number)
 {
 	s32 ret_val = -E1000_ERR_MBX;
 	u32 p2v_mailbox;
+	int count = 10;
 
 	DEBUGFUNC("e1000_obtain_mbx_lock_pf");
 
-	/* Take ownership of the buffer */
-	E1000_WRITE_REG(hw, E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_PFU);
+	do {
+		/* Take ownership of the buffer */
+		E1000_WRITE_REG(hw, E1000_P2VMAILBOX(vf_number),
+				E1000_P2VMAILBOX_PFU);
 
-	/* reserve mailbox for vf use */
-	p2v_mailbox = E1000_READ_REG(hw, E1000_P2VMAILBOX(vf_number));
-	if (p2v_mailbox & E1000_P2VMAILBOX_PFU)
-		ret_val = E1000_SUCCESS;
+		/* reserve mailbox for pf use */
+		p2v_mailbox = E1000_READ_REG(hw, E1000_P2VMAILBOX(vf_number));
+		if (p2v_mailbox & E1000_P2VMAILBOX_PFU) {
+			ret_val = E1000_SUCCESS;
+			break;
+		}
+		usec_delay(1000);
+	} while (count-- > 0);
 
 	return ret_val;
+
 }
 
 /**

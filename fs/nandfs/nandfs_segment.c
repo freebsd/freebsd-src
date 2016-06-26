@@ -199,7 +199,7 @@ delete_segment(struct nandfs_seginfo *seginfo)
 			TAILQ_REMOVE(&seg->segsum, bp, b_cluster.cluster_entry);
 			bp->b_flags &= ~B_MANAGED;
 			brelse(bp);
-		};
+		}
 
 		LIST_REMOVE(seg, seg_link);
 		free(seg, M_DEVBUF);
@@ -479,6 +479,7 @@ nandfs_iterate_dirty_vnodes(struct mount *mp, struct nandfs_seginfo *seginfo)
 	struct nandfs_node *nandfs_node;
 	struct vnode *vp, *mvp;
 	struct thread *td;
+	struct bufobj *bo;
 	int error, update;
 
 	td = curthread;
@@ -499,17 +500,21 @@ nandfs_iterate_dirty_vnodes(struct mount *mp, struct nandfs_seginfo *seginfo)
 			update = 1;
 		}
 
+		bo = &vp->v_bufobj;
+		BO_LOCK(bo);
 		if (vp->v_bufobj.bo_dirty.bv_cnt) {
 			error = nandfs_iterate_dirty_buf(vp, seginfo, 0);
 			if (error) {
 				nandfs_error("%s: cannot iterate vnode:%p "
 				    "err:%d\n", __func__, vp, error);
 				vput(vp);
+				BO_UNLOCK(bo);
 				return (error);
 			}
 			update = 1;
 		} else
 			vput(vp);
+		BO_UNLOCK(bo);
 
 		if (update)
 			nandfs_node_update(nandfs_node);
@@ -747,7 +752,7 @@ nandfs_clean_segblocks(struct nandfs_segment *seg, uint8_t unlock)
 	TAILQ_FOREACH_SAFE(bp, &seg->segsum, b_cluster.cluster_entry, tbp) {
 		TAILQ_REMOVE(&seg->segsum, bp, b_cluster.cluster_entry);
 		nandfs_clean_buf(fsdev, bp);
-	};
+	}
 
 	TAILQ_FOREACH_SAFE(bp, &seg->data, b_cluster.cluster_entry, tbp) {
 		TAILQ_REMOVE(&seg->data, bp, b_cluster.cluster_entry);
@@ -802,7 +807,7 @@ nandfs_save_segblocks(struct nandfs_segment *seg, uint8_t unlock)
 			goto out;
 		}
 		i++;
-	};
+	}
 
 	i = 0;
 	TAILQ_FOREACH_SAFE(bp, &seg->data, b_cluster.cluster_entry, tbp) {

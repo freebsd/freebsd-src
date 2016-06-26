@@ -806,7 +806,7 @@ mpiMsgConsume(
  *  \param messagePtr1 Pointer to the returned message buffer to free
  *  \param messagePtr2 Pointer to the returned message buffer to free if bc > 1
  *
- * Returns consumed and processed message to the the specified outbounf queue
+ * Returns consumed and processed message to the specified outbounf queue
  *
  * Return:
  *         AGSA_RC_SUCCESS if the message has been returned succesfully

@@ -867,7 +867,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 			break;
 		}
 		i_ptr++;
-	};
+	}
 
 	if (!matchp) {
 		db_printf("undefined\n");
@@ -1023,7 +1023,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 		}
 		if (*(++f_ptr))
 			db_printf(", ");
-	};
+	}
 
 	db_printf("\n");
 

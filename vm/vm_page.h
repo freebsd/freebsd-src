@@ -141,7 +141,7 @@ struct vm_page {
 	vm_object_t object;		/* which object am I in (O,P) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page */
-	struct md_page md;		/* machine dependant stuff */
+	struct md_page md;		/* machine dependent stuff */
 	u_int wire_count;		/* wired down maps refs (P) */
 	volatile u_int busy_lock;	/* busy owners lock */
 	uint16_t hold_count;		/* page hold count (P) */
@@ -215,7 +215,7 @@ struct vm_pagequeue {
 	struct mtx	pq_mutex;
 	struct pglist	pq_pl;
 	int		pq_cnt;
-	int		* const pq_vcnt;
+	u_int		* const pq_vcnt;
 	const char	* const pq_name;
 } __aligned(CACHE_LINE_SIZE);
 
@@ -552,6 +552,7 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 		    (m));						\
 } while (0)
 
+/* Note: page m's lock must not be owned by the caller. */
 #define	vm_page_xunbusy(m) do {						\
 	if (!atomic_cmpset_rel_int(&(m)->busy_lock,			\
 	    VPB_SINGLE_EXCLUSIVER, VPB_UNBUSIED))			\

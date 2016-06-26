@@ -92,6 +92,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
+options 	DEVICE_NUMA		# I/O Device Affinity
 
 # CPU frequency control
 device		cpufreq

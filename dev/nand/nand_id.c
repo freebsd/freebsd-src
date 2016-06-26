@@ -59,7 +59,7 @@ struct nand_params *nand_get_params(struct nand_id *id)
 {
 	int i;
 
-	for (i = 0; i < sizeof(nand_ids) / sizeof(nand_ids[0]); i++)
+	for (i = 0; i < nitems(nand_ids); i++)
 		if (nand_ids[i].id.man_id == id->man_id &&
 		    nand_ids[i].id.dev_id == id->dev_id)
 			return (&nand_ids[i]);

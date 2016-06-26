@@ -283,12 +283,12 @@
 141	AUE_SETPRIORITY	NOPROTO	{ int setpriority(int which, int who, \
 				    int prio); }
 142	AUE_SCHED_SETPARAM	STD	{ int linux_sched_setparam(l_pid_t pid, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 143	AUE_SCHED_GETPARAM	STD	{ int linux_sched_getparam(l_pid_t pid, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 144	AUE_SCHED_SETSCHEDULER	STD { int linux_sched_setscheduler( \
 				    l_pid_t pid, l_int policy, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 145	AUE_SCHED_GETSCHEDULER	STD { int linux_sched_getscheduler( \
 				    l_pid_t pid); }
 146	AUE_SCHED_GET_PRIORITY_MAX	STD { int linux_sched_get_priority_max( \
@@ -461,8 +461,8 @@
 272	AUE_NULL	STD	{ int linux_unshare(void); }
 273	AUE_NULL	STD	{ int linux_set_robust_list(struct linux_robust_list_head *head, \
 				    l_size_t len); }
-274	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, struct linux_robust_list_head *head, \
-				    l_size_t *len); }
+274	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, \
+				    struct linux_robust_list_head **head, l_size_t *len); }
 275	AUE_NULL	STD	{ int linux_splice(void); }
 276	AUE_NULL	STD	{ int linux_tee(void); }
 277	AUE_NULL	STD	{ int linux_sync_file_range(void); }

@@ -27,9 +27,6 @@ options 	SOC_IMX53
 
 options 	SCHED_4BSD		# 4BSD scheduler
 #options 	NFSD			# Network Filesystem Server
-#options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
-#options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
-#options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
 options 	PLATFORM
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 
@@ -136,11 +133,3 @@ device		wlan_amrr		# AMRR transmit rate control algorithm
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-
-# NOTE: serial console will be disabled if syscons enabled
-# Uncomment following lines for framebuffer/syscons support
-#device		sc
-#device		vt
-#device		kbdmux
-#options 	SC_DFLT_FONT		# compile font in
-#makeoptions	SC_DFLT_FONT=cp437

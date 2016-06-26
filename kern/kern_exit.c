@@ -189,7 +189,6 @@ exit1(struct thread *td, int rval, int signo)
 {
 	struct proc *p, *nq, *q, *t;
 	struct thread *tdt;
-	struct vnode *ttyvp = NULL;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(rval == 0 || signo == 0, ("exit1 rv %d sig %d", rval, signo));
@@ -351,7 +350,10 @@ exit1(struct thread *td, int rval, int signo)
 		KASSERT(!timevalisset(&p->p_realtimer.it_value),
 		    ("realtime timer is still armed"));
 	}
+
 	PROC_UNLOCK(p);
+
+	umtx_thread_exit(td);
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
@@ -394,60 +396,9 @@ exit1(struct thread *td, int rval, int signo)
 	}
 
 	vmspace_exit(td);
-
-	sx_xlock(&proctree_lock);
-	if (SESS_LEADER(p)) {
-		struct session *sp = p->p_session;
-		struct tty *tp;
-
-		/*
-		 * s_ttyp is not zero'd; we use this to indicate that
-		 * the session once had a controlling terminal. (for
-		 * logging and informational purposes)
-		 */
-		SESS_LOCK(sp);
-		ttyvp = sp->s_ttyvp;
-		tp = sp->s_ttyp;
-		sp->s_ttyvp = NULL;
-		sp->s_ttydp = NULL;
-		sp->s_leader = NULL;
-		SESS_UNLOCK(sp);
-
-		/*
-		 * Signal foreground pgrp and revoke access to
-		 * controlling terminal if it has not been revoked
-		 * already.
-		 *
-		 * Because the TTY may have been revoked in the mean
-		 * time and could already have a new session associated
-		 * with it, make sure we don't send a SIGHUP to a
-		 * foreground process group that does not belong to this
-		 * session.
-		 */
-
-		if (tp != NULL) {
-			tty_lock(tp);
-			if (tp->t_session == sp)
-				tty_signal_pgrp(tp, SIGHUP);
-			tty_unlock(tp);
-		}
-
-		if (ttyvp != NULL) {
-			sx_xunlock(&proctree_lock);
-			if (vn_lock(ttyvp, LK_EXCLUSIVE) == 0) {
-				VOP_REVOKE(ttyvp, REVOKEALL);
-				VOP_UNLOCK(ttyvp, 0);
-			}
-			sx_xlock(&proctree_lock);
-		}
-	}
-	fixjobc(p, p->p_pgrp, 0);
-	sx_xunlock(&proctree_lock);
+	killjobc();
 	(void)acct_process(td);
 
-	/* Release the TTY now we've unlocked everything. */
-	if (ttyvp != NULL)
-		vrele(ttyvp);
 #ifdef KTRACE
 	ktrprocexit(td);
 #endif
@@ -647,7 +598,6 @@ exit1(struct thread *td, int rval, int signo)
 	wakeup(p->p_pptr);
 	cv_broadcast(&p->p_pwait);
 	sched_exit(p->p_pptr, td);
-	umtx_thread_exit(td);
 	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);

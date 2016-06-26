@@ -300,7 +300,7 @@ dmtpps_poll(struct timecounter *tc)
 		pps_capture(&sc->pps_state);
 		sc->pps_state.capcount = DMTIMER_READ4(sc, DMT_TCAR1);
 		DMTIMER_WRITE4(sc, DMT_IRQSTATUS, DMT_IRQ_TCAR);
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->pps_task);
+		taskqueue_enqueue(taskqueue_fast, &sc->pps_task);
 	}
 }
 

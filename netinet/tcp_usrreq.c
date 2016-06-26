@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
@@ -85,11 +84,13 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_RFC7413
 #include <netinet/tcp_fastopen.h>
 #endif
+#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#include <netinet/cc/cc.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -524,6 +525,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = tp->t_fb->tfb_tcp_output(tp);
 out:
 	TCPDEBUG2(PRU_CONNECT);
+	TCP_PROBE2(debug__user, tp, PRU_CONNECT);
 	INP_WUNLOCK(inp);
 	return (error);
 }
@@ -1359,14 +1361,16 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
  * has to revalidate that the connection is still valid for the socket
  * option.
  */
-#define INP_WLOCK_RECHECK(inp) do {					\
+#define INP_WLOCK_RECHECK_CLEANUP(inp, cleanup) do {			\
 	INP_WLOCK(inp);							\
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {		\
 		INP_WUNLOCK(inp);					\
+		cleanup;						\
 		return (ECONNRESET);					\
 	}								\
 	tp = intotcpcb(inp);						\
 } while(0)
+#define INP_WLOCK_RECHECK(inp) INP_WLOCK_RECHECK_CLEANUP((inp), /* noop */)
 
 int
 tcp_ctloutput(struct socket *so, struct sockopt *sopt)
@@ -1478,8 +1482,35 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 	u_int	ui;
 	struct	tcp_info ti;
 	struct cc_algo *algo;
-	char buf[TCP_CA_NAME_MAX];
-	
+	char	*pbuf, buf[TCP_CA_NAME_MAX];
+	size_t	len;
+
+	/*
+	 * For TCP_CCALGOOPT forward the control to CC module, for both
+	 * SOPT_SET and SOPT_GET.
+	 */
+	switch (sopt->sopt_name) {
+	case TCP_CCALGOOPT:
+		INP_WUNLOCK(inp);
+		pbuf = malloc(sopt->sopt_valsize, M_TEMP, M_WAITOK | M_ZERO);
+		error = sooptcopyin(sopt, pbuf, sopt->sopt_valsize,
+		    sopt->sopt_valsize);
+		if (error) {
+			free(pbuf, M_TEMP);
+			return (error);
+		}
+		INP_WLOCK_RECHECK_CLEANUP(inp, free(pbuf, M_TEMP));
+		if (CC_ALGO(tp)->ctl_output != NULL)
+			error = CC_ALGO(tp)->ctl_output(tp->ccv, sopt, pbuf);
+		else
+			error = ENOENT;
+		INP_WUNLOCK(inp);
+		if (error == 0 && sopt->sopt_dir == SOPT_GET)
+			error = sooptcopyout(sopt, pbuf, sopt->sopt_valsize);
+		free(pbuf, M_TEMP);
+		return (error);
+	}
+
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
@@ -1573,50 +1604,45 @@ unlock_and_done:
 
 		case TCP_CONGESTION:
 			INP_WUNLOCK(inp);
-			bzero(buf, sizeof(buf));
-			error = sooptcopyin(sopt, &buf, sizeof(buf), 1);
+			error = sooptcopyin(sopt, buf, TCP_CA_NAME_MAX - 1, 1);
 			if (error)
 				break;
+			buf[sopt->sopt_valsize] = '\0';
 			INP_WLOCK_RECHECK(inp);
-			/*
-			 * Return EINVAL if we can't find the requested cc algo.
-			 */
-			error = EINVAL;
 			CC_LIST_RLOCK();
-			STAILQ_FOREACH(algo, &cc_list, entries) {
-				if (strncmp(buf, algo->name, TCP_CA_NAME_MAX)
-				    == 0) {
-					/* We've found the requested algo. */
-					error = 0;
-					/*
-					 * We hold a write lock over the tcb
-					 * so it's safe to do these things
-					 * without ordering concerns.
-					 */
-					if (CC_ALGO(tp)->cb_destroy != NULL)
-						CC_ALGO(tp)->cb_destroy(tp->ccv);
-					CC_ALGO(tp) = algo;
-					/*
-					 * If something goes pear shaped
-					 * initialising the new algo,
-					 * fall back to newreno (which
-					 * does not require initialisation).
-					 */
-					if (algo->cb_init != NULL)
-						if (algo->cb_init(tp->ccv) > 0) {
-							CC_ALGO(tp) = &newreno_cc_algo;
-							/*
-							 * The only reason init
-							 * should fail is
-							 * because of malloc.
-							 */
-							error = ENOMEM;
-						}
-					break; /* Break the STAILQ_FOREACH. */
-				}
-			}
+			STAILQ_FOREACH(algo, &cc_list, entries)
+				if (strncmp(buf, algo->name,
+				    TCP_CA_NAME_MAX) == 0)
+					break;
 			CC_LIST_RUNLOCK();
-			goto unlock_and_done;
+			if (algo == NULL) {
+				INP_WUNLOCK(inp);
+				error = EINVAL;
+				break;
+			}
+			/*
+			 * We hold a write lock over the tcb so it's safe to
+			 * do these things without ordering concerns.
+			 */
+			if (CC_ALGO(tp)->cb_destroy != NULL)
+				CC_ALGO(tp)->cb_destroy(tp->ccv);
+			CC_ALGO(tp) = algo;
+			/*
+			 * If something goes pear shaped initialising the new
+			 * algo, fall back to newreno (which does not
+			 * require initialisation).
+			 */
+			if (algo->cb_init != NULL &&
+			    algo->cb_init(tp->ccv) != 0) {
+				CC_ALGO(tp) = &newreno_cc_algo;
+				/*
+				 * The only reason init should fail is
+				 * because of malloc.
+				 */
+				error = ENOMEM;
+			}
+			INP_WUNLOCK(inp);
+			break;
 
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
@@ -1762,10 +1788,9 @@ unlock_and_done:
 			error = sooptcopyout(sopt, &ti, sizeof ti);
 			break;
 		case TCP_CONGESTION:
-			bzero(buf, sizeof(buf));
-			strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
+			len = strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
 			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
+			error = sooptcopyout(sopt, buf, len + 1);
 			break;
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
@@ -1815,6 +1840,7 @@ unlock_and_done:
 	return (error);
 }
 #undef INP_WLOCK_RECHECK
+#undef INP_WLOCK_RECHECK_CLEANUP
 
 /*
  * Attach TCP protocol to socket, allocating
@@ -1860,6 +1886,7 @@ tcp_attach(struct socket *so)
 	tp->t_state = TCPS_CLOSED;
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
+	TCPSTATES_INC(TCPS_CLOSED);
 	return (0);
 }
 

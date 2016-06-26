@@ -191,6 +191,7 @@ struct vdev {
 	uint64_t	vdev_islog;	/* is an intent log device	*/
 	uint64_t	vdev_removing;	/* device is being removed?	*/
 	boolean_t	vdev_ishole;	/* is a hole in the namespace 	*/
+	uint64_t	vdev_top_zap;
 
 	/*
 	 * Leaf vdev state.
@@ -234,6 +235,7 @@ struct vdev {
 	uint16_t	vdev_rotation_rate; /* rotational rate of the media */
 #define	VDEV_RATE_UNKNOWN	0
 #define	VDEV_RATE_NON_ROTATING	1
+	uint64_t	vdev_leaf_zap;
 
 	/*
 	 * For DTrace to work in userland (libzpool) context, these fields must
@@ -367,6 +369,7 @@ extern void vdev_set_min_asize(vdev_t *vd);
  */
 /* zdb uses this tunable, so it must be declared here to make lint happy. */
 extern int zfs_vdev_cache_size;
+extern uint_t zfs_geom_probe_vdev_key;
 
 #ifdef illumos
 /*

@@ -311,9 +311,10 @@ extern	void ipsec_delisr(struct ipsecrequest *);
 struct tdb_ident;
 extern struct secpolicy *ipsec_getpolicy(struct tdb_ident*, u_int);
 struct inpcb;
-extern struct secpolicy *ipsec4_checkpolicy(struct mbuf *, u_int,
-	int *, struct inpcb *);
-extern struct secpolicy * ipsec_getpolicybyaddr(struct mbuf *, u_int, int *);
+extern struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, u_int,
+    int *, struct inpcb *);
+extern struct secpolicy * ipsec_getpolicybyaddr(const struct mbuf *, u_int,
+    int *);
 
 struct inpcb;
 extern int ipsec_init_policy(struct socket *so, struct inpcbpolicy **);
@@ -323,23 +324,23 @@ extern u_int ipsec_get_reqlevel(struct ipsecrequest *);
 extern int ipsec_set_policy(struct inpcb *inp, int optname,
 	caddr_t request, size_t len, struct ucred *cred);
 extern int ipsec_get_policy(struct inpcb *inpcb, caddr_t request,
-	size_t len, struct mbuf **mp);
+    size_t len, struct mbuf **mp);
 extern int ipsec_delete_pcbpolicy(struct inpcb *);
-extern int ipsec4_in_reject(struct mbuf *, struct inpcb *);
+extern int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
 
 struct secas;
 struct tcpcb;
 extern int ipsec_chkreplay(u_int32_t, struct secasvar *);
 extern int ipsec_updatereplay(u_int32_t, struct secasvar *);
 
-extern size_t ipsec_hdrsiz(struct mbuf *, u_int, struct inpcb *);
+extern size_t ipsec_hdrsiz(const struct mbuf *, u_int, struct inpcb *);
 extern size_t ipsec_hdrsiz_tcp(struct tcpcb *);
 
 union sockaddr_union;
 extern char *ipsec_address(union sockaddr_union *, char *, socklen_t);
 extern char *ipsec_logsastr(struct secasvar *, char *, size_t);
 
-extern void ipsec_dumpmbuf(struct mbuf *);
+extern void ipsec_dumpmbuf(const struct mbuf *);
 
 struct m_tag;
 extern int ah4_input(struct mbuf **mp, int *offp, int proto);
@@ -352,8 +353,6 @@ extern int ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			int skip, int protoff);
 extern int ipsec4_process_packet(struct mbuf *, struct ipsecrequest *);
 extern int ipsec_process_done(struct mbuf *, struct ipsecrequest *);
-
-extern struct mbuf *ipsec_copypkt(struct mbuf *);
 
 extern	void m_checkalignment(const char* where, struct mbuf *m0,
 		int off, int len);

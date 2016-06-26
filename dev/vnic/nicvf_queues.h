@@ -96,7 +96,7 @@
  */
 #define	CMP_QSIZE		CMP_QUEUE_SIZE2
 #define	CMP_QUEUE_LEN		(1UL << (CMP_QSIZE + 10))
-#define	CMP_QUEUE_CQE_THRESH	0
+#define	CMP_QUEUE_CQE_THRESH	32
 #define	CMP_QUEUE_TIMER_THRESH	220 /* 10usec */
 
 #define	RBDR_SIZE		RBDR_SIZE0
@@ -131,10 +131,13 @@
 #define	NICVF_RCV_BUF_ALIGN_LEN(addr)		\
     (NICVF_ALIGNED_ADDR((addr), NICVF_RCV_BUF_ALIGN_BYTES) - (addr))
 
-#define	NICVF_TXBUF_MAXSIZE	9212	/* Total max payload without TSO */
+#define	NICVF_TXBUF_MAXSIZE	NIC_HW_MAX_FRS	/* Total max payload without TSO */
 #define	NICVF_TXBUF_NSEGS	256	/* Single command is at most 256 buffers
 					   (hdr + 255 subcmds) */
-
+/* TSO-related definitions */
+#define	NICVF_TSO_MAXSIZE	IP_MAXPACKET
+#define	NICVF_TSO_NSEGS		NICVF_TXBUF_NSEGS
+#define	NICVF_TSO_HEADER_SIZE	128
 
 /* Queue enable/disable */
 #define	NICVF_SQ_EN		(1UL << 19)
@@ -275,6 +278,9 @@ struct rcv_queue {
 	uint8_t		start_qs_rbdr_idx; /* RBDR idx in the above QS */
 	uint8_t		caching;
 	struct		rx_tx_queue_stats stats;
+
+	boolean_t	lro_enabled;
+	struct lro_ctrl	lro;
 } __aligned(CACHE_LINE_SIZE);
 
 struct cmp_queue {
@@ -290,6 +296,7 @@ struct cmp_queue {
 
 	struct task		cmp_task;
 	struct taskqueue	*cmp_taskq;
+	u_int			cmp_cpuid; /* CPU to which bind the CQ task */
 
 	void			*desc;
 	struct q_desc_mem	dmem;
@@ -381,6 +388,8 @@ void nicvf_enable_intr(struct nicvf *, int, int);
 void nicvf_disable_intr(struct nicvf *, int, int);
 void nicvf_clear_intr(struct nicvf *, int, int);
 int nicvf_is_intr_enabled(struct nicvf *, int, int);
+
+int nicvf_xmit_locked(struct snd_queue *sq);
 
 /* Register access APIs */
 void nicvf_reg_write(struct nicvf *, uint64_t, uint64_t);

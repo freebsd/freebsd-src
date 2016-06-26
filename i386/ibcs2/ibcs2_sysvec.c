@@ -57,7 +57,7 @@ extern struct sysent ibcs2_sysent[IBCS2_SYS_MAXSYSCALL];
 static int ibcs2_fixup(register_t **, struct image_params *);
 
 struct sysentvec ibcs2_svr3_sysvec = {
-        .sv_size	= sizeof (ibcs2_sysent) / sizeof (ibcs2_sysent[0]),
+        .sv_size	= nitems(ibcs2_sysent),
         .sv_table	= ibcs2_sysent,
         .sv_mask	= 0xff,
         .sv_sigsize	= IBCS2_SIGTBLSZ,

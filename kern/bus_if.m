@@ -44,8 +44,8 @@ INTERFACE bus;
 CODE {
 	static struct resource *
 	null_alloc_resource(device_t dev, device_t child,
-	    int type, int *rid, u_long start, u_long end,
-	    u_long count, u_int flags)
+	    int type, int *rid, rman_res_t start, rman_res_t end,
+	    rman_res_t count, u_int flags)
 	{
 	    return (0);
 	}
@@ -121,7 +121,7 @@ METHOD void probe_nomatch {
  * @param _child	the child device whose instance variable is
  *			being read
  * @param _index	the instance variable to read
- * @param _result	a loction to recieve the instance variable
+ * @param _result	a location to receive the instance variable
  *			value
  * 
  * @retval 0		success
@@ -232,6 +232,19 @@ METHOD device_t add_child {
 } DEFAULT null_add_child;
 
 /**
+ * @brief Rescan the bus
+ *
+ * This method is called by a parent bridge or devctl to trigger a bus
+ * rescan.  The rescan should delete devices no longer present and
+ * enumerate devices that have newly arrived.
+ *
+ * @param _dev		the bus device
+ */
+METHOD int rescan {
+	device_t _dev;
+}
+
+/**
  * @brief Allocate a system resource
  *
  * This method is called by child devices of a bus to allocate resources.
@@ -247,9 +260,9 @@ METHOD device_t add_child {
  * @param _type		the type of resource to allocate
  * @param _rid		a pointer to the resource identifier
  * @param _start	hint at the start of the resource range - pass
- *			@c 0UL for any start address
+ *			@c 0 for any start address
  * @param _end		hint at the end of the resource range - pass
- *			@c ~0UL for any end address
+ *			@c ~0 for any end address
  * @param _count	hint at the size of range required - pass @c 1
  *			for any size
  * @param _flags	any extra flags to control the resource
@@ -264,9 +277,9 @@ METHOD struct resource * alloc_resource {
 	device_t	_child;
 	int		_type;
 	int	       *_rid;
-	u_long		_start;
-	u_long		_end;
-	u_long		_count;
+	rman_res_t	_start;
+	rman_res_t	_end;
+	rman_res_t	_count;
 	u_int		_flags;
 } DEFAULT null_alloc_resource;
 
@@ -274,8 +287,9 @@ METHOD struct resource * alloc_resource {
  * @brief Activate a resource
  *
  * Activate a resource previously allocated with
- * BUS_ALLOC_RESOURCE(). This may for instance map a memory region
- * into the kernel's virtual address space.
+ * BUS_ALLOC_RESOURCE().  This may enable decoding of this resource in a
+ * device for instance.  It will also establish a mapping for the resource
+ * unless RF_UNMAPPED was set when allocating the resource.
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
@@ -291,12 +305,58 @@ METHOD int activate_resource {
 	struct resource *_r;
 };
 
+
+/**
+ * @brief Map a resource
+ *
+ * Allocate a mapping for a range of an active resource.  The mapping
+ * is described by a struct resource_map object.  This may for instance
+ * map a memory region into the kernel's virtual address space.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which allocated the resource
+ * @param _type		the type of resource
+ * @param _r		the resource to map
+ * @param _args		optional attributes of the mapping
+ * @param _map		the mapping
+ */
+METHOD int map_resource {
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	struct resource *_r;
+	struct resource_map_request *_args;
+	struct resource_map *_map;
+} DEFAULT bus_generic_map_resource;
+
+
+/**
+ * @brief Unmap a resource
+ *
+ * Release a mapping previously allocated with
+ * BUS_MAP_RESOURCE(). This may for instance unmap a memory region
+ * from the kernel's virtual address space.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which allocated the resource
+ * @param _type		the type of resource
+ * @param _r		the resource
+ * @param _map		the mapping to release
+ */
+METHOD int unmap_resource {
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	struct resource *_r;
+	struct resource_map *_map;
+} DEFAULT bus_generic_unmap_resource;
+
+
 /**
  * @brief Deactivate a resource
  *
  * Deactivate a resource previously allocated with
- * BUS_ALLOC_RESOURCE(). This may for instance unmap a memory region
- * from the kernel's virtual address space.
+ * BUS_ALLOC_RESOURCE(). 
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
@@ -332,8 +392,8 @@ METHOD int adjust_resource {
 	device_t	_child;
 	int		_type;
 	struct resource *_res;
-	u_long		_start;
-	u_long		_end;
+	rman_res_t	_start;
+	rman_res_t	_end;
 };
 
 /**
@@ -358,6 +418,35 @@ METHOD int release_resource {
 };
 
 /**
+ * @brief Map an interrupt
+ *
+ * This method is used to get an interrupt mapping data according to provided
+ * hints. The hints could be modified afterwards, but only if mapping data was
+ * allocated. This method is intended to be called before BUS_ALLOC_RESOURCE().
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which is requesting an allocation
+ * @param _rid		a pointer to the resource identifier
+ * @param _start	a pointer to the hint at the start of the resource
+ *			range - pass @c 0 for any start address
+ * @param _end		a pointer to the hint at the end of the resource
+ *			range - pass @c ~0 for any end address
+ * @param _count	a pointer to the hint at the size of resource
+ *			range required - pass @c 1 for any size
+ * @param _imd		a pointer to the interrupt mapping data which was
+ *			allocated
+ */
+METHOD int map_intr {
+	device_t	_dev;
+	device_t	_child;
+	int		*_rid;
+	rman_res_t	*_start;
+	rman_res_t	*_end;
+	rman_res_t	*_count;
+	struct intr_map_data **_imd;
+} DEFAULT bus_generic_map_intr;
+
+/**
  * @brief Install an interrupt handler
  *
  * This method is used to associate an interrupt handler function with
@@ -376,7 +465,7 @@ METHOD int release_resource {
  *			triggers
  * @param _arg		a value to use as the single argument in calls
  *			to @p _intr
- * @param _cookiep	a pointer to a location to recieve a cookie
+ * @param _cookiep	a pointer to a location to receive a cookie
  *			value that may be used to remove the interrupt
  *			handler
  */
@@ -433,8 +522,8 @@ METHOD int set_resource {
 	device_t	_child;
 	int		_type;
 	int		_rid;
-	u_long		_start;
-	u_long		_count;
+	rman_res_t	_start;
+	rman_res_t	_count;
 };
 
 /**
@@ -447,9 +536,9 @@ METHOD int set_resource {
  * @param _child	the device which owns the resource
  * @param _type		the type of resource
  * @param _rid		the resource identifier
- * @param _start	the address of a location to recieve the start
+ * @param _start	the address of a location to receive the start
  *			index of the resource range
- * @param _count	the address of a location to recieve the size
+ * @param _count	the address of a location to receive the size
  *			of the resource range
  */
 METHOD int get_resource {
@@ -457,8 +546,8 @@ METHOD int get_resource {
 	device_t	_child;
 	int		_type;
 	int		_rid;
-	u_long		*_startp;
-	u_long		*_countp;
+	rman_res_t	*_startp;
+	rman_res_t	*_countp;
 };
 
 /**
@@ -517,8 +606,15 @@ METHOD int child_present {
 /**
  * @brief Returns the pnp info for this device.
  *
- * Return it as a string.  If the string is insufficient for the
- * storage, then return EOVERFLOW.
+ * Return it as a string.  If the storage is insufficient for the
+ * string, then return EOVERFLOW.
+ *
+ * The string must be formatted as a space-separated list of
+ * name=value pairs.  Names may only contain alphanumeric characters,
+ * underscores ('_') and hyphens ('-').  Values can contain any
+ * non-whitespace characters.  Values containing whitespace can be
+ * quoted with double quotes ('"').  Double quotes and backslashes in
+ * quoted values can be escaped with backslashes ('\').
  * 
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is being examined
@@ -536,9 +632,16 @@ METHOD int child_pnpinfo_str {
 /**
  * @brief Returns the location for this device.
  *
- * Return it as a string.  If the string is insufficient for the
- * storage, then return EOVERFLOW.
- * 
+ * Return it as a string.  If the storage is insufficient for the
+ * string, then return EOVERFLOW.
+ *
+ * The string must be formatted as a space-separated list of
+ * name=value pairs.  Names may only contain alphanumeric characters,
+ * underscores ('_') and hyphens ('-').  Values can contain any
+ * non-whitespace characters.  Values containing whitespace can be
+ * quoted with double quotes ('"').  Double quotes and backslashes in
+ * quoted values can be escaped with backslashes ('\').
+ *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is being examined
  * @param _buf		the address of a buffer to receive the location
@@ -637,6 +740,17 @@ METHOD bus_dma_tag_t get_dma_tag {
 } DEFAULT bus_generic_get_dma_tag;
 
 /**
+ * @brief Returns bus_space_tag_t for use w/ devices on the bus.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device to which the tag will belong
+ */
+METHOD bus_space_tag_t get_bus_tag {
+	device_t	_dev;
+	device_t	_child;
+} DEFAULT bus_generic_get_bus_tag;
+
+/**
  * @brief Allow the bus to determine the unit number of a device.
  *
  * @param _dev		the parent device of @p _child
@@ -707,3 +821,21 @@ METHOD int get_domain {
 	device_t	_child;
 	int		*_domain;
 } DEFAULT bus_generic_get_domain;
+
+/**
+ * @brief Request a set of CPUs
+ *
+ * @param _dev		the bus device
+ * @param _child	the child device
+ * @param _op		type of CPUs to request
+ * @param _setsize	the size of the set passed in _cpuset
+ * @param _cpuset	a pointer to a cpuset to receive the requested
+ *			set of CPUs
+ */
+METHOD int get_cpus {
+	device_t	_dev;
+	device_t	_child;
+	enum cpu_sets	_op;
+	size_t		_setsize;
+	cpuset_t	*_cpuset;
+} DEFAULT bus_generic_get_cpus;

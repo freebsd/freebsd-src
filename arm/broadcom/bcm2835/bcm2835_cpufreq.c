@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #define	MSG_ERROR	  -999999999
 #define	MHZSTEP			 100
 #define	HZSTEP	   (MHZ2HZ(MHZSTEP))
-#define	TZ_ZEROC		2732
+#define	TZ_ZEROC		2731
 
 #define VC_LOCK(sc) do {			\
 		sema_wait(&vc_sema);		\

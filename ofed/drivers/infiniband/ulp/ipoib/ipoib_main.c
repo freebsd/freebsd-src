@@ -258,6 +258,10 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0;
 
+	/* check if detaching */
+	if (priv == NULL || priv->gone != 0)
+		return (ENXIO);
+
 	switch (command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
@@ -794,6 +798,7 @@ ipoib_detach(struct ipoib_dev_priv *priv)
 
 	dev = priv->dev;
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
+		priv->gone = 1;
 		bpfdetach(dev);
 		if_detach(dev);
 		if_free(dev);
@@ -1291,7 +1296,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 		else if (m->m_flags & M_MCAST)
 			ip_ib_mc_map(((struct sockaddr_in *)dst)->sin_addr.s_addr, ifp->if_broadcastaddr, edst);
 		else
-			error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
+			error = arpresolve(ifp, is_gw, m, dst, edst, NULL, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
@@ -1329,7 +1334,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 		else if (m->m_flags & M_MCAST)
 			ipv6_ib_mc_map(&((struct sockaddr_in6 *)dst)->sin6_addr, ifp->if_broadcastaddr, edst);
 		else
-			error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL);
+			error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL, NULL);
 		if (error)
 			return error;
 		type = htons(ETHERTYPE_IPV6);
@@ -1480,7 +1485,7 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		e_addr = LLADDR(sdl);
 		if (!IPOIB_IS_MULTICAST(e_addr))
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 
 #ifdef INET
@@ -1535,6 +1540,6 @@ static moduledata_t ipoib_mod = {
 			                .evhand = ipoib_evhand,
 };
 
-DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_LAST, SI_ORDER_ANY);
 MODULE_DEPEND(ipoib, ibcore, 1, 1, 1);
 MODULE_DEPEND(ipoib, linuxkpi, 1, 1, 1);

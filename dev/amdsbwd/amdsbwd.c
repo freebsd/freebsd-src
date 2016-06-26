@@ -106,6 +106,8 @@ __FBSDID("$FreeBSD$");
 /* SB7xx RRG 2.3.1.1, SB600 RRG 2.3.1.1, SB8xx RRG 2.3.1.  */
 #define	AMDSB_SMBUS_DEVID		0x43851002
 #define	AMDSB8_SMBUS_REVID		0x40
+#define	AMDHUDSON_SMBUS_DEVID		0x780b1022
+#define	AMDKERNCZ_SMBUS_DEVID		0x790b1022
 
 #define	amdsbwd_verbose_printf(dev, ...)	\
 	do {						\
@@ -279,7 +281,9 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 	smb_dev = pci_find_bsf(0, 20, 0);
 	if (smb_dev == NULL)
 		return;
-	if (pci_get_devid(smb_dev) != AMDSB_SMBUS_DEVID)
+	if (pci_get_devid(smb_dev) != AMDSB_SMBUS_DEVID &&
+	    pci_get_devid(smb_dev) != AMDHUDSON_SMBUS_DEVID &&
+	    pci_get_devid(smb_dev) != AMDKERNCZ_SMBUS_DEVID)
 		return;
 
 	child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "amdsbwd", -1);
@@ -309,10 +313,12 @@ amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
 		*addr <<= 8;
 		*addr |= pmio_read(pmres, AMDSB_PM_WDT_BASE_MSB - i);
 	}
+	*addr &= ~0x07u;
+
 	/* Set watchdog timer tick to 1s. */
 	val = pmio_read(pmres, AMDSB_PM_WDT_CTRL);
 	val &= ~AMDSB_WDT_RES_MASK;
-	val |= AMDSB_WDT_RES_10MS;
+	val |= AMDSB_WDT_RES_1S;
 	pmio_write(pmres, AMDSB_PM_WDT_CTRL, val);
 
 	/* Enable watchdog device (in stopped state). */
@@ -372,7 +378,7 @@ amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 	val = pmio_read(pmres, AMDSB8_PM_WDT_EN);
 	device_printf(dev, "AMDSB8_PM_WDT_EN value = %#02x\n", val);
 #endif
-	device_set_desc(dev, "AMD SB8xx Watchdog Timer");
+	device_set_desc(dev, "AMD SB8xx/SB9xx/Axx Watchdog Timer");
 }
 
 static int
@@ -395,8 +401,8 @@ amdsbwd_probe(device_t dev)
 		return (ENXIO);
 	}
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0ul, ~0ul,
-	    AMDSB_PMIO_WIDTH, RF_ACTIVE | RF_SHAREABLE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (res == NULL) {
 		device_printf(dev, "bus_alloc_resource for IO failed\n");
 		return (ENXIO);
@@ -404,7 +410,8 @@ amdsbwd_probe(device_t dev)
 
 	smb_dev = pci_find_bsf(0, 20, 0);
 	KASSERT(smb_dev != NULL, ("can't find SMBus PCI device\n"));
-	if (pci_get_revid(smb_dev) < AMDSB8_SMBUS_REVID)
+	if (pci_get_devid(smb_dev) == AMDSB_SMBUS_DEVID &&
+	    pci_get_revid(smb_dev) < AMDSB8_SMBUS_REVID)
 		amdsbwd_probe_sb7xx(dev, res, &addr);
 	else
 		amdsbwd_probe_sb8xx(dev, res, &addr);
@@ -440,10 +447,7 @@ amdsbwd_attach_sb(device_t dev, struct amdsbwd_softc *sc)
 
 	smb_dev = pci_find_bsf(0, 20, 0);
 	KASSERT(smb_dev != NULL, ("can't find SMBus PCI device\n"));
-	if (pci_get_revid(smb_dev) < AMDSB8_SMBUS_REVID)
-		sc->ms_per_tick = 10;
-	else
-		sc->ms_per_tick = 1000;
+	sc->ms_per_tick = 1000;
 
 	sc->res_ctrl = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->rid_ctrl, RF_ACTIVE);

@@ -58,6 +58,7 @@
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 
+#include "opt_rootdevname.h"
 #include "opt_geom.h"
 #include "opt_md.h"
 
@@ -130,18 +131,12 @@ SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0,
  */
 #if defined(MD_ROOT_SIZE)
 /*
+ * We put the mfs_root symbol into the oldmfs section of the kernel object file.
  * Applications that patch the object with the image can determine
- * the size looking at the start and end markers (strings),
- * so we want them contiguous.
+ * the size looking at the oldmfs section size within the kernel.
  */
-static struct {
-	u_char start[MD_ROOT_SIZE*1024];
-	u_char end[128];
-} mfs_root = {
-	.start = "MFS Filesystem goes here",
-	.end = "MFS Filesystem had better STOP here",
-};
-const int mfs_root_size = sizeof(mfs_root.start);
+u_char mfs_root[MD_ROOT_SIZE*1024] __attribute__ ((section ("oldmfs")));
+const int mfs_root_size = sizeof(mfs_root);
 #else
 extern volatile u_char __weak_symbol mfs_root;
 extern volatile u_char __weak_symbol mfs_root_end;
@@ -1738,7 +1733,7 @@ md_preloaded(u_char *image, size_t length, const char *name)
 	sc->pl_ptr = image;
 	sc->pl_len = length;
 	sc->start = mdstart_preload;
-#ifdef MD_ROOT
+#if defined(MD_ROOT) && !defined(ROOTDEVNAME)
 	if (sc->unit == 0)
 		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
 #endif

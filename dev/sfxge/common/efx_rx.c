@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,62 +31,63 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_init(
+siena_rx_init(
 	__in		efx_nic_t *enp);
 
 static			void
-falconsiena_rx_fini(
+siena_rx_fini(
 	__in		efx_nic_t *enp);
-
-#if EFSYS_OPT_RX_HDR_SPLIT
-static	__checkReturn	efx_rc_t
-falconsiena_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size);
-#endif /* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
 static	__checkReturn	efx_rc_t
-falconsiena_rx_scatter_enable(
+siena_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size);
 #endif /* EFSYS_OPT_RX_SCATTER */
 
 #if EFSYS_OPT_RX_SCALE
 static	__checkReturn	efx_rc_t
-falconsiena_rx_scale_mode_set(
+siena_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert);
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_scale_key_set(
+siena_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_scale_tbl_set(
+siena_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
 
+static	__checkReturn	uint32_t
+siena_rx_prefix_hash(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t func,
+	__in		uint8_t *buffer);
+
 #endif /* EFSYS_OPT_RX_SCALE */
 
+static	__checkReturn	efx_rc_t
+siena_rx_prefix_pktlen(
+	__in		efx_nic_t *enp,
+	__in		uint8_t *buffer,
+	__out		uint16_t *lengthp);
+
 static			void
-falconsiena_rx_qpost(
+siena_rx_qpost(
 	__in		efx_rxq_t *erp,
 	__in_ecount(n)	efsys_dma_addr_t *addrp,
 	__in		size_t size,
@@ -95,21 +96,21 @@ falconsiena_rx_qpost(
 	__in		unsigned int added);
 
 static			void
-falconsiena_rx_qpush(
+siena_rx_qpush(
 	__in		efx_rxq_t *erp,
 	__in		unsigned int added,
 	__inout		unsigned int *pushedp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_qflush(
+siena_rx_qflush(
 	__in		efx_rxq_t *erp);
 
 static			void
-falconsiena_rx_qenable(
+siena_rx_qenable(
 	__in		efx_rxq_t *erp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_qcreate(
+siena_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -121,90 +122,64 @@ falconsiena_rx_qcreate(
 	__in		efx_rxq_t *erp);
 
 static			void
-falconsiena_rx_qdestroy(
+siena_rx_qdestroy(
 	__in		efx_rxq_t *erp);
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
-
-#if EFSYS_OPT_FALCON
-static efx_rx_ops_t __efx_rx_falcon_ops = {
-	falconsiena_rx_init,			/* erxo_init */
-	falconsiena_rx_fini,			/* erxo_fini */
-#if EFSYS_OPT_RX_HDR_SPLIT
-	falconsiena_rx_hdr_split_enable,	/* erxo_hdr_split_enable */
-#endif
-#if EFSYS_OPT_RX_SCATTER
-	falconsiena_rx_scatter_enable,		/* erxo_scatter_enable */
-#endif
-#if EFSYS_OPT_RX_SCALE
-	falconsiena_rx_scale_mode_set,		/* erxo_scale_mode_set */
-	falconsiena_rx_scale_key_set,		/* erxo_scale_key_set */
-	falconsiena_rx_scale_tbl_set,		/* erxo_scale_tbl_set */
-#endif
-	falconsiena_rx_qpost,			/* erxo_qpost */
-	falconsiena_rx_qpush,			/* erxo_qpush */
-	falconsiena_rx_qflush,			/* erxo_qflush */
-	falconsiena_rx_qenable,			/* erxo_qenable */
-	falconsiena_rx_qcreate,			/* erxo_qcreate */
-	falconsiena_rx_qdestroy,		/* erxo_qdestroy */
-};
-#endif	/* EFSYS_OPT_FALCON */
 
 #if EFSYS_OPT_SIENA
-static efx_rx_ops_t __efx_rx_siena_ops = {
-	falconsiena_rx_init,			/* erxo_init */
-	falconsiena_rx_fini,			/* erxo_fini */
-#if EFSYS_OPT_RX_HDR_SPLIT
-	falconsiena_rx_hdr_split_enable,	/* erxo_hdr_split_enable */
-#endif
+static const efx_rx_ops_t __efx_rx_siena_ops = {
+	siena_rx_init,				/* erxo_init */
+	siena_rx_fini,				/* erxo_fini */
 #if EFSYS_OPT_RX_SCATTER
-	falconsiena_rx_scatter_enable,		/* erxo_scatter_enable */
+	siena_rx_scatter_enable,		/* erxo_scatter_enable */
 #endif
 #if EFSYS_OPT_RX_SCALE
-	falconsiena_rx_scale_mode_set,		/* erxo_scale_mode_set */
-	falconsiena_rx_scale_key_set,		/* erxo_scale_key_set */
-	falconsiena_rx_scale_tbl_set,		/* erxo_scale_tbl_set */
+	siena_rx_scale_mode_set,		/* erxo_scale_mode_set */
+	siena_rx_scale_key_set,			/* erxo_scale_key_set */
+	siena_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
+	siena_rx_prefix_hash,			/* erxo_prefix_hash */
 #endif
-	falconsiena_rx_qpost,			/* erxo_qpost */
-	falconsiena_rx_qpush,			/* erxo_qpush */
-	falconsiena_rx_qflush,			/* erxo_qflush */
-	falconsiena_rx_qenable,			/* erxo_qenable */
-	falconsiena_rx_qcreate,			/* erxo_qcreate */
-	falconsiena_rx_qdestroy,		/* erxo_qdestroy */
+	siena_rx_prefix_pktlen,			/* erxo_prefix_pktlen */
+	siena_rx_qpost,				/* erxo_qpost */
+	siena_rx_qpush,				/* erxo_qpush */
+	siena_rx_qflush,			/* erxo_qflush */
+	siena_rx_qenable,			/* erxo_qenable */
+	siena_rx_qcreate,			/* erxo_qcreate */
+	siena_rx_qdestroy,			/* erxo_qdestroy */
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
-static efx_rx_ops_t __efx_rx_hunt_ops = {
-	hunt_rx_init,				/* erxo_init */
-	hunt_rx_fini,				/* erxo_fini */
-#if EFSYS_OPT_RX_HDR_SPLIT
-	hunt_rx_hdr_split_enable,		/* erxo_hdr_split_enable */
-#endif
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+static const efx_rx_ops_t __efx_rx_ef10_ops = {
+	ef10_rx_init,				/* erxo_init */
+	ef10_rx_fini,				/* erxo_fini */
 #if EFSYS_OPT_RX_SCATTER
-	hunt_rx_scatter_enable,			/* erxo_scatter_enable */
+	ef10_rx_scatter_enable,			/* erxo_scatter_enable */
 #endif
 #if EFSYS_OPT_RX_SCALE
-	hunt_rx_scale_mode_set,			/* erxo_scale_mode_set */
-	hunt_rx_scale_key_set,			/* erxo_scale_key_set */
-	hunt_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
+	ef10_rx_scale_mode_set,			/* erxo_scale_mode_set */
+	ef10_rx_scale_key_set,			/* erxo_scale_key_set */
+	ef10_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
+	ef10_rx_prefix_hash,			/* erxo_prefix_hash */
 #endif
-	hunt_rx_qpost,				/* erxo_qpost */
-	hunt_rx_qpush,				/* erxo_qpush */
-	hunt_rx_qflush,				/* erxo_qflush */
-	hunt_rx_qenable,			/* erxo_qenable */
-	hunt_rx_qcreate,			/* erxo_qcreate */
-	hunt_rx_qdestroy,			/* erxo_qdestroy */
+	ef10_rx_prefix_pktlen,			/* erxo_prefix_pktlen */
+	ef10_rx_qpost,				/* erxo_qpost */
+	ef10_rx_qpush,				/* erxo_qpush */
+	ef10_rx_qflush,				/* erxo_qflush */
+	ef10_rx_qenable,			/* erxo_qenable */
+	ef10_rx_qcreate,			/* erxo_qcreate */
+	ef10_rx_qdestroy,			/* erxo_qdestroy */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 
 	__checkReturn	efx_rc_t
 efx_rx_init(
 	__inout		efx_nic_t *enp)
 {
-	efx_rx_ops_t *erxop;
+	const efx_rx_ops_t *erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -221,23 +196,23 @@ efx_rx_init(
 	}
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		erxop = (efx_rx_ops_t *)&__efx_rx_falcon_ops;
-		break;
-#endif /* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		erxop = (efx_rx_ops_t *)&__efx_rx_siena_ops;
+		erxop = &__efx_rx_siena_ops;
 		break;
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		erxop = (efx_rx_ops_t *)&__efx_rx_hunt_ops;
+		erxop = &__efx_rx_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		erxop = &__efx_rx_ef10_ops;
+		break;
+#endif /* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -270,7 +245,7 @@ fail1:
 efx_rx_fini(
 	__in		efx_nic_t *enp)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
@@ -283,39 +258,13 @@ efx_rx_fini(
 	enp->en_mod_flags &= ~EFX_MOD_RX;
 }
 
-#if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	efx_rc_t
-efx_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size)
-{
-	efx_rx_ops_t *erxop = enp->en_erxop;
-	efx_rc_t rc;
-
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
-	EFSYS_ASSERT3U(enp->en_family, >=, EFX_FAMILY_SIENA);
-
-	if ((rc = erxop->erxo_hdr_split_enable(enp, hdr_buf_size,
-	    pld_buf_size)) != 0)
-		goto fail1;
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-	return (rc);
-}
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
-
 #if EFSYS_OPT_RX_SCATTER
 	__checkReturn	efx_rc_t
 efx_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -392,7 +341,7 @@ efx_rx_scale_mode_set(
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -419,7 +368,7 @@ efx_rx_scale_key_set(
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -444,7 +393,7 @@ efx_rx_scale_tbl_set(
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -472,7 +421,7 @@ efx_rx_qpost(
 	__in		unsigned int added)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
@@ -486,7 +435,7 @@ efx_rx_qpush(
 	__inout		unsigned int *pushedp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
@@ -498,7 +447,7 @@ efx_rx_qflush(
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
@@ -519,7 +468,7 @@ efx_rx_qenable(
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
@@ -538,7 +487,7 @@ efx_rx_qcreate(
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rxq_t *erp;
 	efx_rc_t rc;
 
@@ -583,103 +532,42 @@ efx_rx_qdestroy(
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	erxop->erxo_qdestroy(erp);
 }
 
-/*
- * Psuedo-header info for Siena/Falcon.
- *
- * The psuedo-header is a byte array of one of the forms:
- *
- *  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
- * XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.TT.TT.TT.TT
- * XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.LL.LL
- *
- * where:
- *
- * TT.TT.TT.TT is a 32-bit Toeplitz hash
- * LL.LL is a 16-bit LFSR hash
- *
- * Hash values are in network (big-endian) byte order.
- *
- *
- * On Huntington the pseudo-header is laid out as:
- * (See also SF-109306-TC section 9)
- *
- * Toeplitz hash (32 bits, little-endian)
- * Out-of-band outer VLAN tag
- *     (16 bits, big-endian, 0 if the packet did not have an outer VLAN tag)
- * Out-of-band inner VLAN tag
- *     (16 bits, big-endian, 0 if the packet did not have an inner VLAN tag)
- * Packet length (16 bits, little-endian, may be 0)
- * MAC timestamp (32 bits, little-endian, may be 0)
- * VLAN tag
- *     (16 bits, big-endian, 0 if the packet did not have an outer VLAN tag)
- * VLAN tag
- *     (16 bits, big-endian, 0 if the packet did not have an inner VLAN tag)
- */
-
 	__checkReturn	efx_rc_t
 efx_psuedo_hdr_pkt_length_get(
 	__in		efx_nic_t *enp,
 	__in		uint8_t *buffer,
-	__out		uint16_t *pkt_lengthp)
+	__out		uint16_t *lengthp)
 {
-	if (enp->en_family != EFX_FAMILY_HUNTINGTON) {
-		EFSYS_ASSERT(0);
-		return (ENOTSUP);
-	}
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
-	*pkt_lengthp = buffer[8] | (buffer[9] << 8);
-
-	return (0);
+	return (erxop->erxo_prefix_pktlen(enp, buffer, lengthp));
 }
 
 #if EFSYS_OPT_RX_SCALE
-
-uint32_t
+	__checkReturn	uint32_t
 efx_psuedo_hdr_hash_get(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer)
 {
-	if (func == EFX_RX_HASHALG_TOEPLITZ) {
-		switch (enp->en_family) {
-		case EFX_FAMILY_FALCON:
-		case EFX_FAMILY_SIENA:
-			return ((buffer[12] << 24) |
-			    (buffer[13] << 16) |
-			    (buffer[14] << 8) |
-			    buffer[15]);
-		case EFX_FAMILY_HUNTINGTON:
-			return (buffer[0] |
-			    (buffer[1] << 8) |
-			    (buffer[2] << 16) |
-			    (buffer[3] << 24));
-		default:
-			EFSYS_ASSERT(0);
-			return (0);
-		}
-	} else if (func == EFX_RX_HASHALG_LFSR) {
-		EFSYS_ASSERT(enp->en_family == EFX_FAMILY_FALCON ||
-		    enp->en_family == EFX_FAMILY_SIENA);
-		return ((buffer[14] << 8) | buffer[15]);
-	} else {
-		EFSYS_ASSERT(0);
-		return (0);
-	}
-}
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
+	EFSYS_ASSERT3U(enp->en_hash_support, ==, EFX_RX_HASH_AVAILABLE);
+	return (erxop->erxo_prefix_hash(enp, func, buffer));
+}
 #endif	/* EFSYS_OPT_RX_SCALE */
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_init(
+siena_rx_init(
 	__in		efx_nic_t *enp)
 {
 	efx_oword_t oword;
@@ -714,63 +602,9 @@ falconsiena_rx_init(
 	return (0);
 }
 
-#if EFSYS_OPT_RX_HDR_SPLIT
-static	__checkReturn	efx_rc_t
-falconsiena_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size)
-{
-	unsigned int nhdr32;
-	unsigned int npld32;
-	efx_oword_t oword;
-	efx_rc_t rc;
-
-	nhdr32 = hdr_buf_size / 32;
-	if ((nhdr32 == 0) ||
-	    (nhdr32 >= (1 << FRF_CZ_RX_HDR_SPLIT_HDR_BUF_SIZE_WIDTH)) ||
-	    ((hdr_buf_size % 32) != 0)) {
-		rc = EINVAL;
-		goto fail1;
-	}
-
-	npld32 = pld_buf_size / 32;
-	if ((npld32 == 0) ||
-	    (npld32 >= (1 << FRF_CZ_RX_HDR_SPLIT_PLD_BUF_SIZE_WIDTH)) ||
-	    ((pld_buf_size % 32) != 0)) {
-		rc = EINVAL;
-		goto fail2;
-	}
-
-	if (enp->en_rx_qcount > 0) {
-		rc = EBUSY;
-		goto fail3;
-	}
-
-	EFX_BAR_READO(enp, FR_AZ_RX_CFG_REG, &oword);
-
-	EFX_SET_OWORD_FIELD(oword, FRF_CZ_RX_HDR_SPLIT_EN, 1);
-	EFX_SET_OWORD_FIELD(oword, FRF_CZ_RX_HDR_SPLIT_HDR_BUF_SIZE, nhdr32);
-	EFX_SET_OWORD_FIELD(oword, FRF_CZ_RX_HDR_SPLIT_PLD_BUF_SIZE, npld32);
-
-	EFX_BAR_WRITEO(enp, FR_AZ_RX_CFG_REG, &oword);
-
-	return (0);
-
-fail3:
-	EFSYS_PROBE(fail3);
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
-
 #if EFSYS_OPT_RX_SCATTER
 static	__checkReturn	efx_rc_t
-falconsiena_rx_scatter_enable(
+siena_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size)
 {
@@ -858,11 +692,6 @@ fail1:
 	do {								\
 		efx_oword_t oword;					\
 									\
-		if ((_enp)->en_family == EFX_FAMILY_FALCON) {		\
-			(_rc) = ((_ip) || (_tcp)) ? ENOTSUP : 0;	\
-			break;						\
-		}							\
-									\
 		EFX_BAR_READO((_enp), FR_CZ_RX_RSS_IPV6_REG3, &oword);	\
 		EFX_SET_OWORD_FIELD(oword,				\
 		    FRF_CZ_RX_RSS_IPV6_THASH_ENABLE, 1);		\
@@ -881,7 +710,7 @@ fail1:
 #if EFSYS_OPT_RX_SCALE
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_scale_mode_set(
+siena_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
@@ -928,7 +757,7 @@ fail1:
 
 #if EFSYS_OPT_RX_SCALE
 static	__checkReturn	efx_rc_t
-falconsiena_rx_scale_key_set(
+siena_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
@@ -964,8 +793,6 @@ falconsiena_rx_scale_key_set(
 
 	if ((enp->en_features & EFX_FEATURE_IPV6) == 0)
 		goto done;
-
-	EFSYS_ASSERT3U(enp->en_family, !=, EFX_FAMILY_FALCON);
 
 	byte = 0;
 
@@ -1055,7 +882,7 @@ fail1:
 
 #if EFSYS_OPT_RX_SCALE
 static	__checkReturn	efx_rc_t
-falconsiena_rx_scale_tbl_set(
+siena_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
@@ -1115,8 +942,64 @@ fail1:
 }
 #endif
 
+/*
+ * Falcon/Siena psuedo-header
+ * --------------------------
+ *
+ * Receive packets are prefixed by an optional 16 byte pseudo-header.
+ * The psuedo-header is a byte array of one of the forms:
+ *
+ *  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+ * xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.TT.TT.TT.TT
+ * xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.LL.LL
+ *
+ * where:
+ *   TT.TT.TT.TT   Toeplitz hash (32-bit big-endian)
+ *   LL.LL         LFSR hash     (16-bit big-endian)
+ */
+
+#if EFSYS_OPT_RX_SCALE
+static	__checkReturn	uint32_t
+siena_rx_prefix_hash(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t func,
+	__in		uint8_t *buffer)
+{
+	_NOTE(ARGUNUSED(enp))
+
+	switch (func) {
+	case EFX_RX_HASHALG_TOEPLITZ:
+		return ((buffer[12] << 24) |
+		    (buffer[13] << 16) |
+		    (buffer[14] <<  8) |
+		    buffer[15]);
+
+	case EFX_RX_HASHALG_LFSR:
+		return ((buffer[14] << 8) | buffer[15]);
+
+	default:
+		EFSYS_ASSERT(0);
+		return (0);
+	}
+}
+#endif /* EFSYS_OPT_RX_SCALE */
+
+static	__checkReturn	efx_rc_t
+siena_rx_prefix_pktlen(
+	__in		efx_nic_t *enp,
+	__in		uint8_t *buffer,
+	__out		uint16_t *lengthp)
+{
+	_NOTE(ARGUNUSED(enp, buffer, lengthp))
+
+	/* Not supported by Falcon/Siena hardware */
+	EFSYS_ASSERT(0);
+	return (ENOTSUP);
+}
+
+
 static			void
-falconsiena_rx_qpost(
+siena_rx_qpost(
 	__in		efx_rxq_t *erp,
 	__in_ecount(n)	efsys_dma_addr_t *addrp,
 	__in		size_t size,
@@ -1154,7 +1037,7 @@ falconsiena_rx_qpost(
 }
 
 static			void
-falconsiena_rx_qpush(
+siena_rx_qpush(
 	__in	efx_rxq_t *erp,
 	__in	unsigned int added,
 	__inout	unsigned int *pushedp)
@@ -1186,7 +1069,7 @@ falconsiena_rx_qpush(
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_qflush(
+siena_rx_qflush(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
@@ -1204,7 +1087,7 @@ falconsiena_rx_qflush(
 }
 
 static		void
-falconsiena_rx_qenable(
+siena_rx_qenable(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
@@ -1224,7 +1107,7 @@ falconsiena_rx_qenable(
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_rx_qcreate(
+siena_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -1238,9 +1121,10 @@ falconsiena_rx_qcreate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_oword_t oword;
 	uint32_t size;
-	boolean_t split;
 	boolean_t jumbo;
 	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(esmp))
 
 	EFX_STATIC_ASSERT(EFX_EV_RX_NLABELS ==
 	    (1 << FRF_AZ_RX_DESCQ_LABEL_WIDTH));
@@ -1269,29 +1153,8 @@ falconsiena_rx_qcreate(
 
 	switch (type) {
 	case EFX_RXQ_TYPE_DEFAULT:
-		split = B_FALSE;
 		jumbo = B_FALSE;
 		break;
-
-#if EFSYS_OPT_RX_HDR_SPLIT
-	case EFX_RXQ_TYPE_SPLIT_HEADER:
-		if ((enp->en_family < EFX_FAMILY_SIENA) || ((index & 1) != 0)) {
-			rc = EINVAL;
-			goto fail4;
-		}
-		split = B_TRUE;
-		jumbo = B_TRUE;
-		break;
-
-	case EFX_RXQ_TYPE_SPLIT_PAYLOAD:
-		if ((enp->en_family < EFX_FAMILY_SIENA) || ((index & 1) == 0)) {
-			rc = EINVAL;
-			goto fail4;
-		}
-		split = B_FALSE;
-		jumbo = B_TRUE;
-		break;
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
 	case EFX_RXQ_TYPE_SCATTER:
@@ -1299,7 +1162,6 @@ falconsiena_rx_qcreate(
 			rc = EINVAL;
 			goto fail4;
 		}
-		split = B_FALSE;
 		jumbo = B_TRUE;
 		break;
 #endif	/* EFSYS_OPT_RX_SCATTER */
@@ -1310,10 +1172,7 @@ falconsiena_rx_qcreate(
 	}
 
 	/* Set up the new descriptor queue */
-	EFX_POPULATE_OWORD_10(oword,
-	    FRF_CZ_RX_HDR_SPLIT, split,
-	    FRF_AZ_RX_ISCSI_DDIG_EN, 0,
-	    FRF_AZ_RX_ISCSI_HDIG_EN, 0,
+	EFX_POPULATE_OWORD_7(oword,
 	    FRF_AZ_RX_DESCQ_BUF_BASE_ID, id,
 	    FRF_AZ_RX_DESCQ_EVQ_ID, eep->ee_index,
 	    FRF_AZ_RX_DESCQ_OWNER_ID, 0,
@@ -1340,7 +1199,7 @@ fail1:
 }
 
 static		void
-falconsiena_rx_qdestroy(
+siena_rx_qdestroy(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
@@ -1360,10 +1219,10 @@ falconsiena_rx_qdestroy(
 }
 
 static		void
-falconsiena_rx_fini(
+siena_rx_fini(
 	__in	efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */

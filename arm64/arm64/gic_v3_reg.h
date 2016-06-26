@@ -67,7 +67,7 @@
 
 #define	GICD_TYPER		(0x0004)
 #define		GICD_TYPER_IDBITS(n)	((((n) >> 19) & 0x1F) + 1)
-#define		GICD_TYPER_I_NUM(n)	((((n) & 0xF1) + 1) * 32)
+#define		GICD_TYPER_I_NUM(n)	((((n) & 0x1F) + 1) * 32)
 
 #define	GICD_ISENABLER(n)	(0x0100 + (((n) >> 5) * 4))
 #define		GICD_I_PER_ISENABLERn	(32)
@@ -142,6 +142,8 @@
 #define		GICR_PROPBASER_CACHE_NIWAWB	0x5UL
 #define		GICR_PROPBASER_CACHE_NIRAWAWT	0x6UL
 #define		GICR_PROPBASER_CACHE_NIRAWAWB	0x7UL
+#define		GICR_PROPBASER_CACHE_MASK	\
+		    (0x7UL << GICR_PROPBASER_CACHE_SHIFT)
 
 /*
  * Shareability
@@ -179,6 +181,8 @@
 #define		GICR_PENDBASER_CACHE_NIWAWB	0x5UL
 #define		GICR_PENDBASER_CACHE_NIRAWAWT	0x6UL
 #define		GICR_PENDBASER_CACHE_NIRAWAWB	0x7UL
+#define		GICR_PENDBASER_CACHE_MASK	\
+		    (0x7UL << GICR_PENDBASER_CACHE_SHIFT)
 
 /*
  * Shareability
@@ -217,6 +221,26 @@
 #define	GITS_CTLR		(0x0000)
 #define		GITS_CTLR_EN	(1 << 0)
 
+#define	GITS_IIDR		(0x0004)
+#define	 GITS_IIDR_PRODUCT_SHIFT	24
+#define	 GITS_IIDR_PRODUCT_MASK		(0xff << GITS_IIDR_PRODUCT_SHIFT)
+#define	 GITS_IIDR_VARIANT_SHIFT	16
+#define	 GITS_IIDR_VARIANT_MASK		(0xf << GITS_IIDR_VARIANT_SHIFT)
+#define	 GITS_IIDR_REVISION_SHIFT	12
+#define	 GITS_IIDR_REVISION_MASK	(0xf << GITS_IIDR_REVISION_SHIFT)
+#define	 GITS_IIDR_IMPLEMENTOR_SHIFT	0
+#define	 GITS_IIDR_IMPLEMENTOR_MASK	(0xfff << GITS_IIDR_IMPLEMENTOR_SHIFT)
+
+#define	 GITS_IIDR_RAW(impl, prod, var, rev)		\
+    ((prod) << GITS_IIDR_PRODUCT_SHIFT |		\
+     (var) << GITS_IIDR_VARIANT_SHIFT | 		\
+     (rev) << GITS_IIDR_REVISION_SHIFT |		\
+     (impl) << GITS_IIDR_IMPLEMENTOR_SHIFT)
+
+#define	 GITS_IIDR_IMPL_CAVIUM		(0x34c)
+#define	 GITS_IIDR_PROD_THUNDER		(0xa1)
+#define	 GITS_IIDR_VAR_THUNDER_1	(0x0)
+
 #define	GITS_CBASER		(0x0080)
 #define		GITS_CBASER_VALID	(1UL << 63)
 /*
@@ -239,7 +263,7 @@
 #define		GITS_CBASER_CACHE_NIWAWB	0x5UL
 #define		GITS_CBASER_CACHE_NIRAWAWT	0x6UL
 #define		GITS_CBASER_CACHE_NIRAWAWB	0x7UL
-#define		GITS_CBASER_CACHE_MASK	(0x7UL << GITS_CBASER_TYPE_SHIFT)
+#define		GITS_CBASER_CACHE_MASK	(0x7UL << GITS_CBASER_CACHE_SHIFT)
 /*
  * Shareability
  * 0x0 - Non-shareable
@@ -356,12 +380,6 @@
 /*
  * CPU interface
  */
-#define		GICI_SGI_TLIST_MASK	(0xffffUL)
-#define		GICI_SGI_AFF1_SHIFT	(16UL)
-#define		GICI_SGI_AFF2_SHIFT	(32UL)
-#define		GICI_SGI_AFF3_SHIFT	(48UL)
-#define		GICI_SGI_IPI_MASK	(0xfUL)
-#define		GICI_SGI_IPI_SHIFT	(24UL)
 
 /*
  * Registers list (ICC_xyz_EL1):

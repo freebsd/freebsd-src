@@ -1931,7 +1931,7 @@ mly_unmap_command(struct mly_command *mc)
  * the kernel environment variable "hw.mly.register_physical_channels" is set.
  *
  * When we refer to a "bus", we are referring to the bus number registered with
- * the SIM, wheras a "channel" is a channel number given to the adapter.  In order
+ * the SIM, whereas a "channel" is a channel number given to the adapter.  In order
  * to keep things simple, we map these 1:1, so "bus" and "channel" may be used
  * interchangeably.
  */

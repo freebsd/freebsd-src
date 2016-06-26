@@ -32,18 +32,30 @@
 /* There are no user serviceable parts here, they may change without notice */
 #ifndef _KERNEL
 #error Only include this file in the kernel
-#else
+#endif
 
-#include <machine/acle-compat.h>
-#include "machine/atomic.h"
-#include "machine/cpufunc.h"
-#include "machine/cpuinfo.h"
-#include "machine/sysreg.h"
+#include <machine/atomic.h>
+#include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
+#include <machine/sysreg.h>
+
+#if __ARM_ARCH < 6
+#error Only include this file for ARMv6
+#else
 
 #define CPU_ASID_KERNEL 0
 
+void dcache_wbinv_poc_all(void); /* !!! NOT SMP coherent function !!! */
 vm_offset_t dcache_wb_pou_checked(vm_offset_t, vm_size_t);
 vm_offset_t icache_inv_pou_checked(vm_offset_t, vm_size_t);
+
+#ifdef DEV_PMU
+#include <sys/pcpu.h>
+#define	PMU_OVSR_C		0x80000000	/* Cycle Counter */
+extern uint32_t	ccnt_hi[MAXCPU];
+extern int pmu_attched;
+#endif /* DEV_PMU */
+
 
 /*
  * Macros to generate CP15 (system control processor) read/write functions.
@@ -138,6 +150,18 @@ _WF1(_CP15_ICIMVAU, CP15_ICIMVAU(%0))		/* Instruction cache invalidate */
  * Publicly accessible functions
  */
 
+/* CP14 Debug Registers */
+_RF0(cp14_dbgdidr_get, CP14_DBGDIDR(%0))
+_RF0(cp14_dbgprsr_get, CP14_DBGPRSR(%0))
+_RF0(cp14_dbgoslsr_get, CP14_DBGOSLSR(%0))
+_RF0(cp14_dbgosdlr_get, CP14_DBGOSDLR(%0))
+_RF0(cp14_dbgdscrint_get, CP14_DBGDSCRint(%0))
+
+_WF1(cp14_dbgdscr_v6_set, CP14_DBGDSCRext_V6(%0))
+_WF1(cp14_dbgdscr_v7_set, CP14_DBGDSCRext_V7(%0))
+_WF1(cp14_dbgvcr_set, CP14_DBGVCR(%0))
+_WF1(cp14_dbgoslar_set, CP14_DBGOSLAR(%0))
+
 /* Various control registers */
 
 _RF0(cp15_cpacr_get, CP15_CPACR(%0))
@@ -152,15 +176,14 @@ _RF0(cp15_dfar_get, CP15_DFAR(%0))
 _RF0(cp15_ifar_get, CP15_IFAR(%0))
 _RF0(cp15_l2ctlr_get, CP15_L2CTLR(%0))
 #endif
-/* ARMv6+ and XScale */
 _RF0(cp15_actlr_get, CP15_ACTLR(%0))
 _WF1(cp15_actlr_set, CP15_ACTLR(%0))
-#if __ARM_ARCH >= 6
 _WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0))
 _WF1(cp15_ats1cpw_set, CP15_ATS1CPW(%0))
+_WF1(cp15_ats1cur_set, CP15_ATS1CUR(%0))
+_WF1(cp15_ats1cuw_set, CP15_ATS1CUW(%0))
 _RF0(cp15_par_get, CP15_PAR(%0))
 _RF0(cp15_sctlr_get, CP15_SCTLR(%0))
-#endif
 
 /*CPU id registers */
 _RF0(cp15_midr_get, CP15_MIDR(%0))
@@ -264,12 +287,6 @@ _W64F1(cp15_cnthp_cval_set, CP15_CNTHP_CVAL(%Q0, %R0))
 #undef	_RF0
 #undef	_WF0
 #undef	_WF1
-
-#if __ARM_ARCH >= 6
-/*
- * Cache and TLB maintenance operations for armv6+ code.  The #else block
- * provides armv4/v5 implementations for a few of these used in common code.
- */
 
 /*
  * TLB maintenance operations.
@@ -566,47 +583,51 @@ cp15_ttbr_set(uint32_t reg)
 	tlb_flush_all_ng_local();
 }
 
-#else /* ! __ARM_ARCH >= 6 */
-
 /*
- * armv4/5 compatibility shims.
+ * Functions for address checking:
  *
- * These functions provide armv4 cache maintenance using the new armv6 names.
- * Included here are just the functions actually used now in common code; it may
- * be necessary to add things here over time.
+ *  cp15_ats1cpr_check() ... check stage 1 privileged (PL1) read access
+ *  cp15_ats1cpw_check() ... check stage 1 privileged (PL1) write access
+ *  cp15_ats1cur_check() ... check stage 1 unprivileged (PL0) read access
+ *  cp15_ats1cuw_check() ... check stage 1 unprivileged (PL0) write access
  *
- * The callers of the dcache functions expect these routines to handle address
- * and size values which are not aligned to cacheline boundaries; the armv4 and
- * armv5 asm code handles that.
+ * They must be called while interrupts are disabled to get consistent result.
  */
-
-static __inline void
-dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+static __inline int
+cp15_ats1cpr_check(vm_offset_t addr)
 {
 
-	cpu_dcache_inv_range(va, size);
-	cpu_l2cache_inv_range(va, size);
+	cp15_ats1cpr_set(addr);
+	isb();
+	return (cp15_par_get() & 0x01 ? EFAULT : 0);
 }
 
-static __inline void
-dcache_inv_poc_dma(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+static __inline int
+cp15_ats1cpw_check(vm_offset_t addr)
 {
 
-	/* See armv6 code, above, for why we do L2 before L1 in this case. */
-	cpu_l2cache_inv_range(va, size);
-	cpu_dcache_inv_range(va, size);
+	cp15_ats1cpw_set(addr);
+	isb();
+	return (cp15_par_get() & 0x01 ? EFAULT : 0);
 }
 
-static __inline void
-dcache_wb_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+static __inline int
+cp15_ats1cur_check(vm_offset_t addr)
 {
 
-	cpu_dcache_wb_range(va, size);
-	cpu_l2cache_wb_range(va, size);
+	cp15_ats1cur_set(addr);
+	isb();
+	return (cp15_par_get() & 0x01 ? EFAULT : 0);
 }
 
-#endif /* __ARM_ARCH >= 6 */
+static __inline int
+cp15_ats1cuw_check(vm_offset_t addr)
+{
 
-#endif /* _KERNEL */
+	cp15_ats1cuw_set(addr);
+	isb();
+	return (cp15_par_get() & 0x01 ? EFAULT : 0);
+}
+#endif /* !__ARM_ARCH < 6 */
 
 #endif /* !MACHINE_CPU_V6_H */

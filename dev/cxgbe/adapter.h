@@ -54,6 +54,7 @@
 #include <netinet/tcp_lro.h>
 
 #include "offload.h"
+#include "t4_ioctl.h"
 #include "common/t4_msg.h"
 #include "firmware/t4fw_interface.h"
 
@@ -207,7 +208,6 @@ enum {
 	INTR_RXQ	= (1 << 4),	/* All NIC rxq's take interrupts */
 	INTR_OFLD_RXQ	= (1 << 5),	/* All TOE rxq's take interrupts */
 	INTR_ALL	= (INTR_RXQ | INTR_OFLD_RXQ),
-	VI_NETMAP	= (1 << 6),
 
 	/* adapter debug_flags */
 	DF_DUMP_MBOX	= (1 << 0),
@@ -229,7 +229,7 @@ struct vi_info {
 	unsigned long flags;
 	int if_flags;
 
-	uint16_t *rss;
+	uint16_t *rss, *nm_rss;
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
@@ -246,12 +246,14 @@ struct vi_info {
 	int rsrv_noflowq; /* Reserve queue 0 for non-flowid packets */
 	int nrxq;	/* # of rx queues */
 	int first_rxq;	/* index of first rx queue */
-#ifdef TCP_OFFLOAD
 	int nofldtxq;		/* # of offload tx queues */
 	int first_ofld_txq;	/* index of first offload tx queue */
 	int nofldrxq;		/* # of offload rx queues */
 	int first_ofld_rxq;	/* index of first offload rx queue */
-#endif
+	int nnmtxq;
+	int first_nm_txq;
+	int nnmrxq;
+	int first_nm_rxq;
 	int tmr_idx;
 	int pktc_idx;
 	int qsize_rxq;
@@ -266,6 +268,17 @@ struct vi_info {
 	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
 };
 
+enum {
+	/* tx_sched_class flags */
+	TX_SC_OK	= (1 << 0),	/* Set up in hardware, active. */
+};
+
+struct tx_sched_class {
+	int refcount;
+	int flags;
+	struct t4_sched_class_params params;
+};
+
 struct port_info {
 	device_t dev;
 	struct adapter *adapter;
@@ -274,6 +287,8 @@ struct port_info {
 	int nvi;
 	int up_vis;
 	int uld_vis;
+
+	struct tx_sched_class *tc;	/* traffic classes for this channel */
 
 	struct mtx pi_lock;
 	char lockname[16];
@@ -311,9 +326,7 @@ struct cluster_layout {
 
 struct cluster_metadata {
 	u_int refcount;
-#ifdef INVARIANTS
 	struct fl_sdesc *sd;	/* For debug only.  Could easily be stale */
-#endif
 };
 
 struct fl_sdesc {
@@ -352,6 +365,11 @@ enum {
 	IQS_DISABLED	= 0,
 	IQS_BUSY	= 1,
 	IQS_IDLE	= 2,
+
+	/* netmap related flags */
+	NM_OFF	= 0,
+	NM_ON	= 1,
+	NM_BUSY	= 2,
 };
 
 /*
@@ -438,6 +456,29 @@ struct hw_buf_info {
 };
 
 enum {
+	NUM_MEMWIN = 3,
+
+	MEMWIN0_APERTURE = 2048,
+	MEMWIN0_BASE     = 0x1b800,
+
+	MEMWIN1_APERTURE = 32768,
+	MEMWIN1_BASE     = 0x28000,
+
+	MEMWIN2_APERTURE_T4 = 65536,
+	MEMWIN2_BASE_T4     = 0x30000,
+
+	MEMWIN2_APERTURE_T5 = 128 * 1024,
+	MEMWIN2_BASE_T5     = 0x60000,
+};
+
+struct memwin {
+	struct rwlock mw_lock __aligned(CACHE_LINE_SIZE);
+	uint32_t mw_base;	/* constant after setup_memwin */
+	uint32_t mw_aperture;	/* ditto */
+	uint32_t mw_curpos;	/* protected by mw_lock */
+};
+
+enum {
 	FL_STARVING	= (1 << 0), /* on the adapter's list of starving fl's */
 	FL_DOOMED	= (1 << 1), /* about to be destroyed */
 	FL_BUF_PACKING	= (1 << 2), /* buffer packing enabled */
@@ -503,6 +544,7 @@ struct sge_txq {
 	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
 	struct sglist *gl;
 	__be32 cpl_ctrl0;	/* for convenience */
+	int tc_idx;		/* traffic class */
 
 	struct task tx_reclaim_task;
 	/* stats for common events first */
@@ -548,7 +590,6 @@ iq_to_rxq(struct sge_iq *iq)
 }
 
 
-#ifdef TCP_OFFLOAD
 /* ofld_rxq: SGE ingress queue + SGE free list + miscellaneous items */
 struct sge_ofld_rxq {
 	struct sge_iq iq;	/* MUST be first */
@@ -561,7 +602,6 @@ iq_to_ofld_rxq(struct sge_iq *iq)
 
 	return (__containerof(iq, struct sge_ofld_rxq, iq));
 }
-#endif
 
 struct wrqe {
 	STAILQ_ENTRY(wrqe) link;
@@ -604,7 +644,7 @@ struct sge_wrq {
 
 	/*
 	 * Scratch space for work requests that wrap around after reaching the
-	 * status page, and some infomation about the last WR that used it.
+	 * status page, and some information about the last WR that used it.
 	 */
 	uint16_t ss_pidx;
 	uint16_t ss_len;
@@ -613,7 +653,6 @@ struct sge_wrq {
 } __aligned(CACHE_LINE_SIZE);
 
 
-#ifdef DEV_NETMAP
 struct sge_nm_rxq {
 	struct vi_info *vi;
 
@@ -668,26 +707,14 @@ struct sge_nm_txq {
 	bus_addr_t ba;
 	int iqidx;
 } __aligned(CACHE_LINE_SIZE);
-#endif
 
 struct sge {
-	int timer_val[SGE_NTIMERS];
-	int counter_val[SGE_NCOUNTERS];
-	int fl_starve_threshold;
-	int fl_starve_threshold2;
-	int eq_s_qpp;
-	int iq_s_qpp;
-
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */
-#ifdef TCP_OFFLOAD
 	int nofldrxq;	/* total # of TOE rx queues */
 	int nofldtxq;	/* total # of TOE tx queues */
-#endif
-#ifdef DEV_NETMAP
 	int nnmrxq;	/* total # of netmap rx queues */
 	int nnmtxq;	/* total # of netmap tx queues */
-#endif
 	int niq;	/* total # of ingress queues */
 	int neq;	/* total # of egress queues */
 
@@ -696,22 +723,16 @@ struct sge {
 	struct sge_wrq *ctrlq;	/* Control queues */
 	struct sge_txq *txq;	/* NIC tx queues */
 	struct sge_rxq *rxq;	/* NIC rx queues */
-#ifdef TCP_OFFLOAD
 	struct sge_wrq *ofld_txq;	/* TOE tx queues */
 	struct sge_ofld_rxq *ofld_rxq;	/* TOE rx queues */
-#endif
-#ifdef DEV_NETMAP
 	struct sge_nm_txq *nm_txq;	/* netmap tx queues */
 	struct sge_nm_rxq *nm_rxq;	/* netmap rx queues */
-#endif
 
 	uint16_t iq_start;
 	int eq_start;
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
-	int pad_boundary;
-	int pack_boundary;
 	int8_t safe_hwidx1;	/* may not have room for metadata */
 	int8_t safe_hwidx2;	/* with room for metadata and maybe more */
 	struct sw_zone_info sw_zone_info[SW_ZONE_SIZES];
@@ -743,6 +764,8 @@ struct adapter {
 
 	unsigned int pf;
 	unsigned int mbox;
+	unsigned int vpd_busy;
+	unsigned int vpd_flag;
 
 	/* Interrupt information */
 	int intr_type;
@@ -750,32 +773,31 @@ struct adapter {
 	struct irq {
 		struct resource *res;
 		int rid;
+		volatile int nm_state;	/* NM_OFF, NM_ON, or NM_BUSY */
 		void *tag;
-	} *irq;
+		struct sge_rxq *rxq;
+		struct sge_nm_rxq *nm_rxq;
+	} __aligned(CACHE_LINE_SIZE) *irq;
 
 	bus_dma_tag_t dmat;	/* Parent DMA tag */
 
 	struct sge sge;
 	int lro_timeout;
 
-	struct taskqueue *tq[NCHAN];	/* General purpose taskqueues */
+	struct taskqueue *tq[MAX_NCHAN];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
-	uint8_t chan_map[NCHAN];
+	uint8_t chan_map[MAX_NCHAN];
 
-#ifdef TCP_OFFLOAD
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
 	void *iwarp_softc;	/* (struct c4iw_dev *) */
 	void *iscsi_ulp_softc;	/* (struct cxgbei_data *) */
-#endif
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
 	uint16_t doorbells;
-#ifdef TCP_OFFLOAD
 	int offload_map;	/* ports with IFCAP_TOE enabled */
 	int active_ulds;	/* ULDs activated on this adapter */
-#endif
 	int flags;
 	int debug_flags;
 
@@ -787,16 +809,22 @@ struct adapter {
 	int tracer_valid;	/* bitmap of valid tracers */
 	int tracer_enabled;	/* bitmap of enabled tracers */
 
-	char fw_version[32];
+	char fw_version[16];
+	char tp_version[16];
+	char exprom_version[16];
 	char cfg_file[32];
 	u_int cfcsum;
 	struct adapter_params params;
+	const struct chip_params *chip_params;
 	struct t4_virt_res vres;
 
+	uint16_t nbmcaps;
 	uint16_t linkcaps;
+	uint16_t switchcaps;
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
+	uint16_t tlscaps;
 	uint16_t iscsicaps;
 	uint16_t fcoecaps;
 
@@ -810,17 +838,17 @@ struct adapter {
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
 
-	struct mtx regwin_lock;	/* for indirect reads and memory windows */
+	struct mtx reg_lock;	/* for indirect register access */
+
+	struct memwin memwin[NUM_MEMWIN];	/* memory windows */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */
+	fw_msg_handler_t fw_msg_handler[7];	/* NUM_FW6_TYPES */
 	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
 
-#ifdef INVARIANTS
 	const char *last_op;
 	const void *last_op_thr;
 	int last_op_flags;
-#endif
 
 	int sc_do_rxcopy;
 };
@@ -894,11 +922,11 @@ struct adapter {
 	for (q = &vi->pi->adapter->sge.ofld_rxq[vi->first_ofld_rxq], iter = 0; \
 	    iter < vi->nofldrxq; ++iter, ++q)
 #define for_each_nm_txq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.nm_txq[vi->first_txq], iter = 0; \
-	    iter < vi->ntxq; ++iter, ++q)
+	for (q = &vi->pi->adapter->sge.nm_txq[vi->first_nm_txq], iter = 0; \
+	    iter < vi->nnmtxq; ++iter, ++q)
 #define for_each_nm_rxq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.nm_rxq[vi->first_rxq], iter = 0; \
-	    iter < vi->nrxq; ++iter, ++q)
+	for (q = &vi->pi->adapter->sge.nm_rxq[vi->first_nm_rxq], iter = 0; \
+	    iter < vi->nnmrxq; ++iter, ++q)
 #define for_each_vi(_pi, _iter, _vi) \
 	for ((_vi) = (_pi)->vi, (_iter) = 0; (_iter) < (_pi)->nvi; \
 	     ++(_iter), ++(_vi))
@@ -1011,11 +1039,38 @@ is_40G_port(const struct port_info *pi)
 }
 
 static inline int
+port_top_speed(const struct port_info *pi)
+{
+
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
+		return (100);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
+		return (40);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
+		return (10);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
+		return (1);
+
+	return (0);
+}
+
+static inline int
 tx_resume_threshold(struct sge_eq *eq)
 {
 
 	/* not quite the same as qsize / 4, but this will do. */
 	return (eq->sidx / 4);
+}
+
+static inline int
+t4_use_ldst(struct adapter *sc)
+{
+
+#ifdef notyet
+	return (sc->flags & FW_OK || !sc->use_bd);
+#else
+	return (0);
+#endif
 }
 
 /* t4_main.c */
@@ -1043,8 +1098,8 @@ void vi_tick(void *);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */
-int create_netmap_ifnet(struct port_info *);
-int destroy_netmap_ifnet(struct port_info *);
+void cxgbe_nm_attach(struct vi_info *);
+void cxgbe_nm_detach(struct vi_info *);
 void t4_nm_intr(void *);
 #endif
 
@@ -1065,6 +1120,7 @@ int t4_setup_vi_queues(struct vi_info *);
 int t4_teardown_vi_queues(struct vi_info *);
 void t4_intr_all(void *);
 void t4_intr(void *);
+void t4_vi_intr(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
 void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);

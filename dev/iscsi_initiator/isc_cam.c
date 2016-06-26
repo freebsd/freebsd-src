@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <vm/uma.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -226,7 +227,7 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	  if(ccg->block_size == 0 ||
 	     (ccg->volume_size < ccg->block_size)) {
 	       // print error message  ...
-	       /* XXX: what error is appropiate? */
+	       /* XXX: what error is appropriate? */
 	       break;
 	  } 
 	  else {

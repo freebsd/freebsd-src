@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -84,6 +85,7 @@ struct arm64_intr_entry {
 	u_int			i_hw_irq;	/* Physical interrupt number */
 	u_int			i_cntidx;	/* Index in intrcnt table */
 	u_int			i_handlers;	/* Allocated handlers */
+	u_int			i_cpu;		/* Assigned CPU */
 	u_long			*i_cntp;	/* Interrupt hit counter */
 };
 
@@ -105,7 +107,7 @@ static void
 intr_init(void *dummy __unused)
 {
 
-	mtx_init(&intr_list_lock, "intr sources lock", NULL, MTX_DEF);
+	mtx_init(&intr_list_lock, "intr sources lock", NULL, MTX_SPIN);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
@@ -123,34 +125,47 @@ intrcnt_setname(const char *name, u_int idx)
 }
 
 /*
- * Get intr structure for the given interrupt number.
- * Allocate one if this is the first time.
- * (Similar to ppc's intr_lookup() but without actual
- * lookup since irq number is an index in arm64_intrs[]).
+ * Find the interrupt descriptor in the list
+ * based on the hardware IRQ number.
  */
-static struct arm64_intr_entry *
-intr_acquire(u_int hw_irq)
+static __inline struct arm64_intr_entry *
+intr_lookup_locked(u_int hw_irq)
 {
 	struct arm64_intr_entry *intr;
 
-	mtx_lock(&intr_list_lock);
-
+	mtx_assert(&intr_list_lock, MA_OWNED);
 	SLIST_FOREACH(intr, &irq_slist_head, entries) {
-		if (intr->i_hw_irq == hw_irq) {
-			break;
-		}
+		if (intr->i_hw_irq == hw_irq)
+			return (intr);
 	}
+	return (NULL);
+}
+/*
+ * Get intr structure for the given interrupt number.
+ * Allocate one if this is the first time.
+ */
+static struct arm64_intr_entry *
+intr_allocate(u_int hw_irq)
+{
+	struct arm64_intr_entry *intr;
+
+	/* Check if already allocated */
+	mtx_lock_spin(&intr_list_lock);
+	intr = intr_lookup_locked(hw_irq);
+	mtx_unlock_spin(&intr_list_lock);
 	if (intr != NULL)
-		goto out;
+		return (intr);
 
 	/* Do not alloc another intr when max number of IRQs has been reached */
 	if (intrcntidx >= NIRQS)
-		goto out;
+		return (NULL);
 
 	intr = malloc(sizeof(*intr), M_INTR, M_NOWAIT);
 	if (intr == NULL)
-		goto out;
+		return (NULL);
 
+	/* The default CPU is 0 but can be changed later by bind or shuffle */
+	intr->i_cpu = 0;
 	intr->i_event = NULL;
 	intr->i_handlers = 0;
 	intr->i_trig = INTR_TRIGGER_CONFORM;
@@ -158,10 +173,49 @@ intr_acquire(u_int hw_irq)
 	intr->i_cntidx = atomic_fetchadd_int(&intrcntidx, 1);
 	intr->i_cntp = &intrcnt[intr->i_cntidx];
 	intr->i_hw_irq = hw_irq;
+	mtx_lock_spin(&intr_list_lock);
 	SLIST_INSERT_HEAD(&irq_slist_head, intr, entries);
-out:
-	mtx_unlock(&intr_list_lock);
+	mtx_unlock_spin(&intr_list_lock);
+
 	return intr;
+}
+
+static int
+intr_assign_cpu(void *arg, int cpu)
+{
+#ifdef SMP
+	struct arm64_intr_entry *intr;
+	int error;
+
+	if (root_pic == NULL)
+		panic("Cannot assing interrupt to CPU. No PIC configured");
+	/*
+	 * Set the interrupt to CPU affinity.
+	 * Do not configure this in hardware during early boot.
+	 * We will pick up the assignment once the APs are started.
+	 */
+	if (cpu != NOCPU) {
+		intr = arg;
+		if (!cold && smp_started) {
+			/*
+			 * Bind the interrupt immediately
+			 * if SMP is up and running.
+			 */
+			error = PIC_BIND(root_pic, intr->i_hw_irq, cpu);
+			if (error == 0)
+				intr->i_cpu = cpu;
+		} else {
+			/* Postpone binding until SMP is operational */
+			intr->i_cpu = cpu;
+			error = 0;
+		}
+	} else
+		error = 0;
+
+	return (error);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 static void
@@ -312,7 +366,7 @@ arm_setup_intr(const char *name, driver_filter_t *filt, driver_intr_t handler,
 	struct arm64_intr_entry *intr;
 	int error;
 
-	intr = intr_acquire(hw_irq);
+	intr = intr_allocate(hw_irq);
 	if (intr == NULL)
 		return (ENOMEM);
 
@@ -327,7 +381,7 @@ arm_setup_intr(const char *name, driver_filter_t *filt, driver_intr_t handler,
 	if (intr->i_event == NULL) {
 		error = intr_event_create(&intr->i_event, (void *)intr, 0,
 		    hw_irq, intr_pre_ithread, intr_post_ithread,
-		    intr_post_filter, NULL, "irq%u", hw_irq);
+		    intr_post_filter, intr_assign_cpu, "irq%u", hw_irq);
 		if (error)
 			return (error);
 	}
@@ -336,7 +390,6 @@ arm_setup_intr(const char *name, driver_filter_t *filt, driver_intr_t handler,
 	    intr_priority(flags), flags, cookiep);
 
 	if (!error) {
-		mtx_lock(&intr_list_lock);
 		intrcnt_setname(intr->i_event->ie_fullname, intr->i_cntidx);
 		intr->i_handlers++;
 
@@ -349,14 +402,13 @@ arm_setup_intr(const char *name, driver_filter_t *filt, driver_intr_t handler,
 
 			PIC_UNMASK(root_pic, intr->i_hw_irq);
 		}
-		mtx_unlock(&intr_list_lock);
 	}
 
 	return (error);
 }
 
 int
-arm_teardown_intr(void *cookie)
+intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 {
 	struct arm64_intr_entry *intr;
 	int error;
@@ -364,25 +416,25 @@ arm_teardown_intr(void *cookie)
 	intr = intr_handler_source(cookie);
 	error = intr_event_remove_handler(cookie);
 	if (!error) {
-		mtx_lock(&intr_list_lock);
 		intr->i_handlers--;
 		if (intr->i_handlers == 0)
 			PIC_MASK(root_pic, intr->i_hw_irq);
 		intrcnt_setname(intr->i_event->ie_fullname, intr->i_cntidx);
-		mtx_unlock(&intr_list_lock);
 	}
 
 	return (error);
 }
 
 int
-arm_config_intr(u_int hw_irq, enum intr_trigger trig, enum intr_polarity pol)
+intr_irq_config(u_int hw_irq, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct arm64_intr_entry *intr;
 
-	intr = intr_acquire(hw_irq);
+	mtx_lock_spin(&intr_list_lock);
+	intr = intr_lookup_locked(hw_irq);
+	mtx_unlock_spin(&intr_list_lock);
 	if (intr == NULL)
-		return (ENOMEM);
+		return (EINVAL);
 
 	intr->i_trig = trig;
 	intr->i_pol = pol;
@@ -398,12 +450,9 @@ arm_dispatch_intr(u_int hw_irq, struct trapframe *tf)
 {
 	struct arm64_intr_entry *intr;
 
-	SLIST_FOREACH(intr, &irq_slist_head, entries) {
-		if (intr->i_hw_irq == hw_irq) {
-			break;
-		}
-	}
-
+	mtx_lock_spin(&intr_list_lock);
+	intr = intr_lookup_locked(hw_irq);
+	mtx_unlock_spin(&intr_list_lock);
 	if (intr == NULL)
 		goto stray;
 
@@ -424,22 +473,58 @@ stray:
 
 	if (intr != NULL)
 		PIC_MASK(root_pic, intr->i_hw_irq);
+}
+
+void
+intr_irq_handler(struct trapframe *tf)
+{
+
+	critical_enter();
+	PIC_DISPATCH(root_pic, tf);
+	critical_exit();
 #ifdef HWPMC_HOOKS
 	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
 		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
 #endif
 }
 
-void
-arm_cpu_intr(struct trapframe *tf)
+#ifdef SMP
+static void
+arm_intr_smp_init(void *dummy __unused)
 {
+	struct arm64_intr_entry *intr;
+	int error;
 
-	critical_enter();
-	PIC_DISPATCH(root_pic, tf);
-	critical_exit();
+	if (root_pic == NULL)
+		panic("Cannot assing interrupts to CPUs. No PIC configured");
+
+	mtx_lock_spin(&intr_list_lock);
+	SLIST_FOREACH(intr, &irq_slist_head, entries) {
+		mtx_unlock_spin(&intr_list_lock);
+		error = PIC_BIND(root_pic, intr->i_hw_irq, intr->i_cpu);
+		if (error != 0)
+			intr->i_cpu = 0;
+		mtx_lock_spin(&intr_list_lock);
+	}
+	mtx_unlock_spin(&intr_list_lock);
+}
+SYSINIT(arm_intr_smp_init, SI_SUB_SMP, SI_ORDER_ANY, arm_intr_smp_init, NULL);
+
+/* Attempt to bind the specified IRQ to the specified CPU. */
+int
+intr_irq_bind(u_int hw_irq, int cpu)
+{
+	struct arm64_intr_entry *intr;
+
+	mtx_lock_spin(&intr_list_lock);
+	intr = intr_lookup_locked(hw_irq);
+	mtx_unlock_spin(&intr_list_lock);
+	if (intr == NULL)
+		return (EINVAL);
+
+	return (intr_event_bind(intr->i_event, cpu));
 }
 
-#ifdef SMP
 void
 arm_setup_ipihandler(driver_filter_t *filt, u_int ipi)
 {
@@ -471,9 +556,6 @@ ipi_all_but_self(u_int ipi)
 
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
-
-	/* ARM64TODO: This will be fixed with arm_intrng */
-	ipi += 16;
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	PIC_IPI_SEND(root_pic, other_cpus, ipi);

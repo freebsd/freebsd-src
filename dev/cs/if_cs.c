@@ -180,7 +180,7 @@ wait_eeprom_ready(struct cs_softc *sc)
 	 *
 	 * Before we issue the command, we should be !busy, so that will
 	 * be fast.  The datasheet suggests that clock out from the part
-	 * per word will be on the order of 25us, which is consistant with
+	 * per word will be on the order of 25us, which is consistent with
 	 * the 1MHz serial clock and 16bits...  We should never hit 100,
 	 * let alone 15,000 here.  The original code did an unconditional
 	 * 30ms DELAY here.  Bad Kharma.  cs_readreg takes ~2us.
@@ -258,7 +258,7 @@ cs_cs89x0_probe(device_t dev)
 {
 	int i;
 	int error;
-	u_long irq, junk;
+	rman_res_t irq, junk;
 	struct cs_softc *sc = device_get_softc(dev);
 	unsigned rev_type = 0;
 	uint16_t id;
@@ -406,8 +406,8 @@ cs_alloc_port(device_t dev, int rid, int size)
 	struct cs_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0ul, ~0ul, size, RF_ACTIVE);
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+	    size, RF_ACTIVE);
 	if (res == NULL)
 		return (ENOENT);
 	sc->port_rid = rid;

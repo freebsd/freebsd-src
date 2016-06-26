@@ -757,15 +757,16 @@ ktrstruct(name, data, datalen)
 	size_t datalen;
 {
 	struct ktr_request *req;
-	char *buf = NULL;
-	size_t buflen;
+	char *buf;
+	size_t buflen, namelen;
 
-	if (!data)
+	if (data == NULL)
 		datalen = 0;
-	buflen = strlen(name) + 1 + datalen;
+	namelen = strlen(name) + 1;
+	buflen = namelen + datalen;
 	buf = malloc(buflen, M_KTRACE, M_WAITOK);
 	strcpy(buf, name);
-	bcopy(data, buf + strlen(name) + 1, datalen);
+	bcopy(data, buf + namelen, datalen);
 	if ((req = ktr_getrequest(KTR_STRUCT)) == NULL) {
 		free(buf, M_KTRACE);
 		return;
@@ -1162,8 +1163,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	mtx_unlock(&ktrace_mtx);
 
 	kth = &req->ktr_header;
-	KASSERT(((u_short)kth->ktr_type & ~KTR_DROP) <
-	    sizeof(data_lengths) / sizeof(data_lengths[0]),
+	KASSERT(((u_short)kth->ktr_type & ~KTR_DROP) < nitems(data_lengths),
 	    ("data_lengths array overflow"));
 	datalen = data_lengths[(u_short)kth->ktr_type & ~KTR_DROP];
 	buflen = kth->ktr_len;

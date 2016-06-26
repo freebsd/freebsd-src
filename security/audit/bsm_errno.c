@@ -699,14 +699,13 @@ static const struct bsm_errno bsm_errnos[] = {
 #endif
 	ES("Not permitted in capability mode") },
 };
-static const int bsm_errnos_count = sizeof(bsm_errnos) / sizeof(bsm_errnos[0]);
 
 static const struct bsm_errno *
 bsm_lookup_errno_local(int local_errno)
 {
 	int i;
 
-	for (i = 0; i < bsm_errnos_count; i++) {
+	for (i = 0; i < nitems(bsm_errnos); i++) {
 		if (bsm_errnos[i].be_local_errno == local_errno)
 			return (&bsm_errnos[i]);
 	}
@@ -733,7 +732,7 @@ bsm_lookup_errno_bsm(u_char bsm_errno)
 {
 	int i;
 
-	for (i = 0; i < bsm_errnos_count; i++) {
+	for (i = 0; i < nitems(bsm_errnos); i++) {
 		if (bsm_errnos[i].be_bsm_errno == bsm_errno)
 			return (&bsm_errnos[i]);
 	}

@@ -370,13 +370,13 @@ ebus_pci_attach(device_t dev)
 		eri = &sc->sc_rinfo[i];
 		if (i < rnum)
 			rman_fini(&eri->eri_rman);
-		if (eri->eri_res != 0) {
+		if (eri->eri_res != NULL) {
 			bus_release_resource(dev, eri->eri_rtype,
 			    PCIR_BAR(rnum), eri->eri_res);
 		}
 	}
 	free(sc->sc_rinfo, M_DEVBUF);
-	free(sc->sc_range, M_OFWPROP);
+	OF_prop_free(sc->sc_range);
 	return (ENXIO);
 }
 
@@ -427,7 +427,7 @@ ebus_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ebus_softc *sc;
 	struct resource_list *rl;
@@ -438,7 +438,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	uint64_t cend, cstart, offset;
 	int i, isdefault, passthrough, ridx;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	sc = device_get_softc(bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
@@ -544,8 +544,8 @@ ebus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 ebus_adjust_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, struct resource *res __unused, u_long start __unused,
-    u_long end __unused)
+    int type __unused, struct resource *res __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
 {
 
 	return (ENXIO);
@@ -670,7 +670,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 		(void)resource_list_add(&edi->edi_rl, SYS_RES_MEMORY, i,
 		    start, start + regs[i].size - 1, regs[i].size);
 	}
-	free(regs, M_OFWPROP);
+	OF_prop_free(regs);
 
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
@@ -701,7 +701,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 		(void)resource_list_add(&edi->edi_rl, SYS_RES_IRQ, i, rintr,
 		    rintr, 1);
 	}
-	free(intrs, M_OFWPROP);
+	OF_prop_free(intrs);
 	return (edi);
 }
 
@@ -721,8 +721,8 @@ ebus_print_res(struct ebus_devinfo *edi)
 
 	retval = 0;
 	retval += resource_list_print_type(&edi->edi_rl, "addr", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	retval += resource_list_print_type(&edi->edi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (retval);
 }

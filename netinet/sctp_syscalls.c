@@ -562,7 +562,7 @@ sys_sctp_generic_recvmsg(td, uap)
 
 	if (fromlen && uap->from) {
 		len = fromlen;
-		if (len <= 0 || fromsa == 0)
+		if (len <= 0 || fromsa == NULL)
 			len = 0;
 		else {
 			len = MIN(len, fromsa->sa_len);

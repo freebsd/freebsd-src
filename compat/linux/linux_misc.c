@@ -149,6 +149,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	int i, j;
 	struct timespec ts;
 
+	bzero(&sysinfo, sizeof(sysinfo));
 	getnanouptime(&ts);
 	if (ts.tv_nsec != 0)
 		ts.tv_sec++;
@@ -197,24 +198,27 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	if (ldebug(alarm))
 		printf(ARGS(alarm, "%u"), args->secs);
 #endif
-	
 	secs = args->secs;
+	/*
+	 * Linux alarm() is always successful. Limit secs to INT32_MAX / 2
+	 * to match kern_setitimer()'s limit to avoid error from it.
+	 *
+	 * XXX. Linux limit secs to INT_MAX on 32 and does not limit on 64-bit
+	 * platforms.
+	 */
+	if (secs > INT32_MAX / 2)
+		secs = INT32_MAX / 2;
 
-	if (secs > INT_MAX)
-		secs = INT_MAX;
-
-	it.it_value.tv_sec = (long) secs;
+	it.it_value.tv_sec = secs;
 	it.it_value.tv_usec = 0;
-	it.it_interval.tv_sec = 0;
-	it.it_interval.tv_usec = 0;
+	timevalclear(&it.it_interval);
 	error = kern_setitimer(td, ITIMER_REAL, &it, &old_it);
-	if (error)
-		return (error);
-	if (timevalisset(&old_it.it_value)) {
-		if (old_it.it_value.tv_usec != 0)
-			old_it.it_value.tv_sec++;
-		td->td_retval[0] = old_it.it_value.tv_sec;
-	}
+	KASSERT(error == 0, ("kern_setitimer returns %d", error));
+
+	if ((old_it.it_value.tv_sec == 0 && old_it.it_value.tv_usec > 0) ||
+	    old_it.it_value.tv_usec >= 500000)
+		old_it.it_value.tv_sec++;
+	td->td_retval[0] = old_it.it_value.tv_sec;
 	return (0);
 }
 
@@ -892,13 +896,14 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 			break;
 		}
 		timesp = times;
-	}
 
-	if (times[0].tv_nsec == UTIME_OMIT && times[1].tv_nsec == UTIME_OMIT)
 		/* This breaks POSIX, but is what the Linux kernel does
 		 * _on purpose_ (documented in the man page for utimensat(2)),
 		 * so we must follow that behaviour. */
-		return (0);
+		if (times[0].tv_nsec == UTIME_OMIT &&
+		    times[1].tv_nsec == UTIME_OMIT)
+			return (0);
+	}
 
 	if (args->pathname != NULL)
 		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
@@ -1304,9 +1309,11 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	if (error)
 		goto out;
 	newcred = crget();
+	crextend(newcred, ngrp + 1);
 	p = td->td_proc;
 	PROC_LOCK(p);
-	oldcred = crcopysafe(p, newcred);
+	oldcred = p->p_ucred;
+	crcopy(newcred, oldcred);
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from

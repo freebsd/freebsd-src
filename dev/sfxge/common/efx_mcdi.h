@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,6 @@
 #define	_SYS_EFX_MCDI_H
 
 #include "efx.h"
-#include "efx_regs.h"
 #include "efx_regs_mcdi.h"
 
 #ifdef	__cplusplus
@@ -55,7 +54,7 @@ struct efx_mcdi_req_s {
 	uint8_t		*emr_in_buf;
 	size_t		emr_in_length;
 	/* Outputs: retcode, buffer, length, and length used*/
-	int		emr_rc;
+	efx_rc_t	emr_rc;
 	uint8_t		*emr_out_buf;
 	size_t		emr_out_length;
 	size_t		emr_out_length_used;
@@ -69,6 +68,7 @@ struct efx_mcdi_req_s {
 
 typedef struct efx_mcdi_iface_s {
 	unsigned int		emi_port;
+	unsigned int		emi_max_version;
 	unsigned int		emi_seq;
 	efx_mcdi_req_t		*emi_pending_req;
 	boolean_t		emi_ev_cpl;
@@ -85,11 +85,6 @@ efx_mcdi_execute(
 
 extern			void
 efx_mcdi_execute_quiet(
-	__in		efx_nic_t *enp,
-	__inout		efx_mcdi_req_t *emrp);
-
- extern			void
-efx_mcdi_read_response_header(
 	__in		efx_nic_t *enp,
 	__inout		efx_mcdi_req_t *emrp);
 
@@ -188,11 +183,11 @@ efx_mcdi_mac_spoofing_supported(
 
 
 #if EFSYS_OPT_BIST
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 extern	__checkReturn		efx_rc_t
 efx_mcdi_bist_enable_offline(
 	__in			efx_nic_t *enp);
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 extern	__checkReturn		efx_rc_t
 efx_mcdi_bist_start(
 	__in			efx_nic_t *enp,
@@ -232,6 +227,14 @@ extern	__checkReturn	efx_rc_t
 efx_mcdi_get_loopback_modes(
 	__in		efx_nic_t *enp);
 #endif /* EFSYS_OPT_LOOPBACK */
+
+extern	__checkReturn	efx_rc_t
+efx_mcdi_phy_module_get_info(
+	__in			efx_nic_t *enp,
+	__in			uint8_t dev_addr,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data);
 
 #define	MCDI_IN(_emr, _type, _ofst)					\
 	((_type *)((_emr).emr_in_buf + (_ofst)))

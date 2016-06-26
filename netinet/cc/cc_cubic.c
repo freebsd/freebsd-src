@@ -59,11 +59,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-
+#include <netinet/cc/cc.h>
 #include <netinet/cc/cc_cubic.h>
 #include <netinet/cc/cc_module.h>
 
@@ -143,7 +143,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			 * the I-D. Using min_rtt in the tf_cwnd calculation
 			 * causes w_tf to grow much faster than it should if the
 			 * RTT is dominated by network buffering rather than
-			 * propogation delay.
+			 * propagation delay.
 			 */
 			w_tf = tf_cwnd(ticks_since_cong,
 			    cubic_data->mean_rtt_ticks, cubic_data->max_cwnd,

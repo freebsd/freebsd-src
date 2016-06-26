@@ -607,7 +607,7 @@ ed98_alloc_memory(dev, rid)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
-	u_long conf_maddr, conf_msize;
+	rman_res_t conf_maddr, conf_msize;
 
 	error = bus_get_resource(dev, SYS_RES_MEMORY, 0, &conf_maddr,
 	    &conf_msize);
@@ -1001,7 +1001,7 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 #ifdef DIAGNOSTIC
 	u_char tmp_s;
 #endif
@@ -1021,7 +1021,7 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	if (((rman_get_start(sc->port_res) & 0x0fff) != 0x03d0)
 	||  ((rman_get_start(sc->port_res) & 0xf000) < (u_short) 0xa000)) {
 #ifdef DIAGNOSTIC
-		device_printf(dev, "Invalid i/o port configuration (0x%lx) "
+		device_printf(dev, "Invalid i/o port configuration (0x%jx) "
 			"must be %s for %s\n", rman_get_start(sc->port_res),
 			"0x[a-f]3d0", "CNET98");
 #endif
@@ -1032,7 +1032,7 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	/* Check window area address */
 	tmp_s = rman_get_start(sc->mem_res) >> 12;
 	if (tmp_s < 0x80) {
-		device_printf(dev, "Please change window address(0x%lx)\n",
+		device_printf(dev, "Please change window address(0x%jx)\n",
 		    rman_get_start(sc->mem_res));
 		return (ENXIO);
 	}
@@ -1040,8 +1040,8 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	tmp_s &= 0x0f;
 	tmp    = rman_get_start(sc->port_res) >> 12;
 	if ((tmp_s <= tmp) && (tmp < (tmp_s + 4))) {
-		device_printf(dev, "Please change iobase address(0x%lx) "
-		    "or window address(0x%lx)\n",
+		device_printf(dev, "Please change iobase address(0x%jx) "
+		    "or window address(0x%jx)\n",
 		    rman_get_start(sc->port_res),
 		    rman_get_start(sc->mem_res));
 		return (ENXIO);
@@ -1128,7 +1128,7 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 		tmp = ED_CNET98_INT_IRQ13;
 		break;
 	default:
-		device_printf(dev, "Invalid irq configuration (%ld) must be "
+		device_printf(dev, "Invalid irq configuration (%jd) must be "
 			"%s for %s\n", conf_irq, "3,5,6,9,12,13", "CNET98");
 		return (ENXIO);
 	}
@@ -1157,7 +1157,7 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 	int error;
 	int i;
 	u_char romdata[ETHER_ADDR_LEN * 2], tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 
 	error = ed98_alloc_port(dev, port_rid);
 	if (error)
@@ -1169,7 +1169,7 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 	/* Check I/O address. 0x[0-f]3d0 are allowed. */
 	if ((rman_get_start(sc->port_res) & 0x0fff) != 0x03d0) {
 #ifdef DIAGNOSTIC
-		device_printf(dev, "Invalid i/o port configuration (0x%lx) "
+		device_printf(dev, "Invalid i/o port configuration (0x%jx) "
 			"must be %s for %s\n", rman_get_start(sc->port_res),
 			"0x?3d0", "CNET98E/L");
 #endif
@@ -1223,7 +1223,7 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 		break;
 #endif
 	default:
-		device_printf(dev, "Invalid irq configuration (%ld) must be "
+		device_printf(dev, "Invalid irq configuration (%jd) must be "
 			"%s for %s\n", conf_irq, "3,5,6", "CNET98E/L");
 		return (ENXIO);
 	}
@@ -1251,7 +1251,7 @@ ed_probe_NEC77(device_t dev, int port_rid, int flags)
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 
 	error = ed98_probe_Novell(dev, port_rid, flags);
 	if (error)
@@ -1285,7 +1285,7 @@ ed_probe_NEC77(device_t dev, int port_rid, int flags)
 		tmp = ED_NEC77_IRQ13;
 		break;
 	default:
-		device_printf(dev, "Invalid irq configuration (%ld) must be "
+		device_printf(dev, "Invalid irq configuration (%jd) must be "
 			"%s for %s\n", conf_irq, "3,5,6,12,13", "PC-9801-77");
 		return (ENXIO);
 	}
@@ -1303,7 +1303,7 @@ ed_probe_NW98X(device_t dev, int port_rid, int flags)
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 
 	error = ed98_probe_Novell(dev, port_rid, flags);
 	if (error)
@@ -1337,7 +1337,7 @@ ed_probe_NW98X(device_t dev, int port_rid, int flags)
 		tmp = ED_NW98X_IRQ13;
 		break;
 	default:
-		device_printf(dev, "Invalid irq configuration (%ld) must be "
+		device_printf(dev, "Invalid irq configuration (%jd) must be "
 			"%s for %s\n", conf_irq, "3,5,6,12,13", "EC/EP-98X");
 		return (ENXIO);
 	}
@@ -1427,7 +1427,7 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 
 	error = ed98_alloc_port(dev, port_rid);
 	if (error)
@@ -1439,7 +1439,7 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 	/* Check I/O address. 00d[02468ace] are allowed. */
 	if ((rman_get_start(sc->port_res) & ~0x000e) != 0x00d0) {
 #ifdef DIAGNOSTIC
-		device_printf(dev, "Invalid i/o port configuration (0x%lx) "
+		device_printf(dev, "Invalid i/o port configuration (0x%jx) "
 		    "must be %s for %s\n", rman_get_start(sc->port_res),
 		    "0xd?", "SB9801");
 #endif
@@ -1475,7 +1475,7 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 		tmp = ED_SB98_CFG_IRQ12;
 		break;
 	default:
-		device_printf(dev, "Invalid irq configuration (%ld) must be "
+		device_printf(dev, "Invalid irq configuration (%jd) must be "
 			"%s for %s\n", conf_irq, "3,5,6,12", "SB9801");
 		return (ENXIO);
 	}

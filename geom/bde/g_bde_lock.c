@@ -289,7 +289,7 @@ g_bde_decode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
  * Security objectives: Encode/Decode the metadata encrypted by key-material.
  *
  * A simple AES/128/CBC will do.  We take care to always store the metadata
- * in the same endianess to make it MI.
+ * in the same endianness to make it MI.
  *
  * In the typical case the metadata is stored in encrypted format in sector
  * zero on the media, but at the users discretion or if the piece of the

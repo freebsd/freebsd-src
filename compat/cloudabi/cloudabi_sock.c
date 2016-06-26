@@ -43,8 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
+#include <contrib/cloudabi/cloudabi_types_common.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
 #include <compat/cloudabi/cloudabi_util.h>
 
 /* Converts FreeBSD's struct sockaddr to CloudABI's cloudabi_sockaddr_t. */
@@ -117,12 +118,12 @@ cloudabi_sys_sock_accept(struct thread *td,
 
 	if (uap->buf == NULL) {
 		/* Only return the new file descriptor number. */
-		return (kern_accept(td, uap->s, NULL, NULL, NULL));
+		return (kern_accept(td, uap->sock, NULL, NULL, NULL));
 	} else {
 		/* Also return properties of the new socket descriptor. */
 		sal = MAX(sizeof(struct sockaddr_in),
 		    sizeof(struct sockaddr_in6));
-		error = kern_accept(td, uap->s, (void *)&sa, &sal, NULL);
+		error = kern_accept(td, uap->sock, (void *)&sa, &sal, NULL);
 		if (error != 0)
 			return (error);
 
@@ -143,7 +144,7 @@ cloudabi_sys_sock_bind(struct thread *td,
 	error = copyin_sockaddr_un(uap->path, uap->pathlen, &sun);
 	if (error != 0)
 		return (error);
-	return (kern_bindat(td, uap->fd, uap->s, (struct sockaddr *)&sun));
+	return (kern_bindat(td, uap->fd, uap->sock, (struct sockaddr *)&sun));
 }
 
 int
@@ -156,7 +157,8 @@ cloudabi_sys_sock_connect(struct thread *td,
 	error = copyin_sockaddr_un(uap->path, uap->pathlen, &sun);
 	if (error != 0)
 		return (error);
-	return (kern_connectat(td, uap->fd, uap->s, (struct sockaddr *)&sun));
+	return (kern_connectat(td, uap->fd, uap->sock,
+	    (struct sockaddr *)&sun));
 }
 
 int
@@ -164,7 +166,7 @@ cloudabi_sys_sock_listen(struct thread *td,
     struct cloudabi_sys_sock_listen_args *uap)
 {
 	struct listen_args listen_args = {
-		.s = uap->s,
+		.s = uap->sock,
 		.backlog = uap->backlog,
 	};
 
@@ -176,7 +178,7 @@ cloudabi_sys_sock_shutdown(struct thread *td,
     struct cloudabi_sys_sock_shutdown_args *uap)
 {
 	struct shutdown_args shutdown_args = {
-		.s = uap->fd,
+		.s = uap->sock,
 	};
 
 	switch (uap->how) {
@@ -207,8 +209,8 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 	struct socket *so;
 	int error;
 
-	error = getsock_cap(td, uap->fd, cap_rights_init(&rights,
-	    CAP_GETSOCKOPT | CAP_GETPEERNAME | CAP_GETSOCKNAME), &fp, NULL);
+	error = getsock_cap(td, uap->sock, cap_rights_init(&rights,
+	    CAP_GETSOCKOPT, CAP_GETPEERNAME, CAP_GETSOCKNAME), &fp, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -243,7 +245,7 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 
 	/* Set ss_state. */
 	if ((so->so_options & SO_ACCEPTCONN) != 0)
-		ss.ss_state |= CLOUDABI_SOCKSTAT_ACCEPTCONN;
+		ss.ss_state |= CLOUDABI_SOCKSTATE_ACCEPTCONN;
 
 	fdrop(fp, td);
 	return (copyout(&ss, uap->buf, sizeof(ss)));

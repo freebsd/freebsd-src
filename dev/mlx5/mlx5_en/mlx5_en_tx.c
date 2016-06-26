@@ -28,8 +28,20 @@
 #include "en.h"
 #include <machine/atomic.h>
 
+static inline bool
+mlx5e_do_send_cqe(struct mlx5e_sq *sq)
+{
+	sq->cev_counter++;
+	/* interleave the CQEs */
+	if (sq->cev_counter >= sq->cev_factor) {
+		sq->cev_counter = 0;
+		return (1);
+	}
+	return (0);
+}
+
 void
-mlx5e_send_nop(struct mlx5e_sq *sq, u32 ds_cnt, bool notify_hw)
+mlx5e_send_nop(struct mlx5e_sq *sq, u32 ds_cnt)
 {
 	u16 pi = sq->pc & sq->wq.sz_m1;
 	struct mlx5e_tx_wqe *wqe = mlx5_wq_cyc_get_wqe(&sq->wq, pi);
@@ -38,14 +50,18 @@ mlx5e_send_nop(struct mlx5e_sq *sq, u32 ds_cnt, bool notify_hw)
 
 	wqe->ctrl.opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_NOP);
 	wqe->ctrl.qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
-	wqe->ctrl.fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+	if (mlx5e_do_send_cqe(sq))
+		wqe->ctrl.fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+	else
+		wqe->ctrl.fm_ce_se = 0;
+
+	/* Copy data for doorbell */
+	memcpy(sq->doorbell.d32, &wqe->ctrl, sizeof(sq->doorbell.d32));
 
 	sq->mbuf[pi].mbuf = NULL;
 	sq->mbuf[pi].num_bytes = 0;
 	sq->mbuf[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 	sq->pc += sq->mbuf[pi].num_wqebbs;
-	if (notify_hw)
-		mlx5e_tx_notify_hw(sq, wqe, 0);
 }
 
 #if (__FreeBSD_version >= 1100000)
@@ -206,7 +222,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	pi = ((~sq->pc) & sq->wq.sz_m1);
 	if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
 		/* Send one multi NOP message instead of many */
-		mlx5e_send_nop(sq, (pi + 1) * MLX5_SEND_WQEBB_NUM_DS, false);
+		mlx5e_send_nop(sq, (pi + 1) * MLX5_SEND_WQEBB_NUM_DS);
 		pi = ((~sq->pc) & sq->wq.sz_m1);
 		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
 			m_freem(mb);
@@ -340,7 +356,13 @@ skip_dma:
 
 	wqe->ctrl.opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | opcode);
 	wqe->ctrl.qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
-	wqe->ctrl.fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+	if (mlx5e_do_send_cqe(sq))
+		wqe->ctrl.fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+	else
+		wqe->ctrl.fm_ce_se = 0;
+
+	/* Copy data for doorbell */
+	memcpy(sq->doorbell.d32, &wqe->ctrl, sizeof(sq->doorbell.d32));
 
 	/* Store pointer to mbuf */
 	sq->mbuf[pi].mbuf = mb;
@@ -350,8 +372,6 @@ skip_dma:
 	/* Make sure all mbuf data is written to RAM */
 	if (mb != NULL)
 		bus_dmamap_sync(sq->dma_tag, sq->mbuf[pi].dma_map, BUS_DMASYNC_PREWRITE);
-
-	mlx5e_tx_notify_hw(sq, wqe, 0);
 
 	sq->stats.packets++;
 	return (0);
@@ -374,9 +394,10 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 	 */
 	sqcc = sq->cc;
 
-	while (budget--) {
+	while (budget > 0) {
 		struct mlx5_cqe64 *cqe;
 		struct mbuf *mb;
+		u16 x;
 		u16 ci;
 
 		cqe = mlx5e_get_cqe(&sq->cq);
@@ -385,24 +406,29 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 
 		mlx5_cqwq_pop(&sq->cq.wq);
 
-		ci = sqcc & sq->wq.sz_m1;
-		mb = sq->mbuf[ci].mbuf;
-		sq->mbuf[ci].mbuf = NULL;	/* Safety clear */
+		/* update budget according to the event factor */
+		budget -= sq->cev_factor;
 
-		if (mb == NULL) {
-			if (sq->mbuf[ci].num_bytes == 0) {
-				/* NOP */
-				sq->stats.nop++;
+		for (x = 0; x != sq->cev_factor; x++) {
+			ci = sqcc & sq->wq.sz_m1;
+			mb = sq->mbuf[ci].mbuf;
+			sq->mbuf[ci].mbuf = NULL;	/* Safety clear */
+
+			if (mb == NULL) {
+				if (sq->mbuf[ci].num_bytes == 0) {
+					/* NOP */
+					sq->stats.nop++;
+				}
+			} else {
+				bus_dmamap_sync(sq->dma_tag, sq->mbuf[ci].dma_map,
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(sq->dma_tag, sq->mbuf[ci].dma_map);
+
+				/* Free transmitted mbuf */
+				m_freem(mb);
 			}
-		} else {
-			bus_dmamap_sync(sq->dma_tag, sq->mbuf[ci].dma_map,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sq->dma_tag, sq->mbuf[ci].dma_map);
-
-			/* Free transmitted mbuf */
-			m_freem(mb);
+			sqcc += sq->mbuf[ci].num_wqebbs;
 		}
-		sqcc += sq->mbuf[ci].num_wqebbs;
 	}
 
 	mlx5_cqwq_update_db_record(&sq->cq.wq);
@@ -449,6 +475,23 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 		drbr_advance(ifp, sq->br);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
+	}
+	/* Check if we need to write the doorbell */
+	if (likely(sq->doorbell.d64 != 0)) {
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		sq->doorbell.d64 = 0;
+	}
+	/*
+	 * Check if we need to start the event timer which flushes the
+	 * transmit ring on timeout:
+	 */
+	if (unlikely(sq->cev_next_state == MLX5E_CEV_STATE_INITIAL &&
+	    sq->cev_factor != 1)) {
+		/* start the timer */
+		mlx5e_sq_cev_timeout(sq);
+	} else {
+		/* don't send NOPs yet */
+		sq->cev_next_state = MLX5E_CEV_STATE_HOLD_NOPS;
 	}
 	return (err);
 }

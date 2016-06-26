@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
 #include <sys/user.h>
+#include <vm/uma.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -221,7 +222,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
      if(pq->pdu.ds_addr &&  pp->ds_len) {
 	  iv->iov_base = pp->ds_addr;
 	  iv->iov_len = pp->ds_len;
-	  while(iv->iov_len & 03) // the specs say it must be int alligned
+	  while(iv->iov_len & 03) // the specs say it must be int aligned
 	       iv->iov_len++;
 	  uio->uio_resid += iv->iov_len ;
 	  iv++;

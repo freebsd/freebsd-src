@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,14 +60,26 @@ struct idr {
 	struct idr_layer	*top;
 	struct idr_layer	*free;
 	int			layers;
+	int			next_cyclic_id;
 };
 
-#define DEFINE_IDR(name)						\
+/* NOTE: It is the applications responsibility to destroy the IDR */
+#define	DEFINE_IDR(name)						\
 	struct idr name;						\
 	SYSINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-	    idr_init, &(name));
+	    idr_init, &(name))
+
+/* NOTE: It is the applications responsibility to destroy the IDA */
+#define	DEFINE_IDA(name)						\
+	struct ida name;						\
+	SYSINIT(name##_ida_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
+	    ida_init, &(name))
+
+#define	idr_preload(x) do { } while (0)
+#define	idr_preload_end() do { } while (0)
 
 void	*idr_find(struct idr *idp, int id);
+void	*idr_get_next(struct idr *idp, int *nextid);
 int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);
 int	idr_get_new(struct idr *idp, void *ptr, int *id);
 int	idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
@@ -76,5 +88,41 @@ void	idr_remove(struct idr *idp, int id);
 void	idr_remove_all(struct idr *idp);
 void	idr_destroy(struct idr *idp);
 void	idr_init(struct idr *idp);
+int	idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t);
+int	idr_alloc_cyclic(struct idr *idp, void *ptr, int start, int end, gfp_t);
+int	idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data), void *data);
+
+#define	idr_for_each_entry(idp, entry, id)	\
+	for ((id) = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++(id))
+
+#define	IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
+#define	IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long) - 1)
+#define	IDA_BITMAP_BITS 	(IDA_BITMAP_LONGS * sizeof(long) * 8)
+
+struct ida_bitmap {
+	long			nr_busy;
+	unsigned long		bitmap[IDA_BITMAP_LONGS];
+};
+
+struct ida {
+	struct idr		idr;
+	struct ida_bitmap	*free_bitmap;
+};
+
+int	ida_pre_get(struct ida *ida, gfp_t gfp_mask);
+int	ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
+void	ida_remove(struct ida *ida, int id);
+void	ida_destroy(struct ida *ida);
+void	ida_init(struct ida *ida);
+
+int	ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
+    gfp_t gfp_mask);
+void	ida_simple_remove(struct ida *ida, unsigned int id);
+
+static inline int
+ida_get_new(struct ida *ida, int *p_id)
+{
+	return (ida_get_new_above(ida, 0, p_id));
+}
 
 #endif	/* _LINUX_IDR_H_ */

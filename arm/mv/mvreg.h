@@ -34,6 +34,8 @@
 #ifndef _MVREG_H_
 #define _MVREG_H_
 
+#include <arm/mv/mvwin.h>
+
 #if defined(SOC_MV_DISCOVERY)
 #define IRQ_CAUSE_ERROR		0x0
 #define IRQ_CAUSE		0x4
@@ -65,7 +67,10 @@
 #elif defined (SOC_MV_ARMADAXP)
 #define IRQ_CAUSE		0x18
 #define IRQ_MASK		0x30
-#else /* !SOC_MV_DISCOVERY && !SOC_MV_LOKIPLUS */
+#elif defined (SOC_MV_ARMADA38X)
+#define	MSI_IRQ			0x3ff
+#define	ERR_IRQ			0x3ff
+#else
 #define IRQ_CAUSE		0x0
 #define IRQ_MASK		0x4
 #define FIQ_MASK		0x8
@@ -123,8 +128,9 @@
 /*
  * System reset
  */
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define RSTOUTn_MASK		0x60
+#define	RSTOUTn_MASK_WD		0x400
 #define SYSTEM_SOFT_RESET	0x64
 #define WD_RSTOUTn_MASK		0x4
 #define WD_GLOBAL_MASK		0x00000100
@@ -217,8 +223,10 @@
 #define CPU_TIMER0_AUTO		0x00000002
 #define CPU_TIMER1_EN		0x00000004
 #define CPU_TIMER1_AUTO		0x00000008
-#define CPU_TIMER_WD_EN		0x00000010
-#define CPU_TIMER_WD_AUTO	0x00000020
+#define	CPU_TIMER2_EN		0x00000010
+#define	CPU_TIMER2_AUTO		0x00000020
+#define	CPU_TIMER_WD_EN		0x00000100
+#define	CPU_TIMER_WD_AUTO	0x00000200
 /* 25MHz mode is Armada XP - specific */
 #define CPU_TIMER_WD_25MHZ_EN	0x00000400
 #define CPU_TIMER0_25MHZ_EN	0x00000800
@@ -346,6 +354,8 @@
 #define SAMPLE_AT_RESET		0x30
 #elif defined(SOC_MV_FREY)
 #define SAMPLE_AT_RESET		0x100
+#elif defined(SOC_MV_ARMADA38X)
+#define SAMPLE_AT_RESET		0x400
 #endif
 #if defined(SOC_MV_DISCOVERY)
 #define SAMPLE_AT_RESET_LO	0x30
@@ -370,6 +380,9 @@
 #elif defined(SOC_MV_LOKIPLUS)
 #define TCLK_MASK		0x0000F000
 #define TCLK_SHIFT		0x0C
+#elif defined(SOC_MV_ARMADA38X)
+#define TCLK_MASK		0x00008000
+#define TCLK_SHIFT		15
 #endif
 
 #define TCLK_100MHZ		100000000
@@ -415,6 +428,9 @@
 #define MV_DEV_88F6281		0x6281
 #define MV_DEV_88F6282		0x6282
 #define MV_DEV_88F6781		0x6781
+#define MV_DEV_88F6828		0x6828
+#define MV_DEV_88F6820		0x6820
+#define MV_DEV_88F6810		0x6810
 #define MV_DEV_MV78100_Z0	0x6381
 #define MV_DEV_MV78100		0x7810
 #define MV_DEV_MV78130		0x7813
@@ -428,6 +444,7 @@
 
 #define MV_DEV_FAMILY_MASK	0xff00
 #define MV_DEV_DISCOVERY	0x7800
+#define	MV_DEV_ARMADA38X	0x6800
 
 /*
  * Doorbell register control
@@ -444,4 +461,36 @@
 #define MV_DRBL_MASK(d,u)	(0x10 * (u) + 0x8 * (d) + 0x4)
 #define MV_DRBL_MSG(m,d,u)	(0x10 * (u) + 0x8 * (d) + 0x4 * (m) + 0x30)
 #endif
+
+/*
+ * SCU
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_SCU_BASE		(MV_BASE + 0xc000)
+#define	MV_SCU_REGS_LEN		0x100
+#define	MV_SCU_REG_CTRL		0x00
+#define	MV_SCU_REG_CONFIG	0x04
+#define	MV_SCU_ENABLE		1
+#define	SCU_CFG_REG_NCPU_MASK	0x3
+#endif
+
+/*
+ * PMSU
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_PMSU_BASE		(MV_BASE + 0x22000)
+#define	MV_PMSU_REGS_LEN	0x1000
+#define	PMSU_BOOT_ADDR_REDIRECT_OFFSET(cpu)	(((cpu) * 0x100) + 0x124)
+#endif
+
+/*
+ * CPU RESET
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_CPU_RESET_BASE	(MV_BASE + 0x20800)
+#define	MV_CPU_RESET_REGS_LEN	0x8
+#define	CPU_RESET_OFFSET(cpu)	((cpu) * 0x8)
+#define	CPU_RESET_ASSERT	0x1
+#endif
+
 #endif /* _MVREG_H_ */

@@ -52,8 +52,8 @@ __FBSDID("$FreeBSD$");
 static int	isab_pci_probe(device_t dev);
 static int	isab_pci_attach(device_t dev);
 static struct resource *	isab_pci_alloc_resource(device_t dev,
-    device_t child, int type, int *rid, u_long start, u_long end, u_long count,
-    u_int flags);
+    device_t child, int type, int *rid, rman_res_t start, rman_res_t end,
+    rman_res_t count, u_int flags);
 static int	isab_pci_release_resource(device_t dev, device_t child,
     int type, int rid, struct resource *r);
 
@@ -169,7 +169,7 @@ isab_pci_attach(device_t dev)
 
 static struct resource *
 isab_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct isab_pci_softc *sc;
 	int bar;

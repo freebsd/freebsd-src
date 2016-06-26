@@ -405,8 +405,8 @@ static short porttab [] = {
 static char dmatab [] = { 7, 6, 5, 0 };
 static char irqtab [] = { 5, 10, 11, 7, 3, 15, 12, 0 };
 
-static int cx_is_free_res (device_t dev, int rid, int type, u_long start,
-	u_long end, u_long count)
+static int cx_is_free_res (device_t dev, int rid, int type, rman_res_t start,
+	rman_res_t end, rman_res_t count)
 {
 	struct resource *res;
 	
@@ -420,7 +420,7 @@ static int cx_is_free_res (device_t dev, int rid, int type, u_long start,
 
 static void cx_identify (driver_t *driver, device_t dev)
 {
-	u_long iobase, rescount;
+	rman_res_t iobase, rescount;
 	int devcount;
 	device_t *devices;
 	device_t child;
@@ -530,7 +530,7 @@ static int cx_probe (device_t dev)
 {
 	int unit = device_get_unit (dev);
 	int i;
-	u_long iobase, rescount;
+	rman_res_t iobase, rescount;
 
 	if (!device_get_desc (dev) ||
 	    strcmp (device_get_desc (dev), "Cronyx Sigma"))
@@ -629,7 +629,7 @@ cx_bus_dma_mem_free (cx_dma_mem_t *dmem)
 static int cx_attach (device_t dev)
 {
 	bdrv_t *bd = device_get_softc (dev);
-	u_long iobase, drq, irq, rescount;
+	rman_res_t iobase, drq, irq, rescount;
 	int unit = device_get_unit (dev);
 	char *cx_ln = CX_LOCK_NAME;
 	cx_board_t *b;
@@ -2453,7 +2453,7 @@ static int ng_cx_rmnode (node_p node)
 		NG_NODE_SET_PRIVATE (node, NULL);
 		NG_NODE_UNREF (node);
 	}
-	NG_NODE_REVIVE(node);		/* Persistant node */
+	NG_NODE_REVIVE(node);		/* Persistent node */
 #endif
 	return 0;
 }

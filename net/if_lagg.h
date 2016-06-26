@@ -153,6 +153,7 @@ struct lagg_reqopts {
 	u_int			ro_active;		/* active port count */
 	u_int			ro_flapping;		/* number of flapping */
 	int			ro_flowid_shift;	/* shift the flowid */
+	uint32_t		ro_bkt;			/* packet bucket for roundrobin */
 };
 
 #define	SIOCGLAGGOPTS		_IOWR('i', 152, struct lagg_reqopts)
@@ -243,6 +244,8 @@ struct lagg_softc {
 	struct callout			sc_callout;
 	u_int				sc_opts;
 	int				flowid_shift;	/* shift the flowid */
+	uint32_t			sc_bkt;		/* packates bucket for roundrobin */
+	uint32_t			sc_bkt_count;	/* packates bucket count for roundrobin */
 	struct lagg_counters		detached_counters; /* detached ports sum */
 };
 

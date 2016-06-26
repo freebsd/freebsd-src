@@ -140,8 +140,7 @@ bsd_parse_type(const char *type, uint8_t *fstype)
 		*fstype = (u_int)lt;
 		return (0);
 	}
-	for (i = 0;
-	    i < sizeof(bsd_alias_match) / sizeof(bsd_alias_match[0]); i++) {
+	for (i = 0; i < nitems(bsd_alias_match); i++) {
 		alias = g_part_alias_name(bsd_alias_match[i].alias);
 		if (strcasecmp(type, alias) == 0) {
 			*fstype = bsd_alias_match[i].type;

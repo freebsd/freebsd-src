@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2009-2013, 2016 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -45,6 +45,7 @@
 #include <linux/kref.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <sys/vmem.h>
 
 #include <asm/byteorder.h>
 
@@ -144,8 +145,8 @@ struct c4iw_rdev {
 	unsigned long cqshift;
 	u32 cqmask;
 	struct c4iw_dev_ucontext uctx;
-	struct gen_pool *pbl_pool;
-	struct gen_pool *rqt_pool;
+	vmem_t          *rqt_arena;
+	vmem_t          *pbl_arena;
 	u32 flags;
 	struct c4iw_stats stats;
 };
@@ -157,7 +158,7 @@ static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
 
 static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 {
-	return min((int)T4_MAX_NUM_STAG, (int)(rdev->adap->vres.stag.size >> 5));
+	return (int)(rdev->adap->vres.stag.size >> 5);
 }
 
 #define C4IW_WR_TO (10*HZ)
@@ -435,6 +436,7 @@ struct c4iw_qp {
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	struct timer_list timer;
+	int sq_sig_all;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -712,7 +714,8 @@ enum c4iw_ep_flags {
 	ABORT_REQ_IN_PROGRESS	= 1,
 	RELEASE_RESOURCES	= 2,
 	CLOSE_SENT		= 3,
-	TIMEOUT                 = 4
+	TIMEOUT                 = 4,
+	QP_REFERENCED		= 5
 };
 
 enum c4iw_ep_history {
@@ -737,7 +740,13 @@ enum c4iw_ep_history {
         EP_DISC_ABORT           = 18,
         CONN_RPL_UPCALL         = 19,
         ACT_RETRY_NOMEM         = 20,
-        ACT_RETRY_INUSE         = 21
+        ACT_RETRY_INUSE         = 21,
+        CLOSE_CON_RPL           = 22,
+        EP_DISC_FAIL            = 24,
+        QP_REFED                = 25,
+        QP_DEREFED              = 26,
+        CM_ID_REFED             = 27,
+        CM_ID_DEREFED           = 28
 };
 
 struct c4iw_ep_common {
@@ -850,8 +859,8 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 int c4iw_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
 		 struct ib_mw_bind *mw_bind);
 int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
-int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog);
-int c4iw_destroy_listen(struct iw_cm_id *cm_id);
+int c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog);
+void c4iw_destroy_listen_ep(struct iw_cm_id *cm_id);
 int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 void c4iw_qp_add_ref(struct ib_qp *qp);
@@ -914,122 +923,18 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx);
 void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 		struct c4iw_dev_ucontext *uctx);
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
+void process_newconn(struct iw_cm_id *parent_cm_id,
+		struct socket *child_so);
 
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 extern int c4iw_max_read_depth;
-
-#include <sys/blist.h>
-struct gen_pool {
-        blist_t         gen_list;
-        daddr_t         gen_base;
-        int             gen_chunk_shift;
-        struct mutex      gen_lock;
-};
-
-static __inline struct gen_pool *
-gen_pool_create(daddr_t base, u_int chunk_shift, u_int len)
-{
-        struct gen_pool *gp;
-
-        gp = malloc(sizeof(struct gen_pool), M_DEVBUF, M_NOWAIT);
-        if (gp == NULL)
-                return (NULL);
-
-        memset(gp, 0, sizeof(struct gen_pool));
-        gp->gen_list = blist_create(len >> chunk_shift, M_NOWAIT);
-        if (gp->gen_list == NULL) {
-                free(gp, M_DEVBUF);
-                return (NULL);
-        }
-        blist_free(gp->gen_list, 0, len >> chunk_shift);
-        gp->gen_base = base;
-        gp->gen_chunk_shift = chunk_shift;
-        //mutex_init(&gp->gen_lock, "genpool", NULL, MTX_DUPOK|MTX_DEF);
-        mutex_init(&gp->gen_lock);
-
-        return (gp);
-}
-
-static __inline unsigned long
-gen_pool_alloc(struct gen_pool *gp, int size)
-{
-        int chunks;
-        daddr_t blkno;
-
-        chunks = (size + (1<<gp->gen_chunk_shift) - 1) >> gp->gen_chunk_shift;
-        mutex_lock(&gp->gen_lock);
-        blkno = blist_alloc(gp->gen_list, chunks);
-        mutex_unlock(&gp->gen_lock);
-
-        if (blkno == SWAPBLK_NONE)
-                return (0);
-
-        return (gp->gen_base + ((1 << gp->gen_chunk_shift) * blkno));
-}
-
-static __inline void
-gen_pool_free(struct gen_pool *gp, daddr_t address, int size)
-{
-        int chunks;
-        daddr_t blkno;
-
-        chunks = (size + (1<<gp->gen_chunk_shift) - 1) >> gp->gen_chunk_shift;
-        blkno = (address - gp->gen_base) / (1 << gp->gen_chunk_shift);
-        mutex_lock(&gp->gen_lock);
-        blist_free(gp->gen_list, blkno, chunks);
-        mutex_unlock(&gp->gen_lock);
-}
-
-static __inline void
-gen_pool_destroy(struct gen_pool *gp)
-{
-        blist_destroy(gp->gen_list);
-        free(gp, M_DEVBUF);
-}
 
 #if defined(__i386__) || defined(__amd64__)
 #define L1_CACHE_BYTES 128
 #else
 #define L1_CACHE_BYTES 32
 #endif
-
-static inline
-int idr_for_each(struct idr *idp,
-                 int (*fn)(int id, void *p, void *data), void *data)
-{
-        int n, id, max, error = 0;
-        struct idr_layer *p;
-        struct idr_layer *pa[MAX_LEVEL];
-        struct idr_layer **paa = &pa[0];
-
-        n = idp->layers * IDR_BITS;
-        p = idp->top;
-        max = 1 << n;
-
-        id = 0;
-        while (id < max) {
-                while (n > 0 && p) {
-                        n -= IDR_BITS;
-                        *paa++ = p;
-                        p = p->ary[(id >> n) & IDR_MASK];
-                }
-
-                if (p) {
-                        error = fn(id, (void *)p, data);
-                        if (error)
-                                break;
-                }
-
-                id += 1 << n;
-                while (n < fls(id)) {
-                        n += IDR_BITS;
-                        p = *--paa;
-                }
-        }
-
-        return error;
-}
 
 void c4iw_cm_init_cpl(struct adapter *);
 void c4iw_cm_term_cpl(struct adapter *);
@@ -1038,5 +943,4 @@ void your_reg_device(struct c4iw_dev *dev);
 
 #define SGE_CTRLQ_NUM	0
 
-extern int spg_creds;/* Status Page size in credit units(1 unit = 64) */
 #endif

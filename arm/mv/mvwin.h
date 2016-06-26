@@ -73,6 +73,8 @@
 #define MV_PCI_PORTS	2	/* 2x PCIE */
 #elif defined(SOC_MV_ARMADAXP)
 #define MV_PCI_PORTS	3	/* 3x PCIE */
+#elif defined(SOC_MV_ARMADA38X)
+#define MV_PCI_PORTS	4	/* 4x PCIE */
 #else
 #error "MV_PCI_PORTS not configured !"
 #endif
@@ -122,14 +124,14 @@
 #define MV_DDR_CADR_BASE	(MV_AXI_BASE + 0x100)
 #elif defined(SOC_MV_LOKIPLUS)
 #define MV_DDR_CADR_BASE	(MV_BASE + 0xF1500)
-#elif defined(SOC_MV_ARMADAXP)
+#elif defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x20180)
 #else
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x1500)
 #endif
 #define MV_MPP_BASE		(MV_BASE + 0x10000)
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_MISC_BASE		(MV_BASE + 0x18200)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
@@ -148,6 +150,8 @@
 
 #if defined(SOC_MV_FREY)
 #define MV_PCIE_BASE		(MV_BASE + 0x8000)
+#elif defined(SOC_MV_ARMADA38X)
+#define	MV_PCIE_BASE		(MV_BASE + 0x80000)
 #else
 #define MV_PCIE_BASE		(MV_BASE + 0x40000)
 #endif
@@ -168,7 +172,7 @@
 /*
  * Decode windows definitions and macros
  */
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_WIN_CPU_CTRL(n)		(((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8)))
 #define MV_WIN_CPU_BASE(n)		((((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8))) + 0x4)
 #define MV_WIN_CPU_REMAP_LO(n)		(0x10 * (n) +  0x008)
@@ -182,7 +186,7 @@
 
 #if defined(SOC_MV_DISCOVERY)
 #define MV_WIN_CPU_MAX			14
-#elif defined(SOC_MV_ARMADAXP)
+#elif defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_WIN_CPU_MAX			20
 #else
 #define MV_WIN_CPU_MAX			8
@@ -229,6 +233,19 @@
  *  2: engine0
  */
 #define MV_WIN_CESA_ATTR(eng_sel)	(1 | ((eng_sel) << 2))
+#elif defined(SOC_MV_ARMADA38X)
+#define MV_WIN_CESA_TARGET		9
+/*
+ * Bits [1:0] = Data swapping
+ *  0x0 = Byte swap
+ *  0x1 = No swap
+ *  0x2 = Byte and word swap
+ *  0x3 = Word swap
+ * Bits [4:2] = CESA select:
+ *  0x6 = CESA0
+ *  0x5 = CESA1
+ */
+#define MV_WIN_CESA_ATTR(eng_sel)	(0x11 | (1 << (3 - (eng_sel))))
 #else
 #define MV_WIN_CESA_TARGET		3
 #define MV_WIN_CESA_ATTR(eng_sel)	0
@@ -237,6 +254,10 @@
 #define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x320)
 #define MV_WIN_USB_BASE(n)		(0x10 * (n) + 0x324)
 #define MV_WIN_USB_MAX			4
+
+#define	MV_WIN_USB3_CTRL(n)		(0x8 * (n))
+#define	MV_WIN_USB3_BASE(n)		(0x8 * (n) + 0x4)
+#define	MV_WIN_USB3_MAX			8
 
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
 #define MV_WIN_ETH_SIZE(n)		(0x8 * (n) + 0x204)
@@ -267,6 +288,10 @@
 #define MV_WIN_PCIE_TARGET(n)		(4 + (4 * ((n) % 2)))
 #define MV_WIN_PCIE_MEM_ATTR(n)		(0xE8 + (0x10 * ((n) / 2)))
 #define MV_WIN_PCIE_IO_ATTR(n)		(0xE0 + (0x10 * ((n) / 2)))
+#elif defined(SOC_MV_ARMADA38X)
+#define	MV_WIN_PCIE_TARGET(n)		((n) == 0 ? 8 : 4)
+#define	MV_WIN_PCIE_MEM_ATTR(n)		((n) < 2 ? 0xE8 : (0xD8 - (((n) % 2) * 0x20)))
+#define	MV_WIN_PCIE_IO_ATTR(n)		((n) < 2 ? 0xE0 : (0xD0 - (((n) % 2) * 0x20)))
 #elif defined(SOC_MV_ORION)
 #define MV_WIN_PCIE_TARGET(n)		4
 #define MV_WIN_PCIE_MEM_ATTR(n)		0x59
@@ -302,6 +327,35 @@
 #define	MV_WIN_SATA_CTRL(n)		(0x10 * (n) + 0x30)
 #define	MV_WIN_SATA_BASE(n)		(0x10 * (n) + 0x34)
 #define	MV_WIN_SATA_MAX			4
+
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_BOOTROM_MEM_ADDR	0xFFF00000
+#define	MV_BOOTROM_WIN_SIZE	0xF
+#define	MV_CPU_SUBSYS_REGS_LEN	0x100
+
+/* IO Window Control Register fields */
+#define	IO_WIN_SIZE_SHIFT	16
+#define	IO_WIN_SIZE_MASK	0xFFFF
+#define	IO_WIN_ATTR_SHIFT	8
+#define	IO_WIN_ATTR_MASK	0xFF
+#define	IO_WIN_TGT_SHIFT	4
+#define	IO_WIN_TGT_MASK		0xF
+#define	IO_WIN_SYNC_SHIFT	1
+#define	IO_WIN_SYNC_MASK	0x1
+#define	IO_WIN_ENA_SHIFT	0
+#define	IO_WIN_ENA_MASK		0x1
+
+#define	IO_WIN_9_CTRL_OFFSET	0x98
+#define	IO_WIN_9_BASE_OFFSET	0x9C
+
+/* Mbus decoding unit IDs and attributes */
+#define	MBUS_BOOTROM_TGT_ID	0x1
+#define	MBUS_BOOTROM_ATTR	0x1D
+
+/* Internal Units Sync Barrier Control Register */
+#define	MV_SYNC_BARRIER_CTRL		0x84
+#define	MV_SYNC_BARRIER_CTRL_ALL	0xFFFF
+#endif
 
 #define WIN_REG_IDX_RD(pre,reg,off,base)					\
 	static __inline uint32_t						\

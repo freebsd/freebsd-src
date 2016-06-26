@@ -40,12 +40,15 @@
 #define	_FS_EXT2FS_EXT2_EXTERN_H_
 
 struct ext2fs_dinode;
+struct ext2fs_direct_2;
+struct ext2fs_searchslot;
 struct indir;
 struct inode;
 struct mount;
 struct vfsconf;
 struct vnode;
 
+int	ext2_add_entry(struct vnode *, struct ext2fs_direct_2 *);
 int	ext2_alloc(struct inode *, daddr_t, e4fs_daddr_t, int,
 	    struct ucred *, e4fs_daddr_t *);
 int	ext2_balloc(struct inode *,
@@ -83,6 +86,18 @@ int	ext2_dirempty(struct inode *, ino_t, struct ucred *);
 int	ext2_checkpath(struct inode *, struct inode *, struct ucred *);
 int	cg_has_sb(int i);
 int	ext2_inactive(struct vop_inactive_args *);
+int	ext2_htree_add_entry(struct vnode *, struct ext2fs_direct_2 *,
+	    struct componentname *);
+int	ext2_htree_create_index(struct vnode *, struct componentname *,
+	    struct ext2fs_direct_2 *);
+int	ext2_htree_has_idx(struct inode *);
+int	ext2_htree_hash(const char *, int, uint32_t *, int, uint32_t *,
+	    uint32_t *);
+int	ext2_htree_lookup(struct inode *, const char *, int, struct buf **,
+	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
+int	ext2_search_dirblock(struct inode *, void *, int *, const char *, int,
+	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
+
 
 /* Flags to low-level allocation routines.
  * The low 16-bits are reserved for IO_ flags from vnode.h.

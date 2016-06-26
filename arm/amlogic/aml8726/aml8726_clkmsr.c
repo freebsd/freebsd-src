@@ -69,8 +69,7 @@ static struct aml8726_clkmsr_clk {
 
 #define	AML_CLKMSR_CLK81	0
 
-#define	AML_CLKMSR_NCLKS	(sizeof(aml8726_clkmsr_clks) \
-    / sizeof(aml8726_clkmsr_clks[0]))
+#define	AML_CLKMSR_NCLKS	nitems(aml8726_clkmsr_clks)
 
 struct aml8726_clkmsr_softc {
 	device_t		dev;

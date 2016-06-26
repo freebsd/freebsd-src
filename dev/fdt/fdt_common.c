@@ -212,7 +212,7 @@ fdt_immr_addr(vm_offset_t immr_va)
 	 * Try to access the SOC node directly i.e. through /aliases/.
 	 */
 	if ((node = OF_finddevice("soc")) != 0)
-		if (fdt_is_compatible_strict(node, "simple-bus"))
+		if (fdt_is_compatible(node, "simple-bus"))
 			goto moveon;
 	/*
 	 * Find the node the long way.
@@ -220,7 +220,7 @@ fdt_immr_addr(vm_offset_t immr_va)
 	if ((node = OF_finddevice("/")) == 0)
 		return (ENXIO);
 
-	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
+	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)
 		return (ENXIO);
 
 moveon:
@@ -348,7 +348,7 @@ fdt_is_enabled(phandle_t node)
 	if (strncmp((char *)stat, "okay", len) == 0)
 		ena = 1;
 
-	free(stat, M_OFWPROP);
+	OF_prop_free(stat);
 	return (ena);
 }
 
@@ -519,7 +519,7 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 	rv = 0;
 
 out:
-	free(regptr, M_OFWPROP);
+	OF_prop_free(regptr);
 	return (rv);
 }
 
@@ -647,12 +647,12 @@ out:
 }
 
 int
-fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
+fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
 {
 	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
 	pcell_t *regp;
 	phandle_t memory;
-	uint32_t memory_size;
+	uint64_t memory_size;
 	int addr_cells, size_cells;
 	int i, max_size, reg_len, rv, tuple_size, tuples;
 
@@ -705,7 +705,8 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
 	}
 
 	*mrcnt = i;
-	*memsize = memory_size;
+	if (memsize != NULL)
+		*memsize = memory_size;
 	rv = 0;
 out:
 	return (rv);
@@ -720,4 +721,17 @@ fdt_get_unit(device_t dev)
 	name = strchr(name, '@') + 1;
 
 	return (strtol(name,NULL,0));
+}
+
+int
+fdt_get_chosen_bootargs(char *bootargs, size_t max_size)
+{
+	phandle_t chosen;
+
+	chosen = OF_finddevice("/chosen");
+	if (chosen == -1)
+		return (ENXIO);
+	if (OF_getprop(chosen, "bootargs", bootargs, max_size) == -1)
+		return (ENXIO);
+	return (0);
 }

@@ -80,7 +80,7 @@ static int sbc_attach(device_t dev);
 static void sbc_intr(void *p);
 
 static struct resource *sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-					   u_long start, u_long end, u_long count, u_int flags);
+					   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 static int sbc_release_resource(device_t bus, device_t child, int type, int rid,
 				struct resource *r);
 static int sbc_setup_intr(device_t dev, device_t child, struct resource *irq,
@@ -301,8 +301,8 @@ sbc_probe(device_t dev)
 		io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
 					 pcm_iat, 16, RF_ACTIVE);
 #else
-		io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-		  		    	0, ~0, 16, RF_ACTIVE);
+		io = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+						 16, RF_ACTIVE);
 #endif
 		if (!io) goto bad;
 #ifdef PC98
@@ -573,7 +573,7 @@ sbc_teardown_intr(device_t dev, device_t child, struct resource *irq,
 
 static struct resource *
 sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		      u_long start, u_long end, u_long count, u_int flags)
+		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct sbc_softc *scp;
 	int *alloced, rid_max, alloced_max;
@@ -708,8 +708,11 @@ alloc_resource(struct sbc_softc *scp)
 						   io_range[i]);
 #else
 			scp->io_rid[i] = i;
-			scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
-							0, ~0, io_range[i], RF_ACTIVE);
+			scp->io[i] = bus_alloc_resource_anywhere(scp->dev,
+								 SYS_RES_IOPORT,
+								 &scp->io_rid[i],
+								io_range[i],
+								RF_ACTIVE);
 #endif
 			if (i == 0 && scp->io[i] == NULL)
 				return (1);

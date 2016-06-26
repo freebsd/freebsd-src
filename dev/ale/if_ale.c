@@ -343,7 +343,7 @@ ale_probe(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 	sp = ale_devs;
-	for (i = 0; i < sizeof(ale_devs) / sizeof(ale_devs[0]); i++) {
+	for (i = 0; i < nitems(ale_devs); i++) {
 		if (vendor == sp->ale_vendorid &&
 		    devid == sp->ale_deviceid) {
 			device_set_desc(dev, sp->ale_name);
@@ -603,7 +603,7 @@ ale_attach(device_t dev)
 	/* Create device sysctl node. */
 	ale_sysctl_node(sc);
 
-	if ((error = ale_dma_alloc(sc) != 0))
+	if ((error = ale_dma_alloc(sc)) != 0)
 		goto fail;
 
 	/* Load station address. */

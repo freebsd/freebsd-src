@@ -59,6 +59,6 @@ linux_mutex_init(mutex_t *m)
 	sx_init_flags(&m->sx, "lnxmtx",  SX_NOWITNESS);
 }
 
-#define	mutex_init	linux_mutex_init
+#define	mutex_init(m)	linux_mutex_init(m)
 
 #endif	/* _LINUX_MUTEX_H_ */

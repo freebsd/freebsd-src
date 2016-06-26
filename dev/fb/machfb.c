@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/bus_private.h>
 #include <machine/ofw_machdep.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/sc_machdep.h>
 
@@ -479,7 +478,7 @@ machfb_configure(int flags)
 		return (0);
 	if (OF_getprop(output, "device-id", &id, sizeof(id)) == -1)
 		return (0);
-	for (i = 0; i < sizeof(machfb_info) / sizeof(machfb_info[0]); i++) {
+	for (i = 0; i < nitems(machfb_info); i++) {
 		if (id == machfb_info[i].chip_id) {
 			sc->sc_flags = MACHFB_CONSOLE;
 			sc->sc_node = output;
@@ -533,7 +532,7 @@ machfb_init(int unit, video_adapter_t *adp, int flags)
 		return (ENXIO);
 
 	sc->sc_ramdac_freq = 0;
-	for (i = 0; i < sizeof(machfb_info) / sizeof(machfb_info[0]); i++) {
+	for (i = 0; i < nitems(machfb_info); i++) {
 		if (sc->sc_chip_id == machfb_info[i].chip_id) {
 			sc->sc_ramdac_freq = machfb_info[i].ramdac_freq;
 			break;
@@ -1140,7 +1139,7 @@ machfb_pci_probe(device_t dev)
 	    pci_get_subclass(dev) != PCIS_DISPLAY_VGA)
 		return (ENXIO);
 
-	for (i = 0; i < sizeof(machfb_info) / sizeof(machfb_info[0]); i++) {
+	for (i = 0; i < nitems(machfb_info); i++) {
 		if (pci_get_device(dev) == machfb_info[i].chip_id) {
 			device_set_desc(dev, machfb_info[i].name);
 			return (BUS_PROBE_DEFAULT);
@@ -1279,7 +1278,7 @@ machfb_pci_attach(device_t dev)
 	 * Test whether the aperture is byte swapped or not, set
 	 * va_window and va_window_size as appropriate.  Note that
 	 * the aperture could be mapped either big or little endian
-	 * independently of the endianess of the host so this has
+	 * independently of the endianness of the host so this has
 	 * to be a runtime test.
 	 */
 	p32 = (uint32_t *)adp->va_buffer;

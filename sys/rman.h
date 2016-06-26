@@ -47,6 +47,7 @@
 #define	RF_FIRSTSHARE	0x0020	/* first in sharing list */
 #define	RF_PREFETCHABLE	0x0040	/* resource is prefetchable */
 #define	RF_OPTIONAL	0x0080	/* for bus_alloc_resources() */
+#define	RF_UNMAPPED	0x0100	/* don't map resource when activating */
 
 #define	RF_ALIGNMENT_SHIFT	10 /* alignment size bit starts bit 10 */
 #define	RF_ALIGNMENT_MASK	(0x003F << RF_ALIGNMENT_SHIFT)
@@ -61,6 +62,10 @@ enum	rman_type { RMAN_UNINIT = 0, RMAN_GAUGE, RMAN_ARRAY };
  */
 #define RM_TEXTLEN	32
 
+#define	RM_MAX_END	(~(rman_res_t)0)
+
+#define	RMAN_IS_DEFAULT_RANGE(s,e)	((s) == 0 && (e) == RM_MAX_END)
+
 /*
  * Userspace-exported structures.
  */
@@ -70,8 +75,8 @@ struct u_resource {
 	uintptr_t	r_device;		/* device owning this resource */
 	char		r_devname[RM_TEXTLEN];	/* device name XXX obsolete */
 
-	u_long		r_start;		/* offset in resource space */
-	u_long		r_size;			/* size in resource space */
+	rman_res_t	r_start;		/* offset in resource space */
+	rman_res_t	r_size;			/* size in resource space */
 	u_int		r_flags;		/* RF_* flags */
 };
 
@@ -79,8 +84,8 @@ struct u_rman {
 	uintptr_t	rm_handle;		/* rman uniquifier */
 	char		rm_descr[RM_TEXTLEN];	/* rman description */
 
-	u_long		rm_start;		/* base of managed region */
-	u_long		rm_size;		/* size of managed region */
+	rman_res_t	rm_start;		/* base of managed region */
+	rman_res_t	rm_size;		/* size of managed region */
 	enum rman_type	rm_type;		/* region type */
 };
 
@@ -101,6 +106,7 @@ struct resource {
 };
 
 struct resource_i;
+struct resource_map;
 
 TAILQ_HEAD(resource_head, resource_i);
 
@@ -108,47 +114,48 @@ struct rman {
 	struct	resource_head 	rm_list;
 	struct	mtx *rm_mtx;	/* mutex used to protect rm_list */
 	TAILQ_ENTRY(rman)	rm_link; /* link in list of all rmans */
-	u_long	rm_start;	/* index of globally first entry */
-	u_long	rm_end;		/* index of globally last entry */
+	rman_res_t	rm_start;	/* index of globally first entry */
+	rman_res_t	rm_end;	/* index of globally last entry */
 	enum	rman_type rm_type; /* what type of resource this is */
 	const	char *rm_descr;	/* text descripion of this resource */
 };
 TAILQ_HEAD(rman_head, rman);
 
 int	rman_activate_resource(struct resource *r);
-int	rman_adjust_resource(struct resource *r, u_long start, u_long end);
-int	rman_await_resource(struct resource *r, int pri, int timo);
-int	rman_first_free_region(struct rman *rm, u_long *start, u_long *end);
+int	rman_adjust_resource(struct resource *r, rman_res_t start, rman_res_t end);
+int	rman_first_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end);
 bus_space_handle_t rman_get_bushandle(struct resource *);
 bus_space_tag_t rman_get_bustag(struct resource *);
-u_long	rman_get_end(struct resource *);
+rman_res_t	rman_get_end(struct resource *);
 struct device *rman_get_device(struct resource *);
 u_int	rman_get_flags(struct resource *);
+void	rman_get_mapping(struct resource *, struct resource_map *);
 int	rman_get_rid(struct resource *);
-u_long	rman_get_size(struct resource *);
-u_long	rman_get_start(struct resource *);
+rman_res_t	rman_get_size(struct resource *);
+rman_res_t	rman_get_start(struct resource *);
 void   *rman_get_virtual(struct resource *);
 int	rman_deactivate_resource(struct resource *r);
 int	rman_fini(struct rman *rm);
 int	rman_init(struct rman *rm);
 int	rman_init_from_resource(struct rman *rm, struct resource *r);
-int	rman_last_free_region(struct rman *rm, u_long *start, u_long *end);
+int	rman_last_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end);
 uint32_t rman_make_alignment_flags(uint32_t size);
-int	rman_manage_region(struct rman *rm, u_long start, u_long end);
+int	rman_manage_region(struct rman *rm, rman_res_t start, rman_res_t end);
 int	rman_is_region_manager(struct resource *r, struct rman *rm);
 int	rman_release_resource(struct resource *r);
-struct resource *rman_reserve_resource(struct rman *rm, u_long start,
-					u_long end, u_long count,
+struct resource *rman_reserve_resource(struct rman *rm, rman_res_t start,
+					rman_res_t end, rman_res_t count,
 					u_int flags, struct device *dev);
-struct resource *rman_reserve_resource_bound(struct rman *rm, u_long start,
-					u_long end, u_long count, u_long bound,
+struct resource *rman_reserve_resource_bound(struct rman *rm, rman_res_t start,
+					rman_res_t end, rman_res_t count, rman_res_t bound,
 					u_int flags, struct device *dev);
 void	rman_set_bushandle(struct resource *_r, bus_space_handle_t _h);
 void	rman_set_bustag(struct resource *_r, bus_space_tag_t _t);
 void	rman_set_device(struct resource *_r, struct device *_dev);
-void	rman_set_end(struct resource *_r, u_long _end);
+void	rman_set_end(struct resource *_r, rman_res_t _end);
+void	rman_set_mapping(struct resource *, struct resource_map *);
 void	rman_set_rid(struct resource *_r, int _rid);
-void	rman_set_start(struct resource *_r, u_long _start);
+void	rman_set_start(struct resource *_r, rman_res_t _start);
 void	rman_set_virtual(struct resource *_r, void *_v);
 
 extern	struct rman_head rman_head;

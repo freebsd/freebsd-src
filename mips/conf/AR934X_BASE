@@ -12,7 +12,7 @@
 
 machine         mips mips
 ident		AR934X_BASE
-cpu		CPU_MIPS74KC
+cpu		CPU_MIPS74K
 makeoptions	KERNLOADADDR=0x80050000
 options 	HZ=1000
 
@@ -20,7 +20,7 @@ files		"../atheros/files.ar71xx"
 hints		"AR934X_BASE.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_gre if_vlan if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_ahb hwpmc ipfw ipfw_nat libalias"
+makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_gre if_vlan if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_ahb hwpmc ipfw ipfw_nat libalias urtwn urtwnfw otus otusfw"
 # makeoptions	MODULES_OVERRIDE=""
 
 options 	DDB
@@ -83,7 +83,6 @@ device		ath_ahb		# Atheros host bus glue
 options 	ATH_DEBUG
 options 	ATH_DIAGAPI
 option		ATH_ENABLE_11N
-option 		AH_DEBUG_ALQ
 
 #device		ath_hal
 device		ath_ar9300		# AR9330 HAL; no need for the others

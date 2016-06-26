@@ -31,8 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/cpu.h>
 #include <machine/cpuinfo.h>
-#include <machine/cpu-v6.h>
 
 struct cpuinfo cpuinfo =
 {
@@ -83,14 +83,16 @@ cpuinfo_init(void)
 	/* CP15 c0,c0 regs 0-7 exist on all CPUs (although aliased with MIDR) */
 	cpuinfo.ctr = cp15_ctr_get();
 	cpuinfo.tcmtr = cp15_tcmtr_get();
+#if __ARM_ARCH >= 6
 	cpuinfo.tlbtr = cp15_tlbtr_get();
 	cpuinfo.mpidr = cp15_mpidr_get();
 	cpuinfo.revidr = cp15_revidr_get();
+#endif
 
 	/* if CPU is not v7 cpu id scheme */
 	if (cpuinfo.architecture != 0xF)
 		return;
-
+#if __ARM_ARCH >= 6
 	cpuinfo.id_pfr0 = cp15_id_pfr0_get();
 	cpuinfo.id_pfr1 = cp15_id_pfr1_get();
 	cpuinfo.id_dfr0 = cp15_id_dfr0_get();
@@ -144,6 +146,7 @@ cpuinfo_init(void)
 	}
 	cpuinfo.dcache_line_mask = cpuinfo.dcache_line_size - 1;
 	cpuinfo.icache_line_mask = cpuinfo.icache_line_size - 1;
+#endif
 }
 
 /*

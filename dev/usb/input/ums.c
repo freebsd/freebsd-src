@@ -572,7 +572,7 @@ ums_attach(device_t dev)
 	 * The Microsoft Wireless Notebook Optical Mouse seems to be in worse
 	 * shape than the Wireless Intellimouse 2.0, as its X, Y, wheel, and
 	 * all of its other button positions are all off. It also reports that
-	 * it has two addional buttons and a tilt wheel.
+	 * it has two additional buttons and a tilt wheel.
 	 */
 	if (usb_test_quirk(uaa, UQ_MS_BAD_CLASS)) {
 

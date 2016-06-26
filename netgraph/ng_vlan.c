@@ -387,7 +387,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 					vlan_count ++;
 			}
 
-			/* Allocate memory for responce. */
+			/* Allocate memory for response. */
 			NG_MKRESPONSE(resp, msg, sizeof(*t) +
 			    vlan_count * sizeof(*t->filter), M_NOWAIT);
 			if (resp == NULL) {
@@ -395,7 +395,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 
-			/* Pack data to responce. */
+			/* Pack data to response. */
 			t = (struct ng_vlan_table *)resp->data;
 			t->n = 0;
 			vf = &t->filter[0];
@@ -565,7 +565,7 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 
 		if (priv->vlan_hook[vid] != NULL) {
 			/*
-			 * VLAN filter: allways remove vlan tags and
+			 * VLAN filter: always remove vlan tags and
 			 * decapsulate packet.
 			 */
 			dst_hook = priv->vlan_hook[vid];

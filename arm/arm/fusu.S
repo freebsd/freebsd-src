@@ -33,7 +33,6 @@
  *
  */
 
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include "assym.s"
@@ -139,8 +138,8 @@ EENTRY_NP(fueword32)
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
-EEND(fuword32)
-END(fuword)
+EEND(fueword32)
+END(fueword)
 
 /*
  * fusword(caddr_t uaddr);
@@ -183,50 +182,9 @@ END(fusword)
  */
 
 ENTRY(fuswintr)
-	ldr	r3, =(VM_MAXUSER_ADDRESS-1)
-	cmp	r0, r3
-	mvncs	r0, #0
-	RETc(cs)
-
-	ldr	r2, Lblock_userspace_access
-	ldr	r2, [r2]
-	teq	r2, #0
-	mvnne	r0, #0x00000000
-	RETne
-
-	GET_PCB(r2)
-	ldr	r2, [r2]
-
-#ifdef DIAGNOSTIC
-	teq	r2, #0x00000000
-	beq	.Lfusupcbfault
-#endif
-
-	adr	r1, _C_LABEL(fusubailout)
-	str	r1, [r2, #PCB_ONFAULT]
-
-	ldrbt	r3, [r0], #1
-	ldrbt	ip, [r0]
-#ifdef __ARMEB__
-	orr	r0, ip, r3, asl #8
-#else
-	orr	r0, r3, ip, asl #8
-#endif
-
-	mov	r1, #0x00000000
-	str	r1, [r2, #PCB_ONFAULT]
+	mov	r0, #-1
 	RET
 END(fuswintr)
-
-Lblock_userspace_access:
-	.word	_C_LABEL(block_userspace_access)
-
-	.data
-	.align	2
-	.global	_C_LABEL(block_userspace_access)
-_C_LABEL(block_userspace_access):
-	.word	0
-	.text
 
 /*
  * fubyte(caddr_t uaddr);
@@ -263,20 +221,6 @@ END(fubyte)
  */
 
 .Lfusufault:
-	mov	r0, #0x00000000
-	str	r0, [r2, #PCB_ONFAULT]
-	mvn	r0, #0x00000000
-	RET
-
-/*
- * Handle faults from [fs]u*().  Clean up and return -1.  This differs from
- * fusufault() in that trap() will recognise it and return immediately rather
- * than trying to page fault.
- */
-
-/* label must be global as fault.c references it */
-	.global	_C_LABEL(fusubailout)
-_C_LABEL(fusubailout):
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	mvn	r0, #0x00000000
@@ -335,39 +279,7 @@ END(suword)
  */
 
 ENTRY(suswintr)
-	ldr	r3, =(VM_MAXUSER_ADDRESS-1)
-	cmp	r0, r3
-	mvncs	r0, #0
-	RETc(cs)
-
-	ldr	r2, Lblock_userspace_access
-	ldr	r2, [r2]
-	teq	r2, #0
-	mvnne	r0, #0x00000000
-	RETne
-
-	GET_PCB(r2)
-	ldr	r2, [r2]
-
-#ifdef DIAGNOSTIC
-	teq	r2, #0x00000000
-	beq	.Lfusupcbfault
-#endif
-
-	adr	r3, _C_LABEL(fusubailout)
-	str	r3, [r2, #PCB_ONFAULT]
-
-#ifdef __ARMEB__
-	mov	ip, r1, lsr #8
-	strbt	ip, [r0], #1
-#else
-	strbt	r1, [r0], #1
-	mov	r1, r1, lsr #8
-#endif
-	strbt	r1, [r0]
-
-	mov	r0, #0x00000000
-	str	r0, [r2, #PCB_ONFAULT]
+	mov	r0, #-1
 	RET
 END(suswintr)
 

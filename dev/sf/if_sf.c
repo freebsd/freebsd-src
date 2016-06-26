@@ -710,7 +710,7 @@ sf_probe(device_t dev)
 	sdid = pci_get_subdevice(dev);
 
 	t = sf_devs;
-	for (i = 0; i < sizeof(sf_devs) / sizeof(sf_devs[0]); i++, t++) {
+	for (i = 0; i < nitems(sf_devs); i++, t++) {
 		if (vid == t->sf_vid && did == t->sf_did) {
 			if (sdid == t->sf_sdid) {
 				device_set_desc(dev, t->sf_sname);
@@ -720,7 +720,7 @@ sf_probe(device_t dev)
 	}
 
 	if (vid == AD_VENDORID && did == AD_DEVICEID_STARFIRE) {
-		/* unkown subdevice */
+		/* unknown subdevice */
 		device_set_desc(dev, sf_devs[0].sf_name);
 		return (BUS_PROBE_DEFAULT);
 	}
@@ -1515,7 +1515,7 @@ sf_fixup_rx(struct mbuf *m)
  * it is marred by one truly stupid design flaw, which is that receive
  * buffer addresses must be aligned on a longword boundary. This forces
  * the packet payload to be unaligned, which is suboptimal on the x86 and
- * completely unuseable on the Alpha. Our only recourse is to copy received
+ * completely unusable on the Alpha. Our only recourse is to copy received
  * packets into properly aligned buffers before handing them off.
  */
 static int

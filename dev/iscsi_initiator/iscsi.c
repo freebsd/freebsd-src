@@ -150,7 +150,7 @@ iscsi_close(struct cdev *dev, int flag, int otyp, struct thread *td)
 	  sdebug(3, "sp->flags=%x", sp->flags );
 	  /*
 	   | if still in full phase, this probably means
-	   | that something went realy bad.
+	   | that something went really bad.
 	   | it could be a result from 'shutdown', in which case
 	   | we will ignore it (so buffers can be flushed).
 	   | the problem is that there is no way of differentiating
@@ -804,8 +804,6 @@ iscsi_stop(void)
      TAILQ_FOREACH_SAFE(sp, &isc->isc_sess, sp_link, sp_tmp) {
 	  //XXX: check for activity ...
 	  ism_stop(sp);
-	  if(sp->cam_sim != NULL)
-	       ic_destroy(sp);
      }
      mtx_destroy(&isc->isc_mtx);
      sx_destroy(&isc->unit_sx);

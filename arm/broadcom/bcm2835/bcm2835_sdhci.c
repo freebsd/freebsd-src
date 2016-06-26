@@ -214,11 +214,7 @@ bcm_sdhci_attach(device_t dev)
  
 	sdhci_init_slot(dev, &sc->sc_slot, 0);
 
-	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_FAST1);
-	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
-		sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_FAST2);
-	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
-		sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
+	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
 	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
 		goto fail;
 
@@ -676,3 +672,4 @@ static driver_t bcm_sdhci_driver = {
 DRIVER_MODULE(sdhci_bcm, simplebus, bcm_sdhci_driver, bcm_sdhci_devclass, 0, 0);
 MODULE_DEPEND(sdhci_bcm, sdhci, 1, 1, 1);
 DRIVER_MODULE(mmc, sdhci_bcm, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(sdhci_bcm, mmc, 1, 1, 1);

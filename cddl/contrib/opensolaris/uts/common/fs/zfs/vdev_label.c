@@ -297,6 +297,20 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 	if (vd->vdev_crtxg)
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_CREATE_TXG, vd->vdev_crtxg);
 
+	if (flags & VDEV_CONFIG_MOS) {
+		if (vd->vdev_leaf_zap != 0) {
+			ASSERT(vd->vdev_ops->vdev_op_leaf);
+			fnvlist_add_uint64(nv, ZPOOL_CONFIG_VDEV_LEAF_ZAP,
+			    vd->vdev_leaf_zap);
+		}
+
+		if (vd->vdev_top_zap != 0) {
+			ASSERT(vd == vd->vdev_top);
+			fnvlist_add_uint64(nv, ZPOOL_CONFIG_VDEV_TOP_ZAP,
+			    vd->vdev_top_zap);
+		}
+	}
+
 	if (getstats) {
 		vdev_stat_t vs;
 		pool_scan_stat_t ps;
@@ -602,7 +616,8 @@ vdev_inuse(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason,
 	 * read-only.  Instead we look to see if the pools is marked
 	 * read-only in the namespace and set the state to active.
 	 */
-	if ((spa = spa_by_guid(pool_guid, device_guid)) != NULL &&
+	if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
+	    (spa = spa_by_guid(pool_guid, device_guid)) != NULL &&
 	    spa_mode(spa) == FREAD)
 		state = POOL_STATE_ACTIVE;
 
@@ -1193,15 +1208,16 @@ vdev_label_sync_list(spa_t *spa, int l, uint64_t txg, int flags)
  * at any time, you can just call it again, and it will resume its work.
  */
 int
-vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
+vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg)
 {
 	spa_t *spa = svd[0]->vdev_spa;
 	uberblock_t *ub = &spa->spa_uberblock;
 	vdev_t *vd;
 	zio_t *zio;
-	int error;
+	int error = 0;
 	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL;
 
+retry:
 	/*
 	 * Normally, we don't want to try too hard to write every label and
 	 * uberblock.  If there is a flaky disk, we don't want the rest of the
@@ -1209,8 +1225,11 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
 	 * single label out, we should retry with ZIO_FLAG_TRYHARD before
 	 * bailing out and declaring the pool faulted.
 	 */
-	if (tryhard)
+	if (error != 0) {
+		if ((flags & ZIO_FLAG_TRYHARD) != 0)
+			return (error);
 		flags |= ZIO_FLAG_TRYHARD;
+	}
 
 	ASSERT(ub->ub_txg <= txg);
 
@@ -1254,7 +1273,7 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
 	 * are committed to stable storage before the uberblock update.
 	 */
 	if ((error = vdev_label_sync_list(spa, 0, txg, flags)) != 0)
-		return (error);
+		goto retry;
 
 	/*
 	 * Sync the uberblocks to all vdevs in svd[].
@@ -1272,7 +1291,7 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
 	 *	to the new uberblocks.
 	 */
 	if ((error = vdev_uberblock_sync_list(svd, svdcount, ub, flags)) != 0)
-		return (error);
+		goto retry;
 
 	/*
 	 * Sync out odd labels for every dirty vdev.  If the system dies
@@ -1285,7 +1304,7 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
 	 * stable storage before the next transaction group begins.
 	 */
 	if ((error = vdev_label_sync_list(spa, 1, txg, flags)) != 0)
-		return (error);
+		goto retry;;
 
 	trim_thread_wakeup(spa);
 

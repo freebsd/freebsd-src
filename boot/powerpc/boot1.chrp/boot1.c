@@ -23,8 +23,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/stdarg.h>
 
-#define _PATH_LOADER	"/boot/loader"
-#define _PATH_KERNEL	"/boot/kernel/kernel"
+#include "paths.h"
 
 #define BSIZEMAX	16384
 
@@ -396,7 +395,7 @@ main(int ac, char **av)
 	char bootpath_full[255];
 	int i, len;
 
-	path = _PATH_LOADER;
+	path = PATH_LOADER;
 	for (i = 0; i < ac; i++) {
 		switch (av[i][0]) {
 		case '-':

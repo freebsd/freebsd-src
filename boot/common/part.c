@@ -102,9 +102,9 @@ static struct parttypes {
 const char *
 parttype2str(enum partition_type type)
 {
-	int i;
+	size_t i;
 
-	for (i = 0; i < sizeof(ptypes) / sizeof(ptypes[0]); i++)
+	for (i = 0; i < nitems(ptypes); i++)
 		if (ptypes[i].type == type)
 			return (ptypes[i].desc);
 	return (ptypes[0].desc);
@@ -203,7 +203,7 @@ gpt_checktbl(const struct gpt_hdr *hdr, u_char *tbl, size_t size,
     uint64_t lba_last)
 {
 	struct gpt_ent *ent;
-	int i, cnt;
+	uint32_t i, cnt;
 
 	cnt = size / hdr->hdr_entsz;
 	if (hdr->hdr_entries <= cnt) {
@@ -234,8 +234,8 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	struct gpt_ent *ent;
 	u_char *buf, *tbl;
 	uint64_t offset;
-	int pri, sec, i;
-	size_t size;
+	int pri, sec;
+	size_t size, i;
 
 	buf = malloc(table->sectorsize);
 	if (buf == NULL)
@@ -257,8 +257,9 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	    table->sectorsize);
 	if (phdr != NULL) {
 		/* Read the primary GPT table. */
-		size = MIN(MAXTBLSZ, (phdr->hdr_entries * phdr->hdr_entsz +
-		    table->sectorsize - 1) / table->sectorsize);
+		size = MIN(MAXTBLSZ,
+		    howmany(phdr->hdr_entries * phdr->hdr_entsz,
+		        table->sectorsize));
 		if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 		    gpt_checktbl(phdr, tbl, size * table->sectorsize,
 		    table->sectors - 1) == 0) {
@@ -290,9 +291,9 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		    hdr.hdr_entsz != phdr->hdr_entsz ||
 		    hdr.hdr_crc_table != phdr->hdr_crc_table) {
 			/* Read the backup GPT table. */
-			size = MIN(MAXTBLSZ, (phdr->hdr_entries *
-			    phdr->hdr_entsz + table->sectorsize - 1) /
-			    table->sectorsize);
+			size = MIN(MAXTBLSZ,
+				   howmany(phdr->hdr_entries * phdr->hdr_entsz,
+				       table->sectorsize));
 			if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 			    gpt_checktbl(phdr, tbl, size * table->sectorsize,
 			    table->sectors - 1) == 0) {
@@ -358,7 +359,7 @@ mbr_parttype(uint8_t type)
 	return (PART_UNKNOWN);
 }
 
-struct ptable*
+static struct ptable*
 ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 {
 	struct dos_partition *dp;
@@ -436,7 +437,7 @@ bsd_parttype(uint8_t type)
 	return (PART_UNKNOWN);
 }
 
-struct ptable*
+static struct ptable*
 ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 {
 	struct disklabel *dl;
@@ -514,7 +515,7 @@ vtoc8_parttype(uint16_t type)
 		return (PART_FREEBSD_VINUM);
 	case VTOC_TAG_FREEBSD_ZFS:
 		return (PART_FREEBSD_ZFS);
-	};
+	}
 	return (PART_UNKNOWN);
 }
 
@@ -828,7 +829,7 @@ ptable_getbestpart(const struct ptable *table, struct ptable_entry *part)
 	return (ENOENT);
 }
 
-void
+int
 ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 {
 	struct pentry *entry;
@@ -855,7 +856,9 @@ ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 		if (table->type == PTABLE_BSD)
 			sprintf(name, "%c", (u_char) 'a' +
 			    entry->part.index);
-		iter(arg, name, &entry->part);
+		if (iter(arg, name, &entry->part))
+			return 1;
 	}
+	return 0;
 }
 

@@ -35,13 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
-#include <machine/devmap.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platform.h>
@@ -85,7 +85,7 @@ vm_offset_t
 platform_lastaddr(void)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 void
@@ -108,7 +108,7 @@ platform_gpio_init(void)
 	 * and platform_gpio_init during which printf can't be used.
 	 */
 	aml8726_aobus_kva_base =
-	    (vm_offset_t)arm_devmap_ptov(0xc8100000, 0x100000);
+	    (vm_offset_t)devmap_ptov(0xc8100000, 0x100000);
 
 	/*
 	 * The hardware mux used by clkmsr is unique to the SoC (though
@@ -154,14 +154,14 @@ int
 platform_devmap_init(void)
 {
 
-	arm_devmap_add_entry(0xc1100000, 0x200000); /* cbus */
-	arm_devmap_add_entry(0xc4200000, 0x100000); /* pl310 */
-	arm_devmap_add_entry(0xc4300000, 0x100000); /* periph */
-	arm_devmap_add_entry(0xc8000000, 0x100000); /* apbbus */
-	arm_devmap_add_entry(0xc8100000, 0x100000); /* aobus */
-	arm_devmap_add_entry(0xc9000000, 0x800000); /* ahbbus */
-	arm_devmap_add_entry(0xd9000000, 0x100000); /* ahb */
-	arm_devmap_add_entry(0xda000000, 0x100000); /* secbus */
+	devmap_add_entry(0xc1100000, 0x200000); /* cbus */
+	devmap_add_entry(0xc4200000, 0x100000); /* pl310 */
+	devmap_add_entry(0xc4300000, 0x100000); /* periph */
+	devmap_add_entry(0xc8000000, 0x100000); /* apbbus */
+	devmap_add_entry(0xc8100000, 0x100000); /* aobus */
+	devmap_add_entry(0xc9000000, 0x800000); /* ahbbus */
+	devmap_add_entry(0xd9000000, 0x100000); /* ahb */
+	devmap_add_entry(0xda000000, 0x100000); /* secbus */
 
 	return (0);
 }
@@ -184,6 +184,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef INTRNG
 #ifndef DEV_GIC
 static int
 fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
@@ -212,3 +213,4 @@ fdt_pic_decode_t fdt_pic_table[] = {
 #endif
 	NULL
 };
+#endif /* INTRNG */

@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright 2016 Gary Mills
  */
 
 #include <sys/dsl_scan.h>
@@ -846,7 +847,16 @@ dsl_scan_ds_destroyed(dsl_dataset_t *ds, dmu_tx_t *tx)
 
 	if (scn->scn_phys.scn_bookmark.zb_objset == ds->ds_object) {
 		if (ds->ds_is_snapshot) {
-			/* Note, scn_cur_{min,max}_txg stays the same. */
+			/*
+			 * Note:
+			 *  - scn_cur_{min,max}_txg stays the same.
+			 *  - Setting the flag is not really necessary if
+			 *    scn_cur_max_txg == scn_max_txg, because there
+			 *    is nothing after this snapshot that we care
+			 *    about.  However, we set it anyway and then
+			 *    ignore it when we retraverse it in
+			 *    dsl_scan_visitds().
+			 */
 			scn->scn_phys.scn_bookmark.zb_objset =
 			    dsl_dataset_phys(ds)->ds_next_snap_obj;
 			zfs_dbgmsg("destroying ds %llu; currently traversing; "
@@ -886,9 +896,6 @@ dsl_scan_ds_destroyed(dsl_dataset_t *ds, dmu_tx_t *tx)
 			zfs_dbgmsg("destroying ds %llu; in queue; removing",
 			    (u_longlong_t)ds->ds_object);
 		}
-	} else {
-		zfs_dbgmsg("destroying ds %llu; ignoring",
-		    (u_longlong_t)ds->ds_object);
 	}
 
 	/*
@@ -1040,6 +1047,46 @@ dsl_scan_visitds(dsl_scan_t *scn, uint64_t dsobj, dmu_tx_t *tx)
 	objset_t *os;
 
 	VERIFY3U(0, ==, dsl_dataset_hold_obj(dp, dsobj, FTAG, &ds));
+
+	if (scn->scn_phys.scn_cur_min_txg >=
+	    scn->scn_phys.scn_max_txg) {
+		/*
+		 * This can happen if this snapshot was created after the
+		 * scan started, and we already completed a previous snapshot
+		 * that was created after the scan started.  This snapshot
+		 * only references blocks with:
+		 *
+		 *	birth < our ds_creation_txg
+		 *	cur_min_txg is no less than ds_creation_txg.
+		 *	We have already visited these blocks.
+		 * or
+		 *	birth > scn_max_txg
+		 *	The scan requested not to visit these blocks.
+		 *
+		 * Subsequent snapshots (and clones) can reference our
+		 * blocks, or blocks with even higher birth times.
+		 * Therefore we do not need to visit them either,
+		 * so we do not add them to the work queue.
+		 *
+		 * Note that checking for cur_min_txg >= cur_max_txg
+		 * is not sufficient, because in that case we may need to
+		 * visit subsequent snapshots.  This happens when min_txg > 0,
+		 * which raises cur_min_txg.  In this case we will visit
+		 * this dataset but skip all of its blocks, because the
+		 * rootbp's birth time is < cur_min_txg.  Then we will
+		 * add the next snapshots/clones to the work queue.
+		 */
+		char *dsname = kmem_alloc(MAXNAMELEN, KM_SLEEP);
+		dsl_dataset_name(ds, dsname);
+		zfs_dbgmsg("scanning dataset %llu (%s) is unnecessary because "
+		    "cur_min_txg (%llu) >= max_txg (%llu)",
+		    dsobj, dsname,
+		    scn->scn_phys.scn_cur_min_txg,
+		    scn->scn_phys.scn_max_txg);
+		kmem_free(dsname, MAXNAMELEN);
+
+		goto out;
+	}
 
 	if (dmu_objset_from_ds(ds, &os))
 		goto out;
@@ -1441,10 +1488,23 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 	}
 
 	/*
+	 * Only process scans in sync pass 1.
+	 */
+	if (spa_sync_pass(dp->dp_spa) > 1)
+		return;
+
+	/*
+	 * If the spa is shutting down, then stop scanning. This will
+	 * ensure that the scan does not dirty any new data during the
+	 * shutdown phase.
+	 */
+	if (spa_shutting_down(spa))
+		return;
+
+	/*
 	 * If the scan is inactive due to a stalled async destroy, try again.
 	 */
-	if ((!scn->scn_async_stalled && !dsl_scan_active(scn)) ||
-	    spa_sync_pass(dp->dp_spa) > 1)
+	if (!scn->scn_async_stalled && !dsl_scan_active(scn))
 		return;
 
 	scn->scn_visited_this_txg = 0;
@@ -1532,7 +1592,8 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 	}
 	if (err != 0)
 		return;
-	if (!scn->scn_async_destroying && zfs_free_leak_on_eio &&
+	if (dp->dp_free_dir != NULL && !scn->scn_async_destroying &&
+	    zfs_free_leak_on_eio &&
 	    (dsl_dir_phys(dp->dp_free_dir)->dd_used_bytes != 0 ||
 	    dsl_dir_phys(dp->dp_free_dir)->dd_compressed_bytes != 0 ||
 	    dsl_dir_phys(dp->dp_free_dir)->dd_uncompressed_bytes != 0)) {
@@ -1558,7 +1619,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 		    -dsl_dir_phys(dp->dp_free_dir)->dd_compressed_bytes,
 		    -dsl_dir_phys(dp->dp_free_dir)->dd_uncompressed_bytes, tx);
 	}
-	if (!scn->scn_async_destroying) {
+	if (dp->dp_free_dir != NULL && !scn->scn_async_destroying) {
 		/* finished; verify that space accounting went to zero */
 		ASSERT0(dsl_dir_phys(dp->dp_free_dir)->dd_used_bytes);
 		ASSERT0(dsl_dir_phys(dp->dp_free_dir)->dd_compressed_bytes);

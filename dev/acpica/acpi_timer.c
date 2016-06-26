@@ -122,7 +122,7 @@ static void
 acpi_timer_identify(driver_t *driver, device_t parent)
 {
     device_t dev;
-    u_long rlen, rstart;
+    rman_res_t rlen, rstart;
     int rid, rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -152,7 +152,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     rlen = AcpiGbl_FADT.PmTimerLength;
     rstart = AcpiGbl_FADT.XPmTimerBlock.Address;
     if (bus_set_resource(dev, rtype, rid, rstart, rlen))
-	device_printf(dev, "couldn't set resource (%s 0x%lx+0x%lx)\n",
+	device_printf(dev, "couldn't set resource (%s 0x%jx+0x%jx)\n",
 	    (rtype == SYS_RES_IOPORT) ? "port" : "mem", rstart, rlen);
     return_VOID;
 }

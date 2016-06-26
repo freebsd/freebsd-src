@@ -91,7 +91,7 @@ static int
 atkbdc_ebus_probe(device_t dev)
 {
 	struct resource *port0, *port1;
-	u_long count, start;
+	rman_res_t count, start;
 	int error, rid;
 
 	if (strcmp(ofw_bus_get_name(dev), "8042") != 0)
@@ -176,7 +176,7 @@ atkbdc_ebus_attach(device_t dev)
 	atkbdc_device_t *adi;
 	device_t cdev;
 	phandle_t child;
-	u_long count, intr, start;
+	rman_res_t count, intr, start;
 	int children, error, rid, unit;
 	char *cname, *dname;
 
@@ -242,14 +242,14 @@ atkbdc_ebus_attach(device_t dev)
 			device_printf(dev,
 			    "<%s>: only two children per 8042 supported\n",
 			    cname);
-			free(cname, M_OFWPROP);
+			OF_prop_free(cname);
 			continue;
 		}
 		adi = malloc(sizeof(struct atkbdc_device), M_ATKBDDEV,
 		    M_NOWAIT | M_ZERO);
 		if (adi == NULL) {
 			device_printf(dev, "<%s>: malloc failed\n", cname);
-			free(cname, M_OFWPROP);
+			OF_prop_free(cname);
 			continue;
 		}
 		if (strcmp(cname, "kb_ps2") == 0) {
@@ -261,7 +261,7 @@ atkbdc_ebus_attach(device_t dev)
 		} else {
 			device_printf(dev, "<%s>: unknown device\n", cname);
 			free(adi, M_ATKBDDEV);
-			free(cname, M_OFWPROP);
+			OF_prop_free(cname);
 			continue;
 		}
 		intr = bus_get_resource_start(dev, SYS_RES_IRQ, adi->rid);
@@ -270,7 +270,7 @@ atkbdc_ebus_attach(device_t dev)
 			    "<%s>: cannot determine interrupt resource\n",
 			    cname);
 			free(adi, M_ATKBDDEV);
-			free(cname, M_OFWPROP);
+			OF_prop_free(cname);
 			continue;
 		}
 		resource_list_init(&adi->resources);
@@ -281,7 +281,7 @@ atkbdc_ebus_attach(device_t dev)
 			    cname);
 			resource_list_free(&adi->resources);
 			free(adi, M_ATKBDDEV);
-			free(cname, M_OFWPROP);
+			OF_prop_free(cname);
 			continue;
 		}
 		device_set_ivars(cdev, adi);

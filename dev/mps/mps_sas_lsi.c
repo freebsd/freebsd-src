@@ -647,7 +647,7 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 			parent_devinfo = le32toh(parent_config_page.DeviceInfo);
 		}
 	}
-	/* TODO Check proper endianess */
+	/* TODO Check proper endianness */
 	sas_address = config_page.SASAddress.High;
 	sas_address = (sas_address << 32) | config_page.SASAddress.Low;
 
@@ -1161,14 +1161,14 @@ mpssas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
 	struct mpssas_softc *sassc;
 	char path_str[64];
 
+	if (done_ccb == NULL)
+		return;
+
 	sassc = (struct mpssas_softc *)done_ccb->ccb_h.ppriv_ptr1;
 
 	xpt_path_string(done_ccb->ccb_h.path, path_str, sizeof(path_str));
 	mps_dprint(sassc->sc, MPS_INFO, "Completing stop unit for %s\n",
 	    path_str);
-
-	if (done_ccb == NULL)
-		return;
 
 	/*
 	 * Nothing more to do except free the CCB and path.  If the command

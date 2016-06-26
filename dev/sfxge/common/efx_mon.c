@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
-
-#if EFSYS_OPT_MON_NULL
-#include "nullmon.h"
-#endif
-
-#if EFSYS_OPT_MON_LM87
-#include "lm87.h"
-#endif
-
-#if EFSYS_OPT_MON_MAX6647
-#include "max6647.h"
-#endif
 
 #if EFSYS_OPT_MON_MCDI
 #include "mcdi_mon.h"
@@ -57,11 +42,9 @@ __FBSDID("$FreeBSD$");
 
 static const char	*__efx_mon_name[] = {
 	"",
-	"nullmon",
-	"lm87",
-	"max6647",
 	"sfx90x0",
-	"sfx91x0"
+	"sfx91x0",
+	"sfx92x0"
 };
 
 		const char *
@@ -79,74 +62,14 @@ efx_mon_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-#if EFSYS_OPT_MON_NULL
-static efx_mon_ops_t	__efx_mon_null_ops = {
-	nullmon_reset,			/* emo_reset */
-	nullmon_reconfigure,		/* emo_reconfigure */
-#if EFSYS_OPT_MON_STATS
-	nullmon_stats_update		/* emo_stats_update */
-#endif	/* EFSYS_OPT_MON_STATS */
-};
-#endif
-
-#if EFSYS_OPT_MON_LM87
-static efx_mon_ops_t	__efx_mon_lm87_ops = {
-	lm87_reset,			/* emo_reset */
-	lm87_reconfigure,		/* emo_reconfigure */
-#if EFSYS_OPT_MON_STATS
-	lm87_stats_update		/* emo_stats_update */
-#endif	/* EFSYS_OPT_MON_STATS */
-};
-#endif
-
-#if EFSYS_OPT_MON_MAX6647
-static efx_mon_ops_t	__efx_mon_max6647_ops = {
-	max6647_reset,			/* emo_reset */
-	max6647_reconfigure,		/* emo_reconfigure */
-#if EFSYS_OPT_MON_STATS
-	max6647_stats_update		/* emo_stats_update */
-#endif	/* EFSYS_OPT_MON_STATS */
-};
-#endif
-
 #if EFSYS_OPT_MON_MCDI
-static efx_mon_ops_t	__efx_mon_mcdi_ops = {
-	NULL,				/* emo_reset */
-	NULL,				/* emo_reconfigure */
+static const efx_mon_ops_t	__efx_mon_mcdi_ops = {
 #if EFSYS_OPT_MON_STATS
 	mcdi_mon_stats_update		/* emo_stats_update */
 #endif	/* EFSYS_OPT_MON_STATS */
 };
 #endif
 
-static efx_mon_ops_t	*__efx_mon_ops[] = {
-	NULL,
-#if EFSYS_OPT_MON_NULL
-	&__efx_mon_null_ops,
-#else
-	NULL,
-#endif
-#if EFSYS_OPT_MON_LM87
-	&__efx_mon_lm87_ops,
-#else
-	NULL,
-#endif
-#if EFSYS_OPT_MON_MAX6647
-	&__efx_mon_max6647_ops,
-#else
-	NULL,
-#endif
-#if EFSYS_OPT_MON_MCDI
-	&__efx_mon_mcdi_ops,
-#else
-	NULL,
-#endif
-#if EFSYS_OPT_MON_MCDI
-	&__efx_mon_mcdi_ops
-#else
-	NULL
-#endif
-};
 
 	__checkReturn	efx_rc_t
 efx_mon_init(
@@ -154,7 +77,7 @@ efx_mon_init(
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mon_t *emp = &(enp->en_mon);
-	efx_mon_ops_t *emop;
+	const efx_mon_ops_t *emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -170,35 +93,24 @@ efx_mon_init(
 	emp->em_type = encp->enc_mon_type;
 
 	EFSYS_ASSERT(encp->enc_mon_type != EFX_MON_INVALID);
-	EFSYS_ASSERT3U(emp->em_type, <, EFX_MON_NTYPES);
-	if ((emop = (efx_mon_ops_t *)__efx_mon_ops[emp->em_type]) == NULL) {
+	switch (emp->em_type) {
+#if EFSYS_OPT_MON_MCDI
+	case EFX_MON_SFC90X0:
+	case EFX_MON_SFC91X0:
+	case EFX_MON_SFC92X0:
+		emop = &__efx_mon_mcdi_ops;
+		break;
+#endif
+	default:
 		rc = ENOTSUP;
 		goto fail2;
-	}
-
-	if (emop->emo_reset != NULL) {
-		if ((rc = emop->emo_reset(enp)) != 0)
-			goto fail3;
-	}
-
-	if (emop->emo_reconfigure != NULL) {
-		if ((rc = emop->emo_reconfigure(enp)) != 0)
-			goto fail4;
 	}
 
 	emp->em_emop = emop;
 	return (0);
 
-fail4:
-	EFSYS_PROBE(fail5);
-
-	if (emop->emo_reset != NULL)
-		(void) emop->emo_reset(enp);
-
-fail3:
-	EFSYS_PROBE(fail4);
 fail2:
-	EFSYS_PROBE(fail3);
+	EFSYS_PROBE(fail2);
 
 	emp->em_type = EFX_MON_INVALID;
 
@@ -214,7 +126,7 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED MonitorStatNamesBlock b9328f15438c4d01 */
+/* START MKCONFIG GENERATED MonitorStatNamesBlock 31f437eafb0b0437 */
 static const char 	*__mon_stat_name[] = {
 	"value_2_5v",
 	"value_vccp1",
@@ -285,6 +197,14 @@ static const char 	*__mon_stat_name[] = {
 	"controller_slave_internal_temp",
 	"controller_slave_vptat_ext_adc",
 	"controller_slave_internal_temp_ext_adc",
+	"sodimm_vout",
+	"sodimm_0_temp",
+	"sodimm_1_temp",
+	"phy0_vcc",
+	"phy1_vcc",
+	"controller_tdiode_temp",
+	"board_front_temp",
+	"board_back_temp",
 };
 
 /* END MKCONFIG GENERATED MonitorStatNamesBlock */
@@ -310,7 +230,7 @@ efx_mon_stats_update(
 	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
 {
 	efx_mon_t *emp = &(enp->en_mon);
-	efx_mon_ops_t *emop = emp->em_emop;
+	const efx_mon_ops_t *emop = emp->em_emop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MON);
@@ -325,20 +245,12 @@ efx_mon_fini(
 	__in	efx_nic_t *enp)
 {
 	efx_mon_t *emp = &(enp->en_mon);
-	efx_mon_ops_t *emop = emp->em_emop;
-	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MON);
 
 	emp->em_emop = NULL;
-
-	if (emop->emo_reset != NULL) {
-		rc = emop->emo_reset(enp);
-		if (rc != 0)
-			EFSYS_PROBE1(fail1, efx_rc_t, rc);
-	}
 
 	emp->em_type = EFX_MON_INVALID;
 

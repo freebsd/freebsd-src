@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_VPD
@@ -44,7 +41,7 @@ __FBSDID("$FreeBSD$");
 static	__checkReturn			efx_rc_t
 siena_vpd_get_static(
 	__in				efx_nic_t *enp,
-	__in				unsigned int partn,
+	__in				uint32_t partn,
 	__deref_out_bcount_opt(*sizep)	caddr_t *svpdp,
 	__out				size_t *sizep)
 {
@@ -83,7 +80,7 @@ siena_vpd_get_static(
 		goto fail4;
 	}
 
-	/* All future versions of the structure must be backwards compatable */
+	/* All future versions of the structure must be backwards compatible */
 	EFX_STATIC_ASSERT(SIENA_MC_STATIC_CONFIG_VERSION == 0);
 
 	hdr_length = EFX_WORD_FIELD(scfg->length, EFX_WORD_0);
@@ -207,7 +204,7 @@ siena_vpd_size(
 	__out			size_t *sizep)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	unsigned int partn;
+	uint32_t partn;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
@@ -329,6 +326,13 @@ siena_vpd_verify(
 		if (dcont == 0)
 			break;
 
+		/*
+		 * Skip the RV keyword. It should be present in both the static
+		 * and dynamic cfg sectors.
+		 */
+		if (dtag == EFX_VPD_RO && dkey == EFX_VPD_KEYWORD('R', 'V'))
+			continue;
+
 		scont = 0;
 		_NOTE(CONSTANTCONDITION)
 		while (1) {
@@ -432,8 +436,12 @@ siena_vpd_get(
 
 	/* And then from the provided data buffer */
 	if ((rc = efx_vpd_hunk_get(data, size, evvp->evv_tag,
-	    evvp->evv_keyword, &offset, &length)) != 0)
+	    evvp->evv_keyword, &offset, &length)) != 0) {
+		if (rc == ENOENT)
+			return (rc);
+
 		goto fail2;
+	}
 
 	evvp->evv_length = length;
 	memcpy(evvp->evv_value, data + offset, length);

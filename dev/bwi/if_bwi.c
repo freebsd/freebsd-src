@@ -110,6 +110,8 @@ static int	bwi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			const struct ieee80211_bpf_params *);
 static void	bwi_watchdog(void *);
 static void	bwi_scan_start(struct ieee80211com *);
+static void	bwi_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static void	bwi_set_channel(struct ieee80211com *);
 static void	bwi_scan_end(struct ieee80211com *);
 static int	bwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -303,6 +305,9 @@ static const struct {
 	[108]	= { 7, 3 }
 };
 
+static const uint8_t bwi_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
 #ifdef BWI_DEBUG
 #ifdef BWI_DEBUG_VERBOSE
 static uint32_t bwi_debug = BWI_DBG_ATTACH | BWI_DBG_INIT | BWI_DBG_TXPOWER;
@@ -356,7 +361,6 @@ bwi_attach(struct bwi_softc *sc)
 	device_t dev = sc->sc_dev;
 	struct bwi_mac *mac;
 	struct bwi_phy *phy;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int i, error;
 
 	BWI_LOCK_INIT(sc);
@@ -453,15 +457,12 @@ bwi_attach(struct bwi_softc *sc)
 	/*
 	 * Setup ratesets, phytype, channels and get MAC address
 	 */
-	memset(bands, 0, sizeof(bands));
 	if (phy->phy_mode == IEEE80211_MODE_11B ||
 	    phy->phy_mode == IEEE80211_MODE_11G) {
-		setbit(bands, IEEE80211_MODE_11B);
 		if (phy->phy_mode == IEEE80211_MODE_11B) {
 			ic->ic_phytype = IEEE80211_T_DS;
 		} else {
 			ic->ic_phytype = IEEE80211_T_OFDM;
-			setbit(bands, IEEE80211_MODE_11G);
 		}
 
 		bwi_get_eaddr(sc, BWI_SPROM_11BG_EADDR, ic->ic_macaddr);
@@ -475,7 +476,6 @@ bwi_attach(struct bwi_softc *sc)
 		}
 	} else if (phy->phy_mode == IEEE80211_MODE_11A) {
 		/* TODO:11A */
-		setbit(bands, IEEE80211_MODE_11A);
 		error = ENXIO;
 		goto fail;
 	} else {
@@ -487,7 +487,8 @@ bwi_attach(struct bwi_softc *sc)
 				   BWI_SPROM_CARD_INFO_LOCALE);
 	DPRINTF(sc, BWI_DBG_ATTACH, "locale: %d\n", sc->sc_locale);
 	/* XXX use locale */
-	ieee80211_init_channels(ic, NULL, bands);
+	bwi_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(dev);
@@ -509,6 +510,7 @@ bwi_attach(struct bwi_softc *sc)
 	ic->ic_updateslot = bwi_updateslot;
 	ic->ic_scan_start = bwi_scan_start;
 	ic->ic_scan_end = bwi_scan_end;
+	ic->ic_getradiocaps = bwi_getradiocaps;
 	ic->ic_set_channel = bwi_set_channel;
 	ic->ic_transmit = bwi_transmit;
 	ic->ic_parent = bwi_parent;
@@ -1673,6 +1675,43 @@ bwi_scan_start(struct ieee80211com *ic)
 	/* Enable MAC beacon promiscuity */
 	CSR_SETBITS_4(sc, BWI_MAC_STATUS, BWI_MAC_STATUS_PASS_BCN);
 	BWI_UNLOCK(sc);
+}
+
+static void
+bwi_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct bwi_softc *sc = ic->ic_softc;
+	struct bwi_mac *mac;
+	struct bwi_phy *phy;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	/*
+	 * XXX First MAC is known to exist
+	 * TODO2
+	 */
+	mac = &sc->sc_mac[0];
+	phy = &mac->mac_phy;
+
+	memset(bands, 0, sizeof(bands));
+	switch (phy->phy_mode) {
+	case IEEE80211_MODE_11G:
+		setbit(bands, IEEE80211_MODE_11G);
+		/* FALLTHROUGH */
+	case IEEE80211_MODE_11B:
+		setbit(bands, IEEE80211_MODE_11B);
+		break;
+	case IEEE80211_MODE_11A:
+		/* TODO:11A */
+		setbit(bands, IEEE80211_MODE_11A);
+		device_printf(sc->sc_dev, "no 11a support\n");
+		return;
+	default:
+		panic("unknown phymode %d\n", phy->phy_mode);
+	}
+
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    bwi_chan_2ghz, nitems(bwi_chan_2ghz), bands, 0);
 }
 
 static void
@@ -3747,7 +3786,7 @@ bwi_rx_radiotap(struct bwi_softc *sc, struct mbuf *m,
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_WEP;
 
-	sc->sc_rx_th.wr_tsf = hdr->rxh_tsf; /* No endian convertion */
+	sc->sc_rx_th.wr_tsf = hdr->rxh_tsf; /* No endian conversion */
 	sc->sc_rx_th.wr_rate = rate;
 	sc->sc_rx_th.wr_antsignal = rssi;
 	sc->sc_rx_th.wr_antnoise = noise;

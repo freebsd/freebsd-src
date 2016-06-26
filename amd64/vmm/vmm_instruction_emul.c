@@ -1232,7 +1232,7 @@ emulate_stack_op(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 		size = vie->opsize_override ? 2 : 8;
 	} else {
 		/*
-		 * In protected or compability mode the 'B' flag in the
+		 * In protected or compatibility mode the 'B' flag in the
 		 * stack-segment descriptor determines the size of the
 		 * stack pointer.
 		 */

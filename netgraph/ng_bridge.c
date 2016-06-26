@@ -327,7 +327,7 @@ ng_bridge_constructor(node_p node)
 	/*
 	 * This node has all kinds of stuff that could be screwed by SMP.
 	 * Until it gets it's own internal protection, we go through in 
-	 * single file. This could hurt a machine bridging beteen two 
+	 * single file. This could hurt a machine bridging between two 
 	 * GB ethernets so it should be fixed. 
 	 * When it's fixed the process SHOULD NOT SLEEP, spinlocks please!
 	 * (and atomic ops )

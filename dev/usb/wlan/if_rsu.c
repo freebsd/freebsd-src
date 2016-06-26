@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -169,6 +170,8 @@ static struct ieee80211vap *
 static void	rsu_vap_delete(struct ieee80211vap *);
 static void	rsu_scan_start(struct ieee80211com *);
 static void	rsu_scan_end(struct ieee80211com *);
+static void	rsu_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static void	rsu_set_channel(struct ieee80211com *);
 static void	rsu_update_mcast(struct ieee80211com *);
 static int	rsu_alloc_rx_list(struct rsu_softc *);
@@ -250,6 +253,9 @@ MODULE_DEPEND(rsu, usb, 1, 1, 1);
 MODULE_DEPEND(rsu, firmware, 1, 1, 1);
 MODULE_VERSION(rsu, 1);
 USB_PNP_HOST_INFO(rsu_devs);
+
+static const uint8_t rsu_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
 
 static uint8_t rsu_wme_ac_xfer_map[4] = {
 	[WME_AC_BE] = RSU_BULK_TX_BE_BK,
@@ -403,7 +409,6 @@ rsu_attach(device_t self)
 	struct rsu_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	int error;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	uint8_t iface_index;
 	struct usb_interface *iface;
 	const char *rft;
@@ -520,7 +525,9 @@ rsu_attach(device_t self)
 
 		/* Enable basic HT */
 		ic->ic_htcaps = IEEE80211_HTC_HT |
+#if 0
 		    IEEE80211_HTC_AMPDU |
+#endif
 		    IEEE80211_HTC_AMSDU |
 		    IEEE80211_HTCAP_MAXAMSDU_3839 |
 		    IEEE80211_HTCAP_SMPS_OFF;
@@ -531,18 +538,14 @@ rsu_attach(device_t self)
 		ic->ic_rxstream = sc->sc_nrxstream;
 	}
 
-	/* Set supported .11b and .11g rates. */
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	if (sc->sc_ht)
-		setbit(bands, IEEE80211_MODE_11NG);
-	ieee80211_init_channels(ic, NULL, bands);
+	rsu_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = rsu_raw_xmit;
 	ic->ic_scan_start = rsu_scan_start;
 	ic->ic_scan_end = rsu_scan_end;
+	ic->ic_getradiocaps = rsu_getradiocaps;
 	ic->ic_set_channel = rsu_set_channel;
 	ic->ic_vap_create = rsu_vap_create;
 	ic->ic_vap_delete = rsu_vap_delete;
@@ -693,6 +696,23 @@ static void
 rsu_scan_end(struct ieee80211com *ic)
 {
 	/* Nothing to do here. */
+}
+
+static void
+rsu_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct rsu_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	/* Set supported .11b and .11g rates. */
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	if (sc->sc_ht)
+		setbit(bands, IEEE80211_MODE_11NG);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    rsu_chan_2ghz, nitems(rsu_chan_2ghz), bands, 0);
 }
 
 static void

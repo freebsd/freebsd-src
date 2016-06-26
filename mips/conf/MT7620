@@ -65,7 +65,7 @@ options 	PSEUDOFS		#Pseudo-filesystem framework
 #options 	BOOTP_WIRED_TO=rt0
 #options 	BOOTP_COMPAT
 #options 	CD9660			# ISO 9660 Filesystem
-#options 	ROOTDEVNAME=\"cd9660:/dev/map/rootfs.uncompress\"
+#options 	ROOTDEVNAME=\"cd9660:/dev/map/rootfs.uzip\"
 #options 	TMPFS			# TMP Memory Filesystem
 
 options 	FFS			#Berkeley Fast Filesystem
@@ -93,7 +93,7 @@ options 	FFS			#Berkeley Fast Filesystem
 options         MROUTING                # Multicast routing
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT
 
-options		GEOM_UNCOMPRESS
+options		GEOM_UZIP
 options		MD_ROOT
 options		ROOTDEVNAME=\"ufs:da0s1\"
 
