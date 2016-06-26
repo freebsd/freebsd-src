@@ -125,7 +125,7 @@ usage(int code)
 
         fprintf(stderr,
                 "Usage: %s [-abehuwxACHPSWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
-		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
+		"       %*s [-m memsize[K|k|M|m|G|g|T|t]] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
 		"       -c: # cpus (default 1)\n"
@@ -135,7 +135,7 @@ usage(int code)
 		"       -h: help\n"
 		"       -H: vmexit from the guest on hlt\n"
 		"       -l: LPC device configuration\n"
-		"       -m: memory size in MB\n"
+		"       -m: memory size\n"
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
