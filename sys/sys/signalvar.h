@@ -342,9 +342,22 @@ extern struct mtx	sigio_lock;
 #define	SIGPROP_CANTMASK	0x40	/* non-maskable, catchable */
 #define	SIGPROP_SBUNWIND	0x80	/* sandbox unwind if not caught */
 
+/*
+ * Modes for sigdeferstop().  Manages behaviour of
+ * thread_suspend_check() in the region delimited by
+ * sigdeferstop()/sigallowstop().  Must be restored to
+ * SIGDEFERSTOP_OFF before returning to userspace.
+ */
+#define	SIGDEFERSTOP_NOP	0 /* continue doing whatever is done now */
+#define	SIGDEFERSTOP_OFF	1 /* stop ignoring STOPs */
+#define	SIGDEFERSTOP_SILENT	2 /* silently ignore STOPs */
+#define	SIGDEFERSTOP_EINTR	3 /* ignore STOPs, return EINTR */
+#define	SIGDEFERSTOP_ERESTART	4 /* ignore STOPs, return ERESTART */
+
+
 int	cursig(struct thread *td);
-int	sigdeferstop(void);
-int	sigallowstop(void);
+int	sigdeferstop(int mode);
+void	sigallowstop(int prev);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);
