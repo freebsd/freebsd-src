@@ -76,6 +76,14 @@ btext:
  */
 	.text
 ASENTRY_NOPROF(__start)
+	/* Set 64-bit mode if not yet set before branching to C */
+	mfmsr	%r20
+	li	%r21,1
+	insrdi	%r20,%r21,1,0
+	mtmsrd	%r20
+	isync
+	nop	/* Make this block a multiple of 8 bytes */
+
 	/* Set up the TOC pointer */
 	b	0f
 	.align 3
