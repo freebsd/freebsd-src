@@ -90,8 +90,7 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE3(proc, kernel, , create, "struct proc *",
-    "struct proc *", "int");
+SDT_PROBE_DEFINE3(proc, , , create, "struct proc *", "struct proc *", "int");
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -755,7 +754,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Tell any interested parties about the new process.
 	 */
 	knote_fork(&p1->p_klist, p2->p_pid);
-	SDT_PROBE3(proc, kernel, , create, p2, p1, flags);
+	SDT_PROBE3(proc, , , create, p2, p1, flags);
 
 	/*
 	 * Wait until debugger is attached to child.

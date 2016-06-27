@@ -613,10 +613,10 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	ctl_complete_beio(beio);
 }
 
-SDT_PROBE_DEFINE1(cbb, kernel, read, file_start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, file_start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, read, file_done,"uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, file_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, file_start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , write, file_start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, file_done,"uint64_t");
+SDT_PROBE_DEFINE1(cbb, , write, file_done, "uint64_t");
 
 static void
 ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
@@ -641,10 +641,10 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
-		SDT_PROBE(cbb, kernel, read, file_start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, file_start);
 		xuio.uio_rw = UIO_READ;
 	} else {
-		SDT_PROBE(cbb, kernel, write, file_start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, file_start);
 		xuio.uio_rw = UIO_WRITE;
 	}
 	xuio.uio_offset = beio->io_offset;
@@ -687,7 +687,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		error = VOP_READ(be_lun->vn, &xuio, flags, file_data->cred);
 
 		VOP_UNLOCK(be_lun->vn, 0);
-		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, file_done);
 		if (error == 0 && xuio.uio_resid > 0) {
 			/*
 			 * If we red less then requested (EOF), then
@@ -736,7 +736,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		VOP_UNLOCK(be_lun->vn, 0);
 
 		vn_finished_write(mountpoint);
-		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, file_done);
         }
 
 	mtx_lock(&be_lun->io_lock);
@@ -872,10 +872,10 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
-		SDT_PROBE(cbb, kernel, read, file_start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, file_start);
 		xuio.uio_rw = UIO_READ;
 	} else {
-		SDT_PROBE(cbb, kernel, write, file_start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, file_start);
 		xuio.uio_rw = UIO_WRITE;
 	}
 	xuio.uio_offset = beio->io_offset;
@@ -906,9 +906,9 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 		error = ENXIO;
 
 	if (beio->bio_cmd == BIO_READ)
-		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, file_done);
 	else
-		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, file_done);
 
 	mtx_lock(&be_lun->io_lock);
 	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
@@ -1504,10 +1504,10 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	}
 }
 
-SDT_PROBE_DEFINE1(cbb, kernel, read, start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, read, alloc_done, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, alloc_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , write, start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, alloc_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , write, alloc_done, "uint64_t");
 
 static void
 ctl_be_block_next(struct ctl_be_block_io *beio)
@@ -1552,9 +1552,9 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 
 	lbalen = ARGS(io);
 	if (lbalen->flags & CTL_LLF_WRITE) {
-		SDT_PROBE(cbb, kernel, write, start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, start);
 	} else {
-		SDT_PROBE(cbb, kernel, read, start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, start);
 	}
 
 	beio = ctl_alloc_beio(softc);
@@ -1641,10 +1641,10 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	 * need to get the data from the user first.
 	 */
 	if (beio->bio_cmd == BIO_READ) {
-		SDT_PROBE(cbb, kernel, read, alloc_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, alloc_done);
 		be_lun->dispatch(be_lun, beio);
 	} else {
-		SDT_PROBE(cbb, kernel, write, alloc_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, alloc_done);
 #ifdef CTL_TIME_IO
 		getbinuptime(&io->io_hdr.dma_start_bt);
 #endif

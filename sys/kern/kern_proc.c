@@ -92,18 +92,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, "struct proc *", "int",
-    "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, ctor, return, "struct proc *", "int",
-    "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, "struct proc *", "int",
-    "void *", "struct thread *");
-SDT_PROBE_DEFINE3(proc, kernel, dtor, return, "struct proc *", "int",
-    "void *");
-SDT_PROBE_DEFINE3(proc, kernel, init, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, , ctor, entry, "struct proc *", "int", "void *",
     "int");
-SDT_PROBE_DEFINE3(proc, kernel, init, return, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, , ctor, return, "struct proc *", "int", "void *",
     "int");
+SDT_PROBE_DEFINE4(proc, , dtor, entry, "struct proc *", "int", "void *",
+    "struct thread *");
+SDT_PROBE_DEFINE3(proc, , dtor, return, "struct proc *", "int", "void *");
+SDT_PROBE_DEFINE3(proc, , init, entry, "struct proc *", "int", "int");
+SDT_PROBE_DEFINE3(proc, , init, return, "struct proc *", "int", "int");
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -196,9 +193,9 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE4(proc, kernel, ctor , entry, p, size, arg, flags);
+	SDT_PROBE4(proc, , ctor , entry, p, size, arg, flags);
 	EVENTHANDLER_INVOKE(process_ctor, p);
-	SDT_PROBE4(proc, kernel, ctor , return, p, size, arg, flags);
+	SDT_PROBE4(proc, , ctor , return, p, size, arg, flags);
 	return (0);
 }
 
@@ -214,7 +211,7 @@ proc_dtor(void *mem, int size, void *arg)
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
 	td = FIRST_THREAD_IN_PROC(p);
-	SDT_PROBE4(proc, kernel, dtor, entry, p, size, arg, td);
+	SDT_PROBE4(proc, , dtor, entry, p, size, arg, td);
 	if (td != NULL) {
 #ifdef INVARIANTS
 		KASSERT((p->p_numthreads == 1),
@@ -227,7 +224,7 @@ proc_dtor(void *mem, int size, void *arg)
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
-	SDT_PROBE3(proc, kernel, dtor, return, p, size, arg);
+	SDT_PROBE3(proc, , dtor, return, p, size, arg);
 }
 
 /*
@@ -239,7 +236,7 @@ proc_init(void *mem, int size, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE3(proc, kernel, init, entry, p, size, flags);
+	SDT_PROBE3(proc, , init, entry, p, size, flags);
 	p->p_sched = (struct p_sched *)&p[1];
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
@@ -250,7 +247,7 @@ proc_init(void *mem, int size, int flags)
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
 	p->p_pgrp = NULL;
-	SDT_PROBE3(proc, kernel, init, return, p, size, flags);
+	SDT_PROBE3(proc, , init, return, p, size, flags);
 	return (0);
 }
 
