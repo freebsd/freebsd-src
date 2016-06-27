@@ -59,7 +59,7 @@ static __attribute__ ((constructor)) void
 cheri_system_init(void)
 {
 
-	cheri_system_type = cheri_type_alloc();
+	cheri_system_type = cheri_system_type_alloc();
 }
 
 /*
