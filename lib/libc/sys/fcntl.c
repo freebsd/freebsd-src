@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 int
 fcntl(int fd, int cmd, ...)
 #else
+int _fcntl(int fd, int cmd, ...);
 __weak_reference(_fcntl, fcntl);
 #pragma weak _fcntl
 int

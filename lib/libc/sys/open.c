@@ -48,6 +48,7 @@ __weak_reference(_open, open);
 int
 open(const char *path, int flags, ...)
 #else
+int _open(const char *path, int flags, ...);
 #pragma weak _open
 int
 _open(const char *path, int flags, ...)

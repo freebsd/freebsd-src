@@ -47,6 +47,7 @@ __weak_reference(_ioctl, ioctl);
 int
 ioctl(int fd, unsigned long com, ...)
 #else
+int _ioctl(int fd, unsigned long com, ...);
 #pragma weak _ioctl
 int
 _ioctl(int fd, unsigned long com, ...)
