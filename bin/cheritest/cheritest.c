@@ -478,6 +478,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = cheritest_vm_swap,
 	  .ct_check_xfail = xfail_swap_required},
 
+#if 0
 	/*
 	 * Simple CCall/CReturn tests that sometimes generate signals.
 	 */
@@ -568,6 +569,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_EXECUTE },
+#endif
 
 	/*
 	 * Test libcheri sandboxing -- and kernel sandbox unwind.
@@ -1515,7 +1517,9 @@ main(int argc, char *argv[])
 		err(EX_OSERR, "minherit");
 
 	/* Run the actual tests. */
+#if 0
 	cheritest_ccall_setup();
+#endif
 	if (cheritest_libcheri_setup() < 0)
 		err(EX_SOFTWARE, "cheritest_libcheri_setup");
 	xo_open_container("testsuite");

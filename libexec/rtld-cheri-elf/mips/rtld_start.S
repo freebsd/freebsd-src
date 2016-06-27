@@ -81,7 +81,7 @@ LEAF(rtld_start)
 	csetoffset	$c12, $c12, a1
 	dla		t0, _C_LABEL(_rtld_relocate_nonplt_self)
 	cincoffset	$c12, $c12, t0
-	cjalr		$c17, $c12
+	cjalr		$c12, $c17
 	nop
 
 	clc		$c3, sp, 2*CHERICAP_SIZE($c11)	/* execdata */
@@ -98,7 +98,7 @@ LEAF(rtld_start)
 	daddu		t0, t0, t9
 	cgetpcc		$c12
 	csetoffset	$c12, $c12, t0
-	cjalr		$c17, $c12	/* v0 = _rtld(execdata, cleanup, objp) */
+	cjalr		$c12, $c17	/* v0 = _rtld(execdata, cleanup, objp) */
 	nop
 
 	cmove		$c12, $c3
@@ -184,7 +184,7 @@ _rtld_bind_start:
 	csetoffset	$c12, $c12, t0
 	dla		t9, _C_LABEL(_mips_rtld_bind)
 	cincoffset	$c12, $c12, t9
-	cjalr	$c17, $c12
+	cjalr	$c12, $c17
 	nop
 	cgetpccsetoffset $c12, v0
 

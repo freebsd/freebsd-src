@@ -92,7 +92,7 @@ NESTED_NOPROFILE(__cerror, CALLFRAME_SIZ, ra)
 #else
 	cgetpccsetoffset $c12, t9
 #endif
-	cjalr		$c17, $c12
+	cjalr		$c12, $c17
 	nop
 
 	move		sp, s8

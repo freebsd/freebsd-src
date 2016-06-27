@@ -184,7 +184,7 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 	PTR_LA		t9, _C_LABEL(sigprocmask)	# set current signal mask
 	cgetpcc		$c12
 	csetoffset	$c12, $c12, t9
-	cjalr		$c17, $c12
+	cjalr		$c12, $c17
 	nop
 
 	move		sp, s8
@@ -266,7 +266,7 @@ botch:
 	PTR_LA		t9, _C_LABEL(longjmperror)
 	cgetpcc		$c12
 	csetoffset	$c12, $c12, t9
-	cjalr		$c17, $c12
+	cjalr		$c12, $c17
 	nop
 
 	PIC_TAILCALL(abort)

@@ -75,7 +75,11 @@ __capability vm_offset_t	*cheri_fd_vtable;
 /*
  * Data segment for a cheri_fd.
  */
-struct cheri_fd {
+struct
+#if _MIPS_SZCAP == 128
+__attribute__ ((aligned(4096)))
+#endif
+cheri_fd {
 	CHERI_SYSTEM_OBJECT_FIELDS;
 	int	cf_fd;	/* Underlying file descriptor. */
 };
