@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.48 2016/04/14 20:34:28 christos Exp $
+# $File: database,v 1.49 2016/06/11 17:01:51 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -611,3 +611,14 @@
 !:ext	pan
 # database name
 >>>5	pstring				x		\b, "%s"
+
+#
+#
+# askSam Database by Stefan A. Haubenthal <polluks@web.de>
+0	string	askw40\0	askSam DB
+
+#
+#
+# MUIbase Database Tool by Stefan A. Haubenthal <polluks@web.de>
+0	string	MBSTV\040	MUIbase DB
+>6	string	x		version %s

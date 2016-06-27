@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.25 2016/04/18 20:22:10 christos Exp $
+# $File: console,v 1.26 2016/06/12 15:20:37 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -54,6 +54,32 @@
 #
 0	string	UNIF
 >4	lelong	<16	UNIF v%d format NES ROM image
+
+#------------------------------------------------------------------------------
+# fds: file(1) magic for Famciom Disk System disk images
+# Reference: http://wiki.nesdev.com/w/index.php/Family_Computer_Disk_System#.FDS_format
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# TODO: Check "Disk info block" and get info from that in addition to the optional header.
+
+# Disk info block. (block 1)
+0	name	nintendo-fds-disk-info-block
+>1	string	*NINTENDO-HVC*	Famicom Disk System disk image:
+>23	byte	!1		FMC-
+>23	byte	1		FSC-
+>16	string	x		\b%.3s
+>15	byte	x		\b, mfr 0x%02X
+>20	byte	x		(Rev.%02u)
+
+# Headered version.
+0	string	FDS\x1A
+>0x11	string	*NINTENDO-HVC*
+>>0x10	use	nintendo-fds-disk-info-block
+>4	byte	1	(%u side)
+>4	byte	!1	(%u sides)
+
+# Unheadered version.
+1	string	*NINTENDO-HVC*
+>0	use	nintendo-fds-disk-info-block
 
 #------------------------------------------------------------------------------
 # gameboy: file(1) magic for the Nintendo (Color) Gameboy raw ROM format
@@ -569,6 +595,15 @@
 0x1C	belong	0xC2339F3D	Nintendo GameCube disc image:
 >0	use	nintendo-gcn-disc-common
 
+# Type: Nintendo GameCube embedded disc image
+# Commonly found on demo discs.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# Reference: http://hitmen.c02.at/files/yagcd/yagcd/index.html#idx14.8
+0		belong	0xAE0F38A2
+>0x0C		belong	0x00100000
+>>(8.L+0x1C)	belong	0xC2339F3D	Nintendo GameCube embedded disc image:
+>>>(8.L)	use	nintendo-gcn-disc-common
+
 # Type: Nintendo Wii disc image
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # Reference: http://wiibrew.org/wiki/Wii_Disc
@@ -586,22 +621,15 @@
 # Nintendo 3DS file formats.
 #
 
-# Type: Nintendo 3DS "NCCH" header.
-# Contained within either a CXI executable or an NCSD image.
-# From: David Korth <gerbilsoft@gerbilsoft.com>
-# Reference: https://www.3dbrew.org/wiki/NCCH
-0		name		nintendo-3ds-NCCH
->0x100		string		NCCH
->>0x150		string		>\0	\b: "%.16s"
->>0x112		leshort		x	(v%u)
->>0x18C		byte		2	(New3DS only)
-
 # Type: Nintendo 3DS "NCSD" image. (game cards and eMMC)
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # Reference: https://www.3dbrew.org/wiki/NCSD
 0x100		string		NCSD
 >0x118		lequad		0		Nintendo 3DS Game Card image
->>0x1000	use		nintendo-3ds-NCCH
+# NCCH header for partition 0. (game data)
+>>0x1150	string		>\0	\b: "%.16s"
+>>0x312		byte		x	(Rev.%02u)
+>>0x118C	byte		2	(New3DS only)
 >>0x18D		byte		0		(inner device)
 >>0x18D		byte		1		(Card1)
 >>0x18D		byte		2		(Card2)
@@ -609,12 +637,74 @@
 >0x118		bequad		0x0102020202000000	Nintendo 3DS eMMC dump (Old3DS)
 >0x118		bequad		0x0102020203000000	Nintendo 3DS eMMC dump (New3DS)
 
+# Nintendo 3DS version code.
+# Reference: https://www.3dbrew.org/wiki/Titles
+# Format: leshort containing three fields:
+# - 6-bit: Major
+# - 6-bit: Minor
+# - 4-bit: Revision
+# NOTE: Only supporting major/minor versions from 0-15 right now.
+# NOTE: Should be prefixed with "v".
+0	name	nintendo-3ds-version-code
+# Raw version.
+>0	leshort	x	\b%u,
+# Major version.
+>0	leshort&0xFC00	0x0000	0
+>0	leshort&0xFC00	0x0400	1
+>0	leshort&0xFC00	0x0800	2
+>0	leshort&0xFC00	0x0C00	3
+>0	leshort&0xFC00	0x1000	4
+>0	leshort&0xFC00	0x1400	5
+>0	leshort&0xFC00	0x1800	6
+>0	leshort&0xFC00	0x1C00	7
+>0	leshort&0xFC00	0x2000	8
+>0	leshort&0xFC00	0x2400	9
+>0	leshort&0xFC00	0x2800	10
+>0	leshort&0xFC00	0x2C00	11
+>0	leshort&0xFC00	0x3000	12
+>0	leshort&0xFC00	0x3400	13
+>0	leshort&0xFC00	0x3800	14
+>0	leshort&0xFC00	0x3C00	15
+# Minor version.
+>0	leshort&0x03F0	0x0000	\b.0
+>0	leshort&0x03F0	0x0010	\b.1
+>0	leshort&0x03F0	0x0020	\b.2
+>0	leshort&0x03F0	0x0030	\b.3
+>0	leshort&0x03F0	0x0040	\b.4
+>0	leshort&0x03F0	0x0050	\b.5
+>0	leshort&0x03F0	0x0060	\b.6
+>0	leshort&0x03F0	0x0070	\b.7
+>0	leshort&0x03F0	0x0080	\b.8
+>0	leshort&0x03F0	0x0090	\b.9
+>0	leshort&0x03F0	0x00A0	\b.10
+>0	leshort&0x03F0	0x00B0	\b.11
+>0	leshort&0x03F0	0x00C0	\b.12
+>0	leshort&0x03F0	0x00D0	\b.13
+>0	leshort&0x03F0	0x00E0	\b.14
+>0	leshort&0x03F0	0x00F0	\b.15
+# Revision.
+>0	leshort&0x000F	x	\b.%u
+
 # Type: Nintendo 3DS "NCCH" container.
 # https://www.3dbrew.org/wiki/NCCH
-0x100	string	NCCH		Nintendo 3DS
->0x18D	byte&2	0		File Archive (CFA)
->0x18D	byte&2	2		Executable Image (CXI)
->0	use	nintendo-3ds-NCCH
+0x100		string	NCCH	Nintendo 3DS
+>0x18D		byte&2	0	File Archive (CFA)
+>0x18D		byte&2	2	Executable Image (CXI)
+>0x150		string	>\0	\b: "%.16s"
+>0x18D		byte	0x05
+>>0x10E		leshort	x	(Old3DS System Update v
+>>0x10E		use	nintendo-3ds-version-code
+>>0x10E		leshort	x	\b)
+>0x18D		byte	0x15
+>>0x10E		leshort	x	(New3DS System Update v
+>>0x10E		use	nintendo-3ds-version-code
+>>0x10E		leshort	x	\b)
+>0x18D		byte	!0x05
+>>0x18D		byte	!0x15
+>>>0x112	byte	x	(v
+>>>0x112	use	nintendo-3ds-version-code
+>>>0x112	byte	x	\b)
+>0x18C		byte	2	(New3DS only)
 
 # Type: Nintendo 3DS "SMDH" file. (application description)
 # From: David Korth <gerbilsoft@gerbilsoft.com>

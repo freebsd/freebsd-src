@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.248 2016/03/31 17:51:12 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.249 2016/05/17 21:43:07 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -3104,6 +3104,7 @@ apprentice_compile(struct magic_set *ms, struct magic_map *map, const char *fn)
 		(void)close(fd);
 	rv = 0;
 out:
+	apprentice_unmap(map);
 	free(dbname);
 	return rv;
 }

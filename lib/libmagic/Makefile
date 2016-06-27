@@ -54,4 +54,10 @@ ${mp}: ${mp:C/[0-9]/man/}
 		-e 's,__MAGIC__,${MAGICPATH}/magic,g' ${.ALLSRC} > ${.TARGET}
 .endfor
 
+CLEANFILES+=	${INCS}
+.for inc in ${INCS}
+${inc}: ${inc}.in
+	sed -e 's,X.YY,${FILEVER:S,",,g:S,.,,g},g' ${.ALLSRC} > ${.TARGET}
+.endfor
+
 .include <bsd.lib.mk>
