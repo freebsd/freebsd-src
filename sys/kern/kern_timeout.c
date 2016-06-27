@@ -69,10 +69,8 @@ DPCPU_DECLARE(sbintime_t, hardclocktime);
 #endif
 
 SDT_PROVIDER_DEFINE(callout_execute);
-SDT_PROBE_DEFINE1(callout_execute, kernel, , callout__start,
-    "struct callout *");
-SDT_PROBE_DEFINE1(callout_execute, kernel, , callout__end,
-    "struct callout *");
+SDT_PROBE_DEFINE1(callout_execute, , , callout__start, "struct callout *");
+SDT_PROBE_DEFINE1(callout_execute, , , callout__end, "struct callout *");
 
 #ifdef CALLOUT_PROFILING
 static int avg_depth;
@@ -681,9 +679,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	sbt1 = sbinuptime();
 #endif
 	THREAD_NO_SLEEPING();
-	SDT_PROBE1(callout_execute, kernel, , callout__start, c);
+	SDT_PROBE1(callout_execute, , , callout__start, c);
 	c_func(c_arg);
-	SDT_PROBE1(callout_execute, kernel, , callout__end, c);
+	SDT_PROBE1(callout_execute, , , callout__end, c);
 	THREAD_SLEEPING_OK();
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt2 = sbinuptime();
