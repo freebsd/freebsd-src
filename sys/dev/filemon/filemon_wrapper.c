@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
+#include <sys/priv.h>
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
@@ -65,7 +66,7 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 	if (filemon->fp->f_type == DTYPE_VNODE)
 		bwillwrite();
 
-	error = fo_write(filemon->fp, &auio, curthread->td_ucred, 0, curthread);
+	error = fo_write(filemon->fp, &auio, filemon->cred, 0, curthread);
 	if (error != 0 && filemon->error == 0)
 		filemon->error = error;
 }
@@ -103,24 +104,35 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
     struct image_params *imgp)
 {
 	struct filemon *filemon;
-	char *fullpath, *freepath;
 	size_t len;
 
 	if ((filemon = filemon_proc_get(p)) != NULL) {
-		fullpath = "<unknown>";
-		freepath = NULL;
-
-		vn_fullpath(curthread, imgp->vp, &fullpath, &freepath);
-
 		len = snprintf(filemon->msgbufr,
 		    sizeof(filemon->msgbufr), "E %d %s\n",
-		    p->p_pid, fullpath);
+		    p->p_pid,
+		    imgp->execpath != NULL ? imgp->execpath : "<unknown>");
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
-		filemon_drop(filemon);
+		/* If the credentials changed then cease tracing. */
+		if (imgp->newcred != NULL &&
+		    imgp->credential_setid &&
+		    priv_check_cred(filemon->cred,
+		    PRIV_DEBUG_DIFFCRED, 0) != 0) {
+			/*
+			 * It may have changed to NULL already, but
+			 * will not be re-attached by anything else.
+			 */
+			if (p->p_filemon != NULL) {
+				KASSERT(p->p_filemon == filemon,
+				    ("%s: proc %p didn't have expected"
+				    " filemon %p", __func__, p, filemon));
+				filemon_proc_drop(p);
+			}
+		}
 
-		free(freepath, M_TEMP);
+
+		filemon_drop(filemon);
 	}
 }
 
