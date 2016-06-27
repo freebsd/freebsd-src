@@ -172,9 +172,9 @@ ccall_validate_args:
 	/* NB branch delay utilised below */
 
 	/* Third, check for type equality. */
-	cgettype	k0, CHERI_REG_CCALLCODE
+	cgettype	t0, CHERI_REG_CCALLCODE
 	cgettype	k1, CHERI_REG_CCALLDATA
-	bne		k0, k1, CCall_c1_c2_type_mismatch
+	bne		t0, k1, CCall_c1_c2_type_mismatch
 	/* NB branch delay utilised below */
 
 	/* Fourth, check permissions. */
@@ -209,7 +209,7 @@ ccall_validate_args:
 	and		k0, k0, 0x3ff	/* Mask everything but reg. numbers */
 	li		k1, ((1<<5) | 2)/* Check that arguments are c1 and c2 */
 	bne		k0, k1, CCall_wrong_regs
-	nop
+	cgettype		t0, CHERI_REG_CCALLCODE
 #endif /* CPU_CHERI_HW_CCALL_CHECKS */
 
 	/*
@@ -225,9 +225,34 @@ ccall_validate_args:
 	 * instruction?  Then we could run down all the pertinent registers
 	 * and simply branch once at the end.
 	 */
-ccall_check_globals:
-	dli		AT, 0		/* Set if failure; will be regnum. */
 
+	/*
+	 * t0 contains the type for the sealed capability on entry to this
+	 * block, either as a side effect of the software checks or from the
+	 * delay slot in the branch for hardware check failures.
+	 */
+#ifdef WORKING_dmfc0_8_1
+	dmfc0		k0, _(8), 1	/* Get ins. encoding */
+	and		k0, k0, 0x7FF	/* Get the selector */
+	move		t0, t0
+	srl		t0, t0, 22	/* Is this a system capability? */
+	bne		t0, k0, CCall_wrong_cc/* If it is, then the selector must be 1. */
+	dli		AT, 0	/* Set if failure; will be regnum.
+				   (hoisted from ccall_check_globals,
+				   ignored if branch is taken) */
+	bnez		t0, ccall_push_stack/* Skip global checks if it's
+					   a system capability */
+#else
+	srl		t0, t0, 22	/* Is this a system capability? */
+	bnez		t0, ccall_push_stack/* Skip global checks if it's
+					   a system capability */
+	dli		AT, 0	/* Set if failure; will be regnum.
+				   (hoisted from ccall_check_globals,
+				   ignored if branch is taken) */
+#endif
+	/* Delay slot snaffles the next instruction.  It's cheap and we don't
+	 * use the register on the branch-taken path. */
+ccall_check_globals:
 	cgettag		k0, $c1			/* k0 = tagged. */
 	cgetperm	k1, $c1			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
@@ -578,6 +603,12 @@ CCall_wrong_regs:
 	csetcause	k0		/* Branch-delay slot. */
 
 #endif /* CPU_CHERI_HW_CCALL_CHECKS */
+
+CCall_wrong_cc:
+	dli	k0, ((CHERI_EXCCODE_SW_CCALLREGS << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
 
 CCall_local_argument:
 	dli	k0, (CHERI_EXCCODE_SW_LOCALARG << 8)
