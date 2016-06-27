@@ -286,7 +286,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		 * exclusive waiters bit anyway.
 		 * Please note that lk_exslpfail count may be lying about
 		 * the real number of waiters with the LK_SLEEPFAIL flag on
-		 * because they may be used in conjuction with interruptible
+		 * because they may be used in conjunction with interruptible
 		 * sleeps so lk_exslpfail might be considered an 'upper limit'
 		 * bound, including the edge cases.
 		 */
@@ -1063,7 +1063,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 * Please note that lk_exslpfail count may be lying
 			 * about the real number of waiters with the
 			 * LK_SLEEPFAIL flag on because they may be used in
-			 * conjuction with interruptible sleeps so
+			 * conjunction with interruptible sleeps so
 			 * lk_exslpfail might be considered an 'upper limit'
 			 * bound, including the edge cases.
 			 */
@@ -1176,7 +1176,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				 * Please note that lk_exslpfail count may be
 				 * lying about the real number of waiters with
 				 * the LK_SLEEPFAIL flag on because they may
-				 * be used in conjuction with interruptible
+				 * be used in conjunction with interruptible
 				 * sleeps so lk_exslpfail might be considered
 				 * an 'upper limit' bound, including the edge
 				 * cases.

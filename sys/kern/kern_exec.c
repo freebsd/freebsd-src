@@ -416,7 +416,7 @@ do_execve(td, args, mac_p)
 
 	/*
 	 * Translate the file name. namei() returns a vnode pointer
-	 *	in ni_vp amoung other things.
+	 *	in ni_vp among other things.
 	 *
 	 * XXXAUDIT: It would be desirable to also audit the name of the
 	 * interpreter if this is an interpreted binary.

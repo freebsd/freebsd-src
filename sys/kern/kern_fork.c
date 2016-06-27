@@ -900,7 +900,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 			/*
 			 * The swap reservation failed. The accounting
 			 * from the entries of the copied vm2 will be
-			 * substracted in vmspace_free(), so force the
+			 * subtracted in vmspace_free(), so force the
 			 * reservation there.
 			 */
 			swap_reserve_force(mem_charged);

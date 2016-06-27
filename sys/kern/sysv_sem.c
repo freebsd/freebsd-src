@@ -1153,7 +1153,7 @@ sys_semop(struct thread *td, struct semop_args *uap)
 	if ((error = sem_prison_cansee(rpr, semakptr)) != 0)
 		goto done2;
 	/*
-	 * Initial pass thru sops to see what permissions are needed.
+	 * Initial pass through sops to see what permissions are needed.
 	 * Also perform any checks that don't need repeating on each
 	 * attempt to satisfy the request vector.
 	 */

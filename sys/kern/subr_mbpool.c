@@ -289,7 +289,7 @@ mbp_ext_free(struct mbuf *m, void *buf, void *arg)
 }
 
 /*
- * Free all buffers that are marked as beeing on the card
+ * Free all buffers that are marked as being on the card
  */
 void
 mbp_card_free(struct mbpool *p)

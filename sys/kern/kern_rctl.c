@@ -310,7 +310,7 @@ rctl_pcpu_available(const struct proc *p) {
 
 	/*
 	 * Return slightly less than actual value of the available
-	 * %cpu resource.  This makes %cpu throttling more agressive
+	 * %cpu resource.  This makes %cpu throttling more aggressive
 	 * and lets us act sooner than the limits are already exceeded.
 	 */
 	if (limit != 0) {

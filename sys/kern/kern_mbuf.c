@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
  *
  * Whenever an object is allocated from the underlying global
  * memory pool it gets pre-initialized with the _zinit_ functions.
- * When the Keg's are overfull objects get decomissioned with
+ * When the Keg's are overfull objects get decommissioned with
  * _zfini_ functions and free'd back to the global memory pool.
  *
  */

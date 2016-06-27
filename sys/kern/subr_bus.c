@@ -4564,7 +4564,7 @@ root_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 }
 
 /*
- * If we get here, assume that the device is permanant and really is
+ * If we get here, assume that the device is permanent and really is
  * present in the system.  Removable bus drivers are expected to intercept
  * this call long before it gets here.  We return -1 so that drivers that
  * really care can check vs -1 or some ERRNO returned higher in the food

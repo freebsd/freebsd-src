@@ -1525,7 +1525,7 @@ fdgrowtable_exp(struct filedesc *fdp, int nfd)
 }
 
 /*
- * Grow the file table to accomodate (at least) nfd descriptors.
+ * Grow the file table to accommodate (at least) nfd descriptors.
  */
 static void
 fdgrowtable(struct filedesc *fdp, int nfd)
@@ -1730,7 +1730,7 @@ fdavail(struct thread *td, int n)
 }
 
 /*
- * Create a new open file structure and allocate a file decriptor for the
+ * Create a new open file structure and allocate a file descriptor for the
  * process that refers to it.  We add one reference to the file for the
  * descriptor table and one reference for resultfp. This is to prevent us
  * being preempted and the entry in the descriptor table closed after we
@@ -2448,7 +2448,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
  *
  * File's rights will be checked against the capability rights mask.
  *
- * If an error occured the non-zero error is returned and *fpp is set to
+ * If an error occurred the non-zero error is returned and *fpp is set to
  * NULL.  Otherwise *fpp is held and set and zero is returned.  Caller is
  * responsible for fdrop().
  */

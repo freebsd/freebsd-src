@@ -2898,7 +2898,7 @@ witness_lock_order_add(struct witness *parent, struct witness *child)
 	return (1);
 }
 
-/* Call this whenver the structure of the witness graph changes. */
+/* Call this whenever the structure of the witness graph changes. */
 static void
 witness_increment_graph_generation(void)
 {

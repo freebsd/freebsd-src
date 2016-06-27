@@ -708,7 +708,7 @@ imgact_binmisc_exec(struct image_params *imgp)
 			break;
 
 		case ' ':
-			/* Replace space with NUL to seperate arguments. */
+			/* Replace space with NUL to separate arguments. */
 			*d++ = '\0';
 			break;
 
