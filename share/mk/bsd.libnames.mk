@@ -143,6 +143,7 @@ LIBSSP_NONSHARED?=	${DESTDIR}${LIBDIR}/libssp_nonshared.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBSTDTHREADS?=	${DESTDIR}${LIBDIR}/libstdthreads.a
+LIBSYSCALLS?=	${DESTDIR}${LIBDIR}/libsyscalls.a
 LIBSYSDECODE?=	${DESTDIR}${LIBDIR}/libsysdecode.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
