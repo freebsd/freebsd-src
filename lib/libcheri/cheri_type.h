@@ -32,5 +32,6 @@
 #define	_CHERI_TYPE_H_
 
 __capability void	*cheri_type_alloc(void);
+__capability void	*cheri_system_type_alloc(void);
 
 #endif /* !_CHERI_TYPE_H_ */

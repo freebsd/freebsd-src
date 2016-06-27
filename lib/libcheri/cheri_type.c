@@ -30,9 +30,7 @@
 
 #include <sys/cdefs.h>
 
-#if !__has_feature(capabilities)
-#error "This code requires a CHERI-aware compiler"
-#endif
+__REQUIRE_CAPABILITIES
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -43,11 +41,23 @@
 #include <machine/sysarch.h>
 
 #include <assert.h>
+#include <stdatomic.h>
+#include <stdio.h>
 
 #include "cheri_type.h"
 
+/** The root capability of the types provenance tree. */
 static __capability void *cheri_type_root;
-static uint64_t cheri_type_next = 1;
+/** The number of bits in the type field of a capability. */
+static const int cap_type_bits = 24;
+/** The next non-system type number to allocate. */
+static _Atomic(uint64_t) cheri_type_next = 1;
+/** The maximum non-system type number to allocate (plus one). */
+static const int cheri_type_max = 1<<(cap_type_bits-2);
+/** The next system type number to allocate. */
+static _Atomic(uint64_t) cheri_system_type_next = cheri_type_max;
+/** The maximum system type number to allocate (plus one). */
+static const int cheri_system_type_max = 1<<(cap_type_bits-1);
 
 static void
 cheri_type_init(void)
@@ -66,17 +76,31 @@ cheri_type_init(void)
 	assert(cheri_getlen(cheri_type_root) != 0);
 }
 
-/*
- * A [very] simple CHERI type allocator.
- *
- * XXXRW: Concurrency.  We need locks around this.
+/**
+ * A simple type allocator.  The `source` argument specifies the pointer value
+ * that will be atomically incremented and whose current value should give the
+ * integer representation of the type to allocate.  The `max` argument
+ * specifies value that the returned type must be less than.
  */
-__capability void *
-cheri_type_alloc(void)
+static inline __capability void *
+alloc_type_capability(_Atomic(uint64_t) *source, uint64_t max)
 {
 	__capability void *new_type_cap;
 
-	assert(cheri_type_next < 1<<24);
+	/*
+	 * We require that this counter be strictly monotonic, but we don't need to
+	 * establish a happens-before relationship with any other thread.
+	 */
+	uint64_t next = atomic_fetch_add_explicit(source, 1,
+		memory_order_relaxed);
+
+	/*
+	 * If we've run out of types, return NULL so that we get an obvious
+	 * failure.
+	 */
+	if (next > max) {
+		return NULL;
+	}
 
 	/*
 	 * On first use, query the root object-type capability from the
@@ -84,7 +108,24 @@ cheri_type_alloc(void)
 	 */
 	if ((cheri_getperm(cheri_type_root) & CHERI_PERM_SEAL) == 0)
 		cheri_type_init();
-	new_type_cap = cheri_maketype(cheri_type_root, cheri_type_next);
-	cheri_type_next++;
+	new_type_cap = cheri_maketype(cheri_type_root, next);
 	return (new_type_cap);
 }
+/*
+ * A [very] simple CHERI type allocator.
+ */
+__capability void *
+cheri_type_alloc(void)
+{
+
+	return alloc_type_capability(&cheri_type_next, cheri_type_max);
+}
+
+__capability void *
+cheri_system_type_alloc(void)
+{
+
+	return alloc_type_capability(&cheri_system_type_next,
+			cheri_system_type_max);
+}
+
