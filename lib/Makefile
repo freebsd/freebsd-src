@@ -36,6 +36,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libbsdstat \
 	libbsm \
 	libbz2 \
+	libc_nosyscalls \
 	libcalendar \
 	libcam \
 	${_libcapsicum} \

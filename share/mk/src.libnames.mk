@@ -65,6 +65,7 @@ _LIBRARIES=	\
 		bz2 \
 		c \
 		c_cheri \
+		c_nosyscalls \
 		c_pic \
 		calendar \
 		cam \
@@ -306,8 +307,10 @@ _DP_xo=		util
 # The libc dependencies are not strictly needed but are defined to make the
 # assert happy.
 _DP_c=		compiler_rt
+_DP_c_nosyscalls=		compiler_rt
 .if ${MK_SSP} != "no"
 _DP_c+=		ssp_nonshared
+_DP_c_nosyscalls+=		ssp_nonshared
 .endif
 _DP_stdthreads=	pthread
 _DP_tacplus=	md

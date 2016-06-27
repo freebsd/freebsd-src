@@ -28,6 +28,7 @@ LIBBSM?=	${DESTDIR}${LIBDIR}/libbsm.a
 LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
 LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
+LIBC_NOSYSCALLS?=	${DESTDIR}${LIBDIR}/libc_nosyscalls.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
 LIBCAPSICUM?=	${DESTDIR}${LIBDIR}/libcapsicum.a
