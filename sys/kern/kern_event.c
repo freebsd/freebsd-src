@@ -2204,7 +2204,7 @@ knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
 	else
 		knl->kl_assert_unlocked = kl_assert_unlocked;
 
-	knl->kl_autodestroy = false;
+	knl->kl_autodestroy = 0;
 	SLIST_INIT(&knl->kl_list);
 }
 
@@ -2255,7 +2255,7 @@ knlist_detach(struct knlist *knl)
 {
 
 	KNL_ASSERT_LOCKED(knl);
-	knl->kl_autodestroy = true;
+	knl->kl_autodestroy = 1;
 	if (knlist_empty(knl)) {
 		knlist_destroy(knl);
 		free(knl, M_KQUEUE);
