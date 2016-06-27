@@ -291,6 +291,7 @@ filemon_modevent(module_t mod __unused, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		printf("WARNING: Filemon is still experimental for FreeBSD 9.\n");
 		filemon_load(data);
 		break;
 
