@@ -571,6 +571,19 @@ interpret:
 	/* The new credentials are installed into the process later. */
 
 	/*
+	 * Do the best to calculate the full path to the image file.
+	 */
+	if (args->fname != NULL && args->fname[0] == '/')
+		imgp->execpath = args->fname;
+	else {
+		VOP_UNLOCK(imgp->vp, 0);
+		if (vn_fullpath(td, imgp->vp, &imgp->execpath,
+		    &imgp->freepath) != 0)
+			imgp->execpath = args->fname;
+		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+	}
+
+	/*
 	 *	If the current process has a special image activator it
 	 *	wants to try first, call it.   For example, emulating shell
 	 *	scripts differently.
@@ -632,6 +645,9 @@ interpret:
 			crfree(imgp->newcred);
 			imgp->newcred = NULL;
 		}
+		imgp->execpath = NULL;
+		free(imgp->freepath, M_TEMP);
+		imgp->freepath = NULL;
 		/* set new name to that of the interpreter */
 		NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
@@ -644,14 +660,6 @@ interpret:
 	 * of the sv_copyout_strings/sv_fixup operations require the vnode.
 	 */
 	VOP_UNLOCK(imgp->vp, 0);
-
-	/*
-	 * Do the best to calculate the full path to the image file.
-	 */
-	if (imgp->auxargs != NULL &&
-	    ((args->fname != NULL && args->fname[0] == '/') ||
-	     vn_fullpath(td, imgp->vp, &imgp->execpath, &imgp->freepath) != 0))
-		imgp->execpath = args->fname;
 
 	if (disallow_high_osrel &&
 	    P_OSREL_MAJOR(p->p_osrel) > P_OSREL_MAJOR(__FreeBSD_version)) {
