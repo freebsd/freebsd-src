@@ -159,7 +159,7 @@ struct knlist {
 	void	(*kl_assert_locked)(void *);
 	void	(*kl_assert_unlocked)(void *);
 	void	*kl_lockarg;		/* argument passed to lock functions */
-	bool	kl_autodestroy;
+	int	kl_autodestroy;
 };
 
 
