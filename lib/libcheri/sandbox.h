@@ -95,7 +95,7 @@ int	sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
  * Reset the stack of a sandbox.  This is a temporary API until libcheri
  * becomes responsible for managing a pool of stacks.
  */
-int	sandbox_object_stack_reset(struct sandbox_object *sbop)
+int	sandbox_object_stack_reset(struct sandbox_object *sbop);
 int	sandbox_object_reset(struct sandbox_object *sbop);
 #if __has_feature(capabilities)
 register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
