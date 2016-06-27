@@ -671,7 +671,7 @@ interpret:
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
 	 * the process is being traced.
 	 *
-	 * We disable setuid/setgid/etc in compatibility mode on the basis
+	 * We disable setuid/setgid/etc in capability mode on the basis
 	 * that most setugid applications are not written with that
 	 * environment in mind, and will therefore almost certainly operate
 	 * incorrectly. In principle there's no reason that setugid
