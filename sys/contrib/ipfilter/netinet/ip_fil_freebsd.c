@@ -105,7 +105,9 @@ MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures")
 static	int	ipf_send_ip __P((fr_info_t *, mb_t *));
 static void	ipf_timer_func __P((void *arg));
 
-VNET_DEFINE(ipf_main_softc_t, ipfmain);
+VNET_DEFINE(ipf_main_softc_t, ipfmain) = {
+	.ipf_running		= -2,
+};
 #define	V_ipfmain		VNET(ipfmain)
 
 # include <sys/conf.h>
@@ -113,7 +115,10 @@ VNET_DEFINE(ipf_main_softc_t, ipfmain);
 #  include <net/pfil.h>
 # endif /* NETBSD_PF */
 
-static eventhandler_tag ipf_arrivetag, ipf_departtag, ipf_clonetag;
+static eventhandler_tag ipf_arrivetag, ipf_departtag;
+#if 0
+static eventhandler_tag ipf_clonetag;
+#endif
 
 static void ipf_ifevent(void *arg, struct ifnet *ifp);
 
@@ -123,7 +128,8 @@ static void ipf_ifevent(arg, ifp)
 {
 
 	CURVNET_SET(ifp->if_vnet);
-        ipf_sync(&V_ipfmain, NULL);
+	if (V_ipfmain.ipf_running > 0)
+		ipf_sync(&V_ipfmain, NULL);
 	CURVNET_RESTORE();
 }
 
@@ -1411,8 +1417,10 @@ ipf_event_reg(void)
 	ipf_departtag = EVENTHANDLER_REGISTER(ifnet_departure_event, \
 					       ipf_ifevent, NULL, \
 					       EVENTHANDLER_PRI_ANY);
+#if 0
 	ipf_clonetag  = EVENTHANDLER_REGISTER(if_clone_event, ipf_ifevent, \
 					       NULL, EVENTHANDLER_PRI_ANY);
+#endif
 }
 
 void
@@ -1424,9 +1432,11 @@ ipf_event_dereg(void)
 	if (ipf_departtag != NULL) {
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ipf_departtag);
 	}
+#if 0
 	if (ipf_clonetag != NULL) {
 		EVENTHANDLER_DEREGISTER(if_clone_event, ipf_clonetag);
 	}
+#endif
 }
 
 
