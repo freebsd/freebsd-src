@@ -582,7 +582,7 @@ sys_setuid(struct thread *td, struct setuid_args *uap)
 		change_euid(newcred, uip);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
@@ -641,7 +641,7 @@ sys_seteuid(struct thread *td, struct seteuid_args *uap)
 		change_euid(newcred, euip);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	uifree(euip);
 	crfree(oldcred);
@@ -741,7 +741,7 @@ sys_setgid(struct thread *td, struct setgid_args *uap)
 		change_egid(newcred, gid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -787,7 +787,7 @@ sys_setegid(struct thread *td, struct setegid_args *uap)
 		change_egid(newcred, egid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -860,7 +860,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 		crsetgroups_locked(newcred, ngrp, groups);
 	}
 	setsugid(p);
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -923,7 +923,7 @@ sys_setreuid(register struct thread *td, struct setreuid_args *uap)
 		change_svuid(newcred, newcred->cr_uid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
@@ -990,7 +990,7 @@ sys_setregid(register struct thread *td, struct setregid_args *uap)
 		change_svgid(newcred, newcred->cr_groups[0]);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -1064,7 +1064,7 @@ sys_setresuid(register struct thread *td, struct setresuid_args *uap)
 		change_svuid(newcred, suid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
@@ -1143,7 +1143,7 @@ sys_setresgid(register struct thread *td, struct setresgid_args *uap)
 		change_svgid(newcred, sgid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -1954,6 +1954,31 @@ cred_update_thread(struct thread *td)
 	PROC_UNLOCK(p);
 	if (cred != NULL)
 		crfree(cred);
+}
+
+/*
+ * Change process credentials.
+ * Callers are responsible for providing the reference for current credentials
+ * and for freeing old ones.
+ *
+ * Process has to be locked except when it does not have credentials (as it
+ * should not be visible just yet) or when newcred is NULL (as this can be
+ * only used when the process is about to be freed, at which point it should
+ * not be visible anymore).
+ */
+struct ucred *
+proc_set_cred(struct proc *p, struct ucred *newcred)
+{
+	struct ucred *oldcred;
+
+	if (newcred == NULL)
+		MPASS(p->p_state == PRS_ZOMBIE);
+	else if (p->p_ucred != NULL)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	oldcred = p->p_ucred;
+	p->p_ucred = newcred;
+	return (oldcred);
 }
 
 struct ucred *

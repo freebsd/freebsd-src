@@ -937,7 +937,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * Free credentials, arguments, and sigacts.
 	 */
 	crfree(p->p_ucred);
-	p->p_ucred = NULL;
+	proc_set_cred(p, NULL);
 	pargs_drop(p->p_args);
 	p->p_args = NULL;
 	sigacts_free(p->p_sigacts);
