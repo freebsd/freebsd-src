@@ -70,7 +70,8 @@ static inline int	 applies(struct s_command *);
 static void		 do_tr(struct s_tr *);
 static void		 flush_appends(void);
 static void		 lputs(char *, size_t);
-static int		 regexec_e(regex_t *, const char *, int, int, size_t);
+static int		 regexec_e(regex_t *, const char *, int, int, size_t,
+			     size_t);
 static void		 regsub(SPACE *, char *, char *);
 static int		 substitute(struct s_command *);
 
@@ -271,7 +272,7 @@ new:		if (!nflag && !pd)
  * (lastline, linenumber, ps).
  */
 #define	MATCH(a)							\
-	((a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1, psl) :	\
+	((a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1, 0, psl) :	\
 	    (a)->type == AT_LINE ? linenum == (a)->u.l : lastline())
 
 /*
@@ -371,6 +372,7 @@ substitute(struct s_command *cp)
 	regex_t *re;
 	regoff_t slen;
 	int lastempty, n;
+	size_t le = 0;
 	char *s;
 
 	s = ps;
@@ -382,7 +384,7 @@ substitute(struct s_command *cp)
 					linenum, fname, cp->u.s->maxbref);
 		}
 	}
-	if (!regexec_e(re, s, 0, 0, psl))
+	if (!regexec_e(re, s, 0, 0, 0, psl))
 		return (0);
 
 	SS.len = 0;				/* Clean substitute space. */
@@ -392,28 +394,30 @@ substitute(struct s_command *cp)
 
 	do {
 		/* Copy the leading retained string. */
-		if (n <= 1 && match[0].rm_so)
-			cspace(&SS, s, match[0].rm_so, APPEND);
+		if (n <= 1 && match[0].rm_so - le)
+			cspace(&SS, s, match[0].rm_so - le, APPEND);
 
 		/* Skip zero-length matches right after other matches. */
-		if (lastempty || match[0].rm_so ||
+		if (lastempty || (match[0].rm_so - le) ||
 		    match[0].rm_so != match[0].rm_eo) {
 			if (n <= 1) {
 				/* Want this match: append replacement. */
-				regsub(&SS, s, cp->u.s->new);
+				regsub(&SS, ps, cp->u.s->new);
 				if (n == 1)
 					n = -1;
 			} else {
 				/* Want a later match: append original. */
-				if (match[0].rm_eo)
-					cspace(&SS, s, match[0].rm_eo, APPEND);
+				if (match[0].rm_eo - le)
+					cspace(&SS, s, match[0].rm_eo - le,
+					    APPEND);
 				n--;
 			}
 		}
 
 		/* Move past this match. */
-		s += match[0].rm_eo;
-		slen -= match[0].rm_eo;
+		s += (match[0].rm_eo - le);
+		slen -= (match[0].rm_eo - le);
+		le = match[0].rm_eo;
 
 		/*
 		 * After a zero-length match, advance one byte,
@@ -424,13 +428,15 @@ substitute(struct s_command *cp)
 				slen = -1;
 			else
 				slen--;
-			if (*s != '\0')
+			if (*s != '\0') {
 			 	cspace(&SS, s++, 1, APPEND);
+				le++;
+			}
 			lastempty = 1;
 		} else
 			lastempty = 0;
 
-	} while (n >= 0 && slen >= 0 && regexec_e(re, s, REG_NOTBOL, 0, slen));
+	} while (n >= 0 && slen >= 0 && regexec_e(re, ps, 0, 0, le, psl));
 
 	/* Did not find the requested number of matches. */
 	if (n > 1)
@@ -640,7 +646,7 @@ lputs(char *s, size_t len)
 
 static int
 regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
-	size_t slen)
+	size_t start, size_t stop)
 {
 	int eval;
 
@@ -651,8 +657,8 @@ regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
 		defpreg = preg;
 
 	/* Set anchors */
-	match[0].rm_so = 0;
-	match[0].rm_eo = slen;
+	match[0].rm_so = start;
+	match[0].rm_eo = stop;
 
 	eval = regexec(defpreg, string,
 	    nomatch ? 0 : maxnsub + 1, match, eflags | REG_STARTEND);
