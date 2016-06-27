@@ -461,7 +461,7 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 		    udata.au_aupinfo.ap_mask.am_success;
 		newcred->cr_audit.ai_mask.am_failure =
 		    udata.au_aupinfo.ap_mask.am_failure;
-		tp->p_ucred = newcred;
+		proc_set_cred(tp, newcred);
 		PROC_UNLOCK(tp);
 		crfree(oldcred);
 		break;
@@ -600,7 +600,7 @@ sys_setauid(struct thread *td, struct setauid_args *uap)
 	if (error)
 		goto fail;
 	newcred->cr_audit.ai_auid = id;
-	td->td_proc->p_ucred = newcred;
+	proc_set_cred(td->td_proc, newcred);
 	PROC_UNLOCK(td->td_proc);
 	crfree(oldcred);
 	return (0);
@@ -671,7 +671,7 @@ sys_setaudit(struct thread *td, struct setaudit_args *uap)
 	newcred->cr_audit.ai_termid.at_addr[0] = ai.ai_termid.machine;
 	newcred->cr_audit.ai_termid.at_port = ai.ai_termid.port;
 	newcred->cr_audit.ai_termid.at_type = AU_IPv4;
-	td->td_proc->p_ucred = newcred;
+	proc_set_cred(td->td_proc, newcred);
 	PROC_UNLOCK(td->td_proc);
 	crfree(oldcred);
 	return (0);
@@ -728,7 +728,7 @@ sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	if (error)
 		goto fail;
 	newcred->cr_audit = aia;
-	td->td_proc->p_ucred = newcred;
+	proc_set_cred(td->td_proc, newcred);
 	PROC_UNLOCK(td->td_proc);
 	crfree(oldcred);
 	return (0);

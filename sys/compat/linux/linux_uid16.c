@@ -214,7 +214,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 		newcred->cr_ngroups = 1;
 
 	setsugid(td->td_proc);
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	error = 0;

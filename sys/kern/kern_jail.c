@@ -2476,7 +2476,7 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
 	newcred->cr_prison = pr;
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	setsugid(p);
 	PROC_UNLOCK(p);
 #ifdef RACCT

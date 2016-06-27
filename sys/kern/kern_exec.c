@@ -751,7 +751,7 @@ interpret:
 		 */
 		change_svuid(newcred, newcred->cr_uid);
 		change_svgid(newcred, newcred->cr_gid);
-		p->p_ucred = newcred;
+		proc_set_cred(p, newcred);
 	} else {
 		if (oldcred->cr_uid == oldcred->cr_ruid &&
 		    oldcred->cr_gid == oldcred->cr_rgid)
@@ -777,7 +777,7 @@ interpret:
 			PROC_LOCK(p);
 			change_svuid(newcred, newcred->cr_uid);
 			change_svgid(newcred, newcred->cr_gid);
-			p->p_ucred = newcred;
+			proc_set_cred(p, newcred);
 		}
 	}
 

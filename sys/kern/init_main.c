@@ -437,6 +437,7 @@ proc0_init(void *dummy __unused)
 {
 	struct proc *p;
 	struct thread *td;
+	struct ucred *newcred;
 	vm_paddr_t pageablemem;
 	int i;
 
@@ -513,19 +514,20 @@ proc0_init(void *dummy __unused)
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 
 	/* Create credentials. */
-	p->p_ucred = crget();
-	p->p_ucred->cr_ngroups = 1;	/* group 0 */
-	p->p_ucred->cr_uidinfo = uifind(0);
-	p->p_ucred->cr_ruidinfo = uifind(0);
-	p->p_ucred->cr_prison = &prison0;
-	p->p_ucred->cr_loginclass = loginclass_find("default");
+	newcred = crget();
+	newcred->cr_ngroups = 1;	/* group 0 */
+	newcred->cr_uidinfo = uifind(0);
+	newcred->cr_ruidinfo = uifind(0);
+	newcred->cr_prison = &prison0;
+	newcred->cr_loginclass = loginclass_find("default");
+	proc_set_cred(p, newcred);
 #ifdef AUDIT
-	audit_cred_kproc0(p->p_ucred);
+	audit_cred_kproc0(newcred);
 #endif
 #ifdef MAC
-	mac_cred_create_swapper(p->p_ucred);
+	mac_cred_create_swapper(newcred);
 #endif
-	td->td_ucred = crhold(p->p_ucred);
+	td->td_ucred = crhold(newcred);
 
 	/* Create sigacts. */
 	p->p_sigacts = sigacts_alloc();
@@ -844,7 +846,7 @@ create_init(const void *udata __unused)
 #ifdef AUDIT
 	audit_cred_proc1(newcred);
 #endif
-	initproc->p_ucred = newcred;
+	proc_set_cred(initproc, newcred);
 	PROC_UNLOCK(initproc);
 	sx_xunlock(&proctree_lock);
 	crfree(oldcred);

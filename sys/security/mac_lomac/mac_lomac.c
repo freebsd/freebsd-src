@@ -2275,7 +2275,7 @@ lomac_thread_userret(struct thread *td)
 		crcopy(newcred, oldcred);
 		crhold(newcred);
 		lomac_copy(&subj->mac_lomac, SLOT(newcred->cr_label));
-		p->p_ucred = newcred;
+		proc_set_cred(p, newcred);
 		crfree(oldcred);
 		dodrop = 1;
 	out:
