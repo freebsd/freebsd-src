@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.113 2016/02/26 15:52:45 christos Exp $
+# $File: Makefile.am,v 1.116 2016/06/13 19:09:31 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -29,6 +29,7 @@ $(MAGIC_FRAGMENT_DIR)/asterix \
 $(MAGIC_FRAGMENT_DIR)/att3b \
 $(MAGIC_FRAGMENT_DIR)/audio \
 $(MAGIC_FRAGMENT_DIR)/basis \
+$(MAGIC_FRAGMENT_DIR)/ber \
 $(MAGIC_FRAGMENT_DIR)/bflt \
 $(MAGIC_FRAGMENT_DIR)/bioinformatics \
 $(MAGIC_FRAGMENT_DIR)/blackberry \
@@ -57,6 +58,7 @@ $(MAGIC_FRAGMENT_DIR)/communications \
 $(MAGIC_FRAGMENT_DIR)/compress \
 $(MAGIC_FRAGMENT_DIR)/console \
 $(MAGIC_FRAGMENT_DIR)/convex \
+$(MAGIC_FRAGMENT_DIR)/coverage \
 $(MAGIC_FRAGMENT_DIR)/cracklib \
 $(MAGIC_FRAGMENT_DIR)/ctags \
 $(MAGIC_FRAGMENT_DIR)/ctf \
@@ -191,6 +193,8 @@ $(MAGIC_FRAGMENT_DIR)/parrot \
 $(MAGIC_FRAGMENT_DIR)/pascal \
 $(MAGIC_FRAGMENT_DIR)/pbf \
 $(MAGIC_FRAGMENT_DIR)/pbm \
+$(MAGIC_FRAGMENT_DIR)/pc88 \
+$(MAGIC_FRAGMENT_DIR)/pc98 \
 $(MAGIC_FRAGMENT_DIR)/pdf \
 $(MAGIC_FRAGMENT_DIR)/pdp \
 $(MAGIC_FRAGMENT_DIR)/perl \
@@ -271,6 +275,7 @@ $(MAGIC_FRAGMENT_DIR)/windows \
 $(MAGIC_FRAGMENT_DIR)/wireless \
 $(MAGIC_FRAGMENT_DIR)/wordprocessors \
 $(MAGIC_FRAGMENT_DIR)/wsdl \
+$(MAGIC_FRAGMENT_DIR)/x68000 \
 $(MAGIC_FRAGMENT_DIR)/xdelta \
 $(MAGIC_FRAGMENT_DIR)/xenix \
 $(MAGIC_FRAGMENT_DIR)/xilinx \
