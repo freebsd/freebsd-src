@@ -404,7 +404,7 @@ vmbus_vector_alloc(void)
 
 	/*
 	 * Search backwards form the highest IDT vector available for use
-	 * as vmbus channel callback vector. We install 'hv_vmbus_callback'
+	 * as vmbus channel callback vector. We install 'vmbus_isr'
 	 * handler at that vector and use it to interrupt vcpus.
 	 */
 	vector = APIC_SPURIOUS_INT;
@@ -443,7 +443,7 @@ vmbus_vector_free(int vector)
 
 	ip = &idt[vector];
 	func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
-	KASSERT(func == (uintptr_t)&IDTVEC(hv_vmbus_callback),
+	KASSERT(func == (uintptr_t)&IDTVEC(vmbus_isr),
 	    ("invalid vector %d", vector));
 
 	setidt(vector, IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
