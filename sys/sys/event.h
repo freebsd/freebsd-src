@@ -158,7 +158,8 @@ struct knlist {
 	void    (*kl_unlock)(void *);
 	void	(*kl_assert_locked)(void *);
 	void	(*kl_assert_unlocked)(void *);
-	void *kl_lockarg;		/* argument passed to kl_lockf() */
+	void	*kl_lockarg;		/* argument passed to lock functions */
+	bool	kl_autodestroy;
 };
 
 
@@ -258,9 +259,10 @@ struct rwlock;
 
 extern void	knote(struct knlist *list, long hint, int lockflags);
 extern void	knote_fork(struct knlist *list, int pid);
+extern struct knlist *knlist_alloc(struct mtx *lock);
+extern void	knlist_detach(struct knlist *knl);
 extern void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
 extern void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
-extern void	knlist_remove_inevent(struct knlist *knl, struct knote *kn);
 extern int	knlist_empty(struct knlist *knl);
 extern void	knlist_init(struct knlist *knl, void *lock,
     void (*kl_lock)(void *), void (*kl_unlock)(void *),
