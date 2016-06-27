@@ -292,7 +292,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	struct faultstate fs;
 	struct vnode *vp;
 	vm_page_t m;
-	int ahead, behind, cluster_offset, error, locked;
+	int ahead, behind, cluster_offset, dead, error, locked;
 
 	hardfault = 0;
 	growstack = TRUE;
@@ -421,11 +421,18 @@ fast_failed:
 	fs.pindex = fs.first_pindex;
 	while (TRUE) {
 		/*
-		 * If the object is dead, we stop here
+		 * If the object is marked for imminent termination,
+		 * we retry here, since the collapse pass has raced
+		 * with us.  Otherwise, if we see terminally dead
+		 * object, return fail.
 		 */
-		if (fs.object->flags & OBJ_DEAD) {
+		if ((fs.object->flags & OBJ_DEAD) != 0) {
+			dead = fs.object->type == OBJT_DEAD;
 			unlock_and_deallocate(&fs);
-			return (KERN_PROTECTION_FAILURE);
+			if (dead)
+				return (KERN_PROTECTION_FAILURE);
+			pause("vmf_de", 1);
+			goto RetryFault;
 		}
 
 		/*
