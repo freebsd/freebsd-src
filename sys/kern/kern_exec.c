@@ -613,9 +613,6 @@ interpret:
 
 	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 
-	/* Get a reference to the vnode prior to locking the proc */
-	VREF(binvp);
-
 	/*
 	 * For security and other reasons, signal handlers cannot
 	 * be shared after an exec. The new process gets a copy of the old
@@ -782,8 +779,8 @@ interpret:
 	}
 
 	/*
-	 * Store the vp for use in procfs.  This vnode was referenced prior
-	 * to locking the proc lock.
+	 * Store the vp for use in procfs.  This vnode was referenced by namei
+	 * or fgetvp_exec.
 	 */
 	textvp = p->p_textvp;
 	p->p_textvp = binvp;
@@ -865,8 +862,6 @@ done1:
 	 */
 	if (textvp != NULL)
 		vrele(textvp);
-	if (error != 0)
-		vrele(binvp);
 #ifdef KTRACE
 	if (tracevp != NULL)
 		vrele(tracevp);
@@ -892,7 +887,10 @@ exec_fail_dealloc:
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (imgp->opened)
 			VOP_CLOSE(imgp->vp, FREAD, td->td_ucred, td);
-		vput(imgp->vp);
+		if (error != 0)
+			vput(imgp->vp);
+		else
+			VOP_UNLOCK(imgp->vp, 0);
 	}
 
 	if (imgp->object != NULL)
