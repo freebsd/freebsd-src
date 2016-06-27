@@ -127,7 +127,7 @@ __cheri_ ## class ## _entry:						\
 	dla	$ra, 0f;						\
 	cgetpcc	$c12;							\
 	csetoffset	$c12, $c12, $t9;				\
-	cjalr	$c17, $c12;						\
+	cjalr	$c12, $c17;						\
 	nop;			/* Branch-delay slot */			\
 									\
 	/*								\

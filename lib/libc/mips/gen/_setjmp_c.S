@@ -224,7 +224,7 @@ botch:
 	PTR_LA		t9, _C_LABEL(longjmperror)
 	cgetpcc		$c12
 	csetoffset	$c12, $c12, t9
-	cjalr		$c17, $c12
+	cjalr		$c12, $c17
 	nop
 
 	PIC_TAILCALL(abort)
