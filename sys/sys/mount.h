@@ -653,15 +653,15 @@ vfs_statfs_t	__vfs_statfs;
 
 #define	VFS_PROLOGUE(MP)	do {					\
 	struct mount *mp__;						\
-	int _enable_stops;						\
+	int _prev_stops;						\
 									\
 	mp__ = (MP);							\
-	_enable_stops = (mp__ != NULL &&				\
-	    (mp__->mnt_vfc->vfc_flags & VFCF_SBDRY) && sigdeferstop())
+	_prev_stops = sigdeferstop((mp__ != NULL &&			\
+	    (mp__->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) ?		\
+	    SIGDEFERSTOP_SILENT : SIGDEFERSTOP_NOP);
 
 #define	VFS_EPILOGUE(MP)						\
-	if (_enable_stops)						\
-		sigallowstop();						\
+	sigallowstop(_prev_stops);					\
 } while (0)
 
 #define	VFS_MOUNT(MP) ({						\
