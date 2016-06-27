@@ -1325,10 +1325,6 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	 * and write it out following the notes.
 	 */
 	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
-	if (hdr == NULL) {
-		error = EINVAL;
-		goto done;
-	}
 	error = __elfN(corehdr)(td, vp, cred, seginfo.count, hdr, hdrsize,
 	    &notelst, notesz, gzfile);
 
