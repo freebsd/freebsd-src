@@ -867,4 +867,12 @@
 #define	__guarded_by(x)		__lock_annotate(guarded_by(x))
 #define	__pt_guarded_by(x)	__lock_annotate(pt_guarded_by(x))
 
+/* Specify that a file requires capabilities */
+#if __has_feature(capabilities)
+#define __REQUIRE_CAPABILITIES
+#else
+#define __REQUIRE_CAPABILITIES \
+	_Pragma("GCC error \"This file requires a capability-aware compiler\"")
+#endif
+
 #endif /* !_SYS_CDEFS_H_ */
