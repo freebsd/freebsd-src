@@ -3,7 +3,10 @@
 TESTSDIR=	${TESTSBASE}/sys/geom/class
 
 TESTS_SUBDIRS+=	concat
+.if ${MACHINE_CPUARCH} != "mips"
+# XXX: sometimes hangs for a long time
 TESTS_SUBDIRS+=	eli
+.endif
 TESTS_SUBDIRS+=	gate
 # XXX: might not work due to geom(4) changes; more investigation's needed
 #TESTS_SUBDIRS+=	gpt
