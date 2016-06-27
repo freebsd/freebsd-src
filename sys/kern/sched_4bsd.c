@@ -1393,7 +1393,7 @@ sched_add(struct thread *td, int flags)
 	 * or kicking off another CPU as it won't help and may hinder.
 	 * In the YIEDLING case, we are about to run whoever is being
 	 * put in the queue anyhow, and in the OURSELF case, we are
-	 * puting ourself on the run queue which also only happens
+	 * putting ourself on the run queue which also only happens
 	 * when we are about to yield.
 	 */
 	if ((flags & SRQ_YIELDING) == 0) {

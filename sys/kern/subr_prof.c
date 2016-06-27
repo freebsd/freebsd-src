@@ -269,7 +269,7 @@ kmstartup(dummy)
 	 * without much risk of reducing the profiling times below what they
 	 * would be when profiling is not configured.  Abbreviate:
 	 *	ab = minimum time between MC1 and MC3
-	 *	a  = minumum time between MC1 and MC2
+	 *	a  = minimum time between MC1 and MC2
 	 *	b  = minimum time between MC2 and MC3
 	 *	cd = minimum time between ME1 and ME3
 	 *	c  = minimum time between ME1 and ME2

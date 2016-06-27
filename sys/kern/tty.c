@@ -397,7 +397,7 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		PROC_LOCK(p);
 		/*
 		 * The process should only sleep, when:
-		 * - This terminal is the controling terminal
+		 * - This terminal is the controlling terminal
 		 * - Its process group is not the foreground process
 		 *   group
 		 * - The parent process isn't waiting for the child to

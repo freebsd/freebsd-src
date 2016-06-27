@@ -540,7 +540,7 @@ cluster_callback(bp)
 	int error = 0;
 
 	/*
-	 * Must propogate errors to all the components.
+	 * Must propagate errors to all the components.
 	 */
 	if (bp->b_ioflags & BIO_ERROR)
 		error = bp->b_error;

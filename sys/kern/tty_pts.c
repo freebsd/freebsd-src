@@ -123,7 +123,7 @@ ptsdev_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		/*
 		 * Implement packet mode. When packet mode is turned on,
 		 * the first byte contains a bitmask of events that
-		 * occured (start, stop, flush, window size, etc).
+		 * occurred (start, stop, flush, window size, etc).
 		 */
 		if (psc->pts_flags & PTS_PKT && psc->pts_pkt) {
 			pkt = psc->pts_pkt;

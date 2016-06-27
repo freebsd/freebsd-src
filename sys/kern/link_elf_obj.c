@@ -1099,7 +1099,7 @@ relocate_file(elf_file_t ef)
 	}
 
 	/*
-	 * Only clean SHN_FBSD_CACHED for successfull return.  If we
+	 * Only clean SHN_FBSD_CACHED for successful return.  If we
 	 * modified symbol table for the object but found an
 	 * unresolved symbol, there is no reason to roll back.
 	 */

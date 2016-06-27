@@ -163,7 +163,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 
 /*
  * Wait on a condition variable.  This function differs from cv_wait by
- * not aquiring the mutex after condition variable was signaled.
+ * not acquiring the mutex after condition variable was signaled.
  */
 void
 _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)

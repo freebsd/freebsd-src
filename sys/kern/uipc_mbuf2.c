@@ -141,7 +141,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 *      Ideally, the requirement should only be (iii).
 	 *
 	 * If we're writable, we're sure we're writable, because the ref. count
-	 * cannot increase from 1, as that would require posession of mbuf
+	 * cannot increase from 1, as that would require possession of mbuf
 	 * n by someone else (which is impossible). However, if we're _not_
 	 * writable, we may eventually become writable )if the ref. count drops
 	 * to 1), but we'll fail to notice it unless we re-evaluate

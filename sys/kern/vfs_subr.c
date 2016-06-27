@@ -501,7 +501,7 @@ vfs_busy(struct mount *mp, int flags)
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	/*
-	 * If mount point is currenly being unmounted, sleep until the
+	 * If mount point is currently being unmounted, sleep until the
 	 * mount point fate is decided.  If thread doing the unmounting fails,
 	 * it will clear MNTK_UNMOUNT flag before waking us up, indicating
 	 * that this mount point has survived the unmount attempt and vfs_busy
@@ -797,7 +797,7 @@ vattr_null(struct vattr *vap)
  * the buffer cache may have references on the vnode, a directory
  * vnode may still have references due to the namei cache representing
  * underlying files, or the vnode may be in active use.   It is not
- * desireable to reuse such vnodes.  These conditions may cause the
+ * desirable to reuse such vnodes.  These conditions may cause the
  * number of vnodes to reach some minimum value regardless of what
  * you set kern.maxvnodes to.  Do not set kern.maxvnodes too low.
  */
@@ -3669,7 +3669,7 @@ destroy_vpollinfo(struct vpollinfo *vi)
 }
 
 /*
- * Initalize per-vnode helper structure to hold poll-related state.
+ * Initialize per-vnode helper structure to hold poll-related state.
  */
 void
 v_addpollinfo(struct vnode *vp)
@@ -4080,7 +4080,7 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 
 #ifdef DEBUG_VFS_LOCKS
 /*
- * This only exists to supress warnings from unlocked specfs accesses.  It is
+ * This only exists to suppress warnings from unlocked specfs accesses.  It is
  * no longer ok to have an unlocked VFS.
  */
 #define	IGNORE_LOCK(vp) (panicstr != NULL || (vp) == NULL ||		\

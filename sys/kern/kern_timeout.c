@@ -1397,7 +1397,7 @@ _callout_init_lock(c, lock, flags)
  * which set the timer can do the maintanence the timer was for as close
  * as possible to the originally intended time.  Testing this code for a 
  * week showed that resuming from a suspend resulted in 22 to 25 timers 
- * firing, which seemed independant on whether the suspend was 2 hours or
+ * firing, which seemed independent on whether the suspend was 2 hours or
  * 2 days.  Your milage may vary.   - Ken Key <key@cs.utk.edu>
  */
 void

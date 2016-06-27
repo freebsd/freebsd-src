@@ -150,7 +150,7 @@ struct	namecache_ts {
  */
 
 /*
- * Structures associated with name cacheing.
+ * Structures associated with name caching.
  */
 #define NCHHASH(hash) \
 	(&nchashtbl[(hash) & nchash])
@@ -460,7 +460,7 @@ cache_zap(ncp)
  * cnp pointing to the name of the entry being sought. If the lookup
  * succeeds, the vnode is returned in *vpp, and a status of -1 is
  * returned. If the lookup determines that the name does not exist
- * (negative cacheing), a status of ENOENT is returned. If the lookup
+ * (negative caching), a status of ENOENT is returned. If the lookup
  * fails, a status of zero is returned.  If the directory vnode is
  * recycled out from under us due to a forced unmount, a status of
  * ENOENT is returned.
