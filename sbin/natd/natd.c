@@ -618,7 +618,7 @@ static void DoGlobal (int fd)
 	
 	if (wrote != bytes) {
 
-		if (errno == EMSGSIZE) {
+		if (errno == EMSGSIZE && mip != NULL) {
 
 			if (mip->ifMTU != -1)
 				SendNeedFragIcmp (icmpSock,
