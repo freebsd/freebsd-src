@@ -384,7 +384,7 @@ substitute(struct s_command *cp)
 					linenum, fname, cp->u.s->maxbref);
 		}
 	}
-	if (!regexec_e(re, s, 0, 0, 0, psl))
+	if (!regexec_e(re, ps, 0, 0, 0, psl))
 		return (0);
 
 	SS.len = 0;				/* Clean substitute space. */
@@ -394,7 +394,7 @@ substitute(struct s_command *cp)
 
 	do {
 		/* Copy the leading retained string. */
-		if (n <= 1 && match[0].rm_so - le)
+		if (n <= 1 && (match[0].rm_so > le))
 			cspace(&SS, s, match[0].rm_so - le, APPEND);
 
 		/* Skip zero-length matches right after other matches. */
@@ -415,8 +415,8 @@ substitute(struct s_command *cp)
 		}
 
 		/* Move past this match. */
-		s += (match[0].rm_eo - le);
-		slen -= (match[0].rm_eo - le);
+		s = ps + match[0].rm_eo;
+		slen = psl - match[0].rm_eo;
 		le = match[0].rm_eo;
 
 		/*
@@ -436,7 +436,8 @@ substitute(struct s_command *cp)
 		} else
 			lastempty = 0;
 
-	} while (n >= 0 && slen >= 0 && regexec_e(re, ps, 0, 0, le, psl));
+	} while (n >= 0 && slen >= 0 &&
+	    regexec_e(re, ps, REG_NOTBOL, 0, le, psl));
 
 	/* Did not find the requested number of matches. */
 	if (n > 1)
