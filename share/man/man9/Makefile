@@ -284,6 +284,7 @@ MAN=	accept_filter.9 \
 	sysctl_ctx_init.9 \
 	SYSINIT.9 \
 	taskqueue.9 \
+	tcp_functions.9 \
 	thread_exit.9 \
 	time.9 \
 	timeout.9 \
@@ -1734,6 +1735,8 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 taskqueue_start_threads_pinned.9 \
 	taskqueue.9 taskqueue_unblock.9 \
 	taskqueue.9 TIMEOUT_TASK_INIT.9
+MLINKS+=tcp_functions.9 register_tcp_functions.9 \
+	tcp_functions.9 deregister_tcp_functions.9
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9
