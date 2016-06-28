@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #ifdef FFCLOCK
 #include <sys/timeffc.h>
@@ -73,6 +75,8 @@ __FBSDID("$FreeBSD$");
 static device_t clock_dev = NULL;
 static long clock_res;
 static struct timespec clock_adj;
+static struct mtx resettodr_lock;
+MTX_SYSINIT(resettodr_init, &resettodr_lock, "tod2rl", MTX_DEF);
 
 /* XXX: should be kern. now, it's no longer machdep.  */
 static int disable_rtc_set;
@@ -168,11 +172,14 @@ resettodr(void)
 	if (disable_rtc_set || clock_dev == NULL)
 		return;
 
+	mtx_lock(&resettodr_lock);
 	getnanotime(&ts);
 	timespecadd(&ts, &clock_adj);
 	ts.tv_sec -= utc_offset();
 	/* XXX: We should really set all registered RTCs */
-	if ((error = CLOCK_SETTIME(clock_dev, &ts)) != 0)
+	error = CLOCK_SETTIME(clock_dev, &ts);
+	mtx_unlock(&resettodr_lock);
+	if (error != 0)
 		printf("warning: clock_settime failed (%d), time-of-day clock "
 		    "not adjusted to system time\n", error);
 }
