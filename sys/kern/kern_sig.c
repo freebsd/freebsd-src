@@ -107,7 +107,7 @@ static int	killpg1(struct thread *td, int sig, int pgid, int all,
 static int	issignal(struct thread *td);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
-static void	sig_suspend_threads(struct thread *, struct proc *, int);
+static int	sig_suspend_threads(struct thread *, struct proc *, int);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
@@ -2327,7 +2327,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xsig = sig;
 			PROC_SLOCK(p);
-			sig_suspend_threads(td, p, 1);
+			wakeup_swapper = sig_suspend_threads(td, p, 1);
 			if (p->p_numthreads == p->p_suspcount) {
 				/*
 				 * only thread sending signal to another
@@ -2341,6 +2341,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				sigqueue_delete_proc(p, p->p_xsig);
 			} else
 				PROC_SUNLOCK(p);
+			if (wakeup_swapper)
+				kick_proc0();
 			goto out;
 		}
 	} else {
@@ -2421,7 +2423,8 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 		 * Don't awaken a sleeping thread for SIGSTOP if the
 		 * STOP signal is deferred.
 		 */
-		if ((prop & SA_STOP) && (td->td_flags & TDF_SBDRY))
+		if ((prop & SA_STOP) != 0 && (td->td_flags & (TDF_SBDRY |
+		    TDF_SERESTART | TDF_SEINTR)) == TDF_SBDRY)
 			goto out;
 
 		/*
@@ -2449,14 +2452,16 @@ out:
 		kick_proc0();
 }
 
-static void
+static int
 sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 {
 	struct thread *td2;
+	int wakeup_swapper;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
+	wakeup_swapper = 0;
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
 		td2->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
@@ -2465,11 +2470,18 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 			if (td2->td_flags & TDF_SBDRY) {
 				/*
 				 * Once a thread is asleep with
-				 * TDF_SBDRY set, it should never
+				 * TDF_SBDRY and without TDF_SERESTART
+				 * or TDF_SEINTR set, it should never
 				 * become suspended due to this check.
 				 */
 				KASSERT(!TD_IS_SUSPENDED(td2),
 				    ("thread with deferred stops suspended"));
+				if ((td2->td_flags & (TDF_SERESTART |
+				    TDF_SEINTR)) != 0 && sending) {
+					wakeup_swapper |= sleepq_abort(td,
+					    (td2->td_flags & TDF_SERESTART)
+					    != 0 ? ERESTART : EINTR);
+				}
 			} else if (!TD_IS_SUSPENDED(td2)) {
 				thread_suspend_one(td2);
 			}
@@ -2483,6 +2495,7 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 		}
 		thread_unlock(td2);
 	}
+	return (wakeup_swapper);
 }
 
 int
@@ -2705,7 +2718,8 @@ issignal(struct thread *td)
 		SIGSETOR(sigpending, p->p_sigqueue.sq_signals);
 		SIGSETNAND(sigpending, td->td_sigmask);
 
-		if (p->p_flag & P_PPWAIT || td->td_flags & TDF_SBDRY)
+		if ((p->p_flag & P_PPWAIT) != 0 || (td->td_flags &
+		    (TDF_SBDRY | TDF_SERESTART | TDF_SEINTR)) == TDF_SBDRY)
 			SIG_STOPSIGMASK(sigpending);
 		if (SIGISEMPTY(sigpending))	/* no signal to send */
 			return (0);
