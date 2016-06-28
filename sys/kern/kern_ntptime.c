@@ -162,6 +162,30 @@ static l_fp time_adj;			/* tick adjust (ns/s) */
 
 static int64_t time_adjtime;		/* correction from adjtime(2) (usec) */
 
+static struct mtx ntpadj_lock;
+MTX_SYSINIT(ntpadj, &ntpadj_lock, "ntpadj",
+#ifdef PPS_SYNC
+    MTX_SPIN
+#else
+    MTX_DEF
+#endif
+);
+
+/*
+ * When PPS_SYNC is defined, hardpps() function is provided which can
+ * be legitimately called from interrupt filters.  Due to this, use
+ * spinlock for ntptime state protection, otherwise sleepable mutex is
+ * adequate.
+ */
+#ifdef PPS_SYNC
+#define	NTPADJ_LOCK()		mtx_lock_spin(&ntpadj_lock)
+#define	NTPADJ_UNLOCK()		mtx_unlock_spin(&ntpadj_lock)
+#else
+#define	NTPADJ_LOCK()		mtx_lock(&ntpadj_lock)
+#define	NTPADJ_UNLOCK()		mtx_unlock(&ntpadj_lock)
+#endif
+#define	NTPADJ_ASSERT_LOCKED()	mtx_assert(&ntpadj_lock, MA_OWNED)
+
 #ifdef PPS_SYNC
 /*
  * The following variables are used when a pulse-per-second (PPS) signal
@@ -203,11 +227,12 @@ static long pps_errcnt;			/* calibration errors */
 static void ntp_init(void);
 static void hardupdate(long offset);
 static void ntp_gettime1(struct ntptimeval *ntvp);
-static int ntp_is_time_error(void);
+static bool ntp_is_time_error(int tsl);
 
-static int
-ntp_is_time_error(void)
+static bool
+ntp_is_time_error(int tsl)
 {
+
 	/*
 	 * Status word error decode. If any of these conditions occur,
 	 * an error is returned, instead of the status word. Most
@@ -216,30 +241,29 @@ ntp_is_time_error(void)
 	 *
 	 * Hardware or software error
 	 */
-	if ((time_status & (STA_UNSYNC | STA_CLOCKERR)) ||
+	if ((tsl & (STA_UNSYNC | STA_CLOCKERR)) ||
 
 	/*
 	 * PPS signal lost when either time or frequency synchronization
 	 * requested
 	 */
-	    (time_status & (STA_PPSFREQ | STA_PPSTIME) &&
-	    !(time_status & STA_PPSSIGNAL)) ||
+	    (tsl & (STA_PPSFREQ | STA_PPSTIME) &&
+	    !(tsl & STA_PPSSIGNAL)) ||
 
 	/*
 	 * PPS jitter exceeded when time synchronization requested
 	 */
-	    (time_status & STA_PPSTIME &&
-	    time_status & STA_PPSJITTER) ||
+	    (tsl & STA_PPSTIME && tsl & STA_PPSJITTER) ||
 
 	/*
 	 * PPS wander exceeded or calibration error when frequency
 	 * synchronization requested
 	 */
-	    (time_status & STA_PPSFREQ &&
-	    time_status & (STA_PPSWANDER | STA_PPSERROR)))
-		return (1);
+	    (tsl & STA_PPSFREQ &&
+	    tsl & (STA_PPSWANDER | STA_PPSERROR)))
+		return (true);
 
-	return (0);
+	return (false);
 }
 
 static void
@@ -247,7 +271,7 @@ ntp_gettime1(struct ntptimeval *ntvp)
 {
 	struct timespec atv;	/* nanosecond time */
 
-	GIANT_REQUIRED;
+	NTPADJ_ASSERT_LOCKED();
 
 	nanotime(&atv);
 	ntvp->time.tv_sec = atv.tv_sec;
@@ -257,7 +281,7 @@ ntp_gettime1(struct ntptimeval *ntvp)
 	ntvp->tai = time_tai;
 	ntvp->time_state = time_state;
 
-	if (ntp_is_time_error())
+	if (ntp_is_time_error(time_status))
 		ntvp->time_state = TIME_ERROR;
 }
 
@@ -278,9 +302,9 @@ sys_ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 {	
 	struct ntptimeval ntv;
 
-	mtx_lock(&Giant);
+	NTPADJ_LOCK();
 	ntp_gettime1(&ntv);
-	mtx_unlock(&Giant);
+	NTPADJ_UNLOCK();
 
 	td->td_retval[0] = ntv.time_state;
 	return (copyout(&ntv, uap->ntvp, sizeof(ntv)));
@@ -291,14 +315,17 @@ ntp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct ntptimeval ntv;	/* temporary structure */
 
+	NTPADJ_LOCK();
 	ntp_gettime1(&ntv);
+	NTPADJ_UNLOCK();
 
 	return (sysctl_handle_opaque(oidp, &ntv, sizeof(ntv), req));
 }
 
 SYSCTL_NODE(_kern, OID_AUTO, ntp_pll, CTLFLAG_RW, 0, "");
-SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, sizeof(struct ntptimeval) , ntp_sysctl, "S,ntptimeval", "");
+SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, 0, sizeof(struct ntptimeval) , ntp_sysctl, "S,ntptimeval",
+    "");
 
 #ifdef PPS_SYNC
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW,
@@ -308,10 +335,12 @@ SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW,
 SYSCTL_LONG(_kern_ntp_pll, OID_AUTO, time_monitor, CTLFLAG_RD,
     &time_monitor, 0, "Last time offset scaled (ns)");
 
-SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD,
-    &pps_freq, sizeof(pps_freq), "I", "Scaled frequency offset (ns/sec)");
-SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD,
-    &time_freq, sizeof(time_freq), "I", "Frequency offset (ns/sec)");
+SYSCTL_S64(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    &pps_freq, 0,
+    "Scaled frequency offset (ns/sec)");
+SYSCTL_S64(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD | CTLFLAG_MPSAFE,
+    &time_freq, 0,
+    "Frequency offset (ns/sec)");
 #endif
 
 /*
@@ -333,12 +362,11 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	struct timex ntv;	/* temporary structure */
 	long freq;		/* frequency ns/s) */
 	int modes;		/* mode bits from structure */
-	int s;			/* caller priority */
-	int error;
+	int error, retval;
 
 	error = copyin((caddr_t)uap->tp, (caddr_t)&ntv, sizeof(ntv));
 	if (error)
-		return(error);
+		return (error);
 
 	/*
 	 * Update selected clock variables - only the superuser can
@@ -349,13 +377,12 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	 * the STA_PLL bit in the status word is cleared, the state and
 	 * status words are reset to the initial values at boot.
 	 */
-	mtx_lock(&Giant);
 	modes = ntv.modes;
 	if (modes)
 		error = priv_check(td, PRIV_NTP_ADJTIME);
-	if (error)
-		goto done2;
-	s = splclock();
+	if (error != 0)
+		return (error);
+	NTPADJ_LOCK();
 	if (modes & MOD_MAXERROR)
 		time_maxerror = ntv.maxerror;
 	if (modes & MOD_ESTERROR)
@@ -456,19 +483,12 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	ntv.jitcnt = pps_jitcnt;
 	ntv.stbcnt = pps_stbcnt;
 #endif /* PPS_SYNC */
-	splx(s);
+	retval = ntp_is_time_error(time_status) ? TIME_ERROR : time_state;
+	NTPADJ_UNLOCK();
 
 	error = copyout((caddr_t)&ntv, (caddr_t)uap->tp, sizeof(ntv));
-	if (error)
-		goto done2;
-
-	if (ntp_is_time_error())
-		td->td_retval[0] = TIME_ERROR;
-	else
-		td->td_retval[0] = time_state;
-
-done2:
-	mtx_unlock(&Giant);
+	if (error == 0)
+		td->td_retval[0] = retval;
 	return (error);
 }
 
@@ -620,7 +640,7 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
  * probably be integrated with the code that does that.
  */
 static void
-ntp_init()
+ntp_init(void)
 {
 
 	/*
@@ -669,6 +689,8 @@ hardupdate(offset)
 {
 	long mtemp;
 	l_fp ftemp;
+
+	NTPADJ_ASSERT_LOCKED();
 
 	/*
 	 * Select how the phase is to be controlled and from which
@@ -750,6 +772,8 @@ hardpps(tsp, nsec)
 	long u_sec, u_nsec, v_nsec; /* temps */
 	l_fp ftemp;
 
+	NTPADJ_LOCK();
+
 	/*
 	 * The signal is first processed by a range gate and frequency
 	 * discriminator. The range gate rejects noise spikes outside
@@ -770,9 +794,8 @@ hardpps(tsp, nsec)
 		u_sec++;
 	}
 	v_nsec = u_nsec - pps_tf[0].tv_nsec;
-	if (u_sec == pps_tf[0].tv_sec && v_nsec < NANOSECOND -
-	    MAXFREQ)
-		return;
+	if (u_sec == pps_tf[0].tv_sec && v_nsec < NANOSECOND - MAXFREQ)
+		goto out;
 	pps_tf[2] = pps_tf[1];
 	pps_tf[1] = pps_tf[0];
 	pps_tf[0].tv_sec = u_sec;
@@ -793,7 +816,7 @@ hardpps(tsp, nsec)
 		u_nsec += NANOSECOND;
 	pps_fcount += u_nsec;
 	if (v_nsec > MAXFREQ || v_nsec < -MAXFREQ)
-		return;
+		goto out;
 	time_status &= ~STA_PPSJITTER;
 
 	/*
@@ -839,7 +862,7 @@ hardpps(tsp, nsec)
 	 * timecounter running faster than 1 GHz the lower bound is 2ns, just
 	 * to avoid a nonsensical threshold of zero.
 	*/
-	if (u_nsec > lmax(pps_jitter << PPS_POPCORN, 
+	if (u_nsec > lmax(pps_jitter << PPS_POPCORN,
 	    2 * (NANOSECOND / (long)qmin(NANOSECOND, tc_getfrequency())))) {
 		time_status |= STA_PPSJITTER;
 		pps_jitcnt++;
@@ -850,7 +873,7 @@ hardpps(tsp, nsec)
 	pps_jitter += (u_nsec - pps_jitter) >> PPS_FAVG;
 	u_sec = pps_tf[0].tv_sec - pps_lastsec;
 	if (u_sec < (1 << pps_shift))
-		return;
+		goto out;
 
 	/*
 	 * At the end of the calibration interval the difference between
@@ -867,11 +890,10 @@ hardpps(tsp, nsec)
 	pps_lastsec = pps_tf[0].tv_sec;
 	pps_fcount = 0;
 	u_nsec = MAXFREQ << pps_shift;
-	if (v_nsec > u_nsec || v_nsec < -u_nsec || u_sec != (1 <<
-	    pps_shift)) {
+	if (v_nsec > u_nsec || v_nsec < -u_nsec || u_sec != (1 << pps_shift)) {
 		time_status |= STA_PPSERROR;
 		pps_errcnt++;
-		return;
+		goto out;
 	}
 
 	/*
@@ -932,6 +954,9 @@ hardpps(tsp, nsec)
 		L_LINT(pps_freq, -MAXFREQ);
 	if (time_status & STA_PPSFREQ)
 		time_freq = pps_freq;
+
+out:
+	NTPADJ_UNLOCK();
 }
 #endif /* PPS_SYNC */
 
@@ -965,27 +990,29 @@ int
 kern_adjtime(struct thread *td, struct timeval *delta, struct timeval *olddelta)
 {
 	struct timeval atv;
+	int64_t ltr, ltw;
 	int error;
 
-	mtx_lock(&Giant);
-	if (olddelta) {
-		atv.tv_sec = time_adjtime / 1000000;
-		atv.tv_usec = time_adjtime % 1000000;
+	if (delta != NULL) {
+		error = priv_check(td, PRIV_ADJTIME);
+		if (error != 0)
+			return (error);
+		ltw = (int64_t)delta->tv_sec * 1000000 + delta->tv_usec;
+	}
+	NTPADJ_LOCK();
+	ltr = time_adjtime;
+	if (delta != NULL)
+		time_adjtime = ltw;
+	NTPADJ_UNLOCK();
+	if (olddelta != NULL) {
+		atv.tv_sec = ltr / 1000000;
+		atv.tv_usec = ltr % 1000000;
 		if (atv.tv_usec < 0) {
 			atv.tv_usec += 1000000;
 			atv.tv_sec--;
 		}
 		*olddelta = atv;
 	}
-	if (delta) {
-		if ((error = priv_check(td, PRIV_ADJTIME))) {
-			mtx_unlock(&Giant);
-			return (error);
-		}
-		time_adjtime = (int64_t)delta->tv_sec * 1000000 +
-		    delta->tv_usec;
-	}
-	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -996,11 +1023,12 @@ static void
 periodic_resettodr(void *arg __unused)
 {
 
-	if (!ntp_is_time_error()) {
-		mtx_lock(&Giant);
+	/*
+	 * Read of time_status is lock-less, which is fine since
+	 * ntp_is_time_error() operates on the consistent read value.
+	 */
+	if (!ntp_is_time_error(time_status))
 		resettodr();
-		mtx_unlock(&Giant);
-	}
 	if (resettodr_period > 0)
 		callout_schedule(&resettodr_callout, resettodr_period * hz);
 }
@@ -1010,11 +1038,9 @@ shutdown_resettodr(void *arg __unused, int howto __unused)
 {
 
 	callout_drain(&resettodr_callout);
-	if (resettodr_period > 0 && !ntp_is_time_error()) {
-		mtx_lock(&Giant);
+	/* Another unlocked read of time_status */
+	if (resettodr_period > 0 && !ntp_is_time_error(time_status))
 		resettodr();
-		mtx_unlock(&Giant);
-	}
 }
 
 static int
@@ -1036,9 +1062,9 @@ done:
 	return (0);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, rtc_save_period, CTLTYPE_INT|CTLFLAG_RWTUN,
-	&resettodr_period, 1800, sysctl_resettodr_period, "I",
-	"Save system time to RTC with this period (in seconds)");
+SYSCTL_PROC(_machdep, OID_AUTO, rtc_save_period, CTLTYPE_INT | CTLFLAG_RWTUN |
+    CTLFLAG_MPSAFE, &resettodr_period, 1800, sysctl_resettodr_period, "I",
+    "Save system time to RTC with this period (in seconds)");
 
 static void
 start_periodic_resettodr(void *arg __unused)
