@@ -107,7 +107,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libstand \
 	libstdbuf \
 	libstdthreads \
-	libsyscalls \
+	${_libsyscalls} \
 	libsysdecode \
 	libtacplus \
 	${_libtelnet} \
@@ -190,6 +190,7 @@ _libcasper=	libcasper
 _libc_cheri=	libc_cheri
 _libcheri=	libcheri
 _libhelloworld=	libhelloworld
+_libsyscalls=	libsyscalls
 _libz_cheri=	libz-cheri
 .if ${MK_NETSURF} != no
 # XXXBD: not really CHERI specific, but currently using WANT_CHERI to get
