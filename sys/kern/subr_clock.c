@@ -67,8 +67,8 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 		resettodr();
 	return (error);
 }
-SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
-    &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
+SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
     "Local offset from UTC in seconds");
 
 static int ct_debug;
