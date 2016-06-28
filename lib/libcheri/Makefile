@@ -2,6 +2,8 @@
 
 LIB=	cheri
 
+WANT_DUMP=      yes
+
 # XXXRW: When compiling for CheriABI, will need to use cheri_invoke_cabi.S
 # here.
 SRCS=	cheri_enter.c			\
