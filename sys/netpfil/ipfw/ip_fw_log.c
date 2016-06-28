@@ -102,7 +102,8 @@ ipfw_log_bpf(int onoff)
 {
 }
 #else /* !WITHOUT_BPF */
-static struct ifnet *log_if;	/* hook to attach to bpf */
+static VNET_DEFINE(struct ifnet *, log_if);	/* hook to attach to bpf */
+#define	V_log_if		VNET(log_if)
 static struct rwlock log_if_lock;
 #define	LOGIF_LOCK_INIT(x)	rw_init(&log_if_lock, "ipfw log_if lock")
 #define	LOGIF_LOCK_DESTROY(x)	rw_destroy(&log_if_lock)
@@ -182,8 +183,8 @@ ipfw_log_clone_create(struct if_clone *ifc, char *name, size_t len,
 	ifp->if_baudrate = IF_Mbps(10);
 
 	LOGIF_WLOCK();
-	if (log_if == NULL)
-		log_if = ifp;
+	if (V_log_if == NULL)
+		V_log_if = ifp;
 	else {
 		LOGIF_WUNLOCK();
 		if_free(ifp);
@@ -206,8 +207,8 @@ ipfw_log_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 		return (0);
 
 	LOGIF_WLOCK();
-	if (log_if != NULL && ifp == log_if)
-		log_if = NULL;
+	if (V_log_if != NULL && ifp == V_log_if)
+		V_log_if = NULL;
 	else {
 		LOGIF_WUNLOCK();
 		return (EINVAL);
@@ -223,20 +224,23 @@ ipfw_log_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	return (0);
 }
 
-static struct if_clone *ipfw_log_cloner;
+static VNET_DEFINE(struct if_clone *, ipfw_log_cloner);
+#define	V_ipfw_log_cloner		VNET(ipfw_log_cloner)
 
 void
 ipfw_log_bpf(int onoff)
 {
 
 	if (onoff) {
-		LOGIF_LOCK_INIT();
-		ipfw_log_cloner = if_clone_advanced(ipfwname, 0,
+		if (IS_DEFAULT_VNET(curvnet))
+			LOGIF_LOCK_INIT();
+		V_ipfw_log_cloner = if_clone_advanced(ipfwname, 0,
 		    ipfw_log_clone_match, ipfw_log_clone_create,
 		    ipfw_log_clone_destroy);
 	} else {
-		if_clone_detach(ipfw_log_cloner);
-		LOGIF_LOCK_DESTROY();
+		if_clone_detach(V_ipfw_log_cloner);
+		if (IS_DEFAULT_VNET(curvnet))
+			LOGIF_LOCK_DESTROY();
 	}
 }
 #endif /* !WITHOUT_BPF */
@@ -258,24 +262,24 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 	if (V_fw_verbose == 0) {
 #ifndef WITHOUT_BPF
 		LOGIF_RLOCK();
-		if (log_if == NULL || log_if->if_bpf == NULL) {
+		if (V_log_if == NULL || V_log_if->if_bpf == NULL) {
 			LOGIF_RUNLOCK();
 			return;
 		}
 
 		if (args->eh) /* layer2, use orig hdr */
-			BPF_MTAP2(log_if, args->eh, ETHER_HDR_LEN, m);
+			BPF_MTAP2(V_log_if, args->eh, ETHER_HDR_LEN, m);
 		else {
 			/* Add fake header. Later we will store
 			 * more info in the header.
 			 */
 			if (ip->ip_v == 4)
-				BPF_MTAP2(log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
+				BPF_MTAP2(V_log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
 			else if  (ip->ip_v == 6)
-				BPF_MTAP2(log_if, "DDDDDDSSSSSS\x86\xdd", ETHER_HDR_LEN, m);
+				BPF_MTAP2(V_log_if, "DDDDDDSSSSSS\x86\xdd", ETHER_HDR_LEN, m);
 			else
 				/* Obviously bogus EtherType. */
-				BPF_MTAP2(log_if, "DDDDDDSSSSSS\xff\xff", ETHER_HDR_LEN, m);
+				BPF_MTAP2(V_log_if, "DDDDDDSSSSSS\xff\xff", ETHER_HDR_LEN, m);
 		}
 		LOGIF_RUNLOCK();
 #endif /* !WITHOUT_BPF */
