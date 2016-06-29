@@ -251,7 +251,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	if (mdp == (void *)0x65504150)
 		mdp = NULL;
 
-#if AIM
+#ifdef AIM
 	/*
 	 * If running from an FDT, make sure we are in real mode to avoid
 	 * tromping on firmware page tables. Everything in the kernel assumes
