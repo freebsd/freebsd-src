@@ -549,8 +549,10 @@ TARGET_ABI=	gnueabi
 XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
 # Force using libc++ for external GCC.
 # XXX: This should be checking MK_GNUCXX == no
+.if ${X_COMPILER_VERSION} >= 40800
 XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++ -L${WORLDTMP}/../lib/libc++
+.endif
 .else
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
