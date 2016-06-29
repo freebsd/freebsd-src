@@ -26,7 +26,7 @@
  */
 #ifndef CTL_PASS
 #define CTL_PASS
-
+ 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -68,9 +68,10 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_passthrough.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl_backend_passthrough.c>
 #include <cam/ctl/ctl.h>
+//#include <cam/ctl/ctl_error.c>
 #endif
-//#include <cam/scsi/scsi_passthrough_dummy.c>
 typedef enum {
 	PASS_FLAG_OPEN			= 0x01,
 	PASS_FLAG_LOCKED		= 0x02,
@@ -106,10 +107,10 @@ typedef enum {
 	PASS_IO_ABANDONED	= 0x04
 } pass_io_flags; 
 
-
-struct passthrough_io_req {
+struct ctlpass_io_req {
 	union ccb			 ccb;
-	union ctl_io			*io;
+	union ccb			*alloced_ccb;
+	union ccb			*user_ccb_ptr;
 	camq_entry			 user_periph_links;
 	ccb_ppriv_area			 user_periph_priv;
 	struct cam_periph_map_info	 mapinfo;
@@ -127,10 +128,10 @@ struct passthrough_io_req {
 	uint8_t				*user_bufs[CAM_PERIPH_MAXMAPS];
 	uint8_t				*kern_bufs[CAM_PERIPH_MAXMAPS];
 	struct bintime			 start_time;
-	TAILQ_ENTRY(passthrough_io_req)	 links;
+	TAILQ_ENTRY(ctlpass_io_req)	 links;
 };
 
-struct passthrough_softc {
+struct ctlpass_softc {
 	pass_state		  state;
 	pass_flags		  flags;
 	u_int8_t		  pd_type;
@@ -141,11 +142,12 @@ struct passthrough_softc {
 	struct cdev		 *dev;
 	struct cdev		 *alias_dev;
 	struct task		  add_physpath_task;
+	struct task		  shutdown_kqueue_task;
 	struct selinfo		  read_select;
-	TAILQ_HEAD(, passthrough_io_req) incoming_queue;
-	TAILQ_HEAD(, passthrough_io_req) active_queue;
-	TAILQ_HEAD(, passthrough_io_req) abandoned_queue;
-	TAILQ_HEAD(, passthrough_io_req) done_queue;
+	TAILQ_HEAD(, ctlpass_io_req) incoming_queue;
+	TAILQ_HEAD(, ctlpass_io_req) active_queue;
+	TAILQ_HEAD(, ctlpass_io_req) abandoned_queue;
+	TAILQ_HEAD(, ctlpass_io_req) done_queue;
 	struct cam_periph	 *periph;
 	char			  zone_name[12];
 	char			  io_zone_name[12];
@@ -153,59 +155,69 @@ struct passthrough_softc {
 	uma_zone_t		  pass_io_zone;
 	size_t			  io_zone_size;
 };
+MALLOC_DECLARE(M_CTLPASS);
+MALLOC_DEFINE(M_CTLPASS, "CTL PASS BUFFER","BUFFER FOR CTLPASS DRIVER");
+static	d_open_t	ctlpassopen;
+static	d_close_t	ctlpassclose;
+static	d_poll_t	ctlpasspoll;
+static	d_kqfilter_t	ctlpasskqfilter;
+//static	void		ctlpassreadfiltdetach(struct knote *kn);
+static	int		ctlpassreadfilt(struct knote *kn, long hint);
 
-struct cam_path *spath;
-union ctl_io *sio;
-struct cam_periph *speriph;
-static	d_open_t	passthroughopen;
-static	d_close_t	passthroughclose;
-static	periph_init_t	passthroughinit;
-static	periph_ctor_t	passthroughregister;
-static	periph_oninv_t	passthroughoninvalidate;
-static	periph_dtor_t	passthroughcleanup;
-static	periph_start_t	passthroughstart;
-
-//static	void		passthrough_add_physpath(void *context, int pending);
-static	void		passthroughasync(void *callback_arg, u_int32_t code,
+static	periph_init_t	ctlpassinit;
+static	periph_ctor_t	ctlpassregister;
+static	periph_oninv_t	ctlpassoninvalidate;
+static	periph_dtor_t	ctlpasscleanup;
+static	periph_start_t	ctlpassstart;
+static	void		pass_shutdown_kqueue(void *context, int pending);
+static	void		ctlpass_add_physpath(void *context, int pending);
+static	void		ctlpassasync(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
-static	void		passthroughdone(struct cam_periph *periph, 
+static	void		ctlpassdone(struct cam_periph *periph, 
 				 union ccb *done_ccb);
-static	void		passthroughiocleanup(struct passthrough_softc *softc, 
-				      struct passthrough_io_req *io_req);
-
-//static	int		passthrougherror(union ccb *ccb, u_int32_t cam_flags, 
-//				  u_int32_t sense_flags);
-static 	int		ctlccb(union ctl_io *io); 
-
-	void		set_path(struct cam_path *path);
-	void		set_ctlio(union ctl_io *io);
-	void 		set_periph(struct cam_periph *periph);
-struct cam_path *get_path(void);
-union ctl_io *get_ctlio(void);
-struct cam_periph *get_periph(void);
-	
-
-static struct periph_driver passthroughdriver =
+static	int		ctlpasscreatezone(struct cam_periph *periph);
+static	void		ctlpassiocleanup(struct ctlpass_softc *softc, 
+				      struct ctlpass_io_req *io_req);
+static	int		ctlpasscopysglist(struct cam_periph *periph,
+				       struct ctlpass_io_req *io_req,
+				       ccb_flags direction);
+static	int		ctlpassmemsetup(struct cam_periph *periph,
+				     struct ctlpass_io_req *io_req);
+//static	int		ctlpassmemdone(struct cam_periph *periph,
+//				    struct ctlpass_io_req *io_req);
+static	int		ctlpasserror(union ccb *ccb, u_int32_t cam_flags, 
+				  u_int32_t sense_flags);
+//static 	int		ctlpasssendccb(struct cam_periph *periph, union ccb *ccb,
+//				    union ccb *inccb);
+static int ctlccb(struct cam_periph *periph,union ctl_io *ccb);
+static struct periph_driver ctlpassdriver =
 {
-	passthroughinit, "passthrough",
-	TAILQ_HEAD_INITIALIZER(passthroughdriver.units), /* generation */ 0
+	ctlpassinit, "ctlpass",
+	TAILQ_HEAD_INITIALIZER(ctlpassdriver.units), /* generation */ 0
 };
 
-PERIPHDRIVER_DECLARE(passthrough, passthroughdriver);
+PERIPHDRIVER_DECLARE(ctlpass, ctlpassdriver);
 
-static struct cdevsw passthrough_cdevsw = {
+static struct cdevsw ctlpass_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_TRACKCLOSE,
-	.d_open =	passthroughopen,
-	.d_close =	passthroughclose,
-	.d_name =	"passthrough",
+	.d_open =	ctlpassopen,
+	.d_close =	ctlpassclose,
+	.d_poll = 	ctlpasspoll,
+	.d_kqfilter = 	ctlpasskqfilter,
+	.d_name =	"ctlpass",
 };
 
+static struct filterops ctlpassread_filtops = {
+	.f_isfd	=	1,
+	//.f_detach =	ctlpassreadfiltdetach,
+	.f_event =	ctlpassreadfilt
+};
 
-static MALLOC_DEFINE(M_SCSIPASSTHROUGH, "scsi_pass", "scsi passthrough buffers");
+static MALLOC_DEFINE(M_SCSIPASSTHROUGH, "ctl_pass", "ctl passthrough buffers");
 
 static void
-passthroughinit(void)
+ctlpassinit(void)
 {
 	cam_status status;
 
@@ -213,7 +225,7 @@ passthroughinit(void)
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new device found".
 	 */
-	status = xpt_register_async(AC_FOUND_DEVICE, passthroughasync, NULL, NULL);
+	status = xpt_register_async(AC_FOUND_DEVICE, ctlpassasync, NULL, NULL);
 
 	if (status != CAM_REQ_CMP) {
 		printf("pass: Failed to attach master async callback "
@@ -222,101 +234,13 @@ passthroughinit(void)
 
 }
 
- int ctlccb(union ctl_io *io)
-{
-
-struct cam_path *path;
-struct cam_periph *periph;
-struct passthrough_softc *softc;
-union ccb *ccb;
-struct ccb_scsiio *csio;
-int error=0;
-	set_ctlio(io);
-	path=get_path(); 
-	periph = get_periph();
-	if(path == NULL)
-		printf("path is NULL");
-	if(periph == NULL)
-		printf("periph is NULL");
-//	if(path->device==NULL)
-//		printf("path device is null");
-		
-	softc= periph->softc;
-
-	ccb = xpt_alloc_ccb();
-	csio = &ccb->csio;
-
-	ccb->ccb_h.func_code=XPT_SCSI_IO;
-	//csio->tag_id = softc->cur_tag_num++;
-	
-	switch(io->scsiio.tag_type)
-	{
-		case CTL_TAG_SIMPLE:
-			csio->tag_action = MSG_SIMPLE_TASK;
-			break;
-		case CTL_TAG_HEAD_OF_QUEUE:
-			csio->tag_action = MSG_HEAD_OF_QUEUE_TASK;
-			break;
-		case CTL_TAG_ORDERED:
-			csio->tag_action = MSG_ORDERED_TASK;
-			break;
-		case CTL_TAG_ACA:
-			csio->tag_action = MSG_ACA_TASK;
-			break;
-		default:
-			csio->tag_action = CAM_TAG_ACTION_NONE;
-			break;
-	}
-
-	csio->cdb_len = io->scsiio.cdb_len;
-	bcopy(io->scsiio.cdb, csio->cdb_io.cdb_bytes, csio->cdb_len);
-
-	/*
-	 *Some CCB types , like scan bus and scan lun can only go
-	 *through the transport layer device.
-	 */
-	if(ccb->ccb_h.func_code & XPT_FC_XPT_ONLY)
-	{
-	 
- 	 xpt_print(periph->path, "CCB function code %#x is restricted to the XPT device\n", ccb->ccb_h.func_code);
-	  error = ENODEV;
-	 
-	}
-	//printf("path id %d and  target id %d and target lun %d",path->bus->path_id,path->target->target_id,path->device->lun_id);
-	printf("before xpt setup");	
-/*	ccb->ccb_h.pinfo.priority =CAM_PRIORITY_NORMAL;
-	ccb->ccb_h.path = periph->path;
-	ccb->ccb_h.path_id = xpt_path_path_id(periph->path);
-	ccb->ccb_h.target_id = xpt_path_target_id(periph->path);
-	ccb->ccb_h.target_lun = xpt_path_lun_id(periph->path);
-	ccb->ccb_h.pinfo.index = CAM_UNQUEUED_INDEX;
-	ccb->ccb_h.flags =0 ;
-	ccb->ccb_h.xflags=0;*/
-	xpt_setup_ccb(&ccb->ccb_h,periph->path,CAM_PRIORITY_NORMAL);
-	
-	ccb->ccb_h.cbfcnp = passthroughdone;
-	
-	if(ccb->ccb_h.path!=NULL)
-		printf(" path is not null");	
-	printf("before action after setup");
-	//ccb->ccb_h.status=CAM_REQ_INPROG;
-	//(*(ccb->ccb_h.path->bus->xport->action))(ccb);
-	xpt_action((union ccb *)ccb);
-
-
-	return 0;
-}
-
-
-
-
 static void
-passrejectios(struct cam_periph *periph)
+ctlpassrejectios(struct cam_periph *periph)
 {
-	struct passthrough_io_req *io_req, *io_req2;
-	struct passthrough_softc *softc;
+	struct ctlpass_io_req *io_req, *io_req2;
+	struct ctlpass_softc *softc;
 
-	softc = (struct passthrough_softc *)periph->softc;
+	softc = (struct ctlpass_softc *)periph->softc;
 
 	/*
 	 * The user can no longer get status for I/O on the done queue, so
@@ -324,7 +248,7 @@ passrejectios(struct cam_periph *periph)
 	 */
 	TAILQ_FOREACH_SAFE(io_req, &softc->done_queue, links, io_req2) {
 		TAILQ_REMOVE(&softc->done_queue, io_req, links);
-		passthroughiocleanup(softc, io_req);
+		ctlpassiocleanup(softc, io_req);
 		uma_zfree(softc->pass_zone, io_req);
 	}
 
@@ -335,7 +259,7 @@ passrejectios(struct cam_periph *periph)
 	 */
 	TAILQ_FOREACH_SAFE(io_req, &softc->incoming_queue, links, io_req2) {
 		TAILQ_REMOVE(&softc->incoming_queue, io_req, links);
-		passthroughiocleanup(softc, io_req);
+		ctlpassiocleanup(softc, io_req);
 		uma_zfree(softc->pass_zone, io_req);
 	}
 
@@ -364,57 +288,19 @@ passrejectios(struct cam_periph *periph)
 	}
 }
 
-void set_periph(struct cam_periph *periph)
-{
-
-speriph = periph;
-
-}
-
-void set_path(struct cam_path *path)
-{
-
-spath =path;
-
-}
-
-void set_ctlio(union ctl_io *io)
-{
-
-	sio =io;
-}
-struct cam_path *get_path()
-{
-	return spath;
-
-}
-union ctl_io *get_ctlio()
-{
-
-	return sio;
-
-}	
-struct cam_periph *get_periph()
-{
-
-	return speriph;	
-
-}
-
-
 static void
-passthroughdevgonecb(void *arg)
+ctlpassdevgonecb(void *arg)
 {
 	struct cam_periph *periph;
 	struct mtx *mtx;
-	struct passthrough_softc *softc;
-	int i;
+	struct ctlpass_softc *softc;
+	//int i;
 
 	periph = (struct cam_periph *)arg;
 	mtx = cam_periph_mtx(periph);
 	mtx_lock(mtx);
 
-	softc = (struct passthrough_softc *)periph->softc;
+	softc = (struct ctlpass_softc *)periph->softc;
 	KASSERT(softc->open_count >= 0, ("Negative open count %d",
 		softc->open_count));
 
@@ -423,7 +309,7 @@ passthroughdevgonecb(void *arg)
 	 * devfs.  So if we have any dangling opens, we need to release the
 	 * reference held for that particular context.
 	 */
-	for (i = 0; i < softc->open_count; i++)
+	//for (i = 0; i < softc->open_count; i++)
 		cam_periph_release_locked(periph);
 
 	softc->open_count = 0;
@@ -433,7 +319,7 @@ passthroughdevgonecb(void *arg)
 	 * Accordingly, inform all queued I/Os of their fate.
 	 */
 	cam_periph_release_locked(periph);
-	passrejectios(periph);
+	ctlpassrejectios(periph);
 
 	/*
 	 * We reference the SIM lock directly here, instead of using
@@ -444,20 +330,25 @@ passthroughdevgonecb(void *arg)
 	 */
 	mtx_unlock(mtx);
 
-
+	/*
+	 * We have to remove our kqueue context from a thread because it
+	 * may sleep.  It would be nice if we could get a callback from
+	 * kqueue when it is done cleaning up resources.
+	 */
+	taskqueue_enqueue(taskqueue_thread, &softc->shutdown_kqueue_task);
 }
 
 static void
-passthroughoninvalidate(struct cam_periph *periph)
+ctlpassoninvalidate(struct cam_periph *periph)
 {
-	struct passthrough_softc *softc;
+	struct ctlpass_softc *softc;
 
-	softc = (struct passthrough_softc *)periph->softc;
+	softc = (struct ctlpass_softc *)periph->softc;
 
 	/*
 	 * De-register any async callbacks.
 	 */
-	xpt_register_async(0, passthroughasync, periph, periph->path);
+	xpt_register_async(0, ctlpassasync, periph, periph->path);
 
 	softc->flags |= PASS_FLAG_INVALID;
 
@@ -465,15 +356,15 @@ passthroughoninvalidate(struct cam_periph *periph)
 	 * Tell devfs this device has gone away, and ask for a callback
 	 * when it has cleaned up its state.
 	 */
-	destroy_dev_sched_cb(softc->dev, passthroughdevgonecb, periph);
+	destroy_dev_sched_cb(softc->dev, ctlpassdevgonecb, periph);
 }
 
 static void
-passthroughcleanup(struct cam_periph *periph)
+ctlpasscleanup(struct cam_periph *periph)
 {
-	struct passthrough_softc *softc;
+	struct ctlpass_softc *softc;
 
-	softc = (struct passthrough_softc *)periph->softc;
+	softc = (struct ctlpass_softc *)periph->softc;
 
 	cam_periph_assert(periph, MA_OWNED);
 	KASSERT(TAILQ_EMPTY(&softc->active_queue),
@@ -517,10 +408,28 @@ passthroughcleanup(struct cam_periph *periph)
 }
 
 static void
-pass_add_physpath(void *context, int pending)
+pass_shutdown_kqueue(void *context, int pending)
 {
 	struct cam_periph *periph;
-	struct passthrough_softc *softc;
+	struct ctlpass_softc *softc;
+
+	periph = context;
+	softc = periph->softc;
+
+	knlist_clear(&softc->read_select.si_note, /*is_locked*/ 0);
+	knlist_destroy(&softc->read_select.si_note);
+
+	/*
+	 * Release the reference we held for kqueue.
+	 */
+	cam_periph_release(periph);
+}
+
+static void
+ctlpass_add_physpath(void *context, int pending)
+{
+	struct cam_periph *periph;
+	struct ctlpass_softc *softc;
 	struct mtx *mtx;
 	char *physpath;
 
@@ -567,7 +476,7 @@ out:
 }
 
 static void
-passthroughasync(void *callback_arg, u_int32_t code,
+ctlpassasync(void *callback_arg, u_int32_t code,
 	  struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
@@ -589,17 +498,18 @@ passthroughasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(passthroughregister, passthroughoninvalidate,
-					  passthroughcleanup, passthroughstart, "passthrough",
+		status = cam_periph_alloc(ctlpassregister, ctlpassoninvalidate,
+					  ctlpasscleanup, ctlpassstart, "ctlpass",
 					  CAM_PERIPH_BIO, path,
-					  passthroughasync, AC_FOUND_DEVICE, cgd);
+					  ctlpassasync, AC_FOUND_DEVICE, cgd);
+
 		if (status != CAM_REQ_CMP
 		 && status != CAM_REQ_INPROG) {
 			const struct cam_status_entry *entry;
 
 			entry = cam_fetch_status_entry(status);
 
-			printf("passthroughasync: Unable to attach new device "
+			printf("ctlpassasync: Unable to attach new device "
 			       "due to status %#x: %s\n", status, entry ?
 			       entry->status_text : "Unknown");
 		}
@@ -612,10 +522,10 @@ passthroughasync(void *callback_arg, u_int32_t code,
 
 		buftype = (uintptr_t)arg;
 		if (buftype == CDAI_TYPE_PHYS_PATH) {
-			struct passthrough_softc *softc;
+			struct ctlpass_softc *softc;
 			cam_status status;
 
-			softc = (struct passthrough_softc *)periph->softc;
+			softc = (struct ctlpass_softc *)periph->softc;
 			/*
 			 * Acquire a reference to the periph before we
 			 * start the taskqueue, so that we don't run into
@@ -638,9 +548,9 @@ passthroughasync(void *callback_arg, u_int32_t code,
 }
 
 static cam_status
-passthroughregister(struct cam_periph *periph, void *arg)
+ctlpassregister(struct cam_periph *periph, void *arg)
 {
-	struct passthrough_softc *softc;
+	struct ctlpass_softc *softc;
 	struct ccb_getdev *cgd;
 	struct ccb_pathinq cpi;
 	struct make_dev_args args;
@@ -652,7 +562,7 @@ passthroughregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct passthrough_softc *)malloc(sizeof(*softc),
+	softc = (struct ctlpass_softc *)malloc(sizeof(*softc),
 					    M_DEVBUF, M_NOWAIT);
 
 	if (softc == NULL) {
@@ -664,9 +574,10 @@ passthroughregister(struct cam_periph *periph, void *arg)
 	bzero(softc, sizeof(*softc));
 	softc->state = PASS_STATE_NORMAL;
 	if (cgd->protocol == PROTO_SCSI)
-		softc->pd_type = SID_TYPE(&cgd->inq_data);
+		softc->pd_type = T_PASSTHROUGH;
 	else
 		return(CAM_REQ_CMP_ERR);
+
 
 	periph->softc = softc;
 	softc->periph = periph;
@@ -696,8 +607,6 @@ passthroughregister(struct cam_periph *periph, void *arg)
 	if (cpi.hba_misc & PIM_UNMAPPED)
 		softc->flags |= PASS_FLAG_UNMAPPED_CAPABLE;
 
-                set_path(periph->path);
-		set_periph(periph);
 	/*
 	 * We pass in 0 for a blocksize, since we don't 
 	 * know what the blocksize of this device is, if 
@@ -705,7 +614,7 @@ passthroughregister(struct cam_periph *periph, void *arg)
 	 */
 	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
-	softc->device_stats = devstat_new_entry("passthrough",
+	softc->device_stats = devstat_new_entry("ctlpass",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE
 			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
@@ -715,13 +624,19 @@ passthroughregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_PRIORITY_PASS);
 
 	/*
+	 * Initialize the taskqueue handler for shutting down kqueue.
+	 */
+	TASK_INIT(&softc->shutdown_kqueue_task, /*priority*/ 0,
+		  pass_shutdown_kqueue, periph);
+
+	/*
 	 * Acquire a reference to the periph that we can release once we've
 	 * cleaned up the kqueue.
 	 */
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
-		cam_periph_lock(periph);
+		//cam_periph_lock(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
 
@@ -733,13 +648,13 @@ passthroughregister(struct cam_periph *periph, void *arg)
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
-		cam_periph_lock(periph);
+	//	cam_periph_lock(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
 
 	/* Register the device */
 	make_dev_args_init(&args);
-	args.mda_devsw = &passthrough_cdevsw;
+	args.mda_devsw = &ctlpass_cdevsw;
 	args.mda_unit = periph->unit_number;
 	args.mda_uid = UID_ROOT;
 	args.mda_gid = GID_OPERATOR;
@@ -764,10 +679,18 @@ passthroughregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
+	error = ctl_backend_passthrough_create(periph);
+
+	if(error!=0)
+	{
+		printf("Failed to create lun for this ctlpass device");
+		return (CAM_REQ_CMP_ERR);
+
+	}
 	cam_periph_lock(periph);
 
 	TASK_INIT(&softc->add_physpath_task, /*priority*/0,
-		  pass_add_physpath, periph);
+		  ctlpass_add_physpath, periph);
 
 	/*
 	 * See if physical path information is already available.
@@ -781,7 +704,7 @@ passthroughregister(struct cam_periph *periph, void *arg)
 	 * changed.
 	 */
 	xpt_register_async(AC_LOST_DEVICE | AC_ADVINFO_CHANGED,
-			   passthroughasync, periph, periph->path);
+			  ctlpassasync, periph, periph->path);
 
 	if (bootverbose)
 		xpt_announce_periph(periph, NULL);
@@ -790,10 +713,10 @@ passthroughregister(struct cam_periph *periph, void *arg)
 }
 
 static int
-passthroughopen(struct cdev *dev, int flags, int fmt, struct thread *td)
+ctlpassopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
-	struct passthrough_softc *softc;
+	struct ctlpass_softc *softc;
 	int error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
@@ -802,7 +725,7 @@ passthroughopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	cam_periph_lock(periph);
 
-	softc = (struct passthrough_softc *)periph->softc;
+	softc = (struct ctlpass_softc *)periph->softc;
 
 	if (softc->flags & PASS_FLAG_INVALID) {
 		cam_periph_release_locked(periph);
@@ -847,10 +770,10 @@ passthroughopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-passthroughclose(struct cdev *dev, int flag, int fmt, struct thread *td)
+ctlpassclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct 	cam_periph *periph;
-	struct  passthrough_softc *softc;
+	struct  ctlpass_softc *softc;
 	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
@@ -861,18 +784,18 @@ passthroughclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	softc->open_count--;
 
 	if (softc->open_count == 0) {
-		struct passthrough_io_req *io_req, *io_req2;
+		struct ctlpass_io_req *io_req, *io_req2;
 
 		TAILQ_FOREACH_SAFE(io_req, &softc->done_queue, links, io_req2) {
 			TAILQ_REMOVE(&softc->done_queue, io_req, links);
-			passthroughiocleanup(softc, io_req);
+			ctlpassiocleanup(softc, io_req);
 			uma_zfree(softc->pass_zone, io_req);
 		}
 
 		TAILQ_FOREACH_SAFE(io_req, &softc->incoming_queue, links,
 				   io_req2) {
 			TAILQ_REMOVE(&softc->incoming_queue, io_req, links);
-			passthroughiocleanup(softc, io_req);
+			ctlpassiocleanup(softc, io_req);
 			uma_zfree(softc->pass_zone, io_req);
 		}
 
@@ -927,15 +850,15 @@ passthroughclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 
 
 static void
-passthroughstart(struct cam_periph *periph, union ccb *start_ccb)
+ctlpassstart(struct cam_periph *periph, union ccb *start_ccb)
 {
-	struct passthrough_softc *softc;
+	struct ctlpass_softc *softc;
 
-	softc = (struct passthrough_softc *)periph->softc;
-
+	softc = (struct ctlpass_softc *)periph->softc;
+	
 	switch (softc->state) {
 	case PASS_STATE_NORMAL: {
-		struct passthrough_io_req *io_req;
+		struct ctlpass_io_req *io_req;
 
 		/*
 		 * Check for any queued I/O requests that require an
@@ -954,8 +877,8 @@ passthroughstart(struct cam_periph *periph, union ccb *start_ccb)
 		xpt_merge_ccb(start_ccb, &io_req->ccb);
 		start_ccb->ccb_h.ccb_type = PASS_CCB_QUEUED_IO;
 		start_ccb->ccb_h.ccb_ioreq = io_req;
-		start_ccb->ccb_h.cbfcnp = passthroughdone;
-	//	io_req->alloced_ccb = start_ccb;
+		start_ccb->ccb_h.cbfcnp = ctlpassdone;
+		io_req->alloced_ccb = start_ccb;
 		binuptime(&io_req->start_time);
 		devstat_start_transaction(softc->device_stats,
 					  &io_req->start_time);
@@ -975,104 +898,138 @@ passthroughstart(struct cam_periph *periph, union ccb *start_ccb)
 }
 
 static void
-passthroughdone(struct cam_periph *periph, union ccb *done_ccb)
+ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 { 
-//	struct passthrough_softc *softc;
-
-//	struct ccb_scsiio *csio;
-        union  ctl_io *io;
-	struct ccb_scsiio ctsio;
-	printf("passthroug done");
-	io=get_ctlio();
-	
-	if(io!=NULL)
-		printf("io is not null");
-	//softc = (struct passthrough_softc *)periph->softc;
+	struct ctlpass_softc *softc;
+	struct ccb_scsiio *csio;
+	struct ctlpass_io_req *io_req;
+	union ctl_io *ctlio;
+	struct scsi_inquiry_data *inq_ptr;
+		struct scsi_sense_data *sense;
+	softc = (struct ctlpass_softc *)periph->softc;
 
 	cam_periph_assert(periph, MA_OWNED);
 
 	
-	ctsio = done_ccb->csio;
-	//switch (csio->ccb_h.ccb_type) {
-	//case PASS_CCB_QUEUED_IO: {
-	//	struct passthrough_io_req *io_req;
+	csio = &done_ccb->csio;
 
-	//	io_req = done_ccb->ccb_h.ccb_ioreq;
+	
+	switch(csio->ccb_h.ccb_type){
+	case PASS_CCB_QUEUED_IO:{
+		io_req = done_ccb->ccb_h.ccb_ioreq;
+		ctlio=io_req->ccb.ccb_h.periph_priv.entries[0].ptr;
 #if 0
 		xpt_print(periph->path, "%s: called for user CCB %p\n",
 			  __func__, io_req->user_ccb_ptr);
 #endif
-	/*	if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+		if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		 && (done_ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER)
 		 && ((io_req->flags & PASS_IO_ABANDONED) == 0)) {
 			int error;
 
-		//	error = passthrougherror(done_ccb, CAM_RETRY_SELTO,
-		//			  SF_RETRY_UA | SF_NO_PRINT);
+			error = ctlpasserror(done_ccb, CAM_RETRY_SELTO,
+					  SF_RETRY_UA | SF_NO_PRINT);
 
 			if (error == ERESTART) {
-				*
+				/*
 				 * A retry was scheduled, so
  				 * just return.
-				 *
+				 */
 				return;
 			}
 		}
-*/
+
 		/*
 		 * Copy the allocated CCB contents back to the malloced CCB
 		 * so we can give status back to the user when he requests it.
 		 */
-//		bcopy(done_ccb, &io_req->ccb, sizeof(*done_ccb));
+		memcpy(&io_req->ccb,done_ccb,sizeof(*done_ccb));
 
 		/*
 		 * Log data/transaction completion with devstat(9).
 		 */
 		switch (done_ccb->ccb_h.func_code) {
 		case XPT_SCSI_IO:
-		/*	devstat_end_transaction(softc->device_stats,
+			
+			devstat_end_transaction(softc->device_stats,
 			    done_ccb->csio.dxfer_len - done_ccb->csio.resid,
 			    done_ccb->csio.tag_action & 0x3,
 			    ((done_ccb->ccb_h.flags & CAM_DIR_MASK) ==
 			    CAM_DIR_NONE) ? DEVSTAT_NO_DATA :
 			    (done_ccb->ccb_h.flags & CAM_DIR_OUT) ?
 			    DEVSTAT_WRITE : DEVSTAT_READ, NULL,
-			    &io_req->start_time);*/
-		if(done_ccb->ccb_h.status==CAM_REQ_CMP)
-		{
-
-			io->scsiio.io_hdr.status=CTL_SUCCESS;
-			if(ctsio.data_ptr==NULL)
+			    &io_req->start_time);
+			if(done_ccb->ccb_h.status==CAM_REQ_CMP)
 			{
-			io->scsiio.ext_data_ptr=ctsio.data_ptr;
-			printf("\ndata pointer is null\n");
+
+				
+
+				sense = &ctlio->scsiio.sense_data;
+				memset(sense, 0, sizeof(*sense));
+				ctlio->scsiio.scsi_status = SCSI_STATUS_OK;
+				ctlio->scsiio.sense_len = 0;
+				ctlio->scsiio.io_hdr.status = CTL_SUCCESS;
+
+				//ctl_set_success(&ctlio->scsiio);
+				switch(csio->cdb_io.cdb_bytes[0])
+				{
+		
+					case INQUIRY:{
+
+						inq_ptr = (struct scsi_inquiry_data *)csio->data_ptr;
+						memcpy(ctlio->scsiio.kern_data_ptr,inq_ptr,csio->dxfer_len);
+						ctlio->scsiio.kern_sg_entries = 0;
+						ctlio->scsiio.kern_data_resid = 0;
+						ctlio->scsiio.kern_rel_offset=0;
+						ctlio->scsiio.kern_data_len = csio->dxfer_len;
+						ctlio->scsiio.kern_total_len = csio->dxfer_len;
+						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
+						ctlio->scsiio.be_move_done = ctl_config_move_done;
+						ctl_datamove((union ctl_io *)ctlio);
+						break;
+					}
+					case REQUEST_SENSE:{
+						sense = (struct scsi_sense_data *)csio->data_ptr;
+						memcpy(ctlio->scsiio.kern_data_ptr,sense,csio->dxfer_len);
+						ctlio->scsiio.kern_sg_entries = 0;
+						ctlio->scsiio.kern_data_resid = 0;
+						ctlio->scsiio.kern_rel_offset=0;
+						ctlio->scsiio.kern_data_len = csio->dxfer_len;
+						ctlio->scsiio.kern_total_len = csio->dxfer_len;
+						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
+						ctlio->scsiio.be_move_done = ctl_config_move_done;
+						ctl_datamove((union ctl_io *)ctlio);
+						break;
+						}
+					case REPORT_LUNS:{
+					printf("report luns in ctlpasss done");					
+						memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
+						ctlio->scsiio.kern_sg_entries = 0;
+						ctlio->scsiio.kern_data_resid = 0;
+						ctlio->scsiio.kern_rel_offset=0;
+						ctlio->scsiio.kern_data_len = csio->dxfer_len;
+						ctlio->scsiio.kern_total_len = csio->dxfer_len;
+						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
+						ctlio->scsiio.be_move_done = ctl_config_move_done;
+						printf("before ctl_datamove");
+						ctl_datamove((union ctl_io *)ctlio);
+						break;
+						}
+
+					case TEST_UNIT_READY:{
+							int error;
+							error=ctl_tur(&ctlio->scsiio);
+				                        break;
+					}
+					default:
+						break;
+				}			
 			}
-			ctl_done((union ctl_io *)io);
-       			printf("xpr_scsi_io section");
-		}
-			break;
-		case XPT_SMP_IO:
-			/*
-			 * XXX KDM this isn't quite right, but there isn't
-			 * currently an easy way to represent a bidirectional 
-			 * transfer in devstat.  The only way to do it
-			 * and have the byte counts come out right would
-			 * mean that we would have to record two
-			 * transactions, one for the request and one for the
-			 * response.  For now, so that we report something,
-			 * just treat the entire thing as a read.
-			 */
-			/*devstat_end_transaction(softc->device_stats,
-			    done_ccb->smpio.smp_request_len +
-			    done_ccb->smpio.smp_response_len,
-			    DEVSTAT_TAG_SIMPLE, DEVSTAT_READ, NULL,
-			    &io_req->start_time);*/
 			break;
 		default:
-			printf("dfault section");
-			/*devstat_end_transaction(softc->device_stats, 0,
+			devstat_end_transaction(softc->device_stats, 0,
 			    DEVSTAT_TAG_NONE, DEVSTAT_NO_DATA, NULL,
-			    &io_req->start_time);*/
+			    &io_req->start_time);
 			break;
 		}
 
@@ -1080,54 +1037,147 @@ passthroughdone(struct cam_periph *periph, union ccb *done_ccb)
 		 * In the normal case, take the completed I/O off of the
 		 * active queue and put it on the done queue.  Notitfy the
 		 * user that we have a completed I/O.
-		 *
+		 */
 		if ((io_req->flags & PASS_IO_ABANDONED) == 0) {
 			TAILQ_REMOVE(&softc->active_queue, io_req, links);
 			TAILQ_INSERT_TAIL(&softc->done_queue, io_req, links);
-			selwakeuppri(&softc->read_select, PRIBIO);
-			KNOTE_LOCKED(&softc->read_select.si_note, 0);
+		//	selwakeuppri(&softc->read_select, PRIBIO);
+		//	KNOTE_LOCKED(&softc->read_select.si_note, 0);
+	
 		} else {
-			*
+			/*
 			 * In the case of an abandoned I/O (final close
 			 * without fetching the I/O), take it off of the
 			 * abandoned queue and free it.
-			 *
+			 */
 			TAILQ_REMOVE(&softc->abandoned_queue, io_req, links);
-			passthroughiocleanup(softc, io_req);
+			ctlpassiocleanup(softc, io_req);
 			uma_zfree(softc->pass_zone, io_req);
+	
 
-			*
+			/*
 			 * Release the done_ccb here, since we may wind up
 			 * freeing the peripheral when we decrement the
 			 * reference count below.
-			 *
+			 */
 			xpt_release_ccb(done_ccb);
 
-			*
+			/*
 			 * If the abandoned queue is empty, we can release
 			 * our reference to the periph since we won't have
 			 * any more completions coming.
-			 *
+			 */
 			if ((TAILQ_EMPTY(&softc->abandoned_queue))
 			 && (softc->flags & PASS_FLAG_ABANDONED_REF_SET)) {
 				softc->flags &= ~PASS_FLAG_ABANDONED_REF_SET;
 				cam_periph_release_locked(periph);
 			}
 
-			*
+			/*
 			 * We have already released the CCB, so we can
 			 * return.
-			 *
+			 */
 			return;
 		}
 		break;
 	}
-	}*/
-			xpt_release_ccb(done_ccb);
+	}
+	
+	xpt_release_ccb(done_ccb);
 }
 
+static int
+ctlpasscreatezone(struct cam_periph *periph)
+{
+	struct ctlpass_softc *softc;
+	int error;
+
+	error = 0;
+	softc = (struct ctlpass_softc *)periph->softc;
+
+	cam_periph_assert(periph, MA_OWNED);
+	KASSERT(((softc->flags & PASS_FLAG_ZONE_VALID) == 0), 
+		("%s called when the passthrough  zone is valid!\n", __func__));
+	KASSERT((softc->pass_zone == NULL), 
+		("%s called when the passthrough  zone is allocated!\n", __func__));
+
+	if ((softc->flags & PASS_FLAG_ZONE_INPROG) == 0) {
+
+		/*
+		 * We're the first context through, so we need to create
+		 * the passthrough UMA zone for I/O requests.
+		 */
+		softc->flags |= PASS_FLAG_ZONE_INPROG;
+
+		/*
+		 * uma_zcreate() does a blocking (M_WAITOK) allocation,
+		 * so we cannot hold a mutex while we call it.
+		 */
+		cam_periph_unlock(periph);
+
+		softc->pass_zone = uma_zcreate(softc->zone_name,
+		    sizeof(struct ctlpass_io_req), NULL, NULL, NULL, NULL,
+		    /*align*/ 0, /*flags*/ 0);
+
+		softc->pass_io_zone = uma_zcreate(softc->io_zone_name,
+		    softc->io_zone_size, NULL, NULL, NULL, NULL,
+		    /*align*/ 0, /*flags*/ 0);
+
+		cam_periph_lock(periph);
+
+		if ((softc->pass_zone == NULL)
+		 || (softc->pass_io_zone == NULL)) {
+			if (softc->pass_zone == NULL)
+				xpt_print(periph->path, "unable to allocate "
+				    "IO Req UMA zone\n");
+			else
+				xpt_print(periph->path, "unable to allocate "
+				    "IO UMA zone\n");
+			softc->flags &= ~PASS_FLAG_ZONE_INPROG;
+			goto bailout;
+		}
+
+		/*
+		 * Set the flags appropriately and notify any other waiters.
+		 */
+		softc->flags &= PASS_FLAG_ZONE_INPROG;
+		softc->flags |= PASS_FLAG_ZONE_VALID;
+		wakeup(&softc->pass_zone);
+	} else {
+		/*
+		 * In this case, the UMA zone has not yet been created, but
+		 * another context is in the process of creating it.  We
+		 * need to sleep until the creation is either done or has
+		 * failed.
+		 */
+		while ((softc->flags & PASS_FLAG_ZONE_INPROG)
+		    && ((softc->flags & PASS_FLAG_ZONE_VALID) == 0)) {
+			error = msleep(&softc->pass_zone,
+				       cam_periph_mtx(periph), PRIBIO,
+				       "paszon", 0);
+			if (error != 0)
+				goto bailout;
+		}
+		/*
+		 * If the zone creation failed, no luck for the user.
+		 */
+		if ((softc->flags & PASS_FLAG_ZONE_VALID) == 0){
+			error = ENOMEM;
+			goto bailout;
+		}
+	}
+bailout:
+	return (error);
+}
+
+/*
+* Reset the user's pointers to their original values and free
+* allocated memory.
+*ctlpassiocleanup(softc, io_req);
+*/
+
 static void
-passthroughiocleanup(struct passthrough_softc *softc, struct passthrough_io_req *io_req)
+ctlpassiocleanup(struct ctlpass_softc *softc, struct ctlpass_io_req *io_req)
 {
 	union ccb *ccb;
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
@@ -1135,26 +1185,12 @@ passthroughiocleanup(struct passthrough_softc *softc, struct passthrough_io_req 
 
 	ccb = &io_req->ccb;
 
-	printf("\n I am in passthrough io cleanup\n");
 	switch (ccb->ccb_h.func_code) {
-	case XPT_DEV_MATCH:
-		numbufs = min(io_req->num_bufs, 2);
 
-		if (numbufs == 1) {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.matches;
-		} else {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.patterns;
-			data_ptrs[1] = (u_int8_t **)&ccb->cdm.matches;
-		}
-		break;
 	case XPT_SCSI_IO:
 	case XPT_CONT_TARGET_IO:
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		numbufs = min(io_req->num_bufs, 1);
-		break;
-	case XPT_DEV_ADVINFO:
-		numbufs = min(io_req->num_bufs, 1);
-		data_ptrs[0] = (uint8_t **)&ccb->cdai.buf;
 		break;
 	default:
 		/* allow ourselves to be swapped once again */
@@ -1168,7 +1204,8 @@ passthroughiocleanup(struct passthrough_softc *softc, struct passthrough_io_req 
 	}
 
 	/*
-	 * We only want to free memory we malloced.
+	 * We only want to free memory we MALLOC_DECLARE(M_CTLPASS);
+MALLOC_DEFINE(M_CTLPASS, "CTL PASS BUFFER","BUFFER FOR CTLPASS DRIVER");malloced.
 	 */
 	if (io_req->data_flags == CAM_DATA_VADDR) {
 		for (i = 0; i < io_req->num_bufs; i++) {
@@ -1207,16 +1244,872 @@ passthroughiocleanup(struct passthrough_softc *softc, struct passthrough_io_req 
 	}
 
 }
+
+/*it is used to copy data in and out */
+static int
+ctlpasscopysglist(struct cam_periph *periph, struct ctlpass_io_req *io_req,
+	       ccb_flags direction)
+{
+	bus_size_t kern_watermark, user_watermark, len_copied, len_to_copy;
+	bus_dma_segment_t *user_sglist, *kern_sglist;
+	int i, j, error;
+
+	error = 0;
+	kern_watermark = 0;
+	user_watermark = 0;
+	len_to_copy = 0;
+	len_copied = 0;
+	user_sglist = io_req->user_segptr;
+	kern_sglist = io_req->kern_segptr;
+
+	for (i = 0, j = 0; i < io_req->num_user_segs &&
+	     j < io_req->num_kern_segs;) {
+		uint8_t *user_ptr, *kern_ptr;
+
+		len_to_copy = min(user_sglist[i].ds_len -user_watermark,
+		    kern_sglist[j].ds_len - kern_watermark);
+
+		user_ptr = (uint8_t *)(uintptr_t)user_sglist[i].ds_addr;
+		user_ptr = user_ptr + user_watermark;
+		kern_ptr = (uint8_t *)(uintptr_t)kern_sglist[j].ds_addr;
+		kern_ptr = kern_ptr + kern_watermark;
+
+		user_watermark += len_to_copy;
+		kern_watermark += len_to_copy;
+
+		if (!useracc(user_ptr, len_to_copy,
+		    (direction == CAM_DIR_IN) ? VM_PROT_WRITE : VM_PROT_READ)) {
+			xpt_print(periph->path, "%s: unable to access user "
+				  "S/G list element %p len %zu\n", __func__,
+				  user_ptr, len_to_copy);
+			error = EFAULT;
+			goto bailout;
+		}
+
+		if (direction == CAM_DIR_IN) {
+			error = copyout(kern_ptr, user_ptr, len_to_copy);
+			if (error != 0) {
+				xpt_print(periph->path, "%s: copyout of %u "
+					  "bytes from %p to %p failed with "
+					  "error %d\n", __func__, len_to_copy,
+					  kern_ptr, user_ptr, error);
+				goto bailout;
+			}
+		} else {
+			error = copyin(user_ptr, kern_ptr, len_to_copy);
+			if (error != 0) {
+				xpt_print(periph->path, "%s: copyin of %u "
+					  "bytes from %p to %p failed with "
+					  "error %d\n", __func__, len_to_copy,
+					  user_ptr, kern_ptr, error);
+				goto bailout;
+			}
+		}
+
+		len_copied += len_to_copy;
+
+		if (user_sglist[i].ds_len == user_watermark) {
+			i++;
+			user_watermark = 0;
+		}
+
+		if (kern_sglist[j].ds_len == kern_watermark) {
+			j++;
+			kern_watermark = 0;
+		}
+	}
+
+bailout:
+
+	return (error);
+}
+
+static int
+ctlpassmemsetup(struct cam_periph *periph, struct ctlpass_io_req *io_req)
+{
+	union ccb *ccb;
+	struct ctlpass_softc *softc;
+	int numbufs, i;
+	uint8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
+	uint32_t lengths[CAM_PERIPH_MAXMAPS];
+	uint32_t dirs[CAM_PERIPH_MAXMAPS];
+	uint32_t num_segs;
+	uint16_t *seg_cnt_ptr;
+	size_t maxmap;
+	int error;
+
+	cam_periph_assert(periph, MA_NOTOWNED);
+
+	softc = periph->softc;
+
+	error = 0;
+	ccb = &io_req->ccb;
+	maxmap = 0;
+	num_segs = 0;
+	seg_cnt_ptr = NULL;
+
+	switch(ccb->ccb_h.func_code) {
+	case XPT_DEV_MATCH:
+		if (ccb->cdm.match_buf_len == 0) {
+			printf("%s: invalid match buffer length 0\n", __func__);
+			return(EINVAL);
+		}
+		if (ccb->cdm.pattern_buf_len > 0) {
+			data_ptrs[0] = (u_int8_t **)&ccb->cdm.patterns;
+			lengths[0] = ccb->cdm.pattern_buf_len;
+			dirs[0] = CAM_DIR_OUT;
+			data_ptrs[1] = (u_int8_t **)&ccb->cdm.matches;
+			lengths[1] = ccb->cdm.match_buf_len;
+			dirs[1] = CAM_DIR_IN;
+			numbufs = 2;
+		} else {
+			data_ptrs[0] = (u_int8_t **)&ccb->cdm.matches;
+			lengths[0] = ccb->cdm.match_buf_len;
+			dirs[0] = CAM_DIR_IN;
+			numbufs = 1;
+		}
+		io_req->data_flags = CAM_DATA_VADDR;
+		break;
+	case XPT_SCSI_IO:
+	case XPT_CONT_TARGET_IO:
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+			return(0);
+
+		/*
+		 * The user shouldn't be able to supply a bio.
+		 */
+		if ((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_BIO)
+			return (EINVAL);
+
+		io_req->data_flags = ccb->ccb_h.flags & CAM_DATA_MASK;
+
+		data_ptrs[0] = &ccb->csio.data_ptr;
+		lengths[0] = ccb->csio.dxfer_len;
+		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		num_segs = ccb->csio.sglist_cnt;
+		seg_cnt_ptr = &ccb->csio.sglist_cnt;
+		numbufs = 1;
+		maxmap = softc->maxio;
+		break;
+		
+	default:
+		return(EINVAL);
+		break; /* NOTREACHED */
+	}
+
+	io_req->num_bufs = numbufs;
+
+	/*
+	 * If there is a maximum, check to make sure that the user's
+	 * request fits within the limit.  In general, we should only have
+	 * a maximum length for requests that go to hardware.  Otherwise it
+	 * is whatever we're able to malloc.
+	 */
+	for (i = 0; i < numbufs; i++) {
+		io_req->user_bufs[i] = *data_ptrs[i];
+		io_req->dirs[i] = dirs[i];
+		io_req->lengths[i] = lengths[i];
+
+		if (maxmap == 0)
+			continue;
+
+		if (lengths[i] <= maxmap)
+			continue;
+
+		xpt_print(periph->path, "%s: data length %u > max allowed %u "
+			  "bytes\n", __func__, lengths[i], maxmap);
+		error = EINVAL;
+		goto bailout;
+	}
+
+	switch (io_req->data_flags) {
+	case CAM_DATA_VADDR:
+		/* Map or copy the buffer into kernel address space */
+		for (i = 0; i < numbufs; i++) {
+			//uint8_t *tmp_buf;
+
+			/*
+			 * If for some reason no length is specified, we
+			 * don't need to allocate anything.
+			 */
+			if (io_req->lengths[i] == 0)
+				continue;
+
+			/*
+			 * Make sure that the user's buffer is accessible
+			 * to that process.
+			 */
+		/*	if (!useracc(io_req->user_bufs[i], io_req->lengths[i],
+			    (io_req->dirs[i] == CAM_DIR_IN) ? VM_PROT_WRITE :
+			     VM_PROT_READ)) {
+				xpt_print(periph->path, "%s: user address %p "
+				    "length %u is not accessible\n", __func__,
+				    io_req->user_bufs[i], io_req->lengths[i]);
+				error = EFAULT;
+				goto bailout;
+			}
+                          */
+//			tmp_buf = malloc(lengths[i], M_SCSIPASSTHROUGH,
+//					 M_WAITOK | M_ZERO);
+			io_req->kern_bufs[i] =io_req->user_bufs[i];
+//			*data_ptrs[i] = tmp_buf;
+
+#if 0
+			xpt_print(periph->path, "%s: malloced %p len %u, user "
+				  "buffer %p, operation: %s\n", __func__,
+				  tmp_buf, lengths[i], io_req->user_bufs[i],
+				  (dirs[i] == CAM_DIR_IN) ? "read" : "write");
+#endif
+			/*
+			 * We only need to copy in if the user is writing.
+			 */
+			if (dirs[i] != CAM_DIR_OUT)
+				continue;
+
+//			error = copyin(io_req->user_bufs[i],
+//				       io_req->kern_bufs[i], lengths[i]);
+			if (error != 0) {
+				xpt_print(periph->path, "%s: copy of user "
+					  "buffer from %p to %p failed with "
+					  "error %d\n", __func__,
+					  io_req->user_bufs[i],
+					  io_req->kern_bufs[i], error);
+				goto bailout;
+			}
+		}
+		break;
+	case CAM_DATA_PADDR:
+		/* Pass down the pointer as-is */
+		break;
+	case CAM_DATA_SG: {
+		size_t sg_length, size_to_go, alloc_size;
+		uint32_t num_segs_needed;
+
+		/*
+		 * Copy the user S/G list in, and then copy in the
+		 * individual segments.
+		 */
+		/*
+		 * We shouldn't see this, but check just in case.
+		 */
+		if (numbufs != 1) {
+			xpt_print(periph->path, "%s: cannot currently handle "
+				  "more than one S/G list per CCB\n", __func__);
+			error = EINVAL;
+			goto bailout;
+		}
+
+		/*
+		 * We have to have at least one segment.
+		 */
+		if (num_segs == 0) {
+			xpt_print(periph->path, "%s: CAM_DATA_SG flag set, "
+				  "but sglist_cnt=0!\n", __func__);
+			error = EINVAL;
+			goto bailout;
+		}
+
+		/*
+		 * Make sure the user specified the total length and didn't
+		 * just leave it to us to decode the S/G list.
+		 */
+		if (lengths[0] == 0) {
+			xpt_print(periph->path, "%s: no dxfer_len specified, "
+				  "but CAM_DATA_SG flag is set!\n", __func__);
+			error = EINVAL;
+			goto bailout;
+		}
+
+		/*
+		 * We allocate buffers in io_zone_size increments for an
+		 * S/G list.  This will generally be MAXPHYS.
+		 */
+		if (lengths[0] <= softc->io_zone_size)
+			num_segs_needed = 1;
+		else {
+			num_segs_needed = lengths[0] / softc->io_zone_size;
+			if ((lengths[0] % softc->io_zone_size) != 0)
+				num_segs_needed++;
+		}
+
+		/* Figure out the size of the S/G list */
+		sg_length = num_segs * sizeof(bus_dma_segment_t);
+		io_req->num_user_segs = num_segs;
+		io_req->num_kern_segs = num_segs_needed;
+
+		/* Save the user's S/G list pointer for later restoration */
+		io_req->user_bufs[0] = *data_ptrs[0];
+
+		/*
+		 * If we have enough segments allocated by default to handle
+		 * the length of the user's S/G list,
+		 */
+		if (num_segs > PASS_MAX_SEGS) {
+			io_req->user_segptr = malloc(sizeof(bus_dma_segment_t) *
+			    num_segs, M_SCSIPASSTHROUGH, M_WAITOK | M_ZERO);
+			io_req->flags |= PASS_IO_USER_SEG_MALLOC;
+		} else
+			io_req->user_segptr = io_req->user_segs;
+
+		if (!useracc(*data_ptrs[0], sg_length, VM_PROT_READ)) {
+			xpt_print(periph->path, "%s: unable to access user "
+				  "S/G list at %p\n", __func__, *data_ptrs[0]);
+			error = EFAULT;
+			goto bailout;
+		}
+
+		error = copyin(*data_ptrs[0], io_req->user_segptr, sg_length);
+		if (error != 0) {
+			xpt_print(periph->path, "%s: copy of user S/G list "
+				  "from %p to %p failed with error %d\n",
+				  __func__, *data_ptrs[0], io_req->user_segptr,
+				  error);
+			goto bailout;
+		}
+
+		if (num_segs_needed > PASS_MAX_SEGS) {
+			io_req->kern_segptr = malloc(sizeof(bus_dma_segment_t) *
+			    num_segs_needed, M_SCSIPASSTHROUGH, M_WAITOK | M_ZERO);
+			io_req->flags |= PASS_IO_KERN_SEG_MALLOC;
+		} else {
+			io_req->kern_segptr = io_req->kern_segs;
+		}
+
+		/*
+		 * Allocate the kernel S/G list.
+		 */
+		for (size_to_go = lengths[0], i = 0;
+		     size_to_go > 0 && i < num_segs_needed;
+		     i++, size_to_go -= alloc_size) {
+			uint8_t *kern_ptr;
+
+			alloc_size = min(size_to_go, softc->io_zone_size);
+			kern_ptr = uma_zalloc(softc->pass_io_zone, M_WAITOK);
+			io_req->kern_segptr[i].ds_addr =
+			    (bus_addr_t)(uintptr_t)kern_ptr;
+			io_req->kern_segptr[i].ds_len = alloc_size;
+		}
+		if (size_to_go > 0) {
+			printf("%s: size_to_go = %zu, software error!\n",
+			       __func__, size_to_go);
+			error = EINVAL;
+			goto bailout;
+		}
+
+		*data_ptrs[0] = (uint8_t *)io_req->kern_segptr;
+		*seg_cnt_ptr = io_req->num_kern_segs;
+
+		/*
+		 * We only need to copy data here if the user is writing.
+		 */
+		if (dirs[0] == CAM_DIR_OUT)
+			error = ctlpasscopysglist(periph, io_req, dirs[0]);
+		break;
+	}
+	case CAM_DATA_SG_PADDR: {
+		size_t sg_length;
+
+		/*
+		 * We shouldn't see this, but check just in case.
+		 */
+		if (numbufs != 1) {
+			printf("%s: cannot currently handle more than one "
+			       "S/G list per CCB\n", __func__);
+			error = EINVAL;
+			goto bailout;
+		}
+
+		/*
+		 * We have to have at least one segment.
+		 */
+		if (num_segs == 0) {
+			xpt_print(periph->path, "%s: CAM_DATA_SG_PADDR flag "
+				  "set, but sglist_cnt=0!\n", __func__);
+			error = EINVAL;
+			goto bailout;
+		}
+
+		/*
+		 * Make sure the user specified the total length and didn't
+		 * just leave it to us to decode the S/G list.
+		 */
+		if (lengths[0] == 0) {
+			xpt_print(periph->path, "%s: no dxfer_len specified, "
+				  "but CAM_DATA_SG flag is set!\n", __func__);
+			error = EINVAL;
+			goto bailout;
+		}
+
+		/* Figure out the size of the S/G list */
+		sg_length = num_segs * sizeof(bus_dma_segment_t);
+		io_req->num_user_segs = num_segs;
+		io_req->num_kern_segs = io_req->num_user_segs;
+
+		/* Save the user's S/G list pointer for later restoration */
+		io_req->user_bufs[0] = *data_ptrs[0];
+
+		if (num_segs > PASS_MAX_SEGS) {
+			io_req->user_segptr = malloc(sizeof(bus_dma_segment_t) *
+			    num_segs, M_SCSIPASSTHROUGH, M_WAITOK | M_ZERO);
+			io_req->flags |= PASS_IO_USER_SEG_MALLOC;
+		} else
+			io_req->user_segptr = io_req->user_segs;
+
+		io_req->kern_segptr = io_req->user_segptr;
+
+		error = copyin(*data_ptrs[0], io_req->user_segptr, sg_length);
+		if (error != 0) {
+			xpt_print(periph->path, "%s: copy of user S/G list "
+				  "from %p to %p failed with error %d\n",
+				  __func__, *data_ptrs[0], io_req->user_segptr,
+				  error);
+			goto bailout;
+		}
+		break;
+	}
+	default:
+	case CAM_DATA_BIO:
+		/*
+		 * A user shouldn't be attaching a bio to the CCB.  It
+		 * isn't a user-accessible structure.
+		 */
+		error = EINVAL;
+		break;
+	}
+
+bailout:
+	if (error != 0)
+		ctlpassiocleanup(softc, io_req);
+
+	return (error);
+}
 /*
 static int
-passthrougherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+ctlpassmemdone(struct cam_periph *periph, struct ctlpass_io_req *io_req)
+{
+	struct ctlpass_softc *softc;
+	union ccb *ccb;
+	int error;
+	int i;
+
+	error = 0;
+	softc = (struct ctlpass_softc *)periph->softc;
+	ccb = &io_req->ccb;
+
+	switch (io_req->data_flags) {
+	case CAM_DATA_VADDR:
+		/
+		 * Copy back to the user buffer if this was a read.
+		 */
+	/*	for (i = 0; i < io_req->num_bufs; i++) {
+			if (io_req->dirs[i] != CAM_DIR_IN)
+				continue;
+
+			error = copyout(io_req->kern_bufs[i],
+			    io_req->user_bufs[i], io_req->lengths[i]);
+			if (error != 0) {
+				xpt_print(periph->path, "Unable to copy %u "
+					  "bytes from %p to user address %p\n",
+					  io_req->lengths[i],
+					  io_req->kern_bufs[i],
+					  io_req->user_bufs[i]);
+				goto bailout;
+			}
+
+		}
+		break;
+	case CAM_DATA_PADDR:
+		/ Do nothing.  The pointer is a physical address already */
+	/*	break;
+	case CAM_DATA_SG:
+		/
+		 * Copy back to the user buffer if this was a read.
+		 * Restore the user's S/G list buffer pointer.
+		 */
+	/*	if (io_req->dirs[0] == CAM_DIR_IN)
+			error = ctlpasscopysglist(periph, io_req, io_req->dirs[0]);
+		break;
+	case CAM_DATA_SG_PADDR:
+		/
+		 * Restore the user's S/G list buffer pointer.  No need to
+		 * copy.
+		 */
+	/*	break;
+	default:
+	case CAM_DATA_BIO:
+		error = EINVAL;
+		break;
+	}
+
+bailout:
+
+//	return (error);
+//}
+
+*/
+static int ctlccb(struct cam_periph *periph,union ctl_io *io)
+{
+	struct	ctlpass_softc *softc;
+	union ccb *ccb;
+	int	error;
+	uint32_t priority;
+	struct ctlpass_io_req *io_req;
+	struct ccb_scsiio *csio;
+	xpt_opcode fc;
+
+
+	/*
+	 * Reset the user's pointers to their original values and free
+	 * allocated memory.
+	 */
+
+
+	cam_periph_lock(periph);
+	softc = (struct ctlpass_softc *)periph->softc;
+	
+	error =0;
+		if ((softc->flags & PASS_FLAG_ZONE_VALID) == 0)
+		 {
+			error = ctlpasscreatezone(periph);
+			if (error != 0)
+			{
+				
+				goto bailout;
+			}
+		}
+
+		/*
+		 * We're going to do a blocking allocation for this I/O
+		 * request, so we have to drop the lock.
+		 */
+		cam_periph_unlock(periph);
+
+		io_req = uma_zalloc(softc->pass_zone, M_WAITOK | M_ZERO);
+		ccb = &io_req->ccb;
+		csio = &ccb->csio;
+
+		ccb->ccb_h.func_code = XPT_SCSI_IO;
+
+		switch(io->scsiio.tag_type)
+		{
+			case CTL_TAG_SIMPLE:
+				csio->tag_action = MSG_SIMPLE_TASK;
+				break;
+			case CTL_TAG_HEAD_OF_QUEUE:
+				csio->tag_action = MSG_HEAD_OF_QUEUE_TASK;
+				break;
+			case CTL_TAG_ORDERED:
+				csio->tag_action = MSG_ORDERED_TASK;
+				break;
+			case CTL_TAG_ACA:
+				csio->tag_action = MSG_ACA_TASK;
+				break;
+			default:
+				csio->tag_action = CAM_TAG_ACTION_NONE;
+				break;
+
+		}
+		csio->cdb_len = io->scsiio.cdb_len;
+		memcpy(csio->cdb_io.cdb_bytes,io->scsiio.cdb, csio->cdb_len);
+		
+		switch(csio->cdb_io.cdb_bytes[0])
+		{
+		
+			case INQUIRY:{
+
+					io->scsiio.kern_data_ptr =malloc(sizeof(struct scsi_inquiry_data),M_CTL, M_WAITOK);
+	 	
+					io->scsiio.kern_data_len = sizeof(struct scsi_inquiry_data);
+					csio->data_ptr =malloc(sizeof(struct scsi_inquiry_data),M_CTLPASS, M_WAITOK);
+					csio->dxfer_len = sizeof(struct scsi_inquiry_data);
+					break;
+					}
+			case REQUEST_SENSE:{
+					io->scsiio.kern_data_ptr =malloc(sizeof(struct scsi_sense_data),M_CTL, M_WAITOK);
+	 	
+					io->scsiio.kern_data_len = sizeof(struct scsi_sense_data);
+					csio->data_ptr =malloc(sizeof(struct scsi_sense_data),M_CTLPASS, M_WAITOK);
+					csio->dxfer_len = sizeof(struct scsi_sense_data);
+					break;
+					}
+			case REPORT_LUNS:{
+
+						struct scsi_report_luns_data *lun_data;
+						struct ctl_port *port;
+						int num_luns;
+						uint32_t targ_lun_id,lun_datalen;
+						printf("report luns in ctlccb");
+						port = ctl_io_port(&io->scsiio.io_hdr);
+
+						
+						num_luns=0;			
+						for(targ_lun_id = 0 ;targ_lun_id <CTL_MAX_LUNS;targ_lun_id++){
+							if(ctl_lun_map_from_port(port, targ_lun_id)<CTL_MAX_LUNS)
+								num_luns++;
+}
+
+						lun_datalen  = sizeof(*lun_data) + (num_luns * sizeof(struct scsi_report_luns_lundata));
+					io->scsiio.kern_data_ptr =malloc(sizeof(lun_datalen),M_CTL, M_WAITOK);
+	 	
+					io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+					csio->data_ptr =malloc(sizeof(lun_datalen),M_CTLPASS, M_WAITOK);
+					csio->dxfer_len = io->scsiio.kern_data_len;
+					break;
+					}
+
+			case TEST_UNIT_READY:
+					break;
+			default:
+					return (error);
+					break;
+		}
+		/*
+		 * Some CCB types, like scan bus and scan lun can only go
+		 * through the transport layer device.
+		 */
+		if (ccb->ccb_h.func_code & XPT_FC_XPT_ONLY) {
+			xpt_print(periph->path, "CCB function code %#x is "
+			    "restricted to the XPT device\n",
+			    ccb->ccb_h.func_code);
+			uma_zfree(softc->pass_zone, io_req);
+			cam_periph_lock(periph);
+			error = ENODEV;
+			goto bailout;
+			
+		}
+		
+		ccb->ccb_h.periph_priv.entries[0].ptr= io;
+		/*
+		 * Now that we've saved the user's values, we can set our
+		 * own peripheral private entry.
+		 */
+		ccb->ccb_h.ccb_ioreq = io_req;
+		
+		/* Compatibility for RL/priority-unaware code. */
+		priority = ccb->ccb_h.pinfo.priority;
+		if (priority <= CAM_PRIORITY_OOB)
+		    priority += CAM_PRIORITY_OOB + 1;
+	
+
+
+		ccb->ccb_h.cbfcnp = ctlpassdone;
+		
+		xpt_setup_ccb(&ccb->ccb_h, periph->path,CAM_PRIORITY_NORMAL);		
+
+		fc = ccb->ccb_h.func_code;
+		
+	
+		
+	
+		/*
+		 * If this function code has memory that can be mapped in
+		 * or out, we need to call passmemsetup().
+		 */
+		/*if ((fc == XPT_DEV_MATCH)
+		 || (fc == XPT_DEV_ADVINFO)) {
+			error = ctlpassmemsetup(periph, io_req);
+			if (error != 0) {
+				uma_zfree(softc->pass_zone, io_req);
+				cam_periph_lock(periph);
+				goto bailout;
+			
+			}
+		} else*/
+		io_req->mapinfo.num_bufs_used = 0;
+
+        	cam_periph_lock(periph);	
+
+		/*
+		 * Everything goes on the incoming queue initially.
+		 */
+		TAILQ_INSERT_TAIL(&softc->incoming_queue, io_req, links);
+
+		xpt_schedule(periph,CAM_PRIORITY_NORMAL);
+		/*
+		 * At this point, the CCB in question is either an
+		 * immediate CCB (like XPT_DEV_ADVINFO) or it is a user CCB
+		 * and therefore should be malloced, not allocated via a slot.
+		 * Remove the CCB from the incoming queue and add it to the
+		 * active queue.
+		 *
+		TAILQ_REMOVE(&softc->incoming_queue, io_req, links);
+		TAILQ_INSERT_TAIL(&softc->active_queue, io_req, links);
+
+
+
+		*
+		 * If this is not a queued CCB (i.e. it is an immediate CCB),
+		 * then it is already done.  We need to put it on the done
+		 * queue for the user to fetch.
+		 *
+		if ((fc & XPT_FC_QUEUED) == 0) {
+			TAILQ_REMOVE(&softc->active_queue, io_req, links);
+			TAILQ_INSERT_TAIL(&softc->done_queue, io_req, links);
+		}
+*/	
+
+		
+bailout:
+	cam_periph_unlock(periph);
+
+	return(error);
+}
+
+static int
+ctlpasspoll(struct cdev *dev, int poll_events, struct thread *td)
 {
 	struct cam_periph *periph;
-	struct passthrough_softc *softc;
+	struct ctlpass_softc *softc;
+	int revents;
+
+	periph = (struct cam_periph *)dev->si_drv1;
+	softc = (struct ctlpass_softc *)periph->softc;
+
+	revents = poll_events & (POLLOUT | POLLWRNORM);
+	if ((poll_events & (POLLIN | POLLRDNORM)) != 0) {
+		cam_periph_lock(periph);
+
+		if (!TAILQ_EMPTY(&softc->done_queue)) {
+			revents |= poll_events & (POLLIN | POLLRDNORM);
+		}
+		cam_periph_unlock(periph);
+		if (revents == 0)
+			selrecord(td, &softc->read_select);
+	}
+
+	return (revents);
+}
+
+static int
+ctlpasskqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct cam_periph *periph;
+	struct ctlpass_softc *softc;
+
+	periph = (struct cam_periph *)dev->si_drv1;
+	softc = (struct ctlpass_softc *)periph->softc;
+
+	kn->kn_hook = (caddr_t)periph;
+	kn->kn_fop = &ctlpassread_filtops;
+	knlist_add(&softc->read_select.si_note, kn, 0);
+
+	return (0);
+}
+
+static void
+ctlreadfiltdetach(struct knote *kn)
+{
+	struct cam_periph *periph;
+	struct ctlpass_softc *softc;
+
+	periph = (struct cam_periph *)kn->kn_hook;
+	softc = (struct ctlpass_softc *)periph->softc;
+
+	knlist_remove(&softc->read_select.si_note, kn, 0);
+}
+
+static int
+ctlpassreadfilt(struct knote *kn, long hint)
+{
+	struct cam_periph *periph;
+	struct ctlpass_softc *softc;
+	int retval;
+
+	periph = (struct cam_periph *)kn->kn_hook;
+	softc = (struct ctlpass_softc *)periph->softc;
+
+	cam_periph_assert(periph, MA_OWNED);
+
+	if (TAILQ_EMPTY(&softc->done_queue))
+		retval = 0;
+	else
+		retval = 1;
+
+	return (retval);
+}
+
+/*
+ * Generally, "ccb" should be the CCB supplied by the kernel.  "inccb"
+ * should be the CCB that is copied in from the user.
+ */
+/*
+static int
+ctlpasssendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
+{
+	struct ctlpass_softc *softc;
+	struct cam_periph_map_info mapinfo;
+	xpt_opcode fc;
+	int error;
+
+	softc = (struct ctlpass_softc *)periph->softc;
+
+	/
+	 * There are some fields in the CCB header that need to be
+	 * preserved, the rest we get from the user.
+	 */
+//	xpt_merge_ccb(ccb, inccb);
+
+	/*
+	 */
+//	ccb->ccb_h.cbfcnp = ctlpassdone;
+
+	/*
+	 * Let cam_periph_mapmem do a sanity check on the data pointer format.
+	 * Even if no data transfer is needed, it's a cheap check and it
+	 * simplifies the code.
+	 */
+/*	fc = ccb->ccb_h.func_code;
+	if ((fc == XPT_SCSI_IO) || (fc == XPT_ATA_IO) || (fc == XPT_SMP_IO)
+	 || (fc == XPT_DEV_MATCH) || (fc == XPT_DEV_ADVINFO)) {
+		bzero(&mapinfo, sizeof(mapinfo));
+
+		/
+		 * cam_periph_mapmem calls into proc and vm functions that can
+		 * sleep as well as trigger I/O, so we can't hold the lock.
+		 * Dropping it here is reasonably safe.
+		 */
+	/*	cam_periph_unlock(periph);
+		error = cam_periph_mapmem(ccb, &mapinfo, softc->maxio);
+		cam_periph_lock(periph);
+
+		/
+		 * cam_periph_mapmem returned an error, we can't continue.
+		 * Return the error to the user.
+		 */
+	/*	if (error)
+			return(error);
+	} else
+		/ Ensure that the unmap call later on is a no-op. */
+	//	mapinfo.num_bufs_used = 0;
+
+	/*
+	 * If the user wants us to perform any error recovery, then honor
+	 * that request.  Otherwise, it's up to the user to perform any
+	 * error recovery.
+	 *
+	cam_periph_runccb(ccb, ctlpasserror, * cam_flags */// CAM_RETRY_SELTO,
+	    /* sense_flags */// ((ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ?
+	    // SF_RETRY_UA : SF_NO_RECOVERY) | SF_NO_PRINT,
+	   // softc->device_stats);
+
+/*	cam_periph_unmapmem(ccb, &mapinfo);
+
+	ccb->ccb_h.cbfcnp = NULL;
+	ccb->ccb_h.periph_priv = inccb->ccb_h.periph_priv;
+	bcopy(ccb, inccb, sizeof(union ccb));
+
+	return(0);
+}
+*/
+static int
+ctlpasserror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
+{
+	struct cam_periph *periph;
+	struct ctlpass_softc *softc;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
-	softc = (struct passthrough_softc *)periph->softc;
+	softc = (struct ctlpass_softc *)periph->softc;
 	
 	return(cam_periph_error(ccb, cam_flags, sense_flags, 
 				 &softc->saved_ccb));
-}*/
+}

@@ -440,7 +440,7 @@ static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 			 struct ctl_be_lun *be_lun);
 static int ctl_free_lun(struct ctl_lun *lun);
 static void ctl_create_lun(struct ctl_be_lun *be_lun);
-static struct ctl_port * ctl_io_port(struct ctl_io_hdr *io_hdr);
+
 
 static int ctl_do_mode_select(union ctl_io *io);
 static int ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun,
@@ -529,7 +529,7 @@ static uint64_t ctl_get_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_clr_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_alloc_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_set_prkey(struct ctl_lun *lun, uint32_t residx, uint64_t key);
-static void ctl_passthrough_done(union ctl_io *io);
+
 //void ctl_done(union ctl_io *io);
 /*
  * Load the serialization table.  This isn't very pretty, but is probably
@@ -3616,7 +3616,7 @@ ctl_encode_lun(uint32_t decoded)
 	return ((((uint64_t)RPL_LUNDATA_ATYP_EXTLUN | 0x22) << 56) | (l << 16));
 }
 
-static struct ctl_port *
+struct ctl_port *
 ctl_io_port(struct ctl_io_hdr *io_hdr)
 {
 
@@ -4411,10 +4411,10 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	int lun_number, i, lun_malloced;
 	int devidlen, idlen1, idlen2 = 0, len;
 	
-	printf("ctl alloc lun");
+
 	if (be_lun == NULL)
 		return (EINVAL);
-	printf("ctl_alloc lun after if statement");
+
 	/*
 	 * We currently only support Direct Access or Processor LUN types.
 	 */
@@ -4429,7 +4429,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	case T_SEQUENTIAL:
 	case T_CHANGER:
 	default:
-		printf("default getting called\n");
 		be_lun->lun_config_status(be_lun->be_lun,
 					  CTL_LUN_CONFIG_FAILURE);
 		break;
@@ -4446,7 +4445,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	if (lun_malloced)
 		lun->flags = CTL_LUN_MALLOCED;
 	
-	printf("if statement before generating lun id");
+
 	/* Generate LUN ID. */
 	devidlen = max(CTL_DEVID_MIN_LEN,
 	    strnlen(be_lun->device_id, CTL_DEVID_LEN));
@@ -4690,12 +4689,10 @@ ctl_free_lun(struct ctl_lun *lun)
 static void
 ctl_create_lun(struct ctl_be_lun *be_lun)
 {
-	printf("ctl_create_lun");
+	
 	/*
 	 * ctl_alloc_lun() should handle all potential failure cases.
 	 */
-	if(be_lun->lun_type==T_PASSTHROUGH)
-		printf("passthrough device type it is");
 	ctl_alloc_lun(control_softc, NULL, be_lun);
 }
 
@@ -9437,7 +9434,7 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	int sup_page_size;
 	struct ctl_lun *lun;
 	int p;
-
+	//printf("evpd supported");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	sup_page_size = sizeof(struct scsi_vpd_supported_pages) *
@@ -9511,7 +9508,7 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_unit_serial_number *sn_ptr;
 	struct ctl_lun *lun;
 	int data_len;
-
+	//printf("evpd serial");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	data_len = 4 + CTL_SN_LEN;
@@ -9571,6 +9568,7 @@ ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len)
 	struct ctl_lun *lun;
 	int data_len;
 
+//	printf("evpd eid");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	data_len = sizeof(struct scsi_vpd_extended_inquiry_data);
@@ -9641,7 +9639,8 @@ ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_mode_page_policy *mpp_ptr;
 	struct ctl_lun *lun;
 	int data_len;
-
+	
+	//printf("evpd mpp");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	data_len = sizeof(struct scsi_vpd_mode_page_policy) +
@@ -9700,6 +9699,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	int data_len, g;
 	uint8_t proto;
 
+//	printf("evpd devid");
 	softc = control_softc;
 
 	port = ctl_io_port(&ctsio->io_hdr);
@@ -9825,6 +9825,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 	struct ctl_port *port;
 	int data_len, num_target_ports, iid_len, id_len;
 
+//	printf("evps_scsi_ports");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	num_target_ports = 0;
@@ -9923,6 +9924,7 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_block_limits *bl_ptr;
 	struct ctl_lun *lun;
 
+	//printf("evpd block limits");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*bl_ptr), M_CTL, M_WAITOK | M_ZERO);
@@ -9993,6 +9995,7 @@ ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len)
 	const char *value;
 	u_int i;
 
+	//printf("evps_bdc");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*bdc_ptr), M_CTL, M_WAITOK | M_ZERO);
@@ -10051,6 +10054,7 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_logical_block_prov *lbp_ptr;
 	struct ctl_lun *lun;
 
+	//printf("evpd lbp");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*lbp_ptr), M_CTL, M_WAITOK | M_ZERO);
@@ -10107,6 +10111,7 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 	struct scsi_inquiry *cdb;
 	int alloc_len, retval;
 
+	//printf("inquiry evpd");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
 	alloc_len = scsi_2btoul(cdb->length);
@@ -10179,6 +10184,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	uint32_t alloc_len, data_len;
 	ctl_port_type port_type;
 
+	//printf("inquiry std");
 	port = ctl_io_port(&ctsio->io_hdr);
 	port_type = port->port_type;
 	if (port_type == CTL_PORT_IOCTL || port_type == CTL_PORT_INTERNAL)
@@ -10360,7 +10366,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 			break;
 		}
 	}
-
+	
 	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
@@ -10376,6 +10382,7 @@ ctl_inquiry(struct ctl_scsiio *ctsio)
 
 	CTL_DEBUG_PRINT(("ctl_inquiry\n"));
 
+	//printf("ctl inquiry");
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
 	if (cdb->byte2 & SI_EVPD)
 		retval = ctl_inquiry_evpd(ctsio);
@@ -11867,6 +11874,7 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 	int retval;
 	const struct ctl_cmd_entry *entry;
 	struct ctl_lun *lun;
+	struct ctl_be_passthrough_lun *be_lun;
 
 	retval = CTL_RETVAL_COMPLETE;
 
@@ -11874,9 +11882,13 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 	
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	if(lun->be_lun->lun_type == T_PASSTHROUGH)
-		return ctlccb((union ctl_io *)ctsio);
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return  ctlccb(be_lun->periph,(union ctl_io *)ctsio);
+		//printf("\nhello Im in ctl");
+		
 	
-
+	}
 	entry = ctl_get_cmd_entry(ctsio, NULL);
 
 	/*
@@ -12654,7 +12666,7 @@ static void
 ctl_datamove_timer_wakeup(void *arg)
 {
 	union ctl_io *io;
-
+	printf("ctl_datamove_timer_wakeup");
 	io = (union ctl_io *)arg;
 
 	ctl_datamove(io);
@@ -12682,9 +12694,10 @@ ctl_datamove(union ctl_io *io)
 		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
 
 		sbuf_cat(&sb, path_str);
+	
 		switch (io->io_hdr.io_type) {
 		case CTL_IO_SCSI:
-			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
+			ctl_scsi_command_string(&io->scsiio,  (struct scsi_inquiry_data *)io->scsiio.kern_data_ptr, &sb);
 			sbuf_printf(&sb, "\n");
 			sbuf_cat(&sb, path_str);
 			sbuf_printf(&sb, "Tag: 0x%04x, type %d\n",
@@ -12699,10 +12712,12 @@ ctl_datamove(union ctl_io *io)
 			panic("%s: Invalid CTL I/O type %d\n",
 			    __func__, io->io_hdr.io_type);
 		}
+		printf("after switch");
 		sbuf_cat(&sb, path_str);
 		sbuf_printf(&sb, "ctl_datamove: %jd seconds\n",
 			    (intmax_t)time_uptime - io->io_hdr.start_time);
 		sbuf_finish(&sb);
+		
 		printf("%s", sbuf_data(&sb));
 	}
 #endif /* CTL_TIME_IO */
@@ -12764,6 +12779,7 @@ ctl_send_datamove_done(union ctl_io *io, int have_lock)
 	struct bintime cur_bt;
 #endif
 
+	printf("\n ctl_send_datamove_done");
 	memset(&msg, 0, sizeof(msg));
 	msg.hdr.msg_type = CTL_MSG_DATAMOVE_DONE;
 	msg.hdr.original_sc = io;
@@ -12806,6 +12822,7 @@ ctl_datamove_remote_write_cb(struct ctl_ha_dt_req *rq)
 	union ctl_io *io;
 	uint32_t i;
 
+	printf("\nctl_datamove_remote_write_cb\n");
 	io = rq->context;
 
 	if (rq->ret != CTL_HA_STATUS_SUCCESS) {
@@ -12840,6 +12857,7 @@ ctl_datamove_remote_dm_write_cb(union ctl_io *io)
 {
 	int retval;
 
+	printf("ctl_datamove_remote_dm_write_cb");
 	retval = ctl_datamove_remote_xfer(io, CTL_HA_DT_CMD_WRITE,
 					  ctl_datamove_remote_write_cb);
 	return (retval);
@@ -12850,6 +12868,7 @@ ctl_datamove_remote_write(union ctl_io *io)
 {
 	int retval;
 	void (*fe_datamove)(union ctl_io *io);
+	printf("ctl_datamove_remote_write\n");
 
 	/*
 	 * - Get the data from the host/HBA into local memory.
@@ -12883,7 +12902,7 @@ ctl_datamove_remote_dm_read_cb(union ctl_io *io)
 	struct sbuf sb;
 #endif
 	uint32_t i;
-
+	printf("ctl_datamove_remote_dm_read_cb");
 	for (i = 0; i < io->scsiio.kern_sg_entries; i++)
 		free(io->io_hdr.local_sglist[i].addr, M_CTL);
 	free(io->io_hdr.remote_sglist, M_CTL);
@@ -12922,6 +12941,7 @@ ctl_datamove_remote_read_cb(struct ctl_ha_dt_req *rq)
 	union ctl_io *io;
 	void (*fe_datamove)(union ctl_io *io);
 
+	printf("ctl_datamove_remote_read_cb");
 	io = rq->context;
 
 	if (rq->ret != CTL_HA_STATUS_SUCCESS) {
@@ -12957,6 +12977,7 @@ ctl_datamove_remote_sgl_setup(union ctl_io *io)
 	int retval;
 	int i;
 
+	printf("ctl_datamove_remote_sgl_setup");
 	retval = 0;
 	local_sglist = io->io_hdr.local_sglist;
 	len_to_go = io->scsiio.kern_data_len;
@@ -13001,7 +13022,7 @@ ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
 	int i, j, isc_ret;
 
 	rq = ctl_dt_req_alloc();
-
+	printf("ctl_datamove_remote_xfer");
 	/*
 	 * If we failed to allocate the request, and if the DMA didn't fail
 	 * anyway, set busy status.  This is just a resource allocation
@@ -13125,6 +13146,7 @@ ctl_datamove_remote_read(union ctl_io *io)
 	int retval;
 	uint32_t i;
 
+	printf("ctl_datamove_remote_read");
 	/*
 	 * This will send an error to the other controller in the case of a
 	 * failure.
@@ -13163,6 +13185,7 @@ ctl_datamove_remote(union ctl_io *io)
 
 	mtx_assert(&control_softc->ctl_lock, MA_NOTOWNED);
 
+	printf("ctl_datamove_remote");
 	if (io->io_hdr.flags & CTL_FLAG_FAILOVER) {
 		ctl_failover_io(io, /*have_lock*/ 0);
 		return;
@@ -13205,7 +13228,9 @@ ctl_process_done(union ctl_io *io)
 
 	CTL_DEBUG_PRINT(("ctl_process_done\n"));
 	fe_done = softc->ctl_ports[targ_port]->fe_done;
+	
 
+	
 #ifdef CTL_TIME_IO
 	if ((time_uptime - io->io_hdr.start_time) > ctl_time_io_secs) {
 		char str[256];
@@ -13216,6 +13241,7 @@ ctl_process_done(union ctl_io *io)
 		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
 
 		sbuf_cat(&sb, path_str);
+	
 		switch (io->io_hdr.io_type) {
 		case CTL_IO_SCSI:
 			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
@@ -13238,6 +13264,7 @@ ctl_process_done(union ctl_io *io)
 			    (intmax_t)time_uptime - io->io_hdr.start_time);
 		sbuf_finish(&sb);
 		printf("%s", sbuf_data(&sb));
+	
 	}
 #endif /* CTL_TIME_IO */
 
@@ -13306,6 +13333,7 @@ ctl_process_done(union ctl_io *io)
 #endif
 		lun->stats.ports[targ_port].num_dmas[type] +=
 		    io->io_hdr.num_dmas;
+		
 	}
 
 	/*
@@ -13368,8 +13396,10 @@ bailout:
 		    sizeof(msg.scsi) - sizeof(msg.scsi.sense_data),
 		    M_WAITOK);
 	}
-
+	
+	
 	fe_done(io);
+
 }
 
 #ifdef CTL_WITH_CA
@@ -13497,77 +13527,11 @@ ctl_serseq_done(union ctl_io *io)
 	ctl_check_blocked(lun);
 	mtx_unlock(&lun->lun_lock);
 }
-static void ctl_passthrough_done(union ctl_io *io)
-{
-/*
-	 * Enable this to catch duplicate completion issues.
-	 */
-#if 0
-	if (io->io_hdr.flags & CTL_FLAG_ALREADY_DONE) {
-		printf("%s: type %d msg %d cdb %x iptl: "
-		       "%u:%u:%u tag 0x%04x "
-		       "flag %#x status %x\n",
-			__func__,
-			io->io_hdr.io_type,
-			io->io_hdr.msg_type,
-			io->scsiio.cdb[0],
-			io->io_hdr.nexus.initid,
-			io->io_hdr.nexus.targ_port,
-			io->io_hdr.nexus.targ_lun,
-			(io->io_hdr.io_type ==
-			CTL_IO_TASK) ?
-			io->taskio.tag_num :
-			io->scsiio.tag_num,
-		        io->io_hdr.flags,
-			io->io_hdr.status);
-	} else
-		io->io_hdr.flags |= CTL_FLAG_ALREADY_DONE;
-#endif
-
-	/*
-	 * This is an internal copy of an I/O, and should not go through
-	 * the normal done processing logic.
-	 */
-	if (io->io_hdr.flags & CTL_FLAG_INT_COPY)
-		return;
-
-#ifdef CTL_IO_DELAY
-	if (io->io_hdr.flags & CTL_FLAG_DELAY_DONE) {
-		struct ctl_lun *lun;
-
-		lun =(struct ctl_lun *)io->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
-		io->io_hdr.flags &= ~CTL_FLAG_DELAY_DONE;
-	} else {
-		struct ctl_lun *lun;
-
-		lun =(struct ctl_lun *)io->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
-		if ((lun != NULL)
-		 && (lun->delay_info.done_delay > 0)) {
-
-			callout_init(&io->io_hdr.delay_callout, /*mpsafe*/ 1);
-			io->io_hdr.flags |= CTL_FLAG_DELAY_DONE;
-			callout_reset(&io->io_hdr.delay_callout,
-				      lun->delay_info.done_delay * hz,
-				      ctl_done_timer_wakeup, io);
-			if (lun->delay_info.done_type == CTL_DELAY_TYPE_ONESHOT)
-				lun->delay_info.done_delay = 0;
-			return;
-		}
-	}
-#endif /* CTL_IO_DELAY */
-	printf("ctl_done");
-	ctl_enqueue_done(io);
-
-
-
-
-}
 void
 ctl_done(union ctl_io *io)
 {
-
+	struct scsi_inquiry_data *inq_data;	
+//printf("\nctl_done\n");
 	/*
 	 * Enable this to catch duplicate completion issues.
 	 */
@@ -13626,6 +13590,8 @@ ctl_done(union ctl_io *io)
 		}
 	}
 #endif /* CTL_IO_DELAY */
+	inq_data = (struct scsi_inquiry_data *)io->scsiio.kern_data_ptr;
+
 	ctl_enqueue_done(io);
 }
 
@@ -13703,7 +13669,7 @@ ctl_lun_thread(void *arg)
 		mtx_lock(&softc->ctl_lock);
 		be_lun = STAILQ_FIRST(&softc->pending_lun_queue);
 		if (be_lun != NULL) {
-			printf("In ctl_lun_thread before entering pending_lun_queue");
+			//printf("In ctl_lun_thread before entering pending_lun_queue");
 			STAILQ_REMOVE_HEAD(&softc->pending_lun_queue, links);
 			mtx_unlock(&softc->ctl_lock);
 			ctl_create_lun(be_lun);
@@ -13856,7 +13822,8 @@ ctl_enqueue_done(union ctl_io *io)
 	
 	struct ctl_softc *softc = control_softc;
 	struct ctl_thread *thr;
-	
+
+	//printf("I am in ctl_enqueue_done");	
 	thr = &softc->threads[io->io_hdr.nexus.targ_mapped_lun % worker_threads];
 	mtx_lock(&thr->queue_lock);
 	STAILQ_INSERT_TAIL(&thr->done_queue, &io->io_hdr, links);

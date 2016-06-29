@@ -39,6 +39,8 @@
  *
  * Author: Ken Merry <ken@FreeBSD.org>
  */
+#ifndef CTL_BACKEND_PASS
+#define CTL_BACKEND_PASS
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -71,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_error.h>
 
+#endif
+
 typedef enum {
 	CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED	= 0x01,
 	CTL_BE_PASSTHROUGH_LUN_CONFIG_ERR	= 0x02,
@@ -80,6 +84,7 @@ typedef enum {
 struct ctl_be_passthrough_lun {
 	struct ctl_lun_create_params params;
 	char lunname[32];
+	struct cam_periph *periph;
 	uint64_t size_bytes;
 	uint64_t size_blocks;
 	struct ctl_be_passthrough_softc *softc;
@@ -92,8 +97,6 @@ struct ctl_be_passthrough_lun {
 
 struct ctl_be_passthrough_softc {
 	struct mtx lock;
-	int rd_size;
-
 	int num_luns;
 	STAILQ_HEAD(, ctl_be_passthrough_lun) lun_list;
 };
@@ -101,12 +104,13 @@ struct ctl_be_passthrough_softc {
 static struct ctl_be_passthrough_softc rd_softc;
 extern struct ctl_softc *control_softc;
 
-int ctl_backend_passthrough_init(void);
-void ctl_backend_passthrough_shutdown(void);
+static int ctl_backend_passthrough_init(void);
+static void ctl_backend_passthrough_shutdown(void);
 static void ctl_backend_passthrough_lun_shutdown(void *be_lun);
 static void ctl_backend_passthrough_lun_config_status(void *be_lun,
 						  ctl_lun_config_status status);
 
+static int ctl_backend_passthrough_create(struct cam_periph *periph);
 static struct ctl_backend_driver ctl_be_passthrough_driver = 
 {
 	.name = "ctlpassthrough",
@@ -114,29 +118,36 @@ static struct ctl_backend_driver ctl_be_passthrough_driver =
 	.init = ctl_backend_passthrough_init
 };
 
-MALLOC_DEFINE(M_PASSTHROUGH, "ctlpassthrough", "Memory used for CTL Passthrough");
+static MALLOC_DEFINE(M_PASSTHROUGH, "ctlpassthrough", "Memory used for CTL Passthrough");
 CTL_BACKEND_DECLARE(ctlpassthrough, ctl_be_passthrough_driver);
 
-int
+
+static int
 ctl_backend_passthrough_init(void)
 {
+	struct ctl_be_passthrough_softc *softc;
+
+	softc = &rd_softc;
+	memset(softc, 0 ,sizeof(*softc));
+
+	mtx_init(&softc->lock , "ctlpassthrough",NULL, MTX_DEF);
+
+	STAILQ_INIT(&softc->lun_list);
+
+	return (0);
+
+}
+static int ctl_backend_passthrough_create(struct cam_periph *periph)
+{
+
 	struct ctl_be_passthrough_softc *softc = &rd_softc;
 	struct ctl_be_passthrough_lun *be_lun;
 //	struct ctl_be_lun *ctl_be_lun;
-	
+	struct ctl_be_lun *cbe_lun;
+
+	char tmpstr[32];
 	
 	int retval;
-
-
-	#ifdef CTL_RAMDISK_PAGES
-	int i;
-	
-#endif
-	printf("entered passthrough backedn init");
-	memset(softc, 0, sizeof(*softc));
-	mtx_init(&softc->lock, "ctlpassthrough", NULL, MTX_DEF);
-	STAILQ_INIT(&softc->lun_list);
-	softc->rd_size = 1024 * 1024;
 
 	retval = 0;
 
@@ -149,10 +160,7 @@ ctl_backend_passthrough_init(void)
 	}
 	STAILQ_INIT(&be_lun->ctl_be_lun.options);
 
-
-	//sprintf(be_lun->lunname, "passthrough%d", softc->num_luns);
-	
-
+	cbe_lun = &be_lun->ctl_be_lun;
 	be_lun->ctl_be_lun.lun_type = T_PASSTHROUGH;
 	
 	
@@ -162,6 +170,7 @@ ctl_backend_passthrough_init(void)
 	be_lun->size_blocks =0;
 
 	be_lun->softc=softc;
+	be_lun->periph = periph;
 	
 	be_lun->flags = CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
@@ -172,16 +181,29 @@ ctl_backend_passthrough_init(void)
 	be_lun->ctl_be_lun.lun_config_status = ctl_backend_passthrough_lun_config_status;
 
 	be_lun->ctl_be_lun.be = &ctl_be_passthrough_driver;
+		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%4d",
+			 softc->num_luns);
+		strncpy((char *)cbe_lun->serial_num, tmpstr,
+			MIN(sizeof(cbe_lun->serial_num), sizeof(tmpstr)));
+	
+	
+		snprintf(tmpstr, sizeof(tmpstr), "MYDEVID%4d", softc->num_luns);
+		strncpy((char *)cbe_lun->device_id, tmpstr,
+			MIN(sizeof(cbe_lun->device_id), sizeof(tmpstr)));
+
+
 	mtx_lock(&softc->lock);
 	softc->num_luns++;
 	STAILQ_INSERT_TAIL(&softc->lun_list , be_lun , links);
 	mtx_unlock(&softc->lock);
-	printf("before ctl add _lun\n");
+
+//	printf("before ctl add _lun\n");
+
 	if(be_lun->ctl_be_lun.lun_type == T_PASSTHROUGH)
 		printf("device type is passthrough");
 	retval = ctl_add_lun(&be_lun->ctl_be_lun);
 
-	printf("after ctl add lun");
+//	printf("after ctl add lun");
 	if(retval!=0)
 	{
 		mtx_lock(&softc->lock);
@@ -206,20 +228,18 @@ ctl_backend_passthrough_init(void)
 	printf("successfullly created lun");	
 	return (retval);
 bailout_error:
-	free(be_lun , M_PASSTHROUGH);
+//	free(be_lun , M_PASSTHROUGH);
 
 	return (retval);
 
 }
 
-void
+static void
 ctl_backend_passthrough_shutdown(void)
 {
 	struct ctl_be_passthrough_softc *softc = &rd_softc;
 	struct ctl_be_passthrough_lun *lun, *next_lun;
-#ifdef CTL_RAMDISK_PAGES
-	int i;
-#endif
+
 
 	mtx_lock(&softc->lock);
 	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun) {
