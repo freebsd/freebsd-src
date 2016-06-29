@@ -2151,6 +2151,7 @@ product FUJITSU AH_F401U	0x105b	AH-F401U Air H device
 product FUJITSUSIEMENS SCR	0x0009	Fujitsu-Siemens SCR USB Reader
 
 /* Garmin products */
+product GARMIN FORERUNNER230	0x086d	ForeRunner 230
 product GARMIN IQUE_3600	0x0004	iQue 3600
 
 /* Gemalto products */
