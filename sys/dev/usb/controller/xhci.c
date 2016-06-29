@@ -204,7 +204,7 @@ static void
 xhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 {
 	struct xhci_softc *sc = XHCI_BUS2SC(bus);
-	uint8_t i;
+	uint16_t i;
 
 	cb(bus, &sc->sc_hw.root_pc, &sc->sc_hw.root_pg,
 	   sizeof(struct xhci_hw_root), XHCI_PAGE_SIZE);
@@ -212,7 +212,7 @@ xhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 	cb(bus, &sc->sc_hw.ctx_pc, &sc->sc_hw.ctx_pg,
 	   sizeof(struct xhci_dev_ctx_addr), XHCI_PAGE_SIZE);
 
-	for (i = 0; i != XHCI_MAX_SCRATCHPADS; i++) {
+	for (i = 0; i != sc->sc_noscratch; i++) {
 		cb(bus, &sc->sc_hw.scratch_pc[i], &sc->sc_hw.scratch_pg[i],
 		    XHCI_PAGE_SIZE, XHCI_PAGE_SIZE);
 	}
