@@ -8981,12 +8981,12 @@ toe_capability(struct vi_info *vi, int enable)
 		 * port has never been UP'd administratively.
 		 */
 		if (!(vi->flags & VI_INIT_DONE)) {
-			rc = cxgbe_init_synchronized(vi);
+			rc = vi_full_init(vi);
 			if (rc)
 				return (rc);
 		}
 		if (!(pi->vi[0].flags & VI_INIT_DONE)) {
-			rc = cxgbe_init_synchronized(&pi->vi[0]);
+			rc = vi_full_init(&pi->vi[0]);
 			if (rc)
 				return (rc);
 		}
