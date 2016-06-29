@@ -374,8 +374,11 @@ if test "x$with_lzma" != "xno"; then
   AC_CACHE_CHECK(
     [whether we have multithread support in lzma],
     ac_cv_lzma_has_mt,
-    [AC_COMPILE_IFELSE([
-      AC_LANG_PROGRAM([[#include <lzma.h>]],
+    [AC_LINK_IFELSE([
+      AC_LANG_PROGRAM([[#include <lzma.h>]
+                       [#if LZMA_VERSION < 50020000]
+                       [#error unsupported]
+                       [#endif]],
                       [[lzma_stream_encoder_mt(0, 0);]])],
       [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
   if test "x$ac_cv_lzma_has_mt" != xno; then
@@ -612,6 +615,14 @@ AC_CHECK_FUNCS([_ctime64_s _fseeki64])
 AC_CHECK_FUNCS([_get_timezone _localtime64_s _mkgmtime64])
 # detects cygwin-1.7, as opposed to older versions
 AC_CHECK_FUNCS([cygwin_conv_path])
+
+# DragonFly uses vfsconf, FreeBSD xvfsconf.
+AC_CHECK_TYPES(struct vfsconf,,,
+	[#if HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+	#endif
+	#include <sys/mount.h>
+	])
 
 # There are several variants of readdir_r around; we only
 # accept the POSIX-compliant version.
