@@ -762,3 +762,47 @@ libusb_fill_iso_transfer(struct libusb_transfer *transfer,
 	transfer->callback = callback;
 }
 
+int
+libusb_alloc_streams(libusb_device_handle *dev, uint32_t num_streams,
+    unsigned char *endpoints, int num_endpoints)
+{
+
+	return (LIBUSB_ERROR_NOT_SUPPORTED);
+}
+
+int
+libusb_free_streams(libusb_device_handle *dev, unsigned char *endpoints, int num_endpoints)
+{
+
+	return (0);
+}
+
+void
+libusb_transfer_set_stream_id(struct libusb_transfer *transfer, uint32_t stream_id)
+{
+	struct libusb_super_transfer *sxfer;
+
+	if (transfer == NULL)
+		return;
+
+	sxfer = (struct libusb_super_transfer *)(
+	    ((uint8_t *)transfer) - sizeof(*sxfer));
+
+	/* set stream ID */
+	sxfer->stream_id = stream_id;
+}
+
+uint32_t
+libusb_transfer_get_stream_id(struct libusb_transfer *transfer)
+{
+	struct libusb_super_transfer *sxfer;
+
+	if (transfer == NULL)
+		return (0);
+
+	sxfer = (struct libusb_super_transfer *)(
+	    ((uint8_t *)transfer) - sizeof(*sxfer));
+
+	/* get stream ID */
+	return (sxfer->stream_id);
+}

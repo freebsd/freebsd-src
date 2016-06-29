@@ -590,6 +590,12 @@ libusb20_dev_close(struct libusb20_device *pdev)
 	 */
 	pdev->claimed_interface = 0;
 
+	/*
+	 * The following variable is only used by the libusb v1.0
+	 * compat layer:
+	 */
+	pdev->auto_detach = 0;
+
 	return (error);
 }
 

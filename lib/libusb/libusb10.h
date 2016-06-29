@@ -34,6 +34,8 @@
 #define	CTX_LOCK(ctx) pthread_mutex_lock(&(ctx)->ctx_lock)
 #define	CTX_TRYLOCK(ctx) pthread_mutex_trylock(&(ctx)->ctx_lock)
 #define	CTX_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->ctx_lock)
+#define	HOTPLUG_LOCK(ctx) pthread_mutex_lock(&(ctx)->hotplug_lock)
+#define	HOTPLUG_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->hotplug_lock)
 
 #define	DPRINTF(ctx, dbg, format, args...) do {	\
     if ((ctx)->debug == dbg) {			\
@@ -65,9 +67,20 @@ struct libusb_super_transfer {
 	uint8_t *curr_data;
 	uint32_t rem_len;
 	uint32_t last_len;
+	uint32_t stream_id;
 	uint8_t	state;
 #define	LIBUSB_SUPER_XFER_ST_NONE 0
 #define	LIBUSB_SUPER_XFER_ST_PEND 1
+};
+
+struct libusb_hotplug_callback_handle_struct {
+	TAILQ_ENTRY(libusb_hotplug_callback_handle_struct) entry;
+	int events;
+	int vendor;
+	int product;
+	int devclass;
+	libusb_hotplug_callback_fn fn;
+	void *user_data;
 };
 
 struct libusb_context {
@@ -78,12 +91,16 @@ struct libusb_context {
 	int	tr_done_gen;
 
 	pthread_mutex_t ctx_lock;
+  	pthread_mutex_t hotplug_lock;
 	pthread_cond_t ctx_cond;
+	pthread_t hotplug_handler;
 	pthread_t ctx_handler;
 #define	NO_THREAD ((pthread_t)-1)
 
 	TAILQ_HEAD(, libusb_super_pollfd) pollfds;
 	TAILQ_HEAD(, libusb_super_transfer) tr_done;
+	TAILQ_HEAD(, libusb_hotplug_callback_handle_struct) hotplug_cbh;
+  	TAILQ_HEAD(, libusb_device) hotplug_devs;
 
 	struct libusb_super_pollfd ctx_poll;
 
@@ -100,6 +117,8 @@ struct libusb_device {
 	struct libusb_super_pollfd dev_poll;
 
 	struct libusb_context *ctx;
+
+	TAILQ_ENTRY(libusb_device) hotplug_entry;
 
 	TAILQ_HEAD(, libusb_super_transfer) tr_head;
 

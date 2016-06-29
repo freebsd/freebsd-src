@@ -31,6 +31,7 @@ SRCS+=		libusb01.c
 INCS+=		libusb.h
 SRCS+=		libusb10.c
 SRCS+=		libusb10_desc.c
+SRCS+=		libusb10_hotplug.c
 SRCS+=		libusb10_io.c
 
 .if defined(COMPAT_32BIT)
@@ -40,6 +41,7 @@ CFLAGS+=	-DCOMPAT_32BIT
 .include <bsd.lib.mk>
 
 # LibUSB v1.0
+MLINKS += libusb.3 libusb_get_version.3
 MLINKS += libusb.3 libusb_init.3
 MLINKS += libusb.3 libusb_exit.3
 MLINKS += libusb.3 libusb_strerror.3
@@ -48,6 +50,7 @@ MLINKS += libusb.3 libusb_set_debug.3
 MLINKS += libusb.3 libusb_get_device_list.3
 MLINKS += libusb.3 libusb_free_device_list.3
 MLINKS += libusb.3 libusb_get_bus_number.3
+MLINKS += libusb.3 libusb_get_port_number.3
 MLINKS += libusb.3 libusb_get_device_address.3
 MLINKS += libusb.3 libusb_get_device_speed.3
 MLINKS += libusb.3 libusb_get_max_packet_size.3
@@ -72,6 +75,7 @@ MLINKS += libusb.3 libusb_get_driver_np.3
 MLINKS += libusb.3 libusb_detach_kernel_driver.3
 MLINKS += libusb.3 libusb_detach_kernel_driver_np.3
 MLINKS += libusb.3 libusb_attach_kernel_driver.3
+MLINKS += libusb.3 libusb_set_auto_detach_kernel_driver.3
 MLINKS += libusb.3 libusb_get_device_descriptor.3
 MLINKS += libusb.3 libusb_get_active_config_descriptor.3
 MLINKS += libusb.3 libusb_get_config_descriptor.3
@@ -81,10 +85,22 @@ MLINKS += libusb.3 libusb_get_string_descriptor.3
 MLINKS += libusb.3 libusb_get_string_descriptor_ascii.3
 MLINKS += libusb.3 libusb_parse_ss_endpoint_comp.3
 MLINKS += libusb.3 libusb_free_ss_endpoint_comp.3
+MLINKS += libusb.3 libusb_get_ss_endpoint_companion_descriptor.3
+MLINKS += libusb.3 libusb_free_ss_endpoint_companion_descriptor.3
 MLINKS += libusb.3 libusb_parse_bos_descriptor.3
 MLINKS += libusb.3 libusb_free_bos_descriptor.3
+MLINKS += libusb.3 libusb_get_usb_2_0_extension_descriptor.3
+MLINKS += libusb.3 libusb_free_usb_2_0_extension_descriptor.3
+MLINKS += libusb.3 libusb_get_ss_usb_device_capability_descriptor.3
+MLINKS += libusb.3 libusb_free_ss_usb_device_capability_descriptor.3
+MLINKS += libusb.3 libusb_get_container_id_descriptor.3
+MLINKS += libusb.3 libusb_free_container_id_descriptor.3
+MLINKS += libusb.3 libusb_alloc_streams.3
+MLINKS += libusb.3 libusb_free_streams.3
 MLINKS += libusb.3 libusb_alloc_transfer.3
 MLINKS += libusb.3 libusb_free_transfer.3
+MLINKS += libusb.3 libusb_transfer_set_stream_id.3
+MLINKS += libusb.3 libusb_transfer_get_stream_id.3
 MLINKS += libusb.3 libusb_submit_transfer.3
 MLINKS += libusb.3 libusb_cancel_transfer.3
 MLINKS += libusb.3 libusb_control_transfer.3
@@ -106,6 +122,8 @@ MLINKS += libusb.3 libusb_handle_events_locked.3
 MLINKS += libusb.3 libusb_get_next_timeout.3
 MLINKS += libusb.3 libusb_set_pollfd_notifiers.3
 MLINKS += libusb.3 libusb_get_pollfds.3
+MLINKS += libusb.3 libusb_hotplug_register_callback.3
+MLINKS += libusb.3 libusb_hotplug_deregister_callback.3
 
 # LibUSB v0.1
 MLINKS += libusb.3 usb_open.3
