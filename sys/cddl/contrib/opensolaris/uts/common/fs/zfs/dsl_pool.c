@@ -49,8 +49,8 @@
 #include <sys/dsl_userhold.h>
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
-#include <sys/sysctl.h>
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #endif
 
 /*
