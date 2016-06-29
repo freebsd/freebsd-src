@@ -84,11 +84,11 @@ samples the hardware statcounters into statcounters_bank_t
 .Fn diff_statcounters "const statcounters_bank_t * const be" "const statcounters_bank_t * const bs" "statcounters_bank_t * const bd"
 .in +5
 .Fn diff_statcounters
-stores the difference between statcounters_bank_t
-.Fa be
-and
+subtracts statcounters_bank_t
 .Fa bs
-in statcounters_bank_t
+from
+.Fa be
+and stores the result in statcounters_bank_t
 .Fa bd .
 .in
 .Pp
