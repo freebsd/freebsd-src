@@ -532,7 +532,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 #endif
 
 	/*
-	 * Find a running VI with IFCAP_TOE (4 or 6).  We'll use the first
+	 * Find an initialized VI with IFCAP_TOE (4 or 6).  We'll use the first
 	 * such VI's queues to send the passive open and receive the reply to
 	 * it.
 	 *
@@ -543,7 +543,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	for_each_port(sc, i) {
 		pi = sc->port[i];
 		for_each_vi(pi, v, vi) {
-			if (vi->ifp->if_drv_flags & IFF_DRV_RUNNING &&
+			if (vi->flags & VI_INIT_DONE &&
 			    vi->ifp->if_capenable & IFCAP_TOE)
 				goto found;
 		}
