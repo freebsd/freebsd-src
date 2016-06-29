@@ -25,7 +25,7 @@ dnl test. I believe this test will work, but I don't have a place with non-
 dnl GNU M4 to test it right now.
 define([expat_version], ifdef([__gnu__],
                               [esyscmd(conftools/get-version.sh lib/expat.h)],
-                              [2.1.x]))
+                              [2.2.x]))
 AC_INIT(expat, expat_version, expat-bugs@libexpat.org)
 undefine([expat_version])
 
@@ -45,9 +45,9 @@ dnl
 dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
-LIBCURRENT=7
-LIBREVISION=0
-LIBAGE=6
+LIBCURRENT=7   # sync
+LIBREVISION=2  # with
+LIBAGE=6       # CMakeLists.txt!
 
 AC_CONFIG_HEADER(expat_config.h)
 
@@ -77,7 +77,9 @@ if test "$GCC" = yes ; then
     AC_TRY_LINK( , ,
                    AC_MSG_RESULT(yes),
                    AC_MSG_RESULT(no); CFLAGS="$OLDCFLAGS")
+    if test "x$CXXFLAGS" = x ; then
     CXXFLAGS=`echo "$CFLAGS" | sed 's/ -Wmissing-prototypes -Wstrict-prototypes//'`
+    fi
 fi
 
 dnl Checks for header files.
