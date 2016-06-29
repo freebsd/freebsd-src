@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2014
+.Dd June 23, 2016
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -43,6 +43,10 @@ The
 library contains interfaces for directly managing a usb device.
 The current implementation supports v1.0 of the libusb API.
 .Sh LIBRARY INITIALISATION / DEINITIALISATION
+.Ft "const struct libusb_version *"
+.Fn libusb_get_version "void"
+This function returns version information about LibUSB.
+.Pp
 .Ft int
 .Fn libusb_init libusb_context **ctx
 This function initialises libusb.
@@ -101,6 +105,12 @@ counter decremented once.
 .Fn libusb_get_bus_number "libusb_device *dev"
 Returns the number of the bus contained by the device
 .Fa dev .
+.Pp
+.Ft uint8_t
+.Fn libusb_get_port_number "libusb_device *dev"
+Returns the port number which the device given by
+.Fa dev
+is attached to.
 .Pp
 .Ft int
 .Fn libusb_get_port_numbers "libusb_device *dev" "uint8_t *buf" "uint8_t bufsize"
@@ -288,6 +298,18 @@ LIBUSB_ERROR_NO_DEVICE
 if the device has been disconnected, LIBUSB_ERROR_BUSY if the driver cannot be
 attached because the interface is claimed by a program or driver and a
 LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
+.Fn libusb_set_auto_detach_kernel_driver "libusb_device_handle *devh" "int enable"
+This function enables automatic kernel interface driver detach when an
+interface is claimed.
+When the interface is restored the kernel driver is allowed to be re-attached.
+If the
+.Fa enable
+argument is non-zero the feature is enabled.
+Else disabled.
+Returns 0 on success and a LIBUSB_ERROR code on
+failure.
 .Sh USB DESCRIPTORS
 .Ft int
 .Fn libusb_get_device_descriptor "libusb_device *dev" "libusb_device_descriptor *desc"
@@ -354,7 +376,31 @@ freed using the libusb_free_ss_endpoint_comp function.
 .Pp
 .Ft void
 .Fn libusb_free_ss_endpoint_comp "libusb_ss_endpoint_companion_descriptor *ep_comp"
-This function is NULL safe and frees a parsed USB 3.0 endpoint companion descriptor.
+This function is NULL safe and frees a parsed USB 3.0 endpoint companion descriptor given by
+.Fa ep_comp .
+.Pp
+.Ft int
+.Fn libusb_get_ss_endpoint_companion_descriptor "struct libusb_context *ctx" "const struct libusb_endpoint_descriptor *endpoint" "struct libusb_ss_endpoint_companion_descriptor **ep_comp"
+This function finds and parses the USB 3.0 endpoint companion descriptor given by
+.Fa endpoint .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed USB 3.0 endpoint companion descriptor must be
+freed using the libusb_free_ss_endpoint_companion_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_ss_endpoint_companion_descriptor "struct libusb_ss_endpoint_companion_descriptor *ep_comp"
+This function is NULL safe and frees a parsed USB 3.0 endpoint companion descriptor given by
+.Fa ep_comp .
+.Pp
+.Ft int
+.Fn libusb_get_bos_descriptor "libusb_device_handle *handle" "struct libusb_bos_descriptor **bos"
+This function queries the USB device given by
+.Fa handle
+and stores a pointer to a parsed BOS descriptor into
+.Fa bos .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed BOS descriptor must be
+freed using the libusb_free_bos_descriptor function.
 .Pp
 .Ft int
 .Fn libusb_parse_bos_descriptor "const void *buf" "int len" "libusb_bos_descriptor **bos"
@@ -370,7 +416,53 @@ libusb_free_bos_descriptor function.
 .Pp
 .Ft void
 .Fn libusb_free_bos_descriptor "libusb_bos_descriptor *bos"
-This function is NULL safe and frees a parsed BOS descriptor.
+This function is NULL safe and frees a parsed BOS descriptor given by
+.Fa bos .
+.Pp
+.Ft int
+.Fn libusb_get_usb_2_0_extension_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_usb_2_0_extension_descriptor **usb_2_0_extension"
+This function parses the USB 2.0 extension descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa usb_2_0_extension .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed USB 2.0 extension descriptor must be freed using the
+libusb_free_usb_2_0_extension_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_usb_2_0_extension_descriptor "struct libusb_usb_2_0_extension_descriptor *usb_2_0_extension"
+This function is NULL safe and frees a parsed USB 2.0 extension descriptor given by
+.Fa usb_2_0_extension .
+.Pp
+.Ft int
+.Fn libusb_get_ss_usb_device_capability_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_ss_usb_device_capability_descriptor **ss_usb_device_capability"
+This function parses the SuperSpeed device capability descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa ss_usb_device_capability .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed SuperSpeed device capability descriptor must be freed using the
+libusb_free_ss_usb_device_capability_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_ss_usb_device_capability_descriptor "struct libusb_ss_usb_device_capability_descriptor *ss_usb_device_capability"
+This function is NULL safe and frees a parsed SuperSpeed device capability descriptor given by
+.Fa ss_usb_device_capability .
+.Pp
+.Ft int
+.Fn libusb_get_container_id_descriptor "struct libusb_context *ctx" "struct libusb_bos_dev_capability_descriptor *dev_cap" "struct libusb_container_id_descriptor **container_id"
+This function parses the container ID descriptor from the descriptor given by
+.Fa dev_cap
+and stores a pointer to the parsed descriptor into
+.Fa container_id .
+Returns zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed container ID descriptor must be freed using the
+libusb_free_container_id_descriptor function.
+.Pp
+.Ft void
+.Fn libusb_free_container_id_descriptor "struct libusb_container_id_descriptor *container_id"
+This function is NULL safe and frees a parsed container ID descriptor given by
+.Fa container_id .
 .Sh USB ASYNCHRONOUS I/O
 .Ft struct libusb_transfer *
 .Fn libusb_alloc_transfer "int iso_packets"
@@ -429,6 +521,29 @@ if the transfer timed out, LIBUSB_ERROR_PIPE if the control request was not
 supported, LIBUSB_ERROR_OVERFLOW if the device offered more data,
 LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and
 a LIBUSB_ERROR code on other failure.
+.Sh USB STREAMS SUPPORT
+.Ft int
+.Fn libusb_alloc_streams "libusb_device_handle *dev" "uint32_t num_streams" "unsigned char *endpoints" "int num_endpoints"
+This function verifies that the given number of streams using the
+given number of endpoints is allowed and allocates the resources
+needed to use so-called USB streams.
+Currently only a single stream per endpoint is supported to simplify
+the internals of LibUSB.
+This function returns 0 on success or a LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
+.Fn libusb_free_streams "libusb_device_handle *dev" "unsigned char *endpoints" "int num_endpoints"
+This function release resources needed for streams usage.
+Returns 0 on success or a LIBUSB_ERROR code on failure.
+.Pp
+.Ft void
+.Fn libusb_transfer_set_stream_id "struct libusb_transfer *transfer" "uint32_t stream_id"
+This function sets the stream ID for the given USB transfer.
+.Pp
+.Ft uint32_t
+.Fn libusb_transfer_get_stream_id "struct libusb_transfer *transfer"
+This function returns the stream ID for the given USB transfer.
+If no stream ID is used a value of zero is returned.
 .Sh USB EVENTS
 .Ft int
 .Fn libusb_try_lock_events "libusb_context *ctx"
@@ -550,6 +665,47 @@ that libusb uses as an event source.
 Retrive a list of file descriptors that should be polled by your main loop as
 libusb event sources.
 Returns a NULL-terminated list on success or NULL on failure.
+.Pp
+.Ft int
+.Fn libusb_hotplug_register_callback "libusb_context *ctx" "libusb_hotplug_event events" "libusb_hotplug_flag flags" "int vendor_id" "int product_id" "int dev_class" "libusb_hotplug_callback_fn cb_fn" "void *user_data" "libusb_hotplug_callback_handle *handle"
+This function registers a hotplug filter.
+The
+.Fa events
+argument select which events makes the hotplug filter trigger.
+Available event values are LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED and LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT.
+One or more events must be specified.
+The
+.Fa vendor_id ,
+.Fa product_id
+and
+.Fa dev_class
+arguments can be set to LIBUSB_HOTPLUG_MATCH_ANY to match any value in the USB device descriptor.
+Else the specified value is used for matching.
+If the
+.Fa flags
+argument is set to LIBUSB_HOTPLUG_ENUMERATE, all currently attached and matching USB devices will be passed to the hotplug filter, given by the
+.Fa cb_fn
+argument.
+Else the
+.Fa flags
+argument should be set to LIBUSB_HOTPLUG_NO_FLAGS.
+This function returns 0 upon success or a LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
+.Fn libusb_hotplug_callback_fn "libusb_context *ctx" "libusb_device *device" "libusb_hotplug_event event" "void *user_data"
+The hotplug filter function.
+If this function returns non-zero, the filter is removed.
+Else the filter is kept and can receive more events.
+The
+.Fa user_data
+argument is the same as given when the filter was registered.
+The
+.Fa event
+argument can be either of LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED or LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT.
+.Pp
+.Ft void
+.Fn libusb_hotplug_deregister_callback "libusb_context *ctx" "libusb_hotplug_callback_handle handle"
+This function unregisters a hotplug filter.
 .Sh LIBUSB VERSION 0.1 COMPATIBILITY
 The library is also compliant with LibUSB version 0.1.12.
 .Pp

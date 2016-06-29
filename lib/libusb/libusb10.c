@@ -69,6 +69,22 @@ static void libusb10_submit_transfer_sub(struct libusb20_device *, uint8_t);
 
 /*  Library initialisation / deinitialisation */
 
+static const struct libusb_version libusb_version = {
+	.major = 1,
+	.minor = 0,
+	.micro = 0,
+	.nano = 2016,
+	.rc = "",
+	.describe = "http://www.freebsd.org"
+};
+
+const struct libusb_version *
+libusb_get_version(void)
+{
+
+	return (&libusb_version);
+}
+
 void
 libusb_set_debug(libusb_context *ctx, int level)
 {
@@ -118,24 +134,34 @@ libusb_init(libusb_context **context)
 	}
 	TAILQ_INIT(&ctx->pollfds);
 	TAILQ_INIT(&ctx->tr_done);
+	TAILQ_INIT(&ctx->hotplug_cbh);
+	TAILQ_INIT(&ctx->hotplug_devs);
 
 	if (pthread_mutex_init(&ctx->ctx_lock, NULL) != 0) {
 		free(ctx);
 		return (LIBUSB_ERROR_NO_MEM);
 	}
+	if (pthread_mutex_init(&ctx->hotplug_lock, NULL) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
 	if (pthread_condattr_init(&attr) != 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		free(ctx);
 		return (LIBUSB_ERROR_NO_MEM);
 	}
 	if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC) != 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		pthread_condattr_destroy(&attr);
 		free(ctx);
 		return (LIBUSB_ERROR_OTHER);
 	}
 	if (pthread_cond_init(&ctx->ctx_cond, &attr) != 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		pthread_condattr_destroy(&attr);
 		free(ctx);
 		return (LIBUSB_ERROR_NO_MEM);
@@ -143,10 +169,12 @@ libusb_init(libusb_context **context)
 	pthread_condattr_destroy(&attr);
 
 	ctx->ctx_handler = NO_THREAD;
+	ctx->hotplug_handler = NO_THREAD;
 
 	ret = pipe(ctx->ctrl_pipe);
 	if (ret < 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		pthread_cond_destroy(&ctx->ctx_cond);
 		free(ctx);
 		return (LIBUSB_ERROR_OTHER);
@@ -179,12 +207,27 @@ libusb_exit(libusb_context *ctx)
 	if (ctx == NULL)
 		return;
 
+	/* stop hotplug thread, if any */
+
+	if (ctx->hotplug_handler != NO_THREAD) {
+		pthread_t td;
+		void *ptr;
+
+		HOTPLUG_LOCK(ctx);
+		td = ctx->hotplug_handler;
+		ctx->hotplug_handler = NO_THREAD;
+		HOTPLUG_UNLOCK(ctx);
+
+		pthread_join(td, &ptr);
+	}
+
 	/* XXX cleanup devices */
 
 	libusb10_remove_pollfd(ctx, &ctx->ctx_poll);
 	close(ctx->ctrl_pipe[0]);
 	close(ctx->ctrl_pipe[1]);
 	pthread_mutex_destroy(&ctx->ctx_lock);
+	pthread_mutex_destroy(&ctx->hotplug_lock);
 	pthread_cond_destroy(&ctx->ctx_cond);
 
 	pthread_mutex_lock(&default_context_lock);
@@ -290,6 +333,14 @@ libusb_get_bus_number(libusb_device *dev)
 	if (dev == NULL)
 		return (0);		/* should not happen */
 	return (libusb20_dev_get_bus_number(dev->os_priv));
+}
+
+uint8_t
+libusb_get_port_number(libusb_device *dev)
+{
+	if (dev == NULL)
+		return (0);		/* should not happen */
+	return (libusb20_dev_get_parent_port(dev->os_priv));
 }
 
 int
@@ -613,6 +664,7 @@ int
 libusb_claim_interface(struct libusb20_device *pdev, int interface_number)
 {
 	libusb_device *dev;
+	int err = 0;
 
 	dev = libusb_get_device(pdev);
 	if (dev == NULL)
@@ -621,11 +673,17 @@ libusb_claim_interface(struct libusb20_device *pdev, int interface_number)
 	if (interface_number < 0 || interface_number > 31)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
+	if (pdev->auto_detach != 0) {
+		err = libusb_detach_kernel_driver(pdev, interface_number);
+		if (err != 0)
+			goto done;
+	}
+
 	CTX_LOCK(dev->ctx);
 	dev->claimed_interfaces |= (1 << interface_number);
 	CTX_UNLOCK(dev->ctx);
-
-	return (0);
+done:
+	return (err);
 }
 
 int
@@ -641,13 +699,19 @@ libusb_release_interface(struct libusb20_device *pdev, int interface_number)
 	if (interface_number < 0 || interface_number > 31)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
+	if (pdev->auto_detach != 0) {
+		err = libusb_attach_kernel_driver(pdev, interface_number);
+		if (err != 0)
+			goto done;
+	}
+
 	CTX_LOCK(dev->ctx);
 	if (!(dev->claimed_interfaces & (1 << interface_number)))
 		err = LIBUSB_ERROR_NOT_FOUND;
-
-	if (!err)
+	else
 		dev->claimed_interfaces &= ~(1 << interface_number);
 	CTX_UNLOCK(dev->ctx);
+done:
 	return (err);
 }
 
@@ -846,6 +910,13 @@ libusb_attach_kernel_driver(struct libusb20_device *pdev, int interface)
 	if (pdev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 	/* stub - currently not supported by libusb20 */
+	return (0);
+}
+
+int
+libusb_set_auto_detach_kernel_driver(libusb_device_handle *dev, int enable)
+{
+	dev->auto_detach = (enable ? 1 : 0);
 	return (0);
 }
 
@@ -1339,7 +1410,8 @@ found:
 	maxframe = libusb10_get_maxframe(pdev, uxfer);
 
 	/* make sure the transfer is opened */
-	err = libusb20_tr_open(pxfer0, buffsize, maxframe, endpoint);
+	err = libusb20_tr_open_stream(pxfer0, buffsize, maxframe,
+	    endpoint, sxfer->stream_id);
 	if (err && (err != LIBUSB20_ERROR_BUSY)) {
 		goto failure;
 	}
