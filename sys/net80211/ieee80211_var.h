@@ -121,6 +121,7 @@ struct ieee80211com {
 	const char		*ic_name;	/* usually device name */
 	ieee80211_com_lock_t	ic_comlock;	/* state update lock */
 	ieee80211_tx_lock_t	ic_txlock;	/* ic/vap TX lock */
+	ieee80211_ff_lock_t	ic_fflock;	/* stageq/ni_tx_superg lock */
 	LIST_ENTRY(ieee80211com)   ic_next;	/* on global list */
 	TAILQ_HEAD(, ieee80211vap) ic_vaps;	/* list of vap instances */
 	int			ic_headroom;	/* driver tx headroom needs */
