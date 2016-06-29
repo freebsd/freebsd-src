@@ -506,6 +506,8 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 	db_printf("\tsoftc %p", ic->ic_softc);
 	db_printf("\tname %s", ic->ic_name);
 	db_printf(" comlock %p", &ic->ic_comlock);
+	db_printf(" txlock %p", &ic->ic_txlock);
+	db_printf(" fflock %p", &ic->ic_fflock);
 	db_printf("\n");
 	db_printf("\theadroom %d", ic->ic_headroom);
 	db_printf(" phytype %d", ic->ic_phytype);
