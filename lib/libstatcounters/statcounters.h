@@ -43,28 +43,30 @@
 
 // CacheCore counters
 enum {
-    WRITE_HIT	= 0,
-    WRITE_MISS	= 1,
-    READ_HIT	= 2,
-    READ_MISS	= 3,
-    PFTCH_HIT	= 4,
-    PFTCH_MISS	= 5,
-    EVICT	    = 6,
-    PFTCH_EVICT	= 7
+    WRITE_HIT     = 0,
+    WRITE_MISS    = 1,
+    READ_HIT      = 2,
+    READ_MISS     = 3,
+    PFTCH_HIT     = 4,
+    PFTCH_MISS    = 5,
+    EVICT         = 6,
+    PFTCH_EVICT   = 7,
+    SET_TAG_WRITE = 8,
+    SET_TAG_READ  = 9
 };
 
 // MIPSMem counters
 enum {
-    BYTE_READ	= 0,
-    BYTE_WRITE	= 1,
-    HWORD_READ	= 2,
-    HWORD_WRITE	= 3,
-    WORD_READ	= 4,
-    WORD_WRITE	= 5,
-    DWORD_READ	= 6,
-    DWORD_WRITE	= 7,
-    CAP_READ	= 8,
-    CAP_WRITE	= 9
+    BYTE_READ   = 0,
+    BYTE_WRITE  = 1,
+    HWORD_READ  = 2,
+    HWORD_WRITE = 3,
+    WORD_READ   = 4,
+    WORD_WRITE  = 5,
+    DWORD_READ  = 6,
+    DWORD_WRITE = 7,
+    CAP_READ    = 8,
+    CAP_WRITE   = 9
 };
 
 // Assembly primitives to access the hardware counters
@@ -105,11 +107,15 @@ DECLARE_GET_STAT_COUNTER(dcache_write_miss,9,1);
 DECLARE_GET_STAT_COUNTER(dcache_read_hit,9,2);
 DECLARE_GET_STAT_COUNTER(dcache_read_miss,9,3);
 DECLARE_GET_STAT_COUNTER(dcache_evict,9,6);
+DECLARE_GET_STAT_COUNTER(dcache_set_tag_write,9,8);
+DECLARE_GET_STAT_COUNTER(dcache_set_tag_read,9,9);
 DECLARE_GET_STAT_COUNTER(l2cache_write_hit,10,0);
 DECLARE_GET_STAT_COUNTER(l2cache_write_miss,10,1);
 DECLARE_GET_STAT_COUNTER(l2cache_read_hit,10,2);
 DECLARE_GET_STAT_COUNTER(l2cache_read_miss,10,3);
 DECLARE_GET_STAT_COUNTER(l2cache_evict,10,6);
+DECLARE_GET_STAT_COUNTER(l2cache_set_tag_write,10,8);
+DECLARE_GET_STAT_COUNTER(l2cache_set_tag_read,10,9);
 DECLARE_GET_STAT_COUNTER(mem_byte_read,11,0);
 DECLARE_GET_STAT_COUNTER(mem_byte_write,11,1);
 DECLARE_GET_STAT_COUNTER(mem_hword_read,11,2);
