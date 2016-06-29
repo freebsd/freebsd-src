@@ -38,4 +38,5 @@ struct g_uzip_dapi {
 	g_uzip_dapi_free_t free;
 	g_uzip_dapi_rewind_t rewind;
 	void *pvt;
+	int max_blen;
 };

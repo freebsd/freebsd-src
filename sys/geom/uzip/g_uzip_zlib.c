@@ -97,6 +97,13 @@ g_uzip_zlib_rewind(struct g_uzip_dapi *zpp, const char *gp_name)
 	return (err);
 }
 
+static int
+z_compressBound(int len)
+{
+
+	return (len + (len >> 12) + (len >> 14) + 11);
+}
+
 struct g_uzip_dapi *
 g_uzip_zlib_ctor(uint32_t blksz)
 {
@@ -109,6 +116,7 @@ g_uzip_zlib_ctor(uint32_t blksz)
 		goto e1;
 	}
 	zp->blksz = blksz;
+	zp->pub.max_blen = z_compressBound(blksz);
 	zp->pub.decompress = &g_uzip_zlib_decompress;
 	zp->pub.free = &g_uzip_zlib_free;
 	zp->pub.rewind = &g_uzip_zlib_rewind;
