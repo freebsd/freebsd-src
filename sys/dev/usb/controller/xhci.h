@@ -30,7 +30,7 @@
 
 #define	XHCI_MAX_DEVICES	MIN(USB_MAX_DEVICES, 128)
 #define	XHCI_MAX_ENDPOINTS	32	/* hardcoded - do not change */
-#define	XHCI_MAX_SCRATCHPADS	32
+#define	XHCI_MAX_SCRATCHPADS	1024
 #define	XHCI_MAX_EVENTS		(16 * 13)
 #define	XHCI_MAX_COMMANDS	(16 * 1)
 #define	XHCI_MAX_RSEG		1
@@ -495,14 +495,15 @@ struct xhci_softc {
 	uint16_t		sc_command_idx;
 	uint16_t		sc_imod_default;
 
+	/* number of scratch pages */
+	uint16_t		sc_noscratch;
+
 	uint8_t			sc_event_ccs;
 	uint8_t			sc_command_ccs;
 	/* number of XHCI device slots */
 	uint8_t			sc_noslot;
 	/* number of ports on root HUB */
 	uint8_t			sc_noport;
-	/* number of scratch pages */
-	uint8_t			sc_noscratch;
 	/* root HUB device configuration */
 	uint8_t			sc_conf;
 	/* root HUB port event bitmap, max 256 ports */
