@@ -137,7 +137,8 @@ eth_broadcast_addr(u8 *pa)
 static inline void
 random_ether_addr(u8 * dst)
 {
-	read_random(dst, 6);
+	if (read_random(dst, 6) == 0)
+		arc4rand(dst, 6, 0);
 
 	dst[0] &= 0xfe;
 	dst[0] |= 0x02;
