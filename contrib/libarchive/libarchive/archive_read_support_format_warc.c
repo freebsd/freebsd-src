@@ -535,7 +535,8 @@ xstrpisotime(const char *s, char **endptr)
 
 	/* as a courtesy to our callers, and since this is a non-standard
 	 * routine, we skip leading whitespace */
-	for (; isspace(*s); s++);
+	while (isspace((unsigned char)*s))
+		++s;
 
 	/* read year */
 	if ((tm.tm_year = strtoi_lim(s, &s, 1583, 4095)) < 0 || *s++ != '-') {
@@ -639,7 +640,9 @@ _warc_rdtyp(const char *buf, size_t bsz)
 		return WT_NONE;
 	}
 	/* overread whitespace */
-	for (val += sizeof(_key) - 1U; val < eob && isspace(*val); val++);
+	val += sizeof(_key) - 1U;
+	while (val < eob && isspace((unsigned char)*val))
+		++val;
 
 	if (val + 8U > eob) {
 		;
@@ -676,7 +679,9 @@ _warc_rduri(const char *buf, size_t bsz)
 		return res;
 	}
 	/* overread whitespace */
-	for (val += sizeof(_key) - 1U; val < eob && isspace(*val); val++);
+	val += sizeof(_key) - 1U;
+	while (val < eob && isspace((unsigned char)*val))
+		++val;
 
 	/* overread URL designators */
 	if ((uri = xmemmem(val, eob - val, "://", 3U)) == NULL) {
@@ -692,7 +697,8 @@ _warc_rduri(const char *buf, size_t bsz)
 	/* also massage eol to point to the first whitespace
 	 * after the last non-whitespace character before
 	 * the end of the line */
-	for (; eol > uri && isspace(eol[-1]); eol--);
+	while (eol > uri && isspace((unsigned char)eol[-1]))
+		--eol;
 
 	/* now then, inspect the URI */
 	if (memcmp(val, "file", 4U) == 0) {
@@ -727,7 +733,7 @@ _warc_rdlen(const char *buf, size_t bsz)
 	/* strtol kindly overreads whitespace for us, so use that */
 	val += sizeof(_key) - 1U;
 	len = strtol(val, &on, 10);
-	if (on == NULL || !isspace(*on)) {
+	if (on == NULL || !isspace((unsigned char)*on)) {
 		/* hm, can we trust that number?  Best not. */
 		return -1;
 	}
@@ -750,7 +756,7 @@ _warc_rdrtm(const char *buf, size_t bsz)
 	/* xstrpisotime() kindly overreads whitespace for us, so use that */
 	val += sizeof(_key) - 1U;
 	res = xstrpisotime(val, &on);
-	if (on == NULL || !isspace(*on)) {
+	if (on == NULL || !isspace((unsigned char)*on)) {
 		/* hm, can we trust that number?  Best not. */
 		return (time_t)-1;
 	}
@@ -773,7 +779,7 @@ _warc_rdmtm(const char *buf, size_t bsz)
 	/* xstrpisotime() kindly overreads whitespace for us, so use that */
 	val += sizeof(_key) - 1U;
 	res = xstrpisotime(val, &on);
-	if (on == NULL || !isspace(*on)) {
+	if (on == NULL || !isspace((unsigned char)*on)) {
 		/* hm, can we trust that number?  Best not. */
 		return (time_t)-1;
 	}
