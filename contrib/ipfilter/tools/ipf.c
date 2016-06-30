@@ -410,23 +410,6 @@ static void flushfilter(arg, filter)
 		return;
 	}
 
-#ifdef	SIOCIPFFA
-	if (!strcmp(arg, "u")) {
-		closedevice();
-		/*
-		 * Flush auth rules and packets
-		 */
-		if (opendevice(IPL_AUTH, 1) == -1)
-			perror("open(IPL_AUTH)");
-		else {
-			if (ioctl(fd, SIOCIPFFA, &fl) == -1)
-				ipferror(fd, "ioctl(SIOCIPFFA)");
-		}
-		closedevice();
-		return;
-	}
-#endif
-
 	if (strchr(arg, 'i') || strchr(arg, 'I'))
 		fl = FR_INQUE;
 	if (strchr(arg, 'o') || strchr(arg, 'O'))
