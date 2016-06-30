@@ -104,6 +104,10 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 
 	KASSERT(curvnet == ifp->if_vnet,
 	    ("curvnet(%p) differs from iface vnet(%p)", curvnet, ifp->if_vnet));
+
+	if (V_ipfw_vnet_ready == 0 || V_ipfw_nat_ready == 0)
+		return;
+
 	chain = &V_layer3_chain;
 	IPFW_UH_WLOCK(chain);
 	/* Check every nat entry... */
@@ -1145,12 +1149,12 @@ vnet_ipfw_nat_uninit(const void *arg __unused)
 
 	chain = &V_layer3_chain;
 	IPFW_WLOCK(chain);
+	V_ipfw_nat_ready = 0;
 	LIST_FOREACH_SAFE(ptr, &chain->nat, _next, ptr_temp) {
 		LIST_REMOVE(ptr, _next);
 		free_nat_instance(ptr);
 	}
 	flush_nat_ptrs(chain, -1 /* flush all */);
-	V_ipfw_nat_ready = 0;
 	IPFW_WUNLOCK(chain);
 	return (0);
 }
