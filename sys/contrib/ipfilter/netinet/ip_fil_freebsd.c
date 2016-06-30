@@ -62,6 +62,9 @@ static const char rcsid[] = "@(#)$Id$";
 #else
 #define CURVNET_SET(arg)
 #define CURVNET_RESTORE()
+#define	VNET_DEFINE(_t, _v)	_t _v
+#define	VNET_DECLARE(_t, _v)	extern _t _v
+#define	VNET(arg)	arg
 #endif
 #if defined(__osf__)
 # include <netinet/tcp_timer.h>
@@ -102,22 +105,40 @@ MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures")
 static	int	ipf_send_ip __P((fr_info_t *, mb_t *));
 static void	ipf_timer_func __P((void *arg));
 
-ipf_main_softc_t ipfmain;
+VNET_DEFINE(ipf_main_softc_t, ipfmain) = {
+	.ipf_running		= -2,
+};
+#define	V_ipfmain		VNET(ipfmain)
 
 # include <sys/conf.h>
 # if defined(NETBSD_PF)
 #  include <net/pfil.h>
 # endif /* NETBSD_PF */
 
+static eventhandler_tag ipf_arrivetag, ipf_departtag;
+#if 0
+/*
+ * Disable the "cloner" event handler;  we are getting interface
+ * events before the firewall is fully initiallized and also no vnet
+ * information thus leading to uninitialised memory accesses.
+ * In addition it is unclear why we need it in first place.
+ * If it turns out to be needed, well need a dedicated event handler
+ * for it to deal with the ifc and the correct vnet.
+ */
+static eventhandler_tag ipf_clonetag;
+#endif
 
-static eventhandler_tag ipf_arrivetag, ipf_departtag, ipf_clonetag;
+static void ipf_ifevent(void *arg, struct ifnet *ifp);
 
-static void ipf_ifevent(void *arg);
-
-static void ipf_ifevent(arg)
+static void ipf_ifevent(arg, ifp)
 	void *arg;
+	struct ifnet *ifp;
 {
-        ipf_sync(arg, NULL);
+
+	CURVNET_SET(ifp->if_vnet);
+	if (V_ipfmain.ipf_running > 0)
+		ipf_sync(&V_ipfmain, NULL);
+	CURVNET_RESTORE();
 }
 
 
@@ -135,8 +156,10 @@ ipf_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 	ip->ip_len = htons(ip->ip_len);
 	ip->ip_off = htons(ip->ip_off);
 #endif
-	rv = ipf_check(&ipfmain, ip, ip->ip_hl << 2, ifp, (dir == PFIL_OUT),
+	CURVNET_SET(ifp->if_vnet);
+	rv = ipf_check(&V_ipfmain, ip, ip->ip_hl << 2, ifp, (dir == PFIL_OUT),
 		       mp);
+	CURVNET_RESTORE();
 #if (__FreeBSD_version < 1000019)
 	if ((rv == 0) && (*mp != NULL)) {
 		ip = mtod(*mp, struct ip *);
@@ -153,8 +176,13 @@ ipf_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 static int
 ipf_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 {
-	return (ipf_check(&ipfmain, mtod(*mp, struct ip *),
-			  sizeof(struct ip6_hdr), ifp, (dir == PFIL_OUT), mp));
+	int error;
+
+	CURVNET_SET(ifp->if_vnet);
+	error = ipf_check(&V_ipfmain, mtod(*mp, struct ip *),
+			  sizeof(struct ip6_hdr), ifp, (dir == PFIL_OUT), mp);
+	CURVNET_RESTORE();
+	return (error);
 }
 # endif
 #if	defined(IPFILTER_LKM)
@@ -215,7 +243,7 @@ ipfattach(softc)
 	}
 
 
-	bzero((char *)ipfmain.ipf_selwait, sizeof(ipfmain.ipf_selwait));
+	bzero((char *)V_ipfmain.ipf_selwait, sizeof(V_ipfmain.ipf_selwait));
 	softc->ipf_running = 1;
 
 	if (softc->ipf_control_forwarding & 1)
@@ -284,38 +312,42 @@ ipfioctl(dev, cmd, data, mode
 	int error = 0, unit = 0;
 	SPL_INT(s);
 
+	CURVNET_SET(TD_TO_VNET(p));
 #if (BSD >= 199306)
         if (securelevel_ge(p->p_cred, 3) && (mode & FWRITE))
 	{
-		ipfmain.ipf_interror = 130001;
+		V_ipfmain.ipf_interror = 130001;
+		CURVNET_RESTORE();
 		return EPERM;
 	}
 #endif
 
 	unit = GET_MINOR(dev);
 	if ((IPL_LOGMAX < unit) || (unit < 0)) {
-		ipfmain.ipf_interror = 130002;
+		V_ipfmain.ipf_interror = 130002;
+		CURVNET_RESTORE();
 		return ENXIO;
 	}
 
-	if (ipfmain.ipf_running <= 0) {
+	if (V_ipfmain.ipf_running <= 0) {
 		if (unit != IPL_LOGIPF && cmd != SIOCIPFINTERROR) {
-			ipfmain.ipf_interror = 130003;
+			V_ipfmain.ipf_interror = 130003;
+			CURVNET_RESTORE();
 			return EIO;
 		}
 		if (cmd != SIOCIPFGETNEXT && cmd != SIOCIPFGET &&
 		    cmd != SIOCIPFSET && cmd != SIOCFRENB &&
 		    cmd != SIOCGETFS && cmd != SIOCGETFF &&
 		    cmd != SIOCIPFINTERROR) {
-			ipfmain.ipf_interror = 130004;
+			V_ipfmain.ipf_interror = 130004;
+			CURVNET_RESTORE();
 			return EIO;
 		}
 	}
 
 	SPL_NET(s);
 
-	CURVNET_SET(TD_TO_VNET(p));
-	error = ipf_ioctlswitch(&ipfmain, unit, data, cmd, mode, p->p_uid, p);
+	error = ipf_ioctlswitch(&V_ipfmain, unit, data, cmd, mode, p->p_uid, p);
 	CURVNET_RESTORE();
 	if (error != -1) {
 		SPL_X(s);
@@ -563,7 +595,7 @@ ipf_send_icmp_err(type, fin, dst)
 			}
 
 		if (dst == 0) {
-			if (ipf_ifpaddr(&ipfmain, 4, FRI_NORMAL, ifp,
+			if (ipf_ifpaddr(&V_ipfmain, 4, FRI_NORMAL, ifp,
 					&dst6, NULL) == -1) {
 				FREE_MB_T(m);
 				return -1;
@@ -600,7 +632,7 @@ ipf_send_icmp_err(type, fin, dst)
 		xtra = MIN(fin->fin_plen, avail - iclen - max_linkhdr);
 		xtra = MIN(xtra, IPV6_MMTU - iclen);
 		if (dst == 0) {
-			if (ipf_ifpaddr(&ipfmain, 6, FRI_NORMAL, ifp,
+			if (ipf_ifpaddr(&V_ipfmain, 6, FRI_NORMAL, ifp,
 					&dst6, NULL) == -1) {
 				FREE_MB_T(m);
 				return -1;
@@ -924,9 +956,9 @@ sendorfree:
     }
 done:
 	if (!error)
-		ipfmain.ipf_frouteok[0]++;
+		V_ipfmain.ipf_frouteok[0]++;
 	else
-		ipfmain.ipf_frouteok[1]++;
+		V_ipfmain.ipf_frouteok[1]++;
 
 	if (has_nhop)
 		fib4_free_nh_ext(fibnum, &nh4);
@@ -1388,13 +1420,15 @@ void
 ipf_event_reg(void)
 {
 	ipf_arrivetag = EVENTHANDLER_REGISTER(ifnet_arrival_event, \
-					       ipf_ifevent, &ipfmain, \
+					       ipf_ifevent, NULL, \
 					       EVENTHANDLER_PRI_ANY);
 	ipf_departtag = EVENTHANDLER_REGISTER(ifnet_departure_event, \
-					       ipf_ifevent, &ipfmain, \
+					       ipf_ifevent, NULL, \
 					       EVENTHANDLER_PRI_ANY);
+#if 0
 	ipf_clonetag  = EVENTHANDLER_REGISTER(if_clone_event, ipf_ifevent, \
-					       &ipfmain, EVENTHANDLER_PRI_ANY);
+					       NULL, EVENTHANDLER_PRI_ANY);
+#endif
 }
 
 void
@@ -1406,9 +1440,11 @@ ipf_event_dereg(void)
 	if (ipf_departtag != NULL) {
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ipf_departtag);
 	}
+#if 0
 	if (ipf_clonetag != NULL) {
 		EVENTHANDLER_DEREGISTER(if_clone_event, ipf_clonetag);
 	}
+#endif
 }
 
 
