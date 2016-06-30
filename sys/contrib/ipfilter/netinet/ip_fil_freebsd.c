@@ -117,6 +117,14 @@ VNET_DEFINE(ipf_main_softc_t, ipfmain) = {
 
 static eventhandler_tag ipf_arrivetag, ipf_departtag;
 #if 0
+/*
+ * Disable the "cloner" event handler;  we are getting interface
+ * events before the firewall is fully initiallized and also no vnet
+ * information thus leading to uninitialised memory accesses.
+ * In addition it is unclear why we need it in first place.
+ * If it turns out to be needed, well need a dedicated event handler
+ * for it to deal with the ifc and the correct vnet.
+ */
 static eventhandler_tag ipf_clonetag;
 #endif
 

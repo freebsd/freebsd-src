@@ -439,18 +439,6 @@ sysctl_ipf_int_frag ( SYSCTL_HANDLER_ARGS )
 
 	return (sysctl_ipf_int(oidp, arg1, arg2, req));
 }
-
-
-#if 0
--       ipf_state_softc_t *state_softc;
--       ipf_auth_softc_t *auth_softc;
--       ipf_frag_softc_t *frag_softc;
- 
--       state_softc = main_softc->ipf_state_soft;
--       auth_softc = main_softc->ipf_auth_soft;
--       frag_softc = main_softc->ipf_frag_soft;
-#endif
-
 #endif
 
 
