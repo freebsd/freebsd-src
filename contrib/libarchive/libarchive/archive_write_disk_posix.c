@@ -3487,6 +3487,9 @@ exit_xattr:
 static int
 copy_acls(struct archive_write_disk *a, int tmpfd, int dffd)
 {
+#ifndef HAVE_SYS_ACL_H
+	return 0;
+#else
 	acl_t acl, dfacl = NULL;
 	int acl_r, ret = ARCHIVE_OK;
 
@@ -3514,6 +3517,7 @@ exit_acl:
 	if (dfacl)
 		acl_free(dfacl);
 	return (ret);
+#endif
 }
 
 static int
