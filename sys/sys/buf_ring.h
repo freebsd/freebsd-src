@@ -161,9 +161,38 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 #endif
 	uint32_t prod_tail;
 	void *buf;
-	
+
+	/*
+	 * This is a workaround to allow using buf_ring on ARM and ARM64.
+	 * ARM64TODO: Fix buf_ring in a generic way.
+	 * REMARKS: It is suspected that br_cons_head does not require
+	 *   load_acq operation, but this change was extensively tested
+	 *   and confirmed it's working. To be reviewed once again in
+	 *   FreeBSD-12.
+	 *
+	 * Preventing following situation:
+
+	 * Core(0) - buf_ring_enqueue()                                       Core(1) - buf_ring_dequeue_sc()
+	 * -----------------------------------------                                       ----------------------------------------------
+	 *
+	 *                                                                                cons_head = br->br_cons_head;
+	 * atomic_cmpset_acq_32(&br->br_prod_head, ...));
+	 *                                                                                buf = br->br_ring[cons_head];     <see <1>>
+	 * br->br_ring[prod_head] = buf;
+	 * atomic_store_rel_32(&br->br_prod_tail, ...);
+	 *                                                                                prod_tail = br->br_prod_tail;
+	 *                                                                                if (cons_head == prod_tail) 
+	 *                                                                                        return (NULL);
+	 *                                                                                <condition is false and code uses invalid(old) buf>`	
+	 *
+	 * <1> Load (on core 1) from br->br_ring[cons_head] can be reordered (speculative readed) by CPU.
+	 */	
+#if defined(__arm__) || defined(__aarch64__)
+	cons_head = atomic_load_acq_32(&br->br_cons_head);
+#else
 	cons_head = br->br_cons_head;
-	prod_tail = br->br_prod_tail;
+#endif
+	prod_tail = atomic_load_acq_32(&br->br_prod_tail);
 	
 	cons_next = (cons_head + 1) & br->br_cons_mask;
 #ifdef PREFETCH_DEFINED
