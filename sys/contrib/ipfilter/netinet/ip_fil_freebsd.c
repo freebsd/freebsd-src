@@ -99,10 +99,8 @@ MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures")
 # endif
 
 
-static	int	(*ipf_savep) __P((void *, ip_t *, int, void *, int, struct mbuf **));
 static	int	ipf_send_ip __P((fr_info_t *, mb_t *));
 static void	ipf_timer_func __P((void *arg));
-int		ipf_locks_done = 0;
 
 ipf_main_softc_t ipfmain;
 
@@ -110,10 +108,6 @@ ipf_main_softc_t ipfmain;
 # if defined(NETBSD_PF)
 #  include <net/pfil.h>
 # endif /* NETBSD_PF */
-/*
- * We provide the ipf_checkp name just to minimize changes later.
- */
-int (*ipf_checkp) __P((void *, ip_t *ip, int hlen, void *ifp, int out, mb_t **mp));
 
 
 static eventhandler_tag ipf_arrivetag, ipf_departtag, ipf_clonetag;
@@ -221,11 +215,6 @@ ipfattach(softc)
 	}
 
 
-	if (ipf_checkp != ipf_check) {
-		ipf_savep = ipf_checkp;
-		ipf_checkp = ipf_check;
-	}
-
 	bzero((char *)ipfmain.ipf_selwait, sizeof(ipfmain.ipf_selwait));
 	softc->ipf_running = 1;
 
@@ -267,12 +256,6 @@ ipfdetach(softc)
 	bzero(&softc->ipf_slow, sizeof(softc->ipf_slow));
 #endif
 	callout_drain(&softc->ipf_slow_ch);
-
-#ifndef NETBSD_PF
-	if (ipf_checkp != NULL)
-		ipf_checkp = ipf_savep;
-	ipf_savep = NULL;
-#endif
 
 	ipf_fini_all(softc);
 
