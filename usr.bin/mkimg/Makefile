@@ -35,7 +35,8 @@ LIBADD=	util
 
 WARNS?=	6
 
-.if ${MK_TESTS} != "no"
+.if ${MK_TESTS} != "no" && ${MACHINE_CPUARCH} != "mips"
+# XXX: the process of listing tests times out under qemu
 SUBDIR+= tests
 .endif
 
