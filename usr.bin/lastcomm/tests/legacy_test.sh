@@ -22,6 +22,11 @@ check()
 	fi
 }
 
+if [ ! -e $DIR/v1-$ARCH-acct.in ]; then
+	echo 0..1 # SKIP missing data files for $ARCH
+	exit 0
+fi
+
 
 cat $DIR/v1-$ARCH-acct.in $DIR/v2-$ARCH-acct.in >v1v2-$ARCH-acct.in
 cat $DIR/v2-$ARCH.out $DIR/v1-$ARCH.out >v1v2-$ARCH.out
