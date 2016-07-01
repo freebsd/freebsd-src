@@ -1509,6 +1509,10 @@
       <para revision="287371" arch="arm64" contrib="sponsor"
 	sponsor="&abt;">Support for the HiSilicon HI6220 SoC has been
 	added.</para>
+
+      <para revision="263698" arch="arm">The second CPU core on
+	Allwinner A20 SoC have been enabled.</para>
+
     </sect2>
   </sect1>
 
