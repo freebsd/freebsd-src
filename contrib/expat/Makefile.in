@@ -42,7 +42,7 @@ INSTALL_DATA = @INSTALL_DATA@
 mkinstalldirs = $(SHELL) $(top_srcdir)/conftools/mkinstalldirs
 
 MANFILE = $(srcdir)/doc/xmlwf.1
-APIHEADER = $(srcdir)/lib/expat.h $(srcdir)/lib/expat_external.h
+APIHEADER = $(srcdir)/lib/expat.h $(srcdir)/lib/expat_external.h expat_config.h
 LIBRARY = libexpat.la
 
 DESTDIR = $(INSTALL_ROOT)
@@ -51,7 +51,7 @@ default:  buildlib xmlwf/xmlwf@EXEEXT@
 
 buildlib: $(LIBRARY) expat.pc
 
-all: $(LIBRARY) expat.pc xmlwf/xmlwf@EXEEXT@ examples/elements examples/outline
+all: $(LIBRARY) expat.pc xmlwf/xmlwf@EXEEXT@ examples/elements examples/outline $(MANFILE)
 
 clean:
 	cd lib && rm -f $(LIBRARY) *.@OBJEXT@ *.lo && rm -rf .libs _libs
@@ -77,7 +77,10 @@ check: tests/runtests tests/runtestspp
 	tests/runtests
 	tests/runtestspp
 
-install: xmlwf/xmlwf@EXEEXT@ installlib
+$(MANFILE):
+	$(MAKE) -C doc xmlwf.1
+
+install: xmlwf/xmlwf@EXEEXT@ installlib $(MANFILE)
 	$(mkinstalldirs) $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir)
 	$(LIBTOOL) --mode=install $(INSTALL_PROGRAM) xmlwf/xmlwf@EXEEXT@ $(DESTDIR)$(bindir)/xmlwf
 	$(INSTALL_DATA) $(MANFILE) $(DESTDIR)$(man1dir)
@@ -116,7 +119,7 @@ CXXFLAGS = @CXXFLAGS@
 VSNFLAG = -version-info @LIBCURRENT@:@LIBREVISION@:@LIBAGE@
 
 ### autoconf this?
-LTFLAGS = --silent
+LTFLAGS = --verbose
 
 COMPILE = $(CC) $(INCLUDES) $(CFLAGS) $(DEFS) $(CPPFLAGS)
 CXXCOMPILE = $(CXX) $(INCLUDES) $(CXXFLAGS) $(DEFS) $(CPPFLAGS)
@@ -154,11 +157,11 @@ xmlwf/xmlwf@EXEEXT@: $(XMLWF_OBJS) $(LIBRARY)
 
 examples/elements.@OBJEXT@: examples/elements.c
 examples/elements: examples/elements.@OBJEXT@ $(LIBRARY)
-	$(LINK_EXE) $< $(LIBRARY)
+	$(LINK_EXE) examples/elements.@OBJEXT@ $(LIBRARY)
 
 examples/outline.@OBJEXT@: examples/outline.c
 examples/outline: examples/outline.@OBJEXT@ $(LIBRARY)
-	$(LINK_EXE) $< $(LIBRARY)
+	$(LINK_EXE) examples/outline.@OBJEXT@ $(LIBRARY)
 
 tests/chardata.@OBJEXT@: tests/chardata.c tests/chardata.h
 tests/minicheck.@OBJEXT@: tests/minicheck.c tests/minicheck.h
@@ -180,11 +183,19 @@ tests/xmlts.zip:
 	wget --output-document=tests/xmlts.zip \
 		http://www.w3.org/XML/Test/xmlts20080827.zip
 
-tests/XML-Test-Suite: tests/xmlts.zip
+tests/xmlconf: tests/xmlts.zip
 	cd tests && unzip -q xmlts.zip
 
-run-xmltest: xmlwf/xmlwf@EXEEXT@ tests/XML-Test-Suite
-	tests/xmltest.sh
+run-xmltest: xmlwf/xmlwf@EXEEXT@ tests/xmlconf
+	tests/xmltest.sh 2>&1 | tee tests/xmltest.log
+	diff -u tests/xmltest.log.expected tests/xmltest.log
+
+.PHONY: qa
+qa:
+	./qa.sh address
+	./qa.sh memory
+	./qa.sh undefined
+	./qa.sh coverage
 
 .SUFFIXES: .c .cpp .lo .@OBJEXT@
 
