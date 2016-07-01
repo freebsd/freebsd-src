@@ -1513,6 +1513,9 @@
       <para revision="263698" arch="arm">The second CPU core on
 	Allwinner A20 SoC have been enabled.</para>
 
+       <para revision="299688" arch="arm">Support for the Allwinner H3 SoC
+	has been added.</para>
+
     </sect2>
   </sect1>
 
