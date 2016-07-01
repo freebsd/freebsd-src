@@ -2985,7 +2985,8 @@ dwc_otg_interrupt(void *arg)
 		else
 			sc->sc_flags.status_bus_reset = 0;
 
-		if (hprt & HPRT_PRTENCHNG)
+		if ((hprt & HPRT_PRTENCHNG) &&
+		    (hprt & HPRT_PRTENA) == 0)
 			sc->sc_flags.change_enabled = 1;
 
 		if (hprt & HPRT_PRTENA)
@@ -4745,6 +4746,8 @@ tr_handle_get_port_status:
 
 	value = 0;
 
+	if (sc->sc_flags.change_enabled)
+		value |= UPS_C_PORT_ENABLED;
 	if (sc->sc_flags.change_connect)
 		value |= UPS_C_CONNECT_STATUS;
 	if (sc->sc_flags.change_suspend)
