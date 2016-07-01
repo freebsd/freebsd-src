@@ -1,19 +1,9 @@
-<!doctype refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN" [
-
-<!-- Process this file with docbook-to-man to generate an nroff manual
-     page: `docbook-to-man manpage.sgml > manpage.1'.  You may view
-     the manual page with: `docbook-to-man manpage.sgml | nroff -man |
-     less'.  A typical entry in a Makefile or Makefile.am is:
-
-manpage.1: manpage.sgml
-	docbook-to-man $< > $@
-  -->
-
+<!DOCTYPE refentry [
   <!-- Fill in your name for FIRSTNAME and SURNAME. -->
   <!ENTITY dhfirstname "<firstname>Scott</firstname>">
   <!ENTITY dhsurname   "<surname>Bronson</surname>">
   <!-- Please adjust the date whenever revising the manpage. -->
-  <!ENTITY dhdate      "<date>December  5, 2001</date>">
+  <!ENTITY dhdate      "<date>March 11, 2016</date>">
   <!-- SECTION should be 1-8, maybe w/ subsection other parameters are
        allowed: see man(7), man(1). -->
   <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
@@ -213,7 +203,7 @@ supports both.
         <listitem>
 		<para>
   Outputs some strange sort of XML file that completely
-  describes the the input file, including character postitions.
+  describes the input file, including character positions.
   Requires <option>-d</option> to specify an output file.
 	   </para>
         </listitem>
@@ -286,8 +276,7 @@ supports both.
   This gives a fairly accurate idea of the raw speed of Expat itself
   without client overhead.
   <option>-t</option> turns off most of the output options
-  (<option>-d</option>, <option>-m</option>, <option>-c</option>,
-  ...).
+  (<option>-d</option>, <option>-m</option>, <option>-c</option>, ...).
 	   </para>
         </listitem>
       </varlistentry>
@@ -449,20 +438,3 @@ The W3 XML specification:   http://www.w3.org/TR/REC-xml
 	</para>
   </refsect1>
 </refentry>
-
-<!-- Keep this comment at the end of the file
-Local variables:
-mode: sgml
-sgml-omittag:t
-sgml-shorttag:t
-sgml-minimize-attributes:nil
-sgml-always-quote-attributes:t
-sgml-indent-step:2
-sgml-indent-data:t
-sgml-parent-document:nil
-sgml-default-dtd-file:nil
-sgml-exposed-tags:nil
-sgml-local-catalogs:nil
-sgml-local-ecat-files:nil
-End:
--->
