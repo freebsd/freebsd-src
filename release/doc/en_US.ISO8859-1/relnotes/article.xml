@@ -1516,6 +1516,10 @@
        <para revision="299688" arch="arm">Support for the Allwinner H3 SoC
 	has been added.</para>
 
+      <para revision="300777" arch="arm">Support for GPIO, Sensors and
+	interrupts on AXP209 power management integrated circuits have been
+	added.</para>
+
     </sect2>
   </sect1>
 
