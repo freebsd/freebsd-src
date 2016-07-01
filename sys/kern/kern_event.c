@@ -451,6 +451,9 @@ filt_proc(struct knote *kn, long hint)
 	u_int event;
 
 	p = kn->kn_ptr.p_proc;
+	if (p == NULL) /* already activated, from attach filter */
+		return (0);
+
 	/* Mask off extra data. */
 	event = (u_int)hint & NOTE_PCTRLMASK;
 
