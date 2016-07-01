@@ -33,24 +33,37 @@ __FBSDID("$FreeBSD$");
 #include <libfdt.h>
 #include "bootstrap.h"
 
+extern int command_fdt_internal(int argc, char *argv[]);
+
 static int
 OF_hasprop(phandle_t node, const char *prop)
 {
-	return (OF_getproplen(node, prop) > 0);
+	return (OF_getproplen(node, (char *)prop) > 0);
 }
 
 static void
 add_node_to_fdt(void *buffer, phandle_t node, int fdt_offset)
 {
-        int i, child_offset, error;
-        char name[2048], *lastprop, *subname;
+	int i, child_offset, error;
+	char name[255], *lastprop, *subname;
 	void *propbuf;
-	size_t proplen;
+	ssize_t proplen;
 
 	lastprop = NULL;
 	while (OF_nextprop(node, lastprop, name) > 0) {
 		proplen = OF_getproplen(node, name);
+
+		/* Detect and correct for errors and strangeness */
+		if (proplen < 0)
+			proplen = 0;
+		if (proplen > 1024)
+			proplen = 1024;
+
 		propbuf = malloc(proplen);
+		if (propbuf == NULL) {
+			printf("Cannot allocate memory for prop %s\n", name);
+			return;
+		}
 		OF_getprop(node, name, propbuf, proplen);
 		error = fdt_setprop(buffer, fdt_offset, name, propbuf, proplen);
 		free(propbuf);
@@ -64,7 +77,7 @@ add_node_to_fdt(void *buffer, phandle_t node, int fdt_offset)
 	    && !OF_hasprop(node, "ibm,phandle"))
 		fdt_setprop(buffer, fdt_offset, "phandle", &node, sizeof(node));
 
-        for (node = OF_child(node); node > 0; node = OF_peer(node)) {
+	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
 		OF_package_to_path(node, name, sizeof(name));
 		subname = strrchr(name, '/');
 		subname++;
@@ -76,7 +89,7 @@ add_node_to_fdt(void *buffer, phandle_t node, int fdt_offset)
 		}
 	
                 add_node_to_fdt(buffer, node, child_offset);
-        }
+	}
 }
 
 static void
@@ -123,18 +136,16 @@ ofwfdt_fixups(void *fdtp)
 		fdt_add_mem_rsv(fdtp, base, len);
 	} else {
 		/*
-		 * Remove /memory/available properties, which reflect long-gone OF
-		 * state. Note that this doesn't work if we need RTAS still, since
-		 * that's part of the firmware.
+		 * Remove /memory/available properties, which reflect long-gone
+		 * OF state. Note that this doesn't work if we need RTAS still,
+		 * since that's part of the firmware.
 		 */
-
 		offset = fdt_path_offset(fdtp, "/memory@0");
 		if (offset > 0)
 			fdt_delprop(fdtp, offset, "available");
 	}
-		
-	/*
 
+	
 	/*
 	 * Convert stored ihandles under /chosen to xref phandles
 	 */
@@ -158,7 +169,8 @@ ofwfdt_fixups(void *fdtp)
 					OF_getprop(node, "ibm,phandle", &node,
 					    sizeof(node));
 				node = cpu_to_fdt32(node);
-				fdt_setprop(fdtp, offset, chosenprops[i], &node,				    sizeof(node));
+				fdt_setprop(fdtp, offset, chosenprops[i], &node,
+				    sizeof(node));
 			}
 
 			/* Refind node in case it moved */
