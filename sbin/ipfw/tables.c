@@ -914,9 +914,10 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 			xi.vmask = vmask;
 			strlcpy(xi.tablename, oh->ntlv.name,
 			    sizeof(xi.tablename));
-			fprintf(stderr, "DEPRECATED: inserting data into "
-			    "non-existent table %s. (auto-created)\n",
-			    xi.tablename);
+			if (quiet == 0)
+				warnx("DEPRECATED: inserting data into "
+				    "non-existent table %s. (auto-created)",
+				    xi.tablename);
 			table_do_create(oh, &xi);
 		}
 	
@@ -936,8 +937,6 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 	}
 
 	error = table_do_modify_record(cmd, oh, tent_buf, count, atomic);
-
-	quiet = 0;
 
 	/*
 	 * Compatibility stuff: do not yell on duplicate keys or
