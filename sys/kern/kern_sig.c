@@ -1251,6 +1251,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		mtx_lock(&ps->ps_mtx);
 		sig = cursig(td);
 		mtx_unlock(&ps->ps_mtx);
+		KASSERT(sig >= 0, ("sig %d", sig));
 		if (sig != 0 && SIGISMEMBER(waitset, sig)) {
 			if (sigqueue_get(&td->td_sigqueue, sig, ksi) != 0 ||
 			    sigqueue_get(&p->p_sigqueue, sig, ksi) != 0) {
@@ -1512,8 +1513,10 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 			/* void */;
 		thread_suspend_check(0);
 		mtx_lock(&p->p_sigacts->ps_mtx);
-		while ((sig = cursig(td)) != 0)
+		while ((sig = cursig(td)) != 0) {
+			KASSERT(sig >= 0, ("sig %d", sig));
 			has_sig += postsig(sig);
+		}
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 	}
 	PROC_UNLOCK(p);
@@ -2476,11 +2479,9 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 				 */
 				KASSERT(!TD_IS_SUSPENDED(td2),
 				    ("thread with deferred stops suspended"));
-				if ((td2->td_flags & (TDF_SERESTART |
-				    TDF_SEINTR)) != 0 && sending) {
-					wakeup_swapper |= sleepq_abort(td,
-					    (td2->td_flags & TDF_SERESTART)
-					    != 0 ? ERESTART : EINTR);
+				if (TD_SBDRY_INTR(td2) && sending) {
+					wakeup_swapper |= sleepq_abort(td2,
+					    TD_SBDRY_ERRNO(td2));
 				}
 			} else if (!TD_IS_SUSPENDED(td2)) {
 				thread_suspend_one(td2);
@@ -2628,7 +2629,7 @@ sigdeferstop_curr_flags(int cflags)
  * accesses below.
  */
 int
-sigdeferstop(int mode)
+sigdeferstop_impl(int mode)
 {
 	struct thread *td;
 	int cflags, nflags;
@@ -2655,11 +2656,11 @@ sigdeferstop(int mode)
 		panic("sigdeferstop: invalid mode %x", mode);
 		break;
 	}
-	if (cflags != nflags) {
-		thread_lock(td);
-		td->td_flags = (td->td_flags & ~cflags) | nflags;
-		thread_unlock(td);
-	}
+	if (cflags == nflags)
+		return (SIGDEFERSTOP_VAL_NCHG);
+	thread_lock(td);
+	td->td_flags = (td->td_flags & ~cflags) | nflags;
+	thread_unlock(td);
 	return (cflags);
 }
 
@@ -2670,11 +2671,12 @@ sigdeferstop(int mode)
  * either via ast() or a subsequent interruptible sleep.
  */
 void
-sigallowstop(int prev)
+sigallowstop_impl(int prev)
 {
 	struct thread *td;
 	int cflags;
 
+	KASSERT(prev != SIGDEFERSTOP_VAL_NCHG, ("failed sigallowstop"));
 	KASSERT((prev & ~(TDF_SBDRY | TDF_SEINTR | TDF_SERESTART)) == 0,
 	    ("sigallowstop: incorrect previous mode %x", prev));
 	td = curthread;
@@ -2835,6 +2837,11 @@ issignal(struct thread *td)
 				    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
+				if (TD_SBDRY_INTR(td)) {
+					KASSERT((td->td_flags & TDF_SBDRY) != 0,
+					    ("lost TDF_SBDRY"));
+					return (-1);
+				}
 				mtx_unlock(&ps->ps_mtx);
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
