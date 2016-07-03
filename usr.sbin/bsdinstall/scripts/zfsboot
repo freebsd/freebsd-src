@@ -218,6 +218,7 @@ SWAP_GMIRROR_LABEL='gmirror label swap %s'
 SYSCTL_ZFS_MIN_ASHIFT_12='sysctl vfs.zfs.min_auto_ashift=12'
 UMOUNT='umount "%s"'
 ZFS_CREATE_WITH_OPTIONS='zfs create %s "%s"'
+ZFS_MOUNT='zfs mount "%s"'
 ZFS_SET='zfs set "%s" "%s"'
 ZFS_UNMOUNT='zfs unmount "%s"'
 ZPOOL_CREATE_WITH_OPTIONS='zpool create %s "%s" %s %s'
@@ -1350,13 +1351,6 @@ zfs_create_boot()
 		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done
 
-	# Create symlink(s)
-	if [ "$ZFSBOOT_BOOT_POOL" ]; then
-		f_dprintf "$funcname: Creating /boot symlink for boot pool..."
-		f_eval_catch $funcname ln "$LN_SF" "$bootpool_name/boot" \
-		             $BSDINSTALL_CHROOT/boot || return $FAILURE
-	fi
-
 	# Set bootfs property
 	local zroot_bootfs="$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
 	f_dprintf "$funcname: Setting bootfs property..."
@@ -1396,7 +1390,16 @@ zfs_create_boot()
 		fi
 	fi
 
-	# While this is apparently not needed, it seems to help MBR
+	# Remount bootpool and create symlink(s)
+	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		f_eval_catch $funcname zfs "$ZFS_MOUNT" "$bootpool_name" ||
+			return $FAILURE
+		f_dprintf "$funcname: Creating /boot symlink for boot pool..."
+		f_eval_catch $funcname ln "$LN_SF" "$bootpool_name/boot" \
+		             $BSDINSTALL_CHROOT/boot || return $FAILURE
+	fi
+
+	# zpool.cache is required to mount more than one pool at boot time
 	f_dprintf "$funcname: Configuring zpool.cache for zroot..."
 	f_eval_catch $funcname mkdir "$MKDIR_P" $BSDINSTALL_CHROOT/boot/zfs ||
 	             return $FAILURE
