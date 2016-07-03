@@ -285,14 +285,14 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	vm_prot_t prot;
 	int alloc_req, era, faultcount, nera, result;
-	boolean_t growstack, is_first_object_locked, wired;
+	boolean_t dead, growstack, is_first_object_locked, wired;
 	int map_generation;
 	vm_object_t next_object;
 	int hardfault;
 	struct faultstate fs;
 	struct vnode *vp;
 	vm_page_t m;
-	int ahead, behind, cluster_offset, dead, error, locked;
+	int ahead, behind, cluster_offset, error, locked;
 
 	hardfault = 0;
 	growstack = TRUE;
