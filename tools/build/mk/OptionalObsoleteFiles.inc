@@ -1345,6 +1345,20 @@ OLD_FILES+=usr/sbin/fmtree
 OLD_FILES+=usr/share/man/man8/fmtree.8.gz
 .endif
 
+.if ${MK_FTP} == no
+OLD_FILES+=etc/ftpusers
+OLD_FILES+=etc/rc.d/ftpd
+OLD_FILES+=usr/bin/ftp
+OLD_FILES+=usr/bin/gate-ftp
+OLD_FILES+=usr/bin/pftp
+OLD_FILES+=usr/libexec/ftpd
+OLD_FILES+=usr/share/man/man1/ftp.1.gz
+OLD_FILES+=usr/share/man/man1/gate-ftp.1.gz
+OLD_FILES+=usr/share/man/man1/pftp.1.gz
+OLD_FILES+=usr/share/man/man5/ftpchroot.5.gz
+OLD_FILES+=usr/share/man/man8/ftpd.8.gz
+.endif
+
 .if ${MK_GNUCXX} == no
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/include/c++/4.2/algorithm
