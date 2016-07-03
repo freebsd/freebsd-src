@@ -14,7 +14,7 @@ check()
 	shift
 	# Remove tty field, which varies between systems.
 	awk '{$4 = ""; print}' |
-	if diff -q - $1
+	if diff -a - $1 >&2
 	then
 		echo "ok $NUM"
 	else
