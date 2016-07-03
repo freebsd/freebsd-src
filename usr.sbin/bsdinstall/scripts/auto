@@ -182,7 +182,7 @@ if f_interactive; then
 	case "$sys_maker" in
 	"LENOVO")
 		case "$sys_version" in
-		"ThinkPad X220"|"ThinkPad T420"|"ThinkPad T520")
+		"ThinkPad X220"|"ThinkPad T420"|"ThinkPad T520"|"ThinkPad W520")
 			dialog_workaround "$msg_lenovo_fix"
 			retval=$?
 			f_dprintf "lenovofix_prompt=[%s]" "$retval"
@@ -195,7 +195,7 @@ if f_interactive; then
 		;;
 	"Dell Inc.")
 		case "$sys_model" in
-		"Latitude E7440"|"Latitude E7240"|"Precision Tower 5810")
+		"Latitude E6330"|"Latitude E7440"|"Latitude E7240"|"Precision Tower 5810")
 			dialog_workaround "$msg_gpt_active_fix"
 			retval=$?
 			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
