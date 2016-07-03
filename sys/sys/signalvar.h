@@ -337,9 +337,29 @@ extern struct mtx	sigio_lock;
 #define	SIGDEFERSTOP_EINTR	3 /* ignore STOPs, return EINTR */
 #define	SIGDEFERSTOP_ERESTART	4 /* ignore STOPs, return ERESTART */
 
+#define	SIGDEFERSTOP_VAL_NCHG	(-1) /* placeholder indicating no state change */
+int	sigdeferstop_impl(int mode);
+void	sigallowstop_impl(int prev);
+
+static inline int
+sigdeferstop(int mode)
+{
+
+	if (mode == SIGDEFERSTOP_NOP)
+		return (SIGDEFERSTOP_VAL_NCHG);
+	return (sigdeferstop_impl(mode));
+}
+
+static inline void
+sigallowstop(int prev)
+{
+
+	if (prev == SIGDEFERSTOP_VAL_NCHG)
+		return;
+	sigallowstop_impl(prev);
+}
+
 int	cursig(struct thread *td);
-int	sigdeferstop(int mode);
-void	sigallowstop(int prev);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);

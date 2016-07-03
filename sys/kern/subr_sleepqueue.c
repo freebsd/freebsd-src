@@ -453,7 +453,16 @@ sleepq_catch_signals(void *wchan, int pri)
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
 	sig = cursig(td);
-	if (sig == 0) {
+	if (sig == -1) {
+		mtx_unlock(&ps->ps_mtx);
+		KASSERT((td->td_flags & TDF_SBDRY) != 0, ("lost TDF_SBDRY"));
+		KASSERT(TD_SBDRY_INTR(td),
+		    ("lost TDF_SERESTART of TDF_SEINTR"));
+		KASSERT((td->td_flags & (TDF_SEINTR | TDF_SERESTART)) !=
+		    (TDF_SEINTR | TDF_SERESTART),
+		    ("both TDF_SEINTR and TDF_SERESTART"));
+		ret = TD_SBDRY_ERRNO(td);
+	} else if (sig == 0) {
 		mtx_unlock(&ps->ps_mtx);
 		ret = thread_suspend_check(1);
 		MPASS(ret == 0 || ret == EINTR || ret == ERESTART);
