@@ -769,7 +769,7 @@
             ..
             ja_JP.eucJP
             ..
-            kk_Cyrl_KZ.UTF-8
+            kk_KZ.UTF-8
             ..
             ko_KR.CP949
             ..
@@ -785,7 +785,7 @@
             ..
             lv_LV.UTF-8
             ..
-            mn_Cyrl_MN.UTF-8
+            mn_MN.UTF-8
             ..
             nb_NO.ISO8859-1
             ..
@@ -851,13 +851,13 @@
             ..
             sl_SI.UTF-8
             ..
-            sr_Cyrl_RS.ISO8859-5
+            sr_RS.ISO8859-5
             ..
-            sr_Cyrl_RS.UTF-8
+            sr_RS.UTF-8
             ..
-            sr_Latn_RS.ISO8859-2
+            sr_RS.ISO8859-2
             ..
-            sr_Latn_RS.UTF-8
+            sr_RS.UTF-8@latin
             ..
             sv_FI.ISO8859-1
             ..
@@ -892,22 +892,6 @@
             zh_CN.eucCN
             ..
             zh_CN.UTF-8
-            ..
-            zh_Hans_CN.GB18030
-            ..
-            zh_Hans_CN.GB2312
-            ..
-            zh_Hans_CN.GBK
-            ..
-            zh_Hans_CN.UTF-8
-            ..
-            zh_Hans_CN.eucCN
-            ..
-            zh_Hant_HK.UTF-8
-            ..
-            zh_Hant_TW.Big5
-            ..
-            zh_Hant_TW.UTF-8
             ..
             zh_HK.UTF-8
             ..
