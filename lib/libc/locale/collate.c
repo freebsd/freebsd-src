@@ -310,7 +310,7 @@ _collate_lookup(struct xlocale_collate *table, const wchar_t *t, int *len,
 	if ((sptr = *state) != NULL) {
 		*pri = *sptr;
 		sptr++;
-		if ((sptr == *state) || (sptr == NULL))
+		if ((sptr == *state) || (*sptr == 0))
 			*state = NULL;
 		else
 			*state = sptr;
