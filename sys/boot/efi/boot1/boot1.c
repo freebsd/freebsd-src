@@ -629,7 +629,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	case EFI_BUFFER_TOO_SMALL:
 		(void)bs->FreePool(handles);
 		if ((status = bs->AllocatePool(EfiLoaderData, hsize,
-		    (void **)&handles) != EFI_SUCCESS)) {
+		    (void **)&handles)) != EFI_SUCCESS) {
 			panic("Failed to allocate %zu handles (%lu)", hsize /
 			    sizeof(*handles), EFI_ERROR_CODE(status));
 		}
