@@ -905,7 +905,9 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ctlpass_io_req *io_req;
 	union ctl_io *ctlio;
 	struct scsi_inquiry_data *inq_ptr;
+	struct scsi_report_luns_data *lun_data;
 		struct scsi_sense_data *sense;
+	
 	softc = (struct ctlpass_softc *)periph->softc;
 
 	cam_periph_assert(periph, MA_OWNED);
@@ -998,20 +1000,24 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 						ctlio->scsiio.kern_total_len = csio->dxfer_len;
 						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
 						ctlio->scsiio.be_move_done = ctl_config_move_done;
-						ctl_datamove((union ctl_io *)ctlio);
+					ctl_datamove((union ctl_io *)ctlio);
 						break;
 						}
 					case REPORT_LUNS:{
-					printf("report luns in ctlpasss done");					
-						memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
+					u_int32_t returned_len;
+					lun_data=(struct scsi_report_luns_data *)csio->data_ptr;
+						memcpy(ctlio->scsiio.kern_data_ptr,lun_data,csio->dxfer_len);
+							
+						returned_len = scsi_4btoul((*lun_data).length);
+					
 						ctlio->scsiio.kern_sg_entries = 0;
 						ctlio->scsiio.kern_data_resid = 0;
 						ctlio->scsiio.kern_rel_offset=0;
-						ctlio->scsiio.kern_data_len = csio->dxfer_len;
+					ctlio->scsiio.kern_data_len = csio->dxfer_len;
 						ctlio->scsiio.kern_total_len = csio->dxfer_len;
 						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
 						ctlio->scsiio.be_move_done = ctl_config_move_done;
-						printf("before ctl_datamove");
+						
 						ctl_datamove((union ctl_io *)ctlio);
 						break;
 						}
@@ -1020,9 +1026,12 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 							int error;
 							error=ctl_tur(&ctlio->scsiio);
 				                        break;
+
 					}
-					default:
+					case START_STOP_UNIT:{
+						ctl_done((union ctl_io *)ctlio);
 						break;
+					}
 				}			
 			}
 			break;
@@ -1811,7 +1820,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		}
 		csio->cdb_len = io->scsiio.cdb_len;
 		memcpy(csio->cdb_io.cdb_bytes,io->scsiio.cdb, csio->cdb_len);
-		
+	printf("I am before switch");	
 		switch(csio->cdb_io.cdb_bytes[0])
 		{
 		
@@ -1833,12 +1842,13 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 					break;
 					}
 			case REPORT_LUNS:{
+/*
 
 						struct scsi_report_luns_data *lun_data;
 						struct ctl_port *port;
 						int num_luns;
-						uint32_t targ_lun_id,lun_datalen;
-						printf("report luns in ctlccb");
+						uint32_t lun_datalen,targ_lun_id;
+					
 						port = ctl_io_port(&io->scsiio.io_hdr);
 
 						
@@ -1849,13 +1859,18 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 }
 
 						lun_datalen  = sizeof(*lun_data) + (num_luns * sizeof(struct scsi_report_luns_lundata));
-					io->scsiio.kern_data_ptr =malloc(sizeof(lun_datalen),M_CTL, M_WAITOK);
+					io->scsiio.kern_data_ptr =malloc(lun_datalen,M_CTL, M_WAITOK);
 	 	
-					io->scsiio.kern_data_len = io->scsiio.ext_data_len;
-					csio->data_ptr =malloc(sizeof(lun_datalen),M_CTLPASS, M_WAITOK);
-					csio->dxfer_len = io->scsiio.kern_data_len;
+					io->scsiio.kern_data_len = lun_datalen;
+					csio->data_ptr =malloc(lun_datalen,M_CTLPASS, M_WAITOK);
+					csio->dxfer_len = lun_datalen;*/
+					error=1;
+					return (error);
 					break;
 					}
+			case START_STOP_UNIT:
+				printf("hello ,I am in start  stop unit");
+					break;
 
 			case TEST_UNIT_READY:
 					break;
