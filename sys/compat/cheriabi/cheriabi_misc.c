@@ -1841,6 +1841,7 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 {
 	register_t perms, ret;
 	size_t addr_base, mmap_cap_base, mmap_cap_len;
+	vm_map_t map;
 
 	ret = td->td_retval[0];
 	/* On failure, return a NULL capability with an offset of -1. */
@@ -1894,14 +1895,15 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    addr_base - ret);
 	} else {
-		/*
-		 * XXX-BD: Once we provide a way to change it, we need to make
-		 * sure we fit within the mmap cap.
-		 */
 		CHERI_CGETBASE(mmap_cap_base, CHERI_CR_CTEMP0);
 		CHERI_CGETLEN(mmap_cap_len, CHERI_CR_CTEMP0);
 		if (ret < mmap_cap_base ||
 		    ret + len > mmap_cap_base + mmap_cap_len) {
+			map = &td->td_proc->p_vmspace->vm_map;
+			vm_map_lock(map);
+			vm_map_delete(map, ret, ret + len);
+			vm_map_unlock(map);
+
 			return (EPERM);
 		}
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
