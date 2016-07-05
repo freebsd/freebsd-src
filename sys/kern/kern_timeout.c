@@ -1166,7 +1166,7 @@ _callout_stop_safe(struct callout *c, int flags, void (*drain)(void *))
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
 	int direct, sq_locked, use_lock;
-	int not_on_a_list;
+	int cancelled, not_on_a_list;
 
 	if ((flags & CS_DRAIN) != 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, c->c_lock,
@@ -1236,28 +1236,14 @@ again:
 	}
 
 	/*
-	 * If the callout isn't pending, it's not on the queue, so
-	 * don't attempt to remove it from the queue.  We can try to
-	 * stop it by other means however.
+	 * If the callout is running, try to stop it or drain it.
 	 */
-	if (!(c->c_iflags & CALLOUT_PENDING)) {
+	if (cc_exec_curr(cc, direct) == c) {
 		/*
-		 * If it wasn't on the queue and it isn't the current
-		 * callout, then we can't stop it, so just bail.
-		 * It probably has already been run (if locking
-		 * is properly done). You could get here if the caller
-		 * calls stop twice in a row for example. The second
-		 * call would fall here without CALLOUT_ACTIVE set.
+		 * Succeed we to stop it or not, we must clear the
+		 * active flag - this is what API users expect.
 		 */
 		c->c_flags &= ~CALLOUT_ACTIVE;
-		if (cc_exec_curr(cc, direct) != c) {
-			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
-			    c, c->c_func, c->c_arg);
-			CC_UNLOCK(cc);
-			if (sq_locked)
-				sleepq_release(&cc_exec_waiting(cc, direct));
-			return (-1);
-		}
 
 		if ((flags & CS_DRAIN) != 0) {
 			/*
@@ -1376,19 +1362,27 @@ again:
 				cc_exec_drain(cc, direct) = drain;
 			}
 			CC_UNLOCK(cc);
-			return ((flags & CS_MIGRBLOCK) != 0);
+			return ((flags & CS_EXECUTING) != 0);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
 		if (drain) {
 			cc_exec_drain(cc, direct) = drain;
 		}
-		CC_UNLOCK(cc);
 		KASSERT(!sq_locked, ("sleepqueue chain still locked"));
-		return (0);
-	}
+		cancelled = ((flags & CS_EXECUTING) != 0);
+	} else
+		cancelled = 1;
+
 	if (sq_locked)
 		sleepq_release(&cc_exec_waiting(cc, direct));
+
+	if ((c->c_iflags & CALLOUT_PENDING) == 0) {
+		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
+		    c, c->c_func, c->c_arg);
+		CC_UNLOCK(cc);
+		return (cancelled);
+	}
 
 	c->c_iflags &= ~CALLOUT_PENDING;
 	c->c_flags &= ~CALLOUT_ACTIVE;
@@ -1406,7 +1400,7 @@ again:
 	}
 	callout_cc_del(c, cc);
 	CC_UNLOCK(cc);
-	return (1);
+	return (cancelled);
 }
 
 void

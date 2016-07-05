@@ -600,7 +600,7 @@ sleepq_check_timeout(void)
 	 * another CPU, so synchronize with it to avoid having it
 	 * accidentally wake up a subsequent sleep.
 	 */
-	else if (_callout_stop_safe(&td->td_slpcallout, CS_MIGRBLOCK, NULL)
+	else if (_callout_stop_safe(&td->td_slpcallout, CS_EXECUTING, NULL)
 	    == 0) {
 		td->td_flags |= TDF_TIMEOUT;
 		TD_SET_SLEEPING(td);

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2015
+.Dd July 4, 2016
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -247,6 +247,10 @@ has already been serviced, then
 negative one is returned.
 If the callout is currently being serviced and cannot be stopped,
 then zero will be returned.
+If the callout is currently being serviced and cannot be stopped, and at the
+same time a next invocation of the same callout is also scheduled, then
+.Fn callout_stop
+unschedules the next run and returns zero.
 If the callout has an associated lock,
 then that lock must be held when this function is called.
 .Pp
@@ -814,7 +818,7 @@ and
 .Fn callout_drain
 functions return a value of one if the callout was still pending when it was
 called, a zero if the callout could not be stopped and a negative one is it
-was either not running or haas already completed.
+was either not running or has already completed.
 The
 .Fn timeout
 function returns a
