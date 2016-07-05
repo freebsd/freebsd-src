@@ -969,7 +969,6 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	struct trapframe *regs = &td->td_pcb->pcb_regs;
 	int error;
 	int parms_from_cap = 1;
-	uint64_t perms;
 	size_t reqsize;
 	register_t reqperms;
 
@@ -997,7 +996,12 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		reqperms = CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP;
 		break;
 
+	case CHERI_MMAP_GETBASE:
+	case CHERI_MMAP_GETLEN:
+	case CHERI_MMAP_GETOFFSET:
 	case CHERI_MMAP_GETPERM:
+	case CHERI_MMAP_SETOFFSET:
+	case CHERI_MMAP_SETBOUNDS:
 		reqsize = sizeof(uint64_t);
 		reqperms = CHERI_PERM_STORE;
 		break;
@@ -1030,7 +1034,48 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		    sizeof(struct chericap));
 		return (error);
 
-	case CHERI_MMAP_GETPERM:
+	case CHERI_MMAP_GETBASE: {
+		size_t base;
+
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETBASE(base, CHERI_CR_CTEMP0);
+		PROC_UNLOCK(td->td_proc);
+		if (suword64(uap->parms, base) != 0)
+			return (EFAULT);
+		return (0);
+	}
+
+	case CHERI_MMAP_GETLEN: {
+		size_t len;
+
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETLEN(len, CHERI_CR_CTEMP0);
+		PROC_UNLOCK(td->td_proc);
+		if (suword64(uap->parms, len) != 0)
+			return (EFAULT);
+		return (0);
+	}
+
+	case CHERI_MMAP_GETOFFSET: {
+		ssize_t offset;
+
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		PROC_UNLOCK(td->td_proc);
+		if (suword64(uap->parms, offset) != 0)
+			return (EFAULT);
+		return (0);
+	}
+
+	case CHERI_MMAP_GETPERM: {
+		uint64_t perms;
+
 		PROC_LOCK(td->td_proc);
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
 		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
@@ -1039,9 +1084,12 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
 		return (0);
+	}
 
-	case CHERI_MMAP_ANDPERM:
+	case CHERI_MMAP_ANDPERM: {
+		uint64_t perms;
 		perms = fuword64(uap->parms);
+
 		if (perms == -1)
 			return (EINVAL);
 		PROC_LOCK(td->td_proc);
@@ -1056,6 +1104,58 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
 		return (0);
+	}
+
+	case CHERI_MMAP_SETOFFSET: {
+		size_t len;
+		ssize_t offset;
+
+		offset = fuword64(uap->parms);
+		/* Reject errors and misaligned offsets */
+		if (offset == -1 || (offset & PAGE_MASK) != 0)
+			return (EINVAL);
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETLEN(len, CHERI_CR_CTEMP0);
+		/* Don't allow out of bounds offsets, they aren't useful */
+		if (offset < 0 || offset > len) {
+			PROC_UNLOCK(td->td_proc);
+			return (EINVAL);
+		}
+		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    (register_t)offset);
+		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		PROC_UNLOCK(td->td_proc);
+		return (0);
+	}
+
+	case CHERI_MMAP_SETBOUNDS: {
+		size_t len, olen;
+		ssize_t offset;
+
+		len = fuword64(uap->parms);
+		/* Reject errors or misaligned lengths */
+		if (len == (size_t)-1 || (len & PAGE_MASK) != 0)
+			return (EINVAL);
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETLEN(olen, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		/* Don't try to set out of bounds lengths */
+		if (offset > olen || len > olen - offset) {
+			PROC_UNLOCK(td->td_proc);
+			return (EINVAL);
+		}
+		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    (register_t)len);
+		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		PROC_UNLOCK(td->td_proc);
+		return (0);
+	}
 
 	default:
 		return (sysarch(td, (struct sysarch_args*)uap));
