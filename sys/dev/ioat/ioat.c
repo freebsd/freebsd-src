@@ -326,6 +326,7 @@ ioat_detach(device_t device)
 	ioat->quiescing = TRUE;
 	ioat->destroying = TRUE;
 	wakeup(&ioat->quiescing);
+	wakeup(&ioat->resetting);
 
 	ioat_channel[ioat->chan_idx] = NULL;
 
@@ -1699,6 +1700,14 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	int error;
 
 	mtx_lock(IOAT_REFLK);
+	while (ioat->resetting && !ioat->destroying)
+		msleep(&ioat->resetting, IOAT_REFLK, 0, "IRH_drain", 0);
+	if (ioat->destroying) {
+		mtx_unlock(IOAT_REFLK);
+		return (ENXIO);
+	}
+	ioat->resetting = TRUE;
+
 	ioat->quiescing = TRUE;
 	ioat_drain_locked(ioat);
 	mtx_unlock(IOAT_REFLK);
@@ -1792,6 +1801,9 @@ ioat_reset_hw(struct ioat_softc *ioat)
 
 out:
 	mtx_lock(IOAT_REFLK);
+	ioat->resetting = FALSE;
+	wakeup(&ioat->resetting);
+
 	ioat->quiescing = FALSE;
 	wakeup(&ioat->quiescing);
 	mtx_unlock(IOAT_REFLK);
@@ -2172,6 +2184,7 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	db_printf(" is_reset_pending: %d\n", (int)sc->is_reset_pending);
 	db_printf(" is_channel_running: %d\n", (int)sc->is_channel_running);
 	db_printf(" intrdelay_supported: %d\n", (int)sc->intrdelay_supported);
+	db_printf(" resetting: %d\n", (int)sc->resetting);
 
 	db_printf(" head: %u\n", sc->head);
 	db_printf(" tail: %u\n", sc->tail);
