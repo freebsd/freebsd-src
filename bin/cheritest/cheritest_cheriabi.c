@@ -71,6 +71,25 @@
 #define	PERM_RWX	(PERM_READ|PERM_WRITE|PERM_EXEC)
 
 void
+test_cheriabi_mmap_nospace(const struct cheri_test *ctp __unused)
+{
+	size_t len;
+	void *cap;
+
+	/* Remove all space from the default mmap capability. */
+	len = 0;
+	if (sysarch(CHERI_MMAP_SETBOUNDS, &len) != 0)
+		cheritest_failure_err(
+		    "sysarch(CHERI_MMAP_SETBOUNDS, 0) failed");
+	if ((cap = mmap(0, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC,
+	    MAP_ANON, -1, 0)) != MAP_FAILED)
+		cheritest_failure_err(
+		    "mmap() returned a a pointer when it should have failed");
+
+	cheritest_success();
+}
+
+void
 test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 {
 	uint64_t perms, operms;

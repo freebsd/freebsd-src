@@ -195,6 +195,7 @@ void	test_fault_ccall_code_noexecute(const struct cheri_test *ctp);
 void	test_fault_ccall_data_execute(const struct cheri_test *ctp);
 
 /* cheritest_cheriabi.c */
+void	test_cheriabi_mmap_nospace(const struct cheri_test *ctp);
 void	test_cheriabi_mmap_perms(const struct cheri_test *ctp);
 
 /* cheritest_fault.c */
