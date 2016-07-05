@@ -168,6 +168,11 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 SUBDIR+=	tests
 .endif
 
+.if defined(NO_SYSCALLS)
+MAN:=
+NLS:=
+.endif
+
 .include <bsd.lib.mk>
 
 .if !defined(_SKIP_BUILD)
