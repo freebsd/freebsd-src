@@ -152,12 +152,11 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 		cheritest_failure_err("sysarch(CHERI_MMAP_ANDPERM) failed");
 	if ((cap = mmap(0, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC,
 	    MAP_ANON, -1, 0)) == MAP_FAILED)
-		cheritest_failure_err("mmap(MAP_FIXED) failed");
+		cheritest_failure_err("mmap() failed");
 	if (cheri_getperm(cap) & PERM_EXEC)
 		cheritest_failure_errx("mmap(PROT_READ|PROT_WRITE|PROT_EXEC) "
 		    "produced execute perm after sysarch(CHERI_MMAP_ANDPERM, "
 		    "~PERM_EXEC)");
-
 
 	cheritest_success();
 }
