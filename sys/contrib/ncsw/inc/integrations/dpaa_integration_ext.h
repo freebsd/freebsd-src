@@ -331,21 +331,19 @@ typedef enum e_FmInterModuleEvent
 #define FM_NO_ADVANCED_RATE_LIMITER
 #define FM_NO_OP_OBSERVED_CGS
 
-/* FM erratas */
+/* FM erratas (P5020, P3041) */
 #define FM_TX_ECC_FRMS_ERRATA_10GMAC_A004
 #define FM_TX_SHORT_FRAME_BAD_TS_ERRATA_10GMAC_A006     /* No implementation, Out of LLD scope */
 #define FM_TX_FIFO_CORRUPTION_ERRATA_10GMAC_A007
 #define FM_ECC_HALT_NO_SYNC_ERRATA_10GMAC_A008
 
 #define FM_NO_RX_PREAM_ERRATA_DTSECx1
-#define FM_RX_PREAM_4_ERRATA_DTSEC_A001                 FM_NO_RX_PREAM_ERRATA_DTSECx1
 #define FM_GRS_ERRATA_DTSEC_A002
 #define FM_BAD_TX_TS_IN_B_2_B_ERRATA_DTSEC_A003
 #define FM_GTS_ERRATA_DTSEC_A004
 #define FM_PAUSE_BLOCK_ERRATA_DTSEC_A006                        /* do nothing */
 #define FM_RESERVED_ACCESS_TO_DISABLED_DEV_ERRATA_DTSEC_A0011   /* do nothing */
 #define FM_GTS_AFTER_MAC_ABORTED_FRAME_ERRATA_DTSEC_A0012       FM_GTS_ERRATA_DTSEC_A004
-#define FM_MAGIC_PACKET_UNRECOGNIZED_ERRATA_DTSEC2              /* No implementation, Out of LLD scope */
 #define FM_10_100_SGMII_NO_TS_ERRATA_DTSEC3
 #define FM_TX_LOCKUP_ERRATA_DTSEC6
 
@@ -362,13 +360,19 @@ typedef enum e_FmInterModuleEvent
 //#define FM_PRS_MPLS_SSA_ERRATA_FMANj                            /* No implementation, No patch yet */
 //#define FM_PRS_INITIAL_PLANID_ERRATA_FMANk                      /* No implementation, No patch yet */
 
-#define FM_UCODE_NOT_RESET_ERRATA_BUGZILLA6173
-
 #define FM_NO_COPY_CTXA_CTXB_ERRATA_FMAN_SW001
-#define FM_PRS_MEM_ERRATA_FMAN_SW003
-#define FM_LEN_CHECK_ERRATA_FMAN_SW002
 
 #define FM_10G_REM_N_LCL_FLT_EX_ERRATA_10GMAC001
+
+/* P2041 */
+#define FM_BAD_VLAN_DETECT_ERRATA_10GMAC_A010
+
+/* Common to all */
+#define FM_RX_PREAM_4_ERRATA_DTSEC_A001                 FM_NO_RX_PREAM_ERRATA_DTSECx1
+#define FM_UCODE_NOT_RESET_ERRATA_BUGZILLA6173
+#define FM_MAGIC_PACKET_UNRECOGNIZED_ERRATA_DTSEC2              /* No implementation, Out of LLD scope */
+#define FM_PRS_MEM_ERRATA_FMAN_SW003
+#define FM_LEN_CHECK_ERRATA_FMAN_SW002
 
 
 #endif /* __DPAA_INTEGRATION_EXT_H */
