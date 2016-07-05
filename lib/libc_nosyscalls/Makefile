@@ -6,4 +6,7 @@ SHLIB_LDSCRIPT_LINKS=
 
 LIBC_SRCTOP=	${.CURDIR}/../libc/
 
+# Unbreak shared CHERI builds by disabling them here
+NO_SHARED=yes
+
 .include "${LIBC_SRCTOP}/Makefile"
