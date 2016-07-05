@@ -556,7 +556,7 @@ shutdown_reset(void *junk, int howto)
 	/* NOTREACHED */ /* assuming reset worked */
 }
 
-#if defined(WITNESS) || defined(INVARIANTS)
+#if defined(WITNESS) || defined(INVARIANT_SUPPORT)
 static int kassert_warn_only = 0;
 #ifdef KDB
 static int kassert_do_kdb = 0;
