@@ -491,7 +491,8 @@ struct ioat_softc {
 	boolean_t		is_reset_pending;
 	boolean_t		is_channel_running;
 	boolean_t		intrdelay_supported;
-	boolean_t		resetting;
+	boolean_t		resetting;		/* submit_lock */
+	boolean_t		resetting_cleanup;	/* cleanup_lock */
 
 	uint32_t		head;
 	uint32_t		tail;

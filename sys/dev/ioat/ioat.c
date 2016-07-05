@@ -376,12 +376,32 @@ ioat_teardown_intr(struct ioat_softc *ioat)
 static int
 ioat_start_channel(struct ioat_softc *ioat)
 {
+	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	struct bus_dmadesc *dmadesc;
 	uint64_t status;
 	uint32_t chanerr;
 	int i;
 
 	ioat_acquire(&ioat->dmaengine);
-	ioat_null(&ioat->dmaengine, NULL, NULL, 0);
+
+	/* Submit 'NULL' operation manually to avoid quiescing flag */
+	desc = ioat_get_ring_entry(ioat, ioat->head);
+	dmadesc = &desc->bus_dmadesc;
+	hw_desc = desc->u.dma;
+
+	dmadesc->callback_fn = NULL;
+	dmadesc->callback_arg = NULL;
+
+	hw_desc->u.control_raw = 0;
+	hw_desc->u.control_generic.op = IOAT_OP_COPY;
+	hw_desc->u.control_generic.completion_update = 1;
+	hw_desc->size = 8;
+	hw_desc->src_addr = 0;
+	hw_desc->dest_addr = 0;
+	hw_desc->u.control.null = 1;
+
+	ioat_submit_single(ioat);
 	ioat_release(&ioat->dmaengine);
 
 	for (i = 0; i < 100; i++) {
@@ -496,6 +516,7 @@ ioat3_attach(device_t device)
 	ioat->head = ioat->hw_head = 0;
 	ioat->tail = 0;
 	ioat->last_seen = 0;
+	*ioat->comp_update = 0;
 	return (0);
 }
 
@@ -641,13 +662,23 @@ ioat_process_events(struct ioat_softc *ioat)
 	boolean_t pending;
 	int error;
 
+	CTR0(KTR_IOAT, __func__);
+
 	mtx_lock(&ioat->cleanup_lock);
+
+	/*
+	 * Don't run while the hardware is being reset.  Reset is responsible
+	 * for blocking new work and draining & completing existing work, so
+	 * there is nothing to do until new work is queued after reset anyway.
+	 */
+	if (ioat->resetting_cleanup) {
+		mtx_unlock(&ioat->cleanup_lock);
+		return;
+	}
 
 	completed = 0;
 	comp_update = *ioat->comp_update;
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
-
-	CTR0(KTR_IOAT, __func__);
 
 	if (status == ioat->last_seen) {
 		/*
@@ -1643,6 +1674,13 @@ ioat_shrink_timer_callback(void *arg)
 
 	/* Slowly scale the ring down if idle. */
 	mtx_lock(&ioat->submit_lock);
+
+	/* Don't run while the hardware is being reset. */
+	if (ioat->resetting) {
+		mtx_unlock(&ioat->submit_lock);
+		return;
+	}
+
 	order = ioat->ring_size_order;
 	if (ioat->is_resize_pending || order == IOAT_MIN_ORDER) {
 		mtx_unlock(&ioat->submit_lock);
@@ -1711,6 +1749,14 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	ioat->quiescing = TRUE;
 	ioat_drain_locked(ioat);
 	mtx_unlock(IOAT_REFLK);
+
+	/*
+	 * Suspend ioat_process_events while the hardware and softc are in an
+	 * indeterminate state.
+	 */
+	mtx_lock(&ioat->cleanup_lock);
+	ioat->resetting_cleanup = TRUE;
+	mtx_unlock(&ioat->cleanup_lock);
 
 	status = ioat_get_chansts(ioat);
 	if (is_ioat_active(status) || is_ioat_idle(status))
@@ -1793,6 +1839,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	 */
 	ioat->tail = ioat->head = ioat->hw_head = 0;
 	ioat->last_seen = 0;
+	*ioat->comp_update = 0;
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
@@ -1800,16 +1847,27 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	error = 0;
 
 out:
-	mtx_lock(IOAT_REFLK);
-	ioat->resetting = FALSE;
-	wakeup(&ioat->resetting);
+	/*
+	 * Resume completions now that ring state is consistent.
+	 * ioat_start_channel will add a pending completion and if we are still
+	 * blocking completions, we may livelock.
+	 */
+	mtx_lock(&ioat->cleanup_lock);
+	ioat->resetting_cleanup = FALSE;
+	mtx_unlock(&ioat->cleanup_lock);
 
-	ioat->quiescing = FALSE;
-	wakeup(&ioat->quiescing);
-	mtx_unlock(IOAT_REFLK);
-
+	/* Enqueues a null operation and ensures it completes. */
 	if (error == 0)
 		error = ioat_start_channel(ioat);
+
+	/* Unblock submission of new work */
+	mtx_lock(IOAT_REFLK);
+	ioat->quiescing = FALSE;
+	wakeup(&ioat->quiescing);
+
+	ioat->resetting = FALSE;
+	wakeup(&ioat->resetting);
+	mtx_unlock(IOAT_REFLK);
 
 	return (error);
 }
