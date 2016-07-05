@@ -41,32 +41,24 @@
 #define __PART_EXT_H
 
 #include "std_ext.h"
-#include "part_integration_ext.h"
+#include "enet_ext.h"
+#include "dpaa_integration_ext.h"
 
+#define CORE_E500MC
 
-#if !(defined(MPC8306) || \
-      defined(MPC8309) || \
-      defined(MPC834x) || \
-      defined(MPC836x) || \
-      defined(MPC832x) || \
-      defined(MPC837x) || \
-      defined(MPC8568) || \
-      defined(MPC8569) || \
-      defined(P1020)   || \
-      defined(P1021)   || \
-      defined(P1022)   || \
-      defined(P1023)   || \
-      defined(P2020)   || \
-      defined(P2040)   || \
-      defined(P2041)   || \
-      defined(P3041)   || \
-      defined(P4080)   || \
-      defined(SC4080)  || \
-      defined(P5020)   || \
-      defined(MSC814x))
-#error "unable to proceed without chip-definition"
-#endif /* !(defined(MPC834x) || ... */
-
+/*****************************************************************************
+ INTEGRATION-SPECIFIC MODULE CODES
+******************************************************************************/
+#define MODULE_MEM              0x00010000
+#define MODULE_MM               0x00020000
+#define MODULE_QM               0x000d0000
+#define MODULE_BM               0x000e0000
+#define MODULE_FM               0x00130000
+#define MODULE_FM_MURAM         0x00140000
+#define MODULE_FM_PCD           0x00150000
+#define MODULE_FM_RTC           0x00160000
+#define MODULE_FM_MAC           0x00170000
+#define MODULE_FM_PORT          0x00180000
 
 /**************************************************************************//*
  @Description   Part data structure - must be contained in any integration
@@ -74,10 +66,6 @@
 *//***************************************************************************/
 typedef struct t_Part
 {
-    uintptr_t   (* f_GetModuleBase)(t_Handle h_Part, e_ModuleId moduleId);
-                /**< Returns the address of the module's memory map base. */
-    e_ModuleId  (* f_GetModuleIdByBase)(t_Handle h_Part, uintptr_t baseAddress);
-                /**< Returns the module's ID according to its memory map base. */
 } t_Part;
 
 

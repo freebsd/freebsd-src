@@ -353,6 +353,7 @@ int ERROR_DYNAMIC_LEVEL = ERROR_GLOBAL_LEVEL;
 
 #define PRINT_FORMAT        "[CPU%02d, %s:%d %s]"
 #define PRINT_FMT_PARAMS    CORE_GetId(), __FILE__, __LINE__, __FUNCTION__
+#define ERR_STRING(err)     #err
 
 #if (!(defined(DEBUG_ERRORS)) || (DEBUG_ERRORS == 0))
 /* No debug/error/event messages at all */
@@ -398,7 +399,7 @@ extern const char *eventStrings[];
         if (REPORT_LEVEL_##_level <= DEBUG_DYNAMIC_LEVEL) { \
             XX_Print("> %s (%s) " PRINT_FORMAT ": ", \
                      dbgLevelStrings[REPORT_LEVEL_##_level - 1], \
-                     moduleStrings[__ERR_MODULE__ >> 16], \
+                     ERR_STRING(__ERR_MODULE__), \
                      PRINT_FMT_PARAMS); \
             XX_Print _vmsg; \
             XX_Print("\r\n"); \
@@ -412,7 +413,7 @@ extern const char *eventStrings[];
         if (REPORT_LEVEL_##_level <= ERROR_DYNAMIC_LEVEL) { \
             XX_Print("! %s %s Error " PRINT_FORMAT ": %s; ", \
                      dbgLevelStrings[REPORT_LEVEL_##_level - 1], \
-                     moduleStrings[__ERR_MODULE__ >> 16], \
+                     ERR_STRING(__ERR_MODULE__), \
                      PRINT_FMT_PARAMS, \
                      errTypeStrings[(GET_ERROR_TYPE(_err) - E_OK - 1)]); \
             XX_Print _vmsg; \
@@ -435,7 +436,7 @@ extern const char *eventStrings[];
         if (_ev##_LEVEL <= EVENT_DYNAMIC_LEVEL) { \
             XX_Print("~ %s %s Event " PRINT_FORMAT ": %s (flags: 0x%04x); ", \
                      dbgLevelStrings[_ev##_LEVEL - 1], \
-                     moduleStrings[__ERR_MODULE__ >> 16], \
+                     ERR_STRING(__ERR_MODULE__), \
                      PRINT_FMT_PARAMS, \
                      eventStrings[((_ev) - EV_NO_EVENT - 1)], \
                      (uint16_t)(_flg)); \
