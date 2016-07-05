@@ -515,7 +515,6 @@ main(int argc, char *argv[])
 			memcpy(&src, res->ai_addr, res->ai_addrlen);
 			srclen = res->ai_addrlen;
 			freeaddrinfo(res);
-			res = NULL;
 			options |= F_SRCADDR;
 			break;
 		case 's':		/* size of packet to send */
@@ -631,7 +630,7 @@ main(int argc, char *argv[])
 	if (error)
 		errx(1, "%s", gai_strerror(error));
 	if (res->ai_canonname)
-		hostname = res->ai_canonname;
+		hostname = strdup(res->ai_canonname);
 	else
 		hostname = target;
 
@@ -643,6 +642,7 @@ main(int argc, char *argv[])
 	if ((s = socket(res->ai_family, res->ai_socktype,
 	    res->ai_protocol)) < 0)
 		err(1, "socket");
+	freeaddrinfo(res);
 
 	/* set the source address if specified. */
 	if ((options & F_SRCADDR) != 0) {
@@ -1207,9 +1207,6 @@ main(int argc, char *argv[])
 	sigaction(SIGINT, &si_sa, 0);
 	sigaction(SIGALRM, &si_sa, 0);
 	summary();
-
-	if (res != NULL)
-		freeaddrinfo(res);
 
         if(packet != NULL)
                 free(packet);
