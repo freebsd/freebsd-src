@@ -936,9 +936,6 @@ extern int c4iw_max_read_depth;
 #define L1_CACHE_BYTES 32
 #endif
 
-void c4iw_cm_init_cpl(struct adapter *);
-void c4iw_cm_term_cpl(struct adapter *);
-
 void your_reg_device(struct c4iw_dev *dev);
 
 #define SGE_CTRLQ_NUM	0

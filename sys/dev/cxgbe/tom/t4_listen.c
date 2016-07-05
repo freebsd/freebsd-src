@@ -1589,12 +1589,12 @@ reset:
 }
 
 void
-t4_init_listen_cpl_handlers(struct adapter *sc)
+t4_init_listen_cpl_handlers(void)
 {
 
-	t4_register_cpl_handler(sc, CPL_PASS_OPEN_RPL, do_pass_open_rpl);
-	t4_register_cpl_handler(sc, CPL_CLOSE_LISTSRV_RPL, do_close_server_rpl);
-	t4_register_cpl_handler(sc, CPL_PASS_ACCEPT_REQ, do_pass_accept_req);
-	t4_register_cpl_handler(sc, CPL_PASS_ESTABLISH, do_pass_establish);
+	t4_register_cpl_handler(CPL_PASS_OPEN_RPL, do_pass_open_rpl);
+	t4_register_cpl_handler(CPL_CLOSE_LISTSRV_RPL, do_close_server_rpl);
+	t4_register_cpl_handler(CPL_PASS_ACCEPT_REQ, do_pass_accept_req);
+	t4_register_cpl_handler(CPL_PASS_ESTABLISH, do_pass_establish);
 }
 #endif

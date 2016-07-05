@@ -294,13 +294,13 @@ struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *);
 void release_lip(struct tom_data *, struct clip_entry *);
 
 /* t4_connect.c */
-void t4_init_connect_cpl_handlers(struct adapter *);
+void t4_init_connect_cpl_handlers(void);
 int t4_connect(struct toedev *, struct socket *, struct rtentry *,
     struct sockaddr *);
 void act_open_failure_cleanup(struct adapter *, u_int, u_int);
 
 /* t4_listen.c */
-void t4_init_listen_cpl_handlers(struct adapter *);
+void t4_init_listen_cpl_handlers(void);
 int t4_listen_start(struct toedev *, struct tcpcb *);
 int t4_listen_stop(struct toedev *, struct tcpcb *);
 void t4_syncache_added(struct toedev *, void *);
@@ -313,8 +313,8 @@ int do_abort_rpl_synqe(struct sge_iq *, const struct rss_header *,
 void t4_offload_socket(struct toedev *, void *, struct socket *);
 
 /* t4_cpl_io.c */
-void t4_init_cpl_io_handlers(struct adapter *);
-void t4_uninit_cpl_io_handlers(struct adapter *);
+void t4_init_cpl_io_handlers(void);
+void t4_uninit_cpl_io_handlers(void);
 void send_abort_rpl(struct adapter *, struct sge_wrq *, int , int);
 void send_flowc_wr(struct toepcb *, struct flowc_tx_params *);
 void send_reset(struct adapter *, struct toepcb *, uint32_t);
@@ -324,12 +324,11 @@ void t4_rcvd_locked(struct toedev *, struct tcpcb *);
 int t4_tod_output(struct toedev *, struct tcpcb *);
 int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
-void t4_set_tcb_field(struct adapter *, struct toepcb *, int, uint16_t,
-    uint64_t, uint64_t);
-void t4_set_tcb_field_rpl(struct adapter *, struct toepcb *, int, uint16_t,
-    uint64_t, uint64_t, uint8_t);
+void t4_set_tcb_field(struct adapter *, struct sge_wrq *, int, uint16_t,
+    uint64_t, uint64_t, int, int, int);
 void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
 void t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop);
+int do_set_tcb_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 /* t4_ddp.c */
 void t4_init_ddp(struct adapter *, struct tom_data *);

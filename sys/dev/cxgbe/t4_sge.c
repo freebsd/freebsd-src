@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
 #include "common/t4_msg.h"
+#include "t4_l2t.h"
 #include "t4_mp_ring.h"
 
 #ifdef T4_PKT_TIMESTAMP
@@ -253,12 +254,110 @@ static int sysctl_tc(SYSCTL_HANDLER_ARGS);
 static counter_u64_t extfree_refs;
 static counter_u64_t extfree_rels;
 
+an_handler_t t4_an_handler;
+fw_msg_handler_t t4_fw_msg_handler[NUM_FW6_TYPES];
+cpl_handler_t t4_cpl_handler[NUM_CPL_CMDS];
+
+
+static int
+an_not_handled(struct sge_iq *iq, const struct rsp_ctrl *ctrl)
+{
+
+#ifdef INVARIANTS
+	panic("%s: async notification on iq %p (ctrl %p)", __func__, iq, ctrl);
+#else
+	log(LOG_ERR, "%s: async notification on iq %p (ctrl %p)\n",
+	    __func__, iq, ctrl);
+#endif
+	return (EDOOFUS);
+}
+
+int
+t4_register_an_handler(an_handler_t h)
+{
+	uintptr_t *loc, new;
+
+	new = h ? (uintptr_t)h : (uintptr_t)an_not_handled;
+	loc = (uintptr_t *) &t4_an_handler;
+	atomic_store_rel_ptr(loc, new);
+
+	return (0);
+}
+
+static int
+fw_msg_not_handled(struct adapter *sc, const __be64 *rpl)
+{
+	const struct cpl_fw6_msg *cpl =
+	    __containerof(rpl, struct cpl_fw6_msg, data[0]);
+
+#ifdef INVARIANTS
+	panic("%s: fw_msg type %d", __func__, cpl->type);
+#else
+	log(LOG_ERR, "%s: fw_msg type %d\n", __func__, cpl->type);
+#endif
+	return (EDOOFUS);
+}
+
+int
+t4_register_fw_msg_handler(int type, fw_msg_handler_t h)
+{
+	uintptr_t *loc, new;
+
+	if (type >= nitems(t4_fw_msg_handler))
+		return (EINVAL);
+
+	/*
+	 * These are dispatched by the handler for FW{4|6}_CPL_MSG using the CPL
+	 * handler dispatch table.  Reject any attempt to install a handler for
+	 * this subtype.
+	 */
+	if (type == FW_TYPE_RSSCPL || type == FW6_TYPE_RSSCPL)
+		return (EINVAL);
+
+	new = h ? (uintptr_t)h : (uintptr_t)fw_msg_not_handled;
+	loc = (uintptr_t *) &t4_fw_msg_handler[type];
+	atomic_store_rel_ptr(loc, new);
+
+	return (0);
+}
+
+static int
+cpl_not_handled(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+
+#ifdef INVARIANTS
+	panic("%s: opcode 0x%02x on iq %p with payload %p",
+	    __func__, rss->opcode, iq, m);
+#else
+	log(LOG_ERR, "%s: opcode 0x%02x on iq %p with payload %p\n",
+	    __func__, rss->opcode, iq, m);
+	m_freem(m);
+#endif
+	return (EDOOFUS);
+}
+
+int
+t4_register_cpl_handler(int opcode, cpl_handler_t h)
+{
+	uintptr_t *loc, new;
+
+	if (opcode >= nitems(t4_cpl_handler))
+		return (EINVAL);
+
+	new = h ? (uintptr_t)h : (uintptr_t)cpl_not_handled;
+	loc = (uintptr_t *) &t4_cpl_handler[opcode];
+	atomic_store_rel_ptr(loc, new);
+
+	return (0);
+}
+
 /*
  * Called on MOD_LOAD.  Validates and calculates the SGE tunables.
  */
 void
 t4_sge_modload(void)
 {
+	int i;
 
 	if (fl_pktshift < 0 || fl_pktshift > 7) {
 		printf("Invalid hw.cxgbe.fl_pktshift value (%d),"
@@ -291,6 +390,18 @@ t4_sge_modload(void)
 	extfree_rels = counter_u64_alloc(M_WAITOK);
 	counter_u64_zero(extfree_refs);
 	counter_u64_zero(extfree_rels);
+
+	t4_an_handler = an_not_handled;
+	for (i = 0; i < nitems(t4_fw_msg_handler); i++)
+		t4_fw_msg_handler[i] = fw_msg_not_handled;
+	for (i = 0; i < nitems(t4_cpl_handler); i++)
+		t4_cpl_handler[i] = cpl_not_handled;
+
+	t4_register_cpl_handler(CPL_FW4_MSG, handle_fw_msg);
+	t4_register_cpl_handler(CPL_FW6_MSG, handle_fw_msg);
+	t4_register_cpl_handler(CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
+	t4_register_cpl_handler(CPL_RX_PKT, t4_eth_rx);
+	t4_register_fw_msg_handler(FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 }
 
 void
@@ -310,17 +421,6 @@ t4_sge_extfree_refs(void)
 	refs = counter_u64_fetch(extfree_refs);
 
 	return (refs - rels);
-}
-
-void
-t4_init_sge_cpl_handlers(struct adapter *sc)
-{
-
-	t4_register_cpl_handler(sc, CPL_FW4_MSG, handle_fw_msg);
-	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_msg);
-	t4_register_cpl_handler(sc, CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
-	t4_register_cpl_handler(sc, CPL_RX_PKT, t4_eth_rx);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 }
 
 static inline void
@@ -1316,7 +1416,7 @@ service_iq(struct sge_iq *iq, int budget)
 				KASSERT(d->rss.opcode < NUM_CPL_CMDS,
 				    ("%s: bad opcode %02x.", __func__,
 				    d->rss.opcode));
-				sc->cpl_handler[d->rss.opcode](iq, &d->rss, m0);
+				t4_cpl_handler[d->rss.opcode](iq, &d->rss, m0);
 				break;
 
 			case X_RSPD_TYPE_INTR:
@@ -1338,7 +1438,7 @@ service_iq(struct sge_iq *iq, int budget)
 				 * iWARP async notification.
 				 */
 				if (lq >= 1024) {
-                                        sc->an_handler(iq, &d->rsp);
+                                        t4_an_handler(iq, &d->rsp);
                                         break;
                                 }
 
@@ -2789,6 +2889,8 @@ alloc_fwq(struct adapter *sc)
 	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE);
 	fwq->flags |= IQ_INTR;	/* always */
 	intr_idx = sc->intr_count > 1 ? 1 : 0;
+	fwq->set_tcb_rpl = t4_filter_rpl;
+	fwq->l2t_write_rpl = do_l2t_write_rpl;
 	rc = alloc_iq_fl(&sc->port[0]->vi[0], fwq, NULL, intr_idx, -1);
 	if (rc != 0) {
 		device_printf(sc->dev,
@@ -4674,10 +4776,10 @@ handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		const struct rss_header *rss2;
 
 		rss2 = (const struct rss_header *)&cpl->data[0];
-		return (sc->cpl_handler[rss2->opcode](iq, rss2, m));
+		return (t4_cpl_handler[rss2->opcode](iq, rss2, m));
 	}
 
-	return (sc->fw_msg_handler[cpl->type](sc, &cpl->data[0]));
+	return (t4_fw_msg_handler[cpl->type](sc, &cpl->data[0]));
 }
 
 static int

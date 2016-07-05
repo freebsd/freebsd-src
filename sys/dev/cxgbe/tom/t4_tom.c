@@ -381,8 +381,9 @@ t4_ctloutput(struct toedev *tod, struct tcpcb *tp, int dir, int name)
 
 	switch (name) {
 	case TCP_NODELAY:
-		t4_set_tcb_field(sc, toep, 1, W_TCB_T_FLAGS, V_TF_NAGLE(1),
-		    V_TF_NAGLE(tp->t_flags & TF_NODELAY ? 0 : 1));
+		t4_set_tcb_field(sc, toep->ctrlq, toep->tid, W_TCB_T_FLAGS,
+		    V_TF_NAGLE(1), V_TF_NAGLE(tp->t_flags & TF_NODELAY ? 0 : 1),
+		    0, 0, toep->ofld_rxq->iq.abs_id);
 		break;
 	default:
 		break;
@@ -930,8 +931,6 @@ free_tom_data(struct adapter *sc, struct tom_data *td)
 	KASSERT(td->lctx_count == 0,
 	    ("%s: lctx hash table is not empty.", __func__));
 
-	t4_uninit_l2t_cpl_handlers(sc);
-	t4_uninit_cpl_io_handlers(sc);
 	t4_uninit_ddp(sc, td);
 	destroy_clip_table(sc, td);
 
@@ -997,7 +996,8 @@ t4_tom_activate(struct adapter *sc)
 	struct tom_data *td;
 	struct toedev *tod;
 	struct vi_info *vi;
-	int i, rc, v;
+	struct sge_ofld_rxq *ofld_rxq;
+	int i, j, rc, v;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
@@ -1031,12 +1031,6 @@ t4_tom_activate(struct adapter *sc)
 	/* CLIP table for IPv6 offload */
 	init_clip_table(sc, td);
 
-	/* CPL handlers */
-	t4_init_connect_cpl_handlers(sc);
-	t4_init_l2t_cpl_handlers(sc);
-	t4_init_listen_cpl_handlers(sc);
-	t4_init_cpl_io_handlers(sc);
-
 	/* toedev ops */
 	tod = &td->tod;
 	init_toedev(tod);
@@ -1059,6 +1053,10 @@ t4_tom_activate(struct adapter *sc)
 	for_each_port(sc, i) {
 		for_each_vi(sc->port[i], v, vi) {
 			TOEDEV(vi->ifp) = &td->tod;
+			for_each_ofld_rxq(vi, j, ofld_rxq) {
+				ofld_rxq->iq.set_tcb_rpl = do_set_tcb_rpl;
+				ofld_rxq->iq.l2t_write_rpl = do_l2t_write_rpl2;
+			}
 		}
 	}
 
@@ -1126,6 +1124,11 @@ t4_tom_mod_load(void)
 {
 	int rc;
 	struct protosw *tcp_protosw, *tcp6_protosw;
+
+	/* CPL handlers */
+	t4_init_connect_cpl_handlers();
+	t4_init_listen_cpl_handlers();
+	t4_init_cpl_io_handlers();
 
 	rc = t4_ddp_mod_load();
 	if (rc != 0)
