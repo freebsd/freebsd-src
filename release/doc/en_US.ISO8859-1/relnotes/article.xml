@@ -182,12 +182,6 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para revision="258838" contrib="sponsor" sponsor="&ff;,
-	&google;" sponsorurl="">The &man.casperd.8; daemon has been
-	added, which provides access to functionality that is not
-	available in the <quote>capability mode</quote>
-	sandbox.</para>
-
       <para revision="260594">When unable to load a kernel module with
 	&man.kldload.8;, a message informing to view output of
 	&man.dmesg.8; is now printed, opposed to the previous output
