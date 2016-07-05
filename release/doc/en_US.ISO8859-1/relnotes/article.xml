@@ -1413,6 +1413,9 @@
 	updated to support <literal>DSM TRIM</literal> commands for
 	virtual <acronym>AHCI</acronym> disks.</para>
 
+      <para revision="302332">Native graphics support has been added to
+	the &man.bhyve.8; hypervisor.</para>
+
       <para revision="281439" arch="arm">Support for the
 	<application>QEMU</application> <literal>virt</literal> system
 	has been added.</para>
