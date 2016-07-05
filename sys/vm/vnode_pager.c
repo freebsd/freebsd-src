@@ -169,10 +169,21 @@ vnode_destroy_vobject(struct vnode *vp)
 		/*
 		 * don't double-terminate the object
 		 */
-		if ((obj->flags & OBJ_DEAD) == 0)
+		if ((obj->flags & OBJ_DEAD) == 0) {
 			vm_object_terminate(obj);
-		else
+		} else {
+			/*
+			 * Waiters were already handled during object
+			 * termination.  The exclusive vnode lock hopefully
+			 * prevented new waiters from referencing the dying
+			 * object.
+			 */
+			KASSERT((obj->flags & OBJ_DISCONNECTWNT) == 0,
+			    ("OBJ_DISCONNECTWNT set obj %p flags %x",
+			    obj, obj->flags));
+			vp->v_object = NULL;
 			VM_OBJECT_WUNLOCK(obj);
+		}
 	} else {
 		/*
 		 * Woe to the process that tries to page now :-).
@@ -180,7 +191,7 @@ vnode_destroy_vobject(struct vnode *vp)
 		vm_pager_deallocate(obj);
 		VM_OBJECT_WUNLOCK(obj);
 	}
-	vp->v_object = NULL;
+	KASSERT(vp->v_object == NULL, ("vp %p obj %p", vp, vp->v_object));
 }
 
 
