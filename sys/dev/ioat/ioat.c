@@ -61,8 +61,8 @@ __FBSDID("$FreeBSD$");
 #ifndef	BUS_SPACE_MAXADDR_40BIT
 #define	BUS_SPACE_MAXADDR_40BIT	0xFFFFFFFFFFULL
 #endif
-#define	IOAT_INTR_TIMO	(hz / 10)
 #define	IOAT_REFLK	(&ioat->submit_lock)
+#define	IOAT_SHRINK_PERIOD	(10 * hz)
 
 static int ioat_probe(device_t device);
 static int ioat_attach(device_t device);
@@ -96,7 +96,8 @@ static int ring_grow(struct ioat_softc *, uint32_t oldorder,
 static int ring_shrink(struct ioat_softc *, uint32_t oldorder,
     struct ioat_descriptor **);
 static void ioat_halted_debug(struct ioat_softc *, uint32_t);
-static void ioat_timer_callback(void *arg);
+static void ioat_poll_timer_callback(void *arg);
+static void ioat_shrink_timer_callback(void *arg);
 static void dump_descriptor(void *hw_desc);
 static void ioat_submit_single(struct ioat_softc *ioat);
 static void ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg,
@@ -332,7 +333,8 @@ ioat_detach(device_t device)
 	mtx_unlock(IOAT_REFLK);
 
 	ioat_teardown_intr(ioat);
-	callout_drain(&ioat->timer);
+	callout_drain(&ioat->poll_timer);
+	callout_drain(&ioat->shrink_timer);
 
 	pci_disable_busmaster(device);
 
@@ -428,7 +430,8 @@ ioat3_attach(device_t device)
 
 	mtx_init(&ioat->submit_lock, "ioat_submit", NULL, MTX_DEF);
 	mtx_init(&ioat->cleanup_lock, "ioat_cleanup", NULL, MTX_DEF);
-	callout_init(&ioat->timer, 1);
+	callout_init(&ioat->poll_timer, 1);
+	callout_init(&ioat->shrink_timer, 1);
 	TASK_INIT(&ioat->reset_task, 0, ioat_reset_hw_task, ioat);
 
 	/* Establish lock order for Witness */
@@ -634,6 +637,7 @@ ioat_process_events(struct ioat_softc *ioat)
 	struct bus_dmadesc *dmadesc;
 	uint64_t comp_update, status;
 	uint32_t completed, chanerr;
+	boolean_t pending;
 	int error;
 
 	mtx_lock(&ioat->cleanup_lock);
@@ -668,18 +672,32 @@ ioat_process_events(struct ioat_softc *ioat)
 	}
 
 	ioat->last_seen = desc->hw_desc_bus_addr;
-
-	if (ioat->head == ioat->tail) {
-		ioat->is_completion_pending = FALSE;
-		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
-		    ioat_timer_callback, ioat);
-	}
-
 	ioat->stats.descriptors_processed += completed;
 
 out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
+
+	/* Perform a racy check first; only take the locks if it passes. */
+	pending = (ioat_get_active(ioat) != 0);
+	if (!pending && ioat->is_completion_pending) {
+		mtx_unlock(&ioat->cleanup_lock);
+		mtx_lock(&ioat->submit_lock);
+		mtx_lock(&ioat->cleanup_lock);
+
+		pending = (ioat_get_active(ioat) != 0);
+		if (!pending && ioat->is_completion_pending) {
+			ioat->is_completion_pending = FALSE;
+			callout_reset(&ioat->shrink_timer, IOAT_SHRINK_PERIOD,
+			    ioat_shrink_timer_callback, ioat);
+			callout_stop(&ioat->poll_timer);
+		}
+		mtx_unlock(&ioat->submit_lock);
+	}
 	mtx_unlock(&ioat->cleanup_lock);
+
+	if (pending)
+		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
+		    ioat);
 
 	if (completed != 0) {
 		ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
@@ -1602,7 +1620,18 @@ ioat_halted_debug(struct ioat_softc *ioat, uint32_t chanerr)
 }
 
 static void
-ioat_timer_callback(void *arg)
+ioat_poll_timer_callback(void *arg)
+{
+	struct ioat_softc *ioat;
+
+	ioat = arg;
+	ioat_log_message(3, "%s\n", __func__);
+
+	ioat_process_events(ioat);
+}
+
+static void
+ioat_shrink_timer_callback(void *arg)
 {
 	struct ioat_descriptor **newring;
 	struct ioat_softc *ioat;
@@ -1610,11 +1639,6 @@ ioat_timer_callback(void *arg)
 
 	ioat = arg;
 	ioat_log_message(1, "%s\n", __func__);
-
-	if (ioat->is_completion_pending) {
-		ioat_process_events(ioat);
-		return;
-	}
 
 	/* Slowly scale the ring down if idle. */
 	mtx_lock(&ioat->submit_lock);
@@ -1641,8 +1665,8 @@ ioat_timer_callback(void *arg)
 
 out:
 	if (ioat->ring_size_order > IOAT_MIN_ORDER)
-		callout_reset(&ioat->timer, 10 * hz,
-		    ioat_timer_callback, ioat);
+		callout_reset(&ioat->poll_timer, IOAT_SHRINK_PERIOD,
+		    ioat_shrink_timer_callback, ioat);
 }
 
 /*
@@ -1658,8 +1682,9 @@ ioat_submit_single(struct ioat_softc *ioat)
 
 	if (!ioat->is_completion_pending) {
 		ioat->is_completion_pending = TRUE;
-		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
-		    ioat_timer_callback, ioat);
+		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
+		    ioat);
+		callout_stop(&ioat->shrink_timer);
 	}
 
 	ioat->stats.descriptors_submitted++;
@@ -2126,12 +2151,19 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	db_printf(" cached_intrdelay: %u\n", sc->cached_intrdelay);
 	db_printf(" *comp_update: 0x%jx\n", (uintmax_t)*sc->comp_update);
 
-	db_printf(" timer:\n");
-	db_printf("  c_time: %ju\n", (uintmax_t)sc->timer.c_time);
-	db_printf("  c_arg: %p\n", sc->timer.c_arg);
-	db_printf("  c_func: %p\n", sc->timer.c_func);
-	db_printf("  c_lock: %p\n", sc->timer.c_lock);
-	db_printf("  c_flags: 0x%x\n", (unsigned)sc->timer.c_flags);
+	db_printf(" poll_timer:\n");
+	db_printf("  c_time: %ju\n", (uintmax_t)sc->poll_timer.c_time);
+	db_printf("  c_arg: %p\n", sc->poll_timer.c_arg);
+	db_printf("  c_func: %p\n", sc->poll_timer.c_func);
+	db_printf("  c_lock: %p\n", sc->poll_timer.c_lock);
+	db_printf("  c_flags: 0x%x\n", (unsigned)sc->poll_timer.c_flags);
+
+	db_printf(" shrink_timer:\n");
+	db_printf("  c_time: %ju\n", (uintmax_t)sc->shrink_timer.c_time);
+	db_printf("  c_arg: %p\n", sc->shrink_timer.c_arg);
+	db_printf("  c_func: %p\n", sc->shrink_timer.c_func);
+	db_printf("  c_lock: %p\n", sc->shrink_timer.c_lock);
+	db_printf("  c_flags: 0x%x\n", (unsigned)sc->shrink_timer.c_flags);
 
 	db_printf(" quiescing: %d\n", (int)sc->quiescing);
 	db_printf(" destroying: %d\n", (int)sc->destroying);
