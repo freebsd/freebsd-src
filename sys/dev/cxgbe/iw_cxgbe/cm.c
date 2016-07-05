@@ -2463,27 +2463,13 @@ static int terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbu
 	return 0;
 }
 
-	void
-c4iw_cm_init_cpl(struct adapter *sc)
-{
-
-	t4_register_cpl_handler(sc, CPL_RDMA_TERMINATE, terminate);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_WR_RPL, fw6_wr_rpl);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_CQE, fw6_cqe_handler);
-	t4_register_an_handler(sc, c4iw_ev_handler);
-}
-
-	void
-c4iw_cm_term_cpl(struct adapter *sc)
-{
-
-	t4_register_cpl_handler(sc, CPL_RDMA_TERMINATE, NULL);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_WR_RPL, NULL);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_CQE, NULL);
-}
-
 int __init c4iw_cm_init(void)
 {
+
+	t4_register_cpl_handler(CPL_RDMA_TERMINATE, terminate);
+	t4_register_fw_msg_handler(FW6_TYPE_WR_RPL, fw6_wr_rpl);
+	t4_register_fw_msg_handler(FW6_TYPE_CQE, fw6_cqe_handler);
+	t4_register_an_handler(c4iw_ev_handler);
 
 	TAILQ_INIT(&req_list);
 	spin_lock_init(&req_lock);
@@ -2496,7 +2482,6 @@ int __init c4iw_cm_init(void)
 	if (!c4iw_taskq)
 		return -ENOMEM;
 
-
 	return 0;
 }
 
@@ -2506,5 +2491,10 @@ void __exit c4iw_cm_term(void)
 	WARN_ON(!list_empty(&timeout_list));
 	flush_workqueue(c4iw_taskq);
 	destroy_workqueue(c4iw_taskq);
+
+	t4_register_cpl_handler(CPL_RDMA_TERMINATE, NULL);
+	t4_register_fw_msg_handler(FW6_TYPE_WR_RPL, NULL);
+	t4_register_fw_msg_handler(FW6_TYPE_CQE, NULL);
+	t4_register_an_handler(NULL);
 }
 #endif
