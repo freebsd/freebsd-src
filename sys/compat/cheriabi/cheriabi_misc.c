@@ -1835,19 +1835,20 @@ cheriabi_mmap_prot2perms(int prot)
 	return (perms);
 }
 
-void
+int
 cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
    struct chericap *addr, size_t len, int prot, int flags)
 {
 	register_t perms, ret;
-	size_t addr_base;
+	size_t addr_base, mmap_cap_base, mmap_cap_len;
 
 	ret = td->td_retval[0];
 	/* On failure, return a NULL capability with an offset of -1. */
 	if ((void *)ret == MAP_FAILED) {
+		/* XXX-BD: the return of -1 is in userspace, not here. */
 		cheri_capability_set_null(retcap);
 		cheri_capability_setoffset(retcap, (register_t)-1);
-		return;
+		return (0);
 	}
 
 	/*
@@ -1859,7 +1860,7 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	 */
 	if (flags & MAP_CHERI_NOSETBOUNDS) {
 		cheri_capability_copy(retcap, addr);
-		return;
+		return (0);
 	}
 
 	if (flags & MAP_FIXED) {
@@ -1897,11 +1898,19 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		 * XXX-BD: Once we provide a way to change it, we need to make
 		 * sure we fit within the mmap cap.
 		 */
+		CHERI_CGETBASE(mmap_cap_base, CHERI_CR_CTEMP0);
+		CHERI_CGETLEN(mmap_cap_len, CHERI_CR_CTEMP0);
+		if (ret < mmap_cap_base ||
+		    ret + len > mmap_cap_base + mmap_cap_len) {
+			return (EPERM);
+		}
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    ret);
+		    ret - mmap_cap_base);
 		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    roundup2(len, PAGE_SIZE));
 
 	}
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, retcap, 0);
+
+	return (0);
 }

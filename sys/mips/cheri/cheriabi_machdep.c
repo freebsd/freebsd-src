@@ -411,8 +411,15 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 
 		switch (code) {
 		case CHERIABI_SYS_cheriabi_mmap:
-			cheriabi_mmap_set_retcap(td, &locr0->c3,
-			&locr0->c3, locr0->a0, locr0->a1, locr0->a2);
+			error = cheriabi_mmap_set_retcap(td, &locr0->c3,
+			    &locr0->c3, locr0->a0, locr0->a1, locr0->a2);
+			if (error == 0) {
+				locr0->v0 = 0;
+				locr0->a3 = 0;
+			} else {
+				locr0->v0 = error;
+				locr0->a3 = 1;
+			}
 			break;
 
 		default:
