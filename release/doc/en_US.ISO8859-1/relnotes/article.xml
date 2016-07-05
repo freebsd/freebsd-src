@@ -1570,6 +1570,10 @@
 	&man.diskinfo.8; and the names of <filename>/dev/diskid/DISK-*</filename>
 	device nodes, among other things.</para>
 
+      <para revision="300207" contrib="sponsor" sponsor="&spectralogic;">
+	Support for managing Shingled Magnetic Recording (SMR) drives
+	has been added.</para>
+
     </sect2>
 
     <sect2 xml:id="storage-net">
