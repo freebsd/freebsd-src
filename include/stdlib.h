@@ -172,8 +172,7 @@ char	*realpath(const char * __restrict, char * __restrict);
 int	 rand_r(unsigned *);			/* (TSF) */
 #endif
 #if __POSIX_VISIBLE >= 200112
-int	 posix_memalign(void **, size_t, size_t) __nonnull(1) __alloc_align(2)
-	    __alloc_size(3);			/* (ADV) */
+int	 posix_memalign(void **, size_t, size_t) __nonnull(1); /* (ADV) */
 int	 setenv(const char *, const char *, int);
 int	 unsetenv(const char *);
 #endif
