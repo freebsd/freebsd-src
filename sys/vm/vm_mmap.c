@@ -442,8 +442,9 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_SYSERRCAUSE))
 				ktrsyserrcause("%s: addr (%p) + size "
-				    "(0x%zx) is > 0x%zx", __func__,
-				    (void *)addr, size, MAP_32BIT_MAX_ADDR);
+				    "(0x%zx) is > 0x%zx (MAP_32BIT_MAX_ADDR)",
+				    __func__, (void *)addr, size,
+				    MAP_32BIT_MAX_ADDR);
 #endif
 			return (EINVAL);
 		}
