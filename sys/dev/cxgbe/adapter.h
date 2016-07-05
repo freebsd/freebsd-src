@@ -372,6 +372,13 @@ enum {
 	NM_BUSY	= 2,
 };
 
+struct sge_iq;
+struct rss_header;
+typedef int (*cpl_handler_t)(struct sge_iq *, const struct rss_header *,
+    struct mbuf *);
+typedef int (*an_handler_t)(struct sge_iq *, const struct rsp_ctrl *);
+typedef int (*fw_msg_handler_t)(struct adapter *, const __be64 *);
+
 /*
  * Ingress Queue: T4 is producer, driver is consumer.
  */
@@ -379,6 +386,8 @@ struct sge_iq {
 	uint32_t flags;
 	volatile int state;
 	struct adapter *adapter;
+	cpl_handler_t set_tcb_rpl;
+	cpl_handler_t l2t_write_rpl;
 	struct iq_desc  *desc;	/* KVA of descriptor ring */
 	int8_t   intr_pktc_idx;	/* packet count threshold index */
 	uint8_t  gen;		/* generation bit */
@@ -739,12 +748,6 @@ struct sge {
 	struct hw_buf_info hw_buf_info[SGE_FLBUF_SIZES];
 };
 
-struct rss_header;
-typedef int (*cpl_handler_t)(struct sge_iq *, const struct rss_header *,
-    struct mbuf *);
-typedef int (*an_handler_t)(struct sge_iq *, const struct rsp_ctrl *);
-typedef int (*fw_msg_handler_t)(struct adapter *, const __be64 *);
-
 struct adapter {
 	SLIST_ENTRY(adapter) link;
 	device_t dev;
@@ -783,6 +786,7 @@ struct adapter {
 
 	struct sge sge;
 	int lro_timeout;
+	int sc_do_rxcopy;
 
 	struct taskqueue *tq[MAX_NCHAN];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
@@ -842,15 +846,9 @@ struct adapter {
 
 	struct memwin memwin[NUM_MEMWIN];	/* memory windows */
 
-	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	fw_msg_handler_t fw_msg_handler[7];	/* NUM_FW6_TYPES */
-	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
-
 	const char *last_op;
 	const void *last_op_thr;
 	int last_op_flags;
-
-	int sc_do_rxcopy;
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
@@ -1080,9 +1078,6 @@ int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
-int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
-int t4_register_an_handler(struct adapter *, an_handler_t);
-int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 int begin_synchronized_op(struct adapter *, struct vi_info *, int, char *);
 void doom_vi(struct adapter *, struct vi_info *);
@@ -1107,7 +1102,6 @@ void t4_nm_intr(void *);
 void t4_sge_modload(void);
 void t4_sge_modunload(void);
 uint64_t t4_sge_extfree_refs(void);
-void t4_init_sge_cpl_handlers(struct adapter *);
 void t4_tweak_chip_settings(struct adapter *);
 int t4_read_chip_settings(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
@@ -1129,6 +1123,9 @@ int parse_pkt(struct mbuf **);
 void *start_wrq_wr(struct sge_wrq *, int, struct wrq_cookie *);
 void commit_wrq_wr(struct sge_wrq *, void *, struct wrq_cookie *);
 int tnl_cong(struct port_info *, int);
+int t4_register_an_handler(an_handler_t);
+int t4_register_fw_msg_handler(int, fw_msg_handler_t);
+int t4_register_cpl_handler(int, cpl_handler_t);
 
 /* t4_tracer.c */
 struct t4_tracer;
