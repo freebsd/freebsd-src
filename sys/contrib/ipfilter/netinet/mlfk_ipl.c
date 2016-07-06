@@ -291,13 +291,14 @@ vnet_ipf_uninit(void)
 		return;
 
 	if (V_ipfmain.ipf_running >= 0) {
+
 		if (ipfdetach(&V_ipfmain) != 0)
 			return;
 
+		V_ipfmain.ipf_running = -2;
+
 		ipf_destroy_all(&V_ipfmain);
 	}
-
-	V_ipfmain.ipf_running = -2;
 }
 VNET_SYSUNINIT(vnet_ipf_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
     vnet_ipf_uninit, NULL);
