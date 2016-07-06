@@ -230,9 +230,9 @@ void sati_passthrough_construct_sense(
 
    // Command specific section
    sati_set_sense_data_byte(sense_data, sense_len, 8,  (PASSTHROUGH_CDB_EXTEND(cdb) << 7) | (sector_count_upper << 6) | (lba_upper << 5));
-   sati_set_sense_data_byte(sense_data, sense_len, 9,  sati_get_ata_lba_high(register_fis));
+   sati_set_sense_data_byte(sense_data, sense_len, 9,  sati_get_ata_lba_low(register_fis));
    sati_set_sense_data_byte(sense_data, sense_len, 10, sati_get_ata_lba_mid(register_fis));
-   sati_set_sense_data_byte(sense_data, sense_len, 11, sati_get_ata_lba_low(register_fis));
+   sati_set_sense_data_byte(sense_data, sense_len, 11, sati_get_ata_lba_high(register_fis));
 
    sequence->is_sense_response_set = TRUE;
 }
