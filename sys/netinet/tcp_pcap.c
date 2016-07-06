@@ -42,9 +42,13 @@
 #define M_LEADINGSPACE_NOWRITE(m)					\
 	((m)->m_data - M_START(m))
 
+int tcp_pcap_aggressive_free = 1;
 static int tcp_pcap_clusters_referenced_cur = 0;
 static int tcp_pcap_clusters_referenced_max = 0;
 
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_pcap_aggressive_free,
+	CTLFLAG_RW, &tcp_pcap_aggressive_free, 0,
+	"Free saved packets when the memory system comes under pressure");
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_pcap_clusters_referenced_cur,
 	CTLFLAG_RD, &tcp_pcap_clusters_referenced_cur, 0,
 	"Number of clusters currently referenced on TCP PCAP queues");

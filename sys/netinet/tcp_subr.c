@@ -1605,6 +1605,13 @@ tcp_drain(void)
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				tcp_reass_flush(tcpb);
 				tcp_clean_sackreport(tcpb);
+#ifdef TCPPCAP
+				if (tcp_pcap_aggressive_free) {
+					/* Free the TCP PCAP queues. */
+					tcp_pcap_drain(&(tcpb->t_inpkts));
+					tcp_pcap_drain(&(tcpb->t_outpkts));
+				}
+#endif
 			}
 			INP_WUNLOCK(inpb);
 		}

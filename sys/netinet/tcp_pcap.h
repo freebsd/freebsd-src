@@ -36,4 +36,6 @@ void tcp_pcap_tcpcb_init(struct tcpcb *tp);
 void tcp_pcap_set_sock_max(struct mbufq *queue, int newval);
 int tcp_pcap_get_sock_max(struct mbufq *queue);
 
+extern int tcp_pcap_aggressive_free;
+
 #endif /* _NETINET_TCP_PCAP_H_ */
