@@ -1717,19 +1717,25 @@ static void
 ahci_handle_slot(struct ahci_port *p, int slot)
 {
 	struct ahci_cmd_hdr *hdr;
+#ifdef AHCI_DEBUG
 	struct ahci_prdt_entry *prdt;
+#endif
 	struct pci_ahci_softc *sc;
 	uint8_t *cfis;
+#ifdef AHCI_DEBUG
 	int cfl;
+#endif
 
 	sc = p->pr_sc;
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
+#ifdef AHCI_DEBUG
 	cfl = (hdr->flags & 0x1f) * 4;
+#endif
 	cfis = paddr_guest2host(ahci_ctx(sc), hdr->ctba,
 			0x80 + hdr->prdtl * sizeof(struct ahci_prdt_entry));
+#ifdef AHCI_DEBUG
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 
-#ifdef AHCI_DEBUG
 	DPRINTF("\ncfis:");
 	for (i = 0; i < cfl; i++) {
 		if (i % 10 == 0)
