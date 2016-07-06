@@ -93,15 +93,6 @@ fifo_reset(struct ps2kbd_softc *sc)
 	fifo->size = sizeof(((struct fifo *)0)->buf);
 }
 
-static int
-fifo_available(struct ps2kbd_softc *sc)
-{
-	struct fifo *fifo;
-
-	fifo = &sc->fifo;
-	return (fifo->num < fifo->size);
-}
-
 static void
 fifo_put(struct ps2kbd_softc *sc, uint8_t val)
 {
