@@ -1217,6 +1217,10 @@ union ccb {
 	struct	ccb_async		casync;
 };
 
+#define CCB_CLEAR_ALL_EXCEPT_HDR(ccbp)			\
+	bzero((char *)(ccbp) + sizeof((ccbp)->ccb_h),	\
+	    sizeof(*(ccbp)) - sizeof((ccbp)->ccb_h))
+
 __BEGIN_DECLS
 static __inline void
 cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,

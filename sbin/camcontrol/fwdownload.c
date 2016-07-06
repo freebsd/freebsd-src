@@ -459,8 +459,7 @@ fw_validate_ibm(struct cam_device *dev, int retry_count, int timeout, int fd,
 	}
 
 	/* cam_getccb cleans up the header, caller has to zero the payload */
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	bzero(&vpd_page, sizeof(vpd_page));
 
@@ -666,8 +665,7 @@ fw_check_device_ready(struct cam_device *dev, camcontrol_devtype devtype,
 		goto bailout;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	if (devtype != CC_DT_SCSI) {
 		dxfer_len = sizeof(struct ata_params);
@@ -789,8 +787,7 @@ fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
 		goto bailout;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	max_pkt_size = vp->max_pkt_size;
 	if (max_pkt_size == 0)
@@ -821,8 +818,7 @@ fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
 					       vp->cdb_byte2;
 			cdb.buffer_id = vp->inc_cdb_buffer_id ? pkt_count : 0;
 			/* Zero out payload of ccb union after ccb header. */
-			bzero(&(&ccb->ccb_h)[1],
-			    sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+			CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 			/*
 			 * Copy previously constructed cdb into ccb_scsiio
 			 * struct.
