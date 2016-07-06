@@ -297,9 +297,6 @@ static void *
 umouse_init(struct usb_hci *hci, char *opt)
 {
 	struct umouse_softc *sc;
-	char *mopt;
-
-	mopt = opt;
 
 	sc = calloc(1, sizeof(struct umouse_softc));
 	sc->hci = hci;
