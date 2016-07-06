@@ -739,6 +739,7 @@ flowtable_lookup_common(struct flowtable *ft, uint32_t *key, int keylen,
 static void
 flowtable_alloc(struct flowtable *ft)
 {
+	int i;
 
 	ft->ft_table = malloc(ft->ft_size * sizeof(struct flist),
 	    M_FTABLE, M_WAITOK);
