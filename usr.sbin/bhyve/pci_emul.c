@@ -31,9 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
-#include <sys/errno.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -754,16 +754,6 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 
 	return (err);
 }
-
-#ifdef __GNU_C__
-#define	WRAPPED_CTASSERT(x)	CTASSERT(x) __unused
-#else
-#define	WRAPPED_CTASSERT(x)	CTASSERT(x)
-#endif
-
-WRAPPED_CTASSERT(sizeof(struct msicap) == 14);
-WRAPPED_CTASSERT(sizeof(struct msixcap) == 12);
-WRAPPED_CTASSERT(sizeof(struct pciecap) == 60);
 
 void
 pci_populate_msicap(struct msicap *msicap, int msgnum, int nextptr)
