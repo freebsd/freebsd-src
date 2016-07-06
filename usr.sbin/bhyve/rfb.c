@@ -28,12 +28,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/select.h>
 #include <sys/param.h>
-#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
+#include <machine/cpufunc.h>
+#include <machine/specialreg.h>
+#include <netinet/in.h>
 
 #include <assert.h>
 #include <pthread.h>
@@ -46,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include <zlib.h>
-#include <cpuid.h>
 
 #include "bhyvegc.h"
 #include "console.h"
@@ -177,7 +178,6 @@ rfb_send_server_init_msg(int cfd)
 {
 	struct bhyvegc_image *gc_image;
 	struct rfb_srvr_info sinfo;
-	int len;
 
 	gc_image = console_get_image();
 
@@ -194,8 +194,8 @@ rfb_send_server_init_msg(int cfd)
 	sinfo.pixfmt.green_shift = 8;
 	sinfo.pixfmt.blue_shift = 0;
 	sinfo.namelen = htonl(strlen("bhyve"));
-	len = stream_write(cfd, &sinfo, sizeof(sinfo));
-	len = stream_write(cfd, "bhyve", strlen("bhyve"));
+	(void)stream_write(cfd, &sinfo, sizeof(sinfo));
+	(void)stream_write(cfd, "bhyve", strlen("bhyve"));
 }
 
 static void
@@ -223,9 +223,8 @@ static void
 rfb_recv_set_pixfmt_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_pixfmt_msg pixfmt_msg;
-	int len;
 
-	len = stream_read(cfd, ((void *)&pixfmt_msg)+1, sizeof(pixfmt_msg)-1);
+	(void)stream_read(cfd, ((void *)&pixfmt_msg)+1, sizeof(pixfmt_msg)-1);
 }
 
 
@@ -233,14 +232,14 @@ static void
 rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_enc_msg enc_msg;
-	int len, i;
+	int i;
 	uint32_t encoding;
 
 	assert((sizeof(enc_msg) - 1) == 3);
-	len = stream_read(cfd, ((void *)&enc_msg)+1, sizeof(enc_msg)-1);
+	(void)stream_read(cfd, ((void *)&enc_msg)+1, sizeof(enc_msg)-1);
 
 	for (i = 0; i < htons(enc_msg.numencs); i++) {
-		len = stream_read(cfd, &encoding, sizeof(encoding));
+		(void)stream_read(cfd, &encoding, sizeof(encoding));
 		switch (htonl(encoding)) {
 		case RFB_ENCODING_RAW:
 			rc->enc_raw_ok = true;
@@ -254,27 +253,6 @@ rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
 			break;
 		}
 	}
-}
-
-static void
-rfb_resize_update(struct rfb_softc *rc, int fd)
-{
-	struct rfb_srvr_updt_msg supdt_msg;
-        struct rfb_srvr_rect_hdr srect_hdr;
-
-	/* Number of rectangles: 1 */
-	supdt_msg.type = 0;
-	supdt_msg.pad = 0;
-	supdt_msg.numrects = htons(1);
-	stream_write(fd, &supdt_msg, sizeof(struct rfb_srvr_updt_msg));
-
-	/* Rectangle header */
-	srect_hdr.x = htons(0);
-	srect_hdr.y = htons(0);
-	srect_hdr.width = htons(rc->width);
-	srect_hdr.height = htons(rc->height);
-	srect_hdr.encoding = htonl(RFB_ENCODING_RESIZE);
-	stream_write(fd, &srect_hdr, sizeof(struct rfb_srvr_rect_hdr));
 }
 
 /*
@@ -636,9 +614,8 @@ rfb_recv_update_msg(struct rfb_softc *rc, int cfd, int discardonly)
 {
 	struct rfb_updt_msg updt_msg;
 	struct bhyvegc_image *gc_image;
-	int len;
 
-	len = stream_read(cfd, ((void *)&updt_msg) + 1 , sizeof(updt_msg) - 1);
+	(void)stream_read(cfd, ((void *)&updt_msg) + 1 , sizeof(updt_msg) - 1);
 
 	console_refresh();
 	gc_image = console_get_image();
@@ -666,9 +643,8 @@ static void
 rfb_recv_key_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_key_msg key_msg;
-	int len;
 
-	len = stream_read(cfd, ((void *)&key_msg) + 1, sizeof(key_msg) - 1);
+	(void)stream_read(cfd, ((void *)&key_msg) + 1, sizeof(key_msg) - 1);
 
 	console_key_event(key_msg.down, htonl(key_msg.code));
 }
@@ -677,9 +653,8 @@ static void
 rfb_recv_ptr_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_ptr_msg ptr_msg;
-	int len;
 
-	len = stream_read(cfd, ((void *)&ptr_msg) + 1, sizeof(ptr_msg) - 1);
+	(void)stream_read(cfd, ((void *)&ptr_msg) + 1, sizeof(ptr_msg) - 1);
 
 	console_ptr_event(ptr_msg.button, htons(ptr_msg.x), htons(ptr_msg.y));
 }
@@ -876,13 +851,15 @@ rfb_thr(void *arg)
 }
 
 static int
-sse42_supported()
+sse42_supported(void)
 {
-	unsigned int eax, ebx, ecx, edx;
- 
-	__get_cpuid(1, &eax, &ebx, &ecx, &edx);
- 
-	return ((ecx & bit_SSE42) != 0);
+	u_int cpu_registers[4], ecx;
+
+	do_cpuid(1, cpu_registers);
+
+	ecx = cpu_registers[2];
+
+	return ((ecx & CPUID2_SSE42) != 0);
 }
 
 int
