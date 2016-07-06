@@ -120,7 +120,7 @@ static void
 set_cpu(int cpu, struct thread *td)
 {
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus && cpu_enabled(cpu),
+	KASSERT(cpu >= 0 && cpu <= mp_maxid && cpu_enabled(cpu),
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 	thread_lock(td);
 	sched_bind(td, cpu);
@@ -133,7 +133,7 @@ static void
 restore_cpu(int oldcpu, int is_bound, struct thread *td)
 {
 
-	KASSERT(oldcpu >= 0 && oldcpu < mp_ncpus && cpu_enabled(oldcpu),
+	KASSERT(oldcpu >= 0 && oldcpu <= mp_maxid && cpu_enabled(oldcpu),
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, oldcpu));
 	thread_lock(td);
 	if (is_bound == 0)
@@ -150,7 +150,7 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	int ret;
 	int cpu = dev2unit(dev);
 
-	if (cpu >= mp_ncpus || !cpu_enabled(cpu)) {
+	if (cpu > mp_maxid || !cpu_enabled(cpu)) {
 		DPRINTF("[cpuctl,%d]: bad cpu number %d\n", __LINE__, cpu);
 		return (ENXIO);
 	}
@@ -201,7 +201,7 @@ cpuctl_do_cpuid_count(int cpu, cpuctl_cpuid_count_args_t *data,
 	int is_bound = 0;
 	int oldcpu;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu <= mp_maxid,
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 
 	/* Explicitly clear cpuid data to avoid returning stale info. */
@@ -245,7 +245,7 @@ cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd, struct thread *td)
 	int oldcpu;
 	int ret;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu <= mp_maxid,
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 
 	/*
@@ -296,7 +296,7 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 	char vendor[13];
 	int ret;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu <= mp_maxid,
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 	DPRINTF("[cpuctl,%d]: XXX %d", __LINE__, cpu);
 
@@ -512,7 +512,7 @@ cpuctl_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	int cpu;
 
 	cpu = dev2unit(dev);
-	if (cpu >= mp_ncpus || !cpu_enabled(cpu)) {
+	if (cpu > mp_maxid || !cpu_enabled(cpu)) {
 		DPRINTF("[cpuctl,%d]: incorrect cpu number %d\n", __LINE__,
 		    cpu);
 		return (ENXIO);
@@ -531,15 +531,15 @@ cpuctl_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("cpuctl: access to MSR registers/cpuid info.\n");
-		cpuctl_devs = malloc(sizeof(*cpuctl_devs) * mp_ncpus, M_CPUCTL,
+		cpuctl_devs = malloc(sizeof(*cpuctl_devs) * (mp_maxid + 1), M_CPUCTL,
 		    M_WAITOK | M_ZERO);
-		for (cpu = 0; cpu < mp_ncpus; cpu++)
+		CPU_FOREACH(cpu)
 			if (cpu_enabled(cpu))
 				cpuctl_devs[cpu] = make_dev(&cpuctl_cdevsw, cpu,
 				    UID_ROOT, GID_KMEM, 0640, "cpuctl%d", cpu);
 		break;
 	case MOD_UNLOAD:
-		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		CPU_FOREACH(cpu) {
 			if (cpuctl_devs[cpu] != NULL)
 				destroy_dev(cpuctl_devs[cpu]);
 		}

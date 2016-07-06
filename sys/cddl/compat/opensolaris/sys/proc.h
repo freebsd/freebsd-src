@@ -45,8 +45,8 @@
 #define	CPU		curcpu
 #define	minclsyspri	PRIBIO
 #define	maxclsyspri	PVM
-#define	max_ncpus	mp_ncpus
-#define	boot_max_ncpus	mp_ncpus
+#define	max_ncpus	(mp_maxid + 1)
+#define	boot_max_ncpus	(mp_maxid + 1)
 
 #define	TS_RUN	0
 
