@@ -2991,6 +2991,11 @@ call_sim:
 			xpt_freeze_devq(path, 1);
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
+	case XPT_REPROBE_LUN:
+		xpt_async(AC_INQ_CHANGED, path, NULL);
+		start_ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(start_ccb);
+		break;
 	default:
 	case XPT_SDEV_TYPE:
 	case XPT_TERM_IO:

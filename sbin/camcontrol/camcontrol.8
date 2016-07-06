@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2015
+.Dd April 26, 2016
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -97,6 +97,9 @@
 .Ic eject
 .Op device id
 .Op generic args
+.Nm
+.Ic reprobe
+.Op device id
 .Nm
 .Ic rescan
 .Aq all | bus Ns Op :target:lun
@@ -518,6 +521,12 @@ are not specified).
 Print out the last logical block or the size of the device only, and omit
 the blocksize.
 .El
+.Pp
+Note that this command only displays the information, it does not update
+the kernel data structures.
+Use the
+.Nm 
+reprobe subcommand to do that.
 .It Ic start
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit set.
@@ -539,6 +548,12 @@ The user
 may specify a scan of all busses, a single bus, or a lun.
 Scanning all luns
 on a target is not supported.
+.It Ic reprobe
+Tell the kernel to refresh the information about the device and
+notify the upper layer,
+.Xr GEOM 4 .
+This includes sending the SCSI READ CAPACITY command and updating
+the disk size visible to the rest of the system.
 .It Ic reset
 Tell the kernel to reset all busses in the system (with the
 .Ar all
