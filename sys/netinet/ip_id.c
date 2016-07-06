@@ -275,10 +275,12 @@ ip_fillid(struct ip *ip)
 static void
 ipid_sysinit(void)
 {
+	int i;
 
 	mtx_init(&V_ip_id_mtx, "ip_id_mtx", NULL, MTX_DEF);
 	V_ip_id = counter_u64_alloc(M_WAITOK);
-	for (int i = 0; i < mp_ncpus; i++)
+	
+	CPU_FOREACH(i)
 		arc4rand(zpcpu_get_cpu(V_ip_id, i), sizeof(uint64_t), 0);
 }
 VNET_SYSINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipid_sysinit, NULL);
