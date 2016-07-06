@@ -1758,6 +1758,11 @@ daasync(void *callback_arg, u_int32_t code,
 			ccbh->ccb_state |= DA_CCB_RETRY_UA;
 		break;
 	}
+	case AC_INQ_CHANGED:
+		softc = (struct da_softc *)periph->softc;
+		softc->flags &= ~DA_FLAG_PROBED;
+		dareprobe(periph);
+		break;
 	default:
 		break;
 	}
@@ -2239,8 +2244,8 @@ daregister(struct cam_periph *periph, void *arg)
 	 * would be to not attach the device on failure.
 	 */
 	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE |
-	    AC_ADVINFO_CHANGED | AC_SCSI_AEN | AC_UNIT_ATTENTION,
-	    daasync, periph, periph->path);
+	    AC_ADVINFO_CHANGED | AC_SCSI_AEN | AC_UNIT_ATTENTION |
+	    AC_INQ_CHANGED, daasync, periph, periph->path);
 
 	/*
 	 * Emit an attribute changed notification just in case 

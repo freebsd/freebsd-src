@@ -100,7 +100,8 @@ typedef enum {
 	CAM_CMD_APM		= 0x00000021,
 	CAM_CMD_AAM		= 0x00000022,
 	CAM_CMD_ATTRIB		= 0x00000023,
-	CAM_CMD_OPCODES		= 0x00000024
+	CAM_CMD_OPCODES		= 0x00000024,
+	CAM_CMD_REPROBE		= 0x00000025
 } cam_cmdmask;
 
 typedef enum {
@@ -190,6 +191,7 @@ static struct camcontrol_opts option_table[] = {
 	{"eject", CAM_CMD_STARTSTOP, CAM_ARG_EJECT, NULL},
 	{"reportluns", CAM_CMD_REPORTLUNS, CAM_ARG_NONE, "clr:"},
 	{"readcapacity", CAM_CMD_READCAP, CAM_ARG_NONE, "bhHNqs"},
+	{"reprobe", CAM_CMD_REPROBE, CAM_ARG_NONE, NULL},
 #endif /* MINIMALISTIC */
 	{"rescan", CAM_CMD_RESCAN, CAM_ARG_NONE, NULL},
 	{"reset", CAM_CMD_RESET, CAM_ARG_NONE, NULL},
@@ -328,6 +330,7 @@ static int scsiprintopcodes(struct cam_device *device, int td_req, uint8_t *buf,
 static int scsiopcodes(struct cam_device *device, int argc, char **argv,
 		       char *combinedopt, int retry_count, int timeout,
 		       int verbose);
+static int scsireprobe(struct cam_device *device);
 
 #endif /* MINIMALISTIC */
 #ifndef min
@@ -8662,6 +8665,42 @@ bailout:
 
 #endif /* MINIMALISTIC */
 
+static int
+scsireprobe(struct cam_device *device)
+{
+	union ccb *ccb;
+	int retval = 0;
+
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("%s: error allocating ccb", __func__);
+		return (1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+
+	ccb->ccb_h.func_code = XPT_REPROBE_LUN;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		warn("error sending XPT_REPROBE_LUN CCB");
+		retval = 1;
+		goto bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		cam_error_print(device, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
+		retval = 1;
+		goto bailout;
+	}
+
+bailout:
+	cam_freeccb(ccb);
+
+	return (retval);
+}
+
 void
 usage(int printlong)
 {
@@ -8681,6 +8720,7 @@ usage(int printlong)
 "        camcontrol stop       [dev_id][generic args]\n"
 "        camcontrol load       [dev_id][generic args]\n"
 "        camcontrol eject      [dev_id][generic args]\n"
+"        camcontrol reprobe    [dev_id][generic args]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol rescan     <all | bus[:target:lun]>\n"
 "        camcontrol reset      <all | bus[:target:lun]>\n"
@@ -8753,6 +8793,7 @@ usage(int printlong)
 "stop        send a Stop Unit command to the device\n"
 "load        send a Start Unit command to the device with the load bit set\n"
 "eject       send a Stop Unit command to the device with the eject bit set\n"
+"reprobe     update capacity information of the given device\n"
 "rescan      rescan all busses, the given bus, or bus:target:lun\n"
 "reset       reset all busses, the given bus, or bus:target:lun\n"
 "defects     read the defect list of the specified device\n"
@@ -9298,6 +9339,10 @@ main(int argc, char **argv)
 			error = scsiopcodes(cam_dev, argc, argv, combinedopt,
 			    retry_count, timeout, arglist & CAM_ARG_VERBOSE);
 			break;
+		case CAM_CMD_REPROBE:
+			error = scsireprobe(cam_dev);
+			break;
+
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:
 			usage(1);
