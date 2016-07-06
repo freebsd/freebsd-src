@@ -919,6 +919,12 @@ sysctl_vfs_zfs_arc_max(SYSCTL_HANDLER_ARGS)
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 
+	if (zfs_arc_max == 0) {
+		/* Loader tunable so blindly set */
+		zfs_arc_max = val;
+		return (0);
+	}
+
 	if (val < arc_abs_min || val > kmem_size())
 		return (EINVAL);
 	if (val < arc_c_min)
@@ -955,6 +961,12 @@ sysctl_vfs_zfs_arc_min(SYSCTL_HANDLER_ARGS)
 	err = sysctl_handle_64(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return (err);
+
+	if (zfs_arc_min == 0) {
+		/* Loader tunable so blindly set */
+		zfs_arc_min = val;
+		return (0);
+	}
 
 	if (val < arc_abs_min || val > arc_c_max)
 		return (EINVAL);
