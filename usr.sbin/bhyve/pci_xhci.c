@@ -143,10 +143,10 @@ static int xhci_debug = 0;
 #define	MASK_64_HI(x)			((x) & ~0xFFFFFFFFULL)
 #define	MASK_64_LO(x)			((x) & 0xFFFFFFFFULL)
 
-#define	FIELD_REPLACE(a,b,m,s)		((a) & ~((m) << (s)) | \
-					((b) & (m)) << (s))
-#define	FIELD_COPY(a,b,m,s)		((a) & ~((m) << (s)) | \
-					((b) & ((m) << (s))))
+#define	FIELD_REPLACE(a,b,m,s)		(((a) & ~((m) << (s))) | \
+					(((b) & (m)) << (s)))
+#define	FIELD_COPY(a,b,m,s)		(((a) & ~((m) << (s))) | \
+					(((b) & ((m) << (s)))))
 
 struct pci_xhci_trb_ring {
 	uint64_t ringaddr;		/* current dequeue guest address */
@@ -1700,7 +1700,7 @@ pci_xhci_handle_transfer(struct pci_xhci_softc *sc,
 	struct xhci_trb *setup_trb;
 	struct usb_data_xfer *xfer;
 	struct usb_data_xfer_block *xfer_block;
-	uint64_t	val, setup_addr, status_addr;
+	uint64_t	val;
 	uint32_t	trbflags;
 	int		do_intr, err;
 	int		do_retry;
@@ -1718,8 +1718,6 @@ retry:
 	do_retry = 0;
 	do_intr = 0;
 	setup_trb = NULL;
-	setup_addr = 0;
-	status_addr = 0;
 
 	while (1) {
 		pci_xhci_dump_trb(trb);
@@ -1754,7 +1752,6 @@ retry:
 				goto errout;
 			}
 			setup_trb = trb;
-			setup_addr = addr;
 
 			val = trb->qwTrb0;
 			if (!xfer->ureq)
@@ -1786,7 +1783,6 @@ retry:
 			break;
 
 		case XHCI_TRB_TYPE_STATUS_STAGE:
-			status_addr = addr;
 			xfer_block = usb_data_xfer_append(xfer, NULL, 0,
 			                                  (void *)addr, ccs);
 			break;
@@ -1842,7 +1838,6 @@ retry:
 		err = USB_ERR_NOT_STARTED;
 		if (dev->dev_ue->ue_request != NULL)
 			err = dev->dev_ue->ue_request(dev->dev_sc, xfer);
-		status_addr = 0;
 		setup_trb = NULL;
 	} else {
 		/* handle data transfer */
