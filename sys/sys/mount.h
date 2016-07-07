@@ -312,17 +312,21 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
  * External filesystem command modifier flags.
  * Unmount can use the MNT_FORCE flag.
  * XXX: These are not STATES and really should be somewhere else.
- * XXX: MNT_BYFSID collides with MNT_ACLS, but because MNT_ACLS is only used for
- *      mount(2) and MNT_BYFSID is only used for unmount(2) it's harmless.
+ * XXX: MNT_BYFSID and MNT_NONBUSY collide with MNT_ACLS and MNT_MULTILABEL,
+ *      but because MNT_ACLS and MNT_MULTILABEL are only used for mount(2),
+ *      and MNT_BYFSID and MNT_NONBUSY are only used for unmount(2),
+ *      it's harmless.
  */
 #define	MNT_UPDATE	0x0000000000010000ULL /* not real mount, just update */
 #define	MNT_DELEXPORT	0x0000000000020000ULL /* delete export host lists */
 #define	MNT_RELOAD	0x0000000000040000ULL /* reload filesystem data */
 #define	MNT_FORCE	0x0000000000080000ULL /* force unmount or readonly */
 #define	MNT_SNAPSHOT	0x0000000001000000ULL /* snapshot the filesystem */
+#define	MNT_NONBUSY	0x0000000004000000ULL /* check vnode use counts. */
 #define	MNT_BYFSID	0x0000000008000000ULL /* specify filesystem by ID. */
 #define MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
-			MNT_FORCE	| MNT_SNAPSHOT	| MNT_BYFSID)
+			MNT_FORCE	| MNT_SNAPSHOT	| MNT_NONBUSY	| \
+			MNT_BYFSID)
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
