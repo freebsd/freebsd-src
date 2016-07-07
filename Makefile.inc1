@@ -82,7 +82,7 @@ MK_CROSS_COMPILER=	no
 # Check if there is a local compiler that can satisfy as an external compiler.
 .if ${MK_SYSTEM_COMPILER} == "yes" && ${MK_CROSS_COMPILER} == "yes" && \
     (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
-    !make(showconfig)
+    !make(showconfig) && !make(native-xtools) && !make(xdev*)
 # Which compiler is expected to be used?
 .if ${MK_CLANG_BOOTSTRAP} == "yes"
 _expected_compiler_type=	clang
