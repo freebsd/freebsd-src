@@ -166,8 +166,8 @@ int
 ahci_attach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int error, i, u, speed, unit;
-	u_int32_t version;
+	int error, i, speed, unit;
+	uint32_t u, version;
 	device_t child;
 
 	ctlr->dev = dev;
