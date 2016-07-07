@@ -439,6 +439,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 		}
 #ifdef MAP_32BIT
 		if (flags & MAP_32BIT) {
+			KASSERT(!SV_CURPROC_FLAG(SV_CHERI),
+			    ("MAP_32BIT on a CheriABI process"));
 			max_addr = MAP_32BIT_MAX_ADDR;
 			if (addr + size > MAP_32BIT_MAX_ADDR) {
 #ifdef KTRACE
@@ -453,6 +455,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 			}
 		}
 	} else if (flags & MAP_32BIT) {
+		KASSERT(!SV_CURPROC_FLAG(SV_CHERI),
+		    ("MAP_32BIT on a CheriABI process"));
 		max_addr = MAP_32BIT_MAX_ADDR;
 		/*
 		 * For MAP_32BIT, override the hint if it is too high and
@@ -463,6 +467,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 			addr = 0;
 #endif
 	} else {
+		KASSERT(addr != 0 || !SV_CURPROC_FLAG(SV_CHERI),
+		    ("CheriABI process requesting an address of 0"));
 		/*
 		 * XXX for non-fixed mappings where no hint is provided or
 		 * the hint would fall in the potential heap space,
