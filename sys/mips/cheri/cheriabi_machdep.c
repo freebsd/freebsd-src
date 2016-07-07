@@ -795,11 +795,10 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	KASSERT(stack % sizeof(struct chericap) == 0,
 	    ("CheriABI stack pointer not properly aligned"));
 
-	/* XXX-BD: use MMAP defines, not DATA */
 	cheri_capability_set(&td->td_proc->p_md.md_cheri_mmap_cap,
-	    CHERI_CAP_USER_DATA_PERMS | CHERI_CAP_USER_CODE_PERMS, NULL,
-	    CHERI_CAP_USER_DATA_BASE, CHERI_CAP_USER_DATA_LENGTH,
-	    CHERI_CAP_USER_DATA_OFFSET);
+	    CHERI_CAP_USER_MMAP_PERMS, CHERI_CAP_USER_MMAP_OTYPE,
+	    CHERI_CAP_USER_MMAP_BASE, CHERI_CAP_USER_MMAP_LENGTH,
+	    CHERI_CAP_USER_MMAP_OFFSET);
 
 	td->td_frame->pc = imgp->entry_addr;
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |

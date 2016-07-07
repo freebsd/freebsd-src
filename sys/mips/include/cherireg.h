@@ -219,6 +219,13 @@
 #define	CHERI_CAP_USER_TYPE_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_TYPE_OFFSET	0x0
 
+#define	CHERI_CAP_USER_MMAP_PERMS	\
+    (CHERI_PERM_USER_DATA | CHERI_PERM_USER_CODE)
+#define	CHERI_CAP_USER_MMAP_OTYPE	0x0
+#define	CHERI_CAP_USER_MMAP_BASE	MIPS_XUSEG_START
+#define	CHERI_CAP_USER_MMAP_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
+#define	CHERI_CAP_USER_MMAP_OFFSET	0x0
+
 /*
  * A blend of hardware and software allocation of capability registers.
  * Ideally, this list wouldn't exist here, but be purely in the assembler.
