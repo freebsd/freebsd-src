@@ -1214,7 +1214,8 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 		if_setmtu(ifp, ifr->ifr_mtu);
 		adapter->hw.mac.max_frame_size =
 		    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN;
-		em_init_locked(adapter);
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+			em_init_locked(adapter);
 		EM_CORE_UNLOCK(adapter);
 		break;
 	    }
