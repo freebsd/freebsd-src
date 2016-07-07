@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 TESTSDIR=	${TESTSBASE}/lib/libc/nss
 BINDIR=		${TESTSDIR}
 
