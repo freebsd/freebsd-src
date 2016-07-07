@@ -1720,7 +1720,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		}
 	}
 	/*
-	 * XXX: If this architecture requires an alignment constraint, it is
+	 * NOTE: If this architecture requires an alignment constraint, it is
 	 * set at this point.  A simple assert is not easy to contruct...
 	 */
 
