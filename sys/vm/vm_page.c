@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -426,6 +427,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t biggestsize;
 	vm_paddr_t low_water, high_water;
 	int biggestone;
+	int pages_per_zone;
 
 	biggestsize = 0;
 	biggestone = 0;
@@ -468,6 +470,19 @@ vm_page_startup(vm_offset_t vaddr)
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 	for (i = 0; i < vm_ndomains; i++)
 		vm_page_domain_init(&vm_dom[i]);
+
+	/*
+	 * Almost all of the pages needed for boot strapping UMA are used
+	 * for zone structures, so if the number of CPUs results in those
+	 * structures taking more than one page each, we set aside more pages
+	 * in proportion to the zone structure size.
+	 */
+	pages_per_zone = howmany(sizeof(struct uma_zone) +
+	    sizeof(struct uma_cache) * (mp_maxid + 1), UMA_SLAB_SIZE);
+	if (pages_per_zone > 1) {
+		/* Reserve more pages so that we don't run out. */
+		boot_pages = UMA_BOOT_PAGES_ZONES * pages_per_zone;
+	}
 
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
