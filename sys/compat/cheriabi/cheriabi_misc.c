@@ -1803,7 +1803,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		}
 	}
 
-	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, uap->prot,
+	return (kern_mmap(td, (vm_offset_t)uap->addr, 0, uap->len, uap->prot,
 	    flags, uap->fd, uap->pos));
 }
 
