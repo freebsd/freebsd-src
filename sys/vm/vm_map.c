@@ -1330,7 +1330,7 @@ charged:
 	new_entry->wired_count = 0;
 	new_entry->wiring_thread = NULL;
 	new_entry->read_ahead = VM_FAULT_READ_AHEAD_INIT;
-	new_entry->next_read = OFF_TO_IDX(offset);
+	new_entry->next_read = start;
 
 	KASSERT(cred == NULL || !ENTRY_CHARGED(new_entry),
 	    ("OVERCOMMIT: vm_map_insert leaks vm_map %p", new_entry));
