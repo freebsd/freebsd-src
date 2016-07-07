@@ -62,7 +62,7 @@ CWARNEXTRA?=	-Wno-uninitialized
 FORMAT_EXTENSIONS=	-Wno-format
 .elif ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
 FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
-.else
+.elif ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} == 40201
 FORMAT_EXTENSIONS=	-fformat-extensions
 .endif
 
