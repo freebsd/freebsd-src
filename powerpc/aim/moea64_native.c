@@ -382,7 +382,7 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 		__asm __volatile ("slbmfee %0,%1; slbie %0;" : "=r"(seg0) :
 		    "r"(0));
 
-		for (i = 0; i < 64; i++) {
+		for (i = 0; i < n_slbs; i++) {
 			if (!(slb[i].slbe & SLBE_VALID))
 				continue;
 
@@ -467,7 +467,7 @@ tlbia(void)
 
 	TLBSYNC();
 
-	for (i = 0; i < 0xFF000; i += 0x00001000) {
+	for (i = 0x800 /* IS=10 */; i < 0xFF000; i += 0x00001000) {
 		#ifdef __powerpc64__
 		__asm __volatile("tlbiel %0" :: "r"(i));
 		#else

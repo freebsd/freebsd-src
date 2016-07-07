@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include "phyp-hvcall.h"
 
-extern int n_slbs;
-
 static struct rmlock mphyp_eviction_lock;
 
 /*
