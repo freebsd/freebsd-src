@@ -61,8 +61,8 @@ __FBSDID("$FreeBSD$");
 #ifndef	BUS_SPACE_MAXADDR_40BIT
 #define	BUS_SPACE_MAXADDR_40BIT	0xFFFFFFFFFFULL
 #endif
-#define	IOAT_INTR_TIMO	(hz / 10)
 #define	IOAT_REFLK	(&ioat->submit_lock)
+#define	IOAT_SHRINK_PERIOD	(10 * hz)
 
 static int ioat_probe(device_t device);
 static int ioat_attach(device_t device);
@@ -96,7 +96,8 @@ static int ring_grow(struct ioat_softc *, uint32_t oldorder,
 static int ring_shrink(struct ioat_softc *, uint32_t oldorder,
     struct ioat_descriptor **);
 static void ioat_halted_debug(struct ioat_softc *, uint32_t);
-static void ioat_timer_callback(void *arg);
+static void ioat_poll_timer_callback(void *arg);
+static void ioat_shrink_timer_callback(void *arg);
 static void dump_descriptor(void *hw_desc);
 static void ioat_submit_single(struct ioat_softc *ioat);
 static void ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg,
@@ -325,6 +326,7 @@ ioat_detach(device_t device)
 	ioat->quiescing = TRUE;
 	ioat->destroying = TRUE;
 	wakeup(&ioat->quiescing);
+	wakeup(&ioat->resetting);
 
 	ioat_channel[ioat->chan_idx] = NULL;
 
@@ -332,7 +334,8 @@ ioat_detach(device_t device)
 	mtx_unlock(IOAT_REFLK);
 
 	ioat_teardown_intr(ioat);
-	callout_drain(&ioat->timer);
+	callout_drain(&ioat->poll_timer);
+	callout_drain(&ioat->shrink_timer);
 
 	pci_disable_busmaster(device);
 
@@ -373,12 +376,32 @@ ioat_teardown_intr(struct ioat_softc *ioat)
 static int
 ioat_start_channel(struct ioat_softc *ioat)
 {
+	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	struct bus_dmadesc *dmadesc;
 	uint64_t status;
 	uint32_t chanerr;
 	int i;
 
 	ioat_acquire(&ioat->dmaengine);
-	ioat_null(&ioat->dmaengine, NULL, NULL, 0);
+
+	/* Submit 'NULL' operation manually to avoid quiescing flag */
+	desc = ioat_get_ring_entry(ioat, ioat->head);
+	dmadesc = &desc->bus_dmadesc;
+	hw_desc = desc->u.dma;
+
+	dmadesc->callback_fn = NULL;
+	dmadesc->callback_arg = NULL;
+
+	hw_desc->u.control_raw = 0;
+	hw_desc->u.control_generic.op = IOAT_OP_COPY;
+	hw_desc->u.control_generic.completion_update = 1;
+	hw_desc->size = 8;
+	hw_desc->src_addr = 0;
+	hw_desc->dest_addr = 0;
+	hw_desc->u.control.null = 1;
+
+	ioat_submit_single(ioat);
 	ioat_release(&ioat->dmaengine);
 
 	for (i = 0; i < 100; i++) {
@@ -428,7 +451,8 @@ ioat3_attach(device_t device)
 
 	mtx_init(&ioat->submit_lock, "ioat_submit", NULL, MTX_DEF);
 	mtx_init(&ioat->cleanup_lock, "ioat_cleanup", NULL, MTX_DEF);
-	callout_init(&ioat->timer, 1);
+	callout_init(&ioat->poll_timer, 1);
+	callout_init(&ioat->shrink_timer, 1);
 	TASK_INIT(&ioat->reset_task, 0, ioat_reset_hw_task, ioat);
 
 	/* Establish lock order for Witness */
@@ -492,6 +516,7 @@ ioat3_attach(device_t device)
 	ioat->head = ioat->hw_head = 0;
 	ioat->tail = 0;
 	ioat->last_seen = 0;
+	*ioat->comp_update = 0;
 	return (0);
 }
 
@@ -634,15 +659,26 @@ ioat_process_events(struct ioat_softc *ioat)
 	struct bus_dmadesc *dmadesc;
 	uint64_t comp_update, status;
 	uint32_t completed, chanerr;
+	boolean_t pending;
 	int error;
 
+	CTR0(KTR_IOAT, __func__);
+
 	mtx_lock(&ioat->cleanup_lock);
+
+	/*
+	 * Don't run while the hardware is being reset.  Reset is responsible
+	 * for blocking new work and draining & completing existing work, so
+	 * there is nothing to do until new work is queued after reset anyway.
+	 */
+	if (ioat->resetting_cleanup) {
+		mtx_unlock(&ioat->cleanup_lock);
+		return;
+	}
 
 	completed = 0;
 	comp_update = *ioat->comp_update;
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
-
-	CTR0(KTR_IOAT, __func__);
 
 	if (status == ioat->last_seen) {
 		/*
@@ -668,18 +704,32 @@ ioat_process_events(struct ioat_softc *ioat)
 	}
 
 	ioat->last_seen = desc->hw_desc_bus_addr;
-
-	if (ioat->head == ioat->tail) {
-		ioat->is_completion_pending = FALSE;
-		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
-		    ioat_timer_callback, ioat);
-	}
-
 	ioat->stats.descriptors_processed += completed;
 
 out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
+
+	/* Perform a racy check first; only take the locks if it passes. */
+	pending = (ioat_get_active(ioat) != 0);
+	if (!pending && ioat->is_completion_pending) {
+		mtx_unlock(&ioat->cleanup_lock);
+		mtx_lock(&ioat->submit_lock);
+		mtx_lock(&ioat->cleanup_lock);
+
+		pending = (ioat_get_active(ioat) != 0);
+		if (!pending && ioat->is_completion_pending) {
+			ioat->is_completion_pending = FALSE;
+			callout_reset(&ioat->shrink_timer, IOAT_SHRINK_PERIOD,
+			    ioat_shrink_timer_callback, ioat);
+			callout_stop(&ioat->poll_timer);
+		}
+		mtx_unlock(&ioat->submit_lock);
+	}
 	mtx_unlock(&ioat->cleanup_lock);
+
+	if (pending)
+		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
+		    ioat);
 
 	if (completed != 0) {
 		ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
@@ -1602,7 +1652,18 @@ ioat_halted_debug(struct ioat_softc *ioat, uint32_t chanerr)
 }
 
 static void
-ioat_timer_callback(void *arg)
+ioat_poll_timer_callback(void *arg)
+{
+	struct ioat_softc *ioat;
+
+	ioat = arg;
+	ioat_log_message(3, "%s\n", __func__);
+
+	ioat_process_events(ioat);
+}
+
+static void
+ioat_shrink_timer_callback(void *arg)
 {
 	struct ioat_descriptor **newring;
 	struct ioat_softc *ioat;
@@ -1611,13 +1672,15 @@ ioat_timer_callback(void *arg)
 	ioat = arg;
 	ioat_log_message(1, "%s\n", __func__);
 
-	if (ioat->is_completion_pending) {
-		ioat_process_events(ioat);
+	/* Slowly scale the ring down if idle. */
+	mtx_lock(&ioat->submit_lock);
+
+	/* Don't run while the hardware is being reset. */
+	if (ioat->resetting) {
+		mtx_unlock(&ioat->submit_lock);
 		return;
 	}
 
-	/* Slowly scale the ring down if idle. */
-	mtx_lock(&ioat->submit_lock);
 	order = ioat->ring_size_order;
 	if (ioat->is_resize_pending || order == IOAT_MIN_ORDER) {
 		mtx_unlock(&ioat->submit_lock);
@@ -1641,8 +1704,8 @@ ioat_timer_callback(void *arg)
 
 out:
 	if (ioat->ring_size_order > IOAT_MIN_ORDER)
-		callout_reset(&ioat->timer, 10 * hz,
-		    ioat_timer_callback, ioat);
+		callout_reset(&ioat->poll_timer, IOAT_SHRINK_PERIOD,
+		    ioat_shrink_timer_callback, ioat);
 }
 
 /*
@@ -1658,8 +1721,9 @@ ioat_submit_single(struct ioat_softc *ioat)
 
 	if (!ioat->is_completion_pending) {
 		ioat->is_completion_pending = TRUE;
-		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
-		    ioat_timer_callback, ioat);
+		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
+		    ioat);
+		callout_stop(&ioat->shrink_timer);
 	}
 
 	ioat->stats.descriptors_submitted++;
@@ -1674,9 +1738,25 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	int error;
 
 	mtx_lock(IOAT_REFLK);
+	while (ioat->resetting && !ioat->destroying)
+		msleep(&ioat->resetting, IOAT_REFLK, 0, "IRH_drain", 0);
+	if (ioat->destroying) {
+		mtx_unlock(IOAT_REFLK);
+		return (ENXIO);
+	}
+	ioat->resetting = TRUE;
+
 	ioat->quiescing = TRUE;
 	ioat_drain_locked(ioat);
 	mtx_unlock(IOAT_REFLK);
+
+	/*
+	 * Suspend ioat_process_events while the hardware and softc are in an
+	 * indeterminate state.
+	 */
+	mtx_lock(&ioat->cleanup_lock);
+	ioat->resetting_cleanup = TRUE;
+	mtx_unlock(&ioat->cleanup_lock);
 
 	status = ioat_get_chansts(ioat);
 	if (is_ioat_active(status) || is_ioat_idle(status))
@@ -1759,6 +1839,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	 */
 	ioat->tail = ioat->head = ioat->hw_head = 0;
 	ioat->last_seen = 0;
+	*ioat->comp_update = 0;
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
@@ -1766,13 +1847,27 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	error = 0;
 
 out:
+	/*
+	 * Resume completions now that ring state is consistent.
+	 * ioat_start_channel will add a pending completion and if we are still
+	 * blocking completions, we may livelock.
+	 */
+	mtx_lock(&ioat->cleanup_lock);
+	ioat->resetting_cleanup = FALSE;
+	mtx_unlock(&ioat->cleanup_lock);
+
+	/* Enqueues a null operation and ensures it completes. */
+	if (error == 0)
+		error = ioat_start_channel(ioat);
+
+	/* Unblock submission of new work */
 	mtx_lock(IOAT_REFLK);
 	ioat->quiescing = FALSE;
 	wakeup(&ioat->quiescing);
-	mtx_unlock(IOAT_REFLK);
 
-	if (error == 0)
-		error = ioat_start_channel(ioat);
+	ioat->resetting = FALSE;
+	wakeup(&ioat->resetting);
+	mtx_unlock(IOAT_REFLK);
 
 	return (error);
 }
@@ -2126,12 +2221,19 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	db_printf(" cached_intrdelay: %u\n", sc->cached_intrdelay);
 	db_printf(" *comp_update: 0x%jx\n", (uintmax_t)*sc->comp_update);
 
-	db_printf(" timer:\n");
-	db_printf("  c_time: %ju\n", (uintmax_t)sc->timer.c_time);
-	db_printf("  c_arg: %p\n", sc->timer.c_arg);
-	db_printf("  c_func: %p\n", sc->timer.c_func);
-	db_printf("  c_lock: %p\n", sc->timer.c_lock);
-	db_printf("  c_flags: 0x%x\n", (unsigned)sc->timer.c_flags);
+	db_printf(" poll_timer:\n");
+	db_printf("  c_time: %ju\n", (uintmax_t)sc->poll_timer.c_time);
+	db_printf("  c_arg: %p\n", sc->poll_timer.c_arg);
+	db_printf("  c_func: %p\n", sc->poll_timer.c_func);
+	db_printf("  c_lock: %p\n", sc->poll_timer.c_lock);
+	db_printf("  c_flags: 0x%x\n", (unsigned)sc->poll_timer.c_flags);
+
+	db_printf(" shrink_timer:\n");
+	db_printf("  c_time: %ju\n", (uintmax_t)sc->shrink_timer.c_time);
+	db_printf("  c_arg: %p\n", sc->shrink_timer.c_arg);
+	db_printf("  c_func: %p\n", sc->shrink_timer.c_func);
+	db_printf("  c_lock: %p\n", sc->shrink_timer.c_lock);
+	db_printf("  c_flags: 0x%x\n", (unsigned)sc->shrink_timer.c_flags);
 
 	db_printf(" quiescing: %d\n", (int)sc->quiescing);
 	db_printf(" destroying: %d\n", (int)sc->destroying);
@@ -2140,6 +2242,7 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	db_printf(" is_reset_pending: %d\n", (int)sc->is_reset_pending);
 	db_printf(" is_channel_running: %d\n", (int)sc->is_channel_running);
 	db_printf(" intrdelay_supported: %d\n", (int)sc->intrdelay_supported);
+	db_printf(" resetting: %d\n", (int)sc->resetting);
 
 	db_printf(" head: %u\n", sc->head);
 	db_printf(" tail: %u\n", sc->tail);

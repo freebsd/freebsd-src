@@ -261,11 +261,11 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 }
 
 void
-t4_init_connect_cpl_handlers(struct adapter *sc)
+t4_init_connect_cpl_handlers(void)
 {
 
-	t4_register_cpl_handler(sc, CPL_ACT_ESTABLISH, do_act_establish);
-	t4_register_cpl_handler(sc, CPL_ACT_OPEN_RPL, do_act_open_rpl);
+	t4_register_cpl_handler(CPL_ACT_ESTABLISH, do_act_establish);
+	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, do_act_open_rpl);
 }
 
 #define DONT_OFFLOAD_ACTIVE_OPEN(x)	do { \

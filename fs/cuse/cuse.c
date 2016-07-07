@@ -1656,7 +1656,7 @@ cuse_client_ioctl(struct cdev *dev, unsigned long cmd,
 
 	cuse_cmd_lock(pccmd);
 
-	if (cmd & IOC_IN)
+	if (cmd & (IOC_IN | IOC_VOID))
 		memcpy(pcc->ioctl_buffer, data, len);
 
 	/*

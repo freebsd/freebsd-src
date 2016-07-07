@@ -832,6 +832,7 @@ static void
 taskqgroup_cpu_create(struct taskqgroup *qgroup, int idx)
 {
 	struct taskqgroup_cpu *qcpu;
+	int i, j;
 
 	qcpu = &qgroup->tqg_queue[idx];
 	LIST_INIT(&qcpu->tgc_tasks);
@@ -839,7 +840,15 @@ taskqgroup_cpu_create(struct taskqgroup *qgroup, int idx)
 	    taskqueue_thread_enqueue, &qcpu->tgc_taskq);
 	taskqueue_start_threads(&qcpu->tgc_taskq, 1, PI_SOFT,
 	    "%s_%d", qgroup->tqg_name, idx);
-	qcpu->tgc_cpu = idx * qgroup->tqg_stride;
+
+	for (i = CPU_FIRST(), j = 0; j < idx * qgroup->tqg_stride;
+	    j++, i = CPU_NEXT(i)) {
+		/*
+		 * Wait: evaluate the idx * qgroup->tqg_stride'th CPU,
+		 * potentially wrapping the actual count
+		 */
+	}
+	qcpu->tgc_cpu = i;
 }
 
 static void
@@ -1017,13 +1026,14 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 	LIST_HEAD(, grouptask) gtask_head = LIST_HEAD_INITIALIZER(NULL);
 	cpuset_t mask;
 	struct grouptask *gtask;
-	int i, old_cnt, qid;
+	int i, k, old_cnt, qid, cpu;
 
 	mtx_assert(&qgroup->tqg_lock, MA_OWNED);
 
 	if (cnt < 1 || cnt * stride > mp_ncpus || !smp_started) {
-		printf("taskqgroup_adjust failed cnt: %d stride: %d mp_ncpus: %d smp_started: %d\n",
-			   cnt, stride, mp_ncpus, smp_started);
+		printf("taskqgroup_adjust failed cnt: %d stride: %d "
+		    "mp_ncpus: %d smp_started: %d\n", cnt, stride, mp_ncpus,
+		    smp_started);
 		return (EINVAL);
 	}
 	if (qgroup->tqg_adjusting) {
@@ -1081,8 +1091,11 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 	/*
 	 * Set new CPU and IRQ affinity
 	 */
+	cpu = CPU_FIRST();
 	for (i = 0; i < cnt; i++) {
-		qgroup->tqg_queue[i].tgc_cpu = i * qgroup->tqg_stride;
+		qgroup->tqg_queue[i].tgc_cpu = cpu;
+		for (k = 0; k < qgroup->tqg_stride; k++)
+			cpu = CPU_NEXT(cpu);
 		CPU_ZERO(&mask);
 		CPU_SET(qgroup->tqg_queue[i].tgc_cpu, &mask);
 		LIST_FOREACH(gtask, &qgroup->tqg_queue[i].tgc_tasks, gt_list) {
