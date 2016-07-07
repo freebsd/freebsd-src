@@ -1874,6 +1874,7 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 		return;
 	} else if (last_old_slot == NULL) {
 		/* Start a fresh queue. */
+		sc->swsc->last_hdp = cpsw_cpdma_bd_paddr(sc->swsc, first_new_slot);
 		cpsw_write_hdp_slot(sc->swsc, &sc->swsc->tx, first_new_slot);
 	} else {
 		/* Add buffers to end of current queue. */
@@ -1882,6 +1883,7 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 		/* If underrun, restart queue. */
 		if (cpsw_cpdma_read_bd_flags(sc->swsc, last_old_slot) &
 		    CPDMA_BD_EOQ) {
+			sc->swsc->last_hdp = cpsw_cpdma_bd_paddr(sc->swsc, first_new_slot);
 			cpsw_write_hdp_slot(sc->swsc, &sc->swsc->tx,
 			    first_new_slot);
 		}
@@ -1897,6 +1899,7 @@ static int
 cpsw_tx_dequeue(struct cpsw_softc *sc)
 {
 	struct cpsw_slot *slot, *last_removed_slot = NULL;
+	struct cpsw_cpdma_bd bd;
 	uint32_t flags, removed = 0;
 
 	slot = STAILQ_FIRST(&sc->tx.active);
@@ -1931,12 +1934,25 @@ cpsw_tx_dequeue(struct cpsw_softc *sc)
 		}
 
 		/* TearDown complete is only marked on the SOP for the packet. */
-		if (flags & CPDMA_BD_TDOWNCMPLT) {
+		if ((flags & (CPDMA_BD_SOP | CPDMA_BD_TDOWNCMPLT)) ==
+		    (CPDMA_BD_EOP | CPDMA_BD_TDOWNCMPLT)) {
 			CPSW_DEBUGF(sc, ("TX teardown in progress"));
 			cpsw_write_cp(sc, &sc->tx, 0xfffffffc);
 			// TODO: Increment a count of dropped TX packets
 			sc->tx.running = 0;
 			break;
+		}
+
+		if ((flags & CPDMA_BD_EOP) == 0)
+			flags = cpsw_cpdma_read_bd_flags(sc, last_removed_slot);
+		if ((flags & (CPDMA_BD_EOP | CPDMA_BD_EOQ)) ==
+		    (CPDMA_BD_EOP | CPDMA_BD_EOQ)) {
+			cpsw_cpdma_read_bd(sc, last_removed_slot, &bd);
+			if (bd.next != 0 && bd.next != sc->last_hdp) {
+				/* Restart the queue. */
+				sc->last_hdp = bd.next;
+				cpsw_write_4(sc, sc->tx.hdp_offset, bd.next);
+			}
 		}
 	}
 
