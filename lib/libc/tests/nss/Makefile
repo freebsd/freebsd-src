@@ -16,7 +16,11 @@ TEST_METADATA.gethostby_test=	timeout="1200"
 ATF_TESTS_C+=	getpw_test
 ATF_TESTS_C+=	getproto_test
 ATF_TESTS_C+=	getrpc_test
+.if ${MK_CHERI} == "no"
+# kyua crashes in memcpy_c on cheri128 qemu
+# https://github.com/CTSRD-CHERI/qemu/issues/12
 ATF_TESTS_C+=	getserv_test
+.endif
 ATF_TESTS_C+=	getusershell_test
 
 .include <bsd.test.mk>
