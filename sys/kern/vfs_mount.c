@@ -1205,6 +1205,28 @@ sys_unmount(struct thread *td, struct unmount_args *uap)
 }
 
 /*
+ * Return error if any of the vnodes, ignoring the root vnode
+ * and the syncer vnode, have non-zero usecount.
+ */
+static int
+vfs_check_usecounts(struct mount *mp)
+{
+	struct vnode *vp, *mvp;
+
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+		if ((vp->v_vflag & VV_ROOT) == 0 && vp->v_type != VNON &&
+		    vp->v_usecount != 0) {
+			VI_UNLOCK(vp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
+			return (EBUSY);
+		}
+		VI_UNLOCK(vp);
+	}
+
+	return (0);
+}
+
+/*
  * Do the actual filesystem unmount.
  */
 int
@@ -1260,6 +1282,21 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_NOINSMNTQ;
+	if (flags & MNT_NONBUSY) {
+		MNT_IUNLOCK(mp);
+		error = vfs_check_usecounts(mp);
+		MNT_ILOCK(mp);
+		if (error != 0) {
+			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ);
+			MNT_IUNLOCK(mp);
+			if (coveredvp != NULL) {
+				VOP_UNLOCK(coveredvp, 0);
+				vdrop(coveredvp);
+			}
+			vn_finished_write(mp);
+			return (error);
+		}
+	}
 	/* Allow filesystems to detect that a forced unmount is in progress. */
 	if (flags & MNT_FORCE) {
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
