@@ -539,7 +539,8 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 			adapter->hw.max_frame_size =
 				ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
-			ixgb_init_locked(adapter);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ixgb_init_locked(adapter);
 			IXGB_UNLOCK(adapter);
 		}
 		break;

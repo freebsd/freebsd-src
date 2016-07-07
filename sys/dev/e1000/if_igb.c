@@ -1106,7 +1106,8 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		ifp->if_mtu = ifr->ifr_mtu;
 		adapter->max_frame_size =
 		    ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
-		igb_init_locked(adapter);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING))
+			igb_init_locked(adapter);
 		IGB_CORE_UNLOCK(adapter);
 		break;
 	    }
