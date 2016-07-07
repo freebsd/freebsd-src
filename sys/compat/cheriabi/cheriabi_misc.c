@@ -283,7 +283,7 @@ cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 		args->endp += length;
 		args->argc++;
 	}
-			
+
 	args->begin_envv = args->endp;
 
 	/*
@@ -696,7 +696,7 @@ cheriabi_recvmsg(struct thread *td,
 	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, NULL);
 	if (error == 0) {
 		msg.msg_iov = uiov;
-		
+
 		/*
 		 * Message contents have already been copied out, update
 		 * lengths.
@@ -1207,7 +1207,7 @@ cheriabi_sigwaitinfo(struct thread *td, struct cheriabi_sigwaitinfo_args *uap)
 	if (uap->info) {
 		siginfo_to_siginfo_c(&ksi.ksi_info, &si_c);
 		error = copyout(&si_c, uap->info, sizeof(struct siginfo_c));
-	}	
+	}
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
 	return (error);
