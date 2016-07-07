@@ -980,7 +980,8 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			vsi->max_frame_size =
 				ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN
 			    + ETHER_VLAN_ENCAP_LEN;
-			ixl_init_locked(pf);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ixl_init_locked(pf);
 			IXL_PF_UNLOCK(pf);
 		}
 		break;
