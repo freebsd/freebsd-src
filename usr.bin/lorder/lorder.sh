@@ -73,6 +73,7 @@ ${NM} ${NMFLAGS} -go $* | sed "
 	d
 "
 
+export LC_ALL=C
 # eliminate references that can be resolved by the same library.
 if [ $(expr "$*" : '.*\.a[[:>:]]') -ne 0 ]; then
 	sort -u -o $S $S
