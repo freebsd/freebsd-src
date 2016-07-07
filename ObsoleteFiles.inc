@@ -8014,7 +8014,9 @@ OLD_FILES+=usr/share/man/man5/usbd.conf.5.gz
 .if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
 OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
 .endif
-.if ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "powerpc64" && ${TARGET_ARCH} != "sparc64"
+.if ${TARGET_ARCH} != "aarch64" && ${TARGET_CPUARCH} != "arm" && \
+    ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "powerpc64" && \
+    ${TARGET_ARCH} != "sparc64"
 OLD_FILES+=usr/share/man/man8/ofwdump.8.gz
 .endif
 OLD_FILES+=usr/share/man/man8/mount_reiserfs.8.gz
