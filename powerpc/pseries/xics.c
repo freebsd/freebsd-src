@@ -193,6 +193,7 @@ xicp_attach(device_t dev)
 	if (OF_hasprop(phandle, "ibm,interrupt-server-ranges")) {
 		OF_getencprop(phandle, "ibm,interrupt-server-ranges",
 		    sc->cpu_range, sizeof(sc->cpu_range));
+		sc->cpu_range[1] += sc->cpu_range[0];
 		device_printf(dev, "Handling CPUs %d-%d\n", sc->cpu_range[0],
 		    sc->cpu_range[1]-1);
 	} else {
