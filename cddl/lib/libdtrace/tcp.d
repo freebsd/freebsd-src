@@ -126,6 +126,7 @@ typedef struct tcpsinfo {
 	int tcps_retransmit;		/* retransmit send event, boolean */
 	int tcps_srtt;			/* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
 	int tcps_debug;		/* socket has SO_DEBUG set */
+	int tcps_cookie;	/* expose the socket's SO_USER_COOKIE */
 	int32_t tcps_dupacks;	/* consecutive dup acks received */
 	uint32_t tcps_rtttime;	/* RTT measurement start time */
 	uint32_t tcps_rtseq;	/* sequence # being timed */
@@ -224,6 +225,8 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_srtt =             p == NULL ? -1  : p->t_srtt;   /* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
 	tcps_debug =		p == NULL ? 0 :
 	    p->t_inpcb->inp_socket->so_options & 1;
+	tcps_cookie =		p == NULL ? -1 :
+	    p->t_inpcb->inp_socket->so_user_cookie;
 	tcps_dupacks =		p == NULL ? -1  : p->t_dupacks;
 	tcps_rtttime =		p == NULL ? -1  : p->t_rtttime;
 	tcps_rtseq =		p == NULL ? -1  : p->t_rtseq;
