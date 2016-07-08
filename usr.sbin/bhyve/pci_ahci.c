@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013  Zhixiang Yu <zcore@freebsd.org>
+ * Copyright (c) 2015-2016 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +58,8 @@ __FBSDID("$FreeBSD$");
 #include "ahci.h"
 #include "block_if.h"
 
-#define	MAX_PORTS	6	/* Intel ICH8 AHCI supports 6 ports */
+#define	DEF_PORTS	6	/* Intel ICH8 AHCI supports 6 ports */
+#define	MAX_PORTS	32	/* AHCI supports 32 ports */
 
 #define	PxSIG_ATA	0x00000101 /* ATA drive */
 #define	PxSIG_ATAPI	0xeb140101 /* ATAPI drive */
@@ -2221,19 +2223,15 @@ pci_ahci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 static int
 pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 {
-	char bident[sizeof("XX:X:X")];
+	char bident[sizeof("XX:XX:XX")];
 	struct blockif_ctxt *bctxt;
 	struct pci_ahci_softc *sc;
-	int ret, slots;
+	int ret, slots, p;
 	MD5_CTX mdctx;
 	u_char digest[16];
+	char *next, *next2;
 
 	ret = 0;
-
-	if (opts == NULL) {
-		fprintf(stderr, "pci_ahci: backing device required\n");
-		return (1);
-	}
 
 #ifdef AHCI_DEBUG
 	dbg = fopen("/tmp/log", "w+");
@@ -2242,58 +2240,83 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	sc = calloc(1, sizeof(struct pci_ahci_softc));
 	pi->pi_arg = sc;
 	sc->asc_pi = pi;
-	sc->ports = MAX_PORTS;
-
-	/*
-	 * Only use port 0 for a backing device. All other ports will be
-	 * marked as unused
-	 */
-	sc->port[0].atapi = atapi;
-
-	/*
-	 * Attempt to open the backing image. Use the PCI
-	 * slot/func for the identifier string.
-	 */
-	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
-	bctxt = blockif_open(opts, bident);
-	if (bctxt == NULL) {       	
-		ret = 1;
-		goto open_fail;
-	}	
-	sc->port[0].bctx = bctxt;
-	sc->port[0].pr_sc = sc;
-
-	/*
-	 * Create an identifier for the backing file. Use parts of the
-	 * md5 sum of the filename
-	 */
-	MD5Init(&mdctx);
-	MD5Update(&mdctx, opts, strlen(opts));
-	MD5Final(digest, &mdctx);	
-	sprintf(sc->port[0].ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
-	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
-
-	/*
-	 * Allocate blockif request structures and add them
-	 * to the free list
-	 */
-	pci_ahci_ioreq_init(&sc->port[0]);
-
 	pthread_mutex_init(&sc->mtx, NULL);
+	sc->ports = 0;
+	sc->pi = 0;
+	slots = 32;
+
+	for (p = 0; p < MAX_PORTS && opts != NULL; p++, opts = next) {
+		/* Identify and cut off type of present port. */
+		if (strncmp(opts, "hd:", 3) == 0) {
+			atapi = 0;
+			opts += 3;
+		} else if (strncmp(opts, "cd:", 3) == 0) {
+			atapi = 1;
+			opts += 3;
+		}
+
+		/* Find and cut off the next port options. */
+		next = strstr(opts, ",hd:");
+		next2 = strstr(opts, ",cd:");
+		if (next == NULL || (next2 != NULL && next2 < next))
+			next = next2;
+		if (next != NULL) {
+			next[0] = 0;
+			next++;
+		}
+
+		if (opts[0] == 0)
+			continue;
+
+		/*
+		 * Attempt to open the backing image. Use the PCI slot/func
+		 * and the port number for the identifier string.
+		 */
+		snprintf(bident, sizeof(bident), "%d:%d:%d", pi->pi_slot,
+		    pi->pi_func, p);
+		bctxt = blockif_open(opts, bident);
+		if (bctxt == NULL) {
+			sc->ports = p;
+			ret = 1;
+			goto open_fail;
+		}	
+		sc->port[p].bctx = bctxt;
+		sc->port[p].pr_sc = sc;
+		sc->port[p].atapi = atapi;
+
+		/*
+		 * Create an identifier for the backing file.
+		 * Use parts of the md5 sum of the filename
+		 */
+		MD5Init(&mdctx);
+		MD5Update(&mdctx, opts, strlen(opts));
+		MD5Final(digest, &mdctx);
+		sprintf(sc->port[p].ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
+		    digest[0], digest[1], digest[2], digest[3], digest[4],
+		    digest[5]);
+
+		/*
+		 * Allocate blockif request structures and add them
+		 * to the free list
+		 */
+		pci_ahci_ioreq_init(&sc->port[p]);
+
+		sc->pi |= (1 << p);
+		if (sc->port[p].ioqsz < slots)
+			slots = sc->port[p].ioqsz;
+	}
+	sc->ports = p;
 
 	/* Intel ICH8 AHCI */
-	slots = sc->port[0].ioqsz;
-	if (slots > 32)
-		slots = 32;
 	--slots;
+	if (sc->ports < DEF_PORTS)
+		sc->ports = DEF_PORTS;
 	sc->cap = AHCI_CAP_64BIT | AHCI_CAP_SNCQ | AHCI_CAP_SSNTF |
 	    AHCI_CAP_SMPS | AHCI_CAP_SSS | AHCI_CAP_SALP |
 	    AHCI_CAP_SAL | AHCI_CAP_SCLO | (0x3 << AHCI_CAP_ISS_SHIFT)|
 	    AHCI_CAP_PMD | AHCI_CAP_SSC | AHCI_CAP_PSC |
 	    (slots << AHCI_CAP_NCS_SHIFT) | AHCI_CAP_SXS | (sc->ports - 1);
 
-	/* Only port 0 implemented */
-	sc->pi = 1;
 	sc->vs = 0x10300;
 	sc->cap2 = AHCI_CAP2_APST;
 	ahci_reset(sc);
@@ -2311,8 +2334,10 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 
 open_fail:
 	if (ret) {
-		if (sc->port[0].bctx != NULL)
-			blockif_close(sc->port[0].bctx);
+		for (p = 0; p < sc->ports; p++) {
+			if (sc->port[p].bctx != NULL)
+				blockif_close(sc->port[p].bctx);
+		}
 		free(sc);
 	}
 
@@ -2336,6 +2361,14 @@ pci_ahci_atapi_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 /*
  * Use separate emulation names to distinguish drive and atapi devices
  */
+struct pci_devemu pci_de_ahci = {
+	.pe_emu =	"ahci",
+	.pe_init =	pci_ahci_hd_init,
+	.pe_barwrite =	pci_ahci_write,
+	.pe_barread =	pci_ahci_read
+};
+PCI_EMUL_SET(pci_de_ahci);
+
 struct pci_devemu pci_de_ahci_hd = {
 	.pe_emu =	"ahci-hd",
 	.pe_init =	pci_ahci_hd_init,
