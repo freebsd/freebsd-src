@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2009
+.Dd July 9, 2016
 .Dt MKCSMAPPER 1
 .Os
 .Sh NAME
@@ -43,9 +43,10 @@
 .Xr iconv 3
 .Sh SYNOPSIS
 .Nm
-.Op Fl dmp
-.Fl o Ar outfile
-.Ar infile
+.Op Fl d
+.Op Fl m | Fl p
+.Op Fl o Ar outfile
+.Op Ar infile
 .Sh DESCRIPTION
 The
 .Nm
@@ -59,7 +60,7 @@ A pivot file, which the possible source and destination encoding
 pairs or the set of mappings to use for a compound encoding.
 .Pp
 The following options are available:
-.Bl -tag -width 0123
+.Bl -tag -width XoXoutfileXX
 .It Fl d
 Turns on debug mode.
 .It Fl m
