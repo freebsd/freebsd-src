@@ -432,6 +432,8 @@ case ${target} in
       tm_defines="${tm_defines} FBSD_MAJOR=10" ;;
     *-*-freebsd11 | *-*-freebsd11.*)
       tm_defines="${tm_defines} FBSD_MAJOR=11" ;;
+    *-*-freebsd12 | *-*-freebsd12.*)
+      tm_defines="${tm_defines} FBSD_MAJOR=12" ;;
     *)
       echo 'Please update *-*-freebsd* in gcc/config.gcc'
       exit 1
