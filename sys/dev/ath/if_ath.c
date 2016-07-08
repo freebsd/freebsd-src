@@ -971,7 +971,20 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasbmatch = ath_hal_hasbssidmatch(ah);
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
 	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
-	sc->sc_rxtsf32 = ath_hal_has_long_rxdesc_tsf(ah);
+
+	/* XXX TODO: just make this a "store tx/rx timestamp length" operation */
+	if (ath_hal_get_rx_tsf_prec(ah, &i)) {
+		if (i == 32) {
+			sc->sc_rxtsf32 = 1;
+		}
+		if (bootverbose)
+			device_printf(sc->sc_dev, "RX timestamp: %d bits\n", i);
+	}
+	if (ath_hal_get_tx_tsf_prec(ah, &i)) {
+		if (bootverbose)
+			device_printf(sc->sc_dev, "TX timestamp: %d bits\n", i);
+	}
+
 	sc->sc_hasenforcetxop = ath_hal_hasenforcetxop(ah);
 	sc->sc_rx_lnamixer = ath_hal_hasrxlnamixer(ah);
 	sc->sc_hasdivcomb = ath_hal_hasdivantcomb(ah);

@@ -520,7 +520,8 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halRfSilentSupport = AH_TRUE;
 	}
 
-	pCap->halTstampPrecision = 13;
+	pCap->halRxTstampPrecision = 13;
+	pCap->halTxTstampPrecision = 16;
 	pCap->halIntrMask = HAL_INT_COMMON
 			| HAL_INT_RX
 			| HAL_INT_TX

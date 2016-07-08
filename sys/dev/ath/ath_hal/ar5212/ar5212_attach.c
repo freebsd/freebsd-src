@@ -899,7 +899,8 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halBssidMatchSupport = AH_TRUE;
 	}
 
-	pCap->halTstampPrecision = 15;
+	pCap->halRxTstampPrecision = 15;
+	pCap->halTxTstampPrecision = 16;
 	pCap->halIntrMask = HAL_INT_COMMON
 			| HAL_INT_RX
 			| HAL_INT_TX

@@ -749,7 +749,7 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_HT20_SGI:
 		return pCap->halHTSGI20Support ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_RXTSTAMP_PREC:	/* rx desc tstamp precision (bits) */
-		*result = pCap->halTstampPrecision;
+		*result = pCap->halRxTstampPrecision;
 		return HAL_OK;
 	case HAL_CAP_ANT_DIV_COMB:	/* AR9285/AR9485 LNA diversity */
 		return pCap->halAntDivCombSupport ? HAL_OK  : HAL_ENOTSUPP;
@@ -778,8 +778,6 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		}
 	case HAL_CAP_RXDESC_SELFLINK:	/* hardware supports self-linked final RX descriptors correctly */
 		return pCap->halHasRxSelfLinkedTail ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_LONG_RXDESC_TSF:		/* 32 bit TSF in RX descriptor? */
-		return pCap->halHasLongRxDescTsf ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_BB_READ_WAR:		/* Baseband read WAR */
 		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_SERIALISE_WAR:		/* PCI register serialisation */
@@ -791,6 +789,9 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halRxUsingLnaMixing ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_DO_MYBEACON:	/* Hardware supports filtering my-beacons */
 		return pCap->halRxDoMyBeacon ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_TXTSTAMP_PREC:	/* tx desc tstamp precision (bits) */
+		*result = pCap->halTxTstampPrecision;
+		return HAL_OK;
 	default:
 		return HAL_EINVAL;
 	}
