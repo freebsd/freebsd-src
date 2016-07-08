@@ -639,6 +639,11 @@
 	and &man.sade.8; utility have been updated to include native
 	<acronym>ZFS</acronym> support.</para>
 
+      <para revision="300436" contrib="sponsor" sponsor="&scaleengine;">
+	&man.bsdinstall.8;/zfsboot GPT+BIOS+GELI installs now make use
+	of GELIBOOT which allows ZFS Boot Environments to be used with
+	GELI encrypted ZFS pools.</para>
+
       <para revision="272274">The &os; installation utility,
 	&man.bsdinstall.8;, has been updated to set the
 	<literal>canmount</literal> &man.zfs.8; property to
