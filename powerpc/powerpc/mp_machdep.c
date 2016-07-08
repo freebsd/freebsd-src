@@ -183,6 +183,9 @@ cpu_mp_announce(void)
 	struct pcpu *pc;
 	int i;
 
+	if (!bootverbose)
+		return;
+
 	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		if (pc == NULL)
