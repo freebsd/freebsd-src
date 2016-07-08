@@ -54,8 +54,9 @@ all:
 	@echo ""
 	@find . -name *failed
 
-install:
 .for t in ${TYPES}
+install: install-${t}
+install-${t}:
 .  if ${KNOWN:M${t}}
 	rm -rf ${.CURDIR}/${t}.draft
 	rm -rf ${.CURDIR}/../../../share/${t}
