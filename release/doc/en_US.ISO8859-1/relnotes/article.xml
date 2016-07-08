@@ -513,6 +513,9 @@
 	&man.resolvconf.8; utility has been updated to version
 	3.7.3.</para>
 
+      <para revision="293190"><application>less</application> has
+	been updated to version v481.</para>
+
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
 
