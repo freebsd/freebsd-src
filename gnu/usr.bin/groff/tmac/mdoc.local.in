@@ -62,10 +62,10 @@
 .ds doc-operating-system-FreeBSD-9.3    9.3
 .ds doc-operating-system-FreeBSD-10.0   10.0
 .ds doc-operating-system-FreeBSD-10.1   10.1
-.ds doc-operating-system-FreeBSD-10.1   10.2
-.ds doc-operating-system-FreeBSD-10.1   10.3
+.ds doc-operating-system-FreeBSD-10.2   10.2
+.ds doc-operating-system-FreeBSD-10.3   10.3
 .ds doc-operating-system-FreeBSD-11.0   11.0
-.ds doc-operating-system-FreeBSD-11.0   12.0
+.ds doc-operating-system-FreeBSD-12.0   12.0
 .
 .\" Definitions for other *BSDs not (yet) in doc-common
 .ds doc-operating-system-NetBSD-7.0     7.0
