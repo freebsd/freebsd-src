@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $NetBSD: yacc.y,v 1.7 2006/09/09 14:35:17 tnozaki Exp $	*/
+/*     $NetBSD: yacc.y,v 1.11 2016/06/28 09:22:16 wiz Exp $    */
 
 %{
 /*-
@@ -664,18 +664,15 @@ do_mkpv(FILE *in)
 	if (ret && output)
 		unlink(output); /* dump failure */
 	if (ret)
-		errx(EXIT_FAILURE, "%s\n", strerror(ret));
+		errc(EXIT_FAILURE, ret, "");
 }
 
 static void
 usage(void)
 {
-	warnx("usage: \n"
-	    "\t%s [-d] [-o outfile] [infile]\n"
-	    "\t%s -m [-d] [-o outfile] [infile]\n"
-	    "\t%s -p [-d] [-o outfile] [infile]\n",
-	    getprogname(), getprogname(), getprogname());
-	exit(1);
+	fprintf(stderr, "Usage: %s [-d] [-m|-p] [-o outfile] [infile]\n",
+	    getprogname());
+	exit(EXIT_FAILURE);
 }
 
 int
