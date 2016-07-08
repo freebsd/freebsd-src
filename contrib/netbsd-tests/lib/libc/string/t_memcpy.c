@@ -108,7 +108,12 @@ ATF_TC_BODY(memcpy_basic, tc)
 			if (i != j)
 				runTest(start[i], start[j]);
 	MD5End(mc, result);
+#ifdef __NetBSD__
 	ATF_REQUIRE_EQ(strcmp(result, goodResult), 0);
+#else
+	ATF_REQUIRE_EQ_MSG(strcmp(result, goodResult), 0, "%s != %s",
+	    result, goodResult);
+#endif
 }
 
 ATF_TC(memccpy_simple);
