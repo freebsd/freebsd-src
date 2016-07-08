@@ -5,6 +5,9 @@
 #undef JEMALLOC_OVERRIDE_VALLOC
 
 #ifndef MALLOC_PRODUCTION
+#define	MALLOC_PRODUCTION
+#endif
+#ifndef MALLOC_PRODUCTION
 #define	JEMALLOC_DEBUG
 #endif
 
