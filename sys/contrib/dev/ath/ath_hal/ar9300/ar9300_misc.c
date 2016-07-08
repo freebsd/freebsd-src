@@ -26,7 +26,9 @@
 #include "ar9300/ar9300.h"
 #include "ar9300/ar9300reg.h"
 #include "ar9300/ar9300phy.h"
+#include "ar9300/ar9300desc.h"
 
+static u_int32_t ar9300_read_loc_timer(struct ath_hal *ah);
 
 void
 ar9300_get_hw_hangs(struct ath_hal *ah, hal_hw_hangs_t *hangs)
@@ -947,6 +949,14 @@ ar9300_get_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
             return (HAL_ENOTSUPP);
         (*result) = !! (ahp->ah_misc_mode & AR_PCU_TXOP_TBTT_LIMIT_ENA);
         return (HAL_OK);
+    case HAL_CAP_TOA_LOCATIONING:
+        if (capability == 0)
+            return HAL_OK;
+        if (capability == 2) {
+            *result = ar9300_read_loc_timer(ah);
+            return (HAL_OK);
+        }
+        return HAL_ENOTSUPP;
     default:
         return ath_hal_getcapability(ah, type, capability, result);
     }
@@ -1060,6 +1070,14 @@ ar9300_set_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
         }
         return AH_TRUE;
 
+    case HAL_CAP_TOA_LOCATIONING:
+        if (capability == 0)
+            return AH_TRUE;
+        if (capability == 1) {
+            ar9300_update_loc_ctl_reg(ah, setting);
+            return AH_TRUE;
+        }
+        return AH_FALSE;
         /* fall thru... */
     default:
         return ath_hal_setcapability(ah, type, capability, setting, status);
@@ -3853,6 +3871,13 @@ HAL_BOOL
 ar9300SetDfs3StreamFix(struct ath_hal *ah, u_int32_t val)
 {
    return AH_FALSE;
+}
+
+static u_int32_t
+ar9300_read_loc_timer(struct ath_hal *ah)
+{
+
+    return OS_REG_READ(ah, AR_LOC_TIMER_REG);
 }
 
 HAL_BOOL
