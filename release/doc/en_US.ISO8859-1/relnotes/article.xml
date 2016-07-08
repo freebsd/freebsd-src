@@ -644,6 +644,9 @@
 	of GELIBOOT which allows ZFS Boot Environments to be used with
 	GELI encrypted ZFS pools.</para>
 
+      <para revision="301973">A module to configure wifi devices has been added
+	to &man.bsdinstall.8;</para>
+
       <para revision="272274">The &os; installation utility,
 	&man.bsdinstall.8;, has been updated to set the
 	<literal>canmount</literal> &man.zfs.8; property to
