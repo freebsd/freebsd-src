@@ -89,7 +89,7 @@ LIB2ADDEH = gcc_personality_v0.c \
 	UnwindRegistersSave.S \
 	libunwind.cpp
 
-CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR}
+CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR} -D_LIBUNWIND_IS_NATIVE_ONLY
 .if empty(CXXFLAGS:M-std=*)
 CXXFLAGS+=	-std=c++11
 .endif
