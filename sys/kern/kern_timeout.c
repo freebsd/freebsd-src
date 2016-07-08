@@ -1517,7 +1517,6 @@ _show_callout(struct callout *c)
 	C_DB_PRINTF("%p",	c_func);
 	C_DB_PRINTF("%p",	c_lock);
 	C_DB_PRINTF("%#x",	c_flags);
-	C_DB_PRINTF("%#x",	c_iflags);
 	C_DB_PRINTF("%d",	c_cpu);
 #undef	C_DB_PRINTF
 }
