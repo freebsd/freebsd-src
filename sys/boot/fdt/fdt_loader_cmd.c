@@ -421,7 +421,7 @@ fdt_setup_fdtp()
 	/* If we were given the address of a valid blob in memory, use it. */
 	if (fdt_to_load != NULL) {
 		if (fdt_load_dtb_addr(fdt_to_load) == 0) {
-			printf("Using DTB from memory address 0x%p.\n",
+			printf("Using DTB from memory address %p.\n",
 			    fdt_to_load);
 			return (0);
 		}
