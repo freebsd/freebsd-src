@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2016
+.Dd July 8, 2016
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -171,6 +171,8 @@ Virtio network interface.
 Virtio block storage interface.
 .It Li virtio-rnd
 Virtio RNG interface.
+.It Li ahci
+AHCI controller attached to arbitraty devices.
 .It Li ahci-cd
 AHCI controller attached to an ATAPI CD/DVD.
 .It Li ahci-hd
@@ -347,15 +349,11 @@ null-modem device.
 .Bd -literal -offset indent
 bhyve -c 4 \\
   -s 0,amd_hostbridge -s 1,lpc \\
-  -s 1:0,ahci-hd,/images/disk.1 \\
-  -s 1:1,ahci-hd,/images/disk.2 \\
-  -s 1:2,ahci-hd,/images/disk.3 \\
-  -s 1:3,ahci-hd,/images/disk.4 \\
-  -s 1:4,ahci-hd,/images/disk.5 \\
-  -s 1:5,ahci-hd,/images/disk.6 \\
-  -s 1:6,ahci-hd,/images/disk.7 \\
-  -s 1:7,ahci-hd,/images/disk.8 \\
-  -s 2,ahci-cd,/images/install.iso \\
+  -s 1:0,ahci,hd:/images/disk.1,hd:/images/disk.2,\\
+hd:/images/disk.3,hd:/images/disk.4,\\
+hd:/images/disk.5,hd:/images/disk.6,\\
+hd:/images/disk.7,hd:/images/disk.8,\\
+cd:/images/install.iso \\
   -s 3,virtio-net,tap0 \\
   -l com1,/dev/nmdm0A \\
   -A -H -P -m 8G
