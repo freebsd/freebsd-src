@@ -1038,6 +1038,10 @@
 	To retain the previous behavior, add
 	<literal>KERN_DEBUGDIR=""</literal> to
 	&man.src.conf.5;.</para>
+
+      <para revision="300291" arch="arm64" contrib="sponsor" sponsor="&ff;">
+	NEW_PCIB is enabled by default.</para>
+
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
