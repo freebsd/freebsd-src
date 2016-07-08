@@ -207,24 +207,6 @@ calculate_drop_prob(void *x)
 	struct dn_aqm_pie_parms *pprms;
 	struct pie_status *pst = (struct pie_status *) x;
 
-	/* dealing with race condition */
-	if (callout_pending(&pst->aqm_pie_callout)) {
-		/* callout was reset */
-		mtx_unlock(&pst->lock_mtx);
-		return;
-	}
-
-	if (!callout_active(&pst->aqm_pie_callout)) {
-		/* callout was stopped */
-		mtx_unlock(&pst->lock_mtx);
-		mtx_destroy(&pst->lock_mtx);
-		free(x, M_DUMMYNET);
-		//pst->pq->aqm_status = NULL;
-		pie_desc.ref_count--;
-		return;
-	}
-	callout_deactivate(&pst->aqm_pie_callout);
-
 	pprms = pst->parms;
 	prob = pst->drop_prob;
 
@@ -576,7 +558,7 @@ aqm_pie_init(struct dn_queue *q)
 	
 	do { /* exit with break when error occurs*/
 		if (!pprms){
-			D("AQM_PIE is not configured");
+			DX(2, "AQM_PIE is not configured");
 			err = EINVAL;
 			break;
 		}
@@ -615,6 +597,22 @@ aqm_pie_init(struct dn_queue *q)
 }
 
 /* 
+ * Callout function to destroy pie mtx and free PIE status memory
+ */
+static void
+pie_callout_cleanup(void *x)
+{
+	struct pie_status *pst = (struct pie_status *) x;
+
+	mtx_unlock(&pst->lock_mtx);
+	mtx_destroy(&pst->lock_mtx);
+	free(x, M_DUMMYNET);
+	DN_BH_WLOCK();
+	pie_desc.ref_count--;
+	DN_BH_WUNLOCK();
+}
+
+/* 
  * Clean up PIE status for queue 'q' 
  * Destroy memory allocated for PIE status.
  */
@@ -640,22 +638,19 @@ aqm_pie_cleanup(struct dn_queue *q)
 		return 1;
 	}
 
+	/* 
+	 * Free PIE status allocated memory using pie_callout_cleanup() callout
+	 * function to avoid any potential race.
+	 * We reset aqm_pie_callout to call pie_callout_cleanup() in next 1um. This
+	 * stops the scheduled calculate_drop_prob() callout and call pie_callout_cleanup() 
+	 * which does memory freeing.
+	 */
 	mtx_lock(&pst->lock_mtx);
+	callout_reset_sbt(&pst->aqm_pie_callout,
+		SBT_1US, 0, pie_callout_cleanup, pst, 0);
+	q->aqm_status = NULL;
+	mtx_unlock(&pst->lock_mtx);
 
-	/* stop callout timer */
-	if (callout_stop(&pst->aqm_pie_callout) || !(pst->sflags & PIE_ACTIVE)) {
-		mtx_unlock(&pst->lock_mtx);
-		mtx_destroy(&pst->lock_mtx);
-		free(q->aqm_status, M_DUMMYNET);
-		q->aqm_status = NULL;
-		pie_desc.ref_count--;
-		return 0;
-	} else {
-		q->aqm_status = NULL;
-		mtx_unlock(&pst->lock_mtx);
-		DX(2, "PIE callout has not been stoped from cleanup!");
-		return EBUSY;
-	}
 	return 0;
 }
 
