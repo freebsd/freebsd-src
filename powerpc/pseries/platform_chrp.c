@@ -458,7 +458,7 @@ chrp_smp_topo(platform_t plat)
 
 	ncores = ncpus = 0;
 	last_pc = NULL;
-	for (i = 0; i <= mp_maxid; i++) {
+	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		if (pc == NULL)
 			continue;

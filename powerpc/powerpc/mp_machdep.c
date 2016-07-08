@@ -144,7 +144,6 @@ cpu_mp_start(void)
 
 	error = platform_smp_get_bsp(&bsp);
 	KASSERT(error == 0, ("Don't know BSP"));
-	KASSERT(bsp.cr_cpuid == 0, ("%s: cpuid != 0", __func__));
 
 	error = platform_smp_first_cpu(&cpu);
 	while (!error) {
@@ -184,7 +183,7 @@ cpu_mp_announce(void)
 	struct pcpu *pc;
 	int i;
 
-	for (i = 0; i <= mp_maxid; i++) {
+	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		if (pc == NULL)
 			continue;

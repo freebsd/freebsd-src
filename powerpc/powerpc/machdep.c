@@ -233,6 +233,7 @@ uintptr_t
 powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 {
 	struct		pcpu *pc;
+	struct cpuref	bsp;
 	vm_offset_t	startkernel, endkernel;
 	void		*kmdp;
         char		*env;
@@ -305,21 +306,11 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 */
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_frame = &frame0;
-
-	/*
-	 * Set up per-cpu data.
-	 */
-	pc = __pcpu;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
-	pc->pc_curthread = &thread0;
 #ifdef __powerpc64__
-	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+	__asm __volatile("mr 13,%0" :: "r"(&thread0));
 #else
-	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+	__asm __volatile("mr 2,%0" :: "r"(&thread0));
 #endif
-	pc->pc_cpuid = 0;
-
-	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/*
 	 * Init mutexes, which we use heavily in PMAP
@@ -365,6 +356,17 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 */
 
 	platform_probe_and_attach();
+
+	/*
+	 * Set up per-cpu data.
+	 */
+	pc = __pcpu;
+	if (platform_smp_get_bsp(&bsp) != 0)
+		bsp.cr_cpuid = 0;
+	pcpu_init(pc, bsp.cr_cpuid, sizeof(struct pcpu));
+	pc->pc_curthread = &thread0;
+	pc->pc_cpuid = bsp.cr_cpuid;
+	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/*
 	 * Bring up MMU

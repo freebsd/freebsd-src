@@ -853,6 +853,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	int		i;
 	vm_offset_t	pa, va;
 	void		*dpcpu;
+	struct cpuref	bsp;
 
 	/*
 	 * Set up the Open Firmware pmap and add its mappings if not in real
@@ -951,6 +952,8 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	 */
 	pa = moea64_bootstrap_alloc(DPCPU_SIZE, PAGE_SIZE);
 	dpcpu = (void *)virtual_avail;
+	if (platform_smp_get_bsp(&bsp) != 0)
+		bsp.cr_cpuid = 0;
 	va = virtual_avail;
 	virtual_avail += DPCPU_SIZE;
 	while (va < virtual_avail) {
@@ -958,7 +961,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
-	dpcpu_init(dpcpu, 0);
+	dpcpu_init(dpcpu, bsp.cr_cpuid);
 
 	/*
 	 * Allocate some things for page zeroing. We put this directly
