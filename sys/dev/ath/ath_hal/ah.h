@@ -199,6 +199,7 @@ typedef enum {
 	HAL_CAP_ENFORCE_TXOP	= 246,	/* Enforce TXOP if supported */
 	HAL_CAP_RX_LNA_MIXING	= 247,	/* RX hardware uses LNA mixing */
 	HAL_CAP_DO_MYBEACON	= 248,	/* Supports HAL_RX_FILTER_MYBEACON */
+	HAL_CAP_TOA_LOCATIONING	= 249,	/* time of flight / arrival locationing */
 	HAL_CAP_TXTSTAMP_PREC	= 250,	/* tx desc tstamp precision (bits) */
 } HAL_CAPABILITY_TYPE;
 
