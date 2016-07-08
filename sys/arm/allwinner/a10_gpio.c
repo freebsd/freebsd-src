@@ -198,10 +198,14 @@ a10_gpio_get_function(struct a10_gpio_softc *sc, uint32_t pin)
 	return (0);
 }
 
-static void
+static int
 a10_gpio_set_function(struct a10_gpio_softc *sc, uint32_t pin, uint32_t f)
 {
 	uint32_t bank, data, offset;
+
+	/* Check if the function exists in the padconf data */
+	if (sc->padconf->pins[pin].functions[f] == NULL)
+		return (EINVAL);
 
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
@@ -214,6 +218,8 @@ a10_gpio_set_function(struct a10_gpio_softc *sc, uint32_t pin, uint32_t f)
 	data &= ~(7 << offset);
 	data |= (f << offset);
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_CFG(bank, pin >> 3), data);
+
+	return (0);
 }
 
 static uint32_t
@@ -275,9 +281,10 @@ a10_gpio_set_drv(struct a10_gpio_softc *sc, uint32_t pin, uint32_t drive)
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_DRV(bank, pin >> 4), val);
 }
 
-static void
+static int
 a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 {
+	int err = 0;
 
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
@@ -285,10 +292,13 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 	/* Manage input/output. */
 	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
 		if (flags & GPIO_PIN_OUTPUT)
-			a10_gpio_set_function(sc, pin, A10_GPIO_OUTPUT);
+			err = a10_gpio_set_function(sc, pin, A10_GPIO_OUTPUT);
 		else
-			a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
+			err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
 	}
+
+	if (err)
+		return (err);
 
 	/* Manage Pull-up/pull-down. */
 	if (flags & (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)) {
@@ -298,6 +308,8 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 			a10_gpio_set_pud(sc, pin, A10_GPIO_PULLDOWN);
 	} else
 		a10_gpio_set_pud(sc, pin, A10_GPIO_NONE);
+
+	return (0);
 }
 
 static device_t
@@ -372,16 +384,17 @@ static int
 a10_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct a10_gpio_softc *sc;
+	int err;
 
 	sc = device_get_softc(dev);
 	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
 	A10_GPIO_LOCK(sc);
-	a10_gpio_pin_configure(sc, pin, flags);
+	err = a10_gpio_pin_configure(sc, pin, flags);
 	A10_GPIO_UNLOCK(sc);
 
-	return (0);
+	return (err);
 }
 
 static int
