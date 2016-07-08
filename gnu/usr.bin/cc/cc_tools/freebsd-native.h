@@ -8,7 +8,7 @@
 
 /* Fake out gcc/config/freebsd<version>.h.  */
 #define	FBSD_MAJOR	12
-#define	FBSD_CC_VER	1100000		/* form like __FreeBSD_version */
+#define	FBSD_CC_VER	1200000		/* form like __FreeBSD_version */
 
 #undef SYSTEM_INCLUDE_DIR		/* We don't need one for now. */
 #undef TOOL_INCLUDE_DIR			/* We don't need one for now. */
