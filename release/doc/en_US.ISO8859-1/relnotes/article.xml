@@ -1296,6 +1296,11 @@
       <para revision="288654">The &man.lagg.4; driver has been updated
 	to remove support for the <literal>fec</literal>
 	protocol.</para>
+
+       <para revision="302110" contrib="sponsor" sponsor="&chelsio;">netmap
+	support from the ncxgbe/ncxl interfaces has been merged into the
+	vcxgbe/vcxl interfaces for the &man.cxgbe.4; driver.</para>
+
     </sect2>
   </sect1>
 
