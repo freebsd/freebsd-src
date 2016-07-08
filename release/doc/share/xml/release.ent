@@ -19,10 +19,10 @@
 <!ENTITY release.prev.stable "9.3-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "11.0-RELEASE">
+<!ENTITY release.next "12.0-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "11-CURRENT">
+<!ENTITY release.branch "12-CURRENT">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "https://www.FreeBSD.org/snapshots/">
