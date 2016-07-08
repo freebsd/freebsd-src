@@ -68,6 +68,14 @@ a10_attach(platform_t plat)
 }
 
 static int
+a13_attach(platform_t plat)
+{
+	soc_type = ALLWINNERSOC_A13;
+	soc_family = ALLWINNERSOC_SUN5I;
+	return (0);
+}
+
+static int
 a20_attach(platform_t plat)
 {
 	soc_type = ALLWINNERSOC_A20;
@@ -167,6 +175,17 @@ static platform_method_t a10_methods[] = {
 	PLATFORMMETHOD_END,
 };
 FDT_PLATFORM_DEF(a10, "a10", 0, "allwinner,sun4i-a10", 200);
+#endif
+
+#if defined(SOC_ALLWINNER_A13)
+static platform_method_t a13_methods[] = {
+	PLATFORMMETHOD(platform_attach,         a13_attach),
+	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
+	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
+
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(a13, "a13", 0, "allwinner,sun5i-a13", 200);
 #endif
 
 #if defined(SOC_ALLWINNER_A20)

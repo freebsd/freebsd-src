@@ -26,6 +26,7 @@ include 	"../allwinner/std.a10"
 options 	INTRNG
 
 options 	SOC_ALLWINNER_A10
+options 	SOC_ALLWINNER_A13
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -83,6 +84,8 @@ device		iic
 device		twsi
 device		axp209			# AXP209 Power Management Unit
 
+device		pcf8563			# RTC
+
 # GPIO
 device		gpio
 device		gpioled
@@ -113,6 +116,9 @@ device		emac
 
 # USB ethernet support, requires miibus
 device		miibus
+
+# Sound support
+device		sound
 
 # Pinmux
 device		fdt_pinctrl

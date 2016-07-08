@@ -112,6 +112,7 @@ static const struct aw_ehci_conf a31_ehci_conf = {
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-ehci",	(uintptr_t)&a10_ehci_conf },
+	{ "allwinner,sun5i-a13-ehci",	(uintptr_t)&a10_ehci_conf },
 	{ "allwinner,sun6i-a31-ehci",	(uintptr_t)&a31_ehci_conf },
 	{ "allwinner,sun7i-a20-ehci",	(uintptr_t)&a10_ehci_conf },
 	{ "allwinner,sun8i-a83t-ehci",	(uintptr_t)&a31_ehci_conf },

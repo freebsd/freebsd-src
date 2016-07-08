@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+arm/allwinner/a13/a13_padconf.c		standard

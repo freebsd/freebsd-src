@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dt-bindings/clock/sun4i-a10-pll2.h>
 
+#include <arm/allwinner/allwinner_machdep.h>
+
 #include "clkdev_if.h"
 
 #define	AW_PLL_ENABLE			(1 << 31)
@@ -100,6 +102,13 @@ __FBSDID("$FreeBSD$");
 #define	A10_PLL6_FACTOR_M_SHIFT		0
 
 #define	A10_PLL2_POST_DIV		(0xf << 26)
+
+#define	A13_PLL2_POST_DIV		(0xf << 26)
+#define	A13_PLL2_POST_DIV_SHIFT		26
+#define	A13_PLL2_FACTOR_N		(0x7f << 8)
+#define	A13_PLL2_FACTOR_N_SHIFT		8
+#define	A13_PLL2_PRE_DIV		(0x1f << 0)
+#define	A13_PLL2_PRE_DIV_SHIFT		0
 
 #define	A23_PLL1_FACTOR_N		(0x1f << 8)
 #define	A23_PLL1_FACTOR_N_SHIFT		8
@@ -159,6 +168,7 @@ enum aw_pll_type {
 	AWPLL_A10_PLL3,
 	AWPLL_A10_PLL5,
 	AWPLL_A10_PLL6,
+	AWPLL_A13_PLL2,
 	AWPLL_A23_PLL1,
 	AWPLL_A31_PLL1,
 	AWPLL_A31_PLL6,
@@ -462,6 +472,81 @@ a10_pll6_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
 }
 
 static int
+a13_pll2_recalc(struct aw_pll_sc *sc, uint64_t *freq)
+{
+	uint32_t val, post_div, n, pre_div;
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	DEVICE_UNLOCK(sc);
+
+	post_div = ((val & A13_PLL2_POST_DIV) >> A13_PLL2_POST_DIV_SHIFT) + 1;
+	if (post_div == 0)
+		post_div = 1;
+	n = (val & A13_PLL2_FACTOR_N) >> A13_PLL2_FACTOR_N_SHIFT;
+	if (n == 0)
+		n = 1;
+	pre_div = ((val & A13_PLL2_PRE_DIV) >> A13_PLL2_PRE_DIV_SHIFT) + 1;
+	if (pre_div == 0)
+		pre_div = 1;
+
+	switch (sc->id) {
+	case SUN4I_A10_PLL2_1X:
+		*freq = (*freq * 2 * n) / pre_div / post_div / 2;
+		break;
+	case SUN4I_A10_PLL2_2X:
+		*freq = (*freq * 2 * n) / pre_div / 4;
+		break;
+	case SUN4I_A10_PLL2_4X:
+		*freq = (*freq * 2 * n) / pre_div / 2;
+		break;
+	case SUN4I_A10_PLL2_8X:
+		*freq = (*freq * 2 * n) / pre_div;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+a13_pll2_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
+    int flags)
+{
+	uint32_t val, post_div, n, pre_div;
+
+	if (sc->id != SUN4I_A10_PLL2_1X)
+		return (ENXIO);
+
+	/*
+	 * Audio Codec needs PLL2-1X to be either 24576000 or 22579200.
+	 *
+	 * PLL2-1X output frequency is (48MHz * n) / pre_div / post_div / 2.
+	 * To get as close as possible to the desired rate, we use a
+	 * pre-divider of 21 and a post-divider of 4. With these values,
+	 * a multiplier of 86 or 79 gets us close to the target rates.
+	 */
+	if (*fout != 24576000 && *fout != 22579200)
+		return (EINVAL);
+
+	pre_div = 21;
+	post_div = 4;
+	n = (*fout * pre_div * post_div * 2) / (2 * fin);
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	val &= ~(A13_PLL2_POST_DIV | A13_PLL2_FACTOR_N | A13_PLL2_PRE_DIV);
+	val |= ((post_div - 1) << A13_PLL2_POST_DIV_SHIFT);
+	val |= (n << A13_PLL2_FACTOR_N_SHIFT);
+	val |= ((pre_div - 1) << A13_PLL2_PRE_DIV_SHIFT);
+	PLL_WRITE(sc, val);
+	DEVICE_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
 a23_pll1_recalc(struct aw_pll_sc *sc, uint64_t *freq)
 {
 	uint32_t val, m, n, k, p;
@@ -591,6 +676,7 @@ static struct aw_pll_funcs aw_pll_func[] = {
 	PLL(AWPLL_A10_PLL3, a10_pll3_recalc, a10_pll3_set_freq, a10_pll3_init),
 	PLL(AWPLL_A10_PLL5, a10_pll5_recalc, NULL, NULL),
 	PLL(AWPLL_A10_PLL6, a10_pll6_recalc, a10_pll6_set_freq, a10_pll6_init),
+	PLL(AWPLL_A13_PLL2, a13_pll2_recalc, a13_pll2_set_freq, NULL),
 	PLL(AWPLL_A23_PLL1, a23_pll1_recalc, NULL, NULL),
 	PLL(AWPLL_A31_PLL1, a31_pll1_recalc, NULL, NULL),
 	PLL(AWPLL_A31_PLL6, a31_pll6_recalc, NULL, a31_pll6_init),
@@ -603,6 +689,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-pll3-clk",	AWPLL_A10_PLL3 },
 	{ "allwinner,sun4i-a10-pll5-clk",	AWPLL_A10_PLL5 },
 	{ "allwinner,sun4i-a10-pll6-clk",	AWPLL_A10_PLL6 },
+	{ "allwinner,sun5i-a13-pll2-clk",	AWPLL_A13_PLL2 },
 	{ "allwinner,sun6i-a31-pll1-clk",	AWPLL_A31_PLL1 },
 	{ "allwinner,sun6i-a31-pll6-clk",	AWPLL_A31_PLL6 },
 	{ "allwinner,sun8i-a23-pll1-clk",	AWPLL_A23_PLL1 },

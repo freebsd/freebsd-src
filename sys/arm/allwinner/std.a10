@@ -10,3 +10,4 @@ options 	KERNVIRTADDR=0xc0200000
 
 files		"../allwinner/files.allwinner"
 files		"../allwinner/files.a10"
+files		"../allwinner/a13/files.a13"
