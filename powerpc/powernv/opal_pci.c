@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <powerpc/ofw/ofw_pci.h>
+#include <dev/ofw/ofwpci.h>
 
 #include "pcib_if.h"
 #include "iommu_if.h"
@@ -142,6 +142,17 @@ opalpci_attach(device_t dev)
 		    OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-phbid"));
 		return (ENXIO);
 	}
+
+	if (bootverbose)
+		device_printf(dev, "OPAL ID %#lx\n", sc->phb_id);
+
+#if 0
+	/* Reset PCI host controller */
+	opal_call(OPAL_PCI_RESET, sc->phb_id, 1, 1);
+	DELAY(1000);
+	opal_call(OPAL_PCI_RESET, sc->phb_id, 1, 0);
+	DELAY(1000);
+#endif
 
 	/*
 	 * Map all devices on the bus to partitionable endpoint zero until
