@@ -1036,7 +1036,10 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 		} else if (cc_exec_cancel(cc, direct) == false ||
 		    cc_exec_restart(cc, direct) == true) {
 			cc_exec_cancel(cc, direct) = true;
-			retval = CALLOUT_RET_CANCELLED;
+			if (coa != NULL)
+				retval = CALLOUT_RET_CANCELLED;
+			else
+				retval = CALLOUT_RET_DRAINING;
 		} else {
 			retval = CALLOUT_RET_DRAINING;
 		}

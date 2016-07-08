@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2015
+.Dd July 8, 2015
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -312,6 +312,15 @@ This function returns either
 .Dv CALLOUT_RET_CANCELLED
 or
 .Dv CALLOUT_RET_DRAINING .
+If the callout was scheduled regardless of being serviced or not,
+.Dv CALLOUT_RET_CANCELLED
+is returned.
+If the callout was stopped and is still being serviced
+.Dv CALLOUT_RET_DRAINING
+is returned.
+If the callout was stopped and is no longer being serviced
+.Dv CALLOUT_RET_STOPPED
+is returned.
 If a lock is associated with the callout given by the
 .Fa c
 argument and it is exclusivly locked when this function is called, this
@@ -546,12 +555,22 @@ is undefined.
 This function is used to stop a timeout function invocation associated with the callout pointed to by the
 .Fa c
 argument, in a non-blocking fashion.
-This function can be called multiple times in a row with no side effects, even if the callout is already stopped. This function however should not be called before the callout has been initialized.
+This function can be called multiple times in a row with no side effects, even if the callout is already stopped.
+This function however should not be called before the callout has been initialized.
 This function returns either
 .Dv CALLOUT_RET_STOPPED ,
 .Dv CALLOUT_RET_CANCELLED
 or
 .Dv CALLOUT_RET_DRAINING .
+If the callout is being serviced regardless of being scheduled or not,
+.Dv CALLOUT_RET_DRAINING
+is returned.
+If the callout is not being serviced and was already stopped
+.Dv CALLOUT_RET_STOPPED
+is returned.
+If the callout is not being serviced and was scheduled
+.Dv CALLOUT_RET_CANCELLED
+is returned.
 If a lock is associated with the callout given by the
 .Fa c
 argument and it is exclusivly locked when this function is called, the
