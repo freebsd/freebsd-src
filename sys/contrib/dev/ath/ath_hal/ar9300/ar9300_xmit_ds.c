@@ -335,6 +335,9 @@ ar9300_proc_tx_desc(struct ath_hal *ah, void *txstatus)
         ts->ts_ba_low = ads->status5;
         ts->ts_ba_high = ads->status6;
     }
+    if (ads->status8 & AR_tx_fast_ts) {
+        ts->ts_flags |= HAL_TX_FAST_TS;
+    }
 
     /*
      * Extract the transmit rate.
@@ -624,6 +627,11 @@ ar9300_set_11n_tx_desc(
     ads->ds_ctl18 = 0;
     ads->ds_ctl19 = AR_not_sounding; /* set not sounding for normal frame */
 
+    /* ToA/ToD positioning */
+    if (flags & HAL_TXDESC_POS) {
+        ads->ds_ctl12 |= AR_loc_mode;
+        ads->ds_ctl19 &= ~AR_not_sounding;
+    }
 
     /*
      * Clear Ness1/2/3 (Number of Extension Spatial Streams) fields.
