@@ -274,7 +274,7 @@ mv_mpic_attach(device_t dev)
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
 		return (ENXIO);
 	}
-	if (intr_pic_register(dev, OF_xref_from_device(dev)) != 0) {
+	if (intr_pic_register(dev, OF_xref_from_device(dev)) == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
 		return (ENXIO);
@@ -368,6 +368,11 @@ mpic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	mpic_enable_intr(dev, isrc);
 }
+
+static void
+mpic_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+}
 #endif
 
 static device_method_t mv_mpic_methods[] = {
@@ -378,6 +383,7 @@ static device_method_t mv_mpic_methods[] = {
 	DEVMETHOD(pic_disable_intr,	mpic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mpic_enable_intr),
 	DEVMETHOD(pic_map_intr,		mpic_map_intr),
+	DEVMETHOD(pic_post_filter,	mpic_post_filter),
 	DEVMETHOD(pic_post_ithread,	mpic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mpic_pre_ithread),
 #endif

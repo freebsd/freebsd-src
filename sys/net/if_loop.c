@@ -156,7 +156,7 @@ vnet_loif_init(const void *unused __unused)
 	    1);
 #endif
 }
-VNET_SYSINIT(vnet_loif_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_loif_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_loif_init, NULL);
 
 #ifdef VIMAGE
@@ -167,7 +167,7 @@ vnet_loif_uninit(const void *unused __unused)
 	if_clone_detach(V_lo_cloner);
 	V_loif = NULL;
 }
-VNET_SYSUNINIT(vnet_loif_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_loif_uninit, SI_SUB_INIT_IF, SI_ORDER_SECOND,
     vnet_loif_uninit, NULL);
 #endif
 

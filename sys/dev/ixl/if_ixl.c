@@ -980,7 +980,8 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			vsi->max_frame_size =
 				ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN
 			    + ETHER_VLAN_ENCAP_LEN;
-			ixl_init_locked(pf);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ixl_init_locked(pf);
 			IXL_PF_UNLOCK(pf);
 		}
 		break;
@@ -2264,6 +2265,10 @@ ixl_setup_queue_tqs(struct ixl_vsi *vsi)
 {
 	struct ixl_queue *que = vsi->queues;
 	device_t dev = vsi->dev;
+#ifdef	RSS
+	cpuset_t cpu_mask;
+	int cpu_id;
+#endif
 
 	/* Create queue tasks and start queue taskqueues */
 	for (int i = 0; i < vsi->num_queues; i++, que++) {
@@ -2272,6 +2277,7 @@ ixl_setup_queue_tqs(struct ixl_vsi *vsi)
 		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
 #ifdef RSS
+		cpu_id = rss_getcpu(i % rss_getnumbuckets());
 		CPU_SETOF(cpu_id, &cpu_mask);
 		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
 		    &cpu_mask, "%s (bucket %d)",
@@ -2355,9 +2361,6 @@ ixl_setup_queue_msix(struct ixl_vsi *vsi)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 1;
-#ifdef	RSS
-	cpuset_t cpu_mask;
-#endif
 
 	/* Queue interrupt vector numbers start at 1 (adminq intr is 0) */
 	for (int i = 0; i < vsi->num_queues; i++, vector++, que++) {

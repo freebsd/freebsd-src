@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2012-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -174,6 +174,8 @@ siena_mcdi_init(
 	unsigned int portnum;
 	efx_rc_t rc;
 
+	_NOTE(ARGUNUSED(mtp))
+
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
 
 	/* Determine the port number to use for MCDI */
@@ -212,6 +214,7 @@ fail1:
 siena_mcdi_fini(
 	__in		efx_nic_t *enp)
 {
+	_NOTE(ARGUNUSED(enp))
 }
 
 	__checkReturn	efx_rc_t
@@ -234,7 +237,6 @@ siena_mcdi_feature_supported(
 	default:
 		rc = ENOTSUP;
 		goto fail1;
-		break;
 	}
 
 	return (0);

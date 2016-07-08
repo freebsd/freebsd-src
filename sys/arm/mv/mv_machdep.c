@@ -55,6 +55,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platform.h> 
 
+#if __ARM_ARCH < 6
+#include <machine/cpu-v4.h>
+#else
+#include <machine/cpu-v6.h>
+#endif
+
 #include <arm/mv/mvreg.h>	/* XXX */
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
 #include <arm/mv/mvwin.h>
@@ -277,7 +283,7 @@ static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 static int
 platform_sram_devmap(struct devmap_entry *map)
 {
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	phandle_t child, root;
 	u_long base, size;
 	/*
@@ -453,9 +459,9 @@ DB_SHOW_COMMAND(cp15, db_show_cp15)
 	__asm __volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (reg));
 	db_printf("Current Cache Lvl ID: 0x%08x\n",reg);
 
-	__asm __volatile("mrc p15, 0, %0, c1, c0, 0" : "=r" (reg));
+	reg = cp15_sctlr_get();
 	db_printf("Ctrl: 0x%08x\n",reg);
-	__asm __volatile("mrc p15, 0, %0, c1, c0, 1" : "=r" (reg));
+	reg = cp15_actlr_get();
 	db_printf("Aux Ctrl: 0x%08x\n",reg);
 
 	__asm __volatile("mrc p15, 0, %0, c0, c1, 0" : "=r" (reg));

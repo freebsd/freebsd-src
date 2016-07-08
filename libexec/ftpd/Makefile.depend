@@ -8,12 +8,14 @@ DIRDEPS = \
 	include/arpa \
 	include/xlocale \
 	lib/${CSU_DIR} \
+	lib/libblacklist \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libmd \
 	lib/libopie \
 	lib/libpam/libpam \
+	lib/libthr \
 	lib/libutil \
 	lib/libxo \
 	lib/msun \

@@ -319,7 +319,7 @@ mtk_pci_attach(device_t dev)
 	}
 
 	/* Register ourselves as an interrupt controller */
-	if (intr_pic_register(dev, xref) != 0) {
+	if (intr_pic_register(dev, xref) == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		goto cleanup_rman;
 	}

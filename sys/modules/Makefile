@@ -116,7 +116,7 @@ SUBDIR=	\
 	fdc \
 	fdescfs \
 	${_fe} \
-	${_filemon} \
+	filemon \
 	firewire \
 	firmware \
 	fuse \
@@ -125,6 +125,7 @@ SUBDIR=	\
 	geom \
 	${_glxiic} \
 	${_glxsb} \
+	gpio \
 	hatm \
 	hifn \
 	hme \
@@ -173,6 +174,7 @@ SUBDIR=	\
 	${_ipw} \
 	${_ipwfw} \
 	${_isci} \
+	${_iser} \
 	isp \
 	${_ispfw} \
 	${_iwi} \
@@ -351,7 +353,7 @@ SUBDIR=	\
 	${_syscons} \
 	sysvipc \
 	${_ti} \
-	tcp/fastpath \
+	${_tcp_fastpath} \
 	tests/framework \
 	tests/callout_test \
 	tl \
@@ -434,6 +436,10 @@ _random_other=	random_other
 SUBDIR+=	cuse
 .endif
 
+.if ${MK_EXTRA_TCP_STACKS} != "no" || defined(ALL_MODULES)
+_tcp_fastpath=	tcp/fastpath
+.endif
+
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=		carp
@@ -497,7 +503,7 @@ _txp=		txp
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_ARCH:C/mips(el)?/mips/} != "mips" && \
-	${MACHINE_ARCH} != "powerpc"
+	${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
 .endif
 
@@ -506,7 +512,8 @@ SUBDIR+=	zfs
 .endif
 
 .if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "arm" && \
-	${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "powerpc"
+	${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "powerpc" && \
+	${MACHINE_CPUARCH} != "riscv"
 _syscons=	syscons
 _vpo=		vpo
 .endif
@@ -546,7 +553,6 @@ _ep=		ep
 _et=		et
 _exca=		exca
 _fe=		fe
-_filemon=	filemon
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=        ibcore
 .endif
@@ -555,6 +561,7 @@ _igb=		igb
 _io=		io
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ipoib=         ipoib
+_iser=		iser
 .endif
 _ix=		ix
 _ixv=		ixv
@@ -773,7 +780,7 @@ SUBDIR:= ${SUBDIR:N${reject}}
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
 .MAKEFLAGS+=	-DNO_XREF
-afterinstall:
+afterinstall: .PHONY
 	@if type kldxref >/dev/null 2>&1; then \
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
 		kldxref ${DESTDIR}${KMODDIR}; \

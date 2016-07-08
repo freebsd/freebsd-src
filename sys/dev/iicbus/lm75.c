@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define	LM75_0125C		0x20
 #define	LM75_MSB		0x8000
 #define	LM75_NEG_BIT		LM75_MSB
-#define	TZ_ZEROC		2732
+#define	TZ_ZEROC		2731
 
 /* LM75 supported models. */
 #define	HWTYPE_LM75		1

@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -385,6 +386,7 @@ static struct mtx pv_chunks_mutex;
 static struct rwlock pv_list_locks[NPV_LIST_LOCKS];
 static u_long pv_invl_gen[NPV_LIST_LOCKS];
 static struct md_page *pv_table;
+static struct md_page pv_dummy;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -585,7 +587,7 @@ static caddr_t crashdumpmap;
 static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, struct rwlock **lockp);
-static int	popcnt_pc_map_elem_pq(uint64_t elem);
+static int	popcnt_pc_map_pq(uint64_t *map);
 static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void	reserve_pv_entries(pmap_t pmap, int needed,
 		    struct rwlock **lockp);
@@ -1263,6 +1265,7 @@ pmap_init(void)
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
+	TAILQ_INIT(&pv_dummy.pv_list);
 
 	pmap_initialized = 1;
 	for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
@@ -3126,7 +3129,7 @@ retry:
 }
 
 /*
- * Returns the number of one bits within the given PV chunk map element.
+ * Returns the number of one bits within the given PV chunk map.
  *
  * The erratas for Intel processors state that "POPCNT Instruction May
  * Take Longer to Execute Than Expected".  It is believed that the
@@ -3139,14 +3142,18 @@ retry:
  * Reference numbers for erratas are
  * 4th Gen Core: HSD146
  * 5th Gen Core: BDM85
+ * 6th Gen Core: SKL029
  */
 static int
-popcnt_pc_map_elem_pq(uint64_t elem)
+popcnt_pc_map_pq(uint64_t *map)
 {
-	u_long result;
+	u_long result, tmp;
 
-	__asm __volatile("xorl %k0,%k0;popcntq %1,%0"
-	    : "=&r" (result) : "rm" (elem));
+	__asm __volatile("xorl %k0,%k0;popcntq %2,%0;"
+	    "xorl %k1,%k1;popcntq %3,%1;addl %k1,%k0;"
+	    "xorl %k1,%k1;popcntq %4,%1;addl %k1,%k0"
+	    : "=&r" (result), "=&r" (tmp)
+	    : "m" (map[0]), "m" (map[1]), "m" (map[2]));
 	return (result);
 }
 
@@ -3178,17 +3185,12 @@ retry:
 	avail = 0;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
 #ifndef __POPCNT__
-		if ((cpu_feature2 & CPUID2_POPCNT) == 0) {
-			free = bitcount64(pc->pc_map[0]);
-			free += bitcount64(pc->pc_map[1]);
-			free += bitcount64(pc->pc_map[2]);
-		} else
+		if ((cpu_feature2 & CPUID2_POPCNT) == 0)
+			bit_count((bitstr_t *)pc->pc_map, 0,
+			    sizeof(pc->pc_map) * NBBY, &free);
+		else
 #endif
-		{
-			free = popcnt_pc_map_elem_pq(pc->pc_map[0]);
-			free += popcnt_pc_map_elem_pq(pc->pc_map[1]);
-			free += popcnt_pc_map_elem_pq(pc->pc_map[2]);
-		}
+		free = popcnt_pc_map_pq(pc->pc_map);
 		if (free == 0)
 			break;
 		avail += free;
@@ -3920,11 +3922,10 @@ pmap_remove_all(vm_page_t m)
 	    ("pmap_remove_all: page %p is not managed", m));
 	SLIST_INIT(&free);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 retry:
 	rw_wlock(lock);
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		goto small_mappings;
 	while ((pv = TAILQ_FIRST(&pvh->pv_list)) != NULL) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -3943,7 +3944,6 @@ retry:
 		(void)pmap_demote_pde_locked(pmap, pde, va, &lock);
 		PMAP_UNLOCK(pmap);
 	}
-small_mappings:
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -5743,11 +5743,10 @@ pmap_remove_write(vm_page_t m)
 	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 retry_pv_loop:
 	rw_wlock(lock);
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		goto small_mappings;
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -5771,7 +5770,6 @@ retry_pv_loop:
 		    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
 		PMAP_UNLOCK(pmap);
 	}
-small_mappings:
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -5877,12 +5875,11 @@ pmap_ts_referenced(vm_page_t m)
 	cleared = 0;
 	pa = VM_PAGE_TO_PHYS(m);
 	lock = PHYS_TO_PV_LIST_LOCK(pa);
-	pvh = pa_to_pvh(pa);
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
 	rw_wlock(lock);
 retry:
 	not_cleared = 0;
-	if ((m->flags & PG_FICTITIOUS) != 0 ||
-	    (pvf = TAILQ_FIRST(&pvh->pv_list)) == NULL)
+	if ((pvf = TAILQ_FIRST(&pvh->pv_list)) == NULL)
 		goto small_mappings;
 	pv = pvf;
 	do {
@@ -6060,7 +6057,6 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 
 	if (advice != MADV_DONTNEED && advice != MADV_FREE)
 		return;
-	pmap_delayed_invl_started();
 
 	/*
 	 * A/D bit emulation requires an alternate code path when clearing
@@ -6077,6 +6073,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	PG_V = pmap_valid_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
 	anychanged = FALSE;
+	pmap_delayed_invl_started();
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		pml4e = pmap_pml4e(pmap, sva);
@@ -6194,12 +6191,11 @@ pmap_clear_modify(vm_page_t m)
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_wlock(lock);
 restart:
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		goto small_mappings;
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -6243,7 +6239,6 @@ restart:
 		}
 		PMAP_UNLOCK(pmap);
 	}
-small_mappings:
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -6533,7 +6528,7 @@ static int
 pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 {
 	vm_offset_t base, offset, tmpva;
-	vm_paddr_t pa_start, pa_end;
+	vm_paddr_t pa_start, pa_end, pa_end1;
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
 	pt_entry_t *pte;
@@ -6716,9 +6711,12 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			tmpva += PAGE_SIZE;
 		}
 	}
-	if (error == 0 && pa_start != pa_end)
-		error = pmap_change_attr_locked(PHYS_TO_DMAP(pa_start),
-		    pa_end - pa_start, mode);
+	if (error == 0 && pa_start != pa_end && pa_start < dmaplimit) {
+		pa_end1 = MIN(pa_end, dmaplimit);
+		if (pa_start != pa_end1)
+			error = pmap_change_attr_locked(PHYS_TO_DMAP(pa_start),
+			    pa_end1 - pa_start, mode);
+	}
 
 	/*
 	 * Flush CPU caches if required to make sure any data isn't cached that

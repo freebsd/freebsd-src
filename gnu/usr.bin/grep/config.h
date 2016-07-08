@@ -98,7 +98,7 @@
 #define HAVE_GETUID 1
 
 /* Define if you have the iconv() function. */
-/* #undef HAVE_ICONV */
+#define HAVE_ICONV 1
 
 /* Define if <inttypes.h> exists, doesn't clash with <sys/types.h>, and
    declares uintmax_t. */
@@ -260,7 +260,7 @@
 /* #undef HAVE___ARGZ_STRINGIFY */
 
 /* Define as const if the declaration of iconv() needs const. */
-/* #undef ICONV_CONST */
+#define ICONV_CONST 
 
 /* Name of package */
 #define PACKAGE "grep"

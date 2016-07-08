@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Solarflare Communications Inc.
+ * Copyright (c) 2015-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,6 +84,7 @@ ef10_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__in		efx_evq_t *eep);
 
 			void

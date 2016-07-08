@@ -28,7 +28,7 @@
 .\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2013
+.Dd June 1, 2016
 .Dt WAIT 2
 .Os
 .Sh NAME
@@ -596,6 +596,14 @@ and
 fields of
 .Fa infop
 must be checked against zero to determine if a process reported status.
+.Pp
+.Fn wait
+called with -1 to wait for any child process will ignore a child that is
+referenced by a process descriptor (see
+.Xr pdfork 2 ) .
+Specific processes can still be waited on by specifying the process ID
+or descriptor (see
+.Xr pdwait 4 ) .
 .Sh ERRORS
 The
 .Fn wait

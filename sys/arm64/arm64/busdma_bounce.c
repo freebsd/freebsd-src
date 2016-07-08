@@ -184,10 +184,8 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->map_count = 0;
 	newtag->segments = NULL;
 
-#ifdef notyet
 	if ((flags & BUS_DMA_COHERENT) != 0)
 		newtag->bounce_flags |= BF_COHERENT;
-#endif
 
 	if (parent != NULL) {
 		if ((newtag->common.filter != NULL ||
@@ -954,6 +952,9 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 	struct bounce_page *bpage;
 	struct sync_list *sl, *end;
 	vm_offset_t datavaddr, tempvaddr;
+
+	if (op == BUS_DMASYNC_POSTWRITE)
+		return;
 
 	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 		/*

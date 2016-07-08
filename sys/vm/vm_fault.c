@@ -285,7 +285,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	vm_prot_t prot;
 	int alloc_req, era, faultcount, nera, result;
-	boolean_t growstack, is_first_object_locked, wired;
+	boolean_t dead, growstack, is_first_object_locked, wired;
 	int map_generation;
 	vm_object_t next_object;
 	int hardfault;
@@ -421,11 +421,18 @@ fast_failed:
 	fs.pindex = fs.first_pindex;
 	while (TRUE) {
 		/*
-		 * If the object is dead, we stop here
+		 * If the object is marked for imminent termination,
+		 * we retry here, since the collapse pass has raced
+		 * with us.  Otherwise, if we see terminally dead
+		 * object, return fail.
 		 */
-		if (fs.object->flags & OBJ_DEAD) {
+		if ((fs.object->flags & OBJ_DEAD) != 0) {
+			dead = fs.object->type == OBJT_DEAD;
 			unlock_and_deallocate(&fs);
-			return (KERN_PROTECTION_FAILURE);
+			if (dead)
+				return (KERN_PROTECTION_FAILURE);
+			pause("vmf_de", 1);
+			goto RetryFault;
 		}
 
 		/*
@@ -496,11 +503,13 @@ fast_failed:
 				goto readrest;
 			break;
 		}
+		KASSERT(fs.m == NULL, ("fs.m should be NULL, not %p", fs.m));
 
 		/*
-		 * Page is not resident.  If this is the search termination
-		 * or the pager might contain the page, allocate a new page.
-		 * Default objects are zero-fill, there is no real pager.
+		 * Page is not resident.  If the pager might contain the page
+		 * or this is the beginning of the search, allocate a new
+		 * page.  (Default objects are zero-fill, so there is no real
+		 * pager for them.)
 		 */
 		if (fs.object->type != OBJT_DEFAULT ||
 		    fs.object == fs.first_object) {
@@ -517,7 +526,6 @@ fast_failed:
 			 * there, and allocation can fail, causing
 			 * restart and new reading of the p_flag.
 			 */
-			fs.m = NULL;
 			if (!vm_page_count_severe() || P_KILLED(curproc)) {
 #if VM_NRESERVLEVEL > 0
 				vm_object_color(fs.object, atop(vaddr) -
@@ -541,14 +549,12 @@ fast_failed:
 
 readrest:
 		/*
-		 * We have found a valid page or we have allocated a new page.
-		 * The page thus may not be valid or may not be entirely 
-		 * valid.
+		 * We have either allocated a new page or found an existing
+		 * page that is only partially valid.
 		 *
 		 * Attempt to fault-in the page if there is a chance that the
 		 * pager has it, and potentially fault in additional pages
-		 * at the same time.  For default objects simply provide
-		 * zero-filled pages.
+		 * at the same time.
 		 */
 		if (fs.object->type != OBJT_DEFAULT) {
 			int rv;
@@ -564,9 +570,9 @@ readrest:
 				behind = 0;
 				nera = VM_FAULT_READ_AHEAD_MAX;
 				ahead = nera;
-				if (fs.pindex == fs.entry->next_read)
+				if (vaddr == fs.entry->next_read)
 					vm_fault_dontneed(&fs, vaddr, ahead);
-			} else if (fs.pindex == fs.entry->next_read) {
+			} else if (vaddr == fs.entry->next_read) {
 				/*
 				 * This is a sequential fault.  Arithmetically
 				 * increase the requested number of pages in
@@ -657,48 +663,40 @@ vnode_locked:
 				hardfault++;
 				break; /* break to PAGE HAS BEEN FOUND */
 			}
-			/*
-			 * Remove the bogus page (which does not exist at this
-			 * object/offset); before doing so, we must get back
-			 * our object lock to preserve our invariant.
-			 *
-			 * Also wake up any other process that may want to bring
-			 * in this page.
-			 *
-			 * If this is the top-level object, we must leave the
-			 * busy page to prevent another process from rushing
-			 * past us, and inserting the page in that object at
-			 * the same time that we are.
-			 */
 			if (rv == VM_PAGER_ERROR)
 				printf("vm_fault: pager read error, pid %d (%s)\n",
 				    curproc->p_pid, curproc->p_comm);
+
 			/*
-			 * Data outside the range of the pager or an I/O error
+			 * If an I/O error occurred or the requested page was
+			 * outside the range of the pager, clean up and return
+			 * an error.
 			 */
-			/*
-			 * XXX - the check for kernel_map is a kludge to work
-			 * around having the machine panic on a kernel space
-			 * fault w/ I/O error.
-			 */
-			if (((fs.map != kernel_map) && (rv == VM_PAGER_ERROR)) ||
-				(rv == VM_PAGER_BAD)) {
+			if (rv == VM_PAGER_ERROR || rv == VM_PAGER_BAD) {
 				vm_page_lock(fs.m);
 				vm_page_free(fs.m);
 				vm_page_unlock(fs.m);
 				fs.m = NULL;
 				unlock_and_deallocate(&fs);
-				return ((rv == VM_PAGER_ERROR) ? KERN_FAILURE : KERN_PROTECTION_FAILURE);
+				return (rv == VM_PAGER_ERROR ? KERN_FAILURE :
+				    KERN_PROTECTION_FAILURE);
 			}
+
+			/*
+			 * The requested page does not exist at this object/
+			 * offset.  Remove the invalid page from the object,
+			 * waking up anyone waiting for it, and continue on to
+			 * the next object.  However, if this is the top-level
+			 * object, we must leave the busy page in place to
+			 * prevent another process from rushing past us, and
+			 * inserting the page in that object at the same time
+			 * that we are.
+			 */
 			if (fs.object != fs.first_object) {
 				vm_page_lock(fs.m);
 				vm_page_free(fs.m);
 				vm_page_unlock(fs.m);
 				fs.m = NULL;
-				/*
-				 * XXX - we cannot just fall out at this
-				 * point, m has been freed and is invalid!
-				 */
 			}
 		}
 
@@ -713,7 +711,6 @@ vnode_locked:
 		 * Move on to the next object.  Lock the next object before
 		 * unlocking the current one.
 		 */
-		fs.pindex += OFF_TO_IDX(fs.object->backing_object_offset);
 		next_object = fs.object->backing_object;
 		if (next_object == NULL) {
 			/*
@@ -751,6 +748,8 @@ vnode_locked:
 			vm_object_pip_add(next_object, 1);
 			if (fs.object != fs.first_object)
 				vm_object_pip_wakeup(fs.object);
+			fs.pindex +=
+			    OFF_TO_IDX(fs.object->backing_object_offset);
 			VM_OBJECT_WUNLOCK(fs.object);
 			fs.object = next_object;
 		}
@@ -807,26 +806,15 @@ vnode_locked:
 				 * We don't chase down the shadow chain
 				 */
 			    fs.object == fs.first_object->backing_object) {
-				/*
-				 * get rid of the unnecessary page
-				 */
+				vm_page_lock(fs.m);
+				vm_page_remove(fs.m);
+				vm_page_unlock(fs.m);
 				vm_page_lock(fs.first_m);
-				vm_page_remove(fs.first_m);
-				vm_page_unlock(fs.first_m);
-				/*
-				 * grab the page and put it into the 
-				 * process'es object.  The page is 
-				 * automatically made dirty.
-				 */
-				if (vm_page_rename(fs.m, fs.first_object,
-				    fs.first_pindex)) {
-					VM_OBJECT_WUNLOCK(fs.first_object);
-					unlock_and_deallocate(&fs);
-					goto RetryFault;
-				}
-				vm_page_lock(fs.first_m);
+				vm_page_replace_checked(fs.m, fs.first_object,
+				    fs.first_pindex, fs.first_m);
 				vm_page_free(fs.first_m);
 				vm_page_unlock(fs.first_m);
+				vm_page_dirty(fs.m);
 #if VM_NRESERVLEVEL > 0
 				/*
 				 * Rename the reservation.
@@ -835,6 +823,10 @@ vnode_locked:
 				    fs.object, OFF_TO_IDX(
 				    fs.first_object->backing_object_offset));
 #endif
+				/*
+				 * Removing the page from the backing object
+				 * unbusied it.
+				 */
 				vm_page_xbusy(fs.m);
 				fs.first_m = fs.m;
 				fs.m = NULL;
@@ -935,15 +927,15 @@ vnode_locked:
 			prot &= retry_prot;
 		}
 	}
+
 	/*
-	 * If the page was filled by a pager, update the map entry's
-	 * last read offset.
-	 *
-	 * XXX The following assignment modifies the map
-	 * without holding a write lock on it.
+	 * If the page was filled by a pager, save the virtual address that
+	 * should be faulted on next under a sequential access pattern to the
+	 * map entry.  A read lock on the map suffices to update this address
+	 * safely.
 	 */
 	if (hardfault)
-		fs.entry->next_read = fs.pindex + ahead + 1;
+		fs.entry->next_read = vaddr + ptoa(ahead) + PAGE_SIZE;
 
 	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags, TRUE);
 	vm_page_assert_xbusied(fs.m);

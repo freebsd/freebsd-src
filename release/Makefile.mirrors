@@ -27,7 +27,7 @@ EMBEDDED=		1
 .endif
 
 # snapshot
-.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE" || ${BRANCH:MALPHA*} != ""
 SNAPSHOT=		1
 TLD?=			${FTPDIR}/snapshots
 . if !defined(SVNREVISION) || empty(SVNREVISION)
@@ -63,7 +63,7 @@ BOARDNAME:=		${KERNCONF}
 .  else
 OLDNAME:=		${KERNCONF}
 .  endif
-.  if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
+.  if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE" || ${BRANCH:MALPHA*} != ""
 SNAPSHOT=		1
 .  endif
 IMAGES:=		img

@@ -207,6 +207,8 @@ rt_tables_get_gen(int table, int fam)
 	struct rib_head *rnh;
 
 	rnh = *rt_tables_get_rnh_ptr(table, fam);
+	KASSERT(rnh != NULL, ("%s: NULL rib_head pointer table %d fam %d",
+	    __func__, table, fam));
 	return (rnh->rnh_gen);
 }
 
@@ -332,7 +334,7 @@ vnet_route_uninit(const void *unused __unused)
 	free(V_rt_tables, M_RTABLE);
 	uma_zdestroy(V_rtzone);
 }
-VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     vnet_route_uninit, 0);
 #endif
 
@@ -1138,6 +1140,15 @@ rt_ifdelroute(const struct rtentry *rt, void *arg)
  * the entire routing table looking for routes which point
  * to this interface...oh well...
  */
+void
+rt_flushifroutes_af(struct ifnet *ifp, int af)
+{
+	KASSERT((af >= 1 && af <= AF_MAX), ("%s: af %d not >= 1 and <= %d",
+	    __func__, af, AF_MAX));
+
+	rt_foreach_fib_walk_del(af, rt_ifdelroute, ifp);
+}
+
 void
 rt_flushifroutes(struct ifnet *ifp)
 {

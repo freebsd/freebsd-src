@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Poul-Henning Kamp
+ * Copyright (c) 2015 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,14 +55,18 @@ static int opt_c, opt_t, opt_v;
 
 static void speeddisk(int fd, off_t mediasize, u_int sectorsize);
 static void commandtime(int fd, off_t mediasize, u_int sectorsize);
+static int zonecheck(int fd, uint32_t *zone_mode, char *zone_str,
+		     size_t zone_str_len);
 
 int
 main(int argc, char **argv)
 {
 	int i, ch, fd, error, exitval = 0;
 	char buf[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
+	char zone_desc[64];
 	off_t	mediasize, stripesize, stripeoffset;
-	u_int	sectorsize, fwsectors, fwheads;
+	u_int	sectorsize, fwsectors, fwheads, zoned = 0;
+	uint32_t zone_mode;
 
 	while ((ch = getopt(argc, argv, "ctv")) != -1) {
 		switch (ch) {
@@ -121,6 +126,9 @@ main(int argc, char **argv)
 		error = ioctl(fd, DIOCGSTRIPEOFFSET, &stripeoffset);
 		if (error)
 			stripeoffset = 0;
+		error = zonecheck(fd, &zone_mode, zone_desc, sizeof(zone_desc));
+		if (error == 0)
+			zoned = 1;
 		if (!opt_v) {
 			printf("%s", argv[i]);
 			printf("\t%u", sectorsize);
@@ -155,6 +163,8 @@ main(int argc, char **argv)
 				printf("\t%-12s\t# Disk ident.\n", ident);
 			if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0)
 				printf("\t%-12s\t# Physical path\n", physpath);
+			if (zoned != 0)
+				printf("\t%-12s\t# Zone Mode\n", zone_desc);
 		}
 		printf("\n");
 		if (opt_c)
@@ -385,4 +395,40 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 
 	printf("\n");
 	return;
+}
+
+static int
+zonecheck(int fd, uint32_t *zone_mode, char *zone_str, size_t zone_str_len)
+{
+	struct disk_zone_args zone_args;
+	int error;
+
+	bzero(&zone_args, sizeof(zone_args));
+
+	zone_args.zone_cmd = DISK_ZONE_GET_PARAMS;
+	error = ioctl(fd, DIOCZONECMD, &zone_args);
+
+	if (error == 0) {
+		*zone_mode = zone_args.zone_params.disk_params.zone_mode;
+
+		switch (*zone_mode) {
+		case DISK_ZONE_MODE_NONE:
+			snprintf(zone_str, zone_str_len, "Not_Zoned");
+			break;
+		case DISK_ZONE_MODE_HOST_AWARE:
+			snprintf(zone_str, zone_str_len, "Host_Aware");
+			break;
+		case DISK_ZONE_MODE_DRIVE_MANAGED:
+			snprintf(zone_str, zone_str_len, "Drive_Managed");
+			break;
+		case DISK_ZONE_MODE_HOST_MANAGED:
+			snprintf(zone_str, zone_str_len, "Host_Managed");
+			break;
+		default:
+			snprintf(zone_str, zone_str_len, "Unknown_zone_mode_%u",
+			    *zone_mode);
+			break;
+		}
+	}
+	return (error);
 }

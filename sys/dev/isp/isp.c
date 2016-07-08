@@ -2431,6 +2431,7 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 		    __func__, chan, vp.vp_mod_hdr.rqs_flags, vp.vp_mod_status);
 		return (EIO);
 	}
+	GET_NANOTIME(&isp->isp_init_time);
 	return (0);
 }
 
@@ -4699,6 +4700,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			tmf->tmf_tidhi = lp->portid >> 16;
 			tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
 			isp_put_24xx_tmf(isp, tmf, isp->isp_iocb);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "TMF IOCB request", QENTRY_LEN, isp->isp_iocb);
 			MEMORYBARRIER(isp, SYNC_IFORDEV, 0, QENTRY_LEN, chan);
 			fcp->sendmarker = 1;
 
@@ -4715,6 +4718,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 				break;
 
 			MEMORYBARRIER(isp, SYNC_IFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "TMF IOCB response", QENTRY_LEN, &((isp24xx_statusreq_t *)isp->isp_iocb)[1]);
 			sp = (isp24xx_statusreq_t *) local;
 			isp_get_24xx_response(isp, &((isp24xx_statusreq_t *)isp->isp_iocb)[1], sp);
 			if (sp->req_completion_status == 0) {
@@ -4781,6 +4786,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			ab->abrt_tidhi = lp->portid >> 16;
 			ab->abrt_vpidx = ISP_GET_VPIDX(isp, chan);
 			isp_put_24xx_abrt(isp, ab, isp->isp_iocb);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "AB IOCB quest", QENTRY_LEN, isp->isp_iocb);
 			MEMORYBARRIER(isp, SYNC_IFORDEV, 0, 2 * QENTRY_LEN, chan);
 
 			ISP_MEMZERO(&mbs, sizeof (mbs));
@@ -4796,6 +4803,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 				break;
 
 			MEMORYBARRIER(isp, SYNC_IFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "AB IOCB response", QENTRY_LEN, &((isp24xx_abrt_t *)isp->isp_iocb)[1]);
 			isp_get_24xx_abrt(isp, &((isp24xx_abrt_t *)isp->isp_iocb)[1], ab);
 			if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY) {
 				return (0);
@@ -5857,6 +5866,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * These are broadcast events that have to be sent across
 		 * all active channels.
 		 */
+		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			int topo = fcp->isp_topo;
@@ -5913,6 +5923,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
 		 */
+		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
@@ -5956,6 +5967,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
 		 */
+		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
@@ -6154,6 +6166,7 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 		portid = (uint32_t)rid.ridacq_vp_port_hi << 16 |
 		    rid.ridacq_vp_port_lo;
 		if (rid.ridacq_format == 0) {
+			GET_NANOTIME(&isp->isp_init_time);
 			for (chan = 0; chan < isp->isp_nchan; chan++) {
 				fcparam *fcp = FCPARAM(isp, chan);
 				if (fcp->role == ISP_ROLE_NONE)

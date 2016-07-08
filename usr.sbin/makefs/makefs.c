@@ -78,8 +78,10 @@ static fstype_t fstypes[] = {
 u_int		debug;
 int		dupsok;
 struct timespec	start_time;
+struct stat stampst;
 
 static	fstype_t *get_fstype(const char *);
+static int get_tstamp(const char *, struct stat *);
 static	void	usage(void);
 int		main(int, char *[]);
 
@@ -110,13 +112,15 @@ main(int argc, char *argv[])
 		fstype->prepare_options(&fsoptions);
 
 	specfile = NULL;
-	if (gettimeofday(&start, NULL) == -1)
-		err(1, "Unable to get system time");
-
+	ch = gettimeofday(&start, NULL);
 	start_time.tv_sec = start.tv_sec;
 	start_time.tv_nsec = start.tv_usec * 1000;
 
-	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:pR:s:S:t:xZ")) != -1) {
+	if (ch == -1)
+		err(1, "Unable to get system time");
+
+
+	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:pR:s:S:t:T:xZ")) != -1) {
 		switch (ch) {
 
 		case 'B':
@@ -237,6 +241,12 @@ main(int argc, char *argv[])
 			if ((fstype = get_fstype(optarg)) == NULL)
 				errx(1, "Unknown fs type `%s'.", optarg);
 			fstype->prepare_options(&fsoptions);
+			break;
+
+		case 'T':
+			if (get_tstamp(optarg, &stampst) == -1)
+				errx(1, "Cannot get timestamp from `%s'",
+				    optarg);
 			break;
 
 		case 'x':
@@ -360,6 +370,32 @@ get_fstype(const char *type)
 	return (NULL);
 }
 
+static int
+get_tstamp(const char *b, struct stat *st)
+{
+	time_t when;
+	char *eb;
+	long long l;
+
+	if (stat(b, st) != -1)
+		return 0;
+
+	{
+		errno = 0;
+		l = strtoll(b, &eb, 0);
+		if (b == eb || *eb || errno)
+			return -1;
+		when = (time_t)l;
+	}
+
+	st->st_ino = 1;
+#ifdef HAVE_STRUCT_STAT_BIRTHTIME
+	st->st_birthtime =
+#endif
+	st->st_mtime = st->st_ctime = st->st_atime = when;
+	return 0;
+}
+
 static void
 usage(void)
 {
@@ -370,7 +406,8 @@ usage(void)
 "usage: %s [-t fs-type] [-o fs-options] [-d debug-mask] [-B endian]\n"
 "\t[-S sector-size] [-M minimum-size] [-m maximum-size] [-R roundup-size]\n"
 "\t[-s image-size] [-b free-blocks] [-f free-files] [-F mtree-specfile]\n"
-"\t[-xZ] [-N userdb-dir] image-file directory | manifest [extra-directory ...]\n",
+"\t[-xZ] [-N userdb-dir] [-T <timestamp/file>]\n"
+"\timage-file directory | manifest [extra-directory ...]\n",
 	    prog);
 	exit(1);
 }

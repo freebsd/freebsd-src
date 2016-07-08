@@ -730,7 +730,15 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				PCHAR('>');
 			break;
 		case 'c':
+			width -= 1;
+
+			if (!ladjust && width > 0)
+				while (width--)
+					PCHAR(padc);
 			PCHAR(va_arg(ap, int));
+			if (ladjust && width > 0)
+				while (width--)
+					PCHAR(padc);
 			break;
 		case 'D':
 			up = va_arg(ap, u_char *);

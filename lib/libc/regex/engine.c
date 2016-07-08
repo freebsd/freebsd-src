@@ -606,9 +606,9 @@ backref(struct match *m,
 				return(NULL);
 			break;
 		case OBOL:
-			if ( (sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||
-					(sp < m->endp && *(sp-1) == '\n' &&
-						(m->g->cflags&REG_NEWLINE)) )
+			if ((sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||
+			    (sp > m->offp && sp < m->endp &&
+			    *(sp-1) == '\n' && (m->g->cflags&REG_NEWLINE)))
 				{ /* yes */ }
 			else
 				return(NULL);
@@ -622,12 +622,9 @@ backref(struct match *m,
 				return(NULL);
 			break;
 		case OBOW:
-			if (( (sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||
-					(sp < m->endp && *(sp-1) == '\n' &&
-						(m->g->cflags&REG_NEWLINE)) ||
-					(sp > m->beginp &&
-							!ISWORD(*(sp-1))) ) &&
-					(sp < m->endp && ISWORD(*sp)) )
+			if (sp < m->endp && ISWORD(*sp) &&
+			    ((sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||
+			    (sp > m->offp && !ISWORD(*(sp-1)))))
 				{ /* yes */ }
 			else
 				return(NULL);
@@ -789,7 +786,7 @@ fast(	struct match *m,
 	ASSIGN(fresh, st);
 	SP("start", st, *p);
 	coldp = NULL;
-	if (start == m->beginp)
+	if (start == m->offp || (start == m->beginp && !(m->eflags&REG_NOTBOL)))
 		c = OUT;
 	else {
 		/*
@@ -894,7 +891,7 @@ slow(	struct match *m,
 	SP("sstart", st, *p);
 	st = step(m->g, startst, stopst, st, NOTHING, st);
 	matchp = NULL;
-	if (start == m->beginp)
+	if (start == m->offp || (start == m->beginp && !(m->eflags&REG_NOTBOL)))
 		c = OUT;
 	else {
 		/*

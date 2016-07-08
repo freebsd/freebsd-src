@@ -1,0 +1,8 @@
+.\" $FreeBSD$
+Set to build some programs without blacklistd support, like
+.Xr fingerd 8 ,
+.Xr ftpd 8 ,
+.Xr rlogind 8 ,
+.Xr rshd 8 ,
+and
+.Xr sshd 8 .

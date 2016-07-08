@@ -574,9 +574,10 @@ zfs_znode_sa_init(zfsvfs_t *zfsvfs, znode_t *zp,
 	zp->z_is_sa = (obj_type == DMU_OT_SA) ? B_TRUE : B_FALSE;
 
 	/*
-	 * Slap on VROOT if we are the root znode
+	 * Slap on VROOT if we are the root znode unless we are the root
+	 * node of a snapshot mounted under .zfs.
 	 */
-	if (zp->z_id == zfsvfs->z_root)
+	if (zp->z_id == zfsvfs->z_root && zfsvfs->z_parent == zfsvfs)
 		ZTOV(zp)->v_flag |= VROOT;
 
 	mutex_exit(&zp->z_lock);

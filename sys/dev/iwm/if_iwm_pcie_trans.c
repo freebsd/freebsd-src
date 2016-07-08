@@ -105,6 +105,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -361,6 +363,8 @@ iwm_prepare_card_hw(struct iwm_softc *sc)
 	if (iwm_set_hw_ready(sc))
 		goto out;
 
+	DELAY(100);
+
 	/* If HW is not ready, prepare the conditions to check again */
 	IWM_SETBITS(sc, IWM_CSR_HW_IF_CONFIG_REG,
 	    IWM_CSR_HW_IF_CONFIG_REG_PREPARE);
@@ -454,7 +458,7 @@ iwm_apm_init(struct iwm_softc *sc)
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000)) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for clock stabilization\n");
-
+		error = ETIMEDOUT;
 		goto out;
 	}
 

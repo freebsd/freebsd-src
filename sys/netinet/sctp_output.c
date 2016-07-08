@@ -3643,7 +3643,8 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 					for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 						stcb->asoc.strmout[i].chunks_on_queues = 0;
-						stcb->asoc.strmout[i].next_sequence_send = 0;
+						stcb->asoc.strmout[i].next_mid_ordered = 0;
+						stcb->asoc.strmout[i].next_mid_unordered = 0;
 #if defined(SCTP_DETAILED_STR_STATS)
 						for (j = 0; j < SCTP_PR_SCTP_MAX + 1; j++) {
 							stcb->asoc.strmout[i].abandoned_sent[j] = 0;
@@ -5686,7 +5687,7 @@ do_a_abort:
 			{
 				stc.addr_type = SCTP_IPV6_ADDRESS;
 				memcpy(&stc.address, &src6->sin6_addr, sizeof(struct in6_addr));
-				stc.scope_id = in6_getscope(&src6->sin6_addr);
+				stc.scope_id = ntohs(in6_getscope(&src6->sin6_addr));
 				if (sctp_is_address_on_local_host(src, vrf_id)) {
 					stc.loopback_scope = 1;
 					stc.local_scope = 0;
@@ -5828,7 +5829,7 @@ do_a_abort:
 	/* Now lets put the SCTP header in place */
 	initack = mtod(m, struct sctp_init_ack_chunk *);
 	/* Save it off for quick ref */
-	stc.peers_vtag = init_chk->init.initiate_tag;
+	stc.peers_vtag = ntohl(init_chk->init.initiate_tag);
 	/* who are we */
 	memcpy(stc.identification, SCTP_VERSION_STRING,
 	    min(strlen(SCTP_VERSION_STRING), sizeof(stc.identification)));
@@ -6381,7 +6382,6 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	sp->ppid = srcv->sinfo_ppid;
 	sp->context = srcv->sinfo_context;
 	sp->fsn = 0;
-	sp->msg_id = atomic_fetchadd_int(&stcb->asoc.assoc_msg_id, 1);
 	if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 		sp->net = net;
 		atomic_add_int(&sp->net->ref_count, 1);
@@ -7325,10 +7325,12 @@ re_look:
 			/* All of it fits in the MTU */
 			if (sp->some_taken) {
 				rcv_flags |= SCTP_DATA_LAST_FRAG;
-				sp->put_last_out = 1;
 			} else {
 				rcv_flags |= SCTP_DATA_NOT_FRAG;
-				sp->put_last_out = 1;
+			}
+			sp->put_last_out = 1;
+			if (sp->sinfo_flags & SCTP_SACK_IMMEDIATELY) {
+				rcv_flags |= SCTP_DATA_SACK_IMMEDIATELY;
 			}
 		} else {
 			/* Not all of it fits, we fragment */
@@ -7396,8 +7398,8 @@ re_look:
 	if (sp->sinfo_flags & SCTP_UNORDERED) {
 		rcv_flags |= SCTP_DATA_UNORDERED;
 	}
-	if ((SCTP_BASE_SYSCTL(sctp_enable_sack_immediately) && ((sp->sinfo_flags & SCTP_EOF) == SCTP_EOF)) ||
-	    ((sp->sinfo_flags & SCTP_SACK_IMMEDIATELY) == SCTP_SACK_IMMEDIATELY)) {
+	if (SCTP_BASE_SYSCTL(sctp_enable_sack_immediately) &&
+	    (sp->sinfo_flags & SCTP_EOF) == SCTP_EOF) {
 		rcv_flags |= SCTP_DATA_SACK_IMMEDIATELY;
 	}
 	/* clear out the chunk before setting up */
@@ -7568,10 +7570,28 @@ dont_do_it:
 	chk->asoc = &stcb->asoc;
 	chk->pad_inplace = 0;
 	chk->no_fr_allowed = 0;
-	chk->rec.data.stream_seq = strq->next_sequence_send;
-	if ((rcv_flags & SCTP_DATA_LAST_FRAG) &&
-	    !(rcv_flags & SCTP_DATA_UNORDERED)) {
-		strq->next_sequence_send++;
+	if (stcb->asoc.idata_supported == 0) {
+		if (rcv_flags & SCTP_DATA_UNORDERED) {
+			/* Just use 0. The receiver ignores the values. */
+			chk->rec.data.stream_seq = 0;
+		} else {
+			chk->rec.data.stream_seq = strq->next_mid_ordered;
+			if (rcv_flags & SCTP_DATA_LAST_FRAG) {
+				strq->next_mid_ordered++;
+			}
+		}
+	} else {
+		if (rcv_flags & SCTP_DATA_UNORDERED) {
+			chk->rec.data.stream_seq = strq->next_mid_unordered;
+			if (rcv_flags & SCTP_DATA_LAST_FRAG) {
+				strq->next_mid_unordered++;
+			}
+		} else {
+			chk->rec.data.stream_seq = strq->next_mid_ordered;
+			if (rcv_flags & SCTP_DATA_LAST_FRAG) {
+				strq->next_mid_ordered++;
+			}
+		}
 	}
 	chk->rec.data.stream_number = sp->stream;
 	chk->rec.data.payloadtype = sp->ppid;
@@ -7630,7 +7650,7 @@ dont_do_it:
 		dchkh->ch.chunk_flags = chk->rec.data.rcv_flags;
 		dchkh->dp.tsn = htonl(chk->rec.data.TSN_seq);
 		dchkh->dp.stream_id = htons((strq->stream_no & 0x0000ffff));
-		dchkh->dp.stream_sequence = htons(chk->rec.data.stream_seq);
+		dchkh->dp.stream_sequence = htons((uint16_t) chk->rec.data.stream_seq);
 		dchkh->dp.protocol_id = chk->rec.data.payloadtype;
 		dchkh->ch.chunk_length = htons(chk->send_size);
 	} else {
@@ -7638,9 +7658,8 @@ dont_do_it:
 		ndchkh->ch.chunk_flags = chk->rec.data.rcv_flags;
 		ndchkh->dp.tsn = htonl(chk->rec.data.TSN_seq);
 		ndchkh->dp.stream_id = htons(strq->stream_no);
-		/* WHAT DO WE DO HERE??? */
 		ndchkh->dp.reserved = htons(0);
-		ndchkh->dp.msg_id = htonl(sp->msg_id);
+		ndchkh->dp.msg_id = htonl(chk->rec.data.stream_seq);
 		if (sp->fsn == 0)
 			ndchkh->dp.ppid_fsn.protocol_id = chk->rec.data.payloadtype;
 		else
@@ -12235,7 +12254,8 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 			stcb->asoc.strmout[i].chunks_on_queues = oldstream[i].chunks_on_queues;
-			stcb->asoc.strmout[i].next_sequence_send = oldstream[i].next_sequence_send;
+			stcb->asoc.strmout[i].next_mid_ordered = oldstream[i].next_mid_ordered;
+			stcb->asoc.strmout[i].next_mid_unordered = oldstream[i].next_mid_unordered;
 			stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].state = oldstream[i].state;
@@ -12267,7 +12287,8 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 			stcb->asoc.strmout[i].abandoned_sent[0] = 0;
 			stcb->asoc.strmout[i].abandoned_unsent[0] = 0;
 #endif
-			stcb->asoc.strmout[i].next_sequence_send = 0x0;
+			stcb->asoc.strmout[i].next_mid_ordered = 0;
+			stcb->asoc.strmout[i].next_mid_unordered = 0;
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].last_msg_incomplete = 0;
 			stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
@@ -12425,7 +12446,6 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	sp->ppid = srcv->sinfo_ppid;
 	sp->context = srcv->sinfo_context;
 	sp->fsn = 0;
-	sp->msg_id = atomic_fetchadd_int(&stcb->asoc.assoc_msg_id, 1);
 	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
 
 	sp->stream = srcv->sinfo_stream;
@@ -13118,6 +13138,7 @@ sctp_lower_sosend(struct socket *so,
 				    asoc, stcb->asoc.total_output_queue_size);
 			}
 			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+				SOCKBUF_UNLOCK(&so->so_snd);
 				goto out_unlocked;
 			}
 			inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
@@ -13261,7 +13282,9 @@ skip_preblock:
 				sctp_snd_sb_alloc(stcb, sndout);
 				atomic_add_int(&sp->length, sndout);
 				len += sndout;
-
+				if (srcv->sinfo_flags & SCTP_SACK_IMMEDIATELY) {
+					sp->sinfo_flags |= SCTP_SACK_IMMEDIATELY;
+				}
 				/* Did we reach EOR? */
 				if ((uio->uio_resid == 0) &&
 				    ((user_marks_eor == 0) ||

@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
 #include "hv_net_vsc.h"
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
@@ -1299,6 +1300,7 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 	struct ifnet *ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
 	int size, do_lro = 0, do_csum = 1;
+	int hash_type = M_HASHTYPE_OPAQUE_HASH;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return (0);
@@ -1429,8 +1431,6 @@ skip:
 	}
 
 	if (hash_info != NULL && hash_value != NULL) {
-		int hash_type = M_HASHTYPE_OPAQUE;
-
 		rxr->hn_rss_pkts++;
 		m_new->m_pkthdr.flowid = hash_value->hash_value;
 		if ((hash_info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
@@ -1464,14 +1464,15 @@ skip:
 				break;
 			}
 		}
-		M_HASHTYPE_SET(m_new, hash_type);
 	} else {
-		if (hash_value != NULL)
+		if (hash_value != NULL) {
 			m_new->m_pkthdr.flowid = hash_value->hash_value;
-		else
+		} else {
 			m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
-		M_HASHTYPE_SET(m_new, M_HASHTYPE_OPAQUE);
+			hash_type = M_HASHTYPE_OPAQUE;
+		}
 	}
+	M_HASHTYPE_SET(m_new, hash_type);
 
 	/*
 	 * Note:  Moved RX completion back to hv_nv_on_receive() so all
@@ -2171,18 +2172,6 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 }
 
 static void
-hn_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	bus_addr_t *paddr = arg;
-
-	if (error)
-		return;
-
-	KASSERT(nseg == 1, ("too many segments %d!", nseg));
-	*paddr = segs->ds_addr;
-}
-
-static void
 hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
 	struct sysctl_oid_list *child;
@@ -2472,7 +2461,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		error = bus_dmamap_load(txr->hn_tx_rndis_dtag,
 		    txd->rndis_msg_dmap,
 		    txd->rndis_msg, HN_RNDIS_MSG_LEN,
-		    hn_dma_map_paddr, &txd->rndis_msg_paddr,
+		    hyperv_dma_map_paddr, &txd->rndis_msg_paddr,
 		    BUS_DMA_NOWAIT);
 		if (error) {
 			device_printf(sc->hn_dev,

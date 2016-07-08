@@ -1,4 +1,4 @@
-# $Id: libnames.mk,v 1.7 2009/12/25 07:34:03 sjg Exp $
+# $Id: libnames.mk,v 1.8 2016/04/05 15:58:37 sjg Exp $
 #
 #	@(#) Copyright (c) 2007-2009, Simon J. Gerraty
 #
@@ -16,7 +16,7 @@
 DLIBEXT ?= .a
 DSHLIBEXT ?= .so
 
-.-include "local.libnames.mk"
-.-include "sjg.libnames.mk"
-.-include "fwall.libnames.mk"
-.-include "host.libnames.mk"
+.-include <local.libnames.mk>
+.-include <sjg.libnames.mk>
+.-include <fwall.libnames.mk>
+.-include <host.libnames.mk>

@@ -116,6 +116,7 @@ static void	ipw_release(struct ipw_softc *);
 static void	ipw_media_status(struct ifnet *, struct ifmediareq *);
 static int	ipw_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static uint16_t	ipw_read_prom_word(struct ipw_softc *, uint8_t);
+static uint16_t	ipw_read_chanmask(struct ipw_softc *);
 static void	ipw_rx_cmd_intr(struct ipw_softc *, struct ipw_soft_buf *);
 static void	ipw_rx_newstate_intr(struct ipw_softc *, struct ipw_soft_buf *);
 static void	ipw_rx_data_intr(struct ipw_softc *, struct ipw_status *,
@@ -164,6 +165,8 @@ static void	ipw_write_mem_1(struct ipw_softc *, bus_size_t,
 static int	ipw_scan(struct ipw_softc *);
 static void	ipw_scan_start(struct ieee80211com *);
 static void	ipw_scan_end(struct ieee80211com *);
+static void	ipw_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static void	ipw_set_channel(struct ieee80211com *);
 static void	ipw_scan_curchan(struct ieee80211_scan_state *,
 		    unsigned long maxdwell);
@@ -221,7 +224,6 @@ ipw_attach(device_t dev)
 {
 	struct ipw_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_channel *c;
 	uint16_t val;
 	int error, i;
 
@@ -292,18 +294,9 @@ ipw_attach(device_t dev)
 	ic->ic_macaddr[4] = val >> 8;
 	ic->ic_macaddr[5] = val & 0xff;
 
-	/* set supported .11b channels (read from EEPROM) */
-	if ((val = ipw_read_prom_word(sc, IPW_EEPROM_CHANNEL_LIST)) == 0)
-		val = 0x7ff; /* default to channels 1-11 */
-	val <<= 1;
-	for (i = 1; i < 16; i++) {
-		if (val & (1 << i)) {
-			c = &ic->ic_channels[ic->ic_nchans++];
-			c->ic_freq = ieee80211_ieee2mhz(i, IEEE80211_CHAN_2GHZ);
-			c->ic_flags = IEEE80211_CHAN_B;
-			c->ic_ieee = i;
-		}
-	}
+	sc->chanmask = ipw_read_chanmask(sc);
+	ipw_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	/* check support for radio transmitter switch in EEPROM */
 	if (!(ipw_read_prom_word(sc, IPW_EEPROM_RADIO) & 8))
@@ -312,6 +305,7 @@ ipw_attach(device_t dev)
 	ieee80211_ifattach(ic);
 	ic->ic_scan_start = ipw_scan_start;
 	ic->ic_scan_end = ipw_scan_end;
+	ic->ic_getradiocaps = ipw_getradiocaps;
 	ic->ic_set_channel = ipw_set_channel;
 	ic->ic_scan_curchan = ipw_scan_curchan;
 	ic->ic_scan_mindwell = ipw_scan_mindwell;
@@ -964,6 +958,19 @@ ipw_read_prom_word(struct ipw_softc *sc, uint8_t addr)
 	IPW_EEPROM_CTL(sc, IPW_EEPROM_C);
 
 	return le16toh(val);
+}
+
+static uint16_t
+ipw_read_chanmask(struct ipw_softc *sc)
+{
+	uint16_t val;
+
+	/* set supported .11b channels (read from EEPROM) */
+	if ((val = ipw_read_prom_word(sc, IPW_EEPROM_CHANNEL_LIST)) == 0)
+		val = 0x7ff;	/* default to channels 1-11 */
+	val <<= 1;
+
+	return (val);
 }
 
 static void
@@ -2613,6 +2620,26 @@ ipw_scan_start(struct ieee80211com *ic)
 	IPW_LOCK(sc);
 	ipw_scan(sc);
 	IPW_UNLOCK(sc);
+}
+
+static void
+ipw_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct ipw_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+	int i;
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+
+	for (i = 1; i < 16; i++) {
+		if (sc->chanmask & (1 << i)) {
+			ieee80211_add_channel(chans, maxchans, nchans,
+			    i, 0, 0, 0, bands);
+		}
+	}
+
 }
 
 static void

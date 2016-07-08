@@ -287,8 +287,9 @@ METHOD struct resource * alloc_resource {
  * @brief Activate a resource
  *
  * Activate a resource previously allocated with
- * BUS_ALLOC_RESOURCE(). This may for instance map a memory region
- * into the kernel's virtual address space.
+ * BUS_ALLOC_RESOURCE().  This may enable decoding of this resource in a
+ * device for instance.  It will also establish a mapping for the resource
+ * unless RF_UNMAPPED was set when allocating the resource.
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
@@ -304,12 +305,58 @@ METHOD int activate_resource {
 	struct resource *_r;
 };
 
+
+/**
+ * @brief Map a resource
+ *
+ * Allocate a mapping for a range of an active resource.  The mapping
+ * is described by a struct resource_map object.  This may for instance
+ * map a memory region into the kernel's virtual address space.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which allocated the resource
+ * @param _type		the type of resource
+ * @param _r		the resource to map
+ * @param _args		optional attributes of the mapping
+ * @param _map		the mapping
+ */
+METHOD int map_resource {
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	struct resource *_r;
+	struct resource_map_request *_args;
+	struct resource_map *_map;
+} DEFAULT bus_generic_map_resource;
+
+
+/**
+ * @brief Unmap a resource
+ *
+ * Release a mapping previously allocated with
+ * BUS_MAP_RESOURCE(). This may for instance unmap a memory region
+ * from the kernel's virtual address space.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which allocated the resource
+ * @param _type		the type of resource
+ * @param _r		the resource
+ * @param _map		the mapping to release
+ */
+METHOD int unmap_resource {
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	struct resource *_r;
+	struct resource_map *_map;
+} DEFAULT bus_generic_unmap_resource;
+
+
 /**
  * @brief Deactivate a resource
  *
  * Deactivate a resource previously allocated with
- * BUS_ALLOC_RESOURCE(). This may for instance unmap a memory region
- * from the kernel's virtual address space.
+ * BUS_ALLOC_RESOURCE(). 
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
@@ -369,6 +416,35 @@ METHOD int release_resource {
 	int		_rid;
 	struct resource *_res;
 };
+
+/**
+ * @brief Map an interrupt
+ *
+ * This method is used to get an interrupt mapping data according to provided
+ * hints. The hints could be modified afterwards, but only if mapping data was
+ * allocated. This method is intended to be called before BUS_ALLOC_RESOURCE().
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which is requesting an allocation
+ * @param _rid		a pointer to the resource identifier
+ * @param _start	a pointer to the hint at the start of the resource
+ *			range - pass @c 0 for any start address
+ * @param _end		a pointer to the hint at the end of the resource
+ *			range - pass @c ~0 for any end address
+ * @param _count	a pointer to the hint at the size of resource
+ *			range required - pass @c 1 for any size
+ * @param _imd		a pointer to the interrupt mapping data which was
+ *			allocated
+ */
+METHOD int map_intr {
+	device_t	_dev;
+	device_t	_child;
+	int		*_rid;
+	rman_res_t	*_start;
+	rman_res_t	*_end;
+	rman_res_t	*_count;
+	struct intr_map_data **_imd;
+} DEFAULT bus_generic_map_intr;
 
 /**
  * @brief Install an interrupt handler
@@ -530,8 +606,8 @@ METHOD int child_present {
 /**
  * @brief Returns the pnp info for this device.
  *
- * Return it as a string.  If the string is insufficient for the
- * storage, then return EOVERFLOW.
+ * Return it as a string.  If the storage is insufficient for the
+ * string, then return EOVERFLOW.
  *
  * The string must be formatted as a space-separated list of
  * name=value pairs.  Names may only contain alphanumeric characters,
@@ -556,8 +632,8 @@ METHOD int child_pnpinfo_str {
 /**
  * @brief Returns the location for this device.
  *
- * Return it as a string.  If the string is insufficient for the
- * storage, then return EOVERFLOW.
+ * Return it as a string.  If the storage is insufficient for the
+ * string, then return EOVERFLOW.
  *
  * The string must be formatted as a space-separated list of
  * name=value pairs.  Names may only contain alphanumeric characters,

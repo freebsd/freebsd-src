@@ -37,6 +37,7 @@ dict()
 	elif [ -f /usr/dict/words ]; then
 		echo /usr/dict/words
 	else
+		echo ""
 		atf_fail "no dictionary found"
 	fi
 }
@@ -44,12 +45,7 @@ dict()
 # Begin FreeBSD
 dict()
 {
-	if [ -f /usr/share/dict/words ]; then
-		echo /usr/share/dict/words
-	else
-		echo /nonexistent
-		atf_skip "Test requires dict/words"
-	fi
+	echo /usr/share/dict/words
 }
 # End FreeBSD
 
@@ -62,6 +58,9 @@ small_btree_head()
 		"Checks btree database using small keys and small data" \
 		"pairs: takes the first hundred entries in the dictionary," \
 		"and makes them be key/data pairs."
+	# Begin FreeBSD
+	atf_set "require.files" /usr/share/dict/words
+	# End FreeBSD
 }
 small_btree_body()
 {
@@ -88,6 +87,9 @@ small_hash_head()
 		"Checks hash database using small keys and small data" \
 		"pairs: takes the first hundred entries in the dictionary," \
 		"and makes them be key/data pairs."
+	# Begin FreeBSD
+	atf_set "require.files" /usr/share/dict/words
+	# End FreeBSD
 }
 small_hash_body()
 {
@@ -114,6 +116,9 @@ small_recno_head()
 		"Checks recno database using small keys and small data" \
 		"pairs: takes the first hundred entries in the dictionary," \
 		"and makes them be key/data pairs."
+	# Begin FreeBSD
+	atf_set "require.files" /usr/share/dict/words
+	# End FreeBSD
 }
 small_recno_body()
 {
@@ -138,6 +143,9 @@ medium_btree_head()
 		"Checks btree database using small keys and medium" \
 		"data pairs: takes the first 200 entries in the" \
 		"dictionary, and gives them each a medium size data entry."
+	# Begin FreeBSD
+	atf_set "require.files" /usr/share/dict/words
+	# End FreeBSD
 }
 medium_btree_body()
 {
@@ -166,6 +174,9 @@ medium_hash_head()
 		"Checks hash database using small keys and medium" \
 		"data pairs: takes the first 200 entries in the" \
 		"dictionary, and gives them each a medium size data entry."
+	# Begin FreeBSD
+	atf_set "require.files" /usr/share/dict/words
+	# End FreeBSD
 }
 medium_hash_body()
 {
@@ -731,6 +742,9 @@ small_page_btree_head()
 		"reverses them, and gives them each a small size data" \
 		"entry. Uses a small page size to make sure the btree" \
 		"split code gets hammered."
+	# Begin FreeBSD
+	atf_set "require.files" /usr/share/dict/words
+	# End FreeBSD
 }
 small_page_btree_body()
 {
@@ -784,6 +798,9 @@ atf_test_case byte_orders_btree
 byte_orders_btree_head()
 {
 	atf_set "descr" "Checks btree database using differing byte orders"
+	# Begin FreeBSD
+	atf_set "require.files" /usr/share/dict/words
+	# End FreeBSD
 }
 byte_orders_btree_body()
 {
@@ -816,6 +833,9 @@ bsize_ffactor_head()
 	atf_set "timeout" "480"
 	atf_set "descr" "Checks hash database with various" \
 					"bucketsizes and fill factors"
+	# Begin FreeBSD
+	atf_set "require.files" /usr/share/dict/words
+	# End FreeBSD
 }
 bsize_ffactor_body()
 {

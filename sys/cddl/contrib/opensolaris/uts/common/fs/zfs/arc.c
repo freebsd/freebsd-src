@@ -140,7 +140,6 @@
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 
-#include <vm/vm_pageout.h>
 #include <machine/vmparam.h>
 
 #ifdef illumos
@@ -159,6 +158,10 @@ static kcondvar_t	arc_reclaim_waiters_cv;
 static kmutex_t		arc_user_evicts_lock;
 static kcondvar_t	arc_user_evicts_cv;
 static boolean_t	arc_user_evicts_thread_exit;
+
+static kmutex_t		arc_dnlc_evicts_lock;
+static kcondvar_t	arc_dnlc_evicts_cv;
+static boolean_t	arc_dnlc_evicts_thread_exit;
 
 uint_t arc_reduce_dnlc_percent = 3;
 
@@ -235,10 +238,15 @@ int zfs_disable_dup_eviction = 0;
 uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
 u_int zfs_arc_free_target = 0;
 
+/* Absolute min for arc min / max is 16MB. */
+static uint64_t arc_abs_min = 16 << 20;
+
 static int sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS);
 static int sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS);
+static int sysctl_vfs_zfs_arc_max(SYSCTL_HANDLER_ARGS);
+static int sysctl_vfs_zfs_arc_min(SYSCTL_HANDLER_ARGS);
 
-#ifdef _KERNEL
+#if defined(__FreeBSD__) && defined(_KERNEL)
 static void
 arc_free_target_init(void *unused __unused)
 {
@@ -252,10 +260,10 @@ TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 TUNABLE_QUAD("vfs.zfs.arc_meta_min", &zfs_arc_meta_min);
 TUNABLE_INT("vfs.zfs.arc_shrink_shift", &zfs_arc_shrink_shift);
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RDTUN, &zfs_arc_max, 0,
-    "Maximum ARC size");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RDTUN, &zfs_arc_min, 0,
-    "Minimum ARC size");
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_max, CTLTYPE_U64 | CTLFLAG_RWTUN,
+    0, sizeof(uint64_t), sysctl_vfs_zfs_arc_max, "QU", "Maximum ARC size");
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_min, CTLTYPE_U64 | CTLFLAG_RWTUN,
+    0, sizeof(uint64_t), sysctl_vfs_zfs_arc_min, "QU", "Minimum ARC size");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_average_blocksize, CTLFLAG_RDTUN,
     &zfs_arc_average_blocksize, 0,
     "ARC average blocksize");
@@ -881,7 +889,7 @@ struct arc_buf_hdr {
 	l1arc_buf_hdr_t		b_l1hdr;
 };
 
-#ifdef _KERNEL
+#if defined(__FreeBSD__) && defined(_KERNEL)
 static int
 sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS)
 {
@@ -897,6 +905,82 @@ sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	arc_meta_limit = val;
+	return (0);
+}
+
+static int
+sysctl_vfs_zfs_arc_max(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_arc_max;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (zfs_arc_max == 0) {
+		/* Loader tunable so blindly set */
+		zfs_arc_max = val;
+		return (0);
+	}
+
+	if (val < arc_abs_min || val > kmem_size())
+		return (EINVAL);
+	if (val < arc_c_min)
+		return (EINVAL);
+	if (zfs_arc_meta_limit > 0 && val < zfs_arc_meta_limit)
+		return (EINVAL);
+
+	arc_c_max = val;
+
+	arc_c = arc_c_max;
+        arc_p = (arc_c >> 1);
+
+	if (zfs_arc_meta_limit == 0) {
+		/* limit meta-data to 1/4 of the arc capacity */
+		arc_meta_limit = arc_c_max / 4;
+	}
+
+	/* if kmem_flags are set, lets try to use less memory */
+	if (kmem_debugging())
+		arc_c = arc_c / 2;
+
+	zfs_arc_max = arc_c;
+
+	return (0);
+}
+
+static int
+sysctl_vfs_zfs_arc_min(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_arc_min;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (zfs_arc_min == 0) {
+		/* Loader tunable so blindly set */
+		zfs_arc_min = val;
+		return (0);
+	}
+
+	if (val < arc_abs_min || val > arc_c_max)
+		return (EINVAL);
+
+	arc_c_min = val;
+
+	if (zfs_arc_meta_min == 0)
+                arc_meta_min = arc_c_min / 2;
+
+	if (arc_c < arc_c_min)
+                arc_c = arc_c_min;
+
+	zfs_arc_min = arc_c_min;
+
 	return (0);
 }
 #endif
@@ -2250,6 +2334,7 @@ arc_buf_l2_cdata_free(arc_buf_hdr_t *hdr)
 		ASSERT3P(hdr->b_l1hdr.b_tmp_cdata, ==,
 		    hdr->b_l1hdr.b_buf->b_data);
 		ASSERT3U(hdr->b_l2hdr.b_compress, ==, ZIO_COMPRESS_OFF);
+		hdr->b_l1hdr.b_tmp_cdata = NULL;
 		return;
 	}
 
@@ -3747,6 +3832,57 @@ arc_user_evicts_thread(void *dummy __unused)
 	cv_broadcast(&arc_user_evicts_cv);
 	CALLB_CPR_EXIT(&cpr);		/* drops arc_user_evicts_lock */
 	thread_exit();
+}
+
+static u_int arc_dnlc_evicts_arg;
+extern struct vfsops zfs_vfsops;
+
+static void
+arc_dnlc_evicts_thread(void *dummy __unused)
+{
+	callb_cpr_t cpr;
+	u_int percent;
+
+	CALLB_CPR_INIT(&cpr, &arc_dnlc_evicts_lock, callb_generic_cpr, FTAG);
+
+	mutex_enter(&arc_dnlc_evicts_lock);
+	while (!arc_dnlc_evicts_thread_exit) {
+		CALLB_CPR_SAFE_BEGIN(&cpr);
+		(void) cv_wait(&arc_dnlc_evicts_cv, &arc_dnlc_evicts_lock);
+		CALLB_CPR_SAFE_END(&cpr, &arc_dnlc_evicts_lock);
+		if (arc_dnlc_evicts_arg != 0) {
+			percent = arc_dnlc_evicts_arg;
+			mutex_exit(&arc_dnlc_evicts_lock);
+#ifdef _KERNEL
+			vnlru_free(desiredvnodes * percent / 100, &zfs_vfsops);
+#endif
+			mutex_enter(&arc_dnlc_evicts_lock);
+			/*
+			 * Clear our token only after vnlru_free()
+			 * pass is done, to avoid false queueing of
+			 * the requests.
+			 */
+			arc_dnlc_evicts_arg = 0;
+		}
+	}
+	arc_dnlc_evicts_thread_exit = FALSE;
+	cv_broadcast(&arc_dnlc_evicts_cv);
+	CALLB_CPR_EXIT(&cpr);
+	thread_exit();
+}
+
+void
+dnlc_reduce_cache(void *arg)
+{
+	u_int percent;
+
+	percent = (u_int)(uintptr_t)arg;
+	mutex_enter(&arc_dnlc_evicts_lock);
+	if (arc_dnlc_evicts_arg == 0) {
+		arc_dnlc_evicts_arg = percent;
+		cv_broadcast(&arc_dnlc_evicts_cv);
+	}
+	mutex_exit(&arc_dnlc_evicts_lock);
 }
 
 /*
@@ -5311,6 +5447,9 @@ arc_init(void)
 	mutex_init(&arc_user_evicts_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arc_user_evicts_cv, NULL, CV_DEFAULT, NULL);
 
+	mutex_init(&arc_dnlc_evicts_lock, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&arc_dnlc_evicts_cv, NULL, CV_DEFAULT, NULL);
+
 	/* Convert seconds to clock ticks */
 	arc_min_prefetch_lifespan = 1 * hz;
 
@@ -5327,8 +5466,8 @@ arc_init(void)
 	arc_c = MIN(arc_c, vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 8);
 #endif
 #endif	/* illumos */
-	/* set min cache to 1/32 of all memory, or 16MB, whichever is more */
-	arc_c_min = MAX(arc_c / 4, 16 << 20);
+	/* set min cache to 1/32 of all memory, or arc_abs_min, whichever is more */
+	arc_c_min = MAX(arc_c / 4, arc_abs_min);
 	/* set max to 1/2 of all memory, or all but 1GB, whichever is more */
 	if (arc_c * 8 >= 1 << 30)
 		arc_c_max = (arc_c * 8) - (1 << 30);
@@ -5349,11 +5488,11 @@ arc_init(void)
 #ifdef _KERNEL
 	/*
 	 * Allow the tunables to override our calculations if they are
-	 * reasonable (ie. over 16MB)
+	 * reasonable.
 	 */
-	if (zfs_arc_max > 16 << 20 && zfs_arc_max < kmem_size())
+	if (zfs_arc_max > arc_abs_min && zfs_arc_max < kmem_size())
 		arc_c_max = zfs_arc_max;
-	if (zfs_arc_min > 16 << 20 && zfs_arc_min <= arc_c_max)
+	if (zfs_arc_min > arc_abs_min && zfs_arc_min <= arc_c_max)
 		arc_c_min = zfs_arc_min;
 #endif
 
@@ -5463,6 +5602,7 @@ arc_init(void)
 
 	arc_reclaim_thread_exit = FALSE;
 	arc_user_evicts_thread_exit = FALSE;
+	arc_dnlc_evicts_thread_exit = FALSE;
 	arc_eviction_list = NULL;
 	bzero(&arc_eviction_hdr, sizeof (arc_buf_hdr_t));
 
@@ -5484,6 +5624,9 @@ arc_init(void)
 #endif
 
 	(void) thread_create(NULL, 0, arc_user_evicts_thread, NULL, 0, &p0,
+	    TS_RUN, minclsyspri);
+
+	(void) thread_create(NULL, 0, arc_dnlc_evicts_thread, NULL, 0, &p0,
 	    TS_RUN, minclsyspri);
 
 	arc_dead = FALSE;
@@ -5568,6 +5711,18 @@ arc_fini(void)
 	}
 	mutex_exit(&arc_user_evicts_lock);
 
+	mutex_enter(&arc_dnlc_evicts_lock);
+	arc_dnlc_evicts_thread_exit = TRUE;
+	/*
+	 * The user evicts thread will set arc_user_evicts_thread_exit
+	 * to FALSE when it is finished exiting; we're waiting for that.
+	 */
+	while (arc_dnlc_evicts_thread_exit) {
+		cv_signal(&arc_dnlc_evicts_cv);
+		cv_wait(&arc_dnlc_evicts_cv, &arc_dnlc_evicts_lock);
+	}
+	mutex_exit(&arc_dnlc_evicts_lock);
+
 	/* Use TRUE to ensure *all* buffers are evicted */
 	arc_flush(NULL, TRUE);
 
@@ -5584,6 +5739,9 @@ arc_fini(void)
 
 	mutex_destroy(&arc_user_evicts_lock);
 	cv_destroy(&arc_user_evicts_cv);
+
+	mutex_destroy(&arc_dnlc_evicts_lock);
+	cv_destroy(&arc_dnlc_evicts_cv);
 
 	refcount_destroy(&arc_anon->arcs_size);
 	refcount_destroy(&arc_mru->arcs_size);

@@ -87,7 +87,7 @@
 				    int pgid); }
 40	AUE_NULL	UNIMPL	xenix
 41	AUE_NULL	NOPROTO	{ int dup(u_int fd); }
-42	AUE_NULL	NOPROTO	{ int pipe(void); }
+42	AUE_NULL	STD	{ int svr4_pipe(void); }
 43	AUE_NULL	STD	{ int svr4_sys_times(struct tms *tp); }
 44	AUE_NULL	UNIMPL	profil
 45	AUE_NULL	UNIMPL	plock

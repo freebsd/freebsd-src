@@ -7,6 +7,9 @@
  *  General (global) definitions
  */
 
+#ifndef TOP_H
+#define TOP_H
+
 /* Current major version number */
 #define VERSION		3
 
@@ -47,3 +50,5 @@ enum displaymodes { DISP_CPU = 0, DISP_IO, DISP_MAX };
 extern enum displaymodes displaymode;
 
 extern int pcpu_stats;
+
+#endif /* TOP_H */

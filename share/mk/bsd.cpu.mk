@@ -309,14 +309,18 @@ MACHINE_CPU += arm
 . if ${MACHINE_ARCH:Marmv6*} != ""
 MACHINE_CPU += armv6
 . endif
-# armv6 is a hybrid. It uses the softfp ABI, but doesn't emulate
+# armv6 is a hybrid. It can use the softfp ABI, but doesn't emulate
 # floating point in the general case, so don't define softfp for
 # it at this time. arm and armeb are pure softfp, so define it
 # for them.
 . if ${MACHINE_ARCH:Marmv6*} == ""
 MACHINE_CPU += softfp
 . endif
-.if ${MACHINE_ARCH} == "armv6"
+# Normally armv6 is hard float ABI from FreeBSD 11 onwards. However
+# when CPUTYPE has 'soft' in it, we use the soft-float ABI to allow
+# building of soft-float ABI libraries. In this case, we have to
+# add the -mfloat-abi=softfp to force that.
+.if ${MACHINE_ARCH:Marmv6*} && defined(CPUTYPE) && ${CPUTYPE:M*soft*} != ""
 # Needs to be CFLAGS not _CPUCFLAGS because it's needed for the ABI
 # not a nice optimization.
 CFLAGS += -mfloat-abi=softfp

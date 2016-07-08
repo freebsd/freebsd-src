@@ -444,7 +444,7 @@ mb_dtor_mbuf(void *mem, int size, void *arg)
 	flags = (unsigned long)arg;
 
 	KASSERT((m->m_flags & M_NOFREE) == 0, ("%s: M_NOFREE set", __func__));
-	if ((m->m_flags & M_PKTHDR) && !SLIST_EMPTY(&m->m_pkthdr.tags))
+	if (!(flags & MB_DTOR_SKIP) && (m->m_flags & M_PKTHDR) && !SLIST_EMPTY(&m->m_pkthdr.tags))
 		m_tag_delete_chain(m, NULL);
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);

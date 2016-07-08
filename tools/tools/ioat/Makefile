@@ -2,8 +2,12 @@
 
 PROG=	ioatcontrol
 MAN=	ioatcontrol.8
-CFLAGS+=	-I${.CURDIR:H:H:H}/sys/dev/ioat
-WARNS?=	6
+BINDIR?=	/usr/bin
+
+CFLAGS+=	-I${SRCTOP}/sys/dev/ioat
+
 LIBADD=	util
+
+WARNS?=	6
 
 .include <bsd.prog.mk>

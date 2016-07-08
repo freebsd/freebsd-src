@@ -223,7 +223,7 @@ mips_pic_attach(device_t dev)
 	 * Now, when everything is initialized, it's right time to
 	 * register interrupt controller to interrupt framefork.
 	 */
-	if (intr_pic_register(dev, xref) != 0) {
+	if (intr_pic_register(dev, xref) == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		goto cleanup;
 	}

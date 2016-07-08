@@ -72,10 +72,9 @@ DISTRIBUTION?=	base
 distribute: .MAKE
 .for dist in ${DISTRIBUTION}
 	${_+_}cd ${.CURDIR}; \
-	    ${MAKE} install -DNO_SUBDIR DESTDIR=${DISTDIR}/${dist} SHARED=copies
+	    ${MAKE} install installconfig -DNO_SUBDIR DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
 .endif
-
 # Convenience targets to run 'build${target}' and 'install${target}' when
 # calling 'make ${target}'.
 .for __target in files includes
@@ -159,9 +158,9 @@ ${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE .SILENT ${__deps}
 	    ${_SUBDIR_SH};
 .endif
 .endfor	# __dir in ${SUBDIR}
-${__target}: ${__subdir_targets}
+${__target}: ${__subdir_targets} .PHONY
 .else
-${__target}: _SUBDIR
+${__target}: _SUBDIR .PHONY
 .endif	# SUBDIR_PARALLEL || _is_standalone_target
 .endif	# make(${__target})
 .endfor	# __target in ${SUBDIR_TARGETS}

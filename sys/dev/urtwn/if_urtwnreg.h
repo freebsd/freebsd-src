@@ -1018,6 +1018,8 @@ struct r92c_rom {
 	uint8_t		rf_opt3;
 	uint8_t		rf_opt4;
 	uint8_t		channel_plan;
+#define R92C_CHANNEL_PLAN_BY_HW		0x80
+
 	uint8_t		version;
 	uint8_t		customer_id;
 } __packed;
@@ -1198,6 +1200,9 @@ struct r92c_tx_desc {
 #define R92C_TXDW5_DATARATE_M	0x0000003f
 #define R92C_TXDW5_DATARATE_S	0
 #define R92C_TXDW5_SGI		0x00000040
+#define R92C_TXDW5_RTY_LMT_ENA	0x00020000
+#define R92C_TXDW5_RTY_LMT_M	0x00fc0000
+#define R92C_TXDW5_RTY_LMT_S	18
 #define R92C_TXDW5_AGGNUM_M	0xff000000
 #define R92C_TXDW5_AGGNUM_S	24
 

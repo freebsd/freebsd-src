@@ -114,7 +114,6 @@ static const char *ufslike_filesystems[] = {
 	"ufs",
 	"zfs",
 	"nfs",
-	"nfs4",
 	"ext2fs",
 	0
 };
@@ -574,8 +573,10 @@ __fts_children_44bsd(FTS *sp, int instr)
 	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
-	if (fchdir(fd))
+	if (fchdir(fd)) {
+		(void)_close(fd);
 		return (NULL);
+	}
 	(void)_close(fd);
 	return (sp->fts_child);
 }

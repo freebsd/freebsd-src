@@ -15,6 +15,7 @@
 
 #include <sys/ioccom.h>
 #include <sys/types.h>
+#include <sys/disk_zone.h>
 
 #ifdef _KERNEL
 
@@ -135,5 +136,7 @@ struct diocgattr_arg {
 	} value;
 };
 #define	DIOCGATTR _IOWR('d', 142, struct diocgattr_arg)
+
+#define	DIOCZONECMD	_IOWR('d', 143, struct disk_zone_args)
 
 #endif /* _SYS_DISK_H_ */

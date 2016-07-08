@@ -154,6 +154,7 @@ TESTS_SRCS= \
 	test_read_format_rar_encryption_data.c	\
 	test_read_format_rar_encryption_header.c	\
 	test_read_format_rar_encryption_partially.c	\
+	test_read_format_rar_invalid1.c		\
 	test_read_format_raw.c			\
 	test_read_format_tar.c			\
 	test_read_format_tar_concatenated.c	\
@@ -233,6 +234,7 @@ TESTS_SRCS= \
 	test_write_format_cpio_newc.c		\
 	test_write_format_cpio_odc.c		\
 	test_write_format_gnutar.c		\
+	test_write_format_gnutar_filenames.c	\
 	test_write_format_iso9660.c		\
 	test_write_format_iso9660_boot.c	\
 	test_write_format_iso9660_empty.c	\
@@ -468,6 +470,7 @@ ${PACKAGE}FILES+=	test_read_format_rar_compress_normal.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_data.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_header.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_partially.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar_invalid1.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multi_lzss_blocks.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multivolume.part0001.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multivolume.part0002.rar.uu

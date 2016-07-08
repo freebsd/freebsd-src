@@ -233,7 +233,7 @@ tegra_lic_attach(device_t dev)
 	}
 
 
-	if (intr_pic_register(dev, OF_xref_from_node(node)) != 0) {
+	if (intr_pic_register(dev, OF_xref_from_node(node)) == NULL) {
 		device_printf(dev, "Cannot register PIC\n");
 		goto fail;
 	}

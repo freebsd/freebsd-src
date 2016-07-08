@@ -44,6 +44,7 @@ MAN=	accept_filter.9 \
 	bus_generic_shutdown.9 \
 	BUS_GET_CPUS.9 \
 	bus_get_resource.9 \
+	bus_map_resource.9 \
 	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
@@ -283,6 +284,7 @@ MAN=	accept_filter.9 \
 	sysctl_ctx_init.9 \
 	SYSINIT.9 \
 	taskqueue.9 \
+	tcp_functions.9 \
 	thread_exit.9 \
 	time.9 \
 	timeout.9 \
@@ -504,6 +506,8 @@ MLINKS+=bus_dma.9 busdma.9 \
 	bus_dma.9 bus_dma_tag_destroy.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
 MLINKS+=BUS_GET_CPUS.9 bus_get_cpus.9
+MLINKS+=bus_map_resource.9 bus_unmap_resource.9 \
+	bus_map_resource.9 resource_init_map_request.9
 MLINKS+=BUS_READ_IVAR.9 BUS_WRITE_IVAR.9
 MLINKS+=BUS_SETUP_INTR.9 bus_setup_intr.9 \
 	BUS_SETUP_INTR.9 BUS_TEARDOWN_INTR.9 \
@@ -1373,7 +1377,6 @@ MLINKS+=resource_int_value.9 resource_long_value.9 \
 	resource_int_value.9 resource_string_value.9
 MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_adjust_resource.9 \
-	rman.9 rman_await_resource.9 \
 	rman.9 rman_deactivate_resource.9 \
 	rman.9 rman_fini.9 \
 	rman.9 rman_first_free_region.9 \
@@ -1382,6 +1385,7 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_get_device.9 \
 	rman.9 rman_get_end.9 \
 	rman.9 rman_get_flags.9 \
+	rman.9 rman_get_mapping.9 \
 	rman.9 rman_get_rid.9 \
 	rman.9 rman_get_size.9 \
 	rman.9 rman_get_start.9 \
@@ -1397,6 +1401,7 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_reserve_resource_bound.9 \
 	rman.9 rman_set_bushandle.9 \
 	rman.9 rman_set_bustag.9 \
+	rman.9 rman_set_mapping.9 \
 	rman.9 rman_set_rid.9 \
 	rman.9 rman_set_virtual.9
 MLINKS+=rmlock.9 rm_assert.9 \
@@ -1506,10 +1511,12 @@ MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_append_phys.9 \
 	sglist.9 sglist_append_uio.9 \
 	sglist.9 sglist_append_user.9 \
+	sglist.9 sglist_append_vmpages.9 \
 	sglist.9 sglist_build.9 \
 	sglist.9 sglist_clone.9 \
 	sglist.9 sglist_consume_uio.9 \
 	sglist.9 sglist_count.9 \
+	sglist.9 sglist_count_vmpages.9 \
 	sglist.9 sglist_free.9 \
 	sglist.9 sglist_hold.9 \
 	sglist.9 sglist_init.9 \
@@ -1728,6 +1735,8 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 taskqueue_start_threads_pinned.9 \
 	taskqueue.9 taskqueue_unblock.9 \
 	taskqueue.9 TIMEOUT_TASK_INIT.9
+MLINKS+=tcp_functions.9 register_tcp_functions.9 \
+	tcp_functions.9 deregister_tcp_functions.9
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9

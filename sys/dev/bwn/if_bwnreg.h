@@ -97,8 +97,8 @@
 /* SIBA control registers */
 #define	BWN_TGSLOW_PHYCLOCK_ENABLE	0x00040000
 #define	BWN_TGSLOW_PHYRESET		0x00080000
-#define	BWN_TMSLOW_MACPHYCLKEN		0x00100000      /* MAC PHY Clock Control Enable (rev >= 5) */
-#define	BWN_TMSLOW_PLLREFSEL		0x00200000      /* PLL Frequency Reference Select (rev >= 5) */
+#define	BWN_TGSLOW_MACPHYCLKEN		0x00100000      /* MAC PHY Clock Control Enable (rev >= 5) */
+#define	BWN_TGSLOW_PLLREFSEL		0x00200000      /* PLL Frequency Reference Select (rev >= 5) */
 /* PHY_BANDWIDTH: N-PHY only */
 #define	BWN_TGSLOW_PHY_BANDWIDTH	0x00C00000
 #define	BWN_TGSLOW_PHY_BANDWIDTH_10MHZ	0x00000000
@@ -169,6 +169,7 @@
 #define	BWN_RAM_CONTROL			0x130
 #define	BWN_RAM_DATA			0x134
 #define	BWN_PS_STATUS			0x140
+#define	BWN_MAC_HW_CAP			0x15c	/* core rev >= 13 */
 #define	BWN_RF_HWENABLED_HI		0x158
 #define	BWN_RF_HWENABLED_HI_MASK	(1 << 16)
 #define	BWN_SHM_CONTROL			0x160
@@ -284,6 +285,8 @@
 #define	BWN_SHARED_SPU_WAKEUP		0x0094
 #define	BWN_SHARED_PRETBTT		0x0096
 #define	BWN_SHARED_CHAN			0x00a0
+#define	BWN_SHARED_MACHW_L		0x00c0
+#define	BWN_SHARED_MACHW_H		0x00c2
 #define	BWN_SHARED_AUTOINC		0x0100
 #define	BWN_SHARED_PROBE_RESP_PHYCTL	0x0188
 #define	BWN_SHARED_EDCFQ		0x0240

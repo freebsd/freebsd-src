@@ -628,7 +628,8 @@ system boot.
 .It Dv CTLFLAG_NOFETCH
 In case the node is marked as a tunable using the CTLFLAG_[XX]TUN,
 this flag will prevent fetching the initial value from the system
-environment. Typically this flag should only be used for very early
+environment.
+Typically this flag should only be used for very early
 low level system setup code, and not by common drivers and modules.
 .El
 .Pp
@@ -780,7 +781,8 @@ Use positive logic instead:
 .Va foobar_enable .
 .Pp
 A temporary sysctl node OID that should not be relied upon must be designated
-as such by a leading underscore character in its name. For example:
+as such by a leading underscore character in its name.
+For example:
 .Va _dirty_hack .
 .Sh SEE ALSO
 .Xr sysctl 3 ,

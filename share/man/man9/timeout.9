@@ -536,7 +536,8 @@ the function
 .Fa func
 taking the argument
 .Fa arg
-no action is taken. The
+no action is taken.
+The
 .Fa handle
 must be initialized by a previous call to
 .Fn timeout ,
@@ -613,7 +614,8 @@ to get multiple return values of
 .Dv CALLOUT_RET_DRAINING
 and multiple calls to the
 .Fa drain
-function, depending upon which CPU's the callouts are running on. The
+function, depending upon which CPU's the callouts are running on.
+The
 .Fa drain
 function itself is called unlocked from the context of the completing
 callout either softclock or hardclock, just like a callout itself.

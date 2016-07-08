@@ -27,3 +27,4 @@
  */
 
 #include "sun4i-a10-cubieboard.dts"
+#include "xpowers-axp209.dtsi"

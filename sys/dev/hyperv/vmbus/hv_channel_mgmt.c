@@ -32,26 +32,42 @@
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 
-#include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/vmbus_reg.h>
+#include <dev/hyperv/vmbus/vmbus_var.h>
 
 /*
  * Internal functions
  */
 
-static void vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr);
-static void vmbus_channel_on_offer_internal(void* context);
-static void vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr);
-static void vmbus_channel_on_offer_rescind(hv_vmbus_channel_msg_header* hdr);
-static void vmbus_channel_on_offer_rescind_internal(void* context);
-static void vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr);
-static void vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr);
-static void vmbus_channel_on_offers_delivered(hv_vmbus_channel_msg_header* hdr);
-static void vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr);
+typedef void (*vmbus_msg_handler)(const hv_vmbus_channel_msg_header *msg);
+
+typedef struct hv_vmbus_channel_msg_table_entry {
+	hv_vmbus_channel_msg_type    messageType;
+	vmbus_msg_handler   messageHandler;
+} hv_vmbus_channel_msg_table_entry;
+
+static void	vmbus_channel_on_offer_internal(void *context);
+static void	vmbus_channel_on_offer_rescind_internal(void *context);
+
+static void	vmbus_channel_on_offer(const hv_vmbus_channel_msg_header *hdr);
+static void	vmbus_channel_on_open_result(
+		    const hv_vmbus_channel_msg_header *hdr);
+static void	vmbus_channel_on_offer_rescind(
+		    const hv_vmbus_channel_msg_header *hdr);
+static void	vmbus_channel_on_gpadl_created(
+		    const hv_vmbus_channel_msg_header *hdr);
+static void	vmbus_channel_on_gpadl_torndown(
+		    const hv_vmbus_channel_msg_header *hdr);
+static void	vmbus_channel_on_offers_delivered(
+		    const hv_vmbus_channel_msg_header *hdr);
+static void	vmbus_channel_on_version_response(
+		    const hv_vmbus_channel_msg_header *hdr);
 
 /**
  * Channel message dispatch table
  */
-hv_vmbus_channel_msg_table_entry
+static const hv_vmbus_channel_msg_table_entry
     g_channel_message_table[HV_CHANNEL_MESSAGE_COUNT] = {
 	{ HV_CHANNEL_MESSAGE_INVALID,
 		NULL },
@@ -300,8 +316,14 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 {
 	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu %d", cpu));
 
+	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
+	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7) {
+		/* Only cpu0 is supported */
+		cpu = 0;
+	}
+
 	chan->target_cpu = cpu;
-	chan->target_vcpu = hv_vmbus_g_context.hv_vcpu_index[cpu];
+	chan->target_vcpu = VMBUS_PCPU_GET(vmbus_get_softc(), vcpuid, cpu);
 
 	if (bootverbose) {
 		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
@@ -357,9 +379,7 @@ vmbus_channel_select_defcpu(struct hv_vmbus_channel *channel)
 		}
 	}
 
-	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
-	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7) ||
-	    (!is_perf_channel)) {
+	if (!is_perf_channel) {
 		/* Stick to cpu0 */
 		vmbus_channel_cpu_set(channel, 0);
 		return;
@@ -378,12 +398,12 @@ vmbus_channel_select_defcpu(struct hv_vmbus_channel *channel)
  * object to process the offer synchronously
  */
 static void
-vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
+vmbus_channel_on_offer(const hv_vmbus_channel_msg_header *hdr)
 {
-	hv_vmbus_channel_offer_channel* offer;
-	hv_vmbus_channel_offer_channel* copied;
+	const hv_vmbus_channel_offer_channel *offer;
+	hv_vmbus_channel_offer_channel *copied;
 
-	offer = (hv_vmbus_channel_offer_channel*) hdr;
+	offer = (const hv_vmbus_channel_offer_channel *)hdr;
 
 	// copy offer data
 	copied = malloc(sizeof(*copied), M_DEVBUF, M_NOWAIT);
@@ -456,12 +476,12 @@ vmbus_channel_on_offer_internal(void* context)
  * synchronously
  */
 static void
-vmbus_channel_on_offer_rescind(hv_vmbus_channel_msg_header* hdr)
+vmbus_channel_on_offer_rescind(const hv_vmbus_channel_msg_header *hdr)
 {
-	hv_vmbus_channel_rescind_offer*	rescind;
+	const hv_vmbus_channel_rescind_offer *rescind;
 	hv_vmbus_channel*		channel;
 
-	rescind = (hv_vmbus_channel_rescind_offer*) hdr;
+	rescind = (const hv_vmbus_channel_rescind_offer *)hdr;
 
 	channel = hv_vmbus_g_connection.channels[rescind->child_rel_id];
 	if (channel == NULL)
@@ -488,7 +508,8 @@ vmbus_channel_on_offer_rescind_internal(void *context)
  * @brief Invoked when all offers have been delivered.
  */
 static void
-vmbus_channel_on_offers_delivered(hv_vmbus_channel_msg_header* hdr)
+vmbus_channel_on_offers_delivered(
+    const hv_vmbus_channel_msg_header *hdr __unused)
 {
 
 	mtx_lock(&vmbus_chwait_lock);
@@ -505,14 +526,14 @@ vmbus_channel_on_offers_delivered(hv_vmbus_channel_msg_header* hdr)
  * response and signal the requesting thread.
  */
 static void
-vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr)
+vmbus_channel_on_open_result(const hv_vmbus_channel_msg_header *hdr)
 {
-	hv_vmbus_channel_open_result*	result;
+	const hv_vmbus_channel_open_result *result;
 	hv_vmbus_channel_msg_info*	msg_info;
 	hv_vmbus_channel_msg_header*	requestHeader;
 	hv_vmbus_channel_open_channel*	openMsg;
 
-	result = (hv_vmbus_channel_open_result*) hdr;
+	result = (const hv_vmbus_channel_open_result *)hdr;
 
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
@@ -547,14 +568,14 @@ vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr)
  * response and signal the requesting thread.
  */
 static void
-vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr)
+vmbus_channel_on_gpadl_created(const hv_vmbus_channel_msg_header *hdr)
 {
-	hv_vmbus_channel_gpadl_created*		gpadl_created;
+	const hv_vmbus_channel_gpadl_created *gpadl_created;
 	hv_vmbus_channel_msg_info*		msg_info;
 	hv_vmbus_channel_msg_header*		request_header;
 	hv_vmbus_channel_gpadl_header*		gpadl_header;
 
-	gpadl_created = (hv_vmbus_channel_gpadl_created*) hdr;
+	gpadl_created = (const hv_vmbus_channel_gpadl_created *)hdr;
 
 	/* Find the establish msg, copy the result and signal/unblock
 	 * the wait event
@@ -589,14 +610,14 @@ vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr)
  * response and signal the requesting thread
  */
 static void
-vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr)
+vmbus_channel_on_gpadl_torndown(const hv_vmbus_channel_msg_header *hdr)
 {
-	hv_vmbus_channel_gpadl_torndown*	gpadl_torndown;
+	const hv_vmbus_channel_gpadl_torndown *gpadl_torndown;
 	hv_vmbus_channel_msg_info*		msg_info;
 	hv_vmbus_channel_msg_header*		requestHeader;
 	hv_vmbus_channel_gpadl_teardown*	gpadlTeardown;
 
-	gpadl_torndown = (hv_vmbus_channel_gpadl_torndown*)hdr;
+	gpadl_torndown = (const hv_vmbus_channel_gpadl_torndown *)hdr;
 
 	/*
 	 * Find the open msg, copy the result and signal/unblock the
@@ -634,14 +655,14 @@ vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr)
  * response and signal the requesting thread.
  */
 static void
-vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr)
+vmbus_channel_on_version_response(const hv_vmbus_channel_msg_header *hdr)
 {
 	hv_vmbus_channel_msg_info*		msg_info;
 	hv_vmbus_channel_msg_header*		requestHeader;
 	hv_vmbus_channel_initiate_contact*	initiate;
-	hv_vmbus_channel_version_response*	versionResponse;
+	const hv_vmbus_channel_version_response *versionResponse;
 
-	versionResponse = (hv_vmbus_channel_version_response*)hdr;
+	versionResponse = (const hv_vmbus_channel_version_response *)hdr;
 
 	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
@@ -712,8 +733,8 @@ hv_vmbus_release_unattached_channels(void)
 	    }
 	    hv_vmbus_free_vmbus_channel(channel);
 	}
-	bzero(hv_vmbus_g_connection.channels, 
-		sizeof(hv_vmbus_channel*) * HV_CHANNEL_MAX_COUNT);
+	bzero(hv_vmbus_g_connection.channels,
+	    sizeof(hv_vmbus_channel*) * VMBUS_CHAN_MAX);
 	mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 }
 
@@ -744,7 +765,7 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 		return outgoing_channel;
 	}
 
-	cur_vcpu = hv_vmbus_g_context.hv_vcpu_index[smp_pro_id];
+	cur_vcpu = VMBUS_PCPU_GET(vmbus_get_softc(), vcpuid, smp_pro_id);
 	
 	TAILQ_FOREACH(new_channel, &primary->sc_list_anchor, sc_list_entry) {
 		if (new_channel->state != HV_CHANNEL_OPENED_STATE){
@@ -824,4 +845,25 @@ vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
 {
 
 	free(subchan, M_TEMP);
+}
+
+void
+vmbus_chan_msgproc(struct vmbus_softc *sc, const struct vmbus_message *msg)
+{
+	const hv_vmbus_channel_msg_table_entry *entry;
+	const hv_vmbus_channel_msg_header *hdr;
+	hv_vmbus_channel_msg_type msg_type;
+
+	hdr = (const hv_vmbus_channel_msg_header *)msg->msg_data;
+	msg_type = hdr->message_type;
+
+	if (msg_type >= HV_CHANNEL_MESSAGE_COUNT) {
+		device_printf(sc->vmbus_dev, "unknown message type 0x%x\n",
+		    msg_type);
+		return;
+	}
+
+	entry = &g_channel_message_table[msg_type];
+	if (entry->messageHandler)
+		entry->messageHandler(hdr);
 }

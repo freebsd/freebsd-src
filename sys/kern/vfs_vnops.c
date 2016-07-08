@@ -440,6 +440,7 @@ vn_close(vp, flags, file_cred, td)
 
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, lock_flags | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
 	if ((flags & (FWRITE | FOPENFAILED)) == FWRITE) {
 		VNASSERT(vp->v_writecount > 0, vp, 
 		    ("vn_close: negative writecount"));
@@ -1314,6 +1315,8 @@ vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 	if (error == 0) {
 		VATTR_NULL(&vattr);
 		vattr.va_size = length;
+		if ((fp->f_flag & O_FSYNC) != 0)
+			vattr.va_vaflags |= VA_SYNC;
 		error = VOP_SETATTR(vp, &vattr, fp->f_cred);
 	}
 out:
@@ -1360,6 +1363,7 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	int error;
 	u_short mode;
 
+	AUDIT_ARG_VNODE1(vp);
 #ifdef MAC
 	error = mac_vnode_check_stat(active_cred, file_cred, vp);
 	if (error)
@@ -1509,6 +1513,7 @@ vn_poll(fp, events, active_cred, td)
 	vp = fp->f_vnode;
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
 	error = mac_vnode_check_poll(active_cred, fp->f_cred, vp);
 	VOP_UNLOCK(vp, 0);
 	if (!error)

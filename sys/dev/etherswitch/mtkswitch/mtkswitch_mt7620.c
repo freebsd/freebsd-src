@@ -135,7 +135,6 @@ mtkswitch_reg_read32_mt7621(struct mtkswitch_softc *sc, int reg)
 {
 	uint32_t low, hi;
 
-	MTKSWITCH_LOCK_ASSERT(sc, MA_OWNED);
 	mtkswitch_phy_write_locked(sc, MTKSWITCH_GLOBAL_PHY,
 	    MTKSWITCH_GLOBAL_REG, MTKSWITCH_REG_ADDR(reg));
 	low = mtkswitch_phy_read_locked(sc, MTKSWITCH_GLOBAL_PHY,
@@ -149,7 +148,6 @@ static uint32_t
 mtkswitch_reg_write32_mt7621(struct mtkswitch_softc *sc, int reg, uint32_t val)
 {
 
-	MTKSWITCH_LOCK_ASSERT(sc, MA_OWNED);
 	mtkswitch_phy_write_locked(sc, MTKSWITCH_GLOBAL_PHY,
 	    MTKSWITCH_GLOBAL_REG, MTKSWITCH_REG_ADDR(reg));
 	mtkswitch_phy_write_locked(sc, MTKSWITCH_GLOBAL_PHY,

@@ -343,3 +343,4 @@ model xxXAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
 
 /* SMC */
 model SMC LAN8710A		0x000F SMC LAN8710A 10/100 interface
+model SMC LAN8700		0x000C SMC LAN8700  10/100 interface

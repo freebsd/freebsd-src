@@ -38,7 +38,7 @@
 /**
  * Header with actual uCode rel_101_8.
  */
-#include "P3041/fman_ctrl_code/p3041_r1.0.h"
+#include "fman_ctrl_code/p3041_r1.0.h"
 
 /**
  * Generic macro.

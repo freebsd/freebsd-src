@@ -230,6 +230,13 @@ only forth definitions also support-functions
 
 : .? 2 spaces 2swap 15 #type 2 spaces type cr ;
 
+\ Execute the ? command to print all the commands defined in
+\ C, then list the ones we support here. Please note that this
+\ doesn't use pager_* routines that the C implementation of ?
+\ does, so these will always appear, even if you stop early
+\ there. And they may cause the commands to scroll off the
+\ screen if the number of commands modulus LINES is close
+\ to LINEs....
 : ?
   ['] ? execute
   s" boot-conf" s" load kernel and modules, then autoboot" .?

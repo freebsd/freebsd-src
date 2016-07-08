@@ -64,6 +64,12 @@ copy_to_nonexistent_backup_safe_body() {
 	copy_to_nonexistent_with_opts -b -B.bak -S
 }
 
+atf_test_case copy_to_nonexistent_preserving
+copy_to_nonexistent_preserving_body() {
+	copy_to_nonexistent_with_opts -p
+	[ ! testf -ot copyf ] || atf_fail "bad timestamp 2"
+}
+
 copy_self_with_opts() {
 	printf 'test\n123\r456\r\n789\0z' >testf
 	printf 'test\n123\r456\r\n789\0z' >testf2
@@ -307,6 +313,7 @@ atf_init_test_cases() {
 	atf_add_test_case copy_to_nonexistent_safe_comparing
 	atf_add_test_case copy_to_nonexistent_backup
 	atf_add_test_case copy_to_nonexistent_backup_safe
+	atf_add_test_case copy_to_nonexistent_preserving
 	atf_add_test_case copy_self
 	atf_add_test_case copy_self_safe
 	atf_add_test_case copy_self_comparing

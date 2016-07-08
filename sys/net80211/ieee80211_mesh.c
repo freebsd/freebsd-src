@@ -803,16 +803,15 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * Update bss node channel to reflect where
 			 * we landed after CSA.
 			 */
-			ieee80211_node_set_chan(vap->iv_bss,
+			ieee80211_node_set_chan(ni,
 			    ieee80211_ht_adjust_channel(ic, ic->ic_curchan,
-				ieee80211_htchanflags(vap->iv_bss->ni_chan)));
+				ieee80211_htchanflags(ni->ni_chan)));
 			/* XXX bypass debug msgs */
 			break;
 		case IEEE80211_S_SCAN:
 		case IEEE80211_S_RUN:
 #ifdef IEEE80211_DEBUG
 			if (ieee80211_msg_debug(vap)) {
-				struct ieee80211_node *ni = vap->iv_bss;
 				ieee80211_note(vap,
 				    "synchronized with %s meshid ",
 				    ether_sprintf(ni->ni_meshid));
@@ -827,7 +826,7 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		default:
 			break;
 		}
-		ieee80211_node_authorize(vap->iv_bss);
+		ieee80211_node_authorize(ni);
 		callout_reset(&ms->ms_cleantimer, ms->ms_ppath->mpp_inact,
                     mesh_rt_cleanup_cb, vap);
 		mesh_gatemode_setup(vap);
@@ -1510,10 +1509,11 @@ mesh_recv_group_data(struct ieee80211vap *vap, struct mbuf *m,
 			 * will sent it on another port member.
 			 */
 			if (ms->ms_flags & IEEE80211_MESHFLAGS_GATE &&
-			    ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
+			    ms->ms_flags & IEEE80211_MESHFLAGS_FWD) {
 				IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH,
 				    MC01(mc)->mc_addr4, "%s",
 				    "forward from MBSS to the DS");
+			}
 		}
 	}
 	return (0); /* process locally */

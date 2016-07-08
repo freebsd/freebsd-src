@@ -35,11 +35,11 @@
 .Sh DESCRIPTION
 .Nm
 implements a simple method of reading the NVRAM-like data and information
-stored in flash and storing it in the kernel environment.  It can then be
-used by various device drivers at boot-time.
+stored in flash and storing it in the kernel environment.
+It can then be used by various device drivers at boot-time.
 .Pp
-The NVRAM-like data is an array of zero terminated strings.  Each string contains
-the string name, "=" delimiter and the string value.
+The NVRAM-like data is an array of zero terminated strings.
+Each string contains the string name, "=" delimiter and the string value.
 .Pp
 .Nm
 copies the environment values into kernel environment using the kernel setenv call.
@@ -63,13 +63,14 @@ maxsize - maximum size of data block.
 flags - control flags, used to select nvram type and enable/disable CRC check.
 .Bl -tag -width indent
 .It Fa 0x0001
-Avoid CRC checking. Currently CRC checking is not implemented, so to be future
+Avoid CRC checking.
+Currently CRC checking is not implemented, so to be future
 compatible, please set it to "1".
 .It Fa 0x0002
 Use format "Generic", skip uint32_t field, then zero terminating array of
 strings.
 .It Fa 0x0004
-Use Broadcom CFE format. uint32_t signature "FLSH", uint32_t size,
+Use Broadcom CFE format, uint32_t signature "FLSH", uint32_t size,
 three unused fields uint32_t, then data.
 .It Fa 0x0008
 Use U-Boot format, uint32_t crc, then zero terminating array of strings.

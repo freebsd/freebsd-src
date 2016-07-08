@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define FDT_CWD_LEN	256
-#define FDT_MAX_DEPTH	6
+#define FDT_MAX_DEPTH	12
 
 #define FDT_PROP_SEP	" = "
 
@@ -383,6 +383,8 @@ fdt_apply_overlays()
 	rv = fdt_open_into(fdtp, new_fdtp, new_fdtp_size);
 	if (rv != 0) {
 		printf("failed to open DTB blob for applying overlays\n");
+		free(new_fdtp);
+		free(overlay);
 		return;
 	}
 
@@ -970,40 +972,52 @@ fdt_cmd_hdr(int argc __unused, char *argv[] __unused)
 	ver = fdt_version(fdtp);
 	pager_open();
 	sprintf(line, "\nFlattened device tree header (%p):\n", fdtp);
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " magic                   = 0x%08x\n", fdt_magic(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " size                    = %d\n", fdt_totalsize(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " off_dt_struct           = 0x%08x\n",
 	    fdt_off_dt_struct(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " off_dt_strings          = 0x%08x\n",
 	    fdt_off_dt_strings(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " off_mem_rsvmap          = 0x%08x\n",
 	    fdt_off_mem_rsvmap(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " version                 = %d\n", ver); 
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	sprintf(line, " last compatible version = %d\n",
 	    fdt_last_comp_version(fdtp));
-	pager_output(line);
+	if (pager_output(line))
+		goto out;
 	if (ver >= 2) {
 		sprintf(line, " boot_cpuid              = %d\n",
 		    fdt_boot_cpuid_phys(fdtp));
-		pager_output(line);
+		if (pager_output(line))
+			goto out;
 	}
 	if (ver >= 3) {
 		sprintf(line, " size_dt_strings         = %d\n",
 		    fdt_size_dt_strings(fdtp));
-		pager_output(line);
+		if (pager_output(line))
+			goto out;
 	}
 	if (ver >= 17) {
 		sprintf(line, " size_dt_struct          = %d\n",
 		    fdt_size_dt_struct(fdtp));
-		pager_output(line);
+		if (pager_output(line))
+			goto out;
 	}
+out:
 	pager_close();
 
 	return (CMD_OK);
@@ -1015,7 +1029,7 @@ fdt_cmd_ls(int argc, char *argv[])
 	const char *prevname[FDT_MAX_DEPTH] = { NULL };
 	const char *name;
 	char *path;
-	int i, o, depth, len;
+	int i, o, depth;
 
 	path = (argc > 2) ? argv[2] : NULL;
 	if (path == NULL)
@@ -1031,7 +1045,7 @@ fdt_cmd_ls(int argc, char *argv[])
 	    (o >= 0) && (depth >= 0);
 	    o = fdt_next_node(fdtp, o, &depth)) {
 
-		name = fdt_get_name(fdtp, o, &len);
+		name = fdt_get_name(fdtp, o, NULL);
 
 		if (depth > FDT_MAX_DEPTH) {
 			printf("max depth exceeded: %d\n", depth);
@@ -1678,15 +1692,18 @@ fdt_cmd_mres(int argc, char *argv[])
 	pager_open();
 	total = fdt_num_mem_rsv(fdtp);
 	if (total > 0) {
-		pager_output("Reserved memory regions:\n");
+		if (pager_output("Reserved memory regions:\n"))
+			goto out;
 		for (i = 0; i < total; i++) {
 			fdt_get_mem_rsv(fdtp, i, &start, &size);
 			sprintf(line, "reg#%d: (start: 0x%jx, size: 0x%jx)\n", 
 			    i, start, size);
-			pager_output(line);
+			if (pager_output(line))
+				goto out;
 		}
 	} else
 		pager_output("No reserved memory regions\n");
+out:
 	pager_close();
 
 	return (CMD_OK);

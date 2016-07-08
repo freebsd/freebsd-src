@@ -75,7 +75,6 @@
 #include <sys/sched.h>
 #include <sys/acl.h>
 #include <vm/vm_param.h>
-#include <vm/vm_pageout.h>
 
 /*
  * Programming rules.
@@ -7171,16 +7170,24 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 	int ltype;
 	int error;
 
+	ZFS_ENTER(zfsvfs);
+	ZFS_VERIFY_ZP(zp);
+
 	/*
 	 * If we are a snapshot mounted under .zfs, run the operation
 	 * on the covered vnode.
 	 */
 	if ((error = sa_lookup(zp->z_sa_hdl,
-	    SA_ZPL_PARENT(zfsvfs), &parent, sizeof (parent))) != 0)
+	    SA_ZPL_PARENT(zfsvfs), &parent, sizeof (parent))) != 0) {
+		ZFS_EXIT(zfsvfs);
 		return (error);
+	}
 
-	if (zp->z_id != parent || zfsvfs->z_parent == zfsvfs)
+	if (zp->z_id != parent || zfsvfs->z_parent == zfsvfs) {
+		ZFS_EXIT(zfsvfs);
 		return (vop_stdvptocnp(ap));
+	}
+	ZFS_EXIT(zfsvfs);
 
 	covered_vp = vp->v_mount->mnt_vnodecovered;
 	vhold(covered_vp);

@@ -56,14 +56,14 @@
 %d.%m.%y
 #
 # c_fmt
-%e %B %Y π. %H:%M:%S
+%A %e %B %Y π. %H:%M:%S
 #
 # AM/PM
 δο
 οο
 #
 # date_fmt
-%e %B %Y π. %H:%M:%S %Z
+%A %e %B %Y π. %H:%M:%S %Z
 #
 # Long month names (without case ending)
 ρ³χενό

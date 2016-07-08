@@ -35,7 +35,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: cxxfilt.c 3356 2016-01-22 22:31:38Z jkoshy $");
+ELFTC_VCSID("$Id: cxxfilt.c 3454 2016-05-07 17:11:05Z kaiwang27 $");
 
 #define	STRBUFSZ	8192
 
@@ -112,35 +112,18 @@ find_format(const char *fstr)
 }
 
 static char *
-demangle(char *name, int strict, size_t *pos)
+demangle(char *name)
 {
 	static char dem[STRBUFSZ];
-	char nb[STRBUFSZ];
-	size_t p, t;
 
-	if (stripus && *name == '_') {
-		strncpy(nb, name + 1, sizeof(nb) - 1);
-		t = 1;
-	} else {
-		strncpy(nb, name, sizeof(nb) - 1);
-		t = 0;
-	}
-	nb[sizeof(nb) - 1] = '\0';
+	if (stripus && *name == '_')
+		name++;
 
-	p = strlen(nb);
-	if (p == 0)
-		return NULL;
+	if (strlen(name) == 0)
+		return (NULL);
 
-	while (elftc_demangle(nb, dem, sizeof(dem), (unsigned) format) < 0) {
-		if (!strict && p > 1) {
-			nb[--p] = '\0';
-			continue;
-		} else
-			return (NULL);
-	}
-
-	if (pos != NULL)
-		*pos = t ? p + 1 : p;
+	if (elftc_demangle(name, dem, sizeof(dem), (unsigned) format) < 0)
+		return (NULL);
 
 	return (dem);
 }
@@ -149,7 +132,7 @@ int
 main(int argc, char **argv)
 {
 	char *dem, buf[STRBUFSZ];
-	size_t i, p, s;
+	size_t p;
 	int c, n, opt;
 
 	while ((opt = getopt_long(argc, argv, "_nps:V", longopts, NULL)) !=
@@ -184,8 +167,8 @@ main(int argc, char **argv)
 
 	if (*argv != NULL) {
 		for (n = 0; n < argc; n++) {
-			if ((dem = demangle(argv[n], 1, NULL)) == NULL)
-				fprintf(stderr, "Failed: %s\n", argv[n]);
+			if ((dem = demangle(argv[n])) == NULL)
+				printf("%s\n", argv[n]);
 			else
 				printf("%s\n", dem);
 		}
@@ -193,23 +176,18 @@ main(int argc, char **argv)
 		p = 0;
 		for (;;) {
 			c = fgetc(stdin);
-			if (c == EOF || !isprint(c) || strchr(" \t\n", c)) {
+			if (c == EOF || !(isalnum(c) || strchr(".$_", c))) {
 				if (p > 0) {
 					buf[p] = '\0';
-					if ((dem = demangle(buf, 0, &s)) ==
-					    NULL)
+					if ((dem = demangle(buf)) == NULL)
 						printf("%s", buf);
-					else {
+					else
 						printf("%s", dem);
-						for (i = s; i < p; i++)
-							putchar(buf[i]);
-					}
 					p = 0;
 				}
 				if (c == EOF)
 					break;
-				if (isprint(c) || strchr(" \t\n", c))
-					putchar(c);
+				putchar(c);
 			} else {
 				if ((size_t) p >= sizeof(buf) - 1)
 					warnx("buffer overflowed");

@@ -199,6 +199,7 @@ static char *chrootenv = NULL;
 static void	usage(void);
 static int	confirm_zone(const char *filename);
 static int	continent_country_menu(dialogMenuItem *);
+static int	install_zoneinfo(const char *zoneinfo);
 static int	install_zoneinfo_file(const char *zoneinfo_file);
 static int	set_zone_multi(dialogMenuItem *);
 static int	set_zone_whole_country(dialogMenuItem *);
@@ -633,13 +634,13 @@ set_zone_menu(dialogMenuItem *dmi)
 	return (DITEM_LEAVE_MENU);
 }
 
-int
+static int
 set_zone_utc(void)
 {
 	if (!confirm_zone(NULL))
 		return (DITEM_FAILURE | DITEM_RECREATE);
 
-	return (install_zoneinfo_file(NULL));
+	return (install_zoneinfo("UTC"));
 }
 
 static int
@@ -838,7 +839,9 @@ install_zoneinfo(const char *zoneinfo)
 	FILE		*f;
 	char		path_zoneinfo_file[MAXPATHLEN];
 
-	sprintf(path_zoneinfo_file, "%s/%s", path_zoneinfo, zoneinfo);
+	if ((size_t)snprintf(path_zoneinfo_file, sizeof(path_zoneinfo_file),
+	    "%s/%s", path_zoneinfo, zoneinfo) >= sizeof(path_zoneinfo_file))
+		errx(1, "%s/%s name too long", path_zoneinfo, zoneinfo);
 	rv = install_zoneinfo_file(path_zoneinfo_file);
 
 	/* Save knowledge for later */

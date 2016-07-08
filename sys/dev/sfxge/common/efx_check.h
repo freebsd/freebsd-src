@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2012-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -333,6 +333,13 @@
 #  error "LICENSING requires UINT64"
 # endif
 #endif /* EFSYS_OPT_LICENSING */
+
+/* Support adapters with missing static config (for factory use only) */
+#if EFSYS_OPT_ALLOW_UNCONFIGURED_NIC
+# if !EFSYS_OPT_MEDFORD
+#  error "ALLOW_UNCONFIGURED_NIC requires MEDFORD"
+# endif
+#endif /* EFSYS_OPT_ALLOW_UNCONFIGURED_NIC */
 
 
 #endif /* _SYS_EFX_CHECK_H */

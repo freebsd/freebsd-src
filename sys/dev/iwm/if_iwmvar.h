@@ -289,6 +289,7 @@ struct iwm_rx_ring {
 	uint32_t		*desc;
 	struct iwm_rb_status	*stat;
 	struct iwm_rx_data	data[IWM_RX_RING_COUNT];
+	bus_dmamap_t		spare_map;	/* for iwm_rx_addbuf() */
 	bus_dma_tag_t           data_dmat;
 	int			cur;
 };
@@ -412,6 +413,7 @@ struct iwm_softc {
 
 	struct intr_config_hook sc_preinit_hook;
 	struct callout		sc_watchdog_to;
+	struct callout		sc_led_blink_to;
 
 	struct task		init_task;
 
@@ -484,8 +486,6 @@ struct iwm_softc {
 	size_t			sc_scan_cmd_len;
 	int			sc_scan_last_antenna;
 	int			sc_scanband;
-
-	int			sc_auth_prot;
 
 	int			sc_fixed_ridx;
 

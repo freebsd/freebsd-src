@@ -56,8 +56,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stddef.h>
-
 #include "dhcpd.h"
 #include "privsep.h"
 
@@ -1572,18 +1570,16 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 	}
 
 	/* set unique client identifier */
-	struct hardware client_ident;
+	char client_ident[sizeof(ip->hw_address.haddr) + 1];
 	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
-		size_t hwlen = MIN(ip->hw_address.hlen,
-		    sizeof(client_ident.haddr));
-		client_ident.htype = ip->hw_address.htype;
-		client_ident.hlen = hwlen;
-		memcpy(client_ident.haddr, ip->hw_address.haddr, hwlen);
+		int hwlen = (ip->hw_address.hlen < sizeof(client_ident)-1) ?
+				ip->hw_address.hlen : sizeof(client_ident)-1;
+		client_ident[0] = ip->hw_address.htype;
+		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen);
 		options[DHO_DHCP_CLIENT_IDENTIFIER] = &option_elements[DHO_DHCP_CLIENT_IDENTIFIER];
-		options[DHO_DHCP_CLIENT_IDENTIFIER]->value = (void *)&client_ident;
-		hwlen += offsetof(struct hardware, haddr);
-		options[DHO_DHCP_CLIENT_IDENTIFIER]->len = hwlen;
-		options[DHO_DHCP_CLIENT_IDENTIFIER]->buf_size = hwlen;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->value = client_ident;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->len = hwlen+1;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->buf_size = hwlen+1;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->timeout = 0xFFFFFFFF;
 	}
 
@@ -1609,8 +1605,8 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 	    0, sizeof(ip->client->packet.siaddr));
 	memset(&(ip->client->packet.giaddr),
 	    0, sizeof(ip->client->packet.giaddr));
-	memcpy(ip->client->packet.chaddr, ip->hw_address.haddr,
-	    MIN(ip->hw_address.hlen, sizeof(ip->client->packet.chaddr)));
+	memcpy(ip->client->packet.chaddr,
+	    ip->hw_address.haddr, ip->hw_address.hlen);
 }
 
 

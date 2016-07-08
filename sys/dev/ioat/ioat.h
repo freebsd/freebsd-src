@@ -85,6 +85,8 @@ typedef void *bus_dmaengine_t;
 struct bus_dmadesc;
 typedef void (*bus_dmaengine_callback_t)(void *arg, int error);
 
+unsigned ioat_get_nchannels(void);
+
 /*
  * Called first to acquire a reference to the DMA channel
  *

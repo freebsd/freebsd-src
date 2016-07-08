@@ -482,6 +482,7 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 	char	*buf;
 	int	i, bufsize;
 	off_t	bufrem;
+	time_t	tstamp;
 
 	assert (image != NULL);
 	assert (fsopts != NULL);
@@ -541,7 +542,15 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 		/* make the file system */
 	if (debug & DEBUG_FS_CREATE_IMAGE)
 		printf("calling mkfs(\"%s\", ...)\n", image);
-	fs = ffs_mkfs(image, fsopts);
+
+	if (stampst.st_ino != 0)
+		tstamp = stampst.st_ctime;
+	else
+		tstamp = start_time.tv_sec;
+
+	srandom(tstamp);
+
+	fs = ffs_mkfs(image, fsopts, tstamp);
 	fsopts->superblock = (void *)fs;
 	if (debug & DEBUG_FS_CREATE_IMAGE) {
 		time_t t;
@@ -648,19 +657,12 @@ ffs_build_dinode1(struct ufs1_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 {
 	int slen;
 	void *membuf;
+	struct stat *st = stampst.st_ino != 0 ? &stampst : &cur->inode->st;
 
 	memset(dinp, 0, sizeof(*dinp));
 	dinp->di_mode = cur->inode->st.st_mode;
 	dinp->di_nlink = cur->inode->nlink;
 	dinp->di_size = cur->inode->st.st_size;
-	dinp->di_atime = cur->inode->st.st_atime;
-	dinp->di_mtime = cur->inode->st.st_mtime;
-	dinp->di_ctime = cur->inode->st.st_ctime;
-#if HAVE_STRUCT_STAT_ST_MTIMENSEC
-	dinp->di_atimensec = cur->inode->st.st_atimensec;
-	dinp->di_mtimensec = cur->inode->st.st_mtimensec;
-	dinp->di_ctimensec = cur->inode->st.st_ctimensec;
-#endif
 #if HAVE_STRUCT_STAT_ST_FLAGS
 	dinp->di_flags = cur->inode->st.st_flags;
 #endif
@@ -669,6 +671,15 @@ ffs_build_dinode1(struct ufs1_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 #endif
 	dinp->di_uid = cur->inode->st.st_uid;
 	dinp->di_gid = cur->inode->st.st_gid;
+
+	dinp->di_atime = st->st_atime;
+	dinp->di_mtime = st->st_mtime;
+	dinp->di_ctime = st->st_ctime;
+#if HAVE_STRUCT_STAT_ST_MTIMENSEC
+	dinp->di_atimensec = st->st_atimensec;
+	dinp->di_mtimensec = st->st_mtimensec;
+	dinp->di_ctimensec = st->st_ctimensec;
+#endif
 		/* not set: di_db, di_ib, di_blocks, di_spare */
 
 	membuf = NULL;
@@ -696,31 +707,33 @@ ffs_build_dinode2(struct ufs2_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 {
 	int slen;
 	void *membuf;
+	struct stat *st = stampst.st_ino != 0 ? &stampst : &cur->inode->st;
 
 	memset(dinp, 0, sizeof(*dinp));
 	dinp->di_mode = cur->inode->st.st_mode;
 	dinp->di_nlink = cur->inode->nlink;
 	dinp->di_size = cur->inode->st.st_size;
-	dinp->di_atime = cur->inode->st.st_atime;
-	dinp->di_mtime = cur->inode->st.st_mtime;
-	dinp->di_ctime = cur->inode->st.st_ctime;
-#if HAVE_STRUCT_STAT_ST_MTIMENSEC
-	dinp->di_atimensec = cur->inode->st.st_atimensec;
-	dinp->di_mtimensec = cur->inode->st.st_mtimensec;
-	dinp->di_ctimensec = cur->inode->st.st_ctimensec;
-#endif
 #if HAVE_STRUCT_STAT_ST_FLAGS
 	dinp->di_flags = cur->inode->st.st_flags;
 #endif
 #if HAVE_STRUCT_STAT_ST_GEN
 	dinp->di_gen = cur->inode->st.st_gen;
 #endif
-#if HAVE_STRUCT_STAT_BIRTHTIME
-	dinp->di_birthtime = cur->inode->st.st_birthtime;
-	dinp->di_birthnsec = cur->inode->st.st_birthtimensec;
-#endif
 	dinp->di_uid = cur->inode->st.st_uid;
 	dinp->di_gid = cur->inode->st.st_gid;
+
+	dinp->di_atime = st->st_atime;
+	dinp->di_mtime = st->st_mtime;
+	dinp->di_ctime = st->st_ctime;
+#if HAVE_STRUCT_STAT_ST_MTIMENSEC
+	dinp->di_atimensec = st->st_atimensec;
+	dinp->di_mtimensec = st->st_mtimensec;
+	dinp->di_ctimensec = st->st_ctimensec;
+#endif
+#if HAVE_STRUCT_STAT_BIRTHTIME
+	dinp->di_birthtime = st->st_birthtime;
+	dinp->di_birthnsec = st->st_birthtimensec;
+#endif
 		/* not set: di_db, di_ib, di_blocks, di_spare */
 
 	membuf = NULL;
@@ -1125,11 +1138,6 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	    initediblk < ufs_rw32(cgp->cg_niblk, fsopts->needswap)) {
 		memset(buf, 0, fs->fs_bsize);
 		dip = (struct ufs2_dinode *)buf;
-		/*
-		 * XXX: Time-based seeds should be avoided for
-		 * reproduceable builds.
-		 */
-		srandom(time(NULL));
 		for (i = 0; i < INOPB(fs); i++) {
 			dip->di_gen = random();
 			dip++;

@@ -41,6 +41,7 @@ HEADER {
 	struct bhnd_board_info;
 	struct bhnd_core_info;
 	struct bhnd_chipid;
+	struct bhnd_devinfo;
 	struct bhnd_resource;
 }
 
@@ -55,11 +56,22 @@ CODE {
 		panic("bhnd_bus_get_chipid unimplemented");
 	}
 
+	static bhnd_attach_type
+	bhnd_bus_null_get_attach_type(device_t dev, device_t child)
+	{
+		panic("bhnd_bus_get_attach_type unimplemented");
+	}
+
 	static int
 	bhnd_bus_null_read_board_info(device_t dev, device_t child,
 	    struct bhnd_board_info *info)
 	{
 		panic("bhnd_bus_read_boardinfo unimplemented");
+	}
+	
+	static void
+	bhnd_bus_null_child_added(device_t dev, device_t child)
+	{
 	}
 
 	static device_t
@@ -184,6 +196,22 @@ METHOD const struct bhnd_chipid * get_chipid {
 } DEFAULT bhnd_bus_null_get_chipid;
 
 /**
+ * Return the BHND attachment type of the parent bus.
+ *
+ * @param dev The device whose child is being examined.
+ * @param child The child device.
+ *
+ * @retval BHND_ATTACH_ADAPTER if the bus is resident on a bridged adapter,
+ * such as a WiFi chipset.
+ * @retval BHND_ATTACH_NATIVE if the bus provides hardware services (clock,
+ * CPU, etc) to a directly attached native host.
+ */
+METHOD bhnd_attach_type get_attach_type {
+	device_t dev;
+	device_t child;
+} DEFAULT bhnd_bus_null_get_attach_type;
+
+/**
  * Attempt to read the BHND board identification from the parent bus.
  *
  * This relies on NVRAM access, and will fail if a valid NVRAM device cannot
@@ -204,6 +232,46 @@ METHOD int read_board_info {
 	device_t child;
 	struct bhnd_board_info *info;
 } DEFAULT bhnd_bus_null_read_board_info;
+
+/**
+ * Allocate and zero-initialize a buffer suitably sized and aligned for a
+ * bhnd_devinfo structure.
+ *
+ * @param dev The bhnd bus device.
+ *
+ * @retval non-NULL	success
+ * @retval NULL		allocation failed
+ */
+METHOD struct bhnd_devinfo * alloc_devinfo {
+	device_t dev;
+};
+
+/**
+ * Release memory previously allocated for @p devinfo.
+ *
+ * @param dev The bhnd bus device.
+ * @param dinfo A devinfo buffer previously allocated via
+ * BHND_BUS_ALLOC_DEVINFO().
+ */
+METHOD void free_devinfo {
+	device_t dev;
+	struct bhnd_devinfo *dinfo;
+};
+
+/**
+ * Notify a bhnd bus that a child was added.
+ *
+ * Called at the end of BUS_ADD_CHILD() to allow the concrete bhnd(4)
+ * driver instance to initialize any additional driver-specific state for the
+ * child.
+ *
+ * @param dev The bhnd bus whose child is being added.
+ * @param child The child added to @p dev.
+ */
+METHOD void child_added {
+	device_t dev;
+	device_t child;
+} DEFAULT bhnd_bus_null_child_added;
 
 /**
  * Reset the device's hardware core.
@@ -662,6 +730,192 @@ METHOD void write_multi_stream_2 {
 /** An implementation of bus_write_multi_stream_4() compatible with
  *  bhnd_resource */
 METHOD void write_multi_stream_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_set_multi_1() compatible with bhnd_resource */
+METHOD void set_multi_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t value;
+	bus_size_t count;
+}
+
+/** An implementation of bus_set_multi_2() compatible with bhnd_resource */
+METHOD void set_multi_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t value;
+	bus_size_t count;
+}
+
+/** An implementation of bus_set_multi_4() compatible with bhnd_resource */
+METHOD void set_multi_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t value;
+	bus_size_t count;
+}
+
+/** An implementation of bus_set_region_1() compatible with bhnd_resource */
+METHOD void set_region_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t value;
+	bus_size_t count;
+}
+
+/** An implementation of bus_set_region_2() compatible with bhnd_resource */
+METHOD void set_region_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t value;
+	bus_size_t count;
+}
+
+/** An implementation of bus_set_region_4() compatible with bhnd_resource */
+METHOD void set_region_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t value;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_region_1() compatible with bhnd_resource */
+METHOD void read_region_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_region_2() compatible with bhnd_resource */
+METHOD void read_region_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_region_4() compatible with bhnd_resource */
+METHOD void read_region_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_region_stream_1() compatible with
+  * bhnd_resource */
+METHOD void read_region_stream_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_region_stream_2() compatible with
+  * bhnd_resource */
+METHOD void read_region_stream_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_read_region_stream_4() compatible with
+  * bhnd_resource */
+METHOD void read_region_stream_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_region_1() compatible with bhnd_resource */
+METHOD void write_region_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_region_2() compatible with bhnd_resource */
+METHOD void write_region_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_region_4() compatible with bhnd_resource */
+METHOD void write_region_4 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint32_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_region_stream_1() compatible with
+  * bhnd_resource */
+METHOD void write_region_stream_1 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint8_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_region_stream_2() compatible with
+  * bhnd_resource */
+METHOD void write_region_stream_2 {
+	device_t dev;
+	device_t child;
+	struct bhnd_resource *r;
+	bus_size_t offset;
+	uint16_t *datap;
+	bus_size_t count;
+}
+
+/** An implementation of bus_write_region_stream_4() compatible with
+  * bhnd_resource */
+METHOD void write_region_stream_4 {
 	device_t dev;
 	device_t child;
 	struct bhnd_resource *r;

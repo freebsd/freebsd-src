@@ -4,6 +4,7 @@
 
 KMOD=	bhndb
 SRCS=	bhndb.c bhndb_subr.c bhndb_hwdata.c \
+	bhnd_bhndb.c \
 	bhndb_bus_if.c bhndb_bus_if.h \
 	bhndb_if.c bhndb_if.h
 SRCS+=	bhnd_bus_if.h \

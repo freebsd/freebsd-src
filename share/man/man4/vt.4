@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2016
+.Dd June 21, 2016
 .Dt "VIRTUAL TERMINALS" 4
 .Os
 .Sh NAME
@@ -200,12 +200,11 @@ Set this value to
 .Ql vt
 or
 .Ql sc
-to override the default driver used for the system console.
-By default,
-.Xr sc 4
-is used on computers that boot from BIOS, and
-.Nm
-is used on computers that boot from UEFI.
+to choose a specific system console, overriding the default.
+If not set, the default in the
+.Pa GENERIC
+kernel is
+.Nm .
 .It Va kern.vt.fb.default_mode
 Set this value to a graphic mode to override the default mode picked by the
 .Nm

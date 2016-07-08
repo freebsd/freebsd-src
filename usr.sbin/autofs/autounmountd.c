@@ -161,7 +161,7 @@ unmount_by_fsid(const fsid_t fsid, const char *mountpoint)
 	if (ret < 0)
 		log_err(1, "asprintf");
 
-	error = unmount(fsid_str, MNT_BYFSID);
+	error = unmount(fsid_str, MNT_NONBUSY | MNT_BYFSID);
 	if (error != 0) {
 		if (errno == EBUSY) {
 			log_debugx("cannot unmount %s (%s): %s",

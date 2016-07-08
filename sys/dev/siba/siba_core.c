@@ -69,6 +69,7 @@ enum {
 	SIBA_DEBUG_SWITCHCORE	= 0x00000008,	/* switching core */
 	SIBA_DEBUG_SPROM	= 0x00000010,	/* SPROM */
 	SIBA_DEBUG_CORE		= 0x00000020,	/* handling cores */
+	SIBA_DEBUG_DMA		= 0x00000040,	/* DMA bits */
 	SIBA_DEBUG_ANY		= 0xffffffff
 };
 
@@ -334,7 +335,7 @@ siba_scan(struct siba_softc *siba)
 		sd->sd_coreidx = i;
 
 		DPRINTF(siba, SIBA_DEBUG_SCAN,
-		    "core %d (%s) found (cc %#xrev %#x vendor %#x)\n",
+		    "core %d (%s) found (cc %#x rev %#x vendor %#x)\n",
 		    i, siba_core_name(sd->sd_id.sd_device),
 		    sd->sd_id.sd_device, sd->sd_id.sd_rev,
 		    sd->sd_id.sd_vendor);
@@ -429,6 +430,7 @@ siba_pci_switchcore_sub(struct siba_softc *siba, uint8_t idx)
 			return (0);
 		DELAY(10);
 	}
+	DPRINTF(siba, SIBA_DEBUG_SWITCHCORE, "%s: idx %d, failed\n", __func__, idx);
 	return (ENODEV);
 #undef RETRY_MAX
 }
@@ -772,6 +774,13 @@ siba_cc_clock(struct siba_cc *scc, enum siba_clock clock)
 	if (sd == NULL)
 		return;
 	siba = sd->sd_bus;
+
+	/*
+	 * PMU controls clockmode; separate function is needed
+	 */
+	if (scc->scc_caps & SIBA_CC_CAPS_PMU)
+		return;
+
 	/*
 	 * chipcommon < r6 (no dynamic clock control)
 	 * chipcommon >= r10 (unknown)
@@ -928,6 +937,7 @@ siba_cc_pmu_init(struct siba_cc *scc)
 	DPRINTF(siba, SIBA_DEBUG_PMU, "PMU(r%u) found (caps %#x)\n",
 	    scc->scc_pmu.rev, pmucap);
 
+#if 0
 	if (scc->scc_pmu.rev >= 1) {
 		if (siba->siba_chiprev < 2 && siba->siba_chipid == 0x4325)
 			SIBA_CC_MASK32(scc, SIBA_CC_PMUCTL,
@@ -936,12 +946,29 @@ siba_cc_pmu_init(struct siba_cc *scc)
 			SIBA_CC_SET32(scc, SIBA_CC_PMUCTL,
 			    SIBA_CC_PMUCTL_NOILP);
 	}
+#endif
+	if (scc->scc_pmu.rev == 1) {
+		SIBA_CC_MASK32(scc, SIBA_CC_PMUCTL, ~SIBA_CC_PMUCTL_NOILP);
+	} else {
+		SIBA_CC_SET32(scc, SIBA_CC_PMUCTL, SIBA_CC_PMUCTL_NOILP);
+	}
 
 	/* initialize PLL & PMU resources */
 	switch (siba->siba_chipid) {
 	case 0x4312:
 		siba_cc_pmu1_pll0_init(scc, 0 /* use default */);
 		/* use the default: min = 0xcbb max = 0x7ffff */
+		break;
+	case 0x4322:
+		if (scc->scc_pmu.rev == 2) {
+			DPRINTF(siba, SIBA_DEBUG_PMU, "%s: chipid 0x4322; PLLing\n",
+			    __func__);
+			SIBA_CC_WRITE32(scc, SIBA_CC_PLLCTL_ADDR, 0x0000000a);
+			SIBA_CC_WRITE32(scc, SIBA_CC_PLLCTL_DATA, 0x380005c0);
+		}
+		/* use the default: min = 0xcbb max = 0x7ffff */
+		break;
+	case 43222:
 		break;
 	case 0x4325:
 		siba_cc_pmu1_pll0_init(scc, 0 /* use default */);
@@ -1057,8 +1084,22 @@ siba_cc_powerup_delay(struct siba_cc *scc)
 	struct siba_softc *siba = scc->scc_dev->sd_bus;
 	int min;
 
-	if (siba->siba_type != SIBA_TYPE_PCI ||
-	    !(scc->scc_caps & SIBA_CC_CAPS_PWCTL))
+	if (siba->siba_type != SIBA_TYPE_PCI)
+		return;
+
+	if (scc->scc_caps & SIBA_CC_CAPS_PMU) {
+		if ((siba->siba_chipid == 0x4312) ||
+		    (siba->siba_chipid == 0x4322) ||
+		    (siba->siba_chipid == 0x4328)) {
+			scc->scc_powerup_delay = 7000;
+		} else {
+			/* 0x4325 is marked as TODO */
+			scc->scc_powerup_delay = 15000;
+		}
+		return;
+	}
+
+	if (!(scc->scc_caps & SIBA_CC_CAPS_PWCTL))
 		return;
 
 	min = siba_cc_clockfreq(scc, 0);
@@ -1786,26 +1827,26 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 
 	/* FEM */
 	SIBA_SHIFTOUT(fem.ghz2.tssipos, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_TSSIPOS);
+	    SIBA_SROM8_FEM_TSSIPOS);
 	SIBA_SHIFTOUT(fem.ghz2.extpa_gain, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_EXTPA_GAIN);
+	    SIBA_SROM8_FEM_EXTPA_GAIN);
 	SIBA_SHIFTOUT(fem.ghz2.pdet_range, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_PDET_RANGE);
+	    SIBA_SROM8_FEM_PDET_RANGE);
 	SIBA_SHIFTOUT(fem.ghz2.tr_iso, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_TR_ISO);
+	    SIBA_SROM8_FEM_TR_ISO);
 	SIBA_SHIFTOUT(fem.ghz2.antswlut, SIBA_SPROM8_FEM2G,
-	    SSB_SROM8_FEM_ANTSWLUT);
+	    SIBA_SROM8_FEM_ANTSWLUT);
 
 	SIBA_SHIFTOUT(fem.ghz5.tssipos, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_TSSIPOS);
+	    SIBA_SROM8_FEM_TSSIPOS);
 	SIBA_SHIFTOUT(fem.ghz5.extpa_gain, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_EXTPA_GAIN);
+	    SIBA_SROM8_FEM_EXTPA_GAIN);
 	SIBA_SHIFTOUT(fem.ghz5.pdet_range, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_PDET_RANGE);
+	    SIBA_SROM8_FEM_PDET_RANGE);
 	SIBA_SHIFTOUT(fem.ghz5.tr_iso, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_TR_ISO);
+	    SIBA_SROM8_FEM_TR_ISO);
 	SIBA_SHIFTOUT(fem.ghz5.antswlut, SIBA_SPROM8_FEM5G,
-	    SSB_SROM8_FEM_ANTSWLUT);
+	    SIBA_SROM8_FEM_ANTSWLUT);
 
 	/* Extract cores power info info */
 	for (i = 0; i < nitems(pwr_info_offset); i++) {
@@ -2183,6 +2224,8 @@ siba_dma_translation(device_t dev)
 	KASSERT(siba->siba_type == SIBA_TYPE_PCI,
 	    ("unsupported bustype %d\n", siba->siba_type));
 #endif
+
+	/* Default */
 	return (SIBA_PCI_DMA);
 }
 

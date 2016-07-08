@@ -102,6 +102,17 @@ ATF_TC_BODY(bitstr_in_struct, tc)
 	bit_nclear(test_struct.bitstr, 0, 8);
 }
 
+ATF_TC_WITHOUT_HEAD(bitstr_size);
+ATF_TC_BODY(bitstr_size, tc)
+{
+	size_t sob = sizeof(bitstr_t);
+
+	ATF_CHECK_EQ(0, bitstr_size(0));
+	ATF_CHECK_EQ(sob, bitstr_size(1));
+	ATF_CHECK_EQ(sob, bitstr_size(sob * 8));
+	ATF_CHECK_EQ(2 * sob, bitstr_size(sob * 8 + 1));
+}
+
 BITSTRING_TC_DEFINE(bit_set)
 /* bitstr_t *bitstr, int nbits, const char *memloc */
 {
@@ -342,10 +353,72 @@ BITSTRING_TC_DEFINE(bit_nset)
 	}
 }
 
+BITSTRING_TC_DEFINE(bit_count)
+/* bitstr_t *bitstr, int nbits, const char *memloc */
+{
+	int result, s, e, expected;
+
+	/* Empty bitstr */
+	memset(bitstr, 0, bitstr_size(nbits));
+	bit_count(bitstr, 0, nbits, &result);
+	ATF_CHECK_MSG(0 == result,
+			"bit_count_%d_%s_%s: Failed with result %d",
+			nbits, "clear", memloc, result);
+
+	/* Full bitstr */
+	memset(bitstr, 0xFF, bitstr_size(nbits));
+	bit_count(bitstr, 0, nbits, &result);
+	ATF_CHECK_MSG(nbits == result,
+			"bit_count_%d_%s_%s: Failed with result %d",
+			nbits, "set", memloc, result);
+
+	/* Invalid _start value */
+	memset(bitstr, 0xFF, bitstr_size(nbits));
+	bit_count(bitstr, nbits, nbits, &result);
+	ATF_CHECK_MSG(0 == result,
+			"bit_count_%d_%s_%s: Failed with result %d",
+			nbits, "invalid_start", memloc, result);
+	
+	/* Alternating bitstr, starts with 0 */
+	memset(bitstr, 0xAA, bitstr_size(nbits));
+	bit_count(bitstr, 0, nbits, &result);
+	ATF_CHECK_MSG(nbits / 2 == result,
+			"bit_count_%d_%s_%d_%s: Failed with result %d",
+			nbits, "alternating", 0, memloc, result);
+
+	/* Alternating bitstr, starts with 1 */
+	memset(bitstr, 0x55, bitstr_size(nbits));
+	bit_count(bitstr, 0, nbits, &result);
+	ATF_CHECK_MSG((nbits + 1) / 2 == result,
+			"bit_count_%d_%s_%d_%s: Failed with result %d",
+			nbits, "alternating", 1, memloc, result);
+
+	/* Varying start location */
+	memset(bitstr, 0xAA, bitstr_size(nbits));
+	for (s = 0; s < nbits; s++) {
+		expected = s % 2 == 0 ? (nbits - s) / 2 : (nbits - s + 1) / 2;
+		bit_count(bitstr, s, nbits, &result);
+		ATF_CHECK_MSG(expected == result,
+				"bit_count_%d_%s_%d_%s: Failed with result %d",
+				nbits, "vary_start", s, memloc, result);
+	}
+
+	/* Varying end location */
+	memset(bitstr, 0xAA, bitstr_size(nbits));
+	for (e = 0; e < nbits; e++) {
+		bit_count(bitstr, 0, e, &result);
+		ATF_CHECK_MSG(e / 2 == result,
+				"bit_count_%d_%s_%d_%s: Failed with result %d",
+				nbits, "vary_end", e, memloc, result);
+	}
+
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, bitstr_in_struct);
+	ATF_TP_ADD_TC(tp, bitstr_size);
 	BITSTRING_TC_ADD(tp, bit_set);
 	BITSTRING_TC_ADD(tp, bit_clear);
 	BITSTRING_TC_ADD(tp, bit_ffs);
@@ -354,6 +427,7 @@ ATF_TP_ADD_TCS(tp)
 	BITSTRING_TC_ADD(tp, bit_ffc_at);
 	BITSTRING_TC_ADD(tp, bit_nclear);
 	BITSTRING_TC_ADD(tp, bit_nset);
+	BITSTRING_TC_ADD(tp, bit_count);
 
 	return (atf_no_error());
 }

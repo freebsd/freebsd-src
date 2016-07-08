@@ -1181,6 +1181,41 @@ static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD
  */
 
 /*
+ * Handle a bool.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_bool(SYSCTL_HANDLER_ARGS)
+{
+	uint8_t temp;
+	int error;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		temp = *(bool *)arg1 ? 1 : 0;
+	else
+		temp = arg2 ? 1 : 0;
+
+	error = SYSCTL_OUT(req, &temp, sizeof(temp));
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else {
+		error = SYSCTL_IN(req, &temp, sizeof(temp));
+		if (!error)
+			*(bool *)arg1 = temp ? 1 : 0;
+	}
+	return (error);
+}
+
+/*
  * Handle an int8_t, signed or unsigned.
  * Two cases:
  *     a variable:  point arg1 at it.

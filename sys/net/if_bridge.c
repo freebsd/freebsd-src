@@ -541,7 +541,7 @@ vnet_bridge_uninit(const void *unused __unused)
 	V_bridge_cloner = NULL;
 	BRIDGE_LIST_LOCK_DESTROY();
 }
-VNET_SYSUNINIT(vnet_bridge_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_bridge_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_bridge_uninit, NULL);
 
 static int

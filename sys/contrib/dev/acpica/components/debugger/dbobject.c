@@ -161,10 +161,10 @@ AcpiDbDecodeInternalObject (
 
     case ACPI_TYPE_STRING:
 
-        AcpiOsPrintf ("(%u) \"%.24s",
+        AcpiOsPrintf ("(%u) \"%.60s",
             ObjDesc->String.Length, ObjDesc->String.Pointer);
 
-        if (ObjDesc->String.Length > 24)
+        if (ObjDesc->String.Length > 60)
         {
             AcpiOsPrintf ("...");
         }

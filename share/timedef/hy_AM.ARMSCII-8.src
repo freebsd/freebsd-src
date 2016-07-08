@@ -56,14 +56,14 @@
 %d.%m.%y
 #
 # c_fmt
-%d %B, %Y√., %H:%M:%S,
+%d %B, %Y√. %H:%M:%S,
 #
 # AM/PM
 œªÎ˚Ò«Û ≥È≥Á
 œªÎ˚Ò«Û —ªÔ·
 #
 # date_fmt
-%d %B, %Y√., %H:%M:%S, %Z
+%d %B, %Y√. %H:%M:%S, %Z
 #
 # Long month names (without case ending)
 —·ı›Ì≥Ò«

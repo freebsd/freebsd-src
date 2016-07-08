@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.52 2015/11/14 18:09:57 sjg Exp $
+# $Id: lib.mk,v 1.53 2016/03/22 20:45:14 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -40,8 +40,8 @@ SHLIB_FULLVERSION := ${SHLIB_FULLVERSION}
 
 # add additional suffixes not exported.
 # .po is used for profiling object files.
-# .so is used for PIC object files.
-.SUFFIXES: .out .a .ln .so .po .o .s .S .c .cc .C .m .F .f .r .y .l .cl .p .h
+# .So is used for PIC object files.
+.SUFFIXES: .out .a .ln .So .po .o .s .S .c .cc .C .m .F .f .r .y .l .cl .p .h
 .SUFFIXES: .sh .m4 .m
 
 CFLAGS+=	${COPTS}
@@ -62,12 +62,12 @@ CFLAGS+=	${COPTS}
 #			with ELF, also set shared-lib version for ld.so.
 # SHLIB_LDSTARTFILE:	support .o file, call C++ file-level constructors
 # SHLIB_LDENDFILE:	support .o file, call C++ file-level destructors
-# FPICFLAGS:		flags for ${FC} to compile .[fF] files to .so objects.
+# FPICFLAGS:		flags for ${FC} to compile .[fF] files to .So objects.
 # CPPICFLAGS:		flags for ${CPP} to preprocess .[sS] files for ${AS}
-# CPICFLAGS:		flags for ${CC} to compile .[cC] files to .so objects.
+# CPICFLAGS:		flags for ${CC} to compile .[cC] files to .So objects.
 # CAPICFLAGS		flags for {$CC} to compiling .[Ss] files
 #		 	(usually just ${CPPPICFLAGS} ${CPICFLAGS})
-# APICFLAGS:		flags for ${AS} to assemble .[sS] to .so objects.
+# APICFLAGS:		flags for ${AS} to assemble .[sS] to .So objects.
 
 .if ${TARGET_OSNAME} == "NetBSD"
 .if ${MACHINE_ARCH} == "alpha"
@@ -162,14 +162,14 @@ LD_shared=-b
 LD_so=sl
 DLLIB=
 # HPsUX lorder does not grok anything but .o
-LD_sobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.so,'`
+LD_sobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.So,'`
 LD_pobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.po,'`
 .elif ${TARGET_OSNAME} == "OSF1"
 LD_shared= -msym -shared -expect_unresolved '*'
 LD_solib= -all lib${LIB}_pic.a
 DLLIB=
 # lorder does not grok anything but .o
-LD_sobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.so,'`
+LD_sobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.So,'`
 LD_pobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.po,'`
 AR_cq= -cqs
 .elif ${TARGET_OSNAME} == "FreeBSD"
@@ -273,7 +273,7 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 	${COMPILE.c} ${.IMPSRC}
 
 # for the normal .a we do not want to strip symbols
-.cc.o .C.o:
+${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
 
 .S.o .s.o:
@@ -284,10 +284,10 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 .c.po:
 	${COMPILE.c} ${CC_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}
 
-.cc.po .C.po:
+${CXX_SUFFIXES:%=%.po}:
 	${COMPILE.cc} -pg ${.IMPSRC} -o ${.TARGET}
 
-.S.so .s.so:
+.S.So .s.So:
 	${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 .else
 .c.po:
@@ -296,13 +296,13 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
-.cc.po .C.po:
+${CXX_SUFFIXES:%=%.po}:
 	@echo ${COMPILE.cc} ${CXX_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}
 	@${COMPILE.cc} ${CXX_PG} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
-.S.so .s.so:
+.S.So .s.So:
 	@echo ${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 	@${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
@@ -310,23 +310,23 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 .endif
 
 .if (${LD_x} == "")
-.c.so:
+.c.So:
 	${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 
-.cc.so .C.so:
+${CXX_SUFFIXES:%=%.So}:
 	${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 
 .S.po .s.po:
 	${COMPILE.S} ${PROFFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 .else
 
-.c.so:
+.c.So:
 	@echo ${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 	@${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
-.cc.so .C.so:
+${CXX_SUFFIXES:%=%.So}:
 	@echo ${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 	@${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
@@ -396,7 +396,7 @@ prebuild:
 all: _SUBDIRUSE
 
 .for s in ${SRCS:N*.h:M*/*}
-${.o .so .po .lo:L:@o@${s:T:R}$o@}: $s
+${.o .So .po .lo:L:@o@${s:T:R}$o@}: $s
 .endfor
 
 OBJS+=	${SRCS:T:N*.h:R:S/$/.o/g}
@@ -441,7 +441,7 @@ lib${LIB}_p.a:: ${POBJS}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_pobjs}
 	${RANLIB} ${.TARGET}
 
-SOBJS+=	${OBJS:.o=.so}
+SOBJS+=	${OBJS:.o=.So}
 .NOPATH:	${SOBJS}
 lib${LIB}_pic.a:: ${SOBJS}
 	@echo building shared object ${LIB} library
@@ -502,7 +502,7 @@ cleandir: _SUBDIRUSE clean
 .if defined(SRCS) && (!defined(MKDEP) || ${MKDEP} != autodep)
 afterdepend: .depend
 	@(TMP=/tmp/_depend$$$$; \
-	    sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so \1.ln:/' \
+	    sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So \1.ln:/' \
 	      < .depend > $$TMP; \
 	    mv $$TMP .depend)
 .endif

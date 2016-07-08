@@ -157,7 +157,8 @@ typedef struct regDomain {
 } REG_DOMAIN;
 
 struct cmode {
-	u_int	mode;
-	u_int	flags;
+	u_int		mode;
+	u_int		flags;
+	REG_DMN_FREQ_BAND *freqs;
 };
 #endif

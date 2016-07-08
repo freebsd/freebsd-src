@@ -31,6 +31,7 @@
 #ifndef	_LINUX_WAIT_H_
 #define	_LINUX_WAIT_H_
 
+#include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/list.h>
@@ -81,6 +82,8 @@ do {									\
 	void *c = &(q).wchan;						\
 	if (!(cond)) {							\
 		for (;;) {						\
+			if (SCHEDULER_STOPPED())			\
+				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
 				sleepq_release(c);			\
@@ -100,6 +103,8 @@ do {									\
 	_error = 0;							\
 	if (!(cond)) {							\
 		for (; _error == 0;) {					\
+			if (SCHEDULER_STOPPED())			\
+				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
 				sleepq_release(c);			\
@@ -123,6 +128,8 @@ do {									\
 									\
 	if (!(cond)) {							\
 		for (; __rc == 0;) {					\
+			if (SCHEDULER_STOPPED())			\
+				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
 				sleepq_release(c);			\

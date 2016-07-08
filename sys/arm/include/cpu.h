@@ -4,7 +4,6 @@
 #ifndef MACHINE_CPU_H
 #define MACHINE_CPU_H
 
-#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/frame.h>
 

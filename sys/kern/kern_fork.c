@@ -748,7 +748,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	/*
 	 * Tell any interested parties about the new process.
 	 */
-	knote_fork(&p1->p_klist, p2->p_pid);
+	knote_fork(p1->p_klist, p2->p_pid);
 	SDT_PROBE3(proc, , , create, p2, p1, fr->fr_flags);
 
 	if (fr->fr_flags & RFPROCDESC) {
@@ -827,6 +827,10 @@ fork1(struct thread *td, struct fork_req *fr)
 		/* Must provide a place to put a procdesc if creating one. */
 		if (fr->fr_pd_fd == NULL)
 			return (EINVAL);
+
+		/* Check if we are using supported flags. */
+		if ((fr->fr_pd_flags & ~PD_ALLOWED_AT_FORK) != 0)
+			return (EINVAL);
 	}
 
 	p1 = td->td_proc;
@@ -878,8 +882,8 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * later.
 	 */
 	if (flags & RFPROCDESC) {
-		error = falloc_caps(td, &fp_procdesc, fr->fr_pd_fd, 0,
-		    fr->fr_pd_fcaps);
+		error = procdesc_falloc(td, &fp_procdesc, fr->fr_pd_fd,
+		    fr->fr_pd_flags, fr->fr_pd_fcaps);
 		if (error != 0)
 			goto fail2;
 	}
@@ -946,7 +950,7 @@ fork1(struct thread *td, struct fork_req *fr)
 #ifdef MAC
 	mac_proc_init(newproc);
 #endif
-	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
+	newproc->p_klist = knlist_alloc(&newproc->p_mtx);
 	STAILQ_INIT(&newproc->p_ktr);
 
 	/* We have to lock the process tree while we look for a pid. */
@@ -1011,7 +1015,7 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
 
 	CTR4(KTR_PROC, "fork_exit: new thread %p (td_sched %p, pid %d, %s)",
-		td, td->td_sched, p->p_pid, td->td_name);
+	    td, td_get_sched(td), p->p_pid, td->td_name);
 
 	sched_fork_exit(td);
 	/*
@@ -1026,7 +1030,7 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	thread_unlock(td);
 
 	/*
-	 * cpu_set_fork_handler intercepts this function call to
+	 * cpu_fork_kthread_handler intercepts this function call to
 	 * have this call a non-return function to stay in kernel mode.
 	 * initproc has its own fork handler, but it does return.
 	 */

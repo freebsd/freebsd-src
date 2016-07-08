@@ -427,7 +427,7 @@ ntb_setup_interface(void)
 	    &handlers);
 	ifp->if_init = ntb_net_init;
 	ifp->if_softc = &net_softc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ntb_ioctl;
 	ifp->if_start = ntb_start;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
@@ -616,6 +616,10 @@ ntb_transport_probe(struct ntb_softc *ntb)
 		mw->xlat_size = 0;
 		mw->virt_addr = NULL;
 		mw->dma_addr = 0;
+
+		rc = ntb_mw_set_wc(nt->ntb, i, VM_MEMATTR_WRITE_COMBINING);
+		if (rc)
+			ntb_printf(0, "Unable to set mw%d caching\n", i);
 	}
 
 	qp_bitmap = ntb_db_valid_mask(ntb);

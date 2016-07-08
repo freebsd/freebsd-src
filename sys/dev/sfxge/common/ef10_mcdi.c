@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2012-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -213,6 +213,7 @@ ef10_mcdi_poll_reboot(
 		 * this can be handled by common code drivers (and reworked to
 		 * support Siena too).
 		 */
+		_NOTE(CONSTANTCONDITION)
 		if (B_FALSE) {
 			rc = EIO;
 			goto fail1;
@@ -287,7 +288,6 @@ ef10_mcdi_feature_supported(
 	default:
 		rc = ENOTSUP;
 		goto fail1;
-		break;
 	}
 
 	return (0);

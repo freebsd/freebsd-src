@@ -126,6 +126,9 @@ struct socket {
 	 */
 	int so_fibnum;		/* routing domain for this socket */
 	uint32_t so_user_cookie;
+
+	void *so_pspare[2];	/* packet pacing / general use */
+	int so_ispare[2];	/* packet pacing / general use */
 };
 
 /*
@@ -335,7 +338,6 @@ struct uio;
 /*
  * From uipc_socket and friends
  */
-int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
 int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp, u_int *fflagp);

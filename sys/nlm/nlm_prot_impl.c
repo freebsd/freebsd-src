@@ -1356,7 +1356,7 @@ int
 nlm_wait_lock(void *handle, int timo)
 {
 	struct nlm_waiting_lock *nw = handle;
-	int error;
+	int error, stops_deferred;
 
 	/*
 	 * If the granted message arrived before we got here,
@@ -1364,8 +1364,11 @@ nlm_wait_lock(void *handle, int timo)
 	 */
 	mtx_lock(&nlm_global_lock);
 	error = 0;
-	if (nw->nw_waiting)
+	if (nw->nw_waiting) {
+		stops_deferred = sigdeferstop(SIGDEFERSTOP_ERESTART);
 		error = msleep(nw, &nlm_global_lock, PCATCH, "nlmlock", timo);
+		sigallowstop(stops_deferred);
+	}
 	TAILQ_REMOVE(&nlm_waiting_locks, nw, nw_link);
 	if (error) {
 		/*

@@ -1,3 +1,55 @@
+2016-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160606
+	  Merge with NetBSD make, pick up
+	  o dir.c: extend mtimes cache to others via cached_stat()
+
+2016-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160604
+	  Merge with NetBSD make, pick up
+	  o meta.c: missing filemon data is only relevant if we read a
+	    meta file.
+	    Also do not return oodate for a missing metafile if gn->path
+	    points to .CURDIR
+	
+2016-06-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160602
+	  Merge with NetBSD make, pick up
+	  o cached_realpath(): avoid hitting filesystem more than necessary.
+	  o meta.c: refactor need_meta decision, add knobs for 
+	    missing meta file and filemon data wrt out-of-datedness.
+
+2016-05-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160528
+
+	* boot-strap, make-bootstrap.sh.in: Makefile now uses _MAKE_VERSION 
+
+2016-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160512
+	  Merge with NetBSD make, pick up
+	  o meta.c: ignore paths that match .MAKE.META.IGNORE_PATTERNS
+	    this is useful for gcov builds.
+	  o propagate errors from filemon(4).
+	
+2016-05-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160509
+	  Merge with NetBSD make, pick up
+	  o remove use of non-standard types u_int etc.
+	  o meta.c: apply realpath() before matching against metaIgnorePaths
+
+2016-04-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160404
+	  Merge with NetBSD make, pick up
+	  o allow makefile to set .MAKE.JOBS
+
+	* Makefile (PROG_NAME): use ${_MAKE_VERSION}
+
 2016-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20160315

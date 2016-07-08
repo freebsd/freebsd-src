@@ -412,8 +412,8 @@ hostap_deliver_data(struct ieee80211vap *vap,
 				ieee80211_free_node(sta);
 			}
 		}
-		if (mcopy != NULL && ieee80211_vap_xmitpkt(vap, mcopy) == 0)
-			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if (mcopy != NULL)
+			(void) ieee80211_vap_xmitpkt(vap, mcopy);
 	}
 	if (m != NULL) {
 		/*
@@ -1067,7 +1067,7 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		 */
 		ni->ni_flags |= IEEE80211_NODE_AREF;
 		/*
-		 * Mark the node as requiring a valid associatio id
+		 * Mark the node as requiring a valid association id
 		 * before outbound traffic is permitted.
 		 */
 		ni->ni_flags |= IEEE80211_NODE_ASSOCID;

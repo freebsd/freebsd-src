@@ -865,10 +865,10 @@ scan_done(struct ieee80211_scan_state *ss, int scandone)
 	 */
 	if (scandone) {
 		vap->iv_sta_ps(vap, 0);
-		if (ss->ss_next >= ss->ss_last) {
-			ieee80211_notify_scan_done(vap);
+		if (ss->ss_next >= ss->ss_last)
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_BGSCAN;
-		}
+
+		ieee80211_notify_scan_done(vap);
 	}
 	ss_priv->ss_iflags &= ~(ISCAN_CANCEL|ISCAN_ABORT);
 	ss_priv->ss_scanend = 0;

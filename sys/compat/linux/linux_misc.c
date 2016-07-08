@@ -149,6 +149,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	int i, j;
 	struct timespec ts;
 
+	bzero(&sysinfo, sizeof(sysinfo));
 	getnanouptime(&ts);
 	if (ts.tv_nsec != 0)
 		ts.tv_sec++;

@@ -46,6 +46,7 @@ div(num, denom)
 
 	r.quot = num / denom;
 	r.rem = num % denom;
+#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)
 	/*
 	 * The ANSI standard says that |r.quot| <= |n/d|, where
 	 * n/d is to be computed in infinite precision.  In other
@@ -73,5 +74,6 @@ div(num, denom)
 		r.quot++;
 		r.rem -= denom;
 	}
+#endif
 	return (r);
 }

@@ -137,18 +137,19 @@ static device_method_t nicpf_methods[] = {
 	DEVMETHOD_END,
 };
 
-static driver_t nicpf_driver = {
+static driver_t vnicpf_driver = {
 	"vnicpf",
 	nicpf_methods,
 	sizeof(struct nicpf),
 };
 
-static devclass_t nicpf_devclass;
+static devclass_t vnicpf_devclass;
 
-DRIVER_MODULE(nicpf, pci, nicpf_driver, nicpf_devclass, 0, 0);
-MODULE_DEPEND(nicpf, pci, 1, 1, 1);
-MODULE_DEPEND(nicpf, ether, 1, 1, 1);
-MODULE_DEPEND(nicpf, thunder_bgx, 1, 1, 1);
+DRIVER_MODULE(vnicpf, pci, vnicpf_driver, vnicpf_devclass, 0, 0);
+MODULE_VERSION(vnicpf, 1);
+MODULE_DEPEND(vnicpf, pci, 1, 1, 1);
+MODULE_DEPEND(vnicpf, ether, 1, 1, 1);
+MODULE_DEPEND(vnicpf, thunder_bgx, 1, 1, 1);
 
 static int nicpf_alloc_res(struct nicpf *);
 static void nicpf_free_res(struct nicpf *);
@@ -246,7 +247,9 @@ static int
 nicpf_detach(device_t dev)
 {
 	struct nicpf *nic;
+	int err;
 
+	err = 0;
 	nic = device_get_softc(dev);
 
 	callout_drain(&nic->check_link);
@@ -256,7 +259,12 @@ nicpf_detach(device_t dev)
 	nicpf_free_res(nic);
 	pci_disable_busmaster(dev);
 
-	return (0);
+#ifdef PCI_IOV
+	err = pci_iov_detach(dev);
+	if (err != 0)
+		device_printf(dev, "SR-IOV in use. Detach first.\n");
+#endif
+	return (err);
 }
 
 /*
@@ -1054,6 +1062,9 @@ nic_disable_msix(struct nicpf *nic)
 		nic->msix_enabled = 0;
 		nic->num_vec = 0;
 	}
+
+	bus_release_resource(nic->dev, SYS_RES_MEMORY,
+	    rman_get_rid(nic->msix_table_res), nic->msix_table_res);
 }
 
 static void
@@ -1070,7 +1081,7 @@ nic_free_all_interrupts(struct nicpf *nic)
 			    nic->msix_entries[irq].handle);
 		}
 
-		bus_release_resource(nic->dev, SYS_RES_IRQ, irq,
+		bus_release_resource(nic->dev, SYS_RES_IRQ, irq + 1,
 		    nic->msix_entries[irq].irq_res);
 	}
 }

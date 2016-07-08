@@ -165,7 +165,7 @@ u_long	sys_limitrejected;	/* rate exceeded */
 u_long	sys_kodsent;		/* KoD sent */
 
 /*
- * Mechanism knobs: how soon do we unpeer()?
+ * Mechanism knobs: how soon do we peer_clear() or unpeer()?
  *
  * The default way is "on-receipt".  If this was a packet from a
  * well-behaved source, on-receipt will offer the fastest recovery.
@@ -173,6 +173,7 @@ u_long	sys_kodsent;		/* KoD sent */
  * for a bad-guy to DoS us.  So look and see what bites you harder
  * and choose according to your environment.
  */
+int peer_clear_digest_early	= 1;	/* bad digest (TEST5) and Autokey */
 int unpeer_crypto_early		= 1;	/* bad crypto (TEST9) */
 int unpeer_crypto_nak_early	= 1;	/* crypto_NAK (TEST5) */
 int unpeer_digest_early		= 1;	/* bad digest (TEST5) */
@@ -277,10 +278,12 @@ valid_NAK(
 	  u_char hismode
 	  )
 {
-	int base_packet_length = MIN_V4_PKT_LEN;
-	int remainder_size;
-	struct pkt *rpkt;
-	int keyid;
+	int 		base_packet_length = MIN_V4_PKT_LEN;
+	int		remainder_size;
+	struct pkt *	rpkt;
+	int		keyid;
+	l_fp		p_org;	/* origin timestamp */
+	const l_fp *	myorg;	/* selected peer origin */
 
 	/*
 	 * Check to see if there is something beyond the basic packet
@@ -305,7 +308,7 @@ valid_NAK(
 	    hismode != MODE_ACTIVE &&
 	    hismode != MODE_PASSIVE
 	    ) {
-		return (INVALIDNAK);
+		return INVALIDNAK;
 	}
 
 	/* 
@@ -314,18 +317,35 @@ valid_NAK(
 	rpkt = &rbufp->recv_pkt;
 	keyid = ntohl(((u_int32 *)rpkt)[base_packet_length / 4]);
 	if (keyid != 0) {
-		return (INVALIDNAK);
+		return INVALIDNAK;
 	}
 
 	/* 
 	 * Only valid if peer uses a key
 	 */
-	if (peer->keyid > 0 || peer->flags & FLAG_SKEY) {
-		return (VALIDNAK);
+	if (!peer || !peer->keyid || !(peer->flags & FLAG_SKEY)) {
+		return INVALIDNAK;
 	}
-	else {
-		return (INVALIDNAK);
+
+	/*
+	 * The ORIGIN must match, or this cannot be a valid NAK, either.
+	 */
+	NTOHL_FP(&rpkt->org, &p_org);
+	if (peer->flip > 0)
+		myorg = &peer->borg;
+	else
+		myorg = &peer->aorg;
+	
+	if (L_ISZERO(&p_org) ||
+	    L_ISZERO( myorg) ||
+	    !L_ISEQU(&p_org, myorg)) {
+		return INVALIDNAK;
 	}
+
+	/* If we ever passed all that checks, we should be safe. Well,
+	 * as safe as we can ever be with an unauthenticated crypto-nak.
+	 */
+	return VALIDNAK;
 }
 
 
@@ -568,7 +588,7 @@ receive(
 	int	kissCode = NOKISS;	/* Kiss Code */
 	int	has_mac;		/* length of MAC field */
 	int	authlen;		/* offset of MAC field */
-	int	is_authentic = 0;	/* cryptosum ok */
+	int	is_authentic = AUTH_NONE;	/* cryptosum ok */
 	int	crypto_nak_test;	/* result of crypto-NAK check */
 	int	retcode = AM_NOMATCH;	/* match code */
 	keyid_t	skeyid = 0;		/* key IDs */
@@ -616,6 +636,8 @@ receive(
 	hisleap = PKT_LEAP(pkt->li_vn_mode);
 	hismode = (int)PKT_MODE(pkt->li_vn_mode);
 	hisstratum = PKT_TO_STRATUM(pkt->stratum);
+	INSIST(0 != hisstratum);
+
 	if (restrict_mask & RES_IGNORE) {
 		sys_restricted++;
 		return;				/* ignore everything */
@@ -1512,7 +1534,7 @@ receive(
 	 */
 	if (L_ISZERO(&p_xmt)) {
 		peer->flash |= TEST3;			/* unsynch */
-		if (0 == hisstratum) {			/* KoD packet */
+		if (STRATUM_UNSPEC == hisstratum) {	/* KoD packet */
 			peer->bogusorg++;		/* for TEST2 or TEST3 */
 			msyslog(LOG_INFO,
 				"receive: Unexpected zero transmit timestamp in KoD from %s",
@@ -1531,17 +1553,22 @@ receive(
 		return;
 
 	/*
-	 * If this is a broadcast mode packet, skip further checking. If
-	 * an initial volley, bail out now and let the client do its
-	 * stuff. If the origin timestamp is nonzero, this is an
-	 * interleaved broadcast. so restart the protocol.
+	 * If this is a broadcast mode packet, make sure hisstratum
+	 * is appropriate.  Don't do anything else here - we wait to
+	 * see if this is an interleave broadcast packet until after
+	 * we've validated the MAC that SHOULD be provided.
+	 *
+	 * hisstratum should never be 0.
+	 * If hisstratum is 15, then we'll advertise as UNSPEC but
+	 * at least we'll be able to sync with the broadcast server.
 	 */
 	} else if (hismode == MODE_BROADCAST) {
-		if (!L_ISZERO(&p_org) && !(peer->flags & FLAG_XB)) {
-			peer->flags |= FLAG_XB;
-			peer->aorg = p_xmt;
-			peer->borg = rbufp->recv_time;
-			report_event(PEVNT_XLEAVE, peer, NULL);
+		if (   0 == hisstratum
+		    || STRATUM_UNSPEC <= hisstratum) {
+			/* Is this a ++sys_declined or ??? */
+			msyslog(LOG_INFO,
+				"receive: Unexpected stratum (%d) in broadcast from %s",
+				hisstratum, ntoa(&peer->srcadr));
 			return;
 		}
 
@@ -1558,7 +1585,7 @@ receive(
 	 * (nonzero) org, rec, and xmt timestamps set to the xmt timestamp
 	 * that we have previously sent out.  Watch interleave mode.
 	 */
-	} else if (0 == hisstratum) {
+	} else if (STRATUM_UNSPEC == hisstratum) {
 		DEBUG_INSIST(!L_ISZERO(&p_xmt));
 		if (   L_ISZERO(&p_org)		/* We checked p_xmt above */
 		    || L_ISZERO(&p_rec)) {
@@ -1617,6 +1644,7 @@ receive(
 	 */
 	} else if (peer->flip == 0) {
 		INSIST(0 != hisstratum);
+		INSIST(STRATUM_UNSPEC != hisstratum);
 		if (0) {
 		} else if (L_ISZERO(&p_org)) {
 			msyslog(LOG_INFO,
@@ -1654,8 +1682,9 @@ receive(
 	/*
 	 * Check for valid nonzero timestamp fields.
 	 */
-	} else if (L_ISZERO(&p_org) || L_ISZERO(&p_rec) ||
-	    L_ISZERO(&peer->dst)) {
+	} else if (   L_ISZERO(&p_org)
+		   || L_ISZERO(&p_rec)
+		   || L_ISZERO(&peer->dst)) {
 		peer->flash |= TEST3;		/* unsynch */
 
 	/*
@@ -1670,6 +1699,8 @@ receive(
 		peer->flash |= TEST2;		/* bogus */
 		return; /* Bogus packet, we are done */
 	}
+
+	/**/
 
 	/*
 	 * If this is a crypto_NAK, the server cannot authenticate a
@@ -1687,8 +1718,9 @@ receive(
 			return;
 		}
 #ifdef AUTOKEY
-		if (peer->crypto)
+		if (peer->crypto) {
 			peer_clear(peer, "AUTH");
+		}
 #endif	/* AUTOKEY */
 		return;
 
@@ -1702,28 +1734,78 @@ receive(
 	 */
 	} else if (!AUTH(peer->keyid || has_mac ||
 			 (restrict_mask & RES_DONTTRUST), is_authentic)) {
+
+		if (peer->flash & PKT_TEST_MASK) {
+			msyslog(LOG_INFO,
+				"receive: Bad auth in packet with bad timestamps from %s denied - spoof?",
+				ntoa(&peer->srcadr));
+			return;
+		}
+
 		report_event(PEVNT_AUTH, peer, "digest");
 		peer->flash |= TEST5;		/* bad auth */
 		peer->badauth++;
 		if (   has_mac
-		    && (hismode == MODE_ACTIVE || hismode == MODE_PASSIVE))
+		    && (   hismode == MODE_ACTIVE
+			|| hismode == MODE_PASSIVE))
 			fast_xmit(rbufp, MODE_ACTIVE, 0, restrict_mask);
 		if (peer->flags & FLAG_PREEMPT) {
 			if (unpeer_digest_early) {
 				unpeer(peer);
 			}
-			return;
 		}
 #ifdef AUTOKEY
-		if (peer->crypto)
+		else if (peer_clear_digest_early && peer->crypto) {
 			peer_clear(peer, "AUTH");
+		}
 #endif	/* AUTOKEY */
 		return;
 	}
 
 	/*
-	 * Update the state variables.
+	 * For broadcast packets:
+	 *
+	 * HMS: This next line never made much sense to me, even
+	 * when it was up higher:
+	 *   If an initial volley, bail out now and let the
+	 *   client do its stuff.
+	 *
+	 * If the packet has not failed authentication, then
+	 * - if the origin timestamp is nonzero this is an
+	 *   interleaved broadcast, so restart the protocol.
+	 * - else, this is not an interleaved broadcast packet.
 	 */
+	if (hismode == MODE_BROADCAST) {
+		if (   is_authentic == AUTH_OK
+		    || is_authentic == AUTH_NONE) {
+			if (!L_ISZERO(&p_org)) {
+				if (!(peer->flags & FLAG_XB)) {
+					msyslog(LOG_INFO,
+						"receive: Broadcast server at %s is in interleave mode",
+						ntoa(&peer->srcadr));
+					peer->flags |= FLAG_XB;
+					peer->aorg = p_xmt;
+					peer->borg = rbufp->recv_time;
+					report_event(PEVNT_XLEAVE, peer, NULL);
+					return;
+				}
+			} else if (peer->flags & FLAG_XB) {
+				msyslog(LOG_INFO,
+					"receive: Broadcast server at %s is no longer in interleave mode",
+					ntoa(&peer->srcadr));
+				peer->flags &= ~FLAG_XB;
+			}
+		} else {
+			msyslog(LOG_INFO,
+				"receive: Bad broadcast auth (%d) from %s",
+				is_authentic, ntoa(&peer->srcadr));
+		}
+	}
+
+
+	/*
+	** Update the state variables.
+	*/
 	if (peer->flip == 0) {
 		if (hismode != MODE_BROADCAST)
 			peer->rec = p_xmt;
@@ -1765,6 +1847,12 @@ receive(
 		peer->selbroken++;	/* Increment the KoD count */
 		return;		/* Drop any other kiss code packets */
 	}
+
+
+	/*
+	 * XXX
+	 */
+
 
 	/*
 	 * If:
@@ -1963,9 +2051,9 @@ receive(
 
 
 /*
- * process_packet - Packet Procedure, a la Section 3.4.4 of the
- *	specification. Or almost, at least. If we're in here we have a
- *	reasonable expectation that we will be having a long term
+ * process_packet - Packet Procedure, a la Section 3.4.4 of RFC-1305
+ *	Or almost, at least.  If we're in here we have a reasonable
+ *	expectation that we will be having a long term
  *	relationship with this host.
  */
 void
@@ -1985,8 +2073,10 @@ process_packet(
 	double	etemp, ftemp, td;
 #endif /* ASSYM */
 
+#if 0
 	sys_processed++;
 	peer->processed++;
+#endif
 	p_del = FPTOD(NTOHS_FP(pkt->rootdelay));
 	p_offset = 0;
 	p_disp = FPTOD(NTOHS_FP(pkt->rootdisp));
@@ -1998,6 +2088,39 @@ process_packet(
 	pleap = PKT_LEAP(pkt->li_vn_mode);
 	pversion = PKT_VERSION(pkt->li_vn_mode);
 	pstratum = PKT_TO_STRATUM(pkt->stratum);
+
+	/**/
+
+	/**/
+
+	/*
+	 * Verify the server is synchronized; that is, the leap bits,
+	 * stratum and root distance are valid.
+	 */
+	if (   pleap == LEAP_NOTINSYNC		/* test 6 */
+	    || pstratum < sys_floor || pstratum >= sys_ceiling)
+		peer->flash |= TEST6;		/* bad synch or strat */
+	if (p_del / 2 + p_disp >= MAXDISPERSE)	/* test 7 */
+		peer->flash |= TEST7;		/* bad header */
+
+	/*
+	 * If any tests fail at this point, the packet is discarded.
+	 * Note that some flashers may have already been set in the
+	 * receive() routine.
+	 */
+	if (peer->flash & PKT_TEST_MASK) {
+		peer->seldisptoolarge++;
+		DPRINTF(1, ("packet: flash header %04x\n",
+			    peer->flash));
+		return;
+	}
+
+	/**/
+
+#if 1
+	sys_processed++;
+	peer->processed++;
+#endif
 
 	/*
 	 * Capture the header values in the client/peer association..
@@ -2033,27 +2156,7 @@ process_packet(
 	}
 	poll_update(peer, peer->hpoll);
 
-	/*
-	 * Verify the server is synchronized; that is, the leap bits,
-	 * stratum and root distance are valid.
-	 */
-	if (   pleap == LEAP_NOTINSYNC		/* test 6 */
-	    || pstratum < sys_floor || pstratum >= sys_ceiling)
-		peer->flash |= TEST6;		/* bad synch or strat */
-	if (p_del / 2 + p_disp >= MAXDISPERSE)	/* test 7 */
-		peer->flash |= TEST7;		/* bad header */
-
-	/*
-	 * If any tests fail at this point, the packet is discarded.
-	 * Note that some flashers may have already been set in the
-	 * receive() routine.
-	 */
-	if (peer->flash & PKT_TEST_MASK) {
-		peer->seldisptoolarge++;
-		DPRINTF(1, ("packet: flash header %04x\n",
-			    peer->flash));
-		return;
-	}
+	/**/
 
 	/*
 	 * If the peer was previously unreachable, raise a trap. In any
@@ -4679,6 +4782,14 @@ proto_config(
 	case PROTO_MULTICAST_DEL: /* delete group address */
 		if (svalue != NULL)
 			io_multicast_del(svalue);
+		break;
+
+	/*
+	 * Peer_clear Early policy choices
+	 */
+
+	case PROTO_PCEDIGEST:	/* Digest */
+		peer_clear_digest_early = value;
 		break;
 
 	/*

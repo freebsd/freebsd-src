@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.27 2016/02/22 22:44:58 sjg Exp $
+# $Id: meta.sys.mk,v 1.28 2016/04/05 15:58:37 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -20,7 +20,7 @@
 .if ${MAKE_VERSION:U0} > 20100901
 .if !target(.ERROR)
 
-.-include "local.meta.sys.mk"
+.-include <local.meta.sys.mk>
 
 # absoulte path to what we are reading.
 _PARSEDIR = ${.PARSEDIR:tA}
