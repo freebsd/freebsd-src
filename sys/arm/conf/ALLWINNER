@@ -32,7 +32,6 @@ options 	SOC_ALLWINNER_A31S
 options 	SOC_ALLWINNER_A83T
 options 	SOC_ALLWINNER_H3
 
-options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 options 	PLATFORM

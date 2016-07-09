@@ -26,7 +26,6 @@ options 	INTRNG
 
 options 	SOC_IMX6
 
-options 	HZ=500			# Scheduling quantum is 2 milliseconds.
 options 	SCHED_ULE		# ULE scheduler
 #options 	NFSD			# Network Filesystem Server
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel

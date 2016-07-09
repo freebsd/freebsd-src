@@ -28,7 +28,6 @@ options 	INTRNG
 options 	SOC_ALLWINNER_A10
 options 	SOC_ALLWINNER_A13
 
-options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
 options 	MULTIDELAY

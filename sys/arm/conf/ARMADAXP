@@ -27,7 +27,6 @@ options 	SOC_MV_ARMADAXP
 
 makeoptions	WERROR="-Werror"
 
-options 	HZ=1000
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 

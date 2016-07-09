@@ -21,7 +21,6 @@
 makeoptions	WERROR="-Werror"
 
 include 	"std.armv6"
-options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking

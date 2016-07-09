@@ -23,7 +23,6 @@ ident		AML8726
 include 	"std.armv6"
 include 	"../amlogic/aml8726/std.aml8726"
 
-options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	LINUX_BOOT_ABI

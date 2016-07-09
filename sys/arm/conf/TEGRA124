@@ -23,7 +23,6 @@ include 	"../nvidia/tegra124/std.tegra124"
 
 ident		TEGRA124
 
-options 	HZ=100			# Scheduling quantum is 10 milliseconds.
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM		# Platform based SoC
 options 	PLATFORM_SMP
