@@ -22,30 +22,37 @@
 #  define _LIBUNWIND_TARGET_I386 1
 #  define _LIBUNWIND_CONTEXT_SIZE 8
 #  define _LIBUNWIND_CURSOR_SIZE 19
+#  define _LIBUNWIND_MAX_REGISTER 9
 # elif defined(__x86_64__)
 #  define _LIBUNWIND_TARGET_X86_64 1
 #  define _LIBUNWIND_CONTEXT_SIZE 21
 #  define _LIBUNWIND_CURSOR_SIZE 33
+#  define _LIBUNWIND_MAX_REGISTER 17
 # elif defined(__ppc__)
 #  define _LIBUNWIND_TARGET_PPC 1
 #  define _LIBUNWIND_CONTEXT_SIZE 117
 #  define _LIBUNWIND_CURSOR_SIZE 128
+#  define _LIBUNWIND_MAX_REGISTER 113
 # elif defined(__aarch64__)
 #  define _LIBUNWIND_TARGET_AARCH64 1
 #  define _LIBUNWIND_CONTEXT_SIZE 66
 #  define _LIBUNWIND_CURSOR_SIZE 78
+#  define _LIBUNWIND_MAX_REGISTER 96
 # elif defined(__arm__)
 #  define _LIBUNWIND_TARGET_ARM 1
 #  define _LIBUNWIND_CONTEXT_SIZE 60
 #  define _LIBUNWIND_CURSOR_SIZE 67
+#  define _LIBUNWIND_MAX_REGISTER 96
 # elif defined(__or1k__)
 #  define _LIBUNWIND_TARGET_OR1K 1
 #  define _LIBUNWIND_CONTEXT_SIZE 16
 #  define _LIBUNWIND_CURSOR_SIZE 28
+#  define _LIBUNWIND_MAX_REGISTER 32
 # elif defined(__riscv__)
 #  define _LIBUNWIND_TARGET_RISCV 1
 #  define _LIBUNWIND_CONTEXT_SIZE 128 /* XXX */
 #  define _LIBUNWIND_CURSOR_SIZE 140 /* XXX */
+#  define _LIBUNWIND_MAX_REGISTER 96
 # else
 #  error "Unsupported architecture."
 # endif
@@ -58,6 +65,7 @@
 # define _LIBUNWIND_TARGET_OR1K 1
 # define _LIBUNWIND_CONTEXT_SIZE 128
 # define _LIBUNWIND_CURSOR_SIZE 140
+# define _LIBUNWIND_MAX_REGISTER 120
 #endif // _LIBUNWIND_IS_NATIVE_ONLY
 
 #endif // ____LIBUNWIND_CONFIG_H__
