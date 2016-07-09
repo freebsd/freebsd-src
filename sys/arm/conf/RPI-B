@@ -26,7 +26,6 @@ include 	"../broadcom/bcm2835/std.bcm2835"
 
 options 	INTRNG
 
-options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
 
