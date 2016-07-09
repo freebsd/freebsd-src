@@ -28,6 +28,7 @@ SRCS=	\
 	mevent.c		\
 	mptbl.c			\
 	pci_ahci.c		\
+	pci_e82545.c		\
 	pci_emul.c		\
 	pci_fbuf.c		\
 	pci_hostbridge.c	\
@@ -61,6 +62,8 @@ SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md pthread z
 
+CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/e1000
+CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/mii
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/usb/controller
 
 WARNS?=	2
