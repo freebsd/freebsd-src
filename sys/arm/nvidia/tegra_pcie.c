@@ -1355,7 +1355,7 @@ tegra_pcib_set_bar(struct tegra_pcib_softc *sc, int bar, uint32_t axi,
 }
 
 static int
-tegra_pcib_enable(struct tegra_pcib_softc *sc, uint32_t port)
+tegra_pcib_enable(struct tegra_pcib_softc *sc)
 {
 	int rv;
 	int i;
@@ -1495,7 +1495,6 @@ tegra_pcib_attach(device_t dev)
 {
 	struct tegra_pcib_softc *sc;
 	phandle_t node;
-	uint32_t unit;
 	int rv;
 	int rid;
 	int nranges;
@@ -1505,7 +1504,6 @@ tegra_pcib_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	unit = fdt_get_unit(dev);
 	mtx_init(&sc->mtx, "msi_mtx", NULL, MTX_DEF);
 
 
@@ -1618,7 +1616,7 @@ tegra_pcib_attach(device_t dev)
 	/*
 	 * Enable PCIE device.
 	 */
-	rv = tegra_pcib_enable(sc, unit);
+	rv = tegra_pcib_enable(sc);
 	if (rv != 0)
 		goto out;
 	for (i = 0; i < TEGRA_PCIB_MAX_PORTS; i++) {
