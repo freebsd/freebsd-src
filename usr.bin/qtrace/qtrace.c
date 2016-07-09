@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2016 SRI International
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -29,9 +30,12 @@
  */
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <sys/wait.h>
 
 #include <cheri/cheri.h>
+
+#include <machine/sysarch.h>
 
 #include <err.h>
 #include <stdlib.h>
@@ -64,9 +68,22 @@ stop_trace(void)
 	CHERI_STOP_TRACE;
 }
 
+static inline void
+set_thread_tracing(void)
+{
+	int error, intval;
+
+	intval = 1;
+	error = sysarch(QEMU_SET_QTRACE, &intval);
+	if (error)
+		err(EX_OSERR, "QEMU_SET_QTRACE");
+}
+
 int
 main(int argc, char **argv)
 {
+	size_t len;
+	uint qemu_trace_perthread;
 	int status;
 	pid_t pid;
 
@@ -77,19 +94,33 @@ main(int argc, char **argv)
 	if (argc == 0)
 		usage();
 
+	len = sizeof(qemu_trace_perthread);
+	if (sysctlbyname("hw.qemu_trace_perthread", &qemu_trace_perthread,
+	    &len, NULL, 0) < 0)
+		err(EX_OSERR, "sysctlbyname(\"hw.qemu_trace_perthread\")");
+
+	if (qemu_trace_perthread &&
+	    (strcmp(argv[0], "start") == 0 || strcmp(argv[0], "stop") == 0))
+		errx(EX_OSERR, "start and stop unavailable when "
+		    "hw.qemu_trace_perthread is set");
+
 	if (strcmp("exec", argv[0]) == 0) {
 		pid = fork();
 		if (pid < 0)
 			err(EX_OSERR, "fork");
 		if (pid == 0) {
-			start_trace();
+			if (qemu_trace_perthread)
+				set_thread_tracing();
+			else
+				start_trace();
 			argv++;
 			if (execvp(argv[0], argv) == -1)
 				err(EX_OSERR, "execvp");
 		}
 
 		waitpid(pid, &status, 0);
-		stop_trace();
+		if (!qemu_trace_perthread)
+			stop_trace();
 		if (!WIFEXITED(status)) {
 			warnx("child exited abnormally");
 			exit(-1);

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2016
+.Dd July 9, 2016
 .Dt QTRACE 1
 .Os
 .Sh NAME
@@ -49,12 +49,27 @@ The
 .Nm
 utility starts and stops logging of instruction traces in a QEMU host
 virtual machine.
+The kernel may be configured to execute in one of two modes using the
+.Xr sysctl 8
+.Dv hw.qemu_trace_perthread :
+when disabled, tracing is global (across all processes) and can be controlled
+using the
+.Dq start
+and
+.Dq stop
+commands, or used with
+.Dq exec ;
+when enabled, tracing is per-thread, and is enabled and disabled for
+hierarchies of processes using only the
+.Dq exec
+command.
 .Pp
 The
 .Dq start
 and
 .Dq stop
-commands start and stop logging when run.
+commands start and stop global tracing when run.
+.Pp
 The
 .Dq exec
 command forks a child, starts logging, calls
@@ -62,6 +77,15 @@ command forks a child, starts logging, calls
 to run the
 .Ar command
 and its arguments and stops logging when the child exits.
+.Pp
+When the
+.Dv hw.qemu_trace_perthread
+.Xr sysctl 8
+is enabled, the kernel will enable and disable tracing during context
+swiching, turning on tracing only for threads that have been specifically
+marked to be traced.
+In this mode, other processes and threads in the system will not be traced,
+reducing potential noise in the resulting log.
 .Pp
 Due to the volume of output in an instruction trace, file I/O may be
 backlogged for tens of second (or more) after tracing ends so make
@@ -72,7 +96,8 @@ machine property so the results of running
 .Nm
 in multiple login are apt of be confusing.
 .Sh SEE ALSO
-.Xr execvp 3
+.Xr execvp 3 ,
+.Xr sysctl 8
 .\" .Sh HISTORY
 .\" The
 .\" .Nm
