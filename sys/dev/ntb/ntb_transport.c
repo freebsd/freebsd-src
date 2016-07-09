@@ -157,7 +157,6 @@ struct ntb_transport_qp {
 	struct ntb_queue_list	rx_pend_q;
 	/* ntb_rx_q_lock: synchronize access to rx_XXXX_q */
 	struct mtx		ntb_rx_q_lock;
-	struct task		rx_completion_task;
 	struct task		rxc_db_work;
 	caddr_t			rx_buff;
 	ntb_q_idx_t		rx_index;
@@ -270,7 +269,7 @@ static void ntb_memcpy_rx(struct ntb_transport_qp *qp,
     struct ntb_queue_entry *entry, void *offset);
 static inline void ntb_rx_copy_callback(struct ntb_transport_qp *qp,
     void *data);
-static void ntb_complete_rxc(void *arg, int pending);
+static void ntb_complete_rxc(struct ntb_transport_qp *qp);
 static void ntb_transport_doorbell_callback(void *data, uint32_t vector);
 static void ntb_transport_event_callback(void *data);
 static void ntb_transport_link_work(void *arg);
@@ -497,7 +496,6 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	mtx_init(&qp->ntb_rx_q_lock, "ntb rx q", NULL, MTX_SPIN);
 	mtx_init(&qp->ntb_tx_free_q_lock, "ntb tx free q", NULL, MTX_SPIN);
 	mtx_init(&qp->tx_lock, "ntb transport tx", NULL, MTX_DEF);
-	TASK_INIT(&qp->rx_completion_task, 0, ntb_complete_rxc, qp);
 	TASK_INIT(&qp->rxc_db_work, 0, ntb_transport_rxc_db, qp);
 
 	STAILQ_INIT(&qp->rx_post_q);
@@ -519,7 +517,6 @@ ntb_transport_free_queue(struct ntb_transport_qp *qp)
 
 	NTB_DB_SET_MASK(qp->ntb, 1ull << qp->qp_num);
 	taskqueue_drain(taskqueue_swi, &qp->rxc_db_work);
-	taskqueue_drain(taskqueue_swi, &qp->rx_completion_task);
 
 	qp->cb_data = NULL;
 	qp->rx_handler = NULL;
@@ -866,7 +863,7 @@ ntb_process_rxc(struct ntb_transport_qp *qp)
 		entry->len = -EIO;
 		entry->flags |= NTBT_DESC_DONE_FLAG;
 
-		taskqueue_enqueue(taskqueue_swi, &qp->rx_completion_task);
+		ntb_complete_rxc(qp);
 	} else {
 		qp->rx_bytes += hdr->len;
 		qp->rx_pkts++;
@@ -908,13 +905,12 @@ ntb_rx_copy_callback(struct ntb_transport_qp *qp, void *data)
 
 	entry = data;
 	entry->flags |= NTBT_DESC_DONE_FLAG;
-	taskqueue_enqueue(taskqueue_swi, &qp->rx_completion_task);
+	ntb_complete_rxc(qp);
 }
 
 static void
-ntb_complete_rxc(void *arg, int pending)
+ntb_complete_rxc(struct ntb_transport_qp *qp)
 {
-	struct ntb_transport_qp *qp = arg;
 	struct ntb_queue_entry *entry;
 	struct mbuf *m;
 	unsigned len;
