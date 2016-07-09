@@ -67,6 +67,13 @@ __FBSDID("$FreeBSD$");
 #define KTR_NTB KTR_SPARE3
 #define NTB_MEDIATYPE		 (IFM_ETHER | IFM_AUTO | IFM_FDX)
 
+#define	NTB_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP)
+#define	NTB_CSUM_FEATURES6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_SCTP_IPV6)
+#define	NTB_CSUM_SET		(CSUM_DATA_VALID | CSUM_DATA_VALID_IPV6 | \
+				    CSUM_PSEUDO_HDR | \
+				    CSUM_IP_CHECKED | CSUM_IP_VALID | \
+				    CSUM_SCTP_VALID)
+
 static SYSCTL_NODE(_hw, OID_AUTO, if_ntb, CTLFLAG_RW, 0, "if_ntb");
 
 static unsigned g_if_ntb_num_queues = 1;
@@ -171,7 +178,7 @@ ntb_net_attach(device_t dev)
 	ether_ifattach(ifp, sc->eaddr);
 	if_setcapabilities(ifp, IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
 	    IFCAP_JUMBO_MTU | IFCAP_LINKSTATE);
-	if_setcapenable(ifp, if_getcapabilities(ifp));
+	if_setcapenable(ifp, IFCAP_JUMBO_MTU | IFCAP_LINKSTATE);
 	if_setmtu(ifp, sc->mtu - ETHER_HDR_LEN);
 
 	ifmedia_init(&sc->media, IFM_IMASK, ntb_ifmedia_upd,
@@ -243,6 +250,31 @@ ntb_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
+		break;
+
+	case SIOCSIFCAP:
+		if (ifr->ifr_reqcap & IFCAP_RXCSUM)
+			if_setcapenablebit(ifp, IFCAP_RXCSUM, 0);
+		else
+			if_setcapenablebit(ifp, 0, IFCAP_RXCSUM);
+		if (ifr->ifr_reqcap & IFCAP_TXCSUM) {
+			if_setcapenablebit(ifp, IFCAP_TXCSUM, 0);
+			if_sethwassistbits(ifp, NTB_CSUM_FEATURES, 0);
+		} else {
+			if_setcapenablebit(ifp, 0, IFCAP_TXCSUM);
+			if_sethwassistbits(ifp, 0, NTB_CSUM_FEATURES);
+		}
+		if (ifr->ifr_reqcap & IFCAP_RXCSUM_IPV6)
+			if_setcapenablebit(ifp, IFCAP_RXCSUM_IPV6, 0);
+		else
+			if_setcapenablebit(ifp, 0, IFCAP_RXCSUM_IPV6);
+		if (ifr->ifr_reqcap & IFCAP_TXCSUM_IPV6) {
+			if_setcapenablebit(ifp, IFCAP_TXCSUM_IPV6, 0);
+			if_sethwassistbits(ifp, NTB_CSUM_FEATURES6, 0);
+		} else {
+			if_setcapenablebit(ifp, 0, IFCAP_TXCSUM_IPV6);
+			if_sethwassistbits(ifp, 0, NTB_CSUM_FEATURES6);
+		}
 		break;
 
 	default:
@@ -398,6 +430,7 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 	struct ntb_net_ctx *sc = q->sc;
 	struct mbuf *m = data;
 	if_t ifp = q->ifp;
+	uint16_t proto;
 
 	CTR1(KTR_NTB, "RX: rx handler (%d)", len);
 	if (len < 0) {
@@ -410,9 +443,22 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 		m->m_pkthdr.flowid = q - sc->queues;
 		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
-	if ((if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) ==
-	    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-		m->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
+	if (if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+		m_copydata(m, 12, 2, (void *)&proto);
+		switch (ntohs(proto)) {
+		case ETHERTYPE_IP:
+			if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
+				m->m_pkthdr.csum_data = 0xffff;
+				m->m_pkthdr.csum_flags = NTB_CSUM_SET;
+			}
+			break;
+		case ETHERTYPE_IPV6:
+			if (if_getcapenable(ifp) & IFCAP_RXCSUM_IPV6) {
+				m->m_pkthdr.csum_data = 0xffff;
+				m->m_pkthdr.csum_flags = NTB_CSUM_SET;
+			}
+			break;
+		}
 	}
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	if_input(ifp, m);
