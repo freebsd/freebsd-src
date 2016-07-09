@@ -102,6 +102,8 @@ static platform_def_t powernv_platform = {
 
 PLATFORM_DEF(powernv_platform);
 
+static int powernv_boot_pir;
+
 static int
 powernv_probe(platform_t plat)
 {
@@ -125,8 +127,9 @@ powernv_attach(platform_t plat)
 	opal_check();
 
 	cpu_idle_hook = powernv_cpu_idle;
+	powernv_boot_pir = mfspr(SPR_PIR);
 
-	/* Direct interrupts to SRR instead of HSRR */
+	/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
 	mtspr(SPR_LPCR, LPCR_LPES);
 
 	/* Set SLB count from device tree */
@@ -337,9 +340,9 @@ powernv_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 	if (res < 0)
 		return (ENOENT);
 
-	/* XXX: FDT from kexec lies sometimes. PIR seems not to */
+	/* XXX: FDT from kexec lies sometimes. PIR seems not to. */
 	if (cpuid == 0)
-		cpuid = mfspr(SPR_PIR);
+		cpuid = powernv_boot_pir;
 
 	cpuref->cr_cpuid = cpuid;
 
