@@ -2,8 +2,8 @@
 #
 # $FreeBSD$
 
+options 	HZ=1000
 options 	ARM_L2_PIPT		# Only L2 PIPT is supported
-
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
