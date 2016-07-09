@@ -101,6 +101,24 @@ static int malta_lcd_offs[] = {
 	MALTA_ASCIIPOS7
 };
 
+/*
+ * When emulating MALTA under Qemu, ISA-level tracing can be enabled and
+ * disabled using special NOP instructions.  By default, this is simple a
+ * global setting that the kernel doesn't interfere with, allowing usersapce
+ * to turn on and off tracing as it sees fit.  If this sysctl is set, then the
+ * kernel will instead use a per-thread flag (td->td_mdflags & MDTD_QTRACE) to
+ * turn tracing on and off during context switching to reflect the thread's
+ * tracing state.  That state can be get/set/cleared using sysarch system
+ * calls.
+ *
+ * NB: This is a Qemu-CHERI feature.
+ */
+#ifdef CPU_QEMU_MALTA
+u_int	qemu_trace_perthread;
+SYSCTL_UINT(_hw, OID_AUTO, qemu_trace_perthread, CTLFLAG_RW,
+    &qemu_trace_perthread, 0, "Per-thread Qemu ISA-level tracing configured");
+#endif
+
 void
 platform_cpu_init()
 {

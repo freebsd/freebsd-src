@@ -139,6 +139,11 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	/* Point mdproc and then copy over td1's contents */
 	td2->td_md.md_flags = td1->td_md.md_flags & MDTD_FPUSED;
 
+	/* Inherit Qemu ISA-level tracing from parent. */
+#ifdef CPU_CPU_QEMU_MALTA
+	td2->td_md.md_flags |= td1->td_md.md_flags & MDTD_QTRACE;
+#endif
+
 	/*
 	 * Set up return-value registers as fork() libc stub expects.
 	 */
