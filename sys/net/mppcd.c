@@ -170,7 +170,7 @@ int MPPC_Decompress(u_char **src, u_char **dst, u_long *srcCnt, u_long *dstCnt, 
 			rtn &= ~MPPC_OK;
 			return (rtn);
 		    }
-		} else {		/* NOTREACHED */
+		} else {		/* This shouldn't happen. */
 		    rtn &= ~MPPC_OK;
 		    return (rtn);
 		}
