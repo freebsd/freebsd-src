@@ -34,12 +34,6 @@ options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 
-# Debugging for use in -current
-#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	ALT_BREAK_TO_DEBUGGER
-options 	KDB			# Enable kernel debugger support
-options 	DDB			# Enable the kernel debugger
-
 # NFS root from boopt/dhcp
 options 	BOOTP
 options 	BOOTP_NFSROOT
@@ -71,7 +65,6 @@ device		crypto
 device		cryptodev
 
 # USB
-options 	USB_DEBUG		# enable debug msgs
 device		usb
 device		ehci
 device		umass

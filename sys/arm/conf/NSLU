@@ -36,21 +36,9 @@ options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
 hints		"NSLU.hints"		# Default places to look for devices.
 makeoptions	MODULES_OVERRIDE=""
 
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
 options 	HZ=100
 options 	DEVICE_POLLING
-
-# Debugging for use in -current
-options 	KDB
-#options 	GDB
-options 	DDB			# Enable the kernel debugger
-#options 	DEADLKRES		# Enable the deadlock resolver
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	DIAGNOSTIC
 
 options 	SCHED_ULE		# ULE scheduler
 options 	INET			# InterNETworking
@@ -111,7 +99,6 @@ device		md
 device		random			# Entropy device
 
 device		usb
-options 	USB_DEBUG
 device		ohci
 device		ehci
 device		umass

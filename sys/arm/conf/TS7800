@@ -10,7 +10,6 @@ include 	"../mv/orion/std.ts7800"
 
 options 	SOC_MV_ORION
 
-#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"
 
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -38,12 +37,6 @@ options 	MUTEX_NOINLINE
 options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
-
-# Debugging
-options 	ALT_BREAK_TO_DEBUGGER
-options 	DDB
-options 	KDB
-options 	GDB			# Support remote GDB.
 
 device		mvs
 device		pci
