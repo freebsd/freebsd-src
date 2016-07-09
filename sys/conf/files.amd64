@@ -282,7 +282,10 @@ dev/hyperv/vmbus/amd64/hyperv_machdep.c			optional	hyperv
 dev/hyperv/vmbus/amd64/vmbus_vector.S			optional	hyperv
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
-dev/ntb/ntb_hw/ntb_hw.c		optional	if_ntb | ntb_hw
+dev/ntb/ntb_transport.c		optional	if_ntb
+dev/ntb/ntb.c			optional	if_ntb | ntb_hw
+dev/ntb/ntb_if.m		optional	if_ntb | ntb_hw
+dev/ntb/ntb_hw/ntb_hw.c		optional	ntb_hw
 dev/nvd/nvd.c			optional	nvd nvme
 dev/nvme/nvme.c			optional	nvme
 dev/nvme/nvme_ctrlr.c		optional	nvme
