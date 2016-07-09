@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pciio.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/rmlock.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
@@ -220,10 +221,7 @@ struct ntb_softc {
 	void			*ntb_ctx;
 	const struct ntb_ctx_ops *ctx_ops;
 	struct ntb_vec		*msix_vec;
-#define CTX_LOCK(sc)		mtx_lock(&(sc)->ctx_lock)
-#define CTX_UNLOCK(sc)		mtx_unlock(&(sc)->ctx_lock)
-#define CTX_ASSERT(sc,f)	mtx_assert(&(sc)->ctx_lock, (f))
-	struct mtx		ctx_lock;
+	struct rmlock		ctx_lock;
 
 	uint32_t		ppd;
 	enum ntb_conn_type	conn_type;
@@ -657,7 +655,7 @@ ntb_attach(device_t device)
 	callout_init(&ntb->lr_timer, 1);
 	callout_init(&ntb->peer_msix_work, 1);
 	mtx_init(&ntb->db_mask_lock, "ntb hw bits", NULL, MTX_SPIN);
-	mtx_init(&ntb->ctx_lock, "ntb ctx", NULL, MTX_DEF);
+	rm_init(&ntb->ctx_lock, "ntb ctx");
 
 	if (ntb->type == NTB_ATOM)
 		error = ntb_detect_atom(ntb);
@@ -720,7 +718,7 @@ ntb_detach(device_t device)
 	ntb_teardown_interrupts(ntb);
 
 	mtx_destroy(&ntb->db_mask_lock);
-	mtx_destroy(&ntb->ctx_lock);
+	rm_destroy(&ntb->ctx_lock);
 
 	ntb_unmap_pci_bar(ntb);
 
@@ -2012,17 +2010,15 @@ ntb_set_ctx(device_t dev, void *ctx, const struct ntb_ctx_ops *ops)
 
 	if (ctx == NULL || ops == NULL)
 		return (EINVAL);
-	if (ntb->ctx_ops != NULL)
-		return (EINVAL);
 
-	CTX_LOCK(ntb);
+	rm_wlock(&ntb->ctx_lock);
 	if (ntb->ctx_ops != NULL) {
-		CTX_UNLOCK(ntb);
+		rm_wunlock(&ntb->ctx_lock);
 		return (EINVAL);
 	}
 	ntb->ntb_ctx = ctx;
 	ntb->ctx_ops = ops;
-	CTX_UNLOCK(ntb);
+	rm_wunlock(&ntb->ctx_lock);
 
 	return (0);
 }
@@ -2047,10 +2043,10 @@ ntb_clear_ctx(device_t dev)
 {
 	struct ntb_softc *ntb = device_get_softc(dev);
 
-	CTX_LOCK(ntb);
+	rm_wlock(&ntb->ctx_lock);
 	ntb->ntb_ctx = NULL;
 	ntb->ctx_ops = NULL;
-	CTX_UNLOCK(ntb);
+	rm_wunlock(&ntb->ctx_lock);
 }
 
 /*
@@ -2064,11 +2060,12 @@ static void
 ntb_link_event(device_t dev)
 {
 	struct ntb_softc *ntb = device_get_softc(dev);
+	struct rm_priotracker ctx_tracker;
 
-	CTX_LOCK(ntb);
+	rm_rlock(&ntb->ctx_lock, &ctx_tracker);
 	if (ntb->ctx_ops != NULL && ntb->ctx_ops->link_event != NULL)
 		ntb->ctx_ops->link_event(ntb->ntb_ctx);
-	CTX_UNLOCK(ntb);
+	rm_runlock(&ntb->ctx_lock, &ctx_tracker);
 }
 
 /*
@@ -2088,11 +2085,12 @@ static void
 ntb_db_event(device_t dev, uint32_t vec)
 {
 	struct ntb_softc *ntb = device_get_softc(dev);
+	struct rm_priotracker ctx_tracker;
 
-	CTX_LOCK(ntb);
+	rm_rlock(&ntb->ctx_lock, &ctx_tracker);
 	if (ntb->ctx_ops != NULL && ntb->ctx_ops->db_event != NULL)
 		ntb->ctx_ops->db_event(ntb->ntb_ctx, vec);
-	CTX_UNLOCK(ntb);
+	rm_runlock(&ntb->ctx_lock, &ctx_tracker);
 }
 
 static int
