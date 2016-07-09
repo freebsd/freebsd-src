@@ -33,23 +33,6 @@ options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 options 	PLATFORM
 options 	SMP			# Enable multiple cores
 
-# Debugging for use in -current
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	KDB			# Enable kernel debugger support
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic
-# For full debugger support use this instead:
-options 	DDB			# Enable the kernel debugger
-#options 	GDB			# Support remote GDB.
-# Other debugging options...
-options 	ALT_BREAK_TO_DEBUGGER	# Use <CR><tilde><ctrl-b> to enter debugger.
-#options 	DEADLKRES		# Enable the deadlock resolver
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	DIAGNOSTIC
-
 # NFS root from boopt/dhcp
 #options 	BOOTP
 #options 	BOOTP_NFSROOT
@@ -97,7 +80,6 @@ device		cd			# CD
 device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # USB support
-#options 	USB_DEBUG		# enable debug msgs
 device		ehci			# OHCI USB interface
 device		usb			# USB Bus (required)
 device		umass			# Disks/Mass storage - Requires scbus and da

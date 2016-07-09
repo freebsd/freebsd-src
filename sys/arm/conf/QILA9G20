@@ -29,8 +29,6 @@ include 	"../at91/std.qila9g20"
 hints		"QILA9G20.hints"
 makeoptions	MODULES_OVERRIDE=""
 
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 #options 	INET6			# IPv6 communications protocols
@@ -57,15 +55,6 @@ options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-
-# Debugging for use in -current
-options 	KDB			# Enable kernel debugger support
-options 	DDB			# Enable the kernel debugger
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	DIAGNOSTIC
 
 # NFS root from boopt/dhcp
 #options 	BOOTP
@@ -128,7 +117,6 @@ device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # Serial (COM) ports
 device		uart			# Multi-uart driver
-options 	ALT_BREAK_TO_DEBUGGER
 
 # USB support
 device		ohci			# OHCI USB interface

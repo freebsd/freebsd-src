@@ -29,12 +29,6 @@ options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	SMP			# Enable multiple cores
 
-# Debugging
-makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-options 	ALT_BREAK_TO_DEBUGGER
-options 	KDB
-options 	DDB			#Enable the kernel debugger
-
 # Interrupt controller
 device		gic
 options 	INTRNG
