@@ -877,6 +877,8 @@ ntb_memcpy_rx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	CTR2(KTR_NTB, "RX: copying %d bytes from offset %p", len, offset);
 
 	entry->buf = (void *)m_devget(offset, len, 0, ifp, NULL);
+	if (entry->buf == NULL)
+		entry->len = -ENOMEM;
 
 	/* Ensure that the data is globally visible before clearing the flag */
 	wmb();

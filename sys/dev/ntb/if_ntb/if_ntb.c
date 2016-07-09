@@ -241,7 +241,12 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 	struct mbuf *m = data;
 	struct ifnet *ifp = qp_data;
 
-	CTR0(KTR_NTB, "RX: rx handler");
+	CTR1(KTR_NTB, "RX: rx handler (%d)", len);
+	if (len < 0) {
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		return;
+	}
+
 	m->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
 	(*ifp->if_input)(ifp, m);
 }
