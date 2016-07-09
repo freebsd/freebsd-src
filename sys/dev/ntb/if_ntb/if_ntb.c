@@ -125,8 +125,7 @@ ntb_net_attach(device_t dev)
 	ether_ifattach(ifp, sc->eaddr);
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_JUMBO_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_mtu = ntb_transport_max_size(sc->qp) - ETHER_HDR_LEN -
-	    ETHER_CRC_LEN;
+	ifp->if_mtu = ntb_transport_max_size(sc->qp) - ETHER_HDR_LEN;
 
 	ntb_transport_link_up(sc->qp);
 	return (0);
@@ -177,7 +176,7 @@ ntb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFMTU:
 	    {
 		if (ifr->ifr_mtu > ntb_transport_max_size(sc->qp) -
-		    ETHER_HDR_LEN - ETHER_CRC_LEN) {
+		    ETHER_HDR_LEN) {
 			error = EINVAL;
 			break;
 		}
