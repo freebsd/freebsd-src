@@ -455,7 +455,11 @@ cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp)
 	cheri_trapframe_from_cheriframe(tp, &mcp->mc_cheriframe);
 	bcopy((void *)&mcp->mc_regs, (void *)&td->td_frame->zero,
 	    sizeof(mcp->mc_regs));
-	td->td_md.md_flags = mcp->mc_fpused & MDTD_FPUSED;
+	td->td_md.md_flags = (mcp->mc_fpused & MDTD_FPUSED)
+#ifdef CPU_QEMU_MALTA
+	    | (td->td_md.md_flags & MDTD_QTRACE)
+#endif
+	    ;
 	if (mcp->mc_fpused)
 		bcopy((void *)&mcp->mc_fpregs, (void *)&td->td_frame->f0,
 		    sizeof(mcp->mc_fpregs));
