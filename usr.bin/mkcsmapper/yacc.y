@@ -664,7 +664,7 @@ do_mkpv(FILE *in)
 	if (ret && output)
 		unlink(output); /* dump failure */
 	if (ret)
-		errc(EXIT_FAILURE, ret, "");
+		errx(EXIT_FAILURE, "%s\n", strerror(ret));
 }
 
 static void
