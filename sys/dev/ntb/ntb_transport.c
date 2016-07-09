@@ -181,6 +181,8 @@ struct ntb_transport_qp {
 	uint64_t		tx_pkts;
 	uint64_t		tx_ring_full;
 	uint64_t		tx_err_no_buf;
+
+	struct mtx		tx_lock;
 };
 
 struct ntb_transport_mw {
@@ -210,8 +212,6 @@ struct ntb_transport_ctx {
 	struct callout		link_work;
 	struct callout		link_watchdog;
 	struct task		link_cleanup;
-	struct mtx		tx_lock;
-	struct mtx		rx_lock;
 };
 
 enum {
@@ -372,9 +372,6 @@ ntb_transport_attach(device_t dev)
 		nt->qp_count = nt->mw_count;
 	KASSERT(nt->qp_count <= QP_SETSIZE, ("invalid qp_count"));
 
-	mtx_init(&nt->tx_lock, "ntb transport tx", NULL, MTX_DEF);
-	mtx_init(&nt->rx_lock, "ntb transport rx", NULL, MTX_DEF);
-
 	nt->qp_vec = malloc(nt->qp_count * sizeof(*nt->qp_vec), M_NTB_T,
 	    M_WAITOK | M_ZERO);
 
@@ -499,6 +496,7 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 
 	mtx_init(&qp->ntb_rx_q_lock, "ntb rx q", NULL, MTX_SPIN);
 	mtx_init(&qp->ntb_tx_free_q_lock, "ntb tx free q", NULL, MTX_SPIN);
+	mtx_init(&qp->tx_lock, "ntb transport tx", NULL, MTX_DEF);
 	TASK_INIT(&qp->rx_completion_task, 0, ntb_complete_rxc, qp);
 	TASK_INIT(&qp->rxc_db_work, 0, ntb_transport_rxc_db, qp);
 
@@ -660,9 +658,9 @@ ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 	entry->len = len;
 	entry->flags = 0;
 
-	mtx_lock(&qp->transport->tx_lock);
+	mtx_lock(&qp->tx_lock);
 	rc = ntb_process_tx(qp, entry);
-	mtx_unlock(&qp->transport->tx_lock);
+	mtx_unlock(&qp->tx_lock);
 	if (rc != 0) {
 		ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
 		CTR1(KTR_NTB,
@@ -792,7 +790,6 @@ ntb_transport_rxc_db(void *arg, int pending __unused)
 	 * provide fairness to others
 	 */
 	CTR0(KTR_NTB, "RX: transport_rx");
-	mtx_lock(&qp->transport->rx_lock);
 	for (i = 0; i < qp->rx_max_entry; i++) {
 		rc = ntb_process_rxc(qp);
 		if (rc != 0) {
@@ -800,7 +797,6 @@ ntb_transport_rxc_db(void *arg, int pending __unused)
 			break;
 		}
 	}
-	mtx_unlock(&qp->transport->rx_lock);
 
 	if (i == qp->rx_max_entry)
 		taskqueue_enqueue(taskqueue_swi, &qp->rxc_db_work);
@@ -1386,11 +1382,11 @@ ntb_send_link_down(struct ntb_transport_qp *qp)
 	entry->len = 0;
 	entry->flags = NTBT_LINK_DOWN_FLAG;
 
-	mtx_lock(&qp->transport->tx_lock);
+	mtx_lock(&qp->tx_lock);
 	rc = ntb_process_tx(qp, entry);
+	mtx_unlock(&qp->tx_lock);
 	if (rc != 0)
 		printf("ntb: Failed to send link down\n");
-	mtx_unlock(&qp->transport->tx_lock);
 
 	ntb_qp_link_down_reset(qp);
 }
