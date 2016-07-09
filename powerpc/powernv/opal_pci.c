@@ -74,6 +74,23 @@ static void		opalpci_write_config(device_t, u_int, u_int, u_int,
 			    u_int, u_int32_t, int);
 
 /*
+ * Commands
+ */
+#define	OPAL_M32_WINDOW_TYPE		1
+#define	OPAL_M64_WINDOW_TYPE		2
+#define	OPAL_IO_WINDOW_TYPE		3
+
+#define	OPAL_RESET_PCI_IODA_TABLE	6
+
+#define	OPAL_DISABLE_M64		0
+#define	OPAL_ENABLE_M64_SPLIT		1
+#define	OPAL_ENABLE_M64_NON_SPLIT	2
+
+#define	OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO	1
+#define	OPAL_EEH_ACTION_CLEAR_FREEZE_DMA	2
+#define	OPAL_EEH_ACTION_CLEAR_FREEZE_ALL	3
+
+/*
  * Driver methods.
  */
 static device_method_t	opalpci_methods[] = {
@@ -123,8 +140,8 @@ static int
 opalpci_attach(device_t dev)
 {
 	struct opalpci_softc *sc;
-	cell_t id[2];
-	int err;
+	cell_t id[2], m64window[6], npe;
+	int i, err;
 
 	sc = device_get_softc(dev);
 
@@ -146,19 +163,11 @@ opalpci_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "OPAL ID %#lx\n", sc->phb_id);
 
-#if 0
-	/* Reset PCI host controller */
-	opal_call(OPAL_PCI_RESET, sc->phb_id, 1, 1);
-	DELAY(1000);
-	opal_call(OPAL_PCI_RESET, sc->phb_id, 1, 0);
-	DELAY(1000);
-#endif
-
 	/*
-	 * Map all devices on the bus to partitionable endpoint zero until
+	 * Map all devices on the bus to partitionable endpoint one until
 	 * such time as we start wanting to do things like bhyve.
 	 */
-	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, 0 /* Root PE */,
+	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, 1 /* Root PE */,
 	    0, 0, 0, 0, /* All devices */
 	    OPAL_MAP_PE);
 	if (err != 0) {
@@ -167,13 +176,84 @@ opalpci_attach(device_t dev)
 	}
 
 	/*
-	 * Also disable the IOMMU for the time being for PE 0 (everything)
+	 * Reset PCI IODA table
 	 */
-	err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id, 0, 0,
+	err = opal_call(OPAL_PCI_RESET, sc->phb_id, OPAL_RESET_PCI_IODA_TABLE,
+	    1);
+	if (err != 0) {
+		device_printf(dev, "IODA table reset failed: %d\n", err);
+		return (ENXIO);
+	}
+
+	/*
+	 * Turn on MMIO, mapped to PE 1
+	 */
+	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-num-pes", &npe, 4)
+	    != 4)
+		npe = 1;
+	for (i = 0; i < npe; i++) {
+		err = opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id, 1,
+		    OPAL_M32_WINDOW_TYPE, 0, i);
+		if (err != 0)
+			device_printf(dev, "MMIO %d map failed: %d\n", i, err);
+	}
+
+	/* XXX: multiple M64 windows? */
+	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-m64-window",
+	    m64window, sizeof(m64window)) == sizeof(m64window)) {
+		opal_call(OPAL_PCI_SET_PHB_MEM_WINDOW, sc->phb_id,
+		    OPAL_M64_WINDOW_TYPE, 0 /* index */, 
+		    ((uint64_t)m64window[2] << 32) | m64window[3], 0,
+		    ((uint64_t)m64window[4] << 32) | m64window[5]);
+		opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id, 1 /* PE */,
+		    OPAL_M64_WINDOW_TYPE, 0 /* index */, 0);
+		opal_call(OPAL_PCI_PHB_MMIO_ENABLE, sc->phb_id,
+		    OPAL_M64_WINDOW_TYPE, 0, OPAL_ENABLE_M64_NON_SPLIT);
+	}
+
+	/*
+	 * Also disable the IOMMU for the time being for PE 1 (everything)
+	 */
+	err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id, 1, 2,
 	    0 /* start address */, roundup2(Maxmem, 16*1024*1024)/* all RAM */);
 	if (err != 0) {
 		device_printf(dev, "DMA mapping failed: %d\n", err);
 		return (ENXIO);
+	}
+
+	/*
+	 * General OFW PCI attach
+	 */
+	err = ofw_pci_init(dev);
+	if (err != 0)
+		return (err);
+
+	/*
+	 * Unfreeze non-config-space PCI operations. Let this fail silently
+	 * if e.g. there is no current freeze.
+	 */
+	opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id, 1,
+	    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+
+	/*
+	 * OPAL stores 64-bit BARs in a special property rather than "ranges"
+	 */
+	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-m64-window",
+	    m64window, sizeof(m64window)) == sizeof(m64window)) {
+		struct ofw_pci_range *rp;
+
+		sc->ofw_sc.sc_nrange++;
+		sc->ofw_sc.sc_range = realloc(sc->ofw_sc.sc_range,
+		    sc->ofw_sc.sc_nrange * sizeof(sc->ofw_sc.sc_range[0]),
+		    M_DEVBUF, M_WAITOK);
+		rp = &sc->ofw_sc.sc_range[sc->ofw_sc.sc_nrange-1];
+		rp->pci_hi = OFW_PCI_PHYS_HI_SPACE_MEM64 |
+		    OFW_PCI_PHYS_HI_PREFETCHABLE;
+		rp->pci = ((uint64_t)m64window[0] << 32) | m64window[1];
+		rp->host = ((uint64_t)m64window[2] << 32) | m64window[3];
+		rp->size = ((uint64_t)m64window[4] << 32) | m64window[5];
+		rman_manage_region(&sc->ofw_sc.sc_mem_rman, rp->pci,
+		   rp->pci + rp->size - 1);
 	}
 
 	return (ofw_pci_attach(dev));
@@ -212,6 +292,15 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	default:
 		word = 0xffffffff;
 	}
+
+	/*
+	 * Poking config state for non-existant devices can make
+	 * the host bridge hang up. Clear any errors.
+	 *
+	 * XXX: Make this conditional on the existence of a freeze
+	 */
+	opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id, 1,
+	    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 	
 	if (error != OPAL_SUCCESS)
 		word = 0xffffffff;
@@ -225,6 +314,7 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 {
 	struct opalpci_softc *sc;
 	uint64_t config_addr;
+	int error = OPAL_SUCCESS;
 
 	sc = device_get_softc(dev);
 
@@ -232,17 +322,26 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	switch (width) {
 	case 1:
-		opal_call(OPAL_PCI_CONFIG_WRITE_BYTE, sc->phb_id, config_addr,
-		    reg, val);
+		error = opal_call(OPAL_PCI_CONFIG_WRITE_BYTE, sc->phb_id,
+		    config_addr, reg, val);
 		break;
 	case 2:
-		opal_call(OPAL_PCI_CONFIG_WRITE_HALF_WORD, sc->phb_id,
+		error = opal_call(OPAL_PCI_CONFIG_WRITE_HALF_WORD, sc->phb_id,
 		    config_addr, reg, val);
 		break;
 	case 4:
-		opal_call(OPAL_PCI_CONFIG_WRITE_WORD, sc->phb_id, config_addr,
-		    reg, val);
+		error = opal_call(OPAL_PCI_CONFIG_WRITE_WORD, sc->phb_id,
+		    config_addr, reg, val);
 		break;
+	}
+
+	if (error != OPAL_SUCCESS) {
+		/*
+		 * Poking config state for non-existant devices can make
+		 * the host bridge hang up. Clear any errors.
+		 */
+		opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id, 1,
+		    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 	}
 }
 
