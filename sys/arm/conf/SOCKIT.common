@@ -25,7 +25,6 @@ makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	WERROR="-Werror"
 
-options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 
