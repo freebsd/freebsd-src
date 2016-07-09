@@ -216,6 +216,7 @@ sunpoet [label="Po-Chuan Hsieh\nsunpoet@FreeBSD.org\n2010/09/21"]
 swills [label="Steve Wills\nswills@FreeBSD.org\n2010/09/03"]
 sylvio [label="Sylvio Cesar Teixeira\nsylvio@FreeBSD.org\n2009/10/29"]
 tabthorpe [label="Thomas Abthorpe\ntabthorpe@FreeBSD.org\n2007/08/20"]
+tcberner [label="Tobias C. Berner\ntcberner@FreeBSD.org\n2016/07/06"]
 tdb [label="Tim Bishop\ntdb@FreeBSD.org\n2005/11/30"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
 tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2013/03/27"]
@@ -465,6 +466,7 @@ makc -> rakuco
 mat -> bmah
 mat -> dvl
 mat -> gordon
+mat -> tcberner
 mat -> thierry
 mat -> woodsb02
 
@@ -538,6 +540,7 @@ pi -> tz
 rafan -> chinsan
 
 rakuco -> alonso
+rakuco -> tcberner
 
 rene -> bar
 rene -> cmt
