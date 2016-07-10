@@ -255,7 +255,7 @@ a10_mmc_attach(device_t dev)
 		    a10_mmc_pio_mode ? "disabled" : "enabled");
 
 	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
-		bus_width = 1;
+		bus_width = 4;
 
 	sc->a10_host.f_min = 400000;
 	sc->a10_host.f_max = 50000000;
