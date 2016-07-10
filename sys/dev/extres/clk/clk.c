@@ -1198,13 +1198,7 @@ clk_get_by_id(device_t dev, struct clkdom *clkdom, intptr_t id, clk_t *clk)
 int
 clk_get_by_ofw_index(device_t dev, int idx, clk_t *clk)
 {
-	phandle_t cnode, parent, *cells;
-	device_t clockdev;
-	int ncells, rv;
-	struct clkdom *clkdom;
-	struct clknode *clknode;
-
-	*clk = NULL;
+	phandle_t cnode;
 
 	cnode = ofw_bus_get_node(dev);
 	if (cnode <= 0) {
@@ -1212,6 +1206,20 @@ clk_get_by_ofw_index(device_t dev, int idx, clk_t *clk)
 		 __func__);
 		return (ENXIO);
 	}
+
+	return (clk_get_by_ofw_node_index(dev, cnode, idx, clk));
+}
+
+int
+clk_get_by_ofw_node_index(device_t dev, phandle_t cnode, int idx, clk_t *clk)
+{
+	phandle_t parent, *cells;
+	device_t clockdev;
+	int ncells, rv;
+	struct clkdom *clkdom;
+	struct clknode *clknode;
+
+	*clk = NULL;
 
 	rv = ofw_bus_parse_xref_list_alloc(cnode, "clocks", "#clock-cells", idx,
 	    &parent, &ncells, &cells);

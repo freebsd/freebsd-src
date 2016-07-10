@@ -131,6 +131,8 @@ const char *clk_get_name(clk_t clk);
 #ifdef FDT
 int clk_get_by_ofw_index(device_t dev, int idx, clk_t *clk);
 int clk_get_by_ofw_name(device_t dev, const char *name, clk_t *clk);
+int clk_get_by_ofw_node_index(device_t dev, phandle_t node, int idx,
+    clk_t *clk);
 int clk_parse_ofw_out_names(device_t dev, phandle_t node,
     const char ***out_names, uint32_t **indices);
 int clk_parse_ofw_clk_name(device_t dev, phandle_t node, const char **name);
