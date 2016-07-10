@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <wctype.h>
 #include "un-namespace.h"
 
-#include "collate.h"
 #include "libc_private.h"
 #include "local.h"
 #include "xlocale_private.h"
@@ -816,9 +815,7 @@ match_failure:
 static const u_char *
 __sccl(char *tab, const u_char *fmt)
 {
-	int c, n, v, i;
-	struct xlocale_collate *table =
-		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
+	int c, n, v;
 
 	/* first `clear' the whole table */
 	c = *fmt++;		/* first char hat => negated scanset */
@@ -871,29 +868,15 @@ doswitch:
 			 * we just stored in the table (c).
 			 */
 			n = *fmt;
-			if (n == ']'
-			    || (table->__collate_load_error ? n < c :
-				__wcollate_range_cmp(table, n, c) < 0
-			       )
-			   ) {
+			if (n == ']' || n < c) {
 				c = '-';
 				break;	/* resume the for(;;) */
 			}
 			fmt++;
-			/* fill in the range */
-			if (table->__collate_load_error) {
-				do {
-					tab[++c] = v;
-				} while (c < n);
-			} else {
-				for (i = 0; i < 256; i ++)
-					if (__wcollate_range_cmp(table, c, i) < 0 &&
-					    __wcollate_range_cmp(table, i, n) <= 0
-					   )
-						tab[i] = v;
-			}
+			do {		/* fill in the range */
+				tab[++c] = v;
+			} while (c < n);
 #if 1	/* XXX another disgusting compatibility hack */
-			c = n;
 			/*
 			 * Alas, the V7 Unix scanf also treats formats
 			 * such as [a-c-e] as `the letters a through e'.
