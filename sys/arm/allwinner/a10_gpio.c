@@ -619,7 +619,7 @@ a10_gpio_attach(device_t dev)
 	sc->padconf = (struct allwinner_padconf *)ofw_bus_search_compatible(dev,
 	    compat_data)->ocd_data;
 
-	if (hwreset_get_by_ofw_idx(dev, 0, &rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &rst) == 0) {
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
@@ -627,7 +627,7 @@ a10_gpio_attach(device_t dev)
 		}
 	}
 
-	if (clk_get_by_ofw_index(dev, 0, &clk) == 0) {
+	if (clk_get_by_ofw_index(dev, 0, 0, &clk) == 0) {
 		error = clk_enable(clk);
 		if (error != 0) {
 			device_printf(dev, "could not enable clock\n");

@@ -119,7 +119,8 @@ int regulator_get_voltage(regulator_t reg, int *uvolt);
 int regulator_set_voltage(regulator_t reg, int min_uvolt, int max_uvolt);
 
 #ifdef FDT
-int regulator_get_by_ofw_property(device_t dev, char *name,  regulator_t *reg);
+int regulator_get_by_ofw_property(device_t dev, phandle_t node, char *name,
+    regulator_t *reg);
 int regulator_parse_ofw_stdparam(device_t dev, phandle_t node,
     struct regnode_init_def *def);
 #endif

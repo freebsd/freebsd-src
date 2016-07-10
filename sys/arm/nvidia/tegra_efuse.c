@@ -291,7 +291,7 @@ tegra_efuse_attach(device_t dev)
 	}
 
 	/* OFW resources. */
-	rv = clk_get_by_ofw_name(dev, "fuse", &sc->clk);
+	rv = clk_get_by_ofw_name(dev, 0, "fuse", &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get fuse clock: %d\n", rv);
 		goto fail;
@@ -301,7 +301,7 @@ tegra_efuse_attach(device_t dev)
 		device_printf(dev, "Cannot enable clock: %d\n", rv);
 		goto fail;
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "fuse", &sc->reset);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "fuse", &sc->reset);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get fuse reset\n");
 		goto fail;
