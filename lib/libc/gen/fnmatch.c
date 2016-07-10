@@ -63,8 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
-#include "collate.h"
-
 #define	EOS	'\0'
 
 #define RANGE_MATCH     1
@@ -238,8 +236,6 @@ rangematch(const char *pattern, wchar_t test, int flags, char **newp,
 	wchar_t c, c2;
 	size_t pclen;
 	const char *origpat;
-	struct xlocale_collate *table =
-		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
 
 	/*
 	 * A bracket expression starting with an unquoted circumflex
@@ -294,11 +290,7 @@ rangematch(const char *pattern, wchar_t test, int flags, char **newp,
 			if (flags & FNM_CASEFOLD)
 				c2 = towlower(c2);
 
-			if (table->__collate_load_error ?
-			    c <= test && test <= c2 :
-			       __wcollate_range_cmp(table, c, test) <= 0
-			    && __wcollate_range_cmp(table, test, c2) <= 0
-			   )
+			if (c <= test && test <= c2)
 				ok = 1;
 		} else if (c == test)
 			ok = 1;
