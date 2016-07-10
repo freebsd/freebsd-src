@@ -523,7 +523,8 @@ sprom_direct_read(struct bhnd_sprom *sc, size_t offset, void *buf,
 	p = (uint16_t *)buf;
 	res_offset = sc->sp_res_off + offset;
 
-	bhnd_bus_read_region_stream_2(sc->sp_res, res_offset, p, nbytes);
+	bhnd_bus_read_region_stream_2(sc->sp_res, res_offset, p,
+	    (nbytes / sizeof(uint16_t)));
 	*crc = bhnd_nvram_crc8(p, nbytes, *crc);
 
 	return (0);
