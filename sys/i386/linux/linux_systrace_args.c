@@ -948,7 +948,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_personality */
 	case 136: {
 		struct linux_personality_args *p = params;
-		iarg[0] = p->per; /* l_ulong */
+		iarg[0] = p->per; /* l_uint */
 		*n_args = 1;
 		break;
 	}
@@ -3849,7 +3849,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 136:
 		switch(ndx) {
 		case 0:
-			p = "l_ulong";
+			p = "l_uint";
 			break;
 		default:
 			break;
