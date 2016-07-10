@@ -316,7 +316,8 @@ a10_mmc_setup_dma(struct a10_mmc_softc *sc)
 
 	/* Allocate the DMA descriptor memory. */
 	dma_desc_size = sizeof(struct a10_mmc_dma_desc) * A10_MMC_DMA_SEGS;
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev), 1, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev),
+	    A10_MMC_DMA_ALIGN, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    dma_desc_size, 1, dma_desc_size, 0, NULL, NULL, &sc->a10_dma_tag);
 	if (error)
@@ -334,7 +335,8 @@ a10_mmc_setup_dma(struct a10_mmc_softc *sc)
 		return (sc->a10_dma_map_err);
 
 	/* Create the DMA map for data transfers. */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev), 1, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev),
+	    A10_MMC_DMA_ALIGN, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    A10_MMC_DMA_MAX_SIZE * A10_MMC_DMA_SEGS, A10_MMC_DMA_SEGS,
 	    A10_MMC_DMA_MAX_SIZE, BUS_DMA_ALLOCNOW, NULL, NULL,
