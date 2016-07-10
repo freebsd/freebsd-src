@@ -463,7 +463,7 @@ group(char **argv)
 	gname = *argv;
 	h = hash(gname);
 	if ((gh = findgroup(gname)) == NULL) {
-		gh = calloc(sizeof(*gh), 1);
+		gh = calloc(1, sizeof(*gh));
 		gh->g_name = vcopy(gname);
 		gh->g_list = NULL;
 		gh->g_link = groups[h];
@@ -477,7 +477,7 @@ group(char **argv)
 	 */
 
 	for (ap = argv+1; *ap != NULL; ap++) {
-		gp = calloc(sizeof(*gp), 1);
+		gp = calloc(1, sizeof(*gp));
 		gp->ge_name = vcopy(*ap);
 		gp->ge_link = gh->g_list;
 		gh->g_list = gp;
