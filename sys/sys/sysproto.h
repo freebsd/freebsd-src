@@ -2508,8 +2508,8 @@ int	freebsd10_pipe(struct thread *, struct freebsd10_pipe_args *);
 #define	SYS_AUE_syscall	AUE_NULL
 #define	SYS_AUE_exit	AUE_EXIT
 #define	SYS_AUE_fork	AUE_FORK
-#define	SYS_AUE_read	AUE_NULL
-#define	SYS_AUE_write	AUE_NULL
+#define	SYS_AUE_read	AUE_READ
+#define	SYS_AUE_write	AUE_WRITE
 #define	SYS_AUE_open	AUE_OPEN_RWTC
 #define	SYS_AUE_close	AUE_CLOSE
 #define	SYS_AUE_wait4	AUE_WAIT4
