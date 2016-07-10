@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>		/* Requires sys/signal.h, sys/uio.h */
 #include <sys/vmmeter.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
@@ -215,6 +216,7 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 	cap_rights_t rights;
 
 	fp = NULL;
+	AUDIT_ARG_FD(uap->fd);
 
 	/*
 	 * Ignore old flags that used to be defined but did not do anything.

@@ -820,6 +820,9 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC)) == 0);
 	MPASS(mode < FDDUP_LASTMODE);
 
+	AUDIT_ARG_FD(old);
+	/* XXXRW: if (flags & FDDUP_FIXED) AUDIT_ARG_FD2(new); */
+
 	/*
 	 * Verify we have a valid descriptor to dup from and possibly to
 	 * dup to. Unlike dup() and dup2(), fcntl()'s F_DUPFD should
