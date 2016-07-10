@@ -856,7 +856,7 @@ aw_pll_attach(device_t dev)
 		goto fail;
 	}
 
-	if (clk_get_by_ofw_index(dev, 0, &clk_parent) != 0)
+	if (clk_get_by_ofw_index(dev, 0, 0, &clk_parent) != 0)
 		clk_parent = NULL;
 
 	for (index = 0; index < nout; index++) {

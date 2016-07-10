@@ -50,9 +50,14 @@ void phy_unregister_provider(device_t provider);
 int phy_get_by_id(device_t consumer_dev, device_t provider_dev, intptr_t id,
     phy_t *phy);
 void phy_release(phy_t phy);
-int phy_get_by_ofw_name(device_t consumer, char *name, phy_t *phy);
-int phy_get_by_ofw_idx(device_t consumer, int idx, phy_t *phy);
-int phy_get_by_ofw_property(device_t consumer, char *name, phy_t *phy);
+
+#ifdef FDT
+int phy_get_by_ofw_name(device_t consumer, phandle_t node, char *name,
+    phy_t *phy);
+int phy_get_by_ofw_idx(device_t consumer, phandle_t node, int idx, phy_t *phy);
+int phy_get_by_ofw_property(device_t consumer, phandle_t node, char *name,
+    phy_t *phy);
+#endif
 
 int phy_init(device_t consumer, phy_t phy);
 int phy_deinit(device_t consumer, phy_t phy);

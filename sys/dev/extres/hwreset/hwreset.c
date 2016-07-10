@@ -109,15 +109,17 @@ hwreset_default_ofw_map(device_t provider_dev, phandle_t xref, int ncells,
 }
 
 int
-hwreset_get_by_ofw_idx(device_t consumer_dev, int idx, hwreset_t *rst)
+hwreset_get_by_ofw_idx(device_t consumer_dev, phandle_t cnode, int idx,
+    hwreset_t *rst)
 {
-	phandle_t cnode, xnode;
+	phandle_t xnode;
 	pcell_t *cells;
 	device_t rstdev;
 	int ncells, rv;
 	intptr_t id;
 
-	cnode = ofw_bus_get_node(consumer_dev);
+	if (cnode <= 0)
+		cnode = ofw_bus_get_node(consumer_dev);
 	if (cnode <= 0) {
 		device_printf(consumer_dev,
 		    "%s called on not ofw based device\n", __func__);
@@ -145,12 +147,13 @@ hwreset_get_by_ofw_idx(device_t consumer_dev, int idx, hwreset_t *rst)
 }
 
 int
-hwreset_get_by_ofw_name(device_t consumer_dev, char *name, hwreset_t *rst)
+hwreset_get_by_ofw_name(device_t consumer_dev, phandle_t cnode, char *name,
+    hwreset_t *rst)
 {
 	int rv, idx;
-	phandle_t cnode;
 
-	cnode = ofw_bus_get_node(consumer_dev);
+	if (cnode <= 0)
+		cnode = ofw_bus_get_node(consumer_dev);
 	if (cnode <= 0) {
 		device_printf(consumer_dev,
 		    "%s called on not ofw based device\n",  __func__);
@@ -159,7 +162,7 @@ hwreset_get_by_ofw_name(device_t consumer_dev, char *name, hwreset_t *rst)
 	rv = ofw_bus_find_string_index(cnode, "reset-names", name, &idx);
 	if (rv != 0)
 		return (rv);
-	return (hwreset_get_by_ofw_idx(consumer_dev, idx, rst));
+	return (hwreset_get_by_ofw_idx(consumer_dev, cnode, idx, rst));
 }
 
 void

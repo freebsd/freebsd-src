@@ -579,17 +579,17 @@ soctherm_attach(device_t dev)
 */
 
 	/* OWF resources */
-	rv = hwreset_get_by_ofw_name(dev, "soctherm", &sc->reset);
+	rv = hwreset_get_by_ofw_name(dev, 0, "soctherm", &sc->reset);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get fuse reset\n");
 		goto fail;
 	}
-	rv = clk_get_by_ofw_name(dev, "tsensor", &sc->tsensor_clk);
+	rv = clk_get_by_ofw_name(dev, 0, "tsensor", &sc->tsensor_clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'tsensor' clock: %d\n", rv);
 		goto fail;
 	}
-	rv = clk_get_by_ofw_name(dev, "soctherm", &sc->soctherm_clk);
+	rv = clk_get_by_ofw_name(dev, 0, "soctherm", &sc->soctherm_clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'soctherm' clock: %d\n", rv);
 		goto fail;

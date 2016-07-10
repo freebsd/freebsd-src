@@ -395,14 +395,14 @@ rsb_attach(device_t dev)
 	sc = device_get_softc(dev);
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "rsb", MTX_DEF);
 
-	if (clk_get_by_ofw_index(dev, 0, &sc->clk) == 0) {
+	if (clk_get_by_ofw_index(dev, 0, 0, &sc->clk) == 0) {
 		error = clk_enable(sc->clk);
 		if (error != 0) {
 			device_printf(dev, "cannot enable clock\n");
 			goto fail;
 		}
 	}
-	if (hwreset_get_by_ofw_idx(dev, 0, &sc->rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &sc->rst) == 0) {
 		error = hwreset_deassert(sc->rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");

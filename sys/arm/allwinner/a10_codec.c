@@ -786,12 +786,12 @@ a10codec_attach(device_t dev)
 	}
 
 	/* Get clocks */
-	error = clk_get_by_ofw_name(dev, "apb", &clk_apb);
+	error = clk_get_by_ofw_name(dev, 0, "apb", &clk_apb);
 	if (error != 0) {
 		device_printf(dev, "cannot find apb clock\n");
 		goto fail;
 	}
-	error = clk_get_by_ofw_name(dev, "codec", &clk_codec);
+	error = clk_get_by_ofw_name(dev, 0, "codec", &clk_codec);
 	if (error != 0) {
 		device_printf(dev, "cannot find codec clock\n");
 		goto fail;

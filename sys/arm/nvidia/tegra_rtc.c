@@ -219,7 +219,7 @@ tegra_rtc_attach(device_t dev)
 	}
 
 	/* OFW resources. */
-	rv = clk_get_by_ofw_index(dev, 0, &sc->clk);
+	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get i2c clock: %d\n", rv);
 		goto fail;

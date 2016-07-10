@@ -202,13 +202,13 @@ aw_usbclk_attach(device_t dev)
 	else if (indices == NULL && type == AW_H3_USBCLK)
 		indices = aw_usbclk_indices_h3;
 
-	error = clk_get_by_ofw_index(dev, 0, &clk_parent);
+	error = clk_get_by_ofw_index(dev, 0, 0, &clk_parent);
 	if (error != 0) {
 		device_printf(dev, "cannot parse clock parent\n");
 		return (ENXIO);
 	}
 	if (type == AW_A83T_USBCLK) {
-		error = clk_get_by_ofw_index(dev, 1, &clk_parent_pll);
+		error = clk_get_by_ofw_index(dev, 0, 1, &clk_parent_pll);
 		if (error != 0) {
 			device_printf(dev, "cannot parse pll clock parent\n");
 			return (ENXIO);

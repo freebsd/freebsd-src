@@ -146,7 +146,7 @@ emac_sys_setup(struct emac_softc *sc)
 	int error;
 
 	/* Activate EMAC clock. */
-	error = clk_get_by_ofw_index(sc->emac_dev, 0, &sc->emac_clk);
+	error = clk_get_by_ofw_index(sc->emac_dev, 0, 0, &sc->emac_clk);
 	if (error != 0) {
 		device_printf(sc->emac_dev, "cannot get clock\n");
 		return (error);

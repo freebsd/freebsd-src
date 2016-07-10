@@ -135,7 +135,7 @@ aw_axiclk_attach(device_t dev)
 
 	clkdom = clkdom_create(dev);
 
-	error = clk_get_by_ofw_index(dev, 0, &clk_parent);
+	error = clk_get_by_ofw_index(dev, 0, 0, &clk_parent);
 	if (error != 0) {
 		device_printf(dev, "cannot parse clock parent\n");
 		return (ENXIO);

@@ -494,7 +494,7 @@ tegra124_pmc_attach(device_t dev)
 		return (rv);
 	}
 
-	rv = clk_get_by_ofw_name(sc->dev, "pclk", &sc->clk);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "pclk", &sc->clk);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get \"pclk\" clock\n");
 		return (ENXIO);

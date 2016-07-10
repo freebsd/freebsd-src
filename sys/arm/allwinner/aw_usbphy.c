@@ -87,7 +87,7 @@ awusbphy_init(device_t dev)
 	node = ofw_bus_get_node(dev);
 
 	/* Enable clocks */
-	for (off = 0; clk_get_by_ofw_index(dev, off, &clk) == 0; off++) {
+	for (off = 0; clk_get_by_ofw_index(dev, 0, off, &clk) == 0; off++) {
 		error = clk_enable(clk);
 		if (error != 0) {
 			device_printf(dev, "couldn't enable clock %s\n",
@@ -97,7 +97,7 @@ awusbphy_init(device_t dev)
 	}
 
 	/* De-assert resets */
-	for (off = 0; hwreset_get_by_ofw_idx(dev, off, &rst) == 0; off++) {
+	for (off = 0; hwreset_get_by_ofw_idx(dev, 0, off, &rst) == 0; off++) {
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "couldn't de-assert reset %d\n",
@@ -109,7 +109,7 @@ awusbphy_init(device_t dev)
 	/* Get regulators */
 	for (off = 0; off < USBPHY_NPHYS; off++) {
 		snprintf(pname, sizeof(pname), "usb%d_vbus-supply", off);
-		if (regulator_get_by_ofw_property(dev, pname, &reg) == 0)
+		if (regulator_get_by_ofw_property(dev, 0, pname, &reg) == 0)
 			sc->reg[off] = reg;
 	}
 

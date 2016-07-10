@@ -1097,7 +1097,7 @@ dwc_clock_init(device_t dev)
 	int error;
 
 	/* Enable clock */
-	if (clk_get_by_ofw_name(dev, "stmmaceth", &clk) == 0) {
+	if (clk_get_by_ofw_name(dev, 0, "stmmaceth", &clk) == 0) {
 		error = clk_enable(clk);
 		if (error != 0) {
 			device_printf(dev, "could not enable main clock\n");
@@ -1106,7 +1106,7 @@ dwc_clock_init(device_t dev)
 	}
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_name(dev, "stmmaceth", &rst) == 0) {
+	if (hwreset_get_by_ofw_name(dev, 0, "stmmaceth", &rst) == 0) {
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "could not de-assert reset\n");

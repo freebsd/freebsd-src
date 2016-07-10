@@ -289,7 +289,7 @@ tegra_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
-	rv = hwreset_get_by_ofw_name(sc->dev, "sdhci", &sc->reset);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "sdhci", &sc->reset);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'sdhci' reset\n");
 		goto fail;
@@ -304,14 +304,14 @@ tegra_sdhci_attach(device_t dev)
 	gpio_pin_get_by_ofw_property(sc->dev, node, "power-gpios", &sc->gpio_power);
 	gpio_pin_get_by_ofw_property(sc->dev, node, "wp-gpios", &sc->gpio_wp);
 
-	rv = clk_get_by_ofw_index(dev, 0, &sc->clk);
+	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
 
 		device_printf(dev, "Cannot get clock\n");
 		goto fail;
 	}
 
-	rv = clk_get_by_ofw_index(dev, 0, &sc->clk);
+	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get clock\n");
 		goto fail;
