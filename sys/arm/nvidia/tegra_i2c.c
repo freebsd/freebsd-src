@@ -666,12 +666,12 @@ tegra_i2c_attach(device_t dev)
 	}
 
 	/* FDT resources. */
-	rv = clk_get_by_ofw_name(dev, "div-clk", &sc->clk);
+	rv = clk_get_by_ofw_name(dev, 0, "div-clk", &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get i2c clock: %d\n", rv);
 		goto fail;
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "i2c", &sc->reset);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "i2c", &sc->reset);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get i2c reset\n");
 		return (ENXIO);

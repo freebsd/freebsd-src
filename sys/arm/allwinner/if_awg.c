@@ -931,12 +931,12 @@ awg_setup_extres(device_t dev)
 	phy_type = NULL;
 
 	/* Get AHB clock and reset resources */
-	error = hwreset_get_by_ofw_name(dev, "ahb", &rst_ahb);
+	error = hwreset_get_by_ofw_name(dev, 0, "ahb", &rst_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb reset\n");
 		goto fail;
 	}
-	error = clk_get_by_ofw_name(dev, "ahb", &clk_ahb);
+	error = clk_get_by_ofw_name(dev, 0, "ahb", &clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb clock\n");
 		goto fail;
@@ -954,7 +954,7 @@ awg_setup_extres(device_t dev)
 		OF_prop_free(phy_type);
 
 		/* Get the TX clock */
-		error = clk_get_by_ofw_name(dev, "tx", &clk_tx);
+		error = clk_get_by_ofw_name(dev, 0, "tx", &clk_tx);
 		if (error != 0) {
 			device_printf(dev, "cannot get tx clock\n");
 			goto fail;
@@ -998,7 +998,7 @@ awg_setup_extres(device_t dev)
 	}
 
 	/* Enable PHY regulator if applicable */
-	if (regulator_get_by_ofw_property(dev, "phy-supply", &reg) == 0) {
+	if (regulator_get_by_ofw_property(dev, 0, "phy-supply", &reg) == 0) {
 		error = regulator_enable(reg);
 		if (error != 0) {
 			device_printf(dev, "cannot enable PHY regulator\n");

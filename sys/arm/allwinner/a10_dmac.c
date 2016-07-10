@@ -124,7 +124,7 @@ a10dmac_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, "a10 dmac", NULL, MTX_SPIN);
 
 	/* Activate DMA controller clock */
-	error = clk_get_by_ofw_index(dev, 0, &clk);
+	error = clk_get_by_ofw_index(dev, 0, 0, &clk);
 	if (error != 0) {
 		device_printf(dev, "cannot get clock\n");
 		return (error);
