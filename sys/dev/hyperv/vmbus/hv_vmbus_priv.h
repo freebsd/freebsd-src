@@ -95,7 +95,6 @@ typedef union {
 	hv_vmbus_channel_open_result		open_result;
 	hv_vmbus_channel_gpadl_torndown		gpadl_torndown;
 	hv_vmbus_channel_gpadl_created		gpadl_created;
-	hv_vmbus_channel_version_response	version_response;
 } hv_vmbus_channel_msg_response;
 
 /*
