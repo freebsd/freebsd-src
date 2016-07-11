@@ -92,19 +92,13 @@ hv_vmbus_connect(struct vmbus_softc *sc)
 int
 hv_vmbus_disconnect(void)
 {
-	int			 ret = 0;
-	hv_vmbus_channel_unload  msg;
-
-	msg.message_type = HV_CHANNEL_MESSAGE_UNLOAD;
-
-	ret = hv_vmbus_post_message(&msg, sizeof(hv_vmbus_channel_unload));
 
 	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
 
 	free(hv_vmbus_g_connection.channels, M_DEVBUF);
 	hv_vmbus_g_connection.connect_state = HV_DISCONNECTED;
 
-	return (ret);
+	return (0);
 }
 
 static __inline void

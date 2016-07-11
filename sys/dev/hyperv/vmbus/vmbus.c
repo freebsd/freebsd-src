@@ -99,6 +99,7 @@ static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_init_contact(struct vmbus_softc *,
 				    uint32_t);
 static int			vmbus_req_channels(struct vmbus_softc *sc);
+static void			vmbus_uninit(struct vmbus_softc *);
 
 static int			vmbus_sysctl_version(SYSCTL_HANDLER_ARGS);
 
@@ -418,6 +419,32 @@ vmbus_init(struct vmbus_softc *sc)
 		}
 	}
 	return ENXIO;
+}
+
+static void
+vmbus_uninit(struct vmbus_softc *sc)
+{
+	struct vmbus_chanmsg_unload *req;
+	struct vmbus_msghc *mh;
+	int error;
+
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for unload\n");
+		return;
+	}
+
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_UNLOAD;
+
+	error = vmbus_msghc_exec_noresult(mh);
+	vmbus_msghc_put(sc, mh);
+
+	if (error) {
+		device_printf(sc->vmbus_dev,
+		    "unload msg hypercall failed\n");
+	}
 }
 
 static int
@@ -1134,6 +1161,8 @@ vmbus_detach(device_t dev)
 	struct vmbus_softc *sc = device_get_softc(dev);
 
 	hv_vmbus_release_unattached_channels();
+
+	vmbus_uninit(sc);
 	hv_vmbus_disconnect();
 
 	if (sc->vmbus_flags & VMBUS_FLAG_SYNIC) {
