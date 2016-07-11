@@ -281,7 +281,7 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 		error = rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu,
 		    XICP_PRIORITY, &status);
 	else
-		error = opal_call(OPAL_SET_XIVE, irq, cpu, XICP_PRIORITY);
+		error = opal_call(OPAL_SET_XIVE, irq, cpu << 2, XICP_PRIORITY);
 
 	if (error < 0)
 		panic("Cannot bind interrupt %d to CPU %d", irq, cpu);
@@ -371,8 +371,12 @@ xicp_enable(device_t dev, u_int irq, u_int vector)
 		    XICP_PRIORITY, &status);
 		xicp_unmask(dev, irq);
 	} else {
-		opal_call(OPAL_SET_XIVE, irq, cpu, XICP_PRIORITY);
+		status = opal_call(OPAL_SET_XIVE, irq, cpu << 2, XICP_PRIORITY);
 		/* Unmask implicit for OPAL */
+
+		if (status != 0)
+			panic("OPAL_SET_XIVE IRQ %d -> cpu %d failed: %d", irq,
+			    cpu, status);
 	}
 }
 
@@ -420,7 +424,7 @@ xicp_mask(device_t dev, u_int irq)
 			}
 		}
 		KASSERT(i < sc->nintvecs, ("Masking unconfigured interrupt"));
-		opal_call(OPAL_SET_XIVE, irq, sc->intvecs[i].cpu, 0xff);
+		opal_call(OPAL_SET_XIVE, irq, sc->intvecs[i].cpu << 2, 0xff);
 	}
 }
 
@@ -443,7 +447,7 @@ xicp_unmask(device_t dev, u_int irq)
 			}
 		}
 		KASSERT(i < sc->nintvecs, ("Unmasking unconfigured interrupt"));
-		opal_call(OPAL_SET_XIVE, irq, sc->intvecs[i].cpu,
+		opal_call(OPAL_SET_XIVE, irq, sc->intvecs[i].cpu << 2,
 		    XICP_PRIORITY);
 	}
 }
