@@ -339,9 +339,9 @@ cont:
 				int nullfd, tempfd, rc;
 				char tempname2[PATHSIZE];
 
-				if ((nullfd = open("/dev/null", O_RDONLY, 0))
+				if ((nullfd = open(_PATH_DEVNULL, O_RDONLY, 0))
 				    == -1) {
-					warn("/dev/null");
+					warn(_PATH_DEVNULL);
 					break;
 				}
 
