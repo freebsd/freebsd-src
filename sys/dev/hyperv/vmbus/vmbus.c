@@ -98,6 +98,7 @@ struct vmbus_msghc_ctx {
 static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_init_contact(struct vmbus_softc *,
 				    uint32_t);
+static int			vmbus_req_channels(struct vmbus_softc *sc);
 
 static struct vmbus_msghc_ctx	*vmbus_msghc_ctx_create(bus_dma_tag_t);
 static void			vmbus_msghc_ctx_destroy(
@@ -415,6 +416,26 @@ vmbus_init(struct vmbus_softc *sc)
 		}
 	}
 	return ENXIO;
+}
+
+static int
+vmbus_req_channels(struct vmbus_softc *sc)
+{
+	struct vmbus_chanmsg_channel_req *req;
+	struct vmbus_msghc *mh;
+	int error;
+
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL)
+		return ENXIO;
+
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHANNEL_REQ;
+
+	error = vmbus_msghc_exec_noresult(mh);
+	vmbus_msghc_put(sc, mh);
+
+	return error;
 }
 
 static void
@@ -1012,7 +1033,9 @@ vmbus_bus_init(void)
 	else
 		sc->vmbus_event_proc = vmbus_event_proc;
 
-	hv_vmbus_request_channel_offers();
+	ret = vmbus_req_channels(sc);
+	if (ret != 0)
+		goto cleanup;
 
 	vmbus_scan();
 	bus_generic_attach(sc->vmbus_dev);
