@@ -59,6 +59,7 @@ static const struct ofw_bus_devinfo *opaldev_get_devinfo(device_t dev,
     device_t child);
 
 static void	opal_shutdown(void *arg, int howto);
+static void	opal_intr(void *);
 
 static device_method_t  opaldev_methods[] = {
 	/* Device interface */
@@ -93,6 +94,8 @@ DRIVER_MODULE(opaldev, ofwbus, opaldev_driver, opaldev_devclass, 0, 0);
 static int
 opaldev_probe(device_t dev)
 {
+	pcell_t *irqs;
+	int i, n_irqs;
 
 	if (!ofw_bus_is_compatible(dev, "ibm,opal-v3"))
 		return (ENXIO);
@@ -100,6 +103,20 @@ opaldev_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "OPAL Abstraction Firmware");
+
+	/* Manually add IRQs before attaching */
+	if (OF_hasprop(ofw_bus_get_node(dev), "opal-interrupts")) {
+		n_irqs = OF_getproplen(ofw_bus_get_node(dev),
+                    "opal-interrupts") / sizeof(*irqs);
+		irqs = malloc(n_irqs * sizeof(*irqs), M_DEVBUF, M_WAITOK);
+		OF_getencprop(ofw_bus_get_node(dev), "opal-interrupts", irqs,
+		    n_irqs * sizeof(*irqs));
+		for (i = 0; i < n_irqs; i++)
+			bus_set_resource(dev, SYS_RES_IRQ, i, irqs[i], 1);
+		free(irqs, M_DEVBUF);
+	}
+
+
 	return (BUS_PROBE_SPECIFIC);
 }
 
@@ -109,8 +126,9 @@ opaldev_attach(device_t dev)
 	phandle_t child;
 	device_t cdev;
 	uint64_t junk;
-	int rv;
+	int i, rv;
 	struct ofw_bus_devinfo *dinfo;
+	struct resource *irq;
 
 	/* Test for RTC support and register clock if it works */
 	rv = opal_call(OPAL_RTC_READ, vtophys(&junk), vtophys(&junk));
@@ -125,6 +143,13 @@ opaldev_attach(device_t dev)
 	
 	EVENTHANDLER_REGISTER(shutdown_final, opal_shutdown, NULL,
 	    SHUTDOWN_PRI_LAST);
+
+	/* Bind to interrupts */
+	for (i = 0; (irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
+	    RF_ACTIVE)) != NULL; i++)
+		bus_setup_intr(dev, irq, INTR_TYPE_TTY | INTR_MPSAFE |
+		    INTR_ENTROPY, NULL, opal_intr, (void *)rman_get_start(irq),
+		    NULL);
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
 	    child = OF_peer(child)) {
@@ -215,5 +240,16 @@ opal_shutdown(void *arg, int howto)
 		opal_call(OPAL_CEC_POWER_DOWN, 0 /* Normal power off */);
 	else
 		opal_call(OPAL_CEC_REBOOT);
+}
+
+static void
+opal_intr(void *xintr)
+{
+	uint64_t events = 0;
+
+	opal_call(OPAL_HANDLE_INTERRUPT, (uint32_t)(uint64_t)xintr,
+	    vtophys(&events));
+	/* XXX: do something useful with this information */
+
 }
 
