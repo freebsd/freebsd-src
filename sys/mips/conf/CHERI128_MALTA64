@@ -21,3 +21,8 @@ options 	CPU_CHERI128
 options 	CPU_CHERI
 options 	COMPAT_CHERIABI
 options 	KSTACK_LARGE_PAGE
+
+#
+# Qemu-CHERI tracing is permitted per thread, not just globally.
+#
+options         CPU_QEMU_MALTA
