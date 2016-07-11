@@ -324,7 +324,9 @@ ps2kbd_keysym_queue(struct ps2kbd_softc *sc,
 		fifo_put(sc, 0x12);
 		break;
 	case 0xffe2:	/* Right shift */
-		/* XXX */
+		if (!down)
+			fifo_put(sc, 0xf0);
+		fifo_put(sc, 0x59);
 		break;
 	case 0xffe3:	/* Left control */
 		if (!down)
@@ -332,7 +334,10 @@ ps2kbd_keysym_queue(struct ps2kbd_softc *sc,
 		fifo_put(sc, 0x14);
 		break;
 	case 0xffe4:	/* Right control */
-		/* XXX */
+		fifo_put(sc, 0xe0);
+		if (!down)
+			fifo_put(sc, 0xf0);
+		fifo_put(sc, 0x14);
 		break;
 	case 0xffe7:	/* Left meta */
 		/* XXX */
@@ -345,6 +350,7 @@ ps2kbd_keysym_queue(struct ps2kbd_softc *sc,
 			fifo_put(sc, 0xf0);
 		fifo_put(sc, 0x11);
 		break;
+	case 0xfe03:	/* AltGr */
 	case 0xffea:	/* Right alt */
 		fifo_put(sc, 0xe0);
 		if (!down)
