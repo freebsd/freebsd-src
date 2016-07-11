@@ -1939,62 +1939,24 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 }
 
 /*
- * Modified based on scsi_print_inquiry which is responsible to
- * print the detail information for scsi_inquiry_data.
- *
+ * SCSI Inquiry checks qualifier and type.
+ * If qualifier is 011b, means the device server is not capable
+ * of supporting a peripheral device on this logical unit, and
+ * the type should be set to 1Fh.
+ * 
  * Return 1 if it is valid, 0 otherwise.
  */
 static inline int
 is_inquiry_valid(const struct scsi_inquiry_data *inq_data)
 {
 	uint8_t type;
-	char vendor[16], product[48], revision[16];
-
-	/*
-	 * Check device type and qualifier
-	 */
-	if (!(SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ||
-	    SID_QUAL(inq_data) == SID_QUAL_LU_CONNECTED))
-		return (0);
-
-	type = SID_TYPE(inq_data);
-	switch (type) {
-	case T_DIRECT:
-	case T_SEQUENTIAL:
-	case T_PRINTER:
-	case T_PROCESSOR:
-	case T_WORM:
-	case T_CDROM:
-	case T_SCANNER:
-	case T_OPTICAL:
-	case T_CHANGER:
-	case T_COMM:
-	case T_STORARRAY:
-	case T_ENCLOSURE:
-	case T_RBC:
-	case T_OCRW:
-	case T_OSD:
-	case T_ADC:
-		break;
-	case T_NODEVICE:
-	default:
+	if (SID_QUAL(inq_data) != SID_QUAL_LU_CONNECTED) {
 		return (0);
 	}
-
-	/*
-	 * Check vendor, product, and revision
-	 */
-	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
-	    sizeof(vendor));
-	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
-	    sizeof(product));
-	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
-	    sizeof(revision));
-	if (strlen(vendor) == 0  ||
-	    strlen(product) == 0 ||
-	    strlen(revision) == 0)
+	type = SID_TYPE(inq_data);
+	if (type == T_NODEVICE) {
 		return (0);
-
+	}
 	return (1);
 }
 
@@ -2071,7 +2033,6 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		const struct scsi_generic *cmd;
-
 		/*
 		 * Check whether the data for INQUIRY cmd is valid or
 		 * not.  Windows 10 and Windows 2016 send all zero
@@ -2080,23 +2041,59 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		cmd = (const struct scsi_generic *)
 		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
-		if (cmd->opcode == INQUIRY &&
-		    /* 
-		     * XXX: Temporary work around disk hot plugin on win2k12r2,
-		     * only filtering the invalid disk on win10 or 2016 server.
-		     * So, the hot plugin on win10 and 2016 server needs
-		     * to be fixed.
+		if (cmd->opcode == INQUIRY) {
+		    /*
+		     * The host of Windows 10 or 2016 server will response
+		     * the inquiry request with invalid data for unexisted device:
+			[0x7f 0x0 0x5 0x2 0x1f ... ]
+		     * But on windows 2012 R2, the response is:
+			[0x7f 0x0 0x0 0x0 0x0 ]
+		     * That is why here wants to validate the inquiry response.
+		     * The validation will skip the INQUIRY whose response is short,
+		     * which is less than SHORT_INQUIRY_LENGTH (36).
+		     *
+		     * For more information about INQUIRY, please refer to:
+		     *  ftp://ftp.avc-pioneer.com/Mtfuji_7/Proposal/Jun09/INQUIRY.pdf
 		     */
-		    vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN10 && 
-		    is_inquiry_valid(
-		    (const struct scsi_inquiry_data *)csio->data_ptr) == 0) {
+		    const struct scsi_inquiry_data *inq_data =
+			(const struct scsi_inquiry_data *)csio->data_ptr;
+		    uint8_t* resp_buf = (uint8_t*)csio->data_ptr;
+		    /* Get the buffer length reported by host */
+		    int resp_xfer_len = vm_srb->transfer_len;
+		    /* Get the available buffer length */
+		    int resp_buf_len = resp_xfer_len >= 5 ? resp_buf[4] + 5 : 0;
+		    int data_len = (resp_buf_len < resp_xfer_len) ? resp_buf_len : resp_xfer_len;
+		    if (data_len < SHORT_INQUIRY_LENGTH) {
+			ccb->ccb_h.status |= CAM_REQ_CMP;
+			if (bootverbose && data_len >= 5) {
+				mtx_lock(&sc->hs_lock);
+				xpt_print(ccb->ccb_h.path,
+				    "storvsc skips the validation for short inquiry (%d)"
+				    " [%x %x %x %x %x]\n",
+				    data_len,resp_buf[0],resp_buf[1],resp_buf[2],
+				    resp_buf[3],resp_buf[4]);
+				mtx_unlock(&sc->hs_lock);
+			}
+		    } else if (is_inquiry_valid(inq_data) == 0) {
 			ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+			if (bootverbose && data_len >= 5) {
+				mtx_lock(&sc->hs_lock);
+				xpt_print(ccb->ccb_h.path,
+				    "storvsc uninstalled invalid device"
+				    " [%x %x %x %x %x]\n",
+				resp_buf[0],resp_buf[1],resp_buf[2],resp_buf[3],resp_buf[4]);
+				mtx_unlock(&sc->hs_lock);
+			}
+		    } else {
+			ccb->ccb_h.status |= CAM_REQ_CMP;
 			if (bootverbose) {
 				mtx_lock(&sc->hs_lock);
 				xpt_print(ccb->ccb_h.path,
-				    "storvsc uninstalled device\n");
+				    "storvsc has passed inquiry response (%d) validation\n",
+				    data_len);
 				mtx_unlock(&sc->hs_lock);
 			}
+		    }
 		} else {
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 		}
