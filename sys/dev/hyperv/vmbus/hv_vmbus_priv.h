@@ -397,7 +397,6 @@ uint32_t		hv_ring_buffer_read_end(
 
 hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
-int			hv_vmbus_request_channel_offers(void);
 void			hv_vmbus_release_unattached_channels(void);
 
 uint16_t		hv_vmbus_post_msg_via_msg_ipc(

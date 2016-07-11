@@ -675,36 +675,6 @@ vmbus_channel_on_version_response(struct vmbus_softc *sc,
 }
 
 /**
- *  @brief Send a request to get all our pending offers.
- */
-int
-hv_vmbus_request_channel_offers(void)
-{
-	int				ret;
-	hv_vmbus_channel_msg_header*	msg;
-	hv_vmbus_channel_msg_info*	msg_info;
-
-	msg_info = (hv_vmbus_channel_msg_info *)
-	    malloc(sizeof(hv_vmbus_channel_msg_info)
-		    + sizeof(hv_vmbus_channel_msg_header), M_DEVBUF, M_NOWAIT);
-
-	if (msg_info == NULL) {
-	    if(bootverbose)
-		printf("Error VMBUS: malloc failed for Request Offers\n");
-	    return (ENOMEM);
-	}
-
-	msg = (hv_vmbus_channel_msg_header*) msg_info->msg;
-	msg->message_type = HV_CHANNEL_MESSAGE_REQUEST_OFFERS;
-
-	ret = hv_vmbus_post_message(msg, sizeof(hv_vmbus_channel_msg_header));
-
-	free(msg_info, M_DEVBUF);
-
-	return (ret);
-}
-
-/**
  * @brief Release channels that are unattached/unconnected (i.e., no drivers associated)
  */
 void
