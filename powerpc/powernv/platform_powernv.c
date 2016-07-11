@@ -129,8 +129,8 @@ powernv_attach(platform_t plat)
 	cpu_idle_hook = powernv_cpu_idle;
 	powernv_boot_pir = mfspr(SPR_PIR);
 
-	/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
-	mtspr(SPR_LPCR, LPCR_LPES);
+	/* Init CPU bits */
+	powernv_smp_ap_init(plat);
 
 	/* Set SLB count from device tree */
 	cpu = OF_peer(0);
@@ -425,6 +425,9 @@ powernv_reset(platform_t platform)
 static void
 powernv_smp_ap_init(platform_t platform)
 {
+
+	/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
+	mtspr(SPR_LPCR, LPCR_LPES);
 }
 
 static void
