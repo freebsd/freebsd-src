@@ -93,17 +93,6 @@
 #define	DWC_OTG_PC2UDEV(pc) \
    (USB_DMATAG_TO_XROOT((pc)->tag_parent)->udev)
 
-#define	DWC_OTG_MSK_GINT_ENABLED	\
-   (GINTMSK_ENUMDONEMSK |		\
-   GINTMSK_USBRSTMSK |			\
-   GINTMSK_USBSUSPMSK |			\
-   GINTMSK_IEPINTMSK |			\
-   GINTMSK_SESSREQINTMSK |		\
-   GINTMSK_RXFLVLMSK |			\
-   GINTMSK_HCHINTMSK |			\
-   GINTMSK_OTGINTMSK |			\
-   GINTMSK_PRTINTMSK)
-
 #define	DWC_OTG_MSK_GINT_THREAD_IRQ				\
    (GINTSTS_USBRST | GINTSTS_ENUMDONE | GINTSTS_PRTINT |	\
    GINTSTS_WKUPINT | GINTSTS_USBSUSP | GINTMSK_OTGINTMSK |	\
@@ -377,6 +366,11 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 		/* enable all host channel interrupts */
 		DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK,
 		    (1U << sc->sc_host_ch_max) - 1U);
+
+		/* enable proper host channel interrupts */
+		sc->sc_irq_mask |= GINTMSK_HCHINTMSK;
+		sc->sc_irq_mask &= ~GINTMSK_IEPINTMSK;
+		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 	}
 
 	if (mode == DWC_MODE_DEVICE) {
@@ -437,6 +431,11 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 		    pf->usb.max_in_frame_size,
 		    pf->usb.max_out_frame_size);
 	    }
+
+	    /* enable proper device channel interrupts */
+	    sc->sc_irq_mask &= ~GINTMSK_HCHINTMSK;
+	    sc->sc_irq_mask |= GINTMSK_IEPINTMSK;
+	    DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 	}
 
 	/* reset RX FIFO */
@@ -2866,10 +2865,13 @@ dwc_otg_filter_interrupt(void *arg)
 
 		for (x = 0; x != sc->sc_dev_in_ep_max; x++) {
 			temp = DWC_OTG_READ_4(sc, DOTG_DIEPINT(x));
-			if (temp & DIEPMSK_XFERCOMPLMSK) {
-				DWC_OTG_WRITE_4(sc, DOTG_DIEPINT(x),
-				    DIEPMSK_XFERCOMPLMSK);
-			}
+			/*
+			 * NOTE: Need to clear all interrupt bits,
+			 * because some appears to be unmaskable and
+			 * can cause an interrupt loop:
+			 */
+			if (temp != 0)
+				DWC_OTG_WRITE_4(sc, DOTG_DIEPINT(x), temp);
 		}
 	}
 
@@ -3976,7 +3978,7 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 	}
 
 	/* enable interrupts */
-	sc->sc_irq_mask = DWC_OTG_MSK_GINT_ENABLED;
+	sc->sc_irq_mask |= DWC_OTG_MSK_GINT_THREAD_IRQ;
 	DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 
 	if (sc->sc_mode == DWC_MODE_OTG || sc->sc_mode == DWC_MODE_DEVICE) {
