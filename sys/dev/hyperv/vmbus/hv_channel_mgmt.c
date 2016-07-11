@@ -39,7 +39,8 @@
 typedef void	(*vmbus_chanmsg_proc_t)
 		(struct vmbus_softc *, const struct vmbus_message *);
 
-static void	vmbus_channel_on_offer_internal(void *context);
+static void	vmbus_channel_on_offer_internal(
+		    const hv_vmbus_channel_offer_channel *offer);
 static void	vmbus_channel_on_offer_rescind_internal(void *context);
 
 static void	vmbus_channel_on_offer(struct vmbus_softc *,
@@ -365,44 +366,27 @@ vmbus_channel_select_defcpu(struct hv_vmbus_channel *channel)
 /**
  * @brief Handler for channel offers from Hyper-V/Azure
  *
- * Handler for channel offers from vmbus in parent partition. We ignore
- * all offers except network and storage offers. For each network and storage
- * offers, we create a channel object and queue a work item to the channel
- * object to process the offer synchronously
+ * Handler for channel offers from vmbus in parent partition.
  */
 static void
 vmbus_channel_on_offer(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_msg_header *hdr =
-	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
-
 	const hv_vmbus_channel_offer_channel *offer;
-	hv_vmbus_channel_offer_channel *copied;
-
-	offer = (const hv_vmbus_channel_offer_channel *)hdr;
-
-	// copy offer data
-	copied = malloc(sizeof(*copied), M_DEVBUF, M_NOWAIT);
-	if (copied == NULL) {
-		printf("fail to allocate memory\n");
-		return;
-	}
-
-	memcpy(copied, hdr, sizeof(*copied));
-	hv_queue_work_item(vmbus_channel_on_offer_internal, copied);
 
 	mtx_lock(&vmbus_chwait_lock);
 	if ((vmbus_chancnt & VMBUS_CHANCNT_DONE) == 0)
 		vmbus_chancnt++;
 	mtx_unlock(&vmbus_chwait_lock);
+
+	offer = (const hv_vmbus_channel_offer_channel *)msg->msg_data;
+	vmbus_channel_on_offer_internal(offer);
 }
 
 static void
-vmbus_channel_on_offer_internal(void* context)
+vmbus_channel_on_offer_internal(const hv_vmbus_channel_offer_channel *offer)
 {
 	hv_vmbus_channel* new_channel;
 
-	hv_vmbus_channel_offer_channel* offer = (hv_vmbus_channel_offer_channel*)context;
 	/* Allocate the channel object and save this offer */
 	new_channel = hv_vmbus_allocate_channel();
 
@@ -441,8 +425,6 @@ vmbus_channel_on_offer_internal(void* context)
 	vmbus_channel_select_defcpu(new_channel);
 
 	vmbus_channel_process_offer(new_channel);
-
-	free(offer, M_DEVBUF);
 }
 
 /**
