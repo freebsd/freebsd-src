@@ -22,7 +22,7 @@
 <!ENTITY release.next "12.0-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "12-CURRENT">
+<!ENTITY release.branch "11.0-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "https://www.FreeBSD.org/snapshots/">
