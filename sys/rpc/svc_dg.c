@@ -142,9 +142,8 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	return (xprt);
 freedata:
 	(void) printf(svc_dg_str, __no_mem_str);
-	if (xprt) {
-		svc_xprt_free(xprt);
-	}
+	svc_xprt_free(xprt);
+
 	return (NULL);
 }
 
