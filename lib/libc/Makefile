@@ -193,6 +193,8 @@ GENDIRDEPS_FILTER+= N${RELDIR:H}/msun
 .endif
 .endif
 
+CFLAGS+=     ${CFLAGS.${.IMPSRC:T}}
+
 # Disable warnings in contributed sources.
 CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/:C/^$/-w/}
 # XXX For now, we don't allow libc to be compiled with
