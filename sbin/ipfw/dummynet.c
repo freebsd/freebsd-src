@@ -612,6 +612,7 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 	    }
 	    list_flow(&bp, (struct dn_flow *)oid);
 	    printf("%s\n", bp.buf);
+	    bp_flush(&bp);
 	    break;
 
 	case DN_LINK: {
