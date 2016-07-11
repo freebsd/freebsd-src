@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 /*
- * Read a message from standard output and return a read file to it
+ * Read a message from standard input and return a read file to it
  * or NULL on error.
  */
 
