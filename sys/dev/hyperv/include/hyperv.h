@@ -809,6 +809,8 @@ typedef struct hv_vmbus_channel {
 	void				*hv_chan_priv1;
 	void				*hv_chan_priv2;
 	void				*hv_chan_priv3;
+
+	struct task			ch_detach_task;
 } hv_vmbus_channel;
 
 #define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)

@@ -42,7 +42,7 @@ typedef void	(*vmbus_chanmsg_proc_t)
 static struct hv_vmbus_channel *hv_vmbus_allocate_channel(struct vmbus_softc *);
 static void	vmbus_channel_on_offer_internal(struct vmbus_softc *,
 		    const hv_vmbus_channel_offer_channel *offer);
-static void	vmbus_channel_on_offer_rescind_internal(void *context);
+static void	vmbus_chan_detach_task(void *, int);
 
 static void	vmbus_channel_on_offer(struct vmbus_softc *,
 		    const struct vmbus_message *);
@@ -80,12 +80,6 @@ vmbus_chanmsg_process[HV_CHANNEL_MESSAGE_COUNT] = {
 		vmbus_channel_on_version_response
 };
 
-typedef struct hv_work_item {
-	struct task	work;
-	void		(*callback)(void *);
-	void*		context;
-} hv_work_item;
-
 static struct mtx	vmbus_chwait_lock;
 MTX_SYSINIT(vmbus_chwait_lk, &vmbus_chwait_lock, "vmbus primarych wait lock",
     MTX_DEF);
@@ -93,41 +87,6 @@ static uint32_t		vmbus_chancnt;
 static uint32_t		vmbus_devcnt;
 
 #define VMBUS_CHANCNT_DONE	0x80000000
-
-/**
- * Implementation of the work abstraction.
- */
-static void
-work_item_callback(void *work, int pending)
-{
-	struct hv_work_item *w = (struct hv_work_item *)work;
-
-	w->callback(w->context);
-
-	free(w, M_DEVBUF);
-}
-
-/**
- * @brief Create work item
- */
-static int
-hv_queue_work_item(
-	void (*callback)(void *), void *context)
-{
-	struct hv_work_item *w = malloc(sizeof(struct hv_work_item),
-					M_DEVBUF, M_NOWAIT);
-	KASSERT(w != NULL, ("Error VMBUS: Failed to allocate WorkItem\n"));
-	if (w == NULL)
-	    return (ENOMEM);
-
-	w->callback = callback;
-	w->context = context;
-
-	TASK_INIT(&w->work, 0, work_item_callback, w);
-
-	return (taskqueue_enqueue(taskqueue_thread, &w->work));
-}
-
 
 /**
  * @brief Allocate and initialize a vmbus channel object
@@ -142,6 +101,7 @@ hv_vmbus_allocate_channel(struct vmbus_softc *sc)
 
 	mtx_init(&channel->sc_lock, "vmbus multi channel", NULL, MTX_DEF);
 	TAILQ_INIT(&channel->sc_list_anchor);
+	TASK_INIT(&channel->ch_detach_task, 0, vmbus_chan_detach_task, channel);
 
 	return (channel);
 }
@@ -431,37 +391,35 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
  * @brief Rescind offer handler.
  *
  * We queue a work item to process this offer
- * synchronously
+ * synchronously.
+ *
+ * XXX pretty broken; need rework.
  */
 static void
 vmbus_channel_on_offer_rescind(struct vmbus_softc *sc,
     const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_msg_header *hdr =
-	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
-
 	const hv_vmbus_channel_rescind_offer *rescind;
 	hv_vmbus_channel*		channel;
 
-	rescind = (const hv_vmbus_channel_rescind_offer *)hdr;
+	rescind = (const hv_vmbus_channel_rescind_offer *)msg->msg_data;
 
 	channel = hv_vmbus_g_connection.channels[rescind->child_rel_id];
 	if (channel == NULL)
 	    return;
-
-	hv_queue_work_item(vmbus_channel_on_offer_rescind_internal, channel);
 	hv_vmbus_g_connection.channels[rescind->child_rel_id] = NULL;
+
+	taskqueue_enqueue(taskqueue_thread, &channel->ch_detach_task);
 }
 
 static void
-vmbus_channel_on_offer_rescind_internal(void *context)
+vmbus_chan_detach_task(void *xchan, int pending __unused)
 {
-	hv_vmbus_channel*               channel;
+	struct hv_vmbus_channel *chan = xchan;
 
-	channel = (hv_vmbus_channel*)context;
-	if (HV_VMBUS_CHAN_ISPRIMARY(channel)) {
+	if (HV_VMBUS_CHAN_ISPRIMARY(chan)) {
 		/* Only primary channel owns the hv_device */
-		hv_vmbus_child_device_unregister(channel->device);
+		hv_vmbus_child_device_unregister(chan->device);
 	}
 }
 
