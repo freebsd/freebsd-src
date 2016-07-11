@@ -182,6 +182,7 @@ a10_mmc_attach(device_t dev)
 	    MTX_DEF);
 	callout_init_mtx(&sc->a10_timeoutc, &sc->a10_mtx, 0);
 
+#if defined(__arm__)
 	/*
 	 * Later chips use a different FIFO offset. Unfortunately the FDT
 	 * uses the same compatible string for old and new implementations.
@@ -196,6 +197,9 @@ a10_mmc_attach(device_t dev)
 		sc->a10_fifo_reg = A31_MMC_FIFO;
 		break;
 	}
+#else /* __aarch64__ */
+	sc->a10_fifo_reg = A31_MMC_FIFO;
+#endif
 
 	/* De-assert reset */
 	if (hwreset_get_by_ofw_name(dev, 0, "ahb", &sc->a10_rst_ahb) == 0) {
