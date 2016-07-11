@@ -118,6 +118,13 @@ hv_vmbus_do_hypercall(uint64_t value, void *input, void *output)
 	    in_paddr, out_paddr);
 }
 
+uint64_t
+hypercall_post_message(bus_addr_t msg_paddr)
+{
+	return hypercall_md(hypercall_context.hc_addr,
+	    HYPERCALL_POST_MESSAGE, msg_paddr, 0);
+}
+
 /**
  * @brief Post a message using the hypervisor message IPC.
  * (This involves a hypercall.)
