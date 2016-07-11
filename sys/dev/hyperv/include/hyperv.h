@@ -713,6 +713,7 @@ typedef struct {
 typedef struct hv_vmbus_channel {
 	TAILQ_ENTRY(hv_vmbus_channel)	list_entry;
 	struct hv_device*		device;
+	struct vmbus_softc		*vmbus_sc;
 	hv_vmbus_channel_state		state;
 	hv_vmbus_channel_offer_channel	offer_msg;
 	/*
