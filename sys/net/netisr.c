@@ -1273,8 +1273,6 @@ netisr_init(void *arg)
 	struct pcpu *pc;
 #endif
 
-	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
-
 	NETISR_LOCK_INIT();
 	if (netisr_maxthreads == 0 || netisr_maxthreads < -1 )
 		netisr_maxthreads = 1;		/* default behavior */
