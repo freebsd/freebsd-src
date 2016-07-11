@@ -195,7 +195,7 @@ ofw_pci_init(device_t dev)
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "PCI I/O Ports";
 	error = rman_init(&sc->sc_io_rman);
-	if (error) {
+	if (error != 0) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
 		goto out;
 	}
@@ -203,7 +203,7 @@ ofw_pci_init(device_t dev)
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "PCI Memory";
 	error = rman_init(&sc->sc_mem_rman);
-	if (error) {
+	if (error != 0) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
 		goto out;
 	}
@@ -226,7 +226,7 @@ ofw_pci_init(device_t dev)
 			break;
 		}
 
-		if (error) {
+		if (error != 0) {
 			device_printf(dev,
 			    "rman_manage_region(%x, %#jx, %#jx) failed. "
 			    "error = %d\n", rp->pci_hi &
@@ -257,7 +257,7 @@ ofw_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 	if (!sc->sc_initialized) {
 		error = ofw_pci_init(dev);
-		if (error)
+		if (error != 0)
 			return (error);
 	}
 
@@ -437,9 +437,11 @@ ofw_pci_release_resource(device_t bus, device_t child, int type, int rid,
 {
 
 	if (rman_get_flags(res) & RF_ACTIVE) {
-		int error = bus_deactivate_resource(child, type, rid, res);
-		if (error)
-			return error;
+		int error;
+
+		error = bus_deactivate_resource(child, type, rid, res);
+		if (error != 0)
+			return (error);
 	}
 
 	return (rman_release_resource(res));
@@ -544,9 +546,10 @@ static int
 ofw_pci_adjust_resource(device_t bus, device_t child, int type,
     struct resource *res, rman_res_t start, rman_res_t end)
 {
-	struct rman *rm = NULL;
-	struct ofw_pci_softc *sc = device_get_softc(bus);
+	struct rman *rm;
+	struct ofw_pci_softc *sc;
 
+	sc = device_get_softc(bus);
 	KASSERT(!(rman_get_flags(res) & RF_ACTIVE),
 	    ("active resources cannot be adjusted"));
 	if (rman_get_flags(res) & RF_ACTIVE)
