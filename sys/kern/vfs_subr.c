@@ -3235,7 +3235,7 @@ vgonel(struct vnode *vp)
 
 	/*
 	 * For VMIO bufobj, BO_DEAD is set in vm_object_terminate()
-	 * after the object' page queue is flushed.
+	 * after the object's page queue is flushed.
 	 */
 	if (vp->v_bufobj.bo_object == NULL)
 		vp->v_bufobj.bo_flag |= BO_DEAD;
