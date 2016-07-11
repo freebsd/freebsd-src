@@ -333,6 +333,8 @@ void dump_statcounters (
                 fprintf(fp, "mem_cap_write:      \t%lu\n",b->mipsmem[CAP_WRITE]);
                 fprintf(fp, "\n");
             }
+            fflush(fp);
+            fclose(fp);
         }
     }
 }
