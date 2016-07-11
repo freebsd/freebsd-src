@@ -40,29 +40,30 @@
  * Internal functions
  */
 
-typedef void (*vmbus_msg_handler)(const hv_vmbus_channel_msg_header *msg);
-
 typedef struct hv_vmbus_channel_msg_table_entry {
 	hv_vmbus_channel_msg_type    messageType;
-	vmbus_msg_handler   messageHandler;
+	void		(*messageHandler)
+			(struct vmbus_softc *sc,
+			 const struct vmbus_message *msg);
 } hv_vmbus_channel_msg_table_entry;
 
 static void	vmbus_channel_on_offer_internal(void *context);
 static void	vmbus_channel_on_offer_rescind_internal(void *context);
 
-static void	vmbus_channel_on_offer(const hv_vmbus_channel_msg_header *hdr);
-static void	vmbus_channel_on_open_result(
-		    const hv_vmbus_channel_msg_header *hdr);
-static void	vmbus_channel_on_offer_rescind(
-		    const hv_vmbus_channel_msg_header *hdr);
-static void	vmbus_channel_on_gpadl_created(
-		    const hv_vmbus_channel_msg_header *hdr);
-static void	vmbus_channel_on_gpadl_torndown(
-		    const hv_vmbus_channel_msg_header *hdr);
-static void	vmbus_channel_on_offers_delivered(
-		    const hv_vmbus_channel_msg_header *hdr);
-static void	vmbus_channel_on_version_response(
-		    const hv_vmbus_channel_msg_header *hdr);
+static void	vmbus_channel_on_offer(struct vmbus_softc *,
+		    const struct vmbus_message *);
+static void	vmbus_channel_on_open_result(struct vmbus_softc *,
+		    const struct vmbus_message *);
+static void	vmbus_channel_on_offer_rescind(struct vmbus_softc *,
+		    const struct vmbus_message *);
+static void	vmbus_channel_on_gpadl_created(struct vmbus_softc *,
+		    const struct vmbus_message *);
+static void	vmbus_channel_on_gpadl_torndown(struct vmbus_softc *,
+		    const struct vmbus_message *);
+static void	vmbus_channel_on_offers_delivered(struct vmbus_softc *,
+		    const struct vmbus_message *);
+static void	vmbus_channel_on_version_response(struct vmbus_softc *,
+		    const struct vmbus_message *);
 
 /**
  * Channel message dispatch table
@@ -398,8 +399,11 @@ vmbus_channel_select_defcpu(struct hv_vmbus_channel *channel)
  * object to process the offer synchronously
  */
 static void
-vmbus_channel_on_offer(const hv_vmbus_channel_msg_header *hdr)
+vmbus_channel_on_offer(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
+	const hv_vmbus_channel_msg_header *hdr =
+	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
+
 	const hv_vmbus_channel_offer_channel *offer;
 	hv_vmbus_channel_offer_channel *copied;
 
@@ -476,8 +480,12 @@ vmbus_channel_on_offer_internal(void* context)
  * synchronously
  */
 static void
-vmbus_channel_on_offer_rescind(const hv_vmbus_channel_msg_header *hdr)
+vmbus_channel_on_offer_rescind(struct vmbus_softc *sc,
+    const struct vmbus_message *msg)
 {
+	const hv_vmbus_channel_msg_header *hdr =
+	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
+
 	const hv_vmbus_channel_rescind_offer *rescind;
 	hv_vmbus_channel*		channel;
 
@@ -508,8 +516,8 @@ vmbus_channel_on_offer_rescind_internal(void *context)
  * @brief Invoked when all offers have been delivered.
  */
 static void
-vmbus_channel_on_offers_delivered(
-    const hv_vmbus_channel_msg_header *hdr __unused)
+vmbus_channel_on_offers_delivered(struct vmbus_softc *sc __unused,
+    const struct vmbus_message *msg __unused)
 {
 
 	mtx_lock(&vmbus_chwait_lock);
@@ -526,8 +534,12 @@ vmbus_channel_on_offers_delivered(
  * response and signal the requesting thread.
  */
 static void
-vmbus_channel_on_open_result(const hv_vmbus_channel_msg_header *hdr)
+vmbus_channel_on_open_result(struct vmbus_softc *sc,
+    const struct vmbus_message *msg)
 {
+	const hv_vmbus_channel_msg_header *hdr =
+	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
+
 	const hv_vmbus_channel_open_result *result;
 	hv_vmbus_channel_msg_info*	msg_info;
 	hv_vmbus_channel_msg_header*	requestHeader;
@@ -568,8 +580,12 @@ vmbus_channel_on_open_result(const hv_vmbus_channel_msg_header *hdr)
  * response and signal the requesting thread.
  */
 static void
-vmbus_channel_on_gpadl_created(const hv_vmbus_channel_msg_header *hdr)
+vmbus_channel_on_gpadl_created(struct vmbus_softc *sc,
+    const struct vmbus_message *msg)
 {
+	const hv_vmbus_channel_msg_header *hdr =
+	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
+
 	const hv_vmbus_channel_gpadl_created *gpadl_created;
 	hv_vmbus_channel_msg_info*		msg_info;
 	hv_vmbus_channel_msg_header*		request_header;
@@ -610,8 +626,12 @@ vmbus_channel_on_gpadl_created(const hv_vmbus_channel_msg_header *hdr)
  * response and signal the requesting thread
  */
 static void
-vmbus_channel_on_gpadl_torndown(const hv_vmbus_channel_msg_header *hdr)
+vmbus_channel_on_gpadl_torndown(struct vmbus_softc *sc,
+    const struct vmbus_message *msg)
 {
+	const hv_vmbus_channel_msg_header *hdr =
+	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
+
 	const hv_vmbus_channel_gpadl_torndown *gpadl_torndown;
 	hv_vmbus_channel_msg_info*		msg_info;
 	hv_vmbus_channel_msg_header*		requestHeader;
@@ -647,39 +667,11 @@ vmbus_channel_on_gpadl_torndown(const hv_vmbus_channel_msg_header *hdr)
     mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 }
 
-/**
- * @brief Version response handler.
- *
- * This is invoked when we received a response
- * to our initiate contact request. Find the matching request, copy th
- * response and signal the requesting thread.
- */
 static void
-vmbus_channel_on_version_response(const hv_vmbus_channel_msg_header *hdr)
+vmbus_channel_on_version_response(struct vmbus_softc *sc,
+    const struct vmbus_message *msg)
 {
-	hv_vmbus_channel_msg_info*		msg_info;
-	hv_vmbus_channel_msg_header*		requestHeader;
-	hv_vmbus_channel_initiate_contact*	initiate;
-	const hv_vmbus_channel_version_response *versionResponse;
-
-	versionResponse = (const hv_vmbus_channel_version_response *)hdr;
-
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
-	    msg_list_entry) {
-	    requestHeader = (hv_vmbus_channel_msg_header*) msg_info->msg;
-	    if (requestHeader->message_type
-		== HV_CHANNEL_MESSAGE_INITIATED_CONTACT) {
-		initiate =
-		    (hv_vmbus_channel_initiate_contact*) requestHeader;
-		memcpy(&msg_info->response.version_response,
-		    versionResponse,
-		    sizeof(hv_vmbus_channel_version_response));
-		sema_post(&msg_info->wait_sema);
-	    }
-	}
-    mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-
+	vmbus_msghc_wakeup(sc, msg);
 }
 
 /**
@@ -865,5 +857,5 @@ vmbus_chan_msgproc(struct vmbus_softc *sc, const struct vmbus_message *msg)
 
 	entry = &g_channel_message_table[msg_type];
 	if (entry->messageHandler)
-		entry->messageHandler(hdr);
+		entry->messageHandler(sc, msg);
 }
