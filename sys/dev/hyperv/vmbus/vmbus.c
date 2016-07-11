@@ -100,6 +100,8 @@ static int			vmbus_init_contact(struct vmbus_softc *,
 				    uint32_t);
 static int			vmbus_req_channels(struct vmbus_softc *sc);
 
+static int			vmbus_sysctl_version(SYSCTL_HANDLER_ARGS);
+
 static struct vmbus_msghc_ctx	*vmbus_msghc_ctx_create(bus_dma_tag_t);
 static void			vmbus_msghc_ctx_destroy(
 				    struct vmbus_msghc_ctx *);
@@ -948,6 +950,17 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 }
 
 static int
+vmbus_sysctl_version(SYSCTL_HANDLER_ARGS)
+{
+	char verstr[16];
+
+	snprintf(verstr, sizeof(verstr), "%u.%u",
+	    hv_vmbus_protocal_version >> 16,
+	    hv_vmbus_protocal_version & 0xffff);
+	return sysctl_handle_string(oidp, verstr, sizeof(verstr), req);
+}
+
+static int
 vmbus_probe(device_t dev)
 {
 	char *id[] = { "VMBUS", NULL };
@@ -977,6 +990,8 @@ vmbus_probe(device_t dev)
 static int
 vmbus_doattach(struct vmbus_softc *sc)
 {
+	struct sysctl_oid_list *child;
+	struct sysctl_ctx_list *ctx;
 	int ret;
 
 	if (sc->vmbus_flags & VMBUS_FLAG_ATTACHED)
@@ -1039,6 +1054,12 @@ vmbus_doattach(struct vmbus_softc *sc)
 	vmbus_scan();
 	bus_generic_attach(sc->vmbus_dev);
 	device_printf(sc->vmbus_dev, "device scan, probe and attach done\n");
+
+	ctx = device_get_sysctl_ctx(sc->vmbus_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->vmbus_dev));
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "version",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+	    vmbus_sysctl_version, "A", "vmbus version");
 
 	return (ret);
 
