@@ -364,6 +364,10 @@ a10_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 
 	sc = (struct a10_mmc_softc *)arg;
 	sc->a10_dma_map_err = err;
+
+	if (err)
+		return;
+
 	dma_desc = sc->a10_dma_desc;
 	/* Note nsegs is guaranteed to be zero if err is non-zero. */
 	for (i = 0; i < nsegs; i++) {
