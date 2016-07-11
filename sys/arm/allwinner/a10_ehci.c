@@ -88,9 +88,6 @@ __FBSDID("$FreeBSD$");
 static device_attach_t a10_ehci_attach;
 static device_detach_t a10_ehci_detach;
 
-bs_r_1_proto(reversed);
-bs_w_1_proto(reversed);
-
 struct aw_ehci_softc {
 	ehci_softc_t	sc;
 	clk_t		clk;
