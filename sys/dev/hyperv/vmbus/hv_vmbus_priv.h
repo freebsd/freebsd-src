@@ -395,7 +395,6 @@ void			hv_ring_buffer_read_begin(
 uint32_t		hv_ring_buffer_read_end(
 				hv_vmbus_ring_buffer_info	*ring_info);
 
-hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
 void			hv_vmbus_release_unattached_channels(void);
 
