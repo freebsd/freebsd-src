@@ -86,6 +86,7 @@ CTASSERT(sizeof(struct vmbus_evtflags) == VMBUS_EVTFLAGS_SIZE);
 #define VMBUS_CHANMSG_TYPE_CHANNEL_REQ		3	/* REQ */
 #define VMBUS_CHANMSG_TYPE_INIT_CONTACT		14	/* REQ */
 #define VMBUS_CHANMSG_TYPE_VERSION_RESP		15	/* RESP */
+#define VMBUS_CHANMSG_TYPE_UNLOAD		16	/* REQ */
 
 struct vmbus_chanmsg_hdr {
 	uint32_t	chm_type;	/* VMBUS_CHANMSG_TYPE_ */
@@ -110,6 +111,11 @@ struct vmbus_chanmsg_version_resp {
 
 /* VMBUS_CHANMSG_TYPE_CHANNEL_REQ */
 struct vmbus_chanmsg_channel_req {
+	struct vmbus_chanmsg_hdr chm_hdr;
+} __packed;
+
+/* VMBUS_CHANMSG_TYPE_UNLOAD */
+struct vmbus_chanmsg_unload {
 	struct vmbus_chanmsg_hdr chm_hdr;
 } __packed;
 
