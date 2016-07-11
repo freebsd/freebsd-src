@@ -116,6 +116,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ EXC_EXI,	"external interrupt" },
 	{ EXC_ALI,	"alignment" },
 	{ EXC_PGM,	"program" },
+	{ EXC_HEA,	"hypervisor emulation assistance" },
 	{ EXC_FPU,	"floating-point unavailable" },
 	{ EXC_APU,	"auxiliary proc unavailable" },
 	{ EXC_DECR,	"decrementer" },
