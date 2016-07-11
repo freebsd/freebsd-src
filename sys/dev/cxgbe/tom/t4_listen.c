@@ -665,9 +665,6 @@ t4_syncache_removed(struct toedev *tod __unused, void *arg)
 	release_synqe(synqe);
 }
 
-/* XXX */
-extern void tcp_dooptions(struct tcpopt *, u_char *, int, int);
-
 int
 t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 {
