@@ -148,7 +148,7 @@ awusbphy_vbus_detect(device_t dev, int *val)
 }
 
 static int
-awusbphy_phy_enable(device_t dev, int phy, bool enable)
+awusbphy_phy_enable(device_t dev, intptr_t phy, bool enable)
 {
 	struct awusbphy_softc *sc;
 	regulator_t reg;
@@ -177,8 +177,9 @@ awusbphy_phy_enable(device_t dev, int phy, bool enable)
 	} else
 		error = regulator_disable(reg);
 	if (error != 0) {
-		device_printf(dev, "couldn't %s regulator for phy %d\n",
-		    enable ? "enable" : "disable", phy);
+		device_printf(dev,
+		    "couldn't %s regulator for phy %jd\n",
+		    enable ? "enable" : "disable", (intmax_t)phy);
 		return (error);
 	}
 
