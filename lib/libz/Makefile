@@ -5,6 +5,7 @@
 LIB=		z
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
+WANT_DUMP=	yes
 MAN=		zlib.3 zopen.3
 
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
