@@ -69,6 +69,7 @@ struct vmbus_softc {
 
 	u_long			*vmbus_rx_evtflags;
 						/* compat evtflgs from host */
+	struct vmbus_msghc_ctx	*vmbus_msg_hc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
 	/* Rarely used fields */
@@ -108,6 +109,7 @@ vmbus_get_device(void)
 struct hv_vmbus_channel;
 struct trapframe;
 struct vmbus_message;
+struct vmbus_msghc;
 
 void	vmbus_on_channel_open(const struct hv_vmbus_channel *);
 void	vmbus_event_proc(struct vmbus_softc *, int);
@@ -117,5 +119,14 @@ void	vmbus_handle_intr(struct trapframe *);
 void	vmbus_et_intr(struct trapframe *);
 
 void	vmbus_chan_msgproc(struct vmbus_softc *, const struct vmbus_message *);
+
+struct vmbus_msghc *vmbus_msghc_get(struct vmbus_softc *, size_t);
+void	vmbus_msghc_put(struct vmbus_softc *, struct vmbus_msghc *);
+void	*vmbus_msghc_dataptr(struct vmbus_msghc *);
+int	vmbus_msghc_exec_noresult(struct vmbus_msghc *);
+int	vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
+const struct vmbus_message *vmbus_msghc_wait_result(struct vmbus_softc *,
+	    struct vmbus_msghc *);
+void	vmbus_msghc_wakeup(struct vmbus_softc *, const struct vmbus_message *);
 
 #endif	/* !_VMBUS_VAR_H_ */

@@ -1606,6 +1606,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_WAIT4:
+	case AUE_WAIT6:
 		PROCESS_PID_TOKENS(1);
 		if (ARG_IS_VALID(kar, ARG_VALUE)) {
 			tok = au_to_arg32(3, "options", ar->ar_arg_value);

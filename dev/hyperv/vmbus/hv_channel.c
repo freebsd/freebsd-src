@@ -67,7 +67,7 @@ static void
 vmbus_channel_set_event(hv_vmbus_channel *channel)
 {
 	if (channel->offer_msg.monitor_allocated) {
-		struct vmbus_softc *sc = vmbus_get_softc();
+		struct vmbus_softc *sc = channel->vmbus_sc;
 		hv_vmbus_monitor_page *monitor_page;
 		uint32_t chanid = channel->offer_msg.child_rel_id;
 
@@ -205,7 +205,7 @@ hv_vmbus_channel_open(
 
 	vmbus_on_channel_open(new_channel);
 
-	new_channel->rxq = VMBUS_PCPU_GET(vmbus_get_softc(), event_tq,
+	new_channel->rxq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
 	    new_channel->target_cpu);
 	TASK_INIT(&new_channel->channel_task, 0, VmbusProcessChannelEvent, new_channel);
 

@@ -73,7 +73,7 @@ a20_if_dwc_init(device_t dev)
 
 	/* Configure PHY for MII or RGMII mode */
 	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type)) {
-		error = clk_get_by_ofw_name(dev, "allwinner_gmac_tx", &clk_tx);
+		error = clk_get_by_ofw_name(dev, 0, "allwinner_gmac_tx", &clk_tx);
 		if (error != 0) {
 			device_printf(dev, "could not get tx clk\n");
 			return (error);
@@ -99,7 +99,7 @@ a20_if_dwc_init(device_t dev)
 	}
 
 	/* Enable PHY regulator if applicable */
-	if (regulator_get_by_ofw_property(dev, "phy-supply", &reg) == 0) {
+	if (regulator_get_by_ofw_property(dev, 0, "phy-supply", &reg) == 0) {
 		error = regulator_enable(reg);
 		if (error != 0) {
 			device_printf(dev, "could not enable PHY regulator\n");

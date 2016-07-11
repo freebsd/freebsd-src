@@ -260,7 +260,6 @@ typedef struct {
 			hal4kbSplitTransSupport		: 1,
 			halHasRxSelfLinkedTail		: 1,
 			halSupportsFastClock5GHz	: 1,
-			halHasLongRxDescTsf		: 1,
 			halHasBBReadWar			: 1,
 			halSerialiseRegWar		: 1,
 			halMciSupport			: 1,
@@ -290,7 +289,8 @@ typedef struct {
 	uint16_t	halKeyCacheSize;
 	uint16_t	halLow5GhzChan, halHigh5GhzChan;
 	uint16_t	halLow2GhzChan, halHigh2GhzChan;
-	int		halTstampPrecision;
+	int		halTxTstampPrecision;
+	int		halRxTstampPrecision;
 	int		halRtsAggrLimit;
 	uint8_t		halTxChainMask;
 	uint8_t		halRxChainMask;

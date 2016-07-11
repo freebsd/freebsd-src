@@ -95,7 +95,6 @@ typedef union {
 	hv_vmbus_channel_open_result		open_result;
 	hv_vmbus_channel_gpadl_torndown		gpadl_torndown;
 	hv_vmbus_channel_gpadl_created		gpadl_created;
-	hv_vmbus_channel_version_response	version_response;
 } hv_vmbus_channel_msg_response;
 
 /*
@@ -396,9 +395,7 @@ void			hv_ring_buffer_read_begin(
 uint32_t		hv_ring_buffer_read_end(
 				hv_vmbus_ring_buffer_info	*ring_info);
 
-hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
-int			hv_vmbus_request_channel_offers(void);
 void			hv_vmbus_release_unattached_channels(void);
 
 uint16_t		hv_vmbus_post_msg_via_msg_ipc(

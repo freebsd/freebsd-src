@@ -112,6 +112,7 @@ static const struct aw_ehci_conf a31_ehci_conf = {
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-ehci",	(uintptr_t)&a10_ehci_conf },
+	{ "allwinner,sun5i-a13-ehci",	(uintptr_t)&a10_ehci_conf },
 	{ "allwinner,sun6i-a31-ehci",	(uintptr_t)&a31_ehci_conf },
 	{ "allwinner,sun7i-a20-ehci",	(uintptr_t)&a10_ehci_conf },
 	{ "allwinner,sun8i-a83t-ehci",	(uintptr_t)&a31_ehci_conf },
@@ -207,7 +208,7 @@ a10_ehci_attach(device_t self)
 	sc->sc_flags |= EHCI_SCFLG_DONTRESET;
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_idx(self, 0, &aw_sc->rst) == 0) {
+	if (hwreset_get_by_ofw_idx(self, 0, 0, &aw_sc->rst) == 0) {
 		err = hwreset_deassert(aw_sc->rst);
 		if (err != 0) {
 			device_printf(self, "Could not de-assert reset\n");
@@ -216,7 +217,7 @@ a10_ehci_attach(device_t self)
 	}
 
 	/* Enable clock for USB */
-	err = clk_get_by_ofw_index(self, 0, &aw_sc->clk);
+	err = clk_get_by_ofw_index(self, 0, 0, &aw_sc->clk);
 	if (err != 0) {
 		device_printf(self, "Could not get clock\n");
 		goto error;
@@ -228,7 +229,7 @@ a10_ehci_attach(device_t self)
 	}
 
 	/* Enable USB PHY */
-	err = phy_get_by_ofw_name(self, "usb", &aw_sc->phy);
+	err = phy_get_by_ofw_name(self, 0, "usb", &aw_sc->phy);
 	if (err != 0) {
 		device_printf(self, "Could not get phy\n");
 		goto error;
