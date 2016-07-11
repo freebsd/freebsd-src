@@ -975,9 +975,8 @@ vmbus_probe(device_t dev)
  * - retrieve the channel offers
  */
 static int
-vmbus_bus_init(void)
+vmbus_doattach(struct vmbus_softc *sc)
 {
-	struct vmbus_softc *sc = vmbus_get_softc();
 	int ret;
 
 	if (sc->vmbus_flags & VMBUS_FLAG_ATTACHED)
@@ -1082,7 +1081,7 @@ vmbus_attach(device_t dev)
 	 */
 	if (!cold)
 #endif
-		vmbus_bus_init();
+		vmbus_doattach(vmbus_sc);
 
 	bus_generic_probe(dev);
 	return (0);
@@ -1091,7 +1090,9 @@ vmbus_attach(device_t dev)
 static void
 vmbus_sysinit(void *arg __unused)
 {
-	if (vm_guest != VM_GUEST_HV || vmbus_get_softc() == NULL)
+	struct vmbus_softc *sc = vmbus_get_softc();
+
+	if (vm_guest != VM_GUEST_HV || sc == NULL)
 		return;
 
 #ifndef EARLY_AP_STARTUP
@@ -1103,7 +1104,7 @@ vmbus_sysinit(void *arg __unused)
 	 */
 	if (!cold) 
 #endif
-		vmbus_bus_init();
+		vmbus_doattach(sc);
 }
 
 static int
