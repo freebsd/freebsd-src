@@ -84,7 +84,7 @@ typedef enum {
 } pass_flags;
 
 typedef enum {
-	PASS_STATE_NORMAL
+	CTLPASS_STATE_NORMAL
 } pass_state;
 
 typedef enum {
@@ -94,7 +94,7 @@ typedef enum {
 
 #define ccb_type	ppriv_field0
 #define ccb_ioreq	ppriv_ptr1
-
+#define ctl_ioreq          ppriv_ptr0
 /*
  * The maximum number of memory segments we preallocate.
  */
@@ -178,11 +178,6 @@ static	void		ctlpassdone(struct cam_periph *periph,
 static	int		ctlpasscreatezone(struct cam_periph *periph);
 static	void		ctlpassiocleanup(struct ctlpass_softc *softc, 
 				      struct ctlpass_io_req *io_req);
-static	int		ctlpasscopysglist(struct cam_periph *periph,
-				       struct ctlpass_io_req *io_req,
-				       ccb_flags direction);
-static	int		ctlpassmemsetup(struct cam_periph *periph,
-				     struct ctlpass_io_req *io_req);
 //static	int		ctlpassmemdone(struct cam_periph *periph,
 //				    struct ctlpass_io_req *io_req);
 static	int		ctlpasserror(union ccb *ccb, u_int32_t cam_flags, 
@@ -492,7 +487,8 @@ ctlpassasync(void *callback_arg, u_int32_t code,
 		cgd = (struct ccb_getdev *)arg;
 		if (cgd == NULL)
 			break;
-
+		if(cgd->protocol != PROTO_SCSI)
+			break;
 		/*
 		 * Allocate a peripheral instance for
 		 * this device and start the probe
@@ -572,7 +568,7 @@ ctlpassregister(struct cam_periph *periph, void *arg)
 	}
 
 	bzero(softc, sizeof(*softc));
-	softc->state = PASS_STATE_NORMAL;
+	softc->state = CTLPASS_STATE_NORMAL;
 	if (cgd->protocol == PROTO_SCSI)
 		softc->pd_type = T_PASSTHROUGH;
 	else
@@ -857,9 +853,9 @@ ctlpassstart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct ctlpass_softc *)periph->softc;
 	
 	switch (softc->state) {
-	case PASS_STATE_NORMAL: {
+	case CTLPASS_STATE_NORMAL: {
 		struct ctlpass_io_req *io_req;
-
+		
 		/*
 		 * Check for any queued I/O requests that require an
 		 * allocated slot.
@@ -907,6 +903,7 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct scsi_inquiry_data *inq_ptr;
 	struct scsi_report_luns_data *lun_data;
 		struct scsi_sense_data *sense;
+	struct scsi_read_capacity_data_long *readcap;
 	
 	softc = (struct ctlpass_softc *)periph->softc;
 
@@ -915,11 +912,11 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 	
 	csio = &done_ccb->csio;
 
-	
+		
 	switch(csio->ccb_h.ccb_type){
 	case PASS_CCB_QUEUED_IO:{
 		io_req = done_ccb->ccb_h.ccb_ioreq;
-		ctlio=io_req->ccb.ccb_h.periph_priv.entries[0].ptr;
+		ctlio=io_req->ccb.ccb_h.ctl_ioreq;
 #if 0
 		xpt_print(periph->path, "%s: called for user CCB %p\n",
 			  __func__, io_req->user_ccb_ptr);
@@ -990,6 +987,21 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 						ctl_datamove((union ctl_io *)ctlio);
 						break;
 					}
+					case READ_CAPACITY:{
+						readcap = (struct scsi_read_capacity_data_long *)csio->data_ptr;
+						memcpy(ctlio->scsiio.kern_data_ptr,inq_ptr,csio->dxfer_len);
+						ctlio->scsiio.kern_sg_entries = 0;
+						ctlio->scsiio.kern_data_resid = 0;
+						ctlio->scsiio.kern_rel_offset=0;
+						ctlio->scsiio.kern_data_len = csio->dxfer_len;
+						ctlio->scsiio.kern_total_len = csio->dxfer_len;
+						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
+						ctlio->scsiio.be_move_done = ctl_config_move_done;
+						ctl_datamove((union ctl_io *)ctlio);
+						break;
+
+
+}
 					case REQUEST_SENSE:{
 						sense = (struct scsi_sense_data *)csio->data_ptr;
 						memcpy(ctlio->scsiio.kern_data_ptr,sense,csio->dxfer_len);
@@ -1023,13 +1035,13 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 						}
 
 					case TEST_UNIT_READY:{
-							int error;
-							error=ctl_tur(&ctlio->scsiio);
+														
+							ctl_done((union ctl_io *)&ctlio->scsiio);
 				                        break;
 
 					}
 					case START_STOP_UNIT:{
-						ctl_done((union ctl_io *)ctlio);
+						ctl_done((union ctl_io *)&ctlio->scsiio);
 						break;
 					}
 				}			
@@ -1041,7 +1053,8 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 			    &io_req->start_time);
 			break;
 		}
-
+			
+		//	
 		/*
 		 * In the normal case, take the completed I/O off of the
 		 * active queue and put it on the done queue.  Notitfy the
@@ -1764,7 +1777,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 	uint32_t priority;
 	struct ctlpass_io_req *io_req;
 	struct ccb_scsiio *csio;
-	xpt_opcode fc;
+//	xpt_opcode fc;
 
 
 	/*
@@ -1802,13 +1815,13 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		switch(io->scsiio.tag_type)
 		{
 			case CTL_TAG_SIMPLE:
-				csio->tag_action = MSG_SIMPLE_TASK;
+				csio->tag_action = MSG_SIMPLE_Q_TAG;
 				break;
 			case CTL_TAG_HEAD_OF_QUEUE:
 				csio->tag_action = MSG_HEAD_OF_QUEUE_TASK;
 				break;
 			case CTL_TAG_ORDERED:
-				csio->tag_action = MSG_ORDERED_TASK;
+				csio->tag_action = MSG_ORDERED_Q_TAG;
 				break;
 			case CTL_TAG_ACA:
 				csio->tag_action = MSG_ACA_TASK;
@@ -1820,12 +1833,12 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		}
 		csio->cdb_len = io->scsiio.cdb_len;
 		memcpy(csio->cdb_io.cdb_bytes,io->scsiio.cdb, csio->cdb_len);
-	printf("I am before switch");	
+		
 		switch(csio->cdb_io.cdb_bytes[0])
 		{
 		
 			case INQUIRY:{
-
+					
 					io->scsiio.kern_data_ptr =malloc(sizeof(struct scsi_inquiry_data),M_CTL, M_WAITOK);
 	 	
 					io->scsiio.kern_data_len = sizeof(struct scsi_inquiry_data);
@@ -1869,12 +1882,26 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 					break;
 					}
 			case START_STOP_UNIT:
-				printf("hello ,I am in start  stop unit");
+
+				csio->ccb_h.flags = CAM_DIR_NONE;
+				csio->sense_len = SSD_FULL_SIZE;
+				csio->data_ptr = NULL;
+				csio->dxfer_len = 0;
+			
 					break;
+			case READ_CAPACITY:
+			io->scsiio.kern_data_ptr =(uint8_t *)malloc(sizeof(struct scsi_read_capacity_data_long),M_CTL, M_WAITOK);
+	 	
+			io->scsiio.kern_data_len = sizeof(struct scsi_read_capacity_data_long);
+			csio->data_ptr =(uint8_t *)malloc(sizeof(struct scsi_read_capacity_data_long),M_CTLPASS, M_WAITOK);
+			csio->dxfer_len = sizeof(struct scsi_read_capacity_data_long);
+					break;
+			
 
 			case TEST_UNIT_READY:
 					break;
 			default:
+					printf("I am in default");
 					return (error);
 					break;
 		}
@@ -1882,7 +1909,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		 * Some CCB types, like scan bus and scan lun can only go
 		 * through the transport layer device.
 		 */
-		if (ccb->ccb_h.func_code & XPT_FC_XPT_ONLY) {
+	/*	if (ccb->ccb_h.func_code & XPT_FC_XPT_ONLY) {
 			xpt_print(periph->path, "CCB function code %#x is "
 			    "restricted to the XPT device\n",
 			    ccb->ccb_h.func_code);
@@ -1892,8 +1919,8 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 			goto bailout;
 			
 		}
-		
-		ccb->ccb_h.periph_priv.entries[0].ptr= io;
+	*/	
+		ccb->ccb_h.ctl_ioreq= io;
 		/*
 		 * Now that we've saved the user's values, we can set our
 		 * own peripheral private entry.
@@ -1909,9 +1936,9 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 
 		ccb->ccb_h.cbfcnp = ctlpassdone;
 		
-		xpt_setup_ccb(&ccb->ccb_h, periph->path,CAM_PRIORITY_NORMAL);		
+		xpt_setup_ccb(&ccb->ccb_h, periph->path,priority);		
 
-		fc = ccb->ccb_h.func_code;
+		//fc = ccb->ccb_h.func_code;
 		
 	
 		
@@ -1924,7 +1951,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		 || (fc == XPT_DEV_ADVINFO)) {
 			error = ctlpassmemsetup(periph, io_req);
 			if (error != 0) {
-				uma_zfree(softc->pass_zone, io_req);
+				uma_zfree(softc->pass_zone, io_req);
 				cam_periph_lock(periph);
 				goto bailout;
 			
@@ -1938,8 +1965,8 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		 * Everything goes on the incoming queue initially.
 		 */
 		TAILQ_INSERT_TAIL(&softc->incoming_queue, io_req, links);
-
-		xpt_schedule(periph,CAM_PRIORITY_NORMAL);
+		xpt_schedule(periph,priority);
+		//periph->periph_start(periph,cam_periph_getccb(periph,priority));
 		/*
 		 * At this point, the CCB in question is either an
 		 * immediate CCB (like XPT_DEV_ADVINFO) or it is a user CCB
@@ -1956,12 +1983,12 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		 * If this is not a queued CCB (i.e. it is an immediate CCB),
 		 * then it is already done.  We need to put it on the done
 		 * queue for the user to fetch.
-		 *
-		if ((fc & XPT_FC_QUEUED) == 0) {
+		 */
+	/*	if ((fc & XPT_FC_QUEUED) == 0) {
 			TAILQ_REMOVE(&softc->active_queue, io_req, links);
 			TAILQ_INSERT_TAIL(&softc->done_queue, io_req, links);
 		}
-*/	
+	*/
 
 		
 bailout:
