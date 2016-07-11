@@ -299,6 +299,12 @@ static int hn_tx_swq_depth = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, tx_swq_depth, CTLFLAG_RDTUN,
     &hn_tx_swq_depth, 0, "Depth of IFQ or BUFRING");
 
+#if __FreeBSD_version >= 1100095
+static u_int hn_lro_mbufq_depth = 0;
+SYSCTL_UINT(_hw_hn, OID_AUTO, lro_mbufq_depth, CTLFLAG_RDTUN,
+    &hn_lro_mbufq_depth, 0, "Depth of LRO mbuf queue");
+#endif
+
 static u_int hn_cpu_index;
 
 /*
@@ -1283,6 +1289,19 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
 	return (remainder == 0);
 }
 
+#if defined(INET) || defined(INET6)
+static __inline int
+hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
+{
+#if __FreeBSD_version >= 1100095
+	if (hn_lro_mbufq_depth) {
+		tcp_lro_queue_mbuf(lc, m);
+		return 0;
+	}
+#endif
+	return tcp_lro_rx(lc, m, 0);
+}
+#endif
 
 /*
  * Called when we receive a data packet from the "wire" on the
@@ -1488,7 +1507,7 @@ skip:
 
 		if (lro->lro_cnt) {
 			rxr->hn_lro_tried++;
-			if (tcp_lro_rx(lro, m_new, 0) == 0) {
+			if (hn_lro_rx(lro, m_new) == 0) {
 				/* DONE! */
 				return 0;
 			}
@@ -2223,7 +2242,8 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		 */
 #if defined(INET) || defined(INET6)
 #if __FreeBSD_version >= 1100095
-		tcp_lro_init_args(&rxr->hn_lro, sc->hn_ifp, lroent_cnt, 0);
+		tcp_lro_init_args(&rxr->hn_lro, sc->hn_ifp, lroent_cnt,
+		    hn_lro_mbufq_depth);
 #else
 		tcp_lro_init(&rxr->hn_lro);
 		rxr->hn_lro.ifp = sc->hn_ifp;
