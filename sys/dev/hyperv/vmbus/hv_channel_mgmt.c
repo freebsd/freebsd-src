@@ -36,16 +36,8 @@
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-/*
- * Internal functions
- */
-
-typedef struct hv_vmbus_channel_msg_table_entry {
-	hv_vmbus_channel_msg_type    messageType;
-	void		(*messageHandler)
-			(struct vmbus_softc *sc,
-			 const struct vmbus_message *msg);
-} hv_vmbus_channel_msg_table_entry;
+typedef void	(*vmbus_chanmsg_proc_t)
+		(struct vmbus_softc *, const struct vmbus_message *);
 
 static void	vmbus_channel_on_offer_internal(void *context);
 static void	vmbus_channel_on_offer_rescind_internal(void *context);
@@ -68,42 +60,22 @@ static void	vmbus_channel_on_version_response(struct vmbus_softc *,
 /**
  * Channel message dispatch table
  */
-static const hv_vmbus_channel_msg_table_entry
-    g_channel_message_table[HV_CHANNEL_MESSAGE_COUNT] = {
-	{ HV_CHANNEL_MESSAGE_INVALID,
-		NULL },
-	{ HV_CHANNEL_MESSAGE_OFFER_CHANNEL,
-		vmbus_channel_on_offer },
-	{ HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER,
-		vmbus_channel_on_offer_rescind },
-	{ HV_CHANNEL_MESSAGE_REQUEST_OFFERS,
-		NULL },
-	{ HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED,
-		vmbus_channel_on_offers_delivered },
-	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL,
-		NULL },
-	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT,
-		vmbus_channel_on_open_result },
-	{ HV_CHANNEL_MESSAGE_CLOSE_CHANNEL,
-		NULL },
-	{ HV_CHANNEL_MESSAGEL_GPADL_HEADER,
-		NULL },
-	{ HV_CHANNEL_MESSAGE_GPADL_BODY,
-		NULL },
-	{ HV_CHANNEL_MESSAGE_GPADL_CREATED,
-		vmbus_channel_on_gpadl_created },
-	{ HV_CHANNEL_MESSAGE_GPADL_TEARDOWN,
-		NULL },
-	{ HV_CHANNEL_MESSAGE_GPADL_TORNDOWN,
-		vmbus_channel_on_gpadl_torndown },
-	{ HV_CHANNEL_MESSAGE_REL_ID_RELEASED,
-		NULL },
-	{ HV_CHANNEL_MESSAGE_INITIATED_CONTACT,
-		NULL },
-	{ HV_CHANNEL_MESSAGE_VERSION_RESPONSE,
-		vmbus_channel_on_version_response },
-	{ HV_CHANNEL_MESSAGE_UNLOAD,
-		NULL }
+static const vmbus_chanmsg_proc_t
+vmbus_chanmsg_process[HV_CHANNEL_MESSAGE_COUNT] = {
+	[HV_CHANNEL_MESSAGE_OFFER_CHANNEL] =
+		vmbus_channel_on_offer,
+	[HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER] =
+		vmbus_channel_on_offer_rescind,
+	[HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED] =
+		vmbus_channel_on_offers_delivered,
+	[HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT] =
+		vmbus_channel_on_open_result,
+	[HV_CHANNEL_MESSAGE_GPADL_CREATED] =
+		vmbus_channel_on_gpadl_created,
+	[HV_CHANNEL_MESSAGE_GPADL_TORNDOWN] =
+		vmbus_channel_on_gpadl_torndown,
+	[HV_CHANNEL_MESSAGE_VERSION_RESPONSE] =
+		vmbus_channel_on_version_response
 };
 
 typedef struct hv_work_item {
@@ -812,20 +784,17 @@ vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
 void
 vmbus_chan_msgproc(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_msg_table_entry *entry;
-	const hv_vmbus_channel_msg_header *hdr;
-	hv_vmbus_channel_msg_type msg_type;
+	vmbus_chanmsg_proc_t msg_proc;
+	uint32_t msg_type;
 
-	hdr = (const hv_vmbus_channel_msg_header *)msg->msg_data;
-	msg_type = hdr->message_type;
-
+	msg_type = ((const struct vmbus_chanmsg_hdr *)msg->msg_data)->chm_type;
 	if (msg_type >= HV_CHANNEL_MESSAGE_COUNT) {
 		device_printf(sc->vmbus_dev, "unknown message type 0x%x\n",
 		    msg_type);
 		return;
 	}
 
-	entry = &g_channel_message_table[msg_type];
-	if (entry->messageHandler)
-		entry->messageHandler(sc, msg);
+	msg_proc = vmbus_chanmsg_process[msg_type];
+	if (msg_proc != NULL)
+		msg_proc(sc, msg);
 }
