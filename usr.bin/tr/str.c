@@ -53,7 +53,7 @@ static int      backslash(STR *, int *);
 static int	bracket(STR *);
 static void	genclass(STR *);
 static void	genequiv(STR *);
-static int      genrange(STR *, int);
+static int	genrange(STR *);
 static void	genseq(STR *);
 
 wint_t
@@ -93,7 +93,7 @@ next(STR *s)
 		}
 
 		/* We can start a range at any time. */
-		if (s->str[0] == '-' && genrange(s, is_octal))
+		if (s->str[0] == '-' && genrange(s))
 			return (next(s));
 		return (1);
 	case RANGE:
@@ -237,18 +237,16 @@ genequiv(STR *s)
 }
 
 static int
-genrange(STR *s, int was_octal)
+genrange(STR *s)
 {
-	int stopval, octal;
+	int stopval;
 	char *savestart;
-	int n, cnt, *p;
 	size_t clen;
 	wchar_t wc;
 
-	octal = 0;
 	savestart = s->str;
 	if (*++s->str == '\\')
-		stopval = backslash(s, &octal);
+		stopval = backslash(s, NULL);
 	else {
 		clen = mbrtowc(&wc, s->str, MB_LEN_MAX, NULL);
 		if (clen == (size_t)-1 || clen == (size_t)-2)
@@ -256,37 +254,13 @@ genrange(STR *s, int was_octal)
 		stopval = wc;
 		s->str += clen;
 	}
-	/*
-	 * XXX Characters are not ordered according to collating sequence in
-	 * multibyte locales.
-	 */
-	if (octal || was_octal || MB_CUR_MAX > 1) {
-		if (stopval < s->lastch) {
-			s->str = savestart;
-			return (0);
-		}
-		s->cnt = stopval - s->lastch + 1;
-		s->state = RANGE;
-		--s->lastch;
-		return (1);
-	}
-	if (charcoll((const void *)&stopval, (const void *)&(s->lastch)) < 0) {
+	if (stopval < s->lastch) {
 		s->str = savestart;
 		return (0);
 	}
-	if ((s->set = p = malloc((NCHARS_SB + 1) * sizeof(int))) == NULL)
-		err(1, "genrange() malloc");
-	for (cnt = 0; cnt < NCHARS_SB; cnt++)
-		if (charcoll((const void *)&cnt, (const void *)&(s->lastch)) >= 0 &&
-		    charcoll((const void *)&cnt, (const void *)&stopval) <= 0)
-			*p++ = cnt;
-	*p = OOBCH;
-	n = p - s->set;
-
-	s->cnt = 0;
-	s->state = SET;
-	if (n > 1)
-		mergesort(s->set, n, sizeof(*(s->set)), charcoll);
+	s->cnt = stopval - s->lastch + 1;
+	s->state = RANGE;
+	--s->lastch;
 	return (1);
 }
 

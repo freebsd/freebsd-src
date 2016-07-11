@@ -164,14 +164,6 @@ as defined by the collation sequence.
 If either or both of the range endpoints are octal sequences, it
 represents the range of specific coded values between the
 range endpoints, inclusive.
-.Pp
-.Bf Em
-See the
-.Sx COMPATIBILITY
-section below for an important note regarding
-differences in the way the current
-implementation interprets range expressions differently from
-previous implementations.
 .Ef
 .It [:class:]
 Represents all characters belonging to the defined character class.
@@ -307,22 +299,16 @@ Remove diacritical marks from all accented variants of the letter
 .Pp
 .Dl "tr \*q[=e=]\*q \*qe\*q"
 .Sh COMPATIBILITY
-Previous
 .Fx
 implementations of
 .Nm
 did not order characters in range expressions according to the current
-locale's collation order, making it possible to convert unaccented Latin
-characters (esp.\& as found in English text) from upper to lower case using
+locale's collation order, making it possible to convert accented Latin
+characters from upper to lower case using
 the traditional
 .Ux
 idiom of
 .Dq Li "tr A-Z a-z" .
-Since
-.Nm
-now obeys the locale's collation order, this idiom may not produce
-correct results when there is not a 1:1 mapping between lower and
-upper case, or when the order of characters within the two cases differs.
 As noted in the
 .Sx EXAMPLES
 section above, the character class expressions
@@ -333,6 +319,9 @@ should be used instead of explicit character ranges like
 .Dq Li a-z
 and
 .Dq Li A-Z .
+.Pp
+.Dq Li [=equiv=]
+expression is implemented for single byte locales only.
 .Pp
 System V has historically implemented character ranges using the syntax
 .Dq Li [c-c]
