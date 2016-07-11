@@ -371,6 +371,9 @@ void fill_unreach6_code(u_short *codep, char *str);
 void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av, int cblen);
 int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
 
+/* ipfw2.c */
+void bp_flush(struct buf_pr *b);
+
 /* tables.c */
 struct _ipfw_obj_ctlv;
 int table_check_name(const char *tablename);
