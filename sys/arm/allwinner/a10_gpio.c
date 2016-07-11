@@ -57,6 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 
+#if defined(__aarch64__)
+#include "opt_soc.h"
+#endif
+
 #include "gpio_if.h"
 
 #define	A10_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
@@ -116,6 +120,12 @@ extern const struct allwinner_padconf a83t_padconf;
 extern const struct allwinner_padconf a83t_r_padconf;
 #endif
 
+/* Defined in a64_padconf.c */
+#ifdef SOC_ALLWINNER_A64
+extern const struct allwinner_padconf a64_padconf;
+extern const struct allwinner_padconf a64_r_padconf;
+#endif
+
 static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_A10
 	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_padconf},
@@ -142,6 +152,10 @@ static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_H3
 	{"allwinner,sun8i-h3-pinctrl",		(uintptr_t)&h3_padconf},
 	{"allwinner,sun8i-h3-r-pinctrl",	(uintptr_t)&h3_r_padconf},
+#endif
+#ifdef SOC_ALLWINNER_A64
+	{"allwinner,sun50i-a64-pinctrl",	(uintptr_t)&a64_padconf},
+	{"allwinner,sun50i-a64-r-pinctrl",	(uintptr_t)&a64_r_padconf},
 #endif
 	{NULL,	0}
 };
