@@ -238,61 +238,25 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 	}
 }
 
-/**
- * Array of device guids that are performance critical. We try to distribute
- * the interrupt load for these devices across all online cpus. 
- */
-static const hv_guid high_perf_devices[] = {
-	{HV_NIC_GUID, },
-	{HV_IDE_GUID, },
-	{HV_SCSI_GUID, },
-};
-
-enum {
-	PERF_CHN_NIC = 0,
-	PERF_CHN_IDE,
-	PERF_CHN_SCSI,
-	MAX_PERF_CHN,
-};
-
-/*
- * We use this static number to distribute the channel interrupt load.
- */
-static uint32_t next_vcpu;
-
-/**
- * Starting with Win8, we can statically distribute the incoming
- * channel interrupt load by binding a channel to VCPU. We
- * implement here a simple round robin scheme for distributing
- * the interrupt load.
- * We will bind channels that are not performance critical to cpu 0 and
- * performance critical channels (IDE, SCSI and Network) will be uniformly
- * distributed across all available CPUs.
- */
-static void
-vmbus_channel_select_defcpu(struct hv_vmbus_channel *channel)
+void
+vmbus_channel_cpu_rr(struct hv_vmbus_channel *chan)
 {
-	uint32_t current_cpu;
-	int i;
-	boolean_t is_perf_channel = FALSE;
-	const hv_guid *guid = &channel->offer_msg.offer.interface_type;
+	static uint32_t vmbus_chan_nextcpu;
+	int cpu;
 
-	for (i = PERF_CHN_NIC; i < MAX_PERF_CHN; i++) {
-		if (memcmp(guid->data, high_perf_devices[i].data,
-		    sizeof(hv_guid)) == 0) {
-			is_perf_channel = TRUE;
-			break;
-		}
-	}
+	cpu = atomic_fetchadd_int(&vmbus_chan_nextcpu, 1) % mp_ncpus;
+	vmbus_channel_cpu_set(chan, cpu);
+}
 
-	if (!is_perf_channel) {
-		/* Stick to cpu0 */
-		vmbus_channel_cpu_set(channel, 0);
-		return;
-	}
-	/* mp_ncpus should have the number cpus currently online */
-	current_cpu = (++next_vcpu % mp_ncpus);
-	vmbus_channel_cpu_set(channel, current_cpu);
+static void
+vmbus_channel_select_defcpu(struct hv_vmbus_channel *chan)
+{
+	/*
+	 * By default, pin the channel to cpu0.  Devices having
+	 * special channel-cpu mapping requirement should call
+	 * vmbus_channel_cpu_{set,rr}().
+	 */
+	vmbus_channel_cpu_set(chan, 0);
 }
 
 /**

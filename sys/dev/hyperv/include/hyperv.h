@@ -707,6 +707,7 @@ int		hv_vmbus_channel_teardown_gpdal(
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
 void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
+void		vmbus_channel_cpu_rr(struct hv_vmbus_channel *chan);
 struct hv_vmbus_channel **
 		vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
 void		vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt);

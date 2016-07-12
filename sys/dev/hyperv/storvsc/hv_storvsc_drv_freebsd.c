@@ -361,6 +361,7 @@ storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
 
 	memset(&props, 0, sizeof(props));
 
+	vmbus_channel_cpu_rr(new_channel);
 	ret = hv_vmbus_channel_open(new_channel,
 	    sc->hs_drv_props->drv_ringbuffer_size,
   	    sc->hs_drv_props->drv_ringbuffer_size,
@@ -655,7 +656,7 @@ hv_storvsc_connect_vsp(struct hv_device *dev)
 	/*
 	 * Open the channel
 	 */
-
+	vmbus_channel_cpu_rr(dev->channel);
 	ret = hv_vmbus_channel_open(
 		dev->channel,
 		sc->hs_drv_props->drv_ringbuffer_size,
