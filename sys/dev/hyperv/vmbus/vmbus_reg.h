@@ -30,6 +30,7 @@
 #define _VMBUS_REG_H_
 
 #include <sys/param.h>
+#include <dev/hyperv/vmbus/hyperv_reg.h>
 
 /*
  * Hyper-V SynIC message format.
@@ -78,6 +79,15 @@ CTASSERT(sizeof(struct vmbus_evtflags) == VMBUS_EVTFLAGS_SIZE);
 #define VMBUS_CHAN_MAX		(VMBUS_EVTFLAG_LEN * VMBUS_EVTFLAGS_MAX)
 
 /*
+ * GPA range.
+ */
+struct vmbus_gpa_range {
+	uint32_t	gpa_len;
+	uint32_t	gpa_ofs;
+	uint64_t	gpa_page[];
+} __packed;
+
+/*
  * Channel messages
  * - Embedded in vmbus_message.msg_data, e.g. response.
  * - Embedded in hypercall_postmsg_in.hc_data, e.g. request.
@@ -86,6 +96,9 @@ CTASSERT(sizeof(struct vmbus_evtflags) == VMBUS_EVTFLAGS_SIZE);
 #define VMBUS_CHANMSG_TYPE_CHANNEL_REQ		3	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CHOPEN		5	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CHOPEN_RESP		6	/* RESP */
+#define VMBUS_CHANMSG_TYPE_GPADL_CONN		8	/* REQ */
+#define VMBUS_CHANMSG_TYPE_GPADL_SUBCONN	9	/* REQ */
+#define VMBUS_CHANMSG_TYPE_GPADP_CONNRESP	10	/* RESP */
 #define VMBUS_CHANMSG_TYPE_INIT_CONTACT		14	/* REQ */
 #define VMBUS_CHANMSG_TYPE_VERSION_RESP		15	/* RESP */
 #define VMBUS_CHANMSG_TYPE_UNLOAD		16	/* REQ */
@@ -138,6 +151,42 @@ struct vmbus_chanmsg_chopen_resp {
 	struct vmbus_chanmsg_hdr chm_hdr;
 	uint32_t	chm_chanid;
 	uint32_t	chm_openid;
+	uint32_t	chm_status;
+} __packed;
+
+/* VMBUS_CHANMSG_TYPE_GPADL_CONN */
+struct vmbus_chanmsg_gpadl_conn {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	uint32_t	chm_chanid;
+	uint32_t	chm_gpadl;
+	uint16_t	chm_range_len;
+	uint16_t	chm_range_cnt;
+	struct vmbus_gpa_range chm_range;
+} __packed;
+
+#define VMBUS_CHANMSG_GPADL_CONN_PGMAX		26
+CTASSERT(__offsetof(struct vmbus_chanmsg_gpadl_conn,
+    chm_range.gpa_page[VMBUS_CHANMSG_GPADL_CONN_PGMAX]) <=
+    HYPERCALL_POSTMSGIN_DSIZE_MAX);
+
+/* VMBUS_CHANMSG_TYPE_GPADL_SUBCONN */
+struct vmbus_chanmsg_gpadl_subconn {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	uint32_t	chm_msgno;
+	uint32_t	chm_gpadl;
+	uint64_t	chm_gpa_page[];
+} __packed;
+
+#define VMBUS_CHANMSG_GPADL_SUBCONN_PGMAX	28
+CTASSERT(__offsetof(struct vmbus_chanmsg_gpadl_subconn,
+    chm_gpa_page[VMBUS_CHANMSG_GPADL_SUBCONN_PGMAX]) <=
+    HYPERCALL_POSTMSGIN_DSIZE_MAX);
+
+/* VMBUS_CHANMSG_TYPE_GPADL_CONNRESP */
+struct vmbus_chanmsg_gpadl_connresp {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	uint32_t	chm_chanid;
+	uint32_t	chm_gpadl;
 	uint32_t	chm_status;
 } __packed;
 

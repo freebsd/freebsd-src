@@ -205,25 +205,34 @@ vmbus_msghc_get1(struct vmbus_msghc_ctx *mhc, uint32_t dtor_flag)
 	return mh;
 }
 
-struct vmbus_msghc *
-vmbus_msghc_get(struct vmbus_softc *sc, size_t dsize)
+void
+vmbus_msghc_reset(struct vmbus_msghc *mh, size_t dsize)
 {
 	struct hypercall_postmsg_in *inprm;
-	struct vmbus_msghc *mh;
 
 	if (dsize > HYPERCALL_POSTMSGIN_DSIZE_MAX)
-		return NULL;
-
-	mh = vmbus_msghc_get1(sc->vmbus_msg_hc, VMBUS_MSGHC_CTXF_DESTROY);
-	if (mh == NULL)
-		return NULL;
+		panic("invalid data size %zu", dsize);
 
 	inprm = mh->mh_inprm;
 	memset(inprm, 0, HYPERCALL_POSTMSGIN_SIZE);
 	inprm->hc_connid = VMBUS_CONNID_MESSAGE;
 	inprm->hc_msgtype = HYPERV_MSGTYPE_CHANNEL;
 	inprm->hc_dsize = dsize;
+}
 
+struct vmbus_msghc *
+vmbus_msghc_get(struct vmbus_softc *sc, size_t dsize)
+{
+	struct vmbus_msghc *mh;
+
+	if (dsize > HYPERCALL_POSTMSGIN_DSIZE_MAX)
+		panic("invalid data size %zu", dsize);
+
+	mh = vmbus_msghc_get1(sc->vmbus_msg_hc, VMBUS_MSGHC_CTXF_DESTROY);
+	if (mh == NULL)
+		return NULL;
+
+	vmbus_msghc_reset(mh, dsize);
 	return mh;
 }
 

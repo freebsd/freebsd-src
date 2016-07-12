@@ -49,14 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-static int 	vmbus_channel_create_gpadl_header(
-			/* must be phys and virt contiguous*/
-			void*				contig_buffer,
-			/* page-size multiple */
-			uint32_t 			size,
-			hv_vmbus_channel_msg_info**	msg_info,
-			uint32_t*			message_count);
-
 static void 	vmbus_channel_set_event(hv_vmbus_channel* channel);
 static void	VmbusProcessChannelEvent(void* channel, int pending);
 
@@ -309,241 +301,130 @@ hv_vmbus_channel_open(
 }
 
 /**
- * @brief Create a gpadl for the specified buffer
- */
-static int
-vmbus_channel_create_gpadl_header(
-	void*				contig_buffer,
-	uint32_t			size,	/* page-size multiple */
-	hv_vmbus_channel_msg_info**	msg_info,
-	uint32_t*			message_count)
-{
-	int				i;
-	int				page_count;
-	unsigned long long 		pfn;
-	uint32_t			msg_size;
-	hv_vmbus_channel_gpadl_header*	gpa_header;
-	hv_vmbus_channel_gpadl_body*	gpadl_body;
-	hv_vmbus_channel_msg_info*	msg_header;
-	hv_vmbus_channel_msg_info*	msg_body;
-
-	int pfnSum, pfnCount, pfnLeft, pfnCurr, pfnSize;
-
-	page_count = size >> PAGE_SHIFT;
-	pfn = hv_get_phys_addr(contig_buffer) >> PAGE_SHIFT;
-
-	/*do we need a gpadl body msg */
-	pfnSize = HV_MAX_SIZE_CHANNEL_MESSAGE
-	    - sizeof(hv_vmbus_channel_gpadl_header)
-	    - sizeof(hv_gpa_range);
-	pfnCount = pfnSize / sizeof(uint64_t);
-
-	if (page_count > pfnCount) { /* if(we need a gpadl body)	*/
-	    /* fill in the header		*/
-	    msg_size = sizeof(hv_vmbus_channel_msg_info)
-		+ sizeof(hv_vmbus_channel_gpadl_header)
-		+ sizeof(hv_gpa_range)
-		+ pfnCount * sizeof(uint64_t);
-	    msg_header = malloc(msg_size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	    KASSERT(
-		msg_header != NULL,
-		("Error VMBUS: malloc failed to allocate Gpadl Message!"));
-	    if (msg_header == NULL)
-		return (ENOMEM);
-
-	    TAILQ_INIT(&msg_header->sub_msg_list_anchor);
-	    msg_header->message_size = msg_size;
-
-	    gpa_header = (hv_vmbus_channel_gpadl_header*) msg_header->msg;
-	    gpa_header->range_count = 1;
-	    gpa_header->range_buf_len = sizeof(hv_gpa_range)
-		+ page_count * sizeof(uint64_t);
-	    gpa_header->range[0].byte_offset = 0;
-	    gpa_header->range[0].byte_count = size;
-	    for (i = 0; i < pfnCount; i++) {
-		gpa_header->range[0].pfn_array[i] = pfn + i;
-	    }
-	    *msg_info = msg_header;
-	    *message_count = 1;
-
-	    pfnSum = pfnCount;
-	    pfnLeft = page_count - pfnCount;
-
-	    /*
-	     *  figure out how many pfns we can fit
-	     */
-	    pfnSize = HV_MAX_SIZE_CHANNEL_MESSAGE
-		- sizeof(hv_vmbus_channel_gpadl_body);
-	    pfnCount = pfnSize / sizeof(uint64_t);
-
-	    /*
-	     * fill in the body
-	     */
-	    while (pfnLeft) {
-		if (pfnLeft > pfnCount) {
-		    pfnCurr = pfnCount;
-		} else {
-		    pfnCurr = pfnLeft;
-		}
-
-		msg_size = sizeof(hv_vmbus_channel_msg_info) +
-		    sizeof(hv_vmbus_channel_gpadl_body) +
-		    pfnCurr * sizeof(uint64_t);
-		msg_body = malloc(msg_size, M_DEVBUF, M_NOWAIT | M_ZERO);
-		KASSERT(
-		    msg_body != NULL,
-		    ("Error VMBUS: malloc failed to allocate Gpadl msg_body!"));
-		if (msg_body == NULL)
-		    return (ENOMEM);
-
-		msg_body->message_size = msg_size;
-		(*message_count)++;
-		gpadl_body =
-		    (hv_vmbus_channel_gpadl_body*) msg_body->msg;
-		/*
-		 * gpadl_body->gpadl = kbuffer;
-		 */
-		for (i = 0; i < pfnCurr; i++) {
-		    gpadl_body->pfn[i] = pfn + pfnSum + i;
-		}
-
-		TAILQ_INSERT_TAIL(
-		    &msg_header->sub_msg_list_anchor,
-		    msg_body,
-		    msg_list_entry);
-		pfnSum += pfnCurr;
-		pfnLeft -= pfnCurr;
-	    }
-	} else { /* else everything fits in a header */
-
-	    msg_size = sizeof(hv_vmbus_channel_msg_info) +
-		sizeof(hv_vmbus_channel_gpadl_header) +
-		sizeof(hv_gpa_range) +
-		page_count * sizeof(uint64_t);
-	    msg_header = malloc(msg_size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	    KASSERT(
-		msg_header != NULL,
-		("Error VMBUS: malloc failed to allocate Gpadl Message!"));
-	    if (msg_header == NULL)
-		return (ENOMEM);
-
-	    msg_header->message_size = msg_size;
-
-	    gpa_header = (hv_vmbus_channel_gpadl_header*) msg_header->msg;
-	    gpa_header->range_count = 1;
-	    gpa_header->range_buf_len = sizeof(hv_gpa_range) +
-		page_count * sizeof(uint64_t);
-	    gpa_header->range[0].byte_offset = 0;
-	    gpa_header->range[0].byte_count = size;
-	    for (i = 0; i < page_count; i++) {
-		gpa_header->range[0].pfn_array[i] = pfn + i;
-	    }
-
-	    *msg_info = msg_header;
-	    *message_count = 1;
-	}
-
-	return (0);
-}
-
-/**
  * @brief Establish a GPADL for the specified buffer
  */
 int
-hv_vmbus_channel_establish_gpadl(
-	hv_vmbus_channel*	channel,
-	void*			contig_buffer,
-	uint32_t		size, /* page-size multiple */
-	uint32_t*		gpadl_handle)
-
+hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
+    void *contig_buffer, uint32_t size, uint32_t *gpadl0)
 {
-	int ret = 0;
-	hv_vmbus_channel_gpadl_header*	gpadl_msg;
-	hv_vmbus_channel_gpadl_body*	gpadl_body;
-	hv_vmbus_channel_msg_info*	msg_info;
-	hv_vmbus_channel_msg_info*	sub_msg_info;
-	uint32_t			msg_count;
-	hv_vmbus_channel_msg_info*	curr;
-	uint32_t			next_gpadl_handle;
+	struct vmbus_softc *sc = channel->vmbus_sc;
+	struct vmbus_msghc *mh;
+	struct vmbus_chanmsg_gpadl_conn *req;
+	const struct vmbus_message *msg;
+	size_t reqsz;
+	uint32_t gpadl, status;
+	int page_count, range_len, i, cnt, error;
+	uint64_t page_id, paddr;
 
-	next_gpadl_handle = atomic_fetchadd_int(
+	/*
+	 * Preliminary checks.
+	 */
+
+	KASSERT((size & PAGE_MASK) == 0,
+	    ("invalid GPA size %u, not multiple page size", size));
+	page_count = size >> PAGE_SHIFT;
+
+	paddr = hv_get_phys_addr(contig_buffer);
+	KASSERT((paddr & PAGE_MASK) == 0,
+	    ("GPA is not page aligned %jx", (uintmax_t)paddr));
+	page_id = paddr >> PAGE_SHIFT;
+
+	range_len = __offsetof(struct vmbus_gpa_range, gpa_page[page_count]);
+	/*
+	 * We don't support multiple GPA ranges.
+	 */
+	if (range_len > UINT16_MAX) {
+		device_printf(sc->vmbus_dev, "GPA too large, %d pages\n",
+		    page_count);
+		return EOPNOTSUPP;
+	}
+
+	/*
+	 * Allocate GPADL id.
+	 */
+	gpadl = atomic_fetchadd_int(
 	    &hv_vmbus_g_connection.next_gpadl_handle, 1);
+	*gpadl0 = gpadl;
 
-	ret = vmbus_channel_create_gpadl_header(
-		contig_buffer, size, &msg_info, &msg_count);
+	/*
+	 * Connect this GPADL to the target channel.
+	 *
+	 * NOTE:
+	 * Since each message can only hold small set of page
+	 * addresses, several messages may be required to
+	 * complete the connection.
+	 */
+	if (page_count > VMBUS_CHANMSG_GPADL_CONN_PGMAX)
+		cnt = VMBUS_CHANMSG_GPADL_CONN_PGMAX;
+	else
+		cnt = page_count;
+	page_count -= cnt;
 
-	if(ret != 0) {
-		/*
-		 * XXX
-		 * We can _not_ even revert the above incremental,
-		 * if multiple GPADL establishments are running
-		 * parallelly, decrement the global next_gpadl_handle
-		 * is calling for _big_ trouble.  A better solution
-		 * is to have a 0-based GPADL id bitmap ...
-		 */
-		return ret;
+	reqsz = __offsetof(struct vmbus_chanmsg_gpadl_conn,
+	    chm_range.gpa_page[cnt]);
+	mh = vmbus_msghc_get(sc, reqsz);
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for gpadl->chan%u\n",
+		    channel->offer_msg.child_rel_id);
+		return EIO;
 	}
 
-	sema_init(&msg_info->wait_sema, 0, "Open Info Sema");
-	gpadl_msg = (hv_vmbus_channel_gpadl_header*) msg_info->msg;
-	gpadl_msg->header.message_type = HV_CHANNEL_MESSAGEL_GPADL_HEADER;
-	gpadl_msg->child_rel_id = channel->offer_msg.child_rel_id;
-	gpadl_msg->gpadl = next_gpadl_handle;
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_GPADL_CONN;
+	req->chm_chanid = channel->offer_msg.child_rel_id;
+	req->chm_gpadl = gpadl;
+	req->chm_range_len = range_len;
+	req->chm_range_cnt = 1;
+	req->chm_range.gpa_len = size;
+	req->chm_range.gpa_ofs = 0;
+	for (i = 0; i < cnt; ++i)
+		req->chm_range.gpa_page[i] = page_id++;
 
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_INSERT_TAIL(
-		&hv_vmbus_g_connection.channel_msg_anchor,
-		msg_info,
-		msg_list_entry);
-
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-
-	ret = hv_vmbus_post_message(
-		gpadl_msg,
-		msg_info->message_size -
-		    (uint32_t) sizeof(hv_vmbus_channel_msg_info));
-
-	if (ret != 0)
-	    goto cleanup;
-
-	if (msg_count > 1) {
-	    TAILQ_FOREACH(curr,
-		    &msg_info->sub_msg_list_anchor, msg_list_entry) {
-		sub_msg_info = curr;
-		gpadl_body =
-		    (hv_vmbus_channel_gpadl_body*) sub_msg_info->msg;
-
-		gpadl_body->header.message_type =
-		    HV_CHANNEL_MESSAGE_GPADL_BODY;
-		gpadl_body->gpadl = next_gpadl_handle;
-
-		ret = hv_vmbus_post_message(
-			gpadl_body,
-			sub_msg_info->message_size
-			    - (uint32_t) sizeof(hv_vmbus_channel_msg_info));
-		 /* if (the post message failed) give up and clean up */
-		if(ret != 0)
-		    goto cleanup;
-	    }
+	error = vmbus_msghc_exec(sc, mh);
+	if (error) {
+		device_printf(sc->vmbus_dev,
+		    "gpadl->chan%u msg hypercall exec failed: %d\n",
+		    channel->offer_msg.child_rel_id, error);
+		vmbus_msghc_put(sc, mh);
+		return error;
 	}
 
-	ret = sema_timedwait(&msg_info->wait_sema, 5 * hz); /* KYS 5 seconds*/
-	if (ret != 0)
-	    goto cleanup;
+	while (page_count > 0) {
+		struct vmbus_chanmsg_gpadl_subconn *subreq;
 
-	*gpadl_handle = gpadl_msg->gpadl;
+		if (page_count > VMBUS_CHANMSG_GPADL_SUBCONN_PGMAX)
+			cnt = VMBUS_CHANMSG_GPADL_SUBCONN_PGMAX;
+		else
+			cnt = page_count;
+		page_count -= cnt;
 
-cleanup:
+		reqsz = __offsetof(struct vmbus_chanmsg_gpadl_subconn,
+		    chm_gpa_page[cnt]);
+		vmbus_msghc_reset(mh, reqsz);
 
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_REMOVE(&hv_vmbus_g_connection.channel_msg_anchor,
-		msg_info, msg_list_entry);
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
+		subreq = vmbus_msghc_dataptr(mh);
+		subreq->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_GPADL_SUBCONN;
+		subreq->chm_gpadl = gpadl;
+		for (i = 0; i < cnt; ++i)
+			subreq->chm_gpa_page[i] = page_id++;
 
-	sema_destroy(&msg_info->wait_sema);
-	free(msg_info, M_DEVBUF);
+		vmbus_msghc_exec_noresult(mh);
+	}
+	KASSERT(page_count == 0, ("invalid page count %d", page_count));
 
-	return (ret);
+	msg = vmbus_msghc_wait_result(sc, mh);
+	status = ((const struct vmbus_chanmsg_gpadl_connresp *)
+	    msg->msg_data)->chm_status;
+
+	vmbus_msghc_put(sc, mh);
+
+	if (status != 0) {
+		device_printf(sc->vmbus_dev, "gpadl->chan%u failed: "
+		    "status %u\n", channel->offer_msg.child_rel_id, status);
+		return EIO;
+	}
+	return 0;
 }
 
 /**

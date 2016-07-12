@@ -438,39 +438,7 @@ static void
 vmbus_channel_on_gpadl_created(struct vmbus_softc *sc,
     const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_msg_header *hdr =
-	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
-
-	const hv_vmbus_channel_gpadl_created *gpadl_created;
-	hv_vmbus_channel_msg_info*		msg_info;
-	hv_vmbus_channel_msg_header*		request_header;
-	hv_vmbus_channel_gpadl_header*		gpadl_header;
-
-	gpadl_created = (const hv_vmbus_channel_gpadl_created *)hdr;
-
-	/* Find the establish msg, copy the result and signal/unblock
-	 * the wait event
-	 */
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
-		msg_list_entry) {
-	    request_header = (hv_vmbus_channel_msg_header*) msg_info->msg;
-	    if (request_header->message_type ==
-		    HV_CHANNEL_MESSAGEL_GPADL_HEADER) {
-		gpadl_header =
-		    (hv_vmbus_channel_gpadl_header*) request_header;
-
-		if ((gpadl_created->child_rel_id == gpadl_header->child_rel_id)
-		    && (gpadl_created->gpadl == gpadl_header->gpadl)) {
-		    memcpy(&msg_info->response.gpadl_created,
-			gpadl_created,
-			sizeof(hv_vmbus_channel_gpadl_created));
-		    sema_post(&msg_info->wait_sema);
-		    break;
-		}
-	    }
-	}
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
+	vmbus_msghc_wakeup(sc, msg);
 }
 
 /**
