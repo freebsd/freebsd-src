@@ -97,20 +97,6 @@ typedef struct hv_vmbus_channel_packet_multipage_buffer {
 	hv_vmbus_multipage_buffer	range;
 } __packed hv_vmbus_channel_packet_multipage_buffer;
 
-/*
- * VM Bus connection states
- */
-typedef enum {
-	HV_DISCONNECTED,
-	HV_CONNECTING,
-	HV_CONNECTED,
-	HV_DISCONNECTING
-} hv_vmbus_connect_state;
-
-typedef struct {
-	hv_vmbus_connect_state			connect_state;
-} hv_vmbus_connection;
-
 typedef union {
 	uint32_t as_uint32_t;
 	struct {
@@ -171,12 +157,6 @@ typedef struct {
 
 	uint8_t				rsvd_z4[1984];
 } hv_vmbus_monitor_page;
-
-/**
- * Global variables
- */
-
-extern hv_vmbus_connection	hv_vmbus_g_connection;
 
 /*
  * Private, VM Bus functions
@@ -241,11 +221,5 @@ void			hv_vmbus_child_device_register(struct vmbus_softc *,
 					struct hv_device *child_dev);
 int			hv_vmbus_child_device_unregister(
 					struct hv_device *child_dev);
-
-/**
- * Connection interfaces
- */
-int			hv_vmbus_connect(struct vmbus_softc *);
-int			hv_vmbus_disconnect(void);
 
 #endif  /* __HYPERV_PRIV_H__ */
