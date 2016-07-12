@@ -90,10 +90,9 @@ struct vmbus_msghc_ctx {
 #define VMBUS_MSGHC_CTXF_DESTROY	0x0001
 
 static int			vmbus_init(struct vmbus_softc *);
-static int			vmbus_init_contact(struct vmbus_softc *,
-				    uint32_t);
+static int			vmbus_connect(struct vmbus_softc *, uint32_t);
 static int			vmbus_req_channels(struct vmbus_softc *sc);
-static void			vmbus_uninit(struct vmbus_softc *);
+static void			vmbus_disconnect(struct vmbus_softc *);
 static int			vmbus_scan(struct vmbus_softc *);
 static void			vmbus_scan_wait(struct vmbus_softc *);
 static void			vmbus_scan_newdev(struct vmbus_softc *);
@@ -373,20 +372,19 @@ vmbus_msghc_wakeup(struct vmbus_softc *sc, const struct vmbus_message *msg)
 }
 
 static int
-vmbus_init_contact(struct vmbus_softc *sc, uint32_t version)
+vmbus_connect(struct vmbus_softc *sc, uint32_t version)
 {
-	struct vmbus_chanmsg_init_contact *req;
-	const struct vmbus_chanmsg_version_resp *resp;
+	struct vmbus_chanmsg_connect *req;
 	const struct vmbus_message *msg;
 	struct vmbus_msghc *mh;
-	int error, supp = 0;
+	int error, done = 0;
 
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL)
 		return ENXIO;
 
 	req = vmbus_msghc_dataptr(mh);
-	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_INIT_CONTACT;
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CONNECT;
 	req->chm_ver = version;
 	req->chm_evtflags = sc->vmbus_evtflags_dma.hv_paddr;
 	req->chm_mnf1 = sc->vmbus_mnf1_dma.hv_paddr;
@@ -399,12 +397,12 @@ vmbus_init_contact(struct vmbus_softc *sc, uint32_t version)
 	}
 
 	msg = vmbus_msghc_wait_result(sc, mh);
-	resp = (const struct vmbus_chanmsg_version_resp *)msg->msg_data;
-	supp = resp->chm_supp;
+	done = ((const struct vmbus_chanmsg_connect_resp *)
+	    msg->msg_data)->chm_done;
 
 	vmbus_msghc_put(sc, mh);
 
-	return (supp ? 0 : EOPNOTSUPP);
+	return (done ? 0 : EOPNOTSUPP);
 }
 
 static int
@@ -415,7 +413,7 @@ vmbus_init(struct vmbus_softc *sc)
 	for (i = 0; i < nitems(vmbus_version); ++i) {
 		int error;
 
-		error = vmbus_init_contact(sc, vmbus_version[i]);
+		error = vmbus_connect(sc, vmbus_version[i]);
 		if (!error) {
 			hv_vmbus_protocal_version = vmbus_version[i];
 			device_printf(sc->vmbus_dev, "version %u.%u\n",
@@ -428,35 +426,35 @@ vmbus_init(struct vmbus_softc *sc)
 }
 
 static void
-vmbus_uninit(struct vmbus_softc *sc)
+vmbus_disconnect(struct vmbus_softc *sc)
 {
-	struct vmbus_chanmsg_unload *req;
+	struct vmbus_chanmsg_disconnect *req;
 	struct vmbus_msghc *mh;
 	int error;
 
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
-		    "can not get msg hypercall for unload\n");
+		    "can not get msg hypercall for disconnect\n");
 		return;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
-	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_UNLOAD;
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_DISCONNECT;
 
 	error = vmbus_msghc_exec_noresult(mh);
 	vmbus_msghc_put(sc, mh);
 
 	if (error) {
 		device_printf(sc->vmbus_dev,
-		    "unload msg hypercall failed\n");
+		    "disconnect msg hypercall failed\n");
 	}
 }
 
 static int
 vmbus_req_channels(struct vmbus_softc *sc)
 {
-	struct vmbus_chanmsg_channel_req *req;
+	struct vmbus_chanmsg_chrequest *req;
 	struct vmbus_msghc *mh;
 	int error;
 
@@ -465,7 +463,7 @@ vmbus_req_channels(struct vmbus_softc *sc)
 		return ENXIO;
 
 	req = vmbus_msghc_dataptr(mh);
-	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHANNEL_REQ;
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHREQUEST;
 
 	error = vmbus_msghc_exec_noresult(mh);
 	vmbus_msghc_put(sc, mh);
@@ -1247,7 +1245,7 @@ vmbus_detach(device_t dev)
 
 	hv_vmbus_release_unattached_channels();
 
-	vmbus_uninit(sc);
+	vmbus_disconnect(sc);
 	hv_vmbus_disconnect();
 
 	if (sc->vmbus_flags & VMBUS_FLAG_SYNIC) {
