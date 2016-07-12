@@ -49,6 +49,7 @@
 #include <sys/smp.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -627,6 +628,8 @@ typedef struct hv_vmbus_channel {
 
 	struct task			ch_detach_task;
 	TAILQ_ENTRY(hv_vmbus_channel)	ch_link;
+
+	struct sysctl_ctx_list		ch_sysctl_ctx;
 } hv_vmbus_channel;
 
 #define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)
