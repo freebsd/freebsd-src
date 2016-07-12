@@ -266,7 +266,7 @@ endloop:
 		 */
 		s2.str = argv[1];
 		s2.state = NORMAL;
-		for (cnt = 0; cnt <= (wint_t)WCHAR_MAX; cnt++) {
+		for (cnt = 0; cnt <= WINT_MAX; cnt++) {
 			if (Cflag && !iswrune(cnt))
 				continue;
 			if (cmap_lookup(map, cnt) == OOBCH) {
