@@ -67,9 +67,6 @@ hv_vmbus_connect(struct vmbus_softc *sc)
 	 */
 	hv_vmbus_g_connection.connect_state = HV_CONNECTING;
 
-	hv_vmbus_g_connection.channels = malloc(sizeof(hv_vmbus_channel*) *
-	    VMBUS_CHAN_MAX, M_DEVBUF, M_WAITOK | M_ZERO);
-
 	hv_vmbus_g_connection.connect_state = HV_CONNECTED;
 
 	return (0);
@@ -82,14 +79,14 @@ int
 hv_vmbus_disconnect(void)
 {
 
-	free(hv_vmbus_g_connection.channels, M_DEVBUF);
 	hv_vmbus_g_connection.connect_state = HV_DISCONNECTED;
 
 	return (0);
 }
 
 static __inline void
-vmbus_event_flags_proc(volatile u_long *event_flags, int flag_cnt)
+vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
+    int flag_cnt)
 {
 	int f;
 
@@ -112,7 +109,7 @@ vmbus_event_flags_proc(volatile u_long *event_flags, int flag_cnt)
 			flags &= ~(1UL << bit);
 
 			rel_id = rel_id_base + bit;
-			channel = hv_vmbus_g_connection.channels[rel_id];
+			channel = sc->vmbus_chmap[rel_id];
 
 			/* if channel is closed or closing */
 			if (channel == NULL || channel->rxq == NULL)
@@ -135,7 +132,7 @@ vmbus_event_proc(struct vmbus_softc *sc, int cpu)
 	 * to get the id of the channel that has the pending interrupt.
 	 */
 	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
-	vmbus_event_flags_proc(eventf->evt_flags,
+	vmbus_event_flags_proc(sc, eventf->evt_flags,
 	    VMBUS_PCPU_GET(sc, event_flags_cnt, cpu));
 }
 
@@ -146,7 +143,7 @@ vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
 
 	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
 	if (atomic_testandclear_long(&eventf->evt_flags[0], 0)) {
-		vmbus_event_flags_proc(sc->vmbus_rx_evtflags,
+		vmbus_event_flags_proc(sc, sc->vmbus_rx_evtflags,
 		    VMBUS_CHAN_MAX_COMPAT >> VMBUS_EVTFLAG_SHIFT);
 	}
 }

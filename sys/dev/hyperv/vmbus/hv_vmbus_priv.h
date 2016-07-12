@@ -109,11 +109,6 @@ typedef enum {
 
 typedef struct {
 	hv_vmbus_connect_state			connect_state;
-
-	/**
-	 * channel table for fast lookup through id.
-	*/
-	hv_vmbus_channel                        **channels;
 } hv_vmbus_connection;
 
 typedef union {
