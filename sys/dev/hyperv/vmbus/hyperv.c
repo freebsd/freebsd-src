@@ -125,6 +125,13 @@ hypercall_post_message(bus_addr_t msg_paddr)
 	    HYPERCALL_POST_MESSAGE, msg_paddr, 0);
 }
 
+uint64_t
+hypercall_signal_event(bus_addr_t sigevt_paddr)
+{
+	return hypercall_md(hypercall_context.hc_addr,
+	    HYPERCALL_SIGNAL_EVENT, sigevt_paddr, 0);
+}
+
 /**
  * @brief Signal an event on the specified connection using the hypervisor
  * event IPC. (This involves a hypercall.)

@@ -46,6 +46,12 @@
  */
 #define VMBUS_SINT_TIMER	4
 
+/*
+ * NOTE: DO NOT CHANGE THESE
+ */
+#define VMBUS_CONNID_MESSAGE		1
+#define VMBUS_CONNID_EVENT		2
+
 struct vmbus_pcpu_data {
 	u_long			*intr_cnt;	/* Hyper-V interrupt counter */
 	struct vmbus_message	*message;	/* shared messages */

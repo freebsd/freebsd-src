@@ -55,6 +55,7 @@
 
 #include <amd64/include/xen/synch_bitops.h>
 #include <amd64/include/atomic.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
 
 typedef uint8_t	hv_bool_uint8_t;
 
@@ -528,20 +529,6 @@ typedef union {
 
 } __packed hv_vmbus_connection_id;
 
-/*
- * Definition of the hv_vmbus_signal_event hypercall input structure
- */
-typedef struct {
-	hv_vmbus_connection_id	connection_id;
-	uint16_t		flag_number;
-	uint16_t		rsvd_z;
-} __packed hv_vmbus_input_signal_event;
-
-typedef struct {
-	uint64_t			align8;
-	hv_vmbus_input_signal_event	event;
-} __packed hv_vmbus_input_signal_event_buffer;
-
 typedef struct hv_vmbus_channel {
 	TAILQ_ENTRY(hv_vmbus_channel)	list_entry;
 	struct hv_device*		device;
@@ -589,14 +576,8 @@ typedef struct hv_vmbus_channel {
 
 	boolean_t			is_dedicated_interrupt;
 
-	/*
-	 * Used as an input param for HV_CALL_SIGNAL_EVENT hypercall.
-	 */
-	hv_vmbus_input_signal_event_buffer	signal_event_buffer;
-	/*
-	 * 8-bytes aligned of the buffer above
-	 */
-	hv_vmbus_input_signal_event	*signal_event_param;
+	struct hypercall_sigevt_in	*ch_sigevt;
+	struct hyperv_dma		ch_sigevt_dma;
 
 	/*
 	 * From Win8, this field specifies the target virtual process

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
@@ -72,7 +73,7 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 			(uint32_t *)&monitor_page->
 				trigger_group[channel->monitor_group].u.pending);
 	} else {
-		hv_vmbus_set_event(channel);
+		hypercall_signal_event(channel->ch_sigevt_dma.hv_paddr);
 	}
 
 }

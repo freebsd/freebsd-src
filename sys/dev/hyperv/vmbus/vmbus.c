@@ -69,12 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
 
-/*
- * NOTE: DO NOT CHANGE THESE
- */
-#define VMBUS_CONNID_MESSAGE		1
-#define VMBUS_CONNID_EVENT		2
-
 struct vmbus_msghc {
 	struct hypercall_postmsg_in	*mh_inprm;
 	struct hypercall_postmsg_in	mh_inprm_save;

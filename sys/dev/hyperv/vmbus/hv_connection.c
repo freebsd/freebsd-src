@@ -158,16 +158,6 @@ vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
 	}
 }
 
-/**
- * Send an event notification to the parent
- */
-int
-hv_vmbus_set_event(hv_vmbus_channel *channel)
-{
-
-	return hv_vmbus_signal_event(channel->signal_event_param);
-}
-
 void
 vmbus_on_channel_open(const struct hv_vmbus_channel *chan)
 {

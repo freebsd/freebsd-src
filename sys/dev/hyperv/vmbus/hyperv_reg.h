@@ -148,6 +148,7 @@
  * Hypercall input values
  */
 #define HYPERCALL_POST_MESSAGE		0x005c
+#define HYPERCALL_SIGNAL_EVENT		0x005d
 
 /*
  * Hypercall input parameters
@@ -168,5 +169,16 @@ struct hypercall_postmsg_in {
 	uint8_t		hc_data[HYPERCALL_POSTMSGIN_DSIZE_MAX];
 } __packed;
 CTASSERT(sizeof(struct hypercall_postmsg_in) == HYPERCALL_POSTMSGIN_SIZE);
+
+/*
+ * HYPERCALL_SIGNAL_EVENT
+ */
+#define HYPERCALL_SIGEVTIN_ALIGN	8
+
+struct hypercall_sigevt_in {
+	uint32_t	hc_connid;
+	uint16_t	hc_evtflag_ofs;
+	uint16_t	hc_rsvd;
+} __packed;
 
 #endif	/* !_HYPERV_REG_H_ */

@@ -363,6 +363,5 @@ int			hv_vmbus_child_device_unregister(
  */
 int			hv_vmbus_connect(struct vmbus_softc *);
 int			hv_vmbus_disconnect(void);
-int			hv_vmbus_set_event(hv_vmbus_channel *channel);
 
 #endif  /* __HYPERV_PRIV_H__ */
