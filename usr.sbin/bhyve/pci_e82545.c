@@ -2040,6 +2040,7 @@ e82545_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 			DPRINTF("Unknown io bar write offset:0x%lx value:0x%lx size:%d\r\n", offset, value, size);
 			break;
 		}
+		break;
 	case E82545_BAR_REGISTER:
 		if (size != 4) {
 			DPRINTF("Wrong register write size:%d offset:0x%lx value:0x%lx\r\n", size, offset, value);
@@ -2092,6 +2093,7 @@ e82545_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 				offset, size);
 			break;
 		}
+		break;
 	case E82545_BAR_REGISTER:
 		if (size != 4) {
 			DPRINTF("Wrong register read size:%d offset:0x%lx\r\n",
