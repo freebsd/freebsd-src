@@ -1975,38 +1975,6 @@ out:
 }
 
 static int
-sysctl_handle_error(SYSCTL_HANDLER_ARGS)
-{
-	struct ioat_descriptor *desc;
-	struct ioat_softc *ioat;
-	int error, arg;
-
-	ioat = arg1;
-
-	arg = 0;
-	error = SYSCTL_OUT(req, &arg, sizeof(arg));
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-
-	error = SYSCTL_IN(req, &arg, sizeof(arg));
-	if (error != 0)
-		return (error);
-
-	if (arg != 0) {
-		ioat_acquire(&ioat->dmaengine);
-		desc = ioat_op_generic(ioat, IOAT_OP_COPY, 1,
-		    0xffff000000000000ull, 0xffff000000000000ull, NULL, NULL,
-		    0);
-		if (desc == NULL)
-			error = ENOMEM;
-		else
-			ioat_submit_single(ioat);
-		ioat_release(&ioat->dmaengine);
-	}
-	return (error);
-}
-
-static int
 sysctl_handle_reset(SYSCTL_HANDLER_ARGS)
 {
 	struct ioat_softc *ioat;
@@ -2107,9 +2075,6 @@ ioat_setup_sysctl(device_t device)
 	SYSCTL_ADD_PROC(ctx, hammer, OID_AUTO, "force_hw_reset",
 	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_reset, "I",
 	    "Set to non-zero to reset the hardware");
-	SYSCTL_ADD_PROC(ctx, hammer, OID_AUTO, "force_hw_error",
-	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_error, "I",
-	    "Set to non-zero to inject a recoverable hardware error");
 
 	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "stats", CTLFLAG_RD, NULL,
 	    "IOAT channel statistics");
