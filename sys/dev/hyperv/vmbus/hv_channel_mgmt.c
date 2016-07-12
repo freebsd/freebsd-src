@@ -46,17 +46,9 @@ static void	vmbus_chan_detach_task(void *, int);
 
 static void	vmbus_channel_on_offer(struct vmbus_softc *,
 		    const struct vmbus_message *);
-static void	vmbus_channel_on_open_result(struct vmbus_softc *,
-		    const struct vmbus_message *);
 static void	vmbus_channel_on_offer_rescind(struct vmbus_softc *,
 		    const struct vmbus_message *);
-static void	vmbus_channel_on_gpadl_created(struct vmbus_softc *,
-		    const struct vmbus_message *);
-static void	vmbus_channel_on_gpadl_torndown(struct vmbus_softc *,
-		    const struct vmbus_message *);
 static void	vmbus_channel_on_offers_delivered(struct vmbus_softc *,
-		    const struct vmbus_message *);
-static void	vmbus_channel_on_version_response(struct vmbus_softc *,
 		    const struct vmbus_message *);
 
 /**
@@ -71,13 +63,13 @@ vmbus_chanmsg_process[HV_CHANNEL_MESSAGE_COUNT] = {
 	[HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED] =
 		vmbus_channel_on_offers_delivered,
 	[HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT] =
-		vmbus_channel_on_open_result,
+		vmbus_msghc_wakeup,
 	[HV_CHANNEL_MESSAGE_GPADL_CREATED] =
-		vmbus_channel_on_gpadl_created,
+		vmbus_msghc_wakeup,
 	[HV_CHANNEL_MESSAGE_GPADL_TORNDOWN] =
-		vmbus_channel_on_gpadl_torndown,
+		vmbus_msghc_wakeup,
 	[HV_CHANNEL_MESSAGE_VERSION_RESPONSE] =
-		vmbus_channel_on_version_response
+		vmbus_msghc_wakeup
 };
 
 /**
@@ -412,54 +404,6 @@ vmbus_channel_on_offers_delivered(struct vmbus_softc *sc,
 
 	/* No more new channels for the channel request. */
 	vmbus_scan_done(sc);
-}
-
-/**
- * @brief Open result handler.
- *
- * This is invoked when we received a response
- * to our channel open request.
- */
-static void
-vmbus_channel_on_open_result(struct vmbus_softc *sc,
-    const struct vmbus_message *msg)
-{
-	vmbus_msghc_wakeup(sc, msg);
-}
-
-/**
- * @brief GPADL created handler.
- *
- * This is invoked when we received a response
- * to our gpadl create request. Find the matching request, copy the
- * response and signal the requesting thread.
- */
-static void
-vmbus_channel_on_gpadl_created(struct vmbus_softc *sc,
-    const struct vmbus_message *msg)
-{
-	vmbus_msghc_wakeup(sc, msg);
-}
-
-/**
- * @brief GPADL torndown handler.
- *
- * This is invoked when we received a respons
- * to our gpadl teardown request. Find the matching request, copy the
- * response and signal the requesting thread
- */
-static void
-vmbus_channel_on_gpadl_torndown(struct vmbus_softc *sc,
-    const struct vmbus_message *msg)
-{
-	vmbus_msghc_wakeup(sc, msg);
-}
-
-static void
-vmbus_channel_on_version_response(struct vmbus_softc *sc,
-    const struct vmbus_message *msg)
-{
-	vmbus_msghc_wakeup(sc, msg);
 }
 
 /**
