@@ -737,6 +737,63 @@ spa_get_primary_vdev(const spa_t *spa)
 		vdev = kid;
 	return (vdev);
 }
+
+static spa_t *
+spa_get_ask_user(void)
+{
+	spa_t *spa;
+	unsigned int idx;
+	unsigned int maxIdx = 0;
+
+	STAILQ_FOREACH(spa, &zfs_pools, spa_link) {
+		printf( "pool %d: %s\n", maxIdx++, spa->spa_name );
+	}
+	// maxIdx is now the total number of pools
+
+	if( maxIdx == 0 ) {
+		return NULL;
+	}
+
+	if( maxIdx == 1 ) {
+		return spa_get_primary();
+	}
+
+	--maxIdx;
+
+	const unsigned int MAX_IDX_LEN = 5;
+	char idxAsk[MAX_IDX_LEN];
+	for(idx=0;idx<MAX_IDX_LEN;++idx) {
+		idxAsk[idx] = '\0';
+	}
+
+	for(;;) {
+		printf( "Select pool to boot from (0 - %d): ", maxIdx );
+		getstr( idxAsk, MAX_IDX_LEN );
+		printf( "\n" );
+		int i, n=0, any=0;
+		idx = 0;
+		while ((unsigned int)(i = idxAsk[n++] - '0') <= 9) {
+			idx = idx*10 + i;
+			any = 1;
+		}
+		if( any == 1 ) {
+			// actual loop condition
+			if( idx >=0 && idx <= maxIdx ) {
+				break;
+			}
+		}
+	}
+
+	spa_t *selectedSpa;
+	STAILQ_FOREACH(spa, &zfs_pools, spa_link) {
+		if( idx-- == 0 ) {
+			selectedSpa = spa;
+		}
+	}
+
+
+	return selectedSpa;
+}
 #endif
 
 static spa_t *

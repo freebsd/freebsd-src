@@ -624,7 +624,7 @@ main(void)
     /*
      * The first discovered pool, if any, is the pool.
      */
-    spa = spa_get_primary();
+    spa = spa_get_ask_user();
     if (!spa) {
 	printf("%s: No ZFS pools located, can't boot\n", BOOTPROG);
 	for (;;)
