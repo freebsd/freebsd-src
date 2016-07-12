@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright 2015, OmniTI Computer Consulting, Inc. All rights reserved.
  */
 
@@ -1214,10 +1214,15 @@ zfsctl_snapshot_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 
 	mutex_enter(&sdp->sd_lock);
 
+	mutex_enter(&vp->v_lock);
 	if (vp->v_count > 1) {
+		vp->v_count--;
+		mutex_exit(&vp->v_lock);
 		mutex_exit(&sdp->sd_lock);
+		VN_RELE(dvp);
 		return;
 	}
+	mutex_exit(&vp->v_lock);
 	ASSERT(!vn_ismntpt(vp));
 
 	sep = avl_first(&sdp->sd_snaps);
