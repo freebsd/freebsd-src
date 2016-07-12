@@ -22,17 +22,17 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 #ifndef	_LIBZFS_IMPL_H
 #define	_LIBZFS_IMPL_H
 
-#include <sys/dmu.h>
 #include <sys/fs/zfs.h>
-#include <sys/zfs_ioctl.h>
 #include <sys/spa.h>
 #include <sys/nvpair.h>
+#include <sys/dmu.h>
+#include <sys/zfs_ioctl.h>
 
 #include <libuutil.h>
 #include <libzfs.h>
@@ -87,7 +87,7 @@ struct libzfs_handle {
 struct zfs_handle {
 	libzfs_handle_t *zfs_hdl;
 	zpool_handle_t *zpool_hdl;
-	char zfs_name[ZFS_MAXNAMELEN];
+	char zfs_name[ZFS_MAX_DATASET_NAME_LEN];
 	zfs_type_t zfs_type; /* type including snapshot */
 	zfs_type_t zfs_head_type; /* type excluding snapshot */
 	dmu_objset_stats_t zfs_dmustats;
@@ -108,7 +108,7 @@ struct zfs_handle {
 struct zpool_handle {
 	libzfs_handle_t *zpool_hdl;
 	zpool_handle_t *zpool_next;
-	char zpool_name[ZPOOL_MAXNAMELEN];
+	char zpool_name[ZFS_MAX_DATASET_NAME_LEN];
 	int zpool_state;
 	size_t zpool_config_size;
 	nvlist_t *zpool_config;
