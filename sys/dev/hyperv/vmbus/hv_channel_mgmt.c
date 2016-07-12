@@ -452,42 +452,7 @@ static void
 vmbus_channel_on_gpadl_torndown(struct vmbus_softc *sc,
     const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_msg_header *hdr =
-	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
-
-	const hv_vmbus_channel_gpadl_torndown *gpadl_torndown;
-	hv_vmbus_channel_msg_info*		msg_info;
-	hv_vmbus_channel_msg_header*		requestHeader;
-	hv_vmbus_channel_gpadl_teardown*	gpadlTeardown;
-
-	gpadl_torndown = (const hv_vmbus_channel_gpadl_torndown *)hdr;
-
-	/*
-	 * Find the open msg, copy the result and signal/unblock the
-	 * wait event.
-	 */
-
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-
-	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
-		msg_list_entry) {
-	    requestHeader = (hv_vmbus_channel_msg_header*) msg_info->msg;
-
-	    if (requestHeader->message_type
-		    == HV_CHANNEL_MESSAGE_GPADL_TEARDOWN) {
-		gpadlTeardown =
-		    (hv_vmbus_channel_gpadl_teardown*) requestHeader;
-
-		if (gpadl_torndown->gpadl == gpadlTeardown->gpadl) {
-		    memcpy(&msg_info->response.gpadl_torndown,
-			gpadl_torndown,
-			sizeof(hv_vmbus_channel_gpadl_torndown));
-		    sema_post(&msg_info->wait_sema);
-		    break;
-		}
-	    }
-	}
-    mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
+	vmbus_msghc_wakeup(sc, msg);
 }
 
 static void
