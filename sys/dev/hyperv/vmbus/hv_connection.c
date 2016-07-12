@@ -67,10 +67,6 @@ hv_vmbus_connect(struct vmbus_softc *sc)
 	 */
 	hv_vmbus_g_connection.connect_state = HV_CONNECTING;
 
-	TAILQ_INIT(&hv_vmbus_g_connection.channel_anchor);
-	mtx_init(&hv_vmbus_g_connection.channel_lock, "vmbus channel",
-		NULL, MTX_DEF);
-
 	hv_vmbus_g_connection.channels = malloc(sizeof(hv_vmbus_channel*) *
 	    VMBUS_CHAN_MAX, M_DEVBUF, M_WAITOK | M_ZERO);
 

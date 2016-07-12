@@ -533,7 +533,6 @@ typedef union {
 } __packed hv_vmbus_connection_id;
 
 typedef struct hv_vmbus_channel {
-	TAILQ_ENTRY(hv_vmbus_channel)	list_entry;
 	struct hv_device*		device;
 	struct vmbus_softc		*vmbus_sc;
 	hv_vmbus_channel_state		state;
@@ -627,6 +626,7 @@ typedef struct hv_vmbus_channel {
 	void				*hv_chan_priv3;
 
 	struct task			ch_detach_task;
+	TAILQ_ENTRY(hv_vmbus_channel)	ch_link;
 } hv_vmbus_channel;
 
 #define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)

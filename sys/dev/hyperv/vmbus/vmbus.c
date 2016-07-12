@@ -1130,6 +1130,8 @@ vmbus_doattach(struct vmbus_softc *sc)
 
 	mtx_init(&sc->vmbus_scan_lock, "vmbus scan", NULL, MTX_DEF);
 	sc->vmbus_gpadl = VMBUS_GPADL_START;
+	mtx_init(&sc->vmbus_chlist_lock, "vmbus chlist", NULL, MTX_DEF);
+	TAILQ_INIT(&sc->vmbus_chlist);
 
 	/*
 	 * Create context for "post message" Hypercalls
@@ -1262,7 +1264,7 @@ vmbus_detach(device_t dev)
 {
 	struct vmbus_softc *sc = device_get_softc(dev);
 
-	hv_vmbus_release_unattached_channels();
+	hv_vmbus_release_unattached_channels(sc);
 
 	vmbus_disconnect(sc);
 	hv_vmbus_disconnect();

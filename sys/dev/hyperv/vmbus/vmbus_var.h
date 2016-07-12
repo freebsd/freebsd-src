@@ -100,6 +100,9 @@ struct vmbus_softc {
 	uint32_t		vmbus_scan_chcnt;
 #define VMBUS_SCAN_CHCNT_DONE	0x80000000
 	uint32_t		vmbus_scan_devcnt;
+
+	struct mtx		vmbus_chlist_lock;
+	TAILQ_HEAD(, hv_vmbus_channel) vmbus_chlist;
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
