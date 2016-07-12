@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 Pawel Jakub Dawidek. All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  */
@@ -136,7 +137,9 @@ zfs_callback(zfs_handle_t *zhp, void *data)
 			(void) zfs_iter_filesystems(zhp, zfs_callback, data);
 		if (((zfs_get_type(zhp) & (ZFS_TYPE_SNAPSHOT |
 		    ZFS_TYPE_BOOKMARK)) == 0) && include_snaps)
-			(void) zfs_iter_snapshots(zhp, zfs_callback, data);
+			(void) zfs_iter_snapshots(zhp,
+			    (cb->cb_flags & ZFS_ITER_SIMPLE) != 0, zfs_callback,
+			    data);
 		if (((zfs_get_type(zhp) & (ZFS_TYPE_SNAPSHOT |
 		    ZFS_TYPE_BOOKMARK)) == 0) && include_bmarks)
 			(void) zfs_iter_bookmarks(zhp, zfs_callback, data);
@@ -193,6 +196,14 @@ zfs_free_sort_columns(zfs_sort_column_t *sc)
 	}
 }
 
+boolean_t
+zfs_sort_only_by_name(const zfs_sort_column_t *sc)
+{
+
+	return (sc != NULL && sc->sc_next == NULL &&
+	    sc->sc_prop == ZFS_PROP_NAME);
+}
+
 /* ARGSUSED */
 static int
 zfs_compare(const void *larg, const void *rarg, void *unused)
@@ -233,7 +244,13 @@ zfs_compare(const void *larg, const void *rarg, void *unused)
 			lcreate = zfs_prop_get_int(l, ZFS_PROP_CREATETXG);
 			rcreate = zfs_prop_get_int(r, ZFS_PROP_CREATETXG);
 
-			if (lcreate < rcreate)
+			/*
+			 * Both lcreate and rcreate being 0 means we don't have
+			 * properties and we should compare full name.
+			 */
+			if (lcreate == 0 && rcreate == 0)
+				ret = strcmp(lat + 1, rat + 1);
+			else if (lcreate < rcreate)
 				ret = -1;
 			else if (lcreate > rcreate)
 				ret = 1;
@@ -299,7 +316,14 @@ zfs_sort(const void *larg, const void *rarg, void *data)
 			if (rvalid)
 				verify(nvlist_lookup_string(rval,
 				    ZPROP_VALUE, &rstr) == 0);
+		} else if (psc->sc_prop == ZFS_PROP_NAME) {
+			lvalid = rvalid = B_TRUE;
 
+			(void) strlcpy(lbuf, zfs_get_name(l), sizeof (lbuf));
+			(void) strlcpy(rbuf, zfs_get_name(r), sizeof (rbuf));
+
+			lstr = lbuf;
+			rstr = rbuf;
 		} else if (zfs_prop_is_string(psc->sc_prop)) {
 			lvalid = (zfs_prop_get(l, psc->sc_prop, lbuf,
 			    sizeof (lbuf), NULL, NULL, 0, B_TRUE) == 0);
