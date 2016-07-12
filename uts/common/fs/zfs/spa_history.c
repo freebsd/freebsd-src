@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
 
@@ -494,7 +494,7 @@ spa_history_log_internal_ds(dsl_dataset_t *ds, const char *operation,
     dmu_tx_t *tx, const char *fmt, ...)
 {
 	va_list adx;
-	char namebuf[MAXNAMELEN];
+	char namebuf[ZFS_MAX_DATASET_NAME_LEN];
 	nvlist_t *nvl = fnvlist_alloc();
 
 	ASSERT(tx != NULL);
@@ -513,7 +513,7 @@ spa_history_log_internal_dd(dsl_dir_t *dd, const char *operation,
     dmu_tx_t *tx, const char *fmt, ...)
 {
 	va_list adx;
-	char namebuf[MAXNAMELEN];
+	char namebuf[ZFS_MAX_DATASET_NAME_LEN];
 	nvlist_t *nvl = fnvlist_alloc();
 
 	ASSERT(tx != NULL);

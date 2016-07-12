@@ -1308,7 +1308,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 		dsl_dataset_rele(ds, FTAG);
 	} else if (error == ENOENT) {
 		/* target fs does not exist; must be a full backup or clone */
-		char buf[MAXNAMELEN];
+		char buf[ZFS_MAX_DATASET_NAME_LEN];
 
 		/*
 		 * If it's a non-clone incremental, we are missing the
@@ -1328,7 +1328,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 			return (SET_ERROR(EINVAL));
 
 		/* Open the parent of tofs */
-		ASSERT3U(strlen(tofs), <, MAXNAMELEN);
+		ASSERT3U(strlen(tofs), <, sizeof (buf));
 		(void) strlcpy(buf, tofs, strrchr(tofs, '/') - tofs + 1);
 		error = dsl_dataset_hold(dp, buf, FTAG, &ds);
 		if (error != 0)
@@ -1512,7 +1512,8 @@ dmu_recv_resume_begin_check(void *arg, dmu_tx_t *tx)
 	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LZ4_COMPRESS))
 		return (SET_ERROR(ENOTSUP));
 
-	char recvname[ZFS_MAXNAMELEN];
+	/* 6 extra bytes for /%recv */
+	char recvname[ZFS_MAX_DATASET_NAME_LEN + 6];
 
 	(void) snprintf(recvname, sizeof (recvname), "%s/%s",
 	    tofs, recv_clone_name);
@@ -1585,7 +1586,8 @@ dmu_recv_resume_begin_sync(void *arg, dmu_tx_t *tx)
 	const char *tofs = drba->drba_cookie->drc_tofs;
 	dsl_dataset_t *ds;
 	uint64_t dsobj;
-	char recvname[ZFS_MAXNAMELEN];
+	/* 6 extra bytes for /%recv */
+	char recvname[ZFS_MAX_DATASET_NAME_LEN + 6];
 
 	(void) snprintf(recvname, sizeof (recvname), "%s/%s",
 	    tofs, recv_clone_name);
@@ -2300,7 +2302,7 @@ dmu_recv_cleanup_ds(dmu_recv_cookie_t *drc)
 		txg_wait_synced(drc->drc_ds->ds_dir->dd_pool, 0);
 		dsl_dataset_disown(drc->drc_ds, dmu_recv_tag);
 	} else {
-		char name[MAXNAMELEN];
+		char name[ZFS_MAX_DATASET_NAME_LEN];
 		dsl_dataset_name(drc->drc_ds, name);
 		dsl_dataset_disown(drc->drc_ds, dmu_recv_tag);
 		(void) dsl_destroy_head(name);
@@ -3118,13 +3120,13 @@ static int
 dmu_recv_existing_end(dmu_recv_cookie_t *drc)
 {
 	int error;
-	char name[MAXNAMELEN];
 
 #ifdef _KERNEL
 	/*
 	 * We will be destroying the ds; make sure its origin is unmounted if
 	 * necessary.
 	 */
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 	dsl_dataset_name(drc->drc_ds, name);
 	zfs_destroy_unmount_origin(name);
 #endif
