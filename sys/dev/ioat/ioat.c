@@ -1382,16 +1382,17 @@ ioat_reserve_space(struct ioat_softc *ioat, uint32_t num_descs, int mflags)
 	error = 0;
 	dug = FALSE;
 
-	if (num_descs < 1 || num_descs > (1 << IOAT_MAX_ORDER)) {
+	if (num_descs < 1 || num_descs >= (1 << IOAT_MAX_ORDER)) {
 		error = EINVAL;
-		goto out;
-	}
-	if (ioat->quiescing) {
-		error = ENXIO;
 		goto out;
 	}
 
 	for (;;) {
+		if (ioat->quiescing) {
+			error = ENXIO;
+			goto out;
+		}
+
 		if (ioat_get_ring_space(ioat) >= num_descs)
 			goto out;
 
@@ -1453,6 +1454,8 @@ ioat_reserve_space(struct ioat_softc *ioat, uint32_t num_descs, int mflags)
 
 out:
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
+	KASSERT(!ioat->quiescing || error == ENXIO,
+	    ("reserved during quiesce"));
 	return (error);
 }
 
