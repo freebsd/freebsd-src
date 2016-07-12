@@ -75,6 +75,7 @@ struct vmbus_softc {
 
 	u_long			*vmbus_rx_evtflags;
 						/* compat evtflgs from host */
+	struct hv_vmbus_channel	**vmbus_chmap;
 	struct vmbus_msghc_ctx	*vmbus_msg_hc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
