@@ -486,7 +486,7 @@ fi
 SOURCEDIR=$(realpath "$SOURCEDIR")
 
 # Setup make to use system files from SOURCEDIR
-MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
+MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk -DNO_FILEMON"
 
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.

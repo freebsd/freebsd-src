@@ -184,7 +184,7 @@ build_tree()
 {
 	local destdir dir file make
 
-	make="make $MAKE_OPTIONS"
+	make="make $MAKE_OPTIONS -DNO_FILEMON"
 
 	log "Building tree at $1 with $make"
 	mkdir -p $1/usr/obj >&3 2>&1
