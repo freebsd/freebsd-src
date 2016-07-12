@@ -1169,12 +1169,8 @@ vmbus_doattach(struct vmbus_softc *sc)
 	sc->vmbus_flags |= VMBUS_FLAG_SYNIC;
 
 	/*
-	 * Connect to VMBus in the root partition
+	 * Initialize vmbus, e.g. connect to Hypervisor.
 	 */
-	ret = hv_vmbus_connect(sc);
-	if (ret != 0)
-		goto cleanup;
-
 	ret = vmbus_init(sc);
 	if (ret != 0)
 		goto cleanup;
@@ -1271,7 +1267,6 @@ vmbus_detach(device_t dev)
 	hv_vmbus_release_unattached_channels(sc);
 
 	vmbus_disconnect(sc);
-	hv_vmbus_disconnect();
 
 	if (sc->vmbus_flags & VMBUS_FLAG_SYNIC) {
 		sc->vmbus_flags &= ~VMBUS_FLAG_SYNIC;
