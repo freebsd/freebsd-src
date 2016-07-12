@@ -1704,7 +1704,7 @@ ioat_shrink_timer_callback(void *arg)
 
 out:
 	if (ioat->ring_size_order > IOAT_MIN_ORDER)
-		callout_reset(&ioat->poll_timer, IOAT_SHRINK_PERIOD,
+		callout_reset(&ioat->shrink_timer, IOAT_SHRINK_PERIOD,
 		    ioat_shrink_timer_callback, ioat);
 }
 
