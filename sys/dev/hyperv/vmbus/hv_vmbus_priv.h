@@ -38,6 +38,8 @@
 
 #include <dev/hyperv/include/hyperv.h>
 
+struct vmbus_softc;
+
 typedef struct {
 	void*		data;
 	uint32_t	length;
@@ -107,13 +109,6 @@ typedef enum {
 
 typedef struct {
 	hv_vmbus_connect_state			connect_state;
-
-	/**
-	 * List of primary channels. Sub channels will be linked
-	 * under their primary channel.
-	 */
-	TAILQ_HEAD(, hv_vmbus_channel)		channel_anchor;
-	struct mtx				channel_lock;
 
 	/**
 	 * channel table for fast lookup through id.
@@ -239,14 +234,13 @@ uint32_t		hv_ring_buffer_read_end(
 				hv_vmbus_ring_buffer_info	*ring_info);
 
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
-void			hv_vmbus_release_unattached_channels(void);
+void			hv_vmbus_release_unattached_channels(
+			    struct vmbus_softc *);
 
 struct hv_device*	hv_vmbus_child_device_create(
 				hv_guid			device_type,
 				hv_guid			device_instance,
 				hv_vmbus_channel	*channel);
-
-struct vmbus_softc;
 
 void			hv_vmbus_child_device_register(struct vmbus_softc *,
 					struct hv_device *child_dev);
