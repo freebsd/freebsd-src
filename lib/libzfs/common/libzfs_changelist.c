@@ -24,6 +24,7 @@
  * Use is subject to license terms.
  *
  * Portions Copyright 2007 Ramprakash Jelari
+ * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  */
 
 #include <libintl.h>
@@ -130,6 +131,9 @@ changelist_prefix(prop_changelist_t *clp)
 				break;
 			case ZFS_PROP_SHARESMB:
 				(void) zfs_unshare_smb(cn->cn_handle, NULL);
+				break;
+
+			default:
 				break;
 			}
 		}
