@@ -32,6 +32,7 @@
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 
+#include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
@@ -327,23 +328,23 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	 */
 	new_channel->batched_reading = TRUE;
 
-	new_channel->signal_event_param =
-	    (hv_vmbus_input_signal_event *)
-	    (HV_ALIGN_UP((unsigned long)
-		&new_channel->signal_event_buffer,
-		HV_HYPERCALL_PARAM_ALIGN));
-
- 	new_channel->signal_event_param->connection_id.as_uint32_t = 0;	
-	new_channel->signal_event_param->connection_id.u.id =
-	    HV_VMBUS_EVENT_CONNECTION_ID;
-	new_channel->signal_event_param->flag_number = 0;
-	new_channel->signal_event_param->rsvd_z = 0;
+	new_channel->ch_sigevt = hyperv_dmamem_alloc(
+	    bus_get_dma_tag(sc->vmbus_dev),
+	    HYPERCALL_SIGEVTIN_ALIGN, 0, sizeof(struct hypercall_sigevt_in),
+	    &new_channel->ch_sigevt_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (new_channel->ch_sigevt == NULL) {
+		device_printf(sc->vmbus_dev, "sigevt alloc failed\n");
+		/* XXX */
+		mtx_destroy(&new_channel->sc_lock);
+		free(new_channel, M_DEVBUF);
+		return;
+	}
+	new_channel->ch_sigevt->hc_connid = VMBUS_CONNID_EVENT;
 
 	if (hv_vmbus_protocal_version != HV_VMBUS_VERSION_WS2008) {
 		new_channel->is_dedicated_interrupt =
 		    (offer->is_dedicated_interrupt != 0);
-		new_channel->signal_event_param->connection_id.u.id =
-		    offer->connection_id;
+		new_channel->ch_sigevt->hc_connid = offer->connection_id;
 	}
 
 	memcpy(&new_channel->offer_msg, offer,
