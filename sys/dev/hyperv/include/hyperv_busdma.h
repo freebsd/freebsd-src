@@ -29,6 +29,10 @@
 #ifndef _HYPERV_BUSDMA_H_
 #define _HYPERV_BUSDMA_H_
 
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+
 struct hyperv_dma {
 	bus_addr_t	hv_paddr;
 	bus_dma_tag_t	hv_dtag;
