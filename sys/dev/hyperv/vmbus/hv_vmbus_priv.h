@@ -411,7 +411,9 @@ struct hv_device*	hv_vmbus_child_device_create(
 				hv_guid			device_instance,
 				hv_vmbus_channel	*channel);
 
-int			hv_vmbus_child_device_register(
+struct vmbus_softc;
+
+void			hv_vmbus_child_device_register(struct vmbus_softc *,
 					struct hv_device *child_dev);
 int			hv_vmbus_child_device_unregister(
 					struct hv_device *child_dev);
@@ -419,13 +421,9 @@ int			hv_vmbus_child_device_unregister(
 /**
  * Connection interfaces
  */
-struct vmbus_softc;
 int			hv_vmbus_connect(struct vmbus_softc *);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
-
-/* Wait for device creation */
-void			vmbus_scan(void);
 
 #endif  /* __HYPERV_PRIV_H__ */
