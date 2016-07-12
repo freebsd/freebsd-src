@@ -423,6 +423,11 @@ hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
 		device_printf(sc->vmbus_dev, "gpadl->chan%u failed: "
 		    "status %u\n", channel->offer_msg.child_rel_id, status);
 		return EIO;
+	} else {
+		if (bootverbose) {
+			device_printf(sc->vmbus_dev, "gpadl->chan%u "
+			    "succeeded\n", channel->offer_msg.child_rel_id);
+		}
 	}
 	return 0;
 }
