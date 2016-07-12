@@ -80,14 +80,6 @@ vmbus_chanmsg_process[HV_CHANNEL_MESSAGE_COUNT] = {
 		vmbus_channel_on_version_response
 };
 
-static struct mtx	vmbus_chwait_lock;
-MTX_SYSINIT(vmbus_chwait_lk, &vmbus_chwait_lock, "vmbus primarych wait lock",
-    MTX_DEF);
-static uint32_t		vmbus_chancnt;
-static uint32_t		vmbus_devcnt;
-
-#define VMBUS_CHANCNT_DONE	0x80000000
-
 /**
  * @brief Allocate and initialize a vmbus channel object
  */
@@ -124,7 +116,6 @@ static void
 vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 {
 	hv_vmbus_channel*	channel;
-	int			ret;
 	uint32_t                relid;
 
 	relid = new_channel->offer_msg.child_rel_id;
@@ -229,19 +220,8 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	 * binding which eventually invokes the device driver's AddDevice()
 	 * method.
 	 */
-	ret = hv_vmbus_child_device_register(new_channel->device);
-	if (ret != 0) {
-		mtx_lock(&hv_vmbus_g_connection.channel_lock);
-		TAILQ_REMOVE(&hv_vmbus_g_connection.channel_anchor,
-		    new_channel, list_entry);
-		mtx_unlock(&hv_vmbus_g_connection.channel_lock);
-		hv_vmbus_free_vmbus_channel(new_channel);
-	}
-
-	mtx_lock(&vmbus_chwait_lock);
-	vmbus_devcnt++;
-	mtx_unlock(&vmbus_chwait_lock);
-	wakeup(&vmbus_devcnt);
+	hv_vmbus_child_device_register(new_channel->vmbus_sc,
+	    new_channel->device);
 }
 
 void
@@ -332,10 +312,8 @@ vmbus_channel_on_offer(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
 	const hv_vmbus_channel_offer_channel *offer;
 
-	mtx_lock(&vmbus_chwait_lock);
-	if ((vmbus_chancnt & VMBUS_CHANCNT_DONE) == 0)
-		vmbus_chancnt++;
-	mtx_unlock(&vmbus_chwait_lock);
+	/* New channel is offered by vmbus */
+	vmbus_scan_newchan(sc);
 
 	offer = (const hv_vmbus_channel_offer_channel *)msg->msg_data;
 	vmbus_channel_on_offer_internal(sc, offer);
@@ -428,14 +406,12 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
  * @brief Invoked when all offers have been delivered.
  */
 static void
-vmbus_channel_on_offers_delivered(struct vmbus_softc *sc __unused,
+vmbus_channel_on_offers_delivered(struct vmbus_softc *sc,
     const struct vmbus_message *msg __unused)
 {
 
-	mtx_lock(&vmbus_chwait_lock);
-	vmbus_chancnt |= VMBUS_CHANCNT_DONE;
-	mtx_unlock(&vmbus_chwait_lock);
-	wakeup(&vmbus_chancnt);
+	/* No more new channels for the channel request. */
+	vmbus_scan_done(sc);
 }
 
 /**
@@ -666,21 +642,6 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 	}
 
 	return(outgoing_channel);
-}
-
-void
-vmbus_scan(void)
-{
-	uint32_t chancnt;
-
-	mtx_lock(&vmbus_chwait_lock);
-	while ((vmbus_chancnt & VMBUS_CHANCNT_DONE) == 0)
-		mtx_sleep(&vmbus_chancnt, &vmbus_chwait_lock, 0, "waitch", 0);
-	chancnt = vmbus_chancnt & ~VMBUS_CHANCNT_DONE;
-
-	while (vmbus_devcnt != chancnt)
-		mtx_sleep(&vmbus_devcnt, &vmbus_chwait_lock, 0, "waitdev", 0);
-	mtx_unlock(&vmbus_chwait_lock);
 }
 
 struct hv_vmbus_channel **
