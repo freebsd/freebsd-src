@@ -24,7 +24,7 @@
  */
 
 #include <unistd.h>
-#include <strings.h>
+#include <string.h>
 #include <libintl.h>
 #include <sys/types.h>
 #include <sys/inttypes.h>
@@ -211,7 +211,7 @@ NVLIST_PRTFUNC(int32, int32_t, int32_t, "%d")
 NVLIST_PRTFUNC(uint32, uint32_t, uint32_t, "0x%x")
 NVLIST_PRTFUNC(int64, int64_t, longlong_t, "%lld")
 NVLIST_PRTFUNC(uint64, uint64_t, u_longlong_t, "0x%llx")
-NVLIST_PRTFUNC(double, double, double, "0x%llf")
+NVLIST_PRTFUNC(double, double, double, "0x%f")
 NVLIST_PRTFUNC(string, char *, char *, "%s")
 NVLIST_PRTFUNC(hrtime, hrtime_t, hrtime_t, "0x%llx")
 
@@ -1218,7 +1218,8 @@ nvpair_value_match_regex(nvpair_t *nvp, int ai,
 		break;
 	}
 	case DATA_TYPE_BOOLEAN_VALUE: {
-		boolean_t val, val_arg;
+		int32_t val_arg;
+		boolean_t val;
 
 		/* scanf boolean_t from value and check for match */
 		sr = sscanf(value, "%"SCNi32, &val_arg);
@@ -1229,7 +1230,8 @@ nvpair_value_match_regex(nvpair_t *nvp, int ai,
 		break;
 	}
 	case DATA_TYPE_BOOLEAN_ARRAY: {
-		boolean_t *val_array, val_arg;
+		boolean_t *val_array;
+		int32_t val_arg;
 
 		/* check indexed value of array for match */
 		sr = sscanf(value, "%"SCNi32, &val_arg);
