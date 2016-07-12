@@ -2203,7 +2203,7 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	if (!have_addr)
 		goto usage;
 	idx = (unsigned)addr;
-	if (addr >= ioat_channel_index)
+	if (idx >= ioat_channel_index)
 		goto usage;
 
 	sc = ioat_channel[idx];
@@ -2250,6 +2250,35 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	db_printf(" ring_size_order: %u\n", sc->ring_size_order);
 	db_printf(" last_seen: 0x%lx\n", sc->last_seen);
 	db_printf(" ring: %p\n", sc->ring);
+
+	db_printf("  ring[%u] (tail):\n", sc->tail %
+	    (1 << sc->ring_size_order));
+	db_printf("   id: %u\n", ioat_get_ring_entry(sc, sc->tail)->id);
+	db_printf("   addr: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->tail)->hw_desc_bus_addr);
+	db_printf("   next: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->tail)->u.generic->next);
+
+	db_printf("  ring[%u] (head - 1):\n", (sc->head - 1) %
+	    (1 << sc->ring_size_order));
+	db_printf("   id: %u\n", ioat_get_ring_entry(sc, sc->head - 1)->id);
+	db_printf("   addr: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->head - 1)->hw_desc_bus_addr);
+	db_printf("   next: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->head - 1)->u.generic->next);
+
+	db_printf("  ring[%u] (head):\n", (sc->head) %
+	    (1 << sc->ring_size_order));
+	db_printf("   id: %u\n", ioat_get_ring_entry(sc, sc->head)->id);
+	db_printf("   addr: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->head)->hw_desc_bus_addr);
+	db_printf("   next: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->head)->u.generic->next);
+
+	for (idx = 0; idx < (1 << sc->ring_size_order); idx++)
+		if ((*sc->comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK)
+		    == ioat_get_ring_entry(sc, idx)->hw_desc_bus_addr)
+			db_printf("  ring[%u] == hardware tail\n", idx);
 
 	db_printf(" cleanup_lock: ");
 	db_show_lock(&sc->cleanup_lock);
