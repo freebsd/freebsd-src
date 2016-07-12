@@ -384,6 +384,8 @@ XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
+TARGET_CPUARCH?= ${TARGET_ARCH:${MACHINE_CPUARCH_SUB:ts:}}
+
 #
 # Avoid running mktemp(1) unless actually needed.
 # It may not be functional, e.g., due to new ABI
