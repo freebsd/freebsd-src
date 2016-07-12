@@ -486,6 +486,7 @@ struct ioat_softc {
 
 	boolean_t		quiescing;
 	boolean_t		destroying;
+	boolean_t		is_submitter_processing;
 	boolean_t		is_resize_pending;
 	boolean_t		is_completion_pending;	/* submit_lock */
 	boolean_t		is_reset_pending;

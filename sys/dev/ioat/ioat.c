@@ -462,6 +462,7 @@ ioat3_attach(device_t device)
 	mtx_unlock(&ioat->submit_lock);
 
 	ioat->is_resize_pending = FALSE;
+	ioat->is_submitter_processing = FALSE;
 	ioat->is_completion_pending = FALSE;
 	ioat->is_reset_pending = FALSE;
 	ioat->is_channel_running = FALSE;
@@ -1365,10 +1366,12 @@ ioat_reserve_space(struct ioat_softc *ioat, uint32_t num_descs, int mflags)
 {
 	struct ioat_descriptor **new_ring;
 	uint32_t order;
+	boolean_t dug;
 	int error;
 
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
 	error = 0;
+	dug = FALSE;
 
 	if (num_descs < 1 || num_descs > (1 << IOAT_MAX_ORDER)) {
 		error = EINVAL;
@@ -1382,6 +1385,22 @@ ioat_reserve_space(struct ioat_softc *ioat, uint32_t num_descs, int mflags)
 	for (;;) {
 		if (ioat_get_ring_space(ioat) >= num_descs)
 			goto out;
+
+		if (!dug && !ioat->is_submitter_processing &&
+		    (1 << ioat->ring_size_order) > num_descs) {
+			ioat->is_submitter_processing = TRUE;
+			mtx_unlock(&ioat->submit_lock);
+
+			ioat_process_events(ioat);
+
+			mtx_lock(&ioat->submit_lock);
+			dug = TRUE;
+			KASSERT(ioat->is_submitter_processing == TRUE,
+			    ("is_submitter_processing"));
+			ioat->is_submitter_processing = FALSE;
+			wakeup(&ioat->tail);
+			continue;
+		}
 
 		order = ioat->ring_size_order;
 		if (ioat->is_resize_pending || order == IOAT_MAX_ORDER) {
@@ -2054,6 +2073,9 @@ ioat_setup_sysctl(device_t device)
 
 	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_resize_pending", CTLFLAG_RD,
 	    &ioat->is_resize_pending, 0, "resize pending");
+	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_submitter_processing",
+	    CTLFLAG_RD, &ioat->is_submitter_processing, 0,
+	    "submitter processing");
 	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_completion_pending",
 	    CTLFLAG_RD, &ioat->is_completion_pending, 0, "completion pending");
 	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_reset_pending", CTLFLAG_RD,
@@ -2241,6 +2263,8 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	db_printf(" quiescing: %d\n", (int)sc->quiescing);
 	db_printf(" destroying: %d\n", (int)sc->destroying);
 	db_printf(" is_resize_pending: %d\n", (int)sc->is_resize_pending);
+	db_printf(" is_submitter_processing: %d\n",
+	    (int)sc->is_submitter_processing);
 	db_printf(" is_completion_pending: %d\n", (int)sc->is_completion_pending);
 	db_printf(" is_reset_pending: %d\n", (int)sc->is_reset_pending);
 	db_printf(" is_channel_running: %d\n", (int)sc->is_channel_running);
