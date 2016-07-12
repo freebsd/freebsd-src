@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
@@ -214,8 +214,8 @@ int fzap_lookup(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers, void *buf,
     char *realname, int rn_len, boolean_t *normalization_conflictp);
 void fzap_prefetch(zap_name_t *zn);
-int fzap_count_write(zap_name_t *zn, int add, uint64_t *towrite,
-    uint64_t *tooverwrite);
+int fzap_count_write(zap_name_t *zn, int add, refcount_t *towrite,
+    refcount_t *tooverwrite);
 int fzap_add(zap_name_t *zn, uint64_t integer_size, uint64_t num_integers,
     const void *val, dmu_tx_t *tx);
 int fzap_update(zap_name_t *zn,
