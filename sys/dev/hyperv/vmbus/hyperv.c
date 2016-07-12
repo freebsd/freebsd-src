@@ -126,51 +126,6 @@ hypercall_post_message(bus_addr_t msg_paddr)
 }
 
 /**
- * @brief Post a message using the hypervisor message IPC.
- * (This involves a hypercall.)
- */
-hv_vmbus_status
-hv_vmbus_post_msg_via_msg_ipc(
-	hv_vmbus_connection_id	connection_id,
-	hv_vmbus_msg_type	message_type,
-	void*			payload,
-	size_t			payload_size)
-{
-	struct alignedinput {
-	    uint64_t alignment8;
-	    hv_vmbus_input_post_message msg;
-	};
-
-	hv_vmbus_input_post_message*	aligned_msg;
-	hv_vmbus_status 		status;
-	size_t				addr;
-
-	if (payload_size > HV_MESSAGE_PAYLOAD_BYTE_COUNT)
-	    return (EMSGSIZE);
-
-	addr = (size_t) malloc(sizeof(struct alignedinput), M_DEVBUF,
-			    M_ZERO | M_NOWAIT);
-	KASSERT(addr != 0,
-	    ("Error VMBUS: malloc failed to allocate message buffer!"));
-	if (addr == 0)
-	    return (ENOMEM);
-
-	aligned_msg = (hv_vmbus_input_post_message*)
-	    (HV_ALIGN_UP(addr, HV_HYPERCALL_PARAM_ALIGN));
-
-	aligned_msg->connection_id = connection_id;
-	aligned_msg->message_type = message_type;
-	aligned_msg->payload_size = payload_size;
-	memcpy((void*) aligned_msg->payload, payload, payload_size);
-
-	status = hv_vmbus_do_hypercall(
-		    HV_CALL_POST_MESSAGE, aligned_msg, 0) & 0xFFFF;
-
-	free((void *) addr, M_DEVBUF);
-	return (status);
-}
-
-/**
  * @brief Signal an event on the specified connection using the hypervisor
  * event IPC. (This involves a hypercall.)
  */

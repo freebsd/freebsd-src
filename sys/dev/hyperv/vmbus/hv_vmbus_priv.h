@@ -90,47 +90,6 @@ typedef struct {
 	hv_vmbus_ring_buffer_debug_info	outbound;
 } hv_vmbus_channel_debug_info;
 
-typedef union {
-	hv_vmbus_channel_version_supported	version_supported;
-	hv_vmbus_channel_open_result		open_result;
-	hv_vmbus_channel_gpadl_torndown		gpadl_torndown;
-	hv_vmbus_channel_gpadl_created		gpadl_created;
-} hv_vmbus_channel_msg_response;
-
-/*
- * Represents each channel msg on the vmbus connection
- * This is a variable-size data structure depending on
- * the msg type itself
- */
-typedef struct hv_vmbus_channel_msg_info {
-	/*
-	 * Bookkeeping stuff
-	 */
-	TAILQ_ENTRY(hv_vmbus_channel_msg_info)  msg_list_entry;
-	/*
-	 * So far, this is only used to handle
-	 * gpadl body message
-	 */
-	TAILQ_HEAD(, hv_vmbus_channel_msg_info) sub_msg_list_anchor;
-	/*
-	 * Synchronize the request/response if
-	 * needed.
-	 * KYS: Use a semaphore for now.
-	 * Not perf critical.
-	 */
-	struct sema				wait_sema;
-	hv_vmbus_channel_msg_response		response;
-	uint32_t				message_size;
-	/**
-	 * The channel message that goes out on
-	 *  the "wire". It will contain at
-	 *  minimum the
-	 *  hv_vmbus_channel_msg_header
-	 * header.
-	 */
-	unsigned char 				msg[0];
-} hv_vmbus_channel_msg_info;
-
 /*
  * The format must be the same as hv_vm_data_gpa_direct
  */
@@ -244,8 +203,6 @@ typedef struct {
 	hv_vmbus_connect_state			connect_state;
 	uint32_t				next_gpadl_handle;
 
-	TAILQ_HEAD(, hv_vmbus_channel_msg_info)	channel_msg_anchor;
-	struct mtx				channel_msg_lock;
 	/**
 	 * List of primary channels. Sub channels will be linked
 	 * under their primary channel.
@@ -321,17 +278,6 @@ typedef struct {
 } hv_vmbus_monitor_page;
 
 /*
- *  Define the hv_vmbus_post_message hypercall input structure
- */
-typedef struct {
-	hv_vmbus_connection_id	connection_id;
-	uint32_t		reserved;
-	hv_vmbus_msg_type	message_type;
-	uint32_t		payload_size;
-	uint64_t		payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
-} hv_vmbus_input_post_message;
-
-/*
  * Declare the various hypercall operations
  */
 typedef enum {
@@ -398,12 +344,6 @@ uint32_t		hv_ring_buffer_read_end(
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
 void			hv_vmbus_release_unattached_channels(void);
 
-uint16_t		hv_vmbus_post_msg_via_msg_ipc(
-				hv_vmbus_connection_id	connection_id,
-				hv_vmbus_msg_type	message_type,
-				void			*payload,
-				size_t			payload_size);
-
 uint16_t		hv_vmbus_signal_event(void *con_id);
 
 struct hv_device*	hv_vmbus_child_device_create(
@@ -423,7 +363,6 @@ int			hv_vmbus_child_device_unregister(
  */
 int			hv_vmbus_connect(struct vmbus_softc *);
 int			hv_vmbus_disconnect(void);
-int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
 
 #endif  /* __HYPERV_PRIV_H__ */

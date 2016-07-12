@@ -179,8 +179,6 @@ typedef struct hv_vmbus_channel_offer {
 
 } __packed hv_vmbus_channel_offer;
 
-typedef uint32_t hv_gpadl_handle;
-
 typedef struct {
 	uint16_t type;
 	uint16_t data_offset8;
@@ -352,14 +350,6 @@ typedef struct {
 } __packed hv_vmbus_channel_query_vmbus_version;
 
 /*
- * VMBus Version Supported parameters
- */
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	hv_bool_uint8_t			version_supported;
-} __packed hv_vmbus_channel_version_supported;
-
-/*
  * Channel Offer parameters
  */
 typedef struct {
@@ -397,170 +387,12 @@ typedef struct
     uint32_t			child_rel_id;
 } __packed hv_vmbus_channel_rescind_offer;
 
-
-/*
- * Request Offer -- no parameters, SynIC message contains the partition ID
- *
- * Set Snoop -- no parameters, SynIC message contains the partition ID
- *
- * Clear Snoop -- no parameters, SynIC message contains the partition ID
- *
- * All Offers Delivered -- no parameters, SynIC message contains the
- * partition ID
- *
- * Flush Client -- no parameters, SynIC message contains the partition ID
- */
-
-
-/*
- * Open Channel parameters
- */
-typedef struct
-{
-    hv_vmbus_channel_msg_header header;
-
-    /*
-     * Identifies the specific VMBus channel that is being opened.
-     */
-    uint32_t		child_rel_id;
-
-    /*
-     * ID making a particular open request at a channel offer unique.
-     */
-    uint32_t		open_id;
-
-    /*
-     * GPADL for the channel's ring buffer.
-     */
-    hv_gpadl_handle	ring_buffer_gpadl_handle;
-
-    /*
-     * Before win8, all incoming channel interrupts are only
-     * delivered on cpu 0. Setting this value to 0 would
-     * preserve the earlier behavior.
-     */
-    uint32_t		target_vcpu;
-
-    /*
-     * The upstream ring buffer begins at offset zero in the memory described
-     * by ring_buffer_gpadl_handle. The downstream ring buffer follows it at
-     * this offset (in pages).
-     */
-    uint32_t		downstream_ring_buffer_page_offset;
-
-    /*
-     * User-specific data to be passed along to the server endpoint.
-     */
-    uint8_t		user_data[HV_MAX_USER_DEFINED_BYTES];
-
-} __packed hv_vmbus_channel_open_channel;
-
-typedef uint32_t hv_nt_status;
-
-/*
- * Open Channel Result parameters
- */
-typedef struct
-{
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			child_rel_id;
-	uint32_t			open_id;
-	hv_nt_status			status;
-} __packed hv_vmbus_channel_open_result;
-
-/*
- * Close channel parameters
- */
-typedef struct
-{
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			child_rel_id;
-} __packed hv_vmbus_channel_close_channel;
-
-/*
- * Channel Message GPADL
- */
-#define HV_GPADL_TYPE_RING_BUFFER	1
-#define HV_GPADL_TYPE_SERVER_SAVE_AREA	2
-#define HV_GPADL_TYPE_TRANSACTION	8
-
-/*
- * The number of PFNs in a GPADL message is defined by the number of pages
- * that would be spanned by byte_count and byte_offset.  If the implied number
- * of PFNs won't fit in this packet, there will be a follow-up packet that
- * contains more
- */
-
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			child_rel_id;
-	uint32_t			gpadl;
-	uint16_t			range_buf_len;
-	uint16_t			range_count;
-	hv_gpa_range			range[0];
-} __packed hv_vmbus_channel_gpadl_header;
-
-/*
- * This is the follow-up packet that contains more PFNs
- */
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			message_number;
-	uint32_t 			gpadl;
-	uint64_t 			pfn[0];
-} __packed hv_vmbus_channel_gpadl_body;
-
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			child_rel_id;
-	uint32_t			gpadl;
-	uint32_t			creation_status;
-} __packed hv_vmbus_channel_gpadl_created;
-
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			child_rel_id;
-	uint32_t			gpadl;
-} __packed hv_vmbus_channel_gpadl_teardown;
-
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			gpadl;
-} __packed hv_vmbus_channel_gpadl_torndown;
-
 typedef struct {
 	hv_vmbus_channel_msg_header	header;
 	uint32_t			child_rel_id;
 } __packed hv_vmbus_channel_relid_released;
 
-typedef hv_vmbus_channel_msg_header hv_vmbus_channel_unload;
-
 #define HW_MACADDR_LEN	6
-
-/*
- * Fixme:  Added to quiet "typeof" errors involving hv_vmbus.h when
- * the including C file was compiled with "-std=c99".
- */
-#ifndef typeof
-#define typeof __typeof
-#endif
-
-#ifndef NULL
-#define NULL  (void *)0
-#endif
-
-typedef void *hv_vmbus_handle;
-
-#ifndef CONTAINING_RECORD
-#define CONTAINING_RECORD(address, type, field) ((type *)(	\
-		(uint8_t *)(address) -				\
-		(uint8_t *)(&((type *)0)->field)))
-#endif /* CONTAINING_RECORD */
-
-
-#define container_of(ptr, type, member) ({				\
-		__typeof__( ((type *)0)->member ) *__mptr = (ptr);	\
-		(type *)( (char *)__mptr - offsetof(type,member) );})
 
 enum {
 	HV_VMBUS_IVAR_TYPE,
