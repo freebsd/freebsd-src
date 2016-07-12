@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
@@ -1363,7 +1363,7 @@ zap_get_stats(objset_t *os, uint64_t zapobj, zap_stats_t *zs)
 
 int
 zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
-    uint64_t *towrite, uint64_t *tooverwrite)
+    refcount_t *towrite, refcount_t *tooverwrite)
 {
 	zap_t *zap;
 	int err = 0;
@@ -1373,14 +1373,15 @@ zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
 	 * be affected in this operation. So, account for the worst case :
 	 * - 3 blocks overwritten: target leaf, ptrtbl block, header block
 	 * - 4 new blocks written if adding:
-	 * 	- 2 blocks for possibly split leaves,
-	 * 	- 2 grown ptrtbl blocks
+	 *    - 2 blocks for possibly split leaves,
+	 *    - 2 grown ptrtbl blocks
 	 *
 	 * This also accomodates the case where an add operation to a fairly
 	 * large microzap results in a promotion to fatzap.
 	 */
 	if (name == NULL) {
-		*towrite += (3 + (add ? 4 : 0)) * SPA_OLD_MAXBLOCKSIZE;
+		(void) refcount_add_many(towrite,
+		    (3 + (add ? 4 : 0)) * SPA_OLD_MAXBLOCKSIZE, FTAG);
 		return (err);
 	}
 
@@ -1404,7 +1405,8 @@ zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
 			/*
 			 * We treat this case as similar to (name == NULL)
 			 */
-			*towrite += (3 + (add ? 4 : 0)) * SPA_OLD_MAXBLOCKSIZE;
+			(void) refcount_add_many(towrite,
+			    (3 + (add ? 4 : 0)) * SPA_OLD_MAXBLOCKSIZE, FTAG);
 		}
 	} else {
 		/*
@@ -1422,13 +1424,17 @@ zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
 		 * 4 new blocks written : 2 new split leaf, 2 grown
 		 *			ptrtbl blocks
 		 */
-		if (dmu_buf_freeable(zap->zap_dbuf))
-			*tooverwrite += MZAP_MAX_BLKSZ;
-		else
-			*towrite += MZAP_MAX_BLKSZ;
+		if (dmu_buf_freeable(zap->zap_dbuf)) {
+			(void) refcount_add_many(tooverwrite,
+			    MZAP_MAX_BLKSZ, FTAG);
+		} else {
+			(void) refcount_add_many(towrite,
+			    MZAP_MAX_BLKSZ, FTAG);
+		}
 
 		if (add) {
-			*towrite += 4 * MZAP_MAX_BLKSZ;
+			(void) refcount_add_many(towrite,
+			    4 * MZAP_MAX_BLKSZ, FTAG);
 		}
 	}
 
