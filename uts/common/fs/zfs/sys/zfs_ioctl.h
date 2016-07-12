@@ -337,6 +337,12 @@ typedef enum zfs_case {
 	ZFS_CASE_MIXED
 } zfs_case_t;
 
+/*
+ * Note: this struct must have the same layout in 32-bit and 64-bit, so
+ * that 32-bit processes (like /sbin/zfs) can pass it to the 64-bit
+ * kernel.  Therefore, we add padding to it so that no "hidden" padding
+ * is automatically added on 64-bit (but not on 32-bit).
+ */
 typedef struct zfs_cmd {
 	char		zc_name[MAXPATHLEN];	/* name of pool or dataset */
 	uint64_t	zc_nvlist_src;		/* really (char *) */
@@ -372,7 +378,9 @@ typedef struct zfs_cmd {
 	uint64_t	zc_action_handle;
 	int		zc_cleanup_fd;
 	uint8_t		zc_simple;
+	uint8_t		zc_pad3[3];
 	boolean_t	zc_resumable;
+	uint32_t	zc_pad4;
 	uint64_t	zc_sendobj;
 	uint64_t	zc_fromobj;
 	uint64_t	zc_createtxg;
