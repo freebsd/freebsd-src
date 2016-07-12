@@ -702,6 +702,11 @@ ioat_process_events(struct ioat_softc *ioat)
 		ioat->tail++;
 		if (desc->hw_desc_bus_addr == status)
 			break;
+
+		KASSERT(ioat_get_active(ioat) > 0, ("overrunning ring t:%u "
+		    "h:%u st:0x%016lx last_seen:%016lx completed:%u\n",
+		    ioat->tail, ioat->head, comp_update, ioat->last_seen,
+		    completed));
 	}
 
 	ioat->last_seen = desc->hw_desc_bus_addr;
