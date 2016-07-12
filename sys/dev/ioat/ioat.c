@@ -693,7 +693,8 @@ ioat_process_events(struct ioat_softc *ioat)
 	while (1) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
-		CTR1(KTR_IOAT, "completing desc %d", ioat->tail);
+		CTR3(KTR_IOAT, "completing desc %u ok  cb %p(%p)", ioat->tail,
+		    dmadesc->callback_fn, dmadesc->callback_arg);
 
 		if (dmadesc->callback_fn != NULL)
 			dmadesc->callback_fn(dmadesc->callback_arg, 0);
@@ -763,7 +764,8 @@ out:
 	while (ioat_get_active(ioat) > 0) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
-		CTR1(KTR_IOAT, "completing err desc %d", ioat->tail);
+		CTR3(KTR_IOAT, "completing desc %u err cb %p(%p)", ioat->tail,
+		    dmadesc->callback_fn, dmadesc->callback_arg);
 
 		if (dmadesc->callback_fn != NULL)
 			dmadesc->callback_fn(dmadesc->callback_arg,
