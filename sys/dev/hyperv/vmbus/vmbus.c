@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
+#include "vmbus_if.h"
 
 struct vmbus_msghc {
 	struct hypercall_postmsg_in	*mh_inprm;
@@ -113,10 +114,10 @@ struct vmbus_softc	*vmbus_sc;
 extern inthand_t IDTVEC(vmbus_isr);
 
 static const uint32_t		vmbus_version[] = {
-	HV_VMBUS_VERSION_WIN8_1,
-	HV_VMBUS_VERSION_WIN8,
-	HV_VMBUS_VERSION_WIN7,
-	HV_VMBUS_VERSION_WS2008
+	VMBUS_VERSION_WIN8_1,
+	VMBUS_VERSION_WIN8,
+	VMBUS_VERSION_WIN7,
+	VMBUS_VERSION_WS2008
 };
 
 static struct vmbus_msghc *
@@ -415,10 +416,10 @@ vmbus_init(struct vmbus_softc *sc)
 
 		error = vmbus_connect(sc, vmbus_version[i]);
 		if (!error) {
-			hv_vmbus_protocal_version = vmbus_version[i];
+			sc->vmbus_version = vmbus_version[i];
 			device_printf(sc->vmbus_dev, "version %u.%u\n",
-			    (hv_vmbus_protocal_version >> 16),
-			    (hv_vmbus_protocal_version & 0xffff));
+			    VMBUS_VERSION_MAJOR(sc->vmbus_version),
+			    VMBUS_VERSION_MINOR(sc->vmbus_version));
 			return 0;
 		}
 	}
@@ -1064,12 +1065,21 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 static int
 vmbus_sysctl_version(SYSCTL_HANDLER_ARGS)
 {
+	struct vmbus_softc *sc = arg1;
 	char verstr[16];
 
 	snprintf(verstr, sizeof(verstr), "%u.%u",
-	    hv_vmbus_protocal_version >> 16,
-	    hv_vmbus_protocal_version & 0xffff);
+	    VMBUS_VERSION_MAJOR(sc->vmbus_version),
+	    VMBUS_VERSION_MINOR(sc->vmbus_version));
 	return sysctl_handle_string(oidp, verstr, sizeof(verstr), req);
+}
+
+static uint32_t
+vmbus_get_version_method(device_t bus, device_t dev)
+{
+	struct vmbus_softc *sc = device_get_softc(bus);
+
+	return sc->vmbus_version;
 }
 
 static int
@@ -1155,8 +1165,8 @@ vmbus_doattach(struct vmbus_softc *sc)
 	if (ret != 0)
 		goto cleanup;
 
-	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
-	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)
+	if (sc->vmbus_version == VMBUS_VERSION_WS2008 ||
+	    sc->vmbus_version == VMBUS_VERSION_WIN7)
 		sc->vmbus_event_proc = vmbus_event_proc_compat;
 	else
 		sc->vmbus_event_proc = vmbus_event_proc;
@@ -1168,7 +1178,7 @@ vmbus_doattach(struct vmbus_softc *sc)
 	ctx = device_get_sysctl_ctx(sc->vmbus_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->vmbus_dev));
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "version",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    vmbus_sysctl_version, "A", "vmbus version");
 
 	return (ret);
@@ -1280,6 +1290,9 @@ static device_method_t vmbus_methods[] = {
 	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,		vmbus_write_ivar),
 	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
+
+	/* Vmbus interface */
+	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
 
 	DEVMETHOD_END
 };

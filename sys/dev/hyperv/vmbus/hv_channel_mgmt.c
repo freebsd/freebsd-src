@@ -222,8 +222,8 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 {
 	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu %d", cpu));
 
-	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
-	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7) {
+	if (chan->vmbus_sc->vmbus_version == VMBUS_VERSION_WS2008 ||
+	    chan->vmbus_sc->vmbus_version == VMBUS_VERSION_WIN7) {
 		/* Only cpu0 is supported */
 		cpu = 0;
 	}
@@ -305,7 +305,7 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	}
 	new_channel->ch_sigevt->hc_connid = VMBUS_CONNID_EVENT;
 
-	if (hv_vmbus_protocal_version != HV_VMBUS_VERSION_WS2008) {
+	if (sc->vmbus_version != VMBUS_VERSION_WS2008) {
 		new_channel->is_dedicated_interrupt =
 		    (offer->is_dedicated_interrupt != 0);
 		new_channel->ch_sigevt->hc_connid = offer->connection_id;

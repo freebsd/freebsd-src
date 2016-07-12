@@ -114,9 +114,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
+
 #include "hv_net_vsc.h"
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
+#include "vmbus_if.h"
 
 #define hv_chan_rxr	hv_chan_priv1
 #define hv_chan_txr	hv_chan_priv2
@@ -2369,8 +2371,10 @@ static int
 hn_create_tx_ring(struct hn_softc *sc, int id)
 {
 	struct hn_tx_ring *txr = &sc->hn_tx_ring[id];
+	device_t dev = sc->hn_dev;
 	bus_dma_tag_t parent_dtag;
 	int error, i;
+	uint32_t version;
 
 	txr->hn_sc = sc;
 	txr->hn_tx_idx = id;
@@ -2409,10 +2413,18 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	}
 
 	txr->hn_direct_tx_size = hn_direct_tx_size;
-	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
+	version = VMBUS_GET_VERSION(device_get_parent(dev), dev);
+	if (version >= VMBUS_VERSION_WIN8_1) {
 		txr->hn_csum_assist = HN_CSUM_ASSIST;
-	else
+	} else {
 		txr->hn_csum_assist = HN_CSUM_ASSIST_WIN8;
+		if (id == 0) {
+			device_printf(dev, "bus version %u.%u, "
+			    "no UDP checksum offloading\n",
+			    VMBUS_VERSION_MAJOR(version),
+			    VMBUS_VERSION_MINOR(version));
+		}
+	}
 
 	/*
 	 * Always schedule transmission instead of trying to do direct
@@ -2420,7 +2432,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	 */
 	txr->hn_sched_tx = 1;
 
-	parent_dtag = bus_get_dma_tag(sc->hn_dev);
+	parent_dtag = bus_get_dma_tag(dev);
 
 	/* DMA tag for RNDIS messages. */
 	error = bus_dma_tag_create(parent_dtag, /* parent */
@@ -2437,7 +2449,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	    NULL,			/* lockfuncarg */
 	    &txr->hn_tx_rndis_dtag);
 	if (error) {
-		device_printf(sc->hn_dev, "failed to create rndis dmatag\n");
+		device_printf(dev, "failed to create rndis dmatag\n");
 		return error;
 	}
 
@@ -2456,7 +2468,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	    NULL,			/* lockfuncarg */
 	    &txr->hn_tx_data_dtag);
 	if (error) {
-		device_printf(sc->hn_dev, "failed to create data dmatag\n");
+		device_printf(dev, "failed to create data dmatag\n");
 		return error;
 	}
 
@@ -2473,7 +2485,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		    BUS_DMA_WAITOK | BUS_DMA_COHERENT,
 		    &txd->rndis_msg_dmap);
 		if (error) {
-			device_printf(sc->hn_dev,
+			device_printf(dev,
 			    "failed to allocate rndis_msg, %d\n", i);
 			return error;
 		}
@@ -2484,7 +2496,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		    hyperv_dma_map_paddr, &txd->rndis_msg_paddr,
 		    BUS_DMA_NOWAIT);
 		if (error) {
-			device_printf(sc->hn_dev,
+			device_printf(dev,
 			    "failed to load rndis_msg, %d\n", i);
 			bus_dmamem_free(txr->hn_tx_rndis_dtag,
 			    txd->rndis_msg, txd->rndis_msg_dmap);
@@ -2495,7 +2507,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		error = bus_dmamap_create(txr->hn_tx_data_dtag, 0,
 		    &txd->data_dmap);
 		if (error) {
-			device_printf(sc->hn_dev,
+			device_printf(dev,
 			    "failed to allocate tx data dmamap\n");
 			bus_dmamap_unload(txr->hn_tx_rndis_dtag,
 			    txd->rndis_msg_dmap);
@@ -2523,7 +2535,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		 * Create per TX ring sysctl tree:
 		 * dev.hn.UNIT.tx.RINGID
 		 */
-		ctx = device_get_sysctl_ctx(sc->hn_dev);
+		ctx = device_get_sysctl_ctx(dev);
 		child = SYSCTL_CHILDREN(sc->hn_tx_sysctl_tree);
 
 		snprintf(name, sizeof(name), "%d", id);
