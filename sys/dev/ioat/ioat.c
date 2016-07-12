@@ -1682,7 +1682,8 @@ ioat_shrink_timer_callback(void *arg)
 	}
 
 	order = ioat->ring_size_order;
-	if (ioat->is_resize_pending || order == IOAT_MIN_ORDER) {
+	if (ioat->is_completion_pending || ioat->is_resize_pending ||
+	    order == IOAT_MIN_ORDER) {
 		mtx_unlock(&ioat->submit_lock);
 		goto out;
 	}
@@ -1696,8 +1697,10 @@ ioat_shrink_timer_callback(void *arg)
 	KASSERT(ioat->ring_size_order == order,
 	    ("resize_pending protects order"));
 
-	if (newring != NULL)
+	if (newring != NULL && !ioat->is_completion_pending)
 		ring_shrink(ioat, order, newring);
+	else if (newring != NULL)
+		ioat_free_ring(ioat, (1 << (order - 1)), newring);
 
 	ioat->is_resize_pending = FALSE;
 	mtx_unlock(&ioat->submit_lock);
