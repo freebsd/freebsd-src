@@ -1591,6 +1591,18 @@ ring_grow(struct ioat_softc *ioat, uint32_t oldorder,
 		hw->next = next->hw_desc_bus_addr;
 	}
 
+#ifdef INVARIANTS
+	for (i = 0; i < newsize; i++) {
+		next = newring[(i + 1) & (newsize - 1)];
+		hw = newring[i & (newsize - 1)]->u.dma;
+
+		KASSERT(hw->next == next->hw_desc_bus_addr,
+		    ("mismatch at i:%u (oldsize:%u); next=%p nextaddr=0x%lx"
+		     " (tail:%u)", i, oldsize, next, next->hw_desc_bus_addr,
+		     tail));
+	}
+#endif
+
 	free(ioat->ring, M_IOAT);
 	ioat->ring = newring;
 	ioat->ring_size_order = oldorder + 1;
@@ -1656,6 +1668,18 @@ ring_shrink(struct ioat_softc *ioat, uint32_t oldorder,
 	hw = newring[(ioat->tail + newsize - 1) & (newsize - 1)]->u.dma;
 	next = newring[(ioat->tail + newsize) & (newsize - 1)];
 	hw->next = next->hw_desc_bus_addr;
+
+#ifdef INVARIANTS
+	for (i = 0; i < newsize; i++) {
+		next = newring[(i + 1) & (newsize - 1)];
+		hw = newring[i & (newsize - 1)]->u.dma;
+
+		KASSERT(hw->next == next->hw_desc_bus_addr,
+		    ("mismatch at i:%u (newsize:%u); next=%p nextaddr=0x%lx "
+		     "(tail:%u)", i, newsize, next, next->hw_desc_bus_addr,
+		     ioat->tail));
+	}
+#endif
 
 	free(ioat->ring, M_IOAT);
 	ioat->ring = newring;
