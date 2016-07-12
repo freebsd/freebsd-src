@@ -107,7 +107,7 @@ typedef	__uint32_t	__vm_size_t;
 
 typedef	unsigned int	___wchar_t;
 #define	__WCHAR_MIN	0		/* min value for a wchar_t */
-#define	__WCHAR_MAX	__UINT_MAX	/* max value for a wchar_t */
+#define	__WCHAR_MAX	__INT_MAX	/* max for a wchar_t <= WINT_MAX */
 
 /*
  * Unusual type definitions.
