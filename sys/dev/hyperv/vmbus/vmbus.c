@@ -1202,6 +1202,7 @@ cleanup:
 	}
 	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_scan_lock);
+	mtx_destroy(&sc->vmbus_chlist_lock);
 
 	return (ret);
 }
@@ -1283,6 +1284,8 @@ vmbus_detach(device_t dev)
 
 	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_scan_lock);
+	mtx_destroy(&sc->vmbus_chlist_lock);
+
 	return (0);
 }
 
