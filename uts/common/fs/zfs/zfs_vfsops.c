@@ -496,7 +496,7 @@ zfs_register_callbacks(vfs_t *vfsp)
 	} else if (vfs_optionisset(vfsp, MNTOPT_NBMAND, NULL)) {
 		nbmand = B_TRUE;
 	} else {
-		char osname[MAXNAMELEN];
+		char osname[ZFS_MAX_DATASET_NAME_LEN];
 
 		dmu_objset_name(os, osname);
 		if (error = dsl_prop_get_integer(osname, "nbmand", &nbmand,
@@ -1696,7 +1696,7 @@ zfs_statvfs(vfs_t *vfsp, struct statvfs64 *statp)
 
 	statp->f_flag = vf_to_stf(vfsp->vfs_flag);
 
-	statp->f_namemax = ZFS_MAXNAMELEN;
+	statp->f_namemax = MAXNAMELEN - 1;
 
 	/*
 	 * We have all of 32 characters to stuff a string here.
