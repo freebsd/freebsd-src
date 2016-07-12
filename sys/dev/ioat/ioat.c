@@ -1778,6 +1778,8 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	unsigned timeout;
 	int error;
 
+	CTR0(KTR_IOAT, __func__);
+
 	mtx_lock(IOAT_REFLK);
 	while (ioat->resetting && !ioat->destroying)
 		msleep(&ioat->resetting, IOAT_REFLK, 0, "IRH_drain", 0);
