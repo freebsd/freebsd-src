@@ -2000,6 +2000,7 @@ e82545_read_register(struct e82545_softc *sc, uint32_t offset)
 		break;
 	default:
 		DPRINTF("Unknown read register: 0x%x\r\n", offset);
+		retval = 0;
 		break;
 	}
 
