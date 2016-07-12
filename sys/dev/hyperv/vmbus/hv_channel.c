@@ -975,23 +975,6 @@ VmbusProcessChannelEvent(void* context, int pending)
 	hv_vmbus_channel* channel = (hv_vmbus_channel*)context;
 	boolean_t is_batched_reading;
 
-	/**
-	 * Find the channel based on this relid and invokes
-	 * the channel callback to process the event
-	 */
-
-	if (channel == NULL) {
-		return;
-	}
-	/**
-	 * To deal with the race condition where we might
-	 * receive a packet while the relevant driver is
-	 * being unloaded, dispatch the callback while
-	 * holding the channel lock. The unloading driver
-	 * will acquire the same channel lock to set the
-	 * callback to NULL. This closes the window.
-	 */
-
 	if (channel->on_channel_callback != NULL) {
 		arg = channel->channel_callback_context;
 		is_batched_reading = channel->batched_reading;
