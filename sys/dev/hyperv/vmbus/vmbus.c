@@ -1132,6 +1132,9 @@ vmbus_doattach(struct vmbus_softc *sc)
 	sc->vmbus_gpadl = VMBUS_GPADL_START;
 	mtx_init(&sc->vmbus_chlist_lock, "vmbus chlist", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->vmbus_chlist);
+	sc->vmbus_chmap = malloc(
+	    sizeof(struct hv_vmbus_channel *) * VMBUS_CHAN_MAX, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	/*
 	 * Create context for "post message" Hypercalls
@@ -1201,6 +1204,7 @@ cleanup:
 		vmbus_msghc_ctx_destroy(sc->vmbus_msg_hc);
 		sc->vmbus_msg_hc = NULL;
 	}
+	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_scan_lock);
 
 	return (ret);
@@ -1282,6 +1286,7 @@ vmbus_detach(device_t dev)
 		sc->vmbus_msg_hc = NULL;
 	}
 
+	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_scan_lock);
 	return (0);
 }
