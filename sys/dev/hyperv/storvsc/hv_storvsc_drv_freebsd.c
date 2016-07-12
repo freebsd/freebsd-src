@@ -805,6 +805,13 @@ hv_storvsc_on_iocompletion(struct storvsc_softc *sc,
 
 	vm_srb = &vstor_packet->u.vm_srb;
 
+	/*
+	 * Copy some fields of the host's response into the request structure,
+	 * because the fields will be used later in storvsc_io_done().
+	 */
+	request->vstor_packet.u.vm_srb.scsi_status = vm_srb->scsi_status;
+	request->vstor_packet.u.vm_srb.transfer_len = vm_srb->transfer_len;
+
 	if (((vm_srb->scsi_status & 0xFF) == SCSI_STATUS_CHECK_COND) &&
 			(vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID)) {
 		/* Autosense data available */
