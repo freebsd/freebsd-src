@@ -78,10 +78,14 @@ struct vmbus_softc {
 	struct vmbus_msghc_ctx	*vmbus_msg_hc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
-	/* Rarely used fields */
+	/*
+	 * Rarely used fields
+	 */
+
 	device_t		vmbus_dev;
 	int			vmbus_idtvec;
 	uint32_t		vmbus_flags;	/* see VMBUS_FLAG_ */
+	uint32_t		vmbus_version;
 
 	/* Shared memory for vmbus_{rx,tx}_evtflags */
 	void			*vmbus_evtflags;
