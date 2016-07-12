@@ -81,6 +81,36 @@ __FBSDID("$FreeBSD$");
 #define	IOAT_VER_3_2			0x32
 #define	IOAT_VER_3_3			0x33
 
+/*
+ * Hardware capabilities.  Different hardware revisions support different
+ * features.  It is often useful to detect specific features than try to infer
+ * them from hardware version.
+ *
+ * Different channels may support different features too; for example, 'PQ' may
+ * only be supported on the first two channels of some hardware.
+ */
+#define	IOAT_DMACAP_PB			(1 << 0)
+#define	IOAT_DMACAP_CRC			(1 << 1)
+#define	IOAT_DMACAP_MARKER_SKIP		(1 << 2)
+#define	IOAT_DMACAP_OLD_XOR		(1 << 3)
+#define	IOAT_DMACAP_DCA			(1 << 4)
+#define	IOAT_DMACAP_MOVECRC		(1 << 5)
+#define	IOAT_DMACAP_BFILL		(1 << 6)
+#define	IOAT_DMACAP_EXT_APIC		(1 << 7)
+#define	IOAT_DMACAP_XOR			(1 << 8)
+#define	IOAT_DMACAP_PQ			(1 << 9)
+#define	IOAT_DMACAP_DMA_DIF		(1 << 10)
+#define	IOAT_DMACAP_DWBES		(1 << 13)
+#define	IOAT_DMACAP_RAID16SS		(1 << 17)
+#define	IOAT_DMACAP_DMAMC		(1 << 18)
+#define	IOAT_DMACAP_CTOS		(1 << 19)
+
+#define	IOAT_DMACAP_STR \
+    "\20\24Completion_Timeout_Support\23DMA_with_Multicasting_Support" \
+    "\22RAID_Super_descriptors\16Descriptor_Write_Back_Error_Support" \
+    "\13DMA_with_DIF\12PQ\11XOR\10Extended_APIC_ID\07Block_Fill\06Move_CRC" \
+    "\05DCA\04Old_XOR\03Marker_Skipping\02CRC\01Page_Break"
+
 typedef void *bus_dmaengine_t;
 struct bus_dmadesc;
 typedef void (*bus_dmaengine_callback_t)(void *arg, int error);
@@ -100,6 +130,7 @@ void ioat_put_dmaengine(bus_dmaengine_t dmaengine);
 /* Check the DMA engine's HW version */
 int ioat_get_hwversion(bus_dmaengine_t dmaengine);
 size_t ioat_get_max_io_size(bus_dmaengine_t dmaengine);
+uint32_t ioat_get_capabilities(bus_dmaengine_t dmaengine);
 
 /*
  * Set interrupt coalescing on a DMA channel.

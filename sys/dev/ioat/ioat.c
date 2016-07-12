@@ -870,6 +870,15 @@ ioat_get_max_io_size(bus_dmaengine_t dmaengine)
 	return (ioat->max_xfer_size);
 }
 
+uint32_t
+ioat_get_capabilities(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (ioat->capabilities);
+}
+
 int
 ioat_set_interrupt_coalesce(bus_dmaengine_t dmaengine, uint16_t delay)
 {
