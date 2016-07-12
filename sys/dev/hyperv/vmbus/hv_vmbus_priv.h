@@ -38,29 +38,6 @@
 
 #include <dev/hyperv/include/hyperv.h>
 
-
-/*
- *  Status codes for hypervisor operations.
- */
-
-typedef uint16_t hv_vmbus_status;
-
-#define HV_MESSAGE_SIZE                 (256)
-#define HV_MESSAGE_PAYLOAD_BYTE_COUNT   (240)
-#define HV_MESSAGE_PAYLOAD_QWORD_COUNT  (30)
-#define HV_ANY_VP                       (0xFFFFFFFF)
-
-/*
- * MessageId: HV_STATUS_INSUFFICIENT_BUFFERS
- * MessageText:
- *    You did not supply enough message buffers to send a message.
- */
-
-#define HV_STATUS_SUCCESS                ((uint16_t)0)
-#define HV_STATUS_INSUFFICIENT_BUFFERS   ((uint16_t)0x0013)
-
-typedef void (*hv_vmbus_channel_callback)(void *context);
-
 typedef struct {
 	void*		data;
 	uint32_t	length;
@@ -118,74 +95,6 @@ typedef struct hv_vmbus_channel_packet_multipage_buffer {
 	hv_vmbus_multipage_buffer	range;
 } __packed hv_vmbus_channel_packet_multipage_buffer;
 
-enum {
-	HV_VMBUS_MESSAGE_CONNECTION_ID	= 1,
-	HV_VMBUS_MESSAGE_PORT_ID	= 1,
-	HV_VMBUS_EVENT_CONNECTION_ID	= 2,
-	HV_VMBUS_EVENT_PORT_ID		= 2,
-	HV_VMBUS_MONITOR_CONNECTION_ID	= 3,
-	HV_VMBUS_MONITOR_PORT_ID	= 3,
-};
-
-#define HV_PRESENT_BIT		0x80000000
-
-#define HV_HYPERCALL_PARAM_ALIGN sizeof(uint64_t)
-
-/*
- * Define hypervisor message types
- */
-typedef enum {
-
-	HV_MESSAGE_TYPE_NONE				= 0x00000000,
-
-	/*
-	 * Memory access messages
-	 */
-	HV_MESSAGE_TYPE_UNMAPPED_GPA			= 0x80000000,
-	HV_MESSAGE_TYPE_GPA_INTERCEPT			= 0x80000001,
-
-	/*
-	 * Timer notification messages
-	 */
-	HV_MESSAGE_TIMER_EXPIRED			= 0x80000010,
-
-	/*
-	 * Error messages
-	 */
-	HV_MESSAGE_TYPE_INVALID_VP_REGISTER_VALUE	= 0x80000020,
-	HV_MESSAGE_TYPE_UNRECOVERABLE_EXCEPTION		= 0x80000021,
-	HV_MESSAGE_TYPE_UNSUPPORTED_FEATURE		= 0x80000022,
-
-	/*
-	 * Trace buffer complete messages
-	 */
-	HV_MESSAGE_TYPE_EVENT_LOG_BUFFER_COMPLETE	= 0x80000040,
-
-	/*
-	 * Platform-specific processor intercept messages
-	 */
-	HV_MESSAGE_TYPE_X64_IO_PORT_INTERCEPT		= 0x80010000,
-	HV_MESSAGE_TYPE_X64_MSR_INTERCEPT		= 0x80010001,
-	HV_MESSAGE_TYPE_X64_CPU_INTERCEPT		= 0x80010002,
-	HV_MESSAGE_TYPE_X64_EXCEPTION_INTERCEPT		= 0x80010003,
-	HV_MESSAGE_TYPE_X64_APIC_EOI			= 0x80010004,
-	HV_MESSAGE_TYPE_X64_LEGACY_FP_ERROR		= 0x80010005
-
-} hv_vmbus_msg_type;
-
-/*
- * Define port identifier type
- */
-typedef union _hv_vmbus_port_id {
-	uint32_t	as_uint32_t;
-	struct {
-		uint32_t	id:24;
-		uint32_t	reserved:8;
-	} u ;
-} hv_vmbus_port_id;
-
-typedef uint64_t hv_vmbus_partition_id;
-
 /*
  * VM Bus connection states
  */
@@ -195,9 +104,6 @@ typedef enum {
 	HV_CONNECTED,
 	HV_DISCONNECTING
 } hv_vmbus_connect_state;
-
-#define HV_MAX_SIZE_CHANNEL_MESSAGE	HV_MESSAGE_PAYLOAD_BYTE_COUNT
-
 
 typedef struct {
 	hv_vmbus_connect_state			connect_state;
@@ -277,14 +183,6 @@ typedef struct {
 	uint8_t				rsvd_z4[1984];
 } hv_vmbus_monitor_page;
 
-/*
- * Declare the various hypercall operations
- */
-typedef enum {
-	HV_CALL_POST_MESSAGE	= 0x005c,
-	HV_CALL_SIGNAL_EVENT	= 0x005d,
-} hv_vmbus_call_code;
-
 /**
  * Global variables
  */
@@ -343,8 +241,6 @@ uint32_t		hv_ring_buffer_read_end(
 
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
 void			hv_vmbus_release_unattached_channels(void);
-
-uint16_t		hv_vmbus_signal_event(void *con_id);
 
 struct hv_device*	hv_vmbus_child_device_create(
 				hv_guid			device_type,

@@ -101,23 +101,6 @@ hyperv_get_timecount(struct timecounter *tc __unused)
 	return rdmsr(MSR_HV_TIME_REF_COUNT);
 }
 
-/**
- * @brief Invoke the specified hypercall
- */
-static uint64_t
-hv_vmbus_do_hypercall(uint64_t value, void *input, void *output)
-{
-	uint64_t in_paddr = 0, out_paddr = 0;
-
-	if (input != NULL)
-		in_paddr = hv_get_phys_addr(input);
-	if (output != NULL)
-		out_paddr = hv_get_phys_addr(output);
-
-	return hypercall_md(hypercall_context.hc_addr, value,
-	    in_paddr, out_paddr);
-}
-
 uint64_t
 hypercall_post_message(bus_addr_t msg_paddr)
 {
@@ -130,23 +113,6 @@ hypercall_signal_event(bus_addr_t sigevt_paddr)
 {
 	return hypercall_md(hypercall_context.hc_addr,
 	    HYPERCALL_SIGNAL_EVENT, sigevt_paddr, 0);
-}
-
-/**
- * @brief Signal an event on the specified connection using the hypervisor
- * event IPC. (This involves a hypercall.)
- */
-hv_vmbus_status
-hv_vmbus_signal_event(void *con_id)
-{
-	hv_vmbus_status status;
-
-	status = hv_vmbus_do_hypercall(
-		    HV_CALL_SIGNAL_EVENT,
-		    con_id,
-		    0) & 0xFFFF;
-
-	return (status);
 }
 
 int
