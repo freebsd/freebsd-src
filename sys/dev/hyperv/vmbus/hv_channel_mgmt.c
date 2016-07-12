@@ -142,6 +142,19 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	}
 	mtx_unlock(&sc->vmbus_chlist_lock);
 
+	if (bootverbose) {
+		char logstr[64];
+
+		logstr[0] = '\0';
+		if (channel != NULL) {
+			snprintf(logstr, sizeof(logstr), ", primary chan%u",
+			    channel->offer_msg.child_rel_id);
+		}
+		device_printf(sc->vmbus_dev, "chan%u subchanid%u offer%s\n",
+		    new_channel->offer_msg.child_rel_id,
+		    new_channel->offer_msg.offer.sub_channel_index, logstr);
+	}
+
 	if (channel != NULL) {
 		/*
 		 * Check if this is a sub channel.
@@ -157,13 +170,6 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			    new_channel, sc_list_entry);
 			mtx_unlock(&channel->sc_lock);
 
-			if (bootverbose) {
-				printf("VMBUS get multi-channel offer, "
-				    "rel=%u, sub=%u\n",
-				    new_channel->offer_msg.child_rel_id,
-				    new_channel->offer_msg.offer.sub_channel_index);	
-			}
-
 			/*
 			 * Insert the new channel to the end of the global
 			 * channel list.
@@ -177,11 +183,6 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			TAILQ_INSERT_TAIL(&sc->vmbus_chlist, new_channel,
 			    ch_link);
 			mtx_unlock(&sc->vmbus_chlist_lock);
-
-			if(bootverbose)
-				printf("VMBUS: new multi-channel offer <%p>, "
-				    "its primary channel is <%p>.\n",
-				    new_channel, new_channel->primary_channel);
 
 			new_channel->state = HV_CHANNEL_OPEN_STATE;
 
@@ -345,6 +346,10 @@ vmbus_channel_on_offer_rescind(struct vmbus_softc *sc,
 	hv_vmbus_channel*		channel;
 
 	rescind = (const hv_vmbus_channel_rescind_offer *)msg->msg_data;
+	if (bootverbose) {
+		device_printf(sc->vmbus_dev, "chan%u rescind\n",
+		    rescind->child_rel_id);
+	}
 
 	channel = hv_vmbus_g_connection.channels[rescind->child_rel_id];
 	if (channel == NULL)
