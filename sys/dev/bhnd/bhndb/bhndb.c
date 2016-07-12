@@ -1121,7 +1121,11 @@ static int
 bhndb_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	int error;
+	struct resource_list_entry	*rle;
+	bool				 passthrough;
+	int				 error;
+	
+	passthrough = (device_get_parent(child) != dev);
 
 	/* Deactivate resources */
 	if (rman_get_flags(r) & RF_ACTIVE) {
@@ -1132,6 +1136,14 @@ bhndb_release_resource(device_t dev, device_t child, int type, int rid,
 
 	if ((error = rman_release_resource(r)))
 		return (error);
+
+	if (!passthrough) {
+		/* Clean resource list entry */
+		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
+		    type, rid);
+		if (rle != NULL)
+			rle->res = NULL;
+	}
 
 	return (0);
 }

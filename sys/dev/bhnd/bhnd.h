@@ -43,6 +43,8 @@
 #include "bhnd_bus_if.h"
 #include "bhnd_match.h"
 
+#include "nvram/bhnd_nvram.h"
+
 extern devclass_t bhnd_devclass;
 extern devclass_t bhnd_hostb_devclass;
 extern devclass_t bhnd_nvram_devclass;
@@ -242,6 +244,7 @@ struct bhnd_device {
 
 const char			*bhnd_vendor_name(uint16_t vendor);
 const char			*bhnd_port_type_name(bhnd_port_type port_type);
+const char			*bhnd_nvram_src_name(bhnd_nvram_src nvram_src);
 
 const char 			*bhnd_find_core_name(uint16_t vendor,
 				     uint16_t device);
@@ -324,7 +327,7 @@ bool				 bhnd_bus_generic_is_hw_disabled(device_t dev,
 bool				 bhnd_bus_generic_is_region_valid(device_t dev,
 				     device_t child, bhnd_port_type type,
 				     u_int port, u_int region);
-int				 bhnd_bus_generic_read_nvram_var(device_t dev,
+int				 bhnd_bus_generic_get_nvram_var(device_t dev,
 				     device_t child, const char *name,
 				     void *buf, size_t *size);
 const struct bhnd_chipid	*bhnd_bus_generic_get_chipid(device_t dev,
@@ -332,9 +335,6 @@ const struct bhnd_chipid	*bhnd_bus_generic_get_chipid(device_t dev,
 int				 bhnd_bus_generic_read_board_info(device_t dev,
 				     device_t child,
 				     struct bhnd_board_info *info);
-int				 bhnd_bus_generic_get_nvram_var(device_t dev,
-				    device_t child, const char *name,
-				    void *buf, size_t *size);
 struct bhnd_resource		*bhnd_bus_generic_alloc_resource (device_t dev,
 				     device_t child, int type, int *rid,
 				     rman_res_t start, rman_res_t end,
