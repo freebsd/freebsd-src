@@ -367,6 +367,54 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 	if (HV_VMBUS_CHAN_ISPRIMARY(chan)) {
 		/* Only primary channel owns the hv_device */
 		hv_vmbus_child_device_unregister(chan->device);
+		/* NOTE: DO NOT free primary channel for now */
+	} else {
+		struct vmbus_softc *sc = chan->vmbus_sc;
+		struct hv_vmbus_channel *pri_chan = chan->primary_channel;
+		struct vmbus_chanmsg_chfree *req;
+		struct vmbus_msghc *mh;
+		int error;
+
+		mh = vmbus_msghc_get(sc, sizeof(*req));
+		if (mh == NULL) {
+			device_printf(sc->vmbus_dev,
+			    "can not get msg hypercall for chfree(chan%u)\n",
+			    chan->offer_msg.child_rel_id);
+			goto remove;
+		}
+
+		req = vmbus_msghc_dataptr(mh);
+		req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHFREE;
+		req->chm_chanid = chan->offer_msg.child_rel_id;
+
+		error = vmbus_msghc_exec_noresult(mh);
+		vmbus_msghc_put(sc, mh);
+
+		if (error) {
+			device_printf(sc->vmbus_dev,
+			    "chfree(chan%u) failed: %d",
+			    chan->offer_msg.child_rel_id, error);
+			/* NOTE: Move on! */
+		} else {
+			if (bootverbose) {
+				device_printf(sc->vmbus_dev, "chan%u freed\n",
+				    chan->offer_msg.child_rel_id);
+			}
+		}
+remove:
+		mtx_lock(&sc->vmbus_chlist_lock);
+		TAILQ_REMOVE(&sc->vmbus_chlist, chan, ch_link);
+		mtx_unlock(&sc->vmbus_chlist_lock);
+
+		mtx_lock(&pri_chan->sc_lock);
+		TAILQ_REMOVE(&pri_chan->sc_list_anchor, chan, sc_list_entry);
+		KASSERT(pri_chan->subchan_cnt > 0,
+		    ("invalid subchan_cnt %d", pri_chan->subchan_cnt));
+		pri_chan->subchan_cnt--;
+		mtx_unlock(&pri_chan->sc_lock);
+		wakeup(pri_chan);
+
+		hv_vmbus_free_vmbus_channel(chan);
 	}
 }
 
@@ -501,6 +549,15 @@ vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
 {
 
 	free(subchan, M_TEMP);
+}
+
+void
+vmbus_drain_subchan(struct hv_vmbus_channel *pri_chan)
+{
+	mtx_lock(&pri_chan->sc_lock);
+	while (pri_chan->subchan_cnt > 0)
+		mtx_sleep(pri_chan, &pri_chan->sc_lock, 0, "dsubch", 0);
+	mtx_unlock(&pri_chan->sc_lock);
 }
 
 void

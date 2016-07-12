@@ -102,6 +102,7 @@ struct vmbus_gpa_range {
 #define VMBUS_CHANMSG_TYPE_GPADL_CONNRESP	10	/* RESP */
 #define VMBUS_CHANMSG_TYPE_GPADL_DISCONN	11	/* REQ */
 #define VMBUS_CHANMSG_TYPE_GPADL_DISCONNRESP	12	/* RESP */
+#define VMBUS_CHANMSG_TYPE_CHFREE		13	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CONNECT		14	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CONNECT_RESP		15	/* RESP */
 #define VMBUS_CHANMSG_TYPE_DISCONNECT		16	/* REQ */
@@ -204,6 +205,12 @@ struct vmbus_chanmsg_gpadl_disconn {
 	struct vmbus_chanmsg_hdr chm_hdr;
 	uint32_t	chm_chanid;
 	uint32_t	chm_gpadl;
+} __packed;
+
+/* VMBUS_CHANMSG_TYPE_CHFREE */
+struct vmbus_chanmsg_chfree {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	uint32_t	chm_chanid;
 } __packed;
 
 #endif	/* !_VMBUS_REG_H_ */
