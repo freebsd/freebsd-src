@@ -43,47 +43,6 @@
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-/*
- * Globals
- */
-hv_vmbus_connection hv_vmbus_g_connection =
-	{ .connect_state = HV_DISCONNECTED };
-
-/**
- * Send a connect request on the partition service connection
- */
-int
-hv_vmbus_connect(struct vmbus_softc *sc)
-{
-	/**
-	 * Make sure we are not connecting or connected
-	 */
-	if (hv_vmbus_g_connection.connect_state != HV_DISCONNECTED) {
-		return (-1);
-	}
-
-	/**
-	 * Initialize the vmbus connection
-	 */
-	hv_vmbus_g_connection.connect_state = HV_CONNECTING;
-
-	hv_vmbus_g_connection.connect_state = HV_CONNECTED;
-
-	return (0);
-}
-
-/**
- * Send a disconnect request on the partition service connection
- */
-int
-hv_vmbus_disconnect(void)
-{
-
-	hv_vmbus_g_connection.connect_state = HV_DISCONNECTED;
-
-	return (0);
-}
-
 static __inline void
 vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
     int flag_cnt)
