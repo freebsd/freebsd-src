@@ -101,17 +101,24 @@ userret(struct thread *td, struct trapframe *frame)
             td->td_name);
 	KASSERT((p->p_flag & P_WEXIT) == 0,
 	    ("Exiting process returns to usermode"));
-#if 0
 #ifdef DIAGNOSTIC
-	/* Check that we called signotify() enough. */
-	PROC_LOCK(p);
-	thread_lock(td);
-	if (SIGPENDING(td) && ((td->td_flags & TDF_NEEDSIGCHK) == 0 ||
-	    (td->td_flags & TDF_ASTPENDING) == 0))
-		printf("failed to set signal flags properly for ast()\n");
-	thread_unlock(td);
-	PROC_UNLOCK(p);
-#endif
+	/*
+	 * Check that we called signotify() enough.  For
+	 * multi-threaded processes, where signal distribution might
+	 * change due to other threads changing sigmask, the check is
+	 * racy and cannot be performed reliably.
+	 */
+	if (p->p_numthreads == 1) {
+		PROC_LOCK(p);
+		thread_lock(td);
+		KASSERT(!SIGPENDING(td) ||
+		    (td->td_flags & (TDF_NEEDSIGCHK | TDF_ASTPENDING)) ==
+		    (TDF_NEEDSIGCHK | TDF_ASTPENDING),
+		    ("failed to set signal flags for ast p %p td %p fl %x",
+		    p, td, td->td_flags));
+		thread_unlock(td);
+		PROC_UNLOCK(p);
+	}
 #endif
 #ifdef KTRACE
 	KTRUSERRET(td);
@@ -264,6 +271,26 @@ ast(struct trapframe *framep)
 			ktrcsw(0, 1, __func__);
 #endif
 	}
+
+#ifdef DIAGNOSTIC
+	if (p->p_numthreads == 1 && (flags & TDF_NEEDSIGCHK) == 0) {
+		PROC_LOCK(p);
+		thread_lock(td);
+		/*
+		 * Note that TDF_NEEDSIGCHK should be re-read from
+		 * td_flags, since signal might have been delivered
+		 * after we cleared td_flags above.  This is one of
+		 * the reason for looping check for AST condition.
+		 */
+		KASSERT(!SIGPENDING(td) ||
+		    (td->td_flags & (TDF_NEEDSIGCHK | TDF_ASTPENDING)) ==
+		    (TDF_NEEDSIGCHK | TDF_ASTPENDING),
+		    ("failed2 to set signal flags for ast p %p td %p fl %x %x",
+		    p, td, flags, td->td_flags));
+		thread_unlock(td);
+		PROC_UNLOCK(p);
+	}
+#endif
 
 	/*
 	 * Check for signals. Unlocked reads of p_pendingcnt or
