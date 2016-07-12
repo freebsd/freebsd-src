@@ -487,10 +487,11 @@ cleanup:
 static void
 hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 {
-	int ret = 0;
+	struct vmbus_softc *sc = channel->vmbus_sc;
+	struct vmbus_msghc *mh;
+	struct vmbus_chanmsg_chclose *req;
 	struct taskqueue *rxq = channel->rxq;
-	hv_vmbus_channel_close_channel* msg;
-	hv_vmbus_channel_msg_info* info;
+	int error;
 
 	channel->state = HV_CHANNEL_OPEN_STATE;
 
@@ -504,20 +505,31 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	/**
 	 * Send a closing message
 	 */
-	info = (hv_vmbus_channel_msg_info *)
-		malloc(	sizeof(hv_vmbus_channel_msg_info) +
-			sizeof(hv_vmbus_channel_close_channel),
-				M_DEVBUF, M_NOWAIT);
-	KASSERT(info != NULL, ("VMBUS: malloc failed hv_vmbus_channel_close!"));
-	if(info == NULL)
-	    return;
 
-	msg = (hv_vmbus_channel_close_channel*) info->msg;
-	msg->header.message_type = HV_CHANNEL_MESSAGE_CLOSE_CHANNEL;
-	msg->child_rel_id = channel->offer_msg.child_rel_id;
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for chclose(chan%u)\n",
+		    channel->offer_msg.child_rel_id);
+		return;
+	}
 
-	ret = hv_vmbus_post_message(
-		msg, sizeof(hv_vmbus_channel_close_channel));
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHCLOSE;
+	req->chm_chanid = channel->offer_msg.child_rel_id;
+
+	error = vmbus_msghc_exec_noresult(mh);
+	vmbus_msghc_put(sc, mh);
+
+	if (error) {
+		device_printf(sc->vmbus_dev,
+		    "chclose(chan%u) msg hypercall exec failed: %d\n",
+		    channel->offer_msg.child_rel_id, error);
+		return;
+	} else if (bootverbose) {
+		device_printf(sc->vmbus_dev, "close chan%u\n",
+		    channel->offer_msg.child_rel_id);
+	}
 
 	/* Tear down the gpadl for the channel's ring buffer */
 	if (channel->ring_buffer_gpadl_handle) {
@@ -533,8 +545,6 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 
 	contigfree(channel->ring_buffer_pages, channel->ring_buffer_size,
 	    M_DEVBUF);
-
-	free(info, M_DEVBUF);
 }
 
 /**
