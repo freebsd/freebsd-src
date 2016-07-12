@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011-2012 Pawel Jakub Dawidek. All rights reserved.
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright 2016 RackTop Systems.
  * Copyright (c) 2014 Integros [integros.com]
@@ -370,6 +371,7 @@ typedef struct zfs_cmd {
 	uint32_t	zc_flags;
 	uint64_t	zc_action_handle;
 	int		zc_cleanup_fd;
+	uint8_t		zc_simple;
 	boolean_t	zc_resumable;
 	uint64_t	zc_sendobj;
 	uint64_t	zc_fromobj;
