@@ -33,7 +33,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"21.00.00.00-fbsd"
+#define MPS_DRIVER_VERSION	"21.01.00.00-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -41,6 +41,7 @@
 #define MPS_EVT_REPLY_FRAMES	32
 #define MPS_REPLY_FRAMES	MPS_REQ_FRAMES
 #define MPS_CHAIN_FRAMES	2048
+#define MPS_MAXIO_PAGES		(-1)
 #define MPS_SENSE_LEN		SSD_FULL_SIZE
 #define MPS_MSI_COUNT		1
 #define MPS_SGE64_SIZE		12
@@ -280,6 +281,7 @@ struct mps_softc {
 	int				io_cmds_highwater;
 	int				chain_free;
 	int				max_chains;
+	int				max_io_pages;
 	int				chain_free_lowwater;
 	u_int				enable_ssu;
 	int				spinup_wait_time;
