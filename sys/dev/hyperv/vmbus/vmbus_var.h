@@ -86,6 +86,7 @@ struct vmbus_softc {
 	int			vmbus_idtvec;
 	uint32_t		vmbus_flags;	/* see VMBUS_FLAG_ */
 	uint32_t		vmbus_version;
+	uint32_t		vmbus_gpadl;
 
 	/* Shared memory for vmbus_{rx,tx}_evtflags */
 	void			*vmbus_evtflags;
@@ -147,5 +148,7 @@ void	vmbus_msghc_reset(struct vmbus_msghc *, size_t);
 
 void	vmbus_scan_done(struct vmbus_softc *);
 void	vmbus_scan_newchan(struct vmbus_softc *);
+
+uint32_t vmbus_gpadl_alloc(struct vmbus_softc *);
 
 #endif	/* !_VMBUS_VAR_H_ */

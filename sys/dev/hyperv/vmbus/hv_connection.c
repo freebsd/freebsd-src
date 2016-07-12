@@ -47,8 +47,7 @@
  * Globals
  */
 hv_vmbus_connection hv_vmbus_g_connection =
-	{ .connect_state = HV_DISCONNECTED,
-	  .next_gpadl_handle = 0xE1E10, };
+	{ .connect_state = HV_DISCONNECTED };
 
 /**
  * Send a connect request on the partition service connection

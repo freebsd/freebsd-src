@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 #include "acpi_if.h"
 #include "vmbus_if.h"
 
+#define VMBUS_GPADL_START		0xe1e10
+
 struct vmbus_msghc {
 	struct hypercall_postmsg_in	*mh_inprm;
 	struct hypercall_postmsg_in	mh_inprm_save;
@@ -370,6 +372,12 @@ vmbus_msghc_wakeup(struct vmbus_softc *sc, const struct vmbus_message *msg)
 
 	mtx_unlock(&mhc->mhc_active_lock);
 	wakeup(&mhc->mhc_active);
+}
+
+uint32_t
+vmbus_gpadl_alloc(struct vmbus_softc *sc)
+{
+	return atomic_fetchadd_int(&sc->vmbus_gpadl, 1);
 }
 
 static int
@@ -1121,6 +1129,7 @@ vmbus_doattach(struct vmbus_softc *sc)
 	sc->vmbus_flags |= VMBUS_FLAG_ATTACHED;
 
 	mtx_init(&sc->vmbus_scan_lock, "vmbus scan", NULL, MTX_DEF);
+	sc->vmbus_gpadl = VMBUS_GPADL_START;
 
 	/*
 	 * Create context for "post message" Hypercalls

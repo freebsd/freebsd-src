@@ -343,8 +343,7 @@ hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
 	/*
 	 * Allocate GPADL id.
 	 */
-	gpadl = atomic_fetchadd_int(
-	    &hv_vmbus_g_connection.next_gpadl_handle, 1);
+	gpadl = vmbus_gpadl_alloc(sc);
 	*gpadl0 = gpadl;
 
 	/*

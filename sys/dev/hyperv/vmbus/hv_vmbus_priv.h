@@ -107,7 +107,6 @@ typedef enum {
 
 typedef struct {
 	hv_vmbus_connect_state			connect_state;
-	uint32_t				next_gpadl_handle;
 
 	/**
 	 * List of primary channels. Sub channels will be linked
