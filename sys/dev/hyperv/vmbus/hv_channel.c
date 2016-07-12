@@ -182,11 +182,21 @@ hv_vmbus_channel_open(
 	hv_vmbus_pfn_channel_callback	pfn_on_channel_callback,
 	void* 				context)
 {
-
+	struct vmbus_softc *sc = new_channel->vmbus_sc;
+	const struct vmbus_chanmsg_chopen_resp *resp;
+	const struct vmbus_message *msg;
+	struct vmbus_chanmsg_chopen *req;
+	struct vmbus_msghc *mh;
+	uint32_t status;
 	int ret = 0;
 	void *in, *out;
-	hv_vmbus_channel_open_channel*	open_msg;
-	hv_vmbus_channel_msg_info* 	open_info;
+
+	if (user_data_len > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
+		device_printf(sc->vmbus_dev,
+		    "invalid udata len %u for chan%u\n",
+		    user_data_len, new_channel->offer_msg.child_rel_id);
+		return EINVAL;
+	}
 
 	mtx_lock(&new_channel->sc_lock);
 	if (new_channel->state == HV_CHANNEL_OPEN_STATE) {
@@ -248,76 +258,53 @@ hv_vmbus_channel_open(
 		send_ring_buffer_size + recv_ring_buffer_size,
 		&new_channel->ring_buffer_gpadl_handle);
 
-	/**
-	 * Create and init the channel open message
+	/*
+	 * Open channel w/ the bufring GPADL on the target CPU.
 	 */
-	open_info = (hv_vmbus_channel_msg_info*) malloc(
-		sizeof(hv_vmbus_channel_msg_info) +
-			sizeof(hv_vmbus_channel_open_channel),
-		M_DEVBUF,
-		M_NOWAIT);
-	KASSERT(open_info != NULL,
-	    ("Error VMBUS: malloc failed to allocate Open Channel message!"));
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for chopen(chan%u)\n",
+		    new_channel->offer_msg.child_rel_id);
+		return ENXIO;
+	}
 
-	if (open_info == NULL)
-		return (ENOMEM);
-
-	sema_init(&open_info->wait_sema, 0, "Open Info Sema");
-
-	open_msg = (hv_vmbus_channel_open_channel*) open_info->msg;
-	open_msg->header.message_type = HV_CHANNEL_MESSAGE_OPEN_CHANNEL;
-	open_msg->open_id = new_channel->offer_msg.child_rel_id;
-	open_msg->child_rel_id = new_channel->offer_msg.child_rel_id;
-	open_msg->ring_buffer_gpadl_handle =
-		new_channel->ring_buffer_gpadl_handle;
-	open_msg->downstream_ring_buffer_page_offset = send_ring_buffer_size
-		>> PAGE_SHIFT;
-	open_msg->target_vcpu = new_channel->target_vcpu;
-
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHOPEN;
+	req->chm_chanid = new_channel->offer_msg.child_rel_id;
+	req->chm_openid = new_channel->offer_msg.child_rel_id;
+	req->chm_gpadl = new_channel->ring_buffer_gpadl_handle;
+	req->chm_vcpuid = new_channel->target_vcpu;
+	req->chm_rxbr_pgofs = send_ring_buffer_size >> PAGE_SHIFT;
 	if (user_data_len)
-		memcpy(open_msg->user_data, user_data, user_data_len);
+		memcpy(req->chm_udata, user_data, user_data_len);
 
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_INSERT_TAIL(
-		&hv_vmbus_g_connection.channel_msg_anchor,
-		open_info,
-		msg_list_entry);
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-
-	ret = hv_vmbus_post_message(
-		open_msg, sizeof(hv_vmbus_channel_open_channel));
-
-	if (ret != 0)
-	    goto cleanup;
-
-	ret = sema_timedwait(&open_info->wait_sema, 5 * hz); /* KYS 5 seconds */
-
-	if (ret) {
-	    if(bootverbose)
-		printf("VMBUS: channel <%p> open timeout.\n", new_channel);
-	    goto cleanup;
+	ret = vmbus_msghc_exec(sc, mh);
+	if (ret != 0) {
+		device_printf(sc->vmbus_dev,
+		    "chopen(chan%u) msg hypercall exec failed: %d\n",
+		    new_channel->offer_msg.child_rel_id, ret);
+		vmbus_msghc_put(sc, mh);
+		return ret;
 	}
 
-	if (open_info->response.open_result.status == 0) {
-	    new_channel->state = HV_CHANNEL_OPENED_STATE;
-	    if(bootverbose)
-		printf("VMBUS: channel <%p> open success.\n", new_channel);
+	msg = vmbus_msghc_wait_result(sc, mh);
+	resp = (const struct vmbus_chanmsg_chopen_resp *)msg->msg_data;
+	status = resp->chm_status;
+
+	vmbus_msghc_put(sc, mh);
+
+	if (status == 0) {
+		new_channel->state = HV_CHANNEL_OPENED_STATE;
+		if (bootverbose) {
+			device_printf(sc->vmbus_dev, "chan%u opened\n",
+			    new_channel->offer_msg.child_rel_id);
+		}
 	} else {
-	    if(bootverbose)
-		printf("Error VMBUS: channel <%p> open failed - %d!\n",
-			new_channel, open_info->response.open_result.status);
+		device_printf(sc->vmbus_dev, "failed to open chan%u\n",
+		    new_channel->offer_msg.child_rel_id);
+		ret = ENXIO;
 	}
-
-	cleanup:
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_REMOVE(
-		&hv_vmbus_g_connection.channel_msg_anchor,
-		open_info,
-		msg_list_entry);
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-	sema_destroy(&open_info->wait_sema);
-	free(open_info, M_DEVBUF);
-
 	return (ret);
 }
 

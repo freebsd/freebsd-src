@@ -84,6 +84,8 @@ CTASSERT(sizeof(struct vmbus_evtflags) == VMBUS_EVTFLAGS_SIZE);
  */
 
 #define VMBUS_CHANMSG_TYPE_CHANNEL_REQ		3	/* REQ */
+#define VMBUS_CHANMSG_TYPE_CHOPEN		5	/* REQ */
+#define VMBUS_CHANMSG_TYPE_CHOPEN_RESP		6	/* RESP */
 #define VMBUS_CHANMSG_TYPE_INIT_CONTACT		14	/* REQ */
 #define VMBUS_CHANMSG_TYPE_VERSION_RESP		15	/* RESP */
 #define VMBUS_CHANMSG_TYPE_UNLOAD		16	/* REQ */
@@ -117,6 +119,26 @@ struct vmbus_chanmsg_channel_req {
 /* VMBUS_CHANMSG_TYPE_UNLOAD */
 struct vmbus_chanmsg_unload {
 	struct vmbus_chanmsg_hdr chm_hdr;
+} __packed;
+
+/* VMBUS_CHANMSG_TYPE_CHOPEN */
+struct vmbus_chanmsg_chopen {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	uint32_t	chm_chanid;
+	uint32_t	chm_openid;
+	uint32_t	chm_gpadl;
+	uint32_t	chm_vcpuid;
+	uint32_t	chm_rxbr_pgofs;
+#define VMBUS_CHANMSG_CHOPEN_UDATA_SIZE	120
+	uint8_t		chm_udata[VMBUS_CHANMSG_CHOPEN_UDATA_SIZE];
+} __packed;
+
+/* VMBUS_CHANMSG_TYPE_CHOPEN_RESP */
+struct vmbus_chanmsg_chopen_resp {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	uint32_t	chm_chanid;
+	uint32_t	chm_openid;
+	uint32_t	chm_status;
 } __packed;
 
 #endif	/* !_VMBUS_REG_H_ */

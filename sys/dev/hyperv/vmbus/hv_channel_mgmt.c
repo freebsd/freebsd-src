@@ -418,46 +418,13 @@ vmbus_channel_on_offers_delivered(struct vmbus_softc *sc,
  * @brief Open result handler.
  *
  * This is invoked when we received a response
- * to our channel open request. Find the matching request, copy the
- * response and signal the requesting thread.
+ * to our channel open request.
  */
 static void
 vmbus_channel_on_open_result(struct vmbus_softc *sc,
     const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_msg_header *hdr =
-	    (const hv_vmbus_channel_msg_header *)msg->msg_data;
-
-	const hv_vmbus_channel_open_result *result;
-	hv_vmbus_channel_msg_info*	msg_info;
-	hv_vmbus_channel_msg_header*	requestHeader;
-	hv_vmbus_channel_open_channel*	openMsg;
-
-	result = (const hv_vmbus_channel_open_result *)hdr;
-
-	/*
-	 * Find the open msg, copy the result and signal/unblock the wait event
-	 */
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-
-	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
-	    msg_list_entry) {
-	    requestHeader = (hv_vmbus_channel_msg_header*) msg_info->msg;
-
-	    if (requestHeader->message_type ==
-		    HV_CHANNEL_MESSAGE_OPEN_CHANNEL) {
-		openMsg = (hv_vmbus_channel_open_channel*) msg_info->msg;
-		if (openMsg->child_rel_id == result->child_rel_id
-		    && openMsg->open_id == result->open_id) {
-		    memcpy(&msg_info->response.open_result, result,
-			sizeof(hv_vmbus_channel_open_result));
-		    sema_post(&msg_info->wait_sema);
-		    break;
-		}
-	    }
-	}
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-
+	vmbus_msghc_wakeup(sc, msg);
 }
 
 /**
