@@ -717,6 +717,7 @@ void		vmbus_channel_cpu_rr(struct hv_vmbus_channel *chan);
 struct hv_vmbus_channel **
 		vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
 void		vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt);
+void		vmbus_drain_subchan(struct hv_vmbus_channel *pri_chan);
 
 /**
  * @brief Get physical address from virtual
