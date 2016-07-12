@@ -58,14 +58,14 @@ static void	VmbusProcessChannelEvent(void* channel, int pending);
 static void
 vmbus_channel_set_event(hv_vmbus_channel *channel)
 {
-	if (channel->offer_msg.monitor_allocated) {
-		struct vmbus_softc *sc = channel->vmbus_sc;
-		hv_vmbus_monitor_page *monitor_page;
-		uint32_t chanid = channel->offer_msg.child_rel_id;
+	struct vmbus_softc *sc = channel->vmbus_sc;
+	uint32_t chanid = channel->offer_msg.child_rel_id;
 
-		atomic_set_long(
-		    &sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
-		    1UL << (chanid & VMBUS_EVTFLAG_MASK));
+	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
+	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
+
+	if (channel->offer_msg.monitor_allocated) {
+		hv_vmbus_monitor_page *monitor_page;
 
 		monitor_page = sc->vmbus_mnf2;
 		synch_set_bit(channel->monitor_bit,

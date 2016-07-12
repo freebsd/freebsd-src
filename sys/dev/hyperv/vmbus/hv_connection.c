@@ -164,15 +164,8 @@ vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
 int
 hv_vmbus_set_event(hv_vmbus_channel *channel)
 {
-	struct vmbus_softc *sc = channel->vmbus_sc;
-	int ret = 0;
-	uint32_t chanid = channel->offer_msg.child_rel_id;
 
-	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
-	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
-	ret = hv_vmbus_signal_event(channel->signal_event_param);
-
-	return (ret);
+	return hv_vmbus_signal_event(channel->signal_event_param);
 }
 
 void
