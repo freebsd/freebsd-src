@@ -617,8 +617,6 @@ SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar5_addr32, CTLFLAG_RDTUN,
  */
 MALLOC_DEFINE(M_NTB, "ntb_hw", "ntb_hw driver memory allocations");
 
-SYSCTL_NODE(_hw, OID_AUTO, ntb, CTLFLAG_RW, 0, "NTB sysctls");
-
 /*
  * OS <-> Driver linkage functions
  */
