@@ -835,7 +835,8 @@ vmbus_dma_alloc(struct vmbus_softc *sc)
 		return ENOMEM;
 
 	sc->vmbus_mnf2 = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
-	    PAGE_SIZE, &sc->vmbus_mnf2_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	    sizeof(struct vmbus_mnf), &sc->vmbus_mnf2_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (sc->vmbus_mnf2 == NULL)
 		return ENOMEM;
 
