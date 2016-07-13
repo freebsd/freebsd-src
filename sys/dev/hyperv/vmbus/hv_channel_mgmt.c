@@ -294,6 +294,8 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	new_channel = hv_vmbus_allocate_channel(sc);
 	new_channel->ch_id = offer->child_rel_id;
 	new_channel->ch_subidx = offer->offer.sub_channel_index;
+	if (offer->monitor_allocated)
+		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
 
 	/*
 	 * By default we setup state to enable batched
