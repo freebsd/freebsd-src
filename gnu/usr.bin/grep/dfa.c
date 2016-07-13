@@ -2547,8 +2547,13 @@ match_mb_charset (struct dfa *d, int s, position pos, int index)
       wcbuf[2] = work_mbc->range_sts[i];
       wcbuf[4] = work_mbc->range_ends[i];
 
+#ifdef __FreeBSD__
+      if (wcscmp(wcbuf, wcbuf+2) >= 0 &&
+	  wcscmp(wcbuf+4, wcbuf) >= 0)
+#else
       if (wcscoll(wcbuf, wcbuf+2) >= 0 &&
 	  wcscoll(wcbuf+4, wcbuf) >= 0)
+#endif
 	goto charset_matched;
     }
 
