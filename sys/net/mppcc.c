@@ -232,8 +232,9 @@ int MPPC_Compress(u_char **src, u_char **dst, u_long *srcCnt, u_long *dstCnt, ch
 	} else if (off < 8192) {	/* 16-bit offset; 320 <= offset < 8192 */
 	    putbits16(*dst, 0xc000|(off-320), 16, &olen, &l);
 	} else {		/* NOTREACHED */
+	    __unreachable();
 	    rtn &= ~MPPC_OK;
-	    return rtn;
+	    return (rtn);
 	}
 
 	/* Encode length of match. */
