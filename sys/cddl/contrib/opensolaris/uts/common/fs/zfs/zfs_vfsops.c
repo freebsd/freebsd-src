@@ -1826,11 +1826,8 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 
 	ZFS_EXIT(zfsvfs);
 
-	if (error == 0) {
+	if (error == 0)
 		error = vn_lock(*vpp, flags);
-		if (error == 0)
-			(*vpp)->v_vflag |= VV_ROOT;
-	}
 	if (error != 0)
 		*vpp = NULL;
 
