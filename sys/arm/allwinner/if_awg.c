@@ -30,6 +30,8 @@
  * Allwinner Gigabit Ethernet MAC (EMAC) controller
  */
 
+#include "opt_device_polling.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -77,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #define	AWG_ASSERT_UNLOCKED(sc)	mtx_assert(&(sc)->mtx, MA_NOTOWNED)
 
 #define	DESC_ALIGN		4
-#define	TX_DESC_COUNT		256
+#define	TX_DESC_COUNT		1024
 #define	TX_DESC_SIZE		(sizeof(struct emac_desc) * TX_DESC_COUNT)
 #define	RX_DESC_COUNT		256
 #define	RX_DESC_SIZE		(sizeof(struct emac_desc) * RX_DESC_COUNT)
@@ -97,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #define	RX_TX_PRI_DEFAULT	0
 #define	PAUSE_TIME_DEFAULT	0x400
 #define	TX_INTERVAL_DEFAULT	64
+#define	RX_BATCH_DEFAULT	64
 
 /* Burst length of RX and TX DMA transfers */
 static int awg_burst_len = BURST_LEN_DEFAULT;
@@ -113,6 +116,10 @@ TUNABLE_INT("hw.awg.pause_time", &awg_pause_time);
 /* Request a TX interrupt every <n> descriptors */
 static int awg_tx_interval = TX_INTERVAL_DEFAULT;
 TUNABLE_INT("hw.awg.tx_interval", &awg_tx_interval);
+
+/* Maximum number of mbufs to send to if_input */
+static int awg_rx_batch = RX_BATCH_DEFAULT;
+TUNABLE_INT("hw.awg.rx_batch", &awg_rx_batch);
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun8i-a83t-emac",		1 },
@@ -353,7 +360,7 @@ awg_setup_txdesc(struct awg_softc *sc, int index, int flags, bus_addr_t paddr,
 		status = TX_DESC_CTL;
 		size = flags | len;
 		if ((index & (awg_tx_interval - 1)) == 0)
-			size |= htole32(TX_INT_CTL);
+			size |= TX_INT_CTL;
 		++sc->tx.queued;
 	}
 
@@ -617,6 +624,20 @@ awg_setup_rxfilter(struct awg_softc *sc)
 }
 
 static void
+awg_enable_intr(struct awg_softc *sc)
+{
+	/* Enable interrupts */
+	WR4(sc, EMAC_INT_EN, RX_INT_EN | TX_INT_EN | TX_BUF_UA_INT_EN);
+}
+
+static void
+awg_disable_intr(struct awg_softc *sc)
+{
+	/* Disable interrupts */
+	WR4(sc, EMAC_INT_EN, 0);
+}
+
+static void
 awg_init_locked(struct awg_softc *sc)
 {
 	struct mii_data *mii;
@@ -640,11 +661,18 @@ awg_init_locked(struct awg_softc *sc)
 	WR4(sc, EMAC_BASIC_CTL_1, val);
 
 	/* Enable interrupts */
-	WR4(sc, EMAC_INT_EN, RX_INT_EN | TX_INT_EN | TX_BUF_UA_INT_EN);
+#ifdef DEVICE_POLLING
+	if ((if_getcapenable(ifp) & IFCAP_POLLING) == 0)
+		awg_enable_intr(sc);
+	else
+		awg_disable_intr(sc);
+#else
+	awg_enable_intr(sc);
+#endif
 
 	/* Enable transmit DMA */
 	val = RD4(sc, EMAC_TX_CTL_1);
-	WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_EN | TX_MD);
+	WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_EN | TX_MD | TX_NEXT_FRAME);
 
 	/* Enable receive DMA */
 	val = RD4(sc, EMAC_RX_CTL_1);
@@ -703,7 +731,7 @@ awg_stop(struct awg_softc *sc)
 	WR4(sc, EMAC_RX_CTL_0, val & ~RX_EN);
 
 	/* Disable interrupts */
-	WR4(sc, EMAC_INT_EN, 0);
+	awg_disable_intr(sc);
 
 	/* Disable transmit DMA */
 	val = RD4(sc, EMAC_TX_CTL_1);
@@ -718,15 +746,18 @@ awg_stop(struct awg_softc *sc)
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
-static void
+static int
 awg_rxintr(struct awg_softc *sc)
 {
 	if_t ifp;
-	struct mbuf *m, *m0;
-	int error, index, len;
+	struct mbuf *m, *m0, *mh, *mt;
+	int error, index, len, cnt, npkt;
 	uint32_t status;
 
 	ifp = sc->ifp;
+	mh = mt = NULL;
+	cnt = 0;
+	npkt = 0;
 
 	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -760,9 +791,23 @@ awg_rxintr(struct awg_softc *sc)
 				}
 			}
 
-			AWG_UNLOCK(sc);
-			if_input(ifp, m);
-			AWG_LOCK(sc);
+			m->m_nextpkt = NULL;
+			if (mh == NULL)
+				mh = m;
+			else
+				mt->m_nextpkt = m;
+			mt = m;
+			++cnt;
+			++npkt;
+
+			if (cnt == awg_rx_batch) {
+				AWG_UNLOCK(sc);
+				if_input(ifp, mh);
+				AWG_LOCK(sc);
+				mh = mt = NULL;
+				cnt = 0;
+			}
+			
 		}
 
 		if ((m0 = awg_alloc_mbufcl(sc)) != NULL) {
@@ -779,7 +824,15 @@ awg_rxintr(struct awg_softc *sc)
 		    BUS_DMASYNC_PREWRITE);
 	}
 
+	if (mh != NULL) {
+		AWG_UNLOCK(sc);
+		if_input(ifp, mh);
+		AWG_LOCK(sc);
+	}
+
 	sc->rx.cur = index;
+
+	return (npkt);
 }
 
 static void
@@ -845,6 +898,41 @@ awg_intr(void *arg)
 	AWG_UNLOCK(sc);
 }
 
+#ifdef DEVICE_POLLING
+static int
+awg_poll(if_t ifp, enum poll_cmd cmd, int count)
+{
+	struct awg_softc *sc;
+	uint32_t val;
+	int rx_npkts;
+
+	sc = if_getsoftc(ifp);
+	rx_npkts = 0;
+
+	AWG_LOCK(sc);
+
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
+		AWG_UNLOCK(sc);
+		return (0);
+	}
+
+	rx_npkts = awg_rxintr(sc);
+	awg_txintr(sc);
+	if (!if_sendq_empty(ifp))
+		awg_start_locked(sc);
+
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		val = RD4(sc, EMAC_INT_STA);
+		if (val != 0)
+			WR4(sc, EMAC_INT_STA, val);
+	}
+
+	AWG_UNLOCK(sc);
+
+	return (rx_npkts);
+}
+#endif
+
 static int
 awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
@@ -889,6 +977,25 @@ awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if ((ifr->ifr_reqcap & IFCAP_POLLING) != 0) {
+				error = ether_poll_register(awg_poll, ifp);
+				if (error != 0)
+					break;
+				AWG_LOCK(sc);
+				awg_disable_intr(sc);
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
+				AWG_UNLOCK(sc);
+			} else {
+				error = ether_poll_deregister(ifp);
+				AWG_LOCK(sc);
+				awg_enable_intr(sc);
+				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
+				AWG_UNLOCK(sc);
+			}
+		}
+#endif
 		if (mask & IFCAP_VLAN_MTU)
 			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
 		if (mask & IFCAP_RXCSUM)
@@ -1374,6 +1481,9 @@ awg_attach(device_t dev)
 	if_sethwassist(sc->ifp, CSUM_IP | CSUM_UDP | CSUM_TCP);
 	if_setcapabilities(sc->ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM);
 	if_setcapenable(sc->ifp, if_getcapabilities(sc->ifp));
+#ifdef DEVICE_POLLING
+	if_setcapabilitiesbit(sc->ifp, IFCAP_POLLING, 0);
+#endif
 
 	/* Attach MII driver */
 	error = mii_attach(dev, &sc->miibus, sc->ifp, awg_media_change,

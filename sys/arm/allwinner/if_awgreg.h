@@ -65,6 +65,7 @@
 #define	EMAC_TX_CTL_1		0x14
 #define	 TX_DMA_START		(1 << 31)
 #define	 TX_DMA_EN		(1 << 30)
+#define	 TX_NEXT_FRAME		(1 << 2)
 #define	 TX_MD			(1 << 1)
 #define	 FLUSH_TX_FIFO		(1 << 0)
 #define	EMAC_TX_FLOW_CTL	0x1c
