@@ -403,8 +403,6 @@ zfsctl_common_fid(ap)
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(ENOSPC));
 	}
-#else
-	fidp->fid_len = SHORT_FID_LEN;
 #endif
 
 	zfid = (zfid_short_t *)fidp;
