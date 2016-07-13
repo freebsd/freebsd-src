@@ -97,67 +97,6 @@ typedef struct hv_vmbus_channel_packet_multipage_buffer {
 	hv_vmbus_multipage_buffer	range;
 } __packed hv_vmbus_channel_packet_multipage_buffer;
 
-typedef union {
-	uint32_t as_uint32_t;
-	struct {
-		uint32_t group_enable :4;
-		uint32_t rsvd_z :28;
-	} u;
-} hv_vmbus_monitor_trigger_state;
-
-typedef union {
-	uint64_t as_uint64_t;
-	struct {
-		uint32_t pending;
-		uint32_t armed;
-	} u;
-} hv_vmbus_monitor_trigger_group;
-
-typedef struct {
-	hv_vmbus_connection_id	connection_id;
-	uint16_t		flag_number;
-	uint16_t		rsvd_z;
-} hv_vmbus_monitor_parameter;
-
-/*
- * hv_vmbus_monitor_page Layout
- * ------------------------------------------------------
- * | 0   | trigger_state (4 bytes) | Rsvd1 (4 bytes)     |
- * | 8   | trigger_group[0]                              |
- * | 10  | trigger_group[1]                              |
- * | 18  | trigger_group[2]                              |
- * | 20  | trigger_group[3]                              |
- * | 28  | Rsvd2[0]                                      |
- * | 30  | Rsvd2[1]                                      |
- * | 38  | Rsvd2[2]                                      |
- * | 40  | next_check_time[0][0] | next_check_time[0][1] |
- * | ...                                                 |
- * | 240 | latency[0][0..3]                              |
- * | 340 | Rsvz3[0]                                      |
- * | 440 | parameter[0][0]                               |
- * | 448 | parameter[0][1]                               |
- * | ...                                                 |
- * | 840 | Rsvd4[0]                                      |
- * ------------------------------------------------------
- */
-
-typedef struct {
-	hv_vmbus_monitor_trigger_state	trigger_state;
-	uint32_t			rsvd_z1;
-
-	hv_vmbus_monitor_trigger_group	trigger_group[4];
-	uint64_t			rsvd_z2[3];
-
-	int32_t				next_check_time[4][32];
-
-	uint16_t			latency[4][32];
-	uint64_t			rsvd_z3[32];
-
-	hv_vmbus_monitor_parameter	parameter[4][32];
-
-	uint8_t				rsvd_z4[1984];
-} hv_vmbus_monitor_page;
-
 /*
  * Private, VM Bus functions
  */
