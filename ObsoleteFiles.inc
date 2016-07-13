@@ -203,7 +203,7 @@ OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
 # 20160517: ReiserFS removed
 OLD_FILES+=usr/share/man/man5/reiserfs.5.gz
 # 20160430: kvm_getfiles(3) removed from kvm(3)
-OLD_LIBS+=usr/lib/libkvm.so.6
+OLD_LIBS+=lib/libkvm.so.6
 OLD_FILES+=usr/share/man/man3/kvm_getfiles.3.gz
 # 20160423: remove mroute6d
 OLD_FILES+=etc/rc.d/mroute6d
@@ -8014,7 +8014,7 @@ OLD_FILES+=usr/share/man/man5/usbd.conf.5.gz
 .if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
 OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
 .endif
-.if ${TARGET_ARCH} != "aarch64" && ${TARGET_CPUARCH} != "arm" && \
+.if ${TARGET_ARCH} != "aarch64" && ${TARGET} != "arm" && \
     ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "powerpc64" && \
     ${TARGET_ARCH} != "sparc64"
 OLD_FILES+=usr/share/man/man8/ofwdump.8.gz

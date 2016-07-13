@@ -469,7 +469,7 @@ ub_dump_di(int handle)
 	int i;
 
 	printf("device info (%d):\n", handle);
-	printf("  cookie\t= 0x%p\n", di->cookie);
+	printf("  cookie\t= %p\n", di->cookie);
 	printf("  type\t\t= 0x%08x\n", di->type);
 
 	if (di->type == DEV_TYP_NET) {

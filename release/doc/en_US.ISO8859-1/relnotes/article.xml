@@ -505,13 +505,16 @@
       <para revision="281373">The &man.nvi.1; utility has been updated
 	to version 2.1.3.</para>
 
-      <para revision="281806">The &man.wpa.supplicant.8; and
+      <para revision="289549">The &man.wpa.supplicant.8; and
 	&man.hostapd.8; utilities have been updated to version
-	2.4.</para>
+	2.5.</para>
 
       <para revision="296190" contrib="sponsor" sponsor="&ff;">The
 	&man.resolvconf.8; utility has been updated to version
 	3.7.3.</para>
+
+      <para revision="293190"><application>less</application> has
+	been updated to version v481.</para>
 
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
@@ -635,6 +638,14 @@
       <para revision="271539">The &man.bsdinstall.8; partition editor
 	and &man.sade.8; utility have been updated to include native
 	<acronym>ZFS</acronym> support.</para>
+
+      <para revision="300436" contrib="sponsor" sponsor="&scaleengine;">
+	&man.bsdinstall.8;/zfsboot GPT+BIOS+GELI installs now make use
+	of GELIBOOT which allows ZFS Boot Environments to be used with
+	GELI encrypted ZFS pools.</para>
+
+      <para revision="301973">A module to configure wifi devices has been added
+	to &man.bsdinstall.8;</para>
 
       <para revision="272274">The &os; installation utility,
 	&man.bsdinstall.8;, has been updated to set the
@@ -1027,6 +1038,10 @@
 	To retain the previous behavior, add
 	<literal>KERN_DEBUGDIR=""</literal> to
 	&man.src.conf.5;.</para>
+
+      <para revision="300291" arch="arm64" contrib="sponsor" sponsor="&ff;">
+	NEW_PCIB is enabled by default.</para>
+
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
@@ -1296,6 +1311,11 @@
       <para revision="288654">The &man.lagg.4; driver has been updated
 	to remove support for the <literal>fec</literal>
 	protocol.</para>
+
+       <para revision="302110" contrib="sponsor" sponsor="&chelsio;">netmap
+	support from the ncxgbe/ncxl interfaces has been merged into the
+	vcxgbe/vcxl interfaces for the &man.cxgbe.4; driver.</para>
+
     </sect2>
   </sect1>
 

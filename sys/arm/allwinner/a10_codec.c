@@ -720,13 +720,19 @@ CHANNEL_DECLARE(a10codec_chan);
  * Device interface
  */
 
+static struct ofw_compat_data compat_data[] = {
+	{"allwinner,sun4i-a10-codec", 1},
+	{"allwinner,sun7i-a20-codec", 1},
+	{NULL, 0},
+};
+
 static int
 a10codec_probe(device_t dev)
 {
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "allwinner,sun7i-a20-codec"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Allwinner Audio Codec");
@@ -780,12 +786,12 @@ a10codec_attach(device_t dev)
 	}
 
 	/* Get clocks */
-	error = clk_get_by_ofw_name(dev, "apb", &clk_apb);
+	error = clk_get_by_ofw_name(dev, 0, "apb", &clk_apb);
 	if (error != 0) {
 		device_printf(dev, "cannot find apb clock\n");
 		goto fail;
 	}
-	error = clk_get_by_ofw_name(dev, "codec", &clk_codec);
+	error = clk_get_by_ofw_name(dev, 0, "codec", &clk_codec);
 	if (error != 0) {
 		device_printf(dev, "cannot find codec clock\n");
 		goto fail;

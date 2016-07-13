@@ -46,43 +46,35 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-static int 	vmbus_channel_create_gpadl_header(
-			/* must be phys and virt contiguous*/
-			void*				contig_buffer,
-			/* page-size multiple */
-			uint32_t 			size,
-			hv_vmbus_channel_msg_info**	msg_info,
-			uint32_t*			message_count);
-
-static void 	vmbus_channel_set_event(hv_vmbus_channel* channel);
-static void	VmbusProcessChannelEvent(void* channel, int pending);
+static void 	vmbus_chan_send_event(hv_vmbus_channel* channel);
+static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
+		    const struct hv_vmbus_channel *);
+static void	vmbus_chan_task(void *, int);
+static void	vmbus_chan_task_nobatch(void *, int);
 
 /**
  *  @brief Trigger an event notification on the specified channel
  */
 static void
-vmbus_channel_set_event(hv_vmbus_channel *channel)
+vmbus_chan_send_event(hv_vmbus_channel *channel)
 {
-	if (channel->offer_msg.monitor_allocated) {
-		struct vmbus_softc *sc = vmbus_get_softc();
-		hv_vmbus_monitor_page *monitor_page;
-		uint32_t chanid = channel->offer_msg.child_rel_id;
+	struct vmbus_softc *sc = channel->vmbus_sc;
+	uint32_t chanid = channel->ch_id;
 
-		atomic_set_long(
-		    &sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
-		    1UL << (chanid & VMBUS_EVTFLAG_MASK));
+	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
+	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
-		monitor_page = sc->vmbus_mnf2;
-		synch_set_bit(channel->monitor_bit,
-			(uint32_t *)&monitor_page->
-				trigger_group[channel->monitor_group].u.pending);
+	if (channel->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
+		atomic_set_int(
+		&sc->vmbus_mnf2->mnf_trigs[channel->ch_montrig_idx].mt_pending,
+		channel->ch_montrig_mask);
 	} else {
-		hv_vmbus_set_event(channel);
+		hypercall_signal_event(channel->ch_monprm_dma.hv_paddr);
 	}
-
 }
 
 static int
@@ -91,7 +83,7 @@ vmbus_channel_sysctl_monalloc(SYSCTL_HANDLER_ARGS)
 	struct hv_vmbus_channel *chan = arg1;
 	int alloc = 0;
 
-	if (chan->offer_msg.monitor_allocated)
+	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF)
 		alloc = 1;
 	return sysctl_handle_int(oidp, &alloc, 0, req);
 }
@@ -111,14 +103,15 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 	hv_vmbus_channel* primary_ch = channel->primary_channel;
 
 	if (primary_ch == NULL) {
-		dev = channel->device->device;
-		ch_id = channel->offer_msg.child_rel_id;
+		dev = channel->ch_dev;
+		ch_id = channel->ch_id;
 	} else {
-		dev = primary_ch->device->device;
-		ch_id = primary_ch->offer_msg.child_rel_id;
-		sub_ch_id = channel->offer_msg.offer.sub_channel_index;
+		dev = primary_ch->ch_dev;
+		ch_id = primary_ch->ch_id;
+		sub_ch_id = channel->ch_subidx;
 	}
-	ctx = device_get_sysctl_ctx(dev);
+	ctx = &channel->ch_sysctl_ctx;
+	sysctl_ctx_init(ctx);
 	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
 	devch_sysctl = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -140,7 +133,7 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 
 		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
 		    OID_AUTO, "chanid", CTLFLAG_RD,
-		    &channel->offer_msg.child_rel_id, 0, "channel id");
+		    &channel->ch_id, 0, "channel id");
 	}
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
 	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
@@ -182,11 +175,21 @@ hv_vmbus_channel_open(
 	hv_vmbus_pfn_channel_callback	pfn_on_channel_callback,
 	void* 				context)
 {
-
+	struct vmbus_softc *sc = new_channel->vmbus_sc;
+	const struct vmbus_chanmsg_chopen_resp *resp;
+	const struct vmbus_message *msg;
+	struct vmbus_chanmsg_chopen *req;
+	struct vmbus_msghc *mh;
+	uint32_t status;
 	int ret = 0;
 	void *in, *out;
-	hv_vmbus_channel_open_channel*	open_msg;
-	hv_vmbus_channel_msg_info* 	open_info;
+
+	if (user_data_len > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
+		device_printf(sc->vmbus_dev,
+		    "invalid udata len %u for chan%u\n",
+		    user_data_len, new_channel->ch_id);
+		return EINVAL;
+	}
 
 	mtx_lock(&new_channel->sc_lock);
 	if (new_channel->state == HV_CHANNEL_OPEN_STATE) {
@@ -203,11 +206,17 @@ hv_vmbus_channel_open(
 	new_channel->on_channel_callback = pfn_on_channel_callback;
 	new_channel->channel_callback_context = context;
 
-	vmbus_on_channel_open(new_channel);
+	vmbus_chan_update_evtflagcnt(sc, new_channel);
 
-	new_channel->rxq = VMBUS_PCPU_GET(vmbus_get_softc(), event_tq,
+	new_channel->rxq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
 	    new_channel->target_cpu);
-	TASK_INIT(&new_channel->channel_task, 0, VmbusProcessChannelEvent, new_channel);
+	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD) {
+		TASK_INIT(&new_channel->channel_task, 0,
+		    vmbus_chan_task, new_channel);
+	} else {
+		TASK_INIT(&new_channel->channel_task, 0,
+		    vmbus_chan_task_nobatch, new_channel);
+	}
 
 	/* Allocate the ring buffer */
 	out = contigmalloc((send_ring_buffer_size + recv_ring_buffer_size),
@@ -248,383 +257,238 @@ hv_vmbus_channel_open(
 		send_ring_buffer_size + recv_ring_buffer_size,
 		&new_channel->ring_buffer_gpadl_handle);
 
-	/**
-	 * Create and init the channel open message
+	/*
+	 * Open channel w/ the bufring GPADL on the target CPU.
 	 */
-	open_info = (hv_vmbus_channel_msg_info*) malloc(
-		sizeof(hv_vmbus_channel_msg_info) +
-			sizeof(hv_vmbus_channel_open_channel),
-		M_DEVBUF,
-		M_NOWAIT);
-	KASSERT(open_info != NULL,
-	    ("Error VMBUS: malloc failed to allocate Open Channel message!"));
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for chopen(chan%u)\n",
+		    new_channel->ch_id);
+		return ENXIO;
+	}
 
-	if (open_info == NULL)
-		return (ENOMEM);
-
-	sema_init(&open_info->wait_sema, 0, "Open Info Sema");
-
-	open_msg = (hv_vmbus_channel_open_channel*) open_info->msg;
-	open_msg->header.message_type = HV_CHANNEL_MESSAGE_OPEN_CHANNEL;
-	open_msg->open_id = new_channel->offer_msg.child_rel_id;
-	open_msg->child_rel_id = new_channel->offer_msg.child_rel_id;
-	open_msg->ring_buffer_gpadl_handle =
-		new_channel->ring_buffer_gpadl_handle;
-	open_msg->downstream_ring_buffer_page_offset = send_ring_buffer_size
-		>> PAGE_SHIFT;
-	open_msg->target_vcpu = new_channel->target_vcpu;
-
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHOPEN;
+	req->chm_chanid = new_channel->ch_id;
+	req->chm_openid = new_channel->ch_id;
+	req->chm_gpadl = new_channel->ring_buffer_gpadl_handle;
+	req->chm_vcpuid = new_channel->target_vcpu;
+	req->chm_rxbr_pgofs = send_ring_buffer_size >> PAGE_SHIFT;
 	if (user_data_len)
-		memcpy(open_msg->user_data, user_data, user_data_len);
+		memcpy(req->chm_udata, user_data, user_data_len);
 
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_INSERT_TAIL(
-		&hv_vmbus_g_connection.channel_msg_anchor,
-		open_info,
-		msg_list_entry);
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-
-	ret = hv_vmbus_post_message(
-		open_msg, sizeof(hv_vmbus_channel_open_channel));
-
-	if (ret != 0)
-	    goto cleanup;
-
-	ret = sema_timedwait(&open_info->wait_sema, 5 * hz); /* KYS 5 seconds */
-
-	if (ret) {
-	    if(bootverbose)
-		printf("VMBUS: channel <%p> open timeout.\n", new_channel);
-	    goto cleanup;
+	ret = vmbus_msghc_exec(sc, mh);
+	if (ret != 0) {
+		device_printf(sc->vmbus_dev,
+		    "chopen(chan%u) msg hypercall exec failed: %d\n",
+		    new_channel->ch_id, ret);
+		vmbus_msghc_put(sc, mh);
+		return ret;
 	}
 
-	if (open_info->response.open_result.status == 0) {
-	    new_channel->state = HV_CHANNEL_OPENED_STATE;
-	    if(bootverbose)
-		printf("VMBUS: channel <%p> open success.\n", new_channel);
+	msg = vmbus_msghc_wait_result(sc, mh);
+	resp = (const struct vmbus_chanmsg_chopen_resp *)msg->msg_data;
+	status = resp->chm_status;
+
+	vmbus_msghc_put(sc, mh);
+
+	if (status == 0) {
+		new_channel->state = HV_CHANNEL_OPENED_STATE;
+		if (bootverbose) {
+			device_printf(sc->vmbus_dev, "chan%u opened\n",
+			    new_channel->ch_id);
+		}
 	} else {
-	    if(bootverbose)
-		printf("Error VMBUS: channel <%p> open failed - %d!\n",
-			new_channel, open_info->response.open_result.status);
+		device_printf(sc->vmbus_dev, "failed to open chan%u\n",
+		    new_channel->ch_id);
+		ret = ENXIO;
 	}
-
-	cleanup:
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_REMOVE(
-		&hv_vmbus_g_connection.channel_msg_anchor,
-		open_info,
-		msg_list_entry);
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-	sema_destroy(&open_info->wait_sema);
-	free(open_info, M_DEVBUF);
-
 	return (ret);
-}
-
-/**
- * @brief Create a gpadl for the specified buffer
- */
-static int
-vmbus_channel_create_gpadl_header(
-	void*				contig_buffer,
-	uint32_t			size,	/* page-size multiple */
-	hv_vmbus_channel_msg_info**	msg_info,
-	uint32_t*			message_count)
-{
-	int				i;
-	int				page_count;
-	unsigned long long 		pfn;
-	uint32_t			msg_size;
-	hv_vmbus_channel_gpadl_header*	gpa_header;
-	hv_vmbus_channel_gpadl_body*	gpadl_body;
-	hv_vmbus_channel_msg_info*	msg_header;
-	hv_vmbus_channel_msg_info*	msg_body;
-
-	int pfnSum, pfnCount, pfnLeft, pfnCurr, pfnSize;
-
-	page_count = size >> PAGE_SHIFT;
-	pfn = hv_get_phys_addr(contig_buffer) >> PAGE_SHIFT;
-
-	/*do we need a gpadl body msg */
-	pfnSize = HV_MAX_SIZE_CHANNEL_MESSAGE
-	    - sizeof(hv_vmbus_channel_gpadl_header)
-	    - sizeof(hv_gpa_range);
-	pfnCount = pfnSize / sizeof(uint64_t);
-
-	if (page_count > pfnCount) { /* if(we need a gpadl body)	*/
-	    /* fill in the header		*/
-	    msg_size = sizeof(hv_vmbus_channel_msg_info)
-		+ sizeof(hv_vmbus_channel_gpadl_header)
-		+ sizeof(hv_gpa_range)
-		+ pfnCount * sizeof(uint64_t);
-	    msg_header = malloc(msg_size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	    KASSERT(
-		msg_header != NULL,
-		("Error VMBUS: malloc failed to allocate Gpadl Message!"));
-	    if (msg_header == NULL)
-		return (ENOMEM);
-
-	    TAILQ_INIT(&msg_header->sub_msg_list_anchor);
-	    msg_header->message_size = msg_size;
-
-	    gpa_header = (hv_vmbus_channel_gpadl_header*) msg_header->msg;
-	    gpa_header->range_count = 1;
-	    gpa_header->range_buf_len = sizeof(hv_gpa_range)
-		+ page_count * sizeof(uint64_t);
-	    gpa_header->range[0].byte_offset = 0;
-	    gpa_header->range[0].byte_count = size;
-	    for (i = 0; i < pfnCount; i++) {
-		gpa_header->range[0].pfn_array[i] = pfn + i;
-	    }
-	    *msg_info = msg_header;
-	    *message_count = 1;
-
-	    pfnSum = pfnCount;
-	    pfnLeft = page_count - pfnCount;
-
-	    /*
-	     *  figure out how many pfns we can fit
-	     */
-	    pfnSize = HV_MAX_SIZE_CHANNEL_MESSAGE
-		- sizeof(hv_vmbus_channel_gpadl_body);
-	    pfnCount = pfnSize / sizeof(uint64_t);
-
-	    /*
-	     * fill in the body
-	     */
-	    while (pfnLeft) {
-		if (pfnLeft > pfnCount) {
-		    pfnCurr = pfnCount;
-		} else {
-		    pfnCurr = pfnLeft;
-		}
-
-		msg_size = sizeof(hv_vmbus_channel_msg_info) +
-		    sizeof(hv_vmbus_channel_gpadl_body) +
-		    pfnCurr * sizeof(uint64_t);
-		msg_body = malloc(msg_size, M_DEVBUF, M_NOWAIT | M_ZERO);
-		KASSERT(
-		    msg_body != NULL,
-		    ("Error VMBUS: malloc failed to allocate Gpadl msg_body!"));
-		if (msg_body == NULL)
-		    return (ENOMEM);
-
-		msg_body->message_size = msg_size;
-		(*message_count)++;
-		gpadl_body =
-		    (hv_vmbus_channel_gpadl_body*) msg_body->msg;
-		/*
-		 * gpadl_body->gpadl = kbuffer;
-		 */
-		for (i = 0; i < pfnCurr; i++) {
-		    gpadl_body->pfn[i] = pfn + pfnSum + i;
-		}
-
-		TAILQ_INSERT_TAIL(
-		    &msg_header->sub_msg_list_anchor,
-		    msg_body,
-		    msg_list_entry);
-		pfnSum += pfnCurr;
-		pfnLeft -= pfnCurr;
-	    }
-	} else { /* else everything fits in a header */
-
-	    msg_size = sizeof(hv_vmbus_channel_msg_info) +
-		sizeof(hv_vmbus_channel_gpadl_header) +
-		sizeof(hv_gpa_range) +
-		page_count * sizeof(uint64_t);
-	    msg_header = malloc(msg_size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	    KASSERT(
-		msg_header != NULL,
-		("Error VMBUS: malloc failed to allocate Gpadl Message!"));
-	    if (msg_header == NULL)
-		return (ENOMEM);
-
-	    msg_header->message_size = msg_size;
-
-	    gpa_header = (hv_vmbus_channel_gpadl_header*) msg_header->msg;
-	    gpa_header->range_count = 1;
-	    gpa_header->range_buf_len = sizeof(hv_gpa_range) +
-		page_count * sizeof(uint64_t);
-	    gpa_header->range[0].byte_offset = 0;
-	    gpa_header->range[0].byte_count = size;
-	    for (i = 0; i < page_count; i++) {
-		gpa_header->range[0].pfn_array[i] = pfn + i;
-	    }
-
-	    *msg_info = msg_header;
-	    *message_count = 1;
-	}
-
-	return (0);
 }
 
 /**
  * @brief Establish a GPADL for the specified buffer
  */
 int
-hv_vmbus_channel_establish_gpadl(
-	hv_vmbus_channel*	channel,
-	void*			contig_buffer,
-	uint32_t		size, /* page-size multiple */
-	uint32_t*		gpadl_handle)
-
+hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
+    void *contig_buffer, uint32_t size, uint32_t *gpadl0)
 {
-	int ret = 0;
-	hv_vmbus_channel_gpadl_header*	gpadl_msg;
-	hv_vmbus_channel_gpadl_body*	gpadl_body;
-	hv_vmbus_channel_msg_info*	msg_info;
-	hv_vmbus_channel_msg_info*	sub_msg_info;
-	uint32_t			msg_count;
-	hv_vmbus_channel_msg_info*	curr;
-	uint32_t			next_gpadl_handle;
+	struct vmbus_softc *sc = channel->vmbus_sc;
+	struct vmbus_msghc *mh;
+	struct vmbus_chanmsg_gpadl_conn *req;
+	const struct vmbus_message *msg;
+	size_t reqsz;
+	uint32_t gpadl, status;
+	int page_count, range_len, i, cnt, error;
+	uint64_t page_id, paddr;
 
-	next_gpadl_handle = atomic_fetchadd_int(
-	    &hv_vmbus_g_connection.next_gpadl_handle, 1);
+	/*
+	 * Preliminary checks.
+	 */
 
-	ret = vmbus_channel_create_gpadl_header(
-		contig_buffer, size, &msg_info, &msg_count);
+	KASSERT((size & PAGE_MASK) == 0,
+	    ("invalid GPA size %u, not multiple page size", size));
+	page_count = size >> PAGE_SHIFT;
 
-	if(ret != 0) {
-		/*
-		 * XXX
-		 * We can _not_ even revert the above incremental,
-		 * if multiple GPADL establishments are running
-		 * parallelly, decrement the global next_gpadl_handle
-		 * is calling for _big_ trouble.  A better solution
-		 * is to have a 0-based GPADL id bitmap ...
-		 */
-		return ret;
+	paddr = hv_get_phys_addr(contig_buffer);
+	KASSERT((paddr & PAGE_MASK) == 0,
+	    ("GPA is not page aligned %jx", (uintmax_t)paddr));
+	page_id = paddr >> PAGE_SHIFT;
+
+	range_len = __offsetof(struct vmbus_gpa_range, gpa_page[page_count]);
+	/*
+	 * We don't support multiple GPA ranges.
+	 */
+	if (range_len > UINT16_MAX) {
+		device_printf(sc->vmbus_dev, "GPA too large, %d pages\n",
+		    page_count);
+		return EOPNOTSUPP;
 	}
 
-	sema_init(&msg_info->wait_sema, 0, "Open Info Sema");
-	gpadl_msg = (hv_vmbus_channel_gpadl_header*) msg_info->msg;
-	gpadl_msg->header.message_type = HV_CHANNEL_MESSAGEL_GPADL_HEADER;
-	gpadl_msg->child_rel_id = channel->offer_msg.child_rel_id;
-	gpadl_msg->gpadl = next_gpadl_handle;
+	/*
+	 * Allocate GPADL id.
+	 */
+	gpadl = vmbus_gpadl_alloc(sc);
+	*gpadl0 = gpadl;
 
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_INSERT_TAIL(
-		&hv_vmbus_g_connection.channel_msg_anchor,
-		msg_info,
-		msg_list_entry);
+	/*
+	 * Connect this GPADL to the target channel.
+	 *
+	 * NOTE:
+	 * Since each message can only hold small set of page
+	 * addresses, several messages may be required to
+	 * complete the connection.
+	 */
+	if (page_count > VMBUS_CHANMSG_GPADL_CONN_PGMAX)
+		cnt = VMBUS_CHANMSG_GPADL_CONN_PGMAX;
+	else
+		cnt = page_count;
+	page_count -= cnt;
 
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-
-	ret = hv_vmbus_post_message(
-		gpadl_msg,
-		msg_info->message_size -
-		    (uint32_t) sizeof(hv_vmbus_channel_msg_info));
-
-	if (ret != 0)
-	    goto cleanup;
-
-	if (msg_count > 1) {
-	    TAILQ_FOREACH(curr,
-		    &msg_info->sub_msg_list_anchor, msg_list_entry) {
-		sub_msg_info = curr;
-		gpadl_body =
-		    (hv_vmbus_channel_gpadl_body*) sub_msg_info->msg;
-
-		gpadl_body->header.message_type =
-		    HV_CHANNEL_MESSAGE_GPADL_BODY;
-		gpadl_body->gpadl = next_gpadl_handle;
-
-		ret = hv_vmbus_post_message(
-			gpadl_body,
-			sub_msg_info->message_size
-			    - (uint32_t) sizeof(hv_vmbus_channel_msg_info));
-		 /* if (the post message failed) give up and clean up */
-		if(ret != 0)
-		    goto cleanup;
-	    }
+	reqsz = __offsetof(struct vmbus_chanmsg_gpadl_conn,
+	    chm_range.gpa_page[cnt]);
+	mh = vmbus_msghc_get(sc, reqsz);
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for gpadl->chan%u\n",
+		    channel->ch_id);
+		return EIO;
 	}
 
-	ret = sema_timedwait(&msg_info->wait_sema, 5 * hz); /* KYS 5 seconds*/
-	if (ret != 0)
-	    goto cleanup;
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_GPADL_CONN;
+	req->chm_chanid = channel->ch_id;
+	req->chm_gpadl = gpadl;
+	req->chm_range_len = range_len;
+	req->chm_range_cnt = 1;
+	req->chm_range.gpa_len = size;
+	req->chm_range.gpa_ofs = 0;
+	for (i = 0; i < cnt; ++i)
+		req->chm_range.gpa_page[i] = page_id++;
 
-	*gpadl_handle = gpadl_msg->gpadl;
+	error = vmbus_msghc_exec(sc, mh);
+	if (error) {
+		device_printf(sc->vmbus_dev,
+		    "gpadl->chan%u msg hypercall exec failed: %d\n",
+		    channel->ch_id, error);
+		vmbus_msghc_put(sc, mh);
+		return error;
+	}
 
-cleanup:
+	while (page_count > 0) {
+		struct vmbus_chanmsg_gpadl_subconn *subreq;
 
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_REMOVE(&hv_vmbus_g_connection.channel_msg_anchor,
-		msg_info, msg_list_entry);
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
+		if (page_count > VMBUS_CHANMSG_GPADL_SUBCONN_PGMAX)
+			cnt = VMBUS_CHANMSG_GPADL_SUBCONN_PGMAX;
+		else
+			cnt = page_count;
+		page_count -= cnt;
 
-	sema_destroy(&msg_info->wait_sema);
-	free(msg_info, M_DEVBUF);
+		reqsz = __offsetof(struct vmbus_chanmsg_gpadl_subconn,
+		    chm_gpa_page[cnt]);
+		vmbus_msghc_reset(mh, reqsz);
 
-	return (ret);
+		subreq = vmbus_msghc_dataptr(mh);
+		subreq->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_GPADL_SUBCONN;
+		subreq->chm_gpadl = gpadl;
+		for (i = 0; i < cnt; ++i)
+			subreq->chm_gpa_page[i] = page_id++;
+
+		vmbus_msghc_exec_noresult(mh);
+	}
+	KASSERT(page_count == 0, ("invalid page count %d", page_count));
+
+	msg = vmbus_msghc_wait_result(sc, mh);
+	status = ((const struct vmbus_chanmsg_gpadl_connresp *)
+	    msg->msg_data)->chm_status;
+
+	vmbus_msghc_put(sc, mh);
+
+	if (status != 0) {
+		device_printf(sc->vmbus_dev, "gpadl->chan%u failed: "
+		    "status %u\n", channel->ch_id, status);
+		return EIO;
+	} else {
+		if (bootverbose) {
+			device_printf(sc->vmbus_dev, "gpadl->chan%u "
+			    "succeeded\n", channel->ch_id);
+		}
+	}
+	return 0;
 }
 
-/**
- * @brief Teardown the specified GPADL handle
+/*
+ * Disconnect the GPA from the target channel
  */
 int
-hv_vmbus_channel_teardown_gpdal(
-	hv_vmbus_channel*	channel,
-	uint32_t		gpadl_handle)
+hv_vmbus_channel_teardown_gpdal(struct hv_vmbus_channel *chan, uint32_t gpadl)
 {
-	int					ret = 0;
-	hv_vmbus_channel_gpadl_teardown*	msg;
-	hv_vmbus_channel_msg_info*		info;
+	struct vmbus_softc *sc = chan->vmbus_sc;
+	struct vmbus_msghc *mh;
+	struct vmbus_chanmsg_gpadl_disconn *req;
+	int error;
 
-	info = (hv_vmbus_channel_msg_info *)
-		malloc(	sizeof(hv_vmbus_channel_msg_info) +
-			sizeof(hv_vmbus_channel_gpadl_teardown),
-				M_DEVBUF, M_NOWAIT);
-	KASSERT(info != NULL,
-	    ("Error VMBUS: malloc failed to allocate Gpadl Teardown Msg!"));
-	if (info == NULL) {
-	    ret = ENOMEM;
-	    goto cleanup;
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for gpa x->chan%u\n",
+		    chan->ch_id);
+		return EBUSY;
 	}
 
-	sema_init(&info->wait_sema, 0, "Open Info Sema");
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_GPADL_DISCONN;
+	req->chm_chanid = chan->ch_id;
+	req->chm_gpadl = gpadl;
 
-	msg = (hv_vmbus_channel_gpadl_teardown*) info->msg;
+	error = vmbus_msghc_exec(sc, mh);
+	if (error) {
+		device_printf(sc->vmbus_dev,
+		    "gpa x->chan%u msg hypercall exec failed: %d\n",
+		    chan->ch_id, error);
+		vmbus_msghc_put(sc, mh);
+		return error;
+	}
 
-	msg->header.message_type = HV_CHANNEL_MESSAGE_GPADL_TEARDOWN;
-	msg->child_rel_id = channel->offer_msg.child_rel_id;
-	msg->gpadl = gpadl_handle;
+	vmbus_msghc_wait_result(sc, mh);
+	/* Discard result; no useful information */
+	vmbus_msghc_put(sc, mh);
 
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_INSERT_TAIL(&hv_vmbus_g_connection.channel_msg_anchor,
-			info, msg_list_entry);
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-
-	ret = hv_vmbus_post_message(msg,
-			sizeof(hv_vmbus_channel_gpadl_teardown));
-	if (ret != 0) 
-	    goto cleanup;
-	
-	ret = sema_timedwait(&info->wait_sema, 5 * hz); /* KYS 5 seconds */
-
-cleanup:
-	/*
-	 * Received a torndown response
-	 */
-	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
-	TAILQ_REMOVE(&hv_vmbus_g_connection.channel_msg_anchor,
-			info, msg_list_entry);
-	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
-	sema_destroy(&info->wait_sema);
-	free(info, M_DEVBUF);
-
-	return (ret);
+	return 0;
 }
 
 static void
 hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 {
-	int ret = 0;
+	struct vmbus_softc *sc = channel->vmbus_sc;
+	struct vmbus_msghc *mh;
+	struct vmbus_chanmsg_chclose *req;
 	struct taskqueue *rxq = channel->rxq;
-	hv_vmbus_channel_close_channel* msg;
-	hv_vmbus_channel_msg_info* info;
+	int error;
 
 	channel->state = HV_CHANNEL_OPEN_STATE;
+	sysctl_ctx_free(&channel->ch_sysctl_ctx);
 
 	/*
 	 * set rxq to NULL to avoid more requests be scheduled
@@ -636,20 +500,31 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	/**
 	 * Send a closing message
 	 */
-	info = (hv_vmbus_channel_msg_info *)
-		malloc(	sizeof(hv_vmbus_channel_msg_info) +
-			sizeof(hv_vmbus_channel_close_channel),
-				M_DEVBUF, M_NOWAIT);
-	KASSERT(info != NULL, ("VMBUS: malloc failed hv_vmbus_channel_close!"));
-	if(info == NULL)
-	    return;
 
-	msg = (hv_vmbus_channel_close_channel*) info->msg;
-	msg->header.message_type = HV_CHANNEL_MESSAGE_CLOSE_CHANNEL;
-	msg->child_rel_id = channel->offer_msg.child_rel_id;
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for chclose(chan%u)\n",
+		    channel->ch_id);
+		return;
+	}
 
-	ret = hv_vmbus_post_message(
-		msg, sizeof(hv_vmbus_channel_close_channel));
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHCLOSE;
+	req->chm_chanid = channel->ch_id;
+
+	error = vmbus_msghc_exec_noresult(mh);
+	vmbus_msghc_put(sc, mh);
+
+	if (error) {
+		device_printf(sc->vmbus_dev,
+		    "chclose(chan%u) msg hypercall exec failed: %d\n",
+		    channel->ch_id, error);
+		return;
+	} else if (bootverbose) {
+		device_printf(sc->vmbus_dev, "close chan%u\n",
+		    channel->ch_id);
+	}
 
 	/* Tear down the gpadl for the channel's ring buffer */
 	if (channel->ring_buffer_gpadl_handle) {
@@ -665,8 +540,6 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 
 	contigfree(channel->ring_buffer_pages, channel->ring_buffer_size,
 	    M_DEVBUF);
-
-	free(info, M_DEVBUF);
 }
 
 /**
@@ -745,9 +618,8 @@ hv_vmbus_channel_send_packet(
 	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && need_sig) {
-		vmbus_channel_set_event(channel);
-	}
+	if (ret == 0 && need_sig)
+		vmbus_chan_send_event(channel);
 
 	return (ret);
 }
@@ -813,9 +685,8 @@ hv_vmbus_channel_send_packet_pagebuffer(
 	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && need_sig) {
-		vmbus_channel_set_event(channel);
-	}
+	if (ret == 0 && need_sig)
+		vmbus_chan_send_event(channel);
 
 	return (ret);
 }
@@ -889,9 +760,8 @@ hv_vmbus_channel_send_packet_multipagebuffer(
 	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && need_sig) {
-	    vmbus_channel_set_event(channel);
-	}
+	if (ret == 0 && need_sig)
+		vmbus_chan_send_event(channel);
 
 	return (ret);
 }
@@ -976,59 +846,138 @@ hv_vmbus_channel_recv_packet_raw(
 	return (0);
 }
 
-
-/**
- * Process a channel event notification
- */
 static void
-VmbusProcessChannelEvent(void* context, int pending)
+vmbus_chan_task(void *xchan, int pending __unused)
 {
-	void* arg;
-	uint32_t bytes_to_read;
-	hv_vmbus_channel* channel = (hv_vmbus_channel*)context;
-	boolean_t is_batched_reading;
+	struct hv_vmbus_channel *chan = xchan;
+	void (*callback)(void *);
+	void *arg;
 
-	/**
-	 * Find the channel based on this relid and invokes
-	 * the channel callback to process the event
+	arg = chan->channel_callback_context;
+	callback = chan->on_channel_callback;
+
+	/*
+	 * Optimize host to guest signaling by ensuring:
+	 * 1. While reading the channel, we disable interrupts from
+	 *    host.
+	 * 2. Ensure that we process all posted messages from the host
+	 *    before returning from this callback.
+	 * 3. Once we return, enable signaling from the host. Once this
+	 *    state is set we check to see if additional packets are
+	 *    available to read. In this case we repeat the process.
+	 *
+	 * NOTE: Interrupt has been disabled in the ISR.
 	 */
+	for (;;) {
+		uint32_t left;
 
-	if (channel == NULL) {
-		return;
+		callback(arg);
+
+		left = hv_ring_buffer_read_end(&chan->inbound);
+		if (left == 0) {
+			/* No more data in RX bufring; done */
+			break;
+		}
+		hv_ring_buffer_read_begin(&chan->inbound);
 	}
-	/**
-	 * To deal with the race condition where we might
-	 * receive a packet while the relevant driver is
-	 * being unloaded, dispatch the callback while
-	 * holding the channel lock. The unloading driver
-	 * will acquire the same channel lock to set the
-	 * callback to NULL. This closes the window.
-	 */
+}
 
-	if (channel->on_channel_callback != NULL) {
-		arg = channel->channel_callback_context;
-		is_batched_reading = channel->batched_reading;
-		/*
-		 * Optimize host to guest signaling by ensuring:
-		 * 1. While reading the channel, we disable interrupts from
-		 *    host.
-		 * 2. Ensure that we process all posted messages from the host
-		 *    before returning from this callback.
-		 * 3. Once we return, enable signaling from the host. Once this
-		 *    state is set we check to see if additional packets are
-		 *    available to read. In this case we repeat the process.
-		 */
-		do {
-			if (is_batched_reading)
+static void
+vmbus_chan_task_nobatch(void *xchan, int pending __unused)
+{
+	struct hv_vmbus_channel *chan = xchan;
+
+	chan->on_channel_callback(chan->channel_callback_context);
+}
+
+static __inline void
+vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
+    int flag_cnt)
+{
+	int f;
+
+	for (f = 0; f < flag_cnt; ++f) {
+		uint32_t rel_id_base;
+		u_long flags;
+		int bit;
+
+		if (event_flags[f] == 0)
+			continue;
+
+		flags = atomic_swap_long(&event_flags[f], 0);
+		rel_id_base = f << VMBUS_EVTFLAG_SHIFT;
+
+		while ((bit = ffsl(flags)) != 0) {
+			struct hv_vmbus_channel *channel;
+			uint32_t rel_id;
+
+			--bit;	/* NOTE: ffsl is 1-based */
+			flags &= ~(1UL << bit);
+
+			rel_id = rel_id_base + bit;
+			channel = sc->vmbus_chmap[rel_id];
+
+			/* if channel is closed or closing */
+			if (channel == NULL || channel->rxq == NULL)
+				continue;
+
+			if (channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
 				hv_ring_buffer_read_begin(&channel->inbound);
+			taskqueue_enqueue(channel->rxq, &channel->channel_task);
+		}
+	}
+}
 
-			channel->on_channel_callback(arg);
+void
+vmbus_event_proc(struct vmbus_softc *sc, int cpu)
+{
+	struct vmbus_evtflags *eventf;
 
-			if (is_batched_reading)
-				bytes_to_read =
-				    hv_ring_buffer_read_end(&channel->inbound);
-			else
-				bytes_to_read = 0;
-		} while (is_batched_reading && (bytes_to_read != 0));
+	/*
+	 * On Host with Win8 or above, the event page can be checked directly
+	 * to get the id of the channel that has the pending interrupt.
+	 */
+	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
+	vmbus_event_flags_proc(sc, eventf->evt_flags,
+	    VMBUS_PCPU_GET(sc, event_flags_cnt, cpu));
+}
+
+void
+vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
+{
+	struct vmbus_evtflags *eventf;
+
+	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
+	if (atomic_testandclear_long(&eventf->evt_flags[0], 0)) {
+		vmbus_event_flags_proc(sc, sc->vmbus_rx_evtflags,
+		    VMBUS_CHAN_MAX_COMPAT >> VMBUS_EVTFLAG_SHIFT);
+	}
+}
+
+static void
+vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
+    const struct hv_vmbus_channel *chan)
+{
+	volatile int *flag_cnt_ptr;
+	int flag_cnt;
+
+	flag_cnt = (chan->ch_id / VMBUS_EVTFLAG_LEN) + 1;
+	flag_cnt_ptr = VMBUS_PCPU_PTR(sc, event_flags_cnt, chan->target_cpu);
+
+	for (;;) {
+		int old_flag_cnt;
+
+		old_flag_cnt = *flag_cnt_ptr;
+		if (old_flag_cnt >= flag_cnt)
+			break;
+		if (atomic_cmpset_int(flag_cnt_ptr, old_flag_cnt, flag_cnt)) {
+			if (bootverbose) {
+				device_printf(sc->vmbus_dev,
+				    "channel%u update cpu%d flag_cnt to %d\n",
+				    chan->ch_id,
+				    chan->target_cpu, flag_cnt);
+			}
+			break;
+		}
 	}
 }

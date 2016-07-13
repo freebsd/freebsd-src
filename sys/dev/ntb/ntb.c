@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Nathan Whitehorn
+ * Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,53 +22,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef POWERPC_OFW_OFW_PCI_H
-#define POWERPC_OFW_OFW_PCI_H
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/*
- * Export class definition for inheritance purposes
- */
-DECLARE_CLASS(ofw_pci_driver);
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/module.h>
+#include <sys/sysctl.h>
 
-struct ofw_pci_range {
-	uint32_t	pci_hi;
-	uint64_t	pci;
-	uint64_t	host;
-	uint64_t	size;
-};
+#include "ntb.h"
 
-/*
- * Quirks for some adapters
- */
-enum {
-	OFW_PCI_QUIRK_RANGES_ON_CHILDREN = 1,
-};
+devclass_t ntb_hw_devclass;
+SYSCTL_NODE(_hw, OID_AUTO, ntb, CTLFLAG_RW, 0, "NTB sysctls");
 
-struct ofw_pci_softc {
-	device_t		sc_dev;
-	phandle_t		sc_node;
-	int			sc_bus;
-	int			sc_initialized;
-
-	int			sc_quirks;
-
-	struct ofw_pci_range	*sc_range;
-	int			sc_nrange;
-
-	struct rman		sc_io_rman;
-	struct rman		sc_mem_rman;
-	bus_space_tag_t		sc_memt;
-	bus_dma_tag_t		sc_dmat;
-
-	struct ofw_bus_iinfo    sc_pci_iinfo;
-};
-
-int ofw_pci_init(device_t dev);
-int ofw_pci_attach(device_t dev);
-
-#endif // POWERPC_OFW_OFW_PCI_H
-
+MODULE_VERSION(ntb, 1);

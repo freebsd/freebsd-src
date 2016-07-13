@@ -1080,49 +1080,49 @@ tegra_pcib_parse_fdt_resources(struct tegra_pcib_softc *sc, phandle_t node)
 	int rv;
 
 	/* Power supplies. */
-	rv = regulator_get_by_ofw_property(sc->dev, "avddio-pex-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "avddio-pex-supply",
 	    &sc->supply_avddio_pex);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'avddio-pex' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "dvddio-pex-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "dvddio-pex-supply",
 	     &sc->supply_dvddio_pex);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'dvddio-pex' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "avdd-pex-pll-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "avdd-pex-pll-supply",
 	     &sc->supply_avdd_pex_pll);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'avdd-pex-pll' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "hvdd-pex-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "hvdd-pex-supply",
 	     &sc->supply_hvdd_pex);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'hvdd-pex' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "hvdd-pex-pll-e-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "hvdd-pex-pll-e-supply",
 	     &sc->supply_hvdd_pex_pll_e);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'hvdd-pex-pll-e' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "vddio-pex-ctl-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "vddio-pex-ctl-supply",
 	    &sc->supply_vddio_pex_ctl);
 	if (rv != 0) {
 		device_printf(sc->dev,
 		    "Cannot get 'vddio-pex-ctl' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, "avdd-pll-erefe-supply",
+	rv = regulator_get_by_ofw_property(sc->dev, 0, "avdd-pll-erefe-supply",
 	     &sc->supply_avdd_pll_erefe);
 	if (rv != 0) {
 		device_printf(sc->dev,
@@ -1131,46 +1131,46 @@ tegra_pcib_parse_fdt_resources(struct tegra_pcib_softc *sc, phandle_t node)
 	}
 
 	/* Resets. */
-	rv = hwreset_get_by_ofw_name(sc->dev, "pex", &sc->hwreset_pex);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "pex", &sc->hwreset_pex);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pex' reset\n");
 		return (ENXIO);
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "afi", &sc->hwreset_afi);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "afi", &sc->hwreset_afi);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'afi' reset\n");
 		return (ENXIO);
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "pcie_x", &sc->hwreset_pcie_x);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "pcie_x", &sc->hwreset_pcie_x);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pcie_x' reset\n");
 		return (ENXIO);
 	}
 
 	/* Clocks. */
-	rv = clk_get_by_ofw_name(sc->dev, "pex", &sc->clk_pex);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "pex", &sc->clk_pex);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pex' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "afi", &sc->clk_afi);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "afi", &sc->clk_afi);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'afi' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "pll_e", &sc->clk_pll_e);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "pll_e", &sc->clk_pll_e);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pll_e' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "cml", &sc->clk_cml);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "cml", &sc->clk_cml);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'cml' clock\n");
 		return (ENXIO);
 	}
 
 	/* Phy. */
-	rv = phy_get_by_ofw_name(sc->dev, "pcie", &sc->phy);
+	rv = phy_get_by_ofw_name(sc->dev, 0, "pcie", &sc->phy);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pcie' phy\n");
 		return (ENXIO);
@@ -1355,7 +1355,7 @@ tegra_pcib_set_bar(struct tegra_pcib_softc *sc, int bar, uint32_t axi,
 }
 
 static int
-tegra_pcib_enable(struct tegra_pcib_softc *sc, uint32_t port)
+tegra_pcib_enable(struct tegra_pcib_softc *sc)
 {
 	int rv;
 	int i;
@@ -1495,7 +1495,6 @@ tegra_pcib_attach(device_t dev)
 {
 	struct tegra_pcib_softc *sc;
 	phandle_t node;
-	uint32_t unit;
 	int rv;
 	int rid;
 	int nranges;
@@ -1505,7 +1504,6 @@ tegra_pcib_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	unit = fdt_get_unit(dev);
 	mtx_init(&sc->mtx, "msi_mtx", NULL, MTX_DEF);
 
 
@@ -1618,7 +1616,7 @@ tegra_pcib_attach(device_t dev)
 	/*
 	 * Enable PCIE device.
 	 */
-	rv = tegra_pcib_enable(sc, unit);
+	rv = tegra_pcib_enable(sc);
 	if (rv != 0)
 		goto out;
 	for (i = 0; i < TEGRA_PCIB_MAX_PORTS; i++) {

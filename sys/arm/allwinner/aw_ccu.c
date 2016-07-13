@@ -76,9 +76,11 @@ struct aw_ccu_softc {
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10",	CLOCK_CCU },
+	{ "allwinner,sun5i-a13",	CLOCK_CCU },
 	{ "allwinner,sun7i-a20",	CLOCK_CCU },
 	{ "allwinner,sun6i-a31",	CLOCK_CCU },
 	{ "allwinner,sun6i-a31s",	CLOCK_CCU },
+	{ "allwinner,sun50i-a64",	CLOCK_CCU },
 	{ "allwinner,sun8i-a83t",	CLOCK_CCU|CLOCK_PRCM|CLOCK_SYSCTRL },
 	{ "allwinner,sun8i-h3",		CLOCK_CCU },
 	{ NULL, 0 }

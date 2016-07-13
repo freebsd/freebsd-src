@@ -395,14 +395,14 @@ rsb_attach(device_t dev)
 	sc = device_get_softc(dev);
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "rsb", MTX_DEF);
 
-	if (clk_get_by_ofw_index(dev, 0, &sc->clk) == 0) {
+	if (clk_get_by_ofw_index(dev, 0, 0, &sc->clk) == 0) {
 		error = clk_enable(sc->clk);
 		if (error != 0) {
 			device_printf(dev, "cannot enable clock\n");
 			goto fail;
 		}
 	}
-	if (hwreset_get_by_ofw_idx(dev, 0, &sc->rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &sc->rst) == 0) {
 		error = hwreset_deassert(sc->rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
@@ -472,6 +472,8 @@ static driver_t rsb_driver = {
 
 static devclass_t rsb_devclass;
 
-DRIVER_MODULE(iicbus, rsb, iicbus_driver, iicbus_devclass, 0, 0);
-DRIVER_MODULE(rsb, simplebus, rsb_driver, rsb_devclass, 0, 0);
+EARLY_DRIVER_MODULE(iicbus, rsb, iicbus_driver, iicbus_devclass, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rsb, simplebus, rsb_driver, rsb_devclass, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rsb, 1);
