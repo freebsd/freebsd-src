@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
  * Search the passwd file for a uid. Return name on success, NULL on failure.
  */
 char *
-getname(int uid)
+getname(uid_t uid)
 {
 	struct passwd *pw;
 
@@ -58,7 +58,7 @@ getname(int uid)
  * Convert the passed name to a user id and return it.  Return -1
  * on error.
  */
-int
+uid_t
 getuserid(char name[])
 {
 	struct passwd *pw;

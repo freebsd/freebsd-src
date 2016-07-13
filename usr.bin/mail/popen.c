@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include "rcv.h"
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <stdarg.h>
 #include "extern.h"
 
 #define READ 0
@@ -46,22 +48,23 @@ __FBSDID("$FreeBSD$");
 struct fp {
 	FILE	*fp;
 	int	pipe;
-	int	pid;
+	pid_t	pid;
 	struct	fp *link;
 };
 static struct fp *fp_head;
 
 struct child {
-	int	pid;
+	pid_t	pid;
 	char	done;
 	char	free;
 	int	status;
 	struct	child *link;
 };
-static struct child *child;
-static struct child *findchild(int);
+static struct child *child, *child_freelist = NULL;
+
 static void delchild(struct child *);
-static int file_pid(FILE *);
+static pid_t file_pid(FILE *);
+static pid_t start_commandv(char *, sigset_t *, int, int, va_list);
 
 FILE *
 Fopen(const char *path, const char *mode)
@@ -90,6 +93,7 @@ Fdopen(int fd, const char *mode)
 int
 Fclose(FILE *fp)
 {
+
 	unregister_file(fp);
 	return (fclose(fp));
 }
@@ -99,7 +103,7 @@ Popen(char *cmd, const char *mode)
 {
 	int p[2];
 	int myside, hisside, fd0, fd1;
-	int pid;
+	pid_t pid;
 	sigset_t nset;
 	FILE *fp;
 
@@ -109,15 +113,15 @@ Popen(char *cmd, const char *mode)
 	(void)fcntl(p[WRITE], F_SETFD, 1);
 	if (*mode == 'r') {
 		myside = p[READ];
-		fd0 = -1;
-		hisside = fd1 = p[WRITE];
+		hisside = fd0 = fd1 = p[WRITE];
 	} else {
 		myside = p[WRITE];
 		hisside = fd0 = p[READ];
 		fd1 = -1;
 	}
 	(void)sigemptyset(&nset);
-	if ((pid = start_command(cmd, &nset, fd0, fd1, NULL, NULL, NULL)) < 0) {
+	pid = start_command(value("SHELL"), &nset, fd0, fd1, "-c", cmd, NULL);
+	if (pid < 0) {
 		(void)close(p[READ]);
 		(void)close(p[WRITE]);
 		return (NULL);
@@ -158,7 +162,7 @@ close_all_files(void)
 }
 
 void
-register_file(FILE *fp, int pipe, int pid)
+register_file(FILE *fp, int pipe, pid_t pid)
 {
 	struct fp *fpp;
 
@@ -186,7 +190,7 @@ unregister_file(FILE *fp)
 	/*NOTREACHED*/
 }
 
-int
+pid_t
 file_pid(FILE *fp)
 {
 	struct fp *p;
@@ -200,29 +204,16 @@ file_pid(FILE *fp)
 
 /*
  * Run a command without a shell, with optional arguments and splicing
- * of stdin and stdout.  The command name can be a sequence of words.
+ * of stdin (-1 means none) and stdout.  The command name can be a sequence
+ * of words.
  * Signals must be handled by the caller.
- * "Mask" contains the signals to ignore in the new process.
- * SIGINT is enabled unless it's in the mask.
+ * "nset" contains the signals to ignore in the new process.
+ * SIGINT is enabled unless it's in "nset".
  */
-/*VARARGS4*/
-int
-run_command(char *cmd, sigset_t *mask, int infd, int outfd, char *a0,
-	char *a1, char *a2)
+static pid_t
+start_commandv(char *cmd, sigset_t *nset, int infd, int outfd, va_list args)
 {
-	int pid;
-
-	if ((pid = start_command(cmd, mask, infd, outfd, a0, a1, a2)) < 0)
-		return (-1);
-	return (wait_command(pid));
-}
-
-/*VARARGS4*/
-int
-start_command(char *cmd, sigset_t *mask, int infd, int outfd, char *a0,
-	char *a1, char *a2)
-{
-	int pid;
+	pid_t pid;
 
 	if ((pid = fork()) < 0) {
 		warn("fork");
@@ -232,16 +223,41 @@ start_command(char *cmd, sigset_t *mask, int infd, int outfd, char *a0,
 		char *argv[100];
 		int i = getrawlist(cmd, argv, sizeof(argv) / sizeof(*argv));
 
-		if ((argv[i++] = a0) != NULL &&
-		    (argv[i++] = a1) != NULL &&
-		    (argv[i++] = a2) != NULL)
-			argv[i] = NULL;
-		prepare_child(mask, infd, outfd);
+		while ((argv[i++] = va_arg(args, char *)))
+			;
+		argv[i] = NULL;
+		prepare_child(nset, infd, outfd);
 		execvp(argv[0], argv);
 		warn("%s", argv[0]);
 		_exit(1);
 	}
 	return (pid);
+}
+
+int
+run_command(char *cmd, sigset_t *nset, int infd, int outfd, ...)
+{
+	pid_t pid;
+	va_list args;
+
+	va_start(args, outfd);
+	pid = start_commandv(cmd, nset, infd, outfd, args);
+	va_end(args);
+	if (pid < 0)
+		return -1;
+	return wait_command(pid);
+}
+
+int
+start_command(char *cmd, sigset_t *nset, int infd, int outfd, ...)
+{
+	va_list args;
+	int r;
+
+	va_start(args, outfd);
+	r = start_commandv(cmd, nset, infd, outfd, args);
+	va_end(args);
+	return r;
 }
 
 void
@@ -268,7 +284,7 @@ prepare_child(sigset_t *nset, int infd, int outfd)
 }
 
 int
-wait_command(int pid)
+wait_command(pid_t pid)
 {
 
 	if (wait_child(pid) < 0) {
@@ -279,7 +295,7 @@ wait_command(int pid)
 }
 
 static struct child *
-findchild(int pid)
+findchild(pid_t pid, int dont_alloc)
 {
 	struct child **cpp;
 
@@ -287,9 +303,16 @@ findchild(int pid)
 	    cpp = &(*cpp)->link)
 			;
 	if (*cpp == NULL) {
-		*cpp = malloc(sizeof(struct child));
-		if (*cpp == NULL)
-			err(1, "Out of memory");
+	if (dont_alloc)
+			return(NULL);
+		if (child_freelist) {
+			*cpp = child_freelist;
+			child_freelist = (*cpp)->link;
+		} else {
+			*cpp = malloc(sizeof(struct child));
+			if (*cpp == NULL)
+				err(1, "malloc");
+		}
 		(*cpp)->pid = pid;
 		(*cpp)->done = (*cpp)->free = 0;
 		(*cpp)->link = NULL;
@@ -305,19 +328,22 @@ delchild(struct child *cp)
 	for (cpp = &child; *cpp != cp; cpp = &(*cpp)->link)
 		;
 	*cpp = cp->link;
-	(void)free(cp);
+	cp->link = child_freelist;
+	child_freelist = cp;
 }
 
 /*ARGSUSED*/
 void
 sigchild(int signo __unused)
 {
-	int pid;
+	pid_t pid;
 	int status;
 	struct child *cp;
+	int save_errno;
 
+	save_errno = errno;
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-		cp = findchild(pid);
+		cp = findchild(pid, 1);
 		if (cp->free)
 			delchild(cp);
 		else {
@@ -325,6 +351,7 @@ sigchild(int signo __unused)
 			cp->status = status;
 		}
 	}
+	errno = save_errno;
 }
 
 int wait_status;
@@ -333,7 +360,7 @@ int wait_status;
  * Wait for a specific child to die.
  */
 int
-wait_child(int pid)
+wait_child(pid_t pid)
 {
 	sigset_t nset, oset;
 	struct child *cp;
@@ -342,7 +369,7 @@ wait_child(int pid)
 	(void)sigaddset(&nset, SIGCHLD);
 	(void)sigprocmask(SIG_BLOCK, &nset, &oset);	
 
-	cp = findchild(pid);
+	cp = findchild(pid, 1);
 
 	while (!cp->done)
 		(void)sigsuspend(&oset);
@@ -356,18 +383,19 @@ wait_child(int pid)
  * Mark a child as don't care.
  */
 void
-free_child(int pid)
+free_child(pid_t pid)
 {
+	struct child *cp;
 	sigset_t nset, oset;
-	struct child *cp = findchild(pid);
 
 	(void)sigemptyset(&nset);
 	(void)sigaddset(&nset, SIGCHLD);
-	(void)sigprocmask(SIG_BLOCK, &nset, &oset);	
-
-	if (cp->done)
-		delchild(cp);
-	else
-		cp->free = 1;
+	(void)sigprocmask(SIG_BLOCK, &nset, &oset);
+	if ((cp = findchild(pid, 0)) != NULL) {
+		if (cp->done)
+			delchild(cp);
+		else
+			cp->free = 1;
+	}
 	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
 }
