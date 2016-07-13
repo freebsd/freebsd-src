@@ -463,7 +463,8 @@ group(char **argv)
 	gname = *argv;
 	h = hash(gname);
 	if ((gh = findgroup(gname)) == NULL) {
-		gh = calloc(1, sizeof(*gh));
+		if ((gh = calloc(1, sizeof(*gh))) == NULL)
+			err(1, "Out of memory");
 		gh->g_name = vcopy(gname);
 		gh->g_list = NULL;
 		gh->g_link = groups[h];
@@ -477,7 +478,8 @@ group(char **argv)
 	 */
 
 	for (ap = argv+1; *ap != NULL; ap++) {
-		gp = calloc(1, sizeof(*gp));
+		if ((gp = calloc(1, sizeof(*gp))) == NULL)
+			err(1, "Out of memory");
 		gp->ge_name = vcopy(*ap);
 		gp->ge_link = gh->g_list;
 		gh->g_list = gp;
@@ -702,7 +704,8 @@ alternates(char **namelist)
 	}
 	if (altnames != 0)
 		(void)free(altnames);
-	altnames = calloc((unsigned)c, sizeof(char *));
+	if ((altnames = calloc((unsigned)c, sizeof(char *))) == NULL)
+		err(1, "Out of memory");
 	for (ap = namelist, ap2 = altnames; *ap != NULL; ap++, ap2++) {
 		cp = calloc((unsigned)strlen(*ap) + 1, sizeof(char));
 		strcpy(cp, *ap);
