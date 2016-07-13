@@ -51,9 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
 static void 	vmbus_channel_set_event(hv_vmbus_channel* channel);
-static void	VmbusProcessChannelEvent(void* channel, int pending);
 static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
 		    const struct hv_vmbus_channel *);
+static void	vmbus_chan_task(void *, int);
+static void	vmbus_chan_task_nobatch(void *, int);
 
 /**
  *  @brief Trigger an event notification on the specified channel
@@ -213,7 +214,13 @@ hv_vmbus_channel_open(
 
 	new_channel->rxq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
 	    new_channel->target_cpu);
-	TASK_INIT(&new_channel->channel_task, 0, VmbusProcessChannelEvent, new_channel);
+	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD) {
+		TASK_INIT(&new_channel->channel_task, 0,
+		    vmbus_chan_task, new_channel);
+	} else {
+		TASK_INIT(&new_channel->channel_task, 0,
+		    vmbus_chan_task_nobatch, new_channel);
+	}
 
 	/* Allocate the ring buffer */
 	out = contigmalloc((send_ring_buffer_size + recv_ring_buffer_size),
@@ -846,22 +853,16 @@ hv_vmbus_channel_recv_packet_raw(
 	return (0);
 }
 
-
-/**
- * Process a channel event notification
- */
 static void
-VmbusProcessChannelEvent(void* context, int pending)
+vmbus_chan_task(void *xchan, int pending __unused)
 {
-	void* arg;
-	uint32_t bytes_to_read;
-	hv_vmbus_channel* channel = (hv_vmbus_channel*)context;
-	bool is_batched_reading = false;
+	struct hv_vmbus_channel *chan = xchan;
+	void (*callback)(void *);
+	void *arg;
 
-	if (channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
-		is_batched_reading = true;
+	arg = chan->channel_callback_context;
+	callback = chan->on_channel_callback;
 
-	arg = channel->channel_callback_context;
 	/*
 	 * Optimize host to guest signaling by ensuring:
 	 * 1. While reading the channel, we disable interrupts from
@@ -871,19 +872,29 @@ VmbusProcessChannelEvent(void* context, int pending)
 	 * 3. Once we return, enable signaling from the host. Once this
 	 *    state is set we check to see if additional packets are
 	 *    available to read. In this case we repeat the process.
+	 *
+	 * NOTE: Interrupt has been disabled in the ISR.
 	 */
-	do {
-		if (is_batched_reading)
-			hv_ring_buffer_read_begin(&channel->inbound);
+	for (;;) {
+		uint32_t left;
 
-		channel->on_channel_callback(arg);
+		callback(arg);
 
-		if (is_batched_reading)
-			bytes_to_read =
-			    hv_ring_buffer_read_end(&channel->inbound);
-		else
-			bytes_to_read = 0;
-	} while (is_batched_reading && (bytes_to_read != 0));
+		left = hv_ring_buffer_read_end(&chan->inbound);
+		if (left == 0) {
+			/* No more data in RX bufring; done */
+			break;
+		}
+		hv_ring_buffer_read_begin(&chan->inbound);
+	}
+}
+
+static void
+vmbus_chan_task_nobatch(void *xchan, int pending __unused)
+{
+	struct hv_vmbus_channel *chan = xchan;
+
+	chan->on_channel_callback(chan->channel_callback_context);
 }
 
 static __inline void
