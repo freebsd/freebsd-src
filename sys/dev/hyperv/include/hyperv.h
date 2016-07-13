@@ -632,6 +632,9 @@ typedef struct hv_vmbus_channel {
 	TAILQ_ENTRY(hv_vmbus_channel)	ch_link;
 	uint32_t			ch_subidx;	/* subchan index */
 
+	struct hv_guid			ch_guid_type;
+	struct hv_guid			ch_guid_inst;
+
 	struct sysctl_ctx_list		ch_sysctl_ctx;
 } hv_vmbus_channel;
 
