@@ -89,13 +89,14 @@ traverse(vnode_t **cvpp, int lktype)
 		if (vfsp == NULL)
 			break;
 		error = vfs_busy(vfsp, 0);
+
 		/*
 		 * tvp is NULL for *cvpp vnode, which we can't unlock.
-		 * At least some callers expect the reference to be
-		 * maintained to the original *cvpp
 		 */
 		if (tvp != NULL)
 			vput(cvp);
+		else
+			vrele(cvp);
 		if (error)
 			return (error);
 
