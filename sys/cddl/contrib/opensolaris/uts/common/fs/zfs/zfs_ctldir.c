@@ -223,7 +223,7 @@ zfsctl_root_inode_cb(vnode_t *vp, int index)
 {
 	zfsvfs_t *zfsvfs = vp->v_vfsp->vfs_data;
 
-	ASSERT(index <= 2);
+	ASSERT(index < 2);
 
 	if (index == 0)
 		return (ZFSCTL_INO_SNAPDIR);
