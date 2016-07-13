@@ -74,13 +74,11 @@ hv_negotiate_version(
 int
 hv_util_attach(device_t dev)
 {
-	struct hv_device*	hv_dev;
 	struct hv_util_sc*	softc;
 	int			ret;
 
-	hv_dev = vmbus_get_devctx(dev);
 	softc = device_get_softc(dev);
-	softc->hv_dev = hv_dev;
+	softc->channel = vmbus_get_channel(dev);
 	softc->receive_buffer =
 		malloc(4 * PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 
@@ -91,9 +89,9 @@ hv_util_attach(device_t dev)
 	 * Turn off batched reading for all util drivers before we open the
 	 * channel.
 	 */
-	hv_set_channel_read_state(hv_dev->channel, FALSE);
+	hv_set_channel_read_state(softc->channel, FALSE);
 
-	ret = hv_vmbus_channel_open(hv_dev->channel, 4 * PAGE_SIZE,
+	ret = hv_vmbus_channel_open(softc->channel, 4 * PAGE_SIZE,
 			4 * PAGE_SIZE, NULL, 0,
 			softc->callback, softc);
 
@@ -110,14 +108,10 @@ error0:
 int
 hv_util_detach(device_t dev)
 {
-	struct hv_device*	hv_dev;
-	struct hv_util_sc*	softc;
+	struct hv_util_sc *sc = device_get_softc(dev);
 
-	hv_dev = vmbus_get_devctx(dev);
+	hv_vmbus_channel_close(sc->channel);
+	free(sc->receive_buffer, M_DEVBUF);
 
-	hv_vmbus_channel_close(hv_dev->channel);
-	softc = device_get_softc(dev);
-
-	free(softc->receive_buffer, M_DEVBUF);
 	return (0);
 }

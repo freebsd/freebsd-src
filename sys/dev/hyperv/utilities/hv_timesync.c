@@ -140,7 +140,7 @@ hv_timesync_cb(void *context)
 	hv_timesync_sc		*softc;
 
 	softc = (hv_timesync_sc*)context;
-	channel = softc->util_sc.hv_dev->channel;
+	channel = softc->util_sc.channel;
 	time_buf = softc->util_sc.receive_buffer;
 
 	ret = hv_vmbus_channel_recv_packet(channel, time_buf,
