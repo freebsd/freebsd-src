@@ -645,8 +645,8 @@ static struct vop_vector zfsctl_ops_root = {
 	.vop_access =	zfsctl_common_access,
 	.vop_readdir =	gfs_vop_readdir,
 	.vop_lookup =	zfsctl_freebsd_root_lookup,
-	.vop_inactive =	gfs_vop_inactive,
-	.vop_reclaim =	zfsctl_common_reclaim,
+	.vop_inactive =	VOP_NULL,
+	.vop_reclaim =	gfs_vop_reclaim,
 #ifdef TODO
 	.vop_pathconf =	zfsctl_pathconf,
 #endif
@@ -699,7 +699,7 @@ zfsctl_unmount_snap(zfs_snapentry_t *sep, int fflags, cred_t *cr)
 	 * the sd_lock mutex held by our caller.
 	 */
 	ASSERT(svp->v_count == 1);
-	gfs_vop_inactive(svp, cr, NULL);
+	gfs_vop_reclaim(svp, cr, NULL);
 
 	kmem_free(sep->se_name, strlen(sep->se_name) + 1);
 	kmem_free(sep, sizeof (zfs_snapentry_t));
@@ -1451,8 +1451,8 @@ static struct vop_vector zfsctl_ops_shares = {
 	.vop_access =	zfsctl_common_access,
 	.vop_readdir =	zfsctl_shares_readdir,
 	.vop_lookup =	zfsctl_shares_lookup,
-	.vop_inactive =	gfs_vop_inactive,
-	.vop_reclaim =	zfsctl_common_reclaim,
+	.vop_inactive =	VOP_NULL,
+	.vop_reclaim =	gfs_vop_reclaim,
 	.vop_fid =	zfsctl_shares_fid,
 };
 #endif	/* !sun */
@@ -1479,8 +1479,9 @@ zfsctl_snapshot_mknode(vnode_t *pvp, uint64_t objset)
 	return (vp);
 }
 
+
 static int
-zfsctl_snapshot_inactive(ap)
+zfsctl_snapshot_reclaim(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
 		struct thread *a_td;
@@ -1488,18 +1489,19 @@ zfsctl_snapshot_inactive(ap)
 {
 	vnode_t *vp = ap->a_vp;
 	cred_t *cr = ap->a_td->td_ucred;
-	struct vop_inactive_args iap;
+	struct vop_reclaim_args iap;
 	zfsctl_snapdir_t *sdp;
 	zfs_snapentry_t *sep, *next;
 	int locked;
 	vnode_t *dvp;
 
-	if (vp->v_count > 0)
-		goto end;
-
 	VERIFY(gfs_dir_lookup(vp, "..", &dvp, cr, 0, NULL, NULL) == 0);
 	sdp = dvp->v_data;
-
+	/* this may already have been unmounted */
+	if (sdp == NULL) {
+		VN_RELE(dvp);
+		return (0);
+	}
 	if (!(locked = MUTEX_HELD(&sdp->sd_lock)))
 		mutex_enter(&sdp->sd_lock);
 
@@ -1523,7 +1525,6 @@ zfsctl_snapshot_inactive(ap)
 		mutex_exit(&sdp->sd_lock);
 	VN_RELE(dvp);
 
-end:
 	/*
 	 * Dispose of the vnode for the snapshot mount point.
 	 * This is safe to do because once this entry has been removed
@@ -1532,7 +1533,9 @@ end:
 	 * creating a new vnode.
 	 */
 	iap.a_vp = vp;
-	return (gfs_vop_inactive(&iap));
+	gfs_vop_reclaim(&iap);
+	return (0);
+
 }
 
 static int
@@ -1583,8 +1586,8 @@ zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
  */
 static struct vop_vector zfsctl_ops_snapshot = {
 	.vop_default =	&default_vnodeops,
-	.vop_inactive =	zfsctl_snapshot_inactive,
-	.vop_reclaim =	zfsctl_common_reclaim,
+	.vop_inactive =	VOP_NULL,
+	.vop_reclaim =	zfsctl_snapshot_reclaim,
 	.vop_vptocnp =	zfsctl_snapshot_vptocnp,
 };
 
