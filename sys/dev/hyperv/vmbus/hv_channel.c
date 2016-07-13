@@ -76,7 +76,7 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 			(uint32_t *)&monitor_page->
 				trigger_group[channel->monitor_group].u.pending);
 	} else {
-		hypercall_signal_event(channel->ch_sigevt_dma.hv_paddr);
+		hypercall_signal_event(channel->ch_monprm_dma.hv_paddr);
 	}
 
 }
