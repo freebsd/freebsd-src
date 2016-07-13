@@ -321,8 +321,6 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 		new_channel->ch_sigevt->hc_connid = offer->connection_id;
 	}
 
-	memcpy(&new_channel->offer_msg, offer,
-	    sizeof(hv_vmbus_channel_offer_channel));
 	new_channel->monitor_group = (uint8_t) offer->monitor_id / 32;
 	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;
 
