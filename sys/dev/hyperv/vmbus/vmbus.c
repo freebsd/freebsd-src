@@ -989,18 +989,21 @@ vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 static int
 vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 {
-	struct hv_device *dev_ctx = device_get_ivars(child);
+	const struct hv_vmbus_channel *chan;
 	char guidbuf[HYPERV_GUID_STRLEN];
 
-	if (dev_ctx == NULL)
+	if (device_get_ivars(child) == NULL) {
+		/* Event timer device, which does not belong to a channel */
 		return (0);
+	}
+	chan = vmbus_get_channel(child);
 
 	strlcat(buf, "classid=", buflen);
-	hyperv_guid2str(&dev_ctx->class_id, guidbuf, sizeof(guidbuf));
+	hyperv_guid2str(&chan->ch_guid_type, guidbuf, sizeof(guidbuf));
 	strlcat(buf, guidbuf, buflen);
 
 	strlcat(buf, " deviceid=", buflen);
-	hyperv_guid2str(&dev_ctx->device_id, guidbuf, sizeof(guidbuf));
+	hyperv_guid2str(&chan->ch_guid_inst, guidbuf, sizeof(guidbuf));
 	strlcat(buf, guidbuf, buflen);
 
 	return (0);
@@ -1023,40 +1026,48 @@ hv_vmbus_child_device_create(struct hv_vmbus_channel *channel)
 	return (child_dev);
 }
 
-void
-hv_vmbus_child_device_register(struct vmbus_softc *sc,
-    struct hv_device *child_dev)
+int
+hv_vmbus_child_device_register(struct hv_vmbus_channel *chan)
 {
-	device_t child, parent;
+	struct vmbus_softc *sc = chan->vmbus_sc;
+	device_t parent = sc->vmbus_dev;
+	int error = 0;
 
-	parent = sc->vmbus_dev;
-	if (bootverbose) {
-		char name[HYPERV_GUID_STRLEN];
-
-		hyperv_guid2str(&child_dev->class_id, name, sizeof(name));
-		device_printf(parent, "add device, classid: %s\n", name);
+	chan->ch_dev = device_add_child(parent, NULL, -1);
+	if (chan->ch_dev == NULL) {
+		device_printf(parent, "device_add_child for chan%u failed\n",
+		    chan->ch_id);
+		error = ENXIO;
+		goto done;
 	}
+	chan->device->device = chan->ch_dev;
+	device_set_ivars(chan->ch_dev, chan->device);
 
-	child = device_add_child(parent, NULL, -1);
-	child_dev->device = child;
-	device_set_ivars(child, child_dev);
-
-	/* New device was added to vmbus */
+done:
+	/* New device has been/should be added to vmbus. */
 	vmbus_scan_newdev(sc);
+	return error;
 }
 
 int
-hv_vmbus_child_device_unregister(struct hv_device *child_dev)
+hv_vmbus_child_device_unregister(struct hv_vmbus_channel *chan)
 {
-	int ret = 0;
+	int error;
+
+	if (chan->ch_dev == NULL) {
+		/* Failed to add a device. */
+		return 0;
+	}
+
 	/*
 	 * XXXKYS: Ensure that this is the opposite of
 	 * device_add_child()
 	 */
 	mtx_lock(&Giant);
-	ret = device_delete_child(vmbus_get_device(), child_dev->device);
+	error = device_delete_child(chan->vmbus_sc->vmbus_dev, chan->ch_dev);
 	mtx_unlock(&Giant);
-	return(ret);
+
+	return error;
 }
 
 static int
@@ -1082,9 +1093,9 @@ vmbus_get_version_method(device_t bus, device_t dev)
 static int
 vmbus_probe_guid_method(device_t bus, device_t dev, const struct hv_guid *guid)
 {
-	struct hv_device *hv_dev = device_get_ivars(dev);
+	const struct hv_vmbus_channel *chan = vmbus_get_channel(dev);
 
-	if (memcmp(&hv_dev->class_id, guid, sizeof(struct hv_guid)) == 0)
+	if (memcmp(&chan->ch_guid_type, guid, sizeof(struct hv_guid)) == 0)
 		return 0;
 	return ENXIO;
 }

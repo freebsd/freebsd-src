@@ -539,6 +539,7 @@ typedef union {
 
 typedef struct hv_vmbus_channel {
 	struct hv_device*		device;
+	device_t			ch_dev;
 	struct vmbus_softc		*vmbus_sc;
 	hv_vmbus_channel_state		state;
 	uint32_t			ch_flags;	/* VMBUS_CHAN_FLAG_ */

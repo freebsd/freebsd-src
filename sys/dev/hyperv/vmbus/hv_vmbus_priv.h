@@ -215,9 +215,9 @@ void			hv_vmbus_release_unattached_channels(
 struct hv_device*	hv_vmbus_child_device_create(
 			    struct hv_vmbus_channel *channel);
 
-void			hv_vmbus_child_device_register(struct vmbus_softc *,
-					struct hv_device *child_dev);
+int			hv_vmbus_child_device_register(
+					struct hv_vmbus_channel *chan);
 int			hv_vmbus_child_device_unregister(
-					struct hv_device *child_dev);
+					struct hv_vmbus_channel *chan);
 
 #endif  /* __HYPERV_PRIV_H__ */
