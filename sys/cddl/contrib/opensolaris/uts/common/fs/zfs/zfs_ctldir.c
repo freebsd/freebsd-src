@@ -451,25 +451,6 @@ zfsctl_shares_fid(ap)
 	return (error);
 }
 
-static int
-zfsctl_common_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
-{
-	vnode_t *vp = ap->a_vp;
-
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
-	vnode_destroy_vobject(vp);
-	VI_LOCK(vp);
-	vp->v_data = NULL;
-	VI_UNLOCK(vp);
-	return (0);
-}
-
 /*
  * .zfs inode namespace
  *
@@ -1366,8 +1347,8 @@ zfsctl_snapdir_getattr(ap)
 
 /* ARGSUSED */
 static int
-zfsctl_snapdir_inactive(ap)
-	struct vop_inactive_args /* {
+zfsctl_snapdir_reclaim(ap)
+	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
 		struct thread *a_td;
 	} */ *ap;
@@ -1376,21 +1357,10 @@ zfsctl_snapdir_inactive(ap)
 	zfsctl_snapdir_t *sdp = vp->v_data;
 	zfs_snapentry_t *sep;
 
-	/*
-	 * On forced unmount we have to free snapshots from here.
-	 */
-	mutex_enter(&sdp->sd_lock);
-	while ((sep = avl_first(&sdp->sd_snaps)) != NULL) {
-		avl_remove(&sdp->sd_snaps, sep);
-		kmem_free(sep->se_name, strlen(sep->se_name) + 1);
-		kmem_free(sep, sizeof (zfs_snapentry_t));
-	}
-	mutex_exit(&sdp->sd_lock);
-	gfs_dir_inactive(vp);
 	ASSERT(avl_numnodes(&sdp->sd_snaps) == 0);
 	mutex_destroy(&sdp->sd_lock);
 	avl_destroy(&sdp->sd_snaps);
-	kmem_free(sdp, sizeof (zfsctl_snapdir_t));
+	gfs_vop_reclaim(ap);
 
 	return (0);
 }
@@ -1437,8 +1407,8 @@ static struct vop_vector zfsctl_ops_snapdir = {
 	.vop_mkdir =	zfsctl_freebsd_snapdir_mkdir,
 	.vop_readdir =	gfs_vop_readdir,
 	.vop_lookup =	zfsctl_snapdir_lookup,
-	.vop_inactive =	zfsctl_snapdir_inactive,
-	.vop_reclaim =	zfsctl_common_reclaim,
+	.vop_inactive =	VOP_NULL,
+	.vop_reclaim =	zfsctl_snapdir_reclaim,
 	.vop_fid =	zfsctl_common_fid,
 };
 
