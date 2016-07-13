@@ -89,6 +89,7 @@ traverse(vnode_t **cvpp, int lktype)
 		if (vfsp == NULL)
 			break;
 		error = vfs_busy(vfsp, 0);
+
 		/*
 		 * tvp is NULL for *cvpp vnode, which we can't unlock.
 		 */
