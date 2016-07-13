@@ -153,13 +153,22 @@
 /*
  * Hypercall input parameters
  */
+#define HYPERCALL_PARAM_ALIGN		8
+#if 0
+/*
+ * XXX
+ * <<Hypervisor Top Level Functional Specification 4.0b>> requires
+ * input parameters size to be multiple of 8, however, many post
+ * message input parameters do _not_ meet this requirement.
+ */
+#define HYPERCALL_PARAM_SIZE_ALIGN	8
+#endif
 
 /*
  * HYPERCALL_POST_MESSAGE
  */
 #define HYPERCALL_POSTMSGIN_DSIZE_MAX	240
 #define HYPERCALL_POSTMSGIN_SIZE	256
-#define HYPERCALL_POSTMSGIN_ALIGN	8
 
 struct hypercall_postmsg_in {
 	uint32_t	hc_connid;
@@ -173,8 +182,6 @@ CTASSERT(sizeof(struct hypercall_postmsg_in) == HYPERCALL_POSTMSGIN_SIZE);
 /*
  * HYPERCALL_SIGNAL_EVENT
  */
-#define HYPERCALL_SIGEVTIN_ALIGN	8
-
 struct hypercall_sigevt_in {
 	uint32_t	hc_connid;
 	uint16_t	hc_evtflag_ofs;

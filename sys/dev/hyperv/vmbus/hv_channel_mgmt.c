@@ -298,7 +298,7 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 
 	new_channel->ch_sigevt = hyperv_dmamem_alloc(
 	    bus_get_dma_tag(sc->vmbus_dev),
-	    HYPERCALL_SIGEVTIN_ALIGN, 0, sizeof(struct hypercall_sigevt_in),
+	    HYPERCALL_PARAM_ALIGN, 0, sizeof(struct hypercall_sigevt_in),
 	    &new_channel->ch_sigevt_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (new_channel->ch_sigevt == NULL) {
 		device_printf(sc->vmbus_dev, "sigevt alloc failed\n");
