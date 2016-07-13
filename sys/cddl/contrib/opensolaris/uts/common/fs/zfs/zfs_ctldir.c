@@ -294,6 +294,22 @@ zfsctl_root(znode_t *zp)
 	return (zp->z_zfsvfs->z_ctldir);
 }
 
+static int
+zfsctl_common_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	vnode_t *vp = ap->a_vp;
+	gfs_file_t *fp = vp->v_data;
+
+	printf("    parent = %p\n", fp->gfs_parent);
+	printf("    type = %d\n", fp->gfs_type);
+	printf("    index = %d\n", fp->gfs_index);
+	printf("    ino = %ju\n", (uintmax_t)fp->gfs_ino);
+	return (0);
+}
+
 /*
  * Common open routine.  Disallow any write access.
  */
@@ -548,6 +564,17 @@ zfsctl_root_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
 	return (err);
 }
 
+static int
+zfsctl_root_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	printf("    .zfs node\n");
+	zfsctl_common_print(ap);
+	return (0);
+}
+
 #ifdef illumos
 static int
 zfsctl_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
@@ -641,6 +668,7 @@ static struct vop_vector zfsctl_ops_root = {
 	.vop_pathconf =	zfsctl_pathconf,
 #endif
 	.vop_fid =	zfsctl_common_fid,
+	.vop_print =	zfsctl_root_print,
 };
 
 /*
@@ -1374,6 +1402,32 @@ zfsctl_snapdir_inactive(ap)
 	return (0);
 }
 
+static int
+zfsctl_shares_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	printf("    .zfs/shares node\n");
+	zfsctl_common_print(ap);
+	return (0);
+}
+
+static int
+zfsctl_snapdir_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	vnode_t *vp = ap->a_vp;
+	zfsctl_snapdir_t *sdp = vp->v_data;
+
+	printf("    .zfs/snapshot node\n");
+	printf("    number of children = %lu\n", avl_numnodes(&sdp->sd_snaps));
+	zfsctl_common_print(ap);
+	return (0);
+}
+
 #ifdef illumos
 static const fs_operation_def_t zfsctl_tops_snapdir[] = {
 	{ VOPNAME_OPEN,		{ .vop_open = zfsctl_common_open }	},
@@ -1419,6 +1473,7 @@ static struct vop_vector zfsctl_ops_snapdir = {
 	.vop_inactive =	zfsctl_snapdir_inactive,
 	.vop_reclaim =	zfsctl_common_reclaim,
 	.vop_fid =	zfsctl_common_fid,
+	.vop_print =	zfsctl_snapdir_print,
 };
 
 static struct vop_vector zfsctl_ops_shares = {
@@ -1433,6 +1488,7 @@ static struct vop_vector zfsctl_ops_shares = {
 	.vop_inactive =	VOP_NULL,
 	.vop_reclaim =	gfs_vop_reclaim,
 	.vop_fid =	zfsctl_shares_fid,
+	.vop_print =	zfsctl_shares_print,
 };
 #endif	/* illumos */
 
@@ -1653,6 +1709,21 @@ zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
 	return (error);
 }
 
+static int
+zfsctl_snaphot_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	vnode_t *vp = ap->a_vp;
+	zfsctl_node_t *zcp = vp->v_data;
+
+	printf("    .zfs/snapshot/<snap> node\n");
+	printf("    id = %ju\n", (uintmax_t)zcp->zc_id);
+	zfsctl_common_print(ap);
+	return (0);
+}
+
 /*
  * These VP's should never see the light of day.  They should always
  * be covered.
@@ -1665,6 +1736,7 @@ static struct vop_vector zfsctl_ops_snapshot = {
 	.vop_getattr =	zfsctl_snapshot_getattr,
 	.vop_fid =	zfsctl_snapshot_fid,
 	.vop_vptocnp =	zfsctl_snapshot_vptocnp,
+	.vop_print =	zfsctl_snaphot_print,
 };
 
 int
