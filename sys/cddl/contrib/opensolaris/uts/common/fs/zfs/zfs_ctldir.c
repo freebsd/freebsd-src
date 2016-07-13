@@ -973,6 +973,11 @@ zfsctl_snapdir_lookup(ap)
 	ZFS_ENTER(zfsvfs);
 
 	if (gfs_lookup_dot(vpp, dvp, zfsvfs->z_ctldir, nm) == 0) {
+		if (nm[0] == '.' && nm[1] == '.' && nm[2] =='\0') {
+			VOP_UNLOCK(dvp, 0);
+			VERIFY0(vn_lock(*vpp, LK_EXCLUSIVE));
+			VERIFY0(vn_lock(dvp, LK_EXCLUSIVE));
+		}
 		ZFS_EXIT(zfsvfs);
 		return (0);
 	}
@@ -1129,6 +1134,11 @@ zfsctl_shares_lookup(ap)
 	strlcpy(nm, cnp->cn_nameptr, cnp->cn_namelen + 1);
 
 	if (gfs_lookup_dot(vpp, dvp, zfsvfs->z_ctldir, nm) == 0) {
+		if (nm[0] == '.' && nm[1] == '.' && nm[2] =='\0') {
+			VOP_UNLOCK(dvp, 0);
+			VERIFY0(vn_lock(*vpp, LK_EXCLUSIVE));
+			VERIFY0(vn_lock(dvp, LK_EXCLUSIVE));
+		}
 		ZFS_EXIT(zfsvfs);
 		return (0);
 	}
@@ -1467,7 +1477,6 @@ zfsctl_snapshot_inactive(ap)
 
 	VERIFY(gfs_dir_lookup(vp, "..", &dvp, cr, 0, NULL, NULL) == 0);
 	sdp = dvp->v_data;
-	VOP_UNLOCK(dvp, 0);
 
 	if (!(locked = MUTEX_HELD(&sdp->sd_lock)))
 		mutex_enter(&sdp->sd_lock);
