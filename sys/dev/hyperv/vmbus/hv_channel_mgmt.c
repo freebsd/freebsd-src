@@ -162,7 +162,6 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			 * It is a sub channel offer, process it.
 			 */
 			new_channel->primary_channel = channel;
-			new_channel->device = channel->device;
 			new_channel->ch_dev = channel->ch_dev;
 			mtx_lock(&channel->sc_lock);
 			TAILQ_INSERT_TAIL(&channel->sc_list_anchor,
@@ -205,13 +204,6 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	}
 
 	new_channel->state = HV_CHANNEL_OPEN_STATE;
-
-	/*
-	 * Start the process of binding this offer to the driver
-	 * (We need to set the device field before calling
-	 * hv_vmbus_child_device_add())
-	 */
-	new_channel->device = hv_vmbus_child_device_create(new_channel);
 
 	/*
 	 * Add the new device to the bus. This will kick off device-driver

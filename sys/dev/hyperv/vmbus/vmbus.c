@@ -960,29 +960,6 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 static int
 vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
-	struct hv_device *child_dev_ctx = device_get_ivars(child);
-
-	switch (index) {
-	case HV_VMBUS_IVAR_TYPE:
-		*result = (uintptr_t)&child_dev_ctx->class_id;
-		return (0);
-
-	case HV_VMBUS_IVAR_INSTANCE:
-		*result = (uintptr_t)&child_dev_ctx->device_id;
-		return (0);
-
-	case HV_VMBUS_IVAR_DEVCTX:
-		*result = (uintptr_t)child_dev_ctx;
-		return (0);
-
-	case HV_VMBUS_IVAR_NODE:
-		*result = (uintptr_t)child_dev_ctx->device;
-		return (0);
-
-	case HV_VMBUS_IVAR_CHAN:
-		*result = (uintptr_t)child_dev_ctx->channel;
-		return (0);
-	}
 	return (ENOENT);
 }
 
@@ -992,11 +969,11 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 	const struct hv_vmbus_channel *chan;
 	char guidbuf[HYPERV_GUID_STRLEN];
 
-	if (device_get_ivars(child) == NULL) {
+	chan = vmbus_get_channel(child);
+	if (chan == NULL) {
 		/* Event timer device, which does not belong to a channel */
 		return (0);
 	}
-	chan = vmbus_get_channel(child);
 
 	strlcat(buf, "classid=", buflen);
 	hyperv_guid2str(&chan->ch_guid_type, guidbuf, sizeof(guidbuf));
@@ -1007,23 +984,6 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 	strlcat(buf, guidbuf, buflen);
 
 	return (0);
-}
-
-struct hv_device *
-hv_vmbus_child_device_create(struct hv_vmbus_channel *channel)
-{
-	hv_device *child_dev;
-
-	/*
-	 * Allocate the new child device
-	 */
-	child_dev = malloc(sizeof(hv_device), M_DEVBUF, M_WAITOK | M_ZERO);
-
-	child_dev->channel = channel;
-	child_dev->class_id = channel->ch_guid_type;
-	child_dev->device_id = channel->ch_guid_inst;
-
-	return (child_dev);
 }
 
 int
@@ -1040,8 +1000,7 @@ hv_vmbus_child_device_register(struct hv_vmbus_channel *chan)
 		error = ENXIO;
 		goto done;
 	}
-	chan->device->device = chan->ch_dev;
-	device_set_ivars(chan->ch_dev, chan->device);
+	device_set_ivars(chan->ch_dev, chan);
 
 done:
 	/* New device has been/should be added to vmbus. */
