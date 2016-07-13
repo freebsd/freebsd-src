@@ -1044,7 +1044,6 @@ zfsctl_snapdir_lookup(ap)
 		VN_HOLD(*vpp);
 		err = traverse(vpp, LK_EXCLUSIVE | LK_RETRY);
 		if (err != 0) {
-			VN_RELE(*vpp);
 			*vpp = NULL;
 		} else if (*vpp == sep->se_root) {
 			/*
@@ -1675,16 +1674,15 @@ zfsctl_lookup_objset(vfs_t *vfsp, uint64_t objsetid, zfsvfs_t **zfsvfsp)
 		 */
 		error = traverse(&vp, LK_SHARED | LK_RETRY);
 		if (error == 0) {
-			if (vp == sep->se_root)
+			if (vp == sep->se_root) {
+				VN_RELE(vp);	/* release covered vp */
 				error = SET_ERROR(EINVAL);
-			else
+			} else {
 				*zfsvfsp = VTOZ(vp)->z_zfsvfs;
+				VN_URELE(vp);	/* put snapshot's root vp */
+			}
 		}
 		mutex_exit(&sdp->sd_lock);
-		if (error == 0)
-			VN_URELE(vp);
-		else
-			VN_RELE(vp);
 	} else {
 		error = SET_ERROR(EINVAL);
 		mutex_exit(&sdp->sd_lock);
