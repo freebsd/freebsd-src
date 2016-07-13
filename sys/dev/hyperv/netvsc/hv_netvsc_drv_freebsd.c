@@ -428,8 +428,6 @@ netvsc_probe(device_t dev)
 static int
 netvsc_attach(device_t dev)
 {
-	struct hv_device *device_ctx = vmbus_get_devctx(dev);
-	struct hv_vmbus_channel *pri_chan;
 	netvsc_device_info device_info;
 	hn_softc_t *sc;
 	int unit = device_get_unit(dev);
@@ -443,6 +441,7 @@ netvsc_attach(device_t dev)
 
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
+	sc->hn_prichan = vmbus_get_channel(dev);
 
 	if (hn_tx_taskq == NULL) {
 		sc->hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
@@ -465,8 +464,6 @@ netvsc_attach(device_t dev)
 		sc->hn_tx_taskq = hn_tx_taskq;
 	}
 	NV_LOCK_INIT(sc, "NetVSCLock");
-
-	sc->hn_dev_obj = device_ctx;
 
 	ifp = sc->hn_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
@@ -510,12 +507,7 @@ netvsc_attach(device_t dev)
 	/*
 	 * Associate the first TX/RX ring w/ the primary channel.
 	 */
-	pri_chan = device_ctx->channel;
-	KASSERT(HV_VMBUS_CHAN_ISPRIMARY(pri_chan), ("not primary channel"));
-	KASSERT(pri_chan->ch_subidx == 0,
-	    ("primary channel subidx %u",
-	     pri_chan->ch_subidx));
-	hn_channel_attach(sc, pri_chan);
+	hn_channel_attach(sc, sc->hn_prichan);
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
@@ -552,7 +544,7 @@ netvsc_attach(device_t dev)
 	    IFCAP_LRO;
 	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
 
-	error = hv_rf_on_device_add(device_ctx, &device_info, ring_cnt);
+	error = hv_rf_on_device_add(sc, &device_info, ring_cnt);
 	if (error)
 		goto failed;
 	KASSERT(sc->net_dev->num_channel > 0 &&
@@ -626,7 +618,6 @@ static int
 netvsc_detach(device_t dev)
 {
 	struct hn_softc *sc = device_get_softc(dev);
-	struct hv_device *hv_device = vmbus_get_devctx(dev); 
 
 	if (bootverbose)
 		printf("netvsc_detach\n");
@@ -642,7 +633,7 @@ netvsc_detach(device_t dev)
 	 * the netdevice.
 	 */
 
-	hv_rf_on_device_remove(hv_device, HV_RF_NV_DESTROY_CHANNEL);
+	hv_rf_on_device_remove(sc, HV_RF_NV_DESTROY_CHANNEL);
 
 	hn_stop_tx_tasks(sc);
 
@@ -1201,10 +1192,8 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
  * Link up/down notification
  */
 void
-netvsc_linkstatus_callback(struct hv_device *device_obj, uint32_t status)
+netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status)
 {
-	hn_softc_t *sc = device_get_softc(device_obj->device);
-
 	if (status == 1) {
 		sc->hn_carrier = 1;
 	} else {
@@ -1525,7 +1514,6 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
 	netvsc_device_info device_info;
-	struct hv_device *hn_dev;
 	int mask, error = 0;
 	int retry_cnt = 500;
 	
@@ -1543,8 +1531,6 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	case SIOCSIFMTU:
-		hn_dev = vmbus_get_devctx(sc->hn_dev);
-
 		/* Check MTU value change */
 		if (ifp->if_mtu == ifr->ifr_mtu)
 			break;
@@ -1591,7 +1577,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * MTU to take effect.  This includes tearing down, but not
 		 * deleting the channel, then bringing it back up.
 		 */
-		error = hv_rf_on_device_remove(hn_dev, HV_RF_NV_RETAIN_CHANNEL);
+		error = hv_rf_on_device_remove(sc, HV_RF_NV_RETAIN_CHANNEL);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
@@ -1600,9 +1586,9 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		/* Wait for subchannels to be destroyed */
-		vmbus_drain_subchan(hn_dev->channel);
+		vmbus_drain_subchan(sc->hn_prichan);
 
-		error = hv_rf_on_device_add(hn_dev, &device_info,
+		error = hv_rf_on_device_add(sc, &device_info,
 		    sc->hn_rx_ring_inuse);
 		if (error) {
 			NV_LOCK(sc);
@@ -1767,7 +1753,6 @@ hn_stop(hn_softc_t *sc)
 {
 	struct ifnet *ifp;
 	int ret, i;
-	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 
 	ifp = sc->hn_ifp;
 
@@ -1782,7 +1767,7 @@ hn_stop(hn_softc_t *sc)
 	if_link_state_change(ifp, LINK_STATE_DOWN);
 	sc->hn_initdone = 0;
 
-	ret = hv_rf_on_close(device_ctx);
+	ret = hv_rf_on_close(sc);
 }
 
 /*
@@ -1850,7 +1835,6 @@ static void
 hn_ifinit_locked(hn_softc_t *sc)
 {
 	struct ifnet *ifp;
-	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	int ret, i;
 
 	ifp = sc->hn_ifp;
@@ -1861,7 +1845,7 @@ hn_ifinit_locked(hn_softc_t *sc)
 
 	hv_promisc_mode = 1;
 
-	ret = hv_rf_on_open(device_ctx);
+	ret = hv_rf_on_open(sc);
 	if (ret != 0) {
 		return;
 	} else {
@@ -2984,13 +2968,12 @@ hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 static void
 hn_subchan_setup(struct hn_softc *sc)
 {
-	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	struct hv_vmbus_channel **subchan;
 	int subchan_cnt = sc->net_dev->num_channel - 1;
 	int i;
 
 	/* Wait for sub-channels setup to complete. */
-	subchan = vmbus_get_subchan(device_ctx->channel, subchan_cnt);
+	subchan = vmbus_get_subchan(sc->hn_prichan, subchan_cnt);
 
 	/* Attach the sub-channels. */
 	for (i = 0; i < subchan_cnt; ++i) {
