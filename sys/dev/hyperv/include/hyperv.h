@@ -537,7 +537,6 @@ typedef struct hv_vmbus_channel {
 	struct hv_device*		device;
 	struct vmbus_softc		*vmbus_sc;
 	hv_vmbus_channel_state		state;
-	hv_vmbus_channel_offer_channel	offer_msg;
 	uint32_t			ch_flags;	/* VMBUS_CHAN_FLAG_ */
 	uint32_t			ch_id;		/* channel id */
 	/*
