@@ -286,7 +286,6 @@ hv_vmbus_ring_buffer_init(
 	ring_info->ring_buffer->read_index =
 	    ring_info->ring_buffer->write_index = 0;
 
-	ring_info->ring_size = buffer_len;
 	ring_info->ring_data_size = buffer_len - sizeof(hv_vmbus_ring_buffer);
 
 	mtx_init(&ring_info->ring_lock, "vmbus ring buffer", NULL, MTX_SPIN);
