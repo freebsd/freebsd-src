@@ -518,9 +518,9 @@ netvsc_attach(device_t dev)
 	 */
 	pri_chan = device_ctx->channel;
 	KASSERT(HV_VMBUS_CHAN_ISPRIMARY(pri_chan), ("not primary channel"));
-	KASSERT(pri_chan->offer_msg.offer.sub_channel_index == 0,
+	KASSERT(pri_chan->ch_subidx == 0,
 	    ("primary channel subidx %u",
-	     pri_chan->offer_msg.offer.sub_channel_index));
+	     pri_chan->ch_subidx));
 	hn_channel_attach(sc, pri_chan);
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -809,8 +809,8 @@ hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
 	    ("channel mismatch, on channel%u, should be channel%u",
-	     chan->offer_msg.offer.sub_channel_index,
-	     txr->hn_chan->offer_msg.offer.sub_channel_index));
+	     chan->ch_subidx,
+	     txr->hn_chan->ch_subidx));
 
 	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
@@ -2940,7 +2940,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	struct hn_rx_ring *rxr;
 	int idx;
 
-	idx = chan->offer_msg.offer.sub_channel_index;
+	idx = chan->ch_subidx;
 
 	KASSERT(idx >= 0 && idx < sc->hn_rx_ring_inuse,
 	    ("invalid channel index %d, should > 0 && < %d",
@@ -2981,9 +2981,9 @@ hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 
 	KASSERT(!HV_VMBUS_CHAN_ISPRIMARY(chan),
 	    ("subchannel callback on primary channel"));
-	KASSERT(chan->offer_msg.offer.sub_channel_index > 0,
+	KASSERT(chan->ch_subidx > 0,
 	    ("invalid channel subidx %u",
-	     chan->offer_msg.offer.sub_channel_index));
+	     chan->ch_subidx));
 	hn_channel_attach(sc, chan);
 }
 
