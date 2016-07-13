@@ -2664,7 +2664,11 @@ build_range_exp (bitset_t sbcset, bracket_elem_t *start_elem,
       return REG_ECOLLATE;
     cmp_buf[0] = start_wc;
     cmp_buf[4] = end_wc;
+#ifdef __FreeBSD__
+    if (wcscmp (cmp_buf, cmp_buf + 4) > 0)
+#else
     if (wcscoll (cmp_buf, cmp_buf + 4) > 0)
+#endif
       return REG_ERANGE;
 
     /* Got valid collation sequence values, add them as a new entry.
@@ -2706,8 +2710,13 @@ build_range_exp (bitset_t sbcset, bracket_elem_t *start_elem,
     for (wc = 0; wc < SBC_MAX; ++wc)
       {
 	cmp_buf[2] = wc;
+#ifdef __FreeBSD__
+	if (wcscmp (cmp_buf, cmp_buf + 2) <= 0
+	    && wcscmp (cmp_buf + 2, cmp_buf + 4) <= 0)
+#else
 	if (wcscoll (cmp_buf, cmp_buf + 2) <= 0
 	    && wcscoll (cmp_buf + 2, cmp_buf + 4) <= 0)
+#endif
 	  bitset_set (sbcset, wc);
       }
   }

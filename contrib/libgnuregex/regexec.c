@@ -3964,8 +3964,13 @@ check_node_accept_bytes (const re_dfa_t *dfa, int node_idx,
 	    {
 	      cmp_buf[0] = cset->range_starts[i];
 	      cmp_buf[4] = cset->range_ends[i];
+#ifdef __FreeBSD__
+	      if (wcscmp (cmp_buf, cmp_buf + 2) <= 0
+		  && wcscmp (cmp_buf + 2, cmp_buf + 4) <= 0)
+#else
 	      if (wcscoll (cmp_buf, cmp_buf + 2) <= 0
 		  && wcscoll (cmp_buf + 2, cmp_buf + 4) <= 0)
+#endif
 		{
 		  match_len = char_len;
 		  goto check_node_accept_bytes_match;
