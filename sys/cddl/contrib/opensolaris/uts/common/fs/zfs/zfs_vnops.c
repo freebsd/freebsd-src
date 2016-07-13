@@ -7036,6 +7036,53 @@ zfs_freebsd_aclcheck(ap)
 	return (EOPNOTSUPP);
 }
 
+static int
+zfs_vptocnp(struct vop_vptocnp_args *ap)
+{
+	vnode_t *covered_vp;
+	vnode_t *vp = ap->a_vp;;
+	zfsvfs_t *zfsvfs = vp->v_vfsp->vfs_data;
+	znode_t *zp = VTOZ(vp);
+	uint64_t parent;
+	int ltype;
+	int error;
+
+	ZFS_ENTER(zfsvfs);
+	ZFS_VERIFY_ZP(zp);
+
+	/*
+	 * If we are a snapshot mounted under .zfs, run the operation
+	 * on the covered vnode.
+	 */
+	if ((error = sa_lookup(zp->z_sa_hdl,
+	    SA_ZPL_PARENT(zfsvfs), &parent, sizeof (parent))) != 0) {
+		ZFS_EXIT(zfsvfs);
+		return (error);
+	}
+
+	if (zp->z_id != parent || zfsvfs->z_parent == zfsvfs) {
+		ZFS_EXIT(zfsvfs);
+		return (vop_stdvptocnp(ap));
+	}
+	ZFS_EXIT(zfsvfs);
+
+	covered_vp = vp->v_mount->mnt_vnodecovered;
+	vhold(covered_vp);
+	ltype = VOP_ISLOCKED(vp);
+	VOP_UNLOCK(vp, 0);
+	error = vget(covered_vp, LK_EXCLUSIVE, curthread);
+	vdrop(covered_vp);
+	if (error == 0) {
+		error = VOP_VPTOCNP(covered_vp, ap->a_vpp, ap->a_cred,
+		    ap->a_buf, ap->a_buflen);
+		vput(covered_vp);
+	}
+	vn_lock(vp, ltype | LK_RETRY);
+	if ((vp->v_iflag & VI_DOOMED) != 0)
+		error = SET_ERROR(ENOENT);
+	return (error);
+}
+
 struct vop_vector zfs_vnodeops;
 struct vop_vector zfs_fifoops;
 struct vop_vector zfs_shareops;
@@ -7081,6 +7128,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
 	.vop_getpages =		zfs_freebsd_getpages,
 	.vop_putpages =		zfs_freebsd_putpages,
+	.vop_vptocnp =		zfs_vptocnp,
 };
 
 struct vop_vector zfs_fifoops = {
