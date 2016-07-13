@@ -1224,7 +1224,7 @@ pmap_init(void)
 	 * include at least one feature that is only supported by older Intel
 	 * or newer AMD processors.
 	 */
-	if (vm_guest == VM_GUEST_VM && (cpu_feature & CPUID_SS) == 0 &&
+	if (vm_guest != VM_GUEST_NO && (cpu_feature & CPUID_SS) == 0 &&
 	    (cpu_feature2 & (CPUID2_SSSE3 | CPUID2_SSE41 | CPUID2_AESNI |
 	    CPUID2_AVX | CPUID2_XSAVE)) == 0 && (amd_feature2 & (AMDID2_XOP |
 	    AMDID2_FMA4)) == 0)
