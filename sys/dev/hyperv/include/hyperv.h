@@ -403,14 +403,18 @@ enum {
 	HV_VMBUS_IVAR_TYPE,
 	HV_VMBUS_IVAR_INSTANCE,
 	HV_VMBUS_IVAR_NODE,
-	HV_VMBUS_IVAR_DEVCTX
+	HV_VMBUS_IVAR_DEVCTX,
+	HV_VMBUS_IVAR_CHAN,
 };
 
 #define HV_VMBUS_ACCESSOR(var, ivar, type) \
 		__BUS_ACCESSOR(vmbus, var, HV_VMBUS, ivar, type)
 
+struct hv_vmbus_channel;
+
 HV_VMBUS_ACCESSOR(type, TYPE,  const char *)
 HV_VMBUS_ACCESSOR(devctx, DEVCTX,  struct hv_device *)
+HV_VMBUS_ACCESSOR(channel, CHAN, struct hv_vmbus_channel *)
 
 
 /*
