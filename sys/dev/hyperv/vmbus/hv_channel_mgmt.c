@@ -152,14 +152,14 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 		}
 		device_printf(sc->vmbus_dev, "chan%u subchanid%u offer%s\n",
 		    new_channel->ch_id,
-		    new_channel->offer_msg.offer.sub_channel_index, logstr);
+		    new_channel->ch_subidx, logstr);
 	}
 
 	if (channel != NULL) {
 		/*
 		 * Check if this is a sub channel.
 		 */
-		if (new_channel->offer_msg.offer.sub_channel_index != 0) {
+		if (new_channel->ch_subidx != 0) {
 			/*
 			 * It is a sub channel offer, process it.
 			 */
@@ -293,6 +293,7 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	/* Allocate the channel object and save this offer */
 	new_channel = hv_vmbus_allocate_channel(sc);
 	new_channel->ch_id = offer->child_rel_id;
+	new_channel->ch_subidx = offer->offer.sub_channel_index;
 
 	/*
 	 * By default we setup state to enable batched

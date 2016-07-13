@@ -111,7 +111,7 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 	} else {
 		dev = primary_ch->device->device;
 		ch_id = primary_ch->ch_id;
-		sub_ch_id = channel->offer_msg.offer.sub_channel_index;
+		sub_ch_id = channel->ch_subidx;
 	}
 	ctx = &channel->ch_sysctl_ctx;
 	sysctl_ctx_init(ctx);
