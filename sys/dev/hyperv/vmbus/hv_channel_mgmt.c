@@ -127,11 +127,9 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	}
 
 	TAILQ_FOREACH(channel, &sc->vmbus_chlist, ch_link) {
-		if (memcmp(&channel->offer_msg.offer.interface_type,
-		    &new_channel->offer_msg.offer.interface_type,
+		if (memcmp(&channel->ch_guid_type, &new_channel->ch_guid_type,
 		    sizeof(hv_guid)) == 0 &&
-		    memcmp(&channel->offer_msg.offer.interface_instance,
-		    &new_channel->offer_msg.offer.interface_instance,
+		    memcmp(&channel->ch_guid_inst, &new_channel->ch_guid_inst,
 		    sizeof(hv_guid)) == 0)
 			break;
 	}
@@ -212,9 +210,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	 * (We need to set the device field before calling
 	 * hv_vmbus_child_device_add())
 	 */
-	new_channel->device = hv_vmbus_child_device_create(
-	    new_channel->offer_msg.offer.interface_type,
-	    new_channel->offer_msg.offer.interface_instance, new_channel);
+	new_channel->device = hv_vmbus_child_device_create(new_channel);
 
 	/*
 	 * Add the new device to the bus. This will kick off device-driver
@@ -296,6 +292,8 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	new_channel->ch_subidx = offer->offer.sub_channel_index;
 	if (offer->monitor_allocated)
 		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
+	new_channel->ch_guid_type = offer->offer.interface_type;
+	new_channel->ch_guid_inst = offer->offer.interface_instance;
 
 	/*
 	 * By default we setup state to enable batched
