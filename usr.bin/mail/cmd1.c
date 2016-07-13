@@ -439,7 +439,7 @@ folders(void)
 	}
 	if ((cmd = value("LISTER")) == NULL)
 		cmd = "ls";
-	(void)run_command(cmd, 0, -1, -1, dirname, NULL, NULL);
+	(void)run_command(cmd, 0, -1, -1, dirname, NULL);
 	return (0);
 }
 
