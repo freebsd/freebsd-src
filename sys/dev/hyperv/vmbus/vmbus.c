@@ -1090,6 +1090,16 @@ vmbus_get_version_method(device_t bus, device_t dev)
 }
 
 static int
+vmbus_probe_guid_method(device_t bus, device_t dev, const struct hv_guid *guid)
+{
+	struct hv_device *hv_dev = device_get_ivars(dev);
+
+	if (memcmp(&hv_dev->class_id, guid, sizeof(struct hv_guid)) == 0)
+		return 0;
+	return ENXIO;
+}
+
+static int
 vmbus_probe(device_t dev)
 {
 	char *id[] = { "VMBUS", NULL };
@@ -1306,6 +1316,7 @@ static device_method_t vmbus_methods[] = {
 
 	/* Vmbus interface */
 	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
+	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
 
 	DEVMETHOD_END
 };
