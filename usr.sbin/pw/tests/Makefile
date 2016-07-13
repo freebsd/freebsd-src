@@ -2,6 +2,11 @@
 
 PACKAGE=	tests
 
+BINDIR=		${TESTSDIR}
+
+PROGS+=		crypt
+LIBADD+=	crypt
+
 ATF_TESTS_SH=	pw_etcdir \
 		pw_lock \
 		pw_config \
