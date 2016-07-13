@@ -157,8 +157,9 @@ user_mod_h_body() {
 	atf_check -s exit:0 ${PW} usermod foo -h 0 <<- EOF
 	$(echo a)
 	EOF
-	atf_check -s exit:0 -o not-match:"^foo:\*:.*" \
-		grep "^foo" ${HOME}/master.passwd
+	passhash=`awk -F ':' '/^foo:/ {print $2}' $HOME/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "a"
 	atf_check -s exit:0 ${PW} usermod foo -h - <<- EOF
 	$(echo b)
 	EOF
@@ -203,6 +204,56 @@ user_mod_uid_body() {
 	atf_check -s exit:0 ${PW} usermod foo -u 5000
 }
 
+atf_test_case user_mod_w_error
+user_mod_w_error_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:1 -e match:"pw: Invalid value for default password" \
+		${PW} usermod foo -w invalid_value
+}
+
+atf_test_case user_mod_w_no
+user_mod_w_no_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:0 ${PW} usermod foo -w no
+	atf_check -s exit:0 -o match:"^foo:\*" grep "^foo:" $HOME/master.passwd
+}
+
+atf_test_case user_mod_w_none
+user_mod_w_none_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:0 ${PW} usermod foo -w none
+	atf_check -s exit:0 -o match:"^foo::" grep "^foo:" $HOME/master.passwd
+}
+
+atf_test_case user_mod_w_random
+user_mod_w_random_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	password=`${PW} usermod foo -w random | cat`
+	passhash=`awk -F ':' '/^foo:/ {print $2}' $HOME/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "$password"
+}
+
+atf_test_case user_mod_w_yes
+user_mod_w_yes_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:0 ${PW} usermod foo -w yes
+	passhash=`awk -F ':' '/^foo:/ {print $2}' $HOME/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "foo"
+}
+
+
 atf_init_test_cases() {
 	atf_add_test_case user_mod
 	atf_add_test_case user_mod_noupdate
@@ -219,4 +270,9 @@ atf_init_test_cases() {
 	atf_add_test_case user_mod_H
 	atf_add_test_case user_mod_renamehome
 	atf_add_test_case user_mod_uid
+	atf_add_test_case user_mod_w_error
+	atf_add_test_case user_mod_w_no
+	atf_add_test_case user_mod_w_none
+	atf_add_test_case user_mod_w_random
+	atf_add_test_case user_mod_w_yes
 }
