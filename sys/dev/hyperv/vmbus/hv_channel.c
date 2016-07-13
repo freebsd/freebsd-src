@@ -67,7 +67,7 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
 	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
-	if (channel->offer_msg.monitor_allocated) {
+	if (channel->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
 		hv_vmbus_monitor_page *monitor_page;
 
 		monitor_page = sc->vmbus_mnf2;
@@ -86,7 +86,7 @@ vmbus_channel_sysctl_monalloc(SYSCTL_HANDLER_ARGS)
 	struct hv_vmbus_channel *chan = arg1;
 	int alloc = 0;
 
-	if (chan->offer_msg.monitor_allocated)
+	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF)
 		alloc = 1;
 	return sysctl_handle_int(oidp, &alloc, 0, req);
 }
