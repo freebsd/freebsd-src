@@ -628,19 +628,25 @@ zfsctl_freebsd_root_lookup(ap)
 
 	ASSERT(ap->a_cnp->cn_namelen < sizeof(nm));
 	strlcpy(nm, ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen + 1);
+relookup:
 	err = zfsctl_root_lookup(dvp, nm, vpp, NULL, 0, NULL, cr, NULL, NULL, NULL);
 	if (err == 0 && (nm[0] != '.' || nm[1] != '\0')) {
-		if (flags & ISDOTDOT)
+		if (flags & ISDOTDOT) {
 			VOP_UNLOCK(dvp, 0);
-		err = vn_lock(*vpp, lkflags);
-		if (err != 0) {
-			vrele(*vpp);
-			*vpp = NULL;
-		}
-		if (flags & ISDOTDOT)
+			err = vn_lock(*vpp, lkflags);
+			if (err != 0) {
+				vrele(*vpp);
+				*vpp = NULL;
+			}
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+		} else {
+			err = vn_lock(*vpp, LK_EXCLUSIVE);
+			if (err != 0) {
+				VERIFY3S(err, ==, ENOENT);
+				goto relookup;
+			}
+		}
 	}
-
 	return (err);
 }
 
