@@ -1125,6 +1125,7 @@ domount:
 		 */
 		ASSERT(VTOZ(*vpp)->z_zfsvfs != zfsvfs);
 		VTOZ(*vpp)->z_zfsvfs->z_parent = zfsvfs;
+		(*vpp)->v_flag &= ~VROOT;
 	}
 	ZFS_EXIT(zfsvfs);
 
