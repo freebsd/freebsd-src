@@ -14,11 +14,6 @@ c1=e
 c2=$(printf '\366')
 
 case $c1$c2 in
-[a-z][a-z]) ;;
-*) echo wrong at $LINENO ;;
-esac
-
-case $c1$c2 in
-[a-f][n-p]) ;;
+[a-z][!a-z]) ;;
 *) echo wrong at $LINENO ;;
 esac
