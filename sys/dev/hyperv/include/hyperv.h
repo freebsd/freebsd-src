@@ -564,8 +564,6 @@ typedef struct hv_vmbus_channel {
 	 */
 	boolean_t			batched_reading;
 
-	boolean_t			is_dedicated_interrupt;
-
 	struct hypercall_sigevt_in	*ch_sigevt;
 	struct hyperv_dma		ch_sigevt_dma;
 
