@@ -1017,8 +1017,7 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 }
 
 struct hv_device *
-hv_vmbus_child_device_create(hv_guid type, hv_guid instance,
-    hv_vmbus_channel *channel)
+hv_vmbus_child_device_create(struct hv_vmbus_channel *channel)
 {
 	hv_device *child_dev;
 
@@ -1028,8 +1027,8 @@ hv_vmbus_child_device_create(hv_guid type, hv_guid instance,
 	child_dev = malloc(sizeof(hv_device), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	child_dev->channel = channel;
-	memcpy(&child_dev->class_id, &type, sizeof(hv_guid));
-	memcpy(&child_dev->device_id, &instance, sizeof(hv_guid));
+	child_dev->class_id = channel->ch_guid_type;
+	child_dev->device_id = channel->ch_guid_inst;
 
 	return (child_dev);
 }
