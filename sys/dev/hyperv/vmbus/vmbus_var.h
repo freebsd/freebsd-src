@@ -131,7 +131,6 @@ struct trapframe;
 struct vmbus_message;
 struct vmbus_msghc;
 
-void	vmbus_on_channel_open(const struct hv_vmbus_channel *);
 void	vmbus_event_proc(struct vmbus_softc *, int);
 void	vmbus_event_proc_compat(struct vmbus_softc *, int);
 void	vmbus_handle_intr(struct trapframe *);
