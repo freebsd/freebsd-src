@@ -61,7 +61,11 @@
  * explicit about unsigned long so that we don't have additional
  * dependencies.
  */
-#define __UNCONST(a)	((void *)(unsigned long)(const void *)(a))
+#if !__has_feature(capabilities)
+#define __UNCONST(a)	((void *)(__uintptr_t)(const void *)(a))
+#else
+#define __UNCONST(a)	((void *)(__uintcap_t)(__capability const void *)(a))
+#endif
 
 /*
  * Return the number of elements in a statically-allocated array,

@@ -25,6 +25,7 @@
 
 #include "atf-c/tc.h"
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
@@ -162,7 +163,11 @@ write_resfile(const int fd, const char *result, const int arg,
 
     INV(arg == -1 || reason != NULL);
 
-#define UNCONST(a) ((void *)(unsigned long)(const void *)(a))
+#if !__has_feature(capabilities)
+#define UNCONST(a) ((void *)(__intptr_t)(const void *)(a))
+#else
+#define UNCONST(a) ((void *)(__intcap_t)(const void *)(a))
+#endif
     iov[count].iov_base = UNCONST(result);
     iov[count++].iov_len = strlen(result);
 

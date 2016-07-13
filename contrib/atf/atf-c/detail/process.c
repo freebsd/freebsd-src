@@ -25,6 +25,8 @@
 
 #include "atf-c/detail/process.h"
 
+#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -552,7 +554,11 @@ static
 int
 const_execvp(const char *file, const char *const *argv)
 {
-#define UNCONST(a) ((void *)(unsigned long)(const void *)(a))
+#if !__has_feature(capabilities)
+#define UNCONST(a) ((void *)(__intptr_t)(const void *)(a))
+#else
+#define UNCONST(a) ((void *)(__intcap_t)(const void *)(a))
+#endif
     return execvp(file, UNCONST(argv));
 #undef UNCONST
 }
