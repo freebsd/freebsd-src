@@ -1479,17 +1479,28 @@ zfsctl_snapshot_mknode(vnode_t *pvp, uint64_t objset)
 	return (vp);
 }
 
-
 static int
-zfsctl_snapshot_reclaim(ap)
+zfsctl_snapshot_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
 		struct thread *a_td;
 	} */ *ap;
 {
 	vnode_t *vp = ap->a_vp;
+
+	vrecycle(vp, curthread);
+	return (0);
+}
+
+static int
+zfsctl_snapshot_reclaim(ap)
+	struct vop_reclaim_args /* {
+		struct vnode *a_vp;
+		struct thread *a_td;
+	} */ *ap;
+{
+	vnode_t *vp = ap->a_vp;
 	cred_t *cr = ap->a_td->td_ucred;
-	struct vop_reclaim_args iap;
 	zfsctl_snapdir_t *sdp;
 	zfs_snapentry_t *sep, *next;
 	int locked;
@@ -1532,8 +1543,7 @@ zfsctl_snapshot_reclaim(ap)
 	 * "active".  If we lookup the same name again we will end up
 	 * creating a new vnode.
 	 */
-	iap.a_vp = vp;
-	gfs_vop_reclaim(&iap);
+	gfs_vop_reclaim(ap);
 	return (0);
 
 }
@@ -1586,7 +1596,7 @@ zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
  */
 static struct vop_vector zfsctl_ops_snapshot = {
 	.vop_default =	&default_vnodeops,
-	.vop_inactive =	VOP_NULL,
+	.vop_inactive =	zfsctl_snapshot_inactive,
 	.vop_reclaim =	zfsctl_snapshot_reclaim,
 	.vop_vptocnp =	zfsctl_snapshot_vptocnp,
 };
