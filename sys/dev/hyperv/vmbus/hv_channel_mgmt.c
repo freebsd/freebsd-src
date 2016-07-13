@@ -163,6 +163,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			 */
 			new_channel->primary_channel = channel;
 			new_channel->device = channel->device;
+			new_channel->ch_dev = channel->ch_dev;
 			mtx_lock(&channel->sc_lock);
 			TAILQ_INSERT_TAIL(&channel->sc_list_anchor,
 			    new_channel, sc_list_entry);
@@ -216,9 +217,12 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	 * Add the new device to the bus. This will kick off device-driver
 	 * binding which eventually invokes the device driver's AddDevice()
 	 * method.
+	 *
+	 * NOTE:
+	 * Error is ignored here; don't have much to do if error really
+	 * happens.
 	 */
-	hv_vmbus_child_device_register(new_channel->vmbus_sc,
-	    new_channel->device);
+	hv_vmbus_child_device_register(new_channel);
 }
 
 void
@@ -365,8 +369,8 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 	struct hv_vmbus_channel *chan = xchan;
 
 	if (HV_VMBUS_CHAN_ISPRIMARY(chan)) {
-		/* Only primary channel owns the hv_device */
-		hv_vmbus_child_device_unregister(chan->device);
+		/* Only primary channel owns the device */
+		hv_vmbus_child_device_unregister(chan);
 		/* NOTE: DO NOT free primary channel for now */
 	} else {
 		struct vmbus_softc *sc = chan->vmbus_sc;
@@ -446,8 +450,8 @@ hv_vmbus_release_unattached_channels(struct vmbus_softc *sc)
 	    TAILQ_REMOVE(&sc->vmbus_chlist, channel, ch_link);
 
 	    if (HV_VMBUS_CHAN_ISPRIMARY(channel)) {
-		/* Only primary channel owns the hv_device */
-		hv_vmbus_child_device_unregister(channel->device);
+		/* Only primary channel owns the device */
+		hv_vmbus_child_device_unregister(channel);
 	    }
 	    hv_vmbus_free_vmbus_channel(channel);
 	}
