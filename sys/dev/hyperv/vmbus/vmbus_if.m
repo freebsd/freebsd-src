@@ -31,7 +31,17 @@
 
 INTERFACE vmbus;
 
+HEADER {
+	struct hv_guid;
+};
+
 METHOD uint32_t get_version {
 	device_t bus;
 	device_t dev;
+};
+
+METHOD int probe_guid {
+	device_t bus;
+	device_t dev;
+	const struct hv_guid *guid;
 };

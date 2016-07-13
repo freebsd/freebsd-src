@@ -411,18 +411,12 @@ static const hv_guid g_net_vsc_device_type = {
 static int
 netvsc_probe(device_t dev)
 {
-	const char *p;
-
-	p = vmbus_get_type(dev);
-	if (!memcmp(p, &g_net_vsc_device_type.data, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev,
+	    &g_net_vsc_device_type) == 0) {
 		device_set_desc(dev, "Hyper-V Network Interface");
-		if (bootverbose)
-			printf("Netvsc probe... DONE \n");
-
-		return (BUS_PROBE_DEFAULT);
+		return BUS_PROBE_DEFAULT;
 	}
-
-	return (ENXIO);
+	return ENXIO;
 }
 
 /*

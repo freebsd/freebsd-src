@@ -2167,13 +2167,11 @@ storvsc_free_request(struct storvsc_softc *sc, struct hv_storvsc_request *reqp)
 static enum hv_storage_type
 storvsc_get_storage_type(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
+	device_t parent = device_get_parent(dev);
 
-	if (!memcmp(p, &gBlkVscDeviceType, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(parent, dev, &gBlkVscDeviceType) == 0)
 		return DRIVER_BLKVSC;
-	} else if (!memcmp(p, &gStorVscDeviceType, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(parent, dev, &gStorVscDeviceType) == 0)
 		return DRIVER_STORVSC;
-	}
-	return (DRIVER_UNKNOWN);
+	return DRIVER_UNKNOWN;
 }
-

@@ -36,9 +36,10 @@
 
 #include <dev/hyperv/include/hyperv.h>
 #include "hv_util.h"
+#include "vmbus_if.h"
 
 /* Heartbeat Service */
-static hv_guid service_guid = { .data =
+static const hv_guid service_guid = { .data =
 	{0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
 	0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d} };
 
@@ -93,16 +94,13 @@ hv_heartbeat_cb(void *context)
 static int
 hv_heartbeat_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
-
 	if (resource_disabled("hvheartbeat", 0))
 		return ENXIO;
 
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
 		device_set_desc(dev, "Hyper-V Heartbeat Service");
 		return BUS_PROBE_DEFAULT;
 	}
-
 	return ENXIO;
 }
 

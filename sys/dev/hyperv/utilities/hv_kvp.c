@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include "hv_util.h"
 #include "unicode.h"
 #include "hv_kvp.h"
+#include "vmbus_if.h"
 
 /* hv_kvp defines */
 #define BUFFERSIZE	sizeof(struct hv_kvp_msg)
@@ -89,7 +90,7 @@ static int hv_kvp_log = 0;
 		log(LOG_INFO, "hv_kvp: " __VA_ARGS__);		\
 } while (0)
 
-static hv_guid service_guid = { .data =
+static const hv_guid service_guid = { .data =
 	{0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
 	0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6} };
 
@@ -865,16 +866,13 @@ hv_kvp_dev_daemon_poll(struct cdev *dev, int events, struct thread *td)
 static int
 hv_kvp_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
-
 	if (resource_disabled("hvkvp", 0))
 		return ENXIO;
 
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
 		device_set_desc(dev, "Hyper-V KVP Service");
 		return BUS_PROBE_DEFAULT;
 	}
-
 	return ENXIO;
 }
 
