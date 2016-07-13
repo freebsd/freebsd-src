@@ -2953,7 +2953,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	chan->hv_chan_rxr = rxr;
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
-		    idx, chan->offer_msg.child_rel_id);
+		    idx, chan->ch_id);
 	}
 
 	if (idx < sc->hn_tx_ring_inuse) {
@@ -2967,7 +2967,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 		txr->hn_chan = chan;
 		if (bootverbose) {
 			if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
-			    idx, chan->offer_msg.child_rel_id);
+			    idx, chan->ch_id);
 		}
 	}
 

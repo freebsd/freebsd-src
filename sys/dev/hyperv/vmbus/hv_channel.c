@@ -62,7 +62,7 @@ static void
 vmbus_channel_set_event(hv_vmbus_channel *channel)
 {
 	struct vmbus_softc *sc = channel->vmbus_sc;
-	uint32_t chanid = channel->offer_msg.child_rel_id;
+	uint32_t chanid = channel->ch_id;
 
 	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
 	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
@@ -107,10 +107,10 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 
 	if (primary_ch == NULL) {
 		dev = channel->device->device;
-		ch_id = channel->offer_msg.child_rel_id;
+		ch_id = channel->ch_id;
 	} else {
 		dev = primary_ch->device->device;
-		ch_id = primary_ch->offer_msg.child_rel_id;
+		ch_id = primary_ch->ch_id;
 		sub_ch_id = channel->offer_msg.offer.sub_channel_index;
 	}
 	ctx = &channel->ch_sysctl_ctx;
@@ -136,7 +136,7 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 
 		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
 		    OID_AUTO, "chanid", CTLFLAG_RD,
-		    &channel->offer_msg.child_rel_id, 0, "channel id");
+		    &channel->ch_id, 0, "channel id");
 	}
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
 	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
@@ -190,7 +190,7 @@ hv_vmbus_channel_open(
 	if (user_data_len > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
 		device_printf(sc->vmbus_dev,
 		    "invalid udata len %u for chan%u\n",
-		    user_data_len, new_channel->offer_msg.child_rel_id);
+		    user_data_len, new_channel->ch_id);
 		return EINVAL;
 	}
 
@@ -261,14 +261,14 @@ hv_vmbus_channel_open(
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for chopen(chan%u)\n",
-		    new_channel->offer_msg.child_rel_id);
+		    new_channel->ch_id);
 		return ENXIO;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHOPEN;
-	req->chm_chanid = new_channel->offer_msg.child_rel_id;
-	req->chm_openid = new_channel->offer_msg.child_rel_id;
+	req->chm_chanid = new_channel->ch_id;
+	req->chm_openid = new_channel->ch_id;
 	req->chm_gpadl = new_channel->ring_buffer_gpadl_handle;
 	req->chm_vcpuid = new_channel->target_vcpu;
 	req->chm_rxbr_pgofs = send_ring_buffer_size >> PAGE_SHIFT;
@@ -279,7 +279,7 @@ hv_vmbus_channel_open(
 	if (ret != 0) {
 		device_printf(sc->vmbus_dev,
 		    "chopen(chan%u) msg hypercall exec failed: %d\n",
-		    new_channel->offer_msg.child_rel_id, ret);
+		    new_channel->ch_id, ret);
 		vmbus_msghc_put(sc, mh);
 		return ret;
 	}
@@ -294,11 +294,11 @@ hv_vmbus_channel_open(
 		new_channel->state = HV_CHANNEL_OPENED_STATE;
 		if (bootverbose) {
 			device_printf(sc->vmbus_dev, "chan%u opened\n",
-			    new_channel->offer_msg.child_rel_id);
+			    new_channel->ch_id);
 		}
 	} else {
 		device_printf(sc->vmbus_dev, "failed to open chan%u\n",
-		    new_channel->offer_msg.child_rel_id);
+		    new_channel->ch_id);
 		ret = ENXIO;
 	}
 	return (ret);
@@ -369,13 +369,13 @@ hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for gpadl->chan%u\n",
-		    channel->offer_msg.child_rel_id);
+		    channel->ch_id);
 		return EIO;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_GPADL_CONN;
-	req->chm_chanid = channel->offer_msg.child_rel_id;
+	req->chm_chanid = channel->ch_id;
 	req->chm_gpadl = gpadl;
 	req->chm_range_len = range_len;
 	req->chm_range_cnt = 1;
@@ -388,7 +388,7 @@ hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
 	if (error) {
 		device_printf(sc->vmbus_dev,
 		    "gpadl->chan%u msg hypercall exec failed: %d\n",
-		    channel->offer_msg.child_rel_id, error);
+		    channel->ch_id, error);
 		vmbus_msghc_put(sc, mh);
 		return error;
 	}
@@ -424,12 +424,12 @@ hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
 
 	if (status != 0) {
 		device_printf(sc->vmbus_dev, "gpadl->chan%u failed: "
-		    "status %u\n", channel->offer_msg.child_rel_id, status);
+		    "status %u\n", channel->ch_id, status);
 		return EIO;
 	} else {
 		if (bootverbose) {
 			device_printf(sc->vmbus_dev, "gpadl->chan%u "
-			    "succeeded\n", channel->offer_msg.child_rel_id);
+			    "succeeded\n", channel->ch_id);
 		}
 	}
 	return 0;
@@ -450,20 +450,20 @@ hv_vmbus_channel_teardown_gpdal(struct hv_vmbus_channel *chan, uint32_t gpadl)
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for gpa x->chan%u\n",
-		    chan->offer_msg.child_rel_id);
+		    chan->ch_id);
 		return EBUSY;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_GPADL_DISCONN;
-	req->chm_chanid = chan->offer_msg.child_rel_id;
+	req->chm_chanid = chan->ch_id;
 	req->chm_gpadl = gpadl;
 
 	error = vmbus_msghc_exec(sc, mh);
 	if (error) {
 		device_printf(sc->vmbus_dev,
 		    "gpa x->chan%u msg hypercall exec failed: %d\n",
-		    chan->offer_msg.child_rel_id, error);
+		    chan->ch_id, error);
 		vmbus_msghc_put(sc, mh);
 		return error;
 	}
@@ -502,13 +502,13 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for chclose(chan%u)\n",
-		    channel->offer_msg.child_rel_id);
+		    channel->ch_id);
 		return;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHCLOSE;
-	req->chm_chanid = channel->offer_msg.child_rel_id;
+	req->chm_chanid = channel->ch_id;
 
 	error = vmbus_msghc_exec_noresult(mh);
 	vmbus_msghc_put(sc, mh);
@@ -516,11 +516,11 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	if (error) {
 		device_printf(sc->vmbus_dev,
 		    "chclose(chan%u) msg hypercall exec failed: %d\n",
-		    channel->offer_msg.child_rel_id, error);
+		    channel->ch_id, error);
 		return;
 	} else if (bootverbose) {
 		device_printf(sc->vmbus_dev, "close chan%u\n",
-		    channel->offer_msg.child_rel_id);
+		    channel->ch_id);
 	}
 
 	/* Tear down the gpadl for the channel's ring buffer */
@@ -957,7 +957,7 @@ vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
 	volatile int *flag_cnt_ptr;
 	int flag_cnt;
 
-	flag_cnt = (chan->offer_msg.child_rel_id / VMBUS_EVTFLAG_LEN) + 1;
+	flag_cnt = (chan->ch_id / VMBUS_EVTFLAG_LEN) + 1;
 	flag_cnt_ptr = VMBUS_PCPU_PTR(sc, event_flags_cnt, chan->target_cpu);
 
 	for (;;) {
@@ -970,7 +970,7 @@ vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
 			if (bootverbose) {
 				device_printf(sc->vmbus_dev,
 				    "channel%u update cpu%d flag_cnt to %d\n",
-				    chan->offer_msg.child_rel_id,
+				    chan->ch_id,
 				    chan->target_cpu, flag_cnt);
 			}
 			break;

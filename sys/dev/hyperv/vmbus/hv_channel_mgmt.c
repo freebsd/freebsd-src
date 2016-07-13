@@ -112,7 +112,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	hv_vmbus_channel*	channel;
 	uint32_t                relid;
 
-	relid = new_channel->offer_msg.child_rel_id;
+	relid = new_channel->ch_id;
 	/*
 	 * Make sure this is a new offer
 	 */
@@ -148,10 +148,10 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 		logstr[0] = '\0';
 		if (channel != NULL) {
 			snprintf(logstr, sizeof(logstr), ", primary chan%u",
-			    channel->offer_msg.child_rel_id);
+			    channel->ch_id);
 		}
 		device_printf(sc->vmbus_dev, "chan%u subchanid%u offer%s\n",
-		    new_channel->offer_msg.child_rel_id,
+		    new_channel->ch_id,
 		    new_channel->offer_msg.offer.sub_channel_index, logstr);
 	}
 
@@ -200,7 +200,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 		}
 
 		printf("VMBUS: duplicated primary channel%u\n",
-		    new_channel->offer_msg.child_rel_id);
+		    new_channel->ch_id);
 		hv_vmbus_free_vmbus_channel(new_channel);
 		return;
 	}
@@ -241,7 +241,7 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 
 	if (bootverbose) {
 		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
-		    chan->offer_msg.child_rel_id,
+		    chan->ch_id,
 		    chan->target_cpu, chan->target_vcpu);
 	}
 }
@@ -292,6 +292,7 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 
 	/* Allocate the channel object and save this offer */
 	new_channel = hv_vmbus_allocate_channel(sc);
+	new_channel->ch_id = offer->child_rel_id;
 
 	/*
 	 * By default we setup state to enable batched
@@ -379,13 +380,13 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 		if (mh == NULL) {
 			device_printf(sc->vmbus_dev,
 			    "can not get msg hypercall for chfree(chan%u)\n",
-			    chan->offer_msg.child_rel_id);
+			    chan->ch_id);
 			goto remove;
 		}
 
 		req = vmbus_msghc_dataptr(mh);
 		req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHFREE;
-		req->chm_chanid = chan->offer_msg.child_rel_id;
+		req->chm_chanid = chan->ch_id;
 
 		error = vmbus_msghc_exec_noresult(mh);
 		vmbus_msghc_put(sc, mh);
@@ -393,12 +394,12 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 		if (error) {
 			device_printf(sc->vmbus_dev,
 			    "chfree(chan%u) failed: %d",
-			    chan->offer_msg.child_rel_id, error);
+			    chan->ch_id, error);
 			/* NOTE: Move on! */
 		} else {
 			if (bootverbose) {
 				device_printf(sc->vmbus_dev, "chan%u freed\n",
-				    chan->offer_msg.child_rel_id);
+				    chan->ch_id);
 			}
 		}
 remove:

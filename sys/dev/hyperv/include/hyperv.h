@@ -538,6 +538,7 @@ typedef struct hv_vmbus_channel {
 	struct vmbus_softc		*vmbus_sc;
 	hv_vmbus_channel_state		state;
 	hv_vmbus_channel_offer_channel	offer_msg;
+	uint32_t			ch_id;		/* channel id */
 	/*
 	 * These are based on the offer_msg.monitor_id.
 	 * Save it here for easy access.
