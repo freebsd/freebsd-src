@@ -1569,99 +1569,6 @@ zfsctl_snapshot_reclaim(ap)
 }
 
 static int
-zfsctl_traverse_begin(vnode_t **vpp, int lktype)
-{
-
-	VN_HOLD(*vpp);
-	/* Snapshot should be already mounted, but just in case. */
-	if (vn_mountedvfs(*vpp) == NULL)
-		return (ENOENT);
-	return (traverse(vpp, lktype));
-}
-
-static void
-zfsctl_traverse_end(vnode_t *vp, int err)
-{
-
-	if (err == 0)
-		vput(vp);
-	else
-		VN_RELE(vp);
-}
-
-static int
-zfsctl_snapshot_getattr(ap)
-	struct vop_getattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	vnode_t *vp = ap->a_vp;
-	int err;
-
-	err = zfsctl_traverse_begin(&vp, LK_SHARED | LK_RETRY);
-	if (err == 0)
-		err = VOP_GETATTR(vp, ap->a_vap, ap->a_cred);
-	zfsctl_traverse_end(vp, err);
-	return (err);
-}
-
-static int
-zfsctl_snapshot_fid(ap)
-	struct vop_fid_args /* {
-		struct vnode *a_vp;
-		struct fid *a_fid;
-	} */ *ap;
-{
-	vnode_t *vp = ap->a_vp;
-	int err;
-
-	err = zfsctl_traverse_begin(&vp, LK_SHARED | LK_RETRY);
-	if (err == 0)
-		err = VOP_VPTOFH(vp, (void *)ap->a_fid);
-	zfsctl_traverse_end(vp, err);
-	return (err);
-}
-
-static int
-zfsctl_snapshot_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	vnode_t *dvp = ap->a_dvp;
-	vnode_t **vpp = ap->a_vpp;
-	struct componentname *cnp = ap->a_cnp;
-	cred_t *cr = ap->a_cnp->cn_cred;
-	zfsvfs_t *zfsvfs = dvp->v_vfsp->vfs_data;
-	int error;
-
-	if (cnp->cn_namelen != 2 || cnp->cn_nameptr[0] != '.' ||
-	    cnp->cn_nameptr[1] != '.') {
-		return (ENOENT);
-	}
-
-	ASSERT(dvp->v_type == VDIR);
-	ASSERT(zfsvfs->z_ctldir != NULL);
-
-	error = zfsctl_root_lookup(zfsvfs->z_ctldir, "snapshot", vpp,
-	    NULL, 0, NULL, cr, NULL, NULL, NULL);
-	if (error == 0) {
-		int ltype = VOP_ISLOCKED(dvp);
-		VN_HOLD(*vpp);
-		VOP_UNLOCK(dvp, 0);
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
-		VN_RELE(*vpp);
-		vn_lock(dvp, ltype | LK_RETRY);
-	}
-
-	return (error);
-}
-
-static int
 zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
 {
 	zfsvfs_t *zfsvfs = ap->a_vp->v_vfsp->vfs_data;
@@ -1725,10 +1632,7 @@ zfsctl_snaphot_print(ap)
 static struct vop_vector zfsctl_ops_snapshot = {
 	.vop_default =	&default_vnodeops,
 	.vop_inactive =	VOP_NULL,
-	.vop_lookup =	zfsctl_snapshot_lookup,
 	.vop_reclaim =	zfsctl_snapshot_reclaim,
-	.vop_getattr =	zfsctl_snapshot_getattr,
-	.vop_fid =	zfsctl_snapshot_fid,
 	.vop_vptocnp =	zfsctl_snapshot_vptocnp,
 	.vop_print =	zfsctl_snaphot_print,
 };
