@@ -41,8 +41,9 @@
 
 #include <dev/hyperv/include/hyperv.h>
 #include "hv_util.h"
+#include "vmbus_if.h"
 
-static hv_guid service_guid = { .data =
+static const hv_guid service_guid = { .data =
 	{0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
 	0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB} };
 
@@ -115,16 +116,13 @@ hv_shutdown_cb(void *context)
 static int
 hv_shutdown_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
-
 	if (resource_disabled("hvshutdown", 0))
 		return ENXIO;
 
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
 		device_set_desc(dev, "Hyper-V Shutdown Service");
 		return BUS_PROBE_DEFAULT;
 	}
-
 	return ENXIO;
 }
 
