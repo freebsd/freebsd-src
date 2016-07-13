@@ -280,14 +280,6 @@ TUNABLE_INT("debug.acpi.default_register_width", &acpi_ignore_reg_width);
 SYSCTL_INT(_debug_acpi, OID_AUTO, default_register_width, CTLFLAG_RDTUN,
     &acpi_ignore_reg_width, 1, "Ignore register widths set by FADT");
 
-#ifdef __amd64__
-/* Reset system clock while resuming.  XXX Remove once tested. */
-static int acpi_reset_clock = 1;
-TUNABLE_INT("debug.acpi.reset_clock", &acpi_reset_clock);
-SYSCTL_INT(_debug_acpi, OID_AUTO, reset_clock, CTLFLAG_RW,
-    &acpi_reset_clock, 1, "Reset system clock while resuming.");
-#endif
-
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
 
@@ -3027,9 +3019,6 @@ backout:
 static void
 acpi_resync_clock(struct acpi_softc *sc)
 {
-#ifdef __amd64__
-    if (!acpi_reset_clock)
-	return;
 
     /*
      * Warm up timecounter again and reset system clock.
@@ -3037,7 +3026,6 @@ acpi_resync_clock(struct acpi_softc *sc)
     (void)timecounter->tc_get_timecount(timecounter);
     (void)timecounter->tc_get_timecount(timecounter);
     inittodr(time_second + sc->acpi_sleep_delay);
-#endif
 }
 
 /* Enable or disable the device's wake GPE. */
