@@ -140,10 +140,14 @@ aw_ahbclk_init(struct clknode *clk, device_t dev)
 		    A83T_AHB1_CLK_SRC_SEL_SHIFT;
 		break;
 	case AW_H3_AHB2:
+		/* Set source to PLL_PERIPH/2 */
+		index = H3_AHB2_CLK_CFG_PLL_PERIPH_DIV2;
 		DEVICE_LOCK(sc);
 		AHBCLK_READ(sc, &val);
+		val &= ~H3_AHB2_CLK_CFG;
+		val |= (index << H3_AHB2_CLK_CFG_SHIFT);
+		AHBCLK_WRITE(sc, val);
 		DEVICE_UNLOCK(sc);
-		index = (val & H3_AHB2_CLK_CFG) >> H3_AHB2_CLK_CFG_SHIFT;
 		break;
 	default:
 		return (ENXIO);
@@ -189,12 +193,7 @@ aw_ahbclk_recalc_freq(struct clknode *clk, uint64_t *freq)
 			pre_div = 1;
 		break;
 	case AW_H3_AHB2:
-		src_sel = (val & H3_AHB2_CLK_CFG) >> H3_AHB2_CLK_CFG_SHIFT;
-		if (src_sel == H3_AHB2_CLK_CFG_PLL_PERIPH_DIV2)
-			div = 2;
-		else
-			div = 1;
-		pre_div = 1;
+		div = pre_div = 1;
 		break;
 	default:
 		div = 1 << ((val & A10_AHB_CLK_DIV_RATIO) >>
