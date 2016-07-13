@@ -861,31 +861,29 @@ VmbusProcessChannelEvent(void* context, int pending)
 	if (channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
 		is_batched_reading = true;
 
-	if (channel->on_channel_callback != NULL) {
-		arg = channel->channel_callback_context;
-		/*
-		 * Optimize host to guest signaling by ensuring:
-		 * 1. While reading the channel, we disable interrupts from
-		 *    host.
-		 * 2. Ensure that we process all posted messages from the host
-		 *    before returning from this callback.
-		 * 3. Once we return, enable signaling from the host. Once this
-		 *    state is set we check to see if additional packets are
-		 *    available to read. In this case we repeat the process.
-		 */
-		do {
-			if (is_batched_reading)
-				hv_ring_buffer_read_begin(&channel->inbound);
+	arg = channel->channel_callback_context;
+	/*
+	 * Optimize host to guest signaling by ensuring:
+	 * 1. While reading the channel, we disable interrupts from
+	 *    host.
+	 * 2. Ensure that we process all posted messages from the host
+	 *    before returning from this callback.
+	 * 3. Once we return, enable signaling from the host. Once this
+	 *    state is set we check to see if additional packets are
+	 *    available to read. In this case we repeat the process.
+	 */
+	do {
+		if (is_batched_reading)
+			hv_ring_buffer_read_begin(&channel->inbound);
 
-			channel->on_channel_callback(arg);
+		channel->on_channel_callback(arg);
 
-			if (is_batched_reading)
-				bytes_to_read =
-				    hv_ring_buffer_read_end(&channel->inbound);
-			else
-				bytes_to_read = 0;
-		} while (is_batched_reading && (bytes_to_read != 0));
-	}
+		if (is_batched_reading)
+			bytes_to_read =
+			    hv_ring_buffer_read_end(&channel->inbound);
+		else
+			bytes_to_read = 0;
+	} while (is_batched_reading && (bytes_to_read != 0));
 }
 
 static __inline void
