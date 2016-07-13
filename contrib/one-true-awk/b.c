@@ -296,7 +296,11 @@ static int collate_range_cmp(int a, int b)
 		return 0;
 	s[0][0] = a;
 	s[1][0] = b;
+#ifdef __FreeBSD__
+	return (strcmp(s[0], s[1]));
+#else
 	return (strcoll(s[0], s[1]));
+#endif
 }
 
 char *cclenter(const char *argp)	/* add a character class */
