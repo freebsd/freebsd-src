@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2015
+.Dd July 13, 2015
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -563,14 +563,14 @@ This function returns either
 .Dv CALLOUT_RET_CANCELLED
 or
 .Dv CALLOUT_RET_DRAINING .
-If the callout is being serviced regardless of being scheduled or not,
+If the callout was scheduled regardless of being serviced or not,
+.Dv CALLOUT_RET_CANCELLED
+is returned.
+If the callout was stopped and is still being serviced
 .Dv CALLOUT_RET_DRAINING
 is returned.
-If the callout is not being serviced and was already stopped
+If the callout was stopped and is no longer being serviced
 .Dv CALLOUT_RET_STOPPED
-is returned.
-If the callout is not being serviced and was scheduled
-.Dv CALLOUT_RET_CANCELLED
 is returned.
 If a lock is associated with the callout given by the
 .Fa c
