@@ -75,15 +75,16 @@ struct callout_handle {
 int	callout_drain(struct callout *);
 int	callout_async_drain(struct callout *, callout_func_t *);
 void	callout_init(struct callout *, int);
-void	_callout_init_lock(struct callout *, struct lock_object *, int);
-#define	callout_init_mtx(c, mtx, flags)					\
-	_callout_init_lock((c), ((mtx) != NULL) ? &(mtx)->lock_object :	\
+void	callout_init_lock_function(struct callout *, callout_lock_func_t *, int);
+void	callout_init_lock_object(struct callout *, struct lock_object *, int);
+#define	callout_init_mtx(c, mtx, flags)	\
+	callout_init_lock_object((c), ((mtx) != NULL) ? &(mtx)->lock_object : \
 	    NULL, (flags))
-#define	callout_init_rm(c, rm, flags)					\
-	_callout_init_lock((c), ((rm) != NULL) ? &(rm)->lock_object : 	\
+#define	callout_init_rm(c, rm, flags) \
+	callout_init_lock_object((c), ((rm) != NULL) ? &(rm)->lock_object : \
 	    NULL, (flags))
-#define	callout_init_rw(c, rw, flags)					\
-	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
+#define	callout_init_rw(c, rw, flags) \
+	callout_init_lock_object((c), ((rw) != NULL) ? &(rw)->lock_object : \
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
 int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,

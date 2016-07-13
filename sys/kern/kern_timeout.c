@@ -136,7 +136,7 @@ struct callout_args {
 	int	cpu;			/* CPU we're scheduled on */
 };
 
-typedef void callout_mutex_op_t(struct lock_object *);
+typedef void callout_mutex_op_t(void *, struct lock_object *);
 
 struct callout_mutex_ops {
 	callout_mutex_op_t *lock;
@@ -147,7 +147,7 @@ enum {
 	CALLOUT_LC_UNUSED_0,
 	CALLOUT_LC_UNUSED_1,
 	CALLOUT_LC_UNUSED_2,
-	CALLOUT_LC_UNUSED_3,
+	CALLOUT_LC_FUNCTION,
 	CALLOUT_LC_SPIN,
 	CALLOUT_LC_MUTEX,
 	CALLOUT_LC_RW,
@@ -155,61 +155,75 @@ enum {
 };
 
 static void
-callout_mutex_op_none(struct lock_object *lock)
+callout_mutex_op_none(void *arg, struct lock_object *lock)
 {
 }
 
 static void
-callout_mutex_lock(struct lock_object *lock)
+callout_function_lock(void *arg, struct lock_object *lock)
+{
+
+	((callout_lock_func_t *)lock)(arg, 1);
+}
+
+static void
+callout_function_unlock(void *arg, struct lock_object *lock)
+{
+
+	((callout_lock_func_t *)lock)(arg, 0);
+}
+
+static void
+callout_mutex_lock(void *arg, struct lock_object *lock)
 {
 
 	mtx_lock((struct mtx *)lock);
 }
 
 static void
-callout_mutex_unlock(struct lock_object *lock)
+callout_mutex_unlock(void *arg, struct lock_object *lock)
 {
 
 	mtx_unlock((struct mtx *)lock);
 }
 
 static void
-callout_mutex_lock_spin(struct lock_object *lock)
+callout_mutex_lock_spin(void *arg, struct lock_object *lock)
 {
 
 	mtx_lock_spin((struct mtx *)lock);
 }
 
 static void
-callout_mutex_unlock_spin(struct lock_object *lock)
+callout_mutex_unlock_spin(void *arg, struct lock_object *lock)
 {
 
 	mtx_unlock_spin((struct mtx *)lock);
 }
 
 static void
-callout_rm_wlock(struct lock_object *lock)
+callout_rm_wlock(void *arg, struct lock_object *lock)
 {
 
 	rm_wlock((struct rmlock *)lock);
 }
 
 static void
-callout_rm_wunlock(struct lock_object *lock)
+callout_rm_wunlock(void *arg, struct lock_object *lock)
 {
 
 	rm_wunlock((struct rmlock *)lock);
 }
 
 static void
-callout_rw_wlock(struct lock_object *lock)
+callout_rw_wlock(void *arg, struct lock_object *lock)
 {
 
 	rw_wlock((struct rwlock *)lock);
 }
 
 static void
-callout_rw_wunlock(struct lock_object *lock)
+callout_rw_wunlock(void *arg, struct lock_object *lock)
 {
 
 	rw_wunlock((struct rwlock *)lock);
@@ -228,9 +242,9 @@ static const struct callout_mutex_ops callout_mutex_ops[8] = {
 		.lock = callout_mutex_op_none,
 		.unlock = callout_mutex_op_none,
 	},
-	[CALLOUT_LC_UNUSED_3] = {
-		.lock = callout_mutex_op_none,
-		.unlock = callout_mutex_op_none,
+	[CALLOUT_LC_FUNCTION] = {
+		.lock = callout_function_lock,
+		.unlock = callout_function_unlock,
 	},
 	[CALLOUT_LC_SPIN] = {
 		.lock = callout_mutex_lock_spin,
@@ -251,17 +265,17 @@ static const struct callout_mutex_ops callout_mutex_ops[8] = {
 };
 
 static inline void
-callout_lock_client(int c_flags, struct lock_object *c_lock)
+callout_lock_client(int c_flags, void *c_arg, struct lock_object *c_lock)
 {
 
-	callout_mutex_ops[CALLOUT_GET_LC(c_flags)].lock(c_lock);
+	callout_mutex_ops[CALLOUT_GET_LC(c_flags)].lock(c_arg, c_lock);
 }
 
 static inline void
-callout_unlock_client(int c_flags, struct lock_object *c_lock)
+callout_unlock_client(int c_flags, void *c_arg, struct lock_object *c_lock)
 {
 
-	callout_mutex_ops[CALLOUT_GET_LC(c_flags)].unlock(c_lock);
+	callout_mutex_ops[CALLOUT_GET_LC(c_flags)].unlock(c_arg, c_lock);
 }
 
 /*
@@ -788,7 +802,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 
 		/* unlocked region for switching locks */
 
-		callout_lock_client(c_flags, c_lock);
+		callout_lock_client(c_flags, c_arg, c_lock);
 
 		/*
 		 * Check if the callout may have been cancelled while
@@ -798,7 +812,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 		 */
 		CC_LOCK(cc);
 		if (cc_exec_cancel(cc, direct)) {
-			callout_unlock_client(c_flags, c_lock);
+			callout_unlock_client(c_flags, c_arg, c_lock);
 			goto skip_cc_locked;
 		}
 		if (c_lock == &Giant.lock_object) {
@@ -859,7 +873,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	 * "c->c_flags":
 	 */
 	if ((c_flags & CALLOUT_RETURNUNLOCKED) == 0)
-		callout_unlock_client(c_flags, c_lock);
+		callout_unlock_client(c_flags, c_arg, c_lock);
 
 	CC_LOCK(cc);
 
@@ -1203,13 +1217,13 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 int
 callout_schedule_on(struct callout *c, int to_ticks, int cpu)
 {
-	return callout_reset_on(c, to_ticks, c->c_func, c->c_arg, cpu);
+	return (callout_reset_on(c, to_ticks, c->c_func, c->c_arg, cpu));
 }
 
 int
 callout_schedule(struct callout *c, int to_ticks)
 {
-	return callout_reset_on(c, to_ticks, c->c_func, c->c_arg, c->c_cpu);
+	return (callout_reset_on(c, to_ticks, c->c_func, c->c_arg, c->c_cpu));
 }
 
 int
@@ -1240,8 +1254,6 @@ callout_drain(struct callout *c)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "Draining callout");
 
-	callout_lock_client(c->c_flags, c->c_lock);
-
 	/* at this point the "c->c_cpu" field is not changing */
 
 	retval = callout_async_drain(c, &callout_drain_function);
@@ -1256,12 +1268,6 @@ callout_drain(struct callout *c)
 		cc = callout_lock(c);
 		direct = ((c->c_flags & CALLOUT_DIRECT) != 0);
 
-		/*
-		 * We've gotten our callout CPU lock, it is safe to
-		 * drop the initial lock:
-		 */
-		callout_unlock_client(c->c_flags, c->c_lock);
-
 		/* Wait for drain to complete */
 		while (cc_exec_curr(cc, direct) == c) {
 			msleep_spin(&callout_drain_function,
@@ -1269,8 +1275,6 @@ callout_drain(struct callout *c)
 		}
 
 		CC_UNLOCK(cc);
-	} else {
-		callout_unlock_client(c->c_flags, c->c_lock);
 	}
 
 	CTR4(KTR_CALLOUT, "%s: %p func %p arg %p",
@@ -1284,18 +1288,34 @@ void
 callout_init(struct callout *c, int mpsafe)
 {
 	if (mpsafe) {
-		_callout_init_lock(c, NULL, CALLOUT_RETURNUNLOCKED);
+		callout_init_lock_object(c, NULL, CALLOUT_RETURNUNLOCKED);
 	} else {
-		_callout_init_lock(c, &Giant.lock_object, 0);
+		callout_init_lock_object(c, &Giant.lock_object, 0);
 	}
 }
 
 void
-_callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
+callout_init_lock_function(struct callout *c, callout_lock_func_t *lock_fn, int flags)
+{
+	bzero(c, sizeof *c);
+
+	KASSERT((flags & ~CALLOUT_RETURNUNLOCKED) == 0,
+	    ("callout_init_lock_function: bad flags 0x%08x", flags));
+	KASSERT(lock_fn != NULL,
+	    ("callout_init_lock_function: lock function is NULL"));
+	flags &= CALLOUT_RETURNUNLOCKED;
+	flags |= CALLOUT_SET_LC(CALLOUT_LC_FUNCTION);
+	c->c_lock = (struct lock_object *)lock_fn;
+	c->c_flags = flags;
+	c->c_cpu = timeout_cpu;
+}
+
+void
+callout_init_lock_object(struct callout *c, struct lock_object *lock, int flags)
 {
 	bzero(c, sizeof *c);
 	KASSERT((flags & ~CALLOUT_RETURNUNLOCKED) == 0,
-	    ("callout_init_lock: bad flags 0x%08x", flags));
+	    ("callout_init_lock_object: bad flags 0x%08x", flags));
 	flags &= CALLOUT_RETURNUNLOCKED;
 	if (lock != NULL) {
 		struct lock_class *class = LOCK_CLASS(lock);
@@ -1308,7 +1328,8 @@ _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 		else if (class == &lock_class_rw)
 			flags |= CALLOUT_SET_LC(CALLOUT_LC_RW);
 		else
-			panic("callout_init_lock: Unsupported lock class '%s'\n", class->lc_name);
+			panic("callout_init_lock_object: Unsupported lock class '%s'\n",
+			    class->lc_name);
 	} else {
 		flags |= CALLOUT_SET_LC(CALLOUT_LC_UNUSED_0);
 	}

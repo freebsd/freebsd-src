@@ -47,6 +47,7 @@ SLIST_HEAD(callout_slist, callout);
 TAILQ_HEAD(callout_tailq, callout);
 
 typedef void callout_func_t(void *);
+typedef void callout_lock_func_t(void *, int);
 
 struct callout {
 	union {
@@ -58,7 +59,7 @@ struct callout {
 	sbintime_t c_precision;			/* delta allowed wrt opt */
 	void	*c_arg;				/* function argument */
 	callout_func_t *c_func;			/* function to call */
-	struct lock_object *c_lock;		/* lock to handle */
+	struct lock_object *c_lock;		/* pointer to lock handle */
 	int	c_flags;			/* state of this entry */
 	volatile int c_cpu;			/* CPU we're scheduled on */
 };

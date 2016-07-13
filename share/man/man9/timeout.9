@@ -42,6 +42,7 @@
 .Nm callout_init_mtx ,
 .Nm callout_init_rm ,
 .Nm callout_init_rw ,
+.Nm callout_init_lock_function ,
 .Nm callout_pending ,
 .Nm callout_reset ,
 .Nm callout_reset_curcpu ,
@@ -65,6 +66,7 @@
 .Bd -literal
 typedef void timeout_t (void *);
 typedef void callout_func_t (void *);
+typedef void callout_lock_func_t (void *, int do_lock);
 .Ed
 .Ft int
 .Fn callout_active "struct callout *c"
@@ -87,6 +89,8 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Fn callout_init_rm "struct callout *c" "struct rmlock *rm" "int flags"
 .Ft void
 .Fn callout_init_rw "struct callout *c" "struct rwlock *rw" "int flags"
+.Ft void
+.Fn callout_init_lock_function "struct callout *c" "callout_lock_func_t *func" "int flags"
 .Ft int
 .Fn callout_pending "struct callout *c"
 .Ft int
@@ -247,6 +251,13 @@ flag.
 This function is similar to
 .Fn callout_init_mtx ,
 but it accepts a read/write type of lock.
+.Pp
+.Ft void
+.Fn callout_init_lock_function "struct callout *c" "callout_lock_func_t *func" "int flags"
+This function is similar to
+.Fn callout_init_mtx ,
+but it accepts a callback function which does locking and unlocking.
+This is useful when more than one lock is involved protecting a structure.
 .Sh SCHEDULING CALLOUTS
 .Ft struct callout_handle
 .Fn timeout "timeout_t *func" "void *arg" "int ticks"
