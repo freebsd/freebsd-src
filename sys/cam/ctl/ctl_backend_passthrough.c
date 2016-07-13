@@ -103,7 +103,7 @@ struct ctl_be_passthrough_softc {
 
 static struct ctl_be_passthrough_softc rd_softc;
 extern struct ctl_softc *control_softc;
-
+static int ctl_backend_passthrough_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td);
 static int ctl_backend_passthrough_init(void);
 static void ctl_backend_passthrough_shutdown(void);
 static void ctl_backend_passthrough_lun_shutdown(void *be_lun);
@@ -111,11 +111,13 @@ static void ctl_backend_passthrough_lun_config_status(void *be_lun,
 						  ctl_lun_config_status status);
 
 static int ctl_backend_passthrough_create(struct cam_periph *periph);
+static int ctl_backend_passthrough_remove(struct cam_periph *periph);
 static struct ctl_backend_driver ctl_be_passthrough_driver = 
 {
 	.name = "ctlpassthrough",
 	.flags = CTL_BE_FLAG_HAS_CONFIG,
-	.init = ctl_backend_passthrough_init
+	.init = ctl_backend_passthrough_init,
+	.ioctl = ctl_backend_passthrough_ioctl,
 };
 
 static MALLOC_DEFINE(M_PASSTHROUGH, "ctlpassthrough", "Memory used for CTL Passthrough");
@@ -135,6 +137,14 @@ ctl_backend_passthrough_init(void)
 	STAILQ_INIT(&softc->lun_list);
 
 	return (0);
+
+}
+static int ctl_backend_passthrough_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td){
+
+printf("We cannot modify , create or remove passthrough luns.These acts as dummy luns for actual SCSI devices\n");
+return 0;
+
+
 
 }
 static int ctl_backend_passthrough_create(struct cam_periph *periph)
@@ -233,27 +243,35 @@ bailout_error:
 	return (retval);
 
 }
+static int ctl_backend_passthrough_remove(struct cam_periph *periph)
+{
+
+
+
+
+	return 0;
+}
 
 static void
 ctl_backend_passthrough_shutdown(void)
 {
-	struct ctl_be_passthrough_softc *softc = &rd_softc;
-	struct ctl_be_passthrough_lun *lun, *next_lun;
-
+//	struct ctl_be_passthrough_softc *softc = &rd_softc;
+//	struct ctl_be_passthrough_lun *lun, *next_lun;
+/*
 
 	mtx_lock(&softc->lock);
-	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun) {
+	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun) {*/
 		/*
 		 * Drop our lock here.  Since ctl_invalidate_lun() can call
 		 * back into us, this could potentially lead to a recursive
 		 * lock of the same mutex, which would cause a hang.
 		 */
-		mtx_unlock(&softc->lock);
+	/*	mtx_unlock(&softc->lock);
 		ctl_disable_lun(&lun->ctl_be_lun);
 		ctl_invalidate_lun(&lun->ctl_be_lun);
 		mtx_lock(&softc->lock);
 }
-	mtx_unlock(&softc->lock);
+	mtx_unlock(&softc->lock);*/
 /*	
 #ifdef CTL_RAMDISK_PAGES
 	for (i = 0; i < softc->num_pages; i++)
@@ -262,11 +280,12 @@ ctl_backend_passthrough_shutdown(void)
 #else
 	free(softc->ramdisk_buffer, M_RAMDISK);
 #endif*/
-
+/*
 	if (ctl_backend_deregister(&ctl_be_passthrough_driver) != 0) {
 		printf("ctl_backend_passthrough_shutdown: "
-		       "ctl_backend_deregister() failed!\n");
-	}
+		       "ctl_backend_deregister() failed!\n");	}*/
+
+	printf("There is no way we can shutdown passthrough luns,These luns acts as a dummy luns for actual SCSI devices");
 }
 static void
 ctl_backend_passthrough_lun_config_status(void *be_lun,
@@ -278,14 +297,12 @@ ctl_backend_passthrough_lun_config_status(void *be_lun,
 	lun = (struct ctl_be_passthrough_lun *)be_lun;
 	softc = lun->softc;
 
-	printf("inside config status");
 	if (status == CTL_LUN_CONFIG_OK) {
 		mtx_lock(&softc->lock);
 		//lun->flags &= ~CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED;
 		//if (lun->flags & CTL_BE_PASSTHROUGH_LUN_WAITING)
 		//	wakeup(lun);
 		mtx_unlock(&softc->lock);
-		printf("iam inside status if statement config status");
 		/*
 		 * We successfully added the LUN, attempt to enable it.
 		 */
@@ -296,7 +313,7 @@ ctl_backend_passthrough_lun_config_status(void *be_lun,
 				       __func__);
 			}
 		}
-	printf("succesfull after lun config");
+
 		return;
 	}
 
@@ -322,7 +339,7 @@ ctl_backend_passthrough_lun_config_status(void *be_lun,
 static void
 ctl_backend_passthrough_lun_shutdown(void *be_lun)
 {
-	struct ctl_be_passthrough_lun *lun;
+/*	struct ctl_be_passthrough_lun *lun;
 	struct ctl_be_passthrough_softc *softc;
 	int do_free;
 
@@ -343,5 +360,7 @@ ctl_backend_passthrough_lun_shutdown(void *be_lun)
 	mtx_unlock(&softc->lock);
 
 	if (do_free != 0)
-		free(be_lun, M_PASSTHROUGH);
+		free(be_lun, M_PASSTHROUGH);*/
+	printf("We cannot shutdown any particular passthrough lun");
+
 }

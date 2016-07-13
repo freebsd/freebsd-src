@@ -38,7 +38,7 @@
  */
 #define CAMIOCOMMAND	_IOWR(CAM_VERSION, 2, union ccb)
 #define CAMGETPASSTHRU	_IOWR(CAM_VERSION, 3, union ccb)
-
+int ctlstrcmp(const char *a,const char *b);
 /*
  * These two ioctls take a union ccb *, but that is not explicitly declared
  * to avoid having the ioctl handling code malloc and free their own copy
