@@ -311,8 +311,14 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	if (sc->vmbus_version != VMBUS_VERSION_WS2008)
 		new_channel->ch_monprm->mp_connid = offer->connection_id;
 
-	new_channel->monitor_group = (uint8_t) offer->monitor_id / 32;
-	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;
+	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
+		new_channel->ch_montrig_idx =
+		    offer->monitor_id / VMBUS_MONTRIG_LEN;
+		if (new_channel->ch_montrig_idx >= VMBUS_MONTRIGS_MAX)
+			panic("invalid monitor id %u", offer->monitor_id);
+		new_channel->ch_montrig_mask =
+		    1 << (offer->monitor_id % VMBUS_MONTRIG_LEN);
+	}
 
 	/* Select default cpu for this channel. */
 	vmbus_channel_select_defcpu(new_channel);

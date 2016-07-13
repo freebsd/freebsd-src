@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-static void 	vmbus_channel_set_event(hv_vmbus_channel* channel);
+static void 	vmbus_chan_send_event(hv_vmbus_channel* channel);
 static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
 		    const struct hv_vmbus_channel *);
 static void	vmbus_chan_task(void *, int);
@@ -60,7 +60,7 @@ static void	vmbus_chan_task_nobatch(void *, int);
  *  @brief Trigger an event notification on the specified channel
  */
 static void
-vmbus_channel_set_event(hv_vmbus_channel *channel)
+vmbus_chan_send_event(hv_vmbus_channel *channel)
 {
 	struct vmbus_softc *sc = channel->vmbus_sc;
 	uint32_t chanid = channel->ch_id;
@@ -69,16 +69,12 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
 	if (channel->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
-		hv_vmbus_monitor_page *monitor_page;
-
-		monitor_page = sc->vmbus_mnf2;
-		synch_set_bit(channel->monitor_bit,
-			(uint32_t *)&monitor_page->
-				trigger_group[channel->monitor_group].u.pending);
+		atomic_set_int(
+		&sc->vmbus_mnf2->mnf_trigs[channel->ch_montrig_idx].mt_pending,
+		channel->ch_montrig_mask);
 	} else {
 		hypercall_signal_event(channel->ch_monprm_dma.hv_paddr);
 	}
-
 }
 
 static int
@@ -622,9 +618,8 @@ hv_vmbus_channel_send_packet(
 	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && need_sig) {
-		vmbus_channel_set_event(channel);
-	}
+	if (ret == 0 && need_sig)
+		vmbus_chan_send_event(channel);
 
 	return (ret);
 }
@@ -690,9 +685,8 @@ hv_vmbus_channel_send_packet_pagebuffer(
 	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && need_sig) {
-		vmbus_channel_set_event(channel);
-	}
+	if (ret == 0 && need_sig)
+		vmbus_chan_send_event(channel);
 
 	return (ret);
 }
@@ -766,9 +760,8 @@ hv_vmbus_channel_send_packet_multipagebuffer(
 	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && need_sig) {
-	    vmbus_channel_set_event(channel);
-	}
+	if (ret == 0 && need_sig)
+		vmbus_chan_send_event(channel);
 
 	return (ret);
 }
