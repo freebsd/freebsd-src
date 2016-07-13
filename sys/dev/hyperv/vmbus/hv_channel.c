@@ -106,10 +106,10 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 	hv_vmbus_channel* primary_ch = channel->primary_channel;
 
 	if (primary_ch == NULL) {
-		dev = channel->device->device;
+		dev = channel->ch_dev;
 		ch_id = channel->ch_id;
 	} else {
-		dev = primary_ch->device->device;
+		dev = primary_ch->ch_dev;
 		ch_id = primary_ch->ch_id;
 		sub_ch_id = channel->ch_subidx;
 	}
