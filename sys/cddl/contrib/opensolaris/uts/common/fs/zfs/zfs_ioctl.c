@@ -1429,6 +1429,7 @@ static int
 getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
 {
 	objset_t *os;
+	vfs_t *vfsp;
 	int error;
 
 	error = dmu_objset_hold(dsname, FTAG, &os);
@@ -1442,19 +1443,21 @@ getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
 	mutex_enter(&os->os_user_ptr_lock);
 	*zfvp = dmu_objset_get_user(os);
 	if (*zfvp) {
-#ifdef illumos
-		VFS_HOLD((*zfvp)->z_vfs);
-#else
-		if (vfs_busy((*zfvp)->z_vfs, 0) != 0) {
-			*zfvp = NULL;
-			error = SET_ERROR(ESRCH);
-		}
-#endif
+		vfsp = (*zfvp)->z_vfs;
+		vfs_ref(vfsp);
 	} else {
 		error = SET_ERROR(ESRCH);
 	}
 	mutex_exit(&os->os_user_ptr_lock);
 	dmu_objset_rele(os, FTAG);
+	if (error == 0) {
+		error = vfs_busy(vfsp, 0);
+		vfs_rel(vfsp);
+		if (error != 0) {
+			*zfvp = NULL;
+			error = SET_ERROR(ESRCH);
+		}
+	}
 	return (error);
 }
 
