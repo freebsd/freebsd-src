@@ -534,9 +534,20 @@ zfsctl_root_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
 	ZFS_ENTER(zfsvfs);
 
 	if (strcmp(nm, "..") == 0) {
+#ifdef illumos
 		err = VFS_ROOT(dvp->v_vfsp, LK_EXCLUSIVE, vpp);
+#else
+		/*
+		 * NB: can not use VFS_ROOT here as it would acquire
+		 * the vnode lock of the parent (root) vnode while
+		 * holding the child's (.zfs) lock.
+		 */
+		znode_t *rootzp;
+
+		err = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 		if (err == 0)
-			VOP_UNLOCK(*vpp, 0);
+			*vpp = ZTOV(rootzp);
+#endif
 	} else {
 		err = gfs_vop_lookup(dvp, nm, vpp, pnp, flags, rdir,
 		    cr, ct, direntflags, realpnp);
@@ -598,6 +609,7 @@ zfsctl_freebsd_root_lookup(ap)
 	vnode_t **vpp = ap->a_vpp;
 	cred_t *cr = ap->a_cnp->cn_cred;
 	int flags = ap->a_cnp->cn_flags;
+	int lkflags = ap->a_cnp->cn_lkflags;
 	int nameiop = ap->a_cnp->cn_nameiop;
 	char nm[NAME_MAX + 1];
 	int err;
@@ -609,8 +621,18 @@ zfsctl_freebsd_root_lookup(ap)
 	strlcpy(nm, ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen + 1);
 
 	err = zfsctl_root_lookup(dvp, nm, vpp, NULL, 0, NULL, cr, NULL, NULL, NULL);
-	if (err == 0 && (nm[0] != '.' || nm[1] != '\0'))
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+	if (err == 0 && (nm[0] != '.' || nm[1] != '\0')) {
+		if (flags & ISDOTDOT)
+			VOP_UNLOCK(dvp, 0);
+		err = vn_lock(*vpp, lkflags);
+		if (err != 0) {
+			vrele(*vpp);
+			*vpp = NULL;
+		}
+		if (flags & ISDOTDOT)
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+	}
+
 	return (err);
 }
 
