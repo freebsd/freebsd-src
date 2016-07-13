@@ -443,7 +443,6 @@ gfs_lookup_dot(vnode_t **vpp, vnode_t *dvp, vnode_t *pvp, const char *nm)
 		ASSERT(pvp != NULL);
 		VN_HOLD(pvp);
 		*vpp = pvp;
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		return (0);
 	}
 
