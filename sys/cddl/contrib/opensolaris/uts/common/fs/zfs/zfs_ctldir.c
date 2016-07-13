@@ -539,46 +539,7 @@ zfsctl_root_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
 	return (err);
 }
 
-#ifdef sun
 static int
-zfsctl_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
-    caller_context_t *ct)
-{
-	/*
-	 * We only care about ACL_ENABLED so that libsec can
-	 * display ACL correctly and not default to POSIX draft.
-	 */
-	if (cmd == _PC_ACL_ENABLED) {
-		*valp = _ACL_ACE_ENABLED;
-		return (0);
-	}
-
-	return (fs_pathconf(vp, cmd, valp, cr, ct));
-}
-#endif	/* sun */
-
-#ifdef sun
-static const fs_operation_def_t zfsctl_tops_root[] = {
-	{ VOPNAME_OPEN,		{ .vop_open = zfsctl_common_open }	},
-	{ VOPNAME_CLOSE,	{ .vop_close = zfsctl_common_close }	},
-	{ VOPNAME_IOCTL,	{ .error = fs_inval }			},
-	{ VOPNAME_GETATTR,	{ .vop_getattr = zfsctl_root_getattr }	},
-	{ VOPNAME_ACCESS,	{ .vop_access = zfsctl_common_access }	},
-	{ VOPNAME_READDIR,	{ .vop_readdir = gfs_vop_readdir } 	},
-	{ VOPNAME_LOOKUP,	{ .vop_lookup = zfsctl_root_lookup }	},
-	{ VOPNAME_SEEK,		{ .vop_seek = fs_seek }			},
-	{ VOPNAME_INACTIVE,	{ .vop_inactive = gfs_vop_inactive }	},
-	{ VOPNAME_PATHCONF,	{ .vop_pathconf = zfsctl_pathconf }	},
-	{ VOPNAME_FID,		{ .vop_fid = zfsctl_common_fid	}	},
-	{ NULL }
-};
-#endif	/* sun */
-
-/*
- * Special case the handling of "..".
- */
-/* ARGSUSED */
-int
 zfsctl_freebsd_root_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode *a_dvp;
@@ -621,6 +582,41 @@ relookup:
 	}
 	return (err);
 }
+
+#ifdef illumos
+static int
+zfsctl_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
+    caller_context_t *ct)
+{
+	/*
+	 * We only care about ACL_ENABLED so that libsec can
+	 * display ACL correctly and not default to POSIX draft.
+	 */
+	if (cmd == _PC_ACL_ENABLED) {
+		*valp = _ACL_ACE_ENABLED;
+		return (0);
+	}
+
+	return (fs_pathconf(vp, cmd, valp, cr, ct));
+}
+#endif	/* illumos */
+
+#ifdef illumos
+static const fs_operation_def_t zfsctl_tops_root[] = {
+	{ VOPNAME_OPEN,		{ .vop_open = zfsctl_common_open }	},
+	{ VOPNAME_CLOSE,	{ .vop_close = zfsctl_common_close }	},
+	{ VOPNAME_IOCTL,	{ .error = fs_inval }			},
+	{ VOPNAME_GETATTR,	{ .vop_getattr = zfsctl_root_getattr }	},
+	{ VOPNAME_ACCESS,	{ .vop_access = zfsctl_common_access }	},
+	{ VOPNAME_READDIR,	{ .vop_readdir = gfs_vop_readdir } 	},
+	{ VOPNAME_LOOKUP,	{ .vop_lookup = zfsctl_root_lookup }	},
+	{ VOPNAME_SEEK,		{ .vop_seek = fs_seek }			},
+	{ VOPNAME_INACTIVE,	{ .vop_inactive = gfs_vop_inactive }	},
+	{ VOPNAME_PATHCONF,	{ .vop_pathconf = zfsctl_pathconf }	},
+	{ VOPNAME_FID,		{ .vop_fid = zfsctl_common_fid	}	},
+	{ NULL }
+};
+#endif	/* illumos */
 
 static struct vop_vector zfsctl_ops_root = {
 	.vop_default =	&default_vnodeops,
