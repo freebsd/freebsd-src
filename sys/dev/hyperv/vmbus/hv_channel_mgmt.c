@@ -296,20 +296,20 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	if (offer->monitor_allocated)
 		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
 
-	new_channel->ch_sigevt = hyperv_dmamem_alloc(
+	new_channel->ch_monprm = hyperv_dmamem_alloc(
 	    bus_get_dma_tag(sc->vmbus_dev),
-	    HYPERCALL_PARAM_ALIGN, 0, sizeof(struct hypercall_sigevt_in),
-	    &new_channel->ch_sigevt_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
-	if (new_channel->ch_sigevt == NULL) {
-		device_printf(sc->vmbus_dev, "sigevt alloc failed\n");
+	    HYPERCALL_PARAM_ALIGN, 0, sizeof(struct hyperv_mon_param),
+	    &new_channel->ch_monprm_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (new_channel->ch_monprm == NULL) {
+		device_printf(sc->vmbus_dev, "monprm alloc failed\n");
 		/* XXX */
 		mtx_destroy(&new_channel->sc_lock);
 		free(new_channel, M_DEVBUF);
 		return;
 	}
-	new_channel->ch_sigevt->hc_connid = VMBUS_CONNID_EVENT;
+	new_channel->ch_monprm->mp_connid = VMBUS_CONNID_EVENT;
 	if (sc->vmbus_version != VMBUS_VERSION_WS2008)
-		new_channel->ch_sigevt->hc_connid = offer->connection_id;
+		new_channel->ch_monprm->mp_connid = offer->connection_id;
 
 	new_channel->monitor_group = (uint8_t) offer->monitor_id / 32;
 	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;

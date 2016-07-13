@@ -133,6 +133,15 @@
 #define CPUID_LEAF_HV_HWFEATURES	0x40000006
 
 /*
+ * Hyper-V Monitor Notification Facility
+ */
+struct hyperv_mon_param {
+	uint32_t	mp_connid;
+	uint16_t	mp_evtflag_ofs;
+	uint16_t	mp_rsvd;
+} __packed;
+
+/*
  * Hyper-V message types
  */
 #define HYPERV_MSGTYPE_NONE		0
@@ -181,11 +190,8 @@ CTASSERT(sizeof(struct hypercall_postmsg_in) == HYPERCALL_POSTMSGIN_SIZE);
 
 /*
  * HYPERCALL_SIGNAL_EVENT
+ *
+ * struct hyperv_mon_param.
  */
-struct hypercall_sigevt_in {
-	uint32_t	hc_connid;
-	uint16_t	hc_evtflag_ofs;
-	uint16_t	hc_rsvd;
-} __packed;
 
 #endif	/* !_HYPERV_REG_H_ */

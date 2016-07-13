@@ -109,10 +109,10 @@ hypercall_post_message(bus_addr_t msg_paddr)
 }
 
 uint64_t
-hypercall_signal_event(bus_addr_t sigevt_paddr)
+hypercall_signal_event(bus_addr_t monprm_paddr)
 {
 	return hypercall_md(hypercall_context.hc_addr,
-	    HYPERCALL_SIGNAL_EVENT, sigevt_paddr, 0);
+	    HYPERCALL_SIGNAL_EVENT, monprm_paddr, 0);
 }
 
 int

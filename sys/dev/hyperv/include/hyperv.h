@@ -551,8 +551,8 @@ typedef struct hv_vmbus_channel {
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
 	void*				channel_callback_context;
 
-	struct hypercall_sigevt_in	*ch_sigevt;
-	struct hyperv_dma		ch_sigevt_dma;
+	struct hyperv_mon_param		*ch_monprm;
+	struct hyperv_dma		ch_monprm_dma;
 
 	/*
 	 * From Win8, this field specifies the target virtual process
