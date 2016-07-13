@@ -41,6 +41,7 @@
 
 #include <dev/hyperv/include/hyperv.h>
 #include "hv_util.h"
+#include "vmbus_if.h"
 
 #define HV_WLTIMEDELTA              116444736000000000L     /* in 100ns unit */
 #define HV_ICTIMESYNCFLAG_PROBE     0
@@ -54,7 +55,7 @@ typedef struct {
 } time_sync_data;
 
         /* Time Synch Service */
-static hv_guid service_guid = {.data =
+static const hv_guid service_guid = {.data =
 	{0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
 	0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf } };
 
@@ -170,16 +171,13 @@ hv_timesync_cb(void *context)
 static int
 hv_timesync_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
-
 	if (resource_disabled("hvtimesync", 0))
 		return ENXIO;
 
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
 		device_set_desc(dev, "Hyper-V Time Synch Service");
 		return BUS_PROBE_DEFAULT;
 	}
-
 	return ENXIO;
 }
 
