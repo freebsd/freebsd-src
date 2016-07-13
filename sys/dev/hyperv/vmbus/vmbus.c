@@ -978,6 +978,10 @@ vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	case HV_VMBUS_IVAR_NODE:
 		*result = (uintptr_t)child_dev_ctx->device;
 		return (0);
+
+	case HV_VMBUS_IVAR_CHAN:
+		*result = (uintptr_t)child_dev_ctx->channel;
+		return (0);
 	}
 	return (ENOENT);
 }
