@@ -655,7 +655,11 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 
 			zfs_vmobject_wunlock(obj);
 			va = zfs_map_page(pp, &sf);
+#ifdef illumos
 			error = uiomove(va + off, bytes, UIO_READ, uio);
+#else
+			error = vn_io_fault_uiomove(va + off, bytes, uio);
+#endif
 			zfs_unmap_page(sf);
 			zfs_vmobject_wlock(obj);
 			page_unhold(pp);
@@ -1033,18 +1037,31 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 			 * holding up the transaction if the data copy hangs
 			 * up on a pagefault (e.g., from an NFS server mapping).
 			 */
+#ifdef illumos
 			size_t cbytes;
+#endif
 
 			abuf = dmu_request_arcbuf(sa_get_db(zp->z_sa_hdl),
 			    max_blksz);
 			ASSERT(abuf != NULL);
 			ASSERT(arc_buf_size(abuf) == max_blksz);
+#ifdef illumos
 			if (error = uiocopy(abuf->b_data, max_blksz,
 			    UIO_WRITE, uio, &cbytes)) {
 				dmu_return_arcbuf(abuf);
 				break;
 			}
 			ASSERT(cbytes == max_blksz);
+#else
+			ssize_t resid = uio->uio_resid;
+			error = vn_io_fault_uiomove(abuf->b_data, max_blksz, uio);
+			if (error != 0) {
+				uio->uio_offset -= resid - uio->uio_resid;
+				uio->uio_resid = resid;
+				dmu_return_arcbuf(abuf);
+				break;
+			}
+#endif
 		}
 
 		/*
@@ -1122,8 +1139,10 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 				dmu_assign_arcbuf(sa_get_db(zp->z_sa_hdl),
 				    woff, abuf, tx);
 			}
+#ifdef illumos
 			ASSERT(tx_bytes <= uio->uio_resid);
 			uioskip(uio, tx_bytes);
+#endif
 		}
 		if (tx_bytes && vn_has_cached_data(vp)) {
 			update_pages(vp, woff, tx_bytes, zfsvfs->z_os,
@@ -1177,7 +1196,11 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		while ((end_size = zp->z_size) < uio->uio_loffset) {
 			(void) atomic_cas_64(&zp->z_size, end_size,
 			    uio->uio_loffset);
+#ifdef illumos
 			ASSERT(error == 0);
+#else
+			ASSERT(error == 0 || error == EFAULT);
+#endif
 		}
 		/*
 		 * If we are replaying and eof is non zero then force
@@ -1187,7 +1210,10 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		if (zfsvfs->z_replay && zfsvfs->z_replay_eof != 0)
 			zp->z_size = zfsvfs->z_replay_eof;
 
-		error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
+		if (error == 0)
+			error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
+		else
+			(void) sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 
 		zfs_log_write(zilog, tx, TX_WRITE, zp, woff, tx_bytes, ioflag);
 		dmu_tx_commit(tx);
@@ -1213,6 +1239,17 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
+
+#ifdef __FreeBSD__
+	/*
+	 * EFAULT means that at least one page of the source buffer was not
+	 * available.  VFS will re-try remaining I/O upon this error.
+	 */
+	if (error == EFAULT) {
+		ZFS_EXIT(zfsvfs);
+		return (error);
+	}
+#endif
 
 	if (ioflag & (FSYNC | FDSYNC) ||
 	    zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
