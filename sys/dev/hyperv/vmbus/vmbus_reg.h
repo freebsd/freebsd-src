@@ -117,10 +117,11 @@ struct vmbus_gpa_range {
 
 /*
  * Channel messages
- * - Embedded in vmbus_message.msg_data, e.g. response.
+ * - Embedded in vmbus_message.msg_data, e.g. response and notification.
  * - Embedded in hypercall_postmsg_in.hc_data, e.g. request.
  */
 
+#define VMBUS_CHANMSG_TYPE_CHRESCIND		2	/* NOTE */
 #define VMBUS_CHANMSG_TYPE_CHREQUEST		3	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CHOPEN		5	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CHOPEN_RESP		6	/* RESP */
@@ -237,6 +238,12 @@ struct vmbus_chanmsg_gpadl_disconn {
 
 /* VMBUS_CHANMSG_TYPE_CHFREE */
 struct vmbus_chanmsg_chfree {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	uint32_t	chm_chanid;
+} __packed;
+
+/* VMBUS_CHANMSG_TYPE_CHRESCIND */
+struct vmbus_chanmsg_chrescind {
 	struct vmbus_chanmsg_hdr chm_hdr;
 	uint32_t	chm_chanid;
 } __packed;

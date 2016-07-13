@@ -47,9 +47,9 @@ static void	vmbus_chan_detach_task(void *, int);
 
 static void	vmbus_channel_on_offer(struct vmbus_softc *,
 		    const struct vmbus_message *);
-static void	vmbus_channel_on_offer_rescind(struct vmbus_softc *,
-		    const struct vmbus_message *);
 static void	vmbus_channel_on_offers_delivered(struct vmbus_softc *,
+		    const struct vmbus_message *);
+static void	vmbus_chan_msgproc_chrescind(struct vmbus_softc *,
 		    const struct vmbus_message *);
 
 /**
@@ -60,7 +60,7 @@ vmbus_chanmsg_process[HV_CHANNEL_MESSAGE_COUNT] = {
 	[HV_CHANNEL_MESSAGE_OFFER_CHANNEL] =
 		vmbus_channel_on_offer,
 	[HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER] =
-		vmbus_channel_on_offer_rescind,
+		vmbus_chan_msgproc_chrescind,
 	[HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED] =
 		vmbus_channel_on_offers_delivered,
 	[HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT] =
@@ -326,33 +326,34 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	vmbus_channel_process_offer(new_channel);
 }
 
-/**
- * @brief Rescind offer handler.
- *
- * We queue a work item to process this offer
- * synchronously.
- *
+/*
  * XXX pretty broken; need rework.
  */
 static void
-vmbus_channel_on_offer_rescind(struct vmbus_softc *sc,
+vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
     const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_rescind_offer *rescind;
-	hv_vmbus_channel*		channel;
+	const struct vmbus_chanmsg_chrescind *note;
+	struct hv_vmbus_channel *chan;
 
-	rescind = (const hv_vmbus_channel_rescind_offer *)msg->msg_data;
-	if (bootverbose) {
-		device_printf(sc->vmbus_dev, "chan%u rescind\n",
-		    rescind->child_rel_id);
+	note = (const struct vmbus_chanmsg_chrescind *)msg->msg_data;
+	if (note->chm_chanid > VMBUS_CHAN_MAX) {
+		device_printf(sc->vmbus_dev, "invalid rescinded chan%u\n",
+		    note->chm_chanid);
+		return;
 	}
 
-	channel = sc->vmbus_chmap[rescind->child_rel_id];
-	if (channel == NULL)
-	    return;
-	sc->vmbus_chmap[rescind->child_rel_id] = NULL;
+	if (bootverbose) {
+		device_printf(sc->vmbus_dev, "chan%u rescinded\n",
+		    note->chm_chanid);
+	}
 
-	taskqueue_enqueue(taskqueue_thread, &channel->ch_detach_task);
+	chan = sc->vmbus_chmap[note->chm_chanid];
+	if (chan == NULL)
+		return;
+	sc->vmbus_chmap[note->chm_chanid] = NULL;
+
+	taskqueue_enqueue(taskqueue_thread, &chan->ch_detach_task);
 }
 
 static void
