@@ -311,11 +311,8 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	}
 	new_channel->ch_sigevt->hc_connid = VMBUS_CONNID_EVENT;
 
-	if (sc->vmbus_version != VMBUS_VERSION_WS2008) {
-		new_channel->is_dedicated_interrupt =
-		    (offer->is_dedicated_interrupt != 0);
+	if (sc->vmbus_version != VMBUS_VERSION_WS2008)
 		new_channel->ch_sigevt->hc_connid = offer->connection_id;
-	}
 
 	new_channel->monitor_group = (uint8_t) offer->monitor_id / 32;
 	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;
