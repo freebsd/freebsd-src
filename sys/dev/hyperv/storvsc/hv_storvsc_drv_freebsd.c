@@ -125,7 +125,7 @@ struct hv_storvsc_request {
 };
 
 struct storvsc_softc {
-	struct hv_device		*hs_dev;
+	struct hv_vmbus_channel		*hs_chan;
 	LIST_HEAD(, hv_storvsc_request)	hs_free_list;
 	struct mtx			hs_lock;
 	struct storvsc_driver_props	*hs_drv_props;
@@ -139,6 +139,7 @@ struct storvsc_softc {
 	struct sema 			hs_drain_sema;	
 	struct hv_storvsc_request	hs_init_req;
 	struct hv_storvsc_request	hs_reset_req;
+	device_t			hs_dev;
 };
 
 
@@ -264,11 +265,11 @@ static int create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *req
 static void storvsc_free_request(struct storvsc_softc *sc, struct hv_storvsc_request *reqp);
 static enum hv_storage_type storvsc_get_storage_type(device_t dev);
 static void hv_storvsc_rescan_target(struct storvsc_softc *sc);
-static void hv_storvsc_on_channel_callback(void *context);
+static void hv_storvsc_on_channel_callback(void *xchan);
 static void hv_storvsc_on_iocompletion( struct storvsc_softc *sc,
 					struct vstor_packet *vstor_packet,
 					struct hv_storvsc_request *request);
-static int hv_storvsc_connect_vsp(struct hv_device *device);
+static int hv_storvsc_connect_vsp(struct storvsc_softc *);
 static void storvsc_io_done(struct hv_storvsc_request *reqp);
 static void storvsc_copy_sgl_to_bounce_buf(struct sglist *bounce_sgl,
 				bus_dma_segment_t *orig_sgl,
@@ -297,72 +298,16 @@ DRIVER_MODULE(storvsc, vmbus, storvsc_driver, storvsc_devclass, 0, 0);
 MODULE_VERSION(storvsc, 1);
 MODULE_DEPEND(storvsc, vmbus, 1, 1, 1);
 
-
-/**
- * The host is capable of sending messages to us that are
- * completely unsolicited. So, we need to address the race
- * condition where we may be in the process of unloading the
- * driver when the host may send us an unsolicited message.
- * We address this issue by implementing a sequentially
- * consistent protocol:
- *
- * 1. Channel callback is invoked while holding the channel lock
- *    and an unloading driver will reset the channel callback under
- *    the protection of this channel lock.
- *
- * 2. To ensure bounded wait time for unloading a driver, we don't
- *    permit outgoing traffic once the device is marked as being
- *    destroyed.
- *
- * 3. Once the device is marked as being destroyed, we only
- *    permit incoming traffic to properly account for
- *    packets already sent out.
- */
-static inline struct storvsc_softc *
-get_stor_device(struct hv_device *device,
-				boolean_t outbound)
-{
-	struct storvsc_softc *sc;
-
-	sc = device_get_softc(device->device);
-
-	if (outbound) {
-		/*
-		 * Here we permit outgoing I/O only
-		 * if the device is not being destroyed.
-		 */
-
-		if (sc->hs_destroy) {
-			sc = NULL;
-		}
-	} else {
-		/*
-		 * inbound case; if being destroyed
-		 * only permit to account for
-		 * messages already sent out.
-		 */
-		if (sc->hs_destroy && (sc->hs_num_out_reqs == 0)) {
-			sc = NULL;
-		}
-	}
-	return sc;
-}
-
 static void
-storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
+storvsc_subchan_attach(struct storvsc_softc *sc,
+    struct hv_vmbus_channel *new_channel)
 {
-	struct hv_device *device;
-	struct storvsc_softc *sc;
 	struct vmstor_chan_props props;
 	int ret = 0;
 
-	device = new_channel->device;
-	sc = get_stor_device(device, TRUE);
-	if (sc == NULL)
-		return;
-
 	memset(&props, 0, sizeof(props));
 
+	new_channel->hv_chan_priv1 = sc;
 	vmbus_channel_cpu_rr(new_channel);
 	ret = hv_vmbus_channel_open(new_channel,
 	    sc->hs_drv_props->drv_ringbuffer_size,
@@ -371,8 +316,6 @@ storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
 	    sizeof(struct vmstor_chan_props),
 	    hv_storvsc_on_channel_callback,
 	    new_channel);
-
-	return;
 }
 
 /**
@@ -382,10 +325,9 @@ storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
  * @param max_chans  the max channels supported by vmbus
  */
 static void
-storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
+storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 {
 	struct hv_vmbus_channel **subchan;
-	struct storvsc_softc *sc;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;	
 	int request_channels_cnt = 0;
@@ -393,13 +335,6 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 
 	/* get multichannels count that need to create */
 	request_channels_cnt = MIN(max_chans, mp_ncpus);
-
-	sc = get_stor_device(dev, TRUE);
-	if (sc == NULL) {
-		printf("Storvsc_error: get sc failed while send mutilchannel "
-		    "request\n");
-		return;
-	}
 
 	request = &sc->hs_init_req;
 
@@ -415,7 +350,7 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 	vstor_packet->u.multi_channels_cnt = request_channels_cnt;
 
 	ret = hv_vmbus_channel_send_packet(
-	    dev->channel,
+	    sc->hs_chan,
 	    vstor_packet,
 	    VSTOR_PKT_SIZE,
 	    (uint64_t)(uintptr_t)request,
@@ -439,11 +374,11 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 	}
 
 	/* Wait for sub-channels setup to complete. */
-	subchan = vmbus_get_subchan(dev->channel, request_channels_cnt);
+	subchan = vmbus_get_subchan(sc->hs_chan, request_channels_cnt);
 
 	/* Attach the sub-channels. */
 	for (i = 0; i < request_channels_cnt; ++i)
-		storvsc_subchan_attach(subchan[i]);
+		storvsc_subchan_attach(sc, subchan[i]);
 
 	/* Release the sub-channels. */
 	vmbus_rel_subchan(subchan, request_channels_cnt);
@@ -459,22 +394,17 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
  * @returns  0 on success, non-zero error on failure
  */
 static int
-hv_storvsc_channel_init(struct hv_device *dev)
+hv_storvsc_channel_init(struct storvsc_softc *sc)
 {
 	int ret = 0, i;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
-	struct storvsc_softc *sc;
 	uint16_t max_chans = 0;
 	boolean_t support_multichannel = FALSE;
 	uint32_t version;
 
 	max_chans = 0;
 	support_multichannel = FALSE;
-
-	sc = get_stor_device(dev, TRUE);
-	if (sc == NULL)
-		return (ENODEV);
 
 	request = &sc->hs_init_req;
 	memset(request, 0, sizeof(struct hv_storvsc_request));
@@ -491,7 +421,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 
 
 	ret = hv_vmbus_channel_send_packet(
-			dev->channel,
+			sc->hs_chan,
 			vstor_packet,
 			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
@@ -525,7 +455,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 		vstor_packet->u.version.revision = 0;
 
 		ret = hv_vmbus_channel_send_packet(
-			dev->channel,
+			sc->hs_chan,
 			vstor_packet,
 			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
@@ -568,7 +498,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
 	ret = hv_vmbus_channel_send_packet(
-				dev->channel,
+				sc->hs_chan,
 				vstor_packet,
 				VSTOR_PKT_SIZE,
 				(uint64_t)(uintptr_t)request,
@@ -592,8 +522,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 
 	/* multi-channels feature is supported by WIN8 and above version */
 	max_chans = vstor_packet->u.chan_props.max_channel_cnt;
-	version = VMBUS_GET_VERSION(device_get_parent(dev->device),
-	    dev->device);
+	version = VMBUS_GET_VERSION(device_get_parent(sc->hs_dev), sc->hs_dev);
 	if (version != VMBUS_VERSION_WIN7 && version != VMBUS_VERSION_WS2008 &&
 	    (vstor_packet->u.chan_props.flags &
 	     HV_STORAGE_SUPPORTS_MULTI_CHANNEL)) {
@@ -605,7 +534,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
 	ret = hv_vmbus_channel_send_packet(
-			dev->channel,
+			sc->hs_chan,
 			vstor_packet,
 			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
@@ -631,7 +560,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	 * request to host.
 	 */
 	if (support_multichannel)
-		storvsc_send_multichannel_request(dev, max_chans);
+		storvsc_send_multichannel_request(sc, max_chans);
 
 cleanup:
 	sema_destroy(&request->synch_sema);
@@ -647,52 +576,44 @@ cleanup:
  * @returns 0 on success, non-zero error on failure
  */
 static int
-hv_storvsc_connect_vsp(struct hv_device *dev)
+hv_storvsc_connect_vsp(struct storvsc_softc *sc)
 {	
 	int ret = 0;
 	struct vmstor_chan_props props;
-	struct storvsc_softc *sc;
 
-	sc = device_get_softc(dev->device);
-		
 	memset(&props, 0, sizeof(struct vmstor_chan_props));
 
 	/*
 	 * Open the channel
 	 */
-	vmbus_channel_cpu_rr(dev->channel);
+	KASSERT(sc->hs_chan->hv_chan_priv1 == sc, ("invalid chan priv1"));
+	vmbus_channel_cpu_rr(sc->hs_chan);
 	ret = hv_vmbus_channel_open(
-		dev->channel,
+		sc->hs_chan,
 		sc->hs_drv_props->drv_ringbuffer_size,
 		sc->hs_drv_props->drv_ringbuffer_size,
 		(void *)&props,
 		sizeof(struct vmstor_chan_props),
 		hv_storvsc_on_channel_callback,
-		dev->channel);
+		sc->hs_chan);
 
 	if (ret != 0) {
 		return ret;
 	}
 
-	ret = hv_storvsc_channel_init(dev);
+	ret = hv_storvsc_channel_init(sc);
 
 	return (ret);
 }
 
 #if HVS_HOST_RESET
 static int
-hv_storvsc_host_reset(struct hv_device *dev)
+hv_storvsc_host_reset(struct storvsc_softc *sc)
 {
 	int ret = 0;
-	struct storvsc_softc *sc;
 
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
-
-	sc = get_stor_device(dev, TRUE);
-	if (sc == NULL) {
-		return ENODEV;
-	}
 
 	request = &sc->hs_reset_req;
 	request->softc = sc;
@@ -740,19 +661,12 @@ cleanup:
  * @returns 0 on success, non-zero error on failure
  */
 static int
-hv_storvsc_io_request(struct hv_device *device,
+hv_storvsc_io_request(struct storvsc_softc *sc,
 					  struct hv_storvsc_request *request)
 {
-	struct storvsc_softc *sc;
 	struct vstor_packet *vstor_packet = &request->vstor_packet;
 	struct hv_vmbus_channel* outgoing_channel = NULL;
 	int ret = 0;
-
-	sc = get_stor_device(device, TRUE);
-
-	if (sc == NULL) {
-		return ENODEV;
-	}
 
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
@@ -764,7 +678,7 @@ hv_storvsc_io_request(struct hv_device *device,
 
 	vstor_packet->operation = VSTOR_OPERATION_EXECUTESRB;
 
-	outgoing_channel = vmbus_select_outgoing_channel(device->channel);
+	outgoing_channel = vmbus_select_outgoing_channel(sc->hs_chan);
 
 	mtx_unlock(&request->softc->hs_lock);
 	if (request->data_buf.length) {
@@ -875,26 +789,16 @@ hv_storvsc_rescan_target(struct storvsc_softc *sc)
 }
 
 static void
-hv_storvsc_on_channel_callback(void *context)
+hv_storvsc_on_channel_callback(void *xchan)
 {
 	int ret = 0;
-	hv_vmbus_channel *channel = (hv_vmbus_channel *)context;
-	struct hv_device *device = NULL;
-	struct storvsc_softc *sc;
+	hv_vmbus_channel *channel = xchan;
+	struct storvsc_softc *sc = channel->hv_chan_priv1;
 	uint32_t bytes_recvd;
 	uint64_t request_id;
 	uint8_t packet[roundup2(sizeof(struct vstor_packet), 8)];
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
-
-	device = channel->device;
-	KASSERT(device, ("device is NULL"));
-
-	sc = get_stor_device(device, FALSE);
-	if (sc == NULL) {
-		printf("Storvsc_error: get stor device failed.\n");
-		return;
-	}
 
 	ret = hv_vmbus_channel_recv_packet(
 			channel,
@@ -999,7 +903,6 @@ storvsc_probe(device_t dev)
 static int
 storvsc_attach(device_t dev)
 {
-	struct hv_device *hv_dev = vmbus_get_devctx(dev);
 	enum hv_storage_type stor_type;
 	struct storvsc_softc *sc;
 	struct cam_devq *devq;
@@ -1015,6 +918,8 @@ storvsc_attach(device_t dev)
 	root_mount_token = root_mount_hold("storvsc");
 
 	sc = device_get_softc(dev);
+	sc->hs_chan = vmbus_get_channel(dev);
+	sc->hs_chan->hv_chan_priv1 = sc;
 
 	stor_type = storvsc_get_storage_type(dev);
 
@@ -1028,7 +933,7 @@ storvsc_attach(device_t dev)
 
 	/* fill in device specific properties */
 	sc->hs_unit	= device_get_unit(dev);
-	sc->hs_dev	= hv_dev;
+	sc->hs_dev	= dev;
 
 	LIST_INIT(&sc->hs_free_list);
 	mtx_init(&sc->hs_lock, "hvslck", NULL, MTX_DEF);
@@ -1077,7 +982,7 @@ storvsc_attach(device_t dev)
 	sc->hs_drain_notify = FALSE;
 	sema_init(&sc->hs_drain_sema, 0, "Store Drain Sema");
 
-	ret = hv_storvsc_connect_vsp(hv_dev);
+	ret = hv_storvsc_connect_vsp(sc);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -1175,7 +1080,6 @@ storvsc_detach(device_t dev)
 {
 	struct storvsc_softc *sc = device_get_softc(dev);
 	struct hv_storvsc_request *reqp = NULL;
-	struct hv_device *hv_device = vmbus_get_devctx(dev);
 	struct hv_sgl_node *sgl_node = NULL;
 	int j = 0;
 
@@ -1197,7 +1101,7 @@ storvsc_detach(device_t dev)
 	 * under the protection of the incoming channel lock.
 	 */
 
-	hv_vmbus_channel_close(hv_device->channel);
+	hv_vmbus_channel_close(sc->hs_chan);
 
 	mtx_lock(&sc->hs_lock);
 	while (!LIST_EMPTY(&sc->hs_free_list)) {
@@ -1251,7 +1155,7 @@ storvsc_timeout_test(struct hv_storvsc_request *reqp,
 	if (wait) {
 		mtx_lock(&reqp->event.mtx);
 	}
-	ret = hv_storvsc_io_request(sc->hs_dev, reqp);
+	ret = hv_storvsc_io_request(sc, reqp);
 	if (ret != 0) {
 		if (wait) {
 			mtx_unlock(&reqp->event.mtx);
@@ -1362,7 +1266,7 @@ storvsc_poll(struct cam_sim *sim)
 
 	mtx_assert(&sc->hs_lock, MA_OWNED);
 	mtx_unlock(&sc->hs_lock);
-	hv_storvsc_on_channel_callback(sc->hs_dev->channel);
+	hv_storvsc_on_channel_callback(sc->hs_chan);
 	mtx_lock(&sc->hs_lock);
 }
 
@@ -1447,7 +1351,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 	case  XPT_RESET_BUS:
 	case  XPT_RESET_DEV:{
 #if HVS_HOST_RESET
-		if ((res = hv_storvsc_host_reset(sc->hs_dev)) != 0) {
+		if ((res = hv_storvsc_host_reset(sc)) != 0) {
 			xpt_print(ccb->ccb_h.path,
 				"hv_storvsc_host_reset failed with %d\n", res);
 			ccb->ccb_h.status = CAM_PROVIDE_FAIL;
@@ -1520,7 +1424,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 		}
 #endif
 
-		if ((res = hv_storvsc_io_request(sc->hs_dev, reqp)) != 0) {
+		if ((res = hv_storvsc_io_request(sc, reqp)) != 0) {
 			xpt_print(ccb->ccb_h.path,
 				"hv_storvsc_io_request failed with %d\n", res);
 			ccb->ccb_h.status = CAM_PROVIDE_FAIL;
