@@ -42,7 +42,7 @@ typedef void	(*vmbus_chanmsg_proc_t)
 
 static struct hv_vmbus_channel *hv_vmbus_allocate_channel(struct vmbus_softc *);
 static void	vmbus_channel_on_offer_internal(struct vmbus_softc *,
-		    const hv_vmbus_channel_offer_channel *offer);
+		    const struct vmbus_chanmsg_choffer *);
 static void	vmbus_chan_detach_task(void *, int);
 
 static void	vmbus_channel_on_offer(struct vmbus_softc *,
@@ -267,18 +267,16 @@ vmbus_channel_select_defcpu(struct hv_vmbus_channel *chan)
 static void
 vmbus_channel_on_offer(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_offer_channel *offer;
-
 	/* New channel is offered by vmbus */
 	vmbus_scan_newchan(sc);
 
-	offer = (const hv_vmbus_channel_offer_channel *)msg->msg_data;
-	vmbus_channel_on_offer_internal(sc, offer);
+	vmbus_channel_on_offer_internal(sc,
+	    (const struct vmbus_chanmsg_choffer *)msg->msg_data);
 }
 
 static void
 vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
-    const hv_vmbus_channel_offer_channel *offer)
+    const struct vmbus_chanmsg_choffer *offer)
 {
 	hv_vmbus_channel* new_channel;
 
@@ -286,14 +284,14 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	 * Allocate the channel object and save this offer
 	 */
 	new_channel = hv_vmbus_allocate_channel(sc);
-	new_channel->ch_id = offer->child_rel_id;
-	new_channel->ch_subidx = offer->offer.sub_channel_index;
-	new_channel->ch_guid_type = offer->offer.interface_type;
-	new_channel->ch_guid_inst = offer->offer.interface_instance;
+	new_channel->ch_id = offer->chm_chanid;
+	new_channel->ch_subidx = offer->chm_subidx;
+	new_channel->ch_guid_type = offer->chm_chtype;
+	new_channel->ch_guid_inst = offer->chm_chinst;
 
 	/* Batch reading is on by default */
 	new_channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
-	if (offer->monitor_allocated)
+	if (offer->chm_flags1 & VMBUS_CHOFFER_FLAG1_HASMNF)
 		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
 
 	new_channel->ch_monprm = hyperv_dmamem_alloc(
@@ -309,15 +307,15 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	}
 	new_channel->ch_monprm->mp_connid = VMBUS_CONNID_EVENT;
 	if (sc->vmbus_version != VMBUS_VERSION_WS2008)
-		new_channel->ch_monprm->mp_connid = offer->connection_id;
+		new_channel->ch_monprm->mp_connid = offer->chm_connid;
 
 	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
 		new_channel->ch_montrig_idx =
-		    offer->monitor_id / VMBUS_MONTRIG_LEN;
+		    offer->chm_montrig / VMBUS_MONTRIG_LEN;
 		if (new_channel->ch_montrig_idx >= VMBUS_MONTRIGS_MAX)
-			panic("invalid monitor id %u", offer->monitor_id);
+			panic("invalid monitor trigger %u", offer->chm_montrig);
 		new_channel->ch_montrig_mask =
-		    1 << (offer->monitor_id % VMBUS_MONTRIG_LEN);
+		    1 << (offer->chm_montrig % VMBUS_MONTRIG_LEN);
 	}
 
 	/* Select default cpu for this channel. */
