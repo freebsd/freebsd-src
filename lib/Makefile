@@ -10,6 +10,7 @@
 
 SUBDIR_ORDERED=	csu \
 	.WAIT \
+	libnetbsd \
 	libc \
 	libc_nonshared \
 	libcompiler_rt \
@@ -79,7 +80,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libmt \
 	${_libnandfs} \
 	lib80211 \
-	libnetbsd \
 	${_libnetgraph} \
 	${_libngatm} \
 	libnv \
