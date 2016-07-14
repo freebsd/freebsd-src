@@ -35,19 +35,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/linker.h>
+#include <strings.h>
 
 #define	POINTER_WIDTH	((int)(sizeof(void *) * 2 + 2))
+
+static int showdata = 0;
 
 static void
 printmod(int modid)
 {
     struct module_stat stat;
 
+    bzero(&stat, sizeof(stat));
     stat.version = sizeof(struct module_stat);
     if (modstat(modid, &stat) < 0)
 	warn("can't stat module id %d", modid);
     else
-	printf("\t\t%2d %s\n", stat.id, stat.name);
+	if (showdata) {
+	    printf("\t\t%2d %s (%d, %u, 0x%lx)\n", stat.id, stat.name, 
+	        stat.data.intval, stat.data.uintval, stat.data.ulongval);
+	} else {
+		printf("\t\t%2d %s\n", stat.id, stat.name);
+	}
 }
 
 static void
@@ -78,8 +87,8 @@ printfile(int fileid, int verbose)
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldstat [-q] [-v] [-i id] [-n filename]\n");
-    fprintf(stderr, "       kldstat [-q] [-m modname]\n");
+    fprintf(stderr, "usage: kldstat [-d] [-q] [-v] [-i id] [-n filename]\n");
+    fprintf(stderr, "       kldstat [-d] [-q] [-m modname]\n");
     exit(1);
 }
 
@@ -94,8 +103,11 @@ main(int argc, char** argv)
     char* modname = NULL;
     char* p;
 
-    while ((c = getopt(argc, argv, "i:m:n:qv")) != -1)
+    while ((c = getopt(argc, argv, "di:m:n:qv")) != -1)
 	switch (c) {
+	case 'd':
+	    showdata = 1;
+	    break;
 	case 'i':
 	    fileid = (int)strtoul(optarg, &p, 10);
 	    if (*p != '\0')
@@ -138,8 +150,14 @@ main(int argc, char** argv)
 	if (modstat(modid, &stat) < 0)
 	    warn("can't stat module id %d", modid);
 	else {
-	    printf("Id  Refs Name\n");
-	    printf("%3d %4d %s\n", stat.id, stat.refs, stat.name);
+		if (showdata) {
+		    printf("Id  Refs Name data..(int, uint, ulong)\n");
+		    printf("%3d %4d %s (%d, %u, 0x%lx)\n", stat.id, stat.refs, stat.name, 
+		        stat.data.intval, stat.data.uintval, stat.data.ulongval);
+		} else {
+		    printf("Id  Refs Name\n");
+		    printf("%3d %4d %s\n", stat.id, stat.refs, stat.name);
+		}
 	}
 
 	return 0;
