@@ -193,7 +193,6 @@ initializecpu(void)
 void
 initializecpucache(void)
 {
-	uint64_t msr;
 
 	/*
 	 * CPUID with %eax = 1, %ebx returns
