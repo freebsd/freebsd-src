@@ -994,6 +994,9 @@ hv_vmbus_child_device_register(struct hv_vmbus_channel *chan)
 	device_t parent = sc->vmbus_dev;
 	int error = 0;
 
+	/* New channel has been offered */
+	vmbus_scan_newchan(sc);
+
 	chan->ch_dev = device_add_child(parent, NULL, -1);
 	if (chan->ch_dev == NULL) {
 		device_printf(parent, "device_add_child for chan%u failed\n",

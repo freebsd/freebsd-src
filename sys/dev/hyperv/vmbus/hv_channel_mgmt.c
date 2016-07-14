@@ -40,13 +40,11 @@
 typedef void	(*vmbus_chanmsg_proc_t)
 		(struct vmbus_softc *, const struct vmbus_message *);
 
-static void	vmbus_channel_on_offer_internal(struct vmbus_softc *,
-		    const struct vmbus_chanmsg_choffer *);
 static void	vmbus_chan_detach_task(void *, int);
 
-static void	vmbus_channel_on_offer(struct vmbus_softc *,
-		    const struct vmbus_message *);
 static void	vmbus_channel_on_offers_delivered(struct vmbus_softc *,
+		    const struct vmbus_message *);
+static void	vmbus_chan_msgproc_choffer(struct vmbus_softc *,
 		    const struct vmbus_message *);
 static void	vmbus_chan_msgproc_chrescind(struct vmbus_softc *,
 		    const struct vmbus_message *);
@@ -62,7 +60,7 @@ static void	vmbus_chan_msgproc_chrescind(struct vmbus_softc *,
 
 static const vmbus_chanmsg_proc_t
 vmbus_chanmsg_process[VMBUS_CHANMSG_TYPE_MAX] = {
-	VMBUS_CHANMSG_PROC(CHOFFER,	vmbus_channel_on_offer),
+	VMBUS_CHANMSG_PROC(CHOFFER,	vmbus_chan_msgproc_choffer),
 	VMBUS_CHANMSG_PROC(CHRESCIND,	vmbus_chan_msgproc_chrescind),
 	VMBUS_CHANMSG_PROC(CHOFFER_DONE,vmbus_channel_on_offers_delivered),
 
@@ -259,27 +257,15 @@ vmbus_channel_select_defcpu(struct hv_vmbus_channel *chan)
 	vmbus_channel_cpu_set(chan, 0);
 }
 
-/**
- * @brief Handler for channel offers from Hyper-V/Azure
- *
- * Handler for channel offers from vmbus in parent partition.
- */
 static void
-vmbus_channel_on_offer(struct vmbus_softc *sc, const struct vmbus_message *msg)
+vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
+    const struct vmbus_message *msg)
 {
-	/* New channel is offered by vmbus */
-	vmbus_scan_newchan(sc);
-
-	vmbus_channel_on_offer_internal(sc,
-	    (const struct vmbus_chanmsg_choffer *)msg->msg_data);
-}
-
-static void
-vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
-    const struct vmbus_chanmsg_choffer *offer)
-{
+	const struct vmbus_chanmsg_choffer *offer;
 	hv_vmbus_channel* new_channel;
 	int error;
+
+	offer = (const struct vmbus_chanmsg_choffer *)msg->msg_data;
 
 	/*
 	 * Allocate the channel object and save this offer
