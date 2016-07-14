@@ -142,23 +142,17 @@ globcharcoll(__Char c1, __Char c2, int cs)
 	c1 = towlower(c1);
 	c2 = towlower(c2);
     } else {
-#ifndef __FreeBSD__
 	/* This should not be here, but I'll rather leave it in than engage in
 	   a LC_COLLATE flamewar about a shell I don't use... */
 	if (iswlower(c1) && iswupper(c2))
 	    return (1);
 	if (iswupper(c1) && iswlower(c2))
 	    return (-1);
-#endif
     }
     s1[0] = c1;
     s2[0] = c2;
     s1[1] = s2[1] = '\0';
-#ifdef __FreeBSD__
-    return wcscmp(s1, s2);
-#else
     return wcscoll(s1, s2);
-#endif
 # else /* not WIDE_STRINGS */
     char s1[2], s2[2];
 
