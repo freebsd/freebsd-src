@@ -125,6 +125,7 @@ struct vmbus_gpa_range {
 #define VMBUS_CHANMSG_TYPE_CHOFFER		1	/* NOTE */
 #define VMBUS_CHANMSG_TYPE_CHRESCIND		2	/* NOTE */
 #define VMBUS_CHANMSG_TYPE_CHREQUEST		3	/* REQ */
+#define VMBUS_CHANMSG_TYPE_CHOFFER_DONE		4	/* NOTE */
 #define VMBUS_CHANMSG_TYPE_CHOPEN		5	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CHOPEN_RESP		6	/* RESP */
 #define VMBUS_CHANMSG_TYPE_CHCLOSE		7	/* REQ */
@@ -137,6 +138,7 @@ struct vmbus_gpa_range {
 #define VMBUS_CHANMSG_TYPE_CONNECT		14	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CONNECT_RESP		15	/* RESP */
 #define VMBUS_CHANMSG_TYPE_DISCONNECT		16	/* REQ */
+#define VMBUS_CHANMSG_TYPE_MAX			22
 
 struct vmbus_chanmsg_hdr {
 	uint32_t	chm_type;	/* VMBUS_CHANMSG_TYPE_ */
