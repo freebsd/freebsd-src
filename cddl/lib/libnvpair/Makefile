@@ -12,7 +12,7 @@ SRCS=	libnvpair.c \
 	opensolaris_nvpair.c \
 	opensolaris_nvpair_alloc_fixed.c
 
-WARNS?=	0
+WARNS?=	1
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
@@ -22,4 +22,13 @@ CFLAGS+= -I${.CURDIR}/../../../sys
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
 
+# This library uses macros to define fprintf behavior for several object types
+# The compiler will see the non-string literal arguments to the fprintf calls and
+# omit warnings for them. Quiesce these warnings in contrib code: 
+#
+# cddl/contrib/opensolaris/lib/libnvpair/libnvpair.c:743:12: warning: format
+#   string is not a string literal (potentially insecure) [-Wformat-security]
+#    ARENDER(pctl, nvlist_array, nvl, name, val, nelem);
+#
+CFLAGS+= -Wno-format-security
 .include <bsd.lib.mk>
