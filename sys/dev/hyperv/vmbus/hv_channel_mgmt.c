@@ -285,7 +285,7 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 		return;
 	}
 
-	if (HV_VMBUS_CHAN_ISPRIMARY(chan)) {
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
 		/*
 		 * Add device for this primary channel.
 		 *
@@ -332,7 +332,7 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 {
 	struct hv_vmbus_channel *chan = xchan;
 
-	if (HV_VMBUS_CHAN_ISPRIMARY(chan)) {
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
 		/* Only primary channel owns the device */
 		hv_vmbus_child_device_unregister(chan);
 		/* NOTE: DO NOT free primary channel for now */
@@ -413,7 +413,7 @@ hv_vmbus_release_unattached_channels(struct vmbus_softc *sc)
 	    channel = TAILQ_FIRST(&sc->vmbus_chlist);
 	    TAILQ_REMOVE(&sc->vmbus_chlist, channel, ch_link);
 
-	    if (HV_VMBUS_CHAN_ISPRIMARY(channel)) {
+	    if (VMBUS_CHAN_ISPRIMARY(channel)) {
 		/* Only primary channel owns the device */
 		hv_vmbus_child_device_unregister(channel);
 	    }
