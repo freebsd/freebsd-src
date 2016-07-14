@@ -113,20 +113,18 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 {
 	struct vmbus_softc *sc = new_channel->vmbus_sc;
 	hv_vmbus_channel*	channel;
-	uint32_t                relid;
 
-	relid = new_channel->ch_id;
 	/*
 	 * Make sure this is a new offer
 	 */
 	mtx_lock(&sc->vmbus_chlist_lock);
-	if (relid == 0) {
+	if (new_channel->ch_id == 0) {
 		/*
 		 * XXX channel0 will not be processed; skip it.
 		 */
 		printf("VMBUS: got channel0 offer\n");
 	} else {
-		sc->vmbus_chmap[relid] = new_channel;
+		sc->vmbus_chmap[new_channel->ch_id] = new_channel;
 	}
 
 	TAILQ_FOREACH(channel, &sc->vmbus_chlist, ch_link) {
