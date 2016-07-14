@@ -888,7 +888,7 @@ dozonetransfer(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
     ldns_rr_list *rrl;
     ldns_rr *rr;
     size_t i, nsoa = 0;
-    uint32_t first_serial;
+    uint32_t first_serial = 0;
 
     rrtype = o_rrtype;
     o_rrtype = (o_mode == M_AXFR) ? LDNS_RR_TYPE_AXFR : LDNS_RR_TYPE_IXFR;
