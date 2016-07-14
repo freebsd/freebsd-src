@@ -1504,7 +1504,7 @@ pci_lintr_route(struct pci_devinst *pi)
 	 * is not yet assigned.
 	 */
 	if (ii->ii_ioapic_irq == 0)
-		ii->ii_ioapic_irq = ioapic_pci_alloc_irq();
+		ii->ii_ioapic_irq = ioapic_pci_alloc_irq(pi);
 	assert(ii->ii_ioapic_irq > 0);
 
 	/*
@@ -1512,7 +1512,7 @@ pci_lintr_route(struct pci_devinst *pi)
 	 * not yet assigned.
 	 */
 	if (ii->ii_pirq_pin == 0)
-		ii->ii_pirq_pin = pirq_alloc_pin(pi->pi_vmctx);
+		ii->ii_pirq_pin = pirq_alloc_pin(pi);
 	assert(ii->ii_pirq_pin > 0);
 
 	pi->pi_lintr.ioapic_irq = ii->ii_ioapic_irq;
