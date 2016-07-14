@@ -56,7 +56,8 @@ assign(const char *name, const char *value)
 	h = hash(name);
 	vp = lookup(name);
 	if (vp == NULL) {
-		vp = calloc(1, sizeof(*vp));
+		if ((vp = calloc(1, sizeof(*vp))) == NULL)
+			err(1, "Out of memory");
 		vp->v_name = vcopy(name);
 		vp->v_link = variables[h];
 		variables[h] = vp;
