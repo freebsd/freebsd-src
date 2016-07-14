@@ -31,6 +31,7 @@
 
 #include <sys/param.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
+#include <dev/hyperv/include/hyperv.h> /* XXX for hyperv_guid */
 
 /*
  * Hyper-V SynIC message format.
@@ -121,6 +122,7 @@ struct vmbus_gpa_range {
  * - Embedded in hypercall_postmsg_in.hc_data, e.g. request.
  */
 
+#define VMBUS_CHANMSG_TYPE_CHOFFER		1	/* NOTE */
 #define VMBUS_CHANMSG_TYPE_CHRESCIND		2	/* NOTE */
 #define VMBUS_CHANMSG_TYPE_CHREQUEST		3	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CHOPEN		5	/* REQ */
@@ -247,5 +249,28 @@ struct vmbus_chanmsg_chrescind {
 	struct vmbus_chanmsg_hdr chm_hdr;
 	uint32_t	chm_chanid;
 } __packed;
+
+/* VMBUS_CHANMSG_TYPE_CHOFFER */
+struct vmbus_chanmsg_choffer {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	struct hyperv_guid chm_chtype;
+	struct hyperv_guid chm_chinst;
+	uint64_t	chm_chlat;	/* unit: 100ns */
+	uint32_t	chm_chrev;
+	uint32_t	chm_svrctx_sz;
+	uint16_t	chm_chflags;
+	uint16_t	chm_mmio_sz;	/* unit: MB */
+	uint8_t		chm_udata[120];
+	uint16_t	chm_subidx;
+	uint16_t	chm_rsvd;
+	uint32_t	chm_chanid;
+	uint8_t		chm_montrig;
+	uint8_t		chm_flags1;	/* VMBUS_CHOFFER_FLAG1_ */
+	uint16_t	chm_flags2;
+	uint32_t	chm_connid;
+} __packed;
+CTASSERT(sizeof(struct vmbus_chanmsg_choffer) <= VMBUS_MSG_DSIZE_MAX);
+
+#define VMBUS_CHOFFER_FLAG1_HASMNF	0x01
 
 #endif	/* !_VMBUS_REG_H_ */
