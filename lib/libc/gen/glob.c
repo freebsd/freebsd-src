@@ -832,8 +832,8 @@ match(Char *name, Char *pat, Char *patend)
 				if ((*pat & M_MASK) == M_RNG) {
 					if (table->__collate_load_error ?
 					    CHAR(c) <= CHAR(k) && CHAR(k) <= CHAR(pat[1]) :
-					       __wcollate_range_cmp(table, CHAR(c), CHAR(k)) <= 0
-					    && __wcollate_range_cmp(table, CHAR(k), CHAR(pat[1])) <= 0
+					       __wcollate_range_cmp(CHAR(c), CHAR(k)) <= 0
+					    && __wcollate_range_cmp(CHAR(k), CHAR(pat[1])) <= 0
 					   )
 						ok = 1;
 					pat += 2;

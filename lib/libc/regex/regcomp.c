@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdlib.h>
 #include <regex.h>
-#include <runetype.h>
 #include <wchar.h>
 #include <wctype.h>
 
@@ -817,14 +816,14 @@ p_b_term(struct parse *p, cset *cs)
 		if (start == finish)
 			CHadd(p, cs, start);
 		else {
-			if (table->__collate_load_error) {
-				(void)REQUIRE((uch)start <= (uch)finish, REG_ERANGE);
+			if (table->__collate_load_error || MB_CUR_MAX > 1) {
+				(void)REQUIRE(start <= finish, REG_ERANGE);
 				CHaddrange(p, cs, start, finish);
 			} else {
-				(void)REQUIRE(__wcollate_range_cmp(table, start, finish) <= 0, REG_ERANGE);
+				(void)REQUIRE(__wcollate_range_cmp(start, finish) <= 0, REG_ERANGE);
 				for (i = 0; i <= UCHAR_MAX; i++) {
-					if (   __wcollate_range_cmp(table, start, i) <= 0
-					    && __wcollate_range_cmp(table, i, finish) <= 0
+					if (   __wcollate_range_cmp(start, i) <= 0
+					    && __wcollate_range_cmp(i, finish) <= 0
 					   )
 						CHadd(p, cs, i);
 				}
