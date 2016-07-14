@@ -191,8 +191,6 @@ vmbus_chan_add(hv_vmbus_channel *new_channel)
 			    ch_link);
 			mtx_unlock(&sc->vmbus_chlist_lock);
 
-			new_channel->state = HV_CHANNEL_OPEN_STATE;
-
 			/*
 			 * Bump up sub-channel count and notify anyone that is
 			 * interested in this sub-channel, after this sub-channel
@@ -210,8 +208,6 @@ vmbus_chan_add(hv_vmbus_channel *new_channel)
 		    new_channel->ch_id);
 		return EINVAL;
 	}
-
-	new_channel->state = HV_CHANNEL_OPEN_STATE;
 	return 0;
 }
 
@@ -479,7 +475,7 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 	cur_vcpu = VMBUS_PCPU_GET(primary->vmbus_sc, vcpuid, smp_pro_id);
 	
 	TAILQ_FOREACH(new_channel, &primary->sc_list_anchor, sc_list_entry) {
-		if (new_channel->state != HV_CHANNEL_OPENED_STATE){
+		if ((new_channel->ch_stflags & VMBUS_CHAN_ST_OPENED) == 0) {
 			continue;
 		}
 

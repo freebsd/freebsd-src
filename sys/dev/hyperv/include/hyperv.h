@@ -244,18 +244,9 @@ typedef struct {
 
 typedef void (*hv_vmbus_pfn_channel_callback)(void *context);
 
-typedef enum {
-	HV_CHANNEL_OFFER_STATE,
-	HV_CHANNEL_OPENING_STATE,
-	HV_CHANNEL_OPEN_STATE,
-	HV_CHANNEL_OPENED_STATE,
-	HV_CHANNEL_CLOSING_NONDESTRUCTIVE_STATE,
-} hv_vmbus_channel_state;
-
 typedef struct hv_vmbus_channel {
 	device_t			ch_dev;
 	struct vmbus_softc		*vmbus_sc;
-	hv_vmbus_channel_state		state;
 	uint32_t			ch_flags;	/* VMBUS_CHAN_FLAG_ */
 	uint32_t			ch_id;		/* channel id */
 
@@ -337,7 +328,8 @@ typedef struct hv_vmbus_channel {
 	struct task			ch_detach_task;
 	TAILQ_ENTRY(hv_vmbus_channel)	ch_link;
 	uint32_t			ch_subidx;	/* subchan index */
-
+	volatile uint32_t		ch_stflags;	/* atomic-op */
+							/* VMBUS_CHAN_ST_ */
 	struct hyperv_guid		ch_guid_type;
 	struct hyperv_guid		ch_guid_inst;
 
@@ -356,6 +348,9 @@ typedef struct hv_vmbus_channel {
  * to their own requirement.
  */
 #define VMBUS_CHAN_FLAG_BATCHREAD	0x0002
+
+#define VMBUS_CHAN_ST_OPENED_SHIFT	0
+#define VMBUS_CHAN_ST_OPENED		(1 << VMBUS_CHAN_ST_OPENED_SHIFT)
 
 static inline void
 hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t on)
