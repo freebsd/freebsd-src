@@ -116,9 +116,9 @@ hypercall_signal_event(bus_addr_t monprm_paddr)
 }
 
 int
-hyperv_guid2str(const struct hv_guid *guid, char *buf, size_t sz)
+hyperv_guid2str(const struct hyperv_guid *guid, char *buf, size_t sz)
 {
-	const uint8_t *d = guid->data;
+	const uint8_t *d = guid->hv_guid;
 
 	return snprintf(buf, sz, "%02x%02x%02x%02x-"
 	    "%02x%02x-%02x%02x-%02x%02x-"

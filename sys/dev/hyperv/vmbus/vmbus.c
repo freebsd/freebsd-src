@@ -1051,11 +1051,12 @@ vmbus_get_version_method(device_t bus, device_t dev)
 }
 
 static int
-vmbus_probe_guid_method(device_t bus, device_t dev, const struct hv_guid *guid)
+vmbus_probe_guid_method(device_t bus, device_t dev,
+    const struct hyperv_guid *guid)
 {
 	const struct hv_vmbus_channel *chan = vmbus_get_channel(dev);
 
-	if (memcmp(&chan->ch_guid_type, guid, sizeof(struct hv_guid)) == 0)
+	if (memcmp(&chan->ch_guid_type, guid, sizeof(struct hyperv_guid)) == 0)
 		return 0;
 	return ENXIO;
 }

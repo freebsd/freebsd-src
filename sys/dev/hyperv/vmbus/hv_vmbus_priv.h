@@ -56,8 +56,8 @@ typedef struct {
 typedef struct {
 	uint32_t 		rel_id;
 	hv_vmbus_channel_state	state;
-	hv_guid			interface_type;
-	hv_guid			interface_instance;
+	struct hyperv_guid	interface_type;
+	struct hyperv_guid	interface_instance;
 	uint32_t		monitor_id;
 	uint32_t		server_monitor_pending;
 	uint32_t		server_monitor_latency;
