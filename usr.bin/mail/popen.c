@@ -362,21 +362,30 @@ int wait_status;
 int
 wait_child(pid_t pid)
 {
-	sigset_t nset, oset;
 	struct child *cp;
+	sigset_t nset, oset;
+	pid_t rv = 0;
 
 	(void)sigemptyset(&nset);
 	(void)sigaddset(&nset, SIGCHLD);
-	(void)sigprocmask(SIG_BLOCK, &nset, &oset);	
-
+	(void)sigprocmask(SIG_BLOCK, &nset, &oset);
+	/*
+	 * If we have not already waited on the pid (via sigchild)
+	 * wait on it now.  Otherwise, use the wait status stashed
+	 * by sigchild.
+	 */
 	cp = findchild(pid, 1);
-
-	while (!cp->done)
-		(void)sigsuspend(&oset);
-	wait_status = cp->status;
-	delchild(cp);
+	if (cp == NULL || !cp->done)
+		rv = waitpid(pid, &wait_status, 0);
+	else
+		wait_status = cp->status;
+	if (cp != NULL)
+		delchild(cp);
 	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
-	return ((WIFEXITED(wait_status) && WEXITSTATUS(wait_status)) ? -1 : 0);
+	if (rv == -1 || (WIFEXITED(wait_status) && WEXITSTATUS(wait_status)))
+		return -1;
+	else
+		return 0;
 }
 
 /*
