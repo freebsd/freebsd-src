@@ -109,7 +109,6 @@ thunder_pem_fdt_probe(device_t dev)
 	return (ENXIO);
 }
 
-#ifdef INTRNG
 static int
 thunder_pem_fdt_alloc_msi(device_t pci, device_t child, int count, int maxcount,
     int *irqs)
@@ -162,44 +161,6 @@ thunder_pem_fdt_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
 	    NULL);
 	return (intr_map_msi(pci, child, msi_parent, irq, addr, data));
 }
-#else
-static int
-thunder_pem_fdt_alloc_msi(device_t pci, device_t child, int count, int maxcount,
-    int *irqs)
-{
-
-	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
-}
-
-static int
-thunder_pem_fdt_release_msi(device_t pci, device_t child, int count, int *irqs)
-{
-
-	return (arm_release_msi(pci, child, count, irqs));
-}
-
-static int
-thunder_pem_fdt_alloc_msix(device_t pci, device_t child, int *irq)
-{
-
-	return (arm_alloc_msix(pci, child, irq));
-}
-
-static int
-thunder_pem_fdt_release_msix(device_t pci, device_t child, int irq)
-{
-
-	return (arm_release_msix(pci, child, irq));
-}
-
-static int
-thunder_pem_fdt_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
-    uint32_t *data)
-{
-
-	return (arm_map_msi(pci, child, irq, addr, data));
-}
-#endif
 
 static int
 thunder_pem_fdt_get_id(device_t dev, device_t child, enum pci_id_type type,
