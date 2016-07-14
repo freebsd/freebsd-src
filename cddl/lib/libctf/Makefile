@@ -17,7 +17,7 @@ SRCS=		ctf_create.c \
 		ctf_types.c \
 		ctf_util.c
 
-WARNS?=		0
+WARNS?=		2
 CFLAGS+=	-DCTF_OLD_VERSIONS
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
