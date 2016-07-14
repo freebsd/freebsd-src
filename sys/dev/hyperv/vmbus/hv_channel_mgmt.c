@@ -128,9 +128,9 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 
 	TAILQ_FOREACH(channel, &sc->vmbus_chlist, ch_link) {
 		if (memcmp(&channel->ch_guid_type, &new_channel->ch_guid_type,
-		    sizeof(hv_guid)) == 0 &&
+		    sizeof(struct hyperv_guid)) == 0 &&
 		    memcmp(&channel->ch_guid_inst, &new_channel->ch_guid_inst,
-		    sizeof(hv_guid)) == 0)
+		    sizeof(struct hyperv_guid)) == 0)
 			break;
 	}
 

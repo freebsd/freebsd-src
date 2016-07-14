@@ -32,7 +32,7 @@
 INTERFACE vmbus;
 
 HEADER {
-	struct hv_guid;
+	struct hyperv_guid;
 };
 
 METHOD uint32_t get_version {
@@ -43,5 +43,5 @@ METHOD uint32_t get_version {
 METHOD int probe_guid {
 	device_t bus;
 	device_t dev;
-	const struct hv_guid *guid;
+	const struct hyperv_guid *guid;
 };
