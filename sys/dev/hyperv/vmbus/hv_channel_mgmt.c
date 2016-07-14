@@ -108,105 +108,85 @@ vmbus_chan_free(struct hv_vmbus_channel *chan)
 	free(chan, M_DEVBUF);
 }
 
-/**
- * @brief Process the offer by creating a channel/device
- * associated with this offer
- */
 static int
-vmbus_chan_add(hv_vmbus_channel *new_channel)
+vmbus_chan_add(struct hv_vmbus_channel *newchan)
 {
-	struct vmbus_softc *sc = new_channel->vmbus_sc;
-	hv_vmbus_channel*	channel;
+	struct vmbus_softc *sc = newchan->vmbus_sc;
+	struct hv_vmbus_channel *prichan;
 
-	/*
-	 * Make sure this is a new offer
-	 */
-	mtx_lock(&sc->vmbus_chlist_lock);
-	if (new_channel->ch_id == 0) {
+	if (newchan->ch_id == 0) {
 		/*
 		 * XXX
 		 * Chan0 will neither be processed nor should be offered;
 		 * skip it.
 		 */
-		mtx_unlock(&sc->vmbus_chlist_lock);
-		device_printf(sc->vmbus_dev, "got chan0 offer\n");
+		device_printf(sc->vmbus_dev, "got chan0 offer, discard\n");
 		return EINVAL;
-	} else {
-		sc->vmbus_chmap[new_channel->ch_id] = new_channel;
+	} else if (newchan->ch_id >= VMBUS_CHAN_MAX) {
+		device_printf(sc->vmbus_dev, "invalid chan%u offer\n",
+		    newchan->ch_id);
+		return EINVAL;
+	}
+	sc->vmbus_chmap[newchan->ch_id] = newchan;
+
+	if (bootverbose) {
+		device_printf(sc->vmbus_dev, "chan%u subidx%u offer\n",
+		    newchan->ch_id, newchan->ch_subidx);
 	}
 
-	TAILQ_FOREACH(channel, &sc->vmbus_chlist, ch_link) {
-		if (memcmp(&channel->ch_guid_type, &new_channel->ch_guid_type,
+	mtx_lock(&sc->vmbus_chlist_lock);
+	TAILQ_FOREACH(prichan, &sc->vmbus_chlist, ch_link) {
+		if (memcmp(&prichan->ch_guid_type, &newchan->ch_guid_type,
 		    sizeof(struct hyperv_guid)) == 0 &&
-		    memcmp(&channel->ch_guid_inst, &new_channel->ch_guid_inst,
+		    memcmp(&prichan->ch_guid_inst, &newchan->ch_guid_inst,
 		    sizeof(struct hyperv_guid)) == 0)
 			break;
 	}
-
-	if (channel == NULL) {
+	if (prichan == NULL) {
 		/* Install the new primary channel */
-		TAILQ_INSERT_TAIL(&sc->vmbus_chlist, new_channel, ch_link);
+		TAILQ_INSERT_TAIL(&sc->vmbus_chlist, newchan, ch_link);
 	}
 	mtx_unlock(&sc->vmbus_chlist_lock);
 
-	if (bootverbose) {
-		char logstr[64];
-
-		logstr[0] = '\0';
-		if (channel != NULL) {
-			snprintf(logstr, sizeof(logstr), ", primary chan%u",
-			    channel->ch_id);
+	if (prichan != NULL) {
+		if (newchan->ch_subidx == 0) {
+			device_printf(sc->vmbus_dev, "duplicated primary "
+			    "chan%u\n", newchan->ch_id);
+			return EINVAL;
 		}
-		device_printf(sc->vmbus_dev, "chan%u subchanid%u offer%s\n",
-		    new_channel->ch_id,
-		    new_channel->ch_subidx, logstr);
-	}
 
-	if (channel != NULL) {
 		/*
-		 * Check if this is a sub channel.
+		 * This is a sub-channel.
 		 */
-		if (new_channel->ch_subidx != 0) {
-			/*
-			 * It is a sub channel offer, process it.
-			 */
-			new_channel->primary_channel = channel;
-			new_channel->ch_dev = channel->ch_dev;
-			mtx_lock(&channel->sc_lock);
-			TAILQ_INSERT_TAIL(&channel->sc_list_anchor,
-			    new_channel, sc_list_entry);
-			mtx_unlock(&channel->sc_lock);
+		newchan->primary_channel = prichan;
+		newchan->ch_dev = prichan->ch_dev;
+		mtx_lock(&prichan->sc_lock);
+		TAILQ_INSERT_TAIL(&prichan->sc_list_anchor, newchan,
+		    sc_list_entry);
+		mtx_unlock(&prichan->sc_lock);
 
-			/*
-			 * Insert the new channel to the end of the global
-			 * channel list.
-			 *
-			 * NOTE:
-			 * The new sub-channel MUST be inserted AFTER it's
-			 * primary channel, so that the primary channel will
-			 * be found in the above loop for its baby siblings.
-			 */
-			mtx_lock(&sc->vmbus_chlist_lock);
-			TAILQ_INSERT_TAIL(&sc->vmbus_chlist, new_channel,
-			    ch_link);
-			mtx_unlock(&sc->vmbus_chlist_lock);
+		/*
+		 * Insert the new channel to the end of the global
+		 * channel list.
+		 *
+		 * NOTE:
+		 * The new sub-channel MUST be inserted AFTER it's
+		 * primary channel, so that the primary channel will
+		 * be found in the above loop for its baby siblings.
+		 */
+		mtx_lock(&sc->vmbus_chlist_lock);
+		TAILQ_INSERT_TAIL(&sc->vmbus_chlist, newchan, ch_link);
+		mtx_unlock(&sc->vmbus_chlist_lock);
 
-			/*
-			 * Bump up sub-channel count and notify anyone that is
-			 * interested in this sub-channel, after this sub-channel
-			 * is setup.
-			 */
-			mtx_lock(&channel->sc_lock);
-			channel->subchan_cnt++;
-			mtx_unlock(&channel->sc_lock);
-			wakeup(channel);
-
-			return 0;
-		}
-
-		device_printf(sc->vmbus_dev, "duplicated primary chan%u\n",
-		    new_channel->ch_id);
-		return EINVAL;
+		/*
+		 * Bump up sub-channel count and notify anyone that is
+		 * interested in this sub-channel, after this sub-channel
+		 * is setup.
+		 */
+		mtx_lock(&prichan->sc_lock);
+		prichan->subchan_cnt++;
+		mtx_unlock(&prichan->sc_lock);
+		wakeup(prichan);
 	}
 	return 0;
 }
