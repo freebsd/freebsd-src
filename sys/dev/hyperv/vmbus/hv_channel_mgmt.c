@@ -142,52 +142,55 @@ vmbus_chan_add(struct hv_vmbus_channel *newchan)
 		    sizeof(struct hyperv_guid)) == 0)
 			break;
 	}
-	if (prichan == NULL) {
-		/* Install the new primary channel */
-		TAILQ_INSERT_TAIL(&sc->vmbus_chlist, newchan, ch_link);
-	}
-	mtx_unlock(&sc->vmbus_chlist_lock);
-
-	if (prichan != NULL) {
-		if (newchan->ch_subidx == 0) {
+	if (VMBUS_CHAN_ISPRIMARY(newchan)) {
+		if (prichan == NULL) {
+			/* Install the new primary channel */
+			TAILQ_INSERT_TAIL(&sc->vmbus_chlist, newchan, ch_link);
+			mtx_unlock(&sc->vmbus_chlist_lock);
+			return 0;
+		} else {
+			mtx_unlock(&sc->vmbus_chlist_lock);
 			device_printf(sc->vmbus_dev, "duplicated primary "
 			    "chan%u\n", newchan->ch_id);
 			return EINVAL;
 		}
-
+	} else { /* Sub-channel */
+		if (prichan == NULL) {
+			mtx_unlock(&sc->vmbus_chlist_lock);
+			device_printf(sc->vmbus_dev, "no primary chan for "
+			    "chan%u\n", newchan->ch_id);
+			return EINVAL;
+		}
 		/*
-		 * This is a sub-channel.
-		 */
-		newchan->primary_channel = prichan;
-		newchan->ch_dev = prichan->ch_dev;
-		mtx_lock(&prichan->sc_lock);
-		TAILQ_INSERT_TAIL(&prichan->sc_list_anchor, newchan,
-		    sc_list_entry);
-		mtx_unlock(&prichan->sc_lock);
-
-		/*
-		 * Insert the new channel to the end of the global
-		 * channel list.
+		 * Found the primary channel for this sub-channel and
+		 * move on.
 		 *
-		 * NOTE:
-		 * The new sub-channel MUST be inserted AFTER it's
-		 * primary channel, so that the primary channel will
-		 * be found in the above loop for its baby siblings.
+		 * XXX refcnt prichan
 		 */
-		mtx_lock(&sc->vmbus_chlist_lock);
-		TAILQ_INSERT_TAIL(&sc->vmbus_chlist, newchan, ch_link);
-		mtx_unlock(&sc->vmbus_chlist_lock);
-
-		/*
-		 * Bump up sub-channel count and notify anyone that is
-		 * interested in this sub-channel, after this sub-channel
-		 * is setup.
-		 */
-		mtx_lock(&prichan->sc_lock);
-		prichan->subchan_cnt++;
-		mtx_unlock(&prichan->sc_lock);
-		wakeup(prichan);
 	}
+	mtx_unlock(&sc->vmbus_chlist_lock);
+
+	/*
+	 * This is a sub-channel; link it with the primary channel.
+	 */
+	KASSERT(!VMBUS_CHAN_ISPRIMARY(newchan),
+	    ("new channel is not sub-channel"));
+	KASSERT(prichan != NULL, ("no primary channel"));
+
+	newchan->primary_channel = prichan;
+	newchan->ch_dev = prichan->ch_dev;
+
+	mtx_lock(&prichan->sc_lock);
+	TAILQ_INSERT_TAIL(&prichan->sc_list_anchor, newchan, sc_list_entry);
+	/*
+	 * Bump up sub-channel count and notify anyone that is
+	 * interested in this sub-channel, after this sub-channel
+	 * is setup.
+	 */
+	prichan->subchan_cnt++;
+	mtx_unlock(&prichan->sc_lock);
+	wakeup(prichan);
+
 	return 0;
 }
 
@@ -370,10 +373,6 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 			}
 		}
 remove:
-		mtx_lock(&sc->vmbus_chlist_lock);
-		TAILQ_REMOVE(&sc->vmbus_chlist, chan, ch_link);
-		mtx_unlock(&sc->vmbus_chlist_lock);
-
 		mtx_lock(&pri_chan->sc_lock);
 		TAILQ_REMOVE(&pri_chan->sc_list_anchor, chan, sc_list_entry);
 		KASSERT(pri_chan->subchan_cnt > 0,
@@ -411,12 +410,10 @@ hv_vmbus_release_unattached_channels(struct vmbus_softc *sc)
 
 	while (!TAILQ_EMPTY(&sc->vmbus_chlist)) {
 	    channel = TAILQ_FIRST(&sc->vmbus_chlist);
+	    KASSERT(VMBUS_CHAN_ISPRIMARY(channel), ("not primary channel"));
 	    TAILQ_REMOVE(&sc->vmbus_chlist, channel, ch_link);
 
-	    if (VMBUS_CHAN_ISPRIMARY(channel)) {
-		/* Only primary channel owns the device */
-		hv_vmbus_child_device_unregister(channel);
-	    }
+	    hv_vmbus_child_device_unregister(channel);
 	    vmbus_chan_free(channel);
 	}
 	bzero(sc->vmbus_chmap,
