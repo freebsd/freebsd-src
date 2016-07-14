@@ -565,7 +565,7 @@ vmbus_chan_msgproc(struct vmbus_softc *sc, const struct vmbus_message *msg)
 	uint32_t msg_type;
 
 	msg_type = ((const struct vmbus_chanmsg_hdr *)msg->msg_data)->chm_type;
-	if (msg_type >= HV_CHANNEL_MESSAGE_COUNT) {
+	if (msg_type >= VMBUS_CHANMSG_TYPE_MAX) {
 		device_printf(sc->vmbus_dev, "unknown message type 0x%x\n",
 		    msg_type);
 		return;
