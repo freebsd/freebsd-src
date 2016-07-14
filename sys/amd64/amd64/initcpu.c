@@ -94,6 +94,20 @@ init_amd(void)
 			wrmsr(MSR_NB_CFG1, msr);
 		}
 	}
+
+	/*
+	 * BIOS may configure Family 10h processors to convert WC+ cache type
+	 * to CD.  That can hurt performance of guest VMs using nested paging.
+	 * The relevant MSR bit is not documented in the BKDG,
+	 * the fix is borrowed from Linux.
+	 */
+	if (CPUID_TO_FAMILY(cpu_id) == 0x10) {
+		if ((cpu_feature2 & CPUID2_HV) == 0) {
+			msr = rdmsr(0xc001102a);
+			msr &= ~((uint64_t)1 << 24);
+			wrmsr(0xc001102a, msr);
+		}
+	}
 }
 
 /*
@@ -179,6 +193,7 @@ initializecpu(void)
 void
 initializecpucache(void)
 {
+	uint64_t msr;
 
 	/*
 	 * CPUID with %eax = 1, %ebx returns
