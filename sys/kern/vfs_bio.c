@@ -4725,8 +4725,12 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m;
 			m = bp->b_pages[i];
-			db_printf("(%p, 0x%lx, 0x%lx)", (void *)m->object,
-			    (u_long)m->pindex, (u_long)VM_PAGE_TO_PHYS(m));
+			if (m != NULL)
+				db_printf("(%p, 0x%lx, 0x%lx)", m->object,
+				    (u_long)m->pindex,
+				    (u_long)VM_PAGE_TO_PHYS(m));
+			else
+				db_printf("( ??? )");
 			if ((i + 1) < bp->b_npages)
 				db_printf(",");
 		}
