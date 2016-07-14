@@ -31,7 +31,6 @@
  */
 
 #define	PFLAGS_FULL	0x01
-#define	PFLAGS_RESUME	0x02
 
 struct dumpers {
 	int (*ident)(int efd, pid_t pid, char *binfile);
