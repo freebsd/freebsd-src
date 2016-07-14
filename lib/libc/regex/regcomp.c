@@ -51,8 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdlib.h>
 #include <regex.h>
+#include <runetype.h>
 #include <wchar.h>
 #include <wctype.h>
+
+#include "collate.h"
 
 #include "utils.h"
 #include "regex2.h"
@@ -764,6 +767,9 @@ p_b_term(struct parse *p, cset *cs)
 {
 	char c;
 	wint_t start, finish;
+	wint_t i;
+	struct xlocale_collate *table =
+		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
 
 	/* classify what we've got */
 	switch ((MORE()) ? PEEK() : '\0') {
@@ -811,8 +817,18 @@ p_b_term(struct parse *p, cset *cs)
 		if (start == finish)
 			CHadd(p, cs, start);
 		else {
-			(void)REQUIRE(start <= finish, REG_ERANGE);
-			CHaddrange(p, cs, start, finish);
+			if (table->__collate_load_error) {
+				(void)REQUIRE((uch)start <= (uch)finish, REG_ERANGE);
+				CHaddrange(p, cs, start, finish);
+			} else {
+				(void)REQUIRE(__wcollate_range_cmp(table, start, finish) <= 0, REG_ERANGE);
+				for (i = 0; i <= UCHAR_MAX; i++) {
+					if (   __wcollate_range_cmp(table, start, i) <= 0
+					    && __wcollate_range_cmp(table, i, finish) <= 0
+					   )
+						CHadd(p, cs, i);
+				}
+			}
 		}
 		break;
 	}
