@@ -87,16 +87,13 @@ main(int argc, char *argv[])
 
 	pflags = 0;
 	corefile = NULL;
-        while ((ch = getopt(argc, argv, "c:fs")) != -1) {
+        while ((ch = getopt(argc, argv, "c:f")) != -1) {
                 switch (ch) {
                 case 'c':
 			corefile = optarg;
                         break;
 		case 'f':
 			pflags |= PFLAGS_FULL;
-			break;
-		case 's':
-			pflags |= PFLAGS_RESUME;
 			break;
 		default:
 			usage();
