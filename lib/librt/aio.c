@@ -54,8 +54,8 @@ typedef void (*aio_func)(union sigval val, struct aiocb *iocb);
 
 extern int __sys_aio_read(struct aiocb *iocb);
 extern int __sys_aio_write(struct aiocb *iocb);
-extern int __sys_aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout);
-extern int __sys_aio_return(struct aiocb *iocb);
+extern ssize_t __sys_aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout);
+extern ssize_t __sys_aio_return(struct aiocb *iocb);
 extern int __sys_aio_error(struct aiocb *iocb);
 extern int __sys_aio_fsync(int op, struct aiocb *iocb);
 
@@ -136,12 +136,13 @@ __aio_write(struct aiocb *iocb)
 	return aio_io(iocb, &__sys_aio_write);
 }
 
-int
+ssize_t
 __aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout)
 {
+	ssize_t ret;
 	int err;
-	int ret = __sys_aio_waitcomplete(iocbp, timeout);
 
+	ret = __sys_aio_waitcomplete(iocbp, timeout);
 	if (*iocbp) {
 		if ((*iocbp)->aio_sigevent.sigev_notify == SIGEV_THREAD) {
 			err = errno;
@@ -155,13 +156,20 @@ __aio_waitcomplete(struct aiocb **iocbp, struct timespec *timeout)
 	return (ret);
 }
 
-int
+ssize_t
 __aio_return(struct aiocb *iocb)
 {
 
 	if (iocb->aio_sigevent.sigev_notify == SIGEV_THREAD) {
-		if (__sys_aio_error(iocb) == EINPROGRESS)
-			return (EINPROGRESS);
+		if (__sys_aio_error(iocb) == EINPROGRESS) {
+			/*
+			 * Fail with EINVAL to match the semantics of
+			 * __sys_aio_return() for an in-progress
+			 * request.
+			 */
+			errno = EINVAL;
+			return (-1);
+		}
 		__sigev_list_lock();
 		__sigev_delete(SI_ASYNCIO, (sigev_id_t)iocb);
 		__sigev_list_unlock();
