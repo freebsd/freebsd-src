@@ -548,6 +548,7 @@ readmap(pid_t pid)
 static void *
 elf_note_prpsinfo(void *arg, size_t *sizep)
 {
+	char *cp, *end;
 	pid_t pid;
 	elfcore_prpsinfo_t *psinfo;
 	struct kinfo_proc kip;
@@ -571,7 +572,20 @@ elf_note_prpsinfo(void *arg, size_t *sizep)
 	if (kip.ki_pid != pid)
 		err(1, "kern.proc.pid.%u", pid);
 	strlcpy(psinfo->pr_fname, kip.ki_comm, sizeof(psinfo->pr_fname));
-	strlcpy(psinfo->pr_psargs, psinfo->pr_fname, sizeof(psinfo->pr_psargs));
+	name[2] = KERN_PROC_ARGS;
+	len = sizeof(psinfo->pr_psargs) - 1;
+	if (sysctl(name, 4, psinfo->pr_psargs, &len, NULL, 0) == 0 && len > 0) {
+		cp = psinfo->pr_psargs;
+		end = cp + len - 1;
+		for (;;) {
+			cp = memchr(cp, '\0', end - cp);
+			if (cp == NULL)
+				break;
+			*cp = ' ';
+		}
+	} else
+		strlcpy(psinfo->pr_psargs, kip.ki_comm,
+		    sizeof(psinfo->pr_psargs));
 
 	*sizep = sizeof(*psinfo);
 	return (psinfo);
