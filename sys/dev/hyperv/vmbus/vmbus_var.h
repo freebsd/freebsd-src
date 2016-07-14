@@ -138,6 +138,7 @@ void	vmbus_handle_intr(struct trapframe *);
 void	vmbus_et_intr(struct trapframe *);
 
 void	vmbus_chan_msgproc(struct vmbus_softc *, const struct vmbus_message *);
+void	vmbus_chan_destroy_all(struct vmbus_softc *);
 
 struct vmbus_msghc *vmbus_msghc_get(struct vmbus_softc *, size_t);
 void	vmbus_msghc_put(struct vmbus_softc *, struct vmbus_msghc *);

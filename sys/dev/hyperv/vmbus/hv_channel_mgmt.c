@@ -398,27 +398,27 @@ vmbus_channel_on_offers_delivered(struct vmbus_softc *sc,
 	vmbus_scan_done(sc);
 }
 
-/**
- * @brief Release channels that are unattached/unconnected (i.e., no drivers associated)
+/*
+ * Detach all devices and destroy the corresponding primary channels.
  */
 void
-hv_vmbus_release_unattached_channels(struct vmbus_softc *sc)
+vmbus_chan_destroy_all(struct vmbus_softc *sc)
 {
-	hv_vmbus_channel *channel;
+	struct hv_vmbus_channel *chan;
 
 	mtx_lock(&sc->vmbus_chlist_lock);
+	while ((chan = TAILQ_FIRST(&sc->vmbus_chlist)) != NULL) {
+		KASSERT(VMBUS_CHAN_ISPRIMARY(chan), ("not primary channel"));
+		TAILQ_REMOVE(&sc->vmbus_chlist, chan, ch_link);
+		mtx_unlock(&sc->vmbus_chlist_lock);
 
-	while (!TAILQ_EMPTY(&sc->vmbus_chlist)) {
-	    channel = TAILQ_FIRST(&sc->vmbus_chlist);
-	    KASSERT(VMBUS_CHAN_ISPRIMARY(channel), ("not primary channel"));
-	    TAILQ_REMOVE(&sc->vmbus_chlist, channel, ch_link);
+		hv_vmbus_child_device_unregister(chan);
+		vmbus_chan_free(chan);
 
-	    hv_vmbus_child_device_unregister(channel);
-	    vmbus_chan_free(channel);
+		mtx_lock(&sc->vmbus_chlist_lock);
 	}
 	bzero(sc->vmbus_chmap,
 	    sizeof(struct hv_vmbus_channel *) * VMBUS_CHAN_MAX);
-
 	mtx_unlock(&sc->vmbus_chlist_lock);
 }
 
