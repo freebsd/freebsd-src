@@ -121,25 +121,13 @@ typedef uint8_t	hv_bool_uint8_t;
 		((HV_ALIGN_UP(addr+len, PAGE_SIZE) -			\
 		    HV_ALIGN_DOWN(addr, PAGE_SIZE)) >> PAGE_SHIFT )
 
-typedef struct hv_guid {
-	uint8_t data[16];
-} __packed hv_guid;
+struct hyperv_guid {
+	uint8_t		hv_guid[16];
+} __packed;
 
 #define HYPERV_GUID_STRLEN	40
 
-int	hyperv_guid2str(const struct hv_guid *, char *, size_t);
-
-#define HV_NIC_GUID							\
-	.data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,	\
-		0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}
-
-#define HV_IDE_GUID							\
-	.data = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,	\
-		 0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5}
-
-#define HV_SCSI_GUID							\
-	.data = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,	\
-		 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}
+int	hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
 
 /*
  * At the center of the Channel Management library is
@@ -148,8 +136,8 @@ int	hyperv_guid2str(const struct hv_guid *, char *, size_t);
  */
 
 typedef struct hv_vmbus_channel_offer {
-	hv_guid		interface_type;
-	hv_guid		interface_instance;
+	struct hyperv_guid interface_type;
+	struct hyperv_guid interface_instance;
 	uint64_t	interrupt_latency_in_100ns_units;
 	uint32_t	interface_revision;
 	uint32_t	server_context_area_size; /* in bytes */
@@ -477,8 +465,8 @@ typedef struct hv_vmbus_channel {
 	TAILQ_ENTRY(hv_vmbus_channel)	ch_link;
 	uint32_t			ch_subidx;	/* subchan index */
 
-	struct hv_guid			ch_guid_type;
-	struct hv_guid			ch_guid_inst;
+	struct hyperv_guid		ch_guid_type;
+	struct hyperv_guid		ch_guid_inst;
 
 	struct sysctl_ctx_list		ch_sysctl_ctx;
 } hv_vmbus_channel;
