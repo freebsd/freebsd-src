@@ -134,6 +134,13 @@ enum gic_v3_xdist {
 	REDIST,
 };
 
+struct gic_v3_irqsrc {
+	struct intr_irqsrc	gi_isrc;
+	uint32_t		gi_irq;
+	enum intr_polarity	gi_pol;
+	enum intr_trigger	gi_trig;
+};
+
 /* Helper routines starting with gic_v3_ */
 static int gic_v3_dist_init(struct gic_v3_softc *);
 static int gic_v3_redist_alloc(struct gic_v3_softc *);
