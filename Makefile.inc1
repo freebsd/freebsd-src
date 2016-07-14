@@ -518,6 +518,7 @@ LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
 .if ${MK_CHERI} != "no"
 # cheri world
 LIBCHERI_OBJTREE=	${OBJTREE}${.CURDIR}/worldcheri
+LIBCHERI_TESTSBASE=	${TESTSBASE}/cheri
 
 # Yes, the flags are redundant.
 LIBCHERIWMAKEENV= \
@@ -525,7 +526,6 @@ LIBCHERIWMAKEENV= \
 		COMPILER_TYPE=clang \
 		LIBCHERI=yes \
 		NO_PROFILE=yes \
-		MK_TESTS=no \
 		SYSROOT=${WORLDTMP} \
 		MAKEOBJDIRPREFIX=${LIBCHERI_OBJTREE} \
 		_LDSCRIPTROOT=${WORLDTMP} \
@@ -534,7 +534,7 @@ LIBCHERIWMAKEENV= \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/libcheri \
 		SHLIBDIR=/usr/libcheri \
-		LIBPRIVATEDIR=/usr/libcheri/private
+		TESTSBASE=${LIBCHERI_TESTSBASE}
 LIBCHERIWMAKEENV+=	MACHINE=mips MACHINE_ARCH=mips64
 LIBCHERIWMAKEFLAGS= \
 		DESTDIR=${WORLDTMP} \
@@ -641,6 +641,16 @@ _worldtmp: .PHONY
 	    -p ${WORLDTMP}/legacy/usr/lib/debug/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.libcheri.dist \
 	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
+.endif
+.if ${MK_TESTS} != "no"
+	mkdir -p ${WORLDTMP}${LIBCHERI_TESTSBASE}
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	    -p ${WORLDTMP}${LIBCHERI_TESTSBASE} >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mkdir -p ${WORLDTMP}/usr/lib/debug/${LIBCHERI_TESTSBASE}
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	    -p ${WORLDTMP}/usr/lib/debug/${LIBCHERI_TESTSBASE} >/dev/null
+.endif
 .endif
 .endif
 .if ${MK_LIB32} != "no"
@@ -835,10 +845,10 @@ buildcheri:
 .for _lib in lib/csu lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
-		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
-		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend && \
-		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ all && \
-		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
+		${LIBCHERIWMAKE} DIRPRFX=${_lib}/ obj && \
+		${LIBCHERIWMAKE} DIRPRFX=${_lib}/ depend && \
+		${LIBCHERIWMAKE} DIRPRFX=${_lib}/ all && \
+		${LIBCHERIWMAKE} DIRPRFX=${_lib}/ install
 .endfor
 
 distributecheri installcheri:
