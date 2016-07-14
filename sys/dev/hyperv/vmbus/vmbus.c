@@ -98,7 +98,12 @@ static int			vmbus_req_channels(struct vmbus_softc *sc);
 static void			vmbus_disconnect(struct vmbus_softc *);
 static int			vmbus_scan(struct vmbus_softc *);
 static void			vmbus_scan_wait(struct vmbus_softc *);
+static void			vmbus_scan_newchan(struct vmbus_softc *);
 static void			vmbus_scan_newdev(struct vmbus_softc *);
+static void			vmbus_scan_done(struct vmbus_softc *,
+				    const struct vmbus_message *);
+static void			vmbus_chanmsg_handle(struct vmbus_softc *,
+				    const struct vmbus_message *);
 
 static int			vmbus_sysctl_version(SYSCTL_HANDLER_ARGS);
 
@@ -120,6 +125,12 @@ static const uint32_t		vmbus_version[] = {
 	VMBUS_VERSION_WIN8,
 	VMBUS_VERSION_WIN7,
 	VMBUS_VERSION_WS2008
+};
+
+static const vmbus_chanmsg_proc_t
+vmbus_chanmsg_handlers[VMBUS_CHANMSG_TYPE_MAX] = {
+	VMBUS_CHANMSG_PROC(CHOFFER_DONE, vmbus_scan_done),
+	VMBUS_CHANMSG_PROC_WAKEUP(CONNECT_RESP)
 };
 
 static struct vmbus_msghc *
@@ -480,7 +491,7 @@ vmbus_req_channels(struct vmbus_softc *sc)
 	return error;
 }
 
-void
+static void
 vmbus_scan_newchan(struct vmbus_softc *sc)
 {
 	mtx_lock(&sc->vmbus_scan_lock);
@@ -489,8 +500,9 @@ vmbus_scan_newchan(struct vmbus_softc *sc)
 	mtx_unlock(&sc->vmbus_scan_lock);
 }
 
-void
-vmbus_scan_done(struct vmbus_softc *sc)
+static void
+vmbus_scan_done(struct vmbus_softc *sc,
+    const struct vmbus_message *msg __unused)
 {
 	mtx_lock(&sc->vmbus_scan_lock);
 	sc->vmbus_scan_chcnt |= VMBUS_SCAN_CHCNT_DONE;
@@ -560,6 +572,27 @@ vmbus_scan(struct vmbus_softc *sc)
 }
 
 static void
+vmbus_chanmsg_handle(struct vmbus_softc *sc, const struct vmbus_message *msg)
+{
+	vmbus_chanmsg_proc_t msg_proc;
+	uint32_t msg_type;
+
+	msg_type = ((const struct vmbus_chanmsg_hdr *)msg->msg_data)->chm_type;
+	if (msg_type >= VMBUS_CHANMSG_TYPE_MAX) {
+		device_printf(sc->vmbus_dev, "unknown message type 0x%x\n",
+		    msg_type);
+		return;
+	}
+
+	msg_proc = vmbus_chanmsg_handlers[msg_type];
+	if (msg_proc != NULL)
+		msg_proc(sc, msg);
+
+	/* Channel specific processing */
+	vmbus_chan_msgproc(sc, msg);
+}
+
+static void
 vmbus_msg_task(void *xsc, int pending __unused)
 {
 	struct vmbus_softc *sc = xsc;
@@ -572,7 +605,7 @@ vmbus_msg_task(void *xsc, int pending __unused)
 			break;
 		} else if (msg->msg_type == HYPERV_MSGTYPE_CHANNEL) {
 			/* Channel message */
-			vmbus_chan_msgproc(sc,
+			vmbus_chanmsg_handle(sc,
 			    __DEVOLATILE(const struct vmbus_message *, msg));
 		}
 

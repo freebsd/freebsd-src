@@ -37,13 +37,8 @@
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-typedef void	(*vmbus_chanmsg_proc_t)
-		(struct vmbus_softc *, const struct vmbus_message *);
-
 static void	vmbus_chan_detach_task(void *, int);
 
-static void	vmbus_channel_on_offers_delivered(struct vmbus_softc *,
-		    const struct vmbus_message *);
 static void	vmbus_chan_msgproc_choffer(struct vmbus_softc *,
 		    const struct vmbus_message *);
 static void	vmbus_chan_msgproc_chrescind(struct vmbus_softc *,
@@ -52,26 +47,15 @@ static void	vmbus_chan_msgproc_chrescind(struct vmbus_softc *,
 /*
  * Vmbus channel message processing.
  */
-
-#define VMBUS_CHANMSG_PROC(name, func)	\
-	[VMBUS_CHANMSG_TYPE_##name] = func
-#define VMBUS_CHANMSG_PROC_WAKEUP(name)	\
-	VMBUS_CHANMSG_PROC(name, vmbus_msghc_wakeup)
-
 static const vmbus_chanmsg_proc_t
-vmbus_chanmsg_process[VMBUS_CHANMSG_TYPE_MAX] = {
+vmbus_chan_msgprocs[VMBUS_CHANMSG_TYPE_MAX] = {
 	VMBUS_CHANMSG_PROC(CHOFFER,	vmbus_chan_msgproc_choffer),
 	VMBUS_CHANMSG_PROC(CHRESCIND,	vmbus_chan_msgproc_chrescind),
-	VMBUS_CHANMSG_PROC(CHOFFER_DONE,vmbus_channel_on_offers_delivered),
 
 	VMBUS_CHANMSG_PROC_WAKEUP(CHOPEN_RESP),
 	VMBUS_CHANMSG_PROC_WAKEUP(GPADL_CONNRESP),
-	VMBUS_CHANMSG_PROC_WAKEUP(GPADL_DISCONNRESP),
-	VMBUS_CHANMSG_PROC_WAKEUP(CONNECT_RESP)
+	VMBUS_CHANMSG_PROC_WAKEUP(GPADL_DISCONNRESP)
 };
-
-#undef VMBUS_CHANMSG_PROC_WAKEUP
-#undef VMBUS_CHANMSG_PROC
 
 static struct hv_vmbus_channel *
 vmbus_chan_alloc(struct vmbus_softc *sc)
@@ -390,19 +374,6 @@ remove:
 	}
 }
 
-/**
- *
- * @brief Invoked when all offers have been delivered.
- */
-static void
-vmbus_channel_on_offers_delivered(struct vmbus_softc *sc,
-    const struct vmbus_message *msg __unused)
-{
-
-	/* No more new channels for the channel request. */
-	vmbus_scan_done(sc);
-}
-
 /*
  * Detach all devices and destroy the corresponding primary channels.
  */
@@ -538,13 +509,10 @@ vmbus_chan_msgproc(struct vmbus_softc *sc, const struct vmbus_message *msg)
 	uint32_t msg_type;
 
 	msg_type = ((const struct vmbus_chanmsg_hdr *)msg->msg_data)->chm_type;
-	if (msg_type >= VMBUS_CHANMSG_TYPE_MAX) {
-		device_printf(sc->vmbus_dev, "unknown message type 0x%x\n",
-		    msg_type);
-		return;
-	}
+	KASSERT(msg_type < VMBUS_CHANMSG_TYPE_MAX,
+	    ("invalid message type %u", msg_type));
 
-	msg_proc = vmbus_chanmsg_process[msg_type];
+	msg_proc = vmbus_chan_msgprocs[msg_type];
 	if (msg_proc != NULL)
 		msg_proc(sc, msg);
 }

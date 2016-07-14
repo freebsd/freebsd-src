@@ -52,6 +52,17 @@
 #define VMBUS_CONNID_MESSAGE		1
 #define VMBUS_CONNID_EVENT		2
 
+struct vmbus_message;
+struct vmbus_softc;
+
+typedef void		(*vmbus_chanmsg_proc_t)(struct vmbus_softc *,
+			    const struct vmbus_message *);
+
+#define VMBUS_CHANMSG_PROC(name, func)	\
+	[VMBUS_CHANMSG_TYPE_##name] = func
+#define VMBUS_CHANMSG_PROC_WAKEUP(name)	\
+	VMBUS_CHANMSG_PROC(name, vmbus_msghc_wakeup)
+
 struct vmbus_pcpu_data {
 	u_long			*intr_cnt;	/* Hyper-V interrupt counter */
 	struct vmbus_message	*message;	/* shared messages */
@@ -150,9 +161,6 @@ const struct vmbus_message *vmbus_msghc_wait_result(struct vmbus_softc *,
 	    struct vmbus_msghc *);
 void	vmbus_msghc_wakeup(struct vmbus_softc *, const struct vmbus_message *);
 void	vmbus_msghc_reset(struct vmbus_msghc *, size_t);
-
-void	vmbus_scan_done(struct vmbus_softc *);
-void	vmbus_scan_newchan(struct vmbus_softc *);
 
 uint32_t vmbus_gpadl_alloc(struct vmbus_softc *);
 
