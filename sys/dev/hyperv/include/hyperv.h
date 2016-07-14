@@ -82,32 +82,6 @@ typedef uint8_t	hv_bool_uint8_t;
 #define VMBUS_VERSION_MAJOR(ver)	(((uint32_t)(ver)) >> 16)
 #define VMBUS_VERSION_MINOR(ver)	(((uint32_t)(ver)) & 0xffff)
 
-/*
- * Make maximum size of pipe payload of 16K
- */
-
-#define HV_MAX_PIPE_DATA_PAYLOAD	(sizeof(BYTE) * 16384)
-
-/*
- * Define pipe_mode values
- */
-
-#define HV_VMBUS_PIPE_TYPE_BYTE		0x00000000
-#define HV_VMBUS_PIPE_TYPE_MESSAGE	0x00000004
-
-/*
- * The size of the user defined data buffer for non-pipe offers
- */
-
-#define HV_MAX_USER_DEFINED_BYTES	120
-
-/*
- *  The size of the user defined data buffer for pipe offers
- */
-
-#define HV_MAX_PIPE_USER_DEFINED_BYTES	116
-
-
 #define HV_MAX_PAGE_BUFFER_COUNT	32
 #define HV_MAX_MULTIPAGE_BUFFER_COUNT	32
 
@@ -128,49 +102,6 @@ struct hyperv_guid {
 #define HYPERV_GUID_STRLEN	40
 
 int	hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
-
-/*
- * At the center of the Channel Management library is
- * the Channel Offer. This struct contains the
- * fundamental information about an offer.
- */
-
-typedef struct hv_vmbus_channel_offer {
-	struct hyperv_guid interface_type;
-	struct hyperv_guid interface_instance;
-	uint64_t	interrupt_latency_in_100ns_units;
-	uint32_t	interface_revision;
-	uint32_t	server_context_area_size; /* in bytes */
-	uint16_t	channel_flags;
-	uint16_t	mmio_megabytes;		  /* in bytes * 1024 * 1024 */
-	union
-	{
-        /*
-         * Non-pipes: The user has HV_MAX_USER_DEFINED_BYTES bytes.
-         */
-		struct {
-			uint8_t	user_defined[HV_MAX_USER_DEFINED_BYTES];
-		} __packed standard;
-
-        /*
-         * Pipes: The following structure is an integrated pipe protocol, which
-         *        is implemented on top of standard user-defined data. pipe
-         *        clients  have HV_MAX_PIPE_USER_DEFINED_BYTES left for their
-         *        own use.
-         */
-		struct {
-			uint32_t	pipe_mode;
-			uint8_t	user_defined[HV_MAX_PIPE_USER_DEFINED_BYTES];
-		} __packed pipe;
-	} u;
-
-	/*
-	 * Sub_channel_index, newly added in Win8.
-	 */
-	uint16_t	sub_channel_index;
-	uint16_t	padding;
-
-} __packed hv_vmbus_channel_offer;
 
 typedef struct {
 	uint16_t type;
@@ -212,64 +143,6 @@ typedef enum {
 } hv_vmbus_packet_type;
 
 #define HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED    1
-
-/*
- * Version 1 messages
- */
-typedef enum {
-	HV_CHANNEL_MESSAGE_INVALID			= 0,
-	HV_CHANNEL_MESSAGE_OFFER_CHANNEL		= 1,
-	HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER	= 2,
-	HV_CHANNEL_MESSAGE_REQUEST_OFFERS		= 3,
-	HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED		= 4,
-	HV_CHANNEL_MESSAGE_OPEN_CHANNEL			= 5,
-	HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT		= 6,
-	HV_CHANNEL_MESSAGE_CLOSE_CHANNEL		= 7,
-	HV_CHANNEL_MESSAGEL_GPADL_HEADER		= 8,
-	HV_CHANNEL_MESSAGE_GPADL_BODY			= 9,
-	HV_CHANNEL_MESSAGE_GPADL_CREATED		= 10,
-	HV_CHANNEL_MESSAGE_GPADL_TEARDOWN		= 11,
-	HV_CHANNEL_MESSAGE_GPADL_TORNDOWN		= 12,
-	HV_CHANNEL_MESSAGE_REL_ID_RELEASED		= 13,
-	HV_CHANNEL_MESSAGE_INITIATED_CONTACT		= 14,
-	HV_CHANNEL_MESSAGE_VERSION_RESPONSE		= 15,
-	HV_CHANNEL_MESSAGE_UNLOAD			= 16,
-	HV_CHANNEL_MESSAGE_COUNT
-} hv_vmbus_channel_msg_type;
-
-typedef struct {
-	hv_vmbus_channel_msg_type	message_type;
-	uint32_t			padding;
-} __packed hv_vmbus_channel_msg_header;
-
-/*
- * Channel Offer parameters
- */
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	hv_vmbus_channel_offer		offer;
-	uint32_t			child_rel_id;
-	uint8_t				monitor_id;
-	/*
-	 * This field has been split into a bit field on Win7
-	 * and higher.
-	 */
-	uint8_t				monitor_allocated:1;
-	uint8_t				reserved:7;
-	/*
-	 * Following fields were added in win7 and higher.
-	 * Make sure to check the version before accessing these fields.
-	 *
-	 * If "is_dedicated_interrupt" is set, we must not set the
-	 * associated bit in the channel bitmap while sending the
-	 * interrupt to the host.
-	 *
-	 * connection_id is used in signaling the host.
-	 */
-	uint16_t			is_dedicated_interrupt:1;
-	uint16_t			reserved1:15;
-	uint32_t			connection_id;
-} __packed hv_vmbus_channel_offer_channel;
 
 #define HW_MACADDR_LEN	6
 
