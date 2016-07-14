@@ -1239,7 +1239,7 @@ vmbus_detach(device_t dev)
 {
 	struct vmbus_softc *sc = device_get_softc(dev);
 
-	hv_vmbus_release_unattached_channels(sc);
+	vmbus_chan_destroy_all(sc);
 
 	vmbus_disconnect(sc);
 
