@@ -542,35 +542,40 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	    M_DEVBUF);
 }
 
-/**
- * @brief Close the specified channel
+/*
+ * Caller should make sure that all sub-channels have
+ * been added to 'chan' and all to-be-closed channels
+ * are not being opened.
  */
 void
-hv_vmbus_channel_close(hv_vmbus_channel *channel)
+hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
 {
-	hv_vmbus_channel*	sub_channel;
+	int subchan_cnt;
 
-	if (channel->primary_channel != NULL) {
+	if (!VMBUS_CHAN_ISPRIMARY(chan)) {
 		/*
-		 * We only close multi-channels when the primary is
-		 * closed.
+		 * Sub-channel is closed when its primary channel
+		 * is closed; done.
 		 */
 		return;
 	}
 
 	/*
-	 * Close all multi-channels first.
+	 * Close all sub-channels, if any.
 	 */
-	TAILQ_FOREACH(sub_channel, &channel->sc_list_anchor,
-	    sc_list_entry) {
-		if ((sub_channel->ch_stflags & VMBUS_CHAN_ST_OPENED) == 0)
-			continue;
-		hv_vmbus_channel_close_internal(sub_channel);
+	subchan_cnt = chan->subchan_cnt;
+	if (subchan_cnt > 0) {
+		struct hv_vmbus_channel **subchan;
+		int i;
+
+		subchan = vmbus_get_subchan(chan, subchan_cnt);
+		for (i = 0; i < subchan_cnt; ++i)
+			hv_vmbus_channel_close_internal(subchan[i]);
+		vmbus_rel_subchan(subchan, subchan_cnt);
 	}
-	/*
-	 * Then close the primary channel.
-	 */
-	hv_vmbus_channel_close_internal(channel);
+
+	/* Then close the primary channel. */
+	hv_vmbus_channel_close_internal(chan);
 }
 
 /**
