@@ -40,7 +40,6 @@
 typedef void	(*vmbus_chanmsg_proc_t)
 		(struct vmbus_softc *, const struct vmbus_message *);
 
-static struct hv_vmbus_channel *hv_vmbus_allocate_channel(struct vmbus_softc *);
 static void	vmbus_channel_on_offer_internal(struct vmbus_softc *,
 		    const struct vmbus_chanmsg_choffer *);
 static void	vmbus_chan_detach_task(void *, int);
@@ -76,32 +75,39 @@ vmbus_chanmsg_process[VMBUS_CHANMSG_TYPE_MAX] = {
 #undef VMBUS_CHANMSG_PROC_WAKEUP
 #undef VMBUS_CHANMSG_PROC
 
-/**
- * @brief Allocate and initialize a vmbus channel object
- */
 static struct hv_vmbus_channel *
-hv_vmbus_allocate_channel(struct vmbus_softc *sc)
+vmbus_chan_alloc(struct vmbus_softc *sc)
 {
-	struct hv_vmbus_channel *channel;
+	struct hv_vmbus_channel *chan;
 
-	channel = malloc(sizeof(*channel), M_DEVBUF, M_WAITOK | M_ZERO);
-	channel->vmbus_sc = sc;
+	chan = malloc(sizeof(*chan), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	mtx_init(&channel->sc_lock, "vmbus multi channel", NULL, MTX_DEF);
-	TAILQ_INIT(&channel->sc_list_anchor);
-	TASK_INIT(&channel->ch_detach_task, 0, vmbus_chan_detach_task, channel);
+	chan->ch_monprm = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
+	    HYPERCALL_PARAM_ALIGN, 0, sizeof(struct hyperv_mon_param),
+	    &chan->ch_monprm_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (chan->ch_monprm == NULL) {
+		device_printf(sc->vmbus_dev, "monprm alloc failed\n");
+		free(chan, M_DEVBUF);
+		return NULL;
+	}
 
-	return (channel);
+	chan->vmbus_sc = sc;
+	mtx_init(&chan->sc_lock, "vmbus multi channel", NULL, MTX_DEF);
+	TAILQ_INIT(&chan->sc_list_anchor);
+	TASK_INIT(&chan->ch_detach_task, 0, vmbus_chan_detach_task, chan);
+
+	return chan;
 }
 
-/**
- * @brief Release the resources used by the vmbus channel object
- */
-void
-hv_vmbus_free_vmbus_channel(hv_vmbus_channel* channel)
+static void
+vmbus_chan_free(struct hv_vmbus_channel *chan)
 {
-	mtx_destroy(&channel->sc_lock);
-	free(channel, M_DEVBUF);
+	/* TODO: assert sub-channel list is empty */
+	/* TODO: asset no longer on the primary channel's sub-channel list */
+	/* TODO: asset no longer on the vmbus channel list */
+	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
+	mtx_destroy(&chan->sc_lock);
+	free(chan, M_DEVBUF);
 }
 
 /**
@@ -200,7 +206,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 
 		printf("VMBUS: duplicated primary channel%u\n",
 		    new_channel->ch_id);
-		hv_vmbus_free_vmbus_channel(new_channel);
+		vmbus_chan_free(new_channel);
 		return;
 	}
 
@@ -284,7 +290,13 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	/*
 	 * Allocate the channel object and save this offer
 	 */
-	new_channel = hv_vmbus_allocate_channel(sc);
+	new_channel = vmbus_chan_alloc(sc);
+	if (new_channel == NULL) {
+		device_printf(sc->vmbus_dev, "allocate chan%u failed\n",
+		    offer->chm_chanid);
+		return;
+	}
+
 	new_channel->ch_id = offer->chm_chanid;
 	new_channel->ch_subidx = offer->chm_subidx;
 	new_channel->ch_guid_type = offer->chm_chtype;
@@ -295,17 +307,6 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	if (offer->chm_flags1 & VMBUS_CHOFFER_FLAG1_HASMNF)
 		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
 
-	new_channel->ch_monprm = hyperv_dmamem_alloc(
-	    bus_get_dma_tag(sc->vmbus_dev),
-	    HYPERCALL_PARAM_ALIGN, 0, sizeof(struct hyperv_mon_param),
-	    &new_channel->ch_monprm_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
-	if (new_channel->ch_monprm == NULL) {
-		device_printf(sc->vmbus_dev, "monprm alloc failed\n");
-		/* XXX */
-		mtx_destroy(&new_channel->sc_lock);
-		free(new_channel, M_DEVBUF);
-		return;
-	}
 	new_channel->ch_monprm->mp_connid = VMBUS_CONNID_EVENT;
 	if (sc->vmbus_version != VMBUS_VERSION_WS2008)
 		new_channel->ch_monprm->mp_connid = offer->chm_connid;
@@ -410,7 +411,7 @@ remove:
 		mtx_unlock(&pri_chan->sc_lock);
 		wakeup(pri_chan);
 
-		hv_vmbus_free_vmbus_channel(chan);
+		vmbus_chan_free(chan);
 	}
 }
 
@@ -445,7 +446,7 @@ hv_vmbus_release_unattached_channels(struct vmbus_softc *sc)
 		/* Only primary channel owns the device */
 		hv_vmbus_child_device_unregister(channel);
 	    }
-	    hv_vmbus_free_vmbus_channel(channel);
+	    vmbus_chan_free(channel);
 	}
 	bzero(sc->vmbus_chmap,
 	    sizeof(struct hv_vmbus_channel *) * VMBUS_CHAN_MAX);
