@@ -192,13 +192,6 @@ typedef struct {
 	uint64_t transaction_id;
 } __packed hv_vm_packet_descriptor;
 
-typedef uint32_t hv_previous_packet_offset;
-
-typedef struct {
-	hv_previous_packet_offset	previous_packet_start_offset;
-	hv_vm_packet_descriptor		descriptor;
-} __packed hv_vm_packet_header;
-
 typedef struct {
 	uint32_t byte_count;
 	uint32_t byte_offset;
@@ -212,91 +205,6 @@ typedef struct {
 	uint32_t		range_count;
 	hv_vm_transfer_page	ranges[1];
 } __packed hv_vm_transfer_page_packet_header;
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		gpadl;
-	uint32_t		reserved;
-} __packed hv_vm_gpadl_packet_header;
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		gpadl;
-	uint16_t		transfer_page_set_id;
-	uint16_t		reserved;
-} __packed hv_vm_add_remove_transfer_page_set;
-
-/*
- * This structure defines a range in guest
- * physical space that can be made
- * to look virtually contiguous.
- */
-
-typedef struct {
-	uint32_t byte_count;
-	uint32_t byte_offset;
-	uint64_t pfn_array[0];
-} __packed hv_gpa_range;
-
-/*
- * This is the format for an Establish Gpadl packet, which contains a handle
- * by which this GPADL will be known and a set of GPA ranges associated with
- * it.  This can be converted to a MDL by the guest OS.  If there are multiple
- * GPA ranges, then the resulting MDL will be "chained," representing multiple
- * VA ranges.
- */
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		gpadl;
-	uint32_t		range_count;
-	hv_gpa_range		range[1];
-} __packed hv_vm_establish_gpadl;
-
-/*
- * This is the format for a Teardown Gpadl packet, which indicates that the
- * GPADL handle in the Establish Gpadl packet will never be referenced again.
- */
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		gpadl;
-				/* for alignment to a 8-byte boundary */
-	uint32_t		reserved;
-} __packed hv_vm_teardown_gpadl;
-
-/*
- * This is the format for a GPA-Direct packet, which contains a set of GPA
- * ranges, in addition to commands and/or data.
- */
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		reserved;
-	uint32_t		range_count;
-	hv_gpa_range		range[1];
-} __packed hv_vm_data_gpa_direct;
-
-/*
- * This is the format for a Additional data Packet.
- */
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint64_t		total_bytes;
-	uint32_t		byte_offset;
-	uint32_t		byte_count;
-	uint8_t			data[1];
-} __packed hv_vm_additional_data;
-
-typedef union {
-	hv_vm_packet_descriptor             simple_header;
-	hv_vm_transfer_page_packet_header   transfer_page_header;
-	hv_vm_gpadl_packet_header           gpadl_header;
-	hv_vm_add_remove_transfer_page_set  add_remove_transfer_page_header;
-	hv_vm_establish_gpadl               establish_gpadl_header;
-	hv_vm_teardown_gpadl                teardown_gpadl_header;
-	hv_vm_data_gpa_direct               data_gpa_direct_header;
-} __packed hv_vm_packet_largest_possible_header;
 
 typedef enum {
 	HV_VMBUS_PACKET_TYPE_INVALID				= 0x0,
@@ -347,14 +255,6 @@ typedef struct {
 } __packed hv_vmbus_channel_msg_header;
 
 /*
- * Query VMBus Version parameters
- */
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			version;
-} __packed hv_vmbus_channel_query_vmbus_version;
-
-/*
  * Channel Offer parameters
  */
 typedef struct {
@@ -382,20 +282,6 @@ typedef struct {
 	uint16_t			reserved1:15;
 	uint32_t			connection_id;
 } __packed hv_vmbus_channel_offer_channel;
-
-/*
- * Rescind Offer parameters
- */
-typedef struct
-{
-    hv_vmbus_channel_msg_header	header;
-    uint32_t			child_rel_id;
-} __packed hv_vmbus_channel_rescind_offer;
-
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			child_rel_id;
-} __packed hv_vmbus_channel_relid_released;
 
 #define HW_MACADDR_LEN	6
 
@@ -504,18 +390,6 @@ typedef enum {
 	HV_CHANNEL_OPENED_STATE,
 	HV_CHANNEL_CLOSING_NONDESTRUCTIVE_STATE,
 } hv_vmbus_channel_state;
-
-/*
- *  Connection identifier type
- */
-typedef union {
-	uint32_t		as_uint32_t;
-	struct {
-		uint32_t	id:24;
-		uint32_t	reserved:8;
-	} u;
-
-} __packed hv_vmbus_connection_id;
 
 typedef struct hv_vmbus_channel {
 	device_t			ch_dev;
