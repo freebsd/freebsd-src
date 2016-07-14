@@ -336,7 +336,7 @@ typedef struct hv_vmbus_channel {
 	struct sysctl_ctx_list		ch_sysctl_ctx;
 } hv_vmbus_channel;
 
-#define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)
+#define VMBUS_CHAN_ISPRIMARY(chan)	((chan)->ch_subidx == 0)
 
 #define VMBUS_CHAN_FLAG_HASMNF		0x0001
 /*
