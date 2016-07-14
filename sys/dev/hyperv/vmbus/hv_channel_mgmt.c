@@ -134,8 +134,8 @@ vmbus_chan_add(struct hv_vmbus_channel *newchan)
 		    newchan->ch_id, newchan->ch_subidx);
 	}
 
-	mtx_lock(&sc->vmbus_chlist_lock);
-	TAILQ_FOREACH(prichan, &sc->vmbus_chlist, ch_link) {
+	mtx_lock(&sc->vmbus_prichan_lock);
+	TAILQ_FOREACH(prichan, &sc->vmbus_prichans, ch_prilink) {
 		if (memcmp(&prichan->ch_guid_type, &newchan->ch_guid_type,
 		    sizeof(struct hyperv_guid)) == 0 &&
 		    memcmp(&prichan->ch_guid_inst, &newchan->ch_guid_inst,
@@ -145,18 +145,19 @@ vmbus_chan_add(struct hv_vmbus_channel *newchan)
 	if (VMBUS_CHAN_ISPRIMARY(newchan)) {
 		if (prichan == NULL) {
 			/* Install the new primary channel */
-			TAILQ_INSERT_TAIL(&sc->vmbus_chlist, newchan, ch_link);
-			mtx_unlock(&sc->vmbus_chlist_lock);
+			TAILQ_INSERT_TAIL(&sc->vmbus_prichans, newchan,
+			    ch_prilink);
+			mtx_unlock(&sc->vmbus_prichan_lock);
 			return 0;
 		} else {
-			mtx_unlock(&sc->vmbus_chlist_lock);
+			mtx_unlock(&sc->vmbus_prichan_lock);
 			device_printf(sc->vmbus_dev, "duplicated primary "
 			    "chan%u\n", newchan->ch_id);
 			return EINVAL;
 		}
 	} else { /* Sub-channel */
 		if (prichan == NULL) {
-			mtx_unlock(&sc->vmbus_chlist_lock);
+			mtx_unlock(&sc->vmbus_prichan_lock);
 			device_printf(sc->vmbus_dev, "no primary chan for "
 			    "chan%u\n", newchan->ch_id);
 			return EINVAL;
@@ -168,7 +169,7 @@ vmbus_chan_add(struct hv_vmbus_channel *newchan)
 		 * XXX refcnt prichan
 		 */
 	}
-	mtx_unlock(&sc->vmbus_chlist_lock);
+	mtx_unlock(&sc->vmbus_prichan_lock);
 
 	/*
 	 * This is a sub-channel; link it with the primary channel.
@@ -406,20 +407,20 @@ vmbus_chan_destroy_all(struct vmbus_softc *sc)
 {
 	struct hv_vmbus_channel *chan;
 
-	mtx_lock(&sc->vmbus_chlist_lock);
-	while ((chan = TAILQ_FIRST(&sc->vmbus_chlist)) != NULL) {
+	mtx_lock(&sc->vmbus_prichan_lock);
+	while ((chan = TAILQ_FIRST(&sc->vmbus_prichans)) != NULL) {
 		KASSERT(VMBUS_CHAN_ISPRIMARY(chan), ("not primary channel"));
-		TAILQ_REMOVE(&sc->vmbus_chlist, chan, ch_link);
-		mtx_unlock(&sc->vmbus_chlist_lock);
+		TAILQ_REMOVE(&sc->vmbus_prichans, chan, ch_prilink);
+		mtx_unlock(&sc->vmbus_prichan_lock);
 
 		hv_vmbus_child_device_unregister(chan);
 		vmbus_chan_free(chan);
 
-		mtx_lock(&sc->vmbus_chlist_lock);
+		mtx_lock(&sc->vmbus_prichan_lock);
 	}
 	bzero(sc->vmbus_chmap,
 	    sizeof(struct hv_vmbus_channel *) * VMBUS_CHAN_MAX);
-	mtx_unlock(&sc->vmbus_chlist_lock);
+	mtx_unlock(&sc->vmbus_prichan_lock);
 }
 
 /**
