@@ -114,8 +114,8 @@ vmbus_chan_free(struct hv_vmbus_channel *chan)
  * @brief Process the offer by creating a channel/device
  * associated with this offer
  */
-static void
-vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
+static int
+vmbus_chan_add(hv_vmbus_channel *new_channel)
 {
 	struct vmbus_softc *sc = new_channel->vmbus_sc;
 	hv_vmbus_channel*	channel;
@@ -126,9 +126,13 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	mtx_lock(&sc->vmbus_chlist_lock);
 	if (new_channel->ch_id == 0) {
 		/*
-		 * XXX channel0 will not be processed; skip it.
+		 * XXX
+		 * Chan0 will neither be processed nor should be offered;
+		 * skip it.
 		 */
-		printf("VMBUS: got channel0 offer\n");
+		mtx_unlock(&sc->vmbus_chlist_lock);
+		device_printf(sc->vmbus_dev, "got chan0 offer\n");
+		return EINVAL;
 	} else {
 		sc->vmbus_chmap[new_channel->ch_id] = new_channel;
 	}
@@ -201,27 +205,16 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			mtx_unlock(&channel->sc_lock);
 			wakeup(channel);
 
-			return;
+			return 0;
 		}
 
-		printf("VMBUS: duplicated primary channel%u\n",
+		device_printf(sc->vmbus_dev, "duplicated primary chan%u\n",
 		    new_channel->ch_id);
-		vmbus_chan_free(new_channel);
-		return;
+		return EINVAL;
 	}
 
 	new_channel->state = HV_CHANNEL_OPEN_STATE;
-
-	/*
-	 * Add the new device to the bus. This will kick off device-driver
-	 * binding which eventually invokes the device driver's AddDevice()
-	 * method.
-	 *
-	 * NOTE:
-	 * Error is ignored here; don't have much to do if error really
-	 * happens.
-	 */
-	hv_vmbus_child_device_register(new_channel);
+	return 0;
 }
 
 void
@@ -286,6 +279,7 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
     const struct vmbus_chanmsg_choffer *offer)
 {
 	hv_vmbus_channel* new_channel;
+	int error;
 
 	/*
 	 * Allocate the channel object and save this offer
@@ -323,7 +317,24 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	/* Select default cpu for this channel. */
 	vmbus_channel_select_defcpu(new_channel);
 
-	vmbus_channel_process_offer(new_channel);
+	error = vmbus_chan_add(new_channel);
+	if (error) {
+		device_printf(sc->vmbus_dev, "add chan%u failed: %d\n",
+		    new_channel->ch_id, error);
+		vmbus_chan_free(new_channel);
+		return;
+	}
+
+	if (HV_VMBUS_CHAN_ISPRIMARY(new_channel)) {
+		/*
+		 * Add device for this primary channel.
+		 *
+		 * NOTE:
+		 * Error is ignored here; don't have much to do if error
+		 * really happens.
+		 */
+		hv_vmbus_child_device_register(new_channel);
+	}
 }
 
 /*
