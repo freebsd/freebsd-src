@@ -90,8 +90,8 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 	}
 
 	chan->vmbus_sc = sc;
-	mtx_init(&chan->sc_lock, "vmbus multi channel", NULL, MTX_DEF);
-	TAILQ_INIT(&chan->sc_list_anchor);
+	mtx_init(&chan->ch_subchan_lock, "vmbus subchan", NULL, MTX_DEF);
+	TAILQ_INIT(&chan->ch_subchans);
 	TASK_INIT(&chan->ch_detach_task, 0, vmbus_chan_detach_task, chan);
 
 	return chan;
@@ -104,7 +104,7 @@ vmbus_chan_free(struct hv_vmbus_channel *chan)
 	/* TODO: asset no longer on the primary channel's sub-channel list */
 	/* TODO: asset no longer on the vmbus channel list */
 	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
-	mtx_destroy(&chan->sc_lock);
+	mtx_destroy(&chan->ch_subchan_lock);
 	free(chan, M_DEVBUF);
 }
 
@@ -136,6 +136,10 @@ vmbus_chan_add(struct hv_vmbus_channel *newchan)
 
 	mtx_lock(&sc->vmbus_prichan_lock);
 	TAILQ_FOREACH(prichan, &sc->vmbus_prichans, ch_prilink) {
+		/*
+		 * Sub-channel will have the same type GUID and instance
+		 * GUID as its primary channel.
+		 */
 		if (memcmp(&prichan->ch_guid_type, &newchan->ch_guid_type,
 		    sizeof(struct hyperv_guid)) == 0 &&
 		    memcmp(&prichan->ch_guid_inst, &newchan->ch_guid_inst,
@@ -178,18 +182,18 @@ vmbus_chan_add(struct hv_vmbus_channel *newchan)
 	    ("new channel is not sub-channel"));
 	KASSERT(prichan != NULL, ("no primary channel"));
 
-	newchan->primary_channel = prichan;
+	newchan->ch_prichan = prichan;
 	newchan->ch_dev = prichan->ch_dev;
 
-	mtx_lock(&prichan->sc_lock);
-	TAILQ_INSERT_TAIL(&prichan->sc_list_anchor, newchan, sc_list_entry);
+	mtx_lock(&prichan->ch_subchan_lock);
+	TAILQ_INSERT_TAIL(&prichan->ch_subchans, newchan, ch_sublink);
 	/*
 	 * Bump up sub-channel count and notify anyone that is
 	 * interested in this sub-channel, after this sub-channel
 	 * is setup.
 	 */
-	prichan->subchan_cnt++;
-	mtx_unlock(&prichan->sc_lock);
+	prichan->ch_subchan_cnt++;
+	mtx_unlock(&prichan->ch_subchan_lock);
 	wakeup(prichan);
 
 	return 0;
@@ -342,7 +346,7 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 		/* NOTE: DO NOT free primary channel for now */
 	} else {
 		struct vmbus_softc *sc = chan->vmbus_sc;
-		struct hv_vmbus_channel *pri_chan = chan->primary_channel;
+		struct hv_vmbus_channel *pri_chan = chan->ch_prichan;
 		struct vmbus_chanmsg_chfree *req;
 		struct vmbus_msghc *mh;
 		int error;
@@ -374,12 +378,12 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 			}
 		}
 remove:
-		mtx_lock(&pri_chan->sc_lock);
-		TAILQ_REMOVE(&pri_chan->sc_list_anchor, chan, sc_list_entry);
-		KASSERT(pri_chan->subchan_cnt > 0,
-		    ("invalid subchan_cnt %d", pri_chan->subchan_cnt));
-		pri_chan->subchan_cnt--;
-		mtx_unlock(&pri_chan->sc_lock);
+		mtx_lock(&pri_chan->ch_subchan_lock);
+		TAILQ_REMOVE(&pri_chan->ch_subchans, chan, ch_sublink);
+		KASSERT(pri_chan->ch_subchan_cnt > 0,
+		    ("invalid subchan_cnt %d", pri_chan->ch_subchan_cnt));
+		pri_chan->ch_subchan_cnt--;
+		mtx_unlock(&pri_chan->ch_subchan_lock);
 		wakeup(pri_chan);
 
 		vmbus_chan_free(chan);
@@ -442,7 +446,7 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 	int cur_vcpu = 0;
 	int smp_pro_id = PCPU_GET(cpuid);
 
-	if (TAILQ_EMPTY(&primary->sc_list_anchor)) {
+	if (TAILQ_EMPTY(&primary->ch_subchans)) {
 		return outgoing_channel;
 	}
 
@@ -452,7 +456,8 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 
 	cur_vcpu = VMBUS_PCPU_GET(primary->vmbus_sc, vcpuid, smp_pro_id);
 	
-	TAILQ_FOREACH(new_channel, &primary->sc_list_anchor, sc_list_entry) {
+	/* XXX need lock */
+	TAILQ_FOREACH(new_channel, &primary->ch_subchans, ch_sublink) {
 		if ((new_channel->ch_stflags & VMBUS_CHAN_ST_OPENED) == 0) {
 			continue;
 		}
@@ -488,13 +493,13 @@ vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
 	ret = malloc(subchan_cnt * sizeof(struct hv_vmbus_channel *), M_TEMP,
 	    M_WAITOK);
 
-	mtx_lock(&pri_chan->sc_lock);
+	mtx_lock(&pri_chan->ch_subchan_lock);
 
-	while (pri_chan->subchan_cnt < subchan_cnt)
-		mtx_sleep(pri_chan, &pri_chan->sc_lock, 0, "subch", 0);
+	while (pri_chan->ch_subchan_cnt < subchan_cnt)
+		mtx_sleep(pri_chan, &pri_chan->ch_subchan_lock, 0, "subch", 0);
 
 	i = 0;
-	TAILQ_FOREACH(chan, &pri_chan->sc_list_anchor, sc_list_entry) {
+	TAILQ_FOREACH(chan, &pri_chan->ch_subchans, ch_sublink) {
 		/* TODO: refcnt chan */
 		ret[i] = chan;
 
@@ -503,9 +508,9 @@ vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
 			break;
 	}
 	KASSERT(i == subchan_cnt, ("invalid subchan count %d, should be %d",
-	    pri_chan->subchan_cnt, subchan_cnt));
+	    pri_chan->ch_subchan_cnt, subchan_cnt));
 
-	mtx_unlock(&pri_chan->sc_lock);
+	mtx_unlock(&pri_chan->ch_subchan_lock);
 
 	return ret;
 }
@@ -520,10 +525,10 @@ vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
 void
 vmbus_drain_subchan(struct hv_vmbus_channel *pri_chan)
 {
-	mtx_lock(&pri_chan->sc_lock);
-	while (pri_chan->subchan_cnt > 0)
-		mtx_sleep(pri_chan, &pri_chan->sc_lock, 0, "dsubch", 0);
-	mtx_unlock(&pri_chan->sc_lock);
+	mtx_lock(&pri_chan->ch_subchan_lock);
+	while (pri_chan->ch_subchan_cnt > 0)
+		mtx_sleep(pri_chan, &pri_chan->ch_subchan_lock, 0, "dsubch", 0);
+	mtx_unlock(&pri_chan->ch_subchan_lock);
 }
 
 void
