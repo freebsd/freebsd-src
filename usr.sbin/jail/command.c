@@ -92,9 +92,13 @@ next_command(struct cfjail *j)
 	int create_failed, stopping;
 
 	if (paralimit == 0) {
-		requeue(j, &runnable);
+		if (j->flags & JF_FROM_RUNQ)
+			requeue_head(j, &runnable);
+		else
+			requeue(j, &runnable);
 		return 1;
 	}
+	j->flags &= ~JF_FROM_RUNQ;
 	create_failed = (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
 	stopping = (j->flags & JF_STOP) != 0;
 	comparam = *j->comparam;
@@ -160,20 +164,23 @@ next_command(struct cfjail *j)
 int
 finish_command(struct cfjail *j)
 {
+	struct cfjail *rj;
 	int error;
 
 	if (!(j->flags & JF_SLEEPQ))
 		return 0;
 	j->flags &= ~JF_SLEEPQ;
-	if (*j->comparam == IP_STOP_TIMEOUT)
-	{
+	if (*j->comparam == IP_STOP_TIMEOUT) {
 		j->flags &= ~JF_TIMEOUT;
 		j->pstatus = 0;
 		return 0;
 	}
 	paralimit++;
-	if (!TAILQ_EMPTY(&runnable))
-		requeue(TAILQ_FIRST(&runnable), &ready);
+	if (!TAILQ_EMPTY(&runnable)) {
+		rj = TAILQ_FIRST(&runnable);
+		rj->flags |= JF_FROM_RUNQ;
+		requeue(rj, &ready);
+	}
 	error = 0;
 	if (j->flags & JF_TIMEOUT) {
 		j->flags &= ~JF_TIMEOUT;
@@ -259,7 +266,7 @@ next_proc(int nonblock)
 }
 
 /*
- * Run a single command for a jail, possible inside the jail.
+ * Run a single command for a jail, possibly inside the jail.
  */
 static int
 run_command(struct cfjail *j)
