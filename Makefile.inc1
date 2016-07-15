@@ -1261,8 +1261,6 @@ BUILDKERNELS+=	${_kernel}
 .if empty(INSTALLKERNEL) && !defined(NO_INSTALLKERNEL)
 INSTALLKERNEL= ${_kernel}
 .endif
-.else
-.error Missing KERNCONF ${KERNCONFDIR}/${_kernel}
 .endif
 .endfor
 
