@@ -529,7 +529,7 @@ retry:
 					    "{:state/CLOSED}", " ");
 				} else {
 					xo_emit("{P:/%-45.45s} "
-					    "{:state:LISTEN}", " ");
+					    "{:state/LISTEN}", " ");
 				}
 			} else {
 				if (process_closed) {
