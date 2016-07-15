@@ -44,20 +44,6 @@ struct vmbus_softc;
 /*
  * The format must be the same as hv_vm_data_gpa_direct
  */
-typedef struct hv_vmbus_channel_packet_page_buffer {
-	uint16_t		type;
-	uint16_t		data_offset8;
-	uint16_t		length8;
-	uint16_t		flags;
-	uint64_t		transaction_id;
-	uint32_t		reserved;
-	uint32_t		range_count;
-	hv_vmbus_page_buffer	range[HV_MAX_PAGE_BUFFER_COUNT];
-} __packed hv_vmbus_channel_packet_page_buffer;
-
-/*
- * The format must be the same as hv_vm_data_gpa_direct
- */
 typedef struct hv_vmbus_channel_packet_multipage_buffer {
 	uint16_t 			type;
 	uint16_t 			data_offset8;
