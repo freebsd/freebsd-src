@@ -117,6 +117,25 @@ struct vmbus_gpa_range {
 } __packed;
 
 /*
+ * Channel packets
+ */
+
+#define VMBUS_CHANPKT_SIZE_SHIFT	3
+#define VMBUS_CHANPKT_SIZE_ALIGN	(1 << VMBUS_CHANPKT_SIZE_SHIFT)
+
+struct vmbus_chanpkt_hdr {
+	uint16_t	cph_type;
+	uint16_t	cph_data_ofs;	/* in 8 bytes */
+	uint16_t	cph_len;	/* in 8 bytes */
+	uint16_t	cph_flags;
+	uint64_t	cph_xactid;
+} __packed;
+
+struct vmbus_chanpkt {
+	struct vmbus_chanpkt_hdr cp_hdr;
+} __packed;
+
+/*
  * Channel messages
  * - Embedded in vmbus_message.msg_data, e.g. response and notification.
  * - Embedded in hypercall_postmsg_in.hc_data, e.g. request.
