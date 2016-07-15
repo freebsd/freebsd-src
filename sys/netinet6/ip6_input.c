@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/rmlock.h>
 #include <sys/syslog.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -145,6 +146,24 @@ static struct netisr_handler ip6_nh = {
 #endif
 };
 
+static int
+sysctl_netinet6_intr_queue_maxlen(SYSCTL_HANDLER_ARGS)
+{
+	int error, qlimit;
+
+	netisr_getqlimit(&ip6_nh, &qlimit);
+	error = sysctl_handle_int(oidp, &qlimit, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (qlimit < 1)
+		return (EINVAL);
+	return (netisr_setqlimit(&ip6_nh, qlimit));
+}
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_INTRQMAXLEN, intr_queue_maxlen,
+    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_netinet6_intr_queue_maxlen, "I",
+    "Maximum size of the IPv6 input queue");
+
 #ifdef RSS
 static struct netisr_handler ip6_direct_nh = {
 	.nh_name = "ip6_direct",
@@ -154,6 +173,24 @@ static struct netisr_handler ip6_direct_nh = {
 	.nh_policy = NETISR_POLICY_CPU,
 	.nh_dispatch = NETISR_DISPATCH_HYBRID,
 };
+
+static int
+sysctl_netinet6_intr_direct_queue_maxlen(SYSCTL_HANDLER_ARGS)
+{
+	int error, qlimit;
+
+	netisr_getqlimit(&ip6_direct_nh, &qlimit);
+	error = sysctl_handle_int(oidp, &qlimit, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (qlimit < 1)
+		return (EINVAL);
+	return (netisr_setqlimit(&ip6_direct_nh, qlimit));
+}
+SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_INTRDQMAXLEN, intr_direct_queue_maxlen,
+    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_netinet6_intr_direct_queue_maxlen,
+    "I", "Maximum size of the IPv6 direct input queue");
+
 #endif
 
 VNET_DEFINE(struct pfil_head, inet6_pfil_hook);
