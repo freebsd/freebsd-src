@@ -242,7 +242,7 @@ typedef struct {
 	uint32_t		ring_data_size;	/* ring_size */
 } hv_vmbus_ring_buffer_info;
 
-typedef void (*hv_vmbus_pfn_channel_callback)(void *context);
+typedef void	(*vmbus_chan_callback_t)(void *);
 
 typedef struct hv_vmbus_channel {
 	device_t			ch_dev;
@@ -266,10 +266,10 @@ typedef struct hv_vmbus_channel {
 	 */
 	hv_vmbus_ring_buffer_info	inbound;
 
-	struct taskqueue *		rxq;
-	struct task			channel_task;
-	hv_vmbus_pfn_channel_callback	on_channel_callback;
-	void*				channel_callback_context;
+	struct taskqueue		*ch_tq;
+	struct task			ch_task;
+	vmbus_chan_callback_t		ch_cb;
+	void				*ch_cbarg;
 
 	struct hyperv_mon_param		*ch_monprm;
 	struct hyperv_dma		ch_monprm_dma;
@@ -362,9 +362,8 @@ int		hv_vmbus_channel_open(
 				uint32_t		recv_ring_buffer_size,
 				void*			user_data,
 				uint32_t		user_data_len,
-				hv_vmbus_pfn_channel_callback
-							pfn_on_channel_callback,
-				void*			context);
+				vmbus_chan_callback_t	cb,
+				void			*cbarg);
 
 void		hv_vmbus_channel_close(hv_vmbus_channel *channel);
 
