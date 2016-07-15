@@ -257,13 +257,6 @@ typedef struct hv_vmbus_channel {
 	int				ch_montrig_idx;	/* MNF trig index */
 	uint32_t			ch_montrig_mask;/* MNF trig mask */
 
-	uint32_t			ring_buffer_gpadl_handle;
-	/*
-	 * Allocated memory for ring buffer
-	 */
-	void*				ring_buffer_pages;
-	unsigned long			ring_buffer_size;
-	uint32_t			ring_buffer_page_count;
 	/*
 	 * send to parent
 	 */
@@ -311,6 +304,10 @@ typedef struct hv_vmbus_channel {
 	void				*hv_chan_priv1;
 	void				*hv_chan_priv2;
 	void				*hv_chan_priv3;
+
+	void				*ch_bufring;	/* TX+RX bufrings */
+	struct hyperv_dma		ch_bufring_dma;
+	uint32_t			ch_bufring_gpadl;
 
 	struct task			ch_detach_task;
 	TAILQ_ENTRY(hv_vmbus_channel)	ch_prilink;	/* primary chan link */
