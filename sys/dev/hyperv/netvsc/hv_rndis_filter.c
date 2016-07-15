@@ -248,26 +248,23 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 	
 	packet->is_data_pkt = FALSE;
 	packet->tot_data_buf_len = request->request_msg.msg_len;
-	packet->page_buf_count = 1;
+	packet->gpa_cnt = 1;
 
-	packet->page_buffers[0].pfn =
+	packet->gpa[0].gpa_page =
 	    hv_get_phys_addr(&request->request_msg) >> PAGE_SHIFT;
-	packet->page_buffers[0].length = request->request_msg.msg_len;
-	packet->page_buffers[0].offset =
+	packet->gpa[0].gpa_len = request->request_msg.msg_len;
+	packet->gpa[0].gpa_ofs =
 	    (unsigned long)&request->request_msg & (PAGE_SIZE - 1);
 
-	if (packet->page_buffers[0].offset +
-		packet->page_buffers[0].length > PAGE_SIZE) {
-		packet->page_buf_count = 2;
-		packet->page_buffers[0].length =
-		        PAGE_SIZE - packet->page_buffers[0].offset;
-		packet->page_buffers[1].pfn =
+	if (packet->gpa[0].gpa_ofs + packet->gpa[0].gpa_len > PAGE_SIZE) {
+		packet->gpa_cnt = 2;
+		packet->gpa[0].gpa_len = PAGE_SIZE - packet->gpa[0].gpa_ofs;
+		packet->gpa[1].gpa_page =
 		        hv_get_phys_addr((char*)&request->request_msg +
-                		packet->page_buffers[0].length) >> PAGE_SHIFT;
-		packet->page_buffers[1].offset = 0;
-		packet->page_buffers[1].length =
-		        request->request_msg.msg_len -
-			        packet->page_buffers[0].length;
+                		packet->gpa[0].gpa_len) >> PAGE_SHIFT;
+		packet->gpa[1].gpa_ofs = 0;
+		packet->gpa[1].gpa_len = request->request_msg.msg_len -
+		    packet->gpa[0].gpa_len;
 	}
 
 	packet->compl.send.send_completion_context = request; /* packet */
@@ -289,7 +286,7 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 			memcpy(dest, &request->request_msg, request->request_msg.msg_len);
 			packet->send_buf_section_idx = send_buf_section_idx;
 			packet->send_buf_section_size = packet->tot_data_buf_len;
-			packet->page_buf_count = 0;
+			packet->gpa_cnt = 0;
 			goto sendit;
 		}
 		/* Failed to allocate chimney send buffer; move on */

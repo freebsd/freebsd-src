@@ -816,9 +816,8 @@ hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 	send_msg.msgs.vers_1_msgs.send_rndis_pkt.send_buf_section_size =
 	    pkt->send_buf_section_size;
 
-	if (pkt->page_buf_count) {
-		ret = hv_vmbus_channel_send_packet_pagebuffer(chan,
-		    pkt->page_buffers, pkt->page_buf_count,
+	if (pkt->gpa_cnt) {
+		ret = vmbus_chan_send_sglist(chan, pkt->gpa, pkt->gpa_cnt,
 		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
 	} else {
 		ret = hv_vmbus_channel_send_packet(chan,
