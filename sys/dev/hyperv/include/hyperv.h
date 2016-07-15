@@ -82,7 +82,6 @@ typedef uint8_t	hv_bool_uint8_t;
 #define VMBUS_VERSION_MAJOR(ver)	(((uint32_t)(ver)) >> 16)
 #define VMBUS_VERSION_MINOR(ver)	(((uint32_t)(ver)) & 0xffff)
 
-#define HV_MAX_PAGE_BUFFER_COUNT	32
 #define HV_MAX_MULTIPAGE_BUFFER_COUNT	32
 
 #define HV_ALIGN_UP(value, align)					\
@@ -223,12 +222,6 @@ typedef struct {
 	 */
 	uint8_t			buffer[0];	/* doubles as interrupt mask */
 } __packed hv_vmbus_ring_buffer;
-
-typedef struct {
-	int		length;
-	int		offset;
-	uint64_t	pfn;
-} __packed hv_vmbus_page_buffer;
 
 typedef struct {
 	int		length;
@@ -374,14 +367,6 @@ int		hv_vmbus_channel_send_packet(
 				uint64_t		request_id,
 				hv_vmbus_packet_type	type,
 				uint32_t		flags);
-
-int		hv_vmbus_channel_send_packet_pagebuffer(
-				hv_vmbus_channel*	channel,
-				hv_vmbus_page_buffer	page_buffers[],
-				uint32_t		page_count,
-				void*			buffer,
-				uint32_t		buffer_len,
-				uint64_t		request_id);
 
 int		hv_vmbus_channel_send_packet_multipagebuffer(
 				hv_vmbus_channel*	    channel,

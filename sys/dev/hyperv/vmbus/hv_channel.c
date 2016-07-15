@@ -672,70 +672,44 @@ hv_vmbus_channel_send_packet(
 	return (ret);
 }
 
-/**
- * @brief Send a range of single-page buffer packets using
- * a GPADL Direct packet type
- */
 int
-hv_vmbus_channel_send_packet_pagebuffer(
-	hv_vmbus_channel*	channel,
-	hv_vmbus_page_buffer	page_buffers[],
-	uint32_t		page_count,
-	void*			buffer,
-	uint32_t		buffer_len,
-	uint64_t		request_id)
+vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
+    struct vmbus_gpa sg[], int sglen, void *data, int dlen, uint64_t xactid)
 {
+	struct vmbus_chanpkt_sglist pkt;
+	int pktlen, pad_pktlen, hlen, error;
+	struct iovec iov[4];
+	boolean_t send_evt;
+	uint64_t pad = 0;
 
-	int					ret = 0;
-	boolean_t				need_sig;
-	uint32_t				packet_len;
-	uint32_t				page_buflen;
-	uint32_t				packetLen_aligned;
-	struct iovec				iov[4];
-	hv_vmbus_channel_packet_page_buffer	desc;
-	uint32_t				descSize;
-	uint64_t				alignedData = 0;
+	KASSERT(sglen < VMBUS_CHAN_SGLIST_MAX,
+	    ("invalid sglist len %d", sglen));
 
-	if (page_count > HV_MAX_PAGE_BUFFER_COUNT)
-		return (EINVAL);
+	hlen = __offsetof(struct vmbus_chanpkt_sglist, cp_gpa[sglen]);
+	pktlen = hlen + dlen;
+	pad_pktlen = roundup2(pktlen, VMBUS_CHANPKT_SIZE_ALIGN);
 
-	/*
-	 * Adjust the size down since hv_vmbus_channel_packet_page_buffer
-	 *  is the largest size we support
-	 */
-	descSize = __offsetof(hv_vmbus_channel_packet_page_buffer, range);
-	page_buflen = sizeof(hv_vmbus_page_buffer) * page_count;
-	packet_len = descSize + page_buflen + buffer_len;
-	packetLen_aligned = HV_ALIGN_UP(packet_len, sizeof(uint64_t));
+	pkt.cp_hdr.cph_type = HV_VMBUS_PACKET_TYPE_DATA_USING_GPA_DIRECT;
+	pkt.cp_hdr.cph_flags = HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	pkt.cp_hdr.cph_data_ofs = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_len = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_xactid = xactid;
+	pkt.cp_rsvd = 0;
+	pkt.cp_gpa_cnt = sglen;
 
-	/* Setup the descriptor */
-	desc.type = HV_VMBUS_PACKET_TYPE_DATA_USING_GPA_DIRECT;
-	desc.flags = HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-	/* in 8-bytes granularity */
-	desc.data_offset8 = (descSize + page_buflen) >> 3;
-	desc.length8 = (uint16_t) (packetLen_aligned >> 3);
-	desc.transaction_id = request_id;
-	desc.range_count = page_count;
+	iov[0].iov_base = &pkt;
+	iov[0].iov_len = sizeof(pkt);
+	iov[1].iov_base = sg;
+	iov[1].iov_len = sizeof(struct vmbus_gpa) * sglen;
+	iov[2].iov_base = data;
+	iov[2].iov_len = dlen;
+	iov[3].iov_base = &pad;
+	iov[3].iov_len = pad_pktlen - pktlen;
 
-	iov[0].iov_base = &desc;
-	iov[0].iov_len = descSize;
-
-	iov[1].iov_base = page_buffers;
-	iov[1].iov_len = page_buflen;
-
-	iov[2].iov_base = buffer;
-	iov[2].iov_len = buffer_len;
-
-	iov[3].iov_base = &alignedData;
-	iov[3].iov_len = packetLen_aligned - packet_len;
-
-	ret = hv_ring_buffer_write(&channel->outbound, iov, 4, &need_sig);
-
-	/* TODO: We should determine if this is optional */
-	if (ret == 0 && need_sig)
-		vmbus_chan_send_event(channel);
-
-	return (ret);
+	error = hv_ring_buffer_write(&chan->outbound, iov, 4, &send_evt);
+	if (!error && send_evt)
+		vmbus_chan_send_event(chan);
+	return error;
 }
 
 /**

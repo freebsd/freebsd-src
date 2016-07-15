@@ -57,6 +57,7 @@
 #include <net/if_media.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
 
 #define HN_USE_TXDESC_BUFRING
 
@@ -1082,8 +1083,6 @@ struct hv_vmbus_channel;
 typedef void (*pfn_on_send_rx_completion)(struct hv_vmbus_channel *, void *);
 
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
-#define NETVSC_PACKET_MAXPAGE		32 
-
 
 #define NETVSC_VLAN_PRIO_MASK		0xe000
 #define NETVSC_VLAN_PRIO_SHIFT		13
@@ -1132,8 +1131,8 @@ typedef struct netvsc_packet_ {
 	void		*rndis_mesg;
 	uint32_t	tot_data_buf_len;
 	void		*data;
-	uint32_t	page_buf_count;
-	hv_vmbus_page_buffer	page_buffers[NETVSC_PACKET_MAXPAGE];
+	uint32_t	gpa_cnt;
+	struct vmbus_gpa gpa[VMBUS_CHAN_SGLIST_MAX];
 } netvsc_packet;
 
 typedef struct {

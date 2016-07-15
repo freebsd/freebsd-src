@@ -30,8 +30,9 @@
 #define _VMBUS_REG_H_
 
 #include <sys/param.h>
-#include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/include/hyperv.h> /* XXX for hyperv_guid */
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/vmbus/hyperv_reg.h>
 
 /*
  * Hyper-V SynIC message format.
@@ -133,6 +134,13 @@ struct vmbus_chanpkt_hdr {
 
 struct vmbus_chanpkt {
 	struct vmbus_chanpkt_hdr cp_hdr;
+} __packed;
+
+struct vmbus_chanpkt_sglist {
+	struct vmbus_chanpkt_hdr cp_hdr;
+	uint32_t	cp_rsvd;
+	uint32_t	cp_gpa_cnt;
+	struct vmbus_gpa cp_gpa[];
 } __packed;
 
 /*

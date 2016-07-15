@@ -74,7 +74,6 @@ typedef struct rndis_request_ {
 
 	/* Simplify allocation by having a netvsc packet inline */
 	netvsc_packet			pkt;
-	hv_vmbus_page_buffer		buffer;
 
 	/*
 	 * The max request size is sizeof(rndis_msg) + PAGE_SIZE.
