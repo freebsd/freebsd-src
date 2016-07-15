@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2009
+.Dd July 15, 2016
 .Dt TIMER_CREATE 2
 .Os
 .Sh NAME
@@ -74,6 +74,36 @@ structure.
 This structure,
 allocated by the application, defines the asynchronous notification to occur
 when the timer expires.
+.Pp
+If
+.Fa evp->sigev_notify
+is
+.Dv SIGEV_SIGNO
+or
+.Dv SIGEV_THREAD_ID ,
+the signal specified in
+.Fa evp->sigev_signo
+will be sent to the calling process
+.Pq Dv SIGEV_SIGNO
+or to the thread whose LWP ID is
+.Fa evp->sigev_notify_thread_id
+.Pq Dv SIGEV_THREAD_ID .
+The information for the queued signal will include:
+.Bl -column ".Va si_value"
+.It Sy Member Ta Sy Value
+.It Va si_code Ta Dv SI_TIMER
+.It Va si_value Ta
+the value stored in
+.Fa evp->sigev_value
+.It Va si_timerid Ta timer ID
+.It Va si_overrun Ta timer overrun count
+.It Va si_errno Ta
+If timer overrun is
+.Brq Dv DELAYTIMER_MAX ,
+an error code defined in
+.In errno.h
+.El
+.Pp
 If the
 .Fa evp
 argument is
@@ -88,12 +118,14 @@ member having the value
 .Dv SIGEV_SIGNAL ,
 the
 .Va sigev_signo
-having a default signal number, and the
+having a default signal number
+.Pq Dv SIGALRM ,
+and the
 .Va sigev_value
 member having
 the value of the timer ID.
 .Pp
-The implementations supports a
+This implementation supports a
 .Fa clock_id
 of
 .Dv CLOCK_REALTIME
@@ -144,6 +176,8 @@ The calling process has already created all of the timers it is allowed by
 this implementation.
 .It Bq Er EINVAL
 The specified clock ID is not supported.
+.It Bq Er EINVAL
+The specified asynchronous notification method is not supported.
 .It Bq Er EFAULT
 Any arguments point outside the allocated address space or there is a
 memory protection fault.
@@ -152,6 +186,7 @@ memory protection fault.
 .Xr clock_getres 2 ,
 .Xr timer_delete 2 ,
 .Xr timer_getoverrun 2 ,
+.Xr sigevent 3 ,
 .Xr siginfo 3
 .Sh STANDARDS
 The

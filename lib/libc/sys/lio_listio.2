@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2003
+.Dd July 15, 2016
 .Dt LIO_LISTIO 2
 .Os
 .Sh NAME
@@ -83,14 +83,52 @@ If
 .Fa mode
 is
 .Dv LIO_NOWAIT ,
-the requests are processed asynchronously, and the signal specified by
 .Fa sig
-is sent when all operations have completed.
+can be used to request asynchronous notification when all operations have
+completed.
 If
 .Fa sig
 is
 .Dv NULL ,
-the calling process is not notified of I/O completion.
+no notification is sent.
+.Pp
+For
+.Dv SIGEV_KEVENT
+notifications,
+the posted kevent will contain:
+.Bl -column ".Va filter"
+.It Sy Member Ta Sy Value
+.It Va ident Ta Fa list
+.It Va filter Ta Dv EVFILT_LIO
+.It Va udata Ta
+value stored in
+.Fa sig->sigev_value
+.El
+.Pp
+For
+.Dv SIGEV_SIGNO
+and
+.Dv SIGEV_THREAD_ID
+notifications,
+the information for the queued signal will include
+.Dv SI_ASYNCIO
+in the
+.Va si_code
+field and the value stored in
+.Fa sig->sigev_value
+in the
+.Va si_value
+field.
+.Pp
+For
+.Dv SIGEV_THREAD
+notifications,
+the value stored in
+.Fa sig->sigev_value
+is passed to the
+.Fa sig->sigev_notify_function
+as described in
+.Xr sigevent 3 .
 .Pp
 The order in which the requests are carried out is not specified;
 in particular, there is no guarantee that they will be executed in
@@ -136,6 +174,10 @@ or
 .Fa nent
 is greater than
 .Dv AIO_LISTIO_MAX .
+.It Bq Er EINVAL
+The asynchronous notification method in
+.Fa sig->sigev_notify
+is invalid or not supported.
 .It Bq Er EINTR
 A signal interrupted the system call before it could be completed.
 .It Bq Er EIO
@@ -166,6 +208,7 @@ structure individually by calling
 .Xr aio_write 2 ,
 .Xr read 2 ,
 .Xr write 2 ,
+.Xr sigevent 3 ,
 .Xr siginfo 3 ,
 .Xr aio 4
 .Sh STANDARDS
