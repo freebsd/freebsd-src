@@ -296,8 +296,6 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			 * can receive (at least) 1 stream STBC, AND it's
 			 * MCS 0-7, AND we have at least two chains enabled,
 			 * enable STBC.
-			 *
-			 * XXX TODO: .. and the rate is an 11n rate?
 			 */
 			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
 			    ni->ni_vap->iv_flags_ht & IEEE80211_FHT_STBC_TX &&
@@ -621,8 +619,9 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			if (shortPreamble)
 				series[i].Rate |=
 				    rt->info[rc[i].rix].shortPreamble;
+			/* XXX TODO: don't include SIFS */
 			series[i].PktDuration = ath_hal_computetxtime(ah,
-			    rt, pktlen, rc[i].rix, shortPreamble);
+			    rt, pktlen, rc[i].rix, shortPreamble, AH_TRUE);
 		}
 	}
 }

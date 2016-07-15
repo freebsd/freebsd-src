@@ -1626,7 +1626,8 @@ extern	int ath_hal_get_curmode(struct ath_hal *ah,
  */
 extern uint32_t __ahdecl ath_hal_pkt_txtime(struct ath_hal *ah,
     const HAL_RATE_TABLE *rates, uint32_t frameLen,
-    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble);
+    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble,
+    HAL_BOOL includeSifs);
 
 /*
  * Calculate the duration of an 11n frame.
@@ -1639,7 +1640,8 @@ extern uint32_t __ahdecl ath_computedur_ht(uint32_t frameLen, uint16_t rate,
  */
 extern uint16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
 		const HAL_RATE_TABLE *rates, uint32_t frameLen,
-		uint16_t rateix, HAL_BOOL shortPreamble);
+		uint16_t rateix, HAL_BOOL shortPreamble,
+		HAL_BOOL includeSifs);
 
 /*
  * Adjust the TSF.
