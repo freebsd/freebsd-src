@@ -385,6 +385,7 @@ if [ "$NETCONFIG_DONE" != yes ]; then
 fi
 bsdinstall time
 bsdinstall services
+bsdinstall hardening
 
 dialog --backtitle "FreeBSD Installer" --title "Add User Accounts" --yesno \
     "Would you like to add users to the installed system now?" 0 0 && \
@@ -401,6 +402,7 @@ finalconfig() {
 		"Hostname" "Set system hostname" \
 		"Network" "Networking configuration" \
 		"Services" "Set daemons to run on startup" \
+		"System Hardening" "Set security options" \
 		"Time Zone" "Set system timezone" \
 		"Handbook" "Install FreeBSD Handbook (requires network)" 2>&1 1>&3)
 	exec 3>&-
@@ -424,6 +426,10 @@ finalconfig() {
 		;;
 	"Services")
 		bsdinstall services
+		finalconfig
+		;;
+	"System Hardening")
+		bsdinstall hardening
 		finalconfig
 		;;
 	"Time Zone")
