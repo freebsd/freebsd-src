@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
  * User commands.
  */
 
-extern const struct cmd cmdtab[];
-
 /*
  * Print the current active headings.
  * Don't change dot if invoker didn't give an argument.
@@ -54,8 +52,9 @@ extern const struct cmd cmdtab[];
 static int screen;
 
 int
-headers(int *msgvec)
+headers(void *v)
 {
+	int *msgvec = v;
 	int n, mesg, flag, size;
 	struct message *mp;
 
@@ -93,8 +92,9 @@ headers(int *msgvec)
  * Scroll to the next/previous screen
  */
 int
-scroll(char arg[])
+scroll(void *v)
 {
+	char *arg = v;
 	int s, size;
 	int cur[1];
 
@@ -146,8 +146,9 @@ screensize(void)
  * in the passed message list.
  */
 int
-from(int *msgvec)
+from(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 
 	for (ip = msgvec; *ip != 0; ip++)
@@ -220,6 +221,7 @@ pdot(void)
 int
 pcmdlist(void)
 {
+	extern const struct cmd cmdtab[];
 	const struct cmd *cp;
 	int cc;
 
@@ -242,8 +244,9 @@ pcmdlist(void)
  * Paginate messages, honor ignored fields.
  */
 int
-more(int *msgvec)
+more(void *v)
 {
+	int *msgvec = v;
 
 	return (type1(msgvec, 1, 1));
 }
@@ -252,8 +255,9 @@ more(int *msgvec)
  * Paginate messages, even printing ignored fields.
  */
 int
-More(int *msgvec)
+More(void *v)
 {
+	int *msgvec = v;
 
 	return (type1(msgvec, 0, 1));
 }
@@ -262,8 +266,9 @@ More(int *msgvec)
  * Type out messages, honor ignored fields.
  */
 int
-type(int *msgvec)
+type(void *v)
 {
+	int *msgvec = v;
 
 	return (type1(msgvec, 1, 0));
 }
@@ -272,8 +277,9 @@ type(int *msgvec)
  * Type out messages, even printing ignored fields.
  */
 int
-Type(int *msgvec)
+Type(void *v)
 {
+	int *msgvec = v;
 
 	return (type1(msgvec, 0, 0));
 }
@@ -355,8 +361,9 @@ brokpipe(int signo __unused)
  * and defaults to 5.
  */
 int
-top(int *msgvec)
+top(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 	struct message *mp;
 	int c, topl, lines, lineb;
@@ -396,8 +403,9 @@ top(int *msgvec)
  * get mboxed.
  */
 int
-stouch(int msgvec[])
+stouch(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 
 	for (ip = msgvec; *ip != 0; ip++) {
@@ -412,8 +420,9 @@ stouch(int msgvec[])
  * Make sure all passed messages get mboxed.
  */
 int
-mboxit(int msgvec[])
+mboxit(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 
 	for (ip = msgvec; *ip != 0; ip++) {
