@@ -115,6 +115,14 @@ CTASSERT(sizeof(struct vmbus_mnf) == PAGE_SIZE);
 #define VMBUS_CHANPKT_SIZE_SHIFT	3
 #define VMBUS_CHANPKT_SIZE_ALIGN	(1 << VMBUS_CHANPKT_SIZE_SHIFT)
 
+#define VMBUS_CHANPKT_SETLEN(pktlen, len)		\
+do {							\
+	(pktlen) = (len) >> VMBUS_CHANPKT_SIZE_SHIFT;	\
+} while (0)
+
+#define VMBUS_CHANPKT_TOTLEN(tlen)	\
+	roundup2((tlen), VMBUS_CHANPKT_SIZE_ALIGN)
+
 struct vmbus_chanpkt_hdr {
 	uint16_t	cph_type;
 	uint16_t	cph_hlen;	/* header len, in 8 bytes */
