@@ -447,7 +447,8 @@ sctp_process_inpcb(struct xsctp_inpcb *xinpcb,
 		first = 0;
 	}
 	xladdr = (struct xsctp_laddr *)(buf + *offset);
-	if (Lflag && !is_listening) {
+	if ((!aflag && is_listening) ||
+	    (Lflag && !is_listening)) {
 		sctp_skip_xinpcb_ifneed(buf, buflen, offset);
 		return;
 	}
@@ -513,8 +514,10 @@ retry:
 		xo_open_instance("local-address");
 
 		if (xladdr_total == 0) {
-			xo_emit("{:protocol/%-6.6s/%s} {:type/%-5.5s/%s} ",
-			    pname, tname);
+			if (!Lflag) {
+				xo_emit("{:protocol/%-6.6s/%s} "
+				    "{:type/%-5.5s/%s} ", pname, tname);
+			}
 		} else {
 			xo_emit("\n");
 			xo_emit(Lflag ? "{P:/%-21.21s} " : "{P:/%-12.12s} ",
