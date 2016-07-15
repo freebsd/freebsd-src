@@ -778,12 +778,10 @@ hv_storvsc_on_channel_callback(void *xchan)
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
 
-	ret = hv_vmbus_channel_recv_packet(
-			channel,
-			packet,
-			roundup2(VSTOR_PKT_SIZE, 8),
-			&bytes_recvd,
-			&request_id);
+	bytes_recvd = roundup2(VSTOR_PKT_SIZE, 8);
+	ret = vmbus_chan_recv(channel, packet, &bytes_recvd, &request_id);
+	KASSERT(ret != ENOBUFS, ("storvsc recvbuf is not large enough"));
+	/* XXX check bytes_recvd to make sure that it contains enough data */
 
 	while ((ret == 0) && (bytes_recvd > 0)) {
 		request = (struct hv_storvsc_request *)(uintptr_t)request_id;
@@ -817,12 +815,16 @@ hv_storvsc_on_channel_callback(void *xchan)
 				break;
 			}			
 		}
-		ret = hv_vmbus_channel_recv_packet(
-				channel,
-				packet,
-				roundup2(VSTOR_PKT_SIZE, 8),
-				&bytes_recvd,
-				&request_id);
+
+		bytes_recvd = roundup2(VSTOR_PKT_SIZE, 8),
+		ret = vmbus_chan_recv(channel, packet, &bytes_recvd,
+		    &request_id);
+		KASSERT(ret != ENOBUFS,
+		    ("storvsc recvbuf is not large enough"));
+		/*
+		 * XXX check bytes_recvd to make sure that it contains
+		 * enough data
+		 */
 	}
 }
 
