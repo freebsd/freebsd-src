@@ -57,6 +57,7 @@
 #include <net/if_media.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/include/vmbus.h>
 
 #define HN_USE_TXDESC_BUFRING
@@ -1075,6 +1076,8 @@ typedef struct netvsc_dev_ {
 
 	uint32_t                                num_channel;
 
+	struct hyperv_dma			rxbuf_dma;
+	struct hyperv_dma			txbuf_dma;
 	uint32_t                                vrss_send_table[VRSS_SEND_TABLE_SIZE];
 } netvsc_dev;
 
