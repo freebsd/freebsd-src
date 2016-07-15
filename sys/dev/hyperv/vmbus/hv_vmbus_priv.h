@@ -35,15 +35,11 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sema.h>
+#include <sys/_iovec.h>
 
 #include <dev/hyperv/include/hyperv.h>
 
 struct vmbus_softc;
-
-typedef struct {
-	void*		data;
-	uint32_t	length;
-} hv_vmbus_sg_buffer_list;
 
 /*
  * The format must be the same as hv_vm_data_gpa_direct
@@ -95,8 +91,8 @@ void			hv_ring_buffer_cleanup(
 
 int			hv_ring_buffer_write(
 				hv_vmbus_ring_buffer_info	*ring_info,
-				hv_vmbus_sg_buffer_list		sg_buffers[],
-				uint32_t			sg_buff_count,
+				const struct iovec		iov[],
+				uint32_t			iovlen,
 				boolean_t			*need_sig);
 
 int			hv_ring_buffer_peek(
