@@ -214,7 +214,7 @@ gethfield(FILE *f, char linebuf[], int rem, char **colon)
  */
 
 char*
-ishfield(char linebuf[], char *colon, const char *field)
+ishfield(char *linebuf, char *colon, const char *field)
 {
 	char *cp = colon;
 
