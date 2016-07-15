@@ -47,6 +47,8 @@ struct vmbus_gpa {
 	uint64_t	gpa_page;
 } __packed;
 
+#define VMBUS_CHANPKT_FLAG_RC	0x0001	/* report completion */
+
 #define VMBUS_CHAN_SGLIST_MAX	32
 #define VMBUS_CHAN_PRPLIST_MAX	32
 

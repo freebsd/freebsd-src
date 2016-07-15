@@ -690,7 +690,7 @@ vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
 	pad_pktlen = roundup2(pktlen, VMBUS_CHANPKT_SIZE_ALIGN);
 
 	pkt.cp_hdr.cph_type = HV_VMBUS_PACKET_TYPE_DATA_USING_GPA_DIRECT;
-	pkt.cp_hdr.cph_flags = HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	pkt.cp_hdr.cph_flags = VMBUS_CHANPKT_FLAG_RC;
 	pkt.cp_hdr.cph_data_ofs = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
 	pkt.cp_hdr.cph_len = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
 	pkt.cp_hdr.cph_xactid = xactid;
@@ -732,7 +732,7 @@ vmbus_chan_send_prplist(struct hv_vmbus_channel *chan,
 	pad_pktlen = roundup2(pktlen, VMBUS_CHANPKT_SIZE_ALIGN);
 
 	pkt.cp_hdr.cph_type = HV_VMBUS_PACKET_TYPE_DATA_USING_GPA_DIRECT;
-	pkt.cp_hdr.cph_flags = HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	pkt.cp_hdr.cph_flags = VMBUS_CHANPKT_FLAG_RC;
 	pkt.cp_hdr.cph_data_ofs = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
 	pkt.cp_hdr.cph_len = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
 	pkt.cp_hdr.cph_xactid = xactid;
