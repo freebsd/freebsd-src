@@ -45,29 +45,6 @@ typedef struct {
 	uint32_t	length;
 } hv_vmbus_sg_buffer_list;
 
-typedef struct {
-	uint32_t	current_interrupt_mask;
-	uint32_t	current_read_index;
-	uint32_t	current_write_index;
-	uint32_t	bytes_avail_to_read;
-	uint32_t	bytes_avail_to_write;
-} hv_vmbus_ring_buffer_debug_info;
-
-typedef struct {
-	uint32_t 		rel_id;
-	struct hyperv_guid	interface_type;
-	struct hyperv_guid	interface_instance;
-	uint32_t		monitor_id;
-	uint32_t		server_monitor_pending;
-	uint32_t		server_monitor_latency;
-	uint32_t		server_monitor_connection_id;
-	uint32_t		client_monitor_pending;
-	uint32_t		client_monitor_latency;
-	uint32_t		client_monitor_connection_id;
-	hv_vmbus_ring_buffer_debug_info	inbound;
-	hv_vmbus_ring_buffer_debug_info	outbound;
-} hv_vmbus_channel_debug_info;
-
 /*
  * The format must be the same as hv_vm_data_gpa_direct
  */
