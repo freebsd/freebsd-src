@@ -89,6 +89,20 @@ struct vmbus_chanpkt_rxbuf {
 
 struct hv_vmbus_channel;
 
+int	vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan,
+	    bus_addr_t paddr, int size, uint32_t *gpadl);
+int	vmbus_chan_gpadl_disconnect(struct hv_vmbus_channel *chan,
+	    uint32_t gpadl);
+
+void	vmbus_chan_cpu_set(struct hv_vmbus_channel *chan, int cpu);
+void	vmbus_chan_cpu_rr(struct hv_vmbus_channel *chan);
+
+struct hv_vmbus_channel **
+	vmbus_subchan_get(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
+void	vmbus_subchan_rel(struct hv_vmbus_channel **subchan, int subchan_cnt);
+void	vmbus_subchan_drain(struct hv_vmbus_channel *pri_chan);
+
+
 int	vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen,
 	    uint64_t *xactid);
 int	vmbus_chan_recv_pkt(struct hv_vmbus_channel *chan,
