@@ -31,8 +31,6 @@ device		at91_board_sam9x25ek
 device		at91_board_sn9g45
 device		at91_board_tsc4370
 
-#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-
 options 	SCHED_4BSD		# 4BSD scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
@@ -71,20 +69,6 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 #options 	CAPABILITIES		# Capsicum capabilities
 #options 	MAC			# TrustedBSD MAC Framework
 #options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
-
-# Debugging support.  Always need this:
-options 	KDB			# Enable kernel debugger support
-# For minimum debugger support (stable branch) use:
-options 	KDB_TRACE		# Print a stack trace for a panic
-# For full debugger support use this instead:
-options 	DDB			# Enable the kernel debugger
-options 	GDB			# Support remote GDB
-#options 	DEADLKRES		# Enable the deadlock resolver
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # NFS root from boopt/dhcp
 options 	BOOTP
@@ -152,10 +136,8 @@ device		ses			# Enclosure Services (SES and SAF-TE)
 
 # Serial (COM) ports
 device		uart			# Multi-uart driver
-options 	ALT_BREAK_TO_DEBUGGER
 
 # USB support
-options 	USB_DEBUG		# enable debug msgs
 device		ohci			# OHCI USB interface
 device		usb			# USB Bus (required)
 device		umass			# Disks/Mass storage - Requires scbus and da
