@@ -163,8 +163,9 @@ help(void)
  * Change user's working directory.
  */
 int
-schdir(char **arglist)
+schdir(void *v)
 {
+	char **arglist = v;
 	char *cp;
 
 	if (*arglist == NULL) {
@@ -182,8 +183,10 @@ schdir(char **arglist)
 }
 
 int
-respond(int *msgvec)
+respond(void *v)
 {
+	int *msgvec = v;
+
 	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (dorespond(msgvec));
 	else
@@ -280,8 +283,9 @@ reedit(char *subj)
  * back to the system mailbox.
  */
 int
-preserve(int *msgvec)
+preserve(void *v)
 {
+	int *msgvec = v;
 	int *ip, mesg;
 	struct message *mp;
 
@@ -303,8 +307,9 @@ preserve(int *msgvec)
  * Mark all given messages as unread.
  */
 int
-unread(int msgvec[])
+unread(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 
 	for (ip = msgvec; *ip != 0; ip++) {
@@ -319,8 +324,9 @@ unread(int msgvec[])
  * Print the size of each message.
  */
 int
-messize(int *msgvec)
+messize(void *v)
 {
+	int *msgvec = v;
 	struct message *mp;
 	int *ip, mesg;
 
@@ -337,7 +343,7 @@ messize(int *msgvec)
  * by returning an error.
  */
 int
-rexit(int e __unused)
+rexit(void *v)
 {
 	if (sourcing)
 		return (1);
@@ -350,8 +356,9 @@ rexit(int e __unused)
  * of csh.
  */
 int
-set(char **arglist)
+set(void *v)
 {
+	char **arglist = v;
 	struct var *vp;
 	char *cp, *cp2;
 	char varbuf[BUFSIZ], **ap, **p;
@@ -396,8 +403,9 @@ set(char **arglist)
  * Unset a bunch of variable values.
  */
 int
-unset(char **arglist)
+unset(void *v)
 {
+	char **arglist = v;
 	struct var *vp, *vp2;
 	int errs, h;
 	char **ap;
@@ -435,8 +443,9 @@ unset(char **arglist)
  * Put add users to a group.
  */
 int
-group(char **argv)
+group(void *v)
 {
+	char **argv = v;
 	struct grouphead *gh;
 	struct group *gp;
 	char **ap, *gname, **p;
