@@ -144,8 +144,10 @@ hv_timesync_cb(void *context)
 	channel = softc->util_sc.channel;
 	time_buf = softc->util_sc.receive_buffer;
 
-	ret = hv_vmbus_channel_recv_packet(channel, time_buf,
-		PAGE_SIZE, &recvlen, &requestId);
+	recvlen = PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, time_buf, &recvlen, &requestId);
+	KASSERT(ret != ENOBUFS, ("hvtimesync recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	if ((ret == 0) && recvlen > 0) {
 	    icmsghdrp = (struct hv_vmbus_icmsg_hdr *) &time_buf[

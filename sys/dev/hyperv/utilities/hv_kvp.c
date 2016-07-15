@@ -626,8 +626,10 @@ hv_kvp_process_request(void *context, int pending)
 	kvp_buf = sc->util_sc.receive_buffer;
 	channel = sc->util_sc.channel;
 
-	ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,
-		&recvlen, &requestid);
+	recvlen = 2 * PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, kvp_buf, &recvlen, &requestid);
+	KASSERT(ret != ENOBUFS, ("hvkvp recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	while ((ret == 0) && (recvlen > 0)) {
 
@@ -691,9 +693,11 @@ hv_kvp_process_request(void *context, int pending)
 		/*
 		 * Try reading next buffer
 		 */
-		recvlen = 0;
-		ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,
-			&recvlen, &requestid);
+		recvlen = 2 * PAGE_SIZE;
+		ret = vmbus_chan_recv(channel, kvp_buf, &recvlen, &requestid);
+		KASSERT(ret != ENOBUFS, ("hvkvp recvbuf is not large enough"));
+		/* XXX check recvlen to make sure that it contains enough data */
+
 		hv_kvp_log_info("%s: read: context %p, ret =%d, recvlen=%d\n",
 			__func__, context, ret, recvlen);
 	}

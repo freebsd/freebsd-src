@@ -120,6 +120,9 @@ do {							\
 	(pktlen) = (len) >> VMBUS_CHANPKT_SIZE_SHIFT;	\
 } while (0)
 
+#define VMBUS_CHANPKT_GETLEN(pktlen)	\
+	(((int)(pktlen)) << VMBUS_CHANPKT_SIZE_SHIFT)
+
 #define VMBUS_CHANPKT_TOTLEN(tlen)	\
 	roundup2((tlen), VMBUS_CHANPKT_SIZE_ALIGN)
 

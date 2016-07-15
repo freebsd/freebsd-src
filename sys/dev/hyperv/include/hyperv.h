@@ -298,13 +298,6 @@ hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t on)
 		channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
 }
 
-int		hv_vmbus_channel_recv_packet(
-				hv_vmbus_channel*	channel,
-				void*			buffer,
-				uint32_t		buffer_len,
-				uint32_t*		buffer_actual_len,
-				uint64_t*		request_id);
-
 int		hv_vmbus_channel_recv_packet_raw(
 				hv_vmbus_channel*	channel,
 				void*			buffer,

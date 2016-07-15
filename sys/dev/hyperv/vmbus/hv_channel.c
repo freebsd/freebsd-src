@@ -736,45 +736,33 @@ vmbus_chan_send_prplist(struct hv_vmbus_channel *chan,
 	return error;
 }
 
-/**
- * @brief Retrieve the user packet on the specified channel
- */
 int
-hv_vmbus_channel_recv_packet(
-	hv_vmbus_channel*	channel,
-	void*			Buffer,
-	uint32_t		buffer_len,
-	uint32_t*		buffer_actual_len,
-	uint64_t*		request_id)
+vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen0,
+    uint64_t *xactid)
 {
-	int			ret;
-	uint32_t		user_len;
-	uint32_t		packet_len;
-	hv_vm_packet_descriptor	desc;
+	struct vmbus_chanpkt_hdr pkt;
+	int error, dlen, hlen;
 
-	*buffer_actual_len = 0;
-	*request_id = 0;
+	error = hv_ring_buffer_peek(&chan->inbound, &pkt, sizeof(pkt));
+	if (error)
+		return error;
 
-	ret = hv_ring_buffer_peek(&channel->inbound, &desc,
-		sizeof(hv_vm_packet_descriptor));
-	if (ret != 0)
-		return (0);
+	hlen = VMBUS_CHANPKT_GETLEN(pkt.cph_hlen);
+	dlen = VMBUS_CHANPKT_GETLEN(pkt.cph_tlen) - hlen;
 
-	packet_len = desc.length8 << 3;
-	user_len = packet_len - (desc.data_offset8 << 3);
+	if (*dlen0 < dlen) {
+		/* Return the size of this packet. */
+		*dlen0 = dlen;
+		return ENOBUFS;
+	}
 
-	*buffer_actual_len = user_len;
+	*xactid = pkt.cph_xactid;
+	*dlen0 = dlen;
 
-	if (user_len > buffer_len)
-		return (EINVAL);
+	error = hv_ring_buffer_read(&chan->inbound, data, dlen, hlen);
+	KASSERT(!error, ("hv_ring_buffer_read failed"));
 
-	*request_id = desc.transaction_id;
-
-	/* Copy over the packet to the user buffer */
-	ret = hv_ring_buffer_read(&channel->inbound, Buffer, user_len,
-		(desc.data_offset8 << 3));
-
-	return (0);
+	return 0;
 }
 
 /**

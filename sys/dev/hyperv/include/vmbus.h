@@ -59,6 +59,9 @@ struct vmbus_gpa {
 
 struct hv_vmbus_channel;
 
+int	vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen,
+	    uint64_t *xactid);
+
 int	vmbus_chan_send(struct hv_vmbus_channel *chan, uint16_t type,
 	    uint16_t flags, void *data, int dlen, uint64_t xactid);
 int	vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
