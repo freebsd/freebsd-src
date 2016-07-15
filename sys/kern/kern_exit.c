@@ -338,6 +338,7 @@ exit1(struct thread *td, int rval, int signo)
 	PROC_LOCK(p);
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
+	p->p_ptevents = 0;
 
 	/*
 	 * Stop the real interval timer.  If the handler is currently
@@ -475,6 +476,7 @@ exit1(struct thread *td, int rval, int signo)
 			 */
 			clear_orphan(q);
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
+			q->p_ptevents = 0;
 			FOREACH_THREAD_IN_PROC(q, tdt)
 				tdt->td_dbgflags &= ~TDB_SUSPEND;
 			kern_psignal(q, SIGKILL);
