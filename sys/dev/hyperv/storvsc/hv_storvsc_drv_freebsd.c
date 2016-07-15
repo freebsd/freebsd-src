@@ -361,7 +361,7 @@ storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 	    vstor_packet,
 	    VSTOR_PKT_SIZE,
 	    (uint64_t)(uintptr_t)request,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
+	    VMBUS_CHANPKT_TYPE_INBAND,
 	    VMBUS_CHANPKT_FLAG_RC);
 
 	/* wait for 5 seconds */
@@ -432,7 +432,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 			vstor_packet,
 			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
+			VMBUS_CHANPKT_TYPE_INBAND,
 			VMBUS_CHANPKT_FLAG_RC);
 
 	if (ret != 0)
@@ -466,7 +466,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 			vstor_packet,
 			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
+			VMBUS_CHANPKT_TYPE_INBAND,
 			VMBUS_CHANPKT_FLAG_RC);
 
 		if (ret != 0)
@@ -509,7 +509,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 				vstor_packet,
 				VSTOR_PKT_SIZE,
 				(uint64_t)(uintptr_t)request,
-				HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
+				VMBUS_CHANPKT_TYPE_INBAND,
 				VMBUS_CHANPKT_FLAG_RC);
 
 	if ( ret != 0)
@@ -545,7 +545,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 			vstor_packet,
 			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
+			VMBUS_CHANPKT_TYPE_INBAND,
 			VMBUS_CHANPKT_FLAG_RC);
 
 	if (ret != 0) {
@@ -635,7 +635,7 @@ hv_storvsc_host_reset(struct storvsc_softc *sc)
 			vstor_packet,
 			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)&sc->hs_reset_req,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
+			VMBUS_CHANPKT_TYPE_INBAND,
 			VMBUS_CHANPKT_FLAG_RC);
 
 	if (ret != 0) {
@@ -699,7 +699,7 @@ hv_storvsc_io_request(struct storvsc_softc *sc,
 			vstor_packet,
 			VSTOR_PKT_SIZE,
 			(uint64_t)(uintptr_t)request,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
+			VMBUS_CHANPKT_TYPE_INBAND,
 			VMBUS_CHANPKT_FLAG_RC);
 	}
 	mtx_lock(&request->softc->hs_lock);

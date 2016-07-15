@@ -578,7 +578,7 @@ hv_kvp_respond_host(hv_kvp_sc *sc, int error)
 	error = hv_vmbus_channel_send_packet(sc->util_sc.channel,
 			sc->rcv_buf,
 			sc->host_msg_len, sc->host_msg_id,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+			VMBUS_CHANPKT_TYPE_INBAND, 0);
 
 	if (error)
 		hv_kvp_log_info("%s: hv_kvp_respond_host: sendpacket error:%d\n",

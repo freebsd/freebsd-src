@@ -35,6 +35,7 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
 #include "hv_util.h"
 #include "vmbus_if.h"
 
@@ -87,7 +88,7 @@ hv_heartbeat_cb(void *context)
 				 HV_ICMSGHDRFLAG_RESPONSE;
 
 	    hv_vmbus_channel_send_packet(channel, buf, recvlen, requestid,
-		HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+		VMBUS_CHANPKT_TYPE_INBAND, 0);
 	}
 }
 

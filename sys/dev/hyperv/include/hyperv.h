@@ -112,23 +112,6 @@ typedef struct {
 	hv_vm_transfer_page	ranges[1];
 } __packed hv_vm_transfer_page_packet_header;
 
-typedef enum {
-	HV_VMBUS_PACKET_TYPE_INVALID				= 0x0,
-	HV_VMBUS_PACKET_TYPES_SYNCH				= 0x1,
-	HV_VMBUS_PACKET_TYPE_ADD_TRANSFER_PAGE_SET		= 0x2,
-	HV_VMBUS_PACKET_TYPE_REMOVE_TRANSFER_PAGE_SET		= 0x3,
-	HV_VMBUS_PACKET_TYPE_ESTABLISH_GPADL			= 0x4,
-	HV_VMBUS_PACKET_TYPE_TEAR_DOWN_GPADL			= 0x5,
-	HV_VMBUS_PACKET_TYPE_DATA_IN_BAND			= 0x6,
-	HV_VMBUS_PACKET_TYPE_DATA_USING_TRANSFER_PAGES		= 0x7,
-	HV_VMBUS_PACKET_TYPE_DATA_USING_GPADL			= 0x8,
-	HV_VMBUS_PACKET_TYPE_DATA_USING_GPA_DIRECT		= 0x9,
-	HV_VMBUS_PACKET_TYPE_CANCEL_REQUEST			= 0xa,
-	HV_VMBUS_PACKET_TYPE_COMPLETION				= 0xb,
-	HV_VMBUS_PACKET_TYPE_DATA_USING_ADDITIONAL_PACKETS	= 0xc,
-	HV_VMBUS_PACKET_TYPE_ADDITIONAL_DATA = 0xd
-} hv_vmbus_packet_type;
-
 #define HW_MACADDR_LEN	6
 
 /*
@@ -345,8 +328,8 @@ int		hv_vmbus_channel_send_packet(
 				void*			buffer,
 				uint32_t		buffer_len,
 				uint64_t		request_id,
-				hv_vmbus_packet_type	type,
-				uint32_t		flags);
+				uint16_t		type,
+				uint16_t		flags);
 
 int		hv_vmbus_channel_establish_gpadl(
 				hv_vmbus_channel*	channel,

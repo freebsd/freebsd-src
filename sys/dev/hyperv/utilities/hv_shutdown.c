@@ -40,6 +40,7 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
 #include "hv_util.h"
 #include "vmbus_if.h"
 
@@ -106,7 +107,7 @@ hv_shutdown_cb(void *context)
 
 	    hv_vmbus_channel_send_packet(channel, buf,
 					recv_len, request_id,
-					HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+					VMBUS_CHANPKT_TYPE_INBAND, 0);
 	}
 
 	if (execute_shutdown)
