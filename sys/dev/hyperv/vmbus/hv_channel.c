@@ -505,41 +505,45 @@ vmbus_chan_gpadl_disconnect(struct hv_vmbus_channel *chan, uint32_t gpadl)
 }
 
 static void
-hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
+vmbus_chan_close_internal(struct hv_vmbus_channel *chan)
 {
-	struct vmbus_softc *sc = channel->vmbus_sc;
+	struct vmbus_softc *sc = chan->vmbus_sc;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_chclose *req;
-	struct taskqueue *tq = channel->ch_tq;
+	struct taskqueue *tq = chan->ch_tq;
 	int error;
 
 	/* TODO: stringent check */
-	atomic_clear_int(&channel->ch_stflags, VMBUS_CHAN_ST_OPENED);
-
-	sysctl_ctx_free(&channel->ch_sysctl_ctx);
+	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
 
 	/*
-	 * Set ch_tq to NULL to avoid more requests be scheduled
+	 * Free this channel's sysctl tree attached to its device's
+	 * sysctl tree.
 	 */
-	channel->ch_tq = NULL;
-	taskqueue_drain(tq, &channel->ch_task);
-	channel->ch_cb = NULL;
+	sysctl_ctx_free(&chan->ch_sysctl_ctx);
 
-	/**
-	 * Send a closing message
+	/*
+	 * Set ch_tq to NULL to avoid more requests be scheduled.
+	 * XXX pretty broken; need rework.
 	 */
+	chan->ch_tq = NULL;
+	taskqueue_drain(tq, &chan->ch_task);
+	chan->ch_cb = NULL;
 
+	/*
+	 * Close this channel.
+	 */
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for chclose(chan%u)\n",
-		    channel->ch_id);
+		    chan->ch_id);
 		return;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHCLOSE;
-	req->chm_chanid = channel->ch_id;
+	req->chm_chanid = chan->ch_id;
 
 	error = vmbus_msghc_exec_noresult(mh);
 	vmbus_msghc_put(sc, mh);
@@ -547,29 +551,28 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	if (error) {
 		device_printf(sc->vmbus_dev,
 		    "chclose(chan%u) msg hypercall exec failed: %d\n",
-		    channel->ch_id, error);
+		    chan->ch_id, error);
 		return;
 	} else if (bootverbose) {
-		device_printf(sc->vmbus_dev, "close chan%u\n",
-		    channel->ch_id);
+		device_printf(sc->vmbus_dev, "close chan%u\n", chan->ch_id);
 	}
 
-	/* Tear down the gpadl for the channel's ring buffer */
-	if (channel->ch_bufring_gpadl) {
-		vmbus_chan_gpadl_disconnect(channel, channel->ch_bufring_gpadl);
-		channel->ch_bufring_gpadl = 0;
+	/*
+	 * Disconnect the TX+RX bufrings from this channel.
+	 */
+	if (chan->ch_bufring_gpadl) {
+		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
+		chan->ch_bufring_gpadl = 0;
 	}
 
-	/* TODO: Send a msg to release the childRelId */
-
-	/* cleanup the ring buffers for this channel */
-	hv_ring_buffer_cleanup(&channel->outbound);
-	hv_ring_buffer_cleanup(&channel->inbound);
-
-	if (channel->ch_bufring != NULL) {
-		hyperv_dmamem_free(&channel->ch_bufring_dma,
-		    channel->ch_bufring);
-		channel->ch_bufring = NULL;
+	/*
+	 * Destroy the TX+RX bufrings.
+	 */
+	hv_ring_buffer_cleanup(&chan->outbound);
+	hv_ring_buffer_cleanup(&chan->inbound);
+	if (chan->ch_bufring != NULL) {
+		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		chan->ch_bufring = NULL;
 	}
 }
 
@@ -601,12 +604,12 @@ hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
 
 		subchan = vmbus_subchan_get(chan, subchan_cnt);
 		for (i = 0; i < subchan_cnt; ++i)
-			hv_vmbus_channel_close_internal(subchan[i]);
+			vmbus_chan_close_internal(subchan[i]);
 		vmbus_subchan_rel(subchan, subchan_cnt);
 	}
 
 	/* Then close the primary channel. */
-	hv_vmbus_channel_close_internal(chan);
+	vmbus_chan_close_internal(chan);
 }
 
 int
