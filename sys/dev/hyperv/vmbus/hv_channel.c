@@ -637,8 +637,8 @@ vmbus_chan_send(struct hv_vmbus_channel *chan, uint16_t type, uint16_t flags,
 
 	pkt.cp_hdr.cph_type = type;
 	pkt.cp_hdr.cph_flags = flags;
-	pkt.cp_hdr.cph_data_ofs = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
-	pkt.cp_hdr.cph_len = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_hlen = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_tlen = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
 	pkt.cp_hdr.cph_xactid = xactid;
 
 	iov[0].iov_base = &pkt;
@@ -673,8 +673,8 @@ vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
 
 	pkt.cp_hdr.cph_type = VMBUS_CHANPKT_TYPE_GPA;
 	pkt.cp_hdr.cph_flags = VMBUS_CHANPKT_FLAG_RC;
-	pkt.cp_hdr.cph_data_ofs = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
-	pkt.cp_hdr.cph_len = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_hlen = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_tlen = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
 	pkt.cp_hdr.cph_xactid = xactid;
 	pkt.cp_rsvd = 0;
 	pkt.cp_gpa_cnt = sglen;
@@ -715,8 +715,8 @@ vmbus_chan_send_prplist(struct hv_vmbus_channel *chan,
 
 	pkt.cp_hdr.cph_type = VMBUS_CHANPKT_TYPE_GPA;
 	pkt.cp_hdr.cph_flags = VMBUS_CHANPKT_FLAG_RC;
-	pkt.cp_hdr.cph_data_ofs = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
-	pkt.cp_hdr.cph_len = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_hlen = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_tlen = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
 	pkt.cp_hdr.cph_xactid = xactid;
 	pkt.cp_rsvd = 0;
 	pkt.cp_range_cnt = 1;
