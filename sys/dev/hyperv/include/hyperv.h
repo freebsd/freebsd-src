@@ -274,16 +274,13 @@ typedef struct hv_vmbus_channel {
 	struct hyperv_mon_param		*ch_monprm;
 	struct hyperv_dma		ch_monprm_dma;
 
+	int				ch_cpuid;	/* owner cpu */
 	/*
-	 * From Win8, this field specifies the target virtual process
-	 * on which to deliver the interrupt from the host to guest.
-	 * Before Win8, all channel interrupts would only be
-	 * delivered on cpu 0. Setting this value to 0 would preserve
-	 * the earlier behavior.
+	 * Virtual cpuid for ch_cpuid; it is used to communicate cpuid
+	 * related information w/ Hyper-V.  If MSR_HV_VP_INDEX does not
+	 * exist, ch_vcpuid will always be 0 for compatibility.
 	 */
-	uint32_t			target_vcpu;
-	/* The corresponding CPUID in the guest */
-	uint32_t			target_cpu;
+	uint32_t			ch_vcpuid;
 
 	/*
 	 * If this is a primary channel, ch_subchan* fields
