@@ -261,16 +261,6 @@ static uint32_t copy_from_ring_buffer(
 			uint32_t			dest_len,
 			uint32_t			start_read_offset);
 
-
-/**
- * @brief Get the interrupt mask for the specified ring buffer.
- */
-uint32_t
-hv_vmbus_get_ring_buffer_interrupt_mask(hv_vmbus_ring_buffer_info *rbi) 
-{
-	return rbi->ring_buffer->interrupt_mask;
-}
-
 /**
  * @brief Initialize the ring buffer.
  */
