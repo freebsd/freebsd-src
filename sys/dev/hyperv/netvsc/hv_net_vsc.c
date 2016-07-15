@@ -363,7 +363,7 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 		
 	/* Tear down the gpadl on the vsp end */
 	if (net_dev->rx_buf_gpadl_handle) {
-		ret = hv_vmbus_channel_teardown_gpdal(net_dev->sc->hn_prichan,
+		ret = vmbus_chan_gpadl_disconnect(net_dev->sc->hn_prichan,
 		    net_dev->rx_buf_gpadl_handle);
 		/*
 		 * If we failed here, we might as well return and have a leak 
@@ -430,7 +430,7 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 		
 	/* Tear down the gpadl on the vsp end */
 	if (net_dev->send_buf_gpadl_handle) {
-		ret = hv_vmbus_channel_teardown_gpdal(net_dev->sc->hn_prichan,
+		ret = vmbus_chan_gpadl_disconnect(net_dev->sc->hn_prichan,
 		    net_dev->send_buf_gpadl_handle);
 
 		/*
