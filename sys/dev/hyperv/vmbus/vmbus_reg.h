@@ -109,15 +109,6 @@ CTASSERT(sizeof(struct vmbus_mnf) == PAGE_SIZE);
 #define VMBUS_CHAN_MAX		(VMBUS_EVTFLAG_LEN * VMBUS_EVTFLAGS_MAX)
 
 /*
- * GPA range.
- */
-struct vmbus_gpa_range {
-	uint32_t	gpa_len;
-	uint32_t	gpa_ofs;
-	uint64_t	gpa_page[];
-} __packed;
-
-/*
  * Channel packets
  */
 
@@ -141,6 +132,13 @@ struct vmbus_chanpkt_sglist {
 	uint32_t	cp_rsvd;
 	uint32_t	cp_gpa_cnt;
 	struct vmbus_gpa cp_gpa[];
+} __packed;
+
+struct vmbus_chanpkt_prplist {
+	struct vmbus_chanpkt_hdr cp_hdr;
+	uint32_t	cp_rsvd;
+	uint32_t	cp_range_cnt;
+	struct vmbus_gpa_range cp_range[];
 } __packed;
 
 /*

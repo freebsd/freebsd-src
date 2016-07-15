@@ -31,6 +31,15 @@
 
 #include <sys/param.h>
 
+/*
+ * GPA stuffs.
+ */
+struct vmbus_gpa_range {
+	uint32_t	gpa_len;
+	uint32_t	gpa_ofs;
+	uint64_t	gpa_page[0];
+} __packed;
+
 /* This is actually vmbus_gpa_range.gpa_page[1] */
 struct vmbus_gpa {
 	uint32_t	gpa_len;
@@ -39,11 +48,15 @@ struct vmbus_gpa {
 } __packed;
 
 #define VMBUS_CHAN_SGLIST_MAX	32
+#define VMBUS_CHAN_PRPLIST_MAX	32
 
 struct hv_vmbus_channel;
 
 int	vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
 	    struct vmbus_gpa sg[], int sglen, void *data, int dlen,
+	    uint64_t xactid);
+int	vmbus_chan_send_prplist(struct hv_vmbus_channel *chan,
+	    struct vmbus_gpa_range *prp, int prp_cnt, void *data, int dlen,
 	    uint64_t xactid);
 
 #endif	/* !_VMBUS_H_ */

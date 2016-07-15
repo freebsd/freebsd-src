@@ -42,20 +42,6 @@
 struct vmbus_softc;
 
 /*
- * The format must be the same as hv_vm_data_gpa_direct
- */
-typedef struct hv_vmbus_channel_packet_multipage_buffer {
-	uint16_t 			type;
-	uint16_t 			data_offset8;
-	uint16_t 			length8;
-	uint16_t 			flags;
-	uint64_t			transaction_id;
-	uint32_t 			reserved;
-	uint32_t			range_count; /* Always 1 in this case */
-	hv_vmbus_multipage_buffer	range;
-} __packed hv_vmbus_channel_packet_multipage_buffer;
-
-/*
  * Private, VM Bus functions
  */
 struct sysctl_ctx_list;
