@@ -751,7 +751,7 @@ vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen0,
 	dlen = VMBUS_CHANPKT_GETLEN(pkt.cph_tlen) - hlen;
 
 	if (*dlen0 < dlen) {
-		/* Return the size of this packet. */
+		/* Return the size of this packet's data. */
 		*dlen0 = dlen;
 		return ENOBUFS;
 	}
@@ -759,49 +759,37 @@ vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen0,
 	*xactid = pkt.cph_xactid;
 	*dlen0 = dlen;
 
+	/* Skip packet header */
 	error = hv_ring_buffer_read(&chan->inbound, data, dlen, hlen);
 	KASSERT(!error, ("hv_ring_buffer_read failed"));
 
 	return 0;
 }
 
-/**
- * @brief Retrieve the raw packet on the specified channel
- */
 int
-hv_vmbus_channel_recv_packet_raw(
-	hv_vmbus_channel*	channel,
-	void*			buffer,
-	uint32_t		buffer_len,
-	uint32_t*		buffer_actual_len,
-	uint64_t*		request_id)
+vmbus_chan_recv_pkt(struct hv_vmbus_channel *chan,
+    struct vmbus_chanpkt_hdr *pkt0, int *pktlen0)
 {
-	int		ret;
-	uint32_t	packetLen;
-	hv_vm_packet_descriptor	desc;
+	struct vmbus_chanpkt_hdr pkt;
+	int error, pktlen;
 
-	*buffer_actual_len = 0;
-	*request_id = 0;
+	error = hv_ring_buffer_peek(&chan->inbound, &pkt, sizeof(pkt));
+	if (error)
+		return error;
 
-	ret = hv_ring_buffer_peek(
-		&channel->inbound, &desc,
-		sizeof(hv_vm_packet_descriptor));
+	pktlen = VMBUS_CHANPKT_GETLEN(pkt.cph_tlen);
+	if (*pktlen0 < pktlen) {
+		/* Return the size of this packet. */
+		*pktlen0 = pktlen;
+		return ENOBUFS;
+	}
+	*pktlen0 = pktlen;
 
-	if (ret != 0)
-	    return (0);
+	/* Include packet header */
+	error = hv_ring_buffer_read(&chan->inbound, pkt0, pktlen, 0);
+	KASSERT(!error, ("hv_ring_buffer_read failed"));
 
-	packetLen = desc.length8 << 3;
-	*buffer_actual_len = packetLen;
-
-	if (packetLen > buffer_len)
-	    return (ENOBUFS);
-
-	*request_id = desc.transaction_id;
-
-	/* Copy over the entire packet to the user buffer */
-	ret = hv_ring_buffer_read(&channel->inbound, buffer, packetLen, 0);
-
-	return (0);
+	return 0;
 }
 
 static void

@@ -64,12 +64,12 @@ static int  hv_nv_destroy_send_buffer(netvsc_dev *net_dev);
 static int  hv_nv_destroy_rx_buffer(netvsc_dev *net_dev);
 static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
 static void hv_nv_on_send_completion(netvsc_dev *net_dev,
-    struct hv_vmbus_channel *, hv_vm_packet_descriptor *pkt);
+    struct hv_vmbus_channel *, const struct vmbus_chanpkt_hdr *pkt);
 static void hv_nv_on_receive_completion(struct hv_vmbus_channel *chan,
     uint64_t tid, uint32_t status);
 static void hv_nv_on_receive(netvsc_dev *net_dev,
     struct hn_softc *sc, struct hv_vmbus_channel *chan,
-    hv_vm_packet_descriptor *pkt);
+    const struct vmbus_chanpkt_hdr *pkt);
 
 /*
  *
@@ -726,13 +726,12 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
  */
 static void
 hv_nv_on_send_completion(netvsc_dev *net_dev, struct hv_vmbus_channel *chan,
-    hv_vm_packet_descriptor *pkt)
+    const struct vmbus_chanpkt_hdr *pkt)
 {
-	nvsp_msg *nvsp_msg_pkt;
+	const nvsp_msg *nvsp_msg_pkt;
 	netvsc_packet *net_vsc_pkt;
 
-	nvsp_msg_pkt =
-	    (nvsp_msg *)((unsigned long)pkt + (pkt->data_offset8 << 3));
+	nvsp_msg_pkt = VMBUS_CHANPKT_CONST_DATA(pkt);
 
 	if (nvsp_msg_pkt->hdr.msg_type == nvsp_msg_type_init_complete
 		|| nvsp_msg_pkt->hdr.msg_type
@@ -749,7 +748,7 @@ hv_nv_on_send_completion(netvsc_dev *net_dev, struct hv_vmbus_channel *chan,
 		    nvsp_msg_1_type_send_rndis_pkt_complete) {
 		/* Get the send context */
 		net_vsc_pkt =
-		    (netvsc_packet *)(unsigned long)pkt->transaction_id;
+		    (netvsc_packet *)(unsigned long)pkt->cph_xactid;
 		if (NULL != net_vsc_pkt) {
 			if (net_vsc_pkt->send_buf_section_idx !=
 			    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
@@ -829,10 +828,10 @@ hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
  */
 static void
 hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
-    struct hv_vmbus_channel *chan, hv_vm_packet_descriptor *pkt)
+    struct hv_vmbus_channel *chan, const struct vmbus_chanpkt_hdr *pkthdr)
 {
-	hv_vm_transfer_page_packet_header *vm_xfer_page_pkt;
-	nvsp_msg *nvsp_msg_pkt;
+	const struct vmbus_chanpkt_rxbuf *pkt;
+	const nvsp_msg *nvsp_msg_pkt;
 	netvsc_packet vsc_pkt;
 	netvsc_packet *net_vsc_pkt = &vsc_pkt;
 	device_t dev = sc->hn_dev;
@@ -840,43 +839,31 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
 	int i = 0;
 	int status = nvsp_status_success;
 
-	/*
-	 * All inbound packets other than send completion should be
-	 * xfer page packet.
-	 */
-	if (pkt->type != VMBUS_CHANPKT_TYPE_RXBUF) {
-		device_printf(dev, "packet type %d is invalid!\n", pkt->type);
-		return;
-	}
-
-	nvsp_msg_pkt = (nvsp_msg *)((unsigned long)pkt
-		+ (pkt->data_offset8 << 3));
+	nvsp_msg_pkt = VMBUS_CHANPKT_CONST_DATA(pkthdr);
 
 	/* Make sure this is a valid nvsp packet */
 	if (nvsp_msg_pkt->hdr.msg_type != nvsp_msg_1_type_send_rndis_pkt) {
-		device_printf(dev, "packet hdr type %d is invalid!\n",
-		    pkt->type);
+		device_printf(dev, "packet hdr type %u is invalid!\n",
+		    nvsp_msg_pkt->hdr.msg_type);
 		return;
 	}
 	
-	vm_xfer_page_pkt = (hv_vm_transfer_page_packet_header *)pkt;
+	pkt = (const struct vmbus_chanpkt_rxbuf *)pkthdr;
 
-	if (vm_xfer_page_pkt->transfer_page_set_id !=
-	    NETVSC_RECEIVE_BUFFER_ID) {
-		device_printf(dev, "transfer_page_set_id %d is invalid!\n",
-		    vm_xfer_page_pkt->transfer_page_set_id);
+	if (pkt->cp_rxbuf_id != NETVSC_RECEIVE_BUFFER_ID) {
+		device_printf(dev, "rxbuf_id %d is invalid!\n",
+		    pkt->cp_rxbuf_id);
 		return;
 	}
 
-	count = vm_xfer_page_pkt->range_count;
+	count = pkt->cp_rxbuf_cnt;
 
 	/* Each range represents 1 RNDIS pkt that contains 1 Ethernet frame */
 	for (i = 0; i < count; i++) {
 		net_vsc_pkt->status = nvsp_status_success;
-		net_vsc_pkt->data = (void *)((unsigned long)net_dev->rx_buf +
-		    vm_xfer_page_pkt->ranges[i].byte_offset);
-		net_vsc_pkt->tot_data_buf_len = 
-		    vm_xfer_page_pkt->ranges[i].byte_count;
+		net_vsc_pkt->data = ((uint8_t *)net_dev->rx_buf +
+		    pkt->cp_rxbuf[i].rb_ofs);
+		net_vsc_pkt->tot_data_buf_len = pkt->cp_rxbuf[i].rb_len;
 
 		hv_rf_on_receive(net_dev, chan, net_vsc_pkt);
 		if (net_vsc_pkt->status != nvsp_status_success) {
@@ -889,8 +876,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
 	 * messages (not just data messages) will trigger a response
 	 * message back to the host.
 	 */
-	hv_nv_on_receive_completion(chan, vm_xfer_page_pkt->d.transaction_id,
-	    status);
+	hv_nv_on_receive_completion(chan, pkt->cp_hdr.cph_xactid, status);
 }
 
 /*
@@ -934,19 +920,19 @@ retry_send_cmplt:
  * Net VSC receiving vRSS send table from VSP
  */
 static void
-hv_nv_send_table(struct hn_softc *sc, hv_vm_packet_descriptor *pkt)
+hv_nv_send_table(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
 {
 	netvsc_dev *net_dev;
-	nvsp_msg *nvsp_msg_pkt;
+	const nvsp_msg *nvsp_msg_pkt;
 	int i;
-	uint32_t count, *table;
+	uint32_t count;
+	const uint32_t *table;
 
 	net_dev = hv_nv_get_inbound_net_device(sc);
 	if (!net_dev)
         	return;
 
-	nvsp_msg_pkt =
-	    (nvsp_msg *)((unsigned long)pkt + (pkt->data_offset8 << 3));
+	nvsp_msg_pkt = VMBUS_CHANPKT_CONST_DATA(pkt);
 
 	if (nvsp_msg_pkt->hdr.msg_type !=
 	    nvsp_msg5_type_send_indirection_table) {
@@ -962,8 +948,8 @@ hv_nv_send_table(struct hn_softc *sc, hv_vm_packet_descriptor *pkt)
 	        return;
 	}
 
-	table = (uint32_t *)
-	    ((unsigned long)&nvsp_msg_pkt->msgs.vers_5_msgs.send_table +
+	table = (const uint32_t *)
+	    ((const uint8_t *)&nvsp_msg_pkt->msgs.vers_5_msgs.send_table +
 	     nvsp_msg_pkt->msgs.vers_5_msgs.send_table.offset);
 
 	for (i = 0; i < count; i++)
@@ -980,44 +966,40 @@ hv_nv_on_channel_callback(void *xchan)
 	device_t dev = chan->ch_dev;
 	struct hn_softc *sc = device_get_softc(dev);
 	netvsc_dev *net_dev;
-	uint32_t bytes_rxed;
-	uint64_t request_id;
- 	hv_vm_packet_descriptor *desc;
-	uint8_t *buffer;
+	void *buffer;
 	int bufferlen = NETVSC_PACKET_SIZE;
-	int ret = 0;
 
 	net_dev = hv_nv_get_inbound_net_device(sc);
 	if (net_dev == NULL)
 		return;
 
 	buffer = chan->hv_chan_rdbuf;
-
 	do {
-		ret = hv_vmbus_channel_recv_packet_raw(chan,
-		    buffer, bufferlen, &bytes_rxed, &request_id);
+		struct vmbus_chanpkt_hdr *pkt = buffer;
+		uint32_t bytes_rxed;
+		int ret;
+
+		bytes_rxed = bufferlen;
+		ret = vmbus_chan_recv_pkt(chan, pkt, &bytes_rxed);
 		if (ret == 0) {
 			if (bytes_rxed > 0) {
-				desc = (hv_vm_packet_descriptor *)buffer;
-				switch (desc->type) {
+				switch (pkt->cph_type) {
 				case VMBUS_CHANPKT_TYPE_COMP:
 					hv_nv_on_send_completion(net_dev, chan,
-					    desc);
+					    pkt);
 					break;
 				case VMBUS_CHANPKT_TYPE_RXBUF:
-					hv_nv_on_receive(net_dev, sc, chan, desc);
+					hv_nv_on_receive(net_dev, sc, chan, pkt);
 					break;
 				case VMBUS_CHANPKT_TYPE_INBAND:
-					hv_nv_send_table(sc, desc);
+					hv_nv_send_table(sc, pkt);
 					break;
 				default:
 					device_printf(dev,
-					    "hv_cb recv unknow type %d "
-					    " packet\n", desc->type);
+					    "unknown chan pkt %u\n",
+					    pkt->cph_type);
 					break;
 				}
-			} else {
-				break;
 			}
 		} else if (ret == ENOBUFS) {
 			/* Handle large packet */
@@ -1036,6 +1018,9 @@ hv_nv_on_channel_callback(void *xchan)
 				break;
 			}
 			bufferlen = bytes_rxed;
+		} else {
+			/* No more packets */
+			break;
 		}
 	} while (1);
 

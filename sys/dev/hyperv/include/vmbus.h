@@ -47,12 +47,42 @@ struct vmbus_gpa {
 	uint64_t	gpa_page;
 } __packed;
 
+#define VMBUS_CHANPKT_SIZE_SHIFT	3
+
+#define VMBUS_CHANPKT_GETLEN(pktlen)	\
+	(((int)(pktlen)) << VMBUS_CHANPKT_SIZE_SHIFT)
+
+struct vmbus_chanpkt_hdr {
+	uint16_t	cph_type;	/* VMBUS_CHANPKT_TYPE_ */
+	uint16_t	cph_hlen;	/* header len, in 8 bytes */
+	uint16_t	cph_tlen;	/* total len, in 8 bytes */
+	uint16_t	cph_flags;	/* VMBUS_CHANPKT_FLAG_ */
+	uint64_t	cph_xactid;
+} __packed;
+
 #define VMBUS_CHANPKT_TYPE_INBAND	0x0006
 #define VMBUS_CHANPKT_TYPE_RXBUF	0x0007
 #define VMBUS_CHANPKT_TYPE_GPA		0x0009
 #define VMBUS_CHANPKT_TYPE_COMP		0x000b
 
 #define VMBUS_CHANPKT_FLAG_RC		0x0001	/* report completion */
+
+#define VMBUS_CHANPKT_CONST_DATA(pkt)		\
+	(const void *)((const uint8_t *)(pkt) +	\
+	VMBUS_CHANPKT_GETLEN((pkt)->cph_hlen))
+
+struct vmbus_rxbuf_desc {
+	uint32_t	rb_len;
+	uint32_t	rb_ofs;
+} __packed;
+
+struct vmbus_chanpkt_rxbuf {
+	struct vmbus_chanpkt_hdr cp_hdr;
+	uint16_t	cp_rxbuf_id;
+	uint16_t	cp_rsvd;
+	uint32_t	cp_rxbuf_cnt;
+	struct vmbus_rxbuf_desc cp_rxbuf[];
+} __packed;
 
 #define VMBUS_CHAN_SGLIST_MAX		32
 #define VMBUS_CHAN_PRPLIST_MAX		32
@@ -61,6 +91,8 @@ struct hv_vmbus_channel;
 
 int	vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen,
 	    uint64_t *xactid);
+int	vmbus_chan_recv_pkt(struct hv_vmbus_channel *chan,
+	    struct vmbus_chanpkt_hdr *pkt, int *pktlen);
 
 int	vmbus_chan_send(struct hv_vmbus_channel *chan, uint16_t type,
 	    uint16_t flags, void *data, int dlen, uint64_t xactid);
