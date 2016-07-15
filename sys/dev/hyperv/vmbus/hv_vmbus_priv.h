@@ -123,9 +123,4 @@ void			hv_ring_buffer_read_begin(
 uint32_t		hv_ring_buffer_read_end(
 				hv_vmbus_ring_buffer_info	*ring_info);
 
-int			hv_vmbus_child_device_register(
-					struct hv_vmbus_channel *chan);
-int			hv_vmbus_child_device_unregister(
-					struct hv_vmbus_channel *chan);
-
 #endif  /* __HYPERV_PRIV_H__ */
