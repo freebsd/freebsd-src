@@ -90,28 +90,6 @@ struct hyperv_guid {
 
 int	hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
 
-typedef struct {
-	uint16_t type;
-	uint16_t data_offset8;
-	uint16_t length8;
-	uint16_t flags;
-	uint64_t transaction_id;
-} __packed hv_vm_packet_descriptor;
-
-typedef struct {
-	uint32_t byte_count;
-	uint32_t byte_offset;
-} __packed hv_vm_transfer_page;
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint16_t		transfer_page_set_id;
-	hv_bool_uint8_t		sender_owns_set;
-	uint8_t			reserved;
-	uint32_t		range_count;
-	hv_vm_transfer_page	ranges[1];
-} __packed hv_vm_transfer_page_packet_header;
-
 #define HW_MACADDR_LEN	6
 
 /*
@@ -297,13 +275,6 @@ hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t on)
 	else
 		channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
 }
-
-int		hv_vmbus_channel_recv_packet_raw(
-				hv_vmbus_channel*	channel,
-				void*			buffer,
-				uint32_t		buffer_len,
-				uint32_t*		buffer_actual_len,
-				uint64_t*		request_id);
 
 int		hv_vmbus_channel_open(
 				hv_vmbus_channel*	channel,
