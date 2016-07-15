@@ -409,6 +409,9 @@ int		hv_vmbus_channel_teardown_gpdal(
 				hv_vmbus_channel*	channel,
 				uint32_t		gpadl_handle);
 
+int		vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan,
+		    bus_addr_t paddr, int size, uint32_t *gpadl);
+
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
 void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
