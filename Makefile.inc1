@@ -541,6 +541,7 @@ LIBCHERIWMAKEFLAGS= \
 		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
 		MK_CTF=no \
+		MK_TESTS_SUPPORT=${MK_TESTS} \
 		-DNO_LINT
 
 LIBCHERIWMAKE=	${LIBCHERIWMAKEENV} ${MAKE} ${LIBCHERIWMAKEFLAGS} \
@@ -845,11 +846,16 @@ buildcheri:
 .for _lib in lib/csu lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
-		${LIBCHERIWMAKE} DIRPRFX=${_lib}/ obj && \
-		${LIBCHERIWMAKE} DIRPRFX=${_lib}/ depend && \
-		${LIBCHERIWMAKE} DIRPRFX=${_lib}/ all && \
-		${LIBCHERIWMAKE} DIRPRFX=${_lib}/ install
+		    ${LIBCHERIWMAKE} DIRPRFX=${_lib}/ obj && \
+		    ${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ all && \
+		    ${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
 .endfor
+.if ${MK_TESTS} == "yes"
+.for _lib in lib/csu lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib
+		cd ${.CURDIR}/${_lib} && \
+		    ${LIBCHERIWMAKE} DIRPRFX=${_lib}/ all
+.endfor
+.endif
 
 distributecheri installcheri:
 .for _lib in lib ${LOCAL_LIB_DIRS} secure/lib
