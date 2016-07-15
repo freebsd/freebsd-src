@@ -315,7 +315,7 @@ storvsc_subchan_attach(struct storvsc_softc *sc,
 	memset(&props, 0, sizeof(props));
 
 	new_channel->hv_chan_priv1 = sc;
-	vmbus_chan_cpu_rr(new_channel);
+	vmbus_channel_cpu_rr(new_channel);
 	ret = hv_vmbus_channel_open(new_channel,
 	    sc->hs_drv_props->drv_ringbuffer_size,
   	    sc->hs_drv_props->drv_ringbuffer_size,
@@ -377,14 +377,14 @@ storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 	}
 
 	/* Wait for sub-channels setup to complete. */
-	subchan = vmbus_subchan_get(sc->hs_chan, request_channels_cnt);
+	subchan = vmbus_get_subchan(sc->hs_chan, request_channels_cnt);
 
 	/* Attach the sub-channels. */
 	for (i = 0; i < request_channels_cnt; ++i)
 		storvsc_subchan_attach(sc, subchan[i]);
 
 	/* Release the sub-channels. */
-	vmbus_subchan_rel(subchan, request_channels_cnt);
+	vmbus_rel_subchan(subchan, request_channels_cnt);
 
 	if (bootverbose)
 		printf("Storvsc create multi-channel success!\n");
@@ -574,7 +574,7 @@ hv_storvsc_connect_vsp(struct storvsc_softc *sc)
 	 * Open the channel
 	 */
 	KASSERT(sc->hs_chan->hv_chan_priv1 == sc, ("invalid chan priv1"));
-	vmbus_chan_cpu_rr(sc->hs_chan);
+	vmbus_channel_cpu_rr(sc->hs_chan);
 	ret = hv_vmbus_channel_open(
 		sc->hs_chan,
 		sc->hs_drv_props->drv_ringbuffer_size,

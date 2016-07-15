@@ -324,7 +324,7 @@ hv_vmbus_channel_open(
 
 failed:
 	if (new_channel->ch_bufring_gpadl) {
-		vmbus_chan_gpadl_disconnect(new_channel,
+		hv_vmbus_channel_teardown_gpdal(new_channel,
 		    new_channel->ch_bufring_gpadl);
 		new_channel->ch_bufring_gpadl = 0;
 	}
@@ -468,7 +468,7 @@ vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan, bus_addr_t paddr,
  * Disconnect the GPA from the target channel
  */
 int
-vmbus_chan_gpadl_disconnect(struct hv_vmbus_channel *chan, uint32_t gpadl)
+hv_vmbus_channel_teardown_gpdal(struct hv_vmbus_channel *chan, uint32_t gpadl)
 {
 	struct vmbus_softc *sc = chan->vmbus_sc;
 	struct vmbus_msghc *mh;
@@ -556,7 +556,8 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 
 	/* Tear down the gpadl for the channel's ring buffer */
 	if (channel->ch_bufring_gpadl) {
-		vmbus_chan_gpadl_disconnect(channel, channel->ch_bufring_gpadl);
+		hv_vmbus_channel_teardown_gpdal(channel,
+		    channel->ch_bufring_gpadl);
 		channel->ch_bufring_gpadl = 0;
 	}
 
@@ -599,10 +600,10 @@ hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
 		struct hv_vmbus_channel **subchan;
 		int i;
 
-		subchan = vmbus_subchan_get(chan, subchan_cnt);
+		subchan = vmbus_get_subchan(chan, subchan_cnt);
 		for (i = 0; i < subchan_cnt; ++i)
 			hv_vmbus_channel_close_internal(subchan[i]);
-		vmbus_subchan_rel(subchan, subchan_cnt);
+		vmbus_rel_subchan(subchan, subchan_cnt);
 	}
 
 	/* Then close the primary channel. */
@@ -1037,7 +1038,7 @@ vmbus_chan_add(struct hv_vmbus_channel *newchan)
 }
 
 void
-vmbus_chan_cpu_set(struct hv_vmbus_channel *chan, int cpu)
+vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 {
 	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu %d", cpu));
 
@@ -1057,13 +1058,13 @@ vmbus_chan_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 }
 
 void
-vmbus_chan_cpu_rr(struct hv_vmbus_channel *chan)
+vmbus_channel_cpu_rr(struct hv_vmbus_channel *chan)
 {
 	static uint32_t vmbus_chan_nextcpu;
 	int cpu;
 
 	cpu = atomic_fetchadd_int(&vmbus_chan_nextcpu, 1) % mp_ncpus;
-	vmbus_chan_cpu_set(chan, cpu);
+	vmbus_channel_cpu_set(chan, cpu);
 }
 
 static void
@@ -1072,9 +1073,9 @@ vmbus_chan_cpu_default(struct hv_vmbus_channel *chan)
 	/*
 	 * By default, pin the channel to cpu0.  Devices having
 	 * special channel-cpu mapping requirement should call
-	 * vmbus_chan_cpu_{set,rr}().
+	 * vmbus_channel_cpu_{set,rr}().
 	 */
-	vmbus_chan_cpu_set(chan, 0);
+	vmbus_channel_cpu_set(chan, 0);
 }
 
 static void
@@ -1308,7 +1309,7 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 }
 
 struct hv_vmbus_channel **
-vmbus_subchan_get(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
+vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
 {
 	struct hv_vmbus_channel **ret, *chan;
 	int i;
@@ -1339,14 +1340,14 @@ vmbus_subchan_get(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
 }
 
 void
-vmbus_subchan_rel(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
+vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
 {
 
 	free(subchan, M_TEMP);
 }
 
 void
-vmbus_subchan_drain(struct hv_vmbus_channel *pri_chan)
+vmbus_drain_subchan(struct hv_vmbus_channel *pri_chan)
 {
 	mtx_lock(&pri_chan->ch_subchan_lock);
 	while (pri_chan->ch_subchan_cnt > 0)

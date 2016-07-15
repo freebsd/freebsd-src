@@ -287,7 +287,21 @@ int		hv_vmbus_channel_open(
 
 void		hv_vmbus_channel_close(hv_vmbus_channel *channel);
 
+int		hv_vmbus_channel_teardown_gpdal(
+				hv_vmbus_channel*	channel,
+				uint32_t		gpadl_handle);
+
+int		vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan,
+		    bus_addr_t paddr, int size, uint32_t *gpadl);
+
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
+
+void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
+void		vmbus_channel_cpu_rr(struct hv_vmbus_channel *chan);
+struct hv_vmbus_channel **
+		vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
+void		vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt);
+void		vmbus_drain_subchan(struct hv_vmbus_channel *pri_chan);
 
 /**
  * @brief Get physical address from virtual
