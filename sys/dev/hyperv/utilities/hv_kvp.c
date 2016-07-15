@@ -575,11 +575,9 @@ hv_kvp_respond_host(hv_kvp_sc *sc, int error)
 	hv_icmsg_hdrp->status = error;
 	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION | HV_ICMSGHDRFLAG_RESPONSE;
 
-	error = hv_vmbus_channel_send_packet(sc->util_sc.channel,
-			sc->rcv_buf,
-			sc->host_msg_len, sc->host_msg_id,
-			VMBUS_CHANPKT_TYPE_INBAND, 0);
-
+	error = vmbus_chan_send(sc->util_sc.channel,
+	    VMBUS_CHANPKT_TYPE_INBAND, 0, sc->rcv_buf, sc->host_msg_len,
+	    sc->host_msg_id);
 	if (error)
 		hv_kvp_log_info("%s: hv_kvp_respond_host: sendpacket error:%d\n",
 			__func__, error);

@@ -183,9 +183,9 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 
 	/* Send the gpadl notification request */
 
-	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
+	ret = vmbus_chan_send(sc->hn_prichan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -276,9 +276,9 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 
 	/* Send the gpadl notification request */
 
-	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
-  	    sizeof(nvsp_msg), (uint64_t)init_pkt,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
+	ret = vmbus_chan_send(sc->hn_prichan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+  	    init_pkt, sizeof(nvsp_msg), (uint64_t)init_pkt);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -335,10 +335,9 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 		revoke_pkt->msgs.vers_1_msgs.revoke_rx_buf.id =
 		    NETVSC_RECEIVE_BUFFER_ID;
 
-		ret = hv_vmbus_channel_send_packet(net_dev->sc->hn_prichan,
-		    revoke_pkt, sizeof(nvsp_msg),
-		    (uint64_t)(uintptr_t)revoke_pkt,
-		    VMBUS_CHANPKT_TYPE_INBAND, 0);
+		ret = vmbus_chan_send(net_dev->sc->hn_prichan,
+		    VMBUS_CHANPKT_TYPE_INBAND, 0, revoke_pkt, sizeof(nvsp_msg),
+		    (uint64_t)(uintptr_t)revoke_pkt);
 
 		/*
 		 * If we failed here, we might as well return and have a leak 
@@ -403,10 +402,10 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 		revoke_pkt->msgs.vers_1_msgs.revoke_send_buf.id =
 		    NETVSC_SEND_BUFFER_ID;
 
-		ret = hv_vmbus_channel_send_packet(net_dev->sc->hn_prichan,
+		ret = vmbus_chan_send(net_dev->sc->hn_prichan,
+		    VMBUS_CHANPKT_TYPE_INBAND, 0,
 		    revoke_pkt, sizeof(nvsp_msg),
-		    (uint64_t)(uintptr_t)revoke_pkt,
-		    VMBUS_CHANPKT_TYPE_INBAND, 0);
+		    (uint64_t)(uintptr_t)revoke_pkt);
 		/*
 		 * If we failed here, we might as well return and have a leak 
 		 * rather than continue and a bugchk
@@ -470,9 +469,9 @@ hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, netvsc_dev *net_dev,
 	init_pkt->msgs.init_msgs.init.protocol_version_2 = nvsp_ver;
 
 	/* Send the init request */
-	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
+	ret = vmbus_chan_send(sc->hn_prichan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
 	if (ret != 0)
 		return (-1);
 
@@ -513,9 +512,8 @@ hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 		= 1;
 
 	/* Send the configuration packet */
-	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    VMBUS_CHANPKT_TYPE_INBAND, 0);
+	ret = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
 	if (ret != 0)
 		return (-EINVAL);
 
@@ -592,9 +590,8 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 
 	/* Send the init request */
 
-	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    VMBUS_CHANPKT_TYPE_INBAND, 0);
+	ret = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -816,9 +813,9 @@ hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 		ret = vmbus_chan_send_sglist(chan, pkt->gpa, pkt->gpa_cnt,
 		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
 	} else {
-		ret = hv_vmbus_channel_send_packet(chan,
-		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt,
-		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
+		ret = vmbus_chan_send(chan,
+		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
 	}
 
 	return (ret);
@@ -917,8 +914,8 @@ hv_nv_on_receive_completion(struct hv_vmbus_channel *chan, uint64_t tid,
 
 retry_send_cmplt:
 	/* Send the completion */
-	ret = hv_vmbus_channel_send_packet(chan, &rx_comp_msg,
-	    sizeof(nvsp_msg), tid, VMBUS_CHANPKT_TYPE_COMP, 0);
+	ret = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_COMP, 0,
+	    &rx_comp_msg, sizeof(nvsp_msg), tid);
 	if (ret == 0) {
 		/* success */
 		/* no-op */

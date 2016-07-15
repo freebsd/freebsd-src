@@ -622,8 +622,8 @@ hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
 }
 
 int
-hv_vmbus_channel_send_packet(struct hv_vmbus_channel *chan,
-    void *data, uint32_t dlen, uint64_t xactid, uint16_t type, uint16_t flags)
+vmbus_chan_send(struct hv_vmbus_channel *chan, uint16_t type, uint16_t flags,
+    void *data, int dlen, uint64_t xactid)
 {
 	struct vmbus_chanpkt pkt;
 	int pktlen, pad_pktlen, hlen, error;

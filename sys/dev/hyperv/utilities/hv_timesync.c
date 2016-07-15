@@ -163,9 +163,8 @@ hv_timesync_cb(void *context)
 	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION
 		| HV_ICMSGHDRFLAG_RESPONSE;
 
-	    hv_vmbus_channel_send_packet(channel, time_buf,
-		recvlen, requestId,
-		VMBUS_CHANPKT_TYPE_INBAND, 0);
+	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	        time_buf, recvlen, requestId);
 	}
 }
 

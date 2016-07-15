@@ -323,14 +323,6 @@ int		hv_vmbus_channel_open(
 
 void		hv_vmbus_channel_close(hv_vmbus_channel *channel);
 
-int		hv_vmbus_channel_send_packet(
-				hv_vmbus_channel*	channel,
-				void*			buffer,
-				uint32_t		buffer_len,
-				uint64_t		request_id,
-				uint16_t		type,
-				uint16_t		flags);
-
 int		hv_vmbus_channel_establish_gpadl(
 				hv_vmbus_channel*	channel,
 				/* must be phys and virt contiguous */
