@@ -586,6 +586,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct ptrace_lwpinfo32 pl32;
 		struct ptrace_vm_entry32 pve32;
 #endif
+		int ptevents;
 	} r;
 	void *addr;
 	int error = 0;
@@ -600,6 +601,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	AUDIT_ARG_VALUE(uap->data);
 	addr = &r;
 	switch (uap->req) {
+	case PT_GET_EVENT_MASK:
 	case PT_GETREGS:
 	case PT_GETFPREGS:
 	case PT_GETDBREGS:
@@ -613,6 +615,12 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		break;
 	case PT_SETDBREGS:
 		error = COPYIN(uap->addr, &r.dbreg, sizeof r.dbreg);
+		break;
+	case PT_SET_EVENT_MASK:
+		if (uap->data != sizeof(r.ptevents))
+			error = EINVAL;
+		else
+			error = copyin(uap->addr, &r.ptevents, uap->data);
 		break;
 	case PT_IO:
 		error = COPYIN(uap->addr, &r.piod, sizeof r.piod);
@@ -647,7 +655,12 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GETDBREGS:
 		error = COPYOUT(&r.dbreg, uap->addr, sizeof r.dbreg);
 		break;
+	case PT_GET_EVENT_MASK:
+		/* NB: The size in uap->data is validated in kern_ptrace(). */
+		error = copyout(&r.ptevents, uap->addr, uap->data);
+		break;
 	case PT_LWPINFO:
+		/* NB: The size in uap->data is validated in kern_ptrace(). */
 		error = copyout(&r.pl, uap->addr, uap->data);
 		break;
 	}
@@ -711,6 +724,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_SYSCALL:
 	case PT_FOLLOW_FORK:
 	case PT_LWP_EVENTS:
+	case PT_GET_EVENT_MASK:
+	case PT_SET_EVENT_MASK:
 	case PT_DETACH:
 		sx_xlock(&proctree_lock);
 		proctree_locked = 1;
@@ -885,6 +900,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
 		p->p_flag |= P_TRACED;
+		p->p_ptevents = PTRACE_DEFAULT;
 		if (p->p_flag & P_PPWAIT)
 			p->p_flag |= P_PPTRACE;
 		p->p_oppid = p->p_pptr->p_pid;
@@ -903,6 +919,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 * on a "detach".
 		 */
 		p->p_flag |= P_TRACED;
+		p->p_ptevents = PTRACE_DEFAULT;
 		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != td->td_proc) {
 			proc_reparent(p, td->td_proc);
@@ -941,24 +958,50 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_FOLLOW_FORK:
 		CTR3(KTR_PTRACE, "PT_FOLLOW_FORK: pid %d %s -> %s", p->p_pid,
-		    p->p_flag & P_FOLLOWFORK ? "enabled" : "disabled",
+		    p->p_ptevents & PTRACE_FORK ? "enabled" : "disabled",
 		    data ? "enabled" : "disabled");
 		if (data)
-			p->p_flag |= P_FOLLOWFORK;
+			p->p_ptevents |= PTRACE_FORK;
 		else
-			p->p_flag &= ~P_FOLLOWFORK;
+			p->p_ptevents &= ~PTRACE_FORK;
 		break;
 
 	case PT_LWP_EVENTS:
 		CTR3(KTR_PTRACE, "PT_LWP_EVENTS: pid %d %s -> %s", p->p_pid,
-		    p->p_flag2 & P2_LWP_EVENTS ? "enabled" : "disabled",
+		    p->p_ptevents & PTRACE_LWP ? "enabled" : "disabled",
 		    data ? "enabled" : "disabled");
 		if (data)
-			p->p_flag2 |= P2_LWP_EVENTS;
+			p->p_ptevents |= PTRACE_LWP;
 		else
-			p->p_flag2 &= ~P2_LWP_EVENTS;
+			p->p_ptevents &= ~PTRACE_LWP;
 		break;
 
+	case PT_GET_EVENT_MASK:
+		if (data != sizeof(p->p_ptevents)) {
+			error = EINVAL;
+			break;
+		}
+		CTR2(KTR_PTRACE, "PT_GET_EVENT_MASK: pid %d mask %#x", p->p_pid,
+		    p->p_ptevents);
+		*(int *)addr = p->p_ptevents;
+		break;
+
+	case PT_SET_EVENT_MASK:
+		if (data != sizeof(p->p_ptevents)) {
+			error = EINVAL;
+			break;
+		}
+		tmp = *(int *)addr;
+		if ((tmp & ~(PTRACE_EXEC | PTRACE_SCE | PTRACE_SCX |
+		    PTRACE_FORK | PTRACE_LWP)) != 0) {
+			error = EINVAL;
+			break;
+		}
+		CTR3(KTR_PTRACE, "PT_SET_EVENT_MASK: pid %d mask %#x -> %#x",
+		    p->p_pid, p->p_ptevents, tmp);
+		p->p_ptevents = tmp;
+		break;
+		
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_TO_SCE:
@@ -991,24 +1034,24 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			}
 			switch (req) {
 			case PT_TO_SCE:
-				p->p_stops |= S_PT_SCE;
+				p->p_ptevents |= PTRACE_SCE;
 				CTR4(KTR_PTRACE,
-		    "PT_TO_SCE: pid %d, stops = %#x, PC = %#lx, sig = %d",
-				    p->p_pid, p->p_stops,
+		    "PT_TO_SCE: pid %d, events = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_ptevents,
 				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_TO_SCX:
-				p->p_stops |= S_PT_SCX;
+				p->p_ptevents |= PTRACE_SCX;
 				CTR4(KTR_PTRACE,
-		    "PT_TO_SCX: pid %d, stops = %#x, PC = %#lx, sig = %d",
-				    p->p_pid, p->p_stops,
+		    "PT_TO_SCX: pid %d, events = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_ptevents,
 				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_SYSCALL:
-				p->p_stops |= S_PT_SCE | S_PT_SCX;
+				p->p_ptevents |= PTRACE_SYSCALL;
 				CTR4(KTR_PTRACE,
-		    "PT_SYSCALL: pid %d, stops = %#x, PC = %#lx, sig = %d",
-				    p->p_pid, p->p_stops,
+		    "PT_SYSCALL: pid %d, events = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_ptevents,
 				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_CONTINUE:
@@ -1027,7 +1070,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			 * parent.  Otherwise the debugee will be set
 			 * as an orphan of the debugger.
 			 */
-			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
+			p->p_flag &= ~(P_TRACED | P_WAITED);
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				PROC_LOCK(p->p_pptr);
 				sigqueue_take(p->p_ksi);
@@ -1044,7 +1087,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				CTR2(KTR_PTRACE, "PT_DETACH: pid %d, sig %d",
 				    p->p_pid, data);
 			p->p_oppid = 0;
-			p->p_stops = 0;
+			p->p_ptevents = 0;
 
 			/* should we send SIGCHLD? */
 			/* childproc_continued(p); */
