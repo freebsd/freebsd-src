@@ -616,7 +616,7 @@ hv_vmbus_channel_send_packet(
 	uint64_t		aligned_data;
 	uint32_t		packet_len_aligned;
 	boolean_t		need_sig;
-	hv_vmbus_sg_buffer_list	buffer_list[3];
+	struct iovec		iov[3];
 
 	packet_len = sizeof(hv_vm_packet_descriptor) + buffer_len;
 	packet_len_aligned = HV_ALIGN_UP(packet_len, sizeof(uint64_t));
@@ -630,17 +630,16 @@ hv_vmbus_channel_send_packet(
 	desc.length8 = (uint16_t) (packet_len_aligned >> 3);
 	desc.transaction_id = request_id;
 
-	buffer_list[0].data = &desc;
-	buffer_list[0].length = sizeof(hv_vm_packet_descriptor);
+	iov[0].iov_base = &desc;
+	iov[0].iov_len = sizeof(hv_vm_packet_descriptor);
 
-	buffer_list[1].data = buffer;
-	buffer_list[1].length = buffer_len;
+	iov[1].iov_base = buffer;
+	iov[1].iov_len = buffer_len;
 
-	buffer_list[2].data = &aligned_data;
-	buffer_list[2].length = packet_len_aligned - packet_len;
+	iov[2].iov_base = &aligned_data;
+	iov[2].iov_len = packet_len_aligned - packet_len;
 
-	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3,
-	    &need_sig);
+	ret = hv_ring_buffer_write(&channel->outbound, iov, 3, &need_sig);
 
 	/* TODO: We should determine if this is optional */
 	if (ret == 0 && need_sig)
@@ -668,7 +667,7 @@ hv_vmbus_channel_send_packet_pagebuffer(
 	uint32_t				packet_len;
 	uint32_t				page_buflen;
 	uint32_t				packetLen_aligned;
-	hv_vmbus_sg_buffer_list			buffer_list[4];
+	struct iovec				iov[4];
 	hv_vmbus_channel_packet_page_buffer	desc;
 	uint32_t				descSize;
 	uint64_t				alignedData = 0;
@@ -694,20 +693,19 @@ hv_vmbus_channel_send_packet_pagebuffer(
 	desc.transaction_id = request_id;
 	desc.range_count = page_count;
 
-	buffer_list[0].data = &desc;
-	buffer_list[0].length = descSize;
+	iov[0].iov_base = &desc;
+	iov[0].iov_len = descSize;
 
-	buffer_list[1].data = page_buffers;
-	buffer_list[1].length = page_buflen;
+	iov[1].iov_base = page_buffers;
+	iov[1].iov_len = page_buflen;
 
-	buffer_list[2].data = buffer;
-	buffer_list[2].length = buffer_len;
+	iov[2].iov_base = buffer;
+	iov[2].iov_len = buffer_len;
 
-	buffer_list[3].data = &alignedData;
-	buffer_list[3].length = packetLen_aligned - packet_len;
+	iov[3].iov_base = &alignedData;
+	iov[3].iov_len = packetLen_aligned - packet_len;
 
-	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 4,
-	    &need_sig);
+	ret = hv_ring_buffer_write(&channel->outbound, iov, 4, &need_sig);
 
 	/* TODO: We should determine if this is optional */
 	if (ret == 0 && need_sig)
@@ -735,7 +733,7 @@ hv_vmbus_channel_send_packet_multipagebuffer(
 	uint32_t		packet_len_aligned;
 	uint32_t		pfn_count;
 	uint64_t		aligned_data = 0;
-	hv_vmbus_sg_buffer_list	buffer_list[3];
+	struct iovec		iov[3];
 	hv_vmbus_channel_packet_multipage_buffer desc;
 
 	pfn_count =
@@ -772,17 +770,16 @@ hv_vmbus_channel_send_packet_multipagebuffer(
 	memcpy(desc.range.pfn_array, multi_page_buffer->pfn_array,
 		pfn_count * sizeof(uint64_t));
 
-	buffer_list[0].data = &desc;
-	buffer_list[0].length = desc_size;
+	iov[0].iov_base = &desc;
+	iov[0].iov_len = desc_size;
 
-	buffer_list[1].data = buffer;
-	buffer_list[1].length = buffer_len;
+	iov[1].iov_base = buffer;
+	iov[1].iov_len = buffer_len;
 
-	buffer_list[2].data = &aligned_data;
-	buffer_list[2].length = packet_len_aligned - packet_len;
+	iov[2].iov_base = &aligned_data;
+	iov[2].iov_len = packet_len_aligned - packet_len;
 
-	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3,
-	    &need_sig);
+	ret = hv_ring_buffer_write(&channel->outbound, iov, 3, &need_sig);
 
 	/* TODO: We should determine if this is optional */
 	if (ret == 0 && need_sig)
