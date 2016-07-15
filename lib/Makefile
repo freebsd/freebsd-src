@@ -322,7 +322,7 @@ _libsmutil=	libsmutil
 _libtelnet=	libtelnet
 .endif
 
-.if ${MK_TESTS_SUPPORT} != "no"
+.if ${MK_TESTS_SUPPORT} != "no" || defined(LIBCHERI)
 _atf=		atf
 .endif
 .if ${MK_TESTS} != "no"
