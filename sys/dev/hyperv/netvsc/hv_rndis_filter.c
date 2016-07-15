@@ -1166,9 +1166,9 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	init_pkt->msgs.vers_5_msgs.subchannel_request.num_subchannels =
 	    net_dev->num_channel - 1;
 
-	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
+	ret = vmbus_chan_send(sc->hn_prichan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
 	if (ret != 0) {
 		device_printf(dev, "Fail to allocate subchannel\n");
 		goto out;
