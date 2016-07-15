@@ -99,88 +99,106 @@ vmbus_chan_send_event(hv_vmbus_channel *channel)
 }
 
 static int
-vmbus_channel_sysctl_monalloc(SYSCTL_HANDLER_ARGS)
+vmbus_chan_sysctl_mnf(SYSCTL_HANDLER_ARGS)
 {
 	struct hv_vmbus_channel *chan = arg1;
-	int alloc = 0;
+	int mnf = 0;
 
 	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF)
-		alloc = 1;
-	return sysctl_handle_int(oidp, &alloc, 0, req);
+		mnf = 1;
+	return sysctl_handle_int(oidp, &mnf, 0, req);
 }
 
 static void
-vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
+vmbus_chan_sysctl_create(struct hv_vmbus_channel *chan)
 {
-	device_t dev;
-	struct sysctl_oid *devch_sysctl;
-	struct sysctl_oid *devch_id_sysctl, *devch_sub_sysctl;
-	struct sysctl_oid *devch_id_in_sysctl, *devch_id_out_sysctl;
+	struct sysctl_oid *ch_tree, *chid_tree, *br_tree;
 	struct sysctl_ctx_list *ctx;
 	uint32_t ch_id;
-	uint16_t sub_ch_id;
 	char name[16];
-	
-	hv_vmbus_channel* primary_ch = channel->ch_prichan;
 
-	if (primary_ch == NULL) {
-		dev = channel->ch_dev;
-		ch_id = channel->ch_id;
-	} else {
-		dev = primary_ch->ch_dev;
-		ch_id = primary_ch->ch_id;
-		sub_ch_id = channel->ch_subidx;
-	}
-	ctx = &channel->ch_sysctl_ctx;
+	/*
+	 * Add sysctl nodes related to this channel to this
+	 * channel's sysctl ctx, so that they can be destroyed
+	 * independently upon close of this channel, which can
+	 * happen even if the device is not detached.
+	 */
+	ctx = &chan->ch_sysctl_ctx;
 	sysctl_ctx_init(ctx);
-	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
-	devch_sysctl = SYSCTL_ADD_NODE(ctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "channel", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-	/* This creates dev.DEVNAME.DEVUNIT.channel.CHANID tree */
+
+	/*
+	 * Create dev.NAME.UNIT.channel tree.
+	 */
+	ch_tree = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(chan->ch_dev)),
+	    OID_AUTO, "channel", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (ch_tree == NULL)
+		return;
+
+	/*
+	 * Create dev.NAME.UNIT.channel.CHANID tree.
+	 */
+	if (VMBUS_CHAN_ISPRIMARY(chan))
+		ch_id = chan->ch_id;
+	else
+		ch_id = chan->ch_prichan->ch_id;
 	snprintf(name, sizeof(name), "%d", ch_id);
-	devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
-	    	    SYSCTL_CHILDREN(devch_sysctl),
-	    	    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	chid_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(ch_tree),
+	    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (chid_tree == NULL)
+		return;
 
-	if (primary_ch != NULL) {
-		devch_sub_sysctl = SYSCTL_ADD_NODE(ctx,
-			SYSCTL_CHILDREN(devch_id_sysctl),
-			OID_AUTO, "sub", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-		snprintf(name, sizeof(name), "%d", sub_ch_id);
-		devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
-			SYSCTL_CHILDREN(devch_sub_sysctl),
-			OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (!VMBUS_CHAN_ISPRIMARY(chan)) {
+		/*
+		 * Create dev.NAME.UNIT.channel.CHANID.sub tree.
+		 */
+		ch_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(chid_tree),
+		    OID_AUTO, "sub", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+		if (ch_tree == NULL)
+			return;
 
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
-		    OID_AUTO, "chanid", CTLFLAG_RD,
-		    &channel->ch_id, 0, "channel id");
+		/*
+		 * Create dev.NAME.UNIT.channel.CHANID.sub.SUBIDX tree.
+		 *
+		 * NOTE:
+		 * chid_tree is changed to this new sysctl tree.
+		 */
+		snprintf(name, sizeof(name), "%d", chan->ch_subidx);
+		chid_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(ch_tree),
+		    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+		if (chid_tree == NULL)
+			return;
+
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+		    "chanid", CTLFLAG_RD, &chan->ch_id, 0, "channel id");
 	}
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
-	    "cpu", CTLFLAG_RD, &channel->ch_cpuid, 0, "owner CPU id");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
-	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    channel, 0, vmbus_channel_sysctl_monalloc, "I",
-	    "is monitor allocated to this channel");
 
-	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
-                    SYSCTL_CHILDREN(devch_id_sysctl),
-                    OID_AUTO,
-		    "in",
-		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-	devch_id_out_sysctl = SYSCTL_ADD_NODE(ctx,
-                    SYSCTL_CHILDREN(devch_id_sysctl),
-                    OID_AUTO,
-		    "out",
-		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-	hv_ring_buffer_stat(ctx,
-		SYSCTL_CHILDREN(devch_id_in_sysctl),
-		&(channel->inbound),
-		"inbound ring buffer stats");
-	hv_ring_buffer_stat(ctx,
-		SYSCTL_CHILDREN(devch_id_out_sysctl),
-		&(channel->outbound),
-		"outbound ring buffer stats");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "cpu", CTLFLAG_RD, &chan->ch_cpuid, 0, "owner CPU id");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "mnf", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    chan, 0, vmbus_chan_sysctl_mnf, "I",
+	    "has monitor notification facilities");
+
+	/*
+	 * Create sysctl tree for RX bufring.
+	 */
+	br_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "in", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (br_tree != NULL) {
+		hv_ring_buffer_stat(ctx, SYSCTL_CHILDREN(br_tree),
+		    &chan->inbound, "inbound ring buffer stats");
+	}
+
+	/*
+	 * Create sysctl tree for TX bufring.
+	 */
+	br_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "out", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (br_tree != NULL) {
+		hv_ring_buffer_stat(ctx, SYSCTL_CHILDREN(br_tree),
+		    &chan->outbound, "outbound ring buffer stats");
+	}
 }
 
 /**
@@ -257,7 +275,7 @@ hv_vmbus_channel_open(
 	    br + send_ring_buffer_size, recv_ring_buffer_size);
 
 	/* Create sysctl tree for this channel */
-	vmbus_channel_sysctl_create(new_channel);
+	vmbus_chan_sysctl_create(new_channel);
 
 	/*
 	 * Connect the bufrings, both RX and TX, to this channel.
