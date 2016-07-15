@@ -185,8 +185,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 
 	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, VMBUS_CHANPKT_FLAG_RC);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -279,8 +278,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 
 	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
   	    sizeof(nvsp_msg), (uint64_t)init_pkt,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, VMBUS_CHANPKT_FLAG_RC);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -474,8 +472,7 @@ hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, netvsc_dev *net_dev,
 	/* Send the init request */
 	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, VMBUS_CHANPKT_FLAG_RC);
 	if (ret != 0)
 		return (-1);
 
@@ -604,8 +601,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	/*
 	 * TODO:  BUGBUG - We have to wait for the above msg since the netvsp
 	 * uses KMCL which acknowledges packet (completion packet) 
-	 * since our Vmbus always set the
-	 * HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED flag
+	 * since our Vmbus always set the VMBUS_CHANPKT_FLAG_RC flag
 	 */
 	/* sema_wait(&NetVscChannel->channel_init_sema); */
 
@@ -822,8 +818,7 @@ hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 	} else {
 		ret = hv_vmbus_channel_send_packet(chan,
 		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt,
-		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-		    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, VMBUS_CHANPKT_FLAG_RC);
 	}
 
 	return (ret);
