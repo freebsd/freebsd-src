@@ -32,6 +32,9 @@
 cat $BSDINSTALL_TMPETC/rc.conf.* >> $BSDINSTALL_TMPETC/rc.conf
 rm $BSDINSTALL_TMPETC/rc.conf.*
 
+cat $BSDINSTALL_CHROOT/etc/sysctl.conf $BSDINSTALL_TMPETC/sysctl.conf.hardening >> $BSDINSTALL_TMPETC/sysctl.conf
+rm $BSDINSTALL_TMPETC/sysctl.conf.*
+
 cp $BSDINSTALL_TMPETC/* $BSDINSTALL_CHROOT/etc
 
 cat $BSDINSTALL_TMPBOOT/loader.conf.* >> $BSDINSTALL_TMPBOOT/loader.conf
