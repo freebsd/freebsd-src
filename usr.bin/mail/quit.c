@@ -228,7 +228,8 @@ quit(void)
 			return;
 		}
 		(void)Fclose(obuf);
-		(void)close(open(mbox, O_CREAT | O_TRUNC | O_WRONLY, 0600));
+		if ((fd = open(mbox, O_CREAT | O_TRUNC | O_WRONLY, 0600)) >= 0)
+			(void)close(fd);
 		if ((obuf = Fopen(mbox, "r+")) == NULL) {
 			warn("%s", mbox);
 			(void)Fclose(ibuf);
