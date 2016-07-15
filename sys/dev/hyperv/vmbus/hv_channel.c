@@ -1233,7 +1233,7 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 		 * Error is ignored here; don't have much to do if error
 		 * really happens.
 		 */
-		hv_vmbus_child_device_register(chan);
+		vmbus_add_child(chan);
 	}
 }
 
@@ -1274,7 +1274,7 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 
 	if (VMBUS_CHAN_ISPRIMARY(chan)) {
 		/* Only primary channel owns the device */
-		hv_vmbus_child_device_unregister(chan);
+		vmbus_delete_child(chan);
 		/* NOTE: DO NOT free primary channel for now */
 	} else {
 		struct vmbus_softc *sc = chan->vmbus_sc;
@@ -1336,7 +1336,7 @@ vmbus_chan_destroy_all(struct vmbus_softc *sc)
 		TAILQ_REMOVE(&sc->vmbus_prichans, chan, ch_prilink);
 		mtx_unlock(&sc->vmbus_prichan_lock);
 
-		hv_vmbus_child_device_unregister(chan);
+		vmbus_delete_child(chan);
 		vmbus_chan_free(chan);
 
 		mtx_lock(&sc->vmbus_prichan_lock);
