@@ -1586,7 +1586,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		/* Wait for subchannels to be destroyed */
-		vmbus_subchan_drain(sc->hn_prichan);
+		vmbus_drain_subchan(sc->hn_prichan);
 
 		error = hv_rf_on_device_add(sc, &device_info,
 		    sc->hn_rx_ring_inuse);
@@ -2950,7 +2950,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	}
 
 	/* Bind channel to a proper CPU */
-	vmbus_chan_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+	vmbus_channel_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
 }
 
 static void
@@ -2973,7 +2973,7 @@ hn_subchan_setup(struct hn_softc *sc)
 	int i;
 
 	/* Wait for sub-channels setup to complete. */
-	subchan = vmbus_subchan_get(sc->hn_prichan, subchan_cnt);
+	subchan = vmbus_get_subchan(sc->hn_prichan, subchan_cnt);
 
 	/* Attach the sub-channels. */
 	for (i = 0; i < subchan_cnt; ++i) {
@@ -2983,7 +2983,7 @@ hn_subchan_setup(struct hn_softc *sc)
 	}
 
 	/* Release the sub-channels */
-	vmbus_subchan_rel(subchan, subchan_cnt);
+	vmbus_rel_subchan(subchan, subchan_cnt);
 	if_printf(sc->hn_ifp, "%d sub-channels setup done\n", subchan_cnt);
 }
 
