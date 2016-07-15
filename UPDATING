@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160714:
+	As of r302865 when building multiple kernels using KERNCONF,
+	non-existent KERNCONF files will produce an error and buildkernel
+	will fail. Previous to r302865 missing KERNCONF files silently
+	failed giving no indication as to why, only to subsequently discover
+	during installkernel that the desired kernel was never built in the
+	first place.
+
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with
 	a wrapper which calls the pipe2(2) system call and the pipe(2) is now
