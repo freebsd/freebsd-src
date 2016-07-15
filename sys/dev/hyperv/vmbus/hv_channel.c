@@ -634,27 +634,28 @@ hv_vmbus_channel_send_packet(
 	uint32_t		flags)
 {
 	int			ret = 0;
-	hv_vm_packet_descriptor	desc;
+	struct vmbus_chanpkt pkt;
 	uint32_t		packet_len;
 	uint64_t		aligned_data;
 	uint32_t		packet_len_aligned;
 	boolean_t		need_sig;
 	struct iovec		iov[3];
 
-	packet_len = sizeof(hv_vm_packet_descriptor) + buffer_len;
-	packet_len_aligned = HV_ALIGN_UP(packet_len, sizeof(uint64_t));
+	packet_len = sizeof(pkt) + buffer_len;
+	packet_len_aligned = roundup2(packet_len, VMBUS_CHANPKT_SIZE_ALIGN);
 	aligned_data = 0;
 
-	/* Setup the descriptor */
-	desc.type = type;   /* HV_VMBUS_PACKET_TYPE_DATA_IN_BAND;             */
-	desc.flags = flags; /* HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED */
-			    /* in 8-bytes granularity */
-	desc.data_offset8 = sizeof(hv_vm_packet_descriptor) >> 3;
-	desc.length8 = (uint16_t) (packet_len_aligned >> 3);
-	desc.transaction_id = request_id;
+	/*
+	 * Setup channel packet.
+	 */
+	pkt.cp_hdr.cph_type = type;
+	pkt.cp_hdr.cph_flags = flags;
+	pkt.cp_hdr.cph_data_ofs = sizeof(pkt) >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_len = packet_len_aligned >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_xactid = request_id;
 
-	iov[0].iov_base = &desc;
-	iov[0].iov_len = sizeof(hv_vm_packet_descriptor);
+	iov[0].iov_base = &pkt;
+	iov[0].iov_len = sizeof(pkt);
 
 	iov[1].iov_base = buffer;
 	iov[1].iov_len = buffer_len;
