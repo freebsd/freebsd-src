@@ -157,7 +157,7 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 		    &channel->ch_id, 0, "channel id");
 	}
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
-	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
+	    "cpu", CTLFLAG_RD, &channel->ch_cpuid, 0, "owner CPU id");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
 	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    channel, 0, vmbus_channel_sysctl_monalloc, "I",
@@ -226,7 +226,7 @@ hv_vmbus_channel_open(
 	vmbus_chan_update_evtflagcnt(sc, new_channel);
 
 	new_channel->rxq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
-	    new_channel->target_cpu);
+	    new_channel->ch_cpuid);
 	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD) {
 		TASK_INIT(&new_channel->channel_task, 0,
 		    vmbus_chan_task, new_channel);
@@ -290,7 +290,7 @@ hv_vmbus_channel_open(
 	req->chm_chanid = new_channel->ch_id;
 	req->chm_openid = new_channel->ch_id;
 	req->chm_gpadl = new_channel->ch_bufring_gpadl;
-	req->chm_vcpuid = new_channel->target_vcpu;
+	req->chm_vcpuid = new_channel->ch_vcpuid;
 	req->chm_rxbr_pgofs = send_ring_buffer_size >> PAGE_SHIFT;
 	if (user_data_len)
 		memcpy(req->chm_udata, user_data, user_data_len);
@@ -1005,7 +1005,7 @@ vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
 	int flag_cnt;
 
 	flag_cnt = (chan->ch_id / VMBUS_EVTFLAG_LEN) + 1;
-	flag_cnt_ptr = VMBUS_PCPU_PTR(sc, event_flags_cnt, chan->target_cpu);
+	flag_cnt_ptr = VMBUS_PCPU_PTR(sc, event_flags_cnt, chan->ch_cpuid);
 
 	for (;;) {
 		int old_flag_cnt;
@@ -1017,8 +1017,7 @@ vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
 			if (bootverbose) {
 				device_printf(sc->vmbus_dev,
 				    "channel%u update cpu%d flag_cnt to %d\n",
-				    chan->ch_id,
-				    chan->target_cpu, flag_cnt);
+				    chan->ch_id, chan->ch_cpuid, flag_cnt);
 			}
 			break;
 		}
@@ -1162,13 +1161,12 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 		cpu = 0;
 	}
 
-	chan->target_cpu = cpu;
-	chan->target_vcpu = VMBUS_PCPU_GET(chan->vmbus_sc, vcpuid, cpu);
+	chan->ch_cpuid = cpu;
+	chan->ch_vcpuid = VMBUS_PCPU_GET(chan->vmbus_sc, vcpuid, cpu);
 
 	if (bootverbose) {
 		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
-		    chan->ch_id,
-		    chan->target_cpu, chan->target_vcpu);
+		    chan->ch_id, chan->ch_cpuid, chan->ch_vcpuid);
 	}
 }
 
@@ -1401,17 +1399,17 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 			continue;
 		}
 
-		if (new_channel->target_vcpu == cur_vcpu){
+		if (new_channel->ch_vcpuid == cur_vcpu){
 			return new_channel;
 		}
 
-		old_cpu_distance = ((outgoing_channel->target_vcpu > cur_vcpu) ?
-		    (outgoing_channel->target_vcpu - cur_vcpu) :
-		    (cur_vcpu - outgoing_channel->target_vcpu));
+		old_cpu_distance = ((outgoing_channel->ch_vcpuid > cur_vcpu) ?
+		    (outgoing_channel->ch_vcpuid - cur_vcpu) :
+		    (cur_vcpu - outgoing_channel->ch_vcpuid));
 
-		new_cpu_distance = ((new_channel->target_vcpu > cur_vcpu) ?
-		    (new_channel->target_vcpu - cur_vcpu) :
-		    (cur_vcpu - new_channel->target_vcpu));
+		new_cpu_distance = ((new_channel->ch_vcpuid > cur_vcpu) ?
+		    (new_channel->ch_vcpuid - cur_vcpu) :
+		    (cur_vcpu - new_channel->ch_vcpuid));
 
 		if (old_cpu_distance < new_cpu_distance) {
 			continue;
