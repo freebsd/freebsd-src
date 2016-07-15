@@ -621,55 +621,37 @@ hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
 	hv_vmbus_channel_close_internal(chan);
 }
 
-/**
- * @brief Send the specified buffer on the given channel
- */
 int
-hv_vmbus_channel_send_packet(
-	hv_vmbus_channel*	channel,
-	void*			buffer,
-	uint32_t		buffer_len,
-	uint64_t		request_id,
-	uint16_t		type,
-	uint16_t		flags)
+hv_vmbus_channel_send_packet(struct hv_vmbus_channel *chan,
+    void *data, uint32_t dlen, uint64_t xactid, uint16_t type, uint16_t flags)
 {
-	int			ret = 0;
 	struct vmbus_chanpkt pkt;
-	uint32_t		packet_len;
-	uint64_t		aligned_data;
-	uint32_t		packet_len_aligned;
-	boolean_t		need_sig;
-	struct iovec		iov[3];
+	int pktlen, pad_pktlen, hlen, error;
+	uint64_t pad = 0;
+	struct iovec iov[3];
+	boolean_t send_evt;
 
-	packet_len = sizeof(pkt) + buffer_len;
-	packet_len_aligned = roundup2(packet_len, VMBUS_CHANPKT_SIZE_ALIGN);
-	aligned_data = 0;
+	hlen = sizeof(pkt);
+	pktlen = hlen + dlen;
+	pad_pktlen = roundup2(pktlen, VMBUS_CHANPKT_SIZE_ALIGN);
 
-	/*
-	 * Setup channel packet.
-	 */
 	pkt.cp_hdr.cph_type = type;
 	pkt.cp_hdr.cph_flags = flags;
-	pkt.cp_hdr.cph_data_ofs = sizeof(pkt) >> VMBUS_CHANPKT_SIZE_SHIFT;
-	pkt.cp_hdr.cph_len = packet_len_aligned >> VMBUS_CHANPKT_SIZE_SHIFT;
-	pkt.cp_hdr.cph_xactid = request_id;
+	pkt.cp_hdr.cph_data_ofs = hlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_len = pad_pktlen >> VMBUS_CHANPKT_SIZE_SHIFT;
+	pkt.cp_hdr.cph_xactid = xactid;
 
 	iov[0].iov_base = &pkt;
-	iov[0].iov_len = sizeof(pkt);
+	iov[0].iov_len = hlen;
+	iov[1].iov_base = data;
+	iov[1].iov_len = dlen;
+	iov[2].iov_base = &pad;
+	iov[2].iov_len = pad_pktlen - pktlen;
 
-	iov[1].iov_base = buffer;
-	iov[1].iov_len = buffer_len;
-
-	iov[2].iov_base = &aligned_data;
-	iov[2].iov_len = packet_len_aligned - packet_len;
-
-	ret = hv_ring_buffer_write(&channel->outbound, iov, 3, &need_sig);
-
-	/* TODO: We should determine if this is optional */
-	if (ret == 0 && need_sig)
-		vmbus_chan_send_event(channel);
-
-	return (ret);
+	error = hv_ring_buffer_write(&chan->outbound, iov, 3, &send_evt);
+	if (!error && send_evt)
+		vmbus_chan_send_event(chan);
+	return error;
 }
 
 int
