@@ -47,10 +47,15 @@ struct vmbus_gpa {
 	uint64_t	gpa_page;
 } __packed;
 
-#define VMBUS_CHANPKT_FLAG_RC	0x0001	/* report completion */
+#define VMBUS_CHANPKT_TYPE_INBAND	0x0006
+#define VMBUS_CHANPKT_TYPE_RXBUF	0x0007
+#define VMBUS_CHANPKT_TYPE_GPA		0x0009
+#define VMBUS_CHANPKT_TYPE_COMP		0x000b
 
-#define VMBUS_CHAN_SGLIST_MAX	32
-#define VMBUS_CHAN_PRPLIST_MAX	32
+#define VMBUS_CHANPKT_FLAG_RC		0x0001	/* report completion */
+
+#define VMBUS_CHAN_SGLIST_MAX		32
+#define VMBUS_CHAN_PRPLIST_MAX		32
 
 struct hv_vmbus_channel;
 
