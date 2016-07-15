@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2013
+.Dd July 15, 2016
 .Dt AIO_MLOCK 2
 .Os
 .Sh NAME
@@ -64,6 +64,12 @@ If the request could not be enqueued (generally due to
 .Xr aio 4
 limits),
 then the call returns without having enqueued the request.
+.Pp
+The
+.Fa iocb->aio_sigevent
+structure can be used to request notification of the request's
+completion as described in
+.Xr aio 4 .
 .Sh RESTRICTIONS
 The Asynchronous I/O Control Block structure pointed to by
 .Fa iocb
@@ -92,6 +98,10 @@ system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 The request was not queued because of system resource limitations.
+.It Bq Er EINVAL
+The asynchronous notification method in
+.Fa iocb->aio_sigevent.sigev_notify
+is invalid or not supported.
 .It Bq Er ENOSYS
 The
 .Fn aio_mlock
@@ -116,6 +126,7 @@ if the request was explicitly cancelled via a call to
 .Xr aio_error 2 ,
 .Xr aio_return 2 ,
 .Xr mlock 2 ,
+.Xr sigevent 3 ,
 .Xr aio 4
 .Sh PORTABILITY
 The
