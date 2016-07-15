@@ -129,8 +129,6 @@ typedef enum {
 	HV_VMBUS_PACKET_TYPE_ADDITIONAL_DATA = 0xd
 } hv_vmbus_packet_type;
 
-#define HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED    1
-
 #define HW_MACADDR_LEN	6
 
 /*
