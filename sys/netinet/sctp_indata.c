@@ -753,7 +753,7 @@ sctp_handle_old_data(struct sctp_tcb *stcb, struct sctp_association *asoc, struc
 	 */
 	struct sctp_tmit_chunk *chk, *lchk, *tchk;
 	uint32_t fsn;
-	struct sctp_queued_to_read *nc = NULL;
+	struct sctp_queued_to_read *nc;
 	int cnt_added;
 
 	if (control->first_frag_seen == 0) {
@@ -768,6 +768,11 @@ restart:
 	TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, lchk) {
 		if (chk->rec.data.fsn_num == fsn) {
 			/* Ok lets add it */
+			sctp_alloc_a_readq(stcb, nc);
+			if (nc == NULL) {
+				break;
+			}
+			memset(nc, 0, sizeof(struct sctp_queued_to_read));
 			TAILQ_REMOVE(&control->reasm, chk, sctp_next);
 			sctp_add_chk_to_control(control, strm, stcb, asoc, chk);
 			fsn++;
@@ -781,7 +786,6 @@ restart:
 					 * on the control queue to a new
 					 * control.
 					 */
-					sctp_alloc_a_readq(stcb, nc);
 					sctp_build_readq_entry_from_ctl(nc, control);
 					tchk = TAILQ_FIRST(&control->reasm);
 					if (tchk->rec.data.rcv_flags & SCTP_DATA_FIRST_FRAG) {
@@ -826,16 +830,19 @@ restart:
 					    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 				}
 				sctp_wakeup_the_read_socket(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
-				if ((nc) && (nc->first_frag_seen)) {
+				if (!TAILQ_EMPTY(&nc->reasm) && (nc->first_frag_seen)) {
 					/*
 					 * Switch to the new guy and
 					 * continue
 					 */
 					control = nc;
-					nc = NULL;
 					goto restart;
+				} else {
+					sctp_free_a_readq(stcb, nc);
 				}
 				return (1);
+			} else {
+				sctp_free_a_readq(stcb, nc);
 			}
 		} else {
 			/* Can't add more */
