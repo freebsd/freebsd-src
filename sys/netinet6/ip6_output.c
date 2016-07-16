@@ -2659,8 +2659,8 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 			if (ifp == NULL)
 				return (ENXIO);
 		}
-		if (ifp != NULL && (
-		    ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED))
+		if (ifp != NULL && (ifp->if_afdata[AF_INET6] == NULL ||
+		    (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) != 0))
 			return (ENETDOWN);
 
 		if (ifp != NULL &&
