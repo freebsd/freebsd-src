@@ -1196,7 +1196,7 @@ expsortcmp(const void *p1, const void *p2)
 	const char *s1 = *(const char * const *)p1;
 	const char *s2 = *(const char * const *)p2;
 
-	return (strcmp(s1, s2));
+	return (strcoll(s1, s2));
 }
 
 
