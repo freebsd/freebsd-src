@@ -224,6 +224,7 @@ ZFS_UNMOUNT='zfs unmount "%s"'
 ZPOOL_CREATE_WITH_OPTIONS='zpool create %s "%s" %s %s'
 ZPOOL_DESTROY='zpool destroy "%s"'
 ZPOOL_EXPORT='zpool export "%s"'
+ZPOOL_EXPORT_F='zpool export -f "%s"'
 ZPOOL_IMPORT_WITH_OPTIONS='zpool import %s "%s"'
 ZPOOL_LABELCLEAR_F='zpool labelclear -f "%s"'
 ZPOOL_SET='zpool set %s "%s"'
@@ -783,6 +784,14 @@ zfs_create_diskpart()
 	# NOTE: `-F' required to destroy if partitions still exist.
 	# NOTE: Failure is ok here, blank disk will have nothing to destroy.
 	#
+	f_dprintf "$funcname: Exporting ZFS pools..."
+	zpool list -Ho name | while read z_name; do
+		f_eval_catch -d $funcname zpool "$ZPOOL_EXPORT_F" $z_name
+	done
+	f_dprintf "$funcname: Detaching all GELI providers..."
+	geli status | tail -n +2 | while read g_name g_status g_component; do
+		f_eval_catch -d $funcname geli "$GELI_DETACH_F" $g_name
+	done
 	f_dprintf "$funcname: Destroying all data/layouts on \`%s'..." "$disk"
 	f_eval_catch -d $funcname gpart "$GPART_DESTROY_F" $disk
 	f_eval_catch -d $funcname graid "$GRAID_DELETE" $disk
