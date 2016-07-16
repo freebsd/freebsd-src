@@ -961,11 +961,6 @@ place_chunk:
 			 * should not happen since the FSN is a TSN and it
 			 * should have been dropped earlier.
 			 */
-			if (chk->data) {
-				sctp_m_freem(chk->data);
-				chk->data = NULL;
-			}
-			sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 			sctp_abort_in_reasm(stcb, control, chk,
 			    abort_flag,
 			    SCTP_FROM_SCTP_INDATA + SCTP_LOC_5);
