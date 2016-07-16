@@ -1636,6 +1636,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			}
 			m->object = NULL;
 			m->oflags = VPO_UNMANAGED;
+			m->busy_lock = VPB_UNBUSIED;
 			vm_page_free(m);
 			return (NULL);
 		}
@@ -1838,6 +1839,7 @@ retry:
 						m->object = NULL;
 						m->oflags |= VPO_UNMANAGED;
 					}
+					m->busy_lock = VPB_UNBUSIED;
 					vm_page_free(m);
 				}
 				return (NULL);
