@@ -109,12 +109,8 @@ __FBSDID("$FreeBSD$");
 
 #define E1000_ICR_SRPD		0x00010000
 
-/*
- * XXX does this actually have a limit on the 82545 ?
- * There is a limit on the max number of bytes, but perhaps not
- * on descriptors ??
- */
-#define I82545_MAX_TXSEGS	20
+/* This is an arbitrary number.  There is no hard limit on the chip. */
+#define I82545_MAX_TXSEGS	64
 
 /* Legacy receive descriptor */
 struct e1000_rx_desc {
@@ -1050,15 +1046,18 @@ e82545_transmit_backend(struct e82545_softc *sc, struct iovec *iov, int iovcnt)
 }
 
 static void
-e82545_transmit_done(struct e82545_softc *sc, union e1000_tx_udesc **txwb,
-    int nwb)
+e82545_transmit_done(struct e82545_softc *sc, uint16_t head, uint16_t tail,
+    uint16_t dsize, int *tdwb)
 {
-	int i;
+	union e1000_tx_udesc *dsc;
 
-	/* Write-back tx descriptor status */
-	for (i = 0; i < nwb; i++)
-		txwb[i]->td.upper.data |= E1000_TXD_STAT_DD;
-	/* XXX wmb() */
+	for ( ; head != tail; head = (head + 1) % dsize) {
+		dsc = &sc->esc_txdesc[head];
+		if (dsc->td.lower.data & E1000_TXD_CMD_RS) {
+			dsc->td.upper.data |= E1000_TXD_STAT_DD;
+			*tdwb = 1;
+		}
+	}
 }
 
 static int
@@ -1068,22 +1067,21 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	uint8_t *hdr, *hdrp;
 	struct iovec iovb[I82545_MAX_TXSEGS + 2];
 	struct iovec tiov[I82545_MAX_TXSEGS + 2];
-	union e1000_tx_udesc *txwb[I82545_MAX_TXSEGS];
 	struct e1000_context_desc *cd;
 	struct ck_info ckinfo[2];
 	struct iovec *iov;
 	union  e1000_tx_udesc *dsc;
-	int desc, dtype, len, ntype, nwb, iovcnt, tlen, hdrlen, vlen, tcp, tso;
+	int desc, dtype, len, ntype, iovcnt, tlen, hdrlen, vlen, tcp, tso;
 	int mss, paylen, seg, tiovcnt, left, now, nleft, nnow, pv, pvoff;
 	uint32_t tcpsum, tcpseq;
-	uint16_t ipcs, tcpcs, ipid;
+	uint16_t ipcs, tcpcs, ipid, ohead;
 
 	ckinfo[0].ck_valid = ckinfo[1].ck_valid = 0;
 	iovcnt = 0;
 	tlen = 0;
-	nwb = 0;
 	ntype = 0;
 	tso = 0;
+	ohead = head;
 
 	/* iovb[0/1] may be used for writable copy of headers. */
 	iov = &iovb[2];
@@ -1104,11 +1102,8 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 				    head, dsc->td.buffer_addr,
 				    dsc->td.upper.data, dsc->td.lower.data);
 				/* Save context and return */
-				/* XXX ignore DD processing here */
 				sc->esc_txctx = dsc->cd;
-				*rhead = (head + 1) % dsize;
-				return (1);
-				break;
+				goto done;
 			case E1000_TXD_TYP_L:
 				DPRINTF("tx legacy desc idx %d: %08x%08x\r\n",
 				    head, dsc->td.upper.data, dsc->td.lower.data);
@@ -1142,15 +1137,13 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 			    (dsc->td.lower.data & E1000_TXD_CMD_IFCS) == 0)
 				len -= 2;
 			tlen += len;
-			iov[iovcnt].iov_base = paddr_guest2host(sc->esc_ctx,
-			    dsc->td.buffer_addr, len);
-			iov[iovcnt].iov_len = len;
+			if (iovcnt < I82545_MAX_TXSEGS) {
+				iov[iovcnt].iov_base = paddr_guest2host(
+				    sc->esc_ctx, dsc->td.buffer_addr, len);
+				iov[iovcnt].iov_len = len;
+			}
 			iovcnt++;
 		}
-
-		/* Record the descriptor addres if write-back requested */
-		if (dsc->td.lower.data & E1000_TXD_CMD_RS)
-			txwb[nwb++] = dsc;
 
 		/*
 		 * Pull out info that is valid in the final descriptor
@@ -1195,6 +1188,12 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 			}
 			break;
 		}
+	}
+
+	if (iovcnt > I82545_MAX_TXSEGS) {
+		WPRINTF("tx too many descriptors (%d > %d) -- dropped\r\n",
+		    iovcnt, I82545_MAX_TXSEGS);
+		goto done;
 	}
 
 	hdrlen = vlen = 0;
@@ -1356,12 +1355,10 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	}
 
 done:
-	/* Record if tx descs were written back */
-	e82545_transmit_done(sc, txwb, nwb);
-	if (nwb)
-		*tdwb = 1;
+	head = (head + 1) % dsize;
+	e82545_transmit_done(sc, ohead, head, dsize, tdwb);
 
-	*rhead = (head + 1) % dsize;
+	*rhead = head;
 	return (desc + 1);
 }
 
