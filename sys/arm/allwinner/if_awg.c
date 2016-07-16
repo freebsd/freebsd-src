@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/module.h>
 #include <sys/taskqueue.h>
+#include <sys/gpio.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -69,9 +70,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 
 #include "miibus_if.h"
+#include "gpio_if.h"
 
-#define	RD4(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	WR4(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define	RD4(sc, reg)		bus_read_4((sc)->res[_RES_EMAC], (reg))
+#define	WR4(sc, reg, val)	bus_write_4((sc)->res[_RES_EMAC], (reg), (val))
 
 #define	AWG_LOCK(sc)		mtx_lock(&(sc)->mtx)
 #define	AWG_UNLOCK(sc)		mtx_unlock(&(sc)->mtx);
@@ -101,6 +103,25 @@ __FBSDID("$FreeBSD$");
 #define	TX_INTERVAL_DEFAULT	64
 #define	RX_BATCH_DEFAULT	64
 
+/* syscon EMAC clock register */
+#define	EMAC_CLK_EPHY_ADDR	(0x1f << 20)	/* H3 */
+#define	EMAC_CLK_EPHY_ADDR_SHIFT 20
+#define	EMAC_CLK_EPHY_LED_POL	(1 << 17)	/* H3 */
+#define	EMAC_CLK_EPHY_SHUTDOWN	(1 << 16)	/* H3 */
+#define	EMAC_CLK_EPHY_SELECT	(1 << 15)	/* H3 */
+#define	EMAC_CLK_RMII_EN	(1 << 13)
+#define	EMAC_CLK_ETXDC		(0x7 << 10)
+#define	EMAC_CLK_ETXDC_SHIFT	10
+#define	EMAC_CLK_ERXDC		(0x1f << 5)
+#define	EMAC_CLK_ERXDC_SHIFT	5
+#define	EMAC_CLK_PIT		(0x1 << 2)
+#define	 EMAC_CLK_PIT_MII	(0 << 2)
+#define	 EMAC_CLK_PIT_RGMII	(1 << 2)
+#define	EMAC_CLK_SRC		(0x3 << 0)
+#define	 EMAC_CLK_SRC_MII	(0 << 0)
+#define	 EMAC_CLK_SRC_EXT_RGMII	(1 << 0)
+#define	 EMAC_CLK_SRC_RGMII	(2 << 0)
+
 /* Burst length of RX and TX DMA transfers */
 static int awg_burst_len = BURST_LEN_DEFAULT;
 TUNABLE_INT("hw.awg.burst_len", &awg_burst_len);
@@ -121,8 +142,14 @@ TUNABLE_INT("hw.awg.tx_interval", &awg_tx_interval);
 static int awg_rx_batch = RX_BATCH_DEFAULT;
 TUNABLE_INT("hw.awg.rx_batch", &awg_rx_batch);
 
+enum awg_type {
+	EMAC_A83T = 1,
+	EMAC_H3,
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun8i-a83t-emac",		1 },
+	{ "allwinner,sun8i-a83t-emac",		EMAC_A83T },
+	{ "allwinner,sun8i-h3-emac",		EMAC_H3 },
 	{ NULL,					0 }
 };
 
@@ -151,8 +178,15 @@ struct awg_rxring {
 	u_int			cur;
 };
 
+enum {
+	_RES_EMAC,
+	_RES_IRQ,
+	_RES_SYSCON,
+	_RES_NITEMS
+};
+
 struct awg_softc {
-	struct resource		*res[2];
+	struct resource		*res[_RES_NITEMS];
 	struct mtx		mtx;
 	if_t			ifp;
 	device_t		miibus;
@@ -162,6 +196,7 @@ struct awg_softc {
 	u_int			mdc_div_ratio_m;
 	int			link;
 	int			if_flags;
+	enum awg_type		type;
 
 	struct awg_txring	tx;
 	struct awg_rxring	rx;
@@ -170,6 +205,7 @@ struct awg_softc {
 static struct resource_spec awg_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	{ SYS_RES_MEMORY,	1,	RF_ACTIVE | RF_OPTIONAL },
 	{ -1, 0 }
 };
 
@@ -1016,49 +1052,73 @@ awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
 }
 
 static int
-awg_setup_extres(device_t dev)
+awg_setup_phy(device_t dev)
 {
 	struct awg_softc *sc;
-	hwreset_t rst_ahb;
-	clk_t clk_ahb, clk_tx, clk_tx_parent;
-	regulator_t reg;
+	clk_t clk_tx, clk_tx_parent;
 	const char *tx_parent_name;
 	char *phy_type;
 	phandle_t node;
-	uint64_t freq;
-	int error, div;
+	uint32_t reg, tx_delay, rx_delay;
+	int error;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
-	rst_ahb = NULL;
-	clk_ahb = NULL;
-	clk_tx = NULL;
-	clk_tx_parent = NULL;
-	reg = NULL;
-	phy_type = NULL;
 
-	/* Get AHB clock and reset resources */
-	error = hwreset_get_by_ofw_name(dev, 0, "ahb", &rst_ahb);
-	if (error != 0) {
-		device_printf(dev, "cannot get ahb reset\n");
-		goto fail;
-	}
-	error = clk_get_by_ofw_name(dev, 0, "ahb", &clk_ahb);
-	if (error != 0) {
-		device_printf(dev, "cannot get ahb clock\n");
-		goto fail;
-	}
-	
-	/* Configure PHY for MII or RGMII mode */
-	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type)) {
+	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type) == 0)
+		return (0);
+
+	if (bootverbose)
+		device_printf(dev, "PHY type: %s, conf mode: %s\n", phy_type,
+		    sc->res[_RES_SYSCON] != NULL ? "reg" : "clk");
+
+	if (sc->res[_RES_SYSCON] != NULL) {
+		reg = bus_read_4(sc->res[_RES_SYSCON], 0);
+		reg &= ~(EMAC_CLK_PIT | EMAC_CLK_SRC | EMAC_CLK_RMII_EN);
+		if (strcmp(phy_type, "rgmii") == 0)
+			reg |= EMAC_CLK_PIT_RGMII | EMAC_CLK_SRC_RGMII;
+		else if (strcmp(phy_type, "rmii") == 0)
+			reg |= EMAC_CLK_RMII_EN;
+		else
+			reg |= EMAC_CLK_PIT_MII | EMAC_CLK_SRC_MII;
+
+		if (OF_getencprop(node, "tx-delay", &tx_delay,
+		    sizeof(tx_delay)) > 0) {
+			reg &= ~EMAC_CLK_ETXDC;
+			reg |= (tx_delay << EMAC_CLK_ETXDC_SHIFT);
+		}
+		if (OF_getencprop(node, "rx-delay", &rx_delay,
+		    sizeof(rx_delay)) > 0) {
+			reg &= ~EMAC_CLK_ERXDC;
+			reg |= (rx_delay << EMAC_CLK_ERXDC_SHIFT);
+		}
+
+		if (sc->type == EMAC_H3) {
+			if (OF_hasprop(node, "allwinner,use-internal-phy")) {
+				reg |= EMAC_CLK_EPHY_SELECT;
+				reg &= ~EMAC_CLK_EPHY_SHUTDOWN;
+				if (OF_hasprop(node,
+				    "allwinner,leds-active-low"))
+					reg |= EMAC_CLK_EPHY_LED_POL;
+				else
+					reg &= ~EMAC_CLK_EPHY_LED_POL;
+
+				/* Set internal PHY addr to 1 */
+				reg &= ~EMAC_CLK_EPHY_ADDR;
+				reg |= (1 << EMAC_CLK_EPHY_ADDR_SHIFT);
+			} else {
+				reg &= ~EMAC_CLK_EPHY_SELECT;
+			}
+		}
+
 		if (bootverbose)
-			device_printf(dev, "PHY type: %s\n", phy_type);
-
+			device_printf(dev, "EMAC clock: 0x%08x\n", reg);
+		bus_write_4(sc->res[_RES_SYSCON], 0, reg);
+	} else {
 		if (strcmp(phy_type, "rgmii") == 0)
 			tx_parent_name = "emac_int_tx";
 		else
 			tx_parent_name = "mii_phy_tx";
-		OF_prop_free(phy_type);
 
 		/* Get the TX clock */
 		error = clk_get_by_ofw_name(dev, 0, "tx", &clk_tx);
@@ -1090,11 +1150,62 @@ awg_setup_extres(device_t dev)
 		}
 	}
 
-	/* Enable AHB clock */
+	error = 0;
+
+fail:
+	OF_prop_free(phy_type);
+	return (error);
+}
+
+static int
+awg_setup_extres(device_t dev)
+{
+	struct awg_softc *sc;
+	hwreset_t rst_ahb, rst_ephy;
+	clk_t clk_ahb, clk_ephy;
+	regulator_t reg;
+	phandle_t node;
+	uint64_t freq;
+	int error, div;
+
+	sc = device_get_softc(dev);
+	node = ofw_bus_get_node(dev);
+	rst_ahb = rst_ephy = NULL;
+	clk_ahb = clk_ephy = NULL;
+	reg = NULL;
+
+	/* Get AHB clock and reset resources */
+	error = hwreset_get_by_ofw_name(dev, 0, "ahb", &rst_ahb);
+	if (error != 0) {
+		device_printf(dev, "cannot get ahb reset\n");
+		goto fail;
+	}
+	if (hwreset_get_by_ofw_name(dev, 0, "ephy", &rst_ephy) != 0)
+		rst_ephy = NULL;
+	error = clk_get_by_ofw_name(dev, 0, "ahb", &clk_ahb);
+	if (error != 0) {
+		device_printf(dev, "cannot get ahb clock\n");
+		goto fail;
+	}
+	if (clk_get_by_ofw_name(dev, 0, "ephy", &clk_ephy) != 0)
+		clk_ephy = NULL;
+	
+	/* Configure PHY for MII or RGMII mode */
+	if (awg_setup_phy(dev) != 0)
+		goto fail;
+
+	/* Enable clocks */
 	error = clk_enable(clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot enable ahb clock\n");
 		goto fail;
+	}
+	if (clk_ephy != NULL) {
+		error = clk_enable(clk_ephy);
+		if (error != 0) {
+			device_printf(dev, "cannot enable ephy clock\n");
+			goto fail;
+		}
 	}
 
 	/* De-assert reset */
@@ -1102,6 +1213,13 @@ awg_setup_extres(device_t dev)
 	if (error != 0) {
 		device_printf(dev, "cannot de-assert ahb reset\n");
 		goto fail;
+	}
+	if (rst_ephy != NULL) {
+		error = hwreset_deassert(rst_ephy);
+		if (error != 0) {
+			device_printf(dev, "cannot de-assert ephy reset\n");
+			goto fail;
+		}
 	}
 
 	/* Enable PHY regulator if applicable */
@@ -1135,22 +1253,20 @@ awg_setup_extres(device_t dev)
 	}
 
 	if (bootverbose)
-		device_printf(dev, "AHB frequency %llu Hz, MDC div: 0x%x\n",
-		    freq, sc->mdc_div_ratio_m);
+		device_printf(dev, "AHB frequency %ju Hz, MDC div: 0x%x\n",
+		    (uintmax_t)freq, sc->mdc_div_ratio_m);
 
 	return (0);
 
 fail:
-	OF_prop_free(phy_type);
-
 	if (reg != NULL)
 		regulator_release(reg);
-	if (clk_tx_parent != NULL)
-		clk_release(clk_tx_parent);
-	if (clk_tx != NULL)
-		clk_release(clk_tx);
+	if (clk_ephy != NULL)
+		clk_release(clk_ephy);
 	if (clk_ahb != NULL)
 		clk_release(clk_ahb);
+	if (rst_ephy != NULL)
+		hwreset_release(rst_ephy);
 	if (rst_ahb != NULL)
 		hwreset_release(rst_ahb);
 	return (error);
@@ -1226,6 +1342,52 @@ awg_dump_regs(device_t dev)
 }
 #endif
 
+#define	GPIO_ACTIVE_LOW		1
+
+static int
+awg_phy_reset(device_t dev)
+{
+	pcell_t gpio_prop[4], delay_prop[3];
+	phandle_t node, gpio_node;
+	device_t gpio;
+	uint32_t pin, flags;
+	uint32_t pin_value;
+
+	node = ofw_bus_get_node(dev);
+	if (OF_getencprop(node, "allwinner,reset-gpio", gpio_prop,
+	    sizeof(gpio_prop)) <= 0)
+		return (0);
+
+	if (OF_getencprop(node, "allwinner,reset-delays-us", delay_prop,
+	    sizeof(delay_prop)) <= 0)
+		return (ENXIO);
+
+	gpio_node = OF_node_from_xref(gpio_prop[0]);
+	if ((gpio = OF_device_from_xref(gpio_prop[0])) == NULL)
+		return (ENXIO);
+
+	if (GPIO_MAP_GPIOS(gpio, node, gpio_node, nitems(gpio_prop) - 1,
+	    gpio_prop + 1, &pin, &flags) != 0)
+		return (ENXIO);
+
+	pin_value = GPIO_PIN_LOW;
+	if (OF_hasprop(node, "allwinner,reset-active-low"))
+		pin_value = GPIO_PIN_HIGH;
+
+	if (flags & GPIO_ACTIVE_LOW)
+		pin_value = !pin_value;
+
+	GPIO_PIN_SETFLAGS(gpio, pin, GPIO_PIN_OUTPUT);
+	GPIO_PIN_SET(gpio, pin, pin_value);
+	DELAY(delay_prop[0]);
+	GPIO_PIN_SET(gpio, pin, !pin_value);
+	DELAY(delay_prop[1]);
+	GPIO_PIN_SET(gpio, pin, pin_value);
+	DELAY(delay_prop[2]);
+
+	return (0);
+}
+
 static int
 awg_reset(device_t dev)
 {
@@ -1233,6 +1395,12 @@ awg_reset(device_t dev)
 	int retry;
 
 	sc = device_get_softc(dev);
+
+	/* Reset PHY if necessary */
+	if (awg_phy_reset(dev) != 0) {
+		device_printf(dev, "failed to reset PHY\n");
+		return (ENXIO);
+	}
 
 	/* Soft reset all registers and logic */
 	WR4(sc, EMAC_BASIC_CTL_1, BASIC_CTL_SOFT_RST);
@@ -1431,6 +1599,7 @@ awg_attach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
+	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	node = ofw_bus_get_node(dev);
 
 	if (bus_alloc_resources(dev, awg_spec, sc->res) != 0) {
@@ -1461,8 +1630,8 @@ awg_attach(device_t dev)
 		return (error);
 
 	/* Install interrupt handler */
-	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, awg_intr, sc, &sc->ih);
+	error = bus_setup_intr(dev, sc->res[_RES_IRQ],
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, awg_intr, sc, &sc->ih);
 	if (error != 0) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (error);
