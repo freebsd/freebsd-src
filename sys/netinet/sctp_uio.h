@@ -259,7 +259,8 @@ struct sctp_snd_all_completes {
 /* The lower four bits is an enumeration of PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE 0x0000/* Reliable transfer */
 #define SCTP_PR_SCTP_TTL  0x0001/* Time based PR-SCTP */
-#define SCTP_PR_SCTP_BUF  0x0002/* Buffer based PR-SCTP */
+#define SCTP_PR_SCTP_PRIO 0x0002/* Buffer based PR-SCTP */
+#define SCTP_PR_SCTP_BUF  SCTP_PR_SCTP_PRIO	/* For backwards compatibility */
 #define SCTP_PR_SCTP_RTX  0x0003/* Number of retransmissions based PR-SCTP */
 #define SCTP_PR_SCTP_MAX  SCTP_PR_SCTP_RTX
 #define SCTP_PR_SCTP_ALL  0x000f/* Used for aggregated stats */
