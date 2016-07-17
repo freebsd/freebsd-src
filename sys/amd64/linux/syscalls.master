@@ -270,7 +270,7 @@
 133	AUE_MKNOD	STD	{ int linux_mknod(char *path, l_int mode, \
 				    l_dev_t dev); }
 134	AUE_USELIB	UNIMPL	uselib
-135	AUE_PERSONALITY	STD	{ int linux_personality(l_ulong per); }
+135	AUE_PERSONALITY	STD	{ int linux_personality(l_uint per); }
 136	AUE_NULL	STD	{ int linux_ustat(l_dev_t dev, \
 				    struct l_ustat *ubuf); }
 137	AUE_STATFS	STD	{ int linux_statfs(char *path, \
