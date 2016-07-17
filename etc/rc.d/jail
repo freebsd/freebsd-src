@@ -433,6 +433,9 @@ jail_start()
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -c"
+		if ! checkyesno jail_parallel_start; then
+			command_args="$command_args -p1"
+		fi
 		_tmp=`mktemp -t jail` || exit 3
 		if $command $rc_flags $command_args >> $_tmp 2>&1; then
 			$jail_jls jid name | while read _id _name; do
@@ -440,7 +443,7 @@ jail_start()
 				echo $_id > /var/run/jail_${_name}.id
 			done
 		else
-			tail -1 $_tmp
+			cat $_tmp
 		fi
 		rm -f $_tmp
 		echo '.'
@@ -527,7 +530,7 @@ jail_stop()
 			_tmp=`mktemp -t jail` || exit 3
 			$command $rc_flags $command_args $_j >> $_tmp 2>&1
 			if $jail_jls -j $_j > /dev/null 2>&1; then
-				tail -1 $_tmp
+				cat $_tmp
 			else
 				rm -f /var/run/jail_${_j}.id
 			fi
@@ -550,7 +553,7 @@ jail_stop()
 		_tmp=`mktemp -t jail` || exit 3
 		$command -q -f $_conf -r $_j >> $_tmp 2>&1
 		if $jail_jls -j $_j > /dev/null 2>&1; then
-			tail -1 $_tmp
+			cat $_tmp
 		else
 			rm -f /var/run/jail_${_j}.id
 		fi
