@@ -422,7 +422,7 @@ jail_status()
 
 jail_start()
 {
-	local _j _jv _jid _jl _id _name
+	local _j _jv _jid _id _name
 
 	if [ $# = 0 ]; then
 		return
@@ -452,29 +452,30 @@ jail_start()
 		# Start jails in parallel and then check jail id when
 		# jail_parallel_start is YES.
 		#
-		_jl=
 		for _j in $@; do
 			_j=$(echo $_j | tr /. _)
 			_jv=$(echo -n $_j | tr -c '[:alnum:]' _)
 			parse_options $_j $_jv || continue
 
-			_jl="$_jl $_j"
 			eval rc_flags=\${jail_${_jv}_flags:-$jail_flags}
 			eval command=\${jail_${_jv}_program:-$jail_program}
 			command_args="-i -f $_conf -c $_j"
-			$command $rc_flags $command_args \
-			    >/dev/null 2>&1 </dev/null &
+			(
+				_tmp=`mktemp -t jail_${_j}` || exit 3
+				if $command $rc_flags $command_args \
+				    >> $_tmp 2>&1 </dev/null; then
+					echo -n " ${_hostname:-${_j}}"
+					_jid=$($jail_jls -j $_j jid)
+					echo $_jid > /var/run/jail_${_j}.id
+				else
+					echo " cannot start jail " \
+					    "\"${_hostname:-${_j}}\": "
+					cat $_tmp
+				fi
+				rm -f $_tmp
+			) &
 		done
-		sleep 1
-		for _j in $_jl; do
-			echo -n " ${_hostname:-${_j}}"
-			if _jid=$($jail_jls -j $_j jid); then
-				echo "$_jid" > /var/run/jail_${_j}.id
-			else
-				echo " cannot start jail " \
-				    "\"${_hostname:-${_j}}\": "
-			fi
-		done
+		wait
 	else
 		#
 		# Start jails one-by-one when jail_parallel_start is NO.
