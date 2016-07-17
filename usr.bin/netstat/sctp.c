@@ -104,93 +104,14 @@ struct xraddr_entry {
 	LIST_ENTRY(xraddr_entry) xraddr_entries;
 };
 
-/*
- * Construct an Internet address representation.
- * If numeric_addr has been supplied, give
- * numeric value, otherwise try for symbolic name.
- */
 #ifdef INET
-static char *
-inetname(struct in_addr *inp)
-{
-	char *cp;
-	static char line[MAXHOSTNAMELEN];
-	struct hostent *hp;
-	struct netent *np;
-
-	cp = 0;
-	if (!numeric_addr && inp->s_addr != INADDR_ANY) {
-		int net = inet_netof(*inp);
-		int lna = inet_lnaof(*inp);
-
-		if (lna == INADDR_ANY) {
-			np = getnetbyaddr(net, AF_INET);
-			if (np)
-				cp = np->n_name;
-		}
-		if (cp == NULL) {
-			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
-			if (hp) {
-				cp = hp->h_name;
-				trimdomain(cp, strlen(cp));
-			}
-		}
-	}
-	if (inp->s_addr == INADDR_ANY)
-		strcpy(line, "*");
-	else if (cp) {
-		strlcpy(line, cp, sizeof(line));
-	} else {
-		inp->s_addr = ntohl(inp->s_addr);
-#define	C(x)	((u_int)((x) & 0xff))
-		sprintf(line, "%u.%u.%u.%u", C(inp->s_addr >> 24),
-		    C(inp->s_addr >> 16), C(inp->s_addr >> 8), C(inp->s_addr));
-		inp->s_addr = htonl(inp->s_addr);
-	}
-	return (line);
-}
+char *
+inetname(struct in_addr *inp);
 #endif
 
 #ifdef INET6
-static char ntop_buf[INET6_ADDRSTRLEN];
-
-static char *
-inet6name(struct in6_addr *in6p)
-{
-	char *cp;
-	static char line[50];
-	struct hostent *hp;
-	static char domain[MAXHOSTNAMELEN];
-	static int first = 1;
-
-	if (first && !numeric_addr) {
-		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = strchr(domain, '.')))
-			(void) strcpy(domain, cp + 1);
-		else
-			domain[0] = 0;
-	}
-	cp = 0;
-	if (!numeric_addr && !IN6_IS_ADDR_UNSPECIFIED(in6p)) {
-		hp = gethostbyaddr((char *)in6p, sizeof(*in6p), AF_INET6);
-		if (hp) {
-			if ((cp = strchr(hp->h_name, '.')) &&
-			    !strcmp(cp + 1, domain))
-				*cp = 0;
-			cp = hp->h_name;
-		}
-	}
-	if (IN6_IS_ADDR_UNSPECIFIED(in6p))
-		strcpy(line, "*");
-	else if (cp)
-		strcpy(line, cp);
-	else
-		sprintf(line, "%s",
-			inet_ntop(AF_INET6, (void *)in6p, ntop_buf,
-				sizeof(ntop_buf)));
-	return (line);
-}
+char *
+inet6name(struct in6_addr *in6p);
 #endif
 
 static void
