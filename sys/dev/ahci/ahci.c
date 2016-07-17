@@ -466,6 +466,7 @@ ahci_intr(void *data)
 	} else {	/* AHCI_IRQ_MODE_AFTER */
 		unit = irq->r_irq_rid - 1;
 		is = ATA_INL(ctlr->r_mem, AHCI_IS);
+		is &= (0xffffffff << unit);
 	}
 	/* CCC interrupt is edge triggered. */
 	if (ctlr->ccc)
