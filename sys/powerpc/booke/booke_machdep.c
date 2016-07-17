@@ -142,10 +142,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
-#if defined(MPC85XX) || defined(QORIQ_DPAA)
-#include <powerpc/mpc85xx/mpc85xx.h>
-#endif
-
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
