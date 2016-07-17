@@ -102,6 +102,7 @@ compat/linux/linux_ioctl.c	optional compat_linux
 compat/linux/linux_ipc.c	optional compat_linux
 compat/linux/linux_mib.c	optional compat_linux
 compat/linux/linux_misc.c	optional compat_linux
+compat/linux/linux_mmap.c	optional compat_linux
 compat/linux/linux_signal.c	optional compat_linux
 compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
