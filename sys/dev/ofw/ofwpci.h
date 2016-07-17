@@ -60,13 +60,16 @@ struct ofw_pci_softc {
 	int		sc_bus;
 	int		sc_initialized;
 	int		sc_quirks;
+	int		sc_have_pmem;
 
 	struct ofw_pci_range		*sc_range;
 	int				sc_nrange;
+	uint64_t			sc_range_mask;
 	struct ofw_pci_cell_info	*sc_cell_info;
 
 	struct rman			sc_io_rman;
 	struct rman			sc_mem_rman;
+	struct rman			sc_pmem_rman;
 	bus_space_tag_t			sc_memt;
 	bus_dma_tag_t			sc_dmat;
 
