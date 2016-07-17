@@ -236,10 +236,12 @@ nvlist_set_array_next(nvlist_t *nvl, nvpair_t *ele)
 
 	NVLIST_ASSERT(nvl);
 
-	if (ele != NULL)
+	if (ele != NULL) {
 		nvl->nvl_flags |= NV_FLAG_IN_ARRAY;
-	else
+	} else {
 		nvl->nvl_flags &= ~NV_FLAG_IN_ARRAY;
+		nv_free(nvl->nvl_array_next);
+	}
 
 	nvl->nvl_array_next = ele;
 }
