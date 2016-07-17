@@ -398,6 +398,14 @@ requeue(struct cfjail *j, struct cfjails *queue)
 	}
 }
 
+void
+requeue_head(struct cfjail *j, struct cfjails *queue)
+{
+    TAILQ_REMOVE(j->queue, j, tq);
+    TAILQ_INSERT_HEAD(queue, j, tq);
+    j->queue = queue;
+}
+
 /*
  * Add a dependency edge between two jails.
  */
