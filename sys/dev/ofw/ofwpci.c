@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pcib_private.h>
 
 #include <machine/bus.h>
 #include <machine/md_var.h>
@@ -145,6 +146,7 @@ ofw_pci_init(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_initialized = 1;
 	sc->sc_range = NULL;
+	sc->sc_pci_domain = device_get_unit(dev);
 
 	cell_info = (struct ofw_pci_cell_info *)malloc(sizeof(*cell_info),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
@@ -336,7 +338,7 @@ ofw_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	switch (which) {
 	case PCIB_IVAR_DOMAIN:
-		*result = device_get_unit(dev);
+		*result = sc->sc_pci_domain;
 		return (0);
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_bus;
@@ -409,6 +411,13 @@ ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	sc = device_get_softc(bus);
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type ==  PCI_RES_BUS) {
+		  return (pci_domain_alloc_bus(sc->sc_pci_domain, child, rid,
+		      start, end, count, flags));
+	}
+#endif
+
 	rm = ofw_pci_get_rman(sc, type, flags);
 	if (rm == NULL)  {
 		return (bus_generic_alloc_resource(bus, child, type, rid,
@@ -446,6 +455,12 @@ ofw_pci_release_resource(device_t bus, device_t child, int type, int rid,
 	int error;
 
 	sc = device_get_softc(bus);
+
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_release_bus(sc->sc_pci_domain, child, rid,
+		    res));
+#endif
 
 	rm = ofw_pci_get_rman(sc, type, rman_get_flags(res));
 	if (rm == NULL) {
@@ -566,6 +581,11 @@ ofw_pci_adjust_resource(device_t bus, device_t child, int type,
 	struct ofw_pci_softc *sc;
 
 	sc = device_get_softc(bus);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->sc_pci_domain, child, res,
+		    start, end));
+#endif
 
 	rm = ofw_pci_get_rman(sc, type, rman_get_flags(res));
 	if (rm == NULL) {
