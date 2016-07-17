@@ -979,14 +979,14 @@ g_Ctoc(const Char *str, char *buf, size_t len)
 
 	memset(&mbs, 0, sizeof(mbs));
 	while (len >= MB_CUR_MAX) {
-		clen = wcrtomb(buf, *str, &mbs);
+		clen = wcrtomb(buf, CHAR(*str), &mbs);
 		if (clen == (size_t)-1) {
 			/* XXX See initial comment #2. */
-			*buf = (char)*str;
+			*buf = (char)CHAR(*str);
 			clen = 1;
 			memset(&mbs, 0, sizeof(mbs));
 		}
-		if (*buf == '\0')
+		if (CHAR(*str) == EOS)
 			return (0);
 		str++;
 		buf += clen;
