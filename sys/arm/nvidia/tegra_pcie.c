@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofwpci.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
@@ -64,100 +65,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 
+#include <arm/nvidia/tegra_pmc.h>
+
 #include "ofw_bus_if.h"
 #include "pcib_if.h"
 
-#include <arm/nvidia/tegra_pmc.h>
 
-/* --- Move to ofw_pci.c/.h ----------------------- */
 
-struct tegra_pci_range {
-	/* parsed phys.hi */
-	int 		nonrelocatable;
-	int		prefetchable;
-	int		aliased;
-	int		space_code;	/* In native format (not shifted)*/
-	int		bus;
-	int		device;
-	int		function;
-	int		reg;
-	pci_addr_t	pci_addr;	/* PCI Address */
-	bus_addr_t	host_addr;	/* Host bus address*/
-	bus_size_t	size;		/* Range size */
-};
-
-static int
-tegra_pci_get_ranges(phandle_t node,  struct tegra_pci_range **ranges)
-{
-	int host_address_cells, pci_address_cells, size_cells;
-	cell_t *base_ranges;
-	ssize_t nbase_ranges;
-	int nranges;
-	int i, j, k;
-	uint32_t flags;
-	uint64_t tmp;
-
-	host_address_cells = 1;
-	pci_address_cells = 3;
-	size_cells = 2;
-	OF_getencprop(OF_parent(node), "#address-cells", &host_address_cells,
-	    sizeof(host_address_cells));
-	OF_getencprop(node, "#address-cells", &pci_address_cells,
-	    sizeof(pci_address_cells));
-	OF_getencprop(node, "#size-cells", &size_cells, sizeof(size_cells));
-
-	nbase_ranges = OF_getproplen(node, "ranges");
-	if (nbase_ranges <= 0)
-		return (-1);
-	nranges = nbase_ranges / sizeof(cell_t) /
-	    (pci_address_cells + host_address_cells + size_cells);
-
-	*ranges = malloc(nranges * sizeof(struct tegra_pci_range),
-	    M_DEVBUF, M_WAITOK);
-	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
-	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
-
-	for (i = 0, j = 0; i < nranges; i++) {
-		flags =  base_ranges[j++];
-		(*ranges)[i].nonrelocatable =
-		   flags & OFW_PCI_PHYS_HI_NONRELOCATABLE ? 1 : 0;
-		(*ranges)[i].prefetchable =
-		   flags & OFW_PCI_PHYS_HI_PREFETCHABLE ? 1 : 0;
-		(*ranges)[i].aliased =
-		   flags & OFW_PCI_PHYS_HI_ALIASED ? 1 : 0;
-		(*ranges)[i].space_code = flags & OFW_PCI_PHYS_HI_SPACEMASK;
-		(*ranges)[i].bus = OFW_PCI_PHYS_HI_BUS(flags);
-		(*ranges)[i].device = OFW_PCI_PHYS_HI_DEVICE(flags);
-		(*ranges)[i].function = OFW_PCI_PHYS_HI_FUNCTION(flags);
-		(*ranges)[i].reg = flags & OFW_PCI_PHYS_HI_REGISTERMASK;
-
-		tmp = 0;
-		for (k = 0; k < pci_address_cells - 1; k++) {
-			tmp <<= 32;
-			tmp |= base_ranges[j++];
-		}
-		(*ranges)[i].pci_addr = (pci_addr_t)tmp;
-
-		tmp = 0;
-		for (k = 0; k < host_address_cells; k++) {
-			tmp <<= 32;
-			tmp |= base_ranges[j++];
-		}
-		(*ranges)[i].host_addr = (bus_addr_t)tmp;
-		tmp = 0;
-
-		for (k = 0; k < size_cells; k++) {
-			tmp <<= 32;
-			tmp |= base_ranges[j++];
-		}
-		(*ranges)[i].size = (bus_size_t)tmp;
-	}
-
-	free(base_ranges, M_DEVBUF);
-	return (nranges);
-}
-
-/* -------------------------------------------------------------------------- */
 #define	AFI_AXI_BAR0_SZ				0x000
 #define	AFI_AXI_BAR1_SZ				0x004
 #define	AFI_AXI_BAR2_SZ				0x008
@@ -358,12 +272,9 @@ struct tegra_pcib_port {
 
 #define	TEGRA_PCIB_MAX_PORTS	3
 struct tegra_pcib_softc {
+	struct ofw_pci_softc	ofw_pci;
 	device_t		dev;
 	struct mtx		mtx;
-	struct ofw_bus_iinfo	pci_iinfo;
-	struct rman		pref_mem_rman;
-	struct rman		mem_rman;
-	struct rman		io_rman;
 	struct resource		*pads_mem_res;
 	struct resource		*afi_mem_res;
 	struct resource		*cfg_mem_res;
@@ -372,18 +283,18 @@ struct tegra_pcib_softc {
 	void			*intr_cookie;
 	void			*msi_intr_cookie;
 
-	struct tegra_pci_range	mem_range;
-	struct tegra_pci_range	pref_mem_range;
-	struct tegra_pci_range	io_range;
+	struct ofw_pci_range	mem_range;
+	struct ofw_pci_range	pref_mem_range;
+	struct ofw_pci_range	io_range;
 
 	phy_t			phy;
 	clk_t			clk_pex;
 	clk_t			clk_afi;
 	clk_t			clk_pll_e;
 	clk_t			clk_cml;
-	hwreset_t			hwreset_pex;
-	hwreset_t			hwreset_afi;
-	hwreset_t			hwreset_pcie_x;
+	hwreset_t		hwreset_pex;
+	hwreset_t		hwreset_afi;
+	hwreset_t		hwreset_pcie_x;
 	regulator_t		supply_avddio_pex;
 	regulator_t		supply_dvddio_pex;
 	regulator_t		supply_avdd_pex_pll;
@@ -392,7 +303,6 @@ struct tegra_pcib_softc {
 	regulator_t		supply_vddio_pex_ctl;
 	regulator_t		supply_avdd_pll_erefe;
 
-	int			busnr;		/* host bridge bus number */
 	uint32_t		msi_bitmap;
 	bus_addr_t		cfg_base_addr;	/* base address of config */
 	bus_size_t		cfg_cur_offs; 	/* currently mapped window */
@@ -403,262 +313,12 @@ struct tegra_pcib_softc {
 	struct tegra_pcib_port *ports[TEGRA_PCIB_MAX_PORTS];
 };
 
-/* ------------------------------------------------------------------------- */
-/*
- * Resource manager
- */
-static int
-tegra_pcib_rman_init(struct tegra_pcib_softc *sc)
-{
-	int err;
-	char buf[64];
-
-	/* Memory management. */
-	sc->pref_mem_rman.rm_type = RMAN_ARRAY;
-	snprintf(buf, sizeof(buf), "%s prefetchable memory space",
-	    device_get_nameunit(sc->dev));
-	sc->pref_mem_rman.rm_descr = strdup(buf, M_DEVBUF);
-	err = rman_init(&sc->pref_mem_rman);
-	if (err)
-		return (err);
-
-	sc->mem_rman.rm_type = RMAN_ARRAY;
-	snprintf(buf, sizeof(buf), "%s non prefetchable memory space",
-	    device_get_nameunit(sc->dev));
-	sc->mem_rman.rm_descr = strdup(buf, M_DEVBUF);
-	err = rman_init(&sc->mem_rman);
-	if (err)
-		return (err);
-
-	sc->io_rman.rm_type = RMAN_ARRAY;
-	snprintf(buf, sizeof(buf), "%s I/O space",
-	    device_get_nameunit(sc->dev));
-	sc->io_rman.rm_descr = strdup(buf, M_DEVBUF);
-	err = rman_init(&sc->io_rman);
-	if (err) {
-		rman_fini(&sc->mem_rman);
-		return (err);
-	}
-
-	err = rman_manage_region(&sc->pref_mem_rman,
-	    sc->pref_mem_range.host_addr,
-	    sc->pref_mem_range.host_addr + sc->pref_mem_range.size - 1);
-	if (err)
-		goto error;
-	err = rman_manage_region(&sc->mem_rman,
-	    sc->mem_range.host_addr,
-	    sc->mem_range.host_addr + sc->mem_range.size - 1);
-	if (err)
-		goto error;
-	err = rman_manage_region(&sc->io_rman,
-	    sc->io_range.pci_addr,
-	    sc->io_range.pci_addr + sc->io_range.size - 1);
-	if (err)
-		goto error;
-	return (0);
-
-error:
-	rman_fini(&sc->pref_mem_rman);
-	rman_fini(&sc->mem_rman);
-	rman_fini(&sc->io_rman);
-	return (err);
-}
-
-static struct rman *
-tegra_pcib_rman(struct tegra_pcib_softc *sc, int type, u_int flags)
-{
-
-	switch (type) {
-	case SYS_RES_IOPORT:
-		return (&sc->io_rman);
-	case SYS_RES_MEMORY:
-		if (flags & RF_PREFETCHABLE)
-			return (&sc->pref_mem_rman);
-		else
-			return (&sc->mem_rman);
-	default:
-		break;
-	}
-
-	return (NULL);
-}
-
-static struct resource *
-tegra_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
-{
-	struct tegra_pcib_softc *sc;
-	struct rman *rm;
-	struct resource *res;
-
-	debugf("%s: enter %d start %#jx end %#jx count %#jx\n", __func__,
-	    type, start, end, count);
-	sc = device_get_softc(dev);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type ==  PCI_RES_BUS) {
-		  return (pci_domain_alloc_bus(0, child, rid, start, end, count,
-					       flags));
-	}
-#endif
-
-	rm = tegra_pcib_rman(sc, type, flags);
-
-	if (rm == NULL) {
-		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-		    type, rid, start, end, count, flags);
-
-		return (res);
-	}
-
-	if (bootverbose) {
-		device_printf(dev,
-		    "rman_reserve_resource: start=%#jx, end=%#jx, count=%#jx\n",
-		    start, end, count);
-	}
-
-	res = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (res == NULL)
-		goto fail;
-	rman_set_rid(res, *rid);
-	if (flags & RF_ACTIVE) {
-		if (bus_activate_resource(child, type, *rid, res)) {
-			rman_release_resource(res);
-			goto fail;
-		}
-	}
-	return (res);
-
-fail:
-	if (bootverbose) {
-		device_printf(dev, "%s FAIL: type=%d, rid=%d, "
-		    "start=%016jx, end=%016jx, count=%016jx, flags=%x\n",
-		    __func__, type, *rid, start, end, count, flags);
-	}
-
-	return (NULL);
-}
-
-static int
-tegra_pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *res)
-{
-	struct tegra_pcib_softc *sc;
-	struct rman *rm;
-
-	sc = device_get_softc(dev);
-	debugf("%s: %d rid %x\n",  __func__, type, rid);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type == PCI_RES_BUS)
-		return (pci_domain_release_bus(0, child, rid, res));
-#endif
-
-	rm = tegra_pcib_rman(sc, type, rman_get_flags(res));
-	if (rm != NULL) {
-		KASSERT(rman_is_region_manager(res, rm), ("rman mismatch"));
-		rman_release_resource(res);
-	}
-
-	return (bus_generic_release_resource(dev, child, type, rid, res));
-}
-
-static int
-tegra_pcib_adjust_resource(device_t dev, device_t child, int type,
-			    struct resource *res, rman_res_t start, rman_res_t end)
-{
-	struct tegra_pcib_softc *sc;
-	struct rman *rm;
-
-	sc = device_get_softc(dev);
-	debugf("%s: %d start %jx end %jx \n", __func__, type, start, end);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type == PCI_RES_BUS)
-		return (pci_domain_adjust_bus(0, child, res, start, end));
-#endif
-
-	rm = tegra_pcib_rman(sc, type, rman_get_flags(res));
-	if (rm != NULL)
-		return (rman_adjust_resource(res, start, end));
-	return (bus_generic_adjust_resource(dev, child, type, res, start, end));
-}
-extern bus_space_tag_t fdtbus_bs_tag;
-static int
-tegra_pcib_pcie_activate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
-{
-	struct tegra_pcib_softc *sc;
-	vm_offset_t start;
-	void *p;
-	int rv;
-
-	sc = device_get_softc(dev);
-	rv = rman_activate_resource(r);
-	if (rv != 0)
-		return (rv);
-	switch(type) {
-	case SYS_RES_IOPORT:
-		start = rman_get_start(r) + sc->io_range.host_addr;
-		break;
-	default:
-		start = rman_get_start(r);
-		rman_get_start(r);
-		break;
-	}
-
-	if (bootverbose)
-		printf("%s: start %zx, len %jd\n", __func__, start,
-			rman_get_size(r));
-
-	p = pmap_mapdev(start, (vm_size_t)rman_get_size(r));
-	rman_set_virtual(r, p);
-	rman_set_bustag(r, fdtbus_bs_tag);
-	rman_set_bushandle(r, (u_long)p);
-	return (0);
-}
-
-/* ------------------------------------------------------------------------- */
-/*
- * IVARs
- */
-static int
-tegra_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct tegra_pcib_softc *sc = device_get_softc(dev);
-
-	switch (which) {
-	case PCIB_IVAR_BUS:
-		*result = sc->busnr;
-		return (0);
-	case PCIB_IVAR_DOMAIN:
-		*result = device_get_unit(dev);
-		return (0);
-	}
-
-	return (ENOENT);
-}
-
-static int
-tegra_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
-{
-	struct tegra_pcib_softc *sc = device_get_softc(dev);
-
-	switch (which) {
-	case PCIB_IVAR_BUS:
-		sc->busnr = value;
-		return (0);
-	}
-
-	return (ENOENT);
-}
 
 static int
 tegra_pcib_maxslots(device_t dev)
 {
 	return (16);
 }
-
 
 static int
 tegra_pcib_route_interrupt(device_t bus, device_t dev, int pin)
@@ -947,7 +607,6 @@ tegra_pcib_enable_fdt_resources(struct tegra_pcib_softc *sc)
 		    "Cannot enable 'avdd-pex-pll' regulator\n");
 		return (rv);
 	}
-
 	rv = regulator_enable(sc->supply_hvdd_pex);
 	if (rv != 0) {
 		device_printf(sc->dev,
@@ -991,13 +650,11 @@ tegra_pcib_enable_fdt_resources(struct tegra_pcib_softc *sc)
 		device_printf(sc->dev, "Cannot enable 'afi' clock\n");
 		return (rv);
 	}
-
 	rv = clk_enable(sc->clk_cml);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable 'cml' clock\n");
 		return (rv);
 	}
-
 	rv = clk_enable(sc->clk_pll_e);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable 'pll_e' clock\n");
@@ -1192,12 +849,13 @@ tegra_pcib_parse_fdt_resources(struct tegra_pcib_softc *sc, phandle_t node)
 
 static int
 tegra_pcib_decode_ranges(struct tegra_pcib_softc *sc,
-    struct tegra_pci_range *ranges, int nranges)
+    struct ofw_pci_range *ranges, int nranges)
 {
 	int i;
 
 	for (i = 2; i < nranges; i++) {
-		if (ranges[i].space_code == OFW_PCI_PHYS_HI_SPACE_IO) {
+		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK)  ==
+		    OFW_PCI_PHYS_HI_SPACE_IO) {
 			if (sc->io_range.size != 0) {
 				device_printf(sc->dev,
 				    "Duplicated IO range found in DT\n");
@@ -1205,23 +863,25 @@ tegra_pcib_decode_ranges(struct tegra_pcib_softc *sc,
 			}
 			sc->io_range = ranges[i];
 		}
-		if ((ranges[i].space_code == OFW_PCI_PHYS_HI_SPACE_MEM32) &&
-		    !ranges[i].prefetchable) {
-			if (sc->mem_range.size != 0) {
-				device_printf(sc->dev,
-				    "Duplicated memory range found in DT\n");
-				return (ENXIO);
+		if (((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
+		    OFW_PCI_PHYS_HI_SPACE_MEM32))  {
+			if (ranges[i].pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) {
+				if (sc->pref_mem_range.size != 0) {
+					device_printf(sc->dev,
+					    "Duplicated memory range found "
+					    "in DT\n");
+					return (ENXIO);
+				}
+				sc->pref_mem_range = ranges[i];
+			} else {
+				if (sc->mem_range.size != 0) {
+					device_printf(sc->dev,
+					    "Duplicated memory range found "
+					    "in DT\n");
+					return (ENXIO);
+				}
+				sc->mem_range = ranges[i];
 			}
-			sc->mem_range = ranges[i];
-		}
-		if ((ranges[i].space_code == OFW_PCI_PHYS_HI_SPACE_MEM32) &&
-		    ranges[i].prefetchable) {
-			if (sc->pref_mem_range.size != 0) {
-				device_printf(sc->dev,
-				    "Duplicated memory range found in DT\n");
-				return (ENXIO);
-			}
-			sc->pref_mem_range = ranges[i];
 		}
 	}
 	if ((sc->io_range.size == 0) || (sc->mem_range.size == 0)
@@ -1454,16 +1114,16 @@ tegra_pcib_enable(struct tegra_pcib_softc *sc)
 	   FPCI_MAP_EXT_TYPE1_CONFIG, rman_get_size(sc->cfg_mem_res), 0);
 
 	/* BAR 1 - downstream I/O. */
-	tegra_pcib_set_bar(sc, 1, sc->io_range.host_addr, FPCI_MAP_IO,
+	tegra_pcib_set_bar(sc, 1, sc->io_range.host, FPCI_MAP_IO,
 	    sc->io_range.size, 0);
 
 	/* BAR 2 - downstream prefetchable memory 1:1. */
-	tegra_pcib_set_bar(sc, 2, sc->pref_mem_range.host_addr,
-	    sc->pref_mem_range.host_addr, sc->pref_mem_range.size, 1);
+	tegra_pcib_set_bar(sc, 2, sc->pref_mem_range.host,
+	    sc->pref_mem_range.host, sc->pref_mem_range.size, 1);
 
 	/* BAR 3 - downstream not prefetchable memory 1:1 .*/
-	tegra_pcib_set_bar(sc, 3, sc->mem_range.host_addr,
-	    sc->mem_range.host_addr, sc->mem_range.size, 1);
+	tegra_pcib_set_bar(sc, 3, sc->mem_range.host,
+	    sc->mem_range.host, sc->mem_range.size, 1);
 
 	/* BAR 3-8 clear. */
 	tegra_pcib_set_bar(sc, 4, 0, 0, 0, 0);
@@ -1497,8 +1157,6 @@ tegra_pcib_attach(device_t dev)
 	phandle_t node;
 	int rv;
 	int rid;
-	int nranges;
-	struct tegra_pci_range *ranges;
 	struct tegra_pcib_port *port;
 	int i;
 
@@ -1506,21 +1164,12 @@ tegra_pcib_attach(device_t dev)
 	sc->dev = dev;
 	mtx_init(&sc->mtx, "msi_mtx", NULL, MTX_DEF);
 
-
 	node = ofw_bus_get_node(dev);
 
 	rv = tegra_pcib_parse_fdt_resources(sc, node);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get FDT resources\n");
 		return (rv);
-	}
-
-	nranges = tegra_pci_get_ranges(node, &ranges);
-	if (nranges != 5) {
-		device_printf(sc->dev, "Unexpected number of ranges: %d\n",
-		    nranges);
-		rv = ENXIO;
-		goto out;
 	}
 
 	/* Allocate bus_space resources. */
@@ -1574,9 +1223,8 @@ tegra_pcib_attach(device_t dev)
 	}
 
 	/*
-	 * Get PCI interrupt info.
+	 * Get PCI interrupt
 	 */
-	ofw_bus_setup_iinfo(node, &sc->pci_iinfo, sizeof(pcell_t));
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE | RF_SHAREABLE);
@@ -1595,23 +1243,22 @@ tegra_pcib_attach(device_t dev)
 		goto out;
 	}
 
+	sc->ofw_pci.sc_range_mask = 0x3;
+	rv = ofw_pci_init(dev);
+	if (rv != 0)
+		goto out;
+
+	rv = tegra_pcib_decode_ranges(sc, sc->ofw_pci.sc_range,
+	    sc->ofw_pci.sc_nrange);
+	if (rv != 0)
+		goto out;
+
 	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 			   tegra_pci_intr, NULL, sc, &sc->intr_cookie)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		rv = ENXIO;
 		goto out;
 	}
-
-	/* Memory management. */
-	rv = tegra_pcib_decode_ranges(sc, ranges, nranges);
-	if (rv != 0)
-		goto out;
-
-	rv = tegra_pcib_rman_init(sc);
-	if (rv != 0)
-		goto out;
-	free(ranges, M_DEVBUF);
-	ranges = NULL;
 
 	/*
 	 * Enable PCIE device.
@@ -1633,8 +1280,6 @@ tegra_pcib_attach(device_t dev)
 	return (bus_generic_attach(dev));
 
 out:
-	if (ranges != NULL)
-		free(ranges, M_DEVBUF);
 
 	return (rv);
 }
@@ -1646,13 +1291,6 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD(device_attach,		tegra_pcib_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,		tegra_pcib_read_ivar),
-	DEVMETHOD(bus_write_ivar,		tegra_pcib_write_ivar),
-	DEVMETHOD(bus_alloc_resource,		tegra_pcib_alloc_resource),
-	DEVMETHOD(bus_adjust_resource,		tegra_pcib_adjust_resource),
-	DEVMETHOD(bus_release_resource,		tegra_pcib_release_resource),
-	DEVMETHOD(bus_activate_resource,	tegra_pcib_pcie_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
@@ -1678,12 +1316,7 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t tegra_pcib_driver = {
-	"pcib",
-	tegra_pcib_methods,
-	sizeof(struct tegra_pcib_softc),
-};
-
+DEFINE_CLASS_1(pcib, tegra_pcib_driver, tegra_pcib_methods,
+    sizeof(struct tegra_pcib_softc), ofw_pci_driver);
 devclass_t pcib_devclass;
-
 DRIVER_MODULE(pcib, simplebus, tegra_pcib_driver, pcib_devclass, 0, 0);
