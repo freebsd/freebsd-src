@@ -72,6 +72,7 @@ struct ofw_pci_softc {
 	struct rman			sc_pmem_rman;
 	bus_space_tag_t			sc_memt;
 	bus_dma_tag_t			sc_dmat;
+	int				sc_pci_domain;
 
 	struct ofw_bus_iinfo		sc_pci_iinfo;
 };
