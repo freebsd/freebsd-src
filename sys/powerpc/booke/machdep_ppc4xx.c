@@ -115,11 +115,6 @@ booke_enable_l2_cache(void)
 }
 
 void
-booke_enable_l3_cache(void)
-{
-}
-
-void
 booke_disable_l2_cache(void)
 {
 	uint32_t ccr1,l2cr0;

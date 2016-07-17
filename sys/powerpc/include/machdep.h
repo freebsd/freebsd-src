@@ -32,7 +32,6 @@
 void booke_disable_l2_cache(void);
 void booke_enable_l1_cache(void);
 void booke_enable_l2_cache(void);
-void booke_enable_l3_cache(void);
 void booke_enable_bpred(void);
 void booke_init_tlb(vm_paddr_t);
 
