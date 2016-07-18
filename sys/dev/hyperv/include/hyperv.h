@@ -276,15 +276,9 @@ hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t on)
 		channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
 }
 
-int		hv_vmbus_channel_open(
-				hv_vmbus_channel*	channel,
-				uint32_t		send_ring_buffer_size,
-				uint32_t		recv_ring_buffer_size,
-				void*			user_data,
-				uint32_t		user_data_len,
-				vmbus_chan_callback_t	cb,
-				void			*cbarg);
-
+int		hv_vmbus_channel_open(struct hv_vmbus_channel *chan,
+		    int txbr_size, int rxbr_size, const void *udata, int udlen,
+		    vmbus_chan_callback_t cb, void *cbarg);
 void		hv_vmbus_channel_close(hv_vmbus_channel *channel);
 
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);

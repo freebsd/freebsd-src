@@ -202,7 +202,7 @@ struct vmbus_chanmsg_chopen {
 	uint32_t	chm_openid;
 	uint32_t	chm_gpadl;
 	uint32_t	chm_vcpuid;
-	uint32_t	chm_rxbr_pgofs;
+	uint32_t	chm_txbr_pgcnt;
 #define VMBUS_CHANMSG_CHOPEN_UDATA_SIZE	120
 	uint8_t		chm_udata[VMBUS_CHANMSG_CHOPEN_UDATA_SIZE];
 } __packed;

@@ -201,93 +201,75 @@ vmbus_chan_sysctl_create(struct hv_vmbus_channel *chan)
 	}
 }
 
-/**
- * @brief Open the specified channel
- */
 int
-hv_vmbus_channel_open(
-	hv_vmbus_channel*		new_channel,
-	uint32_t			send_ring_buffer_size,
-	uint32_t			recv_ring_buffer_size,
-	void*				user_data,
-	uint32_t			user_data_len,
-	vmbus_chan_callback_t		cb,
-	void				*cbarg)
+hv_vmbus_channel_open(struct hv_vmbus_channel *chan,
+    int txbr_size, int rxbr_size, const void *udata, int udlen,
+    vmbus_chan_callback_t cb, void *cbarg)
 {
-	struct vmbus_softc *sc = new_channel->vmbus_sc;
+	struct vmbus_softc *sc = chan->vmbus_sc;
 	const struct vmbus_chanmsg_chopen_resp *resp;
 	const struct vmbus_message *msg;
 	struct vmbus_chanmsg_chopen *req;
 	struct vmbus_msghc *mh;
 	uint32_t status;
-	int ret = 0;
+	int error;
 	uint8_t *br;
 
-	if (user_data_len > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
+	if (udlen > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
 		device_printf(sc->vmbus_dev,
-		    "invalid udata len %u for chan%u\n",
-		    user_data_len, new_channel->ch_id);
+		    "invalid udata len %d for chan%u\n", udlen, chan->ch_id);
 		return EINVAL;
 	}
-	KASSERT((send_ring_buffer_size & PAGE_MASK) == 0,
+	KASSERT((txbr_size & PAGE_MASK) == 0,
 	    ("send bufring size is not multiple page"));
-	KASSERT((recv_ring_buffer_size & PAGE_MASK) == 0,
+	KASSERT((rxbr_size & PAGE_MASK) == 0,
 	    ("recv bufring size is not multiple page"));
 
-	if (atomic_testandset_int(&new_channel->ch_stflags,
+	if (atomic_testandset_int(&chan->ch_stflags,
 	    VMBUS_CHAN_ST_OPENED_SHIFT))
-		panic("double-open chan%u", new_channel->ch_id);
+		panic("double-open chan%u", chan->ch_id);
 
-	new_channel->ch_cb = cb;
-	new_channel->ch_cbarg = cbarg;
+	chan->ch_cb = cb;
+	chan->ch_cbarg = cbarg;
 
-	vmbus_chan_update_evtflagcnt(sc, new_channel);
+	vmbus_chan_update_evtflagcnt(sc, chan);
 
-	new_channel->ch_tq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
-	    new_channel->ch_cpuid);
-	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD) {
-		TASK_INIT(&new_channel->ch_task, 0, vmbus_chan_task,
-		    new_channel);
-	} else {
-		TASK_INIT(&new_channel->ch_task, 0, vmbus_chan_task_nobatch,
-		    new_channel);
-	}
+	chan->ch_tq = VMBUS_PCPU_GET(chan->vmbus_sc, event_tq, chan->ch_cpuid);
+	if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
+		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task, chan);
+	else
+		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task_nobatch, chan);
 
 	/*
 	 * Allocate the TX+RX bufrings.
 	 * XXX should use ch_dev dtag
 	 */
 	br = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
-	    PAGE_SIZE, 0, send_ring_buffer_size + recv_ring_buffer_size,
-	    &new_channel->ch_bufring_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	    PAGE_SIZE, 0, txbr_size + rxbr_size, &chan->ch_bufring_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (br == NULL) {
 		device_printf(sc->vmbus_dev, "bufring allocation failed\n");
-		ret = ENOMEM;
+		error = ENOMEM;
 		goto failed;
 	}
-	new_channel->ch_bufring = br;
+	chan->ch_bufring = br;
 
 	/* TX bufring comes first */
-	hv_vmbus_ring_buffer_init(&new_channel->outbound,
-	    br, send_ring_buffer_size);
+	hv_vmbus_ring_buffer_init(&chan->outbound, br, txbr_size);
 	/* RX bufring immediately follows TX bufring */
-	hv_vmbus_ring_buffer_init(&new_channel->inbound,
-	    br + send_ring_buffer_size, recv_ring_buffer_size);
+	hv_vmbus_ring_buffer_init(&chan->inbound, br + txbr_size, rxbr_size);
 
 	/* Create sysctl tree for this channel */
-	vmbus_chan_sysctl_create(new_channel);
+	vmbus_chan_sysctl_create(chan);
 
 	/*
 	 * Connect the bufrings, both RX and TX, to this channel.
 	 */
-	ret = vmbus_chan_gpadl_connect(new_channel,
-		new_channel->ch_bufring_dma.hv_paddr,
-		send_ring_buffer_size + recv_ring_buffer_size,
-		&new_channel->ch_bufring_gpadl);
-	if (ret != 0) {
+	error = vmbus_chan_gpadl_connect(chan, chan->ch_bufring_dma.hv_paddr,
+	    txbr_size + rxbr_size, &chan->ch_bufring_gpadl);
+	if (error) {
 		device_printf(sc->vmbus_dev,
-		    "failed to connect bufring GPADL to chan%u\n",
-		    new_channel->ch_id);
+		    "failed to connect bufring GPADL to chan%u\n", chan->ch_id);
 		goto failed;
 	}
 
@@ -298,26 +280,26 @@ hv_vmbus_channel_open(
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for chopen(chan%u)\n",
-		    new_channel->ch_id);
-		ret = ENXIO;
+		    chan->ch_id);
+		error = ENXIO;
 		goto failed;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHOPEN;
-	req->chm_chanid = new_channel->ch_id;
-	req->chm_openid = new_channel->ch_id;
-	req->chm_gpadl = new_channel->ch_bufring_gpadl;
-	req->chm_vcpuid = new_channel->ch_vcpuid;
-	req->chm_rxbr_pgofs = send_ring_buffer_size >> PAGE_SHIFT;
-	if (user_data_len)
-		memcpy(req->chm_udata, user_data, user_data_len);
+	req->chm_chanid = chan->ch_id;
+	req->chm_openid = chan->ch_id;
+	req->chm_gpadl = chan->ch_bufring_gpadl;
+	req->chm_vcpuid = chan->ch_vcpuid;
+	req->chm_txbr_pgcnt = txbr_size >> PAGE_SHIFT;
+	if (udlen > 0)
+		memcpy(req->chm_udata, udata, udlen);
 
-	ret = vmbus_msghc_exec(sc, mh);
-	if (ret != 0) {
+	error = vmbus_msghc_exec(sc, mh);
+	if (error) {
 		device_printf(sc->vmbus_dev,
 		    "chopen(chan%u) msg hypercall exec failed: %d\n",
-		    new_channel->ch_id, ret);
+		    chan->ch_id, error);
 		vmbus_msghc_put(sc, mh);
 		goto failed;
 	}
@@ -331,28 +313,25 @@ hv_vmbus_channel_open(
 	if (status == 0) {
 		if (bootverbose) {
 			device_printf(sc->vmbus_dev, "chan%u opened\n",
-			    new_channel->ch_id);
+			    chan->ch_id);
 		}
 		return 0;
 	}
 
-	device_printf(sc->vmbus_dev, "failed to open chan%u\n",
-	    new_channel->ch_id);
-	ret = ENXIO;
+	device_printf(sc->vmbus_dev, "failed to open chan%u\n", chan->ch_id);
+	error = ENXIO;
 
 failed:
-	if (new_channel->ch_bufring_gpadl) {
-		vmbus_chan_gpadl_disconnect(new_channel,
-		    new_channel->ch_bufring_gpadl);
-		new_channel->ch_bufring_gpadl = 0;
+	if (chan->ch_bufring_gpadl) {
+		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
+		chan->ch_bufring_gpadl = 0;
 	}
-	if (new_channel->ch_bufring != NULL) {
-		hyperv_dmamem_free(&new_channel->ch_bufring_dma,
-		    new_channel->ch_bufring);
-		new_channel->ch_bufring = NULL;
+	if (chan->ch_bufring != NULL) {
+		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		chan->ch_bufring = NULL;
 	}
-	atomic_clear_int(&new_channel->ch_stflags, VMBUS_CHAN_ST_OPENED);
-	return ret;
+	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
+	return error;
 }
 
 int
