@@ -45,6 +45,15 @@ __FBSDID("$FreeBSD$");
 #define	G_LABEL_UFS_VOLUME	0
 #define	G_LABEL_UFS_ID		1
 
+/*
+ * G_LABEL_UFS_CMP returns true if difference between provider mediasize
+ * and filesystem size is less than G_LABEL_UFS_MAXDIFF sectors
+ */
+#define	G_LABEL_UFS_CMP(prov, fsys, size) 				   \
+	( abs( ((fsys)->size) - ( (prov)->mediasize / (fsys)->fs_fsize ))  \
+				< G_LABEL_UFS_MAXDIFF )
+#define	G_LABEL_UFS_MAXDIFF	0x100
+
 static const int superblocks[] = SBLOCKSEARCH;
 
 static void
@@ -82,18 +91,35 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 		if (fs == NULL)
 			continue;
 		/*
-		 * Check for magic. We also need to check if file system size is equal
-		 * to providers size, because sysinstall(8) used to bogusly put first
-		 * partition at offset 0 instead of 16, and glabel/ufs would find file
-		 * system on slice instead of partition.
+		 * Check for magic. We also need to check if file system size
+		 * is almost equal to providers size, because sysinstall(8)
+		 * used to bogusly put first partition at offset 0
+		 * instead of 16, and glabel/ufs would find file system on slice
+		 * instead of partition.
+		 *
+		 * In addition, media size can be a bit bigger than file system
+		 * size. For instance, mkuzip can append bytes to align data
+		 * to large sector size (it improves compression rates).
 		 */
+		switch (fs->fs_magic){
+		case FS_UFS1_MAGIC:
+		case FS_UFS2_MAGIC:
+			G_LABEL_DEBUG(1, "%s %s params: %jd, %d, %d, %jd\n",
+				fs->fs_magic == FS_UFS1_MAGIC ? "UFS1" : "UFS2",
+				pp->name, pp->mediasize, fs->fs_fsize,
+				fs->fs_old_size, fs->fs_providersize);
+			break;
+		default:
+			break;
+		}
+
 		if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_fsize > 0 &&
-		    ((pp->mediasize / fs->fs_fsize == fs->fs_old_size) ||
-		    (pp->mediasize / fs->fs_fsize == fs->fs_providersize))) {
+		    ( G_LABEL_UFS_CMP(pp, fs, fs_old_size)
+			|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
 		    	/* Valid UFS1. */
 		} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0 &&
-		    ((pp->mediasize / fs->fs_fsize == fs->fs_size) ||
-		    (pp->mediasize / fs->fs_fsize == fs->fs_providersize))) {
+		    ( G_LABEL_UFS_CMP(pp, fs, fs_size)
+			|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
 		    	/* Valid UFS2. */
 		} else {
 			g_free(fs);
