@@ -113,7 +113,7 @@ nvpair_assert(const nvpair_t *nvp)
 }
 
 static nvpair_t *
-nvpair_allocv(const char *name, int type, uint64_t data, size_t datasize,
+nvpair_allocv(const char *name, int type, uintptr_t data, size_t datasize,
     size_t nitems)
 {
 	nvpair_t *nvp;
