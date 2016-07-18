@@ -683,7 +683,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 * connection when the SYN arrived.  If we can't create
 	 * the connection, abort it.
 	 */
-	so = sonewconn(lso, SS_ISCONNECTED);
+	so = sonewconn(lso, 0);
 	if (so == NULL) {
 		/*
 		 * Drop the connection; we will either send a RST or
@@ -921,6 +921,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
 	INP_WUNLOCK(inp);
+
+	soisconnected(so);
 
 	TCPSTAT_INC(tcps_accepts);
 	return (so);
