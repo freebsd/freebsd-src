@@ -2215,14 +2215,14 @@ CHERIABI_SYS_sendto_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [4] _In_reads_bytes_(tolen) caddr_t to */
+	/* [4] _In_reads_bytes_opt_(tolen) caddr_t to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_sendto, 4);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->to),
-		    &tmpcap, 1 * uap->tolen, reqperms, 0);
+		    &tmpcap, 1 * uap->tolen, reqperms, 1);
 		if (error != 0)
 			return (error);
 	}

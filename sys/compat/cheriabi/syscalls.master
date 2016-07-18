@@ -297,7 +297,7 @@
 133	AUE_SENDTO	NOPROTO	{ int sendto(int s, \
 				    _In_reads_bytes_(len) caddr_t buf, \
 				    size_t len, int flags, \
-				    _In_reads_bytes_(tolen) caddr_t to, \
+				    _In_reads_bytes_opt_(tolen) caddr_t to, \
 				    int tolen); }
 134	AUE_SHUTDOWN	NOPROTO	{ int shutdown(int s, int how); }
 135	AUE_SOCKETPAIR	NOPROTO	{ int socketpair(int domain, int type, \
