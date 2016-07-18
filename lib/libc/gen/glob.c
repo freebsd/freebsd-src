@@ -478,7 +478,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 		return (NULL);
 
 	dc = wbuf;
-	for (b = patbuf; b < eb && *dc != EOS; *b++ = *dc++)
+	for (b = patbuf; b < eb && *dc != EOS; *b++ = *dc++ | M_PROTECT)
 		continue;
 	if (*dc != EOS)
 		return (NULL);
@@ -712,7 +712,8 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 	*pathend = EOS;
 
 	if ((dirp = g_opendir(pathbuf, pglob)) == NULL) {
-		/* TODO: don't call for ENOENT or ENOTDIR? */
+		if (errno == ENOENT || errno == ENOTDIR)
+			return (0);
 		if (pglob->gl_flags & GLOB_ERR)
 			return (GLOB_ABORTED);
 		if (pglob->gl_errfunc) {
@@ -937,8 +938,10 @@ g_opendir(Char *str, glob_t *pglob)
 	if (*str == EOS)
 		strcpy(buf, ".");
 	else {
-		if (g_Ctoc(str, buf, sizeof(buf)))
+		if (g_Ctoc(str, buf, sizeof(buf))) {
+			errno = ENAMETOOLONG;
 			return (NULL);
+		}
 	}
 
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)

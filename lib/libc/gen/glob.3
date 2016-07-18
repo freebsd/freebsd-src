@@ -275,24 +275,10 @@ is
 .Pf non- Dv NULL ,
 .Fn glob
 calls
-.Fa \*(lp*errfunc\*(rp Ns ( Fa path , errno ) .
-This may be unintuitive: a pattern like
-.Ql */Makefile
-will try to
-.Xr stat 2
-.Ql foo/Makefile
-even if
-.Ql foo
-is not a directory, resulting in a
-call to
-.Fa errfunc .
-The error routine can suppress this action by testing for
-.Er ENOENT
-and
-.Er ENOTDIR ;
+.Fa \*(lp*errfunc\*(rp Ns ( Fa path , errno ) ,
 however, the
 .Dv GLOB_ERR
-flag will still cause an immediate
+flag will cause an immediate
 return when this happens.
 .Pp
 If
