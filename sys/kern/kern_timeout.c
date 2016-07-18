@@ -1381,7 +1381,7 @@ again:
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
 		CC_UNLOCK(cc);
-		return (0);
+		return (-1);
 	}
 
 	c->c_iflags &= ~CALLOUT_PENDING;
