@@ -11,7 +11,7 @@ CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 WARNS?=	3
 
 SRCS=	kvm.c kvm_cptime.c kvm_getloadavg.c \
-	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c kvm_vnet.c \
+	kvm_getswapinfo.c kvm_pcpu.c kvm_private.c kvm_proc.c kvm_vnet.c \
 	kvm_minidump_aarch64.c \
 	kvm_amd64.c kvm_minidump_amd64.c \
 	kvm_arm.c kvm_minidump_arm.c \
