@@ -221,9 +221,13 @@ _mips_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> MIPS_PAGE_SHIFT;
 		if (vm->pte_size == 64) {
+			if (pteindex >= vm->hdr.ptesize / sizeof(*ptemap64))
+				goto invalid;
 			pte = _kvm64toh(kd, ptemap64[pteindex]);
 			a = MIPS64_PTE_TO_PA(pte);
 		} else {
+			if (pteindex >= vm->hdr.ptesize / sizeof(*ptemap32))
+				goto invalid;
 			pte = _kvm32toh(kd, ptemap32[pteindex]);
 			a = MIPS32_PTE_TO_PA(pte);
 		}

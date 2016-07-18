@@ -184,6 +184,8 @@ _arm_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> ARM_PAGE_SHIFT;
+		if (pteindex >= vm->hdr.ptesize / sizeof(*ptemap))
+			goto invalid;
 		pte = _kvm32toh(kd, ptemap[pteindex]);
 		if ((pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_INV) {
 			_kvm_err(kd, kd->program,
