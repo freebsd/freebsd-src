@@ -3859,6 +3859,10 @@ netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
+netpfil/ipfw/nptv6/ip_fw_nptv6.c	optional inet inet6 ipfirewall \
+	ipfirewall_nptv6
+netpfil/ipfw/nptv6/nptv6.c	optional inet inet6 ipfirewall \
+	ipfirewall_nptv6
 netpfil/pf/if_pflog.c		optional pflog pf inet
 netpfil/pf/if_pfsync.c		optional pfsync pf inet
 netpfil/pf/pf.c			optional pf inet
