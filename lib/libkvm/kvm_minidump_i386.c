@@ -162,6 +162,8 @@ _i386_minidump_vatop_pae(kvm_t *kd, kvaddr_t va, off_t *pa)
 
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> I386_PAGE_SHIFT;
+		if (pteindex >= vm->hdr.ptesize / sizeof(*ptemap))
+			goto invalid;
 		pte = le64toh(ptemap[pteindex]);
 		if ((pte & I386_PG_V) == 0) {
 			_kvm_err(kd, kd->program,
@@ -207,6 +209,8 @@ _i386_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> I386_PAGE_SHIFT;
+		if (pteindex >= vm->hdr.ptesize / sizeof(*ptemap))
+			goto invalid;
 		pte = le32toh(ptemap[pteindex]);
 		if ((pte & I386_PG_V) == 0) {
 			_kvm_err(kd, kd->program,
