@@ -586,6 +586,7 @@ elf_note_prpsinfo(void *arg, size_t *sizep)
 	} else
 		strlcpy(psinfo->pr_psargs, kip.ki_comm,
 		    sizeof(psinfo->pr_psargs));
+	psinfo->pr_pid = pid;
 
 	*sizep = sizeof(*psinfo);
 	return (psinfo);
