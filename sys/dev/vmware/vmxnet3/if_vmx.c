@@ -130,6 +130,7 @@ static int	vmxnet3_alloc_queue_data(struct vmxnet3_softc *);
 static void	vmxnet3_free_queue_data(struct vmxnet3_softc *);
 static int	vmxnet3_alloc_mcast_table(struct vmxnet3_softc *);
 static void	vmxnet3_init_shared_data(struct vmxnet3_softc *);
+static void	vmxnet3_init_hwassist(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_interface(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_shared_data(struct vmxnet3_softc *);
@@ -1583,6 +1584,24 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 }
 
 static void
+vmxnet3_init_hwassist(struct vmxnet3_softc *sc)
+{
+	struct ifnet *ifp = sc->vmx_ifp;
+	uint64_t hwassist;
+
+	hwassist = 0;
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		hwassist |= VMXNET3_CSUM_OFFLOAD;
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
+	if (ifp->if_capenable & IFCAP_TSO4)
+		hwassist |= CSUM_IP_TSO;
+	if (ifp->if_capenable & IFCAP_TSO6)
+		hwassist |= CSUM_IP6_TSO;
+	ifp->if_hwassist = hwassist;
+}
+
+static void
 vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
 {
 	struct ifnet *ifp;
@@ -1593,15 +1612,7 @@ vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
 	bcopy(IF_LLADDR(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
 	vmxnet3_set_lladdr(sc);
 
-	ifp->if_hwassist = 0;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD;
-	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
-		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
-	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_IP_TSO;
-	if (ifp->if_capenable & IFCAP_TSO6)
-		ifp->if_hwassist |= CSUM_IP6_TSO;
+	vmxnet3_init_hwassist(sc);
 }
 
 static void
@@ -3284,6 +3295,8 @@ vmxnet3_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			vmxnet3_init_locked(sc);
+		} else {
+			vmxnet3_init_hwassist(sc);
 		}
 
 		VMXNET3_CORE_UNLOCK(sc);
