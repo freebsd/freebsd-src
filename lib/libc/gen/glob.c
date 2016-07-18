@@ -421,7 +421,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 		continue;
 
 	if (*p != EOS && *p != SLASH)
-		return (pattern);
+		return (NULL);
 
 	*b = EOS;
 	h = NULL;
@@ -446,8 +446,9 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 		/*
 		 * Expand a ~user
 		 */
-		if (g_Ctoc(patbuf, (char *)wbuf, sizeof(wbuf)) ||
-		    (pwd = getpwnam((char *)wbuf)) == NULL)
+		if (g_Ctoc(patbuf, (char *)wbuf, sizeof(wbuf)))
+			return (NULL);
+		if ((pwd = getpwnam((char *)wbuf)) == NULL)
 			return (pattern);
 		else
 			h = pwd->pw_dir;
@@ -474,13 +475,13 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 		sc += clen;
 	}
 	if (too_long)
-		return (pattern);
+		return (NULL);
 
 	dc = wbuf;
 	for (b = patbuf; b < eb && *dc != EOS; *b++ = *dc++)
 		continue;
 	if (*dc != EOS)
-		return (pattern);
+		return (NULL);
 
 	/* Append the rest of the pattern */
 	if (*p != EOS) {
@@ -492,7 +493,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 			}
 		}
 		if (too_long)
-			return (pattern);
+			return (NULL);
 	} else
 		*b = EOS;
 
@@ -515,6 +516,10 @@ glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
 	Char *bufnext, c, patbuf[MAXPATHLEN];
 
 	qpatnext = globtilde(pattern, patbuf, MAXPATHLEN, pglob);
+	if (qpatnext == NULL) {
+		errno = 0;
+		return (GLOB_NOSPACE);
+	}
 	oldpathc = pglob->gl_pathc;
 	bufnext = patbuf;
 
@@ -638,7 +643,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			    limit->l_stat_cnt++ >= GLOB_LIMIT_STAT) {
 				errno = 0;
 				if (pathend + 1 > pathend_last)
-					return (GLOB_ABORTED);
+					return (GLOB_NOSPACE);
 				*pathend++ = SEP;
 				*pathend = EOS;
 				return (GLOB_NOSPACE);
@@ -648,8 +653,10 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			    || (S_ISLNK(sb.st_mode) &&
 			    (g_stat(pathbuf, &sb, pglob) == 0) &&
 			    S_ISDIR(sb.st_mode)))) {
-				if (pathend + 1 > pathend_last)
-					return (GLOB_ABORTED);
+				if (pathend + 1 > pathend_last) {
+					errno = 0;
+					return (GLOB_NOSPACE);
+				}
 				*pathend++ = SEP;
 				*pathend = EOS;
 			}
@@ -663,8 +670,10 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 		while (*p != EOS && *p != SEP) {
 			if (ismeta(*p))
 				anymeta = 1;
-			if (q + 1 > pathend_last)
-				return (GLOB_ABORTED);
+			if (q + 1 > pathend_last) {
+				errno = 0;
+				return (GLOB_NOSPACE);
+			}
 			*q++ = *p++;
 		}
 
@@ -672,8 +681,10 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			pathend = q;
 			pattern = p;
 			while (*pattern == SEP) {
-				if (pathend + 1 > pathend_last)
-					return (GLOB_ABORTED);
+				if (pathend + 1 > pathend_last) {
+					errno = 0;
+					return (GLOB_NOSPACE);
+				}
 				*pathend++ = *pattern++;
 			}
 		} else			/* Need expansion, recurse. */
@@ -695,18 +706,21 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 
 	struct dirent *(*readdirfunc)(DIR *);
 
-	if (pathend > pathend_last)
-		return (GLOB_ABORTED);
-	*pathend = EOS;
 	errno = 0;
+	if (pathend > pathend_last)
+		return (GLOB_NOSPACE);
+	*pathend = EOS;
 
 	if ((dirp = g_opendir(pathbuf, pglob)) == NULL) {
 		/* TODO: don't call for ENOENT or ENOTDIR? */
+		if (pglob->gl_flags & GLOB_ERR)
+			return (GLOB_ABORTED);
 		if (pglob->gl_errfunc) {
-			if (g_Ctoc(pathbuf, buf, sizeof(buf)))
-				return (GLOB_ABORTED);
-			if (pglob->gl_errfunc(buf, errno) ||
-			    pglob->gl_flags & GLOB_ERR)
+			if (g_Ctoc(pathbuf, buf, sizeof(buf))) {
+				errno = 0;
+				return (GLOB_NOSPACE);
+			}
+			if (pglob->gl_errfunc(buf, errno))
 				return (GLOB_ABORTED);
 		}
 		return (0);
@@ -732,7 +746,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 		    limit->l_readdir_cnt++ >= GLOB_LIMIT_READDIR) {
 			errno = 0;
 			if (pathend + 1 > pathend_last)
-				err = GLOB_ABORTED;
+				err = GLOB_NOSPACE;
 			else {
 				*pathend++ = SEP;
 				*pathend = EOS;
@@ -831,6 +845,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit)
 	if ((copy = malloc(len)) != NULL) {
 		if (g_Ctoc(path, copy, len)) {
 			free(copy);
+			errno = 0;
 			return (GLOB_NOSPACE);
 		}
 		pathv[pglob->gl_offs + pglob->gl_pathc++] = copy;
