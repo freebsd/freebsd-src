@@ -360,6 +360,7 @@ s/\$//g
 
 		# Check there is enough space
 		printf("\n") > cheriabi_fill_uap
+		pdeptab = ""
 		if (dep != "") {
 			if (dep ~ /^[0-9]*$/)
 				count = dep
@@ -373,21 +374,24 @@ s/\$//g
 			else
 				reqspace = sprintf("(sizeof(*uap->%s) * %s)", a_name, count);
 		} else if (pdep != "") {
-			printf("\t\tif (uap->%s == NULL)\n\t\t\treturn (EINVAL);\n", pdep) > cheriabi_fill_uap
+			pdeptab = "\t"
+			printf("\t\tif (uap->%s == NULL) {\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\tuap->%s = NULL;\n", a_name) > cheriabi_fill_uap
+			printf("\t\t} else {\n") > cheriabi_fill_uap
 			# XXX-BD: it is hard to know how big the type is
 			# here in awk, so punt and let the compiler remove
 			# the branches that can not happen.
-			printf("\t\tsize_t reqlen;\n") > cheriabi_fill_uap
-			printf("\t\tif (sizeof(uap->%s) == 2)\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\treqlen = fuword16(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\telse if (sizeof(uap->%s) == 4)\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\treqlen = fuword32(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\telse if (sizeof(uap->%s) == 8)\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\treqlen = fuword64(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\telse\n") > cheriabi_fill_uap
-			printf("\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(uap->%s));\n", pdep) > cheriabi_fill_uap
-			printf("\t\treqlen = fuword(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\tif (reqlen == -1)\n\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
+			printf("\t\t\tsize_t reqlen;\n") > cheriabi_fill_uap
+			printf("\t\t\tif (sizeof(uap->%s) == 2)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\t\treqlen = fuword16(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\telse if (sizeof(uap->%s) == 4)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\t\treqlen = fuword32(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\telse if (sizeof(uap->%s) == 8)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\t\treqlen = fuword64(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\telse\n") > cheriabi_fill_uap
+			printf("\t\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(uap->%s));\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\treqlen = fuword(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\tif (reqlen == -1)\n\t\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
 			if (annotation ~ /_bytes_/)
 				reqspace = "reqlen"
 			else
@@ -395,13 +399,16 @@ s/\$//g
 		} else
 			reqspace = sprintf("sizeof(*uap->%s)", a_name)
 
-		printf("\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-		    syscallprefix, funcalias, i-1) > cheriabi_fill_uap
-		printf("\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", a_name) > cheriabi_fill_uap
-		printf("\t\t    &tmpcap, %s, reqperms, %s);\n",
-		    reqspace, may_be_null) > cheriabi_fill_uap
-		printf("\t\tif (error != 0)\n\t\t\treturn (error);\n") > cheriabi_fill_uap
+		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
+		    pdeptab, syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
+		printf("%s\t\t    &tmpcap, %s, reqperms, %s);\n",
+		    pdeptab, reqspace, may_be_null) > cheriabi_fill_uap
+		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
+		printf("%s\t\t\treturn (error);\n", pdeptab) > cheriabi_fill_uap
 
+		if (pdep != "")
+			printf("\t\t}\n") > cheriabi_fill_uap
 		printf("\t}\n") > cheriabi_fill_uap
 	}
 	function print_cheriabi_pagerange_fill_uap_func(i, a_saltype, a_name, dep, pdep) {
@@ -423,6 +430,7 @@ s/\$//g
 			may_be_null = "1"
 
 		printf("\n") > cheriabi_fill_uap
+		pdeptab = ""
 		if (dep != "") {
 			if (dep ~ /^[0-9]*$/)
 				count = dep
@@ -430,32 +438,39 @@ s/\$//g
 				count = "uap->" dep
 			reqspace = count
 		} else if (pdep != "") {
-			printf("\t\tif (uap->%s == NULL)\n\t\t\treturn (EINVAL);\n", pdep) > cheriabi_fill_uap
+			pdeptab = "\t"
+			printf("\t\tif (uap->%s == NULL) {\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\tuap->%s = NULL;\n", a_name) > cheriabi_fill_uap
+			printf("\t\t} else {\n") > cheriabi_fill_uap
 			# XXX-BD: it is hard to know how big the type is
 			# here in awk, so punt and let the compiler remove
 			# the branches that can not happen.
-			printf("\t\tsize_t reqlen;\n") > cheriabi_fill_uap
-			printf("\t\tif (sizeof(uap->%s) == 2)\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\treqlen = fuword16(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\telse if (sizeof(uap->%s) == 4)\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\treqlen = fuword32(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\telse if (sizeof(uap->%s) == 8)\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\treqlen = fuword64(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\telse\n") > cheriabi_fill_uap
-			printf("\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(uap->%s));\n", pdep) > cheriabi_fill_uap
-			printf("\t\treqlen = fuword(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\tif (reqlen == -1)\n\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
+			printf("\t\t\tsize_t reqlen;\n") > cheriabi_fill_uap
+			printf("\t\t\tif (sizeof(uap->%s) == 2)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\t\treqlen = fuword16(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\telse if (sizeof(uap->%s) == 4)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\t\treqlen = fuword32(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\telse if (sizeof(uap->%s) == 8)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\t\treqlen = fuword64(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\telse\n") > cheriabi_fill_uap
+			printf("\t\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(uap->%s));\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\treqlen = fuword(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\tif (reqlen == -1)\n\t\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
 			reqspace = "reqlen"
 		} else
 			printf("%s %s has no length constraint",
 			    a_saltype, a_name) > "/dev/stderr"
 
-		printf("\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-		    syscallprefix, funcalias, i-1) > cheriabi_fill_uap
-		printf("\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", a_name) > cheriabi_fill_uap
-		printf("\t\t    &tmpcap, %s, 0, %s);\n",
-		    reqspace, may_be_null) > cheriabi_fill_uap
-		printf("\t\tif (error != 0)\n\t\t\treturn (error);\n") > cheriabi_fill_uap
+		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
+		    pdeptab, syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
+		printf("%s\t\t    &tmpcap, %s, 0, %s);\n",
+		    pdeptab, reqspace, may_be_null) > cheriabi_fill_uap
+		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
+		printf("%s\t\t\treturn (error);\n", pdeptab) > cheriabi_fill_uap
+
+		if (pdep != "")
+			printf("\t\t}\n") > cheriabi_fill_uap
 		printf("\t}\n") > cheriabi_fill_uap
 	}
 	function parserr(was, wanted) {
