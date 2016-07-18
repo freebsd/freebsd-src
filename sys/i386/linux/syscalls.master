@@ -240,7 +240,7 @@
 134	AUE_BDFLUSH	STD	{ int linux_bdflush(void); }
 135	AUE_NULL	STD	{ int linux_sysfs(l_int option, \
 				    l_ulong arg1, l_ulong arg2); }
-136	AUE_PERSONALITY	STD	{ int linux_personality(l_ulong per); }
+136	AUE_PERSONALITY	STD	{ int linux_personality(l_uint per); }
 137	AUE_NULL	UNIMPL	afs_syscall
 138	AUE_SETFSUID	STD	{ int linux_setfsuid16(l_uid16_t uid); }
 139	AUE_SETFSGID	STD	{ int linux_setfsgid16(l_gid16_t gid); }
