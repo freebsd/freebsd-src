@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2016
+.Dd July 18, 2016
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -113,6 +113,19 @@ in-kernel NAT.
 .Oc
 .Oc
 .Ar pathname
+.Ss IPv6-to-IPv6 NETWORK PREFIX TRANSLATION
+.Nm
+.Oo Cm set Ar N Oc Cm nptv6 Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm nptv6
+.Brq Ar name | all
+.Brq Cm list | show
+.Nm
+.Oo Cm set Ar N Oc Cm nptv6
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm nptv6 Ar name Cm stats
 .Ss INTERNAL DIAGNOSTICS
 .Nm
 .Cm internal iflist
@@ -812,6 +825,11 @@ nat instance
 (for network address translation, address redirect, etc.):
 see the
 .Sx NETWORK ADDRESS TRANSLATION (NAT)
+Section for further information.
+.It Cm nptv6 Ar name
+Pass packet to a NPTv6 instance (for IPv6-to-IPv6 network prefix translation):
+see the
+.Sx IPv6-to-IPv6 NETWORK PREFIX TRANSLATION (NPTv6)
 Section for further information.
 .It Cm pipe Ar pipe_nr
 Pass packet to a
@@ -2885,6 +2903,47 @@ instances.
 See
 .Sx SYSCTL VARIABLES
 for more info.
+.Sh IPv6-to-IPv6 NETWORK PREFIX TRANSLATION (NPTv6)
+.Nm
+support in-kernel IPv6-to-IPv6 network prefix translation as described
+in RFC6296.
+The kernel module
+.Cm ipfw_nptv6
+should be loaded or kernel should has
+.Cm options IPFIREWALL_NPTV6
+to be able use NPTv6 translator.
+.Pp
+The NPTv6 configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nptv6
+.Ar name
+.Cm create
+.Ar create-options
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm int_prefix Ar ipv6_prefix
+IPv6 prefix used in internal network.
+NPTv6 module translates source address when it matches this prefix.
+.It Cm ext_prefix Ar ipv6_prefix
+IPv6 prefix used in external network.
+NPTv6 module translates destination address when it matches this prefix.
+.It Cm prefixlen Ar length
+The length of specified IPv6 prefixes. It must be in range from 8 to 64.
+.El
+.Pp
+Note that the prefix translation rules are silently ignored when IPv6 packet
+forwarding is disabled.
+To enable the packet forwarding, set the sysctl variable
+.Va net.inet6.ip6.forwarding
+to 1.
+.Pp
+To let the packet continue after being translated, set the sysctl variable
+.Va net.inet.ip.fw.one_pass
+to 0.
 .Sh LOADER TUNABLES
 Tunables can be set in
 .Xr loader 8

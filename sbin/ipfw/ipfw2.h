@@ -254,6 +254,13 @@ enum tokens {
 	TOK_UNLOCK,
 	TOK_VLIST,
 	TOK_OLIST,
+	TOK_STATS,
+
+	/* NPTv6 tokens */
+	TOK_NPTV6,
+	TOK_INTPREFIX,
+	TOK_EXTPREFIX,
+	TOK_PREFIXLEN,
 };
 
 /*
@@ -340,6 +347,7 @@ void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
 void ipfw_internal_handler(int ac, char *av[]);
+void ipfw_nptv6_handler(int ac, char *av[]);
 int ipfw_check_object_name(const char *name);
 
 #ifdef PF

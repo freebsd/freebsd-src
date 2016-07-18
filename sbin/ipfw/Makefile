@@ -5,6 +5,7 @@
 PACKAGE=ipfw
 PROG=	ipfw
 SRCS=	ipfw2.c dummynet.c ipv6.c main.c nat.c tables.c
+SRCS+=	nptv6.c
 WARNS?=	2
 
 .if ${MK_PF} != "no"
