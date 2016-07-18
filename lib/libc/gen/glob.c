@@ -714,9 +714,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 	if ((dirp = g_opendir(pathbuf, pglob)) == NULL) {
 		if (errno == ENOENT || errno == ENOTDIR)
 			return (0);
-		if (pglob->gl_flags & GLOB_ERR)
-			return (GLOB_ABORTED);
-		if (pglob->gl_errfunc) {
+		if (pglob->gl_errfunc != NULL) {
 			if (g_Ctoc(pathbuf, buf, sizeof(buf))) {
 				errno = 0;
 				return (GLOB_NOSPACE);
@@ -724,6 +722,8 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 			if (pglob->gl_errfunc(buf, errno))
 				return (GLOB_ABORTED);
 		}
+		if (pglob->gl_flags & GLOB_ERR)
+			return (GLOB_ABORTED);
 		return (0);
 	}
 
