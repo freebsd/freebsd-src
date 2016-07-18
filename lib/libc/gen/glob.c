@@ -702,7 +702,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 	struct dirent *dp;
 	DIR *dirp;
 	int err;
-	char buf[MAXPATHLEN];
+	char buf[MAXPATHLEN + MB_LEN_MAX - 1];
 
 	struct dirent *(*readdirfunc)(DIR *);
 
@@ -933,7 +933,7 @@ globfree(glob_t *pglob)
 static DIR *
 g_opendir(Char *str, glob_t *pglob)
 {
-	char buf[MAXPATHLEN];
+	char buf[MAXPATHLEN + MB_LEN_MAX - 1];
 
 	if (*str == EOS)
 		strcpy(buf, ".");
@@ -953,7 +953,7 @@ g_opendir(Char *str, glob_t *pglob)
 static int
 g_lstat(Char *fn, struct stat *sb, glob_t *pglob)
 {
-	char buf[MAXPATHLEN];
+	char buf[MAXPATHLEN + MB_LEN_MAX - 1];
 
 	if (g_Ctoc(fn, buf, sizeof(buf))) {
 		errno = ENAMETOOLONG;
@@ -967,7 +967,7 @@ g_lstat(Char *fn, struct stat *sb, glob_t *pglob)
 static int
 g_stat(Char *fn, struct stat *sb, glob_t *pglob)
 {
-	char buf[MAXPATHLEN];
+	char buf[MAXPATHLEN + MB_LEN_MAX - 1];
 
 	if (g_Ctoc(fn, buf, sizeof(buf))) {
 		errno = ENAMETOOLONG;
