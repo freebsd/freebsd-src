@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 struct vmstate {
 	struct minidumphdr hdr;
-	struct hpt hpt;
 	void *ptemap;
 };
 
@@ -66,9 +65,7 @@ _i386_minidump_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
-	_kvm_hpt_free(&vm->hpt);
-	if (vm->ptemap)
-		free(vm->ptemap);
+	free(vm->ptemap);
 	free(vm);
 	kd->vmst = NULL;
 }
@@ -77,8 +74,7 @@ static int
 _i386_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
-	uint32_t *bitmap;
-	off_t off;
+	off_t off, sparse_off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
 	if (vmst == NULL) {
@@ -110,15 +106,11 @@ _i386_minidump_initvtop(kvm_t *kd)
 	/* Skip header and msgbuf */
 	off = I386_PAGE_SIZE + i386_round_page(vmst->hdr.msgbufsize);
 
-	bitmap = _kvm_malloc(kd, vmst->hdr.bitmapsize);
-	if (bitmap == NULL) {
-		_kvm_err(kd, kd->program, "cannot allocate %d bytes for bitmap", vmst->hdr.bitmapsize);
-		return (-1);
-	}
-	if (pread(kd->pmfd, bitmap, vmst->hdr.bitmapsize, off) !=
-	    (ssize_t)vmst->hdr.bitmapsize) {
-		_kvm_err(kd, kd->program, "cannot read %d bytes for page bitmap", vmst->hdr.bitmapsize);
-		free(bitmap);
+	sparse_off = off + i386_round_page(vmst->hdr.bitmapsize) +
+	    i386_round_page(vmst->hdr.ptesize);
+	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
+	    I386_PAGE_SIZE, sizeof(uint32_t)) == -1) {
+		_kvm_err(kd, kd->program, "cannot load core bitmap");
 		return (-1);
 	}
 	off += i386_round_page(vmst->hdr.bitmapsize);
@@ -126,21 +118,14 @@ _i386_minidump_initvtop(kvm_t *kd)
 	vmst->ptemap = _kvm_malloc(kd, vmst->hdr.ptesize);
 	if (vmst->ptemap == NULL) {
 		_kvm_err(kd, kd->program, "cannot allocate %d bytes for ptemap", vmst->hdr.ptesize);
-		free(bitmap);
 		return (-1);
 	}
 	if (pread(kd->pmfd, vmst->ptemap, vmst->hdr.ptesize, off) !=
 	    (ssize_t)vmst->hdr.ptesize) {
 		_kvm_err(kd, kd->program, "cannot read %d bytes for ptemap", vmst->hdr.ptesize);
-		free(bitmap);
 		return (-1);
 	}
-	off += vmst->hdr.ptesize;
-
-	/* build physical address hash table for sparse pages */
-	_kvm_hpt_init(kd, &vmst->hpt, bitmap, vmst->hdr.bitmapsize, off,
-	    I386_PAGE_SIZE, sizeof(*bitmap));
-	free(bitmap);
+	off += i386_round_page(vmst->hdr.ptesize);
 
 	return (0);
 }
@@ -171,7 +156,7 @@ _i386_minidump_vatop_pae(kvm_t *kd, kvaddr_t va, off_t *pa)
 			goto invalid;
 		}
 		a = pte & I386_PG_FRAME_PAE;
-		ofs = _kvm_hpt_find(&vm->hpt, a);
+		ofs = _kvm_pt_find(kd, a);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program,
 	    "_i386_minidump_vatop_pae: physical address 0x%jx not in minidump",
@@ -218,7 +203,7 @@ _i386_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 			goto invalid;
 		}
 		a = pte & I386_PG_FRAME;
-		ofs = _kvm_hpt_find(&vm->hpt, a);
+		ofs = _kvm_pt_find(kd, a);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program,
 	    "_i386_minidump_vatop: physical address 0x%jx not in minidump",

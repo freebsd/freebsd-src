@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
+#include <assert.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -213,73 +214,178 @@ bad:
 	return (-1);
 }
 
-static void
-_kvm_hpt_insert(struct hpt *hpt, uint64_t pa, off_t off)
+/*
+ * Transform v such that only bits [bit0, bitN) may be set.  Generates a
+ * bitmask covering the number of bits, then shifts so +bit0+ is the first.
+ */
+static uint64_t
+bitmask_range(uint64_t v, uint64_t bit0, uint64_t bitN)
 {
-	struct hpte *hpte;
-	uint32_t fnv = FNV1_32_INIT;
+	if (bit0 == 0 && bitN == BITS_IN(v))
+		return (v);
 
-	fnv = fnv_32_buf(&pa, sizeof(pa), fnv);
-	fnv &= (HPT_SIZE - 1);
-	hpte = malloc(sizeof(*hpte));
-	hpte->pa = pa;
-	hpte->off = off;
-	hpte->next = hpt->hpt_head[fnv];
-	hpt->hpt_head[fnv] = hpte;
+	return (v & (((1ULL << (bitN - bit0)) - 1ULL) << bit0));
 }
 
-void
-_kvm_hpt_init(kvm_t *kd, struct hpt *hpt, void *base, size_t len, off_t off,
+/*
+ * Returns the number of bits in a given byte array range starting at a
+ * given base, from bit0 to bitN.  bit0 may be non-zero in the case of
+ * counting backwards from bitN.
+ */
+static uint64_t
+popcount_bytes(uint64_t *addr, uint32_t bit0, uint32_t bitN)
+{
+	uint32_t res = bitN - bit0;
+	uint64_t count = 0;
+	uint32_t bound;
+
+	/* Align to 64-bit boundary on the left side if needed. */
+	if ((bit0 % BITS_IN(*addr)) != 0) {
+		bound = MIN(bitN, roundup2(bit0, BITS_IN(*addr)));
+		count += __bitcount64(bitmask_range(*addr, bit0, bound));
+		res -= (bound - bit0);
+		addr++;
+	}
+
+	while (res > 0) {
+		bound = MIN(res, BITS_IN(*addr));
+		count += __bitcount64(bitmask_range(*addr, 0, bound));
+		res -= bound;
+		addr++;
+	}
+
+	return (count);
+}
+
+int
+_kvm_pt_init(kvm_t *kd, size_t map_len, off_t map_off, off_t sparse_off,
     int page_size, int word_size)
 {
-	uint64_t bits, idx, pa;
-	uint64_t *base64;
-	uint32_t *base32;
+	uint64_t *addr;
+	uint32_t *popcount_bin;
+	int bin_popcounts = 0;
+	uint64_t pc_bins, res;
+	ssize_t rd;
 
-	base64 = base;
-	base32 = base;
-	for (idx = 0; idx < len / word_size; idx++) {
-		if (word_size == sizeof(uint64_t))
-			bits = _kvm64toh(kd, base64[idx]);
-		else
-			bits = _kvm32toh(kd, base32[idx]);
-		pa = idx * word_size * NBBY * page_size;
-		for (; bits != 0; bits >>= 1, pa += page_size) {
-			if ((bits & 1) == 0)
-				continue;
-			_kvm_hpt_insert(hpt, pa, off);
-			off += page_size;
+	/*
+	 * Map the bitmap specified by the arguments.
+	 */
+	kd->pt_map = _kvm_malloc(kd, map_len);
+	if (kd->pt_map == NULL) {
+		_kvm_err(kd, kd->program, "cannot allocate %zu bytes for bitmap",
+		    map_len);
+		return (-1);
+	}
+	rd = pread(kd->pmfd, kd->pt_map, map_len, map_off);
+	if (rd < 0 || rd != (ssize_t)map_len) {
+		_kvm_err(kd, kd->program, "cannot read %zu bytes for bitmap",
+		    map_len);
+		return (-1);
+	}
+	kd->pt_map_size = map_len;
+
+	/*
+	 * Generate a popcount cache for every POPCOUNT_BITS in the bitmap,
+	 * so lookups only have to calculate the number of bits set between
+	 * a cache point and their bit.  This reduces lookups to O(1),
+	 * without significantly increasing memory requirements.
+	 *
+	 * Round up the number of bins so that 'upper half' lookups work for
+	 * the final bin, if needed.  The first popcount is 0, since no bits
+	 * precede bit 0, so add 1 for that also.  Without this, extra work
+	 * would be needed to handle the first PTEs in _kvm_pt_find().
+	 */
+	addr = kd->pt_map;
+	res = map_len;
+	pc_bins = 1 + (res * NBBY + POPCOUNT_BITS / 2) / POPCOUNT_BITS;
+	kd->pt_popcounts = calloc(pc_bins, sizeof(uint32_t));
+	if (kd->pt_popcounts == NULL)
+		return (-1);
+
+	for (popcount_bin = &kd->pt_popcounts[1]; res > 0;
+	    addr++, res -= sizeof(*addr)) {
+		*popcount_bin += popcount_bytes(addr, 0,
+		    MIN(res * NBBY, BITS_IN(*addr)));
+		if (++bin_popcounts == POPCOUNTS_IN(*addr)) {
+			popcount_bin++;
+			*popcount_bin = *(popcount_bin - 1);
+			bin_popcounts = 0;
 		}
 	}
+
+	assert(pc_bins * sizeof(*popcount_bin) ==
+	    ((uintptr_t)popcount_bin - (uintptr_t)kd->pt_popcounts));
+
+	kd->pt_sparse_off = sparse_off;
+	kd->pt_sparse_size = (uint64_t)*popcount_bin * PAGE_SIZE;
+	kd->pt_page_size = page_size;
+	kd->pt_word_size = word_size;
+	return (0);
 }
 
+/*
+ * Find the offset for the given physical page address; returns -1 otherwise.
+ *
+ * A page's offset is represented by the sparse page base offset plus the
+ * number of bits set before its bit multiplied by PAGE_SIZE.  This means
+ * that if a page exists in the dump, it's necessary to know how many pages
+ * in the dump precede it.  Reduce this O(n) counting to O(1) by caching the
+ * number of bits set at POPCOUNT_BITS intervals.
+ *
+ * Then to find the number of pages before the requested address, simply
+ * index into the cache and count the number of bits set between that cache
+ * bin and the page's bit.  Halve the number of bytes that have to be
+ * checked by also counting down from the next higher bin if it's closer.
+ */
 off_t
-_kvm_hpt_find(struct hpt *hpt, uint64_t pa)
+_kvm_pt_find(kvm_t *kd, uint64_t pa)
 {
-	struct hpte *hpte;
-	uint32_t fnv = FNV1_32_INIT;
+	uint64_t *bitmap = kd->pt_map;
+	uint64_t pte_bit_id = pa / PAGE_SIZE;
+	uint64_t pte_u64 = pte_bit_id / BITS_IN(*bitmap);
+	uint64_t popcount_id = pte_bit_id / POPCOUNT_BITS;
+	uint64_t pte_mask = 1ULL << (pte_bit_id % BITS_IN(*bitmap));
+	uint64_t bitN;
+	uint32_t count;
 
-	fnv = fnv_32_buf(&pa, sizeof(pa), fnv);
-	fnv &= (HPT_SIZE - 1);
-	for (hpte = hpt->hpt_head[fnv]; hpte != NULL; hpte = hpte->next) {
-		if (pa == hpte->pa)
-			return (hpte->off);
+	/* Check whether the page address requested is in the dump. */
+	if (pte_bit_id >= (kd->pt_map_size * NBBY) ||
+	    (bitmap[pte_u64] & pte_mask) == 0)
+		return (-1);
+
+	/*
+	 * Add/sub popcounts from the bitmap until the PTE's bit is reached.
+	 * For bits that are in the upper half between the calculated
+	 * popcount id and the next one, use the next one and subtract to
+	 * minimize the number of popcounts required.
+	 */
+	if ((pte_bit_id % POPCOUNT_BITS) < (POPCOUNT_BITS / 2)) {
+		count = kd->pt_popcounts[popcount_id] + popcount_bytes(
+		    bitmap + popcount_id * POPCOUNTS_IN(*bitmap),
+		    0, pte_bit_id - popcount_id * POPCOUNT_BITS);
+	} else {
+		/*
+		 * Counting in reverse is trickier, since we must avoid
+		 * reading from bytes that are not in range, and invert.
+		 */
+		uint64_t pte_u64_bit_off = pte_u64 * BITS_IN(*bitmap);
+
+		popcount_id++;
+		bitN = MIN(popcount_id * POPCOUNT_BITS,
+		    kd->pt_map_size * BITS_IN(uint8_t));
+		count = kd->pt_popcounts[popcount_id] - popcount_bytes(
+		    bitmap + pte_u64,
+		    pte_bit_id - pte_u64_bit_off, bitN - pte_u64_bit_off);
 	}
-	return (-1);
-}
 
-void
-_kvm_hpt_free(struct hpt *hpt)
-{
-	struct hpte *hpte, *next;
-	int i;
+	/*
+	 * This can only happen if the core is truncated.  Treat these
+	 * entries as if they don't exist, since their backing doesn't.
+	 */
+	if (count >= (kd->pt_sparse_size / PAGE_SIZE))
+		return (-1);
 
-	for (i = 0; i < HPT_SIZE; i++) {
-		for (hpte = hpt->hpt_head[i]; hpte != NULL; hpte = next) {
-			next = hpte->next;
-			free(hpte);
-		}
-	}
+	return (kd->pt_sparse_off + (uint64_t)count * PAGE_SIZE);
 }
 
 static int

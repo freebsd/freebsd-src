@@ -97,23 +97,21 @@ struct __kvm {
 	uintptr_t	*dpcpu_off;	/* base array, indexed by CPU ID */
 	u_int		dpcpu_curcpu;	/* CPU we're currently working with */
 	kvaddr_t	dpcpu_curoff;	/* dpcpu base of current CPU */
+
+	/* Page table lookup structures. */
+	uint64_t	*pt_map;
+	size_t		pt_map_size;
+	off_t		pt_sparse_off;
+	uint64_t	pt_sparse_size;
+	uint32_t	*pt_popcounts;
+	unsigned int	pt_page_size;
+	unsigned int	pt_word_size;
 };
 
-/*
- * Page table hash used by minidump backends to map physical addresses
- * to file offsets.
- */
-struct hpte {
-	struct hpte	*next;
-	uint64_t	pa;
-	off_t		off;
-};
-
-#define HPT_SIZE 1024
-
-struct hpt {
-	struct hpte	*hpt_head[HPT_SIZE];
-};
+/* Page table lookup constants. */
+#define POPCOUNT_BITS	1024
+#define BITS_IN(v)	(sizeof(v) * NBBY)
+#define POPCOUNTS_IN(v)	(POPCOUNT_BITS / BITS_IN(v))
 
 /*
  * Functions used internally by kvm, but across kvm modules.
@@ -154,6 +152,5 @@ kvaddr_t _kvm_dpcpu_validaddr(kvm_t *, kvaddr_t);
 int	 _kvm_probe_elf_kernel(kvm_t *, int, int);
 int	 _kvm_is_minidump(kvm_t *);
 int	 _kvm_read_core_phdrs(kvm_t *, size_t *, GElf_Phdr **);
-void	 _kvm_hpt_init(kvm_t *, struct hpt *, void *, size_t, off_t, int, int);
-off_t	 _kvm_hpt_find(struct hpt *, uint64_t);
-void	 _kvm_hpt_free(struct hpt *);
+int	 _kvm_pt_init(kvm_t *, size_t, off_t, off_t, int, int);
+off_t	 _kvm_pt_find(kvm_t *, uint64_t);
