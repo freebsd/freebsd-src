@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd July 15, 2016
+.Dd July 18, 2016
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -141,6 +141,11 @@ The process ID of the new child process will also be present in the
 .Va pl_child_pid
 member of
 .Vt "struct ptrace_lwpinfo" .
+If the new child process was created via
+.Xr vfork 2 ,
+the traced process's stop will also include the
+.Dv PL_FLAG_VFORKED
+flag.
 Note that new child processes will be attached with the default
 tracing event mask;
 they do not inherit the event mask of the traced process.
@@ -163,6 +168,33 @@ Note that new processes do not report an event for the creation of their
 initial thread,
 and exiting processes do not report an event for the termination of the
 last thread.
+.It Dv PTRACE_VFORK
+Report a stop event when a parent process resumes after a
+.Xr vfork 2 .
+.Pp
+When a thread in the traced process creates a new child process via
+.Xr vfork 2 ,
+the stop that reports
+.Dv PL_FLAG_FORKED
+and
+.Dv PL_FLAG_SCX
+occurs just after the child process is created,
+but before the thread waits for the child process to stop sharing process
+memory.
+If a debugger is not tracing the new child process,
+it must ensure that no breakpoints are enabled in the shared process
+memory before detaching from the new child process.
+This means that no breakpoints are enabled in the parent process either.
+.Pp
+The
+.Dv PTRACE_VFORK
+flag enables a new stop that indicates when the new child process stops
+sharing the process memory of the parent process.
+A debugger can reinsert breakpoints in the parent process and resume it
+in response to this event.
+This event is indicated by setting the
+.Dv PL_FLAG_VFORK_DONE
+flag.
 .El
 .Pp
 The default tracing event mask when attaching to a process via
@@ -491,6 +523,16 @@ is enabled.
 Note that this event is not reported when the last LWP in a process exits.
 The termination of the last thread is reported via a normal process exit
 event.
+.It PL_FLAG_VFORKED
+Indicates that the thread is returning from a call to
+.Xr vfork 2
+that created a new child process.
+This flag is set in addition to
+.Dv PL_FLAG_FORKED .
+.It PL_FLAG_VFORK_DONE
+Indicates that the thread has resumed after a child process created via
+.Xr vfork 2
+has stopped sharing its address space with the traced process.
 .El
 .It pl_sigmask
 The current signal mask of the LWP
