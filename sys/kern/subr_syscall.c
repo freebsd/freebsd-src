@@ -242,5 +242,13 @@ again:
 			cv_timedwait(&p2->p_pwait, &p2->p_mtx, hz);
 		}
 		PROC_UNLOCK(p2);
+
+		if (td->td_dbgflags & TDB_VFORK) {
+			PROC_LOCK(p);
+			if (p->p_ptevents & PTRACE_VFORK)
+				ptracestop(td, SIGTRAP);
+			td->td_dbgflags &= ~TDB_VFORK;
+			PROC_UNLOCK(p);
+		}
 	}
 }
