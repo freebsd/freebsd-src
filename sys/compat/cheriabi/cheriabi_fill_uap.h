@@ -628,7 +628,7 @@ CHERIABI_SYS_accept_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _Out_writes_bytes_(*anamelen) struct sockaddr *__restrict name */
+	/* [1] _Out_writes_bytes_opt_(*anamelen) struct sockaddr *__restrict name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
@@ -649,7 +649,7 @@ CHERIABI_SYS_accept_fill_uap(struct thread *td,
 			return (EINVAL);
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_accept, 1);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->name),
-		    &tmpcap, reqlen, reqperms, 0);
+		    &tmpcap, reqlen, reqperms, 1);
 		if (error != 0)
 			return (error);
 	}

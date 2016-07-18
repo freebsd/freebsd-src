@@ -121,7 +121,7 @@
 				    _Inout_opt_ \
 				    socklen_t * __restrict fromlenaddr); }
 30	AUE_ACCEPT	NOPROTO	{ int accept(int s, \
-				    _Out_writes_bytes_(*anamelen) \
+				    _Out_writes_bytes_opt_(*anamelen) \
 				    struct sockaddr * __restrict name, \
 				    _Inout_opt_ socklen_t *anamelen); }
 31	AUE_GETPEERNAME	NOPROTO	{ int getpeername(int fdes, \
