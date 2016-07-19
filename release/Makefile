@@ -172,11 +172,12 @@ disc1: packagesystem
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_PROFILE=no MK_SENDMAIL=no MK_TESTS=no MK_LIB32=no \
-		MK_DEBUG_FILES=no
+		MK_PROFILE=no MK_MAIL=no MK_TESTS=no MK_LIB32=no \
+		MK_DEBUG_FILES=no MK_LLDB=no \
+		MK_TOOLCHAIN=no
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
-	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
+	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32|kernel)-dbg'); \
 	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
 	done
 # Copy documentation, if generated

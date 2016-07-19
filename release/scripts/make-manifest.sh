@@ -36,7 +36,7 @@ default_tests=off
 default_base_dbg=off
 default_lib32_dbg=off
 default_kernel_alt=off
-default_kernel_dbg=on
+default_kernel_dbg=off
 default_kernel_alt_dbg=off
 
 for i in ${*}; do
