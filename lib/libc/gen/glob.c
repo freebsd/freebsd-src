@@ -244,7 +244,8 @@ glob(const char * __restrict pattern, int flags,
 				return (GLOB_NOMATCH);
 			else if (clen == 0)
 				break;
-			*bufnext++ = wc | prot;
+			*bufnext++ = wc | ((wc != DOT && wc != SEP) ?
+			    prot : 0);
 			patnext += clen;
 		}
 	}
@@ -478,8 +479,8 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 		return (NULL);
 
 	dc = wbuf;
-	for (b = patbuf; b < eb && *dc != EOS; *b++ = *dc++ | M_PROTECT)
-		continue;
+	for (b = patbuf; b < eb && *dc != EOS; b++, dc++)
+		*b = *dc | ((*dc != DOT && *dc != SEP) ? M_PROTECT : 0);
 	if (*dc != EOS)
 		return (NULL);
 
@@ -642,10 +643,6 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			if ((pglob->gl_flags & GLOB_LIMIT) &&
 			    limit->l_stat_cnt++ >= GLOB_LIMIT_STAT) {
 				errno = 0;
-				if (pathend + 1 > pathend_last)
-					return (GLOB_NOSPACE);
-				*pathend++ = SEP;
-				*pathend = EOS;
 				return (GLOB_NOSPACE);
 			}
 			if (((pglob->gl_flags & GLOB_MARK) &&
@@ -886,7 +883,7 @@ match(Char *name, Char *pat, Char *patend)
 			ok = 0;
 			if ((k = *name++) == EOS)
 				return (0);
-			if ((negate_range = ((*pat & M_MASK) == M_NOT)) != EOS)
+			if ((negate_range = ((*pat & M_MASK) == M_NOT)) != 0)
 				++pat;
 			while (((c = *pat++) & M_MASK) != M_END)
 				if ((*pat & M_MASK) == M_RNG) {
