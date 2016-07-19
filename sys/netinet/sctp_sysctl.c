@@ -279,15 +279,6 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
 							if (local_scope == 0)
 								continue;
-							if (sin6->sin6_scope_id == 0) {
-								/*
-								 * bad link
-								 * local
-								 * address
-								 */
-								if (sa6_recoverscope(sin6) != 0)
-									continue;
-							}
 						}
 						if ((site_scope == 0) && (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)))
 							continue;
