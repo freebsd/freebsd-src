@@ -51,7 +51,7 @@ struct s_addr {
 	enum e_atype type;			/* Address type */
 	union {
 		u_long l;			/* Line number */
-		regex_t *r;			/* Regular expression */
+		const regex_t *r;		/* Regular expression */
 	} u;
 };
 
@@ -64,7 +64,7 @@ struct s_subst {
 	int icase;				/* True if I flag */
 	char *wfile;				/* NULL if no wfile */
 	int wfd;				/* Cached file descriptor */
-	regex_t *re;				/* Regular expression */
+	const regex_t *re;			/* Regular expression */
 	unsigned int maxbref;			/* Largest backreference. */
 	u_long linenum;				/* Line number. */
 	char *new;				/* Replacement text */
@@ -94,6 +94,7 @@ struct s_command {
 	struct s_addr *a1, *a2;			/* Start and end address */
 	u_long startline;			/* Start line number or zero */
 	char *t;				/* Text for : a c i r w */
+	size_t tlen;
 	union {
 		struct s_command *c;		/* Command(s) for b t { */
 		struct s_subst *s;		/* Substitute command */

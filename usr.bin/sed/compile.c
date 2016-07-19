@@ -64,21 +64,21 @@ static struct labhash {
 	int	lh_ref;
 } *labels[LHSZ];
 
-static char	 *compile_addr(char *, struct s_addr *);
-static char	 *compile_ccl(char **, char *);
-static char	 *compile_delimited(char *, char *, int);
-static char	 *compile_flags(char *, struct s_subst *);
-static regex_t	 *compile_re(char *, int);
-static char	 *compile_subst(char *, struct s_subst *);
-static char	 *compile_text(void);
-static char	 *compile_tr(char *, struct s_tr **);
+static const char	 *compile_addr(const char *, struct s_addr *);
+static       char	 *compile_ccl(const char **, char *);
+static const char	 *compile_delimited(const char *, char *, int);
+static const char	 *compile_flags(const char *, struct s_subst *);
+static const regex_t	 *compile_re(const char *, int);
+static const char	 *compile_subst(const char *, struct s_subst *);
+static       char	 *compile_text(size_t *);
+static const char	 *compile_tr(const char *, struct s_tr **);
 static struct s_command
 		**compile_stream(struct s_command **);
-static char	 *duptoeol(char *, const char *);
+static char	 *duptoeol(const char *, const char *, size_t *);
 static void	  enterlabel(struct s_command *);
 static struct s_command
-		 *findlabel(char *);
-static void	  fixuplabel(struct s_command *, struct s_command *);
+		 *findlabel(const char *);
+static void	  fixuplabel(struct s_command *, const struct s_command *);
 static void	  uselabel(void);
 
 /*
@@ -144,17 +144,20 @@ compile(void)
 		err(1, "malloc");
 }
 
-#define EATSPACE() do {							\
-	if (p)								\
-		while (*p && isspace((unsigned char)*p))                \
-			p++;						\
+#define	EATSPACE() do {						\
+	while (*p && isspace((unsigned char)*p))		\
+		p++;						\
+	} while (0)
+
+#define	EATSPACEN() do {					\
+	while (*p && *p != '\n' && isspace((unsigned char)*p))  \
+		p++;						\
 	} while (0)
 
 static struct s_command **
 compile_stream(struct s_command **link)
 {
-	char *p;
-	static char lbuf[_POSIX2_LINE_MAX + 1];	/* To save stack */
+	const char *p;
 	struct s_command *cmd, *cmd2, *stack;
 	struct s_format *fp;
 	char re[_POSIX2_LINE_MAX + 1];
@@ -162,22 +165,22 @@ compile_stream(struct s_command **link)
 
 	stack = NULL;
 	for (;;) {
-		if ((p = cu_fgets(lbuf, sizeof(lbuf), NULL)) == NULL) {
+		if ((p = cu_fgets(NULL)) == NULL) {
 			if (stack != NULL)
 				errx(1, "%lu: %s: unexpected EOF (pending }'s)",
 							linenum, fname);
 			return (link);
 		}
 
-semicolon:	EATSPACE();
-		if (p) {
-			if (*p == '#' || *p == '\0')
-				continue;
-			else if (*p == ';') {
-				p++;
-				goto semicolon;
-			}
+semicolon:	EATSPACEN();
+		switch (*p) {
+		case '#': case '\0': case '\n':
+			continue;	/* to next command-unit */
+		case ';':
+			p++;
+			goto semicolon;
 		}
+
 		if ((*link = cmd = malloc(sizeof(struct s_command))) == NULL)
 			err(1, "malloc");
 		link = &cmd->next;
@@ -208,14 +211,14 @@ semicolon:	EATSPACE();
 			cmd->a1 = cmd->a2 = NULL;
 
 nonsel:		/* Now parse the command */
-		if (!*p)
+		if (*p == '\0' || *p == '\n')
 			errx(1, "%lu: %s: command expected", linenum, fname);
 		cmd->code = *p;
 		for (fp = cmd_fmts; fp->code; fp++)
 			if (fp->code == *p)
 				break;
 		if (!fp->code)
-			errx(1, "%lu: %s: invalid command code %c", linenum, fname, *p);
+			errx(1, "%lu: %s: invalid command code %c (%s)", linenum, fname, *p, p);
 		if (naddr > fp->naddr)
 			errx(1,
 				"%lu: %s: command %c expects up to %d address(es), found %d",
@@ -228,11 +231,11 @@ nonsel:		/* Now parse the command */
 			goto nonsel;
 		case GROUP:			/* { */
 			p++;
-			EATSPACE();
+			EATSPACEN();
 			cmd->next = stack;
 			stack = cmd;
 			link = &cmd->u.c;
-			if (*p)
+			if (*p != '\0' && *p != '\n')
 				goto semicolon;
 			break;
 		case ENDGROUP:
@@ -249,13 +252,13 @@ nonsel:		/* Now parse the command */
 			/*FALLTHROUGH*/
 		case EMPTY:		/* d D g G h H l n N p P q x = \0 */
 			p++;
-			EATSPACE();
+			EATSPACEN();
 			if (*p == ';') {
 				p++;
 				link = &cmd->next;
 				goto semicolon;
 			}
-			if (*p)
+			if (*p != '\0' && *p != '\n')
 				errx(1, "%lu: %s: extra characters at the end of %c command",
 						linenum, fname, cmd->code);
 			break;
@@ -266,12 +269,12 @@ nonsel:		/* Now parse the command */
 				errx(1,
 "%lu: %s: command %c expects \\ followed by text", linenum, fname, cmd->code);
 			p++;
-			EATSPACE();
-			if (*p)
+			EATSPACEN();
+			if (*p != '\n')
 				errx(1,
-				"%lu: %s: extra characters after \\ at the end of %c command",
-				linenum, fname, cmd->code);
-			cmd->t = compile_text();
+				"%lu: %s: extra characters (%c) after \\ at the end of %c command",
+				linenum, fname, *p, cmd->code);
+			cmd->t = compile_text(&cmd->tlen);
 			break;
 		case COMMENT:			/* \0 # */
 			break;
@@ -280,10 +283,10 @@ nonsel:		/* Now parse the command */
 			EATSPACE();
 			if (*p == '\0')
 				errx(1, "%lu: %s: filename expected", linenum, fname);
-			cmd->t = duptoeol(p, "w command");
+			cmd->t = duptoeol(p, "w command", &cmd->tlen);
 			if (aflag)
 				cmd->u.fd = -1;
-			else if ((cmd->u.fd = open(p,
+			else if ((cmd->u.fd = open(cmd->t,
 			    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 			    DEFFILEMODE)) == -1)
 				err(1, "%s", p);
@@ -294,27 +297,27 @@ nonsel:		/* Now parse the command */
 			if (*p == '\0')
 				errx(1, "%lu: %s: filename expected", linenum, fname);
 			else
-				cmd->t = duptoeol(p, "read command");
+				cmd->t = duptoeol(p, "read command", &cmd->tlen);
 			break;
 		case BRANCH:			/* b t */
 			p++;
-			EATSPACE();
-			if (*p == '\0')
+			EATSPACEN();
+			if (*p == '\0' || *p == '\n')
 				cmd->t = NULL;
 			else
-				cmd->t = duptoeol(p, "branch");
+				cmd->t = duptoeol(p, "branch", &cmd->tlen);
 			break;
 		case LABEL:			/* : */
 			p++;
 			EATSPACE();
-			cmd->t = duptoeol(p, "label");
-			if (strlen(p) == 0)
+			cmd->t = duptoeol(p, "label", &cmd->tlen);
+			if (cmd->t[0] == '\0')
 				errx(1, "%lu: %s: empty label", linenum, fname);
 			enterlabel(cmd);
 			break;
 		case SUBST:			/* s */
 			p++;
-			if (*p == '\0' || *p == '\\')
+			if (*p == '\0' || *p == '\\' || *p == '\n')
 				errx(1,
 "%lu: %s: substitute pattern can not be delimited by newline or backslash",
 					linenum, fname);
@@ -325,21 +328,15 @@ nonsel:		/* Now parse the command */
 				errx(1,
 				"%lu: %s: unterminated substitute pattern", linenum, fname);
 
-			/* Compile RE with no case sensitivity temporarily */
-			if (*re == '\0')
-				cmd->u.s->re = NULL;
-			else
-				cmd->u.s->re = compile_re(re, 0);
 			--p;
 			p = compile_subst(p, cmd->u.s);
 			p = compile_flags(p, cmd->u.s);
 
-			/* Recompile RE with case sensitivity from "I" flag if any */
-			if (*re == '\0')
-				cmd->u.s->re = NULL;
-			else
+			if (*re != '\0')
 				cmd->u.s->re = compile_re(re, cmd->u.s->icase);
+
 			EATSPACE();
+
 			if (*p == ';') {
 				p++;
 				link = &cmd->next;
@@ -372,8 +369,8 @@ nonsel:		/* Now parse the command */
  * in the case of a non-terminated string.  The character array d is filled
  * with the processed string.
  */
-static char *
-compile_delimited(char *p, char *d, int is_tr)
+static const char *
+compile_delimited(const char *p, char *d, int is_tr)
 {
 	char c;
 
@@ -416,10 +413,10 @@ compile_delimited(char *p, char *d, int is_tr)
 
 /* compile_ccl: expand a POSIX character class */
 static char *
-compile_ccl(char **sp, char *t)
+compile_ccl(const char **sp, char *t)
 {
 	int c, d;
-	char *s = *sp;
+	const char *s = *sp;
 
 	*t++ = *s++;
 	if (*s == '^')
@@ -441,8 +438,8 @@ compile_ccl(char **sp, char *t)
  * regular expression.
  * Cflags are passed to regcomp.
  */
-static regex_t *
-compile_re(char *re, int case_insensitive)
+static const regex_t *
+compile_re(const char *re, int case_insensitive)
 {
 	regex_t *rep;
 	int eval, flags;
@@ -466,14 +463,13 @@ compile_re(char *re, int case_insensitive)
  * point to a saved copy of it.  Nsub is the number of parenthesized regular
  * expressions.
  */
-static char *
-compile_subst(char *p, struct s_subst *s)
+static const char *
+compile_subst(const char *p, struct s_subst *s)
 {
-	static char lbuf[_POSIX2_LINE_MAX + 1];
 	int asize, size;
 	u_char ref;
 	char c, *text, *op, *sp;
-	int more = 1, sawesc = 0;
+	int more = 0, sawesc = 0;
 
 	c = *p++;			/* Terminator character */
 	if (c == '\0')
@@ -487,7 +483,7 @@ compile_subst(char *p, struct s_subst *s)
 	size = 0;
 	do {
 		op = sp = text + size;
-		for (; *p; p++) {
+		for (; *p != '\0' && *p != '\n'; p++) {
 			if (*p == '\\' || sawesc) {
 				/*
 				 * If this is a continuation from the last
@@ -509,7 +505,10 @@ compile_subst(char *p, struct s_subst *s)
 					 */
 					sawesc = 1;
 					p--;
-					continue;
+					break;
+				} else if (*p == '\n') {
+					*sp++ = '\n';
+					break;
 				} else if (strchr("123456789", *p) != NULL) {
 					*sp++ = '\\';
 					ref = *p - '0';
@@ -523,8 +522,11 @@ compile_subst(char *p, struct s_subst *s)
 					*sp++ = '\\';
 			} else if (*p == c) {
 				if (*++p == '\0' && more) {
-					if (cu_fgets(lbuf, sizeof(lbuf), &more))
-						p = lbuf;
+					const char *nextp;
+
+					nextp = cu_fgets(&more);
+					if (nextp != NULL)
+						p = nextp;
 				}
 				*sp++ = '\0';
 				size += sp - op;
@@ -544,7 +546,7 @@ compile_subst(char *p, struct s_subst *s)
 			if ((text = realloc(text, asize)) == NULL)
 				err(1, "realloc");
 		}
-	} while (cu_fgets(p = lbuf, sizeof(lbuf), &more));
+	} while ((p = cu_fgets(&more)));
 	errx(1, "%lu: %s: unterminated substitute in regular expression",
 			linenum, fname);
 	/* NOTREACHED */
@@ -553,12 +555,12 @@ compile_subst(char *p, struct s_subst *s)
 /*
  * Compile the flags of the s command
  */
-static char *
-compile_flags(char *p, struct s_subst *s)
+static const char *
+compile_flags(const char *p, struct s_subst *s)
 {
 	int gn;			/* True if we have seen g or n */
 	unsigned long nval;
-	char wfile[_POSIX2_LINE_MAX + 1], *q, *eq;
+	char *q;
 
 	s->n = 1;				/* Default */
 	s->p = 0;
@@ -566,7 +568,7 @@ compile_flags(char *p, struct s_subst *s)
 	s->wfd = -1;
 	s->icase = 0;
 	for (gn = 0;;) {
-		EATSPACE();			/* EXTENSION */
+		EATSPACEN();			/* EXTENSION */
 		switch (*p) {
 		case 'g':
 			if (gn)
@@ -594,13 +596,13 @@ compile_flags(char *p, struct s_subst *s)
 "%lu: %s: more than one number or 'g' in substitute flags", linenum, fname);
 			gn = 1;
 			errno = 0;
-			nval = strtol(p, &p, 10);
+			nval = strtol(p, &q, 10);
 			if (errno == ERANGE || nval > INT_MAX)
 				errx(1,
 "%lu: %s: overflow in the 'N' substitute flag", linenum, fname);
 			s->n = nval;
-			p--;
-			break;
+			p = q;
+			continue;
 		case 'w':
 			p++;
 #ifdef HISTORIC_PRACTICE
@@ -610,27 +612,15 @@ compile_flags(char *p, struct s_subst *s)
 			}
 #endif
 			EATSPACE();
-			q = wfile;
-			eq = wfile + sizeof(wfile) - 1;
-			while (*p) {
-				if (*p == '\n')
-					break;
-				if (q >= eq)
-					err(1, "wfile too long");
-				*q++ = *p++;
-			}
-			*q = '\0';
-			if (q == wfile)
-				errx(1, "%lu: %s: no wfile specified", linenum, fname);
-			s->wfile = strdup(wfile);
-			if (!aflag && (s->wfd = open(wfile,
+			s->wfile = duptoeol(p, "w flag", NULL);
+			if (!aflag && (s->wfd = open(s->wfile,
 			    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 			    DEFFILEMODE)) == -1)
-				err(1, "%s", wfile);
+				err(1, "%s", s->wfile);
 			return (p);
 		default:
-			errx(1, "%lu: %s: bad flag in substitute command: '%c'",
-					linenum, fname, *p);
+			errx(1, "%lu: %s: bad flag in substitute command: '%c' (%.10s)",
+					linenum, fname, *p, p);
 			break;
 		}
 		p++;
@@ -640,8 +630,8 @@ compile_flags(char *p, struct s_subst *s)
 /*
  * Compile a translation set of strings into a lookup table.
  */
-static char *
-compile_tr(char *p, struct s_tr **py)
+static const char *
+compile_tr(const char *p, struct s_tr **py)
 {
 	struct s_tr *y;
 	int i;
@@ -652,7 +642,7 @@ compile_tr(char *p, struct s_tr **py)
 	mbstate_t mbs1, mbs2;
 
 	if ((*py = y = malloc(sizeof(*y))) == NULL)
-		err(1, NULL);
+		err(1, "malloc");
 	y->multis = NULL;
 	y->nmultis = 0;
 
@@ -672,11 +662,11 @@ compile_tr(char *p, struct s_tr **py)
 	op = old;
 	oldlen = mbsrtowcs(NULL, &op, 0, NULL);
 	if (oldlen == (size_t)-1)
-		err(1, NULL);
+		err(1, "mbsrtowcs");
 	np = new;
 	newlen = mbsrtowcs(NULL, &np, 0, NULL);
 	if (newlen == (size_t)-1)
-		err(1, NULL);
+		err(1, "mbsrtowcs");
 	if (newlen != oldlen)
 		errx(1, "%lu: %s: transform strings are not the same length",
 				linenum, fname);
@@ -715,7 +705,7 @@ compile_tr(char *p, struct s_tr **py)
 				y->multis = realloc(y->multis,
 				    (y->nmultis + 1) * sizeof(*y->multis));
 				if (y->multis == NULL)
-					err(1, NULL);
+					err(1, "realloc");
 				i = y->nmultis++;
 				y->multis[i].fromlen = oclen;
 				memcpy(y->multis[i].from, op, oclen);
@@ -733,23 +723,24 @@ compile_tr(char *p, struct s_tr **py)
  * Compile the text following an a, c, or i command.
  */
 static char *
-compile_text(void)
+compile_text(size_t *ptlen)
 {
 	int asize, esc_nl, size;
-	char *text, *p, *op, *s;
-	char lbuf[_POSIX2_LINE_MAX + 1];
+	char *text, *s;
+	const char *p, *op;
 
 	asize = 2 * _POSIX2_LINE_MAX + 1;
 	if ((text = malloc(asize)) == NULL)
 		err(1, "malloc");
 	size = 0;
-	while (cu_fgets(lbuf, sizeof(lbuf), NULL)) {
+	while ((p = cu_fgets(NULL))) {
 		op = s = text + size;
-		p = lbuf;
 		for (esc_nl = 0; *p != '\0'; p++) {
 			if (*p == '\\' && p[1] != '\0' && *++p == '\n')
 				esc_nl = 1;
 			*s++ = *p;
+			if (*p == '\n')
+				break;
 		}
 		size += s - op;
 		if (!esc_nl) {
@@ -763,17 +754,18 @@ compile_text(void)
 		}
 	}
 	text[size] = '\0';
-	if ((p = realloc(text, size + 1)) == NULL)
+	if ((text = realloc(text, size + 1)) == NULL)
 		err(1, "realloc");
-	return (p);
+	*ptlen = size;
+	return (text);
 }
 
 /*
  * Get an address and return a pointer to the first character after
  * it.  Fill the structure pointed to according to the address.
  */
-static char *
-compile_addr(char *p, struct s_addr *a)
+static const char *
+compile_addr(const char *p, struct s_addr *a)
 {
 	char *end, re[_POSIX2_LINE_MAX + 1];
 	int icase;
@@ -827,22 +819,26 @@ compile_addr(char *p, struct s_addr *a)
  *	Return a copy of all the characters up to \n or \0.
  */
 static char *
-duptoeol(char *s, const char *ctype)
+duptoeol(const char *s, const char *ctype, size_t *ptlen)
 {
 	size_t len;
 	int ws;
-	char *p, *start;
+	char *p;
+	const char *start;
 
 	ws = 0;
 	for (start = s; *s != '\0' && *s != '\n'; ++s)
 		ws = isspace((unsigned char)*s);
-	*s = '\0';
 	if (ws)
 		warnx("%lu: %s: whitespace after %s", linenum, fname, ctype);
-	len = s - start + 1;
-	if ((p = malloc(len)) == NULL)
+	len = s - start;
+	if ((p = malloc(len + 1)) == NULL)
 		err(1, "malloc");
-	return (memmove(p, start, len));
+	memmove(p, start, len);
+	p[len] = '\0';
+	if (ptlen != NULL)
+		*ptlen = len;
+	return p;
 }
 
 /*
@@ -853,7 +849,7 @@ duptoeol(char *s, const char *ctype)
  * TODO: Remove } nodes
  */
 static void
-fixuplabel(struct s_command *cp, struct s_command *end)
+fixuplabel(struct s_command *cp, const struct s_command *end)
 {
 
 	for (; cp != end; cp = cp->next)
@@ -870,7 +866,7 @@ fixuplabel(struct s_command *cp, struct s_command *end)
 				break;
 			}
 			if ((cp->u.c = findlabel(cp->t)) == NULL)
-				errx(1, "%lu: %s: undefined label '%s'", linenum, fname, cp->t);
+				errx(1, "%lu: %s: %c: undefined label '%s'", linenum, fname, cp->code, cp->t);
 			free(cp->t);
 			break;
 		case '{':
@@ -910,13 +906,13 @@ enterlabel(struct s_command *cp)
  * list cp.  L is excluded from the search.  Return NULL if not found.
  */
 static struct s_command *
-findlabel(char *name)
+findlabel(const char *name)
 {
 	struct labhash *lh;
-	u_char *p;
+	const u_char *p;
 	u_int h, c;
 
-	for (h = 0, p = (u_char *)name; (c = *p) != 0; p++)
+	for (h = 0, p = (const u_char *)name; (c = *p) != 0; p++)
 		h = (h << 5) + h + c;
 	for (lh = labels[h & LHMASK]; lh != NULL; lh = lh->lh_next) {
 		if (lh->lh_hash == h && strcmp(name, lh->lh_cmd->t) == 0) {
