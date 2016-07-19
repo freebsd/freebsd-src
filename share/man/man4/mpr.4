@@ -38,7 +38,7 @@
 .\" $Id$
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2016
+.Dd July 6, 2016
 .Dt MPR 4
 .Os
 .Sh NAME
@@ -156,6 +156,29 @@ The current number of active I/O commands is shown in the
 dev.mpr.X.io_cmds_active
 .Xr sysctl 8
 variable.
+.Ed
+.Pp
+To set the maximum number of pages that will be used per I/O for all adapters,
+set this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mpr.max_io_pages=NNNN
+.Ed
+.Pp
+To set the maximum number of pages that will be used per I/O for a specific
+adapter, set this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.max_io_pages=NNNN
+.Ed
+.Pp
+The default max_io_pages value is -1, meaning that the maximum I/O size that
+will be used per I/O will be calculated using the IOCFacts values stored in
+the controller.
+The lowest value that the driver will use for max_io_pages is 1, otherwise
+IOCFacts will be used to calculate the maximum I/O size.
+The smaller I/O size calculated from either max_io_pages or IOCFacts will be the
+maximum I/O size used by the driver.
 .Pp
 The highest number of active I/O commands seen since boot is stored in the
 dev.mpr.X.io_cmds_highwater
@@ -220,7 +243,7 @@ SATA disks that take several seconds to spin up and fail the SATA Identify
 command might not be discovered by the driver.
 This problem can sometimes be overcome by increasing the value of the spinup
 wait time in
-.Xr loader.conf 5 :
+.Xr loader.conf 5
 with the
 .Bd -literal -offset indent
 hw.mpr.spinup_wait_time=NNNN
