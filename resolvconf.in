@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 RESOLVCONF="$0"
-OPENRESOLV_VERSION="3.8.0"
+OPENRESOLV_VERSION="3.8.1"
 SYSCONFDIR=@SYSCONFDIR@
 LIBEXECDIR=@LIBEXECDIR@
 VARDIR=@VARDIR@
@@ -152,7 +152,10 @@ parse_resolv()
 					private=false
 					for p in $private_interfaces; do
 						case "$iface" in
-						"$p"|"$p":*) private=true; break;;
+						"$p"|"$p":*)
+							private=true
+							break
+							;;
 						esac
 					done
 				fi
@@ -270,11 +273,11 @@ detect_init()
 	local status="@STATUSARG@"
 	: ${status:=status}
 	if [ -x /bin/systemctl -a -S /run/systemd/private ]; then
-		RESTARTCMD="if /bin/systemctl --quiet is-active; then
+		RESTARTCMD="if /bin/systemctl --quiet is-active \$1.service; then
 	/bin/systemctl restart \$1.service;
 fi"
 	elif [ -x /usr/bin/systemctl -a -S /run/systemd/private ]; then
-		RESTARTCMD="if /usr/bin/systemctl --quiet is-active; then
+		RESTARTCMD="if /usr/bin/systemctl --quiet is-active \$1.service; then
 	/usr/bin/systemctl restart \$1.service;
 fi"
 	elif [ -x /sbin/rc-service -a \
