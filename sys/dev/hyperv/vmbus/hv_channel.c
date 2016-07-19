@@ -1250,61 +1250,63 @@ vmbus_chan_destroy_all(struct vmbus_softc *sc)
 	mtx_unlock(&sc->vmbus_prichan_lock);
 }
 
-/**
- * @brief Select the best outgoing channel
- * 
+/*
  * The channel whose vcpu binding is closest to the currect vcpu will
  * be selected.
- * If no multi-channel, always select primary channel
- * 
- * @param primary - primary channel
+ * If no multi-channel, always select primary channel.
  */
 struct hv_vmbus_channel *
-vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
+vmbus_chan_cpu2chan(struct hv_vmbus_channel *prichan, int cpu)
 {
-	hv_vmbus_channel *new_channel = NULL;
-	hv_vmbus_channel *outgoing_channel = primary;
-	int old_cpu_distance = 0;
-	int new_cpu_distance = 0;
-	int cur_vcpu = 0;
-	int smp_pro_id = PCPU_GET(cpuid);
+	struct hv_vmbus_channel *sel, *chan;
+	uint32_t vcpu, sel_dist;
 
-	if (TAILQ_EMPTY(&primary->ch_subchans)) {
-		return outgoing_channel;
-	}
+	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpuid %d", cpu));
+	if (TAILQ_EMPTY(&prichan->ch_subchans))
+		return prichan;
 
-	if (smp_pro_id >= MAXCPU) {
-		return outgoing_channel;
-	}
+	vcpu = VMBUS_PCPU_GET(prichan->vmbus_sc, vcpuid, cpu);
 
-	cur_vcpu = VMBUS_PCPU_GET(primary->vmbus_sc, vcpuid, smp_pro_id);
-	
-	/* XXX need lock */
-	TAILQ_FOREACH(new_channel, &primary->ch_subchans, ch_sublink) {
-		if ((new_channel->ch_stflags & VMBUS_CHAN_ST_OPENED) == 0) {
+#define CHAN_VCPU_DIST(ch, vcpu)		\
+	(((ch)->ch_vcpuid > (vcpu)) ?		\
+	 ((ch)->ch_vcpuid - (vcpu)) : ((vcpu) - (ch)->ch_vcpuid))
+
+#define CHAN_SELECT(ch)				\
+do {						\
+	sel = ch;				\
+	sel_dist = CHAN_VCPU_DIST(ch, vcpu);	\
+} while (0)
+
+	CHAN_SELECT(prichan);
+
+	mtx_lock(&prichan->ch_subchan_lock);
+	TAILQ_FOREACH(chan, &prichan->ch_subchans, ch_sublink) {
+		uint32_t dist;
+
+		KASSERT(chan->ch_stflags & VMBUS_CHAN_ST_OPENED,
+		    ("chan%u is not opened", chan->ch_id));
+
+		if (chan->ch_vcpuid == vcpu) {
+			/* Exact match; done */
+			CHAN_SELECT(chan);
+			break;
+		}
+
+		dist = CHAN_VCPU_DIST(chan, vcpu);
+		if (sel_dist <= dist) {
+			/* Far or same distance; skip */
 			continue;
 		}
 
-		if (new_channel->ch_vcpuid == cur_vcpu){
-			return new_channel;
-		}
-
-		old_cpu_distance = ((outgoing_channel->ch_vcpuid > cur_vcpu) ?
-		    (outgoing_channel->ch_vcpuid - cur_vcpu) :
-		    (cur_vcpu - outgoing_channel->ch_vcpuid));
-
-		new_cpu_distance = ((new_channel->ch_vcpuid > cur_vcpu) ?
-		    (new_channel->ch_vcpuid - cur_vcpu) :
-		    (cur_vcpu - new_channel->ch_vcpuid));
-
-		if (old_cpu_distance < new_cpu_distance) {
-			continue;
-		}
-
-		outgoing_channel = new_channel;
+		/* Select the closer channel. */
+		CHAN_SELECT(chan);
 	}
+	mtx_unlock(&prichan->ch_subchan_lock);
 
-	return(outgoing_channel);
+#undef CHAN_SELECT
+#undef CHAN_VCPU_DIST
+
+	return sel;
 }
 
 struct hv_vmbus_channel **
