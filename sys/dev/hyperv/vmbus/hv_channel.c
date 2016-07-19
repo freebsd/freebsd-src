@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-static void 	vmbus_chan_send_event(hv_vmbus_channel* channel);
+static void 	vmbus_chan_signal_tx(struct hv_vmbus_channel *chan);
 static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
 		    const struct hv_vmbus_channel *);
 
@@ -81,20 +81,20 @@ vmbus_chan_msgprocs[VMBUS_CHANMSG_TYPE_MAX] = {
  *  @brief Trigger an event notification on the specified channel
  */
 static void
-vmbus_chan_send_event(hv_vmbus_channel *channel)
+vmbus_chan_signal_tx(struct hv_vmbus_channel *chan)
 {
-	struct vmbus_softc *sc = channel->vmbus_sc;
-	uint32_t chanid = channel->ch_id;
+	struct vmbus_softc *sc = chan->vmbus_sc;
+	uint32_t chanid = chan->ch_id;
 
 	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
 	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
-	if (channel->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
+	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
 		atomic_set_int(
-		&sc->vmbus_mnf2->mnf_trigs[channel->ch_montrig_idx].mt_pending,
-		channel->ch_montrig_mask);
+		&sc->vmbus_mnf2->mnf_trigs[chan->ch_montrig_idx].mt_pending,
+		chan->ch_montrig_mask);
 	} else {
-		hypercall_signal_event(channel->ch_monprm_dma.hv_paddr);
+		hypercall_signal_event(chan->ch_monprm_dma.hv_paddr);
 	}
 }
 
@@ -637,7 +637,7 @@ vmbus_chan_send(struct hv_vmbus_channel *chan, uint16_t type, uint16_t flags,
 
 	error = hv_ring_buffer_write(&chan->outbound, iov, 3, &send_evt);
 	if (!error && send_evt)
-		vmbus_chan_send_event(chan);
+		vmbus_chan_signal_tx(chan);
 	return error;
 }
 
@@ -677,7 +677,7 @@ vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
 
 	error = hv_ring_buffer_write(&chan->outbound, iov, 4, &send_evt);
 	if (!error && send_evt)
-		vmbus_chan_send_event(chan);
+		vmbus_chan_signal_tx(chan);
 	return error;
 }
 
@@ -719,7 +719,7 @@ vmbus_chan_send_prplist(struct hv_vmbus_channel *chan,
 
 	error = hv_ring_buffer_write(&chan->outbound, iov, 4, &send_evt);
 	if (!error && send_evt)
-		vmbus_chan_send_event(chan);
+		vmbus_chan_signal_tx(chan);
 	return error;
 }
 
@@ -838,20 +838,20 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 		chid_base = f << VMBUS_EVTFLAG_SHIFT;
 
 		while ((chid_ofs = ffsl(flags)) != 0) {
-			struct hv_vmbus_channel *channel;
+			struct hv_vmbus_channel *chan;
 
 			--chid_ofs; /* NOTE: ffsl is 1-based */
 			flags &= ~(1UL << chid_ofs);
 
-			channel = sc->vmbus_chmap[chid_base + chid_ofs];
+			chan = sc->vmbus_chmap[chid_base + chid_ofs];
 
 			/* if channel is closed or closing */
-			if (channel == NULL || channel->ch_tq == NULL)
+			if (chan == NULL || chan->ch_tq == NULL)
 				continue;
 
-			if (channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
-				hv_ring_buffer_read_begin(&channel->inbound);
-			taskqueue_enqueue(channel->ch_tq, &channel->ch_task);
+			if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
+				hv_ring_buffer_read_begin(&chan->inbound);
+			taskqueue_enqueue(chan->ch_tq, &chan->ch_task);
 		}
 	}
 }
