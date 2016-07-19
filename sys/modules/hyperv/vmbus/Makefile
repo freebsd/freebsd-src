@@ -4,12 +4,12 @@
 	${.CURDIR}/../../../dev/hyperv/vmbus/${MACHINE_CPUARCH}
 
 KMOD=	hv_vmbus
-SRCS=	hv_channel.c \
-	hv_ring_buffer.c \
+SRCS=	hv_ring_buffer.c \
 	hyperv.c \
 	hyperv_busdma.c \
 	hyperv_machdep.c \
 	vmbus.c \
+	vmbus_chan.c \
 	vmbus_et.c
 SRCS+=	acpi_if.h bus_if.h device_if.h opt_acpi.h vmbus_if.h
 
