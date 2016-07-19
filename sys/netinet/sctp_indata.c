@@ -831,7 +831,7 @@ restart:
 					    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 				}
 				sctp_wakeup_the_read_socket(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
-				if (!TAILQ_EMPTY(&nc->reasm) && (nc->first_frag_seen)) {
+				if ((nc->first_frag_seen) && !TAILQ_EMPTY(&nc->reasm)) {
 					/*
 					 * Switch to the new guy and
 					 * continue
