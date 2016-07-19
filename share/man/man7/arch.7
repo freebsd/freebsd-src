@@ -1,0 +1,171 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation. All rights reserved.
+.\"
+.\" This documentation was created by Ed Maste under sponsorship of
+.\" The FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 19, 2016
+.Dt ARCH 7
+.Os
+.Sh NAME
+.Nm arch
+.Nd Architecture-specific details
+.Sh DESCRIPTION
+Differences between CPU architectures and platforms supported by
+.Fx .
+.Pp
+.Ss Type sizes
+On all supported architectures,
+.Bl -column -offset -indent "long long" "Size"
+.It Sy Type Ta Sy Size
+.It short Ta 2
+.It int Ta 4
+.It long Ta sizeof(void*)
+.It long long Ta 8
+.It float Ta 4
+.It double Ta 8
+.El
+.Bl -column -offset indent ".Sy Architecture" ".Sy sizeof(void *)" ".Sy "sizeof(long double)"
+.It Sy Architecture Ta Sy sizeof(void *) Ta Sy sizeof(long double)
+.It amd64       Ta 8 Ta 16
+.It arm         Ta 4 Ta  8
+.It armeb       Ta 4 Ta  8
+.It armv6       Ta 4 Ta  8
+.It arm64       Ta 8 Ta 16
+.It i386        Ta 4 Ta 12
+.It mips        Ta 4 Ta  8
+.It mipsel      Ta 4 Ta  8
+.It mipsn32     Ta 4 Ta  8
+.It mips64      Ta 8 Ta  8
+.It mips64el    Ta 8 Ta  8
+.It powerpc     Ta 4 Ta  8
+.It powerpc64   Ta 8 Ta  8
+.It riscv       Ta 8 Ta
+.It sparc64     Ta 8 Ta 16
+.El
+.Ss Endianness and Char Signedness
+.Bl -column -offset indent ".Sy Architecture" ".Sy Endianness" ".Sy "char Signedness"
+.It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
+.It amd64       Ta little Ta   signed
+.It arm         Ta little Ta unsigned
+.It armeb       Ta big    Ta unsigned
+.It armv6       Ta little Ta unsigned
+.It arm64       Ta little Ta unsigned
+.It i386        Ta little Ta   signed
+.It mips        Ta little Ta   signed
+.It mipsel      Ta big    Ta   signed
+.It mipsn32     Ta little Ta   signed
+.It mips64      Ta little Ta   signed
+.It mips64el    Ta little Ta   signed
+.It powerpc     Ta big    Ta unsigned
+.It powerpc64   Ta big    Ta unsigned
+.It riscv       Ta little Ta   signed
+.It sparc64     Ta big    Ta   signed
+.El
+.Ss Page Size
+.Bl -column -offset indent ".Sy Architecture" ".Sy Page Sizes"
+.It Sy Architecture Ta Sy Page Sizes
+.It amd64       Ta 4K, 2M, 1G
+.It arm         Ta 4K
+.It armeb       Ta 4K
+.It armv6       Ta 4K
+.It arm64       Ta 4K, 2M, 1G
+.It i386        Ta 4K, 2M (PAE), 4M
+.It mips        Ta 4K
+.It mipsel      Ta 4K
+.It mipsn32     Ta 4K
+.It mips64      Ta 4K
+.It mips64el    Ta 4K
+.It powerpc     Ta 4K
+.It powerpc64   Ta 4K
+.It riscv       Ta 4K
+.It sparc64     Ta 8K
+.El
+.Ss Floating Point
+.Bl -column -offset indent ".Sy Architecture" ".Sy float, double" ".Sy long double"
+.It Sy Architecture Ta Sy float, double Ta Sy long double
+.It amd64       Ta hard Ta hard, 80 bit
+.It arm         Ta soft Ta soft, double precision
+.It armeb       Ta soft Ta soft, double precision
+.It armv6       Ta hard Ta hard, double precision
+.It arm64       Ta hard Ta soft, quad precision
+.It i386        Ta hard Ta hard, 80 bit
+.It mips        Ta soft Ta identical to double
+.It mipsel      Ta soft Ta identical to double
+.It mipsn32     Ta soft Ta  identical to double
+.It mips64      Ta soft Ta identical to double
+.It mips64el    Ta soft Ta identical to double
+.It powerpc     Ta hard Ta hard, double precision
+.It powerpc64   Ta hard Ta hard, double precision
+.It riscv       Ta
+.It sparc64     Ta hard Ta hard, quad precision
+.El
+.Ss Predefined Macros
+The compiler provides a number of predefined macros.
+Some of these provide architecture-specific details and are explained below.
+Other macros, including those required by the language standard, are not
+included here.
+.Pp
+The full set of predefined macros can be obtained with this command:
+.Bd -literal -offset indent
+cc -x c -Dm -E /dev/null
+.Ed
+.Pp
+Common type size and endianness macros:
+.Bl -column -offset indent "BYTE_ORDER" ".Sy Meaning"
+.It Sy Macro Ta Sy Meaning
+.It Dv __LP64__ Ta 64-bit (8-byte) long and pointer, 32-bit (4-byte) int
+.It Dv __ILP32__ Ta 32-bit (4-byte) int, long and pointer
+.It Dv BYTE_ORDER Ta Either Dv BIG_ENDIAN or Dv LITTLE_ENDIAN .
+.Dv PDP11_ENDIAN is not used on FreeBSD.
+.El
+.Pp
+Architecture-specific macros:
+.Bl -column -offset indent ".Sy Architecture" ".Sy Predefined macros"
+.It Sy Architecture Ta Sy Predefined macros
+.It amd64       Ta Dv __amd64__, Dv __x86_64__
+.It arm         Ta Dv __arm__
+.It armeb       Ta Dv __arm__
+.It armv6       Ta Dv __arm__, Dv __ARM_ARCH >= 6
+.It arm64       Ta Dv __aarch64__
+.It i386        Ta Dv __i386__
+.It mips        Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_o32
+.It mipsel      Ta Dv __mips__, Dv __mips_o32
+.It mipsn32     Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n32
+.It mips64      Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n64
+.It mips64el    Ta Dv __mips__, Dv __mips_n64
+.It powerpc     Ta Dv __powerpc__
+.It powerpc64   Ta Dv __powerpc__, Dv __powerpc64__
+.It riscv       Ta Dv __riscv__, Dv __riscv64
+.It sparc64     Ta Dv __sparc64__
+.El
+.Sh SEE ALSO
+.Xr src.conf 5 ,
+.Xr build 7
+.Sh HISTORY
+An
+.Nm
+manual page appeared in
+.Fx 12 .
