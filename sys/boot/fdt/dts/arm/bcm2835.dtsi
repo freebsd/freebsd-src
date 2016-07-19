@@ -396,6 +396,14 @@
 			};
 		};
 
+		rng {
+			compatible = "broadcom,bcm2835-rng",
+				     "broadcom,bcm2708-rng";
+			reg = <0x104000 0x20>;
+			interrupts = <69>;
+			interrupt-parent = <&intc>;
+		};
+
 		bsc0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
