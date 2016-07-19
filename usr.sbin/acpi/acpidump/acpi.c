@@ -1177,6 +1177,7 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 	PRINTFLAG(fadt->BootFlags, NO_VGA);
 	PRINTFLAG(fadt->BootFlags, NO_MSI);
 	PRINTFLAG(fadt->BootFlags, NO_ASPM);
+	PRINTFLAG(fadt->BootFlags, NO_CMOS_RTC);
 	PRINTFLAG_END();
 
 	printf("\tFlags=");
@@ -1200,6 +1201,8 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 	PRINTFLAG(fadt->Flags, REMOTE_POWER_ON);
 	PRINTFLAG(fadt->Flags, APIC_CLUSTER);
 	PRINTFLAG(fadt->Flags, APIC_PHYSICAL);
+	PRINTFLAG(fadt->Flags, HW_REDUCED);
+	PRINTFLAG(fadt->Flags, LOW_POWER_S0);
 	PRINTFLAG_END();
 
 #undef PRINTFLAG
