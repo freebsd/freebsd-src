@@ -242,6 +242,14 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 	if ((ni->ni_vap->iv_htcaps & IEEE80211_HTCAP_LDPC) &&
 	    (ni->ni_htcap & IEEE80211_HTCAP_LDPC))
 		do_ldpc = 1;
+
+	/*
+	 * The 11n duration calculation doesn't know about LDPC,
+	 * so don't enable it for positioning.
+	 */
+	if (bf->bf_flags & ATH_BUF_TOA_PROBE)
+		do_ldpc = 0;
+
 	do_stbc = 0;
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
@@ -279,29 +287,43 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			if (ni->ni_chw == 40)
 				rc[i].flags |= ATH_RC_CW40_FLAG;
 
+			/*
+			 * NOTE: Don't do short-gi for positioning frames.
+			 *
+			 * For now, the ath_hal and net80211 HT duration
+			 * calculation rounds up the 11n data txtime
+			 * to the nearest multiple of 3.6 microseconds
+			 * and doesn't return the fractional part, so
+			 * we are always "out" by some amount.
+			 */
 			if (ni->ni_chw == 40 &&
 			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
 			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40 &&
-			    vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40)
+			    vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40 &&
+			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;
+			}
 
 			if (ni->ni_chw == 20 &&
 			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
 			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20 &&
-			    vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20)
+			    vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20 &&
+			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;
+			}
 
 			/*
 			 * If we have STBC TX enabled and the receiver
 			 * can receive (at least) 1 stream STBC, AND it's
 			 * MCS 0-7, AND we have at least two chains enabled,
-			 * enable STBC.
+			 * and we're not doing positioning, enable STBC.
 			 */
 			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
 			    ni->ni_vap->iv_flags_ht & IEEE80211_FHT_STBC_TX &&
 			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
 			    (sc->sc_cur_txchainmask > 1) &&
-			    HT_RC_2_STREAMS(rate) == 1) {
+			    (HT_RC_2_STREAMS(rate) == 1) &&
+			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_STBC_FLAG;
 				do_stbc = 1;
 			}
