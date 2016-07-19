@@ -96,12 +96,13 @@ int	vmbus_chan_gpadl_disconnect(struct hv_vmbus_channel *chan,
 
 void	vmbus_chan_cpu_set(struct hv_vmbus_channel *chan, int cpu);
 void	vmbus_chan_cpu_rr(struct hv_vmbus_channel *chan);
+struct hv_vmbus_channel *
+	vmbus_chan_cpu2chan(struct hv_vmbus_channel *chan, int cpu);
 
 struct hv_vmbus_channel **
 	vmbus_subchan_get(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
 void	vmbus_subchan_rel(struct hv_vmbus_channel **subchan, int subchan_cnt);
 void	vmbus_subchan_drain(struct hv_vmbus_channel *pri_chan);
-
 
 int	vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen,
 	    uint64_t *xactid);

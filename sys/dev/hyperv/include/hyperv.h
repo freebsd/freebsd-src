@@ -281,8 +281,6 @@ int		hv_vmbus_channel_open(struct hv_vmbus_channel *chan,
 		    vmbus_chan_callback_t cb, void *cbarg);
 void		hv_vmbus_channel_close(hv_vmbus_channel *channel);
 
-struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
-
 /**
  * @brief Get physical address from virtual
  */
