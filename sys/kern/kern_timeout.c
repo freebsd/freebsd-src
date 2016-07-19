@@ -1050,7 +1050,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		 */
 		if (c->c_lock != NULL && !cc_exec_cancel(cc, direct))
 			cancelled = cc_exec_cancel(cc, direct) = true;
-		if (cc_exec_waiting(cc, direct)) {
+		if (cc_exec_waiting(cc, direct) || cc_exec_drain(cc, direct)) {
 			/*
 			 * Someone has called callout_drain to kill this
 			 * callout.  Don't reschedule.
@@ -1166,7 +1166,7 @@ _callout_stop_safe(struct callout *c, int flags, void (*drain)(void *))
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
 	int direct, sq_locked, use_lock;
-	int cancelled, not_on_a_list;
+	int not_on_a_list;
 
 	if ((flags & CS_DRAIN) != 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, c->c_lock,
@@ -1234,17 +1234,47 @@ again:
 		panic("migration should not happen");
 #endif
 	}
-
+	if ((drain != NULL) && (c->c_iflags & CALLOUT_PENDING) &&
+	    (cc_exec_curr(cc, direct) != c)) {
+		/* 
+		 * This callout is executing and we are draining.
+		 * The only way this can happen is if its also
+		 * been rescheduled to run on one thread *and* asked to drain
+		 * on this thread (at the same time it is waiting to execute).
+		 */
+		if ((c->c_iflags & CALLOUT_PROCESSED) == 0) {
+			if (cc_exec_next(cc) == c)
+				cc_exec_next(cc) = LIST_NEXT(c, c_links.le);
+			LIST_REMOVE(c, c_links.le);
+		} else {
+			TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
+		}
+		c->c_iflags &= ~CALLOUT_PENDING;
+		c->c_flags &= ~CALLOUT_ACTIVE;
+	}
 	/*
-	 * If the callout is running, try to stop it or drain it.
+	 * If the callout isn't pending, it's not on the queue, so
+	 * don't attempt to remove it from the queue.  We can try to
+	 * stop it by other means however.
 	 */
-	if (cc_exec_curr(cc, direct) == c) {
+	if (!(c->c_iflags & CALLOUT_PENDING)) {
 		/*
-		 * Succeed we to stop it or not, we must clear the
-		 * active flag - this is what API users expect.
+		 * If it wasn't on the queue and it isn't the current
+		 * callout, then we can't stop it, so just bail.
+		 * It probably has already been run (if locking
+		 * is properly done). You could get here if the caller
+		 * calls stop twice in a row for example. The second
+		 * call would fall here without CALLOUT_ACTIVE set.
 		 */
 		c->c_flags &= ~CALLOUT_ACTIVE;
-
+		if (cc_exec_curr(cc, direct) != c) {
+			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
+			    c, c->c_func, c->c_arg);
+			CC_UNLOCK(cc);
+			if (sq_locked)
+				sleepq_release(&cc_exec_waiting(cc, direct));
+			return (-1);
+		}
 		if ((flags & CS_DRAIN) != 0) {
 			/*
 			 * The current callout is running (or just
@@ -1278,7 +1308,6 @@ again:
 					old_cc = cc;
 					goto again;
 				}
-
 				/*
 				 * Migration could be cancelled here, but
 				 * as long as it is still not sure when it
@@ -1362,6 +1391,8 @@ again:
 				cc_exec_drain(cc, direct) = drain;
 			}
 			CC_UNLOCK(cc);
+			if (drain)
+				return(0);
 			return ((flags & CS_EXECUTING) != 0);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
@@ -1369,20 +1400,12 @@ again:
 		if (drain) {
 			cc_exec_drain(cc, direct) = drain;
 		}
-		KASSERT(!sq_locked, ("sleepqueue chain still locked"));
-		cancelled = ((flags & CS_EXECUTING) != 0);
-	} else
-		cancelled = 1;
-
-	if (sq_locked)
-		sleepq_release(&cc_exec_waiting(cc, direct));
-
-	if ((c->c_iflags & CALLOUT_PENDING) == 0) {
-		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
-		    c, c->c_func, c->c_arg);
 		CC_UNLOCK(cc);
+		KASSERT(!sq_locked, ("sleepqueue chain still locked"));
 		return (0);
 	}
+	if (sq_locked)
+		sleepq_release(&cc_exec_waiting(cc, direct));
 
 	c->c_iflags &= ~CALLOUT_PENDING;
 	c->c_flags &= ~CALLOUT_ACTIVE;
@@ -1400,7 +1423,7 @@ again:
 	}
 	callout_cc_del(c, cc);
 	CC_UNLOCK(cc);
-	return (cancelled);
+	return (1);
 }
 
 void
@@ -1615,7 +1638,6 @@ SYSCTL_PROC(_kern, OID_AUTO, callout_stat,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_callout_stat, "I",
     "Dump immediate statistic snapshot of the scheduled callouts");
-
 #ifdef DDB
 static void
 _show_callout(struct callout *c)
