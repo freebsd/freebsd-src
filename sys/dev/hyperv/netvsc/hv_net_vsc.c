@@ -645,7 +645,7 @@ hv_nv_subchan_attach(struct hv_vmbus_channel *chan)
 {
 
 	chan->hv_chan_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
-	hv_vmbus_channel_open(chan, NETVSC_DEVICE_RING_BUFFER_SIZE,
+	vmbus_chan_open(chan, NETVSC_DEVICE_RING_BUFFER_SIZE,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NULL, 0,
 	    hv_nv_on_channel_callback, chan);
 }
@@ -675,7 +675,7 @@ hv_nv_on_device_add(struct hn_softc *sc, void *additional_info)
 	/*
 	 * Open the channel
 	 */
-	ret = hv_vmbus_channel_open(chan,
+	ret = vmbus_chan_open(chan,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NETVSC_DEVICE_RING_BUFFER_SIZE,
 	    NULL, 0, hv_nv_on_channel_callback, chan);
 	if (ret != 0) {
@@ -695,7 +695,7 @@ hv_nv_on_device_add(struct hn_softc *sc, void *additional_info)
 close:
 	/* Now, we can close the channel safely */
 	free(chan->hv_chan_rdbuf, M_NETVSC);
-	hv_vmbus_channel_close(chan);
+	vmbus_chan_close(chan);
 
 cleanup:
 	/*
@@ -726,7 +726,7 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 	/* Now, we can close the channel safely */
 
 	free(sc->hn_prichan->hv_chan_rdbuf, M_NETVSC);
-	hv_vmbus_channel_close(sc->hn_prichan);
+	vmbus_chan_close(sc->hn_prichan);
 
 	sema_destroy(&net_dev->channel_init_sema);
 	free(net_dev, M_NETVSC);
