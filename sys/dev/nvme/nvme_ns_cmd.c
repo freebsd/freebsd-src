@@ -151,3 +151,47 @@ nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn, void *cb_arg)
 
 	return (0);
 }
+
+/* Timeout = 1 sec */
+#define NVD_DUMP_TIMEOUT	100000
+
+int
+nvme_ns_dump(struct nvme_namespace *ns, void *virt, off_t offset, size_t len)
+{
+	struct nvme_completion_poll_status status;
+	struct nvme_request *req;
+	struct nvme_command *cmd;
+	uint64_t lba, lba_count;
+	int i;
+
+	status.done = FALSE;
+	req = nvme_allocate_request_vaddr(virt, len, nvme_completion_poll_cb,
+	    &status);
+	if (req == NULL)
+		return (ENOMEM);
+
+	cmd = &req->cmd;
+	cmd->opc = NVME_OPC_WRITE;
+	cmd->nsid = ns->id;
+
+	lba = offset / nvme_ns_get_sector_size(ns);
+	lba_count = len / nvme_ns_get_sector_size(ns);
+
+	*(uint64_t *)&cmd->cdw10 = lba;
+	cmd->cdw12 = lba_count - 1;
+
+	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
+	if (req->qpair == NULL)
+		return (ENXIO);
+
+	i = 0;
+	while ((i++ < NVD_DUMP_TIMEOUT) && (status.done == FALSE)) {
+		DELAY(10);
+		nvme_qpair_process_completions(req->qpair);
+	}
+
+	if (status.done == FALSE)
+		return (ETIMEDOUT);
+
+	return (0);
+}

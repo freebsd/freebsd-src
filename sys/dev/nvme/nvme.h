@@ -876,6 +876,8 @@ int	nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 			       void *cb_arg);
 int	nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn,
 			  void *cb_arg);
+int	nvme_ns_dump(struct nvme_namespace *ns, void *virt, off_t offset,
+		     size_t len);
 
 /* Registration functions */
 struct nvme_consumer *	nvme_register_consumer(nvme_cons_ns_fn_t    ns_fn,
