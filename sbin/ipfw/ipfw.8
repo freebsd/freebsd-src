@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2016
+.Dd July 19, 2016
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -750,7 +750,7 @@ will be executed when the packet matches the body of the rule.
 .It Cm allow | accept | pass | permit
 Allow packets that match rule.
 The search terminates.
-.It Cm check-state
+.It Cm check-state Op Ar flowname | Cm any
 Checks the packet against the dynamic ruleset.
 If a match is found, execute the action associated with
 the rule which generated this dynamic rule, otherwise
@@ -765,6 +765,17 @@ rule is found, the dynamic ruleset is checked at the first
 or
 .Cm limit
 rule.
+The
+.Ar flowname
+is symbolic name assigned to dynamic rule by
+.Cm keep-state
+opcode.
+The special flowname
+.Cm any
+can be used to ignore states flowname when matching.
+The
+.Cm default
+keyword is special name used for compatibility with old rulesets.
 .It Cm count
 Update counters for all packets that match rule.
 The search continues with the next rule.
@@ -1593,7 +1604,7 @@ specified in the same way as
 .It Cm ipversion Ar ver
 Matches IP packets whose IP version field is
 .Ar ver .
-.It Cm keep-state
+.It Cm keep-state Op Ar flowname
 Upon a match, the firewall will create a dynamic rule, whose
 default behaviour is to match bidirectional traffic between
 source and destination IP/port using the same protocol.
@@ -1601,11 +1612,20 @@ The rule has a limited lifetime (controlled by a set of
 .Xr sysctl 8
 variables), and the lifetime is refreshed every time a matching
 packet is found.
+The
+.Ar flowname
+is used to assign additional to addresses, ports and protocol parameter
+to dynamic rule. It can be used for more accurate matching by
+.Cm check-state
+rule.
+The
+.Cm default
+keyword is special name used for compatibility with old rulesets.
 .It Cm layer2
 Matches only layer2 packets, i.e., those passed to
 .Nm
 from ether_demux() and ether_output_frame().
-.It Cm limit Bro Cm src-addr | src-port | dst-addr | dst-port Brc Ar N
+.It Cm limit Bro Cm src-addr | src-port | dst-addr | dst-port Brc Ar N Op Ar flowname
 The firewall will only allow
 .Ar N
 connections with the same
@@ -1613,8 +1633,6 @@ set of parameters as specified in the rule.
 One or more
 of source and destination addresses and ports can be
 specified.
-Currently,
-only IPv4 flows are supported.
 .It Cm lookup Bro Cm dst-ip | dst-port | src-ip | src-port | uid | jail Brc Ar name
 Search an entry in lookup table
 .Ar name
@@ -2207,6 +2225,12 @@ and
 .Em dst
 are used here only to denote the initial match addresses, but they
 are completely equivalent afterwards).
+Rules created by
+.Cm keep-state
+option also have a
+.Ar flowname
+taken from it.
+This name is used in matching together with addresses, ports and protocol.
 Dynamic rules will be checked at the first
 .Cm check-state, keep-state
 or
@@ -2215,23 +2239,23 @@ occurrence, and the action performed upon a match will be the same
 as in the parent rule.
 .Pp
 Note that no additional attributes other than protocol and IP addresses
-and ports are checked on dynamic rules.
+and ports and flowname are checked on dynamic rules.
 .Pp
 The typical use of dynamic rules is to keep a closed firewall configuration,
 but let the first TCP SYN packet from the inside network install a
 dynamic rule for the flow so that packets belonging to that session
 will be allowed through the firewall:
 .Pp
-.Dl "ipfw add check-state"
-.Dl "ipfw add allow tcp from my-subnet to any setup keep-state"
+.Dl "ipfw add check-state OUTBOUND"
+.Dl "ipfw add allow tcp from my-subnet to any setup keep-state OUTBOUND"
 .Dl "ipfw add deny tcp from any to any"
 .Pp
 A similar approach can be used for UDP, where an UDP packet coming
 from the inside will install a dynamic rule to let the response through
 the firewall:
 .Pp
-.Dl "ipfw add check-state"
-.Dl "ipfw add allow udp from my-subnet to any keep-state"
+.Dl "ipfw add check-state OUTBOUND"
+.Dl "ipfw add allow udp from my-subnet to any keep-state OUTBOUND"
 .Dl "ipfw add deny udp from any to any"
 .Pp
 Dynamic rules expire after some time, which depends on the status

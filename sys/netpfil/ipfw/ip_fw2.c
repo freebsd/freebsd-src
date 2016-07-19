@@ -971,6 +971,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	MATCH_FORWARD or MATCH_REVERSE otherwise (q != NULL)
 	 */
 	int dyn_dir = MATCH_UNKNOWN;
+	uint16_t dyn_name = 0;
 	ipfw_dyn_rule *q = NULL;
 	struct ip_fw_chain *chain = &V_layer3_chain;
 
@@ -2113,17 +2114,35 @@ do {								\
 				/*
 				 * dynamic rules are checked at the first
 				 * keep-state or check-state occurrence,
-				 * with the result being stored in dyn_dir.
+				 * with the result being stored in dyn_dir
+				 * and dyn_name.
 				 * The compiler introduces a PROBE_STATE
 				 * instruction for us when we have a
 				 * KEEP_STATE (because PROBE_STATE needs
 				 * to be run first).
+				 *
+				 * (dyn_dir == MATCH_UNKNOWN) means this is
+				 * first lookup for such f_id. Do lookup.
+				 *
+				 * (dyn_dir != MATCH_UNKNOWN &&
+				 *  dyn_name != 0 && dyn_name != cmd->arg1)
+				 * means previous lookup didn't find dynamic
+				 * rule for specific state name and current
+				 * lookup will search rule with another state
+				 * name. Redo lookup.
+				 *
+				 * (dyn_dir != MATCH_UNKNOWN && dyn_name == 0)
+				 * means previous lookup was for `any' name
+				 * and it didn't find rule. No need to do
+				 * lookup again.
 				 */
-				if (dyn_dir == MATCH_UNKNOWN &&
+				if ((dyn_dir == MATCH_UNKNOWN ||
+				    (dyn_name != 0 &&
+				    dyn_name != cmd->arg1)) &&
 				    (q = ipfw_lookup_dyn_rule(&args->f_id,
 				     &dyn_dir, proto == IPPROTO_TCP ?
-					TCP(ulp) : NULL))
-					!= NULL) {
+				     TCP(ulp): NULL,
+				     (dyn_name = cmd->arg1))) != NULL) {
 					/*
 					 * Found dynamic entry, update stats
 					 * and jump to the 'action' part of
