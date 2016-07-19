@@ -189,7 +189,7 @@ struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
 int ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
     ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg);
 ipfw_dyn_rule *ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt,
-	int *match_direction, struct tcphdr *tcp);
+	int *match_direction, struct tcphdr *tcp, uint16_t kidx);
 void ipfw_remove_dyn_children(struct ip_fw *rule);
 void ipfw_get_dynamic(struct ip_fw_chain *chain, char **bp, const char *ep);
 int ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd);

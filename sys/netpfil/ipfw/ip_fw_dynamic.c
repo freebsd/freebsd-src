@@ -282,6 +282,200 @@ hash_packet(struct ipfw_flow_id *id, int buckets)
 	return i;
 }
 
+#if 0
+#define	DYN_DEBUG(fmt, ...)	do {			\
+	printf("%s: " fmt "\n", __func__, __VA_ARGS__);	\
+} while (0)
+#else
+#define	DYN_DEBUG(fmt, ...)
+#endif
+
+static char *default_state_name = "default";
+struct dyn_state_obj {
+	struct named_object	no;
+	char			name[64];
+};
+
+#define	DYN_STATE_OBJ(ch, cmd)	\
+    ((struct dyn_state_obj *)SRV_OBJECT(ch, (cmd)->arg1))
+/*
+ * Classifier callback.
+ * Return 0 if opcode contains object that should be referenced
+ * or rewritten.
+ */
+static int
+dyn_classify(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+{
+
+	DYN_DEBUG("opcode %d, arg1 %d", cmd->opcode, cmd->arg1);
+	/* Don't rewrite "check-state any" */
+	if (cmd->arg1 == 0 &&
+	    cmd->opcode == O_CHECK_STATE)
+		return (1);
+
+	*puidx = cmd->arg1;
+	*ptype = 0;
+	return (0);
+}
+
+static void
+dyn_update(ipfw_insn *cmd, uint16_t idx)
+{
+
+	cmd->arg1 = idx;
+	DYN_DEBUG("opcode %d, arg1 %d", cmd->opcode, cmd->arg1);
+}
+
+static int
+dyn_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
+    struct named_object **pno)
+{
+	ipfw_obj_ntlv *ntlv;
+	const char *name;
+
+	DYN_DEBUG("uidx %d", ti->uidx);
+	if (ti->uidx != 0) {
+		if (ti->tlvs == NULL)
+			return (EINVAL);
+		/* Search ntlv in the buffer provided by user */
+		ntlv = ipfw_find_name_tlv_type(ti->tlvs, ti->tlen, ti->uidx,
+		    IPFW_TLV_STATE_NAME);
+		if (ntlv == NULL)
+			return (EINVAL);
+		name = ntlv->name;
+	} else
+		name = default_state_name;
+	/*
+	 * Search named object with corresponding name.
+	 * Since states objects are global - ignore the set value
+	 * and use zero instead.
+	 */
+	*pno = ipfw_objhash_lookup_name_type(CHAIN_TO_SRV(ch), 0,
+	    IPFW_TLV_STATE_NAME, name);
+	/*
+	 * We always return success here.
+	 * The caller will check *pno and mark object as unresolved,
+	 * then it will automatically create "default" object.
+	 */
+	return (0);
+}
+
+static struct named_object *
+dyn_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
+{
+
+	DYN_DEBUG("kidx %d", idx);
+	return (ipfw_objhash_lookup_kidx(CHAIN_TO_SRV(ch), idx));
+}
+
+static int
+dyn_create(struct ip_fw_chain *ch, struct tid_info *ti,
+    uint16_t *pkidx)
+{
+	struct namedobj_instance *ni;
+	struct dyn_state_obj *obj;
+	struct named_object *no;
+	ipfw_obj_ntlv *ntlv;
+	char *name;
+
+	DYN_DEBUG("uidx %d", ti->uidx);
+	if (ti->uidx != 0) {
+		if (ti->tlvs == NULL)
+			return (EINVAL);
+		ntlv = ipfw_find_name_tlv_type(ti->tlvs, ti->tlen, ti->uidx,
+		    IPFW_TLV_STATE_NAME);
+		if (ntlv == NULL)
+			return (EINVAL);
+		name = ntlv->name;
+	} else
+		name = default_state_name;
+
+	ni = CHAIN_TO_SRV(ch);
+	obj = malloc(sizeof(*obj), M_IPFW, M_WAITOK | M_ZERO);
+	obj->no.name = obj->name;
+	obj->no.etlv = IPFW_TLV_STATE_NAME;
+	strlcpy(obj->name, name, sizeof(obj->name));
+
+	IPFW_UH_WLOCK(ch);
+	no = ipfw_objhash_lookup_name_type(ni, 0,
+	    IPFW_TLV_STATE_NAME, name);
+	if (no != NULL) {
+		/*
+		 * Object is already created.
+		 * Just return its kidx and bump refcount.
+		 */
+		*pkidx = no->kidx;
+		no->refcnt++;
+		IPFW_UH_WUNLOCK(ch);
+		free(obj, M_IPFW);
+		DYN_DEBUG("\tfound kidx %d", *pkidx);
+		return (0);
+	}
+	if (ipfw_objhash_alloc_idx(ni, &obj->no.kidx) != 0) {
+		DYN_DEBUG("\talloc_idx failed for %s", name);
+		IPFW_UH_WUNLOCK(ch);
+		free(obj, M_IPFW);
+		return (ENOSPC);
+	}
+	ipfw_objhash_add(ni, &obj->no);
+	IPFW_WLOCK(ch);
+	SRV_OBJECT(ch, obj->no.kidx) = obj;
+	IPFW_WUNLOCK(ch);
+	obj->no.refcnt++;
+	*pkidx = obj->no.kidx;
+	IPFW_UH_WUNLOCK(ch);
+	DYN_DEBUG("\tcreated kidx %d", *pkidx);
+	return (0);
+}
+
+static void
+dyn_destroy(struct ip_fw_chain *ch, struct named_object *no)
+{
+	struct dyn_state_obj *obj;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+
+	KASSERT(no->refcnt == 1,
+	    ("Destroying object '%s' (type %u, idx %u) with refcnt %u",
+	    no->name, no->etlv, no->kidx, no->refcnt));
+
+	DYN_DEBUG("kidx %d", no->kidx);
+	IPFW_WLOCK(ch);
+	obj = SRV_OBJECT(ch, no->kidx);
+	SRV_OBJECT(ch, no->kidx) = NULL;
+	IPFW_WUNLOCK(ch);
+	ipfw_objhash_del(CHAIN_TO_SRV(ch), no);
+	ipfw_objhash_free_idx(CHAIN_TO_SRV(ch), no->kidx);
+
+	free(obj, M_IPFW);
+}
+
+static struct opcode_obj_rewrite dyn_opcodes[] = {
+	{
+		O_KEEP_STATE, IPFW_TLV_STATE_NAME,
+		dyn_classify, dyn_update,
+		dyn_findbyname, dyn_findbykidx,
+		dyn_create, dyn_destroy
+	},
+	{
+		O_CHECK_STATE, IPFW_TLV_STATE_NAME,
+		dyn_classify, dyn_update,
+		dyn_findbyname, dyn_findbykidx,
+		dyn_create, dyn_destroy
+	},
+	{
+		O_PROBE_STATE, IPFW_TLV_STATE_NAME,
+		dyn_classify, dyn_update,
+		dyn_findbyname, dyn_findbykidx,
+		dyn_create, dyn_destroy
+	},
+	{
+		O_LIMIT, IPFW_TLV_STATE_NAME,
+		dyn_classify, dyn_update,
+		dyn_findbyname, dyn_findbykidx,
+		dyn_create, dyn_destroy
+	},
+};
 /**
  * Print customizable flow id description via log(9) facility.
  */
@@ -403,7 +597,7 @@ dyn_update_proto_state(ipfw_dyn_rule *q, const struct ipfw_flow_id *id,
  */
 static ipfw_dyn_rule *
 lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
-    struct tcphdr *tcp)
+    struct tcphdr *tcp, uint16_t kidx)
 {
 	/*
 	 * Stateful ipfw extensions.
@@ -416,10 +610,13 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
 
 	dir = MATCH_NONE;
 	for (prev = NULL, q = V_ipfw_dyn_v[i].head; q; prev = q, q = q->next) {
-		if (q->dyn_type == O_LIMIT_PARENT && q->count)
+		if (q->dyn_type == O_LIMIT_PARENT)
 			continue;
 
-		if (pkt->proto != q->id.proto || q->dyn_type == O_LIMIT_PARENT)
+		if (pkt->proto != q->id.proto)
+			continue;
+
+		if (kidx != 0 && kidx != q->kidx)
 			continue;
 
 		if (IS_IP6_FLOW_ID(pkt)) {
@@ -473,7 +670,7 @@ done:
 
 ipfw_dyn_rule *
 ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
-    struct tcphdr *tcp)
+    struct tcphdr *tcp, uint16_t kidx)
 {
 	ipfw_dyn_rule *q;
 	int i;
@@ -481,7 +678,7 @@ ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
 	i = hash_packet(pkt, V_curr_dyn_buckets);
 
 	IPFW_BUCK_LOCK(i);
-	q = lookup_dyn_rule_locked(pkt, i, match_direction, tcp);
+	q = lookup_dyn_rule_locked(pkt, i, match_direction, tcp, kidx);
 	if (q == NULL)
 		IPFW_BUCK_UNLOCK(i);
 	/* NB: return table locked when q is not NULL */
@@ -591,7 +788,8 @@ resize_dynamic_table(struct ip_fw_chain *chain, int nbuckets)
  * - "parent" rules for the above (O_LIMIT_PARENT).
  */
 static ipfw_dyn_rule *
-add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *rule)
+add_dyn_rule(struct ipfw_flow_id *id, int i, uint8_t dyn_type,
+    struct ip_fw *rule, uint16_t kidx)
 {
 	ipfw_dyn_rule *r;
 
@@ -627,7 +825,7 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *ru
 	r->dyn_type = dyn_type;
 	IPFW_ZERO_DYN_COUNTER(r);
 	r->count = 0;
-
+	r->kidx = kidx;
 	r->bucket = i;
 	r->next = V_ipfw_dyn_v[i].head;
 	V_ipfw_dyn_v[i].head = r;
@@ -640,7 +838,8 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *ru
  * If the lookup fails, then install one.
  */
 static ipfw_dyn_rule *
-lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule)
+lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule,
+    uint16_t kidx)
 {
 	ipfw_dyn_rule *q;
 	int i, is_v6;
@@ -651,7 +850,8 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule)
 	IPFW_BUCK_LOCK(i);
 	for (q = V_ipfw_dyn_v[i].head ; q != NULL ; q=q->next)
 		if (q->dyn_type == O_LIMIT_PARENT &&
-		    rule== q->rule &&
+		    kidx == q->kidx &&
+		    rule == q->rule &&
 		    pkt->proto == q->id.proto &&
 		    pkt->src_port == q->id.src_port &&
 		    pkt->dst_port == q->id.dst_port &&
@@ -673,7 +873,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule)
 		}
 
 	/* Add virtual limiting rule */
-	return add_dyn_rule(pkt, i, O_LIMIT_PARENT, rule);
+	return add_dyn_rule(pkt, i, O_LIMIT_PARENT, rule, kidx);
 }
 
 /**
@@ -689,13 +889,14 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 	ipfw_dyn_rule *q;
 	int i;
 
-	DEB(print_dyn_rule(&args->f_id, cmd->o.opcode, "install_state", "");)
-	
+	DEB(print_dyn_rule(&args->f_id, cmd->o.opcode, "install_state",
+	    (cmd->o.arg1 == 0 ? "": DYN_STATE_OBJ(chain, &cmd->o)->name));)
+
 	i = hash_packet(&args->f_id, V_curr_dyn_buckets);
 
 	IPFW_BUCK_LOCK(i);
 
-	q = lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL);
+	q = lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL, cmd->o.arg1);
 	if (q != NULL) {	/* should never occur */
 		DEB(
 		if (last_log != time_uptime) {
@@ -716,7 +917,8 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 
 	switch (cmd->o.opcode) {
 	case O_KEEP_STATE:	/* bidir rule */
-		q = add_dyn_rule(&args->f_id, i, O_KEEP_STATE, rule);
+		q = add_dyn_rule(&args->f_id, i, O_KEEP_STATE, rule,
+		    cmd->o.arg1);
 		break;
 
 	case O_LIMIT: {		/* limit number of sessions */
@@ -767,7 +969,8 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 		 */
 		IPFW_BUCK_UNLOCK(i);
 
-		if ((parent = lookup_dyn_parent(&id, &pindex, rule)) == NULL) {
+		parent = lookup_dyn_parent(&id, &pindex, rule, cmd->o.arg1);
+		if (parent == NULL) {
 			printf("ipfw: %s: add parent failed\n", __func__);
 			IPFW_BUCK_UNLOCK(pindex);
 			return (1);
@@ -795,7 +998,7 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 
 		IPFW_BUCK_LOCK(i);
 		q = add_dyn_rule(&args->f_id, i, O_LIMIT,
-		    (struct ip_fw *)parent);
+		    (struct ip_fw *)parent, cmd->o.arg1);
 		if (q == NULL) {
 			/* Decrement index and notify caller */
 			IPFW_BUCK_UNLOCK(i);
@@ -1412,6 +1615,7 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
 	 * being added to chain.
 	 */
 	resize_dynamic_table(chain, V_curr_dyn_buckets);
+	IPFW_ADD_OBJ_REWRITER(IS_DEFAULT_VNET(curvnet), dyn_opcodes);
 }
 
 void
@@ -1423,6 +1627,7 @@ ipfw_dyn_uninit(int pass)
 		callout_drain(&V_ipfw_timeout);
 		return;
 	}
+	IPFW_DEL_OBJ_REWRITER(IS_DEFAULT_VNET(curvnet), dyn_opcodes);
 
 	if (V_ipfw_dyn_v != NULL) {
 		/*
