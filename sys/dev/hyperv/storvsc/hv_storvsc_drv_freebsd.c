@@ -318,7 +318,7 @@ storvsc_subchan_attach(struct storvsc_softc *sc,
 
 	new_channel->hv_chan_priv1 = sc;
 	vmbus_chan_cpu_rr(new_channel);
-	ret = hv_vmbus_channel_open(new_channel,
+	ret = vmbus_chan_open(new_channel,
 	    sc->hs_drv_props->drv_ringbuffer_size,
   	    sc->hs_drv_props->drv_ringbuffer_size,
 	    (void *)&props,
@@ -577,7 +577,7 @@ hv_storvsc_connect_vsp(struct storvsc_softc *sc)
 	 */
 	KASSERT(sc->hs_chan->hv_chan_priv1 == sc, ("invalid chan priv1"));
 	vmbus_chan_cpu_rr(sc->hs_chan);
-	ret = hv_vmbus_channel_open(
+	ret = vmbus_chan_open(
 		sc->hs_chan,
 		sc->hs_drv_props->drv_ringbuffer_size,
 		sc->hs_drv_props->drv_ringbuffer_size,
@@ -1100,7 +1100,7 @@ storvsc_detach(device_t dev)
 	 * under the protection of the incoming channel lock.
 	 */
 
-	hv_vmbus_channel_close(sc->hs_chan);
+	vmbus_chan_close(sc->hs_chan);
 
 	mtx_lock(&sc->hs_lock);
 	while (!LIST_EMPTY(&sc->hs_free_list)) {

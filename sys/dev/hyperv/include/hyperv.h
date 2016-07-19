@@ -267,20 +267,6 @@ typedef struct hv_vmbus_channel {
 #define VMBUS_CHAN_ST_OPENED_SHIFT	0
 #define VMBUS_CHAN_ST_OPENED		(1 << VMBUS_CHAN_ST_OPENED_SHIFT)
 
-static inline void
-hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t on)
-{
-	if (!on)
-		channel->ch_flags &= ~VMBUS_CHAN_FLAG_BATCHREAD;
-	else
-		channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
-}
-
-int		hv_vmbus_channel_open(struct hv_vmbus_channel *chan,
-		    int txbr_size, int rxbr_size, const void *udata, int udlen,
-		    vmbus_chan_callback_t cb, void *cbarg);
-void		hv_vmbus_channel_close(hv_vmbus_channel *channel);
-
 /**
  * @brief Get physical address from virtual
  */

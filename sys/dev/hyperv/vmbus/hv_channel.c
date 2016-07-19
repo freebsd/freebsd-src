@@ -202,9 +202,8 @@ vmbus_chan_sysctl_create(struct hv_vmbus_channel *chan)
 }
 
 int
-hv_vmbus_channel_open(struct hv_vmbus_channel *chan,
-    int txbr_size, int rxbr_size, const void *udata, int udlen,
-    vmbus_chan_callback_t cb, void *cbarg)
+vmbus_chan_open(struct hv_vmbus_channel *chan, int txbr_size, int rxbr_size,
+    const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
 {
 	struct vmbus_softc *sc = chan->vmbus_sc;
 	const struct vmbus_chanmsg_chopen_resp *resp;
@@ -579,7 +578,7 @@ vmbus_chan_close_internal(struct hv_vmbus_channel *chan)
  * are not being opened.
  */
 void
-hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
+vmbus_chan_close(struct hv_vmbus_channel *chan)
 {
 	int subchan_cnt;
 
@@ -1369,4 +1368,13 @@ vmbus_chan_msgproc(struct vmbus_softc *sc, const struct vmbus_message *msg)
 	msg_proc = vmbus_chan_msgprocs[msg_type];
 	if (msg_proc != NULL)
 		msg_proc(sc, msg);
+}
+
+void
+vmbus_chan_set_readbatch(struct hv_vmbus_channel *chan, bool on)
+{
+	if (!on)
+		chan->ch_flags &= ~VMBUS_CHAN_FLAG_BATCHREAD;
+	else
+		chan->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
 }

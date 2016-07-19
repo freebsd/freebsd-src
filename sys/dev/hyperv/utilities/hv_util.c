@@ -40,6 +40,7 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
 #include "hv_util.h"
 
 void
@@ -89,9 +90,9 @@ hv_util_attach(device_t dev)
 	 * Turn off batched reading for all util drivers before we open the
 	 * channel.
 	 */
-	hv_set_channel_read_state(softc->channel, FALSE);
+	vmbus_chan_set_readbatch(softc->channel, false);
 
-	ret = hv_vmbus_channel_open(softc->channel, 4 * PAGE_SIZE,
+	ret = vmbus_chan_open(softc->channel, 4 * PAGE_SIZE,
 			4 * PAGE_SIZE, NULL, 0,
 			softc->callback, softc);
 
@@ -110,7 +111,7 @@ hv_util_detach(device_t dev)
 {
 	struct hv_util_sc *sc = device_get_softc(dev);
 
-	hv_vmbus_channel_close(sc->channel);
+	vmbus_chan_close(sc->channel);
 	free(sc->receive_buffer, M_DEVBUF);
 
 	return (0);
