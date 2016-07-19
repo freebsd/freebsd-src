@@ -1,4 +1,4 @@
-/*	$NetBSD: ffs.c,v 1.44 2009/04/28 22:49:26 joerg Exp $	*/
+/*	$NetBSD: ffs.c,v 1.45 2011/10/09 22:49:26 christos Exp $	*/
 
 /*
  * Copyright (c) 2001 Wasabi Systems, Inc.
