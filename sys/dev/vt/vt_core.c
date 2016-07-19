@@ -181,8 +181,8 @@ static void vt_resume_handler(void *priv);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
-#define	_VTDEFH	MAX(100, PIXEL_HEIGHT(VT_FB_DEFAULT_HEIGHT))
-#define	_VTDEFW	MAX(200, PIXEL_WIDTH(VT_FB_DEFAULT_WIDTH))
+#define	_VTDEFH	MAX(100, PIXEL_HEIGHT(VT_FB_MAX_HEIGHT))
+#define	_VTDEFW	MAX(200, PIXEL_WIDTH(VT_FB_MAX_WIDTH))
 
 struct terminal	vt_consterm;
 static struct vt_window	vt_conswindow;
