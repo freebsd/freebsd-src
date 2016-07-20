@@ -1660,7 +1660,7 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 		    (numsegs + 1) * ehdr->e_phentsize;
 		KASSERT(ehdr->e_shoff == hdrsize - sizeof(Elf_Shdr),
 		    ("e_shoff: %zu, hdrsize - shdr: %zu",
-		     ehdr->e_shoff, hdrsize - sizeof(Elf_Shdr)));
+		     (size_t)ehdr->e_shoff, hdrsize - sizeof(Elf_Shdr)));
 
 		shdr = (Elf_Shdr *)((char *)hdr + ehdr->e_shoff);
 		memset(shdr, 0, sizeof(*shdr));
