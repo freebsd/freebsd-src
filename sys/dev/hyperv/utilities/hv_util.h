@@ -39,9 +39,7 @@ typedef struct hv_util_sc {
 	/*
 	 * function to process Hyper-V messages
 	 */
-	void (*callback)(void *);
-
-	struct hv_vmbus_channel	*channel;
+	void (*callback)(struct hv_vmbus_channel *, void *);
 	uint8_t			*receive_buffer;
 } hv_util_sc;
 
