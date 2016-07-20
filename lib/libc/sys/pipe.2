@@ -28,7 +28,7 @@
 .\"     @(#)pipe.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2016
+.Dd July 20, 2016
 .Dt PIPE 2
 .Os
 .Sh NAME
@@ -109,6 +109,18 @@ The bidirectional nature of this implementation of pipes is not
 portable to older systems, so it is recommended to use the convention
 for using the endpoints in the traditional manner when using a
 pipe in one direction.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn pipe
+function calls the
+.Fn pipe2
+system call.
+As a result, system call traces such as those captured by
+.Xr dtrace 1
+or
+.Xr ktrace 1
+will show calls to
+.Fn pipe2 .
 .Sh RETURN VALUES
 .Rv -std pipe
 .Sh ERRORS
@@ -157,3 +169,10 @@ The
 .Fn pipe2
 function appeared in
 .Fx 10.0 .
+.Pp
+The
+.Fn pipe
+function became a wrapper around
+.Fn pipe2
+in
+.Fx 11.0 .
