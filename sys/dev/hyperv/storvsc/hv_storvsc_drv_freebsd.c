@@ -316,7 +316,7 @@ storvsc_subchan_attach(struct storvsc_softc *sc,
 
 	memset(&props, 0, sizeof(props));
 
-	new_channel->hv_chan_priv1 = sc;
+	new_channel->ch_dev_priv1 = sc;
 	vmbus_chan_cpu_rr(new_channel);
 	ret = vmbus_chan_open(new_channel,
 	    sc->hs_drv_props->drv_ringbuffer_size,
@@ -575,7 +575,7 @@ hv_storvsc_connect_vsp(struct storvsc_softc *sc)
 	/*
 	 * Open the channel
 	 */
-	KASSERT(sc->hs_chan->hv_chan_priv1 == sc, ("invalid chan priv1"));
+	KASSERT(sc->hs_chan->ch_dev_priv1 == sc, ("invalid chan priv1"));
 	vmbus_chan_cpu_rr(sc->hs_chan);
 	ret = vmbus_chan_open(
 		sc->hs_chan,
@@ -773,7 +773,7 @@ hv_storvsc_on_channel_callback(void *xchan)
 {
 	int ret = 0;
 	hv_vmbus_channel *channel = xchan;
-	struct storvsc_softc *sc = channel->hv_chan_priv1;
+	struct storvsc_softc *sc = channel->ch_dev_priv1;
 	uint32_t bytes_recvd;
 	uint64_t request_id;
 	uint8_t packet[roundup2(sizeof(struct vstor_packet), 8)];
@@ -915,7 +915,7 @@ storvsc_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->hs_chan = vmbus_get_channel(dev);
-	sc->hs_chan->hv_chan_priv1 = sc;
+	sc->hs_chan->ch_dev_priv1 = sc;
 
 	stor_type = storvsc_get_storage_type(dev);
 
