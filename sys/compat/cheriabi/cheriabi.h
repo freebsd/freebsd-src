@@ -62,10 +62,10 @@ cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 	if (!tag) {
 		if (!may_be_null)
-			return (EPROT);
+			return (EFAULT);
 		CHERI_CTOINT(*ptrp, CHERI_CR_CTEMP0);
 		if (*ptrp != NULL)
-			return (EPROT);
+			return (EFAULT);
 	} else {
 		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
 		if (sealed)
@@ -107,10 +107,10 @@ cheriabi_pagerange_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 	if (!tag) {
 		if (!may_be_null)
-			return (EPROT);
+			return (EFAULT);
 		CHERI_CTOINT(*ptrp, CHERI_CR_CTEMP0);
 		if (*ptrp != NULL)
-			return (EPROT);
+			return (EFAULT);
 	} else {
 		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
 		if (sealed)
