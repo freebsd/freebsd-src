@@ -440,7 +440,7 @@ substitute(struct s_command *cp)
 	    regexec_e(re, ps, REG_NOTBOL, 0, le, psl));
 
 	/* Did not find the requested number of matches. */
-	if (n > 1)
+	if (n > 0)
 		return (0);
 
 	/* Copy the trailing retained string. */
