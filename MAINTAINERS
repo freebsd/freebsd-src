@@ -105,3 +105,4 @@ vmm(4)		neel,grehan	Pre-commit review requested.
 autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
+sys/dev/ofw	nwhitehorn	Pre-commit review recommended.
