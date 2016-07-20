@@ -1449,9 +1449,7 @@ cb_put_phdr(entry, closure)
  * the number of segments and their total size.
  */
 static void
-cb_size_segment(entry, closure)
-	vm_map_entry_t entry;
-	void *closure;
+cb_size_segment(vm_map_entry_t entry, void *closure)
 {
 	struct sseg_closure *ssc = (struct sseg_closure *)closure;
 
@@ -1465,10 +1463,7 @@ cb_size_segment(entry, closure)
  * caller-supplied data.
  */
 static void
-each_writable_segment(td, func, closure)
-	struct thread *td;
-	segment_callback func;
-	void *closure;
+each_writable_segment(struct thread *td, segment_callback func, void *closure)
 {
 	struct proc *p = td->td_proc;
 	vm_map_t map = &p->p_vmspace->vm_map;
