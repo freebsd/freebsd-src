@@ -53,6 +53,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
 
@@ -1065,12 +1066,12 @@ typedef struct netvsc_dev_ {
 	nvsp_msg				channel_init_packet;
 
 	nvsp_msg				revoke_packet;
-	/*uint8_t				hw_mac_addr[HW_MACADDR_LEN];*/
+	/*uint8_t				hw_mac_addr[ETHER_ADDR_LEN];*/
 
 	/* Holds rndis device info */
 	void					*extension;
 
-	hv_bool_uint8_t				destroy;
+	uint8_t					destroy;
 	/* Negotiated NVSP version */
 	uint32_t				nvsp_version;
 
@@ -1109,7 +1110,7 @@ typedef void (*pfn_on_send_rx_completion)(struct hv_vmbus_channel *, void *);
 #endif
 
 typedef struct netvsc_packet_ {
-	hv_bool_uint8_t            is_data_pkt;      /* One byte */
+	uint8_t                    is_data_pkt;      /* One byte */
 	uint16_t		   vlan_tci;
 	uint32_t status;
 
@@ -1140,7 +1141,7 @@ typedef struct netvsc_packet_ {
 
 typedef struct {
 	uint8_t		mac_addr[6];  /* Assumption unsigned long */
-	hv_bool_uint8_t	link_state;
+	uint8_t		link_state;
 } netvsc_device_info;
 
 #ifndef HN_USE_TXDESC_BUFRING

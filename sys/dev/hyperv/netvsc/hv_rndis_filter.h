@@ -31,6 +31,8 @@
 #ifndef __HV_RNDIS_FILTER_H__
 #define __HV_RNDIS_FILTER_H__
 
+#include <sys/param.h>
+#include <net/ethernet.h>
 
 /*
  * Defines
@@ -103,7 +105,7 @@ typedef struct rndis_device_ {
 
 	STAILQ_HEAD(RQ, rndis_request_)	myrequest_list;
 
-	uint8_t				hw_mac_addr[HW_MACADDR_LEN];
+	uint8_t				hw_mac_addr[ETHER_ADDR_LEN];
 } rndis_device;
 
 /*
