@@ -117,7 +117,7 @@ typedef void	(*vmbus_chan_callback_t)(void *);
 
 typedef struct hv_vmbus_channel {
 	device_t			ch_dev;
-	struct vmbus_softc		*vmbus_sc;
+	struct vmbus_softc		*ch_vmbus;
 	uint32_t			ch_flags;	/* VMBUS_CHAN_FLAG_ */
 	uint32_t			ch_id;		/* channel id */
 
@@ -129,13 +129,13 @@ typedef struct hv_vmbus_channel {
 	uint32_t			ch_montrig_mask;/* MNF trig mask */
 
 	/*
-	 * send to parent
+	 * TX bufring; at the beginning of ch_bufring.
 	 */
-	hv_vmbus_ring_buffer_info	outbound;
+	hv_vmbus_ring_buffer_info	ch_txbr;
 	/*
-	 * receive from parent
+	 * RX bufring; immediately following ch_txbr.
 	 */
-	hv_vmbus_ring_buffer_info	inbound;
+	hv_vmbus_ring_buffer_info	ch_rxbr;
 
 	struct taskqueue		*ch_tq;
 	struct task			ch_task;
@@ -169,9 +169,9 @@ typedef struct hv_vmbus_channel {
 	/*
 	 * Driver private data
 	 */
-	void				*hv_chan_priv1;
-	void				*hv_chan_priv2;
-	void				*hv_chan_priv3;
+	void				*ch_dev_priv1;
+	void				*ch_dev_priv2;
+	void				*ch_dev_priv3;
 
 	void				*ch_bufring;	/* TX+RX bufrings */
 	struct hyperv_dma		ch_bufring_dma;

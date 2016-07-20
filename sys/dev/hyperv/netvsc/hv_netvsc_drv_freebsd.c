@@ -120,8 +120,8 @@ __FBSDID("$FreeBSD$");
 #include "hv_rndis_filter.h"
 #include "vmbus_if.h"
 
-#define hv_chan_rxr	hv_chan_priv1
-#define hv_chan_txr	hv_chan_priv2
+#define ch_dev_rxr	ch_dev_priv1
+#define ch_dev_txr	ch_dev_priv2
 
 /* Short for Hyper-V network interface */
 #define NETVSC_DEVNAME    "hn"
@@ -811,9 +811,9 @@ hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 void
 netvsc_channel_rollup(struct hv_vmbus_channel *chan)
 {
-	struct hn_tx_ring *txr = chan->hv_chan_txr;
+	struct hn_tx_ring *txr = chan->ch_dev_txr;
 #if defined(INET) || defined(INET6)
-	struct hn_rx_ring *rxr = chan->hv_chan_rxr;
+	struct hn_rx_ring *rxr = chan->ch_dev_rxr;
 
 	tcp_lro_flush_all(&rxr->hn_lro);
 #endif
@@ -1284,7 +1284,7 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
     const struct rndis_hash_info *hash_info,
     const struct rndis_hash_value *hash_value)
 {
-	struct hn_rx_ring *rxr = chan->hv_chan_rxr;
+	struct hn_rx_ring *rxr = chan->ch_dev_rxr;
 	struct ifnet *ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
 	int size, do_lro = 0, do_csum = 1;
@@ -2928,7 +2928,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	    ("RX ring %d already attached", idx));
 	rxr->hn_rx_flags |= HN_RX_FLAG_ATTACHED;
 
-	chan->hv_chan_rxr = rxr;
+	chan->ch_dev_rxr = rxr;
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
 		    idx, chan->ch_id);
@@ -2941,7 +2941,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 		    ("TX ring %d already attached", idx));
 		txr->hn_tx_flags |= HN_TX_FLAG_ATTACHED;
 
-		chan->hv_chan_txr = txr;
+		chan->ch_dev_txr = txr;
 		txr->hn_chan = chan;
 		if (bootverbose) {
 			if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",

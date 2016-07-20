@@ -83,7 +83,7 @@ vmbus_chan_msgprocs[VMBUS_CHANMSG_TYPE_MAX] = {
 static void
 vmbus_chan_signal_tx(struct hv_vmbus_channel *chan)
 {
-	struct vmbus_softc *sc = chan->vmbus_sc;
+	struct vmbus_softc *sc = chan->ch_vmbus;
 	uint32_t chanid = chan->ch_id;
 
 	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
@@ -187,7 +187,7 @@ vmbus_chan_sysctl_create(struct hv_vmbus_channel *chan)
 	    "in", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	if (br_tree != NULL) {
 		hv_ring_buffer_stat(ctx, SYSCTL_CHILDREN(br_tree),
-		    &chan->inbound, "inbound ring buffer stats");
+		    &chan->ch_rxbr, "inbound ring buffer stats");
 	}
 
 	/*
@@ -197,7 +197,7 @@ vmbus_chan_sysctl_create(struct hv_vmbus_channel *chan)
 	    "out", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	if (br_tree != NULL) {
 		hv_ring_buffer_stat(ctx, SYSCTL_CHILDREN(br_tree),
-		    &chan->outbound, "outbound ring buffer stats");
+		    &chan->ch_txbr, "outbound ring buffer stats");
 	}
 }
 
@@ -205,7 +205,7 @@ int
 vmbus_chan_open(struct hv_vmbus_channel *chan, int txbr_size, int rxbr_size,
     const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
 {
-	struct vmbus_softc *sc = chan->vmbus_sc;
+	struct vmbus_softc *sc = chan->ch_vmbus;
 	const struct vmbus_chanmsg_chopen_resp *resp;
 	const struct vmbus_message *msg;
 	struct vmbus_chanmsg_chopen *req;
@@ -233,7 +233,7 @@ vmbus_chan_open(struct hv_vmbus_channel *chan, int txbr_size, int rxbr_size,
 
 	vmbus_chan_update_evtflagcnt(sc, chan);
 
-	chan->ch_tq = VMBUS_PCPU_GET(chan->vmbus_sc, event_tq, chan->ch_cpuid);
+	chan->ch_tq = VMBUS_PCPU_GET(chan->ch_vmbus, event_tq, chan->ch_cpuid);
 	if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
 		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task, chan);
 	else
@@ -254,9 +254,9 @@ vmbus_chan_open(struct hv_vmbus_channel *chan, int txbr_size, int rxbr_size,
 	chan->ch_bufring = br;
 
 	/* TX bufring comes first */
-	hv_vmbus_ring_buffer_init(&chan->outbound, br, txbr_size);
+	hv_vmbus_ring_buffer_init(&chan->ch_txbr, br, txbr_size);
 	/* RX bufring immediately follows TX bufring */
-	hv_vmbus_ring_buffer_init(&chan->inbound, br + txbr_size, rxbr_size);
+	hv_vmbus_ring_buffer_init(&chan->ch_rxbr, br + txbr_size, rxbr_size);
 
 	/* Create sysctl tree for this channel */
 	vmbus_chan_sysctl_create(chan);
@@ -337,7 +337,7 @@ int
 vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan, bus_addr_t paddr,
     int size, uint32_t *gpadl0)
 {
-	struct vmbus_softc *sc = chan->vmbus_sc;
+	struct vmbus_softc *sc = chan->ch_vmbus;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_gpadl_conn *req;
 	const struct vmbus_message *msg;
@@ -466,7 +466,7 @@ vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan, bus_addr_t paddr,
 int
 vmbus_chan_gpadl_disconnect(struct hv_vmbus_channel *chan, uint32_t gpadl)
 {
-	struct vmbus_softc *sc = chan->vmbus_sc;
+	struct vmbus_softc *sc = chan->ch_vmbus;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_gpadl_disconn *req;
 	int error;
@@ -503,7 +503,7 @@ vmbus_chan_gpadl_disconnect(struct hv_vmbus_channel *chan, uint32_t gpadl)
 static void
 vmbus_chan_close_internal(struct hv_vmbus_channel *chan)
 {
-	struct vmbus_softc *sc = chan->vmbus_sc;
+	struct vmbus_softc *sc = chan->ch_vmbus;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_chclose *req;
 	struct taskqueue *tq = chan->ch_tq;
@@ -564,8 +564,8 @@ vmbus_chan_close_internal(struct hv_vmbus_channel *chan)
 	/*
 	 * Destroy the TX+RX bufrings.
 	 */
-	hv_ring_buffer_cleanup(&chan->outbound);
-	hv_ring_buffer_cleanup(&chan->inbound);
+	hv_ring_buffer_cleanup(&chan->ch_txbr);
+	hv_ring_buffer_cleanup(&chan->ch_rxbr);
 	if (chan->ch_bufring != NULL) {
 		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
 		chan->ch_bufring = NULL;
@@ -635,7 +635,7 @@ vmbus_chan_send(struct hv_vmbus_channel *chan, uint16_t type, uint16_t flags,
 	iov[2].iov_base = &pad;
 	iov[2].iov_len = pad_pktlen - pktlen;
 
-	error = hv_ring_buffer_write(&chan->outbound, iov, 3, &send_evt);
+	error = hv_ring_buffer_write(&chan->ch_txbr, iov, 3, &send_evt);
 	if (!error && send_evt)
 		vmbus_chan_signal_tx(chan);
 	return error;
@@ -675,7 +675,7 @@ vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
 	iov[3].iov_base = &pad;
 	iov[3].iov_len = pad_pktlen - pktlen;
 
-	error = hv_ring_buffer_write(&chan->outbound, iov, 4, &send_evt);
+	error = hv_ring_buffer_write(&chan->ch_txbr, iov, 4, &send_evt);
 	if (!error && send_evt)
 		vmbus_chan_signal_tx(chan);
 	return error;
@@ -717,7 +717,7 @@ vmbus_chan_send_prplist(struct hv_vmbus_channel *chan,
 	iov[3].iov_base = &pad;
 	iov[3].iov_len = pad_pktlen - pktlen;
 
-	error = hv_ring_buffer_write(&chan->outbound, iov, 4, &send_evt);
+	error = hv_ring_buffer_write(&chan->ch_txbr, iov, 4, &send_evt);
 	if (!error && send_evt)
 		vmbus_chan_signal_tx(chan);
 	return error;
@@ -730,7 +730,7 @@ vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen0,
 	struct vmbus_chanpkt_hdr pkt;
 	int error, dlen, hlen;
 
-	error = hv_ring_buffer_peek(&chan->inbound, &pkt, sizeof(pkt));
+	error = hv_ring_buffer_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
 	if (error)
 		return error;
 
@@ -747,7 +747,7 @@ vmbus_chan_recv(struct hv_vmbus_channel *chan, void *data, int *dlen0,
 	*dlen0 = dlen;
 
 	/* Skip packet header */
-	error = hv_ring_buffer_read(&chan->inbound, data, dlen, hlen);
+	error = hv_ring_buffer_read(&chan->ch_rxbr, data, dlen, hlen);
 	KASSERT(!error, ("hv_ring_buffer_read failed"));
 
 	return 0;
@@ -760,7 +760,7 @@ vmbus_chan_recv_pkt(struct hv_vmbus_channel *chan,
 	struct vmbus_chanpkt_hdr pkt;
 	int error, pktlen;
 
-	error = hv_ring_buffer_peek(&chan->inbound, &pkt, sizeof(pkt));
+	error = hv_ring_buffer_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
 	if (error)
 		return error;
 
@@ -773,7 +773,7 @@ vmbus_chan_recv_pkt(struct hv_vmbus_channel *chan,
 	*pktlen0 = pktlen;
 
 	/* Include packet header */
-	error = hv_ring_buffer_read(&chan->inbound, pkt0, pktlen, 0);
+	error = hv_ring_buffer_read(&chan->ch_rxbr, pkt0, pktlen, 0);
 	KASSERT(!error, ("hv_ring_buffer_read failed"));
 
 	return 0;
@@ -803,12 +803,12 @@ vmbus_chan_task(void *xchan, int pending __unused)
 
 		cb(cbarg);
 
-		left = hv_ring_buffer_read_end(&chan->inbound);
+		left = hv_ring_buffer_read_end(&chan->ch_rxbr);
 		if (left == 0) {
 			/* No more data in RX bufring; done */
 			break;
 		}
-		hv_ring_buffer_read_begin(&chan->inbound);
+		hv_ring_buffer_read_begin(&chan->ch_rxbr);
 	}
 }
 
@@ -850,7 +850,7 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 				continue;
 
 			if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
-				hv_ring_buffer_read_begin(&chan->inbound);
+				hv_ring_buffer_read_begin(&chan->ch_rxbr);
 			taskqueue_enqueue(chan->ch_tq, &chan->ch_task);
 		}
 	}
@@ -925,7 +925,7 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 		return NULL;
 	}
 
-	chan->vmbus_sc = sc;
+	chan->ch_vmbus = sc;
 	mtx_init(&chan->ch_subchan_lock, "vmbus subchan", NULL, MTX_DEF);
 	TAILQ_INIT(&chan->ch_subchans);
 	TASK_INIT(&chan->ch_detach_task, 0, vmbus_chan_detach_task, chan);
@@ -947,7 +947,7 @@ vmbus_chan_free(struct hv_vmbus_channel *chan)
 static int
 vmbus_chan_add(struct hv_vmbus_channel *newchan)
 {
-	struct vmbus_softc *sc = newchan->vmbus_sc;
+	struct vmbus_softc *sc = newchan->ch_vmbus;
 	struct hv_vmbus_channel *prichan;
 
 	if (newchan->ch_id == 0) {
@@ -1040,14 +1040,14 @@ vmbus_chan_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 {
 	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu %d", cpu));
 
-	if (chan->vmbus_sc->vmbus_version == VMBUS_VERSION_WS2008 ||
-	    chan->vmbus_sc->vmbus_version == VMBUS_VERSION_WIN7) {
+	if (chan->ch_vmbus->vmbus_version == VMBUS_VERSION_WS2008 ||
+	    chan->ch_vmbus->vmbus_version == VMBUS_VERSION_WIN7) {
 		/* Only cpu0 is supported */
 		cpu = 0;
 	}
 
 	chan->ch_cpuid = cpu;
-	chan->ch_vcpuid = VMBUS_PCPU_GET(chan->vmbus_sc, vcpuid, cpu);
+	chan->ch_vcpuid = VMBUS_PCPU_GET(chan->ch_vmbus, vcpuid, cpu);
 
 	if (bootverbose) {
 		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
@@ -1180,7 +1180,7 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 		vmbus_delete_child(chan);
 		/* NOTE: DO NOT free primary channel for now */
 	} else {
-		struct vmbus_softc *sc = chan->vmbus_sc;
+		struct vmbus_softc *sc = chan->ch_vmbus;
 		struct hv_vmbus_channel *pri_chan = chan->ch_prichan;
 		struct vmbus_chanmsg_chfree *req;
 		struct vmbus_msghc *mh;
@@ -1264,7 +1264,7 @@ vmbus_chan_cpu2chan(struct hv_vmbus_channel *prichan, int cpu)
 	if (TAILQ_EMPTY(&prichan->ch_subchans))
 		return prichan;
 
-	vcpu = VMBUS_PCPU_GET(prichan->vmbus_sc, vcpuid, cpu);
+	vcpu = VMBUS_PCPU_GET(prichan->ch_vmbus, vcpuid, cpu);
 
 #define CHAN_VCPU_DIST(ch, vcpu)		\
 	(((ch)->ch_vcpuid > (vcpu)) ?		\
