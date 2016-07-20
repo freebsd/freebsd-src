@@ -801,7 +801,7 @@ vmbus_chan_task(void *xchan, int pending __unused)
 	for (;;) {
 		uint32_t left;
 
-		cb(cbarg);
+		cb(chan, cbarg);
 
 		left = hv_ring_buffer_read_end(&chan->ch_rxbr);
 		if (left == 0) {
@@ -817,7 +817,7 @@ vmbus_chan_task_nobatch(void *xchan, int pending __unused)
 {
 	struct hv_vmbus_channel *chan = xchan;
 
-	chan->ch_cb(chan->ch_cbarg);
+	chan->ch_cb(chan, chan->ch_cbarg);
 }
 
 static __inline void

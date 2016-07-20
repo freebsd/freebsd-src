@@ -77,12 +77,13 @@ int
 hv_util_attach(device_t dev)
 {
 	struct hv_util_sc*	softc;
+	struct hv_vmbus_channel *chan;
 	int			ret;
 
 	softc = device_get_softc(dev);
-	softc->channel = vmbus_get_channel(dev);
 	softc->receive_buffer =
 		malloc(4 * PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
+	chan = vmbus_get_channel(dev);
 
 	/*
 	 * These services are not performance critical and do not need
@@ -91,11 +92,10 @@ hv_util_attach(device_t dev)
 	 * Turn off batched reading for all util drivers before we open the
 	 * channel.
 	 */
-	vmbus_chan_set_readbatch(softc->channel, false);
+	vmbus_chan_set_readbatch(chan, false);
 
-	ret = vmbus_chan_open(softc->channel, 4 * PAGE_SIZE,
-			4 * PAGE_SIZE, NULL, 0,
-			softc->callback, softc);
+	ret = vmbus_chan_open(chan, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
+	    softc->callback, softc);
 
 	if (ret)
 		goto error0;
@@ -112,7 +112,7 @@ hv_util_detach(device_t dev)
 {
 	struct hv_util_sc *sc = device_get_softc(dev);
 
-	vmbus_chan_close(sc->channel);
+	vmbus_chan_close(vmbus_get_channel(dev));
 	free(sc->receive_buffer, M_DEVBUF);
 
 	return (0);

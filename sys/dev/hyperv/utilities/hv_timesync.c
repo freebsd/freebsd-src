@@ -130,9 +130,8 @@ void hv_adj_guesttime(hv_timesync_sc *sc, uint64_t hosttime, uint8_t flags)
  * Time Sync Channel message handler
  */
 static void
-hv_timesync_cb(void *context)
+hv_timesync_cb(struct hv_vmbus_channel *channel, void *context)
 {
-	hv_vmbus_channel*	channel;
 	hv_vmbus_icmsg_hdr*	icmsghdrp;
 	uint32_t		recvlen;
 	uint64_t		requestId;
@@ -142,7 +141,6 @@ hv_timesync_cb(void *context)
 	hv_timesync_sc		*softc;
 
 	softc = (hv_timesync_sc*)context;
-	channel = softc->util_sc.channel;
 	time_buf = softc->util_sc.receive_buffer;
 
 	recvlen = PAGE_SIZE;

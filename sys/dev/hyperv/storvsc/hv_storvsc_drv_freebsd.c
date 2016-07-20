@@ -274,7 +274,7 @@ static int create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *req
 static void storvsc_free_request(struct storvsc_softc *sc, struct hv_storvsc_request *reqp);
 static enum hv_storage_type storvsc_get_storage_type(device_t dev);
 static void hv_storvsc_rescan_target(struct storvsc_softc *sc);
-static void hv_storvsc_on_channel_callback(void *xchan);
+static void hv_storvsc_on_channel_callback(struct hv_vmbus_channel *chan, void *xsc);
 static void hv_storvsc_on_iocompletion( struct storvsc_softc *sc,
 					struct vstor_packet *vstor_packet,
 					struct hv_storvsc_request *request);
@@ -316,15 +316,13 @@ storvsc_subchan_attach(struct storvsc_softc *sc,
 
 	memset(&props, 0, sizeof(props));
 
-	new_channel->ch_dev_priv1 = sc;
 	vmbus_chan_cpu_rr(new_channel);
 	ret = vmbus_chan_open(new_channel,
 	    sc->hs_drv_props->drv_ringbuffer_size,
   	    sc->hs_drv_props->drv_ringbuffer_size,
 	    (void *)&props,
 	    sizeof(struct vmstor_chan_props),
-	    hv_storvsc_on_channel_callback,
-	    new_channel);
+	    hv_storvsc_on_channel_callback, sc);
 }
 
 /**
@@ -575,7 +573,6 @@ hv_storvsc_connect_vsp(struct storvsc_softc *sc)
 	/*
 	 * Open the channel
 	 */
-	KASSERT(sc->hs_chan->ch_dev_priv1 == sc, ("invalid chan priv1"));
 	vmbus_chan_cpu_rr(sc->hs_chan);
 	ret = vmbus_chan_open(
 		sc->hs_chan,
@@ -583,8 +580,7 @@ hv_storvsc_connect_vsp(struct storvsc_softc *sc)
 		sc->hs_drv_props->drv_ringbuffer_size,
 		(void *)&props,
 		sizeof(struct vmstor_chan_props),
-		hv_storvsc_on_channel_callback,
-		sc->hs_chan);
+		hv_storvsc_on_channel_callback, sc);
 
 	if (ret != 0) {
 		return ret;
@@ -769,11 +765,10 @@ hv_storvsc_rescan_target(struct storvsc_softc *sc)
 }
 
 static void
-hv_storvsc_on_channel_callback(void *xchan)
+hv_storvsc_on_channel_callback(struct hv_vmbus_channel *channel, void *xsc)
 {
 	int ret = 0;
-	hv_vmbus_channel *channel = xchan;
-	struct storvsc_softc *sc = channel->ch_dev_priv1;
+	struct storvsc_softc *sc = xsc;
 	uint32_t bytes_recvd;
 	uint64_t request_id;
 	uint8_t packet[roundup2(sizeof(struct vstor_packet), 8)];
@@ -915,7 +910,6 @@ storvsc_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->hs_chan = vmbus_get_channel(dev);
-	sc->hs_chan->ch_dev_priv1 = sc;
 
 	stor_type = storvsc_get_storage_type(dev);
 
@@ -1265,7 +1259,7 @@ storvsc_poll(struct cam_sim *sim)
 
 	mtx_assert(&sc->hs_lock, MA_OWNED);
 	mtx_unlock(&sc->hs_lock);
-	hv_storvsc_on_channel_callback(sc->hs_chan);
+	hv_storvsc_on_channel_callback(sc->hs_chan, sc);
 	mtx_lock(&sc->hs_lock);
 }
 

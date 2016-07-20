@@ -113,7 +113,9 @@ typedef struct {
 	uint32_t		ring_data_size;	/* ring_size */
 } hv_vmbus_ring_buffer_info;
 
-typedef void	(*vmbus_chan_callback_t)(void *);
+struct hv_vmbus_channel;
+
+typedef void	(*vmbus_chan_callback_t)(struct hv_vmbus_channel *, void *);
 
 typedef struct hv_vmbus_channel {
 	device_t			ch_dev;
