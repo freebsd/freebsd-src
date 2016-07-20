@@ -37,7 +37,7 @@
 #include <sys/sema.h>
 #include <sys/_iovec.h>
 
-#include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/vmbus/vmbus_chanvar.h>
 
 struct vmbus_softc;
 

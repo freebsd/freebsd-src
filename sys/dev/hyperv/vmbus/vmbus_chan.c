@@ -1378,3 +1378,30 @@ vmbus_chan_set_readbatch(struct hv_vmbus_channel *chan, bool on)
 	else
 		chan->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
 }
+
+uint32_t
+vmbus_chan_id(const struct hv_vmbus_channel *chan)
+{
+	return chan->ch_id;
+}
+
+uint32_t
+vmbus_chan_subidx(const struct hv_vmbus_channel *chan)
+{
+	return chan->ch_subidx;
+}
+
+bool
+vmbus_chan_is_primary(const struct hv_vmbus_channel *chan)
+{
+	if (VMBUS_CHAN_ISPRIMARY(chan))
+		return true;
+	else
+		return false;
+}
+
+const struct hyperv_guid *
+vmbus_chan_guid_inst(const struct hv_vmbus_channel *chan)
+{
+	return &chan->ch_guid_inst;
+}
