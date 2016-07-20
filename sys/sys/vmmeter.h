@@ -198,6 +198,17 @@ vm_laundry_target(void)
 }
 
 /*
+ * Return true if we are in shortfall and must begin laundering dirty memory.
+ */
+static inline int
+vm_laundering_needed(void)
+{
+
+	return (vm_cnt.v_inactive_count < vm_cnt.v_inactive_target &&
+	    vm_paging_needed());
+}
+
+/*
  * Obtain the value of a per-CPU counter.
  */
 #define	VM_METER_PCPU_CNT(member)					\

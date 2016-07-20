@@ -1122,30 +1122,38 @@ vm_pageout_laundry_worker(void *arg)
 		launder = 0;
 
 		/*
-		 * First determine whether we're in shortfall.  If so, there's
-		 * an impending need for clean pages.  We attempt to launder the
-		 * target within one pagedaemon sleep period.
+		 * First determine whether we need to launder pages to meet a
+		 * shortage of free pages.
 		 */
-		shortfall = vm_laundry_target() + vm_pageout_deficit;
-		if (shortfall > 0) {
+		if (vm_laundering_needed()) {
+			shortfall = vm_laundry_target() + vm_pageout_deficit;
 			/*
-			 * If the shortfall has grown since the last cycle or
-			 * we're still in shortfall despite a previous
-			 * laundering run, start a new run.
+			 * If we're in shortfall and we haven't yet started a
+			 * laundering cycle to get us out of it, begin a run.
+			 * If we're still in shortfall despite a previous
+			 * laundering run, start a new one.
 			 */
-			if (shortfall > prev_shortfall || cycle == tcycle) {
+			if (prev_shortfall == 0 || cycle == tcycle) {
 				target = shortfall;
 				cycle = 0;
 				tcycle = VM_LAUNDER_RATE;
 			}
 			prev_shortfall = shortfall;
-			launder = target / (tcycle - (cycle % tcycle));
-			goto launder;
-		} else {
-			if (prev_shortfall > 0)
-				/* We're out of shortfall; the target is met. */
-				target = 0;
-			shortfall = prev_shortfall = 0;
+		}
+		if (prev_shortfall > 0) {
+			/*
+			 * We entered shortfall at some point in the recent
+			 * past.  If we have reached our target, or the
+			 * laundering run is finished and we're not currently in
+			 * shortfall, we have no immediate need to launder
+			 * pages.  Otherwise keep laundering.
+			 */
+			if (vm_laundry_target() <= 0 || cycle == tcycle) {
+				shortfall = prev_shortfall = target = 0;
+			} else {
+				launder = target / (tcycle - cycle);
+				goto dolaundry;
+			}
 		}
 
 		/*
@@ -1165,7 +1173,7 @@ vm_pageout_laundry_worker(void *arg)
 		if (target > 0 && cycle != tcycle) {
 			/* Continue an ongoing background run. */
 			launder = target / (tcycle - (cycle % tcycle));
-			goto launder;
+			goto dolaundry;
 		}
 
 		ninact = vm_cnt.v_inactive_count;
@@ -1190,7 +1198,7 @@ vm_pageout_laundry_worker(void *arg)
 			launder = target / (tcycle - (cycle % tcycle));
 		}
 
-launder:
+dolaundry:
 		if (launder > 0) {
 			laundered = vm_pageout_launder(domain, launder);
 			target -= min(laundered, target);
