@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 
 #include "hv_util.h"
 #include "unicode.h"
