@@ -303,6 +303,7 @@ sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
 sos [label="Soren Schmidt\nsos@FreeBSD.org\n????/??/??"]
 sson [label="Stacey Son\nsson@FreeBSD.org\n2008/07/08"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2008/08/22"]
+stevek [label="Stephen J. Kiernan\nstevek@FreeBSD.org\n2016/07/18"]
 suz [label="SUZUKI Shinsuke\nsuz@FreeBSD.org\n2002/03/26"]
 syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
 takawata [label="Takanori Watanabe\ntakawata@FreeBSD.org\n2000/07/06"]
@@ -754,6 +755,7 @@ shin -> ume
 simon -> benl
 
 sjg -> phil
+sjg -> stevek
 
 sos -> marcel
 
