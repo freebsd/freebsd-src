@@ -168,13 +168,6 @@ typedef struct hv_vmbus_channel {
 	TAILQ_ENTRY(hv_vmbus_channel)	ch_sublink;	/* sub-channel link */
 	struct hv_vmbus_channel		*ch_prichan;	/* owner primary chan */
 
-	/*
-	 * Driver private data
-	 */
-	void				*ch_dev_priv1;
-	void				*ch_dev_priv2;
-	void				*ch_dev_priv3;
-
 	void				*ch_bufring;	/* TX+RX bufrings */
 	struct hyperv_dma		ch_bufring_dma;
 	uint32_t			ch_bufring_gpadl;

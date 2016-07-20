@@ -113,12 +113,14 @@ typedef struct rndis_device_ {
  */
 struct hv_vmbus_channel;
 struct hn_softc;
+struct hn_rx_ring;
 
 int hv_rf_on_receive(netvsc_dev *net_dev,
-    struct hv_vmbus_channel *chan, netvsc_packet *pkt);
+    struct hn_rx_ring *rxr, netvsc_packet *pkt);
 void hv_rf_receive_rollup(netvsc_dev *net_dev);
-void hv_rf_channel_rollup(struct hv_vmbus_channel *chan);
-int hv_rf_on_device_add(struct hn_softc *sc, void *additl_info, int nchan);
+void hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
+int hv_rf_on_device_add(struct hn_softc *sc, void *additl_info, int nchan,
+    struct hn_rx_ring *rxr);
 int hv_rf_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel);
 int hv_rf_on_open(struct hn_softc *sc);
 int hv_rf_on_close(struct hn_softc *sc);

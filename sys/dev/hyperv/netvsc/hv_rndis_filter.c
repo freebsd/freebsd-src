@@ -34,7 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
@@ -74,8 +76,7 @@ static int  hv_rf_send_request(rndis_device *device, rndis_request *request,
 static void hv_rf_receive_response(rndis_device *device, rndis_msg *response);
 static void hv_rf_receive_indicate_status(rndis_device *device,
 					  rndis_msg *response);
-static void hv_rf_receive_data(rndis_device *device, rndis_msg *message,
-			       struct hv_vmbus_channel *chan,
+static void hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
 			       netvsc_packet *pkt);
 static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
 			       void *result, uint32_t *result_size);
@@ -527,12 +528,11 @@ skip:
  * RNDIS filter receive data
  */
 static void
-hv_rf_receive_data(rndis_device *device, rndis_msg *message,
-    struct hv_vmbus_channel *chan, netvsc_packet *pkt)
+hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
+    netvsc_packet *pkt)
 {
 	rndis_packet *rndis_pkt;
 	uint32_t data_offset;
-	device_t dev = device->net_dev->sc->hn_dev;
 	struct hv_rf_recvinfo info;
 
 	rndis_pkt = &message->msg.packet;
@@ -548,7 +548,7 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
 	pkt->tot_data_buf_len -= data_offset;
 	if (pkt->tot_data_buf_len < rndis_pkt->data_length) {
 		pkt->status = nvsp_status_failure;
-		device_printf(dev,
+		if_printf(rxr->hn_ifp,
 		    "total length %u is less than data length %u\n",
 		    pkt->tot_data_buf_len, rndis_pkt->data_length);
 		return;
@@ -559,7 +559,7 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
 
 	if (hv_rf_find_recvinfo(rndis_pkt, &info)) {
 		pkt->status = nvsp_status_failure;
-		device_printf(dev, "recvinfo parsing failed\n");
+		if_printf(rxr->hn_ifp, "recvinfo parsing failed\n");
 		return;
 	}
 
@@ -568,7 +568,7 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
 	else
 		pkt->vlan_tci = 0;
 
-	netvsc_recv(chan, pkt, info.csum_info, info.hash_info, info.hash_value);
+	netvsc_recv(rxr, pkt, info.csum_info, info.hash_info, info.hash_value);
 }
 
 /*
@@ -576,7 +576,7 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
  */
 int
 hv_rf_on_receive(netvsc_dev *net_dev,
-    struct hv_vmbus_channel *chan, netvsc_packet *pkt)
+    struct hn_rx_ring *rxr, netvsc_packet *pkt)
 {
 	rndis_device *rndis_dev;
 	rndis_msg *rndis_hdr;
@@ -599,7 +599,7 @@ hv_rf_on_receive(netvsc_dev *net_dev,
 
 	/* data message */
 	case REMOTE_NDIS_PACKET_MSG:
-		hv_rf_receive_data(rndis_dev, rndis_hdr, chan, pkt);
+		hv_rf_receive_data(rxr, rndis_hdr, pkt);
 		break;
 	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
@@ -1058,7 +1058,7 @@ hv_rf_close_device(rndis_device *device)
  */
 int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
-    int nchan)
+    int nchan, struct hn_rx_ring *rxr)
 {
 	int ret;
 	netvsc_dev *net_dev;
@@ -1081,7 +1081,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	 * (hv_rf_on_receive()) before this call is completed.
 	 * Note:  Earlier code used a function pointer here.
 	 */
-	net_dev = hv_nv_on_device_add(sc, additl_info);
+	net_dev = hv_nv_on_device_add(sc, additl_info, rxr);
 	if (!net_dev) {
 		hv_put_rndis_device(rndis_dev);
 
@@ -1266,8 +1266,8 @@ hv_rf_on_send_request_halt_completion(struct hv_vmbus_channel *chan __unused,
 }
 
 void
-hv_rf_channel_rollup(struct hv_vmbus_channel *chan)
+hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 {
 
-	netvsc_channel_rollup(chan);
+	netvsc_channel_rollup(rxr, txr);
 }
