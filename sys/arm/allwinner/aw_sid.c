@@ -33,12 +33,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -50,13 +52,22 @@ __FBSDID("$FreeBSD$");
 #define	SID_THERMAL_CALIB0	(SID_SRAM + 0x34)
 #define	SID_THERMAL_CALIB1	(SID_SRAM + 0x38)
 
+enum sid_type {
+	A10_SID = 1,
+	A20_SID,
+	A83T_SID,
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun8i-a83t-sid",		1 },
+	{ "allwinner,sun4i-a10-sid",		A10_SID},
+	{ "allwinner,sun7i-a20-sid",		A20_SID},
+	{ "allwinner,sun8i-a83t-sid",		A83T_SID},
 	{ NULL,					0 }
 };
 
 struct aw_sid_softc {
 	struct resource		*res;
+	int type;
 };
 
 static struct aw_sid_softc *aw_sid_sc;
@@ -66,8 +77,17 @@ static struct resource_spec aw_sid_spec[] = {
 	{ -1, 0 }
 };
 
+enum sid_keys {
+	AW_SID_ROOT_KEY,
+};
+
+#define	ROOT_KEY_OFF	0x0
+#define	ROOT_KEY_SIZE	4
+
 #define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
 #define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+
+static int aw_sid_sysctl(SYSCTL_HANDLER_ARGS);
 
 static int
 aw_sid_probe(device_t dev)
@@ -96,6 +116,19 @@ aw_sid_attach(device_t dev)
 
 	aw_sid_sc = sc;
 
+	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	switch (sc->type) {
+	case A10_SID:
+	case A20_SID:
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "rootkey",
+		    CTLTYPE_STRING | CTLFLAG_RD,
+		    dev, AW_SID_ROOT_KEY, aw_sid_sysctl, "A", "Root Key");
+		break;
+	default:
+		break;
+	}
 	return (0);
 }
 
@@ -107,11 +140,52 @@ aw_sid_read_tscalib(uint32_t *calib0, uint32_t *calib1)
 	sc = aw_sid_sc;
 	if (sc == NULL)
 		return (ENXIO);
+	if (sc->type != A83T_SID)
+		return (ENXIO);
 
 	*calib0 = RD4(sc, SID_THERMAL_CALIB0);
 	*calib1 = RD4(sc, SID_THERMAL_CALIB1);
 
 	return (0);
+}
+
+int
+aw_sid_get_rootkey(u_char *out)
+{
+	struct aw_sid_softc *sc;
+	int i;
+	u_int tmp;
+
+	sc = aw_sid_sc;
+	if (sc == NULL)
+		return (ENXIO);
+	if (sc->type != A10_SID && sc->type != A20_SID)
+		return (ENXIO);
+
+	for (i = 0; i < ROOT_KEY_SIZE ; i++) {
+		tmp = RD4(aw_sid_sc, ROOT_KEY_OFF + (i * 4));
+		be32enc(&out[i * 4], tmp);
+	}
+
+	return (0);
+}
+
+static int
+aw_sid_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	enum sid_keys key = arg2;
+	u_char rootkey[16];
+	char out[33];
+
+	if (key != AW_SID_ROOT_KEY)
+		return (ENOENT);
+
+	if (aw_sid_get_rootkey(rootkey) != 0)
+		return (ENOENT);
+	snprintf(out, sizeof(out),
+	  "%16D", rootkey, "");
+
+	return sysctl_handle_string(oidp, out, sizeof(out), req);
 }
 
 static device_method_t aw_sid_methods[] = {

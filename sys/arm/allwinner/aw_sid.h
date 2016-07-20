@@ -30,5 +30,6 @@
 #define __AW_SID_H__
 
 int	aw_sid_read_tscalib(uint32_t *, uint32_t *);
+int	aw_sid_get_rootkey(u_char *out);
 
 #endif /* !__AW_SID_H__ */
