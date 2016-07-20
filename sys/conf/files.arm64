@@ -59,8 +59,8 @@ dev/acpica/acpi_if.m		optional	acpi
 dev/ahci/ahci_generic.c		optional ahci fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
-dev/mmc/host/dwmmc.c		optional	dwmmc
-dev/mmc/host/dwmmc_hisi.c	optional	dwmmc soc_hisi_hi6220
+dev/mmc/host/dwmmc.c		optional	dwmmc fdt
+dev/mmc/host/dwmmc_hisi.c	optional	dwmmc fdt soc_hisi_hi6220
 dev/ofw/ofw_cpu.c		optional	fdt
 dev/ofw/ofwpci.c		optional 	fdt pci
 dev/pci/pci_host_generic.c	optional	pci fdt
@@ -68,7 +68,7 @@ dev/psci/psci.c			optional	psci
 dev/psci/psci_arm64.S		optional	psci
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/uart/uart_dev_pl011.c	optional	uart pl011
-dev/usb/controller/dwc_otg_hisi.c optional	dwcotg soc_hisi_hi6220
+dev/usb/controller/dwc_otg_hisi.c optional	dwcotg fdt soc_hisi_hi6220
 dev/usb/controller/generic_ohci.c optional	ohci fdt
 dev/usb/controller/generic_usb_if.m optional	ohci fdt
 dev/vnic/mrml_bridge.c		optional	vnic fdt
