@@ -88,6 +88,7 @@ arm_create_user() {
 		-c 'FreeBSD User' -d '/home/freebsd' -s '/bin/csh'
 	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
 		usermod root -w yes
+	chroot ${CHROOTDIR} ln -s /home ${DESTDIR}/usr/home
 
 	return 0
 }
