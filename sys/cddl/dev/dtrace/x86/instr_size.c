@@ -44,6 +44,9 @@
 #include <vm/seg_enum.h>
 #include <sys/privregs.h>
 #else
+#include <sys/cred.h>
+#include <cddl/dev/dtrace/dtrace_cddl.h>
+
 typedef	u_int			model_t;
 #define	DATAMODEL_NATIVE	0
 int dtrace_instr_size(uchar_t *);
@@ -104,9 +107,7 @@ dtrace_dis_isize(uchar_t *instr, dis_isize_t which, model_t model, int *rmindex)
 	dis86_t	x;
 	uint_t mode = SIZE32;
 
-#ifdef illumos
 	mode = (model == DATAMODEL_LP64) ? SIZE64 : SIZE32;
-#endif
 
 	x.d86_data = (void **)&instr;
 	x.d86_get_byte = dtrace_dis_get_byte;

@@ -142,7 +142,7 @@ cddl/dev/dtrace/amd64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/amd64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
-cddl/dev/dtrace/amd64/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
+cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 aesni_ghash.o			optional aesni				\
