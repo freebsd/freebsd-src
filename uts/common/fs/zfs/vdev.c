@@ -2731,6 +2731,7 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 {
 	spa_t *spa = vd->vdev_spa;
 	vdev_t *rvd = spa->spa_root_vdev;
+	vdev_t *tvd = vd->vdev_top;
 
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_READER) != 0);
 
@@ -2741,7 +2742,15 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	vs->vs_rsize = vdev_get_min_asize(vd);
 	if (vd->vdev_ops->vdev_op_leaf)
 		vs->vs_rsize += VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
-	vs->vs_esize = vd->vdev_max_asize - vd->vdev_asize;
+	/*
+	 * Report expandable space on top-level, non-auxillary devices only.
+	 * The expandable space is reported in terms of metaslab sized units
+	 * since that determines how much space the pool can expand.
+	 */
+	if (vd->vdev_aux == NULL && tvd != NULL) {
+		vs->vs_esize = P2ALIGN(vd->vdev_max_asize - vd->vdev_asize,
+		    1ULL << tvd->vdev_ms_shift);
+	}
 	if (vd->vdev_aux == NULL && vd == vd->vdev_top && !vd->vdev_ishole) {
 		vs->vs_fragmentation = vd->vdev_mg->mg_fragmentation;
 	}
