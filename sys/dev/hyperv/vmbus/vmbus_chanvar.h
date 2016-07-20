@@ -80,7 +80,7 @@ typedef struct hv_vmbus_channel {
 	 * These are based on the offer_msg.monitor_id.
 	 * Save it here for easy access.
 	 */
-	int				ch_montrig_idx;	/* MNF trig index */
+	volatile uint32_t		*ch_montrig;	/* MNF trigger */
 	uint32_t			ch_montrig_mask;/* MNF trig mask */
 
 	/*
