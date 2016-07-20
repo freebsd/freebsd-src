@@ -8,6 +8,7 @@ HOST=
 TARGET=
 RESTARTCMD=
 RCDIR=
+STATUSARG=
 
 for x do
 	opt=${x%%=*}
@@ -33,6 +34,8 @@ for x do
 	--target) TARGET=$var;;
 	--libdir) LIBDIR=$var;;
 	--restartcmd) RESTARTCMD=$var;;
+	--rcdir) RCDIR=$var;;
+	--statusarg) STATUSARG=$var;;
 	--includedir) eval INCLUDEDIR="$INCLUDEDIR${INCLUDEDIR:+ }$var";;
 	--datadir|--infodir) ;; # ignore autotools
 	--disable-maintainer-mode|--disable-dependency-tracking) ;;
@@ -117,7 +120,17 @@ echo "Configuring openresolv for ... $OS"
 rm -rf $CONFIG_MK
 echo "# $OS" >$CONFIG_MK
 
-for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR; do
+# On FreeBSD, /etc/init.d/foo status returns 0 if foo is not enabled
+# regardless of if it's not running.
+# So we force onestatus to work around this silly bug.
+if [ -z "$STATUSARG" ]; then
+	case "$OS" in
+	freebsd*)	STATUSARG="onestatus";;
+	esac
+fi
+
+for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR RESTARTCMD RCDIR STATUSARG
+do
 	eval v=\$$x
 	# Make files look nice for import
 	l=$((10 - ${#x}))
@@ -126,100 +139,14 @@ for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR; do
 	echo "$x=$t	$v" >>$CONFIG_MK
 done
 
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for systemd ... "
-	if [ -x /bin/systemctl ]; then
-		RESTARTCMD="/bin/systemctl try-restart \1"
-		echo "yes"
-	elif [ -x /usr/bin/systemctl ]; then
-		RESTARTCMD="/usr/bin/systemctl try-restart \1"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-
-# Arch upgraded to systemd, so this check has to be just after systemd
-# but higher than the others
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for Arch ... "
-	if [ -e /etc/arch-release -a -d /etc/rc.d ]; then
-		RCDIR=/etc/rc.d
-		RESTARTCMD="[ -e /var/run/daemons/\1 ] \&\& /etc/rc.d/\1 restart"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for OpenRC ... "
-	if [ -x /sbin/rc-service ]; then
-		RESTARTCMD="if /sbin/rc-service -e \1; then /sbin/rc-service \1 -- -Ds restart; fi"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for invoke-rc.d ... "
-	if [ -x /usr/sbin/invoke-rc.d ]; then
-		RCDIR=/etc/init.d
-		RESTARTCMD="if /usr/sbin/invoke-rc.d --quiet \1 status >/dev/null 2>\&1; then /usr/sbin/invoke-rc.d \1 restart; fi"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for service ... "
-	if [ -x /sbin/service ]; then
-		RCDIR=/etc/init.d
-		RESTARTCMD="if /sbin/service \1; then /sbin/service \1 restart; fi"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for runit... "
-	if [ -x /bin/sv ]; then
-		RESTARTCMD="/bin/sv try-restart \1"
-		echo "yes"
-	elif [ -x /usr/bin/sv ]; then
-		RESTARTCMD="/usr/bin/sv try-restart \1"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-if [ -z "$RESTARTCMD" ]; then
-	for x in /etc/init.d/rc.d /etc/rc.d /etc/init.d; do
-		printf "Checking for $x ... "
-		if [ -d $x ]; then
-			RCDIR=$x
-			RESTARTCMD="if $x/\1 status >/dev/null 2>\&1; then $x/\1 restart; fi"
-			echo "yes"
-			break
-		else
-			echo "no"
-		fi
-	done
-fi
-
-if [ -z "$RESTARTCMD" ]; then
-	echo "$0: WARNING: No means of interacting with system services detected!"
-	exit 1
-fi
-
-echo "RCDIR=		$RCDIR" >>$CONFIG_MK
-# Work around bug in the dash shell as "echo 'foo \1'" does bad things
-printf "%s\n" "RESTARTCMD=	$RESTARTCMD" >>$CONFIG_MK
-
 echo
 echo "   SYSCONFDIR =		$SYSCONFDIR"
 echo "   SBINDIR =		$SBINDIR"
 echo "   LIBEXECDIR =		$LIBEXECDIR"
 echo "   VARDIR =		$RUNDIR"
 echo "   MANDIR =		$MANDIR"
+echo
+echo "   RESTARTCMD =		$RESTARTCMD"
+echo "   RCDIR =		$RCDIR"
+echo "   STATUSARG =		$STATUSARG"
 echo
