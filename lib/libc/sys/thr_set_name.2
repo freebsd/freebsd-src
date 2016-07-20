@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2016
+.Dd June 1, 2016
 .Dt THR_SET_NAME 2
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@ The
 .Fn thr_set_name
 sets the user-visible name for the kernel thread with the identifier
 .Va id
-in the current process, to the NULL-terminated string
+in the current process, to the NUL-terminated string
 .Va name .
 The thread name can be seen in the output of the
 .Xr ps 1
@@ -87,10 +87,11 @@ does not exist in the current process.
 .Xr thr_new 2 ,
 .Xr thr_self 2 ,
 .Xr _umtx_op 2 ,
+.Xr pthread_set_name_np 3 ,
 .Xr ddb 4 ,
 .Xr ktr 9
 .Sh STANDARDS
 The
 .Fn thr_new
-system call is non-standard and is used by the
+system call is non-standard and is used by
 .Lb libthr .

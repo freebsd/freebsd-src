@@ -172,6 +172,8 @@ static void	rtwn_set_rx_bssid_all(struct rtwn_softc *, int);
 static void	rtwn_set_gain(struct rtwn_softc *, uint8_t);
 static void	rtwn_scan_start(struct ieee80211com *);
 static void	rtwn_scan_end(struct ieee80211com *);
+static void	rtwn_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static void	rtwn_set_channel(struct ieee80211com *);
 static void	rtwn_update_mcast(struct ieee80211com *);
 static void	rtwn_set_chan(struct rtwn_softc *,
@@ -230,6 +232,9 @@ MODULE_DEPEND(rtwn, pci,  1, 1, 1);
 MODULE_DEPEND(rtwn, wlan, 1, 1, 1);
 MODULE_DEPEND(rtwn, firmware, 1, 1, 1);
 
+static const uint8_t rtwn_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
 static int
 rtwn_probe(device_t dev)
 {
@@ -251,7 +256,6 @@ rtwn_attach(device_t dev)
 	struct rtwn_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t lcsr;
-	uint8_t bands[IEEE80211_MODE_BYTES];
 	int i, count, error, rid;
 
 	sc->sc_dev = dev;
@@ -352,17 +356,18 @@ rtwn_attach(device_t dev)
 		| IEEE80211_C_WME		/* 802.11e */
 		;
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, bands);
+	/* XXX TODO: setup regdomain if R92C_CHANNEL_PLAN_BY_HW bit is set. */
+
+	rtwn_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 
 	ic->ic_wme.wme_update = rtwn_updateedca;
 	ic->ic_update_mcast = rtwn_update_mcast;
-	ic->ic_scan_start =rtwn_scan_start;
+	ic->ic_scan_start = rtwn_scan_start;
 	ic->ic_scan_end = rtwn_scan_end;
+	ic->ic_getradiocaps = rtwn_getradiocaps;
 	ic->ic_set_channel = rtwn_set_channel;
 	ic->ic_raw_xmit = rtwn_raw_xmit;
 	ic->ic_transmit = rtwn_transmit;
@@ -581,6 +586,9 @@ rtwn_free_rx_list(struct rtwn_softc *sc)
 
 	if (rx_ring->desc_dmat != NULL) {
 		if (rx_ring->desc != NULL) {
+			bus_dmamap_sync(rx_ring->desc_dmat,
+			    rx_ring->desc_map,
+			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(rx_ring->desc_dmat,
 			    rx_ring->desc_map);
 			bus_dmamem_free(rx_ring->desc_dmat, rx_ring->desc,
@@ -595,6 +603,8 @@ rtwn_free_rx_list(struct rtwn_softc *sc)
 		rx_data = &rx_ring->rx_data[i];
 
 		if (rx_data->m != NULL) {
+			bus_dmamap_sync(rx_ring->data_dmat,
+			    rx_data->map, BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(rx_ring->data_dmat, rx_data->map);
 			m_freem(rx_data->m);
 			rx_data->m = NULL;
@@ -638,6 +648,8 @@ rtwn_alloc_tx_list(struct rtwn_softc *sc, int qid)
 		device_printf(sc->sc_dev, "could not load desc DMA map\n");
 		goto fail;
 	}
+	bus_dmamap_sync(tx_ring->desc_dmat, tx_ring->desc_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
@@ -686,6 +698,8 @@ rtwn_reset_tx_list(struct rtwn_softc *sc, int qid)
 		    sizeof(desc->nextdescaddr)));
 
 		if (tx_data->m != NULL) {
+			bus_dmamap_sync(tx_ring->data_dmat, tx_data->map,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(tx_ring->data_dmat, tx_data->map);
 			m_freem(tx_data->m);
 			tx_data->m = NULL;
@@ -713,6 +727,8 @@ rtwn_free_tx_list(struct rtwn_softc *sc, int qid)
 
 	if (tx_ring->desc_dmat != NULL) {
 		if (tx_ring->desc != NULL) {
+			bus_dmamap_sync(tx_ring->desc_dmat,
+			    tx_ring->desc_map, BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(tx_ring->desc_dmat,
 			    tx_ring->desc_map);
 			bus_dmamem_free(tx_ring->desc_dmat, tx_ring->desc,
@@ -725,6 +741,8 @@ rtwn_free_tx_list(struct rtwn_softc *sc, int qid)
 		tx_data = &tx_ring->tx_data[i];
 
 		if (tx_data->m != NULL) {
+			bus_dmamap_sync(tx_ring->data_dmat, tx_data->map,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(tx_ring->data_dmat, tx_data->map);
 			m_freem(tx_data->m);
 			tx_data->m = NULL;
@@ -1044,40 +1062,56 @@ rtwn_read_rom(struct rtwn_softc *sc)
 	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, rom->macaddr);
 }
 
+static __inline uint8_t
+rate2ridx(uint8_t rate)
+{
+	switch (rate) {
+	case 12:	return 4;
+	case 18:	return 5;
+	case 24:	return 6;
+	case 36:	return 7;
+	case 48:	return 8;
+	case 72:	return 9;
+	case 96:	return 10;
+	case 108:	return 11;
+	case 2:		return 0;
+	case 4:		return 1;
+	case 11:	return 2;
+	case 22:	return 3;
+	default:	return RTWN_RIDX_UNKNOWN;
+	}
+}
+
 /*
  * Initialize rate adaptation in firmware.
  */
 static int
 rtwn_ra_init(struct rtwn_softc *sc)
 {
-	static const uint8_t map[] =
-	    { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = ieee80211_ref_node(vap->iv_bss);
 	struct ieee80211_rateset *rs = &ni->ni_rates;
 	struct r92c_fw_cmd_macid_cfg cmd;
 	uint32_t rates, basicrates;
-	uint8_t mode;
-	int maxrate, maxbasicrate, error, i, j;
+	uint8_t maxrate, maxbasicrate, mode, ridx;
+	int error, i;
 
 	/* Get normal and basic rates mask. */
 	rates = basicrates = 0;
 	maxrate = maxbasicrate = 0;
 	for (i = 0; i < rs->rs_nrates; i++) {
 		/* Convert 802.11 rate to HW rate index. */
-		for (j = 0; j < nitems(map); j++)
-			if ((rs->rs_rates[i] & IEEE80211_RATE_VAL) == map[j])
-				break;
-		if (j == nitems(map))	/* Unknown rate, skip. */
+		ridx = rate2ridx(IEEE80211_RV(rs->rs_rates[i]));
+		if (ridx == RTWN_RIDX_UNKNOWN)	/* Unknown rate, skip. */
 			continue;
-		rates |= 1 << j;
-		if (j > maxrate)
-			maxrate = j;
+		rates |= 1 << ridx;
+		if (ridx > maxrate)
+			maxrate = ridx;
 		if (rs->rs_rates[i] & IEEE80211_RATE_BASIC) {
-			basicrates |= 1 << j;
-			if (j > maxbasicrate)
-				maxbasicrate = j;
+			basicrates |= 1 << ridx;
+			if (ridx > maxbasicrate)
+				maxbasicrate = ridx;
 		}
 	}
 	if (ic->ic_curmode == IEEE80211_MODE_11B)
@@ -1358,7 +1392,7 @@ rtwn_update_avgrssi(struct rtwn_softc *sc, int rate, int8_t rssi)
 		pwdb = 100;
 	else
 		pwdb = 100 + rssi;
-	if (rate <= 3) {
+	if (RTWN_RATE_IS_CCK(rate)) {
 		/* CCK gain is smaller than OFDM/MCS gain. */
 		pwdb += 6;
 		if (pwdb > 100)
@@ -1390,7 +1424,7 @@ rtwn_get_rssi(struct rtwn_softc *sc, int rate, void *physt)
 	uint8_t rpt;
 	int8_t rssi;
 
-	if (rate <= 3) {
+	if (RTWN_RATE_IS_CCK(rate)) {
 		cck = (struct r92c_rx_cck *)physt;
 		if (sc->sc_flags & RTWN_FLAG_CCK_HIPWR) {
 			rpt = (cck->agc_rpt >> 5) & 0x3;
@@ -1503,22 +1537,7 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct r92c_rx_desc *rx_desc,
 
 		tap->wr_flags = 0;
 		if (!(rxdw3 & R92C_RXDW3_HT)) {
-			switch (rate) {
-			/* CCK. */
-			case  0: tap->wr_rate =   2; break;
-			case  1: tap->wr_rate =   4; break;
-			case  2: tap->wr_rate =  11; break;
-			case  3: tap->wr_rate =  22; break;
-			/* OFDM. */
-			case  4: tap->wr_rate =  12; break;
-			case  5: tap->wr_rate =  18; break;
-			case  6: tap->wr_rate =  24; break;
-			case  7: tap->wr_rate =  36; break;
-			case  8: tap->wr_rate =  48; break;
-			case  9: tap->wr_rate =  72; break;
-			case 10: tap->wr_rate =  96; break;
-			case 11: tap->wr_rate = 108; break;
-			}
+			tap->wr_rate = ridx2rate[rate];
 		} else if (rate >= 12) {	/* MCS0~15. */
 			/* Bit 7 set means HT MCS instead of rate. */
 			tap->wr_rate = 0x80 | (rate - 12);
@@ -1644,10 +1663,12 @@ rtwn_tx(struct rtwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		/* XXX TODO: implement rate control */
 
 		/* Send RTS at OFDM24. */
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE, 8));
+		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
+		    RTWN_RIDX_OFDM24));
 		txd->txdw5 |= htole32(SM(R92C_TXDW5_RTSRATE_FBLIMIT, 0xf));
 		/* Send data at OFDM54. */
-		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 11));
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE,
+		    RTWN_RIDX_OFDM54));
 		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE_FBLIMIT, 0x1f));
 
 	} else {
@@ -1658,7 +1679,7 @@ rtwn_tx(struct rtwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 		/* Force CCK1. */
 		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
-		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 0));
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, RTWN_RIDX_CCK1));
 	}
 	/* Set sequence number (already little endian). */
 	txd->txdseq = htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
@@ -1753,7 +1774,10 @@ rtwn_tx_done(struct rtwn_softc *sc, int qid)
 		if (le32toh(tx_desc->txdw0) & R92C_TXDW0_OWN)
 			continue;
 
-		bus_dmamap_unload(tx_ring->desc_dmat, tx_ring->desc_map);
+		/* Unmap and free mbuf. */
+		bus_dmamap_sync(tx_ring->data_dmat, tx_data->map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(tx_ring->data_dmat, tx_data->map);
 
 		/*
 		 * XXX TODO: figure out whether the transmit succeeded or not.
@@ -1763,8 +1787,10 @@ rtwn_tx_done(struct rtwn_softc *sc, int qid)
 		tx_data->ni = NULL;
 		tx_data->m = NULL;
 
-		sc->sc_tx_timer = 0;
-		tx_ring->queued--;
+		if (--tx_ring->queued)
+			sc->sc_tx_timer = 5;
+		else
+			sc->sc_tx_timer = 0;
 	}
 
 	if (tx_ring->queued < (RTWN_TX_LIST_COUNT - 1))
@@ -2577,10 +2603,10 @@ rtwn_get_txpower(struct rtwn_softc *sc, int chain,
 
 	memset(power, 0, RTWN_RIDX_COUNT * sizeof(power[0]));
 	if (sc->regulatory == 0) {
-		for (ridx = 0; ridx <= 3; ridx++)
+		for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++)
 			power[ridx] = base->pwr[0][ridx];
 	}
-	for (ridx = 4; ridx < RTWN_RIDX_COUNT; ridx++) {
+	for (ridx = RTWN_RIDX_OFDM6; ridx < RTWN_RIDX_COUNT; ridx++) {
 		if (sc->regulatory == 3) {
 			power[ridx] = base->pwr[0][ridx];
 			/* Apply vendor limits. */
@@ -2600,7 +2626,7 @@ rtwn_get_txpower(struct rtwn_softc *sc, int chain,
 
 	/* Compute per-CCK rate Tx power. */
 	cckpow = rom->cck_tx_pwr[chain][group];
-	for (ridx = 0; ridx <= 3; ridx++) {
+	for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++) {
 		power[ridx] += cckpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
@@ -2618,7 +2644,7 @@ rtwn_get_txpower(struct rtwn_softc *sc, int chain,
 	diff = rom->ofdm_tx_pwr_diff[group];
 	diff = (diff >> (chain * 4)) & 0xf;
 	ofdmpow = htpow + diff;	/* HT->OFDM correction. */
-	for (ridx = 4; ridx <= 11; ridx++) {
+	for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++) {
 		power[ridx] += ofdmpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
@@ -2630,7 +2656,7 @@ rtwn_get_txpower(struct rtwn_softc *sc, int chain,
 		diff = (diff >> (chain * 4)) & 0xf;
 		htpow += diff;	/* HT40->HT20 correction. */
 	}
-	for (ridx = 12; ridx <= 27; ridx++) {
+	for (ridx = RTWN_RIDX_MCS0; ridx <= RTWN_RIDX_MCS15; ridx++) {
 		power[ridx] += htpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
@@ -2639,7 +2665,7 @@ rtwn_get_txpower(struct rtwn_softc *sc, int chain,
 	if (sc->sc_debug >= 4) {
 		/* Dump per-rate Tx power values. */
 		printf("Tx power for chain %d:\n", chain);
-		for (ridx = 0; ridx < RTWN_RIDX_COUNT; ridx++)
+		for (ridx = RTWN_RIDX_CCK1; ridx < RTWN_RIDX_COUNT; ridx++)
 			printf("Rate %d = %u\n", ridx, power[ridx]);
 	}
 #endif
@@ -2711,6 +2737,19 @@ rtwn_scan_end(struct ieee80211com *ic)
 	/* Set gain under link. */
 	rtwn_set_gain(sc, 0x32);
 	RTWN_UNLOCK(sc);
+}
+
+static void
+rtwn_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    rtwn_chan_2ghz, nitems(rtwn_chan_2ghz), bands, 0);
 }
 
 static void

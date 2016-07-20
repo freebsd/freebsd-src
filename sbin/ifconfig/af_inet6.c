@@ -65,12 +65,13 @@ static	int ip6lifetime;
 static	int prefix(void *, int);
 static	char *sec2str(time_t);
 static	int explicit_prefix = 0;
+extern	char *f_inet6, *f_addr;
 
 extern void setnd6flags(const char *, int, int, const struct afswtch *);
 extern void setnd6defif(const char *, int, int, const struct afswtch *);
 extern void nd6_status(int);
 
-static	char addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
+static	char addr_buf[NI_MAXHOST];	/*for getnameinfo()*/
 
 static void
 setifprefixlen(const char *addr, int dummy __unused, int s,
@@ -174,7 +175,7 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 	u_int32_t flags6;
 	struct in6_addrlifetime lifetime;
 	struct timespec now;
-	int error;
+	int error, n_flags;
 
 	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 
@@ -206,12 +207,19 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 	lifetime = ifr6.ifr_ifru.ifru_lifetime;
 	close(s6);
 
-	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len, addr_buf,
-			    sizeof(addr_buf), NULL, 0, NI_NUMERICHOST);
+	if (f_addr != NULL && strcmp(f_addr, "fqdn") == 0)
+		n_flags = 0;
+	else if (f_addr != NULL && strcmp(f_addr, "host") == 0)
+		n_flags = NI_NOFQDN;
+	else
+		n_flags = NI_NUMERICHOST;
+	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len,
+			    addr_buf, sizeof(addr_buf), NULL, 0,
+			    n_flags);
 	if (error != 0)
 		inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
 			  sizeof(addr_buf));
-	printf("\tinet6 %s ", addr_buf);
+	printf("\tinet6 %s", addr_buf);
 
 	if (ifa->ifa_flags & IFF_POINTOPOINT) {
 		sin = (struct sockaddr_in6 *)ifa->ifa_dstaddr;
@@ -229,15 +237,19 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 			if (error != 0)
 				inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
 					  sizeof(addr_buf));
-			printf("--> %s ", addr_buf);
+			printf(" --> %s ", addr_buf);
 		}
 	}
 
 	sin = (struct sockaddr_in6 *)ifa->ifa_netmask;
 	if (sin == NULL)
 		sin = &null_sin;
-	printf("prefixlen %d ", prefix(&sin->sin6_addr,
-		sizeof(struct in6_addr)));
+	if (f_inet6 != NULL && strcmp(f_inet6, "cidr") == 0)
+		printf("/%d ", prefix(&sin->sin6_addr,
+			sizeof(struct in6_addr)));
+	else
+		printf(" prefixlen %d ", prefix(&sin->sin6_addr,
+			sizeof(struct in6_addr)));
 
 	if ((flags6 & IN6_IFF_ANYCAST) != 0)
 		printf("anycast ");

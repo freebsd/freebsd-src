@@ -119,9 +119,9 @@ xdr_accepted_reply(XDR *xdrs, struct accepted_reply *ar)
 		return ((*(ar->ar_results.proc))(xdrs, ar->ar_results.where));
 
 	case PROG_MISMATCH:
-		if (! xdr_u_int32_t(xdrs, &(ar->ar_vers.low)))
+		if (!xdr_rpcvers(xdrs, &(ar->ar_vers.low)))
 			return (FALSE);
-		return (xdr_u_int32_t(xdrs, &(ar->ar_vers.high)));
+		return (xdr_rpcvers(xdrs, &(ar->ar_vers.high)));
 
 	case GARBAGE_ARGS:
 	case SYSTEM_ERR:
@@ -152,9 +152,9 @@ xdr_rejected_reply(XDR *xdrs, struct rejected_reply *rr)
 	switch (rr->rj_stat) {
 
 	case RPC_MISMATCH:
-		if (! xdr_u_int32_t(xdrs, &(rr->rj_vers.low)))
+		if (! xdr_rpcvers(xdrs, &(rr->rj_vers.low)))
 			return (FALSE);
-		return (xdr_u_int32_t(xdrs, &(rr->rj_vers.high)));
+		return (xdr_rpcvers(xdrs, &(rr->rj_vers.high)));
 
 	case AUTH_ERROR:
 		prj_why = &rr->rj_why;
@@ -217,8 +217,8 @@ xdr_callhdr(XDR *xdrs, struct rpc_msg *cmsg)
 	    (xdrs->x_op == XDR_ENCODE) &&
 	    xdr_u_int32_t(xdrs, &(cmsg->rm_xid)) &&
 	    xdr_enum(xdrs, (enum_t *) prm_direction) &&
-	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_rpcvers)) &&
-	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_prog)) )
+	    xdr_rpcvers(xdrs, &(cmsg->rm_call.cb_rpcvers)) &&
+	    xdr_rpcprog(xdrs, &(cmsg->rm_call.cb_prog)) )
 		return (xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_vers)));
 	return (FALSE);
 }

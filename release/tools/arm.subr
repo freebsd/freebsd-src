@@ -72,7 +72,6 @@ arm_create_disk() {
 	chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
 	chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
 	chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}s2a
-	chroot ${CHROOTDIR} tunefs -N enable /dev/${mddev}s2a
 
 	return 0
 }
@@ -110,7 +109,7 @@ arm_install_base() {
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	echo "tmpfs /tmp tmpfs rw,mode=1777,size=30m 0 0" \
+	echo "tmpfs /tmp tmpfs rw,mode=1777,size=50m 0 0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 
 	local hostname

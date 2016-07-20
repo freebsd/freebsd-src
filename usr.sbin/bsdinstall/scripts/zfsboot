@@ -143,7 +143,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 
 	# Boot Environment [BE] root and default boot dataset
 	/$ZFSBOOT_BEROOT_NAME				mountpoint=none
-	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/,canmount=noauto
+	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/
 
 	# Compress /tmp, allow exec but not setuid
 	/tmp		mountpoint=/tmp,exec=on,setuid=off
@@ -218,11 +218,13 @@ SWAP_GMIRROR_LABEL='gmirror label swap %s'
 SYSCTL_ZFS_MIN_ASHIFT_12='sysctl vfs.zfs.min_auto_ashift=12'
 UMOUNT='umount "%s"'
 ZFS_CREATE_WITH_OPTIONS='zfs create %s "%s"'
+ZFS_MOUNT='zfs mount "%s"'
 ZFS_SET='zfs set "%s" "%s"'
 ZFS_UNMOUNT='zfs unmount "%s"'
 ZPOOL_CREATE_WITH_OPTIONS='zpool create %s "%s" %s %s'
 ZPOOL_DESTROY='zpool destroy "%s"'
 ZPOOL_EXPORT='zpool export "%s"'
+ZPOOL_EXPORT_F='zpool export -f "%s"'
 ZPOOL_IMPORT_WITH_OPTIONS='zpool import %s "%s"'
 ZPOOL_LABELCLEAR_F='zpool labelclear -f "%s"'
 ZPOOL_SET='zpool set %s "%s"'
@@ -272,6 +274,7 @@ msg_not_enough_disks_selected="Not enough disks selected. (%u < %u minimum)"
 msg_null_disk_argument="NULL disk argument"
 msg_null_index_argument="NULL index argument"
 msg_null_poolname="NULL poolname"
+msg_odd_disk_selected="An even number of disks must be selected to create a RAID 1+0. (%u selected)"
 msg_ok="OK"
 msg_partition_scheme="Partition Scheme"
 msg_partition_scheme_help="Select partitioning scheme. GPT is recommended."
@@ -284,6 +287,8 @@ msg_pool_name_help="Customize the name of the zpool to be created (Required)"
 msg_pool_type_disks="Pool Type/Disks:"
 msg_pool_type_disks_help="Choose type of ZFS Virtual Device and disks to use (Required)"
 msg_processing_selection="Processing selection..."
+msg_raid10_desc="RAID 1+0 - n x 2-Way Mirrors"
+msg_raid10_help="[4+ Disks] Striped Mirrors provides the best performance, but the least storage"
 msg_raidz1_desc="RAID-Z1 - Single Redundant RAID"
 msg_raidz1_help="[3+ Disks] Withstand failure of 1 disk. Recommended for: 3, 5 or 9 disks"
 msg_raidz2_desc="RAID-Z2 - Double Redundant RAID"
@@ -478,6 +483,7 @@ dialog_menu_layout()
 	local vdev_menu_list="
 		'stripe' '$msg_stripe_desc' '$msg_stripe_help'
 		'mirror' '$msg_mirror_desc' '$msg_mirror_help'
+		'raid10' '$msg_raid10_desc' '$msg_raid10_help'
 		'raidz1' '$msg_raidz1_desc' '$msg_raidz1_help'
 		'raidz2' '$msg_raidz2_desc' '$msg_raidz2_help'
 		'raidz3' '$msg_raidz3_desc' '$msg_raidz3_help'
@@ -488,7 +494,7 @@ dialog_menu_layout()
 
 	# Warn the user if vdev type is not valid
 	case "$ZFSBOOT_VDEV_TYPE" in
-	stripe|mirror|raidz1|raidz2|raidz3) : known good ;;
+	stripe|mirror|raid10|raidz1|raidz2|raidz3) : known good ;;
 	*)
 		f_dprintf "%s: Invalid virtual device type \`%s'" \
 			  $funcname "$ZFSBOOT_VDEV_TYPE"
@@ -575,6 +581,7 @@ dialog_menu_layout()
 		case "$ZFSBOOT_VDEV_TYPE" in
 		stripe) want_disks=1 ;;
 		mirror) want_disks=2 ;;
+		raid10) want_disks=4 ;;
 		raidz1) want_disks=3 ;;
 		raidz2) want_disks=4 ;;
 		raidz3) want_disks=5 ;;
@@ -683,6 +690,21 @@ dialog_menu_layout()
 			          "$ZFSBOOT_DISKS"
 
 			f_count ndisks $ZFSBOOT_DISKS
+
+			if [ "$ZFSBOOT_VDEV_TYPE" == "raid10" ] &&
+			    [ $(( $ndisks % 2 )) -ne 0 ]; then
+				f_dprintf "$funcname: %s: %s (%u %% 2 = %u)" \
+					  "$ZFSBOOT_VDEV_TYPE" \
+					  "Number of disks not even:" \
+					  $ndisks $(( $ndisks % 2 ))
+				msg_yes="$msg_change_selection" \
+					msg_no="$msg_cancel" \
+					f_yesno "%s: $msg_odd_disk_selected" \
+						"$ZFSBOOT_VDEV_TYPE" $ndisks ||
+						break
+				continue
+			fi
+
 			[ $ndisks -ge $want_disks ] &&
 				breakout=break && break
 
@@ -762,6 +784,14 @@ zfs_create_diskpart()
 	# NOTE: `-F' required to destroy if partitions still exist.
 	# NOTE: Failure is ok here, blank disk will have nothing to destroy.
 	#
+	f_dprintf "$funcname: Exporting ZFS pools..."
+	zpool list -Ho name | while read z_name; do
+		f_eval_catch -d $funcname zpool "$ZPOOL_EXPORT_F" $z_name
+	done
+	f_dprintf "$funcname: Detaching all GELI providers..."
+	geli status | tail -n +2 | while read g_name g_status g_component; do
+		f_eval_catch -d $funcname geli "$GELI_DETACH_F" $g_name
+	done
 	f_dprintf "$funcname: Destroying all data/layouts on \`%s'..." "$disk"
 	f_eval_catch -d $funcname gpart "$GPART_DESTROY_F" $disk
 	f_eval_catch -d $funcname graid "$GRAID_DELETE" $disk
@@ -786,7 +816,6 @@ zfs_create_diskpart()
 	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
 		align_small="-a 4k"
 		align_big="-a 1m"
-		sysctl kern.geom.part.mbr.enforce_chs=0
 	fi
 
 	case "$ZFSBOOT_PARTITION_SCHEME" in
@@ -1113,6 +1142,7 @@ zfs_create_boot()
 		f_dprintf "$funcname: With 4K sectors..."
 		f_eval_catch $funcname sysctl "$SYSCTL_ZFS_MIN_ASHIFT_12" \
 		    || return $FAILURE
+		sysctl kern.geom.part.mbr.enforce_chs=0
 	fi
 	local n=0
 	for disk in $disks; do
@@ -1174,11 +1204,6 @@ zfs_create_boot()
 			f_eval_catch $funcname chmod "$CHMOD_MODE" \
 			             go-wrx "$bootpool/$zroot_key" ||
 			             return $FAILURE
-		else
-			# Clean up
-			f_eval_catch $funcname zfs "$ZFS_UNMOUNT" \
-			             "$bootpool_name" || return $FAILURE
-			f_eval_catch -d $funcname umount "$UMOUNT" /mnt # tmpfs
 		fi
 
 	fi
@@ -1271,10 +1296,25 @@ zfs_create_boot()
 	#
 	f_dprintf "$funcname: Creating root pool..."
 	create_options="$ZFSBOOT_POOL_CREATE_OPTIONS"
-	f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
-		"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
-		"$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
-		return $FAILURE
+	if [ "$zroot_vdevtype" == "raid10" ]; then
+		raid10_vdevs=""
+		for vdev in $zroot_vdevs; do
+			f_count nvdev $raid10_vdevs
+			if [ $(( $nvdev % 3 )) -eq 0 ]; then
+				raid10_vdevs="$raid10_vdevs mirror"
+			fi
+			raid10_vdevs="$raid10_vdevs $vdev"
+		done
+		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
+			"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
+			"$zroot_name" "" "$raid10_vdevs" ||
+			return $FAILURE
+	else
+		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
+			"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
+			"$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
+			return $FAILURE
+	fi
 
 	#
 	# Create ZFS dataset layout within the new root pool
@@ -1320,13 +1360,6 @@ zfs_create_boot()
 		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done
 
-	# Create symlink(s)
-	if [ "$ZFSBOOT_BOOT_POOL" ]; then
-		f_dprintf "$funcname: Creating /boot symlink for boot pool..."
-		f_eval_catch $funcname ln "$LN_SF" "$bootpool_name/boot" \
-		             $BSDINSTALL_CHROOT/boot || return $FAILURE
-	fi
-
 	# Set bootfs property
 	local zroot_bootfs="$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
 	f_dprintf "$funcname: Setting bootfs property..."
@@ -1334,17 +1367,17 @@ zfs_create_boot()
 		"bootfs=\"$zroot_name/$zroot_bootfs\"" "$zroot_name" ||
 		return $FAILURE
 
-	# Export the pool(s)
-	f_dprintf "$funcname: Temporarily exporting ZFS pool(s)..."
-	f_eval_catch $funcname zpool "$ZPOOL_EXPORT" "$zroot_name" ||
-	             return $FAILURE
-	if [ "$ZFSBOOT_BOOT_POOL" ]; then
-		f_eval_catch $funcname zpool "$ZPOOL_EXPORT" \
-		             "$bootpool_name" || return $FAILURE
-	fi
-
 	# MBR boot loader touch-up
 	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
+		# Export the pool(s)
+		f_dprintf "$funcname: Temporarily exporting ZFS pool(s)..."
+		f_eval_catch $funcname zpool "$ZPOOL_EXPORT" "$zroot_name" ||
+			     return $FAILURE
+		if [ "$ZFSBOOT_BOOT_POOL" ]; then
+			f_eval_catch $funcname zpool "$ZPOOL_EXPORT" \
+				     "$bootpool_name" || return $FAILURE
+		fi
+
 		f_dprintf "$funcname: Updating MBR boot loader on disks..."
 		# Stick the ZFS boot loader in the "convenient hole" after
 		# the ZFS internal metadata
@@ -1353,26 +1386,49 @@ zfs_create_boot()
 			             /boot/zfsboot /dev/$disk$bootpart \
 			             "skip=1 seek=1024" || return $FAILURE
 		done
-	fi
 
-	# Re-import the ZFS pool(s)
-	f_dprintf "$funcname: Re-importing ZFS pool(s)..."
-	f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-	             "-o altroot=\"$BSDINSTALL_CHROOT\"" "$zroot_name" ||
-	             return $FAILURE
-	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		# Re-import the ZFS pool(s)
+		f_dprintf "$funcname: Re-importing ZFS pool(s)..."
 		f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-		             "-o altroot=\"$BSDINSTALL_CHROOT\"" \
-		             "$bootpool_name" || return $FAILURE
+			     "-o altroot=\"$BSDINSTALL_CHROOT\"" "$zroot_name" ||
+			     return $FAILURE
+		if [ "$ZFSBOOT_BOOT_POOL" ]; then
+			# Import the bootpool, but do not mount it yet
+			f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
+				     "-o altroot=\"$BSDINSTALL_CHROOT\" -N" \
+				     "$bootpool_name" || return $FAILURE
+		fi
 	fi
 
-	# While this is apparently not needed, it seems to help MBR
+	# Remount bootpool and create symlink(s)
+	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		f_eval_catch $funcname zfs "$ZFS_MOUNT" "$bootpool_name" ||
+			return $FAILURE
+		f_dprintf "$funcname: Creating /boot symlink for boot pool..."
+		f_eval_catch $funcname ln "$LN_SF" "$bootpool_name/boot" \
+		             $BSDINSTALL_CHROOT/boot || return $FAILURE
+	fi
+
+	# zpool.cache is required to mount more than one pool at boot time
 	f_dprintf "$funcname: Configuring zpool.cache for zroot..."
 	f_eval_catch $funcname mkdir "$MKDIR_P" $BSDINSTALL_CHROOT/boot/zfs ||
 	             return $FAILURE
 	f_eval_catch $funcname zpool "$ZPOOL_SET" \
 	             "cachefile=\"$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\"" \
 	             "$zroot_name" || return $FAILURE
+
+	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		f_eval_catch $funcname printf "$PRINTF_CONF" \
+			vfs.root.mountfrom "\"zfs:$zroot_name/$zroot_bootfs\"" \
+			$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
+	fi
+	#
+	# Set canmount=noauto so that the default Boot Environment (BE) does not
+	# get mounted if a different BE is selected from the beastie menu
+	#
+	f_dprintf "$funcname: Set canmount=noauto for the root of the pool..."
+	f_eval_catch $funcname zfs "$ZFS_SET" "canmount=noauto" \
+		"$zroot_name/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
 
 	# Last, but not least... required lines for rc.conf(5)/loader.conf(5)
 	# NOTE: We later concatenate these into their destination
@@ -1443,10 +1499,6 @@ zfs_create_boot()
 		             $BSDINSTALL_TMPBOOT/loader.conf.zfs ||
 		             return $FAILURE
 	done
-	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
-		"\"zfs:$zroot_name/$zroot_bootfs\"" \
-		$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
-
 	return $SUCCESS
 }
 

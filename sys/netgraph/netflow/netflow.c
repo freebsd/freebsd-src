@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_route.h"
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
 #include <sys/kernel.h>
@@ -146,6 +147,19 @@ ip6_hash(struct flow6_rec *r)
 		return ADDR_HASH(r->src.r_src6.__u6_addr.__u6_addr32[3],
 		    r->dst.r_dst6.__u6_addr.__u6_addr32[3]);
  	}
+}
+
+static inline int
+ip6_masklen(struct in6_addr *saddr, struct rt_addrinfo *info)
+{
+	const int nbits = sizeof(*saddr) * NBBY;
+	int mlen;
+
+	if (info->rti_addrs & RTA_NETMASK)
+		bit_count((bitstr_t *)saddr, 0, nbits, &mlen);
+	else
+		mlen = nbits;
+	return (mlen);
 }
 #endif
 
@@ -399,11 +413,6 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 }
 
 #ifdef INET6
-/* XXX: make normal function, instead of.. */
-#define ipv6_masklen(x)		bitcount32((x).__u6_addr.__u6_addr32[0]) + \
-				bitcount32((x).__u6_addr.__u6_addr32[1]) + \
-				bitcount32((x).__u6_addr.__u6_addr32[2]) + \
-				bitcount32((x).__u6_addr.__u6_addr32[3])
 static int
 hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 	int plen, uint8_t flags, uint8_t tcp_flags)
@@ -460,11 +469,8 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 				fle6->f.n.next_hop6 =
 				    ((struct sockaddr_in6 *)&rt_gateway)->sin6_addr;
 
-			if (info.rti_addrs & RTA_NETMASK)
-				fle6->f.dst_mask =
-				    ipv6_masklen(sin6_mask.sin6_addr);
-			else
-				fle6->f.dst_mask = 128;
+			fle6->f.dst_mask =
+			    ip6_masklen(&sin6_mask.sin6_addr, &info);
 
 			rib_free_info(&info);
 		}
@@ -483,13 +489,9 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&sin6_mask;
 
 		if (rib_lookup_info(r->fib, (struct sockaddr *)&sin6, 0, 0,
-		    &info) == 0) {
-			if (info.rti_addrs & RTA_NETMASK)
-				fle6->f.src_mask =
-				    ipv6_masklen(sin6_mask.sin6_addr);
-			else
-				fle6->f.src_mask = 128;
-		}
+		    &info) == 0)
+			fle6->f.src_mask =
+			    ip6_masklen(&sin6_mask.sin6_addr, &info);
 	}
 
 	/* Push new flow at the and of hash. */
@@ -497,7 +499,6 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 
 	return (0);
 }
-#undef ipv6_masklen
 #endif
 
 

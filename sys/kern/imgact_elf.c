@@ -80,9 +80,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#ifdef __arm__
-#include <machine/acle-compat.h>
-#endif
 
 #define ELF_NOTE_ROUNDSIZE	4
 #define OLD_EI_BRAND	8
@@ -116,7 +113,8 @@ SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
 
 static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
-    &elf_legacy_coredump, 0, "");
+    &elf_legacy_coredump, 0,
+    "include all and only RW pages in core dumps");
 
 int __elfN(nxstack) =
 #if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */ || \
@@ -1825,8 +1823,12 @@ typedef vm_offset_t elf_ps_strings_t;
 static void
 __elfN(note_prpsinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 {
+	struct sbuf sbarg;
+	size_t len;
+	char *cp, *end;
 	struct proc *p;
 	elf_prpsinfo_t *psinfo;
+	int error;
 
 	p = (struct proc *)arg;
 	if (sb != NULL) {
@@ -1835,13 +1837,44 @@ __elfN(note_prpsinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 		psinfo->pr_version = PRPSINFO_VERSION;
 		psinfo->pr_psinfosz = sizeof(elf_prpsinfo_t);
 		strlcpy(psinfo->pr_fname, p->p_comm, sizeof(psinfo->pr_fname));
-		/*
-		 * XXX - We don't fill in the command line arguments properly
-		 * yet.
-		 */
-		strlcpy(psinfo->pr_psargs, p->p_comm,
-		    sizeof(psinfo->pr_psargs));
-
+		PROC_LOCK(p);
+		if (p->p_args != NULL) {
+			len = sizeof(psinfo->pr_psargs) - 1;
+			if (len > p->p_args->ar_length)
+				len = p->p_args->ar_length;
+			memcpy(psinfo->pr_psargs, p->p_args->ar_args, len);
+			PROC_UNLOCK(p);
+			error = 0;
+		} else {
+			_PHOLD(p);
+			PROC_UNLOCK(p);
+			sbuf_new(&sbarg, psinfo->pr_psargs,
+			    sizeof(psinfo->pr_psargs), SBUF_FIXEDLEN);
+			error = proc_getargv(curthread, p, &sbarg);
+			PRELE(p);
+			if (sbuf_finish(&sbarg) == 0)
+				len = sbuf_len(&sbarg) - 1;
+			else
+				len = sizeof(psinfo->pr_psargs) - 1;
+			sbuf_delete(&sbarg);
+		}
+		if (error || len == 0)
+			strlcpy(psinfo->pr_psargs, p->p_comm,
+			    sizeof(psinfo->pr_psargs));
+		else {
+			KASSERT(len < sizeof(psinfo->pr_psargs),
+			    ("len is too long: %zu vs %zu", len,
+			    sizeof(psinfo->pr_psargs)));
+			cp = psinfo->pr_psargs;
+			end = cp + len - 1;
+			for (;;) {
+				cp = memchr(cp, '\0', end - cp);
+				if (cp == NULL)
+					break;
+				*cp = ' ';
+			}
+		}
+		psinfo->pr_pid = p->p_pid;
 		sbuf_bcat(sb, psinfo, sizeof(*psinfo));
 		free(psinfo, M_TEMP);
 	}

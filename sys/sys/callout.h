@@ -64,9 +64,8 @@ struct callout_handle {
 
 /* Flags for callout_stop_safe() */
 #define	CS_DRAIN		0x0001 /* callout_drain(), wait allowed */
-#define	CS_MIGRBLOCK		0x0002 /* Block migration, return value
-					  indicates that the callout was
-				          executing */
+#define	CS_EXECUTING		0x0002 /* Positive return value indicates that
+					  the callout was executing */
 
 #ifdef _KERNEL
 /* 

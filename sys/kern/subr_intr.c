@@ -35,9 +35,8 @@ __FBSDID("$FreeBSD$");
  *        - to complete things for removable PICs
  */
 
-#include "opt_acpi.h"
 #include "opt_ddb.h"
-#include "opt_platform.h"
+#include "opt_hwpmc_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -53,17 +52,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
+
 #include <machine/atomic.h>
 #include <machine/intr.h>
 #include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
-
-#ifdef FDT
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -93,6 +90,15 @@ static intr_irq_filter_t *irq_root_filter;
 static void *irq_root_arg;
 static u_int irq_root_ipicount;
 
+struct intr_pic_child {
+	SLIST_ENTRY(intr_pic_child)	 pc_next;
+	struct intr_pic			*pc_pic;
+	intr_child_irq_filter_t		*pc_filter;
+	void				*pc_filter_arg;
+	uintptr_t			 pc_start;
+	uintptr_t			 pc_length;
+};
+
 /* Interrupt controller definition. */
 struct intr_pic {
 	SLIST_ENTRY(intr_pic)	pic_next;
@@ -101,6 +107,8 @@ struct intr_pic {
 #define	FLAG_PIC	(1 << 0)
 #define	FLAG_MSI	(1 << 1)
 	u_int			pic_flags;
+	struct mtx		pic_child_lock;
+	SLIST_HEAD(, intr_pic_child) pic_children;
 };
 
 static struct mtx pic_list_lock;
@@ -112,35 +120,6 @@ static struct intr_pic *pic_lookup(device_t dev, intptr_t xref);
 static struct mtx isrc_table_lock;
 static struct intr_irqsrc *irq_sources[NIRQ];
 u_int irq_next_free;
-
-/*
- *  XXX - All stuff around struct intr_dev_data is considered as temporary
- *  until better place for storing struct intr_map_data will be find.
- *
- *  For now, there are two global interrupt numbers spaces:
- *  <0, NIRQ)                      ... interrupts without config data
- *                                     managed in irq_sources[]
- *  IRQ_DDATA_BASE + <0, 2 * NIRQ) ... interrupts with config data
- *                                     managed in intr_ddata_tab[]
- *
- *  Read intr_ddata_lookup() to see how these spaces are worked with.
- *  Note that each interrupt number from second space duplicates some number
- *  from first space at this moment. An interrupt number from first space can
- *  be duplicated even multiple times in second space.
- */
-struct intr_dev_data {
-	device_t		idd_dev;
-	intptr_t		idd_xref;
-	u_int			idd_irq;
-	struct intr_map_data *	idd_data;
-	struct intr_irqsrc *	idd_isrc;
-};
-
-static struct intr_dev_data *intr_ddata_tab[2 * NIRQ];
-static u_int intr_ddata_first_unused;
-
-#define IRQ_DDATA_BASE	10000
-CTASSERT(IRQ_DDATA_BASE > nitems(irq_sources));
 
 #ifdef SMP
 static boolean_t irq_assign_cpu = FALSE;
@@ -311,6 +290,34 @@ intr_irq_handler(struct trapframe *tf)
 	irq_root_filter(irq_root_arg);
 	td->td_intr_frame = oldframe;
 	critical_exit();
+#ifdef HWPMC_HOOKS
+	if (pmc_hook && TRAPF_USERMODE(tf) &&
+	    (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
+#endif
+}
+
+int
+intr_child_irq_handler(struct intr_pic *parent, uintptr_t irq)
+{
+	struct intr_pic_child *child;
+	bool found;
+
+	found = false;
+	mtx_lock_spin(&parent->pic_child_lock);
+	SLIST_FOREACH(child, &parent->pic_children, pc_next) {
+		if (child->pc_start <= irq &&
+		    irq < (child->pc_start + child->pc_length)) {
+			found = true;
+			break;
+		}
+	}
+	mtx_unlock_spin(&parent->pic_child_lock);
+
+	if (found)
+		return (child->pc_filter(child->pc_filter_arg, irq));
+
+	return (FILTER_STRAY);
 }
 
 /*
@@ -495,144 +502,6 @@ intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
 	return (true);
 }
 #endif
-
-static struct intr_dev_data *
-intr_ddata_alloc(u_int extsize)
-{
-	struct intr_dev_data *ddata;
-	size_t size;
-
-	size = sizeof(*ddata);
-	ddata = malloc(size + extsize, M_INTRNG, M_WAITOK | M_ZERO);
-
-	mtx_lock(&isrc_table_lock);
-	if (intr_ddata_first_unused >= nitems(intr_ddata_tab)) {
-		mtx_unlock(&isrc_table_lock);
-		free(ddata, M_INTRNG);
-		return (NULL);
-	}
-	intr_ddata_tab[intr_ddata_first_unused] = ddata;
-	ddata->idd_irq = IRQ_DDATA_BASE + intr_ddata_first_unused++;
-	mtx_unlock(&isrc_table_lock);
-
-	ddata->idd_data = (struct intr_map_data *)((uintptr_t)ddata + size);
-	ddata->idd_data->size = extsize;
-	return (ddata);
-}
-
-static struct intr_irqsrc *
-intr_ddata_lookup(u_int irq, struct intr_map_data **datap)
-{
-	int error;
-	struct intr_irqsrc *isrc;
-	struct intr_dev_data *ddata;
-
-	isrc = isrc_lookup(irq);
-	if (isrc != NULL) {
-		if (datap != NULL)
-			*datap = NULL;
-		return (isrc);
-	}
-
-	if (irq < IRQ_DDATA_BASE)
-		return (NULL);
-
-	irq -= IRQ_DDATA_BASE;
-	if (irq >= nitems(intr_ddata_tab))
-		return (NULL);
-
-	ddata = intr_ddata_tab[irq];
-	if (ddata->idd_isrc == NULL) {
-		error = intr_map_irq(ddata->idd_dev, ddata->idd_xref,
-		    ddata->idd_data, &irq);
-		if (error != 0)
-			return (NULL);
-		ddata->idd_isrc = isrc_lookup(irq);
-	}
-	if (datap != NULL)
-		*datap = ddata->idd_data;
-	return (ddata->idd_isrc);
-}
-
-#ifdef DEV_ACPI
-/*
- *  Map interrupt source according to ACPI info into framework. If such mapping
- *  does not exist, create it. Return unique interrupt number (resource handle)
- *  associated with mapped interrupt source.
- */
-u_int
-intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
-    enum intr_trigger trig)
-{
-	struct intr_map_data_acpi *daa;
-	struct intr_dev_data *ddata;
-
-	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_acpi));
-	if (ddata == NULL)
-		return (INTR_IRQ_INVALID);	/* no space left */
-
-	ddata->idd_dev = dev;
-	ddata->idd_data->type = INTR_MAP_DATA_ACPI;
-
-	daa = (struct intr_map_data_acpi *)ddata->idd_data;
-	daa->irq = irq;
-	daa->pol = pol;
-	daa->trig = trig;
-
-	return (ddata->idd_irq);
-}
-#endif
-#ifdef FDT
-/*
- *  Map interrupt source according to FDT data into framework. If such mapping
- *  does not exist, create it. Return unique interrupt number (resource handle)
- *  associated with mapped interrupt source.
- */
-u_int
-intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
-{
-	size_t cellsize;
-	struct intr_dev_data *ddata;
-	struct intr_map_data_fdt *daf;
-
-	cellsize = ncells * sizeof(*cells);
-	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_fdt) + cellsize);
-	if (ddata == NULL)
-		return (INTR_IRQ_INVALID);	/* no space left */
-
-	ddata->idd_xref = (intptr_t)node;
-	ddata->idd_data->type = INTR_MAP_DATA_FDT;
-
-	daf = (struct intr_map_data_fdt *)ddata->idd_data;
-	daf->ncells = ncells;
-	memcpy(daf->cells, cells, cellsize);
-	return (ddata->idd_irq);
-}
-#endif
-
-/*
- *  Store GPIO interrupt decription in framework and return unique interrupt
- *  number (resource handle) associated with it.
- */
-u_int
-intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags, u_int intr_mode)
-{
-	struct intr_dev_data *ddata;
-	struct intr_map_data_gpio *dag;
-
-	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_gpio));
-	if (ddata == NULL)
-		return (INTR_IRQ_INVALID);	/* no space left */
-
-	ddata->idd_dev = dev;
-	ddata->idd_data->type = INTR_MAP_DATA_GPIO;
-
-	dag = (struct intr_map_data_gpio *)ddata->idd_data;
-	dag->gpio_pin_num = pin_num;
-	dag->gpio_pin_flags = pin_flags;
-	dag->gpio_intr_mode = intr_mode;
-	return (ddata->idd_irq);
-}
 
 #ifdef INTR_SOLO
 /*
@@ -882,6 +751,7 @@ pic_create(device_t dev, intptr_t xref)
 	}
 	pic->pic_xref = xref;
 	pic->pic_dev = dev;
+	mtx_init(&pic->pic_child_lock, "pic child lock", NULL, MTX_SPIN);
 	SLIST_INSERT_HEAD(&pic_list, pic, pic_next);
 	mtx_unlock(&pic_list_lock);
 
@@ -991,6 +861,44 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 	return (0);
 }
 
+/*
+ * Add a handler to manage a sub range of a parents interrupts.
+ */
+struct intr_pic *
+intr_pic_add_handler(device_t parent, struct intr_pic *pic,
+    intr_child_irq_filter_t *filter, void *arg, uintptr_t start,
+    uintptr_t length)
+{
+	struct intr_pic *parent_pic;
+	struct intr_pic_child *newchild;
+#ifdef INVARIANTS
+	struct intr_pic_child *child;
+#endif
+
+	parent_pic = pic_lookup(parent, 0);
+	if (parent_pic == NULL)
+		return (NULL);
+
+	newchild = malloc(sizeof(*newchild), M_INTRNG, M_WAITOK | M_ZERO);
+	newchild->pc_pic = pic;
+	newchild->pc_filter = filter;
+	newchild->pc_filter_arg = arg;
+	newchild->pc_start = start;
+	newchild->pc_length = length;
+
+	mtx_lock_spin(&parent_pic->pic_child_lock);
+#ifdef INVARIANTS
+	SLIST_FOREACH(child, &parent_pic->pic_children, pc_next) {
+		KASSERT(child->pc_pic != pic, ("%s: Adding a child PIC twice",
+		    __func__));
+	}
+#endif
+	SLIST_INSERT_HEAD(&parent_pic->pic_children, newchild, pc_next);
+	mtx_unlock_spin(&parent_pic->pic_child_lock);
+
+	return (pic);
+}
+
 int
 intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
     u_int *irqp)
@@ -1025,10 +933,11 @@ intr_alloc_irq(device_t dev, struct resource *res)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
+	data = rman_get_virtual(res);
 	return (PIC_ALLOC_INTR(isrc->isrc_dev, isrc, res, data));
 }
 
@@ -1041,10 +950,11 @@ intr_release_irq(device_t dev, struct resource *res)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
+	data = rman_get_virtual(res);
 	return (PIC_RELEASE_INTR(isrc->isrc_dev, isrc, res, data));
 }
 
@@ -1060,10 +970,11 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL)
 		return (EINVAL);
 
+	data = rman_get_virtual(res);
 	name = device_get_nameunit(dev);
 
 #ifdef INTR_SOLO
@@ -1120,9 +1031,11 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
+
+	data = rman_get_virtual(res);
 
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
@@ -1166,7 +1079,7 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), NULL);
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 #ifdef INTR_SOLO
@@ -1198,7 +1111,7 @@ intr_bind_irq(device_t dev, struct resource *res, int cpu)
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = intr_ddata_lookup(rman_get_start(res), NULL);
+	isrc = isrc_lookup(rman_get_start(res));
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 #ifdef INTR_SOLO

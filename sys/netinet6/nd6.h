@@ -414,7 +414,7 @@ void nd6_init(void);
 void nd6_destroy(void);
 #endif
 struct nd_ifinfo *nd6_ifattach(struct ifnet *);
-void nd6_ifdetach(struct nd_ifinfo *);
+void nd6_ifdetach(struct ifnet *, struct nd_ifinfo *);
 int nd6_is_addr_neighbor(const struct sockaddr_in6 *, struct ifnet *);
 void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);
@@ -428,7 +428,7 @@ void nd6_purge(struct ifnet *);
 int nd6_resolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
     char *desten, uint32_t *pflags);
 int nd6_resolve(struct ifnet *, int, struct mbuf *,
-    const struct sockaddr *, u_char *, uint32_t *);
+    const struct sockaddr *, u_char *, uint32_t *, struct llentry **);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);
 void nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 	char *, int, int, int);

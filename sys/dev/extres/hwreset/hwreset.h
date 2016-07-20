@@ -58,8 +58,10 @@ int hwreset_deassert(hwreset_t rst);
 int hwreset_is_asserted(hwreset_t rst, bool *value);
 
 #ifdef FDT
-int hwreset_get_by_ofw_name(device_t consumer_dev, char *name, hwreset_t *rst);
-int hwreset_get_by_ofw_idx(device_t consumer_dev, int idx, hwreset_t *rst);
+int hwreset_get_by_ofw_name(device_t consumer_dev, phandle_t node, char *name,
+    hwreset_t *rst);
+int hwreset_get_by_ofw_idx(device_t consumer_dev, phandle_t node, int idx,
+    hwreset_t *rst);
 #endif
 
 

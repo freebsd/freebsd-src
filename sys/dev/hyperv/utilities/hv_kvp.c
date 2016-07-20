@@ -58,7 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/mutex.h>
+
+#include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_var.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
@@ -66,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include "hv_util.h"
 #include "unicode.h"
 #include "hv_kvp.h"
+#include "vmbus_if.h"
 
 /* hv_kvp defines */
 #define BUFFERSIZE	sizeof(struct hv_kvp_msg)
@@ -86,7 +90,7 @@ static int hv_kvp_log = 0;
 		log(LOG_INFO, "hv_kvp: " __VA_ARGS__);		\
 } while (0)
 
-static hv_guid service_guid = { .data =
+static const struct hyperv_guid service_guid = { .hv_guid =
 	{0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
 	0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6} };
 
@@ -304,11 +308,6 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 {
 	int err_ip, err_subnet, err_gway, err_dns, err_adap;
 	int UNUSED_FLAG = 1;
-	struct hv_device *hv_dev;       /* GUID Data Structure */
-	hn_softc_t *sc;                 /* hn softc structure  */
-	char if_name[4];
-	char buf[39];
-
 	device_t *devs;
 	int devcnt;
 
@@ -330,16 +329,23 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 
 	if (devclass_get_devices(devclass_find("hn"), &devs, &devcnt) == 0) {
 		for (devcnt = devcnt - 1; devcnt >= 0; devcnt--) {
-			sc = device_get_softc(devs[devcnt]);
+			/* XXX access other driver's softc?  are you kidding? */
+			device_t dev = devs[devcnt];
+			struct hn_softc *sc = device_get_softc(dev);
+			struct hv_vmbus_channel *chan;
+			char buf[HYPERV_GUID_STRLEN];
 
-			/* Trying to find GUID of Network Device */
-			hv_dev = sc->hn_dev_obj;
+			/*
+			 * Trying to find GUID of Network Device
+			 * TODO: need vmbus interface.
+			 */
+			chan = vmbus_get_channel(dev);
+			hyperv_guid2str(&chan->ch_guid_inst, buf, sizeof(buf));
 
-			snprintf_hv_guid(buf, sizeof(buf), &hv_dev->device_id);
-			sprintf(if_name, "%s%d", "hn", device_get_unit(devs[devcnt]));
-
-			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id, 39) == 0) {
-				strcpy((char *)umsg->body.kvp_ip_val.adapter_id, if_name);
+			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id,
+			    HYPERV_GUID_STRLEN - 1) == 0) {
+				strlcpy((char *)umsg->body.kvp_ip_val.adapter_id,
+				    sc->hn_ifp->if_xname, MAX_ADAPTER_ID_SIZE);
 				break;
 			}
 		}
@@ -569,11 +575,9 @@ hv_kvp_respond_host(hv_kvp_sc *sc, int error)
 	hv_icmsg_hdrp->status = error;
 	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION | HV_ICMSGHDRFLAG_RESPONSE;
 
-	error = hv_vmbus_channel_send_packet(sc->util_sc.hv_dev->channel,
-			sc->rcv_buf,
-			sc->host_msg_len, sc->host_msg_id,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
-
+	error = vmbus_chan_send(sc->util_sc.channel,
+	    VMBUS_CHANPKT_TYPE_INBAND, 0, sc->rcv_buf, sc->host_msg_len,
+	    sc->host_msg_id);
 	if (error)
 		hv_kvp_log_info("%s: hv_kvp_respond_host: sendpacket error:%d\n",
 			__func__, error);
@@ -620,10 +624,12 @@ hv_kvp_process_request(void *context, int pending)
 
 	sc = (hv_kvp_sc*)context;
 	kvp_buf = sc->util_sc.receive_buffer;
-	channel = sc->util_sc.hv_dev->channel;
+	channel = sc->util_sc.channel;
 
-	ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,
-		&recvlen, &requestid);
+	recvlen = 2 * PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, kvp_buf, &recvlen, &requestid);
+	KASSERT(ret != ENOBUFS, ("hvkvp recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	while ((ret == 0) && (recvlen > 0)) {
 
@@ -687,9 +693,11 @@ hv_kvp_process_request(void *context, int pending)
 		/*
 		 * Try reading next buffer
 		 */
-		recvlen = 0;
-		ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,
-			&recvlen, &requestid);
+		recvlen = 2 * PAGE_SIZE;
+		ret = vmbus_chan_recv(channel, kvp_buf, &recvlen, &requestid);
+		KASSERT(ret != ENOBUFS, ("hvkvp recvbuf is not large enough"));
+		/* XXX check recvlen to make sure that it contains enough data */
+
 		hv_kvp_log_info("%s: read: context %p, ret =%d, recvlen=%d\n",
 			__func__, context, ret, recvlen);
 	}
@@ -862,16 +870,13 @@ hv_kvp_dev_daemon_poll(struct cdev *dev, int events, struct thread *td)
 static int
 hv_kvp_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
-
 	if (resource_disabled("hvkvp", 0))
 		return ENXIO;
 
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
 		device_set_desc(dev, "Hyper-V KVP Service");
 		return BUS_PROBE_DEFAULT;
 	}
-
 	return ENXIO;
 }
 

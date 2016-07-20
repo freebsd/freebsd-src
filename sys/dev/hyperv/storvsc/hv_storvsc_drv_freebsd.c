@@ -72,7 +72,10 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+
 #include "hv_vstorage.h"
+#include "vmbus_if.h"
 
 #define STORVSC_RINGBUFFER_SIZE		(20*PAGE_SIZE)
 #define STORVSC_MAX_LUNS_PER_TARGET	(64)
@@ -98,7 +101,7 @@ struct hv_sgl_page_pool{
 	boolean_t                is_init;
 } g_hv_sgl_page_pool;
 
-#define STORVSC_MAX_SG_PAGE_CNT STORVSC_MAX_IO_REQUESTS * HV_MAX_MULTIPAGE_BUFFER_COUNT
+#define STORVSC_MAX_SG_PAGE_CNT STORVSC_MAX_IO_REQUESTS * VMBUS_CHAN_PRPLIST_MAX
 
 enum storvsc_request_type {
 	WRITE_TYPE,
@@ -106,10 +109,16 @@ enum storvsc_request_type {
 	UNKNOWN_TYPE
 };
 
+struct hvs_gpa_range {
+	struct vmbus_gpa_range	gpa_range;
+	uint64_t		gpa_page[VMBUS_CHAN_PRPLIST_MAX];
+} __packed;
+
 struct hv_storvsc_request {
 	LIST_ENTRY(hv_storvsc_request) link;
 	struct vstor_packet	vstor_packet;
-	hv_vmbus_multipage_buffer data_buf;
+	int prp_cnt;
+	struct hvs_gpa_range prp_list;
 	void *sense_data;
 	uint8_t sense_info_len;
 	uint8_t retries;
@@ -123,7 +132,7 @@ struct hv_storvsc_request {
 };
 
 struct storvsc_softc {
-	struct hv_device		*hs_dev;
+	struct hv_vmbus_channel		*hs_chan;
 	LIST_HEAD(, hv_storvsc_request)	hs_free_list;
 	struct mtx			hs_lock;
 	struct storvsc_driver_props	*hs_drv_props;
@@ -137,6 +146,9 @@ struct storvsc_softc {
 	struct sema 			hs_drain_sema;	
 	struct hv_storvsc_request	hs_init_req;
 	struct hv_storvsc_request	hs_reset_req;
+	device_t			hs_dev;
+
+	struct hv_vmbus_channel		*hs_cpu2chan[MAXCPU];
 };
 
 
@@ -177,14 +189,14 @@ enum hv_storage_type {
 #define HV_STORAGE_SUPPORTS_MULTI_CHANNEL 0x1
 
 /* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-static const hv_guid gStorVscDeviceType={
-	.data = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
+static const struct hyperv_guid gStorVscDeviceType={
+	.hv_guid = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
 		 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}
 };
 
 /* {32412632-86cb-44a2-9b5c-50d1417354f5} */
-static const hv_guid gBlkVscDeviceType={
-	.data = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
+static const struct hyperv_guid gBlkVscDeviceType={
+	.hv_guid = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
 		 0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5}
 };
 
@@ -262,11 +274,11 @@ static int create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *req
 static void storvsc_free_request(struct storvsc_softc *sc, struct hv_storvsc_request *reqp);
 static enum hv_storage_type storvsc_get_storage_type(device_t dev);
 static void hv_storvsc_rescan_target(struct storvsc_softc *sc);
-static void hv_storvsc_on_channel_callback(void *context);
+static void hv_storvsc_on_channel_callback(void *xchan);
 static void hv_storvsc_on_iocompletion( struct storvsc_softc *sc,
 					struct vstor_packet *vstor_packet,
 					struct hv_storvsc_request *request);
-static int hv_storvsc_connect_vsp(struct hv_device *device);
+static int hv_storvsc_connect_vsp(struct storvsc_softc *);
 static void storvsc_io_done(struct hv_storvsc_request *reqp);
 static void storvsc_copy_sgl_to_bounce_buf(struct sglist *bounce_sgl,
 				bus_dma_segment_t *orig_sgl,
@@ -295,81 +307,24 @@ DRIVER_MODULE(storvsc, vmbus, storvsc_driver, storvsc_devclass, 0, 0);
 MODULE_VERSION(storvsc, 1);
 MODULE_DEPEND(storvsc, vmbus, 1, 1, 1);
 
-
-/**
- * The host is capable of sending messages to us that are
- * completely unsolicited. So, we need to address the race
- * condition where we may be in the process of unloading the
- * driver when the host may send us an unsolicited message.
- * We address this issue by implementing a sequentially
- * consistent protocol:
- *
- * 1. Channel callback is invoked while holding the channel lock
- *    and an unloading driver will reset the channel callback under
- *    the protection of this channel lock.
- *
- * 2. To ensure bounded wait time for unloading a driver, we don't
- *    permit outgoing traffic once the device is marked as being
- *    destroyed.
- *
- * 3. Once the device is marked as being destroyed, we only
- *    permit incoming traffic to properly account for
- *    packets already sent out.
- */
-static inline struct storvsc_softc *
-get_stor_device(struct hv_device *device,
-				boolean_t outbound)
-{
-	struct storvsc_softc *sc;
-
-	sc = device_get_softc(device->device);
-
-	if (outbound) {
-		/*
-		 * Here we permit outgoing I/O only
-		 * if the device is not being destroyed.
-		 */
-
-		if (sc->hs_destroy) {
-			sc = NULL;
-		}
-	} else {
-		/*
-		 * inbound case; if being destroyed
-		 * only permit to account for
-		 * messages already sent out.
-		 */
-		if (sc->hs_destroy && (sc->hs_num_out_reqs == 0)) {
-			sc = NULL;
-		}
-	}
-	return sc;
-}
-
 static void
-storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
+storvsc_subchan_attach(struct storvsc_softc *sc,
+    struct hv_vmbus_channel *new_channel)
 {
-	struct hv_device *device;
-	struct storvsc_softc *sc;
 	struct vmstor_chan_props props;
 	int ret = 0;
 
-	device = new_channel->device;
-	sc = get_stor_device(device, TRUE);
-	if (sc == NULL)
-		return;
-
 	memset(&props, 0, sizeof(props));
 
-	ret = hv_vmbus_channel_open(new_channel,
+	new_channel->hv_chan_priv1 = sc;
+	vmbus_chan_cpu_rr(new_channel);
+	ret = vmbus_chan_open(new_channel,
 	    sc->hs_drv_props->drv_ringbuffer_size,
   	    sc->hs_drv_props->drv_ringbuffer_size,
 	    (void *)&props,
 	    sizeof(struct vmstor_chan_props),
 	    hv_storvsc_on_channel_callback,
 	    new_channel);
-
-	return;
 }
 
 /**
@@ -379,10 +334,9 @@ storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
  * @param max_chans  the max channels supported by vmbus
  */
 static void
-storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
+storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 {
 	struct hv_vmbus_channel **subchan;
-	struct storvsc_softc *sc;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;	
 	int request_channels_cnt = 0;
@@ -390,13 +344,6 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 
 	/* get multichannels count that need to create */
 	request_channels_cnt = MIN(max_chans, mp_ncpus);
-
-	sc = get_stor_device(dev, TRUE);
-	if (sc == NULL) {
-		printf("Storvsc_error: get sc failed while send mutilchannel "
-		    "request\n");
-		return;
-	}
 
 	request = &sc->hs_init_req;
 
@@ -411,13 +358,9 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 	vstor_packet->u.multi_channels_cnt = request_channels_cnt;
 
-	ret = hv_vmbus_channel_send_packet(
-	    dev->channel,
-	    vstor_packet,
-	    VSTOR_PKT_SIZE,
-	    (uint64_t)(uintptr_t)request,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_chan_send(sc->hs_chan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 
 	/* wait for 5 seconds */
 	ret = sema_timedwait(&request->synch_sema, 5 * hz);
@@ -436,14 +379,14 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 	}
 
 	/* Wait for sub-channels setup to complete. */
-	subchan = vmbus_get_subchan(dev->channel, request_channels_cnt);
+	subchan = vmbus_subchan_get(sc->hs_chan, request_channels_cnt);
 
 	/* Attach the sub-channels. */
 	for (i = 0; i < request_channels_cnt; ++i)
-		storvsc_subchan_attach(subchan[i]);
+		storvsc_subchan_attach(sc, subchan[i]);
 
 	/* Release the sub-channels. */
-	vmbus_rel_subchan(subchan, request_channels_cnt);
+	vmbus_subchan_rel(subchan, request_channels_cnt);
 
 	if (bootverbose)
 		printf("Storvsc create multi-channel success!\n");
@@ -456,21 +399,17 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
  * @returns  0 on success, non-zero error on failure
  */
 static int
-hv_storvsc_channel_init(struct hv_device *dev)
+hv_storvsc_channel_init(struct storvsc_softc *sc)
 {
 	int ret = 0, i;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
-	struct storvsc_softc *sc;
 	uint16_t max_chans = 0;
 	boolean_t support_multichannel = FALSE;
+	uint32_t version;
 
 	max_chans = 0;
 	support_multichannel = FALSE;
-
-	sc = get_stor_device(dev, TRUE);
-	if (sc == NULL)
-		return (ENODEV);
 
 	request = &sc->hs_init_req;
 	memset(request, 0, sizeof(struct hv_storvsc_request));
@@ -486,13 +425,9 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
 
-	ret = hv_vmbus_channel_send_packet(
-			dev->channel,
-			vstor_packet,
-			VSTOR_PKT_SIZE,
-			(uint64_t)(uintptr_t)request,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_chan_send(sc->hs_chan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 
 	if (ret != 0)
 		goto cleanup;
@@ -520,13 +455,9 @@ hv_storvsc_channel_init(struct hv_device *dev)
 		/* revision is only significant for Windows guests */
 		vstor_packet->u.version.revision = 0;
 
-		ret = hv_vmbus_channel_send_packet(
-			dev->channel,
-			vstor_packet,
-			VSTOR_PKT_SIZE,
-			(uint64_t)(uintptr_t)request,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_chan_send(sc->hs_chan,
+		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+		    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 
 		if (ret != 0)
 			goto cleanup;
@@ -563,13 +494,9 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	vstor_packet->operation = VSTOR_OPERATION_QUERYPROPERTIES;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	ret = hv_vmbus_channel_send_packet(
-				dev->channel,
-				vstor_packet,
-				VSTOR_PKT_SIZE,
-				(uint64_t)(uintptr_t)request,
-				HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-				HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_chan_send(sc->hs_chan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 
 	if ( ret != 0)
 		goto cleanup;
@@ -588,8 +515,8 @@ hv_storvsc_channel_init(struct hv_device *dev)
 
 	/* multi-channels feature is supported by WIN8 and above version */
 	max_chans = vstor_packet->u.chan_props.max_channel_cnt;
-	if ((hv_vmbus_protocal_version != HV_VMBUS_VERSION_WIN7) &&
-	    (hv_vmbus_protocal_version != HV_VMBUS_VERSION_WS2008) &&
+	version = VMBUS_GET_VERSION(device_get_parent(sc->hs_dev), sc->hs_dev);
+	if (version != VMBUS_VERSION_WIN7 && version != VMBUS_VERSION_WS2008 &&
 	    (vstor_packet->u.chan_props.flags &
 	     HV_STORAGE_SUPPORTS_MULTI_CHANNEL)) {
 		support_multichannel = TRUE;
@@ -599,13 +526,9 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	vstor_packet->operation = VSTOR_OPERATION_ENDINITIALIZATION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	ret = hv_vmbus_channel_send_packet(
-			dev->channel,
-			vstor_packet,
-			VSTOR_PKT_SIZE,
-			(uint64_t)(uintptr_t)request,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_chan_send(sc->hs_chan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 
 	if (ret != 0) {
 		goto cleanup;
@@ -626,7 +549,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	 * request to host.
 	 */
 	if (support_multichannel)
-		storvsc_send_multichannel_request(dev, max_chans);
+		storvsc_send_multichannel_request(sc, max_chans);
 
 cleanup:
 	sema_destroy(&request->synch_sema);
@@ -642,52 +565,44 @@ cleanup:
  * @returns 0 on success, non-zero error on failure
  */
 static int
-hv_storvsc_connect_vsp(struct hv_device *dev)
+hv_storvsc_connect_vsp(struct storvsc_softc *sc)
 {	
 	int ret = 0;
 	struct vmstor_chan_props props;
-	struct storvsc_softc *sc;
 
-	sc = device_get_softc(dev->device);
-		
 	memset(&props, 0, sizeof(struct vmstor_chan_props));
 
 	/*
 	 * Open the channel
 	 */
-
-	ret = hv_vmbus_channel_open(
-		dev->channel,
+	KASSERT(sc->hs_chan->hv_chan_priv1 == sc, ("invalid chan priv1"));
+	vmbus_chan_cpu_rr(sc->hs_chan);
+	ret = vmbus_chan_open(
+		sc->hs_chan,
 		sc->hs_drv_props->drv_ringbuffer_size,
 		sc->hs_drv_props->drv_ringbuffer_size,
 		(void *)&props,
 		sizeof(struct vmstor_chan_props),
 		hv_storvsc_on_channel_callback,
-		dev->channel);
+		sc->hs_chan);
 
 	if (ret != 0) {
 		return ret;
 	}
 
-	ret = hv_storvsc_channel_init(dev);
+	ret = hv_storvsc_channel_init(sc);
 
 	return (ret);
 }
 
 #if HVS_HOST_RESET
 static int
-hv_storvsc_host_reset(struct hv_device *dev)
+hv_storvsc_host_reset(struct storvsc_softc *sc)
 {
 	int ret = 0;
-	struct storvsc_softc *sc;
 
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
-
-	sc = get_stor_device(dev, TRUE);
-	if (sc == NULL) {
-		return ENODEV;
-	}
 
 	request = &sc->hs_reset_req;
 	request->softc = sc;
@@ -698,12 +613,10 @@ hv_storvsc_host_reset(struct hv_device *dev)
 	vstor_packet->operation = VSTOR_OPERATION_RESETBUS;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	ret = hv_vmbus_channel_send_packet(dev->channel,
-			vstor_packet,
-			VSTOR_PKT_SIZE,
-			(uint64_t)(uintptr_t)&sc->hs_reset_req,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_chan_send(dev->channel,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    vstor_packet, VSTOR_PKT_SIZE,
+	    (uint64_t)(uintptr_t)&sc->hs_reset_req);
 
 	if (ret != 0) {
 		goto cleanup;
@@ -735,19 +648,12 @@ cleanup:
  * @returns 0 on success, non-zero error on failure
  */
 static int
-hv_storvsc_io_request(struct hv_device *device,
+hv_storvsc_io_request(struct storvsc_softc *sc,
 					  struct hv_storvsc_request *request)
 {
-	struct storvsc_softc *sc;
 	struct vstor_packet *vstor_packet = &request->vstor_packet;
 	struct hv_vmbus_channel* outgoing_channel = NULL;
 	int ret = 0;
-
-	sc = get_stor_device(device, TRUE);
-
-	if (sc == NULL) {
-		return ENODEV;
-	}
 
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
@@ -755,29 +661,22 @@ hv_storvsc_io_request(struct hv_device *device,
 	
 	vstor_packet->u.vm_srb.sense_info_len = sense_buffer_size;
 
-	vstor_packet->u.vm_srb.transfer_len = request->data_buf.length;
+	vstor_packet->u.vm_srb.transfer_len =
+	    request->prp_list.gpa_range.gpa_len;
 
 	vstor_packet->operation = VSTOR_OPERATION_EXECUTESRB;
 
-	outgoing_channel = vmbus_select_outgoing_channel(device->channel);
+	outgoing_channel = sc->hs_cpu2chan[curcpu];
 
 	mtx_unlock(&request->softc->hs_lock);
-	if (request->data_buf.length) {
-		ret = hv_vmbus_channel_send_packet_multipagebuffer(
-				outgoing_channel,
-				&request->data_buf,
-				vstor_packet,
-				VSTOR_PKT_SIZE,
-				(uint64_t)(uintptr_t)request);
-
+	if (request->prp_list.gpa_range.gpa_len) {
+		ret = vmbus_chan_send_prplist(outgoing_channel,
+		    &request->prp_list.gpa_range, request->prp_cnt,
+		    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 	} else {
-		ret = hv_vmbus_channel_send_packet(
-			outgoing_channel,
-			vstor_packet,
-			VSTOR_PKT_SIZE,
-			(uint64_t)(uintptr_t)request,
-			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_chan_send(outgoing_channel,
+		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+		    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 	}
 	mtx_lock(&request->softc->hs_lock);
 
@@ -804,6 +703,13 @@ hv_storvsc_on_iocompletion(struct storvsc_softc *sc,
 	struct vmscsi_req *vm_srb;
 
 	vm_srb = &vstor_packet->u.vm_srb;
+
+	/*
+	 * Copy some fields of the host's response into the request structure,
+	 * because the fields will be used later in storvsc_io_done().
+	 */
+	request->vstor_packet.u.vm_srb.scsi_status = vm_srb->scsi_status;
+	request->vstor_packet.u.vm_srb.transfer_len = vm_srb->transfer_len;
 
 	if (((vm_srb->scsi_status & 0xFF) == SCSI_STATUS_CHECK_COND) &&
 			(vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID)) {
@@ -863,33 +769,21 @@ hv_storvsc_rescan_target(struct storvsc_softc *sc)
 }
 
 static void
-hv_storvsc_on_channel_callback(void *context)
+hv_storvsc_on_channel_callback(void *xchan)
 {
 	int ret = 0;
-	hv_vmbus_channel *channel = (hv_vmbus_channel *)context;
-	struct hv_device *device = NULL;
-	struct storvsc_softc *sc;
+	hv_vmbus_channel *channel = xchan;
+	struct storvsc_softc *sc = channel->hv_chan_priv1;
 	uint32_t bytes_recvd;
 	uint64_t request_id;
 	uint8_t packet[roundup2(sizeof(struct vstor_packet), 8)];
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
 
-	device = channel->device;
-	KASSERT(device, ("device is NULL"));
-
-	sc = get_stor_device(device, FALSE);
-	if (sc == NULL) {
-		printf("Storvsc_error: get stor device failed.\n");
-		return;
-	}
-
-	ret = hv_vmbus_channel_recv_packet(
-			channel,
-			packet,
-			roundup2(VSTOR_PKT_SIZE, 8),
-			&bytes_recvd,
-			&request_id);
+	bytes_recvd = roundup2(VSTOR_PKT_SIZE, 8);
+	ret = vmbus_chan_recv(channel, packet, &bytes_recvd, &request_id);
+	KASSERT(ret != ENOBUFS, ("storvsc recvbuf is not large enough"));
+	/* XXX check bytes_recvd to make sure that it contains enough data */
 
 	while ((ret == 0) && (bytes_recvd > 0)) {
 		request = (struct hv_storvsc_request *)(uintptr_t)request_id;
@@ -923,12 +817,16 @@ hv_storvsc_on_channel_callback(void *context)
 				break;
 			}			
 		}
-		ret = hv_vmbus_channel_recv_packet(
-				channel,
-				packet,
-				roundup2(VSTOR_PKT_SIZE, 8),
-				&bytes_recvd,
-				&request_id);
+
+		bytes_recvd = roundup2(VSTOR_PKT_SIZE, 8),
+		ret = vmbus_chan_recv(channel, packet, &bytes_recvd,
+		    &request_id);
+		KASSERT(ret != ENOBUFS,
+		    ("storvsc recvbuf is not large enough"));
+		/*
+		 * XXX check bytes_recvd to make sure that it contains
+		 * enough data
+		 */
 	}
 }
 
@@ -974,6 +872,20 @@ storvsc_probe(device_t dev)
 	return (ret);
 }
 
+static void
+storvsc_create_cpu2chan(struct storvsc_softc *sc)
+{
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		sc->hs_cpu2chan[cpu] = vmbus_chan_cpu2chan(sc->hs_chan, cpu);
+		if (bootverbose) {
+			device_printf(sc->hs_dev, "cpu%d -> chan%u\n",
+			    cpu, sc->hs_cpu2chan[cpu]->ch_id);
+		}
+	}
+}
+
 /**
  * @brief StorVSC attach function
  *
@@ -987,7 +899,6 @@ storvsc_probe(device_t dev)
 static int
 storvsc_attach(device_t dev)
 {
-	struct hv_device *hv_dev = vmbus_get_devctx(dev);
 	enum hv_storage_type stor_type;
 	struct storvsc_softc *sc;
 	struct cam_devq *devq;
@@ -1003,6 +914,8 @@ storvsc_attach(device_t dev)
 	root_mount_token = root_mount_hold("storvsc");
 
 	sc = device_get_softc(dev);
+	sc->hs_chan = vmbus_get_channel(dev);
+	sc->hs_chan->hv_chan_priv1 = sc;
 
 	stor_type = storvsc_get_storage_type(dev);
 
@@ -1016,7 +929,7 @@ storvsc_attach(device_t dev)
 
 	/* fill in device specific properties */
 	sc->hs_unit	= device_get_unit(dev);
-	sc->hs_dev	= hv_dev;
+	sc->hs_dev	= dev;
 
 	LIST_INIT(&sc->hs_free_list);
 	mtx_init(&sc->hs_lock, "hvslck", NULL, MTX_DEF);
@@ -1037,7 +950,7 @@ storvsc_attach(device_t dev)
 
 		/*
 		 * Pre-create SG list, each SG list with
-		 * HV_MAX_MULTIPAGE_BUFFER_COUNT segments, each
+		 * VMBUS_CHAN_PRPLIST_MAX segments, each
 		 * segment has one page buffer
 		 */
 		for (i = 0; i < STORVSC_MAX_IO_REQUESTS; i++) {
@@ -1045,10 +958,10 @@ storvsc_attach(device_t dev)
 			    M_DEVBUF, M_WAITOK|M_ZERO);
 
 			sgl_node->sgl_data =
-			    sglist_alloc(HV_MAX_MULTIPAGE_BUFFER_COUNT,
+			    sglist_alloc(VMBUS_CHAN_PRPLIST_MAX,
 			    M_WAITOK|M_ZERO);
 
-			for (j = 0; j < HV_MAX_MULTIPAGE_BUFFER_COUNT; j++) {
+			for (j = 0; j < VMBUS_CHAN_PRPLIST_MAX; j++) {
 				tmp_buff = malloc(PAGE_SIZE,
 				    M_DEVBUF, M_WAITOK|M_ZERO);
 
@@ -1065,10 +978,13 @@ storvsc_attach(device_t dev)
 	sc->hs_drain_notify = FALSE;
 	sema_init(&sc->hs_drain_sema, 0, "Store Drain Sema");
 
-	ret = hv_storvsc_connect_vsp(hv_dev);
+	ret = hv_storvsc_connect_vsp(sc);
 	if (ret != 0) {
 		goto cleanup;
 	}
+
+	/* Construct cpu to channel mapping */
+	storvsc_create_cpu2chan(sc);
 
 	/*
 	 * Create the device queue.
@@ -1135,7 +1051,7 @@ cleanup:
 	while (!LIST_EMPTY(&g_hv_sgl_page_pool.free_sgl_list)) {
 		sgl_node = LIST_FIRST(&g_hv_sgl_page_pool.free_sgl_list);
 		LIST_REMOVE(sgl_node, link);
-		for (j = 0; j < HV_MAX_MULTIPAGE_BUFFER_COUNT; j++) {
+		for (j = 0; j < VMBUS_CHAN_PRPLIST_MAX; j++) {
 			if (NULL !=
 			    (void*)sgl_node->sgl_data->sg_segs[j].ss_paddr) {
 				free((void*)sgl_node->sgl_data->sg_segs[j].ss_paddr, M_DEVBUF);
@@ -1163,7 +1079,6 @@ storvsc_detach(device_t dev)
 {
 	struct storvsc_softc *sc = device_get_softc(dev);
 	struct hv_storvsc_request *reqp = NULL;
-	struct hv_device *hv_device = vmbus_get_devctx(dev);
 	struct hv_sgl_node *sgl_node = NULL;
 	int j = 0;
 
@@ -1185,7 +1100,7 @@ storvsc_detach(device_t dev)
 	 * under the protection of the incoming channel lock.
 	 */
 
-	hv_vmbus_channel_close(hv_device->channel);
+	vmbus_chan_close(sc->hs_chan);
 
 	mtx_lock(&sc->hs_lock);
 	while (!LIST_EMPTY(&sc->hs_free_list)) {
@@ -1199,7 +1114,7 @@ storvsc_detach(device_t dev)
 	while (!LIST_EMPTY(&g_hv_sgl_page_pool.free_sgl_list)) {
 		sgl_node = LIST_FIRST(&g_hv_sgl_page_pool.free_sgl_list);
 		LIST_REMOVE(sgl_node, link);
-		for (j = 0; j < HV_MAX_MULTIPAGE_BUFFER_COUNT; j++){
+		for (j = 0; j < VMBUS_CHAN_PRPLIST_MAX; j++){
 			if (NULL !=
 			    (void*)sgl_node->sgl_data->sg_segs[j].ss_paddr) {
 				free((void*)sgl_node->sgl_data->sg_segs[j].ss_paddr, M_DEVBUF);
@@ -1239,7 +1154,7 @@ storvsc_timeout_test(struct hv_storvsc_request *reqp,
 	if (wait) {
 		mtx_lock(&reqp->event.mtx);
 	}
-	ret = hv_storvsc_io_request(sc->hs_dev, reqp);
+	ret = hv_storvsc_io_request(sc, reqp);
 	if (ret != 0) {
 		if (wait) {
 			mtx_unlock(&reqp->event.mtx);
@@ -1350,7 +1265,7 @@ storvsc_poll(struct cam_sim *sim)
 
 	mtx_assert(&sc->hs_lock, MA_OWNED);
 	mtx_unlock(&sc->hs_lock);
-	hv_storvsc_on_channel_callback(sc->hs_dev->channel);
+	hv_storvsc_on_channel_callback(sc->hs_chan);
 	mtx_lock(&sc->hs_lock);
 }
 
@@ -1435,7 +1350,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 	case  XPT_RESET_BUS:
 	case  XPT_RESET_DEV:{
 #if HVS_HOST_RESET
-		if ((res = hv_storvsc_host_reset(sc->hs_dev)) != 0) {
+		if ((res = hv_storvsc_host_reset(sc)) != 0) {
 			xpt_print(ccb->ccb_h.path,
 				"hv_storvsc_host_reset failed with %d\n", res);
 			ccb->ccb_h.status = CAM_PROVIDE_FAIL;
@@ -1508,7 +1423,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 		}
 #endif
 
-		if ((res = hv_storvsc_io_request(sc->hs_dev, reqp)) != 0) {
+		if ((res = hv_storvsc_io_request(sc, reqp)) != 0) {
 			xpt_print(ccb->ccb_h.path,
 				"hv_storvsc_io_request failed with %d\n", res);
 			ccb->ccb_h.status = CAM_PROVIDE_FAIL;
@@ -1750,6 +1665,7 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 	uint32_t pfn_num = 0;
 	uint32_t pfn;
 	uint64_t not_aligned_seg_bits = 0;
+	struct hvs_gpa_range *prplist;
 	
 	/* refer to struct vmscsi_req for meanings of these two fields */
 	reqp->vstor_packet.u.vm_srb.port =
@@ -1793,22 +1709,23 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 		return (0);
 	}
 
-	reqp->data_buf.length = csio->dxfer_len;
+	prplist = &reqp->prp_list;
+	prplist->gpa_range.gpa_len = csio->dxfer_len;
 
 	switch (ccb->ccb_h.flags & CAM_DATA_MASK) {
 	case CAM_DATA_VADDR:
 	{
 		bytes_to_copy = csio->dxfer_len;
 		phys_addr = vtophys(csio->data_ptr);
-		reqp->data_buf.offset = phys_addr & PAGE_MASK;
+		prplist->gpa_range.gpa_ofs = phys_addr & PAGE_MASK;
 		
 		while (bytes_to_copy != 0) {
 			int bytes, page_offset;
 			phys_addr =
-			    vtophys(&csio->data_ptr[reqp->data_buf.length -
+			    vtophys(&csio->data_ptr[prplist->gpa_range.gpa_len -
 			    bytes_to_copy]);
 			pfn = phys_addr >> PAGE_SHIFT;
-			reqp->data_buf.pfn_array[pfn_num] = pfn;
+			prplist->gpa_page[pfn_num] = pfn;
 			page_offset = phys_addr & PAGE_MASK;
 
 			bytes = min(PAGE_SIZE - page_offset, bytes_to_copy);
@@ -1816,6 +1733,7 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 			bytes_to_copy -= bytes;
 			pfn_num++;
 		}
+		reqp->prp_cnt = pfn_num;
 		break;
 	}
 
@@ -1832,10 +1750,10 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 		printf("Storvsc: get SG I/O operation, %d\n",
 		    reqp->vstor_packet.u.vm_srb.data_in);
 
-		if (storvsc_sg_count > HV_MAX_MULTIPAGE_BUFFER_COUNT){
+		if (storvsc_sg_count > VMBUS_CHAN_PRPLIST_MAX){
 			printf("Storvsc: %d segments is too much, "
 			    "only support %d segments\n",
-			    storvsc_sg_count, HV_MAX_MULTIPAGE_BUFFER_COUNT);
+			    storvsc_sg_count, VMBUS_CHAN_PRPLIST_MAX);
 			return (EINVAL);
 		}
 
@@ -1888,10 +1806,10 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
  				phys_addr =
 					vtophys(storvsc_sglist[0].ds_addr);
 			}
-			reqp->data_buf.offset = phys_addr & PAGE_MASK;
+			prplist->gpa_range.gpa_ofs = phys_addr & PAGE_MASK;
 
 			pfn = phys_addr >> PAGE_SHIFT;
-			reqp->data_buf.pfn_array[0] = pfn;
+			prplist->gpa_page[0] = pfn;
 			
 			for (i = 1; i < storvsc_sg_count; i++) {
 				if (reqp->not_aligned_seg_bits & (1 << i)) {
@@ -1903,27 +1821,31 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 				}
 
 				pfn = phys_addr >> PAGE_SHIFT;
-				reqp->data_buf.pfn_array[i] = pfn;
+				prplist->gpa_page[i] = pfn;
 			}
+			reqp->prp_cnt = i;
 		} else {
 			phys_addr = vtophys(storvsc_sglist[0].ds_addr);
 
-			reqp->data_buf.offset = phys_addr & PAGE_MASK;
+			prplist->gpa_range.gpa_ofs = phys_addr & PAGE_MASK;
 
 			for (i = 0; i < storvsc_sg_count; i++) {
 				phys_addr = vtophys(storvsc_sglist[i].ds_addr);
 				pfn = phys_addr >> PAGE_SHIFT;
-				reqp->data_buf.pfn_array[i] = pfn;
+				prplist->gpa_page[i] = pfn;
 			}
+			reqp->prp_cnt = i;
 
 			/* check the last segment cross boundary or not */
 			offset = phys_addr & PAGE_MASK;
 			if (offset) {
+				/* Add one more PRP entry */
 				phys_addr =
 				    vtophys(storvsc_sglist[i-1].ds_addr +
 				    PAGE_SIZE - offset);
 				pfn = phys_addr >> PAGE_SHIFT;
-				reqp->data_buf.pfn_array[i] = pfn;
+				prplist->gpa_page[i] = pfn;
+				reqp->prp_cnt++;
 			}
 			
 			reqp->bounce_sgl_count = 0;
@@ -1939,62 +1861,24 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 }
 
 /*
- * Modified based on scsi_print_inquiry which is responsible to
- * print the detail information for scsi_inquiry_data.
- *
+ * SCSI Inquiry checks qualifier and type.
+ * If qualifier is 011b, means the device server is not capable
+ * of supporting a peripheral device on this logical unit, and
+ * the type should be set to 1Fh.
+ * 
  * Return 1 if it is valid, 0 otherwise.
  */
 static inline int
 is_inquiry_valid(const struct scsi_inquiry_data *inq_data)
 {
 	uint8_t type;
-	char vendor[16], product[48], revision[16];
-
-	/*
-	 * Check device type and qualifier
-	 */
-	if (!(SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ||
-	    SID_QUAL(inq_data) == SID_QUAL_LU_CONNECTED))
-		return (0);
-
-	type = SID_TYPE(inq_data);
-	switch (type) {
-	case T_DIRECT:
-	case T_SEQUENTIAL:
-	case T_PRINTER:
-	case T_PROCESSOR:
-	case T_WORM:
-	case T_CDROM:
-	case T_SCANNER:
-	case T_OPTICAL:
-	case T_CHANGER:
-	case T_COMM:
-	case T_STORARRAY:
-	case T_ENCLOSURE:
-	case T_RBC:
-	case T_OCRW:
-	case T_OSD:
-	case T_ADC:
-		break;
-	case T_NODEVICE:
-	default:
+	if (SID_QUAL(inq_data) != SID_QUAL_LU_CONNECTED) {
 		return (0);
 	}
-
-	/*
-	 * Check vendor, product, and revision
-	 */
-	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
-	    sizeof(vendor));
-	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
-	    sizeof(product));
-	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
-	    sizeof(revision));
-	if (strlen(vendor) == 0  ||
-	    strlen(product) == 0 ||
-	    strlen(revision) == 0)
+	type = SID_TYPE(inq_data);
+	if (type == T_NODEVICE) {
 		return (0);
-
+	}
 	return (1);
 }
 
@@ -2071,7 +1955,6 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		const struct scsi_generic *cmd;
-
 		/*
 		 * Check whether the data for INQUIRY cmd is valid or
 		 * not.  Windows 10 and Windows 2016 send all zero
@@ -2080,23 +1963,59 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		cmd = (const struct scsi_generic *)
 		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
-		if (cmd->opcode == INQUIRY &&
-		    /* 
-		     * XXX: Temporary work around disk hot plugin on win2k12r2,
-		     * only filtering the invalid disk on win10 or 2016 server.
-		     * So, the hot plugin on win10 and 2016 server needs
-		     * to be fixed.
+		if (cmd->opcode == INQUIRY) {
+		    /*
+		     * The host of Windows 10 or 2016 server will response
+		     * the inquiry request with invalid data for unexisted device:
+			[0x7f 0x0 0x5 0x2 0x1f ... ]
+		     * But on windows 2012 R2, the response is:
+			[0x7f 0x0 0x0 0x0 0x0 ]
+		     * That is why here wants to validate the inquiry response.
+		     * The validation will skip the INQUIRY whose response is short,
+		     * which is less than SHORT_INQUIRY_LENGTH (36).
+		     *
+		     * For more information about INQUIRY, please refer to:
+		     *  ftp://ftp.avc-pioneer.com/Mtfuji_7/Proposal/Jun09/INQUIRY.pdf
 		     */
-		    vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN10 && 
-		    is_inquiry_valid(
-		    (const struct scsi_inquiry_data *)csio->data_ptr) == 0) {
+		    const struct scsi_inquiry_data *inq_data =
+			(const struct scsi_inquiry_data *)csio->data_ptr;
+		    uint8_t* resp_buf = (uint8_t*)csio->data_ptr;
+		    /* Get the buffer length reported by host */
+		    int resp_xfer_len = vm_srb->transfer_len;
+		    /* Get the available buffer length */
+		    int resp_buf_len = resp_xfer_len >= 5 ? resp_buf[4] + 5 : 0;
+		    int data_len = (resp_buf_len < resp_xfer_len) ? resp_buf_len : resp_xfer_len;
+		    if (data_len < SHORT_INQUIRY_LENGTH) {
+			ccb->ccb_h.status |= CAM_REQ_CMP;
+			if (bootverbose && data_len >= 5) {
+				mtx_lock(&sc->hs_lock);
+				xpt_print(ccb->ccb_h.path,
+				    "storvsc skips the validation for short inquiry (%d)"
+				    " [%x %x %x %x %x]\n",
+				    data_len,resp_buf[0],resp_buf[1],resp_buf[2],
+				    resp_buf[3],resp_buf[4]);
+				mtx_unlock(&sc->hs_lock);
+			}
+		    } else if (is_inquiry_valid(inq_data) == 0) {
 			ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+			if (bootverbose && data_len >= 5) {
+				mtx_lock(&sc->hs_lock);
+				xpt_print(ccb->ccb_h.path,
+				    "storvsc uninstalled invalid device"
+				    " [%x %x %x %x %x]\n",
+				resp_buf[0],resp_buf[1],resp_buf[2],resp_buf[3],resp_buf[4]);
+				mtx_unlock(&sc->hs_lock);
+			}
+		    } else {
+			ccb->ccb_h.status |= CAM_REQ_CMP;
 			if (bootverbose) {
 				mtx_lock(&sc->hs_lock);
 				xpt_print(ccb->ccb_h.path,
-				    "storvsc uninstalled device\n");
+				    "storvsc has passed inquiry response (%d) validation\n",
+				    data_len);
 				mtx_unlock(&sc->hs_lock);
 			}
+		    }
 		} else {
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 		}
@@ -2158,13 +2077,11 @@ storvsc_free_request(struct storvsc_softc *sc, struct hv_storvsc_request *reqp)
 static enum hv_storage_type
 storvsc_get_storage_type(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
+	device_t parent = device_get_parent(dev);
 
-	if (!memcmp(p, &gBlkVscDeviceType, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(parent, dev, &gBlkVscDeviceType) == 0)
 		return DRIVER_BLKVSC;
-	} else if (!memcmp(p, &gStorVscDeviceType, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(parent, dev, &gStorVscDeviceType) == 0)
 		return DRIVER_STORVSC;
-	}
-	return (DRIVER_UNKNOWN);
+	return DRIVER_UNKNOWN;
 }
-

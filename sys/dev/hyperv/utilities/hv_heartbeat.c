@@ -35,10 +35,12 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
 #include "hv_util.h"
+#include "vmbus_if.h"
 
 /* Heartbeat Service */
-static hv_guid service_guid = { .data =
+static const struct hyperv_guid service_guid = { .hv_guid =
 	{0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
 	0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d} };
 
@@ -50,7 +52,7 @@ hv_heartbeat_cb(void *context)
 {
 	uint8_t*		buf;
 	hv_vmbus_channel*	channel;
-	uint32_t		recvlen;
+	int			recvlen;
 	uint64_t		requestid;
 	int			ret;
 
@@ -60,10 +62,12 @@ hv_heartbeat_cb(void *context)
 
 	softc = (hv_util_sc*)context;
 	buf = softc->receive_buffer;
-	channel = softc->hv_dev->channel;
+	channel = softc->channel;
 
-	ret = hv_vmbus_channel_recv_packet(channel, buf, PAGE_SIZE, &recvlen,
-					    &requestid);
+	recvlen = PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, buf, &recvlen, &requestid);
+	KASSERT(ret != ENOBUFS, ("hvheartbeat recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	if ((ret == 0) && recvlen > 0) {
 
@@ -85,24 +89,21 @@ hv_heartbeat_cb(void *context)
 	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
 				 HV_ICMSGHDRFLAG_RESPONSE;
 
-	    hv_vmbus_channel_send_packet(channel, buf, recvlen, requestid,
-		HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	        buf, recvlen, requestid);
 	}
 }
 
 static int
 hv_heartbeat_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
-
 	if (resource_disabled("hvheartbeat", 0))
 		return ENXIO;
 
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
 		device_set_desc(dev, "Hyper-V Heartbeat Service");
 		return BUS_PROBE_DEFAULT;
 	}
-
 	return ENXIO;
 }
 

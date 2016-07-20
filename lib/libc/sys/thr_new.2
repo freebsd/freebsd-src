@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2016
+.Dd June 2, 2016
 .Dt THR_NEW 2
 .Os
 .Sh NAME
@@ -41,6 +41,13 @@
 .Ft int
 .Fn thr_new "struct thr_param *param" "int param_size"
 .Sh DESCRIPTION
+.Bf -symbolic
+This function is intended for implementing threading.
+Normal applications should call
+.Xr pthread_create 3
+instead.
+.Ef
+.Pp
 The
 .Fn thr_new
 system call creates a new kernel-scheduled thread of execution in the context
@@ -52,7 +59,7 @@ The machine context for the new thread is copied from the creating thread's
 context, including coprocessor state.
 FPU state and specific machine registers are excluded from the copy.
 These are set according to ABI requirements and syscall parameters.
-The FPU state for new thread is reinitialized to clean.
+The FPU state for the new thread is reinitialized to clean.
 .Pp
 The
 .Fa param
@@ -77,22 +84,22 @@ struct thr_param {
 and contains the following fields:
 .Bl -tag -width ".Va parent_tid"
 .It Va start_func
-The pointer to the thread entry function.
-Kernel arranges for the new thread to start executing the function
+Pointer to the thread entry function.
+The kernel arranges for the new thread to start executing the function
 upon the first return to userspace.
 .It Va arg
 Opaque argument supplied to the entry function.
 .It Va stack_base
 Stack base address.
 The stack must be allocated by the caller.
-On some architectures, the ABI might require that system put information
+On some architectures, the ABI might require that the system put information
 on the stack to ensure the execution environment for
 .Va start_func .
 .It Va stack_size
 Stack size.
 .It Va tls_base
 TLS base address.
-The value of TLS base is loaded to the ABI-defined machine register
+The value of TLS base is loaded into the ABI-defined machine register
 in the new thread context.
 .It Va tls_size
 TLS size.
@@ -113,9 +120,9 @@ issuing the
 syscall, while
 .Va parent_tid
 is used by the thread creator.
-The later is separate from the
+The latter is separate from
 .Va child_tid
-because new thread might exit and free its thread data before parent
+because the new thread might exit and free its thread data before the parent
 has a chance to execute far enough to access it.
 .It Va flags
 Thread creation flags.
@@ -132,7 +139,9 @@ The flag is not currently implemented.
 .El
 .It Va rtp
 Real-time scheduling priority for the new thread.
-May be NULL if thread should inherit the priority from the
+May be
+.Dv NULL
+to inherit the priority from the
 creating thread.
 .El
 .Pp
@@ -166,6 +175,8 @@ The
 .Fn thr_new
 operation returns the following errors:
 .Bl -tag -width Er
+.\" When changing this list, consider updating share/man/man3/pthread_create.3,
+.\" since that function can return any of these errors.
 .It Bq Er EFAULT
 The memory pointed to by the
 .Fa param
@@ -179,21 +190,26 @@ or
 .Fa rtp
 arguments is not valid.
 .It Bq Er EFAULT
-Specified stack base is invalid, or the kernel was unable to put required
+The specified stack base is invalid, or the kernel was unable to put required
 initial data on the stack.
 .It Bq Er EINVAL
 The
 .Fa param_size
-argument specifies negative value, or its value is greater than the
+argument specifies a negative value, or the value is greater than the
 largest
 .Fa struct param
 size the kernel can interpret.
 .It Bq Er EINVAL
 The
 .Fa rtp
-member is not NULL, but specifies invalid scheduling parameters.
+member is not
+.Dv NULL
+and specifies invalid scheduling parameters.
 .It Bq Er EINVAL
 The specified TLS base is invalid.
+.It Bq Er EPERM
+The caller does not have permission to set the scheduling parameters or
+scheduling policy.
 .It Bq Er EPROCLIM
 Creation of the new thread would exceed the
 .Dv RACCT_NTHR
@@ -205,7 +221,7 @@ Creation of the new thread would exceed the
 .Xr sysctl 2
 limit.
 .It Bq Er ENOMEM
-No kernel memory to allocate for the new thread structures.
+There was not enough kernel memory to allocate the new thread structures.
 .El
 .Sh SEE ALSO
 .Xr ps 1 ,
@@ -216,7 +232,8 @@ No kernel memory to allocate for the new thread structures.
 .Xr thr_kill2 2 ,
 .Xr thr_self 2 ,
 .Xr thr_set_name 2 ,
-.Xr _umtx_op 2
+.Xr _umtx_op 2 ,
+.Xr pthread_create 3
 .Sh STANDARDS
 The
 .Fn thr_new
@@ -224,5 +241,5 @@ system call is non-standard and is used by the
 .Lb libthr
 to implement
 .St -p1003.1-2001
-.Xr pthread(3)
+.Xr pthread 3
 functionality.

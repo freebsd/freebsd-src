@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.105 2016/03/03 18:58:14 christos Exp $
+# $File: msdos,v 1.106 2016/06/11 00:52:14 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -633,47 +633,86 @@
 0	string/b	\102\101\050\000\000\000\056\000\000\000\000\000\000\000	Icon for MS Windows
 
 # Windows icons
-0   name    ico-dir
-# not entirely accurate, the number of icons is part of the header
->0  byte    1   - 1 icon
->0  ubyte   >1  - %d icons
->2  byte    0   \b, 256x
->2  byte    !0  \b, %dx
->3  byte    0   \b256
->3  byte    !0  \b%d
->4  ubyte   !0  \b, %d colors
-
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/CUR_(file_format)
+# Note: similiar to Windows CURsor. container for BMP (only DIB part) or PNG
 0   belong  0x00000100
 >9  byte    0
->>0 byte    x           MS Windows icon resource
-!:mime	image/x-icon
->>4 use     ico-dir
+>>0 byte    x           
+>>0 use     cur-ico-dir
 >9  ubyte   0xff
->>0 byte    x           MS Windows icon resource
-!:mime	image/x-icon
->>4 use     ico-dir
+>>0 byte    x           
+>>0 use     cur-ico-dir
+#	displays number of icons and information for icon or cursor
+0	name		cur-ico-dir
+# skip some Lotus 1-2-3 worksheets, CYCLE.PIC and keep Windows cursors with
+# 1st data offset = dir header size + n * dir entry size = 6 + n * 10h = ?6h
+>18		ulelong		&0x00000006	
+# skip remaining worksheets, because valid only for DIB image (40) or PNG image (\x89PNG)
+>>(18.l)	ulelong		x		MS Windows
+>>>0		ubelong		0x00000100	icon resource
+#!:mime		image/vnd.microsoft.icon
+!:mime		image/x-icon
+!:ext		ico
+>>>>4 		uleshort	x		- %d icon
+# plural s
+>>>>4 		uleshort	>1		\bs
+# 1st icon
+>>>>0x06	use		ico-entry
+# 2nd icon
+>>>>4 		uleshort	>1		
+>>>>>0x16	use		ico-entry
+>>>0		ubelong		0x00000200	cursor resource
+#!:mime		image/x-cur
+!:mime		image/x-win-bitmap
+!:ext		cur
+>>>>4 		uleshort	x		- %d icon
+>>>>4 		uleshort	>1		\bs
+# 1st cursor
+>>>>0x06	use		cur-entry
+#>>>>0x16	use		cur-entry
+#	display information of one cursor entry
+0	name		cur-entry
+>0	use		cur-ico-entry
+>4	uleshort	x	\b, hotspot @%dx
+>6	uleshort	x	\b%d
+#	display information of one icon entry
+0	name		ico-entry
+>0			use	cur-ico-entry
+# normally 0 1 but also found 14
+>4	uleshort	>1	\b, %d planes
+# normally 0 1 but also found some 3, 4, some 6, 8, 24, many 32, two 256
+>6	uleshort	>1	\b, %d bits/pixel
+#	display shared information of cursor or icon entry
+0		name		cur-ico-entry
+>0		byte		=0		\b, 256x
+>0		byte		!0		\b, %dx
+>1		byte        	=0		\b256
+>1		byte        	!0		\b%d
+# number of colors in palette
+>2		ubyte		!0		\b, %d colors
+# reserved 0 FFh
+#>3		ubyte        	x		\b, reserved %x
+#>8		ulelong		x		\b, image size %d
+# offset of PNG or DIB image
+#>12		ulelong		x		\b, offset 0x%x
+# PNG header (\x89PNG)
+>(12.l)		ubelong		=0x89504e47	
+>>&-4		indirect	x	\b with 
+# DIB image
+>(12.l)		ubelong		!0x89504e47	
+#>>&-4		use     	dib-image
 
 # Windows non-animated cursors
-0   name    cur-dir
-# not entirely accurate, the number of icons is part of the header
->0  byte        1   - 1 icon
->0  ubyte       >1  - %d icons
->2  byte        0   \b, 256x
->2  byte        !0  \b, %dx
->3  byte        0   \b256
->3  byte        !0  \b%d
->6  uleshort    x   \b, hotspot @%dx
->8  uleshort    x   \b%d
-
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/CUR_(file_format)
+# Note: similiar to Windows ICOn. container for BMP ( only DIB part)
+# GRR: line below is too general as it catches also Lotus 1-2-3 files
 0   belong  0x00000200
 >9  byte    0
->>0 byte    x           MS Windows cursor resource
-!:mime image/x-cur
->>4 use     cur-dir
+>>0 use     cur-ico-dir
 >9  ubyte   0xff
->>0 byte    x           MS Windows cursor resource
-!:mime image/x-cur
->>4 use     cur-dir
+>>0 use     cur-ico-dir
 
 # .chr files
 0	string/b	PK\010\010BGI	Borland font 

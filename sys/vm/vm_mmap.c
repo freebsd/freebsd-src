@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
@@ -206,6 +207,7 @@ sys_mmap(td, uap)
 	pos = uap->pos;
 
 	fp = NULL;
+	AUDIT_ARG_FD(uap->fd);
 
 	/*
 	 * Ignore old flags that used to be defined but did not do anything.
@@ -1243,6 +1245,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		locktype = LK_SHARED;
 	if ((error = vget(vp, locktype, td)) != 0)
 		return (error);
+	AUDIT_ARG_VNODE1(vp);
 	foff = *foffp;
 	flags = *flagsp;
 	obj = vp->v_object;

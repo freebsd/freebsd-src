@@ -95,7 +95,7 @@ gpio_pin_get_by_ofw_impl(device_t consumer, phandle_t cnode,
 		return (ENXIO);
 
 	/* Reserve GPIO pin. */
-	rv = gpiobus_map_pin(busdev, pin.pin);
+	rv = gpiobus_acquire_pin(busdev, pin.pin);
 	if (rv != 0)
 		return (EBUSY);
 
@@ -152,6 +152,15 @@ gpio_pin_release(gpio_pin_t gpio)
 
 	/* XXXX Unreserve pin. */
 	free(gpio, M_DEVBUF);
+}
+
+int
+gpio_pin_getcaps(gpio_pin_t pin, uint32_t *caps)
+{
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	return (GPIO_PIN_GETCAPS(pin->dev, pin->pin, caps));
 }
 
 int
@@ -312,11 +321,13 @@ ofw_gpiobus_setup_devinfo(device_t bus, device_t child, phandle_t node)
 		devi->pins[i] = pins[i].pin;
 	}
 	free(pins, M_DEVBUF);
+#ifndef INTRNG
 	/* Parse the interrupt resources. */
 	if (ofw_bus_intr_to_rl(bus, node, &dinfo->opd_dinfo.rl, NULL) != 0) {
 		ofw_gpiobus_destroy_devinfo(bus, dinfo);
 		return (NULL);
 	}
+#endif
 	device_set_ivars(child, dinfo);
 
 	return (dinfo);
@@ -457,7 +468,7 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 			goto fail;
 		}
 		/* Reserve the GPIO pin. */
-		if (gpiobus_map_pin(bussc->sc_busdev, (*pins)[j].pin) != 0)
+		if (gpiobus_acquire_pin(bussc->sc_busdev, (*pins)[j].pin) != 0)
 			goto fail;
 		j++;
 		i += gpiocells + 1;

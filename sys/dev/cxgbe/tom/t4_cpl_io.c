@@ -577,7 +577,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_snd;
-	int tx_credits, shove, compl, space, sowwakeup;
+	int tx_credits, shove, compl, sowwakeup;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
 	INP_WLOCK_ASSERT(inp);
@@ -652,9 +652,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 		}
 
-		space = sbspace(sb);
-
-		if (space <= sb->sb_hiwat * 3 / 8 &&
+		if (sbused(sb) > sb->sb_hiwat * 5 / 8 &&
 		    toep->plen_nocompl + plen >= sb->sb_hiwat / 4)
 			compl = 1;
 		else
@@ -663,7 +661,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		if (sb->sb_flags & SB_AUTOSIZE &&
 		    V_tcp_do_autosndbuf &&
 		    sb->sb_hiwat < V_tcp_autosndbuf_max &&
-		    space < sb->sb_hiwat / 8) {
+		    sbused(sb) >= sb->sb_hiwat * 7 / 8) {
 			int newsize = min(sb->sb_hiwat + V_tcp_autosndbuf_inc,
 			    V_tcp_autosndbuf_max);
 
@@ -1417,7 +1415,11 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		ddp_placed = be32toh(cpl->seq) - tp->rcv_nxt;
 
 	tp->rcv_nxt += len;
-	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
+	if (tp->rcv_wnd < len) {
+		KASSERT(toep->ulp_mode == ULP_MODE_RDMA,
+				("%s: negative window size", __func__));
+	}
+
 	tp->rcv_wnd -= len;
 	tp->t_rcvtime = ticks;
 
@@ -1677,7 +1679,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	return (0);
 }
 
-static int
+int
 do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
@@ -1691,9 +1693,7 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	KASSERT(opcode == CPL_SET_TCB_RPL,
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
-
-	if (is_ftid(sc, tid))
-		return (t4_filter_rpl(iq, rss, m)); /* TCB is a filter */
+	MPASS(iq != &sc->sge.fwq);
 
 	toep = lookup_tid(sc, tid);
 	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
@@ -1718,47 +1718,26 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 }
 
 void
-t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, int ctrl,
-    uint16_t word, uint64_t mask, uint64_t val)
+t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, int tid,
+    uint16_t word, uint64_t mask, uint64_t val, int reply, int cookie, int iqid)
 {
 	struct wrqe *wr;
 	struct cpl_set_tcb_field *req;
 
-	wr = alloc_wrqe(sizeof(*req), ctrl ? toep->ctrlq : toep->ofld_txq);
+	MPASS((cookie & ~M_COOKIE) == 0);
+	MPASS((iqid & ~M_QUEUENO) == 0);
+
+	wr = alloc_wrqe(sizeof(*req), wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
 	}
 	req = wrtod(wr);
 
-	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, toep->tid);
-	req->reply_ctrl = htobe16(V_NO_REPLY(1) |
-	    V_QUEUENO(toep->ofld_rxq->iq.abs_id));
-	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
-	req->mask = htobe64(mask);
-	req->val = htobe64(val);
-
-	t4_wrq_tx(sc, wr);
-}
-
-void
-t4_set_tcb_field_rpl(struct adapter *sc, struct toepcb *toep, int ctrl,
-    uint16_t word, uint64_t mask, uint64_t val, uint8_t cookie)
-{
-	struct wrqe *wr;
-	struct cpl_set_tcb_field *req;
-
-	KASSERT((cookie & ~M_COOKIE) == 0, ("%s: invalid cookie %#x", __func__,
-	    cookie));
-	wr = alloc_wrqe(sizeof(*req), ctrl ? toep->ctrlq : toep->ofld_txq);
-	if (wr == NULL) {
-		/* XXX */
-		panic("%s: allocation failure.", __func__);
-	}
-	req = wrtod(wr);
-
-	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, toep->tid);
-	req->reply_ctrl = htobe16(V_QUEUENO(toep->ofld_rxq->iq.abs_id));
+	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, tid);
+	req->reply_ctrl = htobe16(V_QUEUENO(iqid));
+	if (reply == 0)
+		req->reply_ctrl |= htobe16(F_NO_REPLY);
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(cookie));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
@@ -1767,22 +1746,26 @@ t4_set_tcb_field_rpl(struct adapter *sc, struct toepcb *toep, int ctrl,
 }
 
 void
-t4_init_cpl_io_handlers(struct adapter *sc)
+t4_init_cpl_io_handlers(void)
 {
 
-	t4_register_cpl_handler(sc, CPL_PEER_CLOSE, do_peer_close);
-	t4_register_cpl_handler(sc, CPL_CLOSE_CON_RPL, do_close_con_rpl);
-	t4_register_cpl_handler(sc, CPL_ABORT_REQ_RSS, do_abort_req);
-	t4_register_cpl_handler(sc, CPL_ABORT_RPL_RSS, do_abort_rpl);
-	t4_register_cpl_handler(sc, CPL_RX_DATA, do_rx_data);
-	t4_register_cpl_handler(sc, CPL_FW4_ACK, do_fw4_ack);
-	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, do_set_tcb_rpl);
+	t4_register_cpl_handler(CPL_PEER_CLOSE, do_peer_close);
+	t4_register_cpl_handler(CPL_CLOSE_CON_RPL, do_close_con_rpl);
+	t4_register_cpl_handler(CPL_ABORT_REQ_RSS, do_abort_req);
+	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, do_abort_rpl);
+	t4_register_cpl_handler(CPL_RX_DATA, do_rx_data);
+	t4_register_cpl_handler(CPL_FW4_ACK, do_fw4_ack);
 }
 
 void
-t4_uninit_cpl_io_handlers(struct adapter *sc)
+t4_uninit_cpl_io_handlers(void)
 {
 
-	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
+	t4_register_cpl_handler(CPL_PEER_CLOSE, do_peer_close);
+	t4_register_cpl_handler(CPL_CLOSE_CON_RPL, do_close_con_rpl);
+	t4_register_cpl_handler(CPL_ABORT_REQ_RSS, do_abort_req);
+	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, do_abort_rpl);
+	t4_register_cpl_handler(CPL_RX_DATA, do_rx_data);
+	t4_register_cpl_handler(CPL_FW4_ACK, do_fw4_ack);
 }
 #endif

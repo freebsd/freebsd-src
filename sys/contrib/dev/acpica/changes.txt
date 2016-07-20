@@ -1,4 +1,37 @@
 ----------------------------------------
+27 May 2016. Summary of changes for version 20160527:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Temporarily reverted the new arbitrary bit length/alignment support in 
+AcpiHwRead/AcpiHwWrite for the Generic Address Structure. There have been 
+a number of regressions with the new code that need to be fully resolved 
+and tested before this support can be finally integrated into ACPICA. 
+Apologies for any inconveniences these issues may have caused.
+
+The ACPI message macros are not configurable (ACPI_MSG_ERROR, 
+ACPI_MSG_EXCEPTION, ACPI_MSG_WARNING, ACPI_MSG_INFO, ACPI_MSG_BIOS_ERROR, 
+and ACPI_MSG_BIOS_WARNING). Lv Zheng.
+
+Fixed a couple of GCC warnings associated with the use of the -Wcast-qual 
+option. Adds a new return macro, return_STR. Junk-uk Kim.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 136.8K Code, 51.6K Data, 188.4K Total
+    Debug Version:     201.5K Code, 82.2K Data, 283.7K Total
+  Previous Release:
+    Non-Debug Version: 137.4K Code, 52.6K Data, 190.0K Total
+    Debug Version:     200.9K Code, 82.2K Data, 283.1K Total
+
+----------------------------------------
 22 April 2016. Summary of changes for version 20160422:
 
 1) ACPICA kernel-resident subsystem:

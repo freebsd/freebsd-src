@@ -619,7 +619,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	/*
 	 * Zero the payload, the kernel does look at the flags.
 	 */
-	bzero(&(&ccb.ccb_h)[1], sizeof(struct ccb_trans_settings));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb.cts);
 
 	/*
 	 * Get transfer settings for this device.

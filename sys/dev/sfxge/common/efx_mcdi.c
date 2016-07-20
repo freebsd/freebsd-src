@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008-2015 Solarflare Communications Inc.
+ * Copyright (c) 2008-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -795,7 +795,6 @@ efx_mcdi_get_proxy_handle(
 	__in		efx_mcdi_req_t *emrp,
 	__out		uint32_t *handlep)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_rc_t rc;
 
 	/*

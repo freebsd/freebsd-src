@@ -66,6 +66,7 @@ ${PACKAGE}FILES+=	pathname2.0
 ${PACKAGE}FILES+=	pathname3.0
 ${PACKAGE}FILES+=	pathname4.0
 ${PACKAGE}FILES+=	pathname5.0
+${PACKAGE}FILES+=	pathname6.0
 ${PACKAGE}FILES+=	plus-minus1.0
 ${PACKAGE}FILES+=	plus-minus2.0
 ${PACKAGE}FILES+=	plus-minus3.0

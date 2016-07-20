@@ -40,7 +40,9 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
 #include "hv_util.h"
+#include "vmbus_if.h"
 
 #define HV_WLTIMEDELTA              116444736000000000L     /* in 100ns unit */
 #define HV_ICTIMESYNCFLAG_PROBE     0
@@ -54,7 +56,7 @@ typedef struct {
 } time_sync_data;
 
         /* Time Synch Service */
-static hv_guid service_guid = {.data =
+static const struct hyperv_guid service_guid = {.hv_guid =
 	{0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
 	0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf } };
 
@@ -139,11 +141,13 @@ hv_timesync_cb(void *context)
 	hv_timesync_sc		*softc;
 
 	softc = (hv_timesync_sc*)context;
-	channel = softc->util_sc.hv_dev->channel;
+	channel = softc->util_sc.channel;
 	time_buf = softc->util_sc.receive_buffer;
 
-	ret = hv_vmbus_channel_recv_packet(channel, time_buf,
-		PAGE_SIZE, &recvlen, &requestId);
+	recvlen = PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, time_buf, &recvlen, &requestId);
+	KASSERT(ret != ENOBUFS, ("hvtimesync recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	if ((ret == 0) && recvlen > 0) {
 	    icmsghdrp = (struct hv_vmbus_icmsg_hdr *) &time_buf[
@@ -161,25 +165,21 @@ hv_timesync_cb(void *context)
 	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION
 		| HV_ICMSGHDRFLAG_RESPONSE;
 
-	    hv_vmbus_channel_send_packet(channel, time_buf,
-		recvlen, requestId,
-		HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	        time_buf, recvlen, requestId);
 	}
 }
 
 static int
 hv_timesync_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
-
 	if (resource_disabled("hvtimesync", 0))
 		return ENXIO;
 
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
 		device_set_desc(dev, "Hyper-V Time Synch Service");
 		return BUS_PROBE_DEFAULT;
 	}
-
 	return ENXIO;
 }
 

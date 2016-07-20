@@ -621,7 +621,6 @@ ber_printf_elements(struct ber_element *ber, char *fmt, ...)
 
 	return (ber);
  fail:
-	ber_free_elements(ber);
 	return (NULL);
 }
 

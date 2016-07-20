@@ -30,7 +30,6 @@
 
 #include "assym.s"
 #include <sys/syscall.h>
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
@@ -130,12 +129,12 @@ ASENTRY_NP(_start)
 	 */
 1:
 	bic	r7, #CPU_CONTROL_DC_ENABLE
+	bic	r7, #CPU_CONTROL_AFLT_ENABLE
 	bic	r7, #CPU_CONTROL_MMU_ENABLE
 	bic	r7, #CPU_CONTROL_IC_ENABLE
 	bic	r7, #CPU_CONTROL_BPRD_ENABLE
 	bic	r7, #CPU_CONTROL_SW_ENABLE
 	orr	r7, #CPU_CONTROL_UNAL_ENABLE
-	orr	r7, #CPU_CONTROL_AFLT_ENABLE
 	orr	r7, #CPU_CONTROL_VECRELOC
 	mcr	CP15_SCTLR(r7)
 	DSB
@@ -454,12 +453,12 @@ ASENTRY_NP(mpentry)
 	/* Setup core, disable all caches. */
 	mrc	CP15_SCTLR(r0)
 	bic	r0, #CPU_CONTROL_MMU_ENABLE
+	bic	r0, #CPU_CONTROL_AFLT_ENABLE
 	bic	r0, #CPU_CONTROL_DC_ENABLE
 	bic	r0, #CPU_CONTROL_IC_ENABLE
 	bic	r0, #CPU_CONTROL_BPRD_ENABLE
 	bic	r0, #CPU_CONTROL_SW_ENABLE
 	orr	r0, #CPU_CONTROL_UNAL_ENABLE
-	orr	r0, #CPU_CONTROL_AFLT_ENABLE
 	orr	r0, #CPU_CONTROL_VECRELOC
 	mcr	CP15_SCTLR(r0)
 	DSB

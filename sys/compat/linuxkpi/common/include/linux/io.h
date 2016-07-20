@@ -172,6 +172,14 @@ readl(const volatile void *addr)
 }
 
 #if defined(__i386__) || defined(__amd64__)
+static inline void
+_outb(u_char data, u_int port)
+{
+	__asm __volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
+}
+#endif
+
+#if defined(__i386__) || defined(__amd64__)
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #else
 #define	_ioremap_attr(...) NULL
@@ -194,6 +202,17 @@ void iounmap(void *addr);
 #define	memcpy_toio(a, b, c)	memcpy((a), (b), (c))
 
 static inline void
+__iowrite32_copy(void *to, void *from, size_t count)
+{
+	uint32_t *src;
+	uint32_t *dst;
+	int i;
+
+	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
+		__raw_writel(*src, dst);
+}
+
+static inline void
 __iowrite64_copy(void *to, void *from, size_t count)
 {
 #ifdef __LP64__
@@ -204,13 +223,7 @@ __iowrite64_copy(void *to, void *from, size_t count)
 	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
 		__raw_writeq(*src, dst);
 #else
-	uint32_t *src;
-	uint32_t *dst;
-	int i;
-
-	count *= 2;
-	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
-		__raw_writel(*src, dst);
+	__iowrite32_copy(to, from, count * 2);
 #endif
 }
 

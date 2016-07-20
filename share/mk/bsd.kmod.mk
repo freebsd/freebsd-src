@@ -4,7 +4,7 @@
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. ${.CURDIR}/../../../.. \
     ${.CURDIR}/../../../../.. /sys /usr/src/sys
 .if !defined(SYSDIR) && exists(${_dir}/kern/) && exists(${_dir}/conf/kmod.mk)
-SYSDIR=	${_dir}
+SYSDIR=	${_dir:tA}
 .endif
 .endfor
 .if !defined(SYSDIR) || !exists(${SYSDIR}/kern/) || \

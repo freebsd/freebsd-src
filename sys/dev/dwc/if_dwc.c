@@ -587,19 +587,25 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
 	uint8_t *eaddr, val;
-	uint32_t crc, ffval, hashbit, hashreg, hi, lo, reg;
+	uint32_t crc, ffval, hashbit, hashreg, hi, lo, hash[8];
+	int nhash, i;
 
 	DWC_ASSERT_LOCKED(sc);
 
 	ifp = sc->ifp;
+	nhash = sc->mactype == DWC_GMAC_ALT_DESC ? 2 : 8;
 
 	/*
 	 * Set the multicast (group) filter hash.
 	 */
-	if ((ifp->if_flags & IFF_ALLMULTI))
+	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
 		ffval = (FRAME_FILTER_PM);
-	else {
+		for (i = 0; i < nhash; i++)
+			hash[i] = ~0;
+	} else {
 		ffval = (FRAME_FILTER_HMC);
+		for (i = 0; i < nhash; i++)
+			hash[i] = 0;
 		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -609,12 +615,11 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 
 			/* Take lower 8 bits and reverse it */
 			val = bitreverse(~crc & 0xff);
+			if (sc->mactype == DWC_GMAC_ALT_DESC)
+				val >>= nhash; /* Only need lower 6 bits */
 			hashreg = (val >> 5);
 			hashbit = (val & 31);
-
-			reg = READ4(sc, HASH_TABLE_REG(hashreg));
-			reg |= (1 << hashbit);
-			WRITE4(sc, HASH_TABLE_REG(hashreg), reg);
+			hash[hashreg] |= (1 << hashbit);
 		}
 		if_maddr_runlock(ifp);
 	}
@@ -635,6 +640,13 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	WRITE4(sc, MAC_ADDRESS_LOW(0), lo);
 	WRITE4(sc, MAC_ADDRESS_HIGH(0), hi);
 	WRITE4(sc, MAC_FRAME_FILTER, ffval);
+	if (sc->mactype == DWC_GMAC_ALT_DESC) {
+		WRITE4(sc, GMAC_MAC_HTLOW, hash[0]);
+		WRITE4(sc, GMAC_MAC_HTHIGH, hash[1]);
+	} else {
+		for (i = 0; i < nhash; i++)
+			WRITE4(sc, HASH_TABLE_REG(i), hash[i]);
+	}
 }
 
 static int
@@ -758,6 +770,9 @@ dwc_rxfinish_locked(struct dwc_softc *sc)
 			m->m_pkthdr.len = len;
 			m->m_len = len;
 			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+
+			/* Remove trailing FCS */
+			m_adj(m, -ETHER_CRC_LEN);
 
 			DWC_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
@@ -1082,7 +1097,7 @@ dwc_clock_init(device_t dev)
 	int error;
 
 	/* Enable clock */
-	if (clk_get_by_ofw_name(dev, "stmmaceth", &clk) == 0) {
+	if (clk_get_by_ofw_name(dev, 0, "stmmaceth", &clk) == 0) {
 		error = clk_enable(clk);
 		if (error != 0) {
 			device_printf(dev, "could not enable main clock\n");
@@ -1091,7 +1106,7 @@ dwc_clock_init(device_t dev)
 	}
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_name(dev, "stmmaceth", &rst) == 0) {
+	if (hwreset_get_by_ofw_name(dev, 0, "stmmaceth", &rst) == 0) {
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "could not de-assert reset\n");

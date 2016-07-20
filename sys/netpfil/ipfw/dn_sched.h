@@ -132,6 +132,10 @@ struct dn_alg {
 	int (*free_fsk)(struct dn_fsk *f);
 	int (*new_queue)(struct dn_queue *q);
 	int (*free_queue)(struct dn_queue *q);
+#ifdef NEW_AQM
+	/* Getting scheduler extra parameters */
+	int (*getconfig)(struct dn_schk *, struct dn_extra_parms *);
+#endif
 
 	/* run-time fields */
 	int ref_count;      /* XXX number of instances in the system */
@@ -165,6 +169,11 @@ dn_dequeue(struct dn_queue *q)
 	struct mbuf *m = q->mq.head;
 	if (m == NULL)
 		return NULL;
+#ifdef NEW_AQM
+	/* Call AQM dequeue function  */
+	if (q->fs->aqmfp && q->fs->aqmfp->dequeue )
+		return q->fs->aqmfp->dequeue(q);
+#endif
 	q->mq.head = m->m_nextpkt;
 	q->mq.count--;
 
@@ -187,6 +196,6 @@ int dn_sched_modevent(module_t mod, int cmd, void *arg);
 		#name, dn_sched_modevent, dnsched		\
 	};							\
 	DECLARE_MODULE(name, name##_mod, 			\
-		SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY); 	\
+		SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY); 		\
         MODULE_DEPEND(name, dummynet, 3, 3, 3)
 #endif /* _DN_SCHED_H */

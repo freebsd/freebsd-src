@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define FDT_CWD_LEN	256
-#define FDT_MAX_DEPTH	6
+#define FDT_MAX_DEPTH	12
 
 #define FDT_PROP_SEP	" = "
 
@@ -421,7 +421,7 @@ fdt_setup_fdtp()
 	/* If we were given the address of a valid blob in memory, use it. */
 	if (fdt_to_load != NULL) {
 		if (fdt_load_dtb_addr(fdt_to_load) == 0) {
-			printf("Using DTB from memory address 0x%p.\n",
+			printf("Using DTB from memory address %p.\n",
 			    fdt_to_load);
 			return (0);
 		}
@@ -1029,7 +1029,7 @@ fdt_cmd_ls(int argc, char *argv[])
 	const char *prevname[FDT_MAX_DEPTH] = { NULL };
 	const char *name;
 	char *path;
-	int i, o, depth, len;
+	int i, o, depth;
 
 	path = (argc > 2) ? argv[2] : NULL;
 	if (path == NULL)
@@ -1045,7 +1045,7 @@ fdt_cmd_ls(int argc, char *argv[])
 	    (o >= 0) && (depth >= 0);
 	    o = fdt_next_node(fdtp, o, &depth)) {
 
-		name = fdt_get_name(fdtp, o, &len);
+		name = fdt_get_name(fdtp, o, NULL);
 
 		if (depth > FDT_MAX_DEPTH) {
 			printf("max depth exceeded: %d\n", depth);

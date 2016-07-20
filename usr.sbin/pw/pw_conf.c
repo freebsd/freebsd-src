@@ -186,6 +186,22 @@ boolean_val(char const * str, int dflt)
 		for (i = 0; boolfalse[i]; i++)
 			if (strcmp(str, boolfalse[i]) == 0)
 				return 0;
+	}
+	return dflt;
+}
+
+int
+passwd_val(char const * str, int dflt)
+{
+	if ((str = unquote(str)) != NULL) {
+		int             i;
+
+		for (i = 0; booltrue[i]; i++)
+			if (strcmp(str, booltrue[i]) == 0)
+				return 1;
+		for (i = 0; boolfalse[i]; i++)
+			if (strcmp(str, boolfalse[i]) == 0)
+				return 0;
 
 		/*
 		 * Special cases for defaultpassword
@@ -194,6 +210,8 @@ boolean_val(char const * str, int dflt)
 			return -1;
 		if (strcmp(str, "none") == 0)
 			return -2;
+
+		errx(1, "Invalid value for default password");
 	}
 	return dflt;
 }
@@ -258,7 +276,7 @@ read_userconfig(char const * file)
 #endif
 			switch (i) {
 			case _UC_DEFAULTPWD:
-				config.default_password = boolean_val(q, 1);
+				config.default_password = passwd_val(q, 1);
 				break;
 			case _UC_REUSEUID:
 				config.reuse_uids = boolean_val(q, 0);

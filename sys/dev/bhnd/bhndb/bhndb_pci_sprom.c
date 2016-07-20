@@ -53,29 +53,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/nvram/bhnd_spromvar.h>
 
 #include "bhnd_nvram_if.h"
+
 #include "bhndb_pcireg.h"
 #include "bhndb_pcivar.h"
-
-struct bhndb_pci_sprom_softc {
-	device_t		 dev;
-	struct bhnd_resource	*sprom_res;	/**< SPROM resource */
-	int			 sprom_rid;	/**< SPROM RID */
-	struct bhnd_sprom	 shadow;	/**< SPROM shadow */
-	struct mtx		 mtx;		/**< SPROM shadow mutex */
-};
-
-#define	SPROM_LOCK_INIT(sc) \
-	mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), \
-	    "BHND PCI SPROM lock", MTX_DEF)
-#define	SPROM_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	SPROM_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
-#define	SPROM_LOCK_ASSERT(sc, what)	mtx_assert(&(sc)->mtx, what)
-#define	SPROM_LOCK_DESTROY(sc)		mtx_destroy(&(sc)->mtx)
 
 static int
 bhndb_pci_sprom_probe(device_t dev)
 {
 	device_t	bridge, bus;
+	int		error;
 
 	/* Our parent must be a PCI-BHND bridge with an attached bhnd bus */
 	bridge = device_get_parent(dev);
@@ -86,125 +72,23 @@ bhndb_pci_sprom_probe(device_t dev)
 	if (bus == NULL)
 		return (ENXIO);
 
-	/* Found */
-	device_set_desc(dev, "PCI-BHNDB SPROM/OTP");
-	if (!bootverbose)
-		device_quiet(dev);
+	/* Defer to default driver implementation */
+	if ((error = bhnd_sprom_probe(dev)) > 0)
+		return (error);
 
-	/* Refuse wildcard attachments */
 	return (BUS_PROBE_NOWILDCARD);
 }
 
-static int
-bhndb_pci_sprom_attach(device_t dev)
-{
-	struct bhndb_pci_sprom_softc	*sc;
-	int				 error;
-	
-	sc = device_get_softc(dev);
-	sc->dev = dev;
-
-	/* Allocate SPROM resource */
-	sc->sprom_rid = 0;
-	sc->sprom_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->sprom_rid, RF_ACTIVE);
-	if (sc->sprom_res == NULL) {
-		device_printf(dev, "failed to allocate resources\n");
-		return (ENXIO);
-	}
-
-	/* Initialize SPROM shadow */
-	if ((error = bhnd_sprom_init(&sc->shadow, sc->sprom_res, 0))) {
-		device_printf(dev, "unrecognized SPROM format\n");
-		goto failed;
-	}
-
-	/* Initialize mutex */
-	SPROM_LOCK_INIT(sc);
-
-	return (0);
-	
-failed:
-	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->sprom_rid,
-	    sc->sprom_res);
-	return (error);
-}
-
-static int
-bhndb_pci_sprom_resume(device_t dev)
-{
-	return (0);
-}
-
-static int
-bhndb_pci_sprom_suspend(device_t dev)
-{
-	return (0);
-}
-
-static int
-bhndb_pci_sprom_detach(device_t dev)
-{
-	struct bhndb_pci_sprom_softc	*sc;
-	
-	sc = device_get_softc(dev);
-
-	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->sprom_rid,
-	    sc->sprom_res);
-	bhnd_sprom_fini(&sc->shadow);
-	SPROM_LOCK_DESTROY(sc);
-
-	return (0);
-}
-
-static int
-bhndb_pci_sprom_getvar(device_t dev, const char *name, void *buf, size_t *len)
-{
-	struct bhndb_pci_sprom_softc	*sc;
-	int				 error;
-
-	sc = device_get_softc(dev);
-
-	SPROM_LOCK(sc);
-	error = bhnd_sprom_getvar(&sc->shadow, name, buf, len);
-	SPROM_UNLOCK(sc);
-
-	return (error);
-}
-
-static int
-bhndb_pci_sprom_setvar(device_t dev, const char *name, const void *buf,
-    size_t len)
-{
-	struct bhndb_pci_sprom_softc	*sc;
-	int				 error;
-
-	sc = device_get_softc(dev);
-
-	SPROM_LOCK(sc);
-	error = bhnd_sprom_setvar(&sc->shadow, name, buf, len);
-	SPROM_UNLOCK(sc);
-
-	return (error);
-}
 
 static device_method_t bhndb_pci_sprom_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			bhndb_pci_sprom_probe),
-	DEVMETHOD(device_attach,		bhndb_pci_sprom_attach),
-	DEVMETHOD(device_resume,		bhndb_pci_sprom_resume),
-	DEVMETHOD(device_suspend,		bhndb_pci_sprom_suspend),
-	DEVMETHOD(device_detach,		bhndb_pci_sprom_detach),
-
-	/* NVRAM interface */
-	DEVMETHOD(bhnd_nvram_getvar,		bhndb_pci_sprom_getvar),
-	DEVMETHOD(bhnd_nvram_setvar,		bhndb_pci_sprom_setvar),
-
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(bhnd_nvram, bhndb_pci_sprom_driver, bhndb_pci_sprom_methods, sizeof(struct bhndb_pci_sprom_softc));
+DEFINE_CLASS_1(bhnd_nvram, bhndb_pci_sprom_driver, bhndb_pci_sprom_methods, sizeof(struct bhnd_sprom_softc), bhnd_sprom_driver);
 
 DRIVER_MODULE(bhndb_pci_sprom, bhndb, bhndb_pci_sprom_driver, bhnd_nvram_devclass, NULL, NULL);
 MODULE_DEPEND(bhndb_pci_sprom, bhnd, 1, 1, 1);
+MODULE_DEPEND(bhndb_pci_sprom, bhnd_sprom, 1, 1, 1);
 MODULE_VERSION(bhndb_pci_sprom, 1);

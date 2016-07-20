@@ -40,11 +40,7 @@ typedef enum {
 	BHND_NVRAM_SRC_OTP,	/**< On-chip one-time-programmable
 				  *  memory. */
 
-	BHND_NVRAM_SRC_NFLASH,	/**< External flash device accessible
-				  *  via on-chip flash core, such
-				  *  as the NAND/QSPI controller cores
-				  *  used on Northstar devices to access
-				  *  NVRAM. */
+	BHND_NVRAM_SRC_FLASH,	/**< External flash */
 	BHND_NVRAM_SRC_SPROM,	/**< External serial EEPROM. */
 	
 	BHND_NVRAM_SRC_UNKNOWN	/**< No NVRAM source is directly
@@ -69,14 +65,6 @@ typedef enum {
 				  *  is provided by a common platform NVRAM
 				  *  device.
 				  */
-} bhnd_nvram_src_t;
-
-/**
- * Evaluates to true if the given NVRAM data source is accessible via
- * ChipCommon.
- */
-#define	BHND_NVRAM_SRC_CC(_src)	\
-	((_src) == BHND_NVRAM_SRC_OTP || (_src) == BHND_NVRAM_SRC_SPROM)
-
+} bhnd_nvram_src;
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_H_ */

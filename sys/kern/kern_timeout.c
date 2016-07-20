@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_callout_profiling.h"
+#include "opt_ddb.h"
 #if defined(__arm__)
 #include "opt_timer.h"
 #endif
@@ -59,6 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <machine/_inttypes.h>
+#endif
 
 #ifdef SMP
 #include <machine/cpu.h>
@@ -1044,7 +1050,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		 */
 		if (c->c_lock != NULL && !cc_exec_cancel(cc, direct))
 			cancelled = cc_exec_cancel(cc, direct) = true;
-		if (cc_exec_waiting(cc, direct)) {
+		if (cc_exec_waiting(cc, direct) || cc_exec_drain(cc, direct)) {
 			/*
 			 * Someone has called callout_drain to kill this
 			 * callout.  Don't reschedule.
@@ -1228,7 +1234,24 @@ again:
 		panic("migration should not happen");
 #endif
 	}
-
+	if ((drain != NULL) && (c->c_iflags & CALLOUT_PENDING) &&
+	    (cc_exec_curr(cc, direct) != c)) {
+		/* 
+		 * This callout is executing and we are draining.
+		 * The only way this can happen is if its also
+		 * been rescheduled to run on one thread *and* asked to drain
+		 * on this thread (at the same time it is waiting to execute).
+		 */
+		if ((c->c_iflags & CALLOUT_PROCESSED) == 0) {
+			if (cc_exec_next(cc) == c)
+				cc_exec_next(cc) = LIST_NEXT(c, c_links.le);
+			LIST_REMOVE(c, c_links.le);
+		} else {
+			TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
+		}
+		c->c_iflags &= ~CALLOUT_PENDING;
+		c->c_flags &= ~CALLOUT_ACTIVE;
+	}
 	/*
 	 * If the callout isn't pending, it's not on the queue, so
 	 * don't attempt to remove it from the queue.  We can try to
@@ -1252,7 +1275,6 @@ again:
 				sleepq_release(&cc_exec_waiting(cc, direct));
 			return (-1);
 		}
-
 		if ((flags & CS_DRAIN) != 0) {
 			/*
 			 * The current callout is running (or just
@@ -1286,7 +1308,6 @@ again:
 					old_cc = cc;
 					goto again;
 				}
-
 				/*
 				 * Migration could be cancelled here, but
 				 * as long as it is still not sure when it
@@ -1370,7 +1391,9 @@ again:
 				cc_exec_drain(cc, direct) = drain;
 			}
 			CC_UNLOCK(cc);
-			return ((flags & CS_MIGRBLOCK) != 0);
+			if (drain)
+				return(0);
+			return ((flags & CS_EXECUTING) != 0);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
@@ -1615,3 +1638,33 @@ SYSCTL_PROC(_kern, OID_AUTO, callout_stat,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_callout_stat, "I",
     "Dump immediate statistic snapshot of the scheduled callouts");
+#ifdef DDB
+static void
+_show_callout(struct callout *c)
+{
+
+	db_printf("callout %p\n", c);
+#define	C_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, c->e);
+	db_printf("   &c_links = %p\n", &(c->c_links));
+	C_DB_PRINTF("%" PRId64,	c_time);
+	C_DB_PRINTF("%" PRId64,	c_precision);
+	C_DB_PRINTF("%p",	c_arg);
+	C_DB_PRINTF("%p",	c_func);
+	C_DB_PRINTF("%p",	c_lock);
+	C_DB_PRINTF("%#x",	c_flags);
+	C_DB_PRINTF("%#x",	c_iflags);
+	C_DB_PRINTF("%d",	c_cpu);
+#undef	C_DB_PRINTF
+}
+
+DB_SHOW_COMMAND(callout, db_show_callout)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show callout <struct callout *>\n");
+		return;
+	}
+
+	_show_callout((struct callout *)addr);
+}
+#endif /* DDB */

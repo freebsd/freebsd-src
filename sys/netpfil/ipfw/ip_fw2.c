@@ -971,6 +971,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	MATCH_FORWARD or MATCH_REVERSE otherwise (q != NULL)
 	 */
 	int dyn_dir = MATCH_UNKNOWN;
+	uint16_t dyn_name = 0;
 	ipfw_dyn_rule *q = NULL;
 	struct ip_fw_chain *chain = &V_layer3_chain;
 
@@ -2113,17 +2114,35 @@ do {								\
 				/*
 				 * dynamic rules are checked at the first
 				 * keep-state or check-state occurrence,
-				 * with the result being stored in dyn_dir.
+				 * with the result being stored in dyn_dir
+				 * and dyn_name.
 				 * The compiler introduces a PROBE_STATE
 				 * instruction for us when we have a
 				 * KEEP_STATE (because PROBE_STATE needs
 				 * to be run first).
+				 *
+				 * (dyn_dir == MATCH_UNKNOWN) means this is
+				 * first lookup for such f_id. Do lookup.
+				 *
+				 * (dyn_dir != MATCH_UNKNOWN &&
+				 *  dyn_name != 0 && dyn_name != cmd->arg1)
+				 * means previous lookup didn't find dynamic
+				 * rule for specific state name and current
+				 * lookup will search rule with another state
+				 * name. Redo lookup.
+				 *
+				 * (dyn_dir != MATCH_UNKNOWN && dyn_name == 0)
+				 * means previous lookup was for `any' name
+				 * and it didn't find rule. No need to do
+				 * lookup again.
 				 */
-				if (dyn_dir == MATCH_UNKNOWN &&
+				if ((dyn_dir == MATCH_UNKNOWN ||
+				    (dyn_name != 0 &&
+				    dyn_name != cmd->arg1)) &&
 				    (q = ipfw_lookup_dyn_rule(&args->f_id,
 				     &dyn_dir, proto == IPPROTO_TCP ?
-					TCP(ulp) : NULL))
-					!= NULL) {
+				     TCP(ulp): NULL,
+				     (dyn_name = cmd->arg1))) != NULL) {
 					/*
 					 * Found dynamic entry, update stats
 					 * and jump to the 'action' part of
@@ -2691,7 +2710,6 @@ ipfw_init(void)
 	  default_fw_tables = IPFW_TABLES_MAX;
 
 	ipfw_init_sopt_handler();
-	ipfw_log_bpf(1); /* init */
 	ipfw_iface_init();
 	return (error);
 }
@@ -2704,7 +2722,6 @@ ipfw_destroy(void)
 {
 
 	ipfw_iface_destroy();
-	ipfw_log_bpf(0); /* uninit */
 	ipfw_destroy_sopt_handler();
 	printf("IP firewall unloaded\n");
 }
@@ -2793,6 +2810,7 @@ vnet_ipfw_init(const void *unused)
 	 * is checked on each packet because there are no pfil hooks.
 	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl3;
+	ipfw_log_bpf(1); /* init */
 	error = ipfw_attach_hooks(1);
 	return (error);
 }
@@ -2815,6 +2833,8 @@ vnet_ipfw_uninit(const void *unused)
 	 */
 	(void)ipfw_attach_hooks(0 /* detach */);
 	V_ip_fw_ctl_ptr = NULL;
+
+	ipfw_log_bpf(0); /* uninit */
 
 	last = IS_DEFAULT_VNET(curvnet) ? 1 : 0;
 
@@ -2890,7 +2910,7 @@ static moduledata_t ipfwmod = {
 };
 
 /* Define startup order. */
-#define	IPFW_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	IPFW_SI_SUB_FIREWALL	SI_SUB_PROTO_FIREWALL
 #define	IPFW_MODEVENT_ORDER	(SI_ORDER_ANY - 255) /* On boot slot in here. */
 #define	IPFW_MODULE_ORDER	(IPFW_MODEVENT_ORDER + 1) /* A little later. */
 #define	IPFW_VNET_ORDER		(IPFW_MODEVENT_ORDER + 2) /* Later still. */

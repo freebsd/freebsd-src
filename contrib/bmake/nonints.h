@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.72 2016/02/18 20:25:08 sjg Exp $	*/
+/*	$NetBSD: nonints.h,v 1.73 2016/06/03 01:21:59 sjg Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -122,6 +122,7 @@ void execError(const char *, const char *);
 char *getTmpdir(void);
 Boolean s2Boolean(const char *, Boolean);
 Boolean getBoolean(const char *, Boolean);
+char *cached_realpath(const char *, char *);
 
 /* parse.c */
 void Parse_Error(int, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);

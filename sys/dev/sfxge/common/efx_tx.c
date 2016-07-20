@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -900,6 +900,8 @@ siena_tx_qcreate(
 	efx_oword_t oword;
 	uint32_t size;
 	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(esmp))
 
 	EFX_STATIC_ASSERT(EFX_EV_TX_NLABELS ==
 	    (1 << FRF_AZ_TX_DESCQ_LABEL_WIDTH));

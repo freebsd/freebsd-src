@@ -626,12 +626,12 @@ MODULE_DEPEND(iflib, netmap, 1, 1, 1);
 /*
  * device-specific sysctl variables:
  *
- * ixl_crcstrip: 0: keep CRC in rx frames (default), 1: strip it.
+ * iflib_crcstrip: 0: keep CRC in rx frames (default), 1: strip it.
  *	During regular operations the CRC is stripped, but on some
  *	hardware reception of frames not multiple of 64 is slower,
  *	so using crcstrip=0 helps in benchmarks.
  *
- * ixl_rx_miss, ixl_rx_miss_bufs:
+ * iflib_rx_miss, iflib_rx_miss_bufs:
  *	count packets that might be missed due to lost interrupts.
  */
 SYSCTL_DECL(_dev_netmap);
@@ -646,7 +646,7 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, iflib_crcstrip,
 int iflib_rx_miss, iflib_rx_miss_bufs;
 SYSCTL_INT(_dev_netmap, OID_AUTO, iflib_rx_miss,
     CTLFLAG_RW, &iflib_rx_miss, 0, "potentially missed rx intr");
-SYSCTL_INT(_dev_netmap, OID_AUTO, ixl_rx_miss_bufs,
+SYSCTL_INT(_dev_netmap, OID_AUTO, iflib_rx_miss_bufs,
     CTLFLAG_RW, &iflib_rx_miss_bufs, 0, "potentially missed rx intr bufs");
 
 /*
@@ -3085,7 +3085,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 		next = next->m_nextpkt;
 	} while (next != NULL);
 
-	if (count > 8)
+	if (count > nitems(marr))
 		if ((mp = malloc(count*sizeof(struct mbuf *), M_IFLIB, M_NOWAIT)) == NULL) {
 			/* XXX check nextpkt */
 			m_freem(m);
@@ -3112,7 +3112,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 			m_freem(mp[i]);
 		ifmp_ring_check_drainage(txq->ift_br[0], TX_BATCH_SIZE);
 	}
-	if (count > 16)
+	if (count > nitems(marr))
 		free(mp, M_IFLIB);
 
 	return (err);
@@ -3848,7 +3848,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 	iflib_txq_t txq;
 	iflib_rxq_t rxq;
 	iflib_fl_t fl = NULL;
-	int i, j, err, txconf, rxconf, fl_ifdi_offset;
+	int i, j, cpu, err, txconf, rxconf, fl_ifdi_offset;
 	iflib_dma_info_t ifdip;
 	uint32_t *rxqsizes = sctx->isc_rxqsizes;
 	uint32_t *txqsizes = sctx->isc_txqsizes;
@@ -3862,6 +3862,9 @@ iflib_queues_alloc(if_ctx_t ctx)
 
 	KASSERT(ntxqs > 0, ("number of queues must be at least 1"));
 	KASSERT(nrxqs > 0, ("number of queues must be at least 1"));
+
+	brscp = NULL;
+	rxq = NULL;
 
 /* Allocate the TX ring struct memory */
 	if (!(txq =
@@ -3888,17 +3891,19 @@ iflib_queues_alloc(if_ctx_t ctx)
 
 	ctx->ifc_txqs = txq;
 	ctx->ifc_rxqs = rxq;
+	txq = NULL;
+	rxq = NULL;
 
 	/*
 	 * XXX handle allocation failure
 	 */
-	for (txconf = i = 0; i < ntxqsets; i++, txconf++, txq++) {
+	for (txconf = i = 0, cpu = CPU_FIRST(); i < ntxqsets; i++, txconf++, txq++, cpu = CPU_NEXT(cpu)) {
 		/* Set up some basics */
 
 		if ((ifdip = malloc(sizeof(struct iflib_dma_info) * ntxqs, M_IFLIB, M_WAITOK|M_ZERO)) == NULL) {
 			device_printf(dev, "failed to allocate iflib_dma_info\n");
 			err = ENOMEM;
-			goto fail;
+			goto err_tx_desc;
 		}
 		txq->ift_ifdi = ifdip;
 		for (j = 0; j < ntxqs; j++, ifdip++) {
@@ -3912,8 +3917,8 @@ iflib_queues_alloc(if_ctx_t ctx)
 		txq->ift_ctx = ctx;
 		txq->ift_id = i;
 		/* XXX fix this */
-		txq->ift_timer.c_cpu = i % mp_ncpus;
-		txq->ift_db_check.c_cpu = i % mp_ncpus;
+		txq->ift_timer.c_cpu = cpu;
+		txq->ift_db_check.c_cpu = cpu;
 		txq->ift_nbr = nbuf_rings;
 
 		if (iflib_txsd_alloc(txq)) {
@@ -3940,7 +3945,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 			if (err) {
 				/* XXX free any allocated rings */
 				device_printf(dev, "Unable to allocate buf_ring\n");
-				goto fail;
+				goto err_tx_desc;
 			}
 		}
 	}
@@ -3951,7 +3956,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 		if ((ifdip = malloc(sizeof(struct iflib_dma_info) * nrxqs, M_IFLIB, M_WAITOK|M_ZERO)) == NULL) {
 			device_printf(dev, "failed to allocate iflib_dma_info\n");
 			err = ENOMEM;
-			goto fail;
+			goto err_tx_desc;
 		}
 
 		rxq->ifr_ifdi = ifdip;
@@ -3975,7 +3980,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 			  (iflib_fl_t) malloc(sizeof(struct iflib_fl) * nfree_lists, M_IFLIB, M_NOWAIT | M_ZERO))) {
 			device_printf(dev, "Unable to allocate free list memory\n");
 			err = ENOMEM;
-			goto fail;
+			goto err_tx_desc;
 		}
 		rxq->ifr_fl = fl;
 		for (j = 0; j < nfree_lists; j++) {
@@ -4042,10 +4047,16 @@ err_tx_desc:
 	if (ctx->ifc_rxqs != NULL)
 		free(ctx->ifc_rxqs, M_IFLIB);
 	ctx->ifc_rxqs = NULL;
-rx_fail:
 	if (ctx->ifc_txqs != NULL)
 		free(ctx->ifc_txqs, M_IFLIB);
 	ctx->ifc_txqs = NULL;
+rx_fail:
+	if (brscp != NULL)
+		free(brscp, M_IFLIB);
+	if (rxq != NULL)
+		free(rxq, M_IFLIB);
+	if (txq != NULL)
+		free(txq, M_IFLIB);
 fail:
 	return (err);
 }

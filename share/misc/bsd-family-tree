@@ -339,7 +339,11 @@ FreeBSD 5.2           |      |                 |                       |
  |  FreeBSD           |      |            OpenBSD 5.9                  |
  |   10.3             |      |                 |                       |
  |                    |      |                 |                       |
-FreeBSD 11 -current   |  NetBSD -current  OpenBSD -current     DragonFly -current
+ *--FreeBSD           |      |                 |                       |
+ |   11.0             |      |                 |                       |
+ |                    |      |                 |                       |
+ |                    |      |                 |                       |
+FreeBSD 12 -current   |  NetBSD -current  OpenBSD -current     DragonFly -current
  |                    |      |                 |                       |
  v                    v      v                 v                       v
 

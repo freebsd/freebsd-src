@@ -138,6 +138,8 @@ static void	rt2860_set_basicrates(struct rt2860_softc *,
 		    const struct ieee80211_rateset *);
 static void	rt2860_scan_start(struct ieee80211com *);
 static void	rt2860_scan_end(struct ieee80211com *);
+static void	rt2860_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static void	rt2860_set_channel(struct ieee80211com *);
 static void	rt2860_select_chan_group(struct rt2860_softc *, int);
 static void	rt2860_set_chan(struct rt2860_softc *, u_int);
@@ -226,13 +228,19 @@ static const struct {
 	RT5392_DEF_RF
 };
 
+static const uint8_t rt2860_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+static const uint8_t rt2860_chan_5ghz[] =
+	{ 36, 38, 40, 44, 46, 48, 52, 54, 56, 60, 62, 64, 100, 102, 104,
+	  108, 110, 112, 116, 118, 120, 124, 126, 128, 132, 134, 136, 140,
+	  149, 151, 153, 157, 159, 161, 165, 167, 169, 171, 173 };
+
 int
 rt2860_attach(device_t dev, int id)
 {
 	struct rt2860_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t tmp;
-	uint8_t bands[IEEE80211_MODE_BYTES];
 	int error, ntries, qid;
 
 	sc->sc_dev = dev;
@@ -319,18 +327,15 @@ rt2860_attach(device_t dev, int id)
 		| IEEE80211_C_WME		/* 802.11e */
 		;
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	if (sc->rf_rev == RT2860_RF_2750 || sc->rf_rev == RT2860_RF_2850)
-		setbit(bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, bands);
+	rt2860_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 
 	ic->ic_wme.wme_update = rt2860_updateedca;
 	ic->ic_scan_start = rt2860_scan_start;
 	ic->ic_scan_end = rt2860_scan_end;
+	ic->ic_getradiocaps = rt2860_getradiocaps;
 	ic->ic_set_channel = rt2860_set_channel;
 	ic->ic_updateslot = rt2860_updateslot;
 	ic->ic_update_promisc = rt2860_update_promisc;
@@ -895,7 +900,7 @@ rt2860_ampdu_rx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
 }
 #endif
 
-int
+static int
 rt2860_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct rt2860_vap *rvp = RT2860_VAP(vap);
@@ -2295,6 +2300,26 @@ rt2860_scan_end(struct ieee80211com *ic)
 	if (vap->iv_state == IEEE80211_S_RUN) {
 		rt2860_enable_tsf_sync(sc);
 		rt2860_set_gp_timer(sc, 500);
+	}
+}
+
+static void
+rt2860_getradiocaps(struct ieee80211com *ic, int maxchans, int *nchans,
+    struct ieee80211_channel chans[])
+{
+	struct rt2860_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    rt2860_chan_2ghz, nitems(rt2860_chan_2ghz), bands, 0);
+
+	if (sc->rf_rev == RT2860_RF_2750 || sc->rf_rev == RT2860_RF_2850) {
+		setbit(bands, IEEE80211_MODE_11A);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+		    rt2860_chan_5ghz, nitems(rt2860_chan_5ghz), bands, 0);
 	}
 }
 
@@ -3799,8 +3824,15 @@ rt2860_init_locked(struct rt2860_softc *sc)
 
 	/* disable DMA */
 	tmp = RAL_READ(sc, RT2860_WPDMA_GLO_CFG);
-	tmp &= 0xff0;
+	tmp &= ~(RT2860_RX_DMA_BUSY | RT2860_RX_DMA_EN | RT2860_TX_DMA_BUSY |
+	    RT2860_TX_DMA_EN);
+	tmp |= RT2860_TX_WB_DDONE;
 	RAL_WRITE(sc, RT2860_WPDMA_GLO_CFG, tmp);
+
+	/* reset DMA indexes */
+	RAL_WRITE(sc, RT2860_WPDMA_RST_IDX, RT2860_RST_DRX_IDX0 |
+	    RT2860_RST_DTX_IDX5 | RT2860_RST_DTX_IDX4 | RT2860_RST_DTX_IDX3 |
+	    RT2860_RST_DTX_IDX2 | RT2860_RST_DTX_IDX1 | RT2860_RST_DTX_IDX0);
 
 	/* PBF hardware reset */
 	RAL_WRITE(sc, RT2860_SYS_CTRL, 0xe1f);
@@ -3833,7 +3865,9 @@ rt2860_init_locked(struct rt2860_softc *sc)
 		rt2860_stop_locked(sc);
 		return;
 	}
-	tmp &= 0xff0;
+	tmp &= ~(RT2860_RX_DMA_BUSY | RT2860_RX_DMA_EN | RT2860_TX_DMA_BUSY |
+	    RT2860_TX_DMA_EN);
+	tmp |= RT2860_TX_WB_DDONE;
 	RAL_WRITE(sc, RT2860_WPDMA_GLO_CFG, tmp);
 
 	/* reset Rx ring and all 6 Tx rings */
@@ -3933,7 +3967,9 @@ rt2860_init_locked(struct rt2860_softc *sc)
 		rt2860_stop_locked(sc);
 		return;
 	}
-	tmp &= 0xff0;
+	tmp &= ~(RT2860_RX_DMA_BUSY | RT2860_RX_DMA_EN | RT2860_TX_DMA_BUSY |
+	    RT2860_TX_DMA_EN);
+	tmp |= RT2860_TX_WB_DDONE;
 	RAL_WRITE(sc, RT2860_WPDMA_GLO_CFG, tmp);
 
 	/* disable interrupts mitigation */

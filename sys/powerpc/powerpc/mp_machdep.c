@@ -113,20 +113,16 @@ cpu_mp_setmaxid(void)
 	int error;
 
 	mp_ncpus = 0;
+	mp_maxid = 0;
 	error = platform_smp_first_cpu(&cpuref);
 	while (!error) {
 		mp_ncpus++;
+		mp_maxid = max(cpuref.cr_cpuid, mp_maxid);
 		error = platform_smp_next_cpu(&cpuref);
 	}
 	/* Sanity. */
 	if (mp_ncpus == 0)
 		mp_ncpus = 1;
-
-	/*
-	 * Set the largest cpuid we're going to use. This is necessary
-	 * for VM initialization.
-	 */
-	mp_maxid = min(mp_ncpus, MAXCPU) - 1;
 }
 
 int

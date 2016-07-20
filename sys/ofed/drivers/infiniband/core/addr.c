@@ -395,13 +395,13 @@ mcast:
 #ifdef INET
 	case AF_INET:
 		error = arpresolve(ifp, is_gw, NULL,
-		    is_gw ? rte->rt_gateway : dst_in, edst, NULL);
+		    is_gw ? rte->rt_gateway : dst_in, edst, NULL, NULL);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
 		error = nd6_resolve(ifp, is_gw, NULL,
-		    is_gw ? rte->rt_gateway : dst_in, edst, NULL);
+		    is_gw ? rte->rt_gateway : dst_in, edst, NULL, NULL);
 		break;
 #endif
 	default:

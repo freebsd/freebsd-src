@@ -96,6 +96,7 @@ cloudabi64_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	if (sa->code >= CLOUDABI64_SYS_MAXSYSCALL)
 		return (ENOSYS);
 	sa->callp = &cloudabi64_sysent[sa->code];
+	sa->narg = sa->callp->sy_narg;
 
 	/* Fetch system call arguments. */
 	sa->args[0] = frame->tf_rdi;
@@ -172,7 +173,7 @@ cloudabi64_thread_setregs(struct thread *td,
 	/* Perform standard register initialization. */
 	stack.ss_sp = (void *)attr->stack;
 	stack.ss_size = tcbptr - attr->stack;
-	cpu_set_upcall_kse(td, (void *)attr->entry_point, NULL, &stack);
+	cpu_set_upcall(td, (void *)attr->entry_point, NULL, &stack);
 
 	/*
 	 * Pass in the thread ID of the new thread and the argument

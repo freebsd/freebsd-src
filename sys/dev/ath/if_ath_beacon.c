@@ -347,7 +347,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		rc[0].tx_power_cap = 0x3f;
 		rc[0].PktDuration =
 		    ath_hal_computetxtime(ah, rt, roundup(m->m_len, 4),
-		        rix, 0);
+		        rix, 0, AH_TRUE);
 		ath_hal_set11nratescenario(ah, ds, 0, 0, rc, 4, flags);
 	}
 
