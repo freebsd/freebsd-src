@@ -107,8 +107,8 @@ rtree_node_elm_t	*rtree_child_read_hard(rtree_t *rtree,
 #ifdef JEMALLOC_H_INLINES
 
 #ifndef JEMALLOC_ENABLE_INLINE
-unsigned	rtree_start_level(rtree_t *rtree, uintptr_t key);
-uintptr_t	rtree_subkey(rtree_t *rtree, uintptr_t key, unsigned level);
+unsigned	rtree_start_level(rtree_t *rtree, vaddr_t key);
+vaddr_t	rtree_subkey(rtree_t *rtree, vaddr_t key, unsigned level);
 
 bool	rtree_node_valid(rtree_node_elm_t *node);
 rtree_node_elm_t	*rtree_child_tryread(rtree_node_elm_t *elm);
@@ -121,13 +121,13 @@ void	rtree_val_write(rtree_t *rtree, rtree_node_elm_t *elm,
 rtree_node_elm_t	*rtree_subtree_tryread(rtree_t *rtree, unsigned level);
 rtree_node_elm_t	*rtree_subtree_read(rtree_t *rtree, unsigned level);
 
-extent_node_t	*rtree_get(rtree_t *rtree, uintptr_t key, bool dependent);
-bool	rtree_set(rtree_t *rtree, uintptr_t key, const extent_node_t *val);
+extent_node_t	*rtree_get(rtree_t *rtree, vaddr_t key, bool dependent);
+bool	rtree_set(rtree_t *rtree, vaddr_t key, const extent_node_t *val);
 #endif
 
 #if (defined(JEMALLOC_ENABLE_INLINE) || defined(JEMALLOC_RTREE_C_))
 JEMALLOC_INLINE unsigned
-rtree_start_level(rtree_t *rtree, uintptr_t key)
+rtree_start_level(rtree_t *rtree, vaddr_t key)
 {
 	unsigned start_level;
 
@@ -140,12 +140,12 @@ rtree_start_level(rtree_t *rtree, uintptr_t key)
 	return (start_level);
 }
 
-JEMALLOC_INLINE uintptr_t
-rtree_subkey(rtree_t *rtree, uintptr_t key, unsigned level)
+JEMALLOC_INLINE vaddr_t
+rtree_subkey(rtree_t *rtree, vaddr_t key, unsigned level)
 {
 
 	return ((key >> ((ZU(1) << (LG_SIZEOF_PTR+3)) -
-	    rtree->levels[level].cumbits)) & (uintptr_t)((ZU(1) <<
+	    rtree->levels[level].cumbits)) & ((ZU(1) <<
 	    rtree->levels[level].bits) - 1));
 }
 
@@ -153,7 +153,7 @@ JEMALLOC_INLINE bool
 rtree_node_valid(rtree_node_elm_t *node)
 {
 
-	return ((uintptr_t)node > (uintptr_t)RTREE_NODE_INITIALIZING);
+	return ((vaddr_t)node > (vaddr_t)RTREE_NODE_INITIALIZING);
 }
 
 JEMALLOC_INLINE rtree_node_elm_t *
@@ -232,9 +232,9 @@ rtree_subtree_read(rtree_t *rtree, unsigned level)
 }
 
 JEMALLOC_INLINE extent_node_t *
-rtree_get(rtree_t *rtree, uintptr_t key, bool dependent)
+rtree_get(rtree_t *rtree, vaddr_t key, bool dependent)
 {
-	uintptr_t subkey;
+	vaddr_t subkey;
 	unsigned i, start_level;
 	rtree_node_elm_t *node, *child;
 
@@ -260,9 +260,9 @@ rtree_get(rtree_t *rtree, uintptr_t key, bool dependent)
 }
 
 JEMALLOC_INLINE bool
-rtree_set(rtree_t *rtree, uintptr_t key, const extent_node_t *val)
+rtree_set(rtree_t *rtree, vaddr_t key, const extent_node_t *val)
 {
-	uintptr_t subkey;
+	vaddr_t subkey;
 	unsigned i, start_level;
 	rtree_node_elm_t *node, *child;
 

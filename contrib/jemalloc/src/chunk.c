@@ -144,7 +144,7 @@ chunk_register(const void *chunk, const extent_node_t *node)
 
 	assert(extent_node_addr_get(node) == chunk);
 
-	if (rtree_set(&chunks_rtree, (uintptr_t)chunk, node))
+	if (rtree_set(&chunks_rtree, (vaddr_t)chunk, node))
 		return (true);
 	if (config_prof && opt_prof) {
 		size_t size = extent_node_size_get(node);
@@ -170,7 +170,7 @@ chunk_deregister(const void *chunk, const extent_node_t *node)
 {
 	bool err;
 
-	err = rtree_set(&chunks_rtree, (uintptr_t)chunk, NULL);
+	err = rtree_set(&chunks_rtree, (vaddr_t)chunk, NULL);
 	assert(!err);
 	if (config_prof && opt_prof) {
 		size_t size = extent_node_size_get(node);
