@@ -1015,7 +1015,7 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 int
 vmbus_add_child(struct hv_vmbus_channel *chan)
 {
-	struct vmbus_softc *sc = chan->vmbus_sc;
+	struct vmbus_softc *sc = chan->ch_vmbus;
 	device_t parent = sc->vmbus_dev;
 	int error = 0;
 
@@ -1052,7 +1052,7 @@ vmbus_delete_child(struct hv_vmbus_channel *chan)
 	 * device_add_child()
 	 */
 	mtx_lock(&Giant);
-	error = device_delete_child(chan->vmbus_sc->vmbus_dev, chan->ch_dev);
+	error = device_delete_child(chan->ch_vmbus->vmbus_dev, chan->ch_dev);
 	mtx_unlock(&Giant);
 
 	return error;
