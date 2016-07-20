@@ -584,23 +584,23 @@ CHERIABI_SYS_recvfrom_fill_uap(struct thread *td,
 		if (uap->fromlenaddr == NULL) {
 			uap->from = NULL;
 		} else {
-		size_t reqlen;
-		if (sizeof(uap->fromlenaddr) == 2)
-			reqlen = fuword16(uap->fromlenaddr);
-		else if (sizeof(uap->fromlenaddr) == 4)
-			reqlen = fuword32(uap->fromlenaddr);
-		else if (sizeof(uap->fromlenaddr) == 8)
-			reqlen = fuword64(uap->fromlenaddr);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->fromlenaddr));
-		reqlen = fuword(uap->fromlenaddr);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_recvfrom, 4);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->from),
-		    &tmpcap, reqlen, reqperms, 1);
-		if (error != 0)
-			return (error);
+			size_t reqlen;
+			if (sizeof(uap->fromlenaddr) == 2)
+				reqlen = fuword16(uap->fromlenaddr);
+			else if (sizeof(uap->fromlenaddr) == 4)
+				reqlen = fuword32(uap->fromlenaddr);
+			else if (sizeof(uap->fromlenaddr) == 8)
+				reqlen = fuword64(uap->fromlenaddr);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->fromlenaddr));
+			reqlen = fuword(uap->fromlenaddr);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_recvfrom, 4);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->from),
+			    &tmpcap, reqlen, reqperms, 1);
+			if (error != 0)
+				return (error);
 		}
 	}
 
