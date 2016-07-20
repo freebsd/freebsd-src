@@ -24,25 +24,39 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 1999
+.Dd July 20, 2016
 .Dt INTPM 4
 .Os
 .Sh NAME
 .Nm intpm
 .Nd Intel PIIX4 Power Management controller driver
 .Sh SYNOPSIS
+.Cd device pci
 .Cd device smbus
 .Cd device smb
 .Cd device intpm
 .Sh DESCRIPTION
-This driver provides access to
-.Tn Intel PIIX4 PCI Controller function 3 ,
-Power management controller.
-Currently, only smbus controller
-function is implemented.
-But it also have bus idle monitoring function.
-It
-will display mapped I/O address for bus monitoring function when attaching.
+The
+.Nm
+driver provides access to
+.Tn Intel PIIX4
+compatible Power Management controllers.
+Currently, only
+.Xr smbus 4
+controller function is implemented.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following chipsets:
+.Pp
+.Bl -bullet -compact
+.It
+Intel 82371AB/82443MX
+.It
+ATI IXP400
+.It
+AMD SB600/700/710/750
+.El
 .Sh SEE ALSO
 .Xr smb 4 ,
 .Xr smbus 4
