@@ -197,6 +197,14 @@ vm_laundry_target(void)
 	    vm_paging_target());
 }
 
+/*
+ * Obtain the value of a per-CPU counter.
+ */
+#define	VM_METER_PCPU_CNT(member)					\
+	vm_meter_cnt(__offsetof(struct vmmeter, member))
+
+u_int	vm_meter_cnt(size_t);
+
 #endif
 
 /* systemwide totals computed every five seconds */

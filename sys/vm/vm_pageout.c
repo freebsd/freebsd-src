@@ -1096,7 +1096,8 @@ vm_pageout_laundry_worker(void *arg)
 {
 	struct vm_domain *domain;
 	uint64_t ninact, nlaundry;
-	int cycle, tcycle, domidx, gen, launder, laundered;
+	u_int wakeups, gen;
+	int cycle, tcycle, domidx, launder, laundered;
 	int shortfall, prev_shortfall, target;
 
 	domidx = (uintptr_t)arg;
@@ -1105,7 +1106,7 @@ vm_pageout_laundry_worker(void *arg)
 	vm_pageout_init_marker(&domain->vmd_laundry_marker, PQ_LAUNDRY);
 
 	cycle = tcycle = 0;
-	gen = -1;
+	gen = 0;
 	shortfall = prev_shortfall = 0;
 	target = 0;
 
@@ -1169,13 +1170,14 @@ vm_pageout_laundry_worker(void *arg)
 
 		ninact = vm_cnt.v_inactive_count;
 		nlaundry = vm_cnt.v_laundry_count;
+		wakeups = VM_METER_PCPU_CNT(v_pdwakeups);
 		if (ninact > 0 &&
-		    vm_cnt.v_pdwakeups != gen &&
+		    wakeups != gen &&
 		    vm_cnt.v_free_count < bkgrd_launder_thresh &&
 		    nlaundry * bkgrd_launder_ratio >= ninact) {
 			cycle = 0;
 			tcycle = VM_LAUNDER_INTERVAL;
-			gen = vm_cnt.v_pdwakeups;
+			gen = wakeups;
 			if (nlaundry >= ninact)
 				target = vm_cnt.v_free_target;
 			else

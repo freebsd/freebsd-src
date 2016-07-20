@@ -216,29 +216,37 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * vcnt() -	accumulate statistics from all cpus and the global cnt
- *		structure.
+ * vm_meter_cnt() -	accumulate statistics from all cpus and the global cnt
+ *			structure.
  *
  *	The vmmeter structure is now per-cpu as well as global.  Those
  *	statistics which can be kept on a per-cpu basis (to avoid cache
  *	stalls between cpus) can be moved to the per-cpu vmmeter.  Remaining
  *	statistics, such as v_free_reserved, are left in the global
  *	structure.
- *
- * (sysctl_oid *oidp, void *arg1, int arg2, struct sysctl_req *req)
  */
-static int
-vcnt(SYSCTL_HANDLER_ARGS)
+u_int
+vm_meter_cnt(size_t offset)
 {
-	int count = *(int *)arg1;
-	int offset = (char *)arg1 - (char *)&vm_cnt;
+	struct pcpu *pcpu;
+	u_int count;
 	int i;
 
+	count = *(u_int *)((char *)&vm_cnt + offset);
 	CPU_FOREACH(i) {
-		struct pcpu *pcpu = pcpu_find(i);
-		count += *(int *)((char *)&pcpu->pc_cnt + offset);
+		pcpu = pcpu_find(i);
+		count += *(u_int *)((char *)&pcpu->pc_cnt + offset);
 	}
-	return (SYSCTL_OUT(req, &count, sizeof(int)));
+	return (count);
+}
+
+static int
+cnt_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	u_int count;
+
+	count = vm_meter_cnt((char *)arg1 - (char *)&vm_cnt);
+	return (SYSCTL_OUT(req, &count, sizeof(count)));
 }
 
 SYSCTL_PROC(_vm, VM_TOTAL, vmtotal, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
@@ -253,8 +261,8 @@ SYSCTL_NODE(_vm_stats, OID_AUTO, misc, CTLFLAG_RW, 0, "VM meter misc stats");
 
 #define	VM_STATS(parent, var, descr) \
 	SYSCTL_PROC(parent, OID_AUTO, var, \
-	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, &vm_cnt.var, 0, vcnt, \
-	    "IU", descr)
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, &vm_cnt.var, 0,	\
+	    cnt_sysctl, "IU", descr)
 #define	VM_STATS_VM(var, descr)		VM_STATS(_vm_stats_vm, var, descr)
 #define	VM_STATS_SYS(var, descr)	VM_STATS(_vm_stats_sys, var, descr)
 
