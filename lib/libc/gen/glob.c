@@ -126,7 +126,6 @@ struct glob_limit {
 #define	TILDE		L'~'
 #define	LBRACE		L'{'
 #define	RBRACE		L'}'
-#define	SLASH		L'/'
 #define	COMMA		L','
 
 #ifndef DEBUG
@@ -427,10 +426,10 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 	 */
 	eb = &patbuf[patbuf_len - 1];
 	for (p = pattern + 1, b = patbuf;
-	    b < eb && *p != EOS && *p != SLASH; *b++ = *p++)
+	    b < eb && *p != EOS && UNPROT(*p) != SEP; *b++ = *p++)
 		continue;
 
-	if (*p != EOS && *p != SLASH)
+	if (*p != EOS && UNPROT(*p) != SEP)
 		return (NULL);
 
 	*b = EOS;
