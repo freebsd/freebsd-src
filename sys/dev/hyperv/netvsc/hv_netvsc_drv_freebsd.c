@@ -791,9 +791,8 @@ hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
-	    ("channel mismatch, on channel%u, should be channel%u",
-	     chan->ch_subidx,
-	     txr->hn_chan->ch_subidx));
+	    ("channel mismatch, on chan%u, should be chan%u",
+	     vmbus_chan_subidx(chan), vmbus_chan_subidx(txr->hn_chan)));
 
 	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
@@ -2917,7 +2916,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	struct hn_rx_ring *rxr;
 	int idx;
 
-	idx = chan->ch_subidx;
+	idx = vmbus_chan_subidx(chan);
 
 	KASSERT(idx >= 0 && idx < sc->hn_rx_ring_inuse,
 	    ("invalid channel index %d, should > 0 && < %d",
@@ -2929,7 +2928,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
-		    idx, chan->ch_id);
+		    idx, vmbus_chan_id(chan));
 	}
 
 	if (idx < sc->hn_tx_ring_inuse) {
@@ -2942,7 +2941,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 		txr->hn_chan = chan;
 		if (bootverbose) {
 			if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
-			    idx, chan->ch_id);
+			    idx, vmbus_chan_id(chan));
 		}
 	}
 
@@ -2954,11 +2953,8 @@ static void
 hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 {
 
-	KASSERT(!VMBUS_CHAN_ISPRIMARY(chan),
+	KASSERT(!vmbus_chan_is_primary(chan),
 	    ("subchannel callback on primary channel"));
-	KASSERT(chan->ch_subidx > 0,
-	    ("invalid channel subidx %u",
-	     chan->ch_subidx));
 	hn_channel_attach(sc, chan);
 }
 
@@ -2979,7 +2975,7 @@ hn_subchan_setup(struct hn_softc *sc)
 		/* NOTE: Calling order is critical. */
 		hn_subchan_attach(sc, subchan);
 		hv_nv_subchan_attach(subchan,
-		    &sc->hn_rx_ring[subchan->ch_subidx]);
+		    &sc->hn_rx_ring[vmbus_chan_subidx(subchan)]);
 	}
 
 	/* Release the sub-channels */

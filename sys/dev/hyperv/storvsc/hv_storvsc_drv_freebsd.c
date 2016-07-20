@@ -876,7 +876,7 @@ storvsc_create_cpu2chan(struct storvsc_softc *sc)
 		sc->hs_cpu2chan[cpu] = vmbus_chan_cpu2chan(sc->hs_chan, cpu);
 		if (bootverbose) {
 			device_printf(sc->hs_dev, "cpu%d -> chan%u\n",
-			    cpu, sc->hs_cpu2chan[cpu]->ch_id);
+			    cpu, vmbus_chan_id(sc->hs_cpu2chan[cpu]));
 		}
 	}
 }

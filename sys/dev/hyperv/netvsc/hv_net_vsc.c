@@ -641,9 +641,9 @@ hv_nv_disconnect_from_vsp(netvsc_dev *net_dev)
 void
 hv_nv_subchan_attach(struct hv_vmbus_channel *chan, struct hn_rx_ring *rxr)
 {
-	KASSERT(rxr->hn_rx_idx == chan->ch_subidx,
+	KASSERT(rxr->hn_rx_idx == vmbus_chan_subidx(chan),
 	    ("chan%u subidx %u, rxr%d mismatch",
-	     chan->ch_id, chan->ch_subidx, rxr->hn_rx_idx));
+	     vmbus_chan_id(chan), vmbus_chan_subidx(chan), rxr->hn_rx_idx));
 	vmbus_chan_open(chan, NETVSC_DEVICE_RING_BUFFER_SIZE,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NULL, 0,
 	    hv_nv_on_channel_callback, rxr);
@@ -673,9 +673,9 @@ hv_nv_on_device_add(struct hn_softc *sc, void *additional_info,
 	/*
 	 * Open the channel
 	 */
-	KASSERT(rxr->hn_rx_idx == chan->ch_subidx,
+	KASSERT(rxr->hn_rx_idx == vmbus_chan_subidx(chan),
 	    ("chan%u subidx %u, rxr%d mismatch",
-	     chan->ch_id, chan->ch_subidx, rxr->hn_rx_idx));
+	     vmbus_chan_id(chan), vmbus_chan_subidx(chan), rxr->hn_rx_idx));
 	ret = vmbus_chan_open(chan,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NETVSC_DEVICE_RING_BUFFER_SIZE,
 	    NULL, 0, hv_nv_on_channel_callback, rxr);

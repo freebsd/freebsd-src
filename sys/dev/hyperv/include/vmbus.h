@@ -88,6 +88,9 @@ struct vmbus_chanpkt_rxbuf {
 #define VMBUS_CHAN_PRPLIST_MAX		32
 
 struct hv_vmbus_channel;
+struct hyperv_guid;
+
+typedef void	(*vmbus_chan_callback_t)(struct hv_vmbus_channel *, void *);
 
 int	vmbus_chan_open(struct hv_vmbus_channel *chan,
 	    int txbr_size, int rxbr_size, const void *udata, int udlen,
@@ -123,5 +126,11 @@ int	vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
 int	vmbus_chan_send_prplist(struct hv_vmbus_channel *chan,
 	    struct vmbus_gpa_range *prp, int prp_cnt, void *data, int dlen,
 	    uint64_t xactid);
+
+uint32_t vmbus_chan_id(const struct hv_vmbus_channel *chan);
+uint32_t vmbus_chan_subidx(const struct hv_vmbus_channel *chan);
+bool	vmbus_chan_is_primary(const struct hv_vmbus_channel *chan);
+const struct hyperv_guid *
+	vmbus_chan_guid_inst(const struct hv_vmbus_channel *chan);
 
 #endif	/* !_VMBUS_H_ */
