@@ -1151,8 +1151,12 @@ SLIST_HEAD(hn_txdesc_list, hn_txdesc);
 struct buf_ring;
 #endif
 
+struct hn_tx_ring;
+
 struct hn_rx_ring {
 	struct ifnet	*hn_ifp;
+	struct hn_tx_ring *hn_txr;
+	void		*hn_rdbuf;
 	int		hn_rx_idx;
 
 	/* Trust csum verification on host side */
@@ -1266,12 +1270,13 @@ extern int hv_promisc_mode;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
 netvsc_dev *hv_nv_on_device_add(struct hn_softc *sc,
-    void *additional_info);
+    void *additional_info, struct hn_rx_ring *rxr);
 int hv_nv_on_device_remove(struct hn_softc *sc,
     boolean_t destroy_channel);
 int hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
-void hv_nv_subchan_attach(struct hv_vmbus_channel *chan);
+void hv_nv_subchan_attach(struct hv_vmbus_channel *chan,
+    struct hn_rx_ring *rxr);
 
 #endif  /* __HV_NET_VSC_H__ */
 
