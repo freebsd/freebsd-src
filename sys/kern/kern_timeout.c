@@ -1380,8 +1380,14 @@ again:
 	if ((c->c_iflags & CALLOUT_PENDING) == 0) {
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
+		/*
+		 * For not scheduled and not executing callout return
+		 * negative value.
+		 */
+		if (cc_exec_curr(cc, direct) != c)
+			cancelled = -1;
 		CC_UNLOCK(cc);
-		return (0);
+		return (cancelled);
 	}
 
 	c->c_iflags &= ~CALLOUT_PENDING;
