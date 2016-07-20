@@ -1203,7 +1203,7 @@ static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
 static int core_write(struct coredump_params *, void *, size_t, off_t,
     enum uio_seg);
-static void each_writable_segment(struct thread *, segment_callback, void *);
+static void each_dumpable_segment(struct thread *, segment_callback, void *);
 static int __elfN(corehdr)(struct coredump_params *, int, void *, size_t,
     struct note_info_list *, size_t);
 static void __elfN(prepare_notes)(struct thread *, struct note_info_list *,
@@ -1360,7 +1360,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	/* Size the program segments. */
 	seginfo.count = 0;
 	seginfo.size = 0;
-	each_writable_segment(td, cb_size_segment, &seginfo);
+	each_dumpable_segment(td, cb_size_segment, &seginfo);
 
 	/*
 	 * Collect info about the core file header area.
@@ -1462,7 +1462,7 @@ done:
 }
 
 /*
- * A callback for each_writable_segment() to write out the segment's
+ * A callback for each_dumpable_segment() to write out the segment's
  * program header entry.
  */
 static void
@@ -1488,7 +1488,7 @@ cb_put_phdr(entry, closure)
 }
 
 /*
- * A callback for each_writable_segment() to gather information about
+ * A callback for each_dumpable_segment() to gather information about
  * the number of segments and their total size.
  */
 static void
@@ -1506,7 +1506,7 @@ cb_size_segment(vm_map_entry_t entry, void *closure)
  * caller-supplied data.
  */
 static void
-each_writable_segment(struct thread *td, segment_callback func, void *closure)
+each_dumpable_segment(struct thread *td, segment_callback func, void *closure)
 {
 	struct proc *p = td->td_proc;
 	vm_map_t map = &p->p_vmspace->vm_map;
@@ -1746,7 +1746,7 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	/* All the writable segments from the program. */
 	phc.phdr = phdr;
 	phc.offset = round_page(hdrsize + notesz);
-	each_writable_segment(td, cb_put_phdr, &phc);
+	each_dumpable_segment(td, cb_put_phdr, &phc);
 }
 
 static size_t
