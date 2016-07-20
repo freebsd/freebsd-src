@@ -157,7 +157,7 @@ SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 
 
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
-int vm_pageout_wakeup_thresh;
+u_int vm_pageout_wakeup_thresh;
 static int vm_pageout_oom_seq = 12;
 bool vm_pageout_wanted;		/* Event on which pageout daemon sleeps */
 bool vm_pages_needed;		/* Are threads waiting for free pages? */
