@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2007
+.Dd July 20, 2016
 .Dt ICHSMB 4
 .Os
 .Sh NAME
@@ -46,10 +46,12 @@
 .Cd device smb
 .Cd device ichsmb
 .Sh DESCRIPTION
-This driver provides access to the SMBus controller logical
-device contained in the Intel 82801AA (ICH), 82801AB (ICH0),
-82801BA (ICH2), 82801CA (ICH3), 82801DC (ICH4), 82801EB (ICH5),
-82801FB (ICH6) and 82801GB (ICH7) PCI chips.
+The
+.Nm
+driver provides
+.Xr smbus 4
+support for the SMBus controller logical device contained in all Intel
+motherboard chipsets starting from 82801AA (ICH).
 .Sh SEE ALSO
 .Xr smb 4 ,
 .Xr smbus 4
