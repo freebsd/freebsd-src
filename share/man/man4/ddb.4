@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2015
+.Dd July 13, 2016
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -546,6 +546,11 @@ The
 modifier will alter the display to show VM map
 addresses for the process and not show other information.
 .\"
+.Pp
+.It Ic show Cm all trace
+.It Ic alltrace
+.Xc
+Show a stack trace for every thread in the system.
 .Pp
 .It Ic show Cm all ttys
 Show all TTY's within the system.
