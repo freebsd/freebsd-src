@@ -699,7 +699,7 @@ cleanup:
 static inline int
 hv_rf_query_device_mac(rndis_device *device)
 {
-	uint32_t size = HW_MACADDR_LEN;
+	uint32_t size = ETHER_ADDR_LEN;
 
 	return (hv_rf_query_device(device,
 	    RNDIS_OID_802_3_PERMANENT_ADDRESS, device->hw_mac_addr, &size));
@@ -1126,7 +1126,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 		    "hv_rf_send_offload_request failed, ret=%d\n", ret);
 	}
 	
-	memcpy(dev_info->mac_addr, rndis_dev->hw_mac_addr, HW_MACADDR_LEN);
+	memcpy(dev_info->mac_addr, rndis_dev->hw_mac_addr, ETHER_ADDR_LEN);
 
 	hv_rf_query_device_link_status(rndis_dev);
 	

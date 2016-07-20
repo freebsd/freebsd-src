@@ -58,8 +58,6 @@
 #include <amd64/include/atomic.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
 
-typedef uint8_t	hv_bool_uint8_t;
-
 #define HV_S_OK			0x00000000
 #define HV_E_FAIL		0x80004005
 #define HV_ERROR_NOT_SUPPORTED	0x80070032
@@ -89,8 +87,6 @@ struct hyperv_guid {
 #define HYPERV_GUID_STRLEN	40
 
 int	hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
-
-#define HW_MACADDR_LEN	6
 
 /*
  * Common defines for Hyper-V ICs
