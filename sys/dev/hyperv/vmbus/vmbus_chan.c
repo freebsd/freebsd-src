@@ -89,13 +89,10 @@ vmbus_chan_signal_tx(struct hv_vmbus_channel *chan)
 	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
 	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
-	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
-		atomic_set_int(
-		&sc->vmbus_mnf2->mnf_trigs[chan->ch_montrig_idx].mt_pending,
-		chan->ch_montrig_mask);
-	} else {
+	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF)
+		atomic_set_int(chan->ch_montrig, chan->ch_montrig_mask);
+	else
 		hypercall_signal_event(chan->ch_monprm_dma.hv_paddr);
-	}
 }
 
 static int
@@ -1106,13 +1103,19 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 		chan->ch_monprm->mp_connid = offer->chm_connid;
 
 	if (offer->chm_flags1 & VMBUS_CHOFFER_FLAG1_HASMNF) {
+		int trig_idx;
+
 		/*
 		 * Setup MNF stuffs.
 		 */
 		chan->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
-		chan->ch_montrig_idx = offer->chm_montrig / VMBUS_MONTRIG_LEN;
-		if (chan->ch_montrig_idx >= VMBUS_MONTRIGS_MAX)
+
+		trig_idx = offer->chm_montrig / VMBUS_MONTRIG_LEN;
+		if (trig_idx >= VMBUS_MONTRIGS_MAX)
 			panic("invalid monitor trigger %u", offer->chm_montrig);
+		chan->ch_montrig =
+		    &sc->vmbus_mnf2->mnf_trigs[trig_idx].mt_pending;
+
 		chan->ch_montrig_mask =
 		    1 << (offer->chm_montrig % VMBUS_MONTRIG_LEN);
 	}
