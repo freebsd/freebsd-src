@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 21, 2016
+.Dd April 28, 2016
 .Dt RESOLVCONF.CONF 5
 .Os
 .Sh NAME
@@ -103,7 +103,8 @@ This is equivalent to the
 .Nm resolvconf -p
 option.
 .It Sy replace
-Is a space separated list of replacement keywords. The syntax is this:
+Is a space separated list of replacement keywords.
+The syntax is this:
 .Va $keyword Ns / Ns Va $match Ns / Ns Va $replacement
 .Pp
 Example, given this resolv.conf:
@@ -284,33 +285,32 @@ variables, documented below.
 .Pp
 .Bl -tag -width indent
 .It Sy dnsmasq_service
-Location of the dnsmasq service.
+Name of the dnsmasq service.
 .It Sy dnsmasq_restart
 Command to restart the dnsmasq service.
 .It Sy dnsmasq_pid
 Location of the dnsmasq pidfile.
 .It Sy libc_service
-Location of the libc service.
+Name of the libc service.
 .It Sy libc_restart
 Command to restart the libc service.
 .It Sy named_service
-Location of the named service.
+Name of the named service.
 .It Sy named_restart
 Command to restart the named service.
 .It Sy pdnsd_restart
 Command to restart the pdnsd service.
 .It Sy unbound_service
-Location of the unbound service.
+Name of the unbound service.
 .It Sy unbound_restart
 Command to restart the unbound service.
 .It Sy unbound_pid
 Location of the unbound pidfile.
 .El
 .Sh SEE ALSO
+.Xr sh 1 ,
 .Xr resolv.conf 5 ,
 .Xr resolvconf 8
-and
-.Xr sh 1 .
 .Sh AUTHORS
 .An Roy Marples Aq Mt roy@marples.name
 .Sh BUGS
