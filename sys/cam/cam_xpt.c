@@ -1033,6 +1033,8 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	else if (path->device->protocol == PROTO_SEMB)
 		semb_print_ident(
 		    (struct sep_identify_data *)&path->device->ident_data);
+	else if (path->device->protocol == PROTO_NVME)
+		nvme_print_ident(path->device->nvme_cdata, path->device->nvme_data);
 	else
 		printf("Unknown protocol device\n");
 	if (path->device->serial_num_len > 0) {
@@ -1086,6 +1088,8 @@ xpt_denounce_periph(struct cam_periph *periph)
 	else if (path->device->protocol == PROTO_SEMB)
 		semb_print_ident_short(
 		    (struct sep_identify_data *)&path->device->ident_data);
+	else if (path->device->protocol == PROTO_NVME)
+		nvme_print_ident(path->device->nvme_cdata, path->device->nvme_data);
 	else
 		printf("Unknown protocol device");
 	if (path->device->serial_num_len > 0)
@@ -2516,6 +2520,10 @@ xpt_action_default(union ccb *start_ccb)
 		if (start_ccb->ccb_h.func_code == XPT_ATA_IO)
 			start_ccb->ataio.resid = 0;
 		/* FALLTHROUGH */
+	case XPT_NVME_IO:
+		if (start_ccb->ccb_h.func_code == XPT_NVME_IO)
+			start_ccb->nvmeio.resid = 0;
+		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	case XPT_SMP_IO:
@@ -2655,6 +2663,8 @@ call_sim:
 			cgd->inq_data = dev->inq_data;
 			cgd->ident_data = dev->ident_data;
 			cgd->inq_flags = dev->inq_flags;
+			cgd->nvme_data = dev->nvme_data;
+			cgd->nvme_cdata = dev->nvme_cdata;
 			cgd->ccb_h.status = CAM_REQ_CMP;
 			cgd->serial_num_len = dev->serial_num_len;
 			if ((dev->serial_num_len > 0)
@@ -3011,8 +3021,10 @@ call_sim:
 	case XPT_TERM_IO:
 	case XPT_ENG_INQ:
 		/* XXX Implement */
-		printf("%s: CCB type %#x not supported\n", __func__,
-		       start_ccb->ccb_h.func_code);
+		xpt_print_path(start_ccb->ccb_h.path);
+		printf("%s: CCB type %#x %s not supported\n", __func__,
+		    start_ccb->ccb_h.func_code,
+		    xpt_action_name(start_ccb->ccb_h.func_code));
 		start_ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		if (start_ccb->ccb_h.func_code & XPT_FC_DEV_QUEUED) {
 			xpt_done(start_ccb);
@@ -3313,6 +3325,13 @@ xpt_run_devq(struct cam_devq *devq)
 			    CAM_DEBUG_CDB,("%s. ACB: %s\n",
 			     ata_op_string(&work_ccb->ataio.cmd),
 			     ata_cmd_string(&work_ccb->ataio.cmd,
+					    cdb_str, sizeof(cdb_str))));
+			break;
+		case XPT_NVME_IO:
+			CAM_DEBUG(work_ccb->ccb_h.path,
+			    CAM_DEBUG_CDB,("%s. NCB: %s\n",
+			     nvme_op_string(&work_ccb->nvmeio.cmd),
+			     nvme_cmd_string(&work_ccb->nvmeio.cmd,
 					    cdb_str, sizeof(cdb_str))));
 			break;
 		default:
@@ -3903,6 +3922,9 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		case XPORT_ATA:
 		case XPORT_SATA:
 			new_bus->xport = ata_get_xport();
+			break;
+		case XPORT_NVME:
+			new_bus->xport = nvme_get_xport();
 			break;
 		default:
 			new_bus->xport = &xport_default;
