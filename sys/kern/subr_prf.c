@@ -1196,6 +1196,7 @@ sbuf_hexdump(struct sbuf *sb, const void *ptr, int length, const char *hdr,
 	}
 }
 
+#ifdef _KERNEL
 void
 counted_warning(unsigned *counter, const char *msg)
 {
@@ -1215,3 +1216,4 @@ counted_warning(unsigned *counter, const char *msg)
 		}
 	}
 }
+#endif
