@@ -58,23 +58,6 @@
 #include <amd64/include/atomic.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
 
-/*
- * VMBUS version is 32 bit, upper 16 bit for major_number and lower
- * 16 bit for minor_number.
- *
- * 0.13  --  Windows Server 2008
- * 1.1   --  Windows 7
- * 2.4   --  Windows 8
- * 3.0   --  Windows 8.1
- */
-#define VMBUS_VERSION_WS2008		((0 << 16) | (13))
-#define VMBUS_VERSION_WIN7		((1 << 16) | (1))
-#define VMBUS_VERSION_WIN8		((2 << 16) | (4))
-#define VMBUS_VERSION_WIN8_1		((3 << 16) | (0))
-
-#define VMBUS_VERSION_MAJOR(ver)	(((uint32_t)(ver)) >> 16)
-#define VMBUS_VERSION_MINOR(ver)	(((uint32_t)(ver)) & 0xffff)
-
 struct hyperv_guid {
 	uint8_t		hv_guid[16];
 } __packed;
@@ -82,8 +65,6 @@ struct hyperv_guid {
 #define HYPERV_GUID_STRLEN	40
 
 int	hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
-
-struct hv_vmbus_channel;
 
 /**
  * @brief Get physical address from virtual
@@ -94,12 +75,6 @@ hv_get_phys_addr(void *virt)
 	unsigned long ret;
 	ret = (vtophys(virt) | ((vm_offset_t) virt & PAGE_MASK));
 	return (ret);
-}
-
-static __inline struct hv_vmbus_channel *
-vmbus_get_channel(device_t dev)
-{
-	return device_get_ivars(dev);
 }
 
 #endif  /* __HYPERV_H__ */

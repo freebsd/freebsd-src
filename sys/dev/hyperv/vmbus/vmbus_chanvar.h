@@ -181,4 +181,12 @@ typedef struct hv_vmbus_channel {
 #define VMBUS_CHAN_ST_OPENED_SHIFT	0
 #define VMBUS_CHAN_ST_OPENED		(1 << VMBUS_CHAN_ST_OPENED_SHIFT)
 
+struct vmbus_softc;
+struct vmbus_message;
+
+void	vmbus_event_proc(struct vmbus_softc *, int);
+void	vmbus_event_proc_compat(struct vmbus_softc *, int);
+void	vmbus_chan_msgproc(struct vmbus_softc *, const struct vmbus_message *);
+void	vmbus_chan_destroy_all(struct vmbus_softc *);
+
 #endif	/* !_VMBUS_CHANVAR_H_ */
