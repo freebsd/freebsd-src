@@ -145,6 +145,7 @@ int	kern_mknodat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int mode, int dev);
 int	kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 	    vm_size_t size, int prot, int flags, int fd, off_t pos);
+int	kern_mprotect(struct thread *td, const void *addr, size_t len, int prot);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
 int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);

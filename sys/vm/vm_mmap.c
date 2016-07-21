@@ -751,27 +751,32 @@ struct mprotect_args {
  * MPSAFE
  */
 int
-sys_mprotect(td, uap)
-	struct thread *td;
-	struct mprotect_args *uap;
+sys_mprotect(struct thread *td, struct mprotect_args *uap)
 {
-	vm_offset_t addr;
-	vm_size_t size, pageoff;
-	vm_prot_t prot;
 
-	addr = (vm_offset_t) uap->addr;
-	size = uap->len;
-	prot = uap->prot & VM_PROT_ALL;
+	return (kern_mprotect(td, uap->addr, uap->len, uap->prot));
+}
 
-	pageoff = (addr & PAGE_MASK);
-	addr -= pageoff;
-	size += pageoff;
-	size = (vm_size_t) round_page(size);
-	if (addr + size < addr)
+int
+kern_mprotect(struct thread *td, const void *addr, size_t len, int prot)
+{
+	vm_offset_t v_addr;
+	vm_size_t v_size, pageoff;
+	vm_prot_t v_prot;
+
+	v_addr = (vm_offset_t) addr;
+	v_size = len;
+	v_prot = prot & VM_PROT_ALL;
+
+	pageoff = (v_addr & PAGE_MASK);
+	v_addr -= pageoff;
+	v_size += pageoff;
+	v_size = (vm_size_t) round_page(v_size);
+	if (v_addr + v_size < v_addr)
 		return (EINVAL);
 
-	switch (vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
-	    addr + size, prot, FALSE)) {
+	switch (vm_map_protect(&td->td_proc->p_vmspace->vm_map, v_addr,
+	    v_addr + v_size, v_prot, FALSE)) {
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_PROTECTION_FAILURE:
