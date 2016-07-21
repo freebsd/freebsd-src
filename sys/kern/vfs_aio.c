@@ -1664,7 +1664,10 @@ aio_queue_file(struct file *fp, struct kaiocb *job)
 	struct aioliojob *lj;
 	struct kaioinfo *ki;
 	struct kaiocb *job2;
+	struct vnode *vp;
+	struct mount *mp;
 	int error, opcode;
+	bool safe;
 
 	lj = job->lio;
 	ki = job->userproc->p_aioinfo;
@@ -1685,7 +1688,16 @@ aio_queue_file(struct file *fp, struct kaiocb *job)
 		goto done;
 #endif
 queueit:
-	if (!enable_aio_unsafe)
+	safe = false;
+	if (fp->f_type == DTYPE_VNODE) {
+		vp = fp->f_vnode;
+		if (vp->v_type == VREG || vp->v_type == VDIR) {
+			mp = fp->f_vnode->v_mount;
+			if (mp == NULL || (mp->mnt_flag & MNT_LOCAL) != 0)
+				safe = true;
+		}
+	}
+	if (!(safe || enable_aio_unsafe))
 		return (EOPNOTSUPP);
 
 	if (opcode == LIO_SYNC) {
