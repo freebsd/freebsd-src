@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-static void 	vmbus_chan_signal_tx(struct hv_vmbus_channel *chan);
 static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
 		    const struct hv_vmbus_channel *);
 
@@ -77,18 +76,13 @@ vmbus_chan_msgprocs[VMBUS_CHANMSG_TYPE_MAX] = {
 	VMBUS_CHANMSG_PROC_WAKEUP(GPADL_DISCONNRESP)
 };
 
-/**
- *  @brief Trigger an event notification on the specified channel
+/*
+ * Notify host that there are data pending on our TX bufring.
  */
-static void
-vmbus_chan_signal_tx(struct hv_vmbus_channel *chan)
+static __inline void
+vmbus_chan_signal_tx(const struct hv_vmbus_channel *chan)
 {
-	struct vmbus_softc *sc = chan->ch_vmbus;
-	uint32_t chanid = chan->ch_id;
-
-	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
-	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
-
+	atomic_set_long(chan->ch_evtflag, chan->ch_evtflag_mask);
 	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF)
 		atomic_set_int(chan->ch_montrig, chan->ch_montrig_mask);
 	else
@@ -1119,6 +1113,13 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 		chan->ch_montrig_mask =
 		    1 << (offer->chm_montrig % VMBUS_MONTRIG_LEN);
 	}
+
+	/*
+	 * Setup event flag.
+	 */
+	chan->ch_evtflag =
+	    &sc->vmbus_tx_evtflags[chan->ch_id >> VMBUS_EVTFLAG_SHIFT];
+	chan->ch_evtflag_mask = 1UL << (chan->ch_id & VMBUS_EVTFLAG_MASK);
 
 	/* Select default cpu for this channel. */
 	vmbus_chan_cpu_default(chan);
