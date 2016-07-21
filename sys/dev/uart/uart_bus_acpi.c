@@ -41,9 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu_acpi.h>
 
+#ifdef __aarch64__
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
+#endif
 
 static int uart_acpi_probe(device_t dev);
 
