@@ -128,26 +128,12 @@ struct glob_limit {
 #define	RBRACE		L'}'
 #define	COMMA		L','
 
-#ifndef DEBUG
-
 #define	M_QUOTE		0x8000000000ULL
 #define	M_PROTECT	0x4000000000ULL
 #define	M_MASK		0xffffffffffULL
 #define	M_CHAR		0x00ffffffffULL
 
 typedef uint_fast64_t Char;
-
-#else
-
-#define	M_QUOTE		0x80
-#define	M_PROTECT	0x40
-#define	M_MASK		0xff
-#define	M_CHAR		0x7f
-
-typedef char Char;
-
-#endif
-
 
 #define	CHAR(c)		((Char)((c)&M_CHAR))
 #define	META(c)		((Char)((c)|M_QUOTE))
@@ -171,7 +157,7 @@ static const Char *g_strchr(const Char *, wchar_t);
 static Char	*g_strcat(Char *, const Char *);
 #endif
 static int	 g_stat(Char *, struct stat *, glob_t *);
-static int	 glob0(const Char *, glob_t *, struct glob_limit *);
+static int	 glob0(const Char *, glob_t *, struct glob_limit *, int);
 static int	 glob1(Char *, glob_t *, struct glob_limit *);
 static int	 glob2(Char *, Char *, Char *, Char *, glob_t *,
     struct glob_limit *);
@@ -180,8 +166,9 @@ static int	 glob3(Char *, Char *, Char *, Char *, Char *, glob_t *,
 static int	 globextend(const Char *, glob_t *, struct glob_limit *, int);
 static const Char *
 		 globtilde(const Char *, Char *, size_t, glob_t *);
+static int	 globexp0(const Char *, glob_t *, struct glob_limit *);
 static int	 globexp1(const Char *, glob_t *, struct glob_limit *);
-static int	 globexp2(const Char *, const Char *, glob_t *, int *,
+static int	 globexp2(const Char *, const Char *, glob_t *,
     struct glob_limit *);
 static int	 match(Char *, Char *, Char *);
 #ifdef DEBUG
@@ -260,9 +247,49 @@ glob(const char * __restrict pattern, int flags,
 	*bufnext = EOS;
 
 	if (flags & GLOB_BRACE)
-	    return (globexp1(patbuf, pglob, &limit));
+	    return (globexp0(patbuf, pglob, &limit));
 	else
-	    return (glob0(patbuf, pglob, &limit));
+	    return (glob0(patbuf, pglob, &limit, 1));
+}
+
+static int
+globexp0(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
+{
+	int rv;
+	size_t oldpathc;
+
+	/* Protect a single {}, for find(1), like csh */
+	if (pattern[0] == LBRACE && pattern[1] == RBRACE && pattern[2] == EOS) {
+		if ((pglob->gl_flags & GLOB_LIMIT) &&
+		    limit->l_brace_cnt++ >= GLOB_LIMIT_BRACE) {
+			errno = 0;
+			return (GLOB_NOSPACE);
+		}
+		return (glob0(pattern, pglob, limit, 1));
+	}
+
+	oldpathc = pglob->gl_pathc;
+
+	if ((rv = globexp1(pattern, pglob, limit)) != 0)
+		return rv;
+	/*
+	 * If there was no match we are going to append the pattern
+	 * if GLOB_NOCHECK was specified or if GLOB_NOMAGIC was specified
+	 * and the pattern did not contain any magic characters
+	 * GLOB_NOMAGIC is there just for compatibility with csh.
+	 */
+	if (pglob->gl_pathc == oldpathc) {
+		if (((pglob->gl_flags & GLOB_NOCHECK) ||
+		    ((pglob->gl_flags & GLOB_NOMAGIC) &&
+			!(pglob->gl_flags & GLOB_MAGCHAR))))
+			return (globextend(pattern, pglob, limit, 1));
+		else
+			return (GLOB_NOMATCH);
+	}
+	if (!(pglob->gl_flags & GLOB_NOSORT))
+		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
+		    pglob->gl_pathc - oldpathc, sizeof(char *), compare);
+	return (0);
 }
 
 /*
@@ -273,24 +300,18 @@ glob(const char * __restrict pattern, int flags,
 static int
 globexp1(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
 {
-	const Char* ptr = pattern;
-	int rv;
+	const Char* ptr;
 
-	if ((pglob->gl_flags & GLOB_LIMIT) &&
-	    limit->l_brace_cnt++ >= GLOB_LIMIT_BRACE) {
-		errno = 0;
-		return (GLOB_NOSPACE);
+	if ((ptr = g_strchr(pattern, LBRACE)) != NULL) {
+		if ((pglob->gl_flags & GLOB_LIMIT) &&
+		    limit->l_brace_cnt++ >= GLOB_LIMIT_BRACE) {
+			errno = 0;
+			return (GLOB_NOSPACE);
+		}
+		return (globexp2(ptr, pattern, pglob, limit));
 	}
 
-	/* Protect a single {}, for find(1), like csh */
-	if (pattern[0] == LBRACE && pattern[1] == RBRACE && pattern[2] == EOS)
-		return glob0(pattern, pglob, limit);
-
-	while ((ptr = g_strchr(ptr, LBRACE)) != NULL)
-		if (!globexp2(ptr, pattern, pglob, &rv, limit))
-			return rv;
-
-	return glob0(pattern, pglob, limit);
+	return (glob0(pattern, pglob, limit, 0));
 }
 
 
@@ -300,10 +321,10 @@ globexp1(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
  * If it fails then it tries to glob the rest of the pattern and returns.
  */
 static int
-globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv,
+globexp2(const Char *ptr, const Char *pattern, glob_t *pglob,
     struct glob_limit *limit)
 {
-	int     i;
+	int     i, rv;
 	Char   *lm, *ls;
 	const Char *pe, *pm, *pm1, *pl;
 	Char    patbuf[MAXPATHLEN];
@@ -315,7 +336,7 @@ globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv,
 	ls = lm;
 
 	/* Find the balanced brace */
-	for (i = 0, pe = ++ptr; *pe; pe++)
+	for (i = 0, pe = ++ptr; *pe != EOS; pe++)
 		if (*pe == LBRACKET) {
 			/* Ignore everything between [] */
 			for (pm = pe++; *pe != RBRACKET && *pe != EOS; pe++)
@@ -337,10 +358,8 @@ globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv,
 		}
 
 	/* Non matching braces; just glob the pattern */
-	if (i != 0 || *pe == EOS) {
-		*rv = glob0(patbuf, pglob, limit);
-		return (0);
-	}
+	if (i != 0 || *pe == EOS)
+		return (glob0(pattern, pglob, limit, 0));
 
 	for (i = 0, pl = pm = ptr; pm <= pe; pm++)
 		switch (*pm) {
@@ -385,7 +404,9 @@ globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv,
 #ifdef DEBUG
 				qprintf("globexp2:", patbuf);
 #endif
-				*rv = globexp1(patbuf, pglob, limit);
+				rv = globexp1(patbuf, pglob, limit);
+				if (rv)
+					return (rv);
 
 				/* move after the comma, to the next string */
 				pl = pm + 1;
@@ -395,7 +416,6 @@ globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv,
 		default:
 			break;
 		}
-	*rv = 0;
 	return (0);
 }
 
@@ -517,7 +537,8 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
  * if things went well, nonzero if errors occurred.
  */
 static int
-glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
+glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
+    int final)
 {
 	const Char *qpatnext;
 	int err;
@@ -587,23 +608,25 @@ glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
 	if ((err = glob1(patbuf, pglob, limit)) != 0)
 		return(err);
 
-	/*
-	 * If there was no match we are going to append the pattern
-	 * if GLOB_NOCHECK was specified or if GLOB_NOMAGIC was specified
-	 * and the pattern did not contain any magic characters
-	 * GLOB_NOMAGIC is there just for compatibility with csh.
-	 */
-	if (pglob->gl_pathc == oldpathc) {
-		if (((pglob->gl_flags & GLOB_NOCHECK) ||
-		    ((pglob->gl_flags & GLOB_NOMAGIC) &&
-			!(pglob->gl_flags & GLOB_MAGCHAR))))
-			return (globextend(pattern, pglob, limit, 1));
-		else
-			return (GLOB_NOMATCH);
+	if (final) {
+		/*
+		 * If there was no match we are going to append the pattern
+		 * if GLOB_NOCHECK was specified or if GLOB_NOMAGIC was specified
+		 * and the pattern did not contain any magic characters
+		 * GLOB_NOMAGIC is there just for compatibility with csh.
+		 */
+		if (pglob->gl_pathc == oldpathc) {
+			if (((pglob->gl_flags & GLOB_NOCHECK) ||
+			    ((pglob->gl_flags & GLOB_NOMAGIC) &&
+				!(pglob->gl_flags & GLOB_MAGCHAR))))
+				return (globextend(pattern, pglob, limit, 1));
+			else
+				return (GLOB_NOMATCH);
+		}
+		if (!(pglob->gl_flags & GLOB_NOSORT))
+			qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
+			    pglob->gl_pathc - oldpathc, sizeof(char *), compare);
 	}
-	if (!(pglob->gl_flags & GLOB_NOSORT))
-		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
-		    pglob->gl_pathc - oldpathc, sizeof(char *), compare);
 	return (0);
 }
 
@@ -856,14 +879,15 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 	len = MB_CUR_MAX * (size_t)(p - path);	/* XXX overallocation */
 	if (prot)
 		len += (size_t)(p - path) - 1;
-	limit->l_string_cnt += len;
-	if ((pglob->gl_flags & GLOB_LIMIT) &&
-	    limit->l_string_cnt >= GLOB_LIMIT_STRING) {
-		errno = 0;
-		return (GLOB_NOSPACE);
-	}
 	if ((copy = malloc(len)) != NULL) {
 		if (g_Ctoc(path, copy, len, prot)) {
+			free(copy);
+			errno = 0;
+			return (GLOB_NOSPACE);
+		}
+		limit->l_string_cnt += strlen(copy) + 1;
+		if ((pglob->gl_flags & GLOB_LIMIT) &&
+		    limit->l_string_cnt >= GLOB_LIMIT_STRING) {
 			free(copy);
 			errno = 0;
 			return (GLOB_NOSPACE);
@@ -1046,15 +1070,17 @@ qprintf(const char *str, Char *s)
 {
 	Char *p;
 
-	(void)printf("%s:\n", str);
-	for (p = s; *p; p++)
-		(void)printf("%c", CHAR(*p));
-	(void)printf("\n");
-	for (p = s; *p; p++)
-		(void)printf("%c", *p & M_PROTECT ? '"' : ' ');
-	(void)printf("\n");
-	for (p = s; *p; p++)
-		(void)printf("%c", ismeta(*p) ? '_' : ' ');
-	(void)printf("\n");
+	(void)printf("%s\n", str);
+	if (s != NULL) {
+		for (p = s; *p != EOS; p++)
+			(void)printf("%c", (char)CHAR(*p));
+		(void)printf("\n");
+		for (p = s; *p != EOS; p++)
+			(void)printf("%c", (isprot(*p) ? '\\' : ' '));
+		(void)printf("\n");
+		for (p = s; *p != EOS; p++)
+			(void)printf("%c", (ismeta(*p) ? '_' : ' '));
+		(void)printf("\n");
+	}
 }
 #endif
