@@ -32,6 +32,23 @@
 #include <sys/param.h>
 
 /*
+ * VMBUS version is 32 bit, upper 16 bit for major_number and lower
+ * 16 bit for minor_number.
+ *
+ * 0.13  --  Windows Server 2008
+ * 1.1   --  Windows 7
+ * 2.4   --  Windows 8
+ * 3.0   --  Windows 8.1
+ */
+#define VMBUS_VERSION_WS2008		((0 << 16) | (13))
+#define VMBUS_VERSION_WIN7		((1 << 16) | (1))
+#define VMBUS_VERSION_WIN8		((2 << 16) | (4))
+#define VMBUS_VERSION_WIN8_1		((3 << 16) | (0))
+
+#define VMBUS_VERSION_MAJOR(ver)	(((uint32_t)(ver)) >> 16)
+#define VMBUS_VERSION_MINOR(ver)	(((uint32_t)(ver)) & 0xffff)
+
+/*
  * GPA stuffs.
  */
 struct vmbus_gpa_range {
@@ -91,6 +108,12 @@ struct hv_vmbus_channel;
 struct hyperv_guid;
 
 typedef void	(*vmbus_chan_callback_t)(struct hv_vmbus_channel *, void *);
+
+static __inline struct hv_vmbus_channel *
+vmbus_get_channel(device_t dev)
+{
+	return device_get_ivars(dev);
+}
 
 int	vmbus_chan_open(struct hv_vmbus_channel *chan,
 	    int txbr_size, int rxbr_size, const void *udata, int udlen,
