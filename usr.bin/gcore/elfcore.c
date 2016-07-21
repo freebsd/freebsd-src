@@ -95,7 +95,7 @@ typedef void* (*notefunc_t)(void *, size_t *);
 
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
-static void each_writable_segment(vm_map_entry_t, segment_callback,
+static void each_dumpable_segment(vm_map_entry_t, segment_callback,
     void *closure);
 static void elf_detach(void);	/* atexit() handler. */
 static void *elf_note_fpregset(void *, size_t *);
@@ -206,7 +206,7 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 	/* Size the program segments. */
 	seginfo.count = 0;
 	seginfo.size = 0;
-	each_writable_segment(map, cb_size_segment, &seginfo);
+	each_dumpable_segment(map, cb_size_segment, &seginfo);
 
 	/*
 	 * Build the header and the notes using sbuf and write to the file.
@@ -277,7 +277,7 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 }
 
 /*
- * A callback for each_writable_segment() to write out the segment's
+ * A callback for each_dumpable_segment() to write out the segment's
  * program header entry.
  */
 static void
@@ -307,7 +307,7 @@ cb_put_phdr(vm_map_entry_t entry, void *closure)
 }
 
 /*
- * A callback for each_writable_segment() to gather information about
+ * A callback for each_dumpable_segment() to gather information about
  * the number of segments and their total size.
  */
 static void
@@ -325,7 +325,7 @@ cb_size_segment(vm_map_entry_t entry, void *closure)
  * data.
  */
 static void
-each_writable_segment(vm_map_entry_t map, segment_callback func, void *closure)
+each_dumpable_segment(vm_map_entry_t map, segment_callback func, void *closure)
 {
 	vm_map_entry_t entry;
 
@@ -497,7 +497,7 @@ elf_puthdr(pid_t pid, vm_map_entry_t map, void *hdr, size_t hdrsize,
 	/* All the writable segments from the program. */
 	phc.phdr = phdr;
 	phc.offset = segoff;
-	each_writable_segment(map, cb_put_phdr, &phc);
+	each_dumpable_segment(map, cb_put_phdr, &phc);
 }
 
 /*
