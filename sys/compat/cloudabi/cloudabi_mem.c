@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
@@ -120,13 +121,11 @@ int
 cloudabi_sys_mem_protect(struct thread *td,
     struct cloudabi_sys_mem_protect_args *uap)
 {
-	struct mprotect_args mprotect_args = {
-		.addr	= uap->addr,
-		.len	= uap->len,
-		.prot	= convert_mprot(uap->prot),
-	};
+	int prot;
 
-	return (sys_mprotect(td, &mprotect_args));
+	prot = convert_mprot(uap->prot);
+
+	return (kern_mprotect(td, uap->addr, uap->len, prot));
 }
 
 int

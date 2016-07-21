@@ -439,16 +439,14 @@ freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
 int
 freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
 {
-	struct mprotect_args ap;
+	int prot;
 
-	ap.addr = PTRIN(uap->addr);
-	ap.len = uap->len;
-	ap.prot = uap->prot;
+	prot = uap->prot;
 #if defined(__amd64__)
-	if (i386_read_exec && (ap.prot & PROT_READ) != 0)
-		ap.prot |= PROT_EXEC;
+	if (i386_read_exec && (prot & PROT_READ) != 0)
+		prot |= PROT_EXEC;
 #endif
-	return (sys_mprotect(td, &ap));
+	return (kern_mprotect(td, PTRIN(uap->addr), uap->len, prot));
 }
 
 int
