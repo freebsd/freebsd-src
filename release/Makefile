@@ -137,6 +137,9 @@ CLEANFILES+=	${I}.xz
 CLEANFILES+=	pkg-stage
 .endif
 CLEANDIRS=	dist ftp disc1 bootonly dvd
+.if !defined(NODOC)
+CLEANDIRS+=    reldoc rdoc
+.endif
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
