@@ -182,6 +182,7 @@
 62	AUE_FSTAT	OBSOL	fstat
 63	AUE_NULL	OBSOL	ogetkerninfo
 64	AUE_NULL	OBSOL	getpagesize
+; XXX-BD: msync may not need/want _Pagerange_ as it doesn't alter the map
 65	AUE_MSYNC	NOPROTO	{ int msync(_Pagerange_(len) void *addr, \
 				    size_t len, int flags); }
 66	AUE_VFORK	NOPROTO	{ int vfork(void); }
@@ -411,6 +412,9 @@
 				    void *old, _Inout_opt_ size_t *oldlenp, \
 				    _In_reads_bytes_opt_(newlen) void *new, \
 				    void newlen); } __sysctl sysctl_args int
+; XXX-BD: unclear if these really require _Pagerange_.  It's mostly
+; harmless to lock memory you don't own, but unlocking could cause (e.g.)
+; keys to leak to swap so could be malicous.
 203	AUE_MLOCK	NOPROTO	{ int mlock( \
 				    _Pagerange_(len) const void *addr, \
 				    size_t len); }
