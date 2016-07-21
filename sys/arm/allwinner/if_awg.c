@@ -951,7 +951,7 @@ awg_setup_extres(device_t dev)
 			tx_parent_name = "emac_int_tx";
 		else
 			tx_parent_name = "mii_phy_tx";
-		free(phy_type, M_OFWPROP);
+		OF_prop_free(phy_type);
 
 		/* Get the TX clock */
 		error = clk_get_by_ofw_name(dev, "tx", &clk_tx);
@@ -1034,7 +1034,7 @@ awg_setup_extres(device_t dev)
 	return (0);
 
 fail:
-	free(phy_type, M_OFWPROP);
+	OF_prop_free(phy_type);
 
 	if (reg != NULL)
 		regulator_release(reg);

@@ -1,4 +1,4 @@
-# $Id: dpadd.mk,v 1.19 2014/04/05 22:56:54 sjg Exp $
+# $Id: dpadd.mk,v 1.21 2016/05/18 20:54:55 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -21,71 +21,91 @@ __${.PARSEFILE}__:
 _OBJDIR?= ${.OBJDIR}
 _CURDIR?= ${.CURDIR}
 
-# DPLIBS helps us ensure we keep DPADD and LDADD in sync
-DPLIBS+= ${DPLIBS_LAST}
-DPADD+= ${DPLIBS}
-.for __lib in ${DPLIBS:T:R}
-LDADD+= ${LDADD_${__lib}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
-.endfor
-
-# DPADD can contain things other than libs
-__dpadd_libs = ${DPADD:M*/lib*}
-
-# some libs have dependencies...
-# DPLIBS_* allows bsd.libnames.mk to flag libs which must be included
-# in DPADD for a given library.
-.for __lib in ${__dpadd_libs:@d@${DPLIBS_${d:T:R}}@}
-.if "${DPADD:M${__lib}}" == ""
-DPADD+= ${__lib}
-LDADD+= ${LDADD_${__lib}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
-.endif
-.endfor
-# Last of all... for libc and libgcc
-DPADD+= ${DPADD_LAST}
-
-# Convert DPADD into -I and -L options and add them to CPPFLAGS and LDADD
-# For the -I's convert the path to a relative one.  For separate objdirs
-# the DPADD paths will be to the obj tree so we need to subst anyway.
-
-# If USE_PROFILE is yes, then check for profiled versions of libs
-# and use them.
-
-USE_PROFILE?=no
-.if defined(LIBDL) && exists(${LIBDL})
-.if defined(PROG) && (make(${PROG}_p) || ${USE_PROFILE} == yes) && \
-	defined(LDFLAGS) && ${LDFLAGS:M-export-dynamic}
-# building profiled version of a prog that needs dlopen to work
-DPLIBS+= ${LIBDL}
-.endif
-.endif
-
-.if defined(LIBDMALLOC) && exists(${LIBDMALLOC})
-.if defined(USE_DMALLOC) && ${USE_DMALLOC} != no
-.if !defined(NO_DMALLOC)
-CPPFLAGS+= -DUSE_DMALLOC
-.endif
-DPLIBS+= ${LIBDMALLOC}
-.endif
-.endif
-
-# Order -L's to search ours first.
-# Avoids picking up old versions already installed.
-__dpadd_libdirs := ${__dpadd_libs:R:H:S/^/-L/g:O:u:N-L}
-LDADD += ${__dpadd_libdirs:M-L${OBJTOP}/*}
-LDADD += ${__dpadd_libdirs:N-L${OBJTOP}/*}
-
-.if ${.CURDIR} == ${SRCTOP}
+.if ${_CURDIR} == ${SRCTOP}
 RELDIR=.
 RELTOP=.
 .else
-RELDIR?= ${.CURDIR:S,${SRCTOP}/,,}
-.if ${RELDIR} == ${.CURDIR}
-RELDIR?= ${.OBJDIR:S,${OBJTOP}/,,}
+RELDIR?= ${_CURDIR:S,${SRCTOP}/,,}
+.if ${RELDIR} == ${_CURDIR}
+RELDIR?= ${_OBJDIR:S,${OBJTOP}/,,}
 .endif
 RELTOP?= ${RELDIR:C,[^/]+,..,g}
 .endif
 RELOBJTOP?= ${OBJTOP}
 RELSRCTOP?= ${SRCTOP}
+
+# we get included just about everywhere so this is handy...
+# C*DEBUG_XTRA are for defining on cmd line etc 
+# so do not use in makefiles.
+.ifdef CFLAGS_DEBUG_XTRA
+CFLAGS_LAST += ${CFLAGS_DEBUG_XTRA}
+.endif
+.ifdef CXXFLAGS_DEBUG_XTRA
+CXXFLAGS_LAST += ${CXXFLAGS_DEBUG_XTRA}
+.endif
+
+.-include <local.dpadd.mk>
+
+# DPLIBS helps us ensure we keep DPADD and LDADD in sync
+DPLIBS+= ${DPLIBS_LAST}
+DPADD+= ${DPLIBS:N-*}
+.for __lib in ${DPLIBS:T:R}
+.if "${_lib:M-*}" != ""
+LDADD += ${__lib}
+.else
+LDADD += ${LDADD_${__lib}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
+.endif
+.endfor
+
+# DPADD can contain things other than libs
+__dpadd_libs := ${DPADD:M*/lib*}
+
+# some libs have dependencies...
+# DPLIBS_* allows bsd.libnames.mk to flag libs which must be included
+# in DPADD for a given library.
+# Gather all such dependencies into __ldadd_all_xtras
+# dups will be dealt with later.
+# Note: libfoo_pic uses DPLIBS_libfoo
+__ldadd_all_xtras=
+.for __lib in ${__dpadd_libs:@d@${DPLIBS_${d:T:R:S,_pic,,}}@}
+__ldadd_all_xtras+= ${LDADD_${__lib}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
+.if "${DPADD:M${__lib}}" == ""
+DPADD+= ${__lib}
+.endif
+.endfor
+# Last of all... for libc and libgcc
+DPADD+= ${DPADD_LAST}
+
+# de-dupuplicate __ldadd_all_xtras into __ldadd_xtras
+# in reverse order so that libs end up listed after all that needed them.
+__ldadd_xtras=
+.for __lib in ${__ldadd_all_xtras:[-1..1]}
+.if "${__ldadd_xtras:M${__lib}}" == "" || ${NEED_IMPLICIT_LDADD:tl:Uno} != "no"
+__ldadd_xtras+= ${__lib}
+.endif
+.endfor
+
+.if !empty(__ldadd_xtras)
+# now back to the original order
+__ldadd_xtras:= ${__ldadd_xtras:[-1..1]}
+LDADD+= ${__ldadd_xtras}
+.endif
+
+# Convert DPADD into -I and -L options and add them to CPPFLAGS and LDADD
+# For the -I's convert the path to a relative one.  For separate objdirs
+# the DPADD paths will be to the obj tree so we need to subst anyway.
+
+# update this
+__dpadd_libs := ${DPADD:M*/lib*}
+
+# Order -L's to search ours first.
+# Avoids picking up old versions already installed.
+__dpadd_libdirs := ${__dpadd_libs}:R:H:S/^/-L/g:O:u:N-L}
+LDADD += ${__dpadd_libdirs:M-L${OBJTOP}/*}
+LDADD += ${__dpadd_libdirs:N-L${OBJTOP}/*:N-L${HOST_LIBDIR:U/usr/lib}}
+.if defined(HOST_LIBDIR) && ${HOST_LIBDIR} != "/usr/lib"
+LDADD+= -L${HOST_LIBDIR}
+.endif
 
 .if !make(dpadd)
 .ifdef LIB
@@ -109,7 +129,8 @@ __dpadd_libs += ${SRC_LIBS}
 DPMAGIC_LIBS += ${__dpadd_libs} \
 	${__dpadd_libs:@d@${DPMAGIC_LIBS_${d:T:R}}@}
 
-.for __lib in ${DPMAGIC_LIBS:O:u}
+# we skip this for staged libs
+.for __lib in ${DPMAGIC_LIBS:O:u:N${STAGE_OBJTOP:Unot}*/lib/*}
 # 
 # if SRC_libfoo is not set, then we assume that the srcdir corresponding
 # to where we found the library is correct.
@@ -127,6 +148,35 @@ INCLUDES_${__lib:T:R}?= -I${exists(${SRC_${__lib:T:R}}/h):?${SRC_${__lib:T:R}}/h
 
 .endfor
 
+# even for staged libs we sometimes 
+# need to allow direct -I to avoid cicular dependencies 
+.for __lib in ${DPMAGIC_LIBS:O:u:T:R}
+.if !empty(SRC_${__lib}) && empty(INCLUDES_${__lib})
+# must be a staged lib
+.if exists(${SRC_${__lib}}/h)
+INCLUDES_${__lib} = -I${SRC_${__lib}}/h
+.else
+INCLUDES_${__lib} = -I${SRC_${__lib}}
+.endif
+.endif
+.endfor
+
+# when linking a shared lib, avoid non pic libs
+SHLDADD+= ${LDADD:N-[lL]*}
+.for __lib in ${__dpadd_libs:u}
+.if defined(SHLIB_NAME) && ${LDADD:M-l${__lib:T:R:S,lib,,}} != ""
+.if ${__lib:T:N*_pic.a:N*.so} == "" || exists(${__lib:R}.so)
+SHLDADD+= -l${__lib:T:R:S,lib,,}
+.elif exists(${__lib:R}_pic.a)
+SHLDADD+= -l${__lib:T:R:S,lib,,}_pic
+.else
+.warning ${RELDIR}.${TARGET_SPEC} needs ${__lib:T:R}_pic.a
+SHLDADD+= -l${__lib:T:R:S,lib,,}
+.endif
+SHLDADD+= -L${__lib:H}
+.endif
+.endfor
+
 # Now for the bits we actually need
 __dpadd_incs=
 .for __lib in ${__dpadd_libs:u}
@@ -134,20 +184,25 @@ __dpadd_incs=
 __ldadd=-l${__lib:T:R:S,lib,,}
 LDADD := ${LDADD:S,^${__ldadd}$,${__ldadd}_p,g}
 .endif
+.endfor
 
 #
-# Some libs generate headers, so we potentially need both
-# the src dir and the obj dir.
-# If ${INCLUDES_libfoo} contains a word ending in /h, we assume that either
-# 1. it does not generate headers or
-# 2. INCLUDES_libfoo will have been set correctly
-# XXX it gets ugly avoiding duplicates... 
-# use :? to ensure .for does not prevent correct evaluation
-#
 # We take care of duplicate suppression later.
-__dpadd_incs += ${"${INCLUDES_${__lib:T:R}:M*/h}":? :-I${OBJ_${__lib:T:R}}}
-__dpadd_incs += ${INCLUDES_${__lib:T:R}}
-.endfor
+# don't apply :T:R too early
+__dpadd_incs += ${__dpadd_libs:u:@x@${INCLUDES_${x:T:R}}@}
+__dpadd_incs += ${__dpadd_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${INCLUDES_${x:T:R}}@}
+
+__dpadd_last_incs += ${__dpadd_libs:u:@x@${INCLUDES_LAST_${x:T:R}}@}
+__dpadd_last_incs += ${__dpadd_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${INCLUDES_LAST_${x:T:R}}@}
+
+.if defined(HOSTPROG) || ${MACHINE} == "host"
+# we want any -I/usr/* last
+__dpadd_last_incs := \
+	${__dpadd_last_incs:N-I/usr/*} \
+	${__dpadd_incs:M-I/usr/*} \
+	${__dpadd_last_incs:M-I/usr/*} 
+__dpadd_incs := ${__dpadd_incs:N-I/usr/*}
+.endif
 
 #
 # eliminate any duplicates - but don't mess with the order
@@ -164,13 +219,21 @@ __$t_incs+= $i
 .endfor
 .endfor
 
+.for t in CFLAGS_LAST CXXFLAGS_LAST
+# avoid duplicates
+__$t_incs:=${$t:M-I*:u}
+.for i in ${__dpadd_last_incs}
+.if "${__$t_incs:M$i}" == ""
+$t+= $i
+__$t_incs+= $i
+.endif
+.endfor
+.endfor
+
 # This target is used to gather a list of
 # dir: ${DPADD}
 # entries
 .if make(*dpadd*)
-# allow overrides
-.-include "dpadd++.mk"
-
 .if !target(dpadd)
 dpadd:	.NOTMAIN
 .if defined(DPADD) && ${DPADD} != ""
@@ -191,6 +254,19 @@ dpadd:	.NOTMAIN
 # SRC_PATHADD+= ${SRC_libfoo}
 # and we defer the .PATH: until now so that SRC_libfoo will be available.
 .PATH: ${SRC_PATHADD}
+.endif
+
+# after all that, if doing -n we don't care
+.if ${.MAKEFLAGS:Ux:M-n} != ""
+DPADD =
+.elif ${.MAKE.MODE:Mmeta*} != "" && exists(${.MAKE.DEPENDFILE})
+DPADD_CLEAR_DPADD ?= yes
+.if ${DPADD_CLEAR_DPADD} == "yes"
+# save this
+__dpadd_libs := ${__dpadd_libs}
+# we have made what use of it we can of DPADD
+DPADD =
+.endif
 .endif
 
 .endif

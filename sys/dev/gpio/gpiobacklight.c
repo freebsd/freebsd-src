@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2015-2016 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,28 +45,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/gpio/gpiobusvar.h>
 
-#include "gpiobus_if.h"
-
-/*
- * Only one pin for led
- */
-#define	GPIOBL_PIN	0
-
-#define GPIOBL_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	GPIOBL_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define GPIOBL_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	    "gpiobacklight", MTX_DEF)
-#define GPIOBL_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-
 struct gpiobacklight_softc 
 {
-	device_t	sc_dev;
-	device_t	sc_busdev;
-	struct mtx	sc_mtx;
-
+	gpio_pin_t		sc_pin;
 	struct sysctl_oid	*sc_oid;
-	int		sc_brightness;
+	bool			sc_brightness;
 };
 
 static int gpiobacklight_sysctl(SYSCTL_HANDLER_ARGS);
@@ -78,22 +61,9 @@ static int gpiobacklight_detach(device_t);
 static void 
 gpiobacklight_update_brightness(struct gpiobacklight_softc *sc)
 {
-	int error;
 
-	GPIOBL_LOCK(sc);
-	error = GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev,
-	    GPIOBUS_DONTWAIT);
-	if (error != 0) {
-		GPIOBL_UNLOCK(sc);
-		return;
-	}
-	error = GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev,
-	    GPIOBL_PIN, GPIO_PIN_OUTPUT);
-	if (error == 0)
-		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOBL_PIN,
-		    sc->sc_brightness ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
-	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
-	GPIOBL_UNLOCK(sc);
+	if (sc->sc_pin)
+		gpio_pin_set_active(sc->sc_pin, sc->sc_brightness);
 }
 
 static int
@@ -104,35 +74,17 @@ gpiobacklight_sysctl(SYSCTL_HANDLER_ARGS)
 	int brightness;
 
 	sc = (struct gpiobacklight_softc*)arg1;
+
 	brightness = sc->sc_brightness;
 	error = sysctl_handle_int(oidp, &brightness, 0, req);
 
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	if (brightness <= 0)
-		sc->sc_brightness = 0;
-	else
-		sc->sc_brightness = 1;
-
+	sc->sc_brightness = (brightness > 0);
 	gpiobacklight_update_brightness(sc);
 
-	return (error);
-}
-
-static void
-gpiobacklight_identify(driver_t *driver, device_t bus)
-{
-	phandle_t node, root;
-
-	root = OF_finddevice("/");
-	if (root == 0)
-		return;
-	for (node = OF_child(root); node != 0; node = OF_peer(node)) {
-		if (!fdt_is_compatible_strict(node, "gpio-backlight"))
-			continue;
-		ofw_gpiobus_add_fdt_child(bus, driver->name, node);
-	}
+	return (0);
 }
 
 static int
@@ -156,26 +108,31 @@ gpiobacklight_attach(device_t dev)
 	phandle_t node;
 
 	sc = device_get_softc(dev);
-	sc->sc_dev = dev;
-	sc->sc_busdev = device_get_parent(dev);
 
 	if ((node = ofw_bus_get_node(dev)) == -1)
 		return (ENXIO);
 
-	GPIOBL_LOCK_INIT(sc);
 	if (OF_hasprop(node, "default-on"))
-		sc->sc_brightness = 1;
+		sc->sc_brightness = true;
 	else
-		sc->sc_brightness = 0;
+		sc->sc_brightness = false;
+
+	gpio_pin_get_by_ofw_idx(dev, node, 0, &sc->sc_pin);
+	if (sc->sc_pin == NULL) {
+		device_printf(dev, "failed to map GPIO pin\n");
+		return (ENXIO);
+	}
+
+	gpio_pin_setflags(sc->sc_pin, GPIO_PIN_OUTPUT);
+
+	gpiobacklight_update_brightness(sc);
 
 	/* Init backlight interface */
-	ctx = device_get_sysctl_ctx(sc->sc_dev);
-	tree = device_get_sysctl_tree(sc->sc_dev);
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
 	sc->sc_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "brightness", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 	    gpiobacklight_sysctl, "I", "backlight brightness");
-
-	gpiobacklight_update_brightness(sc);
 
 	return (0);
 }
@@ -186,7 +143,10 @@ gpiobacklight_detach(device_t dev)
 	struct gpiobacklight_softc *sc;
 
 	sc = device_get_softc(dev);
-	GPIOBL_LOCK_DESTROY(sc);
+
+	if (sc->sc_pin)
+		gpio_pin_release(sc->sc_pin);
+
 	return (0);
 }
 
@@ -194,7 +154,6 @@ static devclass_t gpiobacklight_devclass;
 
 static device_method_t gpiobacklight_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	gpiobacklight_identify),
 	DEVMETHOD(device_probe,		gpiobacklight_probe),
 	DEVMETHOD(device_attach,	gpiobacklight_attach),
 	DEVMETHOD(device_detach,	gpiobacklight_detach),
@@ -208,4 +167,6 @@ static driver_t gpiobacklight_driver = {
 	sizeof(struct gpiobacklight_softc),
 };
 
-DRIVER_MODULE(gpiobacklight, gpiobus, gpiobacklight_driver, gpiobacklight_devclass, 0, 0);
+DRIVER_MODULE(gpiobacklight, simplebus, gpiobacklight_driver,
+    gpiobacklight_devclass, 0, 0);
+MODULE_DEPEND(gpiobacklight, gpiobus, 1, 1, 1);

@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <vm/uma.h>
+#include <vm/vm.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW, NULL, NULL);
 SYSCTL_ROOT_NODE(OID_AUTO, dev, CTLFLAG_RW, NULL, NULL);
@@ -861,7 +863,7 @@ devctl_safe_quote(char *dst, const char *src, size_t len)
 		return;
 	while (src != NULL && walker < ep)
 	{
-		if (*src == '"') {
+		if (*src == '"' || *src == '\\') {
 			if (ep - walker < 2)
 				break;
 			*walker++ = '\\';
@@ -3049,6 +3051,15 @@ device_set_unit(device_t dev, int unit)
  * Some useful method implementations to make life easier for bus drivers.
  */
 
+void
+resource_init_map_request_impl(struct resource_map_request *args, size_t sz)
+{
+
+	bzero(args, sz);
+	args->size = sz;
+	args->memattr = VM_MEMATTR_UNCACHEABLE;
+}
+
 /**
  * @brief Initialise a resource list.
  *
@@ -4059,6 +4070,40 @@ bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 }
 
 /**
+ * @brief Helper function for implementing BUS_MAP_RESOURCE().
+ *
+ * This simple implementation of BUS_MAP_RESOURCE() simply calls the
+ * BUS_MAP_RESOURCE() method of the parent of @p dev.
+ */
+int
+bus_generic_map_resource(device_t dev, device_t child, int type,
+    struct resource *r, struct resource_map_request *args,
+    struct resource_map *map)
+{
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_MAP_RESOURCE(dev->parent, child, type, r, args,
+		    map));
+	return (EINVAL);
+}
+
+/**
+ * @brief Helper function for implementing BUS_UNMAP_RESOURCE().
+ *
+ * This simple implementation of BUS_UNMAP_RESOURCE() simply calls the
+ * BUS_UNMAP_RESOURCE() method of the parent of @p dev.
+ */
+int
+bus_generic_unmap_resource(device_t dev, device_t child, int type,
+    struct resource *r, struct resource_map *map)
+{
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_UNMAP_RESOURCE(dev->parent, child, type, r, map));
+	return (EINVAL);
+}
+
+/**
  * @brief Helper function for implementing BUS_BIND_INTR().
  *
  * This simple implementation of BUS_BIND_INTR() simply calls the
@@ -4107,6 +4152,23 @@ bus_generic_describe_intr(device_t dev, device_t child, struct resource *irq,
 	if (dev->parent)
 		return (BUS_DESCRIBE_INTR(dev->parent, child, irq, cookie,
 		    descr));
+	return (EINVAL);
+}
+
+/**
+ * @brief Helper function for implementing BUS_GET_CPUS().
+ *
+ * This simple implementation of BUS_GET_CPUS() simply calls the
+ * BUS_GET_CPUS() method of the parent of @p dev.
+ */
+int
+bus_generic_get_cpus(device_t dev, device_t child, enum cpu_sets op,
+    size_t setsize, cpuset_t *cpuset)
+{
+
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent != NULL)
+		return (BUS_GET_CPUS(dev->parent, child, op, setsize, cpuset));
 	return (EINVAL);
 }
 
@@ -4403,6 +4465,36 @@ bus_deactivate_resource(device_t dev, int type, int rid, struct resource *r)
 }
 
 /**
+ * @brief Wrapper function for BUS_MAP_RESOURCE().
+ *
+ * This function simply calls the BUS_MAP_RESOURCE() method of the
+ * parent of @p dev.
+ */
+int
+bus_map_resource(device_t dev, int type, struct resource *r,
+    struct resource_map_request *args, struct resource_map *map)
+{
+	if (dev->parent == NULL)
+		return (EINVAL);
+	return (BUS_MAP_RESOURCE(dev->parent, dev, type, r, args, map));
+}
+
+/**
+ * @brief Wrapper function for BUS_UNMAP_RESOURCE().
+ *
+ * This function simply calls the BUS_UNMAP_RESOURCE() method of the
+ * parent of @p dev.
+ */
+int
+bus_unmap_resource(device_t dev, int type, struct resource *r,
+    struct resource_map *map)
+{
+	if (dev->parent == NULL)
+		return (EINVAL);
+	return (BUS_UNMAP_RESOURCE(dev->parent, dev, type, r, map));
+}
+
+/**
  * @brief Wrapper function for BUS_RELEASE_RESOURCE().
  *
  * This function simply calls the BUS_RELEASE_RESOURCE() method of the
@@ -4620,6 +4712,23 @@ bus_child_location_str(device_t child, char *buf, size_t buflen)
 }
 
 /**
+ * @brief Wrapper function for BUS_GET_CPUS().
+ *
+ * This function simply calls the BUS_GET_CPUS() method of the
+ * parent of @p dev.
+ */
+int
+bus_get_cpus(device_t dev, enum cpu_sets op, size_t setsize, cpuset_t *cpuset)
+{
+	device_t parent;
+
+	parent = device_get_parent(dev);
+	if (parent == NULL)
+		return (EINVAL);
+	return (BUS_GET_CPUS(parent, dev, op, setsize, cpuset));
+}
+
+/**
  * @brief Wrapper function for BUS_GET_DMA_TAG().
  *
  * This function simply calls the BUS_GET_DMA_TAG() method of the
@@ -4711,6 +4820,23 @@ root_child_present(device_t dev, device_t child)
 	return (-1);
 }
 
+static int
+root_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
+    cpuset_t *cpuset)
+{
+
+	switch (op) {
+	case INTR_CPUS:
+		/* Default to returning the set of all CPUs. */
+		if (setsize != sizeof(cpuset_t))
+			return (EINVAL);
+		*cpuset = all_cpus;
+		return (0);
+	default:
+		return (EINVAL);
+	}
+}
+
 static kobj_method_t root_methods[] = {
 	/* Device interface */
 	KOBJMETHOD(device_shutdown,	bus_generic_shutdown),
@@ -4723,6 +4849,7 @@ static kobj_method_t root_methods[] = {
 	KOBJMETHOD(bus_write_ivar,	bus_generic_write_ivar),
 	KOBJMETHOD(bus_setup_intr,	root_setup_intr),
 	KOBJMETHOD(bus_child_present,	root_child_present),
+	KOBJMETHOD(bus_get_cpus,	root_get_cpus),
 
 	KOBJMETHOD_END
 };

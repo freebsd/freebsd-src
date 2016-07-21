@@ -438,7 +438,7 @@ zfs_probe(int fd, uint64_t *pool_guid)
 	return (ret);
 }
 
-static void
+static int
 zfs_probe_partition(void *arg, const char *partname,
     const struct ptable_entry *part)
 {
@@ -450,7 +450,7 @@ zfs_probe_partition(void *arg, const char *partname,
 	/* Probe only freebsd-zfs and freebsd partitions */
 	if (part->type != PART_FREEBSD &&
 	    part->type != PART_FREEBSD_ZFS)
-		return;
+		return 0;
 
 	ppa = (struct zfs_probe_args *)arg;
 	strncpy(devname, ppa->devname, strlen(ppa->devname) - 1);
@@ -458,10 +458,10 @@ zfs_probe_partition(void *arg, const char *partname,
 	sprintf(devname, "%s%s:", devname, partname);
 	pa.fd = open(devname, O_RDONLY);
 	if (pa.fd == -1)
-		return;
+		return 0;
 	ret = zfs_probe(pa.fd, ppa->pool_guid);
 	if (ret == 0)
-		return;
+		return 0;
 	/* Do we have BSD label here? */
 	if (part->type == PART_FREEBSD) {
 		pa.devname = devname;
@@ -470,11 +470,12 @@ zfs_probe_partition(void *arg, const char *partname,
 		table = ptable_open(&pa, part->end - part->start + 1,
 		    ppa->secsz, zfs_diskread);
 		if (table != NULL) {
-			ptable_iterate(table, &pa, zfs_probe_partition);
+			ret = ptable_iterate(table, &pa, zfs_probe_partition);
 			ptable_close(table);
 		}
 	}
 	close(pa.fd);
+	return (ret);
 }
 
 int

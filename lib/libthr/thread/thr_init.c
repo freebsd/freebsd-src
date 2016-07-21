@@ -94,6 +94,7 @@ struct pthread_mutex_attr _pthread_mutexattr_default = {
 	.m_protocol = PTHREAD_PRIO_NONE,
 	.m_ceiling = 0,
 	.m_pshared = PTHREAD_PROCESS_PRIVATE,
+	.m_robust = PTHREAD_MUTEX_STALLED,
 };
 
 struct pthread_mutex_attr _pthread_mutexattr_adaptive_default = {
@@ -101,6 +102,7 @@ struct pthread_mutex_attr _pthread_mutexattr_adaptive_default = {
 	.m_protocol = PTHREAD_PRIO_NONE,
 	.m_ceiling = 0,
 	.m_pshared = PTHREAD_PROCESS_PRIVATE,
+	.m_robust = PTHREAD_MUTEX_STALLED,
 };
 
 /* Default condition variable attributes: */
@@ -265,7 +267,10 @@ static pthread_func_t jmp_table[][2] = {
 	{DUAL_ENTRY(__pthread_cleanup_pop_imp)},/* PJT_CLEANUP_POP_IMP */
 	{DUAL_ENTRY(__pthread_cleanup_push_imp)},/* PJT_CLEANUP_PUSH_IMP */
 	{DUAL_ENTRY(_pthread_cancel_enter)},	/* PJT_CANCEL_ENTER */
-	{DUAL_ENTRY(_pthread_cancel_leave)}		/* PJT_CANCEL_LEAVE */
+	{DUAL_ENTRY(_pthread_cancel_leave)},	/* PJT_CANCEL_LEAVE */
+	{DUAL_ENTRY(_pthread_mutex_consistent)},/* PJT_MUTEX_CONSISTENT */
+	{DUAL_ENTRY(_pthread_mutexattr_getrobust)},/* PJT_MUTEXATTR_GETROBUST */
+	{DUAL_ENTRY(_pthread_mutexattr_setrobust)},/* PJT_MUTEXATTR_SETROBUST */
 };
 
 static int init_once = 0;
@@ -308,7 +313,7 @@ _libpthread_init(struct pthread *curthread)
 	int first, dlopened;
 
 	/* Check if this function has already been called: */
-	if ((_thr_initial != NULL) && (curthread == NULL))
+	if (_thr_initial != NULL && curthread == NULL)
 		/* Only initialize the threaded application once. */
 		return;
 
@@ -316,7 +321,7 @@ _libpthread_init(struct pthread *curthread)
 	 * Check the size of the jump table to make sure it is preset
 	 * with the correct number of entries.
 	 */
-	if (sizeof(jmp_table) != (sizeof(pthread_func_t) * PJT_MAX * 2))
+	if (sizeof(jmp_table) != sizeof(pthread_func_t) * PJT_MAX * 2)
 		PANIC("Thread jump table not properly initialized");
 	memcpy(__thr_jtable, jmp_table, sizeof(jmp_table));
 	__thr_interpose_libc();

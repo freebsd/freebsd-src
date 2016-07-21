@@ -415,7 +415,7 @@ inform(const struct printer *pp, char *cf)
 	file[0] = '\0';
 	savedname[0] = '\0';
 	jnum = calc_jobnum(cf, NULL);
-	while (getline(cfp)) {
+	while (get_line(cfp)) {
 		switch (line[0]) {
 		case 'P': /* Was this file specified in the user's list? */
 			if (!inlist(line+1, cf)) {
@@ -445,7 +445,7 @@ inform(const struct printer *pp, char *cf)
 			}
 			copycnt++;
 			/*
-			 * deliberately 'continue' to another getline(), so
+			 * deliberately 'continue' to another get_line(), so
 			 * all format-spec lines for this datafile are read
 			 * in and counted before calling show()
 			 */

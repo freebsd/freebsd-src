@@ -30,6 +30,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bwn.h"
+#include "opt_wlan.h"
+
 /*
  * The Broadcom Wireless LAN controller driver.
  */
@@ -418,7 +421,7 @@ genbbatt:
 		bwn_reset_core(mac, 0);
 		bwn_phy_g_init_sub(mac);
 		phy->gmode = 1;
-		bwn_reset_core(mac, BWN_TGSLOW_SUPPORT_G);
+		bwn_reset_core(mac, 1);
 	}
 	return (0);
 }
@@ -626,7 +629,7 @@ bwn_phy_g_im(struct bwn_mac *mac, int mode)
 	return (0);
 }
 
-int
+bwn_txpwr_result_t
 bwn_phy_g_recalc_txpwr(struct bwn_mac *mac, int ignore_tssi)
 {
 	struct bwn_phy *phy = &mac->mac_phy;

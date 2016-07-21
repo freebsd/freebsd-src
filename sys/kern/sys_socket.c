@@ -605,7 +605,6 @@ retry:
 	cnt -= uio.uio_resid;
 	td->td_ucred = td_savedcred;
 
-	/* XXX: Not sure if this is needed? */
 	if (cnt != 0 && (error == ERESTART || error == EINTR ||
 	    error == EWOULDBLOCK))
 		error = 0;
@@ -633,7 +632,10 @@ retry:
 			TAILQ_INSERT_HEAD(&sb->sb_aiojobq, job, list);
 		}
 	} else {
-		aio_complete(job, cnt, error);
+		if (error)
+			aio_complete(job, -1, error);
+		else
+			aio_complete(job, cnt, 0);
 		SOCKBUF_LOCK(sb);
 	}
 }

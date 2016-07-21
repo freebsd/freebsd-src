@@ -215,7 +215,7 @@ struct vm_pagequeue {
 	struct mtx	pq_mutex;
 	struct pglist	pq_pl;
 	int		pq_cnt;
-	int		* const pq_vcnt;
+	u_int		* const pq_vcnt;
 	const char	* const pq_name;
 } __aligned(CACHE_LINE_SIZE);
 

@@ -6,5 +6,5 @@
 const char *
 elftc_version(void)
 {
-	return "elftoolchain r3400M";
+	return "elftoolchain r3475M";
 }

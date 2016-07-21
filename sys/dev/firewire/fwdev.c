@@ -102,8 +102,6 @@ fwdev_allocbuf(struct firewire_comm *fc, struct fw_xferq *q,
 
 	q->bulkxfer = malloc(sizeof(struct fw_bulkxfer) * b->nchunk,
 	    M_FW, M_WAITOK);
-	if (q->bulkxfer == NULL)
-		return (ENOMEM);
 
 	b->psize = roundup2(b->psize, sizeof(uint32_t));
 	q->buf = fwdma_malloc_multiseg(fc, sizeof(uint32_t),
@@ -179,8 +177,6 @@ fw_open(struct cdev *dev, int flags, int fmt, fw_proc *td)
 	FW_GUNLOCK(sc->fc);
 
 	dev->si_drv1 = malloc(sizeof(struct fw_drv1), M_FW, M_WAITOK | M_ZERO);
-	if (dev->si_drv1 == NULL)
-		return (ENOMEM);
 
 	if ((dev->si_flags & SI_NAMED) == 0) {
 		int unit = DEV2UNIT(dev);
@@ -742,10 +738,6 @@ out:
 			break;
 		}
 		fwb = malloc(sizeof(struct fw_bind), M_FW, M_WAITOK);
-		if (fwb == NULL) {
-			err = ENOMEM;
-			break;
-		}
 		fwb->start = ((u_int64_t)bindreq->start.hi << 32) |
 		    bindreq->start.lo;
 		fwb->end = fwb->start +  bindreq->len;

@@ -209,8 +209,16 @@ platform_delay(int usec, void *arg __unused)
 void
 platform_mp_setmaxid(void)
 {
+	int ncpu;
 
 	PLATFORM_MP_SETMAXID(plat_obj);
+
+	if (TUNABLE_INT_FETCH("hw.ncpu", &ncpu)) {
+		if (ncpu >= 1 && ncpu <= mp_ncpus) {
+			mp_ncpus = ncpu;
+			mp_maxid = ncpu - 1;
+		}
+	}
 }
 
 void

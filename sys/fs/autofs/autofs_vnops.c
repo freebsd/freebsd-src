@@ -686,7 +686,7 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, int flags,
 
 	error = insmntque(vp, mp);
 	if (error != 0) {
-		AUTOFS_WARN("insmntque() failed with error %d", error);
+		AUTOFS_DEBUG("insmntque() failed with error %d", error);
 		sx_xunlock(&anp->an_vnode_lock);
 		return (error);
 	}

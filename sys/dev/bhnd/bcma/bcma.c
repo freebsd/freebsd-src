@@ -97,7 +97,7 @@ bcma_attach(device_t dev)
 		r_count = size;
 		r_end = r_start + r_count - 1;
 
-		dinfo->rid_agent = 0;
+		dinfo->rid_agent = i + 1;
 		dinfo->res_agent = bhnd_alloc_resource(dev, SYS_RES_MEMORY,
 		    &dinfo->rid_agent, r_start, r_end, r_count, RF_ACTIVE);
 		if (dinfo->res_agent == NULL) {

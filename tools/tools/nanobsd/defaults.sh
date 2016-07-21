@@ -195,7 +195,7 @@ NANO_DATADIR=""
 # in case they are stray in the build environment
 SRCCONF=/dev/null
 SRC_ENV_CONF=/dev/null
- 
+
 #######################################################################
 #
 # The functions which do the real work.
@@ -319,7 +319,7 @@ make_conf_build ( ) (
 	# in addition to the user's global settings
 	(
 	nano_global_make_env
-	echo "${CONF_WORLD}" 
+	echo "${CONF_WORLD}"
 	echo "${CONF_BUILD}"
 	) > ${NANO_MAKE_CONF_BUILD}
 )
@@ -429,7 +429,7 @@ install_kernel ( ) (
 	(
 
 	nano_make_install_env
-	nano_make_kernel_env    
+	nano_make_kernel_env
 
 	if [ "${NANO_MODULES}" != "default" ]; then
 		MODULES_OVERRIDE="${NANO_MODULES}"
@@ -465,7 +465,7 @@ run_early_customize() {
 
 	pprint 2 "run early customize scripts"
 	for c in $NANO_EARLY_CUSTOMIZE
-	do      
+	do
 		pprint 2 "early customize \"$c\""
 		pprint 3 "log: ${NANO_LOG}/_.early_cust.$c"
 		pprint 4 "`type $c`"
@@ -529,7 +529,7 @@ fixup_before_diskimage ( ) (
 		echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" > ${NANO_METALOG}
 		cat ${NANO_METALOG}.pre | ${NANO_TOOLS}/mtree-dedup.awk | \
 		    sed -e 's/ size=[0-9][0-9]*//' | sort >> ${NANO_METALOG}
-	fi	
+	fi
 )
 
 setup_nanobsd ( ) (
@@ -603,11 +603,11 @@ setup_nanobsd_etc ( ) (
 
 prune_usr ( ) (
 
-	# Remove all empty directories in /usr 
+	# Remove all empty directories in /usr
 	find "${NANO_WORLDDIR}"/usr -type d -depth -print |
 		while read d
 		do
-			rmdir $d > /dev/null 2>&1 || true 
+			rmdir $d > /dev/null 2>&1 || true
 		done
 )
 
@@ -676,7 +676,7 @@ create_diskimage ( ) (
 		else
 			print "g c" 1023 " h" $4 " s" $3
 
-		if ($7 > 0) { 
+		if ($7 > 0) {
 			# size of data partition in full cylinders
 			dsl = int (($7 + cs - 1) / cs)
 		} else {
@@ -697,7 +697,7 @@ create_diskimage ( ) (
 		print "p 1 165 " $3, isl * cs - $3
 		c = isl * cs;
 
-		# Second image partition (if any) also starts offset one 
+		# Second image partition (if any) also starts offset one
 		# track to keep them identical.
 		if ($2 > 1) {
 			print "p 2 165 " $3 + c, isl * cs - $3
@@ -780,7 +780,7 @@ create_diskimage ( ) (
 			tunefs -L ${NANO_LABEL}"${NANO_ALTROOT}" /dev/${MD}${NANO_ALTROOT}
 		fi
 	fi
-	
+
 	# Create Config slice
 	populate_cfg_slice /dev/${MD}${NANO_SLICE_CFG} "${NANO_CFGDIR}" ${MNT} "${NANO_SLICE_CFG}"
 
@@ -1018,10 +1018,11 @@ pprint ( ) (
 
 usage ( ) {
 	(
-	echo "Usage: $0 [-bfiKknqvw] [-c config_file]"
+	echo "Usage: $0 [-bfhiKknqvwX] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
 	echo "	-f	suppress code slice extraction"
+	echo "	-h	print this help summary page"
 	echo "	-i	suppress disk image build"
 	echo "	-K	suppress installkernel"
 	echo "	-k	suppress buildkernel"
@@ -1029,6 +1030,7 @@ usage ( ) {
 	echo "	-q	make output more quiet"
 	echo "	-v	make output more verbose"
 	echo "	-w	suppress buildworld"
+	echo "	-X	make native-xtools"
 	) 1>&2
 	exit 2
 }

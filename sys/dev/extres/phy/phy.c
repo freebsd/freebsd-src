@@ -146,12 +146,12 @@ phy_get_by_ofw_idx(device_t consumer_dev, int idx, phy_t *phy)
 	/* Tranlate provider to device. */
 	phydev = OF_device_from_xref(xnode);
 	if (phydev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 	/* Map phy to number. */
 	rv = PHY_MAP(phydev, xnode, ncells, cells, &id);
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 	if (rv != 0)
 		return (rv);
 
@@ -199,12 +199,12 @@ phy_get_by_ofw_property(device_t consumer_dev, char *name, phy_t *phy)
 	/* Tranlate provider to device. */
 	phydev = OF_device_from_xref(cells[0]);
 	if (phydev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 	/* Map phy to number. */
 	rv = PHY_MAP(phydev, cells[0], ncells - 1 , cells + 1, &id);
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 	if (rv != 0)
 		return (rv);
 

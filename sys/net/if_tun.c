@@ -848,7 +848,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = TUN2IFP(tp);
 	struct mbuf	*m;
-	uint32_t	family;
+	uint32_t	family, mru;
 	int 		isr;
 
 	TUNDEBUG(ifp, "tunwrite\n");
@@ -860,7 +860,10 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 	if (uio->uio_resid == 0)
 		return (0);
 
-	if (uio->uio_resid < 0 || uio->uio_resid > TUNMRU) {
+	mru = TUNMRU;
+	if (tp->tun_flags & TUN_IFHEAD)
+		mru += sizeof(family);
+	if (uio->uio_resid < 0 || uio->uio_resid > mru) {
 		TUNDEBUG(ifp, "len=%zd!\n", uio->uio_resid);
 		return (EIO);
 	}

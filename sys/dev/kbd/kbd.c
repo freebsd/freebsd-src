@@ -996,7 +996,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			splx(s);
 			return (error);
 		}
-		kbd->kb_fkeytab[fkeyp->keynum].len = imin(fkeyp->flen, MAXFK);
+		kbd->kb_fkeytab[fkeyp->keynum].len = min(fkeyp->flen, MAXFK);
 		bcopy(fkeyp->keydef, kbd->kb_fkeytab[fkeyp->keynum].str,
 		    kbd->kb_fkeytab[fkeyp->keynum].len);
 		break;

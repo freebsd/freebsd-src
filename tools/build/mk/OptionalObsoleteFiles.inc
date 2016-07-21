@@ -76,6 +76,9 @@ OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
 .if ${MK_ATM} == no
+OLD_FILES+=etc/rc.d/atm1
+OLD_FILES+=etc/rc.d/atm2
+OLD_FILES+=etc/rc.d/atm3
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig
 OLD_FILES+=usr/bin/sscop
@@ -1010,6 +1013,8 @@ OLD_DIRS+=usr/share/dtrace
 OLD_FILES+=boot/gptzfsboot
 OLD_FILES+=boot/zfsboot
 OLD_FILES+=boot/zfsloader
+OLD_FILES+=etc/rc.d/zfs
+OLD_FILES+=etc/rc.d/zvol
 OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs
 OLD_FILES+=etc/periodic/daily/800.scrub-zfs

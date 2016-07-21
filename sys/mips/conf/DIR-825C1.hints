@@ -6,7 +6,7 @@ hint.argemdio.0.maddr=0x19000000
 hint.argemdio.0.msize=0x1000
 hint.argemdio.0.order=0
 
-# 0x1ffe0004 is the the "unit MAC".
+# 0x1ffe0004 is the "unit MAC".
 # 0x1ffe0018 is the second "MAC".
 # Right now this doesn't have any option for more than one
 # "unit MACs", so:

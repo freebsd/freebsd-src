@@ -128,7 +128,6 @@ typedef uint32_t ieee80211_hwmp_seq;
 #define	HWMP_SEQ_LEQ(a, b)	((int32_t)((a)-(b)) <= 0)
 #define	HWMP_SEQ_EQ(a, b)	((int32_t)((a)-(b)) == 0)
 #define	HWMP_SEQ_GT(a, b)	((int32_t)((a)-(b)) > 0)
-#define	HWMP_SEQ_GEQ(a, b)	((int32_t)((a)-(b)) >= 0)
 
 #define HWMP_SEQ_MAX(a, b)	(a > b ? a : b)
 
@@ -945,7 +944,6 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_hwmp_route *hrorig = NULL;
 	struct ieee80211_hwmp_route *hrtarg = NULL;
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
-	struct ieee80211_meshprep_ie prep;
 	ieee80211_hwmp_seq preqid;	/* last seen preqid for orig */
 	uint32_t metric = 0;
 
@@ -1058,6 +1056,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    IEEE80211_ADDR_EQ(vap->iv_myaddr, rttarg->rt_mesh_gate) &&
 	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY &&
 	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)) {
+		struct ieee80211_meshprep_ie prep;
+
 		/*
 		 * When we are the target we shall update our own HWMP seq
 		 * number with max of (current and preq->seq) + 1
@@ -1140,6 +1140,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 */
 		if ((rtorig->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 ||
 		    (preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_PP)) {
+			struct ieee80211_meshprep_ie prep;
+
 			prep.prep_flags = 0;
 			prep.prep_hopcount = 0;
 			prep.prep_ttl = ms->ms_ttl;
@@ -1526,7 +1528,6 @@ hwmp_peerdown(struct ieee80211_node *ni)
 #define	PERR_DADDR(n)		perr->perr_dests[n].dest_addr
 #define	PERR_DSEQ(n)		perr->perr_dests[n].dest_seq
 #define	PERR_DEXTADDR(n)	perr->perr_dests[n].dest_ext_addr
-#define	PERR_DRCODE(n)		perr->perr_dests[n].dest_rcode
 static void
 hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
     const struct ieee80211_frame *wh, const struct ieee80211_meshperr_ie *perr)
@@ -1628,7 +1629,6 @@ done:
 #undef	PERR_DADDR
 #undef	PERR_DSEQ
 #undef	PERR_DEXTADDR
-#undef	PERR_DRCODE
 
 static int
 hwmp_send_perr(struct ieee80211vap *vap,
@@ -1737,7 +1737,6 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_hwmp_route *hr;
 	struct ieee80211_meshpreq_ie preq;
 	struct ieee80211_meshrann_ie prann;
-	uint32_t metric = 0;
 
 	if (IEEE80211_ADDR_EQ(rann->rann_addr, vap->iv_myaddr))
 		return;
@@ -1766,7 +1765,6 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	/* RANN ACCEPTED */
 
 	ieee80211_hwmp_rannint = rann->rann_interval; /* XXX: mtx lock? */
-	metric = rann->rann_metric + ms->ms_pmetric->mpm_metric(ni);
 
 	if (rt == NULL) {
 		rt = ieee80211_mesh_rt_add(vap, rann->rann_addr);

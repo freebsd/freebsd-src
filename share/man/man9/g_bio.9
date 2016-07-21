@@ -24,14 +24,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2015
+.Dd May 17, 2016
 .Dt G_BIO 9
 .Os
 .Sh NAME
 .Nm g_new_bio ,
 .Nm g_clone_bio ,
 .Nm g_destroy_bio ,
-.Nm g_print_bio
+.Nm g_print_bio ,
+.Nm g_reset_bio
 .Nd "GEOM bio controlling functions"
 .Sh SYNOPSIS
 .In sys/bio.h
@@ -48,6 +49,8 @@
 .Fn g_destroy_bio "struct bio *bp"
 .Ft void
 .Fn g_print_bio "struct bio *bp"
+.Ft void
+.Fn g_reset_bio "struct bio *bp"
 .Sh DESCRIPTION
 A
 .Vt "struct bio"
@@ -205,6 +208,32 @@ The
 function prints information about the given
 .Vt bio
 structure (for debugging purposes).
+.Pp
+The
+.Fn g_reset_bio
+function resets the given
+.Vt bio
+structure back to its initial state.
+.Fn g_reset_bio
+preserves internal data structures, while setting all
+user visible fields to their initial values.
+When reusing a
+.Vt bio
+obtained from
+.Fn g_new_bio ,
+.Fn g_alloc_bio ,
+.Fn g_clone_bio ,
+or
+.Fn g_duplicate_bio
+for multiple transactions,
+.Fn g_reset_bio
+must be called between the transactions in lieu of
+.Fn bzero .
+While not strictly required for a
+.Vt bio
+structure created by other means,
+.Fn g_reset_bio
+should be used to initialize it and between transactions.
 .Sh RETURN VALUES
 The
 .Fn g_new_bio

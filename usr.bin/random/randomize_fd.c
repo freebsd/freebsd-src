@@ -174,7 +174,7 @@ randomize_fd(int fd, int type, int unique, double denom)
 			if ((type == RANDOM_TYPE_LINES && buf[i] == '\n') ||
 			    (type == RANDOM_TYPE_WORDS && isspace(buf[i])) ||
 			    (eof && i == buflen - 1)) {
-			make_token:
+make_token:
 				if (numnode == RANDOM_MAX_PLUS1) {
 					errno = EFBIG;
 					err(1, "too many delimiters");
@@ -199,7 +199,10 @@ randomize_fd(int fd, int type, int unique, double denom)
 		}
 	}
 
-	(void)close(fd);
+	if (fd >= 0) {
+		(void)close(fd);
+		fd = -1;
+	}
 
 	/* Necessary evil to compensate for files that don't end with a newline */
 	if (bufc != i) {

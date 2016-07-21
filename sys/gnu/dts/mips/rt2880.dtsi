@@ -13,6 +13,10 @@
 		bootargs = "console=ttyS0,57600";
 	};
 
+	aliases {
+		serial0 = &uartlite;
+	};
+
 	cpuintc: cpuintc@0 {
 		#address-cells = <0>;
 		#interrupt-cells = <1>;
@@ -20,7 +24,7 @@
 		compatible = "mti,cpu-interrupt-controller";
 	};
 
-	palmbus@300000 {
+	palmbus: palmbus@300000 {
 		compatible = "palmbus";
 		reg = <0x300000 0x200000>;
 		ranges = <0x0 0x300000 0x1FFFFF>;
@@ -28,12 +32,12 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		sysc@0 {
+		sysc: sysc@0 {
 			compatible = "ralink,rt2880-sysc";
 			reg = <0x000 0x100>;
 		};
 
-		timer@100 {
+		timer: timer@100 {
 			compatible = "ralink,rt2880-timer";
 			reg = <0x100 0x20>;
 
@@ -43,7 +47,7 @@
 			status = "disabled";
 		};
 
-		watchdog@120 {
+		watchdog: watchdog@120 {
 			compatible = "ralink,rt2880-wdt";
 			reg = <0x120 0x10>;
 		};
@@ -59,7 +63,7 @@
 			interrupts = <2>;
 		};
 
-		memc@300 {
+		memc: memc@300 {
 			compatible = "ralink,rt2880-memc";
 			reg = <0x300 0x100>;
 		};
@@ -110,7 +114,7 @@
 			status = "disabled";
 		};
 
-		uartlite@c00 {
+		uartlite: uartlite@c00 {
 			compatible = "ralink,rt2880-uart", "ns16550a";
 			reg = <0xc00 0x100>;
 
@@ -121,7 +125,7 @@
 		};
 	};
 
-	pinctrl {
+	pinctrl: pinctrl {
 		compatible = "ralink,rt2880-pinmux";
 
 		pinctrl-names = "default";
@@ -154,9 +158,14 @@
 		#reset-cells = <1>;
 	};
 
-	ethernet@400000 {
+	clkctrl: clkctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	ethernet: ethernet@400000 {
 		compatible = "ralink,rt2880-eth";
-		reg = <0x00400000 10000>;
+		reg = <0x00400000 0x10000>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -182,9 +191,9 @@
 		};
 	};
 
-	wmac@480000 {
+	wmac: wmac@480000 {
 		compatible = "ralink,rt2880-wmac";
-		reg = <0x480000 40000>;
+		reg = <0x480000 0x40000>;
 
 		interrupt-parent = <&cpuintc>;
 		interrupts = <6>;
@@ -192,5 +201,3 @@
 		ralink,eeprom = "soc_wmac.eeprom";
 	};
 };
-
-/include/ "fbsd-rt2880.dtsi"

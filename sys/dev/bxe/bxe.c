@@ -2454,14 +2454,11 @@ bxe_sp_post(struct bxe_softc *sc,
 static int
 bxe_probe(device_t dev)
 {
-    struct bxe_softc *sc;
     struct bxe_device_type *t;
     char *descbuf;
     uint16_t did, sdid, svid, vid;
 
     /* Find our device structure */
-    sc = device_get_softc(dev);
-    sc->dev = dev;
     t = bxe_devs;
 
     /* Get the data for the device to be probed. */
@@ -2469,10 +2466,6 @@ bxe_probe(device_t dev)
     did  = pci_get_device(dev);
     svid = pci_get_subvendor(dev);
     sdid = pci_get_subdevice(dev);
-
-    BLOGD(sc, DBG_LOAD,
-          "%s(); VID = 0x%04X, DID = 0x%04X, SVID = 0x%04X, "
-          "SDID = 0x%04X\n", __FUNCTION__, vid, did, svid, sdid);
 
     /* Look through the list of known devices for a match. */
     while (t->bxe_name != NULL) {

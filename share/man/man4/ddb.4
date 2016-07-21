@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2016
+.Dd May 18, 2016
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -540,6 +540,11 @@ Show all TTY's within the system.
 Output is similar to
 .Xr pstat 8 ,
 but also includes the address of the TTY structure.
+.\"
+.Pp
+.It Ic show Cm all vnets
+Show the same output as "show vnet" does, but lists all
+virtualized network stacks within the system.
 .\"
 .Pp
 .It Ic show Cm allchains
@@ -1058,6 +1063,13 @@ VM object.
 Currently, it is not possible to use this command when
 .Xr witness 4
 is compiled in the kernel.
+.\"
+.Pp
+.It Ic show Cm vnet Ar addr
+Prints virtualized network stack
+.Vt struct vnet
+structure present at the address
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm vnode Op Ar addr

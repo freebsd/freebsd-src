@@ -271,7 +271,13 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
+#ifdef INTRNG
+	/* TODO: This is wrong, it's needed for ACPI */
+	device_printf(dev, "bus_config_intr is obsolete and not supported!\n");
+	return (EOPNOTSUPP);
+#else
 	return (intr_irq_config(irq, trig, pol));
+#endif
 }
 
 static int
@@ -288,8 +294,12 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	if (error)
 		return (error);
 
+#ifdef INTRNG
+	error = intr_setup_irq(child, res, filt, intr, arg, flags, cookiep);
+#else
 	error = arm_setup_intr(device_get_nameunit(child), filt, intr,
 	    arg, rman_get_start(res), flags, cookiep);
+#endif
 
 	return (error);
 }
@@ -298,7 +308,11 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
+#ifdef INTRNG
+	return (intr_teardown_irq(child, r, ih));
+#else
 	return (intr_irq_remove_handler(child, rman_get_start(r), ih));
+#endif
 }
 
 #ifdef SMP
@@ -306,7 +320,11 @@ static int
 nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 {
 
+#ifdef INTRNG
+	return (intr_bind_irq(child, irq, cpu));
+#else
 	return (intr_irq_bind(rman_get_start(irq), cpu));
+#endif
 }
 #endif
 
@@ -429,6 +447,9 @@ static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
+#ifdef INTRNG
+	return (intr_fdt_map_irq(iparent, intr, icells));
+#else
 	int irq;
 
 	if (icells == 3) {
@@ -441,6 +462,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 		irq = intr[0];
 
 	return (irq);
+#endif
 }
 #endif
 

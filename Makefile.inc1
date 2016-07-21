@@ -56,6 +56,41 @@ LOCALBASE?=	/usr/local
 .include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
 CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
 .endif
+.if defined(CROSS_TOOLCHAIN_PREFIX)
+CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+.endif
+# If we do not have a bootstrap binutils (because the in-tree one does not
+# support the target architecture), provide a default cross-binutils prefix.
+# This allows aarch64 builds, for example, to automatically use the
+# aarch64-binutils port or package.
+.if !make(showconfig)
+.if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
+    !defined(CROSS_BINUTILS_PREFIX)
+CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
+.if !exists(${CROSS_BINUTILS_PREFIX})
+.error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
+.endif
+.endif
+.endif
+
+XCOMPILERS=	CC CXX CPP
+.for COMPILER in ${XCOMPILERS}
+.if defined(CROSS_COMPILER_PREFIX)
+X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
+.else
+X${COMPILER}?=	${${COMPILER}}
+.endif
+.endfor
+XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
+.for BINUTIL in ${XBINUTILS}
+.if defined(CROSS_BINUTILS_PREFIX) && \
+    exists(${CROSS_BINUTILS_PREFIX}${${BINUTIL}})
+X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
+.else
+X${BINUTIL}?=	${${BINUTIL}}
+.endif
+.endfor
 .include <bsd.compiler.mk>		# don't depend on src.opts.mk doing it
 .include "share/mk/src.opts.mk"	
 
@@ -219,14 +254,13 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		arm \
 		armeb/arm \
 		armv6/arm \
-		armv6hf/arm \
 		i386 \
 		i386/pc98 \
 		mips \
 		mipsel/mips \
 		mips64el/mips \
-		mips64/mips \
 		mipsn32el/mips \
+		mips64/mips \
 		mipsn32/mips \
 		powerpc \
 		powerpc64/powerpc \
@@ -405,42 +439,6 @@ HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
-.if defined(CROSS_TOOLCHAIN_PREFIX)
-CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
-CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
-.endif
-
-# If we do not have a bootstrap binutils (because the in-tree one does not
-# support the target architecture), provide a default cross-binutils prefix.
-# This allows aarch64 builds, for example, to automatically use the
-# aarch64-binutils port or package.
-.if !make(showconfig)
-.if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
-    !defined(CROSS_BINUTILS_PREFIX)
-CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
-.if !exists(${CROSS_BINUTILS_PREFIX})
-.error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
-.endif
-.endif
-.endif
-
-XCOMPILERS=	CC CXX CPP
-.for COMPILER in ${XCOMPILERS}
-.if defined(CROSS_COMPILER_PREFIX)
-X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
-.else
-X${COMPILER}?=	${${COMPILER}}
-.endif
-.endfor
-XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
-.for BINUTIL in ${XBINUTILS}
-.if defined(CROSS_BINUTILS_PREFIX) && \
-    exists(${CROSS_BINUTILS_PREFIX}${${BINUTIL}})
-X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
-.else
-X${BINUTIL}?=	${${BINUTIL}}
-.endif
-.endfor
 CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		CPP="${XCPP} ${XCFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
@@ -461,7 +459,7 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${TARGET} == "arm"
-.if ${TARGET_ARCH:M*hf*} != ""
+.if ${TARGET_ARCH:Marmv6*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
 TARGET_ABI=	gnueabihf
 .else
 TARGET_ABI=	gnueabi
@@ -534,7 +532,7 @@ KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 .if ${MK_META_MODE} == "yes"
 # meta mode normally is disallowed when building from curdir==objdir, but we
 # want to allow it for the kernel build.
-KMAKE+=	.MAKE.MODE="${.MAKE.MODE} curdirOk=yes"
+KMAKEENV+=	META_MODE="${.MAKE.MODE} curdirOk=yes"
 .endif
 
 #
@@ -976,12 +974,19 @@ packageworld: .PHONY
 # and do a 'make reinstall' on the *client* to install new binaries from the
 # most recent server build.
 #
-reinstall: .MAKE .PHONY
+restage reinstall: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
 	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy
+.if make(restage)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making distribution"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} distribution
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything"
@@ -989,21 +994,6 @@ reinstall: .MAKE .PHONY
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
 .if defined(LIBCOMPAT)
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install${libcompat}
-.endif
-
-restage: .MAKE .PHONY
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making hierarchy"
-	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
-	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy distribution
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing everything"
-	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
 redistribute: .MAKE .PHONY

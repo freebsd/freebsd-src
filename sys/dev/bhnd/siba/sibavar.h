@@ -53,6 +53,8 @@ struct siba_core_id;
 int			 siba_probe(device_t dev);
 int			 siba_attach(device_t dev);
 int			 siba_detach(device_t dev);
+int			 siba_resume(device_t dev);
+int			 siba_suspend(device_t dev);
 
 uint16_t		 siba_get_bhnd_mfgid(uint16_t ocp_vendor);
 
@@ -145,6 +147,7 @@ struct siba_devinfo {
 /** siba(4) per-instance state */
 struct siba_softc {
 	struct bhnd_softc	bhnd_sc;	/**< bhnd state */
+	device_t		dev;		/**< siba device */
 	device_t		hostb_dev;	/**< host bridge core, or NULL */
 };
 

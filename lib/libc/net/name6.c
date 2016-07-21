@@ -655,7 +655,6 @@ _hpreorder(struct hostent *hp)
 #endif
 		break;
 	default:
-		free_addrselectpolicy(&policyhead);
 		return hp;
 	}
 

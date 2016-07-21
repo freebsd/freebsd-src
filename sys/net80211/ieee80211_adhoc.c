@@ -674,7 +674,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_channel *rxchan = ic->ic_curchan;
 	struct ieee80211_frame *wh;
-	uint8_t *frm, *efrm, *sfrm;
+	uint8_t *frm, *efrm;
 	uint8_t *ssid, *rates, *xrates;
 #if 0
 	int ht_state_change = 0;
@@ -809,7 +809,6 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 *	[tlv] extended supported rates
 		 */
 		ssid = rates = xrates = NULL;
-		sfrm = frm;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {

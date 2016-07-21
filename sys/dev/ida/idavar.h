@@ -197,7 +197,7 @@ extern int ida_detach(device_t dev);
 extern struct ida_softc *ida_alloc(device_t dev, struct resource *regs,
 	int regs_type, int regs_id, bus_dma_tag_t parent_dmat);
 extern void ida_free(struct ida_softc *ida);
-extern int ida_init(struct ida_softc *ida);
+extern int ida_setup(struct ida_softc *ida);
 extern int ida_command(struct ida_softc *ida, int command, void *data,
 	int datasize, int drive, u_int32_t pblkno, int flags);
 extern void ida_submit_buf(struct ida_softc *ida, struct bio *bp);

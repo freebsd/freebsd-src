@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.104 2016/02/18 18:29:14 christos Exp $	*/
+/*	$NetBSD: compat.c,v 1.105 2016/05/12 20:28:34 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: compat.c,v 1.104 2016/02/18 18:29:14 christos Exp $";
+static char rcsid[] = "$NetBSD: compat.c,v 1.105 2016/05/12 20:28:34 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: compat.c,v 1.104 2016/02/18 18:29:14 christos Exp $");
+__RCSID("$NetBSD: compat.c,v 1.105 2016/05/12 20:28:34 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -586,7 +586,8 @@ Compat_Make(void *gnp, void *pgnp)
 	}
 #ifdef USE_META
 	if (useMeta && !NoExecute(gn)) {
-	    meta_job_finish(NULL);
+	    if (meta_job_finish(NULL) != 0)
+		gn->made = ERROR;
 	}
 #endif
 

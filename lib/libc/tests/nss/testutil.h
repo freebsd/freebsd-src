@@ -252,9 +252,7 @@ int									\
 __##ent##_snapshot_read(char const *fname, struct ent##_test_data *td,	\
 	int (*read_func)(struct ent *, char *))				\
 {									\
-	char buffer[1024];						\
 	struct ent data;						\
-	char *s;							\
 	FILE *fi;							\
 	size_t len;							\
 	int rv;								\
@@ -267,23 +265,22 @@ __##ent##_snapshot_read(char const *fname, struct ent##_test_data *td,	\
 		return (-1);						\
 									\
 	rv = 0;								\
-	memset(buffer, 0, sizeof(buffer));				\
 	while (!feof(fi)) {						\
-		s = fgets(buffer, sizeof(buffer), fi);			\
-		if (s != NULL && s[0] != '#') {				\
-			len = strlen(s);				\
-			if (len == 0)					\
-				continue;				\
-			if (buffer[len - 1] == '\n')			\
-				buffer[len -1] = '\0';			\
-									\
-			rv = read_func(&data, s);			\
-			if (rv == 0) {					\
-				__##ent##_test_data_append(td, &data);	\
-				td->free_func(&data);			\
-			} else 						\
-				goto fin;				\
-		}							\
+		char *buf = fgetln(fi, &len);				\
+		if (buf == NULL || len <= 1)				\
+			continue;					\
+		if (buf[len - 1] == '\n')				\
+			buf[len - 1] = '\0';				\
+		else							\
+			buf[len] = '\0';				\
+		if (buf[0] == '#')					\
+			continue;					\
+		rv = read_func(&data, buf);				\
+		if (rv == 0) {						\
+			__##ent##_test_data_append(td, &data);		\
+			td->free_func(&data);				\
+		} else 							\
+			goto fin;					\
 	}								\
 									\
 fin:									\

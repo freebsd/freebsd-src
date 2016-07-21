@@ -134,7 +134,7 @@ ti_hwmods_get_clock(device_t dev)
 	if (len > 0)
 		device_printf(dev, "WARNING: more than one ti,hwmod \n");
 
-	free(buf, M_OFWPROP);
+	OF_prop_free(buf);
 	return (clk);
 }
 
@@ -167,7 +167,7 @@ int ti_hwmods_contains(device_t dev, const char *hwmod)
 		len -= l;
 	}
 
-	free(buf, M_OFWPROP);
+	OF_prop_free(buf);
 
 	return (result);
 }
@@ -200,6 +200,6 @@ ti_hwmods_get_unit(device_t dev, const char *hwmod)
 		len -= l;
 	}
 
-	free(buf, M_OFWPROP);
+	OF_prop_free(buf);
 	return (result);
 }

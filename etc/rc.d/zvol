@@ -5,6 +5,7 @@
 
 # PROVIDE: zvol
 # REQUIRE: hostid
+# BEFORE: dumpon
 # KEYWORD: nojail
 
 . /etc/rc.subr

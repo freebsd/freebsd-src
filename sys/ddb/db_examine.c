@@ -225,6 +225,10 @@ db_print_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 		else
 		    db_printf("\\%03o", (int)value);
 		break;
+	    default:
+		db_print_format = 'x';
+		db_error("Syntax error: unsupported print modifier\n");
+		/*NOTREACHED*/
 	}
 	db_printf("\n");
 }

@@ -26,7 +26,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-time_t __archive_get_date(time_t, const char *);
+#define __LIBARCHIVE_BUILD 1
+#include "archive_getdate.h"
 
 static void
 test_newer_time(void)

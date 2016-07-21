@@ -141,7 +141,7 @@ aml8726_ccm_configure_gates(struct aml8726_ccm_softc *sc)
 		AML_CCM_UNLOCK(sc);
 	}
 
-	free(functions, M_OFWPROP);
+	OF_prop_free(functions);
 
 	return (0);
 }

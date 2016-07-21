@@ -155,7 +155,7 @@ geli_attach(struct dsk *dskp, const char *passphrase)
 			g_eli_crypto_hmac_update(&ctx, passphrase,
 			    strlen(passphrase));
 		} else if (geli_e->md.md_iterations > 0) {
-			printf("Calculating GELI Decryption Key disk%dp%d @ %lu"
+			printf("Calculating GELI Decryption Key disk%dp%d @ %d"
 			    " iterations...\n", dskp->unit,
 			    (dskp->slice > 0 ? dskp->slice : dskp->part),
 			    geli_e->md.md_iterations);

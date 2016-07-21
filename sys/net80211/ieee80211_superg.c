@@ -1044,7 +1044,6 @@ superg_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	default:
 		return ENOSYS;
 	}
-	return 0;
 }
 IEEE80211_IOCTL_SET(superg, superg_ioctl_set80211);
 

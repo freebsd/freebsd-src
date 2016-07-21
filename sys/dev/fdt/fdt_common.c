@@ -348,7 +348,7 @@ fdt_is_enabled(phandle_t node)
 	if (strncmp((char *)stat, "okay", len) == 0)
 		ena = 1;
 
-	free(stat, M_OFWPROP);
+	OF_prop_free(stat);
 	return (ena);
 }
 
@@ -519,7 +519,7 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 	rv = 0;
 
 out:
-	free(regptr, M_OFWPROP);
+	OF_prop_free(regptr);
 	return (rv);
 }
 

@@ -722,6 +722,9 @@ dma_done(struct dwmmc_softc *sc, struct mmc_command *cmd)
 		bus_dmamap_sync(sc->buf_tag, sc->buf_map,
 			BUS_DMASYNC_POSTREAD);
 
+	bus_dmamap_sync(sc->desc_tag, sc->desc_map,
+	    BUS_DMASYNC_POSTWRITE);
+
 	bus_dmamap_unload(sc->buf_tag, sc->buf_map);
 
 	return (0);
@@ -765,6 +768,10 @@ dma_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
 		sc, BUS_DMA_NOWAIT);
 	if (err != 0)
 		panic("dmamap_load failed\n");
+
+	/* Ensure the device can see the desc */
+	bus_dmamap_sync(sc->desc_tag, sc->desc_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	if (data->flags & MMC_DATA_WRITE)
 		bus_dmamap_sync(sc->buf_tag, sc->buf_map,

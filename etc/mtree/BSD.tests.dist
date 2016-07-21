@@ -261,6 +261,8 @@
                 data
                 ..
             ..
+            iconv
+            ..
             inet
             ..
             locale
@@ -570,6 +572,8 @@
                 ..
             ..
         ..
+	bsdcat
+	..
         calendar
         ..
         cmp
@@ -633,6 +637,8 @@
         uuencode
         ..
         xargs
+        ..
+        xinstall
         ..
         xo
         ..

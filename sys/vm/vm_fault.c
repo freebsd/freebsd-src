@@ -657,48 +657,40 @@ vnode_locked:
 				hardfault++;
 				break; /* break to PAGE HAS BEEN FOUND */
 			}
-			/*
-			 * Remove the bogus page (which does not exist at this
-			 * object/offset); before doing so, we must get back
-			 * our object lock to preserve our invariant.
-			 *
-			 * Also wake up any other process that may want to bring
-			 * in this page.
-			 *
-			 * If this is the top-level object, we must leave the
-			 * busy page to prevent another process from rushing
-			 * past us, and inserting the page in that object at
-			 * the same time that we are.
-			 */
 			if (rv == VM_PAGER_ERROR)
 				printf("vm_fault: pager read error, pid %d (%s)\n",
 				    curproc->p_pid, curproc->p_comm);
+
 			/*
-			 * Data outside the range of the pager or an I/O error
+			 * If an I/O error occurred or the requested page was
+			 * outside the range of the pager, clean up and return
+			 * an error.
 			 */
-			/*
-			 * XXX - the check for kernel_map is a kludge to work
-			 * around having the machine panic on a kernel space
-			 * fault w/ I/O error.
-			 */
-			if (((fs.map != kernel_map) && (rv == VM_PAGER_ERROR)) ||
-				(rv == VM_PAGER_BAD)) {
+			if (rv == VM_PAGER_ERROR || rv == VM_PAGER_BAD) {
 				vm_page_lock(fs.m);
 				vm_page_free(fs.m);
 				vm_page_unlock(fs.m);
 				fs.m = NULL;
 				unlock_and_deallocate(&fs);
-				return ((rv == VM_PAGER_ERROR) ? KERN_FAILURE : KERN_PROTECTION_FAILURE);
+				return (rv == VM_PAGER_ERROR ? KERN_FAILURE :
+				    KERN_PROTECTION_FAILURE);
 			}
+
+			/*
+			 * The requested page does not exist at this object/
+			 * offset.  Remove the invalid page from the object,
+			 * waking up anyone waiting for it, and continue on to
+			 * the next object.  However, if this is the top-level
+			 * object, we must leave the busy page in place to
+			 * prevent another process from rushing past us, and
+			 * inserting the page in that object at the same time
+			 * that we are.
+			 */
 			if (fs.object != fs.first_object) {
 				vm_page_lock(fs.m);
 				vm_page_free(fs.m);
 				vm_page_unlock(fs.m);
 				fs.m = NULL;
-				/*
-				 * XXX - we cannot just fall out at this
-				 * point, m has been freed and is invalid!
-				 */
 			}
 		}
 

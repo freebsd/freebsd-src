@@ -310,7 +310,6 @@ efx_sram_test(
 	__in		efx_nic_t *enp,
 	__in		efx_pattern_type_t type)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
 	efx_sram_pattern_fn_t func;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -321,11 +320,15 @@ efx_sram_test(
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_TX));
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_EV));
 
+	/* SRAM testing is only available on Siena. */
+	if (enp->en_family != EFX_FAMILY_SIENA)
+		return (0);
+
 	/* Select pattern generator */
 	EFSYS_ASSERT3U(type, <, EFX_PATTERN_NTYPES);
 	func = __efx_sram_pattern_fns[type];
 
-	return (enop->eno_sram_test(enp, func));
+	return (siena_sram_test(enp, func));
 }
 
 #endif	/* EFSYS_OPT_DIAG */

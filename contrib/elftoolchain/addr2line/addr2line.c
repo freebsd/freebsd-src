@@ -40,7 +40,7 @@
 #include "uthash.h"
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: addr2line.c 3273 2015-12-11 21:38:57Z kaiwang27 $");
+ELFTC_VCSID("$Id: addr2line.c 3446 2016-05-03 01:31:17Z emaste $");
 
 struct Func {
 	char *name;
@@ -284,7 +284,7 @@ collect_func(Dwarf_Debug dbg, Dwarf_Die die, struct Func *parent, struct CU *cu)
 		    &de) == DW_DLV_OK)
 			goto add_func;
 
-		/* Skip if no name assoicated with this DIE. */
+		/* Skip if no name associated with this DIE. */
 		goto cont_search;
 
 	add_func:

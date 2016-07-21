@@ -342,7 +342,7 @@ unctrl.c: MKunctrl.awk
 	echo | ${AWK} -f ${NCURSES_DIR}/ncurses/base/MKunctrl.awk bigstrings=${USE_BIG_STRINGS} > unctrl.c
 
 comp_captab.c: MKcaptab.sh MKcaptab.awk Caps make_hash
-	sh ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.sh "${AWK}" \
+	env PATH=${BTOOLSPATH:U.}:${PATH} sh ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.sh "${AWK}" \
 	    ${USE_BIG_STRINGS} ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.awk \
 	    ${NCURSES_DIR}/include/Caps > comp_captab.c
 
@@ -358,7 +358,7 @@ nomacros.h: MKlib_gen.sh curses.h
 	    "${AWK}" generated < curses.h | fgrep undef > $@
 
 init_keytry.h: keys.list make_keys
-	./make_keys keys.list > init_keytry.h
+	${BTOOLSPATH:U.}/make_keys keys.list > init_keytry.h
 
 hashsize.h: MKhashsize.sh Caps
 	sh ${NCURSES_DIR}/include/MKhashsize.sh ${NCURSES_DIR}/include/Caps > $@

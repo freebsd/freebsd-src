@@ -107,11 +107,27 @@ aw_mp_setmaxid(platform_t plat)
 	mp_maxid = ncpu - 1;
 }
 
-static void
-aw_common_mp_start_ap(bus_space_handle_t cpucfg, bus_space_handle_t prcm)
+void
+aw_mp_start_ap(platform_t plat)
 {
-	int i, j;
+	bus_space_handle_t cpucfg;
+	bus_space_handle_t prcm;
+	int i, j, soc_family;
 	uint32_t val;
+
+	soc_family = allwinner_soc_family();
+	if (soc_family == ALLWINNERSOC_SUN7I) {
+		if (bus_space_map(fdtbus_bs_tag, A20_CPUCFG_BASE, CPUCFG_SIZE,
+		    0, &cpucfg) != 0)
+			panic("Couldn't map the CPUCFG\n");
+	} else {
+		if (bus_space_map(fdtbus_bs_tag, CPUCFG_BASE, CPUCFG_SIZE,
+		    0, &cpucfg) != 0)
+			panic("Couldn't map the CPUCFG\n");
+		if (bus_space_map(fdtbus_bs_tag, PRCM_BASE, PRCM_SIZE, 0,
+		    &prcm) != 0)
+			panic("Couldn't map the PRCM\n");
+	}
 
 	dcache_wbinv_poc_all();
 
@@ -141,7 +157,7 @@ aw_common_mp_start_ap(bus_space_handle_t cpucfg, bus_space_handle_t prcm)
 	/* Release power clamp */
 	for (i = 1; i < mp_ncpus; i++)
 		for (j = 0; j <= CPU_PWR_CLAMP_STEPS; j++) {
-			if (prcm) {
+			if (soc_family != ALLWINNERSOC_SUN7I) {
 				bus_space_write_4(fdtbus_bs_tag, prcm,
 				    CPU_PWR_CLAMP(i), 0xff >> j);
 			} else {
@@ -152,7 +168,7 @@ aw_common_mp_start_ap(bus_space_handle_t cpucfg, bus_space_handle_t prcm)
 	DELAY(10000);
 
 	/* Clear power-off gating */
-	if (prcm) {
+	if (soc_family != ALLWINNERSOC_SUN7I) {
 		val = bus_space_read_4(fdtbus_bs_tag, prcm, CPU_PWROFF);
 		for (i = 0; i < mp_ncpus; i++)
 			val &= ~(1 << i);
@@ -179,39 +195,8 @@ aw_common_mp_start_ap(bus_space_handle_t cpucfg, bus_space_handle_t prcm)
 
 	armv7_sev();
 	bus_space_unmap(fdtbus_bs_tag, cpucfg, CPUCFG_SIZE);
-}
-
-void
-a20_mp_start_ap(platform_t plat)
-{
-	bus_space_handle_t cpucfg;
-
-	if (bus_space_map(fdtbus_bs_tag, A20_CPUCFG_BASE, CPUCFG_SIZE,
-	    0, &cpucfg) != 0)
-		panic("Couldn't map the CPUCFG\n");
-
-	aw_common_mp_start_ap(cpucfg, 0);
-	armv7_sev();
-	bus_space_unmap(fdtbus_bs_tag, cpucfg, CPUCFG_SIZE);
-}
-
-void
-a31_mp_start_ap(platform_t plat)
-{
-	bus_space_handle_t cpucfg;
-	bus_space_handle_t prcm;
-
-	if (bus_space_map(fdtbus_bs_tag, CPUCFG_BASE, CPUCFG_SIZE,
-	    0, &cpucfg) != 0)
-		panic("Couldn't map the CPUCFG\n");
-	if (bus_space_map(fdtbus_bs_tag, PRCM_BASE, PRCM_SIZE, 0,
-	    &prcm) != 0)
-		panic("Couldn't map the PRCM\n");
-
-	aw_common_mp_start_ap(cpucfg, prcm);
-	armv7_sev();
-	bus_space_unmap(fdtbus_bs_tag, cpucfg, CPUCFG_SIZE);
-	bus_space_unmap(fdtbus_bs_tag, prcm, PRCM_SIZE);
+	if (soc_family != ALLWINNERSOC_SUN7I)
+		bus_space_unmap(fdtbus_bs_tag, prcm, PRCM_SIZE);
 }
 
 static void

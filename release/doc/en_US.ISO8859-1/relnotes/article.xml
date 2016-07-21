@@ -174,8 +174,8 @@
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
 	&man.src.conf.5; option has been removed.</para>
 
-      <para revision="285169">The <application>ntp</application> suite
-	has been updated to version 4.2.8p3.</para>
+      <para revision="298695">The <application>ntp</application> suite
+	has been updated to version 4.2.8p7.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -460,8 +460,8 @@
       <para revision="260445">&man.byacc.1; has been updated to
 	version 20140101.</para>
 
-      <para revision="261320"><application>OpenSSH</application> has
-	been updated to 6.5p1.</para>
+      <para revision="296633"><application>OpenSSH</application> has
+	been updated to 7.2p2.</para>
 
       <para revision="261344"><application>mdocml</application> has
 	been updated to version 1.12.3.</para>

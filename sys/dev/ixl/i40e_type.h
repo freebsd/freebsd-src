@@ -147,6 +147,22 @@ enum i40e_debug_mask {
 #define I40E_PCI_LINK_SPEED_5000	0x2
 #define I40E_PCI_LINK_SPEED_8000	0x3
 
+#define I40E_MDIO_STCODE		0
+#define I40E_MDIO_OPCODE_ADDRESS	0
+#define I40E_MDIO_OPCODE_WRITE		I40E_MASK(1, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+#define I40E_MDIO_OPCODE_READ_INC_ADDR	I40E_MASK(2, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+#define I40E_MDIO_OPCODE_READ		I40E_MASK(3, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+
+#define I40E_PHY_COM_REG_PAGE			0x1E
+#define I40E_PHY_LED_LINK_MODE_MASK		0xF0
+#define I40E_PHY_LED_MANUAL_ON			0x100
+#define I40E_PHY_LED_PROV_REG_1			0xC430
+#define I40E_PHY_LED_MODE_MASK			0xFFFF
+#define I40E_PHY_LED_MODE_ORIG			0x80000000
+
 /* Memory types */
 enum i40e_memset_type {
 	I40E_NONDMA_MEM = 0,
@@ -161,6 +177,9 @@ enum i40e_memcpy_type {
 	I40E_DMA_TO_NONDMA
 };
 
+#define I40E_FW_API_VERSION_MINOR_X710	0x0005
+
+
 /* These are structs for managing the hardware information and the operations.
  * The structures of function pointers are filled out at init time when we
  * know for sure exactly which hardware we're working with.  This gives us the
@@ -174,10 +193,6 @@ enum i40e_mac_type {
 	I40E_MAC_X710,
 	I40E_MAC_XL710,
 	I40E_MAC_VF,
-#ifdef X722_SUPPORT
-	I40E_MAC_X722,
-	I40E_MAC_X722_VF,
-#endif
 	I40E_MAC_GENERIC,
 };
 
@@ -297,7 +312,7 @@ struct i40e_phy_info {
 	bool get_link_info;
 	enum i40e_media_type media_type;
 	/* all the phy types the NVM is capable of */
-	enum i40e_aq_capabilities_phy_type phy_types;
+	u32 phy_types;
 };
 
 #define I40E_HW_CAP_MAX_GPIO			30
@@ -550,6 +565,8 @@ struct i40e_dcbx_config {
 	u8  dcbx_mode;
 #define I40E_DCBX_MODE_CEE	0x1
 #define I40E_DCBX_MODE_IEEE	0x2
+	u8  app_mode;
+#define I40E_DCBX_APPS_NON_WILLING	0x1
 	u32 numapps;
 	u32 tlv_status; /* CEE mode TLV status */
 	struct i40e_dcb_ets_config etscfg;
@@ -617,6 +634,9 @@ struct i40e_hw {
 	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
 	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
 
+#define I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE BIT_ULL(0)
+	u64 flags;
+
 	/* debug mask */
 	u32 debug_mask;
 	char err_str[16];
@@ -624,12 +644,7 @@ struct i40e_hw {
 
 static INLINE bool i40e_is_vf(struct i40e_hw *hw)
 {
-#ifdef X722_SUPPORT
-	return (hw->mac.type == I40E_MAC_VF ||
-		hw->mac.type == I40E_MAC_X722_VF);
-#else
 	return hw->mac.type == I40E_MAC_VF;
-#endif
 }
 
 struct i40e_driver_version {
@@ -733,11 +748,7 @@ enum i40e_rx_desc_status_bits {
 	I40E_RX_DESC_STATUS_CRCP_SHIFT		= 4,
 	I40E_RX_DESC_STATUS_TSYNINDX_SHIFT	= 5, /* 2 BITS */
 	I40E_RX_DESC_STATUS_TSYNVALID_SHIFT	= 7,
-#ifdef X722_SUPPORT
-	I40E_RX_DESC_STATUS_EXT_UDP_0_SHIFT	= 8,
-#else
 	I40E_RX_DESC_STATUS_RESERVED1_SHIFT	= 8,
-#endif
 
 	I40E_RX_DESC_STATUS_UMBCAST_SHIFT	= 9, /* 2 BITS */
 	I40E_RX_DESC_STATUS_FLM_SHIFT		= 11,
@@ -745,11 +756,7 @@ enum i40e_rx_desc_status_bits {
 	I40E_RX_DESC_STATUS_LPBK_SHIFT		= 14,
 	I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT	= 15,
 	I40E_RX_DESC_STATUS_RESERVED2_SHIFT	= 16, /* 2 BITS */
-#ifdef X722_SUPPORT
-	I40E_RX_DESC_STATUS_INT_UDP_0_SHIFT	= 18,
-#else
 	I40E_RX_DESC_STATUS_UDP_0_SHIFT		= 18,
-#endif
 	I40E_RX_DESC_STATUS_LAST /* this entry must be last!!! */
 };
 
@@ -1127,10 +1134,6 @@ enum i40e_tx_ctx_desc_eipt_offload {
 #define I40E_TXD_CTX_QW0_DECTTL_MASK	(0xFULL << \
 					 I40E_TXD_CTX_QW0_DECTTL_SHIFT)
 
-#ifdef X722_SUPPORT
-#define I40E_TXD_CTX_QW0_L4T_CS_SHIFT	23
-#define I40E_TXD_CTX_QW0_L4T_CS_MASK	BIT_ULL(I40E_TXD_CTX_QW0_L4T_CS_SHIFT)
-#endif
 struct i40e_nop_desc {
 	__le64 rsvd;
 	__le64 dtype_cmd;
@@ -1167,38 +1170,15 @@ struct i40e_filter_program_desc {
 
 /* Packet Classifier Types for filters */
 enum i40e_filter_pctype {
-#ifdef X722_SUPPORT
-	/* Note: Values 0-28 are reserved for future use.
-	 * Value 29, 30, 32 are not supported on XL710 and X710.
-	 */
-	I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP	= 29,
-	I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP	= 30,
-#else
 	/* Note: Values 0-30 are reserved for future use */
-#endif
 	I40E_FILTER_PCTYPE_NONF_IPV4_UDP		= 31,
-#ifdef X722_SUPPORT
-	I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK	= 32,
-#else
 	/* Note: Value 32 is reserved for future use */
-#endif
 	I40E_FILTER_PCTYPE_NONF_IPV4_TCP		= 33,
 	I40E_FILTER_PCTYPE_NONF_IPV4_SCTP		= 34,
 	I40E_FILTER_PCTYPE_NONF_IPV4_OTHER		= 35,
 	I40E_FILTER_PCTYPE_FRAG_IPV4			= 36,
-#ifdef X722_SUPPORT
-	/* Note: Values 37-38 are reserved for future use.
-	 * Value 39, 40, 42 are not supported on XL710 and X710.
-	 */
-	I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP	= 39,
-	I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP	= 40,
-#else
 	/* Note: Values 37-40 are reserved for future use */
-#endif
 	I40E_FILTER_PCTYPE_NONF_IPV6_UDP		= 41,
-#ifdef X722_SUPPORT
-	I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK	= 42,
-#endif
 	I40E_FILTER_PCTYPE_NONF_IPV6_TCP		= 43,
 	I40E_FILTER_PCTYPE_NONF_IPV6_SCTP		= 44,
 	I40E_FILTER_PCTYPE_NONF_IPV6_OTHER		= 45,
@@ -1225,7 +1205,8 @@ enum i40e_filter_program_desc_fd_status {
 };
 
 #define I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT	23
-#define I40E_TXD_FLTR_QW0_DEST_VSI_MASK	BIT_ULL(I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
+#define I40E_TXD_FLTR_QW0_DEST_VSI_MASK	(0x1FFUL << \
+					 I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
 
 #define I40E_TXD_FLTR_QW1_DTYPE_SHIFT	0
 #define I40E_TXD_FLTR_QW1_DTYPE_MASK	(0xFUL << I40E_TXD_FLTR_QW1_DTYPE_SHIFT)
@@ -1252,12 +1233,6 @@ enum i40e_filter_program_desc_pcmd {
 						 I40E_TXD_FLTR_QW1_CMD_SHIFT)
 #define I40E_TXD_FLTR_QW1_FD_STATUS_MASK (0x3ULL << \
 					  I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT)
-#ifdef X722_SUPPORT
-
-#define I40E_TXD_FLTR_QW1_ATR_SHIFT	(0xEULL + \
-					 I40E_TXD_FLTR_QW1_CMD_SHIFT)
-#define I40E_TXD_FLTR_QW1_ATR_MASK	BIT_ULL(I40E_TXD_FLTR_QW1_ATR_SHIFT)
-#endif
 
 #define I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT 20
 #define I40E_TXD_FLTR_QW1_CNTINDEX_MASK	(0x1FFUL << \

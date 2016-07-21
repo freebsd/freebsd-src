@@ -10,6 +10,7 @@ categories = [ base ]
 maintainer = "re@FreeBSD.org"
 www = "https://www.FreeBSD.org"
 prefix = "/"
+#vital = true
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
 desc = <<EOD
@@ -26,4 +27,8 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
+}
+directories {
+    /dev = "y";
+    /tmp = "y";
 }

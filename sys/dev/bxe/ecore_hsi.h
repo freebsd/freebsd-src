@@ -3709,9 +3709,9 @@ struct cstorm_toe_ag_context
 	uint32_t snd_max /* The ACK sequence number received in the last completed DDP */;
 #if defined(__BIG_ENDIAN)
 	uint16_t __agg_vars3 /* Various aggregative variables*/;
-	uint16_t __reserved67 /* A counter for the number of RQ WQEs with invalidate the the USTORM encountered */;
+	uint16_t __reserved67 /* A counter for the number of RQ WQEs with invalidate the USTORM encountered */;
 #elif defined(__LITTLE_ENDIAN)
-	uint16_t __reserved67 /* A counter for the number of RQ WQEs with invalidate the the USTORM encountered */;
+	uint16_t __reserved67 /* A counter for the number of RQ WQEs with invalidate the USTORM encountered */;
 	uint16_t __agg_vars3 /* Various aggregative variables*/;
 #endif
 #if defined(__BIG_ENDIAN)

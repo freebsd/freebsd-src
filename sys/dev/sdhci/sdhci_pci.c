@@ -412,11 +412,16 @@ static int
 sdhci_pci_resume(device_t dev)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
-	int i;
+	int i, err;
 
 	for (i = 0; i < sc->num_slots; i++)
 		sdhci_generic_resume(&sc->slots[i]);
-	return (bus_generic_resume(dev));
+	err = bus_generic_resume(dev);
+	if (err)
+		return (err);
+	if (sc->quirks & SDHCI_QUIRK_LOWER_FREQUENCY)
+		sdhci_lower_frequency(dev);
+	return (0);
 }
 
 static void

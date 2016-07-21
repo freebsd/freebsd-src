@@ -1540,12 +1540,12 @@ main(int argc, char **argv)
 		humanize_number(newsizebuf, sizeof(newsizebuf),
 		    sblock.fs_size * sblock.fs_fsize,
 		    "B", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-		printf(" from %s to %s? [Yes/No] ", oldsizebuf, newsizebuf);
+		printf(" from %s to %s? [yes/no] ", oldsizebuf, newsizebuf);
 		fflush(stdout);
 		fgets(reply, (int)sizeof(reply), stdin);
-		if (strcasecmp(reply, "Yes\n")){
-			printf("\nNothing done\n");
-			exit (0);
+		if (strcasecmp(reply, "yes\n")){
+			printf("Response other than \"yes\"; aborting\n");
+			exit(0);
 		}
 	}
 

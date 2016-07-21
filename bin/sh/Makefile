@@ -52,11 +52,11 @@ mksyntax: mksyntax.o ${BUILD_TOOLS_META}
 
 .ORDER: nodes.c nodes.h
 nodes.c nodes.h: mknodes nodetypes nodes.c.pat
-	./mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
+	${BTOOLSPATH:U.}/mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
 
 .ORDER: syntax.c syntax.h
 syntax.c syntax.h: mksyntax
-	./mksyntax
+	${BTOOLSPATH:U.}/mksyntax
 
 token.h: mktokens
 	sh ${.CURDIR}/mktokens

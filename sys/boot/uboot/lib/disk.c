@@ -245,6 +245,7 @@ stor_print(int verbose)
 	static char line[80];
 	int i;
 
+	pager_open();
 	for (i = 0; i < stor_info_no; i++) {
 		dev.d_dev = &uboot_storage;
 		dev.d_unit = i;
@@ -252,13 +253,15 @@ stor_print(int verbose)
 		dev.d_partition = -1;
 		sprintf(line, "\tdisk%d (%s)\n", i,
 		    ub_stor_type(SI(&dev).type));
-		pager_output(line);
+		if (pager_output(line))
+			break;
 		if (stor_opendev(&dev) == 0) {
 			sprintf(line, "\tdisk%d", i);
 			disk_print(&dev, line, verbose);
 			disk_close(&dev);
 		}
 	}
+	pager_close();
 }
 
 static int

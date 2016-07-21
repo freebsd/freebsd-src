@@ -85,7 +85,6 @@ static const unsigned char flags[NOPT] = {
 };
 uint32_t opts;
 
-static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static char cmd[512];
@@ -201,7 +200,7 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 {
 	char *p;
 	daddr_t lba, alignlba;
-	off_t alignoff, diff;
+	off_t diff;
 	unsigned int nb, alignnb;
 	struct dsk *dsk = (struct dsk *) priv;
 
@@ -211,10 +210,11 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 	p = buf;
 	lba = off / DEV_BSIZE;
 	lba += dsk->start;
-	/* Align reads to 4k else 4k sector GELIs will not decrypt. */
-	alignoff = off & ~ (off_t)(DEV_GELIBOOT_BSIZE - 1);
-	/* Round LBA down to nearest multiple of DEV_GELIBOOT_BSIZE bytes. */
-	alignlba = alignoff / DEV_BSIZE;
+	/*
+	 * Align reads to 4k else 4k sector GELIs will not decrypt.
+	 * Round LBA down to nearest multiple of DEV_GELIBOOT_BSIZE bytes.
+	 */
+	alignlba = rounddown2(off, DEV_GELIBOOT_BSIZE) / DEV_BSIZE;
 	/*
 	 * The read must be aligned to DEV_GELIBOOT_BSIZE bytes relative to the
 	 * start of the GELI partition, not the start of the actual disk.
@@ -398,8 +398,12 @@ probe_drive(struct dsk *dsk)
     struct gpt_hdr hdr;
     struct gpt_ent *ent;
     unsigned part, entries_per_sec;
+    daddr_t slba;
 #endif
-    daddr_t slba, elba;
+#if defined(GPT) || defined(LOADER_GELI_SUPPORT)
+    daddr_t elba;
+#endif
+
     struct dos_partition *dp;
     char *sec;
     unsigned i;

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2016
+.Dd May 20, 2016
 .Dt BUS_ACTIVATE_RESOURCE 9
 .Os
 .Sh NAME
@@ -90,7 +90,7 @@ returned by
 .El
 .Ss Resource Mapping
 Resources which can be mapped for CPU access by a
-.Xr bus_space
+.Xr bus_space 9
 tag and handle will create a mapping of the entire resource when activated.
 The tag and handle for this mapping are stored in
 .Fa r
@@ -105,6 +105,14 @@ API to access device registers or memory described by
 If the mapping is associated with a virtual address,
 the virtual address can be retrieved via
 .Xr rman_get_virtual 9 .
+.Pp
+This implicit mapping can be disabled by passing the
+.Dv RF_UNMAPPED
+flag to
+.Xr bus_alloc_resource 9 .
+A driver may use this if it wishes to allocate its own mappings of a resource
+using
+.Xr bus_map_resource 9 .
 .Pp
 A wrapper API for
 .Xr bus_space 9
@@ -133,6 +141,8 @@ resource:
 Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
 .Xr bus_alloc_resource 9 ,
+.Xr bus_map_resource 9 ,
+.Xr bus_space 9 ,
 .Xr device 9 ,
 .Xr driver 9
 .Sh AUTHORS

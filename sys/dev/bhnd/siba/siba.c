@@ -55,15 +55,13 @@ int
 siba_attach(device_t dev)
 {
 	struct siba_devinfo	*dinfo;
+	struct siba_softc	*sc;
 	device_t		*devs;
 	int			 ndevs;
 	int			 error;
-
-	// TODO: We need to set the initiator timeout for the
-	// core that will be issuing requests to non-memory locations.
-	//
-	// In the case of a bridged device, this is the hostb core.
-	// On a non-bridged device, this will be the CPU.
+	
+	sc = device_get_softc(dev);
+	sc->dev = dev;
 
 	/* Fetch references to the siba SIBA_CFG* blocks for all
 	 * registered devices */
@@ -142,6 +140,18 @@ int
 siba_detach(device_t dev)
 {
 	return (bhnd_generic_detach(dev));
+}
+
+int
+siba_resume(device_t dev)
+{
+	return (bhnd_generic_resume(dev));
+}
+
+int
+siba_suspend(device_t dev)
+{
+	return (bhnd_generic_suspend(dev));
 }
 
 static int
@@ -663,6 +673,8 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(device_probe,			siba_probe),
 	DEVMETHOD(device_attach,		siba_attach),
 	DEVMETHOD(device_detach,		siba_detach),
+	DEVMETHOD(device_resume,		siba_resume),
+	DEVMETHOD(device_suspend,		siba_suspend),
 	
 	/* Bus interface */
 	DEVMETHOD(bus_child_deleted,		siba_child_deleted),

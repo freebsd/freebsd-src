@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/frame.h>
 
@@ -256,5 +257,6 @@ void
 swi_vm(void *v)
 {
 
-	/* Nothing to do here - busdma bounce buffers are not implemented. */
+	if (busdma_swi_pending != 0)
+		busdma_swi();
 }

@@ -134,6 +134,9 @@ struct intsrc {
 
 struct trapframe;
 
+#ifdef SMP
+extern cpuset_t intr_cpus;
+#endif
 extern struct mtx icu_lock;
 extern int elcr_found;
 

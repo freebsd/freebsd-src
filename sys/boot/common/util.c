@@ -120,6 +120,7 @@ printf(const char *fmt, ...)
 	va_list ap;
 	const char *hex = "0123456789abcdef";
 	char buf[32], *s;
+	uint16_t *S;
 	unsigned long long u;
 	int c, l;
 
@@ -143,6 +144,10 @@ nextfmt:
 			for (s = va_arg(ap, char *); *s != '\0'; s++)
 				putchar(*s);
 			break;
+		case 'S':	/* Assume console can cope with wide chars */
+			for (S = va_arg(ap, uint16_t *); *S != 0; S++)
+				putchar(*S);
+ 			break;
 		case 'd':	/* A lie, always prints unsigned */
 		case 'u':
 		case 'x':

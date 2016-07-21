@@ -210,11 +210,11 @@ aml8726_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 	if (f->name == NULL) {
 		device_printf(dev, "unknown function attribute %.*s in FDT\n",
 		    len, function_name);
-		free(function_name, M_OFWPROP);
+		OF_prop_free(function_name);
 		return (ENXIO);
 	}
 
-	free(function_name, M_OFWPROP);
+	OF_prop_free(function_name);
 
 	len = OF_getprop_alloc(node, "amlogic,pull",
 	    sizeof(char), (void **)&pull);
@@ -234,12 +234,12 @@ aml8726_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 			device_printf(dev,
 			    "unknown pull attribute %.*s in FDT\n",
 			    len, pull);
-			free(pull, M_OFWPROP);
+			OF_prop_free(pull);
 			return (ENXIO);
 		}
 	}
 
-	free(pull, M_OFWPROP);
+	OF_prop_free(pull);
 
 	/*
 	 * Setting the pull direction isn't supported on all SoC.
@@ -403,7 +403,7 @@ aml8726_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 		AML_PINCTRL_UNLOCK(sc);
 	}
 
-	free(pins, M_OFWPROP);
+	OF_prop_free(pins);
 
 	return (0);
 }

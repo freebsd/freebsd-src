@@ -335,8 +335,9 @@ fuse_vnop_create(struct vop_create_args *ap)
 
 	/* XXX:	Will we ever want devices ? */
 	if ((vap->va_type != VREG)) {
-		MPASS(vap->va_type != VFIFO);
-		goto bringup;
+		printf("fuse_vnop_create: unsupported va_type %d\n",
+		    vap->va_type);
+		return (EINVAL);
 	}
 	debug_printf("parent nid = %ju, mode = %x\n", (uintmax_t)parentnid,
 	    mode);
@@ -364,7 +365,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		debug_printf("create: got err=%d from daemon\n", err);
 		goto out;
 	}
-bringup:
+
 	feo = fdip->answ;
 
 	if ((err = fuse_internal_checkentry(feo, VREG))) {
@@ -1125,6 +1126,7 @@ fuse_vnop_open(struct vop_open_args *ap)
 	struct fuse_vnode_data *fvdat;
 
 	int error, isdir = 0;
+	int32_t fuse_open_flags;
 
 	FS_DEBUG2G("inode=%ju mode=0x%x\n", (uintmax_t)VTOI(vp), mode);
 
@@ -1136,14 +1138,24 @@ fuse_vnop_open(struct vop_open_args *ap)
 	if (vnode_isdir(vp)) {
 		isdir = 1;
 	}
+	fuse_open_flags = 0;
 	if (isdir) {
 		fufh_type = FUFH_RDONLY;
 	} else {
 		fufh_type = fuse_filehandle_xlate_from_fflags(mode);
+		/*
+		 * For WRONLY opens, force DIRECT_IO.  This is necessary
+		 * since writing a partial block through the buffer cache
+		 * will result in a read of the block and that read won't
+		 * be allowed by the WRONLY open.
+		 */
+		if (fufh_type == FUFH_WRONLY ||
+		    (fvdat->flag & FN_DIRECTIO) != 0)
+			fuse_open_flags = FOPEN_DIRECT_IO;
 	}
 
-	if (fuse_filehandle_valid(vp, fufh_type)) {
-		fuse_vnode_open(vp, 0, td);
+	if (fuse_filehandle_validrw(vp, fufh_type) != FUFH_INVALID) {
+		fuse_vnode_open(vp, fuse_open_flags, td);
 		return 0;
 	}
 	error = fuse_filehandle_open(vp, fufh_type, NULL, td, cred);

@@ -61,10 +61,10 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_domain.h>
 
+#ifdef VM_NUMA_ALLOC
 static __inline int
 vm_domain_rr_selectdomain(int skip_domain)
 {
-#ifdef VM_NUMA_ALLOC
 	struct thread *td;
 
 	td = curthread;
@@ -82,10 +82,8 @@ vm_domain_rr_selectdomain(int skip_domain)
 		td->td_dom_rr_idx %= vm_ndomains;
 	}
 	return (td->td_dom_rr_idx);
-#else
-	return (0);
-#endif
 }
+#endif
 
 /*
  * This implements a very simple set of VM domain memory allocation

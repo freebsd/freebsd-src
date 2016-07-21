@@ -41,9 +41,9 @@ __FBSDID("$FreeBSD$");
  */
 
 struct read_memory_data {
-	unsigned char	*start;
-	unsigned char	*p;
-	unsigned char	*end;
+	const unsigned char	*start;
+	const unsigned char	*p;
+	const unsigned char	*end;
 	ssize_t	 read_size;
 };
 
@@ -54,7 +54,7 @@ static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 
 int
-archive_read_open_memory(struct archive *a, void *buff, size_t size)
+archive_read_open_memory(struct archive *a, const void *buff, size_t size)
 {
 	return archive_read_open_memory2(a, buff, size, size);
 }
@@ -65,7 +65,7 @@ archive_read_open_memory(struct archive *a, void *buff, size_t size)
  * test harnesses can exercise block operations inside the library.
  */
 int
-archive_read_open_memory2(struct archive *a, void *buff,
+archive_read_open_memory2(struct archive *a, const void *buff,
     size_t size, size_t read_size)
 {
 	struct read_memory_data *mine;
@@ -76,7 +76,7 @@ archive_read_open_memory2(struct archive *a, void *buff,
 		return (ARCHIVE_FATAL);
 	}
 	memset(mine, 0, sizeof(*mine));
-	mine->start = mine->p = (unsigned char *)buff;
+	mine->start = mine->p = (const unsigned char *)buff;
 	mine->end = mine->start + size;
 	mine->read_size = read_size;
 	archive_read_set_open_callback(a, memory_read_open);

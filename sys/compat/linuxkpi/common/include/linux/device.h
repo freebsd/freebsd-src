@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@
 #ifndef	_LINUX_DEVICE_H_
 #define	_LINUX_DEVICE_H_
 
+#include <linux/err.h>
 #include <linux/types.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
@@ -71,6 +72,7 @@ struct device {
 	unsigned int	irq;
 	unsigned int	msix;
 	unsigned int	msix_max;
+	const struct attribute_group **groups;
 };
 
 extern struct device linux_root_device;
@@ -127,11 +129,12 @@ show_class_attr_string(struct class *class,
 #define	dev_err(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_warn(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_info(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
+#define	dev_notice(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_printk(lvl, dev, fmt, ...)					\
 	    device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 
 static inline void *
-dev_get_drvdata(struct device *dev)
+dev_get_drvdata(const struct device *dev)
 {
 
 	return dev->driver_data;
@@ -191,11 +194,106 @@ class_unregister(struct class *class)
 	kobject_put(&class->kobj);
 }
 
+static inline struct device *kobj_to_dev(struct kobject *kobj)
+{
+	return container_of(kobj, struct device, kobj);
+}
+
 /*
- * Devices are registered and created for exporting to sysfs.  create
+ * Devices are registered and created for exporting to sysfs. Create
  * implies register and register assumes the device fields have been
  * setup appropriately before being called.
  */
+static inline void
+device_initialize(struct device *dev)
+{
+	device_t bsddev;
+
+	bsddev = NULL;
+	if (dev->devt) {
+		int unit = MINOR(dev->devt);
+		bsddev = devclass_get_device(dev->class->bsdclass, unit);
+	}
+	if (bsddev != NULL)
+		device_set_softc(bsddev, dev);
+
+	dev->bsddev = bsddev;
+	kobject_init(&dev->kobj, &linux_dev_ktype);
+}
+
+static inline int
+device_add(struct device *dev)
+{	
+	if (dev->bsddev != NULL) {
+		if (dev->devt == 0)
+			dev->devt = makedev(0, device_get_unit(dev->bsddev));
+	}
+	kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
+	return (0);
+}
+
+static inline void
+device_create_release(struct device *dev)
+{
+	kfree(dev);
+}
+
+static inline struct device *
+device_create_groups_vargs(struct class *class, struct device *parent,
+    dev_t devt, void *drvdata, const struct attribute_group **groups,
+    const char *fmt, va_list args)
+{
+	struct device *dev = NULL;
+	int retval = -ENODEV;
+
+	if (class == NULL || IS_ERR(class))
+		goto error;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		retval = -ENOMEM;
+		goto error;
+	}
+
+	device_initialize(dev);
+	dev->devt = devt;
+	dev->class = class;
+	dev->parent = parent;
+	dev->groups = groups;
+	dev->release = device_create_release;
+	dev->bsddev = devclass_get_device(dev->class->bsdclass, MINOR(devt));
+	dev_set_drvdata(dev, drvdata);
+
+	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
+	if (retval)
+		goto error;
+
+	retval = device_add(dev);
+	if (retval)
+		goto error;
+
+	return dev;
+
+error:
+	put_device(dev);
+	return ERR_PTR(retval);
+}
+
+static inline struct device *
+device_create_with_groups(struct class *class,
+    struct device *parent, dev_t devt, void *drvdata,
+    const struct attribute_group **groups, const char *fmt, ...)
+{
+	va_list vargs;
+	struct device *dev;
+
+	va_start(vargs, fmt);
+	dev = device_create_groups_vargs(class, parent, devt, drvdata,
+	    groups, fmt, vargs);
+	va_end(vargs);
+	return dev;
+}
+
 static inline int
 device_register(struct device *dev)
 {
@@ -203,15 +301,19 @@ device_register(struct device *dev)
 	int unit;
 
 	bsddev = NULL;
+	unit = -1;
+
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
-	} else
-		unit = -1;
-	if (bsddev == NULL)
+	} else if (dev->parent == NULL) {
+		bsddev = devclass_get_device(dev->class->bsdclass, 0);
+	}
+	if (bsddev == NULL && dev->parent != NULL) {
 		bsddev = device_add_child(dev->parent->bsddev,
 		    dev->class->kobj.name, unit);
-	if (bsddev) {
+	}
+	if (bsddev != NULL) {
 		if (dev->devt == 0)
 			dev->devt = makedev(0, device_get_unit(bsddev));
 		device_set_softc(bsddev, dev);
@@ -229,11 +331,29 @@ device_unregister(struct device *dev)
 	device_t bsddev;
 
 	bsddev = dev->bsddev;
-	mtx_lock(&Giant);
-	if (bsddev)
+	dev->bsddev = NULL;
+
+	if (bsddev != NULL) {
+		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
-	mtx_unlock(&Giant);
+		mtx_unlock(&Giant);
+	}
 	put_device(dev);
+}
+
+static inline void
+device_del(struct device *dev)
+{
+	device_t bsddev;
+
+	bsddev = dev->bsddev;
+	dev->bsddev = NULL;
+
+	if (bsddev != NULL) {
+		mtx_lock(&Giant);
+		device_delete_child(device_get_parent(bsddev), bsddev);
+		mtx_unlock(&Giant);
+	}
 }
 
 struct device *device_create(struct class *class, struct device *parent,
@@ -247,7 +367,7 @@ device_destroy(struct class *class, dev_t devt)
 
 	unit = MINOR(devt);
 	bsddev = devclass_get_device(class->bsdclass, unit);
-	if (bsddev)
+	if (bsddev != NULL)
 		device_unregister(device_get_softc(bsddev));
 }
 

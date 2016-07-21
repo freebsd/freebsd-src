@@ -39,7 +39,7 @@ DEFINE_TEST(test_write_filter_lzop)
 	size_t buffsize, datasize;
 	char path[16];
 	size_t used1, used2;
-	int i, r, use_prog = 0;
+	int i, r, use_prog = 0, filecount;
 
 	assert((a = archive_write_new()) != NULL);
 	r = archive_write_add_filter_lzop(a);
@@ -58,9 +58,10 @@ DEFINE_TEST(test_write_filter_lzop)
 
 	datasize = 10000;
 	assert(NULL != (data = (char *)calloc(1, datasize)));
+	filecount = 10;
 
 	/*
-	 * Write a 100 files and read them all back.
+	 * Write a filecount files and read them all back.
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
@@ -77,7 +78,7 @@ DEFINE_TEST(test_write_filter_lzop)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, datasize);
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < filecount; i++) {
 		sprintf(path, "file%03d", i);
 		archive_entry_copy_pathname(ae, path);
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
@@ -97,7 +98,7 @@ DEFINE_TEST(test_write_filter_lzop)
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used1));
-		for (i = 0; i < 100; i++) {
+		for (i = 0; i < filecount; i++) {
 			sprintf(path, "file%03d", i);
 			if (!assertEqualInt(ARCHIVE_OK,
 				archive_read_next_header(a, &ae)))
@@ -133,7 +134,7 @@ DEFINE_TEST(test_write_filter_lzop)
 	    archive_write_set_options(a, "lzop:compression-level=9"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used2));
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < filecount; i++) {
 		sprintf(path, "file%03d", i);
 		assert((ae = archive_entry_new()) != NULL);
 		archive_entry_copy_pathname(ae, path);
@@ -161,7 +162,7 @@ DEFINE_TEST(test_write_filter_lzop)
 		    archive_read_support_filter_all(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used2));
-		for (i = 0; i < 100; i++) {
+		for (i = 0; i < filecount; i++) {
 			sprintf(path, "file%03d", i);
 			if (!assertEqualInt(ARCHIVE_OK,
 				archive_read_next_header(a, &ae)))
@@ -186,7 +187,7 @@ DEFINE_TEST(test_write_filter_lzop)
 	    archive_write_set_filter_option(a, NULL, "compression-level", "1"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used2));
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < filecount; i++) {
 		sprintf(path, "file%03d", i);
 		assert((ae = archive_entry_new()) != NULL);
 		archive_entry_copy_pathname(ae, path);
@@ -216,7 +217,7 @@ DEFINE_TEST(test_write_filter_lzop)
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used2));
-		for (i = 0; i < 100; i++) {
+		for (i = 0; i < filecount; i++) {
 			sprintf(path, "file%03d", i);
 			if (!assertEqualInt(ARCHIVE_OK,
 				archive_read_next_header(a, &ae)))

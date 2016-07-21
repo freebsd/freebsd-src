@@ -477,6 +477,13 @@ OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
 	return (retval);
 }
 
+/* Free buffer allocated by OF_getencprop_alloc or OF_getprop_alloc */
+void OF_prop_free(void *buf)
+{
+
+	free(buf, M_OFWPROP);
+}
+
 /* Get the next property of a package. */
 int
 OF_nextprop(phandle_t package, const char *previous, char *buf, size_t size)

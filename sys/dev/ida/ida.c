@@ -193,7 +193,7 @@ ida_alloc_qcbs(struct ida_softc *ida)
 }
 
 int
-ida_init(struct ida_softc *ida)
+ida_setup(struct ida_softc *ida)
 {
 	struct ida_controller_info cinfo;
 	device_t child;

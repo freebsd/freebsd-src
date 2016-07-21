@@ -60,7 +60,7 @@ get_parms(struct interface *ifp)
 
 	/* get all relevant parameters
 	 */
-	for (parmp = parms; parmp != 0; parmp = parmp->parm_next) {
+	for (parmp = parms; parmp != NULL; parmp = parmp->parm_next) {
 		if (parmp->parm_name[0] == '\0'
 		    || !strcmp(ifp->int_name, parmp->parm_name)
 		    || (parmp->parm_name[0] == '\n'
@@ -178,7 +178,7 @@ gwkludge(void)
 
 
 	fp = fopen(_PATH_GATEWAYS, "r");
-	if (fp == 0)
+	if (fp == NULL)
 		return;
 
 	if (0 > fstat(fileno(fp), &sb)) {
@@ -208,7 +208,7 @@ gwkludge(void)
 			cp = parse_parms(lptr,
 					 (sb.st_uid == 0
 					  && !(sb.st_mode&(S_IRWXG|S_IRWXO))));
-			if (cp != 0)
+			if (cp != NULL)
 				msglog("%s in line %d of "_PATH_GATEWAYS,
 				       cp, lnum);
 			continue;
@@ -315,7 +315,7 @@ gwkludge(void)
 			state |= IS_NO_RIP;
 
 		ifp = check_dup(gate,dst,netmask,state);
-		if (ifp != 0) {
+		if (ifp != NULL) {
 			msglog("duplicate "_PATH_GATEWAYS" entry \"%s\"",lptr);
 			continue;
 		}
@@ -419,7 +419,7 @@ exit:
 		return -1;
 
 	*buf = '\0';			/* terminate copy of token */
-	if (delimp != 0)
+	if (delimp != NULL)
 		*delimp = c;		/* return delimiter */
 	*linep = pc-1;			/* say where we ended */
 	return 0;
@@ -521,14 +521,14 @@ get_passwd(char *tgt,
 
 		if (delim == '|') {
 			val0 = ++val;
-			if (0 != (p = parse_ts(&k.start,&val,val0,&delim,
-					       buf,sizeof(buf))))
+			if (NULL != (p = parse_ts(&k.start,&val,val0,&delim,
+						  buf,sizeof(buf))))
 				return p;
 			if (delim != '|')
 				return "missing second timestamp";
 			val0 = ++val;
-			if (0 != (p = parse_ts(&k.end,&val,val0,&delim,
-					       buf,sizeof(buf))))
+			if (NULL != (p = parse_ts(&k.end,&val,val0,&delim,
+						  buf,sizeof(buf))))
 				return p;
 			if ((u_long)k.start > (u_long)k.end) {
 				sprintf(buf,"out of order timestamp %.30s",
@@ -570,7 +570,7 @@ parse_parms(char *line,
 	struct r1net *r1netp;
 	struct tgate *tg;
 	naddr addr, mask;
-	char delim, *val0 = 0, *tgt, *val, *p;
+	char delim, *val0 = NULL, *tgt, *val, *p;
 	const char *msg;
 	char buf[BUFSIZ], buf2[BUFSIZ];
 	int i;
@@ -588,8 +588,10 @@ parse_parms(char *line,
 			intnetp->intnet_metric = (int)strtol(val+1,&p,0);
 			if (*p != '\0'
 			    || intnetp->intnet_metric <= 0
-			    || intnetp->intnet_metric >= HOPCNT_INFINITY)
+			    || intnetp->intnet_metric >= HOPCNT_INFINITY) {
+				free(intnetp);
 				return bad_str(line);
+			}
 		}
 		if (!getnet(buf, &intnetp->intnet_addr, &intnetp->intnet_mask)
 		    || intnetp->intnet_mask == HOST_MASK
@@ -670,7 +672,7 @@ parse_parms(char *line,
 			 * The parm_net stuff is needed to allow several
 			 * -F settings.
 			 */
-			if (!getnet(val0, &addr, &mask)
+			if (val0 == NULL || !getnet(val0, &addr, &mask)
 			    || parm.parm_name[0] != '\0')
 				return bad_str(tgt);
 			parm.parm_net = addr;
@@ -681,6 +683,8 @@ parse_parms(char *line,
 			/* since cleartext passwords are so weak allow
 			 * them anywhere
 			 */
+			if (val0 == NULL)
+				return bad_str("no passwd");
 			msg = get_passwd(tgt,val0,&parm,RIP_AUTH_PW,1);
 			if (msg) {
 				*val0 = '\0';
@@ -812,8 +816,10 @@ parse_parms(char *line,
 				    || !getnet(buf2, &tg->tgate_nets[i].net,
 					       &tg->tgate_nets[i].mask)
 				    || tg->tgate_nets[i].net == RIP_DEFAULT
-				    || tg->tgate_nets[i].mask == 0)
+				    || tg->tgate_nets[i].mask == 0) {
+					free(tg);
 					return bad_str(tgt);
+				}
 				i++;
 			}
 			tg->tgate_next = tgates;
@@ -856,7 +862,7 @@ check_parms(struct parm *new)
 	/* compare with existing sets of parameters
 	 */
 	for (parmpp = &parms;
-	     (parmp = *parmpp) != 0;
+	     (parmp = *parmpp) != NULL;
 	     parmpp = &parmp->parm_next) {
 		if (strcmp(new->parm_name, parmp->parm_name))
 			continue;
@@ -943,7 +949,7 @@ getnet(char *name,
 
 	/* Detect and separate "1.2.3.4/24"
 	 */
-	if (0 != (mname = strrchr(name,'/'))) {
+	if (NULL != (mname = strrchr(name,'/'))) {
 		i = (int)(mname - name);
 		if (i > (int)sizeof(hname)-1)	/* name too long */
 			return 0;
@@ -954,7 +960,7 @@ getnet(char *name,
 	}
 
 	np = getnetbyname(name);
-	if (np != 0) {
+	if (np != NULL) {
 		in.s_addr = (naddr)np->n_net;
 		if (0 == (in.s_addr & 0xff000000))
 			in.s_addr <<= 8;

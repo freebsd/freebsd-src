@@ -1,4 +1,4 @@
-# $Id: init.mk,v 1.10 2015/12/07 04:28:31 sjg Exp $
+# $Id: init.mk,v 1.12 2016/04/05 15:58:37 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -23,10 +23,13 @@ _this_mk_dir := ${.PARSEDIR}
 .endif
 
 .-include <local.init.mk>
-.-include "${.CURDIR:H}/Makefile.inc"
+.-include <${.CURDIR:H}/Makefile.inc>
 .include <own.mk>
 
 .MAIN:		all
+
+# should have been set by sys.mk
+CXX_SUFFIXES?= .cc .cpp .cxx .C
 
 .if !empty(WARNINGS_SET) || !empty(WARNINGS_SET_${MACHINE_ARCH})
 .include <warnings.mk>

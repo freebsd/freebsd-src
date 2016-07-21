@@ -72,7 +72,7 @@ basic_cpio(const char *target,
 	    return;
 
 	/* Use the cpio program to create an archive. */
-	r = systemf("%s -o %s < filelist >%s/archive 2>%s/pack.err",
+	r = systemf("%s -R 1000:1000 -o %s < filelist >%s/archive 2>%s/pack.err",
 	    testprog, pack_options, target, target);
 	failure("Error invoking %s -o %s", testprog, pack_options);
 	assertEqualInt(r, 0);

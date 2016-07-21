@@ -464,8 +464,6 @@ ioat3_attach(device_t device)
 
 	ioat->ring = malloc(num_descriptors * sizeof(*ring), M_IOAT,
 	    M_ZERO | M_WAITOK);
-	if (ioat->ring == NULL)
-		return (ENOMEM);
 
 	ring = ioat->ring;
 	for (i = 0; i < num_descriptors; i++) {

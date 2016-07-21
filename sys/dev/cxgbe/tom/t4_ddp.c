@@ -296,8 +296,10 @@ complete_ddp_buffer(struct toepcb *toep, struct ddp_buffer *db,
 			toep->ddp_active_id = -1;
 		} else
 			toep->ddp_active_id ^= 1;
+#ifdef VERBOSE_TRACES
 		CTR2(KTR_CXGBE, "%s: ddp_active_id = %d", __func__,
 		    toep->ddp_active_id);
+#endif
 	} else {
 		KASSERT(toep->ddp_active_count != 0 &&
 		    toep->ddp_active_id != -1,

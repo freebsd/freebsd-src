@@ -356,6 +356,8 @@ static void		urtwn_update_slot(struct ieee80211com *);
 static void		urtwn_update_slot_cb(struct urtwn_softc *,
 			    union sec_param *);
 static void		urtwn_update_aifs(struct urtwn_softc *, uint8_t);
+static uint8_t		urtwn_get_multi_pos(const uint8_t[]);
+static void		urtwn_set_multi(struct urtwn_softc *);
 static void		urtwn_set_promisc(struct urtwn_softc *);
 static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
@@ -4359,9 +4361,8 @@ urtwn_rxfilter_init(struct urtwn_softc *sc)
 
 	URTWN_ASSERT_LOCKED(sc);
 
-	/* Accept all multicast frames. */
-	urtwn_write_4(sc, R92C_MAR + 0, 0xffffffff);
-	urtwn_write_4(sc, R92C_MAR + 4, 0xffffffff);
+	/* Setup multicast filter. */
+	urtwn_set_multi(sc);
 
 	/* Filter for management frames. */
 	filter = 0x7f3f;
@@ -4822,6 +4823,67 @@ urtwn_update_aifs(struct urtwn_softc *sc, uint8_t slottime)
         }
 }
 
+static uint8_t
+urtwn_get_multi_pos(const uint8_t maddr[])
+{
+	uint64_t mask = 0x00004d101df481b4;
+	uint8_t pos = 0x27;	/* initial value */
+	int i, j;
+
+	for (i = 0; i < IEEE80211_ADDR_LEN; i++)
+		for (j = (i == 0) ? 1 : 0; j < 8; j++)
+			if ((maddr[i] >> j) & 1)
+				pos ^= (mask >> (i * 8 + j - 1));
+
+	pos &= 0x3f;
+
+	return (pos);
+}
+
+static void
+urtwn_set_multi(struct urtwn_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t mfilt[2];
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	/* general structure was copied from ath(4). */
+	if (ic->ic_allmulti == 0) {
+		struct ieee80211vap *vap;
+		struct ifnet *ifp;
+		struct ifmultiaddr *ifma;
+
+		/*
+		 * Merge multicast addresses to form the hardware filter.
+		 */
+		mfilt[0] = mfilt[1] = 0;
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+			ifp = vap->iv_ifp;
+			if_maddr_rlock(ifp);
+			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+				caddr_t dl;
+				uint8_t pos;
+
+				dl = LLADDR((struct sockaddr_dl *)
+				    ifma->ifma_addr);
+				pos = urtwn_get_multi_pos(dl);
+
+				mfilt[pos / 32] |= (1 << (pos % 32));
+			}
+			if_maddr_runlock(ifp);
+		}
+	} else
+		mfilt[0] = mfilt[1] = ~0;
+
+
+	urtwn_write_4(sc, R92C_MAR + 0, mfilt[0]);
+	urtwn_write_4(sc, R92C_MAR + 4, mfilt[1]);
+
+	URTWN_DPRINTF(sc, URTWN_DEBUG_STATE, "%s: MC filter %08x:%08x\n",
+	     __func__, mfilt[0], mfilt[1]);
+}
+
 static void
 urtwn_set_promisc(struct urtwn_softc *sc)
 {
@@ -4877,7 +4939,12 @@ urtwn_update_promisc(struct ieee80211com *ic)
 static void
 urtwn_update_mcast(struct ieee80211com *ic)
 {
-	/* XXX do nothing?  */
+	struct urtwn_softc *sc = ic->ic_softc;
+
+	URTWN_LOCK(sc);
+	if (sc->sc_flags & URTWN_RUNNING)
+		urtwn_set_multi(sc);
+	URTWN_UNLOCK(sc);
 }
 
 static struct ieee80211_node *

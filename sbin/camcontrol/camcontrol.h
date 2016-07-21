@@ -63,16 +63,24 @@ int dev_has_vpd_page(struct cam_device *dev, uint8_t page_id, int retry_count,
 		     int timeout, int verbosemode);
 int get_device_type(struct cam_device *dev, int retry_count, int timeout,
 		    int verbosemode, camcontrol_devtype *devtype);
-void build_ata_cmd(union ccb *ccb, uint32_t retry_count, uint32_t flags,
-		   uint8_t tag_action, uint8_t protocol, uint8_t ata_flags,
-		   uint16_t features, uint16_t sector_count, uint64_t lba,
-		   uint8_t command, uint8_t *data_ptr, uint16_t dxfer_len,
-		   uint8_t sense_len, uint32_t timeout, int is48bit,
-		   camcontrol_devtype devtype);
+int build_ata_cmd(union ccb *ccb, uint32_t retry_count, uint32_t flags,
+		  uint8_t tag_action, uint8_t protocol, uint8_t ata_flags,
+		  uint16_t features, uint16_t sector_count, uint64_t lba,
+		  uint8_t command, uint32_t auxiliary, uint8_t *data_ptr,
+		  uint32_t dxfer_len, uint8_t *cdb_storage,
+		  size_t cdb_storage_len, uint8_t sense_len, uint32_t timeout,
+		  int is48bit, camcontrol_devtype devtype);
+int get_ata_status(struct cam_device *dev, union ccb *ccb, uint8_t *error,
+		   uint16_t *count, uint64_t *lba, uint8_t *device,
+		   uint8_t *status);
 int camxferrate(struct cam_device *device);
 int fwdownload(struct cam_device *device, int argc, char **argv,
 	       char *combinedopt, int printerrors, int retry_count,
 	       int timeout);
+int zone(struct cam_device *device, int argc, char **argv, char *combinedopt,
+	 int retry_count, int timeout, int verbosemode);
+int epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
+	int retry_count, int timeout, int verbosemode);
 void mode_sense(struct cam_device *device, int mode_page, int page_control,
 		int dbd, int retry_count, int timeout, u_int8_t *data,
 		int datalen);

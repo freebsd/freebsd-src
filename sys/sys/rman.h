@@ -47,6 +47,7 @@
 #define	RF_FIRSTSHARE	0x0020	/* first in sharing list */
 #define	RF_PREFETCHABLE	0x0040	/* resource is prefetchable */
 #define	RF_OPTIONAL	0x0080	/* for bus_alloc_resources() */
+#define	RF_UNMAPPED	0x0100	/* don't map resource when activating */
 
 #define	RF_ALIGNMENT_SHIFT	10 /* alignment size bit starts bit 10 */
 #define	RF_ALIGNMENT_MASK	(0x003F << RF_ALIGNMENT_SHIFT)
@@ -105,6 +106,7 @@ struct resource {
 };
 
 struct resource_i;
+struct resource_map;
 
 TAILQ_HEAD(resource_head, resource_i);
 
@@ -121,13 +123,13 @@ TAILQ_HEAD(rman_head, rman);
 
 int	rman_activate_resource(struct resource *r);
 int	rman_adjust_resource(struct resource *r, rman_res_t start, rman_res_t end);
-int	rman_await_resource(struct resource *r, int pri, int timo);
 int	rman_first_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end);
 bus_space_handle_t rman_get_bushandle(struct resource *);
 bus_space_tag_t rman_get_bustag(struct resource *);
 rman_res_t	rman_get_end(struct resource *);
 struct device *rman_get_device(struct resource *);
 u_int	rman_get_flags(struct resource *);
+void	rman_get_mapping(struct resource *, struct resource_map *);
 int	rman_get_rid(struct resource *);
 rman_res_t	rman_get_size(struct resource *);
 rman_res_t	rman_get_start(struct resource *);
@@ -151,6 +153,7 @@ void	rman_set_bushandle(struct resource *_r, bus_space_handle_t _h);
 void	rman_set_bustag(struct resource *_r, bus_space_tag_t _t);
 void	rman_set_device(struct resource *_r, struct device *_dev);
 void	rman_set_end(struct resource *_r, rman_res_t _end);
+void	rman_set_mapping(struct resource *, struct resource_map *);
 void	rman_set_rid(struct resource *_r, int _rid);
 void	rman_set_start(struct resource *_r, rman_res_t _start);
 void	rman_set_virtual(struct resource *_r, void *_v);

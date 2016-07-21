@@ -134,8 +134,6 @@ struct pcib_softc
     uint16_t	pcie_slot_sta;
     uint32_t	pcie_link_cap;
     uint32_t	pcie_slot_cap;
-    uint16_t	pcie_pending_link_ctl_mask;
-    uint16_t	pcie_pending_link_ctl_val;
     struct resource *pcie_irq;
     void	*pcie_ihand;
     struct task	pcie_hp_task;
@@ -160,6 +158,7 @@ int		pci_domain_release_bus(int domain, device_t dev, int rid,
 struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
 		    int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
 		    u_int flags);
+void		pcib_free_secbus(device_t dev, struct pcib_secbus *bus);
 void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
     int min_count);
 #endif
@@ -171,6 +170,7 @@ void		pcib_bridge_init(device_t dev);
 const char	*pcib_child_name(device_t child);
 #endif
 int		pcib_child_present(device_t dev, device_t child);
+int		pcib_detach(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
@@ -190,7 +190,8 @@ int		pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs);
 int		pcib_alloc_msix(device_t pcib, device_t dev, int *irq);
 int		pcib_release_msix(device_t pcib, device_t dev, int irq);
 int		pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data);
-uint16_t	pcib_get_rid(device_t pcib, device_t dev);
+int		pcib_get_id(device_t pcib, device_t dev, enum pci_id_type type,
+		    uintptr_t *id);
 void		pcib_decode_rid(device_t pcib, uint16_t rid, int *bus, 
 		    int *slot, int *func);
 

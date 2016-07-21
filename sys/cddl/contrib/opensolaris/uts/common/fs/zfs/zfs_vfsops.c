@@ -1780,11 +1780,8 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 
 	ZFS_EXIT(zfsvfs);
 
-	if (error == 0) {
+	if (error == 0)
 		error = vn_lock(*vpp, flags);
-		if (error == 0)
-			(*vpp)->v_vflag |= VV_ROOT;
-	}
 	if (error != 0)
 		*vpp = NULL;
 
@@ -2005,12 +2002,6 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	 */
 	if (zfsvfs->z_ctldir != NULL)
 		zfsctl_destroy(zfsvfs);
-	if (zfsvfs->z_issnap) {
-		vnode_t *svp = vfsp->mnt_vnodecovered;
-
-		if (svp->v_count >= 2)
-			VN_RELE(svp);
-	}
 	zfs_freevfs(vfsp);
 
 	return (0);

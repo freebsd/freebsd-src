@@ -58,11 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include "nvram/bhnd_nvram.h"
-
-#include "bhnd_chipc_if.h"
-#include "bhnd_nvram_if.h"
-
 #include "bhnd.h"
 #include "bhndvar.h"
 
@@ -84,8 +79,6 @@ static const struct bhnd_nomatch {
 
 	{ BHND_MFGID_INVALID,	BHND_COREID_INVALID,		false	}
 };
-
-static device_t	find_nvram_child(device_t dev);
 
 static int	compare_ascending_probe_order(const void *lhs,
 		    const void *rhs);
@@ -124,7 +117,7 @@ bhnd_generic_attach(device_t dev)
 /**
  * Default bhnd(4) bus driver implementation of DEVICE_DETACH().
  *
- * This implementation calls device_detach() for each of the the device's
+ * This implementation calls device_detach() for each of the device's
  * children, in reverse bhnd probe order, terminating if any call to
  * device_detach() fails.
  */
@@ -314,7 +307,9 @@ bhnd_generic_get_probe_order(device_t dev, device_t child)
 {
 	switch (bhnd_get_class(child)) {
 	case BHND_DEVCLASS_CC:
-		return (BHND_PROBE_BUS + BHND_PROBE_ORDER_FIRST);
+		/* Must be early enough to provide NVRAM access to the
+		 * host bridge */
+		return (BHND_PROBE_ROOT + BHND_PROBE_ORDER_FIRST);
 
 	case BHND_DEVCLASS_CC_B:
 		/* fall through */
@@ -378,68 +373,6 @@ bhnd_generic_is_region_valid(device_t dev, device_t child,
 		return (false);
 
 	return (true);
-}
-
-/**
- * Find an NVRAM child device on @p dev, if any.
- * 
- * @retval device_t An NVRAM device.
- * @retval NULL If no NVRAM device is found.
- */
-static device_t
-find_nvram_child(device_t dev)
-{
-	device_t	chipc, nvram;
-
-	/* Look for a directly-attached NVRAM child */
-	nvram = device_find_child(dev, "bhnd_nvram", 0);
-	if (nvram != NULL)
-		return (nvram);
-
-	/* Remaining checks are only applicable when searching a bhnd(4)
-	 * bus. */
-	if (device_get_devclass(dev) != bhnd_devclass)
-		return (NULL);
-
-	/* Look for a ChipCommon device */
-	if ((chipc = bhnd_find_child(dev, BHND_DEVCLASS_CC, -1)) != NULL) {
-		bhnd_nvram_src_t src;
-
-		/* Query the NVRAM source and determine whether it's
-		 * accessible via the ChipCommon device */
-		src = BHND_CHIPC_NVRAM_SRC(chipc);
-		if (BHND_NVRAM_SRC_CC(src))
-			return (chipc);
-	}
-
-	/* Not found */
-	return (NULL);
-}
-
-/**
- * Default bhnd(4) bus driver implementation of BHND_BUS_GET_NVRAM_VAR().
- * 
- * This implementation searches @p dev for a usable NVRAM child device:
- * - The first child device implementing the bhnd_nvram devclass is
- *   returned, otherwise
- * - If @p dev is a bhnd(4) bus, a ChipCommon core that advertises an
- *   attached NVRAM source.
- * 
- * If no usable child device is found on @p dev, the request is delegated to
- * the BHND_BUS_GET_NVRAM_VAR() method on the parent of @p dev.
- */
-static int
-bhnd_generic_get_nvram_var(device_t dev, device_t child, const char *name,
-    void *buf, size_t *size)
-{
-	device_t nvram;
-
-	/* Try to find an NVRAM device applicable to @p child */
-	if ((nvram = find_nvram_child(dev)) == NULL)
-		return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
-		    name, buf, size));
-
-	return BHND_NVRAM_GETVAR(nvram, name, buf, size);
 }
 
 /**
@@ -596,36 +529,36 @@ bhnd_generic_resume_child(device_t dev, device_t child)
 /*
  * Delegate all indirect I/O to the parent device. When inherited by
  * non-bridged bus implementations, resources will never be marked as
- * indirect, and these methods should never be called.
+ * indirect, and these methods will never be called.
  */
-#define	BHND_IO_READ(_type, _name, _method)			\
-static _type							\
-bhnd_read_ ## _name (device_t dev, device_t child,		\
-    struct bhnd_resource *r, bus_size_t offset)			\
-{								\
-	return (BHND_BUS_READ_ ## _method(			\
-		    device_get_parent(dev), child, r, offset));	\
+#define	BHND_IO_READ(_type, _name, _method)				\
+static _type								\
+bhnd_read_ ## _name (device_t dev, device_t child,			\
+    struct bhnd_resource *r, bus_size_t offset)				\
+{									\
+	return (BHND_BUS_READ_ ## _method(				\
+		    device_get_parent(dev), child, r, offset));		\
 }
 
-#define	BHND_IO_WRITE(_type, _name, _method)			\
-static void							\
-bhnd_write_ ## _name (device_t dev, device_t child,		\
-    struct bhnd_resource *r, bus_size_t offset, _type value)	\
-{								\
-	return (BHND_BUS_WRITE_ ## _method(			\
-		    device_get_parent(dev), child, r, offset,	\
+#define	BHND_IO_WRITE(_type, _name, _method)				\
+static void								\
+bhnd_write_ ## _name (device_t dev, device_t child,			\
+    struct bhnd_resource *r, bus_size_t offset, _type value)		\
+{									\
+	return (BHND_BUS_WRITE_ ## _method(				\
+		    device_get_parent(dev), child, r, offset,		\
 		    value));	\
 }
 
-#define	BHND_IO_MULTI(_type, _rw, _name, _method)			\
+#define	BHND_IO_MISC(_type, _op, _method)				\
 static void								\
-bhnd_ ## _rw ## _multi_ ## _name (device_t dev, device_t child,	\
-    struct bhnd_resource *r, bus_size_t offset, _type *datap,		\
+bhnd_ ## _op (device_t dev, device_t child,				\
+    struct bhnd_resource *r, bus_size_t offset, _type datap,		\
     bus_size_t count)							\
 {									\
 	BHND_BUS_ ## _method(device_get_parent(dev), child, r,		\
 	    offset, datap, count);					\
-}
+}	
 
 #define	BHND_IO_METHODS(_type, _size)					\
 	BHND_IO_READ(_type, _size, _size)				\
@@ -634,13 +567,28 @@ bhnd_ ## _rw ## _multi_ ## _name (device_t dev, device_t child,	\
 	BHND_IO_READ(_type, stream_ ## _size, STREAM_ ## _size)		\
 	BHND_IO_WRITE(_type, stream_ ## _size, STREAM_ ## _size)	\
 									\
-	BHND_IO_MULTI(_type, read, _size, READ_MULTI_ ## _size)		\
-	BHND_IO_MULTI(_type, write, _size, WRITE_MULTI_ ## _size)	\
+	BHND_IO_MISC(_type*, read_multi_ ## _size,			\
+	    READ_MULTI_ ## _size)					\
+	BHND_IO_MISC(_type*, write_multi_ ## _size,			\
+	    WRITE_MULTI_ ## _size)					\
 									\
-	BHND_IO_MULTI(_type, read, stream_ ## _size,			\
+	BHND_IO_MISC(_type*, read_multi_stream_ ## _size,		\
 	   READ_MULTI_STREAM_ ## _size)					\
-	BHND_IO_MULTI(_type, write, stream_ ## _size,			\
+	BHND_IO_MISC(_type*, write_multi_stream_ ## _size,		\
 	   WRITE_MULTI_STREAM_ ## _size)				\
+									\
+	BHND_IO_MISC(_type, set_multi_ ## _size, SET_MULTI_ ## _size)	\
+	BHND_IO_MISC(_type, set_region_ ## _size, SET_REGION_ ## _size)	\
+									\
+	BHND_IO_MISC(_type*, read_region_ ## _size,			\
+	    READ_REGION_ ## _size)					\
+	BHND_IO_MISC(_type*, write_region_ ## _size,			\
+	    WRITE_REGION_ ## _size)					\
+									\
+	BHND_IO_MISC(_type*, read_region_stream_ ## _size,		\
+	    READ_REGION_STREAM_ ## _size)				\
+	BHND_IO_MISC(_type*, write_region_stream_ ## _size,		\
+	    WRITE_REGION_STREAM_ ## _size)				\
 
 BHND_IO_METHODS(uint8_t, 1);
 BHND_IO_METHODS(uint16_t, 2);
@@ -693,13 +641,16 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bhnd_bus_get_probe_order,	bhnd_generic_get_probe_order),
 	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bus_generic_is_hw_disabled),
-	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_generic_get_nvram_var),
+	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_bus_generic_get_nvram_var),
+
+	/* BHND interface (bus I/O) */
 	DEVMETHOD(bhnd_bus_read_1,		bhnd_read_1),
 	DEVMETHOD(bhnd_bus_read_2,		bhnd_read_2),
 	DEVMETHOD(bhnd_bus_read_4,		bhnd_read_4),
 	DEVMETHOD(bhnd_bus_write_1,		bhnd_write_1),
 	DEVMETHOD(bhnd_bus_write_2,		bhnd_write_2),
 	DEVMETHOD(bhnd_bus_write_4,		bhnd_write_4),
+
 	DEVMETHOD(bhnd_bus_read_stream_1,	bhnd_read_stream_1),
 	DEVMETHOD(bhnd_bus_read_stream_2,	bhnd_read_stream_2),
 	DEVMETHOD(bhnd_bus_read_stream_4,	bhnd_read_stream_4),
@@ -721,7 +672,29 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bhnd_bus_write_multi_stream_2,bhnd_write_multi_stream_2),
 	DEVMETHOD(bhnd_bus_write_multi_stream_4,bhnd_write_multi_stream_4),
 
-	DEVMETHOD(bhnd_bus_barrier,		bhnd_barrier),
+	DEVMETHOD(bhnd_bus_set_multi_1,		bhnd_set_multi_1),
+	DEVMETHOD(bhnd_bus_set_multi_2,		bhnd_set_multi_2),
+	DEVMETHOD(bhnd_bus_set_multi_4,		bhnd_set_multi_4),
+
+	DEVMETHOD(bhnd_bus_set_region_1,	bhnd_set_region_1),
+	DEVMETHOD(bhnd_bus_set_region_2,	bhnd_set_region_2),
+	DEVMETHOD(bhnd_bus_set_region_4,	bhnd_set_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_1,	bhnd_read_region_1),
+	DEVMETHOD(bhnd_bus_read_region_2,	bhnd_read_region_2),
+	DEVMETHOD(bhnd_bus_read_region_4,	bhnd_read_region_4),
+	DEVMETHOD(bhnd_bus_write_region_1,	bhnd_write_region_1),
+	DEVMETHOD(bhnd_bus_write_region_2,	bhnd_write_region_2),
+	DEVMETHOD(bhnd_bus_write_region_4,	bhnd_write_region_4),
+
+	DEVMETHOD(bhnd_bus_read_region_stream_1,bhnd_read_region_stream_1),
+	DEVMETHOD(bhnd_bus_read_region_stream_2,bhnd_read_region_stream_2),
+	DEVMETHOD(bhnd_bus_read_region_stream_4,bhnd_read_region_stream_4),
+	DEVMETHOD(bhnd_bus_write_region_stream_1, bhnd_write_region_stream_1),
+	DEVMETHOD(bhnd_bus_write_region_stream_2, bhnd_write_region_stream_2),
+	DEVMETHOD(bhnd_bus_write_region_stream_4, bhnd_write_region_stream_4),
+
+	DEVMETHOD(bhnd_bus_barrier,			bhnd_barrier),
 
 	DEVMETHOD_END
 };

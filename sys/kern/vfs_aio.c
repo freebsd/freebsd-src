@@ -806,7 +806,10 @@ aio_process_rw(struct kaiocb *job)
 
 	cnt -= auio.uio_resid;
 	td->td_ucred = td_savedcred;
-	aio_complete(job, cnt, error);
+	if (error)
+		aio_complete(job, -1, error);
+	else
+		aio_complete(job, cnt, 0);
 }
 
 static void
@@ -824,7 +827,10 @@ aio_process_sync(struct kaiocb *job)
 	if (fp->f_vnode != NULL)
 		error = aio_fsync_vnode(td, fp->f_vnode);
 	td->td_ucred = td_savedcred;
-	aio_complete(job, 0, error);
+	if (error)
+		aio_complete(job, -1, error);
+	else
+		aio_complete(job, 0, 0);
 }
 
 static void
@@ -839,7 +845,10 @@ aio_process_mlock(struct kaiocb *job)
 	aio_switch_vmspace(job);
 	error = vm_mlock(job->userproc, job->cred,
 	    __DEVOLATILE(void *, cb->aio_buf), cb->aio_nbytes);
-	aio_complete(job, 0, error);
+	if (error)
+		aio_complete(job, -1, error);
+	else
+		aio_complete(job, 0, 0);
 }
 
 static void
@@ -2323,7 +2332,10 @@ aio_physwakeup(struct bio *bp)
 	else
 		job->inputcharge += nblks;
 
-	aio_complete(job, nbytes, error);
+	if (error)
+		aio_complete(job, -1, error);
+	else
+		aio_complete(job, nbytes, 0);
 
 	g_destroy_bio(bp);
 }

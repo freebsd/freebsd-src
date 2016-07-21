@@ -452,11 +452,6 @@ struct sctp_tmit_chunk {
 	uint8_t window_probe;
 };
 
-/*
- * The first part of this structure MUST be the entire sinfo structure. Maybe
- * I should have made it a sub structure... we can circle back later and do
- * that if we want.
- */
 struct sctp_queued_to_read {	/* sinfo structure Pluse more */
 	uint16_t sinfo_stream;	/* off the wire */
 	uint32_t sinfo_ssn;	/* off the wire */

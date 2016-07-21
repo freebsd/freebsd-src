@@ -180,21 +180,27 @@ efipart_print(int verbose)
 	EFI_STATUS status;
 	u_int unit;
 
+	pager_open();
 	for (unit = 0, h = efi_find_handle(&efipart_dev, 0);
 	    h != NULL; h = efi_find_handle(&efipart_dev, ++unit)) {
 		sprintf(line, "    %s%d:", efipart_dev.dv_name, unit);
-		pager_output(line);
+		if (pager_output(line))
+			break;
 
 		status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
 		if (!EFI_ERROR(status)) {
 			sprintf(line, "    %llu blocks",
 			    (unsigned long long)(blkio->Media->LastBlock + 1));
-			pager_output(line);
+			if (pager_output(line))
+				break;
 			if (blkio->Media->RemovableMedia)
-				pager_output(" (removable)");
+				if (pager_output(" (removable)"))
+					break;
 		}
-		pager_output("\n");
+		if (pager_output("\n"))
+			break;
 	}
+	pager_close();
 }
 
 static int

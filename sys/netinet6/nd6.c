@@ -85,6 +85,8 @@ __FBSDID("$FreeBSD$");
 
 #define SIN6(s) ((const struct sockaddr_in6 *)(s))
 
+MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
+
 /* timer values */
 VNET_DEFINE(int, nd6_prune)	= 1;	/* walk list every 1 seconds */
 VNET_DEFINE(int, nd6_delay)	= 5;	/* delay first probe time 5 second */
@@ -1097,8 +1099,8 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 }
 
 /*
- * Nuke neighbor cache/prefix/default router management table, right before
- * ifp goes away.
+ * Remove prefix and default router list entries corresponding to ifp. Neighbor
+ * cache entries are freed in in6_domifdetach().
  */
 void
 nd6_purge(struct ifnet *ifp)
@@ -1147,14 +1149,6 @@ nd6_purge(struct ifnet *ifp)
 			 */
 			pr->ndpr_refcnt = 0;
 
-			/*
-			 * Previously, pr->ndpr_addr is removed as well,
-			 * but I strongly believe we don't have to do it.
-			 * nd6_purge() is only called from in6_ifdetach(),
-			 * which removes all the associated interface addresses
-			 * by itself.
-			 * (jinmei@kame.net 20010129)
-			 */
 			prelist_remove(pr);
 		}
 	}
@@ -1167,14 +1161,6 @@ nd6_purge(struct ifnet *ifp)
 		/* Refresh default router list. */
 		defrouter_select();
 	}
-
-	/* XXXXX
-	 * We do not nuke the neighbor cache entries here any more
-	 * because the neighbor cache is kept in if_afdata[AF_INET6].
-	 * nd6_purge() is invoked by in6_ifdetach() which is called
-	 * from if_detach() where everything gets purged. So let
-	 * in6_domifdetach() do the actual L2 table purging work.
-	 */
 }
 
 /* 

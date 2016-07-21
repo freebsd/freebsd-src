@@ -69,7 +69,7 @@ text_receive(struct connection *conn)
 		    "was %u, is %u", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
 	}
 	if (ntohl(bhstr->bhstr_expstatsn) != conn->conn_statsn) {
-		log_errx(1, "received Text PDU with wrong StatSN: "
+		log_errx(1, "received Text PDU with wrong ExpStatSN: "
 		    "is %u, should be %u", ntohl(bhstr->bhstr_expstatsn),
 		    conn->conn_statsn);
 	}
@@ -127,7 +127,7 @@ logout_receive(struct connection *conn)
 		    ntohl(bhslr->bhslr_cmdsn));
 	}
 	if (ntohl(bhslr->bhslr_expstatsn) != conn->conn_statsn) {
-		log_errx(1, "received Logout PDU with wrong StatSN: "
+		log_errx(1, "received Logout PDU with wrong ExpStatSN: "
 		    "is %u, should be %u", ntohl(bhslr->bhslr_expstatsn),
 		    conn->conn_statsn);
 	}

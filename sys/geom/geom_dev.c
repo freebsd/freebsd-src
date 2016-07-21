@@ -549,6 +549,42 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		error = g_io_getattr(arg->name, cp, &arg->len, &arg->value);
 		break;
 	}
+	case DIOCZONECMD: {
+		struct disk_zone_args *zone_args =(struct disk_zone_args *)data;
+		struct disk_zone_rep_entry *new_entries, *old_entries;
+		struct disk_zone_report *rep;
+		size_t alloc_size;
+
+		old_entries = NULL;
+		new_entries = NULL;
+		rep = NULL;
+		alloc_size = 0;
+
+		if (zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES) {
+
+			rep = &zone_args->zone_params.report;
+			alloc_size = rep->entries_allocated *
+			    sizeof(struct disk_zone_rep_entry);
+			if (alloc_size != 0)
+				new_entries = g_malloc(alloc_size,
+				    M_WAITOK| M_ZERO);
+			old_entries = rep->entries;
+			rep->entries = new_entries;
+		}
+		error = g_io_zonecmd(zone_args, cp);
+		if ((zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES)
+		 && (alloc_size != 0)
+		 && (error == 0)) {
+			error = copyout(new_entries, old_entries, alloc_size);
+		}
+		if ((old_entries != NULL)
+		 && (rep != NULL))
+			rep->entries = old_entries;
+
+		if (new_entries != NULL)
+			g_free(new_entries);
+		break;
+	}
 	default:
 		if (cp->provider->geom->ioctl != NULL) {
 			error = cp->provider->geom->ioctl(cp->provider, cmd, data, fflag, td);
@@ -574,6 +610,9 @@ g_dev_done(struct bio *bp2)
 	bp->bio_error = bp2->bio_error;
 	bp->bio_completed = bp2->bio_completed;
 	bp->bio_resid = bp->bio_length - bp2->bio_completed;
+	if (bp2->bio_cmd == BIO_ZONE)
+		bcopy(&bp2->bio_zone, &bp->bio_zone, sizeof(bp->bio_zone));
+
 	if (bp2->bio_error != 0) {
 		g_trace(G_T_BIO, "g_dev_done(%p) had error %d",
 		    bp2, bp2->bio_error);
@@ -608,7 +647,8 @@ g_dev_strategy(struct bio *bp)
 	KASSERT(bp->bio_cmd == BIO_READ ||
 	        bp->bio_cmd == BIO_WRITE ||
 	        bp->bio_cmd == BIO_DELETE ||
-		bp->bio_cmd == BIO_FLUSH,
+		bp->bio_cmd == BIO_FLUSH ||
+		bp->bio_cmd == BIO_ZONE,
 		("Wrong bio_cmd bio=%p cmd=%d", bp, bp->bio_cmd));
 	dev = bp->bio_dev;
 	cp = dev->si_drv2;
