@@ -86,8 +86,8 @@ static int  hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter);
 static int  hv_rf_init_device(rndis_device *device);
 static int  hv_rf_open_device(rndis_device *device);
 static int  hv_rf_close_device(rndis_device *device);
-static void hv_rf_on_send_request_completion(struct hv_vmbus_channel *, void *context);
-static void hv_rf_on_send_request_halt_completion(struct hv_vmbus_channel *, void *context);
+static void hv_rf_on_send_request_completion(struct vmbus_channel *, void *context);
+static void hv_rf_on_send_request_halt_completion(struct vmbus_channel *, void *context);
 int
 hv_rf_send_offload_request(struct hn_softc *sc,
     rndis_offload_params *offloads);
@@ -1243,7 +1243,7 @@ hv_rf_on_close(struct hn_softc *sc)
  * RNDIS filter on send request completion callback
  */
 static void 
-hv_rf_on_send_request_completion(struct hv_vmbus_channel *chan __unused,
+hv_rf_on_send_request_completion(struct vmbus_channel *chan __unused,
     void *context __unused)
 {
 }
@@ -1252,7 +1252,7 @@ hv_rf_on_send_request_completion(struct hv_vmbus_channel *chan __unused,
  * RNDIS filter on send request (halt only) completion callback
  */
 static void 
-hv_rf_on_send_request_halt_completion(struct hv_vmbus_channel *chan __unused,
+hv_rf_on_send_request_halt_completion(struct vmbus_channel *chan __unused,
     void *context)
 {
 	rndis_request *request = context;

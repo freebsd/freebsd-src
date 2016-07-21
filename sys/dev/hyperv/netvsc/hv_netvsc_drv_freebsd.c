@@ -340,8 +340,8 @@ static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static void hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
-static void hn_channel_attach(struct hn_softc *, struct hv_vmbus_channel *);
-static void hn_subchan_attach(struct hn_softc *, struct hv_vmbus_channel *);
+static void hn_channel_attach(struct hn_softc *, struct vmbus_channel *);
+static void hn_subchan_attach(struct hn_softc *, struct vmbus_channel *);
 static void hn_subchan_setup(struct hn_softc *);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
@@ -780,7 +780,7 @@ hn_txeof(struct hn_tx_ring *txr)
 }
 
 static void
-hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
+hn_tx_done(struct vmbus_channel *chan, void *xpkt)
 {
 	netvsc_packet *packet = xpkt;
 	struct hn_txdesc *txd;
@@ -2911,7 +2911,7 @@ hn_xmit_txeof_taskfunc(void *xtxr, int pending __unused)
 }
 
 static void
-hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+hn_channel_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 {
 	struct hn_rx_ring *rxr;
 	int idx;
@@ -2950,7 +2950,7 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 }
 
 static void
-hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+hn_subchan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 {
 
 	KASSERT(!vmbus_chan_is_primary(chan),
@@ -2961,7 +2961,7 @@ hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 static void
 hn_subchan_setup(struct hn_softc *sc)
 {
-	struct hv_vmbus_channel **subchans;
+	struct vmbus_channel **subchans;
 	int subchan_cnt = sc->net_dev->num_channel - 1;
 	int i;
 
@@ -2970,7 +2970,7 @@ hn_subchan_setup(struct hn_softc *sc)
 
 	/* Attach the sub-channels. */
 	for (i = 0; i < subchan_cnt; ++i) {
-		struct hv_vmbus_channel *subchan = subchans[i];
+		struct vmbus_channel *subchan = subchans[i];
 
 		/* NOTE: Calling order is critical. */
 		hn_subchan_attach(sc, subchan);

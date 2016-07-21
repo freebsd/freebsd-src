@@ -77,7 +77,7 @@ int
 hv_util_attach(device_t dev)
 {
 	struct hv_util_sc*	softc;
-	struct hv_vmbus_channel *chan;
+	struct vmbus_channel *chan;
 	int			ret;
 
 	softc = device_get_softc(dev);
