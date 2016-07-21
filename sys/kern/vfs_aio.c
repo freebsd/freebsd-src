@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
@@ -109,6 +110,11 @@ static SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0,
 static int enable_aio_unsafe = 0;
 SYSCTL_INT(_vfs_aio, OID_AUTO, enable_unsafe, CTLFLAG_RW, &enable_aio_unsafe, 0,
     "Permit asynchronous IO on all file types, not just known-safe types");
+
+static unsigned int unsafe_warningcnt = 1;
+SYSCTL_UINT(_vfs_aio, OID_AUTO, unsafe_warningcnt, CTLFLAG_RW,
+    &unsafe_warningcnt, 0,
+    "Warnings that will be triggered upon failed IO requests on unsafe files");
 
 static int max_aio_procs = MAX_AIO_PROCS;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs, CTLFLAG_RW, &max_aio_procs, 0,
@@ -1697,8 +1703,11 @@ queueit:
 				safe = true;
 		}
 	}
-	if (!(safe || enable_aio_unsafe))
+	if (!(safe || enable_aio_unsafe)) {
+		counted_warning(&unsafe_warningcnt,
+		    "is attempting to use unsafe AIO requests");
 		return (EOPNOTSUPP);
+	}
 
 	if (opcode == LIO_SYNC) {
 		AIO_LOCK(ki);
