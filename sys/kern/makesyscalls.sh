@@ -341,6 +341,9 @@ s/\$//g
 			may_be_null = "0"
 		else
 			may_be_null = "1"
+		if (annotation ~ /_vmmap_/)
+			printf("_vmmap_ for non _Pagerange_ arg %s in %s\n",
+			    a_name, funcalias) > "/dev/stderr"
 
 		reqperms = "";
 		if (annotation ~ /^_In/) {
@@ -429,6 +432,19 @@ s/\$//g
 		else
 			may_be_null = "1"
 
+		reqperms = "";
+		# XXX-BD: should potentially handle other perms
+		if (annotation ~ /_vmmap_/)
+			reqperms = reqperms "|CHERI_PERM_CHERIABI_VMMAP"
+		gsub(/^\|/, "", reqperms);
+		if (reqperms == "") {
+			reqperm_str = "0";
+		} else {
+			printf("\t\tregister_t reqperms = (%s);\n",
+			    reqperms) > cheriabi_fill_uap
+			reqperm_str = "reqperms";
+		}
+
 		printf("\n") > cheriabi_fill_uap
 		pdeptab = ""
 		if (dep != "") {
@@ -464,8 +480,8 @@ s/\$//g
 		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
 		    pdeptab, syscallprefix, funcalias, i-1) > cheriabi_fill_uap
 		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
-		printf("%s\t\t    &tmpcap, %s, 0, %s);\n",
-		    pdeptab, reqspace, may_be_null) > cheriabi_fill_uap
+		printf("%s\t\t    &tmpcap, %s, %s, %s);\n",
+		    pdeptab, reqspace, reqperm_str, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
 		printf("%s\t\t\treturn (error);\n", pdeptab) > cheriabi_fill_uap
 

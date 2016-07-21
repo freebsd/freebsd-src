@@ -59,7 +59,7 @@ MIASM =  \
 	vadvise.o \
 	munmap.o \
 	cheriabi_mprotect.o \
-	madvise.o \
+	cheriabi_madvise.o \
 	mincore.o \
 	getgroups.o \
 	setgroups.o \

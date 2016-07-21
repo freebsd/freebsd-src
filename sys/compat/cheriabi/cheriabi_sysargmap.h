@@ -140,7 +140,7 @@ struct {
 	[CHERIABI_SYS_cheriabi_mprotect] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_madvise] = {
+	[CHERIABI_SYS_cheriabi_madvise] = {
 		.sam_ptrmask = 0x1
 	},
 	[CHERIABI_SYS_mincore] = {

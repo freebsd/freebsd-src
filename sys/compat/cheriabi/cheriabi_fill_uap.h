@@ -1290,13 +1290,14 @@ CHERIABI_SYS_munmap_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
-	/* [0] _Pagerange_(len) void * addr */
+	/* [0] _Pagerange_vmmap_(len) void * addr */
 	{
 		int error;
+		register_t reqperms = (CHERI_PERM_CHERIABI_VMMAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_munmap, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
-		    &tmpcap, uap->len, 0, 0);
+		    &tmpcap, uap->len, reqperms, 0);
 		if (error != 0)
 			return (error);
 	}
@@ -1335,18 +1336,18 @@ CHERIABI_SYS_cheriabi_mprotect_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_madvise_fill_uap(struct thread *td,
-    struct madvise_args *uap)
+CHERIABI_SYS_cheriabi_madvise_fill_uap(struct thread *td,
+    struct cheriabi_madvise_args *uap)
 {
 	struct chericap tmpcap;
 
 	/* [1] size_t len */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_madvise, 1);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_madvise, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
 	/* [2] int behav */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_madvise, 2);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_madvise, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->behav, CHERI_CR_CTEMP0);
 
@@ -1354,7 +1355,7 @@ CHERIABI_SYS_madvise_fill_uap(struct thread *td,
 	{
 		int error;
 
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_madvise, 0);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_madvise, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
 		    &tmpcap, uap->len, 0, 0);
 		if (error != 0)
@@ -8166,13 +8167,14 @@ CHERIABI_SYS_cheriabi_mmap_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->pos, CHERI_CR_CTEMP0);
 
-	/* [0] _Pagerange_opt_(len) caddr_t addr */
+	/* [0] _Pagerange_vmmap_opt_(len) caddr_t addr */
 	{
 		int error;
+		register_t reqperms = (CHERI_PERM_CHERIABI_VMMAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mmap, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
-		    &tmpcap, uap->len, 0, 1);
+		    &tmpcap, uap->len, reqperms, 1);
 		if (error != 0)
 			return (error);
 	}

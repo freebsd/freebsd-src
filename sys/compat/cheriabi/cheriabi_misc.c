@@ -1627,6 +1627,28 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 }
 
 int
+cheriabi_madvise(struct thread *td, struct cheriabi_madvise_args *uap)
+{
+	struct chericap addr_cap;
+	register_t perms;
+
+	/*
+	 * MADV_FREE may change the page contents so require
+	 * CHERI_PERM_CHERIABI_VMMAP.
+	 */
+	if (uap->behav == MADV_FREE) {
+		cheriabi_fetch_syscall_arg(td, &addr_cap,
+		    CHERIABI_SYS_cheriabi_mmap, 0);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		if ((perms & CHERI_PERM_CHERIABI_VMMAP) == 0)
+			return (EPROT);
+	}
+
+	return (kern_madvise(td, uap->addr, uap->len, uap->behav));
+}
+
+int
 cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 {
 	int flags = uap->flags;

@@ -193,12 +193,16 @@
 ; XXX: remove ovadvise
 72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
 				    ovadvise_args int
-73	AUE_MUNMAP	NOPROTO	{ int munmap(_Pagerange_(len) void *addr, \
+73	AUE_MUNMAP	NOPROTO	{ int munmap(_Pagerange_vmmap_(len) void *addr, \
 				    size_t len); }
 74	AUE_MPROTECT	STD	{ int cheriabi_mprotect( \
 				    _Pagerange_(len) const void *addr, \
 				    size_t len, int prot); }
-75	AUE_MADVISE	NOPROTO	{ int madvise(_Pagerange_(len) void *addr, \
+; XXX-BD: MADV_FREE does change the map.  MADV_NOCORE has adversarial value.
+; MADV_CORE is probably an error if not a page.  Others don't really need
+; _Pagerange_.
+75	AUE_MADVISE	STD	{ int cheriabi_madvise( \
+				    _Pagerange_(len) void *addr, \
 				    size_t len, int behav); }
 76	AUE_NULL	OBSOL	vhangup
 77	AUE_NULL	OBSOL	vlimit
@@ -1007,7 +1011,7 @@
 ; XXX: A more complex set of checks on addr is required.  We do that in
 ; cheriabi_mmap().
 477	AUE_MMAP	STD { caddr_t cheriabi_mmap( \
-				    _Pagerange_opt_(len) caddr_t addr, \
+				    _Pagerange_vmmap_opt_(len) caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    off_t pos); }
 478	AUE_LSEEK	NOPROTO	{ off_t lseek(int fd, off_t offset, \

@@ -81,7 +81,7 @@
 #define	CHERIABI_SYS_vadvise	72
 #define	CHERIABI_SYS_munmap	73
 #define	CHERIABI_SYS_cheriabi_mprotect	74
-#define	CHERIABI_SYS_madvise	75
+#define	CHERIABI_SYS_cheriabi_madvise	75
 				/* 76 is obsolete vhangup */
 				/* 77 is obsolete vlimit */
 #define	CHERIABI_SYS_mincore	78

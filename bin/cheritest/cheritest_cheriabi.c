@@ -93,7 +93,7 @@ void
 test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 {
 	uint64_t perms, operms;
-	void *cap;
+	void *cap, *tmpcap;
 
 	if (sysarch(CHERI_MMAP_GETPERM, &perms) != 0)
 		cheritest_failure_err("sysarch(CHERI_MMAP_GETPERM) failed");
@@ -162,8 +162,20 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("mmap(PROT_NONE) returned unrequested "
 		    "permissions (0x%lx)", cheri_getperm(cap));
 
+	/* Remove VMMAP permission from cap */
+	tmpcap = cheri_andperm(cap, ~CHERI_PERM_CHERIABI_VMMAP);
+	if (munmap(tmpcap, PAGE_SIZE) == 0)
+		cheritest_failure_errx(
+		    "munmap() unmapped without CHERI_PERM_CHERIABI_VMMAP");
+
 	if (munmap(cap, PAGE_SIZE) != 0)
 		cheritest_failure_err("munmap() failed");
+
+	if ((cap = mmap(tmpcap, PAGE_SIZE, PROT_NONE, MAP_ANON|MAP_FIXED,
+	    -1, 0)) != MAP_FAILED)
+		cheritest_failure_errx(
+		    "mmap(MAP_FIXED) succeeded through a cap without"
+		    " CHERI_PERM_CHERIABI_VMMAP");
 
 	/* Disallow executable pages */
 	perms = ~PERM_EXEC;
