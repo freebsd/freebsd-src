@@ -47,7 +47,7 @@ On all supported architectures,
 .It float Ta 4
 .It double Ta 8
 .El
-.Bl -column -offset indent ".Sy Architecture" ".Sy sizeof(void *)" ".Sy "sizeof(long double)"
+.Bl -column -offset indent "Sy Architecture" "Sy sizeof(void *)" "Sy "sizeof(long double)"
 .It Sy Architecture Ta Sy sizeof(void *) Ta Sy sizeof(long double)
 .It amd64       Ta 8 Ta 16
 .It arm         Ta 4 Ta  8
@@ -66,7 +66,7 @@ On all supported architectures,
 .It sparc64     Ta 8 Ta 16
 .El
 .Ss Endianness and Char Signedness
-.Bl -column -offset indent ".Sy Architecture" ".Sy Endianness" ".Sy "char Signedness"
+.Bl -column -offset indent "Sy Architecture" "Sy Endianness" "Sy "char Signedness"
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
 .It amd64       Ta little Ta   signed
 .It arm         Ta little Ta unsigned
@@ -85,7 +85,7 @@ On all supported architectures,
 .It sparc64     Ta big    Ta   signed
 .El
 .Ss Page Size
-.Bl -column -offset indent ".Sy Architecture" ".Sy Page Sizes"
+.Bl -column -offset indent "Sy Architecture" "Sy Page Sizes"
 .It Sy Architecture Ta Sy Page Sizes
 .It amd64       Ta 4K, 2M, 1G
 .It arm         Ta 4K
@@ -104,7 +104,7 @@ On all supported architectures,
 .It sparc64     Ta 8K
 .El
 .Ss Floating Point
-.Bl -column -offset indent ".Sy Architecture" ".Sy float, double" ".Sy long double"
+.Bl -column -offset indent "Sy Architecture" "Sy float, double" "Sy long double"
 .It Sy Architecture Ta Sy float, double Ta Sy long double
 .It amd64       Ta hard Ta hard, 80 bit
 .It arm         Ta soft Ta soft, double precision
@@ -134,16 +134,18 @@ cc -x c -Dm -E /dev/null
 .Ed
 .Pp
 Common type size and endianness macros:
-.Bl -column -offset indent "BYTE_ORDER" ".Sy Meaning"
+.Bl -column -offset indent "BYTE_ORDER" "Sy Meaning"
 .It Sy Macro Ta Sy Meaning
 .It Dv __LP64__ Ta 64-bit (8-byte) long and pointer, 32-bit (4-byte) int
 .It Dv __ILP32__ Ta 32-bit (4-byte) int, long and pointer
 .It Dv BYTE_ORDER Ta Either Dv BIG_ENDIAN or Dv LITTLE_ENDIAN .
-.Dv PDP11_ENDIAN is not used on FreeBSD.
+.Dv PDP11_ENDIAN
+is not used on
+.Fx .
 .El
 .Pp
 Architecture-specific macros:
-.Bl -column -offset indent ".Sy Architecture" ".Sy Predefined macros"
+.Bl -column -offset indent "Sy Architecture" "Sy Predefined macros"
 .It Sy Architecture Ta Sy Predefined macros
 .It amd64       Ta Dv __amd64__, Dv __x86_64__
 .It arm         Ta Dv __arm__
