@@ -357,7 +357,7 @@
 #define	CHERI_ADDR_BITS		64
 #define	CHERI_SEAL_MIN_ALIGN	12
 
-#define _flsll(x) (64 - __builtin_clzll(x))
+#define _flsll(x) flsll(x)
 #define	CHERI_ALIGN_SHIFT(l)						\
     ((_flsll(l) <= (CHERI_BASELEN_BITS - CHERI_SLOP_BITS)) ? 0ULL :	\
     (_flsll(l) - (CHERI_BASELEN_BITS - CHERI_SLOP_BITS)))
