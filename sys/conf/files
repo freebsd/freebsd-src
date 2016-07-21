@@ -2912,21 +2912,24 @@ geom/shsec/g_shsec.c		optional geom_shsec
 geom/stripe/g_stripe.c		optional geom_stripe
 geom/uncompress/g_uncompress.c	optional geom_uncompress
 contrib/xz-embedded/freebsd/xz_malloc.c	\
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uncompress | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 contrib/xz-embedded/linux/lib/xz/xz_crc32.c \
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uncompress | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 contrib/xz-embedded/linux/lib/xz/xz_dec_bcj.c \
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uncompress | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 contrib/xz-embedded/linux/lib/xz/xz_dec_lzma2.c \
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uncompress | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 contrib/xz-embedded/linux/lib/xz/xz_dec_stream.c \
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uncompress | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 geom/uzip/g_uzip.c		optional geom_uzip
+geom/uzip/g_uzip_lzma.c		optional geom_uzip
+geom/uzip/g_uzip_wrkthr.c	optional geom_uzip
+geom/uzip/g_uzip_zlib.c		optional geom_uzip
 geom/vinum/geom_vinum.c		optional geom_vinum
 geom/vinum/geom_vinum_create.c	optional geom_vinum
 geom/vinum/geom_vinum_drive.c	optional geom_vinum
