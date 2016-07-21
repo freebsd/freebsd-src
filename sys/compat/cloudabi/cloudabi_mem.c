@@ -54,32 +54,29 @@ int
 cloudabi_sys_mem_advise(struct thread *td,
     struct cloudabi_sys_mem_advise_args *uap)
 {
-	struct madvise_args madvise_args = {
-		.addr	= uap->addr,
-		.len	= uap->len
-	};
+	int behav;
 
 	switch (uap->advice) {
 	case CLOUDABI_ADVICE_DONTNEED:
-		madvise_args.behav = MADV_DONTNEED;
+		behav = MADV_DONTNEED;
 		break;
 	case CLOUDABI_ADVICE_NORMAL:
-		madvise_args.behav = MADV_NORMAL;
+		behav = MADV_NORMAL;
 		break;
 	case CLOUDABI_ADVICE_RANDOM:
-		madvise_args.behav = MADV_RANDOM;
+		behav = MADV_RANDOM;
 		break;
 	case CLOUDABI_ADVICE_SEQUENTIAL:
-		madvise_args.behav = MADV_SEQUENTIAL;
+		behav = MADV_SEQUENTIAL;
 		break;
 	case CLOUDABI_ADVICE_WILLNEED:
-		madvise_args.behav = MADV_WILLNEED;
+		behav = MADV_WILLNEED;
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	return (sys_madvise(td, &madvise_args));
+	return (kern_madvise(td, uap->addr, uap->len, behav));
 }
 
 int
