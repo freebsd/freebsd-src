@@ -1082,7 +1082,6 @@ typedef struct rndismp_rx_bufs_info_ {
 /*
  * Externs
  */
-struct hv_vmbus_channel;
 struct hn_rx_ring;
 struct hn_tx_ring;
 

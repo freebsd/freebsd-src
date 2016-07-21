@@ -54,7 +54,7 @@ MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
 /*
  * Forward declarations
  */
-static void hv_nv_on_channel_callback(struct hv_vmbus_channel *chan,
+static void hv_nv_on_channel_callback(struct vmbus_channel *chan,
     void *xrxr);
 static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
 static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *);
@@ -62,11 +62,11 @@ static int  hv_nv_destroy_send_buffer(netvsc_dev *net_dev);
 static int  hv_nv_destroy_rx_buffer(netvsc_dev *net_dev);
 static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
 static void hv_nv_on_send_completion(netvsc_dev *net_dev,
-    struct hv_vmbus_channel *, const struct vmbus_chanpkt_hdr *pkt);
-static void hv_nv_on_receive_completion(struct hv_vmbus_channel *chan,
+    struct vmbus_channel *, const struct vmbus_chanpkt_hdr *pkt);
+static void hv_nv_on_receive_completion(struct vmbus_channel *chan,
     uint64_t tid, uint32_t status);
 static void hv_nv_on_receive(netvsc_dev *net_dev,
-    struct hn_rx_ring *rxr, struct hv_vmbus_channel *chan,
+    struct hn_rx_ring *rxr, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt);
 
 /*
@@ -639,7 +639,7 @@ hv_nv_disconnect_from_vsp(netvsc_dev *net_dev)
 }
 
 void
-hv_nv_subchan_attach(struct hv_vmbus_channel *chan, struct hn_rx_ring *rxr)
+hv_nv_subchan_attach(struct vmbus_channel *chan, struct hn_rx_ring *rxr)
 {
 	KASSERT(rxr->hn_rx_idx == vmbus_chan_subidx(chan),
 	    ("chan%u subidx %u, rxr%d mismatch",
@@ -658,7 +658,7 @@ netvsc_dev *
 hv_nv_on_device_add(struct hn_softc *sc, void *additional_info,
     struct hn_rx_ring *rxr)
 {
-	struct hv_vmbus_channel *chan = sc->hn_prichan;
+	struct vmbus_channel *chan = sc->hn_prichan;
 	netvsc_dev *net_dev;
 	int ret = 0;
 
@@ -735,7 +735,7 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
  * Net VSC on send completion
  */
 static void
-hv_nv_on_send_completion(netvsc_dev *net_dev, struct hv_vmbus_channel *chan,
+hv_nv_on_send_completion(netvsc_dev *net_dev, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt)
 {
 	const nvsp_msg *nvsp_msg_pkt;
@@ -799,7 +799,7 @@ hv_nv_on_send_completion(netvsc_dev *net_dev, struct hv_vmbus_channel *chan,
  * Returns 0 on success, non-zero on failure.
  */
 int
-hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
+hv_nv_on_send(struct vmbus_channel *chan, netvsc_packet *pkt)
 {
 	nvsp_msg send_msg;
 	int ret;
@@ -838,7 +838,7 @@ hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
  */
 static void
 hv_nv_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
-    struct hv_vmbus_channel *chan, const struct vmbus_chanpkt_hdr *pkthdr)
+    struct vmbus_channel *chan, const struct vmbus_chanpkt_hdr *pkthdr)
 {
 	const struct vmbus_chanpkt_rxbuf *pkt;
 	const nvsp_msg *nvsp_msg_pkt;
@@ -894,7 +894,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
  * Send a receive completion packet to RNDIS device (ie NetVsp)
  */
 static void
-hv_nv_on_receive_completion(struct hv_vmbus_channel *chan, uint64_t tid,
+hv_nv_on_receive_completion(struct vmbus_channel *chan, uint64_t tid,
     uint32_t status)
 {
 	nvsp_msg rx_comp_msg;
@@ -969,7 +969,7 @@ hv_nv_send_table(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
  * Net VSC on channel callback
  */
 static void
-hv_nv_on_channel_callback(struct hv_vmbus_channel *chan, void *xrxr)
+hv_nv_on_channel_callback(struct vmbus_channel *chan, void *xrxr)
 {
 	struct hn_rx_ring *rxr = xrxr;
 	struct hn_softc *sc = rxr->hn_ifp->if_softc;

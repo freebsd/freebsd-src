@@ -132,7 +132,7 @@ struct hv_storvsc_request {
 };
 
 struct storvsc_softc {
-	struct hv_vmbus_channel		*hs_chan;
+	struct vmbus_channel		*hs_chan;
 	LIST_HEAD(, hv_storvsc_request)	hs_free_list;
 	struct mtx			hs_lock;
 	struct storvsc_driver_props	*hs_drv_props;
@@ -148,7 +148,7 @@ struct storvsc_softc {
 	struct hv_storvsc_request	hs_reset_req;
 	device_t			hs_dev;
 
-	struct hv_vmbus_channel		*hs_cpu2chan[MAXCPU];
+	struct vmbus_channel		*hs_cpu2chan[MAXCPU];
 };
 
 
@@ -274,7 +274,7 @@ static int create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *req
 static void storvsc_free_request(struct storvsc_softc *sc, struct hv_storvsc_request *reqp);
 static enum hv_storage_type storvsc_get_storage_type(device_t dev);
 static void hv_storvsc_rescan_target(struct storvsc_softc *sc);
-static void hv_storvsc_on_channel_callback(struct hv_vmbus_channel *chan, void *xsc);
+static void hv_storvsc_on_channel_callback(struct vmbus_channel *chan, void *xsc);
 static void hv_storvsc_on_iocompletion( struct storvsc_softc *sc,
 					struct vstor_packet *vstor_packet,
 					struct hv_storvsc_request *request);
@@ -309,7 +309,7 @@ MODULE_DEPEND(storvsc, vmbus, 1, 1, 1);
 
 static void
 storvsc_subchan_attach(struct storvsc_softc *sc,
-    struct hv_vmbus_channel *new_channel)
+    struct vmbus_channel *new_channel)
 {
 	struct vmstor_chan_props props;
 	int ret = 0;
@@ -334,7 +334,7 @@ storvsc_subchan_attach(struct storvsc_softc *sc,
 static void
 storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 {
-	struct hv_vmbus_channel **subchan;
+	struct vmbus_channel **subchan;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;	
 	int request_channels_cnt = 0;
@@ -648,7 +648,7 @@ hv_storvsc_io_request(struct storvsc_softc *sc,
 					  struct hv_storvsc_request *request)
 {
 	struct vstor_packet *vstor_packet = &request->vstor_packet;
-	struct hv_vmbus_channel* outgoing_channel = NULL;
+	struct vmbus_channel* outgoing_channel = NULL;
 	int ret = 0;
 
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
@@ -765,7 +765,7 @@ hv_storvsc_rescan_target(struct storvsc_softc *sc)
 }
 
 static void
-hv_storvsc_on_channel_callback(struct hv_vmbus_channel *channel, void *xsc)
+hv_storvsc_on_channel_callback(struct vmbus_channel *channel, void *xsc)
 {
 	int ret = 0;
 	struct storvsc_softc *sc = xsc;

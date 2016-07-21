@@ -49,7 +49,7 @@ static const struct hyperv_guid service_guid = { .hv_guid =
  * Process heartbeat message
  */
 static void
-hv_heartbeat_cb(struct hv_vmbus_channel *channel, void *context)
+hv_heartbeat_cb(struct vmbus_channel *channel, void *context)
 {
 	uint8_t*		buf;
 	int			recvlen;
