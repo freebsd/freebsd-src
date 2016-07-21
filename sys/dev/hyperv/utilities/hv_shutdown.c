@@ -53,7 +53,7 @@ static const struct hyperv_guid service_guid = { .hv_guid =
  * Shutdown
  */
 static void
-hv_shutdown_cb(struct hv_vmbus_channel *channel, void *context)
+hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 {
 	uint8_t*			buf;
 	uint8_t				execute_shutdown = 0;

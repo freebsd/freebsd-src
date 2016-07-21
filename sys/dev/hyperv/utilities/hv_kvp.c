@@ -334,7 +334,7 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 			/* XXX access other driver's softc?  are you kidding? */
 			device_t dev = devs[devcnt];
 			struct hn_softc *sc = device_get_softc(dev);
-			struct hv_vmbus_channel *chan;
+			struct vmbus_channel *chan;
 			char buf[HYPERV_GUID_STRLEN];
 
 			/*
@@ -616,7 +616,7 @@ static void
 hv_kvp_process_request(void *context, int pending)
 {
 	uint8_t *kvp_buf;
-	struct hv_vmbus_channel *channel;
+	struct vmbus_channel *channel;
 	uint32_t recvlen = 0;
 	uint64_t requestid;
 	struct hv_vmbus_icmsg_hdr *icmsghdrp;
@@ -711,7 +711,7 @@ hv_kvp_process_request(void *context, int pending)
  * Callback routine that gets called whenever there is a message from host
  */
 static void
-hv_kvp_callback(struct hv_vmbus_channel *chan __unused, void *context)
+hv_kvp_callback(struct vmbus_channel *chan __unused, void *context)
 {
 	hv_kvp_sc *sc = (hv_kvp_sc*)context;
 	/*

@@ -992,7 +992,7 @@ vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 static int
 vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 {
-	const struct hv_vmbus_channel *chan;
+	const struct vmbus_channel *chan;
 	char guidbuf[HYPERV_GUID_STRLEN];
 
 	chan = vmbus_get_channel(child);
@@ -1013,7 +1013,7 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 }
 
 int
-vmbus_add_child(struct hv_vmbus_channel *chan)
+vmbus_add_child(struct vmbus_channel *chan)
 {
 	struct vmbus_softc *sc = chan->ch_vmbus;
 	device_t parent = sc->vmbus_dev;
@@ -1038,7 +1038,7 @@ done:
 }
 
 int
-vmbus_delete_child(struct hv_vmbus_channel *chan)
+vmbus_delete_child(struct vmbus_channel *chan)
 {
 	int error;
 
@@ -1082,7 +1082,7 @@ static int
 vmbus_probe_guid_method(device_t bus, device_t dev,
     const struct hyperv_guid *guid)
 {
-	const struct hv_vmbus_channel *chan = vmbus_get_channel(dev);
+	const struct vmbus_channel *chan = vmbus_get_channel(dev);
 
 	if (memcmp(&chan->ch_guid_type, guid, sizeof(struct hyperv_guid)) == 0)
 		return 0;
@@ -1132,7 +1132,7 @@ vmbus_doattach(struct vmbus_softc *sc)
 	mtx_init(&sc->vmbus_prichan_lock, "vmbus prichan", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->vmbus_prichans);
 	sc->vmbus_chmap = malloc(
-	    sizeof(struct hv_vmbus_channel *) * VMBUS_CHAN_MAX, M_DEVBUF,
+	    sizeof(struct vmbus_channel *) * VMBUS_CHAN_MAX, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 
 	/*

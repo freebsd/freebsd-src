@@ -70,7 +70,7 @@ typedef struct {
 	uint32_t		ring_data_size;	/* ring_size */
 } hv_vmbus_ring_buffer_info;
 
-typedef struct hv_vmbus_channel {
+struct vmbus_channel {
 	/*
 	 * NOTE:
 	 * Fields before ch_txbr are only accessed on this channel's
@@ -142,19 +142,19 @@ typedef struct hv_vmbus_channel {
 	 * channel.
 	 */
 	struct mtx			ch_subchan_lock;
-	TAILQ_HEAD(, hv_vmbus_channel)	ch_subchans;
+	TAILQ_HEAD(, vmbus_channel)	ch_subchans;
 	int				ch_subchan_cnt;
 
 	/* If this is a sub-channel */
-	TAILQ_ENTRY(hv_vmbus_channel)	ch_sublink;	/* sub-channel link */
-	struct hv_vmbus_channel		*ch_prichan;	/* owner primary chan */
+	TAILQ_ENTRY(vmbus_channel)	ch_sublink;	/* sub-channel link */
+	struct vmbus_channel		*ch_prichan;	/* owner primary chan */
 
 	void				*ch_bufring;	/* TX+RX bufrings */
 	struct hyperv_dma		ch_bufring_dma;
 	uint32_t			ch_bufring_gpadl;
 
 	struct task			ch_detach_task;
-	TAILQ_ENTRY(hv_vmbus_channel)	ch_prilink;	/* primary chan link */
+	TAILQ_ENTRY(vmbus_channel)	ch_prilink;	/* primary chan link */
 	uint32_t			ch_subidx;	/* subchan index */
 	volatile uint32_t		ch_stflags;	/* atomic-op */
 							/* VMBUS_CHAN_ST_ */
@@ -162,7 +162,7 @@ typedef struct hv_vmbus_channel {
 	struct hyperv_guid		ch_guid_inst;
 
 	struct sysctl_ctx_list		ch_sysctl_ctx;
-} hv_vmbus_channel __aligned(CACHE_LINE_SIZE);
+} __aligned(CACHE_LINE_SIZE);
 
 #define VMBUS_CHAN_ISPRIMARY(chan)	((chan)->ch_subidx == 0)
 
