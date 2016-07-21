@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2016
+.Dd July 21, 2016
 .Dt AIO 4
 .Os
 .Sh NAME
@@ -37,17 +37,25 @@
 The
 .Nm
 facility provides system calls for asynchronous I/O.
-However, asynchronous I/O operations are only enabled for certain file
-types by default.
-Asynchronous I/O operations for other file types may block an AIO daemon
-indefinitely resulting in process and/or system hangs.
-Asynchronous I/O operations can be enabled for all file types by setting
+Asynchronous I/O operations are not completed synchronously by the
+calling thread.
+Instead, the calling thread invokes one system call to request an
+asynchronous I/O operation.
+The status of a completed request is retrieved later via a separate
+system call.
+.Pp
+Asynchronous I/O operations on some file descriptor types may block an
+AIO daemon indefinitely resulting in process and/or system hangs.
+Operations on these file descriptor types are considered
+.Dq unsafe
+and disabled by default.
+They can be enabled by setting
 the
 .Va vfs.aio.enable_unsafe
 sysctl node to a non-zero value.
 .Pp
 Asynchronous I/O operations on sockets and raw disk devices do not block
-indefinitely and are enabled by default.
+indefinitely and are always enabled.
 .Pp
 The
 .Nm

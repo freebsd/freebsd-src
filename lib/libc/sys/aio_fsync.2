@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2016
+.Dd July 21, 2016
 .Dt AIO_FSYNC 2
 .Os
 .Sh NAME
@@ -107,10 +107,10 @@ The request was not queued because of system resource limitations.
 The asynchronous notification method in
 .Fa iocb->aio_sigevent.sigev_notify
 is invalid or not supported.
-.It Bq Er ENOSYS
-The
-.Fn aio_fsync
-system call is not supported.
+.It Bq Er EOPNOTSUPP
+Asynchronous file synchronization operations on the file descriptor
+.Fa iocb->aio_fildes
+are unsafe and unsafe asynchronous I/O operations are disabled.
 .It Bq Er EINVAL
 A value of the
 .Fa op
