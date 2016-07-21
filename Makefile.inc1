@@ -22,6 +22,8 @@
 #	    to be created before files are installed
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
+#	LOCAL_XTOOL_DIRS="list of dirs" to add additional dirs to the
+#	    cross-tools target
 #	METALOG="path to metadata log" to write permission and ownership
 #	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
 #	TARGET="machine" to crossbuild world for a different machine type
@@ -1815,6 +1817,7 @@ _usb_tools=	sys/boot/usb/tools
 
 cross-tools: .MAKE .PHONY
 .for _tool in \
+    ${LOCAL_XTOOL_DIRS} \
     ${_clang_libs} \
     ${_clang} \
     ${_binutils} \
