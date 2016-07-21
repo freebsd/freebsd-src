@@ -1305,18 +1305,18 @@ CHERIABI_SYS_munmap_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_mprotect_fill_uap(struct thread *td,
-    struct mprotect_args *uap)
+CHERIABI_SYS_cheriabi_mprotect_fill_uap(struct thread *td,
+    struct cheriabi_mprotect_args *uap)
 {
 	struct chericap tmpcap;
 
 	/* [1] size_t len */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mprotect, 1);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mprotect, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
 	/* [2] int prot */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mprotect, 2);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mprotect, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->prot, CHERI_CR_CTEMP0);
 
@@ -1324,7 +1324,7 @@ CHERIABI_SYS_mprotect_fill_uap(struct thread *td,
 	{
 		int error;
 
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mprotect, 0);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mprotect, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
 		    &tmpcap, uap->len, 0, 0);
 		if (error != 0)

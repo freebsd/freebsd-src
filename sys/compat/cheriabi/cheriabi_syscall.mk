@@ -58,7 +58,7 @@ MIASM =  \
 	vfork.o \
 	vadvise.o \
 	munmap.o \
-	mprotect.o \
+	cheriabi_mprotect.o \
 	madvise.o \
 	mincore.o \
 	getgroups.o \

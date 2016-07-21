@@ -195,7 +195,7 @@
 				    ovadvise_args int
 73	AUE_MUNMAP	NOPROTO	{ int munmap(_Pagerange_(len) void *addr, \
 				    size_t len); }
-74	AUE_MPROTECT	NOPROTO	{ int mprotect( \
+74	AUE_MPROTECT	STD	{ int cheriabi_mprotect( \
 				    _Pagerange_(len) const void *addr, \
 				    size_t len, int prot); }
 75	AUE_MADVISE	NOPROTO	{ int madvise(_Pagerange_(len) void *addr, \

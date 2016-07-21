@@ -438,9 +438,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* mprotect */
+	/* cheriabi_mprotect */
 	case 74: {
-		struct mprotect_args *p = params;
+		struct cheriabi_mprotect_args *p = params;
 		uarg[0] = (intptr_t) p->addr; /* const void * */
 		uarg[1] = p->len; /* size_t */
 		iarg[2] = p->prot; /* int */
@@ -3847,7 +3847,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* mprotect */
+	/* cheriabi_mprotect */
 	case 74:
 		switch(ndx) {
 		case 0:
@@ -8718,7 +8718,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* mprotect */
+	/* cheriabi_mprotect */
 	case 74:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

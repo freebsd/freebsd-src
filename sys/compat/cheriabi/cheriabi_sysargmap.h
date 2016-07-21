@@ -137,7 +137,7 @@ struct {
 	[CHERIABI_SYS_munmap] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_mprotect] = {
+	[CHERIABI_SYS_cheriabi_mprotect] = {
 		.sam_ptrmask = 0x1
 	},
 	[CHERIABI_SYS_madvise] = {

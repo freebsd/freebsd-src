@@ -1570,8 +1570,12 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 	 */
 	AUXARGS_ENTRY_CAP(pos, AT_ENTRY, CHERI_CAP_USER_CODE_BASE, args->entry,
 	    CHERI_CAP_USER_CODE_LENGTH, CHERI_CAP_USER_CODE_PERMS);
+	/*
+	 * XXX-BD: grant code and data perms to allow textrel fixups.
+	 */
 	AUXARGS_ENTRY_CAP(pos, AT_BASE, CHERI_CAP_USER_DATA_BASE, args->base,
-	    CHERI_CAP_USER_DATA_LENGTH, CHERI_CAP_USER_DATA_PERMS);
+	    CHERI_CAP_USER_DATA_LENGTH,
+	    CHERI_CAP_USER_DATA_PERMS | CHERI_CAP_USER_CODE_PERMS);
 #ifdef AT_EHDRFLAGS
 	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
 #endif
@@ -1821,6 +1825,32 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 
 	return (kern_mmap(td, reqaddr, cap_base + cap_len, uap->len, uap->prot,
 	    flags, uap->fd, uap->pos));
+}
+
+
+int
+cheriabi_mprotect(struct thread *td, struct cheriabi_mprotect_args *uap)
+{
+	struct chericap addr_cap;
+	register_t perms, reqperms;
+
+	cheriabi_fetch_syscall_arg(td, &addr_cap,
+	    CHERIABI_SYS_cheriabi_mmap, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
+	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+	/*
+	 * Requested prot much be allowed by capability.
+	 *
+	 * XXX-BD: An argument could be made for allowing a union of the
+	 * current page permissions with the capability permissions (e.g.
+	 * allowing a writable cap to add write permissions to an RX
+	 * region as required to match up objects with textrel sections.
+	 */
+	reqperms = cheriabi_mmap_prot2perms(uap->prot);
+	if ((perms & reqperms) != reqperms)
+		return (EPROT);
+
+	return (kern_mprotect(td, uap->addr, uap->len, uap->prot));
 }
 
 #define	PERM_READ	(CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP)
