@@ -86,7 +86,7 @@ struct vmbus_softc {
 
 	u_long			*vmbus_rx_evtflags;
 						/* compat evtflgs from host */
-	struct hv_vmbus_channel	**vmbus_chmap;
+	struct vmbus_channel	**vmbus_chmap;
 	struct vmbus_msghc_ctx	*vmbus_msg_hc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
@@ -115,7 +115,7 @@ struct vmbus_softc {
 
 	/* Primary channels */
 	struct mtx		vmbus_prichan_lock;
-	TAILQ_HEAD(, hv_vmbus_channel) vmbus_prichans;
+	TAILQ_HEAD(, vmbus_channel) vmbus_prichans;
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
@@ -138,14 +138,14 @@ vmbus_get_device(void)
 #define VMBUS_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
 #define VMBUS_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
 
-struct hv_vmbus_channel;
+struct vmbus_channel;
 struct trapframe;
 struct vmbus_message;
 struct vmbus_msghc;
 
 void	vmbus_handle_intr(struct trapframe *);
-int	vmbus_add_child(struct hv_vmbus_channel *);
-int	vmbus_delete_child(struct hv_vmbus_channel *);
+int	vmbus_add_child(struct vmbus_channel *);
+int	vmbus_delete_child(struct vmbus_channel *);
 void	vmbus_et_intr(struct trapframe *);
 uint32_t vmbus_gpadl_alloc(struct vmbus_softc *);
 

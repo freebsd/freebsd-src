@@ -130,7 +130,7 @@ void hv_adj_guesttime(hv_timesync_sc *sc, uint64_t hosttime, uint8_t flags)
  * Time Sync Channel message handler
  */
 static void
-hv_timesync_cb(struct hv_vmbus_channel *channel, void *context)
+hv_timesync_cb(struct vmbus_channel *channel, void *context)
 {
 	hv_vmbus_icmsg_hdr*	icmsghdrp;
 	uint32_t		recvlen;

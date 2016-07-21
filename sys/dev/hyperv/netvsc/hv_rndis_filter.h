@@ -111,7 +111,6 @@ typedef struct rndis_device_ {
 /*
  * Externs
  */
-struct hv_vmbus_channel;
 struct hn_softc;
 struct hn_rx_ring;
 
