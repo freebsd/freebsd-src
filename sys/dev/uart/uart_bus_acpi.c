@@ -39,6 +39,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu_acpi.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <dev/acpica/acpivar.h>
 
 static int uart_acpi_probe(device_t dev);
 
@@ -57,6 +62,7 @@ static driver_t uart_acpi_driver = {
 	sizeof(struct uart_softc),
 };
 
+#if defined(__i386__) || defined(__amd64__)
 static struct isa_pnp_id acpi_ns8250_ids[] = {
 	{0x0005d041, "Standard PC COM port"},		/* PNP0500 */
 	{0x0105d041, "16550A-compatible COM port"},	/* PNP0501 */
@@ -67,6 +73,27 @@ static struct isa_pnp_id acpi_ns8250_ids[] = {
 	{0xe502aa1a, "Wacom Tablet at FuS Lifebook T"},	/* FUJ02E5 */
 	{0}
 };
+#endif
+
+#ifdef __aarch64__
+static struct uart_class *
+uart_acpi_find_device(device_t dev)
+{
+	struct acpi_uart_compat_data **cd;
+	ACPI_HANDLE h;
+
+	if ((h = acpi_get_handle(dev)) == NULL)
+		return (NULL);
+
+	SET_FOREACH(cd, uart_acpi_class_and_device_set) {
+		if (acpi_MatchHid(h, (*cd)->hid)) {
+			return ((*cd)->clas);
+		}
+	}
+
+	return (NULL);
+}
+#endif
 
 static int
 uart_acpi_probe(device_t dev)
@@ -77,12 +104,18 @@ uart_acpi_probe(device_t dev)
 	parent = device_get_parent(dev);
 	sc = device_get_softc(dev);
 
+#if defined(__i386__) || defined(__amd64__)
 	if (!ISA_PNP_PROBE(parent, dev, acpi_ns8250_ids)) {
 		sc->sc_class = &uart_ns8250_class;
 		return (uart_bus_probe(dev, 0, 0, 0, 0));
 	}
 
 	/* Add checks for non-ns8250 IDs here. */
+#elif defined(__aarch64__)
+	if ((sc->sc_class = uart_acpi_find_device(dev)) != NULL)
+		return (uart_bus_probe(dev, 2, 0, 0, 0));
+#endif
+
 	return (ENXIO);
 }
 

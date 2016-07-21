@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -35,7 +38,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#ifdef DEV_ACPI
+#include <dev/uart/uart_cpu_acpi.h>
+#endif
+#ifdef FDT
 #include <dev/uart/uart_cpu_fdt.h>
+#endif
 #include <dev/uart/uart_bus.h>
 #include "uart_if.h"
 
@@ -277,11 +285,22 @@ static struct uart_class uart_pl011_class = {
 	.uc_rshift = 2
 };
 
+
+#ifdef FDT
 static struct ofw_compat_data compat_data[] = {
 	{"arm,pl011",		(uintptr_t)&uart_pl011_class},
 	{NULL,			(uintptr_t)NULL},
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
+#endif
+
+#ifdef DEV_ACPI
+static struct acpi_uart_compat_data acpi_compat_data[] = {
+	{"ARMH0011", &uart_pl011_class},
+	{NULL, NULL},
+};
+UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);
+#endif
 
 static int
 uart_pl011_bus_attach(struct uart_softc *sc)
