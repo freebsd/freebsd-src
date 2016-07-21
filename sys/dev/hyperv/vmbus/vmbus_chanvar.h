@@ -77,11 +77,18 @@ typedef struct hv_vmbus_channel {
 	uint32_t			ch_id;		/* channel id */
 
 	/*
-	 * These are based on the offer_msg.monitor_id.
+	 * These are based on the vmbus_chanmsg_choffer.chm_montrig.
 	 * Save it here for easy access.
 	 */
-	volatile uint32_t		*ch_montrig;	/* MNF trigger */
+	volatile uint32_t		*ch_montrig;	/* MNF trigger loc. */
 	uint32_t			ch_montrig_mask;/* MNF trig mask */
+
+	/*
+	 * These are based on the vmbus_chanmsg_choffer.chm_chanid.
+	 * Save it here for easy access.
+	 */
+	volatile u_long			*ch_evtflag;	/* event flag loc. */
+	u_long				ch_evtflag_mask;/* event flag */
 
 	/*
 	 * TX bufring; at the beginning of ch_bufring.
