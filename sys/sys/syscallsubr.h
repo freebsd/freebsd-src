@@ -137,6 +137,7 @@ int	kern_linkat(struct thread *td, int fd1, int fd2, char *path1,
 	    char *path2, enum uio_seg segflg, int follow);
 int	kern_lutimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
+int	kern_madvise(struct thread *td, void *addr, size_t len, int behav);
 int	kern_mkdirat(struct thread *td, int fd, char *path,
 	    enum uio_seg segflg, int mode);
 int	kern_mkfifoat(struct thread *td, int fd, char *path,

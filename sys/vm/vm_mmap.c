@@ -835,13 +835,18 @@ struct madvise_args {
 };
 #endif
 
+int
+sys_madvise(struct thread *td, struct madvise_args *uap)
+{
+
+	return (kern_madvise(td, uap->addr, uap->len, uap->behav));
+}
+
 /*
  * MPSAFE
  */
 int
-sys_madvise(td, uap)
-	struct thread *td;
-	struct madvise_args *uap;
+kern_madvise(struct thread *td, void * addr, size_t len, int behav)
 {
 	vm_offset_t start, end;
 	vm_map_t map;
@@ -851,7 +856,7 @@ sys_madvise(td, uap)
 	 * Check for our special case, advising the swap pager we are
 	 * "immortal."
 	 */
-	if (uap->behav == MADV_PROTECT) {
+	if (behav == MADV_PROTECT) {
 		flags = PPROT_SET;
 		return (kern_procctl(td, P_PID, td->td_proc->p_pid,
 		    PROC_SPROTECT, &flags));
@@ -860,27 +865,27 @@ sys_madvise(td, uap)
 	/*
 	 * Check for illegal behavior
 	 */
-	if (uap->behav < 0 || uap->behav > MADV_CORE)
+	if (behav < 0 || behav > MADV_CORE)
 		return (EINVAL);
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
 	 */
 	map = &td->td_proc->p_vmspace->vm_map;
-	if ((vm_offset_t)uap->addr < vm_map_min(map) ||
-	    (vm_offset_t)uap->addr + uap->len > vm_map_max(map))
+	if ((vm_offset_t)addr < vm_map_min(map) ||
+	    (vm_offset_t)addr + len > vm_map_max(map))
 		return (EINVAL);
-	if (((vm_offset_t) uap->addr + uap->len) < (vm_offset_t) uap->addr)
+	if (((vm_offset_t) addr + len) < (vm_offset_t) addr)
 		return (EINVAL);
 
 	/*
 	 * Since this routine is only advisory, we default to conservative
 	 * behavior.
 	 */
-	start = trunc_page((vm_offset_t) uap->addr);
-	end = round_page((vm_offset_t) uap->addr + uap->len);
+	start = trunc_page((vm_offset_t) addr);
+	end = round_page((vm_offset_t) addr + len);
 
-	if (vm_map_madvise(map, start, end, uap->behav))
+	if (vm_map_madvise(map, start, end, behav))
 		return (EINVAL);
 	return (0);
 }
