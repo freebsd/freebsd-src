@@ -97,11 +97,12 @@ process(void)
 {
 	struct s_command *cp;
 	SPACE tspace;
-	size_t oldpsl = 0;
+	size_t oldpsl;
 	char *p;
 	int oldpsanl;
 
 	p = NULL;
+	oldpsanl = oldpsl = 0;
 
 	for (linenum = 0; mf_fgets(&PS, REPLACE);) {
 		pd = 0;
