@@ -83,7 +83,7 @@ static __inline void
 vmbus_chan_signal_tx(const struct hv_vmbus_channel *chan)
 {
 	atomic_set_long(chan->ch_evtflag, chan->ch_evtflag_mask);
-	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF)
+	if (chan->ch_txflags & VMBUS_CHAN_TXF_HASMNF)
 		atomic_set_int(chan->ch_montrig, chan->ch_montrig_mask);
 	else
 		hypercall_signal_event(chan->ch_monprm_dma.hv_paddr);
@@ -95,7 +95,7 @@ vmbus_chan_sysctl_mnf(SYSCTL_HANDLER_ARGS)
 	struct hv_vmbus_channel *chan = arg1;
 	int mnf = 0;
 
-	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF)
+	if (chan->ch_txflags & VMBUS_CHAN_TXF_HASMNF)
 		mnf = 1;
 	return sysctl_handle_int(oidp, &mnf, 0, req);
 }
@@ -1102,7 +1102,7 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 		/*
 		 * Setup MNF stuffs.
 		 */
-		chan->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
+		chan->ch_txflags |= VMBUS_CHAN_TXF_HASMNF;
 
 		trig_idx = offer->chm_montrig / VMBUS_MONTRIG_LEN;
 		if (trig_idx >= VMBUS_MONTRIGS_MAX)
