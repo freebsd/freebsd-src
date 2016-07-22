@@ -72,7 +72,8 @@ u_char	*__collate_strdup(u_char *);
 u_char	*__collate_substitute(struct xlocale_collate *, const u_char *);
 int	__collate_load_tables(const char *);
 void	__collate_lookup(struct xlocale_collate *, const u_char *, int *, int *, int *);
-int	__collate_range_cmp(struct xlocale_collate *, int, int);
+int	__collate_range_cmp(char, char);
+int	__wcollate_range_cmp(wchar_t, wchar_t);
 #ifdef COLLATE_DEBUG
 void	__collate_print_tables(void);
 #endif
