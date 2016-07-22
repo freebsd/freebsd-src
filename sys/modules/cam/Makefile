@@ -2,7 +2,7 @@
 
 S=	${.CURDIR}/../..
 
-.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/${MACHINE}/${MACHINE}
+.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/${MACHINE}/${MACHINE}
 
 KMOD=	cam
 
@@ -41,6 +41,8 @@ SRCS+=	ata_da.c
 SRCS+=	ata_machdep.c
 .endif
 SRCS+=	ata_pmp.c
+SRCS+=	nvme_all.c
+SRCS+=	nvme_xpt.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
 
