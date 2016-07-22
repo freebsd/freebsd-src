@@ -42,10 +42,12 @@ __FBSDID("$FreeBSD$");
 
 int __collate_range_cmp(char c1, char c2)
 {
-	static char s1[2], s2[2];
+	char s1[2], s2[2];
 
 	s1[0] = c1;
+	s1[1] = '\0';
 	s2[0] = c2;
+	s2[1] = '\0';
 	return (strcoll(s1, s2));
 }
 
