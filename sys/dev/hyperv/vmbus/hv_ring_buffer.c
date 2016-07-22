@@ -44,36 +44,74 @@ static uint32_t copy_from_ring_buffer(hv_vmbus_ring_buffer_info *ring_info,
 		    char *dest, uint32_t dest_len, uint32_t start_read_offset);
 
 static int
-hv_rbi_sysctl_stats(SYSCTL_HANDLER_ARGS)
+vmbus_br_sysctl_state(SYSCTL_HANDLER_ARGS)
 {
-	hv_vmbus_ring_buffer_info* rbi;
-	uint32_t read_index, write_index, interrupt_mask, sz;
-	uint32_t read_avail, write_avail;
-	char rbi_stats[256];
+	const hv_vmbus_ring_buffer_info *br = arg1;
+	uint32_t rindex, windex, intr_mask, ravail, wavail;
+	char state[256];
 
-	rbi = (hv_vmbus_ring_buffer_info*)arg1;
-	read_index = rbi->ring_buffer->read_index;
-	write_index = rbi->ring_buffer->write_index;
-	interrupt_mask = rbi->ring_buffer->interrupt_mask;
-	sz = rbi->ring_data_size;
-	write_avail = HV_BYTES_AVAIL_TO_WRITE(read_index,
-			write_index, sz);
-	read_avail = sz - write_avail;
+	rindex = br->ring_buffer->read_index;
+	windex = br->ring_buffer->write_index;
+	intr_mask = br->ring_buffer->interrupt_mask;
+	wavail = HV_BYTES_AVAIL_TO_WRITE(rindex, windex, br->ring_data_size);
+	ravail = br->ring_data_size - wavail;
 
-	snprintf(rbi_stats, sizeof(rbi_stats),
-	    "r_idx:%d w_idx:%d int_mask:%d r_avail:%d w_avail:%d",
-	    read_index, write_index, interrupt_mask, read_avail, write_avail);
-	return sysctl_handle_string(oidp, rbi_stats, sizeof(rbi_stats), req);
+	snprintf(state, sizeof(state),
+	    "rindex:%u windex:%u intr_mask:%u ravail:%u wavail:%u",
+	    rindex, windex, intr_mask, ravail, wavail);
+	return sysctl_handle_string(oidp, state, sizeof(state), req);
+}
+
+/*
+ * Binary bufring states.
+ */
+static int
+vmbus_br_sysctl_state_bin(SYSCTL_HANDLER_ARGS)
+{
+#define BR_STATE_RIDX	0
+#define BR_STATE_WIDX	1
+#define BR_STATE_IMSK	2
+#define BR_STATE_RSPC	3
+#define BR_STATE_WSPC	4
+#define BR_STATE_MAX	5
+
+	const hv_vmbus_ring_buffer_info *br = arg1;
+	uint32_t rindex, windex, wavail, state[BR_STATE_MAX];
+
+	rindex = br->ring_buffer->read_index;
+	windex = br->ring_buffer->write_index;
+	wavail = HV_BYTES_AVAIL_TO_WRITE(rindex, windex, br->ring_data_size);
+
+	state[BR_STATE_RIDX] = rindex;
+	state[BR_STATE_WIDX] = windex;
+	state[BR_STATE_IMSK] = br->ring_buffer->interrupt_mask;
+	state[BR_STATE_WSPC] = wavail;
+	state[BR_STATE_RSPC] = br->ring_data_size - wavail;
+
+	return sysctl_handle_opaque(oidp, state, sizeof(state), req);
 }
 
 void
-hv_ring_buffer_stat(struct sysctl_ctx_list *ctx,
-    struct sysctl_oid_list *tree_node, hv_vmbus_ring_buffer_info *rbi,
-    const char *desc)
+vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx, struct sysctl_oid *br_tree,
+    hv_vmbus_ring_buffer_info *br, const char *name)
 {
-	SYSCTL_ADD_PROC(ctx, tree_node, OID_AUTO,
-	    "ring_buffer_stats", CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE,
-	    rbi, 0, hv_rbi_sysctl_stats, "A", desc);
+	struct sysctl_oid *tree;
+	char desc[64];
+
+	tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(br_tree), OID_AUTO,
+	    name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (tree == NULL)
+		return;
+
+	snprintf(desc, sizeof(desc), "%s state", name);
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "state",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    br, 0, vmbus_br_sysctl_state, "A", desc);
+
+	snprintf(desc, sizeof(desc), "%s binary state", name);
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "state_bin",
+	    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    br, 0, vmbus_br_sysctl_state_bin, "IU", desc);
 }
 
 /**
