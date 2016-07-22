@@ -163,13 +163,14 @@ static struct xpt_xport nvme_xport = {
 struct xpt_xport *
 nvme_get_xport(void)
 {
+
 	return (&nvme_xport);
 }
 
 static void
 nvme_probe_periph_init()
 {
-	printf("nvme cam probe device init\n");
+
 }
 
 static cam_status
@@ -297,18 +298,15 @@ nvme_probe_start(struct cam_periph *periph, union ccb *start_ccb)
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(start_ccb);
 	}
-// XXX not sure I need this
-// XXX unlike other XPTs, we never freeze the queue since we have a super-simple
-// XXX state machine
-	/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. -- did we really do this? */
-//	cam_release_devq(path, 0, 0, 0, FALSE);
 	cam_periph_invalidate(periph);
-	cam_periph_release_locked(periph);
+	/* Can't release periph since we hit a (possibly bogus) assertion */
+//	cam_periph_release_locked(periph);
 }
 
 static void
 nvme_probe_cleanup(struct cam_periph *periph)
 {
+
 	free(periph->softc, M_CAMXPT);
 }
 

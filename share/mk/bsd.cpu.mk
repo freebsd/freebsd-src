@@ -329,6 +329,7 @@ CFLAGS += -mfloat-abi=softfp
 
 .if ${MACHINE_CPUARCH} == "riscv"
 CFLAGS += -msoft-float
+ACFLAGS += -msoft-float
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk

@@ -607,7 +607,7 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	}
 
 	IF_AFDATA_RLOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), LLE_UNLOCKED, dst);
+	la = lla_lookup(LLTABLE(ifp), plle ? LLE_EXCLUSIVE : LLE_UNLOCKED, dst);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
 		bcopy(la->r_linkdata, desten, la->r_hdrlen);
@@ -619,9 +619,16 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 			la->r_skip_req = 0; /* Notify that entry was used */
 			LLE_REQ_UNLOCK(la);
 		}
+		if (plle) {
+			LLE_ADDREF(la);
+			*plle = la;
+			LLE_WUNLOCK(la);
+		}
 		IF_AFDATA_RUNLOCK(ifp);
 		return (0);
 	}
+	if (plle && la)
+		LLE_WUNLOCK(la);
 	IF_AFDATA_RUNLOCK(ifp);
 
 	return (arpresolve_full(ifp, is_gw, la == NULL ? LLE_CREATE : 0, m, dst,

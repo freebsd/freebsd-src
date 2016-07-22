@@ -41,6 +41,7 @@
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
 #include "vmbus_if.h"
 
@@ -52,10 +53,9 @@ static const struct hyperv_guid service_guid = { .hv_guid =
  * Shutdown
  */
 static void
-hv_shutdown_cb(void *context)
+hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 {
 	uint8_t*			buf;
-	hv_vmbus_channel*		channel;
 	uint8_t				execute_shutdown = 0;
 	hv_vmbus_icmsg_hdr*		icmsghdrp;
 	uint32_t			recv_len;
@@ -66,7 +66,6 @@ hv_shutdown_cb(void *context)
 
 	softc = (hv_util_sc*)context;
 	buf = softc->receive_buffer;
-	channel = softc->channel;
 
 	recv_len = PAGE_SIZE;
 	ret = vmbus_chan_recv(channel, buf, &recv_len, &request_id);

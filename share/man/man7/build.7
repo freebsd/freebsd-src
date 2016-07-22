@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2016
+.Dd July 20, 2016
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -461,6 +461,11 @@ target.
 If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm build-tools
+target.
+.It Va LOCAL_XTOOL_DIRS
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm cross-tools
 target.
 .It Va PORTS_MODULES
 A list of ports with kernel modules that should be built and installed
