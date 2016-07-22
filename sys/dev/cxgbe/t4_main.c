@@ -76,15 +76,21 @@ __FBSDID("$FreeBSD$");
 #include "t4_ioctl.h"
 #include "t4_l2t.h"
 #include "t4_mp_ring.h"
+#include "t4_if.h"
 
 /* T4 bus driver interface */
 static int t4_probe(device_t);
 static int t4_attach(device_t);
 static int t4_detach(device_t);
+static int t4_ready(device_t);
+static int t4_read_port_unit(device_t, int, int *);
 static device_method_t t4_methods[] = {
 	DEVMETHOD(device_probe,		t4_probe),
 	DEVMETHOD(device_attach,	t4_attach),
 	DEVMETHOD(device_detach,	t4_detach),
+
+	DEVMETHOD(t4_is_main_ready,	t4_ready),
+	DEVMETHOD(t4_read_port_unit,	t4_read_port_unit),
 
 	DEVMETHOD_END
 };
@@ -146,6 +152,9 @@ static device_method_t t5_methods[] = {
 	DEVMETHOD(device_probe,		t5_probe),
 	DEVMETHOD(device_attach,	t4_attach),
 	DEVMETHOD(device_detach,	t4_detach),
+
+	DEVMETHOD(t4_is_main_ready,	t4_ready),
+	DEVMETHOD(t4_read_port_unit,	t4_read_port_unit),
 
 	DEVMETHOD_END
 };
@@ -533,6 +542,7 @@ static int set_sched_queue(struct adapter *, struct t4_sched_queue *);
 static int toe_capability(struct vi_info *, int);
 #endif
 static int mod_event(module_t, int, void *);
+static int notify_siblings(device_t, int);
 
 struct {
 	uint16_t device;
@@ -1062,6 +1072,8 @@ t4_attach(device_t dev)
 
 	t4_set_desc(sc);
 
+	notify_siblings(dev, 0);
+
 done:
 	if (rc != 0 && sc->cdev) {
 		/* cdev was created and so cxgbetool works; recover that way. */
@@ -1078,6 +1090,57 @@ done:
 	return (rc);
 }
 
+static int
+t4_ready(device_t dev)
+{
+	struct adapter *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->flags & FW_OK)
+		return (0);
+	return (ENXIO);
+}
+
+static int
+t4_read_port_unit(device_t dev, int port, int *unit)
+{
+	struct adapter *sc;
+	struct port_info *pi;
+
+	sc = device_get_softc(dev);
+	if (port < 0 || port >= MAX_NPORTS)
+		return (EINVAL);
+	pi = sc->port[port];
+	if (pi == NULL || pi->dev == NULL)
+		return (ENXIO);
+	*unit = device_get_unit(pi->dev);
+	return (0);
+}
+
+static int
+notify_siblings(device_t dev, int detaching)
+{
+	device_t sibling;
+	int error, i;
+
+	error = 0;
+	for (i = 0; i < PCI_FUNCMAX; i++) {
+		if (i == pci_get_function(dev))
+			continue;
+		sibling = pci_find_dbsf(pci_get_domain(dev), pci_get_bus(dev),
+		    pci_get_slot(dev), i);
+		if (sibling == NULL || !device_is_attached(sibling))
+			continue;
+		if (detaching)
+			error = T4_DETACH_CHILD(sibling);
+		else
+			(void)T4_ATTACH_CHILD(sibling);
+		if (error)
+			break;
+	}
+	return (error);
+}
+
 /*
  * Idempotent
  */
@@ -1089,6 +1152,13 @@ t4_detach(device_t dev)
 	int i, rc;
 
 	sc = device_get_softc(dev);
+
+	rc = notify_siblings(dev, 1);
+	if (rc) {
+		device_printf(dev,
+		    "failed to detach sibling devices: %d\n", rc);
+		return (rc);
+	}
 
 	if (sc->flags & FULL_INIT_DONE)
 		t4_intr_disable(sc);
