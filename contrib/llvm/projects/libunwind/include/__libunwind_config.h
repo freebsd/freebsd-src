@@ -50,8 +50,8 @@
 #  define _LIBUNWIND_MAX_REGISTER 32
 # elif defined(__riscv__)
 #  define _LIBUNWIND_TARGET_RISCV 1
-#  define _LIBUNWIND_CONTEXT_SIZE 128 /* XXX */
-#  define _LIBUNWIND_CURSOR_SIZE 140 /* XXX */
+#  define _LIBUNWIND_CONTEXT_SIZE 64
+#  define _LIBUNWIND_CURSOR_SIZE 76
 #  define _LIBUNWIND_MAX_REGISTER 96
 # else
 #  error "Unsupported architecture."
