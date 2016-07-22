@@ -114,6 +114,11 @@ CWARNFLAGS+=	-Wno-format
 CWARNFLAGS+=	-Wno-error=unused-function -Wno-error=enum-compare -Wno-error=logical-not-parentheses -Wno-error=bool-compare -Wno-error=uninitialized -Wno-error=array-bounds -Wno-error=clobbered -Wno-error=cast-align -Wno-error=extra -Wno-error=attributes -Wno-error=inline -Wno-error=unused-but-set-variable -Wno-error=unused-value -Wno-error=strict-aliasing -Wno-error=address
 .endif
 
+# GCC 6.1.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100
+CWARNFLAGS+=	-Wno-error=unused-const-variable= -Wno-error=nonnull-compare -Wno-error=shift-negative-value -Wno-error=misleading-indentation -Wno-error=tautological-compare
+.endif
+
 # How to handle FreeBSD custom printf format specifiers.
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
 FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
