@@ -3181,7 +3181,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 		   handle == RTLD_SELF) { /* ... caller included */
 	    if (handle == RTLD_NEXT)
 		obj = globallist_next(obj);
-	    TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+	    for (; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 		if (obj->marker)
 		    continue;
 		res = symlook_obj(&req, obj);
