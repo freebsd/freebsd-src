@@ -102,6 +102,37 @@ struct vmbus_mnf {
 CTASSERT(sizeof(struct vmbus_mnf) == PAGE_SIZE);
 
 /*
+ * Buffer ring
+ */
+struct vmbus_bufring {
+	/*
+	 * If br_windex == br_rindex, this bufring is empty; this
+	 * means we can _not_ write data to the bufring, if the
+	 * write is going to make br_windex same as br_rindex.
+	 */
+	volatile uint32_t	br_windex;
+	volatile uint32_t	br_rindex;
+
+	/*
+	 * Interrupt mask {0,1}
+	 *
+	 * For TX bufring, host set this to 1, when it is processing
+	 * the TX bufring, so that we can safely skip the TX event
+	 * notification to host.
+	 *
+	 * For RX bufring, once this is set to 1 by us, host will not
+	 * further dispatch interrupts to us, even if there are data
+	 * pending on the RX bufring.  This effectively disables the
+	 * interrupt of the channel to which this RX bufring is attached.
+	 */
+	volatile uint32_t	br_imask;
+
+	uint8_t			br_rsvd[4084];
+	uint8_t			br_data[];
+} __packed;
+CTASSERT(sizeof(struct vmbus_bufring) == PAGE_SIZE);
+
+/*
  * Channel
  */
 

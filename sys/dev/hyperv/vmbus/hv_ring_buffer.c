@@ -32,6 +32,7 @@
 #include <sys/sysctl.h>
 
 #include "hv_vmbus_priv.h"
+#include <dev/hyperv/vmbus/vmbus_reg.h>
 
 /* Amount of space to write to */
 #define	HV_BYTES_AVAIL_TO_WRITE(r, w, z)	\
@@ -50,9 +51,9 @@ vmbus_br_sysctl_state(SYSCTL_HANDLER_ARGS)
 	uint32_t rindex, windex, intr_mask, ravail, wavail;
 	char state[256];
 
-	rindex = br->ring_buffer->read_index;
-	windex = br->ring_buffer->write_index;
-	intr_mask = br->ring_buffer->interrupt_mask;
+	rindex = br->ring_buffer->br_rindex;
+	windex = br->ring_buffer->br_windex;
+	intr_mask = br->ring_buffer->br_imask;
 	wavail = HV_BYTES_AVAIL_TO_WRITE(rindex, windex, br->ring_data_size);
 	ravail = br->ring_data_size - wavail;
 
@@ -78,13 +79,13 @@ vmbus_br_sysctl_state_bin(SYSCTL_HANDLER_ARGS)
 	const hv_vmbus_ring_buffer_info *br = arg1;
 	uint32_t rindex, windex, wavail, state[BR_STATE_MAX];
 
-	rindex = br->ring_buffer->read_index;
-	windex = br->ring_buffer->write_index;
+	rindex = br->ring_buffer->br_rindex;
+	windex = br->ring_buffer->br_windex;
 	wavail = HV_BYTES_AVAIL_TO_WRITE(rindex, windex, br->ring_data_size);
 
 	state[BR_STATE_RIDX] = rindex;
 	state[BR_STATE_WIDX] = windex;
-	state[BR_STATE_IMSK] = br->ring_buffer->interrupt_mask;
+	state[BR_STATE_IMSK] = br->ring_buffer->br_imask;
 	state[BR_STATE_WSPC] = wavail;
 	state[BR_STATE_RSPC] = br->ring_data_size - wavail;
 
@@ -127,8 +128,8 @@ get_ring_buffer_avail_bytes(hv_vmbus_ring_buffer_info *rbi, uint32_t *read,
 	/*
 	 * Capture the read/write indices before they changed
 	 */
-	read_loc = rbi->ring_buffer->read_index;
-	write_loc = rbi->ring_buffer->write_index;
+	read_loc = rbi->ring_buffer->br_rindex;
+	write_loc = rbi->ring_buffer->br_windex;
 
 	*write = HV_BYTES_AVAIL_TO_WRITE(read_loc, write_loc,
 	    rbi->ring_data_size);
@@ -141,7 +142,7 @@ get_ring_buffer_avail_bytes(hv_vmbus_ring_buffer_info *rbi, uint32_t *read,
 static __inline uint32_t
 get_next_write_location(hv_vmbus_ring_buffer_info *ring_info)
 {
-	return ring_info->ring_buffer->write_index;
+	return ring_info->ring_buffer->br_windex;
 }
 
 /**
@@ -151,7 +152,7 @@ static __inline void
 set_next_write_location(hv_vmbus_ring_buffer_info *ring_info,
     uint32_t next_write_location)
 {
-	ring_info->ring_buffer->write_index = next_write_location;
+	ring_info->ring_buffer->br_windex = next_write_location;
 }
 
 /**
@@ -160,7 +161,7 @@ set_next_write_location(hv_vmbus_ring_buffer_info *ring_info,
 static __inline uint32_t
 get_next_read_location(hv_vmbus_ring_buffer_info *ring_info)
 {
-	return ring_info->ring_buffer->read_index;
+	return ring_info->ring_buffer->br_rindex;
 }
 
 /**
@@ -171,7 +172,7 @@ static __inline uint32_t
 get_next_read_location_with_offset(hv_vmbus_ring_buffer_info *ring_info,
     uint32_t offset)
 {
-	uint32_t next = ring_info->ring_buffer->read_index;
+	uint32_t next = ring_info->ring_buffer->br_rindex;
 
 	next += offset;
 	next %= ring_info->ring_data_size;
@@ -185,7 +186,7 @@ static __inline void
 set_next_read_location(hv_vmbus_ring_buffer_info *ring_info,
     uint32_t next_read_location)
 {
-	ring_info->ring_buffer->read_index = next_read_location;
+	ring_info->ring_buffer->br_rindex = next_read_location;
 }
 
 /**
@@ -194,7 +195,7 @@ set_next_read_location(hv_vmbus_ring_buffer_info *ring_info,
 static __inline void *
 get_ring_buffer(hv_vmbus_ring_buffer_info *ring_info)
 {
-	return ring_info->ring_buffer->buffer;
+	return ring_info->ring_buffer->br_data;
 }
 
 /**
@@ -212,13 +213,13 @@ get_ring_buffer_size(hv_vmbus_ring_buffer_info *ring_info)
 static __inline uint64_t
 get_ring_buffer_indices(hv_vmbus_ring_buffer_info *ring_info)
 {
-	return ((uint64_t)ring_info->ring_buffer->write_index) << 32;
+	return ((uint64_t)ring_info->ring_buffer->br_windex) << 32;
 }
 
 void
 hv_ring_buffer_read_begin(hv_vmbus_ring_buffer_info *ring_info)
 {
-	ring_info->ring_buffer->interrupt_mask = 1;
+	ring_info->ring_buffer->br_imask = 1;
 	mb();
 }
 
@@ -227,7 +228,7 @@ hv_ring_buffer_read_end(hv_vmbus_ring_buffer_info *ring_info)
 {
 	uint32_t read, write;
 
-	ring_info->ring_buffer->interrupt_mask = 0;
+	ring_info->ring_buffer->br_imask = 0;
 	mb();
 
 	/*
@@ -259,7 +260,7 @@ hv_ring_buffer_needsig_on_write(uint32_t old_write_location,
     hv_vmbus_ring_buffer_info *rbi)
 {
 	mb();
-	if (rbi->ring_buffer->interrupt_mask)
+	if (rbi->ring_buffer->br_imask)
 		return (FALSE);
 
 	/* Read memory barrier */
@@ -268,7 +269,7 @@ hv_ring_buffer_needsig_on_write(uint32_t old_write_location,
 	 * This is the only case we need to signal when the
 	 * ring transitions from being empty to non-empty.
 	 */
-	if (old_write_location == rbi->ring_buffer->read_index)
+	if (old_write_location == rbi->ring_buffer->br_rindex)
 		return (TRUE);
 
 	return (FALSE);
@@ -284,10 +285,10 @@ hv_vmbus_ring_buffer_init(hv_vmbus_ring_buffer_info *ring_info, void *buffer,
 	memset(ring_info, 0, sizeof(hv_vmbus_ring_buffer_info));
 
 	ring_info->ring_buffer = buffer;
-	ring_info->ring_buffer->read_index = 0;
-	ring_info->ring_buffer->write_index = 0;
+	ring_info->ring_buffer->br_rindex = 0;
+	ring_info->ring_buffer->br_windex = 0;
 
-	ring_info->ring_data_size = buffer_len - sizeof(hv_vmbus_ring_buffer);
+	ring_info->ring_data_size = buffer_len - sizeof(struct vmbus_bufring);
 	mtx_init(&ring_info->ring_lock, "vmbus ring buffer", NULL, MTX_SPIN);
 
 	return (0);
