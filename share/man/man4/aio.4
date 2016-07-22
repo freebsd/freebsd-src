@@ -54,7 +54,9 @@ the
 .Va vfs.aio.enable_unsafe
 sysctl node to a non-zero value.
 .Pp
-Asynchronous I/O operations on sockets and raw disk devices do not block
+Asynchronous I/O operations on sockets,
+raw disk devices,
+and regular files on local filesystems do not block
 indefinitely and are always enabled.
 .Pp
 The
