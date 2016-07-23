@@ -24,6 +24,7 @@
 #include "asan_report.h"
 #include "asan_stack.h"
 #include "asan_thread.h"
+#include "asan_mapping.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_mutex.h"
 
@@ -46,11 +47,20 @@ void __sanitizer_default_free_hook(void *ptr) { }
 const char* __asan_default_default_options() { return ""; }
 const char* __asan_default_default_suppressions() { return ""; }
 void __asan_default_on_error() {}
+// 64-bit msvc will not prepend an underscore for symbols.
+#ifdef _WIN64
+#pragma comment(linker, "/alternatename:__sanitizer_malloc_hook=__sanitizer_default_malloc_hook")  // NOLINT
+#pragma comment(linker, "/alternatename:__sanitizer_free_hook=__sanitizer_default_free_hook")      // NOLINT
+#pragma comment(linker, "/alternatename:__asan_default_options=__asan_default_default_options")    // NOLINT
+#pragma comment(linker, "/alternatename:__asan_default_suppressions=__asan_default_default_suppressions")    // NOLINT
+#pragma comment(linker, "/alternatename:__asan_on_error=__asan_default_on_error")                  // NOLINT
+#else
 #pragma comment(linker, "/alternatename:___sanitizer_malloc_hook=___sanitizer_default_malloc_hook")  // NOLINT
 #pragma comment(linker, "/alternatename:___sanitizer_free_hook=___sanitizer_default_free_hook")      // NOLINT
 #pragma comment(linker, "/alternatename:___asan_default_options=___asan_default_default_options")    // NOLINT
 #pragma comment(linker, "/alternatename:___asan_default_suppressions=___asan_default_default_suppressions")    // NOLINT
 #pragma comment(linker, "/alternatename:___asan_on_error=___asan_default_on_error")                  // NOLINT
+#endif
 // }}}
 }  // extern "C"
 
@@ -60,6 +70,17 @@ INTERCEPTOR_WINAPI(void, RaiseException, void *a, void *b, void *c, void *d) {
   __asan_handle_no_return();
   REAL(RaiseException)(a, b, c, d);
 }
+
+
+#ifdef _WIN64
+
+INTERCEPTOR_WINAPI(int, __C_specific_handler, void *a, void *b, void *c, void *d) {  // NOLINT
+  CHECK(REAL(__C_specific_handler));
+  __asan_handle_no_return();
+  return REAL(__C_specific_handler)(a, b, c, d);
+}
+
+#else
 
 INTERCEPTOR(int, _except_handler3, void *a, void *b, void *c, void *d) {
   CHECK(REAL(_except_handler3));
@@ -76,6 +97,7 @@ INTERCEPTOR(int, _except_handler4, void *a, void *b, void *c, void *d) {
   __asan_handle_no_return();
   return REAL(_except_handler4)(a, b, c, d);
 }
+#endif
 
 static thread_return_t THREAD_CALLING_CONV asan_thread_start(void *arg) {
   AsanThread *t = (AsanThread*)arg;
@@ -139,14 +161,23 @@ namespace __asan {
 void InitializePlatformInterceptors() {
   ASAN_INTERCEPT_FUNC(CreateThread);
   ASAN_INTERCEPT_FUNC(RaiseException);
+
+#ifdef _WIN64
+  ASAN_INTERCEPT_FUNC(__C_specific_handler);
+#else
   ASAN_INTERCEPT_FUNC(_except_handler3);
   ASAN_INTERCEPT_FUNC(_except_handler4);
+#endif
 
   // NtWaitForWorkViaWorkerFactory is always linked dynamically.
   CHECK(::__interception::OverrideFunction(
       "NtWaitForWorkViaWorkerFactory",
       (uptr)WRAP(NtWaitForWorkViaWorkerFactory),
       (uptr *)&REAL(NtWaitForWorkViaWorkerFactory)));
+}
+
+void AsanApplyToGlobals(globals_op_fptr op, const void *needle) {
+  UNIMPLEMENTED();
 }
 
 // ---------------------- TSD ---------------- {{{
@@ -192,6 +223,55 @@ void ReadContextStack(void *context, uptr *stack, uptr *ssize) {
 
 void AsanOnDeadlySignal(int, void *siginfo, void *context) {
   UNIMPLEMENTED();
+}
+
+#if SANITIZER_WINDOWS64
+// Exception handler for dealing with shadow memory.
+static LONG CALLBACK
+ShadowExceptionHandler(PEXCEPTION_POINTERS exception_pointers) {
+  static uptr page_size = GetPageSizeCached();
+  static uptr alloc_granularity = GetMmapGranularity();
+  // Only handle access violations.
+  if (exception_pointers->ExceptionRecord->ExceptionCode !=
+      EXCEPTION_ACCESS_VIOLATION) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  // Only handle access violations that land within the shadow memory.
+  uptr addr =
+      (uptr)(exception_pointers->ExceptionRecord->ExceptionInformation[1]);
+
+  // Check valid shadow range.
+  if (!AddrIsInShadow(addr)) return EXCEPTION_CONTINUE_SEARCH;
+
+  // This is an access violation while trying to read from the shadow. Commit
+  // the relevant page and let execution continue.
+
+  // Determine the address of the page that is being accessed.
+  uptr page = RoundDownTo(addr, page_size);
+
+  // Query the existing page.
+  MEMORY_BASIC_INFORMATION mem_info = {};
+  if (::VirtualQuery((LPVOID)page, &mem_info, sizeof(mem_info)) == 0)
+    return EXCEPTION_CONTINUE_SEARCH;
+
+  // Commit the page.
+  uptr result =
+      (uptr)::VirtualAlloc((LPVOID)page, page_size, MEM_COMMIT, PAGE_READWRITE);
+  if (result != page) return EXCEPTION_CONTINUE_SEARCH;
+
+  // The page mapping succeeded, so continue execution as usual.
+  return EXCEPTION_CONTINUE_EXECUTION;
+}
+
+#endif
+
+void InitializePlatformExceptionHandlers() {
+#if SANITIZER_WINDOWS64
+  // On Win64, we map memory on demand with access violation handler.
+  // Install our exception handler.
+  CHECK(AddVectoredExceptionHandler(TRUE, &ShadowExceptionHandler));
+#endif
 }
 
 static LPTOP_LEVEL_EXCEPTION_FILTER default_seh_handler;
@@ -242,10 +322,16 @@ int __asan_set_seh_filter() {
 }
 
 #if !ASAN_DYNAMIC
-// Put a pointer to __asan_set_seh_filter at the end of the global list
-// of C initializers, after the default EH is set by the CRT.
-#pragma section(".CRT$XIZ", long, read)  // NOLINT
-__declspec(allocate(".CRT$XIZ"))
+// The CRT runs initializers in this order:
+// - C initializers, from XIA to XIZ
+// - C++ initializers, from XCA to XCZ
+// Prior to 2015, the CRT set the unhandled exception filter at priority XIY,
+// near the end of C initialization. Starting in 2015, it was moved to the
+// beginning of C++ initialization. We set our priority to XCAB to run
+// immediately after the CRT runs. This way, our exception filter is called
+// first and we can delegate to their filter if appropriate.
+#pragma section(".CRT$XCAB", long, read)  // NOLINT
+__declspec(allocate(".CRT$XCAB"))
     int (*__intercept_seh)() = __asan_set_seh_filter;
 #endif
 // }}}

@@ -1,5 +1,9 @@
 // RUN: %clangxx -fsanitize=integer -g0 %s -o %t
 
+// Suppression by symbol name (unsigned-integer-overflow:do_overflow below)
+// requires the compiler-rt runtime to be able to symbolize stack addresses.
+// REQUIRES: can-symbolize
+
 // Fails without any suppression.
 // RUN: %env_ubsan_opts=halt_on_error=1 not %run %t 2>&1 | FileCheck %s
 
@@ -30,4 +34,3 @@ int main() {
   do_overflow();
   return 0;
 }
-

@@ -1,7 +1,7 @@
 # Build system for the common Sanitizer runtime support library components.
 # These components are shared between AddressSanitizer and ThreadSanitizer.
 
-set(SANITIZER_SOURCES
+set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_allocator.cc
   sanitizer_common.cc
   sanitizer_deadlock_detector1.cc
@@ -11,6 +11,7 @@ set(SANITIZER_SOURCES
   sanitizer_libc.cc
   sanitizer_libignore.cc
   sanitizer_linux.cc
+  sanitizer_linux_s390.cc
   sanitizer_mac.cc
   sanitizer_persistent_allocator.cc
   sanitizer_platform_limits_linux.cc
@@ -32,6 +33,14 @@ set(SANITIZER_SOURCES
   sanitizer_tls_get_addr.cc
   sanitizer_thread_registry.cc
   sanitizer_win.cc)
+
+if(UNIX AND NOT APPLE)
+  list(APPEND SANITIZER_SOURCES_NOTERMINATION
+    sanitizer_linux_x86_64.S)
+endif()
+
+set(SANITIZER_SOURCES
+  ${SANITIZER_SOURCES_NOTERMINATION} sanitizer_termination.cc)
 
 # Libc functions stubs. These sources should be linked instead of
 # SANITIZER_LIBCDEP_SOURCES when sanitizer_common library must not depend on
@@ -122,12 +131,23 @@ append_have_file_definition(rpc/xdr.h HAVE_RPC_XDR_H SANITIZER_COMMON_DEFINITION
 append_have_file_definition(tirpc/rpc/xdr.h HAVE_TIRPC_RPC_XDR_H SANITIZER_COMMON_DEFINITIONS)
 
 set(SANITIZER_CFLAGS ${SANITIZER_COMMON_CFLAGS})
-append_no_rtti_flag(SANITIZER_CFLAGS)
+append_rtti_flag(OFF SANITIZER_CFLAGS)
 
 append_list_if(SANITIZER_LIMIT_FRAME_SIZE -Wframe-larger-than=570
                SANITIZER_CFLAGS)
 append_list_if(COMPILER_RT_HAS_WGLOBAL_CONSTRUCTORS_FLAG -Wglobal-constructors
                SANITIZER_CFLAGS)
+
+if (LLVM_ENABLE_PEDANTIC AND UNIX AND NOT APPLE)
+  # With -pedantic, our .S files raise warnings about empty macro arguments
+  # from __USER_LABEL_PREFIX__ being an empty arg to GLUE().  Unfortunately,
+  # there is no simple way to test for an empty define, nor to disable just
+  # that warning or to disable -pedantic.  There is also no simple way to
+  # remove -pedantic from just this file (we'd have to remove from
+  # CMAKE_C*_FLAGS and re-add as a source property to all the non-.S files).
+  set_source_files_properties(sanitizer_linux_x86_64.S
+    PROPERTIES COMPILE_FLAGS "-w")
+endif ()
 
 if(APPLE)
   set(OS_OPTION OS ${SANITIZER_COMMON_SUPPORTED_OS})
@@ -137,6 +157,12 @@ add_compiler_rt_object_libraries(RTSanitizerCommon
   ${OS_OPTION}
   ARCHS ${SANITIZER_COMMON_SUPPORTED_ARCH}
   SOURCES ${SANITIZER_SOURCES}
+  CFLAGS ${SANITIZER_CFLAGS}
+  DEFS ${SANITIZER_COMMON_DEFINITIONS})
+add_compiler_rt_object_libraries(RTSanitizerCommonNoTermination
+  ${OS_OPTION}
+  ARCHS ${SANITIZER_COMMON_SUPPORTED_ARCH}
+  SOURCES ${SANITIZER_SOURCES_NOTERMINATION}
   CFLAGS ${SANITIZER_CFLAGS}
   DEFS ${SANITIZER_COMMON_DEFINITIONS})
 add_compiler_rt_object_libraries(RTSanitizerCommonNoLibc
