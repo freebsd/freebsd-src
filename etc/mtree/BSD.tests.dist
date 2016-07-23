@@ -8,8 +8,6 @@
     bin
         cat
         ..
-        chown
-        ..
         date
         ..
         dd
@@ -652,6 +650,8 @@
         ..
     ..
     usr.sbin
+        chown
+        ..
         etcupdate
         ..
         extattr
