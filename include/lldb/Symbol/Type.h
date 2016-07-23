@@ -428,7 +428,10 @@ public:
     SetType (lldb::TypeSP type)
     {
         type_sp = type;
-        compiler_type = type_sp->GetForwardCompilerType ();
+        if (type_sp)
+            compiler_type = type_sp->GetForwardCompilerType ();
+        else
+            compiler_type.Clear();
     }
     
     lldb::TypeSP
@@ -955,13 +958,13 @@ public:
     uint64_t
     GetValueAsUnsigned () const
     {
-        return *m_value.getRawData();
+        return m_value.getZExtValue();
     }
 
     int64_t
     GetValueAsSigned () const
     {
-        return (int64_t) *m_value.getRawData();
+        return m_value.getSExtValue();
     }
 
 protected:

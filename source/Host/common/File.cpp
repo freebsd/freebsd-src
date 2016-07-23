@@ -14,7 +14,6 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <sys/stat.h>
 
 #ifdef _WIN32
 #include "lldb/Host/windows/windows.h"
@@ -22,6 +21,7 @@
 #include <sys/ioctl.h>
 #endif
 
+#include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/Process.h" // for llvm::sys::Process::FileDescriptorHasColors()
 
 #include "lldb/Core/DataBufferHeap.h"
@@ -29,6 +29,7 @@
 #include "lldb/Core/Log.h"
 #include "lldb/Host/Config.h"
 #include "lldb/Host/FileSpec.h"
+#include "lldb/Host/FileSystem.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -109,27 +110,6 @@ File::File (const FileSpec& filespec,
     }
 }
 
-File::File (const File &rhs) :
-    IOObject(eFDTypeFile, false),
-    m_descriptor (kInvalidDescriptor),
-    m_stream (kInvalidStream),
-    m_options (0),
-    m_own_stream (false),
-    m_is_interactive (eLazyBoolCalculate),
-    m_is_real_terminal (eLazyBoolCalculate)
-{
-    Duplicate (rhs);
-}
-    
-
-File &
-File::operator = (const File &rhs)
-{
-    if (this != &rhs)
-        Duplicate (rhs);        
-    return *this;
-}
-
 File::~File()
 {
     Close ();
@@ -191,7 +171,7 @@ File::GetStream ()
 #ifdef _WIN32
                     m_descriptor = ::_dup(GetDescriptor());
 #else
-                    m_descriptor = ::fcntl(GetDescriptor(), F_DUPFD);
+                    m_descriptor = dup(GetDescriptor());
 #endif
                     m_should_close_fd = true;
                 }
@@ -215,7 +195,6 @@ File::GetStream ()
     return m_stream;
 }
 
-
 void
 File::SetStream (FILE *fh, bool transfer_ownership)
 {
@@ -223,35 +202,6 @@ File::SetStream (FILE *fh, bool transfer_ownership)
         Close();
     m_stream = fh;
     m_own_stream = transfer_ownership;
-}
-
-Error
-File::Duplicate (const File &rhs)
-{
-    Error error;
-    if (IsValid ())
-        Close();
-
-    if (rhs.DescriptorIsValid())
-    {
-#ifdef _WIN32
-        m_descriptor = ::_dup(rhs.GetDescriptor());
-#else
-        m_descriptor = ::fcntl(rhs.GetDescriptor(), F_DUPFD);
-#endif
-        if (!DescriptorIsValid())
-            error.SetErrorToErrno();
-        else
-        {
-            m_options = rhs.m_options;
-            m_should_close_fd = true;
-        }
-    }
-    else
-    {
-        error.SetErrorString ("invalid file to duplicate");
-    }
-    return error;
 }
 
 Error
@@ -288,7 +238,7 @@ File::Open (const char *path, uint32_t options, uint32_t permissions)
         oflag |= O_RDONLY;
 
 #ifndef _WIN32
-        if (options & eOpenoptionDontFollowSymlinks)
+        if (options & eOpenOptionDontFollowSymlinks)
             oflag |= O_NOFOLLOW;
 #endif
     }
@@ -318,7 +268,18 @@ File::Open (const char *path, uint32_t options, uint32_t permissions)
 
     do
     {
+#ifdef _WIN32
+        std::wstring wpath;
+        if (!llvm::ConvertUTF8toWide(path, wpath))
+        {
+            m_descriptor = -1;
+            error.SetErrorString("Error converting path to UTF-16");
+            return error;
+        }
+        ::_wsopen_s(&m_descriptor, wpath.c_str(), oflag, _SH_DENYNO, mode);
+#else
         m_descriptor = ::open(path, oflag, mode);
+#endif
     } while (m_descriptor < 0 && errno == EINTR);
 
     if (!DescriptorIsValid())
@@ -338,7 +299,8 @@ File::GetPermissions(const FileSpec &file_spec, Error &error)
     if (file_spec)
     {
         struct stat file_stats;
-        if (::stat(file_spec.GetCString(), &file_stats) == -1)
+        int stat_result = FileSystem::Stat(file_spec.GetCString(), &file_stats);
+        if (stat_result == -1)
             error.SetErrorToErrno();
         else
         {
@@ -399,6 +361,15 @@ File::Close ()
     return error;
 }
 
+void
+File::Clear ()
+{
+    m_stream = nullptr;
+    m_descriptor = -1;
+    m_options = 0;
+    m_own_stream = false;
+    m_is_interactive = m_supports_colors = m_is_real_terminal = eLazyBoolCalculate;
+}
 
 Error
 File::GetFileSpec (FileSpec &file_spec) const

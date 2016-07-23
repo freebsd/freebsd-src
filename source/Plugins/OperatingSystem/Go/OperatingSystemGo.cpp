@@ -197,7 +197,7 @@ OperatingSystemGo::CreateInstance(Process *process, bool force)
         if (!target_sp)
             return nullptr;
         ModuleList &module_list = target_sp->GetImages();
-        Mutex::Locker modules_locker(module_list.GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_list.GetMutex());
         const size_t num_modules = module_list.GetSize();
         bool found_go_runtime = false;
         for (size_t i = 0; i < num_modules; ++i)
@@ -249,8 +249,19 @@ OperatingSystemGo::Init(ThreadList &threads)
     TargetSP target_sp = m_process->CalculateTarget();
     if (!target_sp)
         return false;
-    m_allg_sp = FindGlobal(target_sp, "runtime.allg");
-    m_allglen_sp = FindGlobal(target_sp, "runtime.allglen");
+    // Go 1.6 stores goroutines in a slice called runtime.allgs
+    ValueObjectSP allgs_sp = FindGlobal(target_sp, "runtime.allgs");
+    if (allgs_sp)
+    {
+        m_allg_sp = allgs_sp->GetChildMemberWithName(ConstString("array"), true);
+        m_allglen_sp = allgs_sp->GetChildMemberWithName(ConstString("len"), true);
+    }
+    else
+    {
+        // Go 1.4 stores goroutines in the variable runtime.allg.
+        m_allg_sp = FindGlobal(target_sp, "runtime.allg");
+        m_allglen_sp = FindGlobal(target_sp, "runtime.allglen");
+    }
 
     if (m_allg_sp && !m_allglen_sp)
     {
@@ -506,7 +517,7 @@ OperatingSystemGo::Goroutine
 OperatingSystemGo::CreateGoroutineAtIndex(uint64_t idx, Error &err)
 {
     err.Clear();
-    Goroutine result;
+    Goroutine result = {};
     ValueObjectSP g = m_allg_sp->GetSyntheticArrayMember(idx, true)->Dereference(err);
     if (err.Fail())
     {

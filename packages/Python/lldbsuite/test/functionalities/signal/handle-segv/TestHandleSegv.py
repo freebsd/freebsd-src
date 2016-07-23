@@ -5,10 +5,12 @@ from __future__ import print_function
 
 
 import os
-import lldb
-from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
 import re
+
+import lldb
+from lldbsuite.test.decorators import *
+from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 
 class HandleSegvTestCase(TestBase):
@@ -17,7 +19,7 @@ class HandleSegvTestCase(TestBase):
 
     @skipIfWindows # signals do not exist on Windows
     @skipIfDarwin
-    @expectedFailureFreeBSD("llvm.org/pr23699 SIGSEGV is reported as exception, not signal")
+    @expectedFailureAll(oslist=['freebsd'], bugnumber="llvm.org/pr23699 SIGSEGV is reported as exception, not signal")
     def test_inferior_handle_sigsegv(self):
         self.build()
         exe = os.path.join(os.getcwd(), "a.out")

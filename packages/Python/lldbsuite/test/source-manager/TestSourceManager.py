@@ -14,8 +14,9 @@ from __future__ import print_function
 
 
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class SourceManagerTestCase(TestBase):
 
@@ -80,13 +81,17 @@ class SourceManagerTestCase(TestBase):
         main_c_hidden = os.path.join("hidden", main_c)
         os.rename(main_c, main_c_hidden)
 
+        # Restore main.c after the test.
+        self.addTearDownHook(lambda: os.rename(main_c_hidden, main_c))
+
         if self.TraceOn():
             system([["ls"]])
             system([["ls", "hidden"]])
 
-        # Restore main.c after the test.
-        self.addTearDownHook(lambda: os.rename(main_c_hidden, main_c))
-
+        # Set source remapping with invalid replace path and verify we get an error
+        self.expect("settings set target.source-map /a/b/c/d/e /q/r/s/t/u", error=True,
+            substrs = ['''error: the replacement path doesn't exist: "/q/r/s/t/u"'''])
+        
         # Set target.source-map settings.
         self.runCmd("settings set target.source-map %s %s" % (os.getcwd(), os.path.join(os.getcwd(), "hidden")))
         # And verify that the settings work.
@@ -133,7 +138,7 @@ class SourceManagerTestCase(TestBase):
         self.assertTrue(int(m.group(1)) > 0)
 
         # Read the main.c file content.
-        with open('main.c', 'r') as f:
+        with io.open('main.c', 'r', newline='\n') as f:
             original_content = f.read()
             if self.TraceOn():
                 print("original content:", original_content)
@@ -145,7 +150,7 @@ class SourceManagerTestCase(TestBase):
         def restore_file():
             #print("os.path.getmtime() before restore:", os.path.getmtime('main.c'))
             time.sleep(1)
-            with open('main.c', 'wb') as f:
+            with io.open('main.c', 'w', newline='\n') as f:
                 f.write(original_content)
             if self.TraceOn():
                 with open('main.c', 'r') as f:
@@ -156,9 +161,8 @@ class SourceManagerTestCase(TestBase):
                 print("os.path.getmtime() after restore:", os.path.getmtime('main.c'))
 
 
-
         # Modify the source code file.
-        with open('main.c', 'wb') as f:
+        with io.open('main.c', 'w', newline='\n') as f:
             time.sleep(1)
             f.write(new_content)
             if self.TraceOn():
@@ -170,3 +174,21 @@ class SourceManagerTestCase(TestBase):
         # Display the source code again.  We should see the updated line.
         self.expect("source list -f main.c -l %d" % self.line, SOURCE_DISPLAYED_CORRECTLY,
             substrs = ['Hello lldb'])
+
+    def test_set_breakpoint_with_absolute_path(self):
+        self.build()
+        self.runCmd("settings set target.source-map %s %s" % (os.getcwd(), os.path.join(os.getcwd(), "hidden")))
+
+        exe = os.path.join(os.getcwd(), "a.out")
+        main = os.path.join(os.getcwd(), "hidden", "main.c")
+        self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
+
+        lldbutil.run_break_set_by_file_and_line (self, main, self.line, num_expected_locations=1, loc_exact=False)
+        
+        self.runCmd("run", RUN_SUCCEEDED)
+
+        # The stop reason of the thread should be breakpoint.
+        self.expect("thread list", STOPPED_DUE_TO_BREAKPOINT,
+            substrs = ['stopped',
+                       'main.c:%d' % self.line,
+                       'stop reason = breakpoint'])

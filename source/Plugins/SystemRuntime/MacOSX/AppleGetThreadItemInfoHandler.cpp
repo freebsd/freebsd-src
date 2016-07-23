@@ -14,12 +14,12 @@
 // Other libraries and framework includes
 // Project includes
 
-#include "lldb/lldb-private.h"
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Core/Value.h"
+#include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/Expression.h"
 #include "lldb/Expression/FunctionCaller.h"
 #include "lldb/Expression/UtilityFunction.h"
@@ -30,6 +30,7 @@
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/lldb-private.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -102,12 +103,12 @@ extern \"C\"                                                                    
 }                                                                                                               \n\
 ";
 
-AppleGetThreadItemInfoHandler::AppleGetThreadItemInfoHandler (Process *process) :
-    m_process (process),
-    m_get_thread_item_info_impl_code (),
-    m_get_thread_item_info_function_mutex(),
-    m_get_thread_item_info_return_buffer_addr (LLDB_INVALID_ADDRESS),
-    m_get_thread_item_info_retbuffer_mutex()
+AppleGetThreadItemInfoHandler::AppleGetThreadItemInfoHandler(Process *process)
+    : m_process(process),
+      m_get_thread_item_info_impl_code(),
+      m_get_thread_item_info_function_mutex(),
+      m_get_thread_item_info_return_buffer_addr(LLDB_INVALID_ADDRESS),
+      m_get_thread_item_info_retbuffer_mutex()
 {
 }
 
@@ -116,14 +117,14 @@ AppleGetThreadItemInfoHandler::~AppleGetThreadItemInfoHandler ()
 }
 
 void
-AppleGetThreadItemInfoHandler::Detach ()
+AppleGetThreadItemInfoHandler::Detach()
 {
 
     if (m_process && m_process->IsAlive() && m_get_thread_item_info_return_buffer_addr != LLDB_INVALID_ADDRESS)
     {
-        Mutex::Locker locker;
-        locker.TryLock (m_get_thread_item_info_retbuffer_mutex);  // Even if we don't get the lock, deallocate the buffer
-        m_process->DeallocateMemory (m_get_thread_item_info_return_buffer_addr);
+        std::unique_lock<std::mutex> lock(m_get_thread_item_info_retbuffer_mutex, std::defer_lock);
+        lock.try_lock(); // Even if we don't get the lock, deallocate the buffer
+        m_process->DeallocateMemory(m_get_thread_item_info_return_buffer_addr);
     }
 }
 
@@ -141,17 +142,18 @@ AppleGetThreadItemInfoHandler::Detach ()
 lldb::addr_t
 AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction (Thread &thread, ValueList &get_thread_item_info_arglist)
 {
-    ExecutionContext exe_ctx (thread.shared_from_this());
+    ThreadSP thread_sp(thread.shared_from_this());
+    ExecutionContext exe_ctx (thread_sp);
     Address impl_code_address;
-    StreamString errors;
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_SYSTEM_RUNTIME));
+    DiagnosticManager diagnostics;
+    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYSTEM_RUNTIME));
     lldb::addr_t args_addr = LLDB_INVALID_ADDRESS;
     FunctionCaller *get_thread_item_info_caller = nullptr;
 
     // Scope for mutex locker:
     {
-        Mutex::Locker locker(m_get_thread_item_info_function_mutex);
-        
+        std::lock_guard<std::mutex> guard(m_get_thread_item_info_function_mutex);
+
         // First stage is to make the ClangUtility to hold our injected function:
 
         if (!m_get_thread_item_info_impl_code.get())
@@ -171,11 +173,15 @@ AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction (Thread &thread, V
                     m_get_thread_item_info_impl_code.reset();
                     return args_addr;
                 }
-                
-                if (!m_get_thread_item_info_impl_code->Install(errors, exe_ctx))
+
+                if (!m_get_thread_item_info_impl_code->Install(diagnostics, exe_ctx))
                 {
                     if (log)
-                        log->Printf ("Failed to install get-thread-item-info introspection: %s.", errors.GetData());
+                    {
+                        log->Printf("Failed to install get-thread-item-info introspection.");
+                        diagnostics.Dump(log);
+                    }
+
                     m_get_thread_item_info_impl_code.reset();
                     return args_addr;
                 }
@@ -184,10 +190,9 @@ AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction (Thread &thread, V
             {
                 if (log)
                     log->Printf("No get-thread-item-info introspection code found.");
-                errors.Printf ("No get-thread-item-info introspection code found.");
                 return LLDB_INVALID_ADDRESS;
             }
-            
+
             // Also make the FunctionCaller for this UtilityFunction:
             
             ClangASTContext *clang_ast_context = thread.GetProcess()->GetTarget().GetScratchClangASTContext();
@@ -195,6 +200,7 @@ AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction (Thread &thread, V
             
             get_thread_item_info_caller =  m_get_thread_item_info_impl_code->MakeFunctionCaller (get_thread_item_info_return_type,
                                                                                                  get_thread_item_info_arglist,
+                                                                                                 thread_sp,
                                                                                                  error);
             if (error.Fail())
             {
@@ -210,20 +216,24 @@ AppleGetThreadItemInfoHandler::SetupGetThreadItemInfoFunction (Thread &thread, V
             get_thread_item_info_caller = m_get_thread_item_info_impl_code->GetFunctionCaller();
         }
     }
-    
-    errors.Clear();
-    
+
+    diagnostics.Clear();
+
     // Now write down the argument values for this particular call.  This looks like it might be a race condition
     // if other threads were calling into here, but actually it isn't because we allocate a new args structure for
     // this call by passing args_addr = LLDB_INVALID_ADDRESS...
 
-    if (!get_thread_item_info_caller->WriteFunctionArguments (exe_ctx, args_addr, get_thread_item_info_arglist, errors))
+    if (!get_thread_item_info_caller->WriteFunctionArguments(exe_ctx, args_addr, get_thread_item_info_arglist,
+                                                             diagnostics))
     {
         if (log)
-            log->Printf ("Error writing get-thread-item-info function arguments: \"%s\".", errors.GetData());
+        {
+            log->Printf("Error writing get-thread-item-info function arguments");
+            diagnostics.Dump(log);
+        }
         return args_addr;
     }
-        
+
     return args_addr;
 }
 
@@ -290,8 +300,7 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo (Thread &thread, tid_t thread_i
     page_to_free_size_value.SetValueType (Value::eValueTypeScalar);
     page_to_free_size_value.SetCompilerType (clang_uint64_type);
 
-
-    Mutex::Locker locker(m_get_thread_item_info_retbuffer_mutex);
+    std::lock_guard<std::mutex> guard(m_get_thread_item_info_retbuffer_mutex);
     if (m_get_thread_item_info_return_buffer_addr == LLDB_INVALID_ADDRESS)
     {
         addr_t bufaddr = process_sp->AllocateMemory (32, ePermissionsReadable | ePermissionsWritable, error);
@@ -324,13 +333,13 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo (Thread &thread, tid_t thread_i
     page_to_free_size_value.GetScalar() = page_to_free_size;
     argument_values.PushValue (page_to_free_size_value);
 
-    addr_t args_addr = SetupGetThreadItemInfoFunction (thread, argument_values);
+    addr_t args_addr = SetupGetThreadItemInfoFunction(thread, argument_values);
 
-    StreamString errors;
+    DiagnosticManager diagnostics;
     ExecutionContext exe_ctx;
     EvaluateExpressionOptions options;
     FunctionCaller *get_thread_item_info_caller = nullptr;
-    
+
     options.SetUnwindOnError (true);
     options.SetIgnoreBreakpoints (true);
     options.SetStopOthers (true);
@@ -354,7 +363,7 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo (Thread &thread, tid_t thread_i
 
     ExpressionResults func_call_ret;
     Value results;
-    func_call_ret =  get_thread_item_info_caller->ExecuteFunction (exe_ctx, &args_addr, options, errors, results);
+    func_call_ret = get_thread_item_info_caller->ExecuteFunction(exe_ctx, &args_addr, options, diagnostics, results);
     if (func_call_ret != eExpressionCompleted || !error.Success())
     {
         if (log)

@@ -541,6 +541,7 @@ public:
             lldb::offset_t next_thread_state = offset + (count * 4);
             switch (flavor)
             {
+                case GPRAltRegSet:
                 case GPRRegSet:
                     for (uint32_t i=0; i<count; ++i)
                     {
@@ -1129,7 +1130,9 @@ ObjectFileMachO::ObjectFileMachO(const lldb::ModuleSP &module_sp,
     m_mach_sections(),
     m_entry_point_address(),
     m_thread_context_offsets(),
-    m_thread_context_offsets_valid(false)
+    m_thread_context_offsets_valid(false),
+    m_reexported_dylibs (),
+    m_allow_assembly_emulation_unwind_plans (true)
 {
     ::memset (&m_header, 0, sizeof(m_header));
     ::memset (&m_dysymtab, 0, sizeof(m_dysymtab));
@@ -1144,7 +1147,9 @@ ObjectFileMachO::ObjectFileMachO (const lldb::ModuleSP &module_sp,
     m_mach_sections(),
     m_entry_point_address(),
     m_thread_context_offsets(),
-    m_thread_context_offsets_valid(false)
+    m_thread_context_offsets_valid(false),
+    m_reexported_dylibs (),
+    m_allow_assembly_emulation_unwind_plans (true)
 {
     ::memset (&m_header, 0, sizeof(m_header));
     ::memset (&m_dysymtab, 0, sizeof(m_dysymtab));
@@ -1212,7 +1217,7 @@ ObjectFileMachO::ParseHeader ()
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         bool can_parse = false;
         lldb::offset_t offset = 0;
         m_data.SetByteOrder (endian::InlHostByteOrder());
@@ -1387,6 +1392,7 @@ ObjectFileMachO::GetAddressClass (lldb::addr_t file_addr)
                     case eSectionTypeCompactUnwind:
                         return eAddressClassRuntime;
 
+                    case eSectionTypeAbsoluteAddress:
                     case eSectionTypeELFSymbolTable:
                     case eSectionTypeELFDynamicSymbols:
                     case eSectionTypeELFRelocationEntries:
@@ -1451,11 +1457,11 @@ ObjectFileMachO::GetSymtab()
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         if (m_symtab_ap.get() == NULL)
         {
             m_symtab_ap.reset(new Symtab(this));
-            Mutex::Locker symtab_locker (m_symtab_ap->GetMutex());
+            std::lock_guard<std::recursive_mutex> symtab_guard(m_symtab_ap->GetMutex());
             ParseSymtab ();
             m_symtab_ap->Finalize ();
         }
@@ -1619,6 +1625,10 @@ ObjectFileMachO::CreateSections (SectionList &unified_section_list)
                     }
                     if (m_data.GetU32(&offset, &load_cmd.maxprot, 4))
                     {
+                        const uint32_t segment_permissions =
+                            ((load_cmd.initprot & VM_PROT_READ) ? ePermissionsReadable : 0) |
+                            ((load_cmd.initprot & VM_PROT_WRITE) ? ePermissionsWritable : 0) |
+                            ((load_cmd.initprot & VM_PROT_EXECUTE) ? ePermissionsExecutable : 0);
 
                         const bool segment_is_encrypted = (load_cmd.flags & SG_PROTECTED_VERSION_1) != 0;
 
@@ -1645,6 +1655,7 @@ ObjectFileMachO::CreateSections (SectionList &unified_section_list)
 
                             segment_sp->SetIsEncrypted (segment_is_encrypted);
                             m_sections_ap->AddSection(segment_sp);
+                            segment_sp->SetPermissions(segment_permissions);
                             if (add_to_unified)
                                 unified_section_list.AddSection(segment_sp);
                         }
@@ -1776,7 +1787,7 @@ ObjectFileMachO::CreateSections (SectionList &unified_section_list)
                                                                       sect64.align,
                                                                       load_cmd.flags));      // Flags for this section
                                         segment_sp->SetIsFake(true);
-                                        
+                                        segment_sp->SetPermissions(segment_permissions);
                                         m_sections_ap->AddSection(segment_sp);
                                         if (add_to_unified)
                                             unified_section_list.AddSection(segment_sp);
@@ -1926,6 +1937,7 @@ ObjectFileMachO::CreateSections (SectionList &unified_section_list)
                                     section_is_encrypted = encrypted_file_ranges.FindEntryThatContains(sect64.offset) != NULL;
 
                                 section_sp->SetIsEncrypted (segment_is_encrypted || section_is_encrypted);
+                                section_sp->SetPermissions(segment_permissions);
                                 segment_sp->GetChildren().AddSection(section_sp);
 
                                 if (segment_sp->IsFake())
@@ -2601,6 +2613,23 @@ ObjectFileMachO::ParseSymtab ()
 
         const size_t function_starts_count = function_starts.GetSize();
 
+        // For user process binaries (executables, dylibs, frameworks, bundles), if we don't have
+        // LC_FUNCTION_STARTS/eh_frame section in this binary, we're going to assume the binary
+        // has been stripped.  Don't allow assembly language instruction emulation because we don't
+        // know proper function start boundaries.
+        //
+        // For all other types of binaries (kernels, stand-alone bare board binaries, kexts), they
+        // may not have LC_FUNCTION_STARTS / eh_frame sections - we should not make any assumptions
+        // about them based on that.
+        if (function_starts_count == 0 && CalculateStrata() == eStrataUser)
+        {
+            m_allow_assembly_emulation_unwind_plans = false;
+            Log *unwind_or_symbol_log (lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_SYMBOLS | LIBLLDB_LOG_UNWIND));
+
+            if (unwind_or_symbol_log)
+                module_sp->LogMessage(unwind_or_symbol_log, "no LC_FUNCTION_STARTS, will not allow assembly profiled unwinds");
+        }
+
         const user_id_t TEXT_eh_frame_sectID =
             eh_frame_section_sp.get() ? eh_frame_section_sp->GetID()
                                       : static_cast<user_id_t>(NO_SECT);
@@ -3078,7 +3107,7 @@ ObjectFileMachO::ParseSymtab ()
                                                             {
                                                                 // This is usually the second N_SO entry that contains just the filename,
                                                                 // so here we combine it with the first one if we are minimizing the symbol table
-                                                                const char *so_path = sym[sym_idx - 1].GetMangled().GetDemangledName().AsCString();
+                                                                const char *so_path = sym[sym_idx - 1].GetMangled().GetDemangledName(lldb::eLanguageTypeUnknown).AsCString();
                                                                 if (so_path && so_path[0])
                                                                 {
                                                                     std::string full_so_path (so_path);
@@ -3465,7 +3494,7 @@ ObjectFileMachO::ParseSymtab ()
                                                         sym[sym_idx].GetMangled().SetValue(const_symbol_name, symbol_name_is_mangled);
                                                         if (is_gsym && is_debug)
                                                         {
-                                                            const char *gsym_name = sym[sym_idx].GetMangled().GetName(Mangled::ePreferMangled).GetCString();
+                                                            const char *gsym_name = sym[sym_idx].GetMangled().GetName(lldb::eLanguageTypeUnknown, Mangled::ePreferMangled).GetCString();
                                                             if (gsym_name)
                                                                 N_GSYM_name_to_sym_idx[gsym_name] = sym_idx;
                                                         }
@@ -3539,7 +3568,7 @@ ObjectFileMachO::ParseSymtab ()
                                                             bool found_it = false;
                                                             for (ValueToSymbolIndexMap::const_iterator pos = range.first; pos != range.second; ++pos)
                                                             {
-                                                                if (sym[sym_idx].GetMangled().GetName(Mangled::ePreferMangled) == sym[pos->second].GetMangled().GetName(Mangled::ePreferMangled))
+                                                                if (sym[sym_idx].GetMangled().GetName(lldb::eLanguageTypeUnknown, Mangled::ePreferMangled) == sym[pos->second].GetMangled().GetName(lldb::eLanguageTypeUnknown, Mangled::ePreferMangled))
                                                                 {
                                                                     m_nlist_idx_to_sym_idx[nlist_idx] = pos->second;
                                                                     // We just need the flags from the linker symbol, so put these flags
@@ -3578,7 +3607,7 @@ ObjectFileMachO::ParseSymtab ()
                                                             bool found_it = false;
                                                             for (ValueToSymbolIndexMap::const_iterator pos = range.first; pos != range.second; ++pos)
                                                             {
-                                                                if (sym[sym_idx].GetMangled().GetName(Mangled::ePreferMangled) == sym[pos->second].GetMangled().GetName(Mangled::ePreferMangled))
+                                                                if (sym[sym_idx].GetMangled().GetName(lldb::eLanguageTypeUnknown, Mangled::ePreferMangled) == sym[pos->second].GetMangled().GetName(lldb::eLanguageTypeUnknown, Mangled::ePreferMangled))
                                                                 {
                                                                     m_nlist_idx_to_sym_idx[nlist_idx] = pos->second;
                                                                     // We just need the flags from the linker symbol, so put these flags
@@ -3595,7 +3624,7 @@ ObjectFileMachO::ParseSymtab ()
                                                         }
                                                         else
                                                         {
-                                                            const char *gsym_name = sym[sym_idx].GetMangled().GetName(Mangled::ePreferMangled).GetCString();
+                                                            const char *gsym_name = sym[sym_idx].GetMangled().GetName(lldb::eLanguageTypeUnknown, Mangled::ePreferMangled).GetCString();
                                                             if (gsym_name)
                                                             {
                                                                 // Combine N_GSYM stab entries with the non stab symbol
@@ -4089,7 +4118,7 @@ ObjectFileMachO::ParseSymtab ()
                     case N_ECOML:
                         // end common (local name): 0,,n_sect,0,address
                         symbol_section = section_info.GetSection (nlist.n_sect, nlist.n_value);
-                        // Fall through
+                        LLVM_FALLTHROUGH;
 
                     case N_ECOMM:
                         // end common: name,,n_sect,0,0
@@ -4145,7 +4174,8 @@ ObjectFileMachO::ParseSymtab ()
                             ConstString undefined_name(symbol_name + ((symbol_name[0] == '_') ? 1 : 0));
                             undefined_name_to_desc[undefined_name] = nlist.n_desc;
                         }
-                        // Fall through
+                        LLVM_FALLTHROUGH;
+
                     case N_PBUD:
                         type = eSymbolTypeUndefined;
                         break;
@@ -4516,7 +4546,6 @@ ObjectFileMachO::ParseSymtab ()
 
         if (function_starts_count > 0)
         {
-            char synthetic_function_symbol[PATH_MAX];
             uint32_t num_synthetic_function_symbols = 0;
             for (i=0; i<function_starts_count; ++i)
             {
@@ -4531,7 +4560,6 @@ ObjectFileMachO::ParseSymtab ()
                     num_syms = sym_idx + num_synthetic_function_symbols;
                     sym = symtab->Resize (num_syms);
                 }
-                uint32_t synthetic_function_symbol_idx = 0;
                 for (i=0; i<function_starts_count; ++i)
                 {
                     const FunctionStarts::Entry *func_start_entry = function_starts.GetEntryAtIndex (i);
@@ -4566,13 +4594,8 @@ ObjectFileMachO::ParseSymtab ()
                                 {
                                     symbol_byte_size = section_end_file_addr - symbol_file_addr;
                                 }
-                                snprintf (synthetic_function_symbol,
-                                          sizeof(synthetic_function_symbol),
-                                          "___lldb_unnamed_function%u$$%s",
-                                          ++synthetic_function_symbol_idx,
-                                          module_sp->GetFileSpec().GetFilename().GetCString());
                                 sym[sym_idx].SetID (synthetic_sym_id++);
-                                sym[sym_idx].GetMangled().SetDemangledName(ConstString(synthetic_function_symbol));
+                                sym[sym_idx].GetMangled().SetDemangledName(GetNextSyntheticSymbolName());
                                 sym[sym_idx].SetType (eSymbolTypeCode);
                                 sym[sym_idx].SetIsSynthetic (true);
                                 sym[sym_idx].GetAddressRef() = symbol_addr;
@@ -4743,7 +4766,7 @@ ObjectFileMachO::Dump (Stream *s)
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         s->Printf("%p: ", static_cast<void*>(this));
         s->Indent();
         if (m_header.magic == MH_MAGIC_64 || m_header.magic == MH_CIGAM_64)
@@ -4827,9 +4850,22 @@ ObjectFileMachO::GetArchitecture (const llvm::MachO::mach_header &header,
 
         if (header.filetype == MH_PRELOAD)
         {
-            // Set vendor to an unspecified unknown or a "*" so it can match any vendor
-            triple.setVendor(llvm::Triple::UnknownVendor);
-            triple.setVendorName(llvm::StringRef());
+            if (header.cputype == CPU_TYPE_ARM)
+            {
+                // If this is a 32-bit arm binary, and it's a standalone binary,
+                // force the Vendor to Apple so we don't accidentally pick up 
+                // the generic armv7 ABI at runtime.  Apple's armv7 ABI always uses
+                // r7 for the frame pointer register; most other armv7 ABIs use a
+                // combination of r7 and r11.
+                triple.setVendor(llvm::Triple::Apple);
+            }
+            else
+            {
+                // Set vendor to an unspecified unknown or a "*" so it can match any vendor
+                // This is required for correct behavior of EFI debugging on x86_64
+                triple.setVendor(llvm::Triple::UnknownVendor);
+                triple.setVendorName(llvm::StringRef());
+            }
             return true;
         }
         else
@@ -4886,7 +4922,7 @@ ObjectFileMachO::GetUUID (lldb_private::UUID* uuid)
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         lldb::offset_t offset = MachHeaderSizeFromMagic(m_header.magic);
         return GetUUID (m_header, m_data, offset, *uuid);
     }
@@ -4900,7 +4936,7 @@ ObjectFileMachO::GetDependentModules (FileSpecList& files)
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         struct load_command load_cmd;
         lldb::offset_t offset = MachHeaderSizeFromMagic(m_header.magic);
         std::vector<std::string> rpath_paths;
@@ -5028,7 +5064,7 @@ ObjectFileMachO::GetEntryPointAddress ()
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         struct load_command load_cmd;
         lldb::offset_t offset = MachHeaderSizeFromMagic(m_header.magic);
         uint32_t i;
@@ -5059,7 +5095,7 @@ ObjectFileMachO::GetEntryPointAddress ()
                         switch (m_header.cputype)
                         {
                         case llvm::MachO::CPU_TYPE_ARM:
-                           if (flavor == 1) // ARM_THREAD_STATE from mach/arm/thread_status.h
+                           if (flavor == 1 || flavor == 9) // ARM_THREAD_STATE/ARM_THREAD_STATE32 from mach/arm/thread_status.h
                            {
                                offset += 60;  // This is the offset of pc in the GPR thread state data structure.
                                start_address = m_data.GetU32(&offset);
@@ -5111,6 +5147,7 @@ ObjectFileMachO::GetEntryPointAddress ()
                         start_address = text_segment_sp->GetFileAddress() + entryoffset;
                     }
                 }
+                break;
 
             default:
                 break;
@@ -5177,7 +5214,7 @@ ObjectFileMachO::GetNumThreadContexts ()
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         if (!m_thread_context_offsets_valid)
         {
             m_thread_context_offsets_valid = true;
@@ -5211,7 +5248,7 @@ ObjectFileMachO::GetThreadContextAtIndex (uint32_t idx, lldb_private::Thread &th
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         if (!m_thread_context_offsets_valid)
             GetNumThreadContexts ();
 
@@ -5347,7 +5384,7 @@ ObjectFileMachO::GetVersion (uint32_t *versions, uint32_t num_versions)
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         struct dylib_command load_cmd;
         lldb::offset_t offset = MachHeaderSizeFromMagic(m_header.magic);
         uint32_t version_cmd = 0;
@@ -5402,7 +5439,7 @@ ObjectFileMachO::GetArchitecture (ArchSpec &arch)
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         return GetArchitecture (m_header, m_data, MachHeaderSizeFromMagic(m_header.magic), arch);
     }
     return false;
@@ -5612,6 +5649,12 @@ bool
 ObjectFileMachO::GetIsDynamicLinkEditor()
 {
     return m_header.filetype == llvm::MachO::MH_DYLINKER;
+}
+
+bool
+ObjectFileMachO::AllowAssemblyEmulationUnwindPlans ()
+{
+    return m_allow_assembly_emulation_unwind_plans;
 }
 
 //------------------------------------------------------------------

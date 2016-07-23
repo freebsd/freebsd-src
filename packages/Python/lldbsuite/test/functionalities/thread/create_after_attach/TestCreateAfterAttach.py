@@ -8,8 +8,9 @@ from __future__ import print_function
 
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class CreateAfterAttachTestCase(TestBase):
 
@@ -29,7 +30,6 @@ class CreateAfterAttachTestCase(TestBase):
                    # for FreeBSD.
     @skipIfRemote
     @skipIfWindows # Windows doesn't have fork.
-    @expectedFlakeyLinux("llvm.org/pr16229") # 1/100 dosep, build 3546, clang-3.5 x84_64
     @skipIfiOSSimulator
     def test_create_after_attach_with_fork(self):
         """Test thread creation after process attach."""

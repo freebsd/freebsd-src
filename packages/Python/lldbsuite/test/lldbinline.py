@@ -9,7 +9,9 @@ import os
 # LLDB modules
 import lldb
 from .lldbtest import *
+from . import configuration
 from . import lldbutil
+from .decorators import *
 
 def source_type(filename):
     _, extension = os.path.splitext(filename)
@@ -116,8 +118,8 @@ class InlineTest(TestBase):
         if ('CXX_SOURCES' in list(categories.keys())):
             makefile.write("CXXFLAGS += -std=c++11\n")
 
-        makefile.write("\ncleanup:\n\trm -f Makefile *.d\n\n")
         makefile.write("include $(LEVEL)/Makefile.rules\n")
+        makefile.write("\ncleanup:\n\trm -f Makefile *.d\n\n")
         makefile.flush()
         makefile.close()
 
@@ -138,6 +140,12 @@ class InlineTest(TestBase):
         self.using_dsym = False
         self.BuildMakefile()
         self.buildDwo()
+        self.do_test()
+
+    def __test_with_gmodules(self):
+        self.using_dsym = False
+        self.BuildMakefile()
+        self.buildGModules()
         self.do_test()
 
     def execute_user_command(self, __command):
@@ -185,26 +193,39 @@ def ApplyDecoratorsToFunction(func, decorators):
     elif hasattr(decorators, '__call__'):
         tmp = decorators(tmp)
     return tmp
-    
+
 
 def MakeInlineTest(__file, __globals, decorators=None):
+    # Adjust the filename if it ends in .pyc.  We want filenames to
+    # reflect the source python file, not the compiled variant.
+    if __file is not None and __file.endswith(".pyc"):
+        # Strip the trailing "c"
+        __file = __file[0:-1]
+
     # Derive the test name from the current file name
     file_basename = os.path.basename(__file)
     InlineTest.mydir = TestBase.compute_mydir(__file)
 
     test_name, _ = os.path.splitext(file_basename)
-    # Build the test case 
+    # Build the test case
     test = type(test_name, (InlineTest,), {'using_dsym': None})
     test.name = test_name
 
-    test.test_with_dsym = ApplyDecoratorsToFunction(test._InlineTest__test_with_dsym, decorators)
-    test.test_with_dwarf = ApplyDecoratorsToFunction(test._InlineTest__test_with_dwarf, decorators)
-    test.test_with_dwo = ApplyDecoratorsToFunction(test._InlineTest__test_with_dwo, decorators)
+    target_platform = lldb.DBG.GetSelectedPlatform().GetTriple().split('-')[2]
+    if test_categories.is_supported_on_platform("dsym", target_platform, configuration.compilers):
+        test.test_with_dsym = ApplyDecoratorsToFunction(test._InlineTest__test_with_dsym, decorators)
+    if test_categories.is_supported_on_platform("dwarf", target_platform, configuration.compilers):
+        test.test_with_dwarf = ApplyDecoratorsToFunction(test._InlineTest__test_with_dwarf, decorators)
+    if test_categories.is_supported_on_platform("dwo", target_platform, configuration.compilers):
+        test.test_with_dwo = ApplyDecoratorsToFunction(test._InlineTest__test_with_dwo, decorators)
+    if test_categories.is_supported_on_platform("gmodules", target_platform, configuration.compilers):
+        test.test_with_gmodules = ApplyDecoratorsToFunction(test._InlineTest__test_with_gmodules, decorators)
 
     # Add the test case to the globals, and hide InlineTest
     __globals.update({test_name : test})
 
-    # Store the name of the originating file.o
+    # Keep track of the original test filename so we report it
+    # correctly in test results.
     test.test_filename = __file
     return test
 

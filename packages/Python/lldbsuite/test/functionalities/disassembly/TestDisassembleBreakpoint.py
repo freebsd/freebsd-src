@@ -8,14 +8,15 @@ from __future__ import print_function
 
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class DisassemblyTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
-    @expectedFailureWindows # Function name prints fully demangled instead of name-only
+    @expectedFailureAll(oslist=["windows"], bugnumber="function names print fully demangled instead of name-only")
     def test(self):
         self.build()
         exe = os.path.join (os.getcwd(), "a.out")
@@ -41,7 +42,10 @@ class DisassemblyTestCase(TestBase):
             instructions = [' add ', ' ldr ', ' str ']
         elif re.match("mips" , arch):
             breakpoint_opcodes = ["break"]
-            instructions = ['lw', 'sw', 'jr']
+            instructions = ['lw', 'sw']
+        elif arch in ["s390x"]:
+            breakpoint_opcodes = [".long"]
+            instructions = [' l ', ' a ', ' st ']
         else:
             # TODO please add your arch here
             self.fail('unimplemented for arch = "{arch}"'.format(arch=self.getArchitecture()))

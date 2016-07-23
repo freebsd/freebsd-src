@@ -12,6 +12,7 @@ import collections
 import os
 import re
 import sys
+import time
 
 # Third-party modules
 from six import StringIO as SixStringIO
@@ -84,7 +85,7 @@ def int_to_bytearray(val, bytesize):
         return None
 
     packed = struct.pack(fmt, val)
-    return bytearray(list(map(ord, packed)))
+    return bytearray(packed)
 
 def bytearray_to_int(bytes, bytesize):
     """Utility function to convert a bytearray into an integer.
@@ -108,7 +109,7 @@ def bytearray_to_int(bytes, bytesize):
     else:
         return None
 
-    unpacked = struct.unpack(fmt, str(bytes))
+    unpacked = struct.unpack_from(fmt, bytes)
     return unpacked[0]
 
 
@@ -548,7 +549,7 @@ def get_stopped_thread(process, reason):
         return None
     return threads[0]
 
-def get_threads_stopped_at_breakpoint (process, bkpt):
+def get_threads_stopped_at_breakpoint_id(process, bpid):
     """ For a stopped process returns the thread stopped at the breakpoint passed in bkpt"""
     stopped_threads = []
     threads = []
@@ -561,10 +562,25 @@ def get_threads_stopped_at_breakpoint (process, bkpt):
     for thread in stopped_threads:
         # Make sure we've hit our breakpoint...
         break_id = thread.GetStopReasonDataAtIndex (0)
-        if break_id == bkpt.GetID():
+        if break_id == bpid:
             threads.append(thread)
 
     return threads
+
+def get_threads_stopped_at_breakpoint (process, bkpt):
+    return get_threads_stopped_at_breakpoint_id(process, bkpt.GetID())
+
+def get_one_thread_stopped_at_breakpoint_id(process, bpid, require_exactly_one = True):
+    threads = get_threads_stopped_at_breakpoint_id(process, bpid)
+    if len(threads) == 0:
+        return None
+    if require_exactly_one and len(threads) != 1:
+        return None
+
+    return threads[0]
+
+def get_one_thread_stopped_at_breakpoint(process, bkpt, require_exactly_one = True):
+    return get_one_thread_stopped_at_breakpoint_id(process, bkpt.GetID(), require_exactly_one)
 
 def is_thread_crashed (test, thread):
     """In the test suite we dereference a null pointer to simulate a crash. The way this is
@@ -734,14 +750,15 @@ def print_stacktraces(process, string_buffer = False):
     if string_buffer:
         return output.getvalue()
 
-def expect_state_changes(test, listener, states, timeout = 5):
+def expect_state_changes(test, listener, process, states, timeout = 5):
     """Listens for state changed events on the listener and makes sure they match what we
     expect. Stop-and-restart events (where GetRestartedFromEvent() returns true) are ignored."""
 
     for expected_state in states:
         def get_next_event():
             event = lldb.SBEvent()
-            if not listener.WaitForEvent(timeout, event):
+            if not listener.WaitForEventForBroadcasterWithType(timeout, process.GetBroadcaster(),
+                    lldb.SBProcess.eBroadcastBitStateChanged, event):
                 test.fail("Timed out while waiting for a transition to state %s" %
                     lldb.SBDebugger.StateAsCString(expected_state))
             return event
@@ -1014,3 +1031,21 @@ def skip_if_library_missing(test, target, library):
     def find_library_callable(test):
         return find_library(target, library)
     return skip_if_callable(test, find_library_callable, "could not find library matching '%s' in target %s" % (library, target))
+
+def wait_for_file_on_target(testcase, file_path, max_attempts = 6):
+    for i in range(max_attempts):
+        err, retcode, msg = testcase.run_platform_command("ls %s" % file_path)
+        if err.Success() and retcode == 0:
+            break
+        if i < max_attempts:
+            # Exponential backoff!
+            import time
+            time.sleep(pow(2, i) * 0.25)
+    else:
+        testcase.fail("File %s not found even after %d attempts." % (file_path, max_attempts))
+
+    err, retcode, data = testcase.run_platform_command("cat %s" % (file_path))
+
+    testcase.assertTrue(err.Success() and retcode == 0,
+            "Failed to read file %s: %s, retcode: %d" % (file_path, err.GetCString(), retcode))
+    return data

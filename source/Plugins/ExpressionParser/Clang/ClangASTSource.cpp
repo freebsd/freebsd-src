@@ -12,18 +12,20 @@
 #include "ASTDumper.h"
 #include "ClangModulesDeclVendor.h"
 
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/RecordLayout.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Symbol/ClangASTContext.h"
+#include "lldb/Symbol/ClangUtil.h"
 #include "lldb/Symbol/CompilerDeclContext.h"
 #include "lldb/Symbol/Function.h"
+#include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/TaggedASTType.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/RecordLayout.h"
 
 #include <vector>
 
@@ -273,10 +275,10 @@ ClangASTSource::CompleteType (TagDecl *tag_decl)
 
                     CompilerType clang_type (type->GetFullCompilerType ());
 
-                    if (!clang_type)
+                    if (!ClangUtil::IsClangType(clang_type))
                         continue;
 
-                    const TagType *tag_type = ClangASTContext::GetQualType(clang_type)->getAs<TagType>();
+                    const TagType *tag_type = ClangUtil::GetQualType(clang_type)->getAs<TagType>();
 
                     if (!tag_type)
                         continue;
@@ -299,7 +301,8 @@ ClangASTSource::CompleteType (TagDecl *tag_decl)
             const ModuleList &module_list = m_target->GetImages();
 
             bool exact_match = false;
-            module_list.FindTypes (null_sc, name, exact_match, UINT32_MAX, types);
+            llvm::DenseSet<SymbolFile *> searched_symbol_files;
+            module_list.FindTypes (null_sc, name, exact_match, UINT32_MAX, searched_symbol_files, types);
 
             for (uint32_t ti = 0, te = types.GetSize();
                  ti != te && !found;
@@ -312,10 +315,10 @@ ClangASTSource::CompleteType (TagDecl *tag_decl)
 
                 CompilerType clang_type (type->GetFullCompilerType ());
 
-                if (!clang_type)
+                if (!ClangUtil::IsClangType(clang_type))
                     continue;
 
-                const TagType *tag_type = ClangASTContext::GetQualType(clang_type)->getAs<TagType>();
+                const TagType *tag_type = ClangUtil::GetQualType(clang_type)->getAs<TagType>();
 
                 if (!tag_type)
                     continue;
@@ -705,7 +708,7 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
     else
     {
         const ModuleList &target_images = m_target->GetImages();
-        Mutex::Locker modules_locker (target_images.GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(target_images.GetMutex());
 
         for (size_t i = 0, e = target_images.GetSize(); i < e; ++i)
         {
@@ -740,16 +743,17 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
 
     do
     {
+        if (context.m_found.type)
+            break;
+        
         TypeList types;
         SymbolContext null_sc;
         const bool exact_match = false;
-
+        llvm::DenseSet<lldb_private::SymbolFile *> searched_symbol_files;
         if (module_sp && namespace_decl)
             module_sp->FindTypesInNamespace(null_sc, name, &namespace_decl, 1, types);
         else
-            m_target->GetImages().FindTypes(null_sc, name, exact_match, 1, types);
-
-        bool found_a_type = false;
+            m_target->GetImages().FindTypes(null_sc, name, exact_match, 1, searched_symbol_files, types);
         
         if (size_t num_types = types.GetSize())
         {
@@ -782,12 +786,12 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
                 
                 context.AddTypeDecl(copied_clang_type);
                 
-                found_a_type = true;
+                context.m_found.type = true;
                 break;
             }
         }
 
-        if (!found_a_type)
+        if (!context.m_found.type)
         {
             // Try the modules next.
             
@@ -832,13 +836,13 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
                         
                         context.AddNamedDecl(copied_named_decl);
                         
-                        found_a_type = true;
+                        context.m_found.type = true;
                     }
                 }
             } while (0);
         }
         
-        if (!found_a_type)
+        if (!context.m_found.type)
         {
             do
             {
@@ -1378,7 +1382,7 @@ FindObjCPropertyAndIvarDeclsWithOrigin (unsigned int current_id,
     StringRef name(name_str.c_str());
     IdentifierInfo &name_identifier(origin_iface_decl->getASTContext().Idents.get(name));
 
-    DeclFromUser<ObjCPropertyDecl> origin_property_decl(origin_iface_decl->FindPropertyDeclaration(&name_identifier));
+    DeclFromUser<ObjCPropertyDecl> origin_property_decl(origin_iface_decl->FindPropertyDeclaration(&name_identifier, ObjCPropertyQueryKind::OBJC_PR_query_instance));
 
     bool found = false;
 
@@ -1823,7 +1827,7 @@ ClangASTSource::CompleteNamespaceMap (ClangASTImporter::NamespaceMapSP &namespac
     else
     {
         const ModuleList &target_images = m_target->GetImages();
-        Mutex::Locker modules_locker(target_images.GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(target_images.GetMutex());
 
         CompilerDeclContext null_namespace_decl;
 
@@ -1903,7 +1907,8 @@ ClangASTSource::GuardedCopyType (const CompilerType &src_type)
 
     SetImportInProgress(true);
 
-    QualType copied_qual_type = m_ast_importer_sp->CopyType (m_ast_context, src_ast->getASTContext(), ClangASTContext::GetQualType(src_type));
+    QualType copied_qual_type =
+        m_ast_importer_sp->CopyType(m_ast_context, src_ast->getASTContext(), ClangUtil::GetQualType(src_type));
 
     SetImportInProgress(false);
 
@@ -1931,14 +1936,8 @@ NameSearchContext::AddVarDecl(const CompilerType &type)
 
     clang::ASTContext *ast = lldb_ast->getASTContext();
 
-    clang::NamedDecl *Decl = VarDecl::Create(*ast,
-                                             const_cast<DeclContext*>(m_decl_context),
-                                             SourceLocation(),
-                                             SourceLocation(),
-                                             ii,
-                                             ClangASTContext::GetQualType(type),
-                                             0,
-                                             SC_Static);
+    clang::NamedDecl *Decl = VarDecl::Create(*ast, const_cast<DeclContext *>(m_decl_context), SourceLocation(),
+                                             SourceLocation(), ii, ClangUtil::GetQualType(type), 0, SC_Static);
     m_decls.push_back(Decl);
 
     return Decl;
@@ -1961,7 +1960,7 @@ NameSearchContext::AddFunDecl (const CompilerType &type, bool extern_c)
 
     m_function_types.insert(type);
 
-    QualType qual_type (ClangASTContext::GetQualType(type));
+    QualType qual_type(ClangUtil::GetQualType(type));
 
     clang::ASTContext *ast = lldb_ast->getASTContext();
 
@@ -2055,9 +2054,9 @@ NameSearchContext::AddGenericFunDecl()
 clang::NamedDecl *
 NameSearchContext::AddTypeDecl(const CompilerType &clang_type)
 {
-    if (clang_type)
+    if (ClangUtil::IsClangType(clang_type))
     {
-        QualType qual_type = ClangASTContext::GetQualType(clang_type);
+        QualType qual_type = ClangUtil::GetQualType(clang_type);
 
         if (const TypedefType *typedef_type = llvm::dyn_cast<TypedefType>(qual_type))
         {

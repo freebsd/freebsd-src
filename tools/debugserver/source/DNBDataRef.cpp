@@ -250,7 +250,7 @@ DNBDataRef::Get_ULEB128 (offset_t *offset_ptr) const
         {
             bytecount++;
             byte = *src++;
-            result |= (byte & 0x7f) << shift;
+            result |= (uint64_t)(byte & 0x7f) << shift;
             shift += 7;
             if ((byte & 0x80) == 0)
                 break;
@@ -283,7 +283,7 @@ DNBDataRef::Get_SLEB128 (offset_t *offset_ptr) const
         {
             bytecount++;
             byte = *src++;
-            result |= (byte & 0x7f) << shift;
+            result |= (int64_t)(byte & 0x7f) << shift;
             shift += 7;
             if ((byte & 0x80) == 0)
                 break;
@@ -362,7 +362,6 @@ DNBDataRef::Dump
         // the snprintf call each time through this loop
         switch (type)
         {
-            default:
             case TypeUInt8:   str_offset += snprintf(str + str_offset, sizeof(str) - str_offset, format ? format : " %2.2x", Get8(&offset)); break;
             case TypeChar:
                 {

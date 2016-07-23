@@ -5,10 +5,11 @@ Test lldb-mi -break-xxx commands.
 from __future__ import print_function
 
 
-
 import unittest2
 import lldbmi_testcase
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class MiBreakTestCase(lldbmi_testcase.MiTestCaseBase):
 
@@ -16,6 +17,7 @@ class MiBreakTestCase(lldbmi_testcase.MiTestCaseBase):
 
     @skipIfWindows #llvm.org/pr24452: Get lldb-mi tests working on Windows
     @skipIfFreeBSD # llvm.org/pr22411: Failure presumably due to known thread races
+    @expectedFlakeyLinux("llvm.org/pr24717")
     def test_lldbmi_break_insert_function_pending(self):
         """Test that 'lldb-mi --interpreter' works for pending function breakpoints."""
 
@@ -244,3 +246,48 @@ class MiBreakTestCase(lldbmi_testcase.MiTestCaseBase):
         self.runCmd("-exec-continue")
         self.expect("\^running")
         self.expect("\*stopped,reason=\"exited-normally\"")
+
+    @skipIfWindows #llvm.org/pr24452: Get lldb-mi tests working on Windows
+    @skipIfFreeBSD # llvm.org/pr22411: Failure presumably due to known thread races
+    def test_lldbmi_break_enable_disable(self):
+        """Test that 'lldb-mi --interpreter' works for enabling / disabling breakpoints."""
+
+        self.spawnLldbMi(args = None)
+
+        self.runCmd("-file-exec-and-symbols %s" % self.myexe)
+        self.expect("\^done")
+
+        self.runCmd("-break-insert main")
+        self.expect("\^done,bkpt={number=\"1\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"main\"")
+        self.expect("=breakpoint-modified,bkpt={number=\"1\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"main\",file=\"main\.cpp\",fullname=\".+?main\.cpp\",line=\"\d+\",times=\"0\",original-location=\"main\"}")
+
+        self.runCmd("-exec-run")
+        self.expect("\^running")
+        self.expect("=breakpoint-modified,bkpt={number=\"1\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"main\",file=\"main\.cpp\",fullname=\".+?main\.cpp\",line=\"\d+\",times=\"0\",original-location=\"main\"}")
+        self.expect("\*stopped,reason=\"breakpoint-hit\",disp=\"del\",bkptno=\"1\"")
+
+        self.runCmd("-break-insert ns::foo1")
+        self.expect("\^done,bkpt={number=\"2\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"ns::foo1\(\)\"")
+        self.expect("=breakpoint-modified,bkpt={number=\"2\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"ns::foo1\(\)\",file=\"main\.cpp\",fullname=\".+?main\.cpp\",line=\"\d+\",times=\"0\",original-location=\"ns::foo1\"}")
+
+        self.runCmd("-break-insert ns::foo2")
+        self.expect("\^done,bkpt={number=\"3\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"ns::foo2\(\)\"")
+        self.expect("=breakpoint-modified,bkpt={number=\"3\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"ns::foo2\(\)\",file=\"main\.cpp\",fullname=\".+?main\.cpp\",line=\"\d+\",times=\"0\",original-location=\"ns::foo2\"}")
+
+        # disable the 2nd breakpoint
+        self.runCmd("-break-disable 2")
+        self.expect("\^done")
+        self.expect("=breakpoint-modified,bkpt={number=\"2\",type=\"breakpoint\",disp=\"keep\",enabled=\"n\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"ns::foo1\(\)\",file=\"main\.cpp\",fullname=\".+?main\.cpp\",line=\"\d+\",times=\"0\",original-location=\"ns::foo1\"}")
+
+        # disable the 3rd breakpoint and re-enable
+        self.runCmd("-break-disable 3")
+        self.expect("\^done")
+        self.expect("=breakpoint-modified,bkpt={number=\"3\",type=\"breakpoint\",disp=\"keep\",enabled=\"n\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"ns::foo2\(\)\",file=\"main\.cpp\",fullname=\".+?main\.cpp\",line=\"\d+\",times=\"0\",original-location=\"ns::foo2\"}")
+
+        self.runCmd("-break-enable 3")
+        self.expect("\^done")
+        self.expect("=breakpoint-modified,bkpt={number=\"3\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"(?!0xffffffffffffffff)0x[0-9a-f]+\",func=\"ns::foo2\(\)\",file=\"main\.cpp\",fullname=\".+?main\.cpp\",line=\"\d+\",times=\"0\",original-location=\"ns::foo2\"}")
+
+        self.runCmd("-exec-continue")
+        self.expect("\^running")
+        self.expect("\*stopped,reason=\"breakpoint-hit\",disp=\"del\",bkptno=\"3\"")

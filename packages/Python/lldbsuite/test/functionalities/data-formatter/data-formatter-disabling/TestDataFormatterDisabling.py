@@ -8,8 +8,9 @@ from __future__ import print_function
 
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class DataFormatterDisablingTestCase(TestBase):
 
@@ -21,7 +22,7 @@ class DataFormatterDisablingTestCase(TestBase):
         # Find the line number to break at.
         self.line = line_number('main.cpp', '// Set break point at this line.')
 
-    @expectedFailureWindows("llvm.org/pr24462") # Data formatters have problems on Windows
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24462, Data formatters have problems on Windows")
     def test_with_run_command(self):
         """Check that we can properly disable all data formatter categories."""
         self.build()
@@ -60,6 +61,8 @@ class DataFormatterDisablingTestCase(TestBase):
             substrs = ['[0] = 1', '[3] = 1234'])
 
         self.expect('frame variable string1', matching=False, substrs = ['hello world'])
+
+        self.expect('type summary list', substrs=['Category: system (disabled)'])
 
         self.expect('type category list', substrs = ['system','disabled',])
         

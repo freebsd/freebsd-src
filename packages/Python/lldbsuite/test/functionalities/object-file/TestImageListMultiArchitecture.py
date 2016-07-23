@@ -9,16 +9,19 @@ from __future__ import print_function
 
 
 import os.path
-import lldb
-from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
 import re
+
+import lldb
+from lldbsuite.test.decorators import *
+from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class TestImageListMultiArchitecture(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
     @no_debug_info_test
+    @skipIfRemote
     def test_image_list_shows_multiple_architectures(self):
         """Test that image list properly shows the correct architecture for a set of different architecture object files."""
         images = {

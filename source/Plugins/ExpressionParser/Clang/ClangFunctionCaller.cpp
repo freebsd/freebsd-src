@@ -74,10 +74,15 @@ ClangFunctionCaller::~ClangFunctionCaller()
 }
 
 unsigned
-ClangFunctionCaller::CompileFunction (Stream &errors)
+
+ClangFunctionCaller::CompileFunction (lldb::ThreadSP thread_to_use_sp, 
+                                      DiagnosticManager &diagnostic_manager)
 {
     if (m_compiled)
         return 0;
+
+    // Compilation might call code, make sure to keep on the thread the caller indicated.
+    ThreadList::ExpressionExecutionThreadPusher execution_thread_pusher(thread_to_use_sp);
     
     // FIXME: How does clang tell us there's no return value?  We need to handle that case.
     unsigned num_errors = 0;
@@ -143,8 +148,9 @@ ClangFunctionCaller::CompileFunction (Stream &errors)
                 type_name = clang_qual_type.GetTypeName().AsCString("");
             }
             else
-            {   
-                errors.Printf("Could not determine type of input value %" PRIu64 ".", (uint64_t)i);
+            {
+                diagnostic_manager.Printf(eDiagnosticSeverityError,
+                                          "Could not determine type of input value %" PRIu64 ".", (uint64_t)i);
                 return 1;
             }
         }
@@ -195,15 +201,15 @@ ClangFunctionCaller::CompileFunction (Stream &errors)
     {
         const bool generate_debug_info = true;
         m_parser.reset(new ClangExpressionParser(jit_process_sp.get(), *this, generate_debug_info));
-        
-        num_errors = m_parser->Parse (errors);
+
+        num_errors = m_parser->Parse(diagnostic_manager);
     }
     else
     {
-        errors.Printf("no process - unable to inject function");
+        diagnostic_manager.PutCString(eDiagnosticSeverityError, "no process - unable to inject function");
         num_errors = 1;
     }
-    
+
     m_compiled = (num_errors == 0);
     
     if (!m_compiled)

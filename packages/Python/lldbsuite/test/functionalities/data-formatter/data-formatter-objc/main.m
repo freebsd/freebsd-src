@@ -415,41 +415,6 @@ int main (int argc, const char * argv[])
 
 	    CFStringRef cfstring_ref = CFSTR("HELLO WORLD");
 
-
-	    CFSetRef set_ref = CFSetCreate(NULL, data_set, 3, NULL);
-
-	    CFMutableSetRef mutable_set_ref = CFSetCreateMutable(NULL, 5, NULL);
-
-	    CFSetAddValue(mutable_set_ref, str1);
-	    CFSetAddValue(mutable_set_ref, str2);
-	    CFSetAddValue(mutable_set_ref, str3);
-	    CFSetAddValue(mutable_set_ref, str4);
-	    CFSetAddValue(mutable_set_ref, str5);
-	    CFSetAddValue(mutable_set_ref, str6);
-	    CFSetAddValue(mutable_set_ref, str7);
-	    CFSetAddValue(mutable_set_ref, str8);
-	    CFSetAddValue(mutable_set_ref, str9);
-	    CFSetAddValue(mutable_set_ref, str10);
-	    CFSetAddValue(mutable_set_ref, str11);
-	    CFSetAddValue(mutable_set_ref, str12);
-
-
-	    CFDictionaryRef cfdict_ref = CFDictionaryCreate(NULL, data_set, data_set, 3, NULL, NULL);
-	    CFMutableDictionaryRef mutable_dict_ref = CFDictionaryCreateMutable(NULL, 16, NULL, NULL);
-
-	    CFDictionarySetValue(mutable_dict_ref, str1, str1);
-	    CFDictionarySetValue(mutable_dict_ref, str2, str2);
-	    CFDictionarySetValue(mutable_dict_ref, str3, str3);
-	    CFDictionarySetValue(mutable_dict_ref, str4, str1);
-	    CFDictionarySetValue(mutable_dict_ref, str5, str2);
-	    CFDictionarySetValue(mutable_dict_ref, str6, str3);
-	    CFDictionarySetValue(mutable_dict_ref, str7, str1);
-	    CFDictionarySetValue(mutable_dict_ref, str8, str2);
-	    CFDictionarySetValue(mutable_dict_ref, str9, str3);
-	    CFDictionarySetValue(mutable_dict_ref, str10, str1);
-	    CFDictionarySetValue(mutable_dict_ref, str11, str2);
-	    CFDictionarySetValue(mutable_dict_ref, str12, str3);
-
 	    CFArrayRef cfarray_ref = CFArrayCreate(NULL, data_set, 3, NULL);
 	    CFMutableArrayRef mutable_array_ref = CFArrayCreateMutable(NULL, 16, NULL);
 
@@ -465,31 +430,6 @@ int main (int argc, const char * argv[])
 	    CFArraySetValueAtIndex(mutable_array_ref, 8, str10);
 	    CFArraySetValueAtIndex(mutable_array_ref, 9, str11);
 	    CFArraySetValueAtIndex(mutable_array_ref, 10, str12);
-
-	    CFMutableBagRef mutable_bag_ref = CFBagCreateMutable(NULL, 15, NULL);
-
-	    CFBagSetValue(mutable_bag_ref, strB10);
-	    CFBagSetValue(mutable_bag_ref, str1);
-	    CFBagSetValue(mutable_bag_ref, str2);
-	    CFBagSetValue(mutable_bag_ref, str3);
-	    CFBagSetValue(mutable_bag_ref, str4);
-	    CFBagSetValue(mutable_bag_ref, str5);
-	    CFBagSetValue(mutable_bag_ref, str6);
-	    CFBagSetValue(mutable_bag_ref, str7);
-	    CFBagSetValue(mutable_bag_ref, str8);
-	    CFBagSetValue(mutable_bag_ref, str9);
-	    CFBagSetValue(mutable_bag_ref, str10);
-	    CFBagSetValue(mutable_bag_ref, str11);
-	    CFBagSetValue(mutable_bag_ref, str12);
-	    CFBagSetValue(mutable_bag_ref, strA1);
-	    CFBagSetValue(mutable_bag_ref, strA2);
-	    CFBagSetValue(mutable_bag_ref, strA3);
-
-	    CFBagRef cfbag_ref = CFBagCreateCopy(NULL, mutable_bag_ref);
-
-	    CFBagSetValue(mutable_bag_ref, strB8);
-	    CFBagSetValue(mutable_bag_ref, strC4);
-
 
 	    CFBinaryHeapRef binheap_ref = CFBinaryHeapCreate(NULL, 15, &kCFStringBinaryHeapCallBacks, NULL);
 	    CFBinaryHeapAddValue(binheap_ref, str1);
@@ -520,6 +460,7 @@ int main (int argc, const char * argv[])
 
 	    NSDictionary *error_userInfo = @{@"a": @1, @"b" : @2};
 	    NSError *nserror = [[NSError alloc] initWithDomain:@"Foobar" code:12 userInfo:error_userInfo];
+	    NSError **nserrorptr = &nserror;
 
 	    NSBundle* bundle_string = [[NSBundle alloc] initWithPath:@"/System/Library/Frameworks/Accelerate.framework"];
 	    NSBundle* bundle_url = [[NSBundle alloc] initWithURL:[[NSURL alloc] initWithString:@"file://localhost/System/Library/Frameworks/Cocoa.framework"]];
@@ -540,8 +481,6 @@ int main (int argc, const char * argv[])
 	    NSException* except2 = [[NSException alloc] initWithName:@"TheGuyWhoHasNoName`2" reason:@"cuz it's funny" userInfo:nil];
 	    NSException* except3 = [[NSException alloc] initWithName:@"TheGuyWhoHasNoName/3" reason:@"cuz it's funny" userInfo:nil];
 
-	    NSMachPort *port = [NSMachPort port];
-
 	    NSURL *nsurl = [[NSURL alloc] initWithString:@"http://www.foo.bar"];
 	    NSURL *nsurl2 = [NSURL URLWithString:@"page.html" relativeToURL:nsurl];
 	    NSURL *nsurl3 = [NSURL URLWithString:@"?whatever" relativeToURL:nsurl2];
@@ -550,22 +489,14 @@ int main (int argc, const char * argv[])
 		NSDate *date2 = [NSDate dateWithNaturalLanguageString:@"12am January 1, 2011"];
 		NSDate *date3 = [NSDate date];
 		NSDate *date4 = [NSDate dateWithTimeIntervalSince1970:24*60*60];
+    NSDate *date5 = [NSDate dateWithTimeIntervalSinceReferenceDate: floor([[NSDate date] timeIntervalSinceReferenceDate])];
 
 		CFAbsoluteTime date1_abs = CFDateGetAbsoluteTime(date1);
 		CFAbsoluteTime date2_abs = CFDateGetAbsoluteTime(date2);
 		CFAbsoluteTime date3_abs = CFDateGetAbsoluteTime(date3);
 		CFAbsoluteTime date4_abs = CFDateGetAbsoluteTime(date4);
+		CFAbsoluteTime date5_abs = CFDateGetAbsoluteTime(date5);
 
-	    NSCountedSet *nscounted_set = [[NSCountedSet alloc] initWithCapacity:5];
-
-	    [nscounted_set addObject:str0];
-	    [nscounted_set addObject:str1];
-	    [nscounted_set addObject:str0];
-	    [nscounted_set addObject:str0];
-	    [nscounted_set addObject:@"foo1"];
-	    [nscounted_set addObject:@"foo2"];
-	    [nscounted_set addObject:@"foo3"];
-	
 	    NSIndexSet *iset1 = [[NSIndexSet alloc] initWithIndexesInRange:NSMakeRange(1, 4)];
 	    NSIndexSet *iset2 = [[NSIndexSet alloc] initWithIndexesInRange:NSMakeRange(1, 512)];
 
@@ -598,21 +529,12 @@ int main (int argc, const char * argv[])
 		NSTimeZone *home_ns = [NSTimeZone timeZoneWithName:@"Europe/Rome"];
 		NSTimeZone *europe_ns = [NSTimeZone timeZoneWithAbbreviation:@"CET"];
 
-		NSHost *localhost = [NSHost hostWithAddress:@"127.0.0.1"];
-
-#ifndef IOS
-		NSTask *my_task = [[NSTask alloc] init];
-#endif
-
-
 	CFGregorianUnits cf_greg_units = {1,3,5,12,5,7};
 	CFGregorianDate cf_greg_date = CFAbsoluteTimeGetGregorianDate(CFDateGetAbsoluteTime(date1), NULL);
 	CFRange cf_range = {4,4};
 	NSPoint ns_point = {4,4};
 	NSRange ns_range = {4,4};
-	
-	NSValue *range_value = [NSValue valueWithRange:ns_range];
-	
+		
 	NSRect ns_rect = {{1,1},{5,5}};
 	NSRect* ns_rect_ptr = &ns_rect;
 	NSRectArray ns_rect_arr = &ns_rect;

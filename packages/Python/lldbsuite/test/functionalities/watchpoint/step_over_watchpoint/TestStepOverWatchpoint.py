@@ -5,8 +5,9 @@ from __future__ import print_function
 
 
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 
 class TestStepOverWatchpoint(TestBase):
@@ -17,8 +18,9 @@ class TestStepOverWatchpoint(TestBase):
         return ['basic_process']
 
     @expectedFailureAndroid(archs=['arm', 'aarch64']) # Watchpoints not supported
-    @expectedFailureLinux(bugnumber="llvm.org/pr26031", archs=['arm'])
-    @expectedFailureWindows("llvm.org/pr24446")
+    @expectedFailureAll(oslist=["linux"], archs=['aarch64', 'arm'], bugnumber="llvm.org/pr26031")
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24446: WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows")
+    @expectedFailureAll(archs=['s390x']) # Read-write watchpoints not supported on SystemZ
     def test(self):
         """Test stepping over watchpoints."""
         self.build()
@@ -73,7 +75,7 @@ class TestStepOverWatchpoint(TestBase):
 
         # Most of the MIPS boards provide only one H/W watchpoints, and S/W watchpoints are not supported yet
         arch = self.getArchitecture()
-        if arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
+        if re.match("^mips",arch):
             self.runCmd("watchpoint delete 1")
 
         # resolve_location=True, read=False, write=True

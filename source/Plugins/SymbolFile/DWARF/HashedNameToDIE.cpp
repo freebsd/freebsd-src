@@ -220,7 +220,7 @@ DWARFMappedHash::Prologue::AppendAtom (AtomType type, dw_form_t form)
         case DW_FORM_GNU_addr_index:
         case DW_FORM_GNU_str_index:
             hash_data_has_fixed_byte_size = false;
-            // Fall through to the cases below...
+            LLVM_FALLTHROUGH;
         case DW_FORM_flag:
         case DW_FORM_data1:
         case DW_FORM_ref1:
@@ -230,7 +230,7 @@ DWARFMappedHash::Prologue::AppendAtom (AtomType type, dw_form_t form)
 
         case DW_FORM_block2:
             hash_data_has_fixed_byte_size = false;
-            // Fall through to the cases below...
+            LLVM_FALLTHROUGH;
         case DW_FORM_data2: 
         case DW_FORM_ref2:
             min_hash_data_byte_size += 2; 
@@ -238,7 +238,7 @@ DWARFMappedHash::Prologue::AppendAtom (AtomType type, dw_form_t form)
 
         case DW_FORM_block4: 
             hash_data_has_fixed_byte_size = false;
-            // Fall through to the cases below...
+            LLVM_FALLTHROUGH;
         case DW_FORM_data4:
         case DW_FORM_ref4:
         case DW_FORM_addr:
@@ -346,7 +346,8 @@ DWARFMappedHash::Header::Read (const lldb_private::DWARFDataExtractor &data,
 
             case eAtomTypeTag:          // DW_TAG value for the DIE
                 hash_data.tag = (dw_tag_t)form_value.Unsigned ();
-                
+                break;
+
             case eAtomTypeTypeFlags:    // Flags from enum TypeFlags
                 hash_data.type_flags = (uint32_t)form_value.Unsigned ();
                 break;
@@ -671,6 +672,9 @@ DWARFMappedHash::MemoryTable::AppendAllDIEsInRange (const uint32_t die_offset_st
 size_t
 DWARFMappedHash::MemoryTable::FindByName (const char *name, DIEArray &die_offsets)
 {
+    if (!name || !name[0])
+        return 0;
+    
     DIEInfoArray die_info_array;
     if (FindByName(name, die_info_array))
         DWARFMappedHash::ExtractDIEArray (die_info_array, die_offsets);
@@ -736,6 +740,9 @@ DWARFMappedHash::MemoryTable::FindCompleteObjCClassByName (const char *name,
 size_t 
 DWARFMappedHash::MemoryTable::FindByName (const char *name, DIEInfoArray &die_info_array)
 {
+    if (!name || !name[0])
+        return 0;
+
     Pair kv_pair;
     size_t old_size = die_info_array.size();
     if (Find (name, kv_pair))

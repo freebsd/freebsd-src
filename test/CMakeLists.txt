@@ -38,11 +38,15 @@ set(LLDB_TEST_COMMON_ARGS
   ${CMAKE_BINARY_DIR}/bin/lldb${CMAKE_EXECUTABLE_SUFFIX}
   -s
   ${CMAKE_BINARY_DIR}/lldb-test-traces
+  -S nm
   -u CXXFLAGS
   -u CFLAGS
   )
 
 if ( CMAKE_SYSTEM_NAME MATCHES "Windows" )
+  # All tests are currently flaky on Windows, so rerun them all once when they fail.
+  set(LLDB_TEST_COMMON_ARGS ${LLDB_TEST_COMMON_ARGS} --rerun-all-issues)
+  
   set(LLDB_TEST_DEBUG_TEST_CRASHES
     0
     CACHE BOOL "(Windows only) Enables debugging of tests in the test suite by showing the crash dialog when lldb crashes")

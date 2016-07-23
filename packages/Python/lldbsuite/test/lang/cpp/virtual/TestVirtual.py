@@ -7,8 +7,9 @@ from __future__ import print_function
 import os, time
 import re
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 def Msg(expr, val):
     return "'expression %s' matches the output (from compiled code): %s" % (expr, val)
@@ -21,9 +22,6 @@ class CppVirtualMadness(TestBase):
     # printf() stmts (see main.cpp).
     pattern = re.compile("^([^=]*) = '([^=]*)'$")
 
-    # Assert message.
-    PRINTF_OUTPUT_GROKKED = "The printf output from compiled code is parsed correctly"
-
     def setUp(self):
         # Call super's setUp().
         TestBase.setUp(self)
@@ -31,7 +29,7 @@ class CppVirtualMadness(TestBase):
         self.source = 'main.cpp'
         self.line = line_number(self.source, '// Set first breakpoint here.')
 
-    @expectedFailureIcc('llvm.org/pr16808') # lldb does not call the correct virtual function with icc
+    @expectedFailureAll(compiler="icc", bugnumber="llvm.org/pr16808 lldb does not call the correct virtual function with icc.")
     @expectedFailureAll(oslist=['windows'])
     def test_virtual_madness(self):
         """Test that expression works correctly with virtual inheritance as well as virtual function."""
@@ -57,11 +55,13 @@ class CppVirtualMadness(TestBase):
         thread = lldbutil.get_stopped_thread(process, lldb.eStopReasonBreakpoint)
         self.assertTrue(thread.IsValid(), "There should be a thread stopped due to breakpoint condition")
 
-        # First, capture the golden output from the program itself from the
-        # series of printf statements.
-        stdout = process.GetSTDOUT(1024)
-        
-        self.assertIsNotNone(stdout, "Encountered an error reading the process's output")
+        # First, capture the golden output from the program itself.
+        golden = thread.GetFrameAtIndex(0).FindVariable("golden")
+        self.assertTrue(golden.IsValid(), "Encountered an error reading the process's golden variable")
+        error = lldb.SBError()
+        golden_str = process.ReadCStringFromMemory(golden.AddressOf().GetValueAsUnsigned(), 4096, error);
+        self.assertTrue(error.Success())
+        self.assertTrue("c_as_C" in golden_str)
 
         # This golden list contains a list of "my_expr = 'value' pairs extracted
         # from the golden output.
@@ -71,7 +71,7 @@ class CppVirtualMadness(TestBase):
         #
         #     my_expr = 'value'
         #
-        for line in stdout.split(os.linesep):
+        for line in golden_str.split(os.linesep):
             match = self.pattern.search(line)
             if match:
                 my_expr, val = match.group(1), match.group(2)

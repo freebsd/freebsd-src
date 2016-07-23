@@ -85,17 +85,6 @@ class GoASTContext : public TypeSystem
         return ConstString();
     }
 
-    lldb::VariableSP
-    DeclGetVariable (void *opaque_decl) override
-    {
-        return lldb::VariableSP();
-    }
-
-    void
-    DeclLinkToObject (void *opaque_decl, std::shared_ptr<void> object) override
-    {
-    }
-
     //----------------------------------------------------------------------
     // CompilerDeclContext functions
     //----------------------------------------------------------------------
@@ -176,6 +165,8 @@ class GoASTContext : public TypeSystem
     CompilerType GetFunctionArgumentAtIndex(lldb::opaque_compiler_type_t type, const size_t index) override;
 
     bool IsFunctionPointerType(lldb::opaque_compiler_type_t type) override;
+    
+    bool IsBlockPointerType (lldb::opaque_compiler_type_t type, CompilerType *function_pointer_type_ptr) override;
 
     bool IsIntegerType(lldb::opaque_compiler_type_t type, bool &is_signed) override;
 

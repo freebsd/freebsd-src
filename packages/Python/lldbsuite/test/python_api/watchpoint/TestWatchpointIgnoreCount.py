@@ -9,8 +9,9 @@ from __future__ import print_function
 import os, time
 import re
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class WatchpointIgnoreCountTestCase(TestBase):
 
@@ -26,7 +27,8 @@ class WatchpointIgnoreCountTestCase(TestBase):
 
     @add_test_categories(['pyapi'])
     @expectedFailureAndroid(archs=['arm', 'aarch64']) # Watchpoints not supported
-    @expectedFailureWindows("llvm.org/pr24446") # WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24446: WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows")
+    @expectedFailureAll(archs=['s390x']) # Read-write watchpoints not supported on SystemZ
     def test_set_watch_ignore_count(self):
         """Test SBWatchpoint.SetIgnoreCount() API."""
         self.build()

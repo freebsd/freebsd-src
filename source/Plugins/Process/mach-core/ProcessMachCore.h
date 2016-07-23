@@ -30,14 +30,14 @@ public:
     // Constructors and Destructors
     //------------------------------------------------------------------
     ProcessMachCore(lldb::TargetSP target_sp, 
-                    lldb_private::Listener &listener,
+                    lldb::ListenerSP listener,
                     const lldb_private::FileSpec &core_file);
     
     ~ProcessMachCore() override;
     
     static lldb::ProcessSP
     CreateInstance (lldb::TargetSP target_sp, 
-                    lldb_private::Listener &listener, 
+                    lldb::ListenerSP listener,
                     const lldb_private::FileSpec *crash_file_path);
     
     static void
@@ -103,7 +103,10 @@ public:
     
     size_t
     DoReadMemory (lldb::addr_t addr, void *buf, size_t size, lldb_private::Error &error) override;
-    
+
+    lldb_private::Error
+    GetMemoryRegionInfo(lldb::addr_t load_addr, lldb_private::MemoryRegionInfo &region_info) override;
+
     lldb::addr_t
     GetImageInfoAddress () override;
 
@@ -131,7 +134,7 @@ private:
     ///
     /// If a core file contains both a kernel binary and a user-process
     /// dynamic loader, lldb needs to pick one over the other.  This could
-    /// be a kernel corefile that happens to have a coyp of dyld in its
+    /// be a kernel corefile that happens to have a copy of dyld in its
     /// memory.  Or it could be a user process coredump of lldb while doing
     /// kernel debugging - so a copy of the kernel is in its heap.  This
     /// should become a setting so it can be over-ridden when necessary.
@@ -150,8 +153,10 @@ private:
     //------------------------------------------------------------------
     typedef lldb_private::Range<lldb::addr_t, lldb::addr_t> FileRange;
     typedef lldb_private::RangeDataVector<lldb::addr_t, lldb::addr_t, FileRange> VMRangeToFileOffset;
+    typedef lldb_private::RangeDataVector<lldb::addr_t, lldb::addr_t, uint32_t> VMRangeToPermissions;
 
     VMRangeToFileOffset m_core_aranges;
+    VMRangeToPermissions m_core_range_infos;
     lldb::ModuleSP m_core_module_sp;
     lldb_private::FileSpec m_core_file;
     lldb::addr_t m_dyld_addr;

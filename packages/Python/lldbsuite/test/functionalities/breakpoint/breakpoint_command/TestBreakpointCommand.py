@@ -8,8 +8,9 @@ from __future__ import print_function
 
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class BreakpointCommandTestCase(TestBase):
 
@@ -21,7 +22,7 @@ class BreakpointCommandTestCase(TestBase):
         cls.RemoveTempFile("output.txt")
         cls.RemoveTempFile("output2.txt")
 
-    @expectedFailureWindows("llvm.org/pr24528")
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24528")
     def test(self):
         """Test a sequence of breakpoint command add, list, and delete."""
         self.build()
@@ -142,7 +143,7 @@ class BreakpointCommandTestCase(TestBase):
         self.expect("breakpoint command list 1",
             startstr = "Breakpoint 1 does not have an associated command.")
         self.expect("breakpoint command list 2", error=True,
-            startstr = "error: '2' is not a currently valid breakpoint id.")
+            startstr = "error: '2' is not a currently valid breakpoint ID.")
 
         # The breakpoint list now only contains breakpoint 1.
         self.expect("breakpoint list -f", "Breakpoint 1 exists",

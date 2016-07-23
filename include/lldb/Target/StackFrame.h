@@ -13,6 +13,7 @@
 // C Includes
 // C++ Includes
 #include <memory>
+#include <mutex>
 
 // Other libraries and framework includes
 // Project includes
@@ -289,7 +290,7 @@ public:
     ///     A pointer to a list of variables.
     //------------------------------------------------------------------
     lldb::VariableListSP
-    GetInScopeVariableList (bool get_file_globals);
+    GetInScopeVariableList (bool get_file_globals, bool must_have_valid_location = false);
 
     //------------------------------------------------------------------
     /// Create a ValueObject for a variable name / pathname, possibly
@@ -478,6 +479,11 @@ public:
     lldb::LanguageType
     GetLanguage ();
 
+    // similar to GetLanguage(), but is allowed to take a potentially incorrect guess
+    // if exact information is not available
+    lldb::LanguageType
+    GuessLanguage ();
+    
     //------------------------------------------------------------------
     // lldb::ExecutionContextScope pure virtual functions
     //------------------------------------------------------------------
@@ -532,7 +538,7 @@ private:
     lldb::VariableListSP m_variable_list_sp;
     ValueObjectList m_variable_list_value_objects;  // Value objects for each variable in m_variable_list_sp
     StreamString m_disassembly;
-    Mutex m_mutex;
+    std::recursive_mutex m_mutex;
 
     DISALLOW_COPY_AND_ASSIGN (StackFrame);
 };

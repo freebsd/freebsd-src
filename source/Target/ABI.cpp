@@ -7,6 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+// C Includes
+// C++ Includes
+// Other libraries and framework includes
+// Project includes
 #include "lldb/Target/ABI.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Value.h"
@@ -27,7 +31,7 @@ ABI::FindPlugin (const ArchSpec &arch)
     ABICreateInstance create_callback;
 
     for (uint32_t idx = 0;
-         (create_callback = PluginManager::GetABICreateCallbackAtIndex(idx)) != NULL;
+         (create_callback = PluginManager::GetABICreateCallbackAtIndex(idx)) != nullptr;
          ++idx)
     {
         abi_sp = create_callback(arch);
@@ -39,19 +43,9 @@ ABI::FindPlugin (const ArchSpec &arch)
     return abi_sp;
 }
 
-//----------------------------------------------------------------------
-// Constructor
-//----------------------------------------------------------------------
-ABI::ABI()
-{
-}
+ABI::ABI() = default;
 
-//----------------------------------------------------------------------
-// Destructor
-//----------------------------------------------------------------------
-ABI::~ABI()
-{
-}
+ABI::~ABI() = default;
 
 bool
 ABI::GetRegisterInfoByName (const ConstString &name, RegisterInfo &info)
@@ -62,7 +56,7 @@ ABI::GetRegisterInfoByName (const ConstString &name, RegisterInfo &info)
     {
         const char *unique_name_cstr = name.GetCString();
         uint32_t i;
-        for (i=0; i<count; ++i)
+        for (i = 0; i < count; ++i)
         {
             if (register_info_array[i].name == unique_name_cstr)
             {
@@ -70,7 +64,7 @@ ABI::GetRegisterInfoByName (const ConstString &name, RegisterInfo &info)
                 return true;
             }
         }
-        for (i=0; i<count; ++i)
+        for (i = 0; i < count; ++i)
         {
             if (register_info_array[i].alt_name == unique_name_cstr)
             {
@@ -92,7 +86,7 @@ ABI::GetRegisterInfoByKind (RegisterKind reg_kind, uint32_t reg_num, RegisterInf
     const RegisterInfo *register_info_array = GetRegisterInfoArray (count);
     if (register_info_array)
     {
-        for (uint32_t i=0; i<count; ++i)
+        for (uint32_t i = 0; i < count; ++i)
         {
             if (register_info_array[i].kinds[reg_kind] == reg_num)
             {
@@ -148,7 +142,7 @@ ABI::GetReturnValueObject (Thread &thread,
 
         ExpressionVariableSP clang_expr_variable_sp(persistent_expression_state->CreatePersistentVariable(return_valobj_sp));
                
-        assert (clang_expr_variable_sp.get());
+        assert (clang_expr_variable_sp);
         
         // Set flags and live data as appropriate
 
@@ -209,5 +203,29 @@ ABI::PrepareTrivialCall (Thread &thread,
 {
     // dummy prepare trivial call
     assert( !"Should never get here!" );
+    return false;
+}
+
+bool
+ABI::GetFallbackRegisterLocation (const RegisterInfo *reg_info,
+                                  UnwindPlan::Row::RegisterLocation &unwind_regloc)
+{
+    // Did the UnwindPlan fail to give us the caller's stack pointer?
+    // The stack pointer is defined to be the same as THIS frame's CFA, so return the CFA value as
+    // the caller's stack pointer.  This is true on x86-32/x86-64 at least.
+    if (reg_info->kinds[eRegisterKindGeneric] == LLDB_REGNUM_GENERIC_SP)
+    {
+        unwind_regloc.SetIsCFAPlusOffset(0);
+        return true;
+    }
+
+    // If a volatile register is being requested, we don't want to forward the next frame's register contents
+    // up the stack -- the register is not retrievable at this frame.
+    if (RegisterIsVolatile(reg_info))
+    {
+        unwind_regloc.SetUndefined();
+        return true;
+    }
+
     return false;
 }

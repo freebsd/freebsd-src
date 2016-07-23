@@ -14,6 +14,7 @@
 #include "lldb/Host/windows/HostProcessWindows.h"
 
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/ConvertUTF.h"
 
 #include <Psapi.h>
 
@@ -23,8 +24,7 @@ namespace
 {
 struct MonitorInfo
 {
-    HostProcess::MonitorCallback callback;
-    void *baton;
+    Host::MonitorChildProcessCallback callback;
     HANDLE process_handle;
 };
 }
@@ -70,9 +70,15 @@ Error HostProcessWindows::GetMainModule(FileSpec &file_spec) const
     if (m_process == nullptr)
         error.SetError(ERROR_INVALID_HANDLE, lldb::eErrorTypeWin32);
 
-    char path[MAX_PATH] = { 0 };
-    if (::GetProcessImageFileName(m_process, path, llvm::array_lengthof(path)))
-        file_spec.SetFile(path, false);
+    std::vector<wchar_t> wpath(PATH_MAX);
+    if (::GetProcessImageFileNameW(m_process, wpath.data(), wpath.size()))
+    {
+        std::string path;
+        if (llvm::convertWideToUTF8(wpath.data(), path))
+            file_spec.SetFile(path, false);
+        else
+            error.SetErrorString("Error converting path to UTF-8");
+    }
     else
         error.SetError(::GetLastError(), lldb::eErrorTypeWin32);
 
@@ -97,12 +103,11 @@ bool HostProcessWindows::IsRunning() const
 }
 
 HostThread
-HostProcessWindows::StartMonitoring(HostProcess::MonitorCallback callback, void *callback_baton, bool monitor_signals)
+HostProcessWindows::StartMonitoring(const Host::MonitorChildProcessCallback &callback, bool monitor_signals)
 {
     HostThread monitor_thread;
     MonitorInfo *info = new MonitorInfo;
     info->callback = callback;
-    info->baton = callback_baton;
 
     // Since the life of this HostProcessWindows instance and the life of the process may be different, duplicate the handle so that
     // the monitor thread can have ownership over its own copy of the handle.
@@ -122,7 +127,7 @@ HostProcessWindows::MonitorThread(void *thread_arg)
     {
         ::WaitForSingleObject(info->process_handle, INFINITE);
         ::GetExitCodeProcess(info->process_handle, &exit_code);
-        info->callback(info->baton, ::GetProcessId(info->process_handle), true, 0, exit_code);
+        info->callback(::GetProcessId(info->process_handle), true, 0, exit_code);
         ::CloseHandle(info->process_handle);
         delete (info);
     }

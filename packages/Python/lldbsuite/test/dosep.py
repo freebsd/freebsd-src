@@ -30,8 +30,8 @@ ulimit -c unlimited
 echo core.%p | sudo tee /proc/sys/kernel/core_pattern
 """
 
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
 # system packages and modules
 import asyncore
@@ -53,18 +53,13 @@ import lldbsuite
 import lldbsuite.support.seven as seven
 
 from . import configuration
-from . import dotest_channels
 from . import dotest_args
-from . import result_formatter
+from lldbsuite.support import optional_with
+from lldbsuite.test_event import dotest_channels
+from lldbsuite.test_event.event_builder import EventBuilder
+from lldbsuite.test_event import formatter
 
-from .result_formatter import EventBuilder
-
-
-# Todo: Convert this folder layout to be relative-import friendly and
-# don't hack up sys.path like this
-sys.path.append(os.path.join(os.path.dirname(__file__), "test_runner", "lib"))
-import lldb_utils
-import process_control
+from .test_runner import process_control
 
 # Status codes for running command with timeout.
 eTimedOut, ePassed, eFailed = 124, 0, 1
@@ -109,13 +104,17 @@ def setup_global_variables(
         global GET_WORKER_INDEX
         GET_WORKER_INDEX = get_worker_index_use_pid
 
-def report_test_failure(name, command, output):
+def report_test_failure(name, command, output, timeout):
     global output_lock
     with output_lock:
         if not (RESULTS_FORMATTER and RESULTS_FORMATTER.is_using_terminal()):
             print(file=sys.stderr)
             print(output, file=sys.stderr)
-            print("[%s FAILED]" % name, file=sys.stderr)
+            if timeout:
+                timeout_str = " (TIMEOUT)"
+            else:
+                timeout_str = ""
+            print("[%s FAILED]%s" % (name, timeout_str), file=sys.stderr)
             print("Command invoked: %s" % ' '.join(command), file=sys.stderr)
         update_progress(name)
 
@@ -173,7 +172,7 @@ class DoTestProcessDriver(process_control.ProcessDriver):
         super(DoTestProcessDriver, self).__init__(
             soft_terminate_timeout=soft_terminate_timeout)
         self.output_file = output_file
-        self.output_lock = lldb_utils.OptionalWith(output_file_lock)
+        self.output_lock = optional_with.optional_with(output_file_lock)
         self.pid_events = pid_events
         self.results = None
         self.file_name = file_name
@@ -211,7 +210,7 @@ class DoTestProcessDriver(process_control.ProcessDriver):
             # only stderr does.
             report_test_pass(self.file_name, output[1])
         else:
-            report_test_failure(self.file_name, command, output[1])
+            report_test_failure(self.file_name, command, output[1], was_timeout)
 
         # Save off the results for the caller.
         self.results = (
@@ -299,9 +298,9 @@ def send_events_to_collector(events, command):
     event_port = int(command[arg_index])
 
     # Create results formatter connected back to collector via socket.
-    config = result_formatter.FormatterConfig()
+    config = formatter.FormatterConfig()
     config.port = event_port
-    formatter_spec = result_formatter.create_results_formatter(config)
+    formatter_spec = formatter.create_results_formatter(config)
     if formatter_spec is None or formatter_spec.formatter is None:
         raise Exception(
             "Failed to create socket-based ResultsFormatter "
@@ -420,9 +419,14 @@ def process_dir(root, files, dotest_argv, inferior_pid_events):
     results = []
     for (base_name, full_test_path) in files:
         import __main__ as main
+        global dotest_options
+        if dotest_options.p and not re.search(dotest_options.p, base_name):
+            continue
+
         script_file = main.__file__
         command = ([sys.executable, script_file] +
                    dotest_argv +
+                   ["-S", dotest_options.session_file_format] +
                    ["--inferior", "-p", base_name, root])
 
         timeout_name = os.path.basename(os.path.splitext(base_name)[0]).upper()
@@ -1135,33 +1139,26 @@ def walk_and_invoke(test_files, dotest_argv, num_workers, test_runner_func):
 def getExpectedTimeouts(platform_name):
     # returns a set of test filenames that might timeout
     # are we running against a remote target?
-    host = sys.platform
+
+    # Figure out the target system for which we're collecting
+    # the set of expected timeout test filenames.
     if platform_name is None:
         target = sys.platform
     else:
         m = re.search(r'remote-(\w+)', platform_name)
-        target = m.group(1)
+        if m is not None:
+            target = m.group(1)
+        else:
+            target = platform_name
 
     expected_timeout = set()
 
-    if target.startswith("android"):
-        expected_timeout |= {
-            "TestExitDuringStep.py",
-            "TestHelloWorld.py",
-        }
-    elif target.startswith("freebsd"):
+    if target.startswith("freebsd"):
         expected_timeout |= {
             "TestBreakpointConditions.py",
             "TestChangeProcessGroup.py",
             "TestValueObjectRecursion.py",
             "TestWatchpointConditionAPI.py",
-        }
-    elif target.startswith("darwin"):
-        expected_timeout |= {
-            # times out on MBP Retina, Mid 2012
-            "TestThreadSpecificBreakpoint.py",
-            "TestExitDuringStep.py",
-            "TestIntegerTypesExpr.py",
         }
     return expected_timeout
 

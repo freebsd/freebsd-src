@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Interpreter/CommandObjectMultiword.h"
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Interpreter/CommandObjectMultiword.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/Options.h"
@@ -24,22 +24,17 @@ using namespace lldb_private;
 // CommandObjectMultiword
 //-------------------------------------------------------------------------
 
-CommandObjectMultiword::CommandObjectMultiword
-(
-    CommandInterpreter &interpreter,
-    const char *name,
-    const char *help,
-    const char *syntax,
-    uint32_t flags
-) :
+CommandObjectMultiword::CommandObjectMultiword(CommandInterpreter &interpreter,
+                                               const char *name,
+                                               const char *help,
+                                               const char *syntax,
+                                               uint32_t flags) :
     CommandObject (interpreter, name, help, syntax, flags),
     m_can_be_removed(false)
 {
 }
 
-CommandObjectMultiword::~CommandObjectMultiword ()
-{
-}
+CommandObjectMultiword::~CommandObjectMultiword() = default;
 
 CommandObjectSP
 CommandObjectMultiword::GetSubcommandSP (const char *sub_cmd, StringList *matches)
@@ -58,11 +53,10 @@ CommandObjectMultiword::GetSubcommandSP (const char *sub_cmd, StringList *matche
         }
         else
         {
-
             StringList local_matches;
-            if (matches == NULL)
+            if (matches == nullptr)
                 matches = &local_matches;
-            int num_matches = CommandObject::AddNamesMatchingPartialString (m_subcommand_dict, sub_cmd, *matches);
+            int num_matches = AddNamesMatchingPartialString (m_subcommand_dict, sub_cmd, *matches);
 
             if (num_matches == 1)
             {
@@ -86,12 +80,12 @@ CommandObjectMultiword::GetSubcommandObject (const char *sub_cmd, StringList *ma
 }
 
 bool
-CommandObjectMultiword::LoadSubCommand 
-(
-    const char *name,
-    const CommandObjectSP& cmd_obj
-)
+CommandObjectMultiword::LoadSubCommand(const char *name,
+                                       const CommandObjectSP& cmd_obj)
 {
+    if (cmd_obj)
+        assert((&GetCommandInterpreter() == &cmd_obj->GetCommandInterpreter()) && "tried to add a CommandObject from a different interpreter");
+    
     CommandMap::iterator pos;
     bool success = true;
 
@@ -129,7 +123,7 @@ CommandObjectMultiword::Execute(const char *args_string, CommandReturnObject &re
             {
                 StringList matches;
                 CommandObject *sub_cmd_obj = GetSubcommandObject(sub_command, &matches);
-                if (sub_cmd_obj != NULL)
+                if (sub_cmd_obj != nullptr)
                 {
                     // Now call CommandObject::Execute to process and options in 'rest_of_line'.  From there
                     // the command-specific version of Execute will be called, with the processed arguments.
@@ -184,10 +178,11 @@ CommandObjectMultiword::GenerateHelpText (Stream &output_stream)
     // First time through here, generate the help text for the object and
     // push it to the return result object as well
 
-    output_stream.PutCString ("The following subcommands are supported:\n\n");
+    CommandObject::GenerateHelpText(output_stream);
+    output_stream.PutCString("\nThe following subcommands are supported:\n\n");
 
     CommandMap::iterator pos;
-    uint32_t max_len = m_interpreter.FindLongestCommandWord (m_subcommand_dict);
+    uint32_t max_len = FindLongestCommandWord (m_subcommand_dict);
 
     if (max_len)
         max_len += 4; // Indent the output by 4 spaces.
@@ -199,7 +194,7 @@ CommandObjectMultiword::GenerateHelpText (Stream &output_stream)
         if (pos->second->WantsRawCommandString ())
         {
             std::string help_text (pos->second->GetHelp());
-            help_text.append ("  This command takes 'raw' input (no need to quote stuff).");
+            help_text.append("  Expects 'raw' input (see 'help raw-input'.)");
             m_interpreter.OutputFormattedHelpText (output_stream,
                                                    indented_command.c_str(),
                                                    "--",
@@ -218,16 +213,13 @@ CommandObjectMultiword::GenerateHelpText (Stream &output_stream)
 }
 
 int
-CommandObjectMultiword::HandleCompletion
-(
-    Args &input,
-    int &cursor_index,
-    int &cursor_char_position,
-    int match_start_point,
-    int max_return_elements,
-    bool &word_complete,
-    StringList &matches
-)
+CommandObjectMultiword::HandleCompletion(Args &input,
+                                         int &cursor_index,
+                                         int &cursor_char_position,
+                                         int match_start_point,
+                                         int max_return_elements,
+                                         bool &word_complete,
+                                         StringList &matches)
 {
     // Any of the command matches will provide a complete word, otherwise the individual
     // completers will override this.
@@ -236,18 +228,18 @@ CommandObjectMultiword::HandleCompletion
     const char *arg0 = input.GetArgumentAtIndex(0);
     if (cursor_index == 0)
     {
-        CommandObject::AddNamesMatchingPartialString (m_subcommand_dict, 
-                                                      arg0,
-                                                      matches);
+        AddNamesMatchingPartialString (m_subcommand_dict,
+                                       arg0,
+                                       matches);
 
         if (matches.GetSize() == 1
-            && matches.GetStringAtIndex(0) != NULL
+            && matches.GetStringAtIndex(0) != nullptr
             && strcmp (arg0, matches.GetStringAtIndex(0)) == 0)
         {
             StringList temp_matches;
             CommandObject *cmd_obj = GetSubcommandObject (arg0,
                                                           &temp_matches);
-            if (cmd_obj != NULL)
+            if (cmd_obj != nullptr)
             {
                 if (input.GetArgumentCount() == 1)
                 {
@@ -275,7 +267,7 @@ CommandObjectMultiword::HandleCompletion
     {
         CommandObject *sub_command_object = GetSubcommandObject (arg0,
                                                                  &matches);
-        if (sub_command_object == NULL)
+        if (sub_command_object == nullptr)
         {
             return matches.GetSize();
         }
@@ -293,7 +285,6 @@ CommandObjectMultiword::HandleCompletion
                                                          word_complete,
                                                          matches);
         }
-
     }
 }
 
@@ -302,13 +293,12 @@ CommandObjectMultiword::GetRepeatCommand (Args &current_command_args, uint32_t i
 {
     index++;
     if (current_command_args.GetArgumentCount() <= index)
-        return NULL;
+        return nullptr;
     CommandObject *sub_command_object = GetSubcommandObject (current_command_args.GetArgumentAtIndex(index));
-    if (sub_command_object == NULL)
-        return NULL;
+    if (sub_command_object == nullptr)
+        return nullptr;
     return sub_command_object->GetRepeatCommand(current_command_args, index);
 }
-
 
 void
 CommandObjectMultiword::AproposAllSubCommands (const char *prefix,
@@ -340,8 +330,6 @@ CommandObjectMultiword::AproposAllSubCommands (const char *prefix,
     }
 }
 
-
-
 CommandObjectProxy::CommandObjectProxy (CommandInterpreter &interpreter,
                                         const char *name,
                                         const char *help,
@@ -351,9 +339,7 @@ CommandObjectProxy::CommandObjectProxy (CommandInterpreter &interpreter,
 {
 }
 
-CommandObjectProxy::~CommandObjectProxy ()
-{
-}
+CommandObjectProxy::~CommandObjectProxy() = default;
 
 const char *
 CommandObjectProxy::GetHelpLong ()
@@ -361,7 +347,7 @@ CommandObjectProxy::GetHelpLong ()
     CommandObject *proxy_command = GetProxyCommandObject();
     if (proxy_command)
         return proxy_command->GetHelpLong();
-    return NULL;
+    return nullptr;
 }
 
 bool
@@ -380,6 +366,15 @@ CommandObjectProxy::IsMultiwordObject ()
     if (proxy_command)
         return proxy_command->IsMultiwordObject();
     return false;
+}
+
+CommandObjectMultiword*
+CommandObjectProxy::GetAsMultiwordCommand ()
+{
+    CommandObject *proxy_command = GetProxyCommandObject();
+    if (proxy_command)
+        return proxy_command->GetAsMultiwordCommand();
+    return nullptr;
 }
 
 void
@@ -405,7 +400,7 @@ CommandObjectProxy::GetSubcommandObject (const char *sub_cmd, StringList *matche
     CommandObject *proxy_command = GetProxyCommandObject();
     if (proxy_command)
         return proxy_command->GetSubcommandObject(sub_cmd, matches);
-    return NULL;
+    return nullptr;
 }
 
 void
@@ -450,16 +445,14 @@ CommandObjectProxy::WantsCompletion()
     return false;
 }
 
-
 Options *
 CommandObjectProxy::GetOptions ()
 {
     CommandObject *proxy_command = GetProxyCommandObject();
     if (proxy_command)
         return proxy_command->GetOptions ();
-    return NULL;
+    return nullptr;
 }
-
 
 int
 CommandObjectProxy::HandleCompletion (Args &input,
@@ -482,6 +475,7 @@ CommandObjectProxy::HandleCompletion (Args &input,
     matches.Clear();
     return 0;
 }
+
 int
 CommandObjectProxy::HandleArgumentCompletion (Args &input,
                                               int &cursor_index,
@@ -513,7 +507,7 @@ CommandObjectProxy::GetRepeatCommand (Args &current_command_args,
     CommandObject *proxy_command = GetProxyCommandObject();
     if (proxy_command)
         return proxy_command->GetRepeatCommand (current_command_args, index);
-    return NULL;
+    return nullptr;
 }
 
 bool
@@ -527,5 +521,3 @@ CommandObjectProxy::Execute (const char *args_string,
     result.SetStatus (eReturnStatusFailed);
     return false;
 }
-
-

@@ -12,6 +12,8 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/ValueObjectSyntheticFilter.h"
+
+#include "lldb/Core/Log.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
 
@@ -61,17 +63,12 @@ ValueObjectSynthetic::ValueObjectSynthetic (ValueObject &parent, lldb::Synthetic
     m_children_byindex(),
     m_name_toindex(),
     m_synthetic_children_count(UINT32_MAX),
+    m_synthetic_children_cache(),
     m_parent_type_name(parent.GetTypeName()),
     m_might_have_children(eLazyBoolCalculate),
     m_provides_value(eLazyBoolCalculate)
 {
-#ifdef FOOBAR
-    std::string new_name(parent.GetName().AsCString());
-    new_name += "$$__synth__";
-    SetName (ConstString(new_name.c_str()));
-#else
     SetName(parent.GetName());
-#endif
     CopyValueData(m_parent);
     CreateSynthFilter();
 }
@@ -99,20 +96,41 @@ ValueObjectSynthetic::GetQualifiedTypeName()
 ConstString
 ValueObjectSynthetic::GetDisplayTypeName()
 {
+    if (ConstString synth_name = m_synth_filter_ap->GetSyntheticTypeName())
+        return synth_name;
+
     return m_parent->GetDisplayTypeName();
 }
 
 size_t
 ValueObjectSynthetic::CalculateNumChildren(uint32_t max)
 {
+    Log* log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_DATAFORMATTERS);
+    
     UpdateValueIfNeeded();
     if (m_synthetic_children_count < UINT32_MAX)
         return m_synthetic_children_count <= max ? m_synthetic_children_count : max;
 
     if (max < UINT32_MAX)
-        return m_synth_filter_ap->CalculateNumChildren(max);
+    {
+        size_t num_children = m_synth_filter_ap->CalculateNumChildren(max);
+        if (log)
+            log->Printf("[ValueObjectSynthetic::CalculateNumChildren] for VO of name %s and type %s, the filter returned %zu child values",
+                        GetName().AsCString(),
+                        GetTypeName().AsCString(),
+                        num_children);
+        return num_children;
+    }
     else
-        return (m_synthetic_children_count = m_synth_filter_ap->CalculateNumChildren(max));
+    {
+        size_t num_children = (m_synthetic_children_count = m_synth_filter_ap->CalculateNumChildren(max));
+        if (log)
+            log->Printf("[ValueObjectSynthetic::CalculateNumChildren] for VO of name %s and type %s, the filter returned %zu child values",
+                        GetName().AsCString(),
+                        GetTypeName().AsCString(),
+                        num_children);
+        return num_children;
+    }
 }
 
 lldb::ValueObjectSP
@@ -156,6 +174,8 @@ ValueObjectSynthetic::CreateSynthFilter ()
 bool
 ValueObjectSynthetic::UpdateValue ()
 {
+    Log* log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_DATAFORMATTERS);
+    
     SetValueIsValid (false);
     m_error.Clear();
 
@@ -172,6 +192,11 @@ ValueObjectSynthetic::UpdateValue ()
     ConstString new_parent_type_name = m_parent->GetTypeName();
     if (new_parent_type_name != m_parent_type_name)
     {
+        if (log)
+            log->Printf("[ValueObjectSynthetic::UpdateValue] name=%s, type changed from %s to %s, recomputing synthetic filter",
+                        GetName().AsCString(),
+                        m_parent_type_name.AsCString(),
+                        new_parent_type_name.AsCString());
         m_parent_type_name = new_parent_type_name;
         CreateSynthFilter();
     }
@@ -179,6 +204,8 @@ ValueObjectSynthetic::UpdateValue ()
     // let our backend do its update
     if (m_synth_filter_ap->Update() == false)
     {
+        if (log)
+            log->Printf("[ValueObjectSynthetic::UpdateValue] name=%s, synthetic filter said caches are stale - clearing", GetName().AsCString());
         // filter said that cached values are stale
         m_children_byindex.Clear();
         m_name_toindex.Clear();
@@ -186,8 +213,14 @@ ValueObjectSynthetic::UpdateValue ()
         // for a synthetic VO that might indeed happen, so we need to tell the upper echelons
         // that they need to come back to us asking for children
         m_children_count_valid = false;
+        m_synthetic_children_cache.Clear();
         m_synthetic_children_count = UINT32_MAX;
         m_might_have_children = eLazyBoolCalculate;
+    }
+    else
+    {
+        if (log)
+            log->Printf("[ValueObjectSynthetic::UpdateValue] name=%s, synthetic filter said caches are still valid", GetName().AsCString());
     }
     
     m_provides_value = eLazyBoolCalculate;
@@ -196,11 +229,17 @@ ValueObjectSynthetic::UpdateValue ()
     
     if (synth_val && synth_val->CanProvideValue())
     {
+        if (log)
+            log->Printf("[ValueObjectSynthetic::UpdateValue] name=%s, synthetic filter said it can provide a value", GetName().AsCString());
+
         m_provides_value = eLazyBoolYes;
         CopyValueData(synth_val.get());
     }
     else
     {
+        if (log)
+            log->Printf("[ValueObjectSynthetic::UpdateValue] name=%s, synthetic filter said it will not provide a value", GetName().AsCString());
+
         m_provides_value = eLazyBoolNo;
         CopyValueData(m_parent);
     }
@@ -212,6 +251,13 @@ ValueObjectSynthetic::UpdateValue ()
 lldb::ValueObjectSP
 ValueObjectSynthetic::GetChildAtIndex (size_t idx, bool can_create)
 {
+    Log* log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_DATAFORMATTERS);
+    
+    if (log)
+        log->Printf("[ValueObjectSynthetic::GetChildAtIndex] name=%s, retrieving child at index %zu",
+                    GetName().AsCString(),
+                    idx);
+    
     UpdateValueIfNeeded();
     
     ValueObject *valobj;
@@ -219,18 +265,51 @@ ValueObjectSynthetic::GetChildAtIndex (size_t idx, bool can_create)
     {
         if (can_create && m_synth_filter_ap.get() != nullptr)
         {
+            if (log)
+                log->Printf("[ValueObjectSynthetic::GetChildAtIndex] name=%s, child at index %zu not cached and will be created",
+                            GetName().AsCString(),
+                            idx);
+
             lldb::ValueObjectSP synth_guy = m_synth_filter_ap->GetChildAtIndex (idx);
+            
+            if (log)
+                log->Printf("[ValueObjectSynthetic::GetChildAtIndex] name=%s, child at index %zu created as %p (is synthetic: %s)",
+                            GetName().AsCString(),
+                            idx,
+                            synth_guy.get(),
+                            synth_guy.get() ? (synth_guy->IsSyntheticChildrenGenerated() ? "yes" : "no") : "no");
+
             if (!synth_guy)
                 return synth_guy;
+            
+            if (synth_guy->IsSyntheticChildrenGenerated())
+                m_synthetic_children_cache.AppendObject(synth_guy);
             m_children_byindex.SetValueForKey(idx, synth_guy.get());
             synth_guy->SetPreferredDisplayLanguageIfNeeded(GetPreferredDisplayLanguage());
             return synth_guy;
         }
         else
+        {
+            if (log)
+                log->Printf("[ValueObjectSynthetic::GetChildAtIndex] name=%s, child at index %zu not cached and cannot be created (can_create = %s, synth_filter = %p)",
+                            GetName().AsCString(),
+                            idx,
+                            can_create ? "yes" : "no",
+                            m_synth_filter_ap.get());
+
             return lldb::ValueObjectSP();
+        }
     }
     else
+    {
+        if (log)
+            log->Printf("[ValueObjectSynthetic::GetChildAtIndex] name=%s, child at index %zu cached as %p",
+                        GetName().AsCString(),
+                        idx,
+                        valobj);
+
         return valobj->GetSP();
+    }
 }
 
 lldb::ValueObjectSP
@@ -335,6 +414,22 @@ ValueObjectSynthetic::GetPreferredDisplayLanguage ()
     }
     else
         return m_preferred_display_language;
+}
+
+bool
+ValueObjectSynthetic::IsSyntheticChildrenGenerated ()
+{
+    if (m_parent)
+        return m_parent->IsSyntheticChildrenGenerated();
+    return false;
+}
+
+void
+ValueObjectSynthetic::SetSyntheticChildrenGenerated (bool b)
+{
+    if (m_parent)
+        m_parent->SetSyntheticChildrenGenerated(b);
+    this->ValueObject::SetSyntheticChildrenGenerated(b);
 }
 
 bool

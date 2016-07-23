@@ -192,7 +192,8 @@ ObjectFilePECOFF::ObjectFilePECOFF (const lldb::ModuleSP &module_sp,
     m_dos_header (),
     m_coff_header (),
     m_coff_header_opt (),
-    m_sect_headers ()
+    m_sect_headers (),
+    m_entry_point_address ()
 {
     ::memset (&m_dos_header, 0, sizeof(m_dos_header));
     ::memset (&m_coff_header, 0, sizeof(m_coff_header));
@@ -211,7 +212,7 @@ ObjectFilePECOFF::ParseHeader ()
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         m_sect_headers.clear();
         m_data.SetByteOrder (eByteOrderLittle);
         lldb::offset_t offset = 0;
@@ -533,13 +534,13 @@ ObjectFilePECOFF::GetSymtab()
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         if (m_symtab_ap.get() == NULL)
         {
             SectionList *sect_list = GetSectionList();
             m_symtab_ap.reset(new Symtab(this));
-            Mutex::Locker symtab_locker (m_symtab_ap->GetMutex());
-            
+            std::lock_guard<std::recursive_mutex> guard(m_symtab_ap->GetMutex());
+
             const uint32_t num_syms = m_coff_header.nsyms;
 
             if (num_syms > 0 && m_coff_header.symoff > 0)
@@ -662,6 +663,7 @@ ObjectFilePECOFF::GetSymtab()
                     symbols[i].SetDebug(true);
                 }
             }
+            m_symtab_ap->CalculateSymbolSizes();
         }
     }
     return m_symtab_ap.get();
@@ -687,7 +689,7 @@ ObjectFilePECOFF::CreateSections (SectionList &unified_section_list)
         ModuleSP module_sp(GetModule());
         if (module_sp)
         {
-            lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+            std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
             const uint32_t nsects = m_sect_headers.size();
             ModuleSP module_sp (GetModule());
             for (uint32_t idx = 0; idx<nsects; ++idx)
@@ -813,6 +815,25 @@ ObjectFilePECOFF::GetDependentModules (FileSpecList& files)
     return 0;
 }
 
+lldb_private::Address
+ObjectFilePECOFF::GetEntryPointAddress ()
+{
+    if (m_entry_point_address.IsValid())
+        return m_entry_point_address;
+
+    if (!ParseHeader() || !IsExecutable())
+        return m_entry_point_address;
+
+    SectionList *section_list = GetSectionList();
+    addr_t offset = m_coff_header_opt.entry;
+
+    if (!section_list)
+        m_entry_point_address.SetOffset(offset);
+    else
+        m_entry_point_address.ResolveAddressUsingFileSections(offset, section_list);
+    return m_entry_point_address;
+}
+
 
 //----------------------------------------------------------------------
 // Dump
@@ -826,7 +847,7 @@ ObjectFilePECOFF::Dump(Stream *s)
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
         s->Printf("%p: ", static_cast<void*>(this));
         s->Indent();
         s->PutCString("ObjectFilePECOFF");

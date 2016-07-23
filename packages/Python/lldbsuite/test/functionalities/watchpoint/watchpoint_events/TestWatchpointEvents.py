@@ -6,8 +6,9 @@ from __future__ import print_function
 
 import os, time
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class TestWatchpointEvents (TestBase):
 
@@ -21,7 +22,8 @@ class TestWatchpointEvents (TestBase):
 
     @add_test_categories(['pyapi'])
     @expectedFailureAndroid(archs=['arm', 'aarch64']) # Watchpoints not supported
-    @expectedFailureWindows("llvm.org/pr24446") # WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows
+    @expectedFailureAll(oslist=["linux"], archs=["aarch64"], bugnumber="llvm.org/pr27710")
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24446: WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows")
     def test_with_python_api(self):
         """Test that adding, deleting and modifying watchpoints sends the appropriate events."""
         self.build()
@@ -58,7 +60,7 @@ class TestWatchpointEvents (TestBase):
         self.listener.StartListeningForEvents (self.target_bcast, lldb.SBTarget.eBroadcastBitWatchpointChanged)
 
         error = lldb.SBError()
-        local_watch = local_var.Watch(True, True, True, error)
+        local_watch = local_var.Watch(True, False, True, error)
         if not error.Success():
             self.fail ("Failed to make watchpoint for local_var: %s"%(error.GetCString()))
 

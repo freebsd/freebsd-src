@@ -23,7 +23,6 @@ from __future__ import print_function
 
 # System modules
 import atexit
-import importlib
 import os
 import errno
 import platform
@@ -31,7 +30,6 @@ import signal
 import socket
 import subprocess
 import sys
-import inspect
 
 # Third-party modules
 import six
@@ -43,9 +41,9 @@ from . import configuration
 from . import dotest_args
 from . import lldbtest_config
 from . import test_categories
-from . import result_formatter
+from lldbsuite.test_event import formatter
 from . import test_result
-from .result_formatter import EventBuilder
+from lldbsuite.test_event.event_builder import EventBuilder
 from ..support import seven
 
 def is_exe(fpath):
@@ -309,7 +307,7 @@ def parseOptionsAndInitTestdirs():
         configuration.lldbFrameworkPath = args.framework
 
     if args.executable:
-        lldbtest_config.lldbExec = args.executable
+        lldbtest_config.lldbExec = os.path.realpath(args.executable)
 
     if args.p:
         if args.p.startswith('-'):
@@ -323,6 +321,7 @@ def parseOptionsAndInitTestdirs():
         if args.s.startswith('-'):
             usage(parser)
         configuration.sdir_name = args.s
+    configuration.session_file_format = args.session_file_format
 
     if args.t:
         os.environ['LLDB_COMMAND_TRACE'] = 'YES'
@@ -359,7 +358,7 @@ def parseOptionsAndInitTestdirs():
     # Capture test results-related args.
     if args.curses and not args.inferior:
         # Act as if the following args were set.
-        args.results_formatter = "lldbsuite.test.curses_results.Curses"
+        args.results_formatter = "lldbsuite.test_event.formatter.curses.Curses"
         args.results_file = "stdout"
 
     if args.results_file:
@@ -383,7 +382,7 @@ def parseOptionsAndInitTestdirs():
     # and we're not a test inferior.
     if not args.inferior and configuration.results_formatter_name is None:
         configuration.results_formatter_name = (
-            "lldbsuite.test.result_formatter.ResultsFormatter")
+            "lldbsuite.test_event.formatter.results_formatter.ResultsFormatter")
 
     # rerun-related arguments
     configuration.rerun_all_issues = args.rerun_all_issues
@@ -412,7 +411,7 @@ def parseOptionsAndInitTestdirs():
         # Tell the event builder to create all events with these
         # key/val pairs in them.
         if len(entries) > 0:
-            result_formatter.EventBuilder.add_entries_to_all_events(entries)
+            EventBuilder.add_entries_to_all_events(entries)
 
     # Gather all the dirs passed on the command line.
     if len(args.args) > 0:
@@ -453,7 +452,7 @@ def createSocketToLocalPort(port):
 def setupTestResults():
     """Sets up test results-related objects based on arg settings."""
     # Setup the results formatter configuration.
-    formatter_config = result_formatter.FormatterConfig()
+    formatter_config = formatter.FormatterConfig()
     formatter_config.filename = configuration.results_filename
     formatter_config.formatter_name = configuration.results_formatter_name
     formatter_config.formatter_options = (
@@ -461,12 +460,12 @@ def setupTestResults():
     formatter_config.port = configuration.results_port
 
     # Create the results formatter.
-    formatter_spec = result_formatter.create_results_formatter(
+    formatter_spec = formatter.create_results_formatter(
         formatter_config)
     if formatter_spec is not None and formatter_spec.formatter is not None:
         configuration.results_formatter_object = formatter_spec.formatter
 
-        # Send an intialize message to the formatter.
+        # Send an initialize message to the formatter.
         initialize_event = EventBuilder.bare_event("initialize")
         if isMultiprocessTestRunner():
             if (configuration.test_runner_name is not None and
@@ -640,16 +639,15 @@ def setupSysPath():
         if not lldbPythonDir:
             if platform.system() == "Darwin":
                 python_resource_dir = ['LLDB.framework', 'Resources', 'Python']
-                outputPaths = getXcodeOutputPaths()
+                outputPaths = getXcodeOutputPaths(lldbRootDirectory)
                 for outputPath in outputPaths:
-                    candidatePath = os.path.join(outputPath, python_resource_dir)
+                    candidatePath = os.path.join(outputPath, *python_resource_dir)
                     if os.path.isfile(os.path.join(candidatePath, init_in_python_dir)):
                         lldbPythonDir = candidatePath
                         break
 
                 if not lldbPythonDir:
-                    print('This script requires lldb.py to be in either ' + dbgPath + ',', end=' ')
-                    print(relPath + ', or ' + baiPath + '. Some tests might fail.')
+                    print("lldb.py is not found, some tests may fail.")
             else:
                 print("Unable to load lldb extension module.  Possible reasons for this include:")
                 print("  1) LLDB was built with LLDB_DISABLE_PYTHON=1")
@@ -659,7 +657,7 @@ def setupSysPath():
                 print("     location of LLDB\'s site-packages folder.")
                 print("  3) A different version of Python than that which was built against is exported in")
                 print("     the system\'s PATH environment variable, causing conflicts.")
-                print("  4) The executable '%s' could not be found.  Please check " % lldbExecutable)
+                print("  4) The executable '%s' could not be found.  Please check " % lldbtest_config.lldbExec)
                 print("     that it exists and is executable.")
 
     if lldbPythonDir:
@@ -678,73 +676,98 @@ def setupSysPath():
         # This is to locate the lldb.py module.  Insert it right after sys.path[0].
         sys.path[1:1] = [lldbPythonDir]
 
+
+def visit_file(dir, name):
+    # Try to match the regexp pattern, if specified.
+    if configuration.regexp:
+        import re
+        if not re.search(configuration.regexp, name):
+            # We didn't match the regex, we're done.
+            return
+
+    # We found a match for our test.  Add it to the suite.
+
+    # Update the sys.path first.
+    if not sys.path.count(dir):
+        sys.path.insert(0, dir)
+    base = os.path.splitext(name)[0]
+
+    # Thoroughly check the filterspec against the base module and admit
+    # the (base, filterspec) combination only when it makes sense.
+    filterspec = None
+    for filterspec in configuration.filters:
+        # Optimistically set the flag to True.
+        filtered = True
+        module = __import__(base)
+        parts = filterspec.split('.')
+        obj = module
+        for part in parts:
+            try:
+                parent, obj = obj, getattr(obj, part)
+            except AttributeError:
+                # The filterspec has failed.
+                filtered = False
+                break
+
+        # If filtered, we have a good filterspec.  Add it.
+        if filtered:
+            # print("adding filter spec %s to module %s" % (filterspec, module))
+            configuration.suite.addTests(
+                unittest2.defaultTestLoader.loadTestsFromName(filterspec, module))
+            continue
+
+    # Forgo this module if the (base, filterspec) combo is invalid
+    if configuration.filters and not filtered:
+        return
+
+    if not filterspec or not filtered:
+        # Add the entire file's worth of tests since we're not filtered.
+        # Also the fail-over case when the filterspec branch
+        # (base, filterspec) combo doesn't make sense.
+        configuration.suite.addTests(unittest2.defaultTestLoader.loadTestsFromName(base))
+
+
 def visit(prefix, dir, names):
     """Visitor function for os.path.walk(path, visit, arg)."""
 
     dir_components = set(dir.split(os.sep))
     excluded_components = set(['.svn', '.git'])
     if dir_components.intersection(excluded_components):
-        #print("Detected an excluded dir component: %s" % dir)
         return
 
-    for name in names:
-        if '.py' == os.path.splitext(name)[1] and name.startswith(prefix):
+    # Gather all the Python test file names that follow the Test*.py pattern.
+    python_test_files = [
+        name
+        for name in names
+        if name.endswith('.py') and name.startswith(prefix)]
 
+    # Visit all the python test files.
+    for name in python_test_files:
+        try:
+            # Ensure we error out if we have multiple tests with the same
+            # base name.
+            # Future improvement: find all the places where we work with base
+            # names and convert to full paths.  We have directory structure
+            # to disambiguate these, so we shouldn't need this constraint.
             if name in configuration.all_tests:
                 raise Exception("Found multiple tests with the name %s" % name)
             configuration.all_tests.add(name)
 
-            # Try to match the regexp pattern, if specified.
-            if configuration.regexp:
-                import re
-                if re.search(configuration.regexp, name):
-                    #print("Filename: '%s' matches pattern: '%s'" % (name, regexp))
-                    pass
-                else:
-                    #print("Filename: '%s' does not match pattern: '%s'" % (name, regexp))
-                    continue
+            # Run the relevant tests in the python file.
+            visit_file(dir, name)
+        except Exception as ex:
+            # Convert this exception to a test event error for the file.
+            test_filename = os.path.abspath(os.path.join(dir, name))
+            if configuration.results_formatter_object is not None:
+                # Grab the backtrace for the exception.
+                import traceback
+                backtrace = traceback.format_exc()
 
-            # We found a match for our test.  Add it to the suite.
-
-            # Update the sys.path first.
-            if not sys.path.count(dir):
-                sys.path.insert(0, dir)
-            base = os.path.splitext(name)[0]
-
-            # Thoroughly check the filterspec against the base module and admit
-            # the (base, filterspec) combination only when it makes sense.
-            filterspec = None
-            for filterspec in configuration.filters:
-                # Optimistically set the flag to True.
-                filtered = True
-                module = __import__(base)
-                parts = filterspec.split('.')
-                obj = module
-                for part in parts:
-                    try:
-                        parent, obj = obj, getattr(obj, part)
-                    except AttributeError:
-                        # The filterspec has failed.
-                        filtered = False
-                        break
-
-                # If filtered, we have a good filterspec.  Add it.
-                if filtered:
-                    #print("adding filter spec %s to module %s" % (filterspec, module))
-                    configuration.suite.addTests(
-                        unittest2.defaultTestLoader.loadTestsFromName(filterspec, module))
-                    continue
-
-            # Forgo this module if the (base, filterspec) combo is invalid
-            if configuration.filters and not filtered:
-                continue
-
-            # Add either the filtered test case(s) (which is done before) or the entire test class.
-            if not filterspec or not filtered:
-                # A simple case of just the module name.  Also the failover case
-                # from the filterspec branch when the (base, filterspec) combo
-                # doesn't make sense.
-                configuration.suite.addTests(unittest2.defaultTestLoader.loadTestsFromName(base))
+                # Generate the test event.
+                configuration.results_formatter_object.handle_event(
+                    EventBuilder.event_for_job_test_add_error(
+                        test_filename, ex, backtrace))
+            raise
 
 
 def disabledynamics():
@@ -987,12 +1010,6 @@ def run_suite():
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
-    where_to_save_session = os.getcwd()
-    fname = os.path.join(configuration.sdir_name, "TestStarted-%d" % os.getpid())
-    with open(fname, "w") as f:
-        print("Test started at: %s\n" % timestamp_started, file=f)
-        print(configuration.svn_info, file=f)
-        print("Command invoked: %s\n" % getMyCommandLine(), file=f)
 
     #
     # Invoke the default TextTestRunner to run the test suite, possibly iterating
@@ -1092,7 +1109,7 @@ def run_suite():
                 # mark __ignore_singleton__ flag as True so the signleton pattern is
                 # not enforced.
                 test_result.LLDBTestResult.__ignore_singleton__ = True
-                for i in range(count):
+                for i in range(configuration.count):
                
                     result = unittest2.TextTestRunner(stream=sys.stderr,
                                                       verbosity=v,
@@ -1108,11 +1125,6 @@ def run_suite():
         sys.stderr.write("Failures per category:\n")
         for category in configuration.failuresPerCategory:
             sys.stderr.write("%s - %d\n" % (category, configuration.failuresPerCategory[category]))
-
-    os.chdir(where_to_save_session)
-    fname = os.path.join(configuration.sdir_name, "TestFinished-%d" % os.getpid())
-    with open(fname, "w") as f:
-        print("Test finished at: %s\n" % datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S"), file=f)
 
     # Terminate the test suite if ${LLDB_TESTSUITE_FORCE_FINISH} is defined.
     # This should not be necessary now.

@@ -229,6 +229,23 @@ def make_symlink_windows(vstrSrcPath, vstrTargetPath):
     dbg = utilsDebug.CDebugFnVerbose("Python script make_symlink_windows()")
     bOk = True
     strErrMsg = ""
+    # If the src file doesn't exist, this is an error and we should throw.
+    src_stat = os.stat(vstrSrcPath)
+
+    try:
+        target_stat = os.stat(vstrTargetPath)
+        # If the target file exists but refers to a different file, delete it so that we can
+        # re-create the link.  This can happen if you run this script once (creating a link)
+        # and then delete the source file (so that a brand new file gets created the next time
+        # you compile and link), and then re-run this script, so that both the target hardlink
+        # and the source file exist, but the target refers to an old copy of the source.
+        if (target_stat.st_ino == src_stat.st_ino) and (target_stat.st_dev == src_stat.st_dev):
+            return (bOk, strErrMsg)
+
+        os.remove(vstrTargetPath)
+    except:
+        # If the target file don't exist, ignore this exception, we will link it shortly.
+        pass
 
     try:
         csl = ctypes.windll.kernel32.CreateHardLinkW
@@ -280,10 +297,6 @@ def make_symlink_native(vDictArgs, strSrc, strTarget):
         bOk = False
         strErrMsg = strErrMsgOsTypeUnknown
     elif eOSType == utilsOsType.EnumOsType.Windows:
-        if os.path.isfile(strTarget):
-            if bDbg:
-                print((strMsgSymlinkExists % target_filename))
-            return (bOk, strErrMsg)
         if bDbg:
             print((strMsgSymlinkMk % (target_filename, strSrc, strTarget)))
         bOk, strErrMsg = make_symlink_windows(strSrc,
@@ -345,11 +358,12 @@ def make_symlink(vDictArgs, vstrFrameworkPythonDir, vstrSrcFile, vstrTargetFile)
 # Args:     vDictArgs               - (R) Program input parameters.
 #           vstrFrameworkPythonDir  - (R) Python framework directory.
 #           vstrLiblldbName         - (R) File name for _lldb library.
+#           vstrLiblldbDir          - (R) liblldb directory.
 # Returns:  Bool - True = function success, False = failure.
 #           Str - Error description on task failure.
 # Throws:   None.
 #--
-def make_symlink_liblldb(vDictArgs, vstrFrameworkPythonDir, vstrLiblldbFileName):
+def make_symlink_liblldb(vDictArgs, vstrFrameworkPythonDir, vstrLiblldbFileName, vstrLldbLibDir):
     dbg = utilsDebug.CDebugFnVerbose("Python script make_symlink_liblldb()")
     bOk = True
     strErrMsg = ""
@@ -369,7 +383,7 @@ def make_symlink_liblldb(vDictArgs, vstrFrameworkPythonDir, vstrLiblldbFileName)
 
     bMakeFileCalled = "-m" in vDictArgs
     if not bMakeFileCalled:
-        strSrc = os.path.join("lib", "LLDB")
+        strSrc = os.path.join(vstrLldbLibDir, "LLDB")
     else:
         strLibFileExtn = ""
         if eOSType == utilsOsType.EnumOsType.Windows:
@@ -379,7 +393,7 @@ def make_symlink_liblldb(vDictArgs, vstrFrameworkPythonDir, vstrLiblldbFileName)
                 strLibFileExtn = ".dylib"
             else:
                 strLibFileExtn = ".so"
-            strSrc = os.path.join("lib", "liblldb" + strLibFileExtn)
+            strSrc = os.path.join(vstrLldbLibDir, "liblldb" + strLibFileExtn)
 
     bOk, strErrMsg = make_symlink(vDictArgs, vstrFrameworkPythonDir, strSrc, strTarget)
 
@@ -449,11 +463,12 @@ def make_symlink_lldb_argdumper(vDictArgs, vstrFrameworkPythonDir, vstrArgdumper
 #           the Python framework directory.
 # Args:     vDictArgs               - (R) Program input parameters.
 #           vstrFrameworkPythonDir  - (R) Python framework directory.
+#           vstrLldbLibDir          - (R) liblldb directory.
 # Returns:  Bool - True = function success, False = failure.
 #           strErrMsg - Error description on task failure.
 # Throws:   None.
 #--
-def create_symlinks(vDictArgs, vstrFrameworkPythonDir):
+def create_symlinks(vDictArgs, vstrFrameworkPythonDir, vstrLldbLibDir):
     dbg = utilsDebug.CDebugFnVerbose("Python script create_symlinks()")
     bOk = True
     strErrMsg = ""
@@ -464,7 +479,8 @@ def create_symlinks(vDictArgs, vstrFrameworkPythonDir):
     if bOk:
         bOk, strErrMsg = make_symlink_liblldb(vDictArgs,
                                               vstrFrameworkPythonDir,
-                                              strLibLldbFileName)
+                                              strLibLldbFileName,
+                                              vstrLldbLibDir)
 
     # Make symlink for darwin-debug on Darwin
     strDarwinDebugFileName = "darwin-debug"
@@ -659,6 +675,28 @@ def get_framework_python_dir(vDictArgs):
 
     return (bOk, strWkDir, strErrMsg)
 
+#++---------------------------------------------------------------------------
+# Details:  Retrieve the liblldb directory path, if it exists and is valid.
+# Args:     vDictArgs               - (R) Program input parameters.
+# Returns:  Bool - True = function success, False = failure.
+#           Str - liblldb directory path.
+#           strErrMsg - Error description on task failure.
+# Throws:   None.
+#--
+def get_liblldb_dir(vDictArgs):
+    dbg = utilsDebug.CDebugFnVerbose("Python script get_liblldb_dir()")
+    bOk = True
+    strErrMsg = ""
+
+    strLldbLibDir = ""
+    bHaveLldbLibDir = "--lldbLibDir" in vDictArgs
+    if bHaveLldbLibDir:
+        strLldbLibDir = vDictArgs["--lldbLibDir"]
+    if (bHaveLldbLibDir == False) or (strLldbLibDir.__len__() == 0):
+        strLldbLibDir = "lib"
+
+    return (bOk, strLldbLibDir, strErrMsg)
+
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -684,6 +722,8 @@ def get_framework_python_dir(vDictArgs):
                             be installed. Where non-Darwin systems want to put
                             the .py and .so files so that Python can find them
                             automatically. Python install directory.
+            --lldbLibDir    The name of the directory containing liblldb.so.
+            (optional)      "lib" by default.
     Results:    0       Success
                 -100+   Error from this script to the caller script.
                 -100    Error program failure with optional message.
@@ -714,10 +754,13 @@ def main(vDictArgs):
         print((strMsgConfigBuildDir % strCfgBldDir))
 
     if bOk:
+        bOk, strLldbLibDir, strMsg = get_liblldb_dir(vDictArgs)
+
+    if bOk:
         bOk, strMsg = find_or_create_python_dir(vDictArgs, strFrameworkPythonDir)
 
     if bOk:
-        bOk, strMsg = create_symlinks(vDictArgs, strFrameworkPythonDir)
+        bOk, strMsg = create_symlinks(vDictArgs, strFrameworkPythonDir, strLldbLibDir)
 
     if bOk:
         bOk, strMsg = copy_six(vDictArgs, strFrameworkPythonDir)

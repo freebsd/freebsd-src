@@ -9,8 +9,9 @@ from __future__ import print_function
 import os, time
 import re
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class BreakpointConditionsTestCase(TestBase):
 
@@ -107,10 +108,12 @@ class BreakpointConditionsTestCase(TestBase):
         if arch in ['x86_64', 'i386']:
             self.runCmd("breakpoint modify -c ($eax&&i)")
         elif arch in ['aarch64']:
-            self.runCmd("breakpoint modify -c ($x1&&i)")
+            self.runCmd("breakpoint modify -c ($x0&&i)")
         elif arch in ['arm']:
             self.runCmd("breakpoint modify -c ($r0&&i)")
         elif re.match("mips",arch):
+            self.runCmd("breakpoint modify -c ($r2&&i)")
+        elif arch in ['s390x']:
             self.runCmd("breakpoint modify -c ($r2&&i)")
         self.runCmd("run")
 
@@ -178,4 +181,8 @@ class BreakpointConditionsTestCase(TestBase):
         # The hit count for the breakpoint should be 1.
         self.assertTrue(breakpoint.GetHitCount() == 1)
 
+        # Test that the condition expression didn't create a result variable:
+        options = lldb.SBExpressionOptions()
+        value = frame0.EvaluateExpression("$0", options)
+        self.assertTrue(value.GetError().Fail(), "Conditions should not make result variables.")
         process.Continue()

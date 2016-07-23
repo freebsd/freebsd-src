@@ -9,15 +9,16 @@ from __future__ import print_function
 import os, time
 import re
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class WatchpointForMultipleThreadsTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
     @expectedFailureAndroid(archs=['arm', 'aarch64']) # Watchpoints not supported
-    @expectedFailureWindows("llvm.org/pr24446") # WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24446: WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows")
     def test_watchpoint_multiple_threads(self):
         """Test that lldb watchpoint works for multiple threads."""
         self.build()
@@ -25,7 +26,7 @@ class WatchpointForMultipleThreadsTestCase(TestBase):
         self.hello_multiple_threads()
 
     @expectedFailureAndroid(archs=['arm', 'aarch64']) # Watchpoints not supported
-    @expectedFailureWindows("llvm.org/pr24446") # WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24446: WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows")
     def test_watchpoint_multiple_threads_wp_set_and_then_delete(self):
         """Test that lldb watchpoint works for multiple threads, and after the watchpoint is deleted, the watchpoint event should no longer fires."""
         self.build()
@@ -57,9 +58,6 @@ class WatchpointForMultipleThreadsTestCase(TestBase):
                        'stop reason = breakpoint'])
 
         # Now let's set a write-type watchpoint for variable 'g_val'.
-        # The main.cpp, by design, misbehaves by not following the agreed upon
-        # protocol of using a mutex while accessing the global pool and by not
-        # writing to the variable.
         self.expect("watchpoint set variable -w write g_val", WATCHPOINT_CREATED,
             substrs = ['Watchpoint created', 'size = 4', 'type = w'])
 
@@ -101,9 +99,6 @@ class WatchpointForMultipleThreadsTestCase(TestBase):
                        'stop reason = breakpoint'])
 
         # Now let's set a write-type watchpoint for variable 'g_val'.
-        # The main.cpp, by design, misbehaves by not following the agreed upon
-        # protocol of using a mutex while accessing the global pool and by not
-        # writing to the variable.
         self.expect("watchpoint set variable -w write g_val", WATCHPOINT_CREATED,
             substrs = ['Watchpoint created', 'size = 4', 'type = w'])
 

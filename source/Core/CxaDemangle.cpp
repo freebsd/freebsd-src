@@ -20,6 +20,7 @@
 #include "lldb/Host/windows/win32.h" // snprintf
 #endif
 #include "llvm/Support/Compiler.h"   // LLVM_{NOEXCEPT, CONSTEXPR, ALIGNAS}
+#include "lldb/lldb-private.h"
 #undef _LIBCPP_EXTERN_TEMPLATE       // Avoid warning below
 
 //===-------------------------- cxa_demangle.cpp --------------------------===//
@@ -2262,7 +2263,7 @@ parse_type(const char* first, const char* last, C& db)
                                 break;
                             }
                         }
-                        // drop through
+                        LLVM_FALLTHROUGH;
                     default:
                         // must check for builtin-types before class-enum-types to avoid
                         // ambiguities with operator-names
