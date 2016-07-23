@@ -171,7 +171,7 @@ __start:
 	ori	%r3, %r3, (PSL_IS | PSL_DS)
 	bl	2f
 2:	mflr	%r4
-	addi	%r4, %r4, 20
+	addi	%r4, %r4, (3f - 2b)
 	mtspr	SPR_SRR0, %r4
 	mtspr	SPR_SRR1, %r3
 	rfi				/* Switch context */
@@ -179,6 +179,7 @@ __start:
 /*
  * Invalidate initial entry
  */
+3:
 	mr	%r3, %r29
 	bl	tlb1_inval_entry
 
@@ -224,7 +225,7 @@ __start:
 	rlwinm	%r4, %r4, 0, 8, 31	/* Current offset from kernel load address */
 	rlwinm	%r3, %r3, 0, 0, 19
 	add	%r4, %r4, %r3		/* Convert to kernel virtual address */
-	addi	%r4, %r4, 36
+	addi	%r4, %r4, (5f - 4b)
 	li	%r3, PSL_DE		/* Note AS=0 */
 	mtspr   SPR_SRR0, %r4
 	mtspr   SPR_SRR1, %r3
@@ -233,6 +234,7 @@ __start:
 /*
  * Invalidate temp mapping
  */
+5:
 	mr	%r3, %r28
 	bl	tlb1_inval_entry
 
@@ -362,7 +364,7 @@ bp_kernload:
 	ori	%r3, %r3, (PSL_IS | PSL_DS)
 	bl	3f
 3:	mflr	%r4
-	addi	%r4, %r4, 20
+	addi	%r4, %r4, (4f - 3b)
 	mtspr	SPR_SRR0, %r4
 	mtspr	SPR_SRR1, %r3
 	rfi				/* Switch context */
@@ -370,6 +372,7 @@ bp_kernload:
 /*
  * Invalidate initial entry
  */
+4:
 	mr	%r3, %r29
 	bl	tlb1_inval_entry
 
@@ -395,10 +398,10 @@ bp_kernload:
 	isync
 
 	/* Retrieve kernel load [physical] address from bp_kernload */
-	bl	4f
+	bl	5f
 	.long	bp_kernload
 	.long	__boot_page
-4:	mflr	%r3
+5:	mflr	%r3
 	lwz	%r4, 0(%r3)
 	lwz	%r5, 4(%r3)
 	rlwinm	%r3, %r3, 0, 0, 19
@@ -414,15 +417,16 @@ bp_kernload:
 	msync
 
 	/* Switch to the final mapping */
-	bl	5f
-5:	mflr	%r3
+	bl	6f
+6:	mflr	%r3
 	rlwinm	%r3, %r3, 0, 0xfff	/* Offset from boot page start */
 	add	%r3, %r3, %r5		/* Make this virtual address */
-	addi	%r3, %r3, 32
+	addi	%r3, %r3, (7f - 6b)
 	li	%r4, 0			/* Note AS=0 */
 	mtspr	SPR_SRR0, %r3
 	mtspr	SPR_SRR1, %r4
 	rfi
+7:
 
 /*
  * At this point we're running at virtual addresses KERNBASE and beyond so
