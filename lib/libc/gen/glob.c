@@ -217,7 +217,8 @@ glob(const char * __restrict pattern, int flags,
 		while (bufnext <= bufend) {
 			clen = mbrtowc(&wc, patnext, MB_LEN_MAX, &mbs);
 			if (clen == (size_t)-1 || clen == (size_t)-2)
-				return (GLOB_NOMATCH);
+				return (globfinal(pglob, &limit,
+				    pglob->gl_pathc, pattern));
 			else if (clen == 0) {
 				too_long = 0;
 				break;
@@ -239,7 +240,8 @@ glob(const char * __restrict pattern, int flags,
 				prot = 0;
 			clen = mbrtowc(&wc, patnext, MB_LEN_MAX, &mbs);
 			if (clen == (size_t)-1 || clen == (size_t)-2)
-				return (GLOB_NOMATCH);
+				return (globfinal(pglob, &limit,
+				    pglob->gl_pathc, pattern));
 			else if (clen == 0) {
 				too_long = 0;
 				break;
@@ -249,7 +251,7 @@ glob(const char * __restrict pattern, int flags,
 		}
 	}
 	if (too_long)
-		return (GLOB_NOMATCH);
+		return (globfinal(pglob, &limit, pglob->gl_pathc, pattern));
 	*bufnext = EOS;
 
 	if (flags & GLOB_BRACE)
@@ -613,9 +615,9 @@ globfinal(glob_t *pglob, struct glob_limit *limit, size_t oldpathc,
 	 * GLOB_NOMAGIC is there just for compatibility with csh.
 	 */
 	if (pglob->gl_pathc == oldpathc) {
-		if (origpat != NULL && ((pglob->gl_flags & GLOB_NOCHECK) ||
+		if ((pglob->gl_flags & GLOB_NOCHECK) ||
 		    ((pglob->gl_flags & GLOB_NOMAGIC) &&
-		    !(pglob->gl_flags & GLOB_MAGCHAR))))
+		    !(pglob->gl_flags & GLOB_MAGCHAR)))
 			return (globextend(NULL, pglob, limit, origpat));
 		else
 			return (GLOB_NOMATCH);
