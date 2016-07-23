@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: c++98, c++03
+
 // <vector>
 
 // void swap(vector& c)
@@ -22,13 +24,14 @@
 #include <vector>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_allocator.h"
 
 template <class T>
 struct some_alloc
 {
     typedef T value_type;
-    
+
     some_alloc() {}
     some_alloc(const some_alloc&);
     void deallocate(void*, unsigned) {}
@@ -40,7 +43,7 @@ template <class T>
 struct some_alloc2
 {
     typedef T value_type;
-    
+
     some_alloc2() {}
     some_alloc2(const some_alloc2&);
     void deallocate(void*, unsigned) {}
@@ -51,7 +54,6 @@ struct some_alloc2
 
 int main()
 {
-#if __has_feature(cxx_noexcept)
     {
         typedef std::vector<bool> C;
         C c1, c2;
@@ -84,7 +86,5 @@ int main()
     //  if the allocators are always equal, then the swap can be noexcept
         static_assert( noexcept(swap(c1, c2)), "");
     }
-#endif
-
 #endif
 }

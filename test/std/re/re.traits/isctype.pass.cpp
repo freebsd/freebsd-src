@@ -13,8 +13,13 @@
 
 // bool isctype(charT c, char_class_type f) const;
 
+// TODO(EricWF): This test takes 40+ minutes to build with Clang 3.8 under ASAN or MSAN.
+// UNSUPPORTED: asan, msan
+
+
 #include <regex>
 #include <cassert>
+#include "test_macros.h"
 
 int main()
 {

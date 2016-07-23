@@ -16,6 +16,8 @@
 #include <utility>
 #include <cassert>
 
+#include "test_macros.h"
+
 int main()
 {
     {
@@ -25,10 +27,7 @@ int main()
         assert(p2.first == 3);
         assert(p2.second == 4);
     }
-
-    static_assert((std::is_trivially_copy_constructible<std::pair<int, int> >::value), "");
-
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     {
         typedef std::pair<int, short> P1;
         constexpr P1 p1(3, 4);

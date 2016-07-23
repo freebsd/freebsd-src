@@ -45,7 +45,7 @@ int main()
         assert(c.load_factor() == 0);
         assert(c.max_load_factor() == 1);
     }
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
         typedef std::unordered_multimap<NotConstructible, NotConstructible,
                                    test_hash<std::hash<NotConstructible> >,
@@ -72,7 +72,7 @@ int main()
         typedef test_hash<std::hash<T>> HF;
         typedef test_compare<std::equal_to<T>> Comp;
         typedef std::unordered_multimap<T, T, HF, Comp, A> C;
-        
+
         A a(10);
         C c(2, a);
         assert(c.bucket_count() == 2);

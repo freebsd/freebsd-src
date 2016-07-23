@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: c++98, c++03
+
 // <unordered_set>
 
 // void swap(unordered_multiset& c)
@@ -26,6 +28,7 @@
 #include <unordered_set>
 #include <cassert>
 
+#include "test_macros.h"
 #include "MoveOnly.h"
 #include "test_allocator.h"
 
@@ -33,20 +36,20 @@ template <class T>
 struct some_comp
 {
     typedef T value_type;
-    
+
     some_comp() {}
     some_comp(const some_comp&) {}
+    bool operator()(const T&, const T&) const { return false; }
 };
 
 template <class T>
 struct some_comp2
 {
     typedef T value_type;
-    
+
     some_comp2() {}
     some_comp2(const some_comp2&) {}
-    void deallocate(void*, unsigned) {}
-    typedef std::true_type propagate_on_container_swap;
+    bool operator()(const T&, const T&) const { return false; }
 };
 
 #if TEST_STD_VER >= 14
@@ -60,6 +63,7 @@ struct some_hash
     typedef T value_type;
     some_hash() {}
     some_hash(const some_hash&);
+    std::size_t operator()(const T&) const { return 0; }
 };
 
 template <class T>
@@ -68,6 +72,7 @@ struct some_hash2
     typedef T value_type;
     some_hash2() {}
     some_hash2(const some_hash2&);
+    std::size_t operator()(const T&) const { return 0; }
 };
 
 #if TEST_STD_VER >= 14
@@ -79,7 +84,7 @@ template <class T>
 struct some_alloc
 {
     typedef T value_type;
-    
+
     some_alloc() {}
     some_alloc(const some_alloc&);
     void deallocate(void*, unsigned) {}
@@ -91,7 +96,7 @@ template <class T>
 struct some_alloc2
 {
     typedef T value_type;
-    
+
     some_alloc2() {}
     some_alloc2(const some_alloc2&);
     void deallocate(void*, unsigned) {}
@@ -104,7 +109,7 @@ template <class T>
 struct some_alloc3
 {
     typedef T value_type;
-    
+
     some_alloc3() {}
     some_alloc3(const some_alloc3&);
     void deallocate(void*, unsigned) {}
@@ -115,7 +120,6 @@ struct some_alloc3
 
 int main()
 {
-#if __has_feature(cxx_noexcept)
     {
         typedef std::unordered_multiset<MoveOnly> C;
         C c1, c2;
@@ -192,7 +196,5 @@ int main()
     C c1, c2;
     static_assert( noexcept(swap(c1, c2)), "");
     }
-#endif
-
 #endif
 }

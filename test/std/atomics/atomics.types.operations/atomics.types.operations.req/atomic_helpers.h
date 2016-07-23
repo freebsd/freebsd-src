@@ -24,10 +24,10 @@ struct UserAtomicType
     { return x.i == y.i; }
 };
 
-template < template <class TestArg> class TestFunctor > 
+template < template <class TestArg> class TestFunctor >
 struct TestEachIntegralType {
     void operator()() const {
-        TestFunctor<char>()(); 
+        TestFunctor<char>()();
         TestFunctor<signed char>()();
         TestFunctor<unsigned char>()();
         TestFunctor<short>()();
@@ -43,10 +43,18 @@ struct TestEachIntegralType {
         TestFunctor<char16_t>()();
         TestFunctor<char32_t>()();
 #endif
+		TestFunctor<  int8_t>()();
+		TestFunctor< uint8_t>()();
+		TestFunctor< int16_t>()();
+		TestFunctor<uint16_t>()();
+		TestFunctor< int32_t>()();
+		TestFunctor<uint32_t>()();
+		TestFunctor< int64_t>()();
+		TestFunctor<uint64_t>()();
     }
 };
 
-template < template <class TestArg> class TestFunctor > 
+template < template <class TestArg> class TestFunctor >
 struct TestEachAtomicType {
     void operator()() const {
         TestEachIntegralType<TestFunctor>()();

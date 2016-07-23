@@ -21,7 +21,9 @@
 #include <string>
 #include <cassert>
 
-#if __cplusplus > 201103L
+#include "test_macros.h"
+
+#if TEST_STD_VER > 11
 
 struct Empty {};
 
@@ -69,7 +71,7 @@ int main()
         assert(std::get<2>(t) == 4);
         assert(d == 2.5);
     }
-#if _LIBCPP_STD_VER > 11 
+#if _LIBCPP_STD_VER > 11
     { // get on an rvalue tuple
         static_assert ( std::get<0> ( std::make_tuple ( 0.0f, 1, 2.0, 3L )) == 0, "" );
         static_assert ( std::get<1> ( std::make_tuple ( 0.0f, 1, 2.0, 3L )) == 1, "" );

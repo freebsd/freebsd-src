@@ -71,7 +71,7 @@ int main()
         C::iterator i;
         C::const_iterator j;
     }
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
         typedef int T;
         typedef std::forward_list<T, min_allocator<T>> C;
@@ -127,7 +127,7 @@ int main()
         std::forward_list<int>::const_iterator cii{};
         assert ( ii1 == ii2 );
         assert ( ii1 == ii4 );
- 
+
         assert (!(ii1 != ii2 ));
 
         assert ( (ii1 == cii ));

@@ -11,12 +11,13 @@
 // <regex>
 
 // match_not_bol:
-//     The first character in the sequence [first,last) shall be treated as 
-//     though it is not at the beginning of a line, so the character ^ in the 
+//     The first character in the sequence [first,last) shall be treated as
+//     though it is not at the beginning of a line, so the character ^ in the
 //     regular expression shall not match [first,first).
 
 #include <regex>
 #include <cassert>
+#include "test_macros.h"
 
 int main()
 {

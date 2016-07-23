@@ -3,7 +3,7 @@
 #===============================================================================
 # Setup Project
 #===============================================================================
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.4.3)
 
 if(POLICY CMP0042)
   cmake_policy(SET CMP0042 NEW) # Set MACOSX_RPATH=YES by default
@@ -12,19 +12,31 @@ if(POLICY CMP0022)
   cmake_policy(SET CMP0022 NEW) # Required when interacting with LLVM and Clang
 endif()
 
-project(libcxx CXX C)
-
-set(PACKAGE_NAME libcxx)
-set(PACKAGE_VERSION trunk-svn)
-set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-set(PACKAGE_BUGREPORT "llvm-bugs@lists.llvm.org")
-
 # Add path for custom modules
 set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules"
   ${CMAKE_MODULE_PATH}
   )
+
+# Find the LLVM sources and simulate LLVM CMake options.
+include(HandleOutOfTreeLLVM)
+
+if (LIBCXX_BUILT_STANDALONE)
+  project(libcxx CXX C)
+
+  set(PACKAGE_NAME libcxx)
+  set(PACKAGE_VERSION trunk-svn)
+  set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
+  set(PACKAGE_BUGREPORT "llvm-bugs@lists.llvm.org")
+endif ()
+
+if (LIBCXX_BUILT_STANDALONE AND NOT LLVM_FOUND)
+  message(WARNING "UNSUPPORTED LIBCXX CONFIGURATION DETECTED: "
+                  "llvm-config not found and LLVM_PATH not defined.\n"
+                  "Reconfigure with -DLLVM_CONFIG=path/to/llvm-config "
+                  "or -DLLVM_PATH=path/to/llvm-source-root.")
+endif()
 
 # Require out of source build.
 include(MacroEnsureOutOfSourceBuild)
@@ -33,15 +45,6 @@ MACRO_ENSURE_OUT_OF_SOURCE_BUILD(
  build directory and run 'cmake /path/to/${PROJECT_NAME} [options]' there."
  )
 
-# Find the LLVM sources and simulate LLVM CMake options.
-include(HandleOutOfTreeLLVM)
-if (LIBCXX_BUILT_STANDALONE AND NOT LLVM_FOUND)
-  message(WARNING "UNSUPPORTED LIBCXX CONFIGURATION DETECTED: "
-                  "llvm-config not found and LLVM_PATH not defined.\n"
-                  "Reconfigure with -DLLVM_CONFIG=path/to/llvm-config "
-                  "or -DLLVM_PATH=path/to/llvm-source-root.")
-endif()
-
 #===============================================================================
 # Setup CMake Options
 #===============================================================================
@@ -49,7 +52,9 @@ endif()
 # Basic options ---------------------------------------------------------------
 option(LIBCXX_ENABLE_ASSERTIONS "Enable assertions independent of build mode." ON)
 option(LIBCXX_ENABLE_SHARED "Build libc++ as a shared library." ON)
-
+option(LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY "Build libc++experimental.a" ON)
+option(LIBCXX_ENABLE_FILESYSTEM
+        "Build filesystem as part of libc++experimental.a" ${LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY})
 option(LIBCXX_INCLUDE_TESTS "Build the libc++ tests." ${LLVM_INCLUDE_TESTS})
 option(LIBCXX_INCLUDE_DOCS "Build the libc++ documentation." ${LLVM_INCLUDE_DOCS})
 set(LIBCXX_LIBDIR_SUFFIX "${LLVM_LIBDIR_SUFFIX}" CACHE STRING
@@ -57,6 +62,7 @@ set(LIBCXX_LIBDIR_SUFFIX "${LLVM_LIBDIR_SUFFIX}" CACHE STRING
 option(LIBCXX_INSTALL_HEADERS "Install the libc++ headers." ON)
 option(LIBCXX_INSTALL_LIBRARY "Install the libc++ library." ON)
 option(LIBCXX_INSTALL_SUPPORT_HEADERS "Install libc++ support headers." ON)
+option(LIBCXX_INSTALL_EXPERIMENTAL_LIBRARY "Install libc++experimental.a" OFF)
 set(LIBCXX_ABI_VERSION 1 CACHE STRING "ABI version of libc++.")
 option(LIBCXX_ABI_UNSTABLE "Unstable ABI of libc++." OFF)
 
@@ -92,7 +98,8 @@ option(LIBCXX_ENABLE_STATIC_ABI_LIBRARY "Statically link the ABI library" OFF)
 set(ENABLE_LINKER_SCRIPT_DEFAULT_VALUE OFF)
 if (LLVM_HAVE_LINK_VERSION_SCRIPT AND NOT LIBCXX_ENABLE_STATIC_ABI_LIBRARY
       AND NOT LIBCXX_CXX_ABI_LIBNAME STREQUAL "none"
-      AND PYTHONINTERP_FOUND)
+      AND PYTHONINTERP_FOUND
+      AND LIBCXX_ENABLE_SHARED)
     set(ENABLE_LINKER_SCRIPT_DEFAULT_VALUE ON)
 endif()
 
@@ -121,12 +128,14 @@ option(LIBCXX_ENABLE_MONOTONIC_CLOCK
   "Build libc++ with support for a monotonic clock.
    This option may only be set to OFF when LIBCXX_ENABLE_THREADS=OFF." ON)
 option(LIBCXX_HAS_MUSL_LIBC "Build libc++ with support for the Musl C library" OFF)
+option(LIBCXX_HAS_PTHREAD_API "Ignore auto-detection and force use of pthread API" OFF)
 
 # Misc options ----------------------------------------------------------------
 # FIXME: Turn -pedantic back ON. It is currently off because it warns
 # about #include_next which is used everywhere.
 option(LIBCXX_ENABLE_PEDANTIC "Compile with pedantic enabled." OFF)
 option(LIBCXX_ENABLE_WERROR "Fail and stop if a warning is triggered." OFF)
+option(LIBCXX_DISABLE_MACRO_CONFLICT_WARNINGS "Disable #warnings about conflicting macros." OFF)
 
 option(LIBCXX_GENERATE_COVERAGE "Enable generating code coverage." OFF)
 set(LIBCXX_COVERAGE_LIBRARY "" CACHE STRING
@@ -160,11 +169,21 @@ option(LIBCXX_CONFIGURE_IDE "Configure libcxx for use within an IDE"
 # Check option configurations
 #===============================================================================
 
+if (LIBCXX_ENABLE_FILESYSTEM AND NOT LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY)
+  message(FATAL_ERROR
+    "LIBCXX_ENABLE_FILESYSTEM cannot be turned on when LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF")
+endif()
+
 # Ensure LIBCXX_ENABLE_MONOTONIC_CLOCK is set to ON only when
 # LIBCXX_ENABLE_THREADS is on.
 if(LIBCXX_ENABLE_THREADS AND NOT LIBCXX_ENABLE_MONOTONIC_CLOCK)
   message(FATAL_ERROR "LIBCXX_ENABLE_MONOTONIC_CLOCK can only be set to OFF"
                       " when LIBCXX_ENABLE_THREADS is also set to OFF.")
+endif()
+
+if(LIBCXX_HAS_PTHREAD_API AND NOT LIBCXX_ENABLE_THREADS)
+  message(FATAL_ERROR "LIBCXX_HAS_PTHREAD_API can only be set to ON"
+                      " when LIBCXX_ENABLE_THREADS is also set to ON.")
 endif()
 
 # Ensure LLVM_USE_SANITIZER is not specified when LIBCXX_GENERATE_COVERAGE
@@ -198,6 +217,9 @@ if (LIBCXX_ENABLE_ABI_LINKER_SCRIPT)
     endif()
     if (NOT PYTHONINTERP_FOUND)
       message(FATAL_ERROR "LIBCXX_ENABLE_ABI_LINKER_SCRIPT requires python but it was not found.")
+    endif()
+    if (NOT LIBCXX_ENABLE_SHARED)
+      message(FATAL_ERROR "LIBCXX_ENABLE_ABI_LINKER_SCRIPT is only available for shared library builds.")
     endif()
 endif()
 
@@ -233,6 +255,18 @@ set(LIBCXX_COMPILE_FLAGS "")
 set(LIBCXX_LINK_FLAGS "")
 set(LIBCXX_LIBRARIES "")
 
+# Include macros for adding and removing libc++ flags.
+include(HandleLibcxxFlags)
+
+# Target flags ================================================================
+# These flags get added to CMAKE_CXX_FLAGS and CMAKE_C_FLAGS so that
+# 'config-ix' use them during feature checks. It also adds them to both
+# 'LIBCXX_COMPILE_FLAGS' and 'LIBCXX_LINK_FLAGS'
+add_target_flags_if(LIBCXX_BUILD_32_BITS "-m32")
+add_target_flags_if(LIBCXX_TARGET_TRIPLE "-target ${LIBCXX_TARGET_TRIPLE}")
+add_target_flags_if(LIBCXX_SYSROOT "--sysroot=${LIBCXX_SYSROOT}")
+add_target_flags_if(LIBCXX_GCC_TOOLCHAIN "-gcc-toolchain ${LIBCXX_GCC_TOOLCHAIN}")
+
 # Configure compiler.
 include(config-ix)
 
@@ -248,10 +282,7 @@ string(TOUPPER "${CMAKE_BUILD_TYPE}" uppercase_CMAKE_BUILD_TYPE)
 # Setup Compiler Flags
 #===============================================================================
 
-include(HandleLibCXXABI) # Steup the ABI library flags
-
-# Include macros for adding and removing libc++ flags.
-include(HandleLibcxxFlags)
+include(HandleLibCXXABI) # Setup the ABI library flags
 
 # Remove flags that may have snuck in.
 remove_flags(-DNDEBUG -UNDEBUG -D_DEBUG
@@ -274,17 +305,13 @@ endif()
 # headers
 add_compile_flags_if_supported(-nostdinc++)
 
-# Target flags ================================================================
-add_flags_if(LIBCXX_BUILD_32_BITS -m32)
-add_flags_if(LIBCXX_TARGET_TRIPLE "-target ${LIBCXX_TARGET_TRIPLE}")
-add_flags_if(LIBCXX_SYSROOT "--sysroot ${LIBCXX_SYSROOT}")
-add_flags_if(LIBCXX_GCC_TOOLCHAIN "-gcc-toolchain ${LIBCXX_GCC_TOOLCHAIN}")
 
 # Warning flags ===============================================================
 add_definitions(-D_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 add_compile_flags_if_supported(
     -Wall -W -Wwrite-strings
-    -Wno-unused-parameter -Wno-long-long
+    -Wno-unused-parameter -Wno-long-long -Wno-user-defined-literals
+    -Wno-covered-switch-default
     -Werror=return-type)
 if (LIBCXX_ENABLE_WERROR)
   add_compile_flags_if_supported(-Werror)
@@ -296,6 +323,9 @@ else()
 endif()
 if (LIBCXX_ENABLE_PEDANTIC)
   add_compile_flags_if_supported(-pedantic)
+endif()
+if (LIBCXX_DISABLE_MACRO_CONFLICT_WARNINGS)
+  add_definitions(-D_LIBCPP_DISABLE_MACRO_CONFLICT_WARNINGS)
 endif()
 
 # Exception flags =============================================================
@@ -376,6 +406,7 @@ config_define_if_not(LIBCXX_ENABLE_THREADS _LIBCPP_HAS_NO_THREADS)
 config_define_if_not(LIBCXX_ENABLE_MONOTONIC_CLOCK _LIBCPP_HAS_NO_MONOTONIC_CLOCK)
 config_define_if_not(LIBCXX_ENABLE_THREAD_UNSAFE_C_FUNCTIONS _LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS)
 
+config_define_if(LIBCXX_HAS_PTHREAD_API _LIBCPP_HAS_THREAD_API_PTHREAD)
 config_define_if(LIBCXX_HAS_MUSL_LIBC _LIBCPP_HAS_MUSL_LIBC)
 
 if (LIBCXX_NEEDS_SITE_CONFIG)

@@ -124,7 +124,7 @@ int main()
         assert(r == next(m.begin(), 8));
     }
     }
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
     typedef std::pair<const int, double> V;
     typedef std::map<int, double, std::less<int>, min_allocator<V>> M;
@@ -280,7 +280,7 @@ int main()
     r = m.upper_bound(20);
     assert(r == next(m.begin(), 8));
     }
-    
+
     {
     typedef PrivateConstructor PC;
     typedef std::map<PC, double, std::less<>> M;

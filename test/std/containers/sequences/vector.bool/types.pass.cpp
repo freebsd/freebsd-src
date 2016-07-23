@@ -46,7 +46,15 @@ test()
     static_assert((std::is_same<typename C::allocator_type, Allocator>::value), "");
     static_assert((std::is_same<typename C::size_type, typename std::allocator_traits<Allocator>::size_type>::value), "");
     static_assert((std::is_same<typename C::difference_type, typename std::allocator_traits<Allocator>::difference_type>::value), "");
-    static_assert((std::is_same<
+
+    static_assert((std::is_signed<typename C::difference_type>::value), "");
+    static_assert((std::is_unsigned<typename C::size_type>::value), "");
+    static_assert((std::is_same<typename C::difference_type,
+        typename std::iterator_traits<typename C::iterator>::difference_type>::value), "");
+    static_assert((std::is_same<typename C::difference_type,
+        typename std::iterator_traits<typename C::const_iterator>::difference_type>::value), "");
+
+   static_assert((std::is_same<
         typename std::iterator_traits<typename C::iterator>::iterator_category,
         std::random_access_iterator_tag>::value), "");
     static_assert((std::is_same<
@@ -66,7 +74,7 @@ int main()
     test<std::allocator<bool> >();
     static_assert((std::is_same<std::vector<bool>::allocator_type,
                                 std::allocator<bool> >::value), "");
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     test<min_allocator<bool> >();
 #endif
 }

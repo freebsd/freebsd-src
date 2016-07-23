@@ -53,13 +53,40 @@ struct NoValueCtorEmpty
     { static_assert(never<T>::value, "This should not be instantiated"); }
 };
 
+
+struct ImplicitCopy {
+  explicit ImplicitCopy(int) {}
+  ImplicitCopy(ImplicitCopy const&) {}
+};
+
+// Test that tuple(std::allocator_arg, Alloc, Types const&...) allows implicit
+// copy conversions in return value expressions.
+std::tuple<ImplicitCopy> testImplicitCopy1() {
+    ImplicitCopy i(42);
+    return {i};
+}
+
+std::tuple<ImplicitCopy> testImplicitCopy2() {
+    const ImplicitCopy i(42);
+    return {i};
+}
+
+std::tuple<ImplicitCopy> testImplicitCopy3() {
+    const ImplicitCopy i(42);
+    return i;
+}
+
 int main()
 {
+    {
+        // check that the literal '0' can implicitly initialize a stored pointer.
+        std::tuple<int*> t = 0;
+    }
     {
         std::tuple<int> t(2);
         assert(std::get<0>(t) == 2);
     }
-#if _LIBCPP_STD_VER > 11 
+#if _LIBCPP_STD_VER > 11
     {
         constexpr std::tuple<int> t(2);
         static_assert(std::get<0>(t) == 2, "");
@@ -74,7 +101,7 @@ int main()
         assert(std::get<0>(t) == 2);
         assert(std::get<1>(t) == nullptr);
     }
-#if _LIBCPP_STD_VER > 11 
+#if _LIBCPP_STD_VER > 11
     {
         constexpr std::tuple<int, char*> t(2, nullptr);
         static_assert(std::get<0>(t) == 2, "");
@@ -109,7 +136,8 @@ int main()
         assert(std::get<2>(t) == 2);
         assert(std::get<3>(t) == 3);
     }
-    // extensions
+// extensions
+#ifdef _LIBCPP_VERSION
     {
         std::tuple<int, char*, std::string> t(2);
         assert(std::get<0>(t) == 2);
@@ -129,4 +157,5 @@ int main()
         assert(std::get<2>(t) == "text");
         assert(std::get<3>(t) == 0.0);
     }
+#endif
 }

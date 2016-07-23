@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: c++98, c++03, c++11
 // <optional>
 
 // template <class T>
@@ -19,9 +20,10 @@
 #include <memory>
 #include <cassert>
 
+#include "test_macros.h"
+
 int main()
 {
-#if _LIBCPP_STD_VER > 11
     using std::experimental::optional;
     using std::experimental::make_optional;
 
@@ -38,7 +40,7 @@ int main()
         std::string s("123");
         optional<std::string> opt = make_optional(std::move(s));
         assert(*opt == "123");
-        assert(s.empty());
+        LIBCPP_ASSERT(s.empty());
     }
     {
         std::unique_ptr<int> s(new int(3));
@@ -46,5 +48,4 @@ int main()
         assert(**opt == 3);
         assert(s == nullptr);
     }
-#endif  // _LIBCPP_STD_VER > 11
 }

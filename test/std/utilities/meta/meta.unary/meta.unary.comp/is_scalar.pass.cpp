@@ -45,6 +45,8 @@ void test_is_not_scalar()
 #endif
 }
 
+class incomplete_type;
+
 class Empty
 {
 };
@@ -73,9 +75,9 @@ typedef void (*FunctionPtr)();
 
 int main()
 {
-//  Arithmetic types (3.9.1), enumeration types, pointer types, pointer to member types (3.9.2), 
-//    std::nullptr_t, and cv-qualified versions of these types (3.9.3) 
-//    are collectively called scalar types. 
+//  Arithmetic types (3.9.1), enumeration types, pointer types, pointer to member types (3.9.2),
+//    std::nullptr_t, and cv-qualified versions of these types (3.9.3)
+//    are collectively called scalar types.
 
     test_is_scalar<std::nullptr_t>();
     test_is_scalar<short>();
@@ -104,6 +106,7 @@ int main()
     test_is_not_scalar<char[]>();
     test_is_not_scalar<Union>();
     test_is_not_scalar<Empty>();
+    test_is_not_scalar<incomplete_type>();
     test_is_not_scalar<bit_zero>();
     test_is_not_scalar<NotEmpty>();
     test_is_not_scalar<Abstract>();

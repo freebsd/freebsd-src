@@ -16,7 +16,11 @@
 #include <string>
 #include <cassert>
 
-#if _LIBCPP_STD_VER > 11
+#include "test_macros.h"
+
+//	Test that mismatches between strings and wides streams are diagnosed
+
+#if TEST_STD_VER > 11
 
 void round_trip ( const char *p ) {
     std::wstringstream ss;
@@ -29,7 +33,7 @@ void round_trip ( const char *p ) {
 
 int main()
 {
-    round_trip ( "Hi Mom" );   
+    round_trip ( "Hi Mom" );
 }
 #else
 #error
