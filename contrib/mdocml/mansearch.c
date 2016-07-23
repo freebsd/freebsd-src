@@ -1,4 +1,4 @@
-/*	$Id: mansearch.c,v 1.64 2016/01/08 15:02:54 schwarze Exp $ */
+/*	$Id: mansearch.c,v 1.65 2016/07/09 15:24:19 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -26,7 +26,6 @@
 #endif
 #include <errno.h>
 #include <fcntl.h>
-#include <getopt.h>
 #include <glob.h>
 #include <limits.h>
 #include <regex.h>

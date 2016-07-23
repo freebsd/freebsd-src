@@ -1,6 +1,6 @@
-# $Id: configure.local.example,v 1.10 2015/11/07 13:14:21 schwarze Exp $
+# $Id: configure.local.example,v 1.13 2016/07/14 11:09:06 schwarze Exp $
 #
-# Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -65,7 +65,7 @@ MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
 # If you do not want uname(3) to be called but instead want a fixed
 # string to be used, use the following line:
 
-OSNAME="OpenBSD 5.6"
+OSNAME="OpenBSD 5.9"
 
 # The following installation directories are used.
 # It is possible to set only one or a few of these variables,
@@ -123,6 +123,26 @@ MANM_TBL="mandoc_tbl"		# default is "tbl"
 BINM_MAN=mman			# default is "man"
 BINM_SOELIM=msoelim		# default is "soelim"
 
+# Before falling back to the bundled version of the ohash(3) hashing
+# library, autoconfiguration tries the following linker flag to
+# link against your system version.  If you do have ohash(3) on
+# your system but it needs different linker flags, set the following
+# variable to specify the required linker flags.
+
+LD_OHASH="-lutil"
+
+# Some platforms may need additional linker flags to link against libmandoc
+# that are not autodetected.
+# For example, Solaris 9 and 10 need -lrt for nanosleep(2).
+
+LDADD="-lrt"
+
+# Some systems may want to set additional linker flags for all the
+# binaries, not only for those using libmandoc, for example for
+# hardening options.
+
+LDFLAGS="-Wl,-z,relro"
+
 # It is possible to change the utility program used for installation
 # and the modes files are installed with.  The defaults are:
 
@@ -141,18 +161,16 @@ INSTALL_DATA="${INSTALL} -m 0444"
 
 BUILD_DB=0
 
-# Two libraries are needed: SQLite3 and ohash(3).
-# Autoconfiguration tries the following linker flags to find them.
-# If none of these work, add a working DBLIB line to configure.local,
-# disabling autodetection for library directories.
+# Autoconfiguration tries the following linker flags to find the
+# SQLite3 library installed on your system.  If none of these work,
+# set the following variable to specify the required linker flags.
 
-DBLIB="-lsqlite3"
-DBLIB="-lsqlite3 -lutil"
-DBLIB="-L/usr/local/lib -lsqlite3"
+LD_SQLITE3="-lsqlite3"
+LD_SQLITE3="-L/usr/local/lib -lsqlite3"
 
 # When library autodetection decides to use -L/usr/local/lib,
 # -I/usr/local/include is automatically added to CFLAGS.
-# If you manually set DBLIB to something including -L/usr/local/lib,
+# If you manually set LD_SQLITE3 to something including -L/usr/local/lib,
 # chances are you will also need the following line:
 
 CFLAGS="${CFLAGS} -I/usr/local/include"
@@ -218,9 +236,17 @@ CGIBINDIR="${WWWPREFIX}/cgi-bin"
 
 CC=cc
 
+# IBM AIX may need:
+
+CC=xlc
+
 # The default compiler flags are:
 
 CFLAGS="-g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings"
+
+# IBM AIX xlc does not support -W; in that case, please use:
+
+CFLAGS="-g"
 
 # In rare cases, it may be required to skip individual automatic tests.
 # Each of the following variables can be set to 0 (test will not be run
@@ -228,17 +254,27 @@ CFLAGS="-g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings"
 # be regarded as successful).
 
 HAVE_DIRENT_NAMLEN=0
-HAVE_FGETLN=0
+HAVE_ERR=0
 HAVE_FTS=0
+HAVE_GETLINE=0
 HAVE_GETSUBOPT=0
+HAVE_ISBLANK=0
+HAVE_MKDTEMP=0
 HAVE_MMAP=0
+HAVE_PLEDGE=0
+HAVE_PROGNAME=0
 HAVE_REALLOCARRAY=0
+HAVE_REWB_BSD=0
+HAVE_REWB_SYSV=0
 HAVE_STRCASESTR=0
+HAVE_STRINGLIST=0
 HAVE_STRLCAT=0
 HAVE_STRLCPY=0
 HAVE_STRPTIME=0
 HAVE_STRSEP=0
 HAVE_STRTONUM=0
+HAVE_VASPRINTF=0
+HAVE_WCHAR=0
 
 HAVE_SQLITE3=0
 HAVE_SQLITE3_ERRSTR=0
