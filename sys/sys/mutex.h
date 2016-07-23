@@ -112,6 +112,8 @@ void	__mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
 void	__mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	     int line);
+int	__mtx_trylock_spin_flags(volatile uintptr_t *c, int opts,
+	     const char *file, int line);
 void	__mtx_unlock_spin_flags(volatile uintptr_t *c, int opts,
 	    const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
@@ -152,6 +154,8 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	__mtx_unlock_flags(&(m)->mtx_lock, o, f, l)
 #define	_mtx_lock_spin_flags(m, o, f, l)				\
 	__mtx_lock_spin_flags(&(m)->mtx_lock, o, f, l)
+#define	_mtx_trylock_spin_flags(m, o, f, l)				\
+	__mtx_trylock_spin_flags(&(m)->mtx_lock, o, f, l)
 #define	_mtx_unlock_spin_flags(m, o, f, l)				\
 	__mtx_unlock_spin_flags(&(m)->mtx_lock, o, f, l)
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
@@ -212,6 +216,21 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,	\
 		    mp, 0, 0, file, line);				\
 } while (0)
+#define __mtx_trylock_spin(mp, tid, opts, file, line) __extension__  ({	\
+	uintptr_t _tid = (uintptr_t)(tid);				\
+	int _ret;							\
+									\
+	spinlock_enter();						\
+	if (((mp)->mtx_lock != MTX_UNOWNED || !_mtx_obtain_lock((mp), _tid))) {\
+		spinlock_exit();					\
+		_ret = 0;						\
+	} else {							\
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,	\
+		    mp, 0, 0, file, line);				\
+		_ret = 1;						\
+	}								\
+	_ret;								\
+})
 #else /* SMP */
 #define __mtx_lock_spin(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
@@ -224,6 +243,20 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 		(mp)->mtx_lock = _tid;					\
 	}								\
 } while (0)
+#define __mtx_trylock_spin(mp, tid, opts, file, line) __extension__  ({	\
+	uintptr_t _tid = (uintptr_t)(tid);				\
+	int _ret;							\
+									\
+	spinlock_enter();						\
+	if ((mp)->mtx_lock != MTX_UNOWNED) {				\
+		spinlock_exit();					\
+		_ret = 0;						\
+	} else {							\
+		(mp)->mtx_lock = _tid;					\
+		_ret = 1;						\
+	}								\
+	_ret;								\
+})
 #endif /* SMP */
 
 /* Unlock a normal mutex. */
@@ -293,6 +326,10 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
  * mtx_trylock_flags(m, opts) is used the same way as mtx_trylock() but accepts
  *     relevant option flags `opts.'
  *
+ * mtx_trylock_spin(m) attempts to acquire MTX_SPIN mutex `m' but doesn't
+ *     spin if it cannot.  Rather, it returns 0 on failure and non-zero on
+ *     success.  It always returns failure for recursed lock attempts.
+ *
  * mtx_initialized(m) returns non-zero if the lock `m' has been initialized.
  *
  * mtx_owned(m) returns non-zero if the current thread owns the lock `m'
@@ -302,6 +339,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 #define mtx_lock(m)		mtx_lock_flags((m), 0)
 #define mtx_lock_spin(m)	mtx_lock_spin_flags((m), 0)
 #define mtx_trylock(m)		mtx_trylock_flags((m), 0)
+#define mtx_trylock_spin(m)	mtx_trylock_spin_flags((m), 0)
 #define mtx_unlock(m)		mtx_unlock_flags((m), 0)
 #define mtx_unlock_spin(m)	mtx_unlock_spin_flags((m), 0)
 
@@ -335,6 +373,8 @@ extern struct mtx_pool *mtxpool_sleep;
 	_mtx_unlock_flags((m), (opts), (file), (line))
 #define	mtx_lock_spin_flags_(m, opts, file, line)			\
 	_mtx_lock_spin_flags((m), (opts), (file), (line))
+#define	mtx_trylock_spin_flags_(m, opts, file, line)			\
+	_mtx_trylock_spin_flags((m), (opts), (file), (line))
 #define	mtx_unlock_spin_flags_(m, opts, file, line)			\
 	_mtx_unlock_spin_flags((m), (opts), (file), (line))
 #else	/* LOCK_DEBUG == 0 && !MUTEX_NOINLINE */
@@ -344,6 +384,8 @@ extern struct mtx_pool *mtxpool_sleep;
 	__mtx_unlock((m), curthread, (opts), (file), (line))
 #define	mtx_lock_spin_flags_(m, opts, file, line)			\
 	__mtx_lock_spin((m), curthread, (opts), (file), (line))
+#define	mtx_trylock_spin_flags_(m, opts, file, line)			\
+	__mtx_trylock_spin((m), curthread, (opts), (file), (line))
 #define	mtx_unlock_spin_flags_(m, opts, file, line)			\
 	__mtx_unlock_spin((m))
 #endif	/* LOCK_DEBUG > 0 || MUTEX_NOINLINE */
@@ -369,6 +411,8 @@ extern struct mtx_pool *mtxpool_sleep;
 	mtx_unlock_spin_flags_((m), (opts), LOCK_FILE, LOCK_LINE)
 #define mtx_trylock_flags(m, opts)					\
 	mtx_trylock_flags_((m), (opts), LOCK_FILE, LOCK_LINE)
+#define mtx_trylock_spin_flags(m, opts)					\
+	mtx_trylock_spin_flags_((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_assert(m, what)						\
 	mtx_assert_((m), (what), __FILE__, __LINE__)
 
