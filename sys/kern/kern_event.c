@@ -1083,8 +1083,11 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 findkn:
 	if (fops->f_isfd) {
 		KASSERT(td != NULL, ("td is NULL"));
-		error = fget(td, kev->ident,
-		    cap_rights_init(&rights, CAP_EVENT), &fp);
+		if (kev->ident > INT_MAX)
+			error = EBADF;
+		else
+			error = fget(td, kev->ident,
+			    cap_rights_init(&rights, CAP_EVENT), &fp);
 		if (error)
 			goto done;
 
