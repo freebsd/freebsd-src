@@ -985,7 +985,7 @@ void StringLiteral::setString(const ASTContext &C, StringRef Str,
       break;
     }
     default:
-      assert(false && "unsupported CharByteWidth");
+      llvm_unreachable("unsupported CharByteWidth");
   }
 }
 
@@ -1084,20 +1084,8 @@ StringLiteral::getLocationOfByte(unsigned ByteNo, const SourceManager &SM,
 /// corresponds to, e.g. "sizeof" or "[pre]++".
 StringRef UnaryOperator::getOpcodeStr(Opcode Op) {
   switch (Op) {
-  case UO_PostInc: return "++";
-  case UO_PostDec: return "--";
-  case UO_PreInc:  return "++";
-  case UO_PreDec:  return "--";
-  case UO_AddrOf:  return "&";
-  case UO_Deref:   return "*";
-  case UO_Plus:    return "+";
-  case UO_Minus:   return "-";
-  case UO_Not:     return "~";
-  case UO_LNot:    return "!";
-  case UO_Real:    return "__real";
-  case UO_Imag:    return "__imag";
-  case UO_Extension: return "__extension__";
-  case UO_Coawait: return "co_await";
+#define UNARY_OPERATION(Name, Spelling) case UO_##Name: return Spelling;
+#include "clang/AST/OperationKinds.def"
   }
   llvm_unreachable("Unknown unary operator");
 }
@@ -1138,28 +1126,23 @@ OverloadedOperatorKind UnaryOperator::getOverloadedOperator(Opcode Opc) {
 // Postfix Operators.
 //===----------------------------------------------------------------------===//
 
-CallExpr::CallExpr(const ASTContext& C, StmtClass SC, Expr *fn,
-                   unsigned NumPreArgs, ArrayRef<Expr*> args, QualType t,
+CallExpr::CallExpr(const ASTContext &C, StmtClass SC, Expr *fn,
+                   ArrayRef<Expr *> preargs, ArrayRef<Expr *> args, QualType t,
                    ExprValueKind VK, SourceLocation rparenloc)
-  : Expr(SC, t, VK, OK_Ordinary,
-         fn->isTypeDependent(),
-         fn->isValueDependent(),
-         fn->isInstantiationDependent(),
-         fn->containsUnexpandedParameterPack()),
-    NumArgs(args.size()) {
+    : Expr(SC, t, VK, OK_Ordinary, fn->isTypeDependent(),
+           fn->isValueDependent(), fn->isInstantiationDependent(),
+           fn->containsUnexpandedParameterPack()),
+      NumArgs(args.size()) {
 
-  SubExprs = new (C) Stmt*[args.size()+PREARGS_START+NumPreArgs];
+  unsigned NumPreArgs = preargs.size();
+  SubExprs = new (C) Stmt *[args.size()+PREARGS_START+NumPreArgs];
   SubExprs[FN] = fn;
+  for (unsigned i = 0; i != NumPreArgs; ++i) {
+    updateDependenciesFromArg(preargs[i]);
+    SubExprs[i+PREARGS_START] = preargs[i];
+  }
   for (unsigned i = 0; i != args.size(); ++i) {
-    if (args[i]->isTypeDependent())
-      ExprBits.TypeDependent = true;
-    if (args[i]->isValueDependent())
-      ExprBits.ValueDependent = true;
-    if (args[i]->isInstantiationDependent())
-      ExprBits.InstantiationDependent = true;
-    if (args[i]->containsUnexpandedParameterPack())
-      ExprBits.ContainsUnexpandedParameterPack = true;
-
+    updateDependenciesFromArg(args[i]);
     SubExprs[i+PREARGS_START+NumPreArgs] = args[i];
   }
 
@@ -1167,9 +1150,14 @@ CallExpr::CallExpr(const ASTContext& C, StmtClass SC, Expr *fn,
   RParenLoc = rparenloc;
 }
 
+CallExpr::CallExpr(const ASTContext &C, StmtClass SC, Expr *fn,
+                   ArrayRef<Expr *> args, QualType t, ExprValueKind VK,
+                   SourceLocation rparenloc)
+    : CallExpr(C, SC, fn, ArrayRef<Expr *>(), args, t, VK, rparenloc) {}
+
 CallExpr::CallExpr(const ASTContext &C, Expr *fn, ArrayRef<Expr *> args,
                    QualType t, ExprValueKind VK, SourceLocation rparenloc)
-    : CallExpr(C, CallExprClass, fn, /*NumPreArgs=*/0, args, t, VK, rparenloc) {
+    : CallExpr(C, CallExprClass, fn, ArrayRef<Expr *>(), args, t, VK, rparenloc) {
 }
 
 CallExpr::CallExpr(const ASTContext &C, StmtClass SC, EmptyShell Empty)
@@ -1179,8 +1167,19 @@ CallExpr::CallExpr(const ASTContext &C, StmtClass SC, unsigned NumPreArgs,
                    EmptyShell Empty)
   : Expr(SC, Empty), SubExprs(nullptr), NumArgs(0) {
   // FIXME: Why do we allocate this?
-  SubExprs = new (C) Stmt*[PREARGS_START+NumPreArgs];
+  SubExprs = new (C) Stmt*[PREARGS_START+NumPreArgs]();
   CallExprBits.NumPreArgs = NumPreArgs;
+}
+
+void CallExpr::updateDependenciesFromArg(Expr *Arg) {
+  if (Arg->isTypeDependent())
+    ExprBits.TypeDependent = true;
+  if (Arg->isValueDependent())
+    ExprBits.ValueDependent = true;
+  if (Arg->isInstantiationDependent())
+    ExprBits.InstantiationDependent = true;
+  if (Arg->containsUnexpandedParameterPack())
+    ExprBits.ContainsUnexpandedParameterPack = true;
 }
 
 Decl *CallExpr::getCalleeDecl() {
@@ -1597,120 +1596,9 @@ bool CastExpr::CastConsistency() const {
 
 const char *CastExpr::getCastKindName() const {
   switch (getCastKind()) {
-  case CK_Dependent:
-    return "Dependent";
-  case CK_BitCast:
-    return "BitCast";
-  case CK_LValueBitCast:
-    return "LValueBitCast";
-  case CK_LValueToRValue:
-    return "LValueToRValue";
-  case CK_NoOp:
-    return "NoOp";
-  case CK_BaseToDerived:
-    return "BaseToDerived";
-  case CK_DerivedToBase:
-    return "DerivedToBase";
-  case CK_UncheckedDerivedToBase:
-    return "UncheckedDerivedToBase";
-  case CK_Dynamic:
-    return "Dynamic";
-  case CK_ToUnion:
-    return "ToUnion";
-  case CK_ArrayToPointerDecay:
-    return "ArrayToPointerDecay";
-  case CK_FunctionToPointerDecay:
-    return "FunctionToPointerDecay";
-  case CK_NullToMemberPointer:
-    return "NullToMemberPointer";
-  case CK_NullToPointer:
-    return "NullToPointer";
-  case CK_BaseToDerivedMemberPointer:
-    return "BaseToDerivedMemberPointer";
-  case CK_DerivedToBaseMemberPointer:
-    return "DerivedToBaseMemberPointer";
-  case CK_ReinterpretMemberPointer:
-    return "ReinterpretMemberPointer";
-  case CK_UserDefinedConversion:
-    return "UserDefinedConversion";
-  case CK_ConstructorConversion:
-    return "ConstructorConversion";
-  case CK_IntegralToPointer:
-    return "IntegralToPointer";
-  case CK_PointerToIntegral:
-    return "PointerToIntegral";
-  case CK_PointerToBoolean:
-    return "PointerToBoolean";
-  case CK_ToVoid:
-    return "ToVoid";
-  case CK_VectorSplat:
-    return "VectorSplat";
-  case CK_IntegralCast:
-    return "IntegralCast";
-  case CK_BooleanToSignedIntegral:
-    return "BooleanToSignedIntegral";
-  case CK_IntegralToBoolean:
-    return "IntegralToBoolean";
-  case CK_IntegralToFloating:
-    return "IntegralToFloating";
-  case CK_FloatingToIntegral:
-    return "FloatingToIntegral";
-  case CK_FloatingCast:
-    return "FloatingCast";
-  case CK_FloatingToBoolean:
-    return "FloatingToBoolean";
-  case CK_MemberPointerToBoolean:
-    return "MemberPointerToBoolean";
-  case CK_CPointerToObjCPointerCast:
-    return "CPointerToObjCPointerCast";
-  case CK_BlockPointerToObjCPointerCast:
-    return "BlockPointerToObjCPointerCast";
-  case CK_AnyPointerToBlockPointerCast:
-    return "AnyPointerToBlockPointerCast";
-  case CK_ObjCObjectLValueCast:
-    return "ObjCObjectLValueCast";
-  case CK_FloatingRealToComplex:
-    return "FloatingRealToComplex";
-  case CK_FloatingComplexToReal:
-    return "FloatingComplexToReal";
-  case CK_FloatingComplexToBoolean:
-    return "FloatingComplexToBoolean";
-  case CK_FloatingComplexCast:
-    return "FloatingComplexCast";
-  case CK_FloatingComplexToIntegralComplex:
-    return "FloatingComplexToIntegralComplex";
-  case CK_IntegralRealToComplex:
-    return "IntegralRealToComplex";
-  case CK_IntegralComplexToReal:
-    return "IntegralComplexToReal";
-  case CK_IntegralComplexToBoolean:
-    return "IntegralComplexToBoolean";
-  case CK_IntegralComplexCast:
-    return "IntegralComplexCast";
-  case CK_IntegralComplexToFloatingComplex:
-    return "IntegralComplexToFloatingComplex";
-  case CK_ARCConsumeObject:
-    return "ARCConsumeObject";
-  case CK_ARCProduceObject:
-    return "ARCProduceObject";
-  case CK_ARCReclaimReturnedObject:
-    return "ARCReclaimReturnedObject";
-  case CK_ARCExtendBlockObject:
-    return "ARCExtendBlockObject";
-  case CK_AtomicToNonAtomic:
-    return "AtomicToNonAtomic";
-  case CK_NonAtomicToAtomic:
-    return "NonAtomicToAtomic";
-  case CK_CopyAndAutoreleaseBlockObject:
-    return "CopyAndAutoreleaseBlockObject";
-  case CK_BuiltinFnToFnPtr:
-    return "BuiltinFnToFnPtr";
-  case CK_ZeroToOCLEvent:
-    return "ZeroToOCLEvent";
-  case CK_AddressSpaceConversion:
-    return "AddressSpaceConversion";
+#define CAST_OPERATION(Name) case CK_##Name: return #Name;
+#include "clang/AST/OperationKinds.def"
   }
-
   llvm_unreachable("Unhandled cast kind!");
 }
 
@@ -1733,8 +1621,13 @@ Expr *CastExpr::getSubExprAsWritten() {
     // subexpression describing the call; strip it off.
     if (E->getCastKind() == CK_ConstructorConversion)
       SubExpr = cast<CXXConstructExpr>(SubExpr)->getArg(0);
-    else if (E->getCastKind() == CK_UserDefinedConversion)
-      SubExpr = cast<CXXMemberCallExpr>(SubExpr)->getImplicitObjectArgument();
+    else if (E->getCastKind() == CK_UserDefinedConversion) {
+      assert((isa<CXXMemberCallExpr>(SubExpr) ||
+              isa<BlockExpr>(SubExpr)) &&
+             "Unexpected SubExpr for CK_UserDefinedConversion.");
+      if (isa<CXXMemberCallExpr>(SubExpr))
+        SubExpr = cast<CXXMemberCallExpr>(SubExpr)->getImplicitObjectArgument();
+    }
     
     // If the subexpression we're left with is an implicit cast, look
     // through that, too.
@@ -1802,40 +1695,9 @@ CStyleCastExpr *CStyleCastExpr::CreateEmpty(const ASTContext &C,
 /// corresponds to, e.g. "<<=".
 StringRef BinaryOperator::getOpcodeStr(Opcode Op) {
   switch (Op) {
-  case BO_PtrMemD:   return ".*";
-  case BO_PtrMemI:   return "->*";
-  case BO_Mul:       return "*";
-  case BO_Div:       return "/";
-  case BO_Rem:       return "%";
-  case BO_Add:       return "+";
-  case BO_Sub:       return "-";
-  case BO_Shl:       return "<<";
-  case BO_Shr:       return ">>";
-  case BO_LT:        return "<";
-  case BO_GT:        return ">";
-  case BO_LE:        return "<=";
-  case BO_GE:        return ">=";
-  case BO_EQ:        return "==";
-  case BO_NE:        return "!=";
-  case BO_And:       return "&";
-  case BO_Xor:       return "^";
-  case BO_Or:        return "|";
-  case BO_LAnd:      return "&&";
-  case BO_LOr:       return "||";
-  case BO_Assign:    return "=";
-  case BO_MulAssign: return "*=";
-  case BO_DivAssign: return "/=";
-  case BO_RemAssign: return "%=";
-  case BO_AddAssign: return "+=";
-  case BO_SubAssign: return "-=";
-  case BO_ShlAssign: return "<<=";
-  case BO_ShrAssign: return ">>=";
-  case BO_AndAssign: return "&=";
-  case BO_XorAssign: return "^=";
-  case BO_OrAssign:  return "|=";
-  case BO_Comma:     return ",";
+#define BINARY_OPERATION(Name, Spelling) case BO_##Name: return Spelling;
+#include "clang/AST/OperationKinds.def"
   }
-
   llvm_unreachable("Invalid OpCode!");
 }
 
@@ -2994,6 +2856,7 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case ObjCStringLiteralClass:
   case ObjCEncodeExprClass:
   case ObjCBoolLiteralExprClass:
+  case ObjCAvailabilityCheckExprClass:
   case CXXUuidofExprClass:
   case OpaqueValueExprClass:
     // These never have a side-effect.
@@ -3028,7 +2891,6 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case CXXThrowExprClass:
   case CXXNewExprClass:
   case CXXDeleteExprClass:
-  case ExprWithCleanupsClass:
   case CoawaitExprClass:
   case CoyieldExprClass:
     // These always have a side-effect.
@@ -3040,6 +2902,12 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
     Finder.Visit(cast<StmtExpr>(this)->getSubStmt());
     return Finder.hasSideEffects();
   }
+
+  case ExprWithCleanupsClass:
+    if (IncludePossibleEffects)
+      if (cast<ExprWithCleanups>(this)->cleanupsHaveSideEffects())
+        return true;
+    break;
 
   case ParenExprClass:
   case ArraySubscriptExprClass:
@@ -3138,6 +3006,13 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
       return true;
     // A trivial constructor does not add any side-effects of its own. Just look
     // at its arguments.
+    break;
+  }
+
+  case CXXInheritedCtorInitExprClass: {
+    const auto *ICIE = cast<CXXInheritedCtorInitExpr>(this);
+    if (!ICIE->getConstructor()->isTrivial() && IncludePossibleEffects)
+      return true;
     break;
   }
 
@@ -3643,8 +3518,7 @@ IdentifierInfo *DesignatedInitExpr::Designator::getFieldName() const {
 }
 
 DesignatedInitExpr::DesignatedInitExpr(const ASTContext &C, QualType Ty,
-                                       unsigned NumDesignators,
-                                       const Designator *Designators,
+                                       llvm::ArrayRef<Designator> Designators,
                                        SourceLocation EqualOrColonLoc,
                                        bool GNUSyntax,
                                        ArrayRef<Expr*> IndexExprs,
@@ -3655,7 +3529,7 @@ DesignatedInitExpr::DesignatedInitExpr(const ASTContext &C, QualType Ty,
          Init->isInstantiationDependent(),
          Init->containsUnexpandedParameterPack()),
     EqualOrColonLoc(EqualOrColonLoc), GNUSyntax(GNUSyntax),
-    NumDesignators(NumDesignators), NumSubExprs(IndexExprs.size() + 1) {
+    NumDesignators(Designators.size()), NumSubExprs(IndexExprs.size() + 1) {
   this->Designators = new (C) Designator[NumDesignators];
 
   // Record the initializer itself.
@@ -3709,14 +3583,14 @@ DesignatedInitExpr::DesignatedInitExpr(const ASTContext &C, QualType Ty,
 }
 
 DesignatedInitExpr *
-DesignatedInitExpr::Create(const ASTContext &C, Designator *Designators,
-                           unsigned NumDesignators,
+DesignatedInitExpr::Create(const ASTContext &C,
+                           llvm::ArrayRef<Designator> Designators,
                            ArrayRef<Expr*> IndexExprs,
                            SourceLocation ColonOrEqualLoc,
                            bool UsesColonSyntax, Expr *Init) {
   void *Mem = C.Allocate(totalSizeToAlloc<Stmt *>(IndexExprs.size() + 1),
                          llvm::alignOf<DesignatedInitExpr>());
-  return new (Mem) DesignatedInitExpr(C, C.VoidTy, NumDesignators, Designators,
+  return new (Mem) DesignatedInitExpr(C, C.VoidTy, Designators,
                                       ColonOrEqualLoc, UsesColonSyntax,
                                       IndexExprs, Init);
 }
@@ -3747,8 +3621,8 @@ SourceRange DesignatedInitExpr::getDesignatorsSourceRange() const {
 
 SourceLocation DesignatedInitExpr::getLocStart() const {
   SourceLocation StartLoc;
-  Designator &First =
-    *const_cast<DesignatedInitExpr*>(this)->designators_begin();
+  auto *DIE = const_cast<DesignatedInitExpr *>(this);
+  Designator &First = *DIE->getDesignator(0);
   if (First.isFieldDesignator()) {
     if (GNUSyntax)
       StartLoc = SourceLocation::getFromRawEncoding(First.Field.FieldLoc);
@@ -4010,16 +3884,18 @@ unsigned AtomicExpr::getNumSubExprs(AtomicOp Op) {
   llvm_unreachable("unknown atomic op");
 }
 
-QualType OMPArraySectionExpr::getBaseOriginalType(Expr *Base) {
+QualType OMPArraySectionExpr::getBaseOriginalType(const Expr *Base) {
   unsigned ArraySectionCount = 0;
   while (auto *OASE = dyn_cast<OMPArraySectionExpr>(Base->IgnoreParens())) {
     Base = OASE->getBase();
     ++ArraySectionCount;
   }
-  while (auto *ASE = dyn_cast<ArraySubscriptExpr>(Base->IgnoreParens())) {
+  while (auto *ASE =
+             dyn_cast<ArraySubscriptExpr>(Base->IgnoreParenImpCasts())) {
     Base = ASE->getBase();
     ++ArraySectionCount;
   }
+  Base = Base->IgnoreParenImpCasts();
   auto OriginalTy = Base->getType();
   if (auto *DRE = dyn_cast<DeclRefExpr>(Base))
     if (auto *PVD = dyn_cast<ParmVarDecl>(DRE->getDecl()))

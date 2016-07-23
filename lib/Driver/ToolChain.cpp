@@ -9,6 +9,7 @@
 
 #include "Tools.h"
 #include "clang/Basic/ObjCRuntime.h"
+#include "clang/Config/config.h"
 #include "clang/Driver/Action.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
@@ -247,8 +248,7 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
 
   case Action::InputClass:
   case Action::BindArchClass:
-  case Action::CudaDeviceClass:
-  case Action::CudaHostClass:
+  case Action::OffloadClass:
   case Action::LipoJobClass:
   case Action::DsymutilJobClass:
   case Action::VerifyDebugInfoJobClass:
@@ -341,19 +341,26 @@ std::string ToolChain::GetProgramPath(const char *Name) const {
 
 std::string ToolChain::GetLinkerPath() const {
   if (Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ)) {
-    StringRef Suffix = A->getValue();
+    StringRef UseLinker = A->getValue();
 
-    // If we're passed -fuse-ld= with no argument, or with the argument ld,
-    // then use whatever the default system linker is.
-    if (Suffix.empty() || Suffix == "ld")
-      return GetProgramPath("ld");
+    if (llvm::sys::path::is_absolute(UseLinker)) {
+      // If we're passed -fuse-ld= with what looks like an absolute path,
+      // don't attempt to second-guess that.
+      if (llvm::sys::fs::exists(UseLinker))
+        return UseLinker;
+    } else {
+      // If we're passed -fuse-ld= with no argument, or with the argument ld,
+      // then use whatever the default system linker is.
+      if (UseLinker.empty() || UseLinker == "ld")
+        return GetProgramPath("ld");
 
-    llvm::SmallString<8> LinkerName("ld.");
-    LinkerName.append(Suffix);
+      llvm::SmallString<8> LinkerName("ld.");
+      LinkerName.append(UseLinker);
 
-    std::string LinkerPath(GetProgramPath(LinkerName.c_str()));
-    if (llvm::sys::fs::exists(LinkerPath))
-      return LinkerPath;
+      std::string LinkerPath(GetProgramPath(LinkerName.c_str()));
+      if (llvm::sys::fs::exists(LinkerPath))
+        return LinkerPath;
+    }
 
     getDriver().Diag(diag::err_drv_invalid_linker_name) << A->getAsString(Args);
     return "";
@@ -515,7 +522,6 @@ void ToolChain::addProfileRTLibs(const llvm::opt::ArgList &Args,
   if (!needsProfileRT(Args)) return;
 
   CmdArgs.push_back(getCompilerRTArgString(Args, "profile"));
-  return;
 }
 
 ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
@@ -533,18 +539,41 @@ ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
   return GetDefaultRuntimeLibType();
 }
 
+static bool ParseCXXStdlibType(const StringRef& Name,
+                               ToolChain::CXXStdlibType& Type) {
+  if (Name == "libc++")
+    Type = ToolChain::CST_Libcxx;
+  else if (Name == "libstdc++")
+    Type = ToolChain::CST_Libstdcxx;
+  else
+    return false;
+
+  return true;
+}
+
 ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
-  if (Arg *A = Args.getLastArg(options::OPT_stdlib_EQ)) {
+  ToolChain::CXXStdlibType Type;
+  bool HasValidType = false;
+  bool ForcePlatformDefault = false;
+
+  const Arg *A = Args.getLastArg(options::OPT_stdlib_EQ);
+  if (A) {
     StringRef Value = A->getValue();
-    if (Value == "libc++")
-      return ToolChain::CST_Libcxx;
-    if (Value == "libstdc++")
-      return ToolChain::CST_Libstdcxx;
-    getDriver().Diag(diag::err_drv_invalid_stdlib_name)
-      << A->getAsString(Args);
+    HasValidType = ParseCXXStdlibType(Value, Type);
+
+    // Only use in tests to override CLANG_DEFAULT_CXX_STDLIB!
+    if (Value == "platform")
+      ForcePlatformDefault = true;
+    else if (!HasValidType)
+      getDriver().Diag(diag::err_drv_invalid_stdlib_name)
+        << A->getAsString(Args);
   }
 
-  return ToolChain::CST_Libstdcxx;
+  if (!HasValidType && (ForcePlatformDefault ||
+      !ParseCXXStdlibType(CLANG_DEFAULT_CXX_STDLIB, Type)))
+    Type = GetDefaultCXXStdlibType();
+
+  return Type;
 }
 
 /// \brief Utility function to add a system include directory to CC1 arguments.
@@ -666,3 +695,6 @@ SanitizerMask ToolChain::getSupportedSanitizers() const {
 
 void ToolChain::AddCudaIncludeArgs(const ArgList &DriverArgs,
                                    ArgStringList &CC1Args) const {}
+
+void ToolChain::AddIAMCUIncludeArgs(const ArgList &DriverArgs,
+                                    ArgStringList &CC1Args) const {}

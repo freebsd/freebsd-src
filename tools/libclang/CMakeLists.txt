@@ -11,17 +11,14 @@ set(SOURCES
   CIndexer.cpp
   CXComment.cpp
   CXCursor.cpp
+  CXIndexDataConsumer.cpp
   CXCompilationDatabase.cpp
   CXLoadedDiagnostic.cpp
   CXSourceLocation.cpp
   CXStoredDiagnostic.cpp
   CXString.cpp
   CXType.cpp
-  IndexBody.cpp
-  IndexDecl.cpp
-  IndexTypeSourceInfo.cpp
   Indexing.cpp
-  IndexingContext.cpp
 
   ADDITIONAL_HEADERS
   CIndexDiagnostic.h
@@ -33,7 +30,6 @@ set(SOURCES
   CXTranslationUnit.h
   CXType.h
   Index_Internal.h
-  IndexingContext.h
   ../../include/clang-c/Index.h
   )
 
@@ -49,6 +45,11 @@ set(LIBS
 
 if (CLANG_ENABLE_ARCMT)
   list(APPEND LIBS clangARCMigrate)
+endif ()
+
+if (TARGET clangTidyPlugin)
+  add_definitions(-DCLANG_TOOL_EXTRA_BUILD)
+  list(APPEND LIBS clangTidyPlugin)
 endif ()
 
 find_library(DL_LIBRARY_PATH dl)
@@ -114,4 +115,26 @@ if(ENABLE_SHARED)
       VERSION ${LIBCLANG_LIBRARY_VERSION}
       DEFINE_SYMBOL _CINDEX_LIB_)
   endif()
+endif()
+
+if(INTERNAL_INSTALL_PREFIX)
+  set(LIBCLANG_HEADERS_INSTALL_DESTINATION "${INTERNAL_INSTALL_PREFIX}/include")
+else()
+  set(LIBCLANG_HEADERS_INSTALL_DESTINATION include)
+endif()
+
+install(DIRECTORY ../../include/clang-c
+  COMPONENT libclang-headers
+  DESTINATION "${LIBCLANG_HEADERS_INSTALL_DESTINATION}"
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+  )
+
+if (NOT CMAKE_CONFIGURATION_TYPES) # don't add this for IDE's.
+  add_custom_target(install-libclang-headers
+    DEPENDS
+    COMMAND "${CMAKE_COMMAND}"
+            -DCMAKE_INSTALL_COMPONENT=libclang-headers
+            -P "${CMAKE_BINARY_DIR}/cmake_install.cmake")
 endif()

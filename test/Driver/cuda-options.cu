@@ -22,29 +22,45 @@
 // RUN: | FileCheck -check-prefix NODEVICE -check-prefix HOST \
 // RUN:    -check-prefix NOINCLUDES-DEVICE -check-prefix LINK %s
 
-// Same test as above, but with preceeding --cuda-device-only to make sure only
-// the last option has an effect.
-// RUN: %clang -### -target x86_64-linux-gnu --cuda-device-only --cuda-host-only %s 2>&1 \
-// RUN: | FileCheck -check-prefix NODEVICE -check-prefix HOST \
-// RUN:    -check-prefix NOINCLUDES-DEVICE -check-prefix LINK %s
-
 // Verify that --cuda-device-only disables host-side compilation and linking.
 // RUN: %clang -### -target x86_64-linux-gnu --cuda-device-only %s 2>&1 \
 // RUN: | FileCheck -check-prefix DEVICE -check-prefix DEVICE-NOSAVE \
 // RUN:    -check-prefix NOHOST -check-prefix NOLINK %s
 
-// Same test as above, but with preceeding --cuda-host-only to make sure only
-// the last option has an effect.
-// RUN: %clang -### -target x86_64-linux-gnu --cuda-host-only --cuda-device-only %s 2>&1 \
+// Check that the last of --cuda-compile-host-device, --cuda-host-only, and
+// --cuda-device-only wins.
+
+// RUN: %clang -### -target x86_64-linux-gnu --cuda-device-only \
+// RUN:    --cuda-host-only %s 2>&1 \
+// RUN: | FileCheck -check-prefix NODEVICE -check-prefix HOST \
+// RUN:    -check-prefix NOINCLUDES-DEVICE -check-prefix LINK %s
+
+// RUN: %clang -### -target x86_64-linux-gnu --cuda-compile-host-device \
+// RUN:    --cuda-host-only %s 2>&1 \
+// RUN: | FileCheck -check-prefix NODEVICE -check-prefix HOST \
+// RUN:    -check-prefix NOINCLUDES-DEVICE -check-prefix LINK %s
+
+// RUN: %clang -### -target x86_64-linux-gnu --cuda-host-only \
+// RUN:    --cuda-device-only %s 2>&1 \
 // RUN: | FileCheck -check-prefix DEVICE -check-prefix DEVICE-NOSAVE \
 // RUN:    -check-prefix NOHOST -check-prefix NOLINK %s
 
-// Verify that with -S we compile host and device sides to assembly and
-// incorporate device code into the host side.
-// RUN: %clang -### -target x86_64-linux-gnu -S -c %s 2>&1 \
+// RUN: %clang -### -target x86_64-linux-gnu --cuda-compile-host-device \
+// RUN:    --cuda-device-only %s 2>&1 \
+// RUN: | FileCheck -check-prefix DEVICE -check-prefix DEVICE-NOSAVE \
+// RUN:    -check-prefix NOHOST -check-prefix NOLINK %s
+
+// RUN: %clang -### -target x86_64-linux-gnu --cuda-host-only \
+// RUN:   --cuda-compile-host-device %s 2>&1 \
 // RUN: | FileCheck -check-prefix DEVICE -check-prefix DEVICE-NOSAVE \
 // RUN:    -check-prefix HOST -check-prefix INCLUDES-DEVICE \
-// RUN:    -check-prefix NOLINK %s
+// RUN:    -check-prefix LINK %s
+
+// RUN: %clang -### -target x86_64-linux-gnu --cuda-device-only \
+// RUN:   --cuda-compile-host-device %s 2>&1 \
+// RUN: | FileCheck -check-prefix DEVICE -check-prefix DEVICE-NOSAVE \
+// RUN:    -check-prefix HOST -check-prefix INCLUDES-DEVICE \
+// RUN:    -check-prefix LINK %s
 
 // Verify that --cuda-gpu-arch option passes the correct GPU archtecture to
 // device compilation.
@@ -61,7 +77,7 @@
 // RUN:    -check-prefix DEVICE2 -check-prefix DEVICE-SM35 \
 // RUN:    -check-prefix DEVICE2-SM30 -check-prefix HOST \
 // RUN:    -check-prefix HOST-NOSAVE -check-prefix INCLUDES-DEVICE \
-// RUN:    -check-prefix INCLUDES-DEVICE2 -check-prefix NOLINK %s
+// RUN:    -check-prefix NOLINK %s
 
 // Verify that device-side results are passed to the correct tool when
 // -save-temps is used.
@@ -92,9 +108,15 @@
 // DEVICE-NOSAVE-SAME: "-aux-triple" "x86_64--linux-gnu"
 // DEVICE-SAME: "-fcuda-is-device"
 // DEVICE-SM35-SAME: "-target-cpu" "sm_35"
-// DEVICE-SAME: "-o" "[[GPUBINARY1:[^"]*]]"
+// DEVICE-SAME: "-o" "[[PTXFILE:[^"]*]]"
 // DEVICE-NOSAVE-SAME: "-x" "cuda"
 // DEVICE-SAVE-SAME: "-x" "ir"
+
+// Match the call to ptxas (which assembles PTX to SASS).
+// DEVICE:ptxas
+// DEVICE-SM35-DAG: "--gpu-name" "sm_35"
+// DEVICE-DAG: "--output-file" "[[CUBINFILE:[^"]*]]"
+// DEVICE-DAG: "[[PTXFILE]]"
 
 // Match another device-side compilation.
 // DEVICE2: "-cc1" "-triple" "nvptx64-nvidia-cuda"
@@ -106,23 +128,27 @@
 
 // Match no device-side compilation.
 // NODEVICE-NOT: "-cc1" "-triple" "nvptx64-nvidia-cuda"
-// NODEVICE-SAME-NOT: "-fcuda-is-device"
+// NODEVICE-NOT: "-fcuda-is-device"
+
+// INCLUDES-DEVICE:fatbinary
+// INCLUDES-DEVICE-DAG: "--create" "[[FATBINARY:[^"]*]]"
+// INCLUDES-DEVICE-DAG: "--image=profile=sm_{{[0-9]+}},file=[[CUBINFILE]]"
+// INCLUDES-DEVICE-DAG: "--image=profile=compute_{{[0-9]+}},file=[[PTXFILE]]"
 
 // Match host-side preprocessor job with -save-temps.
 // HOST-SAVE: "-cc1" "-triple" "x86_64--linux-gnu"
 // HOST-SAVE-SAME: "-aux-triple" "nvptx64-nvidia-cuda"
-// HOST-SAVE-SAME-NOT: "-fcuda-is-device"
+// HOST-SAVE-NOT: "-fcuda-is-device"
 // HOST-SAVE-SAME: "-x" "cuda"
 
 // Match host-side compilation.
 // HOST: "-cc1" "-triple" "x86_64--linux-gnu"
 // HOST-SAME: "-aux-triple" "nvptx64-nvidia-cuda"
-// HOST-SAME-NOT: "-fcuda-is-device"
+// HOST-NOT: "-fcuda-is-device"
 // HOST-SAME: "-o" "[[HOSTOUTPUT:[^"]*]]"
 // HOST-NOSAVE-SAME: "-x" "cuda"
 // HOST-SAVE-SAME: "-x" "cuda-cpp-output"
-// INCLUDES-DEVICE-SAME: "-fcuda-include-gpubinary" "[[GPUBINARY1]]"
-// INCLUDES-DEVICE2-SAME: "-fcuda-include-gpubinary" "[[GPUBINARY2]]"
+// INCLUDES-DEVICE-SAME: "-fcuda-include-gpubinary" "[[FATBINARY]]"
 
 // Match external assembler that uses compilation output.
 // HOST-AS: "-o" "{{.*}}.o" "[[HOSTOUTPUT]]"
@@ -132,7 +158,7 @@
 
 // Match no host compilation.
 // NOHOST-NOT: "-cc1" "-triple"
-// NOHOST-SAME-NOT: "-x" "cuda"
+// NOHOST-NOT: "-x" "cuda"
 
 // Match linker.
 // LINK: "{{.*}}{{ld|link}}{{(.exe)?}}"

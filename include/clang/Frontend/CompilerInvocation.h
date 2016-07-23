@@ -47,7 +47,8 @@ class DiagnosticsEngine;
 /// When errors are encountered, return false and, if Diags is non-null,
 /// report the error(s).
 bool ParseDiagnosticArgs(DiagnosticOptions &Opts, llvm::opt::ArgList &Args,
-                         DiagnosticsEngine *Diags = nullptr);
+                         DiagnosticsEngine *Diags = nullptr,
+                         bool DefaultDiagColor = true);
 
 class CompilerInvocationBase : public RefCountedBase<CompilerInvocation> {
   void operator=(const CompilerInvocationBase &) = delete;
@@ -153,8 +154,11 @@ public:
   ///
   /// \param Opts - The LangOptions object to set up.
   /// \param IK - The input language.
+  /// \param T - The target triple.
+  /// \param PPOpts - The PreprocessorOptions affected.
   /// \param LangStd - The input language standard.
   static void setLangDefaults(LangOptions &Opts, InputKind IK,
+                   const llvm::Triple &T, PreprocessorOptions &PPOpts,
                    LangStandard::Kind LangStd = LangStandard::lang_unspecified);
   
   /// \brief Retrieve a module hash string that is suitable for uniquely 

@@ -126,9 +126,9 @@ void MangleContext::mangleName(const NamedDecl *D, raw_ostream &Out) {
     // llvm mangler on ELF is a nop, so we can just avoid adding the \01
     // marker.  We also avoid adding the marker if this is an alias for an
     // LLVM intrinsic.
-    StringRef UserLabelPrefix =
-        getASTContext().getTargetInfo().getUserLabelPrefix();
-    if (!UserLabelPrefix.empty() && !ALA->getLabel().startswith("llvm."))
+    char GlobalPrefix =
+        getASTContext().getTargetInfo().getDataLayout().getGlobalPrefix();
+    if (GlobalPrefix && !ALA->getLabel().startswith("llvm."))
       Out << '\01'; // LLVM IR Marker for __asm("foo")
 
     Out << ALA->getLabel();
@@ -177,9 +177,9 @@ void MangleContext::mangleName(const NamedDecl *D, raw_ostream &Out) {
       ++ArgWords;
   for (const auto &AT : Proto->param_types())
     // Size should be aligned to pointer size.
-    ArgWords += llvm::RoundUpToAlignment(ASTContext.getTypeSize(AT),
-                                         TI.getPointerWidth(0)) /
-                TI.getPointerWidth(0);
+    ArgWords +=
+        llvm::alignTo(ASTContext.getTypeSize(AT), TI.getPointerWidth(0)) /
+        TI.getPointerWidth(0);
   Out << ((TI.getPointerWidth(0) / 8) * ArgWords);
 }
 
@@ -254,11 +254,8 @@ void MangleContext::mangleBlock(const DeclContext *DC, const BlockDecl *BD,
   mangleFunctionBlock(*this, Buffer, BD, Out);
 }
 
-void MangleContext::mangleObjCMethodName(const ObjCMethodDecl *MD,
-                                         raw_ostream &Out) {
-  SmallString<64> Name;
-  llvm::raw_svector_ostream OS(Name);
-  
+void MangleContext::mangleObjCMethodNameWithoutSize(const ObjCMethodDecl *MD,
+                                                    raw_ostream &OS) {
   const ObjCContainerDecl *CD =
   dyn_cast<ObjCContainerDecl>(MD->getDeclContext());
   assert (CD && "Missing container decl in GetNameForMethod");
@@ -268,6 +265,13 @@ void MangleContext::mangleObjCMethodName(const ObjCMethodDecl *MD,
   OS << ' ';
   MD->getSelector().print(OS);
   OS << ']';
-  
+}
+
+void MangleContext::mangleObjCMethodName(const ObjCMethodDecl *MD,
+                                         raw_ostream &Out) {
+  SmallString<64> Name;
+  llvm::raw_svector_ostream OS(Name);
+
+  mangleObjCMethodNameWithoutSize(MD, OS);
   Out << OS.str().size() << OS.str();
 }
