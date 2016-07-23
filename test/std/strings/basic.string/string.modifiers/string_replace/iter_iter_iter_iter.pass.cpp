@@ -29,12 +29,13 @@ test(S s, typename S::size_type pos1, typename S::size_type n1, It f, It l, S ex
     typename S::const_iterator last = s.begin() + pos1 + n1;
     typename S::size_type xlen = last - first;
     s.replace(first, last, f, l);
-    assert(s.__invariants());
+    LIBCPP_ASSERT(s.__invariants());
     assert(s == expected);
     typename S::size_type rlen = std::distance(f, l);
     assert(s.size() == old_size - xlen + rlen);
 }
 
+#ifndef TEST_HAS_NO_EXCEPTIONS
 template <class S, class It>
 void
 test_exceptions(S s, typename S::size_type pos1, typename S::size_type n1, It f, It l)
@@ -47,9 +48,10 @@ test_exceptions(S s, typename S::size_type pos1, typename S::size_type n1, It f,
 	    assert(false);
 	    }
 	catch (...) {}
-    assert(s.__invariants());
+    LIBCPP_ASSERT(s.__invariants());
     assert(s == aCopy);
 }
+#endif
 
 const char* str = "12345678901234567890";
 
@@ -990,6 +992,7 @@ int main()
     test8<S>();
     }
 #endif
+#ifndef TEST_HAS_NO_EXCEPTIONS
 	{ // test iterator operations that throw
     typedef std::string S;
     typedef ThrowingIterator<char> TIter;
@@ -1003,4 +1006,5 @@ int main()
     test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, TIter(s, s+10, 5, TIter::TADereference), TIter());
     test_exceptions(S("abcdefghijklmnopqrst"), 10, 5, TIter(s, s+10, 6, TIter::TAComparison), TIter());
 	}
+#endif
 }

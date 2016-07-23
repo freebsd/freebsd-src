@@ -12,7 +12,7 @@
 // is_array
 
 #include <type_traits>
-#include <cstddef>        // for std::nullptr_t 
+#include <cstddef>        // for std::nullptr_t
 #include "test_macros.h"
 
 template <class T>
@@ -67,6 +67,7 @@ class Abstract
 };
 
 enum Enum {zero, one};
+struct incomplete_type;
 
 typedef void (*FunctionPtr)();
 
@@ -89,5 +90,5 @@ int main()
     test_is_not_array<Empty>();
     test_is_not_array<bit_zero>();
     test_is_not_array<NotEmpty>();
-    test_is_not_array<Abstract>();
+    test_is_not_array<incomplete_type>();  //  LWG#2582
 }

@@ -12,7 +12,9 @@
 // template <class T, size_t N> constexpr bool empty(const T (&array)[N]) noexcept;  // C++17
 // template <class E> constexpr bool empty(initializer_list<E> il) noexcept;         // C++17
 
-#if __cplusplus <= 201402L
+#include "test_macros.h"
+
+#if TEST_STD_VER <= 14
 int main () {}
 #else
 
@@ -40,7 +42,7 @@ void test_container( C& c )
 {
     assert ( std::empty(c)   == c.empty());
 }
-    
+
 template<typename T>
 void test_container( std::initializer_list<T>& c )
 {
@@ -59,7 +61,7 @@ int main()
     std::list<int>   l; l.push_back(2);
     std::array<int, 1> a; a[0] = 3;
     std::initializer_list<int> il = { 4 };
-    
+
     test_container ( v );
     test_container ( l );
     test_container ( a );
@@ -69,7 +71,7 @@ int main()
     test_const_container ( l );
     test_const_container ( a );
     test_const_container ( il );
-    
+
     static constexpr int arrA [] { 1, 2, 3 };
     test_const_array ( arrA );
 }

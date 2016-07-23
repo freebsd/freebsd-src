@@ -49,7 +49,30 @@ An example of using ``LD_LIBRARY_PATH``:
   $ export LD_LIBRARY_PATH=<libcxx-install-prefix>/lib
   $ ./a.out # Searches for libc++ along LD_LIBRARY_PATH
 
+Using libc++experimental and ``<experimental/...>``
+=====================================================
 
+Libc++ provides implementations of experimental technical specifications
+in a separate library, ``libc++experimental.a``. Users of ``<experimental/...>``
+headers may be required to link ``-lc++experimental``.
+
+.. code-block:: bash
+
+  $ clang++ -std=c++14 -stdlib=libc++ test.cpp -lc++experimental
+
+Libc++experimental.a may not always be available, even when libc++ is already
+installed. For information on building libc++experimental from source see
+:ref:`Building Libc++ <build instructions>` and
+:ref:`libc++experimental CMake Options <libc++experimental options>`.
+
+Also see the `Experimental Library Implementation Status <http://libcxx.llvm.org/ts1z_status.html>`__
+page.
+
+.. warning::
+  Experimental libraries are Experimental.
+    * The contents of the ``<experimental/...>`` headers and ``libc++experimental.a``
+      library will not remain compatible between versions.
+    * No guarantees of API or ABI stability are provided.
 
 Using libc++ on Linux
 =====================
@@ -87,3 +110,16 @@ not just libstdc++ so they must be manually linked. For example:
 
   $ g++ -nostdinc++ -I<libcxx-install-prefix>/include/c++/v1 \
          test.cpp -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lgcc
+
+
+GDB Pretty printers for libc++
+------------------------------
+
+GDB does not support pretty-printing of libc++ symbols by default. Unfortunately
+libc++ does not provide pretty-printers itself. However there are 3rd
+party implementations available and although they are not officially
+supported by libc++ they may be useful to users.
+
+Known 3rd Party Implementations Include:
+
+* `Koutheir's libc++ pretty-printers <https://github.com/koutheir/libcxx-pretty-printers>`_.

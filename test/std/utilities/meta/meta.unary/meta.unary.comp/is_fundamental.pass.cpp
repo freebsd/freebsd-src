@@ -45,6 +45,8 @@ void test_is_not_fundamental()
 #endif
 }
 
+class incomplete_type;
+
 class Empty
 {
 };
@@ -94,7 +96,7 @@ int main()
 	test_is_fundamental<long double>();
 	test_is_fundamental<char16_t>();
 	test_is_fundamental<char32_t>();
-	
+
     test_is_not_fundamental<char[3]>();
     test_is_not_fundamental<char[]>();
     test_is_not_fundamental<void *>();
@@ -103,6 +105,7 @@ int main()
     test_is_not_fundamental<int&&>();
     test_is_not_fundamental<Union>();
     test_is_not_fundamental<Empty>();
+    test_is_not_fundamental<incomplete_type>();
     test_is_not_fundamental<bit_zero>();
     test_is_not_fundamental<int*>();
     test_is_not_fundamental<const int*>();

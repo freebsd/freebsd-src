@@ -23,10 +23,11 @@ void
 test(S s, It first, It last, S expected)
 {
     s.append(first, last);
-    assert(s.__invariants());
+    LIBCPP_ASSERT(s.__invariants());
     assert(s == expected);
 }
 
+#ifndef TEST_HAS_NO_EXCEPTIONS
 template <class S, class It>
 void
 test_exceptions(S s, It first, It last)
@@ -37,9 +38,10 @@ test_exceptions(S s, It first, It last)
     	assert(false);
     	}
     catch (...) {}
-    assert(s.__invariants());
+    LIBCPP_ASSERT(s.__invariants());
     assert(s == aCopy);
 }
+#endif
 
 int main()
 {
@@ -161,6 +163,7 @@ int main()
          S("12345678901234567890""ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
     }
 #endif
+#ifndef TEST_HAS_NO_EXCEPTIONS
 	{ // test iterator operations that throw
     typedef std::string S;
     typedef ThrowingIterator<char> TIter;
@@ -174,4 +177,5 @@ int main()
     test_exceptions(S(), TIter(s, s+10, 5, TIter::TADereference), TIter());
     test_exceptions(S(), TIter(s, s+10, 6, TIter::TAComparison), TIter());
 	}
+#endif
 }

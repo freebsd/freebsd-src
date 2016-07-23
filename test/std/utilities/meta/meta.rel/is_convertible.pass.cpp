@@ -12,7 +12,6 @@
 // is_convertible
 
 #include <type_traits>
-
 #include "test_macros.h"
 
 template <class T, class U>
@@ -46,10 +45,20 @@ void test_is_not_convertible()
 }
 
 typedef void Function();
+typedef void ConstFunction() const;
 typedef char Array[1];
+
+struct StringType {
+  StringType(const char*) {}
+};
 
 class NonCopyable {
   NonCopyable(NonCopyable&);
+};
+
+template <typename T>
+class CannotInstantiate {
+  enum { X = T::ThisExpressionWillBlowUp };
 };
 
 int main()
@@ -64,12 +73,19 @@ int main()
     test_is_not_convertible<void,char> ();
     test_is_not_convertible<void,char&> ();
     test_is_not_convertible<void,char*> ();
+    test_is_not_convertible<char, void>();
 
     // Function
     test_is_not_convertible<Function, void> ();
     test_is_not_convertible<Function, Function> ();
     test_is_convertible<Function, Function&> ();
     test_is_convertible<Function, Function*> ();
+    test_is_convertible<Function, Function*const> ();
+
+#if TEST_STD_VER >= 11
+    static_assert(( std::is_convertible<Function, Function&&>::value), "");
+#endif
+
     test_is_not_convertible<Function, Array> ();
     test_is_not_convertible<Function, Array&> ();
     test_is_not_convertible<Function, char> ();
@@ -100,6 +116,16 @@ int main()
     test_is_not_convertible<Function*, char&> ();
     test_is_not_convertible<Function*, char*> ();
 
+    // Non-referencable function type
+    static_assert((!std::is_convertible<ConstFunction, Function>::value), "");
+    static_assert((!std::is_convertible<ConstFunction, Function*>::value), "");
+    static_assert((!std::is_convertible<ConstFunction, Function&>::value), "");
+    static_assert((!std::is_convertible<ConstFunction, Function>::value), "");
+    static_assert((!std::is_convertible<Function*, ConstFunction>::value), "");
+    static_assert((!std::is_convertible<Function&, ConstFunction>::value), "");
+    static_assert((!std::is_convertible<ConstFunction, ConstFunction>::value), "");
+    static_assert((!std::is_convertible<ConstFunction, void>::value), "");
+
     // Array
     test_is_not_convertible<Array, void> ();
     test_is_not_convertible<Array, Function> ();
@@ -109,16 +135,36 @@ int main()
 
     static_assert((!std::is_convertible<Array, Array&>::value), "");
     static_assert(( std::is_convertible<Array, const Array&>::value), "");
+    static_assert((!std::is_convertible<Array, const volatile Array&>::value), "");
+
     static_assert((!std::is_convertible<const Array, Array&>::value), "");
     static_assert(( std::is_convertible<const Array, const Array&>::value), "");
+    static_assert((!std::is_convertible<Array, volatile Array&>::value), "");
+    static_assert((!std::is_convertible<Array, const volatile Array&>::value), "");
+
+#if TEST_STD_VER >= 11
+    static_assert(( std::is_convertible<Array, Array&&>::value), "");
+    static_assert(( std::is_convertible<Array, const Array&&>::value), "");
+    static_assert(( std::is_convertible<Array, volatile Array&&>::value), "");
+    static_assert(( std::is_convertible<Array, const volatile Array&&>::value), "");
+    static_assert(( std::is_convertible<const Array, const Array&&>::value), "");
+    static_assert((!std::is_convertible<Array&, Array&&>::value), "");
+    static_assert((!std::is_convertible<Array&&, Array&>::value), "");
+#endif
 
     test_is_not_convertible<Array, char> ();
     test_is_not_convertible<Array, char&> ();
 
     static_assert(( std::is_convertible<Array, char*>::value), "");
     static_assert(( std::is_convertible<Array, const char*>::value), "");
+    static_assert(( std::is_convertible<Array, char* const>::value), "");
+    static_assert(( std::is_convertible<Array, char* const volatile>::value), "");
+
     static_assert((!std::is_convertible<const Array, char*>::value), "");
     static_assert(( std::is_convertible<const Array, const char*>::value), "");
+
+    static_assert((!std::is_convertible<char[42][42], char*>::value), "");
+    static_assert((!std::is_convertible<char[][1], char*>::value), "");
 
     // Array&
     test_is_not_convertible<Array&, void> ();
@@ -140,6 +186,9 @@ int main()
     static_assert((!std::is_convertible<const Array&, char*>::value), "");
     static_assert(( std::is_convertible<const Array&, const char*>::value), "");
 
+    static_assert((std::is_convertible<Array, StringType>::value), "");
+    static_assert((std::is_convertible<char(&)[], StringType>::value), "");
+
     // char
     test_is_not_convertible<char, void> ();
     test_is_not_convertible<char, Function> ();
@@ -149,7 +198,7 @@ int main()
     test_is_not_convertible<char, Array&> ();
 
     test_is_convertible<char, char> ();
-    
+
     static_assert((!std::is_convertible<char, char&>::value), "");
     static_assert(( std::is_convertible<char, const char&>::value), "");
     static_assert((!std::is_convertible<const char, char&>::value), "");
@@ -166,7 +215,7 @@ int main()
     test_is_not_convertible<char&, Array&> ();
 
     test_is_convertible<char&, char> ();
-    
+
     static_assert(( std::is_convertible<char&, char&>::value), "");
     static_assert(( std::is_convertible<char&, const char&>::value), "");
     static_assert((!std::is_convertible<const char&, char&>::value), "");
@@ -184,7 +233,7 @@ int main()
 
     test_is_not_convertible<char*, char> ();
     test_is_not_convertible<char*, char&> ();
-    
+
     static_assert(( std::is_convertible<char*, char*>::value), "");
     static_assert(( std::is_convertible<char*, const char*>::value), "");
     static_assert((!std::is_convertible<const char*, char*>::value), "");
@@ -202,8 +251,11 @@ int main()
     static_assert((!std::is_convertible<const NonCopyable&, NonCopyable&>::value), "");
 // This test requires Access control SFINAE which we only have in C++11 or when
 // we are using the compiler builtin for is_convertible.
-#if __cplusplus >= 201103L || !defined(_LIBCPP_USE_IS_CONVERTIBLE_FALLBACK)
+#if TEST_STD_VER >= 11 || !defined(_LIBCPP_USE_IS_CONVERTIBLE_FALLBACK)
     test_is_not_convertible<NonCopyable&, NonCopyable>();
 #endif
 
+    // Ensure that CannotInstantiate is not instantiated by is_convertible when it is not needed.
+    // For example CannotInstantiate is instatiated as a part of ADL lookup for arguments of type CannotInstantiate*.
+    static_assert((std::is_convertible<CannotInstantiate<int>*, CannotInstantiate<int>*>::value), "");
 }

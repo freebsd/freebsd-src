@@ -98,6 +98,7 @@ int main()
         assert(m1 == m2_save);
         assert(m2 == m1_save);
     }
+    }
     {
         typedef test_allocator<V> A;
         typedef test_compare<std::less<int> > C;
@@ -166,8 +167,7 @@ int main()
         assert(m2.key_comp() == C(1));
         assert(m2.get_allocator() == A(1));
     }
-    }
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
     typedef std::map<int, double, std::less<int>, min_allocator<V>> M;
     {
@@ -242,6 +242,7 @@ int main()
         assert(m1 == m2_save);
         assert(m2 == m1_save);
     }
+    }
     {
         typedef min_allocator<V> A;
         typedef test_compare<std::less<int> > C;
@@ -275,7 +276,6 @@ int main()
         assert(m1.get_allocator() == A());
         assert(m2.key_comp() == C(1));
         assert(m2.get_allocator() == A());
-    }
     }
 #endif
 }

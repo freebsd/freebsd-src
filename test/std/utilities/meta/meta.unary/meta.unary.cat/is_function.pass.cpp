@@ -67,6 +67,7 @@ class Abstract
 };
 
 enum Enum {zero, one};
+struct incomplete_type;
 
 typedef void (*FunctionPtr)();
 
@@ -77,7 +78,7 @@ int main()
 	test_is_function<int(int, double)>();
 	test_is_function<int(Abstract *)>();
 	test_is_function<void(...)>();
-	
+
     test_is_not_function<std::nullptr_t>();
     test_is_not_function<void>();
     test_is_not_function<int>();
@@ -95,4 +96,5 @@ int main()
     test_is_not_function<NotEmpty>();
     test_is_not_function<Abstract>();
     test_is_not_function<Abstract*>();
+    test_is_not_function<incomplete_type>();
 }

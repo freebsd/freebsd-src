@@ -79,6 +79,7 @@ add_library_flags_if(LIBCXX_HAS_C_LIB c)
 add_library_flags_if(LIBCXX_HAS_M_LIB m)
 add_library_flags_if(LIBCXX_HAS_RT_LIB rt)
 add_library_flags_if(LIBCXX_HAS_GCC_S_LIB gcc_s)
+add_library_flags_if(LIBCXX_HAVE_CXX_ATOMICS_WITH_LIB atomic)
 
 # Setup flags.
 add_flags_if_supported(-fPIC)
@@ -87,7 +88,21 @@ add_link_flags_if_supported(-nodefaultlibs)
 if ( APPLE AND (LIBCXX_CXX_ABI_LIBNAME STREQUAL "libcxxabi" OR
                 LIBCXX_CXX_ABI_LIBNAME STREQUAL "none"))
   if (NOT DEFINED LIBCXX_LIBCPPABI_VERSION)
-    set(LIBCXX_LIBCPPABI_VERSION "2")
+    set(LIBCXX_LIBCPPABI_VERSION "2") # Default value
+    execute_process(
+      COMMAND xcrun --show-sdk-version
+      OUTPUT_VARIABLE sdk_ver
+      RESULT_VARIABLE res
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if (res EQUAL 0)
+      message(STATUS "Found SDK version ${sdk_ver}")
+      string(REPLACE "10." "" sdk_ver "${sdk_ver}")
+      if (sdk_ver LESS 9)
+        set(LIBCXX_LIBCPPABI_VERSION "")
+      else()
+        set(LIBCXX_LIBCPPABI_VERSION "2")
+      endif()
+    endif()
   endif()
 
   if ( CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "10.6" )
@@ -137,6 +152,26 @@ set_target_properties(cxx
     SOVERSION     "${LIBCXX_ABI_VERSION}"
   )
 
+if (LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY)
+  file(GLOB LIBCXX_EXPERIMENTAL_SOURCES ../src/experimental/*.cpp)
+  if (LIBCXX_ENABLE_FILESYSTEM)
+    file(GLOB LIBCXX_FILESYSTEM_SOURCES ../src/experimental/filesystem/*.cpp)
+  endif()
+  add_library(cxx_experimental STATIC ${LIBCXX_EXPERIMENTAL_SOURCES} ${LIBCXX_FILESYSTEM_SOURCES})
+  target_link_libraries(cxx_experimental cxx)
+
+  set(experimental_flags "${LIBCXX_COMPILE_FLAGS}")
+  check_flag_supported(-std=c++14)
+  if (NOT MSVC AND LIBCXX_SUPPORTS_STD_EQ_CXX14_FLAG)
+    string(REPLACE "-std=c++11" "-std=c++14" experimental_flags "${LIBCXX_COMPILE_FLAGS}")
+  endif()
+  set_target_properties(cxx_experimental
+    PROPERTIES
+      COMPILE_FLAGS "${experimental_flags}"
+      OUTPUT_NAME   "c++experimental"
+  )
+endif()
+
 # Generate a linker script inplace of a libc++.so symlink. Rerun this command
 # after cxx builds.
 if (LIBCXX_ENABLE_ABI_LINKER_SCRIPT)
@@ -159,7 +194,10 @@ if (LIBCXX_ENABLE_ABI_LINKER_SCRIPT)
 endif()
 
 if (LIBCXX_INSTALL_LIBRARY)
-  install(TARGETS cxx
+  if (LIBCXX_INSTALL_EXPERIMENTAL_LIBRARY)
+    set(experimental_lib cxx_experimental)
+  endif()
+  install(TARGETS cxx ${experimental_lib}
     LIBRARY DESTINATION lib${LIBCXX_LIBDIR_SUFFIX} COMPONENT libcxx
     ARCHIVE DESTINATION lib${LIBCXX_LIBDIR_SUFFIX} COMPONENT libcxx
     )
@@ -177,10 +215,18 @@ endif()
 if (NOT CMAKE_CONFIGURATION_TYPES AND (LIBCXX_INSTALL_LIBRARY OR
                                        LIBCXX_INSTALL_HEADERS))
     if(LIBCXX_INSTALL_LIBRARY)
-      set(deps DEPENDS cxx)
+      set(lib_install_target cxx)
+    endif()
+    if (LIBCXX_INSTALL_EXPERIMENTAL_LIBRARY)
+      set(experimental_lib_install_target cxx_experimental)
+    endif()
+    if(LIBCXX_INSTALL_HEADERS)
+      set(header_install_target install-libcxx-headers)
     endif()
     add_custom_target(install-libcxx
-                      ${deps}
+                      DEPENDS ${lib_install_target}
+                              ${experimental_lib_install_target}
+                              ${header_install_target}
                       COMMAND "${CMAKE_COMMAND}"
                       -DCMAKE_INSTALL_COMPONENT=libcxx
                       -P "${LIBCXX_BINARY_DIR}/cmake_install.cmake")

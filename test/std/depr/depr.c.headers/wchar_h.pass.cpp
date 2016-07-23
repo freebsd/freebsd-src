@@ -9,8 +9,8 @@
 
 // <wchar.h>
 
-
 #include <wchar.h>
+#include <stdarg.h>
 #include <type_traits>
 
 #ifndef NULL
@@ -32,25 +32,25 @@
 int main()
 {
 // mbstate_t comes from the underlying C library; it is defined (in C99) as:
-//    a complete object type other than an array type that can hold the conversion 
-//    state information necessary to convert between sequences of multibyte 
+//    a complete object type other than an array type that can hold the conversion
+//    state information necessary to convert between sequences of multibyte
 //    characters and wide characters
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-braces"
-    mbstate_t mb = {0};
-#pragma clang diagnostic pop
-
+    mbstate_t mb = {};
     size_t s = 0;
     tm *tm = 0;
     wint_t w = 0;
     ::FILE* fp = 0;
-#ifdef __APPLE__
-    __darwin_va_list va;
-#else
-    __builtin_va_list va;
-#endif
+    ::va_list va;
     char* ns = 0;
     wchar_t* ws = 0;
+    ((void)mb); // Prevent unused warning
+    ((void)s); // Prevent unused warning
+    ((void)tm); // Prevent unused warning
+    ((void)w); // Prevent unused warning
+    ((void)fp); // Prevent unused warning
+    ((void)va); // Prevent unused warning
+    ((void)ns); // Prevent unused warning
+    ((void)ws); // Prevent unused warning
     static_assert((std::is_same<decltype(fwprintf(fp, L"")), int>::value), "");
     static_assert((std::is_same<decltype(fwscanf(fp, L"")), int>::value), "");
     static_assert((std::is_same<decltype(swprintf(ws, s, L"")), int>::value), "");
@@ -82,19 +82,14 @@ int main()
     static_assert((std::is_same<decltype(wcscoll(L"", L"")), int>::value), "");
     static_assert((std::is_same<decltype(wcsncmp(L"", L"", s)), int>::value), "");
     static_assert((std::is_same<decltype(wcsxfrm(ws, L"", s)), size_t>::value), "");
-    // const wchar_t* wcschr((const wchar_t*)0, L' ') - See below
     static_assert((std::is_same<decltype(wcschr((wchar_t*)0, L' ')), wchar_t*>::value), "");
     static_assert((std::is_same<decltype(wcscspn(L"", L"")), size_t>::value), "");
     static_assert((std::is_same<decltype(wcslen(L"")), size_t>::value), "");
-    // const wchar_t* wcspbrk((const wchar_t*)0, L"") - See below
     static_assert((std::is_same<decltype(wcspbrk((wchar_t*)0, L"")), wchar_t*>::value), "");
-    // const wchar_t* wcsrchr((const wchar_t*)0, L' ') - See below
     static_assert((std::is_same<decltype(wcsrchr((wchar_t*)0, L' ')), wchar_t*>::value), "");
     static_assert((std::is_same<decltype(wcsspn(L"", L"")), size_t>::value), "");
-    // const wchar_t* wcsstr((const wchar_t*)0, L"") - See below
     static_assert((std::is_same<decltype(wcsstr((wchar_t*)0, L"")), wchar_t*>::value), "");
     static_assert((std::is_same<decltype(wcstok(ws, L"", (wchar_t**)0)), wchar_t*>::value), "");
-    // const wchar_t* wmemchr((const wchar_t*)0, L' ', s) - See below
     static_assert((std::is_same<decltype(wmemchr((wchar_t*)0, L' ', s)), wchar_t*>::value), "");
     static_assert((std::is_same<decltype(wmemcmp(L"", L"", s)), int>::value), "");
     static_assert((std::is_same<decltype(wmemcpy(ws, L"", s)), wchar_t*>::value), "");
@@ -110,10 +105,10 @@ int main()
     static_assert((std::is_same<decltype(mbsrtowcs(ws, (const char**)0, s, &mb)), size_t>::value), "");
     static_assert((std::is_same<decltype(wcsrtombs(ns, (const wchar_t**)0, s, &mb)), size_t>::value), "");
 
-// This test fails on systems whose C library doesn't provide a correct overload
-// set for wcschr, wcspbrk, wcsrchr, wcsstr, and wmemchr. There's no way for
-// libc++ to fix that on the C library's behalf.
-#ifndef __APPLE__
+    // These tests fail on systems whose C library doesn't provide a correct overload
+    // set for wcschr, wcspbrk, wcsrchr, wcsstr, and wmemchr, unless the compiler is
+    // a suitably recent version of Clang.
+#if !defined(__APPLE__) || defined(_LIBCPP_PREFERRED_OVERLOAD)
     static_assert((std::is_same<decltype(wcschr((const wchar_t*)0, L' ')), const wchar_t*>::value), "");
     static_assert((std::is_same<decltype(wcspbrk((const wchar_t*)0, L"")), const wchar_t*>::value), "");
     static_assert((std::is_same<decltype(wcsrchr((const wchar_t*)0, L' ')), const wchar_t*>::value), "");

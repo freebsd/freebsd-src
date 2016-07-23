@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-
+// XFAIL: libcpp-no-exceptions
 // <iterator>
 
 // __libcpp_is_trivial_iterator<Tp>
@@ -23,6 +23,7 @@
 #include <vector>
 #include <initializer_list>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 
 int main()
@@ -30,17 +31,17 @@ int main()
 //  basic tests
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<char *>::value), "");
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<const char *>::value), "");
-    
+
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<std::move_iterator<char *> >      ::value), "");
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<std::move_iterator<const char *> >::value), "");
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<std::reverse_iterator<char *> >      ::value), "");
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<std::reverse_iterator<const char *> >::value), "");
-    
+
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<std::__wrap_iter<char *> >      ::value), "");
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<std::__wrap_iter<const char *> >::value), "");
-    
+
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<std::reverse_iterator<std::__wrap_iter<char *> > > ::value), "");
-    
+
 //  iterators in the libc++ test suite
     static_assert((!std::__libcpp_string_gets_noexcept_iterator<output_iterator       <char *> >::value), "");
     static_assert((!std::__libcpp_string_gets_noexcept_iterator<input_iterator        <char *> >::value), "");
@@ -48,13 +49,13 @@ int main()
     static_assert((!std::__libcpp_string_gets_noexcept_iterator<bidirectional_iterator<char *> >::value), "");
     static_assert((!std::__libcpp_string_gets_noexcept_iterator<random_access_iterator<char *> >::value), "");
     static_assert((!std::__libcpp_string_gets_noexcept_iterator<ThrowingIterator      <char *> >::value), "");
-    
-#if __has_feature(cxx_noexcept)
+
+#if TEST_STD_VER >= 11
     static_assert(( std::__libcpp_string_gets_noexcept_iterator<NonThrowingIterator   <char *> >::value), "");
 #else
     static_assert((!std::__libcpp_string_gets_noexcept_iterator<NonThrowingIterator   <char *> >::value), "");
 #endif
-	
+
 //
 //  iterators from libc++'s containers
 //

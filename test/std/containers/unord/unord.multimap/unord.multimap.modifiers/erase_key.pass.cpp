@@ -21,12 +21,12 @@
 
 #include "min_allocator.h"
 
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
 template <typename Unordered>
 bool only_deletions ( const Unordered &whole, const Unordered &part ) {
     typename Unordered::const_iterator w = whole.begin();
     typename Unordered::const_iterator p = part.begin();
-    
+
     while ( w != whole.end () && p != part.end()) {
         if ( *w == *p )
             p++;
@@ -200,7 +200,7 @@ int main()
         assert(std::distance(c.begin(), c.end()) == c.size());
         assert(std::distance(c.cbegin(), c.cend()) == c.size());
     }
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
         typedef std::unordered_multimap<int, std::string, std::hash<int>, std::equal_to<int>,
                             min_allocator<std::pair<const int, std::string>>> C;
@@ -372,7 +372,7 @@ int main()
             m2.insert(std::make_pair(i,j));
             }
         }
-    
+
     C::iterator i = m2.begin();
     int ctr = 0;
     while (i != m2.end()) {

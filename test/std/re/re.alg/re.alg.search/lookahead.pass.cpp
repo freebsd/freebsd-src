@@ -20,8 +20,9 @@
 
 #include <regex>
 #include <cassert>
+#include "test_macros.h"
 
-int main() 
+int main()
 {
     assert(!std::regex_search("ab", std::regex("(?=^)b")));
     assert(!std::regex_search("ab", std::regex("a(?=^)b")));

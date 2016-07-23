@@ -64,7 +64,7 @@ int main()
         assert(m.size() == 1);
         assert(m.begin()->first == 2);
         assert(m.begin()->second == Emplaceable());
-        r = m.emplace_hint(m.end(), std::piecewise_construct, 
+        r = m.emplace_hint(m.end(), std::piecewise_construct,
                                     std::forward_as_tuple(1),
                                     std::forward_as_tuple(2, 3.5));
         assert(r == m.begin());
@@ -89,7 +89,7 @@ int main()
         assert(m.begin()->first == 2);
         assert(m.begin()->second == 3.5);
     }
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
         typedef std::map<int, DefaultOnly, std::less<int>, min_allocator<std::pair<const int, DefaultOnly>>> M;
         typedef M::iterator R;
@@ -130,7 +130,7 @@ int main()
         assert(m.size() == 1);
         assert(m.begin()->first == 2);
         assert(m.begin()->second == Emplaceable());
-        r = m.emplace_hint(m.end(), std::piecewise_construct, 
+        r = m.emplace_hint(m.end(), std::piecewise_construct,
                                     std::forward_as_tuple(1),
                                     std::forward_as_tuple(2, 3.5));
         assert(r == m.begin());

@@ -20,6 +20,8 @@
 #include <memory>
 #include <type_traits>
 
+#include "test_macros.h"
+
 template <class T>
 struct A
 {
@@ -43,13 +45,24 @@ struct C
     struct const_void_pointer {};
 };
 
+
+template <class T>
+struct D
+{
+    typedef T value_type;
+private:
+    typedef void difference_type;
+};
+
 namespace std
 {
 
 template <>
 struct pointer_traits<C<char>::pointer>
 {
-    typedef signed char difference_type;
+    typedef C<char>::pointer pointer;
+    typedef char             element_type;
+    typedef signed char      difference_type;
 };
 
 }
@@ -59,4 +72,7 @@ int main()
     static_assert((std::is_same<std::allocator_traits<A<char> >::difference_type, short>::value), "");
     static_assert((std::is_same<std::allocator_traits<B<char> >::difference_type, std::ptrdiff_t>::value), "");
     static_assert((std::is_same<std::allocator_traits<C<char> >::difference_type, signed char>::value), "");
+#if TEST_STD_VER >= 11
+    static_assert((std::is_same<std::allocator_traits<D<char> >::difference_type, std::ptrdiff_t>::value), "");
+#endif
 }

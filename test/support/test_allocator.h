@@ -76,18 +76,22 @@ public:
             ++alloc_count;
             return (pointer)::operator new(n * sizeof(T));
         }
-    void deallocate(pointer p, size_type n)
+    void deallocate(pointer p, size_type)
         {assert(data_ >= 0); --alloc_count; ::operator delete((void*)p);}
     size_type max_size() const throw()
         {return UINT_MAX / sizeof(T);}
+#if TEST_STD_VER < 11
     void construct(pointer p, const T& val)
-        {::new(p) T(val);}
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-    void construct(pointer p, T&& val)
-        {::new(p) T(std::move(val));}
-#endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
-    void destroy(pointer p) {p->~T();}
-
+        {::new(static_cast<void*>(p)) T(val);}
+#else
+    template <class U> void construct(pointer p, U&& val)
+        {::new(static_cast<void*>(p)) T(std::forward<U>(val));}
+#endif
+    void destroy(pointer p)
+        {
+            p->~T();
+            ((void)p); // Prevent MSVC's spurious unused warning
+        }
     friend bool operator==(const test_allocator& x, const test_allocator& y)
         {return x.data_ == y.data_;}
     friend bool operator!=(const test_allocator& x, const test_allocator& y)
@@ -136,16 +140,17 @@ public:
             ++alloc_count;
             return (pointer)::operator new (n * sizeof(T));
         }
-    void deallocate(pointer p, size_type n)
+    void deallocate(pointer p, size_type)
         {assert(data_ >= 0); --alloc_count; ::operator delete((void*)p); }
     size_type max_size() const throw()
         {return UINT_MAX / sizeof(T);}
+#if TEST_STD_VER < 11
     void construct(pointer p, const T& val)
-        {::new(p) T(val);}
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-    void construct(pointer p, T&& val)
-        {::new(p) T(std::move(val));}
-#endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
+        {::new(static_cast<void*>(p)) T(val);}
+#else
+    template <class U> void construct(pointer p, U&& val)
+        {::new(static_cast<void*>(p)) T(std::forward<U>(val));}
+#endif
     void destroy(pointer p) {p->~T();}
 
     friend bool operator==(const non_default_test_allocator& x, const non_default_test_allocator& y)
@@ -201,7 +206,7 @@ public:
         : data_(a.data_) {}
     T* allocate(std::size_t n)
         {return (T*)::operator new(n * sizeof(T));}
-    void deallocate(T* p, std::size_t n)
+    void deallocate(T* p, std::size_t)
         {::operator delete((void*)p);}
 
     other_allocator select_on_container_copy_construction() const
@@ -222,5 +227,83 @@ public:
 #endif  // _LIBCPP_HAS_NO_ADVANCED_SFINAE
 
 };
+
+#if TEST_STD_VER >= 11
+
+struct Ctor_Tag {};
+
+template <typename T> class TaggingAllocator;
+
+struct Tag_X {
+  // All constructors must be passed the Tag type.
+
+  // DefaultInsertable into vector<X, TaggingAllocator<X>>,
+  Tag_X(Ctor_Tag) {}
+  // CopyInsertable into vector<X, TaggingAllocator<X>>,
+  Tag_X(Ctor_Tag, const Tag_X&) {}
+  // MoveInsertable into vector<X, TaggingAllocator<X>>, and
+  Tag_X(Ctor_Tag, Tag_X&&) {}
+
+  // EmplaceConstructible into vector<X, TaggingAllocator<X>> from args.
+  template<typename... Args>
+  Tag_X(Ctor_Tag, Args&&...) { }
+
+  // not DefaultConstructible, CopyConstructible or MoveConstructible.
+  Tag_X() = delete;
+  Tag_X(const Tag_X&) = delete;
+  Tag_X(Tag_X&&) = delete;
+
+  // CopyAssignable.
+  Tag_X& operator=(const Tag_X&) { return *this; }
+
+  // MoveAssignable.
+  Tag_X& operator=(Tag_X&&) { return *this; }
+
+private:
+  // Not Destructible.
+  ~Tag_X() { }
+
+  // Erasable from vector<X, TaggingAllocator<X>>.
+  friend class TaggingAllocator<Tag_X>;
+};
+
+
+template<typename T>
+class TaggingAllocator {
+public:
+    using value_type = T;
+    TaggingAllocator() = default;
+
+    template<typename U>
+      TaggingAllocator(const TaggingAllocator<U>&) { }
+
+    T* allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
+
+    void deallocate(T* p, std::size_t n) { std::allocator<T>{}.deallocate(p, n); }
+
+    template<typename... Args>
+    void construct(Tag_X* p, Args&&... args)
+    { ::new((void*)p) Tag_X(Ctor_Tag{}, std::forward<Args>(args)...); }
+
+    template<typename U, typename... Args>
+    void construct(U* p, Args&&... args)
+    { ::new((void*)p) U(std::forward<Args>(args)...); }
+
+    template<typename U, typename... Args>
+    void destroy(U* p)
+    { p->~U(); }
+};
+
+template<typename T, typename U>
+bool
+operator==(const TaggingAllocator<T>&, const TaggingAllocator<U>&)
+{ return true; }
+
+template<typename T, typename U>
+bool
+operator!=(const TaggingAllocator<T>&, const TaggingAllocator<U>&)
+{ return false; }
+#endif
+
 
 #endif  // TEST_ALLOCATOR_H

@@ -35,6 +35,11 @@ macro(remove_flags)
   endforeach()
 endmacro(remove_flags)
 
+macro(check_flag_supported flag)
+    mangle_name("${flag}" flagname)
+    check_cxx_compiler_flag("${flag}" "LIBCXX_SUPPORTS_${flagname}_FLAG")
+endmacro()
+
 # Add a macro definition if condition is true.
 macro(define_if condition def)
   if (${condition})
@@ -69,6 +74,26 @@ endmacro()
 macro(config_define value def)
   set(${def} ${value})
   set(LIBCXX_NEEDS_SITE_CONFIG ON)
+endmacro()
+
+# Add a list of flags to all of 'CMAKE_CXX_FLAGS', 'CMAKE_C_FLAGS',
+# 'LIBCXX_COMPILE_FLAGS' and 'LIBCXX_LINK_FLAGS'.
+macro(add_target_flags)
+  foreach(value ${ARGN})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${value}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${value}")
+    list(APPEND LIBCXX_COMPILE_FLAGS ${value})
+    list(APPEND LIBCXX_LINK_FLAGS ${value})
+  endforeach()
+endmacro()
+
+# If the specified 'condition' is true then add a list of flags to
+# all of 'CMAKE_CXX_FLAGS', 'CMAKE_C_FLAGS', 'LIBCXX_COMPILE_FLAGS'
+# and 'LIBCXX_LINK_FLAGS'.
+macro(add_target_flags_if condition)
+  if (${condition})
+    add_target_flags(${ARGN})
+  endif()
 endmacro()
 
 # Add a specified list of flags to both 'LIBCXX_COMPILE_FLAGS' and

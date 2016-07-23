@@ -33,7 +33,7 @@ int main()
     j = c.cbegin();
     assert(i == j);
     }
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
     typedef std::deque<int, min_allocator<int>> C;
     C c;
@@ -68,7 +68,7 @@ int main()
         assert ( (cii >= ii1 ));
         assert (cii - ii1 == 0);
         assert (ii1 - cii == 0);
-        
+
 //         std::deque<int> c;
 //         assert ( ii1 != c.cbegin());
 //         assert ( cii != c.begin());

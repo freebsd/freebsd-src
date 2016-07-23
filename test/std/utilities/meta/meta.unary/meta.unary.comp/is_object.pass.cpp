@@ -45,6 +45,8 @@ void test_is_not_object()
 #endif
 }
 
+class incomplete_type;
+
 class Empty
 {
 };
@@ -73,7 +75,7 @@ typedef void (*FunctionPtr)();
 
 int main()
 {
-// An object type is a (possibly cv-qualified) type that is not a function type, 
+// An object type is a (possibly cv-qualified) type that is not a function type,
 // not a reference type, and not a void type.
 
     test_is_object<std::nullptr_t>();
@@ -86,8 +88,8 @@ int main()
     test_is_object<int*>();
     test_is_object<const int*>();
     test_is_object<Enum>();
-    test_is_object<Empty>();
-    test_is_object<bit_zero>();	
+    test_is_object<incomplete_type>();
+    test_is_object<bit_zero>();
     test_is_object<NotEmpty>();
     test_is_object<Abstract>();
     test_is_object<FunctionPtr>();

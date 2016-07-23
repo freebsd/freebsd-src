@@ -7,9 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NASTY_VECTOR_H
-#define NASTY_VECTOR_H
+#ifndef NASTY_CONTAINERS_H
+#define NASTY_CONTAINERS_H
 
+#include <cassert>
 #include <vector>
 #include <list>
 
@@ -99,7 +100,7 @@ public:
     { return v_.emplace(pos, std::forward<Args>(args)...); }
 #endif
 #endif
-    
+
     iterator insert(const_iterator pos, const value_type& x) { return v_.insert(pos, x); }
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
     iterator insert(const_iterator pos, value_type&& x)      { return v_.insert(pos, std::forward<value_type>(x)); }
@@ -123,10 +124,10 @@ public:
 
     void swap(nasty_vector &nv) _NOEXCEPT_(std::__is_nothrow_swappable<nested_container>::value)
     { v_.swap(nv.v_); }
-    
-    nasty_vector *operator &()             { return nullptr; }  // nasty
-    const nasty_vector *operator &() const { return nullptr; }  // nasty
-    
+
+    nasty_vector *operator &()             { assert(false); return nullptr; }  // nasty
+    const nasty_vector *operator &() const { assert(false); return nullptr; }  // nasty
+
     nested_container v_;
 };
 
@@ -220,7 +221,7 @@ public:
     { return l_.emplace(pos, std::forward<Args>(args)...); }
 #endif
 #endif
-    
+
     iterator insert(const_iterator pos, const value_type& x) { return l_.insert(pos, x); }
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
     iterator insert(const_iterator pos, value_type&& x)      { return l_.insert(pos, std::forward<value_type>(x)); }
@@ -242,7 +243,7 @@ public:
 
     void swap(nasty_list &nl) _NOEXCEPT_(std::__is_nothrow_swappable<nested_container>::value)
     { l_.swap(nl.l_); }
-    
+
     void clear() _NOEXCEPT { l_.clear(); }
 
 //     void splice(const_iterator position, list& x);
@@ -253,7 +254,7 @@ public:
 //                                                   const_iterator last);
 //     void splice(const_iterator position, list&& x, const_iterator first,
 //                                                   const_iterator last);
-// 
+//
 //     void remove(const value_type& value);
 //     template <class Pred> void remove_if(Pred pred);
 //     void unique();
@@ -270,13 +271,39 @@ public:
 //         void sort(Compare comp);
 //     void reverse() noexcept;
 
-    nasty_list *operator &()             { return nullptr; }  // nasty
-    const nasty_list *operator &() const { return nullptr; }  // nasty
+    nasty_list *operator &()             { assert(false); return nullptr; }  // nasty
+    const nasty_list *operator &() const { assert(false); return nullptr; }  // nasty
 
     nested_container l_;
 };
 
 template <class T>
 bool operator==(const nasty_list<T>& x, const nasty_list<T>& y) { return x.l_ == y.l_; }
+
+// Not really a mutex, but can play one in tests
+class nasty_mutex
+{
+public:
+     nasty_mutex() _NOEXCEPT {}
+     ~nasty_mutex() {}
+
+	nasty_mutex *operator& ()   { assert(false); return nullptr; }
+	template <typename T>
+	void operator, (const T &) { assert(false); }
+
+private:
+    nasty_mutex(const nasty_mutex&)            { assert(false); }
+    nasty_mutex& operator=(const nasty_mutex&) { assert(false); return *this; }
+
+public:
+    void lock()               {}
+    bool try_lock() _NOEXCEPT { return true; }
+    void unlock() _NOEXCEPT   {}
+
+    // Shared ownership
+    void lock_shared()     {}
+    bool try_lock_shared() { return true; }
+    void unlock_shared()   {}
+};
 
 #endif

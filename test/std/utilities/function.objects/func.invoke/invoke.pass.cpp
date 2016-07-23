@@ -174,6 +174,32 @@ void bullet_one_two_tests() {
     }
     {
         TestClass cl_obj(42);
+        std::reference_wrapper<TestClass> cl(cl_obj);
+        test_b12<int&(NonCopyable&&) &, int&>(cl);
+        test_b12<int const&(NonCopyable&&) const &, int const&>(cl);
+        test_b12<int volatile&(NonCopyable&&) volatile &, int volatile&>(cl);
+        test_b12<int const volatile&(NonCopyable&&) const volatile &, int const volatile&>(cl);
+
+        test_b12<int&(NonCopyable&&) &, int&>(std::move(cl));
+        test_b12<int const&(NonCopyable&&) const &, int const&>(std::move(cl));
+        test_b12<int volatile&(NonCopyable&&) volatile &, int volatile&>(std::move(cl));
+        test_b12<int const volatile&(NonCopyable&&) const volatile &, int const volatile&>(std::move(cl));
+    }
+    {
+        DerivedFromTestClass cl_obj(42);
+        std::reference_wrapper<DerivedFromTestClass> cl(cl_obj);
+        test_b12<int&(NonCopyable&&) &, int&>(cl);
+        test_b12<int const&(NonCopyable&&) const &, int const&>(cl);
+        test_b12<int volatile&(NonCopyable&&) volatile &, int volatile&>(cl);
+        test_b12<int const volatile&(NonCopyable&&) const volatile &, int const volatile&>(cl);
+
+        test_b12<int&(NonCopyable&&) &, int&>(std::move(cl));
+        test_b12<int const&(NonCopyable&&) const &, int const&>(std::move(cl));
+        test_b12<int volatile&(NonCopyable&&) volatile &, int volatile&>(std::move(cl));
+        test_b12<int const volatile&(NonCopyable&&) const volatile &, int const volatile&>(std::move(cl));
+    }
+    {
+        TestClass cl_obj(42);
         TestClass *cl = &cl_obj;
         test_b12<int&(NonCopyable&&) &, int&>(cl);
         test_b12<int const&(NonCopyable&&) const &, int const&>(cl);
@@ -216,6 +242,22 @@ void bullet_three_four_tests() {
         test_b34<int const&&>(static_cast<Fn const&&>(cl));
         test_b34<int volatile&&>(static_cast<Fn volatile&&>(cl));
         test_b34<int const volatile&&>(static_cast<Fn const volatile&&>(cl));
+    }
+    {
+        typedef TestClass Fn;
+        Fn cl(42);
+        test_b34<int&>(std::reference_wrapper<Fn>(cl));
+        test_b34<int const&>(std::reference_wrapper<Fn const>(cl));
+        test_b34<int volatile&>(std::reference_wrapper<Fn volatile>(cl));
+        test_b34<int const volatile&>(std::reference_wrapper<Fn const volatile>(cl));
+    }
+    {
+        typedef DerivedFromTestClass Fn;
+        Fn cl(42);
+        test_b34<int&>(std::reference_wrapper<Fn>(cl));
+        test_b34<int const&>(std::reference_wrapper<Fn const>(cl));
+        test_b34<int volatile&>(std::reference_wrapper<Fn volatile>(cl));
+        test_b34<int const volatile&>(std::reference_wrapper<Fn const volatile>(cl));
     }
     {
         typedef TestClass Fn;
@@ -262,8 +304,46 @@ void bullet_five_tests() {
     }
 }
 
+struct CopyThrows {
+  CopyThrows() {}
+  CopyThrows(CopyThrows const&) {}
+  CopyThrows(CopyThrows&&) noexcept {}
+};
+
+struct NoThrowCallable {
+  void operator()() noexcept {}
+  void operator()(CopyThrows) noexcept {}
+};
+
+struct ThrowsCallable {
+  void operator()() {}
+};
+
+struct MemberObj {
+  int x;
+};
+
+void noexcept_test() {
+    {
+        NoThrowCallable obj; ((void)obj); // suppress unused warning
+        CopyThrows arg; ((void)arg); // suppress unused warning
+        static_assert(noexcept(std::invoke(obj)), "");
+        static_assert(!noexcept(std::invoke(obj, arg)), "");
+        static_assert(noexcept(std::invoke(obj, std::move(arg))), "");
+    }
+    {
+        ThrowsCallable obj; ((void)obj); // suppress unused warning
+        static_assert(!noexcept(std::invoke(obj)), "");
+    }
+    {
+        MemberObj obj{42}; ((void)obj); // suppress unused warning.
+        static_assert(noexcept(std::invoke(&MemberObj::x, obj)), "");
+    }
+}
+
 int main() {
     bullet_one_two_tests();
     bullet_three_four_tests();
     bullet_five_tests();
+    noexcept_test();
 }

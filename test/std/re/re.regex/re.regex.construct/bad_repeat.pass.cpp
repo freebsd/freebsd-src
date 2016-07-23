@@ -17,8 +17,9 @@
 
 #include <regex>
 #include <cassert>
+#include "test_macros.h"
 
-static bool error_badrepeat_thrown(const char *pat) 
+static bool error_badrepeat_thrown(const char *pat)
 {
     bool result = false;
     try {
@@ -29,7 +30,7 @@ static bool error_badrepeat_thrown(const char *pat)
     return result;
 }
 
-int main() 
+int main()
 {
     assert(error_badrepeat_thrown("?a"));
     assert(error_badrepeat_thrown("*a"));

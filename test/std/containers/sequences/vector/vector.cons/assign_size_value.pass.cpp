@@ -26,7 +26,7 @@ void test ( Vec &v )
 {
     v.assign(5, 6);
     assert(v.size() == 5);
-    assert(is_contiguous_container_asan_correct(v)); 
+    assert(is_contiguous_container_asan_correct(v));
     assert(std::all_of(v.begin(), v.end(), is6));
 }
 
@@ -41,7 +41,7 @@ int main()
     test(d2);
     }
 
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
     typedef std::vector<int, min_allocator<int>> V;
     V d1;

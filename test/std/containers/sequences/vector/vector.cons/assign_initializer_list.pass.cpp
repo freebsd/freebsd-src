@@ -23,7 +23,7 @@ void test ( Vec &v )
 #ifndef _LIBCPP_HAS_NO_GENERALIZED_INITIALIZERS
     v.assign({3, 4, 5, 6});
     assert(v.size() == 4);
-    assert(is_contiguous_container_asan_correct(v)); 
+    assert(is_contiguous_container_asan_correct(v));
     assert(v[0] == 3);
     assert(v[1] == 4);
     assert(v[2] == 5);
@@ -42,7 +42,7 @@ int main()
     test(d2);
     }
 
-#if __cplusplus >= 201103L
+#if TEST_STD_VER >= 11
     {
     typedef std::vector<int, min_allocator<int>> V;
     V d1;
